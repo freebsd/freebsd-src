@@ -142,11 +142,14 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	error = suser(td);
 	if (error)
 		return (error);
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
+	NFSD_LOCK();
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
-		(void) tsleep(&nfssvc_sockhead, PSOCK, "nfsd init", 0);
+		(void) msleep(&nfssvc_sockhead, &nfsd_mtx, PSOCK,
+		    "nfsd init", 0);
 	}
+	NFSD_UNLOCK();
 	if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
@@ -180,7 +183,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if (error == EINTR || error == ERESTART)
 		error = 0;
 done2:
-	mtx_unlock(&Giant);
+	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -195,10 +198,14 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	struct socket *so;
 	int error, s;
 
-	GIANT_REQUIRED;		/* XXX until socket locking done */
+	NET_ASSERT_GIANT();
 
 	so = fp->f_data;
 #if 0
+	/*
+	 * XXXRW: If this code is ever enabled, there's a race when running
+	 * MPSAFE.
+	 */
 	tslp = NULL;
 	/*
 	 * Add it to the list, as required.
@@ -263,12 +270,16 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 		malloc(sizeof (struct nfssvc_sock), M_NFSSVC,
 		M_WAITOK | M_ZERO);
 	STAILQ_INIT(&slp->ns_rec);
+	NFSD_LOCK();
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
 
 	slp->ns_so = so;
 	slp->ns_nam = mynam;
 	fhold(fp);
 	slp->ns_fp = fp;
+	/*
+	 * XXXRW: Socket locking here?
+	 */
 	s = splnet();
 	so->so_upcallarg = (caddr_t)slp;
 	so->so_upcall = nfsrv_rcv;
@@ -276,6 +287,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	slp->ns_flag = (SLP_VALID | SLP_NEEDQ);
 	nfsrv_wakenfsd(slp);
 	splx(s);
+	NFSD_UNLOCK();
 	return (0);
 }
 
@@ -295,6 +307,8 @@ nfssvc_nfsd(struct thread *td)
 	int procrastinate;
 	u_quad_t cur_usec;
 
+	NET_ASSERT_GIANT();
+
 #ifndef nolint
 	cacherep = RC_DOIT;
 	writes_todo = 0;
@@ -302,6 +316,8 @@ nfssvc_nfsd(struct thread *td)
 	nfsd = (struct nfsd *)
 		malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
 	s = splnet();
+	NFSD_LOCK();
+
 	nfsd->nfsd_td = td;
 	TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
 	nfsrv_numnfsd++;
@@ -315,8 +331,8 @@ nfssvc_nfsd(struct thread *td)
 			    (nfsd_head_flag & NFSD_CHECKSLP) == 0) {
 				nfsd->nfsd_flag |= NFSD_WAITING;
 				nfsd_waiting++;
-				error = tsleep(nfsd, PSOCK | PCATCH,
-				    "-", 0);
+				error = msleep(nfsd, &nfsd_mtx,
+				    PSOCK | PCATCH, "-", 0);
 				nfsd_waiting--;
 				if (error)
 					goto done;
@@ -343,8 +359,10 @@ nfssvc_nfsd(struct thread *td)
 				else if (slp->ns_flag & SLP_NEEDQ) {
 					slp->ns_flag &= ~SLP_NEEDQ;
 					(void) nfs_slplock(slp, 1);
+					NFSD_UNLOCK();
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
 						M_TRYWAIT);
+					NFSD_LOCK();
 					nfs_slpunlock(slp);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
@@ -458,6 +476,7 @@ nfssvc_nfsd(struct thread *td)
 			nd->nd_mrep = NULL;
 			/* FALLTHROUGH */
 		    case RC_REPLY:
+			NFSD_UNLOCK();
 			siz = m_length(mreq, NULL);
 			if (siz <= 0 || siz > NFS_MAXPACKET) {
 				printf("mbuf siz=%d\n",siz);
@@ -474,11 +493,16 @@ nfssvc_nfsd(struct thread *td)
 				M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
+			NFSD_LOCK();
 			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
 				(void) nfs_slplock(slp, 1);
-			if (slp->ns_flag & SLP_VALID)
+			if (slp->ns_flag & SLP_VALID) {
+			    NFSD_UNLOCK();
+			    NET_LOCK_GIANT();
 			    error = nfsrv_send(slp->ns_so, nd->nd_nam2, m);
-			else {
+			    NET_UNLOCK_GIANT();
+			    NFSD_LOCK();
+			} else {
 			    error = EPIPE;
 			    m_freem(m);
 			}
@@ -535,6 +559,7 @@ done:
 	free((caddr_t)nfsd, M_NFSD);
 	if (--nfsrv_numnfsd == 0)
 		nfsrv_init(TRUE);	/* Reinitialize everything */
+	NFSD_UNLOCK();
 	return (error);
 }
 
@@ -554,9 +579,18 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 	struct nfsrv_rec *rec;
 	int s;
 
+	NET_ASSERT_GIANT();
+	NFSD_LOCK_ASSERT();
+
+	/*
+	 * XXXRW: By clearing all flags, other threads/etc should ignore
+	 * this slp and we can safely release nfsd_mtx so we can clean
+	 * up the slp safely.
+	 */
 	slp->ns_flag &= ~SLP_ALLFLAGS;
 	fp = slp->ns_fp;
 	if (fp) {
+		NFSD_UNLOCK();
 		slp->ns_fp = NULL;
 		so = slp->ns_so;
 		so->so_rcv.sb_flags &= ~SB_UPCALL;
@@ -564,6 +598,7 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		so->so_upcallarg = NULL;
 		soshutdown(so, SHUT_RDWR);
 		closef(fp, NULL);
+		NFSD_LOCK();
 		if (slp->ns_nam)
 			FREE(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
@@ -593,6 +628,8 @@ void
 nfsrv_slpderef(struct nfssvc_sock *slp)
 {
 
+	NFSD_LOCK_ASSERT();
+
 	if (--(slp->ns_sref) == 0 && (slp->ns_flag & SLP_VALID) == 0) {
 		TAILQ_REMOVE(&nfssvc_sockhead, slp, ns_chain);
 		free((caddr_t)slp, M_NFSSVC);
@@ -601,17 +638,22 @@ nfsrv_slpderef(struct nfssvc_sock *slp)
 
 /*
  * Lock a socket against others.
+ *
+ * XXXRW: Wait argument is always 1 in the caller.  Replace with a real
+ * sleep lock?
  */
 int
 nfs_slplock(struct nfssvc_sock *slp, int wait)
 {
 	int *statep = &slp->ns_solock;
 
+	NFSD_LOCK_ASSERT();
+
 	if (!wait && (*statep & NFSRV_SNDLOCK))
 		return(0);	/* already locked, fail */
 	while (*statep & NFSRV_SNDLOCK) {
 		*statep |= NFSRV_WANTSND;
-		(void) tsleep(statep, PZERO - 1, "nfsslplck", 0);
+		(void) msleep(statep, &nfsd_mtx, PZERO - 1, "nfsslplck", 0);
 	}
 	*statep |= NFSRV_SNDLOCK;
 	return (1);
@@ -624,6 +666,8 @@ void
 nfs_slpunlock(struct nfssvc_sock *slp)
 {
 	int *statep = &slp->ns_solock;
+
+	NFSD_LOCK_ASSERT();
 
 	if ((*statep & NFSRV_SNDLOCK) == 0)
 		panic("nfs slpunlock");
@@ -643,6 +687,9 @@ void
 nfsrv_init(int terminating)
 {
 	struct nfssvc_sock *slp, *nslp;
+
+	NET_ASSERT_GIANT();
+	NFSD_LOCK_ASSERT();
 
 	if (nfssvc_sockhead_flag & SLP_INIT)
 		panic("nfsd init");
