@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.15 1994/11/21 04:14:33 phk Exp $
+# $Id: extract.sh,v 1.16 1994/11/29 00:56:30 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
@@ -29,7 +29,7 @@ fi
 for i in *.aa
 do
 	b=`basename $i .aa`
-	if [ "$b" != bin_tgz ] ; then
+	if [ "$b" != bindist ] ; then
 		if [ "$b" = des ] ; then
 			# We cannot replace /sbin/init while it runs
 			# so move it out of the way for now
