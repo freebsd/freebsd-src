@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.29 1997/02/26 01:17:49 mpp Exp $
+#	$Id: BSD.var.dist,v 1.30 1997/05/03 20:15:15 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -40,7 +40,7 @@
     ..
     preserve        uname=bin
     ..
-    run             uname=bin
+    run             uname=root
     ..
     rwho            uname=bin gname=daemon mode=0775
     ..
