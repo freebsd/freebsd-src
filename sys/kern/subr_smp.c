@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.40 1997/12/04 19:30:03 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.61 1997/12/08 23:00:24 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -52,6 +52,9 @@
 #include <sys/lock.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+#ifdef GPROF 
+#include <sys/gmon.h>
+#endif
 #endif
 
 #include <machine/smp.h>
