@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.42 1997/06/25 08:35:41 dfr Exp $
+ * $Id: nfs_bio.c,v 1.43 1997/08/02 14:33:06 bde Exp $
  */
 
 
@@ -1094,11 +1094,7 @@ nfs_doio(bp, cr, p)
 			  np->n_mtime != np->n_vattr.va_mtime.tv_sec))) {
 			uprintf("Process killed due to text file modification\n");
 			psignal(p, SIGKILL);
-#ifdef __NetBSD__
-			p->p_holdcnt++;
-#else
 			p->p_flag |= P_NOSWAP;
-#endif
 		}
 		break;
 	    case VLNK:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.29 1997/07/16 09:06:27 dfr Exp $
+ * $Id: nfs.h,v 1.30 1997/08/16 19:15:54 wollman Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -93,11 +93,7 @@
  * The B_INVAFTERWRITE flag should be set to whatever is required by the
  * buffer cache code to say "Invalidate the block after it is written back".
  */
-#ifdef __FreeBSD__
 #define	B_INVAFTERWRITE	B_NOCACHE
-#else
-#define	B_INVAFTERWRITE	B_INVAL
-#endif
 
 /*
  * The IO_METASYNC flag should be implemented for local file systems.
