@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2control.c,v 1.5 2002/09/04 21:30:40 max Exp $
+ * $Id: l2control.c,v 1.3 2003/04/27 19:45:34 max Exp $
  * $FreeBSD$
  */
 
@@ -61,7 +61,7 @@ main(int argc, char *argv[])
 	memset(&bdaddr, 0, sizeof(bdaddr));
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "a:")) != -1) {
+	while ((n = getopt(argc, argv, "a:h")) != -1) {
 		switch (n) {
 		case 'a': {
 			int	a0, a1, a2, a3, a4, a5;
@@ -80,6 +80,7 @@ main(int argc, char *argv[])
 			bdaddr.b[5] = (a5 & 0xff);
 			} break;
 
+		case 'h':
 		default:
 			usage();
 			break;
@@ -144,13 +145,6 @@ do_l2cap_command(bdaddr_p bdaddr, int argc, char **argv)
 		if (bind(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
 			err(2,
 "Could not bind socket, bdaddr=%x:%x:%x:%x:%x:%x",
-				sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-				sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-				sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
-
-		if (connect(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
-			err(2,
-"Could not connect socket, bdaddr=%x:%x:%x:%x:%x:%x",
 				sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
 				sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
 				sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
@@ -220,7 +214,7 @@ print_l2cap_command(struct l2cap_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: l2control -a BD_ADDR cmd [p1] [..]]\n");
+	fprintf(stdout, "Usage: l2control -a BD_ADDR [-h] cmd [p1] [..]]\n");
 	exit(255);
 } /* usage */
 

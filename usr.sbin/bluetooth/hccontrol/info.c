@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: info.c,v 1.7 2002/09/06 18:52:41 max Exp $
+ * $Id: info.c,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 

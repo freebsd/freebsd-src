@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: link_control.c,v 1.12 2002/09/17 16:36:46 max Exp $
+ * $Id: link_control.c,v 1.2 2003/03/15 03:07:39 max Exp $
  * $FreeBSD$
  */
 
@@ -536,9 +536,35 @@ hci_remote_name_request(int s, int argc, char **argv)
 	ng_hci_remote_name_req_cp	 cp;
 	ng_hci_event_pkt_t		*e = (ng_hci_event_pkt_t *) b; 
 
+	memset(&cp, 0, sizeof(cp));
+	cp.page_scan_rep_mode = NG_HCI_SCAN_REP_MODE0;
+	cp.page_scan_mode = NG_HCI_MANDATORY_PAGE_SCAN_MODE;
+
 	/* parse command parameters */
 	switch (argc) {
 	case 4:
+		/* clock_offset */
+		if (sscanf(argv[3], "%x", &n0) != 1)
+			return (USAGE);
+
+		cp.clock_offset = (n0 & 0xffff);
+		cp.clock_offset = htole16(cp.clock_offset);
+
+	case 3:
+		/* page_scan_mode */
+		if (sscanf(argv[2], "%d", &n0) != 1 || n0 < 0x00 || n0 > 0x03)
+			return (USAGE);
+
+		cp.page_scan_mode = (n0 & 0xff);
+
+	case 2:
+		/* page_scan_rep_mode */
+		if (sscanf(argv[1], "%d", &n0) != 1 || n0 < 0x00 || n0 > 0x02)
+			return (USAGE);
+
+		cp.page_scan_rep_mode = (n0 & 0xff);
+
+	case 1:
 		/* BD_ADDR */
 		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
 				&n5, &n4, &n3, &n2, &n1, &n0) != 6)
@@ -550,25 +576,6 @@ hci_remote_name_request(int s, int argc, char **argv)
 		cp.bdaddr.b[3] = (n3 & 0xff);
 		cp.bdaddr.b[4] = (n4 & 0xff);
 		cp.bdaddr.b[5] = (n5 & 0xff);
-
-		/* page_scan_rep_mode */
-		if (sscanf(argv[1], "%d", &n0) != 1 || n0 < 0x00 || n0 > 0x02)
-			return (USAGE);
-
-		cp.page_scan_rep_mode = (n0 & 0xff);
-
-		/* page_scan_mode */
-		if (sscanf(argv[2], "%d", &n0) != 1 || n0 < 0x00 || n0 > 0x03)
-			return (USAGE);
-
-		cp.page_scan_mode = (n0 & 0xff);
-
-		/* clock_offset */
-		if (sscanf(argv[3], "%x", &n0) != 1)
-			return (USAGE);
-
-		cp.clock_offset = (n0 & 0xffff);
-		cp.clock_offset = htole16(cp.clock_offset);
 		break;
 
 	default:

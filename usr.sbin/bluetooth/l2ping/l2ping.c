@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2ping.c,v 1.9 2002/09/04 21:28:05 max Exp $
+ * $Id: l2ping.c,v 1.3 2003/04/27 19:45:36 max Exp $
  * $FreeBSD$
  */
 
@@ -64,11 +64,16 @@ static char const		pattern[] = "1234567890-";
 int
 main(int argc, char *argv[])
 {
+	bdaddr_t				src, dst;
+	struct sockaddr_l2cap			sa;
 	struct ng_btsocket_l2cap_raw_ping	r;
 	int					n, s, count, wait, flood, fail;
 	struct timeval				a, b;
 
 	/* Set defaults */
+	memcpy(&src, NG_HCI_BDADDR_ANY, sizeof(src));
+	memcpy(&dst, NG_HCI_BDADDR_ANY, sizeof(dst));
+
 	memset(&r, 0, sizeof(r));
 	r.echo_data = calloc(NG_L2CAP_MAX_ECHO_SIZE, sizeof(u_int8_t));
 	if (r.echo_data == NULL) {
@@ -82,7 +87,7 @@ main(int argc, char *argv[])
 	flood = 0;
 
 	/* Parse command line arguments */
-	while ((n = getopt(argc, argv, "a:c:fi:n:s:S:")) != -1) {
+	while ((n = getopt(argc, argv, "a:c:fi:n:s:S:h")) != -1) {
 		switch (n) {
 		case 'a':
 		case 'S': {
@@ -94,20 +99,20 @@ main(int argc, char *argv[])
 
 			if (n == 'a') {
 				/* destination bdaddr */
-				r.echo_dst.b[0] = (a0 & 0xff);
-				r.echo_dst.b[1] = (a1 & 0xff);
-				r.echo_dst.b[2] = (a2 & 0xff);
-				r.echo_dst.b[3] = (a3 & 0xff);
-				r.echo_dst.b[4] = (a4 & 0xff);
-				r.echo_dst.b[5] = (a5 & 0xff);
+				dst.b[0] = (a0 & 0xff);
+				dst.b[1] = (a1 & 0xff);
+				dst.b[2] = (a2 & 0xff);
+				dst.b[3] = (a3 & 0xff);
+				dst.b[4] = (a4 & 0xff);
+				dst.b[5] = (a5 & 0xff);
 			} else {
 				/* source bdaddr */
-				r.echo_src.b[0] = (a0 & 0xff);
-				r.echo_src.b[1] = (a1 & 0xff);
-				r.echo_src.b[2] = (a2 & 0xff);
-				r.echo_src.b[3] = (a3 & 0xff);
-				r.echo_src.b[4] = (a4 & 0xff);
-				r.echo_src.b[5] = (a5 & 0xff);
+				src.b[0] = (a0 & 0xff);
+				src.b[1] = (a1 & 0xff);
+				src.b[2] = (a2 & 0xff);
+				src.b[3] = (a3 & 0xff);
+				src.b[4] = (a4 & 0xff);
+				src.b[5] = (a5 & 0xff);
 			}
 			} break;
 
@@ -136,41 +141,43 @@ main(int argc, char *argv[])
 				r.echo_size = NG_L2CAP_MAX_ECHO_SIZE;
 			break;
 
+		case 'h':
 		default:
 			usage();
 			break;
 		}
 	}
 
-	if (memcmp(&r.echo_dst, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) == 0)
+	if (memcmp(&dst, NG_HCI_BDADDR_ANY, sizeof(dst)) == 0)
 		usage();
 
 	s = socket(PF_BLUETOOTH, SOCK_RAW, BLUETOOTH_PROTO_L2CAP);
 	if (s < 0)
 		err(2, "Could not create socket");
 
-	if (memcmp(&r.echo_src, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) != 0) {
-		struct sockaddr_l2cap	sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.l2cap_len = sizeof(sa);
+	sa.l2cap_family = AF_BLUETOOTH;
+	memcpy(&sa.l2cap_bdaddr, &src, sizeof(sa.l2cap_bdaddr));
 
-		memset(&sa, 0, sizeof(sa));
-		sa.l2cap_len = sizeof(sa);
-		sa.l2cap_family = AF_BLUETOOTH;
-		memcpy(&sa.l2cap_bdaddr, &r.echo_src, sizeof(bdaddr_t));
-
-		if (bind(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
-			err(3,
+	if (bind(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
+		err(3,
 "Could not bind socket, src bdaddr=%x:%x:%x:%x:%x:%x",
-				sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-				sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-				sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
+			sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
+			sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
+			sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
 
-		if (connect(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
-			err(4,
-"Could not connect socket, src bdaddr=%x:%x:%x:%x:%x:%x",
-				sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-				sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-				sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
-	}
+	memset(&sa, 0, sizeof(sa));
+	sa.l2cap_len = sizeof(sa);
+	sa.l2cap_family = AF_BLUETOOTH;
+	memcpy(&sa.l2cap_bdaddr, &dst, sizeof(sa.l2cap_bdaddr));
+
+	if (connect(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
+		err(4,
+"Could not connect socket, dst bdaddr=%x:%x:%x:%x:%x:%x",
+			sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
+			sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
+			sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
 
 	/* Fill pattern */
 	for (n = 0; n < r.echo_size; ) {
@@ -206,9 +213,8 @@ main(int argc, char *argv[])
 		fprintf(stdout,
 "%d bytes from %x:%x:%x:%x:%x:%x seq_no=%d time=%.3f ms result=%#x %s\n",
 			r.echo_size, 
-			r.echo_dst.b[5], r.echo_dst.b[4],
-			r.echo_dst.b[3], r.echo_dst.b[2],
-			r.echo_dst.b[1], r.echo_dst.b[0],
+			dst.b[5], dst.b[4], dst.b[3], 
+			dst.b[2], dst.b[1], dst.b[0],
 			ntohl(*((int *)(r.echo_data))),
 			tv2msec(&b), r.result,
 			((fail == 0)? "" : strerror(errno)));
@@ -264,7 +270,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage: l2ping -a bd_addr " \
-		"[-S bd_addr -c count -i wait -s size]\n");
+		"[-S bd_addr -c count -i wait -s size -h]\n");
 	fprintf(stderr, "Where:\n");
 	fprintf(stderr, "\t-S bd_addr         - Source BD_ADDR\n");
 	fprintf(stderr, "\t-a bd_addr         - Remote BD_ADDR to ping\n");
@@ -273,6 +279,7 @@ usage(void)
 	fprintf(stderr, "\t-i wait            - Delay between packets (sec)\n");
 	fprintf(stderr, "\t-s size            - Packet size (bytes), " \
 		"between %d and %d\n", sizeof(int), NG_L2CAP_MAX_ECHO_SIZE);
+	fprintf(stderr, "\t-h                 - Display this message\n");
 	
 	exit(255);
 } /* usage */

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hccontrol.h,v 1.8 2002/09/12 18:19:43 max Exp $
+ * $Id: hccontrol.h,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 
