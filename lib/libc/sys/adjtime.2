@@ -45,7 +45,9 @@
 .Ft int
 .Fn adjtime "const struct timeval *delta" "struct timeval *olddelta"
 .Sh DESCRIPTION
-.Fn Adjtime
+The
+.Fn adjtime
+function
 makes small adjustments to the system time, as returned by
 .Xr gettimeofday 2 ,
 advancing or retarding it
@@ -86,8 +88,9 @@ is restricted to the super-user.
 .Sh RETURN VALUES
 .Rv -std adjtime
 .Sh ERRORS
-.Fn Adjtime
-will fail if:
+The
+.Fn adjtime
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 An argument points outside the process's allocated address space.
