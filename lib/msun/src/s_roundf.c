@@ -33,10 +33,8 @@ float
 roundf(float x)
 {
 	float t;
-	int i;
 
-	i = fpclassify(x);
-	if (i == FP_INFINITE || i == FP_NAN)
+	if (!isnormal(x))
 		return (x);
 
 	if (x >= 0.0) {
