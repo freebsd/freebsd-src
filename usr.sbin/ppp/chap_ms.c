@@ -26,7 +26,11 @@
 #include <sys/types.h>
 
 #include <ctype.h>
+#ifdef __FreeBSD__
 #include <openssl/des.h>
+#else
+#include <des.h>
+#endif
 #include <string.h>
 
 #include "chap_ms.h"

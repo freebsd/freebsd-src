@@ -102,6 +102,10 @@ ParseAddr(struct ipcp *ipcp, const char *data,
     *paddr = ipcp->peer_ip;
   else if (ipcp && strncasecmp(data, "MYADDR", len) == 0)
     *paddr = ipcp->my_ip;
+  else if (ipcp && strncasecmp(data, "DNS0", len) == 0)
+    *paddr = ipcp->ns.dns[0];
+  else if (ipcp && strncasecmp(data, "DNS1", len) == 0)
+    *paddr = ipcp->ns.dns[1];
   else if (len > 15)
     log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", data);
   else {
@@ -320,6 +324,10 @@ addrtype(const char *addr)
     return T_MYADDR;
   if (!strncasecmp(addr, "HISADDR", 7) && (addr[7] == '\0' || addr[7] == '/'))
     return T_HISADDR;
+  if (!strncasecmp(addr, "DNS0", 4) && (addr[4] == '\0' || addr[4] == '/'))
+    return T_DNS0;
+  if (!strncasecmp(addr, "DNS1", 4) && (addr[4] == '\0' || addr[4] == '/'))
+    return T_DNS1;
 
   return T_ADDR;
 }
@@ -332,6 +340,10 @@ addrstr(struct in_addr addr, unsigned type)
       return "MYADDR";
     case T_HISADDR:
       return "HISADDR";
+    case T_DNS0:
+      return "DNS0";
+    case T_DNS1:
+      return "DNS1";
   }
   return inet_ntoa(addr);
 }
@@ -670,7 +682,7 @@ filter_Nam2Op(const char *cp)
 
 void
 filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
-                  struct in_addr *peer_ip)
+                  struct in_addr *peer_ip, struct in_addr dns[2])
 {
   struct filterent *fp;
   int n;
@@ -688,6 +700,16 @@ filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
           fp->f_src.ipaddr = *peer_ip;
         if (fp->f_dsttype == T_HISADDR)
           fp->f_dst.ipaddr = *peer_ip;
+      }
+      if (dns) {
+        if (fp->f_srctype == T_DNS0)
+          fp->f_src.ipaddr = dns[0];
+        if (fp->f_dsttype == T_DNS0)
+          fp->f_dst.ipaddr = dns[0];
+        if (fp->f_srctype == T_DNS1)
+          fp->f_src.ipaddr = dns[1];
+        if (fp->f_dsttype == T_DNS1)
+          fp->f_dst.ipaddr = dns[1];
       }
     }
 }

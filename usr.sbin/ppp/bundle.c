@@ -426,7 +426,7 @@ bundle_FillQueues(struct bundle *bundle)
 }
 
 static int
-bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+bundle_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
@@ -483,7 +483,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-bundle_IsSet(struct descriptor *d, const fd_set *fdset)
+bundle_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct bundle *bundle = descriptor2bundle(d);
   struct datalink *dl;
@@ -504,7 +504,7 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
+bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
@@ -600,7 +600,7 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
 }
 
 static int
-bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
+bundle_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
                        const fd_set *fdset)
 {
   struct datalink *dl;
@@ -1439,14 +1439,15 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s)
   msg.msg_control = cmsgbuf;
   msg.msg_controllen = sizeof cmsgbuf;
 
-  log_Printf(LogDEBUG, "Expecting %d scatter/gather bytes\n", iov[0].iov_len);
+  log_Printf(LogDEBUG, "Expecting %u scatter/gather bytes\n",
+             (unsigned)iov[0].iov_len);
 
   if ((got = recvmsg(s, &msg, MSG_WAITALL)) != iov[0].iov_len) {
     if (got == -1)
       log_Printf(LogERROR, "Failed recvmsg: %s\n", strerror(errno));
     else
-      log_Printf(LogERROR, "Failed recvmsg: Got %d, not %d\n",
-                 got, iov[0].iov_len);
+      log_Printf(LogERROR, "Failed recvmsg: Got %d, not %u\n",
+                 got, (unsigned)iov[0].iov_len);
     while (niov--)
       free(iov[niov].iov_base);
     return;
@@ -1623,15 +1624,16 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       log_Printf(LogERROR, "setsockopt(SO_RCVBUF, %d): %s\n", expect,
                  strerror(errno));
 
-    log_Printf(LogDEBUG, "Sending %d descriptor%s and %d bytes in scatter"
-               "/gather array\n", nfd, nfd == 1 ? "" : "s", iov[0].iov_len);
+    log_Printf(LogDEBUG, "Sending %d descriptor%s and %u bytes in scatter"
+               "/gather array\n", nfd, nfd == 1 ? "" : "s",
+               (unsigned)iov[0].iov_len);
 
     if ((got = sendmsg(s, &msg, 0)) == -1)
       log_Printf(LogERROR, "Failed sendmsg: %s: %s\n",
                  sun->sun_path, strerror(errno));
     else if (got != iov[0].iov_len)
-      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %d of %d\n",
-                 sun->sun_path, got, iov[0].iov_len);
+      log_Printf(LogERROR, "%s: Failed initial sendmsg: Only sent %d of %u\n",
+                 sun->sun_path, got, (unsigned)iov[0].iov_len);
     else {
       /* We must get the ACK before closing the descriptor ! */
       int res;
@@ -1869,10 +1871,19 @@ void
 bundle_AdjustFilters(struct bundle *bundle, struct in_addr *my_ip,
                      struct in_addr *peer_ip)
 {
-  filter_AdjustAddr(&bundle->filter.in, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip);
+  filter_AdjustAddr(&bundle->filter.in, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip, NULL);
+}
+
+void
+bundle_AdjustDNS(struct bundle *bundle, struct in_addr dns[2])
+{
+  filter_AdjustAddr(&bundle->filter.in, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.out, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.dial, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.alive, NULL, NULL, dns);
 }
 
 void

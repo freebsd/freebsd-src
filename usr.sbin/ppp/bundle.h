@@ -61,7 +61,7 @@ struct prompt;
 struct iface;
 
 struct bundle {
-  struct descriptor desc;     /* really all our datalinks */
+  struct fdescriptor desc;    /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
 
   struct {
@@ -162,8 +162,8 @@ extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
 
-extern void bundle_RegisterDescriptor(struct bundle *, struct descriptor *);
-extern void bundle_UnRegisterDescriptor(struct bundle *, struct descriptor *);
+extern void bundle_RegisterDescriptor(struct bundle *, struct fdescriptor *);
+extern void bundle_UnRegisterDescriptor(struct bundle *, struct fdescriptor *);
 
 extern void bundle_SetTtyCommandMode(struct bundle *, struct datalink *);
 
@@ -185,6 +185,7 @@ extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
 extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
                                  struct in_addr *);
+extern void bundle_AdjustDNS(struct bundle *, struct in_addr [2]);
 extern void bundle_CalculateBandwidth(struct bundle *);
 extern void bundle_AutoAdjust(struct bundle *, int, int);
 extern int bundle_WantAutoloadTimer(struct bundle *);

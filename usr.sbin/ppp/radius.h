@@ -27,7 +27,7 @@
  */
 
 struct radius {
-  struct descriptor desc;	/* We're a sort of (selectable) descriptor */
+  struct fdescriptor desc;	/* We're a sort of (selectable) fdescriptor */
   struct {
     int fd;			/* We're selecting on this */
     struct rad_handle *rad;	/* Using this to talk to our lib */

@@ -331,7 +331,7 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
 }
 
 static int
-chap_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+chap_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct chap *chap = descriptor2chap(d);
 
@@ -347,7 +347,7 @@ chap_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-chap_IsSet(struct descriptor *d, const fd_set *fdset)
+chap_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct chap *chap = descriptor2chap(d);
 
@@ -355,7 +355,7 @@ chap_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct chap *chap = descriptor2chap(d);
   int got;
@@ -411,7 +411,7 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-chap_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+chap_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "chap_Write: Internal error: Bad call !\n");

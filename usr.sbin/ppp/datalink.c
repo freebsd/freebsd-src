@@ -241,7 +241,7 @@ datalink_LoginDone(struct datalink *dl)
 }
 
 static int
-datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n)
 {
   struct datalink *dl = descriptor2datalink(d);
@@ -410,7 +410,7 @@ datalink_RemoveFromSet(struct datalink *dl, fd_set *r, fd_set *w, fd_set *e)
 }
 
 static int
-datalink_IsSet(struct descriptor *d, const fd_set *fdset)
+datalink_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 
@@ -437,7 +437,7 @@ datalink_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 static void
-datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+datalink_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 
@@ -467,7 +467,7 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static int
-datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+datalink_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
   int result = 0;
