@@ -471,7 +471,7 @@ main(argc, argv)
 		if (policy_in != NULL) {
 			buf = ipsec_set_policy(policy_in, strlen(policy_in));
 			if (buf == NULL)
-				errx(EX_CONFIG, ipsec_strerror());
+				errx(EX_CONFIG, "%s", ipsec_strerror());
 			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
 				err(EX_CONFIG, "ipsec policy cannot be configured");
@@ -481,7 +481,7 @@ main(argc, argv)
 		if (policy_out != NULL) {
 			buf = ipsec_set_policy(policy_out, strlen(policy_out));
 			if (buf == NULL)
-				errx(EX_CONFIG, ipsec_strerror());
+				errx(EX_CONFIG, "%s", ipsec_strerror());
 			if (setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY,
 					buf, ipsec_get_policylen(buf)) < 0)
 				err(EX_CONFIG, "ipsec policy cannot be configured");
