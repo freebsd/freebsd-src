@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_device.c,v 1.1 1998/04/19 23:31:14 julian Exp $
+ *	$Id: slice_device.c,v 1.2 1998/04/22 10:25:10 julian Exp $
  */
 #define DIAGNOSTIC 1
 
@@ -227,7 +227,7 @@ slcdevclose(dev_t dev, int flags, int mode, struct proc * p)
 {
 	sl_p            slice = minor_to_slice(minor(dev));
 RR;
-#ifdef	DIAGNOSTIC
+#ifdef	DIAGNOSTICX
 	if ((flags & (FWRITE | FREAD)) != 0) {
 		printf("sliceclose called with non 0 flags\n");
 	}

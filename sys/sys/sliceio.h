@@ -1,5 +1,5 @@
 /*
- * $Id: mtio.h,v 1.10 1997/02/22 09:45:37 peter Exp $
+ * $Id: sliceio.h,v 1.1 1998/04/19 23:32:43 julian Exp $
  */
 
 #ifndef	_SYS_SLICEIO_H_
@@ -33,5 +33,6 @@ struct subsliceinfo {
 #define	SLCIOCMOD	_IOW('S', 3, struct sliceinfo) /* force container */
 #define	SLCIOCGETSUB	_IOWR('S', 4, struct subsliceinfo) /* get sub info */
 #define	SLCIOCSETSUB	_IOWR('S', 5, struct subsliceinfo) /* set sub info */
+#define	SLCIOCTRANSBAD	_IOWR('S', 6, daddr_t)	/* map bad144 sector */
 
 #endif /* !_SYS_SLICEIO_H_ */
