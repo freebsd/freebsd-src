@@ -2695,12 +2695,11 @@
 '    in +\n[doc-display-indent-stack\n[doc-display-depth]]u
 .
 .  if !\n[doc-is-compact] \{\
-.    if !\n[doc-in-synopsis-section] \{\
-.      ie "\*[doc-display-type-stack\n[doc-display-depth]]"ragged" \
-.        sp \n[doc-display-vertical]u
-.      el \
-'        sp \n[doc-display-vertical]u
-.  \}\}
+.    ie "\*[doc-display-type-stack\n[doc-display-depth]]"ragged" \
+.      sp \n[doc-display-vertical]u
+.    el \
+'      sp \n[doc-display-vertical]u
+.  \}
 .
 .  if !\n[cR] \
 .    ne 2v
