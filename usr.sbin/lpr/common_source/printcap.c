@@ -257,6 +257,7 @@ getprintcap_int(char *bp, struct printer *pp)
 			    &pp->status_file));
 	CHK(capdb_getaltstr(bp, "tr", "job.trailer", 0, &pp->trailer));
 
+	pp->resend_copies = capdb_getaltlog(bp, "rc", "remote.resend_copies");
 	pp->restricted = capdb_getaltlog(bp, "rs", "daemon.restricted");
 	pp->short_banner = capdb_getaltlog(bp, "sb", "banner.short");
 	pp->no_copies = capdb_getaltlog(bp, "sc", "job.no_copies");
