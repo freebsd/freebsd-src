@@ -327,7 +327,9 @@ static void	wlrcv(int unit);
 static int	wlrequeue(int unit, u_short fd_p);
 static void	wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit);
 static void	wlhdwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit);
+#ifdef WLDEBUG
 static void	wltbd(int unit);
+#endif
 static void	wlgetpsa(int base, u_char *buf);
 static void	wlsetpsa(int unit);
 static u_short	wlpsacrc(u_char *buf);
@@ -1147,10 +1149,12 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     short		mode = 0;
     int			opri, error = 0;
     struct proc		*p = curproc;	/* XXX */
-    int			irq, irqval, i, isroot, size;
+    int			irq, irqval, i, isroot;
     caddr_t		up;
+#ifdef WLCACHE
+    int			size;
     char * 	        cpt;
-	
+#endif
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -2203,6 +2207,7 @@ wlack(int unit)
     return(cmd);
 }
 
+#ifdef WLDEBUG
 static void
 wltbd(int unit)
 {
@@ -2226,6 +2231,7 @@ wltbd(int unit)
 	tbd_p = tbd.next_tbd_offset;
     }
 }
+#endif
 
 static void
 wlhdwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
