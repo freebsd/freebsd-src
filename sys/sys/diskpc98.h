@@ -60,5 +60,8 @@ struct dos_partition {
 	unsigned short	dp_ecyl;	/* end cylinder */
 	unsigned char	dp_name[16];
 };
+#ifdef CTASSERT
+CTASSERT(sizeof (struct dos_partition) == 32);
+#endif
 
 #endif /* !_SYS_DISKPC98_H_ */
