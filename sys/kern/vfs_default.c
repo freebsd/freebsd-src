@@ -492,12 +492,7 @@ vop_noislocked(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct lock *l = (struct lock *)vp->v_data;
-
-	if (l == NULL)
-		return (0);
-	return (lockstatus(l, ap->a_p));
+	return (0);
 }
 
 int
