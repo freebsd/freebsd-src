@@ -1222,8 +1222,7 @@ TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
 
 /*
  * Test whether the specified credentials imply "super-user" privilege.
- * Return 0 or EPERM.  The flag argument is currently used only to
- * specify jail interaction.
+ * Return 0 or EPERM.
  */
 int
 suser_cred(struct ucred *cred, int flag)
@@ -1231,7 +1230,7 @@ suser_cred(struct ucred *cred, int flag)
 
 	if (!suser_enabled)
 		return (EPERM);
-	if (cred->cr_uid != 0)
+	if (((flag & SUSER_RUID) ? cred->cr_ruid : cred->cr_uid) != 0)
 		return (EPERM);
 	if (jailed(cred) && !(flag & PRISON_ROOT))
 		return (EPERM);
