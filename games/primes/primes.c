@@ -82,7 +82,7 @@ static const char rcsid[] =
  *
  * We only sieve the odd numbers.  The base of our sieve windows are always
  * odd.  If the base of table is 1, table[i] represents 2*i-1.  After the
- * sieve, table[i] == 1 if and only iff 2*i-1 is prime.
+ * sieve, table[i] == 1 if and only if 2*i-1 is prime.
  *
  * We make TABSIZE large to reduce the overhead of inner loop setup.
  */
