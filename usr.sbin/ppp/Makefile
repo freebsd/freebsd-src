@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.39 1998/06/07 00:16:57 brian Exp $
+#	$Id: Makefile,v 1.40 1998/06/07 17:08:42 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -44,8 +44,8 @@ DPADD+= ${LIBDES}
 # and we don't want any unused symbols to spoil the final link.
 SRCS+=	alias_cmd.c loadalias.c chap_ms.c
 chap_ms.o alias_cmd.o loadalias.o:
-	>null_$*.c
-	cc -c -o $@ null_$*.c
+	>null_${.PREFIX}.c
+	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
 
 .include <bsd.prog.mk>

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.7 1997/02/22 16:14:03 peter Exp $
 
 PROG=	traceroute
 MAN8=	traceroute.8
@@ -19,7 +19,7 @@ CFLAGS+=	-I${TRACEROUTE_DISTDIR}/lbl
 .PATH:	${TRACEROUTE_DISTDIR}
 
 version.c: ${TRACEROUTE_DISTDIR}/VERSION
-	@rm -f $@
-	sed -e 's/.*/char version[] = "&";/' ${TRACEROUTE_DISTDIR}/VERSION > $@
+	@rm -f ${.TARGET}
+	sed -e 's/.*/char version[] = "&";/' ${TRACEROUTE_DISTDIR}/VERSION > ${.TARGET}
 
 .include <bsd.prog.mk>
