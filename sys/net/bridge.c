@@ -799,11 +799,11 @@ static struct mbuf *
 bdg_forward(struct mbuf *m0, struct ifnet *dst)
 {
 #define	EH_RESTORE(_m) do {						   \
+    M_PREPEND((_m), ETHER_HDR_LEN, M_DONTWAIT);			   	   \
     if ((_m) == NULL) {							   \
 	bdg_dropped++;							   \
 	return NULL;							   \
     }									   \
-    M_PREPEND((_m), ETHER_HDR_LEN, M_DONTWAIT);			   	   \
     if (eh != mtod((_m), struct ether_header *))			   \
 	bcopy(&save_eh, mtod((_m), struct ether_header *), ETHER_HDR_LEN); \
     else								   \
@@ -959,7 +959,8 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	i = ip_fw_chk_ptr(&args);
 	m0 = args.m;		/* in case the firewall used the mbuf	*/
 
-	EH_RESTORE(m0);		/* restore Ethernet header */
+	if (m0 != NULL)
+		EH_RESTORE(m0);	/* restore Ethernet header */
 
 	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
 	    return m0 ;
