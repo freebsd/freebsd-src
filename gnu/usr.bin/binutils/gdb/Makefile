@@ -8,7 +8,7 @@ GDBDIR= ${.CURDIR}/../../../../contrib/gdb
 
 .if ${TARGET_ARCH} == "sparc64"
 GDB_CPU=	sparc
-.elif ${TARGET_ARCH} == "x86-64"
+.elif ${TARGET_ARCH} == "amd64"
 GDB_CPU=	i386
 .else
 GDB_CPU=	${TARGET_ARCH}
