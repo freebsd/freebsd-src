@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.30 1996/07/22 20:06:01 wollman Exp $
+ * $Id: if.h,v 1.31 1996/07/23 14:44:46 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -85,6 +85,8 @@ struct if_data {
 	u_char	ifi_physical;		/* e.g., AUI, Thinnet, 10base-T, etc */
 	u_char	ifi_addrlen;		/* media address length */
 	u_char	ifi_hdrlen;		/* media header length */
+	u_char	ifi_recvquota;		/* polling quota for receive intrs */
+	u_char	ifi_xmitquota;		/* polling quota for xmit intrs */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
 	u_long	ifi_baudrate;		/* linespeed */
@@ -100,6 +102,8 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
+	u_long	ifi_recvtiming;		/* usec spent receiving when timing */
+	u_long	ifi_xmittiming;		/* usec spent xmitting when timing */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 
@@ -132,8 +136,9 @@ struct ifnet {
 	short	if_unit;		/* sub-unit for lower level driver */
 	short	if_timer;		/* time 'til if_watchdog called */
 	short	if_flags;		/* up/down, broadcast, etc. */
-	u_char	if_recvquota, if_sendquota; /* quotas for send, receive */
-	u_char	if_ipending;		/* interrupts pending */
+	int	if_ipending;		/* interrupts pending */
+	void	*if_linkmib;		/* link-type-specific MIB data */
+	size_t	if_linkmiblen;		/* length of above data */
 	struct	if_data if_data;
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
@@ -147,9 +152,9 @@ struct ifnet {
 		__P((struct ifnet *, int, caddr_t));
 	void	(*if_watchdog)		/* timer routine */
 		__P((struct ifnet *));
-	void	(*if_poll_recv)		/* polled receive routine */
+	int	(*if_poll_recv)		/* polled receive routine */
 		__P((struct ifnet *, int *));
-	void	(*if_poll_xmit)		/* polled transmit routine */
+	int	(*if_poll_xmit)		/* polled transmit routine */
 		__P((struct ifnet *, int *));
 	void	(*if_poll_intren)	/* polled interrupt reenable routine */
 		__P((struct ifnet *));
@@ -177,6 +182,8 @@ struct ifnet {
 #define	if_iqdrops	if_data.ifi_iqdrops
 #define	if_noproto	if_data.ifi_noproto
 #define	if_lastchange	if_data.ifi_lastchange
+#define if_recvquota	if_data.ifi_recvquota
+#define	if_xmitquota	if_data.ifi_xmitquota
 #define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)0)
 
 #define	IFF_UP		0x1		/* interface is up */
@@ -219,8 +226,8 @@ struct ifnet {
 #define	IFI_XMIT	2	/* I want to transmit */
 
 /*
- * Output queues (ifp->if_snd) and internetwork datagram level (pup level 1)
- * input routines have queues of messages stored on ifqueue structures
+ * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
+ * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
  * by these macros, which should be called with ipl raised to splimp().
  */
@@ -400,6 +407,8 @@ struct	ifconf {
 extern struct	ifnet	*ifnet;
 extern int	ifqmaxlen;
 extern struct	ifnet	loif[];
+extern int	if_index;
+extern struct	ifaddr	**ifnet_addrs;
 
 void	ether_ifattach __P((struct ifnet *));
 void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));
@@ -416,6 +425,13 @@ void	ifubareset __P((int));
 int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((char *));
+
+int	if_poll_recv_slow __P((struct ifnet *ifp, int *quotap));
+void	if_poll_xmit_slow __P((struct ifnet *ifp, int *quotap));
+void	if_poll_throttle __P((void));
+void	if_poll_unthrottle __P((void *));
+void	if_poll_init __P((void));
+void	if_poll __P((void));
 
 struct	ifaddr *ifa_ifwithaddr __P((struct sockaddr *));
 struct	ifaddr *ifa_ifwithdstaddr __P((struct sockaddr *));
