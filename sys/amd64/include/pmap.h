@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.15 1994/08/18 22:34:47 wollman Exp $
+ * 	$Id: pmap.h,v 1.16 1994/08/23 16:27:15 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -198,6 +198,8 @@ extern inline pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
 struct pcb; extern void pmap_activate(pmap_t, struct pcb *);
 extern pmap_t pmap_kernel(void);
 
+boolean_t	pmap_page_exists __P((pmap_t, vm_offset_t));
+vm_page_t	pmap_pte_vm_page __P((pmap_t, vm_offset_t));
 #endif /* KERNEL */
 
 #endif /* _PMAP_MACHINE_ */
