@@ -54,9 +54,6 @@
 
 static MALLOC_DEFINE(M_KERNFSMNT, "KERNFS mount", "KERNFS mount structure");
 
-dev_t rrootdev = NODEV;
-
-static void	kernfs_get_rrootdev __P((void));
 static int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
 static int	kernfs_unmount __P((struct mount *mp, int mntflags,
@@ -64,26 +61,6 @@ static int	kernfs_unmount __P((struct mount *mp, int mntflags,
 static int	kernfs_root __P((struct mount *mp, struct vnode **vpp));
 static int	kernfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-
-static void
-kernfs_get_rrootdev()
-{
-	static int tried = 0;
-	struct cdevsw *sw;
-
-	if (tried) {
-		/* Already did it once. */
-		return;
-	}
-	tried = 1;
-
-	sw = devsw(rootdev);
-	if (!sw)
-		return;
-	if (rootdev == NODEV)
-		return;
-	rrootdev = makedev(sw->d_maj, minor(rootdev));
-}
 
 /*
  * Mount the Kernel params filesystem
@@ -139,7 +116,6 @@ kernfs_mount(mp, path, data, ndp, p)
 	printf("kernfs_mount: at %s\n", mp->mnt_stat.f_mntonname);
 #endif
 
-	kernfs_get_rrootdev();
 	return (0);
 }
 

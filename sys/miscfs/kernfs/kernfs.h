@@ -52,5 +52,4 @@ struct kernfs_node {
 #define	VTOKERN(vp) ((struct kernfs_node *)(vp)->v_data)
 
 extern vop_t **kernfs_vnodeop_p;
-extern dev_t rrootdev;
 #endif /* _KERNEL */
