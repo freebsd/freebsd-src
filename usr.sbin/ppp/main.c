@@ -43,12 +43,13 @@
 #include <sys/stat.h>
 
 #ifndef NONAT
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
 #endif
+
 #include "layer.h"
 #include "probe.h"
 #include "mbuf.h"
