@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.39 1995/11/09 08:13:48 bde Exp $
+ * $Id: vfs_subr.c,v 1.40 1995/11/11 00:27:00 bde Exp $
  */
 
 /*
@@ -874,8 +874,7 @@ holdrele(vp)
  */
 #ifdef DIAGNOSTIC
 int busyprt = 0;		/* print out busy vnodes */
-struct ctldebug debug1 = {"busyprt", &busyprt};
-
+SYSCTL_INT(_debug, 1, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
