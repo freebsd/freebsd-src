@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.65 1998/04/19 02:23:18 brian Exp $
+ * $Id: command.c,v 1.131.2.66 1998/04/19 03:40:56 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -330,15 +330,15 @@ ShellCommand(struct cmdargs const *arg, int bg)
     if (arg->argc > arg->argn) {
       /* substitute pseudo args */
       argv[0] = strdup(arg->argv[arg->argn]);
-      for (argc = arg->argn+1; argc < arg->argc; argc++) {
-	if (strcasecmp(arg->argv[argc], "HISADDR") == 0)
+      for (argc = 1; argc < arg->argc - arg->argn; argc++) {
+	if (strcasecmp(arg->argv[argc + arg->argn], "HISADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.peer_ip));
-	else if (strcasecmp(arg->argv[argc], "INTERFACE") == 0)
+	else if (strcasecmp(arg->argv[argc + arg->argn], "INTERFACE") == 0)
 	  argv[argc] = strdup(arg->bundle->ifname);
-	else if (strcasecmp(arg->argv[argc], "MYADDR") == 0)
+	else if (strcasecmp(arg->argv[argc + arg->argn], "MYADDR") == 0)
 	  argv[argc] = strdup(inet_ntoa(arg->bundle->ncp.ipcp.my_ip));
         else
-          argv[argc] = strdup(arg->argv[argc]);
+          argv[argc] = strdup(arg->argv[argc + arg->argn]);
       }
       argv[argc] = NULL;
       if (bg) {
@@ -503,7 +503,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/19 02:23:18 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/19 03:40:56 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
