@@ -440,7 +440,7 @@
 	been implemented.  CARP comes from OpenBSD and allows
 	multiple hosts to share an IP address, providing
 	high availability and load balancing.
-	For more information, see the &man.carp.4; manual page.</para>
+	For more information, see the &man.carp.4; manual page.  &merged;</para>
 
       <para>The &man.ipfw.4; <literal>IPDIVERT</literal> option is now
 	available as a kernel loadable module.
