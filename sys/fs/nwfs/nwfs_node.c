@@ -292,7 +292,7 @@ nwfs_inactive(ap)
 
 	NCPVNDEBUG("%s: %d\n", VTONW(vp)->n_name, vrefcnt(vp));
 	if (np->opened) {
-		error = nwfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+		error = nwfs_vinvalbuf(vp, td);
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, td, cred);
 		np->opened = 0;
 	}
