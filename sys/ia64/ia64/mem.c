@@ -34,8 +34,10 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Memory special file
@@ -58,38 +60,12 @@
 
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#ifdef PERFMON
-#include <machine/perfmon.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static struct cdev *memdev, *kmemdev;
-#ifdef PERFMON
-static struct cdev *perfdev;
-#endif /* PERFMON */
-
-static	d_open_t	mmopen;
-static	d_close_t	mmclose;
-static	d_read_t	mmrw;
-static	d_ioctl_t	mmioctl;
-static	d_mmap_t	memmmap;
-
-#define CDEV_MAJOR 2
-static struct cdevsw mem_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	mmopen,
-	.d_close =	mmclose,
-	.d_read =	mmrw,
-	.d_write =	mmrw,
-	.d_ioctl =	mmioctl,
-	.d_mmap =	memmmap,
-	.d_name =	"mem",
-	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_MEM | D_NEEDGIANT,
-};
+#include <machine/memdev.h>
 
 struct mem_range_softc mem_range_softc;
 
@@ -99,49 +75,9 @@ ia64_pa_access(vm_offset_t pa)
 	return (VM_PROT_READ|VM_PROT_WRITE);
 }
 
-static int
-mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	switch (minor(dev)) {
-#ifdef PERFMON
-	case 32:
-		return perfmon_close(dev, flags, fmt, td);
-#endif
-	default:
-		break;
-	}
-	return (0);
-}
-
-static int
-mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	int error;
-
-	switch (minor(dev)) {
-	case 0:
-	case 1:
-		if (flags & FWRITE) {
-			error = securelevel_gt(td->td_ucred, 0);
-			if (error)
-				return error;
-		}
-		break;
-	case 32:
-#ifdef PERFMON
-		return perfmon_open(dev, flags, fmt, td);
-#else
-		return ENODEV;
-#endif
-	default:
-		break;
-	}
-	return (0);
-}
-
-/*ARGSUSED*/
-static int
-mmrw(struct cdev *dev, struct uio *uio, int flags)
+/* ARGSUSED */
+int
+memrw(strct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
 	vm_offset_t addr, eaddr, o, v;
@@ -154,14 +90,11 @@ mmrw(struct cdev *dev, struct uio *uio, int flags)
 			uio->uio_iov++;
 			uio->uio_iovcnt--;
 			if (uio->uio_iovcnt < 0)
-				panic("mmrw");
+				panic("memrw");
 			continue;
 		}
 
-		switch (minor(dev)) {
-
-/* minor device 0 is physical memory */
-		case 0:
+		if (minor(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
 kmemphys:
 			/* Allow reads only in RAM. */
@@ -177,9 +110,8 @@ kmemphys:
 			c = min(uio->uio_resid, (int)(PAGE_SIZE - o));
 			error = uiomove((caddr_t)IA64_PHYS_TO_RR7(v), c, uio);
 			continue;
-
-/* minor device 1 is kernel memory */
-		case 1:
+		}
+		else if (minor(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 
 			if (v >= IA64_RR_BASE(6)) {
@@ -205,27 +137,18 @@ kmemphys:
 				return (EFAULT);
 			error = uiomove((caddr_t)v, c, uio);
 			continue;
-
-		default:
-			return (ENODEV);
 		}
-
-		if (error)
-			break;
-		iov->iov_base = (char *)iov->iov_base + c;
-		iov->iov_len -= c;
-		uio->uio_offset += c;
-		uio->uio_resid -= c;
+		/* else panic! */
 	}
 	return (error);
 }
 
-/*******************************************************\
-* allow user processes to MMAP some memory sections	*
-* instead of going through read/write			*
-\*******************************************************/
-static int
-memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+/*
+ * allow user processes to MMAP some memory sections
+ * instead of going through read/write
+ */
+int
+memmmap(strct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
@@ -233,7 +156,7 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 	 * could be transient and hence incorrect or invalid at
 	 * a later time.
 	 */
-	if (minor(dev) != 0)
+	if (minor(dev) != CDEV_MINOR_MEM)
 		return (-1);
 
 	/*
@@ -245,59 +168,7 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 	return (0);
 }
 
-static int
-mmioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread *td)
+void
+dev_mem_md_init(void)
 {
-	switch(minor(dev)) {
-#ifdef PERFMON
-	case 32:
-		return perfmon_ioctl(dev, cmd, cmdarg, flags, td);
-#endif
-	default:
-		return ENODEV;
-	}
-
-	return (0);
 }
-
-static int
-mem_modevent(module_t mod, int type, void *data)
-{
-	switch(type) {
-	case MOD_LOAD:
-		if (bootverbose)
-			printf("mem: <memory & I/O>\n");
-/* XXX - ??? */
-#if 0
-		/* Initialise memory range handling */
-		if (mem_range_softc.mr_op != NULL)
-			mem_range_softc.mr_op->init(&mem_range_softc);
-#endif
-
-		memdev = make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM,
-			0640, "mem");
-		kmemdev = make_dev(&mem_cdevsw, 1, UID_ROOT, GID_KMEM,
-			0640, "kmem");
-#ifdef PERFMON
-		perfdev = make_dev(&mem_cdevsw, 32, UID_ROOT, GID_KMEM,
-			0640, "perfmon");
-#endif /* PERFMON */
-		return 0;
-
-	case MOD_UNLOAD:
-		destroy_dev(memdev);
-		destroy_dev(kmemdev);
-#ifdef PERFMON
-		destroy_dev(perfdev);
-#endif /* PERFMON */
-		return 0;
-
-	case MOD_SHUTDOWN:
-		return 0;
-
-	default:
-		return EOPNOTSUPP;
-	}
-}
-
-DEV_MODULE(mem, mem_modevent, NULL);

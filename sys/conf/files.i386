@@ -152,6 +152,7 @@ dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
 dev/lnc/if_lnc_isa.c		optional	lnc isa
+dev/io/iodev.c			optional	io
 dev/ppc/ppc.c			optional	ppc
 dev/ppc/ppc_puc.c		optional	ppc puc pci
 dev/random/nehemiah.c		optional	random
@@ -216,19 +217,20 @@ i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional	gdb
 i386/i386/geode.c		optional	cpu_geode
-i386/i386/i686_mem.c		standard
+i386/i386/i686_mem.c		optional	mem
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet
 i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io_apic.c		optional	apic
-i386/i386/k6_mem.c		standard
+i386/i386/io.c			optional	io
+i386/i386/k6_mem.c		optional	mem
 i386/i386/legacy.c		standard
 i386/i386/local_apic.c		optional	apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/longrun.c		optional	cpu_enable_longrun
 i386/i386/machdep.c		standard
-i386/i386/mem.c			standard
+i386/i386/mem.c			optional	mem
 i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpboot.s		optional	smp
