@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: tip.c,v 1.3 1997/08/18 07:16:06 charnier Exp $";
+	"$Id: tip.c,v 1.4 1997/08/22 22:14:15 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -88,7 +88,7 @@ void setparity __P((char *));
 void pwrite __P((int, char *, int));
 char escape __P((void));
 void tipin __P((void));
-int prompt __P((char *, char *, int));
+int prompt __P((char *, char *, size_t));
 void unraw __P((void));
 void shell_uid __P((void));
 void daemon_uid __P((void));
@@ -380,7 +380,7 @@ int
 prompt(s, p, sz)
 	char *s;
 	register char *p;
-	int sz;
+	size_t sz;
 {
 	register char *b = p;
 	sig_t oint, oquit;

@@ -42,7 +42,7 @@
 #include <machine/endian.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <sys/param.h>
+#include <limits.h>
 
 #if HAVE_TERMIOS
 #include <sys/ioctl.h>         /* for TIOCHPCL */
@@ -290,8 +290,8 @@ int	stoprompt;		/* for interrupting a prompt session */
 int	timedout;		/* ~> transfer timedout */
 int	cumode;			/* simulating the "cu" program */
 
-char	fname[MAXPATHLEN];	/* file name buffer for ~< */
-char	copyname[MAXPATHLEN];	/* file name buffer for ~> */
+char	fname[PATH_MAX];	/* file name buffer for ~< */
+char	copyname[PATH_MAX];	/* file name buffer for ~> */
 char	ccc;			/* synchronization character */
 char	ch;			/* for tipout */
 char	*uucplock;		/* name of lock file for uucp's */
@@ -317,7 +317,7 @@ extern	void disconnect __P((char *));
 extern	void shell_uid __P((void));
 extern	void unraw __P((void));
 extern	void pwrite __P((int, char *, int));
-extern	int prompt __P((char *, char *, int));
+extern	int prompt __P((char *, char *, size_t));
 extern	void  consh __P((int));
 extern	void tipabort __P((char *));
 
