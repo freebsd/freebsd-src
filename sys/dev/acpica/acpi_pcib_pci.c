@@ -115,6 +115,9 @@ acpi_pcib_pci_probe(device_t dev)
 	return (ENXIO);
     if (acpi_get_handle(dev) == NULL)
 	return (ENXIO);
+    if (!pci_cfgregopen())
+	return (ENXIO);
+
     device_set_desc(dev, "ACPI PCI-PCI bridge");
     return (-1000);
 }
