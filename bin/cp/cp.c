@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.8 1996/02/19 00:43:42 wosch Exp $
+ *	$Id: cp.c,v 1.9 1996/02/19 05:56:33 pst Exp $
  */
 
 #ifndef lint
@@ -86,7 +86,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 PATH_T to = { to.p_path, "" };
 
 uid_t myuid;
-int Rflag, iflag, pflag, rflag;
+int Rflag, iflag, pflag, rflag, fflag;
 int myumask;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
@@ -123,10 +123,12 @@ main(argc, argv)
 			Rflag = 1;
 			break;
 		case 'f':
+			fflag = 1;
 			iflag = 0;
 			break;
 		case 'i':
-			iflag = isatty(fileno(stdin));
+			iflag = 1;
+			fflag = 0;
 			break;
 		case 'p':
 			pflag = 1;

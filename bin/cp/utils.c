@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.7 1996/02/19 00:43:44 wosch Exp $
+ *	$Id: utils.c,v 1.6 1996/02/18 18:48:26 wosch Exp wosch $
  */
 
 #ifndef lint
@@ -86,12 +86,21 @@ copy_file(entp, dne)
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
-			if (checkch != 'y') {
+			if (checkch != 'y' && checkch != 'Y') {
 				(void)close(from_fd);
 				return (0);
 			}
 		}
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+		
+		if (fflag) {
+		    /* remove existing destination file name, 
+		     * create a new file  */
+		    (void)unlink(to.p_path);
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+				 fs->st_mode & ~(S_ISUID | S_ISGID));
+		} else 
+		    /* overwrite existing destination file name */
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
 	} else
 		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
@@ -281,7 +290,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-fip] src target",
-"       cp [-R [-H | -L | -P]] [-fip] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-f | -i] [-p] src target",
+"       cp [-R [-H | -L | -P]] [-f | -i] [-p] src1 ... srcN directory");
 	exit(1);
 }
