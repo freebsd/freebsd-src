@@ -5,7 +5,7 @@ PROG=	factor
 SRCS=	factor.c pr_tbl.c
 CFLAGS+=-I${.CURDIR}/../primes
 
-.if exists(${.CURDIR}/../../crypto) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 CFLAGS+=-DHAVE_OPENSSL
 LDADD+=	-lcrypto
 DPADD+=	${LIBCRYPTO}
