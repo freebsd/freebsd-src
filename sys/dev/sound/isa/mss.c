@@ -158,6 +158,7 @@ static struct pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
 #define MD_CS42XX	0xA1
+#define MD_CS423X	0xA2
 #define MD_OPTI930	0xB0
 #define	MD_OPTI931	0xB1
 #define MD_OPTI925	0xB2
@@ -1807,8 +1808,7 @@ mss_resume(device_t dev)
 
     	mss = pcm_getdevinfo(dev);
 
-    	if (mss->bd_id == MD_YM0020)
-    	{
+    	if(mss->bd_id == MD_YM0020 || mss->bd_id == MD_CS423X) {
 		/* This works on a Toshiba Libretto 100CT. */
 		for (i = 0; i < MSS_INDEXED_REGS; i++)
     			ad_write(mss, i, mss->mss_indexed_regs[i]);
@@ -1816,6 +1816,13 @@ mss_resume(device_t dev)
     			conf_wr(mss, i, mss->opl_indexed_regs[i]);
 		mss_intr(mss);
     	}
+
+	if (mss->bd_id == MD_CS423X) {
+		/* Needed on IBM Thinkpad 600E */
+		chn_setformat(mss->pch.channel, mss->pch.channel->format);
+		chn_setspeed(mss->pch.channel, mss->pch.channel->speed);
+	}
+
     	return 0;
 
 }
@@ -1837,7 +1844,7 @@ mss_suspend(device_t dev)
 
     	mss = pcm_getdevinfo(dev);
 
-    	if(mss->bd_id == MD_YM0020)
+    	if(mss->bd_id == MD_YM0020 || mss->bd_id == MD_CS423X)
     	{
 		/* this stops playback. */
 		conf_wr(mss, 0x12, 0x0c);
@@ -1868,6 +1875,7 @@ static driver_t mss_driver = {
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_mss, acpi, mss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_mss, 1);
 
@@ -1954,6 +1962,7 @@ pnpmss_attach(device_t dev)
 	case 0x0000630e:			/* CSC0000 */
 	case 0x0001630e:			/* CSC0100 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
+	    mss->bd_id = MD_CS423X;
 	    break;
 
 	case 0x2100a865:			/* YHM0021 */
