@@ -28,50 +28,45 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
-.\"
 .Dd September 7, 1997
-.Dt PNP 4 i386
+.Dt PnP 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm pnp
 .Nd support for PnP devices
 .Sh SYNOPSIS
-.Cd controller pnp0
+.Cd "controller pnp0"
 .Sh DESCRIPTION
 Support for PnP devices in FreeBSD allows the user to override the
 configuration of PnP cards, and device drivers to fetch/modify
 parameters in the card's configuration space.
 .Pp
 The manual override mechanism requires the kernel to be compiled with
-.Cd options USERCONFIG.
+the
+.Nm options USERCONFIG.
 In this case, the kernel keeps a table of fixed size (20 entries as a
 default) where configuration data are held for PnP devices. Each
 PnP card can contain several independent devices (5 or 6 is not
 unusual).
 .Pp
-By booting the kernel with the
-.Dq Fl c
-flag, commands are available to
+By booting the kernel with the "-c" flag, commands are available to
 modify the configuration of PnP cards. Commands start with the
 sequence:
-.Dl pnp CSN LDN
+.Nm pnp CSN LDN
 where CSN and LDN are the Card Select Number and Logical Device Number
 associated to the device. Following this sequence any combination of
 the following commands can be used:
 
 .Bl -tag -width "mmmmmmmmmm""
 .It Dv irqN line
-Sets the irq line for interrupt 0 or 1 on the card. Line=0 means the line
-is unused.
+Sets the line user for interrupt 0 or 1. line=0 means the line is unused.
 .It Dv drqN n
-Sets the drq channel used for DMA 0 or 1 on the card. Channel=4 means
-the channel is unused.
+Sets the channel used for DMA 0 or 1. channel=4 means the channel is unused.
 .It Dv portN address
-Sets the base address for the N-th port's range (N=0..7). address=0
+Sets the base address for the N-th port range (N=0..7). address=0
 means that the port is not used.
 .It Dv memN address
-Sets the base address for the N-th memory's range (N=0..3). address=0
+Sets the base address for the N-th memory range (N=0..3). address=0
 means that the memory range is not used.
 .It Dv bios
 Makes the PnP device use the configuration set by the BIOS. This
@@ -88,12 +83,12 @@ Frees the entry used for the device, so that it can be used for
 another device with a different CSN/LDN pair.
 .It Dv flags
 Sets the value of a 32-bit flags entry which is passed to the device
-driver. This can be used to set special operation modes (e.g. SB vs. WSS
+driver. It can be used to set special operation modes (e.g. SB vs. WSS
 emulation on some sound cards, etc.). 
 .El
 .Pp
 The current content of the table can be printed using the
-.Ic ls
+.Nm ls
 command in userconfig. In addition to modifications done by the user,
 the table contains an entry for
 all logical devices accessed by a PnP device driver.
@@ -104,62 +99,61 @@ the table will be saved to the boot image on the filesystem by the
 command.
 .Pp
 .Sh DEVICE DRIVER SUPPORT FOR PnP
-PnP devices are automatically recognized and configured by the kernel.
+PnP devices are automatically recognised and configured by the kernel.
 A PnP device is identified by the following data structure:
-.Bd -literal
+
 struct pnp_device { 
-	char	*pd_name;
-	char	*(*pd_probe ) (u_long csn, u_long vendor_id);
-	void	(*pd_attach ) (u_long csn, u_long vend_id, char * name,
-		    struct isa_device *dev);
-	u_long	*pd_count;
-	u_int	*imask;
-	struct	isa_device dev;
+    char   *pd_name;
+    char   * (*pd_probe ) (u_long csn, u_long vendor_id);
+    void   (*pd_attach ) (u_long csn, u_long vend_id, char * name,
+        struct isa_device *dev);
+    u_long *pd_count;
+    u_int  *imask ;
+    struct isa_device dev ;
 };
-.Ed
 .Pp
-The probe routine must check that the vendor_id passed is a
-recognized one, that any necessary devices on the card are enabled,
-and returns a NULL value in case of failure or a non-NULL value
-(generally a pointer to the device name) unpon success.  In the probe
-routine, the function
-.Fn read_pnp_parms
-can be used to check that the logical devices are enabled.
+The probe routine must check that the vendor_id passed to the
+routine is a recognized one, that any necessary device on the card is
+enabled, and returns a NULL value in case of failure and a non-NULL
+value (generally a pointer to the device name) in case of success.
+In the probe routine, read_pnp_parms() can be used to check that
+a logical device is enabled.
 .Pp
 The attach routine should do all the necessary initialization, enable
-the PnP card to ISA accesses, fetch the configuration, and call the ISA
+the PnP card to ISA accesses, fetch the configuration and call the ISA
 driver for the device.
 .Pp
-The following routines and data structures can be used:
+The following routines and data structures can be used.
+
 .Bl -tag -width "xxxxxxxxxx"
 .It Dv struct pnp_cinfo
 This data structure (defined in /sys/i386/isa/pnp.h) contains all
 informations related to a PnP logical device.
-.It Fn read_pnp_parms "struct pnp_cinfo *d" "int ldn"
+.It Dv read_pnp_parms(struct pnp_cinfo *d, int ldn)
 This function returns the configuration of the requested
 logical device. It is not possible to specify a CSN since this function
 is only meant to be used during probe and attach routines
-.It Fn write_pnp_parms "struct pnp_cinfo *d" "int ldn"
+.It Dv write_pnp_parms(struct pnp_cinfo *d, int ldn)
 This function sets the parameters of the requested logical device. At
 the same time, it updates the entry in the kernel override table.
 Device drivers in general should
-.Em not
+.Nm not
 modify the configuration of a device, since either the BIOS or the user
 (through userconfig) should know better what to do. In particular,
 device driver
-.Em should not enable
+.Nm should not enable
 a logical device which has
 been found disabled,
 since this would defeat the override mechanism in userconfig.
 Device
-drivers may disable a logical device, or a port range, etc, but should
+drivers may disable a logical device, or a port range, etc. but should
 do so only that particular device or parameter is known to cause
 troubles.
-.It Fn enable_pnp_card void
+.It enable_pnp_card(void)
 This function
-.Em must
+.Nm must
 be used in the attach routine
-.Em only ,
+.Nm only ,
 before accessing the card's ISA ports/memory address ranges.
 .El
 .Pp
@@ -167,8 +161,8 @@ before accessing the card's ISA ports/memory address ranges.
 .Xr dset 8
 .Sh BUGS
 There is no support for visual configuration of PnP devices.
-It would be nice to have commands in userconfig to fetch the
-configuration of PnP devices.
+It would be nice to have commands in userconfig to fetch the configuration of PnP devices.
+
 .Sh AUTHOR
 PnP support was written by Luigi Rizzo, based on initial work done by
 Sujal Patel.
