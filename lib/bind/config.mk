@@ -59,8 +59,8 @@ BIND_LDADD=	-lbind9 -ldns -lisccc -lisccfg -lisc -llwres
 
 # Link against crypto library
 .if !defined(NOCRYPT)
-CRYPTO_DPADD+=	${LIBCRYPTO}
-CRYPTO_LDADD+=	-lcrypto
+CRYPTO_DPADD=	${LIBCRYPTO}
+CRYPTO_LDADD=	-lcrypto
 .endif
 
 # Link against POSIX threads library
@@ -68,12 +68,11 @@ CRYPTO_LDADD+=	-lcrypto
 .if defined(NOLIBC_R)
 .error "BIND requires libc_r - define NO_BIND, or undefine NOLIBC_R"
 .endif
-PTHREAD_DPADD+=	${LIBC_R}
-PTHREAD_LDADD+=	-lc_r
 .else
 .if defined(NOLIBPTHREAD)
 .error "BIND requires libpthread - define NO_BIND, or undefine NOLIBPTHREAD"
 .endif
-PTHREAD_DPADD+=	${LIBPTHREAD}
-PTHREAD_LDADD+=	-lpthread
 .endif
+
+PTHREAD_DPADD=	${LIBPTHREAD}
+PTHREAD_LDADD=	-lpthread
