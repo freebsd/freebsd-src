@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.9 1996/02/23 04:20:19 wpaul Exp $
+ *	$Id: pw_yp.c,v 1.3 1996/02/23 16:08:58 wpaul Exp $
  */
 
 #ifdef YP
@@ -335,6 +335,18 @@ char *get_yp_master(getserver)
 	char *mastername;
 	int rval, localport;
 	struct stat st;
+
+	/*
+	 * Sometimes we are called just to probe for rpc.yppasswdd and
+	 * set the suser_override flag. Just return NULL and leave
+	 * suser_override at 0 if _use_yp doesn't indicate that NIS is
+	 * in use and we weren't called from use_yp() itself.
+	 * Without this check, we might try probing and fail with an NIS
+	 * error in non-NIS environments.
+	 */
+	if ((_use_yp == USER_UNKNOWN || _use_yp == USER_LOCAL_ONLY) &&
+								getserver)
+		return(NULL);
 
 	/* Get default NIS domain. */
 
