@@ -7,6 +7,7 @@ SRCS+= \
 	uthread_accept.c \
 	uthread_aio_suspend.c \
 	uthread_attr_destroy.c \
+	uthread_attr_get_np.c \
 	uthread_attr_init.c \
 	uthread_attr_getdetachstate.c \
 	uthread_attr_getinheritsched.c \
