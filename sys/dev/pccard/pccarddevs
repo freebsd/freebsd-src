@@ -88,6 +88,7 @@ vendor TELECOMDEVICE		0x021b  Telecom Device
 vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
 vendor HWN			0x0261	Home Wireless Networks
+vendor ARTEM			0x0268	ARtem
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor LINKSYS2			0x0274  The Linksys Group
@@ -153,6 +154,9 @@ product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
 /* Archos */
 product	ARCHOS ARC_ATAPI	0x0043 MiniCD
+
+/* ARtem */
+product ARTEM ONAIR		0x0001 ARtem OnAir
 
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
