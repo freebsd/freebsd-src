@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.6 1994/12/12 12:35:47 bde Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.7 1995/05/30 08:07:43 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -67,14 +67,14 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
-int msdosfsdoforce = 1;		/* 1 = force unmount */
+static int msdosfsdoforce = 1;		/* 1 = force unmount */
 
 /*
  * mp - path - addr in user space of mount point (ie /usr or whatever)
  * data - addr in user space of mount params including the name of the block
  * special file to treat as a filesystem.
  */
-int
+static int
 msdosfs_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -235,7 +235,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 	return 0;
 }
 
-int
+static int
 mountmsdosfs(devvp, mp, p)
 	struct vnode *devvp;
 	struct mount *mp;
@@ -477,7 +477,7 @@ error_exit:;
 	return error;
 }
 
-int
+static int
 msdosfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -489,7 +489,7 @@ msdosfs_start(mp, flags, p)
 /*
  * Unmount the filesystem described by mp.
  */
-int
+static int
 msdosfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -525,7 +525,7 @@ msdosfs_unmount(mp, mntflags, p)
 	return error;
 }
 
-int
+static int
 msdosfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -544,7 +544,7 @@ msdosfs_root(mp, vpp)
 	return error;
 }
 
-int
+static int
 msdosfs_quotactl(mp, cmds, uid, arg, p)
 	struct mount *mp;
 	int cmds;
@@ -559,7 +559,7 @@ msdosfs_quotactl(mp, cmds, uid, arg, p)
 #endif
 }
 
-int
+static int
 msdosfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -596,7 +596,7 @@ msdosfs_statfs(mp, sbp, p)
 	return 0;
 }
 
-int
+static int
 msdosfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -654,7 +654,7 @@ loop:
 	return allerror;
 }
 
-int
+static int
 msdosfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -685,7 +685,7 @@ msdosfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 }
 
 
-int
+static int
 msdosfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -700,7 +700,7 @@ msdosfs_vptofh(vp, fhp)
 	return 0;
 }
 
-int
+static int
 msdosfs_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
