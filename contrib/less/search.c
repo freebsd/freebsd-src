@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -54,6 +54,7 @@ extern int sc_height;
 extern int jump_sline;
 extern int bs_mode;
 extern int more_mode;
+extern int ctldisp;
 extern int status_col;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
@@ -108,6 +109,7 @@ static char *last_pattern = NULL;
 #define	CVT_TO_LC	01	/* Convert upper-case to lower-case */
 #define	CVT_BS		02	/* Do backspace processing */
 #define	CVT_CRLF	04	/* Remove CR after LF */
+#define	CVT_ANSI	010	/* Remove ANSI escape sequences */
 
 	static void
 cvt_text(odst, osrc, ops)
@@ -118,21 +120,51 @@ cvt_text(odst, osrc, ops)
 	register char *dst;
 	register char *src;
 
-	for (src = osrc, dst = odst;  *src != '\0';  src++, dst++)
+	for (src = osrc, dst = odst;  *src != '\0';  src++)
 	{
 		if ((ops & CVT_TO_LC) && isupper((unsigned char) *src))
 			/* Convert uppercase to lowercase. */
-			*dst = tolower((unsigned char) *src);
+			*dst++ = tolower((unsigned char) *src);
 		else if ((ops & CVT_BS) && *src == '\b' && dst > odst)
 			/* Delete BS and preceding char. */
-			dst -= 2;
-		else 
+			dst--;
+		else if ((ops & CVT_ANSI) && *src == ESC)
+		{
+			/* Skip to end of ANSI escape sequence. */
+			while (src[1] != '\0')
+				if (is_ansi_end(*++src))
+					break;
+		} else 
 			/* Just copy. */
-			*dst = *src;
+			*dst++ = *src;
 	}
 	if ((ops & CVT_CRLF) && dst > odst && dst[-1] == '\r')
 		dst--;
 	*dst = '\0';
+}
+
+/*
+ * Determine which conversions to perform.
+ */
+	static int
+get_cvt_ops()
+{
+	int ops = 0;
+	if (is_caseless || bs_mode == BS_SPECIAL)
+	{
+		if (is_caseless) 
+			ops |= CVT_TO_LC;
+		if (bs_mode == BS_SPECIAL)
+			ops |= CVT_BS;
+		if (bs_mode != BS_CONTROL)
+			ops |= CVT_CRLF;
+	} else if (bs_mode != BS_CONTROL)
+	{
+		ops |= CVT_CRLF;
+	}
+	if (ctldisp == OPT_ONPLUS)
+		ops |= CVT_ANSI;
+	return (ops);
 }
 
 /*
@@ -589,9 +621,10 @@ add_hilite(anchor, hl)
  * Adjust hl_startpos & hl_endpos to account for backspace processing.
  */
 	static void
-adj_hilite(anchor, linepos)
+adj_hilite(anchor, linepos, cvt_ops)
 	struct hilite *anchor;
 	POSITION linepos;
+	int cvt_ops;
 {
 	char *line;
 	struct hilite *hl;
@@ -633,18 +666,39 @@ adj_hilite(anchor, linepos)
 		}
 		if (*line == '\0')
 			break;
+		if (cvt_ops & CVT_ANSI)
+		{
+			while (line[0] == ESC)
+			{
+				/*
+				 * Found an ESC.  The file position moves
+				 * forward past the entire ANSI escape sequence.
+				 */
+				line++;
+				npos++;
+				while (*line != '\0')
+				{
+					npos++;
+					if (is_ansi_end(*line++))
+						break;
+				}
+			}
+		}
 		opos++;
 		npos++;
 		line++;
-		while (line[0] == '\b' && line[1] != '\0')
+		if (cvt_ops & CVT_BS)
 		{
-			/*
-			 * Found a backspace.  The file position moves
-			 * forward by 2 relative to the processed line
-			 * which was searched in hilite_line.
-			 */
-			npos += 2;
-			line += 2;
+			while (line[0] == '\b' && line[1] != '\0')
+			{
+				/*
+				 * Found a backspace.  The file position moves
+				 * forward by 2 relative to the processed line
+				 * which was searched in hilite_line.
+				 */
+				npos += 2;
+				line += 2;
+			}
 		}
 	}
 }
@@ -655,11 +709,12 @@ adj_hilite(anchor, linepos)
  * sp,ep delimit the first match already found.
  */
 	static void
-hilite_line(linepos, line, sp, ep)
+hilite_line(linepos, line, sp, ep, cvt_ops)
 	POSITION linepos;
 	char *line;
 	char *sp;
 	char *ep;
+	int cvt_ops;
 {
 	char *searchp;
 	struct hilite *hl;
@@ -708,15 +763,13 @@ hilite_line(linepos, line, sp, ep)
 			break;
 	} while (match_pattern(searchp, &sp, &ep, 1));
 
-	if (bs_mode == BS_SPECIAL) 
-	{
-		/*
-		 * If there were backspaces in the original line, they
-		 * were removed, and hl_startpos/hl_endpos are not correct.
-		 * {{ This is very ugly. }}
-		 */
-		adj_hilite(&hilites, linepos);
-	}
+	/*
+	 * If there were backspaces in the original line, they
+	 * were removed, and hl_startpos/hl_endpos are not correct.
+	 * {{ This is very ugly. }}
+	 */
+	adj_hilite(&hilites, linepos, cvt_ops);
+
 	/*
 	 * Now put the hilites into the real list.
 	 */
@@ -873,9 +926,10 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 	POSITION *pendpos;
 {
 	char *line;
-	int linenum;
+	LINENUM linenum;
 	char *sp, *ep;
 	int line_match;
+	int cvt_ops;
 	POSITION linepos, oldpos;
 
 	linenum = find_linenum(pos);
@@ -955,20 +1009,8 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 		 * If it's a caseless search, convert the line to lowercase.
 		 * If we're doing backspace processing, delete backspaces.
 		 */
-		if (is_caseless || bs_mode == BS_SPECIAL)
-		{
-			int ops = 0;
-			if (is_caseless) 
-				ops |= CVT_TO_LC;
-			if (bs_mode == BS_SPECIAL)
-				ops |= CVT_BS;
-			if (bs_mode != BS_CONTROL)
-				ops |= CVT_CRLF;
-			cvt_text(line, line, ops);
-		} else if (bs_mode != BS_CONTROL)
-		{
-			cvt_text(line, line, CVT_CRLF);
-		}
+		cvt_ops = get_cvt_ops();
+		cvt_text(line, line, cvt_ops);
 
 		/*
 		 * Test the next line to see if we have a match.
@@ -992,7 +1034,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * hilite list and keep searching.
 			 */
 			if (line_match)
-				hilite_line(linepos, line, sp, ep);
+				hilite_line(linepos, line, sp, ep, cvt_ops);
 #endif
 		} else if (--matches <= 0)
 		{
@@ -1009,7 +1051,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 				 */
 				clr_hilite();
 				if (line_match)
-					hilite_line(linepos, line, sp, ep);
+					hilite_line(linepos, line, sp, ep, cvt_ops);
 			}
 #endif
 			if (plinepos != NULL)
