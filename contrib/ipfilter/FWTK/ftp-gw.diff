@@ -1,0 +1,237 @@
+*** ftp-gw.c.orig	Sat Nov  5 10:30:16 1994
+--- ftp-gw.c	Sun Jul  7 12:25:15 1996
+***************
+*** 11,31 ****
+   */
+  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.1.1 1997/01/09 15:14:46 darrenr Exp $";
+  
+  
+  #include	<stdio.h>
+  #include	<ctype.h>
+  #include	<syslog.h>
+  #include	<sys/signal.h>
+  #include	<sys/ioctl.h>
+  #include	<sys/errno.h>
+- extern	int	errno;
+- extern	char	*sys_errlist[];
+  #include	<arpa/ftp.h>
+  #include	<arpa/telnet.h>
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
+  #include	<netinet/in.h>
+  
+  extern	char	*rindex();
+  extern	char	*index();
+--- 11,37 ----
+   */
+  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.1.1 1997/01/09 15:14:46 darrenr Exp $";
+  
++ /*
++  * Patches for IP Filter NAT extensions written by Darren Reed, 7/7/96
++  * darrenr@cyber.com.au
++  */
++ static	char	vIpFilter[] = "v3.1.0";
+  
+  #include	<stdio.h>
+  #include	<ctype.h>
+  #include	<syslog.h>
++ #include	<unistd.h>
++ #include	<fcntl.h>
+  #include	<sys/signal.h>
+  #include	<sys/ioctl.h>
+  #include	<sys/errno.h>
+  #include	<arpa/ftp.h>
+  #include	<arpa/telnet.h>
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
+  #include	<netinet/in.h>
++ #include	<net/if.h>
+  
+  extern	char	*rindex();
+  extern	char	*index();
+***************
+*** 36,41 ****
+--- 42,48 ----
+  
+  #include	"firewall.h"
+  
++ #include	"ip_nat.h"
+  
+  #ifndef	BSIZ
+  #define	BSIZ	2048
+***************
+*** 83,88 ****
+--- 90,97 ----
+  static	int	cmd_noop();
+  static	int	cmd_abor();
+  static	int	cmd_passthru();
++ static	int	nat_destination();
++ static	int	connectdest();
+  static	void	saveline();
+  static	void	flushsaved();
+  static	void	trap_sigurg();
+***************
+*** 317,323 ****
+  			if(authallflg)
+  				if(say(0,"220-Proxy first requires authentication"))
+  					exit(1);
+! 			sprintf(xuf,"220 %s FTP proxy (Version %s) ready.",huf,FWTK_VERSION_MINOR);
+  			if(say(0,xuf))
+  				exit(1);
+  		}
+--- 326,335 ----
+  			if(authallflg)
+  				if(say(0,"220-Proxy first requires authentication"))
+  					exit(1);
+! 			sprintf(xuf,"220-%s FTP proxy (Version %s) ready.",huf,FWTK_VERSION_MINOR);
+! 			if(say(0,xuf))
+! 				exit(1);
+! 			sprintf(xuf,"220-%s TIS ftp-gw with IP Filter %s NAT extensions",huf,vIpFilter);
+  			if(say(0,xuf))
+  				exit(1);
+  		}
+***************
+*** 338,343 ****
+--- 350,357 ----
+  				exit(1);
+  	}
+  
++ 	nat_destination(0);
++ 
+  	/* main loop */
+  	while(1) {
+  		FD_ZERO(&rdy);
+***************
+*** 608,619 ****
+  	static char	narg[] = "501 Missing or extra username";
+  	static char	noad[] = "501 Use user@site to connect via proxy";
+  	char		buf[1024];
+- 	char 		mbuf[512];
+  	char		*p;
+  	char		*dest;
+  	char		*user;
+  	int		x;
+- 	int		msg_int;
+  	short		port = FTPPORT;
+  
+  	/* kludgy but effective. if authorizing everything call auth instead */
+--- 622,631 ----
+***************
+*** 643,648 ****
+--- 655,681 ----
+  			return(sayn(0,noad,sizeof(noad)));
+  	}
+  
++ 	if((rfd == -1) && (x = connectdest(dest,port)))
++ 		return x;
++ 	sprintf(buf,"USER %s",user);
++ 	if(say(rfd,buf))
++ 		return(1);
++ 	x = getresp(rfd,buf,sizeof(buf),1);
++ 	if(sendsaved(0,x))
++ 		return(1);
++ 	return(say(0,buf));
++ }
++ 
++ static int
++ connectdest(dest,port)
++ char *dest;
++ short port;
++ {
++ 	char		buf[1024];
++ 	char 		mbuf[512];
++ 	int		msg_int;
++ 	int		x;
++ 
+  	if(*dest == '\0')
+  		dest = "localhost";
+  
+***************
+*** 685,691 ****
+  		char	ebuf[512];
+  
+  		strcpy(ebuf,buf);
+! 		sprintf(buf,"521 %s: %s",dest,ebuf);
+  		return(say(0,buf));
+  	}
+  	sprintf(buf,"----GATEWAY CONNECTED TO %s----",dest);
+--- 718,724 ----
+  		char	ebuf[512];
+  
+  		strcpy(ebuf,buf);
+! 		sprintf(buf,"521 %s,%d: %s",dest,ntohs(port),ebuf);
+  		return(say(0,buf));
+  	}
+  	sprintf(buf,"----GATEWAY CONNECTED TO %s----",dest);
+***************
+*** 698,711 ****
+  		return(say(0,buf));
+  	}
+  	saveline(buf);
+! 
+! 	sprintf(buf,"USER %s",user);
+! 	if(say(rfd,buf))
+! 		return(1);
+! 	x = getresp(rfd,buf,sizeof(buf),1);
+! 	if(sendsaved(0,x))
+! 		return(1);
+! 	return(say(0,buf));
+  }
+  
+  
+--- 731,738 ----
+  		return(say(0,buf));
+  	}
+  	saveline(buf);
+! 	sendsaved(0,-1);
+! 	return 0;
+  }
+  
+  
+***************
+*** 1591,1593 ****
+--- 1618,1659 ----
+  	dup(nread);
+  }
+  #endif
++ 
++ 
++ static int
++ nat_destination(fd)
++ int fd;
++ {
++ 	struct	sockaddr_in	laddr, faddr;
++ 	struct	natlookup	natlookup;
++ 	char	*dest;
++ 	int	slen, natfd;
++ 
++ 	bzero((char *)&laddr, sizeof(laddr));
++ 	bzero((char *)&faddr, sizeof(faddr));
++ 	slen = sizeof(laddr);
++ 	if(getsockname(fd,(struct sockaddr *)&laddr,&slen) < 0) {
++ 		perror("getsockname");
++ 		exit(1);
++ 	}
++ 	slen = sizeof(faddr);
++ 	if(getpeername(fd,(struct sockaddr *)&faddr,&slen) < 0) {
++ 		perror("getsockname");
++ 		exit(1);
++ 	}
++ 
++ 	natlookup.nl_inport = laddr.sin_port;
++ 	natlookup.nl_outport = faddr.sin_port;
++ 	natlookup.nl_inip = laddr.sin_addr;
++ 	natlookup.nl_outip = faddr.sin_addr;
++ 	if((natfd = open("/dev/ipl", O_RDONLY)) < 0) {
++ 		perror("open");
++ 		exit(1);
++ 	}
++ 	if(ioctl(natfd, SIOCGNATL, &natlookup) == -1) {
++ 		perror("ioctl");
++ 		exit(1);
++ 	}
++ 	close(natfd);
++ 	return connectdest(inet_ntoa(natlookup.nl_inip),ntohs(natlookup.nl_inport));
++ }
