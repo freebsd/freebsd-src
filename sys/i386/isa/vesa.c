@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.6 1998/09/29 20:38:54 ache Exp $
+ * $Id: vesa.c,v 1.7 1998/10/01 11:39:18 yokota Exp $
  */
 
 #include "sc.h"
@@ -430,7 +430,7 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_window_size = vmode.v_wsize*1024;
 		vesa_vmode[modes].vi_window_gran = vmode.v_wgran*1024;
 		vesa_vmode[modes].vi_buffer = vmode.v_lfb;
-		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen*1024;
+		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen;
 		/* pixel format, memory model... */
 		vesa_vmode[modes].vi_flags 
 			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
