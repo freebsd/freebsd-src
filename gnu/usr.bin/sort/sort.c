@@ -203,31 +203,7 @@ static int collates[UCHAR_LIM];
 static int
 collcompare (const void *sa, const void *sb)
 {
-	int A = *((int *)sa), B = *((int *)sb);
-	static char s1[2], s2[2];
-
-	if (A == B)
-		return (0);
-	if (isascii(A) && isascii(B) || !isalpha(A) && !isalpha(B))
-		return (A - B);
-	if (isupper(A) && islower(B))
-		return (-1);
-	else if (islower(A) && isupper(B))
-		return (1);
-	if (isalpha(A) && !isalpha(B)) {
-		if (isupper(A))
-			return ('A' - B);
-		else
-			return ('a' - B);
-	} else if (isalpha(B) && !isalpha(A)) {
-		if (isupper(B))
-			return (A - 'A');
-		else
-			return (A - 'a');
-	}
-	s1[0] = A;
-	s2[0] = B;
-	return strcoll(s1, s2);
+	return collate_range_cmp (*((int *)sa), *((int *)sb));
 }
 
 static void
