@@ -141,7 +141,7 @@ daily.
 (str) Set to a list of file names to match.
 Wild cards are permitted.
 .It Ar daily_clean_disks_days
-(int) When
+(num) When
 .Ar daily_clean_disks_enable
 is set to
 .Dq YES ,
@@ -161,7 +161,7 @@ if you want to clear temporary directories daily.
 is set to
 .Dq YES .
 .It Ar daily_clean_tmps_days
-(int) When
+(num) When
 .Ar daily_clean_tmps_enable
 is set, this must also be set to the number of days old that a file's access
 and modification times must be before it's deleted.
@@ -502,9 +502,9 @@ is shared or distributed.
 .Xr ac 8 ,
 .Xr chkgrp 8 ,
 .Xr dump 8 ,
-.Xr mfs 8 .
-.Xr newsyslog 8 .
-.Xr periodic 8 .
+.Xr mfs 8 ,
+.Xr newsyslog 8 ,
+.Xr periodic 8
 .Sh HISTORY
 The
 .Nm
