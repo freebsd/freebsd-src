@@ -1,8 +1,9 @@
 #	$NetBSD: Makefile,v 1.3 1995/07/04 01:53:05 cgd Exp $
+#	$Id$
 
 PROG=	lint1
 SRCS=	cgram.y scan.l mem1.c mem.c err.c main1.c decl.c tree.c func.c \
-	init.c emit.c emit1.c
+	init.c emit.c emit1.c y.tab.h
 NOMAN=
 LDADD+=	-ll
 DPADD+=	${LIBL}
