@@ -855,7 +855,9 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 	int error, itype;
 
 	smb_makescred(&scred, td, td->td_ucred);
-	sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
 	error = smb_sm_lockvclist(LK_SHARED, td);
 	if (error)
 		return error;

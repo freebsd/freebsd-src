@@ -139,6 +139,7 @@ struct sysctl_req {
 	size_t		newlen;
 	size_t		newidx;
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
+	size_t		wiredlen;
 };
 
 SLIST_HEAD(sysctl_oid_list, sysctl_oid);
@@ -623,7 +624,7 @@ int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 			size_t *retval);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			int *nindx, struct sysctl_req *req);
-void	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
+int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 
 #else	/* !_KERNEL */
 #include <sys/cdefs.h>

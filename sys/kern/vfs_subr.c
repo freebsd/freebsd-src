@@ -2897,7 +2897,9 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		/* Make an estimate */
 		return (SYSCTL_OUT(req, 0, len));
 
-	sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	xvn = malloc(len, M_TEMP, M_ZERO | M_WAITOK);
 	n = 0;
 	mtx_lock(&mountlist_mtx);
