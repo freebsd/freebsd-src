@@ -29,6 +29,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#ifdef NOSUID
+#include <signal.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
