@@ -103,7 +103,7 @@ main(argc, argv)
 	char *tmsg;
 	time_t t;
 
-	spcl.c_date = time_to_time32(time(NULL));
+	spcl.c_date = _time_to_time32(time(NULL));
 
 	tsize = 0;	/* Default later, based on 'c' option for cart tapes */
 	if ((tape = getenv("TAPE")) == NULL)
@@ -312,14 +312,14 @@ main(argc, argv)
 	if (spcl.c_date == 0) {
 		tmsg = "the epoch\n";
 	} else {
-		time_t t = time32_to_time(spcl.c_date);
+		time_t t = _time32_to_time(spcl.c_date);
 		tmsg = ctime(&t);
 	}
 	msg("Date of this level %c dump: %s", level, tmsg);
 	if (spcl.c_ddate == 0) {
 		tmsg = "the epoch\n";
 	} else {
-		time_t t = time32_to_time(spcl.c_ddate);
+		time_t t = _time32_to_time(spcl.c_ddate);
 		tmsg = ctime(&t);
 	}
  	msg("Date of last level %c dump: %s", lastlevel, tmsg);

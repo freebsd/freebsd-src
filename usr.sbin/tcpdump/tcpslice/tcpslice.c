@@ -195,7 +195,7 @@ long local_time_zone(long timestamp)
 	struct timeval now;
 	struct timezone tz;
 	long localzone;
-	time_t t = long_to_time(timestamp);
+	time_t t = _long_to_time(timestamp);
 
 	if (gettimeofday(&now, &tz) < 0)
 		err(1, "gettimeofday");
@@ -215,7 +215,7 @@ long local_time_zone(long timestamp)
 struct timeval
 parse_time(char *time_string, struct timeval base_time)
 {
-	time_t tt = long_to_time(base_time.tv_sec);
+	time_t tt = _long_to_time(base_time.tv_sec);
 	struct tm *bt = localtime(&tt);
 	struct tm t;
 	struct timeval result;
@@ -574,14 +574,14 @@ timestamp_to_string(struct timeval *timestamp)
 		break;
 
 	    case TIMESTAMP_READABLE:
-		tt = long_to_time(timestamp->tv_sec);
+		tt = _long_to_time(timestamp->tv_sec);
 		t = localtime(&tt);
 		strcpy( buf, asctime( t ) );
 		buf[24] = '\0';	/* nuke final newline */
 		break;
 
 	    case TIMESTAMP_PARSEABLE:
-		tt = long_to_time(timestamp->tv_sec);
+		tt = _long_to_time(timestamp->tv_sec);
 		t = localtime(&tt);
 		if (t->tm_year >= 100)
 			t->tm_year += 1900;

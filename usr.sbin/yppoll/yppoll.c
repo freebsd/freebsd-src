@@ -88,7 +88,7 @@ char **argv;
 	r = yp_order(domainname, inmap, &order);
         if (r != 0)
 		errx(1, "no such map %s. Reason: %s", inmap, yperr_string(r));
-	t = int_to_time(order);
+	t = _int_to_time(order);
         printf("Map %s has order number %d. %s", inmap, order, ctime(&t));
 	r = yp_master(domainname, inmap, &master);
         if (r != 0)
