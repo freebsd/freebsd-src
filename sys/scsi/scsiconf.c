@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.12 1994/10/23 21:27:55 wollman Exp $
+ *      $Id: scsiconf.c,v 1.13 1994/11/12 17:13:23 ats Exp $
  */
 
 #include <sys/types.h>
@@ -734,11 +734,8 @@ scsi_probedev(sc_link, maybe_more)
 		desc = inqbuf.vendor;
 		desc[len - (desc - (char *) &inqbuf)] = 0;
 		strncpy(manu, inqbuf.vendor, 8);
-		manu[8] = 0;
 		strncpy(model, inqbuf.product, 16);
-		model[16] = 0;
 		strncpy(version, inqbuf.revision, 4);
-		version[4] = 0;
 	} else
 		/*
 		 * If not advanced enough, use default values
@@ -749,6 +746,9 @@ scsi_probedev(sc_link, maybe_more)
 		strncpy(model, "unknown", 16);
 		strncpy(version, "????", 4);
 	}
+	manu[8] = 0;
+	model[16] = 0;
+	version[4] = 0;
 	printf("%s%d targ %d lun %d: type %ld(%s) %s SCSI%d\n"
 	    ,scsi_adapter->name
 	    ,unit
