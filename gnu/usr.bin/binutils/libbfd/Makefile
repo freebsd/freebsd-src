@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/03/12 05:14:09 jdp Exp $
+# $Id: Makefile,v 1.4 1998/05/04 21:16:46 jb Exp $
 #
 
 .include "../Makefile.inc0"
@@ -10,7 +10,8 @@ LIB=		bfd
 SRCS+=		archive.c archures.c bfd.c binary.c cache.c \
 		coffgen.c corefile.c elf.c format.c hash.c ihex.c \
 		init.c libbfd.c linker.c opncls.c reloc.c section.c \
-		srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c
+		srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
+		targmatch.h
 CFLAGS+=	-I${SRCDIR}/bfd
 NOPROFILE=	true
 NOPIC=		true
@@ -37,10 +38,6 @@ SELVEC+=,&${_v}
 .endif
 .endfor
 CFLAGS+=	-DSELECT_VECS="${SELVEC}"
-
-beforedepend: targmatch.h
-
-targets.o: targmatch.h
 
 targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}

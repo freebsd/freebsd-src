@@ -1,17 +1,13 @@
 #
-# $Id: Makefile.i386,v 1.3 1998/03/30 02:21:22 jdp Exp $
+# $Id: Makefile.i386,v 1.4 1998/05/04 21:16:46 jb Exp $
 #
-SRCS+=		cpu-i386.c elf32-i386.c elf32.c elflink.c
+SRCS+=		cpu-i386.c elf32-i386.c elf32-target.h elf32.c elflink.c
 VECS+=		bfd_elf32_i386_vec
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_i386_vec
 .endif
 CFLAGS+=	-DHAVE_bfd_elf32_i386_vec
 CLEANFILES+=	elf32-target.h
-
-beforedepend:	elf32-target.h
-
-elf32-i386.o:	elf32-target.h
 
 elf32-target.h:	elfxx-target.h
 	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
