@@ -200,6 +200,7 @@ struct proc;
 struct sockaddr;
 struct socket;
 struct pipe;
+struct thread;
 struct timespec;
 struct ucred;
 struct uio;
@@ -293,6 +294,7 @@ void	mac_execve_transition(struct ucred *old, struct ucred *new,
 int	mac_execve_will_transition(struct ucred *old, struct vnode *vp);
 void	mac_create_proc0(struct ucred *cred);
 void	mac_create_proc1(struct ucred *cred);
+void	mac_thread_userret(struct thread *td);
 
 /* Access control checks. */
 int	mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet);
