@@ -640,11 +640,11 @@ _http_connect(struct url *URL, struct url *purl, char *flags)
     af = AF_INET;
 #endif
     
-    verbose = (flags && strchr(flags, 'v'));
-    if (flags && strchr(flags, '4'))
+    verbose = CHECK_FLAG('v');
+    if (CHECK_FLAG('4'))
 	af = AF_INET;
 #ifdef INET6
-    else if (flags && strchr(flags, '6'))
+    else if (CHECK_FLAG('6'))
 	af = AF_INET6;
 #endif
 
@@ -705,9 +705,9 @@ _http_request(struct url *URL, char *op, struct url_stat *us,
     char hbuf[MAXHOSTNAMELEN + 1];
 #endif
 
-    direct = (flags && strchr(flags, 'd'));
-    noredirect = (flags && strchr(flags, 'A'));
-    verbose = (flags && strchr(flags, 'v'));
+    direct = CHECK_FLAG('d');
+    noredirect = CHECK_FLAG('A');
+    verbose = CHECK_FLAG('v');
 
     if (direct && purl) {
 	fetchFreeURL(purl);
