@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,38 +27,23 @@
  *	i4b_l2if.c - Layer 3 interface to Layer 2
  *	-------------------------------------------
  *
- *	$Id: i4b_l2if.c,v 1.23 2000/08/24 11:48:58 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:56:22 2000]
+ *      last edit-date: [Thu Oct 18 13:29:19 2001]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "i4bq931.h"
-#else
-#define	NI4BQ931	1
-#endif
+
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_cause.h>
-#endif
 
 #include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_l2l3.h>
@@ -435,8 +420,10 @@ i4b_l3_tx_setup(call_desc_t *cd)
 {
 	struct mbuf *m;
 	u_char *ptr;
+	int len;
 	int slen = strlen(cd->src_telno);
 	int dlen = strlen(cd->dst_telno);
+	int klen = strlen(cd->keypad);	
 
 	/*
 	 * there is one additional octet if cd->bprot == BPROT_NONE
@@ -447,8 +434,14 @@ i4b_l3_tx_setup(call_desc_t *cd)
 
 	NDBGL3(L3_PRIM, "unit %d, cr = 0x%02x", ctrl_desc[cd->controller].unit, cd->cr);
 	
-	if((m = i4b_Dgetmbuf(I_FRAME_HDRLEN + MSG_SETUP_LEN + slen + dlen +
-			    (cd->bprot == BPROT_NONE ? 1 : 0))) == NULL)
+	len = 	I_FRAME_HDRLEN		+
+		MSG_SETUP_LEN		+
+		(slen ? (3+slen) : 0)	+
+		(dlen ? (3+dlen) : 0)	+
+		(klen ? (2+klen) : 0)	+
+		(cd->bprot == BPROT_NONE ? 1 : 0);
+
+	if((m = i4b_Dgetmbuf(len)) == NULL)
 	{
 		panic("i4b_l3_tx_setup: can't allocate mbuf\n");
 	}
@@ -511,17 +504,31 @@ i4b_l3_tx_setup(call_desc_t *cd)
 			break;
 	}
 
-	*ptr++ = IEI_CALLINGPN;		/* calling party no */
-	*ptr++ = IEI_CALLINGPN_LEN+slen;/* calling party no length */
-	*ptr++ = NUMBER_TYPEPLAN;	/* type of number, number plan id */
-	strncpy(ptr, cd->src_telno, slen);
-	ptr += slen;
+	if(klen)
+	{
+		*ptr++ = IEI_KEYPAD;		/* keypad facility */
+		*ptr++ = klen;			/* keypad facility length */
+		strncpy(ptr, cd->keypad, klen);
+		ptr += klen;
+	}
+	
+	if(slen)
+	{
+		*ptr++ = IEI_CALLINGPN;		/* calling party no */
+		*ptr++ = IEI_CALLINGPN_LEN+slen;/* calling party no length */
+		*ptr++ = NUMBER_TYPEPLAN;	/* type of number, number plan id */
+		strncpy(ptr, cd->src_telno, slen);
+		ptr += slen;
+	}
 
-	*ptr++ = IEI_CALLEDPN;		/* called party no */
-	*ptr++ = IEI_CALLEDPN_LEN+dlen;	/* called party no length */
-	*ptr++ = NUMBER_TYPEPLAN;	/* type of number, number plan id */
-	strncpy(ptr, cd->dst_telno, dlen);
-	ptr += dlen;
+	if(dlen)
+	{
+		*ptr++ = IEI_CALLEDPN;		/* called party no */
+		*ptr++ = IEI_CALLEDPN_LEN+dlen;	/* called party no length */
+		*ptr++ = NUMBER_TYPEPLAN;	/* type of number, number plan id */
+		strncpy(ptr, cd->dst_telno, dlen);
+		ptr += dlen;
+	}
 	
 	DL_Data_Req(ctrl_desc[cd->controller].unit, m);
 }

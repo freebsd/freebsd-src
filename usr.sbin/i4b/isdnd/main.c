@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Jun  5 17:06:20 2001]
+ *      last edit-date: [Thu Oct 18 13:57:45 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -711,6 +711,10 @@ isdnrdhdl(void)
 
 			case MSG_PACKET_IND:
 				msg_packet_ind((msg_packet_ind_t *)msg_rd_buf);
+				break;
+
+			case MSG_KEYPAD_IND:
+				msg_keypad((msg_keypad_ind_t *)msg_rd_buf);
 				break;
 
 			default:

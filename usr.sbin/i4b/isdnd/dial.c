@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - dial handling routines
  *	-----------------------------------
  *
- *	$Id: dial.c,v 1.8 1999/12/13 21:25:24 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:51 1999]
+ *      last edit-date: [Thu Oct 18 11:05:01 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -45,6 +43,9 @@ void
 select_first_dialno(cfg_entry_t *cep)
 {
 	int i, j;
+
+	if(cep->keypad[0] != '\0')
+		return;
 
 	if(cep->remote_numbers_count < 1)
 	{
