@@ -53,7 +53,7 @@ at boot time from the
 file.  
 It synchronizes the host's time with the time of other
 machines in a local area network running 
-.Nm timed .
+.Nm Ns .
 These time servers will slow down the clocks of some machines
 and speed up the clocks of others to bring them to the average network time.
 The average network time is computed from measurements of clock differences
@@ -62,11 +62,11 @@ using the
 timestamp request message.
 .Pp
 The service provided by
-.Nm timed
+.Nm
 is based  on a master-slave
 scheme.
 When
-.Nm timed
+.Nm
 is started on a machine, it asks the master for the network time
 and sets the host's clock to that time.
 After that, it accepts synchronization messages periodically sent by
@@ -85,7 +85,7 @@ a new master from among slaves running with the
 .Fl M
 flag.
 A
-.Nm timed
+.Nm
 running without the
 .Fl M
 or
@@ -104,8 +104,9 @@ The
 .Fl d
 flag is for debugging the daemon.
 It causes the program to not put itself into the background.
+.Pp
 Normally
-.Nm timed
+.Nm
 checks for a master time server on each network to which
 it is connected, except as modified by the options described below.
 It will request synchronization service from the first master server
@@ -153,7 +154,9 @@ If it finds masters on more than one network, it chooses one network
 on which to be a "slave," and then periodically checks the other
 networks to see if the masters there have disappeared.
 .Pp
-One way to synchronize a group of machines is to use an NTP daemon to 
+One way to synchronize a group of machines is to use an
+.Tn NTP
+daemon to 
 synchronize the clock of one machine to a distant standard or a radio
 receiver and 
 .Fl F Ar hostname
@@ -173,10 +176,10 @@ Complaints about machines that failed to respond to initial time
 settings are often associated with "multi-homed" machines
 that looked for time masters on more than one network and eventually
 chose to become a slave on the other network.
-.Sh WARNING
+.Sh WARNINGS
 If two or more time daemons, whether 
-.Nm timed ,
-.Xr NTP ,
+.Nm Ns ,
+.Tn NTP ,
 try to adjust the same clock, temporal chaos will result.
 If both 
 .Nm
@@ -184,11 +187,15 @@ and another time daemon are run on the same machine,
 ensure that the 
 .Fl F
 flag is used, so that 
-.Nm timed
+.Nm
 never attempts to adjust the local clock.
 .Pp 
-The protocol is based on UDP/IP broadcasts.  All machines within
-the range of a broadcast that are using the TSP protocol must cooperate.
+The protocol is based on
+.Tn UDP/IP
+broadcasts.  All machines within
+the range of a broadcast that are using the
+.Tn TSP
+protocol must cooperate.
 There cannot be more than a single administrative domain using the
 .Fl F
 flag among all machines reached by a broadcast packet.

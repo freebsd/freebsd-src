@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)acksend.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.6 $"
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "globals.h"
 
@@ -56,7 +56,8 @@ xmit(type, seq, addr)
 	msg.tsp_type = type;
 	msg.tsp_seq = seq;
 	msg.tsp_vers = TSPVERSION;
-	(void)strcpy(msg.tsp_name, hostname);
+	(void)strncpy(msg.tsp_name, hostname, sizeof msg.tsp_name-1);
+	msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
 	bytenetorder(&msg);
 	if (sendto(sock, (char *)&msg, sizeof(struct tsp), 0,
 		   (struct sockaddr*)addr, sizeof(struct sockaddr)) < 0) {

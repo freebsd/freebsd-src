@@ -34,7 +34,7 @@
  */
 
 #ifdef sgi
-#ident "$Revision: 1.15 $"
+#ident "$Revision: 1.1.1.1 $"
 #endif
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
@@ -66,7 +67,6 @@
 #define	SECDAY	(24*SECHR)
 #endif /* sgi */
 
-extern int errno;
 extern int sock;
 
 /* Best expected round trip for a measurement.
