@@ -9203,15 +9203,20 @@ fail:
  */
 static void sym_cam_free(hcb_p np)
 {
-	if (np->intr)
+	if (np->intr) {
 		bus_teardown_intr(np->device, np->irq_res, np->intr);
+		np->intr = NULL;
+	}
 	
 	if (np->sim) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
 		cam_sim_free(np->sim, /*free_devq*/ TRUE);
+		np->sim = NULL;
 	}
-	if (np->path)
+	if (np->path) {
 		xpt_free_path(np->path);
+		np->path = NULL;
+	}
 }
 
 /*============ OPTIONNAL NVRAM SUPPORT =================*/
