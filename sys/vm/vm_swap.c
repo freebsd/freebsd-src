@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.72 1999/06/26 02:46:49 mckusick Exp $
+ * $Id: vm_swap.c,v 1.74 1999/07/07 03:03:59 green Exp $
  */
 
 #include "opt_devfs.h"
@@ -156,7 +156,7 @@ swstrategy(bp)
 		biodone(bp);
 		return;
 	}
-	bp->b_dev = sp->sw_dev;
+	bp->b_dev = udev2dev(sp->sw_dev);
 	if (sp->sw_vp == NULL) {
 		bp->b_error = ENODEV;
 		bp->b_flags |= B_ERROR;
@@ -314,7 +314,7 @@ swaponvp(p, vp, dev, nblks)
 	nblks = dbtoc(nblks);
 
 	sp->sw_vp = vp;
-	sp->sw_dev = dev;
+	sp->sw_dev = dev2udev(dev);
 	sp->sw_flags |= SW_FREED;
 	sp->sw_nblks = nblks;
 
