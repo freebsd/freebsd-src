@@ -177,7 +177,7 @@ print(pr, bp)
 		(void)printf(pr->fmt, (char *)bp);
 		break;
 	case F_TEXT:
-		(void)printf(pr->fmt);
+		(void)printf("%s", pr->fmt);
 		break;
 	case F_U:
 		conv_u(pr, bp);
