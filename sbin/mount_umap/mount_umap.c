@@ -105,7 +105,7 @@ main(argc, argv)
 			gmapfile = optarg;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'u':
 			mapfile = optarg;

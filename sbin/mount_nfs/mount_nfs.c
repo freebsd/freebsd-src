@@ -86,10 +86,41 @@ static char sccsid[] = "@(#)mount_nfs.c	8.3 (Berkeley) 3/27/94";
 
 #include "mntopts.h"
 
+#define	ALTF_BG		0x1
+#define ALTF_NOCONN	0x2
+#define ALTF_DUMBTIMR	0x4
+#define ALTF_INTR	0x8
+#define ALTF_KERB	0x10
+#define ALTF_NQLOOKLSE	0x20
+#define ALTF_RDIRALOOK	0x40
+#define	ALTF_MYWRITE	0x80
+#define ALTF_RESVPORT	0x100
+#define ALTF_SEQPACKET	0x200
+#define ALTF_NQNFS	0x400
+#define ALTF_SOFT	0x800
+#define ALTF_TCP	0x1000
+
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_FORCE,
 	MOPT_UPDATE,
+	{ "bg", 0, ALTF_BG, 1 },
+	{ "conn", 1, ALTF_NOCONN, 1 },
+	{ "dumbtimer", 0, ALTF_DUMBTIMR, 1 },
+	{ "intr", 0, ALTF_INTR, 1 },
+#ifdef KERBEROS
+	{ "kerb", 0, ALTF_KERB, 1 },
+#endif
+	{ "nqlooklease", 0, ALTF_NQLOOKLSE, 1 },
+	{ "rdiralook", 0, ALTF_RDIRALOOK, 1 },
+	{ "mywrite", 0, ALTF_MYWRITE, 1 },
+	{ "resvport", 0, ALTF_RESVPORT, 1 },
+#ifdef ISO
+	{ "seqpacket", 0, ALTF_SEQPACKET, 1 },
+#endif
+	{ "nqnfs", 0, ALTF_NQNFS, 1 },
+	{ "soft", 0, ALTF_SOFT, 1 },
+	{ "tcp", 0, ALTF_TCP, 1 },
 	{ NULL }
 };
 
@@ -145,7 +176,7 @@ main(argc, argv)
 	register struct nfs_args *nfsargsp;
 	struct nfs_args nfsargs;
 	struct nfsd_cargs ncd;
-	int mntflags, i, nfssvc_flag, num;
+	int mntflags, altflags, i, nfssvc_flag, num;
 	char *name, *p, *spec;
 	int error = 0;
 	struct vfsconf *vfc;
@@ -160,6 +191,7 @@ main(argc, argv)
 	retrycnt = DEF_RETRY;
 
 	mntflags = 0;
+	altflags = 0;
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
@@ -227,7 +259,38 @@ main(argc, argv)
 			break;
 #endif
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, &altflags);
+			if(altflags & ALTF_BG)
+				opflags |= BGRND;
+			if(altflags & ALTF_NOCONN)
+				nfsargsp->flags |= NFSMNT_NOCONN;
+			if(altflags & ALTF_DUMBTIMR)
+				nfsargsp->flags |= NFSMNT_DUMBTIMR;
+			if(altflags & ALTF_INTR)
+				nfsargsp->flags |= NFSMNT_INT;
+#ifdef KERBEROS
+			if(altflags & ALTF_KERB)
+				nfsargsp->flags |= NFSMNT_KERB;
+#endif
+			if(altflags & ALTF_NQLOOKLSE)
+				nfsargsp->flags |= NFSMNT_NQLOOKLEASE;
+			if(altflags & ALTF_RDIRALOOK)
+				nfsargsp->flags |= NFSMNT_RDIRALOOK;
+			if(altflags & ALTF_MYWRITE)
+				nfsargsp->flags |= NFSMNT_MYWRITE;
+			if(altflags & ALTF_RESVPORT)
+				nfsargsp->flags |= NFSMNT_RESVPORT;
+#ifdef ISO
+			if(altflags & ALTF_SEQPACKET)
+				nfsargsp->sotype = SOCK_SEQPACKET;
+#endif
+			if(altflags & ALTF_NQNFS)
+				nfsargsp->flags |= NFSMNT_NQNFS;
+			if(altflags & ALTF_SOFT)
+				nfsargsp->flags |= NFSMNT_SOFT;
+			if(altflags & ALTF_TCP)
+				nfsargsp->sotype = SOCK_STREAM;
+			altflags = 0;
 			break;
 		case 'P':
 			nfsargsp->flags |= NFSMNT_RESVPORT;
