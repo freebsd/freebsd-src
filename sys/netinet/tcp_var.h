@@ -215,7 +215,7 @@ struct tcpopt {
 #define	TOF_MSS		0x0010
 #define	TOF_SCALE	0x0020
 #define	TOF_SIGNATURE	0x0040		/* signature option present */
-#define	TOF_SIGLEN	0x0080		/* sigature length valid (RFC2385) */
+#define	TOF_SIGLEN	0x0080		/* signature length valid (RFC2385) */
 	u_int32_t	to_tsval;
 	u_int32_t	to_tsecr;
 	tcp_cc		to_cc;		/* holds CC or CCnew */
