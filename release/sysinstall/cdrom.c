@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.18 1996/05/24 06:08:13 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.19 1996/06/08 07:15:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,8 @@ Boolean
 mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
+    Attribs *cd_attr;
+    char *cp;
 
     if (cdromMounted != CD_UNMOUNTED)
 	return TRUE;
@@ -80,18 +82,48 @@ mediaInitCDROM(Device *dev)
     args.fspec = dev->devname;
     args.flags = 0;
 
+    cd_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
+    cp = NULL;
     /* If this cdrom's not already mounted or can't be mounted, yell */
-    if (!directory_exists("/cdrom/dists")) {
+    if (!file_readable("/cdrom/cdrom.inf")) {
 	if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
 	    msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
 	    return FALSE;
 	}
-	else
+	else if (file_readable("/cdrom/cdrom.inf"))
 	    cdromMounted = CD_WE_MOUNTED_IT;
+	else {
+	    unmount("/cdrom", MNT_FORCE);
+	    msgConfirm("The CD currently in the drive is not a recent FreeBSD CDROM -\n"
+		       "ignoring it.\n\n"
+		       "If this is in error, please correct this problem now before\n"
+		       "attempting to use the CDROM as installation media.");
+	    return FALSE;
+	}
     }
     else
 	cdromMounted = CD_ALREADY_MOUNTED;
-    msgDebug("Mounted CDROM device %s on /cdrom\n", dev->devname);
+    if (DITEM_STATUS(attr_parse_file(cd_attr, "/cdrom/cdrom.inf")) == DITEM_FAILURE ||
+	!(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME))) {
+	unmount("/cdrom", MNT_FORCE);
+	if (!cp)
+	    msgConfirm("I/O error trying to read the contents of /cdrom/cdrom.inf.\n"
+		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
+		       "the CDROM driver or something is wrong with your hardware.\n"
+		       "Please fix this problem (check the console logs on VTY2) and\n"
+		       "try again.");
+	else
+	    msgConfirm("The version of the FreeBSD CD currently in the drive (%s)\n"
+		       "does not match the version of this boot floppy (%s).\n"
+		       "If this is intentional, then please visit the Options editor\n"
+		       "to set the boot floppy version string to match that of the CD\n"
+		       "before selecting it as an installation media.");
+	cdromMounted = CD_UNMOUNTED;
+	safe_free(cd_attr);
+	return FALSE;
+    }
+    safe_free(cd_attr);
+    msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
     return TRUE;
 }
 
