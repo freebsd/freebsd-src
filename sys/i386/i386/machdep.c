@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.154 1995/12/04 16:47:40 phk Exp $
+ *	$Id: machdep.c,v 1.155 1995/12/07 12:45:32 davidg Exp $
  */
 
 #include "npx.h"
@@ -1069,17 +1069,6 @@ sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
 	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
-
-static int
-sysctl_machdep_consdev SYSCTL_HANDLER_ARGS
-{
-	dev_t consdev;
-	consdev = (cn_tty == NULL ? NODEV : cn_tty->t_dev);
-	return (sysctl_handle_opaque(oidp, &consdev, sizeof consdev, req));
-}
-
-SYSCTL_PROC(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_machdep_consdev, "T,dev_t", "");
 
 SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 	CTLFLAG_RW, &disable_rtc_set, 0, "");
