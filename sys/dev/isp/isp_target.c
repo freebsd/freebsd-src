@@ -167,14 +167,18 @@ isp_target_notify(isp, vptr, optrp)
 		 * increment the firmware's resource count for them
 		 * (we set this initially in the Enable Lun entry).
 		 */
+		bus = 0;
 		if (IS_FC(isp)) {
 			status = inot_fcp->in_status;
 			seqid = inot_fcp->in_seqid;
 		} else {
 			status = inotp->in_status & 0xff;
 			seqid = inotp->in_seqid;
+			if (IS_DUALBUS(isp)) {
+				bus = (inotp->in_iid & 0x80) >> 7;
+				inotp->in_iid &= ~0x80;
+			}
 		}
-		bus = 0;	/* XXX: Which Channel? */
 		ITDEBUG(2, ("isp_target_notify: Immediate Notify, "
 		    "status=0x%x seqid=0x%x\n", status, seqid));
 		switch (status) {
@@ -272,9 +276,11 @@ isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
 	u_int16_t iptr, optr;
 	void *outp;
 
-	bus = bus;		/* XXX */
 
 	MEMZERO(&el, sizeof (el));
+	if (IS_DUALBUS(isp)) {
+		el.le_rsvd = (bus & 0x1) << 7;
+	}
 	el.le_cmd_count = DFLT_CMD_CNT;
 	el.le_in_count = DFLT_INOTIFY;
 	if (cmd == RQSTYPE_ENABLE_LUN) {
