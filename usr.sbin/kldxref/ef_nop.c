@@ -32,7 +32,8 @@
 #include "ef.h"
 
 int
-ef_reloc(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
+ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
+    size_t len, void *dest)
 {
 
 	return (0);
