@@ -58,6 +58,7 @@ CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
 CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
+CFLAGS+=        -I${.CURDIR}/../../../../../include/gnu
 CFLAGS+=	-I$(.CURDIR) -I${DESTDIR}/usr/include/readline
 
 YFLAGS=
@@ -135,6 +136,6 @@ gdbversion.c: Makefile
 	@echo 'const char target_name[] = "${TARGET_ARCH}-undermydesk-freebsd";'		>>${.TARGET}
 
 xregex.h:
-	@echo '#include <gnuregex.h>' >${.TARGET}
+	@echo '#include <regex.h>' >${.TARGET}
 
 .include <bsd.prog.mk>
