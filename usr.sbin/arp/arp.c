@@ -479,6 +479,7 @@ print_entry(struct sockaddr_dl *sdl,
 {
 	const char *host;
 	struct hostent *hp;
+	char ifname[IF_NAMESIZE];
 	int seg;
 
 	if (nflag == 0)
@@ -498,6 +499,8 @@ print_entry(struct sockaddr_dl *sdl,
 		ether_print(LLADDR(sdl));
 	else
 		printf("(incomplete)");
+	if (if_indextoname(sdl->sdl_index, ifname) != NULL)
+		printf(" on %s", ifname);
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
 	if (sin->sin_other & SIN_PROXY)
