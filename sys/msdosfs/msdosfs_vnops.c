@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.15 1995/05/09 16:30:45 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.16 1995/05/30 08:07:45 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -981,8 +981,6 @@ msdosfs_rename(ap)
 	int error;
 	int newparent = 0;
 	int sourceisadirectory = 0;
-	u_long to_dirclust;
-	u_long to_diroffset;
 	u_long cn;
 	daddr_t bn;
 	struct vnode *tvp = ap->a_tvp;
@@ -1097,19 +1095,11 @@ msdosfs_rename(ap)
 				goto bad;
 			}
 		}
-		to_dirclust = tdep->de_dirclust;
-		to_diroffset = tdep->de_diroffset;
 		error = removede(tddep,tdep);
 		if (error)
 			goto bad;
 		vput(ap->a_tvp);
 		tdep = NULL;
-
-		/*
-		 * Remember where the slot was for createde().
-		 */
-		tddep->de_fndclust = to_dirclust;
-		tddep->de_fndoffset = to_diroffset;
 	}
 
 	/*
