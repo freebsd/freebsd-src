@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.47 1999/04/30 12:51:20 des Exp $";
+	"$Id: syslogd.c,v 1.48 1999/05/02 12:47:09 dt Exp $";
 #endif /* not lint */
 
 /*
@@ -608,7 +608,7 @@ readklog()
 			l = 0;
 		}
 		if (l > 0) 
-			memmove(line, p, l);
+			memmove(line, p, l + 1);
 	}
 	if (l > 0)
 		printsys(line);
