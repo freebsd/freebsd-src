@@ -4,6 +4,7 @@ You can install from the following types of media:
             Sony CDU 31/33A
             Matushita/Panasonic "Sound Blaster" CDROM.
             Mitsumi FX-001{A-D} (older non-IDE drives).
+            IDE CDROM (only some models - experimental!)
             SCSI - Any standard SCSI CDROM drive hooked to
             a supported controller (see Hardware Guide).
 
