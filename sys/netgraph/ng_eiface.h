@@ -1,7 +1,7 @@
 /*
  * ng_eiface.h
  *
- * Copyright (c) 1999-2001, Vitaly V Belekhov
+ * Copyright (c) 1999-2000, Vitaly V Belekhov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$FreeBSD$
+ * 	$Id: ng_eiface.h,v 1.4 2000/03/06 09:46:14 vitaly Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETGRAPH_EIFACE_H_
@@ -38,7 +39,7 @@
 
 /* Interface base name */
 #define NG_EIFACE_EIFACE_NAME		"nge"
-#define NG_EIFACE_EIFACE_NAME_MAX	15
+#define NG_EIFACE_EIFACE_NAME_MAX		15
 
 /* My hook names */
 #define NG_EIFACE_HOOK_ETHER		"ether"
@@ -78,6 +79,22 @@ static const struct ng_parse_struct_info ng_eiface_par_fields = {
     { "oct5",		&ng_parse_int8_type	},
     { NULL },
   }
+};
+
+static const struct ng_parse_type ng_eiface_par_type = {
+	&ng_parse_struct_type,
+	&ng_eiface_par_fields
+};
+
+static const struct ng_cmdlist ng_eiface_cmdlist[] = {
+	{
+	  NGM_EIFACE_COOKIE,
+	  NGM_EIFACE_SET,
+	  "set",
+	  &ng_eiface_par_type,
+	  NULL
+	},
+	{ 0 }
 };
 
 
