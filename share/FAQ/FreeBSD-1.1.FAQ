@@ -1,12 +1,12 @@
 
                                FreeBSD
                       Frequently Asked Questions
-                      For Versions 1.1 and above
+                      For Versions 1.1 and below 
 
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD-1.1.FAQ,v 1.1 1994/09/16 18:24:36 gclarkii Exp $
+Revision: $Id: FreeBSD-1.1.FAQ,v 1.2 1994/10/03 03:48:37 gclarkii Exp $
 
 All entries are assumed to be relevant to both FreeBSD 1.1 and FreeBSD 1.1.5,
 unless otherwise noted.
@@ -40,7 +40,7 @@ trouble with and you just don't see it here, then please send mail to:
 
 
 Some of the instructions here will also refer to auxiliary utilities
-in the /usr/src/contrib/FAQ directory.  CDROM purchasers and net folks
+in the /usr/src/share/FAQ directory.  CDROM purchasers and net folks
 who've grabbed the FreeBSD 1.1 `srcdist' will have these files.  If
 you don't have the source distribution, then you can either grab the
 whole thing from:
@@ -355,13 +355,6 @@ Logitech and ATI mice:
 2.7:  I have a PS/2 mouse (`keyboard' mouse) [Alternatively:  I have a
       laptop with a track-ball mouse].  How do I use it?
 
-<1.1>:  For the PS/2 mouse you need to look in
-/usr/src/contrib/FAQ/programs/psm, which is John Solhed's port of the
-Linux PS/2 mouse driver.
-
-Follow the directions in the package.  You will also need to change
-your Xconfig file to point to the mouse.
-
 <1.1.5>:  The PS/2 mouse is part of the system.  See the psm0 driver 
 description in /sys/doc/options.doc.
 
@@ -476,18 +469,6 @@ configuring XFree86 for your particular graphics card/mouse/etc.
 4.1:  I've been trying to run ghostscript on a 386 (or 486sx) with no
       math co-processor and I keep getting errors.  What's up?
 
-<1.1>:  The problem here is due to the current FreeBSD math-emulator.  You
-need to pick up the sources to an alternate emulation package, which
-you may find in:
-
-                /usr/src/contrib/FAQ/programs/fpu-emu 
-
-Follow the instructions supplied.
-
-This is a port of an older Linux math-emulator.  At some point,
-FreeBSD's default math emulator will be good enough that you can
-forget about having to do this.
-
 <1.1.5>:  For 1.1.5 you may add the following to your kernel config file and
 it  will be compiled in.
 options                         GPL_MATH_EMULATE
@@ -539,6 +520,12 @@ here.
 The problem here is that the tests are written for an older version of
 the dbm code.  There is nothing wrong with perl and the errors can
 be ignored.
+
+4.5:  I've been trying to get GCC 2.6.0 running on my system and it
+      keeps bombing.  What can I do about?
+
+Due to problems with 2.6.0 and the advent of FreeBSD 2.0, we do not
+support GCC 2.6.0 and suggest that you wait for 2.0.
 
 
 
@@ -852,7 +839,7 @@ file and recompiling.  In most cases, you will also need to run a
 routing process to tell other systems on your network about your
 router; FreeBSD comes with the standard BSD routing daemon routed(8),
 or for more complex situations you may want to try GateD (available by
-FTP from gated.Cornell.edu).
+FTP from gated.Cornell.edu). FreeBSD is supported as of 3_5Alpha7.
 
 It is our duty to warn you that, even when FreeBSD is configured in
 this way, it does not completely comply with the Internet standard
@@ -862,7 +849,7 @@ usage.
 There is a standard `router floppy' that you can boot on a FreeBSD
 machine to configure it as a network router.  Please look in:
 
-        FreeBSD.ORG:pub/incoming/freertr
+       freefall.cdrom.com:pub/incoming/freertr
 
 and follow the instructions.
 
