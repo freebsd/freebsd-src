@@ -1461,7 +1461,7 @@ quote1(initial, argc, argv)
 			len += len1;
 		}
 	}
-	if (command(buf) == PRELIM) {
+	if (command("%s", buf) == PRELIM) {
 		while (getreply(0) == PRELIM)
 			continue;
 	}
