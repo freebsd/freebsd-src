@@ -63,7 +63,98 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
+/*
+ * Media to register setting conversion table.  Order matters.
+ */
+const struct mii_media mii_media_table[MII_NMEDIA] = {
+	/* None */
+	{ BMCR_ISO,		ANAR_CSMA,
+	  0, },
+
+	/* 10baseT */
+	{ BMCR_S10,		ANAR_CSMA|ANAR_10,
+	  0, },
+
+	/* 10baseT-FDX */
+	{ BMCR_S10|BMCR_FDX,	ANAR_CSMA|ANAR_10_FD,
+	  0, },
+
+	/* 100baseT4 */
+	{ BMCR_S100,		ANAR_CSMA|ANAR_T4,
+	  0, },
+
+	/* 100baseTX */
+	{ BMCR_S100,		ANAR_CSMA|ANAR_TX,
+	  0, },
+
+	/* 100baseTX-FDX */
+	{ BMCR_S100|BMCR_FDX,	ANAR_CSMA|ANAR_TX_FD,
+	  0, },
+
+	/* 1000baseX */
+	{ BMCR_S1000,		ANAR_CSMA,
+	  0, },
+
+	/* 1000baseX-FDX */
+	{ BMCR_S1000|BMCR_FDX,	ANAR_CSMA,
+	  0, },
+
+	/* 1000baseT */
+	{ BMCR_S1000,		ANAR_CSMA,
+	  GTCR_ADV_1000THDX },
+
+	/* 1000baseT-FDX */
+	{ BMCR_S1000,		ANAR_CSMA,
+	  GTCR_ADV_1000TFDX },
+};
+
 void	mii_phy_auto_timeout(void *);
+
+void
+mii_phy_setmedia(struct mii_softc *sc)
+{
+	struct mii_data *mii = sc->mii_pdata;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
+	int bmcr, anar, gtcr;
+
+	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
+		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0)
+			(void) mii_phy_auto(sc, 1);
+		return;
+	}
+
+	/*
+	 * Table index is stored in the media entry.
+	 */
+
+#ifdef DIAGNOSTIC
+	if (ife->ifm_data < 0 || ife->ifm_data >= MII_NMEDIA)
+		panic("mii_phy_setmedia");
+#endif
+
+	anar = mii_media_table[ife->ifm_data].mm_anar;
+	bmcr = mii_media_table[ife->ifm_data].mm_bmcr;
+	gtcr = mii_media_table[ife->ifm_data].mm_gtcr;
+
+	if (mii->mii_media.ifm_media & IFM_ETH_MASTER) {
+		switch (IFM_SUBTYPE(ife->ifm_media)) {
+		case IFM_1000_T:
+			gtcr |= GTCR_MAN_MS|GTCR_ADV_MS;
+			break;
+
+		default:
+			panic("mii_phy_setmedia: MASTER on wrong media");
+		}
+	}
+
+	if (ife->ifm_media & IFM_LOOP)
+		bmcr |= BMCR_LOOP;
+
+	PHY_WRITE(sc, MII_ANAR, anar);
+	PHY_WRITE(sc, MII_BMCR, bmcr);
+	if (sc->mii_flags & MIIF_HAVE_GTCR)
+		PHY_WRITE(sc, MII_100T2CR, gtcr);
+}
 
 int
 mii_phy_auto(mii, waitfor)
@@ -293,13 +384,10 @@ void
 mii_add_media(struct mii_softc *sc)
 {
 	const char *sep = "";
-	int bmsr, instance;
 	struct mii_data *mii;
 
-	bmsr = sc->mii_capabilities;
-	instance = sc->mii_inst;
 	mii = device_get_softc(sc->mii_dev);
-	if ((bmsr & BMSR_MEDIAMASK) == 0) {
+	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0) {
 		printf("no media present");
 		return;
 	}
@@ -307,38 +395,38 @@ mii_add_media(struct mii_softc *sc)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	if (bmsr & BMSR_10THDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, instance), 0);
+	if (sc->mii_capabilities & BMSR_10THDX) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst), 0);
 		PRINT("10baseT");
 	}
-	if (bmsr & BMSR_10TFDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, instance),
+	if (sc->mii_capabilities & BMSR_10TFDX) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
 		    BMCR_FDX);
 		PRINT("10baseT-FDX");
 	}
-	if (bmsr & BMSR_100TXHDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, instance),
+	if (sc->mii_capabilities & BMSR_100TXHDX) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
 		    BMCR_S100);
 		PRINT("100baseTX");
 	}
-	if (bmsr & BMSR_100TXFDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, instance),
+	if (sc->mii_capabilities & BMSR_100TXFDX) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
 		    BMCR_S100|BMCR_FDX);
 		PRINT("100baseTX-FDX");
 	}
-	if (bmsr & BMSR_100T4) {
+	if (sc->mii_capabilities & BMSR_100T4) {
 		/*
 		 * XXX How do you enable 100baseT4?  I assume we set
 		 * XXX BMCR_S100 and then assume the PHYs will take
 		 * XXX watever action is necessary to switch themselves
 		 * XXX into T4 mode.
 		 */
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_T4, 0, instance),
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_T4, 0, sc->mii_inst),
 		    BMCR_S100);
 		PRINT("100baseT4");
 	}
-	if (bmsr & BMSR_ANEG) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, instance),
+	if (sc->mii_capabilities & BMSR_ANEG) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst),
 		    BMCR_AUTOEN);
 		PRINT("auto");
 	}
