@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.10 1995/02/15 03:39:58 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.11 1995/05/30 08:12:36 rgrimes Exp $
  */
 
 /*
@@ -76,10 +76,12 @@
 
 time_t nqnfsstarttime = (time_t)0;
 u_long nqnfs_prog, nqnfs_vers;
+#ifdef NFS_SERVER
 int nqsrv_clockskew = NQ_CLOCKSKEW;
 int nqsrv_writeslack = NQ_WRITESLACK;
 int nqsrv_maxlease = NQ_MAXLEASE;
 int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
+#endif /* NFS_SERVER */
 void nqsrv_instimeq(), nqsrv_send_eviction(), nfs_sndunlock();
 void nqsrv_unlocklease(), nqsrv_waitfor_expiry(), nfsrv_slpderef();
 void nqsrv_addhost(), nqsrv_locklease(), nqnfs_serverd();
@@ -115,12 +117,16 @@ int nqnfs_piggy[NFS_NPROCS] = {
 	0,
 };
 
+#ifdef NFS_SERVER
 extern nfstype nfs_type[9];
+#endif /* NFS_SERVER */
 extern struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 extern int nfsd_waiting;
 
 #define TRUE	1
 #define	FALSE	0
+
+#ifdef NFS_SERVER
 
 /*
  * Get or check for a lease for "vp", based on NQL_CHECK flag.
@@ -800,6 +806,8 @@ nfsmout:
 	return (EPERM);
 }
 
+#endif /* NFS_SERVER */
+
 /*
  * Client get lease rpc function.
  */
@@ -1130,6 +1138,8 @@ nfs_lease_updatetime(deltat)
 	}
 }
 
+#ifdef NFS_SERVER
+
 /*
  * Lock a server lease.
  */
@@ -1158,6 +1168,8 @@ nqsrv_unlocklease(lp)
 	if (lp->lc_flag & LC_WANTED)
 		wakeup((caddr_t)lp);
 }
+
+#endif /* NFS_SERVER */
 
 /*
  * Update a client lease.

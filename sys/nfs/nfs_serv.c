@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.15 1995/06/11 19:31:45 rgrimes Exp $
+ * $Id: nfs_serv.c,v 1.15.2.1 1995/08/23 03:38:56 davidg Exp $
  */
 
 /*
@@ -75,6 +75,7 @@
 #include <nfs/nfsm_subs.h>
 #include <nfs/nqnfs.h>
 
+#ifdef NFS_SERVER
 /* Defs */
 #define	TRUE	1
 #define	FALSE	0
@@ -2027,3 +2028,4 @@ nfsrv_access(vp, flags, cred, rdonly, p)
 		return (error);
 	return (0);
 }
+#endif /* NFS_SERVER */

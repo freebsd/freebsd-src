@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.6 1995/03/16 18:15:37 bde Exp $
+ * $Id: nfs_socket.c,v 1.7 1995/05/30 08:12:40 rgrimes Exp $
  */
 
 /*
@@ -159,6 +159,7 @@ void	nfs_rcvunlock(), nqnfs_serverd(), nqnfs_clientlease();
 struct mbuf *nfsm_rpchead();
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
+#ifdef NFS_SERVER
 
 int	nfsrv_null(),
 	nfsrv_getattr(),
@@ -207,6 +208,8 @@ int (*nfsrv_procs[NFS_NPROCS])() = {
 	nfsrv_noop,
 	nqnfsrv_access,
 };
+
+#endif /* NFS_SERVER */
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -1225,6 +1228,8 @@ nfs_rephead(siz, nd, err, cache, frev, mrq, mbp, bposp)
 	return (0);
 }
 
+#ifdef NFS_SERVER
+
 /*
  * Nfs timer routine
  * Scan the nfsreq list and retranmit any requests that have timed out
@@ -1341,6 +1346,8 @@ nfs_timer(arg)
 	splx(s);
 	timeout(nfs_timer, (void *)0, hz / NFS_HZ);
 }
+
+#endif /* NFS_SERVER */
 
 /*
  * Test for a termination condition pending on the process.
@@ -1549,6 +1556,7 @@ nfs_realign(m, hsiz)
 	}
 }
 
+#ifdef NFS_SERVER
 /*
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
@@ -1806,6 +1814,7 @@ nfsrv_dorec(slp, nd)
 	return (0);
 }
 
+#endif /* NFS_SERVER */
 /*
  * Parse an RPC request
  * - verify it
@@ -1960,6 +1969,8 @@ nfsmout:
 	return (error);
 }
 
+#ifdef NFS_SERVER
+
 /*
  * Search for a sleeping nfsd and wake it up.
  * SIDE EFFECT: If none found, set NFSD_CHECKSLP flag, so that one of the
@@ -1987,6 +1998,8 @@ nfsrv_wakenfsd(slp)
 	slp->ns_flag |= SLP_DOREC;
 	nfsd_head_flag |= NFSD_CHECKSLP;
 }
+
+#endif /* NFS_SERVER */
 
 int
 nfs_msg(p, server, msg)
