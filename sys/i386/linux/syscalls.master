@@ -240,8 +240,7 @@
 				struct timespec *rmtp); }
 163	STD	LINUX	{ int linux_mremap(caddr_t addr, int old_len, \
 				int new_len, int flags); }
-164	STD	LINUX	{ int linux_setresuid(linux_uid_t ruid, \
-				linux_uid_t euid, linux_uid_t suid); }
+164	NOPROTO	LINUX	{ int setresuid(int ruid, int euid, int suid); }
 165	STD	LINUX	{ int linux_getresuid(linux_uid_t *ruid, \
 				linux_uid_t *euid, linux_uid_t *suid); }
 166	STD	LINUX	{ int linux_vm86(void); }
@@ -249,8 +248,9 @@
 168	NOPROTO	LINUX	{ int poll(struct pollfd*, unsigned int nfds, \
 				long timeout); }
 169	STD	LINUX	{ int linux_nfsservctl(void); }
-170	STD	LINUX	{ int linux_setresgid(void); }
-171	STD	LINUX	{ int linux_getresgid(void); }
+170	NOPROTO	LINUX	{ int setresgid(int rgid, int egid, int sgid); }
+171	STD	LINUX	{ int linux_getresgid(linux_gid_t *rgid, \
+				linux_gid_t *egid, linux_gid_t *sgid); }
 172	STD	LINUX	{ int linux_prctl(void); }
 173	STD	LINUX	{ int linux_rt_sigreturn(void); }
 174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
