@@ -29,7 +29,7 @@
  *	$FreeBSD$
  */
 
-#define TWE_DRIVER_VERSION_STRING	"1.40.01.001"
+#define TWE_DRIVER_VERSION_STRING	"1.40.01.002"
 #define TWE_CDEV_MAJOR			146
 #define TWED_CDEV_MAJOR			147
 
@@ -149,7 +149,8 @@ struct twe_softc
 #define TWE_STATE_SHUTDOWN	(1<<1)	/* controller is shut down */
 #define TWE_STATE_OPEN		(1<<2)	/* control device is open */
 #define TWE_STATE_SUSPEND	(1<<3)	/* controller is suspended */
-#define TWE_STATE_FRZN		(1<<4)
+#define TWE_STATE_FRZN		(1<<4)	/* got EINPROGRESS */
+#define TWE_STATE_CTLR_BUSY	(1<<5)	/* controller cmd queue full */
     int			twe_host_id;
     struct twe_qstat	twe_qstat[TWEQ_COUNT];	/* queue statistics */
 

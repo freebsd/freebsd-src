@@ -382,7 +382,7 @@ twe_startio(struct twe_softc *sc)
 
     debug_called(4);
 
-    if (sc->twe_state & TWE_STATE_FRZN)
+    if (sc->twe_state & (TWE_STATE_CTLR_BUSY | TWE_STATE_FRZN))
 	    return;
 
     /* spin until something prevents us from doing any work */
@@ -433,6 +433,8 @@ twe_startio(struct twe_softc *sc)
 	error = twe_map_request(tr);
 
 	if (error != 0) {
+	    if (error == EBUSY)
+		break;
 	    tr->tr_status = TWE_CMD_ERROR;
 	    if (tr->tr_private != NULL) {
 		bp = (twe_bio *)(tr->tr_private);
@@ -758,7 +760,7 @@ twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_siz
     } else {
 	tr->tr_complete = func;
 	error = twe_map_request(tr);
-	if (error == 0)
+	if ((error == 0) || (error == EBUSY))
 	    return(func);
     }
 
@@ -924,8 +926,10 @@ twe_immediate_request(struct twe_request *tr)
 
     debug_called(4);
 
+    tr->tr_status = TWE_CMD_BUSY;
     if ((error = twe_map_request(tr)) != 0)
-	return(error);
+	if (error != EBUSY)
+	    return(error);
     while (tr->tr_status == TWE_CMD_BUSY){
 	twe_done(tr->tr_sc);
     }
@@ -1117,6 +1121,7 @@ twe_done(struct twe_softc *sc)
 	    /* move to completed queue */
 	    twe_remove_busy(tr);
 	    twe_enqueue_complete(tr);
+	    sc->twe_state &= ~TWE_STATE_CTLR_BUSY;
 	} else {
 	    break;					/* no response ready */
 	}
