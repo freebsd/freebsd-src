@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_machdep.h,v 1.12 1997/02/22 09:34:24 peter Exp $
  */
 
 #ifndef _MACHINE_DB_MACHDEP_H_
@@ -41,8 +41,7 @@ typedef struct i386_saved_state db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 #define	DDB_REGS	(&ddb_regs)
 
-#define	PC_REGS(regs)	(((regs)->tf_cs & 0xfffc) == 0x08 \
-			 ? (db_addr_t)(regs)->tf_eip : 0)
+#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_eip)
 
 #define	BKPT_INST	0xcc		/* breakpoint instruction */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
