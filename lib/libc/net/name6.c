@@ -102,6 +102,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <netinet/in.h>
+#ifdef INET6
+#include <net/if.h>
+#include <net/if_var.h>
+#include <sys/sysctl.h>
+#include <netinet6/in6_var.h>	/* XXX */
+#endif
 
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -164,6 +170,14 @@ union inx_addr {
 #define	map_inaddr	map_addr_un.mau_inaddr
 };
 
+struct policyqueue {
+	TAILQ_ENTRY(policyqueue) pc_entry;
+#ifdef INET6
+	struct in6_addrpolicy pc_policy;
+#endif
+};
+TAILQ_HEAD(policyhead, policyqueue);
+
 static struct	 hostent *_hpcopy(struct hostent *hp, int *errp);
 static struct	 hostent *_hpaddr(int af, const char *name, void *addr, int *errp);
 static struct	 hostent *_hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp);
@@ -174,6 +188,12 @@ static struct	 hostent *_hpsort(struct hostent *hp);
 static struct	 hostent *_ghbyname(const char *name, int af, int flags, int *errp);
 static char	*_hgetword(char **pp);
 static int	 _mapped_addr_enabled(void);
+
+static struct	 hostent *_hpreorder(struct hostent *hp);
+static int	 get_addrselectpolicy(struct policyhead *);
+static void	 free_addrselectpolicy(struct policyhead *);
+static struct	 policyqueue *match_addrselectpolicy(struct sockaddr *,
+	struct policyhead *);
 
 static FILE	*_files_open(int *errp);
 static int	 _files_ghbyname(void *, void *, va_list);
@@ -356,7 +376,7 @@ _getipnodebyname_multi(const char *name, int af, int flags, int *errp)
 		}
 	}
 #endif
-	return _hpsort(hp);
+	return _hpreorder(_hpsort(hp));
 }
 
 struct hostent *
@@ -760,6 +780,210 @@ _hgetword(char **pp)
 	if (ret == NULL || *ret == '\0')
 		return NULL;
 	return ret;
+}
+
+/*
+ * _hpreorder: sort address by default address selection
+ */
+static struct hostent *
+_hpreorder(struct hostent *hp)
+{
+	int i, j, n;
+	u_char *ap, **pp;
+	struct policyqueue *dstpolicy[MAXADDRS], *t;
+	struct sockaddr_storage ss;
+	struct policyhead policyhead;
+
+	if (hp == NULL || hp->h_addr_list[1] == NULL)
+		return hp;
+
+	/* retrieve address selection policy from the kernel */
+	TAILQ_INIT(&policyhead);
+	if (!get_addrselectpolicy(&policyhead)) {
+		/* no policy is installed into kernel, we don't sort. */
+		return hp;
+	}
+
+	switch (hp->h_addrtype) {
+	case AF_INET:
+		for (i = 0; (ap = (u_char *)hp->h_addr_list[i]); i++) {
+			memset(&ss, 0, sizeof(ss));
+			ss.ss_family = AF_INET;
+			ss.ss_len = sizeof(struct sockaddr_in);
+			memcpy(&((struct sockaddr_in *)&ss)->sin_addr, ap,
+			    sizeof(struct in_addr));
+			dstpolicy[i] = match_addrselectpolicy(
+			    (struct sockaddr *)&ss, &policyhead);
+		}
+		break;
+#ifdef INET6
+	case AF_INET6:
+		for (i = 0; (ap = (u_char *)hp->h_addr_list[i]); i++) {
+			memset(&ss, 0, sizeof(ss));
+			if (IN6_IS_ADDR_V4MAPPED((struct in6_addr *)ap)) {
+				ss.ss_family = AF_INET;
+				ss.ss_len = sizeof(struct sockaddr_in);
+				memcpy(&((struct sockaddr_in *)&ss)->sin_addr,
+				    &ap[12], sizeof(struct in_addr));
+			} else {
+				ss.ss_family = AF_INET6;
+				ss.ss_len = sizeof(struct sockaddr_in6);
+				memcpy(
+				    &((struct sockaddr_in6 *)&ss)->sin6_addr,
+				    ap, sizeof(struct in6_addr));
+			}
+			dstpolicy[i] = match_addrselectpolicy(
+			    (struct sockaddr *)&ss, &policyhead);
+		}
+		break;
+#endif
+	default:
+		free_addrselectpolicy(&policyhead);
+		return hp;
+	}
+
+	/* perform sorting. */
+	n = i;
+	pp = (u_char **)hp->h_addr_list;
+	for (i = 0; i < n - 1; i++) {
+		for (j = i + 1; j < n; j++) {
+			if (dstpolicy[j] &&
+			    (dstpolicy[i] == NULL ||
+			     dstpolicy[j]->pc_policy.preced >
+			     dstpolicy[i]->pc_policy.preced)) {
+				ap = pp[i];
+				pp[i] = pp[j];
+				pp[j] = ap;
+				t = dstpolicy[i];
+				dstpolicy[i] = dstpolicy[j];
+				dstpolicy[j] = t;
+			}
+		}
+	}
+
+	/* cleanup and return */
+	free_addrselectpolicy(&policyhead);
+	return hp;
+}
+
+static int
+get_addrselectpolicy(head)
+	struct policyhead *head;
+{
+#ifdef INET6
+	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_ADDRCTLPOLICY };
+	size_t l;
+	char *buf;
+	struct in6_addrpolicy *pol, *ep;
+
+	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0)
+		return (0);
+	if ((buf = malloc(l)) == NULL)
+		return (0);
+	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), buf, &l, NULL, 0) < 0) {
+		free(buf);
+		return (0);
+	}
+
+	ep = (struct in6_addrpolicy *)(buf + l);
+	for (pol = (struct in6_addrpolicy *)buf; pol + 1 <= ep; pol++) {
+		struct policyqueue *new;
+
+		if ((new = malloc(sizeof(*new))) == NULL) {
+			free_addrselectpolicy(head); /* make the list empty */
+			break;
+		}
+		new->pc_policy = *pol;
+		TAILQ_INSERT_TAIL(head, new, pc_entry);
+	}
+
+	free(buf);
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+static void
+free_addrselectpolicy(head)
+	struct policyhead *head;
+{
+	struct policyqueue *ent, *nent;
+
+	for (ent = TAILQ_FIRST(head); ent; ent = nent) {
+		nent = TAILQ_NEXT(ent, pc_entry);
+		TAILQ_REMOVE(head, ent, pc_entry);
+		free(ent);
+	}
+}
+
+static struct policyqueue *
+match_addrselectpolicy(addr, head)
+	struct sockaddr *addr;
+	struct policyhead *head;
+{
+#ifdef INET6
+	struct policyqueue *ent, *bestent = NULL;
+	struct in6_addrpolicy *pol;
+	int matchlen, bestmatchlen = -1;
+	u_char *mp, *ep, *k, *p, m;
+	struct sockaddr_in6 key;
+
+	switch(addr->sa_family) {
+	case AF_INET6:
+		key = *(struct sockaddr_in6 *)addr;
+		break;
+	case AF_INET:
+		/* convert the address into IPv4-mapped IPv6 address. */
+		memset(&key, 0, sizeof(key));
+		key.sin6_family = AF_INET6;
+		key.sin6_len = sizeof(key);
+		key.sin6_addr.s6_addr[10] = 0xff;
+		key.sin6_addr.s6_addr[11] = 0xff;
+		memcpy(&key.sin6_addr.s6_addr[12],
+		       &((struct sockaddr_in *)addr)->sin_addr, 4);
+		break;
+	default:
+		return(NULL);
+	}
+
+	for (ent = TAILQ_FIRST(head); ent; ent = TAILQ_NEXT(ent, pc_entry)) {
+		pol = &ent->pc_policy;
+		matchlen = 0;
+
+		mp = (u_char *)&pol->addrmask.sin6_addr;
+		ep = mp + 16;	/* XXX: scope field? */
+		k = (u_char *)&key.sin6_addr;
+		p = (u_char *)&pol->addr.sin6_addr;
+		for (; mp < ep && *mp; mp++, k++, p++) {
+			m = *mp;
+			if ((*k & m) != *p)
+				goto next; /* not match */
+			if (m == 0xff) /* short cut for a typical case */
+				matchlen += 8;
+			else {
+				while (m >= 0x80) {
+					matchlen++;
+					m <<= 1;
+				}
+			}
+		}
+
+		/* matched.  check if this is better than the current best. */
+		if (matchlen > bestmatchlen) {
+			bestent = ent;
+			bestmatchlen = matchlen;
+		}
+
+	  next:
+		continue;
+	}
+
+	return(bestent);
+#else
+	return(NULL);
+#endif
+
 }
 
 /*
