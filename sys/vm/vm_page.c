@@ -1565,7 +1565,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	int frag;
 	int endoff;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
