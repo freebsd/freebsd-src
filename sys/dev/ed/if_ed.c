@@ -16,7 +16,10 @@
 /*
  * Modification history
  *
- * $Log:	if_ed.c,v $
+ * $Log: if_ed.c,v $
+ * Revision 1.5  1993/06/27  10:28:28  davidg
+ * fixed bugs in the probe routine uncovered by the previous fix.
+ *
  * Revision 1.11  93/06/27  03:07:01  davidg
  * fixed bugs in the 3Com part of the probe routine that were uncovered by
  * the previous fix.
@@ -297,10 +300,14 @@ type_WD80x3:
 	}
 
 #if ED_DEBUG
-	printf("type=%s width=%d memsize=%d\n",sc->type_str,memwidth,memsize);
+	printf("type=%s width=%d memsize=%d id_msize=%d\n",sc->type_str,memwidth,memsize,isa_dev->id_msize);
 	for (i=0; i<8; i++)
 		printf("%x -> %x\n", i, inb(sc->asic_addr + i));
 #endif
+	/* Allow memsize to override */
+        if (isa_dev->id_msize)
+		memsize = isa_dev->id_msize;
+
 	/*
 	 * Check 83C584 interrupt configuration register if this board has one
 	 *	XXX - we could also check the IO address register. But why
