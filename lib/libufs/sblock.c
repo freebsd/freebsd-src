@@ -60,7 +60,7 @@ sbread(struct uufsd *disk)
 	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
 		if (bread(disk, superblock, disk->d_sb, SBLOCKSIZE) == -1) {
 			ERROR(disk, "non-existent or truncated superblock");
-			return -1;
+			return (-1);
 		}
 		if (fs->fs_magic == FS_UFS1_MAGIC)
 			disk->d_ufs = 1;
@@ -82,11 +82,11 @@ sbread(struct uufsd *disk)
 		 */
 		ERROR(disk, "no usable known superblock found");
 		errno = ENOENT;
-		return -1;
+		return (-1);
 	}
 	disk->d_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 	disk->d_sblock = superblock / disk->d_bsize;
-	return 0;
+	return (0);
 }
 
 int
@@ -105,15 +105,15 @@ sbwrite(struct uufsd *disk, int all)
 
 	if (bwrite(disk, disk->d_sblock, fs, SBLOCKSIZE) == -1) {
 		ERROR(disk, "failed to write superblock");
-		return -1;
+		return (-1);
 	}
 	if (all) {
 		for (i = 0; i < fs->fs_ncg; i++)
 			if (bwrite(disk, fsbtodb(fs, cgsblock(fs, i)),
 			    fs, SBLOCKSIZE) == -1) {
 				ERROR(disk, "failed to update a superblock");
-				return -1;
+				return (-1);
 			}
 	}
-	return 0;
+	return (0);
 }
