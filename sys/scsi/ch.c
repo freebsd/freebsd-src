@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.17 1995/03/28 07:57:22 bde Exp $
+ *      $Id: ch.c,v 1.18 1995/04/14 15:10:26 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -33,6 +33,9 @@ errval ch_position __P((u_int32 unit, short *stat, u_int32 chm, u_int32 to,
 			u_int32 flags));
 
 #define	CHRETRIES	2
+
+#define CHUNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
+#define CHSETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
 
 #define MODE(z)		(  (minor(z) & 0x0F) )
 

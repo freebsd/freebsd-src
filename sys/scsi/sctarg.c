@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.1 1995/03/04 20:50:46 dufault Exp $
+ *      $Id: sctarg.c,v 1.1 1995/04/14 15:10:41 dufault Exp $
  */
 
 /*
@@ -236,7 +236,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 	u_int32 opri;
 	struct scsi_data *sctarg;
 
-	unit = STUNIT((bp->b_dev));
+	unit = minor((bp->b_dev));
 	sctarg = sc_link->sd;
 
 	opri = splbio();

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.2 1995/04/14 15:10:28 dufault Exp $
+ *      $Id: pt.c,v 1.3 1995/04/23 22:07:49 gibbs Exp $
  */
 
 /*
@@ -178,7 +178,7 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 	u_int32 opri;
 	struct scsi_data *pt;
 
-	unit = STUNIT((bp->b_dev));
+	unit = minor((bp->b_dev));
 	pt = sc_link->sd;
 
 	opri = splbio();

@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.3 1995/01/08 15:56:10 dufault Exp $
+ *      $Id: su.c,v 1.4 1995/03/04 20:51:07 dufault Exp $
  *
  * Tabstops 4
  */
@@ -57,6 +57,19 @@
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
+
+/* Build an old style device number (unit encoded in the minor number)
+ * from a base old one (no flag bits) and a full new one
+ * (BUS, LUN, TARG in the minor number, and flag bits).
+ *
+ * OLDDEV has the major number and device unit only.  It was constructed
+ * at attach time and is stored in the scsi_link structure.
+ *
+ * NEWDEV can have whatever in it, but only the old control flags and the
+ * super bit are present.  IT CAN'T HAVE ANY UNIT INFORMATION or you'll
+ * wind up with the wrong unit.
+ */
+#define OLD_DEV(NEWDEV, OLDDEV) ((OLDDEV) | ((NEWDEV) & 0x080000FF))
 
 /* XXX: These are taken from, and perhaps belong in, conf.c
  */
