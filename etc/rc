@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.170 1999/01/25 04:40:53 dillon Exp $
+#	$Id: rc,v 1.171 1999/01/25 18:07:25 dillon Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -39,12 +39,7 @@ if [ "X$skip_diskconf" != "XYES" -a -f /etc/ccd.conf ]; then
 fi
 
 if [ -n "$vinum_slices" ]; then
-	if [ -r /modules/vinum.ko ]; then	# jkh paranoia
-		kldload vinum
-		vinum read $vinum_slices
-	else
-		echo "Can't find /modules/vinum.ko"
-	fi
+	vinum read $vinum_slices
 fi
 
 if [ "X$skip_diskconf" != "XYES" ]; then
