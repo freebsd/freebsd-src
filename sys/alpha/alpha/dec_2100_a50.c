@@ -1,6 +1,4 @@
 /* $NetBSD: dec_2100_a50.c,v 1.39 1998/04/17 02:45:19 mjacob Exp $ */
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.
  * All rights reserved.
@@ -33,6 +31,9 @@
 /*
  * Additional Copyright (c) 1998 by Andrew Gallatin for Duke University.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
