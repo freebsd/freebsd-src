@@ -45,6 +45,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,6 +53,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
@@ -1670,6 +1672,9 @@ crget(void)
 	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	cr->cr_ref = 1;
 	cr->cr_mtxp = mtx_pool_find(cr);
+#ifdef MAC
+	mac_init_cred(cr);
+#endif
 	return (cr);
 }
 
@@ -1714,6 +1719,9 @@ crfree(struct ucred *cr)
 		 */
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
+#ifdef MAC
+		mac_destroy_cred(cr);
+#endif
 		FREE(cr, M_CRED);
 		mtx_unlock(&Giant);
 	} else {
@@ -1750,6 +1758,9 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_ruidinfo);
 	if (jailed(dest))
 		prison_hold(dest->cr_prison);
+#ifdef MAC
+	mac_create_cred(src, dest);
+#endif
 }
 
 /*
