@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.32 1996/07/20 00:16:20 alex Exp $
+ *	$Id: raw_ip.c,v 1.33 1996/07/24 18:46:18 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -235,22 +235,29 @@ rip_ctloutput(op, so, level, optname, m)
 
 #ifdef COMPAT_IPFW
 	case IP_FW_GET:
-		if (ip_fw_ctl_ptr==NULL || op == PRCO_SETOPT) {
+		if (ip_fw_ctl_ptr == NULL || op == PRCO_SETOPT) {
 			if (*m) (void)m_free(*m);
 			return(EINVAL);
 		}
 		return (*ip_fw_ctl_ptr)(optname, m); 
+
 	case IP_FW_ADD:
 	case IP_FW_DEL:
 	case IP_FW_FLUSH:
 	case IP_FW_ZERO:
-		if (ip_fw_ctl_ptr==NULL || op != PRCO_SETOPT) {
+		if (ip_fw_ctl_ptr == NULL || op != PRCO_SETOPT) {
 			if (*m) (void)m_free(*m);
 			return(EINVAL);
 		}
-
 		return (*ip_fw_ctl_ptr)(optname, m); 
 #endif
+
+	case IP_NAT:
+		if (ip_nat_ctl_ptr == NULL) {
+			if (*m) (void)m_free(*m);
+			return(EINVAL);
+		}
+		return (*ip_nat_ctl_ptr)(optname, m); 
 
 	case IP_RSVP_ON:
 		return ip_rsvp_init(so);
