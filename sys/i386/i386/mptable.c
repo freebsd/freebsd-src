@@ -237,7 +237,7 @@ mptable_probe(void)
 			goto found;
 	} else {
 		/* last 1K of base memory, effective 'top of base' passed in */
-		target = (u_int32_t) (basemem - 0x400);
+		target = (u_int32_t) ((basemem * 1024) - 0x400);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
 			goto found;
 	}
