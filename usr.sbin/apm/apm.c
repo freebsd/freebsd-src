@@ -17,9 +17,9 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#include <machine/apm_bios.h>
+#include <apm_bios.h>
 
-#define APMDEV	"/dev/apm"
+#define APMDEV	"/dev/apm0"
 
 int main_argc;
 char **main_argv;
@@ -103,7 +103,8 @@ int main(int argc, char *argv[])
 
 	for (i = argc - 1; i >= 1; i--) {
 		if (argv[i][0] != '-') {
-			fprintf(stderr, "%s: Unknown option '%s'.", argv[0], argv[i]);
+			fprintf(stderr, "%s: Unknown option '%s'.\n", argv[0], argv[i]);
+			exit(1);
 		}
 		for (j = 1; argv[i][j]; j++) {
 			switch (argv[i][j]) {
@@ -123,6 +124,9 @@ int main(int argc, char *argv[])
 				batt_life = 1;
 				all_info = 0;
 				break;
+			default:
+				fprintf(stderr, "%s Unknown option '%s'.\n", argv[0], argv[i]);
+				exit(1);
 			}
 		}
 	}
