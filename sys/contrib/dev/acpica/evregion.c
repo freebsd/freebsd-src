@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 93 $
+ *              $Revision: 94 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -217,8 +217,8 @@ AcpiEvExecuteRegMethod (
     UINT32                  Function)
 {
     ACPI_OPERAND_OBJECT    *Params[3];
-    ACPI_OPERAND_OBJECT     SpaceID_Obj;
-    ACPI_OPERAND_OBJECT     Function_Obj;
+    ACPI_OPERAND_OBJECT     SpaceIdDesc;
+    ACPI_OPERAND_OBJECT     FunctionDesc;
     ACPI_STATUS             Status;
 
 
@@ -240,24 +240,24 @@ AcpiEvExecuteRegMethod (
      *          Passed as a parameter
      */
 
-    AcpiCmInitStaticObject (&SpaceID_Obj);
-    AcpiCmInitStaticObject (&Function_Obj);
+    AcpiCmInitStaticObject (&SpaceIdDesc);
+    AcpiCmInitStaticObject (&FunctionDesc);
 
     /*
      *  Method requires two parameters.
      */
-    Params [0] = &SpaceID_Obj;
-    Params [1] = &Function_Obj;
+    Params [0] = &SpaceIdDesc;
+    Params [1] = &FunctionDesc;
     Params [2] = NULL;
 
     /*
      *  Set up the parameter objects
      */
-    SpaceID_Obj.Common.Type    = ACPI_TYPE_NUMBER;
-    SpaceID_Obj.Number.Value   = RegionObj->Region.SpaceId;
+    SpaceIdDesc.Common.Type    = ACPI_TYPE_INTEGER;
+    SpaceIdDesc.Integer.Value  = RegionObj->Region.SpaceId;
 
-    Function_Obj.Common.Type   = ACPI_TYPE_NUMBER;
-    Function_Obj.Number.Value  = Function;
+    FunctionDesc.Common.Type   = ACPI_TYPE_INTEGER;
+    FunctionDesc.Integer.Value = Function;
 
     /*
      *  Execute the method, no return value

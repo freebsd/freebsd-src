@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 39 $
+ *              $Revision: 41 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -399,22 +399,33 @@ void
 AcpiDbDecodeInternalObject (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
+    UINT32                  i;
+
 
     if (!ObjDesc)
     {
         return;
     }
 
-    AcpiOsPrintf (" %9.9s ", AcpiCmGetTypeName (ObjDesc->Common.Type));
+    AcpiOsPrintf (" %s", AcpiCmGetTypeName (ObjDesc->Common.Type));
 
     switch (ObjDesc->Common.Type)
     {
-    case ACPI_TYPE_NUMBER:
-        AcpiOsPrintf ("%.8X", ObjDesc->Number.Value);
+    case ACPI_TYPE_INTEGER:
+        AcpiOsPrintf (" %.8X", ObjDesc->Integer.Value);
         break;
 
     case ACPI_TYPE_STRING:
-        AcpiOsPrintf ("\"%.16s\"...", ObjDesc->String.Pointer);
+        AcpiOsPrintf ("(%d) \"%.16s\"...",
+                ObjDesc->String.Length, ObjDesc->String.Pointer);
+        break;
+
+    case ACPI_TYPE_BUFFER:
+        AcpiOsPrintf ("(%d)", ObjDesc->Buffer.Length);
+        for (i = 0; (i < 8) && (i < ObjDesc->Buffer.Length); i++)
+        {
+            AcpiOsPrintf (" %2.2X", ObjDesc->Buffer.Pointer[i]);
+        }
         break;
     }
 }
@@ -502,7 +513,7 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_LOCAL_OP:
-                AcpiOsPrintf ("[Local%d]", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Local%d]   ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->LocalVariables[ObjDesc->Reference.Offset].Object;
@@ -511,7 +522,7 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_ARG_OP:
-                AcpiOsPrintf ("[Arg%d]  ", ObjDesc->Reference.Offset);
+                AcpiOsPrintf ("[Arg%d]     ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
                     ObjDesc = WalkState->Arguments[ObjDesc->Reference.Offset].Object;
@@ -524,7 +535,7 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_INDEX_OP:
-                AcpiOsPrintf ("[Index]  ");
+                AcpiOsPrintf ("[Index]     ");
                 AcpiDbDecodeInternalObject (ObjDesc->Reference.Object);
                 break;
 
@@ -535,7 +546,7 @@ AcpiDbDisplayInternalObject (
             break;
 
         default:
-            AcpiOsPrintf ("        ");
+            AcpiOsPrintf ("           ");
             AcpiDbDecodeInternalObject (ObjDesc);
             break;
         }

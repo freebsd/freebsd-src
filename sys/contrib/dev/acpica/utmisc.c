@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: cmutils - common utility procedures
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -814,18 +814,18 @@ AcpiCmResolvePackageReferences (
         {
             if (SubObject->Reference.OpCode == AML_ZERO_OP)
             {
-                SubObject->Common.Type  = ACPI_TYPE_NUMBER;
-                SubObject->Number.Value = 0;
+                SubObject->Common.Type  = ACPI_TYPE_INTEGER;
+                SubObject->Integer.Value = 0;
             }
             else if (SubObject->Reference.OpCode == AML_ONE_OP)
             {
-                SubObject->Common.Type  = ACPI_TYPE_NUMBER;
-                SubObject->Number.Value = 1;
+                SubObject->Common.Type  = ACPI_TYPE_INTEGER;
+                SubObject->Integer.Value = 1;
             }
             else if (SubObject->Reference.OpCode == AML_ONES_OP)
             {
-                SubObject->Common.Type  = ACPI_TYPE_NUMBER;
-                SubObject->Number.Value = ACPI_INTEGER_MAX;
+                SubObject->Common.Type  = ACPI_TYPE_INTEGER;
+                SubObject->Integer.Value = ACPI_INTEGER_MAX;
             }
         }
     }

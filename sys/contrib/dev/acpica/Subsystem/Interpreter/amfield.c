@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 75 $
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -293,7 +293,8 @@ AcpiAmlAccessNamedField (
     FUNCTION_TRACE_PTR ("AmlAccessNamedField", NamedField);
 
 
-    /* Basic data checking */
+    /* Parameter validation */
+
     if ((!NamedField) || (ACPI_READ == Mode && !Buffer))
     {
         DEBUG_PRINT (ACPI_ERROR,
@@ -375,7 +376,7 @@ AcpiAmlAccessNamedField (
 
     /* TBD: should these round down to a power of 2? */
 
-    if (DIV_8(BitGranularity) > ByteFieldLength)
+    if (DIV_8 (BitGranularity) > ByteFieldLength)
     {
         DEBUG_PRINT (ACPI_INFO,
             ("AmlAccessNamedField: Bit granularity %X truncated to %X\n",

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmglobal - Global variables for the ACPI subsystem
- *              $Revision: 113 $
+ *              $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -191,7 +191,7 @@ PREDEFINED_NAMES            AcpiGbl_PreDefinedNames[] =
     {"_SB_",    INTERNAL_TYPE_DEF_ANY},
     {"_SI_",    INTERNAL_TYPE_DEF_ANY},
     {"_TZ_",    INTERNAL_TYPE_DEF_ANY},
-    {"_REV",    ACPI_TYPE_NUMBER, "2"},
+    {"_REV",    ACPI_TYPE_INTEGER, "2"},
     {"_OS_",    ACPI_TYPE_STRING, ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX, "0"},
 
@@ -246,6 +246,13 @@ UINT8                       AcpiGbl_NsProperties[] =
     NSP_NORMAL,                 /* 33 Extra            */
     NSP_NORMAL                  /* 34 Invalid          */
 };
+
+
+/* Hex to ASCII conversion table */
+
+NATIVE_CHAR                 AcpiGbl_HexToAscii[] =
+                                {'0','1','2','3','4','5','6','7',
+                                '8','9','A','B','C','D','E','F'};
 
 
 /******************************************************************************
@@ -328,7 +335,7 @@ static NATIVE_CHAR          AcpiGbl_BadType[] = "UNDEFINED";
 static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of ACPI types */
 {
     /* 00 */ "Untyped",
-    /* 01 */ "Number",
+    /* 01 */ "Integer",
     /* 02 */ "String",
     /* 03 */ "Buffer",
     /* 04 */ "Package",

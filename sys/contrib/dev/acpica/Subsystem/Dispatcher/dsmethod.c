@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 54 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -544,8 +544,9 @@ AcpiDsRestartControlMethod (
     }
 
     DEBUG_PRINT (TRACE_DISPATCH,
-        ("DsRestart: Method=%p Return=%p State=%p\n",
-        WalkState->MethodCallOp, ReturnDesc, WalkState));
+        ("DsRestart: Method=%p Return=%p ReturnUsed?=%X ResStack=%p State=%p\n",
+        WalkState->MethodCallOp, ReturnDesc, WalkState->ReturnUsed, 
+        WalkState->Results, WalkState));
 
 
     return_ACPI_STATUS (AE_OK);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 10 $
+ *              $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -391,7 +391,9 @@ AcpiNsInitOneDevice (
     Status = AcpiCmExecute_STA (Node, &Flags);
     if (ACPI_FAILURE (Status))
     {
-        return_ACPI_STATUS (Status);
+        /* Ignore error and move on to next device */
+
+        return_ACPI_STATUS (AE_OK);
     }
 
     Info->Num_STA++;
@@ -415,21 +417,24 @@ AcpiNsInitOneDevice (
 
     else if (ACPI_FAILURE (Status))
     {
+        /* Ignore error and move on to next device */
+
 #ifdef ACPI_DEBUG
         NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (ObjHandle);
 
-        DEBUG_PRINT (ACPI_ERROR, ("%s._INI failed: %s\n",
+        DEBUG_PRINT (ACPI_WARN, ("%s._INI failed: %s\n",
                 ScopeName, AcpiCmFormatException (Status)));
 
         AcpiCmFree (ScopeName);
 #endif
-        return_ACPI_STATUS (Status);
     }
 
     else
     {
+        /* Count of successfull INIs */
+
         Info->Num_INI++;
     }
 
-    return_ACPI_STATUS (Status);
+    return_ACPI_STATUS (AE_OK);
 }

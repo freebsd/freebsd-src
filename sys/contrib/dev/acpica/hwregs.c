@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 86 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -129,7 +129,7 @@
 /* This matches the #defines in actypes.h. */
 
 NATIVE_CHAR                 *SleepStateTable[] = {"\\_S0_","\\_S1_","\\_S2_","\\_S3_",
-                                                  "\\_S4_","\\_S4B","\\_S5_"};
+                                                  "\\_S4_","\\_S5_","\\_S4B"};
 
 
 /*******************************************************************************
@@ -145,7 +145,7 @@ NATIVE_CHAR                 *SleepStateTable[] = {"\\_S0_","\\_S1_","\\_S2_","\\
  *
  ******************************************************************************/
 
-static UINT32
+UINT32
 AcpiHwGetBitShift (
     UINT32                  Mask)
 {
@@ -300,9 +300,9 @@ AcpiHwObtainSleepTypeRegisterData (
     }
 
     else if (((ObjDesc->Package.Elements[0])->Common.Type !=
-                ACPI_TYPE_NUMBER) ||
+                ACPI_TYPE_INTEGER) ||
              ((ObjDesc->Package.Elements[1])->Common.Type !=
-                ACPI_TYPE_NUMBER))
+                ACPI_TYPE_INTEGER))
     {
         /* Must have two  */
 
@@ -315,9 +315,9 @@ AcpiHwObtainSleepTypeRegisterData (
         /*
          *  Valid _Sx_ package size, type, and value
          */
-        *Slp_TypA = (UINT8) (ObjDesc->Package.Elements[0])->Number.Value;
+        *Slp_TypA = (UINT8) (ObjDesc->Package.Elements[0])->Integer.Value;
 
-        *Slp_TypB = (UINT8) (ObjDesc->Package.Elements[1])->Number.Value;
+        *Slp_TypB = (UINT8) (ObjDesc->Package.Elements[1])->Integer.Value;
     }
 
 
@@ -733,15 +733,8 @@ AcpiHwRegisterRead (
 
     case PM1_CONTROL: /* 16-bit access */
 
-        if (RegisterId != SLP_TYPE_B)
-        {
-            Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aCntBlk, 0);
-        }
-
-        if (RegisterId != SLP_TYPE_A)
-        {
-            Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bCntBlk, 0);
-        }
+        Value =  AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aCntBlk, 0);
+        Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bCntBlk, 0);
         break;
 
 
@@ -854,35 +847,20 @@ AcpiHwRegisterWrite (
 
     case PM1_CONTROL: /* 16-bit access */
 
-        /*
-         * If SLP_TYP_A or SLP_TYP_B, only write to one reg block.
-         * Otherwise, write to both.
-         */
-        if (RegisterId == SLP_TYPE_A)
-        {
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
-        }
-        else if (RegisterId == SLP_TYPE_B)
-        {
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
-        }
-        else
-        {
-            /* disable/re-enable interrupts if sleeping */
-            if (RegisterId == SLP_EN)
-            {
-                disable();
-            }
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
+        break;
 
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
 
-            if (RegisterId == SLP_EN)
-            {
-                enable();
-            }
-        }
+    case PM1A_CONTROL: /* 16-bit access */
 
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
+        break;
+
+
+    case PM1B_CONTROL: /* 16-bit access */
+
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
         break;
 
 

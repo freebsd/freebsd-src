@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amfldio - Aml Field I/O
- *              $Revision: 33 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -254,7 +254,7 @@ AcpiAmlReadField (
     UINT32                  ThisFieldByteOffset;
     UINT32                  ThisFieldDatumOffset;
     UINT32                  PreviousRawDatum;
-    UINT32                  ThisRawDatum;
+    UINT32                  ThisRawDatum = 0;
     UINT32                  ValidFieldBits;
     UINT32                  Mask;
     UINT32                  MergedDatum = 0;
@@ -331,32 +331,46 @@ AcpiAmlReadField (
         while (ThisFieldDatumOffset < DatumLength)
         {
             /*
-             * Get the next raw datum, it contains bits of the current
-             * field datum
+             * If the field is aligned on a byte boundary, we don't want
+             * to perform a final read, since this would potentially read
+             * past the end of the region.
+             *
+             * TBD: [Investigate] It may make more sense to just split the aligned
+             * and non-aligned cases since the aligned case is so very simple,
              */
-
-            Status = AcpiAmlReadFieldData (ObjDesc,
-                            ThisFieldByteOffset + ByteGranularity,
-                            BitGranularity, &ThisRawDatum);
-            if (ACPI_FAILURE (Status))
+            if ((ObjDesc->Field.BitOffset != 0) ||
+                ((ObjDesc->Field.BitOffset == 0) &&
+                (ThisFieldDatumOffset < (DatumLength -1))))
             {
-                goto Cleanup;
+                /*
+                 * Get the next raw datum, it contains some or all bits
+                 * of the current field datum
+                 */
+
+                Status = AcpiAmlReadFieldData (ObjDesc,
+                                ThisFieldByteOffset + ByteGranularity,
+                                BitGranularity, &ThisRawDatum);
+                if (ACPI_FAILURE (Status))
+                {
+                    goto Cleanup;
+                }
+
+                /* Before merging the data, make sure the unused bits are clear */
+
+                switch (ByteGranularity)
+                {
+                case 1:
+                    ThisRawDatum &= 0x000000FF;
+                    PreviousRawDatum &= 0x000000FF;
+                    break;
+
+                case 2:
+                    ThisRawDatum &= 0x0000FFFF;
+                    PreviousRawDatum &= 0x0000FFFF;
+                    break;
+                }
             }
 
-            /* Before merging the data, make sure the unused bits are clear */
-
-            switch (ByteGranularity)
-            {
-            case 1:
-                ThisRawDatum &= 0x000000FF;
-                PreviousRawDatum &= 0x000000FF;
-                break;
-
-            case 2:
-                ThisRawDatum &= 0x0000FFFF;
-                PreviousRawDatum &= 0x0000FFFF;
-                break;
-            }
 
             /*
              * Put together bits of the two raw data to make a complete
@@ -547,7 +561,6 @@ AcpiAmlWriteFieldDataWithUpdateRule (
 
     MergedValue = FieldValue;
 
-    /* Check if update rule needs to be applied (not if mask is all ones) */
 
 
     /* Decode the update rule */
@@ -557,13 +570,18 @@ AcpiAmlWriteFieldDataWithUpdateRule (
 
     case UPDATE_PRESERVE:
 
-        /*
-         * Read the current contents of the byte/word/dword containing
-         * the field, and merge with the new field value.
-         */
-        Status = AcpiAmlReadFieldData (ObjDesc, ThisFieldByteOffset,
-                                        BitGranularity, &CurrentValue);
-        MergedValue |= (CurrentValue & ~Mask);
+        /* Check if update rule needs to be applied (not if mask is all ones) */
+
+        if (((1 << BitGranularity) -1) & ~Mask)
+        {
+            /*
+             * Read the current contents of the byte/word/dword containing
+             * the field, and merge with the new field value.
+             */
+            Status = AcpiAmlReadFieldData (ObjDesc, ThisFieldByteOffset,
+                                            BitGranularity, &CurrentValue);
+            MergedValue |= (CurrentValue & ~Mask);
+        }
         break;
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 59 $
+ *       $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,6 +121,14 @@
  * Data manipulation macros
  */
 
+#ifndef LODWORD
+#define LODWORD(l)                      ((UINT32)(UINT64)(l))
+#endif
+
+#ifndef HIDWORD
+#define HIDWORD(l)                      ((UINT32)((((UINT64)(l)) >> 32) & 0xFFFFFFFF))
+#endif
+
 #ifndef LOWORD
 #define LOWORD(l)                       ((UINT16)(NATIVE_UINT)(l))
 #endif
@@ -155,10 +163,18 @@
 
 
 #ifdef _IA16
+/*
+ * For 16-bit addresses, we have to assume that the upper 32 bits
+ * are zero.
+ */
 #define ACPI_GET_ADDRESS(a)             ((a).Lo)
 #define ACPI_STORE_ADDRESS(a,b)         {(a).Hi=0;(a).Lo=(b);}
-#define ACPI_VALID_ADDRESS(a)           ((a).Hi && (a).Lo)
+#define ACPI_VALID_ADDRESS(a)           ((a).Hi | (a).Lo)
+
 #else
+/*
+ * Full 64-bit address on 32-bit and 64-bit platforms
+ */
 #define ACPI_GET_ADDRESS(a)             (a)
 #define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
 #define ACPI_VALID_ADDRESS(a)           (a)
@@ -426,7 +442,7 @@
  */
 #define return_VOID                     {FunctionExit(_THIS_MODULE,__LINE__,_COMPONENT,_ProcName);return;}
 #define return_ACPI_STATUS(s)           {FunctionStatusExit(_THIS_MODULE,__LINE__,_COMPONENT,_ProcName,s);return(s);}
-#define return_VALUE(s)                 {FunctionValueExit(_THIS_MODULE,__LINE__,_COMPONENT,_ProcName,(NATIVE_UINT)s);return(s);}
+#define return_VALUE(s)                 {FunctionValueExit(_THIS_MODULE,__LINE__,_COMPONENT,_ProcName,(ACPI_INTEGER)s);return(s);}
 #define return_PTR(s)                   {FunctionPtrExit(_THIS_MODULE,__LINE__,_COMPONENT,_ProcName,(UINT8 *)s);return(s);}
 
 
@@ -437,6 +453,8 @@
 
 #define DEBUG_DEFINE(a)                 a;
 #define DEBUG_ONLY_MEMBERS(a)           a;
+#define _OPCODE_NAMES
+#define _VERBOSE_STRUCTURES
 
 
 /* Stack and buffer dumping */
@@ -549,9 +567,8 @@
  */
 #ifdef _IA16
 #undef DEBUG_ONLY_MEMBERS
+#undef _VERBOSE_STRUCTURES
 #define DEBUG_ONLY_MEMBERS(a)
-#undef OP_INFO_ENTRY
-#define OP_INFO_ENTRY(Flags,Name,PArgs,IArgs)     {Flags,PArgs,IArgs}
 #endif
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 41 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -357,7 +357,7 @@ AcpiTbGetAllTables (
         /* Get the table via the XSDT */
 
         Status = AcpiTbGetTable ((ACPI_PHYSICAL_ADDRESS)
-                                AcpiGbl_XSDT->TableOffsetEntry[Index],
+                                ACPI_GET_ADDRESS (AcpiGbl_XSDT->TableOffsetEntry[Index]),
                                 TablePtr, &TableInfo);
 
         /* Ignore a table that failed verification */
@@ -447,7 +447,8 @@ AcpiTbGetAllTables (
      * Get the DSDT (We know that the FADT is valid now)
      */
 
-    Status = AcpiTbGetTable (AcpiGbl_FADT->XDsdt, TablePtr, &TableInfo);
+    Status = AcpiTbGetTable ((ACPI_PHYSICAL_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XDsdt),
+                                TablePtr, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -618,14 +619,15 @@ AcpiTbGetTableRsdt (
         /* 0.71 RSDP has 64bit Rsdt address field */
         PhysicalAddress = ((RSDP_DESCRIPTOR_REV071 *)AcpiGbl_RSDP)->RsdtPhysicalAddress;
 #else
-        PhysicalAddress = AcpiGbl_RSDP->RsdtPhysicalAddress;
+        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) AcpiGbl_RSDP->RsdtPhysicalAddress;
 #endif
         TableSignature = RSDT_SIG;
         SignatureLength = sizeof (RSDT_SIG) -1;
     }
     else
     {
-        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) AcpiGbl_RSDP->XsdtPhysicalAddress;
+        PhysicalAddress = (ACPI_PHYSICAL_ADDRESS)
+                            ACPI_GET_ADDRESS (AcpiGbl_RSDP->XsdtPhysicalAddress);
         TableSignature = XSDT_SIG;
         SignatureLength = sizeof (XSDT_SIG) -1;
     }
@@ -753,7 +755,7 @@ AcpiTbGetTableFacs (
     {
         /* Just map the physical memory to our address space */
 
-        Status = AcpiTbMapAcpiTable (AcpiGbl_FADT->XFirmwareCtrl,
+        Status = AcpiTbMapAcpiTable ((ACPI_PHYSICAL_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XFirmwareCtrl),
                                         &Size, &TablePtr);
         if (ACPI_FAILURE(Status))
         {

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 16 $
+ *              $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -139,7 +139,7 @@
                                              a.RegisterBitWidth = (UINT8) MUL_8 (b);\
                                              a.RegisterBitOffset = 0;\
                                              a.Reserved = 0;\
-                                             a.Address = (UINT64) c;}
+                                             ACPI_STORE_ADDRESS (a.Address,c);}
 
 
 /* ACPI V1.0 entries -- address space is always I/O */
@@ -222,8 +222,8 @@ AcpiTbConvertToXsdt (
             NewTable->TableOffsetEntry[i] =
                 ((RSDT_DESCRIPTOR_REV071 *) TableInfo->Pointer)->TableOffsetEntry[i];
 #else
-            NewTable->TableOffsetEntry[i] =
-                ((RSDT_DESCRIPTOR_REV1 *) TableInfo->Pointer)->TableOffsetEntry[i];
+            ACPI_STORE_ADDRESS (NewTable->TableOffsetEntry[i],
+                ((RSDT_DESCRIPTOR_REV1 *) TableInfo->Pointer)->TableOffsetEntry[i]);
 #endif
         }
         else
@@ -415,11 +415,11 @@ AcpiTbConvertTableFadt (void)
         /* No 0.71 equivalence. Leave pre-zeroed. */
         /* FADT2->FlushStride = 0; */
 
-        /* Processor’s duty cycle index in processor's P_CNT reg*/
+        /* Processor's duty cycle index in processor's P_CNT reg*/
         /* No 0.71 equivalence. Leave pre-zeroed. */
         /* FADT2->DutyOffset = 0; */
 
-        /* Processor’s duty cycle value bit width in P_CNT register.*/
+        /* Processor's duty cycle value bit width in P_CNT register.*/
         /* No 0.71 equivalence. Leave pre-zeroed. */
         /* FADT2->DutyWidth = 0; */
 
@@ -487,8 +487,8 @@ AcpiTbConvertTableFadt (void)
 
         /* Convert table pointers to 64-bit fields */
 
-        FADT2->XFirmwareCtrl = (UINT64) FADT1->FirmwareCtrl;
-        FADT2->XDsdt         = (UINT64) FADT1->Dsdt;
+        ACPI_STORE_ADDRESS (FADT2->XFirmwareCtrl, FADT1->FirmwareCtrl);
+        ACPI_STORE_ADDRESS (FADT2->XDsdt, FADT1->Dsdt);
 
         /* System Interrupt Model isn't used in ACPI 2.0*/
         /* FADT2->Reserved1 = 0; */
@@ -551,6 +551,7 @@ AcpiTbConvertTableFadt (void)
      * Global FADT pointer will point to the common V2.0 FADT
      */
     AcpiGbl_FADT = FADT2;
+    AcpiGbl_FADT->header.Length = sizeof (FADT_DESCRIPTOR);
 
 
     /* Free the original table */
@@ -567,17 +568,12 @@ AcpiTbConvertTableFadt (void)
     TableDesc->Length = sizeof (FADT_DESCRIPTOR_REV2);
 
 
-    /* Dump the FADT Header */
-
-    DEBUG_PRINT (TRACE_TABLES, ("Hex dump of FADT Header:\n"));
-    DUMP_BUFFER ((UINT8 *) AcpiGbl_FADT, sizeof (ACPI_TABLE_HEADER));
-
     /* Dump the entire FADT */
 
     DEBUG_PRINT (TRACE_TABLES,
-        ("Hex dump of FADT (After header), size %d (%X)\n",
+        ("Hex dump of common internal FADT, size %ld (%lX)\n",
         AcpiGbl_FADT->header.Length, AcpiGbl_FADT->header.Length));
-    DUMP_BUFFER ((UINT8 *) (&AcpiGbl_FADT->V1_FirmwareCtrl), AcpiGbl_FADT->header.Length);
+    DUMP_BUFFER ((UINT8 *) (AcpiGbl_FADT), AcpiGbl_FADT->header.Length);
 
 
     return_ACPI_STATUS (AE_OK);

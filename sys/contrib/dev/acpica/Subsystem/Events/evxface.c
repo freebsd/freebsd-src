@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 98 $
+ *              $Revision: 101 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -304,9 +304,9 @@ AcpiInstallNotifyHandler (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Convert and validate the device handle */
-
     AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+
+    /* Convert and validate the device handle */
 
     DeviceNode = AcpiNsConvertHandleToEntry (Device);
     if (!DeviceNode)
@@ -315,17 +315,16 @@ AcpiInstallNotifyHandler (
         goto UnlockAndExit;
     }
 
-
     /*
-     * Support for global notify handlers.  These handlers are invoked for
-     * every notifiy of the type specifiec
+     * Root Object:
+     * ------------
+     * Registering a notify handler on the root object indicates that the
+     * caller wishes to receive notifications for all objects.  Note that
+     * only one <external> global handler can be regsitered (per notify type).
      */
-
     if (Device == ACPI_ROOT_OBJECT)
     {
-        /*
-         *  Make sure the handler is not already installed.
-         */
+        /* Make sure the handler is not already installed */
 
         if (((HandlerType == ACPI_SYSTEM_NOTIFY) &&
               AcpiGbl_SysNotify.Handler) ||
@@ -342,102 +341,97 @@ AcpiInstallNotifyHandler (
             AcpiGbl_SysNotify.Handler = Handler;
             AcpiGbl_SysNotify.Context = Context;
         }
-
-        else
+        else /* ACPI_DEVICE_NOTIFY */
         {
             AcpiGbl_DrvNotify.Node = DeviceNode;
             AcpiGbl_DrvNotify.Handler = Handler;
             AcpiGbl_DrvNotify.Context = Context;
         }
 
-
         /* Global notify handler installed */
-
-        goto UnlockAndExit;
     }
-
 
     /*
-     * These are the ONLY objects that can receive ACPI notifications
+     * Other Objects:
+     * --------------
+     * Caller will only receive notifications specific to the target object.
+     * Note that only certain object types can receive notifications.
      */
-
-    if ((DeviceNode->Type != ACPI_TYPE_DEVICE)     &&
-        (DeviceNode->Type != ACPI_TYPE_PROCESSOR)  &&
-        (DeviceNode->Type != ACPI_TYPE_POWER)      &&
-        (DeviceNode->Type != ACPI_TYPE_THERMAL))
-    {
-        Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
-
-    /* Check for an existing internal object */
-
-    ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) DeviceNode);
-    if (ObjDesc)
-    {
+    else {
         /*
-         *  The object exists.
-         *  Make sure the handler is not already installed.
+         * These are the ONLY objects that can receive ACPI notifications
          */
-
-        if (((HandlerType == ACPI_SYSTEM_NOTIFY) &&
-              ObjDesc->Device.SysHandler) ||
-            ((HandlerType == ACPI_DEVICE_NOTIFY) &&
-              ObjDesc->Device.DrvHandler))
+        if ((DeviceNode->Type != ACPI_TYPE_DEVICE)     &&
+            (DeviceNode->Type != ACPI_TYPE_PROCESSOR)  &&
+            (DeviceNode->Type != ACPI_TYPE_POWER)      &&
+            (DeviceNode->Type != ACPI_TYPE_THERMAL))
         {
-            Status = AE_EXIST;
+            Status = AE_BAD_PARAMETER;
             goto UnlockAndExit;
         }
-    }
 
-    else
-    {
-        /* Create a new object */
+        /* Check for an existing internal object */
 
-        ObjDesc = AcpiCmCreateInternalObject (DeviceNode->Type);
-        if (!ObjDesc)
+        ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) DeviceNode);
+        if (ObjDesc)
+        {
+
+            /* Object exists - make sure there's no handler */
+
+            if (((HandlerType == ACPI_SYSTEM_NOTIFY) &&
+                  ObjDesc->Device.SysHandler) ||
+                ((HandlerType == ACPI_DEVICE_NOTIFY) &&
+                  ObjDesc->Device.DrvHandler))
+            {
+                Status = AE_EXIST;
+                goto UnlockAndExit;
+            }
+        }
+
+        else
+        {
+            /* Create a new object */
+
+            ObjDesc = AcpiCmCreateInternalObject (DeviceNode->Type);
+            if (!ObjDesc)
+            {
+                Status = AE_NO_MEMORY;
+                goto UnlockAndExit;
+            }
+
+            /* Attach new object to the Node */
+
+            Status = AcpiNsAttachObject (Device, ObjDesc, (UINT8) DeviceNode->Type);
+
+            if (ACPI_FAILURE (Status))
+            {
+                goto UnlockAndExit;
+            }
+        }
+
+        /* Install the handler */
+
+        NotifyObj = AcpiCmCreateInternalObject (INTERNAL_TYPE_NOTIFY);
+        if (!NotifyObj)
         {
             Status = AE_NO_MEMORY;
             goto UnlockAndExit;
         }
 
-        /* Attach new object to the Node */
+        NotifyObj->NotifyHandler.Node = DeviceNode;
+        NotifyObj->NotifyHandler.Handler = Handler;
+        NotifyObj->NotifyHandler.Context = Context;
 
-        Status = AcpiNsAttachObject (Device, ObjDesc, (UINT8) DeviceNode->Type);
 
-        if (ACPI_FAILURE (Status))
+        if (HandlerType == ACPI_SYSTEM_NOTIFY)
         {
-            goto UnlockAndExit;
+            ObjDesc->Device.SysHandler = NotifyObj;
+        }
+        else /* ACPI_DEVICE_NOTIFY */
+        {
+            ObjDesc->Device.DrvHandler = NotifyObj;
         }
     }
-
-
-    /*
-     *  If we get here, we know that there is no handler installed
-     *  so let's party
-     */
-    NotifyObj = AcpiCmCreateInternalObject (INTERNAL_TYPE_NOTIFY);
-    if (!NotifyObj)
-    {
-        Status = AE_NO_MEMORY;
-        goto UnlockAndExit;
-    }
-
-    NotifyObj->NotifyHandler.Node = DeviceNode;
-    NotifyObj->NotifyHandler.Handler = Handler;
-    NotifyObj->NotifyHandler.Context = Context;
-
-
-    if (HandlerType == ACPI_SYSTEM_NOTIFY)
-    {
-        ObjDesc->Device.SysHandler = NotifyObj;
-    }
-
-    else
-    {
-        ObjDesc->Device.DrvHandler = NotifyObj;
-    }
-
 
 UnlockAndExit:
     AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
@@ -471,9 +465,7 @@ AcpiRemoveNotifyHandler (
     ACPI_NAMESPACE_NODE     *DeviceNode;
     ACPI_STATUS             Status = AE_OK;
 
-
     FUNCTION_TRACE ("AcpiRemoveNotifyHandler");
-
 
     /* Parameter validation */
 
@@ -495,67 +487,98 @@ AcpiRemoveNotifyHandler (
     }
 
     /*
-     * These are the ONLY objects that can receive ACPI notifications
+     * Root Object:
+     * ------------
      */
+    if (Device == ACPI_ROOT_OBJECT) {
 
-    if ((DeviceNode->Type != ACPI_TYPE_DEVICE)     &&
-        (DeviceNode->Type != ACPI_TYPE_PROCESSOR)  &&
-        (DeviceNode->Type != ACPI_TYPE_POWER)      &&
-        (DeviceNode->Type != ACPI_TYPE_THERMAL))
-    {
-        Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
+        DEBUG_PRINT(ACPI_INFO, ("Removing notify handler for ROOT object.\n"));
 
-    /* Check for an existing internal object */
+        if (((HandlerType == ACPI_SYSTEM_NOTIFY) &&
+              !AcpiGbl_SysNotify.Handler) ||
+            ((HandlerType == ACPI_DEVICE_NOTIFY) &&
+              !AcpiGbl_DrvNotify.Handler))
+        {
+            Status = AE_NOT_EXIST;
+            goto UnlockAndExit;
+        }
 
-    ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) DeviceNode);
-    if (!ObjDesc)
-    {
-        Status = AE_NOT_EXIST;
-        goto UnlockAndExit;
+        if (HandlerType == ACPI_SYSTEM_NOTIFY) {
+            AcpiGbl_SysNotify.Node = NULL;
+            AcpiGbl_SysNotify.Handler = NULL;
+            AcpiGbl_SysNotify.Context = NULL;
+        }
+        else {
+            AcpiGbl_DrvNotify.Node = NULL;
+            AcpiGbl_DrvNotify.Handler = NULL;
+            AcpiGbl_DrvNotify.Context = NULL;
+        }
     }
 
     /*
-     *  The object exists.
-     *
-     *  Make sure the handler is installed.
+     * Other Objects:
+     * --------------
      */
+    else {
+        /*
+         * These are the ONLY objects that can receive ACPI notifications
+         */
+        if ((DeviceNode->Type != ACPI_TYPE_DEVICE)     &&
+            (DeviceNode->Type != ACPI_TYPE_PROCESSOR)  &&
+            (DeviceNode->Type != ACPI_TYPE_POWER)      &&
+            (DeviceNode->Type != ACPI_TYPE_THERMAL))
+        {
+            Status = AE_BAD_PARAMETER;
+            goto UnlockAndExit;
+        }
 
-    if (HandlerType == ACPI_SYSTEM_NOTIFY)
-    {
-        NotifyObj = ObjDesc->Device.SysHandler;
-    }
-    else
-    {
-        NotifyObj = ObjDesc->Device.DrvHandler;
+        /* Check for an existing internal object */
+
+        ObjDesc = AcpiNsGetAttachedObject ((ACPI_HANDLE) DeviceNode);
+        if (!ObjDesc)
+        {
+            Status = AE_NOT_EXIST;
+            goto UnlockAndExit;
+        }
+
+        /* Object exists - make sure there's an existing handler */
+
+        if (HandlerType == ACPI_SYSTEM_NOTIFY)
+        {
+            NotifyObj = ObjDesc->Device.SysHandler;
+        }
+        else
+        {
+            NotifyObj = ObjDesc->Device.DrvHandler;
+        }
+
+        if ((!NotifyObj) ||
+            (NotifyObj->NotifyHandler.Handler != Handler))
+        {
+            Status = AE_BAD_PARAMETER;
+            goto UnlockAndExit;
+        }
+
+        /* Remove the handler */
+
+        if (HandlerType == ACPI_SYSTEM_NOTIFY)
+        {
+            ObjDesc->Device.SysHandler = NULL;
+        }
+        else
+        {
+            ObjDesc->Device.DrvHandler = NULL;
+        }
+
+        AcpiCmRemoveReference (NotifyObj);
     }
 
-    if ((!NotifyObj) ||
-        (NotifyObj->NotifyHandler.Handler != Handler))
-    {
-        Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
-
-    /*
-     * Now we can remove the handler
-     */
-    if (HandlerType == ACPI_SYSTEM_NOTIFY)
-    {
-        ObjDesc->Device.SysHandler = NULL;
-    }
-    else
-    {
-        ObjDesc->Device.DrvHandler = NULL;
-    }
-
-    AcpiCmRemoveReference (NotifyObj);
 
 UnlockAndExit:
     AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }
+
 
 /******************************************************************************
  *

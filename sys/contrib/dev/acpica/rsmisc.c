@@ -8,7 +8,7 @@
  *                       AcpiRsEndDependentFunctionsResource
  *                       AcpiRsStartDependentFunctionsStream
  *                       AcpiRsEndDependentFunctionsStream
- *              $Revision: 11 $
+ *              $Revision: 12 $
  *
  ******************************************************************************/
 
@@ -16,7 +16,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License

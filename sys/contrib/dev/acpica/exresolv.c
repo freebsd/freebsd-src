@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amresolv - AML Interpreter object resolution
- *              $Revision: 79 $
+ *              $Revision: 81 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -230,19 +230,19 @@ AcpiAmlGetFieldUnitValue (
         Mask = ACPI_UINT32_MAX;
     }
 
-    ResultDesc->Number.Type = (UINT8) ACPI_TYPE_NUMBER;
+    ResultDesc->Integer.Type = (UINT8) ACPI_TYPE_INTEGER;
 
     /* Get the 32 bit value at the location */
 
-    MOVE_UNALIGNED32_TO_32 (&ResultDesc->Number.Value, Location);
+    MOVE_UNALIGNED32_TO_32 (&ResultDesc->Integer.Value, Location);
 
     /*
      * Shift the 32-bit word containing the field, and mask off the
      * resulting value
      */
 
-    ResultDesc->Number.Value =
-        (ResultDesc->Number.Value >> FieldDesc->FieldUnit.BitOffset) & Mask;
+    ResultDesc->Integer.Value =
+        (ResultDesc->Integer.Value >> FieldDesc->FieldUnit.BitOffset) & Mask;
 
     DEBUG_PRINT (ACPI_INFO,
         ("** Read from buffer %p byte %ld bit %d width %d addr %p mask %08lx val %08lx\n",
@@ -250,7 +250,7 @@ AcpiAmlGetFieldUnitValue (
         FieldDesc->FieldUnit.Offset,
         FieldDesc->FieldUnit.BitOffset,
         FieldDesc->FieldUnit.Length,
-        Location, Mask, ResultDesc->Number.Value));
+        Location, Mask, ResultDesc->Integer.Value));
 
     /* Release global lock if we acquired it earlier */
 
@@ -270,7 +270,7 @@ AcpiAmlGetFieldUnitValue (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Convert Reference entries on ObjStack to Rvalues
+ * DESCRIPTION: Convert Reference objects to values
  *
  ******************************************************************************/
 
@@ -419,13 +419,13 @@ AcpiAmlResolveObjectToValue (
                 ("AmlResolveObjectToValue: [Local%d] ValueObj is %p\n",
                 Index, ObjDesc));
 
-            if (ACPI_TYPE_NUMBER == ObjDesc->Common.Type)
+            if (ACPI_TYPE_INTEGER == ObjDesc->Common.Type)
             {
                 /* Value is a Number */
 
                 DEBUG_PRINT (ACPI_INFO,
                     ("AmlResolveObjectToValue: [Local%d] value=%X \n",
-                    Index, ObjDesc->Number.Value));
+                    Index, ObjDesc->Integer.Value));
             }
 
             break;
@@ -460,13 +460,13 @@ AcpiAmlResolveObjectToValue (
                 ("AmlResolveObjectToValue: [Arg%d] ValueObj is %p\n",
                 Index, ObjDesc));
 
-            if (ACPI_TYPE_NUMBER == ObjDesc->Common.Type)
+            if (ACPI_TYPE_INTEGER == ObjDesc->Common.Type)
             {
                 /* Value is a Number */
 
                 DEBUG_PRINT (ACPI_INFO,
                     ("AmlResolveObjectToValue: [Arg%d] value=%X\n",
-                    Index, ObjDesc->Number.Value));
+                    Index, ObjDesc->Integer.Value));
             }
 
             break;
@@ -479,22 +479,22 @@ AcpiAmlResolveObjectToValue (
 
         case AML_ZERO_OP:
 
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_NUMBER;
-            StackDesc->Number.Value = 0;
+            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
+            StackDesc->Integer.Value = 0;
             break;
 
 
         case AML_ONE_OP:
 
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_NUMBER;
-            StackDesc->Number.Value = 1;
+            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
+            StackDesc->Integer.Value = 1;
             break;
 
 
         case AML_ONES_OP:
 
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_NUMBER;
-            StackDesc->Number.Value = ACPI_INTEGER_MAX;
+            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
+            StackDesc->Integer.Value = ACPI_INTEGER_MAX;
 
             /* Truncate value if we are executing from a 32-bit ACPI table */
 
