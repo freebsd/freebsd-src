@@ -72,9 +72,12 @@ CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 elif [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
+CDROM_SET_1="${CDROM_SET_1} devel/pcre"
 CDROM_SET_1="${CDROM_SET_1} lang/perl5"
 CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
 CDROM_SET_1="${CDROM_SET_1} net/rsync"
+CDROM_SET_1="${CDROM_SET_1} mail/exim"
+CDROM_SET_1="${CDROM_SET_1} mail/postfix"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font100dpi"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font75dpi"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontCyrillic"
