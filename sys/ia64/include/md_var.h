@@ -57,7 +57,6 @@ void	cpu_mp_add(u_int, u_int, u_int);
 int	do_ast(struct trapframe *);
 int	ia64_count_cpus(void);
 int	ia64_highfp_drop(struct thread *);
-int	ia64_highfp_load(struct thread *);
 int	ia64_highfp_save(struct thread *);
 void	ia64_init(void);
 void	ia64_probe_sapics(void);
