@@ -123,7 +123,7 @@ Write(type, ship, isstr, a, b, c, d)
 {
 	if (isstr)
 		(void) sprintf(sync_bp, "%d %d %d %s\n",
-			type, ship->file->index, isstr, a);
+			type, ship->file->index, isstr, (char *)a);
 	else
 		(void) sprintf(sync_bp, "%d %d %d %d %d %d %d\n",
 			type, ship->file->index, isstr, a, b, c, d);
