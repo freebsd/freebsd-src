@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: output.c,v 1.7 1997/02/22 13:58:41 peter Exp $
  */
 
 #ifndef lint
@@ -79,7 +79,7 @@ static char const sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 
 
 struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 100, 2, 0};;
+struct output errout = {NULL, 0, NULL, 100, 2, 0};
 struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
@@ -140,8 +140,8 @@ out2str(p)
 
 void
 outstr(p, file)
-	register const char *p;
-	register struct output *file;
+	const char *p;
+	struct output *file;
 	{
 	while (*p)
 		outc(*p++, file);
@@ -354,11 +354,11 @@ static const char digit[] = "0123456789ABCDEF";
 
 void
 doformat(dest, f, ap)
-	register struct output *dest;
-	register char *f;		/* format string */
+	struct output *dest;
+	char *f;		/* format string */
 	va_list ap;
 	{
-	register char c;
+	char c;
 	char temp[TEMPSIZE];
 	int flushleft;
 	int sharp;
