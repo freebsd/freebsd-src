@@ -143,7 +143,6 @@ _fseeko(fp, offset, whence, ltest)
 		} else if (fp->_flags & __SWR && fp->_p != NULL)
 			curoff += fp->_p - fp->_bf._base;
 
-		/* 'curoff' is always >= 0 */
 		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
@@ -210,7 +209,6 @@ _fseeko(fp, offset, whence, ltest)
 	else {
 		if (_fstat(fp->_file, &st))
 			goto dumb;
-		/* 'st.st_size' is always >= 0 */
 		if (offset > 0 && st.st_size > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (EOF);
