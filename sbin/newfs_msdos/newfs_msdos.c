@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.4 1998/07/19 15:02:39 rnordier Exp $";
+	"$Id: newfs_msdos.c,v 1.5 1998/10/17 12:44:55 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -412,7 +412,7 @@ main(int argc, char *argv[])
 	bpb.rde = opt_e;
     if (mflag) {
 	if (opt_m < 0xf0)
-	    errx(1, "illegal media descriptor (0x%x)", opt_m);
+	    errx(1, "illegal media descriptor (%#x)", opt_m);
 	bpb.mid = opt_m;
     }
     if (opt_a)
@@ -804,7 +804,7 @@ print_bpb(struct bpb *bpb)
 	printf(" rde=%u", bpb->rde);
     if (bpb->sec)
 	printf(" sec=%u", bpb->sec);
-    printf(" mid=0x%x", bpb->mid);
+    printf(" mid=%#x", bpb->mid);
     if (bpb->spf)
 	printf(" spf=%u", bpb->spf);
     printf(" spt=%u hds=%u hid=%u", bpb->spt, bpb->hds, bpb->hid);
@@ -813,9 +813,9 @@ print_bpb(struct bpb *bpb)
     if (!bpb->spf) {
 	printf(" bspf=%u rdcl=%u", bpb->bspf, bpb->rdcl);
 	printf(" infs=");
-	printf(bpb->infs == MAXU16 ? "0x%x" : "%u", bpb->infs);
+	printf(bpb->infs == MAXU16 ? "%#x" : "%u", bpb->infs);
 	printf(" bkbs=");
-	printf(bpb->bkbs == MAXU16 ? "0x%x" : "%u", bpb->bkbs);
+	printf(bpb->bkbs == MAXU16 ? "%#x" : "%u", bpb->bkbs);
     }
     printf("\n");
 }
