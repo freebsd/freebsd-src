@@ -78,6 +78,8 @@
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 
+TARGET_ARCH?=	${MACHINE_ARCH}
+
 .if !target(__initialized__)
 __initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -199,6 +201,7 @@ beforeinstall:
 afterinstall:
 .endif
 
+INSTALLFLAGS+= -fschg
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
