@@ -787,6 +787,7 @@ ptyioctl(dev, cmd, data, flag, td)
 #endif
 			pti->pt_send |= TIOCPKT_IOCTL;
 			ptcwakeup(tp, FREAD);
+			break;
 		default:
 			break;
 		}
