@@ -55,124 +55,112 @@
 #include <sys/conf.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
-
-#ifdef DEBUG
-static sysctlfn debug_sysctl;
-#endif
+#include <sys/user.h>
 
 /* BEGIN_MIB */
-SYSCTL_NODE(,CTL_KERN,	kern,	0,	"High kernel, proc, limits &c");
-SYSCTL_NODE(,CTL_VM,	vm,	0,	"Virtual memory");
-SYSCTL_NODE(,CTL_FS,	fs,	0,	"File system");
-SYSCTL_NODE(,CTL_NET,	net,	0,	"Network, (see socket.h)");
-SYSCTL_NODE(,CTL_DEBUG,	debug,	0,	"Debugging");
-SYSCTL_NODE(,CTL_HW,	hw,	0,	"hardware");
+SYSCTL_NODE(,CTL_KERN,		kern,	0,	"High kernel, proc, limits &c");
+SYSCTL_NODE(,CTL_VM,		vm,	0,	"Virtual memory");
+SYSCTL_NODE(,CTL_FS,		fs,	0,	"File system");
+SYSCTL_NODE(,CTL_NET,		net,	0,	"Network, (see socket.h)");
+SYSCTL_NODE(,CTL_DEBUG,		debug,	0,	"Debugging");
+SYSCTL_NODE(,CTL_HW,		hw,	0,	"hardware");
 SYSCTL_NODE(,CTL_MACHDEP,	machdep,0,	"machine dependent");
-SYSCTL_NODE(,CTL_USER,	user,	0,	"user-level");
+SYSCTL_NODE(,CTL_USER,		user,	0,	"user-level");
 
 SYSCTL_STRING(_kern,KERN_OSTYPE, ostype,
-	CTLFLAG_RD, ostype, 0, 0, "");
+	CTLFLAG_RD, ostype, 0, "");
 
 SYSCTL_STRING(_kern,KERN_OSRELEASE, osrelease,
-	CTLFLAG_RD, osrelease, 0, 0, "");
+	CTLFLAG_RD, osrelease, 0, "");
 
 SYSCTL_INT(_kern,KERN_OSREV, osrevision,
-	CTLFLAG_RD, 0, BSD, 0, "");
+	CTLFLAG_RD, 0, BSD, "");
 
 SYSCTL_STRING(_kern,KERN_VERSION, version,
-	CTLFLAG_RD, version, 0, 0, "");
+	CTLFLAG_RD, version, 0, "");
 
 extern int osreldate;
 SYSCTL_INT(_kern,KERN_OSRELDATE, osreldate,
-	CTLFLAG_RD, &osreldate, 0, 0, "");
+	CTLFLAG_RD, &osreldate, 0, "");
 
 SYSCTL_INT(_kern,KERN_MAXVNODES, maxvnodes,
-	CTLFLAG_RD, &desiredvnodes, 0, 0, "");
+	CTLFLAG_RD, &desiredvnodes, 0, "");
 
 SYSCTL_INT(_kern,KERN_MAXPROC, maxproc,
-	CTLFLAG_RD, &maxproc, 0, 0, "");
+	CTLFLAG_RD, &maxproc, 0, "");
 
 SYSCTL_INT(_kern,KERN_MAXPROCPERUID,maxprocperuid,
-	CTLFLAG_RD, &maxprocperuid, 0, 0, "");
+	CTLFLAG_RD, &maxprocperuid, 0, "");
 
 SYSCTL_INT(_kern,KERN_MAXFILESPERPROC, maxfilesperproc,
-	CTLFLAG_RD, &maxfilesperproc, 0, 0, "");
+	CTLFLAG_RD, &maxfilesperproc, 0, "");
 
 SYSCTL_INT(_kern,KERN_ARGMAX, argmax,
-	CTLFLAG_RD, 0, ARG_MAX, 0, "");
+	CTLFLAG_RD, 0, ARG_MAX, "");
 
 SYSCTL_INT(_kern,KERN_POSIX1, posix1version,
-	CTLFLAG_RD, 0, _POSIX_VERSION, 0, "");
+	CTLFLAG_RD, 0, _POSIX_VERSION, "");
 
 SYSCTL_INT(_kern,KERN_NGROUPS, ngroups,
-	CTLFLAG_RD, 0, NGROUPS_MAX, 0, "");
+	CTLFLAG_RD, 0, NGROUPS_MAX, "");
 
 SYSCTL_INT(_kern,KERN_JOB_CONTROL, job_control,
-	CTLFLAG_RD, 0, 1, 0, "");
+	CTLFLAG_RD, 0, 1, "");
 
 SYSCTL_INT(_kern,KERN_MAXFILES, maxfiles,
-	CTLFLAG_RW, &maxfiles, 0, 0, "");
+	CTLFLAG_RW, &maxfiles, 0, "");
 
 #ifdef _POSIX_SAVED_IDS
 SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
-	CTLFLAG_RD, 0, 1, 0, "");
+	CTLFLAG_RD, 0, 1, "");
 #else 
 SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
-	CTLFLAG_RD, 0, 0, 0, "");
+	CTLFLAG_RD, 0, 0, "");
 #endif
 
 char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 
 SYSCTL_STRING(_kern,KERN_BOOTFILE, bootfile,
-	CTLFLAG_RW, kernelname, sizeof kernelname, 0, "");
+	CTLFLAG_RW, kernelname, sizeof kernelname, "");
 
 SYSCTL_STRUCT(_kern,KERN_BOOTTIME, boottime,
-	CTLFLAG_RW, &boottime, timeval, 0, "");
+	CTLFLAG_RW, &boottime, timeval, "");
 
 SYSCTL_STRING(_hw,HW_MACHINE, machine,
-	CTLFLAG_RD, machine, 0, 0, "");
+	CTLFLAG_RD, machine, 0, "");
 
 SYSCTL_STRING(_hw,HW_MACHINE, model,
-	CTLFLAG_RD, cpu_model, 0, 0, "");
+	CTLFLAG_RD, cpu_model, 0, "");
 
 SYSCTL_INT(_hw,HW_NCPU, ncpu,
-	CTLFLAG_RD, 0, 1, 0, "");
+	CTLFLAG_RD, 0, 1, "");
 
 SYSCTL_INT(_hw,HW_BYTEORDER, byteorder,
-	CTLFLAG_RD, 0, BYTE_ORDER, 0, "");
+	CTLFLAG_RD, 0, BYTE_ORDER, "");
 
 SYSCTL_INT(_hw,HW_PAGESIZE, pagesize,
-	CTLFLAG_RD, 0, PAGE_SIZE, 0, "");
-
-SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
-	CTLFLAG_RD, &hw_float, 0, 0, "");
+	CTLFLAG_RD, 0, PAGE_SIZE, "");
 
 /* END_MIB */
 
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 static int
-sysctl_kern_updateinterval(oidp, when, error)
-	struct sysctl_oid *oidp;
-	int when;
-	int error;
+sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
 {
-	if (when == CTLAFTER && !error)
+	int error = sysctl_handle_int(oidp,
+		oidp->oid_arg1,oidp->oid_arg2,
+		oldp,oldlenp,newp,newlen);
+	if (!error)
 		wakeup(&vfs_update_wakeup);
-	return 0;
+	return error;
 }
 
-SYSCTL_INT(_kern,KERN_UPDATEINTERVAL, update,
-	CTLFLAG_RD, &vfs_update_interval, 0, sysctl_kern_updateinterval,"");
+SYSCTL_PROC(_kern,KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RD,
+	&vfs_update_interval, 0, sysctl_kern_updateinterval,"");
 
-
-static int
-do_int(oidp, oldp, oldlenp, newp, newlen)
-	struct sysctl_oid *oidp;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
+int
+sysctl_handle_int SYSCTL_HANDLER_ARGS
 {
 	int error = 0;
 
@@ -181,7 +169,7 @@ do_int(oidp, oldp, oldlenp, newp, newlen)
 		return (ENOMEM);
 
 	/* If it is a constant, don't write */
-	if (newp && !oidp->oid_arg1)
+	if (newp && !arg1)
 		return (EPERM);
 
 	/* If we get more than an int */
@@ -189,26 +177,20 @@ do_int(oidp, oldp, oldlenp, newp, newlen)
 		return (EINVAL);
 
 	*oldlenp = sizeof(int);
-	if (oldp && oidp->oid_arg1 )
-		error = copyout(oidp->oid_arg1, oldp, sizeof(int));
+	if (oldp && arg1 )
+		error = copyout(arg1, oldp, sizeof(int));
 	else if (oldp)
-		error = copyout(&oidp->oid_arg2, oldp, sizeof(int));
+		error = copyout(&arg2, oldp, sizeof(int));
 	if (error == 0 && newp)
-		error = copyin(newp, oidp->oid_arg1, sizeof(int));
+		error = copyin(newp, arg1, sizeof(int));
 	return (error);
 }
 
-static int
-do_string(oidp, oldp, oldlenp, newp, newlen)
-	struct sysctl_oid *oidp;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
+int
+sysctl_handle_string SYSCTL_HANDLER_ARGS
 {
 	int len, error = 0, rval = 0;
-	int maxlen = oidp->oid_arg2;
-	char *str = (char *)(oidp->oid_arg1);
+	char *str = (char *)arg1;
 
 	len = strlen(str) + 1;
 
@@ -217,7 +199,7 @@ do_string(oidp, oldp, oldlenp, newp, newlen)
 		rval = ENOMEM;
 	}
 
-	if (newp && newlen >= maxlen)
+	if (newp && newlen >= arg2)
 		return (EINVAL);
 
 	if (oldp) {
@@ -235,40 +217,35 @@ do_string(oidp, oldp, oldlenp, newp, newlen)
 	return (rval);
 }
 
-static int
-do_opaque(oidp, oldp, oldlenp, newp, newlen)
-	struct sysctl_oid *oidp;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
+int
+sysctl_handle_opaque SYSCTL_HANDLER_ARGS
 {
 	int error = 0, rval = 0;
-	char *str = (char *)(oidp->oid_arg1);
-	int len = oidp->oid_arg2;
 
-	if (oldp && *oldlenp < len) {
+	if (oldp && *oldlenp < arg2) {
 		return (ENOMEM);
 	}
 
-	if (newp && newlen != len)
+	if (newp && newlen != arg2)
 		return (EINVAL);
 
 	if (oldp) {
-		*oldlenp = len;
-		error = copyout(str, oldp, len);
+		*oldlenp = arg2;
+		error = copyout(arg1, oldp, arg2);
 		if (error)
 			rval = error;
 	}
 	if ((error == 0 || error == ENOMEM) && newp) {
-		error = copyin(newp, str, len);
+		error = copyin(newp, arg1, arg2);
 		if (error)
 			rval = error;
-		str[newlen] = 0;
 	}
 	return (rval);
 }
 
+#ifdef DEBUG
+static sysctlfn debug_sysctl;
+#endif
 
 /*
  * Locking and stats
@@ -346,11 +323,6 @@ found:
 		(*oidp)->oid_name, (*oidp)->oid_kind, (*oidp)->oid_arg1);
 #endif
 
-	if ((*oidp)->oid_handler) {
-		i = ((*oidp)->oid_handler) (*oidp,CTLBEFORE,0);
-		if (i)
-			return i;
-	}
 	if ((*oidp)->oid_kind & CTLFLAG_NOLOCK)
 		dolock = 0;
 
@@ -376,33 +348,14 @@ found:
 	if (uap->new && !((*oidp)->oid_kind & CTLFLAG_WR))
 		return (EPERM);
 
-	switch ((*oidp)->oid_kind & CTLTYPE) {
-		case CTLTYPE_INT:
-			error = do_int(*oidp,
-				    uap->old, &oldlen, 
-				    uap->new, uap->newlen);
-			break;
-		case CTLTYPE_STRING:
-			error = do_string(*oidp,
-				    uap->old, &oldlen, 
-				    uap->new, uap->newlen);
-			break;
-		case CTLTYPE_OPAQUE:
-			error = do_opaque(*oidp,
-				    uap->old, &oldlen, 
-				    uap->new, uap->newlen);
-			break;
-		default:
-			printf("sysctl not handled\n");
-			error = EINVAL;
-			break;
-	}
-	
 	if ((*oidp)->oid_handler) {
-		i = ((*oidp)->oid_handler) (*oidp,CTLAFTER,error);
+		i = ((*oidp)->oid_handler) (*oidp,
+					(*oidp)->oid_arg1, (*oidp)->oid_arg2,
+					uap->old,&oldlen,uap->new,uap->newlen);
 		if (i)
 			error = i;
-	}
+	} else
+		return EINVAL;
 	goto over_and_out;
 
     old:
