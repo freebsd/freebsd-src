@@ -345,4 +345,5 @@ char *syscallnames[] = {
 	"sendfile",			/* 336 = sendfile */
 	"kldsym",			/* 337 = kldsym */
 	"jail",			/* 338 = jail */
+	"#339",			/* 339 = pioctl */
 };
