@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.10 1997/06/30 11:24:18 charnier Exp $
+ * $Id: parse.y,v 1.11 1998/12/06 22:58:17 archie Exp $
  */
 
 #include <err.h>
@@ -84,7 +84,11 @@ charmap : DEFN CHAR {
 }
 ;
 substitute : SUBSTITUTE STRING WITH STRING {
-	strcpy(__collate_substitute_table[$2[0]], $4);
+	u_char ch = $2[0];
+
+	if (strchr($4, ch) != NULL)
+		yyerror("Char 0x%02x substitution is recursive", ch);
+	strcpy(__collate_substitute_table[ch], $4);
 }
 ;
 order : ORDER order_list {
@@ -92,8 +96,11 @@ order : ORDER order_list {
 	int ch;
 
 	for (ch = 0; ch < UCHAR_MAX + 1; ch++)
-		if (!__collate_char_pri_table[ch].prim)
-			yyerror("Char 0x%02x not present", ch);
+		if (   !__collate_char_pri_table[ch].prim
+		    && __collate_substitute_table[ch][0] == ch
+		    && __collate_substitute_table[ch][1] == '\0'
+		   )
+			yyerror("Char 0x%02x not found", ch);
 
 	fp = fopen(out_file, "w");
 	if(!fp)
