@@ -1451,15 +1451,15 @@ m_getcl(int how, short type, int flags)
 	} else {
 		_mcl_setup(mb);
 		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
-	}
 #ifdef MAC
-	if (flags & M_PKTHDR) {
-		if (mac_init_mbuf(mb, MBTOM(how)) != 0) {
-			m_free(mb);
-			return (NULL);
+		if (flags & M_PKTHDR) {
+			if (mac_init_mbuf(mb, MBTOM(how)) != 0) {
+				m_free(mb);
+				return (NULL);
+			}
 		}
-	}
 #endif
+	}
 	return (mb);
 }
 
