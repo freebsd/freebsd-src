@@ -439,7 +439,10 @@ static void
 loranintr(int unit)
 {
 	u_long ef;
-	int status = 0, count = 0, i;
+	int status = 0, i;
+#if 0
+	int count = 0;
+#endif
 	int delay;
 	u_int64_t when;
 	struct timespec there, then;
@@ -569,7 +572,7 @@ loranintr(int unit)
 
 	ticker = first->scheduled;
 
-	while (dp = TAILQ_FIRST(&minors[NLORAN])) {
+	while ((dp = TAILQ_FIRST(&minors[NLORAN])) != NULL) {
 		TAILQ_REMOVE(&minors[NLORAN], dp, list);
 		TAILQ_INSERT_TAIL(&working, dp, list);
 	}
