@@ -13,7 +13,7 @@ SRCS+=	est.c p4tcc.c powernow.c
 .endif
 
 .if ${MACHINE} == "amd64"
-.PATH: ${.PATH} ${.CURDIR}/../../i386/cpufreq
+.PATH: ${.CURDIR}/../../i386/cpufreq
 SRCS+=	powernow.c
 .endif
 
