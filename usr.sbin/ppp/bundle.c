@@ -165,7 +165,8 @@ bundle_Notify(struct bundle *bundle, char c)
 {
   if (bundle->notify.fd != -1) {
     if (write(bundle->notify.fd, &c, 1) == 1)
-      log_Printf(LogPHASE, "Parent notified of success.\n");
+      log_Printf(LogPHASE, "Parent notified of %s\n",
+                 c == EX_NORMAL ? "success" : "failure");
     else
       log_Printf(LogPHASE, "Failed to notify parent of success.\n");
     close(bundle->notify.fd);
