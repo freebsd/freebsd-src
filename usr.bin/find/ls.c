@@ -65,7 +65,7 @@ printlong(name, accpath, sb)
 {
 	char modep[15], *user_from_uid(), *group_from_gid();
 
-	(void)printf("%6lu %4qd ", (u_long)sb->st_ino, sb->st_blocks);
+	(void)printf("%6lu %4qd ", (u_long) sb->st_ino, sb->st_blocks);
 	(void)strmode(sb->st_mode, modep);
 	(void)printf("%s %3u %-*s %-*s ", modep, sb->st_nlink, UT_NAMESIZE,
 	    user_from_uid(sb->st_uid, 0), UT_NAMESIZE,
