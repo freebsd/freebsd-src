@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 LIB=	scsi
-#CFLAGS+=-DLIBC_SCCS -I${DESTDIR}/sys
+#CFLAGS+=-DLIBC_SCCS -I${.CURDIR}/../../sys
 SRCS=	scsi.c
 
 MAN3=	scsi.3
