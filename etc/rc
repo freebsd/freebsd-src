@@ -138,8 +138,8 @@ case ${entropy_file} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -f ${entropy_file} -a -r ${entropy_file} ] ; then
-		echo -n "Reading entropy file"
+	if [ -f ${entropy_file} -a -r ${entropy_file} ]; then
+		echo "Reading entropy file"
 		cat ${entropy_file} > /dev/random
 		rm -f ${entropy_file}
 	fi
