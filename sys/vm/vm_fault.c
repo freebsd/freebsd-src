@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.60 1996/12/29 02:33:12 dyson Exp $
+ * $Id: vm_fault.c,v 1.61 1997/01/01 04:45:02 dyson Exp $
  */
 
 /*
@@ -701,7 +701,6 @@ readrest:
 			object = first_object;
 			pindex = first_pindex;
 
-#if defined(OLD_COLLAPSE_CODE)
 			/*
 			 * Now that we've gotten the copy out of the way,
 			 * let's try to collapse the top object.
@@ -712,7 +711,6 @@ readrest:
 			vm_object_pip_wakeup(object);
 			vm_object_collapse(object);
 			object->paging_in_progress++;
-#endif
 		} else {
 			prot &= ~VM_PROT_WRITE;
 		}
