@@ -132,6 +132,7 @@ struct filterops null_filtops =
 	{ 0, filt_nullattach, NULL, NULL };
 
 extern struct filterops sig_filtops;
+extern struct filterops fs_filtops;
 
 /*
  * Table for for all system-defined filters.
@@ -145,6 +146,7 @@ static struct filterops *sysfilt_ops[] = {
 	&sig_filtops,			/* EVFILT_SIGNAL */
 	&timer_filtops,			/* EVFILT_TIMER */
 	&file_filtops,			/* EVFILT_NETDEV */
+	&fs_filtops,			/* EVFILT_FS */
 };
 
 static int

@@ -928,6 +928,7 @@ update:
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
+		vfs_event_signal(NULL, VQ_MOUNT, NULL);
 		if (VFS_ROOT(mp, &newdp))
 			panic("mount: lost mount");
 		checkdirs(vp, newdp);
@@ -1173,6 +1174,7 @@ dounmount(mp, flags, td)
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
 		coveredvp->v_mountedhere = NULL;
 	mtx_unlock(&mountlist_mtx);
+	vfs_event_signal(NULL, VQ_UNMOUNT, NULL);
 	vfs_mount_destroy(mp, td);
 	if (coveredvp != NULL)
 		vrele(coveredvp);
