@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.41 1996/06/13 17:07:41 jkh Exp $
+ * $Id: tcpip.c,v 1.42 1996/06/17 23:04:24 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -556,7 +556,7 @@ tcpDeviceSelect(void)
 	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
-	status = dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
     }
     return status;
