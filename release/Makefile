@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.85 1995/01/27 01:47:32 jkh Exp $
+#	$Id: Makefile,v 1.86 1995/01/27 06:24:35 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -129,6 +129,9 @@ cpio.flp:
 	gzip -9 -v < cpio.flp > cpio.flp.gz &
 
 floppies: boot_144.flp boot_12.flp cpio.flp
+	mkdir -p ${RELEASEDIR}/floppies
+	cp boot_144.flp boot_144.flp.gz boot_12.flp boot_12.flp.gz \
+		cpio.flp cpio.flp.gz ${RELEASEDIR}/floppies
 
 release20: 
 .if !defined(RELEASEDIR)
@@ -165,7 +168,7 @@ release20:
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
 
-EXTRADISTRIBUTIONS=	secure src games manpages proflibs dict info
+EXTRADISTRIBUTIONS=	secure games manpages proflibs dict info
 DISTRIBUTIONS=	bin src ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
