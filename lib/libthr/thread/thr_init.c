@@ -66,6 +66,14 @@
 
 #include "thr_private.h"
 
+/*
+ * Early implementations of sigtimedwait interpreted the signal
+ * set incorrectly.
+ */
+#define SIGTIMEDWAIT_SET_IS_INVERTED(osreldate) \
+    ((500100 <= (osreldate) && (osreldate) <= 500113) || \
+    (osreldate) == 501000 || (osreldate) == 501100)
+
 extern void _thread_init_hack(void);
 
 /*
@@ -168,6 +176,7 @@ _thread_init(void)
 	size_t		len;
 	int		mib[2];
 	sigset_t	set;
+	int		osreldate;
 	int		error;
 
 	struct clockinfo clockinfo;
@@ -323,6 +332,23 @@ _thread_init(void)
 	SIGEMPTYSET(set);
 	SIGADDSET(set, SIGTHR);
 	__sys_sigprocmask(SIG_BLOCK, &set, 0);
+
+	/*
+	 * Precompute the signal set used by _thread_suspend to wait
+	 * for SIGTHR.
+	 */
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_OSRELDATE;
+	len = sizeof(osreldate);
+	if (sysctl(mib, 2, &osreldate, &len, NULL, 0) == 0 &&
+	    SIGTIMEDWAIT_SET_IS_INVERTED(osreldate)) {
+		/* Kernel bug requires an inverted signal set. */
+		SIGFILLSET(_thread_suspend_sigset);
+		SIGDELSET(_thread_suspend_sigset, SIGTHR);
+	} else {
+		SIGEMPTYSET(_thread_suspend_sigset);
+		SIGADDSET(_thread_suspend_sigset, SIGTHR);
+	}
 
 	/* Get the kernel clockrate: */
 	mib[0] = CTL_KERN;
