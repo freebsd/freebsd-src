@@ -13,8 +13,9 @@
 .Op Fl f Ar snpdev
 .Op Ar tty
 .Sh DESCRIPTION
-.Nm Watch
-allows the user to examine all data coming through a specified tty
+The
+.Nm
+utility allows the user to examine all data coming through a specified tty
 using the
 .Xr snp 4
 device.
@@ -24,8 +25,9 @@ device is not available,
 .Nm
 will attempt to load the module
 .Pq Nm snp .
-.Nm Watch
-writes to standard output.
+The
+.Nm
+utility writes to standard output.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -79,7 +81,7 @@ Print the date and time when observation of a given tty is started.
 .It Fl W
 Allow write access to observed tty.
 .It Ar tty
-Tty may be specified as an tty-style device, such as a pseudo tty device,
+Tty may be specified as a tty-style device, such as a pseudo tty device,
 a virtual console, or a serial line, etc.
 Names may be preceded by
 .Pa /dev/ .
@@ -108,6 +110,7 @@ All user output is reproduced as-is.
 .Sh AUTHORS
 .An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il
 .Sh HISTORY
-.Nm Watch
-first appeared in
+The
+.Nm
+utility first appeared in
 .Fx 2.1 .

@@ -52,8 +52,9 @@
 .Fl a
 .\"
 .Sh DESCRIPTION
+The
 .Nm
-is the daemon program to send ICMPv6 Router Solicitation messages
+utility is the daemon program to send ICMPv6 Router Solicitation messages
 on the specified interfaces.
 If a node (re)attaches to a link,
 .Nm
@@ -61,8 +62,9 @@ sends some Router Solicitations on the link destined to the link-local scope
 all-routers multicast address to discover new routers
 and to get non link-local addresses.
 .Pp
+The
 .Nm
-should be used on IPv6 hosts
+utility should be used on IPv6 hosts
 (non-router nodes)
 only.
 .Pp
@@ -92,8 +94,9 @@ Just after invocation of
 daemon.
 .It
 The interface is up after a temporary interface failure.
+The
 .Nm
-detects such failures by periodically probing to see if the status
+utility detects such failures by periodically probing to see if the status
 of the interface is active or not.
 Note that some network cards and drivers do not allow the extraction
 of link state.
@@ -136,7 +139,9 @@ will dump the current internal state into
 .Bl -tag -width indent
 .It Fl a
 Autoprobe outgoing interface.
+The
 .Nm
+utility
 will try to find a non-loopback, non-point-to-point, IPv6-capable interface.
 If
 .Nm
@@ -149,8 +154,7 @@ Enable debugging.
 .It Fl D
 Enable more debugging including the printing of internal timer information.
 .It Fl f
-.Fl f
-prevents
+Prevent
 .Nm
 from becoming a daemon (foreground mode).
 Warning messages are generated to standard error
@@ -194,12 +198,13 @@ dumps internal state on.
 .Sh HISTORY
 The
 .Nm
-command is based on the
+utility is based on the
 .Nm rtsol
-command, which first appeared in WIDE/KAME IPv6 protocol stack kit.
+utility, which first appeared in WIDE/KAME IPv6 protocol stack kit.
+The
 .Nm rtsol
-is now integrated into
-.Xr rtsold 8 .
+utility is now integrated into
+.Nm .
 .\"
 .Sh BUGS
 In some operating systems, when a PCMCIA network card is removed

@@ -50,8 +50,9 @@
 .Sm on
 .Oc
 .Sh DESCRIPTION
-.Nm Ypbind
-is the process that maintains NIS binding information.
+The
+.Nm
+utility is the process that maintains NIS binding information.
 At startup,
 it searches for an NIS server responsible for serving the system's
 default domain (as set by the
@@ -75,8 +76,9 @@ If it fails to receive a reply to one of these requests,
 .Nm
 assumes that the server is no longer running and resumes its network
 broadcasts until another binding is established.
-.Nm Ypbind
-will also log warning messages using the
+The
+.Nm
+utility will also log warning messages using the
 .Xr syslog 3
 facility each time it detects that a server has stopped responding,
 as well as when it has bound to a new server.
@@ -173,7 +175,7 @@ flag, it has no effect).
 .Sh NOTES
 The
 .Nm
-program will not make continuous attempts to keep secondary domains bound.
+utility will not make continuous attempts to keep secondary domains bound.
 If a server for a secondary domain fails to respond to a ping,
 .Nm
 will broadcast for a new server only once before giving up.

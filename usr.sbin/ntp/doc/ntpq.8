@@ -15,7 +15,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility program is used to query NTP servers
+utility is used to query NTP servers
 which implement the recommended NTP mode 6 control message format
 about current state and to request changes in that state.
 The
@@ -24,8 +24,9 @@ command line arguments.
 Requests to read and write arbitrary
 variables can be assembled, with raw and pretty-printed output
 options being available.
+The
 .Nm
-can also obtain and print a
+utility can also obtain and print a
 list of peers in a common format by sending multiple queries to the
 server.
 .Pp
@@ -42,19 +43,22 @@ will attempt to read commands from the
 standard input and execute these on the NTP server running on the
 first host given on the command line, again defaulting to localhost
 when no other host is specified.
+The
 .Nm
-will prompt for
+utility will prompt for
 commands if the standard input is a terminal device.
 .Pp
+The
 .Nm
-uses NTP mode 6 packets to communicate with the
+utility uses NTP mode 6 packets to communicate with the
 NTP server, and hence can be used to query any compatible server on
 the network which permits it.
 Note that since NTP is a UDP protocol
 this communication will be somewhat unreliable, especially over
 large distances in terms of network topology.
+The
 .Nm
-makes
+utility makes
 one attempt to retransmit requests, and will time requests out if
 the remote host is not heard from within a suitable timeout
 time.
@@ -119,7 +123,7 @@ A
 number of interactive format commands are executed entirely within
 the
 .Nm
-program itself and do not result in NTP mode 6
+utility itself and do not result in NTP mode 6
 requests being sent to a server.
 These are described following.
 .Bl -tag -width indent
@@ -151,8 +155,9 @@ where the
 .Ql =value
 is ignored, and can be omitted,
 in requests to the server to read variables.
+The
 .Nm
-maintains an internal list in which data to be included in control
+utility maintains an internal list in which data to be included in control
 messages can be assembled, and sent using the
 .Ic readlist
 and
@@ -168,7 +173,7 @@ The
 .Ic rmvars
 command can be used to remove individual variables from the list,
 while the
-.Ic clearlist   
+.Ic clearlist
 command removes all variables from the
 list.
 .It Ic authenticate Cm yes | Cm no
@@ -318,7 +323,7 @@ returned by the
 .Ic associations
 command is cached internally
 in
-.Xr ntpq 8  .
+.Nm .
 The index is then of use when dealing with stupid
 servers which use association identifiers which are hard for humans
 to type, in that for any subsequent commands which require an

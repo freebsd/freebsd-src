@@ -14,7 +14,9 @@
 .Op Fl g Ar target
 .Op Fl k Ar keyfile
 .Sh DESCRIPTION
-This program generates random keys used by either or both the
+The
+.Nm
+utility generates random keys used by either or both the
 NTPv3/NTPv4 symmetric key or the NTPv4 public key (Autokey)
 cryptographic authentication schemes.
 .Pp
@@ -33,7 +35,7 @@ Generate file or files indicated by the characters in the
 .Ar target
 string:
 .Bl -tag -width X
-.It Li d 
+.It Li d
 Generate D-H parameter file.
 .It Li m
 Generate MD5 key file.
@@ -93,7 +95,7 @@ specified by the
 .Ic keys
 configuration file command and made
 visible only to root.
-An additional key consisting of a easily
+An additional key consisting of an easily
 remembered password should be added by hand for use with the
 .Xr ntpq 8
 and
@@ -105,7 +107,7 @@ the same security compartment.
 While the key identifiers for MD5
 and DES keys must be in the range 1-65534, inclusive, the
 .Nm
-program uses only the identifiers from 1 to
+utility uses only the identifiers from 1 to
 16.
 The key identifier for each association is specified as the key
 argument in the
@@ -169,7 +171,7 @@ beginning with
 .Ql #
 are considered comments and ignored by
 the daemon.
-In the 
+In the
 .Xr ntp.keys 5
 file, the next 16 lines
 contain the MD5 keys in order.
@@ -203,4 +205,4 @@ necessary.
 .Sh BUGS
 It can take quite a while to generate the RSA public/private key
 pair and Diffie-Hellman parameters, from a few seconds on a modern
-workstation to several minutes on older machines. 
+workstation to several minutes on older machines.

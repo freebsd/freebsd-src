@@ -13,8 +13,9 @@
 .Op Fl c Ar command
 .Op Ar host ...
 .Sh DESCRIPTION
+The
 .Nm
-is used to query the
+utility is used to query the
 .Xr ntpd 8
 daemon about its
 current state and to request changes in that state.
@@ -81,19 +82,22 @@ will attempt to read commands from the
 standard input and execute these on the NTP server running on the
 first host given on the command line, again defaulting to localhost
 when no other host is specified.
+The
 .Nm
-will prompt for
+utility will prompt for
 commands if the standard input is a terminal device.
 .Pp
+The
 .Nm
-uses NTP mode 7 packets to communicate with the
-NTP server, and hence can be used to query any compatable server on
+utility uses NTP mode 7 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
 the network which permits it.
 Note that since NTP is a UDP protocol
 this communication will be somewhat unreliable, especially over
 large distances in terms of network topology.
+The
 .Nm
-makes
+utility makes
 no attempt to retransmit requests, and will time requests out if
 the remote host is not heard from within a suitable timeout
 time.
@@ -107,7 +111,7 @@ daemon and can be expected to
 work only with this and maybe some previous versions of the daemon.
 Requests from a remote
 .Nm
-program which affect the
+utility which affect the
 state of the local server must be authenticated, which requires
 both the remote program and local server share a common key and key
 identifier.
@@ -136,7 +140,7 @@ followed by a file name, to the command line.
 A number of interactive format commands are executed entirely
 within the
 .Nm
-program itself and do not result in NTP
+utility itself and do not result in NTP
 mode 7 requests being sent to a server.
 These are described
 following.
@@ -273,14 +277,14 @@ leftmost column.
 Characters only appear beside peers which were
 included in the final stage of the clock selection algorithm.
 A
-.Ql \&.   
+.Ql \&.
 indicates that this peer was cast off in the falseticker
 detection, while a
-.Ql \&+   
+.Ql \&+
 indicates that the peer made it
 through.
 A
-.Ql \&*   
+.Ql \&*
 denotes the peer the server is currently
 synchronizing with.
 .It Ic showpeer Ar peer_address ...
@@ -709,8 +713,9 @@ See the source listing for further information.
 .%O RFC1305
 .Re
 .Sh BUGS
+The
 .Nm
-is a crude hack.
+utility is a crude hack.
 Much of the information it shows is
 deadly boring and could only be loved by its implementer.
 The

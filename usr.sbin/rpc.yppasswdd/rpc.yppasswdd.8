@@ -52,13 +52,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon allows users to change their NIS passwords and certain
+utility allows users to change their NIS passwords and certain
 other information using the
 .Xr yppasswd 1
 and
 .Xr ypchpass 1
 commands.
-.Nm Rpc.yppasswdd
+The
+.Nm
+utility
 is an RPC-based server that accepts incoming password change requests,
 authenticates them, places the updated information in the
 .Pa /var/yp/master.passwd
@@ -70,7 +72,7 @@ maps.
 .Pp
 The
 .Nm
-server allows a normal NIS user to change
+utility allows a normal NIS user to change
 his or her NIS password, full name (also
 known as 'GECOS' field) or shell.
 These updates are typically done using
@@ -93,7 +95,7 @@ rules outlined in
 .Xr ypserv 8
 manual page for more information on securenets; the
 .Nm
-server uses the same access control mechanism as
+utility uses the same access control mechanism as
 .Xr ypserv 8 . )
 .Pp
 The server then
@@ -133,7 +135,7 @@ the network.
 .Pp
 The
 .Nm
-daemon can only be run on a machine that is an NIS master server.
+utility can only be run on a machine that is an NIS master server.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
@@ -161,7 +163,7 @@ maps.
 .It Fl d Ar domain
 The
 .Nm
-server can support multiple domains, however it must
+utility can support multiple domains, however it must
 choose one domain as a default.
 It will try to use the system default domain name as set by the
 .Xr domainname 1

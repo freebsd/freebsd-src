@@ -44,12 +44,15 @@
 .Op Fl p Ar port-number
 .Op Fl d Ar port-device
 .Sh DESCRIPTION
-.Nm Stlstats
+The
+.Nm
+utility
 is used to display statistical information about the ports on Stallion
 Technologies multiport serial boards.
 .Pp
-.Nm Stlstats
-normally runs as a full screen menu driven application.
+The
+.Nm
+utility normally runs as a full screen menu driven application.
 A help line is displayed at the bottom of each screen with the valid
 input keys for this screen.
 .Pp
@@ -102,8 +105,9 @@ Output version information.
 Output only the board type information.
 This output is useful for scripts or other programs that need to know
 a little bit about the board (for example an automated download script).
-.Nm Stlstats
-will not enter full screen interactive mode.
+The
+.Nm
+utility will not enter full screen interactive mode.
 .It Fl c Ar control-device
 Specify the board control device through which to gather port statistics.
 The default is
@@ -113,7 +117,9 @@ Specify the board number to display first.
 The default is to display board 0.
 .It Fl p Ar port-number
 Specify the port number to display first.
-.Nm Stlstats
+The
+.Nm
+utility
 will go straight into the port display screen (bypassing board display)
 when this option is used.
 .It Fl d Ar port-device
