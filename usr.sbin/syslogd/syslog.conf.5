@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd June 9, 1993
 .Dt SYSLOG.CONF 5
@@ -41,7 +42,7 @@
 configuration file
 .Sh DESCRIPTION
 The
-.Nm syslog.conf
+.Nm
 file is the configuration file for the
 .Xr syslogd 8
 program.
@@ -68,7 +69,9 @@ The
 function
 are encoded as a
 .Em facility ,
-a period (``.''), and a
+a period
+.Pq Dq \&. ,
+and a
 .Em level ,
 with no intervening white-space.
 Both the
@@ -80,7 +83,7 @@ are case insensitive.
 The
 .Em facility
 describes the part of the system generating the message, and is one of
-the following keywords: auth, authpriv, cron, daemon, kern, lpr, mail,
+the following keywords: auth, authpriv, cron, daemon, ftp, kern, lpr, mail,
 mark, news, syslog, user, uucp and local0 through local7.
 These keywords (with the exception of mark) correspond to the
 similar
@@ -98,7 +101,7 @@ following ordered list (higher to lower): emerg, alert, crit, err,
 warning, notice, info and debug.
 These keywords correspond to the
 similar
-.Pq Dv LOG_
+.Dq Dv LOG_
 values specified to the
 .Xr syslog
 library routine.
@@ -126,9 +129,7 @@ rather than
 since the latter can easily vary in a networked environment. In some cases,
 though, an appropriate
 .Em facility
-simply doesn't exist (for example,
-.Em ftpd
-logs under LOG_DAEMON along with a myriad other programs).
+simply doesn't exist.
 .Pp
 If a received message matches the specified
 .Em facility
@@ -145,7 +146,9 @@ Multiple
 .Em selectors
 may be specified for a single
 .Em action
-by separating them with semicolon (``;'') characters.
+by separating them with semicolon
+.Pq Dq \&;
+characters.
 It is important to note, however, that each
 .Em selector
 can modify the ones preceding it.
@@ -154,9 +157,13 @@ Multiple
 .Em facilities
 may be specified for a single
 .Em level
-by separating them with comma (``,'') characters.
+by separating them with comma
+.Pq Dq \&,
+characters.
 .Pp
-An asterisk (``*'') can be used to specify all
+An asterisk
+.Pq Dq *
+can be used to specify all
 .Em facilities
 all
 .Em levels
@@ -165,7 +172,10 @@ or all
 .Pp
 The special
 .Em facility
-``mark'' receives a message at priority ``info'' every 20 minutes
+.Dq mark
+receives a message at priority
+.Dq info
+every 20 minutes
 (see
 .Xr syslogd 8 ) .
 This is not enabled by a
@@ -174,7 +184,8 @@ field containing an asterisk.
 .Pp
 The special
 .Em level
-``none'' disables a particular
+.Dq none
+disables a particular
 .Em facility .
 .Pp
 The
@@ -188,7 +199,9 @@ There are five forms:
 A pathname (beginning with a leading slash).
 Selected messages are appended to the file.
 .It
-A hostname (preceded by an at (``@'') sign).
+A hostname (preceded by an at
+.Pq Dq @
+sign).
 Selected messages are forwarded to the
 .Xr syslogd
 program on the named host.
@@ -200,7 +213,9 @@ if they are logged in.
 An asterisk.
 Selected messages are written to all logged-in users.
 .It
-A vertical bar (``|''), followed by a command to pipe the selected
+A vertical bar
+.Pq Dq \&| ,
+followed by a command to pipe the selected
 messages to.  The command is passed to a
 .Pa /bin/sh
 for evaluation, so usual shell metacharacters or input/output
@@ -216,7 +231,7 @@ redirected to
 .Pa /dev/null .
 Upon receipt of a
 .Dv SIGHUP ,
-.Nm syslogd 
+.Nm
 will close the pipe to the process.  If the process didn't exit
 voluntarily, it will be sent a
 .Dv SIGTERM
@@ -234,7 +249,8 @@ complete.  Warning: the process is started under the UID invoking
 normally the superuser.
 .El
 .Pp
-Blank lines and lines whose first non-blank character is a hash (``#'')
+Blank lines and lines whose first non-blank character is a hash
+.Pq Dq #
 character are ignored.
 .Sh EXAMPLES
 .Pp
@@ -284,8 +300,15 @@ configuration file.
 .El
 .Sh BUGS
 The effects of multiple selectors are sometimes not intuitive.
-For example ``mail.crit,*.err'' will select ``mail'' facility messages at
-the level of ``err'' or higher, not at the level of ``crit'' or higher.
+For example
+.Dq mail.crit,*.err
+will select
+.Dq mail
+facility messages at the level of
+.Dq err
+or higher, not at the level of
+.Dq crit
+or higher.
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr syslogd 8
