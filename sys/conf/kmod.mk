@@ -117,7 +117,7 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.ko
 .endif
 
-.if !defined(DEBUG)
+.if !defined(DEBUG_FLAGS)
 FULLPROG=	${PROG}
 .else
 FULLPROG=	${PROG}.debug
@@ -127,8 +127,8 @@ ${PROG}: ${FULLPROG}
 
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
-.if !defined(DEBUG)
-	${OBJCOPY} --strip-debug ${FULLPROG}
+.if !defined(DEBUG_FLAGS)
+	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
 EXPORT_SYMS?=	NO
@@ -191,7 +191,7 @@ ${_ILINKS}:
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
-.if defined(DEBUG)
+.if defined(DEBUG_FLAGS)
 CLEANFILES+= ${FULLPROG}
 .endif
 
@@ -202,7 +202,7 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-.if defined(DEBUG)
+.if defined(DEBUG_FLAGS)
 install.debug:
 	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG install
 .endif
@@ -210,12 +210,11 @@ install.debug:
 .if !target(realinstall)
 realinstall: _kmodinstall
 .ORDER: beforeinstall _kmodinstall
-.if defined(DEBUG) && defined(INSTALL_DEBUG)
 _kmodinstall:
+.if defined(DEBUG_FLAGS) && defined(INSTALL_DEBUG)
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}
 .else
-_kmodinstall:
 	${INSTALL} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 
