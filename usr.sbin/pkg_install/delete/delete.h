@@ -28,6 +28,7 @@ extern Boolean	CleanDirs;
 extern Boolean	Interactive;
 extern Boolean	NoDeInstall;
 extern Boolean	Force;
+extern Boolean	Recursive;
 extern char	*Directory;
 extern char	*PkgName;
 extern match_t	MatchType;
