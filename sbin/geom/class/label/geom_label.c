@@ -49,6 +49,7 @@ static void label_label(struct gctl_req *req);
 static void label_clear(struct gctl_req *req);
 
 struct g_command class_commands[] = {
+	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS },
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL, G_NULL_OPTS },
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {
@@ -57,7 +58,12 @@ struct g_command class_commands[] = {
 	    }
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, label_main, G_NULL_OPTS },
-	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS },
+	{ "stop", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_NONE },
+		G_OPT_SENTINEL
+	    }
+	},
 	G_CMD_SENTINEL
 };
 
@@ -72,6 +78,7 @@ usage(const char *name)
 	fprintf(stderr, "usage: %s create [-v] <name> <dev>\n", name);
 	fprintf(stderr, "       %s destroy [-fv] <name> [name2 [...]]\n", name);
 	fprintf(stderr, "       %s label [-v] <name> <dev>\n", name);
+	fprintf(stderr, "       %s stop [-fv] <name> [name2 [...]]\n", name);
 	fprintf(stderr, "       %s clear [-v] <dev1> [dev2 [...]]\n", name);
 }
 

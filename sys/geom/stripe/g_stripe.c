@@ -859,7 +859,8 @@ g_stripe_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	if (strcmp(verb, "create") == 0) {
 		g_stripe_ctl_create(req, mp);
 		return;
-	} else if (strcmp(verb, "destroy") == 0) {
+	} else if (strcmp(verb, "destroy") == 0 ||
+	    strcmp(verb, "stop") == 0) {
 		g_stripe_ctl_destroy(req, mp);
 		return;
 	}

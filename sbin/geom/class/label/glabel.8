@@ -37,12 +37,17 @@
 .Ar name
 .Ar dev
 .Nm
+.Cm destroy
+.Op Fl fv
+.Ar name
+.Op Ar name Op Ar ...
+.Nm
 .Cm label
 .Op Fl v
 .Ar name
 .Ar dev
 .Nm
-.Cm destroy
+.Cm stop
 .Op Fl fv
 .Ar name
 .Op Ar name Op Ar ...
@@ -127,9 +132,13 @@ method, where metadata is stored in provider's last sector.
 The kernel module
 .Pa geom_label.ko
 will be loaded if it is not loaded already.
-.It Cm destroy
-Turn off the given labels by its
+.It Cm stop
+Turn off the given label by its
 .Ar name .
+This command doesn't touch on-disk metadata!
+.It Cm destroy
+Same as
+.Cm stop .
 .It Cm clear
 Clear metadata on the given devices.
 .It Cm list
@@ -158,6 +167,10 @@ create a file system on it, and mount it:
 glabel label -v usr /dev/da2
 newfs /dev/label/usr
 mount /dev/label/usr /usr
+[...]
+umount /usr
+glabel stop usr
+glabel unload
 .Ed
 .Pp
 The next example shows how to setup a label for a UFS file system:
@@ -172,7 +185,8 @@ Exit status is 0 on success, and 1 if the command fails.
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
-.Xr tunefs 8
+.Xr tunefs 8 ,
+.Xr umount 8
 .Sh HISTORY
 The
 .Nm
