@@ -1,0 +1,380 @@
+@c Copyright (C) 1991, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node Z8000-Dependent
+@chapter Z8000 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter Z8000 Dependent Features
+@end ifclear
+
+@cindex Z8000 support
+The Z8000 @value{AS} supports both members of the Z8000 family: the
+unsegmented Z8002, with 16 bit addresses, and the segmented Z8001 with
+24 bit addresses.
+
+When the assembler is in unsegmented mode (specified with the
+@code{unsegm} directive), an address takes up one word (16 bit)
+sized register.  When the assembler is in segmented mode (specified with
+the @code{segm} directive), a 24-bit address takes up a long (32 bit)
+register.  @xref{Z8000 Directives,,Assembler Directives for the Z8000},
+for a list of other Z8000 specific assembler directives.
+
+@menu
+* Z8000 Options::               No special command-line options for Z8000
+* Z8000 Syntax::                Assembler syntax for the Z8000
+* Z8000 Directives::            Special directives for the Z8000
+* Z8000 Opcodes::               Opcodes
+@end menu
+
+@node Z8000 Options
+@section Options
+
+@cindex Z8000 options
+@cindex options, Z8000
+@code{@value{AS}} has no additional command-line options for the Zilog
+Z8000 family.
+
+@node Z8000 Syntax
+@section Syntax
+@menu
+* Z8000-Chars::                Special Characters
+* Z8000-Regs::                 Register Names
+* Z8000-Addressing::           Addressing Modes
+@end menu
+
+@node Z8000-Chars
+@subsection Special Characters
+
+@cindex line comment character, Z8000
+@cindex Z8000 line comment character
+@samp{!} is the line comment character.
+
+@cindex line separator, Z8000
+@cindex statement separator, Z8000
+@cindex Z8000 line separator
+You can use @samp{;} instead of a newline to separate statements.
+
+@node Z8000-Regs
+@subsection Register Names
+
+@cindex Z8000 registers
+@cindex registers, Z8000
+The Z8000 has sixteen 16 bit registers, numbered 0 to 15.  You can refer
+to different sized groups of registers by register number, with the
+prefix @samp{r} for 16 bit registers, @samp{rr} for 32 bit registers and
+@samp{rq} for 64 bit registers.  You can also refer to the contents of
+the first eight (of the sixteen 16 bit registers) by bytes.  They are
+named @samp{r@var{n}h} and @samp{r@var{n}l}.
+
+@smallexample
+@exdent @emph{byte registers}
+r0l r0h r1h r1l r2h r2l r3h r3l
+r4h r4l r5h r5l r6h r6l r7h r7l
+
+@exdent @emph{word registers}
+r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+
+@exdent @emph{long word registers}
+rr0 rr2 rr4 rr6 rr8 rr10 rr12 rr14
+
+@exdent @emph{quad word registers}
+rq0 rq4 rq8 rq12
+@end smallexample
+
+@node Z8000-Addressing
+@subsection Addressing Modes
+
+@cindex addressing modes, Z8000
+@cindex Z800 addressing modes
+@value{AS} understands the following addressing modes for the Z8000:
+
+@table @code
+@item r@var{n}
+Register direct
+
+@item @@r@var{n}
+Indirect register
+
+@item @var{addr}
+Direct: the 16 bit or 24 bit address (depending on whether the assembler
+is in segmented or unsegmented mode) of the operand is in the instruction.
+
+@item address(r@var{n})
+Indexed: the 16 or 24 bit address is added to the 16 bit register to produce
+the final address in memory of the operand.
+
+@item r@var{n}(#@var{imm})
+Base Address: the 16 or 24 bit register is added to the 16 bit sign
+extended immediate displacement to produce the final address in memory
+of the operand.
+
+@item r@var{n}(r@var{m})
+Base Index: the 16 or 24 bit register r@var{n} is added to the sign
+extended 16 bit index register r@var{m} to produce the final address in
+memory of the operand.
+
+@item #@var{xx}
+Immediate data @var{xx}.
+@end table
+
+@node Z8000 Directives
+@section Assembler Directives for the Z8000
+
+@cindex Z8000 directives
+@cindex directives, Z8000
+The Z8000 port of @value{AS} includes these additional assembler directives,
+for compatibility with other Z8000 assemblers.  As shown, these do not
+begin with @samp{.} (unlike the ordinary @value{AS} directives).
+
+@table @code
+@kindex segm
+@item segm
+Generates code for the segmented Z8001.
+
+@kindex unsegm
+@item unsegm
+Generates code for the unsegmented Z8002.
+
+@kindex name
+@item name
+Synonym for @code{.file}
+
+@kindex global
+@item global
+Synonym for @code{.global}
+
+@kindex wval
+@item wval
+Synonym for @code{.word}
+
+@kindex lval
+@item lval
+Synonym for @code{.long}
+
+@kindex bval
+@item bval
+Synonym for @code{.byte}
+
+@kindex sval
+@item sval
+Assemble a string.  @code{sval} expects one string literal, delimited by
+single quotes.  It assembles each byte of the string into consecutive
+addresses.  You can use the escape sequence @samp{%@var{xx}} (where
+@var{xx} represents a two-digit hexadecimal number) to represent the
+character whose @sc{ascii} value is @var{xx}.  Use this feature to
+describe single quote and other characters that may not appear in string
+literals as themselves.  For example, the C statement @w{@samp{char *a =
+"he said \"it's 50% off\"";}} is represented in Z8000 assembly language
+(shown with the assembler output in hex at the left) as
+
+@iftex
+@begingroup
+@let@nonarrowing=@comment
+@end iftex
+@smallexample
+68652073    sval    'he said %22it%27s 50%25 off%22%00'
+61696420
+22697427
+73203530
+25206F66
+662200
+@end smallexample
+@iftex
+@endgroup
+@end iftex
+
+@kindex rsect
+@item rsect
+synonym for @code{.section}
+
+@kindex block
+@item block
+synonym for @code{.space}
+
+@kindex even
+@item even
+special case of @code{.align}; aligns output to even byte boundary.
+@end table
+
+@node Z8000 Opcodes
+@section Opcodes
+
+@cindex Z8000 opcode summary
+@cindex opcode summary, Z8000
+@cindex mnemonics, Z8000
+@cindex instruction summary, Z8000
+For detailed information on the Z8000 machine instruction set, see
+@cite{Z8000 Technical Manual}.
+
+@ifset SMALL
+@c this table, due to the multi-col faking and hardcoded order, looks silly
+@c except in smallbook.  See comments below "@set SMALL" near top of this file.
+
+The following table summarizes the opcodes and their arguments:
+@iftex
+@begingroup
+@let@nonarrowing=@comment
+@end iftex
+@smallexample
+
+            rs   @r{16 bit source register}
+            rd   @r{16 bit destination register}
+            rbs   @r{8 bit source register}
+            rbd   @r{8 bit destination register}
+            rrs   @r{32 bit source register}
+            rrd   @r{32 bit destination register}
+            rqs   @r{64 bit source register}
+            rqd   @r{64 bit destination register}
+            addr @r{16/24 bit address}
+            imm  @r{immediate data}
+
+adc rd,rs               clrb addr               cpsir @@rd,@@rs,rr,cc
+adcb rbd,rbs            clrb addr(rd)           cpsirb @@rd,@@rs,rr,cc
+add rd,@@rs              clrb rbd                dab rbd
+add rd,addr             com @@rd                 dbjnz rbd,disp7
+add rd,addr(rs)         com addr                dec @@rd,imm4m1
+add rd,imm16            com addr(rd)            dec addr(rd),imm4m1
+add rd,rs               com rd                  dec addr,imm4m1
+addb rbd,@@rs            comb @@rd                dec rd,imm4m1
+addb rbd,addr           comb addr               decb @@rd,imm4m1
+addb rbd,addr(rs)       comb addr(rd)           decb addr(rd),imm4m1
+addb rbd,imm8           comb rbd                decb addr,imm4m1
+addb rbd,rbs            comflg flags            decb rbd,imm4m1
+addl rrd,@@rs            cp @@rd,imm16            di i2
+addl rrd,addr           cp addr(rd),imm16       div rrd,@@rs
+addl rrd,addr(rs)       cp addr,imm16           div rrd,addr
+addl rrd,imm32          cp rd,@@rs               div rrd,addr(rs)
+addl rrd,rrs            cp rd,addr              div rrd,imm16
+and rd,@@rs              cp rd,addr(rs)          div rrd,rs
+and rd,addr             cp rd,imm16             divl rqd,@@rs
+and rd,addr(rs)         cp rd,rs                divl rqd,addr
+and rd,imm16            cpb @@rd,imm8            divl rqd,addr(rs)
+and rd,rs               cpb addr(rd),imm8       divl rqd,imm32
+andb rbd,@@rs            cpb addr,imm8           divl rqd,rrs
+andb rbd,addr           cpb rbd,@@rs             djnz rd,disp7
+andb rbd,addr(rs)       cpb rbd,addr            ei i2
+andb rbd,imm8           cpb rbd,addr(rs)        ex rd,@@rs
+andb rbd,rbs            cpb rbd,imm8            ex rd,addr
+bit @@rd,imm4            cpb rbd,rbs             ex rd,addr(rs)
+bit addr(rd),imm4       cpd rd,@@rs,rr,cc        ex rd,rs
+bit addr,imm4           cpdb rbd,@@rs,rr,cc      exb rbd,@@rs
+bit rd,imm4             cpdr rd,@@rs,rr,cc       exb rbd,addr
+bit rd,rs               cpdrb rbd,@@rs,rr,cc     exb rbd,addr(rs)
+bitb @@rd,imm4           cpi rd,@@rs,rr,cc        exb rbd,rbs
+bitb addr(rd),imm4      cpib rbd,@@rs,rr,cc      ext0e imm8
+bitb addr,imm4          cpir rd,@@rs,rr,cc       ext0f imm8
+bitb rbd,imm4           cpirb rbd,@@rs,rr,cc     ext8e imm8
+bitb rbd,rs             cpl rrd,@@rs             ext8f imm8
+bpt                     cpl rrd,addr            exts rrd
+call @@rd                cpl rrd,addr(rs)        extsb rd
+call addr               cpl rrd,imm32           extsl rqd
+call addr(rd)           cpl rrd,rrs             halt
+calr disp12             cpsd @@rd,@@rs,rr,cc      in rd,@@rs
+clr @@rd                 cpsdb @@rd,@@rs,rr,cc     in rd,imm16
+clr addr                cpsdr @@rd,@@rs,rr,cc     inb rbd,@@rs
+clr addr(rd)            cpsdrb @@rd,@@rs,rr,cc    inb rbd,imm16
+clr rd                  cpsi @@rd,@@rs,rr,cc      inc @@rd,imm4m1
+clrb @@rd                cpsib @@rd,@@rs,rr,cc     inc addr(rd),imm4m1
+inc addr,imm4m1         ldb rbd,rs(rx)          mult rrd,addr(rs)
+inc rd,imm4m1           ldb rd(imm16),rbs       mult rrd,imm16
+incb @@rd,imm4m1         ldb rd(rx),rbs          mult rrd,rs
+incb addr(rd),imm4m1    ldctl ctrl,rs           multl rqd,@@rs
+incb addr,imm4m1        ldctl rd,ctrl           multl rqd,addr
+incb rbd,imm4m1         ldd @@rs,@@rd,rr          multl rqd,addr(rs)
+ind @@rd,@@rs,ra          lddb @@rs,@@rd,rr         multl rqd,imm32
+indb @@rd,@@rs,rba        lddr @@rs,@@rd,rr         multl rqd,rrs
+inib @@rd,@@rs,ra         lddrb @@rs,@@rd,rr        neg @@rd
+inibr @@rd,@@rs,ra        ldi @@rd,@@rs,rr          neg addr
+iret                    ldib @@rd,@@rs,rr         neg addr(rd)
+jp cc,@@rd               ldir @@rd,@@rs,rr         neg rd
+jp cc,addr              ldirb @@rd,@@rs,rr        negb @@rd
+jp cc,addr(rd)          ldk rd,imm4             negb addr
+jr cc,disp8             ldl @@rd,rrs             negb addr(rd)
+ld @@rd,imm16            ldl addr(rd),rrs        negb rbd
+ld @@rd,rs               ldl addr,rrs            nop
+ld addr(rd),imm16       ldl rd(imm16),rrs       or rd,@@rs
+ld addr(rd),rs          ldl rd(rx),rrs          or rd,addr
+ld addr,imm16           ldl rrd,@@rs             or rd,addr(rs)
+ld addr,rs              ldl rrd,addr            or rd,imm16
+ld rd(imm16),rs         ldl rrd,addr(rs)        or rd,rs
+ld rd(rx),rs            ldl rrd,imm32           orb rbd,@@rs
+ld rd,@@rs               ldl rrd,rrs             orb rbd,addr
+ld rd,addr              ldl rrd,rs(imm16)       orb rbd,addr(rs)
+ld rd,addr(rs)          ldl rrd,rs(rx)          orb rbd,imm8
+ld rd,imm16             ldm @@rd,rs,n            orb rbd,rbs
+ld rd,rs                ldm addr(rd),rs,n       out @@rd,rs
+ld rd,rs(imm16)         ldm addr,rs,n           out imm16,rs
+ld rd,rs(rx)            ldm rd,@@rs,n            outb @@rd,rbs
+lda rd,addr             ldm rd,addr(rs),n       outb imm16,rbs
+lda rd,addr(rs)         ldm rd,addr,n           outd @@rd,@@rs,ra
+lda rd,rs(imm16)        ldps @@rs                outdb @@rd,@@rs,rba
+lda rd,rs(rx)           ldps addr               outib @@rd,@@rs,ra
+ldar rd,disp16          ldps addr(rs)           outibr @@rd,@@rs,ra
+ldb @@rd,imm8            ldr disp16,rs           pop @@rd,@@rs
+ldb @@rd,rbs             ldr rd,disp16           pop addr(rd),@@rs
+ldb addr(rd),imm8       ldrb disp16,rbs         pop addr,@@rs
+ldb addr(rd),rbs        ldrb rbd,disp16         pop rd,@@rs
+ldb addr,imm8           ldrl disp16,rrs         popl @@rd,@@rs
+ldb addr,rbs            ldrl rrd,disp16         popl addr(rd),@@rs
+ldb rbd,@@rs             mbit                    popl addr,@@rs
+ldb rbd,addr            mreq rd                 popl rrd,@@rs
+ldb rbd,addr(rs)        mres                    push @@rd,@@rs
+ldb rbd,imm8            mset                    push @@rd,addr
+ldb rbd,rbs             mult rrd,@@rs            push @@rd,addr(rs)
+ldb rbd,rs(imm16)       mult rrd,addr           push @@rd,imm16
+push @@rd,rs             set addr,imm4           subl rrd,imm32
+pushl @@rd,@@rs           set rd,imm4             subl rrd,rrs
+pushl @@rd,addr          set rd,rs               tcc cc,rd
+pushl @@rd,addr(rs)      setb @@rd,imm4           tccb cc,rbd
+pushl @@rd,rrs           setb addr(rd),imm4      test @@rd
+res @@rd,imm4            setb addr,imm4          test addr
+res addr(rd),imm4       setb rbd,imm4           test addr(rd)
+res addr,imm4           setb rbd,rs             test rd
+res rd,imm4             setflg imm4             testb @@rd
+res rd,rs               sinb rbd,imm16          testb addr
+resb @@rd,imm4           sinb rd,imm16           testb addr(rd)
+resb addr(rd),imm4      sind @@rd,@@rs,ra         testb rbd
+resb addr,imm4          sindb @@rd,@@rs,rba       testl @@rd
+resb rbd,imm4           sinib @@rd,@@rs,ra        testl addr
+resb rbd,rs             sinibr @@rd,@@rs,ra       testl addr(rd)
+resflg imm4             sla rd,imm8             testl rrd
+ret cc                  slab rbd,imm8           trdb @@rd,@@rs,rba
+rl rd,imm1or2           slal rrd,imm8           trdrb @@rd,@@rs,rba
+rlb rbd,imm1or2         sll rd,imm8             trib @@rd,@@rs,rbr
+rlc rd,imm1or2          sllb rbd,imm8           trirb @@rd,@@rs,rbr
+rlcb rbd,imm1or2        slll rrd,imm8           trtdrb @@ra,@@rb,rbr
+rldb rbb,rba            sout imm16,rs           trtib @@ra,@@rb,rr
+rr rd,imm1or2           soutb imm16,rbs         trtirb @@ra,@@rb,rbr
+rrb rbd,imm1or2         soutd @@rd,@@rs,ra        trtrb @@ra,@@rb,rbr
+rrc rd,imm1or2          soutdb @@rd,@@rs,rba      tset @@rd
+rrcb rbd,imm1or2        soutib @@rd,@@rs,ra       tset addr
+rrdb rbb,rba            soutibr @@rd,@@rs,ra      tset addr(rd)
+rsvd36                  sra rd,imm8             tset rd
+rsvd38                  srab rbd,imm8           tsetb @@rd
+rsvd78                  sral rrd,imm8           tsetb addr
+rsvd7e                  srl rd,imm8             tsetb addr(rd)
+rsvd9d                  srlb rbd,imm8           tsetb rbd
+rsvd9f                  srll rrd,imm8           xor rd,@@rs
+rsvdb9                  sub rd,@@rs              xor rd,addr
+rsvdbf                  sub rd,addr             xor rd,addr(rs)
+sbc rd,rs               sub rd,addr(rs)         xor rd,imm16
+sbcb rbd,rbs            sub rd,imm16            xor rd,rs
+sc imm8                 sub rd,rs               xorb rbd,@@rs
+sda rd,rs               subb rbd,@@rs            xorb rbd,addr
+sdab rbd,rs             subb rbd,addr           xorb rbd,addr(rs)
+sdal rrd,rs             subb rbd,addr(rs)       xorb rbd,imm8
+sdl rd,rs               subb rbd,imm8           xorb rbd,rbs
+sdlb rbd,rs             subb rbd,rbs            xorb rbd,rbs
+sdll rrd,rs             subl rrd,@@rs
+set @@rd,imm4            subl rrd,addr
+set addr(rd),imm4       subl rrd,addr(rs)
+@end smallexample
+@iftex
+@endgroup
+@end iftex
+@end ifset
+
