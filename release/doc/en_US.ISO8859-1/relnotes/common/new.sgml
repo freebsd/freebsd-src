@@ -128,7 +128,10 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para arch="i386,pc98">The &man.matcd.4; driver has been removed
+        due to licensing issues.  (This removal actually occurred in
+        &release.prev;, but was not mentioned in the release
+        notes.)</para>
 
     </sect3>
 
@@ -178,7 +181,8 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>cvs</application> has been updated to
+	1.11.2.</para>
 
     </sect3>
 
