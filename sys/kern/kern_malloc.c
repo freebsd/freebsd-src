@@ -250,13 +250,12 @@ out:
 		ksp->ks_maxused = ksp->ks_memuse;
 
 	mtx_unlock(&ksp->ks_mtx);
-	if (!(flags & M_NOWAIT))
+	if (flags & M_WAITOK)
 		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
-	if (va == NULL) {
+	else if (va == NULL)
 		t_malloc_fail = time_uptime;
-	}
 #ifdef DIAGNOSTIC
-	if (!(flags & M_ZERO)) {
+	if (va != NULL && !(flags & M_ZERO)) {
 		memset(va, 0x70, osize);
 	}
 #endif
