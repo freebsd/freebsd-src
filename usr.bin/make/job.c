@@ -516,7 +516,7 @@ JobPassSig(int signo)
 	 */
 	if (signo == SIGINT) {
 		JobInterrupt(TRUE, signo);
-	} else if ((signo == SIGHUP) || (signo == SIGTERM) || (signo == SIGQUIT)) {
+	} else if (signo == SIGHUP || signo == SIGTERM || signo == SIGQUIT) {
 		JobInterrupt(FALSE, signo);
 	}
 
@@ -691,7 +691,7 @@ JobPrintCommand(void *cmdp, void *jobp)
 					DBPRINTF("%s\n", commandShell->ignErr);
 				}
 			} else if (commandShell->ignErr &&
-			    (*commandShell->ignErr != '\0')) {
+			    *commandShell->ignErr != '\0') {
 				/*
 				 * The shell has no error control, so we need to
 				 * be weird to get it to ignore any errors from
@@ -795,9 +795,9 @@ JobFinish(Job *job, int *status)
 	Boolean	done;
 	LstNode	*ln;
 
-	if ((WIFEXITED(*status) &&
-	    (((WEXITSTATUS(*status) != 0) && !(job->flags & JOB_IGNERR)))) ||
-	    (WIFSIGNALED(*status) && (WTERMSIG(*status) != SIGCONT))) {
+	if ((WIFEXITED(*status) && WEXITSTATUS(*status) != 0 &&
+	    !(job->flags & JOB_IGNERR)) ||
+	    (WIFSIGNALED(*status) && WTERMSIG(*status) != SIGCONT)) {
 		/*
 		 * If it exited non-zero and either we're doing things our
 		 * way or we're not ignoring errors, the job is finished.
@@ -835,7 +835,7 @@ JobFinish(Job *job, int *status)
 	}
 
 	if (done || WIFSTOPPED(*status) ||
-	    (WIFSIGNALED(*status) && (WTERMSIG(*status) == SIGCONT)) ||
+	    (WIFSIGNALED(*status) && WTERMSIG(*status) == SIGCONT) ||
 	    DEBUG(JOB)) {
 		FILE	*out;
 
@@ -895,7 +895,7 @@ JobFinish(Job *job, int *status)
 			 * if concurrency is exceeded) and go and get another
 			 * child.
 			 */
-			if (job->flags & (JOB_RESUME|JOB_RESTART)) {
+			if (job->flags & (JOB_RESUME | JOB_RESTART)) {
 				if (usePipes && job->node != lastNode) {
 					MESSAGE(out, job->node);
 					lastNode = job->node;
@@ -972,8 +972,8 @@ JobFinish(Job *job, int *status)
 		done = TRUE;
 	}
 
-	if (done && (aborting != ABORT_ERROR) &&
-	    (aborting != ABORT_INTERRUPT) && (*status == 0)) {
+	if (done && aborting != ABORT_ERROR &&
+	    aborting != ABORT_INTERRUPT && *status == 0) {
 		/*
 		 * As long as we aren't aborting and the job didn't return a
 		 * non-zero status that we shouldn't ignore, we call
@@ -1000,7 +1000,7 @@ JobFinish(Job *job, int *status)
 	/*
 	 * Set aborting if any error.
 	 */
-	if (errors && !keepgoing && (aborting != ABORT_INTERRUPT)) {
+	if (errors && !keepgoing && aborting != ABORT_INTERRUPT) {
 		/*
 		 * If we found any errors in this batch of children and the -k
 		 * flag wasn't given, we set the aborting flag so no more jobs
@@ -1009,7 +1009,7 @@ JobFinish(Job *job, int *status)
 		aborting = ABORT_ERROR;
 	}
 
-	if ((aborting == ABORT_ERROR) && Job_Empty()) {
+	if (aborting == ABORT_ERROR && Job_Empty()) {
 		/*
 		 * If we are aborting and the job table is now empty, we finish.
 		 */
@@ -1103,7 +1103,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 		 * No commands. Look for .DEFAULT rule from which we might infer
 		 * commands.
 		 */
-		if ((DEFAULT != NULL) && !Lst_IsEmpty(&DEFAULT->commands)) {
+		if (DEFAULT != NULL && !Lst_IsEmpty(&DEFAULT->commands)) {
 			char *p1;
 			/*
 			 * Make only looks for a .DEFAULT if the node was
@@ -1186,7 +1186,7 @@ JobExec(Job *job, char **argv)
 	 * banner with their name in it never appears). This is an attempt to
 	 * provide that feedback, even if nothing follows it.
 	 */
-	if ((lastNode != job->node) && (job->flags & JOB_FIRST) &&
+	if (lastNode != job->node && (job->flags & JOB_FIRST) &&
 	    !(job->flags & JOB_SILENT)) {
 		MESSAGE(stdout, job->node);
 		lastNode = job->node;
@@ -1317,8 +1317,8 @@ JobMakeArgv(Job *job, char **argv)
 	argv[0] = shellName;
 	argc = 1;
 
-	if ((commandShell->exit && (*commandShell->exit != '-')) ||
-	    (commandShell->echo && (*commandShell->echo != '-'))) {
+	if ((commandShell->exit && *commandShell->exit != '-') ||
+	    (commandShell->echo && *commandShell->echo != '-')) {
 		/*
 		 * At least one of the flags doesn't have a minus before it, so
 		 * merge them together. Have to do this because the *(&(@*#*&#$#
@@ -1326,10 +1326,10 @@ JobMakeArgv(Job *job, char **argv)
 		 * Grrrr. Note the ten-character limitation on the combined
 		 * arguments.
 		 */
-		sprintf(args, "-%s%s", ((job->flags & JOB_IGNERR) ? "" :
-		    (commandShell->exit ? commandShell->exit : "")),
-		    ((job->flags & JOB_SILENT) ? "" :
-		    (commandShell->echo ? commandShell->echo : "")));
+		sprintf(args, "-%s%s", (job->flags & JOB_IGNERR) ? "" :
+		    commandShell->exit ? commandShell->exit : "",
+		    (job->flags & JOB_SILENT) ? "" :
+		    commandShell->echo ? commandShell->echo : "");
 
 		if (args[1]) {
 			argv[argc] = args;
@@ -1375,10 +1375,10 @@ JobRestart(Job *job)
 		JobMakeArgv(job, argv);
 
 		DEBUGF(JOB, ("Restarting %s...", job->node->name));
-		if (((nJobs >= maxJobs) && !(job->flags & JOB_SPECIAL))) {
+		if (nJobs >= maxJobs && !(job->flags & JOB_SPECIAL)) {
 			/*
-			 * Can't be exported and not allowed to run locally --
-			 * put it back on the hold queue and mark the table full
+			 * Not allowed to run -- put it back on the hold
+			 * queue and mark the table full
 			 */
 			DEBUGF(JOB, ("holding\n"));
 			TAILQ_INSERT_HEAD(&stoppedJobs, job, link);
@@ -1399,8 +1399,8 @@ JobRestart(Job *job)
 		 * Why it stopped, we don't know...
 		 */
 		DEBUGF(JOB, ("Resuming %s...", job->node->name));
-		if (((nJobs < maxJobs) || ((job->flags & JOB_SPECIAL) &&
-		    (maxJobs == 0))) && (nJobs != maxJobs)) {
+		if ((nJobs < maxJobs || ((job->flags & JOB_SPECIAL) &&
+		    maxJobs == 0)) && nJobs != maxJobs) {
 			/*
 			 * If we haven't reached the concurrency limit already
 			 * (or the job must be run and maxJobs is 0), it's ok
@@ -1500,7 +1500,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 
 	/*
 	 * Check the commands now so any attributes from .DEFAULT have a chance
-	 * to migrate to the node.
+	 * to migrate to the node. XXXHB: missing parantheses below?
 	 */
 	if (!compatMake && job->flags & JOB_FIRST) {
 		cmdsOK = Job_CheckCommands(gn, Error);
@@ -1710,7 +1710,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 		}
 	}
 
-	if ((nJobs >= maxJobs) && !(job->flags & JOB_SPECIAL) && (maxJobs != 0)) {
+	if (nJobs >= maxJobs && !(job->flags & JOB_SPECIAL) && maxJobs != 0) {
 		/*
 		 * We've hit the limit of concurrency, so put the job on hold
 		 * until some other job finishes. Note that the special jobs
@@ -1725,7 +1725,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	} else {
 		if (nJobs >= maxJobs) {
 			/*
-			 * If we're running this job locally as a special case
+			 * If we're running this job as a special case
 			 * (see above), at least say the table is full.
 			 */
 			jobFull = TRUE;
@@ -1846,7 +1846,7 @@ JobDoOutput(Job *job, Boolean finish)
 		 * there's any output remaining in the buffer.
 		 * Also clear the 'finish' flag so we stop looping.
 		 */
-		if ((nr == 0) && (job->curPos != 0)) {
+		if (nr == 0 && job->curPos != 0) {
 			job->outBuf[job->curPos] = '\n';
 			nr = 1;
 			finish = FALSE;
