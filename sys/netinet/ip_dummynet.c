@@ -1526,7 +1526,7 @@ set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
 static int
 config_pipe(struct dn_pipe *p)
 {
-    int i, s;
+    int i, r, s;
     struct dn_flow_set *pfs = &(p->fs);
     struct dn_flow_queue *q;
 
@@ -1580,10 +1580,11 @@ config_pipe(struct dn_pipe *p)
 
 
 	if ( x->fs.rq == NULL ) { /* a new pipe */
-	    s = alloc_hash(&(x->fs), pfs) ;
-	    if (s) {
+	    r = alloc_hash(&(x->fs), pfs) ;
+	    if (r) {
 		free(x, M_DUMMYNET);
-		return s ;
+		splx(s);
+		return r ;
 	    }
 	    x->next = b ;
 	    if (a == NULL)
@@ -1624,10 +1625,11 @@ config_pipe(struct dn_pipe *p)
 	set_fs_parms(x, pfs);
 
 	if ( x->rq == NULL ) { /* a new flow_set */
-	    s = alloc_hash(x, pfs) ;
-	    if (s) {
+	    r = alloc_hash(x, pfs) ;
+	    if (r) {
 		free(x, M_DUMMYNET);
-		return s ;
+		splx(s);
+		return r ;
 	    }
 	    x->next = b;
 	    if (a == NULL)
