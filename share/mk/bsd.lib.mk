@@ -16,7 +16,7 @@
 .if !defined(SHLIB_NAME) && defined(LIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
 .endif
-.if defined(SHLIB_NAME)
+.if defined(SHLIB_NAME) && ${SHLIB_NAME:M*.so.*}
 SHLIB_LINK?=	${SHLIB_NAME:R}
 .endif
 SONAME?=	${SHLIB_NAME}
