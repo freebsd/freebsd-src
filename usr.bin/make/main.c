@@ -923,6 +923,22 @@ ReadMakefile(p, q)
 		/* if we've chdir'd, rebuild the path name */
 		if (curdir != objdir && *fname != '/') {
 			(void)snprintf(path, MAXPATHLEN, "%s/%s", curdir, fname);
+			/*
+			 * XXX The realpath stuff breaks relative includes
+			 * XXX in some cases.   The problem likely is in
+			 * XXX parse.c where it does special things in
+			 * XXX ParseDoInclude if the file is relateive
+			 * XXX or absolute and not a system file.  There
+			 * XXX it assumes that if the current file that's
+			 * XXX being included is absolute, that any files
+			 * XXX that it includes shouldn't do the -I path
+			 * XXX stuff, which is inconsistant with historical
+			 * XXX behavior.  However, I can't pentrate the mists
+			 * XXX further, so I'm putting this workaround in
+			 * XXX here until such time as the underlying bug
+			 * XXX can be fixed.
+			 */
+#if THIS_BREAKS_THINGS
 			if (realpath(path, path) != NULL &&
 			    (stream = fopen(path, "r")) != NULL) {
 				MAKEFILE = fname;
@@ -935,6 +951,18 @@ ReadMakefile(p, q)
 			if ((stream = fopen(fname, "r")) != NULL)
 				goto found;
 		}
+#else
+			if ((stream = fopen(path, "r")) != NULL) {
+				MAKEFILE = fname;
+				fname = path;
+				goto found;
+			}
+		} else {
+			MAKEFILE = fname;
+			if ((stream = fopen(fname, "r")) != NULL)
+				goto found;
+		}
+#endif
 		/* look in -I and system include directories. */
 		name = Dir_FindFile(fname, parseIncPath);
 		if (!name)
