@@ -190,13 +190,14 @@ sn_attach(device_t dev)
 	i = inw(BASE + CONFIG_REG_W);
 	printf(i & CR_AUI_SELECT ? "AUI" : "UTP");
 
-	for (j = 0; j < 3; j++) {
-		u_short	w;
+	if (sc->pccard_enaddr)
+		for (j = 0; j < 3; j++) {
+			u_short	w;
 
-		w = (u_short)sc->arpcom.ac_enaddr[j * 2] | 
-			(((u_short)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
-		outw(BASE + IAR_ADDR0_REG_W + j * 2, w);
-	}
+			w = (u_short)sc->arpcom.ac_enaddr[j * 2] | 
+				(((u_short)sc->arpcom.ac_enaddr[j * 2 + 1]) << 8);
+			outw(BASE + IAR_ADDR0_REG_W + j * 2, w);
+		}
 
 	/*
 	 * Read the station address from the chip. The MAC address is bank 1,
