@@ -50,12 +50,18 @@ Table of contents:
 All changes described here are unique to the 4.0 branch unless
 specifically marked as [MERGED] features.
 
+
 1.1. KERNEL CHANGES
 -------------------
 
-NFS has been immensely improved with bug fixes and performance tuning
+NFS has been immensely improved with bug fixes and performance tuning.
 
-Support for more than 32 signals has been added.
+Support for more than 32 signals has been added. 
+
+POSIX 1003.1 conformant SA_SIGINFO signal handlers are now supported.
+SIGFPE signal handlers (both SA_SIGINFO and traditional BSD handlers)
+now get meaningful error codes describing the kind of error. See
+sigaction(2).
 
 Jail(8) aware sysctl(8) variables have been added for Linux mode.
 
@@ -162,6 +168,7 @@ and the Belkin F5U111.
 Driver support has been added for Aironet 4500/4800 802.11 wireless
 adapters. This includes PCMCIA, PCI and ISA models.
 
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -182,11 +189,15 @@ absolutely no administrative changes to the machine to work, and is
 at the very least a step up from plaintext. To use it, you need to
 either use "telnet -ax" or set up a .telnetrc to enable it by default.
 
+
 1.3. USERLAND CHANGES
 ---------------------
 
 The base C/C++ compiler has been upgraded from GCC 2.7.2 to GCC 2.95.2.
 This gives users full ISO C++ support, and preliminary C9x support.
+
+Various changes has been made to /bin/sh to improve POSIX 1003.2
+conformance, especially for scripting.
 
 The f77 emulation via f2c has been replaced by a native F77 compiler.
 
@@ -318,6 +329,7 @@ NOT YET supported under the new CAM SCSI subsystem:
 Unmaintained drivers, they might or might not work for your hardware:
 
   (mcd)   Mitsumi proprietary CD-ROM interface (all models)
+
 
 2.2. Ethernet cards
 -------------------
@@ -486,6 +498,7 @@ Crystal Semiconductor CS89x0-based NICs, including:
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
 
+
 2.3 ATM
 -------
 
@@ -511,6 +524,7 @@ supported.
                 "A Distributed ATMARP Service Using SCSP"
 
    o ATM Sockets interface
+
 
 2.4. Misc
 ---------
@@ -581,10 +595,12 @@ the same driver.
 Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
 
+
 3. Obtaining FreeBSD
 --------------------
 
 You may obtain FreeBSD in a variety of ways:
+
 
 3.1. FTP/Mail
 -------------
