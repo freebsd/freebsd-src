@@ -238,7 +238,6 @@ The
 allows the type of DMA operation that will be or has been performed
 to be communicated to the system so that the correct coherency measures
 are taken.
-It is possible to combine different DMA operations by OR'ing them together.
 All operations specified below are performed from the DMA engine's
 point of view:
 .Bl -tag -width BUS_DMASYNC_POSTWRITE
@@ -248,12 +247,18 @@ but prior to DMA read operations.
 .It Dv BUS_DMASYNC_PREWRITE
 Perform any synchronization required after an update of memory by the CPU
 but prior to DMA write operations.
+.It Dv BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE
+Perform any synchronization required prior to a combination of DMA read
+and write operations.
 .It Dv BUS_DMASYNC_POSTREAD
 Perform any synchronization required after DMA read operations, but prior
 to CPU access of the memory.
 .It Dv BUS_DMASYNC_POSTWRITE
 Perform any synchronization required after DMA write operations, but prior
 to CPU access of the memory.
+.It Dv BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE
+Perform any synchronization required after a combination of DMA read
+and write operations.
 .El
 .El
 .Sh FUNCTIONS
