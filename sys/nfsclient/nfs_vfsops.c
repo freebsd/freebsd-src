@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.36 1997/03/24 11:33:39 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.37 1997/04/04 17:49:30 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -302,12 +302,9 @@ nfs_fsinfo(nmp, vp, cred, p)
 		}
 		pref = fxdr_unsigned(u_long, fsp->fs_dtpref);
 		if (pref < nmp->nm_readdirsize)
-			nmp->nm_readdirsize = (pref + NFS_DIRBLKSIZ - 1) &
-				~(NFS_DIRBLKSIZ - 1);
+			nmp->nm_readdirsize = pref;
 		if (max < nmp->nm_readdirsize) {
-			nmp->nm_readdirsize = max & ~(NFS_DIRBLKSIZ - 1);
-			if (nmp->nm_readdirsize == 0)
-				nmp->nm_readdirsize = max;
+			nmp->nm_readdirsize = max;
 		}
 		nmp->nm_flag |= NFSMNT_GOTFSINFO;
 	}
@@ -741,13 +738,11 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 
 	if ((argp->flags & NFSMNT_READDIRSIZE) && argp->readdirsize > 0) {
 		nmp->nm_readdirsize = argp->readdirsize;
-		/* Round down to multiple of blocksize */
-		nmp->nm_readdirsize &= ~(NFS_DIRBLKSIZ - 1);
-		if (nmp->nm_readdirsize < NFS_DIRBLKSIZ)
-			nmp->nm_readdirsize = NFS_DIRBLKSIZ;
 	}
 	if (nmp->nm_readdirsize > maxio)
 		nmp->nm_readdirsize = maxio;
+	if (nmp->nm_readdirsize > nmp->nm_rsize)
+		nmp->nm_readdirsize = nmp->nm_rsize;
 
 	if ((argp->flags & NFSMNT_MAXGRPS) && argp->maxgrouplist >= 0 &&
 		argp->maxgrouplist <= NFS_MAXGRPS)
