@@ -63,7 +63,8 @@ struct  osigcontext {};
  * mcontext_t. Keep them in sync!
  */
 struct	sigcontext {
-	sigset_t sc_mask;		/* signal mask to restore */
+	sigset_t	sc_mask;		/* signal mask to restore */
+	unsigned long	sc_onstack;
 	unsigned long	sc_flags;
 	unsigned long	sc_nat;
 	unsigned long	sc_sp;

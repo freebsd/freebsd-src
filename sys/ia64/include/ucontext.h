@@ -41,10 +41,8 @@ typedef struct __mcontext {
 	 * of struct sigcontext. That way we can support
 	 * struct sigcontext and ucontext_t at the same
 	 * time.
-	 *
-	 * We use the same layout as Linux/ia64 to make emulation
-	 * easier. 
 	 */
+	long	mc_onstack;		/* XXX - sigcontext compat. */
 	unsigned long	mc_flags;
 	unsigned long	mc_nat;
 	unsigned long	mc_sp;
