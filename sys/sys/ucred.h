@@ -60,6 +60,7 @@ struct ucred {
 struct proc;
 
 void		change_euid __P((struct proc *p, uid_t euid));
+void		change_ruid __P((struct proc *p, uid_t ruid));
 struct ucred	*crcopy __P((struct ucred *cr));
 struct ucred	*crdup __P((struct ucred *cr));
 void		crfree __P((struct ucred *cr));
