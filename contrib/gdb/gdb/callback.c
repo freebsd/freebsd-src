@@ -248,7 +248,12 @@ os_time (p, t)
      host_callback *p;
      long *t;
 {
-  return wrap (p, time (t));
+  time_t now;
+
+  wrap (p, (int) time (&now));
+  if (t != NULL)
+    *t = (long) now;
+  return (long) now;
 }
 
 
