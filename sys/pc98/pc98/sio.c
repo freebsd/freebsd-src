@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.76.2.2 1999/03/11 10:24:33 kato Exp $
+ *	$Id: sio.c,v 1.76.2.3 1999/03/25 13:35:31 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -151,6 +151,7 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
+#include <sys/timepps.h>
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
@@ -391,6 +392,7 @@ struct com_s {
 	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
 	struct timeval	dcd_timestamp;
+	struct	pps_state pps;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -1839,6 +1841,8 @@ determined_type: ;
 		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
 	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
+	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
+	pps_init(&com->pps);
 	return (1);
 }
 
@@ -2152,6 +2156,7 @@ comhardclose(com)
 	com->poll_output = FALSE;
 	com->do_timestamp = FALSE;
 	com->do_dcd_timestamp = FALSE;
+	com->pps.ppsparam.mode = 0;
 #ifdef PC98
 	if (IS_8251(com->pc98_if_type))
 	    com_send_break_off(com);
@@ -2409,6 +2414,8 @@ siointr1(com)
 	u_char	recv_data;
 	u_char	int_ctl;
 	u_char	int_ctl_new;
+	struct	timecounter *tc;
+	u_int	count;
 
 #ifdef PC98
 	u_char	tmp=0;
@@ -2434,10 +2441,21 @@ more_intr:
 			if (tmp & STS8251_OE)    line_status |= LSR_OE;
 			if (tmp & STS8251_FE)    line_status |= LSR_FE;
 			if (tmp & STS8251_BD_SD) line_status |= LSR_BI;
-		} else
+		} else {
 #endif /* PC98 */
+		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
+			modem_status = inb(com->modem_status_port);
+		        if ((modem_status ^ com->last_modem_status) & MSR_DCD) {
+				tc = timecounter;
+				count = tc->tc_get_timecount(tc);
+				pps_event(&com->pps, tc, count, 
+				    (modem_status & MSR_DCD) ? 
+				    PPS_CAPTURECLEAR : PPS_CAPTUREASSERT);
+			}
+		}
 		line_status = inb(com->line_status_port);
 #ifdef PC98
+		}
 		if (com->pc98_if_type == COM_IF_RSA98III)
 			rsa_buf_status = inb(com->rsabase + rsa_srr);
 #endif /* PC98 */
@@ -2919,7 +2937,10 @@ sioioctl(dev, cmd, data, flag, p)
 		break;
 	default:
 		splx(s);
-		return (ENOTTY);
+		error = pps_ioctl(cmd, data, &com->pps);
+		if (error == ENODEV)
+			error = ENOTTY;
+		return (error);
 	}
 #ifdef PC98
 	}
