@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.2 1994/11/17 11:53:14 jkh Exp $
+# $Id: miscfuncs.sh,v 1.3 1994/11/18 11:01:27 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -38,7 +38,8 @@ SRCSIZE="120MB"
 SECRSIZE="4MB"
 COMPATSIZE="3MB"
 
-interrupt() {
+interrupt()
+{
 	if dialog --clear --title "User Interrupt Requested" \
 	  --yesno "Do you wish to abort the installation?" -1 -1; then
 		exit 0;
@@ -47,7 +48,8 @@ interrupt() {
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
-handle_rval() {
+handle_rval()
+{
 	case $1 in
 	0)
 		return 0
@@ -62,22 +64,26 @@ handle_rval() {
 }
 
 # A simple user-confirmation dialog.
-confirm() {
+confirm()
+{
 	dialog --title "User Confirmation" --msgbox "$*" -1 -1
 }
 
 # A simple message box dialog.
-message() {
+message()
+{
 	dialog --title "Progress" --infobox "$*" -1 -1
 }
 
 # A simple error dialog.
-error() {
+error()
+{
 	dialog --title "Error!" --msgbox "$*" -1 -1
 }
 
 # Something isn't supported yet! :-(
-not_supported() {
+not_supported()
+{
 	dialog --title "Sorry!" \
 	--msgbox "This feature is not supported in the current version of the \
 installation tools.  Barring some sort of fatal accident, we do \
