@@ -286,6 +286,13 @@ acct_process(td)
 	acct.ac_flag = p->p_acflag;
 
 	/*
+	 * Write the accounting information to the file.
+	 */
+	uc = crhold(acctcred);
+	vref(vp);
+	mtx_unlock(&acct_mtx);
+
+	/*
 	 * Eliminate any file size rlimit.
 	 */
 	if (p->p_limit->p_refcnt > 1 &&
@@ -295,12 +302,6 @@ acct_process(td)
 	} 
 	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
 
-	/*
-	 * Write the accounting information to the file.
-	 */
-	uc = crhold(acctcred);
-	vref(vp);
-	mtx_unlock(&acct_mtx);
 	VOP_LEASE(vp, td, uc, LEASE_WRITE);
 	ret = vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, uc, NOCRED,
