@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.22 1995/10/26 20:29:51 julian Exp $
+ * $Id: if_ze.c,v 1.23 1995/10/28 15:39:12 phk Exp $
  */
 
 #include "ze.h"
@@ -56,6 +56,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>
@@ -148,16 +149,24 @@ struct	ze_softc {
 #endif /* NAPM > 0 */
 } ze_softc[NZE];
 
-int	ze_attach(), ze_ioctl(), ze_probe();
-void	ze_init(), ze_start(), ze_stop(), ze_intr();
-void	ze_reset(), ze_watchdog(), ze_get_packet();
-
-struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src,
-				  struct mbuf *dst, int total_len));
-void 	ze_setup __P((struct ze_softc *sc));
-static inline void ze_rint();
-static inline void ze_xmit();
-static inline char *ze_ring_copy();
+static int ze_check_cis __P((unsigned char *scratch));
+static int ze_find_adapter __P((unsigned char *scratch, int reconfig));
+extern int ze_probe __P((struct isa_device *isa_dev));
+extern void ze_setup __P((struct ze_softc *sc));
+static int ze_suspend __P((void *visa_dev));
+static int ze_resume __P((void *visa_dev));
+extern int ze_attach __P((struct isa_device *isa_dev));
+extern void ze_reset __P((int unit));
+extern void ze_stop __P((int unit));
+extern void ze_watchdog __P((int unit));
+extern void ze_init __P((int unit));
+static inline void ze_xmit __P((struct ifnet *ifp));
+extern void ze_start __P((struct ifnet *ifp));
+static inline void ze_rint __P((int unit));
+extern int ze_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
+extern void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
+static inline char *ze_ring_copy __P((struct ze_softc *sc, char *src, char *dst, int amount));
+extern struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src, struct mbuf *dst, int total_len));
 
 struct isa_driver zedriver = {
 	ze_probe,
@@ -539,9 +548,10 @@ re_init:
 
 #if NAPM > 0
 static int
-ze_suspend(isa_dev)
-	struct isa_device *isa_dev;
+ze_suspend(visa_dev)
+	void *visa_dev;
 {
+	struct isa_device *isa_dev = visa_dev;
 	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
 
 	pcic_power_off(sc->slot);
@@ -549,9 +559,11 @@ ze_suspend(isa_dev)
 }
 
 static int
-ze_resume(isa_dev)
-	struct isa_device *isa_dev;
+ze_resume(visa_dev)
+	void *visa_dev;
 {
+	struct isa_device *isa_dev = visa_dev;
+
 #if 0
 	printf("Resume ze:\n");
 #endif
