@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.2 1994/08/02 07:46:14 davidg Exp $
+ * $Id: if_ethersubr.c,v 1.3 1994/10/11 23:16:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -311,6 +311,7 @@ ether_input(ifp, eh, m)
 	register struct ifqueue *inq;
 	register struct llc *l;
 	struct arpcom *ac = (struct arpcom *)ifp;
+	u_short ether_type;
 	int s;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -327,7 +328,9 @@ ether_input(ifp, eh, m)
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		ifp->if_imcasts++;
 
-	switch (eh->ether_type) {
+	ether_type = ntohs(eh->ether_type);
+
+	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
 		schednetisr(NETISR_IP);
@@ -348,7 +351,7 @@ ether_input(ifp, eh, m)
 #endif
 	default:
 #if defined (ISO) || defined (LLC)
-		if (eh->ether_type > ETHERMTU)
+		if (ether_type > ETHERMTU)
 			goto dropanyway;
 		l = mtod(m, struct llc *);
 		switch (l->llc_dsap) {
@@ -360,8 +363,8 @@ ether_input(ifp, eh, m)
 				if ((l->llc_dsap == LLC_ISO_LSAP) &&
 				    (l->llc_ssap == LLC_ISO_LSAP)) {
 					/* LSAP for ISO */
-					if (m->m_pkthdr.len > eh->ether_type)
-						m_adj(m, eh->ether_type - m->m_pkthdr.len);
+					if (m->m_pkthdr.len > ether_type)
+						m_adj(m, ether_type - m->m_pkthdr.len);
 					m->m_data += 3;		/* XXX */
 					m->m_len -= 3;		/* XXX */
 					m->m_pkthdr.len -= 3;	/* XXX */
@@ -421,8 +424,8 @@ ether_input(ifp, eh, m)
 #ifdef LLC
 		case LLC_X25_LSAP:
 		{
-			if (m->m_pkthdr.len > eh->ether_type)
-				m_adj(m, eh->ether_type - m->m_pkthdr.len);
+			if (m->m_pkthdr.len > ether_type)
+				m_adj(m, ether_type - m->m_pkthdr.len);
 			M_PREPEND(m, sizeof(struct sdl_hdr) , M_DONTWAIT);
 			if (m == 0)
 				return;
@@ -430,7 +433,7 @@ ether_input(ifp, eh, m)
 					    eh->ether_dhost, LLC_X25_LSAP, 6, 
 					    mtod(m, struct sdl_hdr *)))
 				panic("ETHER cons addr failure");
-			mtod(m, struct sdl_hdr *)->sdlhdr_len = eh->ether_type;
+			mtod(m, struct sdl_hdr *)->sdlhdr_len = ether_type;
 #ifdef LLC_DEBUG
 				printf("llc packet\n");
 #endif /* LLC_DEBUG */

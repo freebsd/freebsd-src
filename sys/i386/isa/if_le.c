@@ -21,9 +21,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.8 1994/10/19 01:59:03 wollman Exp $
+ * $Id: if_le.c,v 1.9 1994/10/23 21:27:22 wollman Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.9  1994/10/23  21:27:22  wollman
+ * Finished device configuration database work for all ISA devices (except `ze')
+ * and all SCSI devices (except that it's not done quite the way I want).  New
+ * information added includes:
+ *
+ * -	A text description of the device
+ * -	A ``state''---unknown, unconfigured, idle, or busy
+ * -	A generic parent device (with support in the m.i. code)
+ * -	An interrupt mask type field (which will hopefully go away) so that
+ * .	  ``doconfig'' can be written
+ *
+ * This requires a new version of the `lsdev' program as well (next commit).
+ *
  * Revision 1.8  1994/10/19  01:59:03  wollman
  * Add support for devconf to a large number of device drivers, and do
  * the right thing in dev_goawayall() when kdc_goaway is null.
@@ -476,7 +489,6 @@ le_input(
 	return;
     }
     MEMCPY(&eh, seg1, sizeof(eh));
-    eh.ether_type = ntohs(eh.ether_type);
 
 #if NBPFILTER > 0
     if (sc->le_bpf != NULL && seg2 == NULL) {

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id$
+ * $Id: if_ze.c,v 1.8 1994/10/23 21:27:25 wollman Exp $
  */
 
 #include "ze.h"
@@ -1283,70 +1283,10 @@ outloop:
 		ze_xmit(ifp);
 	/*
 	 * If there is BPF support in the configuration, tap off here.
-	 *   The following has support for converting trailer packets
-	 *   back to normal.
 	 */
 #if NBPFILTER > 0
 	if (sc->bpf) {
-		u_short etype;
-		int off, datasize, resid;
-		struct ether_header *eh;
-		struct trailer_header {
-			u_short ether_type;
-			u_short ether_residual;
-		} trailer_header;
-		char ether_packet[ETHER_MAX_LEN];
-		char *ep;
-
-		ep = ether_packet;
-
-		/*
-		 * We handle trailers below:
-		 * Copy ether header first, then residual data,
-		 * then data. Put all this in a temporary buffer
-		 * 'ether_packet' and send off to bpf. Since the
-		 * system has generated this packet, we assume
-		 * that all of the offsets in the packet are
-		 * correct; if they're not, the system will almost
-		 * certainly crash in m_copydata.
-		 * We make no assumptions about how the data is
-		 * arranged in the mbuf chain (i.e. how much
-		 * data is in each mbuf, if mbuf clusters are
-		 * used, etc.), which is why we use m_copydata
-		 * to get the ether header rather than assume
-		 * that this is located in the first mbuf.
-		 */
-		/* copy ether header */
-		m_copydata(m0, 0, sizeof(struct ether_header), ep);
-		eh = (struct ether_header *) ep;
-		ep += sizeof(struct ether_header);
-		etype = ntohs(eh->ether_type);
-		if (etype >= ETHERTYPE_TRAIL &&
-		    etype < ETHERTYPE_TRAIL+ETHERTYPE_NTRAILER) {
-			datasize = ((etype - ETHERTYPE_TRAIL) << 9);
-			off = datasize + sizeof(struct ether_header);
-
-			/* copy trailer_header into a data structure */
-			m_copydata(m0, off, sizeof(struct trailer_header),
-				&trailer_header.ether_type);
-
-			/* copy residual data */
-			m_copydata(m0, off+sizeof(struct trailer_header),
-				resid = ntohs(trailer_header.ether_residual) -
-				sizeof(struct trailer_header), ep);
-			ep += resid;
-
-			/* copy data */
-			m_copydata(m0, sizeof(struct ether_header),
-				datasize, ep);
-			ep += datasize;
-
-			/* restore original ether packet type */
-			eh->ether_type = trailer_header.ether_type;
-
-			bpf_tap(sc->bpf, ether_packet, ep - ether_packet);
-		} else
-			bpf_mtap(sc->bpf, m0);
+		bpf_mtap(sc->bpf, m0);
 	}
 #endif
 
@@ -1850,38 +1790,6 @@ ze_get_packet(sc, buf, len)
 	head->m_len += sizeof(struct ether_header);
 	len -= sizeof(struct ether_header);
 
-	etype = ntohs((u_short)eh->ether_type);
-
-	/*
-	 * Deal with trailer protocol:
-	 * If trailer protocol, calculate the datasize as 'off',
-	 * which is also the offset to the trailer header.
-	 * Set resid to the amount of packet data following the
-	 * trailer header.
-	 * Finally, copy residual data into mbuf chain.
-	 */
-	if (etype >= ETHERTYPE_TRAIL &&
-	    etype < ETHERTYPE_TRAIL+ETHERTYPE_NTRAILER) {
-
-		off = (etype - ETHERTYPE_TRAIL) << 9;
-		if ((off + sizeof(struct trailer_header)) > len)
-			goto bad;	/* insanity */
-
-		eh->ether_type = *ringoffset(sc, buf, off, u_short *);
-		resid = ntohs(*ringoffset(sc, buf, off+2, u_short *));
-
-		if ((off + resid) > len) goto bad;	/* insanity */
-
-		resid -= sizeof(struct trailer_header);
-		if (resid < 0) goto bad;	/* insanity */
-
-		m = ze_ring_to_mbuf(sc, ringoffset(sc, buf, off+4, char *), head, resid);
-		if (m == NULL) goto bad;
-
-		len = off;
-		head->m_pkthdr.len -= 4; /* subtract trailer header */
-	}
-
 	/*
 	 * Pull packet off interface. Or if this was a trailer packet,
 	 * the data portion is appended.
@@ -1920,11 +1828,6 @@ ze_get_packet(sc, buf, len)
 	 * Fix up data start offset in mbuf to point past ether header
 	 */
 	m_adj(head, sizeof(struct ether_header));
-
-	/*
-	 * silly ether_input routine needs 'type' in host byte order
-	 */
-	eh->ether_type = ntohs(eh->ether_type);
 
 	ether_input(&sc->arpcom.ac_if, eh, head);
 	return;
