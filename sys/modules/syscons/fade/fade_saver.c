@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995 Søren Schmidt
+ * Copyright (c) 1995-1997 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ fade_saver(int blank)
 		}
 	}
 	else {
-		load_palette();
+		load_palette(palette);
 		count = scrn_blanked = 0;
 	}
 }
