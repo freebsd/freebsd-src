@@ -168,6 +168,7 @@ gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 i386/acpica/OsdEnvironment.c	optional acpica
+i386/acpica/acpi_machdep.c	optional	acpica
 i386/acpica/acpi_wakeup.c	optional	acpica
 acpi_wakecode.h			optional	acpica			\
 	dependency 	"$S/i386/acpica/acpi_wakecode.S"		\
