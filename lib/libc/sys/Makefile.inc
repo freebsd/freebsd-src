@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.39 1997/09/14 05:44:33 peter Exp $
+#	$Id: Makefile.inc,v 1.40 1997/09/14 16:57:27 phk Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -38,7 +38,9 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	umask.o undelete.o unlink.o unmount.o utimes.o utrace.o \
 	vadvise.o __syscall.o __sysctl.o \
 	modnext.o modstat.o modfnext.o modfind.o \
-	kldload.o kldunload.o kldfind.o kldnext.o kldstat.o kldfirstmod.o
+	kldload.o kldunload.o kldfind.o kldnext.o kldstat.o kldfirstmod.o \
+	aio_read.o aio_write.o aio_suspend.o aio_error.o aio_cancel.o \
+	aio_return.o lio_listio.o
 
 # Syscalls renamed as _thread_sys_{syscall} when building libc_r.
 ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
