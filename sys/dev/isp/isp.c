@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.19 1998/09/14 23:23:47 mjacob Exp $ */
+/* $Id: isp.c,v 1.2 1998/09/15 08:42:55 gibbs Exp $ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -1323,7 +1323,7 @@ isp_intr(arg)
 					PRINTF(" BUT NOT SET");
 				}
 			}
-			PRINTF(" XS_ERR=0x%x\n", XS_ERR(xs));
+			PRINTF(" XS_ERR=0x%x\n", (unsigned int) XS_ERR(xs));
 		}
 
 		ISP_WRITE(isp, INMAILBOX5, optr);
