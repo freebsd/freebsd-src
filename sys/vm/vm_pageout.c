@@ -792,7 +792,9 @@ rescan0:
 		 * effectively frees them.
 		 */
 		} else if (m->dirty == 0) {
+			vm_page_lock_queues();
 			vm_page_cache(m);
+			vm_page_unlock_queues();
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass == 0) {
 			/*
