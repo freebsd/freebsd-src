@@ -121,32 +121,31 @@ static char	width[10] = "-w";	/* page width in static characters */
 #define TFILENAME "fltXXXXXX"
 static char	tfile[] = TFILENAME;	/* file name for filter output */
 
-static void       abortpr __P((int));
-static void	  alarmhandler __P((int));
-static void       banner __P((struct printer *pp, char *name1, char *name2));
-static int        dofork __P((const struct printer *pp, int action));
-static int        dropit __P((int));
-static void       init __P((struct printer *pp));
-static void       openpr __P((const struct printer *pp));
-static void       opennet __P((const struct printer *pp));
-static void       opentty __P((const struct printer *pp));
-static void       openrem __P((const struct printer *pp));
-static int        print __P((struct printer *pp, int format, char *file));
-static int        printit __P((struct printer *pp, char *file));
-static void       pstatus __P((const struct printer *, const char *, ...));
-static char       response __P((const struct printer *pp));
-static void       scan_out __P((struct printer *pp, int scfd, char *scsp, 
-				int dlm));
-static char      *scnline __P((int, char *, int));
-static int        sendfile __P((struct printer *pp, int type, char *file, 
-				int format));
-static int        sendit __P((struct printer *pp, char *file));
-static void       sendmail __P((struct printer *pp, char *user, int bombed));
-static void       setty __P((const struct printer *pp));
+static void	 abortpr(int _signo);
+static void	 alarmhandler(int _signo);
+static void	 banner(struct printer *_pp, char *_name1, char *_name2);
+static int	 dofork(const struct printer *_pp, int _action);
+static int	 dropit(int _c);
+static void	 init(struct printer *_pp);
+static void	 openpr(const struct printer *_pp);
+static void	 opennet(const struct printer *_pp);
+static void	 opentty(const struct printer *_pp);
+static void	 openrem(const struct printer *pp);
+static int	 print(struct printer *_pp, int _format, char *_file);
+static int	 printit(struct printer *_pp, char *_file);
+static void	 pstatus(const struct printer *_pp, const char *_msg, ...);
+static char	 response(const struct printer *_pp);
+static void	 scan_out(struct printer *_pp, int _scfd, char *_scsp, 
+		    int _dlm);
+static char	*scnline(int _key, char *_p, int _c);
+static int	 sendfile(struct printer *_pp, int _type, char *_file, 
+		    char _format);
+static int	 sendit(struct printer *_pp, char *_file);
+static void	 sendmail(struct printer *_pp, char *_user, int _bombed);
+static void	 setty(const struct printer *_pp);
 
 void
-printjob(pp)
-	struct printer *pp;
+printjob(struct printer *pp)
 {
 	struct stat stb;
 	register struct jobqueue *q, **qp;
@@ -349,9 +348,7 @@ char ifonts[4][40] = {
  * and performing the various actions.
  */
 static int
-printit(pp, file)
-	struct printer *pp;
-	char *file;
+printit(struct printer *pp, char *file)
 {
 	register int i;
 	char *cp;
@@ -584,10 +581,7 @@ pass2:
  * stderr as the log file, and must not ignore SIGINT.
  */
 static int
-print(pp, format, file)
-	struct printer *pp;
-	int format;
-	char *file;
+print(struct printer *pp, int format, char *file)
 {
 	register int n, i;
 	register char *prog;
@@ -837,9 +831,7 @@ start:
  * 0 if all is well.
  */
 static int
-sendit(pp, file)
-	struct printer *pp;
-	char *file;
+sendit(struct printer *pp, char *file)
 {
 	register int i, err = OK;
 	char *cp, last[BUFSIZ];
@@ -946,11 +938,7 @@ sendit(pp, file)
  * Return positive if we should try resending.
  */
 static int
-sendfile(pp, type, file, format)
-	struct printer *pp;
-	int type;
-	char *file;
-	char format;
+sendfile(struct printer *pp, int type, char *file, char format)
 {
 	register int f, i, amt;
 	struct stat stb;
@@ -1188,8 +1176,7 @@ sendfile(pp, type, file, format)
  * Return non-zero if the connection was lost.
  */
 static char
-response(pp)
-	const struct printer *pp;
+response(const struct printer *pp)
 {
 	char resp;
 
@@ -1204,9 +1191,7 @@ response(pp)
  * Banner printing stuff
  */
 static void
-banner(pp, name1, name2)
-	struct printer *pp;
-	char *name1, *name2;
+banner(struct printer *pp, char *name1, char *name2)
 {
 	time_t tvec;
 
@@ -1245,10 +1230,7 @@ banner(pp, name1, name2)
 }
 
 static char *
-scnline(key, p, c)
-	register int key;
-	register char *p;
-	int c;
+scnline(int key, char *p, int c)
 {
 	register int scnwidth;
 
@@ -1262,10 +1244,7 @@ scnline(key, p, c)
 #define TRC(q)	(((q)-' ')&0177)
 
 static void
-scan_out(pp, scfd, scsp, dlm)
-	struct printer *pp;
-	int scfd, dlm;
-	char *scsp;
+scan_out(struct printer *pp, int scfd, char *scsp, int dlm)
 {
 	register char *strp;
 	register int nchrs, j;
@@ -1297,8 +1276,7 @@ scan_out(pp, scfd, scsp, dlm)
 }
 
 static int
-dropit(c)
-	int c;
+dropit(int c)
 {
 	switch(c) {
 
@@ -1322,14 +1300,11 @@ dropit(c)
  *   tell people about job completion
  */
 static void
-sendmail(pp, user, bombed)
-	struct printer *pp;
-	char *user;
-	int bombed;
+sendmail(struct printer *pp, char *user, int bombed)
 {
 	register int i;
 	int p[2], s;
-	register char *cp;
+	register const char *cp;
 	struct stat stb;
 	FILE *fp;
 
@@ -1402,22 +1377,20 @@ sendmail(pp, user, bombed)
  * dofork - fork with retries on failure
  */
 static int
-dofork(pp, action)
-	const struct printer *pp;
-	int action;
+dofork(const struct printer *pp, int action)
 {
-	register int i, pid;
+	register int i, forkpid;
 	struct passwd *pwd;
 
 	for (i = 0; i < 20; i++) {
-		if ((pid = fork()) < 0) {
+		if ((forkpid = fork()) < 0) {
 			sleep((unsigned)(i*i));
 			continue;
 		}
 		/*
 		 * Child should run as daemon instead of root
 		 */
-		if (pid == 0) {
+		if (forkpid == 0) {
 			if ((pwd = getpwuid(pp->daemon_user)) == NULL) {
 				syslog(LOG_ERR, "Can't lookup default daemon uid (%ld) in password file",
 				    pp->daemon_user);
@@ -1427,7 +1400,7 @@ dofork(pp, action)
 			setgid(pwd->pw_gid);
 			setuid(pp->daemon_user);
 		}
-		return(pid);
+		return(forkpid);
 	}
 	syslog(LOG_ERR, "can't fork");
 
@@ -1447,8 +1420,7 @@ dofork(pp, action)
  * Kill child processes to abort current job.
  */
 static void
-abortpr(signo)
-	int signo;
+abortpr(int signo __unused)
 {
 
 	(void) unlink(tempstderr);
@@ -1463,8 +1435,7 @@ abortpr(signo)
 }
 
 static void
-init(pp)
-	struct printer *pp;
+init(struct printer *pp)
 {
 	char *s;
 
@@ -1479,8 +1450,7 @@ init(pp)
 }
 
 void
-startprinting(printer)
-	const char *printer;
+startprinting(const char *printer)
 {
 	struct printer myprinter, *pp = &myprinter;
 	int status;
@@ -1506,8 +1476,7 @@ startprinting(printer)
  * Acquire line printer or remote connection.
  */
 static void
-openpr(pp)
-	const struct printer *pp;
+openpr(const struct printer *pp)
 {
 	int p[2];
 	char *cp;
@@ -1562,8 +1531,7 @@ openpr(pp)
  * or to a terminal server on the net
  */
 static void
-opennet(pp)
-	const struct printer *pp;
+opennet(const struct printer *pp)
 {
 	register int i;
 	int resp;
@@ -1615,8 +1583,7 @@ opennet(pp)
  * Printer is connected to an RS232 port on this host
  */
 static void
-opentty(pp)
-	const struct printer *pp;
+opentty(const struct printer *pp)
 {
 	register int i;
 
@@ -1645,8 +1612,7 @@ opentty(pp)
  * Printer is on a remote host
  */
 static void
-openrem(pp)
-	const struct printer *pp;
+openrem(const struct printer *pp)
 {
 	register int i;
 	int resp;
@@ -1687,8 +1653,7 @@ openrem(pp)
  * setup tty lines.
  */
 static void
-setty(pp)
-	const struct printer *pp;
+setty(const struct printer *pp)
 {
 	struct termios ttybuf;
 
@@ -1756,7 +1721,8 @@ pstatus(pp, msg, va_alist)
 }
 
 void
-alarmhandler(signo)
+alarmhandler(int signo __unused)
 {
-	/* ignored */
+	/* the signal is ignored */
+	/* (the '__unused' is just to avoid a compile-time warning) */
 }

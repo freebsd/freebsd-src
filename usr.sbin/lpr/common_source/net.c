@@ -178,7 +178,7 @@ retry:
 char *
 checkremote(struct printer *pp)
 {
-	char name[MAXHOSTNAMELEN];
+	char lclhost[MAXHOSTNAMELEN];
 	struct addrinfo hints, *local_res, *remote_res, *lr, *rr;
 	char *err;
 	int ncommonaddrs, error;
@@ -194,17 +194,17 @@ checkremote(struct printer *pp)
 		return NULL;
 
 	/* get the addresses of the local host */
-	gethostname(name, sizeof(name));
-	name[sizeof(name) - 1] = '\0';
+	gethostname(lclhost, sizeof(lclhost));
+	lclhost[sizeof(lclhost) - 1] = '\0';
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
-	if ((error = getaddrinfo(name, NULL, &hints, &local_res)) != 0) {
+	if ((error = getaddrinfo(lclhost, NULL, &hints, &local_res)) != 0) {
 		asprintf(&err, "unable to get official name "
 			 "for local machine %s: %s",
-			 name, gai_strerror(error));
+			 lclhost, gai_strerror(error));
 		return err;
 	}
 
@@ -256,7 +256,7 @@ checkremote(struct printer *pp)
  * values are as for writev(2).
  */
 ssize_t
-writel(int s, ...)
+writel(int strm, ...)
 {
 	va_list ap;
 	int i, n;
@@ -266,7 +266,7 @@ writel(int s, ...)
 	ssize_t retval;
 
 	/* first count them */
-	va_start(ap, s);
+	va_start(ap, strm);
 	n = 0;
 	do {
 		cp = va_arg(ap, char *);
@@ -282,13 +282,13 @@ writel(int s, ...)
 	}
 
 	/* now make up iovec and send */
-	va_start(ap, s);
+	va_start(ap, strm);
 	for (i = 0; i < n; i++) {
 		iovp[i].iov_base = va_arg(ap, char *);
 		iovp[i].iov_len = strlen(iovp[i].iov_base);
 	}
 	va_end(ap);
-	retval = writev(s, iovp, n);
+	retval = writev(strm, iovp, n);
 	if (iovp != iov)
 		free(iovp);
 	return retval;
