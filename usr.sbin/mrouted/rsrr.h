@@ -47,7 +47,7 @@
 #define RSRR_ROUTE_QUERY   3
 #define RSRR_ROUTE_REPLY   4
 
-/* RSRR Initial Reply (Vif) Status bits.
+/* RSRR Initial Reply (Vif) Status bits
  * Each definition represents the position of the bit from right to left.
  *
  * Right-most bit is the disabled bit, set if the vif is administratively
@@ -56,7 +56,7 @@
 #define RSRR_DISABLED_BIT 0
 /* All other bits are zeroes */
 
-/* RSRR Route Query/Reply flag bits.
+/* RSRR Route Query/Reply flag bits
  * Each definition represents the position of the bit from right to left.
  *
  * Right-most bit is the Route Change Notification bit, set if the

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: main.c,v 3.6 1995/06/25 18:58:06 fenner Exp $
  */
 
 /*
@@ -21,10 +21,14 @@
 
 
 #include "defs.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
 #include <varargs.h>
+#endif
+#include <fcntl.h>
 
 #ifdef SNMP
-#include <string.h>
 #include "snmp.h"
 #endif
 
@@ -45,26 +49,29 @@ u_char pruning = 1;	/* Enable pruning by default */
 
 static struct ihandler {
     int fd;			/* File descriptor		 */
-    void (*func)();		/* Function to call with &fd_set */
+    ihfunc_t func;		/* Function to call with &fd_set */
 } ihandlers[NHANDLERS];
 static int nhandlers = 0;
 
 /*
  * Forward declarations.
  */
-static void fasttimer();
-static void timer();
-static void cleanup();
-static void done();
-static void dump();
-static void fdump();
-static void cdump();
-static void restart();
+static void fasttimer __P((int));
+static void done __P((int));
+static void dump __P((int));
+static void fdump __P((int));
+static void cdump __P((int));
+static void restart __P((int));
+static void timer __P((void));
+static void cleanup __P((void));
+
+/* To shut up gcc -Wstrict-prototypes */
+int main __P((int argc, char **argv));
 
 int
 register_input_handler(fd, func)
     int fd;
-    void (*func)();
+    ihfunc_t func;
 {
     if (nhandlers >= NHANDLERS)
 	return -1;
@@ -75,7 +82,8 @@ register_input_handler(fd, func)
     return 0;
 }
 
-int main(argc, argv)
+int
+main(argc, argv)
     int argc;
     char *argv[];
 {
@@ -83,9 +91,8 @@ int main(argc, argv)
     register int omask;
     int dummy;
     FILE *fp;
-    extern uid_t geteuid();
     struct timeval tv;
-    u_long prev_genid;
+    u_int32 prev_genid;
     int vers;
     fd_set rfds, readers;
     int nfds, n, i;
@@ -212,8 +219,11 @@ usage:	fprintf(stderr,
 
 #ifndef OLD_KERNEL
     vers = k_get_version();
-    if ((((vers >> 8) & 0xff) != PROTOCOL_VERSION) ||
-	 ((vers & 0xff) != MROUTED_VERSION))
+    /*XXX
+     * This function must change whenever the kernel version changes
+     */
+    if ((((vers >> 8) & 0xff) != 3) ||
+	 ((vers & 0xff) != 5))
 	log(LOG_ERR, 0, "kernel (v%d.%d)/mrouted (v%d.%d) version mismatch",
 		(vers >> 8) & 0xff, vers & 0xff,
 		PROTOCOL_VERSION, MROUTED_VERSION);
@@ -239,11 +249,11 @@ usage:	fprintf(stderr,
 
     fp = fopen(pidfilename, "w");		
     if (fp != NULL) {
-	fprintf(fp, "%d\n", getpid());
+	fprintf(fp, "%d\n", (int)getpid());
 	(void) fclose(fp);
     }
 
-    if (debug >= 2) dump();
+    if (debug >= 2) dump(0);
 
     (void)signal(SIGALRM, fasttimer);
 
@@ -294,16 +304,16 @@ usage:	fprintf(stderr,
         }
 
 	if (FD_ISSET(igmp_socket, &rfds)) {
-	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
-			   0, NULL, &dummy);
-	if (recvlen < 0) {
-	    if (errno != EINTR) log(LOG_ERR, errno, "recvfrom");
-	    continue;
-	}
-	omask = sigblock(sigmask(SIGALRM));
-	accept_igmp(recvlen);
-	(void)sigsetmask(omask);
-    }
+	    recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
+			       0, NULL, &dummy);
+	    if (recvlen < 0) {
+		if (errno != EINTR) log(LOG_ERR, errno, "recvfrom");
+		continue;
+	    }
+	    omask = sigblock(sigmask(SIGALRM));
+	    accept_igmp(recvlen);
+	    (void)sigsetmask(omask);
+        }
 
 	for (i = 0; i < nhandlers; i++) {
 	    if (FD_ISSET(ihandlers[i].fd, &rfds)) {
@@ -332,7 +342,8 @@ usage:	fprintf(stderr,
  * do all the other time-based processing.
  */
 static void
-fasttimer()
+fasttimer(i)
+    int i;
 {
     static unsigned int tlast;
     static unsigned int nsent;
@@ -453,7 +464,8 @@ timer()
  * On termination, let everyone know we're going away.
  */
 static void
-done()
+done(i)
+    int i;
 {
     log(LOG_NOTICE, 0, "mrouted version %d.%d exiting",
 			PROTOCOL_VERSION, MROUTED_VERSION);
@@ -471,8 +483,8 @@ cleanup()
 #ifdef RSRR
 	rsrr_clean();
 #endif /* RSRR */
-    expire_all_routes();
-    report_to_all_neighbors(ALL_ROUTES);
+	expire_all_routes();
+	report_to_all_neighbors(ALL_ROUTES);
 	k_stop_dvmrp();
     }
 }
@@ -482,7 +494,8 @@ cleanup()
  * Dump internal data structures to stderr.
  */
 static void
-dump()
+dump(i)
+    int i;
 {
     dump_vifs(stderr);
     dump_routes(stderr);
@@ -493,7 +506,8 @@ dump()
  * Dump internal data structures to a file.
  */
 static void
-fdump()
+fdump(i)
+    int i;
 {
     FILE *fp;
 
@@ -510,7 +524,8 @@ fdump()
  * Dump local cache contents to a file.
  */
 static void
-cdump()
+cdump(i)
+    int i;
 {
     FILE *fp;
 
@@ -526,7 +541,8 @@ cdump()
  * Restart mrouted
  */
 static void
-restart()
+restart(i)
+    int i;
 {
     register int omask;
 
@@ -565,6 +581,19 @@ restart()
  * according to the severity of the message and the current debug level.
  * For errors of severity LOG_ERR or worse, terminate the program.
  */
+#ifdef __STDC__
+void
+log(int severity, int syserr, char *format, ...)
+{
+    va_list ap;
+    static char fmt[211] = "warning - ";
+    char *msg;
+    char tbuf[20];
+    struct timeval now;
+    struct tm *thyme;
+
+    va_start(ap, format);
+#else
 /*VARARGS3*/
 void
 log(severity, syserr, format, va_alist)
@@ -580,6 +609,7 @@ log(severity, syserr, format, va_alist)
     struct tm *thyme;
 
     va_start(ap);
+#endif
     vsprintf(&fmt[10], format, ap);
     va_end(ap);
     msg = (severity == LOG_WARNING) ? fmt : &fmt[10];
