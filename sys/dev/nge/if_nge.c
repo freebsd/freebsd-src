@@ -1293,16 +1293,14 @@ static void nge_rxeof(sc)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if (!(extsts & NGE_RXEXTSTS_IPCSUMERR))
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-#ifdef notdef
 			if ((extsts & NGE_RXEXTSTS_TCPPKT &&
 			    !(extsts & NGE_RXEXTSTS_TCPCSUMERR)) ||
 			    (extsts & NGE_RXEXTSTS_UDPPKT &&
 			    !(extsts & NGE_RXEXTSTS_UDPCSUMERR))) {
 				m->m_pkthdr.csum_flags |=
 				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0;
+				m->m_pkthdr.csum_data = 0xffff;
 			}
-#endif
                 }
 
 #if NVLAN > 0
