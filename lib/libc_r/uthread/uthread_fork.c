@@ -123,7 +123,7 @@ fork(void)
 	}
 
 	/* Unblock signals: */
-	_thread_kern_sig_unblock(&status);
+	_thread_kern_sig_unblock(status);
 
 	/* Return the process ID: */
 	return (ret);
