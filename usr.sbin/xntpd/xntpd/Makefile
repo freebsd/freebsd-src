@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1997/02/22 16:14:39 peter Exp $
+# $Id: Makefile,v 1.12 1998/03/07 09:46:15 bde Exp $
 #
 
 CFLAGS+= -I${.CURDIR}/../include
@@ -29,8 +29,6 @@ SRCS+=	refclock_acts.c refclock_as2201.c refclock_atom.c refclock_chu.c \
 	refclock_heath.c refclock_leitch.c refclock_local.c refclock_moto.c \
 	refclock_msfees.c refclock_mx4200.c refclock_nmea.c refclock_omega.c \
 	refclock_parse.c refclock_pst.c refclock_trak.c refclock_wwvb.c
-
-beforedepend: version.c
 
 version.c: ${.CURDIR}/../VERSION
 	sh -e ${.CURDIR}/../scripts/mkversion xntpd
