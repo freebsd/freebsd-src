@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $
+     $Id: dialup.sgml,v 1.2 1995/06/30 17:37:34 jfieber Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -37,7 +37,7 @@ in a UNIX-like environment, and how to look up manual pages on the
 system.  As discussed below, you'll need certain versions of FreeBSD,
 and knowledge of some terminology &amp; modem and cabling.
 
-<sect2>FreeBSD Version
+<sect2><heading>FreeBSD Version</heading>
 <p>
 
 First, it is assumed that you are using FreeBSD version 1.1 or higher
@@ -47,7 +47,7 @@ device driver (<tt/sio/) has improved in every release of FreeBSD, so
 more recent versions of FreeBSD are assumed to have better and more
 efficient drivers than earlier versions.
 
-<sect2>Terminology
+<sect2><heading>Terminology</heading>
 <p>
 
 A quick rundown of terminology:
@@ -74,7 +74,7 @@ transitions that may be made in a period of time, while <bf/bps/ (bits
 per second) is the ``correct'' term to use (at least it doesn't seem
 to bother the curmudgeons quite a much).
 
-<sect2>External vs. Internal Modems
+<sect2><heading>External vs. Internal Modems</heading>
 <p>
 
 External modems seem to be more convenient for dialup, because
@@ -89,7 +89,7 @@ may be limited only to setting DIP switches.  If your internal modem
 has any signal indicator lights, it is probably difficult to view the
 lights when the system's cover is in place.
 
-<sect2>Modems and Cables
+<sect2><heading>Modems and Cables</heading>
 <p>
 
 A background knowledge of these items is assumed
@@ -149,7 +149,7 @@ watching for status reports from the modem.  If you are familiar with
 connecting modems to PC-based bulletin board systems, this may seem
 awkward.
 
-<sect2>Serial Interface Considerations
+<sect2><heading>Serial Interface Considerations</heading>
 <p>
 
 FreeBSD supports NS8250-, NS16450-, NS16550-, and NS16550A-based EIA
@@ -163,7 +163,7 @@ devices, 16550A-based serial interface cards are much prefered.  If
 the system has many active serial ports or will have a heavy load,
 16550A-based cards are better for low-error-rate communications.
 
-<sect1>Quick Overview
+<sect1><heading>Quick Overview</heading>
 <p>
 
 Here is the process that FreeBSD follows to accept dialup logins.  A
@@ -192,7 +192,7 @@ by asking for the user's password and then starting the user's shell.
 
 Let's dive into the configuration...
 
-<sect1>Kernel Configuration
+<sect1><heading>Kernel Configuration</heading>
 <p>
 
 FreeBSD kernels typically come prepared to search for four serial
@@ -278,7 +278,7 @@ program <tt/config/ as documented in ``Building Berkeley Kernels with
 Config'' and the <tt/config(8)/ manual page to prepare a kernel
 building directory, then build, install, and test the new kernel.
 
-<sect1>Device Special Files
+<sect1><heading>Device Special Files</heading>
 <p>
 
 Most devices in the kernel are accessed through ``device special
@@ -297,7 +297,7 @@ and <tt/stty(1)/ for information on the terminal settings, locking
 &amp; initializing devices, and setting terminal options,
 respectively.
 
-<sect2>Making Device Special Files
+<sect2><heading>Making Device Special Files</heading>
 <p>
 
 A shell script called <tt/MAKEDEV/ in the <tt>/dev</tt> directory
@@ -330,7 +330,7 @@ crw-rw----    1 uucp     dialer    28, 193 Feb 15 14:38 /dev/cual01
 These permissions allow the user <tt/uucp/ and users in the group
 <tt/dialer/ to use the call-out devices.
 
-<sect1>Configuration Files
+<sect1><heading>Configuration Files</heading>
 <p>
 
 There are three system configuration files in the <tt>/etc</tt>
@@ -376,7 +376,7 @@ The author will try to give balanced configuration information, but is
 biased towards having the modem's data rate follow the connection
 rate.
 
-<sect2>/etc/gettytab
+<sect2><heading>/etc/gettytab</heading>
 <p>
 
 <tt>/etc/gettytab</tt> is a <tt/termcap(5)/-style file of
@@ -384,14 +384,14 @@ configuration information for <tt/getty(8)/.  Please see the
 <tt/gettytab(4)/ manual page for complete information on the format of
 the file and the list of capabilities.
 
-<sect3>Locked-Speed Config
+<sect3><heading>Locked-Speed Config</heading>
 <p>
 
 If you are locking your modem's data communications rate at a
 particular speed, you probably won't need to make any changes to
 <tt>/etc/gettytab</tt>.
 
-<sect3>Matching-Speed Config
+<sect3><heading>Matching-Speed Config</heading>
 <p>
 
 You'll need to setup an entry in <tt>/etc/gettytab</tt> to give
@@ -472,7 +472,7 @@ If you have a slow CPU or a heavily loaded system and you don't have
 16550A-based serial ports, you may receive sio ``silo'' errors at 57.6
 Kbps.
 
-<sect2>/etc/ttys
+<sect2><heading>/etc/ttys</heading>
 <p>
 
 <tt>/etc/ttys</tt> is the list of <tt/ttys/ for <tt/init/ to monitor.
@@ -521,7 +521,7 @@ to send the signal.  If this is your first time setting up the system,
 though, you may want to wait until your modem(s) are properly
 configured and connected before signalling <tt/init/.
 
-<sect3>Locked-Speed Config
+<sect3><heading>Locked-Speed Config</heading>
 <p>
 
 For a locked-speed configuration, your <tt/ttys/ entry needs to
@@ -537,7 +537,7 @@ If your modem is locked at a different data rate, substitute the
 appropriate name for the <tt>std.<em/speed/</tt> entry for
 <tt/std.19200/ from <tt>/etc/gettytab</tt> for your modem's data rate.
 
-<sect3>Matching-Speed Config
+<sect3><heading>Matching-Speed Config</heading>
 <p>
 
 In a matching-speed configuration, your <tt/ttys/ entry needs to
@@ -551,7 +551,7 @@ entry for a matching-speed modem that starts at 19.2 Kbps (the
 ttyd0   "/usr/libexec/getty V19200"   dialup on
 </verb></tscreen>
 
-<sect2>/etc/rc.serial or /etc/rc.local
+<sect2><heading>/etc/rc.serial or /etc/rc.local</heading>
 <p>
 
 High-speed modems, like V.32, V.32bis, and V.34 modems, need to use
@@ -590,7 +590,7 @@ Since there isn't an initialization device special file on FreeBSD
 1.1, one has to just set the flags on the sole device special file and
 hope the flags aren't cleared by a miscreant.
 
-<sect1>Modem Settings
+<sect1><heading>Modem Settings</heading>
 <p>
 
 If you have a modem whose parameters may be permanently set in
@@ -664,7 +664,7 @@ prompt to a modem that is in command mode and the modem echoes the
 command or returns a result code.  I've heard this sequence can result
 in a extended, silly conversation between <tt/getty/ and the modem.
 
-<sect2>Locked-speed Config
+<sect2><heading>Locked-speed Config</heading>
 <p>
 
 For a locked-speed configuration, you'll need to configure the modem
@@ -678,7 +678,7 @@ ATZ
 AT&amp;B1&amp;W
 </verb></tscreen>
 
-<sect2>Matching-speed Config
+<sect2><heading>Matching-speed Config</heading>
 <p>
 
 For a variable-speed configuration, you'll need to configure your
@@ -693,7 +693,7 @@ ATZ
 AT&amp;B2&amp;W
 </verb></tscreen>
 
-<sect2>Checking the Modem's Configuration
+<sect2><heading>Checking the Modem's Configuration</heading>
 <p>
 
 Most high-speed modems provide commands to view the modem's current
@@ -706,13 +706,13 @@ switch settings), use the commands <tt/ATZ/ and then <tt/ATI4/.
 If you have a different brand of modem, check your modem's manual to
 see how to double-check your modem's configuration parameters.
 
-<sect1>Troubleshooting
+<sect1><heading>Troubleshooting</heading>
 <p>
 
 Here are a few steps you can follow to check out the dialup modem on
 your system.
 
-<sect2>Checking out the FreeBSD system
+<sect2><heading>Checking out the FreeBSD system</heading>
 <p>
 
 Hook up your modem to your FreeBSD system, boot the system, and, if
@@ -755,7 +755,7 @@ messages, triple-check the configuration files <tt>/etc/ttys</tt> and
 files <tt>/dev/ttyd?</tt>, for any mistakes, missing entries, or
 missing device special files.
 
-<sect2>Try Dialing In
+<sect2><heading>Try Dialing In</heading>
 <p>
 
 Try dialing into the system; be sure to use 8 bits, no parity, 1 stop
@@ -794,7 +794,7 @@ perhaps you can send an electronic mail message to
 <tt>FreeBSD-Questions@freebsd.org</tt> describing your modem and your
 problem, and the good folks on the list will try to help.
 
-<sect1>Acknowledgements
+<sect1><heading>Acknowledgements</heading>
 <p>
 
 Thanks to these people for comments and advice:

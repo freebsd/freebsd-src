@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.3 1995/06/14 18:38:50 jfieber Exp $
+     $Id: booting.sgml,v 1.4 1995/06/30 17:37:31 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -30,28 +30,25 @@
         determine the root filesystem and initialize user-land things. This
         leads to some interesting possibilities shown below.
 
-    <sect>Loading a kernel
+    <sect><heading>Loading a kernel</heading>
       <p>
-        We presently have three basic mechanisms for loading the kernel:
-        <enum>
-          <item>biosboot
-          <item>dosboot
-          <item>netboot
-        </enum>
-        Each will be described in detail below.  They all pass some
+        We presently have three basic mechanisms for loading the
+	kernel as described below:
+	They all pass some
         information to the kernel to help the kernel decide what to do
         next.
 
-      <sect1>Biosboot
-        <p>
+	<descrip>
+      <tag>Biosboot</tag>
+
           Biosboot is our ``bootblocks'', it consists of two files, which
           will be installed in the first 8Kbytes of the floppy or hard-disk
           slice to be booted from.
 
           Biosboot can load a kernel from a FreeBSD filesystem.
 
-      <sect1>Dosboot
-        <p>
+      <tag>Dosboot</tag>
+
           Dosboot was written by DI. Christian Gusenbauer, and is
           unfortunately at this time one of the few pieces of code that
           isn't compilable under FreeBSD itself because it is written for
@@ -63,53 +60,51 @@
           high memory on MS/DOS systems and usually wins them for it's
           case.
 
-      <sect1>Netboot
-        <p>
+      <tag>Netboot</tag>
+
           Netboot will try to find a supported ethernet card, and use
           BOOTP, TFTP and NFS to find a kernel file to boot.
+</descrip>
 
-    <sect>Determine the root filesystem
+
+    <sect><heading>Determine the root filesystem</heading>
       <p>
         Once the kernel is loaded and the boot-code jumps to it, the kernel
         will initialize itself, trying to determine what hardware is
         present and so on, and then it needs to find a root filesystem.
 
         Presently we support the following types of rootfilesystems:
-        <itemize>
-          <item>UFS
-          <item>MSDOS
-          <item>MFS
-          <item>CD9660
-          <item>NFS
-        </itemize>
 
-      <sect1>UFS
-        <p>
+<descrip>
+      <tag>UFS</tag>
+
           This is the most normal type of root filesystem. It can reside on
           a floppy or on harddisk.
 
-      <sect1>MSDOS
-        <p>
+      <tag>MSDOS</tag>
+
           While this is technically possible, it isn't particular useful,
           because of ``FAT'' filesystems inability to make links, device
           nodes and such ``UNIXisms''.
 
-      <sect1>MFS
-        <p>
+      <tag>MFS</tag>
+
           This is actually a UFS filesystem which has been compiled into
           the kernel.  That means that the kernel does not really need any
           disks/floppies or other HW to function.
 
-      <sect1>CD9660
-        <p>
+      <tag>CD9660</tag>
+
           This is for using a CD-ROM as root filesystem.
 
-      <sect1>NFS
-        <p>
+      <tag>NFS</tag>
+
           This is for using a fileserver as root filesystem, basically
           making it a diskless machine.
+</descrip>
 
-    <sect>Initialize user-land things
+
+    <sect><heading>Initialize user-land things</heading>
       <p>
         To get the user-land going, when the kernel has finished
         initialization, it will create a with ``<tt/pid == 1/'' and execute
@@ -124,7 +119,7 @@
         1/''.
 
 
-    <sect>Interesting combinations
+    <sect><heading>Interesting combinations</heading>
       <p>
         Boot a kernel with a MFS in it with a special <tt>/sbin/init</tt>
         which...
