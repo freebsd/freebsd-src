@@ -29,12 +29,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ypxfrd_main.c,v 1.3 1997/02/22 16:13:02 peter Exp $
  */
 
 #include "ypxfrd.h"
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */
+#include <unistd.h>
 #include <rpc/pmap_clnt.h> /* for pmap_unset */
 #include <string.h> /* strcmp */
 #include <signal.h>
@@ -60,7 +61,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ypxfrd_main.c,v 1.3 1997/02/22 16:13:02 peter Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
