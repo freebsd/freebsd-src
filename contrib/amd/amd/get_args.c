@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: get_args.c,v 1.2 1998/09/05 06:06:00 obrien Exp $
  *
  */
 
@@ -60,11 +60,12 @@ char *conf_tag = NULL;		/* default conf file tags to use */
 int usage = 0;
 int use_conf_file = 0;		/* default don't use amd.conf file */
 char *mnttab_file_name = NULL;	/* symbol must be available always */
+#if 0
 #ifdef DEBUG
 int debug_flags = D_AMQ		/* Register AMQ */
 		| D_DAEMON;	/* Enter daemon mode */
 #endif /* DEBUG */
-
+#endif
 
 /*
  * Return the version string (dynamic buffer)
@@ -137,7 +138,7 @@ get_args(int argc, char *argv[])
     case 'a':
       if (*optarg != '/') {
 	fprintf(stderr, "%s: -a option must begin with a '/'\n",
-		progname);
+		am_get_progname());
 	exit(1);
       }
       gopt.auto_dir = optarg;
@@ -224,7 +225,8 @@ get_args(int argc, char *argv[])
 #ifdef DEBUG
       usage += debug_option(optarg);
 #else /* not DEBUG */
-      fprintf(stderr, "%s: not compiled with DEBUG option -- sorry.\n", progname);
+      fprintf(stderr, "%s: not compiled with DEBUG option -- sorry.\n",
+	      am_get_progname());
 #endif /* not DEBUG */
       break;
 
@@ -334,7 +336,7 @@ get_args(int argc, char *argv[])
 # endif /* DEBUG */
 #endif /* not MOUNT_TABLE_ON_FILE */
 
-    if (switch_to_logfile(gopt.logfile) != 0)
+    if (switch_to_logfile(gopt.logfile, orig_umask) != 0)
       plog(XLOG_USER, "Cannot switch logfile");
 
     /*
@@ -362,7 +364,7 @@ show_usage:
 \t[-k kernel_arch] [-l logfile%s\n\
 \t[-t timeout.retrans] [-w wait_timeout] [-C cluster_name]\n\
 \t[-o op_sys_ver] [-O op_sys_name]\n\
-\t[-F conf_file] [-T conf_tag]", progname,
+\t[-F conf_file] [-T conf_tag]", am_get_progname(),
 #ifdef HAVE_SYSLOG
 # ifdef LOG_DAEMON
 	  "|\"syslog[:facility]\"]"

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: srvr_nfs.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: srvr_nfs.c,v 1.2 1998/09/14 08:20:37 obrien Exp $
  *
  */
 
@@ -489,7 +489,7 @@ nfs_keepalive(voidp v)
 		     nfs_pinged);
 
   /*
-   * See if a hard error occured
+   * See if a hard error occurred
    */
   switch (error) {
   case ENETDOWN:
@@ -571,7 +571,7 @@ nfs_srvr_port(fserver *fs, u_short * port, voidp wchan)
   if (error < 0 && wchan && !(fs->fs_flags & FSF_WANT)) {
     /*
      * If a wait channel is supplied, and no
-     * error has yet occured, then arrange
+     * error has yet occurred, then arrange
      * that a wakeup is done on the wait channel,
      * whenever a wakeup is done on this fs node.
      * Wakeup's are done on the fs node whenever
@@ -663,18 +663,14 @@ find_nfs_srvr(mntfs *mf)
   }
 #endif /* MNTTAB_OPT_PROTO */
 
-/* XXX: do we want to do this unconditionally of #define's? */
-/* #if defined(MNTTAB_OPT_VERS ) && defined( MNTTAB_OPT_PROTO ) */
-  {
-    char *nfsv2_opt = hasmntopt(&mnt, "nfsv2");
-    if (nfsv2_opt) {
-  	nfs_version = (unsigned long)2;	/* nullify any ``vers=X'' statements */
-  	nfs_proto = "udp";		/* nullify any ``proto=tcp'' stmts */
-    	plog(XLOG_WARNING, "found compatiblity option \"nfsv2\": set options"
-	    " vers=2, proto=udp for host %s", host);
-    }
+#ifdef HAVE_NFS_NFSV2_H
+  /* allow overriding if nfsv2 option is specified in mount options */
+  if (hasmntopt(&mnt, "nfsv2")) {
+    nfs_version = (u_long) 2;	/* nullify any ``vers=X'' statements */
+    nfs_proto = "udp";	/* nullify any ``proto=tcp'' stmts */
+    plog(XLOG_WARNING, "found compatiblity option \"nfsv2\": set options vers=2, proto=udp for host %s", host);
   }
-/*#endif*/ /* MNTTAB_OPT_VERS && MNTTAB_OPT_PROTO */
+#endif /* HAVE_NFS_NFSV2_H */
 
   /*
    * lookup host address and canonical name
@@ -763,7 +759,7 @@ find_nfs_srvr(mntfs *mf)
        nfs_version, nfs_proto, host);
 
   /*
-   * Try to find an existing fs server stucture for this host.
+   * Try to find an existing fs server structure for this host.
    * Note that differing versions or protocols have their own structures.
    * XXX: Need to fix the ping mechanism to actually use the NFS protocol
    * chosen here (right now it always uses datagram sockets).
