@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.43 1998/11/21 02:22:14 jdp Exp $";
+	"$Id: login.c,v 1.44 1999/01/03 23:39:33 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -77,8 +77,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
+#ifndef NO_PAM
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
+#endif
 
 #include "pathnames.h"
 
@@ -96,7 +98,9 @@ void	 timedout __P((int));
 int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
 
+#ifndef NO_PAM
 static int auth_pam __P((void));
+#endif
 static int auth_traditional __P((void));
 extern void login __P((struct utmp *));
 static void usage __P((void));
@@ -294,16 +298,19 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
+#ifndef NO_PAM
 		/*
 		 * Try to authenticate using PAM.  If a PAM system error
 		 * occurs, perhaps because of a botched configuration,
 		 * then fall back to using traditional Unix authentication.
 		 */
 		if ((rval = auth_pam()) == -1)
+#endif /* NO_PAM */
 			rval = auth_traditional();
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
+#ifndef NO_PAM
 		/*
 		 * PAM authentication may have changed "pwd" to the
 		 * entry for the template user.  Check again to see if
@@ -311,6 +318,7 @@ main(argc, argv)
 		 */
 		if (pwd != NULL && pwd->pw_uid == 0)
 			rootlogin = 1;
+#endif /* NO_PAM */
 
 	ttycheck:
 		/*
@@ -613,6 +621,7 @@ auth_traditional()
 	return rval;
 }
 
+#ifndef NO_PAM
 /*
  * Attempt to authenticate the user using PAM.  Returns 0 if the user is
  * authenticated, or 1 if not authenticated.  If some sort of PAM system
@@ -694,6 +703,7 @@ auth_pam()
 	}
 	return rval;
 }
+#endif /* NO_PAM */
 
 static void
 usage()
