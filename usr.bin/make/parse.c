@@ -710,7 +710,7 @@ ParseDoDependency(char *line)
 		 * no errors in this, as they would have been discovered
 		 * in the initial Var_Subst and we wouldn't be here.
 		 */
-		size_t length;
+		size_t	length = 0;
 		Boolean	freeIt;
 		char	*result;
 

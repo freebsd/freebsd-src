@@ -731,6 +731,7 @@ VarGetPattern(GNode *ctxt, int err, char **tstr, int delim, int *flags,
 		     * delimiter, assume it's a variable
 		     * substitution and recurse.
 		     */
+		    len = 0;
 		    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
 		    Buf_Append(buf, cp2);
 		    if (freeIt)
@@ -1028,6 +1029,7 @@ ParseModifier(const char input[], char tstr[],
 				size_t	len;
 				Boolean	freeIt;
 
+				len = 0;
 				cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
 				Buf_Append(buf, cp2);
 				if (freeIt) {
@@ -1092,6 +1094,7 @@ ParseModifier(const char input[], char tstr[],
 			    size_t	len;
 			    Boolean	freeIt;
 
+			    len = 0;
 			    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
 			    Buf_Append(buf, cp2);
 			    cp += len - 1;
@@ -1528,6 +1531,7 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 		Boolean	rfree;
 		char	*rval;
 
+		rlen = 0;
 		rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
 		if (rval == var_Error) {
 			Fatal("Error expanding embedded variable.");
@@ -1920,6 +1924,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 		    continue;
 	    }
 
+	    length = 0;
 	    val = Var_Parse(str, ctxt, undefErr, &length, &doFree);
 
 	    /*
