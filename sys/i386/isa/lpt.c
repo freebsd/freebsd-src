@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.6 1993/11/25 01:31:41 wollman Exp $
+ *	$Id: lpt.c,v 1.8 1994/02/17 10:20:18 rgrimes Exp $
  */
 
 /*
@@ -155,10 +155,7 @@ struct lpt_softc {
  * Internal routine to lptprobe to do port tests of one byte value
  */
 int
-lpt_port_test(port, data, mask)
-	short port;
-	u_char data;
-	u_char mask;
+lpt_port_test(short port, u_char data, u_char mask)
 {
 	int	temp, timeout;
 
@@ -174,7 +171,6 @@ lpt_port_test(port, data, mask)
 		port, data, temp, timeout);
 	return (temp == data);
 }
-
 
 /*
  * New lpt port probe Geoff Rehmet - Rhodes University - 14/2/94
@@ -221,8 +217,7 @@ lpt_port_test(port, data, mask)
  *	Quick exit on fail added.
  */
 int
-lptprobe(dvp)
-	struct isa_device *dvp;
+lptprobe(struct isa_device *dvp)
 {
 	short		port;
 	static short	next_bios_lpt = 0;
