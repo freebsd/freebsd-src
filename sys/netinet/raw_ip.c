@@ -145,21 +145,16 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 {
 	int policyfail = 0;
 
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	/* check AH/ESP integrity. */
+	if (ipsec4_in_reject(n, last)) {
+		policyfail = 1;
 #ifdef IPSEC
-	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
-		policyfail = 1;
 		ipsecstat.in_polvio++;
-		/* do not inject data to pcb */
-	}
 #endif /*IPSEC*/
-#ifdef FAST_IPSEC
-	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject(n, last)) {
-		policyfail = 1;
 		/* do not inject data to pcb */
 	}
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC || FAST_IPSEC*/
 #ifdef MAC
 	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
 		policyfail = 1;
