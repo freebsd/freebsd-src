@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.10 1994/09/20 00:32:40 ache Exp $
+ *	$Id: cpu.h,v 1.11 1994/10/04 18:25:51 ache Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -115,6 +115,10 @@ extern int want_resched;	/* resched was called */
 extern int cpu;
 extern int cpu_class;
 extern struct cpu_nameclass i386_cpus[];
+int	cpu_fork __P((struct proc *, struct proc *));
+int	npxdna __P((void));
+void	npxexit __P((struct proc *p));
+
 #endif
 
 #endif /* !_MACHINE_CPU_H_ */
