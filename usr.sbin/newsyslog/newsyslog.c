@@ -613,7 +613,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 		if (noaction) {
 			printf("mv %s %s\n", zfile1, zfile2);
 			printf("chmod %o %s\n", perm, zfile2);
-			printf("chown %d.%d %s\n",
+			printf("chown %d:%d %s\n",
 			    owner_uid, group_gid, zfile2);
 		} else {
 			(void) rename(zfile1, zfile2);
