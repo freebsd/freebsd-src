@@ -786,7 +786,9 @@ tcp_close(tp)
 	struct tcpcb *tp;
 {
 	struct inpcb *inp = tp->t_inpcb;
+#ifdef INET6
 	struct socket *so = inp->inp_socket;
+#endif
 
 	tcp_discardcb(tp);
 #ifdef INET6
@@ -1695,8 +1697,6 @@ tcp_twrespond(struct tcptw *tw, int flags)
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6 = inp->inp_inc.inc_isipv6;
-#else
-	const int isipv6 = 0;
 #endif
 
 	m = m_gethdr(M_NOWAIT, MT_HEADER);
@@ -1704,12 +1704,15 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;
 
+#ifdef INET6
 	if (isipv6) {
 		hdrlen = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)(ip6 + 1);
 		tcpip_fillheaders(inp, ip6, th);
-	} else {
+	} else
+#endif
+	{
 		hdrlen = sizeof(struct tcpiphdr);
 		ip = mtod(m, struct ip *);
 		th = (struct tcphdr *)(ip + 1);
@@ -1754,6 +1757,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	th->th_flags = flags;
 	th->th_win = htons(tw->last_win);
 
+#ifdef INET6
 	if (isipv6) {
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(struct ip6_hdr),
 		    sizeof(struct tcphdr) + optlen);
@@ -1761,7 +1765,9 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		    inp->in6p_route.ro_rt->rt_ifp : NULL);
 		error = ip6_output(m, inp->in6p_outputopts, &inp->in6p_route,
 		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
-	} else {
+	} else
+#endif
+	{
 		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
                     htons(sizeof(struct tcphdr) + optlen + IPPROTO_TCP));
 		m->m_pkthdr.csum_flags = CSUM_TCP;
