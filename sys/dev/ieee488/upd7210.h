@@ -35,16 +35,16 @@
  * in an old manual for a VME board which used the chip.
  */
 
-/* upd7210 interface definitions */
+#ifndef _DEV_IEEE488_UPD7210_H_
+#define _DEV_IEEE488_UPD7210_H_
+#ifdef _KERNEL
 
 struct upd7210;
-
 struct ibfoo;
 
-void upd7210intr(void *);
-void upd7210attach(struct upd7210 *);
+/* upd7210 interface definitions for HW drivers */
 
-typedef int upd7210_irq_t(struct upd7210 *);
+typedef int upd7210_irq_t(struct upd7210 *, int);
 
 struct upd7210 {
 	bus_space_handle_t	reg_handle[8];
@@ -53,7 +53,6 @@ struct upd7210 {
 	u_int			dmachan;
 
 	/* private stuff */
-	struct timeval		deadline;
 	struct mtx		mutex;
 	uint8_t			rreg[8];
 	uint8_t			wreg[8 + 8];
@@ -69,6 +68,13 @@ struct upd7210 {
 
 	struct ibfoo		*ibfoo;
 };
+
+#ifdef UPD7210_HW_DRIVER
+void upd7210intr(void *);
+void upd7210attach(struct upd7210 *);
+#endif
+
+#ifdef UPD7210_SW_DRIVER
 
 /* upd7210 hardware definitions. */
 
@@ -211,3 +217,18 @@ enum upd7210_rreg {
 #define ADR1_DT1	(1 << 6)	/* Disable Talker 1		*/
 #define ADR1_EOI	(1 << 7)	/* End or Identify		*/
 
+/* Stuff from software drivers */
+extern struct cdevsw gpib_l_cdevsw;
+extern struct cdevsw gpib_ib_cdevsw;
+
+/* Stuff from upd7210.c */
+void upd7210_print_isr(u_int isr1, u_int isr2);
+u_int upd7210_rd(struct upd7210 *u, enum upd7210_rreg reg);
+void upd7210_wr(struct upd7210 *u, enum upd7210_wreg reg, u_int val);
+int upd7210_take_ctrl_async(struct upd7210 *u);
+int upd7210_goto_standby(struct upd7210 *u);
+
+#endif /* UPD7210_SW_DRIVER */
+
+#endif /* _KERNEL */
+#endif /* _DEV_IEEE488_UPD7210_H_ */
