@@ -108,10 +108,12 @@ static void _mcount
 	pushq	%rcx			\n\
 	pushq	%r8			\n\
 	pushq	%r9			\n\
+	pushq	%rax			\n\
 	movq	8(%rbp),%rsi		\n\
 	movq	(%rbp),%rdi		\n\
 	movq	8(%rdi),%rdi		\n\
 	call	_mcount			\n\
+	popq	%rax			\n\
 	popq	%r9			\n\
 	popq	%r8			\n\
 	popq	%rcx			\n\
