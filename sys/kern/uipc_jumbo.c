@@ -140,7 +140,7 @@ jumbo_vm_init(void)
 }
 
 void
-jumbo_freem(caddr_t addr, void *args)
+jumbo_freem(void *addr, void *args)
 {
 	vm_page_t frame;
 
