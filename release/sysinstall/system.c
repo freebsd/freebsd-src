@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.3 1995/05/31 20:55:39 jkh Exp $
+ * $Id: system.c,v 1.43.2.4 1995/05/31 22:09:20 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -152,51 +152,35 @@ systemDisplayFile(char *file)
     return 0;
 }
 
-static char *
-oldFile(char *file)
-{
-    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
-
-    if (!strcmp(oldfile, file))
-	return oldfile;
-    else if (oldfile[0]) {
-	msgDebug("Unlinking old helpfile: %s\n", oldfile);
-	unlink(oldfile);
-	oldfile[0] = '\0';
-    }
-    if (file_readable(file)) {
-	strncpy(oldfile, file, 64);
-	return file;
-    }
-    return NULL;
-}
-
 char *
 systemHelpFile(char *file, char *buf)
 {
     char *cp;
+    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
+    static char oldlang[64];
+    int i;
 
     if (!file)
 	return NULL;
 
-    if ((cp = getenv("LANG")) != NULL) {
+    if ((cp = getenv("LANG")) == NULL) 
+	cp = "en_US.ISO8859-1";
+
+    for (i = 0; i < 2; i++) {
 	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if ((cp = oldFile(buf)) != NULL)
-	    return cp;
+	if (file_readable(buf)) 
+	    return buf;
+	if (*oldfile) {
+	    unlink(oldfile);
+	    rmdir(oldlang);
+	}
+	strcpy(oldfile,buf);
+	strcpy(oldlang,cp);
 	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", buf);
-	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if ((cp = oldFile(buf)) != NULL)
-	   return cp;
+	if (file_readable(buf))
+	    return buf;
+	cp = "en_US.ISO8859-1";
     }
-    /* Fall back to normal imperialistic mode :-) */
-    cp = "en_US.ISO8859-1";
-    snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-    if ((cp = oldFile(buf)) != NULL)
-	return cp;
-    vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
-    snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-    if ((cp = oldFile(buf)) != NULL)
-	return cp;
     return NULL;
 }
 
