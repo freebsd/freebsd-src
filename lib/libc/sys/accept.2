@@ -86,7 +86,13 @@ The exact format of the
 .Fa addr
 parameter is determined by the domain in which the communication
 is occurring.
-The
+A null pointer may be specified for
+.Fa addr
+if the address information is not desired;
+in this case,
+.Fa addrlen
+is not used and should also be null.
+Otherwise, the
 .Fa addrlen
 is a value-result parameter; it should initially contain the
 amount of space pointed to by
