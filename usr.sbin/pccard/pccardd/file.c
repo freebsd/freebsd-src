@@ -664,7 +664,7 @@ memblk_tok(int force)
 
 /*
  *	IRQ token. Must be number > 0 && < 16.
- *	If force is set, IRQ must exist, and can also be '?'.
+ *	If force is set, IRQ must exist, and can also be '?' or 'any'.
  */
 static int
 irq_tok(int force)
@@ -678,6 +678,7 @@ irq_tok(int force)
 
 	if (strcmp("?", next_tok()) == 0 && force)
 		return (0);
+	/* old PAO syntax -- people are still using it! */
 	if (strcmp("any", next_tok()) == 0 && force)
 		return (0);
 	pusht = 1;
