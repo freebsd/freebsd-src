@@ -56,7 +56,7 @@ static const char rcsid[] =
 
 #include "find.h"
 
-static int	find_compare __P((const FTSENT **s1, const FTSENT **s2));
+static int	find_compare(const FTSENT **s1, const FTSENT **s2);
 
 /*
  * find_compare --

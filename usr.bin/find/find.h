@@ -44,7 +44,7 @@ struct _plandata;
 struct _option;
 
 /* execute function */
-typedef int exec_f __P((struct _plandata *, FTSENT *));
+typedef int exec_f(struct _plandata *, FTSENT *);
 /* create function */
 typedef	struct _plandata *creat_f(struct _option *, char ***);
 
