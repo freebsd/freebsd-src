@@ -8,18 +8,20 @@ LDADD=	-lssl -lcrypto
 NOMAN=	noman 
 
 OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
+LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
 
 CFLAGS+= -DMONOLITH -DNO_IDEA -I${.CURDIR}
 
-LOCALBASE?=	/usr/local
-
-.if !defined(USA_RESIDENT) || ${USA_RESIDENT} != NO
-.if !exists(${LOCALBASE}/lib/librsaref.a)
-CFLAGS+= -DNO_RSA -DNO_SSL2
+WITH_RSA?=	YES
+.if ${WITH_RSA} == NO
+CFLAGS+=	-DNO_RSA -DNO_SSL2
 .else
-CFLAGS+= -DRSAref
-LDADD+=	${LOCALBASE}/lib/librsaref.a
+.if !defined(USA_RESIDENT) || ${USA_RESIDENT} != NO
+RSAREF=		YES
 .endif
+.endif
+.if (defined(RSAREF) && ${RSAREF} == YES) || !exists(${LCRYPTO_SRC}/rsa/rsa_eay.c)
+CFLAGS+=	-DRSAref
 .endif
 
 SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
