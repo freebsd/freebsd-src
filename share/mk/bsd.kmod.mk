@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.3 1994/09/26 22:34:04 wollman Exp $
+#	$Id: bsd.kmod.mk,v 1.4 1994/11/13 21:05:21 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,8 +17,6 @@ CFLAGS+=${COPTS} -DKERNEL -I${.CURDIR}/../../sys -W -Wcomment -Wredundant-decls
 KMODGRP?=	bin
 KMODOWN?=	bin
 KMODMODE?=	555
-
-INSTALL?=	install
 
 .if defined(VFS_LKM)
 CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops -I.

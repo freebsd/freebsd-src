@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.13 1994/11/14 04:28:44 bde Exp $
+#	$Id: bsd.prog.mk,v 1.14 1994/12/22 17:20:52 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -20,8 +20,6 @@ STRIP?=	-s
 BINGRP?=	bin
 BINOWN?=	bin
 BINMODE?=	555
-
-INSTALL?=	install
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBC?=		${DESTDIR}/usr/lib/libc.a

@@ -1,11 +1,10 @@
 #	from: @(#)bsd.man.mk	5.2 (Berkeley) 5/11/90
-#	$Id: bsd.man.mk,v 1.2 1994/08/04 21:09:24 wollman Exp $
+#	$Id: bsd.man.mk,v 1.3 1994/08/28 15:37:40 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
-INSTALL?=	install
 MANGRP?=	bin
 MANOWN?=	bin
 MANMODE?=	444
