@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.23 1998/02/17 19:28:09 brian Exp $
+ * $Id: command.c,v 1.131.2.24 1998/02/17 19:28:25 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -517,8 +517,8 @@ static int
 ShowReconnect(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, "%s: Reconnect Timer:  %d,  %d tries\n",
-                arg->cx->name, arg->cx->reconnect_timeout,
-                arg->cx->max_reconnect);
+                arg->cx->name, arg->cx->cfg.reconnect_timeout,
+                arg->cx->cfg.max_reconnect);
   return 0;
 }
 
@@ -527,20 +527,20 @@ ShowRedial(struct cmdargs const *arg)
 {
   prompt_Printf(&prompt, " Redial Timer: ");
 
-  if (arg->cx->dial_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", arg->cx->dial_timeout);
+  if (arg->cx->cfg.dial_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", arg->cx->cfg.dial_timeout);
   else
     prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
   prompt_Printf(&prompt, " Redial Next Timer: ");
 
-  if (arg->cx->dial_next_timeout >= 0)
-    prompt_Printf(&prompt, " %d seconds, ", arg->cx->dial_next_timeout);
+  if (arg->cx->cfg.dial_next_timeout >= 0)
+    prompt_Printf(&prompt, " %d seconds, ", arg->cx->cfg.dial_next_timeout);
   else
     prompt_Printf(&prompt, " Random 0 - %d seconds, ", DIAL_TIMEOUT);
 
-  if (arg->cx->max_dial)
-    prompt_Printf(&prompt, "%d dial tries", arg->cx->max_dial);
+  if (arg->cx->cfg.max_dial)
+    prompt_Printf(&prompt, "%d dial tries", arg->cx->cfg.max_dial);
 
   prompt_Printf(&prompt, "\n");
 
@@ -874,8 +874,8 @@ static int
 SetReconnect(struct cmdargs const *arg)
 {
   if (arg->argc == 2) {
-    arg->cx->reconnect_timeout = atoi(arg->argv[0]);
-    arg->cx->max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
+    arg->cx->cfg.reconnect_timeout = atoi(arg->argv[0]);
+    arg->cx->cfg.max_reconnect = (mode & MODE_DIRECT) ? 0 : atoi(arg->argv[1]);
     return 0;
   }
   return -1;
@@ -891,13 +891,13 @@ SetRedialTimeout(struct cmdargs const *arg)
   if (arg->argc == 1 || arg->argc == 2) {
     if (strncasecmp(arg->argv[0], "random", 6) == 0 &&
 	(arg->argv[0][6] == '\0' || arg->argv[0][6] == '.')) {
-      arg->cx->dial_timeout = -1;
+      arg->cx->cfg.dial_timeout = -1;
       randinit();
     } else {
       timeout = atoi(arg->argv[0]);
 
       if (timeout >= 0)
-	arg->cx->dial_timeout = timeout;
+	arg->cx->cfg.dial_timeout = timeout;
       else {
 	LogPrintf(LogWARN, "Invalid redial timeout\n");
 	return -1;
@@ -907,12 +907,12 @@ SetRedialTimeout(struct cmdargs const *arg)
     dot = strchr(arg->argv[0], '.');
     if (dot) {
       if (strcasecmp(++dot, "random") == 0) {
-	arg->cx->dial_next_timeout = -1;
+	arg->cx->cfg.dial_next_timeout = -1;
 	randinit();
       } else {
 	timeout = atoi(dot);
 	if (timeout >= 0)
-	  arg->cx->dial_next_timeout = timeout;
+	  arg->cx->cfg.dial_next_timeout = timeout;
 	else {
 	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
 	  return -1;
@@ -920,13 +920,13 @@ SetRedialTimeout(struct cmdargs const *arg)
       }
     } else
       /* Default next timeout */
-      arg->cx->dial_next_timeout = DIAL_NEXT_TIMEOUT;
+      arg->cx->cfg.dial_next_timeout = DIAL_NEXT_TIMEOUT;
 
     if (arg->argc == 2) {
       tries = atoi(arg->argv[1]);
 
       if (tries >= 0) {
-	arg->cx->max_dial = tries;
+	arg->cx->cfg.max_dial = tries;
       } else {
 	LogPrintf(LogWARN, "Invalid retry value\n");
 	return 1;
@@ -1326,14 +1326,14 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_DIAL:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->script.dial, argp, sizeof cx->script.dial - 1);
-      cx->script.dial[sizeof cx->script.dial - 1] = '\0';
+      strncpy(cx->cfg.script.dial, argp, sizeof cx->cfg.script.dial - 1);
+      cx->cfg.script.dial[sizeof cx->cfg.script.dial - 1] = '\0';
     }
     break;
   case VAR_LOGIN:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->script.login, argp, sizeof cx->script.login - 1);
-      cx->script.login[sizeof cx->script.login - 1] = '\0';
+      strncpy(cx->cfg.script.login, argp, sizeof cx->cfg.script.login - 1);
+      cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
     }
     break;
   case VAR_DEVICE:
@@ -1353,8 +1353,8 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_HANGUP:
     if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
-      strncpy(cx->script.hangup, argp, sizeof cx->script.hangup - 1);
-      cx->script.hangup[sizeof cx->script.hangup - 1] = '\0';
+      strncpy(cx->cfg.script.hangup, argp, sizeof cx->cfg.script.hangup - 1);
+      cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     }
     break;
 #ifdef HAVE_DES

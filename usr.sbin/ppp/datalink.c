@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.7 1998/02/17 19:27:55 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.8 1998/02/17 19:28:27 brian Exp $
  */
 
 #include <sys/param.h>
@@ -103,20 +103,20 @@ datalink_HangupDone(struct datalink *dl)
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
-    datalink_StartDialTimer(dl, dl->dial_timeout);
+    datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
   } else {
     LogPrintf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     if (dl->dial_tries < 0) {
-      datalink_StartDialTimer(dl, dl->reconnect_timeout);
-      dl->dial_tries = dl->max_dial;
+      datalink_StartDialTimer(dl, dl->cfg.reconnect_timeout);
+      dl->dial_tries = dl->cfg.max_dial;
       dl->reconnect_tries--;
     } else {
       dl->dial_tries--;
       if (VarNextPhone == NULL)
-        datalink_StartDialTimer(dl, dl->dial_timeout);
+        datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
       else
-        datalink_StartDialTimer(dl, dl->dial_next_timeout);
+        datalink_StartDialTimer(dl, dl->cfg.dial_next_timeout);
     }
   }
 }
@@ -131,7 +131,7 @@ datalink_LoginDone(struct datalink *dl)
       LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
       modem_Offline(dl->physical);
-      chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
+      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
     } else
       datalink_HangupDone(dl);
   } else {
@@ -175,27 +175,28 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           if (dl->script.run) {
             LogPrintf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
             dl->state = DATALINK_DIAL;
-            chat_Init(&dl->chat, dl->physical, dl->script.dial, 1);
-            if (!(mode & MODE_DDIAL) && dl->max_dial)
+            chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1);
+            if (!(mode & MODE_DDIAL) && dl->cfg.max_dial)
               LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
-                        dl->name, dl->max_dial - dl->dial_tries, dl->max_dial);
+                        dl->name, dl->cfg.max_dial - dl->dial_tries,
+                        dl->cfg.max_dial);
           } else
             datalink_LoginDone(dl);
         } else {
-          if (!(mode & MODE_DDIAL) && dl->max_dial)
+          if (!(mode & MODE_DDIAL) && dl->cfg.max_dial)
             LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
-                      dl->max_dial - dl->dial_tries, dl->max_dial);
+                      dl->cfg.max_dial - dl->dial_tries, dl->cfg.max_dial);
           else
             LogPrintf(LogCHAT, "Failed to open modem\n");
 
-          if (!(mode & MODE_DDIAL) && dl->max_dial && dl->dial_tries == 0) {
+          if (!(mode & MODE_DDIAL) && dl->cfg.max_dial && dl->dial_tries == 0) {
             LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
             bundle_LinkClosed(dl->bundle, dl);
           }
-          datalink_StartDialTimer(dl, dl->dial_timeout);
+          datalink_StartDialTimer(dl, dl->cfg.dial_timeout);
         }
       }
       break;
@@ -214,7 +215,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_DIAL:
               LogPrintf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
               dl->state = DATALINK_LOGIN;
-              chat_Init(&dl->chat, dl->physical, dl->script.login, 0);
+              chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0);
               break;
             case DATALINK_LOGIN:
               datalink_LoginDone(dl);
@@ -233,7 +234,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
               dl->state = DATALINK_HANGUP;
               modem_Offline(dl->physical);
-              chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
+              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
               break;
           }
           break;
@@ -334,9 +335,9 @@ datalink_Create(const char *name, struct bundle *bundle)
 
   dl->state = DATALINK_CLOSED;
 
-  *dl->script.dial = '\0';
-  *dl->script.login = '\0';
-  *dl->script.hangup = '\0';
+  *dl->cfg.script.dial = '\0';
+  *dl->cfg.script.login = '\0';
+  *dl->cfg.script.hangup = '\0';
   dl->script.run = 1;
   dl->script.packetmode = 1;
 
@@ -346,13 +347,13 @@ datalink_Create(const char *name, struct bundle *bundle)
   memset(&dl->dial_timer, '\0', sizeof dl->dial_timer);
 
   dl->dial_tries = 0;
-  dl->max_dial = 1;
-  dl->dial_timeout = DIAL_TIMEOUT;
-  dl->dial_next_timeout = DIAL_NEXT_TIMEOUT;
+  dl->cfg.max_dial = 1;
+  dl->cfg.dial_timeout = DIAL_TIMEOUT;
+  dl->cfg.dial_next_timeout = DIAL_NEXT_TIMEOUT;
 
   dl->reconnect_tries = 0;
-  dl->max_reconnect = 0;
-  dl->reconnect_timeout = RECONNECT_TIMEOUT;
+  dl->cfg.max_reconnect = 0;
+  dl->cfg.reconnect_timeout = RECONNECT_TIMEOUT;
 
   dl->name = strdup(name);
   if ((dl->physical = modem_Create(dl->name)) == NULL) {
@@ -396,8 +397,8 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
     case DATALINK_CLOSED:
       LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
       dl->state = DATALINK_OPENING;
-      dl->reconnect_tries = dl->max_reconnect;
-      dl->dial_tries = dl->max_dial;
+      dl->reconnect_tries = dl->cfg.max_reconnect;
+      dl->dial_tries = dl->cfg.max_dial;
       dl->script.run = runscripts;
       dl->script.packetmode = packetmode;
       break;
@@ -432,7 +433,7 @@ datalink_ComeDown(struct datalink *dl, int stay)
     if (dl->script.run) {
       LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
-      chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
+      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
     } else
       datalink_HangupDone(dl);
   }

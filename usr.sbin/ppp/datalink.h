@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.5 1998/02/17 01:05:38 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.6 1998/02/17 19:28:28 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -40,24 +40,29 @@ struct datalink {
   struct physical *physical;	/* Our link */
 
   struct chat chat;		/* For bringing the link up & down */
+
   struct {
-    char dial[SCRIPT_LEN];	/* dial */
-    char login[SCRIPT_LEN];	/* login */
-    char hangup[SCRIPT_LEN];	/* hangup */
     unsigned run : 1;		/* run scripts ? */
     unsigned packetmode : 1;	/* Go into packet mode after login ? */
   } script;
 
   struct pppTimer dial_timer;	/* For timing between opens & scripts */
 
-  int dial_tries;		/* currently try again this number of times */
-  int max_dial;			/* initially try again this number of times */
-  int dial_timeout;		/* Redial timeout value */
-  int dial_next_timeout;	/* Redial next timeout value */
+  struct {
+    struct {
+      char dial[SCRIPT_LEN];	/* dial */
+      char login[SCRIPT_LEN];	/* login */
+      char hangup[SCRIPT_LEN];	/* hangup */
+    } script;
+    int max_dial;		/* initially try again this number of times */
+    int dial_timeout;		/* Redial timeout value */
+    int dial_next_timeout;	/* Redial next timeout value */
+    int max_reconnect;		/* initially try again this number of times */
+    int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
+  } cfg;			/* All our config data is in here */
 
+  int dial_tries;		/* currently try again this number of times */
   unsigned reconnect_tries;	/* currently try again this number of times */
-  int max_reconnect;		/* initially try again this number of times */
-  int reconnect_timeout;	/* Timeout before reconnect on carrier loss */
 
   char *name;			/* Our name */
 
