@@ -210,6 +210,13 @@ cpu_fork(p1, p2, flags)
 		up->u_pcb.pcb_context[2] = (u_long) p2;	/* s2: a0 */
 		up->u_pcb.pcb_context[7] =
 		    (u_int64_t)switch_trampoline;	/* ra: assembly magic */
+
+		/*
+		 * Clear the saved recursion count for sched_lock
+		 * since the child needs only one count which is
+		 * released in switch_trampoline.
+		 */
+		up->u_pcb.pcb_schednest = 0;
 	}
 }
 
