@@ -1,4 +1,4 @@
-/*	$KAME: ftp.c,v 1.10 2000/09/14 00:23:39 itojun Exp $	*/
+/*	$KAME: ftp.c,v 1.11 2001/07/02 14:36:49 itojun Exp $	*/
 
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
@@ -103,7 +103,7 @@ ftp_relay(int ctl6, int ctl4)
 
 		error = select(256, &readfds, NULL, NULL, &tv);
 		if (error == -1)
-			exit_failure("select: %s", ERRSTR);
+			exit_failure("select: %s", strerror(errno));
 		else if (error == 0)
 			exit_failure("connection timeout");
 
@@ -208,7 +208,7 @@ ftp_relay(int ctl6, int ctl4)
 	}
 
  bad:
-	exit_failure(ERRSTR);
+	exit_failure("%s", strerror(errno));
 }
 
 static int
@@ -338,7 +338,7 @@ ftp_copy(int src, int dst)
 	}
 
  bad:
-	exit_failure(ERRSTR);
+	exit_failure("%s", strerror(errno));
 	/*NOTREACHED*/
 	return 0;	/* to make gcc happy */
 }
@@ -514,7 +514,7 @@ passivefail:
 		error = setsockopt(wport6, IPPROTO_IPV6, IPV6_FAITH,
 			&on, sizeof(on));
 		if (error == -1)
-			exit_failure("setsockopt(IPV6_FAITH): %s", ERRSTR);
+			exit_failure("setsockopt(IPV6_FAITH): %s", strerror(errno));
 	    }
 #endif
 		error = bind(wport6, (struct sockaddr *)sin6, sin6->sin6_len);
@@ -635,7 +635,7 @@ passivefail2:
 		error = setsockopt(wport6, IPPROTO_IP, IP_FAITH,
 			&on, sizeof(on));
 		if (error == -1)
-			exit_error("setsockopt(IP_FAITH): %s", ERRSTR);
+			exit_error("setsockopt(IP_FAITH): %s", strerror(errno));
 	    }
 #endif
 		error = bind(wport6, (struct sockaddr *)sin, sin->sin_len);
@@ -693,7 +693,7 @@ passivefail2:
 	}
 
  bad:
-	exit_failure(ERRSTR);
+	exit_failure("%s", strerror(errno));
 	/*NOTREACHED*/
 	return 0;	/* to make gcc happy */
 }
@@ -1135,7 +1135,7 @@ portfail:
 	}
 
  bad:
-	exit_failure(ERRSTR);
+	exit_failure("%s", strerror(errno));
 	/*NOTREACHED*/
 	return 0;	/* to make gcc happy */
 }

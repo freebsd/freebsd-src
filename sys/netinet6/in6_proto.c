@@ -124,7 +124,7 @@
 #ifdef INET6
 #include <netinet6/ipcomp6.h>
 #endif
-#endif /*IPSEC*/
+#endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
 
@@ -224,7 +224,7 @@ struct ip6protosw inet6sw[] = {
   encap_init,	0,		0,		0,
   &rip6_usrreqs
 },
-#endif /*INET*/
+#endif /* INET */
 { SOCK_RAW,	&inet6domain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   encap6_input, rip6_output,	0,		rip6_ctloutput,
   0,

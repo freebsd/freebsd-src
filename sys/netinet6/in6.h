@@ -126,7 +126,7 @@ struct in6_addr {
 };
 
 #define s6_addr   __u6_addr.__u6_addr8
-#ifdef _KERNEL	/*XXX nonstandard*/
+#ifdef _KERNEL	/* XXX nonstandard */
 #define s6_addr8  __u6_addr.__u6_addr8
 #define s6_addr16 __u6_addr.__u6_addr16
 #define s6_addr32 __u6_addr.__u6_addr32
@@ -152,7 +152,7 @@ struct sockaddr_in6 {
 /*
  * Local definition for masks
  */
-#ifdef _KERNEL	/*XXX nonstandard*/
+#ifdef _KERNEL	/* XXX nonstandard */
 #define IN6MASK0	{{{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}}
 #define IN6MASK32	{{{ 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, \
 			    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }}}
@@ -177,7 +177,7 @@ extern const struct in6_addr in6mask128;
 /*
  * Macros started with IPV6_ADDR is KAME local
  */
-#ifdef _KERNEL	/*XXX nonstandard*/
+#ifdef _KERNEL	/* XXX nonstandard */
 #if BYTE_ORDER == BIG_ENDIAN
 #define IPV6_ADDR_INT32_ONE	1
 #define IPV6_ADDR_INT32_TWO	2
@@ -286,7 +286,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
  * KAME Scope Values
  */
 
-#ifdef _KERNEL	/*XXX nonstandard*/
+#ifdef _KERNEL	/* XXX nonstandard */
 #define IPV6_ADDR_SCOPE_NODELOCAL	0x01
 #define IPV6_ADDR_SCOPE_LINKLOCAL	0x02
 #define IPV6_ADDR_SCOPE_SITELOCAL	0x05
@@ -314,7 +314,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
  */
 #define IN6_IS_ADDR_MULTICAST(a)	((a)->s6_addr[0] == 0xff)
 
-#ifdef _KERNEL	/*XXX nonstandard*/
+#ifdef _KERNEL	/* XXX nonstandard */
 #define IPV6_ADDR_MC_SCOPE(a)		((a)->s6_addr[1] & 0x0f)
 #else
 #define __IPV6_ADDR_MC_SCOPE(a)		((a)->s6_addr[1] & 0x0f)
@@ -323,7 +323,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 /*
  * Multicast Scope
  */
-#ifdef _KERNEL	/*refers nonstandard items */
+#ifdef _KERNEL	/* refers nonstandard items */
 #define IN6_IS_ADDR_MC_NODELOCAL(a)	\
 	(IN6_IS_ADDR_MULTICAST(a) &&	\
 	 (IPV6_ADDR_MC_SCOPE(a) == IPV6_ADDR_SCOPE_NODELOCAL))
@@ -357,7 +357,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 	 (__IPV6_ADDR_MC_SCOPE(a) == __IPV6_ADDR_SCOPE_GLOBAL))
 #endif
 
-#ifdef _KERNEL	/*nonstandard*/
+#ifdef _KERNEL	/* nonstandard */
 /*
  * KAME Scope
  */
@@ -419,12 +419,12 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#if 1 /*IPSEC*/
+#if 1 /* IPSEC */
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
 #endif
 #define IPV6_FAITH		29 /* bool; accept FAITH'ed connections */
 
-#if 1 /*IPV6FIREWALL*/
+#if 1 /* IPV6FIREWALL */
 #define IPV6_FW_ADD		30 /* add a firewall rule to chain */
 #define IPV6_FW_DEL		31 /* delete a firewall rule from chain */
 #define IPV6_FW_FLUSH		32 /* flush firewall rule chain */
@@ -441,8 +441,8 @@ struct route_in6 {
 /*
  * Defaults and limits for options
  */
-#define IPV6_DEFAULT_MULTICAST_HOPS 1	/* normally limit m'casts to 1 hop  */
-#define IPV6_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member  */
+#define IPV6_DEFAULT_MULTICAST_HOPS 1	/* normally limit m'casts to 1 hop */
+#define IPV6_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member */
 
 /*
  * Argument structure for IPV6_JOIN_GROUP and IPV6_LEAVE_GROUP.
@@ -551,7 +551,7 @@ struct in6_pktinfo {
 #define IPV6CTL_KAME_VERSION	20
 #define IPV6CTL_USE_DEPRECATED	21	/* use deprecated addr (RFC2462 5.5.4) */
 #define IPV6CTL_RR_PRUNE	22	/* walk timer for router renumbering */
-#if 0	/*obsolete*/
+#if 0	/* obsolete */
 #define IPV6CTL_MAPPED_ADDR	23
 #endif
 #define IPV6CTL_V6ONLY		24

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: net_osdep.c,v 1.10 2001/07/26 19:08:37 itojun Exp $	*/
+/*	$KAME: net_osdep.c,v 1.9 2001/04/06 09:22:05 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.

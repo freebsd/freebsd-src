@@ -1,3 +1,5 @@
+/*	$KAME: inet_pton.c,v 1.5 2001/08/20 02:32:40 itojun Exp $	*/
+
 /* Copyright (c) 1996 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any

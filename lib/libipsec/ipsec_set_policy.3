@@ -1,4 +1,4 @@
-.\"	$KAME: ipsec_set_policy.3,v 1.14 2001/04/06 07:00:46 itojun Exp $
+.\"	$KAME: ipsec_set_policy.3,v 1.15 2001/08/17 07:21:36 itojun Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -62,6 +62,8 @@ of
 .Fa policy .
 .Fn ipsec_set_policy
 will return the buffer of IPsec policy specification structure.
+The buffer is dynamically allocated, and must be freed by the caller by calling
+.Xr free 3 .
 .Pp
 You may want the length of the generated buffer such when calling
 .Xr setsockopt 2 .

@@ -1,4 +1,4 @@
-/*	$KAME: tcp.c,v 1.5 2000/09/29 03:48:31 sakane Exp $	*/
+/*	$KAME: tcp.c,v 1.8 2001/11/21 07:40:22 itojun Exp $	*/
 
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
@@ -60,7 +60,7 @@ static fd_set readfds, writefds, exceptfds;
 static char atmark_buf[2];
 static pid_t cpid = (pid_t)0;
 static pid_t ppid = (pid_t)0;
-static time_t child_lastactive = (time_t)0;
+volatile time_t child_lastactive = (time_t)0;
 static time_t parent_lastactive = (time_t)0;
 
 static void sig_ctimeout __P((int));
@@ -179,7 +179,7 @@ send_data(int s_rcv, int s_snd, const char *service, int direction)
 	return;
     retry_or_err:
 	if (errno != EAGAIN)
-		exit_failure("writing relay data failed: %s", ERRSTR);
+		exit_failure("writing relay data failed: %s", strerror(errno));
 	FD_SET(s_snd, &writefds);
 }
 
@@ -210,7 +210,7 @@ relay(int s_rcv, int s_snd, const char *service, int direction)
 		if (error == -1) {
 			if (errno == EINTR)
 				continue;
-			exit_failure("select: %s", ERRSTR);
+			exit_failure("select: %s", strerror(errno));
 		} else if (error == 0) {
 			readfds = oreadfds;
 			writefds = owritefds;
@@ -237,7 +237,7 @@ relay(int s_rcv, int s_snd, const char *service, int direction)
 						goto oob_read_retry;
 					exit_failure("reading oob data failed"
 						     ": %s",
-						     ERRSTR);
+						     strerror(errno));
 				}
 			}
 		}
@@ -251,7 +251,7 @@ relay(int s_rcv, int s_snd, const char *service, int direction)
 				if (errno == EINTR)
 					goto relaydata_read_retry;
 				exit_failure("reading relay data failed: %s",
-					     ERRSTR);
+					     strerror(errno));
 				/* NOTREACHED */
 			case 0:
 				/* to close opposite-direction relay process */
@@ -282,7 +282,8 @@ tcp_relay(int s_src, int s_dst, const char *service)
 	cpid = fork();
 	switch (cpid) {
 	case -1:
-		exit_failure("tcp_relay: can't fork grand child: %s", ERRSTR);
+		exit_failure("tcp_relay: can't fork grand child: %s",
+		    strerror(errno));
 		/* NOTREACHED */
 	case 0:
 		/* child process: relay going traffic */

@@ -111,7 +111,7 @@ in_gif_output(ifp, family, m, rt)
 		tos = ip->ip_tos;
 		break;
 	    }
-#endif /*INET*/
+#endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 	    {
@@ -126,7 +126,7 @@ in_gif_output(ifp, family, m, rt)
 		tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 		break;
 	    }
-#endif /*INET6*/
+#endif /* INET6 */
 	default:
 #ifdef DEBUG
 		printf("in_gif_output: warning: unknown family %d passed\n",
@@ -189,7 +189,7 @@ in_gif_output(ifp, family, m, rt)
 		/* if it constitutes infinite encapsulation, punt. */
 		if (sc->gif_ro.ro_rt->rt_ifp == ifp) {
 			m_freem(m);
-			return ENETUNREACH;	/*XXX*/
+			return ENETUNREACH;	/* XXX */
 		}
 #if 0
 		ifp->if_mtu = sc->gif_ro.ro_rt->rt_ifp->if_mtu

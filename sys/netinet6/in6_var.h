@@ -80,7 +80,7 @@
  * hour rule for hosts).  they should never be modified by nd6_timeout or
  * anywhere else.
  *	userland -> kernel: accept pltime/vltime
- *	kernel -> userland: throuw up everything
+ *	kernel -> userland: throw up everything
  *	in kernel: modify preferred/expire only
  */
 struct in6_addrlifetime {
@@ -513,7 +513,7 @@ extern LIST_HEAD(in6_multihead, in6_multi) in6_multihead;
 
 /*
  * Structure used by macros below to remember position when stepping through
- * all of eht in6_multi records.
+ * all of the in6_multi records.
  */
 struct	in6_multistep {
 	struct	in6_ifaddr *i_ia;
