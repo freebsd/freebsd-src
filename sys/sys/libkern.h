@@ -89,14 +89,14 @@ char	*rindex(const char *, int);
 int	 scanc(u_int, const u_char *, const u_char *, int);
 int	 skpc(int, int, char *);
 void	 srandom(u_long);
-char	*strcat(char *, const char *);
+char	*strcat(char * __restrict, const char * __restrict);
 int	 strcmp(const char *, const char *);
-char	*strcpy(char *, const char *);
+char	*strcpy(char * __restrict, const char * __restrict);
 size_t	 strlcat(char *, const char *, size_t);
 size_t	 strlcpy(char *, const char *, size_t);
 size_t	 strlen(const char *);
 int	 strncmp(const char *, const char *, size_t);
-char	*strncpy(char *, const char *, size_t);
+char	*strncpy(char * __restrict, const char * __restrict, size_t);
 char	*strsep(char **, const char *delim);
 int	 strvalid(const char *, size_t);
 

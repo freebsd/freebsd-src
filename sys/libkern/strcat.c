@@ -36,9 +36,7 @@
 #include <sys/libkern.h>
 
 char *
-strcat(s, append)
-	register char *s;
-	register const char *append;
+strcat(char * __restrict s, const char * __restrict append)
 {
 	char *save = s;
 
