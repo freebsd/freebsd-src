@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.57 1998/11/24 20:25:52 eivind Exp $
+ * 	$Id: pmap.h,v 1.58 1999/03/02 16:20:39 dg Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -88,13 +88,13 @@
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #ifndef NKPT
-#define	NKPT			9	/* actual number of kernel page tables */
+#define	NKPT			17	/* actual number of kernel page tables */
 #endif
 #ifndef NKPDE
 #ifdef SMP
-#define NKPDE			62	/* addressable number of page tables/pde's */
+#define NKPDE			254	/* addressable number of page tables/pde's */
 #else
-#define NKPDE			63	/* addressable number of page tables/pde's */
+#define NKPDE			255	/* addressable number of page tables/pde's */
 #endif	/* SMP */
 #endif
 
