@@ -86,6 +86,7 @@ main(int argc, char *argv[])
 {
 	register CTL_MSG *mp = &request;
 	int cc;
+	struct sockaddr ctl_addr;
 
 #ifdef NOTDEF
 	/*
@@ -116,12 +117,13 @@ main(int argc, char *argv[])
 			continue;
 		}
 		lastmsgtime = time(0);
+		(void)memcpy(&ctl_addr, &mp->ctl_addr, sizeof(ctl_addr));
+		ctl_addr.sa_family = ntohs(mp->ctl_addr.sa_family);
+		ctl_addr.sa_len = sizeof(ctl_addr);
 		process_request(mp, &response);
 		/* can block here, is this what I want? */
-		mp->ctl_addr.sa_family = htons(mp->ctl_addr.sa_family);
-		cc = sendto(sockt, (char *)&response,
-		    sizeof (response), 0, (struct sockaddr *)&mp->ctl_addr,
-		    sizeof (mp->ctl_addr));
+		cc = sendto(sockt, (char *)&response, sizeof (response), 0,
+		    &ctl_addr, sizeof (ctl_addr));
 		if (cc != sizeof (response))
 			syslog(LOG_WARNING, "sendto: %m");
 	}
