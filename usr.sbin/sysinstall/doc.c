@@ -101,13 +101,13 @@ docShowDocument(dialogMenuItem *self)
     else if (!strcmp(str, "Other"))
 	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
     else if (!strcmp(str, "FAQ")) {
-	strcpy(target, "/usr/share/doc/FAQ/FAQ.html");
+	strcpy(target, "/usr/share/doc/faq/index.html");
 	if (!file_readable(target))
 	    strcpy(target, "http://www.freebsd.org/FAQ");
 	where = target;
     }
     else if (!strcmp(str, "Handbook")) {
-	strcpy(target, "/usr/share/doc/handbook/handbook.html");
+	strcpy(target, "/usr/share/doc/handbook/index.html");
 	if (!file_readable(target))
 	    strcpy(target, "http://www.freebsd.org/handbook");
 	where = target;
