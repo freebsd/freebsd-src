@@ -242,6 +242,30 @@ msgYesNo(char *fmt, ...)
     return ret;
 }
 
+/* Put up a message in a popup no/yes box and return 1 for YES, 0 for NO */
+int
+msgNoYes(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+    int ret;
+    WINDOW *w = savescr();
+    
+    errstr = (char *)alloca(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    if (OnVTY) {
+	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
+	msgInfo(NULL);
+    }
+    ret = dialog_noyes("User Confirmation Requested", errstr, -1, -1);
+    restorescr(w);
+    return ret;
+}
+
 /* Put up a message in an input box and return the value */
 char *
 msgGetInput(char *buf, char *fmt, ...)

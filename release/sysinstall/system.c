@@ -390,7 +390,7 @@ systemCreateHoloshell(void)
 
 	    if (kill(ehs_pid, 0) == 0) {
 
-		if (msgYesNo("There seems to be an emergency holographic shell\n"
+		if (msgNoYes("There seems to be an emergency holographic shell\n"
 			     "already running on VTY 4.\n\n"
 			     "Kill it and start a new one?"))
 		    return;

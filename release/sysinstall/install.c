@@ -567,31 +567,29 @@ nodisks:
 	dialog_clear_norefresh();
     }
 
-    if (msgYesNo("Will this machine be a leaf node (e.g. will not forward packets\n"
-		 "between interfaces)?"))
+    if (!msgNoYes("Do you want this machine to function as a network gateway?"))
 	variable_set2("gateway_enable", "YES", 1);
 
     dialog_clear_norefresh();
-    if (msgYesNo("Do you want to grant only normal users FTP access to this\n"
-	         "host (e.g. no anonymous FTP connections)?"))
+    if (!msgNoYes("Do you want to have anonymous FTP access to this machine?"))
 	configAnonFTP(self);
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
+    if (!msgNoYes("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
+    if (!msgNoYes("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
 
-    if (!msgYesNo("Do you want to select a default security profile for\n"
+    if (!msgNoYes("Do you want to select a default security profile for\n"
 	         "this host (select No for \"medium\" security)?"))
 	configSecurityProfile(self);
     else
 	configSecurityModerate(self);
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to customize your system console settings?"))
+    if (!msgNoYes("Would you like to customize your system console settings?"))
 	dmenuOpenSimple(&MenuSyscons, FALSE);
 
     dialog_clear_norefresh();
@@ -605,7 +603,7 @@ nodisks:
 #endif
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Does this system have a non-USB mouse attached to it?"))
+    if (!msgNoYes("Does this system have a USB mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
 
     /* Now would be a good time to checkpoint the configuration data */
@@ -731,7 +729,7 @@ static void
 installConfigure(void)
 {
     /* Final menu of last resort */
-    if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
+    if (!msgNoYes("Visit the general configuration menu for a chance to set\n"
 		  "any last options?"))
 	dmenuOpenSimple(&MenuConfigure, FALSE);
     configRC_conf();
@@ -924,7 +922,7 @@ installFilesystems(dialogMenuItem *self)
 	if (strcmp(root->mountpoint, "/"))
 	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
 
-	if (root->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs the root partition?"))) {
+	if (root->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs the root partition?"))) {
 	    int i;
 
 	    dialog_clear_norefresh();
@@ -986,7 +984,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
+			if (tmp->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
