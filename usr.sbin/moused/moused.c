@@ -35,13 +35,13 @@
  ** MOUSED.C
  **
  ** Mouse daemon : listens to a serial port, the bus mouse interface, or
- ** the PS/2 mouse port for mouse data stream, interprets data and passes 
+ ** the PS/2 mouse port for mouse data stream, interprets data and passes
  ** ioctls off to the console driver.
  **
  ** The mouse interface functions are derived closely from the mouse
  ** handler in the XFree86 X server.  Many thanks to the XFree86 people
  ** for their great work!
- ** 
+ **
  **/
 
 #ifndef lint
@@ -97,11 +97,11 @@ static const char rcsid[] =
 #define ClearDTR	0x0004
 #define ClearRTS	0x0008
 #define NoPnP		0x0010
-	
+
 #define ID_NONE		0
 #define ID_PORT		1
 #define ID_IF		2
-#define ID_TYPE 	4
+#define ID_TYPE	4
 #define ID_MODEL	8
 #define ID_ALL		(ID_PORT | ID_IF | ID_TYPE | ID_MODEL)
 
@@ -212,7 +212,7 @@ static symtab_t	rmodels[] = {
     { "4D Mouse",		MOUSE_MODEL_4D },
     { "4D+ Mouse",		MOUSE_MODEL_4DPLUS },
     { "generic",		MOUSE_MODEL_GENERIC },
-    { NULL, 			MOUSE_MODEL_UNKNOWN },
+    { NULL,			MOUSE_MODEL_UNKNOWN },
 };
 
 /* PnP EISA/product IDs */
@@ -234,7 +234,7 @@ static symtab_t pnpprod[] = {
     /* Genius Kidspad, Easypad and other tablets */
     { "KYE0005",	MOUSE_PROTO_KIDSPAD,	MOUSE_MODEL_KIDSPAD },
     /* Genius EZScroll */
-    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
+    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },
     /* Logitech Cordless MouseMan Wheel */
     { "LGI8033",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan (new 4 button model) */
@@ -255,47 +255,47 @@ static symtab_t pnpprod[] = {
     /* MS bus */
     { "PNP0F00",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
     /* MS serial */
-    { "PNP0F01",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F01",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS InPort */
-    { "PNP0F02",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC }, 
+    { "PNP0F02",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC },
     /* MS PS/2 */
-    { "PNP0F03",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },    
+    { "PNP0F03",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /*
      * EzScroll returns PNP0F04 in the compatible device field; but it
      * doesn't look compatible... XXX
      */
-    /* MouseSystems */ 
-    { "PNP0F04",	MOUSE_PROTO_MSC,	MOUSE_MODEL_GENERIC },    
-    /* MouseSystems */ 
-    { "PNP0F05",	MOUSE_PROTO_MSC,	MOUSE_MODEL_GENERIC },    
+    /* MouseSystems */
+    { "PNP0F04",	MOUSE_PROTO_MSC,	MOUSE_MODEL_GENERIC },
+    /* MouseSystems */
+    { "PNP0F05",	MOUSE_PROTO_MSC,	MOUSE_MODEL_GENERIC },
 #if notyet
-    /* Genius Mouse */ 
-    { "PNP0F06",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },    
-    /* Genius Mouse */ 
-    { "PNP0F07",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },    
+    /* Genius Mouse */
+    { "PNP0F06",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
+    /* Genius Mouse */
+    { "PNP0F07",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
 #endif
     /* Logitech serial */
     { "PNP0F08",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
     /* MS BallPoint serial */
-    { "PNP0F09",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F09",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS PnP serial */
-    { "PNP0F0A",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F0A",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS PnP BallPoint serial */
-    { "PNP0F0B",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F0B",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS serial comatible */
-    { "PNP0F0C",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F0C",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS InPort comatible */
-    { "PNP0F0D",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC }, 
+    { "PNP0F0D",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC },
     /* MS PS/2 comatible */
-    { "PNP0F0E",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },    
+    { "PNP0F0E",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /* MS BallPoint comatible */
-    { "PNP0F0F",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },     
+    { "PNP0F0F",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
 #if notyet
     /* TI QuickPort */
-    { "PNP0F10",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },     
+    { "PNP0F10",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
 #endif
     /* MS bus comatible */
-    { "PNP0F11",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },    
+    { "PNP0F11",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
     /* Logitech PS/2 */
     { "PNP0F12",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /* PS/2 */
@@ -304,7 +304,7 @@ static symtab_t pnpprod[] = {
     /* MS Kids Mouse */
     { "PNP0F14",	MOUSE_PROTO_???,	MOUSE_MODEL_GENERIC },
 #endif
-    /* Logitech bus */ 
+    /* Logitech bus */
     { "PNP0F15",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* Logitech SWIFT */
@@ -379,14 +379,14 @@ static struct rodentparam {
     mousemode_t mode;		/* protocol information */
     float accelx;		/* Acceleration in the X axis */
     float accely;		/* Acceleration in the Y axis */
-} rodent = { 
-    flags : 0, 
+} rodent = {
+    flags : 0,
     portname : NULL,
     rtype : MOUSE_PROTO_UNKNOWN,
     level : -1,
-    baudrate : 1200, 
+    baudrate : 1200,
     rate : 0,
-    resolution : MOUSE_RES_UNKNOWN, 
+    resolution : MOUSE_RES_UNKNOWN,
     zmap: { 0, 0, 0, 0 },
     wmode: 0,
     mfd : -1,
@@ -514,10 +514,10 @@ main(int argc, char *argv[])
 
 	case 'E':
 	    rodent.button2timeout = atoi(optarg);
-	    if ((rodent.button2timeout < 0) || 
-	        (rodent.button2timeout > MAX_BUTTON2TIMEOUT)) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+	    if ((rodent.button2timeout < 0) ||
+		(rodent.button2timeout > MAX_BUTTON2TIMEOUT)) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    break;
 
@@ -527,12 +527,12 @@ main(int argc, char *argv[])
 		warnx("invalid acceleration argument '%s'", optarg);
 		usage();
 	    }
-	    
+
 	    if (i == 1)
 		rodent.accely = rodent.accelx;
-	    
+
 	    break;
-	    
+
 	case 'c':
 	    rodent.flags |= ChordMiddle;
 	    break;
@@ -547,18 +547,18 @@ main(int argc, char *argv[])
 
 	case 'i':
 	    if (strcmp(optarg, "all") == 0)
-	        identify = ID_ALL;
+		identify = ID_ALL;
 	    else if (strcmp(optarg, "port") == 0)
-	        identify = ID_PORT;
+		identify = ID_PORT;
 	    else if (strcmp(optarg, "if") == 0)
-	        identify = ID_IF;
+		identify = ID_IF;
 	    else if (strcmp(optarg, "type") == 0)
-	        identify = ID_TYPE;
+		identify = ID_TYPE;
 	    else if (strcmp(optarg, "model") == 0)
-	        identify = ID_MODEL;
+		identify = ID_MODEL;
 	    else {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    nodaemon = TRUE;
 	    break;
@@ -566,15 +566,15 @@ main(int argc, char *argv[])
 	case 'l':
 	    rodent.level = atoi(optarg);
 	    if ((rodent.level < 0) || (rodent.level > 4)) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    break;
 
 	case 'm':
 	    if (!r_installmap(optarg)) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    break;
 
@@ -584,21 +584,21 @@ main(int argc, char *argv[])
 
 	case 'r':
 	    if (strcmp(optarg, "high") == 0)
-	        rodent.resolution = MOUSE_RES_HIGH;
+		rodent.resolution = MOUSE_RES_HIGH;
 	    else if (strcmp(optarg, "medium-high") == 0)
-	        rodent.resolution = MOUSE_RES_HIGH;
+		rodent.resolution = MOUSE_RES_HIGH;
 	    else if (strcmp(optarg, "medium-low") == 0)
-	        rodent.resolution = MOUSE_RES_MEDIUMLOW;
+		rodent.resolution = MOUSE_RES_MEDIUMLOW;
 	    else if (strcmp(optarg, "low") == 0)
-	        rodent.resolution = MOUSE_RES_LOW;
+		rodent.resolution = MOUSE_RES_LOW;
 	    else if (strcmp(optarg, "default") == 0)
-	        rodent.resolution = MOUSE_RES_DEFAULT;
+		rodent.resolution = MOUSE_RES_DEFAULT;
 	    else {
-	        rodent.resolution = atoi(optarg);
-	        if (rodent.resolution <= 0) {
-	            warnx("invalid argument `%s'", optarg);
-	            usage();
-	        }
+		rodent.resolution = atoi(optarg);
+		if (rodent.resolution <= 0) {
+		    warnx("invalid argument `%s'", optarg);
+		    usage();
+		}
 	    }
 	    break;
 
@@ -620,15 +620,15 @@ main(int argc, char *argv[])
 		rodent.zmap[0] = MOUSE_XAXIS;
 	    else if (strcmp(optarg, "y") == 0)
 		rodent.zmap[0] = MOUSE_YAXIS;
-            else {
+	    else {
 		i = atoi(optarg);
-		/* 
-		 * Use button i for negative Z axis movement and 
+		/*
+		 * Use button i for negative Z axis movement and
 		 * button (i + 1) for positive Z axis movement.
 		 */
 		if ((i <= 0) || (i > MOUSE_MAXBUTTON - 1)) {
-	            warnx("invalid argument `%s'", optarg);
-	            usage();
+		    warnx("invalid argument `%s'", optarg);
+		    usage();
 		}
 		rodent.zmap[0] = i;
 		rodent.zmap[1] = i + 1;
@@ -651,10 +651,10 @@ main(int argc, char *argv[])
 
 	case 'C':
 	    rodent.clickthreshold = atoi(optarg);
-	    if ((rodent.clickthreshold < 0) || 
-	        (rodent.clickthreshold > MAX_CLICKTHRESHOLD)) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+	    if ((rodent.clickthreshold < 0) ||
+		(rodent.clickthreshold > MAX_CLICKTHRESHOLD)) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    break;
 
@@ -665,8 +665,8 @@ main(int argc, char *argv[])
 	case 'F':
 	    rodent.rate = atoi(optarg);
 	    if (rodent.rate <= 0) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    break;
 
@@ -685,8 +685,8 @@ main(int argc, char *argv[])
 	case 'S':
 	    rodent.baudrate = atoi(optarg);
 	    if (rodent.baudrate <= 0) {
-	        warnx("invalid argument `%s'", optarg);
-	        usage();
+		warnx("invalid argument `%s'", optarg);
+		usage();
 	    }
 	    debug("rodent baudrate %d", rodent.baudrate);
 	    break;
@@ -731,7 +731,7 @@ main(int argc, char *argv[])
     switch(rodent.rtype) {
 
     case MOUSE_PROTO_INPORT:
-        /* INPORT and BUS are the same... */
+	/* INPORT and BUS are the same... */
 	rodent.rtype = MOUSE_PROTO_BUS;
 	/* FALLTHROUGH */
     case MOUSE_PROTO_BUS:
@@ -757,21 +757,21 @@ main(int argc, char *argv[])
 	    signal(SIGINT , cleanup);
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
-            if ((rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK, 0)) 
+	    if ((rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK, 0))
 		== -1)
-	        logerr(1, "unable to open %s", rodent.portname);
-            if (r_identify() == MOUSE_PROTO_UNKNOWN) {
-	        logwarnx("cannot determine mouse type on %s", rodent.portname);
-	        close(rodent.mfd);
-	        rodent.mfd = -1;
-            }
+		logerr(1, "unable to open %s", rodent.portname);
+	    if (r_identify() == MOUSE_PROTO_UNKNOWN) {
+		logwarnx("cannot determine mouse type on %s", rodent.portname);
+		close(rodent.mfd);
+		rodent.mfd = -1;
+	    }
 
 	    /* print some information */
-            if (identify != ID_NONE) {
+	    if (identify != ID_NONE) {
 		if (identify == ID_ALL)
-                    printf("%s %s %s %s\n", 
-		        rodent.portname, r_if(rodent.hw.iftype),
-		        r_name(rodent.rtype), r_model(rodent.hw.model));
+		    printf("%s %s %s %s\n",
+			rodent.portname, r_if(rodent.hw.iftype),
+			r_name(rodent.rtype), r_model(rodent.hw.model));
 		else if (identify & ID_PORT)
 		    printf("%s\n", rodent.portname);
 		else if (identify & ID_IF)
@@ -782,23 +782,23 @@ main(int argc, char *argv[])
 		    printf("%s\n", r_model(rodent.hw.model));
 		exit(0);
 	    } else {
-                debug("port: %s  interface: %s  type: %s  model: %s", 
+		debug("port: %s  interface: %s  type: %s  model: %s",
 		    rodent.portname, r_if(rodent.hw.iftype),
 		    r_name(rodent.rtype), r_model(rodent.hw.model));
 	    }
 
 	    if (rodent.mfd == -1) {
-	        /*
-	         * We cannot continue because of error.  Exit if the 
-		 * program has not become a daemon.  Otherwise, block 
-		 * until the the user corrects the problem and issues SIGHUP. 
-	         */
-	        if (!background)
+		/*
+		 * We cannot continue because of error.  Exit if the
+		 * program has not become a daemon.  Otherwise, block
+		 * until the the user corrects the problem and issues SIGHUP.
+		 */
+		if (!background)
 		    exit(1);
-	        sigpause(0);
+		sigpause(0);
 	    }
 
-            r_init();			/* call init function */
+	    r_init();			/* call init function */
 	    moused();
 	}
 
@@ -915,9 +915,9 @@ moused(void)
 	    if ((flags = r_protocol(b, &action0)) == 0)
 		continue;
 	    r_timestamp(&action0);
-	    r_statetrans(&action0, &action, 
-	    		 A(action0.button & MOUSE_BUTTON1DOWN,
-	    		   action0.button & MOUSE_BUTTON3DOWN));
+	    r_statetrans(&action0, &action,
+			 A(action0.button & MOUSE_BUTTON1DOWN,
+			   action0.button & MOUSE_BUTTON3DOWN));
 	    debug("flags:%08x buttons:%08x obuttons:%08x", action.flags,
 		  action.button, action.obutton);
 	}
@@ -932,24 +932,24 @@ moused(void)
 		action2.button, action2.dx, action2.dy, action2.dz);
 
 	    if (extioctl) {
-	        r_click(&action2);
-	        if (action2.flags & MOUSE_POSCHANGED) {
-    		    mouse.operation = MOUSE_MOTION_EVENT;
-	            mouse.u.data.buttons = action2.button;
-	            mouse.u.data.x = action2.dx * rodent.accelx;
-	            mouse.u.data.y = action2.dy * rodent.accely;
-	            mouse.u.data.z = action2.dz;
+		r_click(&action2);
+		if (action2.flags & MOUSE_POSCHANGED) {
+		    mouse.operation = MOUSE_MOTION_EVENT;
+		    mouse.u.data.buttons = action2.button;
+		    mouse.u.data.x = action2.dx * rodent.accelx;
+		    mouse.u.data.y = action2.dy * rodent.accely;
+		    mouse.u.data.z = action2.dz;
 		    if (debug < 2)
-	                ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
-	        }
+			ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		}
 	    } else {
-	        mouse.operation = MOUSE_ACTION;
-	        mouse.u.data.buttons = action2.button;
-	        mouse.u.data.x = action2.dx * rodent.accelx;
-	        mouse.u.data.y = action2.dy * rodent.accely;
-	        mouse.u.data.z = action2.dz;
+		mouse.operation = MOUSE_ACTION;
+		mouse.u.data.buttons = action2.button;
+		mouse.u.data.x = action2.dx * rodent.accelx;
+		mouse.u.data.y = action2.dy * rodent.accely;
+		mouse.u.data.z = action2.dz;
 		if (debug < 2)
-	            ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		    ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 	    }
 
 	    /*
@@ -957,27 +957,27 @@ moused(void)
 	     * button, we need to cook up a corresponding button `up' event
 	     * after sending a button `down' event.
 	     */
-            if ((rodent.zmap[0] > 0) && (action.dz != 0)) {
+	    if ((rodent.zmap[0] > 0) && (action.dz != 0)) {
 		action.obutton = action.button;
 		action.dx = action.dy = action.dz = 0;
-	        r_map(&action, &action2);
-	        debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
+		r_map(&action, &action2);
+		debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
 		    action2.button, action2.dx, action2.dy, action2.dz);
 
-	        if (extioctl) {
-	            r_click(&action2);
-	        } else {
-	            mouse.operation = MOUSE_ACTION;
-	            mouse.u.data.buttons = action2.button;
+		if (extioctl) {
+		    r_click(&action2);
+		} else {
+		    mouse.operation = MOUSE_ACTION;
+		    mouse.u.data.buttons = action2.button;
 		    mouse.u.data.x = mouse.u.data.y = mouse.u.data.z = 0;
 		    if (debug < 2)
-	                ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
-	        }
+			ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		}
 	    }
 	}
     }
     /* NOT REACHED */
-}	    	
+}
 
 static void
 hup(int sig)
@@ -985,7 +985,7 @@ hup(int sig)
     longjmp(env, 1);
 }
 
-static void 
+static void
 cleanup(int sig)
 {
     if (rodent.rtype == MOUSE_PROTO_X10MOUSEREM)
@@ -1085,20 +1085,20 @@ log_or_warn(int log_pri, int errnum, const char *fmt, ...)
 /* the following table must be ordered by MOUSE_PROTO_XXX in mouse.h */
 static unsigned char proto[][7] = {
     /*  hd_mask hd_id   dp_mask dp_id   bytes b4_mask b4_id */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* MicroSoft */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* MicroSoft */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* MouseSystems */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* Logitech */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* MMSeries */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* MouseMan */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* MouseMan */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* Bus */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* InPort */
     {	0xc0,	0x00,	0x00,	0x00,	3,    0x00,  0xff }, /* PS/2 mouse */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* MM HitTablet */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* GlidePoint */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x3f,  0x00 }, /* IntelliMouse */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* ThinkingMouse */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* GlidePoint */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x3f,  0x00 }, /* IntelliMouse */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* ThinkingMouse */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* sysmouse */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
+    {	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* X10 MouseRem */
     {	0x80,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* KIDSPAD */
     {	0xc3,	0xc0,	0x00,	0x00,	6,    0x00,  0xff }, /* VersaPad */
     {	0x00,	0x00,	0x00,	0x00,	1,    0x00,  0xff }, /* JogDial */
@@ -1124,7 +1124,7 @@ r_identify(void)
     rodent.level = (ioctl(rodent.mfd, MOUSE_GETLEVEL, &level) == 0) ? level : 0;
 
     /*
-     * Interrogate the driver and get some intelligence on the device... 
+     * Interrogate the driver and get some intelligence on the device...
      * The following ioctl functions are not always supported by device
      * drivers.  When the driver doesn't support them, we just trust the
      * user to supply valid information.
@@ -1134,77 +1134,77 @@ r_identify(void)
     ioctl(rodent.mfd, MOUSE_GETHWINFO, &rodent.hw);
 
     if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
-        bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
+	bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
     rodent.mode.protocol = MOUSE_PROTO_UNKNOWN;
     rodent.mode.rate = -1;
     rodent.mode.resolution = MOUSE_RES_UNKNOWN;
     rodent.mode.accelfactor = 0;
     rodent.mode.level = 0;
     if (ioctl(rodent.mfd, MOUSE_GETMODE, &rodent.mode) == 0) {
-        if ((rodent.mode.protocol == MOUSE_PROTO_UNKNOWN)
+	if ((rodent.mode.protocol == MOUSE_PROTO_UNKNOWN)
 	    || (rodent.mode.protocol >= sizeof(proto)/sizeof(proto[0]))) {
 	    logwarnx("unknown mouse protocol (%d)", rodent.mode.protocol);
 	    return MOUSE_PROTO_UNKNOWN;
-        } else {
+	} else {
 	    /* INPORT and BUS are the same... */
 	    if (rodent.mode.protocol == MOUSE_PROTO_INPORT)
-	        rodent.mode.protocol = MOUSE_PROTO_BUS;
+		rodent.mode.protocol = MOUSE_PROTO_BUS;
 	    if (rodent.mode.protocol != rodent.rtype) {
 		/* Hmm, the driver doesn't agree with the user... */
-                if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
-	            logwarnx("mouse type mismatch (%s != %s), %s is assumed",
-		        r_name(rodent.mode.protocol), r_name(rodent.rtype),
-		        r_name(rodent.mode.protocol));
-	        rodent.rtype = rodent.mode.protocol;
-                bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
+		if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
+		    logwarnx("mouse type mismatch (%s != %s), %s is assumed",
+			r_name(rodent.mode.protocol), r_name(rodent.rtype),
+			r_name(rodent.mode.protocol));
+		rodent.rtype = rodent.mode.protocol;
+		bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
 	    }
-        }
-        cur_proto[4] = rodent.mode.packetsize;
-        cur_proto[0] = rodent.mode.syncmask[0];	/* header byte bit mask */
-        cur_proto[1] = rodent.mode.syncmask[1];	/* header bit pattern */
+	}
+	cur_proto[4] = rodent.mode.packetsize;
+	cur_proto[0] = rodent.mode.syncmask[0];	/* header byte bit mask */
+	cur_proto[1] = rodent.mode.syncmask[1];	/* header bit pattern */
     }
 
     /* maybe this is a PnP mouse... */
     if (rodent.mode.protocol == MOUSE_PROTO_UNKNOWN) {
 
-        if (rodent.flags & NoPnP)
-            return rodent.rtype;
+	if (rodent.flags & NoPnP)
+	    return rodent.rtype;
 	if (((len = pnpgets(pnpbuf)) <= 0) || !pnpparse(&pnpid, pnpbuf, len))
-            return rodent.rtype;
+	    return rodent.rtype;
 
-        debug("PnP serial mouse: '%*.*s' '%*.*s' '%*.*s'",
-	    pnpid.neisaid, pnpid.neisaid, pnpid.eisaid, 
-	    pnpid.ncompat, pnpid.ncompat, pnpid.compat, 
+	debug("PnP serial mouse: '%*.*s' '%*.*s' '%*.*s'",
+	    pnpid.neisaid, pnpid.neisaid, pnpid.eisaid,
+	    pnpid.ncompat, pnpid.ncompat, pnpid.compat,
 	    pnpid.ndescription, pnpid.ndescription, pnpid.description);
 
 	/* we have a valid PnP serial device ID */
-        rodent.hw.iftype = MOUSE_IF_SERIAL;
+	rodent.hw.iftype = MOUSE_IF_SERIAL;
 	t = pnpproto(&pnpid);
 	if (t != NULL) {
-            rodent.mode.protocol = t->val;
-            rodent.hw.model = t->val2;
+	    rodent.mode.protocol = t->val;
+	    rodent.hw.model = t->val2;
 	} else {
-            rodent.mode.protocol = MOUSE_PROTO_UNKNOWN;
+	    rodent.mode.protocol = MOUSE_PROTO_UNKNOWN;
 	}
 	if (rodent.mode.protocol == MOUSE_PROTO_INPORT)
 	    rodent.mode.protocol = MOUSE_PROTO_BUS;
 
-        /* make final adjustment */
+	/* make final adjustment */
 	if (rodent.mode.protocol != MOUSE_PROTO_UNKNOWN) {
 	    if (rodent.mode.protocol != rodent.rtype) {
 		/* Hmm, the device doesn't agree with the user... */
-                if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
-	            logwarnx("mouse type mismatch (%s != %s), %s is assumed",
-		        r_name(rodent.mode.protocol), r_name(rodent.rtype),
-		        r_name(rodent.mode.protocol));
-	        rodent.rtype = rodent.mode.protocol;
-                bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
+		if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
+		    logwarnx("mouse type mismatch (%s != %s), %s is assumed",
+			r_name(rodent.mode.protocol), r_name(rodent.rtype),
+			r_name(rodent.mode.protocol));
+		rodent.rtype = rodent.mode.protocol;
+		bcopy(proto[rodent.rtype], cur_proto, sizeof(cur_proto));
 	    }
 	}
     }
 
     debug("proto params: %02x %02x %02x %02x %d %02x %02x",
-	cur_proto[0], cur_proto[1], cur_proto[2], cur_proto[3], 
+	cur_proto[0], cur_proto[1], cur_proto[2], cur_proto[3],
 	cur_proto[4], cur_proto[5], cur_proto[6]);
 
     return rodent.rtype;
@@ -1222,7 +1222,7 @@ r_if(int iftype)
 static char *
 r_name(int type)
 {
-    return ((type == MOUSE_PROTO_UNKNOWN) 
+    return ((type == MOUSE_PROTO_UNKNOWN)
 	|| (type > sizeof(rnames)/sizeof(rnames[0]) - 1))
 	? "unknown" : rnames[type];
 }
@@ -1246,7 +1246,7 @@ r_init(void)
     int i;
 
     /**
-     ** This comment is a little out of context here, but it contains 
+     ** This comment is a little out of context here, but it contains
      ** some useful information...
      ********************************************************************
      **
@@ -1291,9 +1291,9 @@ r_init(void)
     switch (rodent.rtype) {
 
     case MOUSE_PROTO_LOGI:
-	/* 
+	/*
 	 * The baud rate selection command must be sent at the current
-	 * baud rate; try all likely settings 
+	 * baud rate; try all likely settings
 	 */
 	setmousespeed(9600, rodent.baudrate, rodentcflags[rodent.rtype]);
 	setmousespeed(4800, rodent.baudrate, rodentcflags[rodent.rtype]);
@@ -1345,16 +1345,16 @@ r_init(void)
 	usleep(50000);
 
 	/* Resolution is in 'lines per inch' on the Hitachi tablet */
-	if      (rodent.resolution == MOUSE_RES_LOW) 		c = 'g';
+	if      (rodent.resolution == MOUSE_RES_LOW)		c = 'g';
 	else if (rodent.resolution == MOUSE_RES_MEDIUMLOW)	c = 'e';
 	else if (rodent.resolution == MOUSE_RES_MEDIUMHIGH)	c = 'h';
 	else if (rodent.resolution == MOUSE_RES_HIGH)		c = 'd';
-	else if (rodent.resolution <=   40) 			c = 'g';
-	else if (rodent.resolution <=  100) 			c = 'd';
-	else if (rodent.resolution <=  200) 			c = 'e';
-	else if (rodent.resolution <=  500) 			c = 'h';
-	else if (rodent.resolution <= 1000) 			c = 'j';
-	else                                			c = 'd';
+	else if (rodent.resolution <=   40)			c = 'g';
+	else if (rodent.resolution <=  100)			c = 'd';
+	else if (rodent.resolution <=  200)			c = 'e';
+	else if (rodent.resolution <=  500)			c = 'h';
+	else if (rodent.resolution <= 1000)			c = 'j';
+	else			c = 'd';
 	write(rodent.mfd, &c, 1);
 	usleep(50000);
 
@@ -1377,7 +1377,7 @@ r_init(void)
 	    read(rodent.mfd, &c, 1);
 	    debug("%c", c);
 	    if (c != *s)
-	        break;
+		break;
 	}
 	break;
 
@@ -1388,11 +1388,11 @@ r_init(void)
 	if (rodent.flags & ClearDTR) {
 	   i = TIOCM_DTR;
 	   ioctl(rodent.mfd, TIOCMBIC, &i);
-        }
-        if (rodent.flags & ClearRTS) {
+	}
+	if (rodent.flags & ClearRTS) {
 	   i = TIOCM_RTS;
 	   ioctl(rodent.mfd, TIOCMBIC, &i);
-        }
+	}
 	break;
 
     case MOUSE_PROTO_SYSMOUSE:
@@ -1457,83 +1457,83 @@ static int
 r_protocol(u_char rBuf, mousestatus_t *act)
 {
     /* MOUSE_MSS_BUTTON?DOWN -> MOUSE_BUTTON?DOWN */
-    static int butmapmss[4] = {	/* Microsoft, MouseMan, GlidePoint, 
+    static int butmapmss[4] = {	/* Microsoft, MouseMan, GlidePoint,
 				   IntelliMouse, Thinking Mouse */
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	0,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
     };
-    static int butmapmss2[4] = { /* Microsoft, MouseMan, GlidePoint, 
+    static int butmapmss2[4] = { /* Microsoft, MouseMan, GlidePoint,
 				    Thinking Mouse */
-	0, 
-	MOUSE_BUTTON4DOWN, 
-	MOUSE_BUTTON2DOWN, 
-	MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN, 
+	0,
+	MOUSE_BUTTON4DOWN,
+	MOUSE_BUTTON2DOWN,
+	MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN,
     };
     /* MOUSE_INTELLI_BUTTON?DOWN -> MOUSE_BUTTON?DOWN */
     static int butmapintelli[4] = { /* IntelliMouse, NetMouse, Mie Mouse,
 				       MouseMan+ */
-	0, 
-	MOUSE_BUTTON2DOWN, 
-	MOUSE_BUTTON4DOWN, 
-	MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN, 
+	0,
+	MOUSE_BUTTON2DOWN,
+	MOUSE_BUTTON4DOWN,
+	MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN,
     };
     /* MOUSE_MSC_BUTTON?UP -> MOUSE_BUTTON?DOWN */
-    static int butmapmsc[8] = {	/* MouseSystems, MMSeries, Logitech, 
+    static int butmapmsc[8] = {	/* MouseSystems, MMSeries, Logitech,
 				   Bus, sysmouse */
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON2DOWN, 
-	MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	0,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON2DOWN,
+	MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN,
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
     };
     /* MOUSE_PS2_BUTTON?DOWN -> MOUSE_BUTTON?DOWN */
     static int butmapps2[8] = {	/* PS/2 */
-	0, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON2DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN, 
+	0,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON2DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN,
 	MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN,
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
     };
     /* for Hitachi tablet */
     static int butmaphit[8] = {	/* MM HitTablet */
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON2DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON4DOWN, 
-	MOUSE_BUTTON5DOWN, 
-	MOUSE_BUTTON6DOWN, 
-	MOUSE_BUTTON7DOWN, 
+	0,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON2DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON4DOWN,
+	MOUSE_BUTTON5DOWN,
+	MOUSE_BUTTON6DOWN,
+	MOUSE_BUTTON7DOWN,
     };
     /* for serial VersaPad */
     static int butmapversa[8] = { /* VersaPad */
-	0, 
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	0,
+	0,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
     };
     /* for PS/2 VersaPad */
     static int butmapversaps2[8] = { /* VersaPad */
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	0, 
-	MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
-	MOUSE_BUTTON1DOWN, 
-	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	0,
+	MOUSE_BUTTON3DOWN,
+	0,
+	MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN,
     };
     static int           pBufP = 0;
     static unsigned char pBuf[8];
@@ -1572,7 +1572,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     {
 	pBufP = 0;		/* skip package */
     }
-    
+
     if (pBufP == 0 && (rBuf & cur_proto[0]) != cur_proto[1])
 	return 0;
 
@@ -1595,37 +1595,37 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	 * Even worse, different MouseMen and TrackMen differ in the 4th
 	 * byte: some will send 0x00/0x20, others 0x01/0x21, or even
 	 * 0x02/0x22, so I have to strip off the lower bits.
-         *
-         * [JCH-96/01/21]
-         * HACK for ALPS "fourth button". (It's bit 0x10 of the "fourth byte"
-         * and it is activated by tapping the glidepad with the finger! 8^)
-         * We map it to bit bit3, and the reverse map in xf86Events just has
-         * to be extended so that it is identified as Button 4. The lower
-         * half of the reverse-map may remain unchanged.
+	 *
+	 * [JCH-96/01/21]
+	 * HACK for ALPS "fourth button". (It's bit 0x10 of the "fourth byte"
+	 * and it is activated by tapping the glidepad with the finger! 8^)
+	 * We map it to bit bit3, and the reverse map in xf86Events just has
+	 * to be extended so that it is identified as Button 4. The lower
+	 * half of the reverse-map may remain unchanged.
 	 */
 
-        /*
+	/*
 	 * [KY-97/08/03]
 	 * Receive the fourth byte only when preceding three bytes have
 	 * been detected (pBufP >= cur_proto[4]).  In the previous
 	 * versions, the test was pBufP == 0; thus, we may have mistakingly
-	 * received a byte even if we didn't see anything preceding 
+	 * received a byte even if we didn't see anything preceding
 	 * the byte.
 	 */
 
 	if ((rBuf & cur_proto[5]) != cur_proto[6]) {
-            pBufP = 0;
+	    pBufP = 0;
 	    return 0;
 	}
 
 	switch (rodent.rtype) {
 #if notyet
 	case MOUSE_PROTO_MARIQUA:
-	    /* 
+	    /*
 	     * This mouse has 16! buttons in addition to the standard
 	     * three of them.  They return 0x10 though 0x1f in the
 	     * so-called `ten key' mode and 0x30 though 0x3f in the
-	     * `function key' mode.  As there are only 31 bits for 
+	     * `function key' mode.  As there are only 31 bits for
 	     * button state (including the standard three), we ignore
 	     * the bit 0x20 and don't distinguish the two modes.
 	     */
@@ -1633,9 +1633,9 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->obutton = act->button;
 	    rBuf &= 0x1f;
 	    act->button = (1 << (rBuf - 13))
-                | (act->obutton & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN));
-	    /* 
-	     * FIXME: this is a button "down" event. There needs to be 
+		| (act->obutton & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN));
+	    /*
+	     * FIXME: this is a button "down" event. There needs to be
 	     * a corresponding button "up" event... XXX
 	     */
 	    break;
@@ -1646,11 +1646,11 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	/*
 	 * IntelliMouse, NetMouse (including NetMouse Pro) and Mie Mouse
 	 * always send the fourth byte, whereas the fourth byte is
-	 * optional for GlidePoint and ThinkingMouse. The fourth byte 
-	 * is also optional for MouseMan+ and FirstMouse+ in their 
-	 * native mode. It is always sent if they are in the IntelliMouse 
+	 * optional for GlidePoint and ThinkingMouse. The fourth byte
+	 * is also optional for MouseMan+ and FirstMouse+ in their
+	 * native mode. It is always sent if they are in the IntelliMouse
 	 * compatible mode.
-	 */ 
+	 */
 	case MOUSE_PROTO_INTELLI:	/* IntelliMouse, NetMouse, Mie Mouse,
 					   MouseMan+ */
 	    act->dx = act->dy = 0;
@@ -1672,28 +1672,28 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 
 	act->flags = ((act->dx || act->dy || act->dz) ? MOUSE_POSCHANGED : 0)
 	    | (act->obutton ^ act->button);
-        pBufP = 0;
+	pBufP = 0;
 	return act->flags;
     }
-        
+
     if (pBufP >= cur_proto[4])
 	pBufP = 0;
     pBuf[pBufP++] = rBuf;
     if (pBufP != cur_proto[4])
 	return 0;
-    
+
     /*
      * assembly full package
      */
 
     debug("assembled full packet (len %d) %x,%x,%x,%x,%x,%x,%x,%x",
-	cur_proto[4], 
-	pBuf[0], pBuf[1], pBuf[2], pBuf[3], 
+	cur_proto[4],
+	pBuf[0], pBuf[1], pBuf[2], pBuf[3],
 	pBuf[4], pBuf[5], pBuf[6], pBuf[7]);
 
     act->dz = 0;
     act->obutton = act->button;
-    switch (rodent.rtype) 
+    switch (rodent.rtype)
     {
     case MOUSE_PROTO_MS:		/* Microsoft */
     case MOUSE_PROTO_LOGIMOUSEMAN:	/* MouseMan/TrackMan */
@@ -1701,17 +1701,17 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	act->button = act->obutton & MOUSE_BUTTON4DOWN;
 	if (rodent.flags & ChordMiddle)
 	    act->button |= ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
-		? MOUSE_BUTTON2DOWN 
+		? MOUSE_BUTTON2DOWN
 		: butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	else
 	    act->button |= (act->obutton & MOUSE_BUTTON2DOWN)
 		| butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
-        
+
 	/* Send X10 btn events to remote client (ensure -128-+127 range) */
-	if ((rodent.rtype == MOUSE_PROTO_X10MOUSEREM) && 
+	if ((rodent.rtype == MOUSE_PROTO_X10MOUSEREM) &&
 	    ((pBuf[0] & 0xFC) == 0x44) && (pBuf[2] == 0x3F)) {
 	    if (rodent.mremcfd >= 0) {
-		unsigned char key = (signed char)(((pBuf[0] & 0x03) << 6) | 
+		unsigned char key = (signed char)(((pBuf[0] & 0x03) << 6) |
 						  (pBuf[1] & 0x3F));
 		write( rodent.mremcfd, &key, 1 );
 	    }
@@ -1727,11 +1727,11 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     case MOUSE_PROTO_INTELLI:		/* IntelliMouse, NetMouse, Mie Mouse,
 					   MouseMan+ */
 	act->button = (act->obutton & (MOUSE_BUTTON2DOWN | MOUSE_BUTTON4DOWN))
-            | butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
+	    | butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	act->dx = (signed char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	act->dy = (signed char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
 	break;
-      
+
     case MOUSE_PROTO_MSC:		/* MouseSystems Corp */
 #if notyet
     case MOUSE_PROTO_MARIQUA:		/* Mariqua */
@@ -1764,7 +1764,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	act->dx = (pBuf[0] & MOUSE_MM_XPOSITIVE) ?   pBuf[1] : - pBuf[1];
 	act->dy = (pBuf[0] & MOUSE_MM_YPOSITIVE) ? - pBuf[2] :   pBuf[2];
 	break;
-      
+
     case MOUSE_PROTO_VERSAPAD:		/* VersaPad */
 	act->button = butmapversa[(pBuf[0] & MOUSE_VERSA_BUTTONS) >> 3];
 	act->button |= (pBuf[0] & MOUSE_VERSA_TAP) ? MOUSE_BUTTON4DOWN : 0;
@@ -1803,8 +1803,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	/*
 	 * Moused usually operates the psm driver at the operation level 1
 	 * which sends mouse data in MOUSE_PROTO_SYSMOUSE protocol.
-	 * The following code takes effect only when the user explicitly 
-	 * requets the level 2 at which wheel movement and additional button 
+	 * The following code takes effect only when the user explicitly
+	 * requets the level 2 at which wheel movement and additional button
 	 * actions are encoded in model-dependent formats. At the level 0
 	 * the following code is no-op because the psm driver says the model
 	 * is MOUSE_MODEL_GENERIC.
@@ -1881,7 +1881,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 		default:
 		    act->dx = act->dy = 0;
 		    act->button = act->obutton;
-            	    debug("unknown PS2++ packet type %d: 0x%02x 0x%02x 0x%02x\n",
+		    debug("unknown PS2++ packet type %d: 0x%02x 0x%02x 0x%02x\n",
 			  MOUSE_PS2PLUS_PACKET_TYPE(pBuf),
 			  pBuf[0], pBuf[1], pBuf[2]);
 		    break;
@@ -1980,7 +1980,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     default:
 	return 0;
     }
-    /* 
+    /*
      * We don't reset pBufP here yet, as there may be an additional data
      * byte in some protocols. See above.
      */
@@ -2008,7 +2008,7 @@ r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
 
     if (rodent.flags & Emulate3Button) {
 	if (debug > 2)
-	    debug("state:%d, trans:%d -> state:%d", 
+	    debug("state:%d, trans:%d -> state:%d",
 		  mouse_button_state, trans,
 		  states[mouse_button_state].s[trans]);
 	/*
@@ -2050,8 +2050,8 @@ r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
 
 /* phisical to logical button mapping */
 static int p2l[MOUSE_MAXBUTTON] = {
-    MOUSE_BUTTON1DOWN, MOUSE_BUTTON2DOWN, MOUSE_BUTTON3DOWN, MOUSE_BUTTON4DOWN, 
-    MOUSE_BUTTON5DOWN, MOUSE_BUTTON6DOWN, MOUSE_BUTTON7DOWN, MOUSE_BUTTON8DOWN, 
+    MOUSE_BUTTON1DOWN, MOUSE_BUTTON2DOWN, MOUSE_BUTTON3DOWN, MOUSE_BUTTON4DOWN,
+    MOUSE_BUTTON5DOWN, MOUSE_BUTTON6DOWN, MOUSE_BUTTON7DOWN, MOUSE_BUTTON8DOWN,
     0x00000100,        0x00000200,        0x00000400,        0x00000800,
     0x00001000,        0x00002000,        0x00004000,        0x00008000,
     0x00010000,        0x00020000,        0x00040000,        0x00080000,
@@ -2192,32 +2192,32 @@ r_timestamp(mousestatus_t *act)
     /* double click threshold */
     tv2.tv_sec = rodent.clickthreshold/1000;
     tv2.tv_usec = (rodent.clickthreshold%1000)*1000;
-    timersub(&tv1, &tv2, &tv); 
+    timersub(&tv1, &tv2, &tv);
     debug("tv:  %ld %ld", tv.tv_sec, tv.tv_usec);
 
     /* 3 button emulation timeout */
     tv2.tv_sec = rodent.button2timeout/1000;
     tv2.tv_usec = (rodent.button2timeout%1000)*1000;
-    timersub(&tv1, &tv2, &tv3); 
+    timersub(&tv1, &tv2, &tv3);
 
     button = MOUSE_BUTTON1DOWN;
     for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
-        if (mask & 1) {
-            if (act->button & button) {
-                /* the button is down */
-    		debug("  :  %ld %ld", 
+	if (mask & 1) {
+	    if (act->button & button) {
+		/* the button is down */
+		debug("  :  %ld %ld",
 		    bstate[i].tv.tv_sec, bstate[i].tv.tv_usec);
 		if (timercmp(&tv, &bstate[i].tv, >)) {
-                    bstate[i].count = 1;
-                } else {
-                    ++bstate[i].count;
-                }
+		    bstate[i].count = 1;
+		} else {
+		    ++bstate[i].count;
+		}
 		bstate[i].tv = tv1;
-            } else {
-                /* the button is up */
-                bstate[i].tv = tv1;
-            }
-        } else {
+	    } else {
+		/* the button is up */
+		bstate[i].tv = tv1;
+	    }
+	} else {
 	    if (act->button & button) {
 		/* the button has been down */
 		if (timercmp(&tv3, &bstate[i].tv, >)) {
@@ -2247,7 +2247,7 @@ r_timeout(void)
     gettimeofday(&tv1, NULL);
     tv2.tv_sec = rodent.button2timeout/1000;
     tv2.tv_usec = (rodent.button2timeout%1000)*1000;
-    timersub(&tv1, &tv2, &tv); 
+    timersub(&tv1, &tv2, &tv);
     return timercmp(&tv, &mouse_button_state_tv, >);
 }
 
@@ -2265,21 +2265,21 @@ r_click(mousestatus_t *act)
 
     button = MOUSE_BUTTON1DOWN;
     for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
-        if (mask & 1) {
+	if (mask & 1) {
 	    debug("mstate[%d]->count:%d", i, mstate[i]->count);
-            if (act->button & button) {
-                /* the button is down */
-	        mouse.u.event.value = mstate[i]->count;
-            } else {
-                /* the button is up */
-	        mouse.u.event.value = 0;
-            }
+	    if (act->button & button) {
+		/* the button is down */
+		mouse.u.event.value = mstate[i]->count;
+	    } else {
+		/* the button is up */
+		mouse.u.event.value = 0;
+	    }
 	    mouse.operation = MOUSE_BUTTON_EVENT;
 	    mouse.u.event.id = button;
 	    if (debug < 2)
-	        ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
+		ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
 	    debug("button %d  count %d", i + 1, mouse.u.event.value);
-        }
+	}
 	button <<= 1;
 	mask >>= 1;
     }
@@ -2294,19 +2294,19 @@ r_click(mousestatus_t *act)
  * documentation for any purpose is hereby granted without fee, provided that
  * the above copyright notice appear in all copies and that both that
  * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of David Dawes 
- * not be used in advertising or publicity pertaining to distribution of 
+ * documentation, and that the name of David Dawes
+ * not be used in advertising or publicity pertaining to distribution of
  * the software without specific, written prior permission.
- * David Dawes makes no representations about the suitability of this 
- * software for any purpose.  It is provided "as is" without express or 
+ * David Dawes makes no representations about the suitability of this
+ * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *
- * DAVID DAWES DISCLAIMS ALL WARRANTIES WITH REGARD TO 
- * THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND 
- * FITNESS, IN NO EVENT SHALL DAVID DAWES BE LIABLE FOR 
- * ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER 
- * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF 
- * CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN 
+ * DAVID DAWES DISCLAIMS ALL WARRANTIES WITH REGARD TO
+ * THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS, IN NO EVENT SHALL DAVID DAWES BE LIABLE FOR
+ * ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+ * RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+ * CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
@@ -2381,7 +2381,7 @@ setmousespeed(int old, int new, unsigned cflag)
 		cfsetospeed(&tty, B1200);
 	}
 
-	if (rodent.rtype == MOUSE_PROTO_LOGIMOUSEMAN 
+	if (rodent.rtype == MOUSE_PROTO_LOGIMOUSEMAN
 	    || rodent.rtype == MOUSE_PROTO_LOGI)
 	{
 		if (write(rodent.mfd, c, 2) != 2)
@@ -2396,27 +2396,27 @@ setmousespeed(int old, int new, unsigned cflag)
 		logwarn("unable to set status of mouse fd");
 }
 
-/* 
- * PnP COM device support 
- * 
+/*
+ * PnP COM device support
+ *
  * It's a simplistic implementation, but it works :-)
  * KY, 31/7/97.
  */
 
 /*
- * Try to elicit a PnP ID as described in 
- * Microsoft, Hayes: "Plug and Play External COM Device Specification, 
+ * Try to elicit a PnP ID as described in
+ * Microsoft, Hayes: "Plug and Play External COM Device Specification,
  * rev 1.00", 1995.
  *
  * The routine does not fully implement the COM Enumerator as par Section
  * 2.1 of the document.  In particular, we don't have idle state in which
- * the driver software monitors the com port for dynamic connection or 
- * removal of a device at the port, because `moused' simply quits if no 
+ * the driver software monitors the com port for dynamic connection or
+ * removal of a device at the port, because `moused' simply quits if no
  * device is found.
  *
- * In addition, as PnP COM device enumeration procedure slightly has 
+ * In addition, as PnP COM device enumeration procedure slightly has
  * changed since its first publication, devices which follow earlier
- * revisions of the above spec. may fail to respond if the rev 1.0 
+ * revisions of the above spec. may fail to respond if the rev 1.0
  * procedure is used. XXX
  */
 static int
@@ -2426,7 +2426,7 @@ pnpwakeup1(void)
     fd_set fds;
     int i;
 
-    /* 
+    /*
      * This is the procedure described in rev 1.0 of PnP COM device spec.
      * Unfortunately, some devices which comform to earlier revisions of
      * the spec gets confused and do not return the ID string...
@@ -2441,8 +2441,8 @@ pnpwakeup1(void)
     usleep(240000);
 
     /*
-     * The PnP COM device spec. dictates that the mouse must set DSR 
-     * in response to DTR (by hardware or by software) and that if DSR is 
+     * The PnP COM device spec. dictates that the mouse must set DSR
+     * in response to DTR (by hardware or by software) and that if DSR is
      * not asserted, the host computer should think that there is no device
      * at this serial port.  But some mice just don't do that...
      */
@@ -2550,9 +2550,9 @@ pnpgets(char *buf)
 
     if (!pnpwakeup1() && !pnpwakeup2()) {
 	/*
-	 * According to PnP spec, we should set DTR = 1 and RTS = 0 while 
-	 * in idle state.  But, `moused' shall set DTR = RTS = 1 and proceed, 
-	 * assuming there is something at the port even if it didn't 
+	 * According to PnP spec, we should set DTR = 1 and RTS = 0 while
+	 * in idle state.  But, `moused' shall set DTR = RTS = 1 and proceed,
+	 * assuming there is something at the port even if it didn't
 	 * respond to the PnP enumeration procedure.
 	 */
 	i = TIOCM_DTR | TIOCM_RTS;		/* DTR = 1, RTS = 1 */
@@ -2567,12 +2567,12 @@ pnpgets(char *buf)
     while (read(rodent.mfd, &c, 1) == 1) {
 	/* we may see "M", or "M3..." before `Begin ID' */
 	buf[i++] = c;
-        if ((c == 0x08) || (c == 0x28)) {	/* Begin ID */
+	if ((c == 0x08) || (c == 0x28)) {	/* Begin ID */
 	    debug("begin-id %02x", c);
 	    begin = i - 1;
 	    break;
-        }
-        debug("%c %02x", c, c);
+	}
+	debug("%c %02x", c, c);
 	if (i >= 256)
 	    break;
     }
@@ -2583,15 +2583,15 @@ pnpgets(char *buf)
 
     ++c;			/* make it `End ID' */
     for (;;) {
-        FD_ZERO(&fds);
-        FD_SET(rodent.mfd, &fds);
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 240000;
-        if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0)
+	FD_ZERO(&fds);
+	FD_SET(rodent.mfd, &fds);
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 240000;
+	if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) <= 0)
 	    break;
 
 	read(rodent.mfd, &buf[i], 1);
-        if (buf[i++] == c)	/* End ID */
+	if (buf[i++] == c)	/* End ID */
 	    break;
 	if (i >= 256)
 	    break;
@@ -2607,7 +2607,7 @@ pnpgets(char *buf)
 	return i;		/* a valid PnP string */
 
     /*
-     * According to PnP spec, we should set DTR = 1 and RTS = 0 while 
+     * According to PnP spec, we should set DTR = 1 and RTS = 0 while
      * in idle state.  But, `moused' shall leave the modem control lines
      * as they are. See above.
      */
@@ -2682,39 +2682,39 @@ pnpparse(pnpid_t *id, char *buf, int len)
     /* option strings */
     i = 10;
     if (buf[i] == '\\') {
-        /* device serial # */
-        for (j = ++i; i < len; ++i) {
-            if (buf[i] == '\\')
+	/* device serial # */
+	for (j = ++i; i < len; ++i) {
+	    if (buf[i] == '\\')
 		break;
-        }
+	}
 	if (i >= len)
 	    i -= 3;
 	if (i - j == 8) {
-            id->serial = &buf[j];
-            id->nserial = 8;
+	    id->serial = &buf[j];
+	    id->nserial = 8;
 	}
     }
     if (buf[i] == '\\') {
-        /* PnP class */
-        for (j = ++i; i < len; ++i) {
-            if (buf[i] == '\\')
+	/* PnP class */
+	for (j = ++i; i < len; ++i) {
+	    if (buf[i] == '\\')
 		break;
-        }
+	}
 	if (i >= len)
 	    i -= 3;
 	if (i > j + 1) {
-            id->class = &buf[j];
-            id->nclass = i - j;
-        }
+	    id->class = &buf[j];
+	    id->nclass = i - j;
+	}
     }
     if (buf[i] == '\\') {
 	/* compatible driver */
-        for (j = ++i; i < len; ++i) {
-            if (buf[i] == '\\')
+	for (j = ++i; i < len; ++i) {
+	    if (buf[i] == '\\')
 		break;
-        }
+	}
 	/*
-	 * PnP COM spec prior to v0.96 allowed '*' in this field, 
+	 * PnP COM spec prior to v0.96 allowed '*' in this field,
 	 * it's not allowed now; just igore it.
 	 */
 	if (buf[j] == '*')
@@ -2722,39 +2722,39 @@ pnpparse(pnpid_t *id, char *buf, int len)
 	if (i >= len)
 	    i -= 3;
 	if (i > j + 1) {
-            id->compat = &buf[j];
-            id->ncompat = i - j;
-        }
+	    id->compat = &buf[j];
+	    id->ncompat = i - j;
+	}
     }
     if (buf[i] == '\\') {
 	/* product description */
-        for (j = ++i; i < len; ++i) {
-            if (buf[i] == ';')
+	for (j = ++i; i < len; ++i) {
+	    if (buf[i] == ';')
 		break;
-        }
+	}
 	if (i >= len)
 	    i -= 3;
 	if (i > j + 1) {
-            id->description = &buf[j];
-            id->ndescription = i - j;
-        }
+	    id->description = &buf[j];
+	    id->ndescription = i - j;
+	}
     }
 
     /* checksum exists if there are any optional fields */
     if ((id->nserial > 0) || (id->nclass > 0)
 	|| (id->ncompat > 0) || (id->ndescription > 0)) {
-        debug("PnP checksum: 0x%X", sum); 
-        sprintf(s, "%02X", sum & 0x0ff);
-        if (strncmp(s, &buf[len - 3], 2) != 0) {
+	debug("PnP checksum: 0x%X", sum);
+	sprintf(s, "%02X", sum & 0x0ff);
+	if (strncmp(s, &buf[len - 3], 2) != 0) {
 #if 0
-            /*
-	     * I found some mice do not comply with the PnP COM device 
+	    /*
+	     * I found some mice do not comply with the PnP COM device
 	     * spec regarding checksum... XXX
 	     */
-            logwarnx("PnP checksum error", 0);
+	    logwarnx("PnP checksum error", 0);
 	    return FALSE;
 #endif
-        }
+	}
     }
 
     return TRUE;
@@ -2773,9 +2773,9 @@ pnpproto(pnpid_t *id)
 	    return NULL;
 
     if (id->neisaid > 0) {
-        t = gettoken(pnpprod, id->eisaid, id->neisaid);
+	t = gettoken(pnpprod, id->eisaid, id->neisaid);
 	if (t->val != MOUSE_PROTO_UNKNOWN)
-            return t;
+	    return t;
     }
 
     /*
@@ -2785,13 +2785,13 @@ pnpproto(pnpid_t *id)
     if (id->ncompat <= 0)
 	return NULL;
     for (i = 0; i < id->ncompat; ++i) {
-        for (j = i; id->compat[i] != ','; ++i)
-            if (i >= id->ncompat)
+	for (j = i; id->compat[i] != ','; ++i)
+	    if (i >= id->ncompat)
 		break;
-        if (i > j) {
-            t = gettoken(pnpprod, id->compat + j, i - j);
+	if (i > j) {
+	    t = gettoken(pnpprod, id->compat + j, i - j);
 	    if (t->val != MOUSE_PROTO_UNKNOWN)
-                return t;
+		return t;
 	}
     }
 
@@ -2914,33 +2914,33 @@ kidspad(u_char rxc, mousestatus_t *act)
     return act->flags ;
 }
 
-static void 
+static void
 mremote_serversetup()
 {
     struct sockaddr_un ad;
 
     /* Open a UNIX domain stream socket to listen for mouse remote clients */
-    unlink(_PATH_MOUSEREMOTE);              
+    unlink(_PATH_MOUSEREMOTE);
 
     if ( (rodent.mremsfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 	logerrx(1, "unable to create unix domain socket %s",_PATH_MOUSEREMOTE);
 
     umask(0111);
-    
+
     bzero(&ad, sizeof(ad));
     ad.sun_family = AF_UNIX;
     strcpy(ad.sun_path, _PATH_MOUSEREMOTE);
 #ifndef SUN_LEN
 #define SUN_LEN(unp) ( ((char *)(unp)->sun_path - (char *)(unp)) + \
-                       strlen((unp)->path) )
+		       strlen((unp)->path) )
 #endif
-    if (bind(rodent.mremsfd, (struct sockaddr *) &ad, SUN_LEN(&ad)) < 0) 
+    if (bind(rodent.mremsfd, (struct sockaddr *) &ad, SUN_LEN(&ad)) < 0)
 	logerrx(1, "unable to bind unix domain socket %s", _PATH_MOUSEREMOTE);
 
     listen(rodent.mremsfd, 1);
 }
 
-static void 
+static void
 mremote_clientchg(int add)
 {
     struct sockaddr_un ad;
@@ -2972,5 +2972,3 @@ mremote_clientchg(int add)
 	rodent.mremcfd = -1;
     }
 }
-
-
