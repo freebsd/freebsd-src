@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.64 1997/06/28 01:34:02 brian Exp $
+ * $Id: command.c,v 1.65 1997/06/30 03:03:29 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -862,8 +862,20 @@ char **argv;
           mask = m;
       }
       res = ServerLocalOpen(argv[0], mask);
-    } else if (strspn(argv[0], "0123456789") == strlen(argv[0]))
-      res = ServerTcpOpen(atoi(argv[0]));
+    } else {
+      int port;
+      if (strspn(argv[0], "0123456789") != strlen(argv[0])) {
+        struct servent *s;
+        if ((s = getservbyname(argv[0], "tcp")) == NULL) {
+          port = 0;
+          LogPrintf(LogWARN, "%s: Invalid port or service\n", argv[0]);
+        } else
+          port = ntohs(s->s_port);
+      } else
+        port = atoi(argv[0]);
+      if (port)
+        res = ServerTcpOpen(port);
+    }
 
   return res;
 }
