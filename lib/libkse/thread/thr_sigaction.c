@@ -42,9 +42,9 @@ int
 _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 {
 	int ret = 0;
-	struct sigaction gact;
+	struct sigaction newact, oldact;
 	struct pthread *curthread;
-	kse_critical_t crit;	
+	kse_critical_t crit;
 
 	/* Check if the signal number is out of range: */
 	if (sig < 1 || sig > _SIG_MAXSIG) {
@@ -55,6 +55,9 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		if (!_kse_isthreaded())
 			return __sys_sigaction(sig, act, oact);
 
+		if (act)
+			newact = *act;
+
 		crit = _kse_critical_enter();
 		curthread = _get_curthread();
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
@@ -64,17 +67,13 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 */
 		if (oact != NULL) {
 			/* Return the existing signal action contents: */
-			oact->sa_handler = _thread_sigact[sig - 1].sa_handler;
-			oact->sa_mask = _thread_sigact[sig - 1].sa_mask;
-			oact->sa_flags = _thread_sigact[sig - 1].sa_flags;
+			oldact = _thread_sigact[sig - 1];
 		}
 
 		/* Check if a signal action was supplied: */
 		if (act != NULL) {
 			/* Set the new signal handler: */
-			_thread_sigact[sig - 1].sa_mask = act->sa_mask;
-			_thread_sigact[sig - 1].sa_flags = act->sa_flags;
-			_thread_sigact[sig - 1].sa_handler = act->sa_handler;
+			_thread_sigact[sig - 1] = newact;
 		}
 
 		/*
@@ -82,30 +81,30 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 * in signal action:
 		 */
 		if (act != NULL && sig != SIGINFO) {
-			gact.sa_mask = act->sa_mask;
-			gact.sa_flags = SA_SIGINFO | act->sa_flags;
+
+			newact.sa_flags |= SA_SIGINFO;
 
 			/*
 			 * Check if the signal handler is being set to
 			 * the default or ignore handlers:
 			 */
-			if (act->sa_handler == SIG_DFL ||
-			    act->sa_handler == SIG_IGN)
-				/* Specify the built in handler: */
-				gact.sa_handler = act->sa_handler;
-			else
+			if (newact.sa_handler != SIG_DFL &&
+			    newact.sa_handler != SIG_IGN) {
 				/*
 				 * Specify the thread kernel signal
 				 * handler:
 				 */
-				gact.sa_handler = (void (*) ())_thr_sig_handler;
-
+				newact.sa_handler = (void (*) ())_thr_sig_handler;
+			}
 			/* Change the signal action in the kernel: */
-		    	if (__sys_sigaction(sig, &gact, NULL) != 0)
+			if (__sys_sigaction(sig, &newact, NULL) != 0)
 				ret = -1;
 		}
 		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
 		_kse_critical_leave(crit);
+
+		if (oact != NULL)
+			*oact = oldact;
 	}
 
 	/* Return the completion status: */

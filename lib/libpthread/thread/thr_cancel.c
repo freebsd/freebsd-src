@@ -146,16 +146,12 @@ _pthread_setcancelstate(int state, int *oldstate)
 
 	switch (state) {
 	case PTHREAD_CANCEL_ENABLE:
-		if (oldstate != NULL)
-			*oldstate = ostate;
 		curthread->cancelflags &= ~PTHREAD_CANCEL_DISABLE;
 		if ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)
 			need_exit = checkcancel(curthread);
 		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DISABLE:
-		if (oldstate != NULL)
-			*oldstate = ostate;
 		curthread->cancelflags |= PTHREAD_CANCEL_DISABLE;
 		ret = 0;
 		break;
@@ -169,6 +165,9 @@ _pthread_setcancelstate(int state, int *oldstate)
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
+	if (ret == 0 && oldstate != NULL)
+		*oldstate = ostate;
+
 	return (ret);
 }
 
@@ -186,15 +185,11 @@ _pthread_setcanceltype(int type, int *oldtype)
 	otype = curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS;
 	switch (type) {
 	case PTHREAD_CANCEL_ASYNCHRONOUS:
-		if (oldtype != NULL)
-			*oldtype = otype;
 		curthread->cancelflags |= PTHREAD_CANCEL_ASYNCHRONOUS;
 		need_exit = checkcancel(curthread);
 		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DEFERRED:
-		if (oldtype != NULL)
-			*oldtype = otype;
 		curthread->cancelflags &= ~PTHREAD_CANCEL_ASYNCHRONOUS;
 		ret = 0;
 		break;
@@ -208,6 +203,9 @@ _pthread_setcanceltype(int type, int *oldtype)
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
+	if (ret == 0 && oldtype != NULL)
+		*oldtype = otype;
+
 	return (ret);
 }
 

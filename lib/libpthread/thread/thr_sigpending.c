@@ -46,6 +46,7 @@ _sigpending(sigset_t *set)
 {
 	struct pthread *curthread = _get_curthread();
 	kse_critical_t crit;
+	sigset_t sigset;
 	int ret = 0;
 
 	/* Check for a null signal set pointer: */
@@ -59,12 +60,13 @@ _sigpending(sigset_t *set)
 
 		crit = _kse_critical_enter();
 		KSE_SCHED_LOCK(curthread->kse, curthread->kseg);
-		*set = curthread->sigpend;
+		sigset = curthread->sigpend;
 		KSE_SCHED_UNLOCK(curthread->kse, curthread->kseg);
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_signal_lock);
-		SIGSETOR(*set, _thr_proc_sigpending);
+		SIGSETOR(sigset, _thr_proc_sigpending);
 		KSE_LOCK_RELEASE(curthread->kse, &_thread_signal_lock);
 		_kse_critical_leave(crit);
+		*set = sigset;
 	}
 	/* Return the completion status: */
 	return (ret);
