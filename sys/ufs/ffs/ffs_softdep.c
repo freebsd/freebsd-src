@@ -203,7 +203,6 @@ static	void add_to_worklist(struct worklist *);
 /*
  * Exported softdep operations.
  */
-static	int softdep_disk_prewrite(struct vnode *vp, struct buf *bp);
 static	void softdep_disk_io_initiation(struct buf *);
 static	void softdep_disk_write_complete(struct buf *);
 static	void softdep_deallocate_dependencies(struct buf *);
@@ -1154,7 +1153,6 @@ softdep_initialize()
 	softdep_fsync_hook = softdep_fsync;
 
 	/* initialise bioops hack */
-	bioops.io_prewrite = softdep_disk_prewrite;
 	bioops.io_start = softdep_disk_io_initiation;
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
@@ -3417,7 +3415,7 @@ handle_workitem_freefile(freefile)
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
 
-static int
+int
 softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
 {
 	int error;
