@@ -75,6 +75,8 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_tty.h>
 
+NET_NEEDS_GIANT("ng_tty");
+
 /* Misc defs */
 #define MAX_MBUFQ		3	/* Max number of queued mbufs */
 #define NGT_HIWATER		400	/* High water mark on output */
