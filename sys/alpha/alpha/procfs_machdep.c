@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.1 1998/06/10 10:53:04 dfr Exp $
+ *	$Id: procfs_machdep.c,v 1.2 1998/09/14 22:43:19 jdp Exp $
  */
 
 /*
@@ -130,4 +130,23 @@ procfs_sstep(p)
 	struct proc *p;
 {
 	return (EINVAL);
+}
+
+/*
+ * Placeholders
+ */
+int
+procfs_read_dbregs(p, dbregs)
+	struct proc *p;
+	struct dbreg *dbregs;
+{
+	return (EIO);
+}
+
+int
+procfs_write_dbregs(p, dbregs)
+	struct proc *p;
+	struct dbreg *dbregs;
+{
+	return (EIO);
 }
