@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.90 1996/07/21 00:05:31 jraynard Exp $
+#	$Id: Makefile,v 1.91 1996/07/27 21:47:42 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -346,6 +346,8 @@ bootstrap:
 	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/tsort && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 #
