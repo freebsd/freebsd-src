@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.6.2.4 1995/10/18 05:02:02 jkh Exp $
+ * $Id: variable.c,v 1.6.2.5 1995/10/20 07:02:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,21 +50,23 @@ make_variable(char *var, char *value)
 {
     Variable *newvar;
 
-    /* First search to see if it's already there */
+    /* Put it in the environment in any case */
+    setenv(var, value, 1);
+
+    /* Now search to see if it's already in the list */
     for (newvar = VarHead; newvar; newvar = newvar->next) {
 	if (!strcmp(newvar->name, var)) {
 	    strncpy(newvar->value, value, VAR_VALUE_MAX);
-	    setenv(var, value, 1);
 	    return;
 	}
     }
-    setenv(var, value, 1);
+
+    /* No?  Create a new one */
     newvar = (Variable *)safe_malloc(sizeof(Variable));
     strncpy(newvar->name, var, VAR_NAME_MAX);
     strncpy(newvar->value, value, VAR_VALUE_MAX);
     newvar->next = VarHead;
     VarHead = newvar;
-    setenv(newvar->name, newvar->value, 1);
     if (isDebug())
 	msgDebug("Setting variable %s to %s\n", newvar->name, newvar->value);
 }
@@ -77,7 +79,7 @@ variable_set(char *var)
     if (!var)
 	msgFatal("NULL variable name & value passed.");
     else if (!*var)
-	msgDebug("Warning:  Zero length name & value passed to variable_set().\n");
+	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
     strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
@@ -91,7 +93,7 @@ variable_set2(char *var, char *value)
     if (!var || !value)
 	msgFatal("Null name or value passed to set_variable2!");
     else if (!*var || !*value)
-	msgDebug("Warning:  Zero length name or value passed to variable_set2().\n");
+	msgDebug("Warning:  Zero length name or value passed to variable_set2()\n");
     make_variable(var, value);
 }
 
@@ -107,14 +109,23 @@ variable_unset(char *var)
     Variable *vp;
 
     unsetenv(var);
-    /* First search to see if it's already there */
-    for (vp = VarHead; vp; vp = vp->next) {
-	if (!strcmp(vp->name, var)) {
-	    Variable *save = vp->next;
 
-	    *vp = *save;
-	    safe_free(save);
-	    break;
+    /* Now search to see if it's in our list, if we have one.. */
+    if (!VarHead)
+	return;
+    else if (!VarHead->next && !strcmp(VarHead->name, var)) {
+	free(VarHead);
+	VarHead = NULL;
+    }
+    else {
+	for (vp = VarHead; vp; vp = vp->next) {
+	    if (!strcmp(vp->name, var)) {
+		Variable *save = vp->next;
+
+		*vp = *save;
+		safe_free(save);
+		break;
+	    }
 	}
     }
 }

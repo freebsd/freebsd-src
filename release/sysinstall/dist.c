@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.19 1995/10/22 17:39:03 jkh Exp $
+ * $Id: dist.c,v 1.36.2.20 1995/10/24 02:17:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -337,9 +337,7 @@ distExtract(char *parent, Distribution *me)
 	dist_attr = NULL;
 	numchunks = 0;
 
-	/* First, look locally.  We sometimes cache info files on the root floppy */
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
-	msgNotify("Trying to get attributes file from %s..", buf);
 	if (file_readable(buf)) {
 	    msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
@@ -347,44 +345,18 @@ distExtract(char *parent, Distribution *me)
 		dialog_clear();
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
-		numchunks = -1;
-	    }
-	}
-	else { 	/* Not available locally?  Try to get it from the distribution itself */
-	    msgNotify("Trying to get attributes file for %s from %s..", dist, mediaDevice->name);
-	    snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
-	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
-	    if (fd >= 0) {
-		dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-		if (attr_parse(dist_attr, fd) == RET_FAIL) {
-		    dialog_clear();
-		    msgConfirm("Cannot load information file for %s distribution!\n"
-			       "Please verify that your media is valid and try again.", dist);
-		    numchunks = -1;
-		}
-		mediaDevice->close(mediaDevice, fd);
-	    }
-	    else if (fd == -2) {
-		status = FALSE;
-		goto done;
 	    }
 	    else {
-		msgNotify("Unable to get information file for distribution %s - skipping..", dist);
-		numchunks = -1;
+		if (isDebug())
+		    msgDebug("Looking for attribute `pieces'\n");
+		tmp = attr_match(dist_attr, "pieces");
+		if (tmp)
+		    numchunks = strtol(tmp, 0, 0);
 	    }
+	    safe_free(dist_attr);
 	}
-	if (!numchunks) {
-	    if (isDebug())
-		msgDebug("Looking for attribute `pieces'\n");
-	    tmp = attr_match(dist_attr, "pieces");
-	    if (tmp)
-		numchunks = strtol(tmp, 0, 0);
-	    else
-		numchunks = -1;
-	}
-	safe_free(dist_attr);
 
-	if (numchunks < 0)
+	if (!numchunks)
 	    continue;
 
 	if (isDebug())
@@ -439,7 +411,7 @@ distExtract(char *parent, Distribution *me)
 		    msgConfirm("Unable to transfer all components of the %s distribution.\n"
 			       "If this is a CDROM install, it may be because export restrictions prohibit\n"
 			       "DES code from being shipped from the U.S.  Try to get this code from a\n"
-			       "local FTP site instead!");
+			       "local FTP site instead!", me[i].my_name);
 		    status = TRUE;
 		}
 		else {

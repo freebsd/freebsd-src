@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.10 1995/10/22 01:32:56 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.12 1995/10/22 17:39:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,7 @@ mediaInitNFS(Device *dev)
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name)) {
 	dialog_clear();
 	msgConfirm("Error mounting %s on /dist: %s (%u)\n", dev->name, strerror(errno), errno);
+	netDevice->shutdown(netDevice);
 	return FALSE;
     }
     NFSMounted = TRUE;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.32 1995/10/23 13:19:37 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.33 1995/10/24 02:17:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,56 +63,45 @@ static Boolean
 get_new_host(Device *dev, Boolean tentative)
 {
     Boolean i;
+    int j;
     char *oldTitle = MenuMediaFTP.title;
     char *cp = variable_get(VAR_FTP_ONERROR);
 
-    if (tentative || strcmp(cp, "reselect"))
-	return TRUE;
+    if (tentative || (cp && strcmp(cp, "reselect")))
+	i = TRUE;
+    else {
+	++reselectCount;
 
-    ++reselectCount;
-
-    dialog_clear();
-    msgConfirm("The %s file failed to load from the FTP site you\n"
-	       "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
-    MenuMediaFTP.title = "Request failed - please select another site";
-    i = mediaSetFTP(NULL);
-    MenuMediaFTP.title = oldTitle;
-    if (i != RET_FAIL) {
-	/* Bounce the link if necessary */
-	if (ftpInitted) {
-	    dev->shutdown(dev);
-	    i = dev->init(dev);
+	i = FALSE;
+	dialog_clear();
+	msgConfirm("The %s file failed to load from the FTP site you\n"
+		   "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
+	MenuMediaFTP.title = "Request failed - please select another site";
+	j = mediaSetFTP(NULL);
+	MenuMediaFTP.title = oldTitle;
+	if (j == RET_SUCCESS) {
+	    /* Bounce the link if necessary */
+	    if (ftpInitted) {
+		dev->shutdown(dev);
+		i = dev->init(dev);
+	    }
 	}
     }
-    return (i != RET_FAIL) ? TRUE : FALSE;
+    return i;
 }
 
 /* Should we throw in the towel? */
 static int
 ftpShouldAbort(Device *dev, int retries)
 {
-    char *cp;
-    Boolean shut = FALSE;
-    int rval = 0;
+    char *cp, *cp2;
+    int maxretries, rval = 0;
 
-    if (reselectCount > 2) {
-	dialog_clear();
-	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
-		      "misconfigured, the information you entered in the network setup\n"
-		      "screen may be wrong or your network connection may just simply be\n"
-		      "having a bad day.  Would you like to end this travesty?")) {
-	    shut = TRUE;
-	    rval = -1;
-	}
-    }
-    else {
-	cp = variable_get(VAR_FTP_ONERROR);
-	if (retries >= MAX_FTP_RETRIES || (cp && !strcmp(cp, "abort"))) {
-	    shut = TRUE;
-	    rval = 1;
-	}
-    }
-    if (shut) {
+    cp = variable_get(VAR_FTP_ONERROR);
+    cp2 = variable_get(VAR_FTP_RETRIES);
+    maxretries = cp2 ? atoi(cp2) : MAX_FTP_RETRIES;
+    if (retries >= maxretries || (cp && !strcmp(cp, "abort"))) {
+	rval = 1;
 	msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
 	reselectCount = 0;
@@ -132,7 +121,7 @@ mediaInitFTP(Device *dev)
 	return TRUE;
 
     msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
-    if (netDevice && !netDevice->init(netDevice))
+    if (!netDevice->init(netDevice))
 	return FALSE;
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
@@ -179,6 +168,7 @@ mediaInitFTP(Device *dev)
 	dialog_clear();
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		   "name server, gateway and network interface are configured?", hostname);
+	netDevice->shutdown(netDevice);
 	return FALSE;
     }
     user = variable_get(VAR_FTP_USER);

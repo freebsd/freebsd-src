@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.37 1995/10/23 13:19:51 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.38 1995/10/24 02:18:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,6 +111,7 @@
 #define VAR_FTP_ONERROR			"ftpOnError"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
+#define VAR_FTP_RETRIES			"ftpRetryCount"
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_GATEWAY			"defaultrouter"
@@ -580,6 +581,7 @@ extern void	systemChangeFont(const u_char font[]);
 extern void	systemChangeLang(char *lang);
 extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
+extern void	systemCreateHoloshell(void);
 extern int	vsystem(char *fmt, ...);
 extern int	docBrowser(char *junk);
 extern int	docShowDocument(char *str);
