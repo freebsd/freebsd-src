@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.45 1997/04/18 14:12:17 dfr Exp $
+ * $Id: vfs_cluster.c,v 1.46 1997/04/25 11:14:00 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -725,6 +725,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
 
+			--numdirtybuffers;
 			tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
 			tbp->b_flags |= B_ASYNC;
 			s = splbio();
