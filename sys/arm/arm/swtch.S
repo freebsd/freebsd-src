@@ -317,7 +317,6 @@ ENTRY(cpu_switch)
 
 	mov     r2, #DOMAIN_CLIENT
 	cmp     r5, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
-	
 	beq     .Lcs_cache_purge_skipped        /* Yup. Don't flush cache */
 		
 	/*
@@ -464,7 +463,7 @@ ENTRY(cpu_switch)
 	.asciz	"cpu_switch: sched_qs empty with non-zero sched_whichqs!\n"
 #endif
 ENTRY(savectx)
-	mov	pc, lr
+	RET
 ENTRY(fork_trampoline)
 	mov	r1, r5
 	mov	r2, sp

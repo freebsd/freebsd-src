@@ -77,7 +77,7 @@ ENTRY(casuptr)
 	ldrt	r3, [r0]
 	cmp	r3, r1
 	movne	r0, r3
-	movne	pc, lr
+	RETne
 	strt	r2, [r0]
 	mov	r0, r1
 #ifdef MULTIPROCESSOR
@@ -94,7 +94,7 @@ ENTRY(casuptr)
 #endif
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 	
 /*
@@ -130,7 +130,7 @@ ENTRY(fuword)
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
-	mov	pc, lr
+	RET
 
 /*
  * fusword(caddr_t uaddr);
@@ -168,7 +168,7 @@ ENTRY(fusword)
 #endif
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * fuswintr(caddr_t uaddr);
@@ -181,7 +181,7 @@ ENTRY(fuswintr)
 	ldr	r2, [r2]
 	teq	r2, #0
 	mvnne	r0, #0x00000000
-	movne	pc, lr
+	RETne
 
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
@@ -214,7 +214,7 @@ ENTRY(fuswintr)
 
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)
@@ -258,7 +258,7 @@ ENTRY(fubyte)
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
-	mov	pc, lr
+	RET
 
 /*
  * Handle faults from [fs]u*().  Clean up and return -1.
@@ -268,7 +268,7 @@ ENTRY(fubyte)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	mvn	r0, #0x00000000
-	mov	pc, lr
+	RET
 
 /*
  * Handle faults from [fs]u*().  Clean up and return -1.  This differs from
@@ -282,7 +282,7 @@ _C_LABEL(fusubailout):
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	mvn	r0, #0x00000000
-	mov	pc, lr
+	RET
 
 #ifdef DIAGNOSTIC
 /*
@@ -331,7 +331,7 @@ ENTRY(suword)
 
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * suswintr(caddr_t uaddr, short x);
@@ -344,7 +344,7 @@ ENTRY(suswintr)
 	ldr	r2, [r2]
 	teq	r2, #0
 	mvnne	r0, #0x00000000
-	movne	pc, lr
+	RETne
 
 #ifdef MULTIPROCESSOR
 	stmfd	sp!, {r0, r1, r14}
@@ -377,7 +377,7 @@ ENTRY(suswintr)
 
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * susword(caddr_t uaddr, short x);
@@ -416,7 +416,7 @@ ENTRY(susword)
 
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * subyte(caddr_t uaddr, char x);
@@ -448,4 +448,4 @@ ENTRY(subyte)
 	strbt	r1, [r0]
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET

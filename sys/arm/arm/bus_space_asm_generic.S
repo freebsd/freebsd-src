@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(generic_bs_r_1)
 	ldrb	r0, [r1, r2]
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_r_2)
 	ldrh	r0, [r1, r2]
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_r_4)
 	ldr	r0, [r1, r2]
-	mov	pc, lr
+	RET
 
 /*
  * write single
@@ -67,17 +67,17 @@ ENTRY(generic_bs_r_4)
 
 ENTRY(generic_bs_w_1)
 	strb	r3, [r1, r2]
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_w_2)
 	strh	r3, [r1, r2]
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_w_4)
 	str	r3, [r1, r2]
-	mov	pc, lr
+	RET
 
 /*
  * read multiple
@@ -88,14 +88,14 @@ ENTRY(generic_bs_rm_1)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrb	r3, [r0]
 	strb	r3, [r1], #1
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_rm_2)
@@ -103,14 +103,14 @@ ENTRY(generic_armv4_bs_rm_2)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrh	r3, [r0]
 	strh	r3, [r1], #2
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_rm_4)
@@ -118,14 +118,14 @@ ENTRY(generic_bs_rm_4)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldr	r3, [r0]
 	str	r3, [r1], #4
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 /*
  * write multiple
@@ -136,14 +136,14 @@ ENTRY(generic_bs_wm_1)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrb	r3, [r1], #1
 	strb	r3, [r0]
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_wm_2)
@@ -151,14 +151,14 @@ ENTRY(generic_armv4_bs_wm_2)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrh	r3, [r1], #2
 	strh	r3, [r0]
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_wm_4)
@@ -166,14 +166,14 @@ ENTRY(generic_bs_wm_4)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldr	r3, [r1], #4
 	str	r3, [r0]
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 /*
  * read region
@@ -184,14 +184,14 @@ ENTRY(generic_bs_rr_1)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrb	r3, [r0], #1
 	strb	r3, [r1], #1
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_rr_2)
@@ -199,14 +199,14 @@ ENTRY(generic_armv4_bs_rr_2)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrh	r3, [r0], #2
 	strh	r3, [r1], #2
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_rr_4)
@@ -214,14 +214,14 @@ ENTRY(generic_bs_rr_4)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldr	r3, [r0], #4
 	str	r3, [r1], #4
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 /*
  * write region.
@@ -232,14 +232,14 @@ ENTRY(generic_bs_wr_1)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrb	r3, [r1], #1
 	strb	r3, [r0], #1
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_wr_2)
@@ -247,14 +247,14 @@ ENTRY(generic_armv4_bs_wr_2)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldrh	r3, [r1], #2
 	strh	r3, [r0], #2
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_wr_4)
@@ -262,14 +262,14 @@ ENTRY(generic_bs_wr_4)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	ldr	r3, [r1], #4
 	str	r3, [r0], #4
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 /*
  * set region
@@ -280,13 +280,13 @@ ENTRY(generic_bs_sr_1)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	strb	r1, [r0], #1
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 #if (ARM_ARCH_4 + ARM_ARCH_5) > 0
 ENTRY(generic_armv4_bs_sr_2)
@@ -294,13 +294,13 @@ ENTRY(generic_armv4_bs_sr_2)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	strh	r1, [r0], #2
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 #endif
 
 ENTRY(generic_bs_sr_4)
@@ -308,13 +308,13 @@ ENTRY(generic_bs_sr_4)
 	mov	r1, r3
 	ldr	r2, [sp, #0]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 1:	str	r1, [r0], #4
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 /*
  * copy region
@@ -327,7 +327,7 @@ ENTRY(generic_armv4_bs_c_2)
 	add	r1, r2, r3
 	ldr	r2, [sp, #4]
 	teq	r2, #0
-	moveq	pc, lr
+	RETeq
 
 	cmp	r0, r1
 	blt	2f
@@ -337,7 +337,7 @@ ENTRY(generic_armv4_bs_c_2)
 	subs	r2, r2, #1
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 2:	add	r0, r0, r2, lsl #1
 	add	r1, r1, r2, lsl #1
@@ -349,5 +349,5 @@ ENTRY(generic_armv4_bs_c_2)
 	subs	r2, r2, #1
 	bne	3b
 
-	mov	pc, lr
+	RET
 #endif

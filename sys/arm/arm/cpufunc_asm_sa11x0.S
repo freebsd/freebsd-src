@@ -94,7 +94,7 @@ ENTRY(sa11x0_cpu_sleep)
 
 	/* Restore interrupts (which will cause them to be serviced). */
 	msr	cpsr_all, r3
-	mov	pc, lr
+	RET
 
 
 /*
@@ -118,8 +118,8 @@ ENTRY(sa11x0_context_switch)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, lr
+	RET
 
 ENTRY(sa11x0_drain_readbuf)
 	mcr	p15, 0, r0, c9, c0, 0		/* drain read buffer */
-	mov	pc, lr
+	RET
