@@ -11,16 +11,15 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.13 2001/08/14 23:08:13 ca Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
 
-static void	allocaddr __P((ADDRESS *, int, char *));
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.349 2001/12/12 02:50:22 gshapiro Exp $")
+
+static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
 static char	*map_lookup __P((STAB *, char *, char **, int *, ENVELOPE *));
 static ADDRESS	*buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
+static bool	hasctrlchar __P((register char *, bool));
 
 /*
 **  PARSEADDR -- Parse an address
@@ -39,7 +38,7 @@ static ADDRESS	*buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
 **	Parameters:
 **		addr -- the address to parse.
 **		a -- a pointer to the address descriptor buffer.
-**			If NULL, a header will be created.
+**			If NULL, an address will be created.
 **		flags -- describe detail for parsing.  See RF_ definitions
 **			in sendmail.h.
 **		delim -- the character to terminate the address, passed
@@ -47,6 +46,8 @@ static ADDRESS	*buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
 **		delimptr -- if non-NULL, set to the location of the
 **			delim character that was found.
 **		e -- the envelope that will contain this address.
+**		isrcpt -- true if the address denotes a recipient; false
+**			indicates a sender.
 **
 **	Returns:
 **		A pointer to the address descriptor header (`a' if
@@ -54,22 +55,23 @@ static ADDRESS	*buildaddr __P((char **, ADDRESS *, int, ENVELOPE *));
 **		NULL on error.
 **
 **	Side Effects:
-**		none
+**		e->e_to = addr
 */
 
 /* following delimiters are inherent to the internal algorithms */
 #define DELIMCHARS	"()<>,;\r\n"	/* default word delimiters */
 
 ADDRESS *
-parseaddr(addr, a, flags, delim, delimptr, e)
+parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	char *addr;
 	register ADDRESS *a;
 	int flags;
 	int delim;
 	char **delimptr;
 	register ENVELOPE *e;
+	bool isrcpt;
 {
-	register char **pvp;
+	char **pvp;
 	auto char *delimptrbuf;
 	bool qup;
 	char pvpbuf[PSBUFSIZE];
@@ -80,7 +82,7 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 
 	e->e_to = addr;
 	if (tTd(20, 1))
-		dprintf("\n--parseaddr(%s)\n", addr);
+		sm_dprintf("\n--parseaddr(%s)\n", addr);
 
 	if (delimptr == NULL)
 		delimptr = &delimptrbuf;
@@ -89,14 +91,14 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 	if (pvp == NULL)
 	{
 		if (tTd(20, 1))
-			dprintf("parseaddr-->NULL\n");
+			sm_dprintf("parseaddr-->NULL\n");
 		return NULL;
 	}
 
-	if (invalidaddr(addr, delim == '\0' ? NULL : *delimptr))
+	if (invalidaddr(addr, delim == '\0' ? NULL : *delimptr, isrcpt))
 	{
 		if (tTd(20, 1))
-			dprintf("parseaddr-->bad address\n");
+			sm_dprintf("parseaddr-->bad address\n");
 		return NULL;
 	}
 
@@ -114,7 +116,7 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 
 		if (savec != '\0')
 			**delimptr = '\0';
-		e->e_to = addr = newstr(addr);
+		e->e_to = addr = sm_rpool_strdup_x(e->e_rpool, addr);
 		if (savec != '\0')
 			**delimptr = savec;
 	}
@@ -124,12 +126,11 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 	**	Ruleset 0 does basic parsing.  It must resolve.
 	*/
 
-	qup = FALSE;
-	if (rewrite(pvp, 3, 0, e) == EX_TEMPFAIL)
-		qup = TRUE;
-	if (rewrite(pvp, 0, 0, e) == EX_TEMPFAIL)
-		qup = TRUE;
-
+	qup = false;
+	if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
+		qup = true;
+	if (REWRITE(pvp, 0, e) == EX_TEMPFAIL)
+		qup = true;
 
 	/*
 	**  Build canonical address from pvp.
@@ -137,14 +138,55 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 
 	a = buildaddr(pvp, a, flags, e);
 
+	if (hasctrlchar(a->q_user, isrcpt))
+	{
+		if (tTd(20, 1))
+			sm_dprintf("parseaddr-->bad q_user\n");
+		return NULL;
+	}
+
 	/*
 	**  Make local copies of the host & user and then
 	**  transport them out.
 	*/
 
-	allocaddr(a, flags, addr);
+	allocaddr(a, flags, addr, e);
 	if (QS_IS_BADADDR(a->q_state))
 		return a;
+
+	/*
+	**  Select a queue directory for recipient addresses.
+	**	This is done here and in split_across_queue_groups(),
+	**	but the latter applies to addresses after aliasing,
+	**	and only if splitting is done.
+	*/
+
+	if ((a->q_qgrp == NOAQGRP || a->q_qgrp == ENVQGRP) &&
+	    !bitset(RF_SENDERADDR|RF_HEADERADDR, flags) &&
+	    OpMode != MD_INITALIAS)
+	{
+		int r;
+
+		/* call ruleset which should return a queue group name */
+		r = rscap(RS_QUEUEGROUP, a->q_user, NULL, e, &pvp, pvpbuf,
+			  sizeof(pvpbuf));
+		if (r == EX_OK &&
+		    pvp != NULL && pvp[0] != NULL &&
+		    (pvp[0][0] & 0377) == CANONNET &&
+		    pvp[1] != NULL && pvp[1][0] != '\0')
+		{
+			r = name2qid(pvp[1]);
+			if (r == NOQGRP && LogLevel > 10)
+				sm_syslog(LOG_INFO, NOQID,
+					"can't find queue group name %s, selection ignored",
+					pvp[1]);
+			if (tTd(20, 4) && r != NOQGRP)
+				sm_syslog(LOG_INFO, NOQID,
+					"queue group name %s -> %d",
+					pvp[1], r);
+			a->q_qgrp = r == NOQGRP ? ENVQGRP : r;
+		}
+	}
 
 	/*
 	**  If there was a parsing failure, mark it for queueing.
@@ -157,10 +199,10 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 		if (e->e_sendmode == SM_DEFER)
 			msg = "Deferring message until queue run";
 		if (tTd(20, 1))
-			dprintf("parseaddr: queuing message\n");
+			sm_dprintf("parseaddr: queuing message\n");
 		message(msg);
 		if (e->e_message == NULL && e->e_sendmode != SM_DEFER)
-			e->e_message = newstr(msg);
+			e->e_message = sm_rpool_strdup_x(e->e_rpool, msg);
 		a->q_state = QS_QUEUEUP;
 		a->q_status = "4.4.3";
 	}
@@ -171,61 +213,144 @@ parseaddr(addr, a, flags, delim, delimptr, e)
 
 	if (tTd(20, 1))
 	{
-		dprintf("parseaddr-->");
-		printaddr(a, FALSE);
+		sm_dprintf("parseaddr-->");
+		printaddr(a, false);
 	}
 
 	return a;
 }
-/*
-**  INVALIDADDR -- check for address containing meta-characters
+/*
+**  INVALIDADDR -- check for address containing characters used for macros
 **
 **	Parameters:
 **		addr -- the address to check.
+**		delimptr -- if non-NULL: end of address to check, i.e.,
+**			a pointer in the address string.
+**		isrcpt -- true iff the address is for a recipient.
 **
 **	Returns:
-**		TRUE -- if the address has any "wierd" characters
-**		FALSE -- otherwise.
+**		true -- if the address has characters that are reservered
+**			for macros or is too long.
+**		false -- otherwise.
 */
 
 bool
-invalidaddr(addr, delimptr)
+invalidaddr(addr, delimptr, isrcpt)
 	register char *addr;
 	char *delimptr;
+	bool isrcpt;
 {
+	bool result = false;
 	char savedelim = '\0';
+	int len = 0;
 
 	if (delimptr != NULL)
 	{
+		/* delimptr points to the end of the address to test */
 		savedelim = *delimptr;
-		if (savedelim != '\0')
-			*delimptr = '\0';
-	}
-	if (strlen(addr) > MAXNAME - 1)
-	{
-		usrerr("553 5.1.1 Address too long (%d bytes max)",
-		       MAXNAME - 1);
-		goto failure;
+		if (savedelim != '\0')	/* if that isn't '\0' already: */
+			*delimptr = '\0';	/* set it */
 	}
 	for (; *addr != '\0'; addr++)
 	{
 		if ((*addr & 0340) == 0200)
+		{
+			setstat(EX_USAGE);
+			result = true;
 			break;
+		}
+		if (++len > MAXNAME - 1)
+		{
+			usrerr("553 5.1.0 Address too long (%d bytes max)",
+			       MAXNAME - 1);
+			result = true;
+			goto delim;
+		}
 	}
-	if (*addr == '\0')
+	if (result)
 	{
-		if (delimptr != NULL && savedelim != '\0')
-			*delimptr = savedelim;
-		return FALSE;
+		if (isrcpt)
+			usrerr("501 5.1.3 Syntax error in mailbox address");
+		else
+			usrerr("501 5.1.7 Syntax error in mailbox address");
 	}
-	setstat(EX_USAGE);
-	usrerr("553 5.1.1 Address contained invalid control characters");
-failure:
+delim:
 	if (delimptr != NULL && savedelim != '\0')
-		*delimptr = savedelim;
-	return TRUE;
+		*delimptr = savedelim;	/* restore old character at delimptr */
+	return result;
 }
-/*
+/*
+**  HASCTRLCHAR -- check for address containing meta-characters
+**
+**  Checks that the address contains no meta-characters, and contains
+**  no "non-printable" characters unless they are quoted or escaped.
+**  Quoted or escaped characters are literals.
+**
+**	Parameters:
+**		addr -- the address to check.
+**		isrcpt -- true if the address is for a recipient; false
+**			indicates a from.
+**
+**	Returns:
+**		true -- if the address has any "wierd" characters or
+**			non-printable characters or if a quote is unbalanced.
+**		false -- otherwise.
+*/
+
+static bool
+hasctrlchar(addr, isrcpt)
+	register char *addr;
+	bool isrcpt;
+{
+	bool result = false;
+	int len = 0;
+	bool quoted = false;
+
+	if (addr == NULL)
+		return false;
+	for (; *addr != '\0'; addr++)
+	{
+		if (!quoted && (*addr < 32 || *addr == 127))
+		{
+			result = true;	/* a non-printable */
+			break;
+		}
+		if (*addr == '"')
+			quoted = !quoted;
+		else if (*addr == '\\')
+		{
+			/* XXX Generic problem: no '\0' in strings. */
+			if (*++addr == '\0')
+			{
+				result = true;
+				break;
+			}
+		}
+		if ((*addr & 0340) == 0200)
+		{
+			setstat(EX_USAGE);
+			result = true;
+			break;
+		}
+		if (++len > MAXNAME - 1)
+		{
+			usrerr("553 5.1.0 Address too long (%d bytes max)",
+			       MAXNAME - 1);
+			return true;
+		}
+	}
+	if (quoted)
+		result = true; /* unbalanced quote */
+	if (result)
+	{
+		if (isrcpt)
+			usrerr("501 5.1.3 Syntax error in mailbox address");
+		else
+			usrerr("501 5.1.7 Syntax error in mailbox address");
+	}
+	return result;
+}
+/*
 **  ALLOCADDR -- do local allocations of address on demand.
 **
 **	Also lowercases the host name if requested.
@@ -235,6 +360,7 @@ failure:
 **		flags -- the copy flag (see RF_ definitions in sendmail.h
 **			for a description).
 **		paddr -- the printname of the address.
+**		e -- envelope
 **
 **	Returns:
 **		none.
@@ -244,32 +370,34 @@ failure:
 */
 
 static void
-allocaddr(a, flags, paddr)
+allocaddr(a, flags, paddr, e)
 	register ADDRESS *a;
 	int flags;
 	char *paddr;
+	ENVELOPE *e;
 {
 	if (tTd(24, 4))
-		dprintf("allocaddr(flags=%x, paddr=%s)\n", flags, paddr);
+		sm_dprintf("allocaddr(flags=%x, paddr=%s)\n", flags, paddr);
 
 	a->q_paddr = paddr;
 
 	if (a->q_user == NULL)
-		a->q_user = newstr("");
+		a->q_user = "";
 	if (a->q_host == NULL)
-		a->q_host = newstr("");
+		a->q_host = "";
 
 	if (bitset(RF_COPYPARSE, flags))
 	{
-		a->q_host = newstr(a->q_host);
+		a->q_host = sm_rpool_strdup_x(e->e_rpool, a->q_host);
 		if (a->q_user != a->q_paddr)
-			a->q_user = newstr(a->q_user);
+			a->q_user = sm_rpool_strdup_x(e->e_rpool, a->q_user);
 	}
 
 	if (a->q_paddr == NULL)
-		a->q_paddr = newstr(a->q_user);
+		a->q_paddr = sm_rpool_strdup_x(e->e_rpool, a->q_user);
+	a->q_qgrp = NOAQGRP;
 }
-/*
+/*
 **  PRESCAN -- Prescan name and make it canonical
 **
 **	Scans a name and turns it into a set of tokens.  This process
@@ -332,7 +460,7 @@ static short StateTab[NSTATES][NSTATES] =
 };
 
 /* token type table -- it gets modified with $o characters */
-static u_char	TokTypeTab[256] =
+static unsigned char	TokTypeTab[256] =
 {
     /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,SPC,SPC,SPC,SPC,SPC,ATM,ATM,
@@ -370,7 +498,7 @@ static u_char	TokTypeTab[256] =
 };
 
 /* token type table for MIME parsing */
-u_char	MimeTokenTab[256] =
+unsigned char	MimeTokenTab[256] =
 {
     /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
 	ILL,ILL,ILL,ILL,ILL,ILL,ILL,ILL, ILL,SPC,SPC,SPC,SPC,SPC,ILL,ILL,
@@ -408,7 +536,7 @@ u_char	MimeTokenTab[256] =
 };
 
 /* token type table: don't strip comments */
-u_char	TokTypeNoC[256] =
+unsigned char	TokTypeNoC[256] =
 {
     /*	nul soh stx etx eot enq ack bel  bs  ht  nl  vt  np  cr  so  si   */
 	ATM,ATM,ATM,ATM,ATM,ATM,ATM,ATM, ATM,SPC,SPC,SPC,SPC,SPC,ATM,ATM,
@@ -455,7 +583,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	char pvpbuf[];
 	int pvpbsize;
 	char **delimptr;
-	u_char *toktab;
+	unsigned char *toktab;
 {
 	register char *p;
 	register char *q;
@@ -470,7 +598,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	int newstate;
 	char *saveto = CurEnv->e_to;
 	static char *av[MAXATOM + 1];
-	static char firsttime = TRUE;
+	static bool firsttime = true;
 	extern int errno;
 
 	if (firsttime)
@@ -478,7 +606,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 		/* initialize the token type table */
 		char obuf[50];
 
-		firsttime = FALSE;
+		firsttime = false;
 		if (OperatorChars == NULL)
 		{
 			if (ConfigLevel < 7)
@@ -488,7 +616,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 		}
 		expand(OperatorChars, obuf, sizeof obuf - sizeof DELIMCHARS,
 		       CurEnv);
-		(void) strlcat(obuf, DELIMCHARS, sizeof obuf);
+		(void) sm_strlcat(obuf, DELIMCHARS, sizeof obuf);
 		for (p = obuf; *p != '\0'; p++)
 		{
 			if (TokTypeTab[*p & 0xff] == ATM)
@@ -504,8 +632,8 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	errno = 0;
 
 	q = pvpbuf;
-	bslashmode = FALSE;
-	route_syntax = FALSE;
+	bslashmode = false;
+	route_syntax = false;
 	cmntcnt = 0;
 	anglecnt = 0;
 	avp = av;
@@ -515,9 +643,9 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	CurEnv->e_to = p;
 	if (tTd(22, 11))
 	{
-		dprintf("prescan: ");
+		sm_dprintf("prescan: ");
 		xputs(p);
-		dprintf("\n");
+		sm_dprintf("\n");
 	}
 
 	do
@@ -533,7 +661,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				if (q >= &pvpbuf[pvpbsize - 5])
 				{
 					usrerr("553 5.1.1 Address too long");
-					if (strlen(addr) > (SIZE_T) MAXNAME)
+					if (strlen(addr) > MAXNAME)
 						addr[MAXNAME] = '\0';
 	returnnull:
 					if (delimptr != NULL)
@@ -553,18 +681,18 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				/* diagnose and patch up bad syntax */
 				if (state == QST)
 				{
-					usrerr("653 Unbalanced '\"'");
+					usrerr("553 Unbalanced '\"'");
 					c = '"';
 				}
 				else if (cmntcnt > 0)
 				{
-					usrerr("653 Unbalanced '('");
+					usrerr("553 Unbalanced '('");
 					c = ')';
 				}
 				else if (anglecnt > 0)
 				{
 					c = '>';
-					usrerr("653 Unbalanced '<'");
+					usrerr("553 Unbalanced '<'");
 				}
 				else
 					break;
@@ -579,20 +707,20 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				/* special case for better error management */
 				if (delim == ',' && !route_syntax)
 				{
-					usrerr("653 Unbalanced '<'");
+					usrerr("553 Unbalanced '<'");
 					c = '>';
 					p--;
 				}
 			}
 
 			if (tTd(22, 101))
-				dprintf("c=%c, s=%d; ", c, state);
+				sm_dprintf("c=%c, s=%d; ", c, state);
 
 			/* chew up special characters */
 			*q = '\0';
 			if (bslashmode)
 			{
-				bslashmode = FALSE;
+				bslashmode = false;
 
 				/* kludge \! for naive users */
 				if (cmntcnt > 0)
@@ -609,7 +737,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 
 			if (c == '\\')
 			{
-				bslashmode = TRUE;
+				bslashmode = true;
 			}
 			else if (state == QST)
 			{
@@ -625,7 +753,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			{
 				if (cmntcnt <= 0)
 				{
-					usrerr("653 Unbalanced ')'");
+					usrerr("553 Unbalanced ')'");
 					c = NOCHAR;
 				}
 				else
@@ -643,18 +771,18 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 				while (isascii(*ptr) && isspace(*ptr))
 					ptr++;
 				if (*ptr == '@')
-					route_syntax = TRUE;
+					route_syntax = true;
 			}
 			else if (c == '>')
 			{
 				if (anglecnt <= 0)
 				{
-					usrerr("653 Unbalanced '>'");
+					usrerr("553 Unbalanced '>'");
 					c = NOCHAR;
 				}
 				else
 					anglecnt--;
-				route_syntax = FALSE;
+				route_syntax = false;
 			}
 			else if (delim == ' ' && isascii(c) && isspace(c))
 				c = ' ';
@@ -668,14 +796,15 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 
 			newstate = StateTab[state][toktab[c & 0xff]];
 			if (tTd(22, 101))
-				dprintf("ns=%02o\n", newstate);
+				sm_dprintf("ns=%02o\n", newstate);
 			state = newstate & TYPE;
 			if (state == ILL)
 			{
 				if (isascii(c) && isprint(c))
-					usrerr("653 Illegal character %c", c);
+					usrerr("553 Illegal character %c", c);
 				else
-					usrerr("653 Illegal character 0x%02x", c);
+					usrerr("553 Illegal character 0x%02x",
+					       c & 0x0ff);
 			}
 			if (bitset(M, newstate))
 				c = NOCHAR;
@@ -689,9 +818,9 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			*q++ = '\0';
 			if (tTd(22, 36))
 			{
-				dprintf("tok=");
+				sm_dprintf("tok=");
 				xputs(tok);
-				dprintf("\n");
+				sm_dprintf("\n");
 			}
 			if (avp >= &av[MAXATOM])
 			{
@@ -712,19 +841,19 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 		*delimptr = p;
 	if (tTd(22, 12))
 	{
-		dprintf("prescan==>");
+		sm_dprintf("prescan==>");
 		printav(av);
 	}
 	CurEnv->e_to = saveto;
 	if (av[0] == NULL)
 	{
 		if (tTd(22, 1))
-			dprintf("prescan: null leading token\n");
+			sm_dprintf("prescan: null leading token\n");
 		return NULL;
 	}
 	return av;
 }
-/*
+/*
 **  REWRITE -- apply rewrite rules to token vector.
 **
 **	This routine is an ordered production system.  Each rewrite
@@ -751,6 +880,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 **		ruleset -- the ruleset to use for rewriting.
 **		reclevel -- recursion level (to catch loops).
 **		e -- the current envelope.
+**		maxatom -- maximum length of buffer (usually MAXATOM)
 **
 **	Returns:
 **		A status code.  If EX_TEMPFAIL, higher level code should
@@ -768,11 +898,12 @@ struct match
 };
 
 int
-rewrite(pvp, ruleset, reclevel, e)
+rewrite(pvp, ruleset, reclevel, e, maxatom)
 	char **pvp;
 	int ruleset;
 	int reclevel;
 	register ENVELOPE *e;
+	int maxatom;
 {
 	register char *ap;		/* address pointer */
 	register char *rp;		/* rewrite pointer */
@@ -798,7 +929,7 @@ rewrite(pvp, ruleset, reclevel, e)
 	rulename = RuleSetNames[ruleset];
 	if (rulename == NULL)
 	{
-		snprintf(name, sizeof name, "%d", ruleset);
+		(void) sm_snprintf(name, sizeof name, "%d", ruleset);
 		rulename = name;
 	}
 	if (OpMode == MD_TEST)
@@ -807,12 +938,13 @@ rewrite(pvp, ruleset, reclevel, e)
 		prefix = "rewrite: ruleset ";
 	if (OpMode == MD_TEST)
 	{
-		printf("%s%-16.16s   input:", prefix, rulename);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "%s%-16.16s   input:", prefix, rulename);
 		printav(pvp);
 	}
 	else if (tTd(21, 1))
 	{
-		dprintf("%s%-16.16s   input:", prefix, rulename);
+		sm_dprintf("%s%-16.16s   input:", prefix, rulename);
 		printav(pvp);
 	}
 	if (reclevel++ > MaxRuleRecursion)
@@ -842,10 +974,10 @@ rewrite(pvp, ruleset, reclevel, e)
 		if (tTd(21, 12))
 		{
 			if (tTd(21, 15))
-				dprintf("-----trying rule (line %d):",
+				sm_dprintf("-----trying rule (line %d):",
 				       rwr->r_line);
 			else
-				dprintf("-----trying rule:");
+				sm_dprintf("-----trying rule:");
 			printav(rwr->r_lhs);
 		}
 
@@ -859,7 +991,7 @@ rewrite(pvp, ruleset, reclevel, e)
 				rulename, ruleno);
 			if (tTd(21, 1))
 			{
-				dprintf("workspace: ");
+				sm_dprintf("workspace: ");
 				printav(pvp);
 			}
 			break;
@@ -870,11 +1002,11 @@ rewrite(pvp, ruleset, reclevel, e)
 			rp = *rvp;
 			if (tTd(21, 35))
 			{
-				dprintf("ADVANCE rp=");
+				sm_dprintf("ADVANCE rp=");
 				xputs(rp);
-				dprintf(", ap=");
+				sm_dprintf(", ap=");
 				xputs(ap);
-				dprintf("\n");
+				sm_dprintf("\n");
 			}
 			if (rp == NULL)
 			{
@@ -905,16 +1037,16 @@ rewrite(pvp, ruleset, reclevel, e)
 				{
 					if (tTd(21, 36))
 					{
-						dprintf("EXTEND  rp=");
+						sm_dprintf("EXTEND  rp=");
 						xputs(rp);
-						dprintf(", ap=");
+						sm_dprintf(", ap=");
 						xputs(ap);
-						dprintf("\n");
+						sm_dprintf("\n");
 					}
 					goto extendclass;
 				}
 				if (tTd(21, 36))
-					dprintf("CLMATCH\n");
+					sm_dprintf("CLMATCH\n");
 				mlp++;
 				break;
 
@@ -958,7 +1090,7 @@ rewrite(pvp, ruleset, reclevel, e)
 				ap = macvalue(rp[1], e);
 				mlp->match_first = avp;
 				if (tTd(21, 2))
-					dprintf("rewrite: LHS $&%s => \"%s\"\n",
+					sm_dprintf("rewrite: LHS $&%s => \"%s\"\n",
 						macname(rp[1]),
 						ap == NULL ? "(NULL)" : ap);
 
@@ -967,7 +1099,8 @@ rewrite(pvp, ruleset, reclevel, e)
 				while (*ap != '\0')
 				{
 					if (*avp == NULL ||
-					    strncasecmp(ap, *avp, strlen(*avp)) != 0)
+					    sm_strncasecmp(ap, *avp,
+							   strlen(*avp)) != 0)
 					{
 						/* no match */
 						avp = mlp->match_first;
@@ -1002,11 +1135,11 @@ rewrite(pvp, ruleset, reclevel, e)
 
 				if (tTd(21, 36))
 				{
-					dprintf("BACKUP  rp=");
+					sm_dprintf("BACKUP  rp=");
 					xputs(rp);
-					dprintf(", ap=");
+					sm_dprintf(", ap=");
 					xputs(ap);
-					dprintf("\n");
+					sm_dprintf("\n");
 				}
 
 				if (ap == NULL)
@@ -1045,7 +1178,7 @@ rewrite(pvp, ruleset, reclevel, e)
 		if (mlp < mlist || *rvp != NULL)
 		{
 			if (tTd(21, 10))
-				dprintf("----- rule fails\n");
+				sm_dprintf("----- rule fails\n");
 			rwr = rwr->r_next;
 			ruleno++;
 			loopcount = 0;
@@ -1055,7 +1188,7 @@ rewrite(pvp, ruleset, reclevel, e)
 		rvp = rwr->r_rhs;
 		if (tTd(21, 12))
 		{
-			dprintf("-----rule matches:");
+			sm_dprintf("-----rule matches:");
 			printav(rvp);
 		}
 
@@ -1095,23 +1228,28 @@ rewrite(pvp, ruleset, reclevel, e)
 				}
 				if (tTd(21, 15))
 				{
-					dprintf("$%c:", rp[1]);
+					sm_dprintf("$%c:", rp[1]);
 					pp = m->match_first;
 					while (pp <= m->match_last)
 					{
-						dprintf(" %lx=\"",
-							(u_long) *pp);
-						(void) dflush();
-						dprintf("%s\"", *pp++);
+						sm_dprintf(" %p=\"", *pp);
+						sm_dflush();
+						sm_dprintf("%s\"", *pp++);
 					}
-					dprintf("\n");
+					sm_dprintf("\n");
 				}
 				pp = m->match_first;
 				while (pp <= m->match_last)
 				{
-					if (avp >= &npvp[MAXATOM])
+					if (avp >= &npvp[maxatom])
 					{
 						syserr("554 5.3.0 rewrite: expansion too long");
+						if (LogLevel > 9)
+							sm_syslog(LOG_ERR,
+								e->e_id,
+								"rewrite: expansion too long, ruleset=%s, ruleno=%d",
+								rulename,
+								ruleno);
 						return EX_DATAERR;
 					}
 					*avp++ = *pp++;
@@ -1120,10 +1258,14 @@ rewrite(pvp, ruleset, reclevel, e)
 			else
 			{
 				/* some sort of replacement */
-				if (avp >= &npvp[MAXATOM])
+				if (avp >= &npvp[maxatom])
 				{
 	toolong:
 					syserr("554 5.3.0 rewrite: expansion too long");
+					if (LogLevel > 9)
+						sm_syslog(LOG_ERR, e->e_id,
+							"rewrite: expansion too long, ruleset=%s, ruleno=%d",
+							rulename, ruleno);
 					return EX_DATAERR;
 				}
 				if ((*rp & 0377) != MACRODEXPAND)
@@ -1142,7 +1284,7 @@ rewrite(pvp, ruleset, reclevel, e)
 					char pvpbuf[PSBUFSIZE];
 
 					if (tTd(21, 2))
-						dprintf("rewrite: RHS $&%s => \"%s\"\n",
+						sm_dprintf("rewrite: RHS $&%s => \"%s\"\n",
 							macname(rp[1]),
 							mval == NULL ? "(NULL)" : mval);
 					if (mval == NULL || *mval == '\0')
@@ -1155,7 +1297,8 @@ rewrite(pvp, ruleset, reclevel, e)
 					{
 						if (pvpb1 != NULL)
 							sm_free(pvpb1);
-						pvpb1 = (char **)xalloc(trsize);
+						pvpb1 = (char **)
+							sm_pmalloc_x(trsize);
 						pvpb1_size = trsize;
 					}
 
@@ -1177,15 +1320,16 @@ rewrite(pvp, ruleset, reclevel, e)
 					while (*xpvp != NULL)
 					{
 						if (tTd(21, 19))
-							dprintf(" ... %s\n",
+							sm_dprintf(" ... %s\n",
 								*xpvp);
-						*avp++ = newstr(*xpvp);
-						if (avp >= &npvp[MAXATOM])
+						*avp++ = sm_rpool_strdup_x(
+							e->e_rpool, *xpvp);
+						if (avp >= &npvp[maxatom])
 							goto toolong;
 						xpvp++;
 					}
 					if (tTd(21, 19))
-						dprintf(" ... DONE\n");
+						sm_dprintf(" ... DONE\n");
 
 					/* restore the old trailing input */
 					memmove((char *) pvp,
@@ -1335,15 +1479,15 @@ rewrite(pvp, ruleset, reclevel, e)
 			/* append it to the token list */
 			for (avp = hbrvp; *xpvp != NULL; xpvp++)
 			{
-				*avp++ = newstr(*xpvp);
-				if (avp >= &npvp[MAXATOM])
+				*avp++ = sm_rpool_strdup_x(e->e_rpool, *xpvp);
+				if (avp >= &npvp[maxatom])
 					goto toolong;
 			}
 
 			/* restore the old trailing information */
 			rvp = avp - 1;
 			for (xpvp = pvpb1; (*avp++ = *xpvp++) != NULL; )
-				if (avp >= &npvp[MAXATOM])
+				if (avp >= &npvp[maxatom])
 					goto toolong;
 		}
 
@@ -1363,24 +1507,25 @@ rewrite(pvp, ruleset, reclevel, e)
 
 		if (tTd(21, 4))
 		{
-			dprintf("rewritten as:");
+			sm_dprintf("rewritten as:");
 			printav(pvp);
 		}
 	}
 
 	if (OpMode == MD_TEST)
 	{
-		printf("%s%-16.16s returns:", prefix, rulename);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "%s%-16.16s returns:", prefix, rulename);
 		printav(pvp);
 	}
 	else if (tTd(21, 1))
 	{
-		dprintf("%s%-16.16s returns:", prefix, rulename);
+		sm_dprintf("%s%-16.16s returns:", prefix, rulename);
 		printav(pvp);
 	}
 	return rstat;
 }
-/*
+/*
 **  CALLSUBR -- call subroutines in rewrite vector
 **
 **	Parameters:
@@ -1402,14 +1547,25 @@ callsubr(pvp, reclevel, e)
 	ENVELOPE *e;
 {
 	char **avp;
-	char **rvp;
 	register int i;
-	int subr;
+	int subr, j;
+	int nsubr;
 	int status;
 	int rstat = EX_OK;
-	char *tpvp[MAXATOM + 1];
+#define MAX_SUBR	16
+	int subrnumber[MAX_SUBR];
+	int subrindex[MAX_SUBR];
 
-	for (avp = pvp; *avp != NULL; avp++)
+	nsubr = 0;
+
+	/*
+	**  Look for subroutine calls in pvp, collect them into subr*[]
+	**  We will perform the calls in the next loop, because we will
+	**  call the "last" subroutine first to avoid recursive calls
+	**  and too much copying.
+	*/
+
+	for (avp = pvp, j = 0; *avp != NULL; avp++, j++)
 	{
 		if ((**avp & 0377) == CALLSUBR && avp[1] != NULL)
 		{
@@ -1417,81 +1573,74 @@ callsubr(pvp, reclevel, e)
 			subr = strtorwset(avp[1], NULL, ST_FIND);
 			if (subr < 0)
 			{
-				syserr("Unknown ruleset %s", avp[1]);
+				syserr("554 5.3.5 Unknown ruleset %s", avp[1]);
 				return EX_CONFIG;
 			}
 
-			if (tTd(21, 3))
-				dprintf("-----callsubr %s (%d)\n",
-					avp[1], subr);
-
 			/*
-			**  Take care of possible inner calls first.
-			**  use a full size temporary buffer to avoid
-			**  overflows in rewrite, but strip off the
-			**  subroutine call.
+			**  XXX instead of doing this we could optimize
+			**  the rules after reading them: just remove
+			**  calls to empty rulesets
 			*/
 
-			for (i = 2; avp[i] != NULL; i++)
-				tpvp[i - 2] = avp[i];
-			tpvp[i - 2] = NULL;
-
-			status = callsubr(tpvp, reclevel, e);
-			if (rstat == EX_OK || status == EX_TEMPFAIL)
-				rstat = status;
-
-			/*
-			**  Now we need to call the ruleset specified for
-			**  the subroutine. we can do this with the
-			**  temporary buffer that we set up earlier,
-			**  since it has all the data we want to rewrite.
-			*/
-
-			status = rewrite(tpvp, subr, reclevel, e);
-			if (rstat == EX_OK || status == EX_TEMPFAIL)
-				rstat = status;
-
-			/*
-			**  Find length of tpvp and current offset into
-			**  pvp, if the total is greater than MAXATOM,
-			**  then it would overflow the buffer if we copied
-			**  it back in to pvp, in which case we throw a
-			**  fit.
-			*/
-
-			for (rvp = tpvp; *rvp != NULL; rvp++)
-				continue;
-			if (((rvp - tpvp) + (avp - pvp)) > MAXATOM)
+			/* subroutine is an empty ruleset?  don't call it */
+			if (RewriteRules[subr] == NULL)
 			{
-				syserr("554 5.3.0 callsubr: expansion too long");
-				return EX_DATAERR;
+				if (tTd(21, 3))
+					sm_dprintf("-----skip subr %s (%d)\n",
+						avp[1], subr);
+				for (i = 2; avp[i] != NULL; i++)
+					avp[i - 2] = avp[i];
+				avp[i - 2] = NULL;
+				continue;
 			}
-
-			/*
-			**  Now we can copy the rewritten code over
-			**  the initial subroutine call in the buffer.
-			*/
-
-			for (i = 0; tpvp[i] != NULL; i++)
-				avp[i] = tpvp[i];
-			avp[i] = NULL;
-
-			/*
-			**  If we got this far, we've processed the left
-			**  most subroutine, and recursively called ourselves
-			**  to handle any other subroutines.  We're done.
-			*/
-
-			break;
+			if (++nsubr >= MAX_SUBR)
+			{
+				syserr("554 5.3.0 Too many subroutine calls (%d max)",
+					MAX_SUBR);
+				return EX_CONFIG;
+			}
+			subrnumber[nsubr] = subr;
+			subrindex[nsubr] = j;
 		}
+	}
+
+	/*
+	**  Perform the actual subroutines calls, "last" one first, i.e.,
+	**  go from the right to the left through all calls,
+	**  do the rewriting in place.
+	*/
+
+	for (; nsubr > 0; nsubr--)
+	{
+		subr = subrnumber[nsubr];
+		avp = pvp + subrindex[nsubr];
+
+		/* remove the subroutine call and name */
+		for (i = 2; avp[i] != NULL; i++)
+			avp[i - 2] = avp[i];
+		avp[i - 2] = NULL;
+
+		/*
+		**  Now we need to call the ruleset specified for
+		**  the subroutine. we can do this inplace since
+		**  we call the "last" subroutine first.
+		*/
+
+		status = rewrite(avp, subr, reclevel, e,
+				MAXATOM - subrindex[nsubr]);
+		if (status != EX_OK && status != EX_TEMPFAIL)
+			return status;
+		if (rstat == EX_OK || status == EX_TEMPFAIL)
+			rstat = status;
 	}
 	return rstat;
 }
-/*
+/*
 **  MAP_LOOKUP -- do lookup in map
 **
 **	Parameters:
-**		map -- the map to use for the lookup.
+**		smap -- the map to use for the lookup.
 **		key -- the key to look up.
 **		argvect -- arguments to pass to the map lookup.
 **		pstat -- a pointer to an integer in which to store the
@@ -1526,7 +1675,7 @@ map_lookup(smap, key, argvect, pstat, e)
 	{
 		/* don't do any map lookups */
 		if (tTd(60, 1))
-			dprintf("map_lookup(%s, %s) => DEFERRED\n",
+			sm_dprintf("map_lookup(%s, %s) => DEFERRED\n",
 				smap->s_name, key);
 		*pstat = EX_TEMPFAIL;
 		return NULL;
@@ -1537,19 +1686,19 @@ map_lookup(smap, key, argvect, pstat, e)
 
 	if (tTd(60, 1))
 	{
-		dprintf("map_lookup(%s, %s", smap->s_name, key);
+		sm_dprintf("map_lookup(%s, %s", smap->s_name, key);
 		if (tTd(60, 5))
 		{
 			int i;
 
 			for (i = 0; argvect[i] != NULL; i++)
-				dprintf(", %%%d=%s", i, argvect[i]);
+				sm_dprintf(", %%%d=%s", i, argvect[i]);
 		}
-		dprintf(") => ");
+		sm_dprintf(") => ");
 	}
 	replac = (*map->map_class->map_lookup)(map, key, argvect, &status);
 	if (tTd(60, 1))
-		dprintf("%s (%d)\n",
+		sm_dprintf("%s (%d)\n",
 			replac != NULL ? replac : "NOT FOUND",
 			status);
 
@@ -1558,17 +1707,17 @@ map_lookup(smap, key, argvect, pstat, e)
 	{
 		*pstat = EX_TEMPFAIL;
 		if (tTd(60, 1))
-			dprintf("map_lookup(%s, %s) tempfail: errno=%d\n",
+			sm_dprintf("map_lookup(%s, %s) tempfail: errno=%d\n",
 				smap->s_name, key, errno);
 		if (e->e_message == NULL)
 		{
 			char mbuf[320];
 
-			snprintf(mbuf, sizeof mbuf,
+			(void) sm_snprintf(mbuf, sizeof mbuf,
 				"%.80s map: lookup (%s): deferred",
 				smap->s_name,
 				shortenstring(key, MAXSHORTSTR));
-			e->e_message = newstr(mbuf);
+			e->e_message = sm_rpool_strdup_x(e->e_rpool, mbuf);
 		}
 	}
 	if (status == EX_TEMPFAIL && map->map_tapp != NULL)
@@ -1582,17 +1731,17 @@ map_lookup(smap, key, argvect, pstat, e)
 			if (rwbuf != NULL)
 				sm_free(rwbuf);
 			rwbuflen = i;
-			rwbuf = (char *) xalloc(rwbuflen);
+			rwbuf = (char *) sm_pmalloc_x(rwbuflen);
 		}
-		snprintf(rwbuf, rwbuflen, "%s%s", key, map->map_tapp);
+		(void) sm_strlcpyn(rwbuf, rwbuflen, 2, key, map->map_tapp);
 		if (tTd(60, 4))
-			dprintf("map_lookup tempfail: returning \"%s\"\n",
+			sm_dprintf("map_lookup tempfail: returning \"%s\"\n",
 				rwbuf);
 		return rwbuf;
 	}
 	return replac;
 }
-/*
+/*
 **  INITERRMAILERS -- initialize error and discard mailers
 **
 **	Parameters:
@@ -1628,7 +1777,7 @@ initerrmailers()
 		errormailer.m_argv = errorargv;
 	}
 }
-/*
+/*
 **  BUILDADDR -- build address from token vector.
 **
 **	Parameters:
@@ -1660,12 +1809,9 @@ static struct errcodes
 	{ "software",		EX_SOFTWARE	},
 	{ "tempfail",		EX_TEMPFAIL	},
 	{ "protocol",		EX_PROTOCOL	},
-#ifdef EX_CONFIG
 	{ "config",		EX_CONFIG	},
-#endif /* EX_CONFIG */
 	{ NULL,			EX_UNAVAILABLE	}
 };
-
 
 static ADDRESS *
 buildaddr(tv, a, flags, e)
@@ -1684,12 +1830,12 @@ buildaddr(tv, a, flags, e)
 
 	if (tTd(24, 5))
 	{
-		dprintf("buildaddr, flags=%x, tv=", flags);
+		sm_dprintf("buildaddr, flags=%x, tv=", flags);
 		printav(tv);
 	}
 
 	if (a == NULL)
-		a = (ADDRESS *) xalloc(sizeof *a);
+		a = (ADDRESS *) sm_rpool_malloc_x(e->e_rpool, sizeof *a);
 	memset((char *) a, '\0', sizeof *a);
 	hbuf[0] = '\0';
 
@@ -1731,20 +1877,22 @@ badaddr:
 	cataddr(++tv, NULL, ubuf, sizeof ubuf, ' ');
 
 	/* save away the host name */
-	if (strcasecmp(mname, "error") == 0)
+	if (sm_strcasecmp(mname, "error") == 0)
 	{
 		/* Set up triplet for use by -bv */
 		a->q_mailer = &errormailer;
-		a->q_user = newstr(ubuf);
+		a->q_user = sm_rpool_strdup_x(e->e_rpool, ubuf);
+		/* XXX wrong place? */
 
 		if (hostp != NULL)
 		{
 			register struct errcodes *ep;
 
-			a->q_host = newstr(hbuf);
+			a->q_host = sm_rpool_strdup_x(e->e_rpool, hbuf);
 			if (strchr(hbuf, '.') != NULL)
 			{
-				a->q_status = newstr(hbuf);
+				a->q_status = sm_rpool_strdup_x(e->e_rpool,
+								hbuf);
 				setstat(dsntoexitstat(hbuf));
 			}
 			else if (isascii(hbuf[0]) && isdigit(hbuf[0]))
@@ -1754,7 +1902,7 @@ badaddr:
 			else
 			{
 				for (ep = ErrorCodes; ep->ec_name != NULL; ep++)
-					if (strcasecmp(ep->ec_name, hbuf) == 0)
+					if (sm_strcasecmp(ep->ec_name, hbuf) == 0)
 						break;
 				setstat(ep->ec_code);
 			}
@@ -1780,7 +1928,7 @@ badaddr:
 				off = 4;
 				ubuf[3] = '\0';
 			}
-			(void) snprintf(fmt, sizeof fmt, "%s %%s", ubuf);
+			(void) sm_strlcpyn(fmt, sizeof fmt, 2, ubuf, " %s");
 			if (off > 4)
 				usrerr(fmt, ubuf + off);
 			else if (isenhsc(hbuf, '\0') > 0)
@@ -1798,7 +1946,7 @@ badaddr:
 
 	for (mp = Mailer; (m = *mp++) != NULL; )
 	{
-		if (strcasecmp(m->m_name, mname) == 0)
+		if (sm_strcasecmp(m->m_name, mname) == 0)
 			break;
 	}
 	if (m == NULL)
@@ -1819,7 +1967,7 @@ badaddr:
 		a->q_host = NULL;
 	}
 	else
-		a->q_host = newstr(hbuf);
+		a->q_host = sm_rpool_strdup_x(e->e_rpool, hbuf);
 
 	/* figure out the user */
 	p = ubuf;
@@ -1841,40 +1989,31 @@ badaddr:
 	{
 		/* may be :include: */
 		stripquotes(ubuf);
-		if (strncasecmp(ubuf, ":include:", 9) == 0)
+		if (sm_strncasecmp(ubuf, ":include:", 9) == 0)
 		{
 			/* if :include:, don't need further rewriting */
 			a->q_mailer = m = InclMailer;
-			a->q_user = newstr(&ubuf[9]);
+			a->q_user = sm_rpool_strdup_x(e->e_rpool, &ubuf[9]);
 			return a;
 		}
 	}
 
 	/* rewrite according recipient mailer rewriting rules */
-	define('h', a->q_host, e);
+	macdefine(&e->e_macro, A_PERM, 'h', a->q_host);
 
-#if _FFR_ADDR_TYPE
-	/*
-	**  Note, change the 9 to a 10 before removing #if FFR check
-	**  in a future version.
-	*/
-
-	if (ConfigLevel >= 9 ||
+	if (ConfigLevel >= 10 ||
 	    !bitset(RF_SENDERADDR|RF_HEADERADDR, flags))
-#else /* _FFR_ADDR_TYPE */
-	if (!bitset(RF_SENDERADDR|RF_HEADERADDR, flags))
-#endif /* _FFR_ADDR_TYPE */
 	{
 		/* sender addresses done later */
-		(void) rewrite(tv, 2, 0, e);
+		(void) REWRITE(tv, 2, e);
 		if (m->m_re_rwset > 0)
-		       (void) rewrite(tv, m->m_re_rwset, 0, e);
+		       (void) REWRITE(tv, m->m_re_rwset, e);
 	}
-	(void) rewrite(tv, 4, 0, e);
+	(void) REWRITE(tv, 4, e);
 
 	/* save the result for the command line/RCPT argument */
 	cataddr(tv, NULL, ubuf, sizeof ubuf, '\0');
-	a->q_user = newstr(ubuf);
+	a->q_user = sm_rpool_strdup_x(e->e_rpool, ubuf);
 
 	/*
 	**  Do mapping to lower case as requested by mailer
@@ -1887,12 +2026,12 @@ badaddr:
 
 	if (tTd(24, 6))
 	{
-		dprintf("buildaddr => ");
-		printaddr(a, FALSE);
+		sm_dprintf("buildaddr => ");
+		printaddr(a, false);
 	}
 	return a;
 }
-/*
+/*
 **  CATADDR -- concatenate pieces of addresses (putting in <LWSP> subs)
 **
 **	Parameters:
@@ -1901,7 +2040,7 @@ badaddr:
 **			use entire pvp.
 **		buf -- buffer to build the string into.
 **		sz -- size of buf.
-**		spacesub -- the space separator character; if null,
+**		spacesub -- the space separator character; if '\0',
 **			use SpaceSub.
 **
 **	Returns:
@@ -1919,8 +2058,8 @@ cataddr(pvp, evp, buf, sz, spacesub)
 	register int sz;
 	int spacesub;
 {
-	bool oatomtok = FALSE;
-	bool natomtok = FALSE;
+	bool oatomtok = false;
+	bool natomtok = false;
 	register int i;
 	register char *p;
 
@@ -1937,15 +2076,17 @@ cataddr(pvp, evp, buf, sz, spacesub)
 	}
 	p = buf;
 	sz -= 2;
-	while (*pvp != NULL && (i = strlen(*pvp)) < sz - 1)
+	while (*pvp != NULL && sz > 0)
 	{
 		natomtok = (TokTypeTab[**pvp & 0xff] == ATM);
 		if (oatomtok && natomtok)
 		{
 			*p++ = spacesub;
-			--sz;
+			if (--sz <= 0)
+				break;
 		}
-		(void) strlcpy(p, *pvp, sz);
+		if ((i = sm_strlcpy(p, *pvp, sz)) >= sz)
+			break;
 		oatomtok = natomtok;
 		p += i;
 		sz -= i;
@@ -1954,7 +2095,7 @@ cataddr(pvp, evp, buf, sz, spacesub)
 	}
 	*p = '\0';
 }
-/*
+/*
 **  SAMEADDR -- Determine if two addresses are the same
 **
 **	This is not just a straight comparison -- if the mailer doesn't
@@ -1964,8 +2105,8 @@ cataddr(pvp, evp, buf, sz, spacesub)
 **		a, b -- pointers to the internal forms to compare.
 **
 **	Returns:
-**		TRUE -- they represent the same mailbox.
-**		FALSE -- they don't.
+**		true -- they represent the same mailbox.
+**		false -- they don't.
 **
 **	Side Effects:
 **		none.
@@ -1980,11 +2121,11 @@ sameaddr(a, b)
 
 	/* if they don't have the same mailer, forget it */
 	if (a->q_mailer != b->q_mailer)
-		return FALSE;
+		return false;
 
 	/* if the user isn't the same, we can drop out */
 	if (strcmp(a->q_user, b->q_user) != 0)
-		return FALSE;
+		return false;
 
 	/* if we have good uids for both but they differ, these are different */
 	if (a->q_mailer == ProgMailer)
@@ -1994,26 +2135,26 @@ sameaddr(a, b)
 		if (ca != NULL && cb != NULL &&
 		    bitset(QGOODUID, ca->q_flags & cb->q_flags) &&
 		    ca->q_uid != cb->q_uid)
-			return FALSE;
+			return false;
 	}
 
 	/* otherwise compare hosts (but be careful for NULL ptrs) */
 	if (a->q_host == b->q_host)
 	{
 		/* probably both null pointers */
-		return TRUE;
+		return true;
 	}
 	if (a->q_host == NULL || b->q_host == NULL)
 	{
 		/* only one is a null pointer */
-		return FALSE;
+		return false;
 	}
 	if (strcmp(a->q_host, b->q_host) != 0)
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
-/*
+/*
 **  PRINTADDR -- print address (for debugging)
 **
 **	Parameters:
@@ -2029,8 +2170,8 @@ sameaddr(a, b)
 
 struct qflags
 {
-	char	*qf_name;
-	u_long	qf_bit;
+	char		*qf_name;
+	unsigned long	qf_bit;
 };
 
 static struct qflags	AddressFlags[] =
@@ -2066,14 +2207,14 @@ printaddr(a, follow)
 
 	if (a == NULL)
 	{
-		printf("[NULL]\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "[NULL]\n");
 		return;
 	}
 
 	while (a != NULL)
 	{
-		printf("%lx=", (u_long) a);
-		(void) fflush(stdout);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%p=", a);
+		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 
 		/* find the mailer -- carefully */
 		m = a->q_mailer;
@@ -2084,120 +2225,149 @@ printaddr(a, follow)
 			m->m_name = "NULL";
 		}
 
-		printf("%s:\n\tmailer %d (%s), host `%s'\n",
-		       a->q_paddr == NULL ? "<null>" : a->q_paddr,
-		       m->m_mno, m->m_name,
-		       a->q_host == NULL ? "<null>" : a->q_host);
-		printf("\tuser `%s', ruser `%s'\n",
-		       a->q_user,
-		       a->q_ruser == NULL ? "<null>" : a->q_ruser);
-		printf("\tstate=");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "%s:\n\tmailer %d (%s), host `%s'\n",
+				     a->q_paddr == NULL ? "<null>" : a->q_paddr,
+				     m->m_mno, m->m_name,
+				     a->q_host == NULL ? "<null>" : a->q_host);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\tuser `%s', ruser `%s'\n",
+				     a->q_user,
+				     a->q_ruser == NULL ? "<null>" : a->q_ruser);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\tstate=");
 		switch (a->q_state)
 		{
 		  case QS_OK:
-			printf("OK");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "OK");
 			break;
 
 		  case QS_DONTSEND:
-			printf("DONTSEND");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "DONTSEND");
 			break;
 
 		  case QS_BADADDR:
-			printf("BADADDR");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "BADADDR");
 			break;
 
 		  case QS_QUEUEUP:
-			printf("QUEUEUP");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "QUEUEUP");
+			break;
+
+		  case QS_RETRY:
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "RETRY");
 			break;
 
 		  case QS_SENT:
-			printf("SENT");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "SENT");
 			break;
 
 		  case QS_VERIFIED:
-			printf("VERIFIED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "VERIFIED");
 			break;
 
 		  case QS_EXPANDED:
-			printf("EXPANDED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "EXPANDED");
 			break;
 
 		  case QS_SENDER:
-			printf("SENDER");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "SENDER");
 			break;
 
 		  case QS_CLONED:
-			printf("CLONED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "CLONED");
 			break;
 
 		  case QS_DISCARDED:
-			printf("DISCARDED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "DISCARDED");
 			break;
 
 		  case QS_REPLACED:
-			printf("REPLACED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "REPLACED");
 			break;
 
 		  case QS_REMOVED:
-			printf("REMOVED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "REMOVED");
 			break;
 
 		  case QS_DUPLICATE:
-			printf("DUPLICATE");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "DUPLICATE");
 			break;
 
 		  case QS_INCLUDED:
-			printf("INCLUDED");
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "INCLUDED");
 			break;
 
 		  default:
-			printf("%d", a->q_state);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "%d", a->q_state);
 			break;
 		}
-		printf(", next=%lx, alias %lx, uid %d, gid %d\n",
-		       (u_long) a->q_next, (u_long) a->q_alias,
-		       (int) a->q_uid, (int) a->q_gid);
-		printf("\tflags=%lx<", a->q_flags);
-		firstone = TRUE;
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     ", next=%p, alias %p, uid %d, gid %d\n",
+				     a->q_next, a->q_alias,
+				     (int) a->q_uid, (int) a->q_gid);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\tflags=%lx<",
+				     a->q_flags);
+		firstone = true;
 		for (qfp = AddressFlags; qfp->qf_name != NULL; qfp++)
 		{
 			if (!bitset(qfp->qf_bit, a->q_flags))
 				continue;
 			if (!firstone)
-				printf(",");
-			firstone = FALSE;
-			printf("%s", qfp->qf_name);
+				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+						     ",");
+			firstone = false;
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+					     qfp->qf_name);
 		}
-		printf(">\n");
-		printf("\towner=%s, home=\"%s\", fullname=\"%s\"\n",
-		       a->q_owner == NULL ? "(none)" : a->q_owner,
-		       a->q_home == NULL ? "(none)" : a->q_home,
-		       a->q_fullname == NULL ? "(none)" : a->q_fullname);
-		printf("\torcpt=\"%s\", statmta=%s, status=%s\n",
-		       a->q_orcpt == NULL ? "(none)" : a->q_orcpt,
-		       a->q_statmta == NULL ? "(none)" : a->q_statmta,
-		       a->q_status == NULL ? "(none)" : a->q_status);
-		printf("\trstatus=\"%s\"\n",
-		       a->q_rstatus == NULL ? "(none)" : a->q_rstatus);
-		printf("\tspecificity=%d, statdate=%s\n",
-		       a->q_specificity,
-		       a->q_statdate == 0 ? "(none)" : ctime(&a->q_statdate));
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ">\n");
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\towner=%s, home=\"%s\", fullname=\"%s\"\n",
+				     a->q_owner == NULL ? "(none)" : a->q_owner,
+				     a->q_home == NULL ? "(none)" : a->q_home,
+				     a->q_fullname == NULL ? "(none)" : a->q_fullname);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\torcpt=\"%s\", statmta=%s, status=%s\n",
+				     a->q_orcpt == NULL ? "(none)" : a->q_orcpt,
+				     a->q_statmta == NULL ? "(none)" : a->q_statmta,
+				     a->q_status == NULL ? "(none)" : a->q_status);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\tfinalrcpt=\"%s\"\n",
+				     a->q_finalrcpt == NULL ? "(none)" : a->q_finalrcpt);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\trstatus=\"%s\"\n",
+				     a->q_rstatus == NULL ? "(none)" : a->q_rstatus);
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "\tstatdate=%s\n",
+				     a->q_statdate == 0 ? "(none)" : ctime(&a->q_statdate));
 
 		if (!follow)
 			return;
 		a = a->q_next;
 	}
 }
-/*
-**  EMPTYADDR -- return TRUE if this address is empty (``<>'')
+/*
+**  EMPTYADDR -- return true if this address is empty (``<>'')
 **
 **	Parameters:
 **		a -- pointer to the address
 **
 **	Returns:
-**		TRUE -- if this address is "empty" (i.e., no one should
+**		true -- if this address is "empty" (i.e., no one should
 **			ever generate replies to it.
-**		FALSE -- if it is a "regular" (read: replyable) address.
+**		false -- if it is a "regular" (read: replyable) address.
 */
 
 bool
@@ -2207,7 +2377,7 @@ emptyaddr(a)
 	return a->q_paddr == NULL || strcmp(a->q_paddr, "<>") == 0 ||
 	       a->q_user == NULL || strcmp(a->q_user, "<>") == 0;
 }
-/*
+/*
 **  REMOTENAME -- return the name relative to the current mailer
 **
 **	Parameters:
@@ -2239,44 +2409,36 @@ remotename(name, m, flags, pstat, e)
 	register ENVELOPE *e;
 {
 	register char **pvp;
-	char *fancy;
-	char *oldg = macvalue('g', e);
+	char *SM_NONVOLATILE fancy;
+	char *oldg;
 	int rwset;
 	static char buf[MAXNAME + 1];
 	char lbuf[MAXNAME + 1];
 	char pvpbuf[PSBUFSIZE];
-#if _FFR_ADDR_TYPE
 	char addrtype[4];
-#endif /* _FFR_ADDR_TYPE */
 
 	if (tTd(12, 1))
-		dprintf("remotename(%s)\n", name);
+		sm_dprintf("remotename(%s)\n", name);
 
 	/* don't do anything if we are tagging it as special */
 	if (bitset(RF_SENDERADDR, flags))
 	{
 		rwset = bitset(RF_HEADERADDR, flags) ? m->m_sh_rwset
 						     : m->m_se_rwset;
-#if _FFR_ADDR_TYPE
 		addrtype[2] = 's';
-#endif /* _FFR_ADDR_TYPE */
 	}
 	else
 	{
 		rwset = bitset(RF_HEADERADDR, flags) ? m->m_rh_rwset
 						     : m->m_re_rwset;
-#if _FFR_ADDR_TYPE
 		addrtype[2] = 'r';
-#endif /* _FFR_ADDR_TYPE */
 	}
 	if (rwset < 0)
 		return name;
-#if _FFR_ADDR_TYPE
 	addrtype[1] = ' ';
 	addrtype[3] = '\0';
 	addrtype[0] = bitset(RF_HEADERADDR, flags) ? 'h' : 'e';
-	define(macid("{addr_type}", NULL), addrtype, e);
-#endif /* _FFR_ADDR_TYPE */
+	macdefine(&e->e_macro, A_TEMP, macid("{addr_type}"), addrtype);
 
 	/*
 	**  Do a heuristic crack of this name to extract any comment info.
@@ -2299,7 +2461,7 @@ remotename(name, m, flags, pstat, e)
 	pvp = prescan(name, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
 	if (pvp == NULL)
 		return name;
-	if (rewrite(pvp, 3, 0, e) == EX_TEMPFAIL)
+	if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
 		*pstat = EX_TEMPFAIL;
 	if (bitset(RF_ADDDOMAIN, flags) && e->e_fromdomain != NULL)
 	{
@@ -2328,7 +2490,7 @@ remotename(name, m, flags, pstat, e)
 					break;
 				}
 			}
-			if (rewrite(pvp, 3, 0, e) == EX_TEMPFAIL)
+			if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
 				*pstat = EX_TEMPFAIL;
 		}
 	}
@@ -2342,17 +2504,17 @@ remotename(name, m, flags, pstat, e)
 
 	if (bitset(RF_SENDERADDR, flags))
 	{
-		if (rewrite(pvp, 1, 0, e) == EX_TEMPFAIL)
+		if (REWRITE(pvp, 1, e) == EX_TEMPFAIL)
 			*pstat = EX_TEMPFAIL;
 	}
 	else
 	{
-		if (rewrite(pvp, 2, 0, e) == EX_TEMPFAIL)
+		if (REWRITE(pvp, 2, e) == EX_TEMPFAIL)
 			*pstat = EX_TEMPFAIL;
 	}
 	if (rwset > 0)
 	{
-		if (rewrite(pvp, rwset, 0, e) == EX_TEMPFAIL)
+		if (REWRITE(pvp, rwset, e) == EX_TEMPFAIL)
 			*pstat = EX_TEMPFAIL;
 	}
 
@@ -2363,7 +2525,7 @@ remotename(name, m, flags, pstat, e)
 	**	may be used as a default to the above rules.
 	*/
 
-	if (rewrite(pvp, 4, 0, e) == EX_TEMPFAIL)
+	if (REWRITE(pvp, 4, e) == EX_TEMPFAIL)
 		*pstat = EX_TEMPFAIL;
 
 	/*
@@ -2371,21 +2533,24 @@ remotename(name, m, flags, pstat, e)
 	*/
 
 	cataddr(pvp, NULL, lbuf, sizeof lbuf, '\0');
-	define('g', lbuf, e);
+	oldg = macget(&e->e_macro, 'g');
+	macset(&e->e_macro, 'g', lbuf);
 
-	/* need to make sure route-addrs have <angle brackets> */
-	if (bitset(RF_CANONICAL, flags) && lbuf[0] == '@')
-		expand("<\201g>", buf, sizeof buf, e);
-	else
-		expand(fancy, buf, sizeof buf, e);
-
-	define('g', oldg, e);
+	SM_TRY
+		/* need to make sure route-addrs have <angle brackets> */
+		if (bitset(RF_CANONICAL, flags) && lbuf[0] == '@')
+			expand("<\201g>", buf, sizeof buf, e);
+		else
+			expand(fancy, buf, sizeof buf, e);
+	SM_FINALLY
+		macset(&e->e_macro, 'g', oldg);
+	SM_END_TRY
 
 	if (tTd(12, 1))
-		dprintf("remotename => `%s'\n", buf);
+		sm_dprintf("remotename => `%s'\n", buf);
 	return buf;
 }
-/*
+/*
 **  MAPLOCALUSER -- run local username through ruleset 5 for final redirection
 **
 **	Parameters:
@@ -2401,7 +2566,8 @@ remotename(name, m, flags, pstat, e)
 
 #define Q_COPYFLAGS	(QPRIMARY|QBOGUSSHELL|QUNSAFEADDR|\
 			 Q_PINGFLAGS|QHASNOTIFY|\
-			 QRELAYED|QEXPANDED|QDELIVERED|QDELAYED)
+			 QRELAYED|QEXPANDED|QDELIVERED|QDELAYED|\
+			 QBYTRACE|QBYNDELAY|QBYNRELAY)
 
 void
 maplocaluser(a, sendq, aliaslevel, e)
@@ -2411,35 +2577,33 @@ maplocaluser(a, sendq, aliaslevel, e)
 	ENVELOPE *e;
 {
 	register char **pvp;
-	register ADDRESS *a1 = NULL;
+	register ADDRESS *SM_NONVOLATILE a1 = NULL;
 	auto char *delimptr;
 	char pvpbuf[PSBUFSIZE];
 
 	if (tTd(29, 1))
 	{
-		dprintf("maplocaluser: ");
-		printaddr(a, FALSE);
+		sm_dprintf("maplocaluser: ");
+		printaddr(a, false);
 	}
 	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof pvpbuf, &delimptr, NULL);
 	if (pvp == NULL)
 	{
 		if (tTd(29, 9))
-			dprintf("maplocaluser: cannot prescan %s\n",
+			sm_dprintf("maplocaluser: cannot prescan %s\n",
 				a->q_user);
 		return;
 	}
 
-	define('h', a->q_host, e);
-	define('u', a->q_user, e);
-	define('z', a->q_home, e);
+	macdefine(&e->e_macro, A_PERM, 'h', a->q_host);
+	macdefine(&e->e_macro, A_PERM, 'u', a->q_user);
+	macdefine(&e->e_macro, A_PERM, 'z', a->q_home);
 
-#if _FFR_ADDR_TYPE
-	define(macid("{addr_type}", NULL), "e r", e);
-#endif /* _FFR_ADDR_TYPE */
-	if (rewrite(pvp, 5, 0, e) == EX_TEMPFAIL)
+	macdefine(&e->e_macro, A_PERM, macid("{addr_type}"), "e r");
+	if (REWRITE(pvp, 5, e) == EX_TEMPFAIL)
 	{
 		if (tTd(29, 9))
-			dprintf("maplocaluser: rewrite tempfail\n");
+			sm_dprintf("maplocaluser: rewrite tempfail\n");
 		a->q_state = QS_QUEUEUP;
 		a->q_status = "4.4.3";
 		return;
@@ -2447,49 +2611,58 @@ maplocaluser(a, sendq, aliaslevel, e)
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET)
 	{
 		if (tTd(29, 9))
-			dprintf("maplocaluser: doesn't resolve\n");
+			sm_dprintf("maplocaluser: doesn't resolve\n");
 		return;
 	}
 
+	SM_TRY
+		a1 = buildaddr(pvp, NULL, 0, e);
+	SM_EXCEPT(exc, "E:mta.quickabort")
+
+		/*
+		**  mark address as bad, S5 returned an error
+		**	and we gave that back to the SMTP client.
+		*/
+
+		a->q_state = QS_DONTSEND;
+		sm_exc_raisenew_x(&EtypeQuickAbort, 2);
+	SM_END_TRY
+
 	/* if non-null, mailer destination specified -- has it changed? */
-	a1 = buildaddr(pvp, NULL, 0, e);
 	if (a1 == NULL || sameaddr(a, a1))
 	{
 		if (tTd(29, 9))
-			dprintf("maplocaluser: address unchanged\n");
-		if (a1 != NULL)
-			sm_free(a1);
+			sm_dprintf("maplocaluser: address unchanged\n");
 		return;
 	}
 
 	/* make new address take on flags and print attributes of old */
 	a1->q_flags &= ~Q_COPYFLAGS;
 	a1->q_flags |= a->q_flags & Q_COPYFLAGS;
-	a1->q_paddr = newstr(a->q_paddr);
+	a1->q_paddr = sm_rpool_strdup_x(e->e_rpool, a->q_paddr);
+	a1->q_finalrcpt = a->q_finalrcpt;
 	a1->q_orcpt = a->q_orcpt;
 
 	/* mark old address as dead; insert new address */
 	a->q_state = QS_REPLACED;
 	if (tTd(29, 5))
 	{
-		dprintf("maplocaluser: QS_REPLACED ");
-		printaddr(a, FALSE);
+		sm_dprintf("maplocaluser: QS_REPLACED ");
+		printaddr(a, false);
 	}
 	a1->q_alias = a;
-	allocaddr(a1, RF_COPYALL, newstr(a->q_paddr));
+	allocaddr(a1, RF_COPYALL, sm_rpool_strdup_x(e->e_rpool, a->q_paddr), e);
 	(void) recipient(a1, sendq, aliaslevel, e);
 }
-/*
+/*
 **  DEQUOTE_INIT -- initialize dequote map
-**
-**	This is a no-op.
 **
 **	Parameters:
 **		map -- the internal map structure.
 **		args -- arguments.
 **
 **	Returns:
-**		TRUE.
+**		true.
 */
 
 bool
@@ -2530,9 +2703,9 @@ dequote_init(map, args)
 	if (map->map_app != NULL)
 		map->map_app = newstr(map->map_app);
 
-	return TRUE;
+	return true;
 }
-/*
+/*
 **  DEQUOTE_MAP -- unquote an address
 **
 **	Parameters:
@@ -2562,15 +2735,15 @@ dequote_map(map, name, av, statp)
 	int cmntcnt = 0;
 	int quotecnt = 0;
 	int spacecnt = 0;
-	bool quotemode = FALSE;
-	bool bslashmode = FALSE;
+	bool quotemode = false;
+	bool bslashmode = false;
 	char spacesub = map->map_spacesub;
 
 	for (p = q = name; (c = *p++) != '\0'; )
 	{
 		if (bslashmode)
 		{
-			bslashmode = FALSE;
+			bslashmode = false;
 			*q++ = c;
 			continue;
 		}
@@ -2581,7 +2754,7 @@ dequote_map(map, name, av, statp)
 		switch (c)
 		{
 		  case '\\':
-			bslashmode = TRUE;
+			bslashmode = true;
 			break;
 
 		  case '(':
@@ -2630,7 +2803,7 @@ dequote_map(map, name, av, statp)
 	*q++ = '\0';
 	return map_rewrite(map, name, strlen(name), NULL);
 }
-/*
+/*
 **  RSCHECK -- check string(s) for validity using rewriting sets
 **
 **	Parameters:
@@ -2640,8 +2813,9 @@ dequote_map(map, name, av, statp)
 **		e -- the current envelope.
 **		rmcomm -- remove comments?
 **		cnt -- count rejections (statistics)?
-**		logl -- logging level
+**		logl -- logging level.
 **		host -- NULL or relay host.
+**		logid -- id for sm_syslog.
 **
 **	Returns:
 **		EX_OK -- if the rwset doesn't resolve to $#error
@@ -2649,7 +2823,7 @@ dequote_map(map, name, av, statp)
 */
 
 int
-rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host)
+rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host, logid)
 	char *rwset;
 	char *p1;
 	char *p2;
@@ -2657,23 +2831,28 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host)
 	bool rmcomm, cnt;
 	int logl;
 	char *host;
+	char *logid;
 {
-	char *buf;
+	char *volatile buf;
 	int bufsize;
 	int saveexitstat;
-	int rstat = EX_OK;
+	int volatile rstat = EX_OK;
 	char **pvp;
 	int rsno;
-	bool discard = FALSE;
+	bool volatile discard = false;
 	auto ADDRESS a1;
 	bool saveQuickAbort = QuickAbort;
 	bool saveSuprErrs = SuprErrs;
+#if _FFR_QUARANTINE
+	bool quarantine = false;
+	char ubuf[BUFSIZ * 2];
+#endif /* _FFR_QUARANTINE */
 	char buf0[MAXLINE];
 	char pvpbuf[PSBUFSIZE];
 	extern char MsgBuf[];
 
 	if (tTd(48, 2))
-		dprintf("rscheck(%s, %s, %s)\n", rwset, p1,
+		sm_dprintf("rscheck(%s, %s, %s)\n", rwset, p1,
 			p2 == NULL ? "(NULL)" : p2);
 
 	rsno = strtorwset(rwset, NULL, ST_FIND);
@@ -2684,130 +2863,258 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host)
 	{
 		bufsize = strlen(p1) + strlen(p2) + 2;
 		if (bufsize > sizeof buf0)
-			buf = xalloc(bufsize);
+			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
 			bufsize = sizeof buf0;
 		}
-		(void) snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
+		(void) sm_snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
 	}
 	else
 	{
 		bufsize = strlen(p1) + 1;
 		if (bufsize > sizeof buf0)
-			buf = xalloc(bufsize);
+			buf = sm_malloc_x(bufsize);
 		else
 		{
 			buf = buf0;
 			bufsize = sizeof buf0;
 		}
-		(void) snprintf(buf, bufsize, "%s", p1);
+		(void) sm_strlcpy(buf, p1, bufsize);
 	}
-	SuprErrs = TRUE;
-	QuickAbort = FALSE;
-	pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL,
-		      rmcomm ? NULL : TokTypeNoC);
-	SuprErrs = saveSuprErrs;
-	if (pvp == NULL)
+	SM_TRY
 	{
-		if (tTd(48, 2))
-			dprintf("rscheck: cannot prescan input\n");
+		SuprErrs = true;
+		QuickAbort = false;
+		pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL,
+			      rmcomm ? NULL : TokTypeNoC);
+		SuprErrs = saveSuprErrs;
+		if (pvp == NULL)
+		{
+			if (tTd(48, 2))
+				sm_dprintf("rscheck: cannot prescan input\n");
+	/*
+			syserr("rscheck: cannot prescan input: \"%s\"",
+				shortenstring(buf, MAXSHORTSTR));
+			rstat = EX_DATAERR;
+	*/
+			goto finis;
+		}
+		(void) REWRITE(pvp, rsno, e);
+		if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
+		    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&
+				       strcmp(pvp[1], "discard") != 0))
+		{
+			goto finis;
+		}
+
+		if (strcmp(pvp[1], "discard") == 0)
+		{
+			if (tTd(48, 2))
+				sm_dprintf("rscheck: discard mailer selected\n");
+			e->e_flags |= EF_DISCARD;
+			discard = true;
+		}
+#if _FFR_QUARANTINE
+		else if (strcmp(pvp[1], "error") == 0 &&
+			 pvp[2] != NULL && (pvp[2][0] & 0377) == CANONHOST &&
+			 pvp[3] != NULL && strcmp(pvp[3], "quarantine") == 0)
+		{
+			if (pvp[4] == NULL ||
+			    (pvp[4][0] & 0377) != CANONUSER ||
+			    pvp[5] == NULL)
+				e->e_quarmsg = sm_rpool_strdup_x(e->e_rpool,
+								 rwset);
+			else
+			{
+				cataddr(&(pvp[5]), NULL, ubuf,
+					sizeof ubuf, ' ');
+				e->e_quarmsg = sm_rpool_strdup_x(e->e_rpool,
+								 ubuf);
+			}
+			macdefine(&e->e_macro, A_PERM,
+				  macid("{quarantine}"), e->e_quarmsg);
+			quarantine = true;
+		}
+#endif /* _FFR_QUARANTINE */
+		else
+		{
+			int savelogusrerrs = LogUsrErrs;
+			static bool logged = false;
+
+			/* got an error -- process it */
+			saveexitstat = ExitStat;
+			LogUsrErrs = false;
+			(void) buildaddr(pvp, &a1, 0, e);
+			LogUsrErrs = savelogusrerrs;
+			rstat = ExitStat;
+			ExitStat = saveexitstat;
+			if (!logged)
+			{
+				if (cnt)
+					markstats(e, &a1, STATS_REJECT);
+				logged = true;
+			}
+		}
+
+		if (LogLevel > logl)
+		{
+			char *relay;
+			char *p;
+			char lbuf[MAXLINE];
+
+			p = lbuf;
+			if (p2 != NULL)
+			{
+				(void) sm_snprintf(p, SPACELEFT(lbuf, p),
+					", arg2=%s",
+					p2);
+				p += strlen(p);
+			}
+
+			if (host != NULL)
+				relay = host;
+			else
+				relay = macvalue('_', e);
+			if (relay != NULL)
+			{
+				(void) sm_snprintf(p, SPACELEFT(lbuf, p),
+					", relay=%s", relay);
+				p += strlen(p);
+			}
+			*p = '\0';
+			if (discard)
+				sm_syslog(LOG_NOTICE, logid,
+					  "ruleset=%s, arg1=%s%s, discard",
+					  rwset, p1, lbuf);
+#if _FFR_QUARANTINE
+			else if (quarantine)
+				sm_syslog(LOG_NOTICE, logid,
+					  "ruleset=%s, arg1=%s%s, quarantine=%s",
+					  rwset, p1, lbuf, ubuf);
+#endif /* _FFR_QUARANTINE */
+			else
+				sm_syslog(LOG_NOTICE, logid,
+					  "ruleset=%s, arg1=%s%s, reject=%s",
+					  rwset, p1, lbuf, MsgBuf);
+		}
+
+	 finis: ;
+	}
+	SM_FINALLY
+	{
+		/* clean up */
+		if (buf != buf0)
+			sm_free(buf);
+		QuickAbort = saveQuickAbort;
+	}
+	SM_END_TRY
+
+	setstat(rstat);
+
+	/* rulesets don't set errno */
+	errno = 0;
+	if (rstat != EX_OK && QuickAbort)
+		sm_exc_raisenew_x(&EtypeQuickAbort, 2);
+	return rstat;
+}
 /*
-		syserr("rscheck: cannot prescan input: \"%s\"",
-			shortenstring(buf, MAXSHORTSTR));
-		rstat = EX_DATAERR;
+**  RSCAP -- call rewriting set to return capabilities
+**
+**	Parameters:
+**		rwset -- the rewriting set to use.
+**		p1 -- the first string to check.
+**		p2 -- the second string to check -- may be null.
+**		e -- the current envelope.
+**		pvp -- pointer to token vector.
+**		pvpbuf -- buffer space.
+**
+**	Returns:
+**		EX_UNAVAILABLE -- ruleset doesn't exist.
+**		EX_DATAERR -- prescan() failed.
+**		EX_OK -- rewrite() was successful.
+**		else -- return status from rewrite().
 */
-		goto finis;
-	}
 
-	MapOpenErr = FALSE;
-	(void) rewrite(pvp, rsno, 0, e);
-	if (MapOpenErr)
-	{
-  		usrerrenh("4.3.0", "451 Temporary failure");
-		rstat = EX_TEMPFAIL;
-		goto finis;
-	}
+int
+rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
+	char *rwset;
+	char *p1;
+	char *p2;
+	ENVELOPE *e;
+	char ***pvp;
+	char *pvpbuf;
+	int size;
+{
+	char *volatile buf;
+	int bufsize;
+	int volatile rstat = EX_OK;
+	int rsno;
+	bool saveQuickAbort = QuickAbort;
+	bool saveSuprErrs = SuprErrs;
+	char buf0[MAXLINE];
+	extern char MsgBuf[];
 
-	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
-	    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&
-			       strcmp(pvp[1], "discard") != 0))
-	{
-		goto finis;
-	}
+	if (tTd(48, 2))
+		sm_dprintf("rscap(%s, %s, %s)\n", rwset, p1,
+			p2 == NULL ? "(NULL)" : p2);
 
-	if (strcmp(pvp[1], "discard") == 0)
+	if (pvp != NULL)
+		*pvp = NULL;
+	rsno = strtorwset(rwset, NULL, ST_FIND);
+	if (rsno < 0)
+		return EX_UNAVAILABLE;
+
+	if (p2 != NULL)
 	{
-		if (tTd(48, 2))
-			dprintf("rscheck: discard mailer selected\n");
-		e->e_flags |= EF_DISCARD;
-		discard = TRUE;
+		bufsize = strlen(p1) + strlen(p2) + 2;
+		if (bufsize > sizeof buf0)
+			buf = sm_malloc_x(bufsize);
+		else
+		{
+			buf = buf0;
+			bufsize = sizeof buf0;
+		}
+		(void) sm_snprintf(buf, bufsize, "%s%c%s", p1, CONDELSE, p2);
 	}
 	else
 	{
-		int savelogusrerrs = LogUsrErrs;
-		static bool logged = FALSE;
-
-		/* got an error -- process it */
-		saveexitstat = ExitStat;
-		LogUsrErrs = FALSE;
-		(void) buildaddr(pvp, &a1, 0, e);
-		LogUsrErrs = savelogusrerrs;
-		rstat = ExitStat;
-		ExitStat = saveexitstat;
-		if (!logged)
+		bufsize = strlen(p1) + 1;
+		if (bufsize > sizeof buf0)
+			buf = sm_malloc_x(bufsize);
+		else
 		{
-			if (cnt)
-				markstats(e, &a1, TRUE);
-			logged = TRUE;
+			buf = buf0;
+			bufsize = sizeof buf0;
 		}
+		(void) sm_strlcpy(buf, p1, bufsize);
 	}
-
-	if (LogLevel >= logl)
+	SM_TRY
 	{
-		char *relay;
-		char *p;
-		char lbuf[MAXLINE];
-
-		p = lbuf;
-		if (p2 != NULL)
-		{
-			snprintf(p, SPACELEFT(lbuf, p),
-				", arg2=%s",
-				p2);
-			p += strlen(p);
-		}
-
-		if (host != NULL)
-			relay = host;
+		SuprErrs = true;
+		QuickAbort = false;
+		*pvp = prescan(buf, '\0', pvpbuf, size, NULL, NULL);
+		if (*pvp != NULL)
+			rstat = REWRITE(*pvp, rsno, e);
 		else
-			relay = macvalue('_', e);
-		if (relay != NULL)
 		{
-			snprintf(p, SPACELEFT(lbuf, p),
-				", relay=%s", relay);
-			p += strlen(p);
+			if (tTd(48, 2))
+				sm_dprintf("rscap: cannot prescan input\n");
+			rstat = EX_DATAERR;
 		}
-		*p = '\0';
-		if (discard)
-			sm_syslog(LOG_NOTICE, e->e_id,
-				  "ruleset=%s, arg1=%s%s, discard",
-				  rwset, p1, lbuf);
-		else
-			sm_syslog(LOG_NOTICE, e->e_id,
-				  "ruleset=%s, arg1=%s%s, reject=%s",
-				  rwset, p1, lbuf, MsgBuf);
 	}
+	SM_FINALLY
+	{
+		/* clean up */
+		if (buf != buf0)
+			sm_free(buf);
+		SuprErrs = saveSuprErrs;
+		QuickAbort = saveQuickAbort;
 
- finis:
-	/* clean up */
-	QuickAbort = saveQuickAbort;
-	setstat(rstat);
-	if (buf != buf0)
-		sm_free(buf);
-
-	if (rstat != EX_OK && QuickAbort)
-		longjmp(TopFrame, 2);
+		/* prevent information leak, this may contain rewrite error */
+		MsgBuf[0] = '\0';
+	}
+	SM_END_TRY
 	return rstat;
 }

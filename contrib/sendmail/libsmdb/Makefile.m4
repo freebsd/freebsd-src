@@ -1,5 +1,6 @@
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
+define(`confREQUIRE_LIBSM', `true')
 # sendmail dir
 SMSRCDIR=	ifdef(`confSMSRCDIR', `confSMSRCDIR', `${SRCDIR}/sendmail')
 PREPENDDEF(`confENVDEF', `confMAPDEF')

@@ -1,10 +1,906 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.261 2001/08/20 14:45:32 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.1218 2002/01/13 18:24:15 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.2/8.12.2	2002/01/13
+	Don't complain too much if stdin, stdout, or stderr are missing
+		at startup, only log an error message.
+	Fix potential problem if an unknown operation mode (character
+		following -b) has been specified.
+	Prevent purgestat from looping even if someone changes the
+		permissions or owner of hoststatus files.  Problem noted
+		by Kari Hurtta of the Finnish Meteorological Institute.
+	Properly record dropped connections in persistent host status.
+		Problem noted by Ulrich Windl of the Universitat
+		Regensburg.
+	Remove newlines from recipients read via sendmail -t to prevent
+		SMTP protocol errors when sending the RCPT command.
+		Problem noted by William D. Colburn of the New Mexico
+		Institute of Mining and Technology.
+	Only log milter body replacements once instead of for each body
+		chunk sent by a filter.  Problem noted by Kari Hurtta of
+		the Finnish Meteorological Institute.
+	In 8.12.0 and 8.12.1, the headers were mistakenly not included in
+		the message size calculation.  Problem noted by Kari Hurtta
+		of the Finnish Meteorological Institute.
+	Since 8.12 no longer forks at the SMTP MAIL command, the daemon
+		needs to collect children status to avoid zombie processes.
+		Problem noted by Chris Adams of HiWAAY Informations Services.
+	Shut down "nullserver" and ETRN-only connections after 25 bad
+		commands are issued.  This makes it consistent with normal
+		SMTP connections.
+	Avoid duplicate logging of milter rejections.  Problem noted by
+		William D. Colburn of the New Mexico Institute of Mining
+		and Technology.
+	Error and delay DSNs were being sent to postmaster instead of the
+		message sender if the sender had used a deprecated RFC822
+		source route.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	Fix FallbackMXhost behavior for temporary errors during address
+		parsing.  Problem noted by Jorg Bielak from Coastal Web
+		Online.
+	For systems on which stat(2) does not return a value for st_blksize
+		that is the "optimal blocksize for I/O" three new compile
+		time flags are available: SM_IO_MAX_BUF_FILE, SM_IO_MIN_BUF,
+		and SM_IO_MAX_BUF, which define an upper limit for
+		regular files, and a lower and upper limit for other file
+		types, respectively.
+	Fix a potential deadlock if two events are supposed to occur at
+		exactly the same time.  Problem noted by Valdis Kletnieks
+		of Virginia Tech.
+	Perform envelope splitting for aliases listed directly in the
+		alias file, not just for include/.forward files.
+		Problem noted by John Beck of Sun Microsystems.
+	Allow selection of queue group for mailq using -qGgroup.
+		Based on patch by John Beck of Sun Microsystems.
+	Make sure cached LDAP connections used my multiple maps in the same
+		process are closed.  Patch from Taso N. Devetzis.
+	If running as root, allow reading of class files in protected
+		directories.  Patch from Alexander Talos of the University
+		of Vienna.
+	Correct a few LDAP related memory leaks.  Patch from David Powell
+		of Sun Microsystems.
+	Allow specification of an empty realm via the authinfo ruleset.
+		This is necessary to interoperate as an SMTP AUTH client
+		with servers that do not support realms when using
+		CRAM-MD5.  Problem noted by Bjoern Voigt of TU Berlin.
+	Avoid a potential information leak if AUTH PLAIN is used and the
+		server gets stuck while processing that command.  Problem
+		noted by Chris Adams from HiWAAY Informations Services.
+	In addition to printing errors when parsing recipients during
+		command line invocations log them to make it simpler
+		to understand possible DSNs to postmaster.
+	Do not use FallbackMXhost on mailers which have the F=0 flag set.
+	Allow local mailers (F=l) to specify a host for TCP connections
+		instead of forcing localhost.
+	Obey ${DESTDIR} for installation of the client mail queue and
+		submit.cf.  Patch from Peter 'Luna' Runestig.
+	Re-enable support for -M option which was broken in 8.12.1.  Problem
+		noted by Neil Rickert of Northern Illinois University.
+	If a remote server violates the SMTP standard by unexpectedly
+		dropping the connection during an SMTP transaction, stop
+		sending commands.  This prevents bogus "Bad file number"
+		recipient status.  Problem noted by Allan E Johannesen of
+		Worcester Polytechnic Institute.
+	Do not use a size estimate of 100 for postmaster bounces, it's
+		almost always too small; do not guess the size at all.
+	New VENDOR_DEC for Compaq/DEC.  Requested by James Seagraves of
+		Compaq Computer Corp.
+	Fix DaemonPortOptions IPv6 address parsing such that ::1 works
+		properly.  Problem noted by Valdis Kletnieks of Virginia
+		Tech.
+	Portability:
+		Fix IPv6 network interface probing on HP-UX 11.X.  Based on
+			patch provided by HP.
+		Mac OS X (aka Darwin) has a broken setreuid() call, but a
+			working seteuid() call.  From Daniel J. Luke.
+		Use proper type for a 32-bit integer on SINIX.  From Ganu
+			Sachin of Siemens.
+		Set SM_IO_MIN_BUF (4K) and SM_IO_MAX_BUF (8K) for HP-UX.
+		Reduce optimization from +O3 to +O2 on HP-UX 11.  This
+			fixes a problem that caused additional bogus
+			characters to be written to the qf file.  Problem
+			noted by Tapani Tarvainen.
+		Set LDA_USE_LOCKF by default for UnixWare.  Problem noted
+			by Boyd Lynn Gerber.
+		Add support for HP MPE/iX.  See sendmail/README for port
+			information.  From Mark Bixby of Hewlett-Packard.
+		New portability defines HASNICE, HASRRESVPORT, USE_ENVIRON,
+			USE_DOUBLE_FORK, and NEEDLINK.  See sendmail/README
+			for more information.  From Mark Bixby of
+			Hewlett-Packard.
+		If an OS doesn't have a method of finding free disk space
+			(SFS_NONE), lie and say there is plenty of space.
+			From Mark Bixby of Hewlett-Packard.
+		Add support for AIX 5.1.  From Valdis Kletnieks of
+			Virginia Tech.
+		Fix man page location for NeXTSTEP.  From Hisanori Gogota
+			of the NTT/InterCommunication Center.
+		Do not assume that strerror() always returns a string.
+			Problem noted by John Beck of Sun Microsystems.
+	CONFIG: Add OSTYPE(freebsd5) for FreeBSD 5.X, which has removed
+		UUCP from the base operating system.  From Mark Murray of
+		FreeBSD Services, Ltd.
+	CONFIG: Add OSTYPE(mpeix) and a generic .mc file for HP MPE/iX
+		systems.  From Mark Bixby of Hewlett-Packard.
+	CONFIG: Add support for selecting a queue group for all mailers.
+		Based on proposal by Stephen L. Ulmer of the University of
+		Florida.
+	CONFIG: Fix error reporting for compat_check.m4.  Problem noted by
+		Altin Waldmann.
+	CONFIG: Do not override user selections for confRUN_AS_USER and
+		confTRUSTED_USER in FEATURE(msp).  From Mark Bixby of
+		Hewlett-Packard.
+	LIBMILTER: Fix bug that prevented the removal of a socket after
+		libmilter terminated.  Problem reported by Andrey V. Pevnev
+		of MSFU.
+	LIBMILTER: Fix configuration error that required libsm for linking.
+		Problem noted by Kari Hurtta of the Finnish Meteorological
+		Institute.
+	LIBMILTER: Portability fix for OpenUNIX.  Patch from Larry Rosenman.
+	LIBMILTER: Fix a theoretical memory leak and a possible attempt
+		to free memory twice.
+	LIBSM: Fix a potential segmentation violation in the I/O library.
+		Problem found and analyzed by John Beck and Tim Haley
+		of Sun Microsystems.
+	LIBSM: Do not clear the LDAP configuration information when
+		terminating the mailbox database connection in the LDAP
+		example code.  Problem noted by Nikos Voutsinas of the
+		University of Athens.
+	New Files:
+		cf/cf/generic-mpeix.cf
+		cf/cf/generic-mpeix.mc
+		cf/ostype/freebsd5.m4
+		cf/ostype/mpeix.m4
+		devtools/OS/AIX.5.1
+		devtools/OS/MPE-iX
+		include/sm/os/sm_os_mpeix.h
+		libsm/mpeix.c
+
+8.12.1/8.12.1	2001/10/01
+	SECURITY: Check whether dropping group privileges actually succeeded
+		to avoid possible compromises of the mail system by
+		supplying bogus data.  Add configuration options for
+		different set*gid() calls to reset saved gid.  Problem
+		found by Michal Zalewski.
+	PRIVACY: Prevent information leakage when sendmail has extra
+		privileges by disabling debugging (command line -d flag)
+		during queue runs and disabling ETRN when sendmail -bs is
+		used.  Suggested by Michal Zalewski.
+	Avoid memory corruption problems resulting from bogus .cf files.
+		Problem found by Michal Zalewski.
+	Set the ${server_addr} macro to name of mailer when doing LMTP
+		delivery.  LMTP systems may offer SMTP Authentication or
+		STARTTLS causing sendmail to use this macro in rulesets.
+	If debugging is turned on (-d0.10) print not just the default
+		values for configuration file and pid file but also the
+		selected values.  Problem noted by Brad Chapman.
+	Continue dealing with broken nameservers by ignoring SERVFAIL
+		errors returned on T_AAAA (IPv6) lookups at delivery time
+		if ResolverOptions=WorkAroundBrokenAAAA is set.  Previously
+		this only applied to hostname canonification.  Problem
+		noted by Bill Fenner of AT&T Research.
+	Ignore comments in NIS host records when trying to find the
+		canonical name for a host.
+	When sendmail has extra privileges, limit mail submission command
+		line flags (i.e., -G, -h, -F, etc.)  to mail submission
+		operating modes (i.e., -bm, -bs, -bv, etc.).  Idea based on
+		suggestion from Michal Zalewski.
+	Portability:
+		AIX: Use `oslevel` if available to determine OS version.
+			`uname` does not given complete information.
+			Problem noted by Keith Neufeld of the Cessna
+			Aircraft Company.
+		OpenUNIX: Use lockf() for LDA delivery (affects mail.local).
+			Problem noticed by Boyd Lynn Gerber of ZENEX.
+		Avoid compiler warnings by not using pointers to pass
+			integers.  Problem noted by Todd C. Miller of
+			Courtesan Consulting.
+	CONFIG: Add restrictqrun to PrivacyOptions for the MSP to minimize
+		problems with potential misconfigurations.
+	CONFIG: Fix comment showing default value of MaxHopCount.  Problem
+		noted by Greg Robinson of the Defence Science and
+		Technology Organisation of Australia.
+	CONFIG: dnsbl: If an argument specifies an error message in case
+		of temporary lookup failures for DNS based blacklists
+		then use it.
+	LIBMILTER: Install mfdef.h, required by mfapi.h.  Problem noted by
+		Richard A. Nelson of Debian.
+	LIBMILTER: Add __P definition for OS that lack it.  Problem noted
+		by Chris Adams from HiWAAY Informations Services.
+	LIBSMDB: Fix a lock race condition that affects makemap, praliases,
+		and vacation.
+	MAKEMAP: Avoid going beyond the end of an input line if it does
+		not contain a value for a key.  Based on patch from
+		Mark Bixby from Hewlett-Packard.
+	New Files:
+		test/Build
+		test/Makefile
+		test/Makefile.m4
+		test/README
+		test/t_dropgid.c
+		test/t_setgid.c
+	Deleted Files:
+		include/sm/stdio.h
+		include/sm/sysstat.h
+
+8.12.0/8.12.0	2001/09/08
+	*NOTICE*: The default installation of sendmail does not use
+		set-user-ID root anymore.  You need to create a new user and
+		a new group before installing sendmail (both called smmsp by
+		default).  The installation process tries to install
+		/etc/mail/submit.cf and creates /var/spool/clientmqueue by
+		default.  Please see sendmail/SECURITY for details.
+	SECURITY: Check for group and world writable forward and :include:
+		files.  These checks can be turned off if absolutely
+		necessary using the DontBlameSendmail option and the new
+		flags:
+			GroupWritableForwardFile
+			WorldWritableForwardFile
+			GroupWritableIncludeFile
+			WorldWritableIncludeFile
+		Problem noted by Slawek Zak of Politechnika Warszawska,
+	SECURITY: Drop privileges when using address test mode.  Suggested
+		by Michal Zalewski of the "Internet for Schools" project
+		(IdS).
+	Fixed problem of a global variable being used for a timeout jump
+		point where the variable could become overused for more than
+		one timeout concurrently.  This erroneous behavior resulted in
+		a corrupted stack causing a core dump.  The timeout is now
+		handled via libsm.  Problem noted by Michael Shapiro,
+		John Beck, and Carl Smith of Sun Microsystems.
+	If sendmail is set-group-ID then that group ID is used for permission
+		checks (group ID of RunAsUser).  This allows use of a
+		set-group-ID sendmail binary for initial message submission
+		and no set-user-ID root sendmail is needed.  For details
+		see sendmail/SECURITY.
+	Log a warning if a non-trusted user changes the syslog label.
+		Based on notice from Bryan Costales of SL3D, Inc.
+	If sendmail is called for initial delivery, try to use submit.cf
+		with a fallback of sendmail.cf as configuration file.  See
+		sendmail/SECURITY.
+	New configuration file option UseMSP to allow group writable queue
+		files if the group is the same as that of a set-group-ID
+		sendmail binary.  See sendmail/SECURITY.
+	The .cf file is chosen based on the operation mode. For -bm (default),
+		-bs, and -t it is submit.cf if it exists for all others it
+		is sendmail.cf (to be backward compatible).  This selection
+		can be changed by the new option -Ac or -Am (alternative .cf
+		file: client or mta).  See sendmail/SECURITY.
+	The SMTP server no longer forks on each MAIL command.  The ONEX
+		command has been removed.
+	Implement SMTP PIPELINING per RFC 2920.  It can be turned off
+		at compile time or per host (ruleset).
+	New option MailboxDatabase specifies the type of mailbox database
+		used to look up local mail recipients; the default value
+		is "pw", which means to use getpwnam().  New mailbox database
+		types can be added by adding custom code to libsm/mbdb.c.
+	Queue file names are now 15 characters long, rather than 14 characters
+		long, to accomodate envelope splitting.  File systems with
+		a 14 character file name length limit are no longer
+		supported.
+	Recipient list used for delivery now gets internally ordered by
+		hostsignature (character string version of MX RR).  This orders
+		recipients for the same MX RR's together meaning smaller
+		portions of the list need to be scanned (instead of the whole
+		list) each delivery() pass to determine piggybacking.  The
+		significance of the change is better the larger the recipient
+		list.  Hostsignature is now created during recipient list
+		creation rather than just before delivery.
+	Enhancements for more opportunistic piggybacking.  Previous
+		piggybacking (called coincidental) extended to coattail
+		piggybacking.  Rather than complete MX RR matching
+		(coincidental) piggybacking is done if just the lowest value
+		preference matches (coattail).
+	If sendmail receives a temporary error on a RCPT TO: command, it will
+		try other MX hosts if available.
+	DefaultAuthInfo can contain a list of mechanisms to be used for
+		outgoing (client-side) SMTP Authentication.
+	New modifier 'A' for DaemonPortOptions/ClientPortOptions to disable
+		AUTH (overrides 'a' modifier in DaemonPortOptions).  Based
+		on patch from Lyndon Nerenberg of Messaging Direct.
+	Enable AUTH mechanism EXTERNAL if STARTTLS is used.
+	A new ruleset authinfo can be used to return client side
+		authentication information for AUTH instead of DefaultAuthInfo.
+		Therefore the DefaultAuthInfo option is deprecated and will be
+		removed in future versions.
+	Accept any SMTP continuation code 3xy for AUTH even though RFC 2554
+		requires 334.  Mercury 1.48 is a known offender.
+	Add new option AuthMaxBits to limit the overall encryption strength
+		for the security layer in SMTP AUTH (SASL).  See
+		doc/op/op.me for details.
+	Introduce new STARTTLS related macros {cn_issuer}, {cn_subject},
+		{cert_md5} which hold the CN (common name) of the CA that
+		signed the presented certificate, the CN and the MD5 hash
+		of the presented certificate, respectively.
+	New ruleset try_tls to decide whether to try (as client) STARTTLS.
+	New ruleset srv_features to enable/disable certain features in the
+		server per connection.  See doc/op/op.me for details.
+	New ruleset tls_rcpt to decide whether to send e-mail to a particular
+		recipient; useful to decide whether a conection is secure
+		enough on a per recipient basis.
+	New option TLSSrvOptions to modify some aspects of the server
+		for STARTTLS.
+	If no certificate has been requested, the macro {verify} has the
+		value "NOT".
+	New M=S modifier for ClientPortOptions/DaemonPortOptions to turn off
+		using/offering STARTTLS when delivering/receiving e-mail.
+	Macro expand filenames/directories for certs and keys in the .cf file.
+		Proposed by Neil Rickert of Northern Illinois University.
+	Generate an ephemeral RSA key for a STARTTLS connection only if
+		really required.  This change results in a noticable
+		performance gains on most machines.  Moreover, if shared
+		memory is in use, reuse the key several times.
+	Add queue groups which can be used to group queue directories with
+		the same behavior together.  See doc/op/op.me for details.
+	If the new option FastSplit (defaults to one) has a value greater
+		than zero, it suppresses the MX lookups on addresses when they
+		are initially sorted which may result in faster envelope
+		splitting.  If the mail is submitted directly from the
+		command line, then the value also limits the number of
+		processes to deliver the envelopes; if more envelopes are
+		created they are only queued up and must be taken care of
+		by a queue run.
+	The check for 'enough disk space' now pays attention to which file
+		system each queue directory resides in.
+	All queue runners can be cleanly terminated via SIGTERM to parent.
+	New option QueueFileMode for the default permissions of queue files.
+	Add parallel queue runner code.  Allows multiple queue runners per work
+		group (one or more queues in a multi-queue environment
+		collected together) to process the same work list at the
+		same time.
+	Option MaxQueueChildren added to limit the number of concurrently
+		active queue runner processes.
+	New option MaxRunnersPerQueue to specify the maximum number of queue
+		runners per queue group.
+	Queue member selection by substring pattern matching now allows
+		the pattern to be negated.  For -qI, -qR and -qS it is
+		permissible for -q!I, -q!R and -q!S to mean remove members
+		of the queue that match during processing.
+	New -qp[time] option is similar to -qtime, except that instead of
+		periodically forking a child to process the queue, a single
+		child is forked for each queue that sleeps between queue
+		runs.  A SIGHUP signal can be sent to restart this
+		persistent queue runner.
+	The SIGHUP signal now restarts a timed queue run process (i.e., a
+		sendmail process which only runs the queue at an interval:
+		sendmail -q15m).
+	New option NiceQueueRun	to set the priority of queue runners.
+		Proposed by Thom O'Connor.
+	sendmail will run the queue(s) in the background when invoked with -q
+		unless the new -qf option or -v is used.
+	QueueSortOrder=Random sorts the queue randomly, which is useful if
+		several queue runners are started by hand to avoid contention.
+	QueueSortOrder=Modification sorts the queue by the modification time
+		of the qf file (older entries first).
+	Support Deliver By SMTP Service Extension (RFC 2852) which allows
+		a client to specify an amount of time within which an e-mail
+		should be delivered.  New option DeliverByMin added to set the
+		minimum amount of time or disable the extension.
+	Non-printable characters (ASCII: 0-31, 127) in mailbox addresses are
+		not allowed unless escaped or quoted.
+	Add support for a generic DNS map.  Based on a patch contributed
+		by Leif Johansson of Stockholm University, which was based on
+		work by Assar Westerlund of Swedish Institute of Computer
+		Science, Kista, and Johan Danielsson of Royal Institute of
+		Technology, Stockholm, Sweden.
+	MX records will be looked up for FallBackMXhost.  To use the old
+		behavior (no MX lookups), put the name in square brackets.
+		Proposed by Thom O'Connor.
+	Use shared memory to store free space of filesystems that are used
+		for queues, if shared memory is available and if a key is set
+		via SharedMemoryKey.  This minimizes the number of system
+		calls to check the available space.  See doc/op/op.me for
+		details.
+	If shared memory is compiled in the option -bP can be used to print
+		the number of entries in the queue(s).
+	Enable generic mail filter API (milter).  See libmilter/README
+		and the usual documentation for details.
+	Remove AutoRebuildAliases option, deprecated since 8.10.
+	Remove '-U' (initial user submission) command line option as
+		announced in 8.10.
+	Remove support for non-standard SMTP command XUSR.  Use an MSA instead.
+	New macro {addr_type} which contains whether the current address is
+		an envelope sender or recipient address.  Suggested by
+		Neil Rickert of Northern Illinois University.
+	Two new options for host maps: -d (retransmission timeout),
+		-r (number of retries).
+	New option for LDAP maps: the -V<sep> allows you to specify a
+		separator such that a lookup can return both an attribute
+		and value separated by the given separator.
+	Add new operators '%', '|', '&' (modulo, binary or, binary and)
+		to map class arith.
+	If DoubleBounceAddress expands to an empty string, ``double bounces''
+		(errors that occur when sending an error message) are dropped.
+	New DontBlameSendmail options GroupReadableSASLDBFile and
+		GroupWritableSASLDBFile to relax requirements for sasldb files.
+	New DontBlameSendmail options GroupReadableKeyFile to relax
+		requirements for files containing secret keys.  This is
+		necessary for the MSP if client authentification is used.
+	Properly handle quoted filenames for class files (to allow for
+		filenames with spaces).
+	Honor the resolver option RES_NOALIASES when canonifying hostnames.
+	Add macros to avoid the reuse of {if_addr} etc:
+		{if_name_out}	hostname of interface of outgoing connection.
+		{if_addr_out}	address of interface of outgoing connection.
+		{if_family_out}	family of interface of outgoing connection.
+		The latter two are only set if the interface does not belong
+		to the loopback net.
+	Add macro {nrcpts} which holds the number of (validated) recipients.
+	DialDelay option applies only to mailers with flag 'Z'.  Patch from
+		Juergen Georgi of RUS University of Stuttgart.
+	New Timeout.lhlo,auth,starttls options to limit the time waiting for
+		an answer to the LMTP LHLO, SMTP AUTH or STARTTLS command.
+	New Timeout.aconnect option to limit the overall waiting time for
+		all connections for a single delivery attempt to succeed.
+	Limit the rate recipients in the SMTP envelope are accepted once
+		a threshold number of recipients has been rejected (option
+		BadRcptThrottle).  From Gregory A Lundberg of the WU-FTPD
+		Development Group.
+	New option DelayLA to delay connections if the load averages
+		exceeds the specified value.  The default of 0 does not
+		change the previous behavior.  A value greater than 0
+		will cause sendmail to sleep for one second on most
+		SMTP commands and before accepting connections if that
+		load average is exceeded.
+	Use a dynamic (instead of fixed-size) buffer for the list of
+		recipients that are sent during a connection to a mailer.
+		This also introduces a new mailer field 'r' which defines
+		the maximum number of recipients (defaults to 100).
+		Based on patch by Motonori Nakamura of Kyoto University.
+	Add new F=1 mailer flag to disable sending of null characters ('\0').
+	Add new F=2 mailer flag to disable use of ESMTP, using SMTP instead.
+	The deprecated [TCP] builtin mailer pathname (P=) is gone.  Use [IPC]
+		instead.
+	IPC is no longer available as first mailer argument (A=) for [IPC]
+		builtin mailer pathnames.  Use TCP instead.
+	PH map code updated to use the new libphclient API instead of the
+		old libqiapi library.  Contributed by Mark Roth of the
+		University of Illinois at Urbana-Champaign.
+	New option DirectSubmissionModifiers to define {daemon_flags}
+		for direct (command line) submissions.
+	New M=O modifier for DaemonPortOptions to ignore the socket in
+		case of failures.  Based on patch by Jun-ichiro itojun
+		Hagino of the KAME Project.
+	Add Disposition-Notification-To: (RFC 2298) to the list of headers
+		whose content is rewritten similar to Reply-To:.
+		Proposed by Andrzej Filip.
+	Use STARTTLS/AUTH=server/client for logging incoming/outgoing
+		STARTTLS/AUTH connections; log incoming connections at level
+		9 or higher.  Use AUTH/STARTTLS instead of SASL/TLS for SMTP
+		AUTH/STARTTLS related logfile entries.
+	Convert unprintable characters (and backslash) into octal or C format
+		before logging.
+	Log recipients if no message is transferred but QUIT/RSET is given
+		(at LogLevel 9/10 or higher).
+	Log discarded recipients at LogLevel 10 or higher.
+	Do not log "did not issue MAIL/EXPN/VRFY/ETRN" for connections
+		in which most commands are rejected due to check_relay or
+		TCP Wrappers if the host tries one of those commands anyway.
+	Change logging format for cloned envelopes to be similar to that for
+		DSNs ("old id: new id: clone").  Suggested by Ulrich Windl
+		of the Universitat Regensburg.
+	Added libsm, a C library of general purpose abstractions including
+		assertions, tracing and debugging with named debug categories,
+		exception handling, malloc debugging, resource pools,
+		portability abstractions, and an extensible buffered I/O
+		package.  It will at some point replace libsmutil.
+		See libsm/index.html for details.
+	Fixed most memory leaks in sendmail which were previously taken
+		care of by fork() and exit().
+	Use new sm_io*() functions in place of stdio calls.  Allows for
+		more consistent portablity amongst different platforms
+		new and old (from new libsm).
+	Common I/O pkg means just one buffering method needed instead of two
+		('bf_portable' and 'bf_torek' now just 'bf').
+	Sfio no longer needed as SASL/TLS code uses sm_io*() API's.
+	New possible value 'interactive' for SuperSafe which can be used
+		together with DeliveryMode=interactive is to avoid some disk
+		synchronizations calls.
+	Add per-recipient status information to mailq -v output.
+	T_ANY queries are no longer used by sendmail.
+	When compiling with "gcc -O -Wall" specify "-DSM_OMIT_BOGUS_WARNINGS"
+		too (see include/sm/cdefs.h for more info).
+	sendmail -d now has general support for named debug categories.
+		See libsm/debug.html and section 3.4 of doc/op/op.me
+		for details.
+	Eliminate the "postmaster warning" DSNs on address parsing errors
+		such as unbalanced angle brackets or parentheses.  The DSNs
+		generated by this condition were illegal (not RFC conform).
+		Problem noted by Ulrich Windl of the Universitaet Regensburg.
+	Do not issue a DSN if the ruleset localaddr resolves to the $#error
+		mailer and the recipient has hence been rejected during the
+		SMTP dialogue.  Problem reported by Larry Greenfield of CMU.
+	Deal with a case of multiple deliveries on misconfigured systems
+		that do not have postmaster defined.  If an email was sent
+		from an address to which a DSN cannot be returned and
+		in which at least one recipient address is non-deliverable,
+		then that email had been delivered in each queue run.
+		Problem reported by Matteo HCE Valsasna of Universita
+		degli Studi dell'Insubria.
+	The compilation options SMTP, DAEMON, and QUEUE have been removed,
+		i.e., the corresponding code is always compiled in now.
+	Log the command line in daemon/queue-run mode at LogLevel 10 and
+		higher.  Suggested by Robert Harker of Harker Systems.
+	New ResolverOptions setting: WorkAroundBrokenAAAA.  When
+		attempting to canonify a hostname, some broken nameservers
+		will return SERVFAIL (a temporary failure) on T_AAAA (IPv6)
+		lookups.  If you want to excuse this behavior, use this new
+		flag.  Suggested by Chris Foote of SE Network Access and
+		Mark Roth of the University of Illinois at
+		Urbana-Champaign.
+	Free the memory allocated by getipnodeby{addr,name}().  Problem
+		noted by Joy Latten of IBM.
+	ConnectionRateThrottle limits the number of connections per second
+		to each daemon individually, not the overall number of
+		connections.
+	Specifying only "ldap:" as an AliasFile specification will force
+		sendmail to use a default alias schema as outlined in the
+		``USING LDAP FOR ALIASES, MAPS, and CLASSES'' section of
+		cf/README.
+	Add a new syntax for the 'F' (file class) sendmail.cf command.  If
+		the first character after the class name is not a '/' or a
+		'|' and it contains an '@' (e.g., F{X}key@class:spec), the
+		rest of the line will be parsed as a map lookup.  This
+		allows classes to be filled via a map lookup.  See op.me
+		for more syntax information.  Specifically, this can be
+		used for commands such as VIRTUSER_DOMAIN_FILE() to read
+		the list of domains via LDAP (see the ``USING LDAP FOR
+		ALIASES, MAPS, and CLASSES'' section of cf/README for an
+		example).
+	The new macro ${sendmailMTACluster} determines the LDAP cluster for
+		the default schema used in the above two items.
+	Unless DontBlameSendmail=RunProgramInUnsafeDirPath is set, log a
+		warning if a program being run from a mailer or file class
+		(e.g., F|/path/to/prog) is in an unsafe directory path.
+	Unless DontBlameSendmail=RunWritableProgram is set, log a warning
+		if a program being run from a mailer or file class
+		(e.g., F|/path/to/prog) is group or world writable.
+	Loopback interfaces (e.g., "lo0") are now probed for class {w}
+		hostnames.  Setting DontProbeInterfaces to "loopback"
+		(without quotes) will disable this and return to the
+		pre-8.12 behavior of only probing non-loopback interfaces.
+		Suggested by Bryan Stansell of GNAC.
+	In accordance with RFC 2821 section 4.1.4, accept multiple
+		HELO/EHLO commands.
+	Multiple ClientPortOptions settings are now allowed, one for each
+		possible protocol family which may be used for outgoing
+		connections.  Restrictions placed on one family only affect
+		outgoing connections on that particular family.  Because of
+		this change, the ${client_flags} macro is not set until the
+		connection is established.  Based on patch from Motonori
+		Nakamura of Kyoto University.
+	PrivacyOptions=restrictexpand instructs sendmail to drop privileges
+		when the -bv option is given by users who are neither root
+		nor the TrustedUser so users can not read private aliases,
+		forwards, or :include: files.  It also will override the -v
+		(verbose) command line option.
+	If the M=b modifier is set in DaemonPortOptions and the interface
+		address can't be used for the outgoing connection, fall
+		back to the settings in ClientPortOptions (if set).
+		Problem noted by John Beck of Sun Microsystems.
+	New named config file rule check_data for DATA command (input:
+		number of recipients).  Based on patch from Mark Roth of
+		the University of Illinois at Urbana-Champaign.
+	Add support for ETRN queue selection per RFC 1985.  The queue group
+		can be specified using the '#' option character.  For
+		example, 'ETRN #queuegroup'.
+	If an LDAP server times out or becomes unavailable, close the
+		current connection and reopen to get to one of the fallback
+		servers.  Patch from Paul Hilchey of the University of
+		British Columbia.
+	Make default error number on $#error messages 550 instead of 501
+		because 501 is not allowed on all commands.
+	The .cf file option UnsafeGroupWrites is deprecated, it should be
+		replaced with the settings GroupWritableForwardFileSafe
+		and GroupWritableIncludeFileSafe in DontBlameSendmail
+		if required.
+	The deprecated ldapx map class has been removed.  Use the ldap map
+		class instead.
+	Any IPv6 addresses used in configuration should be prefixed by the
+		"IPv6:" tag to identify the address properly.  For example,
+		if you want to add the IPv6 address [2002:c0a8:51d2::23f4] to
+		class {w}, you would need to add [IPv6:2002:c0a8:51d2::23f4].
+	Change the $&{opMode} macro if the operation mode changes while the
+		MTA is running.  For example, during a queue run.
+	Add "use_inet6" as a new ResolverOptions flag to control the
+		RES_USE_INET6 resolver option.  Based on patch from Rick
+		Nelson of IBM.
+	The maximum number of commands before the MTA slows down when too
+		many "light weight" commands have been received are now
+		configurable during compile time.  The current values and
+		their defaults are:
+		    MAXBADCOMMANDS	25	unknown commands
+		    MAXNOOPCOMMANDS	20	NOOP, VERB, ONEX, XUSR
+		    MAXHELOCOMMANDS	3	HELO, EHLO
+		    MAXVRFYCOMMANDS	6	VRFY, EXPN
+		    MAXETRNCOMMANDS	8	ETRN
+		Setting a value to 0 disables the check.  Patch from Bryan
+		Costales of SL3D, Inc.
+	The header syntax H?${MyMacro}?X-My-Header: now not only checks if
+		${MyMacro} is defined but also that it is not empty.
+	Properly quote usernames with special characters if they are used
+		in headers.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	Be sure to include the proper Final-Recipient: DSN header in bounce
+		messages for messages for mailing list expanded addresses
+		which are not delivered on the initial attempt.
+	Do not treat errors as sticky when doing delivery via LMTP after
+		the final dot has been sent to avoid affecting future
+		deliveries.  Problem reported by Larry Greenfield of CMU.
+	New compile time flag REQUIRES_DIR_FSYNC which turns on support for
+		file systems that require to call fsync() for a directory
+		if the meta-data in it has been changed.  This should be
+		set at least for ReiserFS; it is enabled by default for Linux.
+		See sendmail/README for further information.
+	Avoid file locking deadlock when updating the statistics file if
+		sendmail is signaled to terminate.  Problem noted by
+		Christophe Wolfhugel of France Telecom.
+	Set the $c macro (hop count) as it is being set instead of when the
+		envelope is initialized.  Problem noted by Kari Hurtta of
+		the Finnish Meteorological Institute.
+	Properly count recipients for DeliveryMode defer and queue.  Fix
+		from Peter A. Friend of EarthLink.
+	Treat invalid hesiod lookups as permanent errors instead of
+		temporary errors.  Problem noted by Russell McOrmond of
+		flora.ca.
+	Portability:
+		Remove support for AIX 2, which supports only 14 character
+			filenames and is outdated anyway.  Suggested by
+			Valdis Kletnieks of Virginia Tech.
+		Change several settings for Irix 6: remove confSBINDIR,
+			i.e., use default /usr/sbin, change owner/group
+			of man pages and user-executable to root/sys, set
+			optimization limit to 0 (unlimited).  Based on patch
+			from Ayamura Kikuchi, M.D, and proposal from Kari
+			Hurtta of the Finnish Meteorological Institute.
+		Do not assume LDAP support is installed by default under
+			Solaris 8 and later.
+		Add support for OpenUNIX.
+	CONFIG: Increment version number of config file to 10.
+	CONFIG: Add an install target and a README file in cf/cf.
+	CONFIG: Don't accept addresses of the form a@b@, a@b@c, a@[b]c, etc.
+	CONFIG: Reject empty recipient addresses (in check_rcpt).
+	CONFIG: The access map uses an option of -T<TMPF> to deal with
+		temporary lookup failures.
+	CONFIG: New value for access map: SKIP, which causes the default
+		action to be taken by aborting the search for domain names
+		or IP nets.
+	CONFIG: check_rcpt can deal with TEMPFAIL for either recipient or
+		relay address as long as the other part allows the email
+		to get through.
+	CONFIG: Entries for virtusertable can make use of a third parameter
+		"%3" which contains "+detail" of a wildcard match, i.e., an
+		entry like user+*@domain.  This allows handling of details by
+		using %1%3 as the RHS.  Additionally, a "+" wildcard has been
+		introduced to match only non-empty details of addresses.
+	CONFIG: Numbers for rulesets used by MAILERs have been removed
+		and hence there is no required order within the MAILER
+		section anymore except for MAILER(`uucp') which must come
+		after MAILER(`smtp') if uucp-dom and uucp-uudom are used.
+	CONFIG: Hosts listed in the generics domain class {G}
+		(GENERICS_DOMAIN() and GENERICS_DOMAIN_FILE()) are treated
+		as canonical.  Suggested by Per Hedeland of Ericsson.
+	CONFIG: If FEATURE(`delay_checks') is used, make sure that a lookup
+		in the access map which returns OK or RELAY actually
+		terminates check_* ruleset checking.
+	CONFIG: New tag TLS_Rcpt: for access map to be used by ruleset
+		tls_rcpt, see cf/README for details.
+	CONFIG: Change format of Received: header line which reveals whether
+		STARTTLS has been used to "(version=${tls_version}
+		cipher=${cipher} bits=${cipher_bits} verify=${verify})".
+	CONFIG: Use "Spam:" as tag for lookups for FEATURE(`delay_checks')
+		options friends/haters instead of "To:" and enable
+		specification of whole domains instead of just users.
+		Notice: this change is not backward compatible.
+		Suggested by Chris Adams from HiWAAY Informations Services.
+	CONFIG: Allow for local extensions for most new rulesets, see
+		cf/README for details.
+	CONFIG: New FEATURE(`lookupdotdomain') to lookup also .domain in
+		the access map.  Proposed by Randall Winchester of the
+		University of Maryland.
+	CONFIG: New FEATURE(`local_no_masquerade') to avoid masquerading for
+		the local mailer.  Proposed by Ingo Brueckl of Wupper Online.
+	CONFIG: confRELAY_MSG/confREJECT_MSG can override the default
+		messages for an unauthorized relaying attempt/for access
+		map entries with RHS REJECT, respectively.
+	CONFIG: FEATURE(`always_add_domain') takes an optional argument
+		to specify another domain to be added instead of the local one.
+		Suggested by Richard H. Gumpertz of Computer Problem
+		Solving.
+	CONFIG: confAUTH_OPTIONS allows setting of Cyrus-SASL specific
+		options, see doc/op/op.me for details.
+	CONFIG: confAUTH_MAX_BITS sets the maximum encryption strength for
+		the security layer in SMTP AUTH (SASL).
+	CONFIG: If Local_localaddr resolves to $#ok, localaddr is terminated
+		immediately.
+	CONFIG: FEATURE(`enhdnsbl') is an enhanced version of dnsbl which
+		allows checking of the return values of the DNS lookups.
+		See cf/README for details.
+	CONFIG: FEATURE(`dnsbl') allows now to specify the behavior for
+		temporary lookup failures.
+	CONFIG: New option confDELIVER_BY_MIN to specify minimum time for
+		Deliver By (RFC 2852) or to turn off the extension.
+	CONFIG: New option confSHARED_MEMORY_KEY to set the key for shared
+		memory use.
+	CONFIG: New FEATURE(`compat_check') to look up a key consisting
+		of the sender and the recipient address delimited by the
+		string "<@>", e.g., sender@sdomain<@>recipient@rdomain,
+		in the access map.  Based on code contributed by Mathias
+		Koerber of Singapore Telecommunications Ltd.
+	CONFIG: Add EXPOSED_USER_FILE() command to allow an exposed user
+		file.  Suggested by John Beck of Sun Microsystems.
+	CONFIG: Don't use MAILER-DAEMON for error messages delivered
+		via LMTP.  Problem reported by Larry Greenfield of CMU.
+	CONFIG: New FEATURE(`preserve_luser_host') to preserve the name of
+		the recipient host if LUSER_RELAY is used.
+	CONFIG: New FEATURE(`preserve_local_plus_detail') to preserve the
+		+detail portion of the address when passing address to
+		local delivery agent.  Disables alias and .forward +detail
+		stripping.  Only use if LDA supports this.
+	CONFIG: Removed deprecated FEATURE(`rbl').
+	CONFIG: Add LDAPROUTE_EQUIVALENT() and LDAPROUTE_EQUIVALENT_FILE()
+		which allow you to specify 'equivalent' hosts for LDAP
+		Routing lookups.  Equivalent hostnames are replaced by the
+		masquerade domain name for lookups.  See cf/README for
+		additional details.
+	CONFIG: Add a fourth argument to FEATURE(`ldap_routing') which
+		instructs the rulesets on what to do if the address being
+		looked up has +detail information.  See cf/README for more
+		information.
+	CONFIG: When chosing a new destination via LDAP Routing, also look
+		up the new routing address/host in the mailertable.  Based
+		on patch from Don Badrak of the United States Census Bureau.
+	CONFIG: Do not reject the SMTP Mail from: command if LDAP Routing
+		is in use and the bounce option is enabled.  Only reject
+		recipients as user unknown.
+	CONFIG: Provide LDAP support for the remaining database map
+		features.  See the ``USING LDAP FOR ALIASES AND MAPS''
+		section of cf/README for more information.
+	CONFIG: Add confLDAP_CLUSTER which defines the ${sendmailMTACluster}
+		macro used for LDAP searches as described above in ``USING
+		LDAP FOR ALIASES, MAPS, AND CLASSES''.
+	CONFIG: confCLIENT_OPTIONS has been replaced by CLIENT_OPTIONS(),
+		which takes the options as argument and can be used
+		multiple times; see cf/README for details.
+	CONFIG: Add configuration macros for new options:
+		confBAD_RCPT_THROTTLE		BadRcptThrottle
+		confDIRECT_SUBMISSION_MODIFIERS	DirectSubmissionModifiers
+		confMAILBOX_DATABASE		MailboxDatabase
+		confMAX_QUEUE_CHILDREN		MaxQueueChildren
+		confMAX_RUNNERS_PER_QUEUE	MaxRunnersPerQueue
+		confNICE_QUEUE_RUN		NiceQueueRun
+		confQUEUE_FILE_MODE		QueueFileMode
+		confFAST_SPLIT			FastSplit
+		confTLS_SRV_OPTIONS		TLSSrvOptions
+		See above (and related documentation) for further information.
+	CONFIG: Add configuration variables for new timeout options:
+		confTO_ACONNECT		Timeout.aconnect
+		confTO_AUTH		Timeout.auth
+		confTO_LHLO		Timeout.lhlo
+		confTO_STARTTLS		Timeout.starttls
+	CONFIG: Add configuration macros for mail filter API:
+		confINPUT_MAIL_FILTERS		InputMailFilters
+		confMILTER_LOG_LEVEL		Milter.LogLevel
+		confMILTER_MACROS_CONNECT	Milter.macros.connect
+		confMILTER_MACROS_HELO		Milter.macros.helo
+		confMILTER_MACROS_ENVFROM	Milter.macros.envfrom
+		confMILTER_MACROS_ENVRCPT	Milter.macros.envrcpt
+		Mail filters can be defined via INPUT_MAIL_FILTER() and
+		MAIL_FILTER().  See libmilter/README, cf/README, and
+		doc/op/op.me for details.
+	CONFIG: Add support for accepting temporarily unresolvable domains.
+		See cf/README for details.  Based on patch by Motonori
+		Nakamura of Kyoto University.
+	CONFIG: confDEQUOTE_OPTS can be used to specify options for the
+		dequote map.
+	CONFIG: New macro QUEUE_GROUP() to define queue groups.
+	CONFIG: New FEATURE(`queuegroup') to select a queue group based
+		on the full e-mail address or the domain of the recipient.
+	CONFIG: Any IPv6 addresses used in configuration should be prefixed
+		by the "IPv6:" tag to identify the address properly.  For
+		example, if you want to use the IPv6 address
+		2002:c0a8:51d2::23f4 in the access database, you would need
+		to use IPv6:2002:c0a8:51d2::23f4 on the left hand side.
+		This affects the access database as well as the
+		relay-domains and local-host-names files.
+	CONFIG: OSTYPE(aux) has been renamed to OSTYPE(a-ux).
+	CONFIG: Avoid expansion of m4 keywords in SMART_HOST.
+	CONFIG: Add MASQUERADE_EXCEPTION_FILE() for reading masquerading
+		exceptions from a file.  Suggested by Trey Breckenridge of
+		Mississippi State University.
+	CONFIG: Add LOCAL_USER_FILE() for reading local users
+		(LOCAL_USER() -- $={L}) entries from a file.
+	CONTRIB: dnsblaccess.m4 is a further enhanced version of enhdnsbl.m4
+		which allows to lookup error codes in the access map.
+		Contributed by Neil Rickert of Northern Illinois University.
+	DEVTOOLS: Add new options for installation of include and library
+		files: confINCGRP, confINCMODE, confINCOWN, confLIBGRP,
+		confLIBMODE, confLIBOWN.
+	DEVTOOLS: Add new option confDONT_INSTALL_CATMAN to turn off
+		installation of the the formatted man pages on operating
+		systems which don't include cat directories.
+	EDITMAP: New program for editing maps as supplement to makemap.
+	MAIL.LOCAL: Mail.local now uses the libsm mbdb package to look up
+		local mail recipients.  New option -D mbdb specifies the
+		mailbox database type.
+	MAIL.LOCAL: New option "-h filename" which instructs mail.local to
+		deliver the mail to the named file in the user's home
+		directory instead of the system mail spool area.  Based on
+		patch from Doug Hardie of the Los Angeles Free-Net.
+	MAILSTATS: New command line option -P which acts the same as -p but
+		doesn't truncate the statistics file.
+	MAKEMAP: Add new option -t to specify a different delimiter
+		instead of white space.
+	RMAIL: Invoke sendmail with '-G' to indicate this is a gateway
+		submission.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	SMRSH: Use the vendor supplied directory on FreeBSD 3.3 and later.
+	VACATION: Change Auto-Submitted: header value from auto-generated to
+		auto-replied.  From Kenneth Murchison of Oceana Matrix Ltd.
+	VACATION: New option -d to send error/debug messages to stdout
+		instead of syslog.
+	VACATION: New option -U which prevents the attempt to lookup login
+		in the password file.  The -f and -m options must be used
+		to specify the database and message file since there is no
+		home directory for the default settings for these options.
+	VACATION: Vacation now uses the libsm mbdb package to look up
+		local mail recipients; it reads the MailboxDatabase option
+		from the sendmail.cf file.  New option -C cffile which
+		specifies the path of the sendmail.cf file.
+	New Directories:
+		libmilter/docs
+	New Files:
+		cf/cf/README
+		cf/cf/submit.cf
+		cf/cf/submit.mc
+		cf/feature/authinfo.m4
+		cf/feature/compat_check.m4
+		cf/feature/enhdnsbl.m4
+		cf/feature/msp.m4
+		cf/feature/local_no_masquerade.m4
+		cf/feature/lookupdotdomain.m4
+		cf/feature/preserve_luser_host.m4
+		cf/feature/preserve_local_plus_detail.m4
+		cf/feature/queuegroup.m4
+		cf/sendmail.schema
+		contrib/dnsblaccess.m4
+		devtools/M4/UNIX/sm-test.m4
+		devtools/OS/OpenUNIX.5.i386
+		editmap/*
+		include/sm/*
+		libsm/*
+		libsmutil/cf.c
+		libsmutil/err.c
+		sendmail/SECURITY
+		sendmail/TUNING
+		sendmail/bf.c
+		sendmail/bf.h
+		sendmail/sasl.c
+		sendmail/sm_resolve.c
+		sendmail/sm_resolve.h
+		sendmail/tls.c
+	Deleted Files:
+		cf/feature/rbl.m4
+		cf/ostype/aix2.m4
+		devtools/OS/AIX.2
+		include/sendmail/cdefs.h
+		include/sendmail/errstring.h
+		include/sendmail/useful.h
+		libsmutil/errstring.c
+		sendmail/bf_portable.c
+		sendmail/bf_portable.h
+		sendmail/bf_torek.c
+		sendmail/bf_torek.h
+		sendmail/clock.c
+	Renamed Files:
+		cf/cf/generic-solaris2.mc => cf/cf/generic-solaris.mc
+		cf/cf/generic-solaris2.cf => cf/cf/generic-solaris.cf
+		cf/ostype/aux.m4 => cf/ostype/a-ux.m4
 
 8.11.6/8.11.6	2001/08/20
 	SECURITY: Fix a possible memory access violation when specifying
@@ -1643,7 +2539,7 @@ summary of the changes in that release.
 	CONFIG: OSTYPE(`bsdi1.0') and OSTYPE(`bsdi2.0') have been
 		deprecated and may be removed from a future release.
 		BSD/OS users should begin using OSTYPE(`bsdi').
-	CONFIG: OpenBSD 2.4 installs mail.local non-set-user-id root.  This
+	CONFIG: OpenBSD 2.4 installs mail.local non-set-user-ID root.  This
 		requires a new OSTYPE(`openbsd').  From Todd C. Miller of
 		Courtesan Consulting.
 	CONFIG: New OSTYPE(`hpux11') for HP/UX 11.X.
@@ -1903,7 +2799,7 @@ summary of the changes in that release.
 		the others (if it exists).
 	DEVTOOLS: Change order of LIBS: first product specific libraries
 		then the default ones.
-	MAIL.LOCAL: Will not be installed set-user-id root.  To use mail.local
+	MAIL.LOCAL: Will not be installed set-user-ID root.  To use mail.local
 		as local delivery agent without LMTP mode, use
 		MODIFY_MAILER_FLAGS(`LOCAL', `+S')
 		to set the S flag.
@@ -2458,7 +3354,7 @@ summary of the changes in that release.
 		uid and gid for user bin instead of daemon.  If DefaultUser
 		is set in the configuration file, that value overrides this
 		default.
-	SECURITY: Since 8.8.7, the check for non-set-user-id binaries
+	SECURITY: Since 8.8.7, the check for non-set-user-ID binaries
 		interfered with setting an alternate group id for the
 		RunAsUser option.  Problem noted by Randall Winchester of
 		the University of Maryland.
@@ -3126,7 +4022,7 @@ summary of the changes in that release.
 	In some cases, errors during an SMTP session could leave files
 		open or locked.
 	Better handling of missing file descriptors (0, 1, 2) on startup.
-	Better handling of non-set-user-id binaries -- avoids certain obnoxious
+	Better handling of non-set-user-ID binaries -- avoids certain obnoxious
 		errors during testing.
 	Errors in file locking of NEWDB maps had the incorrect file name
 		printed in the error message.
@@ -3518,7 +4414,7 @@ summary of the changes in that release.
 		change to the sendmail map code was made in 8.8.3.  Problem
 		noted by Gregory Neil Shapiro.
 	MAKEMAP: Give warnings on file problems such as map files that are
-		symbolic links; although makemap is not set-user-id root, it is
+		symbolic links; although makemap is not set-user-ID root, it is
 		often run as root and hence has the potential for the same
 		sorts of problems as alias rebuilds.
 	MAKEMAP: Change compilation so that it will link properly on
@@ -4304,7 +5200,7 @@ summary of the changes in that release.
 	Fix problem finding network interface addresses.  Patch from
 		Motonori Nakamura.
 	Don't reject qf entries that are not owned by your effective uid if
-		you are not running set-user-id; this makes management of
+		you are not running set-user-ID; this makes management of
 		certain kinds of firewall setups difficult.  Patch
 		suggested by Eamonn Coleman of Qualcomm.
 	Add persistent host status.  This keeps the information normally
@@ -4674,7 +5570,7 @@ summary of the changes in that release.
 		failure in the hosts.files map.  This error caused hard
 		bounces when it should have requeued.
 	Aliases to files such as /users/bar/foo/inbox, with /users/bar/foo
-		owned by bar mode 700 and inbox being set-user-id bar stopped
+		owned by bar mode 700 and inbox being set-user-ID bar stopped
 		working properly due to excessive paranoia.  Pointed out by
 		John Hawkinson of Panix.
 	An SMTP RCPT command referencing a host that gave a nameserver
@@ -5348,7 +6244,7 @@ summary of the changes in that release.
 		the aliases file: use the default uid/gid instead of the
 		real uid/gid.  This allows you to create a file owned by
 		and writable only by the default uid/gid that will work
-		all the time (without having the set-user-id bit set).  Change
+		all the time (without having the set-user-ID bit set).  Change
 		suggested by Shau-Ping Lo and Andrew Cheng of Sun
 		Microsystems.
 	Add "DialDelay" option (no short name) to provide an "extra"
