@@ -35,16 +35,19 @@
  */
 
 #ifndef lint
-char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1989 The Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
+static char const sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
 #endif /* not lint */
 
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "defs.h"
 
 char dflag;
@@ -103,10 +106,15 @@ char  *rassoc;
 short **derives;
 char *nullable;
 
-extern char *mktemp();
-extern char *getenv();
+static void create_file_names __P((void));
+static void getargs __P((int, char **));
+static void onintr __P((int));
+static void open_files __P((void));
+static void set_signals __P((void));
+static void usage __P((void));
 
 
+void
 done(k)
 int k;
 {
@@ -117,7 +125,7 @@ int k;
 }
 
 
-void
+static void
 onintr(signo)
 	int signo;
 {
@@ -125,6 +133,7 @@ onintr(signo)
 }
 
 
+static void
 set_signals()
 {
 #ifdef SIGINT
@@ -142,6 +151,7 @@ set_signals()
 }
 
 
+static void
 usage()
 {
     fprintf(stderr, "usage: %s [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n", myname);
@@ -149,6 +159,7 @@ usage()
 }
 
 
+static void
 getargs(argc, argv)
 int argc;
 char *argv[];
@@ -270,6 +281,7 @@ unsigned n;
 }
 
 
+static void
 create_file_names()
 {
     int i, len;
@@ -353,6 +365,7 @@ create_file_names()
 }
 
 
+static void
 open_files()
 {
     create_file_names();
@@ -420,4 +433,5 @@ char *argv[];
     output();
     done(0);
     /*NOTREACHED*/
+    return (0);
 }
