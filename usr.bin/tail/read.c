@@ -34,23 +34,25 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 /*
@@ -115,7 +117,8 @@ bytes(fp, off)
 	} else {
 		if (wrap && (len = ep - p))
 			WR(p, len);
-		if (len = p - sp)
+		len = p - sp;
+		if (len)
 			WR(sp, len);
 	}
 	return 0;
@@ -140,15 +143,15 @@ lines(fp, off)
 		u_int blen;
 		u_int len;
 		char *l;
-	} *lines;
+	} *llines;
 	int ch;
-	char *p;
-	int blen, cnt, recno, wrap;
-	char *sp;
+	char *p, *sp;
+	int recno, wrap;
+	u_int cnt, blen;
 
-	if ((lines = malloc(off * sizeof(*lines))) == NULL)
+	if ((llines = malloc(off * sizeof(*llines))) == NULL)
 		err(1, "malloc");
-	bzero(lines, off * sizeof(*lines));
+	bzero(llines, off * sizeof(*llines));
 	sp = NULL;
 	blen = cnt = recno = wrap = 0;
 
@@ -160,13 +163,13 @@ lines(fp, off)
 		}
 		*p++ = ch;
 		if (ch == '\n') {
-			if (lines[recno].blen < cnt) {
-				lines[recno].blen = cnt + 256;
-				if ((lines[recno].l = realloc(lines[recno].l,
-				    lines[recno].blen)) == NULL)
+			if (llines[recno].blen < cnt) {
+				llines[recno].blen = cnt + 256;
+				if ((llines[recno].l = realloc(llines[recno].l,
+				    llines[recno].blen)) == NULL)
 					err(1, "realloc");
 			}
-			bcopy(sp, lines[recno].l, lines[recno].len = cnt);
+			bcopy(sp, llines[recno].l, llines[recno].len = cnt);
 			cnt = 0;
 			p = sp;
 			if (++recno == off) {
@@ -180,8 +183,8 @@ lines(fp, off)
 		return 1;
 	}
 	if (cnt) {
-		lines[recno].l = sp;
-		lines[recno].len = cnt;
+		llines[recno].l = sp;
+		llines[recno].len = cnt;
 		if (++recno == off) {
 			wrap = 1;
 			recno = 0;
@@ -189,17 +192,17 @@ lines(fp, off)
 	}
 
 	if (rflag) {
-		for (cnt = recno - 1; cnt >= 0; --cnt)
-			WR(lines[cnt].l, lines[cnt].len);
+		for (cnt = recno - 1; cnt != 0; --cnt)
+			WR(llines[cnt].l, llines[cnt].len);
 		if (wrap)
-			for (cnt = off - 1; cnt >= recno; --cnt)
-				WR(lines[cnt].l, lines[cnt].len);
+			for (cnt = off - 1; cnt >= (u_int)recno; --cnt)
+				WR(llines[cnt].l, llines[cnt].len);
 	} else {
 		if (wrap)
-			for (cnt = recno; cnt < off; ++cnt)
-				WR(lines[cnt].l, lines[cnt].len);
-		for (cnt = 0; cnt < recno; ++cnt)
-			WR(lines[cnt].l, lines[cnt].len);
+			for (cnt = recno; cnt < (u_int)off; ++cnt)
+				WR(llines[cnt].l, llines[cnt].len);
+		for (cnt = 0; cnt < (u_int)recno; ++cnt)
+			WR(llines[cnt].l, llines[cnt].len);
 	}
 	return 0;
 }
