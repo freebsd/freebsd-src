@@ -289,7 +289,21 @@ done:
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
-	panic("set upcall\n");
+	struct trapframe *tf;
+	struct switchframe *sf;
+
+	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
+	bcopy(td0->td_pcb, td->td_pcb, sizeof(struct pcb));
+	tf = td->td_frame;
+	sf = (struct switchframe *)tf - 1;
+	sf->sf_r4 = (u_int)fork_return;
+	sf->sf_r5 = (u_int)td;
+	sf->sf_pc = (u_int)fork_trampoline;
+	tf->tf_spsr &= ~PSR_C_bit;
+	tf->tf_r0 = 0;
+	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
+	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + td->td_kstack_pages
+	    * PAGE_SIZE - USPACE + USPACE_UNDEF_STACK_TOP;
 }
 
 /*
@@ -300,7 +314,13 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
-	panic("setupcallkse\n");
+	struct trapframe *tf = td->td_frame;
+
+	tf->tf_usr_sp = ((int)ku->ku_stack.ss_sp + ku->ku_stack.ss_size
+	    - sizeof(struct trapframe)) & ~7;
+	tf->tf_pc = (int)ku->ku_func;
+	tf->tf_r0 = (int)ku->ku_mailbox;
+	tf->tf_spsr = PSR_USR32_MODE;
 }
 
 void
@@ -311,10 +331,15 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_setup(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)(td->td_kstack + KSTACK_PAGES * 
+	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages * 
 	    PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)
-	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP) - 1;
+	    ((u_int)td->td_kstack + td->td_kstack_pages * PAGE_SIZE - USPACE + 
+	     USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
+#ifdef __XSCALE__
+	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
+#endif  
+		
 }
 void
 cpu_thread_clean(struct thread *td)
