@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.36 1999/04/14 14:26:35 bde Exp $
+ *	$Id: apic_vector.s,v 1.37 1999/04/28 01:04:12 luoqi Exp $
  */
 
 
@@ -324,7 +324,7 @@ log_intr_event:
 		
 #ifdef CPL_AND_CML
 
-#define	INTR(irq_num, vec_name)						\
+#define	INTR(irq_num, vec_name, maybe_extra_ipending)			\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 /* _XintrNN: entry point used by IDT/HWIs & splz_unpend via _vec[]. */	\
@@ -335,6 +335,8 @@ IDTVEC(vec_name) ;							\
 	movl	%ax, %es ;						\
 	movl	$KPSEL, %eax ;						\
 	movl	%ax, %fs ;						\
+;									\
+	maybe_extra_ipending ;						\
 ;									\
 	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
@@ -436,7 +438,7 @@ __CONCAT(Xresume,irq_num): ;						\
 #else /* CPL_AND_CML */
 
 
-#define	INTR(irq_num, vec_name)						\
+#define	INTR(irq_num, vec_name, maybe_extra_ipending)			\
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 /* _XintrNN: entry point used by IDT/HWIs & splz_unpend via _vec[]. */	\
@@ -447,6 +449,8 @@ IDTVEC(vec_name) ;							\
 	movl	%ax, %es ;						\
 	movl	$KPSEL, %eax ;						\
 	movl	%ax, %fs ;						\
+;									\
+	maybe_extra_ipending ;						\
 ;									\
 	APIC_ITRACE(apic_itrace_enter, irq_num, APIC_ITRACE_ENTER) ;	\
 	lock ;					/* MP-safe */		\
@@ -916,30 +920,31 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(21,fastintr21)
 	FAST_INTR(22,fastintr22)
 	FAST_INTR(23,fastintr23)
-	INTR(0,intr0)
-	INTR(1,intr1)
-	INTR(2,intr2)
-	INTR(3,intr3)
-	INTR(4,intr4)
-	INTR(5,intr5)
-	INTR(6,intr6)
-	INTR(7,intr7)
-	INTR(8,intr8)
-	INTR(9,intr9)
-	INTR(10,intr10)
-	INTR(11,intr11)
-	INTR(12,intr12)
-	INTR(13,intr13)
-	INTR(14,intr14)
-	INTR(15,intr15)
-	INTR(16,intr16)
-	INTR(17,intr17)
-	INTR(18,intr18)
-	INTR(19,intr19)
-	INTR(20,intr20)
-	INTR(21,intr21)
-	INTR(22,intr22)
-	INTR(23,intr23)
+#define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
+	INTR(0,intr0, CLKINTR_PENDING)
+	INTR(1,intr1,)
+	INTR(2,intr2,)
+	INTR(3,intr3,)
+	INTR(4,intr4,)
+	INTR(5,intr5,)
+	INTR(6,intr6,)
+	INTR(7,intr7,)
+	INTR(8,intr8,)
+	INTR(9,intr9,)
+	INTR(10,intr10,)
+	INTR(11,intr11,)
+	INTR(12,intr12,)
+	INTR(13,intr13,)
+	INTR(14,intr14,)
+	INTR(15,intr15,)
+	INTR(16,intr16,)
+	INTR(17,intr17,)
+	INTR(18,intr18,)
+	INTR(19,intr19,)
+	INTR(20,intr20,)
+	INTR(21,intr21,)
+	INTR(22,intr22,)
+	INTR(23,intr23,)
 MCOUNT_LABEL(eintr)
 
 	.data
