@@ -275,8 +275,10 @@ static int
 S_clockinfo(int l2, void *p)
 {
 	struct clockinfo *ci = (struct clockinfo*)p;
-	if (l2 != sizeof(*ci))
-		err(1, "S_clockinfo %d != %d", l2, sizeof(*ci));
+	if (l2 != sizeof(*ci)) {
+		warnx("S_clockinfo %d != %d", l2, sizeof(*ci));
+		return (0);
+	}
 	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
 		ci->hz, ci->tick, ci->profhz, ci->stathz);
 	return (0);
@@ -287,9 +289,10 @@ S_loadavg(int l2, void *p)
 {
 	struct loadavg *tv = (struct loadavg*)p;
 
-	if (l2 != sizeof(*tv))
-		err(1, "S_loadavg %d != %d", l2, sizeof(*tv));
-
+	if (l2 != sizeof(*tv)) {
+		warnx("S_loadavg %d != %d", l2, sizeof(*tv));
+		return (0);
+	}
 	printf("{ %.2f %.2f %.2f }",
 		(double)tv->ldavg[0]/(double)tv->fscale,
 		(double)tv->ldavg[1]/(double)tv->fscale,
@@ -304,8 +307,10 @@ S_timeval(int l2, void *p)
 	time_t tv_sec;
 	char *p1, *p2;
 
-	if (l2 != sizeof(*tv))
-		err(1, "S_timeval %d != %d", l2, sizeof(*tv));
+	if (l2 != sizeof(*tv)) {
+		warnx("S_timeval %d != %d", l2, sizeof(*tv));
+		return (0);
+	}
 	printf("{ sec = %ld, usec = %ld } ",
 		tv->tv_sec, tv->tv_usec);
 	tv_sec = tv->tv_sec;
@@ -321,8 +326,10 @@ static int
 T_dev_t(int l2, void *p)
 {
 	dev_t *d = (dev_t *)p;
-	if (l2 != sizeof(*d))
-		err(1, "T_dev_T %d != %d", l2, sizeof(*d));
+	if (l2 != sizeof(*d)) {
+		warnx("T_dev_T %d != %d", l2, sizeof(*d));
+		return (0);
+	}
 	if ((int)(*d) != -1) {
 		if (minor(*d) > 255 || minor(*d) < 0)
 			printf("{ major = %d, minor = 0x%x }",
