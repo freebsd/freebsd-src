@@ -254,9 +254,8 @@ mkfs(pp, fsys, fi, fo)
 		sblock.fs_inodefmt = FS_44INODEFMT;
 		sblock.fs_maxsymlinklen = MAXSYMLINKLEN;
 	}
-	if (Uflag) {
+	if (Uflag)
 		sblock.fs_flags |= FS_DOSOFTDEP;
-	}
 	/*
 	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.
