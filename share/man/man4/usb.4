@@ -47,7 +47,8 @@ devices.
 The
 .Nm
 driver has three layers: the controller, the bus, and the
-device layer. The controller attaches to a physical bus
+device layer.
+The controller attaches to a physical bus
 (like
 .Xr pci 4 ).
 The
@@ -202,7 +203,8 @@ and
 .Va addr
 contain the topological information for the device.
 .Va devnames
-contains the device names of the connected drivers. For example the
+contains the device names of the connected drivers.
+For example the
 third USB Zip drive connected will be
 .Li umass2 .
 The
@@ -220,7 +222,8 @@ field shows the current configuration of the device.
 .Pp
 .Va lowspeed
 indicates whether the device is a full speed (0) or low speed (1)
-device. The
+device.
+The
 .Va power
 field shows the power consumption in milli-amps drawn at 5 volts,
 or zero if the device is self powered.

@@ -44,7 +44,8 @@ Adaptec AIC-6915 "Starfire" PCI fast ethernet adapter driver
 The
 .Nm
 driver provides support for Adaptec Duralink fast ethernet adapters
-based on the Adaptec AIC-6915 "Starfire" chipset. This includes the
+based on the Adaptec AIC-6915 "Starfire" chipset.
+This includes the
 following:
 .Bl -bullet -offset indent
 .It
@@ -59,17 +60,21 @@ ANA-69011 32-bit single port 10/100baseTX adapter
 ANA-62020 64-bit single port 100baseFX adapter
 .El
 .Pp
-The AIC-6915 is a bus master controller with an MII interface. It
+The AIC-6915 is a bus master controller with an MII interface.
+It
 supports high and low priority transmit and receive queues, TCP/IP
 checksum offload, multiple DMA descriptor formats and both polling
-and producer/consumer DMA models. The AIC-6915 receive filtering
+and producer/consumer DMA models.
+The AIC-6915 receive filtering
 options include a 16 entry perfect filter, a 512-bit hash table
 for multicast addresses, a 512-bit hash table for priority address
-matching and VLAN filtering. An external MII-compliant transceiver
+matching and VLAN filtering.
+An external MII-compliant transceiver
 is required for media interfacing.
 .Pp
 Multiport adapters consist of several AIC-6915 controllers connected
-via a PCI to PCI bridge. Each controller is treated as a separate
+via a PCI to PCI bridge.
+Each controller is treated as a separate
 interface by the
 .Nm
 driver.
@@ -86,7 +91,8 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
@@ -94,7 +100,8 @@ or
 .Ar half-duplex
 modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
@@ -119,7 +126,8 @@ For more information on configuring this device, see
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sf%d: couldn't map memory"
-A fatal initialization error has occurred. This may
+A fatal initialization error has occurred.
+This may
 happen if the PCI BIOS not configured the device, which may be because
 the BIOS has been configured for a "Plug and Play" operating system.
 The "Plug and Play OS" setting int he BIOS should be set to "no" or

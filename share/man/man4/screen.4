@@ -17,7 +17,8 @@ ttyv0 - ttyvb in
 Each of these files correspond to a separate
 virtual console.
 All virtual console devices can be open at once, but only one is 
-active at a time. The active virtual console "owns" the keyboard and
+active at a time.
+The active virtual console "owns" the keyboard and
 display screen.
 .Pp
 Output to a virtual console that not currently is on the display is
@@ -29,10 +30,12 @@ Any output written to
 .Pp
 To switch between the virtual consoles one uses the sequence 
 .Ar ALT+Fn
-, which means hold down ALT and press one of the function keys. The 
+, which means hold down ALT and press one of the function keys.
+The 
 virtual console with the same number as the function key is then
 selected as the current virtual console, and given exclusive use of
-the keyboard and display. This switch sequence can be changed via
+the keyboard and display.
+This switch sequence can be changed via
 the keyboard mapping ioctl call (see keyboard.4)
 .Pp
 
@@ -40,14 +43,19 @@ The console allows entering values that are not physically
 present on the keyboard via a special keysequence.
 To use this facility press and hold down ALT,
 then enter a decimal number from 0-255 via the numerical keypad, then
-release ALT. The entered value is then used as the ASCII value for one
-character. This way it is possible to enter any ASCII value.
-The console driver also includes a history function. It is activated by
-pressing the scroll-lock key. This holds the display, and enables the cursor
+release ALT.
+The entered value is then used as the ASCII value for one
+character.
+This way it is possible to enter any ASCII value.
+The console driver also includes a history function.
+It is activated by
+pressing the scroll-lock key.
+This holds the display, and enables the cursor
 arrows for scrolling up and down through the last scrolled out lines.
 
 The console understands a subset of the ANSI x3.64 character 
-sequences. For compatibility with the old pccons, the PC3 character
+sequences.
+For compatibility with the old pccons, the PC3 character
 sequences is also supported.
 .Pp
 .Bd -literal 

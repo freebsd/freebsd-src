@@ -59,8 +59,11 @@ driver is the port of the original lpt driver to the
 system.
 .Pp
 One purpose of this port was to allow parallel port sharing with other
-parallel devices. Secondly, inb()/outb() calls have been replaced by ppbus
-function calls. lpt is now arch-independent thanks to the ppbus interface. See
+parallel devices.
+Secondly, inb()/outb() calls have been replaced by ppbus
+function calls.
+lpt is now arch-independent thanks to the ppbus interface.
+See
 .Xr ppbus 4
 for more info about the ppbus system.
 .Pp
@@ -76,12 +79,14 @@ command.
 .Pp
 Depending on your hardware, extended capabilities may be configured with the
 .Xr lptcontrol 8
-command. With an ECP/ISA port, you can take advantage
+command.
+With an ECP/ISA port, you can take advantage
 of FIFO and DMA.
 .Pp
 In order to retrieve printer info from /dev/lpt0, just apply the
 .Nm cat
-command to the device. If the printer supports IEEE1284 nibble mode and has
+command to the device.
+If the printer supports IEEE1284 nibble mode and has
 data to send to the host, you'll get it.
 .Sh SEE ALSO
 .Xr ppbus 4 ,

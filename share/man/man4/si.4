@@ -24,14 +24,17 @@ port version.  The "XIO" and "SX" modules come only in
 8 port versions.
 .Pp
 The host adapter polls and transfers data between the modules and the rest
-of the machine. The Host adapter provides a 256 byte transmit and 256 byte
+of the machine.
+The Host adapter provides a 256 byte transmit and 256 byte
 receive FIFO for each of the 32 ports that it can maintain.
 .Pp
 The XIO modules can operate each of their 8 ports at 115,200 baud.
-The SI version can run at 57,600 baud. The SX modules can operate each of their
+The SI version can run at 57,600 baud.
+The SX modules can operate each of their
 8 ports at up to 921,600 baud.
 .Pp
-SX modules are only supported when connected to an SX host card. SI or
+SX modules are only supported when connected to an SX host card.
+SI or
 XIO modules are supported on any host card.
 .Pp
 The host adapter uses a shared memory block in the traditional ISA bus
@@ -39,7 +42,8 @@ The host adapter uses a shared memory block in the traditional ISA bus
 range, but requires the memory range to be explicitly non-cached.  The
 driver does not yet support this mode of operation.
 .Pp
-SX ISA Host cards have an 8/16 bit mode switch or jumper on them. This switch
+SX ISA Host cards have an 8/16 bit mode switch or jumper on them.
+This switch
 or jumper MUST be set for 8 bit mode.
 .Pp
 The ISA adapters can use Irq's 11, 12 or 15 (and 9 and 10 in the case of
@@ -55,7 +59,8 @@ The si device driver also responds to the
 utility for configuring drain-on-close timeouts.
 .Pp
 The driver also defines 3 sysctl variables that can be manipulated:
-machdep.si_debug sets the debug level for the whole driver. It depends
+machdep.si_debug sets the debug level for the whole driver.
+It depends
 on the driver being compiled with SI_DEBUG. machdep.si_pollrate
 sets how often per second the driver polls for lost interrupts.
 machdep.si_realpoll sets whether or not the card will treat the
@@ -75,7 +80,8 @@ Due to the lack of available interrupts, only 3 ISA SI/XIO host cards can be
 used at once.
 .Pp
 The lowest 5 bits of the minor device number are used to select the port
-number on the module cluster. The next 2 bits select which of 4 host adapter
+number on the module cluster.
+The next 2 bits select which of 4 host adapter
 cards.  This allows a maximum of 128 ports on this driver.
 .Pp
 Bit 7 is used to differentiate a tty/dialin port (bit 7=0) and a
