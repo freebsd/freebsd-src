@@ -33,14 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *
- *	from: @(#)setjmp.s	5.1 (Berkeley) 4/23/90"
- *	$Id: sigsetjmp.S,v 1.2 1994/10/25 14:08:13 bde Exp $
+ *	$Id: sigsetjmp.S,v 1.3 1994/12/27 13:34:04 bde Exp $
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "$Id: sigsetjmp.S,v 1.2 1994/10/25 14:08:13 bde Exp $"
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id: sigsetjmp.S,v 1.3 1994/12/27 13:34:04 bde Exp $"
+#endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
 #include "SYS.h"
