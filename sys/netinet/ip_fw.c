@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.91 1998/07/02 05:49:08 julian Exp $
+ *	$Id: ip_fw.c,v 1.92 1998/07/06 03:20:13 julian Exp $
  */
 
 /*
@@ -359,7 +359,10 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 			printf(":%d", ntohs(udp->uh_dport));
 		break;
 	case IPPROTO_ICMP:
-		printf("ICMP:%u.%u ", icmp->icmp_type, icmp->icmp_code);
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			printf("ICMP:%u.%u ", icmp->icmp_type, icmp->icmp_code);
+		else
+			printf("ICMP ");
 		print_ip(ip->ip_src);
 		printf(" ");
 		print_ip(ip->ip_dst);
