@@ -44,6 +44,9 @@ to indicate that the job is too young to process.
 The following lines show message recipients, 
 one per line.
 .PP
+.B Mailq
+is identical to ``sendmail -bp''.
+.PP
 The options are as follows:
 .TP
 .B \-v
@@ -61,14 +64,6 @@ and the name of the alias this command expanded from, if any.
 The
 .B mailq
 utility exits 0 on success, and >0 if an error occurs.
-.SH NOTES
-.Nm Mailq
-is identical to
-.Dq Li "sendmail -bp" .
-Most of the options which apply to
-.Xr sendmail 8
-also apply to
-.Nm mailq .
 .SH SEE ALSO
 sendmail(8)
 .SH HISTORY
