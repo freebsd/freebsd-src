@@ -53,11 +53,13 @@
 .Ar ...
 .Op Ar file
 .Sh DESCRIPTION
-.Nm Unifdef
-is useful for removing ifdef'ed lines
+The
+.Nm
+utility removes ifdef'ed lines
 from a file while otherwise leaving the file alone.
-.Nm Unifdef
-acts on
+The
+.Nm
+utility acts on
 #ifdef, #ifndef, #else, and #endif lines,
 and it knows only enough about C
 to know when one of these is inactive
@@ -130,8 +132,9 @@ and
 above.
 .El
 .Pp
-.Nm Unifdef
-copies its output to
+The
+.Nm
+utility copies its output to
 .Em stdout
 and will take its input from
 .Em stdin
@@ -139,8 +142,9 @@ if no
 .Ar file
 argument is given.
 .Pp
-.Nm Unifdef
-works nicely with the
+The
+.Nm
+utility works nicely with the
 .Fl D Ns Ar sym
 option added to
 .Xr diff 1

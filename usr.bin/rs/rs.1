@@ -47,8 +47,9 @@
 .Oc
 .Op Ar rows Op Ar cols
 .Sh DESCRIPTION
-.Nm Rs
-reads the standard input, interpreting each line as a row
+The
+.Nm
+utility reads the standard input, interpreting each line as a row
 of blank-separated entries in an array,
 transforms the array according to the options,
 and writes it on the standard output.
@@ -168,8 +169,9 @@ unless the first non-ignored line is longer than the display width.
 Option letters which take numerical arguments interpret a missing
 number as zero unless otherwise indicated.
 .Sh EXAMPLES
-.Nm Rs
-can be used as a filter to convert the stream output
+The
+.Nm
+utility can be used as a filter to convert the stream output
 of certain programs (e.g.,
 .Xr spell ,
 .Xr du ,

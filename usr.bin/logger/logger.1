@@ -47,8 +47,9 @@
 .Op Fl t Ar tag
 .Op Ar message ...
 .Sh DESCRIPTION
-.Nm Logger
-provides a shell command interface to the
+The
+.Nm
+utility provides a shell command interface to the
 .Xr syslog  3
 system log module.
 .Pp
@@ -59,12 +60,11 @@ Forces
 .Nm
 to use IPv4 addresses only.
 .It Fl 6
-Forces
+Force
 .Nm
 to use IPv6 addresses only.
 .It Fl A
-.Nm
-tries to send the message to only one address
+Try to send the message to only one address
 even if the host has more than one A or AAAA record.
 If this option is specified,
 .Nm

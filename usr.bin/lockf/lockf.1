@@ -101,7 +101,9 @@ as follows:
 .It Dv EX_TEMPFAIL
 The specified lock file was already locked by another process.
 .It Dv EX_CANTCREAT
+The
 .Nm
+utility
 was unable to create the lock file, e.g., because of insufficient access
 privileges.
 .It Dv EX_USAGE
@@ -115,8 +117,9 @@ A system call (e.g., fork) failed unexpectedly.
 .Xr flock 2 ,
 .Xr sysexits 3
 .Sh HISTORY
+A
 .Nm
-first appeared in
+utility first appeared in
 .Fx 2.2 .
 .Sh AUTHORS
 .An John Polstra Aq jdp@polstra.com .
