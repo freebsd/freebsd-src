@@ -194,32 +194,19 @@ acpi_modevent(struct module *mod, int event, void *junk)
 }
 
 /*
- * Detect ACPI, perform early initialisation
+ * Perform early initialization.
  */
-static void
-acpi_identify(driver_t *driver, device_t parent)
+ACPI_STATUS
+acpi_Startup(void)
 {
-    device_t	child;
-    int		error;
 #ifdef ACPI_DEBUGGER
-    char	*debugpoint;
+    char *debugpoint;
 #endif
+    static int error, started = 0;
 
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-    if (!cold)
-	return_VOID;
-
-    /* Check that we haven't been disabled with a hint. */
-    if (resource_disabled("acpi", 0))
-	return_VOID;
-
-    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "0x%x",
-	     ACPI_CA_VERSION);
-
-    /* Make sure we're not being doubly invoked. */
-    if (device_find_child(parent, "acpi", 0) != NULL)
-	return_VOID;
+    if (started)
+	return_VALUE(error);
+    started = 1;
 
 #if __FreeBSD_version >= 500000
     /* Initialise the ACPI mutex */
@@ -237,7 +224,7 @@ acpi_identify(driver_t *driver, device_t parent)
 #endif
     if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
 	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
-	return_VOID;
+	return_VALUE(error);
     }
 #ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
@@ -250,9 +237,39 @@ acpi_identify(driver_t *driver, device_t parent)
 
     if (ACPI_FAILURE(error = AcpiLoadTables())) {
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
-	return_VOID;
+	return_VALUE(error);
     }
-    
+    return_VALUE(AE_OK);
+}
+
+/*
+ * Detect ACPI, perform early initialisation
+ */
+static void
+acpi_identify(driver_t *driver, device_t parent)
+{
+    device_t	child;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    if (!cold)
+	return_VOID;
+
+    /* Check that we haven't been disabled with a hint. */
+    if (resource_disabled("acpi", 0))
+	return_VOID;
+
+    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "0x%x",
+	     ACPI_CA_VERSION);
+
+    /* Make sure we're not being doubly invoked. */
+    if (device_find_child(parent, "acpi", 0) != NULL)
+	return_VOID;
+
+    /* Initialize ACPI-CA. */
+    if (ACPI_FAILURE(acpi_Startup()))
+	return_VOID;
+
     /* Attach the actual ACPI device. */
     if ((child = BUS_ADD_CHILD(parent, 0, "acpi", 0)) == NULL) {
 	device_printf(parent, "ACPI: could not attach\n");
