@@ -30,7 +30,7 @@ normally causes all packets to be dropped.
 Hence, any packet which does not
 match a lower numbered rule will be dropped.  However, a kernel compile
 time option
-.Dq IPFIREWALL_DEFAULT_TO_ACCEPT
+.Dv IPFIREWALL_DEFAULT_TO_ACCEPT
 allows the administrator to change this fixed rule to permit everything.
 .Pp
 The value passed to 
@@ -118,14 +118,14 @@ than
 are skipped.
 .Ss Kernel Options
 Options in the kernel configuration file:
-.Bl -tag -width "optionsXIPFIREWALL_VERBOSE_LIMIT"
+.Bl -tag -width "options IPFIREWALL_VERBOSE_LIMIT"
 .It Cd options IPFIREWALL
 enable
 .Nm
 .It Cd options IPFIREWALL_VERBOSE
-enable firewall output
+enable firewall logging
 .It Cd options IPFIREWALL_VERBOSE_LIMIT
-limit firewall output
+limit firewall logging
 .It Cd options IPDIVERT
 enable
 .Xr divert 4
@@ -134,11 +134,19 @@ sockets
 .Pp
 When packets match a rule with the
 .Dv IP_FW_F_PRN
-bit set, a message
-is logged to the console if
+bit set, and if
 .Dv IPFIREWALL_VERBOSE
-has been enabled;
-Dq IPFIREWALL_VERBOSE_LIMIT
+has been enabled,
+a message is written to
+.Pa /dev/klog
+with the
+.Dv LOG_SECURITY
+facility
+(see
+.Xr syslog 3 )
+for further logging by
+.Xr syslogd 8 ;
+.Dv IPFIREWALL_VERBOSE_LIMIT
 limits the maximum number of times each
 rule can cause a log message.
 These variables are also
@@ -172,9 +180,9 @@ An invalid rule number was used.
 .Xr divert 4 ,
 .Xr ip 4 ,
 .Xr ipfw 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr syslogd 8
 .Sh BUGS
-.Pp
 This man page still needs work.
 .Sh HISTORY
 The ipfw facility was initially written as package to BSDI
