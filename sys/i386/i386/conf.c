@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.16 1993/11/22 09:46:44 davidg Exp $
+ *	$Id: conf.c,v 1.17 1993/11/25 01:30:48 wollman Exp $
  */
 
 #include "param.h"
@@ -216,11 +216,7 @@ struct bdevsw	bdevsw[] =
 int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 
 /* console */
-d_open_t cnopen;
-d_close_t cnclose;
-d_rdwr_t cnread, cnwrite;
-d_ioctl_t cnioctl;
-d_select_t cnselect;
+#include "machine/cons.h"
 
 /* more console */
 d_open_t pcopen;
@@ -417,7 +413,7 @@ d_ioctl_t lpaioctl;
 #else
 #define lpaopen		(d_open_t *)enxio
 #define lpaclose	(d_close_t *)enxio
-#define lpawrite	(d_write_t *)enxio
+#define lpawrite	(d_rdwr_t *)enxio
 #define lpaioctl	(d_ioctl_t *)enxio
 #endif
 
@@ -430,7 +426,7 @@ d_ioctl_t spkrioctl;
 #else
 #define spkropen	(d_open_t *)enxio
 #define spkrclose	(d_close_t *)enxio
-#define spkrwrite	(d_write_t *)enxio
+#define spkrwrite	(d_rdwr_t *)enxio
 #define spkrioctl	(d_ioctl_t *)enxio
 #endif
 
