@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	trpt
+WARNS?=	4
 MAN=	trpt.8
 BINGRP=	kmem
 BINMODE= 2555
