@@ -29,6 +29,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -216,7 +218,7 @@ outint(i)
 
 /*
  * write the name of a symbol to the output buffer
- * the name is preceeded by its length
+ * the name is preceded by its length
  */
 void
 outname(name)
