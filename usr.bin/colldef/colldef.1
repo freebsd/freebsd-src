@@ -47,8 +47,9 @@ and
 functions.
 It is used to define the many ways in which
 strings can be ordered and collated.
+The
 .Fn strxfrm
-transforms
+function transforms
 its first argument and places the result in its second
 argument.
 The transformed string is such that it can be
@@ -57,8 +58,9 @@ correctly ordered with other transformed strings by using
 .Fn strncmp ,
 or
 .Fn memcmp .
+The
 .Fn strcoll
-transforms its arguments and does a
+function transforms its arguments and does a
 comparison.
 .Pp
 The
@@ -69,14 +71,14 @@ The output file produced contains the
 database with collating sequence information in a form
 usable by system commands and routines.
 .Pp
-Options list:
-.Bl -tag -width 4n
+The following options are available:
+.Bl -tag -width indent
 .It Fl I Ar map_dir
-This option set directory name where
+Set directory name where
 .Ar charmap
 files can be found, current directory by default.
 .It Fl o Ar out_file
-This option set output file name,
+Set output file name,
 .Ar LC_COLLATE
 by default.
 .El
@@ -104,15 +106,17 @@ Any
 statements after the order statement are ignored.
 .Pp
 Lines in the specification file beginning with a
-.Ar #
+.Em #
 are
 treated as comments and are ignored.
 Blank lines are also
 ignored.
 .Pp
-.Ar charmap charmapfile
+.Bd -literal -offset indent
+charmap charmapfile
+.Ed
 .Pp
-.Ar charmap
+.Ar Charmap
 defines where a mapping of the character
 and collating element symbols to the actual
 character encoding can be found.
@@ -122,23 +126,27 @@ The format of
 is shown below.
 Symbol
 names are separated from their values by TAB or
-SPACE characters. symbol-value can be specified in
+SPACE characters. Symbol-value can be specified in
 a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
 representation, and can be only one character in length.
-.Bd -literal
-.Ar symbol-name1 symbol-value1
-.Ar symbol-name2 symbol-value2
-.Ar ...
+.Pp
+.Bd -literal -offset indent
+symbol-name1 symbol-value1
+symbol-name2 symbol-value2
+\&...
 .Ed
+.Pp
+Symbol names cannot be specified in
+.Ar substitute
+fields.
 .Pp
 The
 .Ar charmap
 statement is optional.
 .Pp
-.Ar substitute
-\fIsymbol\fR
-.Ar with
-"\fIrepl_string\fR"
+.Bd -literal -offset indent
+substitute "symbol" with "repl_string"
+.Ed
 .Pp
 The
 .Ar substitute
@@ -153,9 +161,11 @@ The
 .Ar substitute
 statement is optional.
 .Pp
-.Ar order order_list
+.Bd -literal -offset indent
+order order_list
+.Ed
 .Pp
-.Ar order_list
+.Ar Order_list
 is a list of symbols, separated by semi colons, that defines the
 collating sequence.
 The
@@ -173,17 +183,17 @@ ways:
 The symbol itself (for example,
 .Ar a
 for the lower-case letter
-.Ar a )
+.Ar a ) .
 .It
 The symbol in octal representation (for example,
 .Ar \e141
 for the letter
-.Ar a )
+.Ar a ) .
 .It
 The symbol in hexadecimal representation (for example,
 .Ar \ex61
 for the letter
-.Ar a )
+.Ar a ) .
 .It
 The symbol name as defined in the
 .Ar charmap
@@ -209,7 +219,7 @@ Symbols
 .Ar \en ,
 .Ar \er ,
 .Ar \ev
-are permitted in its usual C-language meaning
+are permitted in its usual C-language meaning.
 .It
 The symbol chain (for example:
 .Ar abc ,
@@ -217,7 +227,7 @@ The symbol chain (for example:
 .Ar \exf1b\exf2 )
 .It
 The symbol range (for example,
-.Ar a;...;z )
+.Ar a;...;z ) .
 .It
 Comma-separated symbols, ranges and chains enclosed in parenthesis (for example
 .Ar \&(
