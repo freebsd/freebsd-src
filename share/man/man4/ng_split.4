@@ -39,7 +39,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm ng_split
-.Nd Netgraph node to separate incoming and outgoing flows.
+.Nd netgraph node to separate incoming and outgoing flows
 .Sh SYNOPSIS
 .Fd #include <netgraph/ng_split.h>
 .Sh DESCRIPTION
@@ -47,10 +47,8 @@ The
 .Nm split
 node type is used to split a bidirectional stream of packets into 
 two separate unidirectional streams of packets.
-.Pp
 .Sh HOOKS
 This node type supports the following three hooks:
-.Pp
 .Bl -tag -width foobar
 .It Dv in
 Packets received on
@@ -81,7 +79,9 @@ The
 .Nm
 node type was implemented in
 .Fx 3.5 
-but incorprated into FreeBSD in 
+but incorprated into
+.Fx
+in 
 .Fx 5.0 .
 .Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org
