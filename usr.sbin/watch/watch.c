@@ -283,9 +283,9 @@ ask_dev(char *dbuf, const char *msg)
 int
 main(int ac, char *av[])
 {
-	int             res, rv, nread;
+	int             ch, res, rv, nread;
 	size_t		b_size = MIN_SIZE;
-	char            ch, *buf, chb[READB_LEN];
+	char            *buf, chb[READB_LEN];
 	fd_set          fd_s;
 
 	(void) setlocale(LC_TIME, "");

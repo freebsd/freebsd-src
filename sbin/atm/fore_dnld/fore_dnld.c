@@ -903,8 +903,7 @@ main(int argc, char *argv[])
 	u_char	*ram;			/* pointer to RAM */
 	Mon960	*Mon;			/* Uart */
 	Aali	*aap;
-	char	c;
-	int	i, err;
+	int	c, i, err;
 	int	binary = 0;		/* Send binary file */
 	caddr_t	buf;			/* Ioctl buffer */
 	char	bus_dev[80];		/* Bus device to mmap on */

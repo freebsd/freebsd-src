@@ -211,7 +211,7 @@ struct _kwinfo {
 int
 main(int argc, char *argv[])
 {
-	char	ch;
+	int	ch;
 	int	tmp;
 
 	while ((ch = getopt(argc, argv, "ackm")) != -1) {
