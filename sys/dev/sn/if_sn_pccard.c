@@ -61,6 +61,7 @@ static const struct pccard_product sn_pccard_products[] = {
 #endif
 	{ NULL }
 };
+
 static int
 sn_pccard_match(device_t dev)
 {
