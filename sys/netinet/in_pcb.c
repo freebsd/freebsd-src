@@ -208,9 +208,9 @@ in_pcbbind(inp, nam, td)
 {
 	int anonport, error;
 
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
 	anonport = inp->inp_lport == 0 && (nam == NULL ||
@@ -255,9 +255,9 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error, prison = 0;
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
@@ -939,7 +939,8 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	int matchwild = 3, wildcard;
 	u_short lport = lport_arg;
 
-	INP_INFO_RLOCK_ASSERT(pcbinfo);
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+
 	if (!wild_okay) {
 		struct inpcbhead *head;
 		/*
