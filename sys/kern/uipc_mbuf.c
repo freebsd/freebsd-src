@@ -60,6 +60,7 @@ int	max_hdr;
 int	max_datalen;
 int	nmbclusters;
 int	nmbufs;
+int	nmbcnt;
 u_long	m_mballoc_wid = 0;
 u_long	m_clalloc_wid = 0;
 
@@ -91,11 +92,14 @@ SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD,
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
+	   "Maximum number of ext_buf counters available");
 #ifndef NMBCLUSTERS
 #define NMBCLUSTERS	(512 + MAXUSERS * 16)
 #endif
 TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
 TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
+TUNABLE_INT_DECL("kern.ipc.nmbcnt", EXT_COUNTERS, nmbcnt);
 
 static void	m_reclaim __P((void));
 
@@ -119,7 +123,7 @@ mbinit(dummy)
 	/*
 	 * Setup the mb_map, allocate requested VM space.
 	 */
-	mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES + EXT_COUNTERS 
+	mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES + nmbcnt
 	    * sizeof(union mext_refcnt);
 	mb_map_size = roundup2(mb_map_size, PAGE_SIZE);
 	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
