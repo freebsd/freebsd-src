@@ -410,7 +410,7 @@ char   *pat;
 static int is_inet6_addr(pat)
     char *pat;
 {
-    struct in6_addr addr;
+    struct addrinfo hints, *res;
     int len, ret;
     char ch;
 
@@ -420,9 +420,14 @@ static int is_inet6_addr(pat)
     if ((ch = pat[len - 1]) != ']')
 	return (0);
     pat[len - 1] = '\0';
-    ret = inet_pton(AF_INET6, pat + 1, &addr);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+    if ((ret = getaddrinfo(pat + 1, NULL, &hints, &res)) == 0)
+	freeaddrinfo(res);
     pat[len - 1] = ch;
-    return (ret == 1);
+    return (ret == 0);
 }
 #endif
 
