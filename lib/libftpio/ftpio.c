@@ -959,7 +959,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    close(s);	
 	    return FAILURE;
 	}
-	sinline = sizeof sin;
+	sinlen = sizeof sin;
 	getsockname(s, (struct sockaddr *)&sin, &sinlen);
 	if (listen(s, 1) < 0) {
 	    close(s);	
