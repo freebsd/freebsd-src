@@ -82,7 +82,7 @@ ENTRY(cpu_throw)
 ENTRY(cpu_switch)
 	
 	/* switch to new process. first, save context as needed */
-	movl	_curproc,%ecx
+	movl	PCPU(CURPROC),%ecx
 
 	/* if no process to save, don't bother */
 	testl	%ecx,%ecx
@@ -95,7 +95,7 @@ ENTRY(cpu_switch)
 #endif /* SMP */
 	movl	P_VMSPACE(%ecx), %edx
 #ifdef SMP
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 #else
 	xorl	%eax, %eax
 #endif /* SMP */
@@ -142,7 +142,7 @@ ENTRY(cpu_switch)
 
 #if NNPX > 0
 	/* have we used fp, and need a save? */
-	cmpl	%ecx,_npxproc
+	cmpl	%ecx,PCPU(NPXPROC)
 	jne	1f
 	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
 	pushl	%edx
@@ -158,10 +158,10 @@ sw1:
 	/* Stop scheduling if smp_active goes zero and we are not BSP */
 	cmpl	$0,_smp_active
 	jne	1f
-	cmpl	$0,_cpuid
+	cmpl	$0,PCPU(CPUID)
 	je	1f
 
-	movl	_idleproc, %eax
+	movl	PCPU(IDLEPROC), %eax
 	jmp	sw1b
 1:
 #endif
@@ -181,7 +181,7 @@ sw1b:
 	movl	%eax,%ecx
 
 	xorl	%eax,%eax
-	andl	$~AST_RESCHED,_astpending
+	andl	$~AST_RESCHED,PCPU(ASTPENDING)
 
 #ifdef	INVARIANTS
 	cmpb	$SRUN,P_STAT(%ecx)
@@ -206,7 +206,7 @@ sw1b:
 4:
 
 #ifdef SMP
-	movl	_cpuid, %esi
+	movl	PCPU(CPUID), %esi
 #else
 	xorl	%esi, %esi
 #endif
@@ -220,19 +220,19 @@ sw1b:
 	/* update common_tss.tss_esp0 pointer */
 	movl	%edx, %ebx			/* pcb */
 	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
-	movl	%ebx, _common_tss + TSS_ESP0
+	movl	%ebx, PCPU(COMMON_TSS) + TSS_ESP0
 
 	btrl	%esi, _private_tss
 	jae	3f
 #ifdef SMP
-	movl	$gd_common_tssd, %edi
+	movl	$GD_COMMON_TSSD, %edi
 	addl	%fs:0, %edi
 #else
-	movl	$_common_tssd, %edi
+	movl	$PCPU(COMMON_TSSD), %edi
 #endif
 2:
 	/* move correct tss descriptor into GDT slot, then reload tr */
-	movl	_tss_gdt, %ebx			/* entry in GDT */
+	movl	PCPU(TSS_GDT), %ebx		/* entry in GDT */
 	movl	0(%edi), %eax
 	movl	%eax, 0(%ebx)
 	movl	4(%edi), %eax
@@ -242,7 +242,7 @@ sw1b:
 3:
 	movl	P_VMSPACE(%ecx), %ebx
 #ifdef SMP
-	movl	_cpuid, %eax
+	movl	PCPU(CPUID), %eax
 #else
 	xorl	%eax, %eax
 #endif
@@ -265,11 +265,11 @@ sw1b:
 	andl	$~APIC_TPR_PRIO, lapic_tpr
 #endif /** CHEAP_TPR */
 #endif /** GRAB_LOPRIO */
-	movl	_cpuid,%eax
+	movl	PCPU(CPUID),%eax
 	movb	%al, P_ONCPU(%ecx)
 #endif /* SMP */
-	movl	%edx, _curpcb
-	movl	%ecx, _curproc			/* into next process */
+	movl	%edx, PCPU(CURPCB)
+	movl	%ecx, PCPU(CURPROC)		/* into next process */
 
 #ifdef SMP
 	/* XXX FIXME: we should be restoring the local APIC TPR */
@@ -279,10 +279,10 @@ sw1b:
 	cmpl	$0, PCB_USERLDT(%edx)
 	jnz	1f
 	movl	__default_ldt,%eax
-	cmpl	_currentldt,%eax
+	cmpl	PCPU(CURRENTLDT),%eax
 	je	2f
 	lldt	__default_ldt
-	movl	%eax,_currentldt
+	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
 1:	pushl	%edx
 	call	_set_user_ldt
@@ -320,7 +320,7 @@ cpu_switch_load_gs:
 	movl	PCB_SCHEDNEST(%edx),%eax
 	movl	%eax,_sched_lock+MTX_RECURSE
 
-	movl	_curproc,%eax
+	movl	PCPU(CURPROC),%eax
 	movl	%eax,_sched_lock+MTX_LOCK
 
 	ret
@@ -376,7 +376,7 @@ ENTRY(savectx)
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
-	movl	_npxproc,%eax
+	movl	PCPU(NPXPROC),%eax
 	testl	%eax,%eax
 	je	1f
 

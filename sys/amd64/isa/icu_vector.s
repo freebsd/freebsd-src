@@ -60,7 +60,7 @@ IDTVEC(vec_name) ; \
 	mov	%ax,%es ; \
 	mov	%ax,%fs ; \
 	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
-	incb	_intr_nesting_level ; \
+	incb	PCPU(INTR_NESTING_LEVEL) ; \
 	pushl	_intr_unit + (irq_num) * 4 ; \
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
@@ -100,7 +100,7 @@ IDTVEC(vec_name) ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
-	incb	_intr_nesting_level ; \
+	incb	PCPU(INTR_NESTING_LEVEL) ; \
 __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */ \

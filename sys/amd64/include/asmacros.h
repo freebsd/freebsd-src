@@ -69,6 +69,12 @@
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
+#ifdef SMP
+#define	PCPU(member)	%fs:GD_ ## member
+#else
+#define	PCPU(member)	CNAME(globaldata) + GD_ ## member
+#endif
+
 #ifdef GPROF
 /*
  * __mcount is like [.]mcount except that doesn't require its caller to set
