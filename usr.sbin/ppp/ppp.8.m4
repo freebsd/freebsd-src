@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.69 1997/10/05 10:29:32 brian Exp $
+.\" $Id: ppp.8,v 1.70 1997/10/05 14:27:08 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1299,8 +1299,9 @@ ISPs.
 .Sh LOGGING FACILITY
 
 .Nm
-is able to generate the following log info via
-.Xr syslog 3 :
+is able to generate the following log info either via
+.Xr syslog 3
+or directly to the screen:
 
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
@@ -1325,28 +1326,51 @@ LOG_ERROR.
 .It Li Alert	Output to the log file using LOG_ALERT
 .El
 
+.Pp
 The
 .Dq set log
-command allows you to set logging output level, of which
-multiple levels can be specified.  The default is equivalent to
+command allows you to set the logging output level.  Multiple levels
+can be specified on a single command line.  The default is equivalent to
 .Dq set log Carrier Link Phase .
 
+.Pp
+It is also possible to log directly to the screen.  The syntax is
+the same except that the word
+.Dq local
+should immediately follow
+.Dq set log .
+The default is
+.Dq set log local
+(ie. no direct screen logging).
+
+.Pp
 If The first argument to
-.Dq set log
+.Dq set log Op local
 begins with a '+' or a '-' character, the current log levels are
 not cleared, for example:
 
 .Bd -literal -offset indent
+PPP ON awfulhak> set log carrier link phase
 PPP ON awfulhak> show log
-Log: Carrier Link Phase
-PPP ON awfulhak> set log -Link +tcp/ip
+Log:   Carrier Link Phase Warning Error Alert
+Local: Warning Error Alert
+PPP ON awfulhak> set log -link +tcp/ip -warning
+PPP ON awfulhak> set log local +command
 PPP ON awfulhak> show log
-Log: Carrier Phase TCP/IP
+Log:   Carrier Phase TCP/IP Warning Error Alert
+Local: Command Warning Error Alert
 .Ed
 
-Log messages of level Warning, Error and Alert are not controlable
+.Pp
+Log messages of level Warning, Error and Alert are not controllable
 using
-.Dq set log .
+.Dq set log Op local .
+
+.Pp
+The
+.Ar Warning
+level is special in that it will not be logged if it can be displayed
+locally.
 
 .Sh SIGNAL HANDLING
 
@@ -1750,9 +1774,9 @@ If set to
 will send the packet, probably resulting in an ICMP redirect from
 the other end.
 
-.It set log [+|-]value...
-This command allows the adjustment of the current log level.  Please
-refer to the Logging Facility section for further details.
+.It set log Op local [+|-]value...
+This command allows the adjustment of the current log level.  Refer
+to the Logging Facility section for further details.
 
 .It set login chat-script
 This chat-script compliments the dial-script.  If both are specified,

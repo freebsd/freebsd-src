@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: log.c,v 1.17 1997/10/26 01:03:05 brian Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@ static char *LogNames[] = {
 #define MSK(n) (1<<((n)-1))
 
 static u_long LogMask = MSK(LogLINK) | MSK(LogCARRIER) | MSK(LogPHASE);
+static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
 
 static int
@@ -71,10 +72,24 @@ LogKeep(int id)
 }
 
 void
+LogKeepLocal(int id)
+{
+  if (id >= LogMIN && id <= LogMAXCONF)
+    LogMaskLocal |= MSK(id);
+}
+
+void
 LogDiscard(int id)
 {
   if (id >= LogMIN && id <= LogMAXCONF)
     LogMask &= ~MSK(id);
+}
+
+void
+LogDiscardLocal(int id)
+{
+  if (id >= LogMIN && id <= LogMAXCONF)
+    LogMaskLocal &= ~MSK(id);
 }
 
 void
@@ -83,14 +98,22 @@ LogDiscardAll()
   LogMask = 0;
 }
 
+void
+LogDiscardAllLocal()
+{
+  LogMaskLocal = 0;
+}
+
 int
 LogIsKept(int id)
 {
-  if (id < LogMIN)
+  if (id < LogMIN || id > LogMAX)
     return 0;
-  if (id <= LogMAXCONF)
-    return LogMask & MSK(id);
-  return id <= LogMAX;
+  if (id > LogMAXCONF)
+    return LOG_KEPT_LOCAL | LOG_KEPT_SYSLOG;
+
+  return ((LogMaskLocal & MSK(id)) ? LOG_KEPT_LOCAL : 0) |
+    ((LogMask & MSK(id)) ? LOG_KEPT_SYSLOG : 0);
 }
 
 void
@@ -121,15 +144,23 @@ LogPrintf(int lev, char *fmt,...)
   if (LogIsKept(lev)) {
     static char nfmt[200];
 
-    if (LogIsKept(LogTUN) && LogTunno != -1)
-      snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
-	       LogTunno, LogName(lev), fmt);
-    else
-      snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
-    if ((lev == LogERROR || lev == LogALERT || lev == LogWARN) && VarTerm)
-      vfprintf(VarTerm, fmt, ap);
-    if (lev != LogWARN || !VarTerm)
+    if ((LogIsKept(lev) & LOG_KEPT_LOCAL) && VarTerm) {
+      if ((LogIsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
+        snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
+	         LogTunno, LogName(lev), fmt);
+      else
+        snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
+      vfprintf(VarTerm, nfmt, ap);
+    }
+
+    if ((LogIsKept(lev) & LOG_KEPT_SYSLOG) && (lev != LogWARN || !VarTerm)) {
+      if ((LogIsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
+        snprintf(nfmt, sizeof nfmt, "tun%d: %s: %s",
+	         LogTunno, LogName(lev), fmt);
+      else
+        snprintf(nfmt, sizeof nfmt, "%s: %s", LogName(lev), fmt);
       vsyslog(syslogLevel(lev), nfmt, ap);
+    }
   }
   va_end(ap);
 }
@@ -138,7 +169,7 @@ void
 LogDumpBp(int lev, char *hdr, struct mbuf * bp)
 {
   if (LogIsKept(lev)) {
-    char buf[49];
+    char buf[50];
     char *b;
     u_char *ptr;
     int f;
@@ -153,15 +184,18 @@ LogDumpBp(int lev, char *hdr, struct mbuf * bp)
       while (f--) {
 	sprintf(b, " %02x", (int) *ptr++);
         b += 3;
-        if (b == buf + sizeof buf - 1) {
+        if (b == buf + sizeof buf - 2) {
+          strcpy(b, "\n");
           LogPrintf(lev, buf);
           b = buf;
         }
       }
     } while ((bp = bp->next) != NULL);
 
-    if (b > buf)
+    if (b > buf) {
+      strcpy(b, "\n");
       LogPrintf(lev, buf);
+    }
   }
 }
 
@@ -169,16 +203,16 @@ void
 LogDumpBuff(int lev, char *hdr, u_char * ptr, int n)
 {
   if (LogIsKept(lev)) {
-    char buf[49];
+    char buf[50];
     char *b;
-    int f;
 
     if (hdr && *hdr)
       LogPrintf(lev, "%s\n", hdr);
     while (n > 0) {
       b = buf;
-      for (f = 0; f < 16 && n--; f++, b += 3)
+      for (b = buf; b != buf + sizeof(buf) - 2 && n--; b += 3)
 	sprintf(b, " %02x", (int) *ptr++);
+      strcpy(b, "\n");
       LogPrintf(lev, buf);
     }
   }
