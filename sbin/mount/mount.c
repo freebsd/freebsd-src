@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "extern.h"
+#include "mntopts.h"
 #include "pathnames.h"
 
 /* `meta' options */
@@ -354,7 +355,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		NULL
 	};
 	const char *argv[100], **edir;
-	struct stat sb;
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
@@ -365,16 +365,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	(void)&name;
 #endif
 
-	if (realpath(name, mntpath) != NULL && stat(mntpath, &sb) == 0) {
-		if (!S_ISDIR(sb.st_mode)) {
-			warnx("%s: not a directory", mntpath);
-			return (1);
-		}
-	} else {
-		warn("%s", mntpath);
-		return (1);
-	}
-
+	/* resolve the mountpoint with realpath(3) */
+	(void)checkpath(name, mntpath);
 	name = mntpath;
 
 	if (mntopts == NULL)
