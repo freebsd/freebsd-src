@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.103 1998/09/30 21:58:36 jkh Exp $
+ * $Id: disks.c,v 1.104 1998/10/07 03:15:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,7 +135,7 @@ print_command_summary()
 static u_char *
 getBootMgr(char *dname)
 {
-    extern u_char mbr[], bteasy17[];
+    extern u_char mbr[], boot0[];
     char str[80];
     char *cp;
     int i = 0;
@@ -159,7 +159,7 @@ getBootMgr(char *dname)
     if (cp || i) {
 	switch (BootMgr) {
 	case 0:
-	    return bteasy17;
+	    return boot0;
 
 	case 1:
 	    return mbr;
