@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.36.2.4 1995/10/15 15:45:15 jkh Exp $
+ * $Id: devices.c,v 1.36.2.5 1995/10/18 00:11:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -300,10 +300,12 @@ deviceGetAll(void)
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0) {
+	dialog_clear();
 	msgConfirm("ifconfig: socket");
 	return;
     }
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+	dialog_clear();
 	msgConfirm("ifconfig (SIOCGIFCONF)");
 	return;
     }
@@ -322,6 +324,7 @@ deviceGetAll(void)
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	    dialog_clear();
 	    msgConfirm("ifconfig: socket");
 	    continue;
 	}

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.21 1995/10/22 01:32:39 jkh Exp $
+ * $Id: disks.c,v 1.31.2.23 1995/10/22 12:04:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,13 +77,14 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64))
+    if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
+	dialog_clear();
 	msgConfirm("WARNING:  The detected geometry is incorrect!  Please adjust\n"
 		   "it to the correct values manually with the (G)eometry command.\n"
 		   "If you are unsure about the correct geometry (which may be\n"
 		   "\"translated\"), please consult the Hardware Guide in the\n"
 		   "Documentation submenu.");
-			  
+    }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     clrtobot();
@@ -151,6 +152,7 @@ scriptPartition(Device *dev, Disk *d)
 		}
 	    }
 	    if (!chunk_info[i]) {
+		dialog_clear();
 		msgConfirm("Unable to find any free space on this disk!");
 		return;
 	    }
@@ -180,6 +182,7 @@ scriptPartition(Device *dev, Disk *d)
 		}
 	    }
 	    if (!chunk_info[i]) {
+		dialog_clear();
 		msgConfirm("Unable to find %d free blocks on this disk!", sz);
 		return;
 	    }
@@ -191,11 +194,13 @@ scriptPartition(Device *dev, Disk *d)
 		    break;
 	    }
 	    if (!chunk_info[i]) {
+		dialog_clear();
 		msgConfirm("Unable to find any existing FreeBSD partitons on this disk!");
 		return;
 	    }
 	}
 	else {
+	    dialog_clear();
 	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_DISKSPACE);
 	    return;
 	}
@@ -357,6 +362,7 @@ diskPartition(Device *dev, Disk *d)
 		break;
 	    d = Open_Disk(d->name);
 	    if (!d) {
+		dialog_clear();
 		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
 		return;
 	    }
@@ -374,10 +380,13 @@ diskPartition(Device *dev, Disk *d)
 			  "choose No at this dialog.")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
-		if (diskPartitionWrite(NULL) != RET_SUCCESS)
+		if (diskPartitionWrite(NULL) != RET_SUCCESS) {
+		    dialog_clear();
 		    msgConfirm("Disk partition write returned an error status!");
-		else
+		}
+		else {
 		    msgInfo("Wrote FDISK partition information out successfully.");
+		}
 	    }
 	    break;
 
@@ -409,6 +418,7 @@ diskPartition(Device *dev, Disk *d)
     }
     p = CheckRules(d);
     if (p) {
+	dialog_clear();
 	msgConfirm(p);
 	free(p);
     }
@@ -436,11 +446,14 @@ partitionHook(char *str)
 	}
 	devs = deviceFind(str, DEVICE_TYPE_DISK);
 	if (!devs) {
+	    dialog_clear();
 	    msgConfirm("Unable to find disk %s!", str);
 	    return 0;
 	}
-	else if (devs[1])
+	else if (devs[1]) {
+	    dialog_clear();
 	    msgConfirm("Bizarre multiple match for %s!", str);
+	}
 	devs[0]->enabled = TRUE;
 	diskPartition(devs[0], (Disk *)devs[0]->private);
 	str = cp;
@@ -460,6 +473,7 @@ diskPartitionEditor(char *str)
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
@@ -476,6 +490,7 @@ diskPartitionEditor(char *str)
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
 	if (!menu) {
+	    dialog_clear();
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
 		       "were detected properly.  This can be done by pressing the\n"
@@ -546,12 +561,14 @@ diskPartitionWrite(char *str)
     if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
 	return RET_SUCCESS;
     else if (!cp) {
+	dialog_clear();
 	msgConfirm("You must partition the disk(s) before this option can be used.");
 	return RET_FAIL;
     }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
+	dialog_clear();
 	msgConfirm("Unable to find any disks to write to??");
 	return RET_FAIL;
     }
@@ -572,6 +589,7 @@ diskPartitionWrite(char *str)
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (Write_Disk(d)) {
+	    dialog_clear();
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return RET_FAIL;
 	}
@@ -582,11 +600,15 @@ diskPartitionWrite(char *str)
 
 		msgNotify("Running bad block scan on partition %s", c1->name);
 		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret)
+		if (ret) {
+		    dialog_clear();
 		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
+		}
 		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret)
+		if (ret) {
+		    dialog_clear();
 		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
+		}
 	    }
 	}
     }

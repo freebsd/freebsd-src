@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.20 1995/10/22 01:32:50 jkh Exp $
+ * $Id: media.c,v 1.25.2.21 1995/10/22 08:33:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -95,6 +95,7 @@ mediaSetCDROM(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No CDROM devices found!  Please check that your system's\n"
 		   "configuration is correct and that the CDROM drive is of a supported\n"
 		   "type.  For more information, consult the hardware guide\n"
@@ -137,6 +138,7 @@ mediaSetFloppy(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No floppy devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
@@ -178,6 +180,7 @@ mediaSetDOS(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
 	return RET_FAIL;
     }
@@ -217,6 +220,7 @@ mediaSetTape(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_TAPE);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No tape drive devices found!  Please check that your system's configuration\n"
 		   "is correct.  For more information, consult the hardware guide in the Doc\n"
 		   "menu.");
@@ -269,6 +273,7 @@ mediaSetFTP(char *str)
 	    cp = variable_get(VAR_FTP_PATH);
     }
     if (!cp) {
+	dialog_clear();
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
 	return RET_FAIL;
     }
@@ -285,6 +290,7 @@ mediaSetFTP(char *str)
 	    return RET_FAIL;
     }
     if (strncmp("ftp://", cp, 6)) {
+	dialog_clear();
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
 	return RET_FAIL;
     }
@@ -522,6 +528,7 @@ Boolean
 mediaVerify(void)
 {
     if (!mediaDevice) {
+	dialog_clear();
 	msgConfirm("Media type not set!  Please select a media type\n"
 		   "from the Installation menu before proceeding.");
 	return mediaGetType(NULL) == RET_SUCCESS;
@@ -536,6 +543,7 @@ mediaSetFtpOnError(char *str)
     char *cp = variable_get(VAR_FTP_ONERROR);
 
     if (!cp) {
+	dialog_clear();
 	msgConfirm("FTP error handling is not set to anything!");
 	return RET_FAIL;
     }
@@ -572,6 +580,7 @@ mediaSetCPIOVerbosity(char *str)
     char *cp = variable_get(VAR_CPIO_VERBOSITY);
 
     if (!cp) {
+	dialog_clear();
 	msgConfirm("CPIO Verbosity is not set to anything!");
 	return RET_FAIL;
     }

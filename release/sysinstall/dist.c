@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.15 1995/10/22 08:33:12 jkh Exp $
+ * $Id: dist.c,v 1.36.2.17 1995/10/22 12:04:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -344,6 +344,7 @@ distExtract(char *parent, Distribution *me)
 	    msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (attr_parse_file(dist_attr, buf) == RET_FAIL) {
+		dialog_clear();
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 		numchunks = -1;
@@ -355,6 +356,7 @@ distExtract(char *parent, Distribution *me)
 	    if (fd >= 0) {
 		dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 		if (attr_parse(dist_attr, fd) == RET_FAIL) {
+		    dialog_clear();
 		    msgConfirm("Cannot load information file for %s distribution!\n"
 			       "Please verify that your media is valid and try again.", dist);
 		    numchunks = -1;
@@ -410,6 +412,7 @@ distExtract(char *parent, Distribution *me)
 		retval = write(fd2, buf, n);
 		if (retval != n) {
 		    mediaDevice->close(mediaDevice, fd);
+		    dialog_clear();
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
@@ -431,6 +434,7 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {
+		    dialog_clear();
 		    msgConfirm("Unable to transfer all components of the %s distribution.\n"
 			       "If this is a CDROM install, it may be because export restrictions prohibit\n"
 			       "DES code from being shipped from the U.S.  Try to get this code from a\n"
@@ -438,6 +442,7 @@ distExtract(char *parent, Distribution *me)
 		    status = TRUE;
 		}
 		else {
+		    dialog_clear();
 		    status = msgYesNo("Unable to transfer the %s distribution from %s.\n"
 				      "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
@@ -499,6 +504,7 @@ distExtractAll(char *ptr)
 
     if (Dists) {
 	printSelected(buf, Dists, DistTable);
+	dialog_clear();
 	msgConfirm("Couldn't extract all of the distributions.  This may\n"
 		   "be because the following distributions are not available on the\n"
 		   "installation media you've chosen:\n\n\t%s", buf);
