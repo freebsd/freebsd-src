@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.11 1994/10/09 07:35:16 davidg Exp $
+ * $Id: swap_pager.c,v 1.12 1994/10/14 01:58:52 davidg Exp $
  */
 
 /*
@@ -139,9 +139,6 @@ int require_swap_init;
 void swap_pager_finish();
 int dmmin, dmmax;
 extern int vm_page_count;
-
-struct buf * getpbuf() ;
-void relpbuf(struct buf *bp) ;
 
 static inline void swapsizecheck() {
 	if( vm_swap_size < 128*btodb(PAGE_SIZE)) {
