@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.11 1994/11/18 16:27:53 jkh Exp $
+# $Id: instdist.sh,v 1.12 1994/11/18 16:48:57 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -124,7 +124,7 @@ available from the primary U.S. ftp site.\n\n" -1 -1 8 \
 	;;
 
 	U.S#1)
-		ftp_path=ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
+		ftp_path="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}"
 	;;
 
 	U.S#2)
