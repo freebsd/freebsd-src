@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 29 $
+ *              $Revision: 33 $
  *
  ******************************************************************************/
 
@@ -149,7 +149,7 @@ AcpiRsGetPrtMethodData (
     ACPI_HANDLE             Handle,
     ACPI_BUFFER             *RetBuffer)
 {
-    ACPI_OPERAND_OBJECT     *RetObj;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
@@ -161,13 +161,13 @@ AcpiRsGetPrtMethodData (
     /*
      *  Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_PRT", NULL, &RetObj);
+    Status = AcpiNsEvaluateRelative (Handle, "_PRT", NULL, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    if (!RetObj)
+    if (!ObjDesc)
     {
         /* Return object is required */
 
@@ -176,14 +176,14 @@ AcpiRsGetPrtMethodData (
     }
 
     /*
-     * The return object will be a package, so check the parameters.  If the
+     * The return object must be a package, so check the parameters.  If the
      * return object is not a package, then the underlying AML code is corrupt
      * or improperly written.
      */
-    if (ACPI_TYPE_PACKAGE != RetObj->Common.Type)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_PACKAGE)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_PRT did not return a Package, returned %s\n",
-                AcpiUtGetTypeName (RetObj->Common.Type)));
+                AcpiUtGetObjectTypeName (ObjDesc)));
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
     }
@@ -192,13 +192,13 @@ AcpiRsGetPrtMethodData (
      * Create a resource linked list from the byte stream buffer that comes
      * back from the _CRS method execution.
      */
-    Status = AcpiRsCreatePciRoutingTable (RetObj, RetBuffer);
+    Status = AcpiRsCreatePciRoutingTable (ObjDesc, RetBuffer);
 
     /* On exit, we must delete the object returned by EvaluateObject */
 
 Cleanup:
 
-    AcpiUtRemoveReference (RetObj);
+    AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
 
@@ -226,7 +226,7 @@ AcpiRsGetCrsMethodData (
     ACPI_HANDLE             Handle,
     ACPI_BUFFER             *RetBuffer)
 {
-    ACPI_OPERAND_OBJECT     *RetObj;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
@@ -238,13 +238,13 @@ AcpiRsGetCrsMethodData (
     /*
      * Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_CRS", NULL, &RetObj);
+    Status = AcpiNsEvaluateRelative (Handle, "_CRS", NULL, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    if (!RetObj)
+    if (!ObjDesc)
     {
         /* Return object is required */
 
@@ -258,10 +258,10 @@ AcpiRsGetCrsMethodData (
      * then the underlying AML code is corrupt or improperly
      * written.
      */
-    if (ACPI_TYPE_BUFFER != RetObj->Common.Type)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_BUFFER)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_CRS did not return a Buffer, returned %s\n",
-                AcpiUtGetTypeName (RetObj->Common.Type)));
+                AcpiUtGetObjectTypeName (ObjDesc)));
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
     }
@@ -271,13 +271,13 @@ AcpiRsGetCrsMethodData (
      * byte stream buffer that comes back from the _CRS method
      * execution.
      */
-    Status = AcpiRsCreateResourceList (RetObj, RetBuffer);
+    Status = AcpiRsCreateResourceList (ObjDesc, RetBuffer);
 
     /* On exit, we must delete the object returned by evaluateObject */
 
 Cleanup:
 
-    AcpiUtRemoveReference (RetObj);
+    AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
 
@@ -305,7 +305,7 @@ AcpiRsGetPrsMethodData (
     ACPI_HANDLE             Handle,
     ACPI_BUFFER             *RetBuffer)
 {
-    ACPI_OPERAND_OBJECT     *RetObj;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
 
 
@@ -317,13 +317,13 @@ AcpiRsGetPrsMethodData (
     /*
      * Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_PRS", NULL, &RetObj);
+    Status = AcpiNsEvaluateRelative (Handle, "_PRS", NULL, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    if (!RetObj)
+    if (!ObjDesc)
     {
         /* Return object is required */
 
@@ -337,10 +337,10 @@ AcpiRsGetPrsMethodData (
      * then the underlying AML code is corrupt or improperly
      * written..
      */
-    if (ACPI_TYPE_BUFFER != RetObj->Common.Type)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_BUFFER)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_PRS did not return a Buffer, returned %s\n",
-                AcpiUtGetTypeName (RetObj->Common.Type)));
+                AcpiUtGetObjectTypeName (ObjDesc)));
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
     }
@@ -350,13 +350,13 @@ AcpiRsGetPrsMethodData (
      * byte stream buffer that comes back from the _CRS method
      * execution.
      */
-    Status = AcpiRsCreateResourceList (RetObj, RetBuffer);
+    Status = AcpiRsCreateResourceList (ObjDesc, RetBuffer);
 
     /* On exit, we must delete the object returned by evaluateObject */
 
 Cleanup:
 
-    AcpiUtRemoveReference (RetObj);
+    AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
 
@@ -421,8 +421,9 @@ AcpiRsSetSrsMethodData (
     /*
      * Set up the parameter object
      */
-    Params[0]->Buffer.Length  = Buffer.Length;
+    Params[0]->Buffer.Length  = (UINT32) Buffer.Length;
     Params[0]->Buffer.Pointer = Buffer.Pointer;
+    Params[0]->Common.Flags   = AOPOBJ_DATA_VALID;
     Params[1] = NULL;
 
     /*

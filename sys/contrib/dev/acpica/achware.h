@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: achware.h -- hardware specific interfaces
- *       $Revision: 58 $
+ *       $Revision: 60 $
  *
  *****************************************************************************/
 
@@ -155,49 +155,44 @@ ACPI_BIT_REGISTER_INFO *
 AcpiHwGetBitRegisterInfo (
     UINT32                  RegisterId);
 
-UINT32
-AcpiHwBitRegisterRead (
-    UINT32                  RegisterId,
-    UINT32                  Flags);
-
-UINT32
-AcpiHwBitRegisterWrite (
-    UINT32                  RegisterId,
-    UINT32                  Value,
-    UINT32                  Flags);
-
-UINT32
+ACPI_STATUS
 AcpiHwRegisterRead (
     BOOLEAN                 UseLock,
-    UINT32                  RegisterId);
+    UINT32                  RegisterId,
+    UINT32                  *ReturnValue);
 
-void
+ACPI_STATUS
 AcpiHwRegisterWrite (
     BOOLEAN                 UseLock,
     UINT32                  RegisterId,
     UINT32                  Value);
 
-UINT32
+ACPI_STATUS
 AcpiHwLowLevelRead (
     UINT32                  Width,
+    UINT32                  *Value,
     ACPI_GENERIC_ADDRESS    *Reg,
     UINT32                  Offset);
 
-void
+ACPI_STATUS
 AcpiHwLowLevelWrite (
     UINT32                  Width,
     UINT32                  Value,
     ACPI_GENERIC_ADDRESS    *Reg,
     UINT32                  Offset);
 
-void
+ACPI_STATUS
 AcpiHwClearAcpiStatus (
    void);
 
 
 /* GPE support */
 
-void
+UINT8
+AcpiHwGetGpeBitMask (
+    UINT32                  GpeNumber);
+
+ACPI_STATUS
 AcpiHwEnableGpe (
     UINT32                  GpeNumber);
 
@@ -205,7 +200,7 @@ void
 AcpiHwEnableGpeForWakeup (
     UINT32                  GpeNumber);
 
-void
+ACPI_STATUS
 AcpiHwDisableGpe (
     UINT32                  GpeNumber);
 
@@ -213,31 +208,22 @@ void
 AcpiHwDisableGpeForWakeup (
     UINT32                  GpeNumber);
 
-void
+ACPI_STATUS
 AcpiHwClearGpe (
     UINT32                  GpeNumber);
 
-void
+ACPI_STATUS
 AcpiHwGetGpeStatus (
     UINT32                  GpeNumber,
     ACPI_EVENT_STATUS       *EventStatus);
 
-void
+ACPI_STATUS
 AcpiHwDisableNonWakeupGpes (
     void);
 
-void
+ACPI_STATUS
 AcpiHwEnableNonWakeupGpes (
     void);
-
-
-/* Sleep Prototypes */
-
-ACPI_STATUS
-AcpiHwGetSleepTypeData (
-    UINT8                   SleepState,
-    UINT8                   *Slp_TypA,
-    UINT8                   *Slp_TypB);
 
 
 /* ACPI Timer prototypes */

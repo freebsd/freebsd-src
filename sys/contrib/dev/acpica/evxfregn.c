@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 48 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -118,10 +118,8 @@
 #define __EVXFREGN_C__
 
 #include "acpi.h"
-#include "achware.h"
 #include "acnamesp.h"
 #include "acevents.h"
-#include "amlcode.h"
 #include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
@@ -471,7 +469,7 @@ AcpiRemoveAddressSpaceHandler (
                  * The region is just inaccessible as indicated to
                  * the _REG method
                  */
-                AcpiEvDisassociateRegionFromHandler(RegionObj, TRUE);
+                AcpiEvDetachRegion (RegionObj, TRUE);
 
                 /*
                  * Walk the list, since we took the first region and it

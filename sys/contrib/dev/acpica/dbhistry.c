@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dbhistry - debugger HISTORY command
- *              $Revision: 22 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -116,15 +116,7 @@
 
 
 #include "acpi.h"
-#include "acparser.h"
-#include "acdispat.h"
-#include "amlcode.h"
-#include "acnamesp.h"
-#include "acparser.h"
-#include "acevents.h"
-#include "acinterp.h"
 #include "acdebug.h"
-#include "actables.h"
 
 #ifdef ENABLE_DEBUGGER
 
@@ -145,11 +137,11 @@ typedef struct HistoryInfo
 } HISTORY_INFO;
 
 
-HISTORY_INFO                AcpiGbl_HistoryBuffer[HISTORY_SIZE];
-UINT16                      AcpiGbl_LoHistory = 0;
-UINT16                      AcpiGbl_NumHistory = 0;
-UINT16                      AcpiGbl_NextHistoryIndex = 0;
-UINT32                      AcpiGbl_NextCmdNum = 1;
+static HISTORY_INFO         AcpiGbl_HistoryBuffer[HISTORY_SIZE];
+static UINT16               AcpiGbl_LoHistory = 0;
+static UINT16               AcpiGbl_NumHistory = 0;
+static UINT16               AcpiGbl_NextHistoryIndex = 0;
+static UINT32               AcpiGbl_NextCmdNum = 1;
 
 
 /*******************************************************************************

@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 90 $
+ *              $Revision: 94 $
  *
  *****************************************************************************/
 
@@ -132,7 +132,7 @@
 /*
  * Dispatch table for opcode classes
  */
-ACPI_EXECUTE_OP         AcpiGbl_OpTypeDispatch [] = {
+static ACPI_EXECUTE_OP      AcpiGbl_OpTypeDispatch [] = {
                             AcpiExOpcode_1A_0T_0R,
                             AcpiExOpcode_1A_0T_1R,
                             AcpiExOpcode_1A_1T_0R,
@@ -212,11 +212,11 @@ AcpiDsGetPredicateValue (
      * Result of predicate evaluation currently must
      * be a number
      */
-    if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_INTEGER)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Bad predicate (not a number) ObjDesc=%p State=%p Type=%X\n",
-            ObjDesc, WalkState, ObjDesc->Common.Type));
+            ObjDesc, WalkState, ACPI_GET_OBJECT_TYPE (ObjDesc)));
 
         Status = AE_AML_OPERAND_TYPE;
         goto Cleanup;
@@ -224,7 +224,7 @@ AcpiDsGetPredicateValue (
 
     /* Truncate the predicate to 32-bits if necessary */
 
-    AcpiExTruncateFor32bitTable (ObjDesc, WalkState);
+    AcpiExTruncateFor32bitTable (ObjDesc);
 
     /*
      * Save the result of the predicate evaluation on
@@ -304,14 +304,19 @@ AcpiDsExecBeginOp (
 
         Op = *OutOp;
         WalkState->Op = Op;
-        WalkState->OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
-        WalkState->Opcode = Op->Opcode;
+        WalkState->Opcode = Op->Common.AmlOpcode;
+        WalkState->OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
         if (AcpiNsOpensScope (WalkState->OpInfo->ObjectType))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "(%s) Popping scope for Op %p\n",
                 AcpiUtGetTypeName (WalkState->OpInfo->ObjectType), Op));
-            AcpiDsScopeStackPop (WalkState);
+
+            Status = AcpiDsScopeStackPop (WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
         }
     }
 
@@ -349,7 +354,7 @@ AcpiDsExecBeginOp (
 
     /* We want to send namepaths to the load code */
 
-    if (Op->Opcode == AML_INT_NAMEPATH_OP)
+    if (Op->Common.AmlOpcode == AML_INT_NAMEPATH_OP)
     {
         OpcodeClass = AML_CLASS_NAMED_OBJECT;
     }
@@ -385,7 +390,7 @@ AcpiDsExecBeginOp (
             Status = AcpiDsLoad2BeginOp (WalkState, NULL);
         }
 
-        if (Op->Opcode == AML_REGION_OP)
+        if (Op->Common.AmlOpcode == AML_REGION_OP)
         {
             Status = AcpiDsResultStackPush (WalkState);
         }
@@ -451,11 +456,11 @@ AcpiDsExecEndOp (
 
     if (OpClass == AML_CLASS_UNKNOWN)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown opcode %X\n", Op->Opcode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown opcode %X\n", Op->Common.AmlOpcode));
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }
 
-    FirstArg = Op->Value.Arg;
+    FirstArg = Op->Common.Value.Arg;
 
     /* Init the walk state */
 
@@ -555,8 +560,12 @@ AcpiDsExecEndOp (
             /* 1 Operand, 0 ExternalResult, 0 InternalResult */
 
             Status = AcpiDsExecEndControlOp (WalkState, Op);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
 
-            AcpiDsResultStackPop (WalkState);
+            Status = AcpiDsResultStackPop (WalkState);
             break;
 
 
@@ -574,7 +583,7 @@ AcpiDsExecEndOp (
 
             /* NextOp points to first argument op */
 
-            NextOp = NextOp->Next;
+            NextOp = NextOp->Common.Next;
 
             /*
              * Get the method's arguments and put them on the operand stack
@@ -629,7 +638,7 @@ AcpiDsExecEndOp (
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "Executing CreateObject (Buffer/Package) Op=%p\n", Op));
 
-            switch (Op->Parent->Opcode)
+            switch (Op->Common.Parent->Common.AmlOpcode)
             {
             case AML_NAME_OP:
 
@@ -637,20 +646,22 @@ AcpiDsExecEndOp (
                  * Put the Node on the object stack (Contains the ACPI Name of
                  * this object)
                  */
-                WalkState->Operands[0] = (void *) Op->Parent->Node;
+                WalkState->Operands[0] = (void *) Op->Common.Parent->Common.Node;
                 WalkState->NumOperands = 1;
 
-                Status = AcpiDsCreateNode (WalkState, Op->Parent->Node, Op->Parent);
+                Status = AcpiDsCreateNode (WalkState, Op->Common.Parent->Common.Node, Op->Common.Parent);
                 if (ACPI_FAILURE (Status))
                 {
                     break;
                 }
 
                 /* Fall through */
+                /*lint -fallthrough */
 
             case AML_INT_EVAL_SUBTREE_OP:
 
-                Status = AcpiDsEvalDataObjectOperands (WalkState, Op, AcpiNsGetAttachedObject (Op->Parent->Node));
+                Status = AcpiDsEvalDataObjectOperands (WalkState, Op, 
+                                AcpiNsGetAttachedObject (Op->Common.Parent->Common.Node));
                 break;
 
             default:
@@ -682,7 +693,7 @@ AcpiDsExecEndOp (
                 break;
             }
 
-            if (Op->Opcode == AML_REGION_OP)
+            if (Op->Common.AmlOpcode == AML_REGION_OP)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                     "Executing OpRegion Address/Length Op=%p\n", Op));
@@ -717,7 +728,7 @@ AcpiDsExecEndOp (
 
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p\n",
-                OpClass, OpType, Op->Opcode, Op));
+                OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;
             break;
@@ -728,7 +739,7 @@ AcpiDsExecEndOp (
      * ACPI 2.0 support for 64-bit integers: Truncate numeric
      * result value if we are executing from a 32-bit ACPI table
      */
-    AcpiExTruncateFor32bitTable (WalkState->ResultObj, WalkState);
+    AcpiExTruncateFor32bitTable (WalkState->ResultObj);
 
     /*
      * Check if we just completed the evaluation of a

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 55 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -117,8 +117,6 @@
 
 #include <acpi.h>
 #include <acdebug.h>
-#include <amlcode.h>
-#include <acparser.h>
 #include <acnamesp.h>
 
 #ifdef ENABLE_DEBUGGER
@@ -129,7 +127,7 @@
 /*
  * Statistics subcommands
  */
-ARGUMENT_INFO               AcpiDbStatTypes [] =
+static ARGUMENT_INFO        AcpiDbStatTypes [] =
 {
     {"ALLOCATIONS"},
     {"OBJECTS"},
@@ -141,13 +139,13 @@ ARGUMENT_INFO               AcpiDbStatTypes [] =
     {NULL}           /* Must be null terminated */
 };
 
-#define CMD_ALLOCATIONS     0
-#define CMD_OBJECTS         1
-#define CMD_MEMORY          2
-#define CMD_MISC            3
-#define CMD_TABLES          4
-#define CMD_SIZES           5
-#define CMD_STACK           6
+#define CMD_STAT_ALLOCATIONS     0
+#define CMD_STAT_OBJECTS         1
+#define CMD_STAT_MEMORY          2
+#define CMD_STAT_MISC            3
+#define CMD_STAT_TABLES          4
+#define CMD_STAT_SIZES           5
+#define CMD_STAT_STACK           6
 
 
 /*******************************************************************************
@@ -181,18 +179,18 @@ AcpiDbEnumerateObject (
 
     AcpiGbl_NumObjects++;
 
-    if (ObjDesc->Common.Type > INTERNAL_TYPE_NODE_MAX)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) > INTERNAL_TYPE_NODE_MAX)
     {
         AcpiGbl_ObjTypeCountMisc++;
     }
     else
     {
-        AcpiGbl_ObjTypeCount [ObjDesc->Common.Type]++;
+        AcpiGbl_ObjTypeCount [ACPI_GET_OBJECT_TYPE (ObjDesc)]++;
     }
 
     /* Count the sub-objects */
 
-    switch (ObjDesc->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
     case ACPI_TYPE_PACKAGE:
         for (i = 0; i < ObjDesc->Package.Count; i++)
@@ -234,6 +232,9 @@ AcpiDbEnumerateObject (
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.SysHandler);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.DrvHandler);
         AcpiDbEnumerateObject (ObjDesc->ThermalZone.AddrHandler);
+        break;
+
+    default:
         break;
     }
 }
@@ -324,7 +325,7 @@ AcpiDbClassifyOneObject (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+void
 AcpiDbCountNamespaceObjects (
     void)
 {
@@ -341,10 +342,8 @@ AcpiDbCountNamespaceObjects (
         AcpiGbl_NodeTypeCount [i] = 0;
     }
 
-    AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
+    (void) AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
                         FALSE, AcpiDbClassifyOneObject, NULL, NULL);
-
-    return (AE_OK);
 }
 
 #endif
@@ -397,14 +396,14 @@ AcpiDbDisplayStatistics (
     switch (Type)
     {
 #ifndef PARSER_ONLY
-    case CMD_ALLOCATIONS:
+    case CMD_STAT_ALLOCATIONS:
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
         AcpiUtDumpAllocationInfo ();
 #endif
         break;
 #endif
 
-    case CMD_TABLES:
+    case CMD_STAT_TABLES:
 
         AcpiOsPrintf ("ACPI Table Information:\n\n");
         if (AcpiGbl_DSDT)
@@ -413,7 +412,7 @@ AcpiDbDisplayStatistics (
         }
         break;
 
-    case CMD_OBJECTS:
+    case CMD_STAT_OBJECTS:
 
 #ifndef PARSER_ONLY
 
@@ -437,7 +436,7 @@ AcpiDbDisplayStatistics (
 #endif
         break;
 
-    case CMD_MEMORY:
+    case CMD_STAT_MEMORY:
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
         AcpiOsPrintf ("\n----Object and Cache Statistics---------------------------------------------\n");
@@ -483,7 +482,7 @@ AcpiDbDisplayStatistics (
 
         break;
 
-    case CMD_MISC:
+    case CMD_STAT_MISC:
 
         AcpiOsPrintf ("\nMiscellaneous Statistics:\n\n");
         AcpiOsPrintf ("Calls to AcpiPsFind:..  ........% 7ld\n", AcpiGbl_PsFindCount);
@@ -499,7 +498,7 @@ AcpiDbDisplayStatistics (
         break;
 
 
-    case CMD_SIZES:
+    case CMD_STAT_SIZES:
 
         AcpiOsPrintf ("\nInternal object sizes:\n\n");
 
@@ -528,23 +527,29 @@ AcpiDbDisplayStatistics (
 
         AcpiOsPrintf ("\n");
 
-        AcpiOsPrintf ("ParseObject      %3d\n", sizeof (ACPI_PARSE_OBJECT));
-        AcpiOsPrintf ("Parse2Object     %3d\n", sizeof (ACPI_PARSE2_OBJECT));
+        AcpiOsPrintf ("ParseObject      %3d\n", sizeof (ACPI_PARSE_OBJ_COMMON));
+        AcpiOsPrintf ("ParseObjectNamed %3d\n", sizeof (ACPI_PARSE_OBJ_NAMED));
+        AcpiOsPrintf ("ParseObjectAsl   %3d\n", sizeof (ACPI_PARSE_OBJ_ASL));
         AcpiOsPrintf ("OperandObject    %3d\n", sizeof (ACPI_OPERAND_OBJECT));
         AcpiOsPrintf ("NamespaceNode    %3d\n", sizeof (ACPI_NAMESPACE_NODE));
 
         break;
 
 
-    case CMD_STACK:
+    case CMD_STAT_STACK:
+#if defined(ACPI_DEBUG)
 
-        Size = AcpiGbl_EntryStackPointer - AcpiGbl_LowestStackPointer;
+        Size = (UINT32) (AcpiGbl_EntryStackPointer - AcpiGbl_LowestStackPointer);
 
         AcpiOsPrintf ("\nSubsystem Stack Usage:\n\n");
         AcpiOsPrintf ("Entry Stack Pointer          %X\n", AcpiGbl_EntryStackPointer);
         AcpiOsPrintf ("Lowest Stack Pointer         %X\n", AcpiGbl_LowestStackPointer);
         AcpiOsPrintf ("Stack Use                    %X (%d)\n", Size, Size);
         AcpiOsPrintf ("Deepest Procedure Nesting    %d\n", AcpiGbl_DeepestNesting);
+#endif
+        break;
+
+    default:
         break;
     }
 

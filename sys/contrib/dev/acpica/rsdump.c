@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions to display the resource structures.
- *              $Revision: 29 $
+ *              $Revision: 32 $
  *
  ******************************************************************************/
 
@@ -124,7 +124,7 @@
         ACPI_MODULE_NAME    ("rsdump")
 
 
-#ifdef ACPI_DEBUG
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
 /*******************************************************************************
  *
@@ -269,9 +269,9 @@ AcpiRsDumpDma (
 
 void
 AcpiRsDumpStartDependFns (
-    ACPI_RESOURCE_DATA          *Data)
+    ACPI_RESOURCE_DATA      *Data)
 {
-    ACPI_RESOURCE_START_DPF     *SdfData = (ACPI_RESOURCE_START_DPF *) Data;
+    ACPI_RESOURCE_START_DPF *SdfData = (ACPI_RESOURCE_START_DPF *) Data;
 
 
     ACPI_FUNCTION_ENTRY ();
@@ -1093,7 +1093,7 @@ AcpiRsDumpResourceList (
     {
         while (!Done)
         {
-            AcpiOsPrintf ("Resource structure %x.\n", Count++);
+            AcpiOsPrintf ("Resource structure %X.\n", Count++);
 
             switch (Resource->Id)
             {
@@ -1200,7 +1200,7 @@ AcpiRsDumpIrqList (
 
     if (AcpiDbgLevel & ACPI_LV_RESOURCES && _COMPONENT & AcpiDbgLayer)
     {
-        PrtElement = (ACPI_PCI_ROUTING_TABLE *) Buffer;
+        PrtElement = ACPI_CAST_PTR (ACPI_PCI_ROUTING_TABLE, Buffer);
 
         while (!Done)
         {
@@ -1219,7 +1219,7 @@ AcpiRsDumpIrqList (
 
             Buffer += PrtElement->Length;
 
-            PrtElement = (ACPI_PCI_ROUTING_TABLE *) Buffer;
+            PrtElement = ACPI_CAST_PTR (ACPI_PCI_ROUTING_TABLE, Buffer);
 
             if(0 == PrtElement->Length)
             {

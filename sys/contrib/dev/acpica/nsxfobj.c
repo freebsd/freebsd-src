@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfobj - Public interfaces to the ACPI subsystem
  *                         ACPI Object oriented interfaces
- *              $Revision: 108 $
+ *              $Revision: 112 $
  *
  ******************************************************************************/
 
@@ -119,13 +119,111 @@
 #define __NSXFOBJ_C__
 
 #include "acpi.h"
-#include "acinterp.h"
 #include "acnamesp.h"
-#include "acdispat.h"
 
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsxfobj")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiEvaluateObjectTyped
+ *
+ * PARAMETERS:  Handle              - Object handle (optional)
+ *              *Pathname           - Object pathname (optional)
+ *              **ExternalParams    - List of parameters to pass to method,
+ *                                    terminated by NULL.  May be NULL
+ *                                    if no parameters are being passed.
+ *              *ReturnBuffer       - Where to put method's return value (if
+ *                                    any).  If NULL, no value is returned.
+ *              ReturnType          - Expected type of return object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Find and evaluate the given object, passing the given
+ *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              be valid (non-null)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEvaluateObjectTyped (
+    ACPI_HANDLE             Handle,
+    ACPI_STRING             Pathname,
+    ACPI_OBJECT_LIST        *ExternalParams,
+    ACPI_BUFFER             *ReturnBuffer,
+    ACPI_OBJECT_TYPE        ReturnType)
+{
+    ACPI_STATUS             Status;
+    BOOLEAN                 MustFree = FALSE;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiEvaluateObjectTyped");
+
+
+    /* Return buffer must be valid */
+
+    if (!ReturnBuffer)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    if (ReturnBuffer->Length == ACPI_ALLOCATE_BUFFER)
+    {
+        MustFree = TRUE;
+    }
+
+    /* Evaluate the object */
+
+    Status = AcpiEvaluateObject (Handle, Pathname, ExternalParams, ReturnBuffer);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Type ANY means "don't care" */
+
+    if (ReturnType == ACPI_TYPE_ANY)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    if (ReturnBuffer->Length == 0)
+    {
+        /* Error because caller specifically asked for a return value */
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "No return value\n"));
+
+        return_ACPI_STATUS (AE_NULL_OBJECT);
+    }
+
+    /* Examine the object type returned from EvaluateObject */
+
+    if (((ACPI_OBJECT *) ReturnBuffer->Pointer)->Type == ReturnType)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /* Return object type does not match requested type */
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+        "Incorrect return type [%s] requested [%s]\n",
+        AcpiUtGetTypeName (((ACPI_OBJECT *) ReturnBuffer->Pointer)->Type),
+        AcpiUtGetTypeName (ReturnType)));
+
+    if (MustFree)
+    {
+        /* Caller used ACPI_ALLOCATE_BUFFER, free the return buffer */
+
+        AcpiOsFree (ReturnBuffer->Pointer);
+        ReturnBuffer->Pointer = NULL;
+    }
+
+    ReturnBuffer->Length = 0;
+    return_ACPI_STATUS (AE_TYPE);
+}
 
 
 /*******************************************************************************
@@ -176,7 +274,7 @@ AcpiEvaluateObject (
          * Allocate a new parameter block for the internal objects
          * Add 1 to count to allow for null terminated internal list
          */
-        InternalParams = ACPI_MEM_CALLOCATE ((ExternalParams->Count + 1) *
+        InternalParams = ACPI_MEM_CALLOCATE (((ACPI_SIZE) ExternalParams->Count + 1) *
                                                 sizeof (void *));
         if (!InternalParams)
         {
@@ -309,7 +407,7 @@ AcpiEvaluateObject (
                          */
                         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                             "Needed buffer size %X, %s\n",
-                            BufferSpaceNeeded, AcpiFormatException (Status)));
+                            (UINT32) BufferSpaceNeeded, AcpiFormatException (Status)));
                     }
                     else
                     {
@@ -747,8 +845,8 @@ AcpiNsGetDeviceCallback (
         }
     }
 
-    Info->UserFunction (ObjHandle, NestingLevel, Info->Context, ReturnValue);
-    return (AE_OK);
+    Status = Info->UserFunction (ObjHandle, NestingLevel, Info->Context, ReturnValue);
+    return (Status);
 }
 
 
