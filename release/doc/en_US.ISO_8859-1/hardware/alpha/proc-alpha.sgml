@@ -2595,7 +2595,7 @@ as the console entry, or add
 
 and make the zs node:
 
-	<screen><userinput>mknod  /dev/zs0  c 135 0</userinput></screen>
+	<screen><userinput>cd /dev ; sh MAKEDEV zs0</userinput></screen>
       </para>
 
       <para>For the AlphaServer 8x00 machines the kernel config file 
