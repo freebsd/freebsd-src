@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,10 +12,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sysexits.c	8.13 (Berkeley) 5/24/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: sysexits.c,v 8.25 1999/09/23 19:59:24 ca Exp $";
+#endif /* ! lint */
 
-#include "sendmail.h"
+#include <sendmail.h>
 
 /*
 **  SYSEXITS.C -- error messages corresponding to sysexits.h
@@ -25,24 +26,44 @@ static char sccsid[] = "@(#)sysexits.c	8.13 (Berkeley) 5/24/1998";
 
 char *SysExMsg[] =
 {
-	/* 64 USAGE */		" 500 Bad usage",
-	/* 65 DATAERR */	" 501 Data format error",
-	/* 66 NOINPUT */	":550 Cannot open input",
-	/* 67 NOUSER */		" 550 User unknown",
-	/* 68 NOHOST */		" 550 Host unknown",
-	/* 69 UNAVAILABLE */	" 554 Service unavailable",
-	/* 70 SOFTWARE */	":554 Internal error",
-	/* 71 OSERR */		":451 Operating system error",
-	/* 72 OSFILE */		":554 System file missing",
-	/* 73 CANTCREAT */	":550 Can't create output",
-	/* 74 IOERR */		":451 I/O error",
-	/* 75 TEMPFAIL */	" 250 Deferred",
-	/* 76 PROTOCOL */	" 554 Remote protocol error",
-	/* 77 NOPERM */		":550 Insufficient permission",
-	/* 78 CONFIG */		" 554 Local configuration error",
+	/* 64 USAGE */		" 500 5.0.0 Bad usage",
+	/* 65 DATAERR */	" 501 5.6.0 Data format error",
+	/* 66 NOINPUT */	":550 5.3.0 Cannot open input",
+	/* 67 NOUSER */		" 550 5.1.1 User unknown",
+	/* 68 NOHOST */		" 550 5.1.2 Host unknown",
+	/* 69 UNAVAILABLE */	" 554 5.0.0 Service unavailable",
+	/* 70 SOFTWARE */	":554 5.3.0 Internal error",
+	/* 71 OSERR */		":451 4.0.0 Operating system error",
+	/* 72 OSFILE */		":554 5.3.5 System file missing",
+	/* 73 CANTCREAT */	":550 5.0.0 Can't create output",
+	/* 74 IOERR */		":451 4.0.0 I/O error",
+	/* 75 TEMPFAIL */	" 450 4.0.0 Deferred",
+	/* 76 PROTOCOL */	" 554 5.5.0 Remote protocol error",
+	/* 77 NOPERM */		":550 5.0.0 Insufficient permission",
+	/* 78 CONFIG */		" 554 5.3.5 Local configuration error",
 };
 
 int N_SysEx = sizeof(SysExMsg) / sizeof(SysExMsg[0]);
+
+static char *SysExitMsg[] =
+{
+	"command line usage error",
+	"data format error",
+	"cannot open input",
+	"addressee unknown",
+	"host name unknown",
+	"service unavailable",
+	"internal software error",
+	"system error (e.g., can't fork)",
+	"critical OS file missing",
+	"can't create (user) output file",
+	"input/output error",
+	"temp failure; user is invited to retry",
+	"remote error in protocol",
+	"permission denied",
+	"configuration error"
+};
+
 /*
 **  DSNTOEXITSTAT -- convert DSN-style error code to EX_ style.
 **
@@ -111,7 +132,7 @@ dsntoexitstat(dsncode)
 		switch (code3)
 		{
 		  case 0:	/* Other or Undefined mailbox status */
-		  case 1:	/* Mailbox disabled, not acccepting messages */
+		  case 1:	/* Mailbox disabled, not accepting messages */
 		  case 2:	/* Mailbox full */
 		  case 4:	/* Mailing list expansion problem */
 			return EX_UNAVAILABLE;
@@ -159,4 +180,37 @@ dsntoexitstat(dsncode)
 		return EX_DATAERR;
 	}
 	return EX_CONFIG;
+}
+
+/*
+**  EXITSTAT -- convert EX_ value to error text.
+**
+**	Parameters:
+**		excode -- rstatus which might consists of an EX_* value.
+**
+**	Returns:
+**		The corresponding error text or the original string.
+*/
+
+char *
+exitstat(excode)
+	char *excode;
+{
+	char *c;
+	int i;
+
+	if (excode == NULL || *excode == '\0')
+		return excode;
+	i = 0;
+	for (c = excode; *c != '\0'; c++)
+	{
+		if (isascii(*c) && isdigit(*c))
+			i = i * 10 + (*c - '0');
+		else
+			return excode;
+	}
+	i -= EX__BASE;
+	if (i >= 0 && i <= N_SysEx)
+		return SysExitMsg[i];
+	return excode;
 }

@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -21,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)mail.eecs.mc	8.15 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: mail.eecs.mc,v 8.18 1999/02/07 07:26:04 gshapiro Exp $')
 OSTYPE(ultrix4)dnl
 DOMAIN(EECS.Berkeley.EDU)dnl
 MASQUERADE_AS(EECS.Berkeley.EDU)dnl

@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,12 +13,8 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)amdahl-uts.m4	8.11 (Berkeley) 10/6/1998')
+VERSIONID(`$Id: amdahl-uts.m4,v 8.16 1999/04/24 05:37:40 gshapiro Exp $')
 divert(-1)
 
-define(`ALIAS_FILE', /etc/mail/aliases)
-ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/mail/sendmail.hf'))')
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/lib/sendmail.st'))')
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `fSn9')')
-define(`confCW_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/local-host-names', `/etc/mail/sendmail.cw'))
+_DEFIFNOT(`LOCAL_MAILER_FLAGS', `fSn9')
 define(`confEBINDIR', `/usr/lib')dnl

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1994, 1996-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -10,12 +11,18 @@
  *
  */
 
-# include "sendmail.h"
-# include <string.h>
+#include <sendmail.h>
+#include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.71 (Berkeley) 1/18/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: mime.c,v 8.94 1999/10/17 17:35:58 ca Exp $";
+#endif /* ! lint */
+
+static int	isboundary __P((char *, char **));
+static int	mimeboundary __P((char *, char **));
+static int	mime_fromqp __P((u_char *, u_char **, int, int));
+static int	mime_getchar __P((FILE *, char **, int *));
+static int	mime_getchar_crlf __P((FILE *, char **, int *));
 
 /*
 **  MIME support.
@@ -37,23 +44,22 @@ static char sccsid[] = "@(#)mime.c	8.71 (Berkeley) 1/18/1999";
 #if MIME8TO7
 
 /* character set for hex and base64 encoding */
-char	Base16Code[] =	"0123456789ABCDEF";
-char	Base64Code[] =	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static char	Base16Code[] =	"0123456789ABCDEF";
+static char	Base64Code[] =	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /* types of MIME boundaries */
-#define MBT_SYNTAX	0	/* syntax error */
-#define MBT_NOTSEP	1	/* not a boundary */
-#define MBT_INTERMED	2	/* intermediate boundary (no trailing --) */
-#define MBT_FINAL	3	/* final boundary (trailing -- included) */
+# define MBT_SYNTAX	0	/* syntax error */
+# define MBT_NOTSEP	1	/* not a boundary */
+# define MBT_INTERMED	2	/* intermediate boundary (no trailing --) */
+# define MBT_FINAL	3	/* final boundary (trailing -- included) */
 
 static char	*MimeBoundaryNames[] =
 {
 	"SYNTAX",	"NOTSEP",	"INTERMED",	"FINAL"
 };
 
-bool	MapNLtoCRLF;
+static bool	MapNLtoCRLF;
 
-extern int	mimeboundary __P((char *, char **));
 /*
 **  MIME8TO7 -- output 8 bit body in 7 bit format
 **
@@ -83,8 +89,8 @@ extern int	mimeboundary __P((char *, char **));
 
 struct args
 {
-	char	*field;		/* name of field */
-	char	*value;		/* value of that field */
+	char	*a_field;	/* name of field */
+	char	*a_value;	/* value of that field */
 };
 
 int
@@ -113,20 +119,18 @@ mime8to7(mci, header, e, boundaries, flags)
 	char buf[MAXLINE];
 	char pvpbuf[MAXLINE];
 	extern u_char MimeTokenTab[256];
-	extern int mime_getchar __P((FILE *, char **, int *));
-	extern int mime_getchar_crlf __P((FILE *, char **, int *));
 
 	if (tTd(43, 1))
 	{
-		printf("mime8to7: flags = %x, boundaries =", flags);
+		dprintf("mime8to7: flags = %x, boundaries =", flags);
 		if (boundaries[0] == NULL)
-			printf(" <none>");
+			dprintf(" <none>");
 		else
 		{
 			for (i = 0; boundaries[i] != NULL; i++)
-				printf(" %s", boundaries[i]);
+				dprintf(" %s", boundaries[i]);
 		}
-		printf("\n");
+		dprintf("\n");
 	}
 	MapNLtoCRLF = TRUE;
 	p = hvalue("Content-Transfer-Encoding", header);
@@ -160,7 +164,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		if (tTd(43, 40))
 		{
 			for (i = 0; pvp[i] != NULL; i++)
-				printf("pvp[%d] = \"%s\"\n", i, pvp[i]);
+				dprintf("pvp[%d] = \"%s\"\n", i, pvp[i]);
 		}
 		type = *pvp++;
 		if (*pvp != NULL && strcmp(*pvp, "/") == 0 &&
@@ -178,14 +182,24 @@ mime8to7(mci, header, e, boundaries, flags)
 			if (*pvp++ == NULL || *pvp == NULL)
 				break;
 
+			/* complain about empty values */
+			if (strcmp(*pvp, ";") == 0)
+			{
+				usrerr("mime8to7: Empty parameter in Content-Type header");
+
+				/* avoid bounce loops */
+				e->e_flags |= EF_DONT_MIME;
+				continue;
+			}
+
 			/* extract field name */
-			argv[argc].field = *pvp++;
+			argv[argc].a_field = *pvp++;
 
 			/* see if there is a value */
 			if (*pvp != NULL && strcmp(*pvp, "=") == 0 &&
 			    (*++pvp == NULL || strcmp(*pvp, ";") != 0))
 			{
-				argv[argc].value = *pvp;
+				argv[argc].a_value = *pvp;
 				argc++;
 			}
 		}
@@ -212,10 +226,10 @@ mime8to7(mci, header, e, boundaries, flags)
 	if (wordinclass(buf, 'n') || (cte != NULL && !wordinclass(cte, 'e')))
 		flags |= M87F_NO8BIT;
 
-#ifdef USE_B_CLASS
+# ifdef USE_B_CLASS
 	if (wordinclass(buf, 'b') || wordinclass(type, 'b'))
 		MapNLtoCRLF = FALSE;
-#endif
+# endif /* USE_B_CLASS */
 	if (wordinclass(buf, 'q') || wordinclass(type, 'q'))
 		use_qp = TRUE;
 
@@ -228,19 +242,18 @@ mime8to7(mci, header, e, boundaries, flags)
 	if (strcasecmp(type, "multipart") == 0 &&
 	    (!bitset(M87F_NO8BIT, flags) || bitset(M87F_NO8TO7, flags)))
 	{
-		int blen;
 
 		if (strcasecmp(subtype, "digest") == 0)
 			flags |= M87F_DIGEST;
 
 		for (i = 0; i < argc; i++)
 		{
-			if (strcasecmp(argv[i].field, "boundary") == 0)
+			if (strcasecmp(argv[i].a_field, "boundary") == 0)
 				break;
 		}
-		if (i >= argc || argv[i].value == NULL)
+		if (i >= argc || argv[i].a_value == NULL)
 		{
-			syserr("mime8to7: Content-Type: \"%s\": %s boundary",
+			usrerr("mime8to7: Content-Type: \"%s\": %s boundary",
 				i >= argc ? "missing" : "bogus", p);
 			p = "---";
 
@@ -249,29 +262,26 @@ mime8to7(mci, header, e, boundaries, flags)
 		}
 		else
 		{
-			p = argv[i].value;
+			p = argv[i].a_value;
 			stripquotes(p);
 		}
-		blen = strlen(p);
-		if (blen > sizeof bbuf - 1)
+		if (strlcpy(bbuf, p, sizeof bbuf) >= sizeof bbuf)
 		{
-			syserr("mime8to7: multipart boundary \"%s\" too long",
+			usrerr("mime8to7: multipart boundary \"%s\" too long",
 				p);
-			blen = sizeof bbuf - 1;
 
 			/* avoid bounce loops */
 			e->e_flags |= EF_DONT_MIME;
 		}
-		strncpy(bbuf, p, blen);
-		bbuf[blen] = '\0';
+
 		if (tTd(43, 1))
-			printf("mime8to7: multipart boundary \"%s\"\n", bbuf);
+			dprintf("mime8to7: multipart boundary \"%s\"\n", bbuf);
 		for (i = 0; i < MAXMIMENESTING; i++)
 			if (boundaries[i] == NULL)
 				break;
 		if (i >= MAXMIMENESTING)
 		{
-			syserr("mime8to7: multipart nesting boundary too deep");
+			usrerr("mime8to7: multipart nesting boundary too deep");
 
 			/* avoid bounce loops */
 			e->e_flags |= EF_DONT_MIME;
@@ -286,6 +296,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		/* skip the early "comment" prologue */
 		putline("", mci);
 		mci->mci_flags &= ~MCIF_INHEADER;
+		bt = MBT_FINAL;
 		while (fgets(buf, sizeof buf, e->e_dfp) != NULL)
 		{
 			bt = mimeboundary(buf, boundaries);
@@ -293,7 +304,7 @@ mime8to7(mci, header, e, boundaries, flags)
 				break;
 			putxline(buf, strlen(buf), mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
 			if (tTd(43, 99))
-				printf("  ...%s", buf);
+				dprintf("  ...%s", buf);
 		}
 		if (feof(e->e_dfp))
 			bt = MBT_FINAL;
@@ -304,7 +315,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			snprintf(buf, sizeof buf, "--%s", bbuf);
 			putline(buf, mci);
 			if (tTd(43, 35))
-				printf("  ...%s\n", buf);
+				dprintf("  ...%s\n", buf);
 			collect(e->e_dfp, FALSE, &hdr, e);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
@@ -316,7 +327,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		snprintf(buf, sizeof buf, "--%s--", bbuf);
 		putline(buf, mci);
 		if (tTd(43, 35))
-			printf("  ...%s\n", buf);
+			dprintf("  ...%s\n", buf);
 		boundaries[i] = NULL;
 		mci->mci_flags &= ~MCIF_INMIME;
 
@@ -328,12 +339,12 @@ mime8to7(mci, header, e, boundaries, flags)
 				break;
 			putxline(buf, strlen(buf), mci, PXLF_MAPFROM|PXLF_STRIP8BIT);
 			if (tTd(43, 99))
-				printf("  ...%s", buf);
+				dprintf("  ...%s", buf);
 		}
 		if (feof(e->e_dfp))
 			bt = MBT_FINAL;
 		if (tTd(43, 3))
-			printf("\t\t\tmime8to7=>%s (multipart)\n",
+			dprintf("\t\t\tmime8to7=>%s (multipart)\n",
 				MimeBoundaryNames[bt]);
 		return bt;
 	}
@@ -429,7 +440,7 @@ mime8to7(mci, header, e, boundaries, flags)
 
 	if (tTd(43, 8))
 	{
-		printf("mime8to7: %ld high bit(s) in %ld byte(s), cte=%s, type=%s/%s\n",
+		dprintf("mime8to7: %ld high bit(s) in %ld byte(s), cte=%s, type=%s/%s\n",
 			(long) sectionhighbits, (long) sectionsize,
 			cte == NULL ? "[none]" : cte,
 			type == NULL ? "[none]" : type,
@@ -443,7 +454,8 @@ mime8to7(mci, header, e, boundaries, flags)
 	{
 		/* no encoding necessary */
 		if (cte != NULL &&
-		    bitset(MCIF_INMIME, mci->mci_flags) &&
+		    bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME,
+			   mci->mci_flags) &&
 		    !bitset(M87F_NO8TO7, flags))
 		{
 			/*
@@ -458,7 +470,7 @@ mime8to7(mci, header, e, boundaries, flags)
 				"Content-Transfer-Encoding: %.200s", cte);
 			putline(buf, mci);
 			if (tTd(43, 36))
-				printf("  ...%s\n", buf);
+				dprintf("  ...%s\n", buf);
 		}
 		putline("", mci);
 		mci->mci_flags &= ~MCIF_INHEADER;
@@ -479,7 +491,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		int c1, c2;
 
 		if (tTd(43, 36))
-			printf("  ...Content-Transfer-Encoding: base64\n");
+			dprintf("  ...Content-Transfer-Encoding: base64\n");
 		putline("Content-Transfer-Encoding: base64", mci);
 		snprintf(buf, sizeof buf,
 			"X-MIME-Autoconverted: from 8bit to base64 by %s id %s",
@@ -529,7 +541,7 @@ mime8to7(mci, header, e, boundaries, flags)
 		/* use quoted-printable encoding */
 		int c1, c2;
 		int fromstate;
-		BITMAP badchars;
+		BITMAP256 badchars;
 
 		/* set up map of characters that must be mapped */
 		clrbitmap(badchars);
@@ -544,7 +556,7 @@ mime8to7(mci, header, e, boundaries, flags)
 				setbitn(*p, badchars);
 
 		if (tTd(43, 36))
-			printf("  ...Content-Transfer-Encoding: quoted-printable\n");
+			dprintf("  ...Content-Transfer-Encoding: quoted-printable\n");
 		putline("Content-Transfer-Encoding: quoted-printable", mci);
 		snprintf(buf, sizeof buf,
 			"X-MIME-Autoconverted: from 8bit to quoted-printable by %s id %s",
@@ -643,7 +655,7 @@ mime8to7(mci, header, e, boundaries, flags)
 
 	}
 	if (tTd(43, 3))
-		printf("\t\t\tmime8to7=>%s (basic)\n", MimeBoundaryNames[bt]);
+		dprintf("\t\t\tmime8to7=>%s (basic)\n", MimeBoundaryNames[bt]);
 	return bt;
 }
 /*
@@ -661,7 +673,7 @@ mime8to7(mci, header, e, boundaries, flags)
 **		The next character in the input stream.
 */
 
-int
+static int
 mime_getchar(fp, boundaries, btp)
 	register FILE *fp;
 	char **boundaries;
@@ -685,7 +697,7 @@ mime_getchar(fp, boundaries, btp)
 		buflen--;
 		return *bp++;
 	}
-	else 
+	else
 		c = getc(fp);
 	bp = buf;
 	buflen = 0;
@@ -697,7 +709,7 @@ mime_getchar(fp, boundaries, btp)
 		c = getc(fp);
 		if (c == '\n')
 		{
-			ungetc(c, fp);
+			(void) ungetc(c, fp);
 			return c;
 		}
 		start = 1;
@@ -767,7 +779,7 @@ mime_getchar(fp, boundaries, btp)
 **		The next character in the input stream.
 */
 
-int
+static int
 mime_getchar_crlf(fp, boundaries, btp)
 	register FILE *fp;
 	char **boundaries;
@@ -804,7 +816,7 @@ mime_getchar_crlf(fp, boundaries, btp)
 **			enclosure -- i.e., a syntax error.
 */
 
-int
+static int
 mimeboundary(line, boundaries)
 	register char *line;
 	char **boundaries;
@@ -812,7 +824,6 @@ mimeboundary(line, boundaries)
 	int type = MBT_NOTSEP;
 	int i;
 	int savec;
-	extern int isboundary __P((char *, char **));
 
 	if (line[0] != '-' || line[1] != '-' || boundaries == NULL)
 		return MBT_NOTSEP;
@@ -827,7 +838,7 @@ mimeboundary(line, boundaries)
 	line[i] = '\0';
 
 	if (tTd(43, 5))
-		printf("mimeboundary: line=\"%s\"... ", line);
+		dprintf("mimeboundary: line=\"%s\"... ", line);
 
 	/* check for this as an intermediate boundary */
 	if (isboundary(&line[2], boundaries) >= 0)
@@ -843,7 +854,7 @@ mimeboundary(line, boundaries)
 
 	line[i] = savec;
 	if (tTd(43, 5))
-		printf("%s\n", MimeBoundaryNames[type]);
+		dprintf("%s\n", MimeBoundaryNames[type]);
 	return type;
 }
 /*
@@ -886,7 +897,7 @@ defcharset(e)
 **
 */
 
-int
+static int
 isboundary(line, boundaries)
 	char *line;
 	char **boundaries;
@@ -900,7 +911,6 @@ isboundary(line, boundaries)
 	}
 	return -1;
 }
-
 #endif /* MIME8TO7 */
 
 #if MIME7TO8
@@ -930,8 +940,6 @@ isboundary(line, boundaries)
 **		none.
 */
 
-extern int	mime_fromqp __P((u_char *, u_char **, int, int));
-
 static char index_64[128] =
 {
 	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
@@ -944,8 +952,7 @@ static char index_64[128] =
 	41,42,43,44, 45,46,47,48, 49,50,51,-1, -1,-1,-1,-1
 };
 
-#define CHAR64(c)  (((c) < 0 || (c) > 127) ? -1 : index_64[(c)])
-
+# define CHAR64(c)  (((c) < 0 || (c) > 127) ? -1 : index_64[(c)])
 
 void
 mime7to8(mci, header, e)
@@ -1103,7 +1110,7 @@ mime7to8(mci, header, e)
 		putxline((char *) fbuf, fbufp - fbuf, mci, PXLF_MAPFROM);
 	}
 	if (tTd(43, 3))
-		printf("\t\t\tmime7to8 => %s to 8bit done\n", cte);
+		dprintf("\t\t\tmime7to8 => %s to 8bit done\n", cte);
 }
 /*
 **  The following is based on Borenstein's "codes.c" module, with simplifying
@@ -1126,9 +1133,9 @@ static char index_hex[128] =
 	-1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
 };
 
-#define HEXCHAR(c)  (((c) < 0 || (c) > 127) ? -1 : index_hex[(c)])
+# define HEXCHAR(c)  (((c) < 0 || (c) > 127) ? -1 : index_hex[(c)])
 
-int
+static int
 mime_fromqp(infile, outfile, state, maxlen)
 	u_char *infile;
 	u_char **outfile;
@@ -1185,6 +1192,4 @@ mime_fromqp(infile, outfile, state, maxlen)
 	*(*outfile)++ = '\0';
 	return 1;
 }
-
-
 #endif /* MIME7TO8 */

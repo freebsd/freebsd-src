@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -25,4 +26,4 @@ ifdef(`_CF_DIR_', `',
 divert(0)dnl
 ifdef(`OSTYPE', `dnl',
 `include(_CF_DIR_`'m4/cfhead.m4)dnl
-VERSIONID(`@(#)cf.m4	8.29 (Berkeley) 5/19/1998')')
+VERSIONID(`$Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $')')

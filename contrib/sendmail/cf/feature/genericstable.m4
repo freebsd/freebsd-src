@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -12,11 +13,13 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)genericstable.m4	8.8 (Berkeley) 10/6/1998')
+VERSIONID(`$Id: genericstable.m4,v 8.16 1999/07/22 17:55:35 gshapiro Exp $')
 divert(-1)
 
-define(`GENERICS_TABLE', ifelse(_ARG_, `',
-				ifdef(`_USE_ETC_MAIL_',
-				      DATABASE_MAP_TYPE` -o /etc/mail/genericstable',
-				      DATABASE_MAP_TYPE` -o /etc/genericstable'),
-				`_ARG_'))dnl
+define(`_GENERICS_TABLE_', `')
+
+LOCAL_CONFIG
+# Generics table (mapping outgoing addresses)
+Kgenerics ifelse(defn(`_ARG_'), `',
+		 DATABASE_MAP_TYPE MAIL_SETTINGS_DIR`genericstable',
+		 `_ARG_')
