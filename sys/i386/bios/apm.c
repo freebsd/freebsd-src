@@ -1,3 +1,4 @@
+#define APM_DEBUG 1
 /*
  * LP (Laptop Package)
  * 
@@ -12,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.3 1994/10/01 05:12:22 davidg Exp $
+ *	$Id: apm.c,v 1.4 1994/10/02 01:45:41 phk Exp $
  */
 
 #include "apm.h"
@@ -33,6 +34,7 @@
 #include "i386/isa/isa_device.h"
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
+#include <machine/clock.h>
 #include <vm/vm.h>
 #include <sys/syslog.h>
 #include "apm_setup.h"
@@ -45,6 +47,8 @@ static u_int	cs_limit, ds_limit;
 static u_int	cs_entry;
 static u_int	intversion;
 static int	idle_cpu, disabled, disengaged;
+
+#define is_enabled(foo) ((foo) ? "enabled" : "disabled")
 
 /* Map version number to integer (keeps ordering of version numbers) */
 #define INTVERSION(major, minor)	((major)*100 + (minor))
@@ -119,6 +123,37 @@ apm_enable_disable_pm(int enable)
 	return apm_int(&eax,&ebx,&ecx);
 }
 
+/* Tell APM-BIOS that WE will do 1.1 and see what they say... */
+static void
+apm_driver_version()
+{
+	u_long eax,ebx,ecx,i;
+
+#ifdef APM_DEBUG
+	eax = (APM_BIOS<<8) | APM_INSTCHECK;
+	ebx  = 0x0;
+	ecx  = 0x0101;
+	i = apm_int(&eax,&ebx,&ecx);
+	printf("[%04lx %04lx %04lx %ld %02x]\n",
+		eax,ebx,ecx,i,apm_errno);
+#endif
+
+	eax = (APM_BIOS<<8) | APM_DRVVERSION;
+	ebx  = 0x0;
+	ecx  = 0x0101;
+	if(!apm_int(&eax,&ebx,&ecx)) 
+		apm_version = eax & 0xffff;
+
+#ifdef APM_DEBUG
+	eax = (APM_BIOS<<8) | APM_INSTCHECK;
+	ebx  = 0x0;
+	ecx  = 0x0101;
+	i = apm_int(&eax,&ebx,&ecx);
+	printf("[%04lx %04lx %04lx %ld %02x]\n",
+		eax,ebx,ecx,i,apm_errno);
+#endif
+}
+
 /* engage/disengage power management (APM 1.1 or later) */
 static int 
 apm_engage_disengage_pm(int engage)
@@ -142,17 +177,9 @@ apm_getevent(void)
 	
 	if (apm_int(&eax,&ebx,&ecx))
 		return PMEV_NOEVENT;
+
 	return ebx & 0xffff;
 }
-
-/*
- * In many cases, the first event that occured after resume, needs
- * special treatment. This binary flag make this process possible.
- * Initial value of this variable is 1, because the bootstrap
- * condition is equivalent to resumed condition for the power
- * manager.
- */
-static int	resumed_event = 1;
 
 /* suspend entire system */
 static int 
@@ -169,7 +196,6 @@ apm_suspend_system(void)
 			0xff & (eax >> 8));
 		return 1;
 	}
-	resumed_event = 1;
 	return 0;
 }
 
@@ -177,92 +203,11 @@ apm_suspend_system(void)
 static void 
 apm_battery_low(void)
 {
-	/* Currently, this routine has not been implemented. Sorry... */
-}
-
-
-/* APM driver calls some functions automatically when the system wakes up */
-static void 
-apm_execute_hook(apm_hook_func_t list)
-{
-	apm_hook_func_t p;
-
-	for (p = list; p != NULL; p = p->next) {
-		if ((*(p->func))()) {
-			printf("Warning: APM hook of %s failed", p->name);
-		}
-	}
-}
-
-
-/* APM hook manager */
-static apm_hook_func_t 
-apm_hook_init(apm_hook_func_t *list, int (*func)(void), char *name, int order)
-{
-	int pl;
-	apm_hook_func_t p, prev, new_node;
-	
-	pl = splhigh();
-	new_node = malloc(sizeof(*new_node), M_DEVBUF, M_NOWAIT);
-	if (new_node == NULL) {
-		panic("Can't allocate device buffer for apm_resume_hook.");
-	}
-	new_node->func = func;
-	new_node->name = name;
-#if 0
-	new_node->next = *list;
-	*list = new_node;
-#else
-	prev = NULL;
-	for (p = *list; p != NULL; prev = p, p = p->next) {
-		if (p->order > order) {
-			break;
-		}
-	}
-
-	if (prev == NULL) {
-		new_node->next = *list;
-		*list = new_node;
-	}
-	else {
-		new_node->next = prev->next;
-		prev->next = new_node;
-	}
-#endif
-	splx(pl);
-	return new_node;
-}
-
-void 
-apm_hook_delete(apm_hook_func_t *list, apm_hook_func_t delete_node)
-{
-	int pl;
-	apm_hook_func_t p, prev;
-
-	pl = splhigh();
-	prev = NULL;
-	for (p = *list; p != NULL; prev = p, p = p->next) {
-		if (p == delete_node) {
-			goto deleteit;
-		}
-	}
-	panic("Tried to delete unregistered apm_resume_hook.");
-	goto nosuchnode;
-deleteit:
-	if (prev != NULL) {
-		prev->next = p->next;
-	}
-	else {
-		*list = p->next;
-	}
-	free(delete_node, M_DEVBUF);
-nosuchnode:
-	splx(pl);
+	printf("\007\007 * * * BATTERY IS LOW * * * \007\007");
 }
 
 static struct timeval suspend_time;
 
-/* default APM hook functions */
 static int 
 apm_default_resume(void)
 {
@@ -276,67 +221,21 @@ apm_default_resume(void)
 	second %= 3600;
 	minute = second / 60;
 	second %= 60;
-	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n", hour, minute, second);
+	log(LOG_NOTICE, "resumed from suspended mode (slept %02d:%02d:%02d)\n",
+		hour, minute, second);
 	return 0;
 }
 
 static int 
 apm_default_suspend(void)
 {
-#if 0
 	int	pl;
 	pl = splhigh();
 	sync(curproc, NULL, NULL);
 	splx(pl);
-#endif
 	microtime(&suspend_time);
+	apm_suspend_system();
 	return 0;
-}
-
-/* list structure for hook */
-static apm_hook_func_t	apm_resume_hook  = NULL;
-static apm_hook_func_t	apm_suspend_hook = NULL;
-
-/* execute resume hook */
-static void 
-apm_execute_resume_hook(void)
-{
-	apm_execute_hook(apm_resume_hook);
-}
-
-/* add a node on resume hook */
-apm_hook_func_t
-apm_resume_hook_init(int (*func)(void), char *name, int order)
-{
-	return apm_hook_init(&apm_resume_hook, func, name, order);
-}
-
-/* delete a node from resume hook */
-void
-apm_resume_hook_delete(apm_hook_func_t delete_node)
-{
-	apm_hook_delete(&apm_resume_hook, delete_node);
-}
-
-/* execute suspend hook */
-static void 
-apm_execute_suspend_hook(void)
-{
-	apm_execute_hook(apm_suspend_hook);
-}
-
-/* add a node on resume hook */
-apm_hook_func_t
-apm_suspend_hook_init(int (*func)(void), char *name, int order)
-{
-	return apm_hook_init(&apm_suspend_hook, func, name, order);
-}
-
-/* delete a node from resume hook */
-void
-apm_suspend_hook_delete(apm_hook_func_t delete_node)
-{
-	apm_hook_delete(&apm_suspend_hook, delete_node);
 }
 
 /* get APM information */
@@ -360,49 +259,7 @@ apm_get_info(apm_info_t aip)
 }
 
 
-/* Define equivalent event sets */
-
-static int equiv_event_num = 0;
-static struct apm_eqv_event equiv_events[APM_MAX_EQUIV_EVENTS];
-
-static int
-apm_def_eqv(apm_eqv_event_t aee)
-{
-	if (equiv_event_num == APM_MAX_EQUIV_EVENTS) {
-		return 1;
-	}
-	memcpy(&equiv_events[equiv_event_num], aee, sizeof(struct apm_eqv_event));
-	equiv_event_num++;
-	return 0;
-}
-
-static void
-apm_flush_eqv(void)
-{
-	equiv_event_num = 0;
-}
-
 static void apm_processevent(void);
-
-/*
- * Public interface to the suspend/resume:
- *
- * Execute suspend and resume hook before and after sleep, respectively.
- */
-
-void 
-apm_suspend_resume(void)
-{
-#ifdef APM_DEBUG
-	printf("Called apm_suspend_resume();\n");
-#endif
-	if (apm_initialized) {
-		apm_execute_suspend_hook();
-		apm_suspend_system();
-		apm_execute_resume_hook();
-		apm_processevent();
-	}
-}
 
 /* inform APM BIOS that CPU is idle */
 void 
@@ -441,19 +298,14 @@ apm_cpu_busy(void)
 /*
  * APM timeout routine:
  *
- * This routine is automatically called by timer two times within one 
- * seconed.
+ * This routine is automatically called by timer once per second.
  */
 
 static void 
 apm_timeout(void *arg1)
 {
-#ifdef APM_DEBUG
-	printf("t");
-#endif
 	apm_processevent();
-	timeout(apm_timeout, NULL, hz / 2); /* 2 Hz */
-	/* APM driver must polls APM event a time per second */
+	timeout(apm_timeout, NULL, hz ); /* 1 Hz */
 }
 
 /* enable APM BIOS */
@@ -504,7 +356,6 @@ int apmattach(struct isa_device *);
 
 struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
 
-
 /*
  * probe APM (dummy):
  *
@@ -513,6 +364,7 @@ struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
  * Current version uses real mode, but on future version, we want
  * to use V86 mode in APM initialization.
  */
+
 int 
 apmprobe(struct isa_device *dvp)
 {
@@ -521,28 +373,18 @@ apmprobe(struct isa_device *dvp)
 		/* silent */
 		return 0;
 	case APMINI_NOT32BIT:
-		printf("apm%d: 32bit connection is not supported.\n", dvp->id_unit);
+		printf("apm%d: 32bit connection is not supported.\n", 
+			dvp->id_unit);
 		return 0;
 	case APMINI_CONNECTERR:
 		printf("apm%d: 32-bit connection error.\n", dvp->id_unit);
 		return 0;
 	}
+
 	if ((apm_version & 0xff00) != 0x0100) return 0;
 	if ((apm_version & 0x00f0) >= 0x00a0) return 0;
 	if ((apm_version & 0x000f) >= 0x000a) return 0;
-#ifdef APM_DEBUG
-	printf("sizeof 48bit %d\n",sizeof(struct addr48));
-#endif
 	return -1;
-}
-
-static const char *
-is_enabled(int enabled)
-{
-	if (enabled) {
-		return "enabled";
-	}
-	return "disabled";
 }
 
 
@@ -550,105 +392,88 @@ is_enabled(int enabled)
 static void
 apm_processevent(void)
 {
-	int i, apm_event;
+	int apm_event;
 
-	while (1) {
-		if ((apm_event = apm_getevent()) == PMEV_NOEVENT) {
-			break;
-		}
-#if 1
 #ifdef APM_DEBUG
 #  define OPMEV_DEBUGMESSAGE(symbol) case symbol: \
-		printf("Original APM Event: " #symbol "\n"); break
+	printf("Original APM Event: " #symbol "\n");
 #else
-#  define OPMEV_DEBUGMESSAGE(symbol) case symbol: break;
+#  define OPMEV_DEBUGMESSAGE(symbol) case symbol:
 #endif
-		switch (apm_event) {
-			OPMEV_DEBUGMESSAGE(PMEV_NOEVENT);
-			OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
-			OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
-			OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
-			OPMEV_DEBUGMESSAGE(PMEV_CRITRESUME);
-			OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
-			OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
-			OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
-			OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
-			OPMEV_DEBUGMESSAGE(PMEV_USERSUSPENDREQ);
-			OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
-			default:
-				printf("Unknown Original APM Event 0x%x\n", apm_event);
-				break;
-		}
-#endif
-		for (i = 0; i < equiv_event_num; i++) {
-			if (equiv_events[i].aee_event == apm_event) {
-				u_int tmp = PMEV_DEFAULT;
-				if (resumed_event) {
-					tmp = equiv_events[i].aee_resume;
-				}
-				else {
-					tmp = equiv_events[i].aee_equiv;
-				}
-				if (tmp != PMEV_DEFAULT) {
-					apm_event = tmp;
-					break;
-				}
-			}
-		}
-#if 1
-#ifdef APM_DEBUG
-#  define PMEV_DEBUGMESSAGE(symbol) case symbol: \
-		printf("APM Event: " #symbol "\n"); break
-#else
-#  define PMEV_DEBUGMESSAGE(symbol) case symbol: break;
-#endif
-		switch (apm_event) {
-			PMEV_DEBUGMESSAGE(PMEV_NOEVENT);
-			PMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
-			PMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
-			PMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
-			PMEV_DEBUGMESSAGE(PMEV_CRITRESUME);
-			PMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
-			PMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
-			PMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
-			PMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
-			PMEV_DEBUGMESSAGE(PMEV_USERSUSPENDREQ);
-			PMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
-			default:
-				printf("Unknown APM Event 0x%x\n", apm_event);
-				break;
-		}
-#endif
-		switch (apm_event) {
-		case PMEV_NOEVENT:
-		case PMEV_STANDBYREQ:
-		case PMEV_POWERSTATECHANGE:
-		case PMEV_CRITSUSPEND:
-		case PMEV_USERSTANDBYREQ:
-		case PMEV_USERSUSPENDREQ:
+
+	while (1) {
+		apm_event = apm_getevent();
+		if (apm_event == PMEV_NOEVENT) 
 			break;
-		case PMEV_BATTERYLOW:
+		switch (apm_event) {
+		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
+			apm_default_suspend();
+			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_SUSPENDREQ);
+			apm_default_suspend();
+			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_USERSUSPENDREQ);
+			apm_default_suspend();
+			break;
+
+		    OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
+			apm_default_suspend();
+			break;
+
+		    OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
+			apm_default_resume();
+			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_CRITRESUME);
+			apm_default_resume();
+			break;
+		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYRESUME);
+			apm_default_resume();
+			break;
+
+		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
 			apm_battery_low();
+			apm_default_suspend();
 			break;
-		case PMEV_SUSPENDREQ:
-			apm_suspend_resume();
+
+		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
 			break;
-		case PMEV_NORMRESUME:
-		case PMEV_CRITRESUME:
-		case PMEV_UPDATETIME:
-		case PMEV_STANDBYRESUME:
+
+		    OPMEV_DEBUGMESSAGE(PMEV_UPDATETIME);
 			inittodr(0);	/* adjust time to RTC */
 			break;
+
+		    default:
+			printf("Unknown Original APM Event 0x%x\n", apm_event);
+			    break;
 		}
 	}
-	resumed_event = 0;
 }
-
 
 /*
  * Attach APM:
  *
  * Initialize APM driver (APM BIOS itself has been initialized in locore.s)
+ *
+ * Now, unless I'm mad, (not quite ruled out yet), the APM-1.1 spec is bogus:
+ * 
+ * Appendix C says under the header "APM 1.0/APM 1.1 Modal BIOS Behavior"
+ * that "When an APM Driver connects with an APM 1.1 BIOS, the APM 1.1 BIOS
+ * will default to an APM 1.0 connection.  After an APM Driver calls the APM
+ * Driver Version function, specifying that it supports APM 1.1, and [sic!]
+ * APM BIOS will change its behavior to an APM 1.1 connection.  If the APM
+ * BIOS is an APM 1.0 BIOS, the APM Driver Version function call will fail,
+ * and the connection will remain an APM 1.0 connection."
+ *
+ * OK so I can establish a 1.0 connection, and then tell that I'm a 1.1
+ * and maybe then the BIOS will tell that it too is a 1.1.
+ * Fine.
+ * Now how will I ever get the segment-limits for instance ?  There is no 
+ * way I can see that I can get a 1.1 response back from an "APM Protected 
+ * Mode 32-bit Interface Connect" function ???
+ * 
+ * Who made this,  Intel and Microsoft ?  -- How did you guess !
+ *
+ * /phk
  */
 
 int 
@@ -656,47 +481,32 @@ apmattach(struct isa_device *dvp)
 {
 
 	/* setup APM parameters */
-	minorversion = ((apm_version & 0x00f0) >>  4) * 10 + ((apm_version & 0x000f) >> 0);
-	majorversion = ((apm_version & 0xf000) >> 12) * 10 + ((apm_version & 0x0f00) >> 8);
-	intversion = INTVERSION(majorversion, minorversion);
 	cs32_base = (apm_cs32_base << 4) + KERNBASE;
 	cs16_base = (apm_cs16_base << 4) + KERNBASE;
 	ds_base = (apm_ds_base << 4) + KERNBASE;
 	cs_limit = apm_cs_limit;
 	ds_limit = apm_ds_limit;
 	cs_entry = apm_cs_entry;
+
 	idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	disabled = ((apm_flags & APM_DISABLED) != 0);
 	disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
-	printf(" found APM BIOS version %d.%d\n",  majorversion, minorversion);
+	printf(" found APM BIOS version %04x\n",  apm_version);
 	printf("apm%d: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
 		dvp->id_unit, cs32_base, cs16_base, ds_base);
 	printf("apm%d: Code entry 0x%08x, Idling CPU %s, Management %s\n",
 		dvp->id_unit, cs_entry, is_enabled(idle_cpu), 
 		is_enabled(!disabled));
-#else /* APM_DEBUG */
-	printf(" found APM BIOS version %d.%d\n", majorversion, minorversion);
-	printf("apm%d: Idling CPU %s\n", dvp->id_unit, is_enabled(idle_cpu));
+	printf("apm%d: CS_limit=%x, DS_limit=%x\n",
+		dvp->id_unit, cs_limit,ds_limit);
+
 #endif /* APM_DEBUG */
 
-	/*
-	 * APM 1.0 does not have:
-	 * 
-	 * 	1. segment limit parameters
-	 *
-	 *	2. engage/disengage operations
-	 */
-	if (intversion >= INTVERSION(1, 1)) {
-		printf("apm%d: Engaged control %s\n",
-			dvp->id_unit, is_enabled(!disengaged));
-	}
-	else {
-		cs_limit = 0xffff;
-		ds_limit = 0xffff;
-	}
+	cs_limit = 0xffff;
+	ds_limit = 0xffff;
 
 	/* setup GDT */
 	setup_apm_gdt(cs32_base, cs16_base, ds_base, cs_limit, ds_limit);
@@ -704,6 +514,24 @@ apmattach(struct isa_device *dvp)
 	/* setup entry point 48bit pointer */
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
 	apm_addr.offset  = cs_entry;
+
+	/* Try to kick bios into 1.1 mode */
+	apm_driver_version();
+
+	minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
+			((apm_version & 0x000f) >> 0);
+	majorversion = ((apm_version & 0xf000) >> 12) * 10 + 
+			((apm_version & 0x0f00) >> 8);
+
+	intversion = INTVERSION(majorversion, minorversion);
+
+	if (intversion >= INTVERSION(1, 1)) {
+		printf("apm%d: Engaged control %s\n",
+			dvp->id_unit, is_enabled(!disengaged));
+	}
+
+	printf(" found APM BIOS version %d.%d\n", majorversion, minorversion);
+	printf("apm%d: Idling CPU %s\n", dvp->id_unit, is_enabled(idle_cpu));
 
 	/* enable power management */
 	if (disabled) {
@@ -721,9 +549,9 @@ apmattach(struct isa_device *dvp)
 		}
 	}
 
-	apm_suspend_hook_init(apm_default_suspend, "default suspend", APM_MAX_ORDER);
-	apm_resume_hook_init (apm_default_resume , "default resume" , APM_MIN_ORDER);
 	apm_initialized = 1;
+
+	apm_event_enable();
 
 	return 0;
 }
@@ -734,12 +562,8 @@ apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	if (!apm_initialized) {
 		return ENXIO;
 	}
-	switch (minor(dev)) {
-	case 0:	/* apm0 */
-		break;
-	defaults:
+	if (minor(dev))
 		return (ENXIO);
-	}
 	return 0;
 }
 
@@ -768,20 +592,12 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	}
 	switch (cmd) {
 	case APMIO_SUSPEND:
-		apm_suspend_resume();
+		apm_default_suspend();
 		break;
 	case APMIO_GETINFO:
 		if (apm_get_info((apm_info_t)addr)) {
 			error = ENXIO;
 		}
-		break;
-	case APMIO_DEFEQV:
-		if (apm_def_eqv((apm_eqv_event_t)addr)) {
-			error = ENOSPC;
-		}
-		break;
-	case APMIO_FLUSHEQV:
-		apm_flush_eqv();
 		break;
 	case APMIO_ENABLE:
 		apm_event_enable();
