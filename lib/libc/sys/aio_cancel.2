@@ -46,13 +46,14 @@ If
 .Fa iocb
 is specified, only that specific asynchronous I/O request is cancelled.
 .Pp
-Normal asynchronous notification occurs for cancelled requests.  Requests
-complete with an error result of
+Normal asynchronous notification occurs for cancelled requests.
+Requests complete with an error result of
 .Er ECANCELED .
 .Sh RESTRICTIONS
 The
 .Fn aio_cancel
-function does not cancel asynchronous I/O requests for raw disk devices.  The
+function does not cancel asynchronous I/O requests for raw disk devices.
+The
 .Fn aio_cancel
 function will always return
 .Dv AIO_NOTCANCELED
@@ -97,7 +98,7 @@ The
 .Fn aio_cancel
 function first appeared in
 .Fx 3.0 .
-The first functional implemenation of
+The first functional implementation of
 .Fn aio_cancel
 appeared in
 .Fx 4.0 .
