@@ -17,6 +17,7 @@
 
 #ifndef LIST_H
 #define LIST_H 1
+#include <isc/assertions.h>
 
 #define LIST(type) struct { type *head, *tail; }
 #define INIT_LIST(list) \
@@ -28,7 +29,7 @@
 		(elt)->link.prev = (void *)(-1); \
 		(elt)->link.next = (void *)(-1); \
 	} while (0)
-#define LINKED(elt, link) ((elt)->link.prev != (void *)(-1))
+#define LINKED(elt, link) ((void *)((elt)->link.prev) != (void *)(-1))
 
 #define HEAD(list) ((list).head)
 #define TAIL(list) ((list).tail)
@@ -36,6 +37,7 @@
 
 #define PREPEND(list, elt, link) \
 	do { \
+		INSIST(!LINKED(elt, link));\
 		if ((list).head != NULL) \
 			(list).head->link.prev = (elt); \
 		else \
@@ -47,6 +49,7 @@
 
 #define APPEND(list, elt, link) \
 	do { \
+		INSIST(!LINKED(elt, link));\
 		if ((list).tail != NULL) \
 			(list).tail->link.next = (elt); \
 		else \
@@ -58,6 +61,7 @@
 
 #define UNLINK(list, elt, link) \
 	do { \
+		INSIST(LINKED(elt, link));\
 		if ((elt)->link.next != NULL) \
 			(elt)->link.next->link.prev = (elt)->link.prev; \
 		else \
@@ -74,6 +78,7 @@
 
 #define INSERT_BEFORE(list, before, elt, link) \
 	do { \
+		INSIST(!LINKED(elt, link));\
 		if ((before)->link.prev == NULL) \
 			PREPEND(list, elt, link); \
 		else { \
@@ -86,6 +91,7 @@
 
 #define INSERT_AFTER(list, after, elt, link) \
 	do { \
+		INSIST(!LINKED(elt, link));\
 		if ((after)->link.next == NULL) \
 			APPEND(list, elt, link); \
 		else { \

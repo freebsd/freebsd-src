@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.10 2000/04/21 06:54:09 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.12 2000/12/23 08:14:40 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -129,6 +129,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	}
 	ni->class = class;
 	ni->type = type;
+	INIT_LINK(ni, link);
 	evInitID(&ni->timer);
 
 	if (loading != 0) {
@@ -215,7 +216,7 @@ ns_stopnotify(const char *dname, ns_class class) {
  */
 static void
 sysnotify(const char *dname, ns_class class, ns_type type) {
-	const char *zname, *fname;
+	const char *zname;
 	u_int32_t zserial;
 	int nns, na, i;
 	struct zoneinfo *zp;

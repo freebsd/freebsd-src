@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 1.8 1999/02/22 02:48:01 vixie Exp $
+# $Id: Makefile,v 1.9 2000/11/21 12:55:03 marka Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -47,7 +47,7 @@ MARGS= DESTDIR="${DESTDIR}" DESTINC="${DESTINC}" INSTALL="${INSTALL}"
 
 all depend clean distclean install::
 	@for x in ${SUBDIRS}; do \
-		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
 	done
 
 all:: ${LIBBIND}
@@ -74,7 +74,7 @@ links: FRC
 	@set -e; for x in ${SUBDIRS}; do \
 		( mkdir $$x; cd $$x; pwd; ln -s ../SRC/$$x SRC; \
 		cp SRC/Makefile Makefile; chmod +w Makefile; \
-		${MAKE} ${MARGS} links ); \
+		${MAKE} ${MARGS} links ) || exit 1; \
 	done
 
 install:: FRC

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_xfr.c,v 8.62 2000/04/24 05:20:51 vixie Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.63 2000/12/23 08:14:43 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -188,7 +188,7 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	if (type == ns_t_ixfr) {
 		changes = ixfr_get_change_list(&zones[zone], serial_ixfr,
 			zones[zone].z_serial);
-		ixfr_log_maint(&zones[zone], 1); 
+		ixfr_log_maint(&zones[zone]);
 		if (changes != NULL) {
 			qsp->xfr.serial = serial_ixfr;
 			qsp->xfr.top.ixfr = changes;
@@ -314,7 +314,7 @@ sx_flush(struct qstream *qsp) {
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg,
-			   log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif
 	if (qsp->xfr.tsig_state != NULL && qsp->xfr.tsig_skip == 0) {
 		int msglen = qsp->xfr.cp - qsp->xfr.msg;

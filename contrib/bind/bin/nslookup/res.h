@@ -55,7 +55,7 @@
 
 /*
  *	@(#)res.h	5.10 (Berkeley) 6/1/90
- *	$Id: res.h,v 8.5 1998/09/16 17:03:17 vixie Exp $
+ *	$Id: res.h,v 8.7 2000/12/23 08:14:47 vixie Exp $
  */
 
 /*
@@ -96,6 +96,10 @@ typedef int Boolean;
  *	NO_RESPONSE	- the server didn't respond.
  *
  */
+
+#ifdef ERROR
+#undef ERROR
+#endif
 
 #define  SUCCESS		0
 #define  TIME_OUT		-1
@@ -186,3 +190,21 @@ extern void ShowOptions();
 extern void FreeHostInfoPtr();
 extern FILE *OpenFile();
 extern char *res_skip();
+extern int pickString(const char *, char *, size_t);
+extern int GetHostInfoByName();
+extern int GetHostInfoByAddr();
+extern int GetHostDomain();
+extern int matchString(const char *, const char *);
+extern int StringToType(char *, int, FILE *);
+extern int StringToClass(char *, int, FILE *);
+extern int SendRequest(struct in_addr *, const u_char *, int,
+		       u_char *, u_int, int *);
+extern void SendRequest_close(void);
+extern int SetDefaultServer(char *, Boolean);
+extern int Finger(char *, int);
+void ListHostsByType(char *, int);
+void ListHosts(char *, int);
+void ListHost_close(void);
+int SetOption(char *);
+int LookupHost(char *, Boolean);
+int LookupHostWithServer(char *, Boolean);

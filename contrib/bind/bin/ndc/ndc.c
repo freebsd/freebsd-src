@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ndc.c,v 1.14 2000/02/04 08:28:32 vixie Exp $";
+static const char rcsid[] = "$Id: ndc.c,v 1.16 2000/12/23 08:14:45 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -31,6 +31,7 @@ static const char rcsid[] = "$Id: ndc.c,v 1.14 2000/02/04 08:28:32 vixie Exp $";
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -296,8 +297,20 @@ builtincmd(void) {
 
 static void
 builtinhelp(void) {
-	printf(helpfmt, "start", "start the server");
-	printf(helpfmt, "restart", "stop server if any, start a new one");
+	const char *fmt;
+
+	switch (mode) {
+	case e_channel:
+		fmt = "(builtin) %s - %s\n";
+		break;
+	case e_signals:
+		fmt = helpfmt;
+		break;
+	default:
+		abort();
+	}
+	printf(fmt, "start", "start the server");
+	printf(fmt, "restart", "stop server if any, start a new one");
 }
 
 static void
@@ -371,8 +384,10 @@ command_channel(void) {
 	int helping = (strcasecmp(cmd, "help") == 0);
 	int save_quiet = quiet;
 
-	if (helping)
+	if (helping) {
 		quiet = 0;
+		builtinhelp();
+	}
 	channel_loop(cmd, !quiet, NULL, NULL);
 	quiet = save_quiet;
 }
@@ -496,7 +511,6 @@ static void
 command_signals(void) {
 	struct cmdsig *cmdsig;
 	pid_t pid;
-	int sig;
 
 	if (strcasecmp(cmd, "help") == 0) {
 		printf(helpfmt, "help", "this output");

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ctl.c,v 8.34 2000/04/21 06:54:05 vixie Exp $";
+static const char rcsid[] = "$Id: ns_ctl.c,v 8.39 2000/12/19 23:31:38 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -154,7 +154,7 @@ static struct ctl_verb verbs[] = {
 	{ "reload",	verb_reload,	"reload [zone] ..."},
 	{ "reconfig",	verb_reconfig,	"reconfig [-noexpired] (just sees new/gone zones)"},
 	{ "dumpdb",	verb_dumpdb,	"dumpdb"},
-	{ "stats",	verb_stats,	"stats"},
+	{ "stats",	verb_stats,	"stats [clear]"},
 	{ "trace",	verb_trace,	"trace [level]"},
 	{ "notrace",	verb_notrace,	"notrace"},
 	{ "querylog",	verb_querylog,	"querylog"},
@@ -271,6 +271,7 @@ ns_ctl_install(controls *new) {
 	/* Add any new controls which were found. */
 	for (ctl = HEAD(*new); ctl != NULL; ctl = next) {
 		next = NEXT(ctl, link);
+		UNLINK(*new, ctl, link);
 		APPEND(server_controls, ctl, link);
 		install(ctl);
 		if (ctl->sctx == NULL)
@@ -636,6 +637,7 @@ getpid_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
 
 enum state {
 	e_version = 0,
+	e_config,
 	e_nzones,
 	e_debug,
 	e_xfersrun,
@@ -643,7 +645,6 @@ enum state {
 	e_qserials,
 	e_qrylog,
 	e_priming,
-	e_loading,
 	e_finito
 };
 
@@ -666,13 +667,17 @@ verb_status(struct ctl_sctx *ctl, struct ctl_sess *sess,
 				     0, NULL, NULL, NULL, NULL, 0);
 			return;
 		}
-		pvt->state = e_version;
+		pvt->state = (enum state)0;
 		(void)ctl_setcsctx(sess, pvt);
 	}
 	switch (pvt->state++) {
 	case e_version:
 		strncpy(pvt->text, Version, sizeof pvt->text);
 		pvt->text[sizeof pvt->text - 1] = '\0';
+		break;
+	case e_config:
+		sprintf(pvt->text, "config (%s) last loaded at age: %24s",
+			conffile, ctime(&confmtime));
 		break;
 	case e_nzones:
 		sprintf(pvt->text, "number of zones allocated: %d", nzones);
@@ -695,12 +700,10 @@ verb_status(struct ctl_sctx *ctl, struct ctl_sess *sess,
 			qrylog ? "ON" : "OFF");
 		break;
 	case e_priming:
-		sprintf(pvt->text, "server is %s priming",
-			priming ? "STILL" : "DONE");
-		break;
-	case e_loading:
-		sprintf(pvt->text, "server %s loading its configuration",
-			loading ? "IS" : "IS NOT");
+		if (priming)
+			sprintf(pvt->text, "server is initialising itself");
+		else
+			sprintf(pvt->text, "server is up and running");
 		break;
 	case e_finito:
 		return;
@@ -861,9 +864,15 @@ verb_stats(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	   const struct ctl_verb *verb, const char *rest,
 	   u_int respflags, void *respctx, void *uctx)
 {
-	ns_need(main_need_statsdump);
-	ctl_response(sess, 250, "Statistics dump initiated.",
-		     0, NULL, NULL, NULL, NULL, 0);
+	if (rest != NULL && strcmp(rest, "clear") == 0) {
+		ns_need(main_need_statsdumpandclear);
+		ctl_response(sess, 250, "Statistics dump and clear initiated.",
+			     0, NULL, NULL, NULL, NULL, 0);
+	} else {
+		ns_need(main_need_statsdump);
+		ctl_response(sess, 250, "Statistics dump initiated.",
+			     0, NULL, NULL, NULL, NULL, 0);
+	}
 }
 
 static void
