@@ -357,6 +357,7 @@ vendor SMC3		0x0d5c  Standard Microsystems
 vendor PNY		0x0d7d	PNY
 vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking Technologies
+vendor MICROTUNE	0x0f4d	Microtune, Inc.
 vendor QUALCOMM		0x1004	Qualcomm
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
@@ -981,6 +982,9 @@ product MINOLTA 5400		0x400e	Dimage 5400
 
 /* Micro Star International products */
 product MSI BT_DONGLE		0x1967	Bluetooth USB dongle
+
+/* Microtune, Inc. products */
+product MICROTUNE BT_DONGLE	0x1000	Bluetooth USB dongle
 
 /* Mitsumi products */
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
