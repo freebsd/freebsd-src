@@ -77,11 +77,19 @@ struct hme_pci_softc {
 
 static int hme_pci_probe(device_t);
 static int hme_pci_attach(device_t);
+static int hme_pci_detach(device_t);
+static int hme_pci_suspend(device_t);
+static int hme_pci_resume(device_t);
 
 static device_method_t hme_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		hme_pci_probe),
 	DEVMETHOD(device_attach,	hme_pci_attach),
+	DEVMETHOD(device_detach,	hme_pci_detach),
+	DEVMETHOD(device_suspend,	hme_pci_suspend),
+	DEVMETHOD(device_resume,	hme_pci_resume),
+	/* Can just use the suspend method here. */
+	DEVMETHOD(device_shutdown,	hme_pci_suspend),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -182,6 +190,7 @@ hme_pci_attach(device_t dev)
 	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET, hme_intr,
 	     sc, &hsc->hsc_ih)) != 0) {
 		device_printf(dev, "couldn't establish interrupt\n");
+		hme_detach(sc);
 		goto fail_ires;
 	}
 	return (0);
@@ -191,4 +200,38 @@ fail_ires:
 fail_sres:
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
 	return (ENXIO);
+}
+
+static int
+hme_pci_detach(device_t dev)
+{
+	struct hme_pci_softc *hsc = device_get_softc(dev);
+	struct hme_softc *sc = &hsc->hsc_hme;
+
+	hme_detach(sc);
+
+	bus_teardown_intr(dev, hsc->hsc_ires, hsc->hsc_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
+	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
+	return (0);
+}
+
+static int
+hme_pci_suspend(device_t dev)
+{
+	struct hme_pci_softc *hsc = device_get_softc(dev);
+	struct hme_softc *sc = &hsc->hsc_hme;
+
+	hme_suspend(sc);
+	return (0);
+}
+
+static int
+hme_pci_resume(device_t dev)
+{
+	struct hme_pci_softc *hsc = device_get_softc(dev);
+	struct hme_softc *sc = &hsc->hsc_hme;
+
+	hme_resume(sc);
+	return (0);
 }
