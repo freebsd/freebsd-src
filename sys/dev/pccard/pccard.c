@@ -43,6 +43,8 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <net/ethernet.h>
+
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 
@@ -392,7 +394,9 @@ pccard_function_init(struct pccard_function *pf)
 			rle->res = r;
 		}
 		if (cfe->num_memspace > 0) {
-			goto not_this_one;
+			/*
+			 * Not implement yet, Fix me.
+			 */
 		}
 		if (cfe->irqmask) {
 			cfe->irqrid = 0;
@@ -934,7 +938,7 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	switch (which) {
 	default:
 	case PCCARD_IVAR_ETHADDR:
-		return (ENOENT);
+		bcopy(func->pf_funce_lan_nid, result, ETHER_ADDR_LEN);
 		break;
 	case PCCARD_IVAR_VENDOR:
 		*(u_int32_t *) result = sc->card.manufacturer;

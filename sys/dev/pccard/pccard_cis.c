@@ -70,6 +70,7 @@ struct cis_state {
 };
 
 int	pccard_parse_cis_tuple(struct pccard_tuple *, void *);
+static int decode_funce(struct pccard_tuple *, struct pccard_function *);
 
 void
 pccard_read_cis(struct pccard_softc *sc)
@@ -768,6 +769,17 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 
 		DPRINTF(("CISTPL_FUNCID\n"));
 		break;
+        case PCCARD_CISTPL_FUNCE:
+                if (state->pf == NULL || state->pf->function <= 0) {
+                        DPRINTF(("CISTPL_FUNCE is not followed by "
+                                "valid CISTPL_FUNCID\n"));
+                        break;
+                }
+                if (tuple->length >= 2) {
+                        decode_funce(tuple, state->pf);
+                }
+                DPRINTF(("CISTPL_FUNCE\n"));
+                break;
 	case PCCARD_CISTPL_CONFIG:
 		if (tuple->length < 3) {
 			DPRINTF(("CISTPL_CONFIG too short %d\n",
@@ -1204,4 +1216,37 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 	}
 
 	return (0);
+}
+
+static int
+decode_funce(struct pccard_tuple *tuple, struct pccard_function *pf)
+{
+	int type = pccard_tuple_read_1(tuple, 0);
+
+	switch (pf->function) {
+	case PCCARD_FUNCTION_DISK:
+		if (type == PCCARD_TPLFE_TYPE_DISK_DEVICE_INTERFACE) {
+			pf->pf_funce_disk_interface
+				= pccard_tuple_read_1(tuple, 1);
+		}
+		break;
+	case PCCARD_FUNCTION_NETWORK:
+		if (type == PCCARD_TPLFE_TYPE_LAN_NID) {
+			int i;
+			int len = pccard_tuple_read_1(tuple, 1);
+			if (tuple->length < 2 + len || len > 8) {
+				/* tuple length not enough or nid too long */
+				break;
+                        }
+			for (i = 0; i < len; i++) {
+				pf->pf_funce_lan_nid[i]
+					= pccard_tuple_read_1(tuple, i + 2);
+			}
+			pf->pf_funce_lan_nidlen = len;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
