@@ -121,7 +121,6 @@ static int	mac_late = 0;
  */
 static int	ea_warn_once = 0;
 
-#ifndef MAC_ALWAYS_LABEL_MBUF
 /*
  * Flag to indicate whether or not we should allocate label storage for
  * new mbufs.  Since most dynamic policies we currently work with don't
@@ -133,6 +132,7 @@ static int	ea_warn_once = 0;
  * already has to deal with uninitialized labels, this probably won't
  * be a problem.  Note: currently no locking.  Will this be a problem?
  */
+#ifndef MAC_ALWAYS_LABEL_MBUF
 static int	mac_labelmbufs = 0;
 #endif
 
@@ -514,36 +514,28 @@ mac_late_init(void)
 
 /*
  * After the policy list has changed, walk the list to update any global
- * flags.
+ * flags.  Currently, we support only one flag, and it's conditionally
+ * defined; as a result, the entire function is conditional.  Eventually,
+ * the #else case might also iterate across the policies.
  */
 static void
 mac_policy_updateflags(void)
 {
-	struct mac_policy_conf *tmpc;
 #ifndef MAC_ALWAYS_LABEL_MBUF
+	struct mac_policy_conf *tmpc;
 	int labelmbufs;
-#endif
 
 	mac_policy_assert_exclusive();
 
-#ifndef MAC_ALWAYS_LABEL_MBUF
 	labelmbufs = 0;
-#endif
-
 	LIST_FOREACH(tmpc, &mac_static_policy_list, mpc_list) {
-#ifndef MAC_ALWAYS_LABEL_MBUF
 		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
 			labelmbufs++;
-#endif
 	}
 	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
-#ifndef MAC_ALWAYS_LABEL_MBUF
 		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
 			labelmbufs++;
-#endif
 	}
-
-#ifndef MAC_ALWAYS_LABEL_MBUF
 	mac_labelmbufs = (labelmbufs != 0);
 #endif
 }
@@ -883,24 +875,22 @@ mac_init_mbuf(struct mbuf *m, int flag)
 
 #ifndef MAC_ALWAYS_LABEL_MBUF
 	/*
-	 * Don't reserve space for labels on mbufs unless we have a policy
-	 * that uses the labels.
+	 * If conditionally allocating mbuf labels, don't allocate unless
+	 * they are required.
 	 */
-	if (mac_labelmbufs) {
+	if (!mac_labelmbufs)
+		return (0);
 #endif
-		tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
-		    flag);
-		if (tag == NULL)
-			return (ENOMEM);
-		error = mac_init_mbuf_tag(tag, flag);
-		if (error) {
-			m_tag_free(tag);
-			return (error);
-		}
-		m_tag_prepend(m, tag);
-#ifndef MAC_ALWAYS_LABEL_MBUF
+	tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
+	    flag);
+	if (tag == NULL)
+		return (ENOMEM);
+	error = mac_init_mbuf_tag(tag, flag);
+	if (error) {
+		m_tag_free(tag);
+		return (error);
 	}
-#endif
+	m_tag_prepend(m, tag);
 	return (0);
 }
 
