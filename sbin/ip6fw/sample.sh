@@ -1,7 +1,7 @@
 #!/bin/sh -
 # $FreeBSD$
 
-fwcmd=/usr/local/v6/sbin/ip6fw
+fwcmd=/sbin/ip6fw
 
 $fwcmd -f flush
 
