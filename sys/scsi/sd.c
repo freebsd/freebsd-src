@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.27 1994/08/30 00:12:11 jkh Exp $
+ *      $Id: sd.c,v 1.28 1994/08/30 14:31:38 ache Exp $
  */
 
 #define SPLSD splbio
@@ -419,12 +419,10 @@ sdstrategy(bp)
 	/*      
 	 * Use a bounce buffer if necessary
 	 */      
-/*
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 	if (sd->sc_link->flags & SDEV_BOUNCE)
 		vm_bounce_alloc(bp);
 #endif
-*/
 
 	/*
 	 * Place it in the queue of disk activities for this disk

@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.10 1994/08/20 03:48:58 davidg Exp $
+ *      $Id: scsi_base.c,v 1.11 1994/08/27 16:14:33 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -440,10 +440,10 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 			retval = EFAULT;
 			goto bad;
 		}
-#ifdef NOBOUNCE
-		xs->data = malloc(datalen, M_TEMP, M_WAITOK); 
-#else
+#ifdef BOUNCE_BUFFERS
 		xs->data = (caddr_t) vm_bounce_kva_alloc( (datalen + PAGE_SIZE - 1)/PAGE_SIZE);
+#else
+		xs->data = malloc(datalen, M_TEMP, M_WAITOK); 
 #endif
 		/* I think waiting is ok *//*XXX */
 		switch ((int)(flags & (SCSI_DATA_IN | SCSI_DATA_OUT))) {
@@ -527,10 +527,10 @@ retry:
 			bcopy(xs->data, data_addr, datalen);
 			break;
 		}
-#ifdef NOBOUNCE
-		free(xs->data, M_TEMP);
-#else
+#ifdef BOUNCE_BUFFERS
 		vm_bounce_kva_alloc_free(xs->data, (datalen + PAGE_SIZE - 1)/PAGE_SIZE, 0);
+#else
+		free(xs->data, M_TEMP);
 #endif
 	}
 	/*

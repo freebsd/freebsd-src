@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.9 1994/08/18 22:35:06 wollman Exp $
+ * $Id: vfs_bio.c,v 1.10 1994/08/30 18:19:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -608,8 +608,10 @@ biodone(register struct buf *bp)
 		vwakeup(bp);
 	}
 
+#ifdef BOUNCE_BUFFERS
 	if (bp->b_flags & B_BOUNCE)
 		vm_bounce_free(bp);
+#endif
 
 	/* call optional completion function if requested */
 	if (bp->b_flags & B_CALL) {

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.56 1994/08/24 11:45:19 sos Exp $
+ *	$Id: machdep.c,v 1.57 1994/08/27 16:14:12 davidg Exp $
  */
 
 #include "npx.h"
@@ -255,7 +255,7 @@ again:
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
 
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 	/*
 	 * If there is more than 16MB of memory, allocate some bounce buffers
 	 */
@@ -321,7 +321,7 @@ again:
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
 
-#ifndef NOBOUNCE
+#ifdef BOUNCE_BUFFERS
 	/*
 	 * init bounce buffers
 	 */

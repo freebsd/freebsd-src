@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.73 1994/08/27 16:23:03 davidg Exp $
+#	$Id: LINT,v 1.74 1994/08/28 06:46:25 davidg Exp $
 #
 
 machine		"i386"
@@ -43,6 +43,8 @@ options         "BLANK_SAVER"           #syscons "blank" screen saver
 
 #options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
 #options	ALLOW_CONFLICT_IRQ	#no IRQ conflict checks (mport serial)
+
+options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 
 options		"TCP_COMPAT_42"		#tcp/ip compatible with 4.2
 					# ^^^ NOT RECOMMENDED FOR NORMAL USE
