@@ -149,6 +149,11 @@ ACPI support has been merged in from the FreeBSD-ACPI project.
 1.2. SECURITY FIXES
 -------------------
 
+sysinstall(8) now allows the user to select one of three "security
+profiles" at install-time.  These profiles enable different levels of
+system security by enabling or disabling various system services in
+rc.conf(5) on new installs. [MERGED]
+
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This only affects new installations.  [MERGED]
 
@@ -843,3 +848,5 @@ Special mention to:
 We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Project
+
+$FreeBSD$
