@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: file_subs.c,v 1.7 1997/02/22 14:04:26 peter Exp $
  */
 
 #ifndef lint
@@ -122,7 +122,7 @@ file_creat(arcn)
 			break;
 		oerrno = errno;
 		if (chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
-			syswarn(1, oerrno, "Unable to create %s", arcn->name);
+			sys_warn(1, oerrno, "Unable to create %s", arcn->name);
 			return(-1);
 		}
 	}
@@ -152,7 +152,7 @@ file_close(arcn, fd)
 	if (fd < 0)
 		return;
 	if (close(fd) < 0)
-		syswarn(0, errno, "Unable to close file descriptor on %s",
+		sys_warn(0, errno, "Unable to close file descriptor on %s",
 		    arcn->name);
 
 	/*
@@ -200,13 +200,13 @@ lnk_creat(arcn)
 	 * is not a directory, so we lstat and check
 	 */
 	if (lstat(arcn->ln_name, &sb) < 0) {
-		syswarn(1,errno,"Unable to link to %s from %s", arcn->ln_name,
+		sys_warn(1,errno,"Unable to link to %s from %s", arcn->ln_name,
 		    arcn->name);
 		return(-1);
 	}
 
 	if (S_ISDIR(sb.st_mode)) {
-		warn(1, "A hard link to the directory %s is not allowed",
+		pax_warn(1, "A hard link to the directory %s is not allowed",
 		    arcn->ln_name);
 		return(-1);
 	}
@@ -217,7 +217,7 @@ lnk_creat(arcn)
 /*
  * cross_lnk()
  *	Create a hard link to arcn->org_name from arcn->name. Only used in copy
- *	with the -l flag. No warning or error if this does not succeed (we will
+ *	with the -l flag. No pax_warning or error if this does not succeed (we will
  *	then just create the file)
  * Return:
  *	1 if copy() should try to create this file node
@@ -278,7 +278,7 @@ chk_same(arcn)
 	 * better make sure the user does not have src == dest by mistake
 	 */
 	if ((arcn->sb.st_dev == sb.st_dev) && (arcn->sb.st_ino == sb.st_ino)) {
-		warn(1, "Unable to copy %s, file would overwrite itself",
+		pax_warn(1, "Unable to copy %s, file would overwrite itself",
 		    arcn->name);
 		return(0);
 	}
@@ -325,7 +325,7 @@ mk_link(to, to_sb, from, ign)
 		 * make sure it is not the same file, protect the user
 		 */
 		if ((to_sb->st_dev==sb.st_dev)&&(to_sb->st_ino == sb.st_ino)) {
-			warn(1, "Unable to link file %s to itself", to);
+			pax_warn(1, "Unable to link file %s to itself", to);
 			return(-1);;
 		}
 
@@ -334,12 +334,12 @@ mk_link(to, to_sb, from, ign)
 		 */
 		if (S_ISDIR(sb.st_mode)) {
 			if (rmdir(from) < 0) {
-				syswarn(1, errno, "Unable to remove %s", from);
+				sys_warn(1, errno, "Unable to remove %s", from);
 				return(-1);
 			}
 		} else if (unlink(from) < 0) {
 			if (!ign) {
-				syswarn(1, errno, "Unable to remove %s", from);
+				sys_warn(1, errno, "Unable to remove %s", from);
 				return(-1);
 			}
 			return(1);
@@ -358,7 +358,7 @@ mk_link(to, to_sb, from, ign)
 		if (chk_path(from, to_sb->st_uid, to_sb->st_gid) == 0)
 			continue;
 		if (!ign) {
-			syswarn(1, oerrno, "Could not link to %s from %s", to,
+			sys_warn(1, oerrno, "Could not link to %s from %s", to,
 			    from);
 			return(-1);
 		}
@@ -425,7 +425,7 @@ node_creat(arcn)
 			/*
 			 * Skip sockets, operation has no meaning under BSD
 			 */
-			warn(0,
+			pax_warn(0,
 			    "%s skipped. Sockets cannot be copied or extracted",
 			    arcn->name);
 			return(-1);
@@ -441,7 +441,7 @@ node_creat(arcn)
 			/*
 			 * we should never get here
 			 */
-			warn(0, "%s has an unknown file type, skipping",
+			pax_warn(0, "%s has an unknown file type, skipping",
 				arcn->name);
 			return(-1);
 		}
@@ -465,7 +465,7 @@ node_creat(arcn)
 			continue;
 
 		if (chk_path(arcn->name,arcn->sb.st_uid,arcn->sb.st_gid) < 0) {
-			syswarn(1, oerrno, "Could not create: %s", arcn->name);
+			sys_warn(1, oerrno, "Could not create: %s", arcn->name);
 			return(-1);
 		}
 	}
@@ -500,7 +500,7 @@ node_creat(arcn)
 		 */
 		if (access(arcn->name, R_OK | W_OK | X_OK) < 0) {
 			if (lstat(arcn->name, &sb) < 0) {
-				syswarn(0, errno,"Could not access %s (stat)",
+				sys_warn(0, errno,"Could not access %s (stat)",
 				    arcn->name);
 				set_pmode(arcn->name,file_mode | S_IRWXU);
 			} else {
@@ -570,7 +570,7 @@ unlnk_exist(name, type)
 		if (rmdir(name) < 0) {
 			if (type == PAX_DIR)
 				return(1);
-			syswarn(1,errno,"Unable to remove directory %s", name);
+			sys_warn(1,errno,"Unable to remove directory %s", name);
 			return(-1);
 		}
 		return(0);
@@ -580,7 +580,7 @@ unlnk_exist(name, type)
 	 * try to get rid of all non-directory type nodes
 	 */
 	if (unlink(name) < 0) {
-		syswarn(1, errno, "Could not unlink %s", name);
+		sys_warn(1, errno, "Could not unlink %s", name);
 		return(-1);
 	}
 	return(0);
@@ -720,14 +720,14 @@ set_ftime(fnm, mtime, atime, frc)
 			if (!pmtime)
 				tv[1].tv_sec = (long)sb.st_mtime;
 		} else
-			syswarn(0,errno,"Unable to obtain file stats %s", fnm);
+			sys_warn(0,errno,"Unable to obtain file stats %s", fnm);
 	}
 
 	/*
 	 * set the times
 	 */
 	if (utimes(fnm, tv) < 0)
-		syswarn(1, errno, "Access/modification time set failed on: %s",
+		sys_warn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
 	return;
 }
@@ -751,7 +751,7 @@ set_ids(fnm, uid, gid)
 #endif
 {
 	if (chown(fnm, uid, gid) < 0) {
-		syswarn(1, errno, "Unable to set file uid/gid of %s", fnm);
+		sys_warn(1, errno, "Unable to set file uid/gid of %s", fnm);
 		return(-1);
 	}
 	return(0);
@@ -774,7 +774,7 @@ set_pmode(fnm, mode)
 {
 	mode &= ABITS;
 	if (chmod(fnm, mode) < 0)
-		syswarn(1, errno, "Could not set permissions on %s", fnm);
+		sys_warn(1, errno, "Could not set permissions on %s", fnm);
 	return;
 }
 
@@ -887,7 +887,7 @@ file_write(fd, str, cnt, rem, isempt, sz, name)
 				 * skip, buf is empty so far
 				 */
 				if (lseek(fd, (off_t)wcnt, SEEK_CUR) < 0) {
-					syswarn(1,errno,"File seek on %s",
+					sys_warn(1,errno,"File seek on %s",
 					    name);
 					return(-1);
 				}
@@ -904,7 +904,7 @@ file_write(fd, str, cnt, rem, isempt, sz, name)
 		 * have non-zero data in this file system block, have to write
 		 */
 		if (write(fd, st, wcnt) != wcnt) {
-			syswarn(1, errno, "Failed write to file %s", name);
+			sys_warn(1, errno, "Failed write to file %s", name);
 			return(-1);
 		}
 		st += wcnt;
@@ -943,12 +943,12 @@ file_flush(fd, fname, isempt)
 	 * move back one byte and write a zero
 	 */
 	if (lseek(fd, (off_t)-1, SEEK_CUR) < 0) {
-		syswarn(1, errno, "Failed seek on file %s", fname);
+		sys_warn(1, errno, "Failed seek on file %s", fname);
 		return;
 	}
 
 	if (write(fd, blnk, 1) < 0)
-		syswarn(1, errno, "Failed write to file %s", fname);
+		sys_warn(1, errno, "Failed write to file %s", fname);
 	return;
 }
 
@@ -1041,13 +1041,13 @@ set_crc(arcn, fd)
 	 * they can create inconsistant archive copies.
 	 */
 	if (cpcnt != arcn->sb.st_size)
-		warn(1, "File changed size %s", arcn->org_name);
+		pax_warn(1, "File changed size %s", arcn->org_name);
 	else if (fstat(fd, &sb) < 0)
-		syswarn(1, errno, "Failed stat on %s", arcn->org_name);
+		sys_warn(1, errno, "Failed stat on %s", arcn->org_name);
 	else if (arcn->sb.st_mtime != sb.st_mtime)
-		warn(1, "File %s was modified during read", arcn->org_name);
+		pax_warn(1, "File %s was modified during read", arcn->org_name);
 	else if (lseek(fd, (off_t)0L, SEEK_SET) < 0)
-		syswarn(1, errno, "File rewind failed on: %s", arcn->org_name);
+		sys_warn(1, errno, "File rewind failed on: %s", arcn->org_name);
 	else {
 		arcn->crc = crc;
 		return(0);
