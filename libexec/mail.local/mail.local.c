@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mail.local.c,v 1.14 1997/11/13 23:14:34 alex Exp $
+ *	$Id: mail.local.c,v 1.15 1997/12/24 19:38:18 imp Exp $
  */
 
 #ifndef lint
@@ -370,7 +370,8 @@ notifybiff(msg)
 			return;
 		}
 		addr.sin_family = hp->h_addrtype;
-		memmove(&addr.sin_addr, hp->h_addr, MIN(hp->h_length,sizeof(addr.sin_addr)));
+		memmove(&addr.sin_addr, hp->h_addr, 
+		    MIN(hp->h_length,sizeof(addr.sin_addr)));
 		addr.sin_port = sp->s_port;
 	}
 	if (f < 0 && (f = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
