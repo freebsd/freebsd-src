@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.11 1994/10/01 02:56:16 davidg Exp $
+ *	$Id: isa_device.h,v 1.12 1994/10/17 21:16:39 phk Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -129,5 +129,11 @@ int isa_nmi __P((int cd));
 int register_intr __P((int intr, int device_id, u_int flags,
 		       inthand2_t *handler, u_int mask, int unit));
 int unregister_intr __P((int intr, inthand2_t *handler));
+
+#define ISA_EXTERNALLEN (sizeof(struct isa_device))
+#define EISA_EXTERNALLEN (sizeof(struct isa_device) + sizeof(int))
+extern int isa_externalize(struct isa_device *, void *, size_t *);
+extern int isa_internalize(struct isa_device *, void **, size_t *);
+extern int eisa_externalize(struct isa_device *, int, void *, size_t *);
 
 #endif /* _I386_ISA_ISA_DEVICE_H_ */
