@@ -1,7 +1,8 @@
 Updating Information for FreeBSD current users
 
 This file is maintained by imp@village.org.  Please send new entries
-directly to him.  See end of file for further details.
+directly to him.  See end of file for further details.  For commonly
+done items, please see the end of the file.  Search for COMMON ITEMS:
 
 20000129:
 	{set,get}flags have been added to the tree for rather dubious
@@ -557,6 +558,22 @@ http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
 	PAM integrated into the tree.   Requires new /etc/pam.conf file
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
+
+COMMON ITEMS:
+
+	To build a kernel
+	-----------------
+	Update config, genassym and go:
+		cd src/usr.bin/genassym
+		make depend all install clean
+		cd ../../usr.sbin/config
+		make depend all install clean
+		cd ../../../sys/i386/conf
+		config YOUR_KERNEL_HERE
+		cd ../../compile/YOUR_KERNEL_HERE
+		make depend && make
+
+FORMAT:
 
 This file contains a list, in reverse chronologocal order, of major
 breakages in tracking -current.  Not all things will be listed here,
