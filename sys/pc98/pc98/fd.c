@@ -56,13 +56,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disklabel.h>
+#include <sys/devicestat.h>
 #include <sys/fcntl.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -1055,7 +1055,8 @@ fdc_attach(device_t dev)
 		return error;
 	}
 	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
-			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
+			       INTR_TYPE_BIO | INTR_ENTROPY, fdc_intr, fdc,
+			       &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");
 		return error;
@@ -2664,8 +2665,7 @@ retrier(struct fdc_data *fdc)
 			/* Trick diskerr */
 			bp->bio_dev = makedev(major(bp->bio_dev),
 				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
-			diskerr(bp, "hard error",
-				fdc->fd->skip / DEV_BSIZE,
+			diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
 			bp->bio_dev = sav_bio_dev;
 			if (fdc->flags & FDC_STAT_VALID)
