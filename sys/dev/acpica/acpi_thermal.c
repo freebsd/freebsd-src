@@ -357,9 +357,12 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     newactive = TZ_ACTIVE_NONE;
     for (i = TZ_NUMLEVELS - 1; i >= 0; i--) {
 	if ((sc->tz_zone.ac[i] != -1) && (temp >= sc->tz_zone.ac[i])) {
-	    device_printf(sc->tz_dev, "_AC%d: temperature %d > setpoint %d\n",
-			  i, temp, sc->tz_zone.ac[i]);
 	    newactive = i;
+	    if (sc->tz_active != newactive) {
+		device_printf(sc->tz_dev,
+			      "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
+			      TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
+	    }
 	}
     }
 
