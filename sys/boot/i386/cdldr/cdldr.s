@@ -101,14 +101,14 @@ start:		cld				# string ops inc
 #
 # Turn on the A20 address line
 #
-		callw seta20			# Turn A20 on		
+		callw seta20			# Turn A20 on
 #
 # Relocate the loader and BTX using a very lazy protected mode
 #
 		movw $relocate_msg, %si		# Display the
 		callw putstr			#  relocation message
 		movl end+AOUT_ENTRY, %edi	# %edi is the destination
-		movl $(end+AOUT_HEADER), %esi	# %esi is 
+		movl $(end+AOUT_HEADER), %esi	# %esi is
 						#  the start of the text
 						#  segment
 		movl end+AOUT_TEXT, %ecx	# %ecx = length of the text
@@ -235,7 +235,7 @@ push_arg:	lodsl				# Read argument
 		int $INT_SYS			# BTX system call
 btx_client_end:
 		.code16
-	
+
 		.p2align 4
 #
 # Global descriptor table.
@@ -244,17 +244,18 @@ gdt:		.word 0x0,0x0,0x0,0x0		# Null entry
 		.word 0xffff,0x0,0x9200,0xcf	# SEL_SDATA
 		.word 0xffff,0x0,0x9200,0x0	# SEL_RDATA
 		.word 0xffff,0x0,0x9a00,0xcf	# SEL_SCODE (32-bit)
-		.word 0xffff,0x0,0x9a00,0x8f	# SEL_SCODE16 (16-bit)		
+		.word 0xffff,0x0,0x9a00,0x8f	# SEL_SCODE16 (16-bit)
 gdt.1:
 #
 # Pseudo-descriptors.
 #
 gdtdesc:	.word gdt.1-gdt-1		# Limit
 		.long gdt			# Base
-		
+
 welcome_msg:	.asciz	"CD Loader 1.00\r\n\n"
 bootinfo_msg:	.asciz	"Building the boot loader arguments\r\n"
 relocate_msg:	.asciz	"Relocating the loader and the BTX\r\n"
 jump_message:	.asciz	"Starting the BTX loader\r\n"
-	
+
+		.p2align 4
 end:
