@@ -280,7 +280,7 @@ Features:
 - 2x 16550A serial ports, 1x parallel port, floppy interface
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
 - expansion: 1 32 bit PCI slot, 2 PCMCIA slots
-- onboard Crystal CS4231 sound chip
+- onboard Crystal CS4231 or AD1848 sound chip
 - embedded Fast SCSI using a NCR/Symbios 53C810 chip on the PCI riser card
 
 SRM/ARC:
@@ -323,9 +323,12 @@ available workaround to install FreeBSD is to boot from a SCSI CDROM.
 
 Sound:
 Works fine using pcm driver and a line in the kernel configuration file as
-follows:
+follows for the Crystal CS4231 chip:
 
 	device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15
+
+I have not yet been succesful in getting my Multia with the AD1848 to 
+play any sound.
 
 While verifying playback I was reminded of the lack of CPU power of the 166MHz
 CPU: MP3 only plays acceptable using 22kHz downsampling.
