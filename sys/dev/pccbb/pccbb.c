@@ -116,6 +116,8 @@
 	pci_write_config(DEV, REG, (					\
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
+#define CBB_CARD_PRESENT(s) ((s & CBB_STATE_CD) == 0)
+
 #define CBB_START_MEM	0x88000000
 #define CBB_START_32_IO 0x1000
 #define CBB_START_16_IO 0x100
@@ -988,7 +990,7 @@ cbb_event_thread(void *arg)
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
 		DPRINTF(("Status is 0x%x\n", status));
-		if ((status & CBB_STATE_CD) != 0) {
+		if (!CBB_CARD_PRESENT(status)) {
 			not_a_card = 0;		/* We know card type */
 			cbb_removal(sc);
 		} else if (status & CBB_STATE_NOT_A_CARD) {
@@ -1363,7 +1365,7 @@ cbb_cardbus_reset(device_t brdev)
 	DELAY(delay_us);
 
 	/* If a card exists, unreset it! */
-	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) == 0) {
+	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		DELAY(delay_us);
@@ -1376,7 +1378,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int err;
 
-	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) != 0)
+	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
 		return (ENODEV);
 
 	err = cbb_do_power(brdev);
@@ -2026,7 +2028,7 @@ cbb_child_present(device_t self)
 	uint32_t sockstate;
 
 	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-	return ((sockstate & CBB_STATE_CD) == 0 &&
+	return (CBB_CARD_PRESENT(sockstate) &&
 	  (sc->flags & CBB_CARD_OK) == CBB_CARD_OK);
 }
 
