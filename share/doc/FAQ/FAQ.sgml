@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $FreeBSD$ -->
+<!-- $Id: FAQ.sgml,v 1.16 1996/12/14 18:12:17 joerg Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/04 20:43:55 $
+<date>$Date: 1996/12/14 18:12:17 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -34,11 +34,8 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           Every effort has been made to make this FAQ as informative as 
           possible; if you have any suggestions as to how it may be improved,
-          please feel free to mail them to the 
-
-          <url url="mailto:questions@FreeBSD.ORG" name="FreeBSD-questions
-          Mailing list"> or to <url url="mailto:faq@FreeBSD.ORG"
-          name="FreeBSD FAQ mailing list">
+          please feel free to mail them to the <url
+	  url="mailto:pds@FreeBSD.ORG" name="FAQ maintainer">.
 
       <sect1>
 	<heading>What is FreeBSD?</heading>
@@ -105,13 +102,13 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is the latest version of FreeBSD?</heading>
 	<p>
-	  Version 2.1.5 is the latest version; it was released in mid-July, 1996.
+	  Version 2.1.6 is the latest version; it was released in December, 1996.
 
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
 	<p>
 	  FreeBSD-current is the development version of the operating system,
-	  which will in due course become version 2.2.  As such, it is really
+	  which will in due course become version 3.0.  As such, it is really
 	  only of interest to developers working on the system.  See the section
 	  ``Staying current with FreeBSD'' in the
 
@@ -152,8 +149,8 @@ Any entries with a &lt;XXX&gt; are under construction.
            enhancements would be made to it (for Internet Service Providers 
            and other commercial enterprises for whom sudden shifts or 
            experimental features are quite undesirable).  The other branch was
-           2.2-current, which essentially has been one unbroken line leading
-           towards 2.2-RELEASE since 2.0 was released. If a little ASCII art
+           3.3-current, which essentially has been one unbroken line leading
+           towards 3.0-RELEASE since 2.0 was released. If a little ASCII art
            would help, this is how it looks:
 <verb>
                        2.0
@@ -163,21 +160,23 @@ Any entries with a &lt;XXX&gt; are under construction.
                       2.0.5 ---> 2.1 ---> 2.1.5 ---> 2.1.6 ---* [-stable ends]
                         |                         (Dec 1996)
                         |
-     [2.2-current]   2.2-SNAPs
+     [3.0-current]   2.2-SNAPs
                         |
                         |
-                    2.2-RELEASE (scheduled for Q1 1997)
+                     2.2-ALPHA ---> 2.2-BETA ---> 2.2-RELEASE ---> [2.2-stable]
+                        |                          (Q1 1997)
                         |
                         |
                         .
                        \|/
                         +
 
-                [future releases]
+                [future 3.x releases]
 </verb>
          <p>
-           The -current branch is slowly progressing towards 2.2 and beyond, 
-           whereas the -stable branch will effectively end with 2.1.6.
+           The -current branch is slowly progressing towards 3.0 and beyond, 
+           whereas the -stable branch will effectively end with 2.1.6,
+           resurrecting itself as 2.2-stable after the 2.2-RELEASE is out.
 
       <sect1> 
         <heading>Why is the -stable branch ending with 2.1.6? </heading>
@@ -237,10 +236,12 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>Where can I get FreeBSD?<label id="where-get"></heading>
         <p>
           The distribution is available via anonymous ftp from:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="the FreeBSD FTP site">
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/"
+		name="the FreeBSD FTP site">
 
-          For the current release, 2.1.5R, look in:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/" name="FreeBSD 2.1.5-RELEASE">
+          For the current release, 2.1.6R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/"
+		name="FreeBSD 2.1.6-RELEASE">
 
           FreeBSD is also available via CDROM, from the following place(s):
  
@@ -250,7 +251,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           Orders:     (800)-786-9907<newline>
           Questions:  (510)-674-0783<newline>
           FAX:        (510)-674-0821<newline>
-          email: <url url="mailto:orders@cdrom.com" name="WC Orders address"> <newline>
+          email: <url url="mailto:orders@cdrom.com"
+		name="WC Orders address"> <newline>
           WWW: <url url="http://www.cdrom.com/" name="WC Home page"><newline> 
 
           In Australia, you may find it at:
@@ -281,91 +283,23 @@ Any entries with a &lt;XXX&gt; are under construction.
           Fax:   +44 01892 667473<newline>
 	  (Do not dial the leading zero if calling from outside the UK).
 
-      <sect1>
-	<heading>What FreeBSD mailing lists are available?</heading>
-        <p>
-          The following mailing lists are provided for FreeBSD users and
-          developers.  For more information, send to
-          &lt;majordomo@FreeBSD.ORG&gt; and include a single line saying
-          ``help'' in the body of your message.
 
-          <descrip>
-            <tag/announce/ For announcements about or on FreeBSD.
-            <tag/hackers/ Useful for persons wishing to work on the internals. 
-            <tag/questions/ General questions on FreeBSD. 
-            <tag/bugs/ Where bugs should be sent.
-            <tag/SCSI/ Mailing list for SCSI developers. 
-            <tag/current/ This is the mailing list for communications
-              between the developers and users of freebsd-current. It also
-              carries announcements and discussions on current. <tt
-	      /Required/ reading for anyone using freebsd-current!
-            <tag/security/  For issues dealing with system security. 
-            <tag/platforms/ Deals with ports to non-Intel platforms.
-            <tag/ports/     Discussion of the Ports collection.
-            <tag/fs/        Discussion of FreeBSD Filesystems.
-            <tag/hardware/  Discussion on hardware requirements for
-              FreeBSD.
-            <tag/committers/ All CVS commit messages
-            <tag/chat/  Miscellaneous chit-chat that does not belong 
-                            anywhere else, humour, etc.
-            <tag/hubs/  This the mailing-list for all of the generous
-              people who manage the ``regional'' part of the <tt/freebsd.org/
-              domain.
-            <tag/users-groups/ For the local area Users Groups coordinators.
-          </descrip>
-        <p>
-          The FreeBSD-commit list has been broken up into groups dealing
-          with different areas of interest.  Please see the FreeBSD mailing
-          list FAQ in:
-          <url url="../handbook/eresources:mail.html" name="Handbook entry on mailing-lists">
-        <p>
+
       <sect1>
-	<heading>How can I get on the mailing lists?</heading>
+	<heading>Where do I find info on the mailing lists?</heading>
+	<p>
+ 	You can find full information in the
+		<url url="../handbook/eresources#mail.html"
+			name="Handbook entry on mailing-lists.">
         <p>
-          Example:
-        <p>
-          To subscribe to the <tt/questions/ list, you'll to send a message
-          containing the following command in the <bf/body/ of the message
-          (the subject will be ignored):
-          <verb>
-            subscribe questions john.smith@foo.bar (John Smith)
-          </verb>
-        <p>
-          Unsubscribing is just as easy:-
-	  <verb>
-	    unsubscribe questions john.smith@foo.bar (John Smith)
-	  </verb>
-	  Just remember to send your request
-          to 
-          <url url="mailto:Majordomo@FreeBSD.ORG" name="the mail administrator"> 
-          and <bf/not/ to the list itself! (The last thing the subscribed
-          users want to see is administrative requests...)
 
       <sect1>
 	<heading>What FreeBSD news groups are available?</heading>
         <p>
-          There are two newsgroups currently dedicated to FreeBSD:
-          <descrip>
-            <tag/comp.unix.bsd.freebsd.announce/ For announcements
-            <tag/comp.unix.bsd.freebsd.misc/ General discussion
-          </descrip>
-          The following newsgroups may also be of interest to
-          general BSD enthusiasts:
-          <descrip>
-            <tag><tt/comp.unix.bsd/</tag>
-              General BSD topics
-          </descrip>
-	  <tt>/usr/ports/news</tt> contains a number of ready-ported
-          programs not only for reading Usenet News, but even setting
-          up and running your own News server! You'll find trn, TIN,
-          Cnews, INN and others there.
-
-          For French-speaking people, the <tt/fr.comp.os.bsd/ group is for
-          you; there is also a Japanese newsgroup, <tt /fj.os.bsd.freebsd/.
-          If you do not receive these newsgroups, ask your system
-          administrator to get them for you.
-      </sect1>
-      
+ 	You can find full information in the
+		<url url="../handbook/eresources#news.html"
+			name="Handbook entry on newsgroups.">
+ 
       <sect1>
         <heading>Is there anything about FreeBSD on IRC (Internet Relay Chat) ?</heading>
         <p>
@@ -381,18 +315,17 @@ Any entries with a &lt;XXX&gt; are under construction.
         <heading>Books on FreeBSD</heading>
         <p> 
           Greg Lehey's book ``Installing and Running FreeBSD'' is available
-          from Walnut Creek and ships with the 2.1.5 CDROM.  There is also
+          from Walnut Creek and ships with the 2.1.6 CDROM.  There is also
           a larger book entitled ``The Complete FreeBSD'', which comes with
-          additional printed manpages and includes the 2.1.5 CDROM set.  It
+          additional printed manpages amd includes the 2.1.6 CDROM set.  It
           should be available in most good bookshops now.
  
           There is a FreeBSD Documentation Project which you may contact (or
           even better, join) on the <tt>doc</tt> mailing list:
           <url url="mailto:doc@FreeBSD.ORG" name="&lt;doc@FreeBSD.ORG&gt;">.
 
-          A FreeBSD ``handbook'' is being created, and can be found as:
- 
-          <url url="../handbook/handbook.html" name="the FreeBSD Handbook"> 
+          A FreeBSD ``handbook'' is availible, and can be found as:
+	    <url url="../handbook/handbook.html" name="the FreeBSD Handbook">.  
           Note that this is a work in progress, and so parts may be incomplete.
 
           However, as FreeBSD 2.X is based upon Berkeley 4.4BSD-Lite, most
@@ -442,17 +375,18 @@ Any entries with a &lt;XXX&gt; are under construction.
           SLIP/PPP, sendmail, INN/NNTP, printing, etc..  It's expensive
           (approx. US&dollar;45-&dollar;55), but worth it.  It also
           includes a CDROM with the sources for various tools; most of
-          these, however, are also on the FreeBSD 2.1.5R CDROM (and the
+          these, however, are also on the FreeBSD 2.1.6R CDROM (and the
           FreeBSD CDROM often has newer versions).
 
       <sect1>
-        <heading>I have heard about the Problem Report database. Is there an easy way to accesss it ?</heading>
+        <heading>I have heard about the Problem Report database.
+		Is there an easy way to accesss it ?</heading>
         <p>
           The Problem Report database, filled with all the problems, bugs
           and changes requested by users with help of the <url
           url="http://www.freebsd.org/send-pr.html" name="send-pr">
           command can be reached at
-          <url url="http://www.freebsd.org/cgi/query-pr-summary.cgi"
+          <url url="http://www.freebsd.org/cgi-bin/query-pr-summary.cgi"
           name="PR Database Summary">
 
       <sect1>
@@ -508,7 +442,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           of the FreeBSD installation (lucky you!), the simplest way to
           install FreeBSD is to download 
           <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot.flp"
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/floppies/boot.flp"
           name="the boot image,"> make a boot floppy, boot with it and watch it 
           pull down all the necessary files. Depending on connection speed and 
           how much of FreeBSD you wish to install, this could take several hours
@@ -534,29 +468,14 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>Where are the instructions for installing FreeBSD?</heading>
         <p>
-          Installation instructions can be found as:
+          Installation instructions can be found in the
+		<url url="../handbook/install.html"
+			name="Handbook install section.">
  
-          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/INSTALL"
-            name="INSTALL from 2.1.5R">
- 
-          Release notes are also available as:
- 
-          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/RELNOTES"
-            name="RELNOTES from 2.1.5R">
- 
-          On the CDROM, the following files are in the top-most directory:
- 
-          <verb>
-            HARDWARE.TXT    -- Hardware information
-            INSTALL         -- Installation instructions
-            README.TXT      -- Basic README file
-            RELNOTES        -- Release notes
-          </verb>
-
       <sect1>
 	<heading>What do I need to run FreeBSD?</heading>
         <p>
-          you'll need a 386 or better PC, with 4 MB or more of RAM and at
+          You'll need a 386 or better PC, with 4 MB or more of RAM and at
           least 60 MB of hard disk space. It can run with a low end MDA
           card but to run X11R6, a VGA or better video card is needed.
 
@@ -565,16 +484,23 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>I have only 4 MB of RAM. Can I install FreeBSD?</heading>
         <p>
-          The latest version of FreeBSD (2.1.5) will install on a 4MB
-          system, provided you use the <url 
-          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.5-RELEASE/floppies/boot4.flp"
-          name="special boot floppy for 4MB systems.">
+          FreeBSD 2.1.6 is the last version of FreeBSD that will install on
+	  a 4MB system.  Newer versions of FreeBSD, like 2.2, need at least
+	  5MB to install on a new system. 
 
-          FreeBSD 2.1.5 does not install in 4 MB.  To be exact: it does
-          not install with 640 kB base + 3 MB extended memory.  If your
-          motherboard can remap some of the ``lost'' memory out of the
-          640kB to 1MB region, then you may still be able to get FreeBSD
-          2.1.5 up.
+          All versions of FreeBSD, including 2.2, will RUN in 4MB of ram.  You
+	  can add extra memory for the install process, if you like, and then
+          after the system is up and running, go back to 4MB.
+
+	Use <url 
+          url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.6-RELEASE/floppies/boot4.flp"
+          name="special boot floppy for 4MB computers from FreeBSD 2.1.6">
+
+          There are also situations in which FreeBSD 2.1.6 will not install
+	  in 4 MB.  To be exact: it does not install with 640 kB base + 3 MB
+	  extended memory.  If your motherboard can remap some of the ``lost''
+	  memory out of the 640kB to 1MB region, then you may still be able
+	  to get FreeBSD 2.1.6 up.
 
           Try to go into your BIOS setup and look for a ``remap'' option.
           Enable it.  You may also have to disable ROM shadowing.
@@ -583,8 +509,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           custom kernel with only the options you need and then get the 4
           MB out again.
 
-          You may also install 2.0.5 and then upgrade your system to 2.1.5
-          with the ``upgrade'' option of the 2.1.5 installation program.
+          You may also install 2.0.5 and then upgrade your system to 2.1.6
+          with the ``upgrade'' option of the 2.1.6 installation program.
 
           After the installation, if you build a custom kernel, it will run
           in 4 MB. Someone has even succeeded in booting with 2 MB (the
@@ -600,7 +526,8 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
         <heading>How can I have more than one operating system on my PC?</heading>
 	<p>
-          Have a look at <url url="http://www.in.net/~jayrich/doc/multios.html" name="The multi-OS page.">
+          Have a look at <url url="http://www.in.net/~jayrich/doc/multios.html"
+		name="The multi-OS page.">
 
       <sect1>
         <heading>Can I install on an IDE disk with bad blocks?</heading>
@@ -641,10 +568,10 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>Help! I can't install from tape!</heading>
         <p> 
-          If you are installing 2.1.5R from tape, you  must create the tape
+          If you are installing 2.1.6R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
           blocksize is 20  (10240   bytes), and  tapes  created using  this
-          default size cannot be used to  install 2.1.5R; with these tapes,
+          default size cannot be used to  install 2.1.6R; with these tapes,
           you will get an error that complains about  the record size being
           too big.
  
@@ -744,6 +671,23 @@ Any entries with a &lt;XXX&gt; are under construction.
           translation is turned on - see previous question).  For IDE, the 
           corresponding figure is 504MB.
 
+      <sect1><heading>What about disk managers? My BIOS doesn't support large drives!</heading>
+	<p>
+	  FreeBSD recognises the Ontrack Disk Manager and makes allowances
+	  for it. Other disk managers are not supported.
+
+	  If you just want to use the disk with FreeBSD you don't need a
+	  disk manager. Just configure the disk for as much space as the
+	  BIOS can deal with (usually 504 megabytes), and FreeBSD
+	  should figure out how much space you really have. If you're using
+	  an old disk with an MFM controller, you may need to explicitly
+	  tell FreeBSD how many cylinders to use.
+
+	  If you want to use the disk with FreeBSD and another operating
+	  system, you may be able to do without a disk manager: just make sure
+	  the the FreeBSD boot partition and the slice for the other
+	  operating system are in the first 1024 cylinders.
+
       <sect1>
 	<heading>When I boot FreeBSD I get ``Missing Operating System''.</heading>
         <p>
@@ -786,14 +730,14 @@ Any entries with a &lt;XXX&gt; are under construction.
           for confirmation, and press `q' to quit.
         <p>
           <label id="2_1-disklabel-fix">
-          <bf>Using disklabel(8) manually with 2.1.5-RELEASE</bf>
+          <bf>Using disklabel(8) manually with 2.1.6-RELEASE</bf>
         <p>
           <em>WARNING: There is no substitute for reading carefully
           &amp; understanding what you are doing! Things described here may
           DESTROY your system. Proceed with caution! Remember, a BACKUP is your
           friend!</em>
         <p>
-          <tt /sysinstall/ is broken with 2.1.5-RELEASE and will
+          <tt /sysinstall/ is broken with 2.1.6-RELEASE and will
           insist on mounting something at / in the disklabel editor. You will
           have to manually run <tt /disklabel(8)/ before you can run
           <tt /newfs(8)/. This means doing the math for partitions
@@ -1356,7 +1300,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         <heading>I am about to buy a new machine. What do you recommend?</heading>
 
         <p>
-          See the <htmlurl url="handbook/hw.html" name="hardware section">
+          See the <url url="../handbook/hw.html" name="hardware section">
 	  of the handbook.
 -->
       <sect1>
@@ -1407,6 +1351,42 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           The 742a EISA cards never had the ``&gt;16MB'' problem mentioned in
           the section <ref id="bigram" name="on &gt;16 MB machines">. This is a
           problem that occurs with the Vesa-Local Buslogic SCSI cards.
+
+      <sect1>
+        <heading>FreeBSD does not recognise my on-board AIC-7xxx EISA SCSI in an HP Netserver</heading>
+        <p>
+	  This is basically a known problem.  The EISA on-board SCSI controller
+	  in the HP Netserver machines occupies EISA slot number 11, so all
+	  the ``true'' EISA slots are in front of it.  Alas, the address space
+	  for EISA slots >= 10 collides with the address space assigned to PCI,
+	  and FreeBSD's auto-configuration currently cannot handle this
+	  situation very well.
+
+	  So now, the best you can do is to pretend there were no address
+	  range clash :), go right ahead and edit the file
+	  <tt>/sys/i386/eisa/eisaconf.h</tt>.  Look for a line defining the
+	  macro <tt/EISA_SLOTS/, and bump the number it's defining to 12.
+	  Configure and compile a kernel, as described in the
+	  <url url="http://www.freebsd.org/handbook/kernelconfig.html"
+	  name="Handbook entry on configuring the kernel">.
+
+	  Of course, this does present you a chicken-and-egg problem when
+	  installing on such a machine.  In order to work around this
+	  problem, a special hack is available inside <em>UserConfig</em>.
+	  Do not use the ``visual'' interface, but the plain command-line
+	  interface there.  Simply type
+<verb>
+eisa 12
+quit
+</verb>
+
+	  at the prompt, and install your system as usual.  Don't forget
+	  to install the kernel source distribution, since you need to
+	  build a custom kernel, or otherwise you would have to repeat the
+	  described procedure at each boot!  <tt/dset(8)/ doesn't save this
+	  change for you.
+
+	  Hopefully, future version will have a proper fix for this problem.
 
       <sect1>
         <heading>FreeBSD does not recognise my on-board AIC-7xxx EISA SCSI in an HP Netserver</heading>
@@ -1632,7 +1612,9 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
         <heading>How do I configure INN (Internet News) for my machine?</heading>
         
         <p>After installing the inn package or port, the
-        <url url="http://www.math.psu.edu/barr/INN.html" name="Dave Barr's INN Page"> where you'll find the INN FAQ may be an excellent place to start.
+        <url url="http://www.math.psu.edu/barr/INN.html"
+		name="Dave Barr's INN Page">
+	 where you'll find the INN FAQ may be an excellent place to start.
 
     <sect>
       <heading>Miscellaneous Questions</heading>
@@ -2079,42 +2061,14 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
       <sect1>
 	<heading>What is this thing called ``<tt/sup/'', and how do I use it?</heading>
 
-	<p>
-	  You should really be using CVSup, not sup, according to the latest
-	  skinny. I'm going to bug the hackers for a section describing that.
-	  In the meantime:
-
+        <p>
           SUP stands for Software Update Protocol, and was developed by CMU
-          for keeping their development trees in sync.  We use it to keep
+          for keeping their development trees in sync.  We used it to keep
           remote sites in sync with our central development sources.
 
-          Unless you have direct Internet connectivity, and don't care too
-          much about the cost/duration of the sessions, you shouldn't use
-          sup.  For those ``low/expensive-bandwidth'' applications, we have
-          developed <tt/CTM/, see the section <ref id="ctm" name="on CTM">
-          for more about that.
-
-          To use it, you need to have direct Internet connectivity (not
-          just mail or news).  First, pick up the <tt/sup.tgz/ package
-          from:
-
-            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz"
-            name="The SUP package">
-
-          Second, read the <url
-            url="http://www.freebsd.org/How/handbook/sup.html"
-            name="Handbook entry on SUP">
-
-          This file describes how to setup sup on your machine.  You may
-          also want to look at
-
-          <tt>/usr/src/share/examples/sup/*-supfile</tt>, or you may grab
-          updated supfiles from:
-
-            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras"
-            name="Updated SUP files"> 
-
-          which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
+ 	SUP is not bandwidth friendly, and has been retired.  The current
+	recommended method to keep your sources up to date is
+	<url url="../handbook/cvsup.html" name="Handbook entry on CVSup">
 
       <sect1>
         <heading>How cool is FreeBSD?</heading>
@@ -2215,7 +2169,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           Yes, you can do this <tt /without/ downloading the whole source tree
           by using the            
             <url
-               url="http://www.freebsd.org/How/handbook/handbook/ctm.html" 
+               url="../handbook/ctm.html" 
                name="CTM facility.">
 
       <sect1>
@@ -2237,14 +2191,11 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           </verb>
 
       <sect1>
-        <heading>&lt;XXX&gt; I'd like to browse the system dumps after a panic.</heading>
-
-      <sect1>
         <heading>I've written a kernel extension, who do I send it to?</heading>
         <p>
           Please take a look at:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook/submitters.html"
+          <url url="../handbook/submitters.html"
             name="The Handbook entry on how to submit code.">
 
           And thanks for the thought!
@@ -2645,7 +2596,7 @@ disk        fd1   at fdc0 drive 1
           Please have a look at the Handbook entry on printing. It
           should cover most of your problem. See the
 	  <url
-            url="http://www.freebsd.org/How/handbook/printing.html"
+            url="../handbook/printing.html"
             name="Handbook entry on printing.">
       </sect1>
 
@@ -2779,7 +2730,7 @@ disk        fd1   at fdc0 drive 1
           network, and reads the necessary files from a server instead of
           its hard disk. For full details, please read
 
-          <url url="http://www.FreeBSD.ORG/How/handbook/diskless.html"
+          <url url="../handbook/diskless.html"
             name="the Handbook entry on diskless booting">
 
       <sect1>
@@ -2852,13 +2803,13 @@ disk        fd1   at fdc0 drive 1
           handbook in <tt>/usr/share/doc/handbook</tt> or use the following
           links:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook/slips.html"
+          <url url="../handbook/slips.html"
             name="Handbook entry on SLIP (server side)">
-          <url url="http://www.FreeBSD.ORG/How/handbook/slipc.html"
+          <url url="../handbook/slipc.html"
             name="Handbook entry on SLIP (client side)">
-          <url url="http://www.FreeBSD.ORG/How/handbook/ppp.html"
+          <url url="../handbook/ppp.html"
             name="Handbook entry on PPP (kernel version)">
-          <url url="http://www.FreeBSD.ORG/How/handbook/userppp.html"
+          <url url="../handbook/userppp.html"
             name="Handbook entry on PPP (user-mode version)">
 
       <sect1> 
@@ -2918,7 +2869,7 @@ disable pred1
 
           See 
 	  <url
-            url="http://www.freebsd.org/How/handbook/nfs.html"
+            url="../handbook/nfs.html"
             name="the Handbook entry on NFS">
 
           for more information on
@@ -3225,7 +3176,7 @@ domain foo.bar.edu
         <p>
           If you have compiled your kernel with the <tt/IPFIREWALL/ 
           option, you need to be aware that the default policy as of
-          2.1.5R (this actually changed during 2.1-STABLE development) 
+          2.1.6R (this actually changed during 2.1-STABLE development) 
           is to deny all packets that are not explicitly allowed.
 
         <p>
