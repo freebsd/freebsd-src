@@ -727,6 +727,7 @@ cdregister(struct cam_periph *periph, void *arg)
 					STAILQ_INSERT_TAIL(&nchanger->chluns,
 							  nsoftc,changer_links);
 				}
+				xpt_free_path(path);
 			} else if (status == CAM_REQ_CMP)
 				xpt_free_path(path);
 			else {
@@ -833,6 +834,7 @@ cdregister(struct cam_periph *periph, void *arg)
 
 				STAILQ_INSERT_TAIL(&nchanger->chluns,
 						   nsoftc, changer_links);
+				xpt_free_path(path);
 			} else if (status == CAM_REQ_CMP)
 				xpt_free_path(path);
 			else {
