@@ -48,7 +48,7 @@ ${I:S/.x/.c/}:  ${I}
 	cmp -s ${.OODATE} ${.TARGET} 2> /dev/null || cp ${.OODATE} ${.TARGET}
 .endfor
 
-CLEANFILES+=	${GEN:S/.x/.c/g} asn1.h asn1_files
+CLEANFILES+=	${GEN:S/.x/.c/g} hdb_asn1.h asn1_files
 
 ${GEN} hdb_asn1.h:	asn1_compile hdb.asn1
 	./asn1_compile ${KRB5DIR}/lib/hdb/hdb.asn1 hdb_asn1
