@@ -36,7 +36,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
         /dev/random needs to be fed before operations requiring
         temp files can succeed in single user mode.  This includes
         running "make installworld". /dev/random may be fed by running
-        "/etc/rc.d/initrandom start" or with 20040315 source by running
+        "/etc/rc.d/initrandom start" or with 20040415 source by running
         "/etc/rc.d/preseedrandom".
 
 20040322:
