@@ -15,7 +15,11 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU Tar; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  
+
+$FreeBSD$
+
+*/
 
 /*
  * List a tar archive.
@@ -29,6 +33,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <langinfo.h>
 #ifndef STDC_HEADERS
 extern int errno;
 #endif
@@ -564,6 +569,7 @@ print_header ()
   char size[24];		/* Holds a formatted long or maj, min */
   time_t longie;
   int pad;
+  static int d_first = -1;
   char *name;
   extern long baserec;
 
@@ -640,10 +646,12 @@ print_header ()
       demode ((unsigned) hstat.st_mode, modes + 1);
 
       /* Timestamp */
+      if (d_first < 0)
+	  d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
       longie = hstat.st_mtime;
-      strftime(timestamp, sizeof(timestamp), "%c", localtime(&longie));
-      timestamp[16] = '\0';
-      timestamp[24] = '\0';
+      strftime(timestamp, sizeof(timestamp),
+	       d_first ? "%e %b %R %Y" : "%b %e %R %Y",
+	       localtime(&longie));
 
       /* User and group names */
       if (*head->header.uname && head_standard)
@@ -694,14 +702,14 @@ print_header ()
       name = quote_copy_string (current_file_name);
       if (!name)
 	name = current_file_name;
-      fprintf (msg_file, "%s %s/%s %*s%s %s %s %s",
+      fprintf (msg_file, "%s %s/%s %*s%s %s %s",
 	       modes,
 	       user,
 	       group,
 	       ugswidth - pad,
 	       "",
 	       size,
-	       timestamp + 4, timestamp + 20,
+	       timestamp,
 	       name);
 
       if (name != current_file_name)
