@@ -68,6 +68,7 @@ typedef struct prog {
     char *objdir;
     char *objvar;		/* Makefile variable to replace OBJS */
     strlst_t *objs, *objpaths;
+    strlst_t *buildopts;
     strlst_t *keeplist;
     strlst_t *links;
     int goterror;
@@ -76,6 +77,7 @@ typedef struct prog {
 
 /* global state */
 
+strlst_t *buildopts = NULL;
 strlst_t *srcdirs = NULL;
 strlst_t *libs    = NULL;
 prog_t   *progs   = NULL;
@@ -91,6 +93,7 @@ int goterror = 0;
 
 int verbose, readcache;	/* options */
 int reading_cache;
+int makeobj = 0;	/* add 'make obj' rules to the makefile */
 
 int list_mode;
 
@@ -118,9 +121,10 @@ int main(int argc, char **argv)
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
 
-    while((optc = getopt(argc, argv, "lh:m:c:e:fq")) != -1) {
+    while((optc = getopt(argc, argv, "lh:m:c:e:foq")) != -1) {
 	switch(optc) {
 	case 'f':	readcache = 0; break;
+	case 'o':	makeobj = 1; break;
 	case 'q':	verbose = 0; break;
 
 	case 'm':	strcpy(outmkname, optarg); break;
@@ -175,7 +179,7 @@ int main(int argc, char **argv)
 void usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: crunchgen [-fq] [-m <makefile>] [-c <c file>]",
+		"usage: crunchgen [-foq] [-m <makefile>] [-c <c file>]",
 		"                 [-e <exec file>] <conffile>");
     exit(1);
 }
@@ -195,6 +199,7 @@ void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
 void add_libs(int argc, char **argv);
+void add_buildopts(int argc, char **argv);
 void add_special(int argc, char **argv);
 
 prog_t *find_prog(char *str);
@@ -239,6 +244,7 @@ void parse_one_file(char *filename)
 	else if(!strcmp(fieldv[0], "progs"))    f = add_progs;
 	else if(!strcmp(fieldv[0], "ln"))	f = add_link;
 	else if(!strcmp(fieldv[0], "libs"))	f = add_libs;
+	else if(!strcmp(fieldv[0], "buildopts")) f = add_buildopts;
 	else if(!strcmp(fieldv[0], "special"))	f = add_special;
 	else {
 	    warnx("%s:%d: skipping unknown command `%s'",
@@ -330,6 +336,7 @@ void add_prog(char *progname)
 
     p2->ident = p2->srcdir = p2->objdir = NULL;
     p2->links = p2->objs = p2->keeplist = NULL;
+    p2->buildopts = NULL;
     p2->goterror = 0;
     if (list_mode)
         printf("%s\n",progname);
@@ -361,6 +368,15 @@ void add_libs(int argc, char **argv)
 
     for(i=1;i<argc;i++)
 	add_string(&libs, argv[i]);
+}
+
+
+void add_buildopts(int argc, char **argv)
+{
+    int i;
+
+    for (i = 1; i < argc; i++)
+	add_string(&buildopts, argv[i]);
 }
 
 
@@ -412,6 +428,11 @@ void add_special(int argc, char **argv)
 	    goto argcount;
 	if((p->objvar = strdup(argv[3])) == NULL)
 	    out_of_memory();
+    }
+    else if (!strcmp(argv[2], "buildopts")) {
+	p->buildopts = NULL;
+	for (i = 3; i < argc; i++)
+		add_string(&p->buildopts, argv[i]);
     }
     else {
 	warnx("%s:%d: bad parameter name `%s', skipping line",
@@ -552,6 +573,7 @@ void fillin_program_objs(prog_t *p, char *path)
     int rc;
     FILE *f;
     char *objvar="OBJS";
+    strlst_t *s;
 
     /* discover the objs from the srcdir Makefile */
 
@@ -569,10 +591,21 @@ void fillin_program_objs(prog_t *p, char *path)
     if (outhdrname[0] != '\0')
 	fprintf(f, ".include \"%s\"\n", outhdrname);
     fprintf(f, ".include \"%s\"\n", path);
+    if (buildopts) {
+        fprintf(f, "BUILDOPTS+=");
+        output_strlst(f, buildopts);
+    }
     fprintf(f, ".if defined(PROG) && !defined(%s)\n", objvar);
     fprintf(f, "%s=${PROG}.o\n", objvar);
     fprintf(f, ".endif\n");
-    fprintf(f, "crunchgen_objs:\n\t@echo 'OBJS= '${%s}\n", objvar);
+    fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
+
+    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(BUILDOPTS) $(%s_OPTS)",
+	tempfname, p->ident);
+    for (s = p->buildopts; s != NULL; s = s->next)
+        fprintf(f, " %s", s->str);
+    fprintf(f, " loop\n");
+
     fclose(f);
 
     sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
@@ -771,6 +804,11 @@ void top_makefile_rules(FILE *outmk)
     fprintf(outmk, "LIBS=");
     output_strlst(outmk, libs);
 
+    if (buildopts) {
+	fprintf(outmk, "BUILDOPTS+=");
+	output_strlst(outmk, buildopts);
+    }
+
     fprintf(outmk, "CRUNCHED_OBJS=");
     for(p = progs; p != NULL; p = p->next)
 	fprintf(outmk, " %s.lo", p->name);
@@ -808,9 +846,18 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
+	if (p->buildopts != NULL) {
+		fprintf(outmk, "%s_OPTS+=", p->ident);
+		output_strlst(outmk, p->buildopts);
+	}
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make depend && make $(%s_OBJS))\n",
-		p->ident, p->ident);
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
+	if (makeobj)
+		fprintf(outmk, "make obj && ");
+	fprintf(outmk, "\\\n");
+	fprintf(outmk, "\t\tmake $(BUILDOPTS) $(%s_OPTS) depend && \\\n"
+		"\t\tmake $(BUILDOPTS) $(%s_OPTS) $(%s_OBJS))\n",
+		p->ident, p->ident, p->ident);
 	fprintf(outmk, "%s_clean:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
     }

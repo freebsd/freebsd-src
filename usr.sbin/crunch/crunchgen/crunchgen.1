@@ -32,27 +32,25 @@
 .Nd generates build environment for a crunched binary
 .Sh SYNOPSIS
 .Nm \&crunchgen
-.Op Fl fql
+.Op Fl foql
 .Op Fl h Ar makefile-header-name
 .Op Fl m Ar makefile-name
 .Op Fl c Ar c-file-name
 .Op Fl e Ar exec-file-name
 .Op Ar conf-file
 .Sh DESCRIPTION
-
 A crunched binary is a program made up of many other programs linked
 together into a single executable.  The crunched binary main()
 function determines which component program to run by the contents of
 argv[0].  The main reason to crunch programs together is for fitting
 as many programs as possible onto an installation or system recovery
 floppy.
-
 .Pp
-.Nm Crunchgen
+.Nm
 reads in the specifications in
 .Ar conf-file
 for a crunched binary, and generates a Makefile and accompanying
-top-level C source file that when built create the crunched executable
+top-level C source file that when built creates the crunched executable
 file from the component programs.  For each component program, 
 .Nm crunchgen
 can optionally attempt to determine the object (.o) files that make up
@@ -63,7 +61,26 @@ uses the companion program
 .Nm crunchide
 to eliminate link-time conflicts between the component programs by
 hiding all unnecessary symbols.
-
+.Pp
+.Nm 
+places specific requirements on package
+.Pa Makefiles
+which make it unsuitable for use with non-BSD sources.  In particular, the
+.Nm Makefile
+must contain the target
+.Ar depend ,
+and it must define all object files in the variable
+.Ar OBJS .
+In some cases, you can use a fake
+.Pa Makefile :
+before looking for
+.Pa Makefile
+in the source directory
+.Pa foo ,
+.Nm
+looks for the file
+.Pa Makefile.foo
+in the current directory.
 .Pp
 After
 .Nm
@@ -74,7 +91,6 @@ run make in each component program's source dir to build the object
 files for the user.  This is not done automatically since in release
 engineering circumstances it is generally not desirable to be
 modifying objects in other directories.
-
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -102,11 +118,12 @@ are annoying to pass through environment variables.
 Set output Makefile name to
 .Ar makefile-name .
 The default name is ``<conf-name>.mk''.
+.It Fl o
+Add ``make obj'' rules to each program make target.
 .It Fl q
 Quiet operation.  Status messages are suppressed.
 .El
 .Sh CRUNCHGEN CONFIGURATION FILE COMMANDS
-
 .Nm Crunchgen
 reads specifications from the 
 .Ar conf-file
@@ -140,6 +157,8 @@ A list of library specifications to be included in the crunched binary link.
 Multiple
 .Nm libs
 lines can be specified.
+.It Nm buildopts Ar buildopts ...
+A list of build options to be added to every make target.
 .It Nm ln Ar progname linkname
 Causes the crunched binary to invoke
 .Ar progname
@@ -148,7 +167,6 @@ whenever
 appears in argv[0].  This allows programs that change their behavior when
 run under different names to operate correctly. 
 .El
-
 To handle specialized situations, such as when the source is not
 available or not built via a conventional Makefile, the following
 .Nm special
@@ -174,6 +192,12 @@ and if that is not found, the
 .Ar srcdir
 itself becomes the
 .Ar objdir .
+.It Nm special Ar progname Nm buildopts Ar buildopts
+Define a set of build options that should be added to make targets
+in addition to those specified using
+.Nm buildopts
+when processing
+.Ar progname .
 .It Nm special Ar progname Nm objs Ar object-file-name ...
 Set the list of object files for program
 .Ar progname .
@@ -209,7 +233,6 @@ This option is to be used as a last resort as its use can cause a
 symbol conflict, however in certain instances it may be the only way to
 have a symbol resolve.
 .El
-
 .Pp
 Only the 
 .Nm objpaths
@@ -224,7 +247,6 @@ which are in turn calculated from
 so is sometimes convenient to specify the earlier parameters and let 
 .Nm
 calculate forward from there if it can.
-
 .Pp
 The makefile produced by
 .Nm
@@ -245,17 +267,20 @@ Here is an example
 input conf file, named
 .Dq Pa kcopy.conf :
 .Pp
-.nf
-	srcdirs /usr/src/bin /usr/src/sbin
+.Bd -literal -offset indent
+srcdirs /usr/src/bin /usr/src/sbin
 
-	progs test cp echo sh fsck halt init mount umount myinstall
-	ln test [       # test can be invoked via [
-	ln sh -sh       # init invokes the shell with "-sh" in argv[0]
+progs test cp echo sh fsck halt init mount umount myinstall
+progs anotherprog
+ln test [       # test can be invoked via [
+ln sh -sh       # init invokes the shell with "-sh" in argv[0]
 
-	special myprog objpaths /homes/leroy/src/myinstall.o # no sources
+special myprog objpaths /homes/leroy/src/myinstall.o # no sources
 
-	libs -lutil -lcrypt
-.fi
+special anotherprog -DNO_FOO WITHOUT_BAR=YES
+
+libs -lutil -lcrypt
+.Ed
 .Pp
 This conf file specifies a small crunched binary consisting of some
 basic system utilities plus a homegrown install program ``myinstall'',
@@ -264,15 +289,19 @@ specified directly with the
 .Nm special
 line.
 .Pp
+Additionally when ``anotherprog'' is built the arguments
+.Ar -DNO_FOO WITHOUT_BAR=YES
+are added to all build targets.
+.Pp
 The crunched binary ``kcopy'' can be built as follows:
 .Pp
-.nf
-	% crunchgen -m Makefile kcopy.conf    # gen Makefile and kcopy.c
-	% make objs             # build the component programs' .o files
-	% make                  # build the crunched binary kcopy
-	% kcopy sh              # test that this invokes a sh shell
-	$			# it works!
-.fi
+.Bd -literal -offset indent
+% crunchgen -m Makefile kcopy.conf    # gen Makefile and kcopy.c
+% make objs             # build the component programs' .o files
+% make                  # build the crunched binary kcopy
+% kcopy sh              # test that this invokes a sh shell
+$			# it works!
+.Ed
 .Pp
 At this point the binary ``kcopy'' can be copied onto an install floppy
 and hard-linked to the names of the component programs.
