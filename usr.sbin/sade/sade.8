@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysinstall.8,v 1.18 1999/07/19 11:49:22 jkh Exp $
+.\"	$Id: sysinstall.8,v 1.19 1999/07/23 03:42:23 jkh Exp $
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
-.Os
+.Os FreeBSD
 .Sh NAME
 .Nm sysinstall
 .Nd system installation and configuration tool
@@ -82,8 +82,7 @@ other color-capable terminal emulator (newer versions of xterm will support
 color when using the ``xterm-color'' termcap entry).
 .Pp
 This product is currently at the end of its life cycle and will
-be replaced in FreeBSD 3.1 (hopefully) by the
-.Xr setup 1
+eventually be replaced.
 utility.
 .Sh RUNNING SCRIPTS
 .Nm
@@ -785,10 +784,10 @@ a look at
 .Pa /usr/src/release/sysinstall/install.cfg
 for a sample installation script.
 .Sh BUGS
-This utility is a prototype which lasted approximately 3 years past
+This utility is a prototype which lasted several years past
 its expiration date and is greatly in need of death.
-.Sh AUTHOR
-Jordan K. Hubbard <jkh@FreeBSD.org>
+.Sh AUTHORS
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org
 .Sh HISTORY
 This version of
 .Nm
