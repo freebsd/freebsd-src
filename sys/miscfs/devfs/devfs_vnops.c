@@ -1340,28 +1340,20 @@ devfs_open( struct vop_open_args *ap)
 		dsw = devsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
 			return ENXIO;
-		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE)) {
+		if (ap->a_cred != FSCRED && (ap->a_mode & FWRITE) && 
+		    vn_isdisk(vp)) {
 			/*
 			 * When running in very secure mode, do not allow
-			 * opens for writing of any disk character devices.
+			 * opens for writing of any disk devices.
 			 */
-			if (securelevel >= 2
-			    && dsw->d_bmaj != -1
-			    && (dsw->d_flags & D_TYPEMASK) == D_DISK)
+			if (securelevel >= 2)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens
-			 * for writing of character
-			 * devices whose corresponding block devices are
-			 * currently mounted.
+			 * for writing if the device is mounted.
 			 */
-			if (securelevel >= 1) {
-				if ((bdev = chrtoblk(dev)) != NODEV &&
-				    vfinddev(bdev, VBLK, &bvp) &&
-				    bvp->v_usecount > 0 &&
-				    (error = vfs_mountedon(bvp)))
-					return (error);
-			}
+			if (securelevel >= 1 && vp->v_specmountpoint != NULL)
+				return (EPERM);
 		}
 		if ((dsw->d_flags & D_TYPEMASK) == D_TTY)
 			vp->v_flag |= VISTTY;
