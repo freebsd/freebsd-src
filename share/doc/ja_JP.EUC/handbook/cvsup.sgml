@@ -1,13 +1,13 @@
-<!-- $Id: cvsup.sgml,v 1.15 1997/04/08 02:23:27 hanai Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.16 1997/04/30 06:41:50 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.15 -->
+<!-- Original revision: 1.17 -->
 
-<sect><heading>CVSup<label id="cvsup"></heading>
+<sect1><heading>CVSup<label id="cvsup"></heading>
 
 <p><em>原作: &a.jdp;</em>.
 <p><em>訳: &a.iwasaki;.<newline>27 February 1997.</em>
 
-<sect1><heading>CVSup の紹介<label id="cvsup:intro"></heading>
+<sect2><heading>CVSup の紹介<label id="cvsup:intro"></heading>
 
 <p>CVSup は, リモートのサーバホストにあるマスタ CVS リポジトリから
 ソースツリーを配布し更新するためのソフトウェアパッケージです. FreeBSD 
@@ -34,7 +34,7 @@ sup と互換性のあるコンフィグレーションファイルを使用します. しかし,
 CVSup の方がより高速で柔軟性もあるので, もはや sup は FreeBSD 
 プロジェクトでは使用されていません. 
 
-<sect1><heading>CVSup のインストール<label id="cvsup:install"></heading>
+<sect2><heading>CVSup のインストール<label id="cvsup:install"></heading>
 
 <p>FreeBSD 2.2 以降を使用している場合, CVSup をインストールするもっとも
 簡単な方法は, FreeBSD <ref id="ports" name="ports コレクション"> の 
@@ -73,11 +73,11 @@ port や package をインストールする際に, これらのライブラリも自動的に
 <em>スタティックリンクされた</em> CVSup 実行形式が入手可能です:
 
 <itemize>
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
+  <item><url url="ftp://hub.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://hub.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
   (クライアント).
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  <item><url url="ftp://hub.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://hub.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
   (サーバ).
 </itemize>
 
@@ -115,7 +115,7 @@ port や package をインストールする際に, これらのライブラリも自動的に
   <item>FreeBSD-2.1.5 以前:        スタティックバイナリ
 </itemize>
 
-<sect1><heading>CVSup のコンフィグレーション<label id="cvsup:config"></heading>
+<sect2><heading>CVSup のコンフィグレーション<label id="cvsup:config"></heading>
 
 <p>CVSup の動作は, "supfile" と呼ばれるコンフィグレーションファイルで
 制御します. FreeBSD-2.2 からは, supfile のサンプルがディレクトリ <url
@@ -344,7 +344,7 @@ status ファイルを維持しています. すでに受け取った更新情報を追従し続け
 </verb>
 </itemize>
 
-<sect1><heading>CVSup の実行</heading>
+<sect2><heading>CVSup の実行</heading>
 
 <p>さて, 更新の準備ができました. これを実行するコマンドラインは
 実に簡単です:
@@ -404,7 +404,7 @@ status ファイルを維持しています. すでに受け取った更新情報を追従し続け
 実行させる準備をすることができます. cron から起動する際には, 明示的に 
 cvsup が GUI を使わないようにする必要があります. 
 
-<sect1><heading>CVSup ファイルコレクション<label id="cvsup:collec"></heading>
+<sect2><heading>CVSup ファイルコレクション<label id="cvsup:collec"></heading>
 
 <p>CVSup 経由で入手できるファイルコレクションは階層的に組織化されています. 
 いくつか大きなコレクションがあり, それらは小さなサブコレクションに
@@ -560,7 +560,7 @@ SMP プロジェクト用の CVS リポジトリです.
 インストールされた World Wide Web のデータです. WWW ミラーサイトが使用します. 
 </descrip>
 
-<sect1><heading>CVSup のアナウンス, 質問およびバグ報告</heading>
+<sect2><heading>CVSup のアナウンス, 質問およびバグ報告</heading>
 
 <p>CVSup のほとんどの FreeBSD 関連の議論は &a.hackers; で
 おこなわれています. ソフトウェアの新しいバージョンは &a.announce; で
