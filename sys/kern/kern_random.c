@@ -1,5 +1,5 @@
 /*
- * random_machdep.c -- A strong random number generator
+ * kern_random.c -- A strong random number generator
  *
  * $FreeBSD$
  *
@@ -48,7 +48,22 @@
 #include <sys/md5.h>
 #include <sys/random.h>
 
+#ifdef __i386__
 #include <i386/isa/icu.h>
+#endif
+#ifdef __alpha__
+/*
+	XXX  the below should be used.  However there is too much "16"
+	hardcodeing in kern_random.c right now. -- obrien
+#include <machine/ipl.h>
+#if NHWI > 0
+#define	ICU_LEN (NHWI)
+#else
+#define	ICU_LEN (NSWI)
+#endif
+*/
+#define	ICU_LEN 16
+#endif
 
 #define MAX_BLKDEV 4
 
