@@ -30,6 +30,7 @@
 # read variables
 sub variables {
     $verbose = 1;		# verbose = [0-2]
+    $force = 0;			# relax username validity check if true
     $defaultusepassword = "yes";	# use password authentication for new users
     $defaultenableaccount = "yes"; # enable the account by default
     $defaultemptypassword = "no"; # don't create an empty password
@@ -44,7 +45,7 @@ sub variables {
     $etc_shells = "/etc/shells";
     $etc_passwd = "/etc/master.passwd";
     $group = "/etc/group";
-    $pwd_mkdb = "pwd_mkdb -p";	# program for building passwd database
+    @pwd_mkdb = qw(pwd_mkdb -p); # program for building passwd database
 
 
     # List of directories where shells located
@@ -226,7 +227,7 @@ sub home_partition_valid {
 
 # check for valid passwddb
 sub passwd_check {
-    system("$pwd_mkdb -C $etc_passwd");
+    system(@pwd_mkdb, '-C', $etc_passwd);
     die "\nInvalid $etc_passwd - cannot add any users!\n" if $?;
 }
 
@@ -327,13 +328,29 @@ sub new_users_name {
 sub new_users_name_valid {
     local($name) = @_;
 
-    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
+    if ($force) {
+	if ($name eq "a-z0-9_-") {
+	    warn "Please enter a username.\a\n";
+	    return 0;
+	}
+	if ($name =~ /[:\n]/) {
+	    warn "Illegal username, which would break your passwd file.\a\n";
+	    return 0;
+	}
+	if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/) {
+	    warn "Caution: Username contains illegal characters.\n" .
+		"Adding this user may cause utilities " .
+		"or applications to malfunction,\n" .
+		"or even impose a security risk on your system.\a\n";
+	}
+    } elsif ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
 	warn "Illegal username.\n" .
 	    "Please use only lowercase Roman, decimal, underscore, " .
 	    "or hyphen characters.\n" .
 	    "Additionally, a username should not start with a hyphen.\a\n";
 	return 0;
-    } elsif ($username{$name}) {
+    }
+    if ($username{$name}) {
 	warn "Username ``$name'' already exists!\a\n"; return 0;
     }
     return 1;
@@ -564,7 +581,7 @@ sub new_users_pwdmkdb {
     local($last) = shift;
     local($name) = shift;
 
-    system("$pwd_mkdb -u $name $etc_passwd");
+    system(@pwd_mkdb, '-u', $name, $etc_passwd);
     if ($?) {
 	warn "$last\n";
 	warn "``$pwd_mkdb'' failed\n";
@@ -861,6 +878,7 @@ usage: adduser
     [-class login_class]
     [-config_create]
     [-dotdir dotdir]
+    [-f|-force]
     [-group login_group]
     [-h|-help]
     [-home home]
@@ -934,6 +952,7 @@ sub parse_arguments {
 	if    (/^--?(v|verbose)$/)	{ $verbose = 1 }
 	elsif (/^--?(s|silent|q|quiet)$/)  { $verbose = 0 }
 	elsif (/^--?(debug)$/)	    { $verbose = 2 }
+	elsif (/^--?(f|force)$/)	{ $force = 1 }
 	elsif (/^--?(h|help|\?)$/)	{ &usage }
 	elsif (/^--?(home)$/)	 { $home = $argv[0]; shift @argv }
 	elsif (/^--?(shell)$/)	 { $defaultshell = $argv[0]; shift @argv }
@@ -1050,9 +1069,9 @@ sub home_create {
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
     print "Copy files from $dotdir to $homedir\n" if $verbose;
-    system("cp -R $dotdir $homedir");
-    system("chmod -R u+wrX,go-w $homedir");
-    system("chown -R $name:$group $homedir");
+    system('cp', '-R', $dotdir, $homedir);
+    system('chmod', '-R', 'u+wrX,go-w', $homedir);
+    system('chown', '-R', "$name:$group", $homedir);
 
     # security
     opendir(D, $homedir);
