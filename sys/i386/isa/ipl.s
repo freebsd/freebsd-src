@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.5 1997/08/10 20:47:53 smp Exp smp $
+ *	$Id: ipl.s,v 1.7 1997/08/10 20:58:58 fsmp Exp $
  */
 
 
@@ -138,10 +138,12 @@ doreti_stop:
 1:
 #endif /* VM86 */
 
+#ifdef SMP
 	/* release the kernel lock */
 	pushl	$_mp_lock		/* GIANT_LOCK */
 	call	_MPrellock
 	add	$4, %esp
+#endif /* SMP */
 
 	.globl	doreti_popl_es
 doreti_popl_es:
