@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.13 1999/08/08 18:42:39 phk Exp $
+ * $Id: vinuminterrupt.c,v 1.6 1999/06/18 00:50:53 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -47,8 +47,6 @@
 #include <sys/resourcevar.h>
 
 void complete_raid5_write(struct rqelement *);
-void freerq(struct request *rq);
-void free_rqg(struct rqgroup *rqg);
 void complete_rqe(struct buf *bp);
 void sdio_done(struct buf *bp);
 
@@ -130,14 +128,6 @@ complete_rqe(struct buf *bp)
 	for (count = 0; count < length; count++)
 	    data[count] ^= sdata[count];
 
-#ifdef VINUMDEBUG
-	if (debug & DEBUG_RESID) {
-	    if ((rqg->active == 0)			    /* XXXX finished this group */
-	    &&(*(char *) data != '<'))			    /* and not what we expected */
-		Debugger("complete_request checksum");
-	}
-#endif
-
 	/*
 	 * In a normal read, we will normally read directly
 	 * into the user buffer.  This doesn't work if
@@ -162,20 +152,6 @@ complete_rqe(struct buf *bp)
 	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
 		Debugger("resid");
-
-	    {
-		int i;
-		for (i = 0; i < ubp->b_bcount; i += 512)    /* XXX debug */
-		    if (((char *) ubp->b_data)[i] != '<') { /* and not what we expected */
-			log(LOG_DEBUG,
-			    "At 0x%x (offset 0x%x): '%c' (0x%x)\n",
-			    (int) (&((char *) ubp->b_data)[i]),
-			    i,
-			    ((char *) ubp->b_data)[i],
-			    ((char *) ubp->b_data)[i]);
-			Debugger("complete_request checksum");
-		    }
-	    }
 	}
 #endif
 
@@ -195,7 +171,6 @@ complete_rqe(struct buf *bp)
     }
 }
 
-
 /* Free a request block and anything hanging off it */
 void 
 freerq(struct request *rq)
@@ -205,6 +180,8 @@ freerq(struct request *rq)
     int rqno;
 
     for (rqg = rq->rqg; rqg != NULL; rqg = nrqg) {	    /* through the whole request chain */
+	if (rqg->lock)					    /* got a lock? */
+	    unlockrange(rqg);				    /* yes, free it */
 	for (rqno = 0; rqno < rqg->count; rqno++)
 	    if ((rqg->rqe[rqno].flags & XFR_MALLOCED)	    /* data buffer was malloced, */
 	    &&rqg->rqe[rqno].b.b_data)			    /* and the allocation succeeded */
@@ -213,15 +190,6 @@ freerq(struct request *rq)
 	Free(rqg);					    /* and free this one */
     }
     Free(rq);						    /* free the request itself */
-}
-
-void 
-free_rqg(struct rqgroup *rqg)
-{
-    if ((rqg->flags & XFR_GROUPOP)			    /* RAID 5 request */
-&&(rqg->rqe) /* got a buffer structure */
-    &&(rqg->rqe->b.b_data))				    /* and it has a buffer allocated */
-	Free(rqg->rqe->b.b_data);			    /* free it */
 }
 
 /* I/O on subdisk completed */
@@ -235,7 +203,7 @@ sdio_done(struct buf *bp)
 	bp->b_flags |= B_ERROR;
 	bp->b_error = sbp->b.b_error;
     }
-    bp->b_resid = sbp->b.b_resid;
+    sbp->bp->b_resid = sbp->b.b_resid;			    /* copy the resid field */
     biodone(sbp->bp);					    /* complete the caller's I/O */
     /* Now update the statistics */
     if (bp->b_flags & B_READ) {				    /* read operation */
@@ -253,11 +221,6 @@ sdio_done(struct buf *bp)
 }
 
 /* Start the second phase of a RAID5 group write operation. */
-/*
- * XXX This could be improved on.  It's quite CPU intensive,
- * and doing it at the end tends to lump it all together.
- * We should do this a transfer at a time 
- */
 void 
 complete_raid5_write(struct rqelement *rqe)
 {
@@ -310,7 +273,6 @@ complete_raid5_write(struct rqelement *rqe)
 	     * blocks and the block we want to write will be
 	     * the correct parity block.  
 	     */
-	    /* XXX do this in assembler */
 	    for (count = 0; count < length; count++)
 		pdata[count] ^= sdata[count];
 	    if ((rqe->flags & XFR_MALLOCED)		    /* the buffer was malloced, */
@@ -334,12 +296,11 @@ complete_raid5_write(struct rqelement *rqe)
 		 * "remove" the old data block
 		 * from the parity block 
 		 */
-		/* XXX do this in assembler */
 		if ((pdata < ((int *) prqe->b.b_data))
 		    || (&pdata[length] > ((int *) (prqe->b.b_data + prqe->b.b_bcount)))
 		    || (sdata < ((int *) rqe->b.b_data))
 		    || (&sdata[length] > ((int *) (rqe->b.b_data + rqe->b.b_bcount))))
-		    Debugger("Bounds overflow");	    /* XXX */
+		    panic("complete_raid5_write: bounds overflow");
 		for (count = 0; count < length; count++)
 		    pdata[count] ^= sdata[count];
 
@@ -347,7 +308,7 @@ complete_raid5_write(struct rqelement *rqe)
 		sdata = (int *) (&bp->b_data[rqe->useroffset << DEV_BSHIFT]); /* new data */
 		if ((sdata < ((int *) bp->b_data))
 		    || (&sdata[length] > ((int *) (bp->b_data + bp->b_bcount))))
-		    Debugger("Bounds overflow");	    /* XXX */
+		    panic("complete_raid5_write: bounds overflow");
 		for (count = 0; count < length; count++)
 		    pdata[count] ^= sdata[count];
 
@@ -356,7 +317,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    Free(rqe->b.b_data);		    /* free it */
 		    rqe->flags &= ~XFR_MALLOCED;
 		} else
-		    Debugger("not malloced");		    /* XXX */
+		    panic("complete_raid5_write: malloc conflict");
 
 		if ((rqe->b.b_flags & B_READ)		    /* this was a read */
 		&&((rqe->flags & XFR_BAD_SUBDISK) == 0)) {  /* and we can write this block */
@@ -381,7 +342,7 @@ complete_raid5_write(struct rqelement *rqe)
 			    rqe->sdno,
 			    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			    rqe->b.b_blkno,
-			    rqe->b.b_bcount);		    /* XXX */
+			    rqe->b.b_bcount);
 		    if (debug & DEBUG_NUMOUTPUT)
 			log(LOG_DEBUG,
 			    "  raid5.2 sd %d numoutput %ld\n",
@@ -417,7 +378,7 @@ complete_raid5_write(struct rqelement *rqe)
 	    rqe->sdno,
 	    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 	    rqe->b.b_blkno,
-	    rqe->b.b_bcount);				    /* XXX */
+	    rqe->b.b_bcount);
     if (debug & DEBUG_NUMOUTPUT)
 	log(LOG_DEBUG,
 	    "  raid5.3 sd %d numoutput %ld\n",
