@@ -2,7 +2,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -15,8 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -36,56 +34,53 @@
  * AlphaServer 8200 and 8400 systems.
  */
 
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
-
-__KERNEL_RCSID(0, "$NetBSD: tlsbmem.c,v 1.6 1998/01/12 10:21:25 thorpej Exp $");
-
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
 
-#include <machine/autoconf.h>
 #include <machine/rpb.h>
-#include <machine/pte.h>
 
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/tlsbvar.h>
 
-struct tlsbmem_softc {
-	struct device	sc_dv;
-	int		sc_node;	/* TLSB node */
-	u_int16_t	sc_dtype;	/* device type */
+/*
+ * Device methods
+ */
+static int tlsbmem_probe(device_t);
+
+static device_method_t tlsbmem_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		tlsbmem_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
 };
 
-static int	tlsbmemmatch __P((struct device *, struct cfdata *, void *));
-static void	tlsbmemattach __P((struct device *, struct device *, void *));
-struct cfattach tlsbmem_ca = {
-	sizeof (struct tlsbmem_softc), tlsbmemmatch, tlsbmemattach
+static devclass_t tlsbmem_devclass;
+static driver_t tlsbmem_driver = {
+	"tlsbmem", tlsbmem_methods, 1
 };
 
 static int
-tlsbmemmatch(parent, cf, aux)
-	struct device *parent;
-	struct cfdata *cf;
-	void *aux;
+tlsbmem_probe(device_t dev)
 {
-	struct tlsb_dev_attach_args *ta = aux;
-	if (TLDEV_ISMEM(ta->ta_dtype))
-		return (1);
+	struct tlsb_device *tdev = DEVTOTLSB(dev);
+	if (!TLDEV_ISMEM(tdev->td_tldev)) {
+		return (-1);
+	}
 	return (0);
 }
 
-static void
-tlsbmemattach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
-{
-	struct tlsb_dev_attach_args *ta = aux;
-	struct tlsbmem_softc *sc = (struct tlsbmem_softc *)self;
-
-	sc->sc_node = ta->ta_node;
-	sc->sc_dtype = ta->ta_dtype;
-
-	printf("\n");
-}
+DRIVER_MODULE(tlsbmem, tlsb, tlsbmem_driver, tlsbmem_devclass, 0, 0);
