@@ -2335,6 +2335,14 @@ Generate LQR reports.
 Phase transition log output.
 .It Li Physical
 Dump physical level packet in hex.
+.It Li Radius
+Dump RADIUS information.
+RADIUS information resulting from the link coming up or down is logged at
+.Dq Phase
+level unless
+.Dq Radius
+logging is enabled.
+This log level is most useful for monitoring RADIUS alive information.
 .It Li Sync
 Dump sync level packet in hex.
 .It Li TCP/IP
@@ -5479,6 +5487,16 @@ to function.
 .Pp
 Values received from the RADIUS server may be viewed using
 .Dq show bundle .
+.It set rad_alive Ar timeout
+When RADIUS is configured, setting
+.Dq rad_alive
+to a non-zero
+.Ar timeout
+value will tell
+.Nm
+to sent RADIUS accounting information to the RADIUS server every
+.Ar timeout
+seconds.
 .It set reconnect Ar timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given

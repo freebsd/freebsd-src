@@ -66,6 +66,10 @@ struct radius {
   struct {
     char file[PATH_MAX];	/* Radius config file */
   } cfg;
+  struct {
+    struct pppTimer timer;	/* for this long */
+    int interval;
+  } alive;
 };
 
 struct radacct {
@@ -97,6 +101,8 @@ extern void radius_Init(struct radius *);
 extern void radius_Destroy(struct radius *);
 
 extern void radius_Show(struct radius *, struct prompt *);
+extern void radius_StartTimer(struct bundle *);
+extern void radius_StopTimer(struct radius *);
 extern int radius_Authenticate(struct radius *, struct authinfo *,
                                const char *, const char *, int,
                                const char *, int);
@@ -113,6 +119,8 @@ extern void radius_Account(struct radius *, struct radacct *,
 #define RAD_START	1
 #define RAD_STOP	2
 #endif
+
+#define RAD_ALIVE	3
 
 /* Get address from NAS pool */
 #define RADIUS_INADDR_POOL	htonl(0xfffffffe)	/* 255.255.255.254 */

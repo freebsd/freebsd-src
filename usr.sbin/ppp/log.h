@@ -45,16 +45,17 @@
 #define LogLQM		(15)
 #define LogPHASE	(16)
 #define LogPHYSICAL	(17)	/* syslog(LOG_INFO, ....)	 */
-#define LogSYNC		(18)	/* syslog(LOG_INFO, ....)	 */
-#define LogTCPIP	(19)
-#define LogTIMER	(20)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogTUN		(21)	/* If set, tun%d is output with each message */
-#define LogWARN		(22)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
-#define LogERROR	(23)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
-#define LogALERT	(24)	/* syslog(LOG_ALERT, ....)	 */
+#define LogRADIUS	(18)	/* syslog(LOG_INFO, ....)	 */
+#define LogSYNC		(19)	/* syslog(LOG_INFO, ....)	 */
+#define LogTCPIP	(20)
+#define LogTIMER	(21)	/* syslog(LOG_DEBUG, ....)	 */
+#define LogTUN		(22)	/* If set, tun%d is output with each message */
+#define LogWARN		(23)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
+#define LogERROR	(24)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
+#define LogALERT	(25)	/* syslog(LOG_ALERT, ....)	 */
 
-#define LogMAXCONF	(21)
-#define LogMAX		(24)
+#define LogMAXCONF	(22)
+#define LogMAX		(25)
 
 struct mbuf;
 struct cmdargs;

@@ -60,6 +60,7 @@ static const char *const LogNames[] = {
   "LQM",
   "Phase",
   "Physical",
+  "Radius",
   "Sync",
   "TCP/IP",
   "Timer",
