@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.16 1999/04/27 02:30:27 jkh Exp $";
+	"$Id: main.c,v 1.17 1999/06/23 16:54:38 billf Exp $";
 #endif
 
 /*
@@ -28,7 +28,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "info.h"
 
-static char Options[] = "acdDe:fikrRpLqImvh?l:";
+static char Options[] = "acdDe:fikrRpLqImvhl:";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
