@@ -74,16 +74,6 @@ struct pcb {
 	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
 };
 
-/*
- * The pcb is augmented with machine-dependent additional data for
- * core dumps. For the i386: ???
- */
-struct md_coredump {
-#ifdef lint
-	int dummy;
-#endif
-};
-
 #ifdef _KERNEL
 void	savectx(struct pcb *);
 #endif
