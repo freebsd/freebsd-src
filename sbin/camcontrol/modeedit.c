@@ -291,10 +291,13 @@ edit_done(void)
 static void
 edit_init(void)
 {
+	int fd;
+
 	edit_rewind();
-	if (tmpnam(edit_name) == 0)
-		errx(1, "tmpnam failed");
-	if ((edit_file = fopen(edit_name, "w")) == 0)
+	strlcpy(edit_name, "/tmp/camXXXXXX", sizeof(edit_name));
+	if ((fd = mkstemp(edit_name)) == -1)
+		errx(1, "mkstemp failed");
+	if ((edit_file = fdopen(fd, "w")) == 0)
 		err(1, "%s", edit_name);
 	edit_opened = 1;
 
