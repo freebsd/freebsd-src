@@ -125,8 +125,8 @@ agp_amd_alloc_gatt(device_t dev)
 
 	gatt->ag_pdir = vtophys((vm_offset_t) gatt->ag_vdir);
 	if(bootverbose)
-		device_printf(dev, "gatt -> ag_pdir %8x\n",
-				(vm_offset_t)gatt->ag_pdir);
+		device_printf(dev, "gatt -> ag_pdir %p\n",
+		    (caddr_t)gatt->ag_pdir);
 	/*
 	 * Allocate the gatt pages
 	 */
