@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.177 2002/09/15 17:43:48 bouyer Exp $ */
+/* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
@@ -446,6 +446,7 @@ vendor RPTI			-1 	RPTI
 vendor SVEC			-1	SVEC/Hawking Technology
 vendor SYNERGY21		-1	Synergy 21
 vendor TEAC			-1	TEAC
+vendor TOSHIBA			-1	TOSHIBA
 vendor WORKBIT2			-1	WORKBIT
 vendor YEDATA			-1 	Y-E DATA
 vendor YIS			-1	YIS Corporation
@@ -459,8 +460,9 @@ product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NU
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
+product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionton Systems Inc. CFLT10N Ethernet
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
-product CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
++product BILLIONTON CFLT10N     { "CF", "10Base-Ethernet", "1.0", NULL } Billionproduct CNET NE2000		{ "CNet", "CN40BC&spEthernet", "D", "NE2000" } CNet CN40BC NE2000 Compatible
 product COREGA ETHER_PCC_T	{ "corega&spK.K.", "corega&spEther&spPCC-T", NULL, NULL } Corega Ether PCC-T
 product COREGA ETHER_PCC_TD	{ "corega&spK.K.", "corega&spEther&spPCC-TD", NULL, NULL } Corega Ether PCC-TD
 product COREGA ETHER_II_PCC_T	{ "corega&spK.K.", "corega&spEtherII&spPCC-T", NULL, NULL } Corega EtherII PCC-T
@@ -471,6 +473,7 @@ product COREGA FETHER_PCC_TXF	{ "corega", "FEther&spPCC-TXF", NULL, NULL } Coreg
 product COREGA WIRELESS_LAN_PCC_11	{ "corega&spK.K.", "Wireless&spLAN&spPCC-11", NULL, NULL } Corega Wireless LAN PCC-11
 product COREGA WIRELESS_LAN_PCCA_11	{ "corega&spK.K.", "Wireless&spLAN&spPCCA-11", NULL, NULL } Corega Wireless LAN PCCA-11
 product COREGA WIRELESS_LAN_PCCB_11	{ "corega_K.K.", "Wireless_LAN_PCCB-11", NULL, NULL } Corega Wireless LAN PCCB-11
+product COREGA WIRELESS_LAN_PCCL_11    { "corega", "WL&spPCCL-11", NULL, NULL } Corega Wireless LAN PCCL-11
 
 product DIGITAL DEPCMXX		{ "DIGITAL", "DEPCM-XX", NULL, NULL } DEC DEPCM-BA
 product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
@@ -539,6 +542,7 @@ product SVEC LANCARD		{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL
 product SVEC PN650TX		-1 SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card
 product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
 product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
+product TOSHIBA CBIDE2         { "LOOKMEET", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } TOSHIBA PA2673U CBIDE2/16-bit mode (IO-DATA OEM)
 product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
 product XIRCOM CFE_10		{ "Xircom", "CompactCard&spEthernet", "CFE-10", "1.00" } Xircom CompactCard CFE-10
 product YEDATA EXTERNAL_FDD	{ "Y-E&spDATA", "External&spFDD", NULL, NULL } Y-E DATA External FDD
