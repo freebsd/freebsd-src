@@ -1081,8 +1081,9 @@ void
 pmap_pinit(pmap)
 	register struct pmap *pmap;
 {
-	vm_page_t ptdpg[NPGPTD];
+	vm_page_t m, ptdpg[NPGPTD];
 	vm_paddr_t pa;
+	static int color;
 	int i;
 
 	/*
@@ -1112,16 +1113,19 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page(s)
 	 */
-	for (i = 0; i < NPGPTD; i++) {
-		VM_OBJECT_LOCK(pmap->pm_pteobj);
-		ptdpg[i] = vm_page_grab(pmap->pm_pteobj, PTDPTDI + i,
-		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED |
+	for (i = 0; i < NPGPTD;) {
+		m = vm_page_alloc(NULL, color++,
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
-		vm_page_lock_queues();
-		vm_page_flag_clear(ptdpg[i], PG_BUSY);
-		ptdpg[i]->valid = VM_PAGE_BITS_ALL;
-		vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
+		if (m == NULL)
+			VM_WAIT;
+		else {
+			vm_page_lock_queues();
+			vm_page_flag_clear(m, PG_BUSY);
+			m->valid = VM_PAGE_BITS_ALL;
+			vm_page_unlock_queues();
+			ptdpg[i++] = m;
+		}
 	}
 
 	pmap_qenter((vm_offset_t)pmap->pm_pdir, ptdpg, NPGPTD);
