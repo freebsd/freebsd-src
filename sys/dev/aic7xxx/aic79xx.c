@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#201 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#202 $
  *
  * $FreeBSD$
  */
@@ -224,6 +224,11 @@ static u_int		ahd_resolve_seqaddr(struct ahd_softc *ahd,
 static void		ahd_download_instr(struct ahd_softc *ahd,
 					   u_int instrptr, uint8_t *dconsts);
 static int		ahd_probe_stack_size(struct ahd_softc *ahd);
+static int		ahd_scb_active_in_fifo(struct ahd_softc *ahd,
+					       struct scb *scb);
+static void		ahd_run_data_fifo(struct ahd_softc *ahd,
+					  struct scb *scb);
+
 #ifdef AHD_TARGET_MODE
 static void		ahd_queue_lstate_event(struct ahd_softc *ahd,
 					       struct ahd_tmode_lstate *lstate,
@@ -328,10 +333,7 @@ ahd_restart(struct ahd_softc *ahd)
 	/* Always allow reselection */
 	ahd_outb(ahd, SCSISEQ1,
 		 ahd_inb(ahd, SCSISEQ_TEMPLATE) & (ENSELI|ENRSELI|ENAUTOATNP));
-	/* Ensure that no DMA operations are in progress */
 	ahd_set_modes(ahd, AHD_MODE_CCHAN, AHD_MODE_CCHAN);
-	ahd_outb(ahd, SCBHCNT, 0);
-	ahd_outb(ahd, CCSCBCTL, CCSCBRESET);
 	ahd_outb(ahd, SEQCTL0, FASTMODE|SEQRESET);
 	ahd_unpause(ahd);
 }
@@ -371,8 +373,86 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 	u_int		next_scbid;
 
 	saved_modes = ahd_save_modes(ahd);
-	ahd_set_modes(ahd, AHD_MODE_CCHAN, AHD_MODE_CCHAN);
+
+	/*
+	 * Complete any SCBs that just finished being
+	 * DMA'ed into the qoutfifo.
+	 */
+	ahd_run_qoutfifo(ahd);
+
+	/*
+	 * Flush the good status FIFO for compelted packetized commands.
+	 */
+	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
 	saved_scbptr = ahd_get_scbptr(ahd);
+	while ((ahd_inb(ahd, LQISTAT2) & LQIGSAVAIL) != 0) {
+		u_int fifo_mode;
+		u_int i;
+		
+		scbid = (ahd_inb(ahd, GSFIFO+1) << 8)
+		      | ahd_inb(ahd, GSFIFO);
+		scb = ahd_lookup_scb(ahd, scbid);
+		if (scb == NULL) {
+			printf("%s: Warning - GSFIFO SCB %d invalid\n",
+			       ahd_name(ahd), scbid);
+			continue;
+		}
+		/*
+		 * Determine if this transaction is still active in
+		 * any FIFO.  If it is, we must flush that FIFO to
+		 * the host before completing the  command.
+		 */
+		fifo_mode = 0;
+		for (i = 0; i < 2; i++) {
+			/* Toggle to the other mode. */
+			fifo_mode ^= 1;
+			ahd_set_modes(ahd, fifo_mode, fifo_mode);
+			if (ahd_scb_active_in_fifo(ahd, scb) == 0)
+				continue;
+
+			ahd_run_data_fifo(ahd, scb);
+
+			/*
+			 * Clearing this transaction in this FIFO may
+			 * cause a CFG4DATA for this same transaction
+			 * to assert in the other FIFO.  Make sure we
+			 * loop one more time and check the other FIFO.
+			 */
+			i = 0;
+		}
+		ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
+		ahd_set_scbptr(ahd, scbid);
+		if ((ahd_inb_scbram(ahd, SCB_SGPTR) & SG_LIST_NULL) == 0
+		 && ((ahd_inb_scbram(ahd, SCB_SGPTR) & SG_FULL_RESID) != 0
+		  || (ahd_inb_scbram(ahd, SCB_RESIDUAL_SGPTR)
+		      & SG_LIST_NULL) != 0)) {
+			u_int comp_head;
+
+			/*
+			 * The transfer completed with a residual.
+			 * Place this SCB on the complete DMA list
+			 * so that we Update our in-core copy of the
+			 * SCB before completing the command.
+			 */
+			ahd_outb(ahd, SCB_SCSI_STATUS, 0);
+			ahd_outb(ahd, SCB_SGPTR,
+				 ahd_inb_scbram(ahd, SCB_SGPTR)
+				 | SG_STATUS_VALID);
+			ahd_outw(ahd, SCB_TAG, SCB_GET_TAG(scb));
+			comp_head = ahd_inw(ahd, COMPLETE_DMA_SCB_HEAD);
+			ahd_outw(ahd, SCB_NEXT_COMPLETE, comp_head);
+			if (SCBID_IS_NULL(comp_head))
+				ahd_outw(ahd, COMPLETE_DMA_SCB_HEAD,
+					 SCB_GET_TAG(scb));
+		} else
+			ahd_complete_scb(ahd, scb);
+	}
+	ahd_set_scbptr(ahd, saved_scbptr);
+
+	/*
+	 * Setup for command channel portion of flush.
+	 */
+	ahd_set_modes(ahd, AHD_MODE_CCHAN, AHD_MODE_CCHAN);
 
 	/*
 	 * Wait for any inprogress DMA to complete and clear DMA state
@@ -390,12 +470,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 	if ((ccscbctl & CCSCBDIR) != 0)
 		ahd_outb(ahd, CCSCBCTL, ccscbctl & ~(CCARREN|CCSCBEN));
 
-	/*
-	 * Complete any SCBs that just finished being
-	 * DMA'ed into the qoutfifo.
-	 */
-	ahd_run_qoutfifo(ahd);
-
+	saved_scbptr = ahd_get_scbptr(ahd);
 	/*
 	 * Manually update/complete any completed SCBs that are waiting to be
 	 * DMA'ed back up to the host.
@@ -438,29 +513,276 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 		scbid = next_scbid;
 	}
 	ahd_outw(ahd, COMPLETE_SCB_HEAD, SCB_LIST_NULL);
-	ahd_set_scbptr(ahd, saved_scbptr);
-
-	/*
-	 * Flush the good status FIFO for compelted packetized commands.
-	 */
-	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
-	while ((ahd_inb(ahd, LQISTAT2) & LQIGSAVAIL) != 0) {
-		scbid = (ahd_inb(ahd, GSFIFO+1) << 8)
-		      | ahd_inb(ahd, GSFIFO);
-		scb = ahd_lookup_scb(ahd, scbid);
-		if (scb == NULL) {
-			printf("%s: Warning - GSFIFO SCB %d invalid\n",
-			       ahd_name(ahd), scbid);
-			continue;
-		}
-		ahd_complete_scb(ahd, scb);
-	}
 
 	/*
 	 * Restore state.
 	 */
+	ahd_set_scbptr(ahd, saved_scbptr);
 	ahd_restore_modes(ahd, saved_modes);
 	ahd->flags |= AHD_UPDATE_PEND_CMDS;
+}
+
+/*
+ * Determine if an SCB for a packetized transaction
+ * is active in a FIFO.
+ */
+static int
+ahd_scb_active_in_fifo(struct ahd_softc *ahd, struct scb *scb)
+{
+
+	/*
+	 * The FIFO is only active for our transaction if
+	 * the SCBPTR matches the SCB's ID and the firmware
+	 * has installed a handler for the FIFO or we have
+	 * a pending SAVEPTRS or CFG4DATA interrupt.
+	 */
+	if (ahd_get_scbptr(ahd) != SCB_GET_TAG(scb)
+	 || ((ahd_inb(ahd, LONGJMP_ADDR+1) & INVALID_ADDR) != 0
+	  && (ahd_inb(ahd, SEQINTSRC) & (CFG4DATA|SAVEPTRS)) == 0))
+		return (0);
+
+	return (1);
+}
+
+/*
+ * Run a data fifo to completion for a transaction we know
+ * has completed across the SCSI bus (good status has been
+ * received).  We are already set to the correct FIFO mode
+ * on entry to this routine.
+ *
+ * This function attempts to operate exactly as the firmware
+ * would when running this FIFO.  Care must be taken to update
+ * this routine any time the firmware's FIFO algorithm is
+ * changed.
+ */
+static void
+ahd_run_data_fifo(struct ahd_softc *ahd, struct scb *scb)
+{
+	u_int seqintsrc;
+
+	while (1) {
+		seqintsrc = ahd_inb(ahd, SEQINTSRC);
+		if ((seqintsrc & CFG4DATA) != 0) {
+			uint32_t datacnt;
+			uint32_t sgptr;
+
+			/*
+			 * Clear full residual flag.
+			 */
+			sgptr = ahd_inl_scbram(ahd, SCB_SGPTR) & ~SG_FULL_RESID;
+			ahd_outb(ahd, SCB_SGPTR, sgptr);
+
+			/*
+			 * Load datacnt and address.
+			 */
+			datacnt = ahd_inl_scbram(ahd, SCB_DATACNT);
+			if ((datacnt & AHD_DMA_LAST_SEG) != 0) {
+				sgptr |= LAST_SEG;
+				ahd_outb(ahd, SG_STATE, 0);
+			} else
+				ahd_outb(ahd, SG_STATE, LOADING_NEEDED);
+			ahd_outq(ahd, HADDR, ahd_inq_scbram(ahd, SCB_DATAPTR));
+			ahd_outl(ahd, HCNT, datacnt & AHD_SG_LEN_MASK);
+			ahd_outb(ahd, SG_CACHE_PRE, sgptr);
+			ahd_outb(ahd, DFCNTRL, PRELOADEN|SCSIEN|HDMAEN);
+
+			/*
+			 * Initialize Residual Fields.
+			 */
+			ahd_outb(ahd, SCB_RESIDUAL_DATACNT+3, datacnt >> 24);
+			ahd_outl(ahd, SCB_RESIDUAL_SGPTR, sgptr & SG_PTR_MASK);
+
+			/*
+			 * Mark the SCB as having a FIFO in use.
+			 */
+			ahd_outb(ahd, SCB_FIFO_USE_COUNT,
+				 ahd_inb_scbram(ahd, SCB_FIFO_USE_COUNT) + 1);
+
+			/*
+			 * Install a "fake" handler for this FIFO.
+			 */
+			ahd_outw(ahd, LONGJMP_ADDR, 0);
+
+			/*
+			 * Notify the hardware that we have satisfied
+			 * this sequencer interrupt.
+			 */
+			ahd_outb(ahd, CLRSEQINTSRC, CLRCFG4DATA);
+		} else if ((seqintsrc & SAVEPTRS) != 0) {
+			uint32_t sgptr;
+			uint32_t resid;
+
+			if ((ahd_inb(ahd, LONGJMP_ADDR+1)&INVALID_ADDR) != 0) {
+				/*
+				 * Snapshot Save Pointers.  Clear
+				 * the snapshot and continue.
+				 */
+				ahd_outb(ahd, DFFSXFRCTL, CLRCHN);
+				continue;
+			}
+
+			/*
+			 * Disable S/G fetch so the DMA engine
+			 * is available to future users.
+			 */
+			if ((ahd_inb(ahd, SG_STATE) & FETCH_INPROG) != 0)
+				ahd_outb(ahd, CCSGCTL, 0);
+			ahd_outb(ahd, SG_STATE, 0);
+
+			/*
+			 * Flush the data FIFO.  Strickly only
+			 * necessary for Rev A parts.
+			 */
+			ahd_outb(ahd, DFCNTRL,
+				 ahd_inb(ahd, DFCNTRL) | FIFOFLUSH);
+
+			/*
+			 * Calculate residual.
+			 */
+			sgptr = ahd_inl_scbram(ahd, SCB_RESIDUAL_SGPTR);
+			resid = ahd_inl(ahd, SHCNT);
+			resid |=
+			    ahd_inb_scbram(ahd, SCB_RESIDUAL_DATACNT+3) << 24;
+			ahd_outl(ahd, SCB_RESIDUAL_DATACNT, resid);
+			if ((ahd_inb(ahd, SG_CACHE_SHADOW) & LAST_SEG) == 0) {
+				/*
+				 * Must back up to the correct S/G element.
+				 * Typically this just means resetting our
+				 * low byte to the offset in the SG_CACHE,
+				 * but if we wrapped, we have to correct
+				 * the other bytes of the sgptr too.
+				 */
+				if ((ahd_inb(ahd, SG_CACHE_SHADOW) & 0x80) != 0
+				 && (sgptr & 0x80) == 0)
+					sgptr -= 0x100;
+				sgptr &= ~0xFF;
+				sgptr |= ahd_inb(ahd, SG_CACHE_SHADOW)
+				       & SG_ADDR_MASK;
+				ahd_outl(ahd, SCB_RESIDUAL_SGPTR, sgptr);
+				ahd_outb(ahd, SCB_RESIDUAL_DATACNT + 3, 0);
+			} else if ((resid & AHD_SG_LEN_MASK) == 0) {
+				ahd_outb(ahd, SCB_RESIDUAL_SGPTR,
+					 sgptr | SG_LIST_NULL);
+			}
+			/*
+			 * Save Pointers.
+			 */
+			ahd_outq(ahd, SCB_DATAPTR, ahd_inq(ahd, SHADDR));
+			ahd_outl(ahd, SCB_DATACNT, resid);
+			ahd_outl(ahd, SCB_SGPTR, sgptr);
+			ahd_outb(ahd, CLRSEQINTSRC, CLRSAVEPTRS);
+			ahd_outb(ahd, SEQIMODE,
+				 ahd_inb(ahd, SEQIMODE) | ENSAVEPTRS);
+			/*
+			 * If the data is to the SCSI bus, we are
+			 * done, otherwise wait for FIFOEMP.
+			 */
+			if ((ahd_inb(ahd, DFCNTRL) & DIRECTION) != 0)
+				break;
+		} else if ((ahd_inb(ahd, SG_STATE) & LOADING_NEEDED) != 0) {
+			uint32_t sgptr;
+			uint64_t data_addr;
+			uint32_t data_len;
+			u_int	 dfcntrl;
+
+			/*
+			 * Disable S/G fetch so the DMA engine
+			 * is available to future users.
+			 */
+			if ((ahd_inb(ahd, SG_STATE) & FETCH_INPROG) != 0) {
+				ahd_outb(ahd, CCSGCTL, 0);
+				ahd_outb(ahd, SG_STATE, LOADING_NEEDED);
+			}
+
+			/*
+			 * Wait for the DMA engine to notice that the
+			 * host transfer is enabled and that there is
+			 * space in the S/G FIFO for new segments before
+			 * loading more segments.
+			 */
+			if ((ahd_inb(ahd, DFSTATUS) & PRELOAD_AVAIL) == 0)
+				continue;
+			if ((ahd_inb(ahd, DFCNTRL) & HDMAENACK) == 0)
+				continue;
+
+			/*
+			 * Determine the offset of the next S/G
+			 * element to load.
+			 */
+			sgptr = ahd_inl_scbram(ahd, SCB_RESIDUAL_SGPTR);
+			sgptr &= SG_PTR_MASK;
+			if ((ahd->flags & AHD_64BIT_ADDRESSING) != 0) {
+				struct ahd_dma64_seg *sg;
+
+				sg = ahd_sg_bus_to_virt(ahd, scb, sgptr);
+				data_addr = sg->addr;
+				data_len = sg->len;
+				sgptr += sizeof(*sg);
+			} else {
+				struct	ahd_dma_seg *sg;
+
+				sg = ahd_sg_bus_to_virt(ahd, scb, sgptr);
+				data_addr = sg->len & AHD_SG_HIGH_ADDR_MASK;
+				data_addr <<= 8;
+				data_addr |= sg->addr;
+				data_len = sg->len;
+				sgptr += sizeof(*sg);
+			}
+
+			/*
+			 * Update residual information.
+			 */
+			ahd_outb(ahd, SCB_RESIDUAL_DATACNT+3, data_len >> 24);
+			ahd_outl(ahd, SCB_RESIDUAL_SGPTR, sgptr);
+
+			/*
+			 * Load the S/G.
+			 */
+			if (data_len & AHD_DMA_LAST_SEG) {
+				sgptr |= LAST_SEG;
+				ahd_outb(ahd, SG_STATE, 0);
+			}
+			ahd_outq(ahd, HADDR, data_addr);
+			ahd_outl(ahd, HCNT, data_len & AHD_SG_LEN_MASK);
+			ahd_outb(ahd, SG_CACHE_PRE, sgptr & 0xFF);
+
+			/*
+			 * Advertise the segment to the hardware.
+			 */
+			dfcntrl = ahd_inb(ahd, DFCNTRL)|PRELOADEN|HDMAEN;
+			if ((ahd->features & AHD_NEW_DFCNTRL_OPTS)!=0) {
+				/*
+				 * Use SCSIENWRDIS so that SCSIEN
+				 * is never modified by this
+				 * operation.
+				 */
+				dfcntrl |= SCSIENWRDIS;
+			}
+			ahd_outb(ahd, DFCNTRL, dfcntrl);
+		} else if ((ahd_inb(ahd, SG_CACHE_SHADOW)
+			 & LAST_SEG_DONE) != 0) {
+
+			/*
+			 * Transfer completed to the end of SG list
+			 * and has flushed to the host.
+			 */
+			ahd_outb(ahd, SCB_SGPTR,
+				 ahd_inb_scbram(ahd, SCB_SGPTR) | SG_LIST_NULL);
+			break;
+		} else if ((ahd_inb(ahd, DFSTATUS) & FIFOEMP) != 0) {
+			break;
+		}
+		ahd_delay(200);
+	}
+	/*
+	 * Clear any handler for this FIFO, decrement
+	 * the FIFO use count for the SCB, and release
+	 * the FIFO.
+	 */
+	ahd_outb(ahd, LONGJMP_ADDR + 1, INVALID_ADDR);
+	ahd_outb(ahd, SCB_FIFO_USE_COUNT,
+		 ahd_inb_scbram(ahd, SCB_FIFO_USE_COUNT) - 1);
+	ahd_outb(ahd, DFFSXFRCTL, CLRCHN);
 }
 
 void
@@ -796,7 +1118,8 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			 * attempt to complete this bogus SCB.
 			 */
 			ahd_outb(ahd, SCB_CONTROL,
-				 ahd_inb(ahd, SCB_CONTROL) & ~STATUS_RCVD);
+				 ahd_inb_scbram(ahd, SCB_CONTROL)
+				 & ~STATUS_RCVD);
 		}
 		break;
 	}
@@ -1029,7 +1352,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 					   ROLE_INITIATOR, /*status*/0,
 					   SEARCH_REMOVE);
 		ahd_outb(ahd, SCB_CONTROL,
-			 ahd_inb(ahd, SCB_CONTROL) & ~MK_MESSAGE);
+			 ahd_inb_scbram(ahd, SCB_CONTROL) & ~MK_MESSAGE);
 		break;
 	}
 	case TASKMGMT_FUNC_COMPLETE:
@@ -3200,7 +3523,7 @@ ahd_setup_initiator_msgout(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		       devinfo->target_mask);
 		panic("SCB = %d, SCB Control = %x:%x, MSG_OUT = %x "
 		      "SCB flags = %x", SCB_GET_TAG(scb), scb->hscb->control,
-		      ahd_inb(ahd, SCB_CONTROL), ahd_inb(ahd, MSG_OUT),
+		      ahd_inb_scbram(ahd, SCB_CONTROL), ahd_inb(ahd, MSG_OUT),
 		      scb->flags);
 	}
 
@@ -4428,7 +4751,8 @@ ahd_handle_ign_wide_residue(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 
 		sgptr = ahd_inb_scbram(ahd, SCB_RESIDUAL_SGPTR);
 		if ((sgptr & SG_LIST_NULL) != 0
-		 && (ahd_inb(ahd, SCB_TASK_ATTRIBUTE) & SCB_XFERLEN_ODD) != 0) {
+		 && (ahd_inb_scbram(ahd, SCB_TASK_ATTRIBUTE)
+		     & SCB_XFERLEN_ODD) != 0) {
 			/*
 			 * If the residual occurred on the last
 			 * transfer and the transfer request was
@@ -4529,7 +4853,8 @@ ahd_handle_ign_wide_residue(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			 * correct for subsequent data transfers.
 			 */
 			ahd_outb(ahd, SCB_TASK_ATTRIBUTE,
-			    ahd_inb(ahd, SCB_TASK_ATTRIBUTE) ^ SCB_XFERLEN_ODD);
+			    ahd_inb_scbram(ahd, SCB_TASK_ATTRIBUTE)
+			    ^ SCB_XFERLEN_ODD);
 
 			ahd_outl(ahd, SCB_RESIDUAL_SGPTR, sgptr);
 			ahd_outl(ahd, SCB_RESIDUAL_DATACNT, data_cnt);
@@ -8560,10 +8885,12 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 		if (i++ > AHD_SCB_MAX)
 			break;
 		cur_col = printf("\n%3d FIFO_USE[0x%x] ", SCB_GET_TAG(scb),
-				 ahd_inb(ahd, SCB_FIFO_USE_COUNT));
+				 ahd_inb_scbram(ahd, SCB_FIFO_USE_COUNT));
 		ahd_set_scbptr(ahd, SCB_GET_TAG(scb));
-		ahd_scb_control_print(ahd_inb(ahd, SCB_CONTROL), &cur_col, 60);
-		ahd_scb_scsiid_print(ahd_inb(ahd, SCB_SCSIID), &cur_col, 60);
+		ahd_scb_control_print(ahd_inb_scbram(ahd, SCB_CONTROL),
+				      &cur_col, 60);
+		ahd_scb_scsiid_print(ahd_inb_scbram(ahd, SCB_SCSIID),
+				     &cur_col, 60);
 	}
 	printf("\nTotal %d\n", i);
 
@@ -8592,7 +8919,7 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 	while (!SCBID_IS_NULL(scb_index) && i++ < AHD_SCB_MAX) {
 		ahd_set_scbptr(ahd, scb_index);
 		printf("%d ", scb_index);
-		scb_index = ahd_inw(ahd, SCB_NEXT_COMPLETE);
+		scb_index = ahd_inw_scbram(ahd, SCB_NEXT_COMPLETE);
 	}
 	printf("\n");
 
@@ -8602,7 +8929,7 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 	while (!SCBID_IS_NULL(scb_index) && i++ < AHD_SCB_MAX) {
 		ahd_set_scbptr(ahd, scb_index);
 		printf("%d ", scb_index);
-		scb_index = ahd_inw(ahd, SCB_NEXT_COMPLETE);
+		scb_index = ahd_inw_scbram(ahd, SCB_NEXT_COMPLETE);
 	}
 	printf("\n");
 
@@ -8613,7 +8940,7 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 	while (!SCBID_IS_NULL(scb_index) && i++ < AHD_SCB_MAX) {
 		ahd_set_scbptr(ahd, scb_index);
 		printf("%d ", scb_index);
-		scb_index = ahd_inw(ahd, SCB_NEXT_COMPLETE);
+		scb_index = ahd_inw_scbram(ahd, SCB_NEXT_COMPLETE);
 	}
 	printf("\n");
 	ahd_set_scbptr(ahd, saved_scb_index);
@@ -8692,15 +9019,16 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 	       ahd_name(ahd), ahd_inw(ahd, REG0), ahd_inw(ahd, SINDEX),
 	       ahd_inw(ahd, DINDEX));
 	printf("%s: SCBPTR == 0x%x, SCB_NEXT == 0x%x, SCB_NEXT2 == 0x%x\n",
-	       ahd_name(ahd), ahd_get_scbptr(ahd), ahd_inw(ahd, SCB_NEXT),
-	       ahd_inw(ahd, SCB_NEXT2));
+	       ahd_name(ahd), ahd_get_scbptr(ahd),
+	       ahd_inw_scbram(ahd, SCB_NEXT),
+	       ahd_inw_scbram(ahd, SCB_NEXT2));
 	printf("CDB %x %x %x %x %x %x\n",
-	       ahd_inb(ahd, SCB_CDB_STORE),
-	       ahd_inb(ahd, SCB_CDB_STORE+1),
-	       ahd_inb(ahd, SCB_CDB_STORE+2),
-	       ahd_inb(ahd, SCB_CDB_STORE+3),
-	       ahd_inb(ahd, SCB_CDB_STORE+4),
-	       ahd_inb(ahd, SCB_CDB_STORE+5));
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE),
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE+1),
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE+2),
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE+3),
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE+4),
+	       ahd_inb_scbram(ahd, SCB_CDB_STORE+5));
 	printf("STACK:");
 	for (i = 0; i < ahd->stack_size; i++) {
 		ahd->saved_stack[i] =
@@ -8732,10 +9060,12 @@ ahd_dump_scbs(struct ahd_softc *ahd)
 		ahd_set_scbptr(ahd, i);
 		printf("%3d", i);
 		printf("(CTRL 0x%x ID 0x%x N 0x%x N2 0x%x SG 0x%x, RSG 0x%x)\n",
-		       ahd_inb(ahd, SCB_CONTROL),
-		       ahd_inb(ahd, SCB_SCSIID), ahd_inw(ahd, SCB_NEXT),
-		       ahd_inw(ahd, SCB_NEXT2), ahd_inl(ahd, SCB_SGPTR),
-		       ahd_inl(ahd, SCB_RESIDUAL_SGPTR));
+		       ahd_inb_scbram(ahd, SCB_CONTROL),
+		       ahd_inb_scbram(ahd, SCB_SCSIID),
+		       ahd_inw_scbram(ahd, SCB_NEXT),
+		       ahd_inw_scbram(ahd, SCB_NEXT2),
+		       ahd_inl_scbram(ahd, SCB_SGPTR),
+		       ahd_inl_scbram(ahd, SCB_RESIDUAL_SGPTR));
 	}
 	printf("\n");
 	ahd_set_scbptr(ahd, saved_scb_index);
