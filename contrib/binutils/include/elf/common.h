@@ -106,6 +106,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Old version of PowerPC, this should be removed shortly. */
 #define EM_PPC_OLD	17
 
+/* Cygnus ARC ELF backend.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_ARC 0x9040
 
 /* Cygnus M32R ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_M32R 0x9041
@@ -117,6 +119,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_CYGNUS_D10V	0x7650
 
 
+/* V850 backend magic number.  Written in the absense of an ABI.  */
+#define EM_CYGNUS_V850	0x9080
 
 /* mn10200 and mn10300 backend magic numbers.
    Written in the absense of an ABI.  */

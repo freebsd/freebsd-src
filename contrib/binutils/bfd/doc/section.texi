@@ -12,7 +12,7 @@ Sections are supported in BFD in @code{section.c}.
 * typedef asection::
 * section prototypes::
 @end menu
-@*
+
 @node Section Input, Section Output, Sections, Sections
 @subsection Section input
 When a BFD is opened for reading, the section structures are
@@ -42,7 +42,7 @@ size of the data. An IEEE-695 file doesn't contain raw data in
 sections, but data and relocation expressions intermixed, so
 the data area has to be parsed to get out the data and
 relocations.
-@*
+
 @node Section Output, typedef asection, Section Input, Sections
 @subsection Section output
 To write a new object style BFD, the various sections to be
@@ -81,7 +81,7 @@ structures would look like:
      size            0x103   |
      output_section  --------|
 @end example
-@*
+
 @subsection Link orders
 The data within a section is stored in a @dfn{link_order}.
 These are much like the fixups in @code{gas}.  The link_order
@@ -98,14 +98,15 @@ select whether to relax.  Sometimes relaxing takes a lot of
 time.  The linker runs around the relocations to see if any
 are attached to data which can be shrunk, if so it does it on
 a link_order by link_order basis.
-@*
+
 
 @node typedef asection, section prototypes, Section Output, Sections
 @subsection typedef asection
 Here is the section structure:
-@*
-.
+
+
 @example
+
 typedef struct sec
 @{
         /* The name of the section; the name isn't a copy, the pointer is
@@ -201,7 +202,7 @@ typedef struct sec
            multiple times, the value of a symbol is the amount of
            space it requires, and the largest symbol value is the one
            used).  Most targets have exactly one of these (which we
-	    translate to bfd_com_section_ptr), but ECOFF has two. */
+           translate to bfd_com_section_ptr), but ECOFF has two. */
 #define SEC_IS_COMMON 0x8000
 
         /* The section contains only debugging information.  For
@@ -217,76 +218,76 @@ typedef struct sec
 #define SEC_IN_MEMORY 0x20000
 
         /* The contents of this section are to be excluded by the
-	    linker for executable and shared objects unless those
-	    objects are to be further relocated.  */
+           linker for executable and shared objects unless those
+           objects are to be further relocated.  */
 #define SEC_EXCLUDE 0x40000
 
-	/* The contents of this section are to be sorted by the
-	   based on the address specified in the associated symbol
-	   table.  */
+       /* The contents of this section are to be sorted by the
+          based on the address specified in the associated symbol
+          table.  */
 #define SEC_SORT_ENTRIES 0x80000
 
-	/* When linking, duplicate sections of the same name should be
-	   discarded, rather than being combined into a single section as
-	   is usually done.  This is similar to how common symbols are
-	   handled.  See SEC_LINK_DUPLICATES below.  */
+       /* When linking, duplicate sections of the same name should be
+          discarded, rather than being combined into a single section as
+          is usually done.  This is similar to how common symbols are
+          handled.  See SEC_LINK_DUPLICATES below.  */
 #define SEC_LINK_ONCE 0x100000
 
-	/* If SEC_LINK_ONCE is set, this bitfield describes how the linker
-	   should handle duplicate sections.  */
+       /* If SEC_LINK_ONCE is set, this bitfield describes how the linker
+          should handle duplicate sections.  */
 #define SEC_LINK_DUPLICATES 0x600000
 
-	/* This value for SEC_LINK_DUPLICATES means that duplicate
-	   sections with the same name should simply be discarded. */
+       /* This value for SEC_LINK_DUPLICATES means that duplicate
+          sections with the same name should simply be discarded. */
 #define SEC_LINK_DUPLICATES_DISCARD 0x0
 
-	/* This value for SEC_LINK_DUPLICATES means that the linker
-	   should warn if there are any duplicate sections, although
-	   it should still only link one copy.  */
+       /* This value for SEC_LINK_DUPLICATES means that the linker
+          should warn if there are any duplicate sections, although
+          it should still only link one copy.  */
 #define SEC_LINK_DUPLICATES_ONE_ONLY 0x200000
 
-	/* This value for SEC_LINK_DUPLICATES means that the linker
-	   should warn if any duplicate sections are a different size.  */
+       /* This value for SEC_LINK_DUPLICATES means that the linker
+          should warn if any duplicate sections are a different size.  */
 #define SEC_LINK_DUPLICATES_SAME_SIZE 0x400000
 
-	/* This value for SEC_LINK_DUPLICATES means that the linker
-	   should warn if any duplicate sections contain different
-	   contents.  */
+       /* This value for SEC_LINK_DUPLICATES means that the linker
+          should warn if any duplicate sections contain different
+          contents.  */
 #define SEC_LINK_DUPLICATES_SAME_CONTENTS 0x600000
 
-	/* This section was created by the linker as part of dynamic
-	   relocation or other arcane processing.  It is skipped when
-	   going through the first-pass output, trusting that someone
-	   else up the line will take care of it later.  */
+       /* This section was created by the linker as part of dynamic
+          relocation or other arcane processing.  It is skipped when
+          going through the first-pass output, trusting that someone
+          else up the line will take care of it later.  */
 #define SEC_LINKER_CREATED 0x800000
 
-	/*  End of section flags.  */
+       /*  End of section flags.  */
 
-	/* Some internal packed boolean fields.  */
+       /* Some internal packed boolean fields.  */
 
-	/* See the vma field.  */
-	unsigned int user_set_vma : 1;
+       /* See the vma field.  */
+       unsigned int user_set_vma : 1;
 
-	/* Whether relocations have been processed.  */
-	unsigned int reloc_done : 1;
+       /* Whether relocations have been processed.  */
+       unsigned int reloc_done : 1;
 
-	/* A mark flag used by some of the linker backends.  */
-	unsigned int linker_mark : 1;
+       /* A mark flag used by some of the linker backends.  */
+       unsigned int linker_mark : 1;
 
-	/* End of internal packed boolean fields.  */
+       /* End of internal packed boolean fields.  */
 
        /*  The virtual memory address of the section - where it will be
            at run time.  The symbols are relocated against this.  The
-	    user_set_vma flag is maintained by bfd; if it's not set, the
-	    backend can assign addresses (for example, in @code{a.out}, where
-	    the default address for @code{.data} is dependent on the specific
-	    target and various flags).  */
+           user_set_vma flag is maintained by bfd; if it's not set, the
+           backend can assign addresses (for example, in @code{a.out}, where
+           the default address for @code{.data} is dependent on the specific
+           target and various flags).  */
 
    bfd_vma vma;
 
        /*  The load address of the section - where it would be in a
            rom image; really only used for writing section header
-	    information. */
+           information. */
 
    bfd_vma lma;
 
@@ -297,8 +298,8 @@ typedef struct sec
    bfd_size_type _cooked_size;
 
         /* The original size on disk of the section, in bytes.  Normally this
-	    value is the same as the size, but if some relaxing has
-	    been done, then this value will be bigger.  */
+           value is the same as the size, but if some relaxing has
+           been done, then this value will be bigger.  */
 
    bfd_size_type _raw_size;
 
@@ -383,7 +384,7 @@ typedef struct sec
 
    bfd *owner;
 
-	 /* A symbol which points at this section only */
+        /* A symbol which points at this section only */
    struct symbol_cache_entry *symbol;
    struct symbol_cache_entry **symbol_ptr_ptr;
 
@@ -393,7 +394,7 @@ typedef struct sec
 
     /* These sections are global, and are managed by BFD.  The application
        and target back end are not permitted to change the values in
-	these sections.  New code should use the section_ptr macros rather
+       these sections.  New code should use the section_ptr macros rather
        than referring directly to the const sections.  The const sections
        may eventually vanish.  */
 #define BFD_ABS_SECTION_NAME "*ABS*"
@@ -430,7 +431,7 @@ extern const struct symbol_cache_entry * const bfd_ind_symbol;
 @node section prototypes,  , typedef asection, Sections
 @subsection Section prototypes
 These are the functions exported by the section handling part of BFD.
-@*
+
 @findex bfd_get_section_by_name
 @subsubsection @code{bfd_get_section_by_name}
 @strong{Synopsis}
@@ -446,7 +447,7 @@ This should only be used in special cases; the normal way to process
 all sections of a given name is to use @code{bfd_map_over_sections} and
 @code{strcmp} on the name (or better yet, base it on the section flags
 or something else) for each section.
-@*
+
 @findex bfd_make_section_old_way
 @subsubsection @code{bfd_make_section_old_way}
 @strong{Synopsis}
@@ -473,7 +474,7 @@ If output has already started for this BFD.
 @code{bfd_error_no_memory} -
 If memory allocation fails.
 @end itemize
-@*
+
 @findex bfd_make_section_anyway
 @subsubsection @code{bfd_make_section_anyway}
 @strong{Synopsis}
@@ -493,7 +494,7 @@ Return @code{NULL} and set @code{bfd_error} on error; possible errors are:
 @item
 @code{bfd_error_no_memory} - If memory allocation fails.
 @end itemize
-@*
+
 @findex bfd_make_section
 @subsubsection @code{bfd_make_section}
 @strong{Synopsis}
@@ -505,7 +506,7 @@ Like @code{bfd_make_section_anyway}, but return @code{NULL} (without calling
 bfd_set_error ()) without changing the section chain if there is already a
 section named @var{name}.  If there is an error, return @code{NULL} and set
 @code{bfd_error}.
-@*
+
 @findex bfd_set_section_flags
 @subsubsection @code{bfd_set_section_flags}
 @strong{Synopsis}
@@ -525,7 +526,7 @@ The section cannot have one or more of the attributes
 requested. For example, a .bss section in @code{a.out} may not
 have the @code{SEC_HAS_CONTENTS} field set.
 @end itemize
-@*
+
 @findex bfd_map_over_sections
 @subsubsection @code{bfd_map_over_sections}
 @strong{Synopsis}
@@ -542,18 +543,18 @@ attached to the BFD @var{abfd}, passing @var{obj} as an
 argument. The function will be called as if by
 
 @example
-	func(abfd, the_section, obj);
+       func(abfd, the_section, obj);
 @end example
 
 This is the prefered method for iterating over sections; an
 alternative would be to use a loop:
 
 @example
-	   section *p;
-	   for (p = abfd->sections; p != NULL; p = p->next)
-	      func(abfd, p, ...)
+          section *p;
+          for (p = abfd->sections; p != NULL; p = p->next)
+             func(abfd, p, ...)
 @end example
-@*
+
 @findex bfd_set_section_size
 @subsubsection @code{bfd_set_section_size}
 @strong{Synopsis}
@@ -571,7 +572,7 @@ Possible error returns:
 @code{bfd_error_invalid_operation} -
 Writing has started to the BFD, so setting the size is invalid.
 @end itemize
-@*
+
 @findex bfd_set_section_contents
 @subsubsection @code{bfd_set_section_contents}
 @strong{Synopsis}
@@ -602,7 +603,7 @@ and some more too
 @end itemize
 This routine is front end to the back end function
 @code{_bfd_set_section_contents}.
-@*
+
 @findex bfd_get_section_contents
 @subsubsection @code{bfd_get_section_contents}
 @strong{Synopsis}
@@ -622,7 +623,7 @@ flag set are requested or if the section does not have the
 @code{SEC_HAS_CONTENTS} flag set, then the @var{location} is filled
 with zeroes. If no errors occur, @code{true} is returned, else
 @code{false}.
-@*
+
 @findex bfd_copy_private_section_data
 @subsubsection @code{bfd_copy_private_section_data}
 @strong{Synopsis}
@@ -644,6 +645,6 @@ Not enough memory exists to create private data for @var{osec}.
 @example
 #define bfd_copy_private_section_data(ibfd, isection, obfd, osection) \
      BFD_SEND (obfd, _bfd_copy_private_section_data, \
-		(ibfd, isection, obfd, osection))
+               (ibfd, isection, obfd, osection))
 @end example
-@*
+

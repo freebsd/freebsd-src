@@ -227,6 +227,7 @@ struct external_reloc {
      .word L1 - L2
    The r_offset field holds the difference between the reloc address
    and L2.  */
+#define R_SH_SWITCH8	33		/* 8 bit switch table entry */
 #define R_SH_SWITCH16	25		/* 16 bit switch table entry */
 #define R_SH_SWITCH32	26		/* 32 bit switch table entry */
 
@@ -264,3 +265,5 @@ struct external_reloc {
    label within a block of instructions.  This permits the linker to
    avoid swapping instructions which are the targets of branches.  */
 #define R_SH_LABEL	32		/* label */
+
+/* NB: R_SH_SWITCH8 is 33 */

@@ -1,5 +1,14 @@
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
+/* Configured target name.  */
+#undef TARGET
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 #undef NEED_DECLARATION_STRSTR
 
@@ -28,12 +37,6 @@
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #undef HAVE_SYS_WAIT_H
 
-/* Define if you have <vfork.h>.  */
-#undef HAVE_VFORK_H
-
-/* Define to `int' if <sys/types.h> doesn't define.  */
-#undef pid_t
-
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
@@ -43,11 +46,8 @@
  */
 #undef STACK_DIRECTION
 
-/* Define if you have the ANSI C header files.  */
-#undef STDC_HEADERS
-
-/* Define vfork as fork if vfork does not work.  */
-#undef vfork
+/* Define if lex declares yytext as a char * by default, not a char[].  */
+#undef YYTEXT_POINTER
 
 /* Is the type time_t defined in <time.h>?  */
 #undef HAVE_TIME_T_IN_TIME_H

@@ -1,6 +1,6 @@
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 ** NOTE: libbfd.h is a GENERATED file.  Don't change it; instead,
@@ -24,9 +24,13 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Align an address upward to a boundary, expressed as a number of bytes.
-   E.g. align to an 8-byte boundary with argument of 8.  */
-#define BFD_ALIGN(this, boundary) \
-  ((( (this) + ((boundary) -1)) & (~((boundary)-1))))
+   E.g. align to an 8-byte boundary with argument of 8.  Take care never
+   to wrap around if the address is within boundary-1 of the end of the
+   address space.  */
+#define BFD_ALIGN(this, boundary)					\
+  ((((bfd_vma) (this) + (boundary) - 1) >= (bfd_vma) (this))		\
+   ? (((bfd_vma) (this) + ((boundary) - 1)) & (~((boundary)-1)))	\
+   : ~ (bfd_vma) 0)
 
 /* If you want to read and write large blocks, you might want to do it
    in quanta of this amount */
@@ -347,6 +351,11 @@ extern asymbol *_bfd_generic_minisymbol_to_symbol
 extern boolean _bfd_stab_section_find_nearest_line
   PARAMS ((bfd *, asymbol **, asection *, bfd_vma, boolean *, const char **,
 	   const char **, unsigned int *, PTR *));
+
+/* Find the nearest line using DWARF 2 debugging information.  */
+extern boolean _bfd_dwarf2_find_nearest_line
+  PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
+	   const char **, unsigned int *));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc

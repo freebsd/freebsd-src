@@ -1,6 +1,6 @@
 @section Opening and closing BFDs
 
-@*
+
 @findex bfd_openr
 @subsubsection @code{bfd_openr}
 @strong{Synopsis}
@@ -16,7 +16,7 @@ that function.
 
 If @code{NULL} is returned then an error has occured.   Possible errors
 are @code{bfd_error_no_memory}, @code{bfd_error_invalid_target} or @code{system_call} error.
-@*
+
 @findex bfd_fdopenr
 @subsubsection @code{bfd_fdopenr}
 @strong{Synopsis}
@@ -40,7 +40,7 @@ assume no cacheing; the file descriptor will remain open until
 files.
 
 Possible errors are @code{bfd_error_no_memory}, @code{bfd_error_invalid_target} and @code{bfd_error_system_call}.
-@*
+
 @findex bfd_openstreamr
 @subsubsection @code{bfd_openstreamr}
 @strong{Synopsis}
@@ -50,7 +50,7 @@ bfd *bfd_openstreamr(const char *, const char *, PTR);
 @strong{Description}@*
 Open a BFD for read access on an existing stdio stream.  When
 the BFD is passed to @code{bfd_close}, the stream will be closed.
-@*
+
 @findex bfd_openw
 @subsubsection @code{bfd_openw}
 @strong{Synopsis}
@@ -63,7 +63,7 @@ file format @var{target}, and return a pointer to it.
 
 Possible errors are @code{bfd_error_system_call}, @code{bfd_error_no_memory},
 @code{bfd_error_invalid_target}.
-@*
+
 @findex bfd_close
 @subsubsection @code{bfd_close}
 @strong{Synopsis}
@@ -80,10 +80,10 @@ All memory attached to the BFD is released.
 
 The file descriptor associated with the BFD is closed (even
 if it was passed in to BFD by @code{bfd_fdopenr}).
-@*
+
 @strong{Returns}@*
 @code{true} is returned if all is ok, otherwise @code{false}.
-@*
+
 @findex bfd_close_all_done
 @subsubsection @code{bfd_close_all_done}
 @strong{Synopsis}
@@ -100,10 +100,10 @@ If the created file is executable, then @code{chmod} is called
 to mark it as such.
 
 All memory attached to the BFD is released.
-@*
+
 @strong{Returns}@*
 @code{true} is returned if all is ok, otherwise @code{false}.
-@*
+
 @findex bfd_create
 @subsubsection @code{bfd_create}
 @strong{Synopsis}
@@ -115,7 +115,7 @@ Create a new BFD in the manner of
 @code{bfd_openw}, but without opening a file. The new BFD
 takes the target from the target used by @var{template}. The
 format is always set to @code{bfd_object}.
-@*
+
 @findex bfd_alloc
 @subsubsection @code{bfd_alloc}
 @strong{Synopsis}
@@ -125,4 +125,4 @@ PTR bfd_alloc (bfd *abfd, size_t wanted);
 @strong{Description}@*
 Allocate a block of @var{wanted} bytes of memory attached to
 @code{abfd} and return a pointer to it.
-@*
+

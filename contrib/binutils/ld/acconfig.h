@@ -1,4 +1,10 @@
 
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 #undef NEED_DECLARATION_STRSTR
 

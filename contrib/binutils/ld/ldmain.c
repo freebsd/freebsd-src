@@ -191,6 +191,7 @@ main (argc, argv)
   command_line.force_common_definition = false;
   command_line.interpreter = NULL;
   command_line.rpath = NULL;
+  command_line.warn_mismatch = true;
 
   link_info.callbacks = &link_callbacks;
   link_info.relocateable = false;

@@ -1,5 +1,11 @@
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#undef PACKAGE
+
+/* Version of package.  */
+#undef VERSION
+
 /* Define if you have the <stdlib.h> header file.  */
 #undef HAVE_STDLIB_H
 

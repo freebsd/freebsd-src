@@ -1,5 +1,5 @@
 /* output-file.c -  Deal with the output file
-   Copyright (C) 1987, 90, 91, 93, 92, 94, 95, 1996
+   Copyright (C) 1987, 90, 91, 93, 92, 94, 95, 96, 1998
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -56,6 +56,8 @@ output_file_create (name)
 #ifdef BFD_ASSEMBLER
   bfd_set_arch_mach (stdoutput, TARGET_ARCH, TARGET_MACH);
 #endif
+  if (flag_traditional_format)
+    stdoutput->flags |= BFD_TRADITIONAL_FORMAT;
 }
 
 void

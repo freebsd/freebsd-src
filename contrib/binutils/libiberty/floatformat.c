@@ -51,6 +51,14 @@ const struct floatformat floatformat_ieee_double_little =
   floatformat_little, 64, 0, 1, 11, 1023, 2047, 12, 52, floatformat_intbit_no
 };
 
+/* floatformat for IEEE double, little endian byte order, with big endian word
+   ordering, as on the ARM.  */
+
+const struct floatformat floatformat_ieee_double_littlebyte_bigword =
+{
+  floatformat_littlebyte_bigword, 64, 0, 1, 11, 1023, 2047, 12, 52, floatformat_intbit_no
+};
+
 const struct floatformat floatformat_i387_ext =
 {
   floatformat_little, 80, 0, 1, 15, 0x3fff, 0x7fff, 16, 64,

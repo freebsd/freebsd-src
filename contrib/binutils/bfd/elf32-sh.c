@@ -1,5 +1,5 @@
 /* Hitachi SH specific support for 32-bit ELF
-   Copyright 1996 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -694,7 +694,7 @@ sh_elf_relax_section (abfd, sec, link_info, again)
 	  continue;
 	}
 
-      /* Read the local symbols.  */
+      /* Read this BFD's symbols if we haven't done so already.  */
       if (extsyms == NULL)
 	{
 	  if (symtab_hdr->contents != NULL)
@@ -702,15 +702,13 @@ sh_elf_relax_section (abfd, sec, link_info, again)
 	  else
 	    {
 	      extsyms = ((Elf32_External_Sym *)
-			 bfd_malloc (symtab_hdr->sh_info
-				     * sizeof (Elf32_External_Sym)));
+			 bfd_malloc (symtab_hdr->sh_size));
 	      if (extsyms == NULL)
 		goto error_return;
 	      free_extsyms = extsyms;
 	      if (bfd_seek (abfd, symtab_hdr->sh_offset, SEEK_SET) != 0
-		  || (bfd_read (extsyms, sizeof (Elf32_External_Sym),
-				symtab_hdr->sh_info, abfd)
-		      != (symtab_hdr->sh_info * sizeof (Elf32_External_Sym))))
+		  || (bfd_read (extsyms, 1, symtab_hdr->sh_size, abfd)
+		      != symtab_hdr->sh_size))
 		goto error_return;
 	    }
 	}
@@ -975,13 +973,13 @@ sh_elf_relax_delete_bytes (abfd, sec, addr, count)
 {
   Elf_Internal_Shdr *symtab_hdr;
   Elf32_External_Sym *extsyms;
-  int shndx;
+  int shndx, index;
   bfd_byte *contents;
   Elf_Internal_Rela *irel, *irelend;
   Elf_Internal_Rela *irelalign;
   bfd_vma toaddr;
   Elf32_External_Sym *esym, *esymend;
-  struct elf_link_hash_entry **sym_hash, **sym_hash_end;
+  struct elf_link_hash_entry *sym_hash;
   asection *o;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
@@ -1029,11 +1027,12 @@ sh_elf_relax_delete_bytes (abfd, sec, addr, count)
   /* Adjust all the relocs.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
     {
-      bfd_vma nraddr, start, stop;
+      bfd_vma nraddr, stop;
+      bfd_vma start = 0;
       int insn = 0;
       Elf_Internal_Sym sym;
       int off, adjust, oinsn;
-      bfd_signed_vma voff;
+      bfd_signed_vma voff = 0;
       boolean overflow;
 
       /* Get the new reloc address.  */
@@ -1051,7 +1050,8 @@ sh_elf_relax_delete_bytes (abfd, sec, addr, count)
 	  && irel->r_offset < addr + count
 	  && ELF32_R_TYPE (irel->r_info) != (int) R_SH_ALIGN
 	  && ELF32_R_TYPE (irel->r_info) != (int) R_SH_CODE
-	  && ELF32_R_TYPE (irel->r_info) != (int) R_SH_DATA)
+	  && ELF32_R_TYPE (irel->r_info) != (int) R_SH_DATA
+	  && ELF32_R_TYPE (irel->r_info) != (int) R_SH_LABEL)
 	irel->r_info = ELF32_R_INFO (ELF32_R_SYM (irel->r_info),
 				     (int) R_SH_NONE);
 
@@ -1325,7 +1325,7 @@ sh_elf_relax_delete_bytes (abfd, sec, addr, count)
 	}
     }
 
-  /* Adjust all the symbols.  */
+  /* Adjust the local symbols defined in this section.  */
   esym = extsyms;
   esymend = esym + symtab_hdr->sh_info;
   for (; esym < esymend; esym++)
@@ -1343,19 +1343,23 @@ sh_elf_relax_delete_bytes (abfd, sec, addr, count)
 	}
     }
 
-  sym_hash = elf_sym_hashes (abfd);
-  sym_hash_end = (sym_hash
-		  + (symtab_hdr->sh_size / sizeof (Elf32_External_Sym)
-		     - symtab_hdr->sh_info));
-  for (; sym_hash < sym_hash_end; sym_hash++)
+  /* Now adjust the global symbols defined in this section.  */
+  esym = extsyms + symtab_hdr->sh_info;
+  esymend = extsyms + (symtab_hdr->sh_size / sizeof (Elf32_External_Sym));
+  for (index = 0; esym < esymend; esym++, index++)
     {
-      if (((*sym_hash)->root.type == bfd_link_hash_defined
-	   || (*sym_hash)->root.type == bfd_link_hash_defweak)
-	  && (*sym_hash)->root.u.def.section == sec
-	  && (*sym_hash)->root.u.def.value > addr
-	  && (*sym_hash)->root.u.def.value < toaddr)
+      Elf_Internal_Sym isym;
+
+      bfd_elf32_swap_symbol_in (abfd, esym, &isym);
+      sym_hash = elf_sym_hashes (abfd)[index];
+      if (isym.st_shndx == shndx
+	  && ((sym_hash)->root.type == bfd_link_hash_defined
+	      || (sym_hash)->root.type == bfd_link_hash_defweak)
+	  && (sym_hash)->root.u.def.section == sec
+	  && (sym_hash)->root.u.def.value > addr
+	  && (sym_hash)->root.u.def.value < toaddr)
 	{
-	  (*sym_hash)->root.u.def.value -= count;
+	  (sym_hash)->root.u.def.value -= count;
 	}
     }
 
@@ -1618,6 +1622,8 @@ sh_elf_relocate_section (output_bfd, info, input_bfd, input_section,
       bfd_vma relocation;
       bfd_reloc_status_type r;
 
+      r_symndx = ELF32_R_SYM (rel->r_info);
+
       if (info->relocateable)
 	{
 	  /* This is a relocateable link.  We don't have to change
@@ -1658,8 +1664,6 @@ sh_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	continue;
 
       howto = sh_elf_howto_table + r_type;
-
-      r_symndx = ELF32_R_SYM (rel->r_info);
 
       /* This is a final link.  */
       h = NULL;

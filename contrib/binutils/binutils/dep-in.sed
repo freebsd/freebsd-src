@@ -5,6 +5,7 @@
 s!@INCDIR@!$(INCDIR)!g
 s!@BFDDIR@!$(BFDDIR)!g
 s!@SRCDIR@/!!g
+s!@OBJDIR@/!!g
 
 s/\\\n */ /g
 

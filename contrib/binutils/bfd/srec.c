@@ -1,5 +1,6 @@
 /* BFD back-end for s-record objects.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -406,7 +407,7 @@ srec_scan (abfd)
 	      while ((c = srec_get_byte (abfd, &error)) != EOF
 		     && ! isspace (c))
 		{
-		  if (p - symbuf >= alc)
+		  if ((unsigned int) (p - symbuf) >= alc)
 		    {
 		      char *n;
 

@@ -244,10 +244,10 @@ vfinfo (fp, fmt, arg)
 	      {
 		arelent *relent = va_arg (arg, arelent *);
 	
-		finfo (fp, "%s+0x%v (type %s)",
-		       (*(relent->sym_ptr_ptr))->name,
-		       relent->addend,
-		       relent->howto->name);
+		lfinfo (fp, "%s+0x%v (type %s)",
+			(*(relent->sym_ptr_ptr))->name,
+			relent->addend,
+			relent->howto->name);
 	      }
 	      break;
 	
@@ -305,11 +305,11 @@ vfinfo (fp, fmt, arg)
 		  {
 		    if (functionname != NULL && fmt[-1] == 'G')
 		      {
-			finfo (fp, "%B:", abfd);
+			lfinfo (fp, "%B:", abfd);
 			if (filename != NULL
 			    && strcmp (filename, bfd_get_filename (abfd)) != 0)
 			  fprintf (fp, "%s:", filename);
-			finfo (fp, "%T", functionname);
+			lfinfo (fp, "%T", functionname);
 		      }
 		    else if (functionname != NULL && fmt[-1] == 'C')
 		      {
@@ -326,8 +326,8 @@ vfinfo (fp, fmt, arg)
 			    /* We use abfd->filename in this initial line,
 			       in case filename is a .h file or something
 			       similarly unhelpful.  */
-			    finfo (fp, "%B: In function `%T':\n",
-				   abfd, functionname);
+			    lfinfo (fp, "%B: In function `%T':\n",
+				    abfd, functionname);
 
 			    last_bfd = abfd;
 			    if (last_file != NULL)
@@ -341,24 +341,25 @@ vfinfo (fp, fmt, arg)
 			if (linenumber != 0)
 			  fprintf (fp, "%s:%u", filename, linenumber);
 			else
-			  finfo (fp, "%s(%s+0x%v)", filename, section->name,
-				 offset);
+			  lfinfo (fp, "%s(%s+0x%v)", filename, section->name,
+				  offset);
 		      }
 		    else if (filename == NULL
 			     || strcmp (filename, abfd->filename) == 0)
 		      {
-			finfo (fp, "%B(%s+0x%v)", abfd, section->name, offset);
+			lfinfo (fp, "%B(%s+0x%v)", abfd, section->name,
+				offset);
 			if (linenumber != 0)
-			  finfo (fp, ":%u", linenumber);
+			  lfinfo (fp, ":%u", linenumber);
 		      }
 		    else if (linenumber != 0) 
-		      finfo (fp, "%B:%s:%u", abfd, filename, linenumber);
+		      lfinfo (fp, "%B:%s:%u", abfd, filename, linenumber);
 		    else
-		      finfo (fp, "%B(%s+0x%v):%s", abfd, section->name, offset,
-			     filename);
+		      lfinfo (fp, "%B(%s+0x%v):%s", abfd, section->name,
+			      offset, filename);
 		  }
 		else
-		  finfo (fp, "%B(%s+0x%v)", abfd, section->name, offset);
+		  lfinfo (fp, "%B(%s+0x%v)", abfd, section->name, offset);
 
 		if (discard_last)
 		  {
@@ -496,9 +497,9 @@ minfo (va_alist)
 
 void
 #if USE_STDARG
-finfo (FILE *file, const char *fmt, ...)
+lfinfo (FILE *file, const char *fmt, ...)
 #else
-finfo (va_alist)
+lfinfo (va_alist)
      va_dcl
 #endif
 {

@@ -1,5 +1,5 @@
 /* BFD back-end for ieee-695 objects.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997
+   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
@@ -1646,10 +1646,8 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		  s->flags |= SEC_RELOC;
 		  s->owner->flags |= HAS_RELOC;
 		  s->reloc_count++;
-		  if (r->relent.sym_ptr_ptr == 0)
-		    {
-		      r->relent.sym_ptr_ptr = section->symbol_ptr_ptr;
-		    }
+		  if (r->relent.sym_ptr_ptr == NULL && section != NULL)
+		    r->relent.sym_ptr_ptr = section->symbol_ptr_ptr;
 
 		  if (this_byte (&(ieee->h)) == (int) ieee_comma)
 		    {
@@ -1987,8 +1985,9 @@ ieee_canonicalize_reloc (abfd, section, relptr, symbols)
 	    symbols + src->symbol.index + ieee->external_reference_base_offset;
 	  break;
 	case 0:
-	  src->relent.sym_ptr_ptr =
-	    src->relent.sym_ptr_ptr[0]->section->symbol_ptr_ptr;
+	  if (src->relent.sym_ptr_ptr != NULL)
+	    src->relent.sym_ptr_ptr =
+	      src->relent.sym_ptr_ptr[0]->section->symbol_ptr_ptr;
 	  break;
 	default:
 
@@ -3642,9 +3641,11 @@ ieee_generic_stat_arch_elt (abfd, buf)
      bfd *abfd;
      struct stat *buf;
 {
-  ieee_ar_data_type *ar = abfd->my_archive->tdata.ieee_ar_data;
+  ieee_ar_data_type *ar = (ieee_ar_data_type *) NULL;
   ieee_data_type *ieee;
 
+  if (abfd->my_archive != NULL)
+    ar = abfd->my_archive->tdata.ieee_ar_data;
   if (ar == (ieee_ar_data_type *) NULL)
     {
       bfd_set_error (bfd_error_invalid_operation);

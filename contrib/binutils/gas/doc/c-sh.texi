@@ -1,4 +1,4 @@
-@c Copyright (C) 1991, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @page
@@ -137,11 +137,18 @@ with other development tools.
 @node SH Directives
 @section SH Machine Directives
 
-@cindex SH machine directives (none)
-@cindex machine directives, SH (none)
-@cindex @code{word} directive, SH
-@cindex @code{int} directive, SH
-@code{@value{AS}} has no machine-dependent directives for the SH.
+@cindex SH machine directives
+@cindex machine directives, SH
+@cindex @code{uaword} directive, SH
+@cindex @code{ualong} directive, SH
+
+@table @code
+@item uaword
+@itemx ualong
+@code{@value{AS}} will issue a warning when a misaligned @code{.word} or
+@code{.long} directive is used.  You may use @code{.uaword} or
+@code{.ualong} to indicate that the value is intentionally misaligned.
+@end table
 
 @node SH Opcodes
 @section Opcodes

@@ -91,6 +91,10 @@ typedef struct
   /* If true, generate a cross reference report.  */
   boolean cref;
 
+  /* If true (which is the default), warn about mismatched input
+     files.  */
+  boolean warn_mismatch;
+
   /* Name of shared object whose symbol table should be filtered with
      this shared object.  From the --filter option.  */
   char *filter_shlib;

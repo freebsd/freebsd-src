@@ -1,5 +1,6 @@
 /* cond.c - conditional assembly pseudo-ops, and .include
-   Copyright (C) 1990, 91, 92, 93, 95, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 92, 93, 95, 96, 97, 1998
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -137,6 +138,7 @@ s_if (arg)
     case O_gt: t = operand.X_add_number > 0; break;
     default:
       abort ();
+      return;
     }
 
   /* If the above error is signaled, this will dispatch
@@ -240,6 +242,8 @@ s_ifc (arg)
 
   if (flag_mri)
     mri_comment_end (stop, stopc);
+
+  demand_empty_rest_of_line ();
 }
 
 void 
@@ -301,9 +305,13 @@ s_else (arg)
       if (!current_cframe->dead_tree)
 	{
 	  current_cframe->ignoring = !current_cframe->ignoring;
-	  if (LISTING_SKIP_COND ()
-	      && ! current_cframe->ignoring)
-	    listing_list (1);
+	  if (LISTING_SKIP_COND ())
+	    {
+	      if (! current_cframe->ignoring)
+		listing_list (1);
+	      else
+		listing_list (2);
+	    }
 	}			/* if not a dead tree */
 
       current_cframe->else_seen = 1;

@@ -139,7 +139,7 @@ ldctor_build_sets ()
     {
       struct set_element *e;
       reloc_howto_type *howto;
-      int size;
+      int reloc_size, size;
 
       /* If the symbol is defined, we may have been invoked from
 	 collect, and the sets may already have been built, so we do
@@ -184,12 +184,18 @@ ldctor_build_sets ()
 	    }
 	}
 
-      switch (bfd_get_reloc_size (howto))
+      reloc_size = bfd_get_reloc_size (howto);
+      switch (reloc_size)
 	{
 	case 1: size = BYTE; break;
 	case 2: size = SHORT; break;
 	case 4: size = LONG; break;
-	case 8: size = QUAD; break;
+	case 8:
+	  if (howto->complain_on_overflow == complain_overflow_signed)
+	    size = SQUAD;
+	  else
+	    size = QUAD;
+	  break;
 	default:
 	  einfo ("%P%X: Unsupported size %d for set %s\n",
 		 bfd_get_reloc_size (howto), p->h->root.string);
@@ -197,6 +203,9 @@ ldctor_build_sets ()
 	  break;
 	}
 
+      lang_add_assignment (exp_assop ('=', ".",
+				      exp_unop (ALIGN_K,
+						exp_intop (reloc_size))));
       lang_add_assignment (exp_assop ('=', p->h->root.string,
 				      exp_nameop (NAME, ".")));
       lang_add_data (size, exp_intop ((bfd_vma) p->count));

@@ -82,3 +82,11 @@ extern void alpha_cons_align PARAMS ((int));
 #define tc_frob_file_before_adjust() alpha_frob_file_before_adjust ()
 extern void alpha_frob_file_before_adjust PARAMS ((void));
 #endif
+
+#define DIFF_EXPR_OK   /* foo-. gets turned into PC relative relocs */
+
+#ifdef OBJ_ELF
+#define ELF_TC_SPECIAL_SECTIONS \
+  { ".sdata",   SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  }, \
+  { ".sbss",    SHT_NOBITS,     SHF_ALLOC + SHF_WRITE + SHF_ALPHA_GPREL  },
+#endif
