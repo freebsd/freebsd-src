@@ -36,18 +36,19 @@
 .Dt NUMBER 6
 .Os
 .Sh NAME
-number \- convert Arabic numerals to English
+.Nm number
+.Nd convert Arabic numerals to English
 .Sh SYNOPSIS
 .Nm number
 .Op Fl l
 .Op Ar \&# ...
 .Sh DESCRIPTION
 The
-.Nm number
+.Nm
 utility prints the English equivalent of the number to the standard
 output, with each 10^3 magnitude displayed on a separate line.
 If no argument is specified,
-.Nm number
+.Nm
 reads lines from the standard input.
 .Pp
 The options are as follows:
@@ -57,5 +58,5 @@ Display the number on a single line.
 .El
 .Sh BUGS
 Although
-.Nm number
+.Nm
 understand fractions, it doesn't understand exponents.
