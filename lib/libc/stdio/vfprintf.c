@@ -66,10 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "fvwrite.h"
 
-/* Define FLOATING_POINT to get floating point, HEXFLOAT to get %a. */
-#define	FLOATING_POINT
-#define	HEXFLOAT
-
 union arg {
 	int	intarg;
 	u_int	uintarg;
@@ -91,7 +87,7 @@ union arg {
 	ptrdiff_t *pptrdiffarg;
 	size_t	*psizearg;
 	intmax_t *pintmaxarg;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	double	doublearg;
 	long double longdoublearg;
 #endif
@@ -411,7 +407,7 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 	return (ret);
 }
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 
 #define	dtoa		__dtoa
 #define	freedtoa	__freedtoa
@@ -425,7 +421,7 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
 
 static int exponent(char *, int, int);
 
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 
 /*
  * The size of the buffer we use as scratch space for integer
@@ -474,7 +470,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
 	 * point numbers into several parts, some of which may be empty:
@@ -641,7 +637,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	thousands_sep = '\0';
 	grouping = NULL;
 	convbuf = NULL;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv()->decimal_point;
 #endif
@@ -762,7 +758,7 @@ reswitch:	switch (ch) {
 			}
 			width = n;
 			goto reswitch;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
@@ -836,8 +832,7 @@ reswitch:	switch (ch) {
 			}
 			base = 10;
 			goto number;
-#ifdef FLOATING_POINT
-#ifdef HEXFLOAT
+#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
 			if (ch == 'a') {
@@ -869,7 +864,6 @@ reswitch:	switch (ch) {
 			if (expt == INT_MAX)
 				ox[1] = '\0';
 			goto fp_common;
-#endif	/* HEXFLOAT */
 		case 'e':
 		case 'E':
 			expchar = ch;
@@ -971,7 +965,7 @@ fp_common:
 					lead = expt;
 			}
 			break;
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			/*
 			 * Assignment-like behavior is specified if the
@@ -1176,7 +1170,7 @@ number:			if ((dprec = prec) >= 0)
 		PAD(dprec - size, zeroes);
 
 		/* the string or number proper */
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		if ((flags & FPT) == 0) {
 			PRINT(cp, size);
 		} else {	/* glue together f_p fragments */
@@ -1239,7 +1233,7 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 	if (dtoaresult != NULL)
 		freedtoa(dtoaresult);
 #endif
@@ -1373,7 +1367,7 @@ reswitch:	switch (ch) {
 			}
 			width = n;
 			goto reswitch;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
@@ -1420,11 +1414,9 @@ reswitch:	switch (ch) {
 		case 'i':
 			ADDSARG();
 			break;
-#ifdef FLOATING_POINT
-#ifdef HEXFLOAT
+#ifndef NO_FLOATING_POINT
 		case 'a':
 		case 'A':
-#endif
 		case 'e':
 		case 'E':
 		case 'f':
@@ -1435,7 +1427,7 @@ reswitch:	switch (ch) {
 			else
 				ADDTYPE(T_DOUBLE);
 			break;
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
 		case 'n':
 			if (flags & INTMAXT)
 				ADDTYPE(TP_INTMAXT);
@@ -1555,7 +1547,7 @@ done:
 		    case TP_INTMAXT:
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
 			break;
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 		    case T_DOUBLE:
 			(*argtable) [n].doublearg = va_arg (ap, double);
 			break;
@@ -1612,7 +1604,7 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 }
 
 
-#ifdef FLOATING_POINT
+#ifndef NO_FLOATING_POINT
 
 static int
 exponent(char *p0, int exp, int fmtch)
@@ -1649,4 +1641,4 @@ exponent(char *p0, int exp, int fmtch)
 	}
 	return (p - p0);
 }
-#endif /* FLOATING_POINT */
+#endif /* !NO_FLOATING_POINT */
