@@ -158,7 +158,10 @@ extract_archive ()
   userec (head);		/* And go past it in the archive */
   decode_header (head, &hstat, &head_standard, 1);	/* Snarf fields */
 
-  if (f_confirm && !confirm ("extract", current_file_name))
+  if ((f_confirm && !confirm ("extract", current_file_name)) ||
+      (f_exstdout && head->header.linkflag != LF_OLDNORMAL &&
+       head->header.linkflag != LF_NORMAL &&
+       head->header.linkflag != LF_CONTIG))
     {
       if (head->header.isextended)
 	skip_extended_headers ();
