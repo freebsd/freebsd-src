@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.5 1995/06/27 09:52:59 dfr Exp $
+ *	$Id: link.h,v 1.6 1996/01/30 23:30:20 mpp Exp $
  */
 
 /*
@@ -111,7 +111,7 @@ struct nzlist {
 struct section_dispatch_table {
 	struct so_map *sdt_loaded;	/* List of loaded objects */
 	long	sdt_sods;		/* List of shared objects descriptors */
-	long	sdt_filler1;		/* Unused (was: search rules) */
+	long	sdt_paths;		/* Library search paths */
 	long	sdt_got;		/* Global offset table */
 	long	sdt_plt;		/* Procedure linkage table */
 	long	sdt_rel;		/* Relocation table */
@@ -223,6 +223,7 @@ struct	_dynamic {
 #define LD_STRINGS(x)	((x)->d_un.d_sdt->sdt_strings)
 #define LD_NEED(x)	((x)->d_un.d_sdt->sdt_sods)
 #define LD_BUCKETS(x)	((x)->d_un.d_sdt->sdt_buckets)
+#define LD_PATHS(x)	((x)->d_un.d_sdt->sdt_paths)
 
 #define LD_GOTSZ(x)	((x)->d_un.d_sdt->sdt_plt - (x)->d_un.d_sdt->sdt_got)
 #define LD_RELSZ(x)	((x)->d_un.d_sdt->sdt_hash - (x)->d_un.d_sdt->sdt_rel)
@@ -268,11 +269,13 @@ struct hints_header {
 #define HH_MAGIC	011421044151
 	long		hh_version;	/* Interface version number */
 #define LD_HINTS_VERSION_1	1
+#define LD_HINTS_VERSION_2	2
 	long		hh_hashtab;	/* Location of hash table */
 	long		hh_nbucket;	/* Number of buckets in hashtab */
 	long		hh_strtab;	/* Location of strings */
 	long		hh_strtab_sz;	/* Size of strings */
 	long		hh_ehints;	/* End of hints (max offset in file) */
+	long		hh_dirlist;	/* Colon-separated list of srch dirs */
 };
 
 #define HH_BADMAG(hdr)	((hdr).hh_magic != HH_MAGIC)
