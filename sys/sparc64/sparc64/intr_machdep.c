@@ -65,10 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/bus.h>
+#include <sys/errno.h>
 #include <sys/interrupt.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/vmmeter.h>
 
 #include <machine/frame.h>
@@ -100,71 +103,72 @@ static char *pil_names[] = {
 /* protect the intr_vectors table */
 static struct mtx intr_table_lock;
 
+static void intr_execute_handlers(void *);
 static void intr_stray_level(struct trapframe *);
 static void intr_stray_vector(void *);
-static void update_intrname(int, const char *, int);
+static int intrcnt_setname(const char *, int);
+static void intrcnt_updatename(int, const char *, int);
 
 /*
  * not MPSAFE
  */
 static void
-update_intrname(int vec, const char *name, int ispil)
+intrcnt_updatename(int vec, const char *name, int ispil)
 {
-	char buf[32];
-	char *cp;
-	int off, name_index;
+	static int intrcnt_index, stray_pil_index, stray_vec_index;
+	int name_index;
 
 	if (intrnames[0] == '\0') {
 		/* for bitbucket */
 		if (bootverbose)
 			printf("initalizing intr_countp\n");
-		off = sprintf(intrnames, "???") + 1;
+		intrcnt_setname("???", intrcnt_index++);
 
-		off += sprintf(intrnames + off, "stray") + 1;
+		stray_vec_index = intrcnt_index++;
+		intrcnt_setname("stray", stray_vec_index);
 		for (name_index = 0; name_index < IV_MAX; name_index++)
-			intr_countp[name_index] = 1;
+			intr_countp[name_index] = stray_vec_index;
 
-		off += sprintf(intrnames + off, "pil") + 1;
+		stray_pil_index = intrcnt_index++;
+		intrcnt_setname("pil", stray_pil_index);
 		for (name_index = 0; name_index < PIL_MAX; name_index++)
-			pil_countp[name_index] = 2;
+			pil_countp[name_index] = stray_pil_index;
 	}
 
 	if (name == NULL)
 		name = "???";
 
-	if (snprintf(buf, sizeof(buf), "%s %s%d", name, ispil ? "pil" : "vec",
-	    vec) >= sizeof(buf))
-		goto use_bitbucket;
+	if (!ispil && intr_countp[vec] != stray_vec_index)
+		name_index = intr_countp[vec];
+	else if (ispil && pil_countp[vec] != stray_pil_index)
+		name_index = pil_countp[vec];
+	else
+		name_index = intrcnt_index++;
 
-	/*
-	 * Search for `buf' in `intrnames'.  In the usual case when it is
-	 * not found, append it to the end if there is enough space (the \0
-	 * terminator for the previous string, if any, becomes a separator).
-	 */
-	for (cp = intrnames, name_index = 0; cp != eintrnames &&
-	    name_index < IV_MAX; cp += strlen(cp) + 1, name_index++) {
-		if (*cp == '\0') {
-			if (strlen(buf) >= eintrnames - cp)
-				break;
-			strcpy(cp, buf);
-			goto found;
-		}
-		if (strcmp(cp, buf) == 0)
-			goto found;
-	}
+	if (intrcnt_setname(name, name_index))
+		name_index = 0;
 
-use_bitbucket:
-	name_index = 0;
-found:
 	if (!ispil)
 		intr_countp[vec] = name_index;
 	else
 		pil_countp[vec] = name_index;
 }
 
+static int
+intrcnt_setname(const char *name, int index)
+{
+
+	if (intrnames + (MAXCOMLEN + 1) * index >= eintrnames)
+		return (E2BIG);
+	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
+	return (0);
+}
+
 void
 intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 {
+	char pilname[MAXCOMLEN + 1];
 	u_long ps;
 
 	ps = intr_disable();
@@ -174,7 +178,8 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 		intr_vectors[vec].iv_pri = pri;
 		intr_vectors[vec].iv_vec = vec;
 	}
-	update_intrname(pri, pil_names[pri], 1);
+	snprintf(pilname, MAXCOMLEN + 1, "pil%d: %s", pri, pil_names[pri]);
+	intrcnt_updatename(pri, pilname, 1);
 	intr_handlers[pri] = ihf;
 	intr_restore(ps);
 }
@@ -225,14 +230,34 @@ intr_init2()
 	mtx_init(&intr_table_lock, "ithread table lock", NULL, MTX_SPIN);
 }
 
-/* Schedule a heavyweight interrupt process. */
-static void 
-sched_ithd(void *cookie)
+static void
+intr_execute_handlers(void *cookie)
 {
 	struct intr_vector *iv;
+	struct ithd *ithd;
+	struct intrhand *ih;
 	int error;
 
 	iv = cookie;
+	ithd = iv->iv_ithd;
+	MPASS(ithd != NULL);
+
+	ih = TAILQ_FIRST(&ithd->it_handlers);
+	if (ih->ih_flags & IH_FAST) {
+		/* Execute fast interrupt handlers directly. */
+		critical_enter();
+		TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
+			MPASS(ih->ih_flags & IH_FAST &&
+			    ih->ih_argument != NULL);
+			CTR3(KTR_INTR, "%s: executing handler %p(%p)",
+			    __func__, ih->ih_handler, ih->ih_argument);
+			ih->ih_handler(ih->ih_argument);
+		}
+		critical_exit();
+		return;
+	}
+
+	/* Schedule a heavyweight interrupt process. */
 	error = ithread_schedule(iv->iv_ithd);
 	if (error == EINVAL)
 		intr_stray_vector(iv);
@@ -245,7 +270,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	struct intr_vector *iv;
 	struct ithd *ithd;		/* descriptor for the IRQ */
 	struct ithd *orphan;
-	int errcode = 0;
+	int errcode;
 
 	/*
 	 * Work around a race where more than one CPU may be registering
@@ -256,7 +281,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	ithd = iv->iv_ithd;
 	mtx_unlock_spin(&intr_table_lock);
 	if (ithd == NULL) {
-		errcode = ithread_create(&ithd, vec, 0, NULL, NULL, "intr%d:",
+		errcode = ithread_create(&ithd, vec, 0, NULL, NULL, "vec%d:",
 		    vec);
 		if (errcode)
 			return (errcode);
@@ -274,21 +299,15 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 
 	errcode = ithread_add_handler(ithd, name, handler, arg,
 	    ithread_priority(flags), flags, cookiep);
-	
-	if ((flags & INTR_FAST) == 0 || errcode) {
-		intr_setup(PIL_ITHREAD, intr_fast, vec, sched_ithd, iv);
-		errcode = 0;
-	}
-
 	if (errcode)
 		return (errcode);
 	
-	if (flags & INTR_FAST)
-		intr_setup(PIL_FAST, intr_fast, vec, handler, arg);
+	intr_setup(flags & INTR_FAST ? PIL_FAST : PIL_ITHREAD, intr_fast, vec,
+	    intr_execute_handlers, iv);
 
 	intr_stray_count[vec] = 0;
 
-	update_intrname(vec, name, 0);
+	intrcnt_updatename(vec, ithd->it_td->td_proc->p_comm, 0);
 
 	return (0);
 }
@@ -311,7 +330,8 @@ inthand_remove(int vec, void *cookie)
 			intr_setup(PIL_ITHREAD, intr_fast, vec,
 			    intr_stray_vector, iv);
 		else
-			intr_setup(PIL_LOW, intr_fast, vec, sched_ithd, iv);
+			intr_setup(PIL_LOW, intr_fast, vec,
+			    intr_execute_handlers, iv);
 		mtx_unlock_spin(&intr_table_lock);
 	}
 	return (error);
