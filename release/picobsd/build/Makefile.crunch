@@ -2,7 +2,6 @@
 # $FreeBSD$
 #
 SRC?=/usr/src
-CRUNCHFLAGS+= -DNOPAM -DRELEASE_CRUNCH -DNOSECURE -DNOCRYPT
 
 all: crunch
 
@@ -11,10 +10,9 @@ crunch:
 	@( if [ -f crunch.inc ] ; then \
 		crunchgen -h ./crunch.inc ./crunch1.conf ; \
 	else \
-		crunchgen -h ../../build/crunch.inc ./crunch1.conf ; \
+		crunchgen ./crunch1.conf ; \
 	fi )
-	@${MAKE} -f crunch1.mk $(CRUNCHFLAGS) all \
-	    "CFLAGS=${CFLAGS} ${CRUNCHFLAGS}" #2>&1 >/dev/null
+	@env ${MAKE} -f crunch1.mk all
 	strip --remove-section=.note --remove-section=.comment crunch1
 
 
