@@ -109,6 +109,7 @@ blocks), zero = unlimited
 .It "pw	num	132	page width (in characters)"
 .It "px	num	0	page width in pixels (horizontal)"
 .It "py	num	0	page length in pixels (vertical)"
+.It "rc	bool	false	when sending to a remote host, resend copies (see below)"
 .It "rf	str" Ta Dv NULL Ta No "filter for printing"
 .Tn FORTRAN
 style text files
@@ -157,6 +158,7 @@ Each two-letter capability has a human-readable alternate name.
 .It "pw	page.width"
 .It "px	page.pwidth"
 .It "py	page.plength"
+.It "rc	remote.resend_copies"
 .It "rf	filt.fortran"
 .It "rg	daemon.restrictgrp"
 .It "rm	remote.host"
@@ -324,6 +326,24 @@ Any input filtering via
 will therefore happen before
 .Xr pr 1
 is executed rather than afterwards.
+.Pp
+There are some models of network printers which accept jobs from
+.Xr lpd 8 , but they ignore the control file for a job and simply print
+each data file as it arrives at the printer.
+One side-effect of this behavior is that the printer will ignore any request
+for multiple copies as given with the
+.Fl #
+flag on the
+.Xr lpr 1 command.
+The
+.Cm rc
+entry will cause
+.Xr lpd 8 to resend each data file for each copy that the user
+originally requested.
+Note that the
+.Cm rc
+entry should only be specified on hosts which send jobs directly to
+the printer.
 .Pp
 If
 .Cm lp

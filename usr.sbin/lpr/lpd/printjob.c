@@ -146,7 +146,7 @@ static void	 scan_out(struct printer *_pp, int _scfd, char *_scsp,
 		    int _dlm);
 static char	*scnline(int _key, char *_p, int _c);
 static int	 sendfile(struct printer *_pp, int _type, char *_file, 
-		    char _format);
+		    char _format, int _copyreq);
 static int	 sendit(struct printer *_pp, char *_file);
 static void	 sendmail(struct printer *_pp, char *_userid, int _bombed);
 static void	 setty(const struct printer *_pp);
@@ -868,7 +868,7 @@ start:
 static int
 sendit(struct printer *pp, char *file)
 {
-	register int i, err = OK;
+	int dfcopies, err, i;
 	char *cp, last[BUFSIZ];
 
 	/*
@@ -895,6 +895,7 @@ sendit(struct printer *pp, char *file)
 	/*
 	 * pass 1
 	 */
+	err = OK;
 	while (getline(cfp)) {
 	again:
 		if (line[0] == 'S') {
@@ -925,11 +926,14 @@ sendit(struct printer *pp, char *file)
 		} else if (line[0] == 'I') {
 			strlcpy(indent+2, line + 1, sizeof(indent) - 2);
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
+			dfcopies = 1;
 			strcpy(last, line);
-			while ((i = getline(cfp)) != 0)
-				if (strcmp(last, line))
+			while ((i = getline(cfp)) != 0) {
+				if (strcmp(last, line) != 0)
 					break;
-			switch (sendfile(pp, '\3', last+1, *last)) {
+				dfcopies++;
+			}
+			switch (sendfile(pp, '\3', last+1, *last, dfcopies)) {
 			case OK:
 				if (i)
 					goto again;
@@ -945,7 +949,7 @@ sendit(struct printer *pp, char *file)
 			break;
 		}
 	}
-	if (err == OK && sendfile(pp, '\2', file, '\0') > 0) {
+	if (err == OK && sendfile(pp, '\2', file, '\0', 1) > 0) {
 		(void) fclose(cfp);
 		return(REPRINT);
 	}
@@ -969,13 +973,13 @@ sendit(struct printer *pp, char *file)
  * Return positive if we should try resending.
  */
 static int
-sendfile(struct printer *pp, int type, char *file, char format)
+sendfile(struct printer *pp, int type, char *file, char format, int copyreq)
 {
 	int i, amt;
 	struct stat stb;
 	char *av[15], *filtcmd;
 	char buf[BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
-	int filtstat, narg, resp, sfd, sfres, sizerr, statrc;
+	int copycnt, filtstat, narg, resp, sfd, sfres, sizerr, statrc;
 
 	statrc = lstat(file, &stb);
 	if (statrc < 0) {
@@ -1102,7 +1106,15 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		lseek(sfd, 0, SEEK_SET);
 	}
 
-	(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
+	copycnt = 0;
+sendagain:
+	copycnt++;
+
+	if (copycnt < 2)
+		(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
+	else
+		(void) sprintf(buf, "%c%qd %s_c%d\n", type, stb.st_size,
+		    file, copycnt);
 	amt = strlen(buf);
 	for (i = 0;  ; i++) {
 		if (write(pfd, buf, amt) != amt ||
@@ -1121,6 +1133,10 @@ sendfile(struct printer *pp, int type, char *file, char format)
 	}
 	if (i)
 		pstatus(pp, "sending to %s", pp->remote_host);
+	/*
+	 * XXX - we should change trstat_init()/trstat_write() to include
+	 *	 the copycnt in the statistics record it may write.
+	 */
 	if (type == '\3')
 		trstat_init(pp, file, job_dfcnt);
 	for (i = 0; i < stb.st_size; i += BUFSIZ) {
@@ -1146,9 +1162,30 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		sfres = REPRINT;
 		goto return_sfres;
 	}
-	if (type == '\3')
+	if (type == '\3') {
 		trstat_write(pp, TR_SENDING, stb.st_size, logname,
-				 pp->remote_host, origin_host);
+		    pp->remote_host, origin_host);
+		/*
+		 * Usually we only need to send one copy of a datafile,
+		 * because the control-file will simply print the same
+		 * file multiple times.  However, some printers ignore
+		 * the control file, and simply print each data file as
+		 * it arrives.  For such "remote hosts", we need to
+		 * transfer the same data file multiple times.  Such a
+		 * a host is indicated by adding 'rc' to the printcap
+		 * entry.
+		 * XXX - Right now this ONLY works for remote hosts which
+		 *	do ignore the name of the data file, because
+		 *	this sends the file multiple times with slight
+		 *	changes to the filename.  To do this right would
+		 *	require that we also rewrite the control file
+		 *	to match those filenames.
+		 */
+		if (pp->resend_copies && (copycnt < copyreq)) {
+			lseek(sfd, 0, SEEK_SET);
+			goto sendagain;
+		}
+	}
 	sfres = OK;
 
 return_sfres:

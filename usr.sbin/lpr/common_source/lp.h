@@ -72,6 +72,7 @@ struct	printer {
 	long	 page_width;	/* PW: page width */
 	long	 page_pwidth;	/* PX: page width in pixels */
 	long	 page_plength;	/* PY: page length in pixels */
+	long	 resend_copies;	/* RC: resend copies to remote host */
 	char	*restrict_grp;	/* RG: restricted group */
 	char	*remote_host;	/* RM: remote machine name */
 	char	*remote_queue;	/* RP: remote printer name */
