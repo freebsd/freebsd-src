@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.3 1994/08/02 07:54:36 davidg Exp $
+ * $Id: lfs_segment.c,v 1.4 1994/08/20 03:49:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,76 @@
 extern int count_lock_queue __P((void));
 
 #define MAX_ACTIVE	10
+#define MAX_IO_BUFS 256
+#define MAX_IO_SIZE (1024*512)
+int lfs_total_io_size;
+int lfs_total_io_count;
+volatile int lfs_total_free_count;
+int lfs_free_needed;
+int lfs_in_buffer_reclaim;
+struct lfs_freebuf {
+	int	size;
+	caddr_t	address;
+} lfs_freebufs[MAX_IO_BUFS];
+
+void
+lfs_free_buffer( caddr_t address, int size) {
+	lfs_freebufs[lfs_total_free_count].address = address;
+	lfs_freebufs[lfs_total_free_count].size = size;
+	++lfs_total_free_count;
+	if( lfs_free_needed) {
+		wakeup((caddr_t) &lfs_free_needed);
+		lfs_free_needed = 0;
+	}
+}
+
+void
+lfs_reclaim_buffers() {
+	int i,s;
+	int reclaimed = 0;
+	if( lfs_in_buffer_reclaim)
+		return;
+	lfs_in_buffer_reclaim = 1;
+	s = splhigh();
+	for(i=0;i<lfs_total_free_count;i++) {
+		reclaimed = 1;
+		splx(s);
+		free(lfs_freebufs[i].address, M_SEGMENT); 
+		s = splhigh();
+		lfs_total_io_size -= lfs_freebufs[i].size;
+		lfs_total_io_count -= 1;
+	}
+	lfs_in_buffer_reclaim = 0;
+	lfs_total_free_count = 0;
+	splx(s);
+	if( reclaimed) {
+		wakeup((caddr_t) &lfs_free_needed);
+	}
+}
+
+caddr_t
+lfs_alloc_buffer(int size) {
+	int s;
+	caddr_t rtval;
+	if( lfs_total_free_count)
+		lfs_reclaim_buffers();
+	s = splhigh();
+	while( ((lfs_total_io_count+1) >= MAX_IO_BUFS) ||
+			(lfs_total_io_size >= MAX_IO_SIZE)) {
+		lfs_free_needed = 1;
+		tsleep(&lfs_free_needed, PRIBIO, "lfsalc", 0);
+		splx(s);
+		lfs_reclaim_buffers();
+		s = splhigh();
+	}
+	splx(s);
+	lfs_total_io_size += size;
+	lfs_total_io_count += 1;
+	rtval = malloc(size, M_SEGMENT, M_WAITOK);
+	return rtval;
+}
+		
+	
 /*
  * Determine if it's OK to start a partial in this segment, or if we need
  * to go on to a new segment.
@@ -227,7 +297,7 @@ lfs_segwrite(mp, flags)
 		clean = cip->clean;
 		brelse(bp);
 		if (clean <= 2) {
-			printf ("segs clean: %d\n", clean);
+			printf("segs clean: %d\n", clean);
 			wakeup(&lfs_allclean_wakeup);
 			if (error = tsleep(&fs->lfs_avail, PRIBIO + 1,
 			    "lfs writer", 0))
@@ -596,7 +666,7 @@ lfs_updatemeta(sp)
 			 * to get counted for the inode.
 			 */
 			if (bp->b_blkno == -1 && !(bp->b_flags & B_CACHE)) {
-printf ("Updatemeta allocating indirect block: shouldn't happen\n");
+				printf ("Updatemeta allocating indirect block: shouldn't happen\n");
 				ip->i_blocks += btodb(fs->lfs_bsize);
 				fs->lfs_bfree -= btodb(fs->lfs_bsize);
 			}
@@ -858,10 +928,13 @@ lfs_writeseg(fs, sp)
 			     B_LOCKED | B_GATHERED);
 			if (bp->b_flags & B_CALL) {
 				/* if B_CALL, it was created with newbuf */
-				brelvp(bp);
 				if (!(bp->b_flags & B_INVAL))
+/*
 					free(bp->b_data, M_SEGMENT);
-				free(bp, M_SEGMENT);
+*/
+					lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
+/*				free(bp, M_SEGMENT); */
+				relpbuf(bp);
 			} else {
 				bremfree(bp);
 				bp->b_flags |= B_DONE;
@@ -998,10 +1071,12 @@ lfs_newbuf(vp, daddr, size)
 	size_t nbytes;
 
 	nbytes = roundup(size, DEV_BSIZE);
-	bp = malloc(sizeof(struct buf), M_SEGMENT, M_WAITOK);
-	bzero(bp, sizeof(struct buf));
+/*	bp = malloc(sizeof(struct buf), M_SEGMENT, M_WAITOK); */
+	bp = getpbuf();
+/*	bzero(bp, sizeof(struct buf)); */
 	if (nbytes)
-		bp->b_data = malloc(nbytes, M_SEGMENT, M_WAITOK);
+/*		bp->b_data = malloc(nbytes, M_SEGMENT, M_WAITOK); */
+		bp->b_data = lfs_alloc_buffer( nbytes);
 	bgetvp(vp, bp);
 	bp->b_bufsize = size;
 	bp->b_bcount = size;
@@ -1028,18 +1103,25 @@ lfs_callback(bp)
 	if (--fs->lfs_iocount == 0)
 		wakeup(&fs->lfs_iocount);
 
-	brelvp(bp);
+/*
 	free(bp->b_data, M_SEGMENT);
 	free(bp, M_SEGMENT);
+*/
+	lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
+	relpbuf(bp);
 }
 
 void
 lfs_supercallback(bp)
 	struct buf *bp;
 {
-	brelvp(bp);
+	if( bp->b_data)
+		lfs_free_buffer( bp->b_data, roundup( bp->b_bufsize, DEV_BSIZE));
+	relpbuf(bp);
+/*
 	free(bp->b_data, M_SEGMENT);
 	free(bp, M_SEGMENT);
+*/
 }
 
 /*
@@ -1109,3 +1191,5 @@ lfs_vunref(vp)
 	vrele(vp);
 	lfs_no_inactive = 0;
 }
+
+
