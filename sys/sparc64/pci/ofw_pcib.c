@@ -39,7 +39,6 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
-#include <sys/pciio.h>
 
 #include <dev/ofw/openfirm.h>
 

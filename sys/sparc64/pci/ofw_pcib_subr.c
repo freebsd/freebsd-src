@@ -26,6 +26,7 @@
  */
 
 #include "opt_ofw_pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -131,4 +132,3 @@ ofw_pcib_gen_adjust_busrange(device_t bridge, u_int subbus)
 		OFW_PCI_ADJUST_BUSRANGE(device_get_parent(bridge), subbus);
 	}
 }
-

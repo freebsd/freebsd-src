@@ -37,7 +37,7 @@
  * Support for the Sun APB (Advanced PCI Bridge) PCI-PCI bridge.
  * This bridge does not fully comply to the PCI bridge specification, and is
  * therefore not supported by the generic driver.
- * We can use some pf the pcib methods anyway.
+ * We can use some of the pcib methods anyway.
  */
 
 #include "opt_ofw_pci.h"
@@ -45,11 +45,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 
 #include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
 
 #include <machine/bus.h>
 #include <machine/ofw_bus.h>
@@ -76,9 +74,6 @@ struct apb_softc {
 static device_probe_t apb_probe;
 static device_attach_t apb_attach;
 static bus_alloc_resource_t apb_alloc_resource;
-#ifndef OFW_NEWPCI
-static pcib_route_interrupt_t apb_route_interrupt;
-#endif
 
 static device_method_t apb_methods[] = {
 	/* Device interface */
@@ -103,17 +98,11 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	pcib_read_config),
 	DEVMETHOD(pcib_write_config,	pcib_write_config),
-#ifdef OFW_NEWPCI
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_gen_route_interrupt),
-#else
-	DEVMETHOD(pcib_route_interrupt,	apb_route_interrupt),
-#endif
 
 	/* ofw_pci interface */
-#ifdef OFW_NEWPCI
 	DEVMETHOD(ofw_pci_get_node,	ofw_pcib_gen_get_node),
 	DEVMETHOD(ofw_pci_adjust_busrange,	ofw_pcib_gen_adjust_busrange),
-#endif
 
 	{ 0, 0 }
 };
@@ -190,13 +179,7 @@ apb_attach(device_t dev)
 	 */
 	sc->sc_iomap = pci_read_config(dev, APBR_IOMAP, 1);
 	sc->sc_memmap = pci_read_config(dev, APBR_MEMMAP, 1);
-#ifdef OFW_NEWPCI
 	ofw_pcib_gen_setup(dev);
-#else
-	sc->sc_bsc.ops_pcib_sc.dev = dev;
-	sc->sc_bsc.ops_pcib_sc.secbus = pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->sc_bsc.ops_pcib_sc.subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-#endif
 
 	if (bootverbose) {
 		device_printf(dev, "  secondary bus     %d\n",
@@ -210,11 +193,6 @@ apb_attach(device_t dev)
 		apb_map_print(sc->sc_memmap, APB_MEM_SCALE);
 		printf("\n");
 	}
-
-#ifndef OFW_NEWPCI
-	if (sc->sc_bsc.ops_pcib_sc.secbus == 0)
-		panic("apb_attach: APB with uninitialized secbus");
-#endif
 
 	device_add_child(dev, "pci", sc->sc_bsc.ops_pcib_sc.secbus);
 	return (bus_generic_attach(dev));
@@ -233,8 +211,8 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	sc = device_get_softc(dev);
 	/*
 	 * If this is a "default" allocation against this rid, we can't work
-	 * out where it's coming from (we should actually never see these) so we
-	 * just have to punt.
+	 * out where it's coming from (we should actually never see these) so
+	 * we just have to punt.
 	 */
 	if ((start == 0) && (end == ~0)) {
 		device_printf(dev, "can't decode default resource id %d for "
@@ -291,31 +269,3 @@ apb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
 	    count, flags));
 }
-
-#ifndef OFW_NEWPCI
-/*
- * Route an interrupt across a PCI bridge - we need to rely on the firmware
- * here.
- */
-static int
-apb_route_interrupt(device_t pcib, device_t dev, int pin)
-{
-
-	/*
-	 * XXX: ugly loathsome hack:
-	 * We can't use ofw_pci_route_intr() here; the device passed may be
-	 * the one of a bridge, so the original device can't be recovered.
-	 *
-	 * We need to use the firmware to route interrupts, however it has
-	 * no interface which could be used to interpret intpins; instead,
-	 * all assignments are done by device.
-	 *
-	 * The MI pci code will try to reroute interrupts of 0, although they
-	 * are correct; all other interrupts are preinitialized, so if we
-	 * get here, the intline is either 0 (so return 0), or we hit a
-	 * device which was not preinitialized (e.g. hotplugged stuff), in
-	 * which case we are lost.
-	 */
-	return (0);
-}
-#endif /* !OFW_NEWPCI */
