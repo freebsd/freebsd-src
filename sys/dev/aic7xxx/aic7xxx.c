@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.8 1998/10/15 18:21:47 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.9 1998/10/15 23:49:27 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -207,7 +207,8 @@ static void	ahc_compile_devinfo(struct ahc_devinfo *devinfo,
 				    u_int target, char channel);
 static u_int	ahc_abort_wscb(struct ahc_softc *ahc, u_int scbpos, u_int prev);
 static void	ahc_done(struct ahc_softc *ahc, struct scb *scbp);
-static void	ahc_handle_target_cmd(struct ahc_softc *ahc);
+static void	ahc_handle_target_cmd(struct ahc_softc *ahc,
+				      struct target_cmd *cmd);
 static void 	ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat);
 static void	ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat);
 static void	ahc_handle_reqinit(struct ahc_softc *ahc,
@@ -989,12 +990,6 @@ ahc_intr(void *arg)
 			scb_index = ahc->qoutfifo[ahc->qoutfifonext];
 			ahc->qoutfifo[ahc->qoutfifonext++] = SCB_LIST_NULL;
 
-			if (scb_index == TARGET_CMD_CMPLT
-			 && (ahc->flags & AHC_TARGETMODE) != 0) {
-				ahc_handle_target_cmd(ahc);
-				continue;
-			}
-
 			scb = ahc->scb_data->scbarray[scb_index];
 			if (!scb || !(scb->flags & SCB_ACTIVE)) {
 				printf("%s: WARNING no command for scb %d "
@@ -1011,6 +1006,16 @@ ahc_intr(void *arg)
 			if (scb->hscb->residual_SG_count != 0)
 				ahc_calc_residual(scb);
 			ahc_done(ahc, scb);
+		}
+
+		if ((ahc->flags & AHC_TARGETMODE) != 0) {
+			while (ahc->targetcmds[ahc->tqinfifonext].cmd_valid) {
+				struct target_cmd *cmd;
+
+				cmd = &ahc->targetcmds[ahc->tqinfifonext++];
+				ahc_handle_target_cmd(ahc, cmd);
+				cmd->cmd_valid = 0;
+			}
 		}
 	}
 	if (intstat & BRKADRINT) {
@@ -1041,23 +1046,17 @@ ahc_intr(void *arg)
 }
 
 static void
-ahc_handle_target_cmd(struct ahc_softc *ahc)
+ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 {
 	struct	  tmode_tstate *tstate;
 	struct	  tmode_lstate *lstate;
 	struct	  ccb_accept_tio *atio;
-	struct	  target_cmd *cmd;
 	u_int8_t *byte;
 	int	  initiator;
 	int	  target;
 	int	  lun;
 
-	cmd = &ahc->targetcmds[ahc->next_targetcmd];
-	ahc->next_targetcmd++;
-	if (ahc->next_targetcmd >= ahc->num_targetcmds)
-		ahc->next_targetcmd = 0;
-
-	initiator = cmd->icl >> 4;
+	initiator = cmd->initiator_channel >> 4;
 	target = cmd->targ_id;
 	lun    = (cmd->identify & MSG_IDENTIFY_LUNMASK);
 
@@ -2535,18 +2534,10 @@ ahc_init(struct ahc_softc *ahc)
 	if (ahc->scb_data->maxhscbs < AHC_SCB_MAX) {
 		ahc->flags |= AHC_PAGESCBS;
 		ahc->scb_data->maxscbs = AHC_SCB_MAX;
-		if ((ahc->flags & AHC_TARGETMODE) != 0) {
-			/* Steal one slot for TMODE commands */
-			ahc->scb_data->maxscbs--;
-		}
 		printf("%d/%d SCBs\n", ahc->scb_data->maxhscbs,
 		       ahc->scb_data->maxscbs);
 	} else {
 		ahc->scb_data->maxscbs = ahc->scb_data->maxhscbs;
-		if ((ahc->flags & AHC_TARGETMODE) != 0) {
-			/* Steal one slot for TMODE commands */
-			ahc->scb_data->maxscbs--;
-		}
 		ahc->flags &= ~AHC_PAGESCBS;
 		printf("%d SCBs\n", ahc->scb_data->maxhscbs);
 	}
@@ -2761,9 +2752,10 @@ ahc_init(struct ahc_softc *ahc)
 	if ((ahc->flags & AHC_TARGETMODE) != 0) {
 		size_t array_size;
 
-		ahc->num_targetcmds = 32;
-		array_size = ahc->num_targetcmds * sizeof(struct target_cmd);
-		ahc->targetcmds = malloc(array_size, M_DEVBUF, M_NOWAIT);
+		array_size = AHC_TMODE_CMDS * sizeof(struct target_cmd);
+		ahc->targetcmds = contigmalloc(array_size, M_DEVBUF,
+					       M_NOWAIT, 0ul, 0xffffffff,
+					       PAGE_SIZE, 0x10000);
 
 		if (ahc->targetcmds == NULL) {
 			printf("%s: unable to allocate targetcmd array.  "
@@ -2771,8 +2763,11 @@ ahc_init(struct ahc_softc *ahc)
 			return (-1);
 		}
 
-		bzero(ahc->targetcmds, array_size);
-		ahc_outb(ahc, TMODE_CMDADDR_NEXT, 0);
+		/* All target command blocks start out invalid. */
+		for (i = 0; i < AHC_TMODE_CMDS; i++)
+			ahc->targetcmds[i].cmd_valid = 0;
+		ahc_outb(ahc, KERNEL_TQINPOS, 0);
+		ahc_outb(ahc, TQINPOS, 0);
 	}
 
 	/*
@@ -3811,7 +3806,10 @@ ahc_loadseq(struct ahc_softc *ahc)
 	u_int8_t download_consts[4];
 
 	/* Setup downloadable constant table */
+#if 0
+	/* No downloaded constants are currently defined. */
 	download_consts[TMODE_NUMCMDS] = ahc->num_targetcmds;
+#endif
 
 	cur_patch = patches;
 	downloaded = 0;
@@ -4812,9 +4810,9 @@ ahc_dump_targcmd(struct target_cmd *cmd)
 	u_int8_t *last_byte;
 	int i;
 
-	byte = &cmd->icl;
+	byte = &cmd->initiator_channel;
 	/* Debugging info for received commands */
-	last_byte = &cmd[1].icl;
+	last_byte = &cmd[1].initiator_channel;
 
 	i = 0;
 	while (byte < last_byte) {

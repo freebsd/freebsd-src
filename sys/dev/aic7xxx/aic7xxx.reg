@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.4 1997/06/27 19:38:39 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.7 1998/09/15 07:24:16 gibbs Exp $
  */
 
 /*
@@ -763,6 +763,16 @@ register DFSTATUS {
 	bit	FIFOEMP		0x01
 }
 
+register DFWADDR {
+	address			0x95
+	access_mode RW
+}
+
+register DFRADDR {
+	address			0x97
+	access_mode RW
+}
+
 register DFDAT {
 	address			0x099
 	access_mode RW
@@ -1255,10 +1265,14 @@ scratch_ram {
 		size		1
 	}
 	/*
-	 * Offset into the command descriptor array for the next
-	 * available desciptor to use.
+	 * Kernel and sequencer offsets into the queue of
+	 * incoming target mode command descriptors.  The
+	 * queue is full when the ((KERNEL_TQINPOS - TQINPOS) == 1)
 	 */
-	TMODE_CMDADDR_NEXT {
+	KERNEL_TQINPOS {
+		size		1
+	}
+	TQINPOS {                
 		size		1
 	}
 	ARG_1 {
@@ -1360,5 +1374,7 @@ const CMD_GROUP5_BYTE_DELTA	11
 
 /*
  * Number of command descriptors in the command descriptor array.
- */
+ * No longer used, but left here as an example for how downloaded
+ * constantants can be defined.
 const TMODE_NUMCMDS	download
+ */

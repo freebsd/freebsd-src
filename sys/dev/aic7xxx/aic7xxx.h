@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.40 1997/02/25 03:05:35 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.1 1998/09/15 07:24:16 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -68,6 +68,12 @@
 				 * aic7850 has only 3.
 				 */
 
+#define AHC_TMODE_CMDS	256    /*
+				* Ring Buffer of incoming target commands.
+				* We allocate 256 to simplify the logic
+				* in the sequencer by using the natural
+				* wrap point of an 8bit counter.
+				*/
 
 #if defined(__FreeBSD__)
 extern u_long ahc_unit;
@@ -247,13 +253,17 @@ struct scb_data {
  * Connection desciptor for select-in requests in target mode.
  * The first byte is the connecting target, followed by identify
  * message and optional tag information, terminated by 0xFF.  The
- * remainder is the command to execute.
+ * remainder is the command to execute.  The cmd_valid byte is on
+ * an 8 byte boundary to simplify setting it on aic7880 hardware
+ * which only has limited direct access to the DMA FIFO.
  */
 struct target_cmd {
-	u_int8_t	icl;		/* Really only holds Initiator ID */
-	u_int8_t	targ_id;	/* Target ID we were selected at */
-	u_int8_t	identify;	/* Identify message */
-	u_int8_t	bytes[29];
+	u_int8_t initiator_channel;
+	u_int8_t targ_id;	/* Target ID we were selected at */
+	u_int8_t identify;	/* Identify message */
+	u_int8_t bytes[21];
+	u_int8_t cmd_valid;
+	u_int8_t pad[7];
 };
 
 /*
@@ -462,10 +472,11 @@ struct ahc_softc {
 	int			 unsolicited_ints;
 	pcici_t			 pci_config_id;
 
-	/* Hmmm. */
+	/*
+	 * Target incoming command FIFO.
+	 */
 	struct target_cmd	*targetcmds;
-	int			 next_targetcmd;
-	int			 num_targetcmds;
+	u_int8_t		 tqinfifonext;
 
 	/*
 	 * Incoming and outgoing message handling.
