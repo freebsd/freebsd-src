@@ -3,5 +3,6 @@
 PROG=	pwd_mkdb
 SRCS=	pw_scan.c pwd_mkdb.c
 MAN8=	pwd_mkdb.8
+CFLAGS+= -DPASSWD_IGNORE_COMMENTS
 
 .include <bsd.prog.mk>
