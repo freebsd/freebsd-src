@@ -241,9 +241,11 @@ if (${sendmail_enable} != NONE &&
 endif
 .Ed
 .Pp
-To completely prevent any sendmail daemons from starting you must
+To completely prevent any
+.Xr sendmail 8
+daemons from starting, you must
 set the following variables in
-/etc/rc.conf:
+.Pa /etc/rc.conf :
 .Bd -literal -offset indent
 sendmail_enable="NO"
 sendmail_submit_enable="NO"

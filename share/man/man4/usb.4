@@ -104,31 +104,31 @@ A device may operate in different configurations.
 Depending on the
 configuration, the device may present different sets of endpoints
 and interfaces.
-.Pp
-Each device located on a hub has several
-.Xr config 8
-locators:
-.Bl -tag -compact -width xxxxxx
-.It Cd port
-this is the number of the port on the closest upstream hub.
-.It Cd configuration
-this is the configuration the device must be in for this driver to attach.
-This locator does not set the configuration; it is iterated by the bus
-enumeration.
-.It Cd interface
-this is the interface number within a device that an interface driver
-attaches to.
-.It Cd vendor
-this is the 16 bit vendor id of the device.
-.It Cd product
-this is the 16 bit product id of the device.
-.It Cd release
-this is the 16 bit release (revision) number of the device.
-.El
-The first locator can be used to pin down a particular device
-according to its physical position in the device tree.
-The last three locators can be used to pin down a particular
-device according to what device it actually is.
+.\" .Pp
+.\" Each device located on a hub has several
+.\" .Xr config 8
+.\" locators:
+.\" .Bl -tag -compact -width xxxxxx
+.\" .It Cd port
+.\" this is the number of the port on the closest upstream hub.
+.\" .It Cd configuration
+.\" this is the configuration the device must be in for this driver to attach.
+.\" This locator does not set the configuration; it is iterated by the bus
+.\" enumeration.
+.\" .It Cd interface
+.\" this is the interface number within a device that an interface driver
+.\" attaches to.
+.\" .It Cd vendor
+.\" this is the 16 bit vendor id of the device.
+.\" .It Cd product
+.\" this is the 16 bit product id of the device.
+.\" .It Cd release
+.\" this is the 16 bit release (revision) number of the device.
+.\" .El
+.\" The first locator can be used to pin down a particular device
+.\" according to its physical position in the device tree.
+.\" The last three locators can be used to pin down a particular
+.\" device according to what device it actually is.
 .Pp
 The bus enumeration of the
 .Tn USB

@@ -52,13 +52,17 @@ the vnode of the file to be linked
 pathname information about the file
 .El
 .Pp
-The pathname info should NOT be released on exit because it is done
+The pathname info should
+.Em not
+be released on exit because it is done
 by the caller.
-The directory and file vnodes should NOT be released on exit.
+The directory and file vnodes should
+.Em not
+be released on exit.
 .Sh LOCKS
 .Xr VOP_LINK 9
 expects the directory and file vnodes to be locked on entry and will leave
-the vnodes locked on return.  
+the vnodes locked on return.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
@@ -97,12 +101,8 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 .Bl -tag -width Er
 .It Bq Er EMLINK
 The file has too many links.
-.El
-.Bl -tag -width Er
 .It Bq Er EPERM
 The file is immutable.
-.El
-.Bl -tag -width Er
 .It Bq Er EXDEV
 A hard link is not possible between different file systems.
 .El
