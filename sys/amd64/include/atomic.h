@@ -76,6 +76,8 @@
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
+/* egcs 1.1.2+ version */
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
@@ -84,9 +86,23 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 			 : "=m" (*p)			\
 			 :  "0" (*p), "ir" (V)); 	\
 }
+
+#else
+/* gcc <= 2.8 version */
+#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+static __inline void					\
+atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__asm __volatile(MPLOCKED OP			\
+			 : "=m" (*p)			\
+			 : "ir" (V));		 	\
+}
+#endif
 #endif /* KLD_MODULE */
 
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
+
+/* egcs 1.1.2+ version */
 ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
 ATOMIC_ASM(add,	     char,  "addb %2,%0",  v)
@@ -108,25 +124,28 @@ ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
 ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
 
 #else
-#define atomic_set_char(P, V)		(*(u_char*)(P) |= (V))
-#define atomic_clear_char(P, V)		(*(u_char*)(P) &= ~(V))
-#define atomic_add_char(P, V)		(*(u_char*)(P) += (V))
-#define atomic_subtract_char(P, V)	(*(u_char*)(P) -= (V))
 
-#define atomic_set_short(P, V)		(*(u_short*)(P) |= (V))
-#define atomic_clear_short(P, V)	(*(u_short*)(P) &= ~(V))
-#define atomic_add_short(P, V)		(*(u_short*)(P) += (V))
-#define atomic_subtract_short(P, V)	(*(u_short*)(P) -= (V))
+/* gcc <= 2.8 version */
+ATOMIC_ASM(set,	     char,  "orb %1,%0",   v)
+ATOMIC_ASM(clear,    char,  "andb %1,%0", ~v)
+ATOMIC_ASM(add,	     char,  "addb %1,%0",  v)
+ATOMIC_ASM(subtract, char,  "subb %1,%0",  v)
 
-#define atomic_set_int(P, V)		(*(u_int*)(P) |= (V))
-#define atomic_clear_int(P, V)		(*(u_int*)(P) &= ~(V))
-#define atomic_add_int(P, V)		(*(u_int*)(P) += (V))
-#define atomic_subtract_int(P, V)	(*(u_int*)(P) -= (V))
+ATOMIC_ASM(set,	     short, "orw %1,%0",   v)
+ATOMIC_ASM(clear,    short, "andw %1,%0", ~v)
+ATOMIC_ASM(add,	     short, "addw %1,%0",  v)
+ATOMIC_ASM(subtract, short, "subw %1,%0",  v)
 
-#define atomic_set_long(P, V)		(*(u_long*)(P) |= (V))
-#define atomic_clear_long(P, V)		(*(u_long*)(P) &= ~(V))
-#define atomic_add_long(P, V)		(*(u_long*)(P) += (V))
-#define atomic_subtract_long(P, V)	(*(u_long*)(P) -= (V))
+ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
+ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
+ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
+ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
+
+ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
+ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
+ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
+ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
+
 #endif
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
