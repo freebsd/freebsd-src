@@ -13,4 +13,7 @@
 
 load_rc_config 'XXX'
 
-[ "${mta_start_script}" != "/etc/rc.sendmail" ] && sh ${mta_start_script}
+if [ -n "${mta_start_script}" ]; then
+	[ "${mta_start_script}" != "/etc/rc.sendmail" ] && \
+	    sh ${mta_start_script} "$1"
+fi
