@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7 1995/06/11 19:29:56 rgrimes Exp $
+ * $Id: ftp_strat.c,v 1.7.2.1 1995/09/25 00:52:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,20 +55,6 @@
 Boolean ftpInitted;
 static FTP_t ftp;
 extern int FtpPort;
-
-int
-mediaSetFtpUserPass(char *str)
-{
-    char *user, *pass;
-
-    dialog_clear();
-    if ((user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as")) != NULL)
-	variable_set2(FTP_USER, user);
-    if ((pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
-	variable_set2(FTP_PASS, pass);
-    dialog_clear();
-    return 0;
-}
 
 static Boolean
 get_new_host(Device *dev)
@@ -158,24 +144,24 @@ mediaInitFTP(Device *dev)
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
     retries = i = 0;
-    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT))
+    if (optionIsSet(OPT_FTP_RESELECT | OPT_FTP_ABORT))
 	max_retries = 0;
 retry:
     if (i && ++retries > max_retries) {
-	if ((OptFlags & OPT_FTP_ABORT) || !get_new_host(dev))
+	if (optionIsSet(OPT_FTP_ABORT) || !get_new_host(dev))
 	    return FALSE;
 	retries = 0;
     }
     msgNotify("Logging in as %s..", login_name);
     if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
-	if (OptFlags & OPT_NO_CONFIRM)
+	if (optionIsSet(OPT_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
 	else
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
 	goto retry;
     }
 
-    FtpPassive(ftp, (OptFlags & OPT_FTP_PASSIVE) ? 1 : 0);
+    FtpPassive(ftp, optionIsSet(OPT_FTP_PASSIVE) ? 1 : 0);
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
@@ -207,13 +193,13 @@ mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
     Boolean inDists = FALSE;
 
-    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT) || dev->flags & OPT_EXPLORATORY_GET)
+    if (optionIsSet(OPT_FTP_RESELECT + OPT_FTP_ABORT) || dev->flags & OPT_EXPLORATORY_GET)
 	max_retries = 1;
 
     while ((fd = FtpGet(ftp, file)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2 || ++nretries > max_retries) {
-	    if ((OptFlags & OPT_FTP_ABORT) || (dev->flags & OPT_EXPLORATORY_GET))
+	    if (optionIsSet(OPT_FTP_ABORT) || (dev->flags & OPT_EXPLORATORY_GET))
 		return -1;
 	    else if (!get_new_host(dev))
 		return -2;

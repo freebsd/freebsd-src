@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13 1995/06/11 19:30:02 rgrimes Exp $
+ * $Id: main.c,v 1.13.2.1 1995/09/18 17:00:21 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,8 +64,8 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
-    /* Default to passive mode ftp since it's the only thing we currently support :-( */
-    OptFlags |= OPT_FTP_PASSIVE;
+    /* Set default startup options */
+    OptFlags = OPT_DEFAULT_FLAGS;
 
     /* Begin user dialog at outer menu */
     while (1) {
@@ -76,7 +76,7 @@ main(int argc, char **argv)
     }
 
     /* Write out any changes to /etc/sysconfig */
-    if (SystemWasInstalled)
+    if (RunningAsInit)
 	configSysconfig();
 
     /* Say goodnight, Gracie */

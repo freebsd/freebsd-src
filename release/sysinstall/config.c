@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.3 1995/09/18 17:00:15 peter Exp $
+ * $Id: config.c,v 1.16.2.4 1995/09/23 22:29:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,14 +56,20 @@ chunk_compare(const void *p1, const void *p2)
 
     c1 = (Chunk *)p1;
     c2 = (Chunk *)p2;
-    if (!c1->private && !c2->private)
+    if (!c1 && !c2)
+	return 0;
+    else if (!c1 && c2)
+	return 1;
+    else if (c1 && !c2)
+	return -1;
+    else if (!c1->private && !c2->private)
 	return 0;
     else if (c1->private && !c2->private)
 	return -1;
     else if (!c1->private && c2->private)
 	return 1;
     else
-	return strcmp(((PartInfo *)c1->private)->mountpoint, ((PartInfo *)c2->private)->mountpoint);
+	return strcmp(((PartInfo *)(c1->private))->mountpoint, ((PartInfo *)(c2->private))->mountpoint);
 }
 
 static char *
@@ -166,8 +172,7 @@ configFstab(void)
 		chunk_list[nchunks++] = c1;
 	}
     }
-
-    /* Sort them puppies! */
+    chunk_list[nchunks] = 0;
     qsort(chunk_list, nchunks, sizeof(Chunk *), chunk_compare);
 
     fstab = fopen("/etc/fstab", "w");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.3 1995/09/26 20:53:43 jkh Exp $
+ * $Id: media.c,v 1.25.2.4 1995/09/30 19:13:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -222,7 +222,7 @@ mediaSetTape(char *str)
     if (mediaDevice) {
 	char *val;
 
-	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterward!");
+	val = msgGetInput("/usr/tmp", "Please enter the name of a temporary directory containing\nsufficient space for holding the contents of this tape (or\ntapes).  The contents of this directory will be removed\nafter installation, so be sure to specify a directory that\ncan be erased afterwards!\n");
 	if (!val)
 	    mediaDevice = NULL;
 	else
@@ -247,7 +247,7 @@ mediaSetFTP(char *str)
     if (!cp)
 	return 0;
     if (!strcmp(cp, "other")) {
-	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options Menu.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
+	cp = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept either anonymous\nftp or you should have set an ftp username and password\nin the Options screen.\nA URL looks like this:  ftp://<hostname>/<path>\nWhere <path> is relative to the anonymous ftp directory or the\nhome directory of the user being logged in as.");
 	if (!cp || strncmp("ftp://", cp, 6))
 	    return 0;
 	else
@@ -368,7 +368,7 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -441,7 +441,7 @@ mediaExtractDist(char *dir, int fd)
 	    close(1); open("/dev/null", O_WRONLY);
 	    dup2(1, 2);
 	}
-	i = execl("/stand/cpio", "/stand/cpio", "-iduvm", 0);
+	i = execl("/stand/cpio", "/stand/cpio", "-idum", CPIO_VERBOSITY, "--block-size", mediaTapeBlocksize(), 0);
 	if (isDebug())
 	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
@@ -483,4 +483,32 @@ mediaVerify(void)
 	return FALSE;
     }
     return TRUE;
+}
+
+/* Set the FTP username and password fields */
+int
+mediaSetFtpUserPass(char *str)
+{
+    char *user, *pass;
+
+    dialog_clear();
+    if ((user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as")) != NULL)
+	variable_set2(FTP_USER, user);
+    if ((pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
+	variable_set2(FTP_PASS, pass);
+    dialog_clear();
+    return 0;
+}
+
+/* Set the tape block size for CPIO */
+int
+mediaSetTapeBlocksize(char *str)
+{
+    char *bsize;
+
+    dialog_clear();
+    if ((bsize = msgGetInput(getenv(TAPE_BLOCKSIZE), "Please enter the tape block size in 512 byte blocks")) != NULL)
+	variable_set2(TAPE_BLOCKSIZE, bsize);
+    dialog_clear();
+    return 0;
 }

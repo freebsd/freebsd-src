@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.2 1995/09/29 05:16:56 jkh Exp $
+ * $Id: dist.c,v 1.36.2.3 1995/09/30 06:42:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -118,12 +118,15 @@ static Distribution XF86DistTable[] = {
 { "X312bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "X312lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
 { "X312doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
+{ "X312etc",	"/usr",			&XF86Dists,	DIST_XF86_ETC,		NULL		},
 { "XF86312",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "X312man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
+{ "X312ctrb",	"/usr",			&XF86Dists,	DIST_XF86_CTRB,		NULL		},
 { "X312prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
 { "X312link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
 { "X312pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
 { "X312lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
+{ "X312ubin",	"/usr",			&XF86Dists,	DIST_XF86_UBIN,		NULL		},
 { "X312xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
 { "X312xdcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
 { "XF86312",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
@@ -153,6 +156,7 @@ static Distribution XF86ServerDistTable[] = {
 static Distribution XF86FontDistTable[] = {
 { "X312fnts",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
 { "X312f100",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
+{ "X312fcyr",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_CYR,	NULL		},
 { "X312fscl",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
 { "X312fnon",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
 { "X312fsrv",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
@@ -397,7 +401,7 @@ distExtract(char *parent, Distribution *me)
 
     done:
 	if (!status) {
-	    if (OptFlags & OPT_NO_CONFIRM)
+	    if (optionIsSet(OPT_NO_CONFIRM))
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {
