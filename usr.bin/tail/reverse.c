@@ -118,13 +118,14 @@ r_reg(fp, style, off, sbp)
 		return;
 
 	if (size > SIZE_T_MAX) {
-		err(0, "%s: %s", fname, strerror(EFBIG));
+		errno = EFBIG;
+		err(0, "%s", fname);
 		return;
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
 	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
-		err(0, "%s: %s", fname, strerror(EFBIG));
+		err(0, "%s", fname);
 		return;
 	}
 	p = start + size - 1;
@@ -145,7 +146,7 @@ r_reg(fp, style, off, sbp)
 	if (llen)
 		WR(p, llen);
 	if (munmap(start, (size_t)sbp->st_size))
-		err(0, "%s: %s", fname, strerror(errno));
+		err(0, "%s", fname);
 }
 
 typedef struct bf {
@@ -184,7 +185,7 @@ r_buf(fp)
 		if (enomem || (tl = malloc(sizeof(BF))) == NULL ||
 		    (tl->l = malloc(BSZ)) == NULL) {
 			if (!mark)
-				err(1, "%s", strerror(errno));
+				err(1, "malloc");
 			tl = enomem ? tl->next : mark;
 			enomem += tl->len;
 		} else if (mark) {

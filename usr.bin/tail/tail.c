@@ -88,7 +88,7 @@ main(argc, argv)
 		usage();						\
 	off = strtol(optarg, &p, 10) * (units);				\
 	if (*p)								\
-		err(1, "illegal offset -- %s", optarg);			\
+		errx(1, "illegal offset -- %s", optarg);		\
 	switch(optarg[0]) {						\
 	case '+':							\
 		if (off)						\
@@ -131,7 +131,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (fflag && argc > 1)
-		err(1, "-f option only appropriate for a single file");
+		errx(1, "-f option only appropriate for a single file");
 
 	/*
 	 * If displaying in reverse, don't permit follow option, and convert
@@ -234,7 +234,7 @@ obsolete(argv)
 			/* Malloc space for dash, new option and argument. */
 			len = strlen(*argv);
 			if ((start = p = malloc(len + 3)) == NULL)
-				err(1, "%s", strerror(errno));
+				err(1, "malloc");
 			*p++ = '-';
 
 			/*
@@ -264,7 +264,7 @@ obsolete(argv)
 				*p++ = 'n';
 				break;
 			default:
-				err(1, "illegal option -- %s", *argv);
+				errx(1, "illegal option -- %s", *argv);
 			}
 			*p++ = *argv[0];
 			(void)strcpy(p, ap);
