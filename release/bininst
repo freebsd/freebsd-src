@@ -57,7 +57,7 @@ handle_rval() {
 
 # A simple user-confirmation dialog.
 confirm() {
-	dialog --title "Please Confirm" --msgbox "$*" 4 72
+	dialog --title "Please Confirm" --msgbox "$*" 6 72
 }
 
 # A simple error dialog.
@@ -117,7 +117,7 @@ manually on your own. \n\n\
 --menu "Which type of tape drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 20 72 2 \
-		"SCSI" "SCSI tape drive attached to standard SCSI controller" \
+		"SCSI" "SCSI tape drive attached to supported SCSI controller" \
 		"QIC" "QIC tape drive (Colorado Jumbo, etc)" \
 			2> ${TMP}/menu.tmp.$$
 		retval=$?
@@ -139,7 +139,7 @@ system?  FreeBSD supports the following types:\n\n\
 --menu "Which type of CDROM drive do you have attached to your \n\
 system?  FreeBSD supports the following types:\n\n\
 		Choose one of the following:" 15 72 2 \
-		"SCSI" "SCSI CDROM drive attached to standard SCSI controller" \
+		"SCSI" "SCSI CDROM drive attached to supported SCSI controller" \
 		"Mitsumi" "Mitsumi CDROM drive" \
 			2> ${TMP}/menu.tmp.$$
 		retval=$?
@@ -220,10 +220,12 @@ setup_network_ether()
 {
 	dialog --clear --title "Ethernet Interface Name" \
 	--menu "Please select the type of ethernet device you have:\n\n" \
-	 20 72 4 \
-	"ed0" "WD80x3, SMC, Novell NE1000/2000 or 3C503 generic NIC" \
-	"ie0" "AT&T StarLan and EN100 family" \
-	"is0" "Isolan 4141-0 or Isolink 4110 Ethernet controller" \
+	 20 76 5 \
+	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280/5" \
+	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
+	"ed2" "Same as above, but at address 0x300 and IRQ 10" \
+	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
+	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
 	  2> ${TMP}/menu.tmp.$$
 
 	retval=$?
@@ -312,7 +314,7 @@ setup_network()
 	if handle_rval $?; then
 		ifconfig_flags=`cat ${TMP}/inputbox.tmp.$$`
 	fi
-	if ! $IFCONFIG inet $interface netmask $netmask $ifconfig_flags 2>/dev/ttyv1 ; then
+	if ! $IFCONFIG $interface netmask $netmask $ifconfig_flags 2>/dev/ttyv1 ; then
 		error "Unable to configure interface $interface"
 		ipaddr=""; interface=""
 		continue
@@ -394,6 +396,18 @@ install_set()
 	esac
 }
 
+do_last_config()
+{
+	dialog --title "Aufwiedersehen!" \
+--msgbox "We now come to the end of the installation.  At this point in
+time, there's nothing fancy here, but for the release we plan to
+ask some additional questions about time zone setup, your name
+server, what sort of mail client this host is, etc.  We just ran
+out of time for ALPHA!  At the very least, you may wish to check
+out the 'tzsetup' command - it will at least handle the first
+checklist item for you.  Thanks!" 15 72
+}
+
 welcome
 set_defaults
 
@@ -402,7 +416,7 @@ while [ $installing -eq 1 ]; do
 		install_set
 		media_device=""; media_type=""
 	else
-		confirm "Exiting per user request.";
+		do_last_config
 		installing=0
 	fi
 done
