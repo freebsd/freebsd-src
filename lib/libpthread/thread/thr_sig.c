@@ -670,11 +670,8 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 	 * States which cannot be interrupted but still require the
 	 * signal handler to run:
 	 */
-	case PS_JOIN:
-		/* Only set the interrupted flag for PS_JOIN: */
-		pthread->interrupted = 1;
-		/* FALLTHROUGH */
 	case PS_COND_WAIT:
+	case PS_JOIN:
 	case PS_MUTEX_WAIT:
 		/*
 		 * Remove the thread from the wait queue.  It will
@@ -952,11 +949,6 @@ _thread_sig_wrapper(void)
 
 		case PS_COND_WAIT:
 			_cond_wait_backout(thread);
-			psf->saved_state.psd_state = PS_RUNNING;
-			break;
-
-		case PS_JOIN:
-			_join_backout(thread);
 			psf->saved_state.psd_state = PS_RUNNING;
 			break;
 

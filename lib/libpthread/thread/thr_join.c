@@ -72,98 +72,48 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		/* Return an error: */
 		ret = ESRCH;
 
+	else if (pthread->joiner != NULL)
+		/* Multiple joiners are not supported. */
+		ret = ENOTSUP;
+
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
-		PTHREAD_ASSERT_NOT_IN_SYNCQ(curthread);
+		/* Set the running thread to be the joiner: */
+		pthread->joiner = curthread;
+
+		/* Schedule the next thread: */
+		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
 		/*
-		 * Enter a loop in case this thread is woken prematurely
-		 * in order to invoke a signal handler:
+		 * The thread return value and error are set by the thread we're
+		 * joining to when it exits or detaches:
 		 */
-		for (;;) {
-			/* Clear the interrupted flag: */
-			curthread->interrupted = 0;
+		ret = curthread->error;
+		if ((ret == 0) && (thread_return != NULL))
+			*thread_return = curthread->ret;
+	} else {
+		/*
+		 * The thread exited (is dead) without being detached, and no
+		 * thread has joined it.
+		 */
 
-			/*
-			 * Protect against being context switched out while
-			 * adding this thread to the join queue.
-			 */
-			_thread_kern_sig_defer();
-
-			/* Add the running thread to the join queue: */
-			TAILQ_INSERT_TAIL(&(pthread->join_queue),
-			    curthread, sqe);
-			curthread->flags |= PTHREAD_FLAGS_IN_JOINQ;
-			curthread->data.thread = pthread;
-
-			/* Schedule the next thread: */
-			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
-
-			if ((curthread->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
-				TAILQ_REMOVE(&(pthread->join_queue),
-				    curthread, sqe);
-				curthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
-			}
-			curthread->data.thread = NULL;
-
-			_thread_kern_sig_undefer();
-
-			if (curthread->interrupted != 0) {
-				if (curthread->continuation != NULL)
-					curthread->continuation(curthread);
-				/*
-				 * This thread was interrupted, probably to
-				 * invoke a signal handler.  Make sure the
-				 * target thread is still joinable.
-				 */
-				if (((_find_thread(pthread) != 0) &&
-				    (_find_dead_thread(pthread) != 0)) ||
-				    ((pthread->attr.flags &
-				    PTHREAD_DETACHED) != 0)) {
-					/* Return an error: */
-					ret = ESRCH;
-
-					/* We're done; break out of the loop. */
-					break;
-				}
-				else if (pthread->state == PS_DEAD) {
-					/* We're done; break out of the loop. */
-					break;
-				}
-			} else {
-				/*
-				 * The thread return value and error are set
-				 * by the thread we're joining to when it
-				 * exits or detaches:
-				 */
-				ret = curthread->error;
-				if ((ret == 0) && (thread_return != NULL))
-					*thread_return = curthread->ret;
-
-				/* We're done; break out of the loop. */
-				break;
-			}
+		/* Check if the return value is required: */
+		if (thread_return != NULL) {
+			/* Return the thread's return value: */
+			*thread_return = pthread->ret;
 		}
-	/* Check if the return value is required: */
-	} else if (thread_return != NULL)
-		/* Return the thread's return value: */
-		*thread_return = pthread->ret;
+
+		/*
+		 * Make the thread collectable by the garbage collector.  There
+		 * is a race here with the garbage collector if multiple threads
+		 * try to join the thread, but the behavior of multiple joiners
+		 * is undefined, so don't bother protecting against the race.
+		 */
+		pthread->attr.flags |= PTHREAD_DETACHED;
+	}
 
 	_thread_leave_cancellation_point();
 
 	/* Return the completion status: */
 	return (ret);
-}
-
-void
-_join_backout(pthread_t pthread)
-{
-	struct pthread	*curthread = _get_curthread();
-
-	_thread_kern_sig_defer();
-	if ((pthread->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
-		TAILQ_REMOVE(&pthread->data.thread->join_queue, pthread, sqe);
-		curthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
-	}
-	_thread_kern_sig_undefer();
 }

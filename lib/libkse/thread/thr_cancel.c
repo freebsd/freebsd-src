@@ -63,6 +63,7 @@ _pthread_cancel(pthread_t pthread)
 				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 				break;
 
+			case PS_JOIN:
 			case PS_SUSPENDED:
 				if (pthread->suspended == SUSP_NO ||
 				    pthread->suspended == SUSP_YES ||
@@ -82,7 +83,6 @@ _pthread_cancel(pthread_t pthread)
 			case PS_FDLR_WAIT:
 			case PS_FDLW_WAIT:
 			case PS_FILE_WAIT:
-			case PS_JOIN:
 				/*
 				 * Threads in these states may be in queues.
 				 * In order to preserve queue integrity, the
@@ -189,6 +189,7 @@ _pthread_testcancel(void)
 		 */
 		curthread->cancelflags &= ~PTHREAD_CANCELLING;
 		_thread_exit_cleanup();
+		pthread_detach((pthread_t)curthread);
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
@@ -225,6 +226,7 @@ finish_cancellation(void *arg)
 	if ((curthread->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
 		curthread->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 		_thread_exit_cleanup();
+		pthread_detach((pthread_t)curthread);
 		pthread_exit(PTHREAD_CANCELED);
 	}
 }
