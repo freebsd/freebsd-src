@@ -1638,6 +1638,7 @@ tcp_twstart(tp)
 	tw->snd_nxt = tp->snd_nxt;
 	tw->rcv_nxt = tp->rcv_nxt;
 	tw->iss     = tp->iss;
+	tw->irs     = tp->irs;
 	tw->cc_recv = tp->cc_recv;
 	tw->cc_send = tp->cc_send;
 	tw->t_starttime = tp->t_starttime;
@@ -1673,6 +1674,16 @@ tcp_twstart(tp)
 }
 
 /*
+ * The appromixate rate of ISN increase of Microsoft TCP stacks;
+ * the actual rate is slightly higher due to the addition of
+ * random positive increments.
+ *
+ * Most other new OSes use semi-randomized ISN values, so we
+ * do not need to worry about them.
+ */
+#define MS_ISN_BYTES_PER_SECOND		250000
+
+/*
  * Determine if the ISN we will generate has advanced beyond the last
  * sequence number used by the previous connection.  If so, indicate
  * that it is safe to recycle this tw socket by returning 1.
@@ -1680,11 +1691,13 @@ tcp_twstart(tp)
 int
 tcp_twrecycleable(struct tcptw *tw)
 {
-	tcp_seq new_isn = tw->iss;
+	tcp_seq new_iss = tw->iss;
+	tcp_seq new_irs = tw->irs;
 
-	new_isn += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
+	new_iss += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
+	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
 	
-	if (SEQ_GT(new_isn, tw->snd_nxt))
+	if (SEQ_GT(new_iss, tw->snd_nxt) && SEQ_GT(new_irs, tw->rcv_nxt))
 		return 1;
 	else
 		return 0;
