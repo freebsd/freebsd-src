@@ -383,7 +383,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 		lport = *lportp;
 	if (lport == 0) {
 		u_short first, last;
-		int count, loopcount;
+		int count;
 
 		if (laddr.s_addr != INADDR_ANY)
 			if (prison_ip(cred, 0, &laddr.s_addr))
@@ -411,7 +411,6 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 		 * We split the two cases (up and down) so that the direction
 		 * is not being tested on each round of the loop.
 		 */
-		loopcount = 0;
 		if (first > last) {
 			/*
 			 * counting down
@@ -419,6 +418,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			if (ipport_randomized)
 				*lastport = first - (arc4random() % (first - last));
 			count = first - last;
+
 			do {
 				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
@@ -435,6 +435,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			if (ipport_randomized)
 				*lastport = first + (arc4random() % (last - first));
 			count = last - first;
+
 			do {
 				if (count-- < 0)	/* completely used? */
 					return (EADDRNOTAVAIL);
