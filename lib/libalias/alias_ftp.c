@@ -221,7 +221,9 @@ NewFtpPortCommand(struct ip *pip,
     }
     else
     {
+#ifdef DEBUG
         fprintf(stderr,
         "PacketAlias/HandleFtpOut: Cannot allocate FTP data port\n");
+#endif
     }
 }

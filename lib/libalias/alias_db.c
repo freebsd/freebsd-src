@@ -56,12 +56,12 @@
         Added ability to create an alias port without
         either destination address or port specified.
         port type = ALIAS_PORT_UNKNOWN_DEST_ALL (ee)
- 
+
         Removed K&R style function headers
         and general cleanup. (ee)
 
         Added packetAliasMode to replace compiler #defines's (ee)
- 
+
         Allocates sockets for partially specified
         ports if ALIAS_USE_SOCKETS defined. (cjm)
 
@@ -73,10 +73,10 @@
         links.  (J. Fortes suggested the need for this.)
         Examples:
 
-        (192.168.0.1, port 23)  <-> alias port 6002, unknown dest addr/port 
+        (192.168.0.1, port 23)  <-> alias port 6002, unknown dest addr/port
 
         (192.168.0.2, port 21)  <-> alias port 3604, known dest addr
-                                                     unknown dest port 
+                                                     unknown dest port
 
         These permament links allow for incoming connections to
         machines on the local network.  They can be given with a
@@ -111,7 +111,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
- 
+
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -139,7 +139,7 @@
 #define LINK_TABLE_IN_SIZE         4001
 
 /* Parameters used for cleanup of expired links */
-#define ALIAS_CLEANUP_INTERVAL_SECS  60       
+#define ALIAS_CLEANUP_INTERVAL_SECS  60
 #define ALIAS_CLEANUP_MAX_SPOKES     30
 
 /* Timouts (in seconds) for different link types) */
@@ -174,14 +174,14 @@
 
 /* Dummy port number codes used for FindLinkIn/Out() and AddLink().
    These constants can be anything except zero, which indicates an
-   unknown port numbea. */
+   unknown port number. */
 
 #define NO_DEST_PORT     1
 #define NO_SRC_PORT      1
 
 
 
-/* Data Structures 
+/* Data Structures
 
     The fundamental data structure used in this program is
     "struct alias_link".  Whenever a TCP connection is made,
@@ -237,11 +237,13 @@ struct tcp_dat
 struct alias_link                /* Main data structure */
 {
     struct in_addr src_addr;     /* Address and port information        */
-    struct in_addr dst_addr;     /*  .                                  */
-    struct in_addr alias_addr;   /*  .                                  */
-    u_short src_port;            /*  .                                  */
-    u_short dst_port;            /*  .                                  */
-    u_short alias_port;          /*  .                                  */
+    struct in_addr dst_addr;
+    struct in_addr alias_addr;
+    struct in_addr proxy_addr;
+    u_short src_port;
+    u_short dst_port;
+    u_short alias_port;
+    u_short proxy_port;
 
     int link_type;               /* Type of link: tcp, udp, icmp, frag  */
 
@@ -347,6 +349,12 @@ static int fireWallFD = -1;          /* File descriptor to be able to   */
                                      /* setting the PKT_ALIAS_PUNCH_FW  */
                                      /* flag.                           */
 #endif
+
+static int pptpAliasFlag; 	     /* Indicates if PPTP aliasing is   */
+                                     /* on or off                       */
+static struct in_addr pptpAliasAddr; /* Address of source of PPTP 	*/
+                                     /* packets.           		*/
+
 
 
 
@@ -571,8 +579,10 @@ GetNewPort(struct alias_link *link, int alias_port_param)
     }
     else
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/GetNewPort(): ");
         fprintf(stderr, "input parameter error\n");
+#endif
         return(-1);
     }
 
@@ -618,8 +628,10 @@ GetNewPort(struct alias_link *link, int alias_port_param)
         port_net = htons(port_sys);
     }
 
+#ifdef DEBUG
     fprintf(stderr, "PacketAlias/GetnewPort(): ");
     fprintf(stderr, "could not find free port\n");
+#endif
 
     return(-1);
 }
@@ -638,15 +650,19 @@ GetSocket(u_short port_net, int *sockfd, int link_type)
         sock = socket(AF_INET, SOCK_DGRAM, 0);
     else
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/GetSocket(): ");
         fprintf(stderr, "incorrect link type\n");
+#endif
         return(0);
     }
 
     if (sock < 0)
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/GetSocket(): ");
         fprintf(stderr, "socket() error %d\n", *sockfd);
+#endif
         return(0);
     }
 
@@ -853,15 +869,17 @@ AddLink(struct in_addr  src_addr,
             alias_addr.s_addr = 0;
 
     /* Basic initialization */
-        link->src_addr    = src_addr;
-        link->dst_addr    = dst_addr;
-        link->src_port    = src_port;
-        link->alias_addr  = alias_addr;
-        link->dst_port    = dst_port;
-        link->link_type   = link_type;
-        link->sockfd      = -1;
-        link->flags       = 0;
-        link->timestamp   = timeStamp;
+        link->src_addr          = src_addr;
+        link->dst_addr          = dst_addr;
+        link->alias_addr        = alias_addr;
+        link->proxy_addr.s_addr = 0;
+        link->src_port          = src_port;
+        link->dst_port          = dst_port;
+        link->proxy_port        = 0;
+        link->link_type         = link_type;
+        link->sockfd            = -1;
+        link->flags             = 0;
+        link->timestamp         = timeStamp;
 
     /* Expiration time */
         switch (link_type)
@@ -952,8 +970,10 @@ AddLink(struct in_addr  src_addr,
                 }
                 else
                 {
+#ifdef DEBUG
                     fprintf(stderr, "PacketAlias/AddLink: ");
                     fprintf(stderr, " cannot allocate auxiliary TCP data\n");
+#endif
                 }
                 break;
             case LINK_FRAGMENT_ID:
@@ -966,8 +986,10 @@ AddLink(struct in_addr  src_addr,
     }
     else
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/AddLink(): ");
         fprintf(stderr, "malloc() call failed.\n");
+#endif
     }
 
     if (packetAliasMode & PKT_ALIAS_LOG)
@@ -1304,7 +1326,9 @@ FindUdpTcpIn(struct in_addr dst_addr,
                       dst_port, alias_port,
                       link_type, 1);
 
-    if ( !(packetAliasMode & PKT_ALIAS_DENY_INCOMING) && link == NULL)
+    if (!(packetAliasMode & PKT_ALIAS_DENY_INCOMING)
+     && !(packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+     && link == NULL)
     {
         struct in_addr target_addr;
 
@@ -1578,6 +1602,34 @@ SetAckModified(struct alias_link *link)
 }
 
 
+struct in_addr
+GetProxyAddress(struct alias_link *link)
+{
+    return link->proxy_addr;
+}
+
+
+void
+SetProxyAddress(struct alias_link *link, struct in_addr addr)
+{
+    link->proxy_addr = addr;
+}
+
+
+u_short
+GetProxyPort(struct alias_link *link)
+{
+    return link->proxy_port;
+}
+
+
+void
+SetProxyPort(struct alias_link *link, u_short port)
+{
+    link->proxy_port = port;
+}
+
+
 int
 GetAckModified(struct alias_link *link)
 {
@@ -1741,8 +1793,10 @@ SetExpire(struct alias_link *link, int expire)
     }
     else
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/SetExpire(): ");
         fprintf(stderr, "error in expire parameter\n");
+#endif
     }
 }
 
@@ -1811,8 +1865,10 @@ HouseKeeping(void)
     }
     else if (n < 0)
     {
+#ifdef DEBUG
         fprintf(stderr, "PacketAlias/HouseKeeping(): ");
         fprintf(stderr, "something unexpected in time values\n");
+#endif
         lastCleanupTime = timeStamp;
         houseKeepingResidual = 0;
     }
@@ -1884,8 +1940,10 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
         link_type = LINK_TCP;
         break;
     default:
+#ifdef DEBUG
         fprintf(stderr, "PacketAliasRedirectPort(): ");
         fprintf(stderr, "only TCP and UDP protocols allowed\n");
+#endif
         return NULL;
     }
 
@@ -1897,15 +1955,36 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
     {
         link->flags |= LINK_PERMANENT;
     }
+#ifdef DEBUG
     else
     {
         fprintf(stderr, "PacketAliasRedirectPort(): " 
                         "call to AddLink() failed\n");
     }
+#endif
 
     return link;
 }
 
+/* Translate PPTP packets to a machine on the inside
+ */
+int
+PacketAliasPptp(struct in_addr src_addr)
+{
+
+    pptpAliasAddr = src_addr; 		/* Address of the inside PPTP machine */
+    pptpAliasFlag = src_addr.s_addr != INADDR_NONE;
+
+    return 1;
+}
+
+int GetPptpAlias (struct in_addr* alias_addr)
+{
+    if (pptpAliasFlag)
+	*alias_addr = pptpAliasAddr;
+
+    return pptpAliasFlag;
+}
 
 /* Static address translation */
 struct alias_link *
@@ -1922,11 +2001,13 @@ PacketAliasRedirectAddr(struct in_addr src_addr,
     {
         link->flags |= LINK_PERMANENT;
     }
+#ifdef DEBUG
     else
     {
         fprintf(stderr, "PacketAliasRedirectAddr(): " 
                         "call to AddLink() failed\n");
     }
+#endif
 
     return link;
 }
@@ -2007,6 +2088,8 @@ PacketAliasInit(void)
     packetAliasMode = PKT_ALIAS_SAME_PORTS
                     | PKT_ALIAS_USE_SOCKETS
                     | PKT_ALIAS_RESET_ON_ADDR_CHANGE;
+
+    pptpAliasFlag = 0;
 }
 
 void
@@ -2159,7 +2242,9 @@ PunchFWHole(struct alias_link *link) {
         if (fwhole == fireWallActiveNum) {
             /* No rule point empty - we can't punch more holes. */
             fireWallActiveNum = fireWallBaseNum;
+#ifdef DEBUG
             fprintf(stderr, "libalias: Unable to create firewall hole!\n");
+#endif
             return;
         }
     }
@@ -2186,15 +2271,19 @@ PunchFWHole(struct alias_link *link) {
        clear optimization) */
     if (rule.fw_uar.fw_pts[0] != 0 && rule.fw_uar.fw_pts[1] != 0) {
         r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
+#ifdef DEBUG
         if (r)
             err(1, "alias punch inbound(1) setsockopt(IP_FW_ADD)");
+#endif
         rule.fw_src = GetDestAddress(link);
         rule.fw_dst = GetOriginalAddress(link);
         rule.fw_uar.fw_pts[0] = ntohs(GetDestPort(link));
         rule.fw_uar.fw_pts[1] = ntohs(GetOriginalPort(link));
         r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
+#ifdef DEBUG
         if (r)
             err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
+#endif
     }
 /* Indicate hole applied */
     link->data.tcp->fwhole = fwhole;

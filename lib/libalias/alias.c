@@ -93,6 +93,10 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
+#ifndef IPPROTO_GRE
+#define IPPROTO_GRE 47
+#endif
+
 #include "alias_local.h"
 #include "alias.h"
 
@@ -103,38 +107,13 @@
 #define IRC_CONTROL_PORT_NUMBER_2 6668
 #define CUSEEME_PORT_NUMBER 7648
 
-/*
-   The following macro is used to update an
-   internet checksum.  "delta" is a 32-bit
-   accumulation of all the changes to the
-   checksum (adding in new 16-bit words and
-   subtracting out old words), and "cksum"
-   is the checksum value to be updated.
-*/
-#define ADJUST_CHECKSUM(acc, cksum) { \
-    acc += cksum; \
-    if (acc < 0) \
-    { \
-        acc = -acc; \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) ~acc; \
-    } \
-    else \
-    { \
-        acc = (acc >> 16) + (acc & 0xffff); \
-        acc += acc >> 16; \
-        cksum = (u_short) acc; \
-    } \
-}
-
 
 
 
 /* TCP Handling Routines
 
     TcpMonitorIn()  -- These routines monitor TCP connections, and
-    TcpMonitorOut() -- delete a link node when a connection is closed.
+    TcpMonitorOut()    delete a link when a connection is closed.
 
 These routines look for SYN, ACK and RST flags to determine when TCP
 connections open and close.  When a TCP connection closes, the data
@@ -405,7 +384,6 @@ fragment contained in ICMP data section */
     return(PKT_ALIAS_IGNORED);
 }
 
-
 static int
 IcmpAliasIn3(struct ip *pip)
 {
@@ -427,6 +405,10 @@ IcmpAliasIn(struct ip *pip)
 {
     int iresult;
     struct icmp *ic;
+
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
 
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
 
@@ -562,6 +544,10 @@ IcmpAliasOut(struct ip *pip)
     int iresult;
     struct icmp *ic;
 
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
+
     ic = (struct icmp *) ((char *) pip + (pip->ip_hl << 2));
 
     iresult = PKT_ALIAS_IGNORED;
@@ -587,11 +573,72 @@ IcmpAliasOut(struct ip *pip)
     return(iresult);
 }
 
+
+
+static int
+PptpAliasIn(struct ip *pip)
+{
+/*
+  Handle incoming PPTP packets. The
+  only thing which is done in this case is to alias
+  the dest IP address of the packet to our inside
+  machine.
+*/
+    struct in_addr alias_addr;
+
+    if (!GetPptpAlias (&alias_addr))
+	return PKT_ALIAS_IGNORED;
+
+    if (pip->ip_src.s_addr != alias_addr.s_addr) {
+
+	    DifferentialChecksum(&pip->ip_sum,
+				 (u_short *) &alias_addr,
+				 (u_short *) &pip->ip_dst,
+				 2);
+	    pip->ip_dst = alias_addr;
+    }
+
+    return PKT_ALIAS_OK;
+}
+
+
+static int
+PptpAliasOut(struct ip *pip)
+{
+/*
+  Handle outgoing PPTP packets. The
+  only thing which is done in this case is to alias
+  the source IP address of the packet.
+*/
+    struct in_addr alias_addr;
+
+    if (!GetPptpAlias (&alias_addr))
+	return PKT_ALIAS_IGNORED;
+
+    if (pip->ip_src.s_addr == alias_addr.s_addr) {
+
+	    alias_addr = FindAliasAddress(pip->ip_src);
+	    DifferentialChecksum(&pip->ip_sum,
+				 (u_short *) &alias_addr,
+				 (u_short *) &pip->ip_src,
+				 2);
+	    pip->ip_src = alias_addr;
+    }
+
+    return PKT_ALIAS_OK;
+}
+
+
+
 static int
 UdpAliasIn(struct ip *pip)
 {
     struct udphdr *ud;
     struct alias_link *link;
+
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
 
     ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
 
@@ -668,6 +715,10 @@ UdpAliasOut(struct ip *pip)
 {
     struct udphdr *ud;
     struct alias_link *link;
+
+/* Return if proxy-only mode is enabled */
+    if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+        return PKT_ALIAS_OK;
 
     ud = (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
 
@@ -750,14 +801,18 @@ TcpAliasIn(struct ip *pip)
     {
         struct in_addr alias_address;
         struct in_addr original_address;
+        struct in_addr proxy_address;
         u_short alias_port;
+        u_short proxy_port;
         int accumulate;
         u_short *sptr;
 
         alias_address = GetAliasAddress(link);
         original_address = GetOriginalAddress(link);
+        proxy_address = GetProxyAddress(link);
         alias_port = tc->th_dport;
         tc->th_dport = GetOriginalPort(link);
+        proxy_port = GetProxyPort(link);
 
 /* Adjust TCP checksum since destination port is being unaliased */
 /* and destination port is being altered.                        */
@@ -769,6 +824,22 @@ TcpAliasIn(struct ip *pip)
         sptr = (u_short *) &original_address;
         accumulate -= *sptr++;
         accumulate -= *sptr;
+
+/* If this is a proxy, then modify the tcp source port  and
+   checksum accumulation */
+        if (proxy_port != 0)
+        {
+            accumulate += tc->th_sport;
+            tc->th_sport = proxy_port;
+            accumulate -= tc->th_sport;
+
+            sptr = (u_short *) &pip->ip_src;
+            accumulate += *sptr++;
+            accumulate += *sptr;
+            sptr = (u_short *) &proxy_address;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+        }
 
 /* See if ack number needs to be modified */
         if (GetAckModified(link) == 1)
@@ -791,11 +862,28 @@ TcpAliasIn(struct ip *pip)
         ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
 /* Restore original IP address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &original_address,
-                             (u_short *) &pip->ip_dst,
-                             2);
+        sptr = (u_short *) &pip->ip_dst;
+        accumulate  = *sptr++;
+        accumulate += *sptr;
         pip->ip_dst = original_address;
+        sptr = (u_short *) &pip->ip_dst;
+        accumulate -= *sptr++;
+        accumulate -= *sptr;
+
+/* If this is a transparent proxy packet, then modify the source
+   address */
+        if (proxy_address.s_addr != 0)
+        {
+            sptr = (u_short *) &pip->ip_src;
+            accumulate += *sptr++;
+            accumulate += *sptr;
+            pip->ip_src = proxy_address;
+            sptr = (u_short *) &pip->ip_src;
+            accumulate -= *sptr++;
+            accumulate -= *sptr;
+        }
+
+        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
 
 /* Monitor TCP connection state */
         TcpMonitorIn(pip, link);
@@ -808,39 +896,94 @@ TcpAliasIn(struct ip *pip)
 static int
 TcpAliasOut(struct ip *pip, int maxpacketsize)
 {
+    int proxy_type;
+    u_short dest_port;
+    u_short proxy_server_port;
+    struct in_addr dest_address;
+    struct in_addr proxy_server_address;
     struct tcphdr *tc;
     struct alias_link *link;
 
     tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
+
+    proxy_type = ProxyCheck(pip, &proxy_server_address, &proxy_server_port);
+
+    if (proxy_type == 0 && (packetAliasMode & PKT_ALIAS_PROXY_ONLY))
+        return PKT_ALIAS_OK;
+
+/* If this is a transparent proxy, save original destination,
+   then alter the destination and adust checksums */
+    dest_port = tc->th_dport;
+    dest_address = pip->ip_dst;
+    if (proxy_type != 0)
+    {
+        int accumulate;
+        u_short *sptr;
+
+        accumulate = tc->th_dport;
+        tc->th_dport = proxy_server_port;
+        accumulate -= tc->th_dport;
+
+        sptr = (u_short *) &(pip->ip_dst);
+        accumulate += *sptr++;
+        accumulate += *sptr;
+        sptr = (u_short *) &proxy_server_address;
+        accumulate -= *sptr++;
+        accumulate -= *sptr;
+
+        ADJUST_CHECKSUM(accumulate, tc->th_sum);
+
+        sptr = (u_short *) &(pip->ip_dst);
+        accumulate  = *sptr++;
+        accumulate += *sptr;
+        pip->ip_dst = proxy_server_address;
+        sptr = (u_short *) &(pip->ip_dst);
+        accumulate -= *sptr++;
+        accumulate -= *sptr;
+
+        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
+    }
 
     link = FindUdpTcpOut(pip->ip_src, pip->ip_dst,
                          tc->th_sport, tc->th_dport,
                          IPPROTO_TCP);
     if (link !=NULL)
     {
-        struct in_addr alias_address;
         u_short alias_port;
+        struct in_addr alias_address;
         int accumulate;
         u_short *sptr;
 
+/* Save original destination address, if this is a proxy packet.
+   Also modify packet to include destination encoding. */
+        if (proxy_type != 0)
+        {
+            SetProxyPort(link, dest_port);
+            SetProxyAddress(link, dest_address);
+            ProxyModify(link, pip, maxpacketsize, proxy_type);
+        }
+
+/* Get alias address and port */
         alias_port = GetAliasPort(link);
         alias_address = GetAliasAddress(link);
 
 /* Monitor tcp connection state */
         TcpMonitorOut(pip, link);
 
-/* Special processing for ftp connection */
+/* Special processing for IP encoding protocols */
         if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER
          || ntohs(tc->th_sport) == FTP_CONTROL_PORT_NUMBER)
             AliasHandleFtpOut(pip, link, maxpacketsize);
         if (ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_1
-                        || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
+         || ntohs(tc->th_dport) == IRC_CONTROL_PORT_NUMBER_2)
             AliasHandleIrcOut(pip, link, maxpacketsize);
 
 /* Adjust TCP checksum since source port is being aliased */
 /* and source address is being altered                    */
         accumulate  = tc->th_sport;
-        accumulate -= alias_port;
+        tc->th_sport = alias_port;
+        accumulate -= tc->th_sport;
+
         sptr = (u_short *) &(pip->ip_src);
         accumulate += *sptr++;
         accumulate += *sptr;
@@ -868,15 +1011,16 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
 
         ADJUST_CHECKSUM(accumulate, tc->th_sum)
 
-/* Put alias address in TCP header */
-        tc->th_sport = alias_port;
-
 /* Change source address */
-        DifferentialChecksum(&pip->ip_sum,
-                             (u_short *) &alias_address,
-                             (u_short *) &pip->ip_src,
-                             2);
+        sptr = (u_short *) &(pip->ip_src);
+        accumulate  = *sptr++;
+        accumulate += *sptr;
         pip->ip_src = alias_address;
+        sptr = (u_short *) &(pip->ip_src);
+        accumulate -= *sptr++;
+        accumulate -= *sptr;
+
+        ADJUST_CHECKSUM(accumulate, pip->ip_sum)
 
         return(PKT_ALIAS_OK);
     }
@@ -1030,6 +1174,9 @@ PacketAliasIn(char *ptr, int maxpacketsize)
     struct ip *pip;
     int iresult;
 
+    if (packetAliasMode & PKT_ALIAS_REVERSE)
+        return PacketAliasOut(ptr, maxpacketsize);
+
     HouseKeeping();
     ClearCheckNewLink();
     pip = (struct ip *) ptr;
@@ -1053,6 +1200,9 @@ PacketAliasIn(char *ptr, int maxpacketsize)
                 break;
             case IPPROTO_TCP:
                 iresult = TcpAliasIn(pip);
+                break;
+            case IPPROTO_GRE:
+		iresult = PptpAliasIn(pip);
                 break;
         }
 
@@ -1096,8 +1246,6 @@ PacketAliasIn(char *ptr, int maxpacketsize)
 #define UNREG_ADDR_C_LOWER 0xc0a80000
 #define UNREG_ADDR_C_UPPER 0xc0a8ffff
 
-
-
 int
 PacketAliasOut(char *ptr,           /* valid IP packet */
                int  maxpacketsize   /* How much the packet data may grow
@@ -1107,6 +1255,9 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
     int iresult;
     struct in_addr addr_save;
     struct ip *pip;
+
+    if (packetAliasMode & PKT_ALIAS_REVERSE)
+        return PacketAliasIn(ptr, maxpacketsize);
 
     HouseKeeping();
     ClearCheckNewLink();
@@ -1151,6 +1302,9 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
                 break;
             case IPPROTO_TCP:
                 iresult = TcpAliasOut(pip, maxpacketsize);
+                break;
+            case IPPROTO_GRE:
+		iresult = PptpAliasOut(pip);
                 break;
         }
     }
