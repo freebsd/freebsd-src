@@ -7,7 +7,7 @@ CLEANFILES=	makedevs.c rtermcap
 SRCS =	globals.c	main.c		dmenu.c		menus.c	\
 	misc.c		msg.c		system.c	install.c \
 	termcap.c	makedevs.c	media.c		variable.c \
-	devices.c
+	devices.c	dist.c		lang.c
 
 CFLAGS += -Wall -g -I${.CURDIR}/../libdisk
 
@@ -27,6 +27,7 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 #	( cd dev; sh ./MAKEDEV all )
 #	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
 #	rm -rf dev
+	rm -f makedevs.tmp
 	uudecode < ${.CURDIR}/bteasy17.uu
 	file2c 'const unsigned char boot0[] = {' '};' \
 		< bteasy17 >> makedevs.tmp
@@ -40,6 +41,15 @@ makedevs.c:	dev2c.sh Makefile rtermcap
 		>> makedevs.tmp
 	./rtermcap cons25-m | \
 		file2c 'const char termcap_cons25_m[] = {' ',0};' \
+		>> makedevs.tmp
+	./rtermcap cons25r | \
+		file2c 'const char termcap_cons25r[] = {' ',0};' \
+		>> makedevs.tmp
+	./rtermcap cons25r-m | \
+		file2c 'const char termcap_cons25r_m[] = {' ',0};' \
+		>> makedevs.tmp
+	./rtermcap cons25l1-m | \
+		file2c 'const char termcap_cons25l1_m[] = {' ',0};' \
 		>> makedevs.tmp
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \

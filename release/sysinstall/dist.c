@@ -1,10 +1,10 @@
 /*
  * The new sysinstall program.
  *
- * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated for what's essentially a complete rewrite.
+ * This is probably the last program in the `sysinstall' line - the next
+ * generation being essentially a complete rewrite.
  *
- * $Id: main.c,v 1.2 1995/05/04 03:51:17 jkh Exp $
+ * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,33 +43,50 @@
 
 #include "sysinstall.h"
 
-extern DMenu	MenuInitial;
+unsigned int Dists;
+unsigned int SrcDists;
 
 int
-main(int argc, char **argv)
+distSetDeveloper(char *str)
 {
-    int choice, scroll, curr, max;
+    Dists = _DIST_DEVELOPER;
+    SrcDists = DIST_SRC_ALL;
+    return 0;
+}
 
-    if (geteuid() != 0) {
-	fprintf(stderr, "This utility can only be run as root.\n");
-	return 1;
-    }
-    /* Set up whatever things need setting up */
-    systemInitialize(argc, argv);
+int
+distSetXDeveloper(char *str)
+{
+    Dists = _DIST_XDEVELOPER;
+    SrcDists = DIST_SRC_ALL;
+    return 0;
+}
 
-    /* Welcome user to FreeBSD */
-    systemWelcome();
+int
+distSetUser(char *str)
+{
+    Dists = _DIST_USER;
+    return 0;
+}
 
-    /* Begin user dialog at outer menu */
-    while (1) {
-	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
-	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
-	    break;
-    }
-    /* Say goodnight, Gracie */
-    systemShutdown();
+int
+distSetXUser(char *str)
+{
+    Dists = _DIST_XUSER;
+    return 0;
+}
 
-    /* If we're running as init, we should never get here */
+int
+distSetMinimum(char *str)
+{
+    Dists = DIST_BIN;
+    return 0;
+}
+
+int
+distSetEverything(char *str)
+{
+    Dists = DIST_ALL;
+    SrcDists = DIST_SRC_ALL;
     return 0;
 }

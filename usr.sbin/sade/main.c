@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
+ * $Id: main.c,v 1.2 1995/05/04 03:51:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,8 @@
 
 #include "sysinstall.h"
 
+extern DMenu	MenuInitial;
+
 int
 main(int argc, char **argv)
 {
@@ -59,9 +61,12 @@ main(int argc, char **argv)
     systemWelcome();
 
     /* Begin user dialog at outer menu */
-    choice = scroll = curr = max = 0;
-    dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
-
+    while (1) {
+	choice = scroll = curr = max = 0;
+	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
+	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
+	    break;
+    }
     /* Say goodnight, Gracie */
     systemShutdown();
 
