@@ -658,6 +658,7 @@ dev/bktr/bktr_os.c	optional bktr pci
 pci/cy_pci.c		optional cy pci
 pci/ida_pci.c		optional ida pci
 pci/if_al.c		optional al
+pci/if_ar_p.c		optional ar pci
 pci/if_ax.c		optional ax
 pci/if_de.c		optional de
 pci/if_dm.c		optional dm
