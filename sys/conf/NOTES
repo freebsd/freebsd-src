@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.270 1996/06/23 19:41:34 ache Exp $
+#	$Id: LINT,v 1.271 1996/06/23 19:46:46 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -412,7 +412,7 @@ options		OD_AUTO_TURNOFF
 # system utilities which are compressed by default (like /stand/sysinstall)
 # then `gzip' becomes mandatory too.
 #
-pseudo-device	pty	16	#Pseudo ttys - can go as high as 64
+pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
