@@ -123,8 +123,13 @@ FreeBSD 4.0  |               | NetBSD 1.4.2    |
  |           |               |                 |
  |           |            NetBSD -current  OpenBSD -current
  |   FreeBSD 3.5             |                 |
+ |           |               |                 |
+ |   FreeBSD 3.5.1           |                 |
  |                           v                 v
  *---FreeBSD 4.1
+ |      |
+ |      v
+ |
  |        
 FreeBSD 5.0-current
  |
@@ -279,6 +284,7 @@ FreeBSD 4.0             2000-03-13 [FBD]
 NetBSD 1.4.2            2000-03-19 [NBD] (patch release)
 FreeBSD 3.5		2000-06-24 [FBD]
 FreeBSD 4.1		2000-07-27 [FBD]
+FreeBSD 3.5.1		2000-07-28 [FBD]
 
 
 Bibliography
