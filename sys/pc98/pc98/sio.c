@@ -133,6 +133,10 @@
 #include <sys/rman.h>
 #include <sys/timepps.h>
 #include <sys/uio.h>
+#include <sys/cons.h>
+#if DDB > 0
+#include <ddb/ddb.h>
+#endif
 
 #include <isa/isavar.h>
 
@@ -343,6 +347,9 @@ struct com_s {
 	struct timeval	dcd_timestamp;
 	struct	pps_state pps;
 	int	pps_bit;
+#ifdef ALT_BREAK_TO_DEBUGGER
+	int	alt_brk_state;
+#endif
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -2661,35 +2668,13 @@ more_intr:
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
-			/*
-			 * Solaris implements a new BREAK which is initiated
-			 * by a character sequence CR ~ ^b which is similar
-			 * to a familiar pattern used on Sun servers by the
-			 * Remote Console.
-			 */
-#define	KEY_CRTLB	2	/* ^B */
-#define	KEY_CR		13	/* CR '\r' */
-#define	KEY_TILDE	126	/* ~ */
-
-			if (com->unit == comconsole) {
-				static int brk_state1 = 0, brk_state2 = 0;
-				if (recv_data == KEY_CR) {
-					brk_state1 = recv_data;
-					brk_state2 = 0;
-				} else if (brk_state1 == KEY_CR && (recv_data == KEY_TILDE || recv_data == KEY_CRTLB)) {
-					if (recv_data == KEY_TILDE)
-						brk_state2 = recv_data;
-					else if (brk_state2 == KEY_TILDE && recv_data == KEY_CRTLB) {
-							breakpoint();
-							brk_state1 = brk_state2 = 0;
-							goto cont;
-					} else
-						brk_state2 = 0;
-				} else
-					brk_state1 = 0;
-			}
-#endif
+#ifdef DDB
+#ifdef ALT_BREAK_TO_DEBUGGER
+			if (com->unit == comconsole &&
+			    db_alt_break(recv_data, &com->alt_brk_state) != 0)
+				breakpoint();
+#endif /* ALT_BREAK_TO_DEBUGGER */
+#endif /* DDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
 				 * Don't store BI if IGNBRK or FE/PE if IGNPAR.
@@ -3970,8 +3955,6 @@ disc_optim(tp, t, com)
 /*
  * Following are all routines needed for SIO to act as console
  */
-#include <sys/cons.h>
-
 struct siocnstate {
 	u_char	dlbl;
 	u_char	dlbh;
@@ -4006,10 +3989,8 @@ CONS_DRIVER(sio, siocnprobe, siocninit, siocnterm, siocngetc, siocncheckc,
 	    siocnputc, NULL);
 #endif
 
-/* To get the GDB related variables */
 #if DDB > 0
-#include <ddb/ddb.h>
-struct consdev gdbconsdev;
+static struct consdev gdbconsdev;
 #endif
 
 static void
