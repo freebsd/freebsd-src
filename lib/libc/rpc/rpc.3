@@ -161,7 +161,7 @@ this routine.
 .Fa "char *in"
 .Fa "xdrproc_t outproc"
 .Fa "char *out"
-.Fa "resultproc_t eachresult"
+.Fa "bool_t (*eachresult)(caddr_t, struct sockaddr_in *)
 .Fc
 .Xc
 .Pp
@@ -174,7 +174,8 @@ response, this routine calls
 .Fn eachresult ,
 whose form is:
 .Bd -ragged -offset indent
-.Fn eachresult "char *out" "struct sockaddr_in *addr"
+.Ft bool_t
+.Fn eachresult "caddr_t out" "struct sockaddr_in *addr"
 .Ed
 .Pp
 where
@@ -234,6 +235,7 @@ is used to decode the procedure's results;
 is the time allowed for results to come back.
 .Pp
 .It Xo
+.Ft void
 .Fn clnt_destroy "CLIENT *clnt"
 .Xc
 .Pp
@@ -342,6 +344,7 @@ waits for the server to reply before
 retransmitting the request.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn clnt_freeres "CLIENT *clnt" "xdrproc_t outproc" "char *out"
 .Xc
 .Pp
@@ -409,6 +412,7 @@ Used after
 .Fn callrpc .
 .Pp
 .It Xo
+.Ft void
 .Fn clnt_perror "CLIENT *clnt" "char *s"
 .Xc
 .Pp
@@ -806,6 +810,7 @@ See also
 .Fn clnt_broadcast .
 .Pp
 .It Xo
+.Ft bool_t
 .Fn pmap_set "u_long prognum" "u_long versnum" "u_long protocol" "u_short port"
 .Xc
 .Pp
@@ -829,6 +834,7 @@ Automatically done by
 .Fn svc_register .
 .Pp
 .It Xo
+.Ft bool_t
 .Fn pmap_unset "u_long prognum" "u_long versnum"
 .Xc
 .Pp
@@ -845,6 +851,7 @@ This routine returns one if it succeeds, zero
 otherwise.
 .Pp
 .It Xo
+.Ft bool_t
 .Fo registerrpc
 .Fa "u_long prognum"
 .Fa "u_long versnum"
@@ -897,6 +904,7 @@ Use the routine
 to print the reason why.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn svc_destroy "SVCXPRT * xprt"
 .Xc
 .Pp
@@ -951,6 +959,7 @@ interface is obsoleted by
 .Va svc_fdset .
 .Pp
 .It Xo
+.Ft bool_t
 .Fn svc_freeargs "SVCXPRT *xprt" "xdrproc_t inproc" "char *in"
 .Xc
 .Pp
@@ -964,6 +973,7 @@ freed,
 and zero otherwise.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn svc_getargs "SVCXPRT *xprt" "xdrproc_t inproc" "char *in"
 .Xc
 .Pp
@@ -998,6 +1008,7 @@ service transport handle,
 .Fa xprt .
 .Pp
 .It Xo
+.Ft void
 .Fn svc_getreqset "fd_set *rdfds"
 .Xc
 .Pp
@@ -1020,6 +1031,7 @@ value of
 have been serviced.
 .Pp
 .It Xo
+.Ft void
 .Fn svc_getreq "int rdfds"
 .Xc
 .Pp
@@ -1030,12 +1042,13 @@ This interface is obsoleted by
 .Fn svc_getreqset .
 .Pp
 .It Xo
+.Ft bool_t
 .Fo svc_register
 .Fa "SVCXPRT *xprt"
 .Fa "u_long prognum"
 .Fa "u_long versnum"
-.Fa "void (*dispatch)(void)"
-.Fa "u_long protocol"
+.Fa "void (*dispatch)(struct svc_req *, SVCXPRT *)"
+.Fa "int protocol"
 .Fc
 .Xc
 .Pp
@@ -1068,6 +1081,7 @@ The procedure
 .Fn dispatch
 has the following form:
 .Bd -ragged -offset indent
+.Ft bool_t
 .Fn dispatch "struct svc_req *request" "SVCXPRT *xprt"
 .Ed
 .Pp
@@ -1091,6 +1105,7 @@ This procedure is usually waiting for a
 system call to return.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn svc_sendreply "SVCXPRT *xprt" "xdrproc_t outproc" "char *out"
 .Xc
 .Pp
@@ -1170,7 +1185,7 @@ Service implementors usually do not need this routine.
 .Ft void
 .Xc
 .It Xo
-.Fn svcerr_progvers "SVCXPRT *xprt"
+.Fn svcerr_progvers "SVCXPRT *xprt" "u_long low_vers" "u_long high_vers"
 .Xc
 .Pp
 Called when the desired version of a program is not registered
@@ -1324,6 +1339,7 @@ receiving
 messages.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_accepted_reply "XDR *xdrs" "struct accepted_reply *ar"
 .Xc
 .Pp
@@ -1338,6 +1354,7 @@ messages without using the
 package.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_authunix_parms "XDR *xdrs" "struct authunix_parms *aupp"
 .Xc
 .Pp
@@ -1353,6 +1370,7 @@ authentication package.
 .Ft void
 .Xc
 .It Xo
+.Ft bool_t
 .Fn xdr_callhdr "XDR *xdrs" "struct rpc_msg *chdr"
 .Xc
 .Pp
@@ -1366,6 +1384,7 @@ messages without using the
 package.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_callmsg "XDR *xdrs" "struct rpc_msg *cmsg"
 .Xc
 .Pp
@@ -1379,6 +1398,7 @@ messages without using the
 package.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_opaque_auth "XDR *xdrs" "struct opaque_auth *ap"
 .Xc
 .Pp
@@ -1392,6 +1412,8 @@ messages without using the
 package.
 .Pp
 .It Xo
+.Fd struct pmap ;
+.Ft bool_t
 .Fn xdr_pmap "XDR *xdrs" "struct pmap *regs"
 .Xc
 .Pp
@@ -1404,6 +1426,7 @@ these parameters without using the
 interface.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_pmaplist "XDR *xdrs" "struct pmaplist **rp"
 .Xc
 .Pp
@@ -1414,6 +1437,7 @@ these parameters without using the
 interface.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_rejected_reply "XDR *xdrs" "struct rejected_reply *rr"
 .Xc
 .Pp
@@ -1427,6 +1451,7 @@ messages without using the
 package.
 .Pp
 .It Xo
+.Ft bool_t
 .Fn xdr_replymsg "XDR *xdrs" "struct rpc_msg *rmsg"
 .Xc
 .Pp
