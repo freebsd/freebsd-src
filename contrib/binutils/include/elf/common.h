@@ -444,16 +444,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    OS specific values.  This is a deliberate special case and we
    maintain it for backwards compatability.  */
 #define DT_VALRNGLO	0x6ffffd00
+#define DT_CHECKSUM	0x6ffffdf8
 #define DT_PLTPADSZ	0x6ffffdf9
 #define DT_MOVEENT	0x6ffffdfa
 #define DT_MOVESZ	0x6ffffdfb
-#define DT_FEATURE_1	0x6ffffdfc
+#define DT_FEATURE	0x6ffffdfc
 #define DT_POSFLAG_1	0x6ffffdfd
 #define DT_SYMINSZ	0x6ffffdfe
 #define DT_SYMINENT	0x6ffffdff
 #define DT_VALRNGHI	0x6ffffdff
 
 #define DT_ADDRRNGLO	0x6ffffe00
+#define DT_CONFIG	0x6ffffefa
+#define DT_DEPAUDIT	0x6ffffefb
+#define DT_AUDIT	0x6ffffefc
+#define DT_PLTPAD	0x6ffffefd
+#define DT_MOVETAB	0x6ffffefe
 #define DT_SYMINFO	0x6ffffeff
 #define DT_ADDRRNGHI	0x6ffffeff
 
@@ -478,14 +484,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define DT_USED		0x7ffffffe
 #define DT_FILTER	0x7fffffff
 
-/* Values used in DT_FEATURE_1 .dynamic entry.  */
+
+/* Values used in DT_FEATURE .dynamic entry.  */
 #define DTF_1_PARINIT	0x00000001
+/* From
+
+   http://docs.sun.com:80/ab2/coll.45.13/LLM/@Ab2PageView/21165?Ab2Lang=C&Ab2Enc=iso-8859-1
+
+   DTF_1_CONFEXP is the same as DTF_1_PARINIT. It is a typo. The value
+   defined here is the same as the one in <sys/link.h> on Solaris 8. */
+#define DTF_1_CONFEXP	0x00000002
 
 /* Flag values used in the DT_POSFLAG_1 .dynamic entry.  */
 #define DF_P1_LAZYLOAD	0x00000001
 #define DF_P1_GROUPPERM	0x00000002
 
-/* Flag value in in the DT_1_FLAGS .dynamic entry.  */
+/* Flag value in in the DT_FLAGS_1 .dynamic entry.  */
 #define DF_1_NOW	0x00000001
 #define DF_1_GLOBAL	0x00000002
 #define DF_1_GROUP	0x00000004
@@ -497,6 +511,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define DF_1_DIRECT	0x00000100
 #define DF_1_TRANS	0x00000200
 #define DF_1_INTERPOSE	0x00000400
+#define DF_1_NODEFLIB	0x00000800
+#define DF_1_NODUMP	0x00001000
+#define DF_1_CONLFAT	0x00002000
 
 /* Flag values for the DT_FLAGS entry.  */
 #define DF_ORIGIN	(1 << 0)

@@ -1,3 +1,40 @@
+2000-11-02  Theo Honohan  <th@futuretv.com>
+
+	* config/tc-arm.c (do_msr): Improve error message. 
+
+2000-11-01  Philip Blundell  <philb@gnu.org>
+
+	From 2000-08-01  Nick Clifton  <nickc@cygnus.com>
+	* config/tc-arm.c (do_mrs): Fix skip of 'cpsr_all' flag.
+
+2000-10-16  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version number to 2.10.1.
+	* configure: Regenerate.
+
+2000-10-14  Philip Blundell  <philb@gnu.org>
+
+	From 2000-06-17 Mark Elbrecht <snowball3@bigfoot.com>
+
+	* config/obj-coff.c (obj_coff_weak): Typo fix: Change BFD_ASSEMLER
+	to BFD_ASSEMBLER.
+
+2000-09-08  Philip Blundell  <philb@gnu.org>
+
+	* config/tc-arm.c (md_apply_fix3): Correct handling of ADRL when
+	offset is negative.
+
+2000-08-30  Matthew Jacob  <mjacob@feral.com>
+
+	* config/tc-alpha.c (md_undefined_symbol): Properly understand that
+	$at is the integer register $r28, vs. both $r28 and the floating
+	point register $f28.
+
+2000-04-14  Matthew Green  <mrg@cygnus.com>
+	
+	* configure.in: Add NetBSD/sparc ELF and NetBSD/sparc64 support.
+	* configure: Regenerate.
+
 2000-06-09  Nick Clifton  <nickc@cygnus.com>
 
 	* config/tc-arm.c (cons_fix_new_arm): Assign correct reloc value

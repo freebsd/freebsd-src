@@ -2,9 +2,14 @@
 
 Changes in version 2.10:
 
+* Added AT> to the linker script language to allow load-time allocation of 
+  sections into regions.
+
 * Added garbage collection of unused sections, enabled by --gc-sections. 
   It does require a bit of backend support; currently implemented are
-  ppc-elf, mips-elf, and mn10300-elf.  Others will ignore the option.
+  avr-elf, d10v-elf, fr30-elf, i386-elf, m32r-elf, m68k-elf, mcore-elf,
+  mips-elf, mn10300-elf, ppc-elf, sh-elf, sparc-elf, and v850-elf.
+  Others will ignore the option.
 
 * Added SORT to the linker script language to permit sorting sections by file
   name or section name.

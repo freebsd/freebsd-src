@@ -479,6 +479,11 @@ yy_create_string_buffer (string, size)
   b->yy_n_chars = size+1;
   b->yy_buf_pos = &b->yy_ch_buf[1];
 
+  b->yy_is_our_buffer = 1;
+  b->yy_is_interactive = 0;
+  b->yy_at_bol = 1;
+  b->yy_fill_buffer = 0;
+
   /* flex 2.4.7 changed the interface.  FIXME: We should not be using
      a flex internal interface in the first place!  */
 #ifdef YY_BUFFER_NEW

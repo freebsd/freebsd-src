@@ -1,3 +1,16 @@
+2000-10-17  Philip Blundell  <pb@futuretv.com>
+
+	* cp-demangle.c, dyn-string.c, cplus-dem.c: Update from trunk
+	version.
+	* testsuite/demangle-expected, testsuite/regress-demangle:
+	Likewise.
+	
+	From 2000-06-04  Alex Samuel  <samuel@codesourcery.com>
+	* Makefile.in (CFILES): Add cp-demangle.c and dyn-string.c.
+	(REQUIRED_OFILES): Add cp-demangle.o and dyn-string.o.
+	(cp-demangle.o): New dependency.
+	(dyn-string.o): Likewise.
+
 Thu Mar 16 01:33:58 2000  Jeffrey A Law  (law@cygnus.com)
 
 	* Makefile.in (partition.o): Depend on config.h
