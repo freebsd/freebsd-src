@@ -49,7 +49,16 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #include "y.tab.h"
 #include "config.h"
 
+#ifndef TRUE
+#define TRUE	(1)
+#endif
+
+#ifndef FALSE
+#define FALSE	(0)
+#endif
+
 static char *PREFIX;
+static int no_config_clobber = FALSE;
 
 /*
  * Config builds a set of files for building a UNIX
@@ -66,13 +75,16 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gp")) != EOF)
+	while ((ch = getopt(argc, argv, "gpn")) != EOF)
 		switch (ch) {
 		case 'g':
 			debugging++;
 			break;
 		case 'p':
 			profiling++;
+			break;
+		case 'n':
+			no_config_clobber = TRUE;
 			break;
 		case '?':
 		default:
@@ -82,7 +94,7 @@ main(argc, argv)
 	argv += optind;
 
 	if (argc != 1) {
-usage:		fputs("usage: config [-gp] sysname\n", stderr);
+usage:		fputs("usage: config [-gpn] sysname\n", stderr);
 		exit(1);
 	}
 
@@ -90,12 +102,11 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 		perror(PREFIX);
 		exit(2);
 	}
-#ifdef CONFIG_DONT_CLOBBER
-	if (stat(p = path((char *)NULL), &buf)) {
-#else /* CONFIG_DONT_CLOBBER */
+	if (getenv("NO_CONFIG_CLOBBER"))
+		no_config_clobber = TRUE;
+
 	p = path((char *)NULL);
 	if (stat(p, &buf)) {
-#endif /* CONFIG_DONT_CLOBBER */
 		if (mkdir(p, 0777)) {
 			perror(p);
 			exit(2);
@@ -104,9 +115,8 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 	else if ((buf.st_mode & S_IFMT) != S_IFDIR) {
 		fprintf(stderr, "config: %s isn't a directory.\n", p);
 		exit(2);
-#ifndef CONFIG_DONT_CLOBBER
 	}
-	else {
+	else if (!no_config_clobber) {
 		char tmp[strlen(p) + 8];
 
 		fprintf(stderr, "Removing old directory %s:  ", p);
@@ -122,9 +132,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 			perror(p);
 			exit(2);
 		}
-#endif /* CONFIG_DONT_CLOBBER */
 	}
-
 	loadaddress = -1;
 	dtab = NULL;
 	confp = &conf_list;

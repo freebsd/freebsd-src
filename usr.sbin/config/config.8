@@ -39,7 +39,7 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm config
-.Op Fl gp
+.Op Fl gpn
 .Ar SYSTEM_NAME
 .Sh DESCRIPTION
 .Pp
@@ -70,7 +70,7 @@ that give alternate files for a specific machine.
 .Sx FILES
 section below)
 .Pp
-Available option and operand:
+Available options and operands:
 .Pp
 .Bl -tag -width SYSTEM_NAME
 .It Fl g
@@ -88,6 +88,12 @@ will configure a system for profiling; for example,
 .Xr kgmon 8
 and
 .Xr gprof 1 .
+.It Fl n
+If the
+.Fl n
+flag is specified,
+.Nm config
+will not remove the old compile directory (see below).
 .It Ar SYSTEM_NAME
 specifies the name of the system configuration file
 containing device specifications, configuration options
@@ -100,9 +106,15 @@ should be run from the
 subdirectory of the system source (usually
 .Pa /sys/ARCH/conf ) .
 .Nm Config
-assumes the directory
+will create the directory
 .Pa ../../compile/SYSTEM_NAME
-exists and places all output files there.  
+as necessary and place all output files there.
+If the directory already exists, it will be removed
+first unless the
+.Pa -n
+flag was specified or the environment variable
+.Nm NO_CONFIG_CLOBBER
+is set.
 The output of
 .Nm config
 consists of a number of files; for the
