@@ -3335,10 +3335,14 @@ siocnputc(dev, c)
 	else
 		iobase = siocniobase;
 	s = spltty();
+	if (sio_inited)
+		mtx_lock_spin(&sio_lock);
 	siocnopen(&sp, iobase, comdefaultrate);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
+	if (sio_inited)
+		mtx_unlock_spin(&sio_lock);
 	splx(s);
 }
 
