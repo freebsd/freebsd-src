@@ -396,6 +396,7 @@ extern int	configPackages(dialogMenuItem *self);
 extern int	configSaver(dialogMenuItem *self);
 extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configNTP(dialogMenuItem *self);
+extern int	configUsers(dialogMenuItem *self);
 extern int	configXFree86(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configSamba(dialogMenuItem *self);

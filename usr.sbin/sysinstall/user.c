@@ -108,7 +108,7 @@ static Layout groupLayout[] = {
 /* The user configuration menu. */
 static Layout userLayout[] = {
 #define LAYOUT_UNAME		0
-    { 3, 6, UT_NAMESIZE + 4, UT_NAMESIZE,
+    { 3, 6, UT_NAMESIZE, UT_NAMESIZE + 1,
       "Login ID:", "The login name of the new user (mandatory)",
       uname, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
@@ -356,7 +356,7 @@ userAddGroup(dialogMenuItem *self)
     }
 
     /* Draw a group entry box */
-    draw_box(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 8, USER_DIALOG_HEIGHT - 6,
+    draw_box(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 8, USER_DIALOG_HEIGHT - 8,
 	     USER_DIALOG_WIDTH - 17, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, USER_DIALOG_Y + 2, USER_DIALOG_X + 22, " Add a new group ");
@@ -379,7 +379,7 @@ reenter:
 	}
     }
 
-    if (!verifyGroupSettings())
+    if (!cancel && !verifyGroupSettings())
 	goto reenter;
 
     /* Clear this crap off the screen */
@@ -678,7 +678,7 @@ userAddUser(dialogMenuItem *self)
     }
 
     /* Draw a user entry box */
-    draw_box(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 3, USER_DIALOG_HEIGHT - 5,
+    draw_box(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 3, USER_DIALOG_HEIGHT - 6,
 	     USER_DIALOG_WIDTH - 6, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, USER_DIALOG_Y + 1, USER_DIALOG_X + 22, " Add a new user ");
@@ -711,7 +711,7 @@ reenter:
 	}
     }
 
-    if (!verifyUserSettings(ds_win))
+    if (!cancel && !verifyUserSettings(ds_win))
 	goto reenter;
 
     /* Clear this crap off the screen */
