@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.26 1995/05/26 11:21:46 jkh Exp $
+ * $Id: label.c,v 1.27 1995/05/28 09:31:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,8 +79,7 @@ check_conflict(char *name)
     int i;
 
     for (i = 0; label_chunk_info[i].c; i++)
-	if (label_chunk_info[i].type == PART_FILESYSTEM
-	    && label_chunk_info[i].c->private
+	if (label_chunk_info[i].type == PART_FILESYSTEM && label_chunk_info[i].c->private
 	    && !strcmp(((PartInfo *)label_chunk_info[i].c->private)->mountpoint, name))
 	    return TRUE;
     return FALSE;
@@ -180,11 +179,10 @@ new_part(char *mpoint, Boolean newfs, u_long size)
     ret->newfs = newfs;
     if (!size)
 	    return ret;
-    for(target = size; target; target--) {
-	for(divisor = 4096 ; divisor > 1023; divisor--) {
+    for (target = size; target; target--) {
+	for (divisor = 4096 ; divisor > 1023; divisor--) {
 	    if (!(target % divisor)) { 
-		sprintf(ret->newfs_cmd+strlen(ret->newfs_cmd),
-		    " -u %ld",divisor);
+		sprintf(ret->newfs_cmd + strlen(ret->newfs_cmd), " -u %ld",divisor);
 		return ret;
 	    }
 	}
@@ -351,19 +349,10 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
 	    if (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT) {
-		if (label_chunk_info[i].c->private == NULL) {
-		    static int mnt = 0;
-		    char foo[10];
-
-		    /*
-		     * Hmm!  A partition that must have already been here.
-		     * Fill in a fake mountpoint and register it
-		     */
-		    sprintf(foo, "/mnt%d", mnt++);
-		    label_chunk_info[i].c->private = new_part(foo, FALSE, label_chunk_info[i].c->size);
-		    label_chunk_info[i].c->private_free = safe_free;
-		}
-		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
+		if (label_chunk_info[i].c->private != NULL)
+		    mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
+		else
+		    mountpoint = " ";
 		if (label_chunk_info[i].type == PART_FAT)
 		    newfs = "DOS";
 		else
@@ -394,10 +383,9 @@ print_label_chunks(void)
 static void
 print_command_summary()
 {
-    mvprintw(17, 0,
-	     "The following commands are valid here (upper or lower case):");
-    mvprintw(19, 0, "C = Create Partition   D = Delete Partition   M = Mount Partition");
-    mvprintw(20, 0, "N = Newfs Options      T = Toggle Newfs       ESC = Exit this screen");
+    mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
+    mvprintw(19, 0, "C = Create New     D = Delete         M = Set Mountpoint");
+    mvprintw(20, 0, "N = Newfs Options  T = Toggle Newfs   U = Undo    ESC = Exit");
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
@@ -489,30 +477,23 @@ diskLabelEditor(char *str)
 		char *val, *cp;
 		int size;
 		struct chunk *tmp;
+		char osize[80];
 		u_long flags = 0;
 
-		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or\nappend a trailing `M' for megabytes (e.g. 20M), `C' for cylinders\nor `%%' for a percentage of remaining space.\n\nSpace free is %d blocks (%dMB)", sz, sz / ONE_MEG);
+		sprintf(osize, "%d", sz);
+		val = msgGetInput(osize, "Please specify the size for new FreeBSD partition in blocks, or\nappend a trailing `M' for megabytes (e.g. 20M) or `C' for cylinders.\n\nSpace free is %d blocks (%dMB)", sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0)
 		    break;
 
-		if (sz <= FS_MIN_SIZE) {
-		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
-		    break;
-		}
 		if (*cp) {
 		    if (toupper(*cp) == 'M')
 			size *= ONE_MEG;
 		    else if (toupper(*cp) == 'C')
 			size *= (label_chunk_info[here].c->disk->bios_hd * label_chunk_info[here].c->disk->bios_sect);
-		    else if (*cp == '%') {
-			float fsz, fsize;
-
-			fsz = (float)sz;
-			fsize = (float)size;
-			fsize *= 0.10;
-			fsz *= fsize;
-			size = (int)fsz;
-		    }
+		}
+		if (size <= FS_MIN_SIZE) {
+		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
+		    break;
 		}
 		type = get_partition_type();
 		if (type == PART_NONE)
@@ -552,7 +533,8 @@ diskLabelEditor(char *str)
 		}
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
-		    tmp->private = new_part(p->mountpoint,p->newfs,tmp->size);
+		    tmp->private = new_part(p->mountpoint, p->newfs, tmp->size);
+		    tmp->private_free = safe_free;
 		    safe_free(p);
 		} else {
 		    tmp->private = p;
@@ -617,17 +599,21 @@ diskLabelEditor(char *str)
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM &&
 		label_chunk_info[here].c->private) {
-		    PartInfo *pi = ((PartInfo *)
-			label_chunk_info[here].c->private);
-		    label_chunk_info[here].c->private = new_part(
-			pi->mountpoint,
-			!pi->newfs,
-			label_chunk_info[here].c->size);
+		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private);
+		    label_chunk_info[here].c->private = new_part(pi->mountpoint, !pi->newfs, label_chunk_info[here].c->size);
 		    safe_free(pi);
+		    label_chunk_info[here].c->private_free = safe_free;
 		}
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
+
+	case 'U':
+	    Free_Disk(label_chunk_info[here].c->disk);
+	    label_chunk_info[here].c->disk = Open_Disk(label_chunk_info[here].c->disk->name);
+	    if (!label_chunk_info[here].c->disk)
+		msgFatal("Can't reopen disk in undo!");
+	    record_label_chunks();
 
 	case 'W':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
