@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.29 1995/10/24 06:48:16 ache Exp $
+ *	$Id: rtld.c,v 1.31 1995/10/27 22:01:00 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -93,30 +93,6 @@ struct somap_private {
 #endif
 };
 
-/*
- * Memorizing structure for reducing the number of calls to lookup()
- * during relocation.
- *
- * While relocating a given shared object, the dynamic linker maintains
- * a memorizing vector that is directly indexed by the symbol number
- * in the relocation entry.  The first time a given symbol is looked
- * up, the memorizing vector is filled in with a pointer to the symbol
- * table entry, and a pointer to the so_map of the shared object in
- * which the symbol was defined.  On subsequent uses of the same
- * symbol, that information is retrieved directly from the memorizing
- * vector, without calling lookup() again.
- *
- * A symbol that is referenced in a relocation entry is typically
- * referenced in many relocation entries, so this memorizing reduces
- * the number of calls to lookup() dramatically.  The overall improvement
- * in the speed of dynamic linking is also dramatic -- as much as a
- * factor of three for programs that use many shared libaries.
- */
-struct memoent {
-	struct nzlist *np;	/* Pointer to symbol entry */
-	struct so_map *src_map;	/* Shared object that defined the symbol */
-};
-
 #define LM_PRIVATE(smp)	((struct somap_private *)(smp)->som_spd)
 
 #ifdef SUN_COMPAT
@@ -175,13 +151,11 @@ static char		__main_progname[] = "main";
 static char		*main_progname = __main_progname;
 static char		us[] = "/usr/libexec/ld.so";
 static int		anon_fd = -1;
+static char		*ld_library_path;
 
 struct so_map		*link_map_head, *main_map;
 struct so_map		**link_map_tail = &link_map_head;
 struct rt_symbol	*rt_symbol_head;
-
-static struct memoent	*symmemo;	/* Nemorizing vector for symbols */
-static long		symmemosyms;	/* Number of symbols in memo vector */
 
 static void		*__dlopen __P((char *, int));
 static int		__dlclose __P((void *));
@@ -218,8 +192,6 @@ static struct nzlist	*lookup __P((char *, struct so_map **, int));
 static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 						long, struct so_map *));
-static void		*getMemory __P((size_t));
-static void		freeMemory __P((void *, size_t));
 static void		generror __P((char *, ...));
 static void		maphints __P((void));
 static void		unmaphints __P((void));
@@ -247,9 +219,8 @@ int			version;
 struct crt_ldso		*crtp;
 struct _dynamic		*dp;
 {
-	int			n;
-	int			nreloc;		/* # of ld.so relocations */
 	struct relocation_info	*reloc;
+	struct relocation_info	*reloc_limit;	/* End+1 of relocation */
 	struct so_debug		*ddp;
 	struct so_map		*smp;
 
@@ -262,20 +233,22 @@ struct _dynamic		*dp;
 	/* Fixup __DYNAMIC structure */
 	(long)dp->d_un.d_sdt += crtp->crt_ba;
 
-	/* Divide by hand to avoid possible use of library division routine */
-	for (nreloc = 0, n = LD_RELSZ(dp);
-	     n > 0;
-	     n -= sizeof(struct relocation_info) ) nreloc++;
-
-
 	/* Relocate ourselves */
-	for (reloc = (struct relocation_info *)(LD_REL(dp) + crtp->crt_ba);
-	     nreloc;
-	     nreloc--, reloc++) {
-
-	     register long	addr = reloc->r_address + crtp->crt_ba;
-
-	     md_relocate_simple(reloc, crtp->crt_ba, addr);
+	reloc = (struct relocation_info *) (LD_REL(dp) + crtp->crt_ba);
+	reloc_limit =
+		(struct relocation_info *) ((char *) reloc + LD_RELSZ(dp));
+	while(reloc < reloc_limit) {
+		/*
+		 * Objects linked with "-Bsymbolic" (in particular, ld.so
+		 * itself) can end up having unused relocation entries at
+		 * the end.  These can be detected by the fact that they
+		 * have an address of 0.
+		 */
+		if(reloc->r_address == 0)	/* We're done */
+		    break;
+		md_relocate_simple(reloc, crtp->crt_ba,
+			reloc->r_address + crtp->crt_ba);
+		++reloc;
 	}
 
 	__progname = "ld.so";
@@ -294,10 +267,11 @@ struct _dynamic		*dp;
 	if (careful) {
 		unsetenv("LD_LIBRARY_PATH");
 		unsetenv("LD_PRELOAD");
-	}
+	} else
+		ld_library_path = getenv("LD_LIBRARY_PATH");
 
 	/* Setup directory search */
-	add_search_path(getenv("LD_LIBRARY_PATH"));
+	add_search_path(ld_library_path);
 	std_search_path();
 
 	anon_open();
@@ -308,50 +282,12 @@ struct _dynamic		*dp;
 	crtp->crt_dp->d_entry = &ld_entry;
 	crtp->crt_dp->d_un.d_sdt->sdt_loaded = link_map_head->som_next;
 
-	/*
-	 * Determine the maximum number of run-time symbols in any of
-	 * the shared objects.
-	 */
-	symmemosyms = 0;
-
-	for (smp = link_map_head; smp; smp = smp->som_next) {
-		struct _dynamic *dp;
-		size_t symsize;
-		long numsyms;
-
-		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
-			continue;
-
-		dp = smp->som_dynamic;
-		symsize	= LD_VERSION_NZLIST_P(dp->d_version) ?
-			sizeof(struct nzlist) : sizeof(struct nlist);
-		numsyms = (LD_STRINGS(dp) - LD_SYMBOL(dp)) / symsize;
-		if(symmemosyms < numsyms)
-			symmemosyms = numsyms;
-	}
-
-	/*
-	 * Allocate a memorizing vector large enough to hold the maximum
-	 * number of run-time symbols.  We use mmap to get the memory, so
-	 * that we can give it back to the system when we are finished
-	 * with it.
-	 */
-	symmemo = getMemory(symmemosyms * sizeof(struct memoent));
-	if(symmemo == NULL)	/* Couldn't get the memory */
-		symmemosyms = 0;
-
 	/* Relocate all loaded objects according to their RRS segments */
 	for (smp = link_map_head; smp; smp = smp->som_next) {
 		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
 			continue;
 		if (reloc_map(smp) < 0)
 			return -1;
-	}
-
-	if(symmemosyms != 0) {	/* Free the memorizing vector */
-		freeMemory(symmemo, symmemosyms * sizeof(struct memoent));
-		symmemo = NULL;
-		symmemosyms = 0;
 	}
 
 	/* Copy any relocated initialized data. */
@@ -763,6 +699,32 @@ static int
 reloc_map(smp)
 	struct so_map		*smp;
 {
+	/*
+	 * Caching structure for reducing the number of calls to
+	 * lookup() during relocation.
+	 *
+	 * While relocating a given shared object, the dynamic linker
+	 * maintains a caching vector that is directly indexed by
+	 * the symbol number in the relocation entry.  The first time
+	 * a given symbol is looked up, the caching vector is
+	 * filled in with a pointer to the symbol table entry, and
+	 * a pointer to the so_map of the shared object in which the
+	 * symbol was defined.  On subsequent uses of the same symbol,
+	 * that information is retrieved directly from the caching
+	 * vector, without calling lookup() again.
+	 *
+	 * A symbol that is referenced in a relocation entry is
+	 * typically referenced in many relocation entries, so this
+	 * caching reduces the number of calls to lookup()
+	 * dramatically.  The overall improvement in the speed of
+	 * dynamic linking is also dramatic -- as much as a factor
+	 * of three for programs that use many shared libaries.
+	 */
+	struct cacheent {
+		struct nzlist *np;	/* Pointer to symbol entry */
+		struct so_map *src_map;	/* Shared object that defined symbol */
+	};
+
 	struct _dynamic		*dp = smp->som_dynamic;
 	struct relocation_info	*r = LM_REL(smp);
 	struct relocation_info	*rend = r + LD_RELSZ(dp)/sizeof(*r);
@@ -771,26 +733,17 @@ reloc_map(smp)
 	int symsize		= LD_VERSION_NZLIST_P(dp->d_version) ?
 					sizeof(struct nzlist) :
 					sizeof(struct nlist);
+	long			numsyms = LD_STABSZ(dp) / symsize;
+	size_t			cachebytes = numsyms * sizeof(struct cacheent);
+	struct cacheent		*symcache =
+					(struct cacheent *) alloca(cachebytes);
 
-	if(symmemosyms != 0) {
-		/*
-		 * We have allocated space for a memorizing vector large
-		 * enough to hold "symmemosyms" symbols.  Currently, the
-		 * code is written in such a way that the vector will
-		 * always be large enough, if it is present at all.  But
-		 * this routine will still handle the case where there
-		 * is a memorizing vector, but it is smaller than what
-		 * is needed for the current shared object.
-		 */
-		long numsyms;
-		size_t symmemobytes;
-
-		numsyms = (LD_STRINGS(dp) - LD_SYMBOL(dp)) / symsize;
-		if(numsyms > symmemosyms)  /* Currently, this won't happen */
-			numsyms = symmemosyms;
-		symmemobytes = numsyms * sizeof(struct memoent);
-		bzero(symmemo, symmemobytes);
+	if(symcache == NULL) {
+		generror("Cannot allocate symbol caching vector for %s",
+			smp->som_path);
+		return -1;
 	}
+	bzero(symcache, cachebytes);
 
 	if (LD_PLTSZ(dp))
 		md_fix_jmpslot(LM_PLT(smp),
@@ -798,8 +751,17 @@ reloc_map(smp)
 
 	for (; r < rend; r++) {
 		char	*sym;
-		caddr_t	addr = smp->som_addr + r->r_address;
+		caddr_t	addr;
 
+		/*
+		 * Objects linked with "-Bsymbolic" can end up having unused
+		 * relocation entries at the end.  These can be detected by
+		 * the fact that they have an address of 0.
+		 */
+		if(r->r_address == 0)	/* Finished relocating this object */
+			break;
+
+		addr = smp->som_addr + r->r_address;
 		if (check_text_reloc(r, smp, addr) < 0)
 			return -1;
 
@@ -819,33 +781,32 @@ reloc_map(smp)
 
 			sym = stringbase + p->nz_strx;
 
-			if(RELOC_SYMBOL(r) < symmemosyms) {
-				/* Check the memorizing vector */
-				np = symmemo[RELOC_SYMBOL(r)].np;
-				if(np != NULL) {	/* We found it */
-					src_map =
-					    symmemo[RELOC_SYMBOL(r)].src_map;
-				} else {	/* Symbol not memorized yet */
-					np = lookup(sym, &src_map,
-						0/*XXX-jumpslots!*/);
-					/*
-					 * Record the needed information about
-					 * the symbol in the memorizing vector,
-					 * so that we won't have to call
-					 * lookup the next time we encounter
-					 * the symbol.
-					 */
-					symmemo[RELOC_SYMBOL(r)].np = np;
-					symmemo[RELOC_SYMBOL(r)].src_map =
-						src_map;
-				}
-			} else
+			/*
+			 * Look up the symbol, checking the caching
+			 * vector first.
+			 */
+			np = symcache[RELOC_SYMBOL(r)].np;
+			if(np != NULL)	/* Symbol already cached */
+				src_map = symcache[RELOC_SYMBOL(r)].src_map;
+			else {	/* Symbol not cached yet */
 				np = lookup(sym, &src_map, 0/*XXX-jumpslots!*/);
+				/*
+				 * Record the needed information about
+				 * the symbol in the caching vector,
+				 * so that we won't have to call
+				 * lookup the next time we encounter
+				 * the symbol.
+				 */
+				symcache[RELOC_SYMBOL(r)].np = np;
+				symcache[RELOC_SYMBOL(r)].src_map = src_map;
+			}
+
 			if (np == NULL) {
 				generror ("Undefined symbol \"%s\" in %s:%s",
 					sym, main_progname, smp->som_path);
 				return -1;
                         }
+
 			/*
 			 * Found symbol definition.
 			 * If it's in a link map, adjust value
@@ -1292,64 +1253,6 @@ restart:
 }
 
 /*
- * getMemory and freeMemory are special memory allocation routines
- * that use mmap rather than malloc.  They are used for allocating
- * and freeing the symbol memorizing vector.  This vector is somewhat
- * large (8 to 12 Kbytes, typically), and it is used only temporarily.
- * By using mmap to allocate it, we can then use munmap to free it.
- * That reduces the runtime size of every dynamically linked program.
- *
- * Don't use getMemory and freeMemory casually for frequent allocations
- * or for small allocations.
- */
-
-static size_t pagesize;		/* Avoids multiple calls to getpagesize() */
-
-/*
- * Allocate a block of memory using mmap.
- */
-	static void *
-getMemory(size_t size)
-{
-	caddr_t ptr;
-
-	if(size == 0)		/* That was easy */
-		return NULL;
-	if(pagesize == 0)	/* First call */
-		pagesize = getpagesize();
-
-	/* Round up the request to an even multiple of the page size */
-	size = (size + pagesize - 1) & ~(pagesize - 1);
-
-	ptr = mmap(0, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_COPY,
-		anon_fd, 0);
-	if(ptr == (caddr_t) -1) {
-		xprintf("Cannot map anonymous memory");
-		return NULL;
-	}
-
-	return (void *) ptr;
-}
-
-/*
- * Free a block of memory, using munmap to return the memory to the system.
- */
-	static void
-freeMemory(void *ptr, size_t size)
-{
-	if(ptr == NULL || size == 0)
-		return;
-	if(pagesize == 0)	/* Really, should never happen */
-		pagesize = getpagesize();
-
-	/* Round up the size to an even multiple of the page size */
-	size = (size + pagesize - 1) & ~(pagesize - 1);
-
-	if(munmap((caddr_t) ptr, size) == -1)
-		xprintf("Cannot unmap anonymous memory");
-}
-
-/*
  * This routine is called from the jumptable to resolve
  * procedure calls to shared objects.
  */
@@ -1538,7 +1441,7 @@ rtfindlib(name, major, minor, usehints)
 	int	major, minor;
 	int	*usehints;
 {
-	char	*cp, *ld_path = getenv("LD_LIBRARY_PATH");
+	char	*cp, *ld_path = ld_library_path;
 	int	realminor;
 
 	if (hheader == NULL)
