@@ -63,8 +63,7 @@ mkdir -p $D
 make world DESTDIR=$D
 cd etc
 make distribution DESTDIR=$D
-cd $D/dev
-sh MAKEDEV jail
+mount_devfs devfs $D/dev
 cd $D
 ln -sf dev/null kernel
 .Ed
@@ -381,6 +380,7 @@ by setting this MIB entry to 1.
 .Xr sysctl.conf 5 ,
 .Xr halt 8 ,
 .Xr inetd 8 ,
+.Xr mount_devfs 8 ,
 .Xr named 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
