@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.7
+    Original revision: 1.9
 -->
 <sect1 id="proc-ia64">
   <title>対応プロセッサおよびマザーボード</title>
@@ -17,7 +17,7 @@
          をご覧ください。)</para>
      </listitem>
      <listitem>
-       <para>HP i2000
+       <para>HP i2000</para>
      </listitem>
      <listitem>
        <para>Intel 460GX</para>

@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.8 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
@@ -35,7 +35,7 @@
 		(create-link
 		  (list (list "HREF" "http://www.FreeBSD.org/docs.html"))
                   (literal "解説文書"))
-                (literal "をお読みください。")
+                (literal "をお読みください。")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
@@ -49,6 +49,7 @@
 
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
+              (make element gi: "small"  
 	      (literal "この文書の原文に関するお問い合わせは <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
@@ -57,7 +58,7 @@
 	      (literal "日本語訳に関するお問い合わせは、<")
 	      (create-link (list (list "HREF" "http://www.jp.FreeBSD.org/ml.html#doc-jp"))
                  (literal "doc-jp@jp.FreeBSD.org"))
-	      (literal "> まで電子メールでお願いします。"))))))
+	      (literal "> まで電子メールでお願いします。")))))
       ]]>
     </style-specification-body>
   </style-specification>
