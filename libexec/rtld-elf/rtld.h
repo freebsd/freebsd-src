@@ -49,6 +49,7 @@ typedef unsigned char bool;
 #define false	0
 #define true	1
 
+struct stat;
 struct Struct_Obj_Entry;
 
 typedef struct Struct_Objlist_Entry {
@@ -82,6 +83,8 @@ typedef struct Struct_Obj_Entry {
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
     Objlist dagmembers;		/* DAG has these members (%) */
     char *path;			/* Pathname of underlying file (%) */
+    dev_t dev;			/* Object's filesystem's device */
+    ino_t ino;			/* Object's inode number */
     unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
     int refcount;
     int dl_refcount;		/* Number of times loaded by dlopen */
@@ -135,7 +138,7 @@ typedef struct Struct_Obj_Entry {
 #define RTLD_VERSION	1
 
 extern void _rtld_error(const char *, ...) __printflike(1, 2);
-extern Obj_Entry *map_object(int, const char *);
+extern Obj_Entry *map_object(int, const char *, const struct stat *);
 extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
