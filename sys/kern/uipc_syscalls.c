@@ -109,6 +109,9 @@ static u_int sf_buf_alloc_want;
 
 extern	struct fileops socketops;
 
+/*
+ * MPSAFE
+ */
 int
 socket(p, uap)
 	struct proc *p;
@@ -118,14 +121,17 @@ socket(p, uap)
 		int	protocol;
 	} */ *uap;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct socket *so;
 	struct file *fp;
 	int fd, error;
 
+	mtx_lock(&Giant);
+
+	fdp = p->p_fd;
 	error = falloc(p, &fp, &fd);
 	if (error)
-		return (error);
+		goto done2;
 	fhold(fp);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol, p);
 	if (error) {
@@ -141,9 +147,14 @@ socket(p, uap)
 		p->p_retval[0] = fd;
 	}
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 bind(p, uap)
@@ -158,20 +169,27 @@ bind(p, uap)
 	struct sockaddr *sa;
 	int error;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
-		return (error);
+		goto done2;
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error) {
 		fdrop(fp, p);
-		return (error);
+		goto done2;
 	}
 	error = sobind((struct socket *)fp->f_data, sa, p);
 	FREE(sa, M_SONAME);
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 listen(p, uap)
@@ -184,14 +202,20 @@ listen(p, uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
 	error = holdsock(p->p_fd, uap->s, &fp);
-	if (error)
-		return (error);
-	error = solisten((struct socket *)fp->f_data, uap->backlog, p);
-	fdrop(fp, p);
+	if (error == 0) {
+		error = solisten((struct socket *)fp->f_data, uap->backlog, p);
+		fdrop(fp, p);
+	}
+	mtx_unlock(&Giant);
 	return(error);
 }
 
+/*
+ * accept1()
+ * MPSAFE
+ */
 static int
 accept1(p, uap, compat)
 	struct proc *p;
@@ -202,7 +226,7 @@ accept1(p, uap, compat)
 	} */ *uap;
 	int compat;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdp;
 	struct file *lfp = NULL;
 	struct file *nfp = NULL;
 	struct sockaddr *sa;
@@ -211,15 +235,18 @@ accept1(p, uap, compat)
 	int fd;
 	short fflag;		/* type must match fp->f_flag */
 
+	mtx_lock(&Giant);
+	fdp = p->p_fd;
+
 	if (uap->name) {
 		error = copyin((caddr_t)uap->anamelen, (caddr_t)&namelen,
 			sizeof (namelen));
 		if(error)
-			return (error);
+			goto done2;
 	}
 	error = holdsock(fdp, uap->s, &lfp);
 	if (error)
-		return (error);
+		goto done2;
 	s = splnet();
 	head = (struct socket *)lfp->f_data;
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
@@ -352,29 +379,38 @@ done:
 	if (nfp != NULL)
 		fdrop(nfp, p);
 	fdrop(lfp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE (accept1() is MPSAFE)
+ */
 int
 accept(p, uap)
 	struct proc *p;
 	struct accept_args *uap;
 {
-
 	return (accept1(p, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE (accept1() is MPSAFE)
+ */
 int
 oaccept(p, uap)
 	struct proc *p;
 	struct accept_args *uap;
 {
-
 	return (accept1(p, uap, 1));
 }
 #endif /* COMPAT_OLDSOCK */
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 connect(p, uap)
@@ -390,9 +426,11 @@ connect(p, uap)
 	struct sockaddr *sa;
 	int error, s;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
-		return (error);
+		goto done2;
 	so = (struct socket *)fp->f_data;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
 		error = EALREADY;
@@ -428,9 +466,14 @@ bad:
 		error = EINTR;
 done:
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 socketpair(p, uap)
 	struct proc *p;
@@ -446,9 +489,11 @@ socketpair(p, uap)
 	struct socket *so1, *so2;
 	int fd, error, sv[2];
 
+	mtx_lock(&Giant);
+
 	error = socreate(uap->domain, &so1, uap->type, uap->protocol, p);
 	if (error)
-		return (error);
+		goto done2;
 	error = socreate(uap->domain, &so2, uap->type, uap->protocol, p);
 	if (error)
 		goto free1;
@@ -481,7 +526,7 @@ socketpair(p, uap)
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
 	fdrop(fp1, p);
 	fdrop(fp2, p);
-	return (error);
+	goto done2;
 free4:
 	if (fdp->fd_ofiles[sv[1]] == fp2) {
 		fdp->fd_ofiles[sv[1]] = NULL;
@@ -498,6 +543,8 @@ free2:
 	(void)soclose(so2);
 free1:
 	(void)soclose(so1);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -621,6 +668,9 @@ bad:
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 sendto(p, uap)
 	struct proc *p;
@@ -635,6 +685,7 @@ sendto(p, uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
+	int error;
 
 	msg.msg_name = uap->to;
 	msg.msg_namelen = uap->tolen;
@@ -646,10 +697,16 @@ sendto(p, uap)
 #endif
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->len;
-	return (sendit(p, uap->s, &msg, uap->flags));
+	mtx_lock(&Giant);
+	error = sendit(p, uap->s, &msg, uap->flags);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE
+ */
 int
 osend(p, uap)
 	struct proc *p;
@@ -662,6 +719,7 @@ osend(p, uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
+	int error;
 
 	msg.msg_name = 0;
 	msg.msg_namelen = 0;
@@ -671,9 +729,15 @@ osend(p, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = 0;
-	return (sendit(p, uap->s, &msg, uap->flags));
+	mtx_lock(&Giant);
+	error = sendit(p, uap->s, &msg, uap->flags);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 osendmsg(p, uap)
 	struct proc *p;
@@ -687,17 +751,21 @@ osendmsg(p, uap)
 	struct iovec aiov[UIO_SMALLIOV], *iov;
 	int error;
 
+	mtx_lock(&Giant);
 	error = copyin(uap->msg, (caddr_t)&msg, sizeof (struct omsghdr));
 	if (error)
-		return (error);
+		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
-			return (EMSGSIZE);
+		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
+			error = EMSGSIZE;
+			goto done2;
+		}
 		MALLOC(iov, struct iovec *,
 		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
 		      M_WAITOK);
-	} else
+	} else {
 		iov = aiov;
+	}
 	error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
 	if (error)
@@ -708,10 +776,15 @@ osendmsg(p, uap)
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 sendmsg(p, uap)
 	struct proc *p;
@@ -725,17 +798,22 @@ sendmsg(p, uap)
 	struct iovec aiov[UIO_SMALLIOV], *iov;
 	int error;
 
+	mtx_lock(&Giant);
+
 	error = copyin(uap->msg, (caddr_t)&msg, sizeof (msg));
 	if (error)
-		return (error);
+		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
-			return (EMSGSIZE);
+		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
+			error = EMSGSIZE;
+			goto done2;
+		}
 		MALLOC(iov, struct iovec *,
 		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
 		       M_WAITOK);
-	} else
+	} else {
 		iov = aiov;
+	}
 	if (msg.msg_iovlen &&
 	    (error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)))))
@@ -748,6 +826,8 @@ sendmsg(p, uap)
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -907,6 +987,9 @@ out:
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 recvfrom(p, uap)
 	struct proc *p;
@@ -923,13 +1006,16 @@ recvfrom(p, uap)
 	struct iovec aiov;
 	int error;
 
+	mtx_lock(&Giant);
+
 	if (uap->fromlenaddr) {
 		error = copyin((caddr_t)uap->fromlenaddr,
 		    (caddr_t)&msg.msg_namelen, sizeof (msg.msg_namelen));
 		if (error)
-			return (error);
-	} else
+			goto done2;
+	} else {
 		msg.msg_namelen = 0;
+	}
 	msg.msg_name = uap->from;
 	msg.msg_iov = &aiov;
 	msg.msg_iovlen = 1;
@@ -937,10 +1023,16 @@ recvfrom(p, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	return (recvit(p, uap->s, &msg, (caddr_t)uap->fromlenaddr));
+	error = recvit(p, uap->s, &msg, (caddr_t)uap->fromlenaddr);
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE
+ */
 int
 orecvfrom(p, uap)
 	struct proc *p;
@@ -954,6 +1046,9 @@ orecvfrom(p, uap)
 
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE
+ */
 int
 orecv(p, uap)
 	struct proc *p;
@@ -966,7 +1061,9 @@ orecv(p, uap)
 {
 	struct msghdr msg;
 	struct iovec aiov;
+	int error;
 
+	mtx_lock(&Giant);
 	msg.msg_name = 0;
 	msg.msg_namelen = 0;
 	msg.msg_iov = &aiov;
@@ -975,13 +1072,17 @@ orecv(p, uap)
 	aiov.iov_len = uap->len;
 	msg.msg_control = 0;
 	msg.msg_flags = uap->flags;
-	return (recvit(p, uap->s, &msg, (caddr_t)0));
+	error = recvit(p, uap->s, &msg, (caddr_t)0);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
  * Old recvmsg.  This code takes advantage of the fact that the old msghdr
  * overlays the new one, missing only the flags, and with the (old) access
  * rights where the control fields are now.
+ *
+ * MPSAFE
  */
 int
 orecvmsg(p, uap)
@@ -1000,14 +1101,19 @@ orecvmsg(p, uap)
 	    sizeof (struct omsghdr));
 	if (error)
 		return (error);
+
+	mtx_lock(&Giant);
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
-			return (EMSGSIZE);
+		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
+			error = EMSGSIZE;
+			goto done2;
+		}
 		MALLOC(iov, struct iovec *,
 		      sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
 		      M_WAITOK);
-	} else
+	} else {
 		iov = aiov;
+	}
 	msg.msg_flags = uap->flags | MSG_COMPAT;
 	error = copyin((caddr_t)msg.msg_iov, (caddr_t)iov,
 	    (unsigned)(msg.msg_iovlen * sizeof (struct iovec)));
@@ -1022,10 +1128,15 @@ orecvmsg(p, uap)
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 recvmsg(p, uap)
 	struct proc *p;
@@ -1039,17 +1150,22 @@ recvmsg(p, uap)
 	struct iovec aiov[UIO_SMALLIOV], *uiov, *iov;
 	register int error;
 
+	mtx_lock(&Giant);
+
 	error = copyin((caddr_t)uap->msg, (caddr_t)&msg, sizeof (msg));
 	if (error)
-		return (error);
+		goto done2;
 	if ((u_int)msg.msg_iovlen >= UIO_SMALLIOV) {
-		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV)
-			return (EMSGSIZE);
+		if ((u_int)msg.msg_iovlen >= UIO_MAXIOV) {
+			error = EMSGSIZE;
+			goto done2;
+		}
 		MALLOC(iov, struct iovec *,
 		       sizeof(struct iovec) * (u_int)msg.msg_iovlen, M_IOV,
 		       M_WAITOK);
-	} else
+	} else {
 		iov = aiov;
+	}
 #ifdef COMPAT_OLDSOCK
 	msg.msg_flags = uap->flags &~ MSG_COMPAT;
 #else
@@ -1069,9 +1185,14 @@ recvmsg(p, uap)
 done:
 	if (iov != aiov)
 		FREE(iov, M_IOV);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 shutdown(p, uap)
@@ -1084,14 +1205,20 @@ shutdown(p, uap)
 	struct file *fp;
 	int error;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->s, &fp);
-	if (error)
-		return (error);
-	error = soshutdown((struct socket *)fp->f_data, uap->how);
-	fdrop(fp, p);
+	if (error == 0) {
+		error = soshutdown((struct socket *)fp->f_data, uap->how);
+		fdrop(fp, p);
+	}
+	mtx_unlock(&Giant);
 	return(error);
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setsockopt(p, uap)
@@ -1113,21 +1240,25 @@ setsockopt(p, uap)
 	if (uap->valsize < 0)
 		return (EINVAL);
 
+	mtx_lock(&Giant);
 	error = holdsock(p->p_fd, uap->s, &fp);
-	if (error)
-		return (error);
-
-	sopt.sopt_dir = SOPT_SET;
-	sopt.sopt_level = uap->level;
-	sopt.sopt_name = uap->name;
-	sopt.sopt_val = uap->val;
-	sopt.sopt_valsize = uap->valsize;
-	sopt.sopt_p = p;
-	error = sosetopt((struct socket *)fp->f_data, &sopt);
-	fdrop(fp, p);
+	if (error == 0) {
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = uap->level;
+		sopt.sopt_name = uap->name;
+		sopt.sopt_val = uap->val;
+		sopt.sopt_valsize = uap->valsize;
+		sopt.sopt_p = p;
+		error = sosetopt((struct socket *)fp->f_data, &sopt);
+		fdrop(fp, p);
+	}
+	mtx_unlock(&Giant);
 	return(error);
 }
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getsockopt(p, uap)
@@ -1144,19 +1275,22 @@ getsockopt(p, uap)
 	struct	file *fp;
 	struct	sockopt sopt;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
-		return (error);
+		goto done2;
 	if (uap->val) {
 		error = copyin((caddr_t)uap->avalsize, (caddr_t)&valsize,
 		    sizeof (valsize));
 		if (error) {
 			fdrop(fp, p);
-			return (error);
+			goto done2;
 		}
 		if (valsize < 0) {
 			fdrop(fp, p);
-			return (EINVAL);
+			error = EINVAL;
+			goto done2;
 		}
 	} else {
 		valsize = 0;
@@ -1176,11 +1310,15 @@ getsockopt(p, uap)
 				(caddr_t)uap->avalsize, sizeof (valsize));
 	}
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
 /*
- * Get socket name.
+ * getsockname1() - Get socket name. 
+ *
+ * MPSAFE
  */
 /* ARGSUSED */
 static int
@@ -1198,13 +1336,15 @@ getsockname1(p, uap, compat)
 	struct sockaddr *sa;
 	int len, error;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->fdes, &fp);
 	if (error)
-		return (error);
+		goto done2;
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error) {
 		fdrop(fp, p);
-		return (error);
+		goto done2;
 	}
 	so = (struct socket *)fp->f_data;
 	sa = 0;
@@ -1230,31 +1370,39 @@ bad:
 	if (sa)
 		FREE(sa, M_SONAME);
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 getsockname(p, uap)
 	struct proc *p;
 	struct getsockname_args *uap;
 {
-
 	return (getsockname1(p, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE
+ */
 int
 ogetsockname(p, uap)
 	struct proc *p;
 	struct getsockname_args *uap;
 {
-
 	return (getsockname1(p, uap, 1));
 }
 #endif /* COMPAT_OLDSOCK */
 
 /*
- * Get name of peer for connected socket.
+ * getpeername1() - Get name of peer for connected socket.
+ *
+ * MPSAFE
  */
 /* ARGSUSED */
 static int
@@ -1272,18 +1420,21 @@ getpeername1(p, uap, compat)
 	struct sockaddr *sa;
 	int len, error;
 
+	mtx_lock(&Giant);
+
 	error = holdsock(p->p_fd, uap->fdes, &fp);
 	if (error)
-		return (error);
+		goto done2;
 	so = (struct socket *)fp->f_data;
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
 		fdrop(fp, p);
-		return (ENOTCONN);
+		error = ENOTCONN;
+		goto done2;
 	}
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error) {
 		fdrop(fp, p);
-		return (error);
+		goto done2;
 	}
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
@@ -1308,25 +1459,31 @@ bad:
 	if (sa)
 		FREE(sa, M_SONAME);
 	fdrop(fp, p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 getpeername(p, uap)
 	struct proc *p;
 	struct getpeername_args *uap;
 {
-
 	return (getpeername1(p, uap, 0));
 }
 
 #ifdef COMPAT_OLDSOCK
+/*
+ * MPSAFE
+ */
 int
 ogetpeername(p, uap)
 	struct proc *p;
 	struct ogetpeername_args *uap;
 {
-
 	/* XXX uap should have type `getpeername_args *' to begin with. */
 	return (getpeername1(p, (struct getpeername_args *)uap, 1));
 }
@@ -1512,6 +1669,9 @@ sf_buf_free(caddr_t addr, void *args)
 
 /*
  * sendfile(2)
+ *
+ * MPSAFE
+ *
  * int sendfile(int fd, int s, off_t offset, size_t nbytes,
  *	 struct sf_hdtr *hdtr, off_t *sbytes, int flags)
  *
@@ -1519,6 +1679,7 @@ sf_buf_free(caddr_t addr, void *args)
  * specified by 's'. Send only 'nbytes' of the file or until EOF if
  * nbytes == 0. Optionally add a header and/or trailer to the socket
  * output. If specified, write the total number of bytes sent into *sbytes.
+ *
  */
 int
 sendfile(struct proc *p, struct sendfile_args *uap)
@@ -1536,7 +1697,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	off_t off, xfsize, sbytes = 0;
 	int error = 0, s;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 
 	vp = NULL;
 	/*
@@ -1848,5 +2009,7 @@ done:
 		vrele(vp);
 	if (fp)
 		fdrop(fp, p);
+	mtx_unlock(&Giant);
 	return (error);
 }
+
