@@ -9,51 +9,52 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-linux_genassym.o		optional	compat_linux		   \
-	dependency 	"$S/i386/linux/linux_genassym.c"		   \
-	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			   \
-	no-obj no-implicit-rule						   \
+linux_genassym.o		optional	compat_linux		\
+	dependency 	"$S/i386/linux/linux_genassym.c"		\
+	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			\
+	no-obj no-implicit-rule						\
 	clean		"linux_genassym.o"
 #
-svr4_genassym.o			optional	compat_svr4		   \
-	dependency 	"$S/i386/svr4/svr4_genassym.c"			   \
-	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			   \
-	no-obj no-implicit-rule						   \
-	clean		"svr4_genassym.o"
-#
-linux_assym.h			optional	compat_linux		   \
-	dependency 	"$S/kern/genassym.sh linux_genassym.o"		   \
+linux_assym.h			optional	compat_linux		\
+	dependency 	"$S/kern/genassym.sh linux_genassym.o"		\
 	compile-with	"sh $S/kern/genassym.sh linux_genassym.o > ${.TARGET}" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"linux_assym.h"
 #
-svr4_assym.h			optional	compat_svr4		   \
-	dependency 	"$S/kern/genassym.sh svr4_genassym.o"	   	   \
+svr4_genassym.o			optional	compat_svr4		\
+	dependency 	"$S/i386/svr4/svr4_genassym.c"			\
+	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			\
+	no-obj no-implicit-rule						\
+	clean		"svr4_genassym.o"
+#
+svr4_assym.h			optional	compat_svr4		\
+	dependency 	"$S/kern/genassym.sh svr4_genassym.o"	   	\
 	compile-with	"sh $S/kern/genassym.sh svr4_genassym.o > ${.TARGET}" \
-	no-obj no-implicit-rule before-depend				   \
+	no-obj no-implicit-rule before-depend				\
 	clean		"svr4_assym.h"
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
+	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-contrib/dev/fla/fla.c		optional	fla
 msysosak.o			optional	fla			\
-	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu" 		\
-	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu"	\
+	dependency	"$S/contrib/dev/fla/i386/msysosak.o.uu" 	\
+	compile-with	"uudecode < $S/contrib/dev/fla/i386/msysosak.o.uu" \
 	no-implicit-rule
 #
-contrib/dev/oltr/if_oltr.c	optional	oltr
 trlld.o				optional	oltr			\
 	dependency	"$S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386${FMT}.trlld.o.uu"	\
 	no-implicit-rule
+#
+contrib/dev/fla/fla.c		optional	fla
+contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
@@ -202,10 +203,10 @@ i386/isa/if_sr.c		count		sr
 i386/isa/if_wi.c		optional	wi card
 i386/isa/if_wl.c		count		wl
 i386/isa/intr_machdep.c		standard
-i386/isa/ipl_funcs.c		standard				   \
+i386/isa/ipl_funcs.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/isa/isa.c			optional	isa
-i386/isa/isa_compat.c		optional	isa compat_oldisa \
+i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatability shims present."
 i386/isa/istallion.c		optional	stli
 i386/isa/labpc.c		count		labpc
@@ -298,7 +299,7 @@ i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
 i386/linux/linux_ioctl.c	optional	compat_linux
 i386/linux/linux_ipc.c		optional	compat_linux
-i386/linux/linux_locore.s	optional	compat_linux		   \
+i386/linux/linux_locore.s	optional	compat_linux		\
 	dependency 	"linux_assym.h"
 i386/linux/linux_mib.c		optional	compat_linux
 i386/linux/linux_misc.c		optional	compat_linux
@@ -308,7 +309,7 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-i386/svr4/svr4_locore.s		optional	compat_svr4		   \
+i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
 i4b/layer1/i4b_asuscom_ipac.c	optional	isic
