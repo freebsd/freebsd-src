@@ -165,17 +165,13 @@ settime(now)
 time_t Mktime (dp)
     char *dp;
 {
-    char *date;
     time_t t;
-    int len;
+    int d, m, y;
     struct tm tm;
 
-    if ((date = strdup(dp)) == NULL)
-		errx(1, "strdup failed in Mktime");
     (void)time(&t);
     tp = localtime(&t);
 
-    len = strlen(date);
     tm.tm_sec = 0;
     tm.tm_min = 0;
     tm.tm_hour = 0;
@@ -184,31 +180,23 @@ time_t Mktime (dp)
     tm.tm_mon = tp->tm_mon;
     tm.tm_year = tp->tm_year;
 
-
-    /* day */
-    *(date+2) = '\0';
-    tm.tm_mday = atoi(date);
-
-    /* month */
-    if (len >= 4) {
-	*(date+5) = '\0';
-	tm.tm_mon = atoi(date+3) - 1;
-    }
-
-    /* Year */
-    if (len >= 7) {
-	tm.tm_year = atoi(date+6);
-
-	/* tm_year up 1900 ... */
-	if (tm.tm_year > 1900)
-	    tm.tm_year -= 1900;
+    switch (sscanf(dp, "%d.%d.%d", &d, &m, &y)) {
+    case 3:
+	if (y > 1900)
+	    y -= 1900;
+	tm.tm_year = y;
+	/* FALLTHROUGH */
+    case 2:
+	tm.tm_mon = m - 1;
+	/* FALLTHROUGH */
+    case 1:
+	tm.tm_mday = d;
     }
 
 #ifdef DEBUG
     fprintf(stderr, "Mktime: %d %d %d %s\n", (int)mktime(&tm), (int)t, len,
 	   asctime(&tm));
 #endif
-    free(date);
     return(mktime(&tm));
 }
 
