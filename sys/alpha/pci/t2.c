@@ -337,7 +337,7 @@ t2_probe(device_t dev)
 	device_printf(dev, "using interrupt type %d on pci bus 0\n", 
 	    pci_int_type[0]);
 
-	if (!badaddr((void *)&t2_csr[1]->tlbbr, sizeof(long))) {
+	if (!badaddr(__DEVOLATILE(void *, &t2_csr[1]->tlbbr), sizeof(long))) {
 		pci_int_type[1] = 1; /* PCI1 always uses the new scheme */
 		/* Clear any errors that the BADADDR probe may have caused */
 		t2_csr[1]->cerr1 |= t2_csr[1]->cerr1;
