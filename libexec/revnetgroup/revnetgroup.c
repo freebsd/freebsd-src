@@ -34,20 +34,19 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- *	$Id: revnetgroup.c,v 1.7 1997/03/28 15:48:15 imp Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <err.h>
+#include <unistd.h>
 #include "hash.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: revnetgroup.c,v 1.7 1997/03/28 15:48:15 imp Exp $";
-#endif
 
 /* Default location of netgroup file. */
 char *netgroup = "/etc/netgroup";
@@ -61,14 +60,12 @@ struct group_entry *gtable[TABLESIZE];
  */
 struct member_entry *mtable[TABLESIZE];
 
-void usage(prog)
-char *prog;
+static void
+usage()
 {
-	fprintf (stderr,"usage: %s -u|-h [-f netgroup file]\n",prog);
+	fprintf (stderr,"usage: revnetgroup -u|-h [-f netgroup file]\n");
 	exit(1);
 }
-
-extern char *optarg;
 
 int
 main(argc, argv)
@@ -85,21 +82,21 @@ main(argc, argv)
 	int hosts = -1, i;
 
 	if (argc < 2)
-		usage(argv[0]);
+		usage();
 
 	while ((ch = getopt(argc, argv, "uhf:")) != -1) {
 		switch(ch) {
 		case 'u':
 			if (hosts != -1) {
 				warnx("please use only one of -u or -h");
-				usage(argv[0]);
+				usage();
 			}
 			hosts = 0;
 			break;
 		case 'h':
 			if (hosts != -1) {
 				warnx("please use only one of -u or -h");
-				usage(argv[0]);
+				usage();
 			}
 			hosts = 1;
 			break;
@@ -107,13 +104,13 @@ main(argc, argv)
 			netgroup = optarg;
 			break;
 		default:
-			usage(argv[0]);
+			usage();
 			break;
 		}
 	}
 
 	if (hosts == -1)
-		usage(argv[0]);
+		usage();
 
 	if (strcmp(netgroup, "-")) {
 		if ((fp = fopen(netgroup, "r")) == NULL) {
