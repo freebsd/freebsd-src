@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.12 1998/04/21 22:02:01 des Exp $";
+	"$Id: util.c,v 1.13 1998/04/24 07:49:51 des Exp $";
 #endif
 #endif /* not lint */
 
@@ -103,21 +103,13 @@ prn_octal(s)
 	
         while ((ch = *s++))
 	{
-	        if (isprint(ch)) putchar(ch), len++;
+	        if (isprint(ch) && (ch != '\"') && (ch != '\\'))
+		        putchar(ch), len++;
 	        else if (f_octal_escape) {
 	                putchar('\\');
 		        switch (ch) {
-		        case 0:
-			        putchar('0');
-				break;
 			case '\\':
 			        putchar('\\');
-				break;
-			case '\?':
-			        putchar('?');
-				break;
-			case '\'':
-			        putchar('\'');
 				break;
 			case '\"':
 			        putchar('"');
@@ -166,10 +158,7 @@ prn_octal(s)
 void
 usage()
 {
-#ifdef BSD4_4_LITE
-	(void)fprintf(stderr, "usage: ls [-1ACFLRTacdfiklqrstu] [file ...]\n");
-#else
-	(void)fprintf(stderr, "usage: ls [-ACFLRTWacdfgikloqrstu1] [file ...]\n");
-#endif
+	(void)fprintf(stderr, "usage: ls [-?ACFHLPRTWacdfgikloqrstu1]"
+		      " [file ...]\n");
 	exit(1);
 }
