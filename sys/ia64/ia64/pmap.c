@@ -736,16 +736,12 @@ pmap_new_thread(struct thread *td, int pages)
 	 * 7 address for it which makes it impossible to accidentally
 	 * lose when recording a trapframe.
 	 */
-	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP,
-			  M_WAITOK,
-			  0ul,
-			  256*1024*1024 - 1,
-			  PAGE_SIZE,
-			  256*1024*1024);
-
+	ks = contigmalloc(pages * PAGE_SIZE, M_PMAP, M_WAITOK, 0ul,
+	    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024);
 	if (ks == NULL)
 		panic("pmap_new_thread: could not contigmalloc %d pages\n",
-		    KSTACK_PAGES);
+		    pages);
+
 	td->td_md.md_kstackvirt = ks;
 	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)ks));
 	td->td_kstack_pages = pages;
@@ -762,7 +758,7 @@ pmap_dispose_thread(struct thread *td)
 
 	pages = td->td_kstack_pages;
 	contigfree(td->td_md.md_kstackvirt, pages * PAGE_SIZE, M_PMAP);
-	td->td_md.md_kstackvirt = 0;
+	td->td_md.md_kstackvirt = NULL;
 	td->td_kstack = 0;
 }
 
@@ -773,9 +769,14 @@ void
 pmap_new_altkstack(struct thread *td, int pages)
 {
 
-	/* shuffle the original stack */
+	/*
+	 * Shuffle the original stack. Save the virtual kstack address
+	 * instead of the physical address because 1) we can derive the
+	 * physical address from the virtual address and 2) we need the
+	 * virtual address in pmap_dispose_thread.
+	 */
 	td->td_altkstack_obj = td->td_kstack_obj;
-	td->td_altkstack = td->td_kstack;
+	td->td_altkstack = (vm_offset_t)td->td_md.md_kstackvirt;
 	td->td_altkstack_pages = td->td_kstack_pages;
 
 	pmap_new_thread(td, pages);
@@ -787,8 +788,12 @@ pmap_dispose_altkstack(struct thread *td)
 
 	pmap_dispose_thread(td);
 
-	/* restore the original kstack */
-	td->td_kstack = td->td_altkstack;
+	/*
+	 * Restore the original kstack. Note that td_altkstack holds the
+	 * virtual kstack address of the previous kstack.
+	 */
+	td->td_md.md_kstackvirt = (void*)td->td_altkstack;
+	td->td_kstack = IA64_PHYS_TO_RR7(ia64_tpa(td->td_altkstack));
 	td->td_kstack_obj = td->td_altkstack_obj;
 	td->td_kstack_pages = td->td_altkstack_pages;
 	td->td_altkstack = 0;
