@@ -58,6 +58,7 @@ static int _pw_stepping_yp;		/* set true when stepping thru map */
 #endif
 static int __hashpw(), __initdb();
 
+static int _havemaster(const char *);
 static int _getyppass(struct passwd *, const char *, const char *);
 static int _nextyppass(struct passwd *);
 
@@ -339,7 +340,88 @@ _pw_breakout_yp(struct passwd *pw, char *result)
 	}
 }
 
+static void
+_masterpw_breakout_yp(struct passwd *pw, char *result)
+{
+	char *s;
+
+	s = strsep(&result, ":"); /* name */
+	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {
+		pw->pw_name = s;
+		pw->pw_fields |= _PWF_NAME;
+	}
+
+	s = strsep(&result, ":"); /* password */
+	if(!(pw->pw_fields & _PWF_PASSWD)) {
+		pw->pw_passwd = s;
+		pw->pw_fields |= _PWF_PASSWD;
+	}
+
+	s = strsep(&result, ":"); /* uid */
+	if(!(pw->pw_fields & _PWF_UID)) {
+		pw->pw_uid = atoi(s);
+		pw->pw_fields |= _PWF_UID;
+	}
+
+	s = strsep(&result, ":"); /* gid */
+	if(!(pw->pw_fields & _PWF_GID))  {
+		pw->pw_gid = atoi(s);
+		pw->pw_fields |= _PWF_GID;
+	}
+
+	s = strsep(&result, ":"); /* class */
+	if(!(pw->pw_fields & _PWF_CLASS))  {
+		pw->pw_class = s;
+		pw->pw_fields |= _PWF_CLASS;
+	}
+
+	s = strsep(&result, ":"); /* change */
+	if(!(pw->pw_fields & _PWF_CHANGE))  {
+		pw->pw_change = atol(s);
+		pw->pw_fields |= _PWF_CHANGE;
+	}
+
+	s = strsep(&result, ":"); /* expire */
+	if(!(pw->pw_fields & _PWF_EXPIRE))  {
+		pw->pw_expire = atol(s);
+		pw->pw_fields |= _PWF_EXPIRE;
+	}
+
+	s = strsep(&result, ":"); /* gecos */
+	if(!(pw->pw_fields & _PWF_GECOS)) {
+		pw->pw_gecos = s;
+		pw->pw_fields |= _PWF_GECOS;
+	}
+
+	s = strsep(&result, ":"); /* dir */
+	if(!(pw->pw_fields & _PWF_DIR)) {
+		pw->pw_dir = s;
+		pw->pw_fields |= _PWF_DIR;
+	}
+
+	s = strsep(&result, ":"); /* shell */
+	if(!(pw->pw_fields & _PWF_SHELL)) {
+		pw->pw_shell = s;
+		pw->pw_fields |= _PWF_SHELL;
+	}
+}
+
 static char *_pw_yp_domain;
+
+static int
+_havemaster(const char *_pw_yp_domain)
+{
+	char *result;
+	static char *key;
+	int resultlen;
+	static int keylen;
+	
+	if (yp_first(_pw_yp_domain, "master.passwd.byname",
+		      &key, &keylen, &result, &resultlen))
+		return 0;
+	
+	return 1;
+}
 
 static int
 _getyppass(struct passwd *pw, const char *name, const char *map)
@@ -347,13 +429,24 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	char *result, *s;
 	static char resultbuf[1024];
 	int resultlen;
+	char mastermap[1024];
+	int gotmaster = 0;
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
 		  return 0;
 	}
 
-	if(yp_match(_pw_yp_domain, map, name, strlen(name), 
+	sprintf(mastermap,"%s",map);
+
+	/* Don't even bother with this if we aren't root. */
+	if (!geteuid())
+		if (_havemaster(_pw_yp_domain)) {
+			sprintf(mastermap,"master.passwd.%s",map);
+			gotmaster++;
+		}
+
+	if(yp_match(_pw_yp_domain, &mastermap, name, strlen(name), 
 		    &result, &resultlen))
 		return 0;
 
@@ -363,7 +456,10 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	result = resultbuf;
-	_pw_breakout_yp(pw, resultbuf);
+	if (gotmaster)
+		_masterpw_breakout_yp(pw, resultbuf);
+	else
+		_pw_breakout_yp(pw, resultbuf);
 
 	return 1;
 }
@@ -377,16 +473,25 @@ _nextyppass(struct passwd *pw)
 	static char resultbuf[1024];
 	int resultlen;
 	int rv;
+	char *map = "passwd.byname";
+	int gotmaster = 0;
 
 	if(!_pw_yp_domain) {
 		if(yp_get_default_domain(&_pw_yp_domain))
 		  return 0;
 	}
 
+	/* Don't even bother with this if we aren't root. */
+	if (!geteuid())
+		if(_havemaster(_pw_yp_domain)) {
+			map = "master.passwd.byname";
+			gotmaster++;
+		}
+
 	if(!_pw_stepping_yp) {
 		if(key) free(key);
-		rv = yp_first(_pw_yp_domain, "passwd.byname",
-			      &key, &keylen, &result, &resultlen);
+			rv = yp_first(_pw_yp_domain, map,
+				      &key, &keylen, &result, &resultlen);
 		if(rv) {
 			return 0;
 		}
@@ -395,7 +500,7 @@ _nextyppass(struct passwd *pw)
 	} else {
 tryagain:
 		lastkey = key;
-		rv = yp_next(_pw_yp_domain, "passwd.byname", key, keylen,
+			rv = yp_next(_pw_yp_domain, map, key, keylen,
 			     &key, &keylen, &result, &resultlen);
 		free(lastkey);
 unpack:
@@ -412,7 +517,10 @@ unpack:
 		strcpy(resultbuf, result);
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		_pw_breakout_yp(pw, resultbuf);
+		if (gotmaster)
+			_masterpw_breakout_yp(pw, resultbuf);
+		else
+			_pw_breakout_yp(pw, resultbuf);
 	}
 	return 1;
 }
