@@ -749,43 +749,44 @@ write_disk(off_t sector, void *buf)
 static int
 get_params()
 {
-    int error;
-    u_int u;
-    off_t o;
+	int error;
+	u_int u;
+	off_t o;
 
-    if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
-	warnx("can't get disk parameters on %s; supplying dummy ones", disk);
-	dos_cyls = cyls = 1;
-	dos_heads = heads = 1;
-	dos_sectors = sectors = 1;
+	if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
+		warnx("can't get disk parameters on %s; supplying dummy ones", disk);
+		dos_cyls = cyls = 1;
+		dos_heads = heads = 1;
+		dos_sectors = sectors = 1;
+		dos_cylsecs = cylsecs = heads * sectors;
+		disksecs = cyls * heads * sectors;
+	} else {
+		dos_cyls = cyls = disklabel.d_ncylinders;
+		dos_heads = heads = disklabel.d_ntracks;
+		dos_sectors = sectors = disklabel.d_nsectors;
+	}
+	error = ioctl(fd, DIOCGFWSECTORS, &u);
+	if (error == 0)
+		sectors = dos_sectors = u;
+	error = ioctl(fd, DIOCGFWHEADS, &u);
+	if (error == 0)
+		heads = dos_heads = u;
+
 	dos_cylsecs = cylsecs = heads * sectors;
 	disksecs = cyls * heads * sectors;
-    }
-    error = ioctl(fd, DIOCGFWSECTORS, &u);
-    if (error == 0)
-	dos_sectors = u;
-    error = ioctl(fd, DIOCGFWHEADS, &u);
-    if (error == 0)
-	dos_heads = u;
-    error = ioctl(fd, DIOCGSECTORSIZE, &u);
-    if (error != 0) {
-	u = 512;
-    }
-    error = ioctl(fd, DIOCGMEDIASIZE, &o);
-    if (error == 0) {
-	dos_cylsecs = dos_heads * dos_sectors;
-	disksecs = o / u;
-	dos_cyls = o / (u * dos_heads * dos_sectors);
-	return (o / u);
-    }
 
-    dos_cyls = cyls = disklabel.d_ncylinders;
-    dos_heads = heads = disklabel.d_ntracks;
-    dos_sectors = sectors = disklabel.d_nsectors;
-    dos_cylsecs = cylsecs = heads * sectors;
-    disksecs = cyls * heads * sectors;
+	error = ioctl(fd, DIOCGSECTORSIZE, &u);
+	if (error != 0)
+		u = 512;
 
-    return (disksecs);
+	error = ioctl(fd, DIOCGMEDIASIZE, &o);
+	if (error == 0) {
+		disksecs = o / u;
+		cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
+	}
+
+
+	return (disksecs);
 }
 
 
