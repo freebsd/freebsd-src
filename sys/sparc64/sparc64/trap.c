@@ -49,7 +49,6 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/ktr.h>
-#include <sys/kse.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
@@ -239,7 +238,6 @@ trap(struct trapframe *tf)
 
 	if ((tf->tf_tstate & TSTATE_PRIV) == 0) {
 		KASSERT(td != NULL, ("trap: curthread NULL"));
-		KASSERT(td->td_kse != NULL, ("trap: curkse NULL"));
 		KASSERT(td->td_proc != NULL, ("trap: curproc NULL"));
 
 		p = td->td_proc;
@@ -483,7 +481,6 @@ syscall(struct trapframe *tf)
 
 	td = PCPU_GET(curthread);
 	KASSERT(td != NULL, ("trap: curthread NULL"));
-	KASSERT(td->td_kse != NULL, ("trap: curkse NULL"));
 	KASSERT(td->td_proc != NULL, ("trap: curproc NULL"));
 
 	p = td->td_proc;
