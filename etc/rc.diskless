@@ -42,7 +42,6 @@ set -v
 set `/bin/df /`
 nfs_root=$8
 mount_nfs -o ro ${nfs_root}/usr /usr
-mount_nfs -o ro ${nfs_root}/var /var
 
 chkerr $? "mount of /usr"
 
@@ -58,6 +57,8 @@ echo "Interface $bootp_ifc IP-Address $bootp_ipa"
 # are found.  We set the directory to /conf/$bootp_ipa.  'conf_dir' will
 # be used by rc.conf and later in /etc/rc.
 #
+# retarget the kernel ( put a softlink in your conf directory to point to
+# the correct kernel ).
 
 conf_dir=/conf/$bootp_ipa
 sysctl -w kern.bootfile=$conf_dir/kernel
@@ -66,11 +67,21 @@ if [ ! -f $conf_dir/rc.conf.local ]; then
 	chkerr 1 "access to $conf_dir"
 fi
 
-#  Tell /etc/rc to skip normal disk configuration
+#  Tell /etc/rc to skip normal disk configuration and replace
+#  it with our own.
 #
-
 skip_diskconf=YES
 diskless_mount_func=diskless_mount_system
+
+#  Set defaults for MFS filesystem sizes.  These can get overriden by
+#  rc.conf when diskless_mount_system is called back.  NOTE!  These
+#  defaults are generous, but may be too large for your memory/swap
+#  configuration.  Large is ok as long as you have sufficient NFS swap.
+#
+var_run_sectors=2048
+var_db_sectors=16384
+var_tmp_sectors=65536
+var_spool_sectors=65536
 
 #  Default mounting pass procedure
 #
@@ -80,23 +91,37 @@ diskless_mount_func=diskless_mount_system
 diskless_mount_system() {
 	sysctl -w net.inet.ip.portrange.first=4000
 
-	mount_mfs -s 2048 -T qp120at dummy /var/run
-	mount_mfs -s 16384 -T qp120at dummy /var/db
-	mount_mfs -s 65536 -T qp120at dummy /var/tmp
-	mount_mfs -s 65536 -T qp120at dummy /var/spool
+	# This is kinda a hack at the moment.  Typically, we do not want to
+	# export /var from the server root due to security considerations,
+	# even read-only.  XXX fixme.  See the tail end of the
+	# /usr/share/examples/diskless/README.TEMPLATING file for the
+	# reasoning and other security considerations.
+	#
+	if [ "X$nfs_var_mount" != "XNO" ]; then
+		mount_nfs -o ro ${nfs_root}/var /var
+	fi
+	mount_mfs -s $var_run_sectors -T qp120at dummy /var/run
+	mount_mfs -s $var_db_sectors -T qp120at dummy /var/db
+	mount_mfs -s $var_tmp_sectors -T qp120at dummy /var/tmp
+	mount_mfs -s $var_spool_sectors -T qp120at dummy /var/spool
 	chmod 755 /var/run
 	chmod 755 /var/db
 	chmod 755 /var/spool
 	chmod 1777 /var/tmp
-	#
-	# XXX /tmp should be a softlink to /var/tmp
 
+	# /tmp should be a softlink to /var/tmp on most systems.  If it isn't, 
+	# use nullfs
+	#
+	if [ ! -h /tmp -a ! -h /var/tmp ]; then
+		mount_null /var/tmp /tmp
+	fi
+
+	# Create a skeleton spool
+	#
 	mkdir /var/spool/mqueue
-	mkdir /var/spool/ljet4
 	mkdir /var/spool/lpd
 	mkdir /var/spool/output
 	mkdir /var/spool/output/lpd
-	chown daemon /var/spool/ljet4
 	chown -R root.daemon /var/spool/output
 	chgrp daemon /var/spool/lpd
 
