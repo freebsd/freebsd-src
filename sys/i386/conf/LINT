@@ -1534,8 +1534,8 @@ device		pca0 at isa? port IO_TIMER1
 # rp: Comtrol Rocketport(ISA) - single card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
-# stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
-# stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
+# stl: Stallion EasyIO and EasyConnection 8/32 (ISA and PCI), EasyConnection 8/64 PCI
+# stli: Stallion EasyConnection 8/64 ISA/EISA, ONboard, Brumby (intelligent)
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -1595,7 +1595,7 @@ device		pca0 at isa? port IO_TIMER1
 
 # Notes on the Stallion stl and stli drivers:
 #  See src/i386/isa/README.stl for complete instructions.
-#  This is version 0.0.5alpha, unsupported by Stallion.
+#  This is version 2.0.0, unsupported by Stallion.
 #  The stl driver has a secondary IO port hard coded at 0x280.  You need
 #     to change src/i386/isa/stallion.c if you reconfigure this on the boards.
 #  The "flags" and "iosiz" settings on the stli driver depend on the board:
@@ -1607,6 +1607,7 @@ device		pca0 at isa? port IO_TIMER1
 #	ONboard MCA:                 flags 3          iosiz 0x10000
 #	Brumby:                      flags 2          iosiz 0x4000
 #	Stallion:                    flags 1          iosiz 0x10000
+#  For the PCI cards, "device stl" will suffice.
 
 device		mcd0	at isa? port 0x300 irq 10
 # for the Sony CDU31/33A CDROM

@@ -3,7 +3,7 @@
 /*
  * istallion.c  -- stallion intelligent multiport serial driver.
  *
- * Copyright (c) 1994-1996 Greg Ungerer (gerg@stallion.oz.au).
+ * Copyright (c) 1994-1998 Greg Ungerer (gerg@stallion.oz.au).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,8 @@
 #include <machine/cdk.h>
 #include <machine/comstats.h>
 
+#undef STLDEBUG
+
 /*****************************************************************************/
 
 /*
@@ -100,6 +102,8 @@
 #define BRD_ECPE	24
 #define	BRD_ECPMC	25
 #define	BRD_ECHPCI	26
+#define	BRD_ECH64PCI	27
+#define	BRD_EASYIOPCI	28
 
 #define	BRD_BRUMBY	BRD_BRUMBY4
 
@@ -139,8 +143,8 @@
  *	all the local structures required by a serial tty driver.
  */
 static char 		stli_drvname[] = "stli";
-static char const	stli_longdrvname[] = "Stallion Multiport Serial Driver";
-static char const	stli_drvversion[] = "1.0.0";
+static char const	stli_drvtitle[] = "Stallion Multiport Serial Driver";
+static char const	stli_drvversion[] = "2.0.0";
 
 static int	stli_nrbrds = 0;
 static int	stli_doingtimeout = 0;
@@ -457,6 +461,7 @@ static char	*stli_brdnames[] = {
 #define	ECH_PNLSTATUS	2
 #define	ECH_PNL16PORT	0x20
 #define	ECH_PNLIDMASK	0x07
+#define	ECH_PNLXPID	0x40
 #define	ECH_PNLINTRPEND	0x80
 
 /*
@@ -700,7 +705,7 @@ static int stli_isaprobe(struct isa_device *idp)
 {
 	int	btype;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_isaprobe(idp=%x): unit=%d iobase=%x flags=%x\n",
 		(int) idp, idp->id_unit, idp->id_iobase, idp->id_flags);
 #endif
@@ -733,7 +738,7 @@ static int stli_eisaprobe(struct isa_device *idp)
 {
 	int	btype, eid;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_eisaprobe(idp=%x): unit=%d iobase=%x flags=%x\n",
 		(int) idp, idp->id_unit, idp->id_iobase, idp->id_flags);
 #endif
@@ -779,7 +784,7 @@ static int stli_mcaprobe(struct isa_device *idp)
 {
 	int	btype;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_mcaprobe(idp=%x): unit=%d iobase=%x flags=%x\n",
 		(int) idp, idp->id_unit, idp->id_iobase, idp->id_flags);
 #endif
@@ -815,7 +820,7 @@ static int stliprobe(struct isa_device *idp)
 	if (!once++)
 		cdevsw_add(&stli_cdevsw);
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliprobe(idp=%x): unit=%d iobase=%x flags=%x\n", (int) idp,
 		idp->id_unit, idp->id_iobase, idp->id_flags);
 #endif
@@ -876,7 +881,7 @@ static int stliprobe(struct isa_device *idp)
 	brdp->vaddr = idp->id_maddr;
 	brdp->paddr = vtophys(idp->id_maddr);
 
-#if DEBUG
+#if STLDEBUG
 	printf("%s(%d): btype=%x unit=%d brd=%d io=%x mem=%lx(%p)\n",
 		__file__, __LINE__, btype, brdp->unitid, brdp->brdnr,
 		brdp->iobase, brdp->paddr, (void *) brdp->vaddr);
@@ -903,7 +908,7 @@ static int stliattach(struct isa_device *idp)
 	stlibrd_t	*brdp;
 	int		brdnr;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliattach(idp=%p): unit=%d iobase=%x\n", (void *) idp,
 		idp->id_unit, idp->id_iobase);
 #endif
@@ -926,7 +931,7 @@ STATIC int stliopen(dev_t dev, int flag, int mode, struct proc *p)
 	stliport_t	*portp;
 	int		error, callout, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliopen(dev=%x,flag=%x,mode=%x,p=%x)\n", (int) dev, flag,
 		mode, (int) p);
 #endif
@@ -940,6 +945,8 @@ STATIC int stliopen(dev_t dev, int flag, int mode, struct proc *p)
 	portp = stli_dev2port(dev);
 	if (portp == (stliport_t *) NULL)
 		return(ENXIO);
+	if (minor(dev) & STL_CTRLDEV)
+		return(0);
 	tp = &portp->tty;
 	dev->si_tty = tp;
 	callout = minor(dev) & STL_CALLOUTDEV;
@@ -983,6 +990,7 @@ stliopen_restart:
 			portp->initintios;
 		stli_initopen(portp);
 		wakeup(&portp->state);
+		ttsetwater(tp);
 		if ((portp->sigs & TIOCM_CD) || callout)
 			(*linesw[tp->t_line].l_modem)(tp, 1);
 	} else {
@@ -1055,12 +1063,14 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 	stliport_t	*portp;
 	int		x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliclose(dev=%s,flag=%x,mode=%x,p=%p)\n",
 		devtoname(dev), flag, mode, (void *) p);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
+		return(0);
+	if (minor(dev) & STL_CTRLDEV)
 		return(0);
 
 	portp = stli_dev2port(dev);
@@ -1080,16 +1090,22 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 
 STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 {
+	stliport_t	*portp;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliread(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
 		(void *) uiop, flag);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
-	else
-		return(ttyread(dev, uiop, flag));
+	if (minor(dev) & STL_CTRLDEV)
+		return(ENODEV);
+
+	portp = stli_dev2port(dev);
+	if (portp == (stliport_t *) NULL)
+		return(ENODEV);
+	return ttyread(dev, uiop, flag);
 }
 
 /*****************************************************************************/
@@ -1098,7 +1114,7 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 
 STATIC void stli_stop(struct tty *tp, int rw)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stli_stop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
@@ -1109,7 +1125,7 @@ STATIC void stli_stop(struct tty *tp, int rw)
 
 STATIC int stlistop(struct tty *tp, int rw)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stlistop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
@@ -1123,15 +1139,21 @@ STATIC int stlistop(struct tty *tp, int rw)
 
 STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 {
-#if DEBUG
+	stliport_t	*portp;
+
+#if STLDEBUG
 	printf("stliwrite(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
 		(void *) uiop, flag);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
 		return(stli_memrw(dev, uiop, flag));
-	else
-		return(ttywrite(dev, uiop, flag));
+	if (minor(dev) & STL_CTRLDEV)
+		return(ENODEV);
+	portp = stli_dev2port(dev);
+	if (portp == (stliport_t *) NULL)
+		return(ENODEV);
+	return ttywrite(dev, uiop, flag);
 }
 
 /*****************************************************************************/
@@ -1146,7 +1168,7 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 	long		arg;
 	int		error, i, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stliioctl(dev=%s,cmd=%lx,data=%p,flag=%x,p=%p)\n",
 		devtoname(dev), cmd, (void *) data, flag, (void *) p);
 #endif
@@ -1323,6 +1345,13 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 		portp->dotimestamp = 1;
 		*((struct timeval *) data) = portp->timestamp;
 		break;
+	case STL_GETPFLAG:
+		*((unsigned long *) data) = portp->pflag;
+		break;
+	case STL_SETPFLAG:
+		portp->pflag = *((unsigned long *) data);
+		stli_param(&portp->tty, &portp->tty.t_termios);
+		break;
 	default:
 		error = ENOTTY;
 		break;
@@ -1368,7 +1397,7 @@ static int stli_initopen(stliport_t *portp)
 	asyport_t	aport;
 	int		rc;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_initopen(portp=%x)\n", (int) portp);
 #endif
 
@@ -1422,7 +1451,7 @@ static int stli_shutdownclose(stliport_t *portp)
 	struct tty	*tp;
 	int		x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_shutdownclose(portp=%p): brdnr=%d panelnr=%d portnr=%d\n",
 		(void *) portp, portp->brdnr, portp->panelnr, portp->portnr);
 #endif
@@ -1487,7 +1516,7 @@ static int stli_rawopen(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, i
 	volatile unsigned char	*bits;
 	int			rc, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_rawopen(brdp=%x,portp=%x,arg=%x,wait=%d)\n", (int) brdp,
 		(int) portp, (int) arg, wait);
 #endif
@@ -1563,7 +1592,7 @@ static int stli_rawclose(stlibrd_t *brdp, stliport_t *portp, unsigned long arg, 
 	volatile unsigned char	*bits;
 	int			rc, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_rawclose(brdp=%x,portp=%x,arg=%x,wait=%d)\n", (int) brdp,
 		(int) portp, (int) arg, wait);
 #endif
@@ -1636,7 +1665,7 @@ static int stli_cmdwait(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, v
 {
 	int	rc, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_cmdwait(brdp=%x,portp=%x,cmd=%x,arg=%x,size=%d,"
 		"copyback=%d)\n", (int) brdp, (int) portp, (int) cmd,
 		(int) arg, size, copyback);
@@ -1690,7 +1719,7 @@ static void stli_start(struct tty *tp)
 
 	portp = (stliport_t *) tp;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_start(tp=%x): brdnr=%d portnr=%d\n", (int) tp, 
 		portp->brdnr, portp->portnr);
 #endif
@@ -1825,7 +1854,7 @@ static void stli_flush(stliport_t *portp, int flag)
 	unsigned long	ftype;
 	int		x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_flush(portp=%x,flag=%x)\n", (int) portp, flag);
 #endif
 
@@ -1872,7 +1901,7 @@ static void stli_sendcmd(stlibrd_t *brdp, stliport_t *portp, unsigned long cmd, 
 	volatile cdkctrl_t	*cp;
 	volatile unsigned char	*bits;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_sendcmd(brdp=%x,portp=%x,cmd=%x,arg=%x,size=%d,"
 		"copyback=%d)\n", (int) brdp, (int) portp, (int) cmd,
 		(int) arg, size, copyback);
@@ -1921,7 +1950,7 @@ static void stli_rxprocess(stlibrd_t *brdp, stliport_t *portp)
 	unsigned int		len, stlen, i;
 	int			ch;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_rxprocess(brdp=%x,portp=%d)\n", (int) brdp, (int) portp);
 #endif
 
@@ -2085,7 +2114,7 @@ static __inline int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
 	unsigned int		head, tail;
 	int			rc, donerx;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_hostcmd(brdp=%x,portp=%x)\n", (int) brdp, (int) portp);
 #endif
 
@@ -2329,7 +2358,7 @@ static void stli_poll(void *arg)
 
 static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tiosp)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stli_mkasyport(portp=%x,pp=%x,tiosp=%d)\n", (int) portp,
 		(int) pp, (int) tiosp);
 #endif
@@ -2414,7 +2443,10 @@ static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tio
 /*
  *	Transfer any persistent flags into the asyport structure.
  */
-	pp->pflag = portp->pflag;
+	pp->pflag = (portp->pflag & 0xffff);
+	pp->vmin = (portp->pflag & P_RXIMIN) ? 1 : 0;
+	pp->vtime = (portp->pflag & P_RXITIME) ? 1 : 0;
+	pp->cc[1] = (portp->pflag & P_RXTHOLD) ? 1 : 0;
 }
 
 /*****************************************************************************/
@@ -2426,7 +2458,7 @@ static void stli_mkasyport(stliport_t *portp, asyport_t *pp, struct termios *tio
 
 static void stli_mkasysigs(asysigs_t *sp, int dtr, int rts)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stli_mkasysigs(sp=%x,dtr=%d,rts=%d)\n", (int) sp, dtr, rts);
 #endif
 
@@ -2452,7 +2484,7 @@ static long stli_mktiocm(unsigned long sigvalue)
 {
 	long	tiocm;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_mktiocm(sigvalue=%x)\n", (int) sigvalue);
 #endif
 
@@ -2501,7 +2533,7 @@ static int stli_initports(stlibrd_t *brdp)
 	stliport_t	*portp;
 	int		i, panelnr, panelport;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_initports(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2534,6 +2566,7 @@ static int stli_initports(stlibrd_t *brdp)
 			panelnr++;
 		}
 		brdp->ports[i] = portp;
+
 	}
 
 	return(0);
@@ -2549,7 +2582,7 @@ static void stli_ecpinit(stlibrd_t *brdp)
 {
 	unsigned long	memconf;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpinit(brdp=%d)\n", (int) brdp);
 #endif
 
@@ -2566,7 +2599,7 @@ static void stli_ecpinit(stlibrd_t *brdp)
 
 static void stli_ecpenable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpenable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ECP_ATCONFR), ECP_ATENABLE);
@@ -2576,7 +2609,7 @@ static void stli_ecpenable(stlibrd_t *brdp)
 
 static void stli_ecpdisable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpdisable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ECP_ATCONFR), ECP_ATDISABLE);
@@ -2589,7 +2622,7 @@ static char *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 	void		*ptr;
 	unsigned char	val;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpgetmemptr(brdp=%x,offset=%x)\n", (int) brdp,
 		(int) offset);
 #endif
@@ -2612,7 +2645,7 @@ static char *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 
 static void stli_ecpreset(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpreset(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2626,7 +2659,7 @@ static void stli_ecpreset(stlibrd_t *brdp)
 
 static void stli_ecpintr(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpintr(brdp=%x)\n", (int) brdp);
 #endif
 	outb(brdp->iobase, 0x1);
@@ -2642,7 +2675,7 @@ static void stli_ecpeiinit(stlibrd_t *brdp)
 {
 	unsigned long	memconf;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpeiinit(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2679,7 +2712,7 @@ static char *stli_ecpeigetmemptr(stlibrd_t *brdp, unsigned long offset, int line
 	void		*ptr;
 	unsigned char	val;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_ecpeigetmemptr(brdp=%x,offset=%x,line=%d)\n",
 		(int) brdp, (int) offset, line);
 #endif
@@ -2771,7 +2804,7 @@ static void stli_onbinit(stlibrd_t *brdp)
 	unsigned long	memconf;
 	int		i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbinit(brdp=%d)\n", (int) brdp);
 #endif
 
@@ -2791,7 +2824,7 @@ static void stli_onbinit(stlibrd_t *brdp)
 
 static void stli_onbenable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbenable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ONB_ATCONFR), (ONB_ATENABLE | brdp->confbits));
@@ -2801,7 +2834,7 @@ static void stli_onbenable(stlibrd_t *brdp)
 
 static void stli_onbdisable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbdisable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ONB_ATCONFR), (ONB_ATDISABLE | brdp->confbits));
@@ -2813,7 +2846,7 @@ static char *stli_onbgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 {	
 	void	*ptr;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbgetmemptr(brdp=%x,offset=%x)\n", (int) brdp,
 		(int) offset);
 #endif
@@ -2835,7 +2868,7 @@ static void stli_onbreset(stlibrd_t *brdp)
 {	
 	int	i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbreset(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2857,7 +2890,7 @@ static void stli_onbeinit(stlibrd_t *brdp)
 	unsigned long	memconf;
 	int		i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbeinit(brdp=%d)\n", (int) brdp);
 #endif
 
@@ -2880,7 +2913,7 @@ static void stli_onbeinit(stlibrd_t *brdp)
 
 static void stli_onbeenable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbeenable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ONB_EICONFR), ONB_EIENABLE);
@@ -2890,7 +2923,7 @@ static void stli_onbeenable(stlibrd_t *brdp)
 
 static void stli_onbedisable(stlibrd_t *brdp)
 {	
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbedisable(brdp=%x)\n", (int) brdp);
 #endif
 	outb((brdp->iobase + ONB_EICONFR), ONB_EIDISABLE);
@@ -2903,7 +2936,7 @@ static char *stli_onbegetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 	void		*ptr;
 	unsigned char	val;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbegetmemptr(brdp=%x,offset=%x,line=%d)\n", (int) brdp,
 		(int) offset, line);
 #endif
@@ -2931,7 +2964,7 @@ static void stli_onbereset(stlibrd_t *brdp)
 {	
 	int	i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_onbereset(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -2952,7 +2985,7 @@ static void stli_bbyinit(stlibrd_t *brdp)
 {
 	int	i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_bbyinit(brdp=%d)\n", (int) brdp);
 #endif
 
@@ -2972,7 +3005,7 @@ static char *stli_bbygetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 	void		*ptr;
 	unsigned char	val;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_bbygetmemptr(brdp=%x,offset=%x)\n", (int) brdp,
 		(int) offset);
 #endif
@@ -2997,7 +3030,7 @@ static void stli_bbyreset(stlibrd_t *brdp)
 {	
 	int	i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_bbyreset(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3018,7 +3051,7 @@ static void stli_stalinit(stlibrd_t *brdp)
 {
 	int	i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_stalinit(brdp=%d)\n", (int) brdp);
 #endif
 
@@ -3033,7 +3066,7 @@ static char *stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 {	
 	void	*ptr;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_stalgetmemptr(brdp=%x,offset=%x)\n", (int) brdp,
 		(int) offset);
 #endif
@@ -3056,7 +3089,7 @@ static void stli_stalreset(stlibrd_t *brdp)
 	volatile unsigned long	*vecp;
 	int			i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_stalreset(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3081,7 +3114,7 @@ static int stli_initecp(stlibrd_t *brdp)
 	unsigned int	status, nxtid;
 	int		panelnr;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_initecp(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3204,7 +3237,7 @@ static int stli_initonb(stlibrd_t *brdp)
 	cdkonbsig_t	*sigsp;
 	int		i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_initonb(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3342,7 +3375,7 @@ static int stli_startbrd(stlibrd_t *brdp)
 	stliport_t		*portp;
 	int			portnr, nrdevs, i, rc, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_startbrd(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3448,7 +3481,7 @@ stli_donestartup:
 
 static int stli_brdinit(stlibrd_t *brdp)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stli_brdinit(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3484,6 +3517,7 @@ static int stli_brdinit(stlibrd_t *brdp)
 			brdp->brdnr, brdp->brdtype);
 		return(ENODEV);
 	}
+
 	return(0);
 }
 
@@ -3495,7 +3529,7 @@ static int stli_brdinit(stlibrd_t *brdp)
 
 static int stli_brdattach(stlibrd_t *brdp)
 {
-#if DEBUG
+#if STLDEBUG
 	printf("stli_brdattach(brdp=%x)\n", (int) brdp);
 #endif
 
@@ -3517,63 +3551,6 @@ static int stli_brdattach(stlibrd_t *brdp)
 
 /*****************************************************************************/
 
-/*
- *	Check for possible shared memory sharing between boards.
- *	FIX: need to start this optimization somewhere...
- */
-
-#ifdef notdef
-static int stli_chksharemem()
-{
-	stlibrd_t	*brdp, *nxtbrdp;
-	int		i, j;
-
-#if DEBUG
-	printf("stli_chksharemem()\n");
-#endif
-
-/*
- *	All found boards are initialized. Now for a little optimization, if
- *	no boards are sharing the "shared memory" regions then we can just
- *	leave them all enabled. This is in fact the usual case.
- */
-	stli_shared = 0;
-	if (stli_nrbrds > 1) {
-		for (i = 0; (i < stli_nrbrds); i++) {
-			brdp = stli_brds[i];
-			if (brdp == (stlibrd_t *) NULL)
-				continue;
-			for (j = i + 1; (j < stli_nrbrds); j++) {
-				nxtbrdp = stli_brds[j];
-				if (nxtbrdp == (stlibrd_t *) NULL)
-					continue;
-				if ((brdp->paddr >= nxtbrdp->paddr) &&
-				    (brdp->paddr <= (nxtbrdp->paddr +
-				    nxtbrdp->memsize - 1))) {
-					stli_shared++;
-					break;
-				}
-			}
-		}
-	}
-
-	if (stli_shared == 0) {
-		for (i = 0; (i < stli_nrbrds); i++) {
-			brdp = stli_brds[i];
-			if (brdp == (stlibrd_t *) NULL)
-				continue;
-			if (brdp->state & BST_FOUND) {
-				EBRDENABLE(brdp);
-				brdp->enable = NULL;
-				brdp->disable = NULL;
-			}
-		}
-	}
-
-	return(0);
-}
-#endif /* notdef */
-
 /*****************************************************************************/
 
 /*
@@ -3585,16 +3562,16 @@ static int stli_getbrdstats(caddr_t data)
 	stlibrd_t	*brdp;
 	int		i;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_getbrdstats(data=%p)\n", (void *) data);
 #endif
 
 	stli_brdstats = *((combrd_t *) data);
 	if (stli_brdstats.brd >= STL_MAXBRDS)
-		return(-ENODEV);
+		return(ENODEV);
 	brdp = stli_brds[stli_brdstats.brd];
 	if (brdp == (stlibrd_t *) NULL)
-		return(-ENODEV);
+		return(ENODEV);
 
 	bzero(&stli_brdstats, sizeof(combrd_t));
 	stli_brdstats.brd = brdp->brdnr;
@@ -3656,16 +3633,20 @@ static int stli_getportstats(stliport_t *portp, caddr_t data)
 		portp = stli_getport(stli_comstats.brd, stli_comstats.panel,
 			stli_comstats.port);
 		if (portp == (stliport_t *) NULL)
-			return(-ENODEV);
+			return(ENODEV);
 	}
 
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == (stlibrd_t *) NULL)
-		return(-ENODEV);
+		return(ENODEV);
 
-	if ((rc = stli_cmdwait(brdp, portp, A_GETSTATS, &stli_cdkstats,
-			sizeof(asystats_t), 1)) < 0)
-		return(rc);
+	if (brdp->state & BST_STARTED) {
+		if ((rc = stli_cmdwait(brdp, portp, A_GETSTATS, &stli_cdkstats,
+		    sizeof(asystats_t), 1)) < 0)
+			return(rc);
+	} else {
+		bzero(&stli_cdkstats, sizeof(asystats_t));
+	}
 
 	stli_comstats.brd = portp->brdnr;
 	stli_comstats.panel = portp->panelnr;
@@ -3718,12 +3699,12 @@ static int stli_clrportstats(stliport_t *portp, caddr_t data)
 		portp = stli_getport(stli_comstats.brd, stli_comstats.panel,
 			stli_comstats.port);
 		if (portp == (stliport_t *) NULL)
-			return(-ENODEV);
+			return(ENODEV);
 	}
 
 	brdp = stli_brds[portp->brdnr];
 	if (brdp == (stlibrd_t *) NULL)
-		return(-ENODEV);
+		return(ENODEV);
 
 	if ((rc = stli_cmdwait(brdp, portp, A_CLEARSTATS, 0, 0, 0)) < 0)
 		return(rc);
@@ -3752,7 +3733,7 @@ STATIC int stli_memrw(dev_t dev, struct uio *uiop, int flag)
 	void		*memptr;
 	int		brdnr, size, n, error, x;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_memrw(dev=%x,uiop=%x,flag=%x)\n", (int) dev,
 		(int) uiop, flag);
 #endif
@@ -3800,11 +3781,31 @@ static int stli_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 	stlibrd_t	*brdp;
 	int		brdnr, rc;
 
-#if DEBUG
+#if STLDEBUG
 	printf("stli_memioctl(dev=%s,cmd=%lx,data=%p,flag=%x)\n",
 		devtoname(dev), cmd, (void *) data, flag);
 #endif
 
+/*
+ *	Handle board independant ioctls first.
+ */
+	switch (cmd) {
+	case COM_GETPORTSTATS:
+		return(stli_getportstats((stliport_t *) NULL, data));
+		break;
+	case COM_CLRPORTSTATS:
+		return(stli_clrportstats((stliport_t *) NULL, data));
+		break;
+	case COM_GETBRDSTATS:
+		return(stli_getbrdstats(data));
+		break;
+	default:
+		break;
+	}
+
+/*
+ *	Handle board dependant ioctls now.
+ */
 	brdnr = minor(dev) & 0x7;
 	brdp = stli_brds[brdnr];
 	if (brdp == (stlibrd_t *) NULL)

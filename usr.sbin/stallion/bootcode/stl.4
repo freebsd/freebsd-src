@@ -1,4 +1,4 @@
-.\" Copyright (c) 1996 Greg Ungerer (gerg@stallion.oz.au).
+.\" Copyright (c) 1996-1998 Greg Ungerer (gerg@stallion.oz.au).
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -30,29 +30,34 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 1996
-.Os
+.Dd January 8, 1998
+.Os 
 .Dt STL 4 i386
 .Sh NAME
 .Nm stl ,
 .Nm stli
 .Nd "drivers for Stallion Technologies multiport serial controllers"
 .Sh SYNOPSIS
-.Cd "stl0 at isa? port <addr> tty irq <irq>"
-.Cd "stli0 at isa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
-.Cd "stli0 at eisa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type> "
+.Cd "device stl"
+.Cd "device stl0 at isa? port <addr> irq <irq>"
+.Cd "device stli0 at isa? port <io-addr> iomem <mem-addr> iosiz <size> flags <type> "
+.Cd "device stli0 at eisa? port <io-addr> iomem <mem-addr> iosiz <size> flags <type> "
 .Sh DESCRIPTION
+.Pp
 This is a kernel driver for Stallion Technologies multiport serial boards.
 There are two drivers, each supporting a different class of boards.
 The
 .Nm
-driver supports the EasyIO and EasyConnection 8/32
-boards, while the
+driver supports the EasyIO,
+EasyConnection 8/32 and
+EasyConnection 8/64-PCI boards,
+while the
 .Nm stli
 driver supports all other types, including
-ONboard, Brumby and EasyConnection 8/64.
+ONboard, Brumby and EasyConnection 8/64 (ISA and EISA).
 .Sh CONFIGURATION
-Each board installed in the system needs a configuration entry in the
+.Pp
+Each non-PCI board installed in the system needs a configuration entry in the
 kernel configuration file.
 Slightly different options and parameters are required for each of the
 different board types.
@@ -73,27 +78,28 @@ configuration details.
 Alternatively the board documentation is available on Stallion
 Technologies WWW site at http://www.stallion.com.
 .Pp
-The EasyIO and EasyConnection 8/32 families of boards use the
+The EasyIO, EasyConnection 8/32 and EasyConnection 8/64-PCI
+families of boards use the
 .Nm
 driver.
 ISA board configuration entries for the
 .Nm
 driver take the general form of:
 .Pp
-.Cd "stlX at isa? port <io-addr> tty irq <irq>"
+.Cd "device stlX at isa? port <io-addr> irq <irq>"
 .Pp
 .Ar X
 is the unit number assigned to the board.
 Any unique value between 0 and 7 is valid.
 .Pp
 The I/O address used by the board is specified by
-.Ar <io-addr> .
+.Ar <io-addr>.
 Each of the EasyIO and EasyConnection 8/32-AT boards can use
 an I/O address in the range from 0 to 0x400.
 .Pp
 All EasyIO and EasyConnection 8/32 boards require an interrupt,
 and this interrupt is specified by
-.Ar <irq> .
+.Ar <irq>.
 Legal IRQ values for the ISA boards are 3, 4, 5, 7, 10, 11, 12 and 15.
 Interrupts are software programmed on all boards except the EasyIO-8M.
 .Pp
@@ -102,14 +108,19 @@ and this is fixed at address 0x280 in the driver code.
 All EasyConnection 8/32-AT boards may share the same secondary address
 region.
 .Pp
-EasyConnection 8/32 PCI boards are detected automatically by the
-system on boot up.
+All EasyIO and EasyConnection PCI boards are detected
+automatically by the drivers on boot up.
 No configuration information is required in advance for these
 board types.
 During boot up the
 .Nm
-driver will issue messages to indicate that a EasyConnection 8/32
+driver will issue messages to indicate that a Stallion
 PCI board was found, and some information about it.
+If no ISA card is being configured, an entry like
+.Pp
+.Cd "device stl"
+.Pp
+will include the driver for PCI cards only.
 .Pp
 Following are some examples of configuration entries for each of the ISA
 boards supported by the
@@ -121,7 +132,7 @@ board types.
 Each EasyIO board requires 8 bytes of I/O address space and 1 IRQ line.
 A configuration entry for an EasyIO board would look like:
 .Pp
-.Cd "stl0 at isa? port 0x2a8 tty irq 15"
+.Cd "device stl0 at isa? port 0x2a8 irq 15"
 .Pp
 This entry specifies an EasyIO board at I/O address 0x2a8 using IRQ 15.
 The I/O and IRQ values can be modified as required.
@@ -135,12 +146,13 @@ by multiple EasyConnection 8/32-AT boards.
 This secondary I/O address is set at 0x280 in the driver code.
 A configuration entry would look like:
 .Pp
-.Cd "stl0 at isa? port 0x2a0 irq 10 tty"
+.Cd "device stl0 at isa? port 0x2a0 irq 10"
 .Pp
 This specifies an EasyConnection 8/32-AT with primary I/O address 0x2a0,
 secondary I/O address of 0x280 and IRQ 10.
 .Pp
-The ONboard, Brumby and EasyConnection 8/64 families of boards use the
+The ONboard, Brumby and EasyConnection 8/64
+families of boards use the
 .Nm stli
 driver.  The
 .Nm stli
@@ -150,14 +162,14 @@ ISA board configuration entries for the
 .Nm stli
 driver take the general form of:
 .Pp
-.Cd "stliX at isa? port <io-addr> tty iomem <mem-addr> iosiz <size> flags <type>"
+.Cd "device stliX at isa? port <io-addr> iomem <mem-addr> iosiz <size> flags <type>"
 .Pp
 .Ar X
 is the unit number assigned to the board.
 Any unique value between 0 and 7 is valid.
 .Pp
 The I/O address used by the board is specified by
-.Ar <io-addr> .
+.Ar <io-addr>.
 Each of the different supported board types has restrictions on valid
 I/O addresses and also the amount of I/O space required varies between
 the boards.
@@ -170,7 +182,7 @@ from 4 kbytes to 64 kbytes.  The size of the board region is specified
 by field
 .Ar <size>
 of the configuration entry, and the address of the region is specified by
-.Ar <mem-addr> .
+.Ar <mem-addr>.
 .Pp
 The flags field specifies the particular board type that this entry
 applies to.
@@ -190,15 +202,14 @@ EasyConnection 8/64-EISA	 24	0x10000
 Following are some examples of configuration entries for each of the
 boards supported by the
 .Nm stli
-driver.
-Each example also describes some important details about
+driver. Each example also describes some important details about
 each of the board types.
 .Pp
 The EasyConnection 8/64-AT board requires 4 bytes of I/O address space and
 4 kbytes of memory space.
 A configuration entry would look like:
 .Pp
-.Cd "stli0 at isa? port 0x2a0 tty iomem 0xcc000 iosiz 0x1000 flags 23"
+.Cd "device stli0 at isa? port 0x2a0 iomem 0xcc000 iosiz 0x1000 flags 23"
 .Pp
 The flags field of this entry specifies that this is an
 EasyConnection 8/64-AT board.
@@ -213,7 +224,7 @@ memory space.
 This region can be anywhere in the 32 bit memory address space.
 A configuration entry would be like:
 .Pp
-.Cd "stli0 at eisa? port 0x2000 tty iomem 0x80000000 iosiz 0x10000 flags 24"
+.Cd "device stli0 at eisa? port 0x2000 iomem 0x80000000 iosiz 0x10000 flags 24"
 .Pp
 The flags field is used to specify that this is an EasyConnection 8/64-EISA
 board.
@@ -233,7 +244,7 @@ section of memory address space.
 Valid ONboard I/O addresses are in the range 0x200 to 0x300.
 A configuration entry for an ONboard ISA would look like:
 .Pp
-.Cd "stli0 at isa? port 0x240 tty iomem 0xd0000 iosiz 0x10000 flags 4"
+.Cd "device stli0 at isa? port 0x240 iomem 0xd0000 iosiz 0x10000 flags 4"
 .Pp
 This entry specifies an ONboard ISA by setting flags to 4.
 It uses I/O address 0x240 and a memory region of 64 kbytes at memory
@@ -243,7 +254,7 @@ Each ONboard/E board requires a 64 kbyte memory region, and this
 can be anywhere in the 32 bit address space (that is from 0 to 4 Gbyte).
 A configuration entry would look like:
 .Pp
-.Cd "stli0 at eisa? port 0x3000 tty iomem 0xc0000000 iosiz 0x10000 flags 7"
+.Cd "device stli0 at eisa? port 0x3000 iomem 0xc0000000 iosiz 0x10000 flags 7"
 .Pp
 The specifies an ONboard/E in slot 3 using a shared memory address
 of 0xc0000000 (3 Gbyte).
@@ -255,7 +266,7 @@ The shared memory region of the Brumby must be in the 0xc0000 to
 0xdc000 region of the memory address space.
 A configuration entry for a Brumby would be like:
 .Pp
-.Cd "stli0 at isa? port 0x360 tty iomem 0xc8000 iosiz 0x4000 flags 2"
+.Cd "device stli0 at isa? port 0x360 iomem 0xc8000 iosiz 0x4000 flags 2"
 .Pp
 This specifies a Brumby board at I/O address 0x360 using a shared memory
 region at address 0xc8000.
@@ -268,7 +279,7 @@ or
 Each driver has a separate major number allocated,
 so even though the port device names are the same for each driver,
 the major number of the device node is different.
-Use the
+Use the 
 .Xr MAKEDEV 8
 script to create the devices.
 Use the ttyE and cue tag for the
@@ -278,7 +289,8 @@ the ttyEi and cuei tags for the
 .Nm stli
 driver.
 .Pp
-The intelligent board types (ONboard, Brumby and EasyConnection 8/64)
+The intelligent board types (ONboard, Brumby and
+EasyConnection 8/64 (ISA and EISA))
 require a firmware download before the ports will be operational.
 This is achieved by using the
 .Nm stlload
@@ -287,17 +299,29 @@ See its manual page for details on usage.
 .Sh FILES
 .Bl -tag -width "/dev/staliomem?" -compact
 .It Pa /dev/ttyE?
-standard callin devices
+stl standard callin devices
 .It Pa /dev/ttyiE?
-initial-state callin devices
+stl initial-state callin devices
 .It Pa /dev/ttylE?
-lock-state callin devices
-.It Pa /dev/cue?
-standard callout devices
-.It Pa /dev/cuie?
-initial-state callout devices
-.It Pa /dev/cule?
-lock-state callout devices
+stl lock-state callin devices
+.It Pa /dev/cuaE?
+stl standard callout devices
+.It Pa /dev/cuaiE?
+stl initial-state callout devices
+.It Pa /dev/cualE?
+stl lock-state callout devices
+.It Pa /dev/ttyF?
+stli standard callin devices
+.It Pa /dev/ttyiF?
+stli initial-state callin devices
+.It Pa /dev/ttylF?
+stli lock-state callin devices
+.It Pa /dev/cuaF?
+stli standard callout devices
+.It Pa /dev/cuaiF?
+stli initial-state callout devices
+.It Pa /dev/cualF?
+stli lock-state callout devices
 .It Pa /dev/staliomem?
 board control device
 .El
@@ -305,23 +329,55 @@ board control device
 Note that the port numbers start at 0 for port 0 of board 0.
 Each board has 64 port slots allocated for it.
 So the second boards ports start at 64 and go through 127.
-Use the
+Use the 
 .Xr MAKEDEV 8
 script to create the devices.
-Use the ttyE and cue tag for the
+Use the 
+.Ar ttyEx 
+and 
+.Ar cuaEx 
+tag for the
 .Nm
 driver, and
-the ttyEi and cuei tags for the
+the 
+.Ar ttyFx 
+and 
+.Ar cuaFx 
+tags for the
 .Nm stli
-driver.
+driver, where
+.Ar x
+is the board number.
+By default, 
+.Xr MAKEDEV 8
+only creates 8 devices per board (to keep the directory size
+reasonable).
+To create the remaining devices for EasyConnection 8/32 and
+EasyConnection 8/64 cards, see the comments in the 
+.Xr MAKEDEV
+script.
+.Sh BUGS
+The /dev/staliomem? device name is shared between both the
+.Nm
+and
+.Nm stli
+drivers.  This may cause confusion if both drivers are present in the
+system at the same time.
+.Pp
+Device names use integer suffixes, rather than the 0-9 a-z sequence
+that other drivers use.
+.Pp
+There will be many unused ttyE device names in a system with more than
+one card.
+.Xr 
 .Sh SEE ALSO
-.Xr stty 1 ,
-.Xr termios 4 ,
 .Xr tty 4 ,
+.Xr termios 4 ,
+.Xr stty 1 ,
 .Xr comcontrol 8 ,
-.Xr MAKEDEV 8 ,
 .Xr stlload 8 ,
-.Xr stlstats 8
+.Xr stlstats 8 ,
+.Xr stlstty 8 ,
+.Xr MAKEDEV 8
 .Sh HISTORY
-This driver was originally developed by
-.An Greg Ungerer Aq gerg@stallion.com .
+This driver was originally developed by Greg Ungerer (gerg@stallion.com).

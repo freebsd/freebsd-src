@@ -72,8 +72,15 @@
 #	cuaA*	Specialix SI/XIO dialout ports
 #	ttyD*	Digiboard - 16 dialin ports
 #	cuaD*	Digiboard - 16 dialout ports
+#	ttyE*	Stallion EasyIO (stl) dialin ports
+#	cuaE*	Stallion EasyIO (stl) dialout ports
+#	ttyF*	Stallion Brumby (stli) dialin ports
+#	cuaF*	Stallion Brumby (stli) dialout ports
 #	ttyR*	Rocketport dialin ports
 #	cuaR*	Rocketport dialout ports
+#
+#	stlN	Stallion EasyIO board N dialin and dialout
+#	stliN	Stallion Brumby board N dialin and dialout
 #
 # Pseudo terminals:
 #	pty*	set of 32 master and slave pseudo terminals
@@ -229,6 +236,49 @@ ttyminor()
 unit2minor()
 {
   echo $(((($1 >> 8) << 16) | ($1 % 256)))
+}
+
+# For the stallion devices tty[EF]
+# stallion major letter card iscallout
+stallion () {
+	major=$1
+	letter=$2
+	card=$3
+	iscallout=$4
+
+	port=0
+	maxport=8
+	pref=tty
+	owner=
+	minorbase=0
+
+	if [ $iscallout -gt 0 ]; then
+	    pref=cua
+	    owner=uucp:dialer
+	    minorbase=128
+	fi
+
+	case "$card" in 
+	[0-7]);;
+	*) die 1 "Invalid stl card number $card";;
+	esac
+
+	# make the mem interface for extracting stats & loading microcode.
+	# 0x1000000 + card number
+	mknod staliomem$card c $major 0x0100000$card
+
+	while [ $port -lt $maxport ]; do
+	    minor=`expr $minorbase + $card \* 1048576 + $port`
+	    if [ $port -ge 32 ]; then
+		minor=`expr $minor + 65504`
+	    fi
+	    unit=`expr $card \* 64 + $port`
+
+	    mknod ${pref}${letter}$unit c $major $minor $owner
+	    mknod ${pref}i${letter}$unit c $major `expr $minor + 32` $owner
+	    mknod ${pref}l${letter}$unit c $major `expr $minor + 64` $owner
+	    port=`expr $port + 1`
+	done
 }
 
 # Raw partition for disks
@@ -1243,6 +1293,53 @@ cuaD?)
 		mknod cualD$name c $major `expr $minor + 64 + 128` uucp:dialer
 	done
 	umask 77
+	;;
+
+# Stallion multi serial cards (stl and stli drivers)
+# 
+# These drivers reserve 64 minor devices per board, even if the board
+# supports only 4 devices.  We default to creating only 8 of the 64 devices
+# to keep /dev from getting too large (which => slow).  The last part of the
+# arg is the board number to create ports for.  So:
+#	ttyE0 will create 8 dialin ports ttyE0-ttyE7, plus ttyiE* and ttylE*
+#	cuaE0 will create 8 dialout ports cuaE0-cuaE7, plus cuaiE* and cualE*
+#	ttyE1 will create 8 dialin ports ttyE64-ttyE71, plus ttyiE* and ttylE*
+#	etc
+# If you have EasyConnect 8/32 or 8/64 cards, you will need to change the 
+# definition of "maxport" below to get nodes for the full 32 or 64 
+# ports per card.
+#
+# Note that the mapping of minor device numbers (with the hole between
+# 32-64k) is a bit odd to keep compatibility with ttyd? for
+# lock/initial devices.  
+# Minor device field for the ports is
+#	card{3} unused{4} unit-msb{1} unused{8} callout{1} lock{1} init{1} unit-lsbs{5}
+# for the mem device is
+#	0x1000000 + card
+# (For stl, there is only 1 mem device per system; for stli, one per board)
+
+ttyE*)
+	stallion 72 E `expr $i : 'tty.*\(.\)$'` 0
+	;;
+cuaE*)
+	stallion 72 E `expr $i : 'cua.*\(.\)$'` 1
+	;;
+stl*)
+	card=`expr $i : 'stl\(.\)$'`
+	stallion 72 E $card 0
+	stallion 72 E $card 1
+	;;
+
+ttyF*)
+	stallion 75 F `expr $i : 'tty.*\(.\)$'` 0
+	;;
+cuaF*)
+	stallion 75 F `expr $i : 'cua.*\(.\)$'` 1
+	;;
+stli*)
+	card=`expr $i : 'stl\(.\)$'`
+	stallion 75 F $card 0
+	stallion 75 F $card 1
 	;;
 
 ttyM*)

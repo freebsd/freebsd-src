@@ -3,7 +3,7 @@
 /*
  * stlload.c  -- stallion intelligent multiport down loader.
  *
- * Copyright (c) 1994-1996 Greg Ungerer (gerg@stallion.oz.au).
+ * Copyright (c) 1994-1998 Greg Ungerer (gerg@stallion.oz.au).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ static const char rcsid[] =
 
 /*****************************************************************************/
 
-char	*version = "1.0.0";
+char	*version = "2.0.0";
 char	*defdevice = "/dev/staliomem%d";
 char	*image = BOOTDIR "/cdk.sys";
 char	*oldimage = BOOTDIR "/2681.sys";
