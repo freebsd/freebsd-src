@@ -529,14 +529,14 @@ em_ioctl(struct ifnet *ifp, IOCTL_CMD_TYPE command, caddr_t data)
 	case SIOCSIFFLAGS:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFFLAGS (Set Interface Flags)");
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC) {
-				em_set_promisc(adapter);
-			} else if (ifp->if_flags & IFF_RUNNING &&
-				   !(ifp->if_flags & IFF_PROMISC)) {
-				em_disable_promisc(adapter);
-			} else
+			/*
+			 * init adapter if not running, then take care
+			 * of possible changes in IFF_ALLMULTI and IFF_PROMISC
+			 */
+			if (!(ifp->if_flags & IFF_RUNNING))
 				em_init(adapter);
+			em_disable_promisc(adapter);
+			em_set_promisc(adapter);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				em_stop(adapter);
