@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.27 1995/02/22 09:15:20 davidg Exp $
+ * $Id: swap_pager.c,v 1.28 1995/02/25 17:02:48 davidg Exp $
  */
 
 /*
@@ -1040,7 +1040,7 @@ swap_pager_input(swp, m, count, reqpage)
 			if (curproc == pageproc)
 				(void) swap_pager_clean();
 			else
-				wakeup((caddr_t) &vm_pages_needed);
+				pagedaemon_wakeup();
 			while (swap_pager_free.tqh_first == NULL) {
 				swap_pager_needflags |= SWAP_FREE_NEEDED;
 				if (curproc == pageproc)
@@ -1050,7 +1050,7 @@ swap_pager_input(swp, m, count, reqpage)
 				if (curproc == pageproc)
 					(void) swap_pager_clean();
 				else
-					wakeup((caddr_t) &vm_pages_needed);
+					pagedaemon_wakeup();
 			}
 			splx(s);
 		}
@@ -1146,7 +1146,7 @@ swap_pager_input(swp, m, count, reqpage)
 			wakeup((caddr_t) &swap_pager_free);
 		}
 		if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
-			wakeup((caddr_t) &vm_pages_needed);
+			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 	} else {
 		/*
@@ -1369,7 +1369,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			return VM_PAGER_AGAIN;
 #endif
 		} else
-			wakeup((caddr_t) &vm_pages_needed);
+			pagedaemon_wakeup();
 		while (swap_pager_free.tqh_first == NULL ||
 			swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
 			swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
@@ -1385,7 +1385,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			if (curproc == pageproc)
 				(void) swap_pager_clean();
 			else
-				wakeup((caddr_t) &vm_pages_needed);
+				pagedaemon_wakeup();
 		}
 		splx(s);
 	}
@@ -1544,7 +1544,7 @@ swap_pager_output(swp, m, count, flags, rtvals)
 		wakeup((caddr_t) &swap_pager_free);
 	}
 	if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
-		wakeup((caddr_t) &vm_pages_needed);
+		pagedaemon_wakeup();
 	swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 	return (rv);
 }
@@ -1592,7 +1592,7 @@ doclean:
 			wakeup((caddr_t) &swap_pager_free);
 		}
 		if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT)
-			wakeup((caddr_t) &vm_pages_needed);
+			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 		++cleandone;
 		splx(s);
@@ -1691,7 +1691,7 @@ swap_pager_iodone(bp)
 
 	if( swap_pager_needflags & SWAP_FREE_NEEDED_BY_PAGEOUT) {
 		swap_pager_needflags &= ~SWAP_FREE_NEEDED_BY_PAGEOUT;
-		wakeup((caddr_t) &vm_pages_needed);
+		pagedaemon_wakeup();
 	}
 
 	if (vm_pageout_pages_needed) {
@@ -1700,8 +1700,8 @@ swap_pager_iodone(bp)
 	}
 	if ((swap_pager_inuse.tqh_first == NULL) ||
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min &&
-		nswiodone + cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min)) {
-		wakeup((caddr_t) &vm_pages_needed);
+	    nswiodone + cnt.v_free_count + cnt.v_cache_count >= cnt.v_free_min)) {
+		pagedaemon_wakeup();
 	}
 	splx(s);
 }

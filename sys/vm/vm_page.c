@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.21 1995/02/22 10:16:21 davidg Exp $
+ *	$Id: vm_page.c,v 1.22 1995/02/22 10:27:16 davidg Exp $
  */
 
 /*
@@ -378,17 +378,16 @@ vm_page_hash(object, offset)
  *	Inserts the given mem entry into the object/object-page
  *	table and object list.
  *
- *	The object and page must be locked.
+ *	The object and page must be locked, and must be splhigh.
  */
 
-void 
+inline void 
 vm_page_insert(mem, object, offset)
 	register vm_page_t mem;
 	register vm_object_t object;
 	register vm_offset_t offset;
 {
 	register struct pglist *bucket;
-	int s;
 
 	VM_PAGE_CHECK(mem);
 
@@ -407,7 +406,6 @@ vm_page_insert(mem, object, offset)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(object, offset)];
-	s = splhigh();
 	simple_lock(&bucket_lock);
 	TAILQ_INSERT_TAIL(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
@@ -417,7 +415,6 @@ vm_page_insert(mem, object, offset)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, mem, listq);
-	(void) splx(s);
 	mem->flags |= PG_TABLED;
 
 	/*
@@ -434,18 +431,16 @@ vm_page_insert(mem, object, offset)
  *	Removes the given mem entry from the object/offset-page
  *	table and the object page list.
  *
- *	The object and page must be locked.
+ *	The object and page must be locked, and at splhigh.
  */
 
-void 
+inline void 
 vm_page_remove(mem)
 	register vm_page_t mem;
 {
 	register struct pglist *bucket;
-	int s;
 
 	VM_PAGE_CHECK(mem);
-
 
 	if (!(mem->flags & PG_TABLED))
 		return;
@@ -455,7 +450,6 @@ vm_page_remove(mem)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(mem->object, mem->offset)];
-	s = splhigh();
 	simple_lock(&bucket_lock);
 	TAILQ_REMOVE(bucket, mem, hashq);
 	simple_unlock(&bucket_lock);
@@ -465,7 +459,6 @@ vm_page_remove(mem)
 	 */
 
 	TAILQ_REMOVE(&mem->object->memq, mem, listq);
-	(void) splx(s);
 
 	/*
 	 * And show that the object has one fewer resident page.
@@ -543,60 +536,35 @@ vm_page_rename(mem, new_object, new_offset)
 	vm_page_unlock_queues();
 }
 
-int
+/*
+ * vm_page_unqueue must be called at splhigh();
+ */
+inline void
 vm_page_unqueue(vm_page_t mem)
 {
-	int s, origflags;
+	int origflags;
 
 	origflags = mem->flags;
 
 	if ((origflags & (PG_ACTIVE|PG_INACTIVE|PG_CACHE)) == 0)
-		return origflags;
+		return;
 
-	s = splhigh();
-	if (mem->flags & PG_ACTIVE) {
+	if (origflags & PG_ACTIVE) {
 		TAILQ_REMOVE(&vm_page_queue_active, mem, pageq);
 		cnt.v_active_count--;
 		mem->flags &= ~PG_ACTIVE;
-	} else if (mem->flags & PG_INACTIVE) {
+	} else if (origflags & PG_INACTIVE) {
 		TAILQ_REMOVE(&vm_page_queue_inactive, mem, pageq);
 		cnt.v_inactive_count--;
 		mem->flags &= ~PG_INACTIVE;
-	} else if (mem->flags & PG_CACHE) {
+	} else if (origflags & PG_CACHE) {
 		TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
 		cnt.v_cache_count--;
 		mem->flags &= ~PG_CACHE;
 		if (cnt.v_cache_count + cnt.v_free_count < cnt.v_free_reserved)
-			wakeup((caddr_t) &vm_pages_needed);
+			pagedaemon_wakeup();
 	}
-	splx(s);
-	return origflags;
-}
-
-void
-vm_page_requeue(vm_page_t mem, int flags)
-{
-	int s;
-
-	if (mem->wire_count)
-		return;
-	s = splhigh();
-	if (flags & PG_CACHE) {
-		TAILQ_INSERT_TAIL(&vm_page_queue_cache, mem, pageq);
-		mem->flags |= PG_CACHE;
-		cnt.v_cache_count++;
-	} else if (flags & PG_ACTIVE) {
-		TAILQ_INSERT_TAIL(&vm_page_queue_active, mem, pageq);
-		mem->flags |= PG_ACTIVE;
-		cnt.v_active_count++;
-	} else if (flags & PG_INACTIVE) {
-		TAILQ_INSERT_TAIL(&vm_page_queue_inactive, mem, pageq);
-		mem->flags |= PG_INACTIVE;
-		cnt.v_inactive_count++;
-	}
-	TAILQ_REMOVE(&mem->object->memq, mem, listq);
-	TAILQ_INSERT_TAIL(&mem->object->memq, mem, listq);
-	splx(s);
+	return;
 }
 
 /*
@@ -605,10 +573,10 @@ vm_page_requeue(vm_page_t mem, int flags)
  *	Allocate and return a memory cell associated
  *	with this VM object/offset pair.
  *
- *	page_req -- 0	normal process request			VM_ALLOC_NORMAL
- *	page_req -- 1	interrupt time request			VM_ALLOC_INTERRUPT
- *	page_req -- 2	system *really* needs a page	VM_ALLOC_SYSTEM
- *					but *cannot* be at interrupt time
+ *	page_req classes:
+ *	VM_ALLOC_NORMAL		normal process request
+ *	VM_ALLOC_SYSTEM		system *really* needs a page
+ *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	Object must be locked.
  */
@@ -621,57 +589,73 @@ vm_page_alloc(object, offset, page_req)
 	register vm_page_t mem;
 	int s;
 
+	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
+		page_req = VM_ALLOC_SYSTEM;
+	};
+		
 	simple_lock(&vm_page_queue_free_lock);
 
 	s = splhigh();
 
-	if (((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) &&
-	    (page_req == VM_ALLOC_NORMAL) &&
-	    (curproc != pageproc)) {
-		simple_unlock(&vm_page_queue_free_lock);
-		splx(s);
-		return (NULL);
-	}
+	mem = vm_page_queue_free.tqh_first;
 
-	if (page_req == VM_ALLOC_INTERRUPT) {
-		if ((mem = vm_page_queue_free.tqh_first) == 0) {
-			simple_unlock(&vm_page_queue_free_lock);
-			splx(s);
-			/*
-			 * need to wakeup at interrupt time -- it doesn't do VM_WAIT
-			 */
-			wakeup((caddr_t) &vm_pages_needed);
-			return NULL;
-		}
-	} else {
-		if ((cnt.v_free_count < cnt.v_free_reserved) ||
-		    (mem = vm_page_queue_free.tqh_first) == 0) {
+	switch (page_req) {
+	case VM_ALLOC_NORMAL:
+		if (cnt.v_free_count >= cnt.v_free_reserved) {
+			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+			cnt.v_free_count--;
+		} else {
 			mem = vm_page_queue_cache.tqh_first;
-			if (mem) {
+			if (mem != NULL) {
 				TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
 				vm_page_remove(mem);
 				cnt.v_cache_count--;
-				goto gotpage;
-			}
-
-			if (page_req == VM_ALLOC_SYSTEM &&
-			    cnt.v_free_count > cnt.v_interrupt_free_min) {
-				mem = vm_page_queue_free.tqh_first;
-			}
-
-			if( !mem) {
+			} else {
 				simple_unlock(&vm_page_queue_free_lock);
 				splx(s);
-				wakeup((caddr_t) &vm_pages_needed);
+				pagedaemon_wakeup();
 				return (NULL);
 			}
 		}
+		break;
+
+	case VM_ALLOC_SYSTEM:
+		if ((cnt.v_free_count >= cnt.v_free_reserved) ||
+		    ((cnt.v_cache_count == 0) &&
+		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
+			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+			cnt.v_free_count--;
+		} else {
+			mem = vm_page_queue_cache.tqh_first;
+			if (mem != NULL) {
+				TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
+				vm_page_remove(mem);
+				cnt.v_cache_count--;
+			} else {
+				simple_unlock(&vm_page_queue_free_lock);
+				splx(s);
+				pagedaemon_wakeup();
+				return (NULL);
+			}
+		}
+		break;
+
+	case VM_ALLOC_INTERRUPT:
+		if (mem != NULL) {
+			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+			cnt.v_free_count--;
+		} else {
+			simple_unlock(&vm_page_queue_free_lock);
+			splx(s);
+			pagedaemon_wakeup();
+			return NULL;
+		}
+		break;
+
+	default:
+		panic("vm_page_alloc: invalid allocation class");
 	}
 
-	TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
-	cnt.v_free_count--;
-
-gotpage:
 	simple_unlock(&vm_page_queue_free_lock);
 
 	mem->flags = PG_BUSY;
@@ -688,14 +672,13 @@ gotpage:
 
 	splx(s);
 
-/*
- * don't wakeup too often, so we wakeup the pageout daemon when
- * we would be nearly out of memory.
- */
-	if (curproc != pageproc &&
-	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) ||
-		(cnt.v_free_count < cnt.v_pageout_free_min))
-		wakeup((caddr_t) &vm_pages_needed);
+	/*
+	 * Don't wakeup too often - wakeup the pageout daemon when
+	 * we would be nearly out of memory.
+	 */
+	if (((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) ||
+	    (cnt.v_free_count < cnt.v_pageout_free_min))
+		pagedaemon_wakeup();
 
 	return (mem);
 }
@@ -792,20 +775,24 @@ vm_page_free(mem)
 	register vm_page_t mem;
 {
 	int s;
+	int flags;
 
 	s = splhigh();
 	vm_page_remove(mem);
 	vm_page_unqueue(mem);
 
-	if (mem->bmapped || mem->busy || mem->flags & PG_BUSY) {
+	flags = mem->flags;
+	if (mem->bmapped || mem->busy || flags & (PG_BUSY|PG_FREE)) {
+		if (flags & PG_FREE)
+			panic("vm_page_free: freeing free page");
 		printf("vm_page_free: offset(%d), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
-		    mem->offset, mem->bmapped, mem->busy, (mem->flags & PG_BUSY) ? 1 : 0);
+		    mem->offset, mem->bmapped, mem->busy, (flags & PG_BUSY) ? 1 : 0);
 		panic("vm_page_free: freeing busy page\n");
 	}
-	if (mem->flags & PG_FREE)
-		panic("vm_page_free: freeing free page");
 
-	if (!(mem->flags & PG_FICTITIOUS)) {
+	if ((flags & PG_WANTED) != 0)
+		wakeup((caddr_t) mem);
+	if ((flags & PG_FICTITIOUS) == 0) {
 
 		simple_lock(&vm_page_queue_free_lock);
 		if (mem->wire_count) {
@@ -819,7 +806,6 @@ vm_page_free(mem)
 		mem->flags |= PG_FREE;
 		TAILQ_INSERT_TAIL(&vm_page_queue_free, mem, pageq);
 
-		cnt.v_free_count++;
 		simple_unlock(&vm_page_queue_free_lock);
 		splx(s);
 		/*
@@ -831,6 +817,7 @@ vm_page_free(mem)
 			vm_pageout_pages_needed = 0;
 		}
 
+		cnt.v_free_count++;
 		/*
 		 * wakeup processes that are waiting on memory if we hit a
 		 * high water mark. And wakeup scheduler process if we have
@@ -843,8 +830,6 @@ vm_page_free(mem)
 	} else {
 		splx(s);
 	}
-	if (mem->flags & PG_WANTED)
-		wakeup((caddr_t) mem);
 	cnt.v_tfree++;
 }
 
@@ -863,13 +848,15 @@ vm_page_wire(mem)
 	register vm_page_t mem;
 {
 	int s;
-
 	VM_PAGE_CHECK(mem);
 
 	if (mem->wire_count == 0) {
+		s = splhigh();
 		vm_page_unqueue(mem);
+		splx(s);
 		cnt.v_wire_count++;
 	}
+	mem->flags |= PG_WRITEABLE|PG_MAPPED;
 	mem->wire_count++;
 }
 
@@ -959,7 +946,7 @@ vm_page_cache(m)
 
 	s = splhigh();
 	vm_page_unqueue(m);
-	pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+	vm_page_protect(m, VM_PROT_NONE);
 
 	TAILQ_INSERT_TAIL(&vm_page_queue_cache, m, pageq);
 	m->flags |= PG_CACHE;

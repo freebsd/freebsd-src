@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.7 1995/02/22 09:15:30 davidg Exp $
+ * $Id: vm_object.h,v 1.8 1995/02/22 10:06:43 davidg Exp $
  */
 
 /*
@@ -145,6 +145,16 @@ vm_object_t kmem_object;
 #define	vm_object_unlock(object)	simple_unlock(&(object)->Lock)
 #define	vm_object_lock_try(object)	simple_lock_try(&(object)->Lock)
 #endif
+
+__inline static void
+vm_object_pip_wakeup( vm_object_t object) {
+	object->paging_in_progress--;
+	if ((object->flags & OBJ_PIPWNT) &&
+		object->paging_in_progress == 0) {
+		object->flags &= ~OBJ_PIPWNT;
+		wakeup((caddr_t) object);
+	}
+}
 
 #ifdef KERNEL
 vm_object_t vm_object_allocate __P((vm_size_t));

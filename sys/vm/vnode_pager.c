@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.25 1995/02/22 10:34:34 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.26 1995/02/23 22:32:38 davidg Exp $
  */
 
 /*
@@ -565,12 +565,7 @@ vnode_pager_iodone(bp)
 		}
 		pmap_qremove(paddr, npages);
 		if (obj) {
-			--obj->paging_in_progress;
-			if (obj->paging_in_progress == 0 &&
-			    (obj->flags & OBJ_PIPWNT)) {
-				obj->flags &= ~OBJ_PIPWNT;
-				wakeup((caddr_t) obj);
-			}
+			vm_object_pip_wakeup(obj);
 		} else {
 			panic("vnode_pager_iodone: object is gone???");
 		}
