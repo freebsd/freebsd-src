@@ -2287,7 +2287,7 @@ vm_map_split(entry)
 	source = orig_object->backing_object;
 	if (source != NULL) {
 		vm_object_reference(source);	/* Referenced by new_object */
-		TAILQ_INSERT_TAIL(&source->shadow_head,
+		LIST_INSERT_HEAD(&source->shadow_head,
 				  new_object, shadow_list);
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		new_object->backing_object_offset = 
@@ -3194,14 +3194,14 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 					vm_object_reference(srcobject);
 
 					if (oldobject) {
-						TAILQ_REMOVE(&oldobject->shadow_head,
+						LIST_REMOVE(
 							first_object, shadow_list);
 						oldobject->shadow_count--;
 						/* XXX bump generation? */
 						vm_object_deallocate(oldobject);
 					}
 
-					TAILQ_INSERT_TAIL(&srcobject->shadow_head,
+					LIST_INSERT_HEAD(&srcobject->shadow_head,
 						first_object, shadow_list);
 					srcobject->shadow_count++;
 					/* XXX bump generation? */
@@ -3284,7 +3284,7 @@ vm_freeze_copyopts(object, froma, toa)
 	if (object->shadow_count > object->ref_count)
 		panic("vm_freeze_copyopts: sc > rc");
 
-	while((robject = TAILQ_FIRST(&object->shadow_head)) != NULL) {
+	while((robject = LIST_FIRST(&object->shadow_head)) != NULL) {
 		vm_pindex_t bo_pindex;
 		vm_page_t m_in, m_out;
 
@@ -3330,7 +3330,7 @@ vm_freeze_copyopts(object, froma, toa)
 
 		object->shadow_count--;
 		object->ref_count--;
-		TAILQ_REMOVE(&object->shadow_head, robject, shadow_list);
+		LIST_REMOVE(robject, shadow_list);
 		robject->backing_object = NULL;
 		robject->backing_object_offset = 0;
 
