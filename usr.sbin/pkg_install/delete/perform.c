@@ -224,7 +224,7 @@ pkg_do(char *pkg)
     if (fexists(REQUIRE_FNAME)) {
 	if (Verbose)
 	    printf("Executing 'require' script.\n");
-	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
+	vsystem("/bin/chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
 	    warnx("package %s fails requirements %s", pkg,
 		   Force ? "" : "- not deleted");
@@ -254,7 +254,7 @@ pkg_do(char *pkg)
 	if (Fake)
 	    printf("Would execute de-install script at this point.\n");
 	else {
-	    vsystem("chmod +x %s", pre_script);	/* make sure */
+	    vsystem("/bin/chmod +x %s", pre_script);	/* make sure */
 	    if (vsystem("./%s %s %s", pre_script, pkg, pre_arg)) {
 		warnx("deinstall script returned error status");
 		if (!Force)
@@ -311,7 +311,7 @@ pkg_do(char *pkg)
  	if (Fake)
  	    printf("Would execute post-deinstall script at this point.\n");
  	else {
- 	    vsystem("chmod +x %s", post_script);	/* make sure */
+ 	    vsystem("/bin/chmod +x %s", post_script);	/* make sure */
  	    if (vsystem("./%s %s %s", post_script, pkg, post_arg)) {
  		warnx("post-deinstall script returned error status");
  		if (!Force)

@@ -167,7 +167,7 @@ pkg_do(char *pkg)
 		    if (!isdir(p->name) && !Fake) {
 			if (Verbose)
 			    printf("Desired prefix of %s does not exist, creating..\n", p->name);
-			vsystem("mkdir -p %s", p->name);
+			vsystem("/bin/mkdir -p %s", p->name);
 			if (chdir(p->name) == -1) {
 			    warn("unable to change directory to '%s'", p->name);
 			    goto bomb;
@@ -302,7 +302,11 @@ pkg_do(char *pkg)
 
 		    ext = strrchr(pkg_fullname, '.');
 		    if (ext == NULL)
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 			ext = ".tbz";
+#else
+			ext = ".tgz";
+#endif
 		    snprintf(path, FILENAME_MAX, "%s/%s%s", getenv("_TOP"), p->name, ext);
 		    if (fexists(path))
 			cp = path;
@@ -311,7 +315,7 @@ pkg_do(char *pkg)
 		    if (cp) {
 			if (Verbose)
 			    printf("Loading it from %s.\n", cp);
-			if (vsystem("pkg_add %s'%s'", Verbose ? "-v " : "", cp)) {
+			if (vsystem("%s %s'%s'", PkgAddCmd, Verbose ? "-v " : "", cp)) {
 			    warnx("autoload of dependency '%s' failed%s",
 				cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)
@@ -334,7 +338,7 @@ pkg_do(char *pkg)
 			if (!Force)
 			    ++code;
 		    }
-		    else if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
+		    else if (vsystem("(pwd; /bin/cat +CONTENTS) | %s %s-S", PkgAddCmd, Verbose ? "-v " : "")) {
 			warnx("pkg_add of dependency '%s' failed%s",
 				p->name, Force ? " (proceeding anyway)" : "!");
 			if (!Force)
@@ -365,7 +369,7 @@ pkg_do(char *pkg)
 
     /* Look for the requirements file */
     if (fexists(REQUIRE_FNAME)) {
-	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
+	vsystem("/bin/chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
 	    printf("Running requirements file first for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, Plist.name)) {
@@ -398,7 +402,7 @@ pkg_do(char *pkg)
 
     /* If we're really installing, and have an installation file, run it */
     if (!NoInstall && fexists(pre_script)) {
-	vsystem("chmod +x %s", pre_script);	/* make sure */
+	vsystem("/bin/chmod +x %s", pre_script);	/* make sure */
 	if (Verbose)
 	    printf("Running pre-install for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s %s", pre_script, Plist.name, pre_arg)) {
@@ -427,7 +431,7 @@ pkg_do(char *pkg)
 
     /* Run the installation script one last time? */
     if (!NoInstall && fexists(post_script)) {
-	vsystem("chmod +x %s", post_script);	/* make sure */
+	vsystem("/bin/chmod +x %s", post_script);	/* make sure */
 	if (Verbose)
 	    printf("Running post-install for %s..\n", Plist.name);
 	if (!Fake && vsystem("./%s %s %s", post_script, Plist.name, post_arg)) {
@@ -457,7 +461,7 @@ pkg_do(char *pkg)
 	    goto success;	/* close enough for government work */
 	}
 	/* Make sure pkg_info can read the entry */
-	vsystem("chmod a+rx %s", LogDir);
+	vsystem("/bin/chmod a+rx %s", LogDir);
 	move_file(".", DESC_FNAME, LogDir);
 	move_file(".", COMMENT_FNAME, LogDir);
 	if (fexists(INSTALL_FNAME))

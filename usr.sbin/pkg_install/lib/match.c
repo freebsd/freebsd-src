@@ -63,7 +63,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     static struct store *store = NULL;
     FTS *ftsp;
     FTSENT *f;
-    Boolean *lmatched;
+    Boolean *lmatched = NULL;
 
     store = storecreate(store);
     if (store == NULL) {

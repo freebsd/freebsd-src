@@ -269,9 +269,9 @@ copy_file(const char *dir, const char *fname, const char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "cp -r %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/cp -r %s %s", fname, to);
     else
-	snprintf(cmd, FILENAME_MAX, "cp -r %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/cp -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
 	errx(2, "%s: could not perform '%s'", __func__, cmd);
@@ -284,9 +284,9 @@ move_file(const char *dir, const char *fname, const char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	snprintf(cmd, FILENAME_MAX, "mv %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/mv %s %s", fname, to);
     else
-	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "/bin/mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
 	errx(2, "%s: could not perform '%s'", __func__, cmd);
@@ -310,11 +310,11 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 	/* If absolute path, use it */
 	if (*fname == '/')
 	    dir = "/";
-	snprintf(cmd, FILENAME_MAX * 3, "tar cf - -C %s %s | tar xpf -",
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - -C %s %s | /usr/bin/tar xpf -",
 		 dir, fname);
     }
     else
-	snprintf(cmd, FILENAME_MAX * 3, "tar cf - %s | tar xpf - -C %s",
+	snprintf(cmd, FILENAME_MAX * 3, "/usr/bin/tar cf - %s | /usr/bin/tar xpf - -C %s",
 		 fname, dir);
 #ifdef DEBUG
     printf("Using '%s' to copy trees.\n", cmd);
@@ -350,9 +350,12 @@ unpack(const char *pkg, const char *flist)
 	}
     }
     else
-	/* XXX: need to handle .tgz also */
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
 	comp = "-j";
-    if (vsystem("tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
+#else
+	comp = "-z";
+#endif
+    if (vsystem("/usr/bin/tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }

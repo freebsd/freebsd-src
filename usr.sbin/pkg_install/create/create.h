@@ -50,7 +50,6 @@ extern enum zipper	Zipper;
 
 void		add_cksum(Package *, PackingList, const char *);
 void		check_list(const char *, Package *);
-int		pkg_perform(char **);
 void		copy_plist(const char *, Package *);
 
 #endif	/* _INST_CREATE_H_INCLUDE */
