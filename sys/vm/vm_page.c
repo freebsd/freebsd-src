@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.34 1995/07/20 05:28:07 davidg Exp $
+ *	$Id: vm_page.c,v 1.35 1995/09/03 19:57:25 dyson Exp $
  */
 
 /*
@@ -88,6 +88,7 @@ int vm_page_bucket_count;	/* How big is array? */
 int vm_page_hash_mask;		/* Mask for hash function */
 
 struct pglist vm_page_queue_free;
+struct pglist vm_page_queue_zero;
 struct pglist vm_page_queue_active;
 struct pglist vm_page_queue_inactive;
 struct pglist vm_page_queue_cache;
@@ -199,6 +200,7 @@ vm_page_startup(starta, enda, vaddr)
 	 */
 
 	TAILQ_INIT(&vm_page_queue_free);
+	TAILQ_INIT(&vm_page_queue_zero);
 	TAILQ_INIT(&vm_page_queue_active);
 	TAILQ_INIT(&vm_page_queue_inactive);
 	TAILQ_INIT(&vm_page_queue_cache);
@@ -536,6 +538,8 @@ vm_page_unqueue(vm_page_t mem)
  *	VM_ALLOC_NORMAL		normal process request
  *	VM_ALLOC_SYSTEM		system *really* needs a page
  *	VM_ALLOC_INTERRUPT	interrupt time request
+ *	or in:
+ *	VM_ALLOC_ZERO		zero page
  *
  *	Object must be locked.
  */
@@ -565,18 +569,37 @@ vm_page_alloc(object, offset, page_req)
 
 	s = splhigh();
 
-	mem = vm_page_queue_free.tqh_first;
-
-	switch (page_req) {
+	switch ((page_req & ~(VM_ALLOC_ZERO))) {
 	case VM_ALLOC_NORMAL:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
-			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+			if (page_req & VM_ALLOC_ZERO) {
+				mem = vm_page_queue_zero.tqh_first;
+				if (mem) {
+					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
+					mem->flags = PG_BUSY|PG_ZERO;
+				} else {
+					mem = vm_page_queue_free.tqh_first;
+					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+					mem->flags = PG_BUSY;
+				}
+			} else {
+				mem = vm_page_queue_free.tqh_first;
+				if (mem) {
+					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+					mem->flags = PG_BUSY;
+				} else {
+					mem = vm_page_queue_zero.tqh_first;
+					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
+					mem->flags = PG_BUSY|PG_ZERO;
+				}
+			}
 			cnt.v_free_count--;
 		} else {
 			mem = vm_page_queue_cache.tqh_first;
 			if (mem != NULL) {
 				TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
 				vm_page_remove(mem);
+				mem->flags = PG_BUSY;
 				cnt.v_cache_count--;
 			} else {
 				splx(s);
@@ -590,13 +613,34 @@ vm_page_alloc(object, offset, page_req)
 		if ((cnt.v_free_count >= cnt.v_free_reserved) ||
 		    ((cnt.v_cache_count == 0) &&
 		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
-			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+			if (page_req & VM_ALLOC_ZERO) {
+				mem = vm_page_queue_zero.tqh_first;
+				if (mem) {
+					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
+					mem->flags = PG_BUSY|PG_ZERO;
+				} else {
+					mem = vm_page_queue_free.tqh_first;
+					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+					mem->flags = PG_BUSY;
+				}
+			} else {
+				mem = vm_page_queue_free.tqh_first;
+				if (mem) {
+					TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+					mem->flags = PG_BUSY;
+				} else {
+					mem = vm_page_queue_zero.tqh_first;
+					TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
+					mem->flags = PG_BUSY|PG_ZERO;
+				}
+			}
 			cnt.v_free_count--;
 		} else {
 			mem = vm_page_queue_cache.tqh_first;
 			if (mem != NULL) {
 				TAILQ_REMOVE(&vm_page_queue_cache, mem, pageq);
 				vm_page_remove(mem);
+				mem->flags = PG_BUSY;
 				cnt.v_cache_count--;
 			} else {
 				splx(s);
@@ -607,8 +651,16 @@ vm_page_alloc(object, offset, page_req)
 		break;
 
 	case VM_ALLOC_INTERRUPT:
-		if (mem != NULL) {
-			TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+		if (cnt.v_free_count > 0) {
+			mem = vm_page_queue_free.tqh_first;
+			if (mem) {
+				TAILQ_REMOVE(&vm_page_queue_free, mem, pageq);
+				mem->flags = PG_BUSY;
+			} else {
+				mem = vm_page_queue_zero.tqh_first;
+				TAILQ_REMOVE(&vm_page_queue_zero, mem, pageq);
+				mem->flags = PG_BUSY|PG_ZERO;
+			}
 			cnt.v_free_count--;
 		} else {
 			splx(s);
@@ -621,7 +673,6 @@ vm_page_alloc(object, offset, page_req)
 		panic("vm_page_alloc: invalid allocation class");
 	}
 
-	mem->flags = PG_BUSY;
 	mem->wire_count = 0;
 	mem->hold_count = 0;
 	mem->act_count = 0;
@@ -904,7 +955,6 @@ vm_page_deactivate(m)
 	spl = splhigh();
 	if (!(m->flags & PG_INACTIVE) && m->wire_count == 0 &&
 	    m->hold_count == 0) {
-		pmap_clear_reference(VM_PAGE_TO_PHYS(m));
 		if (m->flags & PG_CACHE)
 			cnt.v_reactivated++;
 		vm_page_unqueue(m);
@@ -962,7 +1012,6 @@ vm_page_zero_fill(m)
 	vm_page_t m;
 {
 	pmap_zero_page(VM_PAGE_TO_PHYS(m));
-	m->valid = VM_PAGE_BITS_ALL;
 	return (TRUE);
 }
 
