@@ -1269,7 +1269,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct trapframe *frame;
 	struct sigacts *psp;
 	struct sigframe sf, *sfp;
-	int rndfsize;
+	int onstack, rndfsize;
 
 	p = curproc;
 
@@ -1280,13 +1280,26 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	frame = p->p_md.md_tf;
 	psp = p->p_sigacts;
+	onstack = (psp->ps_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = psp->ps_sigstk;
-	sf.sf_uc.uc_mcontext.mc_tf = *frame;
+	sf.sf_uc.uc_mcontext.mc_onstack = onstack;
+
+	fill_regs(p, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
+	sf.sf_uc.uc_mcontext.mc_regs[R_SP] = alpha_pal_rdusp();
+	sf.sf_uc.uc_mcontext.mc_regs[R_ZERO] = 0xACEDBADE;   /* magic number */
+	sf.sf_uc.uc_mcontext.mc_regs[R_PS] = frame->tf_regs[FRAME_PS];
+	sf.sf_uc.uc_mcontext.mc_regs[R_PC] = frame->tf_regs[FRAME_PC];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A0] =
+	    frame->tf_regs[FRAME_TRAPARG_A0];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A1] =
+	    frame->tf_regs[FRAME_TRAPARG_A1];
+	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A2] =
+	    frame->tf_regs[FRAME_TRAPARG_A2];
 
 	/*
 	 * Allocate and validate space for the signal handler
@@ -1295,8 +1308,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((psp->ps_flags & SAS_ALTSTACK) != 0 &&
-	    (psp->ps_sigstk.ss_flags & SS_ONSTACK) == 0 &&
+	if ((psp->ps_flags & SAS_ALTSTACK) != 0 && !onstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - rndfsize);
@@ -1327,8 +1339,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		psignal(p, SIGILL);
 		return;
 	}
-
-	sf.sf_uc.uc_mcontext.mc_tf.tf_regs[FRAME_SP] = alpha_pal_rdusp();
 
 	/* save the floating-point state, if necessary, then copy it. */
 	if (p == fpcurproc) {
@@ -1418,6 +1428,10 @@ osigreturn(struct proc *p,
 	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
 		return (EINVAL);
 
+	/*
+	 * XXX - Should we do this. What if we get a "handcrafted"
+	 * but valid sigcontext that hasn't the magic number?
+	 */
 	if (ksc.sc_regs[R_ZERO] != 0xACEDBADE)		/* magic number */
 		return (EINVAL);
 	/*
@@ -1464,6 +1478,7 @@ sigreturn(struct proc *p,
 {
 	ucontext_t uc, *ucp;
 	struct pcb *pcb;
+	unsigned long val;
 
 	ucp = uap->sigcntxp;
 
@@ -1491,13 +1506,18 @@ sigreturn(struct proc *p,
 	/*
 	 * Restore the user-supplied information
 	 */
-	*p->p_md.md_tf = uc.uc_mcontext.mc_tf;
-	p->p_md.md_tf->tf_regs[FRAME_PS] |= ALPHA_PSL_USERSET;
-	p->p_md.md_tf->tf_regs[FRAME_PS] &= ~ALPHA_PSL_USERCLR;
-	pcb->pcb_hw.apcb_usp = p->p_md.md_tf->tf_regs[FRAME_SP];
-	alpha_pal_wrusp(pcb->pcb_hw.apcb_usp);
+	set_regs(p, (struct reg *)uc.uc_mcontext.mc_regs);
+	val = (uc.uc_mcontext.mc_regs[R_PS] | ALPHA_PSL_USERSET) &
+	    ~ALPHA_PSL_USERCLR;
+	p->p_md.md_tf->tf_regs[FRAME_PS] = val;
+	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
+	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
-	p->p_sigacts->ps_sigstk = uc.uc_stack;
+	if (uc.uc_mcontext.mc_onstack & 1)
+		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+	else
+		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
 

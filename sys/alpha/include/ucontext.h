@@ -29,18 +29,24 @@
  */
 
 #ifndef _MACHINE_UCONTEXT_H_
-#define _MACHINE_UCONTEXT_H_ 1
+#define	_MACHINE_UCONTEXT_H_
 
 #include <machine/frame.h>
 
-typedef struct {
-	struct trapframe mc_tf;
-	unsigned long	mc_fpregs[32];
-	unsigned long	mc_fpcr;
-	unsigned long	mc_fp_control;
-	unsigned long	mc_apcb_usp;
-	long		mc_ownedfp;
-	long		__spare__[8];
+typedef struct __mcontext {
+	/*
+	 * These fields must match the definition
+	 * of struct sigcontext. That way we can support
+	 * struct sigcontext and ucontext_t at the same
+	 * time.
+	 */
+	long	mc_onstack;		/* XXX - sigcontext compat. */
+	unsigned long mc_regs[37];
+	unsigned long mc_fpregs[32];
+	unsigned long mc_fpcr;
+	unsigned long mc_fp_control;
+	long	mc_ownedfp;
+	long	__spare__[7];
 } mcontext_t;
 
-#endif /* _MACHINE_UCONTEXT_H_ */
+#endif /* !_MACHINE_UCONTEXT_H_ */

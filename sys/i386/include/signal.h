@@ -57,33 +57,62 @@ typedef int sig_atomic_t;
 typedef unsigned int osigset_t;
 
 struct	osigcontext {
-	int		sc_onstack;	/* sigstack state to restore */
-	osigset_t	sc_mask;	/* signal mask to restore */
-	int		sc_esp;		/* machine state */
-	int		sc_ebp;
-	int		sc_isp;
-	int		sc_eip;
-	int		sc_efl;
-	int		sc_es;
-	int		sc_ds;
-	int		sc_cs;
-	int		sc_ss;
-	int		sc_edi;
-	int		sc_esi;
-	int		sc_ebx;
-	int		sc_edx;
-	int		sc_ecx;
-	int		sc_eax;
-	int		sc_gs;
-	int		sc_fs;
+	int	sc_onstack;	/* sigstack state to restore */
+	osigset_t sc_mask;	/* signal mask to restore */
+	int	sc_esp;		/* machine state */
+	int	sc_ebp;
+	int	sc_isp;
+	int	sc_eip;
+	int	sc_efl;
+	int	sc_es;
+	int	sc_ds;
+	int	sc_cs;
+	int	sc_ss;
+	int	sc_edi;
+	int	sc_esi;
+	int	sc_ebx;
+	int	sc_edx;
+	int	sc_ecx;
+	int	sc_eax;
+	int	sc_gs;
+	int	sc_fs;
+	int	sc_trapno;
+	int	sc_err;
+};
+
+/*
+ * The sequence of the fields/registers in sigcontext should match
+ * those in mcontext_t.
+ */
+struct	sigcontext {
+	sigset_t sc_mask;		/* signal mask to restore */
+	int	sc_onstack;		/* sigstack state to restore */
+	int	sc_gs;
+	int	sc_fs;
+	int	sc_es;
+	int	sc_ds;
+	int	sc_edi;
+	int	sc_esi;
+	int	sc_ebp;
+	int	sc_isp;
+	int	sc_ebx;
+	int	sc_edx;
+	int	sc_ecx;
+	int	sc_eax;
+	int	sc_trapno;
+	int	sc_err;
+	int	sc_eip;
+	int	sc_cs;
+	int	sc_efl;
+	int	sc_esp;			/* machine state */
+	int	sc_ss;
+};
+
 #define sc_sp		sc_esp
 #define sc_fp		sc_ebp
 #define sc_pc		sc_eip
 #define sc_ps		sc_efl
 #define sc_eflags	sc_efl
-	int		sc_trapno;
-	int		sc_err;
-};
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 
