@@ -228,47 +228,30 @@ miibus_statchg(dev)
 	return;
 }
 
-void	(*vlan_link_state_p)(struct ifnet *, int);	/* XXX: private from if_vlan */
-
 static void
 miibus_linkchg(dev)
-	device_t dev;
+	device_t		dev;
 {
-	struct mii_data *mii;
-	struct ifnet *ifp;
-	device_t parent;
-	int link, link_state;
+	struct mii_data		*mii;
+	device_t		parent;
+	int			link_state;
 
 	parent = device_get_parent(dev);
 	MIIBUS_LINKCHG(parent);
 
 	mii = device_get_softc(dev);
+	
+	if (mii->mii_media_status & IFM_AVALID) {
+		if (mii->mii_media_status & IFM_ACTIVE)
+			link_state = LINK_STATE_UP;
+		else
+			link_state = LINK_STATE_DOWN;
+	} else
+		link_state = LINK_STATE_UNKNOWN;
 	/*
 	 * Note that each NIC's softc must start with an ifnet structure.
 	 */
-	ifp = device_get_softc(parent);
-	
-	if (mii->mii_media_status & IFM_AVALID) {
-		if (mii->mii_media_status & IFM_ACTIVE) {
-			link = NOTE_LINKUP;
-			link_state = LINK_STATE_UP;
-		} else {
-			link = NOTE_LINKDOWN;
-			link_state = LINK_STATE_DOWN;
-		}
-	} else {
-		link = NOTE_LINKINV;
-		link_state = LINK_STATE_UNKNOWN;
-	}
-
-	/* Notify that the link state has changed. */
-	if (ifp->if_link_state != link_state) {
-		ifp->if_link_state = link_state;
-		rt_ifmsg(ifp);
-		KNOTE_UNLOCKED(&ifp->if_klist, link);
-		if (ifp->if_nvlans != 0)
-			(*vlan_link_state_p)(ifp, link);
-	}
+	if_link_state_change(device_get_softc(parent), link_state);
 }
 
 static void
