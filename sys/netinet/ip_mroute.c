@@ -510,7 +510,8 @@ X_ip_mrouter_done()
 	    while (mb_rt) {
 		if ( mb_rt->m_act != NULL) {
 		    untimeout(cleanup_cache, (caddr_t)mb_rt);
-		    while (m = mb_rt->m_act) {
+		    while (mb_rt->m_act) {
+		        m = mb_rt->m_act;
 			mb_rt->m_act = m->m_act;
 			rte = mtod(m, struct rtdetq *);
 			m_freem(rte->m);
@@ -695,7 +696,7 @@ add_mfc(mfccp)
     struct mfcctl *mfccp;
 {
     struct mfc *rt;
-    struct mfc *rt1;
+    struct mfc *rt1 = 0;
     register struct mbuf *mb_rt;
     struct mbuf *prev_mb_rt;
     u_long hash;
@@ -857,7 +858,7 @@ del_mfc(mfccp)
     u_long 		hash;
     struct mfc 		**cmfc;
     struct mfc 		**cmfcend;
-    int s, i;
+    int s;
 
     origin = mfccp->mfcc_origin;
     mcastgrp = mfccp->mfcc_mcastgrp;
@@ -920,14 +921,12 @@ X_ip_mforward(ip, ifp, m, imo)
     struct ip_moptions *imo;
 {
     register struct mfc *rt;
-    register struct vif *vifp;
     register u_char *ipoptions;
     u_long tunnel_src;
     static struct sockproto	k_igmpproto 	= { AF_INET, IPPROTO_IGMP };
     static struct sockaddr_in 	k_igmpsrc	= { AF_INET };
     static struct sockaddr_in 	k_igmpdst 	= { AF_INET };
     register struct mbuf *mm;
-    register struct mbuf *mn;
     register struct ip *k_data;
     int s;
 
@@ -1025,7 +1024,6 @@ X_ip_mforward(ip, ifp, m, imo)
 	register struct rtdetq *rte;
 	register struct mbuf *rte_m;
 	register u_long hash;
-	register struct timeval tp;
 
 	mrtstat.mrts_no_route++;
 	if (mrtdebug)
@@ -1293,7 +1291,6 @@ phyint_send(ip, vifp, m)
     struct mbuf *m;
 {
     register struct mbuf *mb_copy;
-    register struct mbuf *mopts;
     register struct ip_moptions *imo;
 
     if ((mb_copy = m_copy(m, 0, M_COPYALL)) == NULL)
@@ -1619,7 +1616,6 @@ void
 tbf_process_q(vifp)
     register struct vif *vifp;
 {
-    register struct mbuf *m;
     register struct pkt_queue pkt_1;
     register int index = (vifp - viftable);
     register int s = splnet();
@@ -1729,7 +1725,6 @@ tbf_send_packet(vifp, m, imo)
     register struct mbuf *m;
     struct ip_moptions *imo;
 {
-    register struct mbuf *mcp;
     int error;
     int s = splnet();
 

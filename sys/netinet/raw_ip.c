@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.3 1994/09/06 22:42:26 wollman Exp $
+ * $Id: raw_ip.c,v 1.4 1994/09/14 03:10:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -100,10 +100,11 @@ rip_input(m)
 		    inp->inp_faddr.s_addr == ip->ip_src.s_addr)
 			continue;
 		if (last) {
-			struct mbuf *n;
-			if (n = m_copy(m, 0, (int)M_COPYALL)) {
-				if (sbappendaddr(&last->so_rcv, &ripsrc,
-				    n, (struct mbuf *)0) == 0)
+			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
+			if (n) {
+				if (sbappendaddr(&last->so_rcv,
+				    (struct sockaddr *)&ripsrc, n,
+				    (struct mbuf *)0) == 0)
 					/* should notify about lost packet */
 					m_freem(n);
 				else
@@ -113,7 +114,7 @@ rip_input(m)
 		last = inp->inp_socket;
 	}
 	if (last) {
-		if (sbappendaddr(&last->so_rcv, &ripsrc,
+		if (sbappendaddr(&last->so_rcv, (struct sockaddr *)&ripsrc,
 		    m, (struct mbuf *)0) == 0)
 			m_freem(m);
 		else

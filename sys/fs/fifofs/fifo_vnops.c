@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.4 1994/09/21 03:46:57 wollman Exp $
+ * $Id: fifo_vnops.c,v 1.5 1994/09/22 19:38:07 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -153,20 +153,23 @@ fifo_open(ap)
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
 		vp->v_fifoinfo = fip;
-		if (error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0)) {
+		error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0);
+		if (error) {
 			free(fip, M_VNODE);
 			vp->v_fifoinfo = NULL;
 			return (error);
 		}
 		fip->fi_readsock = rso;
-		if (error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0)) {
+		error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0);
+		if (error) {
 			(void)soclose(rso);
 			free(fip, M_VNODE);
 			vp->v_fifoinfo = NULL;
 			return (error);
 		}
 		fip->fi_writesock = wso;
-		if (error = unp_connect2(wso, rso)) {
+		error = unp_connect2(wso, rso); 
+		if (error) {
 			(void)soclose(wso);
 			(void)soclose(rso);
 			free(fip, M_VNODE);
@@ -247,8 +250,8 @@ fifo_read(ap)
 		rso->so_state |= SS_NBIO;
 	startresid = uio->uio_resid;
 	VOP_UNLOCK(ap->a_vp);
-	error = soreceive(rso, (struct mbuf **)0, uio, (int *)0,
-		(struct mbuf **)0, (struct mbuf **)0);
+	error = soreceive(rso, (struct mbuf **)0, uio, 
+		(struct mbuf **)0, (struct mbuf **)0, (int*)0);
 	VOP_LOCK(ap->a_vp);
 	/*
 	 * Clear EOF indication after first such return.
@@ -418,6 +421,21 @@ fifo_close(ap)
 	return (error2);
 }
 
+
+/*
+ * Print out internal contents of a fifo vnode.
+ */
+int
+fifo_printinfo(vp)
+	struct vnode *vp;
+{
+	register struct fifoinfo *fip = vp->v_fifoinfo;
+
+	printf(", fifo with %ld readers and %ld writers",
+		fip->fi_readers, fip->fi_writers);
+	return (0);
+}
+
 /*
  * Print out the contents of a fifo vnode.
  */
@@ -431,20 +449,6 @@ fifo_print(ap)
 	printf("tag VT_NON");
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
-	return (0);
-}
-
-/*
- * Print out internal contents of a fifo vnode.
- */
-int
-fifo_printinfo(vp)
-	struct vnode *vp;
-{
-	register struct fifoinfo *fip = vp->v_fifoinfo;
-
-	printf(", fifo with %d readers and %d writers",
-		fip->fi_readers, fip->fi_writers);
 	return (0);
 }
 
