@@ -16,7 +16,7 @@ make_resolv_conf() {
       ( echo search $new_domain_name >/etc/resolv.conf )
       exit_status=$?
     else
-      ( rm /etc/resolv.conf )
+      ( rm -f /etc/resolv.conf )
       exit_status=$?
     fi
     if [ $exit_status -ne 0 ]; then
