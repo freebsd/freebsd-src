@@ -1043,7 +1043,7 @@ sched_interact_update(struct ksegrp *kg)
 	 * will not bring us back into range.  Dividing by two here forces
 	 * us into the range of [3/5 * SCHED_INTERACT_MAX, SCHED_INTERACT_MAX]
 	 */
-	if (sum > (SCHED_INTERACT_MAX / 5) * 6) {
+	if (sum > (SCHED_SLP_RUN_MAX / 5) * 6) {
 		kg->kg_runtime /= 2;
 		kg->kg_slptime /= 2;
 		return;
