@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.67 1998/09/16 08:37:40 kato Exp $
+#	$Id: options.pc98,v 1.68 1998/09/28 08:23:26 kato Exp $
 DISABLE_PSE
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -57,6 +57,7 @@ CPU_LOOP_EN			opt_cpu.h
 CPU_RSTK_EN			opt_cpu.h
 CPU_SUSP_HLT			opt_cpu.h
 CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CPU_WT_ALLOC			opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
 

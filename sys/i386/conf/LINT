@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.481 1998/10/02 21:00:58 ken Exp $
+#	$Id: LINT,v 1.482 1998/10/05 07:45:54 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -163,7 +163,8 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # CPU_SUSP_HLT enables suspend on HALT.  If this option is set, CPU
 # enters suspend mode following execution of HALT instruction.
 #
-# CPU_WT_ALLOC enables write-through allocation.
+# CPU_WT_ALLOC enables write allocation on Cyrix 6x86/6x86MX and AMD
+# K5/K6/K6-2 cpus.
 #
 # CYRIX_CACHE_WORKS enables CPU cache on Cyrix 486 CPUs with cache
 # flush at hold state.
@@ -178,7 +179,7 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # on a Pentium.
 #
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
-# CPU_LOOP_ENand CPU_RSTK_EN should no be used becasue of CPU bugs.
+# CPU_LOOP_ENand CPU_RSTK_EN should not be used becasue of CPU bugs.
 # These options may crash your system. 
 #
 # NOTE 2: If CYRIX_CACHE_REALLY_WORKS is not set, CPU cache is enabled
@@ -199,6 +200,7 @@ options		"CPU_IORT"
 options		"CPU_LOOP_EN"
 options		"CPU_RSTK_EN"
 options		"CPU_SUSP_HLT"
+options		"CPU_WT_ALLOC"
 options		"CYRIX_CACHE_WORKS"
 options		"CYRIX_CACHE_REALLY_WORKS"
 #options	"NO_F00F_HACK"
