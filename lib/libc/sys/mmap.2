@@ -169,6 +169,21 @@ maintained whether you use MAP_NOSYNC or not.  This option is not portable
 across UNIX platforms (yet), though some may implement the same behavior
 by default.
 .Pp
+WARNING!  Extending a file with ftruncate(), thus creating a big hole, and
+then filling the hole by modifying a shared mmap() can lead to severe
+file fragmentation.  In order to avoid such fragmentation you should
+always pre-allocate the file's backing store by write()ing zero's into the
+newly extended area prior to modifying the area via your mmap().
+The fragmentation problem is especially sensitive to MAP_NOSYNC pages,
+because pages may be flushed to disk in a totally random order.
+.Pp
+The same applies when using MAP_NOSYNC to implement a file-based shared
+memory store.  It is recommended that you create the backing store by
+write()ing zero's to the backing file rather then ftruncate()ing it.  You
+can test file fragmentation by observing the KB/t (kilobytes per transfer)
+results from an 'iostat 1' while reading a large file sequentially, e.g.
+using 'dd if=filename of=/dev/null bs=32k'.
+.Pp
 The
 .Xr fsync 2
 function will flush all dirty data and metadata associated with a file,
