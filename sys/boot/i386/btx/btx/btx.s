@@ -408,7 +408,11 @@ except.2:	push $SEL_SDATA			# Set up
 		popl %ds			#  saved
 		cmpb $0x3,(%esp,1)		# Breakpoint?
 		je except.3			# Yes
-		jmp exit			# Exit
+		cmpb $0x1,(%esp,1)		# Debug?
+		jne except.2a			# No
+		testl $0x100,0x10(%esp,1)	# Trap flag set?
+		jnz except.3			# Yes
+except.2a:	jmp exit			# Exit
 except.3:	leal 0x8(%esp,1),%esp		# Discard err, int no
 		iret				# From interrupt
 #
