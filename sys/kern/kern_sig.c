@@ -1153,10 +1153,8 @@ trapsignal(p, sig, code)
 			ktrpsig(p->p_tracep, sig, ps->ps_sigact[_SIG_IDX(sig)],
 				&p->p_sigmask, code);
 #endif
-		PROC_UNLOCK(p);	/* XXX ??? */
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], sig,
 						&p->p_sigmask, code);
-		PROC_LOCK(p);
 		SIGSETOR(p->p_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
 			SIGADDSET(p->p_sigmask, sig);
@@ -1693,9 +1691,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-		PROC_UNLOCK(p);
 		(*p->p_sysent->sv_sendsig)(action, sig, &returnmask, code);
-		PROC_LOCK(p);
 	}
 }
 
