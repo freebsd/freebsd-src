@@ -463,6 +463,8 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	cdp->flags |= F_LOCKED;
 	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
 	    acd_read_toc(cdp);
+	else
+	    atapi_test_ready(cdp->atp);
     }
     cdp->refcnt++;
     return 0;
@@ -1149,9 +1151,9 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(&cdp->info, sizeof(cdp->info));
     bzero(ccb, sizeof(ccb));
 
+    atapi_test_ready(cdp->atp);
     acd_select_slot(cdp);
 
-    atapi_test_ready(cdp->atp);
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED)
 	cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
 
