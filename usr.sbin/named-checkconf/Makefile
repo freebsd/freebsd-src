@@ -2,20 +2,20 @@
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_DIR=	${.CURDIR}/../../lib/bind
-SRCDIR=		${BIND_DIR}/bin/dig
+SRCDIR=		${BIND_DIR}/bin/check
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		dig
+PROG=		named-checkconf
 
 .PATH: ${SRCDIR}
-SRCS+=		dig.c dighost.c
+SRCS+=		named-checkconf.c check-tool.c
 
-CFLAGS+=	-I${SRCDIR}/include
+CFLAGS+=	-I${LIB_BIND_DIR}
 
 DPADD+=		${BIND_DPADD}
 LDADD+=		${BIND_LDADD}
 
-MAN=		dig.1
+MAN=		named-checkconf.8
 
 .include <bsd.prog.mk>
