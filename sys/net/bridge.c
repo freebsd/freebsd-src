@@ -243,7 +243,6 @@ bdg_timeout(void *dummy)
 		if (ifp->if_type != IFT_ETHER)
 		    continue ;
 		if ( 0 == ( ifp->if_flags & IFF_UP) ) {
-		    int ret ;
 		    s = splimp();
 		    if_up(ifp);
 		    splx(s);
@@ -282,7 +281,7 @@ static void
 bdginit(dummy)
 	void *dummy;
 {
-    int s, i ;
+    int i ;
     struct ifnet *ifp;
     struct arpcom *ac ;
     u_char *eth_addr ;
