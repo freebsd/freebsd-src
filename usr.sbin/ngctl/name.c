@@ -45,7 +45,8 @@ const struct ngcmd name_cmd = {
 	NameCmd,
 	"name <path> <name>",
 	"Assign name <name> to the node at <path>",
-	NULL
+	NULL,
+	{}
 };
 
 static int
