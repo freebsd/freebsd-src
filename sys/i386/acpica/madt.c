@@ -69,16 +69,15 @@ struct lapic_info {
 	u_int la_apic_id:8;
 } lapics[NLAPICS + 1];
 
-static int force_sci_lo;
-TUNABLE_INT("hw.acpi.force_sci_lo", &force_sci_lo);
+static int madt_found_sci_override;
 static MULTIPLE_APIC_TABLE *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
 
 MALLOC_DEFINE(M_MADT, "MADT Table", "ACPI MADT Table Items");
 
-static u_char	interrupt_polarity(UINT16 Polarity);
-static u_char	interrupt_trigger(UINT16 TriggerMode);
+static enum intr_polarity interrupt_polarity(UINT16 Polarity, UINT8 Source);
+static enum intr_trigger interrupt_trigger(UINT16 TriggerMode, UINT8 Source);
 static int	madt_find_cpu(u_int acpi_id, u_int *apic_id);
 static int	madt_find_interrupt(int intr, void **apic, u_int *pin);
 static void	*madt_map(vm_paddr_t pa, int offset, vm_offset_t length);
@@ -327,6 +326,8 @@ madt_setup_local(void)
 static int
 madt_setup_io(void)
 {
+	void *ioapic;
+	u_int pin;
 	int i;
 
 	/* Try to initialize ACPI so that we can access the FADT. */
@@ -343,6 +344,23 @@ madt_setup_io(void)
 
 	/* Second, we run through the table tweaking interrupt sources. */
 	madt_walk_table(madt_parse_ints, NULL);
+
+	/*
+	 * If there was not an explicit override entry for the SCI,
+	 * force it to use level trigger and active-low polarity.
+	 */
+	if (!madt_found_sci_override) {
+		if (madt_find_interrupt(AcpiGbl_FADT->SciInt, &ioapic, &pin)
+		    != 0)
+			printf("MADT: Could not find APIC for SCI IRQ %d\n",
+			    AcpiGbl_FADT->SciInt);
+		else {
+			printf(
+	"MADT: Forcing active-low polarity and level trigger for SCI\n");
+			ioapic_set_polarity(ioapic, pin, INTR_POLARITY_LOW);
+			ioapic_set_triggermode(ioapic, pin, INTR_TRIGGER_LEVEL);
+		}
+	}
 
 	/* Third, we register all the I/O APIC's. */
 	for (i = 0; i < NIOAPICS; i++)
@@ -449,33 +467,42 @@ madt_parse_apics(APIC_HEADER *entry, void *arg __unused)
 /*
  * Determine properties of an interrupt source.  Note that for ACPI,
  * these are only used for ISA interrupts, so we assume ISA bus values
- * (Active Hi, Edge Triggered) for conforming values.
+ * (Active Hi, Edge Triggered) for conforming values except for the ACPI
+ * SCI for which we use Active Lo, Level Triggered..
  */
-static u_char
-interrupt_polarity(UINT16 Polarity)
+static enum intr_polarity
+interrupt_polarity(UINT16 Polarity, UINT8 Source)
 {
 
 	switch (Polarity) {
 	case POLARITY_CONFORMS:
+		if (Source == AcpiGbl_FADT->SciInt)
+			return (INTR_POLARITY_LOW);
+		else
+			return (INTR_POLARITY_HIGH);
 	case POLARITY_ACTIVE_HIGH:
-		return (1);
+		return (INTR_POLARITY_HIGH);
 	case POLARITY_ACTIVE_LOW:
-		return (0);
+		return (INTR_POLARITY_LOW);
 	default:
 		panic("Bogus Interrupt Polarity");
 	}
 }
 
-static u_char
-interrupt_trigger(UINT16 TriggerMode)
+static enum intr_trigger
+interrupt_trigger(UINT16 TriggerMode, UINT8 Source)
 {
 
 	switch (TriggerMode) {
 	case TRIGGER_CONFORMS:
+		if (Source == AcpiGbl_FADT->SciInt)
+			return (INTR_TRIGGER_LEVEL);
+		else
+			return (INTR_TRIGGER_EDGE);
 	case TRIGGER_EDGE:
-		return (1);
+		return (INTR_TRIGGER_EDGE);
 	case TRIGGER_LEVEL:
-		return (0);
+		return (INTR_TRIGGER_LEVEL);
 	default:
 		panic("Bogus Interrupt Trigger Mode");
 	}
@@ -533,7 +560,9 @@ madt_parse_interrupt_override(MADT_INTERRUPT_OVERRIDE *intr)
 {
 	void *new_ioapic, *old_ioapic;
 	u_int new_pin, old_pin;
-	int force_lo;
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+	char buf[64];
 
 	if (bootverbose)
 		printf("MADT: intr override: source %u, irq %u\n",
@@ -547,17 +576,46 @@ madt_parse_interrupt_override(MADT_INTERRUPT_OVERRIDE *intr)
 	}
 
 	/*
+	 * Lookup the appropriate trigger and polarity modes for this
+	 * entry.
+	 */
+	trig = interrupt_trigger(intr->TriggerMode, intr->Source);
+	pol = interrupt_polarity(intr->Polarity, intr->Source);
+	
+	/*
 	 * If the SCI is identity mapped but has edge trigger and
 	 * active-hi polarity or the force_sci_lo tunable is set,
 	 * force it to use level/lo.
 	 */
-	force_lo = 0;
-	if (intr->Source == AcpiGbl_FADT->SciInt)
-		if (force_sci_lo || (intr->Interrupt == intr->Source &&
-		    intr->TriggerMode == TRIGGER_EDGE &&
-		    intr->Polarity == POLARITY_ACTIVE_HIGH))
-			force_lo = 1;
+	if (intr->Source == AcpiGbl_FADT->SciInt) {
+		madt_found_sci_override = 1;
+		if (getenv_string("hw.acpi.sci.trigger", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'e')
+				trig = INTR_TRIGGER_EDGE;
+			else if (tolower(buf[0]) == 'l')
+				trig = INTR_TRIGGER_LEVEL;
+			else
+				panic(
+				"Invalid trigger %s: must be 'edge' or 'level'",
+				    buf);
+			printf("MADT: Forcing SCI to %s trigger\n",
+			    trig == INTR_TRIGGER_EDGE ? "edge" : "level");
+		}
+		if (getenv_string("hw.acpi.sci.polarity", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'h')
+				pol = INTR_POLARITY_HIGH;
+			else if (tolower(buf[0]) == 'l')
+				pol = INTR_POLARITY_LOW;
+			else
+				panic(
+				"Invalid polarity %s: must be 'high' or 'low'",
+				    buf);
+			printf("MADT: Forcing SCI to active %s polarity\n",
+			    pol == INTR_POLARITY_HIGH ? "high" : "low");
+		}
+	}
 
+	/* Remap the IRQ if it is mapped to a different interrupt vector. */
 	if (intr->Source != intr->Interrupt) {
 		/*
 		 * If the SCI is remapped to a non-ISA global interrupt,
@@ -577,18 +635,10 @@ madt_parse_interrupt_override(MADT_INTERRUPT_OVERRIDE *intr)
 		    intr->Source)
 			ioapic_disable_pin(old_ioapic, old_pin);
 	}
-	if (force_lo) {
-		printf(
-	"MADT: Forcing active-lo polarity and level trigger for IRQ %d\n",
-		    intr->Source);
-		ioapic_set_polarity(new_ioapic, new_pin, 0);
-		ioapic_set_triggermode(new_ioapic, new_pin, 0);
-	} else {
-		ioapic_set_polarity(new_ioapic, new_pin,
-		    interrupt_polarity(intr->Polarity));
-		ioapic_set_triggermode(new_ioapic, new_pin,
-		    interrupt_trigger(intr->TriggerMode));
-	}
+
+	/* Program the polarity and trigger mode. */
+	ioapic_set_triggermode(new_ioapic, new_pin, trig);
+	ioapic_set_polarity(new_ioapic, new_pin, pol);
 }
 
 /*
@@ -609,10 +659,10 @@ madt_parse_nmi(MADT_NMI_SOURCE *nmi)
 	ioapic_set_nmi(ioapic, pin);
 	if (nmi->TriggerMode != TRIGGER_CONFORMS)
 		ioapic_set_triggermode(ioapic, pin,
-		    interrupt_trigger(nmi->TriggerMode));
+		    interrupt_trigger(nmi->TriggerMode, 0));
 	if (nmi->Polarity != TRIGGER_CONFORMS)
 		ioapic_set_polarity(ioapic, pin,
-		    interrupt_polarity(nmi->Polarity));
+		    interrupt_polarity(nmi->Polarity, 0));
 }
 
 /*
@@ -638,10 +688,10 @@ madt_parse_local_nmi(MADT_LOCAL_APIC_NMI *nmi)
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
 	if (nmi->TriggerMode != TRIGGER_CONFORMS)
 		lapic_set_lvt_triggermode(apic_id, pin,
-		    interrupt_trigger(nmi->TriggerMode));
+		    interrupt_trigger(nmi->TriggerMode, 0));
 	if (nmi->Polarity != POLARITY_CONFORMS)
 		lapic_set_lvt_polarity(apic_id, pin,
-		    interrupt_polarity(nmi->Polarity));
+		    interrupt_polarity(nmi->Polarity, 0));
 }
 
 /*

@@ -142,8 +142,9 @@ void	ioapic_register(void *cookie);
 int	ioapic_remap_vector(void *cookie, u_int pin, int vector);
 int	ioapic_set_extint(void *cookie, u_int pin);
 int	ioapic_set_nmi(void *cookie, u_int pin);
-int	ioapic_set_polarity(void *cookie, u_int pin, char activehi);
-int	ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger);
+int	ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol);
+int	ioapic_set_triggermode(void *cookie, u_int pin,
+	    enum intr_trigger trigger);
 int	ioapic_set_smi(void *cookie, u_int pin);
 void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_disable(void);
@@ -160,8 +161,10 @@ void	lapic_handle_intr(struct intrframe frame);
 void	lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);
-int	lapic_set_lvt_polarity(u_int apic_id, u_int lvt, u_char activehi);
-int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, u_char edgetrigger);
+int	lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
+	    enum intr_polarity pol);
+int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
+	    enum intr_trigger trigger);
 void	lapic_setup(void);
 
 #endif /* !LOCORE */
