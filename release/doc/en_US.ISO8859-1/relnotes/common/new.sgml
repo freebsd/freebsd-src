@@ -1604,7 +1604,7 @@
     execute commands based on percentage or minutes of battery life
     remaining via the <literal>apm_battery</literal> configuration
     directive.  See the commented out examples in
-    <filename>/etc/apmd.conf<filename> for the syntax. &merged;</para>
+    <filename>/etc/apmd.conf</filename> for the syntax. &merged;</para>
 
     <para>&man.telnet.1; now does autologin and encryption by default;
     a new <option>-y</option> option turns off encryption.</para>
