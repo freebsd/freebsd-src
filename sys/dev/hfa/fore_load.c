@@ -1008,7 +1008,7 @@ fore_pci_attach(config_id, unit)
 		} else if ( --err_count == 0 ) {
 			log(LOG_ERR, "%s%d: unable to boot - status=0x%lx\n", 
 				FORE_DEV_NAME, unit,
-				CP_READ(fup->fu_mon->mon_bstat));
+				(u_long)CP_READ(fup->fu_mon->mon_bstat));
 			goto failed;
 		}
 		DELAY ( BOOT_DELAY );
