@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.23 1999/04/04 20:47:33 obrien Exp $
+# $Id: Makefile,v 1.24 1999/04/08 08:19:28 obrien Exp $
 #
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
@@ -96,8 +96,6 @@ tm.h:
 	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
-.elif ${MACHINE_ARCH} == "alpha"
-	echo '#include "${MACHINE_ARCH}/freebsd-elf.h"' >> ${.TARGET}
 .endif
 
 ${OBJS}: ${COMMONHDRS}
