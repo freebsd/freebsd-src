@@ -69,3 +69,4 @@ void addcmdentry __P((char *, struct cmdentry *));
 void defun __P((char *, union node *));
 int unsetfunc __P((char *));
 int typecmd __P((int, char **));
+void clearcmdentry __P((int));
