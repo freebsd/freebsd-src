@@ -183,6 +183,11 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
     		d->arec = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
     		if (!d->arec) goto no;
     		bzero(d->arec, sz);
+
+    		sz = (numplay + numrec) * sizeof(int);
+		d->ref = (int *)malloc(sz, M_DEVBUF, M_NOWAIT);
+    		if (!d->ref) goto no;
+    		bzero(d->ref, sz);
 	}
 
 	if (numplay > 0) {
