@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.70 2003/09/20 05:23:50 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.71 2003/09/20 17:54:30 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -957,6 +957,9 @@
 #define	PCMCIA_CIS_EXP_EXPMULTIMEDIA	{ "EXP   ", "PnPIDE", "F1", NULL }
 #define	PCMCIA_PRODUCT_EXP_EXPMULTIMEDIA	0xffffffff
 #define	PCMCIA_STR_EXP_EXPMULTIMEDIA	"EXP IDE/ATAPI DVD Card"
+#define	PCMCIA_CIS_EXP_THINLANCOMBO	{ "PCMCIA LAN", "Ethernet", NULL, NULL }
+#define	PCMCIA_PRODUCT_EXP_THINLANCOMBO	0xffffffff
+#define	PCMCIA_STR_EXP_THINLANCOMBO	"EXP ThinLan Combo"
 #define	PCMCIA_CIS_FREECOM_PCCARDIDE	{ "FREECOM", "PCCARD-IDE", NULL, NULL }
 #define	PCMCIA_PRODUCT_FREECOM_PCCARDIDE	0xffffffff
 #define	PCMCIA_STR_FREECOM_PCCARDIDE	"FREECOM PCCARD-IDE"
