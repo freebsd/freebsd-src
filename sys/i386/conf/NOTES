@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.62 1994/04/13 01:29:14 ache Exp $
+#	$Id: LINT,v 1.63 1994/04/23 12:13:27 ache Exp $
 #
 
 machine		"i386"
@@ -26,7 +26,7 @@ options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options         "FIFO_TRIGGER=FIFO_TRIGGER_1"   #Use this fifo value in sio.c
 
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=112466"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=113498"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 
@@ -177,7 +177,13 @@ device snd1 at isa? port 0x388
 
 device pca0 at isa? tty
 #
+# The following option must be enabled in order for the pca driver to
+# work.  WARNING! BEWARE! CAUTION! ACHTUNG! VAROKAA! 
+# Enabling this option will result in the microtime() function (and hence
+# gettimeofday(2) asnd the timestamps in bpf) giving incorrect results.
+# DO NOT attempt to run NTP while playing audio with this driver.
 #
+#options INACCURATE_MICROTIME_IS_OK
+
 # options that have not been resolved yet
-#
 pseudo-device	log
