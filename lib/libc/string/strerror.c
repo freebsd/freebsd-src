@@ -57,22 +57,20 @@ __FBSDID("$FreeBSD$");
 static void
 errstr(int num, char *buf, size_t len)
 {
-	char *p, *t;
+	char *t;
 	unsigned int uerr;
 	char tmp[EBUFSIZE];
 
-	if (strlcpy(buf, UPREFIX, len) >= len)
-		return;
-	t = tmp;
+	t = tmp + sizeof(tmp);
+	*--t = '\0';
 	uerr = (num >= 0) ? num : -num;
 	do {
-		*t++ = "0123456789"[uerr % 10];
+		*--t = "0123456789"[uerr % 10];
 	} while (uerr /= 10);
 	if (num < 0)
-		*t++ = '-';
-	for (p = buf + sizeof(UPREFIX) - 1; t > tmp && p < buf + len - 1;)
-		*p++ = *--t;
-	*p = '\0';
+		*--t = '-';
+	strlcpy(buf, UPREFIX, len);
+	strlcat(buf, t, len);
 }
 
 int
