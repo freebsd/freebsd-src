@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997-2000 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,8 @@ static driver_t ppc_driver = {
   
 static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
-	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334", 0
+	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334",
+	"SMC FDC37C935", "PC87303", 0
 };
 
 /* list of available modes */
@@ -161,7 +162,7 @@ ppc_ecp_sync(device_t dev) {
 	int i, r;
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
-	if (!(ppc->ppc_avm & PPB_ECP))
+	if (!(ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_dtm & PPB_ECP))
 		return;
 
 	r = r_ecr(ppc);
@@ -344,7 +345,7 @@ ppc_generic_setmode(struct ppc_data *ppc, int mode)
 		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
+	if ((ppc->ppc_avm & PPB_ECP) || (ppc->ppc_dtm & PPB_ECP)) {
 		/* return to byte mode (keeping direction bit),
 		 * no interrupt, no DMA to be able to change to
 		 * ECP
@@ -389,7 +390,7 @@ ppc_smclike_setmode(struct ppc_data *ppc, int mode)
 		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
+	if ((ppc->ppc_avm & PPB_ECP) || (ppc->ppc_dtm & PPB_ECP)) {
 		/* return to byte mode (keeping direction bit),
 		 * no interrupt, no DMA to be able to change to
 		 * ECP or EPP mode
@@ -469,6 +470,7 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	 * 01010xxx	PC87334
 	 * 0001xxxx	PC87332
 	 * 01110xxx	PC87306
+	 * 00110xxx	PC87303
 	 */
 	outb(idport, PC873_SID);
 	val = inb(idport + 1);
@@ -478,6 +480,10 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	    ppc->ppc_model = NS_PC87306;
 	} else if ((val & 0xf8) == 0x50) {
 	    ppc->ppc_model = NS_PC87334;
+	} else if ((val & 0xf8) == 0x40) { /* Should be 0x30 by the
+					      documentation, but probing
+					      yielded 0x40... */
+	    ppc->ppc_model = NS_PC87303;
 	} else {
 	    if (bootverbose && (val != 0xff))
 		printf("PC873xx probe at 0x%x got unknown ID 0x%x\n", idport, val);
@@ -506,12 +512,47 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	    continue;
 	}
 	outb(idport, PC873_FAR);
-	val = inb(idport + 1) & 0x3;
+	val = inb(idport + 1);
 	/* XXX we should create a driver instance for every port found */
-	if (pc873xx_porttab[val] != ppc->ppc_base) {
-	    if (bootverbose)
-		printf("PC873xx at 0x%x not for driver at port 0x%x\n",
-		       pc873xx_porttab[val], ppc->ppc_base);
+	if (pc873xx_porttab[val & 0x3] != ppc->ppc_base) {
+
+	    /* First try to change the port address to that requested... */
+
+	    switch(ppc->ppc_base) {
+		case 0x378:
+		val &= 0xfc;
+		break;
+
+		case 0x3bc:
+		val &= 0xfd;
+		break;
+
+		case 0x278:
+		val &= 0xfe;
+		break;
+
+		default:
+		val &= 0xfd;
+		break;
+	    }
+
+	    outb(idport, PC873_FAR);
+	    outb(idport + 1, val);
+	    outb(idport + 1, val);
+
+	    /* Check for success by reading back the value we supposedly
+	       wrote and comparing...*/
+
+	    outb(idport, PC873_FAR);
+	    val = inb(idport + 1) & 0x3;
+
+	    /* If we fail, report the failure... */
+
+	    if (pc873xx_porttab[val] != ppc->ppc_base) {
+ 		if (bootverbose)
+	  	    printf("PC873xx at 0x%x not for driver at port 0x%x\n",
+			   pc873xx_porttab[val], ppc->ppc_base);
+	    }
 	    continue;
 	}
 
@@ -891,6 +932,91 @@ end_detect:
 }
 
 /*
+ * SMC FDC37C935 configuration
+ * Found on many Alpha machines
+ */
+static int
+ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
+{
+	int s;
+	int type = -1;
+
+	s = splhigh();
+	outb(SMC935_CFG, 0x55); /* enter config mode */
+	outb(SMC935_CFG, 0x55);
+	splx(s);
+
+	outb(SMC935_IND, SMC935_ID); /* check device id */
+	if (inb(SMC935_DAT) == 0x2)
+		type = SMC_37C935;
+
+	if (type == -1) {
+		outb(SMC935_CFG, 0xaa); /* exit config mode */
+		return (-1);
+	}
+
+	ppc->ppc_model = type;
+
+	outb(SMC935_IND, SMC935_LOGDEV); /* select parallel port, */
+	outb(SMC935_DAT, 3);             /* which is logical device 3 */
+
+	/* set io port base */
+	outb(SMC935_IND, SMC935_PORTHI);
+	outb(SMC935_DAT, (u_char)((ppc->ppc_base & 0xff00) >> 8));
+	outb(SMC935_IND, SMC935_PORTLO);
+	outb(SMC935_DAT, (u_char)(ppc->ppc_base & 0xff));
+
+	if (!chipset_mode)
+		ppc->ppc_avm = PPB_COMPATIBLE; /* default mode */
+	else {
+		ppc->ppc_avm = chipset_mode;
+		outb(SMC935_IND, SMC935_PPMODE);
+		outb(SMC935_DAT, SMC935_CENT); /* start in compatible mode */
+
+		/* SPP + EPP or just plain SPP */
+		if (chipset_mode & (PPB_SPP)) {
+			if (chipset_mode & PPB_EPP) {
+				if (ppc->ppc_epp == EPP_1_9) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_EPP19SPP);
+				}
+				if (ppc->ppc_epp == EPP_1_7) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_EPP17SPP);
+				}
+			} else {
+				outb(SMC935_IND, SMC935_PPMODE);
+				outb(SMC935_DAT, SMC935_SPP);
+			}
+		}
+
+		/* ECP + EPP or just plain ECP */
+		if (chipset_mode & PPB_ECP) {
+			if (chipset_mode & PPB_EPP) {
+				if (ppc->ppc_epp == EPP_1_9) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_ECPEPP19);
+				}
+				if (ppc->ppc_epp == EPP_1_7) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_ECPEPP17);
+				}
+			} else {
+				outb(SMC935_IND, SMC935_PPMODE);
+				outb(SMC935_DAT, SMC935_ECP);
+			}
+		}
+	}
+
+	outb(SMC935_CFG, 0xaa); /* exit config mode */
+
+	ppc->ppc_type = PPC_TYPE_SMCLIKE;
+	ppc_smclike_setmode(ppc, chipset_mode);
+
+	return (chipset_mode);
+}
+
+/*
  * Winbond W83877F stuff
  *
  * EFER: extended function enable register
@@ -1097,47 +1223,47 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 	if (bootverbose)
 		printf("ppc%d:", ppc->ppc_unit);
 
-	if (!chipset_mode) {
-		/* first, check for ECP */
-		w_ecr(ppc, PPC_ECR_PS2);
-		if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
-			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
-			if (bootverbose)
-				printf(" ECP SPP");
-
-			/* search for SMC style ECP+EPP mode */
-			w_ecr(ppc, PPC_ECR_EPP);
-		}
-
-		/* try to reset EPP timeout bit */
-		if (ppc_check_epp_timeout(ppc)) {
-			ppc->ppc_avm |= PPB_EPP;
-
-			if (ppc->ppc_avm & PPB_ECP) {
-				/* SMC like chipset found */
-				ppc->ppc_model = SMC_LIKE;
-				ppc->ppc_type = PPC_TYPE_SMCLIKE;
-
-				if (bootverbose)
-					printf(" ECP+EPP");
-			} else {
-				if (bootverbose)
-					printf(" EPP");
-			}
-		} else {
-			/* restore to standard mode */
-			w_ecr(ppc, PPC_ECR_STD);
-		}
-
-		/* XXX try to detect NIBBLE and PS2 modes */
-		ppc->ppc_avm |= PPB_NIBBLE;
-
+	/* first, check for ECP */
+	w_ecr(ppc, PPC_ECR_PS2);
+	if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
+		ppc->ppc_dtm |= PPB_ECP | PPB_SPP;
 		if (bootverbose)
-			printf(" SPP");
+			printf(" ECP SPP");
 
-	} else {
-		ppc->ppc_avm = chipset_mode;
+		/* search for SMC style ECP+EPP mode */
+		w_ecr(ppc, PPC_ECR_EPP);
 	}
+
+	/* try to reset EPP timeout bit */
+	if (ppc_check_epp_timeout(ppc)) {
+		ppc->ppc_dtm |= PPB_EPP;
+
+		if (ppc->ppc_dtm & PPB_ECP) {
+			/* SMC like chipset found */
+			ppc->ppc_model = SMC_LIKE;
+			ppc->ppc_type = PPC_TYPE_SMCLIKE;
+
+			if (bootverbose)
+				printf(" ECP+EPP");
+		} else {
+			if (bootverbose)
+				printf(" EPP");
+		}
+	} else {
+		/* restore to standard mode */
+		w_ecr(ppc, PPC_ECR_STD);
+	}
+
+	/* XXX try to detect NIBBLE and PS2 modes */
+	ppc->ppc_dtm |= PPB_NIBBLE;
+
+	if (bootverbose)
+		printf(" SPP");
+
+	if (chipset_mode)
+		ppc->ppc_avm = chipset_mode;
+	else
+		ppc->ppc_avm = ppc->ppc_dtm;
 
 	if (bootverbose)
 		printf("\n");
@@ -1170,6 +1296,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 		ppc_pc873xx_detect,
 		ppc_smc37c66xgt_detect,
 		ppc_w83877f_detect,
+		ppc_smc37c935_detect,
 		ppc_generic_detect,
 		NULL
 	};
@@ -1236,8 +1363,9 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 	struct ppb_microseq *stack = 0;
 
 /* microsequence registers are equivalent to PC-like port registers */
-#define r_reg(register,ppc) (inb((ppc)->ppc_base + register))
-#define w_reg(register,ppc,byte) outb((ppc)->ppc_base + register, byte)
+
+#define r_reg(register,ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, register))
+#define w_reg(register, ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, register, byte))
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
@@ -1538,7 +1666,7 @@ ppc_write(device_t dev, char *buf, int len, int how)
 	 */
 	if ((ppc->ppc_avm & PPB_ECP) && (ppc->ppc_registered)) {
 
-	    if (ppc->ppc_dmachan >= 0) {
+	    if (ppc->ppc_dmachan > 0) {
 
 		/* byte mode, no intr, no DMA, dir=0, flush fifo
 		 */
@@ -1700,6 +1828,12 @@ ppc_setmode(device_t dev, int mode)
 	return (ENXIO);
 }
 
+static struct isa_pnp_id lpc_ids[] = {
+	{ 0x0004d041, "Standard parallel printer port" }, /* PNP0400 */
+	{ 0x0104d041, "ECP parallel printer port" }, /* PNP0401 */
+	{ 0 }
+};
+
 static int
 ppc_probe(device_t dev)
 {
@@ -1718,14 +1852,13 @@ ppc_probe(device_t dev)
 	unsigned int tmp;
 #endif
 
-	/* If we are a PNP device, abort.  Otherwise we attach to *everthing* */
-	if (isa_get_logicalid(dev))
-                return ENXIO;
-
 	parent = device_get_parent(dev);
 
-	/* XXX shall be set after detection */
-	device_set_desc(dev, "Parallel port");
+	error = ISA_PNP_PROBE(parent, dev, lpc_ids);
+	if (error == ENXIO)
+		return (ENXIO);
+	else if (error != 0)	/* XXX shall be set after detection */
+		device_set_desc(dev, "Parallel port");
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -1765,7 +1898,8 @@ ppc_probe(device_t dev)
 				    (int) port);
 		}
 #endif
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, port, IO_LPTSIZE);
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, port,
+				 IO_LPTSIZE_EXTENDED);
 	}
 #endif
 #ifdef __alpha__
@@ -1773,19 +1907,40 @@ ppc_probe(device_t dev)
 	 * There isn't a bios list on alpha. Put it in the usual place.
 	 */
 	if (error) {
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3bc, IO_LPTSIZE);
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3bc,
+				 IO_LPTSIZE_NORMAL);
 	}
 #endif
 
 	/* IO port is mandatory */
+
+	/* Try "extended" IO port range...*/
 	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &ppc->rid_ioport, 0, ~0,
-					     IO_LPTSIZE, RF_ACTIVE);
-	if (ppc->res_ioport == 0) {
-		device_printf(dev, "cannot reserve I/O port range\n");
-		goto error;
+					     IO_LPTSIZE_EXTENDED, RF_ACTIVE);
+
+	if (ppc->res_ioport != 0) {
+		if (bootverbose)
+			device_printf(dev, "using extended I/O port range\n");
+	} else {
+		/* Failed? If so, then try the "normal" IO port range... */
+		 ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+						      &ppc->rid_ioport, 0, ~0,
+						      IO_LPTSIZE_NORMAL,
+						      RF_ACTIVE);
+		if (ppc->res_ioport != 0) {
+			if (bootverbose)
+				device_printf(dev, "using normal I/O port range\n");
+		} else {
+			device_printf(dev, "cannot reserve I/O port range\n");
+			goto error;
+		}
 	}
-	ppc->ppc_base = rman_get_start(ppc->res_ioport);
+
+ 	ppc->ppc_base = rman_get_start(ppc->res_ioport);
+
+	ppc->bsh = rman_get_bushandle(ppc->res_ioport);
+	ppc->bst = rman_get_bustag(ppc->res_ioport);
 
 	ppc->ppc_flags = device_get_flags(dev);
 
@@ -1918,22 +2073,22 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
 	switch (iop) {
 	case PPB_OUTSB_EPP:
-		outsb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_OUTSW_EPP:
-		outsw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_OUTSL_EPP:
-		outsl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_INSB_EPP:
-		insb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_INSW_EPP:
-		insw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_INSL_EPP:
-		insl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_RDTR:
 		return (r_dtr(ppc));
