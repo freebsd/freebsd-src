@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.5 1998/04/29 09:59:34 jb Exp $
+ * $Id: uthread_writev.c,v 1.6 1998/05/25 21:45:52 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -45,19 +45,31 @@ ssize_t
 writev(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	blocking;
-	int	status;
+	int	idx = 0;
+	ssize_t cnt;
 	ssize_t n;
 	ssize_t num = 0;
 	ssize_t	ret;
-	struct iovec liov;
+	struct iovec liov[20];
+	struct iovec *p_iov = liov;
+
+	/* Check if the array size exceeds to compiled in size: */
+	if (iovcnt > (sizeof(liov) / sizeof(struct iovec))) {
+		/* Allocate memory for the local array: */
+		if ((p_iov = (struct iovec *)
+		    malloc(iovcnt * sizeof(struct iovec))) == NULL) {
+			/* Insufficient memory: */
+			errno = ENOMEM;
+			return (-1);
+		}
+	}
+
+	/* Copy the caller's array so that it can be modified locally: */
+	memcpy(p_iov,iov,iovcnt * sizeof(struct iovec));
 
 	/* Lock the file descriptor for write: */
 	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
 	    __FILE__, __LINE__)) == 0) {
-		/* Make a local copy of the caller's iov: */
-		liov.iov_base = iov->iov_base;
-		liov.iov_len = iov->iov_len;
-
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
@@ -67,19 +79,50 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 		 */
 		while (ret == 0) {
 			/* Perform a non-blocking write syscall: */
-			n = _thread_sys_writev(fd, &liov, iovcnt - num);
+			n = _thread_sys_writev(fd, &p_iov[idx], iovcnt - idx);
 
 			/* Check if one or more bytes were written: */
 			if (n > 0) {
-				/* Update the local iov: */
-				liov.iov_base += n;
-				liov.iov_len += n;
-
 				/*
 				 * Keep a count of the number of bytes
 				 * written:
 				 */
 				num += n;
+
+				/*
+				 * Enter a loop to check if a short write
+				 * occurred and move the index to the
+				 * array entry where the short write
+				 * ended:
+				 */
+				cnt = n;
+				while (cnt > 0 && idx < iovcnt) {
+					/*
+					 * If the residual count exceeds
+					 * the size of this vector, then
+					 * it was completely written:
+					 */
+					if (cnt >= p_iov[idx].iov_len)
+						/*
+						 * Decrement the residual
+						 * count and increment the
+						 * index to the next array
+						 * entry:
+						 */
+						cnt -= p_iov[idx++].iov_len;
+					else {
+						/*
+						 * This entry was only
+						 * partially written, so
+						 * adjust it's length
+						 * and base pointer ready
+						 * for the next write:
+						 */
+						p_iov[idx].iov_len -= cnt;
+						p_iov[idx].iov_base += cnt;
+						cnt = 0;
+					}
+				}
 			}
 
 			/*
@@ -89,7 +132,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || num < iovcnt)) {
+			    errno == EAGAIN)) || idx < iovcnt)) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -119,12 +162,17 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 				break;
 
 			/* Check if the write has completed: */
-			} else if (num >= iovcnt)
+			} else if (idx == iovcnt)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
 		_thread_fd_unlock(fd, FD_RDWR);
 	}
+
+	/* If memory was allocated for the array, free it: */
+	if (p_iov != liov)
+		free(p_iov);
+
 	return (ret);
 }
 #endif
