@@ -401,6 +401,14 @@ with) processes outside of the jail, and in other jails.
 As such, this functionality is disabled by default, but can be enabled
 by setting this MIB entry to 1.
 .El
+.Pp
+There are currently two MIB related variables that have per-jail settings.
+Changes to these variables by a jailed process do not effect the host
+environment, only the jail environment.
+The variables are
+.Va kern.securelevel
+and
+.Va kern.hostname .
 .Sh SEE ALSO
 .Xr killall 1 ,
 .Xr newaliases 1 ,
