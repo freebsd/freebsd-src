@@ -8,7 +8,7 @@ SEARCH_DIR(/lib); SEARCH_DIR(/usr/lib); SEARCH_DIR(/usr/local/egcs/lib); SEARCH_
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0xfffffc0000230000 + SIZEOF_HEADERS;
+  . = 0xfffffc0000300000 + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
