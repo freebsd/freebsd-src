@@ -440,7 +440,6 @@ void
 _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
     int line)
 {
-	struct turnstile *ts;
 #if defined(SMP) && !defined(NO_ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
@@ -476,7 +475,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		contested = 1;
 		atomic_add_int(&m->mtx_contest_holding, 1);
 #endif
-		ts = turnstile_lookup(&m->mtx_object);
+		turnstile_lock(&m->mtx_object);
 		v = m->mtx_lock;
 
 		/*
@@ -499,9 +498,8 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		 * necessary.
 		 */
 		if (v == MTX_CONTESTED) {
-			MPASS(ts != NULL);
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
-			turnstile_claim(ts);
+			turnstile_claim(&m->mtx_object);
 			break;
 		}
 #endif
@@ -557,7 +555,7 @@ _mtx_lock_sleep(struct mtx *m, struct thread *td, int opts, const char *file,
 		/*
 		 * Block on the turnstile.
 		 */
-		turnstile_wait(ts, &m->mtx_object, mtx_owner(m));
+		turnstile_wait(&m->mtx_object, mtx_owner(m));
 	}
 
 #ifdef KTR
@@ -645,6 +643,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		return;
 	}
 
+	turnstile_lock(&m->mtx_object);
 	ts = turnstile_lookup(&m->mtx_object);
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);

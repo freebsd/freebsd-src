@@ -36,20 +36,21 @@
  * Turnstile interface.  Non-sleepable locks use a turnstile for the
  * queue of threads blocked on them when they are contested.
  *
- * A thread calls turnstile_lookup() to look up the proper turnstile in
- * the hash table.  This function returns a pointer to the turnstile and
- * locks the associated turnstile chain.  A thread calls turnstile_wait()
- * when the lock is contested to be put on the queue and block.  If a
- * thread needs to retry a lock operation instead of blocking, it should
- * call turnstile_release() to unlock the associated turnstile chain lock.
+ * A thread calls turnstile_lock() to lock the turnstile chain associated
+ * with a given lock.  A thread calls turnstile_wait() when the lock is
+ * contested to be put on the queue and block.  If a thread needs to retry
+ * a lock operation instead of blocking, it should call turnstile_release()
+ * to unlock the associated turnstile chain lock.
  *
- * When a lock is released, either turnstile_signal() or turnstile_broadcast()
- * is called to mark blocked threads for a pending wakeup.
- * turnstile_signal() marks the highest priority blocked thread while
- * turnstile_broadcast() marks all blocked threads.  The turnstile_signal()
- * function returns true if the turnstile became empty as a result.  After
- * the higher level code finishes releasing the lock, turnstile_unpend()
- * must be called to wakeup the pending thread(s).
+ * When a lock is released, the thread calls turnstile_lookup() to loop
+ * up the turnstile associated with the given lock in the hash table.  Then
+ * it calls either turnstile_signal() or turnstile_broadcast() to mark
+ * blocked threads for a pending wakeup.  turnstile_signal() marks the
+ * highest priority blocked thread while turnstile_broadcast() marks all
+ * blocked threads.  The turnstile_signal() function returns true if the
+ * turnstile became empty as a result.  After the higher level code finishes
+ * releasing the lock, turnstile_unpend() must be called to wake up the
+ * pending thread(s).
  *
  * When a lock is acquired that already has at least one thread contested
  * on it, the new owner of the lock must claim ownership of the turnstile
@@ -75,16 +76,16 @@ struct turnstile;
 void	init_turnstiles(void);
 struct turnstile *turnstile_alloc(void);
 void	turnstile_broadcast(struct turnstile *);
-void	turnstile_claim(struct turnstile *);
+void	turnstile_claim(struct lock_object *);
 int	turnstile_empty(struct turnstile *);
 void	turnstile_free(struct turnstile *);
 struct thread *turnstile_head(struct turnstile *);
+void	turnstile_lock(struct lock_object *);
 struct turnstile *turnstile_lookup(struct lock_object *);
 void	turnstile_release(struct lock_object *);
 int	turnstile_signal(struct turnstile *);
 void	turnstile_unpend(struct turnstile *);
-void	turnstile_wait(struct turnstile *, struct lock_object *,
-	    struct thread *);
+void	turnstile_wait(struct lock_object *, struct thread *);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */

@@ -122,7 +122,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	int priority, timo;
 	const char *wmesg;
 {
-	struct sleepqueue *sq;
 	struct thread *td;
 	struct proc *p;
 	int catch, rval, sig, flags;
@@ -165,7 +164,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
-	sq = sleepq_lookup(ident);
+	sleepq_lock(ident);
 	if (catch) {
 		/*
 		 * Don't bother sleeping if we are exiting and not the exiting
@@ -201,7 +200,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	flags = SLEEPQ_MSLEEP;
 	if (catch)
 		flags |= SLEEPQ_INTERRUPTIBLE;
-	sleepq_add(sq, ident, mtx, wmesg, flags);
+	sleepq_add(ident, mtx, wmesg, flags);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 	if (catch) {
@@ -250,6 +249,7 @@ wakeup(ident)
 	register void *ident;
 {
 
+	sleepq_lock(ident);
 	sleepq_broadcast(ident, SLEEPQ_MSLEEP, -1);
 }
 
@@ -263,6 +263,7 @@ wakeup_one(ident)
 	register void *ident;
 {
 
+	sleepq_lock(ident);
 	sleepq_signal(ident, SLEEPQ_MSLEEP, -1);
 }
 
