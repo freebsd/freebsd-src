@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.12 1998/12/17 19:26:49 mjacob Exp $
+ * $Id: mtio.h,v 1.13 1998/12/19 20:21:56 mjacob Exp $
  */
 
 #ifndef	_SYS_MTIO_H_
@@ -73,8 +73,7 @@ struct mtop {
 
 #define MTSETBSIZ	10
 
-/* Set density values for device. They are defined in the SCSI II spec	*/
-/* and range from 0 to 0x17. Sets the value for the opened mode only	*/
+/* Set density values for device. Sets the value for the opened mode only. */
 
 #define MTSETDNSTY	11
 
@@ -82,6 +81,9 @@ struct mtop {
 #define MTEOD		13	/* Space to EOM */
 #define MTCOMP		14	/* select compression mode 0=off, 1=def */
 #define MTRETENS	15	/* re-tension tape */
+#define MTWSS		16	/* write setmark(s) */
+#define MTFSS		17	/* forward space setmark */
+#define MTBSS		18	/* backward space setmark */
 
 #define MT_COMP_ENABLE		0xffffffff
 #define MT_COMP_DISABLED	0xfffffffe
