@@ -222,6 +222,7 @@ struct isa_driver iedriver = {
 	INTR_TYPE_NET,
 	ieprobe, ieattach, "ie"
 };
+COMPAT_ISA_DRIVER(ie, iedriver);
 
 enum ie_hardware {
 	IE_STARLAN10,
