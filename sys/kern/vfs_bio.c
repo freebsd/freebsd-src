@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104 1996/10/17 03:04:43 dyson Exp $
+ * $Id: vfs_bio.c,v 1.105 1996/11/17 02:10:48 dyson Exp $
  */
 
 /*
@@ -1057,6 +1057,9 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	struct buf *bp;
 	int s;
 	struct bufhashhdr *bh;
+
+	if (size > MAXBSIZE)
+		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
 
 	s = splbio();
 loop:
