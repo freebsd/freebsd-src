@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+= -DRSRR -fno-builtin-log
+CFLAGS+= -DRSRR -Dlog=logit
 
 .if exists(${.OBJDIR}/../common)
 LIBMROUTED=	${.OBJDIR}/../common/libmrouted.a
