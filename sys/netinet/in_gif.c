@@ -210,7 +210,7 @@ in_gif_output(ifp, family, m)
 	}
 
 	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
-	return(error);
+	return (error);
 }
 
 void
