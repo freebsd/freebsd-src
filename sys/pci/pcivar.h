@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.3 1995/03/17 04:27:21 davidg Exp $
+**  $Id: pcivar.h,v 1.4 1995/03/21 23:01:06 se Exp $
 **
 **  Declarations for pci device drivers.
 **
@@ -124,6 +124,8 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 **
 **-----------------------------------------------------------------
 */
+
+struct kern_devconf;
 
 struct pci_device {
     char*    pd_name;
