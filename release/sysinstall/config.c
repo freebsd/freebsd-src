@@ -592,12 +592,12 @@ configXDesktop(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     if (!strcmp(desk, "kde")) {
-	ret = package_add("kdebase");
+	ret = package_add("kde");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
 	    write_root_xprofile("exec startkde\n");
     }
     else if (!strcmp(desk, "gnome")) {
-	ret = package_add("gnomecore");
+	ret = package_add("gnome");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("gnome-session")) {
 	    ret = package_add("sawfish-gnome");
 	    if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("sawfish"))
