@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.26 1997/04/21 12:40:42 kato Exp $
+ * $Id: union_vnops.c,v 1.27 1997/04/21 15:32:24 kato Exp $
  */
 
 #include <sys/param.h>
@@ -1492,6 +1492,7 @@ start:
 				panic("union_link: upper vnode is locked, "
 					  "but UN_UNLOCK is not set.");
 #endif
+				printf("union_lock: adjust un_flags\n");
 				un->un_flags |= UN_ULOCK;	/* Adjust -- dirty */
 			} else {
 				error = vn_lock(un->un_uppervp, flags, p);
@@ -1565,7 +1566,16 @@ union_unlock(ap)
 	if ((un->un_flags & (UN_ULOCK|UN_KLOCK)) == UN_ULOCK)
 		VOP_UNLOCK(un->un_uppervp, 0, p);
 
-	un->un_flags &= ~(UN_ULOCK|UN_KLOCK);
+	if ((un->un_flags & UN_KLOCK) && (ap->a_vp->v_usecount == 1)) {
+			/*
+			 * Do not clear UN_ULOCK here.  Our vput will call
+			 * VOP_LOCK for vm related reason.  If we clear UN_ULOCK,
+			 * VOP_LOCK will try to lock upper vnode, whic is not
+			 * unlocked.
+			 */
+			un->un_flags &= ~UN_KLOCK;
+	} else
+		un->un_flags &= ~(UN_ULOCK|UN_KLOCK);
 
 	if (un->un_flags & UN_WANT) {
 		un->un_flags &= ~UN_WANT;
