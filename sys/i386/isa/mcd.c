@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.63 1996/01/30 23:27:20 ache Exp $
+ *	$Id: mcd.c,v 1.64 1996/02/01 16:51:53 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -203,6 +203,7 @@ static  int     mcd_eject(int unit);
 static	int	mcd_playtracks(int unit, struct ioc_play_track *pt);
 static	int	mcd_play(int unit, struct mcd_read2 *pb);
 static  int     mcd_playmsf(int unit, struct ioc_play_msf *pt);
+static  int     mcd_playblocks(int unit, struct ioc_play_blocks *);
 static	int	mcd_pause(int unit);
 static	int	mcd_resume(int unit);
 static  int     mcd_lock_door(int unit, int lock);
@@ -594,7 +595,7 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 	case CDIOCPLAYBLOCKS:
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
-		return EINVAL;
+		return mcd_playblocks(unit, (struct ioc_play_blocks *) addr);
 	case CDIOCPLAYMSF:
 		if (!(cd->flags & MCDVALID))
 			return ENXIO;
@@ -1598,19 +1599,34 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 }
 
 static int
-mcd_playmsf(int unit, struct ioc_play_msf *pt)
+mcd_playmsf(int unit, struct ioc_play_msf *p)
 {
+	struct mcd_data *cd = mcd_data + unit;
 	struct mcd_read2 pb;
+
+	if (cd->debug)
+		printf("mcd%d: playmsf: from %d:%d.%d to %d:%d.%d\n",
+		    unit,
+		    p->start_m, p->start_s, p->start_f,
+		    p->end_m, p->end_s, p->end_f);
+
+	if ((p->start_m * 60 * 75 + p->start_s * 75 + p->start_f) >=
+	    (p->end_m * 60 * 75 + p->end_s * 75 + p->end_f) ||
+	    (p->end_m * 60 * 75 + p->end_s * 75 + p->end_f) >
+	    M_msf(cd->volinfo.vol_msf) * 60 * 75 +
+	    S_msf(cd->volinfo.vol_msf) * 75 +
+	    F_msf(cd->volinfo.vol_msf))
+		return EINVAL;
+
+	pb.start_msf[0] = bin2bcd(p->start_m);
+	pb.start_msf[1] = bin2bcd(p->start_s);
+	pb.start_msf[2] = bin2bcd(p->start_f);
+	pb.end_msf[0] = bin2bcd(p->end_m);
+	pb.end_msf[1] = bin2bcd(p->end_s);
+	pb.end_msf[2] = bin2bcd(p->end_f);
 
 	if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
 		return EIO;
-
-	pb.start_msf[0] = bin2bcd(pt->start_m);
-	pb.start_msf[1] = bin2bcd(pt->start_s);
-	pb.start_msf[2] = bin2bcd(pt->start_f);
-	pb.end_msf[0] = bin2bcd(pt->end_m);
-	pb.end_msf[1] = bin2bcd(pt->end_s);
-	pb.end_msf[2] = bin2bcd(pt->end_f);
 
 	return mcd_play(unit, &pb);
 }
@@ -1642,6 +1658,33 @@ mcd_playtracks(int unit, struct ioc_play_track *pt)
 		pb.start_msf[i] = cd->toc[a].hd_pos_msf[i];
 		pb.end_msf[i] = cd->toc[z+1].hd_pos_msf[i];
 	}
+
+	if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
+		return EIO;
+
+	return mcd_play(unit, &pb);
+}
+
+static int
+mcd_playblocks(int unit, struct ioc_play_blocks *p)
+{
+	struct mcd_data *cd = mcd_data + unit;
+	struct mcd_read2 pb;
+
+	if (cd->debug)
+		printf("mcd%d: playblocks: blkno %d length %d\n",
+		    unit, p->blk, p->len);
+
+	if (p->blk > cd->disksize || p->len > cd->disksize ||
+	    p->blk < 0 || p->len < 0 ||
+	    (p->blk + p->len) > cd->disksize)
+		return EINVAL;
+
+	hsg2msf(p->blk, pb.start_msf);
+	hsg2msf(p->blk + p->len, pb.end_msf);
+
+	if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
+		return EIO;
 
 	return mcd_play(unit, &pb);
 }
