@@ -312,7 +312,7 @@ rerelease release:
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
-	echo "echo \">>> make ${.TARGET} Finished on `LC_TIME=C date`\"" >> ${CHROOTDIR}/mk
+	echo "echo \">>> make ${.TARGET} Finished on \`LC_TIME=C date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
