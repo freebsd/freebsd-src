@@ -37,7 +37,6 @@
 #ifndef _NETINET_TCP_VAR_H_
 #define _NETINET_TCP_VAR_H_
 
-#include <netinet/in_pcb.h>		/* needed for in_conninfo, inp_gen_t */
 #include <netinet/tcp.h>
 
 /*
@@ -230,6 +229,7 @@ struct tcpopt {
 	u_int8_t 	to_pad;
 };
 
+#ifdef _NETINET_IN_PCB_H_
 struct syncache {
 	inp_gen_t	sc_inp_gencnt;		/* pointer check */
 	struct 		tcpcb *sc_tp;		/* tcb for listening socket */
@@ -261,6 +261,9 @@ struct syncache_head {
 	TAILQ_HEAD(, syncache)	sch_bucket;
 	u_int		sch_length;
 };
+#else
+struct in_conninfo;
+#endif /* _NETINET_IN_PCB_H_ */
 
 struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_mtu;	/* MTU for this path */
