@@ -78,6 +78,7 @@ MAN4=	adv.4 \
 	ng_UI.4 \
 	ng_async.4 \
 	ng_bpf.4 \
+	ng_bridge.4 \
 	ng_cisco.4 \
 	ng_echo.4 \
 	ng_ether.4 \
