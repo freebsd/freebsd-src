@@ -32,6 +32,7 @@
  */
 
 #include <sys/cdefs.h>
+
 __FBSDID("$FreeBSD$");
 
 #ifndef lint
@@ -63,20 +64,13 @@ static const char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 #ifdef	ENCRYPTION
 
 #define	ENCRYPT_NAMES
-#include <stdio.h>
 #include <arpa/telnet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "encrypt.h"
 #include "misc.h"
-
-#ifdef	__STDC__
-#include <stdlib.h>
-#endif
-#ifdef	NO_STRING_H
-#include <strings.h>
-#else
-#include <string.h>
-#endif
 
 /*
  * These functions pointers point to the current routines
@@ -93,10 +87,6 @@ int EncryptStartOutput(void);
 int EncryptStopInput(void);
 int EncryptStopOutput(void);
 
-int Ambiguous(char **s);
-int isprefix(char *s1, char *s2);
-char **genget(char *name, char **table, int stlen);
-
 int encrypt_debug_mode = 0;
 static int decrypt_mode = 0;
 static int encrypt_mode = 0;
@@ -105,19 +95,15 @@ static int autoencrypt = 0;
 static int autodecrypt = 0;
 static int havesessionkey = 0;
 static int Server = 0;
-static char *Name = "Noname";
+static const char *Name = "Noname";
 
 #define	typemask(x)	((x) > 0 ? 1 << ((x)-1) : 0)
 
 static long i_support_encrypt = 0
-#ifdef DES_ENCRYPTION
  | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
-#endif
  |0;
 static long i_support_decrypt = 0
-#ifdef DES_ENCRYPTION
  | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
-#endif
  |0;
 
 static long i_wont_support_encrypt = 0;
@@ -129,7 +115,6 @@ static long remote_supports_encrypt = 0;
 static long remote_supports_decrypt = 0;
 
 static Encryptions encryptions[] = {
-#ifdef	DES_ENCRYPTION
     { "DES_CFB64",	ENCTYPE_DES_CFB64,
 			cfb64_encrypt,
 			cfb64_decrypt,
@@ -150,8 +135,7 @@ static Encryptions encryptions[] = {
 			ofb64_session,
 			ofb64_keyid,
 			ofb64_printsub },
-#endif	/* DES_ENCRYPTION */
-    { 0, },
+    { NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 
 static unsigned char str_send[64] = { IAC, SB, TELOPT_ENCRYPT,
@@ -160,26 +144,24 @@ static unsigned char str_suplen = 0;
 static unsigned char str_start[72] = { IAC, SB, TELOPT_ENCRYPT };
 static unsigned char str_end[] = { IAC, SB, TELOPT_ENCRYPT, 0, IAC, SE };
 
-	Encryptions *
-findencryption(type)
-	int type;
+Encryptions *
+findencryption(int type)
 {
 	Encryptions *ep = encryptions;
 
-	if (!(I_SUPPORT_ENCRYPT & remote_supports_decrypt & typemask(type)))
+	if (!(I_SUPPORT_ENCRYPT & remote_supports_decrypt & (unsigned)typemask(type)))
 		return(0);
 	while (ep->type && ep->type != type)
 		++ep;
 	return(ep->type ? ep : 0);
 }
 
-	Encryptions *
-finddecryption(type)
-	int type;
+static Encryptions *
+finddecryption(int type)
 {
 	Encryptions *ep = encryptions;
 
-	if (!(I_SUPPORT_DECRYPT & remote_supports_encrypt & typemask(type)))
+	if (!(I_SUPPORT_DECRYPT & remote_supports_encrypt & (unsigned)typemask(type)))
 		return(0);
 	while (ep->type && ep->type != type)
 		++ep;
@@ -193,7 +175,7 @@ static struct key_info {
 	int keylen;
 	int dir;
 	int *modep;
-	Encryptions *(*getcrypt)();
+	Encryptions *(*getcrypt)(int);
 } ki[2] = {
 	{ { 0 }, 0, DIR_ENCRYPT, &encrypt_mode, findencryption },
 	{ { 0 }, 0, DIR_DECRYPT, &decrypt_mode, finddecryption },
@@ -201,10 +183,8 @@ static struct key_info {
 
 static void encrypt_keyid(struct key_info *kp, unsigned char *keyid, int len);
 
-	void
-encrypt_init(name, server)
-	char *name;
-	int server;
+void
+encrypt_init(const char *name, int server)
 {
 	Encryptions *ep = encryptions;
 
@@ -216,9 +196,6 @@ encrypt_init(name, server)
 	decrypt_mode = 0;
 	encrypt_output = 0;
 	decrypt_input = 0;
-#ifdef notdef
-	encrypt_verbose = !server;
-#endif
 
 	str_suplen = 4;
 
@@ -239,8 +216,8 @@ encrypt_init(name, server)
 	str_send[str_suplen++] = SE;
 }
 
-	void
-encrypt_list_types()
+static void
+encrypt_list_types(void)
 {
 	Encryptions *ep = encryptions;
 
@@ -251,9 +228,8 @@ encrypt_list_types()
 	}
 }
 
-	int
-EncryptEnable(type, mode)
-	char *type, *mode;
+int
+EncryptEnable(char *type, char *mode)
 {
 	if (isprefix(type, "help") || isprefix(type, "?")) {
 		printf("Usage: encrypt enable <type> [input|output]\n");
@@ -265,11 +241,10 @@ EncryptEnable(type, mode)
 	return(0);
 }
 
-	int
-EncryptDisable(type, mode)
-	char *type, *mode;
+int
+EncryptDisable(char *type, char *mode)
 {
-	register Encryptions *ep;
+	Encryptions *ep;
 	int ret = 0;
 
 	if (isprefix(type, "help") || isprefix(type, "?")) {
@@ -299,12 +274,10 @@ EncryptDisable(type, mode)
 	return(ret);
 }
 
-	int
-EncryptType(type, mode)
-	char *type;
-	char *mode;
+int
+EncryptType(char *type, char *mode)
 {
-	register Encryptions *ep;
+	Encryptions *ep;
 	int ret = 0;
 
 	if (isprefix(type, "help") || isprefix(type, "?")) {
@@ -332,11 +305,10 @@ EncryptType(type, mode)
 	return(ret);
 }
 
-	int
-EncryptStart(mode)
-	char *mode;
+int
+EncryptStart(char *mode)
 {
-	register int ret = 0;
+	int ret = 0;
 	if (mode) {
 		if (isprefix(mode, "input"))
 			return(EncryptStartInput());
@@ -354,8 +326,8 @@ EncryptStart(mode)
 	return(ret);
 }
 
-	int
-EncryptStartInput()
+int
+EncryptStartInput(void)
 {
 	if (decrypt_mode) {
 		encrypt_send_request_start();
@@ -365,8 +337,8 @@ EncryptStartInput()
 	return(0);
 }
 
-	int
-EncryptStartOutput()
+int
+EncryptStartOutput(void)
 {
 	if (encrypt_mode) {
 		encrypt_start_output(encrypt_mode);
@@ -376,9 +348,8 @@ EncryptStartOutput()
 	return(0);
 }
 
-	int
-EncryptStop(mode)
-	char *mode;
+int
+EncryptStop(char *mode)
 {
 	int ret = 0;
 	if (mode) {
@@ -398,22 +369,22 @@ EncryptStop(mode)
 	return(ret);
 }
 
-	int
-EncryptStopInput()
+int
+EncryptStopInput(void)
 {
 	encrypt_send_request_end();
 	return(1);
 }
 
-	int
-EncryptStopOutput()
+int
+EncryptStopOutput(void)
 {
 	encrypt_send_end();
 	return(1);
 }
 
-	void
-encrypt_display()
+void
+encrypt_display(void)
 {
 	if (encrypt_output)
 		printf("Currently encrypting output with %s\r\n",
@@ -423,8 +394,8 @@ encrypt_display()
 			ENCTYPE_NAME(decrypt_mode));
 }
 
-	int
-EncryptStatus()
+int
+EncryptStatus(void)
 {
 	if (encrypt_output)
 		printf("Currently encrypting output with %s\r\n",
@@ -445,8 +416,8 @@ EncryptStatus()
 	return 1;
 }
 
-	void
-encrypt_send_support()
+void
+encrypt_send_support(void)
 {
 	if (str_suplen) {
 		/*
@@ -462,9 +433,8 @@ encrypt_send_support()
 	}
 }
 
-	int
-EncryptDebug(on)
-	int on;
+int
+EncryptDebug(int on)
 {
 	if (on < 0)
 		encrypt_debug_mode ^= 1;
@@ -475,9 +445,8 @@ EncryptDebug(on)
 	return(1);
 }
 
-	int
-EncryptVerbose(on)
-	int on;
+int
+EncryptVerbose(int on)
 {
 	if (on < 0)
 		encrypt_verbose ^= 1;
@@ -488,9 +457,8 @@ EncryptVerbose(on)
 	return(1);
 }
 
-	int
-EncryptAutoEnc(on)
-	int on;
+int
+EncryptAutoEnc(int on)
 {
 	encrypt_auto(on);
 	printf("Automatic encryption of output is %s\r\n",
@@ -498,9 +466,8 @@ EncryptAutoEnc(on)
 	return(1);
 }
 
-	int
-EncryptAutoDec(on)
-	int on;
+int
+EncryptAutoDec(int on)
 {
 	decrypt_auto(on);
 	printf("Automatic decryption of input is %s\r\n",
@@ -511,12 +478,10 @@ EncryptAutoDec(on)
 /*
  * Called when ENCRYPT SUPPORT is received.
  */
-	void
-encrypt_support(typelist, cnt)
-	unsigned char *typelist;
-	int cnt;
+void
+encrypt_support(unsigned char *typelist, int cnt)
 {
-	register int type, use_type = 0;
+	int type, use_type = 0;
 	Encryptions *ep;
 
 	/*
@@ -553,13 +518,11 @@ encrypt_support(typelist, cnt)
 	}
 }
 
-	void
-encrypt_is(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+encrypt_is(unsigned char *data, int cnt)
 {
 	Encryptions *ep;
-	register int type, ret;
+	int type, ret;
 
 	if (--cnt < 0)
 		return;
@@ -599,13 +562,11 @@ encrypt_is(data, cnt)
 	}
 }
 
-	void
-encrypt_reply(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+encrypt_reply(unsigned char *data, int cnt)
 {
 	Encryptions *ep;
-	register int ret, type;
+	int ret, type;
 
 	if (--cnt < 0)
 		return;
@@ -649,10 +610,8 @@ encrypt_reply(data, cnt)
 /*
  * Called when a ENCRYPT START command is received.
  */
-	void
-encrypt_start(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+encrypt_start(unsigned char *data __unused, int cnt __unused)
 {
 	Encryptions *ep;
 
@@ -687,10 +646,8 @@ encrypt_start(data, cnt)
 	}
 }
 
-	void
-encrypt_session_key(key, server)
-	Session_Key *key;
-	int server;
+void
+encrypt_session_key( Session_Key *key, int server)
 {
 	Encryptions *ep = encryptions;
 
@@ -699,12 +656,6 @@ encrypt_session_key(key, server)
 	while (ep->type) {
 		if (ep->session)
 			(*ep->session)(key, server);
-#ifdef notdef
-		if (!encrypt_output && autoencrypt && !server)
-			encrypt_start_output(ep->type);
-		if (!decrypt_input && autodecrypt && !server)
-			encrypt_send_request_start();
-#endif
 		++ep;
 	}
 }
@@ -712,8 +663,8 @@ encrypt_session_key(key, server)
 /*
  * Called when ENCRYPT END is received.
  */
-	void
-encrypt_end()
+void
+encrypt_end(void)
 {
 	decrypt_input = 0;
 	if (encrypt_debug_mode)
@@ -725,8 +676,8 @@ encrypt_end()
 /*
  * Called when ENCRYPT REQUEST-END is received.
  */
-	void
-encrypt_request_end()
+void
+encrypt_request_end(void)
 {
 	encrypt_send_end();
 }
@@ -737,10 +688,8 @@ encrypt_request_end()
  * other side wants us to start encrypting data as soon as we
  * can.
  */
-	void
-encrypt_request_start(data, cnt)
-	unsigned char *data;
-	int cnt;
+void
+encrypt_request_start(unsigned char *data __unused, int cnt __unused)
 {
 	if (encrypt_mode == 0)  {
 		if (Server)
@@ -752,31 +701,24 @@ encrypt_request_start(data, cnt)
 
 static unsigned char str_keyid[(MAXKEYLEN*2)+5] = { IAC, SB, TELOPT_ENCRYPT };
 
-	void
-encrypt_enc_keyid(keyid, len)
-	unsigned char *keyid;
-	int len;
+void
+encrypt_enc_keyid(unsigned char *keyid, int len)
 {
 	encrypt_keyid(&ki[1], keyid, len);
 }
 
-	void
-encrypt_dec_keyid(keyid, len)
-	unsigned char *keyid;
-	int len;
+void
+encrypt_dec_keyid(unsigned char *keyid, int len)
 {
 	encrypt_keyid(&ki[0], keyid, len);
 }
 
-	void
-encrypt_keyid(kp, keyid, len)
-	struct key_info *kp;
-	unsigned char *keyid;
-	int len;
+void
+encrypt_keyid(struct key_info *kp, unsigned char *keyid, int len)
 {
 	Encryptions *ep;
 	int dir = kp->dir;
-	register int ret = 0;
+	int ret = 0;
 
 	if (!(ep = (*kp->getcrypt)(*kp->modep))) {
 		if (len == 0)
@@ -812,12 +754,8 @@ encrypt_keyid(kp, keyid, len)
 	encrypt_send_keyid(dir, kp->keyid, kp->keylen, 0);
 }
 
-	void
-encrypt_send_keyid(dir, keyid, keylen, saveit)
-	int dir;
-	unsigned char *keyid;
-	int keylen;
-	int saveit;
+void
+encrypt_send_keyid(int dir, const char *keyid, int keylen, int saveit)
 {
 	unsigned char *strp;
 
@@ -839,9 +777,8 @@ encrypt_send_keyid(dir, keyid, keylen, saveit)
 	printsub('>', &str_keyid[2], strp - str_keyid - 2);
 }
 
-	void
-encrypt_auto(on)
-	int on;
+void
+encrypt_auto(int on)
 {
 	if (on < 0)
 		autoencrypt ^= 1;
@@ -849,9 +786,8 @@ encrypt_auto(on)
 		autoencrypt = on ? 1 : 0;
 }
 
-	void
-decrypt_auto(on)
-	int on;
+void
+decrypt_auto(int on)
 {
 	if (on < 0)
 		autodecrypt ^= 1;
@@ -859,13 +795,12 @@ decrypt_auto(on)
 		autodecrypt = on ? 1 : 0;
 }
 
-	void
-encrypt_start_output(type)
-	int type;
+void
+encrypt_start_output(int type)
 {
 	Encryptions *ep;
-	register unsigned char *p;
-	register int i;
+	unsigned char *p;
+	int i;
 
 	if (!(ep = findencryption(type))) {
 		if (encrypt_debug_mode) {
@@ -916,8 +851,8 @@ encrypt_start_output(type)
 			ENCTYPE_NAME(type));
 }
 
-	void
-encrypt_send_end()
+void
+encrypt_send_end(void)
 {
 	if (!encrypt_output)
 		return;
@@ -937,11 +872,11 @@ encrypt_send_end()
 		printf("[ Output is now clear text ]\r\n");
 }
 
-	void
-encrypt_send_request_start()
+void
+encrypt_send_request_start(void)
 {
-	register unsigned char *p;
-	register int i;
+	unsigned char *p;
+	int i;
 
 	p = &str_start[3];
 	*p++ = ENCRYPT_REQSTART;
@@ -957,8 +892,8 @@ encrypt_send_request_start()
 		printf(">>>%s: Request input to be encrypted\r\n", Name);
 }
 
-	void
-encrypt_send_request_end()
+void
+encrypt_send_request_end(void)
 {
 	str_end[3] = ENCRYPT_REQEND;
 	net_write(str_end, sizeof(str_end));
@@ -968,8 +903,8 @@ encrypt_send_request_end()
 		printf(">>>%s: Request input to be clear text\r\n", Name);
 }
 
-	void
-encrypt_wait()
+void
+encrypt_wait(void)
 {
 	if (encrypt_debug_mode)
 		printf(">>>%s: in encrypt_wait\r\n", Name);
@@ -980,17 +915,8 @@ encrypt_wait()
 			return;
 }
 
-	void
-encrypt_debug(mode)
-	int mode;
-{
-	encrypt_debug_mode = mode;
-}
-
-	void
-encrypt_gen_printsub(data, cnt, buf, buflen)
-	unsigned char *data, *buf;
-	int cnt, buflen;
+void
+encrypt_gen_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 {
 	char tbuf[16], *cp;
 
@@ -1009,13 +935,11 @@ encrypt_gen_printsub(data, cnt, buf, buflen)
 	*buf = '\0';
 }
 
-	void
-encrypt_printsub(data, cnt, buf, buflen)
-	unsigned char *data, *buf;
-	int cnt, buflen;
+void
+encrypt_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 {
 	Encryptions *ep;
-	register int type = data[1];
+	int type = data[1];
 
 	for (ep = encryptions; ep->type && ep->type != type; ep++)
 		;

@@ -32,22 +32,10 @@
 /* header for the des routines that we will use */
 
 typedef unsigned char byte, DesData[ 8], IdeaData[16];
-#if 0
-typedef unsigned long word, DesKeys[32];
-#else
 #define DesKeys des_key_schedule
-#endif
 
 #define DES_DECRYPT 0
 #define DES_ENCRYPT 1
-
-#if 0
-extern void des_fixup_key_parity();	/* (DesData *key) */
-extern int des_key_sched(); 	/* (DesData *key, DesKeys *m) */
-extern int des_ecb_encrypt();	/* (DesData *src, *dst, DesKeys *m, int mode) */
-extern int des_cbc_encrypt();   /* (char *src, *dst, int length,
-				    DesKeys *m, DesData *init, int mode) */
-#endif
 
 /* public key routines */
 /* functions:
@@ -69,4 +57,3 @@ extern void common_key(char *secret, char *public, IdeaData *common,
   DesData *deskey);
 extern void pk_encode(char *in, char *out, DesData *deskey);
 extern void pk_decode(char *in, char *out, DesData *deskey);
-
