@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <string.h>
+#include <sys/libkern.h>
 
 char *
 strcpy(to, from)
