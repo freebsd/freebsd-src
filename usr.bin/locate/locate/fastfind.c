@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fastfind.c,v 1.3 1996/10/13 01:44:34 wosch Exp $
+ * $Id: fastfind.c,v 1.4 1996/10/20 16:54:51 wosch Exp $
  */
 
 
@@ -305,7 +305,7 @@ fastfind
 					    !fnmatch(pathpart, path, 0)) 
 #else 
 					    !fnmatch(pathpart, path, 
-						     FNM_ICASE)) 
+						     FNM_CASEFOLD))
 #endif /* !FF_ICASE */						
 					{
 						if (f_silent)
