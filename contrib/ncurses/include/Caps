@@ -29,7 +29,7 @@
 # Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995
 #    and: Eric S. Raymond <esr@snark.thyrsus.com>
 #
-# $Id: Caps,v 1.28 2000/10/01 02:07:36 tom Exp $
+# $Id: Caps,v 1.31 2001/05/05 21:01:27 tom Exp $
 #
 # This is the master termcap/terminfo capability table.
 #
@@ -594,11 +594,11 @@ key_f62         	kf62	str	Fq	----E	F62 function key
 key_f63         	kf63	str	Fr	----E	F63 function key
 clr_bol         	el1	str	cb	-----	Clear to beginning of line
 clear_margins    	mgc	str	MC	-----	clear right and left soft margins
-set_left_margin    	smgl	str	ML	-----	set left soft margin at current column
+set_left_margin    	smgl	str	ML	-----	set left soft margin at current column.  See smgl. (ML is not in BSD termcap).
 set_right_margin	smgr	str	MR	-----	set right soft margin at current column
 label_format    	fln	str	Lf	-----	label format
 set_clock       	sclk	str	SC	-----	set clock, #1 hrs #2 mins #3 secs
-display_clock   	dclk	str	DK	-----	display clock at (#1,#2)
+display_clock   	dclk	str	DK	-----	display clock
 remove_clock    	rmclk	str	RC	-----	remove clock
 create_window   	cwin	str	CW	-----	define a window #1 from #2,#3 to #4,#5
 goto_window     	wingo	str	WG	-----	go to window #1
@@ -637,7 +637,7 @@ change_char_pitch	cpi	str	ZA	-----	Change number of characters per inch to #1
 change_line_pitch	lpi	str	ZB	-----	Change number of lines per inch to #1
 change_res_horz  	chr	str	ZC	-----	Change horizontal resolution to #1
 change_res_vert  	cvr	str	ZD	-----	Change vertical resolution to #1
-define_char     	defc	str	ZE	-----	Define a character
+define_char     	defc	str	ZE	-----	Define a character #1, #2 dots wide, descender #3
 enter_doublewide_mode	swidm	str	ZF	-----	Enter double-wide mode
 enter_draft_quality	sdrfq	str	ZG	-----	Enter draft-quality mode
 enter_italics_mode	sitm	str	ZH	-----	Enter italic mode
@@ -670,15 +670,15 @@ parm_right_micro	mcuf	str	Zh	-----	Like parm_right_cursor in micro mode
 parm_up_micro   	mcuu	str	Zi	-----	Like parm_up_cursor in micro mode
 select_char_set 	scs	str	Zj	-----	Select character set, #1
 set_bottom_margin	smgb	str	Zk	-----	Set bottom margin at current line
-set_bottom_margin_parm	smgbp	str	Zl	-----	Set bottom margin at line #1 or #2 lines from bottom
-set_left_margin_parm	smglp	str	Zm	-----	Set left (right) margin at column #1 (#2)
+set_bottom_margin_parm	smgbp	str	Zl	-----	Set bottom margin at line #1 or (if smgtp is not given) #2 lines from bottom
+set_left_margin_parm	smglp	str	Zm	-----	Set left (right) margin at column #1
 set_right_margin_parm	smgrp	str	Zn	-----	Set right margin at column #1
 set_top_margin  	smgt	str	Zo	-----	Set top margin at current line
-set_top_margin_parm	smgtp	str	Zp	-----	Set top (bottom) margin at row #1 (#2)
+set_top_margin_parm	smgtp	str	Zp	-----	Set top (bottom) margin at row #1
 start_bit_image 	sbim	str	Zq	-----	Start printing bit image graphics
-start_char_set_def	scsd	str	Zr	-----	Start character set definition
+start_char_set_def	scsd	str	Zr	-----	Start character set definition #1, with #2 characters in the set
 stop_bit_image  	rbim	str	Zs	-----	Stop printing bit image graphics
-stop_char_set_def	rcsd	str	Zt	-----	End definition of character set
+stop_char_set_def	rcsd	str	Zt	-----	End definition of character set #1
 subscript_characters	subcs	str	Zu	-----	List of subscriptable characters
 superscript_characters	supcs	str	Zv	-----	List of superscriptable characters
 these_cause_cr  	docr	str	Zw	-----	Printing any of these characters causes CR
@@ -697,7 +697,7 @@ zero_motion     	zerom	str	Zx	-----	No motion for subsequent character
 #%lw25 lw6 lw2 lw18.
 #%\fBVariable	Cap-	TCap	Description\fR
 #%\fBString	name	Code\fR
-char_set_names  	csnm	str	Zy	-----	List of character set names
+char_set_names  	csnm	str	Zy	-----	Produce #1'th item from list of character set names
 key_mouse       	kmous	str	Km	-----	Mouse event has occurred
 mouse_info      	minfo	str	Mi	-----	Mouse status information
 req_mouse_pos   	reqmp	str	RQ	-----	Request mouse position
@@ -711,7 +711,7 @@ set0_des_seq    	s0ds	str	s0	-----	Shift to code set 0 (EUC set 0, ASCII)
 set1_des_seq    	s1ds	str	s1	-----	Shift to code set 1
 set2_des_seq    	s2ds	str	s2	-----	Shift to code set 2
 set3_des_seq    	s3ds	str	s3	-----	Shift to code set 3
-set_lr_margin   	smglr	str	ML	-----	Set both left and right margins to #1, #2
+set_lr_margin   	smglr	str	ML	-----	Set both left and right margins to #1, #2.  (ML is not in BSD termcap).
 set_tb_margin   	smgtb	str	MT	-----	Sets both top and bottom margins to #1, #2
 bit_image_repeat	birep	str	Xy	-----	Repeat bit image cell #1 #2 times
 bit_image_newline	binel	str	Zz	-----	Move to next row of the bit image
@@ -1122,62 +1122,10 @@ box_chars_1    	box1	str	bx	----K	box characters primary set
 #key_sf8        	ksf8	str	S8	----K	special function key 8
 #key_sf9        	ksf9	str	S9	----K	special function key 9
 #key_sf10        	ksf10	str	SA	----K	special function key 10
+# AIX version 3 documents different codes for F11, F12 and does not mention
+# F13-F64.  AIX version 4 uses the same naming for F0-F63 as above.
 #key_f11        	kf11	str	k<	-----	function key 11
 #key_f12        	kf12	str	k>	-----	function key 12
-# The key_f13 through key_f64 capabilities aren't described in
-# the IBM manual pages, so the cap name strings are guesses.  The terminfo
-# names are almost certainly right, the termcap ones certainly wrong.
-#key_f13        	kf13	str	k+	-----	function key 13
-#key_f14        	kf14	str	k+	-----	function key 14
-#key_f15        	kf15	str	k+	-----	function key 15
-#key_f16        	kf16	str	k+	-----	function key 16
-#key_f17        	kf17	str	k+	-----	function key 17
-#key_f18        	kf18	str	k+	-----	function key 18
-#key_f19        	kf19	str	k+	-----	function key 19
-#key_f20        	kf20	str	k+	-----	function key 20
-#key_f21        	kf21	str	k+	-----	function key 21
-#key_f22        	kf22	str	k+	-----	function key 22
-#key_f23        	kf23	str	k+	-----	function key 23
-#key_f24        	kf24	str	k+	-----	function key 24
-#key_f25        	kf25	str	k+	-----	function key 25
-#key_f26        	kf26	str	k+	-----	function key 26
-#key_f27        	kf26	str	k+	-----	function key 26
-#key_f28        	kf28	str	k+	-----	function key 28
-#key_f29        	kf29	str	k+	-----	function key 29
-#key_f30        	kf30	str	k+	-----	function key 30
-#key_f31        	kf31	str	k+	-----	function key 31
-#key_f32        	kf31	str	k+	-----	function key 32
-#key_f33        	kf33	str	k+	-----	function key 33
-#key_f34        	kf34	str	k+	-----	function key 34
-#key_f35        	kf35	str	k+	-----	function key 35
-#key_f36        	kf36	str	k+	-----	function key 36
-#key_f37        	kf37	str	k+	-----	function key 37
-#key_f38        	kf38	str	k+	-----	function key 38
-#key_f39        	kf39	str	k+	-----	function key 39
-#key_f40        	kf40	str	k+	-----	function key 40
-#key_f41        	kf41	str	k+	-----	function key 41
-#key_f42        	kf42	str	k+	-----	function key 42
-#key_f43        	kf43	str	k+	-----	function key 43
-#key_f44        	kf44	str	k+	-----	function key 44
-#key_f45        	kf45	str	k+	-----	function key 45
-#key_f46        	kf46	str	k+	-----	function key 46
-#key_f47        	kf47	str	k+	-----	function key 47
-#key_f48        	kf48	str	k+	-----	function key 48
-#key_f49        	kf49	str	k+	-----	function key 49
-#key_f50        	kf50	str	k+	-----	function key 50
-#key_f51        	kf51	str	k+	-----	function key 51
-#key_f52        	kf52	str	k+	-----	function key 52
-#key_f53        	kf53	str	k+	-----	function key 53
-#key_f54        	kf54	str	k+	-----	function key 54
-#key_f55        	kf55	str	k+	-----	function key 55
-#key_f56        	kf56	str	k+	-----	function key 56
-#key_f57        	kf57	str	k+	-----	function key 57
-#key_f58        	kf58	str	k+	-----	function key 58
-#key_f59        	kf59	str	k+	-----	function key 59
-#key_f60        	kf60	str	k+	-----	function key 60
-#key_f61        	kf61	str	k+	-----	function key 61
-#key_f62        	kf62	str	k+	-----	function key 62
-#key_f63        	kf63	str	k+	-----	function key 63
 # Undocumented capabilities end here.
 #key_action     	kact	str	kJ	----K	sent by action key
 # The IBM docs say these capabilities are for table-drawing, and are

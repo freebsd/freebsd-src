@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,6 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
-
 
 /******************************************************************************
 
@@ -146,13 +145,14 @@ AUTHOR
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: hardscroll.c,v 1.33 1999/02/27 20:01:29 tom Exp $")
+MODULE_ID("$Id: hardscroll.c,v 1.36 2001/01/14 00:17:28 tom Exp $")
 
 #if defined(SCROLLDEBUG) || defined(HASHDEBUG)
 
 # undef screen_lines
 # define screen_lines MAXLINES
-int oldnums[MAXLINES];
+NCURSES_EXPORT_VAR(int)
+oldnums[MAXLINES];
 # define OLDNUM(n)	oldnums[n]
 # define _tracef	printf
 # undef TR
@@ -163,19 +163,21 @@ int oldnums[MAXLINES];
 /* OLDNUM(n) indicates which line will be shifted to the position n.
    if OLDNUM(n) == _NEWINDEX, then the line n in new, not shifted from
    somewhere. */
+NCURSES_EXPORT_VAR(int *)
+_nc_oldnums = 0;
+
 # if USE_HASHMAP
-int *_nc_oldnums = 0;
-static int oldnums_allocated = 0;
+     static int oldnums_allocated = 0;
 #  define oldnums       _nc_oldnums
 #  define OLDNUM(n)	oldnums[n]
-# else /* !USE_HASHMAP */
+# else				/* !USE_HASHMAP */
 #  define OLDNUM(n)	newscr->_line[n].oldindex
-# endif /* !USE_HASHMAP */
+# endif				/* !USE_HASHMAP */
 
 #endif /* defined(SCROLLDEBUG) || defined(HASHDEBUG) */
 
-
-void _nc_scroll_optimize(void)
+NCURSES_EXPORT(void)
+_nc_scroll_optimize(void)
 /* scroll optimization to transform curscr to newscr */
 {
     int i;
@@ -186,8 +188,7 @@ void _nc_scroll_optimize(void)
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
 #if USE_HASHMAP
     /* get enough storage */
-    if (oldnums_allocated < screen_lines)
-    {
+    if (oldnums_allocated < screen_lines) {
 	int *new_oldnums = typeRealloc(int, screen_lines, oldnums);
 	if (!new_oldnums)
 	    return;
@@ -205,25 +206,24 @@ void _nc_scroll_optimize(void)
 #endif /* TRACE */
 
     /* pass 1 - from top to bottom scrolling up */
-    for (i = 0; i < screen_lines; )
-    {
+    for (i = 0; i < screen_lines;) {
 	while (i < screen_lines && (OLDNUM(i) == _NEWINDEX || OLDNUM(i) <= i))
 	    i++;
 	if (i >= screen_lines)
 	    break;
 
-	shift = OLDNUM(i) - i; /* shift > 0 */
+	shift = OLDNUM(i) - i;	/* shift > 0 */
 	start = i;
 
 	i++;
-	while (i < screen_lines && OLDNUM(i) != _NEWINDEX && OLDNUM(i) - i == shift)
+	while (i < screen_lines && OLDNUM(i) != _NEWINDEX && OLDNUM(i) - i
+	       == shift)
 	    i++;
-	end = i-1 + shift;
+	end = i - 1 + shift;
 
 	TR(TRACE_UPDATE | TRACE_MOVE, ("scroll [%d, %d] by %d", start, end, shift));
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
-	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR)
-	{
+	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR) {
 	    TR(TRACE_UPDATE | TRACE_MOVE, ("unable to scroll"));
 	    continue;
 	}
@@ -231,25 +231,23 @@ void _nc_scroll_optimize(void)
     }
 
     /* pass 2 - from bottom to top scrolling down */
-    for (i = screen_lines-1; i >= 0; )
-    {
+    for (i = screen_lines - 1; i >= 0;) {
 	while (i >= 0 && (OLDNUM(i) == _NEWINDEX || OLDNUM(i) >= i))
 	    i--;
 	if (i < 0)
 	    break;
 
-	shift = OLDNUM(i) - i; /* shift < 0 */
+	shift = OLDNUM(i) - i;	/* shift < 0 */
 	end = i;
 
 	i--;
 	while (i >= 0 && OLDNUM(i) != _NEWINDEX && OLDNUM(i) - i == shift)
 	    i--;
-	start = i+1 - (-shift);
+	start = i + 1 - (-shift);
 
 	TR(TRACE_UPDATE | TRACE_MOVE, ("scroll [%d, %d] by %d", start, end, shift));
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
-	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR)
-	{
+	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR) {
 	    TR(TRACE_UPDATE | TRACE_MOVE, ("unable to scroll"));
 	    continue;
 	}
@@ -258,14 +256,15 @@ void _nc_scroll_optimize(void)
 }
 
 #if defined(TRACE) || defined(SCROLLDEBUG) || defined(HASHDEBUG)
-void _nc_linedump(void)
+NCURSES_EXPORT(void)
+_nc_linedump(void)
 /* dump the state of the real and virtual oldnum fields */
 {
     static size_t have;
     static char *buf;
 
-    int	n;
-    size_t	want = (screen_lines + 1) * 4;
+    int n;
+    size_t want = (screen_lines + 1) * 4;
 
     if (have < want)
 	buf = typeMalloc(char, have = want);
@@ -284,28 +283,26 @@ void _nc_linedump(void)
 #ifdef SCROLLDEBUG
 
 int
-main(int argc GCC_UNUSED, char *argv[] GCC_UNUSED)
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
 {
-    char	line[BUFSIZ], *st;
+    char line[BUFSIZ], *st;
 
 #ifdef TRACE
     _nc_tracing = TRACE_MOVE;
 #endif
-    for (;;)
-    {
-	int	n;
+    for (;;) {
+	int n;
 
 	for (n = 0; n < screen_lines; n++)
 	    oldnums[n] = _NEWINDEX;
 
 	/* grab the test vector */
-	if (fgets(line, sizeof(line), stdin) == (char *)NULL)
+	if (fgets(line, sizeof(line), stdin) == (char *) NULL)
 	    exit(EXIT_SUCCESS);
 
 	/* parse it */
 	n = 0;
-	if (line[0] == '#')
-	{
+	if (line[0] == '#') {
 	    (void) fputs(line, stderr);
 	    continue;
 	}
@@ -313,7 +310,7 @@ main(int argc GCC_UNUSED, char *argv[] GCC_UNUSED)
 	do {
 	    oldnums[n++] = atoi(st);
 	} while
-	    ((st = strtok((char *)NULL, " ")) != 0);
+	    ((st = strtok((char *) NULL, " ")) != 0);
 
 	/* display it */
 	(void) fputs("Initial input:\n", stderr);

@@ -58,9 +58,9 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.9 2000/04/29 23:42:56 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.11 2000/12/10 02:55:07 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 napms(int ms)
 {
     T((T_CALLED("napms(%d)"), ms));

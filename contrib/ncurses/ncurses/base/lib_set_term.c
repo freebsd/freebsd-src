@@ -43,9 +43,9 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.58 2000/10/04 22:05:48 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.61 2000/12/10 02:43:27 tom Exp $")
 
-SCREEN *
+NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN * screenp)
 {
     SCREEN *oldSP;
@@ -80,7 +80,7 @@ _nc_free_keytry(struct tries *kt)
 /*
  * Free the storage associated with the given SCREEN sp.
  */
-void
+NCURSES_EXPORT(void)
 delscreen(SCREEN * sp)
 {
     SCREEN **scan = &_nc_screen_chain;
@@ -95,9 +95,9 @@ delscreen(SCREEN * sp)
 	scan = &(*scan)->_next_screen;
     }
 
-    _nc_freewin(sp->_curscr);
-    _nc_freewin(sp->_newscr);
-    _nc_freewin(sp->_stdscr);
+    (void) _nc_freewin(sp->_curscr);
+    (void) _nc_freewin(sp->_newscr);
+    (void) _nc_freewin(sp->_stdscr);
     _nc_free_keytry(sp->_keytry);
     _nc_free_keytry(sp->_key_ok);
 
@@ -191,8 +191,9 @@ extract_fgbg(char *src, int *result)
 }
 #endif
 
-int
-_nc_setupscreen(short slines, short const scolumns, FILE * output)
+NCURSES_EXPORT(int)
+_nc_setupscreen
+(short slines, short const scolumns, FILE * output)
 /* OS-independent screen initializations */
 {
     int bottom_stolen = 0;
@@ -224,7 +225,7 @@ _nc_setupscreen(short slines, short const scolumns, FILE * output)
 #if NCURSES_NO_PADDING
     SP->_no_padding = getenv("NCURSES_NO_PADDING") != 0;
     TR(TRACE_CHARPUT | TRACE_MOVE, ("padding will%s be used",
-	    SP->_no_padding ? " not" : ""));
+				    SP->_no_padding ? " not" : ""));
 #endif
 
 #if NCURSES_EXT_FUNCS
@@ -295,12 +296,12 @@ _nc_setupscreen(short slines, short const scolumns, FILE * output)
     if (magic_cookie_glitch > 0) {
 
 	SP->_xmc_triggers = termattrs() & (
-	    A_ALTCHARSET |
-	    A_BLINK |
-	    A_BOLD |
-	    A_REVERSE |
-	    A_STANDOUT |
-	    A_UNDERLINE
+					      A_ALTCHARSET |
+					      A_BLINK |
+					      A_BOLD |
+					      A_REVERSE |
+					      A_STANDOUT |
+					      A_UNDERLINE
 	    );
 	SP->_xmc_suppress = SP->_xmc_triggers & (chtype) ~ (A_BOLD);
 
@@ -390,7 +391,7 @@ _nc_setupscreen(short slines, short const scolumns, FILE * output)
 /* The internal implementation interprets line as the number of
    lines to rip off from the top or bottom.
    */
-int
+NCURSES_EXPORT(int)
 _nc_ripoffline(int line, int (*init) (WINDOW *, int))
 {
     if (line == 0)
@@ -407,7 +408,7 @@ _nc_ripoffline(int line, int (*init) (WINDOW *, int))
     return (OK);
 }
 
-int
+NCURSES_EXPORT(int)
 ripoffline(int line, int (*init) (WINDOW *, int))
 {
     T((T_CALLED("ripoffline(%d,%p)"), line, init));

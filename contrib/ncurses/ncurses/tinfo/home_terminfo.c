@@ -37,13 +37,13 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: home_terminfo.c,v 1.3 2000/10/04 02:31:53 tom Exp $");
+MODULE_ID("$Id: home_terminfo.c,v 1.6 2000/12/10 02:55:07 tom Exp $")
 
 #define my_length (strlen(home) + sizeof(PRIVATE_INFO))
 
 /* ncurses extension...fall back on user's private directory */
 
-char *
+NCURSES_EXPORT(char *)
 _nc_home_terminfo(void)
 {
     char *home;

@@ -1,4 +1,4 @@
-# $Id: ncurses_defs,v 1.4 2000/10/08 01:04:00 tom Exp $
+# $Id: ncurses_defs,v 1.7 2001/04/07 22:53:10 tom Exp $
 ##############################################################################
 # Copyright (c) 2000 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -36,6 +36,7 @@ BSD_TPUTS
 CC_HAS_INLINE_FUNCS
 CC_HAS_PROTOS
 CPP_HAS_PARAM_INIT
+CPP_HAS_VSCAN_FUNC
 DECL_ERRNO
 ETIP_NEEDS_MATH_H
 GCC_NORETURN	/* nothing */
@@ -146,6 +147,8 @@ USE_RCS_IDS
 USE_SAFE_SPRINTF
 USE_SCROLL_HINTS
 USE_SIGWINCH
+USE_STDIO_VSCAN
+USE_STRSTREAM_VSCAN
 USE_SYMLINKS
 USE_WIDEC_SUPPORT
 USE_XMC_SUPPORT

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  ****************************************************************************/
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_current.c,v 1.4 1999/05/16 17:16:46 juergen Exp $")
+MODULE_ID("$Id: fld_current.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,7 +46,8 @@ MODULE_ID("$Id: fld_current.c,v 1.4 1999/05/16 17:16:46 juergen Exp $")
 |                    E_INVALID_FIELD   - current field can't be left
 |                    E_SYSTEM_ERROR    - system error
 +--------------------------------------------------------------------------*/
-int set_current_field(FORM  * form, FIELD * field)
+NCURSES_EXPORT(int)
+set_current_field (FORM  * form, FIELD * field)
 {
   int err = E_OK;
 
@@ -101,7 +102,8 @@ int set_current_field(FORM  * form, FIELD * field)
 |
 |   Return Values :  Pointer to the current field.
 +--------------------------------------------------------------------------*/
-FIELD *current_field(const FORM * form)
+NCURSES_EXPORT(FIELD *)
+current_field (const FORM * form)
 {
   return Normalize_Form(form)->current;
 }
@@ -116,7 +118,8 @@ FIELD *current_field(const FORM * form)
 |   Return Values :  >= 0   : field index
 |                    -1     : fieldpointer invalid or field not connected
 +--------------------------------------------------------------------------*/
-int field_index(const FIELD * field)
+NCURSES_EXPORT(int)
+field_index (const FIELD * field)
 {
   return ( (field && field->form) ? field->index : -1 );
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_format.c,v 1.9 1999/05/16 17:25:04 juergen Exp $")
+MODULE_ID("$Id: m_format.c,v 1.10 2000/12/10 02:16:48 tom Exp $")
 
 #define minimum(a,b) ((a)<(b) ? (a): (b))
 
@@ -55,7 +55,8 @@ MODULE_ID("$Id: m_format.c,v 1.9 1999/05/16 17:25:04 juergen Exp $")
 |                    E_NOT_CONNECTED        - there are no items connected
 |                    E_POSTED               - the menu is already posted
 +--------------------------------------------------------------------------*/
-int set_menu_format(MENU *menu, int rows, int cols)
+NCURSES_EXPORT(int)
+set_menu_format (MENU *menu, int rows, int cols)
 {
   int total_rows, total_cols;
   
@@ -114,7 +115,8 @@ int set_menu_format(MENU *menu, int rows, int cols)
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-void menu_format(const MENU *menu, int *rows, int *cols)
+NCURSES_EXPORT(void)
+menu_format (const MENU *menu, int *rows, int *cols)
 {
   if (rows)
     *rows = Normalize_Menu(menu)->frows;

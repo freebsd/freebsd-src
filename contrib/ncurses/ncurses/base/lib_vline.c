@@ -40,9 +40,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline.c,v 1.5 2000/04/29 21:14:11 tom Exp $")
+MODULE_ID("$Id: lib_vline.c,v 1.7 2000/12/10 02:43:28 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 wvline(WINDOW *win, chtype ch, int n)
 {
     int code = ERR;

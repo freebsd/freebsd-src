@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -152,7 +152,7 @@
 #include <term.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.72 2000/10/08 00:58:25 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.78 2001/04/14 22:26:14 tom Exp $")
 
 #define CURRENT_ROW	SP->_cursrow	/* phys cursor row */
 #define CURRENT_COLUMN	SP->_curscol	/* phys cursor column */
@@ -206,8 +206,9 @@ trace_normalized_cost(const char *capname, const char *cap, int affcnt)
 
 #endif
 
-int
-_nc_msec_cost(const char *const cap, int affcnt)
+NCURSES_EXPORT(int)
+_nc_msec_cost
+(const char *const cap, int affcnt)
 /* compute the cost of a given operation */
 {
     if (cap == 0)
@@ -222,11 +223,11 @@ _nc_msec_cost(const char *const cap, int affcnt)
 		float number = 0.0;
 
 		for (cp += 2; *cp != '>'; cp++) {
-		    if (isdigit(*cp))
+		    if (isdigit(CharOf(*cp)))
 			number = number * 10 + (*cp - '0');
 		    else if (*cp == '*')
 			number *= affcnt;
-		    else if (*cp == '.' && (*++cp != '>') && isdigit(*cp))
+		    else if (*cp == '.' && (*++cp != '>') && isdigit(CharOf(*cp)))
 			number += (*cp - '0') / 10.0;
 		}
 
@@ -262,7 +263,7 @@ reset_scroll_region(void)
     }
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_mvcur_resume(void)
 /* what to do at initialization time and after each shellout */
 {
@@ -292,7 +293,7 @@ _nc_mvcur_resume(void)
     }
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_mvcur_init(void)
 /* initialize the cost structure */
 {
@@ -406,7 +407,7 @@ _nc_mvcur_init(void)
     _nc_mvcur_resume();
 }
 
-void
+NCURSES_EXPORT(void)
 _nc_mvcur_wrap(void)
 /* wrap up cursor-addressing mode */
 {
@@ -569,6 +570,8 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 #endif /* USE_HARD_TABS */
 
 #if defined(REAL_ATTR) && defined(WANT_CHAR)
+		if (n <= 0 || n >= (int) check.s_size)
+		    ovw = FALSE;
 #if BSD_TPUTS
 		/*
 		 * If we're allowing BSD-style padding in tputs, don't generate
@@ -595,11 +598,18 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		if (ovw) {
 		    int i;
 
-		    for (i = 0; i < n; i++)
-			if ((WANT_CHAR(to_y, from_x + i) & A_ATTRIBUTES) != CURRENT_ATTR) {
+		    for (i = 0; i < n; i++) {
+			chtype ch = WANT_CHAR(to_y, from_x + i);
+			if ((ch & A_ATTRIBUTES) != CURRENT_ATTR
+#if USE_WIDEC_SUPPORT
+			    || (TextOf(ch) >= 0x80
+				&& SP->_outch == _nc_utf8_outch)
+#endif
+			    ) {
 			    ovw = FALSE;
 			    break;
 			}
+		    }
 		}
 		if (ovw) {
 		    int i;
@@ -826,8 +836,9 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 	return (ERR);
 }
 
-int
-mvcur(int yold, int xold, int ynew, int xnew)
+NCURSES_EXPORT(int)
+mvcur
+(int yold, int xold, int ynew, int xnew)
 /* optimized cursor move from (yold, xold) to (ynew, xnew) */
 {
     TR(TRACE_MOVE, ("mvcur(%d,%d,%d,%d) called", yold, xold, ynew, xnew));
@@ -881,7 +892,7 @@ mvcur(int yold, int xold, int ynew, int xnew)
 }
 
 #if defined(TRACE) || defined(NCURSES_TEST)
-int _nc_optimize_enable = OPTIMIZE_ALL;
+NCURSES_EXPORT_VAR(int) _nc_optimize_enable = OPTIMIZE_ALL;
 #endif
 
 #if defined(MAIN) || defined(NCURSES_TEST)
@@ -894,13 +905,15 @@ int _nc_optimize_enable = OPTIMIZE_ALL;
 #include <tic.h>
 #include <dump_entry.h>
 
-const char *_nc_progname = "mvcur";
+NCURSES_EXPORT_VAR(const char *)
+_nc_progname = "mvcur";
 
-static unsigned long xmits;
+     static unsigned long xmits;
 
 /* these override lib_tputs.c */
-int
-tputs(const char *string, int affcnt GCC_UNUSED, int (*outc) (int) GCC_UNUSED)
+NCURSES_EXPORT(int)
+tputs
+(const char *string, int affcnt GCC_UNUSED, int (*outc) (int) GCC_UNUSED)
 /* stub tputs() that dumps sequences in a visible form */
 {
     if (profiling)
@@ -910,24 +923,25 @@ tputs(const char *string, int affcnt GCC_UNUSED, int (*outc) (int) GCC_UNUSED)
     return (OK);
 }
 
-int
+NCURSES_EXPORT(int)
 putp(const char *string)
 {
     return (tputs(string, 1, _nc_outch));
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_outch(int ch)
 {
     putc(ch, stdout);
     return OK;
 }
 
-char PC = 0;			/* used by termcap library */
-short ospeed = 0;		/* used by termcap library */
-int _nc_nulls_sent = 0;		/* used by 'tack' program */
+NCURSES_EXPORT_VAR(char) PC = 0;	/* used by termcap library */
+NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;	/* used by termcap library */
+NCURSES_EXPORT_VAR(int)
+_nc_nulls_sent = 0;		/* used by 'tack' program */
 
-int
+NCURSES_EXPORT(int)
 delay_output(int ms GCC_UNUSED)
 {
     return OK;

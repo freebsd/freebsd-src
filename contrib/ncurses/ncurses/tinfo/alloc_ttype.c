@@ -43,7 +43,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: alloc_ttype.c,v 1.10 2000/08/12 21:56:24 tom Exp $")
+MODULE_ID("$Id: alloc_ttype.c,v 1.12 2000/12/10 02:55:07 tom Exp $")
 
 #if NCURSES_XNAMES
 /*
@@ -370,8 +370,9 @@ adjust_cancels(TERMTYPE * to, TERMTYPE * from)
     }
 }
 
-void
-_nc_align_termtype(TERMTYPE * to, TERMTYPE * from)
+NCURSES_EXPORT(void)
+_nc_align_termtype
+(TERMTYPE * to, TERMTYPE * from)
 {
     int na = NUM_EXT_NAMES(to);
     int nb = NUM_EXT_NAMES(from);
@@ -455,8 +456,9 @@ _nc_align_termtype(TERMTYPE * to, TERMTYPE * from)
 }
 #endif
 
-void
-_nc_copy_termtype(TERMTYPE * dst, TERMTYPE * src)
+NCURSES_EXPORT(void)
+_nc_copy_termtype
+(TERMTYPE * dst, TERMTYPE * src)
 {
     int i;
 

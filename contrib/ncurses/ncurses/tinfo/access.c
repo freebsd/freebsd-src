@@ -33,9 +33,9 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: access.c,v 1.4 2000/10/08 01:25:06 tom Exp $")
+MODULE_ID("$Id: access.c,v 1.7 2000/12/10 02:55:07 tom Exp $")
 
-char *
+NCURSES_EXPORT(char *)
 _nc_basename(char *path)
 {
     char *result = strrchr(path, '/');
@@ -50,7 +50,7 @@ _nc_basename(char *path)
     return result;
 }
 
-int
+NCURSES_EXPORT(int)
 _nc_access(const char *path, int mode)
 {
     if (access(path, mode) < 0) {
@@ -78,7 +78,7 @@ _nc_access(const char *path, int mode)
  * Returns true if we allow application to use environment variables that are
  * used for searching lists of directories, etc.
  */
-int
+NCURSES_EXPORT(int)
 _nc_env_access(void)
 {
 #if HAVE_ISSETUGID
@@ -86,9 +86,9 @@ _nc_env_access(void)
 	return FALSE;
 #elif HAVE_GETEUID && HAVE_GETEGID
     if (getuid() != geteuid()
-     || getgid() != getegid())
+	|| getgid() != getegid())
 	return FALSE;
 #endif
-    return getuid() != 0;	/* ...finally, disallow root */
+    return getuid() != 0 && geteuid() != 0;	/* ...finally, disallow root */
 }
 #endif

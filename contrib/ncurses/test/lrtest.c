@@ -1,12 +1,13 @@
 /*
  * Test lower-right-hand corner access
  *
- * by Eric S. Raymond <esr@thyrsus.com>
+ * originally by Eric S. Raymond <esr@thyrsus.com>, written for animation
+ * and resizing -TD
  *
  * This can't be part of the ncurses test-program, because ncurses rips off the
  * bottom line to do labels.
  *
- * $Id: lrtest.c,v 0.14 1999/10/23 19:44:35 tom Exp $
+ * $Id: lrtest.c,v 0.15 2000/12/31 02:09:42 tom Exp $
  */
 
 #include <test.priv.h>
@@ -56,8 +57,8 @@ show(MARK * m)
 
 int
 main(
-    int argc GCC_UNUSED,
-    char *argv[]GCC_UNUSED)
+	int argc GCC_UNUSED,
+	char *argv[]GCC_UNUSED)
 {
     static MARK marks[] =
     {
@@ -83,8 +84,8 @@ main(
     move(LINES / 2 - 1, 4);
     if (!(has_ic()
     /* see PutCharLR() */
-	    || auto_right_margin
-	    || (enter_am_mode && exit_am_mode))) {
+	  || auto_right_margin
+	  || (enter_am_mode && exit_am_mode))) {
 	addstr("Your terminal lacks the capabilities needed to address the\n");
 	move(LINES / 2, 4);
 	addstr("lower-right-hand corner of the screen.\n");
@@ -103,7 +104,7 @@ main(
 	unsigned n;
 
 	box(stdscr, 0, 0);
-	for (n = 0; n < sizeof(marks) / sizeof(marks[0]); n++) {
+	for (n = 0; n < SIZEOF(marks); n++) {
 	    show(&marks[n]);
 	}
 
@@ -116,12 +117,24 @@ main(
 		nodelay(stdscr, TRUE);
 #ifdef KEY_RESIZE
 	    else if (ch == KEY_RESIZE) {
+		for (n = 0; n < SIZEOF(marks); n++) {
+		    if (marks[n].mode == 0) {	/* moving along x-direction */
+			if (marks[n].y)
+			    marks[n].y = LINES - 1;
+		    } else {
+			if (marks[n].x)
+			    marks[n].x = COLS - 1;
+		    }
+		}
+		flash();
 		erase();
+		wrefresh(curscr);
 		goto restart;
 	    }
 #endif
 	}
 	napms(50);
+	refresh();
     }
 
     curs_set(1);

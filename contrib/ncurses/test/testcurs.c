@@ -7,7 +7,7 @@
  *  wrs(5/28/93) -- modified to be consistent (perform identically) with either
  *                  PDCurses or under Unix System V, R4
  *
- * $Id: testcurs.c,v 1.22 2000/06/17 23:23:34 tom Exp $
+ * $Id: testcurs.c,v 1.24 2001/02/24 22:13:23 tom Exp $
  */
 
 #include <test.priv.h>
@@ -45,7 +45,7 @@ const COMMAND command[] =
     {"Input Test", inputTest},
     {"Output Test", outputTest}
 };
-#define MAX_OPTIONS ((sizeof(command)/sizeof(command[0])))
+#define MAX_OPTIONS SIZEOF(command)
 
 int width, height;
 
@@ -197,11 +197,11 @@ scrollTest(WINDOW *win)
 {
     int i;
     int half;
-    int OldX, OldY;
+    int OldY;
     NCURSES_CONST char *Message = "The window will now scroll slowly";
 
     wclear(win);
-    getmaxyx(win, OldY, OldX);
+    OldY = getmaxy(win);
     half = OldY / 2;
     mvwprintw(win, OldY - 2, 1, Message);
     wrefresh(win);

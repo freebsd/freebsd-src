@@ -104,11 +104,11 @@ dline(int pair, int from_x, int from_y, int x2, int y2, char ch)
 
 int
 main(
-    int argc GCC_UNUSED,
-    char *argv[]GCC_UNUSED)
+	int argc GCC_UNUSED,
+	char *argv[]GCC_UNUSED)
 {
     int i, cx, cy;
-    double mradius, hradius, mangle, hangle;
+    double cr, mradius, hradius, mangle, hangle;
     double sangle, sradius, hours;
     int hdx, hdy;
     int mdx, mdy;
@@ -142,14 +142,16 @@ main(
 #endif
     cx = (COLS - 1) / 2;	/* 39 */
     cy = LINES / 2;		/* 12 */
-    ch = (cx > cy) ? cy : cx;	/* usually cy */
-    mradius = (3 * cy) / 4;	/* 9 */
-    hradius = cy / 2;		/* 6 */
-    sradius = (2 * cy) / 3;	/* 8 */
+    if (cx / ASPECT < cy)
+	cr = cx / ASPECT;
+    else
+	cr = cy;
+    sradius = (5 * cr) / 6;	/* 10 */
+    mradius = (3 * cr) / 4;	/* 9 */
+    hradius = cr / 2;		/* 6 */
 
     for (i = 0; i < 12; i++) {
 	sangle = (i + 1) * (2.0 * PI) / 12.0;
-	sradius = (5 * cy) / 6;	/* 10 */
 	sdx = A2X(sangle, sradius);
 	sdy = A2Y(sangle, sradius);
 	sprintf(szChar, "%d", i + 1);
@@ -159,9 +161,9 @@ main(
 
     mvaddstr(0, 0, "ASCII Clock by Howard Jones (ha.jones@ic.ac.uk),1994");
 
-    sradius = 8;
+    sradius = (4 * sradius) / 5;
     for (;;) {
-	napms(1000);
+	napms(100);
 
 	tim = time(0);
 	t = localtime(&tim);
@@ -199,7 +201,7 @@ main(
 	mvaddstr(LINES - 2, 0, ctime(&tim));
 	refresh();
 	if ((t->tm_sec % 5) == 0
-	 && t->tm_sec != lastbeep) {
+	    && t->tm_sec != lastbeep) {
 	    lastbeep = t->tm_sec;
 	    beep();
 	}
@@ -207,7 +209,9 @@ main(
 	if ((ch = getch()) != ERR) {
 #ifdef KEY_RESIZE
 	    if (ch == KEY_RESIZE) {
+		flash();
 		erase();
+		wrefresh(curscr);
 		goto restart;
 	    }
 #endif

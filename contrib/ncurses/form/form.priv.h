@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -110,19 +110,19 @@ typedef struct typearg {
 #define C_BLANK ' '
 #define is_blank(c) ((c)==C_BLANK)
 
-extern const FIELDTYPE* _nc_Default_FieldType;
+extern NCURSES_EXPORT_VAR(const FIELDTYPE *) _nc_Default_FieldType;
 
-extern TypeArgument* _nc_Make_Argument(const FIELDTYPE*,va_list*,int*);
-extern TypeArgument *_nc_Copy_Argument(const FIELDTYPE*,const TypeArgument*, int*);
-extern void _nc_Free_Argument(const FIELDTYPE*,TypeArgument*);
-extern bool _nc_Copy_Type(FIELD*, FIELD const *);
-extern void _nc_Free_Type(FIELD *);
+extern NCURSES_EXPORT(TypeArgument *) _nc_Make_Argument (const FIELDTYPE*,va_list*,int*);
+extern NCURSES_EXPORT(TypeArgument *) _nc_Copy_Argument (const FIELDTYPE*,const TypeArgument*, int*);
+extern NCURSES_EXPORT(void) _nc_Free_Argument (const FIELDTYPE*,TypeArgument*);
+extern NCURSES_EXPORT(bool) _nc_Copy_Type (FIELD*, FIELD const *);
+extern NCURSES_EXPORT(void) _nc_Free_Type (FIELD *);
 
-extern int _nc_Synchronize_Attributes(FIELD*);
-extern int _nc_Synchronize_Options(FIELD*,Field_Options);
-extern int _nc_Set_Form_Page(FORM*,int,FIELD*);
-extern int _nc_Refresh_Current_Field(FORM*);
-extern FIELD* _nc_First_Active_Field(FORM*);
-extern bool _nc_Internal_Validation(FORM*);
-extern int _nc_Set_Current_Field(FORM*,FIELD*);
-extern int _nc_Position_Form_Cursor(FORM*);
+extern NCURSES_EXPORT(int) _nc_Synchronize_Attributes (FIELD*);
+extern NCURSES_EXPORT(int) _nc_Synchronize_Options (FIELD*,Field_Options);
+extern NCURSES_EXPORT(int) _nc_Set_Form_Page (FORM*,int,FIELD*);
+extern NCURSES_EXPORT(int) _nc_Refresh_Current_Field (FORM*);
+extern NCURSES_EXPORT(FIELD *) _nc_First_Active_Field (FORM*);
+extern NCURSES_EXPORT(bool) _nc_Internal_Validation (FORM*);
+extern NCURSES_EXPORT(int) _nc_Set_Current_Field (FORM*,FIELD*);
+extern NCURSES_EXPORT(int) _nc_Position_Form_Cursor (FORM*);

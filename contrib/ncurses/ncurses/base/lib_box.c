@@ -40,26 +40,27 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box.c,v 1.11 2000/04/29 21:12:37 tom Exp $")
+MODULE_ID("$Id: lib_box.c,v 1.13 2000/12/10 02:43:26 tom Exp $")
 
-int
-wborder(WINDOW *win,
-    chtype ls, chtype rs, chtype ts, chtype bs,
-    chtype tl, chtype tr, chtype bl, chtype br)
+NCURSES_EXPORT(int)
+wborder
+(WINDOW *win,
+ chtype ls, chtype rs, chtype ts, chtype bs,
+ chtype tl, chtype tr, chtype bl, chtype br)
 {
     NCURSES_SIZE_T i;
     NCURSES_SIZE_T endx, endy;
 
     T((T_CALLED("wborder(%p,%s,%s,%s,%s,%s,%s,%s,%s)"),
-	    win,
-	    _tracechtype2(1, ls),
-	    _tracechtype2(2, rs),
-	    _tracechtype2(3, ts),
-	    _tracechtype2(4, bs),
-	    _tracechtype2(5, tl),
-	    _tracechtype2(6, tr),
-	    _tracechtype2(7, bl),
-	    _tracechtype2(8, br)));
+       win,
+       _tracechtype2(1, ls),
+       _tracechtype2(2, rs),
+       _tracechtype2(3, ts),
+       _tracechtype2(4, bs),
+       _tracechtype2(5, tl),
+       _tracechtype2(6, tr),
+       _tracechtype2(7, bl),
+       _tracechtype2(8, br)));
 
     if (!win)
 	returnCode(ERR);
@@ -91,7 +92,7 @@ wborder(WINDOW *win,
     br = _nc_render(win, br);
 
     T(("using %#lx, %#lx, %#lx, %#lx, %#lx, %#lx, %#lx, %#lx",
-	    ls, rs, ts, bs, tl, tr, bl, br));
+       ls, rs, ts, bs, tl, tr, bl, br));
 
     endx = win->_maxx;
     endy = win->_maxy;

@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.44 2000/10/08 01:39:26 tom Exp $
+.\" $Id: ncurses.3x,v 1.46 2000/11/25 21:58:45 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ds n 5
@@ -699,14 +699,14 @@ ncurses library, e.g.,
 .TP 5
 TERMINFO_DIRS
 Specifies a list of directories to search for terminal descriptions.
-The list is separated by colons (i.e., ":").
+The list is separated by colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
 All of the terminal descriptions are in terminfo form, which makes
 a subdirectory named for the first letter of the terminal names therein.
 .TP 5
 TERMPATH
 If TERMCAP does not hold a file name then \fBncurses\fR checks
 the TERMPATH symbol.
-This is a list of filenames separated by colons (i.e., ":").
+This is a list of filenames separated by spaces or colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
 If the TERMPATH symbol is not set, \fBncurses\fR looks in the files
 /etc/termcap, /usr/share/misc/termcap and $HOME/.termcap, in that order.
 .PP

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_type.c,v 1.9 1999/05/16 17:19:59 juergen Exp $")
+MODULE_ID("$Id: fld_type.c,v 1.10 2000/12/10 02:09:38 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -45,7 +45,8 @@ MODULE_ID("$Id: fld_type.c,v 1.9 1999/05/16 17:19:59 juergen Exp $")
 |   Return Values :  E_OK           - success
 |                    E_SYSTEM_ERROR - system error
 +--------------------------------------------------------------------------*/
-int set_field_type(FIELD *field,FIELDTYPE *type, ...)
+NCURSES_EXPORT(int)
+set_field_type (FIELD *field,FIELDTYPE *type, ...)
 {
   va_list ap;
   int res = E_SYSTEM_ERROR;
@@ -84,7 +85,8 @@ int set_field_type(FIELD *field,FIELDTYPE *type, ...)
 |
 |   Return Values :  Pointer to fieldtype of NULL if none is defined.
 +--------------------------------------------------------------------------*/
-FIELDTYPE *field_type(const FIELD * field)
+NCURSES_EXPORT(FIELDTYPE *)
+field_type (const FIELD * field)
 {
   return Normalize_Field(field)->type;
 }

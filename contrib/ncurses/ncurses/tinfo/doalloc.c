@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,6 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
  ****************************************************************************/
 
-
 /*
  * Wrapper for malloc/realloc.  Standard implementations allow realloc with
  * a null pointer, but older libraries may not (e.g., SunOS).
@@ -40,31 +39,33 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: doalloc.c,v 1.5 1999/03/14 12:25:27 tom Exp $")
+MODULE_ID("$Id: doalloc.c,v 1.7 2000/12/10 02:55:07 tom Exp $")
 
-void *_nc_doalloc(void *oldp, size_t amount)
+NCURSES_EXPORT(void *)
+_nc_doalloc(void *oldp, size_t amount)
 {
-	void *newp;
+    void *newp;
 
-	if (oldp != 0) {
-		if ((newp = realloc(oldp, amount)) == 0) {
-			free(oldp);
-			errno = ENOMEM;		/* just in case 'free' reset */
-		}
-	} else {
-		newp = typeMalloc(char, amount);
+    if (oldp != 0) {
+	if ((newp = realloc(oldp, amount)) == 0) {
+	    free(oldp);
+	    errno = ENOMEM;	/* just in case 'free' reset */
 	}
-	return newp;
+    } else {
+	newp = typeMalloc(char, amount);
+    }
+    return newp;
 }
 
 #if !HAVE_STRDUP
-char *_nc_strdup(const char *src)
+NCURSES_EXPORT(char *)
+_nc_strdup(const char *src)
 {
     char *dst;
     if (src != 0) {
 	dst = typeMalloc(char, strlen(src) + 1);
 	if (dst != 0) {
-	    (void)strcpy(dst, src);
+	    (void) strcpy(dst, src);
 	}
     } else {
 	dst = 0;

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,17 +40,20 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.14 1999/01/31 01:34:33 Ilya.Zakharevich Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.16 2000/12/10 02:55:07 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
  * constructing a dll (reported by J.J.G.Ripoll).
  */
-WINDOW *stdscr = 0;
-WINDOW *curscr = 0;
-WINDOW *newscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *)
+stdscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *)
+curscr = 0;
+NCURSES_EXPORT_VAR(WINDOW *)
+newscr = 0;
 
-SCREEN *_nc_screen_chain = 0;
+NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain = 0;
 
 /*
  * The variable 'SP' will be defined as a function on systems that cannot link
@@ -63,22 +66,26 @@ SCREEN *_nc_screen_chain = 0;
  * module coupling that increases the size of the executable.
  */
 #if BROKEN_LINKER
-static	SCREEN *my_screen;
+     static SCREEN *my_screen;
 
-SCREEN *_nc_screen(void)
+NCURSES_EXPORT(SCREEN *)
+_nc_screen(void)
 {
-	return my_screen;
+    return my_screen;
 }
 
-int _nc_alloc_screen(void)
+NCURSES_EXPORT(int)
+_nc_alloc_screen(void)
 {
-	return ((my_screen = typeCalloc(SCREEN, 1)) != 0);
+    return ((my_screen = typeCalloc(SCREEN, 1)) != 0);
 }
 
-void _nc_set_screen(SCREEN *sp)
+NCURSES_EXPORT(void)
+_nc_set_screen(SCREEN * sp)
 {
-	my_screen = sp;
+    my_screen = sp;
 }
+
 #else
-SCREEN *SP = NULL;		/* Some linkers require initialized data... */
+NCURSES_EXPORT_VAR(SCREEN *) SP = NULL;		/* Some linkers require initialized data... */
 #endif

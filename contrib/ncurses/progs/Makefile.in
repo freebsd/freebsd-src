@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.49 2000/09/30 23:08:58 tom Exp $
+# $Id: Makefile.in,v 1.52 2001/03/24 19:53:31 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.           #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -59,6 +59,8 @@ libdir		= @libdir@
 includedir	= @includedir@
 datadir		= @datadir@
 
+LIBTOOL		= @LIBTOOL@
+
 INSTALL		= @INSTALL@
 INSTALL_PROGRAM	= @INSTALL_PROGRAM@
 transform	= @program_transform_name@
@@ -76,6 +78,7 @@ CPPFLAGS	= -I../progs -I$(srcdir) @CPPFLAGS@ \
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
+CFLAGS_LIBTOOL	= $(CCFLAGS)
 CFLAGS_NORMAL	= $(CCFLAGS)
 CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
 CFLAGS_PROFILE	= $(CCFLAGS) -pg
@@ -84,10 +87,11 @@ CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
 LD		= @LD@
-LINK		= @LINK_PROGS@ $(CC)
+LINK		= @LINK_PROGS@ $(LIBTOOL) $(CC)
 LDFLAGS		= @EXTRA_LDFLAGS@ \
 		@PROG_ARGS@ @LDFLAGS@ @LD_MODEL@ @LIBS@ @EXTRA_LIBS@
 
+LDFLAGS_LIBTOOL	= $(LDFLAGS)
 LDFLAGS_NORMAL	= $(LDFLAGS)
 LDFLAGS_DEBUG	= $(LDFLAGS) @CC_G_OPT@
 LDFLAGS_PROFILE	= $(LDFLAGS) -pg
@@ -143,12 +147,12 @@ transform.h :
 	echo "#define PROG_INIT      \"$(actual_init)\""      >>$@
 
 install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
-	$(INSTALL_PROGRAM) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
-	$(INSTALL_PROGRAM) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
-	$(INSTALL_PROGRAM) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
-	$(INSTALL_PROGRAM) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
-	$(INSTALL_PROGRAM) tput$x    $(DESTDIR)$(bindir)/$(actual_tput)
-	$(INSTALL_PROGRAM) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
+	$(LIBTOOL) $(INSTALL_PROGRAM) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
+	$(LIBTOOL) $(INSTALL_PROGRAM) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
+	$(LIBTOOL) $(INSTALL_PROGRAM) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
+	$(LIBTOOL) $(INSTALL_PROGRAM) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
+	$(LIBTOOL) $(INSTALL_PROGRAM) tput$x    $(DESTDIR)$(bindir)/$(actual_tput)
+	$(LIBTOOL) $(INSTALL_PROGRAM) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
 	@echo "linking $(actual_captoinfo) to $(actual_tic)"
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
@@ -160,12 +164,12 @@ install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tset) $(actual_reset))
 
 uninstall.progs:
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_tic)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_toe)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_infocmp)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_clear)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_tput)
-	-@rm -f $(DESTDIR)$(bindir)/$(actual_tset)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tic)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_toe)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_infocmp)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_clear)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tput)
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/$(actual_tset)
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
@@ -231,12 +235,13 @@ tags:
 @MAKE_UPPER_TAGS@	etags *.[ch]
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.i *.ln *.atac trace
 	-rm -f $(TESTPROGS)
 
 clean :: mostlyclean
 	-rm -f $(AUTO_SRC)
 	-rm -f $(PROGS)
+	-rm -rf .libs
 
 distclean :: clean
 	-rm -f Makefile

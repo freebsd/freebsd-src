@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_new.c,v 1.11 1999/05/16 17:28:49 juergen Exp $")
+MODULE_ID("$Id: m_item_new.c,v 1.12 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -72,7 +72,8 @@ static bool Is_Printable_String(const char *s)
 |
 |   Return Values :  The item pointer or NULL if creation failed.
 +--------------------------------------------------------------------------*/
-ITEM *new_item(const char *name, const char *description)
+NCURSES_EXPORT(ITEM *)
+new_item (const char *name, const char *description)
 {
   ITEM *item;
   
@@ -120,7 +121,8 @@ ITEM *new_item(const char *name, const char *description)
 |                    E_BAD_ARGUMENT    - invalid value has been passed
 |                    E_CONNECTED       - item is still connected to a menu    
 +--------------------------------------------------------------------------*/
-int free_item(ITEM * item)
+NCURSES_EXPORT(int)
+free_item (ITEM * item)
 {
   if (!item)
     RETURN( E_BAD_ARGUMENT );
@@ -150,7 +152,8 @@ int free_item(ITEM * item)
 |                    E_BAD_ARGUMENT     - an invalid value has been passed
 |                    E_SYSTEM_ERROR     - no memory to store mark
 +--------------------------------------------------------------------------*/
-int set_menu_mark(MENU * menu, const char * mark)
+NCURSES_EXPORT(int)
+set_menu_mark (MENU * menu, const char * mark)
 {
   int l;
 
@@ -219,7 +222,8 @@ int set_menu_mark(MENU * menu, const char * mark)
 |
 |   Return Values :  The marker string pointer or NULL if no marker defined
 +--------------------------------------------------------------------------*/
-const char *menu_mark(const MENU * menu)
+NCURSES_EXPORT(const char *)
+menu_mark (const MENU * menu)
 {
   return Normalize_Menu( menu )->mark;
 }

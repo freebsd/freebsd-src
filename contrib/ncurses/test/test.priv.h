@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey <dickey@clark.net> 1996                        *
  ****************************************************************************/
-/* $Id: test.priv.h,v 1.19 2000/09/02 19:31:58 tom Exp $ */
+/* $Id: test.priv.h,v 1.20 2000/11/04 22:56:50 tom Exp $ */
 
 #if HAVE_CONFIG_H
 #include <ncurses_cfg.h>
@@ -86,6 +86,8 @@ extern int optind;
 #ifndef GCC_UNUSED
 #define GCC_UNUSED /* nothing */
 #endif
+
+#define CharOf(c)    ((unsigned char)(c))
 
 #define SIZEOF(table)	(sizeof(table)/sizeof(table[0]))
 

@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+dnl Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,14 +28,14 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
 dnl
-dnl $Id: configure.in,v 1.217 2000/10/08 01:02:43 tom Exp $
+dnl $Id: configure.in,v 1.233 2001/04/07 22:09:57 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://dickey.his.com/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20000819)
-AC_REVISION($Revision: 1.217 $)
+AC_REVISION($Revision: 1.233 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -61,19 +61,16 @@ AC_ARG_ENABLE(add-ons, dnl
 		[glibc_add_on=yes],
 		[glibc_add_on=])
 
-dnl We need to use [ and ] for other purposes for a while now.
-changequote(,)dnl
 if test x"$glibc_add_on" = "xyes" ; then
   rm -f $srcdir/Banner
   # We are in glibc.
   rm -f $srcdir/Makefile
   cp $srcdir/Makefile.glibc $srcdir/Makefile
-  echo "ncurses `grep \"^[ 	]*ncurses-version[ 	]*=.*$\" \
+  echo "ncurses `grep \"^[[ 	]]*ncurses-version[[ 	]]*=.*$\" \
 		$srcdir/Makefile | sed -e \
-		's/^[ 	]*ncurses-version[ 	]*=[ 	]*\([^	^ ]*\)[ 	]*$/\1/'`" > $srcdir/Banner
+		's/^[[ 	]]*ncurses-version[[ 	]]*=[[ 	]]*\([[^	^ ]]*\)[[ 	]]*$/\1/'`" > $srcdir/Banner
   exit 0
 fi
-changequote([,])dnl
 
 ###	Save the given $CFLAGS to allow user-override.
 cf_user_CFLAGS="$CFLAGS"
@@ -129,17 +126,15 @@ else
 	popdef([AC_MSG_ERROR])dnl
 fi
 
-changequote(,)dnl
 if test "$GXX" = yes; then
 	case "`${CXX-g++} --version`" in
-	1*|2.[0-6]*)
+	1*|2.[[0-6]]*)
 		GXX=""; CXX=""; ac_cv_prog_gxx=no
 		cf_cxx_library=no
 		echo No: templates do not work
 		;;
 	esac
 fi
-changequote([,])dnl
 
 AC_MSG_CHECKING(if you want to build C++ binding and demo)
 AC_ARG_WITH(cxx-binding,
@@ -161,6 +156,13 @@ AC_ARG_WITH(progs,
 	[cf_with_progs=$withval],
 	[cf_with_progs=yes])
 AC_MSG_RESULT($cf_with_progs)
+
+AC_MSG_CHECKING(if you wish to install curses.h)
+AC_ARG_WITH(curses-h,
+	[  --without-curses-h      install curses.h as ncurses.h only],
+	[with_curses_h=$withval],
+	[with_curses_h=yes])
+AC_MSG_RESULT($with_curses_h)
 
 modules_to_build="ncurses"
 if test "X$cf_with_progs" != Xno ; then
@@ -212,6 +214,20 @@ CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
 cf_list_models=""
 AC_SUBST(cf_list_models)dnl	the complete list of models ("normal debug")
 
+AC_MSG_CHECKING(if you want to build libraries with libtool)
+AC_ARG_WITH(libtool,
+	[  --with-libtool          generate libraries with libtool],
+	[with_libtool=$withval],
+	[with_libtool=no])
+AC_MSG_RESULT($with_libtool)
+if test "$with_libtool" = "yes"; then
+	cf_list_models="$cf_list_models libtool"
+	test -z "$LIBTOOL" && LIBTOOL=libtool
+else
+	LIBTOOL=""
+fi
+AC_SUBST(LIBTOOL)
+
 AC_MSG_CHECKING(if you want to build shared libraries)
 AC_ARG_WITH(shared,
 	[  --with-shared           generate shared-libraries],
@@ -248,6 +264,9 @@ test "$with_profile" = "yes" && cf_list_models="$cf_list_models profile"
 
 AC_MSG_CHECKING(for specified models)
 test -z "$cf_list_models" && cf_list_models=normal
+dnl If we use libtool to generate libraries, then it must be the only
+dnl specified model.
+test "$with_libtool" = "yes" && cf_list_models=libtool
 AC_MSG_RESULT($cf_list_models)
 
 ### Use the first model as the default, and save its suffix for use in building
@@ -337,6 +356,7 @@ AC_SUBST(CXX_G_OPT)
 
 AC_MSG_CHECKING(for default loader flags)
 case $DFT_LWR_MODEL in
+libtool) LD_MODEL=''   ;;
 normal)  LD_MODEL=''   ;;
 debug)   LD_MODEL=$CC_G_OPT ;;
 profile) LD_MODEL='-pg';;
@@ -369,7 +389,7 @@ AC_MSG_CHECKING(if you wish to install ncurses overwriting curses)
 AC_ARG_ENABLE(overwrite,
 	[  --disable-overwrite     leave out the link to -lcurses],
 	[with_overwrite=$enableval],
-	[with_overwrite=yes])
+	[if test "$prefix" != "/usr/local" ; then with_overwrite=yes; else with_overwrite=no; fi])
 AC_MSG_RESULT($with_overwrite)
 
 AC_MSG_CHECKING(if external terminfo-database is used)
@@ -532,6 +552,15 @@ AC_ARG_ENABLE(broken_linker,
 	[with_broken_linker=$BROKEN_LINKER])
 AC_MSG_RESULT($with_broken_linker)
 test "$with_broken_linker" = yes && AC_DEFINE(BROKEN_LINKER)
+
+###   use option --with-ospeed to override ospeed's type
+AC_MSG_CHECKING(for type of ospeed)
+AC_ARG_WITH(ospeed,
+	[  --with-ospeed=TYPE      override type of ospeed variable],
+	[NCURSES_OSPEED=$withval],
+	[NCURSES_OSPEED=short])
+AC_MSG_RESULT($NCURSES_OSPEED)
+AC_SUBST(NCURSES_OSPEED)
 
 ###   use option --enable-bsdpad to have tputs process BSD-style prefix padding
 AC_MSG_CHECKING(if tputs should process BSD-style prefix padding)
@@ -725,6 +754,7 @@ if test "$with_echo" = yes; then
 	ECHO_LINK=
 else
 	ECHO_LINK='@ echo linking $@ ... ;'
+	test -n "$LIBTOOL" && LIBTOOL="$LIBTOOL --silent"
 fi
 AC_MSG_RESULT($with_echo)
 AC_SUBST(ECHO_LINK)
@@ -734,11 +764,12 @@ AC_MSG_CHECKING(if you want to see compiler warnings)
 AC_ARG_ENABLE(warnings,
 	[  --enable-warnings       build: turn on GCC compiler warnings],
 	[with_warnings=$enableval])
+AC_MSG_RESULT($with_warnings)
+
 if test -n "$with_warnings"; then
  	ADAFLAGS="$ADAFLAGS -gnatg"
 	CF_GCC_WARNINGS
 fi
-AC_MSG_RESULT($with_warnings)
 CF_GCC_ATTRIBUTES
 
 ###	use option --enable-assertions to turn on generation of assertion code
@@ -889,12 +920,15 @@ CF_BOOL_DECL(cf_cv_cc_bool_type)
 if test -n "$CXX" ; then
 	AC_LANG_CPLUSPLUS
 	CF_STDCPP_LIBRARY
+
 	if test "$GXX" = yes; then
+		AC_MSG_CHECKING(version of ${CXX-g++})
+		eval "${CXX-g++} --version"
 		case "`${CXX-g++} --version`" in
 		1*|2.[0-6]*)
 			cf_cxx_library=yes
 			;;
-		2.7*)
+		*-2.7*|2.7*)
 			CF_GPP_LIBRARY
 			;;
 		*)
@@ -904,11 +938,15 @@ if test -n "$CXX" ; then
 	else
 		cf_cxx_library=no
 	fi
+
 	AC_CHECK_HEADERS(typeinfo)
+
 	CF_BOOL_DECL
 	CF_BOOL_SIZE
 	CF_ETIP_DEFINES
 	CF_CPP_PARAM_INIT
+	CF_CPP_VSCAN_FUNC
+
 	case $cf_cv_system_name in #(vi
 	sco3.2v5*)
 	    CXXLDFLAGS="-u main"
@@ -1032,11 +1070,14 @@ test "$with_ext_funcs" = yes && LIB_SUBSETS="${LIB_SUBSETS}+ext_funcs"
 AC_MSG_RESULT($LIB_SUBSETS)
 
 LIB_TRACING=DEBUG
-case "$CFLAGS" in
+ADA_TRACE=FALSE
+case "$CFLAGS $CPPFLAGS" in
 *-DTRACE*)
 	LIB_TRACING=all
+	ADA_TRACE=TRUE
 	;;
 esac
+AC_SUBST(ADA_TRACE)
 
 ### Construct the list of include-directories to be generated
 CF_INCLUDE_DIRS
@@ -1058,6 +1099,16 @@ CF_OBJ_SUBDIR($DFT_LWR_MODEL,DFT_OBJ_SUBDIR)dnl
 AC_SUBST(DFT_OBJ_SUBDIR)dnl the default object-directory ("obj")
 AC_MSG_RESULT($DFT_OBJ_SUBDIR)
 
+# libtool thinks it can make c++ shared libraries (perhaps only g++)
+AC_MSG_CHECKING(c++ library-dependency suffix)
+if test "$with_libtool" = "yes"; then
+	CXX_LIB_SUFFIX=$DFT_DEP_SUFFIX
+else
+	CF_LIB_SUFFIX(normal,CXX_LIB_SUFFIX)dnl we normally make a static library
+fi
+AC_MSG_RESULT($CXX_LIB_SUFFIX)
+AC_SUBST(CXX_LIB_SUFFIX)
+
 TINFO_LIST="$SHLIB_LIST"
 test "$with_termlib" = yes && SHLIB_LIST="$SHLIB_LIST -ltinfo${LIB_SUFFIX}"
 
@@ -1075,7 +1126,11 @@ AC_SUBST(SHLIB_LIST)
 ### could override this.
 if test "$with_termlib" = yes ; then
 	TEST_DEPS="${LIB_DIR}/${LIB_PREFIX}${TINFO_NAME}${DFT_DEP_SUFFIX}"
-	TEST_ARGS="-l${TINFO_NAME}${DFT_ARG_SUFFIX}"
+	if test "$DFT_LWR_MODEL" = "libtool"; then
+		TEST_ARGS="${TEST_DEPS}"
+	else
+		TEST_ARGS="-l${TINFO_NAME}${DFT_ARG_SUFFIX}"
+	fi
 fi
 PROG_DEPS="$TEST_DEPS"
 PROG_ARGS="$TEST_ARGS"
@@ -1085,6 +1140,8 @@ PROG_ARGS="$TEST_ARGS"
 
 CF_SRC_MODULES($modules_to_build)
 CF_DIRS_TO_MAKE
+
+AC_DEFINE_UNQUOTED(NCURSES_PATHSEP,'$PATHSEP')
 
 ### Now that we're done running tests, add the compiler-warnings, if any
 CFLAGS="$CFLAGS $EXTRA_CFLAGS"
@@ -1116,6 +1173,7 @@ TERMINFO="$TERMINFO"
 TINFO_NAME="$TINFO_NAME"
 WITH_ECHO="$with_echo"
 WITH_OVERWRITE="$with_overwrite"
+WITH_CURSES_H="$with_curses_h"
 cf_cv_abi_version="$cf_cv_abi_version"
 cf_cv_do_symlinks="$cf_cv_do_symlinks"
 cf_cv_rel_version="$cf_cv_rel_version"

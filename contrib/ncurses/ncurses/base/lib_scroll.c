@@ -42,11 +42,12 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scroll.c,v 1.17 2000/04/29 21:10:51 tom Exp $")
+MODULE_ID("$Id: lib_scroll.c,v 1.20 2000/12/10 02:54:03 tom Exp $")
 
-void
-_nc_scroll_window(WINDOW *win, int const n, NCURSES_SIZE_T const top,
-    NCURSES_SIZE_T const bottom, chtype blank)
+NCURSES_EXPORT(void)
+_nc_scroll_window
+(WINDOW *win, int const n, NCURSES_SIZE_T const top,
+ NCURSES_SIZE_T const bottom, chtype blank)
 {
     int line, j;
     size_t to_copy = (size_t) (sizeof(chtype) * (win->_maxx + 1));
@@ -68,10 +69,11 @@ _nc_scroll_window(WINDOW *win, int const n, NCURSES_SIZE_T const top,
     if (n < 0) {
 	for (line = bottom; line >= top - n; line--) {
 	    memcpy(win->_line[line].text,
-		win->_line[line + n].text,
-		to_copy);
-	    if_USE_SCROLL_HINTS(win->_line[line].oldindex = win->_line[line
-		    + n].oldindex);
+		   win->_line[line + n].text,
+		   to_copy);
+	    if_USE_SCROLL_HINTS(
+				   win->_line[line].oldindex =
+				   win->_line[line + n].oldindex);
 	}
 	for (line = top; line < top - n; line++) {
 	    for (j = 0; j <= win->_maxx; j++)
@@ -84,10 +86,10 @@ _nc_scroll_window(WINDOW *win, int const n, NCURSES_SIZE_T const top,
     if (n > 0) {
 	for (line = top; line <= bottom - n; line++) {
 	    memcpy(win->_line[line].text,
-		win->_line[line + n].text,
-		to_copy);
-	    if_USE_SCROLL_HINTS(win->_line[line].oldindex = win->_line[line
-		    + n].oldindex);
+		   win->_line[line + n].text,
+		   to_copy);
+	    if_USE_SCROLL_HINTS(win->_line[line].oldindex =
+				win->_line[line + n].oldindex);
 	}
 	for (line = bottom; line > bottom - n; line--) {
 	    for (j = 0; j <= win->_maxx; j++)
@@ -98,7 +100,7 @@ _nc_scroll_window(WINDOW *win, int const n, NCURSES_SIZE_T const top,
     touchline(win, top, bottom - top + 1);
 }
 
-int
+NCURSES_EXPORT(int)
 wscrl(WINDOW *win, int n)
 {
     T((T_CALLED("wscrl(%p,%d)"), win, n));

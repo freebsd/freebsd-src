@@ -30,8 +30,8 @@
  *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
  ****************************************************************************/
 
-#ifndef _ETI_ERRNO_H_
-#define _ETI_ERRNO_H_
+#ifndef NCURSES_ETI_H_incl
+#define NCURSES_ETI_H_incl 1
 
 #define	E_OK			(0)
 #define	E_SYSTEM_ERROR	 	(-1)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,17 +38,15 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkattr.c,v 1.3 1998/02/11 12:13:56 tom Exp $")
+MODULE_ID("$Id: lib_slkattr.c,v 1.5 2000/12/10 02:43:27 tom Exp $")
 
-attr_t
+NCURSES_EXPORT(attr_t)
 slk_attr(void)
 {
-  T((T_CALLED("slk_attr()")));
+    T((T_CALLED("slk_attr()")));
 
-  if (SP!=0 && SP->_slk!=0)
-    {
-      returnAttr(SP->_slk->attr);
-    }
-  else
-    returnAttr(0);
+    if (SP != 0 && SP->_slk != 0) {
+	returnAttr(SP->_slk->attr);
+    } else
+	returnAttr(0);
 }
