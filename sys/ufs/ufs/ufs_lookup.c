@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id: ufs_lookup.c,v 1.7 1995/10/22 09:32:45 davidg Exp $
+ * $Id: ufs_lookup.c,v 1.8 1995/11/06 03:21:41 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -778,7 +778,7 @@ ufs_direnter(ip, dvp, cnp)
 		bdwrite(bp);
 		error = 0;
 	} else {
-		error = VOP_BWRITE(bp);
+		error = bowrite(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
@@ -819,7 +819,7 @@ ufs_dirremove(dvp, cnp)
 		if (error)
 			return (error);
 		ep->d_ino = 0;
-		error = VOP_BWRITE(bp);
+		error = bowrite(bp);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (error);
 	}
@@ -835,7 +835,7 @@ ufs_dirremove(dvp, cnp)
 		bdwrite(bp);
 		error = 0;
 	} else {
-		error = VOP_BWRITE(bp);
+		error = bowrite(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
@@ -866,7 +866,7 @@ ufs_dirrewrite(dp, ip, cnp)
 		bdwrite(bp);
 		error = 0;
 	} else {
-		error = VOP_BWRITE(bp);
+		error = bowrite(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
