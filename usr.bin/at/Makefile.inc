@@ -1,4 +1,4 @@
-VERSION= 2.7a
+VERSION= 2.9
 LOCKFILE = .lockfile
 ATSPOOL_DIR=/var/at/spool
 ATJOB_DIR=/var/at/jobs

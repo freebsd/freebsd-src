@@ -1,4 +1,4 @@
-/*
+/* 
  *  atrun.c - run jobs queued by at; run with root privileges.
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
@@ -42,17 +42,15 @@
 #include <time.h>
 #include <unistd.h>
 #include <syslog.h>
-#ifndef __FreeBSD__
-#include <getopt.h>
-#else
+#ifdef __FreeBSD__
 #include <paths.h>
+#else
+#include <getopt.h>
 #endif
 
 /* Local headers */
 
-#ifndef __FreeBSD__
 #include "gloadavg.h"
-#endif
 #define MAIN
 #include "privs.h"
 
@@ -73,29 +71,19 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.3 1995/04/12 19:21:43 ache Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.5 1995/08/10 04:06:53 ache Exp $";
 static debug = 0;
 
+void perr(const char *a);
+
 /* Local functions */
-static void
-perr(const char *a)
-{
-    if (debug)
-    {
-	perror(a);
-    }
-    else
-	syslog(LOG_ERR, "%s: %m", a);
-
-    exit(EXIT_FAILURE);
-}
-
 static int
 write_string(int fd, const char* a)
 {
     return write(fd, a, strlen(a));
 }
 
+#undef DEBUG_FORK
 #ifdef DEBUG_FORK
 static pid_t
 myfork()
@@ -124,10 +112,12 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     char *mailname = NULL;
     FILE *stream;
     int send_mail = 0;
-    struct stat buf;
+    struct stat buf, lbuf;
     off_t size;
     struct passwd *pentry;
     int fflags;
+    long nuid;
+    long ngid;
 
 
     PRIV_START
@@ -142,8 +132,8 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid = fork();
     if (pid == -1)
 	perr("Cannot fork");
-
-    else if (pid > 0)
+    
+    else if (pid != 0)
 	return;
 
     /* Let's see who we mail to.  Hopefully, we can read it from
@@ -156,7 +146,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     {
 	syslog(LOG_ERR,"Userid %lu not found - aborting job %s",
 	       (unsigned long) uid, filename);
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     PRIV_START
 
@@ -170,32 +160,63 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     if ((fd_in = dup(fileno(stream))) <0)
 	perr("Error duplicating input file descriptor");
 
+    if (fstat(fd_in, &buf) == -1)
+	perr("Error in fstat of input file descriptor");
+
+    if (lstat(filename, &lbuf) == -1)
+	perr("Error in fstat of input file");
+
+    if (S_ISLNK(lbuf.st_mode)) {
+	syslog(LOG_ERR,"Symbolic link encountered in job %s - aborting",
+		filename);
+	exit(EXIT_FAILURE);
+    }
+    if ((lbuf.st_dev != buf.st_dev) || (lbuf.st_ino != buf.st_ino) ||
+        (lbuf.st_uid != buf.st_uid) || (lbuf.st_gid != buf.st_gid) ||
+        (lbuf.st_size!=buf.st_size)) {
+	syslog(LOG_ERR,"Somebody changed files from under us for job %s - "
+	"aborting",filename);
+	exit(EXIT_FAILURE);
+    }
+    if (buf.st_nlink > 1) {
+	syslog(LOG_ERR,"Someboy is trying to run a linked script for job %s",
+		filename);
+	exit(EXIT_FAILURE);
+    }
     if ((fflags = fcntl(fd_in, F_GETFD)) <0)
 	perr("Error in fcntl");
 
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
-    if (fscanf(stream, "#! /bin/sh\n# mail %8s %d", mailbuf, &send_mail) == 2)
+    if (fscanf(stream, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %8s %d",
+         &nuid, &ngid, mailbuf, &send_mail) != 4)
     {
-	mailname = mailbuf;
-	pentry = getpwnam(mailname);
-	if (pentry == NULL || pentry->pw_uid != uid) {
-		syslog(LOG_ERR,"Userid %lu mismatch name %s - aborting job %s",
-		       (unsigned long) uid, mailname, filename);
-		exit(EXIT_FAILURE);
-	}
+	syslog(LOG_ERR,"File %s is in wrong format - aborting",
+		filename);
+	exit(EXIT_FAILURE);
     }
-    else
-    {
-	mailname = pentry->pw_name;
+    if (mailbuf[0] == '-') {
+	syslog(LOG_ERR,"illegal mail name %s in %s",mailbuf,filename);
+	exit(EXIT_FAILURE);
+    }
+    mailname = mailbuf;
+    if (nuid != uid) {
+	syslog(LOG_ERR,"Job %s - userid %d does not match file uid %d",
+		filename, nuid, uid);
+	exit(EXIT_FAILURE);
+    }
+    if (ngid != gid) {
+	syslog(LOG_ERR,"Job %s - groupid %d does not match file gid %d",
+		filename, ngid, gid);
+	exit(EXIT_FAILURE);
     }
     fclose(stream);
     if (chdir(ATSPOOL_DIR) < 0)
 	perr("Cannot chdir to " ATSPOOL_DIR);
-
+    
     /* Create a file to hold the output of the job we are about to run.
      * Write the mail header.
-     */
+     */    
     if((fd_out=open(filename,
 		O_WRONLY | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR)) < 0)
 	perr("Cannot create output file");
@@ -209,7 +230,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-
+ 
     pid = fork();
     if (pid < 0)
 	perr("Error in fork");
@@ -245,8 +266,9 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	PRIV_START
 
         nice(tolower(queue) - 'a');
-
-	chdir(pentry->pw_dir);
+	
+	if (chdir(pentry->pw_dir))
+		chdir("/");
 
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
 	    perr("Cannot delete saved userids");
@@ -258,7 +280,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	    perr("Cannot set user id");
 
 	if(execle("/bin/sh","sh",(char *) NULL, nenvp) != 0)
-	    perr("Exec failed");
+	    perr("Exec failed for /bin/sh");
 
 	PRIV_END
     }
@@ -277,7 +299,21 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     unlink(filename);
     if ((buf.st_size != size) || send_mail)
-    {
+    {    
+	PRIV_START
+
+	if (chdir(pentry->pw_dir))
+		chdir("/");
+
+	if (initgroups(pentry->pw_name,pentry->pw_gid))
+	    perr("Cannot delete saved userids");
+
+	if (setgid(gid) < 0)
+	    perr("Cannot change group");
+
+	if (setuid(uid) < 0)
+	    perr("Cannot set user id");
+
 #ifdef __FreeBSD__
 	execl(_PATH_SENDMAIL, "sendmail", "-F", "Atrun Service",
 			"-odi", "-oem",
@@ -285,12 +321,28 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 #else
         execl(MAIL_CMD, MAIL_CMD, mailname, (char *) NULL);
 #endif
-	perr("Exec failed");
+	    perr("Exec failed for mail command");
+
+	PRIV_END
     }
     exit(EXIT_SUCCESS);
 }
 
 /* Global functions */
+
+/* Needed in gloadavg.c */
+void
+perr(const char *a)
+{
+    if (debug)
+    {
+	perror(a);
+    }
+    else
+	syslog(LOG_ERR, "%s: %m", a);
+
+    exit(EXIT_FAILURE);
+}
 
 int
 main(int argc, char *argv[])
@@ -309,6 +361,7 @@ main(int argc, char *argv[])
     struct dirent *dirent;
     struct stat buf;
     unsigned long ctm;
+    unsigned long jobno;
     char queue;
     time_t now, run_time;
     char batch_name[] = "Z2345678901234";
@@ -332,7 +385,7 @@ main(int argc, char *argv[])
     {
 	switch (c)
 	{
-	case 'l':
+	case 'l': 
 	    if (sscanf(optarg, "%lf", &load_avg) != 1)
 		perr("garbled option -l");
 	    if (load_avg <= 0.)
@@ -375,31 +428,28 @@ main(int argc, char *argv[])
     batch_uid = (uid_t) -1;
     batch_gid = (gid_t) -1;
 
-    while ((dirent = readdir(spool)) != NULL)
-    {
+    while ((dirent = readdir(spool)) != NULL) {
 	if (stat(dirent->d_name,&buf) != 0)
 	    perr("Cannot stat in " ATJOB_DIR);
 
 	/* We don't want directories
 	 */
-	if (!S_ISREG(buf.st_mode))
+	if (!S_ISREG(buf.st_mode)) 
 	    continue;
 
-	if (sscanf(dirent->d_name,"%c%8lx",&queue,&ctm) != 2)
+	if (sscanf(dirent->d_name,"%c%5lx%8lx",&queue,&jobno,&ctm) != 3)
 	    continue;
 
 	run_time = (time_t) ctm*60;
 
-	if ((S_IXUSR & buf.st_mode) && (run_time <=now))
-	{
-	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0))
-	    {
+	if ((S_IXUSR & buf.st_mode) && (run_time <=now)) {
+	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0)) {
 		run_batch = 1;
 		strncpy(batch_name, dirent->d_name, sizeof(batch_name));
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
 	    }
-
+	
 	/* The file is executable and old enough
 	 */
 	    if (islower(queue))
@@ -412,18 +462,8 @@ main(int argc, char *argv[])
     }
     /* run the single batch file, if any
     */
-#ifndef __FreeBSD__
-    if (run_batch && (gloadavg() < load_avg)) {
-#else
-    if (run_batch) {
-	double la;
-
-	if (getloadavg(&la, 1) != 1)
-	    perr("Error in getloadavg");
-	if (la < load_avg)
-#endif
-	    run_file(batch_name, batch_uid, batch_gid);
-    }
+    if (run_batch && (gloadavg() < load_avg))
+	run_file(batch_name, batch_uid, batch_gid);
 
     closelog();
     exit(EXIT_SUCCESS);

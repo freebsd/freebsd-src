@@ -1,4 +1,4 @@
-/*
+/* 
  *  parsetime.c - parse time for at(1)
  *  Copyright (C) 1993, 1994  Thomas Koenig
  *
@@ -17,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
@@ -56,7 +56,7 @@
 
 /* Structures and unions */
 
-enum tok {	/* symbols */
+enum {	/* symbols */
     MIDNIGHT, NOON, TEATIME,
     PM, AM, TOMORROW, TODAY, NOW,
     MINUTES, HOURS, DAYS, WEEKS,
@@ -69,8 +69,8 @@ enum tok {	/* symbols */
 /* parse translation table - table driven parsers can be your FRIEND!
  */
 struct {
-    const char *name; /* token name */
-    enum tok value; /* token id */
+    char *name;	/* token name */
+    int value;	/* token id */
     int plural;	/* is this plural? */
 } Specials[] = {
     { "midnight", MIDNIGHT,0 },	/* 00:00:00 of today or tomorrow */
@@ -127,18 +127,18 @@ static int need;	/* scanner - need to advance to next argument */
 
 static char *sc_token;	/* scanner - token buffer */
 static size_t sc_len;   /* scanner - lenght of token buffer */
-static enum tok sc_tokid; /* scanner - token id */
+static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.4 1995/05/30 06:29:25 rgrimes Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.1 1995/05/24 15:07:32 ig25 Exp $";
 
 /* Local functions */
 
 /*
  * parse a token, checking if it's something special to us
  */
-static enum tok
-parse_token(const char *arg)
+static int
+parse_token(char *arg)
 {
     int i;
 
@@ -163,8 +163,8 @@ init_scanner(int argc, char **argv)
     scc = argc;
     need = 1;
     sc_len = 1;
-    while (--argc > 0)
-	sc_len += strlen(*++argv);
+    while (argc-- > 0)
+	sc_len += strlen(*argv++);
 
     sc_token = (char *) mymalloc(sc_len);
 } /* init_scanner */
@@ -172,7 +172,7 @@ init_scanner(int argc, char **argv)
 /*
  * token() fetches a token from the input stream
  */
-static enum tok
+static int
 token()
 {
     int idx;
@@ -246,11 +246,11 @@ plonk(int tok)
 } /* plonk */
 
 
-/*
+/* 
  * expect() gets a token and dies most horribly if it's not the token we want
  */
 static void
-expect(enum tok desired)
+expect(int desired)
 {
     if (token() != desired)
 	plonk(sc_tokid);	/* and we die here... */
@@ -417,7 +417,7 @@ assign_date(struct tm *tm, long mday, long mon, long year)
 } /* assign_date */
 
 
-/*
+/* 
  * month() picks apart a month specification
  *
  *  /[<month> NUMBER [NUMBER]]           \
@@ -489,7 +489,7 @@ month(struct tm *tm)
 	    token();
 
 	    if (sc_tokid == SLASH || sc_tokid == DOT) {
-		enum tok sep;
+		int sep;
 
 		sep = sc_tokid;
 		expect(NUMBER);
