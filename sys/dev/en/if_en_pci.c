@@ -80,7 +80,7 @@
  */
 
 static	void en_pci_attach __P((pcici_t, int));
-static	char *en_pci_probe __P((pcici_t, pcidi_t));
+static	const char *en_pci_probe __P((pcici_t, pcidi_t));
 #ifdef SHUTDOWN_PRE_SYNC
 static void en_pci_shutdown __P((int, void *));
 #else
@@ -203,7 +203,7 @@ void *v;
  * autoconfig stuff
  */
 
-static char *en_pci_probe(config_id, device_id)
+static const char *en_pci_probe(config_id, device_id)
 
 pcici_t config_id;
 pcidi_t device_id;

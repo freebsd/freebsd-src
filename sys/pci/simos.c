@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simos.c,v 1.1 1998/06/10 10:57:14 dfr Exp $
+ *	$Id: simos.c,v 1.2 1998/09/26 14:49:26 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ struct simos_softc* simosp[10];
 
 static u_long simos_unit;
 
-static char *simos_probe __P((pcici_t tag, pcidi_t type));
+static const char *simos_probe __P((pcici_t tag, pcidi_t type));
 static void simos_attach __P((pcici_t config_d, int unit));
 static void simos_action __P((struct cam_sim *sim, union ccb *ccb));
 static void simos_poll __P((struct cam_sim *sim));
@@ -84,7 +84,7 @@ struct pci_device simos_driver = {
 };
 DATA_SET (pcidevice_set, simos_driver);
 
-static char *
+static const char *
 simos_probe(pcici_t tag, pcidi_t type)
 {       
 	switch (type) {

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.2 1998/12/05 02:21:44 wpaul Exp $
+ *	$Id: if_vr.c,v 1.3 1998/12/07 21:58:47 archie Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.2 1998/12/05 02:21:44 wpaul Exp $";
+	"$Id: if_vr.c,v 1.3 1998/12/07 21:58:47 archie Exp $";
 #endif
 
 /*
@@ -128,7 +128,7 @@ static struct vr_type vr_phys[] = {
 };
 
 static unsigned long vr_count = 0;
-static char *vr_probe		__P((pcici_t, pcidi_t));
+static const char *vr_probe	__P((pcici_t, pcidi_t));
 static void vr_attach		__P((pcici_t, int));
 
 static int vr_newbuf		__P((struct vr_softc *,
@@ -865,7 +865,7 @@ static void vr_reset(sc)
  * Probe for a VIA Rhine chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static char *
+static const char *
 vr_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

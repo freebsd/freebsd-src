@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.21 1998/12/07 21:58:46 archie Exp $
+ *	$Id: if_tl.c,v 1.22 1998/12/10 19:02:07 wpaul Exp $
  */
 
 /*
@@ -218,7 +218,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.21 1998/12/07 21:58:46 archie Exp $";
+	"$Id: if_tl.c,v 1.22 1998/12/10 19:02:07 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -316,7 +316,7 @@ static struct tl_type tl_phys[] = {
 
 static unsigned long		tl_count;
 
-static char *tl_probe		__P((pcici_t, pcidi_t));
+static const char *tl_probe	__P((pcici_t, pcidi_t));
 static void tl_attach		__P((pcici_t, int));
 static int tl_attach_phy	__P((struct tl_softc *));
 static int tl_intvec_rxeoc	__P((void *, u_int32_t));
@@ -1365,7 +1365,7 @@ static void tl_softreset(sc, internal)
  * Probe for a ThunderLAN chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
  */
-static char *
+static const char *
 tl_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

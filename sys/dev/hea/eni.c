@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.3 1998/10/31 20:06:45 phk Exp $
+ *	@(#) $Id: eni.c,v 1.4 1998/12/04 22:54:45 archie Exp $
  *
  */
 
@@ -42,13 +42,13 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: eni.c,v 1.3 1998/10/31 20:06:45 phk Exp $");
+__RCSID("@(#) $Id: eni.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
 #endif
 
 /*
  * Typedef local functions
  */
-static char	*eni_pci_probe __P((pcici_t, pcidi_t));
+static const char	*eni_pci_probe __P((pcici_t, pcidi_t));
 static void	eni_pci_attach __P((pcici_t, int));
 static int 	eni_get_ack __P((Eni_unit *));
 static int	eni_get_sebyte __P((Eni_unit *));
@@ -98,7 +98,7 @@ DATA_SET ( pcidevice_set, eni_pci_device );
  *	NULL		unrecognized vendor/device
  *
  */
-static char *
+static const char *
 eni_pci_probe ( pcici_t config_id, pcidi_t device_id )
 {
 

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.18 1998/12/10 17:52:36 wpaul Exp $
+ *	$Id: if_rl.c,v 1.6 1998/12/10 19:02:07 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.18 1998/12/10 17:52:36 wpaul Exp $";
+	"$Id: if_rl.c,v 1.6 1998/12/10 19:02:07 wpaul Exp $";
 #endif
 
 /*
@@ -160,7 +160,7 @@ static struct rl_type rl_phys[] = {
 };
 
 static unsigned long rl_count = 0;
-static char *rl_probe		__P((pcici_t, pcidi_t));
+static const char *rl_probe	__P((pcici_t, pcidi_t));
 static void rl_attach		__P((pcici_t, int));
 
 static int rl_encap		__P((struct rl_softc *, struct rl_chain *,
@@ -976,7 +976,7 @@ static void rl_reset(sc)
  * Probe for a RealTek 8129/8139 chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static char *
+static const char *
 rl_probe(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.3 1998/10/31 20:06:53 phk Exp $
+ *	@(#) $Id: fore_load.c,v 1.4 1998/12/04 22:54:45 archie Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.3 1998/10/31 20:06:53 phk Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
 #endif
 
 
@@ -54,7 +54,7 @@ static int	fore_identify __P((char *));
 static int	fore_attach __P((struct devinfo *));
 #endif
 #ifdef __FreeBSD__
-static char *	fore_pci_probe __P((pcici_t, pcidi_t));
+static const char *	fore_pci_probe __P((pcici_t, pcidi_t));
 static void	fore_pci_attach __P((pcici_t, int));
 #if BSD < 199506
 static int	fore_pci_shutdown __P((struct kern_devconf *, int));
@@ -844,7 +844,7 @@ fore_attach(devinfo_p)
  *	NULL	device not claimed by this driver
  *
  */
-static char *
+static const char *
 fore_pci_probe(config_id, device_id)
 	pcici_t	config_id;
 	pcidi_t	device_id;

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.2 1998/10/30 02:06:42 gibbs Exp $
+ *	$Id: bt_pci.c,v 1.3 1998/11/10 06:45:14 gibbs Exp $
  */
 
 #include "pci.h"
@@ -53,7 +53,7 @@
 
 static int btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
 				  bus_space_handle_t* bshp);
-static char* bt_pci_probe(pcici_t tag, pcidi_t type);
+static const char* bt_pci_probe(pcici_t tag, pcidi_t type);
 static void bt_pci_attach(pcici_t config_id, int unit);
 
 static struct  pci_device bt_pci_driver = {
@@ -98,7 +98,7 @@ btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
 	return (0);
 }
 
-static  char*
+static const char*
 bt_pci_probe (pcici_t config_id, pcidi_t type)
 {
 	switch(type) {
