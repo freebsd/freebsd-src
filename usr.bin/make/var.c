@@ -1751,7 +1751,7 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 					 * been reported to prevent a plethora
 					 * of messages when recursing */
 
-    buf = Buf_Init(MAKE_BSIZE);
+    buf = Buf_Init(0);
     errorReported = FALSE;
 
     while (*str) {
