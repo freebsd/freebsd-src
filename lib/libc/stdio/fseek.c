@@ -274,7 +274,7 @@ abspos:
 	 * ensures that we only read one block, rather than two.
 	 */
 	curoff = target & ~(fp->_blksize - 1);
-	if ((*seekfn)(fp->_cookie, curoff, SEEK_SET) == POS_ERR)
+	if (_sseek(fp, curoff, SEEK_SET) == POS_ERR)
 		goto dumb;
 	fp->_r = 0;
 	fp->_p = fp->_bf._base;
@@ -295,8 +295,7 @@ abspos:
 	 * do it.  Allow the seek function to change fp->_bf._base.
 	 */
 dumb:
-	if (__sflush(fp) ||
-	    (*seekfn)(fp->_cookie, (fpos_t)offset, whence) == POS_ERR)
+	if (__sflush(fp) || _sseek(fp, (fpos_t)offset, whence) == POS_ERR)
 		return (-1);
 	if (ltest && fp->_offset > LONG_MAX) {
 		fp->_flags |= __SERR;
@@ -311,4 +310,43 @@ dumb:
 	/* fp->_w = 0; */	/* unnecessary (I think...) */
 	fp->_flags &= ~__SEOF;
 	return (0);
+}
+
+
+fpos_t
+_sseek(fp, offset, whence)
+	FILE *fp;
+	fpos_t offset;
+	int whence;
+{
+	fpos_t ret;
+	int serrno, errret;
+
+	if (fp->_seek == NULL) {
+		errno = ESPIPE;
+		return (-1);
+	}
+	serrno = errno;
+	errno = 0;
+	ret = (*fp->_seek)(fp->_cookie, offset, whence);
+	errret = errno;
+	if (errno == 0)
+		errno = serrno;
+	/*
+	 * Disallow negative seeks per POSIX.
+	 * It is needed here to help upper level caller
+	 * in the cases it can't detect.
+	 */
+	if (ret < 0) {
+		if (errret == 0) {
+			fp->_flags |= __SERR;
+			errno = EINVAL;
+		}
+		fp->_flags &= ~__SOFF;
+		ret = -1;
+	} else {
+		fp->_flags |= __SOFF;
+		fp->_offset = ret;
+	}
+	return (ret);
 }

@@ -85,6 +85,6 @@ fopen(file, mode)
 	 * fseek and ftell.)
 	 */
 	if (oflags & O_APPEND)
-		(void) __sseek((void *)fp, (fpos_t)0, SEEK_END);
+		(void)_sseek(fp, (fpos_t)0, SEEK_END);
 	return (fp);
 }
