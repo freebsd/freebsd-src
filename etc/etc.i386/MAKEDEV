@@ -101,7 +101,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.120 1996/07/02 23:11:06 wosch Exp $
+#	$Id: MAKEDEV,v 1.121 1996/09/08 23:56:27 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -1065,7 +1065,7 @@ tun?)
 sysmouse)
 	rm -f sysmouse
 	mknod sysmouse c 12 128
-	chmod 644 sysmouse
+	chown root.wheel sysmouse
 	;;
 
 snp?)
