@@ -1502,14 +1502,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-				int ticks;
+				u_int64_t ticks = (u_int64_t) hz;
 				if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
-					ticks = 60 * 1000 * hz;
+					ticks = 60 * 1000 * ticks;
 				else
 					ticks = ccb->ccb_h.timeout * hz;
 				ticks = ((ticks + 999) / 1000) + hz + hz;
-				ccb->ccb_h.timeout_ch =
-				    timeout(isp_watchdog, (caddr_t)ccb, ticks);
+				if (ticks >= 0x80000000) {
+					isp_prt(isp, ISP_LOGERR,
+					    "timeout overflow");
+					ticks = 0x80000000;
+				}
+				ccb->ccb_h.timeout_ch = timeout(isp_watchdog,
+				    (caddr_t)ccb, (int)ticks);
 			} else {
 				callout_handle_init(&ccb->ccb_h.timeout_ch);
 			}
