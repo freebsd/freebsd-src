@@ -56,7 +56,7 @@ case "${host}" in
     tcsh_config_file=hpux8
   ;;
   *-hp-hpux1[0-9]* )
-    tcsh_config_file=hpux8
+    tcsh_config_file=hpux11
   ;;
 
   ## IBM AIX systems
@@ -215,6 +215,11 @@ case "${host}" in
   ## mips-compaq-nonstopux
   *-*-nonstopux)
     tcsh_config_file=sysv4
+  ;;
+
+  ## Apollo Domain/OS
+  *-apollo-*)
+    tcsh_config_file=apollo
   ;;
 
   * )

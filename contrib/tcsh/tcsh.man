@@ -76,7 +76,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "19 November 2000" "Astron 6.10.00"
+.TH TCSH 1 "2 September 2001" "Astron 6.11.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -207,6 +207,9 @@ see the \fBversion\fR shell variable. (+)
 .PP
 Non-login shells read only \fI/etc/csh.cshrc\fR and \fI~/.tcshrc\fR
 or \fI~/.cshrc\fR on startup.
+.PP
+For examples of startup files, please consult
+\fIhttp://tcshrc.sourceforge.net\fR.
 .PP
 Commands like \fIstty\fR(1) and \fItset\fR(1),
 which need be run only once per login, usually go in one's \fI~/.login\fR file.
@@ -1882,10 +1885,13 @@ and described in detail under the appropriate \fBBuiltin commands\fR,
 The \fIsched\fR builtin command puts commands in a scheduled-event list,
 to be executed by the shell at a given time.
 .PP
-The \fIbeepcmd\fR, \fIcwdcmd\fR, \fIperiodic\fR, \fIprecmd\fR, and \fIpostcmd\fR
+The \fIbeepcmd\fR, \fIcwdcmd\fR, \fIperiodic\fR, \fIprecmd\fR, \fIpostcmd\fR,
+and \fIjobcmd\fR
 \fBSpecial aliases\fR can be set, respectively, to execute commands when the shell wants
 to ring the bell, when the working directory changes, every \fBtperiod\fR
-minutes, before each prompt, and before each command gets executed.
+minutes, before each prompt, before each command gets executed, after each
+command gets executed, and when a job is started or is brought into the
+foreground.
 .PP
 The \fBautologout\fR shell variable can be set to log out or lock the shell
 after a given number of minutes of inactivity.
@@ -2848,12 +2854,14 @@ Lists the active jobs.  With \fB\-l\fR, lists process
 IDs in addition to the normal information.  On TCF systems, prints
 the site on which each job is executing.
 .PP
-.B kill \fR[\fB\-\fIsignal\fR] \fB%\fIjob\fR|\fIpid\fR ...
+.PD 0
+.TP 8
+.B kill \fR[\fB\-s \fIsignal\fR] \fB%\fIjob\fR|\fIpid\fR ...
 .PD 0
 .TP 8
 .B kill \-l
-The first form sends the specified \fIsignal\fR (or, if none is given,
-the TERM (terminate) signal) to the specified jobs or processes.
+The first and second forms sends the specified \fIsignal\fR (or, if none
+is given, the TERM (terminate) signal) to the specified jobs or processes.
 \fIjob\fR may be a number, a string, `', `%', `+' or `\-' as described
 under \fBJobs\fR.
 Signals are either given by number or by name (as given in
@@ -2862,7 +2870,7 @@ There is no default \fIjob\fR; saying just `kill' does not send a signal
 to the current job.  If the signal being sent is TERM (terminate)
 or HUP (hangup), then the job or process is sent a
 CONT (continue) signal as well.
-The second form lists the signal names.
+The third form lists the signal names.
 .PD
 .ig \" Obsolete tcsh command
 .TP 8
@@ -3423,6 +3431,16 @@ may cause an infinite loop.  It is the author's opinion that anyone doing
 so will get what they deserve.
 .RE
 .TP 8
+.B jobcmd
+Runs before each command gets executed, or when the command changes state.
+This is similar to \fIpostcmd\fR, but it does not print builtins.
+.RS +8
+.IP "" 4
+> alias jobcmd  'echo \-n "^[]2\e;\e!#^G"'
+.PP
+then executing \fIvi foo.c\fR will put the command string in the xterm title bar.
+.RE
+.TP 8
 .B helpcommand
 Invoked by the \fBrun-help\fR editor command.  The command name for which help
 is sought is passed as sole argument.
@@ -3615,6 +3633,7 @@ See also the \fBcwd\fR and \fBowd\fR shell variables.
 .B dspmbyte \fR(+)
 If set to `euc', it enables display and editing EUC-kanji(Japanese) code.
 If set to `sjis', it enables display and editing Shift-JIS(Japanese) code.
+If set to `big5', it enables display and editing Big5(Chinese) code.
 If set to the following format, it enables display and editing of original
 multi-byte code format:
 .RS +8
@@ -3779,6 +3798,19 @@ substitutions.  Tilde and variable expansions work as expected.
 .B inputmode \fR(+)
 If set to `insert' or `overwrite', puts the editor into that input mode
 at the beginning of each line.
+.TP 8
+.B killdup \fR(+)
+Controls handling of duplicate entries in the kill ring.  If set to
+`all' only unique strings are entered in the kill ring.  If set to
+`prev' and the last killed string is the same as the current killed
+string, then the current string is not entered in the ring.  If set
+to `erase' and the same string is found in the kill ring, the old
+string is erased and the current one is inserted.
+.TP 8
+.B killring \fR(+)
+Indicates the number of killed strings to keep in memory.  Set to `30'
+by default.  If unset or set to less than `2', the shell will only
+keep the most recently killed string.
 .TP 8
 .B listflags \fR(+)
 If set to `x', `a' or `A', or any combination thereof (e.g., `xA'), they
@@ -4167,13 +4199,13 @@ Some examples are in order.  First, let's set up some play directories:
 .br
 > mkdir from from/src to
 .br
-> ln \-s from/src to/dist
+> ln \-s from/src to/dst
 .PP
 Here's the behavior with \fBsymlinks\fR unset,
 .IP "" 4
-> cd /tmp/to/dist; echo $cwd
+> cd /tmp/to/dst; echo $cwd
 .br
-/tmp/to/dist
+/tmp/to/dst
 .br
 > cd ..; echo $cwd
 .br
@@ -4191,7 +4223,7 @@ here's the behavior with \fBsymlinks\fR set to `chase',
 .PP
 here's the behavior with \fBsymlinks\fR set to `ignore',
 .IP "" 4
-> cd /tmp/to/dist; echo $cwd
+> cd /tmp/to/dst; echo $cwd
 .br
 /tmp/to/dst
 .br
@@ -4201,7 +4233,7 @@ here's the behavior with \fBsymlinks\fR set to `ignore',
 .PP
 and here's the behavior with \fBsymlinks\fR set to `expand'.
 .IP "" 4
-> cd /tmp/to/dist; echo $cwd
+> cd /tmp/to/dst; echo $cwd
 .br
 /tmp/to/dst
 .br
@@ -4209,7 +4241,7 @@ and here's the behavior with \fBsymlinks\fR set to `expand'.
 .br
 /tmp/to
 .br
-> cd /tmp/to/dist; echo $cwd
+> cd /tmp/to/dst; echo $cwd
 .br
 /tmp/to/dst
 .br
@@ -4969,7 +5001,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.10.00 (Astron) 2000-11-19.
+This manual documents tcsh 6.11.00 (Astron) 2001-09-02.
 .SH AUTHORS
 .PD 0
 .TP 2
