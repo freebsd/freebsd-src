@@ -144,9 +144,9 @@ struct bio_queue_head {
 
 static __inline void bioq_init(struct bio_queue_head *head);
 static __inline void bioq_insert_tail(struct bio_queue_head *head,
-					   struct bio *bp);
-static __inline void bioq_remove(struct bio_queue_head *head,
 				      struct bio *bp);
+static __inline void bioq_remove(struct bio_queue_head *head,
+				 struct bio *bp);
 static __inline struct bio *bioq_first(struct bio_queue_head *head);
 
 static __inline void

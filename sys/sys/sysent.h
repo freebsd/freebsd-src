@@ -68,16 +68,14 @@ struct sysentvec {
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(register_t **, struct image_params *);
 					/* stack fixup function */
-	void		(*sv_sendsig)(void (*)(int), int,
-					   struct __sigset *, u_long);
-					/* send signal */
+	void		(*sv_sendsig)(void (*)(int), int, struct __sigset *,
+			    u_long);	/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
-	void		(*sv_prepsyscall)(struct trapframe *, int *,
-					       u_int *, caddr_t *);
+	void		(*sv_prepsyscall)(struct trapframe *, int *, u_int *,
+			    caddr_t *);
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump)(struct thread *, struct vnode *,
-					    off_t);
+	int		(*sv_coredump)(struct thread *, struct vnode *, off_t);
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	int		sv_minsigstksz;	/* minimum signal stack size */
@@ -124,7 +122,7 @@ SYSCALL_MODULE(syscallname,                             \
     NULL, NULL);
 
 int    syscall_register(int *offset, struct sysent *new_sysent,
-                             struct sysent *old_sysent);
+	    struct sysent *old_sysent);
 int    syscall_deregister(int *offset, struct sysent *old_sysent);
 int    syscall_module_handler(struct module *mod, int what, void *arg);
 
