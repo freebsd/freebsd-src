@@ -100,7 +100,8 @@ static int pipe_poll(struct file *fp, int events, struct ucred *cred,
 		struct thread *td);
 static int pipe_kqfilter(struct file *fp, struct knote *kn);
 static int pipe_stat(struct file *fp, struct stat *sb, struct thread *td);
-static int pipe_ioctl(struct file *fp, u_long cmd, caddr_t data, struct thread *td);
+static int pipe_ioctl(struct file *fp, u_long cmd, void *data,
+    struct thread *td);
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
@@ -1116,7 +1117,7 @@ int
 pipe_ioctl(fp, cmd, data, td)
 	struct file *fp;
 	u_long cmd;
-	caddr_t data;
+	void *data;
 	struct thread *td;
 {
 	struct pipe *mpipe = (struct pipe *)fp->f_data;

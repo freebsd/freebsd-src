@@ -316,8 +316,7 @@ getgroups(struct thread *td, register struct getgroups_args *uap)
 	if (ngrp < cred->cr_ngroups)
 		return (EINVAL);
 	ngrp = cred->cr_ngroups;
-	error = copyout((caddr_t)cred->cr_groups, (caddr_t)uap->gidset,
-	    ngrp * sizeof(gid_t));
+	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
 	if (error == 0)
 		td->td_retval[0] = ngrp;
 	return (error);
@@ -806,8 +805,7 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 		return (EINVAL);
 	mtx_lock(&Giant);
 	tempcred = crget();
-	error = copyin((caddr_t)uap->gidset, (caddr_t)tempcred->cr_groups,
-	    ngrp * sizeof(gid_t));
+	error = copyin(uap->gidset, tempcred->cr_groups, ngrp * sizeof(gid_t));
 	if (error != 0) {
 		crfree(tempcred);
 		mtx_unlock(&Giant);
@@ -1130,14 +1128,14 @@ getresuid(register struct thread *td, struct getresuid_args *uap)
 
 	cred = td->td_ucred;
 	if (uap->ruid)
-		error1 = copyout((caddr_t)&cred->cr_ruid,
-		    (caddr_t)uap->ruid, sizeof(cred->cr_ruid));
+		error1 = copyout(&cred->cr_ruid,
+		    uap->ruid, sizeof(cred->cr_ruid));
 	if (uap->euid)
-		error2 = copyout((caddr_t)&cred->cr_uid,
-		    (caddr_t)uap->euid, sizeof(cred->cr_uid));
+		error2 = copyout(&cred->cr_uid,
+		    uap->euid, sizeof(cred->cr_uid));
 	if (uap->suid)
-		error3 = copyout((caddr_t)&cred->cr_svuid,
-		    (caddr_t)uap->suid, sizeof(cred->cr_svuid));
+		error3 = copyout(&cred->cr_svuid,
+		    uap->suid, sizeof(cred->cr_svuid));
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1160,14 +1158,14 @@ getresgid(register struct thread *td, struct getresgid_args *uap)
 
 	cred = td->td_ucred;
 	if (uap->rgid)
-		error1 = copyout((caddr_t)&cred->cr_rgid,
-		    (caddr_t)uap->rgid, sizeof(cred->cr_rgid));
+		error1 = copyout(&cred->cr_rgid,
+		    uap->rgid, sizeof(cred->cr_rgid));
 	if (uap->egid)
-		error2 = copyout((caddr_t)&cred->cr_groups[0],
-		    (caddr_t)uap->egid, sizeof(cred->cr_groups[0]));
+		error2 = copyout(&cred->cr_groups[0],
+		    uap->egid, sizeof(cred->cr_groups[0]));
 	if (uap->sgid)
-		error3 = copyout((caddr_t)&cred->cr_svgid,
-		    (caddr_t)uap->sgid, sizeof(cred->cr_svgid));
+		error3 = copyout(&cred->cr_svgid,
+		    uap->sgid, sizeof(cred->cr_svgid));
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1716,7 +1714,7 @@ crfree(struct ucred *cr)
 		 */
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
-		FREE((caddr_t)cr, M_CRED);
+		FREE(cr, M_CRED);
 		mtx_unlock(&Giant);
 	} else {
 		mtx_unlock(mtxp);
@@ -1829,7 +1827,7 @@ getlogin(struct thread *td, struct getlogin_args *uap)
 	bcopy(p->p_session->s_login, login, uap->namelen);
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	error = copyout((caddr_t) login, (caddr_t) uap->namebuf, uap->namelen);
+	error = copyout(login, uap->namebuf, uap->namelen);
 	return(error);
 }
 
@@ -1855,8 +1853,7 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
-	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
-	    sizeof(logintmp), (size_t *)0);
+	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
 	if (error == ENAMETOOLONG)
 		error = EINVAL;
 	else if (!error) {
