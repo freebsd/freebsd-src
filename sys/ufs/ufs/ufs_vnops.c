@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.57 1997/09/14 02:58:12 peter Exp $
+ * $Id: ufs_vnops.c,v 1.58 1997/09/21 04:24:14 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -68,6 +68,7 @@
 static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
 static int ufs_chown
 	__P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
+static int ufs_missingop __P((struct vop_generic_args *ap));
 
 #ifdef EXT2FS
 #include <gnu/ext2fs/ext2_extern.h>
@@ -2158,3 +2159,155 @@ bad:
 	vput(tvp);
 	return (error);
 }
+
+static int
+ufs_missingop(ap)
+	struct vop_generic_args *ap;
+{
+	printf("Missing VOP function (%s) in UFS child",
+		 ap->a_desc->vdesc_name);
+	panic("Missing VOP function in UFS");
+	return(EOPNOTSUPP);
+}
+
+/* Global vfs data structures for ufs. */
+vop_t **ufs_vnodeop_p;
+static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
+	{ &vop_default_desc,		(vop_t *) vn_default_error },
+
+	{ &vop_blkatoff_desc,		(vop_t *) ufs_missingop },
+	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
+	{ &vop_getpages_desc,		(vop_t *) ufs_missingop },
+	{ &vop_read_desc,		(vop_t *) ufs_missingop },
+	{ &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
+	{ &vop_truncate_desc,		(vop_t *) ufs_missingop },
+	{ &vop_update_desc,		(vop_t *) ufs_missingop },
+	{ &vop_valloc_desc,		(vop_t *) ufs_missingop },
+	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
+	{ &vop_write_desc,		(vop_t *) ufs_missingop },
+
+	{ &vop_abortop_desc,		(vop_t *) ufs_abortop },
+	{ &vop_access_desc,		(vop_t *) ufs_access },
+	{ &vop_advlock_desc,		(vop_t *) ufs_advlock },
+	{ &vop_bmap_desc,		(vop_t *) ufs_bmap },
+	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
+	{ &vop_cachedlookup_desc,	(vop_t *) ufs_lookup },
+	{ &vop_close_desc,		(vop_t *) ufs_close },
+	{ &vop_create_desc,		(vop_t *) ufs_create },
+	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
+	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
+	{ &vop_ioctl_desc,		(vop_t *) ufs_ioctl },
+	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
+	{ &vop_lease_desc,		(vop_t *) ufs_lease_check },
+	{ &vop_link_desc,		(vop_t *) ufs_link },
+	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
+	{ &vop_mkdir_desc,		(vop_t *) ufs_mkdir },
+	{ &vop_mknod_desc,		(vop_t *) ufs_mknod },
+	{ &vop_mmap_desc,		(vop_t *) ufs_mmap },
+	{ &vop_open_desc,		(vop_t *) ufs_open },
+	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
+	{ &vop_poll_desc,		(vop_t *) ufs_poll },
+	{ &vop_print_desc,		(vop_t *) ufs_print },
+	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
+	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
+	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+	{ &vop_remove_desc,		(vop_t *) ufs_remove },
+	{ &vop_rename_desc,		(vop_t *) ufs_rename },
+	{ &vop_revoke_desc,		(vop_t *) ufs_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) ufs_rmdir },
+	{ &vop_seek_desc,		(vop_t *) ufs_seek },
+	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+	{ &vop_strategy_desc,		(vop_t *) ufs_strategy },
+	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
+	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_whiteout_desc,		(vop_t *) ufs_whiteout },
+	{ NULL, NULL }
+};
+static struct vnodeopv_desc ufs_vnodeop_opv_desc =
+	{ &ufs_vnodeop_p, ufs_vnodeop_entries };
+
+vop_t **ufs_specop_p;
+static struct vnodeopv_entry_desc ufs_specop_entries[] = {
+	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
+
+	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
+	{ &vop_update_desc,		(vop_t *) ufs_missingop },
+	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
+
+	{ &vop_access_desc,		(vop_t *) ufs_access },
+	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
+	{ &vop_close_desc,		(vop_t *) ufsspec_close },
+	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
+	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
+	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
+	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_print_desc,		(vop_t *) ufs_print },
+	{ &vop_read_desc,		(vop_t *) ufsspec_read },
+	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_write_desc,		(vop_t *) ufsspec_write },
+	{ NULL, NULL }
+};
+static struct vnodeopv_desc ufs_specop_opv_desc =
+	{ &ufs_specop_p, ufs_specop_entries };
+
+vop_t **ufs_fifoop_p;
+static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
+	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
+
+	{ &vop_fsync_desc,		(vop_t *) ufs_missingop },
+	{ &vop_update_desc,		(vop_t *) ufs_missingop },
+	{ &vop_vfree_desc,		(vop_t *) ufs_missingop },
+
+	{ &vop_access_desc,		(vop_t *) ufs_access },
+	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
+	{ &vop_close_desc,		(vop_t *) ufsfifo_close },
+	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
+	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
+	{ &vop_islocked_desc,		(vop_t *) ufs_islocked },
+	{ &vop_lock_desc,		(vop_t *) ufs_lock },
+	{ &vop_print_desc,		(vop_t *) ufs_print },
+	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
+	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+	{ &vop_unlock_desc,		(vop_t *) ufs_unlock },
+	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
+	{ NULL, NULL }
+};
+static struct vnodeopv_desc ufs_fifoop_opv_desc =
+	{ &ufs_fifoop_p, ufs_fifoop_entries };
+
+VNODEOP_SET(ufs_vnodeop_opv_desc);
+VNODEOP_SET(ufs_specop_opv_desc);
+VNODEOP_SET(ufs_fifoop_opv_desc);
+
+int
+ufs_vnoperate(ap)
+	struct vop_generic_args /* {
+		struct vnodeop_desc *a_desc;
+	} */ *ap;
+{
+	return (VOCALL(ufs_vnodeop_p, ap->a_desc->vdesc_offset, ap));
+}
+
+int
+ufs_vnoperatefifo(ap)
+	struct vop_generic_args /* {
+		struct vnodeop_desc *a_desc;
+	} */ *ap;
+{
+	return (VOCALL(ufs_fifoop_p, ap->a_desc->vdesc_offset, ap));
+}
+
+int
+ufs_vnoperatespec(ap)
+	struct vop_generic_args /* {
+		struct vnodeop_desc *a_desc;
+	} */ *ap;
+{
+	return (VOCALL(ufs_specop_p, ap->a_desc->vdesc_offset, ap));
+}
+
+

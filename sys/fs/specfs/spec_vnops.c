@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.44 1997/10/15 09:21:22 phk Exp $
+ * $Id: spec_vnops.c,v 1.45 1997/10/15 10:04:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -60,53 +60,70 @@
 
 static int	spec_ebadf __P((void));
 static int	spec_getattr __P((struct  vop_getattr_args *));
+static int	spec_badop __P((void));
+static int	spec_strategy __P((struct vop_strategy_args *));
+static int	spec_print __P((struct vop_print_args *));
+static int	spec_lookup __P((struct vop_lookup_args *));
+static int	spec_open __P((struct vop_open_args *));
+static int	spec_close __P((struct vop_close_args *));
+static int	spec_read __P((struct vop_read_args *));  
+static int	spec_write __P((struct vop_write_args *));
+static int	spec_ioctl __P((struct vop_ioctl_args *));
+static int	spec_poll __P((struct vop_poll_args *));
+static int	spec_inactive __P((struct  vop_inactive_args *));
+static int	spec_fsync __P((struct  vop_fsync_args *));
+static int	spec_bmap __P((struct vop_bmap_args *));
+static int	spec_pathconf __P((struct vop_pathconf_args *));
+static int	spec_advlock __P((struct vop_advlock_args *));  
+static int	spec_getpages __P((struct vop_getpages_args *));
 
 struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) spec_abortop },
-	{ &vop_access_desc,		(vop_t *) spec_access },
+	{ &vop_abortop_desc,		(vop_t *) spec_badop },
+	{ &vop_access_desc,		(vop_t *) spec_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) spec_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) spec_badop },
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
+	{ &vop_bwrite_desc,		(vop_t *) nullop },
 	{ &vop_close_desc,		(vop_t *) spec_close },
-	{ &vop_create_desc,		(vop_t *) spec_create },
+	{ &vop_create_desc,		(vop_t *) spec_badop },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
 	{ &vop_getattr_desc,		(vop_t *) spec_getattr },
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) spec_islocked },
-	{ &vop_lease_desc,		(vop_t *) spec_lease_check },
-	{ &vop_link_desc,		(vop_t *) spec_link },
-	{ &vop_lock_desc,		(vop_t *) spec_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lease_desc,		(vop_t *) nullop },
+	{ &vop_link_desc,		(vop_t *) spec_badop },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) spec_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) spec_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) spec_mknod },
-	{ &vop_mmap_desc,		(vop_t *) spec_mmap },
+	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
+	{ &vop_mknod_desc,		(vop_t *) spec_badop },
+	{ &vop_mmap_desc,		(vop_t *) spec_badop },
 	{ &vop_open_desc,		(vop_t *) spec_open },
 	{ &vop_pathconf_desc,		(vop_t *) spec_pathconf },
 	{ &vop_poll_desc,		(vop_t *) spec_poll },
 	{ &vop_print_desc,		(vop_t *) spec_print },
 	{ &vop_read_desc,		(vop_t *) spec_read },
-	{ &vop_readdir_desc,		(vop_t *) spec_readdir },
-	{ &vop_readlink_desc,		(vop_t *) spec_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) spec_reclaim },
-	{ &vop_remove_desc,		(vop_t *) spec_remove },
-	{ &vop_rename_desc,		(vop_t *) spec_rename },
-	{ &vop_revoke_desc,		(vop_t *) spec_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) spec_rmdir },
-	{ &vop_seek_desc,		(vop_t *) spec_seek },
-	{ &vop_setattr_desc,		(vop_t *) spec_setattr },
+	{ &vop_readdir_desc,		(vop_t *) spec_badop },
+	{ &vop_readlink_desc,		(vop_t *) spec_badop },
+	{ &vop_reallocblks_desc,	(vop_t *) spec_badop },
+	{ &vop_reclaim_desc,		(vop_t *) nullop },
+	{ &vop_remove_desc,		(vop_t *) spec_badop },
+	{ &vop_rename_desc,		(vop_t *) spec_badop },
+	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) spec_badop },
+	{ &vop_seek_desc,		(vop_t *) spec_badop },
+	{ &vop_setattr_desc,		(vop_t *) spec_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
-	{ &vop_symlink_desc,		(vop_t *) spec_symlink },
-	{ &vop_truncate_desc,		(vop_t *) spec_truncate },
-	{ &vop_unlock_desc,		(vop_t *) spec_unlock },
-	{ &vop_update_desc,		(vop_t *) spec_update },
-	{ &vop_valloc_desc,		(vop_t *) spec_valloc },
-	{ &vop_vfree_desc,		(vop_t *) spec_vfree },
+	{ &vop_symlink_desc,		(vop_t *) spec_badop },
+	{ &vop_truncate_desc,		(vop_t *) nullop },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_update_desc,		(vop_t *) nullop },
+	{ &vop_valloc_desc,		(vop_t *) spec_badop },
+	{ &vop_vfree_desc,		(vop_t *) spec_badop },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };
@@ -115,12 +132,23 @@ static struct vnodeopv_desc spec_vnodeop_opv_desc =
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
 
+
+int
+spec_vnoperate(ap)
+	struct vop_generic_args /* {
+		struct vnodeop_desc *a_desc;
+		<other random data follows, presumably>
+	} */ *ap;
+{
+	return (VOCALL(spec_vnodeop_p, ap->a_desc->vdesc_offset, ap));
+}
+
 static void spec_getpages_iodone __P((struct buf *bp));
 
 /*
  * Trivial lookup routine that always fails.
  */
-int
+static int
 spec_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode *a_dvp;
@@ -137,7 +165,7 @@ spec_lookup(ap)
  * Open a special file.
  */
 /* ARGSUSED */
-int
+static int
 spec_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -236,7 +264,7 @@ spec_open(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
-int
+static int
 spec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -318,7 +346,7 @@ spec_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
-int
+static int
 spec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -399,7 +427,7 @@ spec_write(ap)
  * Device ioctl operation.
  */
 /* ARGSUSED */
-int
+static int
 spec_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -435,7 +463,7 @@ spec_ioctl(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 spec_poll(ap)
 	struct vop_poll_args /* {
 		struct vnode *a_vp;
@@ -460,7 +488,7 @@ spec_poll(ap)
  * Synch buffers associated with a block device
  */
 /* ARGSUSED */
-int
+static int
 spec_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -510,7 +538,7 @@ loop:
 	return (0);
 }
 
-int
+static int
 spec_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -525,7 +553,7 @@ spec_inactive(ap)
 /*
  * Just call the device strategy routine
  */
-int
+static int
 spec_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -539,7 +567,7 @@ spec_strategy(ap)
 /*
  * This is a noop, simply returning what one has been given.
  */
-int
+static int
 spec_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -566,7 +594,7 @@ spec_bmap(ap)
  * Device close routine
  */
 /* ARGSUSED */
-int
+static int
 spec_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -652,7 +680,7 @@ spec_close(ap)
 /*
  * Print out the contents of a special device vnode.
  */
-int
+static int
 spec_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -667,7 +695,7 @@ spec_print(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
+static int
 spec_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -705,7 +733,7 @@ spec_pathconf(ap)
  * Special device advisory byte-level locks.
  */
 /* ARGSUSED */
-int
+static int
 spec_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -732,7 +760,7 @@ spec_ebadf()
 /*
  * Special device bad operation
  */
-int
+static int
 spec_badop()
 {
 
@@ -749,7 +777,7 @@ spec_getpages_iodone(bp)
 	wakeup(bp);
 }
 
-int
+static int
 spec_getpages(ap)
 	struct vop_getpages_args *ap;
 {
