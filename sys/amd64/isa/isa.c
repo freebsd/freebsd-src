@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.44 1995/04/06 13:55:56 ache Exp $
+ *	$Id: isa.c,v 1.45 1995/04/12 20:47:54 wollman Exp $
  */
 
 /*
@@ -84,15 +84,6 @@
 #define	DMA2_SMSK	(IO_DMA2 + 2*10)	/* single mask register */
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
-
-/*
- * Bits to specify the type and amount of conflict checking.
- */
-#define	CC_ATTACH	(1 << 0)
-#define	CC_DRQ		(1 << 1)
-#define	CC_IOADDR	(1 << 2)
-#define	CC_IRQ		(1 << 3)
-#define	CC_MEMADDR	(1 << 4)
 
 /*
  * XXX these defines should be in a central place.
@@ -147,7 +138,6 @@ static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			  char const *format));
 static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
 			 u_int checkbits));
-static int haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
 static inthand2_t isa_strayintr;
 static void register_imask __P((struct isa_device *dvp, u_int mask));
 
@@ -249,7 +239,12 @@ haveseen(dvp, tmpdvp, checkbits)
  * Search through all the isa_devtab_* tables looking for anything that
  * conflicts with the current device.
  */
-static int
+#include "eisa.h"
+#if NEISA > 0
+extern struct isa_device isa_devtab_eisa[];
+#endif
+
+int
 haveseen_isadev(dvp, checkbits)
 	struct isa_device *dvp;
 	u_int	checkbits;
@@ -277,6 +272,13 @@ haveseen_isadev(dvp, checkbits)
 		if (status)
 			return status;
 	}
+#if NEISA > 0
+	for (tmpdvp = isa_devtab_eisa; tmpdvp->id_driver; tmpdvp++) {
+		status |= haveseen(dvp, tmpdvp, checkbits);
+		if (status)
+			return status;
+	}
+#endif
 	return(status);
 }
 
