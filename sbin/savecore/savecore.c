@@ -63,7 +63,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "zopen.h"
+
+extern FILE *zopen(const char *fname, const char *mode);
 
 #ifdef __alpha__
 #define ok(number) ALPHA_K0SEG_TO_PHYS(number)
@@ -138,7 +139,7 @@ void     find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
-void	 log __P((int, char *, ...));
+void	 log __P((int, char *, ...)) __printf0like(2, 3);
 void	 Lseek __P((int, off_t, int));
 int	 Open __P((const char *, int rw));
 int	 Read __P((int, void *, int));
@@ -398,9 +399,9 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 	/* Create the core file. */
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
-	    savedir, bounds, compress ? ".Z" : "");
+	    savedir, bounds, compress ? ".gz" : "");
 	if (compress)
-		fp = zopen(path, "w", 0);
+		fp = zopen(path, "w");
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
@@ -477,9 +478,9 @@ err2:			syslog(LOG_WARNING,
 	/* Copy the kernel. */
 	ifd = Open(kernel ? kernel : getbootfile(), O_RDONLY);
 	(void)snprintf(path, sizeof(path), "%s/kernel.%d%s",
-	    savedir, bounds, compress ? ".Z" : "");
+	    savedir, bounds, compress ? ".gz" : "");
 	if (compress)
-		fp = zopen(path, "w", 0);
+		fp = zopen(path, "w");
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
