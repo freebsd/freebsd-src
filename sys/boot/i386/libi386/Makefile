@@ -25,6 +25,10 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU
 
+# Make "machine" required for all objects
+# (based on the more complete case in sys/i386/boot/Makefile.inc)
+${SRCS:M*.c:R:S/$/.o/g}: machine
+
 # If it's not there, don't consider it a target
 .if exists(${.CURDIR}/../../../i386/include)
 beforedepend ${OBJS}: machine
