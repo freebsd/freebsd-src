@@ -112,6 +112,19 @@ ata_probe(device_t dev)
     if (ch->r_irq)
 	return EEXIST;
 
+    return 0;
+}
+
+
+int
+ata_attach(device_t dev)
+{
+    struct ata_channel *ch;
+    int error, rid;
+
+    if (!dev || !(ch = device_get_softc(dev)))
+	return ENXIO;
+
     /* initialize the softc basics */
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
@@ -126,17 +139,6 @@ ata_probe(device_t dev)
     ch->locking(ch, ATA_LF_LOCK);
     ch->hw.reset(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
-    return 0;
-}
-
-int
-ata_attach(device_t dev)
-{
-    struct ata_channel *ch;
-    int error, rid;
-
-    if (!dev || !(ch = device_get_softc(dev)))
-	return ENXIO;
 
     rid = ATA_IRQ_RID;
     ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -150,9 +152,6 @@ ata_attach(device_t dev)
 	ata_printf(ch, -1, "unable to setup interrupt\n");
 	return error;
     }
-
-    if (ch->dma)
-	ch->dma->alloc(ch);
 
     /* initialize queue and associated lock */
     bzero(&ch->queue_mtx, sizeof(struct mtx));
@@ -222,9 +221,6 @@ ata_detach(device_t dev)
     ch->device[MASTER].mode = ATA_PIO;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->devices = 0;
-
-    if (ch->dma)
-	ch->dma->free(ch);
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
@@ -306,6 +302,7 @@ ata_suspend(device_t dev)
 
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
+
     ch->locking(ch, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(ch);
     return 0;
