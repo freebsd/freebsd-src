@@ -215,7 +215,7 @@ pyxis_intr_enable(irq)
         REGVAL64(PYXIS_INT_MASK) = temp;
         alpha_mb();
         temp = REGVAL64(PYXIS_INT_MASK);
-#ifdef 0
+#if 0
 	printf("pyxis_intr_enable: enabling %d, current mask= ", irq);
         {
                 int i;
