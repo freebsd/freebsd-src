@@ -37,17 +37,10 @@
  *
  */
 #include <sys/param.h>
-#include <sys/ioctl.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/mount.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <a.out.h>
-#include <sys/file.h>
-#include <sys/errno.h>
 
 /* XXX this should be in a header. */
 extern int	mycall __P((struct proc *p, void *uap, int retval[]));
@@ -64,12 +57,13 @@ static struct sysent newent = {
 	0,	mycall			/* # of args, function pointer*/
 };
 
-MOD_SYSCALL( "newsyscall_mod", -1, &newent);
+MOD_SYSCALL(newsyscall_mod, -1, &newent);
 
 /*
  * This function is called each time the module is loaded.   Technically,
- * we could have made this "lkm_nullcmd" in the "DISPATCH" in "newsyscall()",
- * but it's a convenient place to kick a copyright out to the console.
+ * we could have made this "lkm_nullcmd" in the "MOD_DISPATCH" in
+ * "newsyscall()",  but it's a convenient place to kick a copyright out
+ * to the console.
  */
 static int
 newsyscall_load( lkmtp, cmd)
@@ -89,7 +83,7 @@ int			cmd;
 /*
  * External entry point; should generally match name of .o file.  The
  * arguments are always the same for all loaded modules.  The "load",
- * "unload", and "stat" functions in "DISPATCH" will be called under
+ * "unload", and "stat" functions in "MOD_DISPATCH" will be called under
  * their respective circumstances unless their value is "lkm_nullcmd".  If
  * called, they are called with the same arguments (cmd is included to
  * allow the use of a single function, ver is included for version
@@ -111,5 +105,6 @@ struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
 {
-	DISPATCH(lkmtp, cmd, ver, newsyscall_load, lkm_nullcmd, lkm_nullcmd)
+	MOD_DISPATCH(newsyscall_mod, lkmtp, cmd, ver,
+	    newsyscall_load, lkm_nullcmd, lkm_nullcmd)
 }
