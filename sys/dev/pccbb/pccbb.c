@@ -104,6 +104,7 @@
 	PCIC_WRITE(SC,REG,(PCIC_READ(SC,REG) MASK) MASK2)
 
 #define PCCBB_START_MEM	0x84000000
+#define PCCBB_START_IO 0x1000
 
 struct pccbb_sclist {
 	struct	pccbb_softc *sc;
@@ -1263,8 +1264,8 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 		start = end = tmp;
 		break;
 	case SYS_RES_IOPORT:
-		if (start <= 0x1000)
-			start = 0x1000;
+		if (start <= PCCBB_START_IO)
+			start = PCCBB_START_IO;
 		if (end < start)
 			end = start;
 		break;
@@ -1793,8 +1794,8 @@ pccbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_MEMORY:
-		if (start < 0x10000000)
-			start = 0x10000000;		/* XXX tweakable? */
+		if (start < PCCBB_START_MEM)
+			start = PCCBB_START_MEM;
 		if (end < start)
 			end = start;
 		flags = (flags & ~RF_ALIGNMENT_MASK) |
