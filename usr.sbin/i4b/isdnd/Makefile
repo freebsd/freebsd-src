@@ -20,8 +20,8 @@ MAN5	 =	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5
 
 .if !defined(I4B_WITHOUT_CURSES)
 COPTS	+=	-DUSE_CURSES
-DPADD	 =	${LIBCURSES} ${LIBTERMCAP}
-LDADD	 =	-lcurses -ltermcap
+DPADD	 =	${LIBCURSES}
+LDADD	 =	-lcurses
 .endif
 
 .if defined(I4B_EXTERNAL_MONITOR)
