@@ -179,6 +179,15 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
+    <para>The original fix for security advisory SA-02:23 (which
+      addressed the use of file descriptors by set-user-id or
+      set-group-id programs) contained an error.  It was still
+      possible for systems using &man.procfs.5; or &man.linprocfs.5;
+      to be exploited.  This error has now been corrected; a revised
+      version of security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      contains more details.</para>
+
     <para>A buffer overflow in the resolver, which could be exploited
       by a malicious domain name server or an attacker forging DNS
       messages, has been fixed.  See security advisory <ulink
@@ -204,6 +213,13 @@
       change the permissions of an arbitrary file, has been corrected.
       For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
+
+    <para>Multiple buffer overflows in
+      <application>OpenSSL</application> have been corrected, by way
+      of an upgrade to the base system version of
+      <application>OpenSSL</application>.  More details can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
 
   </sect2>
 
