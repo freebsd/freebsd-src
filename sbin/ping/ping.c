@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: ping.c,v 1.42 1999/01/06 07:54:28 imp Exp $";
+	"$Id: ping.c,v 1.43 1999/04/25 22:33:30 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -274,11 +274,10 @@ main(argc, argv)
 			if (*ep || ep == optarg || ultmp > INT_MAX)
 				errx(EX_USAGE, 
 				     "invalid preload value: `%s'", optarg);
-			if (getuid()) {
+			if (uid) {
 				errno = EPERM;
 				err(EX_NOPERM, "-l flag");
 			}
-			options |= F_FLOOD;
 			preload = ultmp;
 			break;
 		case 'L':
@@ -554,6 +553,8 @@ main(argc, argv)
 		if (timeout.tv_sec < 0)
 			timeout.tv_sec = timeout.tv_usec = 0;
 		n = select(s + 1, &rfds, NULL, NULL, &timeout);
+		if (n < 0)
+			continue;	/* Must be EINTR. */
 		if (n == 1) {
 			struct timeval *t = 0;
 #ifdef SO_TIMESTAMP
@@ -585,13 +586,14 @@ main(argc, argv)
 			if (npackets && nreceived >= npackets)
 				break;
 		}
-		if (n == 0) {
+		if (n == 0 || options & F_FLOOD) {
 			if (!npackets || ntransmitted < npackets)
 				pinger();
 			else {
 				if (almost_done)
 					break;
 				almost_done = 1;
+				intvl.tv_usec = 0;
 				if (nreceived) {
 					intvl.tv_sec = 2 * tmax / 1000;
 					if (!intvl.tv_sec)
