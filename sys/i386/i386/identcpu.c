@@ -497,6 +497,7 @@ printcpuinfo(void)
 				switch (cyrix_did & 0x0f) {
 				case 0x0d:
 					strcat(cpu_model, "Overdrive CPU");
+					break;
 				case 0x0e:
 					strcpy(cpu_model, "Texas Instruments 486SXL");
 					break;
