@@ -573,7 +573,7 @@ Xrendezvous:
 #ifdef COUNT_XINVLTLB_HITS
 	.globl	_xhits
 _xhits:
-	.space	(NCPU * 4), 0
+	.space	(MAXCPU * 4), 0
 #endif /* COUNT_XINVLTLB_HITS */
 
 	.globl	apic_pin_trigger
