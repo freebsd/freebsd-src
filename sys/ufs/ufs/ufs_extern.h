@@ -90,8 +90,8 @@ int	 ufs_lookup(struct vop_cachedlookup_args *);
 int	 ufs_readdir(struct vop_readdir_args *);
 int	 ufs_reclaim(struct vop_reclaim_args *);
 void	 ffs_snapgone(struct inode *);
-int	 ufs_root(struct mount *, struct vnode **);
-int	 ufs_start(struct mount *, int, struct thread *);
+vfs_root_t ufs_root;
+vfs_start_t ufs_start;
 int	 ufs_uninit(struct vfsconf *);
 int	 ufs_vinit(struct mount *, vop_t **, vop_t **, struct vnode **);
 
