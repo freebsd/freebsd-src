@@ -1416,8 +1416,9 @@ pci_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 	snprintf(buf, buflen, "vendor=0x%04x device=0x%04x subvendor=0x%04x "
-	    "subdevice=0x%04x", cfg->vendor, cfg->device, cfg->subvendor,
-	    cfg->subdevice);
+	    "subdevice=0x%04x class=0x%02x%02x%02x", cfg->vendor, cfg->device,
+	    cfg->subvendor, cfg->subdevice, cfg->baseclass, cfg->subclass,
+	    cfg->progif);
 	return (0);
 }
 
