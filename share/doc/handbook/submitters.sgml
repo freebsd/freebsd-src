@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.26 1996/05/09 23:32:44 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.27 1996/05/16 23:18:20 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -399,7 +399,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.26 1996/05/09 23:32:44 jkh Exp $
+	$Id: submitters.sgml,v 1.27 1996/05/16 23:18:20 mpp Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -430,8 +430,12 @@ following address:
 
 <tscreen><verb>
 FreeBSD, Inc.
-246 Park St.
-Clyde CA, 94520
+c/o Jordan Hubbard
+4041 Pike Lane, suite #D.
+Concord CA, 94520
+
+[temporarily using the Walnut Creek CDROM address until a PO box can be
+opened]
 </verb></tscreen>
 
 Wire transfers may also be sent directly to:
@@ -491,6 +495,10 @@ like to publically thank them here!
 
 	has generously donated funding to the further development of FreeBSD
 	</item>
+
+	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
+        Technology Corporation">has generously donated funding to FreeBSD.
+        </item>
 
         <item><htmlurl url="http://www.iijnet.or.jp/laser5/" name="Laser5">
         in Japan has graciously donated a portion of their profits from the
