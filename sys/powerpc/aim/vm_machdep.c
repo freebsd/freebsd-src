@@ -101,20 +101,6 @@
 
 #include <sys/user.h>
 
-static void	sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
-
-/*
- * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the
- * sf_freelist head with the sf_lock mutex.
- */
-static struct {
-	SLIST_HEAD(, sf_buf) sf_head;
-	struct mtx sf_lock;
-} sf_freelist;
-
-static u_int	sf_buf_alloc_want;
-
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -234,75 +220,24 @@ cpu_reset()
 }
 
 /*
- * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- */
-static void
-sf_buf_init(void *arg)
-{
-	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
-	int i;
-
-	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
-	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
-	}
-	sf_buf_alloc_want = 0;
-}
-
-/*
- * Get an sf_buf from the freelist. Will block if none are available.
+ * Allocate an sf_buf for the given vm_page.  On this machine, however, there
+ * is no sf_buf object.  Instead, an opaque pointer to the given vm_page is
+ * returned.
  */
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int pri)
 {
-	struct sf_buf *sf;
-	int error;
 
-	mtx_lock(&sf_freelist.sf_lock);
-	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
-		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
-		error = msleep(&sf_freelist, &sf_freelist.sf_lock, PVM | pri,
-		    "sfbufa", 0);
-		sf_buf_alloc_want--;
-
-		/*
-		 * If we got a signal, don't risk going back to sleep.
-		 */
-		if (error)
-			break;
-	}
-	if (sf != NULL) {
-		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
-		sf->m = m;
-		nsfbufsused++;
-		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-		pmap_qenter(sf->kva, &sf->m, 1);
-	}
-	mtx_unlock(&sf_freelist.sf_lock);
-	return (sf);
+	return ((struct sf_buf *)m);
 }
 
 /*
- * Release resources back to the system.
+ * Free the sf_buf.  In fact, do nothing because there are no resources
+ * associated with the sf_buf.
  */
 void
 sf_buf_free(struct sf_buf *sf)
 {
-
-	pmap_qremove(sf->kva, 1);
-	mtx_lock(&sf_freelist.sf_lock);
-	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
-	nsfbufsused--;
-	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
-	mtx_unlock(&sf_freelist.sf_lock);
 }
 
 /*
