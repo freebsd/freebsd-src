@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.26 1998/04/28 01:25:09 brian Exp $
+ *	$Id: chat.c,v 1.44.2.27 1998/04/30 23:53:26 brian Exp $
  */
 
 #include <sys/types.h>
@@ -34,6 +34,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -728,25 +729,16 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   }
   if ((pid = fork()) == 0) {
     TermTimerService();
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
-    signal(SIGALRM, SIG_DFL);
-	/* XXX-ML This looks like it might need more encapsulation. */
-    if (Physical_GetFD(physical) == 2) {
-	   Physical_DupAndClose(physical);
-    }
-    close(fids[0]);
-    dup2(fids[1], 2);
-    close(fids[1]);
-    dup2(Physical_GetFD(physical), 0);
-    dup2(Physical_GetFD(physical), 1);
-    if ((nb = open("/dev/tty", O_RDWR)) > 3) {
-      dup2(nb, 3);
-      close(nb);
+
+    fids[1] = fcntl(fids[1], F_DUPFD, 4);
+    dup2(Physical_GetFD(physical), STDIN_FILENO);
+    dup2(STDIN_FILENO, STDOUT_FILENO);
+    dup2(fids[1], STDERR_FILENO);
+    close(3);
+    if (open(_PATH_TTY, O_RDWR) == 3)
       fcntl(3, F_SETFD, 0);	/* Clear close-on-exec flag */
-    }
+    else
+      fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
     setuid(geteuid());
     execvp(vector[0], vector);
     fprintf(stderr, "execvp failed: %s: %s\n", vector[0], strerror(errno));

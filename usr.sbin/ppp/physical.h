@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.21 1998/04/10 23:51:33 brian Exp $
+ *  $Id: physical.h,v 1.1.2.22 1998/04/20 00:20:41 brian Exp $
  *
  */
 
@@ -90,7 +90,6 @@ int /* Can this be set?  (Might not be a relevant attribute for this
        device, for instance) */
 Physical_SetRtsCts(struct physical *, int);
 
-void Physical_DupAndClose(struct physical *);
 ssize_t Physical_Read(struct physical *, void *, size_t);
 ssize_t Physical_Write(struct physical *, const void *, size_t);
 int Physical_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,

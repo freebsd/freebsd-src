@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.74 1998/04/30 23:53:29 brian Exp $
+ * $Id: command.c,v 1.131.2.75 1998/05/01 19:19:58 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/04/30 23:53:29 $";
+const char VersionDate[] = "$Date: 1998/05/01 19:19:58 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -317,11 +317,6 @@ ShellCommand(struct cmdargs const *arg, int bg)
       shell = _PATH_BSHELL;
 
     TermTimerService();
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
-    signal(SIGALRM, SIG_DFL);
 
     if (arg->prompt)
       fd = arg->prompt->fd_out;
@@ -332,6 +327,8 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
     for (i = 0; i < 3; i++)
       dup2(fd, i);
+
+    fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
 
     setuid(geteuid());
     if (arg->argc > arg->argn) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.60 1998/04/30 23:53:49 brian Exp $
+ * $Id: modem.c,v 1.77.2.61 1998/05/01 19:20:09 brian Exp $
  *
  *  TODO:
  */
@@ -251,10 +251,12 @@ IntToSpeed(int nspeed)
 static void
 modem_SetDevice(struct physical *physical, const char *name)
 {
+  int len = strlen(_PATH_DEV);
+
   strncpy(physical->name.full, name, sizeof physical->name.full - 1);
   physical->name.full[sizeof physical->name.full - 1] = '\0';
-  physical->name.base = strncmp(physical->name.full, "/dev/", 5) ?
-    physical->name.full : physical->name.full + 5;
+  physical->name.base = strncmp(physical->name.full, _PATH_DEV, len) ?
+                        physical->name.full : physical->name.full + len;
 }
 
 /*

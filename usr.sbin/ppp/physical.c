@@ -16,13 +16,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.27 1998/04/28 01:25:37 brian Exp $
+ *  $Id: physical.c,v 1.1.2.28 1998/04/30 23:53:53 brian Exp $
  *
  */
 
 #include <sys/types.h>
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,19 +103,8 @@ Physical_SetSync(struct physical *phys) {
 
 int
 Physical_SetRtsCts(struct physical *phys, int enable) {
-   assert(enable == 0 || enable == 1);
-
-   phys->cfg.rts_cts = enable;
+   phys->cfg.rts_cts = enable ? 1 : 0;
    return 1;
-}
-
-void
-Physical_DupAndClose(struct physical *phys) {
-   int nmodem;
-
-   nmodem = dup(phys->fd);
-   close(phys->fd);
-   phys->fd = nmodem;
 }
 
 /* Encapsulation for a read on the FD.  Avoids some exposure, and

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.65 1998/04/30 23:53:21 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.66 1998/05/01 19:19:54 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1196,6 +1196,7 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
         ppp_fd = fcntl(ppp_fd, F_DUPFD, 3);
         link_fd = fcntl(link_fd, F_DUPFD, 3);
         nfd = dup2(open(_PATH_DEVNULL, O_WRONLY), STDERR_FILENO);
+        fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
 
         setsid();
         setuid(geteuid());
