@@ -56,6 +56,7 @@ int
 main(int argc, char **argv)
 {
 	char *dir, *cp, path[PATH_MAX];
+	struct statfs stfsbuf;
 	struct ufs_args args;
 	struct group *grp;
 	struct stat stbuf;
@@ -85,6 +86,8 @@ main(int argc, char **argv)
 	} else {
 		strlcpy(path, args.fspec, cp - args.fspec + 1);
 	}
+	if(statfs(path, &stfsbuf) < 0)
+		err(1, "%s", path);
 	if (stat(path, &stbuf) < 0)
 		err(1, "%s", path);
 	if (!S_ISDIR(stbuf.st_mode))
@@ -100,7 +103,8 @@ main(int argc, char **argv)
 	 */
 	if ((grp = getgrnam("operator")) == NULL)
 		errx(1, "Cannot retrieve operator gid");
-	if (mount("ffs", dir, MNT_UPDATE | MNT_SNAPSHOT, &args) < 0)
+	if (mount("ffs", dir, MNT_UPDATE | MNT_SNAPSHOT | stfsbuf.f_flags,
+	    &args) < 0)
 		err(1, "Cannot create %s", args.fspec);
 	if ((fd = open(args.fspec, O_RDONLY)) < 0)
 		err(1, "Cannot open %s", args.fspec);
