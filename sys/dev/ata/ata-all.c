@@ -25,12 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.4 1999/03/01 21:03:15 sos Exp sos $
+ *  $Id: ata-all.c,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 #include "ata.h"
 #if NATA > 0
+#include "isa.h"
 #include "pci.h"
+#include "atadisk.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -53,24 +55,28 @@
 #define UNIT(dev) (dev>>3 & 0x1f)   		/* assume 8 minor # per unit */
 
 /* prototypes */
-void ataintr(int32_t);
+#if NISA > 0
 static int32_t ata_isaprobe(struct isa_device *);
 static int32_t ata_isaattach(struct isa_device *);
+#endif
+#if NPCI > 0
 static const char *ata_pciprobe(pcici_t, pcidi_t);
 static void ata_pciattach(pcici_t, int32_t);
+static void promise_intr(int32_t);
+#endif
 static int32_t ata_probe(int32_t, int32_t, int32_t *);
 static int32_t ata_attach(int32_t);
-static void promise_intr(int32_t);
-static int32_t ata_reset(struct ata_softc *);
+static void ataintr(int32_t);
 static int32_t ata_device_attach(struct ata_softc *, int32_t);
 static int32_t atapi_device_attach(struct ata_softc *, int32_t);
 static void bswap(int8_t *, int32_t);
 static void btrim(int8_t *, int32_t);
 
-static int32_t atanlun, sysctrl = 0;
+static int32_t atanlun = 0, sysctrl = 0;
 struct ata_softc *atadevices[MAXATA];
 struct isa_driver atadriver = { ata_isaprobe, ata_isaattach, "ata" };
 
+#if NISA > 0
 static int32_t
 ata_isaprobe(struct isa_device *devp)
 {
@@ -85,7 +91,7 @@ ata_isaprobe(struct isa_device *devp)
     }
     res=ata_probe(devp->id_iobase, devp->id_iobase+ATA_ALTPORT, &devp->id_unit);
     if (res)
-	devp->id_intr = ataintr;
+	devp->id_intr = (inthand2_t *)ataintr;
     return res;
 }
 
@@ -94,7 +100,9 @@ ata_isaattach(struct isa_device *devp)
 {
     return ata_attach(devp->id_unit);
 }
+#endif
 
+#if NPCI > 0
 static u_long ata_pcicount;
 static struct pci_device ata_pcidevice = {
     "ata-pci", ata_pciprobe, ata_pciattach, &ata_pcicount, 0
@@ -127,7 +135,7 @@ ata_pciprobe(pcici_t tag, pcidi_t type)
 	case 0x522910b9:
 	    return "Acer Aladdin IV/V IDE controller";
 	default:
-	    return ("Unknown PCI IDE controller");
+	    return "Unknown PCI IDE controller";
 	}
     }
     return NULL;
@@ -208,9 +216,10 @@ ata_pciattach(pcici_t tag, int32_t unit)
 	    register_intr(irq1, 0, 0, (inthand2_t *)ataintr, &bio_imask, lun);
 	else {
 	    if (sysctrl)
-	        pci_map_int(tag, promise_intr, (void *)lun, &bio_imask);
+	        pci_map_int(tag, (inthand2_t *)promise_intr, 
+			    (void *)lun, &bio_imask);
 	    else
-	        pci_map_int(tag, ataintr, (void *)lun, &bio_imask);
+	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)lun,&bio_imask);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, irq1, unit);
@@ -221,7 +230,7 @@ ata_pciattach(pcici_t tag, int32_t unit)
 	    register_intr(irq2, 0, 0, (inthand2_t *)ataintr, &bio_imask, lun);
 	else {
 	    if (!sysctrl)
-	        pci_map_int(tag, ataintr, (void *) lun, &bio_imask);
+	        pci_map_int(tag, (inthand2_t *)ataintr, (void *)lun,&bio_imask);
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, irq2, unit);
@@ -237,37 +246,42 @@ promise_intr(int32_t unit)
     if (inl(sysctrl) & 0x00004000)
 	ataintr(unit+1);
 }
+#endif
 
 static int32_t
 ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
 {
     struct ata_softc *scp = atadevices[atanlun];
-    u_int8_t status0, status1;
     int32_t mask = 0;
     int32_t timeout;  
+    int32_t lun = atanlun;
+    u_int8_t status0, status1;
 
-    if (atanlun > MAXATA) {
-	printf("ata: unit of of range(%d)\n", atanlun);
-	return(0);
+#ifdef ATA_STATIC_ID
+    atanlun++;
+#endif
+    if (lun > MAXATA) {
+	printf("ata: unit of of range(%d)\n", lun);
+	return 0;
     }
     if (scp) {
-	printf("ata%d: unit already attached\n", atanlun);
-	return(0);
+	printf("ata%d: unit already attached\n", lun);
+	return 0;
     }
     scp = malloc(sizeof(struct ata_softc), M_DEVBUF, M_NOWAIT);
     if (scp == NULL) {
-	printf("ata%d: failed to allocate driver storage\n", atanlun);
-	return(0);
+	printf("ata%d: failed to allocate driver storage\n", lun);
+	return 0;
     }
     bzero(scp, sizeof(struct ata_softc));
 
-    scp->unit = atanlun;
+    scp->unit = lun;
     scp->ioaddr = ioaddr; 
     scp->altioaddr = altioaddr;
 
 #ifdef ATA_DEBUG
     printf("ata%d: iobase=0x%04x altiobase=0x%04x\n", 
-	   atanlun, scp->ioaddr, scp->altioaddr);
+	   scp->unit, scp->ioaddr, scp->altioaddr);
 #endif
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
@@ -283,7 +297,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
         mask |= 0x02;
 #ifdef ATA_DEBUG
     printf("ata%d: mask=%02x status0=%02x status1=%02x\n", 
-	   atanlun, mask, status0, status1);
+	   scp->unit, mask, status0, status1);
 #endif
     if (!mask) {
 	free(scp, M_DEVBUF);
@@ -325,7 +339,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
         mask &= ~0x02;
 #ifdef ATA_DEBUG
     printf("ata%d: mask=%02x status0=%02x status1=%02x\n", 
-	   atanlun, mask, status0, status1);
+	   scp->unit, mask, status0, status1);
 #endif
     if (!mask) {
 	free(scp, M_DEVBUF);
@@ -370,7 +384,7 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
         }
     }
 #ifdef ATA_DEBUG
-    printf("ata%d: devices = 0x%x\n", atanlun, scp->devices);
+    printf("ata%d: devices = 0x%x\n", scp->unit, scp->devices);
 #endif
     if (!(scp->devices & (ATA_ATA_MASTER|ATA_ATAPI_MASTER)))
 	scp->flags |= ATA_F_SLAVE_ONLY;
@@ -380,8 +394,11 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
     }
     bufq_init(&scp->ata_queue);
     TAILQ_INIT(&scp->atapi_queue);
-    *unit = atanlun;
-    atadevices[atanlun++] = scp;
+    *unit = scp->unit;
+    atadevices[scp->unit] = scp;
+#ifndef ATA_STATIC_ID
+    atanlun++;
+#endif
     return ATA_IOSIZE;
 }
 
@@ -410,7 +427,7 @@ ata_attach(int32_t unit)
     return scp->devices;
 }
 
-void
+static void
 ataintr(int32_t unit)
 {
     struct ata_softc *scp;
@@ -431,16 +448,12 @@ ataintr(int32_t unit)
 
     /* find & call the responsible driver to process this interrupt */
     switch (scp->active) {
-    case ATA_IDLE:
-	if (intcount++ < 5)
-	    printf("ata%d: unwanted interrupt\n", unit);
-	break;
-
+#if NATADISK > 0
     case ATA_ACTIVE_ATA:
     	if ((ata_request = bufq_first(&scp->ata_queue)))
             ad_interrupt(ata_request);
 	break;
-
+#endif
     case ATA_ACTIVE_ATAPI:
         if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue)))
 	    atapi_interrupt(atapi_request);
@@ -448,6 +461,12 @@ ataintr(int32_t unit)
 
     case ATA_IGNORE_INTR:
 	scp->active = ATA_IDLE;
+	break;
+
+    default:
+    case ATA_IDLE:
+	if (intcount++ < 5)
+	    printf("ata%d: unwanted interrupt\n", unit);
 	break;
     }
 }
@@ -506,22 +525,6 @@ ata_wait(struct ata_softc *scp, u_int8_t mask)
 	    DELAY(10);
     }
     return -1;
-}
-
-static int32_t
-ata_reset(struct ata_softc *scp)
-{
-    outb(scp->altioaddr, ATA_A_RESET | ATA_A_IDS);
-    DELAY(10000);
-    outb(scp->altioaddr, ATA_A_IDS);
-    DELAY(10000);
-    inb(scp->ioaddr + ATA_ERROR);
-    outb(scp->altioaddr, ATA_A_4BIT);
-    if (ata_wait(scp, 0) < 0) {
-	printf("ata%d: RESET failed\n", scp->unit);
-	return 1;
-    }
-    return 0;
 }
 
 static int32_t

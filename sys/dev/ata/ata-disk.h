@@ -25,17 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.5 1999/03/01 12:11:01 sos Exp $
+ *	$Id: ata-disk.h,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
-/*
- * Structure describing an ATA disk
- */
+/* Structure describing an ATA disk */
 struct ad_softc {  
     struct ata_softc		*controller;	/* ptr to parent ctrl */
     struct ata_params		*ata_parm;	/* ata device params */
     struct diskslices 		*slices;
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
+    int32_t			lun;		/* logical unit number */
     u_int16_t			cylinders;	/* disk geometry (probed) */
     u_int8_t  			heads;
     u_int8_t			sectors;
@@ -47,9 +46,12 @@ struct ad_softc {
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			active;		/* active processing request */
     u_int32_t			flags;		/* drive flags */
-#define		AD_F_LABELLING		0x0001		
-
     struct devstat 		stats;		/* devstat entry */
+#define		AD_F_LABELLING		0x0001		
+#ifdef DEVFS
+    void			*cdevs_token;
+    void			*bdevs_token;
+#endif
 };
 
 void ad_transfer(struct buf *);
