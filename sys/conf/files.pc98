@@ -331,6 +331,9 @@ i4b/layer1/ihfc/i4b_ihfc_pnp.c		optional	ihfc
 i4b/layer1/ihfc/i4b_ihfc_drv.c		optional	ihfc
 #
 isa/psm.c			optional	psm
+kern/imgact_aout.c		standard
+kern/imgact_gzip.c		optional	gzip
+kern/link_aout.c		standard
 kern/subr_diskmbr.c		count		compat_atdisk
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
