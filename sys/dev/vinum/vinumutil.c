@@ -200,6 +200,8 @@ sizespec(char *spec)
 
 	    case 'B':
 	    case 'b':
+	    case 'S':
+	    case 's':
 		return size * sign * 512;
 
 	    case 'K':
