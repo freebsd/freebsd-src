@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile,v 1.5 1996/08/17 22:27:08 wosch Exp $
+# @(#)$Id: Makefile,v 1.11 1997/04/04 02:42:53 mpp Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -29,11 +29,11 @@ MAGICOWN=	bin
 MAGICGRP=	bin
 MAGICMODE=	444
 
-CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"'
+CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"' -DBUILTIN_ELF
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  print.c international.c
+		compress.c is_tar.c  readelf.c internat.c print.c
 
 MAN1=		file.1
 MAN5=		magic.5
@@ -52,9 +52,5 @@ magic:	$(MAGFILES)
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) \
 	    magic $(DESTDIR)$(MAGICDIR)/magic
-
-etc-magic:
-	rm -f ${DESTDIR}/etc/magic
-	ln -s ${MAGICDIR}/magic ${DESTDIR}/etc/magic
 
 .include <bsd.prog.mk>

@@ -16,6 +16,10 @@
 >12	belong		6		32-bit IEEE floating point,
 >12	belong		7		64-bit IEEE floating point,
 >12	belong		23		8-bit ISDN u-law compressed (CCITT G.721 ADPCM voice data encoding),
+>12	belong		24		compressed (8-bit G.722 ADPCM)
+>12	belong		25		compressed (3-bit G.723 ADPCM),
+>12	belong		26		compressed (5-bit G.723 ADPCM),
+>12	belong		27		8-bit A-law,
 >20	belong		1		mono,
 >20	belong		2		stereo,
 >20	belong		4		quad,
@@ -54,14 +58,15 @@
 >4	belong		x		- version %ld
 
 # Microsoft WAVE format (*.wav)
-# [GRR 950115:  probably all of the shorts and longs should be leshort/lelong]
 0	string		RIFF		Microsoft RIFF
 >8	string		WAVE		\b, WAVE audio data
->34	short		>0		\b, %d bit
->22	short		=1		\b, mono
->22	short		=2		\b, stereo
->22	short		>2		\b, %d channels
->24	long		>0		%d Hz
+>>34	leshort		>0		\b, %d bit
+>>22	leshort		=1		\b, mono
+>>22	leshort		=2		\b, stereo
+>>22	leshort		>2		\b, %d channels
+>>24	lelong		>0		%d Hz
+# AVI == Audio Video Interleave
+>8      string          AVI\            \b, AVI data
 
 # Extended MOD format (*.emd) (Greg Roelofs, newt@uchicago.edu); NOT TESTED
 # [based on posting 940824 by "Dirk/Elastik", husberg@lehtori.cc.tut.fi]
@@ -71,6 +76,18 @@
 >45	byte		x		%d instruments
 >83	byte		0		(module)
 >83	byte		1		(song)
+
+# Real Audio (Magic .ra\0375)
+0	belong		0x2e7261fd	realaudio sound file
+
+# MTM/669/FAR/S3M/ULT/XM format checking [Aaron Eppert, aeppert@dialin.ind.net]
+# Oct 31, 1995
+0	string		MTM		MultiTracker Module sound file
+0	string		if		Composer 669 Module sound data
+0	string		FAR		Module sound data
+0	string		MAS_U		ULT(imate) Module sound data
+0x2c	string		SCRM		ScreamTracker III Module sound data
+0	string		Extended Module	Extended Module sound data
 
 # Gravis UltraSound patches
 # From <ache@nagual.ru>

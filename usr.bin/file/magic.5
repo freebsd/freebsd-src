@@ -3,14 +3,17 @@
 .SH NAME
 magic \- file command's magic number file
 .SH DESCRIPTION
-The
-.IR file (1)
+This manual page documents the format of the magic file as
+used by the
+.BR file (1)
+command, version 3.22. The
+.B file
 command identifies the type of a file using,
 among other tests,
 a test for whether the file begins with a certain
 .IR "magic number" .
 The file
-.B /etc/magic
+.I /etc/magic
 specifies what magic numbers are to be tested for,
 what message to print if a particular magic number is found,
 and additional information to extract from the file.
@@ -113,7 +116,7 @@ then presumably print that string, by doing
 .IP message
 The message to be printed if the comparison succeeds.  If the string
 contains a
-.IR printf (3S)
+.BR printf (3S)
 format specification, the value from the file (with any specified masking
 performed) is printed using the message as the format string.
 .PP
@@ -156,6 +159,15 @@ type specifier. To that number the value of
 .I y
 is added and the result is used as an offset in the file. The default type
 if one is not specified is long.
+.PP
+Sometimes you do not know the exact offset as this depends on the length of
+preceding fields. You can specify an offset relative to the end of the
+last uplevel field (of course this may only be done for sublevel tests, i.e.
+test beginning with 
+.B >
+). Such a relative offset is specified using
+.B &
+as a prefix to the offset.
 .SH BUGS
 The formats 
 .IR long ,
@@ -176,7 +188,7 @@ a system on which the lengths are invariant.
 There is (currently) no support for specified-endian data to be used in
 indirect offsets.
 .SH SEE ALSO
-.IR file (1)
+.BR file (1)
 \- the command that reads this file.
 .\"
 .\" From: guy@sun.uucp (Guy Harris)
@@ -191,4 +203,4 @@ indirect offsets.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.5,v 1.3 1996/01/23 12:40:17 mpp Exp $
+.\" @(#)$Id: magic.5,v 1.7 1997/03/18 19:37:20 mpp Exp $

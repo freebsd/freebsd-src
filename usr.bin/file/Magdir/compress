@@ -79,8 +79,14 @@
 #
 # This will cause very short GSM files to be declared as data and
 # mismatches to be declared as data too!
-#0	byte&0xF0	0xd0	data
+#0	byte&0xF0	0xd0		data
 #>33	byte&0xF0	0xd0
 #>66	byte&0xF0	0xd0
 #>99	byte&0xF0	0xd0
-#>132	byte&0xF0	0xd0	GSM 06.10 compressed audio
+#>132	byte&0xF0	0xd0		GSM 06.10 compressed audio
+
+# Bzip from ulmo@Q.Net
+0	string		BZ		bzip compressed	data,
+>2	byte		x		format v. %c,
+>3	byte		x		block size indicator %c
+

@@ -4,12 +4,6 @@
 #
 # All new-style magic numbers are in network byte order.
 #
-0	lelong			000000413	386BSD demand paged executable
->16	lelong			>0		not stripped
-0	lelong			000000314	BSDI demand paged executable
->16	lelong			>0		not stripped
->32	byte			0x6a		(uses shared libs)
-
 
 0	lelong			000000407	NetBSD little-endian object file
 >16	lelong			>0		not stripped
@@ -163,6 +157,15 @@
 0	belong&0377777777	043000507	NetBSD/vax core
 >12	string			>\0		from '%s'
 
+# NetBSD/alpha does not support (and has never supported) a.out objects,
+# so no rules are provided for them.  NetBSD/alpha ELF objects are 
+# dealt with in "elf".
+0	leshort		0x00070185		ECOFF NetBSD/alpha binary
+>10	leshort		0x0001			not stripped
+>10	leshort		0x0000			stripped
+0	belong&0377777777	043200507	NetBSD/alpha core
+>12	string			>\0		from '%s'
+
 0	belong&0377777777	043400413	NetBSD/mips demand paged
 >0	byte			&0x80		
 >>20	belong			<8192		shared library
@@ -182,4 +185,25 @@
 >>20	belong			=0		object file
 >16	belong			>0		not stripped
 0	belong&0377777777	043400507	NetBSD/mips core
+>12	string			>\0		from '%s'
+
+0	belong&0377777777	043600413	NetBSD/arm32 demand paged
+>0	byte			&0x80
+>>20	lelong			<8192		shared library
+>>20	lelong			=8192		dynamically linked executable
+>>20	lelong			>8192		dynamically linked executable
+>0	byte			^0x80		executable
+>16	lelong			>0		not stripped
+0	belong&0377777777	043600410	NetBSD/arm32 pure
+>0	byte			&0x80		dynamically linked executable
+>0	byte			^0x80		executable
+>16	lelong			>0		not stripped
+0	belong&0377777777	043600407	NetBSD/arm32
+>0	byte			&0x80		dynamically linked executable
+>0	byte			^0x80
+>>0	byte			&0x40		position independent
+>>20	lelong			!0		executable
+>>20	lelong			=0		object file
+>16	lelong			>0		not stripped
+0	belong&0377777777	043600507	NetBSD/arm32 core
 >12	string			>\0		from '%s'

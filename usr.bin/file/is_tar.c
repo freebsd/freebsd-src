@@ -5,7 +5,7 @@
  * Pubic Domain version written 26 Aug 1985 John Gilmore (ihnp4!hoptoad!gnu).
  *
  * @(#)list.c 1.18 9/23/86 Public Domain - gnu
- * $Id: is_tar.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $
+ * $Id: is_tar.c,v 1.5 1997/03/18 19:37:19 mpp Exp $
  *
  * Comments changed and some code/comments reformatted
  * for file command by Ian Darwin.
@@ -19,9 +19,9 @@
 #define	isodigit(c)	( ((c) >= '0') && ((c) <= '7') )
 
 #if	defined(__STDC__) || defined(__cplusplus)
-static long from_oct(int, char*);	/* Decode octal number */
+static int from_oct(int, char*);	/* Decode octal number */
 #else
-static long from_oct();
+static int from_oct();
 #endif
 
 /*
@@ -37,7 +37,7 @@ int nbytes;
 {
 	register union record *header = (union record *)buf;
 	register int	i;
-	register long	sum, recsum;
+	register int	sum, recsum;
 	register char	*p;
 
 	if (nbytes < sizeof(union record))
@@ -75,12 +75,12 @@ int nbytes;
  *
  * Result is -1 if the field is invalid (all blank, or nonoctal).
  */
-static long
+static int
 from_oct(digs, where)
 	register int	digs;
 	register char	*where;
 {
-	register long	value;
+	register int	value;
 
 	while (isspace(*where)) {		/* Skip spaces */
 		where++;

@@ -1,12 +1,16 @@
 
 #------------------------------------------------------------------------------
 # sgi:  file(1) magic for Silicon Graphics (MIPS, IRIS, IRIX, etc.)
-#
+#                         Dec Ultrix (MIPS)
 # all of SGI's *current* machines and OSes run in big-endian mode on the
 # MIPS machines, as far as I know.
 #
 # XXX - what is the blank "-" line?
 #
+# kbd file definitions
+0	string	kbd!map		kbd map file
+>8	byte	>0		Ver %d:
+>10	short	>0		with %d table(s)
 0	belong	0407		old SGI 68020 executable
 0	belong	0410		old SGI 68020 pure executable
 0	beshort	0x8765		disk quotas file
@@ -47,8 +51,8 @@
 >20	beshort	05401		(paged)
 >8	belong	>0		not stripped
 >8	belong	0		stripped
->22	byte	x		- version %d
->23	byte	x		.%ld
+>23	byte	x		- version %d
+>22	byte	x		.%ld
 #
 0	beshort	0x6201		MIPSEL-LE COFF executable
 >20	beshort	03401		(impure)
@@ -56,8 +60,8 @@
 >20	beshort	05401		(paged)
 >8	belong	>0		not stripped
 >8	belong	0		stripped
->22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		- version %ld
+>22	byte	x		.%ld
 #
 # MIPS 2 additions
 #
@@ -86,7 +90,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->23	byte	x		.%ld
+>22	byte	x		.%ld
 #
 0	beshort	0x6601		MIPSEL-LE MIPS-II COFF executable
 >20	beshort	03401		(impure)
@@ -95,7 +99,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->23	byte	x		.%ld
+>22	byte	x		.%ld
 #
 # MIPS 3 additions
 #
@@ -124,7 +128,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->23	byte	x		.%ld
+>22	byte	x		.%ld
 #
 0	beshort	0x4201		MIPSEL-LE MIPS-III COFF executable
 >20	beshort	03401		(impure)
@@ -133,7 +137,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->23	byte	x		.%ld
+>22	byte	x		.%ld
 #
 0	beshort	0x180		MIPSEB Ucode
 0	beshort	0x182		MIPSEL Ucode
@@ -157,7 +161,8 @@
 0	string	WNGZWZSS	Wingz spreadsheet
 0	string	WNGZWZHP	Wingz help file
 #
-0	string	\#Inventor V	IRIS Inventor file
+0	string	\#Inventor V	IRIS Inventor 1.0 file
+0	string	\#Inventor V2	Open Inventor 2.0 file
 # XXX - I don't know what next thing is!  It is likely to be an image
 # (or movie) format
 0	string	glfHeadMagic();		GLF_TEXT

@@ -6,12 +6,6 @@
 # applied to the "TML" stuff; I'm assuming the Apollo stuff is
 # big-endian as it was mostly 68K-based.
 #
-# HP-PA is big-endian, so it (and "800", which is *also* HP-PA-based; I
-# assume "HPPA-RISC1.1" really means "HP-PA Version 1.1", which first
-# showed up in the 700 series, although later 800 series machines are,
-# I think, based on the PA7100 which implements HP-PA 1.1) are flagged
-# as big-endian.
-#
 # I think the 500 series was the old stack-based machines, running a
 # UNIX environment atop the "SUN kernel"; dunno whether it was
 # big-endian or little-endian.
@@ -21,10 +15,23 @@
 # HP magic is useful for reference, but using "long" magic is a better
 # practice in order to avoid collisions.
 #
+# Guy Harris (guy@netapp.com): some additions to this list came from
+# HP-UX 10.0's "/usr/include/sys/unistd.h" (68030, 68040, PA-RISC 1.1,
+# 1.2, and 2.0).  The 1.2 and 2.0 stuff isn't in the HP-UX 10.0
+# "/etc/magic", though, except for the "archive file relocatable library"
+# stuff, and the 68030 and 68040 stuff isn't there at all - are they not
+# used in executables, or have they just not yet updated "/etc/magic"
+# completely?
+#
 # 0	beshort		200		hp200 (68010) BSD binary
 # 0	beshort		300		hp300 (68020+68881) BSD binary
 # 0	beshort		0x20c		hp200/300 HP-UX binary
-# 0	beshort		0x20b		hp800 HP-UX binary
+# 0	beshort		0x20d		hp400 (68030) HP-UX binary
+# 0	beshort		0x20e		hp400 (68040?) HP-UX binary
+# 0	beshort		0x20b		PA-RISC1.0 HP-UX binary
+# 0	beshort		0x210		PA-RISC1.1 HP-UX binary
+# 0	beshort		0x211		PA-RISC1.2 HP-UX binary
+# 0	beshort		0x214		PA-RISC2.0 HP-UX binary
 
 #
 # The "misc" stuff needs a byte order; the archives look suspiciously
@@ -41,49 +48,58 @@
 0       long            01702407010     TML 1032 byte-order format
 0       long            01003405017     TML 2301 byte-order format
 0       long            01602007412     TML 3210 byte-order format
-#### HPPA
-0	belong 		0x02100106	HPPA-RISC1.1 relocatable object
-0	belong 		0x02100107	HPPA-RISC1.1 executable
+#### PA-RISC
+0	belong 		0x02100106	PA-RISC1.1 relocatable object
+0	belong 		0x02100107	PA-RISC1.1 executable
+>168	belong		&=0x00000004	dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x02100108	HPPA-RISC1.1 shared executable
+0	belong 		0x02100108	PA-RISC1.1 shared executable
+>168	belong&0x4	0x4		dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x0210010b	HPPA-RISC1.1 demand-load executable
+0	belong 		0x0210010b	PA-RISC1.1 demand-load executable
+>168	belong&0x4	0x4		dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x0210010e	HPPA-RISC1.1 shared library
+0	belong 		0x0210010e	PA-RISC1.1 shared library
 >96	belong		>0		- not stripped
 
-0	belong 		0x0210010d	HPPA-RISC1.1 dynamic load library
+0	belong 		0x0210010d	PA-RISC1.1 dynamic load library
 >96	belong		>0		- not stripped
 
 #### 800
-0	belong 		0x020b0106	HP s800 relocatable object
+0	belong 		0x020b0106	PA-RISC1.0 relocatable object
 
-0	belong 		0x020b0107	HP s800 executable
+0	belong 		0x020b0107	PA-RISC1.0 executable
+>168	belong&0x4	0x4		dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x020b0108	HP s800 shared executable
+0	belong 		0x020b0108	PA-RISC1.0 shared executable
+>168	belong&0x4	0x4		dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x020b010b	HP s800 demand-load executable
+0	belong 		0x020b010b	PA-RISC1.0 demand-load executable
+>168	belong&0x4	0x4		dynamically linked
 >(144)	belong		0x054ef630	dynamically linked
 >96	belong		>0		- not stripped
 
-0	belong 		0x020b010e	HP s800 shared library
+0	belong 		0x020b010e	PA-RISC1.0 shared library
 >96	belong		>0		- not stripped
 
-0	belong 		0x020b010d	HP s800 dynamic load library
+0	belong 		0x020b010d	PA-RISC1.0 dynamic load library
 >96	belong		>0		- not stripped
 
 0	belong		0x213c6172	archive file
->68	belong 		0x020b0619	- HP s800 relocatable library
+>68	belong 		0x020b0619	- PA-RISC1.0 relocatable library
+>68	belong	 	0x02100619	- PA-RISC1.1 relocatable library
+>68	belong 		0x02110619	- PA-RISC1.2 relocatable library
+>68	belong 		0x02140619	- PA-RISC2.0 relocatable library
 
 #### 500
 0	long		0x02080106	HP s500 relocatable executable
@@ -156,7 +172,7 @@
 
 0	string		IMGfile	CIS 	compimg HP Bitmapfile
 # XXX - see "lif"
-0	short		0x8000		lif file
+#0	short		0x8000		lif file
 0	long		0x020c010c	compiled Lisp
 
 0	string		msgcat01	HP NLS message catalog,

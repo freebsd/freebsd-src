@@ -10,22 +10,24 @@
  *
  * See LEGAL.NOTICE
  *
- * $Id: names.h,v 1.1.1.2 1996/01/22 22:31:42 mpp Exp $
+ * $Id: names.h,v 1.5 1997/03/18 19:37:21 mpp Exp $
  */
 
 /* these types are used to index the table 'types': keep em in sync! */
 #define L_C	0		/* first and foremost on UNIX */
-#define	L_FORT	1		/* the oldest one */
-#define L_MAKE	2		/* Makefiles */
-#define L_PLI	3		/* PL/1 */
-#define L_MACH	4		/* some kinda assembler */
-#define L_ENG	5		/* English */
-#define	L_PAS	6		/* Pascal */
-#define	L_MAIL	7		/* Electronic mail */
-#define	L_NEWS	8		/* Usenet Netnews */
+#define L_CC	1		/* Bjarne's postincrement */
+#define	L_FORT	2		/* the oldest one */
+#define L_MAKE	3		/* Makefiles */
+#define L_PLI	4		/* PL/1 */
+#define L_MACH	5		/* some kinda assembler */
+#define L_ENG	6		/* English */
+#define	L_PAS	7		/* Pascal */
+#define	L_MAIL	8		/* Electronic mail */
+#define	L_NEWS	9		/* Usenet Netnews */
 
 static char *types[] = {
 	"C program text",
+	"C++ program text",
 	"FORTRAN program text",
 	"make commands text" ,
 	"PL/1 program text",
@@ -43,6 +45,12 @@ static struct names {
 } names[] = {
 	/* These must be sorted by eye for optimal hit rate */
 	/* Add to this list only after substantial meditation */
+	{"//",		L_CC},
+	{"template",	L_CC},
+	{"virtual",	L_CC},
+	{"class",	L_CC},
+	{"public:",	L_CC},
+	{"private:",	L_CC},
 	{"/*",		L_C},	/* must precede "The", "the", etc. */
 	{"#include",	L_C},
 	{"char",	L_C},

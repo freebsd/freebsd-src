@@ -2,6 +2,6 @@
 #------------------------------------------------------------------------------
 # Localstuff:  file(1) magic for locally observed files
 #
-# $Id: Localstuff,v 1.3 1995/01/21 21:09:00 christos Exp $
+# $Id: Localstuff,v 1.3 1997/02/22 19:29:21 peter Exp $
 # Add any locally observed files here.  Remember:
 # text if readable, executable if runnable binary, data if unreadable.
