@@ -96,6 +96,8 @@ process()
 	size_t len, oldpsl = 0;
 	char *p;
 
+	p = NULL;
+
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
 top:
@@ -321,7 +323,7 @@ substitute(cp)
 {
 	SPACE tspace;
 	regex_t *re;
-	size_t re_off, slen;
+	regoff_t re_off, slen;
 	int lastempty, n;
 	char *s;
 
@@ -359,29 +361,27 @@ substitute(cp)
 				s += match[0].rm_eo;
 				slen -= match[0].rm_eo;
 				lastempty = 0;
-			} else if (match[0].rm_so == slen) {
-				s += match[0].rm_so;
-				slen = 0;
 			} else {
-				if (match[0].rm_so == 0)
-					cspace(&SS, s, match[0].rm_so + 1,
-					    APPEND);
-				else
+				if (match[0].rm_so < slen)
 					cspace(&SS, s + match[0].rm_so, 1,
 					    APPEND);
 				s += match[0].rm_so + 1;
 				slen -= match[0].rm_so + 1;
 				lastempty = 1;
 			}
-		} while (slen > 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
+		} while (slen >= 0 && regexec_e(re, s, REG_NOTBOL, 0, slen));
 		/* Copy trailing retained string. */
 		if (slen > 0)
 			cspace(&SS, s, slen, APPEND);
   		break;
 	default:				/* Nth occurrence */
 		while (--n) {
+			if (match[0].rm_eo == match[0].rm_so)
+				match[0].rm_eo = match[0].rm_so + 1;
 			s += match[0].rm_eo;
 			slen -= match[0].rm_eo;
+			if (slen < 0)
+				return (0);
 			if (!regexec_e(re, s, REG_NOTBOL, 0, slen))
 				return (0);
 		}
