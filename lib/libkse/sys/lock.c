@@ -107,7 +107,7 @@ void
 _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 {
 	int i;
-	long lval;
+	int lval;
 
 	/**
 	 * XXX - We probably want to remove these checks to optimize
@@ -167,7 +167,7 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 				if (lu->lu_watchreq->lr_active == 0)
 					break;
 			}
-			atomic_swap_long((long *)&lu->lu_watchreq->lr_locked,
+			atomic_swap_int((int *)&lu->lu_watchreq->lr_locked,
 			    2, &lval);
 			if (lval == 0)
 				lu->lu_watchreq->lr_locked = 0;
@@ -188,7 +188,7 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 	struct lockuser *lu_tmp, *lu_h;
 	struct lockreq *myreq;
 	int prio_h;
-	long lval;
+	int lval;
 
 	/**
 	 * XXX - We probably want to remove these checks to optimize
@@ -240,8 +240,8 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		if (lu_h != NULL) {
 			/* Give the lock to the highest priority user. */
 			if (lck->l_wakeup != NULL) {
-				atomic_swap_long(
-				    (long *)&lu_h->lu_watchreq->lr_locked,
+				atomic_swap_int(
+				    (int *)&lu_h->lu_watchreq->lr_locked,
 				    0, &lval);
 				if (lval == 2)
 					/* Notify the sleeper */
@@ -249,11 +249,11 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 					    lu_h->lu_myreq->lr_watcher);
 			}
 			else
-				atomic_store_rel_long(
+				atomic_store_rel_int(
 				    &lu_h->lu_watchreq->lr_locked, 0);
 		} else {
 			if (lck->l_wakeup != NULL) {
-				atomic_swap_long((long *)&myreq->lr_locked,
+				atomic_swap_int((int *)&myreq->lr_locked,
 				    0, &lval);
 				if (lval == 2)
 					/* Notify the sleeper */
@@ -261,7 +261,7 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 			}
 			else
 				/* Give the lock to the previous request. */
-				atomic_store_rel_long(&myreq->lr_locked, 0);
+				atomic_store_rel_int(&myreq->lr_locked, 0);
 		}
 	} else {
 		/*
@@ -274,14 +274,14 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		lu->lu_watchreq = NULL;
 		lu->lu_myreq->lr_locked = 1;
 		if (lck->l_wakeup) {
-			atomic_swap_long((long *)&myreq->lr_locked, 0, &lval);
+			atomic_swap_int((int *)&myreq->lr_locked, 0, &lval);
 			if (lval == 2)
 				/* Notify the sleeper */
 				lck->l_wakeup(lck, myreq->lr_watcher);
 		}
 		else
 			/* Give the lock to the previous request. */
-			atomic_store_rel_long(&myreq->lr_locked, 0);
+			atomic_store_rel_int(&myreq->lr_locked, 0);
 	}
 	lu->lu_myreq->lr_active = 0;
 }
@@ -289,7 +289,7 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 void
 _lock_grant(struct lock *lck /* unused */, struct lockuser *lu)
 {
-	atomic_store_rel_long(&lu->lu_watchreq->lr_locked, 3);
+	atomic_store_rel_int(&lu->lu_watchreq->lr_locked, 3);
 }
 
 void

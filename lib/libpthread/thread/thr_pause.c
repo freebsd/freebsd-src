@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern int __pause(void);
+
 __weak_reference(_pause, pause);
 
 int

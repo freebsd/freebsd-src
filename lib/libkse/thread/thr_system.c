@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern int __system(const char *);
+
 __weak_reference(_system, system);
 
 int
