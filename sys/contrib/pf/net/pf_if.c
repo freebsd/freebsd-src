@@ -157,12 +157,11 @@ pfi_initialize(void)
 #ifdef __FreeBSD__
 	PF_LOCK();
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
-		if (ifp->if_dunit != IF_DUNIT_NONE) {
-			IFNET_RUNLOCK();
-			pfi_attach_ifnet(ifp);
-			IFNET_RLOCK();
-		}
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		IFNET_RUNLOCK();
+		pfi_attach_ifnet(ifp);
+		IFNET_RLOCK();
+	}
 	IFNET_RUNLOCK();
 	PF_UNLOCK();
 	pfi_dummy = pfi_if_create("notyet", pfi_self,
@@ -248,8 +247,7 @@ void
 pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 	PF_LOCK();
-	if (ifp->if_dunit != IF_DUNIT_NONE)
-		pfi_attach_ifnet(ifp);
+	pfi_attach_ifnet(ifp);
 	PF_UNLOCK();
 }
 
@@ -341,8 +339,8 @@ pfi_attach_ifnet(struct ifnet *ifp)
 
 		/* add/modify interface */
 		if (p == NULL)
-			p = pfi_if_create(ifp->if_xname, q,
-			    realname?PFI_IFLAG_INSTANCE:PFI_IFLAG_PLACEHOLDER);
+			p = pfi_if_create(ifp->if_xname, q, PFI_IFLAG_INSTANCE |
+			    (realname?0:PFI_IFLAG_PLACEHOLDER));
 		else {
 			/* remove from the dummy group */
 			/* XXX: copy stats? We should not have any!!! */
@@ -354,10 +352,9 @@ pfi_attach_ifnet(struct ifnet *ifp)
 			q->pfik_addcnt++;
 			TAILQ_INSERT_TAIL(&q->pfik_grouphead, p,
 			    pfik_instances);
-			if (realname) {
+			if (realname)
 				p->pfik_flags &= ~PFI_IFLAG_PLACEHOLDER;
-				p->pfik_flags |= PFI_IFLAG_INSTANCE;
-			}
+			p->pfik_flags |= PFI_IFLAG_INSTANCE;
 		}
 		if (p == NULL)
 			panic("pfi_attach_ifnet: "
@@ -874,6 +871,7 @@ pfi_maybe_destroy(struct pfi_kif *p)
 	if (p->pfik_rules > 0 || p->pfik_states > 0) {
 		/* move back to the dummy group */
 		p->pfik_parent = pfi_dummy;
+		p->pfik_flags &= ~PFI_IFLAG_INSTANCE;
 		pfi_dummy->pfik_addcnt++;
 		TAILQ_INSERT_TAIL(&pfi_dummy->pfik_grouphead, p,
 		    pfik_instances);
@@ -912,11 +910,8 @@ pfi_dynamic_drivers(void)
  */
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		if (ifp->if_dunit == IF_DUNIT_NONE)
-			continue;
+	TAILQ_FOREACH(ifp, &ifnet, if_link)
 		pfi_newgroup(ifp->if_dname, PFI_IFLAG_DYNAMIC);
-	}
 	IFNET_RUNLOCK();
 #else
 	char		*buses[] = PFI_DYNAMIC_BUSES;
