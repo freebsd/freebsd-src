@@ -190,7 +190,7 @@ fdesc_lookup(ap)
 	if (cnp->cn_namelen == 1 && *pname == '.') {
 		*vpp = dvp;
 		VREF(dvp);	
-		vn_lock(dvp, LK_SHARED | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		return (0);
 	}
 
@@ -221,12 +221,12 @@ fdesc_lookup(ap)
 	if (error)
 		goto bad;
 	VTOFDESC(fvp)->fd_fd = fd;
-	vn_lock(fvp, LK_SHARED | LK_RETRY, td);
+	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = fvp;
 	return (0);
 
 bad:
-	vn_lock(dvp, LK_SHARED | LK_RETRY, td);
+	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	*vpp = NULL;
 	return (error);
 }
@@ -564,6 +564,9 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc fdesc_vnodeop_opv_desc =
