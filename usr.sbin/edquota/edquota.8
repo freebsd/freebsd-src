@@ -44,18 +44,22 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl u
+.Op Fl f Ar fspath
 .Op Fl p Ar proto-username
 .Ar username ...
 .Nm
 .Fl g
+.Op Fl f Ar fspath
 .Op Fl p Ar proto-groupname
 .Ar groupname ...
 .Nm
 .Fl t
 .Op Fl u
+.Op Fl f Ar fspath
 .Nm
 .Fl t
 .Fl g
+.Op Fl f Ar fspath
 .Sh DESCRIPTION
 .Nm Edquota
 is a quota editor.
@@ -112,6 +116,22 @@ for each uid in the range specified.  This allows
 for easy setup of default quotas for a group of users.
 The uids in question do not have to be currently assigned in
 .Pa /etc/passwd .
+.Pp
+If invoked with the
+.Fl f
+option,
+.Nm
+will read and modify quotas on the filesystem specified by
+.Ar fspath
+only.
+The
+.Ar fspath
+argument may be either a special device
+or a filesystem mount point.
+The primary purpose of this option is to set the scope for the
+.Fl p
+option, which would overwrite quota records on every
+filesystem with quotas otherwise.
 .Pp
 If the
 .Fl g
