@@ -64,9 +64,7 @@ extern struct cv selwait;	/* select conditional variable */
 extern long physmem;		/* physical memory */
 
 extern struct cdev *rootdev;		/* root device */
-extern struct cdev *rootdevs[2];	/* possible root devices */
 extern char *rootdevnames[2];	/* names of possible root devices */
-extern struct vnode *rootvp;	/* vnode equivalent to above */
 
 extern int boothowto;		/* reboot flags, from console subsystem */
 extern int bootverbose;		/* nonzero to print verbose messages */

@@ -142,7 +142,7 @@ ffs_mount(mp, path, data, ndp, td)
         struct thread		*td;	/* process requesting mount*/
 {
 	size_t size;
-	struct vnode *devvp;
+	struct vnode *devvp, *rootvp;
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	struct fs *fs;
@@ -565,7 +565,7 @@ ffs_mountfs(devvp, mp, td)
 	error = vfs_mountedon(devvp);
 	if (error)
 		return (error);
-	if (vcount(devvp) > 1 && devvp != rootvp)
+	if (vcount(devvp) > 1)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, cred, td, 0, 0);

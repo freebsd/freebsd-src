@@ -326,7 +326,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	error = vfs_mountedon(devvp);
 	if (error)
 		return (error);
-	if (vcount(devvp) > 1 && devvp != rootvp)
+	if (vcount(devvp) > 1)
 		return (EBUSY);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
