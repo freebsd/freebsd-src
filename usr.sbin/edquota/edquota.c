@@ -83,25 +83,23 @@ struct quotause {
 };
 #define	FOUND	0x01
 
-int alldigits __P((const char *s));
-int cvtatos __P((time_t, char *, time_t *));
-char *cvtstoa __P((time_t));
-int editit __P((char *));
-void freeprivs __P((struct quotause *));
-int getentry __P((const char *, int));
-struct quotause *getprivs __P((long, int, char *));
-int hasquota __P((struct fstab *, int, char **));
-void putprivs __P((long, int, struct quotause *));
-int readprivs __P((struct quotause *, char *));
-int readtimes __P((struct quotause *, char *));
-static void usage __P((void));
-int writetimes __P((struct quotause *, int, int));
-int writeprivs __P((struct quotause *, int, char *, int));
+int alldigits(const char *s);
+int cvtatos(time_t, char *, time_t *);
+char *cvtstoa(time_t);
+int editit(char *);
+void freeprivs(struct quotause *);
+int getentry(const char *, int);
+struct quotause *getprivs(long, int, char *);
+int hasquota(struct fstab *, int, char **);
+void putprivs(long, int, struct quotause *);
+int readprivs(struct quotause *, char *);
+int readtimes(struct quotause *, char *);
+static void usage(void);
+int writetimes(struct quotause *, int, int);
+int writeprivs(struct quotause *, int, char *, int);
 
 int
-main(argc, argv)
-	register char **argv;
-	int argc;
+main(int argc, char **argv)
 {
 	struct quotause *qup, *protoprivs, *curprivs;
 	long id, protoid;
@@ -209,8 +207,8 @@ main(argc, argv)
 				qup->dqblk.dqb_itime = 0;
 			}
 		}
-		while (argc-- > 0) {
-			if (isdigit(*argv[0]) && 
+		for (; argc-- > 0; argv++) {
+			if (strspn(*argv, "0123456789-") == strlen(*argv) &&
 			    (cp = strchr(*argv, '-')) != NULL) {
 				*cp++ = '\0';
 				startuid = atoi(*argv);
