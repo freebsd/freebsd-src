@@ -43,8 +43,6 @@
  *  * David Cross: Author of the initial ugly hack for a specific cardbus card
  */
 
-#define	CBB_DEBUG
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>

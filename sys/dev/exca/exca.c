@@ -72,7 +72,6 @@
 #include <dev/exca/excareg.h>
 #include <dev/exca/excavar.h>
 
-#define EXCA_DEBUG
 #ifdef EXCA_DEBUG
 #define DEVPRINTF(dev, fmt, args...)	device_printf((dev), (fmt), ## args)
 #define DPRINTF(fmt, args...)		printf(fmt, ## args)
