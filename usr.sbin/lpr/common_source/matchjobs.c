@@ -401,7 +401,7 @@ static int
 match_jobspec(struct jobqueue *jq, struct jobspec *jspec)
 {
 	struct cjobinfo *cfinf;
-	char *cp, *cf_numstr, *cf_hoststr;
+	const char *cf_hoststr;
 	int jnum, match;
 
 #if DEBUG_SCANJS
@@ -418,22 +418,7 @@ match_jobspec(struct jobqueue *jq, struct jobspec *jspec)
 	if (jq->job_matched)
 		return (0);
 
-	/*
-	 * The standard `cf' file has the job number start in position 4,
-	 * but some implementations have that as an extra file-sequence
-	 * letter, and start the job number in position 5.  The job
-	 * number is usually three bytes, but may be as many as five.
-	 *
-	 * XXX - All this nonsense should really be handled in a single
-	 *	place, like getq()...
-	 */
-	cf_numstr = jq->job_cfname + 3;
-	if (!isdigitch(*cf_numstr))
-		cf_numstr++;
-	jnum = 0;
-	for (cp = cf_numstr; (cp < cf_numstr + 5) && isdigitch(*cp); cp++)
-		jnum = jnum * 10 + (*cp - '0');
-	cf_hoststr = cp;
+	jnum = calc_jobnum(jq->job_cfname, &cf_hoststr);
 	cfinf = NULL;
 	match = 0;			/* assume the job will not match */
 	jspec->matcheduser = NULL;

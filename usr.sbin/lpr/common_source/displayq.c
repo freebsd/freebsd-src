@@ -286,7 +286,7 @@ header(void)
 void
 inform(const struct printer *pp, char *cf)
 {
-	register int copycnt;
+	int copycnt, jnum;
 	char	 savedname[MAXPATHLEN+1];
 	FILE	*cfp;
 
@@ -318,6 +318,7 @@ inform(const struct printer *pp, char *cf)
 	copycnt = 0;
 	file[0] = '\0';
 	savedname[0] = '\0';
+	jnum = calc_jobnum(cf, NULL);
 	while (getline(cfp)) {
 		switch (line[0]) {
 		case 'P': /* Was this file specified in the user's list? */
@@ -335,7 +336,7 @@ inform(const struct printer *pp, char *cf)
 				col = 0;
 				prank(rank);
 				blankfill(OWNCOL);
-				printf("%-10s %-3d  ", line+1, atoi(cf+3));
+				printf("%-10s %-3d  ", line+1, jnum);
 				col += 16;
 				first = 1;
 			}
@@ -383,8 +384,9 @@ inform(const struct printer *pp, char *cf)
 int
 inlist(char *uname, char *cfile)
 {
-	register int *r, n;
-	register char **u, *cp;
+	int *r, jnum;
+	char **u;
+	const char *cfhost;
 
 	if (users == 0 && requests == 0)
 		return(1);
@@ -397,10 +399,9 @@ inlist(char *uname, char *cfile)
 	/*
 	 * Check the request list
 	 */
-	for (n = 0, cp = cfile+3; isdigit(*cp); )
-		n = n * 10 + (*cp++ - '0');
+	jnum = calc_jobnum(cfile, &cfhost);
 	for (r = requ; r < &requ[requests]; r++)
-		if (*r == n && !strcmp(cp, from_host))
+		if (*r == jnum && !strcmp(cfhost, from_host))
 			return(1);
 	return(0);
 }
