@@ -217,14 +217,12 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * unlocking the umtx.
 		 */
 		PROC_LOCK(td->td_proc);
-		mtx_lock_spin(&sched_lock);
-		if (old == owner && (td->td_flags & TDF_UMTXWAKEUP) == 0) {
-			mtx_unlock_spin(&sched_lock);
+		if (old == owner && (td->td_flags & TDF_UMTXWAKEUP) == 0)
 			error = msleep(td, &td->td_proc->p_mtx,
 			    td->td_priority | PCATCH, "umtx", 0);
-			mtx_lock_spin(&sched_lock);
-		} else
+		else
 			error = 0;
+		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_UMTXWAKEUP;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(td->td_proc);

@@ -280,13 +280,10 @@ thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 		hz = tvtohz(&tv);
 	}
 	PROC_LOCK(td->td_proc);
-	mtx_lock_spin(&sched_lock);
-	if ((td->td_flags & TDF_THRWAKEUP) == 0) {
-		mtx_unlock_spin(&sched_lock);
+	if ((td->td_flags & TDF_THRWAKEUP) == 0)
 		error = msleep((void *)td, &td->td_proc->p_mtx,
 		    td->td_priority | PCATCH, "lthr", hz);
-		mtx_lock_spin(&sched_lock);
-	}
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_THRWAKEUP;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(td->td_proc);
