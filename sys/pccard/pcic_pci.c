@@ -30,17 +30,30 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+
+#if __FreeBSD_version < 500000
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <machine/bus.h>
+#else
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#endif
+
 #include <pccard/pcic_pci.h>
 #include <pccard/i82365.h>
+#include <pccard/cardinfo.h>
+#include <pccard/slot.h>
 #include <pccard/pcicvar.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <dev/pccard/pccardvar.h>
+#include "card_if.h"
 
 #define PRVERB(x)	if (bootverbose) device_printf x
 
