@@ -95,23 +95,10 @@ setrunelocale(char *encoding)
 	/*
 	 * Slurp the locale file into the cache.
 	 */
-	if (_PathLocale == NULL) {
-		char *p = getenv("PATH_LOCALE");
+	ret = __detect_path_locale();
+	if (ret != 0)
+		return (ret);
 
-		if (p != NULL
-#ifndef __NETBSD_SYSCALLS
-			&& !issetugid()
-#endif
-			) {
-			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
-			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
-				return (ENAMETOOLONG);
-			_PathLocale = strdup(p);
-			if (_PathLocale == NULL)
-				return (errno == 0 ? ENOMEM : errno);
-		} else
-			_PathLocale = _PATH_LOCALE;
-	}
 	/* Range checking not needed, encoding length already checked above */
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");

@@ -34,4 +34,6 @@
 
 extern char *_PathLocale;
 
+int	__detect_path_locale(void);
+
 #endif /* !_SETLOCALE_H_ */
