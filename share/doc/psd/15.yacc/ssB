@@ -1,0 +1,31 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)ssB	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.SH
+11: Acknowledgements
+.PP
+Yacc owes much to a
+most stimulating collection of users, who have goaded
+me beyond my inclination, and frequently beyond my
+ability, in their endless search for ``one more feature''.
+Their irritating unwillingness to learn how to
+do things my way has usually led to my doing things their way;
+most of the time, they have been right.
+B. W. Kernighan, P. J. Plauger, S. I. Feldman, C. Imagna,
+M. E. Lesk,
+and A. Snyder will recognize some of their ideas in the current version
+of Yacc.
+C. B. Haley contributed to the error recovery algorithm.
+D. M. Ritchie, B. W. Kernighan, and M. O. Harris helped translate this document into English.
+Al Aho also deserves special credit for bringing
+the mountain to Mohammed, and other favors.
+.SG "MH-1273-SCJ-unix"
+.bp
+.[
+$LIST$
+.]
+.bp
