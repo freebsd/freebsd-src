@@ -15,21 +15,22 @@ contributors.
 There are also portions of NetBSD that have been integrated into FreeBSD
 as well, and we would therefore like to thank all the contributors
 to NetBSD for their work.  Despite some occasionally rocky moments in
-the relations between the two groups, we both want essentially the same
+relations between the two groups, we both want essentially the same
 thing:  More BSD based operating systems on people's computers!  We
 wish the NetBSD group every success in their endevors.
 
 
 Hardware Contributors:
 
-A special thank-you to Walnut Creek CDROM for providing the 486/DX2-66 EISA/VL
-system that is being used for our development work, to say nothing of
-the network access and other donations of hardware resources.  It would have
-been impossible to do this release without their support.
+A special thank-you to Walnut Creek CDROM for providing two
+486/DX2-66 EISA/VL systems that are being used for our development work,
+to say nothing of the network access and other donations of hardware
+resources.  It would have been impossible to do this release without
+their support.
 
 TRW Financial Systems, Inc. provided 130 PCs, three 68 GB fileservers, 
 twelve ethernets, two routers and an ATM switch for debugging the diskless
-code.  They also keep a couple of FreeBSD hackers alive and busy.  Thanks !
+code.  They also keep a couple of FreeBSD hackers alive and busy.  Thanks!
 
 Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
@@ -54,7 +55,7 @@ The FreeBSD Core Team (in alphabetical order):
 	Soren Schmidt <sos@FreeBSD.org>
 
 
-Additional FreeBSD Contributors (no particular order):
+Additional FreeBSD Contributors (in alphabetical order):
 
 Adam Glass <glass@postgres.berkeley.edu>
 Andrew Herbert <andrew@werple.apana.org.au>
@@ -105,7 +106,7 @@ Ugen J.S.Antsilevich <ugen@NetVision.net.il>
 Yuval Yarom <yval@cs.huji.ac.il>
 
 
-386BSD Patch kit patch contributors (no particular order):
+386BSD Patch kit patch contributors (in alphabetical order):
 
 Adam Glass <glass@postgres.berkeley.edu>
 Adrian Hall <adrian@ibmpcug.co.uk>
@@ -196,8 +197,8 @@ Wolfgang Solfrank <ws@tools.de>
 Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
 Yuval Yarom <yval@cs.huji.ac.il>
 
-Last but not least, the release engineer would like to thank:
+Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
-	
-$Id: CONTRIB.FreeBSD,v 1.1 1994/11/18 12:03:25 jkh Exp $
+
+$Id: CONTRIB.FreeBSD,v 1.2 1994/11/22 09:16:46 phk Exp $
