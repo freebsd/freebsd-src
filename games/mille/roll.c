@@ -48,7 +48,6 @@ roll(ndie, nsides)
 reg int	ndie, nsides; {
 
 	reg int			tot;
-	extern unsigned int	random();
 
 	tot = 0;
 	while (ndie--)

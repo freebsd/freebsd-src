@@ -157,6 +157,7 @@ static struct morsetab koi8rtab[] = {
 	'Ç', "--.",		/* ge */
 	'Ä', "-..",		/* de */
 	'Å', ".",		/* ye */
+	'£', ".",               /* yo, the same as ye */
 	'Ö', "...-",		/* she */
 	'Ú', "--..",		/* ze */
 	'É', "..",		/* i */
@@ -242,7 +243,6 @@ main(int argc, char **argv)
 	if (pflag && (freq == 0))
 		freq = FREQUENCY;
 
-	(void)setuid(getuid());
 #ifdef SPEAKER
 	if (pflag) {
 		if ((spkr = open(SPEAKER, O_WRONLY, 0)) == -1) {
@@ -259,21 +259,21 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if((p = getenv("LC_CTYPE")) || (p = getenv("LANG"))) {
-		if(strlen(p) >= strlen("KOI8-R") &&
-		   strcasecmp(&p[strlen(p) - strlen("KOI8-R")], "KOI8-R") == 0)
+	if((p = getenv("LC_CTYPE")) ||
+	   (p = getenv("LC_ALL")) ||
+	   (p = getenv("LANG"))) {
+		if(strlen(p) >= sizeof(".KOI8-R") &&
+		   strcasecmp(&p[strlen(p) + 1 - sizeof(".KOI8-R")], ".KOI8-R") == 0)
 			hightab = koi8rtab;
-		setlocale(LC_CTYPE, p);
-	} else {
-		setlocale(LC_CTYPE, "");
 	}
+	(void) setlocale(LC_CTYPE, "");
 
 	if (*argv) {
 		do {
 			for (p = *argv; *p; ++p) {
-				morse((int) *p);
+				morse(*p);
 			}
-			morse((int) ' ');
+			morse(' ');
 		} while (*++argv);
 	} else {
 		while ((ch = getchar()) != EOF)
@@ -287,8 +287,8 @@ morse(char c)
 {
 	struct morsetab *m;
 
-	if (isalpha(c))
-		c = tolower(c);
+	if (isalpha((unsigned char)c))
+		c = tolower((unsigned char)c);
 	if ((c == '\r') || (c == '\n'))
 		c = ' ';
 	if (c == ' ') {
@@ -330,7 +330,7 @@ play(const char *s)
 	const char *c;
 
 	for (c = s; *c != '\0'; c++) {
-		switch ((int) *c) {
+		switch (*c) {
 		case '.':
 			sound.frequency = freq;
 			sound.duration = dot_clock;

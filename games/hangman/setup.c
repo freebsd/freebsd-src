@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+# include       <stdlib.h>
 # include	"hangman.h"
 
 /*
@@ -61,7 +62,7 @@ setup()
 		addstr(*sp);
 	}
 
-	srand(time(NULL) + getpid());
+	srandomdev();
 	if ((Dict = fopen(_PATH_DICT, "r")) == NULL) {
 		perror(_PATH_DICT);
 		endwin();

@@ -54,7 +54,7 @@ int setbit[16] = {1,2,4,010,020,040,0100,0200,0400,01000,02000,04000,
 		  010000,020000,040000,0100000};
 
 
-init()                           /* everything for 1st time run  */
+init()                                  /* everything for 1st time run  */
 {
 	rdata();                        /* read data from orig. file    */
 	linkdata();
@@ -204,11 +204,8 @@ trapdel()                               /* come here if he hits a del   */
 
 startup()
 {
-	time_t time();
-
 	demo=Start(0);
-	srand((int)(time((time_t *)NULL)));	/* random seed */
-	/* srand(371); */			/* non-random seed */
+	srandomdev();
 	hinted[3]=yes(65,1,0);
 	newloc=1;
 	delhit = 0;

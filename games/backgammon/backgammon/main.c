@@ -104,7 +104,6 @@ char	**argv;
 	register int	i;		/* non-descript index */
 	register int	l;		/* non-descript index */
 	register char	c;		/* non-descript character storage */
-	long	t;			/* time for random num generator */
 
 	/* revoke privs */
 	setgid(getgid());
@@ -142,8 +141,7 @@ char	**argv;
 							 * for text */
 	if (tflag)
 		begscr = 0;
-	t = time(0);
-	srandom(t);					/* 'random' seed */
+	srandomdev();
 
 	getarg (argc, argv);
 	args[acnt] = NULL;

@@ -134,7 +134,7 @@ main(argc, argv)
 		usage();
 
 	/* Seed the random-number generator. */
-	srandom((int)time((time_t *)NULL));
+	srandomdev();
 
 	(void)signal(SIGINT, intr);
 

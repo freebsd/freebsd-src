@@ -38,6 +38,9 @@
 static char sccsid[] = "@(#)random.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include "rogue.h"
+
+#if 0
 /*
  * random.c
  *
@@ -72,7 +75,6 @@ srrandom(x)
 int x;
 {
 	register int i;
-	long rrandom();
 
 	state[0] = (long) x;
 	if (rand_type != 0) {
@@ -108,6 +110,7 @@ rrandom()
 	}
 	return(i);
 }
+#endif
 
 get_rand(x, y)
 register int x, y;

@@ -208,7 +208,7 @@ update()
 	 * Otherwise, prop jobs show up *on* entrance.  Remember that
 	 * we don't update props on odd updates.
 	 */
-	if ((rand() % sp->newplane_time) == 0)
+	if ((random() % sp->newplane_time) == 0)
 		addplane();
 
 #ifdef BSD

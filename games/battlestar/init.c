@@ -48,7 +48,7 @@ initialize(startup)
 	puts("Version 4.2, fall 1984.");
 	puts("First Adventure game written by His Lordship, the honorable");
 	puts("Admiral D.W. Riggle\n");
-	srand(getpid());
+	srandomdev();
 	getutmp(uname);
 	if (startup)
 		location = dayfile;

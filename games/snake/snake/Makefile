@@ -8,5 +8,11 @@ LDADD=	-lm -ltermcap -lcompat
 HIDEGAME=hidegame
 MLINKS=	snake.6 snscore.6
 
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/snakerawscores
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/snake.log
+
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

@@ -53,9 +53,7 @@ makedeck(d)
 {
 	register int i, j, k;
 
-	i = time(NULL);
-	i = ((i & 0xff) << 8) | ((i >> 8) & 0xff) | 1;
-	srand(i);
+	srandomdev();
 	k = 0;
 	for (i = 0; i < RANKS; i++)
 		for (j = 0; j < SUITS; j++) {
@@ -76,7 +74,7 @@ shuffle(d)
 	CARD c;
 
 	for (j = CARDS; j > 0; --j) {
-		k = (rand() >> 4) % j;		/* random 0 <= k < j */
+		k = random() % j;               /* random 0 <= k < j */
 		c = d[j - 1];			/* exchange (j - 1) and k */
 		d[j - 1] = d[k];
 		d[k] = c;

@@ -430,7 +430,7 @@ void randomize()
 	register long   tmp;
 	register long   *sp;
 
-	srandom((int)(time((time_t *) NULL) ^ getpid()));
+	srandomdev();
 
 	Tbl.str_flags |= STR_RANDOM;
 	cnt = Tbl.str_numstr;

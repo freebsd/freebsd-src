@@ -5,6 +5,6 @@ all wargames clean cleandir depend lint tags:
 
 install:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} wargames.sh \
-	    ${DESTDIR}/usr/games/wargames
+	    ${DESTDIR}${BINDIR}/wargames
 
 .include <bsd.prog.mk>

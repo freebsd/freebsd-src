@@ -11,6 +11,10 @@
 #include <signal.h>
 #include <ctype.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+#include <string.h>
 
 #ifndef A_UNDERLINE	/* BSD curses */
 #define	beep()	write(1,"\007",1);
@@ -20,25 +24,6 @@
 #define	nocbreak nocrmode
 #define strchr	index
 #endif /* !A_UNDERLINE */
-
-#ifdef isxdigit		/* aha, must be an AT&T system... */
-#define srand(n)	srand48(n)
-#define rand()		lrand48()
-extern long lrand48();
-extern void srand48();
-#define bzero(s, n)	(void)memset((char *)(s), '\0', n)
-extern char *memset();
-/*
- * Try this if ungetch() fails to resolve.
- *
- * #define ungetch ungetc
- */
-#endif /* isxdigit */
-
-extern unsigned sleep();
-extern char *strchr(), *strcpy();
-extern long time();
-extern void exit();
 
 static bool checkplace();
 
@@ -203,7 +188,7 @@ static void intro()
     extern char *getlogin();
     char *tmpname;
 
-    srand(time(0L)+getpid());	/* Kick the random number generator */
+    srandomdev();
 
     (void) signal(SIGINT,uninitgame);
     (void) signal(SIGINT,uninitgame);
@@ -311,7 +296,7 @@ int vis;
 static int rnd(n)
 int n;
 {
-    return(((rand() & 0x7FFF) % n));
+    return(random() % n);
 }
 
 static void randomplace(b, ss)

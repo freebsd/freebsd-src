@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "macros.h"
 #include "phantdefs.h"

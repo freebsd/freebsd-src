@@ -4,7 +4,7 @@
 #include "include.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdlib.h>
+#include <unistd.h>
 /**/
 /************************************************************************
 /
@@ -74,7 +74,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-    srandom((unsigned) time((long *) NULL));	/* prime random numbers */
+    srandomdev();
 
     umask(0117);		/* only owner can read/write created files */
 
