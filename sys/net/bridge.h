@@ -67,6 +67,11 @@ extern struct bdg_softc *ifp2sc;
 #define BDG_SAMECLUSTER(ifp,src) \
 	(src == NULL || BDG_CLUSTER(ifp) == BDG_CLUSTER(src) )
 
+/*
+ * BDG_ACTIVE(ifp) does all checks to see if bridging is loaded,
+ * activated and used on a given interface.
+ */
+#define	BDG_ACTIVE(ifp)	(do_bridge && BDG_LOADED && BDG_USED(ifp))
 
 #define BDG_MAX_PORTS 128
 typedef struct _bdg_addr {
@@ -92,7 +97,7 @@ extern int bdg_ports ;
 	*((unsigned int *)(a)) == 0xffffffff && \
 	((unsigned short *)(a))[2] == 0xffff )
 #else
-/* Unaligned access versions. */
+/* for machines that do not support unaligned access */
 #define BDG_MATCH(a,b)		(!bcmp(a, b, ETHER_ADDR_LEN) )
 #define	IS_ETHER_BROADCAST(a)	(!bcmp(a, "\377\377\377\377\377\377", 6))
 #endif
@@ -135,49 +140,10 @@ typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
 /* bdg_forward frees the mbuf if necessary, returning null */
 typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ether_header *const,
 		struct ifnet *);
-typedef void bdgtakeifaces_t(void);
+typedef	void bdgtakeifaces_t(void);
 extern	bridge_in_t *bridge_in_ptr;
 extern	bdg_forward_t *bdg_forward_ptr;
 extern	bdgtakeifaces_t *bdgtakeifaces_ptr;
 
-/*
- * Find the right pkt destination:
- *	BDG_BCAST	is a broadcast
- *	BDG_MCAST	is a multicast
- *	BDG_LOCAL	is for a local address
- *	BDG_DROP	must be dropped
- *	other		ifp of the dest. interface (incl.self)
- *
- * We assume this is only called for interfaces for which bridging
- * is enabled, i.e. BDG_USED(ifp) is true.
- */
-static __inline
-struct ifnet *
-bridge_dst_lookup(struct ether_header *eh)
-{
-    struct ifnet *dst ;
-    int index ;
-    bdg_addr *p ;
-
-    if (IS_ETHER_BROADCAST(eh->ether_dhost))
-	return BDG_BCAST ;
-    if (eh->ether_dhost[0] & 1)
-	return BDG_MCAST ;
-    /*
-     * Lookup local addresses in case one matches.
-     */
-    for (index = bdg_ports, p = bdg_addresses ; index ; index--, p++ )
-	if (BDG_MATCH(p->etheraddr, eh->ether_dhost) )
-	    return BDG_LOCAL ;
-    /*
-     * Look for a possible destination in table
-     */
-    index= HASH_FN( eh->ether_dhost );
-    dst = bdg_table[index].name;
-    if ( dst && BDG_MATCH( bdg_table[index].etheraddr, eh->ether_dhost) )
-	return dst ;
-    else
-	return BDG_UNKNOWN ;
-}
-
+#define	BDG_LOADED	(bdgtakeifaces_ptr != NULL)
 #endif /* KERNEL */

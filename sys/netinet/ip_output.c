@@ -586,10 +586,10 @@ skip_ipsec:
 	/*
 	 * Check with the firewall...
 	 */
-	if (fw_enable && ip_fw_chk_ptr) {
+	if (fw_enable && IPFW_LOADED) {
 		struct sockaddr_in *old = dst;
 
-		off = (*ip_fw_chk_ptr)(&ip,
+		off = ip_fw_chk_ptr(&ip,
 		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
                 /*
                  * On return we must do the following:
@@ -623,7 +623,7 @@ skip_ipsec:
 		}
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
-                if (ip_dn_io_ptr != NULL && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
+                if (DUMMYNET_LOADED && (off & IP_FW_PORT_DYNT_FLAG) != 0) {
                     /*
                      * pass the pkt to dummynet. Need to include
                      * pipe number, m, ifp, ro, dst because these are
