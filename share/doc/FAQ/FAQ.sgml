@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.51 1997/05/06 16:21:18 pds Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.52 1997/05/07 10:44:08 jkh Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/06 16:21:18 $</date>
+<date>$Date: 1997/05/07 10:44:08 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -163,7 +163,7 @@ Any entries with a &lt;XXX&gt; are under construction.
            enhancements would be made to it (for Internet Service Providers 
            and other commercial enterprises for whom sudden shifts or 
            experimental features are quite undesirable).  The other branch was
-           3.3-current, which essentially has been one unbroken line leading
+           3.0-current, which essentially has been one unbroken line leading
            towards 3.0-RELEASE since 2.0 was released. If a little ASCII art
            would help, this is how it looks:
 <verb>
