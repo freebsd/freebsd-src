@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.65 1999/08/17 10:09:06 marcel Exp $
+ *  $Id: linux_misc.c,v 1.66 1999/08/25 11:19:02 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -1141,75 +1141,92 @@ linux_nice(struct proc *p, struct linux_nice_args *args)
 
 int
 linux_setgroups(p, uap)
-     struct proc *p;
-     struct linux_setgroups_args *uap;
+	struct proc *p;
+	struct linux_setgroups_args *uap;
 {
-  struct pcred *pc = p->p_cred;
-  linux_gid_t linux_gidset[NGROUPS];
-  gid_t *bsd_gidset;
-  int ngrp, error;
+	struct pcred *pc;
+	linux_gid_t linux_gidset[NGROUPS];
+	gid_t *bsd_gidset;
+	int ngrp, error;
 
-  if ((error = suser(p)))
-    return error;
+	pc = p->p_cred;
+	ngrp = uap->gidsetsize;
 
-  if (uap->gidsetsize > NGROUPS)
-    return EINVAL;
+	/*
+	 * cr_groups[0] holds egid. Setting the whole set from
+	 * the supplied set will cause egid to be changed too.
+	 * Keep cr_groups[0] unchanged to prevent that.
+	 */
 
-  ngrp = uap->gidsetsize;
-  pc->pc_ucred = crcopy(pc->pc_ucred);
-  if (ngrp >= 1) {
-    if ((error = copyin((caddr_t)uap->gidset,
-                      (caddr_t)linux_gidset,
-                        ngrp * sizeof(linux_gid_t))))
-      return error;
+	if ((error = suser(p)) != 0)
+		return (error);
 
-    pc->pc_ucred->cr_ngroups = ngrp;
+	if (ngrp >= NGROUPS)
+		return (EINVAL);
 
-    bsd_gidset = pc->pc_ucred->cr_groups;
-    ngrp--;
-    while (ngrp >= 0) {
-      bsd_gidset[ngrp] = linux_gidset[ngrp];
-      ngrp--;
-    }
-  }
-  else
-    pc->pc_ucred->cr_ngroups = 1;
+	pc->pc_ucred = crcopy(pc->pc_ucred);
+	if (ngrp > 0) {
+		error = copyin((caddr_t)uap->gidset, (caddr_t)linux_gidset,
+			       ngrp * sizeof(linux_gid_t));
+		if (error)
+			return (error);
 
-  setsugid(p);
-  return 0;
+		pc->pc_ucred->cr_ngroups = ngrp + 1;
+
+		bsd_gidset = pc->pc_ucred->cr_groups;
+		ngrp--;
+		while (ngrp >= 0) {
+			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
+			ngrp--;
+		}
+	}
+	else
+		pc->pc_ucred->cr_ngroups = 1;
+
+	setsugid(p);
+	return (0);
 }
 
 int
 linux_getgroups(p, uap)
-     struct proc *p;
-     struct linux_getgroups_args *uap;
+	struct proc *p;
+	struct linux_getgroups_args *uap;
 {
-  struct pcred *pc = p->p_cred;
-  linux_gid_t linux_gidset[NGROUPS];
-  gid_t *bsd_gidset;
-  int ngrp, error;
+	struct pcred *pc;
+	linux_gid_t linux_gidset[NGROUPS];
+	gid_t *bsd_gidset;
+	int bsd_gidsetsz, ngrp, error;
 
-  if ((ngrp = uap->gidsetsize) == 0) {
-    p->p_retval[0] = pc->pc_ucred->cr_ngroups;
-    return 0;
-  }
+	pc = p->p_cred;
+	bsd_gidset = pc->pc_ucred->cr_groups;
+	bsd_gidsetsz = pc->pc_ucred->cr_ngroups;
 
-  if (ngrp < pc->pc_ucred->cr_ngroups)
-    return EINVAL;
+	/*
+	 * cr_groups[0] holds egid. Returning the whole set
+	 * here will cause a duplicate. Exclude cr_groups[0]
+	 * to prevent that.
+	 */
 
-  ngrp = 0;
-  bsd_gidset = pc->pc_ucred->cr_groups;
-  while (ngrp < pc->pc_ucred->cr_ngroups) {
-    linux_gidset[ngrp] = bsd_gidset[ngrp];
-    ngrp++;
-  }
+	if ((ngrp = uap->gidsetsize) == 0) {
+		p->p_retval[0] = bsd_gidsetsz - 1;
+		return (0);
+	}
 
-  if ((error = copyout((caddr_t)linux_gidset, (caddr_t)uap->gidset,
-                       ngrp * sizeof(linux_gid_t))))
-    return error;
+	if (ngrp < bsd_gidsetsz - 1)
+		return (EINVAL);
 
-  p->p_retval[0] = ngrp;
-  return (0);
+	ngrp = 1;
+	while (ngrp < bsd_gidsetsz) {
+		linux_gidset[ngrp - 1] = bsd_gidset[ngrp];
+		ngrp++;
+	}
+
+	if ((error = copyout((caddr_t)linux_gidset, (caddr_t)uap->gidset,
+	    ngrp * sizeof(linux_gid_t))))
+		return (error);
+
+	p->p_retval[0] = ngrp - 1;
+	return (0);
 }
 
 int
