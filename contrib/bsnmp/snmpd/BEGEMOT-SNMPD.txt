@@ -30,7 +30,7 @@
 -- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 -- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
--- $Begemot: bsnmp/snmpd/BEGEMOT-SNMPD.txt,v 1.21 2003/12/09 12:28:52 hbb Exp $
+-- $Begemot: bsnmp/snmpd/BEGEMOT-SNMPD.txt,v 1.22 2004/04/13 15:21:46 novo Exp $
 --
 -- Begemot Private SNMPd MIB.
 --
@@ -38,7 +38,7 @@ BEGEMOT-SNMPD-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
     MODULE-IDENTITY, OBJECT-TYPE, OBJECT-IDENTITY, Counter32,
-    Unsigned32
+    Unsigned32, IpAddress
 	FROM SNMPv2-SMI
     TEXTUAL-CONVENTION, TruthValue, RowStatus
 	FROM SNMPv2-TC
@@ -144,7 +144,7 @@ begemotSnmpdVersionEnable OBJECT-TYPE
 
 	    0x00000001	- SNMPv1
 	    0x00000002	- SNMPv2c"
-    DEFVAL	{ 0x3 }
+    DEFVAL	{ 3 }
     ::= { begemotSnmpdConfig 5 }
 
 --
@@ -475,7 +475,7 @@ begemotSnmpdLocalPortEntry OBJECT-TYPE
 
 BegemotSnmpdLocalPortEntry ::= SEQUENCE {
     begemotSnmpdLocalPortPath	OCTET STRING,
-    begemotSnmpdLocalPortStatus	INTEGER
+    begemotSnmpdLocalPortStatus	INTEGER,
     begemotSnmpdLocalPortType	INTEGER
 }
 
@@ -536,7 +536,7 @@ begemotSnmpdTransportEntry OBJECT-TYPE
 
 BegemotSnmpdTransportEntry ::= SEQUENCE {
     begemotSnmpdTransportName	OCTET STRING,
-    begemotSnmpdTransportStatus	INTEGER
+    begemotSnmpdTransportStatus	INTEGER,
     begemotSnmpdTransportOid	OBJECT IDENTIFIER
 }
 

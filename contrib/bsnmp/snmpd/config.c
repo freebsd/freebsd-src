@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/config.c,v 1.19 2003/12/03 10:08:47 hbb Exp $
+ * $Begemot: bsnmp/snmpd/config.c,v 1.20 2004/04/13 14:58:46 novo Exp $
  *
  * Parse configuration file.
  */
@@ -1328,6 +1328,8 @@ read_config(const char *fname, struct lmodule *lodmod)
 	}
 
 	do_commit();
+	snmp_dep_finish(snmp_ctx);
+
 	macro_free_all();
 
 	free(snmp_ctx);

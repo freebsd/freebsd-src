@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/action.c,v 1.56 2003/12/09 12:28:52 hbb Exp $
+ * $Begemot: bsnmp/snmpd/action.c,v 1.57 2004/04/13 14:58:46 novo Exp $
  *
  * Variable access for SNMPd
  */
@@ -730,26 +730,6 @@ struct module_dep {
 	struct lmodule *m;
 };
 
-static void
-finish_unload(struct snmp_context *ctx __unused, int fail, void *arg)
-{
-	struct lmodule *m = arg;
-
-	if (!fail) {
-		lm_unload(m);
-	}
-}
-
-static void
-finish_load(struct snmp_context *ctx __unused, int fail, void *arg)
-{
-	struct lmodule *m = arg;
-
-	if (!fail) {
-		lm_start(m);
-	}
-}
-
 static int
 dep_modules(struct snmp_context *ctx, struct snmp_dependency *dep,
     enum snmp_depop op)
@@ -762,30 +742,43 @@ dep_modules(struct snmp_context *ctx, struct snmp_dependency *dep,
 		if (mdep->path == NULL) {
 			/* unload - find the module */
 			TAILQ_FOREACH(mdep->m, &lmodules, link)
-				if (strcmp(mdep->m->section, mdep->section) == 0)
+				if (strcmp(mdep->m->section,
+				    mdep->section) == 0)
 					break;
 			if (mdep->m == NULL)
+				/* no such module - that's ok */
 				return (SNMP_ERR_NOERROR);
-			if (snmp_set_atfinish(ctx, finish_unload, mdep->m))
-				return (SNMP_ERR_RES_UNAVAIL);
+
+			/* handle unloading in the finalizer */
 			return (SNMP_ERR_NOERROR);
 		}
 		/* load */
-		if ((mdep->m = lm_load(mdep->path, mdep->section)) == NULL)
-			return (SNMP_ERR_RES_UNAVAIL);
-		if (snmp_set_atfinish(ctx, finish_load, mdep->m)) {
-			lm_unload(mdep->m);
+		if ((mdep->m = lm_load(mdep->path, mdep->section)) == NULL) {
+			/* could not load */
 			return (SNMP_ERR_RES_UNAVAIL);
 		}
+		/* start in finalizer */
 		return (SNMP_ERR_NOERROR);
 
 	  case SNMP_DEPOP_ROLLBACK:
 		if (mdep->path == NULL) {
-			/* rollback unload - the finish function takes care */
+			/* rollback unload - the finalizer takes care */
 			return (SNMP_ERR_NOERROR);
 		}
 		/* rollback load */
 		lm_unload(mdep->m);
+		return (SNMP_ERR_NOERROR);
+
+	  case SNMP_DEPOP_FINISH:
+		if (mdep->path == NULL) {
+			if (mdep->m != NULL && ctx->code == SNMP_RET_OK)
+				lm_unload(mdep->m);
+		} else {
+			if (mdep->m != NULL && ctx->code == SNMP_RET_OK &&
+			    community != COMM_INITIALIZE)
+				lm_start(mdep->m);
+			free(mdep->path);
+		}
 		return (SNMP_ERR_NOERROR);
 	}
 	abort();
@@ -900,8 +893,6 @@ op_modules(struct snmp_context *ctx, struct snmp_value *value,
 		return (SNMP_ERR_NOERROR);
 
 	  case SNMP_OP_ROLLBACK:
-		/* must be module path */
-		free(ctx->scratch->ptr1);
 	  case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
 

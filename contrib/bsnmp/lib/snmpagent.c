@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpagent.c,v 1.16 2003/12/03 09:55:58 hbb Exp $
+ * $Begemot: bsnmp/lib/snmpagent.c,v 1.17 2004/04/13 14:58:46 novo Exp $
  *
  * SNMP Agent functions
  */
@@ -69,22 +69,11 @@ struct depend {
 TAILQ_HEAD(depend_list, depend);
 
 /*
- * Structure to hold atfinish functions during SET processing.
- */
-struct finish {
-	STAILQ_ENTRY(finish) link;
-	snmp_set_finish_t func;
-	void	*arg;
-};
-STAILQ_HEAD(finish_list, finish);
-
-/*
  * Set context
  */
 struct context {
 	struct snmp_context	ctx;
 	struct depend_list	dlist;
-	struct finish_list	flist;
 	const struct snmp_node	*node[SNMP_MAX_BINDINGS];
 	struct snmp_scratch	scratch[SNMP_MAX_BINDINGS];
 	struct depend		*depend;
@@ -108,7 +97,6 @@ snmp_init_context(void)
 
 	memset(context, 0, sizeof(*context));
 	TAILQ_INIT(&context->dlist);
-	STAILQ_INIT(&context->flist);
 
 	return (&context->ctx);
 }
@@ -621,6 +609,20 @@ snmp_dep_rollback(struct snmp_context *ctx)
 	return (ret1);
 }
 
+void
+snmp_dep_finish(struct snmp_context *ctx)
+{
+	struct context *context = (struct context *)ctx;
+	struct depend *d;
+
+	while ((d = TAILQ_FIRST(&context->dlist)) != NULL) {
+		ctx->dep = &d->dep;
+		(void)d->func(ctx, ctx->dep, SNMP_DEPOP_FINISH);
+		TAILQ_REMOVE(&context->dlist, d, link);
+		free(d);
+	}
+}
+
 /*
  * Do a SET operation.
  */
@@ -630,18 +632,14 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 {
 	int ret;
 	u_int i;
-	enum snmp_ret code;
 	enum asn_err asnerr;
 	struct context context;
 	const struct snmp_node *np;
-	struct finish *f;
-	struct depend *d;
 	struct snmp_value *b;
 	enum snmp_syntax except;
 
 	memset(&context, 0, sizeof(context));
 	TAILQ_INIT(&context.dlist);
-	STAILQ_INIT(&context.flist);
 	context.ctx.data = data;
 
 	memset(resp, 0, sizeof(*resp));
@@ -739,7 +737,7 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 		resp->nbindings++;
 	}
 
-	code = SNMP_RET_OK;
+	context.ctx.code = SNMP_RET_OK;
 
 	/*
 	 * 2. Call the SET method for each node. If a SET fails, rollback
@@ -811,7 +809,7 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 			rollback(&context, pdu, i);
 			snmp_pdu_free(resp);
 
-			code = SNMP_RET_ERR;
+			context.ctx.code = SNMP_RET_ERR;
 
 			goto errout;
 		}
@@ -836,7 +834,7 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 		rollback(&context, pdu, i);
 		snmp_pdu_free(resp);
 
-		code = SNMP_RET_ERR;
+		context.ctx.code = SNMP_RET_ERR;
 
 		goto errout;
 	}
@@ -868,31 +866,19 @@ snmp_set(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	if (snmp_fix_encoding(resp_b, resp) != SNMP_CODE_OK) {
 		snmp_error("set: fix_encoding failed");
 		snmp_pdu_free(resp);
-		code = SNMP_RET_IGN;
+		context.ctx.code = SNMP_RET_IGN;
 	}
 
 	/*
 	 * Done
 	 */
   errout:
-	while ((d = TAILQ_FIRST(&context.dlist)) != NULL) {
-		TAILQ_REMOVE(&context.dlist, d, link);
-		free(d);
-	}
-
-	/*
-	 * call finish function
-	 */
-	while ((f = STAILQ_FIRST(&context.flist)) != NULL) {
-		STAILQ_REMOVE_HEAD(&context.flist, link);
-		(*f->func)(&context.ctx, code != SNMP_RET_OK, f->arg);
-		free(f);
-	}
+	snmp_dep_finish(&context.ctx);
 
 	if (TR(SET))
-		snmp_debug("set: returning %d", code);
+		snmp_debug("set: returning %d", context.ctx.code);
 
-	return (code);
+	return (context.ctx.code);
 }
 /*
  * Lookup a dependency. If it doesn't exist, create one
@@ -938,26 +924,6 @@ snmp_dep_lookup(struct snmp_context *ctx, const struct asn_oid *obj,
 	TAILQ_INSERT_TAIL(&context->dlist, d, link);
 
 	return (&d->dep);
-}
-
-/*
- * Register a finish function.
- */
-int
-snmp_set_atfinish(struct snmp_context *ctx, snmp_set_finish_t func, void *arg)
-{
-	struct context *context;
-	struct finish *f;
-
-	context = (struct context *)(void *)
-	    ((char *)ctx - offsetof(struct context, ctx));
-	if ((f = malloc(sizeof(struct finish))) == NULL)
-		return (-1);
-	f->func = func;
-	f->arg = arg;
-	STAILQ_INSERT_TAIL(&context->flist, f, link);
-
-	return (0);
 }
 
 /*
