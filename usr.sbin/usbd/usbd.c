@@ -379,13 +379,14 @@ set_devname_field(action_t *action, char *args, char **trail)
 		return(0);
 
 	len = strlen(action->devname);
-	string = malloc(len + 14);
+	string = malloc(len + 15);
 	if (string == NULL)
 		return(0);
 
 	bcopy(action->devname, string+7, len);	/* make some space for */
 	bcopy("[[:<:]]", string, 7);		/*   beginning of word */
-	bcopy("[[:>:]]", string+7+len, 7);	/*   and end of word   */
+	bcopy("[[:>:]]", string+7+len, 8);	/*   and end of word   */
+	string[len + 14] = '\0';
 
 	error = regcomp(&action->devname_regex, string, REG_NOSUB|REG_EXTENDED);
 	if (error) {
