@@ -1,4 +1,4 @@
-/*	$NetBSD: usb/usbdi.c,v 1.78 2001/01/19 04:01:10 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.79 2001/01/21 02:39:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -299,12 +299,16 @@ usbd_transfer(usbd_xfer_handle xfer)
 			int i;
 			usbd_bus_handle bus = pipe->device->bus;
 			int to = xfer->timeout * 1000;
+			DPRINTFN(2,("usbd_transfer: polling\n"));
 			for (i = 0; i < to; i += 10) {
 				delay(10);
 				bus->methods->do_poll(bus);
 				if (xfer->done)
 					break;
 			}
+			DPRINTFN(2,("usbd_transfer: polling done =\n",
+			    xfer->done));
+			/* XXX Is this right, what about the HC timeout? */
 			if (!xfer->done) {
 				pipe->methods->abort(xfer);
 				xfer->status = USBD_TIMEOUT;
