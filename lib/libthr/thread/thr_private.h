@@ -758,7 +758,7 @@ pthread_addr_t _thread_gc(pthread_addr_t);
 void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
-int	_thread_suspend(pthread_t thread, struct timespec *abstime);
+int	_thread_suspend(pthread_t thread, const struct timespec *abstime);
 void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
