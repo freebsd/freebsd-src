@@ -72,8 +72,6 @@ struct digi_p {
 	volatile struct board_chan *bc;
 	struct tty *tp;
 
-	struct cdev *dev[6];
-
 	u_char *txbuf;
 	u_char *rxbuf;
 	u_char txwin;
@@ -85,9 +83,6 @@ struct digi_p {
 	u_char mstat;
 	u_char modem;		/* Force values */
 
-	int active_out;		/* nonzero if the callout device is open */
-	u_int wopeners;		/* # processes waiting for DCD in open() */
-
 	/*
 	 * The high level of the driver never reads status registers directly
 	 * because there would be too many side effects to handle conveniently.
@@ -96,15 +91,6 @@ struct digi_p {
 	 */
 	u_char last_modem_status;	/* last MSR read by intr handler */
 	u_char prev_modem_status;	/* last MSR handled by high level */
-
-
-	/* Initial state. */
-	struct termios it_in;		/* should be in struct tty */
-	struct termios it_out;
-
-	/* Lock state. */
-	struct termios lt_in;		/* should be in struct tty */
-	struct termios lt_out;
 
 	u_long bytes_in, bytes_out;
 	u_int delta_error_counts[CE_NTYPES];
