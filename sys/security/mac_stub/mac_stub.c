@@ -1114,5 +1114,5 @@ static struct mac_policy_ops mac_none_ops =
 	.mpo_check_vnode_write = mac_none_check_vnode_write,
 };
 
-MAC_POLICY_SET(&mac_none_ops, trustedbsd_mac_none, "TrustedBSD MAC/None",
+MAC_POLICY_SET(&mac_none_ops, mac_none, "TrustedBSD MAC/None",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);

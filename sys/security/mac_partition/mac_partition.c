@@ -282,5 +282,5 @@ static struct mac_policy_ops mac_partition_ops =
 	.mpo_check_vnode_exec = mac_partition_check_vnode_exec,
 };
 
-MAC_POLICY_SET(&mac_partition_ops, trustedbsd_mac_partition,
-    "TrustedBSD MAC/Partition", MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot);
+MAC_POLICY_SET(&mac_partition_ops, mac_partition, "TrustedBSD MAC/Partition",
+    MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot);
