@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 21 $
+ *              $Revision: 25 $
  *
  ******************************************************************************/
 
@@ -128,7 +128,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbexec")
 
 
@@ -333,7 +333,8 @@ AcpiDbExecute (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Execution of %s failed with status %s\n", Info.Pathname, AcpiCmFormatException (Status));
+        AcpiOsPrintf ("Execution of %s failed with status %s\n", 
+            Info.Pathname, AcpiUtFormatException (Status));
     }
 
     else
@@ -342,7 +343,8 @@ AcpiDbExecute (
 
         if (ReturnObj.Length)
         {
-            AcpiOsPrintf ("Execution of %s returned object %p\n", Info.Pathname, ReturnObj.Pointer);
+            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+                Info.Pathname, ReturnObj.Pointer, ReturnObj.Length);
             AcpiDbDumpObject (ReturnObj.Pointer, 1);
         }
     }
@@ -381,7 +383,8 @@ AcpiDbMethodThread (
         {
             if (ReturnObj.Length)
             {
-                AcpiOsPrintf ("Execution of %s returned object %p\n", Info->Pathname, ReturnObj.Pointer);
+                AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+                    Info->Pathname, ReturnObj.Pointer, ReturnObj.Length);
                 AcpiDbDumpObject (ReturnObj.Pointer, 1);
             }
         }
@@ -438,7 +441,7 @@ AcpiDbCreateExecutionThreads (
     Status = AcpiOsCreateSemaphore (1, 0, &ThreadGate);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not create semaphore, %s\n", AcpiCmFormatException (Status));
+        AcpiOsPrintf ("Could not create semaphore, %s\n", AcpiUtFormatException (Status));
         return;
     }
 

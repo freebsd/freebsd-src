@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 43 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "actables.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbget")
 
 #define RSDP_CHECKSUM_LENGTH 20
@@ -264,7 +264,7 @@ AcpiTbGetTable (
 
         /* Allocate buffer for the entire table */
 
-        FullTable = AcpiCmAllocate (TableHeader->Length);
+        FullTable = AcpiUtAllocate (TableHeader->Length);
         if (!FullTable)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -598,14 +598,14 @@ AcpiTbGetTableRsdt (
     char                    *TableSignature;
 
 
-    FUNCTION_TRACE ("AcpiTbGetTableRsdt");
+    FUNCTION_TRACE ("TbGetTableRsdt");
 
 
     /*
      * Get the RSDT from the RSDP
      */
 
-    DEBUG_PRINT (ACPI_INFO,
+    DEBUG_PRINTP (ACPI_INFO,
         ("RSDP located at %p, RSDT physical=%p \n",
         AcpiGbl_RSDP, AcpiGbl_RSDP->RsdtPhysicalAddress));
 
@@ -638,8 +638,8 @@ AcpiTbGetTableRsdt (
     Status = AcpiTbGetTable (PhysicalAddress, NULL, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR, ("GetTableRsdt: Could not get the RSDT, %s\n",
-            AcpiCmFormatException (Status)));
+        DEBUG_PRINTP (ACPI_ERROR, ("Could not get the RSDT, %s\n",
+            AcpiUtFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -687,7 +687,7 @@ AcpiTbGetTableRsdt (
 
     AcpiGbl_XSDT = (XSDT_DESCRIPTOR *) TableInfo.Pointer;
 
-    DEBUG_PRINT (ACPI_INFO, ("XSDT located at %p\n", AcpiGbl_XSDT));
+    DEBUG_PRINTP (ACPI_INFO, ("XSDT located at %p\n", AcpiGbl_XSDT));
 
     return_ACPI_STATUS (Status);
 }
@@ -738,7 +738,7 @@ AcpiTbGetTableFacs (
          * Getting table from a file -- allocate a buffer and
          * read the table.
          */
-        TablePtr = AcpiCmAllocate (Size);
+        TablePtr = AcpiUtAllocate (Size);
         if(!TablePtr)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);

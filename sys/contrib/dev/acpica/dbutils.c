@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 35 $
+ *              $Revision: 37 $
  *
  ******************************************************************************/
 
@@ -128,7 +128,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbutils")
 
 
@@ -186,7 +186,7 @@ AcpiDbDumpBuffer (
     AcpiOsPrintf ("\nLocation %X:\n", Address);
 
     AcpiDbgLevel |= TRACE_TABLES;
-    AcpiCmDumpBuffer ((UINT8 *) Address, 64, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
+    AcpiUtDumpBuffer ((UINT8 *) Address, 64, DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 }
 
 
@@ -249,7 +249,7 @@ AcpiDbDumpObject (
     case ACPI_TYPE_BUFFER:
 
         AcpiOsPrintf ("[Buffer]  Value: ");
-        AcpiCmDumpBuffer ((UINT8 *) ObjDesc->Buffer.Pointer, ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
+        AcpiUtDumpBuffer ((UINT8 *) ObjDesc->Buffer.Pointer, ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
         break;
 
 
@@ -450,11 +450,11 @@ AcpiDbLocalNsLookup (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not locate name: %s %s\n", Name, AcpiCmFormatException (Status));
+        AcpiOsPrintf ("Could not locate name: %s %s\n", Name, AcpiUtFormatException (Status));
     }
 
 
-    AcpiCmFree (InternalPath);
+    AcpiUtFree (InternalPath);
 
     return (Node);
 }

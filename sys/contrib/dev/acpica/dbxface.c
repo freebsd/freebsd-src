@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 34 $
+ *              $Revision: 37 $
  *
  ******************************************************************************/
 
@@ -127,7 +127,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbxface")
 
 
@@ -180,7 +180,7 @@ AcpiDbSingleStep (
      * namely, opcodes that have arguments
      */
 
-    if (Op->Opcode == AML_NAMEDFIELD_OP)
+    if (Op->Opcode == AML_INT_NAMEDFIELD_OP)
     {
         return (AE_OK);
     }
@@ -199,7 +199,7 @@ AcpiDbSingleStep (
     case OPTYPE_NAMED_OBJECT:
         switch (Op->Opcode)
         {
-        case AML_NAMEPATH_OP:
+        case AML_INT_NAMEPATH_OP:
             return (AE_OK);
             break;
         }
@@ -288,7 +288,7 @@ AcpiDbSingleStep (
 
     if (AcpiGbl_StepToNextCall)
     {
-        if (Op->Opcode != AML_METHODCALL_OP)
+        if (Op->Opcode != AML_INT_METHODCALL_OP)
         {
             /* Not a method call, just keep executing */
 
@@ -306,7 +306,7 @@ AcpiDbSingleStep (
      * by default.
      */
 
-    if (Op->Opcode == AML_METHODCALL_OP)
+    if (Op->Opcode == AML_INT_METHODCALL_OP)
     {
         AcpiGbl_CmSingleStep = FALSE;  /* No more single step while executing called method */
 
@@ -320,7 +320,7 @@ AcpiDbSingleStep (
 
     /* TBD: [Investigate] what are the namespace locking issues here */
 
-    /* AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE); */
+    /* AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE); */
 
     /* Go into the command loop and await next user command */
 
@@ -332,8 +332,8 @@ AcpiDbSingleStep (
         {
             /* Handshake with the front-end that gets user command lines */
 
-            AcpiCmReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
-            AcpiCmAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+            AcpiUtReleaseMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+            AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
         }
 
         else
@@ -363,7 +363,7 @@ AcpiDbSingleStep (
         Status = AcpiDbCommandDispatch (LineBuf, WalkState, Op);
     }
 
-    /* AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE); */
+    /* AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE); */
 
 
     /* User commands complete, continue execution of the interrupted method */
@@ -409,8 +409,8 @@ AcpiDbInitialize (void)
     {
         /* These were created with one unit, grab it */
 
-        AcpiCmAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
-        AcpiCmAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
+        AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_COMPLETE);
+        AcpiUtAcquireMutex (ACPI_MTX_DEBUG_CMD_READY);
 
         /* Create the debug execution thread to execute commands */
 

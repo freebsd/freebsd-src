@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 45 $
+ *       $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -231,7 +231,7 @@ typedef struct  /* Processor APIC */
     UINT8                   ProcessorApicId;        /* ACPI processor id */
     UINT8                   LocalApicId;            /* processor's local APIC id */
     UINT32_BIT              ProcessorEnabled: 1;    /* Processor is usable if set */
-    UINT32_BIT              Reserved1       : 32;
+    UINT32_BIT              Reserved1       : 31;
 
 } PROCESSOR_APIC;
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 37 $
+ *              $Revision: 40 $
  *
  ******************************************************************************/
 
@@ -123,7 +123,7 @@
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbstats")
 
 /*
@@ -409,7 +409,7 @@ AcpiDbDisplayStatistics (
     {
 #ifndef PARSER_ONLY
     case CMD_ALLOCATIONS:
-        AcpiCmDumpAllocationInfo ();
+        AcpiUtDumpAllocationInfo ();
         break;
 #endif
 
@@ -430,7 +430,7 @@ AcpiDbDisplayStatistics (
 
         for (i = 0; i < INTERNAL_TYPE_NODE_MAX; i++)
         {
-            AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", AcpiCmGetTypeName (i),
+            AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", AcpiUtGetTypeName (i),
                 AcpiGbl_NodeTypeCount [i], AcpiGbl_ObjTypeCount [i]);
         }
         AcpiOsPrintf ("%16.16s % 10ld% 10ld\n", "Misc/Unknown",
@@ -498,7 +498,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("Mutex usage:\n\n");
         for (i = 0; i < NUM_MTX; i++)
         {
-            AcpiOsPrintf ("%-20s:       % 7ld\n", AcpiCmGetMutexName (i), AcpiGbl_AcpiMutexInfo[i].UseCount);
+            AcpiOsPrintf ("%-28s:       % 7ld\n", AcpiUtGetMutexName (i), AcpiGbl_AcpiMutexInfo[i].UseCount);
         }
         break;
 
@@ -512,7 +512,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("String           %3d\n", sizeof (ACPI_OBJECT_STRING));
         AcpiOsPrintf ("Buffer           %3d\n", sizeof (ACPI_OBJECT_BUFFER));
         AcpiOsPrintf ("Package          %3d\n", sizeof (ACPI_OBJECT_PACKAGE));
-        AcpiOsPrintf ("FieldUnit        %3d\n", sizeof (ACPI_OBJECT_FIELD_UNIT));
+        AcpiOsPrintf ("BufferField      %3d\n", sizeof (ACPI_OBJECT_BUFFER_FIELD));
         AcpiOsPrintf ("Device           %3d\n", sizeof (ACPI_OBJECT_DEVICE));
         AcpiOsPrintf ("Event            %3d\n", sizeof (ACPI_OBJECT_EVENT));
         AcpiOsPrintf ("Method           %3d\n", sizeof (ACPI_OBJECT_METHOD));
@@ -521,7 +521,7 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("PowerResource    %3d\n", sizeof (ACPI_OBJECT_POWER_RESOURCE));
         AcpiOsPrintf ("Processor        %3d\n", sizeof (ACPI_OBJECT_PROCESSOR));
         AcpiOsPrintf ("ThermalZone      %3d\n", sizeof (ACPI_OBJECT_THERMAL_ZONE));
-        AcpiOsPrintf ("Field            %3d\n", sizeof (ACPI_OBJECT_FIELD));
+        AcpiOsPrintf ("RegionField      %3d\n", sizeof (ACPI_OBJECT_REGION_FIELD));
         AcpiOsPrintf ("BankField        %3d\n", sizeof (ACPI_OBJECT_BANK_FIELD));
         AcpiOsPrintf ("IndexField       %3d\n", sizeof (ACPI_OBJECT_INDEX_FIELD));
         AcpiOsPrintf ("Reference        %3d\n", sizeof (ACPI_OBJECT_REFERENCE));

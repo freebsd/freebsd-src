@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 34 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -123,7 +123,7 @@
 #include "actables.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbxface")
 
 
@@ -144,12 +144,20 @@ ACPI_STATUS
 AcpiLoadTables (
     ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
     UINT32                  NumberOfTables = 0;
 
 
     FUNCTION_TRACE ("AcpiLoadTables");
 
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Map and validate the RSDP */
 
@@ -157,7 +165,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: RSDP Failed validation: %s\n",
-                        AcpiCmFormatException (Status)));
+                        AcpiUtFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -167,7 +175,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Could not load RSDT: %s\n",
-                        AcpiCmFormatException (Status)));
+                        AcpiUtFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -177,11 +185,11 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Error getting required tables (DSDT/FADT/FACS): %s\n",
-                        AcpiCmFormatException (Status)));
+                        AcpiUtFormatException (Status)));
         goto ErrorExit;
     }
 
-    DEBUG_PRINT (ACPI_OK, ("ACPI Tables successfully loaded\n"));
+    DEBUG_PRINTP (ACPI_OK, ("ACPI Tables successfully loaded\n"));
 
 
     /* Load the namespace from the tables */
@@ -190,7 +198,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Could not load namespace: %s\n",
-                        AcpiCmFormatException (Status)));
+                        AcpiUtFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -199,7 +207,7 @@ AcpiLoadTables (
 
 ErrorExit:
     REPORT_ERROR (("AcpiLoadTables: Could not load tables: %s\n",
-                    AcpiCmFormatException (Status)));
+                    AcpiUtFormatException (Status)));
 
     return_ACPI_STATUS (Status);
 }
@@ -232,6 +240,15 @@ AcpiLoadTable (
 
 
     FUNCTION_TRACE ("AcpiLoadTable");
+
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     if (!TablePtr)
     {
@@ -289,10 +306,19 @@ AcpiUnloadTable (
     ACPI_TABLE_TYPE         TableType)
 {
     ACPI_TABLE_DESC         *ListHead;
+    ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("AcpiUnloadTable");
 
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /* Parameter validation */
 
@@ -361,6 +387,15 @@ AcpiGetTableHeader (
 
 
     FUNCTION_TRACE ("AcpiGetTableHeader");
+
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     if ((Instance == 0)                 ||
         (TableType == ACPI_TABLE_RSDP)  ||
@@ -443,6 +478,15 @@ AcpiGetTable (
 
 
     FUNCTION_TRACE ("AcpiGetTable");
+
+
+    /* Ensure that ACPI has been initialized */
+
+    ACPI_IS_INITIALIZATION_COMPLETE (Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      *  If we have a buffer, we must have a length too

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 96 $
+ *       $Revision: 101 $
  *
  *****************************************************************************/
 
@@ -241,19 +241,19 @@ ACPI_EXTERN UINT16                      AcpiGbl_NextMethodOwnerId;
 
 ACPI_EXTERN UINT8                       AcpiGbl_DebuggerConfiguration;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockAcquired;
-ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockSet; /* TBD: [Restructure] OBSOLETE?? */
 ACPI_EXTERN BOOLEAN                     AcpiGbl_StepToNextCall;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
+ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
 
 ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_DrvNotify;
 ACPI_EXTERN ACPI_OBJECT_NOTIFY_HANDLER  AcpiGbl_SysNotify;
 
 
-extern      BOOLEAN                     AcpiGbl_Shutdown;
-extern      UINT32                      AcpiGbl_SystemFlags;
-extern      UINT32                      AcpiGbl_StartupFlags;
-extern      UINT8                       AcpiGbl_DecodeTo8bit[8];
-extern NATIVE_CHAR                      AcpiGbl_HexToAscii[];
+extern BOOLEAN                          AcpiGbl_Shutdown;
+extern UINT32                           AcpiGbl_SystemFlags;
+extern UINT32                           AcpiGbl_StartupFlags;
+extern UINT8                            AcpiGbl_DecodeTo8bit[8];
+extern NATIVE_CHAR                      AcpiGbl_HexToAscii[16];
 
 
 /*****************************************************************************
@@ -269,15 +269,15 @@ extern NATIVE_CHAR                      AcpiGbl_HexToAscii[];
 ACPI_EXTERN ACPI_NAMESPACE_NODE         AcpiGbl_RootNodeStruct;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
 
-extern      UINT8                       AcpiGbl_NsProperties[NUM_NS_TYPES];
-extern      PREDEFINED_NAMES            AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
+extern UINT8                            AcpiGbl_NsProperties[NUM_NS_TYPES];
+extern PREDEFINED_NAMES                 AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
 
 
 /* Used to detect memory leaks (DEBUG ONLY) */
 
 #ifdef ACPI_DEBUG
-ACPI_EXTERN ALLOCATION_INFO            *AcpiGbl_HeadAllocPtr;
-ACPI_EXTERN ALLOCATION_INFO            *AcpiGbl_TailAllocPtr;
+ACPI_EXTERN ACPI_ALLOCATION_INFO        *AcpiGbl_HeadAllocPtr;
+ACPI_EXTERN ACPI_ALLOCATION_INFO        *AcpiGbl_TailAllocPtr;
 #endif
 
 
@@ -291,15 +291,9 @@ ACPI_EXTERN ALLOCATION_INFO            *AcpiGbl_TailAllocPtr;
 ACPI_EXTERN ACPI_WALK_LIST             *AcpiGbl_CurrentWalkList;
 
 /*
- * Handle to the last method found - used during pass1 of load
- */
-ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_LastMethod;
-
-/*
  * Table of Address Space handlers
  */
-
-ACPI_EXTERN ACPI_ADDRESS_SPACE_INFO     AcpiGbl_AddressSpaces[ACPI_NUM_ADDRESS_SPACES];
+ACPI_EXTERN ACPI_ADR_SPACE_INFO         AcpiGbl_AddressSpaces[ACPI_NUM_ADDRESS_SPACES];
 
 
 /* Control method single step flag */
@@ -331,7 +325,7 @@ extern UINT32                           AcpiHwActiveCxState;
  *
  ****************************************************************************/
 
-ACPI_EXTERN ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventHandlers[NUM_FIXED_EVENTS];
+ACPI_EXTERN ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventHandlers[ACPI_NUM_FIXED_EVENTS];
 
 ACPI_EXTERN ACPI_HANDLE                 AcpiGbl_GpeObjHandle;
 ACPI_EXTERN UINT32                      AcpiGbl_GpeRegisterCount;
@@ -346,12 +340,12 @@ ACPI_EXTERN ACPI_GPE_LEVEL_INFO         *AcpiGbl_GpeInfo;
  * This table is needed because the GPE numbers supported by block 1 do not
  * have to be contiguous with the GPE numbers supported by block 0.
  */
-ACPI_EXTERN UINT8                       AcpiGbl_GpeValid [NUM_GPE];
+ACPI_EXTERN UINT8                       AcpiGbl_GpeValid [ACPI_NUM_GPE];
 
 /* AcpiEvent counter for debug only */
 
 #ifdef ACPI_DEBUG
-ACPI_EXTERN UINT32                      AcpiGbl_EventCount[NUM_FIXED_EVENTS];
+ACPI_EXTERN UINT32                      AcpiGbl_EventCount[ACPI_NUM_FIXED_EVENTS];
 #endif
 
 
