@@ -485,7 +485,7 @@ configRouter(dialogMenuItem *self)
 	cp = variable_get(VAR_ROUTER);
 	if (strcmp(cp, "NO")) {
 	    if (!strcmp(cp, "gated")) {
-		if (package_add(PACKAGE_GATED) != DITEM_SUCCESS) {
+		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
 		    variable_set2(VAR_ROUTER, "NO");
 		}
@@ -609,7 +609,7 @@ configPCNFSD(dialogMenuItem *self)
     if (variable_get(VAR_PCNFSD))
 	variable_unset(VAR_PCNFSD);
     else {
-	ret = package_add(PACKAGE_PCNFSD);
+	ret = package_add(variable_get(VAR_PCNFSD_PKG));
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
 	    variable_set2("weak_mountd_authentication", "YES");
