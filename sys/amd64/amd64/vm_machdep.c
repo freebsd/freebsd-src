@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986 The Regents of the University of California.
  * Copyright (c) 1989, 1990 William Jolitz
+ * Copyright (c) 1994 John Dyson
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -37,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.16 1994/03/30 02:17:47 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.17 1994/03/30 02:47:13 davidg Exp $
  */
 
 #include "npx.h"
@@ -53,12 +54,14 @@
 #include "vm/vm.h"
 #include "vm/vm_kern.h"
 
+#define b_cylin b_resid
+
 #ifndef NOBOUNCE
 
 caddr_t		bouncememory;
 vm_offset_t	bouncepa, bouncepaend;
 int		bouncepages, bpwait;
-vm_map_t	bounce_map;
+vm_map_t	io_map;
 int		bmwait, bmfreeing;
 
 #define BITS_IN_UNSIGNED (8*sizeof(unsigned))
@@ -67,7 +70,7 @@ unsigned	*bounceallocarray;
 int		bouncefree;
 
 #define SIXTEENMEG (4096*4096)
-#define MAXBKVA 512
+#define MAXBKVA 1024
 
 /* special list that can be used at interrupt time for eventual kva free */
 struct kvasfree {
@@ -77,6 +80,7 @@ struct kvasfree {
 
 int		kvasfreecnt;
 
+vm_offset_t vm_bounce_kva();
 /*
  * get bounce buffer pages (count physically contiguous)
  * (only 1 inplemented now)
@@ -106,6 +110,22 @@ retry:
 	bpwait = 1;
 	tsleep((caddr_t) &bounceallocarray, PRIBIO, "bncwai", 0);
 	goto retry;
+}
+
+void
+vm_bounce_kva_free(addr, size, now)
+	vm_offset_t addr;
+	vm_offset_t size;
+	int now;
+{
+	int s = splbio();
+	kvaf[kvasfreecnt].addr = addr;
+	kvaf[kvasfreecnt++].size = size;
+	if( now)
+		vm_bounce_kva(0,0);
+	else
+		wakeup((caddr_t) io_map);
+	splx(s);
 }
 
 /*
@@ -144,35 +164,35 @@ vm_bounce_page_free(pa, count)
  * allocate count bounce buffer kva pages
  */
 vm_offset_t
-vm_bounce_kva(count)
+vm_bounce_kva(count, waitok)
 	int count;
+	int waitok;
 {
 	int tofree;
 	int i;
 	int startfree;
 	vm_offset_t kva = 0;
 	int s = splbio();
-	int size = count*NBPG;
+	int size = count;
 	startfree = 0;
 more:
 	if (!bmfreeing && (tofree = kvasfreecnt)) {
 		bmfreeing = 1;
-more1:
 		for (i = startfree; i < kvasfreecnt; i++) {
 			/*
 			 * if we have a kva of the right size, no sense
 			 * in freeing/reallocating...
 			 * might affect fragmentation short term, but
-			 * as long as the amount of bounce_map is
+			 * as long as the amount of io_map is
 			 * significantly more than the maximum transfer
 			 * size, I don't think that it is a problem.
 			 */
 			pmap_remove(kernel_pmap,
 				kvaf[i].addr, kvaf[i].addr + kvaf[i].size);
-			if( !kva && kvaf[i].size == size) {
+			if( size && !kva && kvaf[i].size == size) {
 				kva = kvaf[i].addr;
 			} else {
-				kmem_free_wakeup(bounce_map, kvaf[i].addr,
+				kmem_free_wakeup(io_map, kvaf[i].addr,
 					kvaf[i].size);
 			}
 		}
@@ -185,41 +205,23 @@ more1:
 		bmfreeing = 0;
 	}
 
-	if (!kva && !(kva = kmem_alloc_pageable(bounce_map, size))) {
+	if( size == 0) {
+		splx(s);
+		return NULL;
+	}
+
+	if (!kva && !(kva = kmem_alloc_pageable(io_map, size))) {
+		if( !waitok) {
+			splx(s);
+			return NULL;
+		}
 		bmwait = 1;
-		tsleep((caddr_t) bounce_map, PRIBIO, "bmwait", 0);
+		tsleep((caddr_t) io_map, PRIBIO, "bmwait", 0);
 		goto more;
 	}
 	splx(s);
 
 	return kva;
-}
-
-/*
- * init the bounce buffer system
- */
-void
-vm_bounce_init()
-{
-	vm_offset_t minaddr, maxaddr;
-
-	if (bouncepages == 0)
-		return;
-	
-	bounceallocarraysize = (bouncepages + BITS_IN_UNSIGNED - 1) / BITS_IN_UNSIGNED;
-	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
-
-	if (!bounceallocarray)
-		panic("Cannot allocate bounce resource array\n");
-
-	bzero(bounceallocarray, bounceallocarraysize * sizeof(long));
-
-	bounce_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, MAXBKVA * NBPG, FALSE);
-
-	bouncepa = pmap_kextract((vm_offset_t) bouncememory);
-	bouncepaend = bouncepa + bouncepages * NBPG;
-	bouncefree = bouncepages;
-	kvasfreecnt = 0;
 }
 
 /*
@@ -242,6 +244,12 @@ vm_bounce_alloc(bp)
 
 	if (bouncepages == 0)
 		return;
+
+	if (bp->b_bufsize < bp->b_bcount) {
+		printf("vm_bounce_alloc: b_bufsize(%d) < b_bcount(%d) !!!!\n",
+			bp->b_bufsize, bp->b_bcount);
+		bp->b_bufsize = bp->b_bcount;
+	}
 
 	vastart = (vm_offset_t) bp->b_un.b_addr;
 	vaend = (vm_offset_t) bp->b_un.b_addr + bp->b_bufsize;
@@ -269,7 +277,7 @@ vm_bounce_alloc(bp)
 /*
  * allocate a replacement kva for b_addr
  */
-	kva = vm_bounce_kva(countvmpg);
+	kva = vm_bounce_kva(countvmpg*NBPG, 1);
 	va = vapstart;
 	for (i = 0; i < countvmpg; i++) {
 		pa = pmap_kextract(va);
@@ -282,8 +290,10 @@ vm_bounce_alloc(bp)
 			/*
 			 * if we are writing, the copy the data into the page
 			 */
-			if ((bp->b_flags & B_READ) == 0)
+			if ((bp->b_flags & B_READ) == 0) {
+				pmap_update();
 				bcopy((caddr_t) va, (caddr_t) kva + (NBPG * i), NBPG);
+			}
 		} else {
 			/*
 			 * use original page
@@ -382,13 +392,12 @@ vm_bounce_free(bp)
  * add the old kva into the "to free" list
  */
 	bouncekva = i386_trunc_page((vm_offset_t) bp->b_un.b_addr);
-	kvaf[kvasfreecnt].addr = bouncekva;
-	kvaf[kvasfreecnt++].size = countvmpg * NBPG;
+	vm_bounce_kva_free( bouncekva, countvmpg*NBPG, 0);
 	if (bmwait) {
 		/*
 		 * if anyone is waiting on the bounce-map, then wakeup
 		 */
-		wakeup((caddr_t) bounce_map);
+		wakeup((caddr_t) io_map);
 		bmwait = 0;
 	}
 
@@ -400,6 +409,421 @@ vm_bounce_free(bp)
 }
 
 #endif /* NOBOUNCE */
+
+/*
+ * init the bounce buffer system
+ */
+void
+vm_bounce_init()
+{
+	vm_offset_t minaddr, maxaddr;
+
+	io_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, MAXBKVA * NBPG, FALSE);
+	kvasfreecnt = 0;
+
+#ifndef NOBOUNCE
+	if (bouncepages == 0)
+		return;
+	
+	bounceallocarraysize = (bouncepages + BITS_IN_UNSIGNED - 1) / BITS_IN_UNSIGNED;
+	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
+
+	if (!bounceallocarray)
+		panic("Cannot allocate bounce resource array\n");
+
+	bzero(bounceallocarray, bounceallocarraysize * sizeof(long));
+
+
+	bouncepa = pmap_kextract((vm_offset_t) bouncememory);
+	bouncepaend = bouncepa + bouncepages * NBPG;
+	bouncefree = bouncepages;
+#endif
+
+}
+
+
+void
+cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
+{
+	register struct buf *ap, *newbp;
+	int i, trycount=0;
+	vm_offset_t orig1pages, orig2pages;
+	vm_offset_t orig1begin, orig2begin;
+	vm_offset_t orig1end, orig2end;
+	vm_offset_t origpages, newpages;
+	vm_offset_t origbegin, newbegin;
+	vm_offset_t origend, newend;
+	vm_offset_t kvanew, kvaorig;
+
+	/*
+	 * If nothing on the activity queue, then
+	 * we become the only thing.
+	 */
+	ap = dp->b_actf;
+	if(ap == NULL) {
+		dp->b_actf = bp;
+		dp->b_actl = bp;
+		bp->av_forw = NULL;
+		return;
+	}
+
+	/*
+	 * If we lie after the first (currently active)
+	 * request, then we must locate the second request list
+	 * and add ourselves to it.
+	 */
+
+	if (bp->b_cylin < ap->b_cylin) {
+		while (ap->av_forw) {
+			/*
+			 * Check for an ``inversion'' in the
+			 * normally ascending cylinder numbers,
+			 * indicating the start of the second request list.
+			 */
+			if (ap->av_forw->b_cylin < ap->b_cylin) {
+				/*
+				 * Search the second request list
+				 * for the first request at a larger
+				 * cylinder number.  We go before that;
+				 * if there is no such request, we go at end.
+				 */
+				do {
+					if (bp->b_cylin < ap->av_forw->b_cylin)
+						goto insert;
+					ap = ap->av_forw;
+				} while (ap->av_forw);
+				goto insert;		/* after last */
+			}
+			ap = ap->av_forw;
+		}
+		/*
+		 * No inversions... we will go after the last, and
+		 * be the first request in the second request list.
+		 */
+		goto insert;
+	}
+	/*
+	 * Request is at/after the current request...
+	 * sort in the first request list.
+	 */
+	while (ap->av_forw) {
+		/*
+		 * We want to go after the current request
+		 * if there is an inversion after it (i.e. it is
+		 * the end of the first request list), or if
+		 * the next request is a larger cylinder than our request.
+		 */
+		if (ap->av_forw->b_cylin < ap->b_cylin ||
+		    bp->b_cylin < ap->av_forw->b_cylin )
+			goto insert;
+		ap = ap->av_forw;
+	}
+
+insert:
+	/*
+	 * we currently only cluster I/O transfers that are at page-aligned
+	 * kvas and transfers that are multiples of page lengths.
+	 */
+	if(((bp->b_bcount & (PAGE_SIZE-1)) == 0) &&
+		(((vm_offset_t) bp->b_un.b_addr & (PAGE_SIZE-1)) == 0)) {
+		/*
+		 * merge with previous?
+		 * conditions:
+		 * 	1) We reside physically immediately after the previous block.
+		 *	2) The previous block is not first on the device queue because
+		 *	   such a block might be active.
+		 *  3) The mode of the two I/Os is identical.
+		 *  4) The previous kva is page aligned and the previous transfer
+		 *	   is a multiple of a page in length.
+		 *	5) And the total I/O size would be below the maximum.
+		 */
+		if( (ap->b_blkno + (ap->b_bcount / DEV_BSIZE) == bp->b_blkno) &&
+			(dp->b_actf != ap) &&
+			((ap->b_flags & ~B_CLUSTER) == bp->b_flags) &&
+			((ap->b_bcount & (PAGE_SIZE-1)) == 0) &&
+			(((vm_offset_t) ap->b_un.b_addr & (PAGE_SIZE-1)) == 0) &&
+			(ap->b_bcount + bp->b_bcount < maxio)) {
+
+			if( (ap->b_flags & B_CLUSTER) == 0) {
+
+				orig1begin = (vm_offset_t) ap->b_un.b_addr;
+				orig1end = (vm_offset_t) ap->b_un.b_addr + ap->b_bcount;
+				orig1pages = ap->b_bcount / PAGE_SIZE;
+
+				orig2begin = (vm_offset_t) bp->b_un.b_addr;
+				orig2end = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+				orig2pages = bp->b_bcount / PAGE_SIZE;
+
+				/*
+				 * see if we can allocate a kva, if we cannot, the don't
+				 * cluster.
+				 */
+				kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
+				if( !kvanew) {
+					goto nocluster;
+				}
+
+				/*
+				 * get a physical buf pointer
+				 */
+				newbp = (struct buf *)trypbuf();
+				if( !newbp) {
+					vm_bounce_kva_free( kvanew, PAGE_SIZE * (orig1pages + orig2pages), 1);
+					goto nocluster;
+				}
+
+				/*
+				 * enter the transfer physical addresses into the new kva
+				 */
+				for(i=0;i<orig1pages;i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract((caddr_t) orig1begin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
+				}
+
+				for(i=0;i<orig2pages;i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract((caddr_t) orig2begin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + (i + orig1pages) * PAGE_SIZE, pa);
+				}
+
+				/*
+				 * build the new bp to be handed off to the device
+				 */
+
+				*newbp = *ap;
+				newbp->b_flags |= B_CLUSTER;
+				newbp->b_un.b_addr = (caddr_t) kvanew;
+				newbp->b_bcount += bp->b_bcount;
+				newbp->b_bufsize = newbp->b_bcount;
+				newbp->b_clusterf = ap;
+				newbp->b_clusterl = bp;
+
+				/*
+				 * enter the new bp onto the device queue
+				 */
+				if( ap->av_forw)
+					ap->av_forw->av_back = newbp;
+				else
+					dp->b_actl = newbp;
+
+				if( dp->b_actf != ap )
+					ap->av_back->av_forw = newbp;
+				else
+					dp->b_actf = newbp;
+
+				/*
+				 * enter the previous bps onto the cluster queue
+				 */
+				ap->av_forw = bp;
+				bp->av_back = ap;
+	
+				ap->av_back = NULL;
+				bp->av_forw = NULL;
+
+			} else {
+				vm_offset_t addr;
+
+				origbegin = (vm_offset_t) ap->b_un.b_addr;
+				origend = (vm_offset_t) ap->b_un.b_addr + ap->b_bcount;
+				origpages = ap->b_bcount/PAGE_SIZE;
+
+				newbegin = (vm_offset_t) bp->b_un.b_addr;
+				newend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+				newpages = bp->b_bcount/PAGE_SIZE;
+
+				/*
+				 * see if we can allocate a kva, if we cannot, the don't
+				 * cluster.
+				 */
+				kvanew = vm_bounce_kva( PAGE_SIZE * (newpages + origpages), 0);
+				if( !kvanew) {
+					goto nocluster;
+				}
+
+			
+				/*
+				 * enter the transfer physical addresses into the new kva
+				 */
+				for(i=0; i<origpages; i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract(origbegin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
+				}
+
+				/*
+				 * free the old kva
+				 */
+				vm_bounce_kva_free( origbegin, ap->b_bufsize, 0);
+
+				for(i=0; i<newpages; i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract(newbegin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + (i + origpages) * PAGE_SIZE, pa);
+				}
+				
+				ap->b_un.b_addr = (caddr_t) kvanew;
+
+				ap->b_clusterl->av_forw = bp;
+				bp->av_forw = NULL;
+				bp->av_back = ap->b_clusterl;
+				ap->b_clusterl = bp;
+
+				ap->b_bcount += bp->b_bcount;
+				ap->b_bufsize = ap->b_bcount;
+			}
+			pmap_update();
+			return;
+		/*
+		 * merge with next?
+		 * conditions:
+		 * 	1) We reside physically before the next block.
+		 *  3) The mode of the two I/Os is identical.
+		 *  4) The next kva is page aligned and the next transfer
+		 *	   is a multiple of a page in length.
+		 *	5) And the total I/O size would be below the maximum.
+		 */
+		} else if( ap->av_forw &&
+			(bp->b_blkno + (bp->b_bcount / DEV_BSIZE) == ap->av_forw->b_blkno) &&
+			(bp->b_flags == (ap->av_forw->b_flags & ~B_CLUSTER)) &&
+			((ap->av_forw->b_bcount & (PAGE_SIZE-1)) == 0) &&
+			(((vm_offset_t) ap->av_forw->b_un.b_addr & (PAGE_SIZE-1)) == 0) &&
+			(ap->av_forw->b_bcount + bp->b_bcount < maxio)) {
+
+			/*
+			 * if next isn't a cluster we need to create one
+			 */
+			if( (ap->av_forw->b_flags & B_CLUSTER) == 0) {
+
+				orig1begin = (vm_offset_t) bp->b_un.b_addr;
+				orig1end = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+				orig1pages = bp->b_bcount / PAGE_SIZE;
+
+				orig2begin = (vm_offset_t) ap->av_forw->b_un.b_addr;
+				orig2end = (vm_offset_t) ap->av_forw->b_un.b_addr + ap->av_forw->b_bcount;
+				orig2pages = ap->av_forw->b_bcount / PAGE_SIZE;
+
+				/*
+				 * see if we can allocate a kva, if we cannot, the don't
+				 * cluster.
+				 */
+				kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
+				if( !kvanew) {
+					goto nocluster;
+				}
+			
+				/*
+				 * get a physical buf pointer
+				 */
+				newbp = (struct buf *)trypbuf();
+				if( !newbp) {
+					vm_bounce_kva_free( kvanew, PAGE_SIZE * (orig1pages + orig2pages), 1);
+					goto nocluster;
+				}
+
+				ap = ap->av_forw;
+
+				for(i=0;i<orig1pages;i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract((caddr_t) orig1begin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
+				}
+
+				for(i=0;i<orig2pages;i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract((caddr_t) orig2begin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + (i + orig1pages) * PAGE_SIZE, pa);
+				}
+
+				*newbp = *ap;
+				newbp->b_flags |= B_CLUSTER;
+				newbp->b_un.b_addr = (caddr_t) kvanew;
+				newbp->b_blkno = bp->b_blkno;
+				newbp->b_bcount += bp->b_bcount;
+				newbp->b_bufsize = newbp->b_bcount;
+				newbp->b_clusterf = bp;
+				newbp->b_clusterl = ap;
+
+				if( ap->av_forw)
+					ap->av_forw->av_back = newbp;
+				else
+					dp->b_actl = newbp;
+
+				if( dp->b_actf != ap )
+					ap->av_back->av_forw = newbp;
+				else
+					dp->b_actf = newbp;
+
+				bp->av_forw = ap;
+				ap->av_back = bp;
+	
+				bp->av_back = NULL;
+				ap->av_forw = NULL;
+			} else {
+				vm_offset_t addr;
+
+				newbegin = (vm_offset_t) bp->b_un.b_addr;
+				newend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+				newpages = bp->b_bcount/PAGE_SIZE;
+
+				origbegin = (vm_offset_t) ap->av_forw->b_un.b_addr;
+				origend = (vm_offset_t) ap->av_forw->b_un.b_addr + ap->av_forw->b_bcount;
+				origpages = ap->av_forw->b_bcount/PAGE_SIZE;
+
+				/*
+				 * see if we can allocate a kva, if we cannot, the don't
+				 * cluster.
+				 */
+				kvanew = vm_bounce_kva( PAGE_SIZE * (newpages + origpages), 0);
+				if( !kvanew) {
+					goto nocluster;
+				}
+
+				ap = ap->av_forw;
+
+				for(i=0; i<newpages; i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract(newbegin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + i * PAGE_SIZE, pa);
+				}
+
+				for(i=0; i<origpages; i++) {
+					vm_offset_t pa;
+					pa = pmap_kextract(origbegin + i * PAGE_SIZE);
+					pmap_kenter(kvanew + (i + newpages) * PAGE_SIZE, pa);
+				}
+
+				vm_bounce_kva_free( origbegin, ap->b_bufsize, 0);
+
+				ap->b_un.b_addr = (caddr_t) kvanew;
+				bp->av_forw = ap->b_clusterf;
+				ap->b_clusterf->av_back = bp;
+				ap->b_clusterf = bp;
+				bp->av_back = NULL;
+			
+				ap->b_blkno = bp->b_blkno;
+				ap->b_bcount += bp->b_bcount;
+				ap->b_bufsize = ap->b_bcount;
+
+			}
+			pmap_update();
+			return;
+		}
+	}
+	/*
+	 * don't merge
+	 */
+nocluster:
+	bp->av_forw = ap->av_forw;
+	if( bp->av_forw)
+		bp->av_forw->av_back = bp;
+	else
+		dp->b_actl = bp;
+
+	ap->av_forw = bp;
+	bp->av_back = ap;
+}
+
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
