@@ -136,7 +136,7 @@
 	_ALIGN_DATA ; \
 	.globl	name ; \
 	.type	name, @object ; \
-name ## :
+name:
 
 #define	EMPTY
 
@@ -145,7 +145,7 @@ name ## :
 	_ALIGN_TEXT ; \
 	.globl	name ; \
 	.type	name, @function ; \
-name ## :
+name:
 
 #define	END(name) \
 	.size	name, . - name
