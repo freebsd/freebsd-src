@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	sh
+INSTALLFLAGS= -S
 SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
 	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
 	mystring.c options.c output.c parser.c printf.c redir.c show.c \
