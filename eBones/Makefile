@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.9 1995/01/20 22:16:47 wollman Exp $
+#	$Id: Makefile,v 1.10 1995/01/20 22:40:02 wollman Exp $
 
 SUBDIR=	include des acl kdb krb libkadm
 
 SUBDIR+= ext_srvtab kdb_destroy kdb_edit \
 	 kdb_init kdb_util kdestroy kerberos kinit klist ksrvtgt \
-	 kstash kadmin kadmind passwd ksrvutil man
+	 kstash kadmin kadmind ksrvutil man
 #
 # MISSING AND PROBABLY BOGUS: register registerd make_keypair
 #
@@ -26,6 +26,7 @@ kprog:
 	cd ${SDIR}/usr.bin/rlogin; ${CODAI}
 	cd ${SDIR}/usr.bin/rsh; ${CODAI}
 	cd ${SDIR}/usr.bin/su; ${CODAI}
+	cd ${SDIR}/usr.bin/passwd; ${CODAI}
 	cd ${SDIR}/libexec/kpasswdd; ${CODAI}
 
 bootstrap:
@@ -47,6 +48,7 @@ help-distribute:	distribute
 	cd ${SDIR}/usr.bin/rlogin; ${MAKE} ${MFLAGS} distribute
 	cd ${SDIR}/usr.bin/rsh; ${MAKE} ${MFLAGS} distribute
 	cd ${SDIR}/usr.bin/su; ${MAKE} ${MFLAGS} distribute
+	cd ${SDIR}/usr.bin/passwd; ${MAKE} ${MFLAGS} distribute
 	cd ${SDIR}/libexec/kpasswdd; ${MAKE} ${MFLAGS} distribute
 
 
