@@ -138,6 +138,7 @@ static	int	nat_flushtable __P((void));
 static	int	nat_clearlist __P((void));
 static	void	nat_addnat __P((struct ipnat *));
 static	void	nat_addrdr __P((struct ipnat *));
+static	void	nat_delete __P((struct nat *));
 static	void	nat_delrdr __P((struct ipnat *));
 static	void	nat_delnat __P((struct ipnat *));
 static	int	fr_natgetent __P((caddr_t));
