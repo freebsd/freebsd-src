@@ -24,7 +24,6 @@ MLINKS=	editline.3 el_init.3 editline.3 el_end.3 editline.3 el_reset.3 \
 SRCS=	editline.c tokenizer.c history.c
 
 SRCS+=	common.h emacs.h fcns.h help.h vi.h
-HEADERS=histedit.h
 
 CLEANFILES+=common.h editline.c emacs.h fcns.c fcns.h help.c help.h vi.h 
 CFLAGS+=-I. -I${.CURDIR}
@@ -62,9 +61,5 @@ editline.c: ${OSRCS}
 
 test:	test.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/histedit.h ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
