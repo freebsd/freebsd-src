@@ -97,8 +97,9 @@ struct shm_info {
 
 struct thread;
 struct proc;
+struct vmspace;
 
-void	shmexit(struct proc *);
+void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
 #else /* !_KERNEL */
 
