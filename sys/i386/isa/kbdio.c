@@ -878,7 +878,13 @@ reset_aux_dev(KBDC p)
         if (!write_aux_command(p, PSMC_RESET_DEV))
 	    continue;
 	emptyq(&kbdcp(p)->aux);
-        c = read_aux_data(p);
+	/* NOTE: Compaq Armada laptops require extra delay here. XXX */
+	for (again = KBD_MAXWAIT; again > 0; --again) {
+            DELAY(KBD_RESETDELAY*1000);
+            c = read_aux_data_no_wait(p);
+	    if (c != -1)
+		break;
+	}
         if (verbose || bootverbose)
             log(LOG_DEBUG, "kbdio: RESET_AUX return code:%04x\n", c);
         if (c == PSM_ACK)	/* aux dev is about to reset... */
@@ -887,10 +893,10 @@ reset_aux_dev(KBDC p)
     if (retry < 0)
         return FALSE;
 
-    while (again-- > 0) {
+    for (again = KBD_MAXWAIT; again > 0; --again) {
         /* wait awhile, well, quite looooooooooooong */
         DELAY(KBD_RESETDELAY*1000);
-        c = read_aux_data(p);	/* RESET_DONE/RESET_FAIL */
+        c = read_aux_data_no_wait(p);	/* RESET_DONE/RESET_FAIL */
         if (c != -1) 	/* wait again if the controller is not ready */
     	    break;
     }
