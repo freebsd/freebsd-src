@@ -2,121 +2,31 @@
 .\" $FreeBSD$
 .\"
 .Dd June 22, 1997
-.Dt IPFIREWALL 4
+.Dt IPFW 4
 .Os
 .Sh NAME
-.Nm ipfirewall
+.Nm ipfw
 .Nd IP packet filter and traffic accounting
-.Sh SYNOPSIS
-.In sys/types.h
-.In sys/queue.h
-.In netinet/in.h
-.In netinet/ip_fw.h
-.Ft int
-.Fn setsockopt raw_socket IPPROTO_IP "ipfw option" "struct ipfw" size
 .Sh DESCRIPTION
-Ipfirewall (alias ipfw) is a system facility which allows filtering,
+.Em ipfw
+is a system facility which allows filtering,
 redirecting, and other operations on IP packets travelling through
 system interfaces.
-Packets are matched by applying an ordered list
-of pattern rules against each packet until a match is found, at
-which point the corresponding action is taken.
-Rules are numbered
-from 1 to 65534; multiple rules may share the same number.
 .Pp
-There is one rule that always exists, rule number 65535.
-This rule
-normally causes all packets to be dropped.
-Hence, any packet which does not
-match a lower numbered rule will be dropped.  However, a kernel compile
-time option
-.Dv IPFIREWALL_DEFAULT_TO_ACCEPT
-allows the administrator to change this fixed rule to permit everything.
+The user interface for
+.Em ipfw
+is implemented by the
+.Nm ipfw
+program, so the reader is referred to the
+.Xr ipfw 8
+manpage for a complete description of the capabilities of
+.Em ipfw
+and how to use it.
 .Pp
-The value passed to
-.Fn setsockopt
-is a struct ip_fw describing the rule (see below).
-In some cases
-(such as
-.Dv IP_FW_DEL ) ,
-only the rule number is significant.
-.Ss Commands
-The following socket options are used to manage the rule list:
-.Bl -tag -width "IP_FW_FLUSH"
-.It Dv IP_FW_ADD
-inserts the rule into the rule list
-.It Dv IP_FW_DEL
-deletes all rules having the matching rule number
-.It Dv IP_FW_GET
-returns the (first) rule having the matching rule number
-.It Dv IP_FW_ZERO
-zeros the statistics associated with all rules having the
-matching rule number.
-If the rule number is zero, all rules are zeroed.
-.It Dv IP_FW_FLUSH
-removes all rules (except 65535).
-.El
-.Pp
-When the kernel security level is greater than 2, only
-.Dv IP_FW_GET
-is allowed.
-.Ss Rule Structure
-Rules are described by the structures in ip_fw.h.
-.Ss Rule Actions
-Each rule has an action described by the IP_FW_F_COMMAND bits in the
-flags word:
-.Bl -tag -width "IP_FW_F_DIVERT"
-.It Dv IP_FW_F_DENY
-Drop packet and stop processing.
-.It Dv IP_FW_F_REJECT
-drop packet; send rejection via ICMP or TCP and stop processing.
-.It Dv IP_FW_F_ACCEPT
-accept packet and stop processing.
-.It Dv IP_FW_F_COUNT
-increment counters; continue matching
-.It Dv IP_FW_F_DIVERT
-divert packet to a
-.Xr divert 4
-socket and stop processing.
-.It Dv IP_FW_F_TEE
-Send a copy of this packet to a
-.Xr divert 4
-socket and continue processing the original packet at the next rule.
-.It Dv IP_FW_F_SKIPTO
-skip to rule number
-.Va fu_skipto_rule
-At this time the target rule number must be greater than the active rule number.
-.It Dv IP_FW_F_PIPE
-The packet is marked for the use of
-.Xr dummynet 4 ,
-and processing stopped.
-.It Dv IP_FW_F_QUEUE
-The packet is marked for the use of
-.Xr dummynet 4 ,
-and processing stopped.
-.It Dv IP_FW_F_FWD
-The packet is accepted but the destination is hijacked. (see
-.Xr ipfw 8 )
-.El
-.Pp
-In the case of
-.Dv IP_FW_F_REJECT ,
-if the
-.Va fu_reject_code
-is a number
-from 0 to 255, then an ICMP unreachable packet is sent back to the
-original packet's source IP address, with the corresponding code.
-Otherwise, the value must be 256 and the protocol
-.Dv IPPROTO_TCP ,
-in which case a TCP reset packet is sent instead.
-.Pp
-With
-.Dv IP_FW_F_SKIPTO ,
-all succeeding rules having rule number less
-than
-.Va fu_skipto_rule
-are skipped.
-.Ss Kernel Options
+.Sh KERNEL OPTIONS
+The following options in the kernel configuration file are related to
+.Em ipfw
+operation:
 Options in the kernel configuration file:
 .Bl -tag -width "options IPFIREWALL_VERBOSE_LIMIT"
 .It Cd options IPFIREWALL
@@ -132,49 +42,6 @@ enable
 sockets
 .El
 .Pp
-When packets match a rule with the
-.Dv IP_FW_F_PRN
-bit set, and if
-.Dv IPFIREWALL_VERBOSE
-has been enabled,
-a message is written to
-.Pa /dev/klog
-with the
-.Dv LOG_SECURITY
-facility
-(see
-.Xr syslog 3 )
-for further logging by
-.Xr syslogd 8 ;
-.Dv IPFIREWALL_VERBOSE_LIMIT
-limits the maximum number of times each
-rule can cause a log message.
-These variables are also
-available via the
-.Xr sysctl 3
-interface.
-.Sh RETURN VALUES
-The
-.Fn setsockopt
-function returns 0 on success.
-Otherwise, -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
-.Sh ERRORS
-The
-.Fn setsockopt
-function will fail if:
-.Bl -tag -width Er
-.It Bq Er EINVAL
-The IP option field was improperly formed;
-an option field was shorter than the minimum value
-or longer than the option buffer provided.
-.It Bq Er EINVAL
-A structural error in ip_fw structure occurred
-(n_src_p+n_dst_p too big, ports set for ALL/ICMP protocols etc.).
-.It Bq Er EINVAL
-An invalid rule number was used.
-.El
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
 .Xr divert 4 ,
@@ -182,19 +49,3 @@ An invalid rule number was used.
 .Xr ipfw 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8
-.Sh BUGS
-This man page still needs work.
-.Sh HISTORY
-The ipfw facility was initially written as package to BSDI
-by
-.An Daniel Boulet
-.Aq danny@BouletFermat.ab.ca .
-It has been heavily modified and ported to
-.Fx
-by
-.An Ugen J.S. Antsilevich
-.Aq ugen@NetVision.net.il .
-.Pp
-Several enhancements added by
-.An Archie Cobbs
-.Aq archie@FreeBSD.org .
