@@ -1361,20 +1361,6 @@ ia64_highfp_drop(struct thread *td)
 }
 
 int
-ia64_highfp_load(struct thread *td)
-{
-	struct pcb *pcb;
-
-	pcb = td->td_pcb;
-	KASSERT(pcb->pcb_fpcpu == NULL, ("FP race on thread"));
-	KASSERT(PCPU_GET(fpcurthread) == NULL, ("FP race on pcpu"));
-	restore_high_fp(&pcb->pcb_high_fp);
-	PCPU_SET(fpcurthread, td);
-	pcb->pcb_fpcpu = pcpup;
-	return (1);
-}
-
-int
 ia64_highfp_save(struct thread *td)
 {
 	struct pcb *pcb;
