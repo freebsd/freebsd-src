@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.26 1997/02/22 09:34:54 peter Exp $
+ *	$Id: param.h,v 1.27 1997/04/07 09:27:21 peter Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -153,16 +153,14 @@ struct simplelock {
  * only be used for exclusive locks.
  */
 static __inline void
-simple_lock_init(lkp)
-	struct simplelock *lkp;
+simple_lock_init(struct simplelock *lkp)
 {
 
 	lkp->lock_data = 0;
 }
 
 static __inline void
-simple_lock(lkp)
-	__volatile struct simplelock *lkp;
+simple_lock(__volatile struct simplelock *lkp)
 {
 
 	while (test_and_set(&lkp->lock_data))
@@ -170,16 +168,14 @@ simple_lock(lkp)
 }
 
 static __inline int
-simple_lock_try(lkp)
-	__volatile struct simplelock *lkp;
+simple_lock_try(__volatile struct simplelock *lkp)
 {
 
-	return (!test_and_set(&lkp->lock_data))
+	return (!test_and_set(&lkp->lock_data));
 }
 
 static __inline void
-simple_unlock(lkp)
-	__volatile struct simplelock *lkp;
+simple_unlock(__volatile struct simplelock *lkp)
 {
 
 	lkp->lock_data = 0;
