@@ -865,6 +865,15 @@ struct dc_softc {
  */
 #define	DC_DEVICEID_X3201	0x0003
 
+/*
+ * Abocom vendor ID
+ */
+#define DC_VENDORID_ABOCOM	0x13d1
+
+/*
+ * Abocom device IDs.
+ */
+#define DC_DEVICEID_FE2500	0xAB02
 
 /*
  * PCI low memory base and low I/O base register, and

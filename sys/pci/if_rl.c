@@ -144,6 +144,8 @@ static struct rl_type rl_devs[] = {
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139,
 		"RealTek 8139 10/100BaseTX" },
+	{ RT_VENDORID, RT_DEVICEID_8138,
+		"RealTek 8139 10/100BaseTX CardBus" },
 	{ ACCTON_VENDORID, ACCTON_DEVICEID_5030,
 		"Accton MPX 5030/5038 10/100BaseTX" },
 	{ DELTA_VENDORID, DELTA_DEVICEID_8139,
@@ -912,7 +914,8 @@ static int rl_attach(dev)
 	rl_read_eeprom(sc, (caddr_t)&rl_did, RL_EE_PCI_DID, 1, 0);
 
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
-	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139)
+	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
+	    rl_did == RT_DEVICEID_8138)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
