@@ -96,8 +96,6 @@ extern int ncpus;
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-extern struct cdevsw *cdevsw[];
-
 /*
  * Various conversion macros
  */
@@ -736,6 +734,9 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	return (0);
 }
 
+#if 0
+extern struct cdevsw *cdevsw[];
+
 /*
  * Filler function for proc/devices
  */
@@ -754,6 +755,7 @@ linprocfs_dodevices(PFS_FILL_ARGS)
 	
 	return (0);
 }
+#endif
 
 /*
  * Filler function for proc/cmdline
@@ -798,7 +800,9 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, #name, &linprocfs_do##name, NULL, NULL, PFS_RD)
 	PFS_CREATE_FILE(cmdline);
 	PFS_CREATE_FILE(cpuinfo);
+#if 0
 	PFS_CREATE_FILE(devices);
+#endif
 	PFS_CREATE_FILE(loadavg);
 	PFS_CREATE_FILE(meminfo);
 #if 0
