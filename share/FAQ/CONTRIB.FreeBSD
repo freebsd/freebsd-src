@@ -40,7 +40,7 @@ The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 (in alphabetical order):
 
 	Andreas Schulz <ats@FreeBSD.org>
-	Andrew A. Chernov <ache@FreeBSD.org>
+	Andrey A. Chernov <ache@FreeBSD.org>
 	Bruce Evans <bde@FreeBSD.org>
 	David Greenman <davidg@FreeBSD.org>
 	Garrett A. Wollman <wollman@FreeBSD.org>
@@ -67,7 +67,7 @@ Officers, The FreeBSD Project:
 Directors, The FreeBSD Project:
 
 	Documentation:		John Fieber <jfieber@FreeBSD.org>
-	Internationalization:	Andrew A. Chernov <ache@FreeBSD.org>
+	Internationalization:   Andrey A. Chernov <ache@FreeBSD.org>
 	Networking:		Garrett A. Wollman <wollman@FreeBSD.org>
 	Postmaster:		Jonathan M. Bresler <jmb@FreeBSD.org>
 	Release Coordinator:	Poul-Henning Kamp <phk@FreeBSD.org>
@@ -151,7 +151,7 @@ Yves Fonk <yves@cpcoup5.tn.tudelft.nl>
 
 Adam Glass <glass@postgres.berkeley.edu>
 Adrian Hall <adrian@ibmpcug.co.uk>
-Andrew A. Chernov <ache@astral.msk.su>
+Andrey A. Chernov <ache@astral.msk.su>
 Andrew Herbert <andrew@werple.apana.org.au>
 Andrew Moore <alm@netcom.com>
 Andy Valencia <ajv@csd.mot.com> <jtk@netcom.com>
@@ -242,4 +242,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.23 1995/03/06 09:54:06 roberto Exp $
+$Id: CONTRIB.FreeBSD,v 1.24 1995/03/16 22:01:57 phk Exp $
