@@ -61,6 +61,7 @@ boot1.o: boot1.s
 boot2.o: boot2.c ${.CURDIR}/../../common/ufsread.c
 	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.IMPSRC}
 	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
+	rm -f boot2.s.tmp
 	${AS} ${AFLAGS} -o boot2.o boot2.s
 
 boot2.h: boot1.out
