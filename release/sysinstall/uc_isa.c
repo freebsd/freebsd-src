@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_isa.c,v 1.1 1996/10/03 06:01:38 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -74,7 +74,7 @@ get_isa_info(struct kernel *kp){
 	  idp->port=p->id_iobase;
 	  idp->irq=p->id_irq;
 	  idp->drq=p->id_drq;
-	  idp->iomem=p->id_maddr;
+	  idp->iomem=(u_int)p->id_maddr & 0xFFFFFF; /* kludge to get pa from kva */
 	  idp->iosize=p->id_msize;
 	  idp->flags=p->id_flags;
 	  idp->alive=p->id_alive;
@@ -174,7 +174,7 @@ isa_setdev(struct kernel *kp, struct list *list){
 	irq=strtol(list->av[2], (char **)NULL, 0);
 	ip->irq=  irq > 0 ? 1 << (irq) : irq;
 	ip->drq = strtol(list->av[3], (char **)NULL, 0);
-	ip->iomem = (caddr_t)strtol(list->av[4], (char **)NULL, 0);
+	ip->iomem = strtol(list->av[4], (char **)NULL, 0);
 	ip->iosize = strtol(list->av[5], (char **)NULL, 0);
 	ip->flags = strtol(list->av[6], (char **)NULL, 0);
 	ip->enabled = strtol(list->av[8], (char **)NULL, 0);
@@ -194,7 +194,7 @@ isa_free(struct kernel *kp, int writeback){
       ip->idp->id_iobase=ip->port;
       ip->idp->id_irq = ip->irq;
       ip->idp->id_drq = ip->drq;
-      ip->idp->id_maddr = ip->iomem;
+      ip->idp->id_maddr = (caddr_t)ip->iomem;
       ip->idp->id_msize = ip->iosize;
       ip->idp->id_flags = ip->flags;
       ip->idp->id_enabled = ip->enabled;

@@ -24,10 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.11 1996/10/06 02:56:22 jkh Exp $
+ * $Id: uc_main.c,v 1.12 1996/10/06 16:04:49 jkh Exp $
  */
 
 #include <sys/types.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -36,7 +37,6 @@
 #include <nlist.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <tcl.h>
 
 #include "uc_main.h"
 
