@@ -129,9 +129,12 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			/* XXX This will break for 3-digit centuries. */
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (i < 19)
 				return 0;
@@ -206,9 +209,11 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 3;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (i < 1 || i > 366)
 				return 0;
@@ -224,9 +229,11 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 
 			if (c == 'M') {
@@ -248,12 +255,22 @@ label:
 		case 'I':
 		case 'k':
 		case 'l':
+			/*
+			 * Of these, %l is the only specifier explicitly
+			 * documented as not being zero-padded.  However,
+			 * there is no harm in allowing zero-padding.
+			 *
+			 * XXX The %l specifier may gobble one too many
+			 * digits if used incorrectly.
+			 */
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (c == 'H' || c == 'k') {
 				if (i > 23)
@@ -269,6 +286,10 @@ label:
 			break;
 
 		case 'p':
+			/*
+			 * XXX This is bogus if parsed before hour-related
+			 * specifiers.
+			 */
 			len = strlen(Locale->am);
 			if (strncasecmp(buf, Locale->am, len) == 0) {
 				if (tm->tm_hour > 12)
@@ -326,9 +347,11 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (i > 53)
 				return 0;
@@ -342,10 +365,7 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
-				i *= 10;
-				i += *buf - '0';
-			}
+			i = *buf - '0';
 			if (i > 6)
 				return 0;
 
@@ -358,12 +378,22 @@ label:
 
 		case 'd':
 		case 'e':
+			/*
+			 * The %e specifier is explicitly documented as not
+			 * being zero-padded but there is no harm in allowing
+			 * such padding.
+			 *
+			 * XXX The %e specifier may gobble one too many
+			 * digits if used incorrectly.
+			 */
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (i > 31)
 				return 0;
@@ -414,9 +444,11 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (i < 1 || i > 12)
 				return 0;
@@ -436,9 +468,11 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			len = (c == 'Y') ? 4 : 2;
+			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
+				len--;
 			}
 			if (c == 'Y')
 				i -= 1900;
