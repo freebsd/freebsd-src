@@ -20,6 +20,7 @@
 
 #define APM_NEVENTS 16
 #define APM_NPMEV   13
+#define APM_UNKNOWN	0xff
 
 /* static data */
 struct apm_softc {
