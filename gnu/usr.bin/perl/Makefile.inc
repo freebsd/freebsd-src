@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
-PERL5LIB?= ${.CURDIR}/../libperl
+PERL5LIBSRC?= ${.CURDIR}/../libperl
 
 BINDIR?=	/usr/bin
 
@@ -68,7 +68,7 @@ PERL_DEBUGGING?=        no
 CFLAGS+=        -DDEBUGGING
 .endif
 
-config.sh: ${PERL5LIB}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH}
+config.sh: ${PERL5LIBSRC}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH}
 	ln -sf ${.OODATE} ${.TARGET}
 
 config.h: links config_h.sh config.sh
