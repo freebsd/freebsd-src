@@ -1,11 +1,11 @@
-#	@(#)Makefile	8.2 (Berkeley) 12/15/93
+#	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
+#	$Id$
 
 LIB=	telnet
 SRCS=	auth.c encrypt.c genget.c getent.c misc.c
 SRCS+=	kerberos.c enc_des.c
 #SRCS+=	kerberos5.c
-CFLAGS+= -DENCRYPTION -DAUTHENTICATION -DHAS_CGETENT
-CFLAGS+= -DKRB4 -DDES_ENCRYPTION -I/usr/include/kerberosIV
+CFLAGS+= -DHAS_CGETENT
 
 # These are the sources that have encryption stuff in them.
 CRYPT_SRC= auth.c enc-proto.h enc_des.c encrypt.c
