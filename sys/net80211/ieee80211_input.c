@@ -1825,7 +1825,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			IEEE80211_DISCARD(ic, IEEE80211_MSG_ELEMID,
 			    wh, ieee80211_mgt_subtype_name[subtype >>
 				IEEE80211_FC0_SUBTYPE_SHIFT],
-			    "for off-channel %u\n", chan);
+			    "for off-channel %u", chan);
 			ic->ic_stats.is_rx_chanmismatch++;
 			return;
 		}
