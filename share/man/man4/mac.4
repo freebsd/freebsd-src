@@ -1,0 +1,131 @@
+.\" Copyright (c) 2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris Costello
+.\" at Safeport Network Services and Network Associates Labs, the
+.\" Security Research Division of Network Associates, Inc. under
+.\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd JANUARY 8, 2003
+.Os
+.Dt MAC 4
+.Sh NAME
+.Nm mac
+.Nd Mandatory Access Control
+.Sh SYNOPSIS
+.Cd "options MAC"
+.Sh DESCRIPTION
+.Ss Introduction
+The Mandatory Access Control, or MAC, framework allows administrators to
+finely control system security by providing for a loadable security policy
+architecture.
+It is important to note that due to its nature, MAC security policies may
+only further restrict security; they cannot override traditional UNIX
+security provisions such as file permissions and superuser checks.
+.Pp
+Currently, the following MAC policy modules are shipped with
+.Fx :
+.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy" ".Em Labeling" "boot only"
+.It Em Name Ta Em Description Ta Em Labeling Ta Em "Load time"
+.It Xr mac_biba 4 Ta "Biba integrity policy" Ta yes Ta boot only
+.It Xr mac_bsdextended 4 Ta "File system firewall" Ta no Ta any time
+.It Xr mac_ifoff 4 Ta "Interface silencing" Ta no Ta any time
+.It Xr mac_lomac 4 Ta "Low-Watermark MAC policy" Ta yes Ta boot only
+.It Xr mac_mls 4 Ta "Confidentiality policy" Ta yes Ta boot only
+.It Xr mac_none 4 Ta "Sample no-op policy" Ta no Ta any time
+.It Xr mac_partition 4 Ta "Process partition policy" Ta yes Ta any time
+.It Xr mac_seeotheruids 4 Ta "See-other-UIDs policy" Ta no Ta any time
+.It Xr mac_test 4 Ta "MAC testing policy" Ta no Ta any time
+.El
+.Ss MAC Labels
+Each system subject (processes, sockets, etc.) and each system object
+(file system objects, sockets, etc.) can carry with it a MAC label.
+MAC labels can contain data in an arbitrary format
+used by the MAC policies in order to help determine how to determine
+access rights for a given operation.
+Most MAC labels on system subjects and objects
+can be modified directly or indirectly by the system
+administrator.
+More information on the format for MAC labels can be found in the
+.Xr maclabel 7
+man page.
+.Ss Setting MAC labels
+From the command line, each type of system object has its own way of setting
+and modifying its MAC policy label.
+.Bl -column "user login process" "Xr login.conf 5" -offset indent
+.It Em "Subject/Object" Ta Em "Utility"
+.It "File system object" Ta Xr setfmac 8
+.It "Network interface" Ta Xr ifconfig 8
+.It "TTY (by login class)" Ta Xr login.conf 5
+.It "User (by login class)" Ta Xr login.conf 5
+.El
+.Pp
+Additionally, the
+.Xr setpmac 8
+command can be used to run a command with a different process label than
+the shell's current label.
+.Ss Programming With MAC
+MAC security enforcement itself is transparent to application
+programs, with the exception that some programs may need to be aware of
+additional
+.Xr errno 2
+returns from various system calls.
+.Pp
+The interface for retrieving, handling, and setting policy labels
+is documented in the
+.Xr mac 3
+man page.
+.Sh SEE ALSO
+.Xr mac 3 ,
+.Xr mac_biba 4 ,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr login.5 ,
+.Xr maclabel 7 ,
+.Xr getfmac 8 ,
+.Xr setfmac 8 ,
+.Xr getpmac 8 ,
+.Xr setpmac 8 ,
+.Xr mac 9
+.Sh HISTORY
+The
+.Nm
+implementation first appeared in
+.Fx 5.0
+and was developed by the TrustedBSD Project.
+.Sh AUTHORS
+This software was contributed to the
+.Fx
+Project by Network Associates Labs,
+the Security Research Division of Network Associates
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+as part of the DARPA CHATS research program.
