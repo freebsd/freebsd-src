@@ -205,6 +205,7 @@ printcpuinfo(void)
 					break;
 				case 0x70:
 				case 0x80:
+				case 0xa0:
 				        strcat(cpu_model,
 					"Pentium III/Pentium III Xeon/Celeron");
 					cpu = CPU_PIII;
