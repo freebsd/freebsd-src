@@ -85,8 +85,9 @@ static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 static int bdg_done;
 #endif
 
+/* print bridge statistics */
 void
-bdg_stats(u_long dummy, char *name) /* print bridge statistics */
+bdg_stats(u_long dummy __unused, char *name, int af __unused)
 {
     int i;
     size_t slen ;
@@ -132,7 +133,7 @@ bdg_stats(u_long dummy, char *name) /* print bridge statistics */
  * Display a formatted value, or a '-' in the same space.
  */
 static void
-show_stat(char *fmt, int width, u_long value, short showvalue)
+show_stat(const char *fmt, int width, u_long value, short showvalue)
 {
 	char newfmt[32];
 
@@ -670,7 +671,7 @@ loop:
  * Sets a flag to not wait for the alarm.
  */
 static void
-catchalarm(int signo)
+catchalarm(int signo __unused)
 {
 	signalled = YES;
 }

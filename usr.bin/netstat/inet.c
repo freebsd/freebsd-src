@@ -165,7 +165,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != proto)
+		if (so->xso_protocol != (int)proto)
 			continue;
 
 		/* Ignore PCBs which were freed during copyout. */
@@ -346,7 +346,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
  * Dump TCP statistics structure.
  */
 void
-tcp_stats(u_long off, char *name)
+tcp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct tcpstat tcpstat;
 	size_t len = sizeof tcpstat;
@@ -444,7 +444,7 @@ tcp_stats(u_long off, char *name)
  * Dump UDP statistics structure.
  */
 void
-udp_stats(u_long off, char *name)
+udp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct udpstat udpstat;
 	size_t len = sizeof udpstat;
@@ -495,7 +495,7 @@ udp_stats(u_long off, char *name)
  * Dump IP statistics structure.
  */
 void
-ip_stats(u_long off, char *name)
+ip_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct ipstat ipstat;
 	size_t len = sizeof ipstat;
@@ -575,7 +575,7 @@ static	char *icmpnames[] = {
  * Dump ICMP statistics.
  */
 void
-icmp_stats(u_long off, char *name)
+icmp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct icmpstat icmpstat;
 	int i, first;
@@ -641,7 +641,7 @@ icmp_stats(u_long off, char *name)
  * Dump IGMP statistics structure.
  */
 void
-igmp_stats(u_long off, char *name)
+igmp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct igmpstat igmpstat;
 	size_t len = sizeof igmpstat;

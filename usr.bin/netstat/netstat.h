@@ -64,22 +64,22 @@ char	*plural (int);
 char	*plurales (int);
 
 void	protopr (u_long, char *, int);
-void	tcp_stats (u_long, char *);
-void	udp_stats (u_long, char *);
-void	ip_stats (u_long, char *);
-void	icmp_stats (u_long, char *);
-void	igmp_stats (u_long, char *);
+void	tcp_stats (u_long, char *, int);
+void	udp_stats (u_long, char *, int);
+void	ip_stats (u_long, char *, int);
+void	icmp_stats (u_long, char *, int);
+void	igmp_stats (u_long, char *, int);
 #ifdef IPSEC
-void	ipsec_stats (u_long, char *);
+void	ipsec_stats (u_long, char *, int);
 #endif
 
 #ifdef INET6
-void	ip6_stats (u_long, char *);
+void	ip6_stats (u_long, char *, int);
 void	ip6_ifstats (char *);
-void	icmp6_stats (u_long, char *);
+void	icmp6_stats (u_long, char *, int);
 void	icmp6_ifstats (char *);
-void	pim6_stats (u_long, char *);
-void	rip6_stats (u_long, char *);
+void	pim6_stats (u_long, char *, int);
+void	rip6_stats (u_long, char *, int);
 void	mroute6pr (u_long, u_long);
 void	mrt6_stats (u_long);
 
@@ -90,10 +90,10 @@ char *netname6 (struct sockaddr_in6 *, struct in6_addr *);
 #endif /*INET6*/
 
 #ifdef IPSEC
-void	pfkey_stats (u_long, char *);
+void	pfkey_stats (u_long, char *, int);
 #endif
 
-void	bdg_stats (u_long, char *);
+void	bdg_stats (u_long, char *, int);
 
 void	mbpr (u_long, u_long, u_long, u_long);
 
@@ -118,29 +118,29 @@ char	*ipx_print (struct sockaddr *);
 char	*ns_print (struct sockaddr *);
 void	routepr (u_long);
 
-void	ipxprotopr (u_long, char *);
-void	spx_stats (u_long, char *);
-void	ipx_stats (u_long, char *);
-void	ipxerr_stats (u_long, char *);
+void	ipxprotopr (u_long, char *, int);
+void	spx_stats (u_long, char *, int);
+void	ipx_stats (u_long, char *, int);
+void	ipxerr_stats (u_long, char *, int);
 
-void	nsprotopr (u_long, char *);
-void	spp_stats (u_long, char *);
-void	idp_stats (u_long, char *);
-void	nserr_stats (u_long, char *);
+void	nsprotopr (u_long, char *, int);
+void	spp_stats (u_long, char *, int);
+void	idp_stats (u_long, char *, int);
+void	nserr_stats (u_long, char *, int);
 
-void	atalkprotopr (u_long, char *);
-void	ddp_stats (u_long, char *);
+void	atalkprotopr (u_long, char *, int);
+void	ddp_stats (u_long, char *, int);
 
-void	netgraphprotopr (u_long, char *);
+void	netgraphprotopr (u_long, char *, int);
 
 void	unixpr (void);
 
-void	esis_stats (u_long, char *);
-void	clnp_stats (u_long, char *);
-void	cltp_stats (u_long, char *);
-void	iso_protopr (u_long, char *);
+void	esis_stats (u_long, char *, int);
+void	clnp_stats (u_long, char *, int);
+void	cltp_stats (u_long, char *, int);
+void	iso_protopr (u_long, char *, int);
 void	iso_protopr1 (u_long, int);
-void	tp_protopr (u_long, char *);
+void	tp_protopr (u_long, char *, int);
 void	tp_inproto (u_long);
 void	tp_stats (caddr_t, caddr_t);
 

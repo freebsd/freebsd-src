@@ -91,8 +91,6 @@
 #define	WID_ORG	(lflag ? 39 : (numeric_addr ? 29 : 18)) /* width of origin column */
 #define	WID_GRP	(lflag ? 18 : (numeric_addr ? 16 : 18)) /* width of group column */
 
-extern char	*routename6 (struct sockaddr_in6 *);
-
 void
 mroute6pr(u_long mfcaddr, u_long mifaddr)
 {
