@@ -162,7 +162,7 @@ getlock(lckarg, rqstp, flags)
 		syslog(LOG_NOTICE, "malloc failed: %s", strerror(errno));
 		/* failed */
 		return (flags & LOCK_V4) ?
-		    nlm4_denied_nolock : nlm_denied_nolocks;
+		    nlm4_denied_nolocks : nlm_denied_nolocks;
 	}
 	if (lckarg->alock.fh.n_len != sizeof(fhandle_t)) {
 		syslog(LOG_DEBUG, "recieved fhandle size %d, local size %d",
@@ -177,7 +177,7 @@ getlock(lckarg, rqstp, flags)
 		syslog(LOG_NOTICE, "malloc failed: %s", strerror(errno));
 		free(newfl);
 		return (flags & LOCK_V4) ?
-		    nlm4_denied_nolock : nlm_denied_nolocks;
+		    nlm4_denied_nolocks : nlm_denied_nolocks;
 	}
 	newfl->client.oh.n_len = lckarg->alock.oh.n_len;
 	memcpy(newfl->client.oh.n_bytes, lckarg->alock.oh.n_bytes,
@@ -191,7 +191,7 @@ getlock(lckarg, rqstp, flags)
 		free(newfl->client.oh.n_bytes);
 		free(newfl);
 		return (flags & LOCK_V4) ? 
-		    nlm4_denied_nolock : nlm_denied_nolocks;
+		    nlm4_denied_nolocks : nlm_denied_nolocks;
 	}
 	memcpy(newfl->client_cookie.n_bytes, lckarg->cookie.n_bytes,
 	    lckarg->cookie.n_len);
@@ -462,7 +462,7 @@ do_lock(fl, block)
 			LIST_REMOVE(fl, lcklst);
 			close(fl->fd);
 			return (fl->flags & LOCK_V4) ?
-			    nlm4_denied_nolock : nlm_denied_nolocks;
+			    nlm4_denied_nolocks : nlm_denied_nolocks;
 		case 0:
 			/*
 			 * Attempt a blocking lock. Will have to call

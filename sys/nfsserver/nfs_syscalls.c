@@ -56,6 +56,8 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/namei.h>
+#include <sys/fcntl.h>
+#include <sys/lockf.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -69,6 +71,7 @@
 #include <nfs/nfsnode.h>
 #include <nfs/nqnfs.h>
 #include <nfs/nfsrtt.h>
+#include <nfs/nfs_lock.h>
 
 static MALLOC_DEFINE(M_NFSSVC, "NFS srvsock", "Nfs server structure");
 
@@ -152,6 +155,12 @@ nfssvc(p, uap)
 #endif /* NFS_NOSERVER */
 	int error;
 
+	if ((uap->flag & NFSSVC_LOCKDANS) != 0) {
+		struct lockd_ans la;
+		
+		error = copyin(uap->argp, &la, sizeof(la));
+		return (error != 0 ? error : nfslockdans(p, &la));
+	}
 	/*
 	 * Must be super user
 	 */

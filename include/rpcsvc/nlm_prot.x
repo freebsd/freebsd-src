@@ -27,7 +27,8 @@ enum nlm_stats {
 	nlm_denied = 1,
 	nlm_denied_nolocks = 2,
 	nlm_blocked = 3,
-	nlm_denied_grace_period = 4
+	nlm_denied_grace_period = 4,
+	nlm_deadlck = 5
 };
 
 struct nlm_holder {
@@ -147,7 +148,7 @@ struct	nlm_notify {
 enum nlm4_stats {
 	nlm4_granted			= 0,
 	nlm4_denied			= 1,
-	nlm4_denied_nolock		= 2,
+	nlm4_denied_nolocks		= 2,
 	nlm4_blocked			= 3,
 	nlm4_denied_grace_period	= 4,
 	nlm4_deadlck			= 5,
@@ -253,11 +254,17 @@ struct nlm_sm_status {
 	opaque priv[16];		/* private data */
 };
 
+struct	nlm4_notify {
+	string name<MAXNAMELEN>;
+	int32_t state;
+};
+
 /*
  * Over-the-wire protocol used between the network lock managers
  */
 
 program NLM_PROG {
+
 	version NLM_SM {
 		void NLM_SM_NOTIFY(struct nlm_sm_status) = 1;
 	} = 0;
@@ -316,6 +323,6 @@ program NLM_PROG {
 		nlm4_shareres NLM4_SHARE(nlm4_shareargs) = 20;
 		nlm4_shareres NLM4_UNSHARE(nlm4_shareargs) = 21;
 		nlm4_res NLM4_NM_LOCK(nlm4_lockargs) = 22;
-		void NLM4_FREE_ALL(nlm_notify) = 23;
+		void NLM4_FREE_ALL(nlm4_notify) = 23;
 	} = 4;
 } = 100021;
