@@ -259,7 +259,7 @@ void	ng_unref(node_p node);
 int	ng_wait_node(node_p node, char *msg);
 
 /* XXX stuck here till we get the correct stuff in libkern etc. */
-unsigned long strtoul(nptr, endptr, base);
+unsigned long strtoul(char *nptr, char **endptr, int base);
 
 /*-
  * Copyright (c) 1982, 1988, 1991, 1993
