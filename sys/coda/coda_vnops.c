@@ -146,6 +146,9 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_poll_desc, (vop_t *) vop_stdpoll },
     { &vop_getpages_desc, coda_fbsd_getpages },	/* pager intf.*/
     { &vop_putpages_desc, coda_fbsd_putpages },	/* pager intf.*/
+    { &vop_createvobject_desc,      (vop_t *) vop_stdcreatevobject },
+    { &vop_destroyvobject_desc,     (vop_t *) vop_stddestroyvobject },
+    { &vop_getvobject_desc,         (vop_t *) vop_stdgetvobject },
 
 #if	0
 
