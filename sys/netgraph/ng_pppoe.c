@@ -88,7 +88,8 @@ static struct ng_type typestruct = {
 	ng_pppoe_connect,
 	ng_pppoe_rcvdata,
 	ng_pppoe_rcvdata,
-	ng_pppoe_disconnect
+	ng_pppoe_disconnect,
+	NULL
 };
 NETGRAPH_INIT(pppoe, &typestruct);
 

@@ -71,7 +71,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ngh_rcvdata,
 	ngh_rcvdata,
-	ngh_disconnect
+	ngh_disconnect,
+	NULL
 };
 NETGRAPH_INIT(hole, &typestruct);
 
