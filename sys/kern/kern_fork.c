@@ -40,6 +40,7 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,6 +58,7 @@
 #include <sys/syscall.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
+#include <sys/mac.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/kthread.h>
@@ -305,6 +307,9 @@ fork1(td, flags, pages, procp)
 
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
+#ifdef MAC
+	mac_init_proc(newproc);
+#endif
 
 	/*
 	 * Although process entries are dynamically created, we still keep
