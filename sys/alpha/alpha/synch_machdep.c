@@ -428,6 +428,9 @@ mtx_exit_hard(struct mtx *m, int type)
 
 #ifdef SMP_DEBUG
 
+#define ISK0SEG(va)	\
+	((va >= ALPHA_K0SEG_BASE && va <= ALPHA_K0SEG_END))
+
 int mtx_validate __P((struct mtx *, int));
 
 int
@@ -441,10 +444,12 @@ mtx_validate(struct mtx *m, int when)
 		return 0;
 
 	mtx_enter(&all_mtx, MTX_DEF);
-	ASS(kernacc((caddr_t)all_mtx.mtx_next, 4, 1) == 1);
+	ASS(ISK0SEG((vm_offset_t)all_mtx.mtx_next) || 
+	    kernacc((caddr_t)all_mtx.mtx_next, 4, 1) == 1); 
 	ASS(all_mtx.mtx_next->mtx_prev == &all_mtx);
 	for (i = 0, mp = all_mtx.mtx_next; mp != &all_mtx; mp = mp->mtx_next) {
-		if (kernacc((caddr_t)mp->mtx_next, 4, 1) != 1) {
+		if (!ISK0SEG((vm_offset_t)all_mtx.mtx_next) &&
+		    kernacc((caddr_t)mp->mtx_next, 4, 1) != 1) {
 			panic("mtx_validate: mp=%p mp->mtx_next=%p",
 			    mp, mp->mtx_next);
 		}
