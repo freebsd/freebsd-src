@@ -33,7 +33,7 @@ where
 Bugs
 ----
 
-* 'ns' doesn't resolve IP adresses to names
+* 'ns' doesn't resolve IP addresses to names
 * well, real netstat provides _much_ more information... but this one needs
   to be small, right? :-)
 
