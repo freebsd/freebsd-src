@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.56 1997/07/09 12:45:37 jkh Exp $
+#	$Id: Makefile,v 1.246.2.57 1997/07/13 00:55:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -18,6 +18,9 @@
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_2
+
+# Disable the doc.1 target for now.
+NODOC=  YES
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
