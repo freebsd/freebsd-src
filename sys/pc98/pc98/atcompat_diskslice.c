@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.15 1999/05/12 08:33:18 kato Exp $
+ *	$Id: atcompat_diskslice.c,v 1.16 1999/06/26 02:47:14 mckusick Exp $
  */
 
 /*
@@ -75,7 +75,6 @@ static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
 static void atcompat_extended __P((char *dname, dev_t dev,
-			  d_strategy_t *strat,
 			  struct disklabel *lp, struct diskslices *ssp,
 			  u_long ext_offset, u_long ext_size,
 			  u_long base_ext_offset, int nsectors, int ntracks,
@@ -161,13 +160,11 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	return (error);
 }
 
-int     atcompat_dsinit __P((char *dname, dev_t dev, d_strategy_t *strat,
-							struct disklabel *lp, struct diskslices **sspp));
+int     atcompat_dsinit __P((char *dname, dev_t dev, struct disklabel *lp, struct diskslices **sspp));
 int
-atcompat_dsinit(dname, dev, strat, lp, sspp)
+atcompat_dsinit(dname, dev, lp, sspp)
 	char	*dname;
 	dev_t	dev;
-	d_strategy_t *strat;
 	struct disklabel *lp;
 	struct diskslices **sspp;
 {
@@ -195,7 +192,7 @@ reread_mbr:
 	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -346,7 +343,7 @@ reread_mbr:
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
 		if (sp->ds_type == DOSPTYP_EXTENDED || 
                     sp->ds_type == DOSPTYP_EXTENDEDX)
-			atcompat_extended(dname, bp->b_dev, strat, lp, ssp,
+			atcompat_extended(dname, bp->b_dev, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
 
@@ -359,12 +356,11 @@ done:
 }
 
 static void
-atcompat_extended(dname, dev, strat, lp, ssp, ext_offset, ext_size,
-				 base_ext_offset, nsectors, ntracks, mbr_offset)
+atcompat_extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
+			 nsectors, ntracks, mbr_offset)
 	char	*dname;
 	dev_t	dev;
 	struct disklabel *lp;
-	d_strategy_t *strat;
 	struct diskslices *ssp;
 	u_long	ext_offset;
 	u_long	ext_size;
@@ -390,7 +386,7 @@ atcompat_extended(dname, dev, strat, lp, ssp, ext_offset, ext_size,
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -457,7 +453,7 @@ atcompat_extended(dname, dev, strat, lp, ssp, ext_offset, ext_size,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			atcompat_extended(dname, dev, strat, lp, ssp,
+			atcompat_extended(dname, dev, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
 				 base_ext_offset, nsectors, ntracks,
 				 mbr_offset);

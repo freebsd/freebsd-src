@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.28 1998/08/16 01:47:19 bde Exp $
+ *	$Id: diskslice.h,v 1.29 1998/08/23 20:16:35 phk Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -92,29 +92,20 @@ struct diskslices {
 struct buf;
 struct disklabel;
 
-typedef int ds_setgeom_t __P((struct disklabel *lp));
-
 int	dscheck __P((struct buf *bp, struct diskslices *ssp));
 void	dsclose __P((dev_t dev, int mode, struct diskslices *ssp));
 void	dsgone __P((struct diskslices **sspp));
-int	dsinit __P((char *dname, dev_t dev, void (*strat)(struct buf *bp),
-		    struct disklabel *lp, struct diskslices **sspp));
+int	dsinit __P((char *dname, dev_t dev, struct disklabel *lp,
+		     struct diskslices **sspp));
 int	dsioctl __P((char *dname, dev_t dev, u_long cmd, caddr_t data,
-		     int flags, struct diskslices **sspp,
-		     void (*strat)(struct buf *bp), ds_setgeom_t *setgeom));
+		     int flags, struct diskslices **sspp));
 int	dsisopen __P((struct diskslices *ssp));
 struct diskslices *dsmakeslicestruct __P((int nslices, struct disklabel *lp));
 char	*dsname __P((char *dname, int unit, int slice, int part,
 		     char *partname));
 int	dsopen __P((char *dname, dev_t dev, int mode, u_int flags,
-		    struct diskslices **sspp, struct disklabel *lp,
-		    void (*strat)(struct buf *bp), ds_setgeom_t *setgeom,
-		    struct cdevsw *cdevsw));
-int	dssize __P((dev_t dev, struct diskslices **sspp,
-		    int (*dopen)(dev_t dev, int oflags, int devtype,
-				  struct proc *p),
-		    int (*dclose)(dev_t dev, int fflag, int devtype,
-				   struct proc *p)));
+		    struct diskslices **sspp, struct disklabel *lp));
+int	dssize __P((dev_t dev, struct diskslices **sspp));
 
 #endif /* KERNEL */
 

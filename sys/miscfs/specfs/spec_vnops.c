@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.94 1999/08/13 10:53:58 phk Exp $
+ * $Id: spec_vnops.c,v 1.95 1999/08/13 16:29:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -546,7 +546,7 @@ spec_strategy(ap)
 	if (((bp->b_flags & B_READ) == 0) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
-	(*devsw(bp->b_dev)->d_strategy)(bp);
+	BUF_STRATEGY(bp, 0);
 	return (0);
 }
 
@@ -570,7 +570,7 @@ spec_freeblks(ap)
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
 	bp->b_bcount = ap->a_length;
-	(*bsw->d_strategy)(bp);
+	BUF_STRATEGY(bp, 0);
 	return (0);
 }
 

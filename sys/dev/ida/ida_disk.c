@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ida_disk.c,v 1.1 1999/06/24 03:31:57 jlemon Exp $
+ *	$Id: ida_disk.c,v 1.2 1999/07/04 14:58:16 phk Exp $
  */
 
 /*
@@ -144,8 +144,7 @@ idopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secperunit = drv->secperunit;
 
 	/* Initialize slice tables. */
-	error = dsopen("id", dev, fmt, 0, &drv->slices, &label,
-	    idstrategy, (ds_setgeom_t *)NULL, &id_cdevsw);
+	error = dsopen("id", dev, fmt, 0, &drv->slices, &label);
 
 	return (error);
 }
@@ -172,8 +171,7 @@ idioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	if (drv == NULL)
 		return (ENXIO);
 
-	error = dsioctl("id", dev, cmd, addr, flag, &drv->slices,
-	    idstrategy, (ds_setgeom_t *)NULL);
+	error = dsioctl("id", dev, cmd, addr, flag, &drv->slices);
 
 	if (error == ENOIOCTL)
 		return (ENOTTY);
@@ -189,7 +187,7 @@ idsize(dev_t dev)
 	drv = idgetsoftc(dev);
 	if (drv == NULL)
 		return (ENXIO);
-	return (dssize(dev, &drv->slices, idopen, idclose));
+	return (dssize(dev, &drv->slices));
 }
 
 /*

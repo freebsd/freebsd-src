@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fla.c,v 1.1 1999/08/06 15:59:07 phk Exp $ 
+ * $Id: fla.c,v 1.2 1999/08/07 13:11:12 bde Exp $ 
  *
  */
 
@@ -168,9 +168,10 @@ flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 	dk_dd.d_secsize = DEV_BSIZE;
 	dk_dd.d_secpercyl = dk_dd.d_ntracks * dk_dd.d_nsectors;
 
-	error = dsopen("fla", dev, fmt, 0, &sc->dk_slices, &dk_dd, 
-	    flastrategy, NULL, &fla_cdevsw);
-	return (error);
+	error = dsopen("fla", dev, fmt, 0, &sc->dk_slices, &dk_dd);
+	if (error)
+		return (error);
+	return (0);
 }
 
 static int
@@ -199,8 +200,7 @@ flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			dev2ul(dev), cmd, addr, flags, p);
 	unit = dkunit(dev);
 	sc = &softc[unit];
-	error = dsioctl("fla", dev, cmd, addr, flags, &sc->dk_slices,
-	    flastrategy, NULL);
+	error = dsioctl("fla", dev, cmd, addr, flags, &sc->dk_slices);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);
@@ -215,7 +215,7 @@ flastrategy(struct buf *bp)
 	static int busy;
 	enum doc2k_work what;
 
-	if (fla_debug)
+	if (fla_debug > 1)
 		printf("flastrategy(%p) %lx %lx, %d, %ld, %p)\n",
 			    bp, dev2ul(bp->b_dev), bp->b_flags, bp->b_blkno, 
 			    bp->b_bcount / DEV_BSIZE, bp->b_data);
@@ -261,7 +261,7 @@ flastrategy(struct buf *bp)
 		error = doc2k_rwe( unit, what, bp->b_pblkno,
 		    bp->b_bcount / DEV_BSIZE, bp->b_data);
 
-		if (fla_debug || error) {
+		if (fla_debug > 1 || error) {
 			printf("fla%d: %d = rwe(%p, %d, %d, %d, %ld, %p)\n",
 			    unit, error, bp, unit, what, bp->b_pblkno, 
 			    bp->b_bcount / DEV_BSIZE, bp->b_data);
@@ -294,7 +294,7 @@ flapsize(dev_t dev)
 	if (!sc->nsect)
 		return 0;
 
-	return (dssize(dev, &sc->dk_slices, flaopen, flaclose));
+	return (dssize(dev, &sc->dk_slices));
 }
 
 static int

@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_dkbad.c,v 1.9 1999/05/11 19:54:31 phk Exp $
+ *	$Id: subr_dkbad.c,v 1.10 1999/06/26 02:46:03 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -96,9 +96,8 @@ internbad144(btp, lp)
 }
 
 char *
-readbad144(dev, strat, lp, bdp)
+readbad144(dev, lp, bdp)
 	dev_t	dev;
-	d_strategy_t *strat;
 	struct disklabel *lp;
 	struct dkbad *bdp;
 {
@@ -120,7 +119,7 @@ readbad144(dev, strat, lp, bdp)
 		bp->b_bcount = lp->d_secsize;
 		bp->b_flags |= B_READ;
 		bp->b_flags &= ~B_ERROR;
-		(*strat)(bp);
+		BUF_STRATEGY(bp, 1);
 
 		/* If successful, validate, otherwise try another. */
 		if (biowait(bp) == 0) {
