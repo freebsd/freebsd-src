@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.100 1995/12/11 04:55:45 dyson Exp $
+ *	$Id: wd.c,v 1.101 1995/12/11 05:02:40 dyson Exp $
  */
 
 /* TODO:
@@ -471,18 +471,14 @@ wdattach(struct isa_device *dvp)
 			((dvp->id_flags) >> (16 * unit));
 
 		if (wdgetctlr(du) == 0) {
-			char buf[sizeof du->dk_params.wdp_model + 1];
-
 			/*
 			 * Print out description of drive.
-			 * wdp_model may not be null terminated, and printf
-			 * doesn't support "%.*s" :-(, so copy wdp_model
-			 * and add a null before printing.
+			 * wdp_model may not be null terminated.
 			 */
-			bcopy(du->dk_params.wdp_model, buf, sizeof buf - 1);
-			buf[sizeof buf - 1] = '\0';
-			printf("wdc%d: unit %d (wd%d): <%s>",
-			       dvp->id_unit, unit, lunit, buf);
+			printf("wdc%d: unit %d (wd%d): <%.*s>",
+				dvp->id_unit, unit, lunit,
+				sizeof du->dk_params.wdp_model,
+				du->dk_params.wdp_model);
 			if (du->dk_flags & DKFL_32BIT)
 				printf(", 32-bit");
 			if (du->dk_multi > 1)
