@@ -750,7 +750,8 @@ gv_is_open(struct g_geom *gp)
 {
 	struct g_consumer *cp;
 
-	KASSERT(gp != NULL, ("gv_is_open: NULL gp"));
+	if (gp == NULL)
+		return (0);
 
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp->acr || cp->acw || cp->ace)
