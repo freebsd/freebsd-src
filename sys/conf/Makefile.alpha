@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.2 1998/06/14 13:45:03 dfr Exp $
+#	$Id: Makefile.alpha,v 1.3 1998/07/12 16:32:04 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -41,7 +41,7 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h -U__NetBSD__
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs -Wa,-mev56
 LOAD_ADDRESS?=	0xfffffc0000230000
 DEFINED_PROF=	${PROF}
@@ -133,7 +133,7 @@ gensetdefs: gensetdefs.o
 	${HCC} -static gensetdefs.o -o $@
 
 gensetdefs.o: ${ALPHA}/alpha/gensetdefs.c
-	${HCC} -c ${ALPHA}/alpha/gensetdefs.c
+	${HCC} -c -I${INCLUDES} ${ALPHA}/alpha/gensetdefs.c
 
 # everything potentially depends on the Makefile since everything potentially
 # depends on the options.  Some things are more dependent on the Makefile for
