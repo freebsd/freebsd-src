@@ -400,9 +400,13 @@ Disk_Names()
 			if ((fd = open(disk, O_RDWR)) == -1)
 				continue;
 			if (ioctl(fd, DIOCGSLICEINFO, &ds) == -1) {
+#ifdef DEBUG
+				warn("DIOCGSLICEINFO %s", disk);
+#endif
 				close(fd);
 				continue;
 			}
+			close(fd);
 			disks[k++] = strdup(diskname);
 			if(k == MAX_NO_DISKS)
 				return disks;
