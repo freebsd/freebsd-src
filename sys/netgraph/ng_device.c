@@ -48,6 +48,8 @@
 /* turn this on for verbose messages */
 #define NGD_DEBUG
 
+#define	ERROUT(x) do { error = (x); goto done; } while (0)
+
 /* Netgraph methods */
 static ng_constructor_t	ng_device_cons;
 static ng_rcvmsg_t	ng_device_rcvmsg;
@@ -268,30 +270,33 @@ ng_device_newhook(node_p node, hook_p hook, const char *name)
 
 #ifdef NGD_DEBUG
 	printf("%s()\n",__func__);
-#endif /* NGD_DEBUG */
+#endif
 
 	new_connection = malloc(sizeof(struct ngd_connection), M_DEVBUF, M_NOWAIT);
 	if(new_connection == NULL) {
 		printf("%s(): ERROR: new_connection == NULL\n",__func__);
-		return(-1);
+		return(ENOMEM);
 	}
 
 	new_connection->unit = get_free_unit();
 	if(new_connection->unit<0) {
 		printf("%s: No free unit found by get_free_unit(), "
-				"increas MAX_NGD\n",__func__);
-		return(-1);
+				"increase MAX_NGD\n",__func__);
+		free(new_connection, M_DEVBUF);
+		return(EINVAL);
 	}
 	new_connection->ngddev = make_dev(&ngd_cdevsw, new_connection->unit, 0, 0,0600,"ngd%d",new_connection->unit);
 	if(new_connection->ngddev == NULL) {
 		printf("%s(): make_dev failed\n",__func__);
-		return(-1);
+		free(new_connection, M_DEVBUF);
+		return(EINVAL);
 	}
 
 	new_connection->readq = malloc(sizeof(char)*NGD_QUEUE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if(new_connection->readq == NULL) {
 		printf("%s(): readq malloc failed\n",__func__);
-		return(-1);
+		free(new_connection, M_DEVBUF);
+		return(ENOMEM);
 	}
 
 	/* point to begin of buffer */
@@ -330,47 +335,42 @@ ng_device_rcvdata(hook_p hook, item_p item)
 	struct ngd_connection * connection = NULL;
 	struct ngd_connection * tmp;
 	char *buffer;
+	int error = 0;
 
 #ifdef NGD_DEBUG
 	printf("%s()\n",__func__);
-#endif /* NGD_DEBUG */
-
-	SLIST_FOREACH(tmp,&sc->head,links) {
-		if(tmp->active_hook == hook) {
-			connection = tmp;
-		}
-	}
-	if(connection == NULL) {
-		printf("%s(): connection is still NULL, no hook found\n",__func__);
-		return(-1);
-	}
+#endif
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 
-	m = m_pullup(m,m->m_len);
-	if(m == NULL) {
-		printf("%s(): ERROR: m_pullup failed\n",__func__);
-		return(-1);
+	SLIST_FOREACH(tmp,&sc->head,links)
+		if(tmp->active_hook == hook)
+			connection = tmp;
+
+	if (connection == NULL) {
+		printf("%s(): connection is still NULL, no hook found\n",__func__);
+		ERROUT(ENOTCONN);
 	}
 
-	buffer = malloc(sizeof(char)*m->m_len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if(buffer == NULL) {
-		printf("%s(): ERROR: buffer malloc failed\n",__func__);
-		return(-1);
+	if ((m = m_pullup(m,m->m_len)) == NULL) {
+		printf("%s(): ERROR: m_pullup failed\n",__func__);
+		ERROUT(ENOMEM);
 	}
 
 	buffer = mtod(m,char *);
 
-	if( (connection->loc+m->m_len) < NGD_QUEUE_SIZE) {
-	        memcpy(connection->readq+connection->loc, buffer, m->m_len);
+	if ((connection->loc + m->m_len) < NGD_QUEUE_SIZE) {
+	        memcpy(connection->readq + connection->loc, buffer, m->m_len);
 		connection->loc += m->m_len;
-	} else
+	} else {
 		printf("%s(): queue full, first read out a bit\n",__func__);
+		ERROUT(ENOSPC);
+	}
 
-	free(buffer,M_DEVBUF);
-
-	return(0);
+done:
+	NG_FREE_M(m);
+	return(error);
 }
 
 /*
@@ -385,23 +385,23 @@ ng_device_disconnect(hook_p hook)
 
 #ifdef NGD_DEBUG
 	printf("%s()\n",__func__);
-#endif /* NGD_DEBUG */
+#endif
 
-	SLIST_FOREACH(tmp,&sc->head,links) {
-		if(tmp->active_hook == hook) {
+	SLIST_FOREACH(tmp,&sc->head,links)
+		if(tmp->active_hook == hook)
 			connection = tmp;
-		}
-	}
+
 	if(connection == NULL) {
 		printf("%s(): connection is still NULL, no hook found\n",__func__);
-		return(-1);
+		return(ENOTCONN);
 	}
 
-        free(connection->readq,M_DEVBUF);
+        free(connection->readq, M_DEVBUF);
 
 	destroy_dev(connection->ngddev);
 
 	SLIST_REMOVE(&sc->head,connection,ngd_connection,links);
+	free(connection, M_DEVBUF);
 
 	return(0);
 }
