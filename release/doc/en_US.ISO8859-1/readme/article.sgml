@@ -48,6 +48,15 @@
       speaking, the features of this release are unchanged compared to
       &os; &release.base;.</para>
 
+    <note>
+      <para>Originally, this release was to carry the version number
+        4.6.1.  Late in the release engineering process, a
+        number of serious security issues arose and caused additional
+        delays.  To eliminate some sources of confusion, the release
+        engineering and security officer teams jointly decided to
+	rename the pending release to 4.6.2.</para>
+    </note>
+
     <sect2>
       <title>About &os;</title>
 

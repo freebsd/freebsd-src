@@ -5,7 +5,7 @@
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- Notes new to our first point release (hopefully there'll only be one!) -->
-<!ENTITY new.461 "[4.6.1]">
+<!ENTITY new.461 "[4.6.2]">
 
 <!-- Well, we did all the work for two point releases, but the world -->
 <!-- will only see one of them. -->
