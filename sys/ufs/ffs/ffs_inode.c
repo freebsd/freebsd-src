@@ -455,7 +455,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
 		BUF_STRATEGY(bp);
-		error = biowait(bp);
+		error = bufwait(bp);
 	}
 	if (error) {
 		brelse(bp);
