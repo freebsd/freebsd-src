@@ -226,8 +226,6 @@ uipc_rcvd(struct socket *so, int flags)
 		/*NOTREACHED*/
 
 	case SOCK_STREAM:
-#define	rcv (&so->so_rcv)
-#define snd (&so2->so_snd)
 		if (unp->unp_conn == 0)
 			break;
 		so2 = unp->unp_conn->unp_socket;
@@ -235,13 +233,11 @@ uipc_rcvd(struct socket *so, int flags)
 		 * Adjust backpressure on sender
 		 * and wakeup any waiting to write.
 		 */
-		snd->sb_mbmax += unp->unp_mbcnt - rcv->sb_mbcnt;
-		unp->unp_mbcnt = rcv->sb_mbcnt;
-		snd->sb_hiwat += unp->unp_cc - rcv->sb_cc;
-		unp->unp_cc = rcv->sb_cc;
+		so2->so_snd.sb_mbmax += unp->unp_mbcnt - so->so_rcv.sb_mbcnt;
+		unp->unp_mbcnt = so->so_rcv.sb_mbcnt;
+		so2->so_snd.sb_hiwat += unp->unp_cc - so->so_rcv.sb_cc;
+		unp->unp_cc = so->so_rcv.sb_cc;
 		sowwakeup(so2);
-#undef snd
-#undef rcv
 		break;
 
 	default:
@@ -308,8 +304,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	case SOCK_STREAM:
-#define	rcv (&so2->so_rcv)
-#define	snd (&so->so_snd)
 		/* Connect if not connected yet. */
 		/*
 		 * Note: A better implementation would complain
@@ -339,19 +333,18 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * Wake up readers.
 		 */
 		if (control) {
-			if (sbappendcontrol(rcv, m, control))
+			if (sbappendcontrol(&so2->so_rcv, m, control))
 				control = 0;
 		} else
-			sbappend(rcv, m);
-		snd->sb_mbmax -=
-			rcv->sb_mbcnt - unp->unp_conn->unp_mbcnt;
-		unp->unp_conn->unp_mbcnt = rcv->sb_mbcnt;
-		snd->sb_hiwat -= rcv->sb_cc - unp->unp_conn->unp_cc;
-		unp->unp_conn->unp_cc = rcv->sb_cc;
+			sbappend(&so2->so_rcv, m);
+		so->so_snd.sb_mbmax -=
+			so2->so_rcv.sb_mbcnt - unp->unp_conn->unp_mbcnt;
+		unp->unp_conn->unp_mbcnt = so2->so_rcv.sb_mbcnt;
+		so->so_snd.sb_hiwat -=
+		    so2->so_rcv.sb_cc - unp->unp_conn->unp_cc;
+		unp->unp_conn->unp_cc = so2->so_rcv.sb_cc;
 		sorwakeup(so2);
 		m = 0;
-#undef snd
-#undef rcv
 		break;
 
 	default:
