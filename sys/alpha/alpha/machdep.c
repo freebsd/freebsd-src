@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.30 1999/01/15 18:00:19 msmith Exp $
+ *	$Id: machdep.c,v 1.31 1999/01/26 02:49:51 julian Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -161,6 +161,7 @@ struct platform platform;
 alpha_chipset_t chipset;
 struct bootinfo_kernel bootinfo;
 struct timeval switchtime;
+int switchticks;
 
 struct	user *proc0paddr;
 
