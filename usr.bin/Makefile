@@ -1,18 +1,16 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.27 1994/10/19 03:14:13 pst Exp $
+#	$Id: Makefile,v 1.28 1994/11/12 05:32:46 lars Exp $
 
-# XXX MISSING:		bc dc deroff diction diff ex graph learn plot
+# XXX MISSING:		deroff diction graph learn plot
 #			ptx spell spline struct units xsend
-# XXX MISSING SOURCES:	grep sort
-# XXX MISSING Makefile:	uucp
-# XXX Use GNU versions:	ld man apropos whatis patch
+# XXX Use GNU versions:	dc bc diff grep ld man apropos whatis patch
 # Moved to secure: bdes
 #
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dig dirname du \
-	env error expand f2c false file find finger fmt fold fpr from \
-	fsplit fstat ftp gcore gprof head hexdump host id indent ipcrm ipcs \
+	env error expand f2c false file find finger fmt fold fpr from fsplit \
+	fstat ftp gcore getopt gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
 	lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
