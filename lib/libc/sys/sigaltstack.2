@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sigaltstack.2	8.2 (Berkeley) 5/1/95
-.\"	$Id$
+.\"	$Id: sigaltstack.2,v 1.7 1997/03/12 16:23:36 mpp Exp $
 .\"
 .Dd May 1, 1995
 .Dt SIGALTSTACK 2
@@ -43,7 +43,7 @@
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaltstack {
-	caddr_t ss_sp;
+	char	*ss_sp;
 	long	ss_size;
 	int     ss_flags;
 };
