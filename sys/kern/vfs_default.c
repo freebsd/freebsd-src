@@ -264,9 +264,6 @@ vop_stdpathconf(ap)
 
 /*
  * Standard lock, unlock and islocked functions.
- *
- * These depend on the lock structure being the first element in the
- * inode, ie: vp->v_data points to the the lock!
  */
 int
 vop_stdlock(ap)
