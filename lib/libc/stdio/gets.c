@@ -49,7 +49,7 @@ gets(buf)
 	register char *s;
 	static int warned;
 	static char w[] =
-	    "warning: this program uses gets(), which is unsafe.\r\n";
+	    "warning: this program uses gets(), which is unsafe.\n";
 
 	if (!warned) {
 		(void) write(STDERR_FILENO, w, sizeof(w) - 1);
