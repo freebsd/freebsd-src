@@ -1005,7 +1005,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_RX_LIST_SZ, 1, RL_RX_LIST_SZ, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->rl_ldata.rl_rx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -1024,7 +1024,7 @@ re_allocmem(dev, sc)
 
 	error = bus_dmamap_load(sc->rl_ldata.rl_rx_list_tag,
 	     sc->rl_ldata.rl_rx_list_map, sc->rl_ldata.rl_rx_list,
-	     RL_TX_LIST_SZ, re_dma_map_addr,
+	     RL_RX_LIST_SZ, re_dma_map_addr,
 	     &sc->rl_ldata.rl_rx_list_addr, BUS_DMA_NOWAIT);
 
 	/* Create DMA maps for RX buffers */
@@ -1811,10 +1811,8 @@ re_intr(arg)
 		if ((status & RL_INTRS_CPLUS) == 0)
 			break;
 
-		if (status & RL_ISR_RX_OK)
-			re_rxeof(sc);
-
-		if (status & RL_ISR_RX_ERR)
+		if ((status & RL_ISR_RX_OK) ||
+		    (status & RL_ISR_RX_ERR))
 			re_rxeof(sc);
 
 		if ((status & RL_ISR_TIMEOUT_EXPIRED) ||
@@ -2111,24 +2109,20 @@ re_init_locked(sc)
 	rxcfg |= RL_RXCFG_RX_INDIV;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (ifp->if_flags & IFF_PROMISC)
 		rxcfg |= RL_RXCFG_RX_ALLPHYS;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	} else {
+	else
 		rxcfg &= ~RL_RXCFG_RX_ALLPHYS;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	}
+	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
 
 	/*
 	 * Set capture broadcast bit to capture broadcast frames.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
+	if (ifp->if_flags & IFF_BROADCAST)
 		rxcfg |= RL_RXCFG_RX_BROAD;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	} else {
+	else
 		rxcfg &= ~RL_RXCFG_RX_BROAD;
-		CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
-	}
+	CSR_WRITE_4(sc, RL_RXCFG, rxcfg);
 
 	/*
 	 * Program the multicast filter, if necessary.
