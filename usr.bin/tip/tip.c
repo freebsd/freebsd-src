@@ -55,7 +55,7 @@ static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
  */
 int bauds[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600,
-	1200, 1800, 2400, 4800, 9600, 19200, -1
+	1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200, -1
 };
 
 int	disc = OTTYDISC;		/* tip normally runs this way */
