@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.20 2003/04/28 02:54:43 grog Exp $
+ * $Id: vinumioctl.c,v 1.21 2003/05/04 05:23:09 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -57,6 +57,7 @@ void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
 void moveobject(struct vinum_ioctl_msg *);
+void setreadpol(struct vinum_ioctl_msg *);
 
 jmp_buf command_fail;					    /* return on a failed command */
 
@@ -86,10 +87,6 @@ vinumioctl(dev_t dev,
 	    sd = &SD[objno];
 
 	    switch (cmd) {
-	    case DIOCGDINFO:				    /* get disk label */
-		get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
-		break;
-
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
@@ -111,10 +108,6 @@ vinumioctl(dev_t dev,
 	    plex = &PLEX[objno];
 
 	    switch (cmd) {
-	    case DIOCGDINFO:				    /* get disk label */
-		get_volume_label(plex->name, 1, plex->length, (struct disklabel *) data);
-		break;
-
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
@@ -140,10 +133,6 @@ vinumioctl(dev_t dev,
 		return EIO;				    /* I/O error */
 
 	    switch (cmd) {
-	    case DIOCGDINFO:				    /* get disk label */
-		get_volume_label(vol->name, vol->plexes, vol->size, (struct disklabel *) data);
-		break;
-
 		/*
 		 * We don't have this stuff on hardware,
 		 * so just pretend to do it so that
@@ -420,6 +409,10 @@ vinum_super_ioctl(dev_t dev,
 	moveobject((struct vinum_ioctl_msg *) data);
 	return 0;
 
+    case VINUM_READPOL:
+	setreadpol((struct vinum_ioctl_msg *) data);
+	return 0;
+
     default:
 	/* FALLTHROUGH */
 	break;
@@ -633,7 +626,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 			set_sd_state(plex->sdnos[sdno], sd_stale, setstate_force); /* make it stale */
 		}
 		set_plex_state(plex->plexno, plex_up, setstate_none); /* update plex state */
-		give_plex_to_volume(msg->otherobject, msg->index); /* and give it to the volume */
+		give_plex_to_volume(msg->otherobject, msg->index, 0); /* and give it to the volume */
 		update_plex_config(plex->plexno, 0);
 		save_config();
 		reply->error = 0;			    /* all went well */
@@ -906,6 +899,40 @@ moveobject(struct vinum_ioctl_msg *msg)
     sd->driveno = msg->index;
     sd->driveoffset = -1;				    /* let the drive decide where to put us */
     give_sd_to_drive(sd->sdno);
+    reply->error = 0;
+}
+
+void
+setreadpol(struct vinum_ioctl_msg *msg)
+{
+    struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
+    struct volume *vol;
+    struct plex *plex;
+    int myplexno = -1;
+
+    /* Check that our objects are valid (i.e. they exist) */
+    vol = validvol(msg->index, reply);
+    if (vol == NULL)
+	return;
+
+    /* If a plex was specified, check that is is valid */
+    if (msg->otherobject >= 0) {
+	plex = validplex(msg->otherobject, reply);
+	if (vol == NULL)
+	    return;
+
+	/* Is it attached to this volume? */
+	myplexno = my_plex(msg->index, msg->otherobject);
+	if (myplexno < 0) {
+	    strcpy(reply->msg, "Plex is not attached to volume");
+	    reply->error = ENOENT;
+	    return;
+	}
+    }
+    lock_config();
+    vol->preferred_plex = myplexno;
+    save_config();
+    unlock_config();
     reply->error = 0;
 }
 
