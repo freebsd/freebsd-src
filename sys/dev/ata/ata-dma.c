@@ -59,7 +59,6 @@ static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
 /* misc defines */
 #define MAXTABSZ	PAGE_SIZE
 #define MAXWSPCSZ	PAGE_SIZE
-#define MAXCTLDMASZ	(2 * (MAXTABSZ + MAXPHYS))
 
 struct ata_dc_cb_args {
     bus_addr_t maddr;
@@ -95,10 +94,10 @@ ata_dmaalloc(struct ata_channel *ch)
 {
     struct ata_dc_cb_args ccba;
 
-    if (bus_dma_tag_create(NULL, 1, 0,
+    if (bus_dma_tag_create(NULL, ch->dma->alignment, 0,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXCTLDMASZ,
-			   ATA_DMA_ENTRIES, BUS_SPACE_MAXSIZE_32BIT,
+			   NULL, NULL, 16*1024*1024,
+			   ATA_DMA_ENTRIES, ch->dma->max_iosize,
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->dmatag))
 	goto error;
 
@@ -110,8 +109,8 @@ ata_dmaalloc(struct ata_channel *ch)
 
     if (bus_dma_tag_create(ch->dma->dmatag,ch->dma->alignment,ch->dma->boundary,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, ch->dma->max_iosize, 
-			   ATA_DMA_ENTRIES, ch->dma->boundary,
+			   NULL, NULL, 16*1024*1024,
+			   ATA_DMA_ENTRIES, ch->dma->max_iosize,
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->ddmatag))
 	goto error;
 
