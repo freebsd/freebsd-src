@@ -205,10 +205,8 @@ static struct acpi_ec_softc	acpi_ec_default;	/* for the default EC handler */
 static void		EcGpeHandler(void *Context);
 static ACPI_STATUS	EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, 
 					   void *Context, void **return_Context);
-static ACPI_STATUS	EcSpaceHandler(UINT32 Function, UINT32 Address, UINT32 width, UINT32 *Value, 
+static ACPI_STATUS	EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UINT32 *Value, 
 				      void *Context, void *RegionContext);
-static ACPI_STATUS	EcDefaultSpaceHandler(UINT32 Function, UINT32 Address, UINT32 width, UINT32 *Value, 
-					      void *Context, void *RegionContext);
 
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event);
 static ACPI_STATUS	EcQuery(struct acpi_ec_softc *sc, UINT8 *Data);
@@ -251,18 +249,6 @@ acpi_ec_identify(driver_t driver, device_t bus)
     ACPI_STATUS	Status;
 
     /* XXX implement - need an ACPI 2.0 system to test this */
-
-    /*
-     * XXX install a do-nothing handler at the top of the namespace to catch
-     *     bogus accesses being made due to apparent interpreter bugs.
-     */
-    acpi_ec_default.ec_dev = bus;
-    if ((Status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT, ADDRESS_SPACE_EC, 
-						 &EcDefaultSpaceHandler, &EcSpaceSetup,
-						 &acpi_ec_default)) != AE_OK) {
-	device_printf(acpi_ec_default.ec_dev, "can't install default EC address space handler - %s\n", 
-		      acpi_strerror(Status));
-    }
 }
 
 /*
@@ -462,7 +448,8 @@ EcSpaceSetup(ACPI_HANDLE Region, UINT32 Function, void *Context, void **RegionCo
 }
 
 static ACPI_STATUS
-EcSpaceHandler(UINT32 Function, UINT32 Address, UINT32 width, UINT32 *Value, void *Context, void *RegionContext)
+EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width, UINT32 *Value, 
+	       void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
     ACPI_STATUS			Status = AE_OK;
@@ -496,28 +483,6 @@ EcSpaceHandler(UINT32 Function, UINT32 Address, UINT32 width, UINT32 *Value, voi
         (*Value) = (UINT32)EcRequest.Data;
 
     return(Status);
-}
-
-static ACPI_STATUS
-EcDefaultSpaceHandler(UINT32 Function, UINT32 Address, UINT32 width, UINT32 *Value, void *Context, void *RegionContext)
-{
-    if ((Address > 0xFF) || (width != 8) || (Value == NULL) || (Context == NULL))
-        return(AE_BAD_PARAMETER);
-
-    switch (Function) {
-    case ADDRESS_SPACE_READ:
-	printf("ACPI: Illegal EC read from 0x%x\n", Address);
-	*Value = 0;
-	break;
-    case ADDRESS_SPACE_WRITE:
-	printf("ACPI: Illegal EC write 0x%x to 0x%x\n", *Value, Address);
-	break;
-    default:
-	printf("ACPI: Illegal EC unknown operation");
-	break;
-    }
-    /* let things keep going */
-    return(AE_OK);
 }
 
 static ACPI_STATUS

@@ -152,11 +152,11 @@ SYSCTL_INT(_debug, OID_AUTO, acpi_debug_level, CTLFLAG_RW, &AcpiDbgLevel, 0, "")
 static void
 acpi_identify(driver_t *driver, device_t parent)
 {
-    device_t	child;
-    void	*rsdp;
-    int		error;
+    device_t			child;
+    ACPI_PHYSICAL_ADDRESS	rsdp;
+    int				error;
 #ifdef ENABLE_DEBUGGER
-    char		*debugpoint = getenv("debug.acpi.debugger");
+    char			*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
     if(!cold){
@@ -214,8 +214,8 @@ acpi_probe(device_t dev)
     char		buf[20];
     int			error;
 
-    if ((error = AcpiGetTableHeader(ACPI_TABLE_RSDT, 1, &th)) != AE_OK) {
-	device_printf(dev, "couldn't get RSDT header: %s\n", acpi_strerror(error));
+    if ((error = AcpiGetTableHeader(ACPI_TABLE_XSDT, 1, &th)) != AE_OK) {
+	device_printf(dev, "couldn't get XSDT header: %s\n", acpi_strerror(error));
 	return(ENXIO);
     }
     sprintf(buf, "%.6s %.8s", th.OemId, th.OemTableId);
@@ -295,13 +295,13 @@ acpi_attach(device_t dev)
     sc->acpi_lid_switch_sx = ACPI_LID_SWITCH_DEFAULT_SX;
 
     /* Enable and clear fixed events and install handlers. */
-    if (AcpiGbl_FACP != NULL && AcpiGbl_FACP->PwrButton == 0) {
+    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->PwrButton == 0) {
 	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
 	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON, acpi_eventhandler_power_button_for_sleep, sc);
 	device_printf(dev, "power button is handled as a fixed feature programming model.\n");
     }
-    if (AcpiGbl_FACP != NULL && AcpiGbl_FACP->SleepButton == 0) {
+    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
 	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
 	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON, acpi_eventhandler_sleep_button_for_sleep, sc);
