@@ -591,7 +591,7 @@ ar_rebuild(struct ar_softc *rdp)
     buffer = malloc(256 * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
 
     /* now go copy entire disk(s) */
-    while (rdp->lock_start < rdp->total_sectors) {
+    while (rdp->lock_start < (rdp->total_sectors / rdp->width)) {
 	for (disk = 0; disk < rdp->width; disk++) {
 	    if (((rdp->disks[disk].flags & AR_DF_ONLINE) &&
 		 (rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE)) ||
@@ -615,8 +615,8 @@ ar_rebuild(struct ar_softc *rdp)
 		      256 * DEV_BSIZE, buffer, AR_WRITE | AR_WAIT);
 	}
 	rdp->lock_start = rdp->lock_end;
-	rdp->lock_end =
-	    rdp->lock_start + min(256, rdp->total_sectors - rdp->lock_end);
+	rdp->lock_end = rdp->lock_start + 
+	    min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
 	wakeup(rdp);
     }
     free(buffer, M_AR);
