@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.24 1995/02/20 14:21:58 davidg Exp $
+ * $Id: vm_object.c,v 1.25 1995/02/21 01:22:47 davidg Exp $
  */
 
 /*
@@ -270,11 +270,13 @@ vm_object_deallocate(object)
 
 					do {
 						s = splhigh();
-						while( robject->paging_in_progress) {
+						while (robject->paging_in_progress) {
+							robject->flags |= OBJ_PIPWNT;
 							tsleep(robject, PVM, "objde1", 0);
 						}
 
-						while( object->paging_in_progress) {
+						while (object->paging_in_progress) {
+							object->flags |= OBJ_PIPWNT;
 							tsleep(object, PVM, "objde2", 0);
 						}
 						splx(s);
@@ -379,6 +381,7 @@ vm_object_terminate(object)
 	s = splhigh();
 	while (object->paging_in_progress) {
 		vm_object_unlock(object);
+		object->flags |= OBJ_PIPWNT;
 		tsleep((caddr_t) object, PVM, "objtrm", 0);
 		vm_object_lock(object);
 	}
@@ -494,6 +497,7 @@ again:
 	 * Wait until the pageout daemon is through with the object.
 	 */
 	while (object->paging_in_progress) {
+		object->flags |= OBJ_PIPWNT;
 		tsleep(object, PVM, "objpcw", 0);
 	}
 
@@ -776,8 +780,10 @@ again:
 	}
 	vm_object_unlock(object);
 	--object->paging_in_progress;
-	if (object->paging_in_progress == 0)
+	if (object->paging_in_progress == 0 && (object->flags & OBJ_PIPWNT)) {
+		object->flags &= ~OBJ_PIPWNT;
 		wakeup((caddr_t) object);
+	}
 }
 
 /*
@@ -1406,8 +1412,11 @@ vm_object_collapse(object)
 					    object->pager, object->paging_offset,
 					    object->shadow_offset);
 					object->paging_in_progress--;
-					if (object->paging_in_progress == 0)
+					if (object->paging_in_progress == 0 &&
+					    (object->flags & OBJ_PIPWNT)) {
+						object->flags &= ~OBJ_PIPWNT;
 						wakeup((caddr_t) object);
+					}
 				} else {
 					object->paging_in_progress++;
 					/*
@@ -1422,12 +1431,19 @@ vm_object_collapse(object)
 					 */
 					swap_pager_freespace(object->pager, 0, object->paging_offset);
 					object->paging_in_progress--;
-					if (object->paging_in_progress == 0)
+					if (object->paging_in_progress == 0 &&
+					    (object->flags & OBJ_PIPWNT)) {
+						object->flags &= ~OBJ_PIPWNT;
 						wakeup((caddr_t) object);
+					}
 				}
+					
 				backing_object->paging_in_progress--;
-				if (backing_object->paging_in_progress == 0)
+				if (backing_object->paging_in_progress == 0 &&
+				    (backing_object->flags & OBJ_PIPWNT)) {
+					backing_object->flags &= ~OBJ_PIPWNT;
 					wakeup((caddr_t) backing_object);
+				}
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1630,8 +1646,10 @@ again:
 		}
 	}
 	--object->paging_in_progress;
-	if (object->paging_in_progress == 0)
+	if (object->paging_in_progress == 0 && (object->flags & OBJ_PIPWNT)) {
+		object->flags &= ~OBJ_PIPWNT;
 		wakeup((caddr_t) object);
+	}
 }
 
 /*
