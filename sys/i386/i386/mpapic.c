@@ -150,6 +150,9 @@ io_apic_set_id(int apic, int id)
 	
 	ux = io_apic_read(apic, IOAPIC_ID);	/* get current contents */
 	if (((ux & APIC_ID_MASK) >> 24) != id) {
+		printf("Changing APIC ID for IO APIC #%d"
+		       " from %d to %d on chip\n",
+		       apic, ((ux & APIC_ID_MASK) >> 24), id);
 		ux &= ~APIC_ID_MASK;	/* clear the ID field */
 		ux |= (id << 24);
 		io_apic_write(apic, IOAPIC_ID, ux);	/* write new value */
@@ -159,6 +162,14 @@ io_apic_set_id(int apic, int id)
 			      apic, ux);
 	}
 }
+
+
+int
+io_apic_get_id(int apic)
+{
+  return (io_apic_read(apic, IOAPIC_ID) & APIC_ID_MASK) >> 24;
+}
+  
 
 
 /*
