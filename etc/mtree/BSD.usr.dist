@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.131 1998/09/19 18:50:27 obrien Exp $
+#	$Id: BSD.usr.dist,v 1.132 1998/09/26 11:56:35 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -354,8 +354,7 @@
             worm
             ..
         ..
-/set type=dir uname=games gname=wheel mode=0755
-        games           uname=root
+        games
             atc
             ..
             fortune
@@ -365,7 +364,6 @@
             quiz.db
             ..
         ..
-/set type=dir uname=root gname=wheel mode=0755
         groff_font
             devX100
             ..
