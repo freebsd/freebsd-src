@@ -202,48 +202,31 @@ void	callout_handle_init __P((struct callout_handle *));
 struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
-/* Interrupt management */
-void		spl0 __P((void));
-intrmask_t	splbio __P((void));
-intrmask_t	splcam __P((void));
-intrmask_t	splclock __P((void));
-intrmask_t	splhigh __P((void));
-intrmask_t	splimp __P((void));
-intrmask_t	splnet __P((void));
-intrmask_t	splsoftcam __P((void));
-intrmask_t	splsoftcambio __P((void));
-intrmask_t	splsoftcamnet __P((void));
-intrmask_t	splsoftclock __P((void));
-intrmask_t	splsofttty __P((void));
-intrmask_t	splsoftvm __P((void));
-intrmask_t	splsofttq __P((void));
-intrmask_t	splstatclock __P((void));
-intrmask_t	spltty __P((void));
-intrmask_t	splvm __P((void));
-void		splx __P((intrmask_t ipl));
-intrmask_t	splq __P((intrmask_t ipl));
-void		splz __P((void));
+/* Stubs for obsolete functions that used to be for interrupt  management */
+static __inline void		spl0(void)		{ return; }
+static __inline intrmask_t	splbio(void)		{ return 0; }
+static __inline intrmask_t	splcam(void)		{ return 0; }
+static __inline intrmask_t	splclock(void)		{ return 0; }
+static __inline intrmask_t	splhigh(void)		{ return 0; }
+static __inline intrmask_t	splimp(void)		{ return 0; }
+static __inline intrmask_t	splnet(void)		{ return 0; }
+static __inline intrmask_t	splsoftcam(void)	{ return 0; }
+static __inline intrmask_t	splsoftcambio(void)	{ return 0; }
+static __inline intrmask_t	splsoftcamnet(void)	{ return 0; }
+static __inline intrmask_t	splsoftclock(void)	{ return 0; }
+static __inline intrmask_t	splsofttty(void)	{ return 0; }
+static __inline intrmask_t	splsoftvm(void)		{ return 0; }
+static __inline intrmask_t	splsofttq(void)		{ return 0; }
+static __inline intrmask_t	splstatclock(void)	{ return 0; }
+static __inline intrmask_t	spltty(void)		{ return 0; }
+static __inline intrmask_t	splvm(void)		{ return 0; }
+static __inline void		splx(intrmask_t ipl)	{ return; }
+static __inline intrmask_t	splq(intrmask_t ipl)	{ return 0; }
+static __inline void		splz(void)		{ return; }
 
 #if defined(__ia64__)
 #include <machine/ipl.h>
 #endif
-
-/*
- * XXX It's not clear how "machine independent" these will be yet, but
- * they are used all over the place especially in pci drivers.  We would
- * have to modify lots of drivers since <machine/cpufunc.h> no longer
- * implicitly causes these to be defined when it #included <machine/spl.h>
- */
-extern intrmask_t bio_imask;	/* group of interrupts masked with splbio() */
-extern intrmask_t cam_imask;	/* group of interrupts masked with splcam() */
-extern intrmask_t net_imask;	/* group of interrupts masked with splimp() */
-extern intrmask_t stat_imask;	/* interrupts masked with splstatclock() */
-extern intrmask_t tty_imask;	/* group of interrupts masked with spltty() */
-
-/* Read only */
-extern const intrmask_t soft_imask;    /* interrupts masked with splsoft*() */
-extern const intrmask_t softnet_imask; /* interrupt masked with splnet() */
-extern const intrmask_t softtty_imask; /* interrupt masked with splsofttty() */
 
 /*
  * Various callout lists.
