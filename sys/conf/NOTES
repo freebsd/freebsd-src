@@ -122,6 +122,7 @@ options 	GEOM_GPT
 options 	GEOM_MBR
 options 	GEOM_PC98
 options 	GEOM_SUNLABEL
+options 	GEOM_VOL
 
 #
 # The root device and filesystem type can be compiled in;
