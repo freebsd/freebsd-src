@@ -1164,7 +1164,7 @@ ptransfer(direction, bytes, t0, t1)
 #define	nz(x)	((x) == 0 ? 1 : (x))
 		bs = bytes / nz(s);
 		if(bs > ( 1024 * 1024 ))
-			printf("%ld bytes %s in %.2f seconds (%.2f Meg/s)\n",
+			printf("%ld bytes %s in %.2f seconds (%.2f Mbytes/s)\n",
 				bytes, direction, s, bs / (1024. * 1024.));
 		else
 			printf("%ld bytes %s in %.2f seconds (%.2f Kbytes/s)\n",
