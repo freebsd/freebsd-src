@@ -375,8 +375,8 @@ mlphy_service(xsc, mii, cmd)
 		other->mii_inst = sc->mii_inst;
 		(void) (*other->mii_service)(other, mii, MII_POLLSTAT);
 		other->mii_inst = other_inst;
-		sc->mii_active = other->mii_active;
-		sc->mii_status = other->mii_status;
+		sc->mii_media_active = other->mii_media_active;
+		sc->mii_media_status = other->mii_media_status;
 	} else
 		ukphy_status(sc);
 
