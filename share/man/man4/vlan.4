@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2004
+.Dd November 15, 2004
 .Dt VLAN 4
 .Os
 .Sh NAME
@@ -165,7 +165,17 @@ for
 use and calculates the appropriate frame MTU based on the
 capabilities of the parent interface.
 .Sh SEE ALSO
+.Xr kqueue 2 ,
 .Xr miibus 4 ,
 .Xr ifconfig 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
+.Pp
+.Dv EVFILT_NETDEV
+events on a
+.Nm
+interface will be sent through
+.Xr kqueue 2
+only if the parent interface uses
+.Xr miibus 4
+for link state notification.
