@@ -2781,7 +2781,7 @@ static void type(FICL_VM *pVM)
 {
     UNS32 count = stackPopUNS32(pVM->pStack);
     char *cp    = stackPopPtr(pVM->pStack);
-    char *pDest = (char *)ficlMalloc(count);
+    char *pDest = (char *)ficlMalloc(count + 1);
 
     /* 
     ** Since we don't have an output primitive for a counted string
@@ -2794,7 +2794,7 @@ static void type(FICL_VM *pVM)
     strncpy(pDest, cp, count);
     pDest[count] = '\0';
 
-    vmTextOut(pVM, cp, 0);
+    vmTextOut(pVM, pDest, 0);
 
     ficlFree(pDest);
     return;
