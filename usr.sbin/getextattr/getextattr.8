@@ -1,6 +1,9 @@
 .\"-
-.\" Copyright (c) 2000, 2001 Robert N. M. Watson
+.\" Copyright (c) 2000, 2001, 2002 Robert N. M. Watson
 .\" All rights reserved.
+.\"
+.\" This software was developed by Robert Watson for the TrustedBSD
+.\" Project.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd March 30, 2000
 .Dt GETEXTATTR 8
@@ -102,5 +105,4 @@ to be associated with each file or directory.
 .Sh AUTHORS
 Robert N M Watson
 .Sh BUGS
-Only the first 2048 bytes of the extended attribute value are displayed
-due to a hard-coded buffer limit.
+The output format for this utility is ugly, and worse yet, not very useful.
