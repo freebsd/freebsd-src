@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 11:38:21 peter Exp $
 #
 
 MAINTAINER=peter@FreeBSD.org
@@ -11,7 +11,7 @@ LIB=		z
 #CFLAGS+=	-Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #		-Wstrict-prototypes -Wmissing-prototypes
 
-CLEANFILES+=	example.o example minigzip.o minigzip
+CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
        zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c inffast.c
