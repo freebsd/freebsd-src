@@ -43,7 +43,7 @@
 #include <sys/cdefs.h>
 
 /*
- * GNU-like getopt_long() with 4.4BSD optreset extension.
+ * GNU-like getopt_long()/getopt_long_only() with 4.4BSD optreset extension.
  * getopt() is declared here too for GNU programs.
  */
 #define no_argument        0
@@ -66,6 +66,8 @@ struct option {
 
 __BEGIN_DECLS
 int	getopt_long(int, char * const *, const char *,
+	const struct option *, int *);
+int	getopt_long_only(int, char * const *, const char *,
 	const struct option *, int *);
 #ifndef _GETOPT_DECLARED
 #define	_GETOPT_DECLARED
