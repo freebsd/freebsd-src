@@ -54,8 +54,10 @@
  *   IPS CONSTANTS
  */
 #define IPS_VENDOR_ID                   0x1014
+#define IPS_VENDOR_ID_ADAPTEC		0x9005
 #define IPS_MORPHEUS_DEVICE_ID          0x01BD
 #define IPS_COPPERHEAD_DEVICE_ID        0x002E
+#define IPS_MARCO_DEVICE_ID		0x0950
 #define IPS_CSL				0xff
 #define IPS_POCL			0x30
 
