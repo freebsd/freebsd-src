@@ -624,18 +624,20 @@ progressmeter(flag)
 	ratio = MAX(ratio, 0);
 	ratio = MIN(ratio, 100);
 	n = snprintf(buf + len, sizeof(buf) - len, "\r%3d%% ", ratio);
-	if (n > 0 || len < sizeof(buf) - len)
+	if (n > 0 && n < sizeof(buf) - len)
 		len += n;
 
 	barlength = ttywidth - 30;
 	if (barlength > 0) {
+		if (barlength > 154)
+			barlength = 154;	/* Number of '*'s below */
 		i = barlength * ratio / 100;
 		n = snprintf(buf + len, sizeof(buf) - len,
 		    "|%.*s%*s|", i, 
 "*****************************************************************************"
 "*****************************************************************************",
 		    barlength - i, "");
-		if (n > 0 || len < sizeof(buf) - len)
+		if (n > 0 && n < sizeof(buf) - len)
 			len += n;
 	}
 
@@ -648,7 +650,7 @@ progressmeter(flag)
 	n = snprintf(buf + len, sizeof(buf) - len,
 	    " %5qd %c%c ", (long long)abbrevsize, prefixes[i],
 	    prefixes[i] == ' ' ? ' ' : 'B');
-	if (n > 0 || len < sizeof(buf) - len)
+	if (n > 0 && n < sizeof(buf) - len)
 		len += n;
 
 	timersub(&now, &lastupdate, &wait);
@@ -685,14 +687,14 @@ progressmeter(flag)
 			else
 				n = snprintf(buf + len, sizeof(buf) - len,
 				    "   ");
-			if (n > 0 || len < sizeof(buf) - len)
+			if (n > 0 && n < sizeof(buf) - len)
 				len += n;
 			i = remaining % SECSPERHOUR;
 			len += snprintf(buf + len, sizeof(buf) - len,
 			    "%02d:%02d ETA", i / 60, i % 60);
 		}
 	}
-	if (n > 0 || len < sizeof(buf) - len)
+	if (n > 0 && n < sizeof(buf) - len)
 		len += n;
 	(void)write(STDOUT_FILENO, buf, len);
 
@@ -739,7 +741,7 @@ ptransfer(siginfo)
 	    "%qd byte%s %s in %.2f seconds (%.2f %sB/s)\n",
 	    (long long)bytes, bytes == 1 ? "" : "s", direction, elapsed,
 	    bs / (1024.0 * (meg ? 1024.0 : 1.0)), meg ? "M" : "K");
-	if (n > 0)
+	if (n > 0 && n < sizeof(buf) - len)
 		len += n;
 	if (siginfo && bytes > 0 && elapsed > 0.0 && filesize >= 0
 	    && bytes + restart_point <= filesize) {
@@ -751,7 +753,7 @@ ptransfer(siginfo)
 		n = snprintf(buf + len, sizeof(buf) - len,
 		    "  ETA: %02d:%02d:%02d\n", hh, remaining / 60,
 		    remaining % 60);
-		if (n > 0)
+		if (n > 0 && n < sizeof(buf) - len)
 			len += n;
 	}
 	(void)write(siginfo ? STDERR_FILENO : STDOUT_FILENO, buf, len);
