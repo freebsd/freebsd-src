@@ -490,8 +490,8 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		mtx_lock(&vp->v_interlock);
 		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
 		}
@@ -1013,17 +1013,19 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		mtx_lock(&vp->v_interlock);
 		nvp = LIST_NEXT(vp, v_mntvnodes);
+
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
 			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 		if (vp->v_type != VCHR) {
-			mtx_unlock(&mntvnode_mtx);
 			if ((error = vget(vp, lockreq, p)) != 0) {
 				mtx_lock(&mntvnode_mtx);
 				if (error == ENOENT)
@@ -1034,13 +1036,11 @@ loop:
 				allerror = error;
 			VOP_UNLOCK(vp, 0, p);
 			vrele(vp);
-			mtx_lock(&mntvnode_mtx);
 		} else {
-			mtx_unlock(&mntvnode_mtx);
 			mtx_unlock(&vp->v_interlock);
 			UFS_UPDATE(vp, wait);
-			mtx_lock(&mntvnode_mtx);
 		}
+		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
 	/*
