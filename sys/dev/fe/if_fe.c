@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.33 1997/10/29 15:54:19 nate Exp $
+ * $Id: if_fe.c,v 1.34 1997/11/07 08:52:39 phk Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -123,7 +123,7 @@
 #include "card.h"
 #if NCARD > 0
 #include <sys/select.h>
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #include <pccard/driver.h>
 #endif
