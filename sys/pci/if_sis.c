@@ -71,6 +71,8 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
 
@@ -948,6 +950,12 @@ static int sis_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
 	callout_handle_init(&sc->sis_stat_ch);
 
 fail:
@@ -1529,6 +1537,9 @@ static void sis_init(xsc)
 
 	/* Set RX configuration */
 	CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG);
+
+	/* Accept Long Packets for VLAN support */
+	SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_JABBER);
 
 	/* Set TX configuration */
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
