@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.112 1995/09/19 12:37:41 phk Exp $
+ *	$Id: sio.c,v 1.113 1995/09/24 04:59:16 davidg Exp $
  */
 
 #include "sio.h"
@@ -358,7 +358,7 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
-	"RS-232 serial port",
+	"Serial port",
 	DC_CLS_SERIAL		/* class */
 } };
 #if NCRD > 0
@@ -449,6 +449,12 @@ siounload(struct pccard_dev *dp)
 	int	s,unit,nowhere;
 
 	com = com_addr(dp->isahd.id_unit);
+	if (!com->iobase) {
+		printf("sio%d already unloaded!\n",dp->isahd.id_unit);
+		return;
+	}
+	kdc_sio[com->unit].kdc_state = DC_UNCONFIGURED;
+	kdc_sio[com->unit].kdc_description = "Serial port";
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		com->gone = 1;
 		printf("sio%d: unload\n", dp->isahd.id_unit);
@@ -493,6 +499,8 @@ sioregisterdev(id)
 		return;
 	if (unit != 0)
 		kdc_sio[unit] = kdc_sio[0];
+	kdc_sio[unit].kdc_state = DC_UNCONFIGURED;
+	kdc_sio[unit].kdc_description = "Serial port";
 	kdc_sio[unit].kdc_unit = unit;
 	kdc_sio[unit].kdc_isa = id;
 	dev_attach(&kdc_sio[unit]);
