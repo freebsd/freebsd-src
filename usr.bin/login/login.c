@@ -426,7 +426,7 @@ main(int argc, char *argv[])
 	if (ttyn != tname && chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
 		if (errno != EROFS)
-			syslog(LOG_ERR, "chmod(%s): %m", ttyn);
+			syslog(LOG_ERR, "chown(%s): %m", ttyn);
 
 	/*
 	 * Exclude cons/vt/ptys only, assume dialup otherwise
