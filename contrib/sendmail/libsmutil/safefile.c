@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: safefile.c,v 8.81.4.7 2000/09/01 21:09:23 ca Exp $";
+static char id[] = "@(#)$Id: safefile.c,v 8.81.4.10 2001/07/20 04:19:36 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -660,10 +660,6 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 **		Same as open.
 */
 
-#ifndef O_ACCMODE
-# define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
-#endif /* ! O_ACCMODE */
-
 int
 safeopen(fn, omode, cmode, sff)
 	char *fn;
@@ -733,81 +729,6 @@ safeopen(fn, omode, cmode, sff)
 		return -1;
 	}
 	return fd;
-}
-/*
-**  SAFEFOPEN -- do a file open with extra checking
-**
-**	Parameters:
-**		fn -- the file name to open.
-**		omode -- the open-style mode flags.
-**		cmode -- the create-style mode flags.
-**		sff -- safefile flags.
-**
-**	Returns:
-**		Same as fopen.
-*/
-
-FILE *
-safefopen(fn, omode, cmode, sff)
-	char *fn;
-	int omode;
-	int cmode;
-	long sff;
-{
-	int fd;
-	int save_errno;
-	FILE *fp;
-	char *fmode;
-
-	switch (omode & O_ACCMODE)
-	{
-	  case O_RDONLY:
-		fmode = "r";
-		break;
-
-	  case O_WRONLY:
-		if (bitset(O_APPEND, omode))
-			fmode = "a";
-		else
-			fmode = "w";
-		break;
-
-	  case O_RDWR:
-		if (bitset(O_TRUNC, omode))
-			fmode = "w+";
-		else if (bitset(O_APPEND, omode))
-			fmode = "a+";
-		else
-			fmode = "r+";
-		break;
-
-	  default:
-		syserr("554 5.3.5 safefopen: unknown omode %o", omode);
-		fmode = "x";
-	}
-	fd = safeopen(fn, omode, cmode, sff);
-	if (fd < 0)
-	{
-		save_errno = errno;
-		if (tTd(44, 10))
-			dprintf("safefopen: safeopen failed: %s\n",
-				errstring(errno));
-		errno = save_errno;
-		return NULL;
-	}
-	fp = fdopen(fd, fmode);
-	if (fp != NULL)
-		return fp;
-
-	save_errno = errno;
-	if (tTd(44, 10))
-	{
-		dprintf("safefopen: fdopen(%s, %s) failed: omode=%x, sff=%lx, err=%s\n",
-			fn, fmode, omode, sff, errstring(errno));
-	}
-	(void) close(fd);
-	errno = save_errno;
-	return NULL;
 }
 /*
 **  FILECHANGED -- check to see if file changed after being opened

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: err.c,v 8.120.4.2 2001/05/03 17:24:06 gshapiro Exp $";
+static char id[] = "@(#)$Id: err.c,v 8.120.4.3 2001/05/30 00:22:26 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -157,8 +157,6 @@ syserr(fmt, va_alist)
 #ifdef ESTALE
 	  case ESTALE:
 #endif /* ESTALE */
-
-
 		printopenfds(TRUE);
 		mci_dump_all(TRUE);
 		break;

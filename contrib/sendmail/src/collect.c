@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: collect.c,v 8.136.4.21 2001/05/17 18:10:14 gshapiro Exp $";
+static char id[] = "@(#)$Id: collect.c,v 8.136.4.22 2001/06/07 21:01:02 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -352,7 +352,8 @@ bufferchar:
 			{
 				*bp++ = c;
 				hdrslen++;
-				if (MaxHeadersLength > 0 &&
+				if (!headeronly &&
+				    MaxHeadersLength > 0 &&
 				    hdrslen > MaxHeadersLength)
 				{
 					sm_syslog(LOG_NOTICE, e->e_id,

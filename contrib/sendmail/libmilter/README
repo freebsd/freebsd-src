@@ -59,14 +59,14 @@ Filters are specified with a key letter ``X'' (for ``eXternal'').
 For example:
 
 	Xfilter1, S=local:/var/run/f1.sock, F=R
-	Xfilter2, S=inet6:999@localhost, F=T, T=S:1s;R:1s;E:5m
+	Xfilter2, S=inet6:999@localhost, F=T, T=C:10m;S:1s;R:1s;E:5m
 	Xfilter3, S=inet:3333@localhost
 
 specifies three filters.  Filters can be specified in your .mc file using
 the following:
 
 	INPUT_MAIL_FILTER(`filter1', `S=local:/var/run/f1.sock, F=R')
-	INPUT_MAIL_FILTER(`filter2', `S=inet6:999@localhost, F=T, T=S:1s;R:1s;E:5m')
+	INPUT_MAIL_FILTER(`filter2', `S=inet6:999@localhost, F=T, T=C:10m;S:1s;R:1s;E:5m')
 	INPUT_MAIL_FILTER(`filter3', `S=inet:3333@localhost')
 
 The first attaches to a Unix-domain socket in the /var/run directory; the
@@ -80,19 +80,21 @@ If neither F=R nor F=T is specified, the message is passed through sendmail
 as if the filter were not present.
 
 Finally, you can override the default timeouts used by sendmail when
-talking to the filters using the T= equate.  There are three fields inside
+talking to the filters using the T= equate.  There are four fields inside
 of the T= equate:
 
 Letter          Meaning
-  S             Timeout for sending information from the MTA to a filter
-  R             Timeout for reading reply from the filter
-  E             Overall timeout between sending end-of-message to filter
-                and waiting for the final acknowledgment
+  C		Timeout for connecting to a filter (if 0, use system timeout)
+  S		Timeout for sending information from the MTA to a filter
+  R		Timeout for reading reply from the filter
+  E		Overall timeout between sending end-of-message to filter
+		and waiting for the final acknowledgment
 
 Note the separator between each is a ';' as a ',' already separates equates
-and therefore can't separate timeouts.  The default values (if not set in the config) are:
+and therefore can't separate timeouts.  The default values (if not set in
+the config) are:
 
-T=S:10s;R:10s;E:5m
+T=C:0m;S:10s;R:10s;E:5m
 
 where 's' is seconds and 'm' is minutes.
 
@@ -424,4 +426,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.17 $, Last updated $Date: 2001/04/11 18:32:58 $
+$Revision: 8.9.2.1.2.19 $, Last updated $Date: 2001/06/28 22:25:14 $

@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.33 2001/05/23 18:53:09 ca Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.34 2001/06/26 21:55:23 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.33 2001/05/23 18:53:09 ca Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.34 2001/06/26 21:55:23 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -1873,6 +1873,9 @@ smtpdata(m, mci, e)
 			if (Verbose)
 				nmessage(">>> .");
 
+			sm_syslog(LOG_CRIT, e->e_id,
+				  "%.100s: SMTP DATA-1 protocol error: remote server returned response before final dot",
+				  CurHostName);
 			mci->mci_errno = EIO;
 			mci->mci_state = MCIS_ERROR;
 			mci_setstat(mci, EX_PROTOCOL, "5.5.0", NULL);
