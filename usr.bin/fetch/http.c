@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4.2.2 1997/08/03 18:53:18 peter Exp $
+ *	$Id: http.c,v 1.4.2.3 1997/09/15 08:07:05 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -1297,7 +1297,8 @@ parse_http_date(char *string)
 
 	} else if (string[3] == ' ') {
 		/* Mon Jan 27 14:25:20 1997 */
-		if (strlen(string) < 25)
+
+		if (strlen(string) < 24)
 			return -1;
 		string += 4;
 		for (i = 0; i < 12; i++) {
