@@ -61,6 +61,38 @@
 					 * MAC_MLS_TYPE_LABEL. */
 
 /*
+ * Structures and constants associated with a Multi-Level Security policy.
+ * mac_mls represents an MLS label, with mm_type determining its properties,
+ * and mm_level represents the hierarchal sensitivity level if valid for the
+ * current mm_type.  If compartments are used, the same semantics apply as
+ * long as the suject is in every compartment the object is in.  LOW, EQUAL
+ * and HIGH cannot be in compartments.
+ */
+
+/*
+ * MLS compartments bit set size (in bits).
+ */
+#define	MAC_MLS_MAX_COMPARTMMENTS	256
+
+struct mac_mls_element {
+	u_short	mme_type;
+	u_short	mme_level;
+	u_char	mme_compartments[MAC_MLS_MAX_COMPARTMENTS >> 3];
+};
+
+/*
+ * MLS labels consist of two components: a single label, and a label
+ * range.  Depending on the context, one or both may be used; the mb_flags
+ * field permits the provider to indicate what fields are intended for
+ * use.
+ */
+struct mac_mls {
+	int			mm_flags;
+	struct mac_mls_element	mm_single;
+	struct mac_mls_element	mm_rangelow, mm_rangehigh;
+};
+
+/*
  * MLS compartments bit test/set macros.
  * The range is 1 to MAC_MLS_MAX_COMPARTMENTS.
  */

@@ -61,6 +61,33 @@
 					 * MAC_BIBA_TYPE_LABEL. */
 
 /*
+ * Structures and constants associated with a Biba Integrity policy.
+ * mac_biba represents a Biba label, with mb_type determining its properties,
+ * and mb_grade represents the hierarchal grade if valid for the current
+ * mb_type.
+ */
+
+#define	MAC_BIBA_MAX_COMPARTMENTS	256
+
+struct mac_biba_element {
+	u_short	mbe_type;
+	u_short	mbe_grade;
+	u_char	mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
+};
+
+/*
+ * Biba labels consist of two components: a single label, and a label
+ * range.  Depending on the context, one or both may be used; the mb_flags
+ * field permits the provider to indicate what fields are intended for
+ * use.
+ */
+struct mac_biba {
+	int			mb_flags;
+	struct mac_biba_element	mb_single;
+	struct mac_biba_element	mb_rangelow, mb_rangehigh;
+};
+
+/*
  * Biba compartments bit test/set macros.
  * The range is 1 to MAC_BIBA_MAX_COMPARTMENTS.
  */
