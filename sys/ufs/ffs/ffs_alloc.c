@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.14 1995/05/30 08:14:57 rgrimes Exp $
+ * $Id: ffs_alloc.c,v 1.15 1995/08/07 08:16:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -345,6 +345,7 @@ ffs_reallocblks(ap)
 	daddr_t start_lbn, end_lbn, soff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
+	struct timeval tv;
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
@@ -449,8 +450,10 @@ ffs_reallocblks(ap)
 			bwrite(sbp);
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		if (!doasyncfree)
-			VOP_UPDATE(vp, &time, &time, 1);
+		if (!doasyncfree) {
+			tv = time;
+			VOP_UPDATE(vp, &tv, &tv, 1);
+		}
 	}
 	if (ssize < len)
 		if (doasyncfree)
