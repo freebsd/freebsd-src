@@ -60,9 +60,9 @@ char rflag;
 char tflag;
 char vflag;
 
-char *symbol_prefix;
-char *file_prefix = "y";
-char *temp_form = "yacc.XXXXXXXXXXX";
+const char *symbol_prefix;
+const char *file_prefix = "y";
+char temp_form[] = "yacc.XXXXXXXXXXX";
 
 int lineno;
 int outline;
@@ -70,7 +70,7 @@ int outline;
 char *action_file_name;
 char *code_file_name;
 char *defines_file_name;
-char *input_file_name = "";
+const char *input_file_name = "";
 char *output_file_name;
 char *text_file_name;
 char *union_file_name;
@@ -130,7 +130,7 @@ int k;
 
 static void
 onintr(signo)
-	int signo;
+	int signo __unused;
 {
     done(1);
 }
@@ -169,8 +169,8 @@ getargs(argc, argv)
 int argc;
 char *argv[];
 {
-    register int i;
-    register char *s;
+    int i;
+    char *s;
 
     for (i = 1; i < argc; ++i)
     {
@@ -282,7 +282,7 @@ char *
 allocate(n)
 unsigned n;
 {
-    register char *p;
+    char *p;
 
     p = NULL;
     if (n)
@@ -298,7 +298,7 @@ static void
 create_file_names()
 {
     int i, len;
-    char *tmpdir;
+    const char *tmpdir;
 
     tmpdir = getenv("TMPDIR");
     if (tmpdir == 0) tmpdir = "/tmp";

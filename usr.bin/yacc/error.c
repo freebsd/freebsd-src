@@ -50,7 +50,7 @@ static void print_pos __P((char *, char *));
 
 void
 fatal(msg)
-char *msg;
+const char *msg;
 {
     warnx("f - %s", msg);
     done(2);
@@ -67,7 +67,7 @@ no_space()
 
 void
 open_error(filename)
-char *filename;
+const char *filename;
 {
     warnx("f - cannot open \"%s\"", filename);
     done(2);
@@ -88,7 +88,7 @@ print_pos(st_line, st_cptr)
 char *st_line;
 char *st_cptr;
 {
-    register char *s;
+    char *s;
 
     if (st_line == 0) return;
     for (s = st_line; *s != '\n'; ++s)

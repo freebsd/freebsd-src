@@ -49,7 +49,7 @@ static char const sccsid[] = "@(#)symtab.c	5.3 (Berkeley) 6/1/90";
 
 #define	TABLE_SIZE 1024
 
-static int hash __P((char *));
+static int hash __P((const char *));
 
 bucket **symbol_table;
 bucket *first_symbol;
@@ -58,10 +58,10 @@ bucket *last_symbol;
 
 static int
 hash(name)
-char *name;
+const char *name;
 {
-    register char *s;
-    register int c, k;
+    const char *s;
+    int c, k;
 
     assert(name && *name);
     s = name;
@@ -75,9 +75,9 @@ char *name;
 
 bucket *
 make_bucket(name)
-char *name;
+const char *name;
 {
-    register bucket *bp;
+    bucket *bp;
 
     assert(name);
     bp = (bucket *) MALLOC(sizeof(bucket));
@@ -104,7 +104,7 @@ bucket *
 lookup(name)
 char *name;
 {
-    register bucket *bp, **bpp;
+    bucket *bp, **bpp;
 
     bpp = symbol_table + hash(name);
     bp = *bpp;
@@ -127,8 +127,8 @@ char *name;
 void
 create_symbol_table()
 {
-    register int i;
-    register bucket *bp;
+    int i;
+    bucket *bp;
 
     symbol_table = (bucket **) MALLOC(TABLE_SIZE*sizeof(bucket *));
     if (symbol_table == 0) no_space();
@@ -156,7 +156,7 @@ free_symbol_table()
 void
 free_symbols()
 {
-    register bucket *p, *q;
+    bucket *p, *q;
 
     for (p = first_symbol; p; p = q)
     {

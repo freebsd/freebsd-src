@@ -52,7 +52,7 @@ static char const sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 /*  the body either are not useful outside of semantic actions or	*/
 /*  are conditional.							*/
 
-char *banner[] =
+const char *banner[] =
 {
     "#ifndef lint",
     "static char const ",
@@ -76,7 +76,7 @@ char *banner[] =
 };
 
 
-char *tables[] =
+const char *tables[] =
 {
     "extern const short yylhs[];",
     "extern const short yylen[];",
@@ -95,7 +95,7 @@ char *tables[] =
 };
 
 
-char *header[] =
+const char *header[] =
 {
     "#if YYDEBUG",
     "#include <stdio.h>",
@@ -128,7 +128,7 @@ char *header[] =
 };
 
 
-char *body[] =
+const char *body[] =
 {
     "/* allocate initial stack or double stack size, up to YYMAXDEPTH */",
     "static int yygrowstack()",
@@ -191,9 +191,9 @@ char *body[] =
     "yyparse (YYPARSE_PARAM_ARG)",
     "    YYPARSE_PARAM_DECL",
     "{",
-    "    register int yym, yyn, yystate;",
+    "    int yym, yyn, yystate;",
     "#if YYDEBUG",
-    "    register const char *yys;",
+    "    const char *yys;",
     "",
     "    if ((yys = getenv(\"YYDEBUG\")))",
     "    {",
@@ -330,7 +330,7 @@ char *body[] =
 };
 
 
-char *trailer[] =
+const char *trailer[] =
 {
     "    }",
     "    yyssp -= yym;",
@@ -394,12 +394,12 @@ char *trailer[] =
 
 void
 write_section(section)
-char *section[];
+const char *section[];
 {
-    register int c;
-    register int i;
-    register char *s;
-    register FILE *f;
+    int c;
+    int i;
+    const char *s;
+    FILE *f;
 
     f = code_file;
     for (i = 0; (s = section[i]); ++i)

@@ -75,7 +75,7 @@ static void unused_rules __P((void));
 void
 make_parser()
 {
-    register int i;
+    int i;
 
     parser = NEW2(nstates, action *);
     for (i = 0; i < nstates; i++)
@@ -91,9 +91,9 @@ make_parser()
 
 static action *
 parse_actions(stateno)
-register int stateno;
+int stateno;
 {
-    register action *actions;
+    action *actions;
 
     actions = get_shifts(stateno);
     actions = add_reductions(stateno, actions);
@@ -105,20 +105,20 @@ static action *
 get_shifts(stateno)
 int stateno;
 {
-    register action *actions, *temp;
-    register shifts *sp;
-    register short *to_state;
-    register int i, k;
-    register int symbol;
+    action *actions, *temp;
+    shifts *sp;
+    short *tostate;
+    int i, k;
+    int symbol;
 
     actions = 0;
     sp = shift_table[stateno];
     if (sp)
     {
-	to_state = sp->shift;
+	tostate = sp->shift;
 	for (i = sp->nshifts - 1; i >= 0; i--)
 	{
-	    k = to_state[i];
+	    k = tostate[i];
 	    symbol = accessing_symbol[k];
 	    if (ISTOKEN(symbol))
 	    {
@@ -139,11 +139,11 @@ int stateno;
 static action *
 add_reductions(stateno, actions)
 int stateno;
-register action *actions;
+action *actions;
 {
-    register int i, j, m, n;
-    register int ruleno, tokensetsize;
-    register unsigned *rowp;
+    int i, j, m, n;
+    int ruleno, tokensetsize;
+    unsigned *rowp;
 
     tokensetsize = WORDSIZE(ntokens);
     m = lookaheads[stateno];
@@ -164,10 +164,10 @@ register action *actions;
 
 static action *
 add_reduce(actions, ruleno, symbol)
-register action *actions;
-register int ruleno, symbol;
+action *actions;
+int ruleno, symbol;
 {
-    register action *temp, *prev, *next;
+    action *temp, *prev, *next;
 
     prev = 0;
     for (next = actions; next && next->symbol < symbol; next = next->next)
@@ -206,16 +206,16 @@ register int ruleno, symbol;
 static void
 find_final_state()
 {
-    register int goal, i;
-    register short *to_state;
-    register shifts *p;
+    int goal, i;
+    short *tostate;
+    shifts *p;
 
     p = shift_table[0];
-    to_state = p->shift;
+    tostate = p->shift;
     goal = ritem[1];
     for (i = p->nshifts - 1; i >= 0; --i)
     {
-	final_state = to_state[i];
+	final_state = tostate[i];
 	if (accessing_symbol[final_state] == goal) break;
     }
 }
@@ -224,8 +224,8 @@ find_final_state()
 static void
 unused_rules()
 {
-    register int i;
-    register action *p;
+    int i;
+    action *p;
 
     rules_used = (short *) MALLOC(nrules*sizeof(short));
     if (rules_used == 0) no_space();
@@ -258,9 +258,9 @@ unused_rules()
 static void
 remove_conflicts()
 {
-    register int i;
-    register int symbol;
-    register action *p, *pref = NULL;
+    int i;
+    int symbol;
+    action *p, *pref = NULL;
 
     SRtotal = 0;
     RRtotal = 0;
@@ -354,8 +354,8 @@ static int
 sole_reduction(stateno)
 int stateno;
 {
-    register int count, ruleno;
-    register action *p;
+    int count, ruleno;
+    action *p;
 
     count = 0;
     ruleno = 0;
@@ -382,7 +382,7 @@ int stateno;
 static void
 defreds()
 {
-    register int i;
+    int i;
 
     defred = NEW2(nstates, short);
     for (i = 0; i < nstates; i++)
@@ -391,9 +391,9 @@ defreds()
 
 static void
 free_action_row(p)
-register action *p;
+action *p;
 {
-  register action *q;
+  action *q;
 
   while (p)
     {
@@ -406,7 +406,7 @@ register action *p;
 void
 free_parser()
 {
-  register int i;
+  int i;
 
   for (i = 0; i < nstates; i++)
     free_action_row(parser[i]);

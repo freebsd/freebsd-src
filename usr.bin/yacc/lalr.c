@@ -78,7 +78,7 @@ static void set_reduction_table __P((void));
 static void set_shift_table __P((void));
 static void set_state_table __P((void));
 static short **transpose __P((short **, int));
-static void traverse __P((register int));
+static void traverse __P((int));
 
 static int infinity;
 static int maxrhs;
@@ -115,7 +115,7 @@ lalr()
 static void
 set_state_table()
 {
-    register core *sp;
+    core *sp;
 
     state_table = NEW2(nstates, core *);
     for (sp = first_state; sp; sp = sp->next)
@@ -127,7 +127,7 @@ set_state_table()
 static void
 set_accessing_symbol()
 {
-    register core *sp;
+    core *sp;
 
     accessing_symbol = NEW2(nstates, short);
     for (sp = first_state; sp; sp = sp->next)
@@ -139,7 +139,7 @@ set_accessing_symbol()
 static void
 set_shift_table()
 {
-    register shifts *sp;
+    shifts *sp;
 
     shift_table = NEW2(nstates, shifts *);
     for (sp = first_shift; sp; sp = sp->next)
@@ -151,7 +151,7 @@ set_shift_table()
 static void
 set_reduction_table()
 {
-    register reductions *rp;
+    reductions *rp;
 
     reduction_table = NEW2(nstates, reductions *);
     for (rp = first_reduction; rp; rp = rp->next)
@@ -163,10 +163,10 @@ set_reduction_table()
 static void
 set_maxrhs()
 {
-  register short *itemp;
-  register short *item_end;
-  register int length;
-  register int max;
+  short *itemp;
+  short *item_end;
+  int length;
+  int max;
 
   length = 0;
   max = 0;
@@ -192,8 +192,8 @@ set_maxrhs()
 static void
 initialize_LA()
 {
-  register int i, j, k;
-  register reductions *rp;
+  int i, j, k;
+  reductions *rp;
 
   lookaheads = NEW2(nstates + 1, short);
 
@@ -230,13 +230,13 @@ initialize_LA()
 static void
 set_goto_map()
 {
-  register shifts *sp;
-  register int i;
-  register int symbol;
-  register int k;
-  register short *temp_map;
-  register int state2;
-  register int state1;
+  shifts *sp;
+  int i;
+  int symbol;
+  int k;
+  short *temp_map;
+  int state2;
+  int state1;
 
   goto_map = NEW2(nvars + 1, short) - ntokens;
   temp_map = NEW2(nvars + 1, short) - ntokens;
@@ -302,10 +302,10 @@ map_goto(state, symbol)
 int state;
 int symbol;
 {
-    register int high;
-    register int low;
-    register int middle;
-    register int s;
+    int high;
+    int low;
+    int middle;
+    int s;
 
     low = goto_map[symbol];
     high = goto_map[symbol + 1];
@@ -329,18 +329,18 @@ int symbol;
 static void
 initialize_F()
 {
-  register int i;
-  register int j;
-  register int k;
-  register shifts *sp;
-  register short *edge;
-  register unsigned *rowp;
-  register short *rp;
-  register short **reads;
-  register int nedges;
-  register int stateno;
-  register int symbol;
-  register int nwords;
+  int i;
+  int j;
+  int k;
+  shifts *sp;
+  short *edge;
+  unsigned *rowp;
+  short *rp;
+  short **reads;
+  int nedges;
+  int stateno;
+  int symbol;
+  int nwords;
 
   nwords = ngotos * tokensetsize;
   F = NEW2(nwords, unsigned);
@@ -407,23 +407,23 @@ initialize_F()
 static void
 build_relations()
 {
-  register int i;
-  register int j;
-  register int k;
-  register short *rulep;
-  register short *rp;
-  register shifts *sp;
-  register int length;
-  register int nedges;
-  register int done;
-  register int state1;
-  register int stateno;
-  register int symbol1;
-  register int symbol2;
-  register short *shortp;
-  register short *edge;
-  register short *states;
-  register short **new_includes;
+  int i;
+  int j;
+  int k;
+  short *rulep;
+  short *rp;
+  shifts *sp;
+  int length;
+  int nedges;
+  int done1;
+  int state1;
+  int stateno;
+  int symbol1;
+  int symbol2;
+  short *shortp;
+  short *edge;
+  short *states;
+  short **new_includes;
 
   includes = NEW2(ngotos, short *);
   edge = NEW2(ngotos + 1, short);
@@ -459,16 +459,16 @@ build_relations()
 	  add_lookback_edge(stateno, *rulep, i);
 
 	  length--;
-	  done = 0;
-	  while (!done)
+	  done1 = 0;
+	  while (!done1)
 	    {
-	      done = 1;
+	      done1 = 1;
 	      rp--;
 	      if (ISVAR(*rp))
 		{
 		  stateno = states[--length];
 		  edge[nedges++] = map_goto(stateno, *rp);
-		  if (nullable[*rp] && length > 0) done = 0;
+		  if (nullable[*rp] && length > 0) done1 = 0;
 		}
 	    }
 	}
@@ -501,9 +501,9 @@ static void
 add_lookback_edge(stateno, ruleno, gotono)
 int stateno, ruleno, gotono;
 {
-    register int i, k;
-    register int found;
-    register shorts *sp;
+    int i, k;
+    int found;
+    shorts *sp;
 
     i = lookaheads[stateno];
     k = lookaheads[stateno + 1];
@@ -526,22 +526,22 @@ int stateno, ruleno, gotono;
 
 
 static short **
-transpose(R, n)
-short **R;
+transpose(r, n)
+short **r;
 int n;
 {
-  register short **new_R;
-  register short **temp_R;
-  register short *nedges;
-  register short *sp;
-  register int i;
-  register int k;
+  short **new_r;
+  short **temp_r;
+  short *nedges;
+  short *sp;
+  int i;
+  int k;
 
   nedges = NEW2(n, short);
 
   for (i = 0; i < n; i++)
     {
-      sp = R[i];
+      sp = r[i];
       if (sp)
 	{
 	  while (*sp >= 0)
@@ -549,8 +549,8 @@ int n;
 	}
     }
 
-  new_R = NEW2(n, short *);
-  temp_R = NEW2(n, short *);
+  new_r = NEW2(n, short *);
+  temp_r = NEW2(n, short *);
 
   for (i = 0; i < n; i++)
     {
@@ -558,8 +558,8 @@ int n;
       if (k > 0)
 	{
 	  sp = NEW2(k + 1, short);
-	  new_R[i] = sp;
-	  temp_R[i] = sp;
+	  new_r[i] = sp;
+	  temp_r[i] = sp;
 	  sp[k] = -1;
 	}
     }
@@ -568,17 +568,17 @@ int n;
 
   for (i = 0; i < n; i++)
     {
-      sp = R[i];
+      sp = r[i];
       if (sp)
 	{
 	  while (*sp >= 0)
-	    *temp_R[*sp++]++ = i;
+	    *temp_r[*sp++]++ = i;
 	}
     }
 
-  FREE(temp_R);
+  FREE(temp_r);
 
-  return (new_R);
+  return (new_r);
 }
 
 
@@ -593,10 +593,10 @@ compute_FOLLOWS()
 static void
 compute_lookaheads()
 {
-  register int i, n;
-  register unsigned *fp1, *fp2, *fp3;
-  register shorts *sp, *next;
-  register unsigned *rowp;
+  int i, n;
+  unsigned *fp1, *fp2, *fp3;
+  shorts *sp, *next;
+  unsigned *rowp;
 
   rowp = LA;
   n = lookaheads[nstates];
@@ -629,7 +629,7 @@ static void
 digraph(relation)
 short **relation;
 {
-  register int i;
+  int i;
 
   infinity = ngotos + 2;
   INDEX = NEW2(ngotos + 1, short);
@@ -655,13 +655,13 @@ short **relation;
 
 static void
 traverse(i)
-register int i;
+int i;
 {
-  register unsigned *fp1;
-  register unsigned *fp2;
-  register unsigned *fp3;
-  register int j;
-  register short *rp;
+  unsigned *fp1;
+  unsigned *fp2;
+  unsigned *fp3;
+  int j;
+  short *rp;
 
   int height;
   unsigned *base;
