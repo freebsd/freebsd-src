@@ -219,9 +219,7 @@ signotify(struct thread *td)
 		mtx_unlock_spin(&sched_lock);
 	}
 	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
-		if (SIGSETEQ(saved, p->p_siglist))
-			return;
-		else {
+		if (!SIGSETEQ(saved, p->p_siglist)) {
 			/* pending set changed */
 			p->p_flag |= P_SIGEVENT;
 			wakeup(&p->p_siglist);
@@ -1644,9 +1642,7 @@ tdsignal(struct thread *td, int sig, sigtarget_t target)
 		saved = p->p_siglist;
 	do_tdsignal(td, sig, target);
 	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
-		if (SIGSETEQ(saved, p->p_siglist))
-			return;
-		else {
+		if (!SIGSETEQ(saved, p->p_siglist)) {
 			/* pending set changed */
 			p->p_flag |= P_SIGEVENT;
 			wakeup(&p->p_siglist);
