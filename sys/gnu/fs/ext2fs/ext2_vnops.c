@@ -39,6 +39,8 @@
  *	@(#)ext2_vnops.c	8.7 (Berkeley) 2/3/94
  */
 
+#include "opt_quota.h"
+
 #if !defined(__FreeBSD__)
 #include "fifo.h"
 #include "diagnostic.h"
@@ -88,14 +90,6 @@ static int ext2_rmdir __P((struct vop_rmdir_args *));
 static int ext2_create __P((struct vop_create_args *));
 static int ext2_mknod __P((struct vop_mknod_args *));
 static int ext2_symlink __P((struct vop_symlink_args *));
-
-/*
- * A virgin directory (no blushing please).
- */
-static struct odirtemplate omastertemplate = {
-	0, 12, 1, { '.', 0 },
-	0, DIRBLKSIZ - 12, 2, { '.', '.', 0 }
-};
 
 /* Global vfs data structures for ufs. */
 vop_t **ext2_vnodeop_p;
@@ -150,141 +144,6 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
-
-/*
- * Allocate a new inode.
- */
-int
-ext2_makeinode(mode, dvp, vpp, cnp)
-	int mode;
-	struct vnode *dvp;
-	struct vnode **vpp;
-	struct componentname *cnp;
-{
-	register struct inode *ip, *pdir;
-	struct timeval tv;
-	struct vnode *tvp;
-	int error;
-
-	pdir = VTOI(dvp);
-#ifdef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ext2_makeinode: no name");
-#endif
-	*vpp = NULL;
-	if ((mode & IFMT) == 0)
-		mode |= IFREG;
-
-	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
-	if (error) {
-		zfree(namei_zone, cnp->cn_pnbuf);
-		vput(dvp);
-		return (error);
-	}
-	ip = VTOI(tvp);
-	ip->i_gid = pdir->i_gid;
-#ifdef SUIDDIR
-	{
-#ifdef QUOTA
-		struct ucred ucred, *ucp;
-		ucp = cnp->cn_cred;
-#endif			I
-		/*
-		 * if we are
-		 * not the owner of the directory,
-		 * and we are hacking owners here, (only do this where told to)
-		 * and we are not giving it TOO root, (would subvert quotas)
-		 * then go ahead and give it to the other user.
-		 * Note that this drops off the execute bits for security.
-		 */
-		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		     (pdir->i_mode & ISUID) &&
-		     (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
-			ip->i_uid = pdir->i_uid;
-			mode &= ~07111;
-#ifdef QUOTA
-			/*
-			 * make sure the correct user gets charged
-			 * for the space.
-			 * Quickly knock up a dummy credential for the victim.
-			 * XXX This seems to never be accessed out of our
-			 * context so a stack variable is ok.
-			 */
-			ucred.cr_ref = 1;
-			ucred.cr_uid = ip->i_uid;
-			ucred.cr_ngroups = 1;
-			ucred.cr_groups[0] = pdir->i_gid;
-			ucp = *ucred;
-#endif			I
-		} else {
-			ip->i_uid = cnp->cn_cred->cr_uid;
-		}
-	
-#ifdef QUOTA
-		if ((error = getinoquota(ip)) ||
-	    	(error = chkiq(ip, 1, ucp, 0))) {
-			free(cnp->cn_pnbuf, M_NAMEI);
-			VOP_VFREE(tvp, ip->i_number, mode);
-			vput(tvp);
-			vput(dvp);
-			return (error);
-		}
-#endif
-	}
-#else
-	ip->i_uid = cnp->cn_cred->cr_uid;
-#ifdef QUOTA
-	if ((error = getinoquota(ip)) ||
-	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
-		UFS_VFREE(tvp, ip->i_number, mode);
-		vput(tvp);
-		vput(dvp);
-		return (error);
-	}
-#endif
-#endif
-	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
-	ip->i_mode = mode;
-	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
-	ip->i_nlink = 1;
-	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser(cnp->cn_cred, NULL))
-		ip->i_mode &= ~ISGID;
-
-	if (cnp->cn_flags & ISWHITEOUT)
-		ip->i_flags |= UF_OPAQUE;
-
-	/*
-	 * Make sure inode goes to disk before directory entry.
-	 */
-	gettime(&tv);
-	error = UFS_UPDATE(tvp, &tv, &tv, 1);
-	if (error)
-		goto bad;
-	error = ext2_direnter(ip, dvp, cnp);
-	if (error)
-		goto bad;
-
-	if ((cnp->cn_flags & SAVESTART) == 0)
-		zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
-	*vpp = tvp;
-	return (0);
-
-bad:
-	/*
-	 * Write error occurred trying to update the inode
-	 * or the directory so must deallocate the inode.
-	 */
-	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
-	ip->i_nlink = 0;
-	ip->i_flag |= IN_CHANGE;
-	vput(tvp);
-	return (error);
-}
-
 /*
  * Create a regular file
  */
@@ -305,6 +164,81 @@ ext2_create(ap)
 	if (error)
 		return (error);
 	return (0);
+}
+
+/*
+ * Synch an open file.
+ */
+/* ARGSUSED */
+static int
+ext2_fsync(ap)
+	struct vop_fsync_args /* {
+		struct vnode *a_vp;
+		struct ucred *a_cred;
+		int a_waitfor;
+		struct proc *a_p;
+	} */ *ap;
+{
+	register struct vnode *vp = ap->a_vp;
+	register struct buf *bp;
+	struct timeval tv;
+	struct buf *nbp;
+	int s;
+
+	/* 
+	 * Clean memory object.
+	 * XXX add this to all file systems.
+	 * XXX why is all this fs specific?
+	 */
+#if !defined(__FreeBSD__)
+	vn_pager_sync(vp, ap->a_waitfor);
+#endif
+
+	/*
+	 * Flush all dirty buffers associated with a vnode.
+	 */
+	ext2_discard_prealloc(VTOI(vp));
+
+loop:
+	s = splbio();
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
+		if ((bp->b_flags & B_BUSY))
+			continue;
+		if ((bp->b_flags & B_DELWRI) == 0)
+			panic("ext2_fsync: not dirty");
+		bremfree(bp);
+		bp->b_flags |= B_BUSY;
+		splx(s);
+		/*
+		 * Wait for I/O associated with indirect blocks to complete,
+		 * since there is no way to quickly wait for them below.
+		 */
+		if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
+			(void) bawrite(bp);
+		else
+			(void) bwrite(bp);
+		goto loop;
+	}
+	if (ap->a_waitfor == MNT_WAIT) {
+		while (vp->v_numoutput) {
+			vp->v_flag |= VBWAIT;
+#if !defined(__FreeBSD__)
+			sleep((caddr_t)&vp->v_numoutput, PRIBIO + 1);
+#else
+			tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "extfsn", 0);
+#endif
+		}
+#if DIAGNOSTIC
+		if (vp->v_dirtyblkhd.lh_first) {
+			vprint("ext2_fsync: dirty", vp);
+			goto loop;
+		}
+#endif
+	}
+	splx(s);
+	gettime(&tv);
+	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }
 
 /*
@@ -350,290 +284,100 @@ ext2_mknod(ap)
 	return (0);
 }
 
-
-/*
- * Mkdir system call
- */
 static int
-ext2_mkdir(ap)
-	struct vop_mkdir_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-		struct vattr *a_vap;
-	} */ *ap;
-{
-	register struct vnode *dvp = ap->a_dvp;
-	register struct vattr *vap = ap->a_vap;
-	register struct componentname *cnp = ap->a_cnp;
-	register struct inode *ip, *dp;
-	struct vnode *tvp;
-	struct dirtemplate dirtemplate, *dtp;
-	struct timeval tv;
-	int error, dmode;
-
-#ifdef DIAGNOSTIC
-	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ufs_mkdir: no name");
-#endif
-	dp = VTOI(dvp);
-	if ((nlink_t)dp->i_nlink >= LINK_MAX) {
-		error = EMLINK;
-		goto out;
-	}
-	dmode = vap->va_mode & 0777;
-	dmode |= IFDIR;
-	/*
-	 * Must simulate part of ext2_makeinode here to acquire the inode,
-	 * but not have it entered in the parent directory. The entry is
-	 * made later after writing "." and ".." entries.
-	 */
-	error = UFS_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
-	if (error)
-		goto out;
-	ip = VTOI(tvp);
-	ip->i_gid = dp->i_gid;
-#ifdef SUIDDIR
-	{
-#ifdef QUOTA
-		struct ucred ucred, *ucp;
-		ucp = cnp->cn_cred;
-#endif			I
-		/*
-		 * if we are hacking owners here, (only do this where told to)
-		 * and we are not giving it TOO root, (would subvert quotas)
-		 * then go ahead and give it to the other user.
-		 * The new directory also inherits the SUID bit. 
-		 * If user's UID an ddir UID are the same,
-		 * 'give it away' so that the SUID is still forced on.
-		 */
-		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
-		   (dp->i_mode & ISUID) && dp->i_uid) {
-			dmode |= ISUID;
-			ip->i_uid = dp->i_uid;
-#ifdef QUOTA
-			if (pdir->i_uid != cnp->cn_cred->cr_uid) {
-				/*
-				 * make sure the correct user gets charged
-				 * for the space.
-				 * Make a dummy credential for the victim.
-				 * XXX This seems to never be accessed out of
-				 * our context so a stack variable is ok.
-				 */
-				ucred.cr_ref = 1;
-				ucred.cr_uid = ip->i_uid;
-				ucred.cr_ngroups = 1;
-				ucred.cr_groups[0] = dp->i_gid;
-				ucp = *ucred;
-			}
-#endif			I
-		} else {
-			ip->i_uid = cnp->cn_cred->cr_uid;
-		}
-#ifdef QUOTA
-		if ((error = getinoquota(ip)) ||
-	    	(error = chkiq(ip, 1, ucp, 0))) {
-			free(cnp->cn_pnbuf, M_NAMEI);
-			VOP_VFREE(tvp, ip->i_number, dmode);
-			vput(tvp);
-			vput(dvp);
-			return (error);
-		}
-#endif
-	}
-#else
-	ip->i_uid = cnp->cn_cred->cr_uid;
-#ifdef QUOTA
-	if ((error = getinoquota(ip)) ||
-	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		zfree(namei_zone, cnp->cn_pnbuf);
-		UFS_VFREE(tvp, ip->i_number, dmode);
-		vput(tvp);
-		vput(dvp);
-		return (error);
-	}
-#endif
-#endif
-	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
-	ip->i_mode = dmode;
-	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
-	ip->i_nlink = 2;
-	if (cnp->cn_flags & ISWHITEOUT)
-		ip->i_flags |= UF_OPAQUE;
-	gettime(&tv);
-	error = UFS_UPDATE(tvp, &tv, &tv, 1);
-
-	/*
-	 * Bump link count in parent directory
-	 * to reflect work done below.  Should
-	 * be done before reference is created
-	 * so reparation is possible if we crash.
-	 */
-	dp->i_nlink++;
-	dp->i_flag |= IN_CHANGE;
-	error = UFS_UPDATE(dvp, &tv, &tv, 1);
-	if (error)
-		goto bad;
-
-	/* Initialize directory with "." and ".." from static template. */
-	dtp = (struct dirtemplate *)&omastertemplate;
-	dirtemplate = *dtp;
-	dirtemplate.dot_ino = ip->i_number;
-	dirtemplate.dotdot_ino = dp->i_number;
-	/* note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE 
-	 * so let's just redefine it - for this function only
-	 */
-#undef  DIRBLKSIZ 
-#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->s_blocksize
-	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
-	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
-	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
-	    IO_NODELOCKED|IO_SYNC, cnp->cn_cred, (int *)0, (struct proc *)0);
-	if (error) {
-		dp->i_nlink--;
-		dp->i_flag |= IN_CHANGE;
-		goto bad;
-	}
-	if (DIRBLKSIZ > VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
-		panic("ufs_mkdir: blksize"); /* XXX should grow with balloc() */
-	else {
-		ip->i_size = DIRBLKSIZ;
-		ip->i_flag |= IN_CHANGE;
-	}
-
-	/* Directory set up, now install it's entry in the parent directory. */
-	error = ext2_direnter(ip, dvp, cnp);
-	if (error) {
-		dp->i_nlink--;
-		dp->i_flag |= IN_CHANGE;
-	}
-bad:
-	/*
-	 * No need to do an explicit VOP_TRUNCATE here, vrele will do this
-	 * for us because we set the link count to 0.
-	 */
-	if (error) {
-		ip->i_nlink = 0;
-		ip->i_flag |= IN_CHANGE;
-		vput(tvp);
-	} else
-		*ap->a_vpp = tvp;
-out:
-	zfree(namei_zone, cnp->cn_pnbuf);
-	vput(dvp);
-	return (error);
-#undef  DIRBLKSIZ
-#define DIRBLKSIZ  DEV_BSIZE
-}
-
-/*
- * Rmdir system call.
- */
-static int
-ext2_rmdir(ap)
-	struct vop_rmdir_args /* {
+ext2_remove(ap)
+	struct vop_remove_args /* {
 		struct vnode *a_dvp;
 		struct vnode *a_vp;
 		struct componentname *a_cnp;
 	} */ *ap;
 {
+	struct inode *ip;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
-	struct componentname *cnp = ap->a_cnp;
-	struct inode *ip, *dp;
 	int error;
 
 	ip = VTOI(vp);
-	dp = VTOI(dvp);
-
-	/*
-	 * Verify the directory is empty (and valid).
-	 * (Rmdir ".." won't be valid since
-	 *  ".." will contain a reference to
-	 *  the current directory and thus be
-	 *  non-empty.)
-	 */
-	error = 0;
-	if (ip->i_nlink != 2 || !ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
-		error = ENOTEMPTY;
-		goto out;
-	}
-	if ((dp->i_flags & APPEND)
-	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
+	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
+	    (VTOI(dvp)->i_flags & APPEND)) {
 		error = EPERM;
 		goto out;
 	}
-	/*
-	 * Delete reference to directory before purging
-	 * inode.  If we crash in between, the directory
-	 * will be reattached to lost+found,
-	 */
-	error = ext2_dirremove(dvp, cnp);
-	if (error)
-		goto out;
-	dp->i_nlink--;
-	dp->i_flag |= IN_CHANGE;
-	cache_purge(dvp);
-	vput(dvp);
-	dvp = NULL;
-	/*
-	 * Truncate inode.  The only stuff left
-	 * in the directory is "." and "..".  The
-	 * "." reference is inconsequential since
-	 * we're quashing it.  The ".." reference
-	 * has already been adjusted above.  We've
-	 * removed the "." reference and the reference
-	 * in the parent directory, but there may be
-	 * other hard links so decrement by 2 and
-	 * worry about them later.
-	 */
-	ip->i_nlink -= 2;
-	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
-	    cnp->cn_proc);
-	cache_purge(ITOV(ip));
+	error = ext2_dirremove(dvp, ap->a_cnp);
+	if (error == 0) {
+		ip->i_nlink--;
+		ip->i_flag |= IN_CHANGE;
+	}
 out:
-	if (dvp)
-		vput(dvp);
-	vput(vp);
+	if (dvp == vp)
+		vrele(vp);
+	else
+		vput(vp);
+	vput(dvp);
 	return (error);
 }
 
 /*
- * symlink -- make a symbolic link
+ * link vnode call
  */
 static int
-ext2_symlink(ap)
-	struct vop_symlink_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
+ext2_link(ap)
+	struct vop_link_args /* {
+		struct vnode *a_tdvp;
+		struct vnode *a_vp;
 		struct componentname *a_cnp;
-		struct vattr *a_vap;
-		char *a_target;
 	} */ *ap;
 {
-	register struct vnode *vp, **vpp = ap->a_vpp;
-	register struct inode *ip;
-	int len, error;
+	struct vnode *vp = ap->a_vp;
+	struct vnode *tdvp = ap->a_tdvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct proc *p = cnp->cn_proc;
+	struct inode *ip;
+	struct timeval tv;
+	int error;
 
-	error = ext2_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
-	    vpp, ap->a_cnp);
-	if (error)
-		return (error);
-	vp = *vpp;
-	len = strlen(ap->a_target);
-	if (len < vp->v_mount->mnt_maxsymlinklen) {
-		ip = VTOI(vp);
-		bcopy(ap->a_target, (char *)ip->i_shortlink, len);
-		ip->i_size = len;
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	} else
-		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
-		    UIO_SYSSPACE, IO_NODELOCKED, ap->a_cnp->cn_cred, (int *)0,
-		    (struct proc *)0);
-	vput(vp);
+#ifdef DIAGNOSTIC
+	if ((cnp->cn_flags & HASBUF) == 0)
+		panic("ufs_link: no name");
+#endif
+	if (tdvp->v_mount != vp->v_mount) {
+		VOP_ABORTOP(tdvp, cnp);
+		error = EXDEV;
+		goto out2;
+	}
+	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, p))) {
+		VOP_ABORTOP(tdvp, cnp);
+		goto out2;
+	}
+	ip = VTOI(vp);
+	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
+		VOP_ABORTOP(tdvp, cnp);
+		error = EMLINK;
+		goto out1;
+	}
+	if (ip->i_flags & (IMMUTABLE | APPEND)) {
+		VOP_ABORTOP(tdvp, cnp);
+		error = EPERM;
+		goto out1;
+	}
+	ip->i_nlink++;
+	ip->i_flag |= IN_CHANGE;
+	gettime(&tv);
+	error = UFS_UPDATE(vp, &tv, &tv, 1);
+	if (!error)
+		error = ext2_direnter(ip, tdvp, cnp);
+	if (error) {
+		ip->i_nlink--;
+		ip->i_flag |= IN_CHANGE;
+	}
+	zfree(namei_zone, cnp->cn_pnbuf);
+out1:
+	if (tdvp != vp)
+		VOP_UNLOCK(vp, 0, p);
+out2:
+	vput(tdvp);
 	return (error);
 }
-
 
 /*
  * Rename system call.
@@ -1045,173 +789,426 @@ out:
 }
 
 /*
- * link vnode call
+ * A virgin directory (no blushing please).
+ */
+static struct odirtemplate omastertemplate = {
+	0, 12, 1, { '.', 0 },
+	0, DIRBLKSIZ - 12, 2, { '.', '.', 0 }
+};
+
+/*
+ * Mkdir system call
  */
 static int
-ext2_link(ap)
-	struct vop_link_args /* {
-		struct vnode *a_tdvp;
-		struct vnode *a_vp;
+ext2_mkdir(ap)
+	struct vop_mkdir_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
 		struct componentname *a_cnp;
+		struct vattr *a_vap;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct vnode *tdvp = ap->a_tdvp;
-	struct componentname *cnp = ap->a_cnp;
-	struct proc *p = cnp->cn_proc;
-	struct inode *ip;
+	register struct vnode *dvp = ap->a_dvp;
+	register struct vattr *vap = ap->a_vap;
+	register struct componentname *cnp = ap->a_cnp;
+	register struct inode *ip, *dp;
+	struct vnode *tvp;
+	struct dirtemplate dirtemplate, *dtp;
 	struct timeval tv;
-	int error;
+	int error, dmode;
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & HASBUF) == 0)
-		panic("ufs_link: no name");
+		panic("ufs_mkdir: no name");
 #endif
-	if (tdvp->v_mount != vp->v_mount) {
-		VOP_ABORTOP(tdvp, cnp);
-		error = EXDEV;
-		goto out2;
-	}
-	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, p))) {
-		VOP_ABORTOP(tdvp, cnp);
-		goto out2;
-	}
-	ip = VTOI(vp);
-	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
-		VOP_ABORTOP(tdvp, cnp);
+	dp = VTOI(dvp);
+	if ((nlink_t)dp->i_nlink >= LINK_MAX) {
 		error = EMLINK;
-		goto out1;
+		goto out;
 	}
-	if (ip->i_flags & (IMMUTABLE | APPEND)) {
-		VOP_ABORTOP(tdvp, cnp);
-		error = EPERM;
-		goto out1;
+	dmode = vap->va_mode & 0777;
+	dmode |= IFDIR;
+	/*
+	 * Must simulate part of ext2_makeinode here to acquire the inode,
+	 * but not have it entered in the parent directory. The entry is
+	 * made later after writing "." and ".." entries.
+	 */
+	error = UFS_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
+	if (error)
+		goto out;
+	ip = VTOI(tvp);
+	ip->i_gid = dp->i_gid;
+#ifdef SUIDDIR
+	{
+#ifdef QUOTA
+		struct ucred ucred, *ucp;
+		ucp = cnp->cn_cred;
+#endif			I
+		/*
+		 * if we are hacking owners here, (only do this where told to)
+		 * and we are not giving it TOO root, (would subvert quotas)
+		 * then go ahead and give it to the other user.
+		 * The new directory also inherits the SUID bit. 
+		 * If user's UID an ddir UID are the same,
+		 * 'give it away' so that the SUID is still forced on.
+		 */
+		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
+		   (dp->i_mode & ISUID) && dp->i_uid) {
+			dmode |= ISUID;
+			ip->i_uid = dp->i_uid;
+#ifdef QUOTA
+			if (pdir->i_uid != cnp->cn_cred->cr_uid) {
+				/*
+				 * make sure the correct user gets charged
+				 * for the space.
+				 * Make a dummy credential for the victim.
+				 * XXX This seems to never be accessed out of
+				 * our context so a stack variable is ok.
+				 */
+				ucred.cr_ref = 1;
+				ucred.cr_uid = ip->i_uid;
+				ucred.cr_ngroups = 1;
+				ucred.cr_groups[0] = dp->i_gid;
+				ucp = *ucred;
+			}
+#endif			I
+		} else {
+			ip->i_uid = cnp->cn_cred->cr_uid;
+		}
+#ifdef QUOTA
+		if ((error = getinoquota(ip)) ||
+	    	(error = chkiq(ip, 1, ucp, 0))) {
+			free(cnp->cn_pnbuf, M_NAMEI);
+			VOP_VFREE(tvp, ip->i_number, dmode);
+			vput(tvp);
+			vput(dvp);
+			return (error);
+		}
+#endif
 	}
-	ip->i_nlink++;
-	ip->i_flag |= IN_CHANGE;
+#else
+	ip->i_uid = cnp->cn_cred->cr_uid;
+#ifdef QUOTA
+	if ((error = getinoquota(ip)) ||
+	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		zfree(namei_zone, cnp->cn_pnbuf);
+		UFS_VFREE(tvp, ip->i_number, dmode);
+		vput(tvp);
+		vput(dvp);
+		return (error);
+	}
+#endif
+#endif
+	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
+	ip->i_mode = dmode;
+	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
+	ip->i_nlink = 2;
+	if (cnp->cn_flags & ISWHITEOUT)
+		ip->i_flags |= UF_OPAQUE;
 	gettime(&tv);
-	error = UFS_UPDATE(vp, &tv, &tv, 1);
-	if (!error) {
-		error = ext2_direnter(ip, tdvp, cnp);
-	}
+	error = UFS_UPDATE(tvp, &tv, &tv, 1);
 
+	/*
+	 * Bump link count in parent directory
+	 * to reflect work done below.  Should
+	 * be done before reference is created
+	 * so reparation is possible if we crash.
+	 */
+	dp->i_nlink++;
+	dp->i_flag |= IN_CHANGE;
+	error = UFS_UPDATE(dvp, &tv, &tv, 1);
+	if (error)
+		goto bad;
+
+	/* Initialize directory with "." and ".." from static template. */
+	dtp = (struct dirtemplate *)&omastertemplate;
+	dirtemplate = *dtp;
+	dirtemplate.dot_ino = ip->i_number;
+	dirtemplate.dotdot_ino = dp->i_number;
+	/* note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE 
+	 * so let's just redefine it - for this function only
+	 */
+#undef  DIRBLKSIZ 
+#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->s_blocksize
+	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
+	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)&dirtemplate,
+	    sizeof (dirtemplate), (off_t)0, UIO_SYSSPACE,
+	    IO_NODELOCKED|IO_SYNC, cnp->cn_cred, (int *)0, (struct proc *)0);
 	if (error) {
-		ip->i_nlink--;
+		dp->i_nlink--;
+		dp->i_flag |= IN_CHANGE;
+		goto bad;
+	}
+	if (DIRBLKSIZ > VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
+		panic("ufs_mkdir: blksize"); /* XXX should grow with balloc() */
+	else {
+		ip->i_size = DIRBLKSIZ;
 		ip->i_flag |= IN_CHANGE;
 	}
+
+	/* Directory set up, now install it's entry in the parent directory. */
+	error = ext2_direnter(ip, dvp, cnp);
+	if (error) {
+		dp->i_nlink--;
+		dp->i_flag |= IN_CHANGE;
+	}
+bad:
+	/*
+	 * No need to do an explicit VOP_TRUNCATE here, vrele will do this
+	 * for us because we set the link count to 0.
+	 */
+	if (error) {
+		ip->i_nlink = 0;
+		ip->i_flag |= IN_CHANGE;
+		vput(tvp);
+	} else
+		*ap->a_vpp = tvp;
+out:
 	zfree(namei_zone, cnp->cn_pnbuf);
-out1:
-	if (tdvp != vp)
-		VOP_UNLOCK(vp, 0, p);
-out2:
-	vput(tdvp);
+	vput(dvp);
 	return (error);
+#undef  DIRBLKSIZ
+#define DIRBLKSIZ  DEV_BSIZE
 }
 
+/*
+ * Rmdir system call.
+ */
 static int
-ext2_remove(ap)
-	struct vop_remove_args /* {
+ext2_rmdir(ap)
+	struct vop_rmdir_args /* {
 		struct vnode *a_dvp;
 		struct vnode *a_vp;
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct inode *ip;
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp = ap->a_dvp;
+	struct componentname *cnp = ap->a_cnp;
+	struct inode *ip, *dp;
 	int error;
 
 	ip = VTOI(vp);
-	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
-	    (VTOI(dvp)->i_flags & APPEND)) {
+	dp = VTOI(dvp);
+
+	/*
+	 * Verify the directory is empty (and valid).
+	 * (Rmdir ".." won't be valid since
+	 *  ".." will contain a reference to
+	 *  the current directory and thus be
+	 *  non-empty.)
+	 */
+	error = 0;
+	if (ip->i_nlink != 2 || !ext2_dirempty(ip, dp->i_number, cnp->cn_cred)) {
+		error = ENOTEMPTY;
+		goto out;
+	}
+	if ((dp->i_flags & APPEND)
+	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
 		goto out;
 	}
-	error = ext2_dirremove(dvp, ap->a_cnp);
-	if (error == 0) {
-		ip->i_nlink--;
-		ip->i_flag |= IN_CHANGE;
-	}
-out:
-	if (dvp == vp)
-		vrele(vp);
-	else
-		vput(vp);
+	/*
+	 * Delete reference to directory before purging
+	 * inode.  If we crash in between, the directory
+	 * will be reattached to lost+found,
+	 */
+	error = ext2_dirremove(dvp, cnp);
+	if (error)
+		goto out;
+	dp->i_nlink--;
+	dp->i_flag |= IN_CHANGE;
+	cache_purge(dvp);
 	vput(dvp);
+	dvp = NULL;
+	/*
+	 * Truncate inode.  The only stuff left
+	 * in the directory is "." and "..".  The
+	 * "." reference is inconsequential since
+	 * we're quashing it.  The ".." reference
+	 * has already been adjusted above.  We've
+	 * removed the "." reference and the reference
+	 * in the parent directory, but there may be
+	 * other hard links so decrement by 2 and
+	 * worry about them later.
+	 */
+	ip->i_nlink -= 2;
+	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
+	    cnp->cn_proc);
+	cache_purge(ITOV(ip));
+out:
+	if (dvp)
+		vput(dvp);
+	vput(vp);
 	return (error);
 }
 
 /*
- * Synch an open file.
+ * symlink -- make a symbolic link
  */
-/* ARGSUSED */
 static int
-ext2_fsync(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-		int a_waitfor;
-		struct proc *a_p;
+ext2_symlink(ap)
+	struct vop_symlink_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+		struct vattr *a_vap;
+		char *a_target;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct buf *bp;
-	struct timeval tv;
-	struct buf *nbp;
-	int s;
+	register struct vnode *vp, **vpp = ap->a_vpp;
+	register struct inode *ip;
+	int len, error;
 
-	/* 
-	 * Clean memory object.
-	 * XXX add this to all file systems.
-	 * XXX why is all this fs specific?
-	 */
-#if !defined(__FreeBSD__)
-	vn_pager_sync(vp, ap->a_waitfor);
+	error = ext2_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
+	    vpp, ap->a_cnp);
+	if (error)
+		return (error);
+	vp = *vpp;
+	len = strlen(ap->a_target);
+	if (len < vp->v_mount->mnt_maxsymlinklen) {
+		ip = VTOI(vp);
+		bcopy(ap->a_target, (char *)ip->i_shortlink, len);
+		ip->i_size = len;
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+	} else
+		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
+		    UIO_SYSSPACE, IO_NODELOCKED, ap->a_cnp->cn_cred, (int *)0,
+		    (struct proc *)0);
+	vput(vp);
+	return (error);
+}
+
+/*
+ * Allocate a new inode.
+ */
+static int
+ext2_makeinode(mode, dvp, vpp, cnp)
+	int mode;
+	struct vnode *dvp;
+	struct vnode **vpp;
+	struct componentname *cnp;
+{
+	register struct inode *ip, *pdir;
+	struct timeval tv;
+	struct vnode *tvp;
+	int error;
+
+	pdir = VTOI(dvp);
+#ifdef DIAGNOSTIC
+	if ((cnp->cn_flags & HASBUF) == 0)
+		panic("ext2_makeinode: no name");
 #endif
+	*vpp = NULL;
+	if ((mode & IFMT) == 0)
+		mode |= IFREG;
+
+	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
+	if (error) {
+		zfree(namei_zone, cnp->cn_pnbuf);
+		vput(dvp);
+		return (error);
+	}
+	ip = VTOI(tvp);
+	ip->i_gid = pdir->i_gid;
+#ifdef SUIDDIR
+	{
+#ifdef QUOTA
+		struct ucred ucred, *ucp;
+		ucp = cnp->cn_cred;
+#endif			I
+		/*
+		 * if we are
+		 * not the owner of the directory,
+		 * and we are hacking owners here, (only do this where told to)
+		 * and we are not giving it TOO root, (would subvert quotas)
+		 * then go ahead and give it to the other user.
+		 * Note that this drops off the execute bits for security.
+		 */
+		if ( (dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
+		     (pdir->i_mode & ISUID) &&
+		     (pdir->i_uid != cnp->cn_cred->cr_uid) && pdir->i_uid) {
+			ip->i_uid = pdir->i_uid;
+			mode &= ~07111;
+#ifdef QUOTA
+			/*
+			 * make sure the correct user gets charged
+			 * for the space.
+			 * Quickly knock up a dummy credential for the victim.
+			 * XXX This seems to never be accessed out of our
+			 * context so a stack variable is ok.
+			 */
+			ucred.cr_ref = 1;
+			ucred.cr_uid = ip->i_uid;
+			ucred.cr_ngroups = 1;
+			ucred.cr_groups[0] = pdir->i_gid;
+			ucp = *ucred;
+#endif			I
+		} else {
+			ip->i_uid = cnp->cn_cred->cr_uid;
+		}
+	
+#ifdef QUOTA
+		if ((error = getinoquota(ip)) ||
+	    	(error = chkiq(ip, 1, ucp, 0))) {
+			free(cnp->cn_pnbuf, M_NAMEI);
+			VOP_VFREE(tvp, ip->i_number, mode);
+			vput(tvp);
+			vput(dvp);
+			return (error);
+		}
+#endif
+	}
+#else
+	ip->i_uid = cnp->cn_cred->cr_uid;
+#ifdef QUOTA
+	if ((error = getinoquota(ip)) ||
+	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		zfree(namei_zone, cnp->cn_pnbuf);
+		UFS_VFREE(tvp, ip->i_number, mode);
+		vput(tvp);
+		vput(dvp);
+		return (error);
+	}
+#endif
+#endif
+	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
+	ip->i_mode = mode;
+	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
+	ip->i_nlink = 1;
+	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
+	    suser(cnp->cn_cred, NULL))
+		ip->i_mode &= ~ISGID;
+
+	if (cnp->cn_flags & ISWHITEOUT)
+		ip->i_flags |= UF_OPAQUE;
 
 	/*
-	 * Flush all dirty buffers associated with a vnode.
+	 * Make sure inode goes to disk before directory entry.
 	 */
-	ext2_discard_prealloc(VTOI(vp));
-
-loop:
-	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
-		if ((bp->b_flags & B_BUSY))
-			continue;
-		if ((bp->b_flags & B_DELWRI) == 0)
-			panic("ext2_fsync: not dirty");
-		bremfree(bp);
-		bp->b_flags |= B_BUSY;
-		splx(s);
-		/*
-		 * Wait for I/O associated with indirect blocks to complete,
-		 * since there is no way to quickly wait for them below.
-		 */
-		if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
-			(void) bawrite(bp);
-		else
-			(void) bwrite(bp);
-		goto loop;
-	}
-	if (ap->a_waitfor == MNT_WAIT) {
-		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-#if !defined(__FreeBSD__)
-			sleep((caddr_t)&vp->v_numoutput, PRIBIO + 1);
-#else
-			tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "extfsn", 0);
-#endif
-		}
-#if DIAGNOSTIC
-		if (vp->v_dirtyblkhd.lh_first) {
-			vprint("ext2_fsync: dirty", vp);
-			goto loop;
-		}
-#endif
-	}
-	splx(s);
 	gettime(&tv);
-	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	error = UFS_UPDATE(tvp, &tv, &tv, 1);
+	if (error)
+		goto bad;
+	error = ext2_direnter(ip, dvp, cnp);
+	if (error)
+		goto bad;
+
+	if ((cnp->cn_flags & SAVESTART) == 0)
+		zfree(namei_zone, cnp->cn_pnbuf);
+	vput(dvp);
+	*vpp = tvp;
+	return (0);
+
+bad:
+	/*
+	 * Write error occurred trying to update the inode
+	 * or the directory so must deallocate the inode.
+	 */
+	zfree(namei_zone, cnp->cn_pnbuf);
+	vput(dvp);
+	ip->i_nlink = 0;
+	ip->i_flag |= IN_CHANGE;
+	vput(tvp);
+	return (error);
 }
