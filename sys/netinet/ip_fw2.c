@@ -618,7 +618,7 @@ hash_packet(struct ipfw_flow_id *id)
 	/* remove a refcount to the parent */				\
 	if (q->dyn_type == O_LIMIT)					\
 		q->parent->count--;					\
-	DEB(printf("-- unlink entry 0x%08x %d -> 0x%08x %d, %d left\n",	\
+	DEB(printf("ipfw: unlink entry 0x%08x %d -> 0x%08x %d, %d left\n",\
 		(q->id.src_ip), (q->id.src_port),			\
 		(q->id.dst_ip), (q->id.dst_port), dyn_count-1 ); )	\
 	if (prev != NULL)						\
@@ -684,7 +684,7 @@ next_pass:
 					goto next;
 				if (FORCE && q->count != 0 ) {
 					/* XXX should not happen! */
-					printf( "OUCH! cannot remove rule,"
+					printf( "ipfw: OUCH! cannot remove rule,"
 					     " count %d\n", q->count);
 				}
 			} else {
@@ -879,7 +879,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 
 	r = malloc(sizeof *r, M_IPFW, M_NOWAIT | M_ZERO);
 	if (r == NULL) {
-		printf ("sorry cannot allocate state\n");
+		printf ("ipfw: sorry cannot allocate state\n");
 		return NULL;
 	}
 
@@ -904,7 +904,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	r->next = ipfw_dyn_v[i];
 	ipfw_dyn_v[i] = r;
 	dyn_count++;
-	DEB(printf("-- add dyn entry ty %d 0x%08x %d -> 0x%08x %d, total %d\n",
+	DEB(printf("ipfw: add dyn entry ty %d 0x%08x %d -> 0x%08x %d, total %d\n",
 	   dyn_type,
 	   (r->id.src_ip), (r->id.src_port),
 	   (r->id.dst_ip), (r->id.dst_port),
@@ -933,7 +933,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 			    pkt->src_port == q->id.src_port &&
 			    pkt->dst_port == q->id.dst_port) {
 				q->expire = time_second + dyn_short_lifetime;
-				DEB(printf("lookup_dyn_parent found 0x%p\n",q);)
+				DEB(printf("ipfw: lookup_dyn_parent found 0x%p\n",q);)
 				return q;
 			}
 	}
@@ -954,7 +954,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 
 	ipfw_dyn_rule *q;
 
-	DEB(printf("-- install state type %d 0x%08x %u -> 0x%08x %u\n",
+	DEB(printf("ipfw: install state type %d 0x%08x %u -> 0x%08x %u\n",
 	    cmd->o.opcode,
 	    (args->f_id.src_ip), (args->f_id.src_port),
 	    (args->f_id.dst_ip), (args->f_id.dst_port) );)
@@ -964,7 +964,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	if (q != NULL) { /* should never occur */
 		if (last_log != time_second) {
 			last_log = time_second;
-			printf(" install_state: entry already present, done\n");
+			printf("ipfw: install_state: entry already present, done\n");
 		}
 		return 0;
 	}
@@ -978,7 +978,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	if (dyn_count >= dyn_max) {
 		if (last_log != time_second) {
 			last_log = time_second;
-			printf("install_state: Too many dynamic rules\n");
+			printf("ipfw: install_state: Too many dynamic rules\n");
 		}
 		return 1; /* cannot install, notify caller */
 	}
@@ -994,7 +994,8 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		struct ipfw_flow_id id;
 		ipfw_dyn_rule *parent;
 
-		DEB(printf("installing dyn-limit rule %d\n", cmd->conn_limit);)
+		DEB(printf("ipfw: installing dyn-limit rule %d\n",
+		    cmd->conn_limit);)
 
 		id.dst_ip = id.src_ip = 0;
 		id.dst_port = id.src_port = 0;
@@ -1010,7 +1011,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			id.dst_port = args->f_id.dst_port;
 		parent = lookup_dyn_parent(&id, rule);
 		if (parent == NULL) {
-			printf("add parent failed\n");
+			printf("ipfw: add parent failed\n");
 			return 1;
 		}
 		if (parent->count >= cmd->conn_limit) {
@@ -1031,7 +1032,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	    }
 		break;
 	default:
-		printf("unknown dynamic rule type %u\n", cmd->o.opcode);
+		printf("ipfw: unknown dynamic rule type %u\n", cmd->o.opcode);
 		return 1;
 	}
 	lookup_dyn_rule(&args->f_id, NULL, NULL); /* XXX just set lifetime */
@@ -1921,7 +1922,7 @@ check_body:
 next_rule:;		/* try next rule		*/
 
 	}		/* end of outer for, scan rules */
-	printf("+++ ipfw: ouch!, skip past end of rules, denying packet\n");
+	printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	return(IP_FW_PORT_DENY_FLAG);
 
 done:
@@ -1933,7 +1934,7 @@ done:
 
 pullup_failed:
 	if (fw_verbose)
-		printf("pullup failed\n");
+		printf("ipfw: pullup failed\n");
 	return(IP_FW_PORT_DENY_FLAG);
 }
 
@@ -2048,7 +2049,7 @@ done:
 	static_count++;
 	static_len += l;
 	splx(s);
-	DEB(printf("++ installed rule %d, static count now %d\n",
+	DEB(printf("ipfw: installed rule %d, static count now %d\n",
 		rule->rulenum, static_count);)
 	return (0);
 }
@@ -2620,7 +2621,7 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	default:
-		printf("ipfw_ctl invalid option %d\n", sopt->sopt_name);
+		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
 		error = EINVAL;
 	}
 
