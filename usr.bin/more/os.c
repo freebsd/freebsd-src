@@ -30,12 +30,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -50,15 +53,18 @@ static char sccsid[] = "@(#)os.c	8.1 (Berkeley) 6/6/93";
  * Unix features are present.
  */
 
+#include <sys/file.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/file.h>
+#include <sys/types.h>
+
 #include <errno.h>
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <less.h>
+
+#include "less.h"
 #include "pathnames.h"
 
 volatile int reading;
@@ -167,6 +173,7 @@ iread(fd, buf, len)
 	int len;
 {
 	register int n;
+	static int neofs;
 
 	if (setjmp(read_label))
 		/*
@@ -177,6 +184,13 @@ iread(fd, buf, len)
 	flush();
 	reading = 1;
 	n = read(fd, buf, len);
+	/* There's really no terribly impressive reason why we should just
+	 * sighup after a single EOF read, nor is there any particular
+	 * reason why we SIGHUP ourselves rather than calling exit().  However,
+	 * none of it hurts, either. */
+	if (n == 0) neofs++;
+	if (neofs > 2) kill(getpid(), SIGHUP);
+
 	reading = 0;
 	if (n < 0)
 		return (-1);
