@@ -78,8 +78,6 @@ static const char rcsid[] =
  */
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
-char *getflags __P((u_long, char *));
-
 static void	 display __P((FTSENT *, FTSENT *));
 static u_quad_t	 makenines __P((u_long));
 static int	 mastercmp __P((const FTSENT **, const FTSENT **));
@@ -605,7 +603,13 @@ display(p, list)
 				if ((glen = strlen(group)) > maxgroup)
 					maxgroup = glen;
 				if (f_flags) {
-					flags = getflags(sp->st_flags, "-");
+					flags = fflagstostr(sp->st_flags);
+					if (flags != NULL && *flags == '\0') {
+						free(flags);
+						flags = strdup("-");
+					}
+					if (flags == NULL)
+						err(1, NULL);
 					if ((flen = strlen(flags)) > maxflags)
 						maxflags = flen;
 				} else
@@ -627,6 +631,7 @@ display(p, list)
 				if (f_flags) {
 					np->flags = &np->data[ulen + glen + 2];
 				  	(void)strcpy(np->flags, flags);
+					free(flags);
 				}
 				cur->fts_pointer = np;
 			}

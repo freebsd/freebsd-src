@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fts.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -108,4 +109,21 @@ keycompare(a, b)
 	const void *a, *b;
 {
 	return (strcmp(((KEY *)a)->name, ((KEY *)b)->name));
+}
+
+char *
+flags_to_string(fflags)
+	u_long fflags;
+{
+	char *string;
+
+	string = fflagstostr(fflags);
+	if (string != NULL && *string == '\0') {
+		free(string);
+		string = strdup("none");
+	}
+	if (string == NULL)
+		err(1, NULL);
+
+	return string;
 }
