@@ -3,7 +3,7 @@
 md5 \- calculate a message-digest fingerprint (checksum) for a file
 .SH SYNOPSIS
 .B md5
-[ -t | -x | -sstring | filename(s) ]
+[ -p | -t | -x | -sstring | filename(s) ]
 .SH DESCRIPTION
 .B md5
 takes as input a message of arbitrary length and produces
@@ -25,6 +25,9 @@ must be the last objects on the command line.
 .PP
 .B -sstring
 prints a checksum of the given "string".
+.PP
+.B -p
+echos stdin to stdout and appends the MD5 sum to stdout.
 .PP
 .B -t
 runs a built-in time trial.

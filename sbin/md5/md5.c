@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: md5.c,v 1.2 1995/02/20 00:48:50 phk Exp $
  *
  * Derived from:
  */
@@ -36,7 +36,7 @@
 static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
 static void MDTestSuite PROTO_LIST((void));
-static void MDFilter PROTO_LIST((void));
+static void MDFilter PROTO_LIST((int));
 
 /* Main driver.
 
@@ -61,6 +61,8 @@ main(argc, argv)
 				MDString(argv[i] + 2);
 			else if (strcmp(argv[i], "-t") == 0)
 				MDTimeTrial();
+			else if (strcmp(argv[i], "-p") == 0)
+				MDFilter(1);
 			else if (strcmp(argv[i], "-x") == 0)
 				MDTestSuite();
 			else {
@@ -71,7 +73,7 @@ main(argc, argv)
 					printf("MD5 (%s) = %s\n", argv[i], p);
 			}
 	else
-		MDFilter();
+		MDFilter(0);
 
 	return (0);
 }
@@ -94,7 +96,7 @@ MDTimeTrial()
 {
 	MD5_CTX context;
 	time_t  endTime, startTime;
-	unsigned char block[TEST_BLOCK_LEN], digest[16];
+	unsigned char block[TEST_BLOCK_LEN];
 	unsigned int i;
 	char   *p;
 
@@ -151,14 +153,17 @@ MDTestSuite()
  * Digests the standard input and prints the result.
  */
 static void
-MDFilter()
+MDFilter(int pipe)
 {
 	MD5_CTX context;
 	int     len;
 	unsigned char buffer[BUFSIZ], digest[16];
 
 	MD5Init(&context);
-	while (len = fread(buffer, 1, BUFSIZ, stdin))
+	while (len = fread(buffer, 1, BUFSIZ, stdin)) {
+		if(pipe && (len != fwrite(buffer, 1, len, stdout)))
+			perror(stdout);
 		MD5Update(&context, buffer, len);
+	}
 	printf("%s\n", MD5End(&context));
 }
