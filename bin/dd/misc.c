@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.2.8.2 1997/08/24 21:45:32 jkh Exp $
+ *	$Id: misc.c,v 1.2.8.3 1998/02/11 02:24:41 asami Exp $
  */
 
 #ifndef lint
@@ -45,6 +45,7 @@ static char const sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #include <sys/time.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,8 +92,10 @@ void
 summaryx(notused)
 	int notused;
 {
+	int save_errno = errno;
 
 	summary();
+	errno = save_errno;
 }
 
 /* ARGSUSED */
