@@ -1,14 +1,13 @@
                                  RELEASE NOTES
-                         FreeBSD snapshot of 4.1.1-stable
+                            FreeBSD 4.2-BETA snapshot
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.1.1-STABLE
-directory (especially if you're installing from floppies!), see
-ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
-HARDWARE.TXT files.
+For information about FreeBSD and the layout of the 4.2-BETA directory
+(especially if you're installing from floppies!), see ABOUT.TXT.  For
+installation instructions, see the INSTALL.TXT and HARDWARE.TXT files.
 
 For the latest of these 4-stable snapshots, you should always see:
 
@@ -16,7 +15,7 @@ For the latest of these 4-stable snapshots, you should always see:
 
 Table of contents:
 ------------------
-1. What's new since 4.1.1-RELEASE
+1. What's new since 4.1-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -39,11 +38,34 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 4.1.1-RELEASE
+1. What's new since 4.1-RELEASE
 --------------------------------------
+Changes which were also present in the 4.1.1 point release will be
+marked [4.1.1].
 
 1.1. KERNEL CHANGES
 -------------------
+The tap driver, a virtual Ethernet device driver for bridged
+configurations, has been added. [4.1.1]
+
+accept_filters, a kernel feature to reduce overheads when accepting
+and reading new connections on listening sockets, has been added. [4.1.1]
+
+POSIX.1b Shared Memory Objects are now supported.  The implementation
+uses regular files, but automatically enables the MAP_NOSYNC flag
+when they are mmap(2)ed. [4.1.1]
+
+The ata(4) driver now has support for ATA100 controllers. [4.1.1]
+
+The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
+Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards. [4.1.1]
+
+The ng_bridge(4) node type has been added to the netgraph subsystem.
+Miscellaneous bug fixes and enhancements have also been made. [4.1.1]
+
+AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it
+does not want to boot from CD or floppy but a transplanted disk that
+was installed on another Alpha works well. [4.1.1]
 
 The pcn(4) driver, which supports the AMD PCnet/FAST, PCnet/FAST+,
 PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA adapters, has been
@@ -103,6 +125,58 @@ rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 
 1.3. USERLAND CHANGES
 ---------------------
+GDB now supports hardware watchpoints. [4.1.1]
+
+routed(8) has been updated to version 2.22. [4.1.1]
+
+The truncate(1) utility, which truncates or extends the length of
+files, has been added. [4.1.1]
+
+syslogd(8) can take a -n option to disable DNS queries for every
+request. [4.1.1]
+
+kenv(1), a command to dump the kernel environment, has been added.
+[4.1.1]
+
+The behavior of periodic(8) is now controlled by
+/etc/defaults/periodic.conf and /etc/periodic.conf. [4.1.1]
+ 
+logger(1) can now send messages directly to a remote syslog. [4.1.1]
+ 
+OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
+and enhancements. [4.1.1]
+ 
+finger(1) now has the ability to support fingering aliases, via the
+finger.conf(5) file. [4.1.1]
+ 
+RSA Security has waived all patent rights to the RSA algorithm (two
+weeks before the patent was due to expire).  As a result, the native
+OpenSSL implementation of the RSA algorithm is now activated by
+default, and the rsaref port and librsaUSA are no longer required for
+USA residents. [4.1.1]
+ 
+sshd now enabled by default on new installs. [4.1.1]
+ 
+The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
+adapters used on some laptops. [4.1.1]
+ 
+killall(1) is now a C program, rather than a Perl script.  As a
+result, killall's -m option now uses the regular expression syntax of
+regex(3), rather than that of perl(1). [4.1.1]
+
+boot98cfg(8), a PC-98 boot manager installation and configuration
+utility, has been added. [4.1.1]
+
+Binutils have been upgraded to 2.10.0. [4.1.1]
+
+libreadline has been upgraded to 4.1. [4.1.1]
+
+The ifconfig(8) command can set the link-layer address of an
+interface.  [4.1.1]
+
+bktr(4) driver update to 2.1.5.  New tuner types have been added, and
+improvememts to the KLD module and to memory allocation have been
+made. [4.1.1]
 
 tcpdump(1) has received some updates and bugfixes.
 
