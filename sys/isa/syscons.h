@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995 Søren Schmidt
+ * Copyright (c) 1995-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.14 1995/12/10 13:39:20 phk Exp $
+ *	$Id: syscons.h,v 1.15 1996/01/30 22:56:11 mpp Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -62,7 +62,7 @@
 #define CURSOR_ENABLED 	0x00200
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
-#define UPDATE_MOUSE	0x01000
+#define MOUSE_CUTTING	0x01000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -155,6 +155,8 @@ typedef struct scr_stat {
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
 	u_char		mouse_cursor[128];	/* mouse cursor bitmap store */
+	u_short		*mouse_cut_start;	/* mouse cut start pos */
+	u_short		*mouse_cut_end;		/* mouse cut end pos */
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
@@ -205,7 +207,8 @@ static void set_font_mode(void);
 static void set_normal_mode(void);
 static void copy_font(int operation, int font_type, char* font_image);
 static void set_destructive_cursor(scr_stat *scp, int force);
-static void draw_mouse_image(scr_stat *scp);
+static void reverse_mouse_cut(scr_stat *scp, int cut);
+static void draw_mouse_image(scr_stat *scp); 
 static void save_palette(void);
        void load_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);

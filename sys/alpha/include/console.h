@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991-1995 Søren Schmidt
+ * Copyright (c) 1991-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.20 1996/01/30 22:54:15 mpp Exp $
+ *	$Id: console.h,v 1.21 1996/06/14 11:00:57 asami Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -105,11 +105,15 @@ struct vt_mode {
 	short	frsig;			/* not implemented yet	SOS	*/
 };
 
-#define MOUSE_SHOW	0x01
-#define MOUSE_HIDE	0x02
-#define MOUSE_MOVEABS	0x03
-#define MOUSE_MOVEREL	0x04
-#define MOUSE_GETPOS	0x05
+#define MOUSE_SHOW		0x01
+#define MOUSE_HIDE		0x02
+#define MOUSE_MOVEABS		0x03
+#define MOUSE_MOVEREL		0x04
+#define MOUSE_GETPOS		0x05
+#define MOUSE_CUT_START		0x06
+#define MOUSE_CUT_END		0x07
+#define MOUSE_CUT_RESET		0x08
+#define MOUSE_RETURN_CUTBUFFER	0x09
 
 struct mouse_info {
 	int	operation;
