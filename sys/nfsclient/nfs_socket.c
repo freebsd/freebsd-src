@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -142,14 +143,15 @@ static int nfs_backoff[NFS_NBACKOFF] = { 2, 4, 8, 16, 32, 64, 128, 256, };
 struct callout	nfs_callout;
 
 static int	nfs_msg(struct thread *, const char *, const char *, int);
-static int	nfs_rcvlock(struct nfsreq *);
-static void	nfs_rcvunlock(struct nfsreq *);
-static void	nfs_realign(struct mbuf **pm, int hsiz);
-static int	nfs_receive(struct nfsreq *rep, struct sockaddr **aname,
-		    struct mbuf **mp);
+static int	nfs_realign(struct mbuf **pm, int hsiz);
 static int	nfs_reply(struct nfsreq *);
 static void	nfs_softterm(struct nfsreq *rep);
 static int	nfs_reconnect(struct nfsreq *rep);
+static void nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
+static void nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
+
+extern struct mtx nfs_reqq_mtx;
+extern struct mtx nfs_reply_mtx;
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -166,6 +168,12 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 
 	NET_ASSERT_GIANT();
 
+	if (nmp->nm_sotype == SOCK_STREAM) {
+		mtx_lock(&nmp->nm_nfstcpstate.mtx);
+ 		nmp->nm_nfstcpstate.flags |= NFS_TCP_EXPECT_RPCMARKER;
+ 		nmp->nm_nfstcpstate.rpcresid = 0;
+		mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+ 	}	
 	nmp->nm_so = NULL;
 	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
@@ -324,6 +332,12 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		goto bad;
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_NOINTR;
+ 	so->so_upcallarg = (caddr_t)nmp;
+ 	if (so->so_type == SOCK_STREAM)
+ 		so->so_upcall = nfs_clnt_tcp_soupcall;
+ 	else	
+ 		so->so_upcall = nfs_clnt_udp_soupcall;
+ 	so->so_rcv.sb_flags |= SB_UPCALL;
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
@@ -370,14 +384,29 @@ nfs_reconnect(struct nfsreq *rep)
 		(void) tsleep(&lbolt, PSOCK, "nfscon", 0);
 	}
 
+  	/*
+ 	 * Clear the FORCE_RECONNECT flag only after the connect 
+ 	 * succeeds. To prevent races between multiple processes 
+ 	 * waiting on the mountpoint where the connection is being
+ 	 * torn down. The first one to acquire the sndlock will 
+ 	 * retry the connection. The others block on the sndlock
+ 	 * until the connection is established successfully, and 
+ 	 * the re-transmit the request.
+ 	 */
+	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	nmp->nm_nfstcpstate.flags &= ~NFS_TCP_FORCE_RECONNECT;
+	mtx_unlock(&nmp->nm_nfstcpstate.mtx);	
+
 	/*
 	 * Loop through outstanding request list and fix up all requests
 	 * on old socket.
 	 */
+	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
 		if (rp->r_nmp == nmp)
 			rp->r_flags |= R_MUSTRESEND;
 	}
+	mtx_unlock(&nfs_reqq_mtx);
 	return (0);
 }
 
@@ -394,7 +423,12 @@ nfs_disconnect(struct nfsmount *nmp)
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
 		nmp->nm_so = NULL;
-		soshutdown(so, SHUT_RDWR);
+		SOCKBUF_LOCK(&so->so_rcv);
+ 		so->so_upcallarg = NULL;
+ 		so->so_upcall = NULL;
+ 		so->so_rcv.sb_flags &= ~SB_UPCALL;
+		SOCKBUF_UNLOCK(&so->so_rcv);
+		soshutdown(so, SHUT_WR);
 		soclose(so);
 	}
 }
@@ -406,9 +440,7 @@ nfs_safedisconnect(struct nfsmount *nmp)
 
 	bzero(&dummyreq, sizeof(dummyreq));
 	dummyreq.r_nmp = nmp;
-	nfs_rcvlock(&dummyreq);
 	nfs_disconnect(nmp);
-	nfs_rcvunlock(&dummyreq);
 }
 
 /*
@@ -488,79 +520,54 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	return (error);
 }
 
-/*
- * Receive a Sun RPC Request/Reply. For SOCK_DGRAM, the work is all
- * done by soreceive(), but for SOCK_STREAM we must deal with the Record
- * Mark and consolidate the data into a new mbuf list.
- * nb: Sometimes TCP passes the data up to soreceive() in long lists of
- *     small mbufs.
- * For SOCK_STREAM we must be very careful to read an entire record once
- * we have read any of it, even if the system call has been interrupted.
- */
-static int
-nfs_receive(struct nfsreq *rep, struct sockaddr **aname, struct mbuf **mp)
+int nfs_mrep_before_tsleep = 0;
+
+int
+nfs_reply(struct nfsreq *rep)
 {
-	struct socket *so;
-	struct uio auio;
-	struct iovec aio;
-	struct mbuf *m;
-	struct mbuf *control;
-	u_int32_t len;
-	struct sockaddr **getnam;
-	int error, error2, sotype, rcvflg;
-	struct thread *td = curthread;	/* XXX */
+	register struct socket *so;
+	register struct mbuf *m;
+	int error, sotype, slpflag;
 
 	NET_ASSERT_GIANT();
 
-	/*
-	 * Set up arguments for soreceive()
-	 */
-	*mp = NULL;
-	*aname = NULL;
 	sotype = rep->r_nmp->nm_sotype;
-
 	/*
 	 * For reliable protocols, lock against other senders/receivers
 	 * in case a reconnect is necessary.
-	 * For SOCK_STREAM, first get the Record Mark to find out how much
-	 * more there is to get.
-	 * We must lock the socket against other receivers
-	 * until we have an entire rpc request/reply.
 	 */
 	if (sotype != SOCK_DGRAM) {
 		error = nfs_sndlock(rep);
 		if (error)
 			return (error);
 tryagain:
-		/*
-		 * Check for fatal errors and resending request.
-		 */
-		/*
-		 * Ugh: If a reconnect attempt just happened, nm_so
-		 * would have changed. NULL indicates a failed
-		 * attempt that has essentially shut down this
-		 * mount point.
-		 */
-		if (rep->r_mrep || (error = NFS_SIGREP(rep)) != 0) {
+		if (rep->r_mrep) {
 			nfs_sndunlock(rep);
-			return (error == 0 ? EINTR : error);
+			return (0);
+		}
+		if (rep->r_flags & R_SOFTTERM) {
+			nfs_sndunlock(rep);
+			return (EINTR);
 		}
 		so = rep->r_nmp->nm_so;
-		if (!so) {
+		mtx_lock(&rep->r_nmp->nm_nfstcpstate.mtx);
+		if (!so || 
+		    (rep->r_nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT)) {
+			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
 			error = nfs_reconnect(rep);
 			if (error) {
 				nfs_sndunlock(rep);
 				return (error);
 			}
 			goto tryagain;
-		}
+		} else
+			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
 		while (rep->r_flags & R_MUSTRESEND) {
-			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_TRYWAIT);
+			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_WAIT);
 			nfsstats.rpcretries++;
 			error = nfs_send(so, rep->r_nmp->nm_nam, m, rep);
 			if (error) {
 				if (error == EINTR || error == ERESTART ||
-				    error == EIO ||
 				    (error = nfs_reconnect(rep)) != 0) {
 					nfs_sndunlock(rep);
 					return (error);
@@ -569,325 +576,330 @@ tryagain:
 			}
 		}
 		nfs_sndunlock(rep);
-		if (sotype == SOCK_STREAM) {
-			aio.iov_base = (caddr_t) &len;
-			aio.iov_len = sizeof(u_int32_t);
-			auio.uio_iov = &aio;
-			auio.uio_iovcnt = 1;
-			auio.uio_segflg = UIO_SYSSPACE;
-			auio.uio_rw = UIO_READ;
-			auio.uio_offset = 0;
-			auio.uio_resid = sizeof(u_int32_t);
-			auio.uio_td = td;
-			do {
-			   rcvflg = MSG_WAITALL;
-			   error = so->so_proto->pr_usrreqs->pru_soreceive
-				   (so, NULL, &auio, NULL, NULL, &rcvflg);
-			   if (error == EWOULDBLOCK) {
-				   error2 = NFS_SIGREP(rep);
-				   if (error2)
-					   return (error2);
-			   }
-			} while (0);
-			if (!error && auio.uio_resid > 0) {
-			    /*
-			     * Don't log a 0 byte receive; it means
-			     * that the socket has been closed, and
-			     * can happen during normal operation
-			     * (forcible unmount or Solaris server).
-			     */
-			    if (auio.uio_resid != sizeof (u_int32_t))
-			    log(LOG_INFO,
-				 "short receive (%d/%d) from nfs server %s\n",
-				 (int)(sizeof(u_int32_t) - auio.uio_resid),
-				 (int)sizeof(u_int32_t),
-				 rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
-			    error = EPIPE;
-			}
-			if (error)
-				goto errout;
-			len = ntohl(len) & ~0x80000000;
-			/*
-			 * This is SERIOUS! We are out of sync with the sender
-			 * and forcing a disconnect/reconnect is all I can do.
-			 */
-			if (len > NFS_MAXPACKET) {
-			    log(LOG_ERR, "%s (%d) from nfs server %s\n",
-				"impossible packet length",
-				len,
-				rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
-			    error = EFBIG;
-			    goto errout;
-			}
-			auio.uio_resid = len;
-			do {
-			    rcvflg = MSG_WAITALL;
-			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, NULL,
-				     &auio, mp, NULL, &rcvflg);
-			} while (0);
-			if (!error && auio.uio_resid > 0) {
-			    if (len != auio.uio_resid)
-			    log(LOG_INFO,
-				"short receive (%d/%d) from nfs server %s\n",
-				len - auio.uio_resid, len,
-				rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
-			    error = EPIPE;
-			}
-		} else {
-			/*
-			 * NB: Since uio_resid is big, MSG_WAITALL is ignored
-			 * and soreceive() will return when it has either a
-			 * control msg or a data msg.
-			 * We have no use for control msg., but must grab them
-			 * and then throw them away so we know what is going
-			 * on.
-			 */
-			auio.uio_resid = len = 100000000; /* Anything Big */
-			auio.uio_td = td;
-			do {
-			    rcvflg = 0;
-			    error =  so->so_proto->pr_usrreqs->pru_soreceive
-				    (so, NULL,
-				&auio, mp, &control, &rcvflg);
-			    if (control)
-				m_freem(control);
-			    if (error == EWOULDBLOCK && rep) {
-				   error2 = NFS_SIGREP(rep);
-				   if (error2)
-					   return (error2);
-			    }
-			} while (!error && *mp == NULL && control);
-			if ((rcvflg & MSG_EOR) == 0)
-				printf("Egad!!\n");
-			if (!error && *mp == NULL)
-				error = EPIPE;
-			len -= auio.uio_resid;
-		}
-errout:
-		if (error && error != EINTR && error != EIO &&
-		    error != ERESTART) {
-			m_freem(*mp);
-			*mp = NULL;
-			if (error != EPIPE && error != EWOULDBLOCK)
-				log(LOG_INFO,
-				    "receive error %d from nfs server %s\n",
-				    error,
-				 rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
-			error = nfs_sndlock(rep);
-			if (!error) {
-				error = nfs_reconnect(rep);
-				if (!error)
-					goto tryagain;
-				else
-					nfs_sndunlock(rep);
-			}
-		}
-	} else {
+	}
+	slpflag = 0;
+	if (rep->r_nmp->nm_flag & NFSMNT_INT)
+		slpflag = PCATCH;
+	mtx_lock(&nfs_reply_mtx);
+	if (rep->r_mrep != NULL) {
 		/*
-		 * We may have failed while rebinding the datagram socket
-		 * so attempt a rebind here.
+		 * This is a very rare race, but it does occur. The reply 
+		 * could come in and the wakeup could happen before the 
+		 * process tsleeps(). Blocking here without checking for 
+		 * this results in a missed wakeup(), blocking this request 
+		 * forever. The 2 reasons why this could happen are a context
+		 * switch in the stack after the request is sent out, or heavy
+		 * interrupt activity pinning down the process within the window.
+		 * (after the request is sent).
 		 */
-		if ((so = rep->r_nmp->nm_so) == NULL) {
+		mtx_unlock(&nfs_reply_mtx);
+		nfs_mrep_before_tsleep++;
+		return (0);
+	}
+	error = msleep((caddr_t)rep, &nfs_reply_mtx, 
+		       slpflag | (PZERO - 1), "nfsreq", 0);
+	mtx_unlock(&nfs_reply_mtx);
+	if (error == EINTR || error == ERESTART)
+		/* NFS operations aren't restartable. Map ERESTART to EINTR */
+		return (EINTR);
+	if (rep->r_flags & R_SOFTTERM)
+		/* Request was terminated because we exceeded the retries (soft mount) */
+		return (ETIMEDOUT);
+	if (sotype == SOCK_STREAM) {
+		mtx_lock(&rep->r_nmp->nm_nfstcpstate.mtx);
+		if (((rep->r_nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT) || 
+		     (rep->r_flags & R_MUSTRESEND))) {
+			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);	
 			error = nfs_sndlock(rep);
-			if (!error) {
-				error = nfs_reconnect(rep);
-				nfs_sndunlock(rep);
-			}
 			if (error)
 				return (error);
-			so = rep->r_nmp->nm_so;
-		}
-		if (so->so_state & SS_ISCONNECTED)
-			getnam = NULL;
-		else
-			getnam = aname;
-		auio.uio_resid = len = 1000000;
-		auio.uio_td = td;
-		do {
-			rcvflg = 0;
-			error =  so->so_proto->pr_usrreqs->pru_soreceive
-				(so, getnam, &auio, mp,
-				NULL, &rcvflg);
-			if (error) {
-				error2 = NFS_SIGREP(rep);
-				if (error2) {
-					error = error2;
-					goto dgramout;
-				}
-			}
-			if (error) {
-				error2 = nfs_sndlock(rep);
-				if (!error2) {
-					error2 = nfs_reconnect(rep);
-					if (error2)
-						error = error2;
-					else
-						so = rep->r_nmp->nm_so;
-					nfs_sndunlock(rep);
-				} else {
-					error = error2;
-				}
-			}
-		} while (error == EWOULDBLOCK);
-dgramout:
-		len -= auio.uio_resid;
+			goto tryagain;
+		} else
+			mtx_unlock(&rep->r_nmp->nm_nfstcpstate.mtx);
 	}
-	if (error) {
-		m_freem(*mp);
-		*mp = NULL;
-	}
+	return (error);
+}
+
+/*
+ * XXX TO DO
+ * Make nfs_realign() non-blocking. Also make nfsm_dissect() nonblocking.
+ */
+static void
+nfs_clnt_match_xid(struct socket *so, 
+		   struct nfsmount *nmp, 
+		   struct mbuf *mrep)
+{
+	struct mbuf *md;
+	caddr_t dpos;
+	u_int32_t rxid, *tl;
+	struct nfsreq *rep;
+	register int32_t t1;
+	int error;
+	
 	/*
 	 * Search for any mbufs that are not a multiple of 4 bytes long
 	 * or with m_data not longword aligned.
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	nfs_realign(mp, 5 * NFSX_UNSIGNED);
-	return (error);
+	if (nfs_realign(&mrep, 5 * NFSX_UNSIGNED) == ENOMEM) {
+		m_freem(mrep);
+		nfsstats.rpcinvalid++;
+		return;
+	}
+	
+	/*
+	 * Get the xid and check that it is an rpc reply
+	 */
+	md = mrep;
+	dpos = mtod(md, caddr_t);
+	tl = nfsm_dissect_nonblock(u_int32_t *, 2*NFSX_UNSIGNED);
+	rxid = *tl++;
+	if (*tl != rpc_reply) {
+		m_freem(mrep);
+nfsmout:
+		nfsstats.rpcinvalid++;
+		return;
+	}
+
+	mtx_lock(&nfs_reqq_mtx);
+	/*
+	 * Loop through the request list to match up the reply
+	 * Iff no match, just drop the datagram
+	 */
+	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
+		if (rep->r_mrep == NULL && rxid == rep->r_xid) {
+			/* Found it.. */
+			rep->r_mrep = mrep;
+			rep->r_md = md;
+			rep->r_dpos = dpos;
+			/*
+			 * Update congestion window.
+			 * Do the additive increase of
+			 * one rpc/rtt.
+			 */
+			if (nmp->nm_cwnd <= nmp->nm_sent) {
+				nmp->nm_cwnd +=
+					(NFS_CWNDSCALE * NFS_CWNDSCALE +
+					 (nmp->nm_cwnd >> 1)) / nmp->nm_cwnd;
+				if (nmp->nm_cwnd > NFS_MAXCWND)
+					nmp->nm_cwnd = NFS_MAXCWND;
+			}	
+			if (rep->r_flags & R_SENT) {
+				rep->r_flags &= ~R_SENT;
+				nmp->nm_sent -= NFS_CWNDSCALE;
+			}
+			/*
+			 * Update rtt using a gain of 0.125 on the mean
+			 * and a gain of 0.25 on the deviation.
+			 */
+			if (rep->r_flags & R_TIMING) {
+				/*
+				 * Since the timer resolution of
+				 * NFS_HZ is so course, it can often
+				 * result in r_rtt == 0. Since
+				 * r_rtt == N means that the actual
+				 * rtt is between N+dt and N+2-dt ticks,
+				 * add 1.
+				 */
+				t1 = rep->r_rtt + 1;
+				t1 -= (NFS_SRTT(rep) >> 3);
+				NFS_SRTT(rep) += t1;
+				if (t1 < 0)
+					t1 = -t1;
+				t1 -= (NFS_SDRTT(rep) >> 2);
+				NFS_SDRTT(rep) += t1;
+			}
+			nmp->nm_timeouts = 0;
+			break;
+		}
+	}
+	/*
+	 * If not matched to a request, drop it.
+	 * If it's mine, wake up requestor.
+	 */
+	if (rep == 0) {
+		nfsstats.rpcunexpected++;
+		m_freem(mrep);
+	} else {
+		mtx_lock(&nfs_reply_mtx);
+		wakeup((caddr_t)rep);		
+		mtx_unlock(&nfs_reply_mtx);
+	}
+	mtx_unlock(&nfs_reqq_mtx);
 }
 
-/*
- * Implement receipt of reply on a socket.
- * We must search through the list of received datagrams matching them
- * with outstanding requests using the xid, until ours is found.
- */
-/* ARGSUSED */
-static int
-nfs_reply(struct nfsreq *myrep)
+static void
+nfs_mark_for_reconnect(struct nfsmount *nmp)
 {
-	struct nfsreq *rep;
-	struct nfsmount *nmp = myrep->r_nmp;
-	int32_t t1;
-	struct mbuf *mrep, *md;
-	struct sockaddr *nam;
-	u_int32_t rxid, *tl;
-	caddr_t dpos;
+	struct nfsreq *rp;
+
+	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	nmp->nm_nfstcpstate.flags |= NFS_TCP_FORCE_RECONNECT;
+	mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+	/* 
+	 * Wakeup all processes that are waiting for replies 
+	 * on this mount point. One of them does the reconnect.
+	 */
+	mtx_lock(&nfs_reqq_mtx);
+	TAILQ_FOREACH(rp, &nfs_reqq, r_chain) {
+		if (rp->r_nmp == nmp)
+			wakeup(rp);
+	}
+	mtx_unlock(&nfs_reqq_mtx);
+}
+
+static int
+nfstcp_readable(struct socket *so, int bytes)
+{
+	int retval;
+	
+	SOCKBUF_LOCK(&so->so_rcv);
+	retval = (so->so_rcv.sb_cc >= (bytes) ||
+		  (so->so_state & SBS_CANTRCVMORE) ||
+		  so->so_error);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	return (retval);
+}
+
+#define nfstcp_marker_readable(so)	nfstcp_readable(so, sizeof(u_int32_t))
+
+static void
+nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
+{
+	struct nfsmount *nmp = (struct nfsmount *)arg;
+	struct mbuf *mp = NULL;
+	struct uio auio;
 	int error;
+	u_int32_t len;
+	int rcvflg;
 
 	/*
-	 * Loop around until we get our own reply
+	 * Don't pick any more data from the socket if we've marked the 
+	 * mountpoint for reconnect.
 	 */
-	for (;;) {
-		/*
-		 * Lock against other receivers so that I don't get stuck in
-		 * sbwait() after someone else has received my reply for me.
-		 * Also necessary for connection based protocols to avoid
-		 * race conditions during a reconnect.
-		 * If nfs_rcvlock() returns EALREADY, that means that
-		 * the reply has already been recieved by another
-		 * process and we can return immediately.  In this
-		 * case, the lock is not taken to avoid races with
-		 * other processes.
-		 */
-		error = nfs_rcvlock(myrep);
-		if (error == EALREADY)
-			return (0);
-		if (error)
-			return (error);
-		/*
-		 * Get the next Rpc reply off the socket
-		 */
-		error = nfs_receive(myrep, &nam, &mrep);
-		nfs_rcvunlock(myrep);
-		if (error) {
-
+	mtx_lock(&nmp->nm_nfstcpstate.mtx);
+	if (nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT) {
+		mtx_unlock(&nmp->nm_nfstcpstate.mtx);		
+		return;
+	} else			
+		mtx_unlock(&nmp->nm_nfstcpstate.mtx);
+	auio.uio_td = curthread;
+	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_rw = UIO_READ;
+	for ( ; ; ) {
+		if (nmp->nm_nfstcpstate.flags & NFS_TCP_EXPECT_RPCMARKER) {
+			if (!nfstcp_marker_readable(so)) {
+				/* Marker is not readable */
+				return;
+			}
+			auio.uio_resid = sizeof(u_int32_t);
+			auio.uio_iov = NULL;
+			auio.uio_iovcnt = 0;
+			mp = NULL;
+			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
+			error =  so->so_proto->pr_usrreqs->pru_soreceive
+				(so, (struct sockaddr **)0,
+				 &auio, &mp, (struct mbuf **)0, &rcvflg);
 			/*
-			 * Ignore routing errors on connectionless protocols??
+			 * We've already tested that the socket is readable. 2 cases 
+			 * here, we either read 0 bytes (client closed connection), 
+			 * or got some other error. In both cases, we tear down the 
+			 * connection.
 			 */
-			if (NFSIGNORE_SOERROR(nmp->nm_soflags, error)) {
-				nmp->nm_so->so_error = 0;
-				if (myrep->r_flags & R_GETONEREP)
-					return (0);
-				continue;
+			if (error || auio.uio_resid > 0) {
+				if (auio.uio_resid > 0) {
+					log(LOG_ERR, 
+					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
+				} else {
+					log(LOG_ERR, 
+					    "nfs/tcp clnt: Error %d reading socket, tearing down TCP connection\n",
+					    error);
+				}
+				goto mark_reconnect;
 			}
-			return (error);
-		}
-		if (nam)
-			FREE(nam, M_SONAME);
-
-		/*
-		 * Get the xid and check that it is an rpc reply
-		 */
-		md = mrep;
-		dpos = mtod(md, caddr_t);
-		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
-		rxid = *tl++;
-		if (*tl != rpc_reply) {
-			nfsstats.rpcinvalid++;
-			m_freem(mrep);
-nfsmout:
-			if (myrep->r_flags & R_GETONEREP)
-				return (0);
-			continue;
-		}
-
-		/*
-		 * Loop through the request list to match up the reply
-		 * Iff no match, just drop the datagram
-		 */
-		TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
-			if (rep->r_mrep == NULL && rxid == rep->r_xid) {
-				/* Found it.. */
-				rep->r_mrep = mrep;
-				rep->r_md = md;
-				rep->r_dpos = dpos;
-				/*
-				 * Update congestion window.
-				 * Do the additive increase of
-				 * one rpc/rtt.
-				 */
-				if (nmp->nm_cwnd <= nmp->nm_sent) {
-					nmp->nm_cwnd +=
-					   (NFS_CWNDSCALE * NFS_CWNDSCALE +
-					   (nmp->nm_cwnd >> 1)) / nmp->nm_cwnd;
-					if (nmp->nm_cwnd > NFS_MAXCWND)
-						nmp->nm_cwnd = NFS_MAXCWND;
-				}
-				if (rep->r_flags & R_SENT) {
-					rep->r_flags &= ~R_SENT;
-					nmp->nm_sent -= NFS_CWNDSCALE;
-				}
-				/*
-				 * Update rtt using a gain of 0.125 on the mean
-				 * and a gain of 0.25 on the deviation.
-				 */
-				if (rep->r_flags & R_TIMING) {
-					/*
-					 * Since the timer resolution of
-					 * NFS_HZ is so course, it can often
-					 * result in r_rtt == 0. Since
-					 * r_rtt == N means that the actual
-					 * rtt is between N+dt and N+2-dt ticks,
-					 * add 1.
-					 */
-					t1 = rep->r_rtt + 1;
-					t1 -= (NFS_SRTT(rep) >> 3);
-					NFS_SRTT(rep) += t1;
-					if (t1 < 0)
-						t1 = -t1;
-					t1 -= (NFS_SDRTT(rep) >> 2);
-					NFS_SDRTT(rep) += t1;
-				}
-				nmp->nm_timeouts = 0;
-				break;
+			if (mp == NULL)
+				panic("nfs_clnt_tcp_soupcall: Got empty mbuf chain from sorecv\n");
+			len = ntohl(*mtod(mp, u_int32_t *)) & ~0x80000000;
+			m_freem(mp);
+			/*
+			 * This is SERIOUS! We are out of sync with the sender
+			 * and forcing a disconnect/reconnect is all I can do.
+			 */
+			if (len > NFS_MAXPACKET) {
+				log(LOG_ERR, "%s (%d) from nfs server %s\n",
+				    "impossible packet length",
+				    len,
+				    nmp->nm_mountp->mnt_stat.f_mntfromname);
+				goto mark_reconnect;
 			}
+			nmp->nm_nfstcpstate.rpcresid = len;
+			nmp->nm_nfstcpstate.flags &= ~(NFS_TCP_EXPECT_RPCMARKER);
 		}
-		/*
-		 * If not matched to a request, drop it.
-		 * If it's mine, get out.
+		/* 
+		 * Processed RPC marker or no RPC marker to process. 
+		 * Pull in and process data.
 		 */
-		if (rep == 0) {
-			nfsstats.rpcunexpected++;
-			m_freem(mrep);
-		} else if (rep == myrep) {
-			if (rep->r_mrep == NULL)
-				panic("nfsreply nil");
-			return (0);
+		if (nmp->nm_nfstcpstate.rpcresid > 0) {
+			if (!nfstcp_readable(so, nmp->nm_nfstcpstate.rpcresid)) {
+				/* All data not readable */
+				return;
+			}
+			auio.uio_resid = nmp->nm_nfstcpstate.rpcresid;
+			auio.uio_iov = NULL;
+			auio.uio_iovcnt = 0;
+			mp = NULL;
+			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
+			error =  so->so_proto->pr_usrreqs->pru_soreceive
+				(so, (struct sockaddr **)0,
+				 &auio, &mp, (struct mbuf **)0, &rcvflg);
+			if (error || auio.uio_resid > 0) {
+				if (auio.uio_resid > 0) {
+					log(LOG_ERR, 
+					    "nfs/tcp clnt: Peer closed connection, tearing down TCP connection\n");
+				} else {
+					log(LOG_ERR, 
+					    "nfs/tcp clnt: Error %d reading socket, tearing down TCP connection\n",
+					    error);
+				}
+				goto mark_reconnect;				
+			}
+			if (mp == NULL)
+				panic("nfs_clnt_tcp_soupcall: Got empty mbuf chain from sorecv\n");
+			nmp->nm_nfstcpstate.rpcresid = 0;
+			nmp->nm_nfstcpstate.flags |= NFS_TCP_EXPECT_RPCMARKER;
+			/* We got the entire RPC reply. Match XIDs and wake up requestor */
+			nfs_clnt_match_xid(so, nmp, mp);
 		}
-		if (myrep->r_flags & R_GETONEREP)
-			return (0);
 	}
+
+mark_reconnect:
+	nfs_mark_for_reconnect(nmp);
+}
+
+static void
+nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
+{
+	struct nfsmount *nmp = (struct nfsmount *)arg;
+	struct uio auio;
+	struct mbuf *mp = NULL;
+	struct mbuf *control = NULL;
+	int error, rcvflag;
+
+	auio.uio_resid = 1000000;
+	auio.uio_td = curthread;
+	rcvflag = MSG_DONTWAIT;
+	auio.uio_resid = 1000000000;
+	do {
+		mp = control = NULL;
+		error = so->so_proto->pr_usrreqs->pru_soreceive(so,
+					NULL, &auio, &mp,
+					&control, &rcvflag);
+		if (control)
+			m_freem(control);
+		if (mp)
+			nfs_clnt_match_xid(so, nmp, mp);
+	} while (mp && !error);
 }
 
 /*
@@ -930,6 +942,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
 	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
+	rep->r_mrep = rep->r_md = NULL;
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
 	rep->r_td = td;
@@ -983,9 +996,11 @@ tryagain:
 	 * to put it LAST so timer finds oldest requests first.
 	 */
 	s = splsoftclock();
+	mtx_lock(&nfs_reqq_mtx);
 	if (TAILQ_EMPTY(&nfs_reqq))
 		callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 	TAILQ_INSERT_TAIL(&nfs_reqq, rep, r_chain);
+	mtx_unlock(&nfs_reqq_mtx);
 
 	/*
 	 * If backing off another request or avoiding congestion, don't
@@ -1021,9 +1036,11 @@ tryagain:
 	 * RPC done, unlink the request.
 	 */
 	s = splsoftclock();
+	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_REMOVE(&nfs_reqq, rep, r_chain);
 	if (TAILQ_EMPTY(&nfs_reqq))
 		callout_stop(&nfs_callout);
+	mtx_unlock(&nfs_reqq_mtx);
 	splx(s);
 
 	/*
@@ -1044,10 +1061,21 @@ tryagain:
 	md = rep->r_md;
 	dpos = rep->r_dpos;
 	if (error) {
+                /*
+		 * If we got interrupted by a signal in nfs_reply(), there's
+		 * a very small window where the reply could've come in before
+		 * this process got scheduled in. To handle that case, we need 
+		 * to free the reply if it was delivered.
+		 */
+		if (rep->r_mrep != NULL)
+			m_freem(rep->r_mrep);
 		m_freem(rep->r_mreq);
 		free((caddr_t)rep, M_NFSREQ);
 		return (error);
 	}
+
+	if (rep->r_mrep == NULL)
+		panic("nfs_request: rep->r_mrep shouldn't be NULL if no error\n");
 
 	/*
 	 * break down the rpc header and check if ok
@@ -1129,6 +1157,20 @@ nfsmout:
  * Scan the nfsreq list and retranmit any requests that have timed out
  * To avoid retransmission attempts on STREAM sockets (in the future) make
  * sure to set the r_retry field to 0 (implies nm_retry == 0).
+ * 
+ * XXX - 
+ * For now, since we don't register MPSAFE callouts for the NFS client -
+ * softclock() acquires Giant before calling us. That prevents req entries
+ * from being removed from the list (from nfs_request()). But we still 
+ * acquire the nfs reqq mutex to make sure the state of individual req
+ * entries is not modified from RPC reply handling (from socket callback)
+ * while nfs_timer is walking the list of reqs.
+ * The nfs reqq lock cannot be held while we do the pru_send() because of a
+ * lock ordering violation. The NFS client socket callback acquires 
+ * inp_lock->nfsreq mutex and pru_send acquires inp_lock. So we drop the 
+ * reqq mutex (and reacquire it after the pru_send()). This won't work
+ * when we move to fine grained locking for NFS. When we get to that point, 
+ * a rewrite of nfs_timer() will be needed.
  */
 void
 nfs_timer(void *arg)
@@ -1143,6 +1185,7 @@ nfs_timer(void *arg)
 
 	getmicrouptime(&now);
 	s = splnet();
+	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
@@ -1202,12 +1245,14 @@ nfs_timer(void *arg)
 		    (rep->r_flags & R_SENT) ||
 		    nmp->nm_sent < nmp->nm_cwnd) &&
 		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
+			mtx_unlock(&nfs_reqq_mtx);
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, curthread);
 			else
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, nmp->nm_nam, NULL, curthread);
+			mtx_lock(&nfs_reqq_mtx);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;
@@ -1235,6 +1280,7 @@ nfs_timer(void *arg)
 			}
 		}
 	}
+	mtx_unlock(&nfs_reqq_mtx);
 	splx(s);
 	callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 }
@@ -1252,20 +1298,24 @@ nfs_nmcancelreqs(nmp)
 	int i, s;
 
 	s = splnet();
+	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
 		if (nmp != req->r_nmp || req->r_mrep != NULL ||
 		    (req->r_flags & R_SOFTTERM))
 			continue;
 		nfs_softterm(req);
 	}
+	mtx_unlock(&nfs_reqq_mtx);
 	splx(s);
 
 	for (i = 0; i < 30; i++) {
 		s = splnet();
+		mtx_lock(&nfs_reqq_mtx);
 		TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
 			if (nmp == req->r_nmp)
 				break;
 		}
+		mtx_unlock(&nfs_reqq_mtx);
 		splx(s);
 		if (req == NULL)
 			return (0);
@@ -1289,6 +1339,125 @@ nfs_softterm(struct nfsreq *rep)
 		rep->r_nmp->nm_sent -= NFS_CWNDSCALE;
 		rep->r_flags &= ~R_SENT;
 	}
+	/* 
+	 * Request terminated, wakeup the blocked process, so that we
+	 * can return EINTR back.
+	 */
+	wakeup((caddr_t)rep);
+}
+
+/*
+ * Any signal that can interrupt an NFS operation in an intr mount
+ * should be added to this set.
+ */
+int nfs_sig_set[] = {
+	SIGINT,
+	SIGTERM,
+	SIGHUP,
+	SIGKILL,
+	SIGQUIT
+};
+
+/*
+ * Check to see if one of the signals in our subset is pending on
+ * the process (in an intr mount).
+ */
+static int
+nfs_sig_pending(sigset_t set)
+{
+	int i;
+	
+	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++)
+		if (SIGISMEMBER(set, nfs_sig_set[i]))
+			return (1);
+	return (0);
+}
+ 
+/*
+ * The set/restore sigmask functions are used to (temporarily) overwrite
+ * the process p_sigmask during an RPC call (for example). These are also
+ * used in other places in the NFS client that might tsleep().
+ */
+void
+nfs_set_sigmask(struct thread *td, sigset_t *oldset)
+{
+	sigset_t newset;
+	int i;
+	struct proc *p;
+	
+	SIGFILLSET(newset);
+	if (td == NULL)
+		td = curthread; /* XXX */
+	p = td->td_proc;
+	/* Remove the NFS set of signals from newset */
+	PROC_LOCK(p);
+	mtx_lock(&p->p_sigacts->ps_mtx);
+	for (i = 0 ; i < sizeof(nfs_sig_set)/sizeof(int) ; i++) {
+		/*
+		 * But make sure we leave the ones already masked
+		 * by the process, ie. remove the signal from the
+		 * temporary signalmask only if it wasn't already
+		 * in p_sigmask.
+		 */
+		if (!SIGISMEMBER(td->td_sigmask, nfs_sig_set[i]) &&
+		    !SIGISMEMBER(p->p_sigacts->ps_sigignore, nfs_sig_set[i]))
+			SIGDELSET(newset, nfs_sig_set[i]);
+	}
+	mtx_unlock(&p->p_sigacts->ps_mtx);
+	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &newset, oldset, 0);
+}
+
+void
+nfs_restore_sigmask(struct thread *td, sigset_t *set)
+{
+	if (td == NULL)
+		td = curthread; /* XXX */
+	kern_sigprocmask(td, SIG_SETMASK, set, NULL, 0);
+}
+
+/*
+ * NFS wrapper to msleep(), that shoves a new p_sigmask and restores the
+ * old one after msleep() returns.
+ */
+int
+nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *wmesg, int timo)
+{
+	sigset_t oldset;
+	int error;
+	struct proc *p;
+	
+	if ((priority & PCATCH) == 0)
+		return msleep(ident, mtx, priority, wmesg, timo);
+	if (td == NULL)
+		td = curthread; /* XXX */
+	nfs_set_sigmask(td, &oldset);
+	error = msleep(ident, mtx, priority, wmesg, timo);
+	nfs_restore_sigmask(td, &oldset);
+	p = td->td_proc;
+	return (error);
+}
+
+/*
+ * NFS wrapper to tsleep(), that shoves a new p_sigmask and restores the
+ * old one after tsleep() returns.
+ */
+int
+nfs_tsleep(struct thread *td, void *ident, int priority, char *wmesg, int timo)
+{
+	sigset_t oldset;
+	int error;
+	struct proc *p;
+	
+	if ((priority & PCATCH) == 0)
+		return tsleep(ident, priority, wmesg, timo);
+	if (td == NULL)
+		td = curthread; /* XXX */
+	nfs_set_sigmask(td, &oldset);
+	error = tsleep(ident, priority, wmesg, timo);
+	nfs_restore_sigmask(td, &oldset);
+	p = td->td_proc;
+	return (error);
 }
 
 /*
@@ -1320,7 +1489,7 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	mtx_lock(&p->p_sigacts->ps_mtx);
 	SIGSETNAND(tmpset, p->p_sigacts->ps_sigignore);
 	mtx_unlock(&p->p_sigacts->ps_mtx);
-	if (SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset)) {
+	if (SIGNOTEMPTY(p->p_siglist) && nfs_sig_pending(tmpset)) {
 		PROC_UNLOCK(p);
 		return (EINTR);
 	}
@@ -1378,60 +1547,6 @@ nfs_sndunlock(struct nfsreq *rep)
 	}
 }
 
-static int
-nfs_rcvlock(struct nfsreq *rep)
-{
-	int *statep = &rep->r_nmp->nm_state;
-	int error, slpflag, slptimeo = 0;
-
-	if (rep->r_nmp->nm_flag & NFSMNT_INT)
-		slpflag = PCATCH;
-	else
-		slpflag = 0;
-	while (*statep & NFSSTA_RCVLOCK) {
-		error = nfs_sigintr(rep->r_nmp, rep, rep->r_td);
-		if (error)
-			return (error);
-		*statep |= NFSSTA_WANTRCV;
-		(void) tsleep(statep, slpflag | (PZERO - 1), "nfsrcvlk",
-			slptimeo);
-		/*
-		 * If our reply was recieved while we were sleeping,
-		 * then just return without taking the lock to avoid a
-		 * situation where a single iod could 'capture' the
-		 * recieve lock.
-		 */
-		if (rep->r_mrep != NULL)
-			return (EALREADY);
-		if (slpflag == PCATCH) {
-			slpflag = 0;
-			slptimeo = 2 * hz;
-		}
-	}
-	/* Always fail if our request has been cancelled. */
-	if (rep != NULL && (error = NFS_SIGREP(rep)) != 0)
-		return (error);
-	*statep |= NFSSTA_RCVLOCK;
-	return (0);
-}
-
-/*
- * Unlock the stream socket for others.
- */
-static void
-nfs_rcvunlock(struct nfsreq *rep)
-{
-	int *statep = &rep->r_nmp->nm_state;
-
-	if ((*statep & NFSSTA_RCVLOCK) == 0)
-		panic("nfs rcvunlock");
-	*statep &= ~NFSSTA_RCVLOCK;
-	if (*statep & NFSSTA_WANTRCV) {
-		*statep &= ~NFSSTA_WANTRCV;
-		wakeup(statep);
-	}
-}
-
 /*
  *	nfs_realign:
  *
@@ -1446,8 +1561,15 @@ nfs_rcvunlock(struct nfsreq *rep)
  *	We would prefer to avoid this situation entirely.  The situation does
  *	not occur with NFS/UDP and is supposed to only occassionally occur
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
+ *
+ * XXX - This still looks buggy. If there are multiple mbufs in the mbuf chain
+ * passed in that are unaligned, the first loop will allocate multiple new
+ * mbufs. But then, it doesn't seem to chain these together. So, if there are
+ * multiple unaligned mbufs, we're looking at a pretty serious mbuf leak.
+ * But, this has been how it is, perhaps the misalignment only happens in the head
+ * of the chain.
  */
-static void
+static int
 nfs_realign(struct mbuf **pm, int hsiz)
 {
 	struct mbuf *m;
@@ -1457,9 +1579,15 @@ nfs_realign(struct mbuf **pm, int hsiz)
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, M_TRYWAIT, MT_DATA);
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOMEM);
 			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, M_TRYWAIT);
+				MCLGET(n, M_DONTWAIT);
+				if (n->m_ext.ext_buf == NULL) {
+					m_freem(n);
+					return (ENOMEM);
+				}
 			}
 			n->m_len = 0;
 			break;
@@ -1480,6 +1608,7 @@ nfs_realign(struct mbuf **pm, int hsiz)
 		m_freem(*pm);
 		*pm = n;
 	}
+	return (0);
 }
 
 

@@ -1036,7 +1036,11 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 	nmp = VFSTONFS(mp);
 
 	if (nmp->nm_flag & NFSMNT_INT) {
+ 		sigset_t oldset;
+
+ 		nfs_set_sigmask(td, &oldset);
 		bp = getblk(vp, bn, size, PCATCH, 0, 0);
+ 		nfs_restore_sigmask(td, &oldset);
 		while (bp == NULL) {
 			if (nfs_sigintr(nmp, NULL, td))
 				return (NULL);
@@ -1208,8 +1212,8 @@ again:
 			NFS_DPF(ASYNCIO,
 				("nfs_asyncio: waiting for mount %p queue to drain\n", nmp));
 			nmp->nm_bufqwant = TRUE;
-			error = tsleep(&nmp->nm_bufq, slpflag | PRIBIO,
-				       "nfsaio", slptimeo);
+ 			error = nfs_tsleep(td, &nmp->nm_bufq, slpflag | PRIBIO,
+ 					   "nfsaio", slptimeo);
 			if (error) {
 				error2 = nfs_sigintr(nmp, NULL, td);
 				if (error2)
@@ -1511,6 +1515,8 @@ nfs_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 		lbn = nsize / biosize;
 		bufsize = nsize & (biosize - 1);
 		bp = nfs_getcacheblk(vp, lbn, bufsize, td);
+ 		if (!bp)
+ 			return EINTR;
 		if (bp->b_dirtyoff > bp->b_bcount)
 			bp->b_dirtyoff = bp->b_bcount;
 		if (bp->b_dirtyend > bp->b_bcount)
