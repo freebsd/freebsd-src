@@ -169,9 +169,9 @@ ieee80211_unref_node(struct ieee80211_node **ni)
 
 struct ieee80211com;
 
-extern	void ieee80211_node_attach(struct ieee80211com *);
-extern	void ieee80211_node_lateattach(struct ieee80211com *);
-extern	void ieee80211_node_detach(struct ieee80211com *);
+void	ieee80211_node_attach(struct ieee80211com *);
+void	ieee80211_node_lateattach(struct ieee80211com *);
+void	ieee80211_node_detach(struct ieee80211com *);
 
 static __inline int
 ieee80211_node_is_authorized(const struct ieee80211_node *ni)
@@ -179,24 +179,20 @@ ieee80211_node_is_authorized(const struct ieee80211_node *ni)
 	return (ni->ni_flags & IEEE80211_NODE_AUTH);
 }
 
-extern	void ieee80211_node_authorize(struct ieee80211com *,
+void	ieee80211_node_authorize(struct ieee80211com *,
 		struct ieee80211_node *);
-extern	void ieee80211_node_unauthorize(struct ieee80211com *,
+void	ieee80211_node_unauthorize(struct ieee80211com *,
 		struct ieee80211_node *);
 
-extern	void ieee80211_begin_scan(struct ieee80211com *, int);
-extern	int ieee80211_next_scan(struct ieee80211com *);
-extern	void ieee80211_create_ibss(struct ieee80211com*,
-		struct ieee80211_channel *);
-extern	void ieee80211_reset_bss(struct ieee80211com *);
-extern	void ieee80211_cancel_scan(struct ieee80211com *);
-extern	void ieee80211_end_scan(struct ieee80211com *);
-extern	int ieee80211_ibss_merge(struct ieee80211com *,
-		struct ieee80211_node *);
-extern	int ieee80211_sta_join(struct ieee80211com *,
-		struct ieee80211_node *);
-extern	void ieee80211_sta_leave(struct ieee80211com *,
-		struct ieee80211_node *);
+void	ieee80211_begin_scan(struct ieee80211com *, int);
+int	ieee80211_next_scan(struct ieee80211com *);
+void	ieee80211_create_ibss(struct ieee80211com*, struct ieee80211_channel *);
+void	ieee80211_reset_bss(struct ieee80211com *);
+void	ieee80211_cancel_scan(struct ieee80211com *);
+void	ieee80211_end_scan(struct ieee80211com *);
+int	ieee80211_ibss_merge(struct ieee80211com *, struct ieee80211_node *);
+int	ieee80211_sta_join(struct ieee80211com *, struct ieee80211_node *);
+void	ieee80211_sta_leave(struct ieee80211com *, struct ieee80211_node *);
 
 /*
  * Table of ieee80211_node instances.  Each ieee80211com
@@ -217,28 +213,28 @@ struct ieee80211_node_table {
 
 	void			(*nt_timeout)(struct ieee80211_node_table *);
 };
-extern	void ieee80211_node_table_reset(struct ieee80211_node_table *);
+void	ieee80211_node_table_reset(struct ieee80211_node_table *);
 
-extern	struct ieee80211_node *ieee80211_alloc_node(
+struct ieee80211_node *ieee80211_alloc_node(
 		struct ieee80211_node_table *, const u_int8_t *);
-extern	struct ieee80211_node *ieee80211_dup_bss(struct ieee80211_node_table *,
+struct ieee80211_node *ieee80211_dup_bss(struct ieee80211_node_table *,
 		const u_int8_t *);
 #ifdef IEEE80211_DEBUG_REFCNT
-extern	void ieee80211_free_node_debug(struct ieee80211_node *,
+void	ieee80211_free_node_debug(struct ieee80211_node *,
 		const char *func, int line);
-extern	struct ieee80211_node *ieee80211_find_node_debug(
+struct ieee80211_node *ieee80211_find_node_debug(
 		struct ieee80211_node_table *, const u_int8_t *,
 		const char *func, int line);
-extern	struct ieee80211_node * ieee80211_find_rxnode_debug(
+struct ieee80211_node * ieee80211_find_rxnode_debug(
 		struct ieee80211com *, const struct ieee80211_frame_min *,
 		const char *func, int line);
-extern	struct ieee80211_node *ieee80211_find_txnode_debug(
+struct ieee80211_node *ieee80211_find_txnode_debug(
 		struct ieee80211com *, const u_int8_t *,
 		const char *func, int line);
-extern	struct ieee80211_node *ieee80211_find_node_with_channel_debug(
+struct ieee80211_node *ieee80211_find_node_with_channel_debug(
 		struct ieee80211_node_table *, const u_int8_t *macaddr,
 		struct ieee80211_channel *, const char *func, int line);
-extern	struct ieee80211_node *ieee80211_find_node_with_ssid_debug(
+struct ieee80211_node *ieee80211_find_node_with_ssid_debug(
 		struct ieee80211_node_table *, const u_int8_t *macaddr,
 		u_int ssidlen, const u_int8_t *ssid,
 		const char *func, int line);
@@ -255,35 +251,32 @@ extern	struct ieee80211_node *ieee80211_find_node_with_ssid_debug(
 #define	ieee80211_find_node_with_ssid(nt, mac, sl, ss) \
 	ieee80211_find_node_with_ssid_debug(nt, mac, sl, ss, __func__, __LINE__)
 #else
-extern	void ieee80211_free_node(struct ieee80211_node *);
-extern	struct ieee80211_node *ieee80211_find_node(
+void	ieee80211_free_node(struct ieee80211_node *);
+struct ieee80211_node *ieee80211_find_node(
 		struct ieee80211_node_table *, const u_int8_t *);
-extern	struct ieee80211_node * ieee80211_find_rxnode(
+struct ieee80211_node * ieee80211_find_rxnode(
 		struct ieee80211com *, const struct ieee80211_frame_min *);
-extern	struct ieee80211_node *ieee80211_find_txnode(
+struct ieee80211_node *ieee80211_find_txnode(
 		struct ieee80211com *, const u_int8_t *);
-extern	struct ieee80211_node *ieee80211_find_node_with_channel(
+struct ieee80211_node *ieee80211_find_node_with_channel(
 		struct ieee80211_node_table *, const u_int8_t *macaddr,
 		struct ieee80211_channel *);
-extern	struct ieee80211_node *ieee80211_find_node_with_ssid(
+struct ieee80211_node *ieee80211_find_node_with_ssid(
 		struct ieee80211_node_table *, const u_int8_t *macaddr,
 		u_int ssidlen, const u_int8_t *ssid);
 #endif
 
 typedef void ieee80211_iter_func(void *, struct ieee80211_node *);
-extern	void ieee80211_iterate_nodes(struct ieee80211_node_table *,
+void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
 		ieee80211_iter_func *, void *);
 
-extern	void ieee80211_dump_node(struct ieee80211_node_table *,
+void	ieee80211_dump_node(struct ieee80211_node_table *,
 		struct ieee80211_node *);
-extern	void ieee80211_dump_nodes(struct ieee80211_node_table *);
+void	ieee80211_dump_nodes(struct ieee80211_node_table *);
 
-extern	struct ieee80211_node *ieee80211_fakeup_adhoc_node(
-		struct ieee80211_node_table *nt,
-		const u_int8_t macaddr[]);
-extern	void ieee80211_node_join(struct ieee80211com *,
-		struct ieee80211_node *, int);
-extern	void ieee80211_node_leave(struct ieee80211com *,
-		struct ieee80211_node *);
-extern	u_int8_t ieee80211_getrssi(struct ieee80211com *ic);
+struct ieee80211_node *ieee80211_fakeup_adhoc_node(
+		struct ieee80211_node_table *, const u_int8_t macaddr[]);
+void	ieee80211_node_join(struct ieee80211com *, struct ieee80211_node *,int);
+void	ieee80211_node_leave(struct ieee80211com *, struct ieee80211_node *);
+u_int8_t ieee80211_getrssi(struct ieee80211com *ic);
 #endif /* _NET80211_IEEE80211_NODE_H_ */
