@@ -189,7 +189,7 @@
 113	COMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
 114	COMPAT	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
 115	OBSOL	NOHIDE	vtrace
-116	STD	BSD	{ int gettimeofday(struct timeval *tp, \
+116	MPSAFE	STD	BSD	{ int gettimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
 117	STD	BSD	{ int getrusage(int who, struct rusage *rusage); }
 118	STD	BSD	{ int getsockopt(int s, int level, int name, \
