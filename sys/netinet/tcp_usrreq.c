@@ -832,10 +832,10 @@ struct pr_usrreqs tcp6_usrreqs = {
 /*
  * Common subroutine to open a TCP connection to remote host specified
  * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
- * port number if needed.  Call in_pcbladdr to do the routing and to choose
- * a local host address (interface).  If there is an existing incarnation
- * of the same connection in TIME-WAIT state and if the remote host was
- * sending CC options and if the connection duration was < MSL, then
+ * port number if needed.  Call in_pcbconnect_setup to do the routing and
+ * to choose a local host address (interface).  If there is an existing
+ * incarnation of the same connection in TIME-WAIT state and if the remote
+ * host was sending CC options and if the connection duration was < MSL, then
  * truncate the previous TIME-WAIT state and proceed.
  * Initialize connection parameters and enter SYN-SENT state.
  */
@@ -849,9 +849,10 @@ tcp_connect(tp, nam, td)
 	struct socket *so = inp->inp_socket;
 	struct tcpcb *otp;
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
-	struct sockaddr_in *ifaddr;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
+	struct in_addr laddr;
+	u_short lport;
 	int error;
 
 	if (inp->inp_lport == 0) {
@@ -865,14 +866,12 @@ tcp_connect(tp, nam, td)
 	 * earlier incarnation of this same connection still in
 	 * TIME_WAIT state, creating an ADDRINUSE error.
 	 */
-	error = in_pcbladdr(inp, nam, &ifaddr);
-	if (error)
+	laddr = inp->inp_laddr;
+	lport = inp->inp_lport;
+	error = in_pcbconnect_setup(inp, nam, &laddr.s_addr, &lport,
+	    &inp->inp_faddr.s_addr, &inp->inp_fport, &oinp, td);
+	if (error && oinp == NULL)
 		return error;
-	oinp = in_pcblookup_hash(inp->inp_pcbinfo,
-	    sin->sin_addr, sin->sin_port,
-	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
-						: ifaddr->sin_addr,
-	    inp->inp_lport,  0, NULL);
 	if (oinp) {
 		if (oinp != inp && (otp = intotcpcb(oinp)) != NULL &&
 		otp->t_state == TCPS_TIME_WAIT &&
@@ -882,8 +881,7 @@ tcp_connect(tp, nam, td)
 		else
 			return EADDRINUSE;
 	}
-	if (inp->inp_laddr.s_addr == INADDR_ANY)
-		inp->inp_laddr = ifaddr->sin_addr;
+	inp->inp_laddr = laddr;
 	inp->inp_faddr = sin->sin_addr;
 	inp->inp_fport = sin->sin_port;
 	in_pcbrehash(inp);

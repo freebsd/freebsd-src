@@ -404,32 +404,110 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, td)
 }
 
 /*
- *   Transform old in_pcbconnect() into an inner subroutine for new
- *   in_pcbconnect(): Do some validity-checking on the remote
- *   address (in mbuf 'nam') and then determine local host address
- *   (i.e., which interface) to use to access that remote host.
- *
- *   This preserves definition of in_pcbconnect(), while supporting a
- *   slightly different version for T/TCP.  (This is more than
- *   a bit of a kludge, but cleaning up the internal interfaces would
- *   have forced minor changes in every protocol).
+ * Connect from a socket to a specified address.
+ * Both address and port must be specified in argument sin.
+ * If don't have a local address for this socket yet,
+ * then pick one.
  */
-
 int
-in_pcbladdr(inp, nam, plocal_sin)
+in_pcbconnect(inp, nam, td)
 	register struct inpcb *inp;
 	struct sockaddr *nam;
-	struct sockaddr_in **plocal_sin;
+	struct thread *td;
 {
-	struct in_ifaddr *ia;
-	register struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	u_short lport, fport;
+	in_addr_t laddr, faddr;
+	int anonport, error;
 
+	lport = inp->inp_lport;
+	laddr = inp->inp_laddr.s_addr;
+	anonport = (lport == 0);
+	error = in_pcbconnect_setup(inp, nam, &laddr, &lport, &faddr, &fport,
+	    NULL, td);
+	if (error)
+		return (error);
+
+	/* Do the initial binding of the local address if required. */
+	if (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) {
+		inp->inp_lport = lport;
+		inp->inp_laddr.s_addr = laddr;
+		if (in_pcbinshash(inp) != 0) {
+			inp->inp_laddr.s_addr = INADDR_ANY;
+			inp->inp_lport = 0;
+			return (EAGAIN);
+		}
+	}
+
+	/* Commit the remaining changes. */
+	inp->inp_lport = lport;
+	inp->inp_laddr.s_addr = laddr;
+	inp->inp_faddr.s_addr = faddr;
+	inp->inp_fport = fport;
+	in_pcbrehash(inp);
+	if (anonport)
+		inp->inp_flags |= INP_ANONPORT;
+	return (0);
+}
+
+/*
+ * Set up for a connect from a socket to the specified address.
+ * On entry, *laddrp and *lportp should contain the current local
+ * address and port for the PCB; these are updated to the values
+ * that should be placed in inp_laddr and inp_lport to complete
+ * the connect.
+ *
+ * On success, *faddrp and *fportp will be set to the remote address
+ * and port. These are not updated in the error case.
+ *
+ * If the operation fails because the connection already exists,
+ * *oinpp will be set to the PCB of that connection so that the
+ * caller can decide to override it. In all other cases, *oinpp
+ * is set to NULL.
+ */
+int
+in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
+	register struct inpcb *inp;
+	struct sockaddr *nam;
+	in_addr_t *laddrp;
+	u_short *lportp;
+	in_addr_t *faddrp;
+	u_short *fportp;
+	struct inpcb **oinpp;
+	struct thread *td;
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	struct in_ifaddr *ia;
+	struct sockaddr_in sa;
+	struct ucred *cred;
+	struct inpcb *oinp;
+	struct in_addr laddr, faddr;
+	u_short lport, fport;
+	int error;
+
+	if (oinpp != NULL)
+		*oinpp = NULL;
 	if (nam->sa_len != sizeof (*sin))
 		return (EINVAL);
 	if (sin->sin_family != AF_INET)
 		return (EAFNOSUPPORT);
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
+	laddr.s_addr = *laddrp;
+	lport = *lportp;
+	faddr = sin->sin_addr;
+	fport = sin->sin_port;
+	cred = inp->inp_socket->so_cred;
+	if (laddr.s_addr == INADDR_ANY && jailed(cred)) {
+		bzero(&sa, sizeof(sa));
+		sa.sin_addr.s_addr = htonl(prison_getip(cred));
+		sa.sin_len = sizeof(sa);
+		sa.sin_family = AF_INET;
+		error = in_pcbbind_setup(inp, (struct sockaddr *)&sa,
+		    &laddr.s_addr, &lport, td);
+		if (error)
+			return (error);
+	}
+
 	if (!TAILQ_EMPTY(&in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
@@ -438,13 +516,15 @@ in_pcbladdr(inp, nam, plocal_sin)
 		 * and the primary interface supports broadcast,
 		 * choose the broadcast address for that interface.
 		 */
-		if (sin->sin_addr.s_addr == INADDR_ANY)
-		    sin->sin_addr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
-		else if (sin->sin_addr.s_addr == (u_long)INADDR_BROADCAST &&
-		  (TAILQ_FIRST(&in_ifaddrhead)->ia_ifp->if_flags & IFF_BROADCAST))
-		    sin->sin_addr = satosin(&TAILQ_FIRST(&in_ifaddrhead)->ia_broadaddr)->sin_addr;
+		if (faddr.s_addr == INADDR_ANY)
+			faddr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
+		else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
+		    (TAILQ_FIRST(&in_ifaddrhead)->ia_ifp->if_flags &
+		    IFF_BROADCAST))
+			faddr = satosin(&TAILQ_FIRST(
+			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
-	if (inp->inp_laddr.s_addr == INADDR_ANY) {
+	if (laddr.s_addr == INADDR_ANY) {
 		register struct route *ro;
 
 		ia = (struct in_ifaddr *)0;
@@ -457,8 +537,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 		ro = &inp->inp_route;
 		if (ro->ro_rt &&
 		    (ro->ro_dst.sa_family != AF_INET ||
-		     satosin(&ro->ro_dst)->sin_addr.s_addr !=
-		     sin->sin_addr.s_addr ||
+		     satosin(&ro->ro_dst)->sin_addr.s_addr != faddr.s_addr ||
 		     inp->inp_socket->so_options & SO_DONTROUTE)) {
 			RTFREE(ro->ro_rt);
 			ro->ro_rt = (struct rtentry *)0;
@@ -470,8 +549,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 			bzero(&ro->ro_dst, sizeof(struct sockaddr_in));
 			ro->ro_dst.sa_family = AF_INET;
 			ro->ro_dst.sa_len = sizeof(struct sockaddr_in);
-			((struct sockaddr_in *) &ro->ro_dst)->sin_addr =
-				sin->sin_addr;
+			((struct sockaddr_in *)&ro->ro_dst)->sin_addr = faddr;
 			rtalloc(ro);
 		}
 		/*
@@ -483,13 +561,14 @@ in_pcbladdr(inp, nam, plocal_sin)
 		if (ro->ro_rt && !(ro->ro_rt->rt_ifp->if_flags & IFF_LOOPBACK))
 			ia = ifatoia(ro->ro_rt->rt_ifa);
 		if (ia == 0) {
-			u_short fport = sin->sin_port;
+			bzero(&sa, sizeof(sa));
+			sa.sin_addr = faddr;
+			sa.sin_len = sizeof(sa);
+			sa.sin_family = AF_INET;
 
-			sin->sin_port = 0;
-			ia = ifatoia(ifa_ifwithdstaddr(sintosa(sin)));
+			ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sa)));
 			if (ia == 0)
-				ia = ifatoia(ifa_ifwithnet(sintosa(sin)));
-			sin->sin_port = fport;
+				ia = ifatoia(ifa_ifwithnet(sintosa(&sa)));
 			if (ia == 0)
 				ia = TAILQ_FIRST(&in_ifaddrhead);
 			if (ia == 0)
@@ -500,7 +579,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 		 * interface has been set as a multicast option, use the
 		 * address of that interface as our source address.
 		 */
-		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
+		if (IN_MULTICAST(ntohl(faddr.s_addr)) &&
 		    inp->inp_moptions != NULL) {
 			struct ip_moptions *imo;
 			struct ifnet *ifp;
@@ -515,67 +594,25 @@ in_pcbladdr(inp, nam, plocal_sin)
 					return (EADDRNOTAVAIL);
 			}
 		}
-	/*
-	 * Don't do pcblookup call here; return interface in plocal_sin
-	 * and exit to caller, that will do the lookup.
-	 */
-		*plocal_sin = &ia->ia_addr;
-
+		laddr = ia->ia_addr.sin_addr;
 	}
-	return(0);
-}
 
-/*
- * Outer subroutine:
- * Connect from a socket to a specified address.
- * Both address and port must be specified in argument sin.
- * If don't have a local address for this socket yet,
- * then pick one.
- */
-int
-in_pcbconnect(inp, nam, td)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct thread *td;
-{
-	struct sockaddr_in *ifaddr;
-	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
-	struct sockaddr_in sa;
-	struct ucred *cred;
-	int error;
-
-	cred = inp->inp_socket->so_cred;
-	if (inp->inp_laddr.s_addr == INADDR_ANY && jailed(cred)) {
-		bzero(&sa, sizeof (sa));
-		sa.sin_addr.s_addr = htonl(prison_getip(cred));
-		sa.sin_len=sizeof (sa);
-		sa.sin_family = AF_INET;
-		error = in_pcbbind(inp, (struct sockaddr *)&sa, td);
+	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
+	    0, NULL);
+	if (oinp != NULL) {
+		if (oinpp != NULL)
+			*oinpp = oinp;
+		return (EADDRINUSE);
+	}
+	if (lport == 0) {
+		error = in_pcbbind_setup(inp, NULL, &laddr.s_addr, &lport, td);
 		if (error)
 			return (error);
 	}
-	/*
-	 *   Call inner routine, to assign local interface address.
-	 */
-	if ((error = in_pcbladdr(inp, nam, &ifaddr)) != 0)
-		return(error);
-
-	if (in_pcblookup_hash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,
-	    inp->inp_laddr.s_addr ? inp->inp_laddr : ifaddr->sin_addr,
-	    inp->inp_lport, 0, NULL) != NULL) {
-		return (EADDRINUSE);
-	}
-	if (inp->inp_laddr.s_addr == INADDR_ANY) {
-		if (inp->inp_lport == 0) {
-			error = in_pcbbind(inp, (struct sockaddr *)0, td);
-			if (error)
-				return (error);
-		}
-		inp->inp_laddr = ifaddr->sin_addr;
-	}
-	inp->inp_faddr = sin->sin_addr;
-	inp->inp_fport = sin->sin_port;
-	in_pcbrehash(inp);
+	*laddrp = laddr.s_addr;
+	*lportp = lport;
+	*faddrp = faddr.s_addr;
+	*fportp = fport;
 	return (0);
 }
 
