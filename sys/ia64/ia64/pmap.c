@@ -1694,7 +1694,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int error;
+		vm_page_lock_queues();
 		error = pmap_remove_pte(pmap, pte, va, 0, 0);
+		vm_page_unlock_queues();
 		if (error)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	}
