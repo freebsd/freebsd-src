@@ -1,5 +1,143 @@
 # -*- text -*-
 
+*** Notes specific to am-utils version 6.0.7:
+
+- minor new ports: i386-unknown-freebsd5.0
+
+- bug fixes:
+	type:=host, don't fail mount if one share is already mounted
+	don't report NFS NE_IO error as success (Linux)
+
+*** Notes specific to am-utils version 6.0.6:
+
+- new ports:
+	Apple OS X support (Darwin, Rhapsody)
+
+- reworked autoconf scripts so that newer versions of known OSs will default
+  their configuration to the last known version (better chance that it will
+  pass autoconf and work).
+
+- linux support for lofs and "bind" mounts, so type:=lofs can work (whether
+  you're using autofs or not)
+
+- renamed amd.conf option "selectors_on_default" to "selectors_in_defaults"
+  (on -> in, and added "s").  Old name remains in place for compatibility.
+
+- lots of cleanups of debugging and logging messages
+
+- Bugs fixed:
+	lots of Linux-related ones, so it compiles for recent kernels
+	better checking on various mount options of the form foo=N or foo=STR
+	fixed NFS errno mapping bug which mapped ENOENT to success on Linux
+
+*** Notes specific to am-utils version 6.0.5:
+
+- Minor ports:
+	alphaev6-dec-osf5.1
+	i386-unknown-freebsd4.2
+	support for Linux 2.4 kernels and newer GLIBC versions
+	cleanup of AIX and IRIX6 ports
+
+- Support new mount options:
+	proplist (ACLs over NFS, DU-4.0)
+	kerb, rdirplus, readdirsize, and xlatecookie (NetBSD-1.5K+)
+	nonlm, lock, nolock (Linux)
+
+- Don't force rsize/wsize on Linux 2.2.18+ and 2.4.x.  Improves performance
+  a lot.
+
+- Lots of documentation updates: texinfo, man pages, scripts, and more.
+
+- LDAP: included proposed Schema and Internet Draft for LDAP Schema.  See
+  README.ldap for more information.
+
+- Removed all remains of the dangerous amq -M code.
+
+- Major bug fix: initialize NFS fileid field correctly, to avoid cache
+  aliasing problems, esp. on Linux.
+
+- Major Linux bug fix: map errnos to NFS errors (mistakenly turned off a
+  while back).  Also support unused errno 41.
+
+- Other bugs fixes:
+	default MAXHOSTNAMELEN (if undefined) is 256, not 64
+	truncate hostnames to MAXHOSTNAMELEN (security fix)
+	alignment problem in getwire() on ALPHA
+	other buf overflow problems (security fixes)
+	ctl-amd supports "condrestart" (Red Hat)
+	bell char is \g not \a
+	lostaltmail verify MAILDIR is defined
+	am-eject accepts "floppy" and "cdrom" as args
+	other assorted small bug fixes
+
+*** Notes specific to am-utils version 6.0.4:
+
+- NFSv3 support for Linux and HPUX-11
+
+- new amd.conf [global] options:
+	nfs_vers: force all NFS mounts to version 2 or 3
+	nfs_proto: force all NFS mounts to udp or tcp
+
+- new debug_options (amd -D):
+	hrtime: turns on high-resolution timer if available
+	readdir: traces browsable_dirs code
+	xdrtrace: traces XDR routines
+	(trace: only traces NFS and RPC)
+
+- new amq options:
+	-H: shows usage
+	-w: translate getpwd() into an Amd path
+
+- new map syntax:
+	${dollar}: to include a literal '$' in assignments
+
+- new "opts:=" options:
+	ver3: turns on NFS version 3 on some systems (linux)
+
+- updated or minor new ports:
+	alpha-dec-osf4.0f
+	alphaev6-dec-osf5.0
+	i386-pc-linux-rh6.2
+	i386-unknown-freebsd3.4
+
+- bugs fixed:
+	symlink mtime fixes to avoid u/mount race conditions
+	update amq -s failed umounts count correctly
+	linux compiles even if efs is available
+	linux works with mount(2) option "intr"
+	linux works with pcfs and cdfs
+	handle std{in,out,err} correctly when releasing controlling tty
+	browsable_readdir works on 64-bit kernel architectures
+	irs/wire routines compile for bsdi{2,3,4}
+
+*** Notes specific to am-utils version 6.0.3:
+
+- updated or minor new ports:
+	hppa1.0-hp-hpux11.00
+	i386-pc-bsdi4.1
+	i386-unknown-netbsd1.4.1
+	sparc-sun-solaris2.8
+	i*86-pc-linux-gnu-rh6.1
+	(some preparations for Compaq Tru64)
+
+- new variables ${uid} and ${gid}, return the numeric UID/GID of the user
+  (not root) who invokes an amd pathname.  Similar to what hlfsd does.
+
+- automake now uses automatic dependency tracking
+
+- new mount options: optionstr, noexec, nomnttab
+
+- maps of type:=auto are now browsable (using map option "browsable")
+
+- ctl-amd has "status" argument (same as RedHat)
+
+- bugs fixed:
+	document buggy AIX 4.3 plock() behavior
+	fixes to stale file handle on symlinks
+	reduce race conditions upon rapid umount/mount sequences
+	use vsnprintf, more secure than vsprintf
+	more assorted and smaller bugs
+
 *** Notes specific to am-utils version 6.0.2:
 
 - safe map reloads: when a map needs to be reloaded, it is reloaded into a
@@ -340,7 +478,7 @@ machine to NFS V.2 and retry again later.
 
 - minor code cleanups for netbsd
 
-- html docs now in http://www.cs.columbia.edu/~ezk/am-utils/
+- html docs now in http://www.am-utils.org
 
 - added README file in binaries ftp directory
 

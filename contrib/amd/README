@@ -74,18 +74,21 @@ for example to add hesiod support, do so as follows:
 hlfsd, lib, etc, all you need to do to get a new version of am-utils is run
 make.
 
-If you modify any of the files in the aux/ or conf/ directories, then you
-must rebuild the configure script, Makefile.in files, aclocal.m4, etc.  The
-best way to do so is to run
+If you modify any of the files in the aux/ or conf/ directories, or any *.in
+or *.am file, then you must rebuild the configure script, Makefile.in files,
+aclocal.m4, etc.  The best way to do so is to run
 
-	./aux/mkconf
+	./bootstrap
 or
 	./buildall -K
 
-To be a developer and be able to run mkconf, you must have autoconf-2.12,
-GNU make-3.75 or later, and automake-1.2 (plus my fixes to it) installed on
-your system.  You may find my version of automake-1.2 where you ftp'ed this
-version of am-utils.  You may also need GNU libtool 1.0.
+To be a developer and be able to run "bootstrap", you must have
+autoconf-2.13, automake-1.4, and libtool 1.3.5 installed on your system (or
+later versions thereof).  You no longer need to get my special version of
+automake.  Note also the the bootstrap script and several other tools are
+not available in the regular distribution of am-utils, only though the CVS
+server for am-utils.  Contact me if you'd like to be a maintainer and get
+access to the CVS server.
 
 After you've remade the basic configuration files you must rerun the
 buildall script to rerun configure and then remake the binaries.

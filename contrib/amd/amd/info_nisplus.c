@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_nisplus.c,v 1.2 1999/01/10 21:53:46 ezk Exp $
+ * $Id: info_nisplus.c,v 1.3.2.2 2001/04/14 21:08:21 ezk Exp $
  *
  */
 
@@ -207,7 +207,7 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
   XFREE(index);
 
   if (result == NULL) {
-    plog(XLOG_ERROR, "%s: %s", map, strerror(ENOMEM));
+    plog(XLOG_ERROR, "nisplus_search: %s: %s", map, strerror(ENOMEM));
     return ENOMEM;
   }
 
@@ -254,7 +254,7 @@ nisplus_search(mnt_map *m, char *map, char *key, char **val, time_t *tp)
     break;
 
   default:
-    plog(XLOG_ERROR, "%s: %s", map, nis_sperrno(result->status));
+    plog(XLOG_ERROR, "nisplus_search: %s: %s", map, nis_sperrno(result->status));
     error = EIO;
     break;
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: sched.c,v 1.3 1999/01/13 23:31:01 ezk Exp $
+ * $Id: sched.c,v 1.4.2.2 2001/01/10 03:23:12 ezk Exp $
  *
  */
 
@@ -219,7 +219,7 @@ do_task_notify(void)
   /*
    * Keep taking the first item off the list and processing it.
    *
-   * Done this way because the the callback can, quite reasonably,
+   * Done this way because the callback can, quite reasonably,
    * queue a new task, so no local reference into the list can be
    * held here.
    */

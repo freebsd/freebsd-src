@@ -117,12 +117,46 @@ time.  (Please let amd-dev know if you know of a fix.)
 
 (7) *-aix4.3.2.0
 
-The plock() function appears to fail with ENOMEM (Not Enough Space).  When
-it fails, it consumes a lot of memory.  This appears to be an AIX bug.  I
-think plock returns an error code, but it partially succeeds to lock some
-pages, thus increasing memory consumption.  When partial failures occur, it
-is possible that AIX fails to unlock those pages it did lock.  Solution:
-turn off usage of plock on AIX.  Put plock=no in your amd.conf file (which
-is the default if you do nothing).
+The plock() function will pre-reserve all of the memory up to the maximum
+listed in the ulimit.  If the ulimit is infinite, plock() will try to take
+all of the system's memory, and fail with ENOMEM (Not Enough Space).
+Normally ulimit may be set to a few gigs of max memory usage, but even that
+is too much; Amd doesn't need more than a few megs of resident memory size
+(depending on the particular usage, number of maps, etc.)  Solution: lower
+your ulimit before starting amd.  This can be done inside the ctl-amd
+script, but be careful not to limit it too low.  Alternatively, don't use
+plock on aix-4.3: set it to plock=no in amd.conf (which is the default if
+you do nothing).
+
+
+(8) *-linux-gnu (systems using glibc 2.1, such as RedHat-6.1)
+
+There's a UDP file descriptor leak in the nis routines in glibc, especially
+those that do yp_bind.  Until this is bug fixed, do not set nis_domain in
+amd.conf, but let the system pick up the default domain name as set by your
+system.  That would avoid using the buggy yp_bind routines in libc.
+
+
+(9) *-linux-gnu (SuSE systems using unfsd)
+
+The user-level nfsd (2.2beta44) on SuSE Linux systems (and possibly others)
+dies with a SEGV when amd tries to contact it for access to a volume that
+does not exist, or one for which there is no permission to mount.
+
+
+(10) *-*-hpux11
+
+If you're using NFSv3, you must install HP patches PHNE_20344 and
+PHNE_20371.  If you don't, and you try to use amd with NFSv3 over TCP, your
+kernel will panic.
+
+(11) *-linux* (any system using a 2.2.18+ kernel)
+
+The Linux kernels don't support Amd's direct mounts very well, leading to
+erratic behavior: shares that don't get remounted after the first timeout,
+inability to restart Amd because its mount points cannot be unmounted,
+etc. There are some kernel patches on the am-utils Web site, which solve
+these problems.
+
 
 Erez.

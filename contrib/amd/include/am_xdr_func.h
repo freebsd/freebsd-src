@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_xdr_func.h,v 1.2 1999/01/10 21:54:35 ezk Exp $
+ * $Id: am_xdr_func.h,v 1.3.2.2 2001/01/10 03:23:38 ezk Exp $
  *
  */
 
@@ -99,7 +99,7 @@ bool_t xdr_ftype(XDR *xdrs, nfsftype *objp);
 bool_t xdr_groupnode(XDR *xdrs, groupnode *objp);
 #endif /* not HAVE_XDR_GROUPNODE */
 #ifndef HAVE_XDR_GROUPS
-bool_t xdr_groups(XDR *xdrs, groups objp);
+bool_t xdr_groups(XDR *xdrs, groups *objp);
 #endif /* not HAVE_XDR_GROUPS */
 #ifndef HAVE_XDR_LINKARGS
 bool_t xdr_linkargs(XDR *xdrs, nfslinkargs *objp);

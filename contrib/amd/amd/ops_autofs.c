@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_autofs.c,v 1.4 1999/01/13 23:31:00 ezk Exp $
+ * $Id: ops_autofs.c,v 1.7.2.4 2001/04/24 06:17:40 ib42 Exp $
  *
  */
 
@@ -138,10 +138,10 @@ autofs_mount(am_node *mp)
     mnttype = "indirect";
   else if (mf->mf_ops == &amfs_direct_ops)
     mnttype = "direct";
-#ifdef HAVE_AM_FS_UNION
+#ifdef HAVE_AMU_FS_UNION
   else if (mf->mf_ops == &amfs_union_ops)
     mnttype = "union";
-#endif /* HAVE_AM_FS_UNION */
+#endif /* HAVE_AMU_FS_UNION */
   else
     mnttype = "auto";
 
@@ -510,7 +510,7 @@ out:
  endfor
  */
 static int
-autofs_bgmount(struct continuation * cp, int mpe)
+autofs_bgmount(struct continuation *cp, int mpe)
 {
   mntfs *mf = cp->mp->am_mnt;	/* Current mntfs */
   mntfs *mf_retry = 0;		/* First mntfs which needed retrying */
@@ -586,7 +586,7 @@ autofs_bgmount(struct continuation * cp, int mpe)
      * Note whether this is a real mount attempt
      */
     if (p == &amfs_error_ops) {
-      plog(XLOG_MAP, "Map entry %s for %s failed to match", *cp->ivec, mp->am_path);
+      plog(XLOG_MAP, "Map entry %s for %s did not match", *cp->ivec, mp->am_path);
       if (this_error <= 0)
 	this_error = ENOENT;
       continue;
@@ -676,8 +676,6 @@ autofs_bgmount(struct continuation * cp, int mpe)
 	mk_fattr(mp, NFDIR);
       else
 	mk_fattr(mp, NFLNK);
-
-      mp->am_fattr.na_fileid = mp->am_gen;
 
       if (p->fs_init)
 	this_error = (*p->fs_init) (mf);
@@ -1122,7 +1120,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
      */
     rvec = strsplit(dfl, ' ', '\"');
 
-    if (gopt.flags & CFM_ENABLE_DEFAULT_SELECTORS) {
+    if (gopt.flags & CFM_SELECTORS_IN_DEFAULTS) {
       /*
        * Pick whichever first entry matched the list of selectors.
        * Strip the selectors from the string, and assign to dfl the
@@ -1138,7 +1136,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
 			 mp->am_parent->am_mnt->mf_info);
 	  free_opts(&ap);	/* don't leak */
 	  if (pt == &amfs_error_ops) {
-	    plog(XLOG_MAP, "failed to match defaults for \"%s\"", *sp);
+	    plog(XLOG_MAP, "did not match defaults for \"%s\"", *sp);
 	  } else {
 	    dfl = strip_selectors(*sp, "/defaults");
 	    plog(XLOG_MAP, "matched default selectors \"%s\"", dfl);
@@ -1147,7 +1145,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
 	  ++sp;
 	}
       }
-    } else {			/* not enable_default_selectors */
+    } else {			/* not selectors_in_defaults */
       /*
        * Extract first value
        */
@@ -1161,7 +1159,7 @@ autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op)
       /*
        * Log error if there were other values
        */
-      if (!(gopt.flags & CFM_ENABLE_DEFAULT_SELECTORS) && rvec[1]) {
+      if (!(gopt.flags & CFM_SELECTORS_IN_DEFAULTS) && rvec[1]) {
 # ifdef DEBUG
 	dlog("/defaults chopped into %s", dfl);
 # endif /* DEBUG */

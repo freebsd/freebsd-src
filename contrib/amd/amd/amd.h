@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.4 1999/09/30 21:01:29 ezk Exp $
+ * $Id: amd.h,v 1.8.2.3 2001/04/07 00:47:41 ib42 Exp $
  *
  */
 
@@ -53,7 +53,7 @@
 /* options for amd.conf */
 #define CFM_BROWSABLE_DIRS		0x0001
 #define CFM_MOUNT_TYPE_AUTOFS		0x0002
-#define CFM_ENABLE_DEFAULT_SELECTORS	0x0004
+#define CFM_SELECTORS_IN_DEFAULTS	0x0004
 #define CFM_NORMALIZE_HOSTNAMES		0x0008
 #define CFM_PROCESS_LOCK		0x0010
 #define CFM_PRINT_PID			0x0020
@@ -134,6 +134,8 @@ struct amu_global_options {
 #ifdef HAVE_MAP_NIS
   char *nis_domain;		/* YP domain name */
 #endif /* HAVE_MAP_NIS */
+  char *nfs_proto;		/* NFS protocol (NULL, udp, tcp) */
+  int nfs_vers;			/* NFS version (0, 2, 3, 4) */
 };
 
 /* if you add anything here, update conf.c:reset_cf_map() */
@@ -227,7 +229,7 @@ extern voidp amqproc_umnt_1_svc(voidp argp, struct svc_req *rqstp);
 
 /* other external definitions */
 extern am_nfs_fh *root_fh(char *dir);
-extern am_node * autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op);
+extern am_node *autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op);
 extern am_node *find_ap(char *);
 extern am_node *find_ap2(char *, am_node *);
 extern bool_t xdr_amq_mount_info_qelem(XDR *xdrs, qelem *qhead);
@@ -252,8 +254,10 @@ extern void root_newmap(const char *, const char *, const char *, const cf_map_t
 
 /* amd global variables */
 extern FILE *yyin;
-extern SVCXPRT *nfs_program_2_transp;	/* For quick_reply() */
+extern SVCXPRT *nfs_program_2_transp; /* For quick_reply() */
 extern char *conf_tag;
+extern char *opt_gid;
+extern char *opt_uid;
 extern int NumChild;
 extern int fwd_sock;
 extern int select_intr_valid;
@@ -261,20 +265,21 @@ extern int usage;
 extern int use_conf_file;	/* use amd configuration file */
 extern jmp_buf select_intr;
 extern qelem mfhead;
-extern struct amu_global_options gopt;	/* where global options are stored */
+extern struct am_opts fs_static; /* copy of the options to play with */
+extern struct amu_global_options gopt; /* where global options are stored */
 
 #ifdef HAVE_SIGACTION
 extern sigset_t masked_sigs;
 #endif /* HAVE_SIGACTION */
 
-#if defined(HAVE_AM_FS_LINK) || defined(HAVE_AM_FS_LINKX)
+#if defined(HAVE_AMU_FS_LINK) || defined(HAVE_AMU_FS_LINKX)
 extern char *amfs_link_match(am_opts *fo);
 extern int amfs_link_fumount(mntfs *mf);
-#endif /* defined(HAVE_AM_FS_LINK) || defined(HAVE_AM_FS_LINKX) */
+#endif /* defined(HAVE_AMU_FS_LINK) || defined(HAVE_AMU_FS_LINKX) */
 
-#ifdef HAVE_AM_FS_NFSL
+#ifdef HAVE_AMU_FS_NFSL
 extern char *nfs_match(am_opts *fo);
-#endif /* HAVE_AM_FS_NFSL */
+#endif /* HAVE_AMU_FS_NFSL */
 
 #if defined(HAVE_FS_NFS3) && !defined(HAVE_XDR_MOUNTRES3)
 extern bool_t xdr_mountres3(XDR *xdrs, mountres3 *objp);

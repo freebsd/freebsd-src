@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: opts.c,v 1.6 1999/09/30 21:01:32 ezk Exp $
+ * $Id: opts.c,v 1.8.2.4 2001/01/10 03:23:11 ezk Exp $
  *
  */
 
@@ -103,7 +103,6 @@ static int f_true(char *);
 /*
  * STATICS:
  */
-static struct am_opts fs_static; /* copy of the options to play with */
 static char NullStr[] = "<NULL>";
 static char nullstr[] = "";
 static char *opt_dkey = NullStr;
@@ -113,7 +112,16 @@ static char *opt_key = nullstr;
 static char *opt_keyd = nullstr;
 static char *opt_map = nullstr;
 static char *opt_path = nullstr;
+static char uid_str[12], gid_str[12];
+char *opt_uid = uid_str;
+char *opt_gid = gid_str;
 static char *vars[8];
+static char *literal_dollar = "$"; /* ${dollar}: a literal '$' in maps */
+
+/*
+ * GLOBALS
+ */
+struct am_opts fs_static;	/* copy of the options to play with */
 
 
 /*
@@ -122,7 +130,7 @@ static char *vars[8];
  */
 static struct opt opt_fields[] = {
   /* Name and length.
-	Option str.		Selector str.	boolean fxn.	flags */
+	Option str.		Selector str.	boolean fxn.	case sensitive */
   { S("opts"),
        &fs_static.opt_opts,	0,		0, 		FALSE	},
   { S("host"),
@@ -149,8 +157,6 @@ static struct opt opt_fields[] = {
 	&fs_static.opt_dev,	0,		0,		FALSE	},
   { S("pref"),
 	&fs_static.opt_pref,	0,		0,		FALSE	},
-  { S("autopref"),
-	&fs_static.opt_autopref,0,		0,		FALSE	},
   { S("path"),
 	0,			&opt_path,	0,		FALSE	},
   { S("autodir"),
@@ -195,12 +201,19 @@ static struct opt opt_fields[] = {
 	0,			&opt_dkey,	0,		FALSE	},
   { S("key."),
 	0,			&opt_keyd,	0,		FALSE	},
+  /* XXX: should maptype really be a variable? I think selector. -Erez */
   { S("maptype"),
 	&fs_static.opt_maptype,	0,		0,		FALSE	},
   { S("cachedir"),
 	&fs_static.opt_cachedir, 0,		0,		FALSE	},
   { S("addopts"),
-       &fs_static.opt_addopts,	0,		0, 		FALSE	},
+	&fs_static.opt_addopts,	0,		0, 		FALSE	},
+  { S("uid"),
+	0,			&opt_uid,	0,		FALSE	},
+  { S("gid"),
+	0,			&opt_gid,	0, 		FALSE	},
+  { S("dollar"),
+	&literal_dollar,	0,		0,		FALSE	},
   { S("var0"),
 	&vars[0],		0,		0,		FALSE	},
   { S("var1"),
@@ -303,7 +316,7 @@ backslash(char **p)
   if (**p == '\\') {
     (*p)++;
     switch (**p) {
-    case 'a':
+    case 'g':
       c = '\007';		/* Bell */
       break;
     case 'b':
@@ -856,7 +869,7 @@ normalize_slash(char *p)
 static void
 expand_op(opt_apply *p, int sel_p)
 {
-  static char expand_error[] = "No space to expand \"%s\"";
+  static const char expand_error[] = "No space to expand \"%s\"";
   char expbuf[MAXPATHLEN + 1];
   char nbuf[NLEN + 1];
   char *ep = expbuf;
