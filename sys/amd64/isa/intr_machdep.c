@@ -52,7 +52,6 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
@@ -412,11 +411,6 @@ isa_irq_pending()
 	return ((irr2 << 8) | irr1);
 }
 #endif
-
-SYSCTL_OPAQUE(_kern, OID_AUTO, intrcnt, CTLFLAG_RD, intrcnt,
-	4*NR_INTRNAMES, "LU", "Interrupt counts");
-SYSCTL_OPAQUE(_kern, OID_AUTO, intrnames, CTLFLAG_RD, intrnames,
-	16*NR_INTRNAMES, "S", "Interrupt names");
 
 /*
  * Update intrnames array with the specified name.  This is used by
