@@ -1133,8 +1133,8 @@ zone_dtor(void *arg, int size, void *udata)
 
 	ZONE_LOCK(zone);
 	if (zone->uz_free != 0)
-		printf("Zone %s was not empty.  Lost %d pages of memory.\n",
-		    zone->uz_name, zone->uz_pages);
+		printf("Zone %s was not empty (%d items).  Lost %d pages of memory.\n",
+		    zone->uz_name, zone->uz_free, zone->uz_pages);
 
 	if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) == 0)
 		for (cpu = 0; cpu < maxcpu; cpu++)
