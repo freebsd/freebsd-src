@@ -128,7 +128,6 @@ static void	acpi_probe_children(device_t bus);
 static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 			void *context, void **status);
-static void	acpi_shutdown_pre_sync(void *arg, int howto);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_shutdown_poweroff(void *arg);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
@@ -522,16 +521,12 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
-    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-	OID_AUTO, "disable_on_poweroff", CTLFLAG_RD | CTLFLAG_RW,
-	&sc->acpi_disable_on_poweroff, 0, "ACPI subsystem disable on poweroff");
 
     /*
      * Default to 1 second before sleeping to give some machines time to
      * stabilize.
      */
     sc->acpi_sleep_delay = 1;
-    sc->acpi_disable_on_poweroff = 0;
     if (bootverbose)
 	sc->acpi_verbose = 1;
     if ((env = getenv("hw.acpi.verbose")) && strcmp(env, "0")) {
@@ -574,9 +569,7 @@ acpi_attach(device_t dev)
     }
 #endif
 
-    /* Register our shutdown handlers */
-    EVENTHANDLER_REGISTER(shutdown_pre_sync, acpi_shutdown_pre_sync, sc,
-	SHUTDOWN_PRI_LAST);
+    /* Register our shutdown handler. */
     EVENTHANDLER_REGISTER(shutdown_final, acpi_shutdown_final, sc,
 	SHUTDOWN_PRI_LAST);
 
@@ -1269,29 +1262,9 @@ acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
 }
 
 static void
-acpi_shutdown_pre_sync(void *arg, int howto)
-{
-    struct acpi_softc *sc = arg;
-
-    ACPI_ASSERTLOCK;
-
-    /*
-     * Disable all ACPI events before soft off, otherwise the system
-     * will be turned on again on some laptops.
-     *
-     * XXX this should probably be restricted to masking some events just
-     *     before powering down, since we may still need ACPI during the
-     *     shutdown process.
-     */
-    if (sc->acpi_disable_on_poweroff)
-	acpi_Disable(sc);
-}
-
-static void
 acpi_shutdown_final(void *arg, int howto)
 {
     ACPI_STATUS	status;
-    ACPI_ASSERTLOCK;
 
     /*
      * If powering off, run the actual shutdown code on each processor.
@@ -1321,8 +1294,6 @@ static void
 acpi_shutdown_poweroff(void *arg)
 {
     ACPI_STATUS	status;
-
-    ACPI_ASSERTLOCK;
 
     /* Only attempt to power off if this is the BSP (cpuid 0). */
     if (PCPU_GET(cpuid) != 0)
