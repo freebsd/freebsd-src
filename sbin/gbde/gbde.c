@@ -276,7 +276,7 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 	/* gctl_dump(r, stdout); */
 	errstr = gctl_issue(r);
 	if (errstr != NULL)
-		errx(1, "Attach to %s failed: %s\n", dest, errstr);
+		errx(1, "Attach to %s failed: %s", dest, errstr);
 
 	exit (0);
 }
@@ -296,7 +296,7 @@ cmd_detach(const char *dest)
 	/* gctl_dump(r, stdout); */
 	errstr = gctl_issue(r);
 	if (errstr != NULL)
-		errx(1, "Detach of %s failed: %s\n", dest, errstr);
+		errx(1, "Detach of %s failed: %s", dest, errstr);
 	exit (0);
 }
 
