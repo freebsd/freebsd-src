@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.29 1998/05/08 18:49:59 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.30 1998/05/08 18:50:24 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -920,7 +920,7 @@ on ui-gate (the receiver) should contain the following:
 ppp-in:
  set timeout 0
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.1.0 255.255.255.0 10.0.4.2
+ add 10.0.1.0/24 10.0.4.2
 .Ed
 .Pp
 You may also want to enable PAP or CHAP for security.  To enable PAP, add
@@ -954,7 +954,7 @@ ui-gate:
  set timeout 30
  set log Phase Chat Connect hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.2.0 255.255.255.0 10.0.4.1
+ add 10.0.2.0/24 10.0.4.1
 .Ed
 .Pp
 Again, if you're enabling PAP, you'll also need:
@@ -1904,19 +1904,21 @@ not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
 .El
 .Pp
-.It add[!] Ar dest mask gateway
+.It add[!] Ar dest[/nn] [mask] gateway
 .Ar Dest
-is the destination IP address and
-.Ar mask
-is its netmask.
+is the destination IP address.  The netmask is specified either as a
+number of bits with
+.Ar /nn
+or as an IP number using
+.Ar mask .
 .Ar 0 0
-refers to the default route, and it is possible to use the symbolic name
+or simply
+.Ar 0
+with no mask refers to the default route.  It is also possible to use the
+literal name
 .Sq default
-in place of both the
-.Ar dest
-and
-.Ar mask
-arguments.
+instead of
+.Ar 0 .
 .Ar Gateway
 is the next hop gateway to get to the given
 .Ar dest

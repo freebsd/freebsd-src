@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.80 1998/05/08 18:49:53 brian Exp $
+ * $Id: command.c,v 1.131.2.81 1998/05/08 18:50:14 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/08 18:49:53 $";
+const char VersionDate[] = "$Date: 1998/05/08 18:50:14 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1436,9 +1436,19 @@ AddCommand(struct cmdargs const *arg)
 
   addrs = 0;
   if (arg->argc == arg->argn+2) {
-    if (strcasecmp(arg->argv[arg->argn], "default"))
-      return -1;
-    dest.s_addr = netmask.s_addr = INADDR_ANY;
+    if (!strcasecmp(arg->argv[arg->argn], "default"))
+      dest.s_addr = netmask.s_addr = INADDR_ANY;
+    else {
+      int width;
+
+      if (!ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+	             &dest, &netmask, &width))
+        return -1;
+      if (!strncasecmp(arg->argv[arg->argn], "MYADDR", 6))
+        addrs = ROUTE_DSTMYADDR;
+      else if (!strncasecmp(arg->argv[arg->argn], "HISADDR", 7))
+        addrs = ROUTE_DSTHISADDR;
+    }
     gw = 1;
   } else {
     if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0) {
@@ -1452,6 +1462,7 @@ AddCommand(struct cmdargs const *arg)
     netmask = GetIpAddr(arg->argv[arg->argn+1]);
     gw = 2;
   }
+
   if (strcasecmp(arg->argv[arg->argn+gw], "HISADDR") == 0) {
     gateway = arg->bundle->ncp.ipcp.peer_ip;
     addrs |= ROUTE_GWHISADDR;
@@ -1459,9 +1470,11 @@ AddCommand(struct cmdargs const *arg)
     gateway.s_addr = INADDR_ANY;
   else
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
+
   if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
                   arg->cmd->args ? 1 : 0))
     route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
+
   return 0;
 }
 
