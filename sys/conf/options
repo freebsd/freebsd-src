@@ -108,6 +108,8 @@ MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
+MPROF_BUFFERS	opt_mprof.h
+MPROF_HASH_SIZE	opt_mprof.h
 MUTEX_WAKE_ALL
 NSWBUF_MIN	opt_swap.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
