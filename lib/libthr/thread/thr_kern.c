@@ -50,20 +50,12 @@
 
 static sigset_t restore;
 
-pthread_t _giant_owner = NULL;
-int _giant_count = 0;
-
 void
 GIANT_LOCK(pthread_t pthread)
 {
 	sigset_t set;
 	sigset_t sav;
 	int error;
-
-	if (_giant_owner == pthread) {
-		abort();
-		_giant_count++;
-	}
 
 	/*
 	 * Block all signals.
@@ -88,9 +80,6 @@ GIANT_LOCK(pthread_t pthread)
 		abort();
 	}
 	
-	_giant_owner = pthread;
-	_giant_count = 1;
-
 	restore = sav;
 }
 
@@ -99,14 +88,6 @@ GIANT_UNLOCK(pthread_t pthread)
 {
 	sigset_t set;
 	int error;
-
-	if (_giant_owner != pthread)
-		abort();
-
-	if (--_giant_count > 0)
-		return;
-
-	_giant_owner = NULL;
 
 	/*
 	 * restore is protected by giant.  We could restore our signal state
@@ -135,13 +116,12 @@ GIANT_UNLOCK(pthread_t pthread)
 }
 
 int
-_thread_suspend(pthread_t thread, struct timespec *abstime)
+_thread_suspend(pthread_t pthread, struct timespec *abstime)
 {
 	struct timespec remaining;
 	struct timespec *ts;
 	siginfo_t info;
 	sigset_t set;
-	int giant_count;	/* Saved recursion */
 	int error;
 
 	/*
@@ -150,6 +130,9 @@ _thread_suspend(pthread_t thread, struct timespec *abstime)
 	SIGFILLSET(set);
 	SIGDELSET(set, SIGTHR);
 
+	/*
+	 * Compute the remainder of the run time.
+	 */
 	if (abstime) {
 		struct timespec now;
 		struct timeval tv;
@@ -163,26 +146,9 @@ _thread_suspend(pthread_t thread, struct timespec *abstime)
 	} else
 		ts = NULL;
 
-	/*
-	 * Save and unroll the recursion count.
-	 */
-	giant_count = _giant_count;
-	_giant_count = 1;
-	GIANT_UNLOCK(thread);
-
 	error = sigtimedwait(&set, &info, ts);
 	if (error == -1)
 		error = errno;
-
-	/* XXX Kernel bug. */
-	if (error == EINTR)
-		error = 0;
-
-	/*
-	 * Restore the recursion count.
-	 */
-	GIANT_LOCK(thread);
-	_giant_count = giant_count;
 
 	return (error);
 }
