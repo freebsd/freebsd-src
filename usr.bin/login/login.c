@@ -297,8 +297,7 @@ main(int argc, char *argv[])
 			pam_syslog("pam_set_item(PAM_TTY)");
 			bail(NO_SLEEP_EXIT, 1);
 		}
-		pam_err = pam_set_item(pamh, PAM_RHOST,
-		    hostname == NULL ? "localhost" : hostname);
+		pam_err = pam_set_item(pamh, PAM_RHOST, hostname);
 		if (pam_err != PAM_SUCCESS) {
 			pam_syslog("pam_set_item(PAM_RHOST)");
 			bail(NO_SLEEP_EXIT, 1);
