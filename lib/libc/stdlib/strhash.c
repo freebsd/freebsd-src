@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/usr.bin/dmenu/hash.c,v 1.1 1995/02/25 02:16:34 jkh Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.1 1995/03/26 10:21:55 jkh Exp $";
 #endif
 
 /*
@@ -36,7 +36,12 @@ static char *rcsid = "$Header: /home/ncvs/src/usr.bin/dmenu/hash.c,v 1.1 1995/02
  */
 
 /*
- * $Log: hash.c,v $
+ * $Log: strhash.c,v $
+ * Revision 1.1  1995/03/26  10:21:55  jkh
+ * Add the strhash family of routines.  They provide a number of features
+ * that the db/hash functions don't, and they're much simpler to use for
+ * low-overhead string hashing.
+ *
  * Revision 1.1  1995/02/25  02:16:34  jkh
  * Second version of this - now support the essentials of a basic
  * attributed file system for storing menu information and command
@@ -156,7 +161,7 @@ _hash(int size, char *key)
     unsigned int h = 0x0;
 
     while (*key){
-	h = (h << 1) ^ (h ^ *key++);
+	h = (h << 1) ^ (h ^ (unsigned char) *key++);
     }	
 
     h %= size;
