@@ -1,22 +1,9 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.6 1995/08/31 00:14:02 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.8 1995/10/07 22:28:34 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
 # project.  
-#
-# Usage: sgmlformat -format [-format ...] [-links] inputfile [inputfile ...]
-#
-#  -format              outputfile         format
-#  -------------------------------------------------------------
-#   -html               inputfile.html     HTML
-#   -txt | -ascii       inputfile.ascii    ascii text
-#   -tex | -latex       inputfile.tex      LaTeX
-#   -nroff              inputfile.nroff    groff for ms macros
-#   -ps                 inputfile.ps       postscript
-#
-#   -links              For each <label id="foo">, make a symbolic
-#                       link foo.html -> inputfile-n.html.  
 #
 # Bugs:
 #
@@ -26,6 +13,8 @@
 #
 # Although legal by the DTD, it the ascii formatting gets botched if
 # the <heading></heading> tags are omitted following a <sect?>.
+#
+# Beginning and end tags for the <tag> element must occur on the same line.
 #
 # The whole approach of using sgmlsasp and passing a few things
 # through for processing by this script is doomed.  This whole thing
@@ -71,7 +60,7 @@ if (! $ENV{"SGML_PATH"}) {
 
 sub usage {
     print "Usage:\n";
-    print "sgmlfmt -f <format> [-i <namea> [-i <nameb> ...]] [-links] filename[.sgml]\n";
+    print "sgmlfmt -f <format> [-i <namea> ...] [-links] [-ssi] file\n";
     print "where <format> is one of: html, latex, ascii, nroff\n";
 }
 #
@@ -247,7 +236,7 @@ sub gen_html {
 	print bar;
 	# count up the number of files to be generated
 	# and gather assorted info about the document structure
-	if (/^<@@sect>/) {
+	if (/^<\@\@sect>/) {
 	    $sl++;		# current section level
 	    $sc++;		# current section number
 	    $st_sl[$sc] = $sl;
@@ -289,21 +278,21 @@ sub gen_html {
 		$st_pl[$sc] = $maxlevel;
 	    } 
 	}
-	if (/^<@@endsect>/) {
+	if (/^<\@\@endsect>/) {
 	    $sl--;
 	}
 
 	# record section titles
-	if (/^<@@head>/) {
+	if (/^<\@\@head>/) {
 	    chop;
-	    s/^<@@head>//;
+	    s/^<\@\@head>//;
 	    $st_header[$sc] = $_;
 	}
 
 	# record the section number that a label occurs in
-	if (/^<@@label>/) {
+	if (/^<\@\@label>/) {
 	    chop;
-	    s/^<@@label>//;
+	    s/^<\@\@label>//;
 	    if ($references{$_} eq "") {
 		$references{$_} = "$filecount";
 		if ($opt_links) {
@@ -353,23 +342,35 @@ sub html2html {
 
       tagsw: {
 	  # titles and headings
-	  if (s/^<@@title>//) {
+	  if (s/^<\@\@title>//) {
 	      chop;
 	      $st_header[0] = $_;
 	      $st_parent[0] = -1;
 	      print tocfile "<HEAD>\n<TITLE>$st_header[0]</TITLE>\n</HEAD>\n";
 	      print tocfile "<H1>$st_header[0]</H1>\n";
+
 	      $header[$st_ol[$sc]] = 
 		  "<HTML>\n<HEAD>\n<TITLE>$st_header[0]</TITLE>\n" . 
-		      "</HEAD>\n<BODY>\n<H1>$st_header[0]</H1>\n"; 
-	      $footer[$st_ol[$sc]] = "</BODY>\n</HTML>\n";
+		      "</HEAD>\n<BODY>\n";
+	      if ($opt_ssi) {	# Server Side Include hook
+		  $header[$st_ol[$sc]] .=
+		      "<!--#include virtual=\"./$fileroot.hdr\" -->";
+	      }
+	      $header[$st_ol[$sc]] .= "\n<H1>$st_header[0]</H1>\n"; 
+
+	      $footer[$st_ol[$sc]] = "\n";
+	      if ($opt_ssi) {	# Server Side Include hook
+		  $footer[$st_ol[$sc]] .= 
+		      "<!--#include virtual=\"./$fileroot.ftr\" -->";
+	      }
+	      $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>\n";
 	      last tagsw;
 	  }
 
 	  #
 	  # HEADER begin
 	  #
-	  if (s/^<@@head>//) {
+	  if (s/^<\@\@head>//) {
 	      chop;
 
 	      if ($part == 1) {
@@ -382,10 +383,18 @@ sub html2html {
 	      # set up headers and footers
 	      if ($st_sl[$sc] > 0 && $st_sl[$sc] <= $maxlevel) {
 		  $header[$st_ol[$sc]] = 
-		      "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n" .
-			  "<BODY>\n$navbar[$st_ol[$sc]]\n<HR>\n";
-		  $footer[$st_ol[$sc]] =
-		      "<HR>\n$navbar[$st_ol[$sc]]\n</BODY>\n</HTML>";
+		      "<HTML>\n<HEAD>\n<TITLE>$_</TITLE>\n</HEAD>\n<BODY>\n";
+		  if ($opt_ssi) { # Server Side Include hook
+		      $header[$st_ol[$sc]] .=
+			  "<!--#include virtual=\"./$fileroot.hdr$st_ol[$sc]\" -->";
+		  }
+		  $header[$st_ol[$sc]] .= "\n$navbar[$st_ol[$sc]]\n<HR>\n";
+		  $footer[$st_ol[$sc]] = "<HR>\n$navbar[$st_ol[$sc]]\n";
+		  if ($opt_ssi) { # Server Side Include hook
+		      $footer[$st_ol[$sc]] .=
+			  "<!--#include virtual=\"./$fileroot.ftr$st_ol[$sc]\" -->";
+		  }
+                  $footer[$st_ol[$sc]] .= "\n</BODY>\n</HTML>";
 	      }
 
 	      # Add this to the master table of contents
@@ -421,7 +430,7 @@ sub html2html {
 	  #
 	  # HEADER end
 	  #
-	  if (s/^<@@endhead>//) {
+	  if (s/^<\@\@endhead>//) {
 	      if ($part == 1) {
 		  $text[0] .= "</H1>\n";
 		  $part = 0;
@@ -449,7 +458,7 @@ sub html2html {
 	  }
 	  
 	  # sectioning
-	  if (s/^<@@part>//) {
+	  if (s/^<\@\@part>//) {
 	      $part = 1;
 	      $partnum++;
 	      last tagsw;
@@ -458,7 +467,7 @@ sub html2html {
 	  #
 	  # BEGINNING of a section
 	  #
-	  if (s/^<@@sect>//) {
+	  if (s/^<\@\@sect>//) {
 	      # Increment the section counter and save it on a stack
 	      # for future reference.
 	      $sc++;
@@ -484,7 +493,7 @@ sub html2html {
 	  #
 	  # END of a section
 	  #
-	  if (s/^<@@endsect>//) {
+	  if (s/^<\@\@endsect>//) {
 	      
 	      # Remember the section number! Subsections may have
 	      # altered the global $sc variable.
@@ -512,12 +521,12 @@ sub html2html {
 	  }		
 
 	  # cross references
-	  if (s/^<@@label>//) {
+	  if (s/^<\@\@label>//) {
 	      chop;
 	      $text[$st_ol[$sc]] .= "<A NAME=\"$_\"></A>";
 	      last tagsw;
 	  }
-	  if (s/^<@@ref>//) {
+	  if (s/^<\@\@ref>//) {
 	      chop;
 	      $refname = $_;
 	      if ($references{$_} eq "") {
@@ -529,26 +538,26 @@ sub html2html {
 	      }
 	      last tagsw;
 	  }
-	  if (s/^<@@endref>//) {
+	  if (s/^<\@\@endref>//) {
 #	      $text[$st_ol[$sc]] .= "</A>";
 	      last tagsw;
 	  }
-	  if (s/^<@@refnam>//) {
+	  if (s/^<\@\@refnam>//) {
 	      $text[$st_ol[$sc]] .= "$refname</A>";
 	      last tagsw;
 	  }
 	  # URLs
-	  if (s/^<@@url>//) {
+	  if (s/^<\@\@url>//) {
 	      chop;
 	      $urlname = $_;
 	      $text[$st_ol[$sc]] .= "<A HREF=\"$urlname\">";
 	      last tagsw;
 	  }
-	  if (s/^<@@urlnam>//) {
+	  if (s/^<\@\@urlnam>//) {
 	      $text[$st_ol[$sc]] .= "$urlname</A>";
 	      last tagsw;
 	  }
-	  if (s/^<@@endurl>//) {
+	  if (s/^<\@\@endurl>//) {
 #	      $text[$st_ol[$sc]] .= "</A>";
 	      last tagsw;
 	  }
@@ -572,18 +581,20 @@ sub html2html {
 
 sub navbar {
     local ($fnum, $fmax, $sc) = @_;
-    local ($i, $itext, $prv, $nxt);
+    local ($i, $itext, $prv, $nxt, $colon);
+
+    $colon = "<b>:</b>";
 
     # Generate the section hierarchy
 
     $navbar[$st_ol[$sc]] =
-	"<B><A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
+	"<A HREF=\"${fileroot}.html\"><EM>$st_header[0]</EM></A>\n";
     $i = $st_parent[$sc];
     while ($i > 0) {
-	$itext = " : <A HREF=\"${fileroot}$st_file[$i].html\"><EM>$st_header[$i]</EM></A>\n$itext";
+	$itext = " $colon <A HREF=\"${fileroot}$st_file[$i].html\"><EM>$st_header[$i]</EM></A>\n$itext";
 	$i = $st_parent[$i];
     }
-    $navbar[$st_ol[$sc]] .= "$itext : <EM>$st_header[$sc]</EM><BR>\n";
+    $navbar[$st_ol[$sc]] .= "$itext $colon <EM>$st_header[$sc]</EM><BR>\n";
 
     # Generate previous and next pointers
 
@@ -598,7 +609,7 @@ sub navbar {
     }
     $prv++;
     $navbar[$st_ol[$sc]] .=
-	"Previous: <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
+	"<b>Previous:</b> <A HREF=\"${fileroot}$st_file[$prv].html\"><EM>$st_header[$prv]</EM></A><BR>\n";
 
     # Then next pointer must be in a higher numbered file OR the home
     # page of the document.
@@ -614,9 +625,9 @@ sub navbar {
     }
 
     $navbar[$st_ol[$sc]] .=
-	"Next: <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
+	"<b>Next:</b> <A HREF=\"${fileroot}$st_file[$nxt].html\"><EM>$st_header[$nxt]</EM></A>\n";
 
-    $navbar[$st_ol[$sc]] .= "</B>\n";
+    $navbar[$st_ol[$sc]] .= "\n";
 
 }
 
@@ -657,7 +668,7 @@ sub extlink {
 
 sub main {
     # Check arguments
-    if (!&NGetOpt('f=s', 'links', 'i:s@')) {
+    if (!&NGetOpt('f=s', 'links', 'ssi', 'i:s@')) {
 	&usage;
 	exit 1;
     }
