@@ -25,10 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: decode.c,v 1.5 1997/02/22 16:14:07 peter Exp $
  */
 
 #include <stdio.h>
+#include <string.h>
+#include "decode.h"
 
 int decode(FILE *fd, char *buffer)
 {
