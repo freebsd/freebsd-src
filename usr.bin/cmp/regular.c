@@ -45,7 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 static u_char *remmap(u_char *, int, off_t);
+static void segv_handler(int);
 #define MMAP_CHUNK (8*1024*1024)
 
 #define ROUNDPAGE(i) ((i) & ~pagemask)
@@ -67,6 +70,7 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	int dfound;
 	off_t pagemask, off1, off2;
 	size_t pagesize;
+	struct sigaction act, oact;
 
 	if (skip1 > len1)
 		eofmsg(file1);
@@ -77,6 +81,12 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 
 	if (sflag && len1 != len2)
 		exit(DIFF_EXIT);
+
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = SA_NODEFER;
+	act.sa_handler = segv_handler;
+	if (sigaction(SIGSEGV, &act, &oact))
+		err(ERR_EXIT, "sigaction()");
 
 	pagesize = getpagesize();
 	pagemask = (off_t)pagesize - 1;
@@ -138,6 +148,9 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	munmap(m1, MMAP_CHUNK);
 	munmap(m2, MMAP_CHUNK);
 
+	if (sigaction(SIGSEGV, &oact, NULL))
+		err(ERR_EXIT, "sigaction()");
+
 	if (len1 != len2)
 		eofmsg (len1 > len2 ? file2 : file1);
 	if (dfound)
@@ -154,4 +167,12 @@ remmap(u_char *mem, int fd, off_t offset)
 		return (NULL);
 	madvise(mem, MMAP_CHUNK, MADV_SEQUENTIAL);
 	return (mem);
+}
+
+static void
+segv_handler(int sig) {
+	static const char msg[] = "cmp: Input/output error (caught SIGSEGV)\n";
+
+	write(STDERR_FILENO, msg, sizeof(msg));
+	_exit(EXIT_FAILURE);
 }
