@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.8 1996/05/09 23:04:32 mpp Exp $
+# $Id: ctm.sgml,v 1.9 1996/05/16 23:17:50 mpp Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -59,6 +59,8 @@
         FTP sites support access to <tt/CTM/:
 
         <url url="ftp://freefall.cdrom.com/pub/CTM">
+
+	or see section <ref id="mirrors" name="mirrors">.
 
         FTP the relevant directory and fetch the <tt/README/ file,
         starting from there.
