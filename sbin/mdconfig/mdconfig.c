@@ -148,7 +148,9 @@ main(int argc, char **argv)
 				optarg += 5;
 			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
 				optarg += 2;
-			mdio.md_unit = strtoul(optarg, NULL, 0);
+			mdio.md_unit = strtoul(optarg, &p, 0);
+			if ((unsigned)mdio.md_unit == ULONG_MAX || *p != '\0')
+				errx(1, "bad unit: %s", optarg);
 			mdio.md_options &= ~MD_AUTOUNIT;
 			break;
 		default:
@@ -160,6 +162,10 @@ main(int argc, char **argv)
 	fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "open(/dev/%s)", MDCTL_NAME);
+	if (cmdline == 2
+	    && (mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP))
+		if (mdio.md_size == 0)
+			errx(1, "must specify -s for -t malloc or -t swap");
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			list(fd);
