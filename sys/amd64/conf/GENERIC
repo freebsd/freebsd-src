@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.105 1998/01/24 02:54:09 eivind Exp $
+#	$Id: GENERIC,v 1.106 1998/02/16 00:29:05 msmith Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -38,8 +38,6 @@ options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
 options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
-
-options		DISABLE_PSE		#disable broken PSE support
 
 config		kernel	root on wd0
 
