@@ -206,7 +206,9 @@
       <title>Network Protocols</title>
 
       <para>&man.ipfw.4; <literal>skipto</literal> rules can once
-        again be used with the <literal>log</literal> keyword.</para>
+        again be used with the <literal>log</literal> keyword.
+	&man.ipfw.4; <literal>uid</literal> rules are once again
+        working.</para>
 
       <para>It is now possible to build the
         <literal>FAST_IPSEC</literal> and <literal>INET6</literal>
@@ -271,6 +273,9 @@
 
     <sect3>
       <title>Filesystems</title>
+
+      <para>NETNCP and Netware Filesystem Support (nwfs) are once
+	again working.</para>
 
       <para>Bugs that could cause the unmounting of a smbfs share to
 	fail or cause a kernel panic have been fixed.</para>
