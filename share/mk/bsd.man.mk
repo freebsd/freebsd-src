@@ -59,7 +59,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 MCOMPRESS=	gzip -c
 ZEXTENSION=	.gz
 
-SECTIONS=	1 2 3 3f 4 5 6 7 8 9 n
+SECTIONS=	1 2 3 4 5 6 7 8 9 n
 
 .undef _MANPAGES
 .for sect in ${SECTIONS}
