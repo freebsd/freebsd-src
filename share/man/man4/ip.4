@@ -125,11 +125,19 @@ call will return the destination
 address for a
 .Tn UDP
 datagram.
-The msg_control field in the msghdr structure points to a buffer
-that contains a cmsghdr structure followed by the
+The
+.Vt msg_control
+field in the
+.Vt msghdr
+structure points to a buffer
+that contains a
+.Vt cmsghdr
+structure followed by the
 .Tn IP
 address.
-The cmsghdr fields have the following values:
+The
+.Vt cmsghdr
+fields have the following values:
 .Bd -literal
 cmsg_len = sizeof(struct in_addr)
 cmsg_level = IPPROTO_IP
@@ -143,7 +151,9 @@ datagrams on a socket that is not bound to a specific
 address can be specified as ancillary data with a type code of
 .Dv IP_SENDSRCADDR .
 The msg_control field in the msghdr structure should point to a buffer
-that contains a cmsghdr structure followed by the
+that contains a
+.Vt cmsghdr
+structure followed by the
 .Tn IP
 address.
 The cmsghdr fields should have the following values:
@@ -177,7 +187,7 @@ call will return the
 .Tn UDP
 datagram.
 The msg_control field in the msghdr structure points to a buffer
-that contains a cmsghdr structure followed by the 
+that contains a cmsghdr structure followed by the
 .Tn TTL .
 The cmsghdr fields have the following values:
 .Bd -literal
@@ -186,16 +196,27 @@ cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
 .Ed
 .Pp
-If the 
-.Dv IP_RECVIF 
-option is enabled on a 
+If the
+.Dv IP_RECVIF
+option is enabled on a
 .Dv SOCK_DGRAM
-socket, the 
-.Xr recvmsg 2 
-call returns a struct sockaddr_dl corresponding to the interface on which the   
-packet was received. The msg_control field in the msghdr structure points     
-to a buffer that contains a cmsghdr structure followed by the 
-struct sockaddr_dl. The cmsghdr fields have the following values:
+socket, the
+.Xr recvmsg 2
+call returns a
+.Vt "struct sockaddr_dl"
+corresponding to the interface on which the
+packet was received.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by the
+.Vt "struct sockaddr_dl" .
+The
+.Vt cmsghdr
+fields have the following values:
 .Bd -literal
 cmsg_len = sizeof(struct sockaddr_dl)
 cmsg_level = IPPROTO_IP
@@ -230,7 +251,8 @@ and
 use a low range of ports, which are normally restricted to
 privileged processes on
 .Ux
-systems.  The range is normally from
+systems.
+The range is normally from
 .Dv IPPORT_RESERVED
 \- 1 down to
 .Li IPPORT_RESERVEDSTART
@@ -287,7 +309,8 @@ Datagrams with a TTL of 1 are not forwarded beyond the local network.
 Multicast datagrams with a TTL of 0 will not be transmitted on any network,
 but may be delivered locally if the sending host belongs to the destination
 group and if multicast loopback has not been disabled on the sending socket
-(see below).  Multicast datagrams with TTL greater than 1 may be forwarded
+(see below).
+Multicast datagrams with TTL greater than 1 may be forwarded
 to other networks if a multicast router is attached to the local network.
 .Pp
 For hosts with multiple interfaces, each multicast transmission is
@@ -329,18 +352,20 @@ setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 This option
 improves performance for applications that may have no more than one
 instance on a single host (such as a router daemon), by eliminating
-the overhead of receiving their own transmissions.  It should generally not
+the overhead of receiving their own transmissions.
+It should generally not
 be used by applications for which there may be more than one instance on a
 single host (such as a conferencing program) or for which the sender does
 not belong to the destination group (such as a time querying program).
 .Pp
 A multicast datagram sent with an initial TTL greater than 1 may be delivered
 to the sending host on a different interface from that on which it was sent,
-if the host belongs to the destination group on that other interface.  The
-loopback control option has no effect on such delivery.
+if the host belongs to the destination group on that other interface.
+The loopback control option has no effect on such delivery.
 .Pp
 A host must become a member of a multicast group before it can receive
-datagrams sent to the group.  To join a multicast group, use the
+datagrams sent to the group.
+To join a multicast group, use the
 .Dv IP_ADD_MEMBERSHIP
 option:
 .Bd -literal
@@ -487,7 +512,7 @@ The following errors specific to
 may occur when setting or getting
 .Tn IP
 options:
-.Bl -tag -width EADDRNOTAVAILxx
+.Bl -tag -width Er
 .It Bq Er EINVAL
 An unknown socket option name was given.
 .It Bq Er EINVAL
