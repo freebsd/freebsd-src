@@ -42,10 +42,10 @@ static char *rcsid = "$FreeBSD$";
  * arrays.  See xdr.h for more info on the interface to xdr.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
