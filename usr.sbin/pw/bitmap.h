@@ -38,13 +38,13 @@ struct bitmap
 };
 
 __BEGIN_DECLS
-struct bitmap bm_alloc __P((int size));
-void bm_dealloc __P((struct bitmap * bm));
-void bm_setbit __P((struct bitmap * bm, int pos));
-void bm_clrbit __P((struct bitmap * bm, int pos));
-int bm_isset __P((struct bitmap * bm, int pos));
-int bm_firstunset __P((struct bitmap * bm));
-int bm_lastset __P((struct bitmap * bm));
+struct bitmap bm_alloc(int size);
+void bm_dealloc(struct bitmap * bm);
+void bm_setbit(struct bitmap * bm, int pos);
+void bm_clrbit(struct bitmap * bm, int pos);
+int bm_isset(struct bitmap * bm, int pos);
+int bm_firstunset(struct bitmap * bm);
+int bm_lastset(struct bitmap * bm);
 __END_DECLS
 
 #endif				/* !_BITMAP_H */
