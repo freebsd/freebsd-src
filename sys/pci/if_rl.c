@@ -1236,6 +1236,8 @@ rl_rxeof(sc)
 	u_int16_t		limit;
 	u_int16_t		rx_bytes = 0, max_bytes;
 
+	RL_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	bus_dmamap_sync(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
@@ -1336,7 +1338,9 @@ rl_rxeof(sc)
 			continue;
 
 		ifp->if_ipackets++;
+		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		RL_LOCK(sc);
 	}
 
 	return;

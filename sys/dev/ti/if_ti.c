@@ -2384,6 +2384,8 @@ ti_rxeof(sc)
 	struct ifnet		*ifp;
 	struct ti_cmd_desc	cmd;
 
+	TI_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	while(sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
@@ -2479,7 +2481,9 @@ ti_rxeof(sc)
 		 */
 		if (have_tag)
 			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
+		TI_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		TI_LOCK(sc);
 	}
 
 	/* Only necessary on the Tigon 1. */

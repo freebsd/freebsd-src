@@ -693,6 +693,8 @@ ste_rxeof(sc)
 	int			total_len = 0, count=0;
 	u_int32_t		rxstat;
 
+	STE_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
@@ -750,7 +752,9 @@ ste_rxeof(sc)
 		m->m_pkthdr.len = m->m_len = total_len;
 
 		ifp->if_ipackets++;
+		STE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		STE_LOCK(sc);
 
 		cur_rx->ste_ptr->ste_status = 0;
 		count++;

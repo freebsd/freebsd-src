@@ -833,6 +833,8 @@ an_rxeof(sc)
 	struct an_card_rx_desc an_rx_desc;
 	u_int8_t	*buf;
 
+	AN_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	if (!sc->mpi350) {
@@ -981,7 +983,9 @@ an_rxeof(sc)
 				rx_frame.an_rx_signal_strength,
 				rx_frame.an_rsvd0);
 #endif
+			AN_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			AN_LOCK(sc);
 		}
 
 	} else { /* MPI-350 */

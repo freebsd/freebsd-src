@@ -1132,6 +1132,8 @@ wb_rxeof(sc)
 	int			total_len = 0;
 	u_int32_t		rxstat;
 
+	WB_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	while(!((rxstat = sc->wb_cdata.wb_rx_head->wb_ptr->wb_status) &
@@ -1186,7 +1188,9 @@ wb_rxeof(sc)
 		m = m0;
 
 		ifp->if_ipackets++;
+		WB_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		WB_LOCK(sc);
 	}
 }
 

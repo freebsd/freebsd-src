@@ -796,6 +796,8 @@ pcn_rxeof(sc)
 	struct pcn_rx_desc	*cur_rx;
 	int			i;
 
+	PCN_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 	i = sc->pcn_cdata.pcn_rx_prod;
 
@@ -833,7 +835,9 @@ pcn_rxeof(sc)
 		    cur_rx->pcn_rxlen - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
+		PCN_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		PCN_LOCK(sc);
 	}
 
 	sc->pcn_cdata.pcn_rx_prod = i;

@@ -1061,6 +1061,8 @@ vr_rxeof(sc)
 	int			total_len = 0;
 	u_int32_t		rxstat;
 
+	VR_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	while(!((rxstat = sc->vr_cdata.vr_rx_head->vr_ptr->vr_status) &
@@ -1122,7 +1124,9 @@ vr_rxeof(sc)
 		m = m0;
 
 		ifp->if_ipackets++;
+		VR_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		VR_LOCK(sc);
 	}
 
 	return;
