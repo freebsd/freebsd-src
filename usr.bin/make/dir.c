@@ -1055,12 +1055,6 @@ Dir_AddDir (path, name)
 	    p->refCount = 1;
 	    Hash_InitTable (&p->files, -1);
 
-	    /*
-	     * Skip the first two entries -- these will *always* be . and ..
-	     */
-	    (void)readdir(d);
-	    (void)readdir(d);
-
 	    while ((dp = readdir (d)) != (struct dirent *) NULL) {
 #if defined(sun) && defined(d_ino) /* d_ino is a sunos4 #define for d_fileno */
 		/*
@@ -1072,6 +1066,18 @@ Dir_AddDir (path, name)
 		    continue;
 		}
 #endif /* sun && d_ino */
+
+		/* Skip the '.' and '..' entries by checking for them specifically
+		 * instead of assuming readdir() reuturns them in that order when
+		 * first going through a directory.  This is needed for XFS over
+		 * NFS filesystems since SGI does not guarantee that these are the
+		 * first two entries returned from readdir().
+		 */
+		if (dp->d_name[0] == '.' &&
+			(dp->d_name[1] == NULL ||
+			(dp->d_name[1] == '.' && dp->d_name[2] == NULL)))
+			continue;
+
 		(void)Hash_CreateEntry(&p->files, dp->d_name, (Boolean *)NULL);
 	    }
 	    (void) closedir (d);
