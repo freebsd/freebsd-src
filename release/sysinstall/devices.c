@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.80 1998/07/18 09:41:57 jkh Exp $
+ * $Id: devices.c,v 1.81 1998/09/13 16:45:10 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -67,15 +67,13 @@ static struct _devname {
     { DEVICE_TYPE_CDROM,	"scd%da",	"Sony CDROM drive - CDU31/33A type",	16, 0, 8, 4, 'b'	},
     { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 17, 0, 8, 4, 'b'	},
     { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",	19, 2, 8, 4, 'b'			},
-    { DEVICE_TYPE_TAPE, 	"rst%d",	"SCSI tape drive",	14, 0, 16, 4, 'c'			},
+    { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4, 'c'			},
     { DEVICE_TYPE_TAPE, 	"rft%d",	"Floppy tape drive (QIC-02)",	9, 32, 64, 4, 'c'		},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"sd%d",		"SCSI disk device",	4, 65538, 8, 16, 'b'			},
-    { DEVICE_TYPE_DISK, 	"rsd%d",	"SCSI disk device",	13, 65538, 8, 16, 'c'			},
+    { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	4, 65538, 8, 16, 'b'			},
+    { DEVICE_TYPE_DISK, 	"rda%d",	"SCSI disk device",	13, 65538, 8, 16, 'c'			},
     { DEVICE_TYPE_DISK, 	"wd%d",		"IDE/ESDI/MFM/ST506 disk device",	0, 65538, 8, 16, 'b'	},
     { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 16, 'c'	},
-    { DEVICE_TYPE_DISK, 	"od%d",		"SCSI optical disk device",	20, 65538, 8, 4, 'b'		},
-    { DEVICE_TYPE_DISK, 	"rod%d",	"SCSI optical disk device",	70, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",	1, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI floppy device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
