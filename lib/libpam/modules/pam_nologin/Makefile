@@ -27,6 +27,8 @@
 LIB=		pam_nologin
 SHLIB_NAME=	pam_nologin.so
 SRCS=		pam_nologin.c
+DPADD=		${LIBUTIL}
+LDADD=		-lutil
 MAN=		pam_nologin.8
 
 .include <bsd.lib.mk>
