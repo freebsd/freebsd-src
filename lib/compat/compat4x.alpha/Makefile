@@ -8,18 +8,7 @@ LIBS=	\
 	libc.so.4 \
 	libc_r.so.4 \
 	libcrypto.so.1 \
-	libdialog.so.4 \
-	libedit.so.3 \
-	libfetch.so.2 \
-	libftpio.so.5 \
-	libhistory.so.4 \
-	libncurses.so.5 \
-	libreadline.so.4 \
-	libssl.so.1 \
-	libstdc++.so.3 \
-	libutil.so.3 \
-	libwrap.so.3 \
-	libxpg4.so.3
+	libssl.so.1
 
 CLEANFILES+=	${LIBS}
 
