@@ -144,10 +144,7 @@ atapi_cam_attach_bus(struct ata_channel *ata_ch)
     }
     scp->path = path;
 
-#ifdef CAMDEBUG
-    xpt_print_path(path);
-    printf("Registered SIM for ata%d\n", unit);
-#endif
+    CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Registered SIM for ata%d\n", unit));
 
     setup_async_cb(scp, AC_LOST_DEVICE);
 
@@ -266,26 +263,22 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
     case XPT_RESET_DEV:
 	/* should reset the device */
-#ifdef CAMDEBUG
-	xpt_print_path(ccb->ccb_h.path);
-	printf("dev reset");
-#endif
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
 
     case XPT_RESET_BUS:
 	/* should reset the ATA bus */
-#ifdef CAMDEBUG
-	xpt_print_path(ccb->ccb_h.path);
-	printf("bus reset");
-#endif
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("bus reset\n"));
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
 
     case XPT_SET_TRAN_SETTINGS:
 	/* ignore these, we're not doing SCSI here */
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE,
+		  ("SET_TRAN_SETTINGS not supported\n"));
 	ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 	xpt_done(ccb);
 	return;
@@ -298,6 +291,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	 * doesn't understand IDE speeds very well.  Be silent about it
 	 * here and let it default to what is set in XPT_PATH_INQ
 	 */
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("GET_TRAN_SETTINGS\n"));
 	cts->valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
 	cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
 	ccb->ccb_h.status = CAM_REQ_CMP;
@@ -311,6 +305,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	unsigned int secs_per_cylinder;
 	int extended;
 
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("CALC_GEOMETRY\n"));
 	ccg = &ccb->ccg;
 	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
 	extended = 1;
@@ -334,31 +329,24 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	int tid = ccb_h->target_id, lid = ccb_h->target_lun;
 	struct ata_device *dev = get_ata_device(softc, tid);
 
-#ifdef CAMDEBUG
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+	CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, ("XPT_SCSI_IO\n"));
 
-	printf("XPT_SCSI_IO (b%d u%d t%d l%d)\n", bus, unit, tid, lid);
-#endif
 	/* check that this request was not aborted already */
 	if ((ccb_h->status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
-#ifdef CAMDEBUG
-	    printf("Already in progress\n");
-#endif
+	    printf("XPT_SCSI_IO received but already in progress?\n");
 	    xpt_done(ccb);
 	    return;
 	}
 	if (dev == NULL) {
-#ifdef CAMDEBUG
-	    printf("Invalid target %d\n", tid);
-#endif
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
+		      ("SCSI IO received for invalid device\n"));
 	    ccb_h->status = CAM_TID_INVALID;
 	    xpt_done(ccb);
 	    return;
 	}
 	if (lid > 0) {
-#ifdef CAMDEBUG
-	    printf("Invalid LUN %d\n", lid);
-#endif
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
+		      ("SCSI IO received for invalid lun %d\n", lid));
 	    ccb_h->status = CAM_LUN_INVALID;
 	    xpt_done(ccb);
 	    return;
@@ -378,8 +366,12 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	      csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes,
 	      hcb->cmd, csio->cdb_len);
 #ifdef CAMDEBUG
-	printf("hcb@%p: %s\n",
-	       hcb, scsi_cdb_string(hcb->cmd, cdb_str, sizeof(cdb_str)));
+	if (CAM_DEBUGGED(ccb_h->path, CAM_DEBUG_CDB)) {
+		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+
+		printf("atapi_action: hcb@%p: %s\n", hcb,
+		       scsi_cdb_string(hcb->cmd, cdb_str, sizeof(cdb_str)));
+	}
 #endif
 
 	len = csio->dxfer_len;
@@ -421,12 +413,10 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	     * and in /that case/ use MODE_SENSE_10
 	     */
 
-#ifdef CAMDEBUG
-	    xpt_print_path(ccb_h->path);
-	    printf("Translating %s into _10 equivalent\n",
-		   (hcb->cmd[0] == MODE_SELECT_6) ?
-		   "MODE_SELECT_6" : "MODE_SENSE_6");
-#endif
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, 
+		      ("Translating %s into _10 equivalent\n",
+		      (hcb->cmd[0] == MODE_SELECT_6) ?
+		      "MODE_SELECT_6" : "MODE_SENSE_6"));
 	    hcb->cmd[0] |= 0x40;
 	    hcb->cmd[6] = 0;
 	    hcb->cmd[7] = 0;
@@ -440,11 +430,9 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    /* FALLTHROUGH */
 
 	case WRITE_6:
-#ifdef CAMDEBUG
-	    xpt_print_path(ccb_h->path);
-	    printf("Translating %s into _10 equivalent\n",
-		   (hcb->cmd[0] == READ_6) ? "READ_6" : "WRITE_6");
-#endif
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, 
+		      ("Translating %s into _10 equivalent\n",
+		      (hcb->cmd[0] == READ_6) ? "READ_6" : "WRITE_6"));
 	    hcb->cmd[0] |= 0x20;
 	    hcb->cmd[9] = hcb->cmd[5];
 	    hcb->cmd[8] = hcb->cmd[4];
@@ -474,8 +462,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
     }
 
     default:
-	printf("atapi-cam: unsupported function code 0x%02x\n",
-	       ccb_h->func_code);
+	CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
+		  ("unsupported function code 0x%02x\n", ccb_h->func_code));
 	ccb_h->status = CAM_REQ_INVALID;
 	xpt_done(ccb);
 	return;
@@ -485,7 +473,7 @@ action_oom:
     if (hcb != NULL)
 	free_hcb(hcb);
     xpt_print_path(ccb_h->path);
-    printf("Out of memory: freezing queue.");
+    printf("out of memory, freezing queue.\n");
     softc->flags |= RESOURCE_SHORTAGE;
     xpt_freeze_simq(sim, /*count*/ 1);
     ccb_h->status = CAM_REQUEUE_REQ;
@@ -508,14 +496,16 @@ atapi_cb(struct atapi_request *req)
     int hcb_status = req->result;
 
 #ifdef CAMDEBUG
-    printf("atapi_cb: hcb@%p status = %02x: (sk = %02x%s%s%s)\n",
-	   hcb, hcb_status, hcb_status >> 4,
-	   (hcb_status & 4) ? " ABRT" : "",
-	   (hcb_status & 2) ? " EOM" : "",
-	   (hcb_status & 1) ? " ILI" : "");
-    printf("  %s: cmd %02x - sk=%02x asc=%02x ascq=%02x\n",
-	   req->device->name, req->ccb[0], req->sense.sense_key,
-	   req->sense.asc, req->sense.ascq);
+	if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
+		printf("atapi_cb: hcb@%p status = %02x: (sk = %02x%s%s%s)\n",
+		       hcb, hcb_status, hcb_status >> 4,
+		       (hcb_status & 4) ? " ABRT" : "",
+		       (hcb_status & 2) ? " EOM" : "",
+		       (hcb_status & 1) ? " ILI" : "");
+		printf("    %s: cmd %02x - sk=%02x asc=%02x ascq=%02x\n",
+		       req->device->name, req->ccb[0], req->sense.sense_key,
+		       req->sense.asc, req->sense.ascq);
+	}
 #endif
     if (hcb_status != 0) {
 	csio->scsi_status = SCSI_STATUS_CHECK_COND;
@@ -594,13 +584,13 @@ atapi_async1(void *callback_arg, u_int32_t code,
 static void
 cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
-#ifdef CAMDEBUG
-    xpt_print_path(ccb->ccb_h.path);
-	if (ccb->ccb_h.status != CAM_REQ_CMP)
-	    printf("Rescan failed, 0x%04x\n", ccb->ccb_h.status);
-	else
-	    printf("rescan succeeded\n");
-#endif
+	if (ccb->ccb_h.status != CAM_REQ_CMP) {
+	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    	      ("Rescan failed, 0x%04x\n", ccb->ccb_h.status));
+	} else {
+	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
+	    	      ("Rescan succeeded\n"));
+	}
 	xpt_free_path(ccb->ccb_h.path);
 	free(ccb, M_ATACAM);
 }
@@ -615,10 +605,7 @@ cam_rescan(struct cam_sim *sim)
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 	return;
 
-#ifdef CAMDEBUG
-    xpt_print_path(path);
-    printf ("rescanning ATAPI bus.\n");
-#endif
+    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
     xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
     ccb->ccb_h.func_code = XPT_SCAN_BUS;
     ccb->ccb_h.cbfcnp = cam_rescan_callback;
