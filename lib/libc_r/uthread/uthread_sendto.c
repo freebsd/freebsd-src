@@ -49,7 +49,8 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 		while ((ret = __sys_sendto(fd, msg, len, flags, to, to_len)) < 0) {
-			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
+			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
+			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
