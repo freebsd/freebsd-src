@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.h,v 2.3 1996/04/08 19:32:32 bostic Exp
  *
- * $Id: doscmd.h,v 1.1 1997/08/09 01:43:09 dyson Exp $
+ * $Id: doscmd.h,v 1.2 1997/08/15 23:41:24 jlemon Exp $
  */
 
 
@@ -107,6 +107,7 @@ extern int	debug_flags;
 #define	D_DEBUGIN	0x0400000
 #define D_DOSCALL	0x0800000	/* MS-DOS function results */
 #define D_XMS		0x1000000	/* XMS calls */
+#define D_EMS		0x2000000	/* EMS calls */
 
 #define	TTYF_ECHO	0x00000001
 #define	TTYF_ECHONL	0x00000003
@@ -179,6 +180,9 @@ extern void	mem_change_owner(int addr, int owner);
 extern int	int2f_11(regcontext_t *REGS);
 extern void	intff(regcontext_t *REGS);
 
+/* emuint.c */
+extern void	emuint(regcontext_t *REGS);
+
 /* trap.c */
 extern void	fake_int(regcontext_t *REGS, int);
 extern void	sigtrap(struct sigframe *sf);
@@ -234,6 +238,11 @@ extern int	int2f_43(regcontext_t *REGS);
 extern void	get_raw_extmemory_info(regcontext_t *REGS);
 extern void	initHMA(void);
 extern u_long	xms_maxsize;
+
+/* ems.c */
+extern int ems_init();
+extern void ems_entry(regcontext_t *REGS);
+extern u_long ems_frame_addr;
 
 /****************************** dirty below here ******************************/
 
