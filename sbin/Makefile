@@ -66,6 +66,7 @@ SUBDIR=	adjkerntz \
 	route \
 	routed \
 	rtsol \
+	savecore \
 	shutdown \
 	slattach \
 	spppcontrol \
@@ -89,17 +90,12 @@ SUBDIR+=cxconfig \
 	kget \
 	mount_nwfs \
 	mount_smbfs \
-	nextboot \
-	savecore
+	nextboot
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
 SUBDIR+=fdisk
 .endif
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=savecore
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
