@@ -310,6 +310,10 @@
 
       <para>The 802.11 support layer has been rewritten to allow for
 	future growth and new features.</para>
+
+      <para>The xe driver now supports CE2, CEM28, 
+        and CEM33 cards, and multicast datagram.  Also several
+        bugs in the driver has been fixed.</para>
     </sect3>
 
     <sect3 id="net-proto">
@@ -635,6 +639,9 @@
     <para><application>texinfo</application> has been updated from 4.5
       to 4.6. &merged;</para>
 
+    <para>The timezone database has been updated
+      from the <filename>tzdata2003a</filename> release
+      to the <filename>tzdata2003d</filename> release.</para>
   </sect2>
 
   <sect2 id="ports">
