@@ -15,7 +15,7 @@
 /*
  * Override gperf's built-in external scope.
  */
-static const struct map *in_word_set(const char *str, unsigned int len);
+static const struct map *in_word_set(const char *str);
 
 /*
  * The Standard seems a bit ambiguous over whether the POSIX_V6_*
@@ -55,7 +55,7 @@ find_progenv(const char *name, const char **alt_path)
 {
 	const struct map *rv;
 
-	rv = in_word_set(name, strlen(name));
+	rv = in_word_set(name);
 	if (rv != NULL) {
 		if (rv->valid) {
 			*alt_path = rv->alt_path;

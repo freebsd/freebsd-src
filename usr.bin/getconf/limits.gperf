@@ -15,7 +15,7 @@
 /*
  * Override gperf's built-in external scope.
  */
-static const struct map *in_word_set(const char *str, unsigned int len);
+static const struct map *in_word_set(const char *str);
 
 %}
 struct map { const char *name; intmax_t value; int valid; };
@@ -106,7 +106,7 @@ find_limit(const char *name, intmax_t *value)
 {
 	const struct map *rv;
 
-	rv = in_word_set(name, strlen(name));
+	rv = in_word_set(name);
 	if (rv != NULL) {
 		if (rv->valid) {
 			*value = rv->value;
