@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdevs.c,v 1.17 2001/02/19 23:22:48 cgd Exp $	*/
+/*	$NetBSD: usbdevs.c,v 1.22 2003/11/12 13:31:08 grant Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -6,7 +6,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Lennart Augustsson (augustss@netbsd.org).
+ * by Lennart Augustsson (augustss@NetBSD.org).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -201,7 +201,7 @@ main(int argc, char **argv)
 
 	if (dev == 0) {
 		for (ncont = 0, i = 0; i < 10; i++) {
-			sprintf(buf, "%s%d", USBDEV, i);
+			snprintf(buf, sizeof(buf), "%s%d", USBDEV, i);
 			f = open(buf, O_RDONLY);
 			if (f >= 0) {
 				dumpone(buf, f, addr);
