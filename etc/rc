@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.18 1997/06/25 03:10:15 dima Exp $
+#	$Id: rc,v 1.131 1997/06/25 11:48:47 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,9 +95,10 @@ fi
 
 adjkerntz -i
 
+rm -f /var/run/*
+
 # Keep a copy of the boot messages around
 dmesg > /var/run/dmesg.boot
-
 
 # Add additional swapfile, if configured.
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
@@ -237,9 +238,9 @@ echo '.'
 
 # configure implementation specific stuff
 arch=`uname -m`
-if [ -f /etc/rc.${arch} ]; then  
+if [ -f /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
-fi  
+fi
 
 # Recover vi editor files.
 vibackup=`echo /var/tmp/vi.recover/vi.*`
