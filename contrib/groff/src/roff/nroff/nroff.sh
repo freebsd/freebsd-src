@@ -8,7 +8,8 @@ if test `expr "$LC_CTYPE" : ".*\.ISO_8859-1"` -gt 0 || \
 then
 	T=-Tlatin1
 else
-if test "X$LC_CTYPE" = "Xru_SU.KOI8-R" || test "X$LANG" = "Xru_SU.KOI8-R"
+if test `expr "$LC_CTYPE" : ".*\.KOI8-R"` -gt 0 || \
+   test `expr "$LANG" : ".*\.KOI8-R"` -gt 0
 then
 	T=-Tkoi8-r
 else
