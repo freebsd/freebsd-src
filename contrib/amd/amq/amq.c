@@ -39,6 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: amq.c,v 1.3.2.1 1999/08/25 20:07:52 obrien Exp $
+ * $FreeBSD$
  *
  */
 
