@@ -2077,7 +2077,7 @@ opti_write(struct mss_info *mss, u_char reg, u_char val)
 		port_wr(mss->conf_base, reg, val);
 		break;
 
-	case MD_OPTI930:	/* XXX should use proper bus calls */
+	case MD_OPTI930:
 		port_wr(mss->indir, 0, reg);
 		port_wr(mss->conf_base, mss->passwdreg, mss->password);
 		port_wr(mss->indir, 1, val);
