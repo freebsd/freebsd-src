@@ -197,6 +197,9 @@ CRUNCH_PROGS_gnu/usr.bin+= tar
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
 
+CRUNCH_PROGS_usr.bin+= id
+CRUNCH_ALIAS_id= groups whoami
+
 ##################################################################
 #  The following is pretty nearly a generic crunchgen-handling makefile
 #
