@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.18 1996/07/04 04:36:56 dyson Exp $
+ * $Id: sys_pipe.c,v 1.19 1996/07/12 08:14:58 bde Exp $
  */
 
 #ifndef OLD_PIPE
@@ -122,6 +122,13 @@ static struct fileops pipeops =
  * the amount of kva for pipes in general though.
  */
 #define LIMITPIPEKVA (16*1024*1024)
+
+/*
+ * Limit the number of "big" pipes
+ */
+#define LIMITBIGPIPES	32
+int nbigpipe;
+
 static int amountpipekva;
 
 static void pipeclose __P((struct pipe *cpipe));
@@ -238,6 +245,7 @@ pipeinit(cpipe)
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = 0;
 	cpipe->pipe_buffer.size = PIPE_SIZE;
+
 	/* Buffer kva gets dynamically allocated */
 	cpipe->pipe_buffer.buffer = NULL;
 	/* cpipe->pipe_buffer.object = invalid */
@@ -309,26 +317,6 @@ pipeselwakeup(cpipe)
 		selwakeup(&cpipe->pipe_sel);
 	}
 }
-
-#ifndef PIPE_NODIRECT
-#if 0
-static void
-pipe_mark_pages_clean(cpipe)
-	struct pipe *cpipe;
-{
-	vm_size_t off;
-	vm_page_t m;
-
-	for(off = 0; off < cpipe->pipe_buffer.object->size; off += 1) {
-		m = vm_page_lookup(cpipe->pipe_buffer.object, off);
-		if ((m != NULL) && (m->busy == 0) && (m->flags & PG_BUSY) == 0) {
-			m->dirty = 0;
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-		}
-	}
-}
-#endif
-#endif
 
 /* ARGSUSED */
 static int
@@ -459,15 +447,12 @@ pipe_read(fp, uio, cred)
 		 * its pointers to the beginning.  This improves
 		 * cache hit stats.
 		 */
-		if ((error == 0) && (error = pipelock(rpipe,1)) == 0) {
-			if (rpipe->pipe_buffer.cnt == 0) {
-#if 0
-				pipe_mark_pages_clean(rpipe);
-#endif
+		if (rpipe->pipe_buffer.cnt == 0) {
+			if ((error == 0) && (error = pipelock(rpipe,1)) == 0) {
 				rpipe->pipe_buffer.in = 0;
 				rpipe->pipe_buffer.out = 0;
+				pipeunlock(rpipe);
 			}
-			pipeunlock(rpipe);
 		}
 
 		/*
@@ -567,9 +552,9 @@ pipe_destroy_write_buffer(wpipe)
 struct pipe *wpipe;
 {
 	int i;
-	pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
-
 	if (wpipe->pipe_map.kva) {
+		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
+
 		if (amountpipekva > MAXPIPEKVA) {
 			vm_offset_t kva = wpipe->pipe_map.kva;
 			wpipe->pipe_map.kva = 0;
@@ -722,6 +707,49 @@ pipe_write(fp, uio, cred)
 		return EPIPE;
 	}
 
+	/*
+	 * If it is advantageous to resize the pipe buffer, do
+	 * so.
+	 */
+	if ((uio->uio_resid > PIPE_SIZE) &&
+		(nbigpipe < LIMITBIGPIPES) &&
+		(wpipe->pipe_state & PIPE_DIRECTW) == 0 &&
+		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
+		(wpipe->pipe_buffer.cnt == 0)) {
+
+		if (wpipe->pipe_buffer.buffer) {
+			amountpipekva -= wpipe->pipe_buffer.size;
+			kmem_free(kernel_map,
+				(vm_offset_t)wpipe->pipe_buffer.buffer,
+				wpipe->pipe_buffer.size);
+		}
+
+#ifndef PIPE_NODIRECT
+		if (wpipe->pipe_map.kva) {
+			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
+			kmem_free(kernel_map,
+				wpipe->pipe_map.kva,
+				wpipe->pipe_buffer.size + PAGE_SIZE);
+		}
+#endif
+
+		wpipe->pipe_buffer.in = 0;
+		wpipe->pipe_buffer.out = 0;
+		wpipe->pipe_buffer.cnt = 0;
+		wpipe->pipe_buffer.size = BIG_PIPE_SIZE;
+		wpipe->pipe_buffer.buffer = NULL;
+		++nbigpipe;
+
+#ifndef PIPE_NODIRECT
+		wpipe->pipe_map.cnt = 0;
+		wpipe->pipe_map.kva = 0;
+		wpipe->pipe_map.pos = 0;
+		wpipe->pipe_map.npages = 0;
+#endif
+
+	}
+		
+
 	if( wpipe->pipe_buffer.buffer == NULL) {
 		if ((error = pipelock(wpipe,1)) == 0) {
 			pipespace(wpipe);
@@ -742,8 +770,9 @@ pipe_write(fp, uio, cred)
 		 * If the write is non-blocking, we don't use the
 		 * direct write mechanism.
 		 */
-		if ((fp->f_flag & FNONBLOCK) == 0 &&
-			(amountpipekva < LIMITPIPEKVA) &&
+		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
+		    (fp->f_flag & FNONBLOCK) == 0 &&
+			(wpipe->pipe_map.kva || (amountpipekva < LIMITPIPEKVA)) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
 			error = pipe_direct_write( wpipe, uio);
 			if (error) {
@@ -778,10 +807,20 @@ pipe_write(fp, uio, cred)
 		if ((space < uio->uio_resid) && (orig_resid <= PIPE_BUF))
 			space = 0;
 
-		if (space > 0) {
+		if (space > 0 && (wpipe->pipe_buffer.cnt < PIPE_SIZE)) {
+			/*
+			 * This set the maximum transfer as a segment of
+			 * the buffer.
+			 */
 			int size = wpipe->pipe_buffer.size - wpipe->pipe_buffer.in;
+			/*
+			 * space is the size left in the buffer
+			 */
 			if (size > space)
 				size = space;
+			/*
+			 * now limit it to the size of the uio transfer
+			 */
 			if (size > uio->uio_resid)
 				size = uio->uio_resid;
 			if ((error = pipelock(wpipe,1)) == 0) {
@@ -1044,6 +1083,8 @@ pipeclose(cpipe)
 		 * free resources
 		 */
 		if (cpipe->pipe_buffer.buffer) {
+			if (cpipe->pipe_buffer.size > PIPE_SIZE)
+				--nbigpipe;
 			amountpipekva -= cpipe->pipe_buffer.size;
 			kmem_free(kernel_map,
 				(vm_offset_t)cpipe->pipe_buffer.buffer,
