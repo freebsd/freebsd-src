@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.178 1999/01/28 01:56:31 brian Exp $
+ * $Id: command.c,v 1.179 1999/01/28 09:40:15 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -138,7 +138,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.1";
-const char VersionDate[] = "$Date: 1999/01/28 01:56:31 $";
+const char VersionDate[] = "$Date: 1999/01/28 09:40:15 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -388,9 +388,9 @@ subst(char *tgt, const char *oldstr, const char *newstr)
   return tgt;
 }
 
-static void
-expand(char **nargv, int argc, char const *const *oargv, struct bundle *bundle,
-       int inc0)
+void
+command_Expand(char **nargv, int argc, char const *const *oargv,
+               struct bundle *bundle, int inc0)
 {
   int arg;
   char pid[12];
@@ -484,7 +484,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
         argc = sizeof argv / sizeof argv[0] - 1;
         log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
-      expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
+      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
       if (bg) {
 	pid_t p;
 
@@ -2473,7 +2473,7 @@ SetProcTitle(struct cmdargs const *arg)
     argc = sizeof argv / sizeof argv[0] - 1;
     log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
   }
-  expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
+  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
 
   ptr = title;
   remaining = sizeof title - 1;
