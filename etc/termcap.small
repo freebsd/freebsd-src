@@ -40,7 +40,7 @@ cons25w|ansiw|ansi80x25-raw:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:up=\E[A:\
 	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:op=\E[37;40m:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
-	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
 	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
 	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
