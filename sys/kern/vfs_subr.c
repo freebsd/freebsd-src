@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.121 1998/01/07 09:26:29 dyson Exp $
+ * $Id: vfs_subr.c,v 1.122 1998/01/12 01:46:30 dyson Exp $
  */
 
 /*
@@ -373,8 +373,10 @@ getnewvnode(tag, mp, vops, vpp)
 
 	for (vp = TAILQ_FIRST(&vnode_tobefree_list); vp; vp = nvp) {
 		nvp = TAILQ_NEXT(vp, v_freelist);
-		vp->v_flag &= ~VTBFREE;
+		TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
 		TAILQ_INSERT_TAIL(&vnode_tmp_list, vp, v_freelist);
+		vp->v_flag &= ~VTBFREE;
+		freevnodes++;
 	}
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
