@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.81 1997/12/03 10:23:51 brian Exp $
+.\" $Id: ppp.8,v 1.82 1997/12/03 23:27:59 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -353,12 +353,12 @@ PPP ON awfulhak> add 0 0 HISADDR
 
 The string
 .Sq HISADDR
-represents the IP address of the connected peer.  This variable is only
-available once a connection has been established.  A common error
-is to specify the above command in your
-.Pa /etc/ppp/ppp.conf
-file.  This won't work as the remote IP address hasn't been
-established when this file is read.
+represents the IP address of the connected peer.  It is possible to
+use the keyword
+.Sq INTERFACE
+in place of
+.Sq HISADDR .
+This will create a direct route on the tun interface.
 
 You can now use your network applications (ping, telnet, ftp etc.)
 in other windows on your machine.
@@ -1738,16 +1738,34 @@ you require the user to both login and authenticate themselves.
 .El
 
 .It add dest mask gateway
-.Dq Dest
+.Ar Dest
 is the destination IP address and
-.Dq mask
+.Ar mask
 is its mask.
-.Dq 0 0
-refers to the default route.
-.Dq Gateway
+.Ar 0 0
+refers to the default route, and it is possible to use the symbolic name
+.Sq default
+in place of both the
+.Ar dest
+and
+.Ar mask
+arguments.
+.Ar Gateway
 is the next hop gateway to get to the given
-.Dq dest
-machine/network.
+.Ar dest
+machine/network.  It is possible to use the symbolic names
+.Sq HISADDR
+or
+.Sq INTERFACE
+as the
+.Ar gateway .
+.Sq INTERFACE
+is replaced with the current interface name and
+.Sq HISADDR
+is replaced with the current interface address.  If the current interface
+address has not yet been assigned, the current
+.Sq INTERFACE
+is used instead.
 
 .It allow .....
 This command controls access to
@@ -1895,24 +1913,21 @@ command instead.
 .It close
 Close the current connection (but don't quit).
 
-.It delete ALL | dest [gateway [mask]]
-If
-.Dq ALL
-is specified, all non-direct entries in the routing for the interface
-that
+.It delete dest
+This command deletes the route with the given
+.Ar dest
+IP address.  If
+.Ar dest
+is specified as
+.Sq ALL ,
+all non-direct entries in the routing for the current interface that
 .Nm
 is using are deleted.  This means all entries for tunN, except the entry
-representing the actual link.  When
-.Dq ALL
-is not used, any existing route with the given
-.Dq dest ,
-destination network
-.Dq mask
-and
-.Dq gateway
-is deleted.  The default
-.Dq mask
-value is 0.0.0.0.
+representing the actual link.  If
+.Ar dest
+is specified as
+.Sq default ,
+the default route is deleted.
 
 .It dial|call [remote]
 If

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.105 1997/11/22 03:37:28 brian Exp $
+ * $Id: command.c,v 1.106 1997/11/23 20:05:18 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1461,51 +1461,55 @@ static int
 AddCommand(struct cmdargs const *arg)
 {
   struct in_addr dest, gateway, netmask;
+  int gw;
 
-  if (arg->argc == 3) {
+  if (arg->argc != 3 && arg->argc != 2)
+    return -1;
+
+  if (arg->argc == 2)
+    if (strcasecmp(arg->argv[0], "default"))
+      return -1;
+    else {
+      dest.s_addr = netmask.s_addr = INADDR_ANY;
+      gw = 1;
+    }
+  else {
     if (strcasecmp(arg->argv[0], "MYADDR") == 0)
       dest = IpcpInfo.want_ipaddr;
     else
       dest = GetIpAddr(arg->argv[0]);
     netmask = GetIpAddr(arg->argv[1]);
-    if (strcasecmp(arg->argv[2], "HISADDR") == 0)
-      gateway = IpcpInfo.his_ipaddr;
-    else
-      gateway = GetIpAddr(arg->argv[2]);
-    OsSetRoute(RTM_ADD, dest, gateway, netmask);
-    return 0;
+    gw = 2;
   }
-  return -1;
+  if (strcasecmp(arg->argv[gw], "HISADDR") == 0)
+    gateway = IpcpInfo.his_ipaddr;
+  else if (strcasecmp(arg->argv[gw], "INTERFACE") == 0)
+    gateway.s_addr = INADDR_ANY;
+  else
+    gateway = GetIpAddr(arg->argv[gw]);
+  OsSetRoute(RTM_ADD, dest, gateway, netmask);
+  return 0;
 }
 
 static int
 DeleteCommand(struct cmdargs const *arg)
 {
-  struct in_addr dest, gateway, netmask;
+  struct in_addr dest, none;
 
-  if (arg->argc == 1 && strcasecmp(arg->argv[0], "all") == 0)
-    DeleteIfRoutes(0);
-  else if (arg->argc > 0 && arg->argc < 4) {
-    if (strcasecmp(arg->argv[0], "MYADDR") == 0)
-      dest = IpcpInfo.want_ipaddr;
-    else
-      dest = GetIpAddr(arg->argv[0]);
-    netmask.s_addr = INADDR_ANY;
-    if (arg->argc > 1) {
-      if (strcasecmp(arg->argv[1], "HISADDR") == 0)
-	gateway = IpcpInfo.his_ipaddr;
+  if (arg->argc == 1)
+    if(strcasecmp(arg->argv[0], "all") == 0)
+      DeleteIfRoutes(0);
+    else {
+      if (strcasecmp(arg->argv[0], "MYADDR") == 0)
+        dest = IpcpInfo.want_ipaddr;
+      else if (strcasecmp(arg->argv[0], "default") == 0)
+        dest.s_addr = INADDR_ANY;
       else
-	gateway = GetIpAddr(arg->argv[1]);
-      if (arg->argc == 3) {
-	if (inet_aton(arg->argv[2], &netmask) == 0) {
-	  LogPrintf(LogWARN, "Bad netmask value.\n");
-	  return -1;
-	}
-      }
-    } else
-      gateway.s_addr = INADDR_ANY;
-    OsSetRoute(RTM_DELETE, dest, gateway, netmask);
-  } else
+        dest = GetIpAddr(arg->argv[0]);
+      none.s_addr = INADDR_ANY;
+      OsSetRoute(RTM_DELETE, dest, none, none);
+    }
+  else
     return -1;
 
   return 0;
