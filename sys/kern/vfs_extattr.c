@@ -1765,6 +1765,10 @@ open(td, uap)
 		return 0;
 	}
 
+	/* assert that vn_open created a backing object if one is needed */
+	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
+		("open: vmio vnode has no backing object after vn_open"));
+
 	fp->f_data = (caddr_t)vp;
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
@@ -1800,9 +1804,6 @@ open(td, uap)
 		if (error)
 			goto bad;
 	}
-	/* assert that vn_open created a backing object if one is needed */
-	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
-		("open: vmio vnode has no backing object after vn_open"));
 	/*
 	 * Release our private reference, leaving the one associated with
 	 * the descriptor table intact.
