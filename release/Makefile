@@ -27,7 +27,7 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
-#RELEASETAG=RELENG_4
+#RELEASETAG=RELENG_5
 #
 # To test a release with a source tree containing patches and
 # other work. This tree will get copied instead of getting the
