@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.99 1995/12/10 15:54:58 bde Exp $
+ *	$Id: wd.c,v 1.100 1995/12/11 04:55:45 dyson Exp $
  */
 
 /* TODO:
@@ -1647,11 +1647,11 @@ failed:
 		du->dk_multi = 1;
 	}
 
-/* #ifdef NOTYET */
+#ifdef NOTYET
 /* set read caching and write caching */
 	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
 	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
-/* #endif */
+#endif
 
 	return (0);
 }
