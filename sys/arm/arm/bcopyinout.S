@@ -80,7 +80,7 @@ ENTRY(copyin)
 	/* Quick exit if length is zero */	
 	teq	r2, #0
 	moveq	r0, #0
-	moveq	pc, lr
+	RETEQ
 
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
@@ -280,14 +280,14 @@ ENTRY(copyin)
 	str	r5, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
 
-	mov	pc, lr
+	RET
 
 .Lcopyfault:
 	mov	r0, #14 /* EFAULT */
 	str	r5, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
 
-	mov	pc, lr
+	RET
 
 /*
  * r0 = kernel space address
@@ -304,7 +304,7 @@ ENTRY(copyout)
 	/* Quick exit if length is zero */	
 	teq	r2, #0
 	moveq	r0, #0
-	moveq	pc, lr
+	RETeq
 
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
@@ -501,7 +501,7 @@ ENTRY(copyout)
 	str	r5, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
 
-	mov	pc, lr
+	RET
 
 /*
  * r0 = kernel space source address
@@ -517,7 +517,7 @@ ENTRY(kcopy)
 	/* Quick exit if length is zero */	
 	teq	r2, #0
 	moveq	r0, #0
-	moveq	pc, lr
+	RETeq
 
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
@@ -703,7 +703,7 @@ ENTRY(kcopy)
 	str	r5, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
 
-	mov	pc, lr
+	RET
 #endif	/* !__XSCALE__ */
 
 /*
@@ -738,7 +738,7 @@ ENTRY(badaddr_read_1)
 	strb	r3, [r1]
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * int badaddr_read_2(const uint16_t *src, uint16_t *dest)
@@ -772,7 +772,7 @@ ENTRY(badaddr_read_2)
 	strh	r3, [r1]
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 
 /*
  * int badaddr_read_4(const uint32_t *src, uint32_t *dest)
@@ -806,5 +806,5 @@ ENTRY(badaddr_read_4)
 	str	r3, [r1]
 	mov	r0, #0		/* No fault */
 1:	str	ip, [r2, #PCB_ONFAULT]
-	mov	pc, lr
+	RET
 

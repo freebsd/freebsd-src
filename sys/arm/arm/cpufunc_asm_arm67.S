@@ -61,25 +61,25 @@ ENTRY(arm67_setttb)
 	mov	r0, r0
 	mov	r0, r0
 
-	mov	pc, lr
+	RET
 
 /*
  * TLB functions
  */
 ENTRY(arm67_tlb_flush)
 	mcr	p15, 0, r0, c5, c0, 0 
-	mov	pc, lr
+	RET
 
 ENTRY(arm67_tlb_purge)
 	mcr	p15, 0, r0, c6, c0, 0
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
  */
 ENTRY(arm67_cache_flush)
 	mcr	p15, 0, r0, c7, c0, 0
-	mov	pc, lr
+	RET
 
 /*
  * Context switch.
@@ -108,4 +108,4 @@ ENTRY(arm67_context_switch)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, lr
+	RET

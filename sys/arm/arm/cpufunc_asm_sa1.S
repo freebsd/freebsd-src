@@ -84,7 +84,7 @@ ENTRY(sa1_setttb)
 #else
 	str	r2, [r3]
 #endif
-	mov	pc, lr
+	RET
 
 /*
  * TLB functions
@@ -92,30 +92,30 @@ ENTRY(sa1_setttb)
 ENTRY(sa1_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 0	/* flush I tlb */
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
  */
 ENTRY(sa1_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_flushI)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_flushD)
 	mcr	p15, 0, r0, c7, c6, 0	/* flush D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_flushD_SE)
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_cleanD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean D cache entry */
-	mov	pc, lr
+	RET
 
 /*
  * Information for the SA-1 cache clean/purge functions:
@@ -195,20 +195,20 @@ ENTRY(sa1_cache_cleanD)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	SA1_CACHE_CLEAN_EPILOGUE
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean dcache entry */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_purgeD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean dcache entry */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
-	mov	pc, lr
+	RET
 
 /*
  * Soft functions
@@ -230,7 +230,7 @@ ENTRY(sa1_cache_cleanD_rng)
 	bhi	1b
 
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_purgeID_rng)
 	cmp	r1, #0x4000
@@ -248,7 +248,7 @@ ENTRY(sa1_cache_purgeID_rng)
 
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_purgeD_rng)
 	cmp	r1, #0x4000
@@ -265,7 +265,7 @@ ENTRY(sa1_cache_purgeD_rng)
 	bhi	1b
 
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
-	mov	pc, lr
+	RET
 
 ENTRY(sa1_cache_syncI_rng)
 	cmp	r1, #0x4000
@@ -283,7 +283,7 @@ ENTRY(sa1_cache_syncI_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 
-	mov	pc, lr
+	RET
 
 /*
  * Context switch.
@@ -312,5 +312,5 @@ ENTRY(sa110_context_switch)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, lr
+	RET
 #endif

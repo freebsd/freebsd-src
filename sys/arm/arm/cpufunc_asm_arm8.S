@@ -57,7 +57,7 @@ ENTRY(arm8_clock_config)
 	mov	r0, r0			/* NOP */
 	mcr	p15, 0, r2, c15, c0, 0 	/* Write clock register */
 	mov	r0, r3			/* Return old value */
-	mov	pc, lr
+	RET
 
 /*
  * Functions to set the MMU Translation Table Base register
@@ -89,29 +89,29 @@ ENTRY(arm8_setttb)
 	mov	r0, r0
 	msr	cpsr_all, r3
 
-	mov	pc, lr
+	RET
 
 /*
  * TLB functions
  */
 ENTRY(arm8_tlb_flushID)
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c7, 1	/* flush I+D tlb single entry */
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
  */
 ENTRY(arm8_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_cache_flushID_E)
 	mcr	p15, 0, r0, c7, c7, 1	/* flush I+D single entry */
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_cache_cleanID)
 	mov	r0, #0x00000000
@@ -152,11 +152,11 @@ ENTRY(arm8_cache_cleanID)
 	adds	r0, r0, #0x04000000
 	bne	1b
 
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_cache_cleanID_E)
 	mcr	p15, 0, r0, c7, c11, 1	/* clean I+D single entry */
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_cache_purgeID)
 	/*
@@ -231,7 +231,7 @@ ENTRY(arm8_cache_purgeID)
 	bne	1b
 
 	msr	cpsr_all, r3
-	mov	pc, lr
+	RET
 
 ENTRY(arm8_cache_purgeID_E)
 	/*
@@ -252,7 +252,7 @@ ENTRY(arm8_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c11, 1	/* clean I+D single entry */
 	mcr	p15, 0, r0, c7, c7, 1	/* flush I+D single entry */
 	msr	cpsr_all, r3
-	mov	pc, lr
+	RET
 
 /*
  * Context switch.
@@ -281,4 +281,4 @@ ENTRY(arm8_context_switch)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, lr
+	RET

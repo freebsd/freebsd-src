@@ -67,11 +67,11 @@ ENTRY(arm7tdmi_setttb)
 ENTRY(arm7tdmi_tlb_flushID)
 	mov	r0, #0
 	mcr	p15, 0, r0, c8, c7, 0
-	mov	pc, lr
+	RET
 
 ENTRY(arm7tdmi_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c7, 1
-	mov	pc, lr
+	RET
 
 /*
  * Cache functions
@@ -85,7 +85,7 @@ ENTRY(arm7tdmi_cache_flushID)
 	mov	r0, r0
 	mov	r0, r0
 
-	mov	pc, lr
+	RET
 
 /*
  * Context switch.

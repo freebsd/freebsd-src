@@ -242,7 +242,7 @@ ENTRY(bcopy_page)
 	strd	r4, [r1], #0x08
 	bgt	1b
 	ldmfd	sp!, {r4, r5}
-	mov	pc, lr
+	RET
 
 /*
  * XSCALE version of bzero_page
@@ -269,5 +269,5 @@ ENTRY(bzero_page)
 	strd	r2, [r0], #8
 	subs	r1, r1, #128
 	bne	1b
-	mov	pc, lr
+	RET
 #endif	/* __XSCALE__ */
