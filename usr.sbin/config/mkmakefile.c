@@ -265,7 +265,7 @@ read_files(void)
 	struct opt *op;
 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
 	char fname[MAXPATHLEN];
-	int nreqs, first = 1, configdep, isdup, std, filetype,
+	int nreqs, first = 1, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory;
 
 	ftab = 0;
@@ -281,7 +281,6 @@ openit:
 next:
 	/*
 	 * filename    [ standard | mandatory | optional | count ]
-	 *	[ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -328,7 +327,6 @@ next:
 	depends = 0;
 	clean = 0;
 	warning = 0;
-	configdep = 0;
 	needs = 0;
 	std = mandatory = 0;
 	imp_rule = 0;
@@ -356,10 +354,6 @@ nextparam:
 	next_word(fp, wd);
 	if (wd == 0)
 		goto doneparam;
-	if (eq(wd, "config-dependent")) {
-		configdep++;
-		goto nextparam;
-	}
 	if (eq(wd, "no-obj")) {
 		no_obj++;
 		goto nextparam;
@@ -494,18 +488,12 @@ doneparam:
 	tp->f_fn = this;
 	tp->f_type = filetype;
 	tp->f_flags &= ~ISDUP;
-	if (configdep)
-		tp->f_flags |= CONFIGDEP;
 	if (imp_rule)
 		tp->f_flags |= NO_IMPLCT_RULE;
 	if (no_obj)
 		tp->f_flags |= NO_OBJ;
 	if (before_depend)
 		tp->f_flags |= BEFORE_DEPEND;
-	if (imp_rule)
-		tp->f_flags |= NO_IMPLCT_RULE;
-	if (no_obj)
-		tp->f_flags |= NO_OBJ;
 	if (needcount)
 		tp->f_flags |= NEED_COUNT;
 	tp->f_needs = needs;
@@ -697,8 +685,8 @@ do_rules(FILE *f)
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			(void)snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype, toupper(och),
-				      ftp->f_flags & CONFIGDEP? "_C" : "");
+			snprintf(cmd, sizeof(cmd), "${%s_%c}", ftype,
+			    toupper(och));
 			compilewith = cmd;
 		}
 		*cp = och;
