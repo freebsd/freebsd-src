@@ -96,9 +96,9 @@ typedef struct {
 
 #define HACR_DEFAULT	(HACR_OUT1 | HACR_OUT2 | HACR_16BITS | PIOM(STATIC_PIO, 0) | PIOM(AUTOINCR_PIO, 1) | PIOM(PARAM_ACCESS_PIO, 2))
 #define HACR_INTRON	(HACR_MASK_82586 | HACR_MASK_MMC | HACR_INTR_CLEN)
-#define CMD(unit)	\
+#define CMD(sc)	\
 		{ \
-		   outw(HACR(WLSOFTC(unit)->base),WLSOFTC(unit)->hacr); \
+		   outw(HACR(sc->base),sc->hacr); \
 		   /* delay for 50 us, might only be needed sometimes */ \
 		   DELAY(DELAYCONST); \
 	        }
@@ -106,15 +106,15 @@ typedef struct {
 /* macro for setting the channel attention bit.  No delays here since
  * it is used in critical sections
  */
-#define SET_CHAN_ATTN(unit)   \
+#define SET_CHAN_ATTN(sc)   \
       { \
-         outw(HACR(WLSOFTC(unit)->base),WLSOFTC(unit)->hacr | HACR_CA); \
+         outw(HACR(sc->base),sc->hacr | HACR_CA); \
       }
 
 
 #define MMC_WRITE(cmd,val)	\
-	while(inw(HASR(WLSOFTC(unit)->base)) & HASR_MMC_BUSY) ; \
-	outw(MMCR(WLSOFTC(unit)->base), \
+	while(inw(HASR(sc->base)) & HASR_MMC_BUSY) ; \
+	outw(MMCR(sc->base), \
 	     (u_short)(((u_short)(val) << 8) | ((cmd) << 1) | 1))
 
 #endif	/* _IF_WL_H */
