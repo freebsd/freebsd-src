@@ -29,7 +29,7 @@ static char rcsid[] = "$FreeBSD$";
 static const double huge = 1.0e300;
 
 double
-__generic_floor(double x)
+floor(double x)
 {
 	int32_t i0,i1,j0;
 	u_int32_t i,j;

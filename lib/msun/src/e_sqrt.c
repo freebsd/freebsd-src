@@ -90,7 +90,7 @@ static char rcsid[] = "$FreeBSD$";
 static	const double	one	= 1.0, tiny=1.0e-300;
 
 double
-__generic___ieee754_sqrt(double x)
+__ieee754_sqrt(double x)
 {
 	double z;
 	int32_t sign = (int)0x80000000;
