@@ -166,7 +166,6 @@ acpi_tz_attach(device_t dev)
     struct acpi_softc		*acpi_sc;
     int				error;
     char			oidname[8];
-    int				i;
 
     FUNCTION_TRACE(__func__);
 
@@ -230,12 +229,10 @@ acpi_tz_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		   OID_AUTO, "_CRT", CTLFLAG_RD,
 		   &sc->tz_zone.crt, 0, "");
-    for (i = 0; i < TZ_NUMLEVELS; i++) {
-	sprintf(oidname, "_AC%d", i);
-	SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		       OID_AUTO, oidname, CTLFLAG_RD,
-		       &sc->tz_zone.ac[i], 0, "");
-    }
+    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
+		      sizeof(sc->tz_zone.ac), "I", "");
+
 
     /*
      * Register our power profile event handler, and flag it for a manual
@@ -360,6 +357,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     int		i;
     int		newactive, newflags;
     struct	timespec curtime;
+    ACPI_STATUS	status;
 
     FUNCTION_TRACE(__func__);
 
@@ -368,8 +366,9 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     /*
      * Get the current temperature.
      */
-    if ((acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp)) != AE_OK) {
-	device_printf(sc->tz_dev, "error fetching current temperature\n");
+    if ((status = acpi_EvaluateInteger(sc->tz_handle, "_TMP", &temp)) != AE_OK) {
+	device_printf(sc->tz_dev, "error fetching current temperature -- %s\n",
+		      AcpiFormatException(status));
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
