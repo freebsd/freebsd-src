@@ -1562,6 +1562,19 @@ The value of each of these variables
 will be passed as the parameters of an
 .Dq Nm atm Cm "add arp"
 command.
+.It Va keybell
+.Pq Vt str
+The keyboard bell sound.
+Set to
+.Dq Li normal ,
+.Dq Li visual ,
+.Dq Li off ,
+or
+.Dq Li NO
+if the default behavior is desired.
+For details, refer to the
+.Xr kbdcontrol 1
+manpage.
 .It Va keymap
 .Pq Vt str
 If set to
@@ -2231,6 +2244,7 @@ values.)
 .Xr catman 1 ,
 .Xr gdb 1 ,
 .Xr info 1 ,
+.Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr vidcontrol 1 ,
 .Xr tcp 4 ,
