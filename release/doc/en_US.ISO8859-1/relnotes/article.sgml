@@ -445,11 +445,12 @@
       Several sysctls are available to enable the watchdog running out of the
       processor's idle thread; a callout is launched to reset a timer
       in the watchdog.  If the callout fails to reset the timer for ten seconds,
-      the timeout process will take place.  The sysctl allows to select
-      which CPU will run the watchdog.</para>
+      the timeout process will take place.  The <varname>debug.watchdog_cpu</varname>
+      sysctl allows to select which CPU will run the watchdog.</para>
 
     <para arch="i386,pc98">A sysctl <varname>debug.leak_schedlock</varname>
-      has been added.  This causes a sysctl to spin holding sched_lock
+      has been added.  This causes a sysctl handler that incorrectly leaks
+      the holding sched lock, to spin the lock
       in order to trigger the watchdog provided by the
       <literal>MP_WATCHDOG</literal> option.</para>
 
