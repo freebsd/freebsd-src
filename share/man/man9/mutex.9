@@ -48,7 +48,8 @@
 .Nm mtx_initialized ,
 .Nm mtx_owned ,
 .Nm mtx_recursed ,
-.Nm mtx_assert
+.Nm mtx_assert,
+.Nm MTX_SYSINIT
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
 .In sys/param.h
@@ -86,6 +87,7 @@
 .Fn mtx_recursed "struct mtx *mutex"
 .Ft void
 .Fn mtx_assert "struct mtx *mutex" "int what"
+.Fn MTX_SYSINIT "name" "mtx" "description" "opts"
 .Sh DESCRIPTION
 Mutexes are the most basic and primary method of process synchronization.
 The major design considerations for mutexes are:
@@ -360,6 +362,16 @@ pointed to by the first argument.
 This assertion is only valid in conjunction with
 .Dv MA_OWNED .
 .El
+.Pp
+The
+.Fn MTX_SYSINIT
+macro is used to generate a call to the 
+.Fn mtx_sysinit
+routine at system startup in order to initialize a given mutex lock.  The parameters are the same as
+.Fn mtx_init
+but with an additional argument,
+.Fa name,
+that is used in generating unique variable names for the related structures associated with the lock and the sysinit routine.
 .Ss The Default Mutex Type
 Most kernel code should use the default lock type,
 .Dv MTX_DEF ;

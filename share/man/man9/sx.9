@@ -41,7 +41,8 @@
 .Nm sx_xunlock ,
 .Nm sx_try_upgrade ,
 .Nm sx_downgrade ,
-.Nm sx_assert
+.Nm sx_assert,
+.Nm SX_SYSINIT
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
 .In sys/param.h
@@ -70,6 +71,7 @@
 .Fn sx_downgrade "struct sx *sx"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
+.Fn SX_SYSINIT "name" "sx" "description"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -106,7 +108,7 @@ lock by calling
 A thread that owns an exclusive lock can downgrade it to a shared lock by
 calling
 .Fn sx_downgrade .
-.Pp
+.PP
 .Fn sx_try_slock
 and
 .Fn sx_try_xlock
@@ -124,6 +126,17 @@ The
 function tests specified conditions and panics if they are not met and the
 kernel is compiled with
 .Dv INVARIANTS .
+.Pp
+The
+.Fn SX_SYSINIT
+macro is used to generate a call to the
+.Fn sx_sysinit
+routine at system startup in order to initialize a given sx lock.  The parameters are the same as
+.Fn sx_init
+but with an additional argument,
+.Fa name,
+that is used in generating unique variable names for the related structures associated with the lock and the sysinit routine.
+.Pp
 The following assertions are supported:
 .Bl -tag -width ".Dv SX_XLOCKED"
 .It Dv SX_LOCKED
