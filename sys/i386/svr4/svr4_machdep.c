@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #include <sys/types.h>
@@ -106,10 +108,12 @@ svr4_getcontext(p, uc, mask, oonstack)
 	int mask, oonstack;
 {
 	struct trapframe *tf = p->p_md.md_regs;
-	struct sigacts *psp = p->p_sigacts;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
+#ifdef DONE_MORE_SIGALTSTACK_WORK
+	struct sigacts *psp = p->p_sigacts;
 	struct sigaltstack *sf = &psp->ps_sigstk;
+#endif
 
 	memset(uc, 0, sizeof(struct svr4_ucontext));
 
@@ -156,7 +160,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the signal stack
 	 */
-#if 0
+#if DONE_MORE_SIGALTSTACK_WORK
 	bsd_to_svr4_sigaltstack(sf, s);
 #else
 	s->ss_sp = (void *)(((u_long) tf->tf_esp) & ~(16384 - 1));
