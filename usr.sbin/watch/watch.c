@@ -71,6 +71,7 @@ int             opt_interactive = 1;
 int             opt_timestamp = 0;
 int		opt_write = 0;
 int		opt_no_switch = 0;
+const char	*opt_snpdev;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
@@ -164,12 +165,16 @@ open_snp()
 	else
 		mode = O_RDONLY;
 
-	for (c = '0'; c <= '9'; c++) {
-		snp[8] = c;
-		if ((f = open(snp, mode)) < 0)
-			continue;
-		return f;
-	}
+	if (opt_snpdev == NULL)
+		for (c = '0'; c <= '9'; c++) {
+			snp[8] = c;
+			if ((f = open(snp, mode)) < 0)
+				continue;
+			return f;
+		}
+	else
+		if ((f = open(opt_snpdev, mode)) != -1)
+			return (f);
 	fatal(EX_OSFILE, "cannot open snoop device");
 	return (0);
 }
@@ -302,7 +307,7 @@ main(ac, av)
 		opt_interactive = 0;
 
 
-	while ((ch = getopt(ac, av, "Wciotn")) != -1)
+	while ((ch = getopt(ac, av, "Wciotnf:")) != -1)
 		switch (ch) {
 		case 'W':
 			opt_write = 1;
@@ -321,6 +326,9 @@ main(ac, av)
 			break;
 		case 'n':
 			opt_no_switch = 1;
+			break;
+		case 'f':
+			opt_snpdev = optarg;
 			break;
 		case '?':
 		default:
