@@ -210,9 +210,7 @@ SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
 int
-ttyopen(device, tp)
-	dev_t device;
-	struct tty *tp;
+ttyopen(dev_t device, struct tty *tp)
 {
 	int s;
 
@@ -241,8 +239,7 @@ ttyopen(device, tp)
  * the flush in case there are buggy callers.
  */
 int
-ttyclose(tp)
-	struct tty *tp;
+ttyclose(struct tty *tp)
 {
 	int s;
 
@@ -280,9 +277,7 @@ ttyclose(tp)
  * Process input of a single character received on a tty.
  */
 int
-ttyinput(c, tp)
-	int c;
-	struct tty *tp;
+ttyinput(int c, struct tty *tp)
 {
 	tcflag_t iflag, lflag;
 	cc_t *cc;
@@ -628,9 +623,7 @@ startoutput:
  * Must be recursive.
  */
 static int
-ttyoutput(c, tp)
-	int c;
-	struct tty *tp;
+ttyoutput(int c, struct tty *tp)
 {
 	tcflag_t oflag;
 	int col, s;
@@ -723,11 +716,7 @@ ttyoutput(c, tp)
  */
 /* ARGSUSED */
 int
-ttioctl(tp, cmd, data, flag)
-	struct tty *tp;
-	u_long cmd;
-	int flag;
-	void *data;
+ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 {
 	struct proc *p;
 	struct thread *td;
@@ -1131,10 +1120,7 @@ ttioctl(tp, cmd, data, flag)
 }
 
 int
-ttypoll(dev, events, td)
-	dev_t dev;
-	int events;
-	struct thread *td;
+ttypoll(dev_t dev, int events, struct thread *td)
 {
 	int s;
 	int revents = 0;
@@ -1170,9 +1156,7 @@ static struct filterops ttywrite_filtops =
 	{ 1, NULL, filt_ttywdetach, filt_ttywrite };
 
 int
-ttykqfilter(dev, kn)
-	dev_t dev;
-	struct knote *kn;
+ttykqfilter(dev_t dev, struct knote *kn)
 {
 	struct tty *tp = dev->si_tty;
 	struct klist *klist;
@@ -1234,9 +1218,7 @@ filt_ttywdetach(struct knote *kn)
 }
 
 static int
-filt_ttywrite(kn, hint)
-	struct knote *kn;
-	long hint;
+filt_ttywrite(struct knote *kn, long hint)
 {
 	struct tty *tp = ((dev_t)kn->kn_hook)->si_tty;
 
@@ -1251,8 +1233,7 @@ filt_ttywrite(kn, hint)
  * Must be called at spltty().
  */
 static int
-ttnread(tp)
-	struct tty *tp;
+ttnread(struct tty *tp)
 {
 	int nread;
 
@@ -1271,8 +1252,7 @@ ttnread(tp)
  * Wait for output to drain.
  */
 int
-ttywait(tp)
-	struct tty *tp;
+ttywait(struct tty *tp)
 {
 	int error, s;
 
@@ -1305,8 +1285,7 @@ ttywait(tp)
  * Flush if successfully wait.
  */
 static int
-ttywflush(tp)
-	struct tty *tp;
+ttywflush(struct tty *tp)
 {
 	int error;
 
@@ -1319,9 +1298,7 @@ ttywflush(tp)
  * Flush tty read and/or write queues, notifying anyone waiting.
  */
 void
-ttyflush(tp, rw)
-	struct tty *tp;
-	int rw;
+ttyflush(struct tty *tp, int rw)
 {
 	int s;
 
@@ -1390,8 +1367,7 @@ again:
  * Copy in the default termios characters.
  */
 void
-termioschars(t)
-	struct termios *t;
+termioschars(struct termios *t)
 {
 
 	bcopy(ttydefchars, t->c_cc, sizeof t->c_cc);
@@ -1401,8 +1377,7 @@ termioschars(t)
  * Old interface.
  */
 void
-ttychars(tp)
-	struct tty *tp;
+ttychars(struct tty *tp)
 {
 
 	termioschars(&tp->t_termios);
@@ -1414,8 +1389,7 @@ ttychars(tp)
  * XXX the stop character should be put in a special high priority queue.
  */
 void
-ttyblock(tp)
-	struct tty *tp;
+ttyblock(struct tty *tp)
 {
 
 	SET(tp->t_state, TS_TBLOCK);
@@ -1431,8 +1405,7 @@ ttyblock(tp)
  * XXX the start character should be put in a special high priority queue.
  */
 static void
-ttyunblock(tp)
-	struct tty *tp;
+ttyunblock(struct tty *tp)
 {
 
 	CLR(tp->t_state, TS_TBLOCK);
@@ -1448,8 +1421,7 @@ ttyunblock(tp)
  * Restart after an inter-char delay.
  */
 void
-ttrstrt(tp_arg)
-	void *tp_arg;
+ttrstrt(void *tp_arg)
 {
 	struct tty *tp;
 	int s;
@@ -1467,8 +1439,7 @@ ttrstrt(tp_arg)
 #endif
 
 int
-ttstart(tp)
-	struct tty *tp;
+ttstart(struct tty *tp)
 {
 
 	if (tp->t_oproc != NULL)	/* XXX: Kludge for pty. */
@@ -1480,9 +1451,7 @@ ttstart(tp)
  * "close" a line discipline
  */
 int
-ttylclose(tp, flag)
-	struct tty *tp;
-	int flag;
+ttylclose(struct tty *tp, int flag)
 {
 
 	if (flag & FNONBLOCK || ttywflush(tp))
@@ -1496,9 +1465,7 @@ ttylclose(tp, flag)
  * Returns 0 if the line should be turned off, otherwise 1.
  */
 int
-ttymodem(tp, flag)
-	struct tty *tp;
-	int flag;
+ttymodem(struct tty *tp, int flag)
 {
 
 	if (ISSET(tp->t_state, TS_CARR_ON) && ISSET(tp->t_cflag, MDMBUF)) {
@@ -1559,8 +1526,7 @@ ttymodem(tp, flag)
  * call at spltty().
  */
 static void
-ttypend(tp)
-	struct tty *tp;
+ttypend(struct tty *tp)
 {
 	struct clist tq;
 	int c;
@@ -1586,10 +1552,7 @@ ttypend(tp)
  * Process a read call on a tty device.
  */
 int
-ttread(tp, uio, flag)
-	struct tty *tp;
-	struct uio *uio;
-	int flag;
+ttread(struct tty *tp, struct uio *uio, int flag)
 {
 	struct clist *qp;
 	int c;
@@ -1867,9 +1830,7 @@ out:
  * arrive.
  */
 int
-ttycheckoutq(tp, wait)
-	struct tty *tp;
-	int wait;
+ttycheckoutq(struct tty *tp, int wait)
 {
 	int hiwat, s;
 	sigset_t oldmask;
@@ -1899,10 +1860,7 @@ ttycheckoutq(tp, wait)
  * Process a write call on a tty device.
  */
 int
-ttwrite(tp, uio, flag)
-	struct tty *tp;
-	struct uio *uio;
-	int flag;
+ttwrite(struct tty *tp, struct uio *uio, int flag)
 {
 	char *cp = NULL;
 	int cc, ce;
@@ -2107,9 +2065,7 @@ ovhiwat:
  * as cleanly as possible.
  */
 static void
-ttyrub(c, tp)
-	int c;
-	struct tty *tp;
+ttyrub(int c, struct tty *tp)
 {
 	char *cp;
 	int savecol;
@@ -2201,9 +2157,7 @@ ttyrub(c, tp)
  * Back over cnt characters, erasing them.
  */
 static void
-ttyrubo(tp, cnt)
-	struct tty *tp;
-	int cnt;
+ttyrubo(struct tty *tp, int cnt)
 {
 
 	while (cnt-- > 0) {
@@ -2219,8 +2173,7 @@ ttyrubo(tp, cnt)
  *	been checked.
  */
 static void
-ttyretype(tp)
-	struct tty *tp;
+ttyretype(struct tty *tp)
 {
 	char *cp;
 	int s, c;
@@ -2254,9 +2207,7 @@ ttyretype(tp)
  * Echo a typed character to the terminal.
  */
 static void
-ttyecho(c, tp)
-	int c;
-	struct tty *tp;
+ttyecho(int c, struct tty *tp)
 {
 
 	if (!ISSET(tp->t_state, TS_CNTTB))
@@ -2282,8 +2233,7 @@ ttyecho(c, tp)
  * Wake up any readers on a tty.
  */
 void
-ttwakeup(tp)
-	struct tty *tp;
+ttwakeup(struct tty *tp)
 {
 
 	if (SEL_WAITING(&tp->t_rsel))
@@ -2298,8 +2248,7 @@ ttwakeup(tp)
  * Wake up any writers on a tty.
  */
 void
-ttwwakeup(tp)
-	struct tty *tp;
+ttwwakeup(struct tty *tp)
 {
 
 	if (SEL_WAITING(&tp->t_wsel) && tp->t_outq.c_cc <= tp->t_olowat)
@@ -2324,9 +2273,7 @@ ttwwakeup(tp)
  * used by drivers to map software speed values to hardware parameters.
  */
 int
-ttspeedtab(speed, table)
-	int speed;
-	struct speedtab *table;
+ttspeedtab(int speed, struct speedtab *table)
 {
 
 	for ( ; table->sp_speed != -1; table++)
@@ -2344,8 +2291,7 @@ ttspeedtab(speed, table)
  * between them.  All this only applies to the standard line discipline.
  */
 void
-ttsetwater(tp)
-	struct tty *tp;
+ttsetwater(struct tty *tp)
 {
 	int cps, ttmaxhiwat, x;
 
@@ -2403,8 +2349,7 @@ ttsetwater(tp)
  * Report on state of foreground process group.
  */
 void
-ttyinfo(tp)
-	struct tty *tp;
+ttyinfo(struct tty *tp)
 {
 	struct proc *p, *pick;
 	struct timeval utime, stime;
@@ -2486,8 +2431,7 @@ ttyinfo(tp)
 #define BOTH    3
 
 static int
-proc_compare(p1, p2)
-	struct proc *p1, *p2;
+proc_compare(struct proc *p1, struct proc *p2)
 {
 
 	int esta, estb;
@@ -2556,9 +2500,7 @@ proc_compare(p1, p2)
  * Output char to tty; console putchar style.
  */
 int
-tputchar(c, tp)
-	int c;
-	struct tty *tp;
+tputchar(int c, struct tty *tp)
 {
 	int s;
 
@@ -2582,11 +2524,7 @@ tputchar(c, tp)
  * at the start of the call.
  */
 int
-ttysleep(tp, chan, pri, wmesg, timo)
-	struct tty *tp;
-	void *chan;
-	int pri, timo;
-	char *wmesg;
+ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo)
 {
 	int error;
 	int gen;
@@ -2603,8 +2541,7 @@ ttysleep(tp, chan, pri, wmesg, timo)
  * ttyopen().
  */
 struct tty *
-ttymalloc(tp)
-	struct tty *tp;
+ttymalloc(struct tty *tp)
 {
 
 	if (tp)
@@ -2620,16 +2557,14 @@ ttymalloc(tp)
  * ttyclose().
  */
 void
-ttyfree(tp)
-	struct tty *tp;
+ttyfree(struct tty *tp)
 {
 	free(tp, M_TTYS);
 }
 #endif /* 0 */
 
 void
-ttyregister(tp)
-	struct tty *tp;
+ttyregister(struct tty *tp)
 {
 	tp->t_timeout = -1;
 	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
@@ -2659,19 +2594,14 @@ SYSCTL_LONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
 	&tk_nout, 0, "Total TTY out characters");
 
 void
-nottystop(tp, rw)
-	struct tty *tp;
-	int rw;
+nottystop(struct tty *tp, int rw)
 {
 
 	return;
 }
 
 int
-ttyread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ttyread(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
@@ -2682,10 +2612,7 @@ ttyread(dev, uio, flag)
 }
 
 int
-ttywrite(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+ttywrite(dev_t dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
