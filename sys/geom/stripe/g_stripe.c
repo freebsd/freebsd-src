@@ -36,17 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <vm/uma.h>
 #include <geom/geom.h>
 #include <geom/stripe/g_stripe.h>
 
 
+#define	MAX_IO_SIZE	(DFLTPHYS * 2)
 static MALLOC_DEFINE(M_STRIPE, "stripe data", "GEOM_STRIPE Data");
 
-SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0, "GEOM_STRIPE stuff");
-static u_int g_stripe_debug = 0;
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,
-    "Debug level");
+static uma_zone_t g_stripe_zone;
 
 static int g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force);
 static int g_stripe_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -55,14 +53,42 @@ static int g_stripe_destroy_geom(struct gctl_req *req, struct g_class *mp,
 static g_taste_t g_stripe_taste;
 static g_ctl_req_t g_stripe_config;
 static g_dumpconf_t g_stripe_dumpconf;
+static g_init_t g_stripe_init;
+static g_fini_t g_stripe_fini;
 
 struct g_class g_stripe_class = {
 	.name = G_STRIPE_CLASS_NAME,
 	.ctlreq = g_stripe_config,
 	.taste = g_stripe_taste,
-	.destroy_geom = g_stripe_destroy_geom
+	.destroy_geom = g_stripe_destroy_geom,
+	.init = g_stripe_init,
+	.fini = g_stripe_fini
 };
 
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0, "GEOM_STRIPE stuff");
+static u_int g_stripe_debug = 0;
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,
+    "Debug level");
+static int g_stripe_fast = 1;
+TUNABLE_INT("kern.geom.stripe.fast", &g_stripe_fast);
+static int
+g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
+{
+	int error, fast;
+
+	fast = g_stripe_fast;
+	error = sysctl_handle_int(oidp, &fast, sizeof(fast), req);
+	if (error == 0 && req->newptr != NULL)
+		g_stripe_fast = fast;
+	return (error);
+}
+SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming mode");
+static u_int g_stripe_maxmem = MAX_IO_SIZE * 10;
+TUNABLE_INT("kern.geom.stripe.maxmem", &g_stripe_maxmem);
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RD, &g_stripe_maxmem,
+    0, "Maximum memory that could be allocated in \"fast\" mode (in bytes)");
 
 /*
  * Greatest Common Divisor.
@@ -88,6 +114,23 @@ lcm(u_int a, u_int b)
 {
 
 	return ((a * b) / gcd(a, b));
+}
+
+static void
+g_stripe_init(struct g_class *mp __unused)
+{
+
+	g_stripe_zone = uma_zcreate("g_stripe_zone", MAX_IO_SIZE, NULL, NULL,
+	    NULL, NULL, 0, 0);
+	g_stripe_maxmem -= g_stripe_maxmem % MAX_IO_SIZE;
+	uma_zone_set_max(g_stripe_zone, g_stripe_maxmem / MAX_IO_SIZE);
+}
+
+static void
+g_stripe_fini(struct g_class *mp __unused)
+{
+
+	uma_zdestroy(g_stripe_zone);
 }
 
 /*
@@ -205,19 +248,278 @@ g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
+g_stripe_copy(struct g_stripe_softc *sc, char *src, char *dst, off_t offset,
+    off_t length, int mode)
+{
+	u_int stripesize;
+	size_t len;
+
+	stripesize = sc->sc_stripesize;
+	len = (size_t)(stripesize - (offset & (stripesize - 1)));
+	do {
+		bcopy(src, dst, len);
+		if (mode) {
+			dst += len + stripesize * (sc->sc_ndisks - 1);
+			src += len;
+		} else {
+			dst += len;
+			src += len + stripesize * (sc->sc_ndisks - 1);
+		}
+		length -= len;
+		KASSERT(length >= 0,
+		    ("Length < 0 (stripesize=%zu, offset=%jd, length=%jd).",
+		    (size_t)stripesize, (intmax_t)offset, (intmax_t)length));
+		if (length > stripesize)
+			len = stripesize;
+		else
+			len = length;
+	} while (length > 0);
+}
+
+static void
+g_stripe_done(struct bio *bp)
+{
+	struct g_stripe_softc *sc;
+	struct bio *pbp;
+
+	pbp = bp->bio_parent;
+	sc = pbp->bio_to->geom->softc;
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	pbp->bio_completed += bp->bio_completed;
+	if (bp->bio_cmd == BIO_READ && bp->bio_driver1 != NULL) {
+		g_stripe_copy(sc, bp->bio_data, bp->bio_driver1, bp->bio_offset,
+		    bp->bio_length, 1);
+		bp->bio_data = bp->bio_driver1;
+		bp->bio_driver1 = NULL;
+	}
+	g_destroy_bio(bp);
+	pbp->bio_inbed++;
+	if (pbp->bio_children == pbp->bio_inbed) {
+		if (pbp->bio_caller1 != NULL)
+			uma_zfree(g_stripe_zone, pbp->bio_caller1);
+		g_io_deliver(pbp, pbp->bio_error);
+	}
+}
+
+static int
+g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
+{
+	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
+	u_int nparts = 0, stripesize;
+	struct g_stripe_softc *sc;
+	char *addr, *data = NULL;
+	struct bio *cbp;
+	int error;
+
+	sc = bp->bio_to->geom->softc;
+
+	addr = bp->bio_data;
+	stripesize = sc->sc_stripesize;
+
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		error = ENOMEM;
+		goto failure;
+	}
+	TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+	nparts++;
+	/*
+	 * Fill in the component buf structure.
+	 */
+	cbp->bio_done = g_stripe_done;
+	cbp->bio_offset = offset;
+	cbp->bio_data = addr;
+	cbp->bio_driver1 = NULL;
+	cbp->bio_length = length;
+	cbp->bio_driver2 = sc->sc_disks[no];
+
+	/* offset -= offset % stripesize; */
+	offset -= offset & (stripesize - 1);
+	addr += length;
+	length = bp->bio_length - length;
+	for (no++; length > 0; no++, length -= stripesize, addr += stripesize) {
+		if (no > sc->sc_ndisks - 1) {
+			no = 0;
+			offset += stripesize;
+		}
+		if (nparts >= sc->sc_ndisks) {
+			cbp = TAILQ_NEXT(cbp, bio_queue);
+			if (cbp == NULL)
+				cbp = TAILQ_FIRST(&queue);
+			nparts++;
+			/*
+			 * Update bio structure.
+			 */
+			/*
+			 * MIN() is in case when
+			 * (bp->bio_length % sc->sc_stripesize) != 0.
+			 */
+			cbp->bio_length += MIN(stripesize, length);
+			if (cbp->bio_driver1 == NULL) {
+				cbp->bio_driver1 = cbp->bio_data;
+				cbp->bio_data = NULL;
+				if (data == NULL) {
+					data = uma_zalloc(g_stripe_zone,
+					    M_NOWAIT);
+					if (data == NULL) {
+						error = ENOMEM;
+						goto failure;
+					}
+				}
+			}
+		} else {
+			cbp = g_clone_bio(bp);
+			if (cbp == NULL) {
+				error = ENOMEM;
+				goto failure;
+			}
+			TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+			nparts++;
+			/*
+			 * Fill in the component buf structure.
+			 */
+			cbp->bio_done = g_stripe_done;
+			cbp->bio_offset = offset;
+			cbp->bio_data = addr;
+			cbp->bio_driver1 = NULL;
+			/*
+			 * MIN() is in case when
+			 * (bp->bio_length % sc->sc_stripesize) != 0.
+			 */
+			cbp->bio_length = MIN(stripesize, length);
+			cbp->bio_driver2 = sc->sc_disks[no];
+		}
+	}
+	if (data != NULL)
+		bp->bio_caller1 = data;
+	/*
+	 * Fire off all allocated requests!
+	 */
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		struct g_consumer *cp;
+
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		cp = cbp->bio_driver2;
+		cbp->bio_driver2 = NULL;
+		cbp->bio_to = cp->provider;
+		if (cbp->bio_driver1 != NULL) {
+			cbp->bio_data = data;
+			if (bp->bio_cmd == BIO_WRITE) {
+				g_stripe_copy(sc, cbp->bio_driver1, data,
+				    cbp->bio_offset, cbp->bio_length, 0);
+			}
+			data += cbp->bio_length;
+		}
+		G_STRIPE_LOGREQ(cbp, "Sending request.");
+		g_io_request(cbp, cp);
+	}
+	return (0);
+failure:
+	if (data != NULL)
+		uma_zfree(g_stripe_zone, data);
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		if (cbp->bio_driver1 != NULL) {
+			cbp->bio_data = cbp->bio_driver1;
+			cbp->bio_driver1 = NULL;
+		}
+		g_destroy_bio(cbp);
+	}
+	return (error);
+}
+
+static int
+g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
+{
+	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
+	struct g_stripe_softc *sc;
+	uint32_t stripesize;
+	struct bio *cbp;
+	char *addr;
+	int error;
+
+	sc = bp->bio_to->geom->softc;
+
+	addr = bp->bio_data;
+	stripesize = sc->sc_stripesize;
+
+	cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		error = ENOMEM;
+		goto failure;
+	}
+	TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+	/*
+	 * Fill in the component buf structure.
+	 */
+	cbp->bio_done = g_std_done;
+	cbp->bio_offset = offset;
+	cbp->bio_data = addr;
+	cbp->bio_length = length;
+	cbp->bio_driver2 = sc->sc_disks[no];
+
+	/* offset -= offset % stripesize; */
+	offset -= offset & (stripesize - 1);
+	addr += length;
+	length = bp->bio_length - length;
+	for (no++; length > 0; no++, length -= stripesize, addr += stripesize) {
+		if (no > sc->sc_ndisks - 1) {
+			no = 0;
+			offset += stripesize;
+		}
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
+			error = ENOMEM;
+			goto failure;
+		}
+		TAILQ_INSERT_TAIL(&queue, cbp, bio_queue);
+
+		/*
+		 * Fill in the component buf structure.
+		 */
+		cbp->bio_done = g_std_done;
+		cbp->bio_offset = offset;
+		cbp->bio_data = addr;
+		/*
+		 * MIN() is in case when
+		 * (bp->bio_length % sc->sc_stripesize) != 0.
+		 */
+		cbp->bio_length = MIN(stripesize, length);
+
+		cbp->bio_driver2 = sc->sc_disks[no];
+	}
+	/*
+	 * Fire off all allocated requests!
+	 */
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		struct g_consumer *cp;
+
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		cp = cbp->bio_driver2;
+		cbp->bio_driver2 = NULL;
+		cbp->bio_to = cp->provider;
+		G_STRIPE_LOGREQ(cbp, "Sending request.");
+		g_io_request(cbp, cp);
+	}
+	return (0);
+failure:
+	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		g_destroy_bio(cbp);
+	}
+	return (error);
+}
+
+static void
 g_stripe_start(struct bio *bp)
 {
-	struct g_provider *pp;
+	off_t offset, start, length, nstripe;
 	struct g_stripe_softc *sc;
-	off_t off, start, length, nstripe;
-	struct bio *cbp;
-	u_int sectorsize;
-	uint32_t stripesize;
-	uint16_t no;
-	char *addr;
+	u_int no, stripesize;
+	int error, fast = 0;
 
-	pp = bp->bio_to;
-	sc = pp->geom->softc;
+	sc = bp->bio_to->geom->softc;
 	/*
 	 * If sc == NULL, provider's error should be set and g_stripe_start()
 	 * should not be called at all.
@@ -243,12 +545,10 @@ g_stripe_start(struct bio *bp)
 		return;
 	}
 
-	addr = bp->bio_data;
-	sectorsize = sc->sc_provider->sectorsize;
 	stripesize = sc->sc_stripesize;
 
 	/*
-	 * Calcucations are quite messy, but fast I hope.
+	 * Calculations are quite messy, but fast I hope.
 	 */
 
 	/* Stripe number. */
@@ -260,76 +560,41 @@ g_stripe_start(struct bio *bp)
 	/* start = bp->bio_offset % stripesize; */
 	start = bp->bio_offset & (stripesize - 1);
 	/* Start position in disk. */
-	/* off = (nstripe / sc->sc_ndisks) * stripesize + start; */
-	off = ((nstripe / sc->sc_ndisks) << sc->sc_stripebits) + start;
+	/* offset = (nstripe / sc->sc_ndisks) * stripesize + start; */
+	offset = ((nstripe / sc->sc_ndisks) << sc->sc_stripebits) + start;
 	/* Length of data to operate. */
 	length = MIN(bp->bio_length, stripesize - start);
 
-	cbp = g_clone_bio(bp);
-	if (cbp == NULL) {
-		/*
-		 * Deny all request. This is pointless
-		 * to split rest of the request, bacause
-		 * we're setting bio_error here, so all
-		 * request will be denied, anyway.
-		 */
-		bp->bio_completed = bp->bio_length;
-		if (bp->bio_error == 0)
-			bp->bio_error = ENOMEM;
-		g_io_deliver(bp, bp->bio_error);
-		return;
-	}
 	/*
-	 * Fill in the component buf structure.
+	 * Do use "fast" mode when:
+	 * 1. "Fast" mode is ON.
+	 * and
+	 * 2. Request size is less than or equal to MAX_IO_SIZE (128kB),
+	 *    which should always be true.
+	 * and
+	 * 3. Request size is bigger than stripesize * ndisks. If it isn't,
+	 *    there will be no need to send more than one I/O request to
+	 *    a provider, so there is nothing to optmize.
 	 */
-	cbp->bio_done = g_std_done;
-	cbp->bio_offset = off;
-	cbp->bio_data = addr;
-	cbp->bio_length = length;
-	cbp->bio_to = sc->sc_disks[no]->provider;
-	G_STRIPE_LOGREQ(cbp, "Sending request.");
-	g_io_request(cbp, sc->sc_disks[no]);
-
-	/* off -= off % stripesize; */
-	off -= off & (stripesize - 1);
-	addr += length;
-	length = bp->bio_length - length;
-	for (no++; length > 0; no++, length -= stripesize, addr += stripesize) {
-		if (no > sc->sc_ndisks - 1) {
-			no = 0;
-			off += stripesize;
-		}
-		cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			/*
-			 * Deny remaining part. This is pointless
-			 * to split rest of the request, bacause
-			 * we're setting bio_error here, so all
-			 * request will be denied, anyway.
-			 */
-			bp->bio_completed += length;
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			if (bp->bio_completed == bp->bio_length)
-				g_io_deliver(bp, bp->bio_error);
-			return;
-		}
-
-		/*
-		 * Fill in the component buf structure.
-		 */
-		cbp->bio_done = g_std_done;
-		cbp->bio_offset = off;
-		cbp->bio_data = addr;
-		/*
-		 * MIN() is in case when
-		 * (bp->bio_length % sc->sc_stripesize) != 0.
-		 */
-		cbp->bio_length = MIN(stripesize, length);
-
-		cbp->bio_to = sc->sc_disks[no]->provider;
-		G_STRIPE_LOGREQ(cbp, "Sending request.");
-		g_io_request(cbp, sc->sc_disks[no]);
+	if (g_stripe_fast && bp->bio_length <= MAX_IO_SIZE &&
+	    bp->bio_length >= stripesize * sc->sc_ndisks) {
+		fast = 1;
+	}
+	error = 0;
+	if (fast)
+		error = g_stripe_start_fast(bp, no, offset, length);
+	/*
+	 * Do use "economic" when:
+	 * 1. "Economic" mode is ON.
+	 * or
+	 * 2. "Fast" mode failed. It can only failed if there is no memory.
+	 */
+	if (!fast || error != 0)
+		error = g_stripe_start_economic(bp, no, offset, length);
+	if (error != 0) {
+		if (bp->bio_error == 0)
+			bp->bio_error = error;
+		g_io_deliver(bp, bp->bio_error);
 	}
 }
 
