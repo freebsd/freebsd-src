@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: oinit.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+ *	$Id: oinit.c,v 1.2 1998/10/15 21:40:07 abial Exp $
  */
 
 /*
@@ -83,7 +83,7 @@ extern char **environ;
 
 /* Struct for holding session state */
 struct sess {
-	char tty[11];	/* vty device path */
+	char tty[16];	/* vty device path */
 	pid_t pid;	/* pid of process running on it */
 	int (*func)(int argc, char **argv);
 			/* internal function to run on it (after forking) */
@@ -646,6 +646,16 @@ runcom()
 void
 runcom(char *fname)
 {
+	int fd;
+
+	close(0);
+	close(1);
+	close(2);
+	fd=open(_PATH_CONSOLE,O_RDWR);
+	dup2(fd,0);
+	dup2(fd,1);
+	dup2(fd,2);
+	if(fd>2) close(fd);
 	sourcer(fname);
 }
 #endif
@@ -902,9 +912,13 @@ main(int argc, char **argv)
 		mount("devfs","/dev",MNT_NOEXEC|MNT_RDONLY,0);
 
 	/* Fill in the sess structures. */
-	/* XXX Really, should be filled basing on config file. */
+	/* XXX Really, should be filled based upon config file. */
 	for(i=0;i<MAX_CONS;i++) {
-		sprintf(ttys[i].tty,"/dev/ttyv%c",vty[i]);
+		if(i==0) {
+			sprintf(ttys[i].tty,"/dev/console");
+		} else {
+			sprintf(ttys[i].tty,"/dev/ttyv%c",vty[i]);
+		}
 		ttys[i].pid=0;
 		ttys[i].func=shell;
 	}
