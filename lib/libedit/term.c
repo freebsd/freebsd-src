@@ -135,6 +135,12 @@ private struct {
 #ifdef B38400
     { "38400", B38400 },
 #endif
+#ifdef B57600
+    { "57600", B57600 },
+#endif
+#ifdef B115200
+    { "115200", B115200 },
+#endif
     { NULL, 0 }
 };
 
@@ -834,7 +840,11 @@ term_set(el, term)
 
     if (i <= 0) {
 	if (i == -1) 
+#ifdef __FreeBSD__
+	    (void) fprintf(el->el_errfile, "Cannot open /usr/share/misc/termcap.\n");
+#else
 	    (void) fprintf(el->el_errfile, "Cannot open /etc/termcap.\n");
+#endif
 	else if (i == 0) 
 	    (void) fprintf(el->el_errfile, 
 			   "No entry for terminal type \"%s\"\n", term);
