@@ -53,6 +53,14 @@ share/sgml/release.ent
 */readme/
 	Directory for (introductory) document.
 
+If building the release notes "standalone" (in other words, not part
+of a release), it may be necessary (depending on the relative
+locations of the checked-out src/ and doc/ directories) to set the
+DOC_PREFIX Makefile variable to point to the top directory of the doc/
+tree.  For example:
+
+	 % make DOC_PREFIX=/usr/doc all
+
 All definition of the "current" version of FreeBSD is contained in the
 share/sgml/release.ent file; release engineers should peruse the
 contents of this file carefully when doing version number bumps.
