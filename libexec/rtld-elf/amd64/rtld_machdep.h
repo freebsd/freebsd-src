@@ -38,7 +38,8 @@ struct Struct_Obj_Entry;
 /* Fixup the jump slot at "where" to transfer control to "target". */
 static inline Elf_Addr
 reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
-	      const struct Struct_Obj_Entry *obj)
+	      const struct Struct_Obj_Entry *obj,
+	      const struct Struct_Obj_Entry *refobj, const Elf_Rel *rel)
 {
     dbg("reloc_jmpslot: *%p = %p", (void *)(where),
 	(void *)(target));
