@@ -1031,9 +1031,9 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		usbd_remove_device(dev, up);
 		return (err);
   	}
-  
-	usbd_add_event(USB_EVENT_CTRLR_ATTACH, dev);
 
+	usbd_add_dev_event(USB_EVENT_DEVICE_ATTACH, dev);
+  
   	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -1158,6 +1158,7 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 
 	di->bus = USBDEVUNIT(dev->bus->bdev);
 	di->addr = dev->address;
+	di->cookie = dev->cookie;
 	usbd_devinfo_vp(dev, di->vendor, di->product, usedev);
 	usbd_printBCD(di->release, UGETW(dev->ddesc.bcdDevice));
 	di->vendorNo = UGETW(dev->ddesc.idVendor);
@@ -1281,7 +1282,7 @@ usb_disconnect_port(struct usbd_port *up, device_ptr_t parent)
 		}
 	}
 
-	/*usbd_add_event(USB_EVENT_DETACH, dev);*/
+	/*usbd_add_dev_event(USB_EVENT_DEVICE_DETACH, dev);*/
 	dev->bus->devices[dev->address] = NULL;
 	up->device = NULL;
 	usb_free_device(dev);
