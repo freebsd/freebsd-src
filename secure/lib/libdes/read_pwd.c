@@ -56,6 +56,7 @@
 #include <signal.h>
 #include <string.h>
 #include <setjmp.h>
+#include <errno.h>
 
 /* There are 5 types of terminal interface supported,
  * TERMIO, TERMIOS, VMS, MSDOS and SGTTY
@@ -238,6 +239,8 @@ int verify;
 	int number=5;
 	int ok=0;
 	int ps=0;
+	int is_a_tty=1;
+
 	FILE *tty=NULL;
 	char *p;
 
@@ -251,7 +254,14 @@ int verify;
 
 #if defined(TTY_get) && !defined(VMS)
 	if (TTY_get(fileno(tty),&tty_orig) == -1)
-		return(-1);
+		{
+#ifdef ENOTTY
+		if (errno == ENOTTY)
+			is_a_tty=0;
+		else
+#endif
+			return(-1);
+		}
 	memcpy(&(tty_new),&(tty_orig),sizeof(tty_orig));
 #endif
 #ifdef VMS
@@ -276,7 +286,7 @@ int verify;
 #endif
 
 #if defined(TTY_set) && !defined(VMS)
-	if (TTY_set(fileno(tty),&tty_new) == -1)
+	if (is_a_tty && (TTY_set(fileno(tty),&tty_new) == -1))
 		return(-1);
 #endif
 #ifdef VMS
