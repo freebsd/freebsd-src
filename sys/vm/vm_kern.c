@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.13 1995/05/30 08:16:04 rgrimes Exp $
+ * $Id: vm_kern.c,v 1.13.4.1 1996/01/31 12:06:48 davidg Exp $
  */
 
 /*
@@ -346,6 +346,7 @@ kmem_malloc(map, size, waitflag)
 			while (i != 0) {
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(kmem_object, offset + i);
+				PAGE_WAKEUP(m);
 				vm_page_free(m);
 			}
 			vm_object_unlock(kmem_object);
