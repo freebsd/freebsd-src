@@ -89,7 +89,7 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 
 	buf = end = sndbuf_getbuf(b);
 	end += sndbuf_getsize(b);
-	uaudio_chan_set_param_pcm_dma_buff(pa_dev, buf, end, ch->channel);
+	uaudio_chan_set_param_pcm_dma_buff(pa_dev, buf, end, ch->channel, dir);
 
 	ch->dir = dir;
 #ifndef NO_RECORDING
@@ -113,7 +113,7 @@ ua_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_format(pa_dev, format);
+	uaudio_chan_set_param_format(pa_dev, format, ch->dir);
 
 	ch->fmt = format;
 	return 0;
@@ -130,7 +130,7 @@ ua_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_speed(pa_dev, speed);
+	uaudio_chan_set_param_speed(pa_dev, speed, ch->dir);
 
 	return ch->spd;
 }
@@ -151,7 +151,7 @@ ua_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	/* XXXXX */
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_blocksize(pa_dev, blocksize);
+	uaudio_chan_set_param_blocksize(pa_dev, blocksize, ch->dir);
 
 	return ch->blksz;
 }
@@ -198,7 +198,7 @@ ua_chan_getptr(kobj_t obj, void *data)
 	ua = ch->parent;
 	pa_dev = device_get_parent(ua->sc_dev);
 
-	return uaudio_chan_getptr(pa_dev);
+	return uaudio_chan_getptr(pa_dev, ch->dir);
 }
 
 static struct pcmchan_caps *
