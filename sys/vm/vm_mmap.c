@@ -698,7 +698,6 @@ minherit(td, uap)
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	vm_inherit_t inherit;
-	int ret;
 
 	addr = (vm_offset_t)uap->addr;
 	size = uap->len;
@@ -711,12 +710,8 @@ minherit(td, uap)
 	if (addr + size < addr)
 		return (EINVAL);
 
-	mtx_lock(&Giant);
-	ret = vm_map_inherit(&td->td_proc->p_vmspace->vm_map, addr, addr+size,
-		    inherit);
-	mtx_unlock(&Giant);
-
-	switch (ret) {
+	switch (vm_map_inherit(&td->td_proc->p_vmspace->vm_map, addr,
+	    addr + size, inherit)) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
