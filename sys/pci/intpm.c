@@ -293,10 +293,10 @@ static void intsmb_alrintr(device_t dev)
                                   |LSB);
 		intsmb_start(dev,PIIX4_SMBHSTCNT_PROT_BYTE,1);
 		if(!(error=intsmb_stop_poll(dev))){
-			volatile u_int8_t *addr;
+			u_int8_t addr;
 			addr=bus_space_read_1(sc->st,sc->sh,
 					      PIIX4_SMBHSTDAT0);
-			printf("ALART_RESPONSE: %p\n", addr);
+			printf("ALART_RESPONSE: 0x%x\n", addr);
 		}
 	}else{
 	        printf("ERROR\n");
