@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.36 2001/01/14 06:34:57 grog Exp $
+ * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -54,6 +54,12 @@
 
 #define VINUMROOT
 enum constants {
+    /*
+     * Current version of the data structures.  This
+     * is used to ensure synchronization between
+     * kernel module and userland vinum(8).
+     */
+    VINUMVERSION = 1,
     VINUM_HEADER = 512,					    /* size of header on disk */
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
@@ -129,6 +135,7 @@ enum constants {
 			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
 			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
 			  | (t << VINUM_TYPE_SHIFT) )
+
 
     /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
@@ -229,9 +236,9 @@ struct devcode {
 #define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
 /*
- * Flags for all objects.  Most of them only apply to
- * specific objects, but we have space for all in any
- * 32 bit flags word.
+ * Flags for all objects.  Most of them only apply
+ * to specific objects, but we currently have
+ * space for all in any 32 bit flags word.
  */
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
@@ -256,45 +263,8 @@ enum objflags {
     VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
     VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
     VF_HOTSPARE = 0x200000,				    /* for drives: use as hot spare */
+    VF_RETRYERRORS = 0x400000,				    /* don't down subdisks on I/O errors */
 };
-
-/* Global configuration information for the vinum subsystem */
-struct _vinum_conf {
-    /* Pointers to vinum structures */
-    struct drive *drive;
-    struct sd *sd;
-    struct plex *plex;
-    struct volume *volume;
-
-    /* the number allocated */
-    int drives_allocated;
-    int subdisks_allocated;
-    int plexes_allocated;
-    int volumes_allocated;
-
-    /* and the number currently in use */
-    int drives_used;
-    int subdisks_used;
-    int plexes_used;
-    int volumes_used;
-
-    int flags;
-
-#define VINUM_MAXACTIVE  30000				    /* maximum number of active requests */
-    int active;						    /* current number of requests outstanding */
-    int maxactive;					    /* maximum number of requests ever outstanding */
-#if VINUMDEBUG
-    struct request *lastrq;
-    struct buf *lastbuf;
-#endif
-};
-
-/* Use these defines to simplify code */
-#define DRIVE vinum_conf.drive
-#define SD vinum_conf.sd
-#define PLEX vinum_conf.plex
-#define VOL vinum_conf.volume
-#define VFLAGS vinum_conf.flags
 
 /*
  * Slice header
@@ -369,90 +339,6 @@ enum drive_label_info {
     DL_OURS						    /* valid partition and label found */
 };
 
-/*** Drive definitions ***/
-/*
- * A drive corresponds to a disk slice.  We use a different term to show
- * the difference in usage: it doesn't have to be a slice, and could
- * theoretically be a complete, unpartitioned disk
- */
-
-struct drive {
-    enum drivestate state;				    /* current state */
-    int flags;						    /* flags */
-    int subdisks_allocated;				    /* number of entries in sd */
-    int subdisks_used;					    /* and the number used */
-    int blocksize;					    /* size of fs blocks */
-    int pid;						    /* of locker */
-    u_int64_t sectors_available;			    /* number of sectors still available */
-    int secsperblock;
-    int lasterror;					    /* last error on drive */
-    int driveno;					    /* index of drive in vinum_conf */
-    int opencount;					    /* number of up subdisks */
-    u_int64_t reads;					    /* number of reads on this drive */
-    u_int64_t writes;					    /* number of writes on this drive */
-    u_int64_t bytes_read;				    /* number of bytes read */
-    u_int64_t bytes_written;				    /* number of bytes written */
-    char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
-    dev_t dev;						    /* device information */
-    struct vinum_label label;				    /* and the label information */
-    struct partinfo partinfo;				    /* partition information */
-    int freelist_size;					    /* number of entries alloced in free list */
-    int freelist_entries;				    /* number of entries used in free list */
-    struct drive_freelist {				    /* sorted list of free space on drive */
-	u_int64_t offset;				    /* offset of entry */
-	u_int64_t sectors;				    /* and length in sectors */
-    } *freelist;
-#define DRIVE_MAXACTIVE  30000				    /* maximum number of active requests */
-    int active;						    /* current number of requests outstanding */
-    int maxactive;					    /* maximum number of requests ever outstanding */
-#ifdef VINUMDEBUG
-    char lockfilename[16];				    /* name of file from which we were locked */
-    int lockline;					    /* and the line number */
-#endif
-};
-
-/*** Subdisk definitions ***/
-
-struct sd {
-    enum sdstate state;					    /* state */
-    int flags;
-    int lasterror;					    /* last error occurred */
-    /* offsets in blocks */
-    int64_t driveoffset;				    /* offset on drive */
-    /*
-     * plexoffset is the offset from the beginning
-     * of the plex to the very first part of the
-     * subdisk, in sectors.  For striped, RAID-4 and
-     * RAID-5 plexes, only the first stripe is
-     * located at this offset
-     */
-    int64_t plexoffset;					    /* offset in plex */
-    u_int64_t sectors;					    /* and length in sectors */
-    int plexno;						    /* index of plex, if it belongs */
-    int driveno;					    /* index of the drive on which it is located */
-    int sdno;						    /* our index in vinum_conf */
-    int plexsdno;					    /* and our number in our plex */
-    /* (undefined if no plex) */
-    u_int64_t reads;					    /* number of reads on this subdisk */
-    u_int64_t writes;					    /* number of writes on this subdisk */
-    u_int64_t bytes_read;				    /* number of bytes read */
-    u_int64_t bytes_written;				    /* number of bytes written */
-    /* revive parameters */
-    u_int64_t revived;					    /* block number of current revive request */
-    int revive_blocksize;				    /* revive block size (bytes) */
-    int revive_interval;				    /* and time to wait between transfers */
-    pid_t reviver;					    /* PID of reviving process */
-    struct request *waitlist;				    /* list of requests waiting on revive op */
-    /* init parameters */
-    u_int64_t initialized;				    /* block number of current init request */
-    int init_blocksize;					    /* init block size (bytes) */
-    int init_interval;					    /* and time to wait between transfers */
-    char name[MAXSDNAME];				    /* name of subdisk */
-    dev_t dev;
-};
-
-/*** Plex definitions ***/
-
 /* kinds of plex organization */
 enum plexorg {
     plex_disorg,					    /* disorganized */
@@ -466,78 +352,30 @@ enum plexorg {
 #define isstriped(p) (p->organization >= plex_striped)	    /* RAID 1, 4 or 5 */
 #define isparity(p) (p->organization >= plex_raid4)	    /* RAID 4 or 5 */
 
-struct plex {
-    enum plexorg organization;				    /* Plex organization */
-    enum plexstate state;				    /* and current state */
-    u_int64_t length;					    /* total length of plex (sectors) */
-    int flags;
-    int stripesize;					    /* size of stripe or raid band, in sectors */
-    int subdisks;					    /* number of associated subdisks */
-    int subdisks_allocated;				    /* number of subdisks allocated space for */
-    int *sdnos;						    /* list of component subdisks */
-    int plexno;						    /* index of plex in vinum_conf */
-    int volno;						    /* index of volume */
-    int volplexno;					    /* number of plex in volume */
-    /* Lock information */
-    struct mtx lockmtx;
-    int usedlocks;					    /* number currently in use */
-    int lockwaits;					    /* and number of waits for locks */
-    struct rangelock *lock;				    /* ranges of locked addresses */
-    off_t checkblock;					    /* block number for parity op */
-    /* Statistics */
-    u_int64_t reads;					    /* number of reads on this plex */
-    u_int64_t writes;					    /* number of writes on this plex */
-    u_int64_t bytes_read;				    /* number of bytes read */
-    u_int64_t bytes_written;				    /* number of bytes written */
-    u_int64_t recovered_reads;				    /* number of recovered read operations */
-    u_int64_t degraded_writes;				    /* number of degraded writes */
-    u_int64_t parityless_writes;			    /* number of parityless writes */
-    u_int64_t multiblock;				    /* requests that needed more than one block */
-    u_int64_t multistripe;				    /* requests that needed more than one stripe */
-    int sddowncount;					    /* number of subdisks down */
-    char name[MAXPLEXNAME];				    /* name of plex */
-    dev_t dev;
-};
-
-/*** Volume definitions ***/
-
 /* Address range definitions, for locking volumes */
 struct rangelock {
     daddr_t stripe;					    /* address + 1 of the range being locked  */
     struct buf *bp;					    /* user's buffer pointer */
 };
 
-struct volume {
-    enum volumestate state;				    /* current state */
-    int plexes;						    /* number of plexes */
-    int preferred_plex;					    /* plex to read from, -1 for round-robin */
-    /*
-     * index of plex used for last read, for
-     * round-robin.
-     */
-    int last_plex_read;
-    int volno;						    /* volume number */
-    int flags;						    /* status and configuration flags */
-    int openflags;					    /* flags supplied to last open(2) */
-    u_int64_t size;					    /* size of volume */
-    int blocksize;					    /* logical block size */
-    int active;						    /* number of outstanding requests active */
-    int subops;						    /* and the number of suboperations */
-    /* Statistics */
-    u_int64_t bytes_read;				    /* number of bytes read */
-    u_int64_t bytes_written;				    /* number of bytes written */
-    u_int64_t reads;					    /* number of reads on this volume */
-    u_int64_t writes;					    /* number of writes on this volume */
-    u_int64_t recovered_reads;				    /* reads recovered from another plex */
-    /*
-     * Unlike subdisks in the plex, space for the
-     * plex pointers is static.
-     */
-    int plex[MAXPLEX];					    /* index of plexes */
-    char name[MAXVOLNAME];				    /* name of volume */
-    struct disklabel label;				    /* for DIOCGPART */
-    dev_t dev;
+struct drive_freelist {					    /* sorted list of free space on drive */
+    u_int64_t offset;					    /* offset of entry */
+    u_int64_t sectors;					    /* and length in sectors */
 };
+
+/*
+ * Include the structure definitions shared
+ * between userland and kernel.
+ */
+
+#ifdef _KERNEL
+#include <dev/vinum/vinumobj.h>
+#undef _KERNEL
+#include <dev/vinum/vinumobj.h>
+#define _KERNEL
+#else
+#include <dev/vinum/vinumobj.h>
+#endif
 
 /*
  * Table expansion.  Expand table, which contains oldcount
@@ -637,6 +475,7 @@ enum debugflags {
     DEBUG_BIGDRIVE = 128,				    /* pretend our drives are 100 times the size */
     DEBUG_REMOTEGDB = 256,				    /* go into remote gdb */
     DEBUG_WARNINGS = 512,				    /* log various relatively harmless warnings  */
+    DEBUG_LOCKREQS = 1024,				    /* log locking requests  */
 };
 
 #ifdef _KERNEL
