@@ -52,7 +52,7 @@ static char bname[1024];	/* name of the binary to load */
 static uint32_t fs_off;
 
 int main(void);
-void exit(int);
+static void exit(int);
 static void load(const char *);
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
@@ -105,8 +105,7 @@ ofw_init(int d, int d1, int d2, int d3, ofwfp_t ofwaddr)
 		printf("Could not open boot device.\n");
 	}	
 
-	main();
-	d = d1 = d2 = d3;	/* make GCC happy */
+	exit(main());
 }
 
 ofwh_t
@@ -244,6 +243,18 @@ ofw_seek(ofwh_t devh, u_int64_t off)
 	return (0);
 }
 
+void
+ofw_exit(void)
+{
+	ofwcell_t args[3];
+
+	args[0] = (ofwcell_t)"exit";
+	args[1] = 0;
+	args[2] = 0;
+
+	(*ofw)(args);
+}
+
 static void
 bcopy(const void *dst, void *src, size_t len)
 {
@@ -313,6 +324,13 @@ main(void)
 	"   Boot loader: %s\n", bootpath, _PATH_LOADER);
 	load(bname);
 	return (1);
+}
+
+static void
+exit(int code)
+{
+
+	ofw_exit();
 }
 
 static void
