@@ -100,6 +100,7 @@ struct buf {
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	TAILQ_ENTRY(buf) b_act;		/* Device driver queue when active. *new* */
+	u_int	b_iocmd;		/* BIO_READ, BIO_WRITE, BIO_DELETE */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
 	unsigned char b_xflags;		/* extra flags */
@@ -170,7 +171,7 @@ struct buf {
  *			B_DELWRI can also be cleared.  See the comments for
  *			getblk() in kern/vfs_bio.c.  If B_CACHE is clear,
  *			the caller is expected to clear B_ERROR|B_INVAL,
- *			set B_READ, and initiate an I/O.
+ *			set BIO_READ, and initiate an I/O.
  *
  *			The 'entire buffer' is defined to be the range from
  *			0 through b_bcount.
@@ -192,15 +193,18 @@ struct buf {
  *	
  */
 
+#define BIO_READ	1
+#define BIO_WRITE	2
+#define BIO_DELETE	4
+
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
 #define	B_UNUSED0	0x00000008	/* Old B_BAD */
 #define	B_DEFERRED	0x00000010	/* Skipped over for cleaning */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
-#define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
+#define	B_UNUSED40	0x00000040	/* Old B_CALL */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_FREEBUF	0x00000100	/* Instruct driver: free blocks */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_ERROR		0x00000800	/* I/O error occurred. */
@@ -212,11 +216,9 @@ struct buf {
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
-#define	B_READ		0x00100000	/* Read buffer. */
 #define	B_DIRTY		0x00200000	/* Needs writing later. */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_WANT		0x00800000	/* Used by vm_pager.c */
-#define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
 #define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */

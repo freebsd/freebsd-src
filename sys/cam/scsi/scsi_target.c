@@ -1165,7 +1165,7 @@ targstrategy(struct buf *bp)
 	 * 
 	 */
 	bp->b_resid = bp->b_bcount;
-	if ((bp->b_flags & B_READ) != 0) {
+	if (bp->b_iocmd == BIO_READ) {
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Queued a SEND buffer\n"));
 		bufq_insert_tail(&softc->snd_buf_queue, bp);

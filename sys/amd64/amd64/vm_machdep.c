@@ -357,7 +357,7 @@ vmapbuf(bp)
 		 * when reading stuff off device into memory.
 		 */
 		vm_fault_quick(addr,
-			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
+			(bp->b_iocmd == BIO_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		if (pa == 0)
 			panic("vmapbuf: page not present");

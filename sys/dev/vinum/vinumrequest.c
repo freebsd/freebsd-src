@@ -224,7 +224,7 @@ vinumstart(struct buf *bp, int reviveok)
 	maxplex = 1;					    /* just the one plex */
     }
 
-    if (bp->b_flags & B_READ) {
+    if (bp->b_iocmd == BIO_READ) {
 	/*
 	 * This is a read request.  Decide
 	 * which plex to read from.
@@ -337,7 +337,7 @@ launch_requests(struct request *rq, int reviveok)
 		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		rq->sdno,
 		rq,
-		rq->bp->b_flags & B_READ ? "Read" : "Write",
+		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
 		rq->bp->b_blkno,
@@ -351,7 +351,7 @@ launch_requests(struct request *rq, int reviveok)
 	log(LOG_DEBUG,
 	    "Request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 	    rq,
-	    rq->bp->b_flags & B_READ ? "Read" : "Write",
+	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
 	    rq->bp->b_blkno,
@@ -406,7 +406,7 @@ launch_requests(struct request *rq, int reviveok)
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
 			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
-			rqe->b.b_flags & B_READ ? "Read" : "Write",
+			rqe->b.b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rqe->b.b_dev),
 			minor(rqe->b.b_dev),
 			rqe->sdno,
@@ -505,7 +505,7 @@ bre(struct request *rq,
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
 		    if (s == REQUEST_DOWN) {		    /* down? */
 			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
-			if (rq->bp->b_flags & B_READ)	    /* read request, */
+			if (rq->bp->b_iocmd == BIO_READ)	    /* read request, */
 			    return REQUEST_DEGRADED;	    /* give up here */
 			/*
 			 * If we're writing, don't give up
@@ -589,7 +589,7 @@ bre(struct request *rq,
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
 		    if (s == REQUEST_DOWN) {		    /* down? */
 			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
-			if (rq->bp->b_flags & B_READ)	    /* read request, */
+			if (rq->bp->b_iocmd == BIO_READ)	    /* read request, */
 			    return REQUEST_DEGRADED;	    /* give up here */
 			/*
 			 * If we're writing, don't give up
@@ -791,8 +791,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 
     /* Initialize the buf struct */
     /* copy these flags from user bp */
-    bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_READ | B_ASYNC);
-    bp->b_flags |= B_CALL;				    /* inform us when it's done */
+    bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_ASYNC);
+    bp->b_iocmd = BIO_READ; 				    /* inform us when it's done */
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
 
@@ -891,9 +891,9 @@ sdio(struct buf *bp)
 
     if (drive->state != drive_up) {
 	if (sd->state >= sd_crashed) {
-	    if (bp->b_flags & B_READ)			    /* reading, */
+	    if (bp->b_iocmd == BIO_READ)		    /* reading, */
 		set_sd_state(sd->sdno, sd_crashed, setstate_force);
-	    else
+	    else if (bp->b_iocmd == BIO_WRITE)		    /* writing, */
 		set_sd_state(sd->sdno, sd_stale, setstate_force);
 	}
 	bp->b_flags |= B_ERROR;
@@ -920,7 +920,7 @@ sdio(struct buf *bp)
 	return;
     }
     bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
-    sbp->b.b_flags = bp->b_flags | B_CALL;		    /* inform us when it's done */
+    sbp->b.b_flags = bp->b_flags;
     sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
     sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
     sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
@@ -947,7 +947,7 @@ sdio(struct buf *bp)
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
 	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
-	    sbp->b.b_flags & B_READ ? "Read" : "Write",
+	    sbp->b.b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(sbp->b.b_dev),
 	    minor(sbp->b.b_dev),
 	    sbp->sdno,
@@ -992,7 +992,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-	&&(bp->b_flags & B_READ) == 0			    /* and it's a write */
+	&& (bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
 	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_flags |= B_ERROR;

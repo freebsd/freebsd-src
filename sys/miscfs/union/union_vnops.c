@@ -1923,7 +1923,7 @@ union_strategy(ap)
 #ifdef DIAGNOSTIC
 	if (othervp == NULLVP)
 		panic("union_strategy: nil vp");
-	if (((bp->b_flags & B_READ) == 0) &&
+	if ((bp->b_iocmd == BIO_WRITE) &&
 	    (othervp == LOWERVP(bp->b_vp)))
 		panic("union_strategy: writing to lowervp");
 #endif

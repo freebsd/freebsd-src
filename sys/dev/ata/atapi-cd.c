@@ -1107,7 +1107,6 @@ acd_start(struct atapi_softc *atp)
     }
 
     acd_select_slot(cdp);
-
     bzero(ccb, sizeof(ccb));
     count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
     if (bp->b_flags & B_PHYS)
@@ -1115,7 +1114,7 @@ acd_start(struct atapi_softc *atp)
     else
 	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
 
-    if (bp->b_flags & B_READ) {
+    if (bp->b_iocmd == BIO_READ) {
 	/* if transfer goes beyond EOM adjust it to be within limits */
 	if (lba + count > cdp->info.volsize) {
 	    /* if we are entirely beyond EOM return EOF */
@@ -1145,8 +1144,8 @@ acd_start(struct atapi_softc *atp)
 
     devstat_start_transaction(cdp->stats);
 
-    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * cdp->block_size,
-		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 30, acd_done, bp);
+    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
+		    (bp->b_iocmd == BIO_READ)?ATPR_F_READ : 0, 30, acd_done, bp);
 }
 
 static int32_t 
@@ -1161,7 +1160,7 @@ acd_done(struct atapi_request *request)
     }	
     else {
 	bp->b_resid = bp->b_bcount - request->donecount;
-	if (!(bp->b_flags & B_READ))
+	if (bp->b_iocmd == BIO_WRITE)
 	    cdp->flags |= F_WRITTEN;
     }
     devstat_end_transaction_buf(cdp->stats, bp);

@@ -191,9 +191,9 @@ mdstrategy_malloc(struct buf *bp)
 
 		devstat_start_transaction(&sc->stats);
 
-		if (bp->b_flags & B_FREEBUF) 
+		if (bp->b_iocmd == BIO_DELETE)
 			dop = DEVSTAT_NO_DATA;
-		else if (bp->b_flags & B_READ)
+		else if (bp->b_iocmd == BIO_READ)
 			dop = DEVSTAT_READ;
 		else
 			dop = DEVSTAT_WRITE;
@@ -220,13 +220,13 @@ mdstrategy_malloc(struct buf *bp)
 			if (md_debug > 2)
 				printf("%lx %p %p %d\n", bp->b_flags, secpp, secp, secval);
 
-			if (bp->b_flags & B_FREEBUF) {
+			if (bp->b_iocmd == BIO_DELETE) {
 				if (secpp) {
 					if (secp)
 						FREE(secp, M_MDSECT);
 					*secpp = 0;
 				}
-			} else if (bp->b_flags & B_READ) {
+			} else if (bp->b_iocmd == BIO_READ) {
 				if (secp) {
 					bcopy(secp, dst, DEV_BSIZE);
 				} else if (secval) {
@@ -316,9 +316,9 @@ mdstrategy_preload(struct buf *bp)
 
 		devstat_start_transaction(&sc->stats);
 
-		if (bp->b_flags & B_FREEBUF) {
+		if (bp->b_iocmd == BIO_DELETE) {
 			dop = DEVSTAT_NO_DATA;
-		} else if (bp->b_flags & B_READ) {
+		} else if (bp->b_iocmd == BIO_READ) {
 			dop = DEVSTAT_READ;
 			bcopy(sc->pl_ptr + (bp->b_pblkno << DEV_BSHIFT), bp->b_data, bp->b_bcount);
 		} else {

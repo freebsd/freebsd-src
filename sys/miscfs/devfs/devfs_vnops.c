@@ -1569,7 +1569,7 @@ devfs_strategy(struct vop_strategy_args *ap)
 		return error;
 
 
-	if (((bp->b_flags & B_READ) == 0) &&
+	if ((bp->b_iocmd == BIO_WRITE) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
 	switch (vp->v_type) {
@@ -1606,7 +1606,7 @@ devfs_freeblks(struct vop_freeblks_args *ap)
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
-	bp->b_flags |= B_FREEBUF;
+	bp->b_iocmd = BIO_DELETE;
 	bp->b_dev = vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
@@ -1834,7 +1834,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 	pmap_qenter(kva, ap->a_m, pcount);
 
 	/* Build a minimal buffer header. */
-	bp->b_flags = B_READ | B_CALL;
+	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = devfs_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */

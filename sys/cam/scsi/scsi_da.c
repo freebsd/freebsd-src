@@ -1056,7 +1056,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/4,
 					dadone,
 					tag_code,
-					bp->b_flags & B_READ,
+					bp->b_iocmd == BIO_READ,
 					/*byte2*/0,
 					softc->minimum_cmd_size,
 					bp->b_pblkno,

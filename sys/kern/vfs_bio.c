@@ -501,7 +501,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 		if (curproc != NULL)
 			curproc->p_stats->p_ru.ru_inblock++;
 		KASSERT(!(bp->b_flags & B_ASYNC), ("bread: illegal async bp %p", bp));
-		bp->b_flags |= B_READ;
+		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~(B_ERROR | B_INVAL);
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
@@ -536,7 +536,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 	if ((bp->b_flags & B_CACHE) == 0) {
 		if (curproc != NULL)
 			curproc->p_stats->p_ru.ru_inblock++;
-		bp->b_flags |= B_READ;
+		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~(B_ERROR | B_INVAL);
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
@@ -556,8 +556,9 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		if ((rabp->b_flags & B_CACHE) == 0) {
 			if (curproc != NULL)
 				curproc->p_stats->p_ru.ru_inblock++;
-			rabp->b_flags |= B_READ | B_ASYNC;
+			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~(B_ERROR | B_INVAL);
+			rabp->b_iocmd = BIO_READ;
 			if (rabp->b_rcred == NOCRED) {
 				if (cred != NOCRED)
 					crhold(cred);
@@ -630,8 +631,10 @@ bwrite(struct buf * bp)
 	 * copy so as to leave this buffer ready for further use.
 	 */
 	if ((bp->b_xflags & BX_BKGRDWRITE) && (bp->b_flags & B_ASYNC)) {
-		if (bp->b_flags & B_CALL)
+		if (bp->b_iodone != NULL) {
+			printf("bp->b_iodone = %p\n", bp->b_iodone);
 			panic("bwrite: need chained iodone");
+		}
 
 		/* get a new block */
 		newbp = geteblk(bp->b_bufsize);
@@ -643,7 +646,7 @@ bwrite(struct buf * bp)
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
 		newbp->b_iodone = vfs_backgroundwritedone;
-		newbp->b_flags |= B_ASYNC | B_CALL;
+		newbp->b_flags |= B_ASYNC;
 		newbp->b_flags &= ~B_INVAL;
 
 		/* move over the dependencies */
@@ -664,8 +667,9 @@ bwrite(struct buf * bp)
 		bp = newbp;
 	}
 
-	bp->b_flags &= ~(B_READ | B_DONE | B_ERROR);
+	bp->b_flags &= ~(B_DONE | B_ERROR);
 	bp->b_flags |= B_WRITEINPROG | B_CACHE;
+	bp->b_iocmd = BIO_WRITE;
 
 	bp->b_vp->v_numoutput++;
 	vfs_busy_pages(bp, 1);
@@ -726,11 +730,12 @@ vfs_backgroundwritedone(bp)
 	}
 	/*
 	 * This buffer is marked B_NOCACHE, so when it is released
-	 * by biodone, it will be tossed. We mark it with B_READ
+	 * by biodone, it will be tossed. We mark it with BIO_READ
 	 * to avoid biodone doing a second vwakeup.
 	 */
-	bp->b_flags |= B_NOCACHE | B_READ;
-	bp->b_flags &= ~(B_CACHE | B_CALL | B_DONE);
+	bp->b_flags |= B_NOCACHE;
+	bp->b_iocmd = BIO_READ;
+	bp->b_flags &= ~(B_CACHE | B_DONE);
 	bp->b_iodone = 0;
 	biodone(bp);
 }
@@ -806,7 +811,7 @@ bdwrite(struct buf * bp)
 /*
  *	bdirty:
  *
- *	Turn buffer into delayed write request.  We must clear B_READ and
+ *	Turn buffer into delayed write request.  We must clear BIO_READ and
  *	B_RELBUF, and we must set B_DELWRI.  We reassign the buffer to 
  *	itself to properly update it in the dirty/clean lists.  We mark it
  *	B_DONE to ensure that any asynchronization of the buffer properly
@@ -827,7 +832,8 @@ bdirty(bp)
 	struct buf *bp;
 {
 	KASSERT(bp->b_qindex == QUEUE_NONE, ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
-	bp->b_flags &= ~(B_READ|B_RELBUF);
+	bp->b_flags &= ~(B_RELBUF);
+	bp->b_iocmd = BIO_WRITE;
 
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI;
@@ -946,7 +952,8 @@ brelse(struct buf * bp)
 	if (bp->b_flags & B_LOCKED)
 		bp->b_flags &= ~B_ERROR;
 
-	if ((bp->b_flags & (B_READ | B_ERROR | B_INVAL)) == B_ERROR) {
+	if (bp->b_iocmd == BIO_WRITE &&
+	    (bp->b_flags & (B_ERROR | B_INVAL)) == B_ERROR) {
 		/*
 		 * Failed write, redirty.  Must clear B_ERROR to prevent
 		 * pages from being scrapped.  If B_INVAL is set then
@@ -956,8 +963,8 @@ brelse(struct buf * bp)
 		 */
 		bp->b_flags &= ~B_ERROR;
 		bdirty(bp);
-	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_FREEBUF)) ||
-	    (bp->b_bufsize <= 0)) {
+	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR)) ||
+	    bp->b_iocmd == BIO_DELETE || (bp->b_bufsize <= 0)) {
 		/*
 		 * Either a failed I/O or we were asked to free or not
 		 * cache the buffer.
@@ -969,7 +976,7 @@ brelse(struct buf * bp)
 			--numdirtybuffers;
 			numdirtywakeup();
 		}
-		bp->b_flags &= ~(B_DELWRI | B_CACHE | B_FREEBUF);
+		bp->b_flags &= ~(B_DELWRI | B_CACHE);
 		if ((bp->b_flags & B_VMIO) == 0) {
 			if (bp->b_bufsize)
 				allocbuf(bp, 0);
@@ -2632,7 +2639,7 @@ biowait(register struct buf * bp)
 #if defined(NO_SCHEDULE_MODS)
 		tsleep(bp, PRIBIO, "biowait", 0);
 #else
-		if (bp->b_flags & B_READ)
+		if (bp->b_iocmd == BIO_READ)
 			tsleep(bp, PRIBIO, "biord", 0);
 		else
 			tsleep(bp, PRIBIO, "biowr", 0);
@@ -2673,6 +2680,7 @@ void
 biodone(register struct buf * bp)
 {
 	int s;
+	void    (*b_iodone) __P((struct buf *));
 
 	s = splbio();
 
@@ -2681,20 +2689,21 @@ biodone(register struct buf * bp)
 
 	bp->b_flags |= B_DONE;
 
-	if (bp->b_flags & B_FREEBUF) {
+	if (bp->b_iocmd == BIO_DELETE) {
 		brelse(bp);
 		splx(s);
 		return;
 	}
 
-	if ((bp->b_flags & B_READ) == 0) {
+	if (bp->b_iocmd == BIO_WRITE) {
 		vwakeup(bp);
 	}
 
 	/* call optional completion function if requested */
-	if (bp->b_flags & B_CALL) {
-		bp->b_flags &= ~B_CALL;
-		(*bp->b_iodone) (bp);
+	if (bp->b_iodone != NULL) {
+		b_iodone = bp->b_iodone;
+		bp->b_iodone = NULL;
+		(*b_iodone) (bp);
 		splx(s);
 		return;
 	}
@@ -2745,7 +2754,8 @@ biodone(register struct buf * bp)
 		 * routines.
 		 */
 		iosize = bp->b_bcount - bp->b_resid;
-		if ((bp->b_flags & (B_READ|B_FREEBUF|B_INVAL|B_NOCACHE|B_ERROR)) == B_READ) {
+		if (bp->b_iocmd == BIO_READ &&
+		    !(bp->b_flags & (B_INVAL|B_NOCACHE|B_ERROR))) {
 			bp->b_flags |= B_CACHE;
 		}
 
@@ -2782,7 +2792,7 @@ biodone(register struct buf * bp)
 			 * already changed correctly ( see bdwrite() ), so we 
 			 * only need to do this here in the read case.
 			 */
-			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
+			if ((bp->b_iocmd == BIO_READ) && !bogusflag && resid > 0) {
 				vfs_page_set_valid(bp, foff, i, m);
 			}
 			vm_page_flag_clear(m, PG_ZERO);

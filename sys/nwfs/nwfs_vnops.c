@@ -812,7 +812,7 @@ static int nwfs_strategy (ap)
 		p = (struct proc *)0;
 	else
 		p = curproc;	/* XXX */
-	if (bp->b_flags & B_READ)
+	if (bp->b_iocmd == BIO_READ)
 		cr = bp->b_rcred;
 	else
 		cr = bp->b_wcred;
