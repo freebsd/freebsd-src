@@ -31,7 +31,7 @@ CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 SRCS+=	print-ip6.c print-ip6opts.c print-ripng.c print-icmp6.c \
 	print-frag6.c print-rt6.c print-ospf6.c print-dhcp6.c print-mobility.c
 CFLAGS+=	-DINET6

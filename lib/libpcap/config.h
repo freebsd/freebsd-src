@@ -67,7 +67,7 @@
 /* #undef NO_PROTOCHAIN */
 
 /* IPv6 */
-/* XXX Handled by Makefile, to handle NOINET6 */
+/* XXX Handled by Makefile, to handle NO_INET6 */
 /* #define INET6 1 */
 
 /* Enable optimizer debugging */

@@ -48,7 +48,7 @@ CFLAGS+=-DPPP_CONFDIR=\"${PPP_CONFDIR}\"
 CFLAGS+=-DNOKLDLOAD
 .endif
 
-.if defined(NOINET6)
+.if defined(NO_INET6)
 CFLAGS+=-DNOINET6
 .endif
 

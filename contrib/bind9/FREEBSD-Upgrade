@@ -51,7 +51,7 @@
 
    Note that we intentionally disable IPv6 support on the configure
    command line; src/lib/bind/config.mk will re-enable it at compile
-   time if NOINET6 is not defined.
+   time if NO_INET6 is not defined.
 
 8) Copy the resulting config.h to src/lib/bind, add an RCS id tag and
    commit it.  Do not commit any other file that was modified or

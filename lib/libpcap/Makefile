@@ -15,7 +15,7 @@ LFLAGS+=-Ppcapyy
 CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcapyylval -I${.CURDIR} -I.
 CFLAGS+=-D_U_="__attribute__((unused))"
 CFLAGS+=-DHAVE_SNPRINTF -DHAVE_VSNPRINTF
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+=-DINET6
 .endif
 

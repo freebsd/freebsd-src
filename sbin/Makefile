@@ -115,7 +115,7 @@ _pfctl=		pfctl
 _pflogd=	pflogd
 .endif
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 _ip6fw=		ip6fw
 _ping6=		ping6
 .endif
