@@ -200,7 +200,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->ref_count = 1;
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
-		vm_object_set_flag(object, OBJ_ONEMAPPING);
+		object->flags = OBJ_ONEMAPPING;
 	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
 		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
 	else
