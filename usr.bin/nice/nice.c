@@ -90,7 +90,7 @@ main(argc, argv)
 	if (setpriority(PRIO_PROCESS, 0, niceness))
 		err(1, "setpriority");
 	execvp(argv[1], &argv[1]);
-	err(1, "%s", argv[1]);
+	err(errno == ENOENT ? 127 : 126, "%s", argv[1]);
 }
 
 void
