@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.68 1998/01/23 20:16:42 jkh Exp $
+#	$Id: Makefile,v 1.246.2.69 1998/01/24 07:31:20 jkh Exp $
 #
 # How to roll a release:
 #
@@ -527,7 +527,7 @@ cdrom.1:
 
 doc.1:
 	for i in ${DOCPORTS}; do \
-	  (cd /usr/ports/$$i; make all install clean); \
+	  (cd /usr/ports/$$i; make all install clean FORCE_PKG_REGISTER=yes); \
 	done
 	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
 
