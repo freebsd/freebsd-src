@@ -157,18 +157,6 @@ struct sched_queue {
 	TAILQ_HEAD(, pthread)	sq_waitq;	/* waiting in userland */
 };
 
-/* Used to maintain pending and active signals: */
-struct sigstatus {
-	siginfo_t	*info;		/* arg 2 to signal handler */
-	int		pending;	/* Is this a pending signal? */
-	int		blocked;	/*
-					 * This signal has occured and hasn't
-					 * yet been handled; ignore subsequent
-					 * signals until the handler is done.
-					 */
-	int		signo;
-};
-
 typedef struct kse_thr_mailbox *kse_critical_t;
 
 struct kse_group;
