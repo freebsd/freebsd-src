@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.88 1997/06/18 05:11:36 jkh Exp $
+ * $Id: disks.c,v 1.89 1997/09/03 10:47:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -255,7 +255,9 @@ diskPartition(Device *dev, Disk *d)
 	    else {
 		rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			      "so as to remain cooperative with any future possible\n"
-			      "operating systems on the drive(s)?");
+			      "operating systems on the drive(s)?\n"
+			      "(See also the section about ``dangerously dedicated''\n"
+			      "disks in the FreeBSD FAQ.)");
 		if (rv == -1)
 		    rv = 0;
 	    }
