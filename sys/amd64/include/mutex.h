@@ -240,12 +240,12 @@ extern char STR_IDIS[];
 #ifndef	SMP_DEBUG
 #error	WITNESS requires SMP_DEBUG
 #endif	/* SMP_DEBUG */
-#define WITNESS_ENTER(m, f)						\
+#define WITNESS_ENTER(m, t, f, l)					\
 	if ((m)->mtx_witness != NULL)					\
-		witness_enter((m), (f), __FILE__, __LINE__)
-#define WITNESS_EXIT(m, f)						\
+		witness_enter((m), (t), (f), (l))
+#define WITNESS_EXIT(m, t, f, l)					\
 	if ((m)->mtx_witness != NULL)					\
-		witness_exit((m), (f), __FILE__, __LINE__)
+		witness_exit((m), (t), (f), (l))
 
 #define	WITNESS_SLEEP(check, m) witness_sleep(check, (m), __FILE__, __LINE__)
 #define	WITNESS_SAVE_DECL(n)						\
@@ -266,17 +266,17 @@ do {									\
 
 void	witness_init(mtx_t *, int flag);
 void	witness_destroy(mtx_t *);
-void	witness_enter(mtx_t *, int, char *, int);
+void	witness_enter(mtx_t *, int, const char *, int);
 void	witness_try_enter(mtx_t *, int, const char *, int);
-void	witness_exit(mtx_t *, int, char *, int);
+void	witness_exit(mtx_t *, int, const char *, int);
 void	witness_display(void(*)(const char *fmt, ...));
 void	witness_list(struct proc *);
-int	witness_sleep(int, mtx_t *, char *, int);
+int	witness_sleep(int, mtx_t *, const char *, int);
 void	witness_save(mtx_t *, const char **, int *);
 void	witness_restore(mtx_t *, const char *, int);
 #else	/* WITNESS */
-#define WITNESS_ENTER(m, flag)
-#define WITNESS_EXIT(m, flag)
+#define WITNESS_ENTER(m, t, f, l)
+#define WITNESS_EXIT(m, t, f, l)
 #define	WITNESS_SLEEP(check, m)
 #define	WITNESS_SAVE_DECL(n)
 #define	WITNESS_SAVE(m, n)
@@ -288,9 +288,9 @@ void	witness_restore(mtx_t *, const char *, int);
  */
 #define witness_init(m, flag) flag++
 #define witness_destroy(m)
-#define witness_enter(m, flag,  f, l)
-#define witness_try_enter(m, flag, f, l )
-#define witness_exit(m, flag, f, l)
+#define witness_enter(m, t, f, l)
+#define witness_try_enter(m, t, f, l)
+#define witness_exit(m, t, f, l)
 #endif	/* WITNESS */
 
 /*
@@ -659,7 +659,7 @@ _mtx_enter(mtx_t *mtxp, int type, const char *file, int line)
 				    (type) & MTX_HARDOPTS);
 		}
 	} while (0);
-	WITNESS_ENTER(mpp, type);
+	WITNESS_ENTER(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_enter_fmt,
 	    mpp->mtx_description, mpp, file, line,
 	    mpp->mtx_recurse);
@@ -700,7 +700,7 @@ _mtx_exit(mtx_t *mtxp, int type, const char *file, int line)
 	mtx_t	*const mpp = mtxp;
 
 	MPASS2(mtx_owned(mpp), STR_mtx_owned);
-	WITNESS_EXIT(mpp, type);
+	WITNESS_EXIT(mpp, type, file, line);
 	CTR5(KTR_LOCK, STR_mtx_exit_fmt,
 	    mpp->mtx_description, mpp, file, line,
 	    mpp->mtx_recurse);
