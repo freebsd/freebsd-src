@@ -1,33 +1,79 @@
-The ``X-'' prefixed sets include the XFree86 3.11 base distribution, the
-libraries, the manual pages, the SVGA server and a set of default
-fonts.  If you select such an option you will be presented with
-a set of menus which allow you to customize these selections for your
-desired X window System setup.
+An ``X-'' prefixed before a distribution set means that the XFree86
+3.1.1u1 base distribution, libraries, manual pages, SVGA server and a
+set of default fonts will be selected in addition to the set itself.
+
+If you select such a set, you will also be presented with a set of
+menus for customizing the selections to your desired X Window System
+setup.
 
 N.B. All references in this document to `complete source' mean the
 complete source tree minus any legally encumbered cryptography code.
 
-The "canned" installations are made up as follows:
+The current "canned" installations are as follows:
 
-Developer:      Base ("bin") distribution, the man pages, the dictionary
+Developer:      Base ("bin") distribution, man pages, dictionary
                 files, profiling libraries and the complete source tree.
 
-Kern-Developer: As above, but with only the kernel sources instead of
+
+Kern-Developer: As above, but with only kernel sources instead of
                 the complete source tree.
 
-User:           The base distribution, the man pages, the dictionary files,
-                the FreeBSD 1.x compatibility set and the FreeBSD 2.0
-                compatability set.
+
+User:           The base distribution, man pages, dictionary files and
+                the FreeBSD 1.x and 2.0 compatibility sets.
+
 
 Minimal:        Only the base distribution.
 
-Everything:     The base distribution, man pages, dictionary, profiling
-                libraries, the FreeBSD 1.x and the FreeBSD 2.0
-                compatability libraries, the complete source tree,
-                the games, and your choice of XFree86 modules.
+
+Everything:     The base distribution, man pages, dictionary files,
+                profiling libraries, the FreeBSD 1.x and the FreeBSD 2.0
+                compatibility libraries, the complete source tree,
+                games and your choice of XFree86 distribution components.
                 N.B. Still no cryptocraphy source code!
 
-Custom:         Allow you to customize your selections or choose a
-                complete installation from scratch.
+
+Custom:         Allows you to modify or create your distribution set on
+                a piece-by-piece basis.
+
 
 Reset:          Clear all currently selected distributions.
+
+
+---
+
+When using Custom, most of the sub-distribution choices are fairly
+obvious, though two possible exceptions may be the "commerce" and
+"xperimnt" distributions:
+
+        * The "commerce" directory, as its name implies, is devoted to
+        commercial offerings.  This includes commercial products released
+        under special arrangement, limited functionality demos, shareware
+        products (you like it, you buy it), etc.
+
+        At the time of this writing, there are unfortunately not enough
+        commercial offerings to justify a fully split distribution set,
+        so each product is available both as a subdirectory and as part
+        of one large archive file.  If you select "commerce" from the
+        distributions submenus then you'll get the big file containing
+        the entire collection copied to your hard disk.  Don't do this
+        unless you've got at least 10MB to devote to it!
+
+
+        * The "xperimnt" directory contains, not surprisingly, experimental
+        offerings.  Unfinished (or work-in-progress) features, special
+        purpose drivers and packages, strange proof-of-concept stuff,
+        it's a mixed bag!  Select this item on a distribution menu and
+        you'll get the whole collection (between 10 and 30MB).
+
+
+        If you're installing from CDROM then all of the commercial and
+        "experimental" offerings are also easily available in their
+        individual subdirectories and can be copied to hard disk at
+        any time.
+
+
+
+        
+
+
