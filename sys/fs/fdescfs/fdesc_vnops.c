@@ -49,6 +49,7 @@
 #include <sys/filedesc.h>
 #include <sys/kernel.h>	/* boottime */
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/file.h>	/* Must come after sys/malloc.h */
 #include <sys/mount.h>

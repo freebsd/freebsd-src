@@ -37,8 +37,8 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <sys/queue.h>
 #include <sys/sx.h>
 
