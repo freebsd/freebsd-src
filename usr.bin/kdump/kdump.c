@@ -182,6 +182,9 @@ main(int argc, char *argv[])
 		case KTR_USER:
 			ktruser(ktrlen, m);
 			break;
+		default:
+			printf("\n");
+			break;
 		}
 		if (tail)
 			(void)fflush(stdout);
