@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.49 2001/01/21 02:39:53 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.51 2001/01/21 19:00:06 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -117,7 +117,10 @@ struct usb_softc {
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
+	SIMPLEQ_HEAD(, usb_task) sc_tasks;
 	struct proc    *sc_event_thread;
+
+	struct usb_task sc_exp_task;
 
 	char		sc_dying;
 };
@@ -151,7 +154,7 @@ struct cdevsw usb_cdevsw = {
 };
 #endif
 
-Static usbd_status usb_discover(void *);
+Static void	usb_discover(void *);
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
 
@@ -210,6 +213,10 @@ USB_ATTACH(usb)
 	sc->sc_bus = aux;
 	sc->sc_bus->usbctl = sc;
 	sc->sc_port.power = USB_MAX_POWER;
+	SIMPLEQ_INIT(&sc->sc_tasks);
+
+	sc->sc_exp_task.fun = usb_discover;
+	sc->sc_exp_task.arg = sc;
 
 #if defined(__FreeBSD__)
 	printf("%s", USBDEVNAME(sc->sc_dev));
@@ -311,11 +318,28 @@ usb_create_event_thread(void *arg)
 }
 
 void
+usb_add_task(usbd_device_handle dev, struct usb_task *task)
+{
+	struct usb_softc *sc = dev->bus->usbctl;
+	int s;
+
+	s = splusb();
+	if (!task->onqueue) {
+		DPRINTFN(2,("usb_add_task: sc=%p task=%p\n", sc, task));
+		SIMPLEQ_INSERT_TAIL(&sc->sc_tasks, task, next);
+		task->onqueue = 1;
+	} else
+		DPRINTFN(3,("usb_add_task: sc=%p task=%p on q\n", sc, task));
+	wakeup(&sc->sc_tasks);
+	splx(s);
+}
+
+void
 usb_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
-	int to;
-	int first = 1;
+	struct usb_task *task;
+	int s;
 
 #ifdef __FreeBSD__
 	mtx_lock(&Giant);
@@ -325,23 +349,24 @@ usb_event_thread(void *arg)
 
 	/* Make sure first discover does something. */
 	sc->sc_bus->needs_explore = 1;
+	usb_discover(sc);
+	config_pending_decr();
 
 	while (!sc->sc_dying) {
-#ifdef USB_DEBUG
-		if (usb_noexplore < 2)
-#endif
-		usb_discover(sc);
-		if (first) {
-			config_pending_decr();
-			first = 0;
+		s = splusb();
+		task = SIMPLEQ_FIRST(&sc->sc_tasks);
+		if (task == NULL) {
+			tsleep(&sc->sc_tasks, PWAIT, "usbevt", 0);
+			task = SIMPLEQ_FIRST(&sc->sc_tasks);
 		}
-		to = hz * 60;
-#ifdef USB_DEBUG
-		if (usb_noexplore)
-			to = 0;
-#endif
-		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt", to);
-		DPRINTFN(2,("usb_event_thread: woke up\n"));
+		DPRINTFN(2,("usb_event_thread: woke up task=%p\n", task));
+		if (task != NULL && !sc->sc_dying) {
+			SIMPLEQ_REMOVE_HEAD(&sc->sc_tasks, task, next);
+			task->onqueue = 0;
+			splx(s);
+			task->fun(task->arg);
+		} else
+			splx(s);
 	}
 	sc->sc_event_thread = NULL;
 
@@ -587,7 +612,7 @@ usbpoll(dev_t dev, int events, usb_proc_ptr p)
 }
 
 /* Explore device tree from the root. */
-usbd_status
+Static void
 usb_discover(void *v)
 {
 	struct usb_softc *sc = v;
@@ -595,6 +620,12 @@ usb_discover(void *v)
 #if defined(__FreeBSD__)
 	/* splxxx should be changed to mutexes for preemption safety some day */
 	int s;
+#endif
+
+	DPRINTFN(2,("usb_discover\n"));
+#ifdef USB_DEBUG
+	if (usb_noexplore > 1)
+		return;
 #endif
 
 	/*
@@ -618,15 +649,14 @@ usb_discover(void *v)
 #if defined(__FreeBSD__)
 	splx(s);
 #endif
-
-	return (USBD_NORMAL_COMPLETION);
 }
 
 void
-usb_needs_explore(usbd_bus_handle bus)
+usb_needs_explore(usbd_device_handle dev)
 {
-	bus->needs_explore = 1;
-	wakeup(&bus->needs_explore);
+	DPRINTFN(2,("usb_needs_explore\n"));
+	dev->bus->needs_explore = 1;
+	usb_add_task(dev, &dev->bus->usbctl->sc_exp_task);
 }
 
 /* Called at splusb() */
@@ -776,7 +806,7 @@ usb_detach(device_ptr_t self, int flags)
 
 	/* Kill off event thread. */
 	if (sc->sc_event_thread) {
-		wakeup(&sc->sc_bus->needs_explore);
+		wakeup(&sc->sc_tasks);
 		if (tsleep(sc, PWAIT, "usbdet", hz * 60))
 			printf("%s: event thread didn't die\n",
 			       USBDEVNAME(sc->sc_dev));
