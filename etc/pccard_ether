@@ -60,11 +60,7 @@ stop_dhcp() {
 		esac
 	done
 
-	if [ -s /var/run/dhclient.${interface}.pid ]; then
-		pidfile="/var/run/dhclient.${interface}.pid"
-	elif [ -s /var/run/dhcpc.${interface}.pid ]; then
-		pidfile="/var/run/dhcpc.${interface}.pid"
-	elif [ -s /var/run/dhclient.pid ]; then
+	if [ -s /var/run/dhclient.pid ]; then
 		pidfile="/var/run/dhclient.pid"
 	else
 		return
@@ -96,10 +92,6 @@ start_dhcp() {
 	[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
 	[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
 	if [ -x "${dhclient_program}" ]; then
-		if [ `basename ${dhclient_program}` = "dhclient" ]; then
-			pidfile="/var/run/dhclient.${interface}.pid"
-			dhclient_flags="${dhclient_flags} -pf ${pidfile}"
-		fi
 		${dhclient_program} ${dhclient_flags}  $_dhcplist ${interface}
 	else
 		echo "${dhclient_program}: DHCP client software not available"
