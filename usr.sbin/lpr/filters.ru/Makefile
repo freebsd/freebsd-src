@@ -1,6 +1,6 @@
-PROG=   koi2alt
-NOMAN=	noman
-BINDIR= /usr/libexec/lpr/ru
+# $FreeBSD$
+
+SUBDIR = koi2alt koi2855
 
 SAMPLES=bjc-240.sh.sample
 
@@ -9,4 +9,6 @@ afterinstall:
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
 	    ${SAMPLES} ${DESTDIR}${BINDIR}
 
+.include "Makefile.inc"
 .include <bsd.prog.mk>
+
