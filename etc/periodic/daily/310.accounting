@@ -18,6 +18,11 @@ case "$daily_accounting_enable" in
 	    echo '$daily_accounting_enable is set but /var/account/acct' \
 		"doesn't exist"
 	    rc=2
+	elif [ -z "$daily_accounting_save" ]
+	then
+	    echo '$daily_accounting_enable is set but ' \
+		'$daily_accounting_save is not'
+	    rc=2
 	else
 	    echo ""
 	    echo "Rotating accounting logs and gathering statistics:"
