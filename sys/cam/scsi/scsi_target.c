@@ -823,6 +823,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	case XPT_CONT_TARGET_IO:
 		TAILQ_INSERT_TAIL(&softc->user_ccb_queue, &done_ccb->ccb_h,
 				  periph_links.tqe);
+		TARG_UNLOCK(softc);
 		notify_user(softc);
 		break;
 	default:
@@ -830,7 +831,6 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		      done_ccb->ccb_h.func_code);
 		/* NOTREACHED */
 	}
-	TARG_UNLOCK(softc);
 }
 
 /* Return CCBs to the user from the user queue and abort queue */
@@ -1096,8 +1096,19 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted anything from the work queue, wakeup user. */
 	if (!TAILQ_EMPTY(&softc->user_ccb_queue)
-	 || !TAILQ_EMPTY(&softc->abort_queue))
+	 || !TAILQ_EMPTY(&softc->abort_queue)) {
+		/*
+		 * XXX KNOTE calls back into targreadfilt, causing a
+		 * lock recursion.  So unlock around calls to it although
+		 * this may open up a race allowing a user to submit
+		 * another CCB after we have aborted all pending ones
+		 * A better approach is to mark the softc as dying
+		 * under lock and check for this in targstart().
+		 */
+		TARG_UNLOCK(softc);
 		notify_user(softc);
+		TARG_LOCK(softc);
+	}
 }
 
 /* Notify the user that data is ready */
