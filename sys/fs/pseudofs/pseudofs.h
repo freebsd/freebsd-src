@@ -57,6 +57,7 @@ typedef enum {
 #define PFS_RAWRD	0x0004	/* raw reader */
 #define	PFS_RAWWR	0x0008	/* raw writer */
 #define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
+#define PFS_DISABLED	0x8000	/* node is disabled */
 
 /*
  * Data structures
@@ -163,6 +164,12 @@ int	 pfs_statfs		(struct mount *mp, struct statfs *sbp,
 				 struct thread *td);
 int	 pfs_init		(struct pfs_info *pi, struct vfsconf *vfc);
 int	 pfs_uninit		(struct pfs_info *pi, struct vfsconf *vfc);
+
+/*
+ * Other utility functions
+ */
+int	 pfs_disable		(struct pfs_node *pn);
+int	 pfs_enable		(struct pfs_node *pn);
 
 /*
  * Now for some initialization magic...
