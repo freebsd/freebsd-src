@@ -364,13 +364,17 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 				wait.tv_usec += 1000000;
 				wait.tv_sec--;
 			}
-			if (wait.tv_sec < 0)
-				return (rlen);
+			if (wait.tv_sec < 0) {
+				errno = ETIMEDOUT;
+				_fetch_syserr();
+				return (-1);
+			}
 			errno = 0;
 			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
 			if (r == -1) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
+				_fetch_syserr();
 				return (-1);
 			}
 		}
@@ -405,8 +409,8 @@ _fetch_getln(conn_t *conn)
 {
 	char *tmp;
 	size_t tmpsize;
+	ssize_t len;
 	char c;
-	int error;
 
 	if (conn->buf == NULL) {
 		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
@@ -420,10 +424,10 @@ _fetch_getln(conn_t *conn)
 	conn->buflen = 0;
 
 	do {
-		error = _fetch_read(conn, &c, 1);
-		if (error == -1)
+		len = _fetch_read(conn, &c, 1);
+		if (len == -1)
 			return (-1);
-		else if (error == 0)
+		if (len == 0)
 			break;
 		conn->buf[conn->buflen++] = c;
 		if (conn->buflen == conn->bufsize) {
@@ -488,6 +492,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			}
 			if (wait.tv_sec < 0) {
 				errno = ETIMEDOUT;
+				_fetch_syserr();
 				return (-1);
 			}
 			errno = 0;
