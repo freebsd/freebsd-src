@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.51 1997/08/28 01:17:07 julian Exp $
+ *	$Id: if.c,v 1.52 1997/09/02 01:18:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -660,7 +660,7 @@ ifioctl(so, cmd, data, p)
 #ifndef COMPAT_43
 		return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
-								 ifp));
+								 ifp, p));
 #else
 	    {
 		int ocmd = cmd;
