@@ -2772,6 +2772,26 @@ allocate_tls_offset(Obj_Entry *obj)
     return true;
 }
 
+void
+free_tls_offset(Obj_Entry *obj)
+{
+#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
+    defined(__arm__)
+    /*
+     * If we were the last thing to allocate out of the static TLS
+     * block, we give our space back to the 'allocator'. This is a
+     * simplistic workaround to allow libGL.so.1 to be loaded and
+     * unloaded multiple times. We only handle the Variant II
+     * mechanism for now - this really needs a proper allocator.  
+     */
+    if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
+	== calculate_tls_end(tls_last_offset, tls_last_size)) {
+	tls_last_offset -= obj->tlssize;
+	tls_last_size = 0;
+    }
+#endif
+}
+
 void *
 _rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 {
