@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.42 1996/01/26 09:29:26 phk Exp $
+ * $Id: if_de.c,v 1.43 1996/02/06 18:51:23 wollman Exp $
  *
  */
 
@@ -1883,11 +1883,11 @@ tulip_ioctl(
 	    switch(ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET: {
-		    sc->tulip_ac.ac_ipaddr = IA_SIN(ifa)->sin_addr;
 		    tulip_init(sc);
 #if defined(__FreeBSD__) || defined(__NetBSD__)
 		    arp_ifinit(&sc->tulip_ac, ifa);
 #elif defined(__bsdi__)
+		    sc->tulip_ac.ac_ipaddr = IA_SIN(ifa)->sin_addr;
 		    arpwhohas(&sc->tulip_ac, &IA_SIN(ifa)->sin_addr);
 #endif
 		    break;
