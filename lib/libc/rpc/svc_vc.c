@@ -488,7 +488,12 @@ read_vc(xprtp, buf, len)
 	cfp = (struct cf_conn *)xprt->xp_p1;
 
 	if (cfp->nonblock) {
-		len = _read(sock, buf, (size_t)len);
+		if (sa->sa_family == AF_LOCAL) {
+			cm = (struct cmessage *)xprt->xp_verf.oa_base;
+			if ((len = __msgread_withcred(sock, buf, len, cm)) > 0)
+				xprt->xp_p2 = &cm->cmcred;
+		} else
+			len = _read(sock, buf, (size_t)len);
 		if (len < 0) {
 			if (errno == EAGAIN)
 				len = 0;
