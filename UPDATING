@@ -5,11 +5,18 @@ in it to him.  See end of file for further details.
 
 19990214:
 	The nlpt driver has changed names back to be the lpt driver.
-	See lpt(4) and/or nlpt(4) for proper configuration details.
+	See ppbus(4) or http://www.freebsd.org/~nsouch/ppbus.html
+	for proper configuration details.
 
 19990210:
 	The 'lpt' driver is now obsolete.  Replace it with the 'nlpt'
 	driver and 'ppbus' controller combination.
+
+19990209:
+	New devstat API requires recompilation of libdevstat, systat,
+	iostat, vmstat and rpc.rstatd.  A new kernel is also required.
+	make world + building a kernel should do all of this.  Any
+	ports that use devstat need to be recompiled as well.
 
 19990125:
 	Linux threads options has gone away (they are now standard in
@@ -127,4 +134,4 @@ breakages in tracking -current.  Not all things will be listed here,
 and it only starts on Novemeber 18, 1998.  If you have an earlier
 version of FreeBSD, you are on your own to get to November 18, 1998.
 
-$Id: UPDATING,v 1.18 1999/02/14 05:18:35 imp Exp $
+$Id: UPDATING,v 1.19 1999/02/15 08:09:07 imp Exp $
