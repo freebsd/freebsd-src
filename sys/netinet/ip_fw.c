@@ -531,7 +531,7 @@ splx(s);
 
 static
 int
-add_to_chain(chainptr,frwl)
+add_entry(chainptr,frwl)
 struct ip_fw **chainptr;
 struct ip_fw *frwl;
 {
@@ -693,13 +693,11 @@ skip_check:
 	if (chtmp_prev)
 		chtmp_prev->next=ftmp;
 	else
-#define wrong
-#ifdef wrong
-        	*chainptr=ftmp;
-#else
+#ifdef DIAGNOSTICS
 	panic("Can't happen");
+#else
+        *chainptr=ftmp;
 #endif
-#undef wrong
        }
     splx(s);
     return(0);
@@ -707,7 +705,7 @@ skip_check:
 
 static
 int
-del_from_chain(chainptr,frwl)
+del_entry(chainptr,frwl)
 struct ip_fw **chainptr;
 struct ip_fw *frwl;
 {
@@ -730,11 +728,12 @@ struct ip_fw *frwl;
     while(ftmp)
     {
      matches=1;
-     if ((bcmp(&ftmp->src,&frwl->src,sizeof(struct in_addr))) 
-     || (bcmp(&ftmp->src_mask,&frwl->src_mask,sizeof(struct in_addr)))
-     || (bcmp(&ftmp->dst,&frwl->dst,sizeof(struct in_addr)))
-     || (bcmp(&ftmp->dst_mask,&frwl->dst_mask,sizeof(struct in_addr)))
-     || (ftmp->flags!=frwl->flags))
+     if (ftmp->src.s_addr!=frwl->src.s_addr 
+     ||  ftmp->dst.s_addr!=frwl->dst.s_addr
+     ||  ftmp->src_mask.s_addr!=frwl->src_mask.s_addr
+     ||  ftmp->dst_mask.s_addr!=frwl->dst_mask.s_addr
+     ||  ftmp->via.s_addr!=frwl->via.s_addr
+     ||  ftmp->flags!=frwl->flags)
         matches=0;
      tport1=ftmp->n_src_p+ftmp->n_dst_p;
      tport2=frwl->n_src_p+frwl->n_dst_p;
@@ -852,9 +851,9 @@ if ( stage == IP_ACCT_ADD
 
 	    switch (stage) {
 	    case IP_ACCT_ADD:
-		return( add_to_chain(&ip_acct_chain,frwl));
+		return( add_entry(&ip_acct_chain,frwl));
 	    case IP_ACCT_DEL:
-		return( del_from_chain(&ip_acct_chain,frwl));
+		return( del_entry(&ip_acct_chain,frwl));
 	    default:
 		/*
  		 * Should be panic but...
@@ -920,13 +919,13 @@ if ( stage == IP_FW_ADD_BLK
 
 	    switch (stage) {
 	    case IP_FW_ADD_BLK:
-		return(add_to_chain(&ip_fw_blk_chain,frwl));
+		return(add_entry(&ip_fw_blk_chain,frwl));
 	    case IP_FW_ADD_FWD:
-		return(add_to_chain(&ip_fw_fwd_chain,frwl));
+		return(add_entry(&ip_fw_fwd_chain,frwl));
 	    case IP_FW_DEL_BLK:
-		return(del_from_chain(&ip_fw_blk_chain,frwl));
+		return(del_entry(&ip_fw_blk_chain,frwl));
 	    case IP_FW_DEL_FWD: 
-		return(del_from_chain(&ip_fw_fwd_chain,frwl));
+		return(del_entry(&ip_fw_fwd_chain,frwl));
 	    default:
 		/*
  		 * Should be panic but...
