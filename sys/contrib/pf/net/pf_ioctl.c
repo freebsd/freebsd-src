@@ -35,7 +35,7 @@
  *
  */
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #endif
@@ -50,7 +50,7 @@
 #include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/conf.h>
 #else
 #include <sys/timeout.h>
@@ -82,7 +82,7 @@
 #include <altq/altq.h>
 #endif
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #if (__FreeBSD_version >= 500112)
 #include <sys/limits.h>
 #else
@@ -96,7 +96,7 @@
 #include <net/pfil.h>
 #endif /* __FreeBSD__ */
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 void			 init_zone_var(void);
 void			 cleanup_pf_zone(void);
 int			 pfattach(void);
@@ -111,16 +111,16 @@ int			 pf_get_ruleset_number(u_int8_t);
 void			 pf_init_ruleset(struct pf_ruleset *);
 void			 pf_mv_pool(struct pf_palist *, struct pf_palist *);
 void			 pf_empty_pool(struct pf_palist *);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 int			 pfioctl(dev_t, u_long, caddr_t, int, struct thread *);
 #else
 int			 pfioctl(dev_t, u_long, caddr_t, int, struct proc *);
 #endif
 
-#if defined(__FreeBSD__)
-extern struct callout pf_expire_to;
+#ifdef __FreeBSD__
+extern struct callout	 pf_expire_to;
 #if __FreeBSD_version < 501108
-extern struct protosw inetsw[];
+extern struct protosw	 inetsw[];
 #endif
 #else
 extern struct timeout	 pf_expire_to;
@@ -134,7 +134,7 @@ TAILQ_HEAD(pf_tags, pf_tagname)	pf_tags = TAILQ_HEAD_INITIALIZER(pf_tags);
 #define DPFPRINTF(n, x) if (pf_status.debug >= (n)) printf x
 
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 static dev_t		pf_dev;
 
 /*
@@ -142,7 +142,7 @@ static dev_t		pf_dev;
  */
 static int pf_beginrules(void *addr);
 static int pf_commitrules(void *addr);
-#if defined(ALTQ)
+#ifdef ALTQ
 static int pf_beginaltqs(void *addr);
 static int pf_commitaltqs(void *addr);
 static int pf_stopaltq(void);
@@ -158,7 +158,7 @@ static int pf_check_in(void *ip, int hlen, struct ifnet *ifp, int dir,
 		struct mbuf **m);
 static int pf_check_out(void *ip, int hlen, struct ifnet *ifp, int dir,
 		struct mbuf **m);
-#if defined(INET6)
+#ifdef INET6
 static int pf_check6_in(void *ip, int hlen, struct ifnet *ifp, int dir,
 		struct mbuf **m);
 static int pf_check6_out(void *ip, int hlen, struct ifnet *ifp, int dir,
@@ -169,7 +169,7 @@ static int pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir);
 static int pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir);
-#if defined(INET6)
+#ifdef INET6
 static int pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir);
 static int pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp,
@@ -220,9 +220,7 @@ static struct cdevsw pf_cdevsw = {
 	.d_version =	D_VERSION,
 #endif
 };
-#endif /* __FreeBSD__ */
 
-#if defined(__FreeBSD__)
 static volatile int pf_pfil_hooked = 0;
 struct mtx pf_task_mtx;
 
@@ -279,9 +277,7 @@ cleanup_pf_zone(void)
 	UMA_DESTROY(pfr_kentry_pl);
 	UMA_DESTROY(pf_state_scrub_pl);
 }
-#endif /* __FreeBSD__ */
 
-#if defined(__FreeBSD__)
 int
 pfattach(void)
 {
@@ -433,9 +429,7 @@ pfattach(int num)
 	pf_normalize_init();
 	pf_status.debug = PF_DEBUG_URGENT;
 }
-#endif /* __FreeBSD__ */
 
-#if !defined(__FreeBSD__)
 int
 pfopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
@@ -443,9 +437,7 @@ pfopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENXIO);
 	return (0);
 }
-#endif
 
-#if !defined(__FreeBSD__)
 int
 pfclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
@@ -453,7 +445,7 @@ pfclose(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENXIO);
 	return (0);
 }
-#endif
+#endif /* __FreeBSD__ */
 
 struct pf_pool *
 pf_get_pool(char *anchorname, char *rulesetname, u_int32_t ticket,
@@ -786,7 +778,7 @@ pf_tag_unref(u_int16_t tag)
 	}
 }
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 int
 pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 #else
@@ -835,7 +827,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		case DIOCRCLRASTATS:
 		case DIOCRTSTADDRS:
 		case DIOCOSFPGET:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		case DIOCGIFSPEED:
 #endif
 			break;
@@ -867,7 +859,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		case DIOCRGETASTATS:
 		case DIOCRTSTADDRS:
 		case DIOCOSFPGET:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		case DIOCGIFSPEED:
 #endif
 			break;
@@ -875,7 +867,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			return (EACCES);
 		}
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	PF_LOCK();
 #endif
 
@@ -886,7 +878,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = EEXIST;
 		else {
 			u_int32_t states = pf_status.states;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_UNLOCK();
 			error = hook_pf();
 			PF_LOCK();
@@ -899,7 +891,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			bzero(&pf_status, sizeof(struct pf_status));
 			pf_status.running = 1;
 			pf_status.states = states;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			pf_status.since = time_second;
 #else
 			pf_status.since = time.tv_sec;
@@ -921,7 +913,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = ENOENT;
 		else {
 			pf_status.running = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_UNLOCK();
 			error = dehook_pf();
 			PF_LOCK();
@@ -1440,7 +1432,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		state->nat_rule.ptr = NULL;
 		state->anchor.ptr = NULL;
 		state->rt_ifp = NULL;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		state->creation = time_second;
 #else
 		state->creation = time.tv_sec;
@@ -1480,7 +1472,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		    -1 : n->state->anchor.ptr->nr;
 		splx(s);
 		ps->state.expire = pf_state_expires(n->state);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (ps->state.expire > time_second)
 			ps->state.expire -= time_second;
 #else
@@ -1505,7 +1497,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				nr++;
 			splx(s);
 			ps->ps_len = sizeof(struct pf_state) * nr;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_UNLOCK();
 #endif
 			return (0);
@@ -1514,7 +1506,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		s = splsoftnet();
 		p = ps->ps_states;
 		RB_FOREACH(n, pf_state_tree, &tree_ext_gwy) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			int	secs = time_second;
 #else
 			int	secs = time.tv_sec;
@@ -1535,7 +1527,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				pstore.expire -= secs;
 			else
 				pstore.expire = 0;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_COPYOUT(&pstore, p, sizeof(*p), error);
 #else
 			error = copyout(&pstore, p, sizeof(*p));
@@ -1696,7 +1688,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = EINVAL;
 			goto fail;
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		uma_zone_set_max(pf_pool_limits[pl->index].pp, pl->limit);
 #else
 		if (pool_sethardlimit(pf_pool_limits[pl->index].pp,
@@ -1731,7 +1723,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		break;
 	}
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	case DIOCGIFSPEED: {
 		struct pf_ifspeed	*psp = (struct pf_ifspeed *)addr;
 		struct pf_ifspeed	ps;
@@ -1777,7 +1769,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					break;
 			}
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (error == 0) {
 			mtx_lock(&pf_altq_mtx);
 			pfaltq_running = 1;
@@ -1818,7 +1810,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					error = err;
 			}
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (error == 0) {
 			mtx_lock(&pf_altq_mtx);
 			pfaltq_running = 0;
@@ -1842,11 +1834,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 			if (altq->qname[0] == 0) {
 				/* detach and destroy the discipline */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_UNLOCK();
 #endif
 				error = altq_remove(altq);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_LOCK();
 #endif
 			}
@@ -1885,11 +1877,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			}
 		}
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_UNLOCK();
 #endif		
 		error = altq_add(altq);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_LOCK();
 #endif
 		if (error) {
@@ -1926,11 +1918,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
 			if (altq->qname[0] == 0) {
 				/* attach the discipline */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_UNLOCK();
 #endif
 				error = altq_pfattach(altq);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_LOCK();
 #endif
 				if (error) {
@@ -1945,7 +1937,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 			if (altq->qname[0] == 0) {
 				/* detach and destroy the discipline */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_UNLOCK();
 #endif
 				err = altq_pfdetach(altq);
@@ -1954,7 +1946,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				err = altq_remove(altq);
 				if (err != 0 && error == 0)
 					error = err;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_LOCK();
 #endif
 			}
@@ -2042,11 +2034,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			splx(s);
 			break;
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_UNLOCK();
 #endif
 		error = altq_getqstats(altq, pq->buf, &nbytes);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		PF_LOCK();
 #endif
 		splx(s);
@@ -2580,13 +2572,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		break;
 	}
 fail:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	PF_UNLOCK();
 #endif
 	return (error);
 }
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 /*
  * XXX - Check for version missmatch!!!
  */
@@ -2672,7 +2664,7 @@ pf_commitrules(void *addr)
 	return (error);
 }
 
-#if defined(ALTQ)
+#ifdef ALTQ
 static int
 pf_beginaltqs(void *addr)
 {
@@ -2684,12 +2676,12 @@ pf_beginaltqs(void *addr)
 	while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
 		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 		if (altq->qname[0] == 0) {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_UNLOCK();
 #endif
 			/* detach and destroy the discipline */
 			error = altq_remove(altq);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			PF_LOCK();
 #endif
 		}
@@ -2729,11 +2721,11 @@ pf_commitaltqs(void *addr)
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
 			if (altq->qname[0] == 0) {
 				/* attach the discipline */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_UNLOCK();
 #endif
 				error = altq_pfattach(altq);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_LOCK();
 #endif
 				if (error) {
@@ -2748,7 +2740,7 @@ pf_commitaltqs(void *addr)
 			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 			if (altq->qname[0] == 0) {
 				/* detach and destroy the discipline */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_UNLOCK();
 #endif
 				err = altq_pfdetach(altq);
@@ -2757,7 +2749,7 @@ pf_commitaltqs(void *addr)
 				err = altq_remove(altq);
 				if (err != 0 && error == 0)
 					error = err;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 				PF_LOCK();
 #endif
 			}
@@ -2813,7 +2805,7 @@ pf_stopaltq(void)
 					error = err;
 			}
 		}
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if (error == 0) {
 			mtx_lock(&pf_altq_mtx);
 			pfaltq_running = 0;
@@ -2860,7 +2852,7 @@ static int
 shutdown_pf(void)
 {
 	struct pfioc_rule pr;
-#if defined(ALTQ)
+#ifdef ALTQ
 	struct pfioc_altq pa;
 #endif
 	struct pfioc_table io;
@@ -2871,7 +2863,7 @@ shutdown_pf(void)
 	PF_LOCK();
 	pf_status.running = 0;
 	do {
-#if defined(ALTQ)
+#ifdef ALTQ
 		if ((error = pf_stopaltq())) {
 			DPFPRINTF(PF_DEBUG_MISC, 
 			    ("ALTQ: stop(%i)\n", error));
@@ -2943,7 +2935,7 @@ shutdown_pf(void)
 			break;
 		}
 
-#if defined(ALTQ)
+#ifdef ALTQ
 		bzero(&pa, sizeof(pa));
 		if ((error = pf_beginaltqs(&pa))) {
 			DPFPRINTF(PF_DEBUG_MISC, 
@@ -3104,7 +3096,7 @@ hook_pf(void)
 {
 #if (__FreeBSD_version >= 501108)
 	struct pfil_head *pfh_inet;
-#if defined(INET6)
+#ifdef INET6
 	struct pfil_head *pfh_inet6;
 #endif
 #endif
@@ -3126,7 +3118,7 @@ hook_pf(void)
 		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
 	pfil_add_hook(pf_check_out, PFIL_OUT,
 		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-#if defined(INET6)
+#ifdef INET6
 	pfil_add_hook(pf_check6_in, PFIL_IN,
 		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
 	pfil_add_hook(pf_check6_out, PFIL_OUT,
@@ -3138,7 +3130,7 @@ hook_pf(void)
 		return (ESRCH); /* XXX */
 	pfil_add_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_add_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
-#if defined(INET6)
+#ifdef INET6
 	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 	if (pfh_inet6 == NULL) {
 		pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
@@ -3161,7 +3153,7 @@ dehook_pf(void)
 {
 #if (__FreeBSD_version >= 501108)
 	struct pfil_head *pfh_inet;
-#if defined(INET6)
+#ifdef INET6
 	struct pfil_head *pfh_inet6;
 #endif
 #endif
@@ -3176,7 +3168,7 @@ dehook_pf(void)
 		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
 	pfil_remove_hook(pf_check_out, PFIL_OUT,
 		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-#if defined(INET6)
+#ifdef INET6
 	pfil_remove_hook(pf_check6_in, PFIL_IN,
 		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
 	pfil_remove_hook(pf_check6_out, PFIL_OUT,
@@ -3190,7 +3182,7 @@ dehook_pf(void)
 	    pfh_inet);
 	pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
 	    pfh_inet);
-#if defined(INET6)
+#ifdef INET6
 	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 	if (pfh_inet6 == NULL)
 		return (ESRCH); /* XXX */
@@ -3216,7 +3208,7 @@ pf_load(void)
 		destroy_pf_mutex();
 		return (ENOMEM);
 	}
-#if defined(ALTQ)
+#ifdef ALTQ
 	mtx_lock(&pf_altq_mtx);
 	++pfaltq_ref;
 	mtx_unlock(&pf_altq_mtx);
@@ -3246,7 +3238,7 @@ pf_unload(void)
 	cleanup_pf_zone();
 	pf_osfp_cleanup();
 	destroy_dev(pf_dev);
-#if defined(ALTQ)
+#ifdef ALTQ
 	mtx_lock(&pf_altq_mtx);
 	--pfaltq_ref;
 	mtx_unlock(&pf_altq_mtx);
@@ -3284,7 +3276,7 @@ static moduledata_t pf_mod = {
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_DEPEND(pf, pflog, PFLOG_MINVER, PFLOG_PREFVER, PFLOG_MAXVER);
 MODULE_DEPEND(pf, pfsync, PFSYNC_MINVER, PFSYNC_PREFVER, PFSYNC_MAXVER);
-#if defined(ALTQ)
+#ifdef ALTQ
 MODULE_DEPEND(pf, pfaltq, PFALTQ_MINVER, PFALTQ_PREFVER, PFALTQ_MAXVER);
 #endif
 MODULE_VERSION(pf, PF_MODVER);

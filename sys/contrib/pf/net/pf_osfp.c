@@ -41,7 +41,7 @@
 # define DPFPRINTF(format, x...)		\
 	if (pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 typedef uma_zone_t pool_t;
 #else
 typedef struct pool pool_t;
@@ -59,7 +59,7 @@ typedef struct pool pool_t;
 # define pool_put(pool, item)	free(item)
 # define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
 
-# if defined(__FreeBSD__)
+# ifdef __FreeBSD__
 # define NTOHS(x) (x) = ntohs((u_int16_t)(x))
 # endif
 
@@ -236,7 +236,7 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 }
 
 /* Initialize the OS fingerprint system */
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 int
 #else
 void
@@ -259,8 +259,8 @@ pf_osfp_initialize(void)
 	    "pfosfp", NULL);
 #endif
 	SLIST_INIT(&pf_osfp_list);
-#if defined(__FreeBSD__)
-#if defined(_KERNEL)
+#ifdef __FreeBSD__
+#ifdef _KERNEL
 	return (error);
 #else
 	return (0);
