@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: glob.c,v 1.4 1996/08/12 02:08:43 ache Exp $
+ *	$Id: glob.c,v 1.5 1996/08/12 21:32:15 ache Exp $
  */
 
 #ifndef lint
@@ -39,8 +39,8 @@ static char sccsid[] = "@(#)glob.c	8.1 (Berkeley) 5/31/93";
 
 #include <sys/param.h>
 #include <glob.h>
-#include <locale.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -94,7 +94,24 @@ static int	pmatch __P((Char *, Char *));
 static void	pword __P((void));
 static void	psave __P((int));
 static void	backeval __P((Char *, bool));
+static int      collate_range_cmp __P((int, int));
 
+static int collate_range_cmp (c1, c2)
+	int c1, c2;
+{
+	static char s1[2], s2[2];
+	int ret;
+
+	c1 &= UCHAR_MAX;
+	c2 &= UCHAR_MAX;
+	if (c1 == c2)
+		return (0);
+	s1[0] = c1;
+	s2[0] = c2;
+	if ((ret = strcoll(s1, s2)) != 0)
+		return (ret);
+	return (c1 - c2);
+}
 
 static Char *
 globtilde(nv, s)
