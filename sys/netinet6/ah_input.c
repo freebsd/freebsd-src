@@ -494,9 +494,9 @@ ah4_input(m, off)
 				goto fail;
 			}
 			m_adj(n, stripsiz);
-			m_cat(m, n);
 			/* m_cat does not update m_pkthdr.len */
 			m->m_pkthdr.len += n->m_pkthdr.len;
+			m_cat(m, n);
 		}
 #endif
 
@@ -803,10 +803,6 @@ ah6_input(mp, offp, proto)
 		flowinfo = ip6->ip6_flow;
 		m_adj(m, off + stripsiz);
 		if (m->m_len < sizeof(*ip6)) {
-			/*
-			 * m_pullup is prohibited in KAME IPv6 input processing
-			 * but there's no other way!
-			 */
 			m = m_pullup(m, sizeof(*ip6));
 			if (!m) {
 				ipsec6stat.in_inval++;
@@ -899,9 +895,9 @@ ah6_input(mp, offp, proto)
 				goto fail;
 			}
 			m_adj(n, stripsiz);
-			m_cat(m, n);
 			/* m_cat does not update m_pkthdr.len */
 			m->m_pkthdr.len += n->m_pkthdr.len;
+			m_cat(m, n);
 		}
 #endif
 		ip6 = mtod(m, struct ip6_hdr *);
