@@ -2200,15 +2200,15 @@ check_body:
 
 			case O_VERREVPATH:
 				/* Outgoing packets automatically pass/match */
-				match = ((oif != NULL) ||
+				match = (hlen > 0 && ((oif != NULL) ||
 				    (m->m_pkthdr.rcvif == NULL) ||
-				    verify_path(src_ip, m->m_pkthdr.rcvif));
+				    verify_path(src_ip, m->m_pkthdr.rcvif)));
 				break;
 
 			case O_VERSRCREACH:
 				/* Outgoing packets automatically pass/match */
-				match = ((oif != NULL) ||
-				     verify_path(src_ip, NULL));
+				match = (hlen > 0 && ((oif != NULL) ||
+				     verify_path(src_ip, NULL)));
 				break;
 
 			case O_ANTISPOOF:
