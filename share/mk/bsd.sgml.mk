@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id$
+#	$Id: bsd.sgml.mk,v 1.1 1995/09/08 19:23:19 jfieber Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -54,8 +54,8 @@ obj:
 .endif
 .endif
 
-clean:
-	rm -f [eE]rrs mklog ${CLEANFILES}
+clean: ${FORMATS:S/^/clean-/g}
+	rm -f [eE]rrs mklog
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
@@ -97,7 +97,7 @@ depend:
 .endif
 
 
-# For each FORMATS type, define a build, install and print target.
+# For each FORMATS type, define a build, install, clean and print target.
 # Note that there is special case handling for html targets
 # because the number of files generated is generally not possible
 # to predict outside of sgmlfmt(1).
@@ -136,15 +136,21 @@ install-${_FORMAT}: ${DOC}.${_FORMAT}
 .endif
 
 .if !target(${DOC}.${_FORMAT})
-.if ${_FORMAT} == "html"
-CLEANFILES+=	*.${_FORMAT}
-.else
-CLEANFILES+=	${DOC}.${_FORMAT}
-.endif
-
 ${DOC}.${_FORMAT}:	${SRCS}
 	(cd ${SRCDIR}; ${SGMLFMT} -f ${.TARGET:S/${DOC}.//} ${SGMLFLAGS} ${DOC})
 
+.endif
+
+.if !target(clean-${_FORMAT})
+.if ${_FORMAT} == "html"
+clean-${_FORMAT}:
+	rm -f *.${.TARGET:S/clean-//}
+
+.else
+clean-${_FORMAT}: 
+	rm -f ${DOC}.${.TARGET:S/clean-//}
+
+.endif
 .endif
 
 .endfor
