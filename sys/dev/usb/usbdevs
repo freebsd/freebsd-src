@@ -374,6 +374,7 @@ vendor ACTIONTEC	0x1668	Actiontec Electronics
 vendor DLINK		0x2001	D-Link
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor DAISY		0x3579	Daisy Technology
+vendor DELL		0x413c	Dell
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
 
@@ -590,6 +591,9 @@ product DAISY DMC		0x6901	USB MultiMedia Reader
 
 /* Dallas Semiconductor products */
 product DALLAS J6502		0x4201	J-6502 speakers
+
+/* Dell products */
+product DELL BC02		0x8000	Dell BC02 Bluetooth USB Adapter
 
 /* Diamond products */
 product DIAMOND RIO500USB	0x0001	Rio 500 USB
