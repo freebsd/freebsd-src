@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.26 1995/09/29 20:10:40 wollman Exp $
+#	$Id: sysconfig,v 1.27 1995/10/28 12:41:40 peter Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -197,3 +197,23 @@ ibcs2=NO
 
 # Set to YES if you want Linux (a.out) emulation loaded at startup
 linux=NO
+
+# Set to a string representing the interrupts you are going to use
+#  for generating entropy in the kernel (or NO to ignore).
+#  The keyboard (IRQ 1) is good if it used a lot.
+#  If the machine is networked, the ethernet card is good.
+#  The IRQ on an intelligent hard disk controller is good.
+#  The IRQ's on most sound devices are good.
+#
+#  The following choices are BAD:
+#  THe IRQ's on COM-ports (SIO devices), the IRQ used by an IDE
+#  disk or CDROM, and the IRQ on the system clock.
+#
+# Experiment with the rest. The best interrupts are the ones that
+#  happen fairly irregularly, and never occur in very high-speed bursts.
+#
+# You'll have it right when you have a good supply of numbers from
+#  /dev/random, and no problems on your system, like slowdowns,
+#  Sluggish net/disk activity, perhaps even errors.
+
+rand_irqs="-s 1"
