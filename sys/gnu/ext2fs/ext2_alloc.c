@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ext2_alloc.c	8.8 (Berkeley) 2/21/94
+ *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
  * $FreeBSD$
  */
 
