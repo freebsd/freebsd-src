@@ -115,9 +115,9 @@
 /* Size of the level 4 page-map level-4 table units */
 #define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
 #define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
-#define	PML4SHIFT	39		/* LOG2(NBPML4T) */
-#define	NBPML4T		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
-#define	PML4MASK	(NBPML4T-1)
+#define	PML4SHIFT	39		/* LOG2(NBPML4) */
+#define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
+#define	PML4MASK	(NBPML4-1)
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
