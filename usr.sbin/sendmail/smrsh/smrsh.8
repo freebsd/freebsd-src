@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)smrsh.8	8.1 (Berkeley) 11/13/94
+.\"     @(#)smrsh.8	8.2 (Berkeley) 1/9/96
 .\"
 .TH SMRSH 8 11/02/93
 .SH NAME
@@ -62,8 +62,8 @@ limits programs to be in the directory
 /usr/libexec/sm.bin,
 allowing the system administrator to choose the set of acceptable commands.
 It also rejects any commands with the characters
-`\`', `<', `>', `|', `;', `&', `$', `(', `)', `\r' (carriage return),
-or `\n' (newline)
+`\`', `<', `>', `|', `;', `&', `$', `(', `)', `\er' (carriage return),
+or `\en' (newline)
 on the command line to prevent ``end run'' attacks.
 .PP
 Initial pathnames on programs are stripped,
