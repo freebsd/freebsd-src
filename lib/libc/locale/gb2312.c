@@ -54,7 +54,7 @@ _GB2312_init(_RuneLocale *rl)
 	return (0);
 }
 
-static inline int
+static __inline int
 _GB2312_check(const char *str, size_t n)
 {
 	const u_char *s = (const u_char *)str;
