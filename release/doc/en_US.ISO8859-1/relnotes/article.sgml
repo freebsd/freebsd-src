@@ -2515,6 +2515,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       filesystem and performs the dump on the snapshot.  The snapshot
       is removed when the dump is complete.</para>
 
+    <para>&man.dump.8; now supports caching of disk blocks with the
+      <option>-C</option> option.  This can improve dump performance
+      at the cost of possibly missing filesystem updates that occur
+      between passes.</para>
+
     <para role="historic">The <option>-T</option> option to &man.dump.8; no longer
       swallows an extra argument. &merged;</para>
 
@@ -3160,6 +3165,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       using &man.bzip2.1; by default.  (The former behavior of using
       &man.gzip.1; can be specified in
       <filename>/etc/newsyslog.conf</filename>.)</para>
+
+    <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
+      to force previously-started compression jobs for an entry (or
+      group of entries specified with the <literal>G</literal> flag)
+      to finish before beginning a new one.  This feature is designed
+      to prevent system overloads caused by starting several
+      compression jobs on big files simultaneously. &merged;</para>
 
     <para>The &man.nextboot.8; utility has been added to specify an
       alternate kernel and/or boot flags to be used the next time the
