@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.49.2.1 1999/05/08 04:58:29 alc Exp $
+ * $Id: nfs_socket.c,v 1.49.2.2 1999/06/07 00:07:18 peter Exp $
  */
 
 /*
@@ -191,7 +191,6 @@ nfs_connect(nmp, rep)
 	int s, error, rcvreserve, sndreserve;
 	struct sockaddr *saddr;
 	struct sockaddr_in *sin;
-	u_int16_t tport;
 	struct proc *p = &proc0; /* only used for socreate and sobind */
 
 	nmp->nm_so = (struct socket *)0;
@@ -207,18 +206,39 @@ nfs_connect(nmp, rep)
 	 * Some servers require that the client port be a reserved port number.
 	 */
 	if (saddr->sa_family == AF_INET && (nmp->nm_flag & NFSMNT_RESVPORT)) {
+		struct sockopt sopt;
+		int ip;
 		struct sockaddr_in ssin;
+
+		bzero(&sopt, sizeof sopt);
+		ip = IP_PORTRANGE_LOW;
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = IP_PORTRANGE;
+		sopt.sopt_val = (void *)&ip;
+		sopt.sopt_valsize = sizeof(ip);
+		sopt.sopt_p = NULL;
+		error = sosetopt(so, &sopt);
+		if (error)
+			goto bad;
 		bzero(&ssin, sizeof ssin);
 		sin = &ssin;
 		sin->sin_len = sizeof (struct sockaddr_in);
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = INADDR_ANY;
-		tport = IPPORT_RESERVED - 1;
-		sin->sin_port = htons(tport);
-		while ((error = sobind(so, (struct sockaddr *)sin, p))
-		       == EADDRINUSE &&
-		       --tport > IPPORT_RESERVED / 2)
-			sin->sin_port = htons(tport);
+		sin->sin_port = htons(0);
+		error = sobind(so, (struct sockaddr *)sin, p);
+		if (error)
+			goto bad;
+		bzero(&sopt, sizeof sopt);
+		ip = IP_PORTRANGE_DEFAULT;
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = IP_PORTRANGE;
+		sopt.sopt_val = (void *)&ip;
+		sopt.sopt_valsize = sizeof(ip);
+		sopt.sopt_p = NULL;
+		error = sosetopt(so, &sopt);
 		if (error)
 			goto bad;
 	}
