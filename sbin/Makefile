@@ -18,6 +18,7 @@ SUBDIR=	adjkerntz \
 	dumpon \
 	ffsinfo \
 	fsck \
+	fsck_msdosfs \
 	fsdb \
 	fsirand \
 	growfs \
