@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.10 1995/10/26 20:30:09 julian Exp $
+ * $Id: if_ethersubr.c,v 1.11 1995/10/29 15:32:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -116,9 +116,11 @@ ether_output(ifp, m0, dst, rt0)
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	ifp->if_lastchange = time;
-	if (rt = rt0) {
+	rt = rt0;
+	if (rt) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			if (rt0 = rt = rtalloc1(dst, 1, 0UL))
+			rt0 = rt = rtalloc1(dst, 1, 0UL);
+			if (rt0)
 				rt->rt_refcnt--;
 			else
 				senderr(EHOSTUNREACH);
@@ -529,8 +531,10 @@ ether_ifattach(ifp)
 		}
 }
 
-u_char	ether_ipmulticast_min[6] = { 0x01, 0x00, 0x5e, 0x00, 0x00, 0x00 };
-u_char	ether_ipmulticast_max[6] = { 0x01, 0x00, 0x5e, 0x7f, 0xff, 0xff };
+static u_char ether_ipmulticast_min[6] = 
+	{ 0x01, 0x00, 0x5e, 0x00, 0x00, 0x00 };
+static u_char ether_ipmulticast_max[6] =
+	{ 0x01, 0x00, 0x5e, 0x7f, 0xff, 0xff };
 /*
  * Add an Ethernet multicast address or range of addresses to the list for a
  * given interface.
