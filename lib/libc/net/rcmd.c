@@ -366,6 +366,8 @@ __ivaliduser(hostf, raddr, luser, ruser)
 		return (-1);
 
 	while (fgets(buf, sizeof(buf), hostf)) {
+		if(buf[0] == '#')
+			continue;
 		p = buf;
 		/* Skip lines that are too long. */
 		if (strchr(p, '\n') == NULL) {
