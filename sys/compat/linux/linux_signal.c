@@ -34,11 +34,12 @@
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_util.h>
 
-static void
+void
 linux_to_bsd_sigset(linux_sigset_t *lss, sigset_t *bss)
 {
 	int b, l;
@@ -119,7 +120,7 @@ bsd_to_linux_sigaction(struct sigaction *bsa, linux_sigaction_t *lsa)
 		lsa->lsa_flags |= LINUX_SA_NOMASK;
 }
 
-static int
+int
 linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 		   linux_sigaction_t *linux_osa)
 {
@@ -158,44 +159,6 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 		bsd_to_linux_sigaction(osa, linux_osa);
 
 	return (0);
-}
-
-int
-linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
-{
-	linux_osigaction_t osa;
-	linux_sigaction_t act, oact;
-	int error;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): sigaction(%d, %p, %p)\n", (long)p->p_pid,
-	       args->sig, (void *)args->nsa, (void *)args->osa);
-#endif
-
-	if (args->nsa != NULL) {
-		error = copyin(args->nsa, &osa, sizeof(linux_osigaction_t));
-		if (error)
-			return (error);
-		act.lsa_handler = osa.lsa_handler;
-		act.lsa_flags = osa.lsa_flags;
-		act.lsa_restorer = osa.lsa_restorer;
-		LINUX_SIGEMPTYSET(act.lsa_mask);
-		act.lsa_mask.__bits[0] = osa.lsa_mask;
-	}
-
-	error = linux_do_sigaction(p, args->sig,
-				   args->nsa ? &act : NULL,
-				   args->osa ? &oact : NULL);
-
-	if (args->osa != NULL && !error) {
-		osa.lsa_handler = oact.lsa_handler;
-		osa.lsa_flags = oact.lsa_flags;
-		osa.lsa_restorer = oact.lsa_restorer;
-		osa.lsa_mask = oact.lsa_mask.__bits[0];
-		error = copyout(&osa, args->osa, sizeof(linux_osigaction_t));
-	}
-
-	return (error);
 }
 
 int
@@ -411,78 +374,6 @@ linux_sigpending(struct proc *p, struct linux_sigpending_args *args)
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
 
-/*
- * Linux has two extra args, restart and oldmask.  We dont use these,
- * but it seems that "restart" is actually a context pointer that
- * enables the signal to happen with a different register set.
- */
-int
-linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
-{
-	struct sigsuspend_args bsd;
-	sigset_t *sigmask;
-	linux_sigset_t mask;
-	caddr_t sg = stackgap_init();
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): sigsuspend(%08lx)\n",
-	       (long)p->p_pid, (unsigned long)args->mask);
-#endif
-
-	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	LINUX_SIGEMPTYSET(mask);
-	mask.__bits[0] = args->mask;
-	linux_to_bsd_sigset(&mask, sigmask);
-	bsd.sigmask = sigmask;
-	return (sigsuspend(p, &bsd));
-}
-
-int
-linux_rt_sigsuspend(p, uap)
-	struct proc *p;
-	struct linux_rt_sigsuspend_args *uap;
-{
-	linux_sigset_t lmask;
-	sigset_t *bmask;
-	struct sigsuspend_args bsd;
-	caddr_t sg = stackgap_init();
-	int error;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigsuspend(%p, %d)\n", (long)p->p_pid,
-	       (void *)uap->newset, uap->sigsetsize);
-#endif
-
-	if (uap->sigsetsize != sizeof(linux_sigset_t))
-		return (EINVAL);
-
-	error = copyin(uap->newset, &lmask, sizeof(linux_sigset_t));
-	if (error)
-		return (error);
-
-	bmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	linux_to_bsd_sigset(&lmask, bmask);
-	bsd.sigmask = bmask;
-	return (sigsuspend(p, &bsd));
-}
-
-int
-linux_pause(struct proc *p, struct linux_pause_args *args)
-{
-	struct sigsuspend_args bsd;
-	sigset_t *sigmask;
-	caddr_t sg = stackgap_init();
-
-#ifdef DEBUG
-	printf("Linux-emul(%d): pause()\n", p->p_pid);
-#endif
-
-	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	*sigmask = p->p_sigmask;
-	bsd.sigmask = sigmask;
-	return sigsuspend(p, &bsd);
-}
-
 int
 linux_kill(struct proc *p, struct linux_kill_args *args)
 {
@@ -509,47 +400,4 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
 
 	tmp.pid = args->pid;
 	return (kill(p, &tmp));
-}
-
-int
-linux_sigaltstack(p, uap)
-	struct proc *p;
-	struct linux_sigaltstack_args *uap;
-{
-	struct sigaltstack_args bsd;
-	stack_t *ss, *oss;
-	linux_stack_t lss;
-	int error;
-	caddr_t sg = stackgap_init();
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
-	    (long)p->p_pid, uap->uss, uap->uoss);
-#endif
-
-	error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
-	if (error)
-		return (error);
-
-	ss = stackgap_alloc(&sg, sizeof(stack_t));
-	ss->ss_sp = lss.ss_sp;
-	ss->ss_size = lss.ss_size;
-	ss->ss_flags = lss.ss_flags;
-
-	oss = (uap->uoss != NULL)
-	    ? stackgap_alloc(&sg, sizeof(stack_t))
-	    : NULL;
-
-	bsd.ss = ss;
-	bsd.oss = oss;
-	error = sigaltstack(p, &bsd);
-
-	if (!error && oss != NULL) {
-		lss.ss_sp = oss->ss_sp;
-		lss.ss_size = oss->ss_size;
-		lss.ss_flags = oss->ss_flags;
-		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
-	}
-
-	return (error);
 }
