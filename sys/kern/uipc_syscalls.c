@@ -1599,8 +1599,10 @@ retry_lookup:
 				 */
 				if (pg->wire_count == 0 && pg->valid == 0 &&
 				    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
-				    pg->hold_count == 0)
+				    pg->hold_count == 0) {
+					vm_page_busy(pg);
 					vm_page_free(pg);
+				}
 				sbunlock(&so->so_snd);
 				goto done;
 			}
