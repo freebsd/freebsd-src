@@ -85,6 +85,8 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
 
+	efinet_init_driver();
+	
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);

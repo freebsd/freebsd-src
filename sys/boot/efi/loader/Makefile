@@ -7,7 +7,7 @@ PROG= 		${BASE}.efi
 NOMAN=
 NEWVERSWHAT=	"EFI boot" ${MACHINE_ARCH}
 
-SRCS+=		main.c conf.c
+SRCS+=		main.c conf.c dev_net.c
 
 # Enable BootForth
 BOOT_FORTH=	yes
@@ -33,6 +33,7 @@ CFLAGS+= -I${.CURDIR}/../include/${MACHINE_ARCH}
 CFLAGS+= -I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/../../.. -I.
 CFLAGS+= -I${.CURDIR}/../libefi
+CFLAGS+= -I/usr/src/lib/libstand
 CFLAGS+= -DLOADER
 
 LDSCRIPT=	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}
@@ -86,7 +87,7 @@ machine:
 
 .include <bsd.prog.mk>
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBEFI} ${CRT} vers.o
 	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
 	    ${CRT} ${OBJS} vers.o \
 	    ${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
