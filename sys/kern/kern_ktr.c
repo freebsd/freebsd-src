@@ -38,18 +38,21 @@
 #include "opt_ktr.h"
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/cons.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/time.h>
 #include <machine/globals.h>
 #include <machine/stdarg.h>
 
 #include <ddb/ddb.h>
+
+#ifndef KTR_ENTRIES
+#define	KTR_ENTRIES	1024
+#endif
 
 #ifndef KTR_MASK
 #define	KTR_MASK	(KTR_GEN)
@@ -126,30 +129,30 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 		return;
 	if ((ktr_mask & mask) == 0)
 		return;
-#ifdef KTR_EXTEND
-	if (((1 << KTR_CPU) & ktr_cpumask) == 0)
-		return;
-#endif
 	savecrit = critical_enter();
+	if (((1 << KTR_CPU) & ktr_cpumask) == 0) {
+		critical_exit(savecrit);
+		return;
+	}
+	atomic_clear_int(&ktr_cpumask, 1 << KTR_CPU);
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
-	critical_exit(savecrit);
-	if (ktr_mask & KTR_LOCK)
-		/*
-		 * We can't use nanotime with KTR_LOCK, it would cause
-		 * endless recursion, at least under the Intel
-		 * architecture.
-		 */		   
+	/*
+	 * XXX: The ktr_cpumask atomic ops should make this unnecessary.
+	 */
+	if ((ktr_mask & (KTR_LOCK | KTR_WITNESS)) != 0)
 		getnanotime(&entry->ktr_tv);
 	else
 		nanotime(&entry->ktr_tv);
+	atomic_set_int(&ktr_cpumask, 1 << KTR_CPU);
+	entry->ktr_cpu = KTR_CPU;
+	critical_exit(savecrit);
 #ifdef KTR_EXTEND
 	entry->ktr_filename = filename;
 	entry->ktr_line = line;
-	entry->ktr_cpu = KTR_CPU;
 	va_start(ap, format);
 	vsnprintf(entry->ktr_desc, KTRDESCSIZE, format, ap);
 	va_end(ap);
