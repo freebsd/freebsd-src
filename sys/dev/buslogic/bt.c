@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.16 1999/04/18 15:50:32 peter Exp $
+ *      $Id: bt.c,v 1.17 1999/04/18 19:03:50 peter Exp $
  */
 
  /*
@@ -964,18 +964,22 @@ btallocccbs(struct bt_softc *bt)
 	int newcount;
 	int i;
 
+	if (bt->num_ccbs >= bt->max_ccbs)
+		/* Can't allocate any more */
+		return;
+
 	next_ccb = &bt->bt_ccb_array[bt->num_ccbs];
 
 	sg_map = malloc(sizeof(*sg_map), M_DEVBUF, M_NOWAIT);
 
 	if (sg_map == NULL)
-		return;
+		goto error_exit;
 
 	/* Allocate S/G space for the next batch of CCBS */
 	if (bus_dmamem_alloc(bt->sg_dmat, (void **)&sg_map->sg_vaddr,
 			     BUS_DMA_NOWAIT, &sg_map->sg_dmamap) != 0) {
 		free(sg_map, M_DEVBUF);
-		return;
+		goto error_exit;
 	}
 
 	SLIST_INSERT_HEAD(&bt->sg_maps, sg_map, links);
@@ -1009,6 +1013,12 @@ btallocccbs(struct bt_softc *bt)
 		bt->recovery_bccb = SLIST_FIRST(&bt->free_bt_ccbs);
 		SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
 	}
+
+	if (SLIST_FIRST(&bt->free_bt_ccbs) != NULL)
+		return;
+
+error_exit:
+	device_printf(bt->dev, "Can't malloc BCCBs\n");
 }
 
 static __inline void
@@ -1040,12 +1050,10 @@ btgetccb(struct bt_softc *bt)
 	if ((bccb = SLIST_FIRST(&bt->free_bt_ccbs)) != NULL) {
 		SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
 		bt->active_ccbs++;
-	} else if (bt->num_ccbs < bt->max_ccbs) {
+	} else {
 		btallocccbs(bt);
 		bccb = SLIST_FIRST(&bt->free_bt_ccbs);
-		if (bccb == NULL)
-			device_printf(bt->dev, "Can't malloc BCCB\n");
-		else {
+		if (bccb != NULL) {
 			SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
 			bt->active_ccbs++;
 		}
