@@ -232,7 +232,7 @@ static int	xdr_int_decode(struct mbuf **ptr, int *iptr);
 static void	print_in_addr(struct in_addr addr);
 static void	print_sin_addr(struct sockaddr_in *addr);
 static void	clear_sinaddr(struct sockaddr_in *sin);
-static struct bootpc_ifcontext *allocifctx(struct bootpc_globalcontext *gctx);
+static void	allocifctx(struct bootpc_globalcontext *gctx);
 static void	bootpc_compose_query(struct bootpc_ifcontext *ifctx,
 		    struct bootpc_globalcontext *gctx, struct thread *td);
 static unsigned char *bootpc_tag(struct bootpc_tagcontext *tctx,
@@ -428,16 +428,15 @@ clear_sinaddr(struct sockaddr_in *sin)
 	sin->sin_port = 0;
 }
 
-static struct bootpc_ifcontext *
+static void
 allocifctx(struct bootpc_globalcontext *gctx)
 {
 	struct bootpc_ifcontext *ifctx;
 	ifctx = (struct bootpc_ifcontext *) malloc(sizeof(*ifctx),
-						   M_TEMP, M_WAITOK);
+						   M_TEMP, M_WAITOK | M_ZERO);
 	if (ifctx == NULL)
 		panic("Failed to allocate bootp interface context structure");
 
-	bzero(ifctx, sizeof(*ifctx));
 	ifctx->xid = gctx->xid;
 #ifdef BOOTP_NO_DHCP
 	ifctx->state = IF_BOOTP_UNRESOLVED;
@@ -445,7 +444,11 @@ allocifctx(struct bootpc_globalcontext *gctx)
 	ifctx->state = IF_DHCP_UNRESOLVED;
 #endif
 	gctx->xid += 0x100;
-	return ifctx;
+	if (gctx->interfaces != NULL)
+		gctx->lastinterface->next = ifctx;
+	else
+		gctx->interfaces = ifctx;
+	gctx->lastinterface = ifctx;
 }
 
 static __inline int
@@ -1659,6 +1662,9 @@ bootpc_init(void)
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;
 	int error;
+#ifndef BOOTP_WIRED_TO
+	int ifcnt;
+#endif
 	struct nfsv3_diskless *nd;
 	struct thread *td;
 
@@ -1671,15 +1677,12 @@ bootpc_init(void)
 	if (nfs_diskless_valid != 0)
 		return;
 
-	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK);
+	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK | M_ZERO);
 	if (gctx == NULL)
 		panic("Failed to allocate bootp global context structure");
 
-	bzero(gctx, sizeof(*gctx));
 	gctx->xid = ~0xFFFF;
 	gctx->starttime = time_second;
-
-	ifctx = allocifctx(gctx);
 
 	/*
 	 * Find a network interface.
@@ -1687,11 +1690,32 @@ bootpc_init(void)
 #ifdef BOOTP_WIRED_TO
 	printf("bootpc_init: wired to interface '%s'\n",
 	       __XSTRING(BOOTP_WIRED_TO));
-#endif
-	bzero(&ifctx->ireq, sizeof(ifctx->ireq));
+	allocifctx(gctx);
+#else
+	/*
+	 * Preallocate interface context storage, if another interface
+	 * attaches and wins the race, it won't be eligible for bootp.
+	 */
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&ifnet);
+	for (ifp = TAILQ_FIRST(&ifnet), ifcnt = 0;
 	     ifp != NULL;
+	     ifp = TAILQ_NEXT(ifp, if_link)) {
+		if ((ifp->if_flags &
+		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
+		    IFF_BROADCAST)
+			continue;
+		ifcnt++;
+	}
+	IFNET_RUNLOCK();
+	if (ifcnt == 0)
+		panic("bootpc_init: no eligible interfaces");
+	for (; ifcnt > 0; ifcnt--)
+		allocifctx(gctx);
+#endif
+
+	IFNET_RLOCK();
+	for (ifp = TAILQ_FIRST(&ifnet), ifctx = gctx->interfaces;
+	     ifp != NULL && ifctx != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
 		snprintf(ifctx->ireq.ifr_name, sizeof(ifctx->ireq.ifr_name),
 			 "%s%d", ifp->if_name, ifp->if_unit);
@@ -1705,18 +1729,12 @@ bootpc_init(void)
 		    IFF_BROADCAST)
 			continue;
 #endif
-		if (gctx->interfaces != NULL)
-			gctx->lastinterface->next = ifctx;
-		else
-			gctx->interfaces = ifctx;
 		ifctx->ifp = ifp;
-		gctx->lastinterface = ifctx;
-		ifctx = allocifctx(gctx);
+		ifctx = ifctx->next;
 	}
 	IFNET_RUNLOCK();
-	free(ifctx, M_TEMP);
 
-	if (gctx->interfaces == NULL) {
+	if (gctx->interfaces == NULL || gctx->interfaces->ifp == NULL) {
 #ifdef BOOTP_WIRED_TO
 		panic("bootpc_init: Could not find interface specified "
 		      "by BOOTP_WIRED_TO: "
@@ -1726,17 +1744,12 @@ bootpc_init(void)
 #endif
 	}
 
-	gctx->gotrootpath = 0;
-	gctx->gotswappath = 0;
-	gctx->gotgw = 0;
-
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		bootpc_fakeup_interface(ifctx, gctx, td);
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
 		bootpc_compose_query(ifctx, gctx, td);
 
-	ifctx = gctx->interfaces;
 	error = bootpc_call(gctx, td);
 
 	if (error != 0) {
