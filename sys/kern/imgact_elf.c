@@ -683,23 +683,16 @@ static void elf_putnote __P((void *, size_t *, const char *, int,
 extern int osreldate;
 
 int
-elf_coredump(p)
+elf_coredump(p, vp, limit)
 	register struct proc *p;
-{
 	register struct vnode *vp;
+	off_t limit;
+{
 	register struct ucred *cred = p->p_cred->pc_ucred;
-	struct nameidata nd;
-	struct vattr vattr;
-	int error, error1;
-	char *name;			/* name of corefile */
+	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;
 	size_t hdrsize;
-
-	STOPEVENT(p, S_CORE, 0);
-
-	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
-		return (EFAULT);
 
 	/* Size the program segments. */
 	seginfo.count = 0;
@@ -716,31 +709,8 @@ elf_coredump(p)
 	    (const prstatus_t *)NULL, (const prfpregset_t *)NULL,
 	    (const prpsinfo_t *)NULL, seginfo.count);
 
-	if (hdrsize + seginfo.size >= p->p_rlimit[RLIMIT_CORE].rlim_cur)
+	if (hdrsize + seginfo.size >= limit)
 		return (EFAULT);
-	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
-	if (name == NULL)
-		return (EFAULT);	/* XXX -- not the best error */
-	
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
-	free(name, M_TEMP);
-	if (error)
-		return (error);
-	vp = nd.ni_vp;
-
-	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
-		error = EFAULT;
-		goto out;
-	}
-	VATTR_NULL(&vattr);
-	vattr.va_size = 0;
-	VOP_LEASE(vp, p, cred, LEASE_WRITE);
-	VOP_SETATTR(vp, &vattr, cred, p);
-	p->p_acflag |= ACORE;
-
 
 	/*
 	 * Allocate memory for building the header, fill it up,
@@ -748,8 +718,7 @@ elf_coredump(p)
 	 */
 	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
 	if (hdr == NULL) {
-		error = EINVAL;
-		goto out;
+		return EINVAL;
 	}
 	error = elf_corehdr(p, vp, cred, seginfo.count, hdr, hdrsize);
 
@@ -772,13 +741,8 @@ elf_coredump(p)
 		}
 	}
 	free(hdr, M_TEMP);
-
-out:
-	VOP_UNLOCK(vp, 0, p);
-	error1 = vn_close(vp, FWRITE, cred, p);
-	if (error == 0)
-		error = error1;
-	return (error);
+	
+	return error;
 }
 
 /*

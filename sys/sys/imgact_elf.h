@@ -103,7 +103,7 @@ int	elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
 
 struct proc;
 
-int	elf_coredump __P((struct proc *));
+int	elf_coredump __P((struct proc *, struct vnode *, off_t));
 
 #endif /* KERNEL */
 
