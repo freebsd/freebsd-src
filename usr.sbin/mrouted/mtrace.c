@@ -1955,7 +1955,7 @@ stat_line(r, s, have_next, rst)
 	v_out = ntohl(s->tr_vifin) - ntohl(r->tr_vifin);
 	v_pps = v_out / timediff;
 	whochar = 'v';
-	/* Fall through */
+	/* FALLTHROUGH */
 
       case OUTS:
 	if (tunstats)
@@ -2005,7 +2005,7 @@ stat_line(r, s, have_next, rst)
 	g_out = ntohl(s->tr_pktcnt) - ntohl(r->tr_pktcnt);
 	g_pps = g_out / timediff;
 	whochar = 'v';
-	/* Fall through */
+	/* FALLTHROUGH */
 #endif
 
       case OUTS:
