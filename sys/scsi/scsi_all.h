@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.9 1995/02/22 01:44:21 gibbs Exp $
+ *	$Id: scsi_all.h,v 1.10 1995/03/01 22:24:41 dufault Exp $
  */
 
 /*
@@ -292,7 +292,7 @@ struct scsi_sense_extended
 /*17*/		u_char	sense_key_spec_2;
 /*18*/		u_char	sense_key_spec_3;
 /*32*/		u_char	extra_bytes[14];
-} extended;
+};
 
 struct	scsi_sense_data_new
 {
