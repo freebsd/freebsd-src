@@ -114,9 +114,7 @@ void	usage(void);
  * followed by "n" which is the number of nfsds' to fork off
  */
 int
-main(argc, argv, envp)
-	int argc;
-	char *argv[], *envp[];
+main(int argc, char **argv)
 {
 	struct nfsd_args nfsdargs;
 	struct addrinfo *ai_udp, *ai_tcp, *ai_udp6, *ai_tcp6, hints;
@@ -764,15 +762,13 @@ usage()
 }
 
 void
-nonfs(signo)
-	int signo;
+nonfs(__unused int signo)
 {
 	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
 void
-reapchild(signo)
-	int signo;
+reapchild(__unused int signo)
 {
 	pid_t pid;
 	int i;
@@ -807,7 +803,7 @@ killchildren()
  * Cleanup master after SIGUSR1.
  */
 void
-cleanup(signo)
+cleanup(__unused int signo)
 {
 	nfsd_exit(0);
 }
@@ -816,7 +812,7 @@ cleanup(signo)
  * Cleanup child after SIGUSR1.
  */
 void
-child_cleanup(signo)
+child_cleanup(__unused int signo)
 {
 	exit(0);
 }
