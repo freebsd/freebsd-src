@@ -60,7 +60,7 @@ chrdev	name		comments
 40	ctx		Cortex
 41	??		was socksys
 42	cx		Cronyx/Sigma serial adapter
-43	vn		vnode "disk" device
+43	vn		vnode "disk" device (retired)
 44	gp		GPIB
 45	scd		Sony CDROM interface
 46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
