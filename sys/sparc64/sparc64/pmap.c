@@ -399,12 +399,19 @@ pmap_bootstrap(vm_offset_t ekva)
 
 	/*
 	 * Allocate a kernel stack with guard page for thread0 and map it into
-	 * the kernel tsb.
+	 * the kernel tsb.  We must ensure that the virtual address is coloured
+	 * properly, since we're allocating from phys_avail so the memory won't
+	 * have an associated vm_page_t.
 	 */
-	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE);
+	pa = pmap_bootstrap_alloc(roundup(KSTACK_PAGES, DCACHE_COLORS) *
+	    PAGE_SIZE);
 	kstack0_phys = pa;
-	kstack0 = virtual_avail + (KSTACK_GUARD_PAGES * PAGE_SIZE);
-	virtual_avail += (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE;
+	virtual_avail += roundup(KSTACK_GUARD_PAGES, DCACHE_COLORS) *
+	    PAGE_SIZE;
+	kstack0 = virtual_avail;
+	virtual_avail += roundup(KSTACK_PAGES, DCACHE_COLORS) * PAGE_SIZE;
+	KASSERT(DCACHE_COLOR(kstack0) == DCACHE_COLOR(kstack0_phys),
+	    ("pmap_bootstrap: kstack0 miscoloured"));
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
