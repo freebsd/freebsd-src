@@ -5,6 +5,7 @@ set CTMref	/u4/ftp/pub/FreeBSD/SRC-current/src
 set CTMdest	/u4/ftp/pub/CTM
 set CTMprefix	.
 set CTMdont	{/CVS$|/CVS/Entries$|/CVS/Repository$|^secure|^eBones}
+set CTMmail	ctm-src-cur
 
 set CTMcopy	/u1/CTM/$CTMname
 set CTMtmp	/u1/CTM/tmp/_tmp_$CTMname
