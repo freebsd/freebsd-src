@@ -1311,6 +1311,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 
 	default:
 		error = ENOTTY;
+		break;
 	}
 	PIPE_UNLOCK(mpipe);
 	return (error);
