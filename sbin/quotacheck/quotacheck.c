@@ -79,7 +79,7 @@ union {
 } un;
 #define	sblock	un.sblk
 long dev_bsize = 1;
-long maxino;
+ino_t maxino;
 
 struct quotaname {
 	long	flags;
@@ -111,8 +111,8 @@ struct fileusage *
 	 addid __P((u_long, int, char *));
 char	*blockcheck __P((char *));
 void	 bread __P((daddr_t, char *, long));
-extern int checkfstab __P((int, int, int (*)(struct fstab *),
-				int (*)(char *, char *, long, int)));
+extern int checkfstab __P((int, int, void * (*)(struct fstab *),
+				int (*)(char *, char *, struct quotaname *)));
 int	 chkquota __P((char *, char *, struct quotaname *));
 void	 freeinodebuf __P((void));
 struct dinode *
@@ -132,9 +132,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct fstab *fs;
-	register struct passwd *pw;
-	register struct group *gr;
+	struct fstab *fs;
+	struct passwd *pw;
+	struct group *gr;
 	struct quotaname *auxdata;
 	int i, argnum, maxrun, errs;
 	long done = 0;
@@ -214,9 +214,9 @@ usage()
 
 void *
 needchk(fs)
-	register struct fstab *fs;
+	struct fstab *fs;
 {
-	register struct quotaname *qnp;
+	struct quotaname *qnp;
 	char *qfnp;
 
 	if (strcmp(fs->fs_vfstype, "ufs") ||
@@ -245,10 +245,10 @@ needchk(fs)
 int
 chkquota(fsname, mntpt, qnp)
 	char *fsname, *mntpt;
-	register struct quotaname *qnp;
+	struct quotaname *qnp;
 {
-	register struct fileusage *fup;
-	register struct dinode *dp;
+	struct fileusage *fup;
+	struct dinode *dp;
 	int cg, i, mode, errs = 0;
 	ino_t ino;
 
@@ -312,12 +312,12 @@ chkquota(fsname, mntpt, qnp)
 int
 update(fsname, quotafile, type)
 	char *fsname, *quotafile;
-	register int type;
+	int type;
 {
-	register struct fileusage *fup;
-	register FILE *qfi, *qfo;
-	register u_long id, lastid;
-	register off_t offset;
+	struct fileusage *fup;
+	FILE *qfi, *qfo;
+	u_long id, lastid;
+	off_t offset;
 	struct dqblk dqbuf;
 	static int warned = 0;
 	static struct dqblk zerodqbuf;
@@ -387,7 +387,7 @@ update(fsname, quotafile, type)
 			dqbuf.dqb_itime = 0;
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
-		if (fseek(qfo, (long)offset, SEEK_SET) < 0) {
+		if (fseek(qfo, offset, SEEK_SET) < 0) {
 			warn("%s: seek failed", quotafile);
 			return(1);
 		}
@@ -400,7 +400,7 @@ update(fsname, quotafile, type)
 	fclose(qfi);
 	fflush(qfo);
 	ftruncate(fileno(qfo),
-	    (off_t)((highid[type] + 1) * sizeof(struct dqblk)));
+	    (((off_t)highid[type] + 1) * sizeof(struct dqblk)));
 	fclose(qfo);
 	return (0);
 }
@@ -410,10 +410,10 @@ update(fsname, quotafile, type)
  */
 int
 oneof(target, list, cnt)
-	register char *target, *list[];
+	char *target, *list[];
 	int cnt;
 {
-	register int i;
+	int i;
 
 	for (i = 0; i < cnt; i++)
 		if (strcmp(target, list[i]) == 0)
@@ -439,11 +439,11 @@ getquotagid()
  */
 int
 hasquota(fs, type, qfnamep)
-	register struct fstab *fs;
+	struct fstab *fs;
 	int type;
 	char **qfnamep;
 {
-	register char *opt;
+	char *opt;
 	char *cp;
 	static char initname, usrname[100], grpname[100];
 	static char buf[BUFSIZ];
@@ -486,7 +486,7 @@ lookup(id, type)
 	u_long id;
 	int type;
 {
-	register struct fileusage *fup;
+	struct fileusage *fup;
 
 	for (fup = fuhead[type][id & (FUHASH-1)]; fup != 0; fup = fup->fu_next)
 		if (fup->fu_id == id)
