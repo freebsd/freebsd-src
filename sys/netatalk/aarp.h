@@ -55,8 +55,6 @@ struct aarptab {
 
 #ifdef KERNEL
 struct aarptab		*aarptnew(struct at_addr      *);
-#if !defined( __FreeBSD__ )
-int			aarpprobe();
 #endif
-#endif
+
 #endif /* _NETATALK_AARP_H_ */

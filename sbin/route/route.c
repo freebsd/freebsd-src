@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.8 1996/05/08 20:48:59 wollman Exp $";
+	"$Id: route.c,v 1.9 1996/07/09 19:02:28 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1513,7 +1513,7 @@ atalk_aton(const char *text, struct at_addr *addr)
 	if (sscanf(text, "%u.%u", &net, &node) != 2
 	    || net > 0xffff || node > 0xff)
 		return(0);
-	addr->s_net = net;
+	addr->s_net = htons(net);
 	addr->s_node = node;
 	return(1);
 }
@@ -1523,6 +1523,6 @@ atalk_ntoa(struct at_addr at)
 {
 	static char buf[20];
 
-	(void) snprintf(buf, sizeof(buf), "%u.%u", at.s_net, at.s_node);
+	(void) snprintf(buf, sizeof(buf), "%u.%u", ntohs(at.s_net), at.s_node);
 	return(buf);
 }

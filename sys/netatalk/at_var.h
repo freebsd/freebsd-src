@@ -30,22 +30,16 @@
 struct at_ifaddr {
     struct ifaddr	aa_ifa;
 # define aa_ifp			aa_ifa.ifa_ifp
-#ifdef BSD4_4
     struct sockaddr_at	aa_addr;
     struct sockaddr_at	aa_broadaddr;
+# define aa_dstaddr		aa_netmask
     struct sockaddr_at	aa_netmask;
-#else BSD4_4
-# define aa_addr		aa_ifa.ifa_addr
-# define aa_broadaddr		aa_ifa.ifa_broadaddr
-# define aa_dstaddr		aa_ifa.ifa_dstaddr
-#endif BSD4_4
     int			aa_flags;
     u_short		aa_firstnet, aa_lastnet;
     int			aa_probcnt;
     struct at_ifaddr	*aa_next;
 };
 
-#ifdef BSD4_4
 struct at_aliasreq {
 	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
 	struct	sockaddr_at ifra_addr;
@@ -53,7 +47,6 @@ struct at_aliasreq {
 #define ifra_dstaddr ifra_broadaddr
 	struct	sockaddr_at ifra_mask;
 };
-#endif BSD4_4
 
 #define AA_SAT(aa) \
     ((struct sockaddr_at *)&((struct at_ifaddr *)(aa))->aa_addr)
@@ -68,4 +61,5 @@ struct at_ifaddr	*at_ifaddr;
 struct ifqueue		atintrq1, atintrq2;
 int			atdebug;
 #endif
+
 #endif /* _NETATALK_AT_VAR_H_ */

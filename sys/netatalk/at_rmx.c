@@ -78,7 +78,6 @@ at_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	    struct radix_node *treenodes)
 {
 	struct radix_node *rn;
-	struct sockaddr_at *dst = v_arg, *mask = n_arg;
 
 	printf("at_addroute: v=%s\n", prsockaddr(v_arg));
 	printf("at_addroute: n=%s\n", prsockaddr(n_arg));
@@ -95,7 +94,6 @@ static struct radix_node *
 at_matroute(void *v_arg, struct radix_node_head *head)
 {
 	struct radix_node *rn;
-	struct sockaddr_at *dst = v_arg;
 
 	printf("at_matroute: v=%s\n", prsockaddr(v_arg));
 	printf("at_matroute: head=%x\n", head);

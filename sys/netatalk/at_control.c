@@ -5,31 +5,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#ifdef ibm032
-#include <sys/dir.h>
-#endif ibm032
 #include <sys/proc.h>
-#ifndef BSD4_4
-#include <sys/user.h>
-#endif
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>
-#ifndef _IBMR2
 #include <sys/kernel.h>
-#endif _IBMR2
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <net/if.h>
-/* #include <net/af.h> */
 #include <net/route.h>
 #include <netinet/in.h>
 #undef s_net
 #include <netinet/if_ether.h>
-#ifdef _IBMR2
-#include <net/spl.h>
-#endif _IBMR2
 
 #include "at.h"
 #include "at_var.h"
@@ -37,47 +25,21 @@
 #include "phase2.h"
 #include <netatalk/at_extern.h>
 
+static int aa_addrangeroute(struct ifaddr *ifa, int first, int last);
+static int aa_addsingleroute(struct ifaddr *ifa,
+			struct at_addr *addr, struct at_addr *mask);
+static int aa_delsingleroute(struct ifaddr *ifa,
+			struct at_addr *addr, struct at_addr *mask);
+static int aa_dosingleroute(struct ifaddr *ifa, struct at_addr *addr,
+			struct at_addr *mask, int cmd, int flags);
 static int at_scrub( struct ifnet *ifp, struct at_ifaddr *aa );
 static int at_ifinit( struct ifnet *ifp, struct at_ifaddr *aa,
 					struct sockaddr_at *sat );
 
-#ifdef BSD4_4
 # define sateqaddr(a,b)	((a)->sat_len == (b)->sat_len && \
 		    (a)->sat_family == (b)->sat_family && \
 		    (a)->sat_addr.s_net == (b)->sat_addr.s_net && \
 		    (a)->sat_addr.s_node == (b)->sat_addr.s_node )
-#else BSD4_4
-atalk_hash( sat, hp )
-    struct sockaddr_at	*sat;
-    struct afhash	*hp;
-{
-    hp->afh_nethash = sat->sat_addr.s_net;
-    hp->afh_hosthash = ( sat->sat_addr.s_net << 8 ) +
-	    sat->sat_addr.s_node;
-}
-
-/*
- * Note the magic to get ifa_ifwithnet() to work without adding an
- * ifaddr entry for each net in our local range.
- */
-int
-atalk_netmatch( sat1, sat2 )
-    struct sockaddr_at	*sat1, *sat2;
-{
-    struct at_ifaddr	*aa;
-
-    for ( aa = at_ifaddr; aa; aa = aa->aa_next ) {
-	if ( AA_SAT( aa ) == sat1 ) {
-	    break;
-	}
-    }
-    if ( aa ) {
-	return( ntohs( aa->aa_firstnet ) <= ntohs( sat2->sat_addr.s_net ) &&
-		ntohs( aa->aa_lastnet ) >= ntohs( sat2->sat_addr.s_net ));
-    }
-    return( sat1->sat_addr.s_net == sat2->sat_addr.s_net );
-}
-#endif BSD4_4
 
 int
 at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
@@ -85,10 +47,8 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
     struct ifreq	*ifr = (struct ifreq *)data;
     struct sockaddr_at	*sat;
     struct netrange	*nr;
-#ifdef BSD4_4
     struct at_aliasreq	*ifra = (struct at_aliasreq *)data;
     struct at_ifaddr	*aa0;
-#endif BSD4_4
     struct at_ifaddr	*aa = 0;
     struct mbuf		*m;
     struct ifaddr	*ifa;
@@ -100,7 +60,6 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
     }
 
     switch ( cmd ) {
-#ifdef BSD4_4
     case SIOCAIFADDR:
     case SIOCDIFADDR:
 	if ( ifra->ifra_addr.sat_family == AF_APPLETALK ) {
@@ -115,26 +74,11 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	    return( EADDRNOTAVAIL );
 	}
 	/*FALLTHROUGH*/
-#endif BSD4_4
 
     case SIOCSIFADDR:
-#ifdef BSD4_4
-	/*
-	 * What a great idea this is: Let's reverse the meaning of
-	 * the return...
-	 */
-#if defined( __FreeBSD__ )
 	if ( suser(p->p_ucred, &p->p_acflag) ) {
-#else
-	if ( suser( u.u_cred, &u.u_acflag )) {
-#endif
 	    return( EPERM );
 	}
-#else BSD4_4
-	if ( !suser()) {
-	    return( EPERM );
-	}
-#endif BSD4_4
 
 	sat = satosat( &ifr->ifr_addr );
 	nr = (struct netrange *)sat->sat_zero;
@@ -191,11 +135,9 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 		ifp->if_addrlist = (struct ifaddr *)aa;
 	    }
 
-#ifdef BSD4_4
 	    aa->aa_ifa.ifa_addr = (struct sockaddr *)&aa->aa_addr;
 	    aa->aa_ifa.ifa_dstaddr = (struct sockaddr *)&aa->aa_addr;
 	    aa->aa_ifa.ifa_netmask = (struct sockaddr *)&aa->aa_netmask;
-#endif BSD4_4
 
 	    /*
 	     * Set/clear the phase 2 bit.
@@ -236,17 +178,17 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 
     switch ( cmd ) {
     case SIOCGIFADDR:
-#ifdef BSD4_4
-	*(struct sockaddr_at *)&ifr->ifr_addr = aa->aa_addr;
-#else BSD4_4
-	ifr->ifr_addr = aa->aa_addr;
-#endif BSD4_4
+	sat = (struct sockaddr_at *)&ifr->ifr_addr;
+	*sat = aa->aa_addr;
+	((struct netrange *)&sat->sat_zero)->nr_phase
+		= (aa->aa_flags & AFA_PHASE2) ? 2 : 1;
+	((struct netrange *)&sat->sat_zero)->nr_firstnet = aa->aa_firstnet;
+	((struct netrange *)&sat->sat_zero)->nr_lastnet = aa->aa_lastnet;
 	break;
 
     case SIOCSIFADDR:
 	return( at_ifinit( ifp, aa, (struct sockaddr_at *)&ifr->ifr_addr ));
 
-#ifdef BSD4_4
     case SIOCAIFADDR:
 	if ( sateqaddr( &ifra->ifra_addr, &aa->aa_addr )) {
 	    return( 0 );
@@ -283,7 +225,6 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	}
 	m_free( dtom( aa0 ));
 	break;
-#endif BSD4_4
 
     default:
 	if ( ifp == 0 || ifp->if_ioctl == 0 )
@@ -292,59 +233,24 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
     }
     return( 0 );
 }
+
 static int
 at_scrub( ifp, aa )
     struct ifnet	*ifp;
     struct at_ifaddr	*aa;
 {
-#ifndef BSD4_4
-    struct sockaddr_at	netsat;
-    u_short		net;
-#endif BSD4_4
     int			error;
 
     if ( aa->aa_flags & AFA_ROUTE ) {
-#ifdef BSD4_4
 	if (( error = rtinit( &(aa->aa_ifa), RTM_DELETE,
 		( ifp->if_flags & IFF_LOOPBACK ) ? RTF_HOST : 0 )) != 0 ) {
 	    return( error );
 	}
 	aa->aa_ifa.ifa_flags &= ~IFA_ROUTE;
-#else BSD4_4
-	if ( ifp->if_flags & IFF_LOOPBACK ) {
-	    rtinit( &aa->aa_addr, &aa->aa_addr, SIOCDELRT, RTF_HOST );
-	} else {
-	    bzero( &netsat, sizeof( struct sockaddr_at ));
-	    netsat.sat_family = AF_APPLETALK;
-	    netsat.sat_addr.s_node = ATADDR_ANYNODE;
-
-	    /*
-	     * If the range is the full 0-fffe range, just use
-	     * the default route.
-	     */
-	    if ( aa->aa_firstnet == htons( 0x0000 ) &&
-		    aa->aa_lastnet == htons( 0xfffe )) {
-		netsat.sat_addr.s_net = 0;
-		rtinit((struct sockaddr *)&netsat, &aa->aa_addr,
-			(int)SIOCDELRT, 0 );
-	    } else {
-		for ( net = ntohs( aa->aa_firstnet );
-			net <= ntohs( aa->aa_lastnet ); net++ ) {
-		    netsat.sat_addr.s_net = htons( net );
-		    rtinit((struct sockaddr *)&netsat, &aa->aa_addr,
-			    (int)SIOCDELRT, 0 );
-		}
-	    }
-	}
-#endif BSD4_4
 	aa->aa_flags &= ~AFA_ROUTE;
     }
     return( 0 );
 }
-
-#if !defined( __FreeBSD__ )
-extern struct timeval	time;
-#endif __FreeBSD__
 
 static int 
 at_ifinit( ifp, aa, sat )
@@ -353,24 +259,28 @@ at_ifinit( ifp, aa, sat )
     struct sockaddr_at	*sat;
 {
     struct netrange	nr, onr;
-#ifdef BSD4_4
     struct sockaddr_at	oldaddr;
-#else BSD4_4
-    struct sockaddr	oldaddr;
-#endif BSD4_4
-    struct sockaddr_at	netaddr;
-    int			s = splimp(), error = 0, i, j, netinc, nodeinc, nnets;
+    int			s = splimp(), error = 0, i, j;
+    int			flags = RTF_UP, netinc, nodeinc, nnets;
     u_short		net;
 
     oldaddr = aa->aa_addr;
     bzero( AA_SAT( aa ), sizeof( struct sockaddr_at ));
     bcopy( sat->sat_zero, &nr, sizeof( struct netrange ));
+    bcopy( sat->sat_zero, AA_SAT( aa )->sat_zero, sizeof( struct netrange ));
     nnets = ntohs( nr.nr_lastnet ) - ntohs( nr.nr_firstnet ) + 1;
 
     onr.nr_firstnet = aa->aa_firstnet;
     onr.nr_lastnet = aa->aa_lastnet;
     aa->aa_firstnet = nr.nr_firstnet;
     aa->aa_lastnet = nr.nr_lastnet;
+
+/* XXX ALC */
+    printf("at_ifinit: %s: %u.%u range %u-%u phase %d\n",
+	ifp->if_name,
+	ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node,
+	ntohs(aa->aa_firstnet), ntohs(aa->aa_lastnet),
+	(aa->aa_flags & AFA_PHASE2) ? 2 : 1);
 
     /*
      * We could eliminate the need for a second phase 1 probe (post
@@ -379,17 +289,17 @@ at_ifinit( ifp, aa, sat )
      * phase 2, both the net and node must be the same.
      */
     if ( ifp->if_flags & IFF_LOOPBACK ) {
-#ifdef BSD4_4
 	AA_SAT( aa )->sat_len = sat->sat_len;
-#endif BSD4_4
 	AA_SAT( aa )->sat_family = AF_APPLETALK;
 	AA_SAT( aa )->sat_addr.s_net = sat->sat_addr.s_net;
 	AA_SAT( aa )->sat_addr.s_node = sat->sat_addr.s_node;
+#if 0
+    } else if ( fp->if_flags & IFF_POINTOPOINT) {
+	/* unimplemented */
+#endif
     } else {
 	aa->aa_flags |= AFA_PROBING;
-#ifdef BSD4_4
 	AA_SAT( aa )->sat_len = sizeof(struct sockaddr_at);
-#endif BSD4_4
 	AA_SAT( aa )->sat_family = AF_APPLETALK;
 	if ( aa->aa_flags & AFA_PHASE2 ) {
 	    if ( sat->sat_addr.s_net == ATADDR_ANYNET ) {
@@ -431,14 +341,8 @@ at_ifinit( ifp, aa, sat )
 		aa->aa_probcnt = 10;
 		timeout( (timeout_func_t)aarpprobe, (caddr_t)ifp, hz / 5 );
 		splx( s );
-		if (
-#if defined( __FreeBSD__ )
-		    tsleep( aa, PPAUSE|PCATCH, "at_ifinit", 0 )
-#else
-		    sleep( aa, PSLEP|PCATCH )
-#endif
-		    ) {
-		    printf( "at_ifinit why did this happen?!\n" );
+		if ( tsleep( aa, PPAUSE|PCATCH, "at_ifinit", 0 )) {
+		    printf( "at_ifinit: why did this happen?!\n" );
 		    aa->aa_addr = oldaddr;
 		    aa->aa_firstnet = onr.nr_firstnet;
 		    aa->aa_lastnet = onr.nr_lastnet;
@@ -467,86 +371,79 @@ at_ifinit( ifp, aa, sat )
 
     if ( ifp->if_ioctl &&
 	    ( error = (*ifp->if_ioctl)( ifp, SIOCSIFADDR, (caddr_t)aa ))) {
-	splx( s );
 	aa->aa_addr = oldaddr;
 	aa->aa_firstnet = onr.nr_firstnet;
 	aa->aa_lastnet = onr.nr_lastnet;
+	splx( s );
 	return( error );
     }
 
-#ifdef BSD4_4
-    aa->aa_netmask.sat_len = 6/*sizeof(struct sockaddr_at)*/;
+  /* Initialize interface netmask, which is silly for us */
+
+    bzero(&aa->aa_netmask, sizeof(aa->aa_netmask));
+    aa->aa_netmask.sat_len = sizeof(struct sockaddr_at);
     aa->aa_netmask.sat_family = AF_APPLETALK;
-    aa->aa_netmask.sat_addr.s_net = 0xffff;
-    aa->aa_netmask.sat_addr.s_node = 0;
-#if defined( __FreeBSD__ )
-    aa->aa_ifa.ifa_netmask =(struct sockaddr *) &(aa->aa_netmask); /* XXX */
-#endif __FreeBSD__
-#endif BSD4_4
+    aa->aa_ifa.ifa_netmask = (struct sockaddr *) &aa->aa_netmask;
 
-    if ( ifp->if_flags & IFF_LOOPBACK ) {
-#ifndef BSD4_4
-	rtinit( &aa->aa_addr, &aa->aa_addr, (int)SIOCADDRT,
-		RTF_HOST|RTF_UP );
-#else BSD4_4
-	error = rtinit( &(aa->aa_ifa), (int)RTM_ADD,
-#if !defined( __FreeBSD__ )
-				RTF_HOST |
-#else
-				/* XXX not a host route? */
-#endif __FreeBSD__
-					RTF_UP );
-#endif BSD4_4
-    } else {
-#ifndef BSD4_4
-	/*
-	 * rtrequest looks for point-to-point links first. The
-	 * broadaddr is in the same spot as the destaddr. So, if
-	 * ATADDR_ANYNET is 0, and we don't fill in the broadaddr, we
-	 * get 0.0 routed out the ether interface.  So, initialize the
-	 * broadaddr, even tho we don't use it.
-	 *
-	 * We *could* use the broadaddr field to reduce some of the
-	 * sockaddr_at overloading that we've done.  E.g. Just send
-	 * to INTERFACE-NET.255, and have the kernel reroute that
-	 * to broadaddr, which would be 0.255 for phase 2 interfaces,
-	 * and IFACE-NET.255 for phase 1 interfaces.
-	 */
-	((struct sockaddr_at *)&aa->aa_broadaddr)->sat_addr.s_net =
-		sat->sat_addr.s_net;
-	((struct sockaddr_at *)&aa->aa_broadaddr)->sat_addr.s_node =
-		ATADDR_BCAST;
+  /* "Add a route to the network" */
 
-	bzero( &netaddr, sizeof( struct sockaddr_at ));
-	netaddr.sat_family = AF_APPLETALK;
-	netaddr.sat_addr.s_node = ATADDR_ANYNODE;
-	if (( aa->aa_flags & AFA_PHASE2 ) == 0 ) {
-	    netaddr.sat_addr.s_net = AA_SAT( aa )->sat_addr.s_net;
-	    rtinit((struct sockaddr *)&netaddr, &aa->aa_addr,
-		    (int)SIOCADDRT, RTF_UP );
-	} else {
-	    /*
-	     * If the range is the full 0-fffe range, just use
-	     * the default route.
-	     */
-	    if ( aa->aa_firstnet == htons( 0x0000 ) &&
-		    aa->aa_lastnet == htons( 0xfffe )) {
-		netaddr.sat_addr.s_net = 0;
-		rtinit((struct sockaddr *)&netaddr, &aa->aa_addr,
-			(int)SIOCADDRT, RTF_UP );
-	    } else {
-		for ( net = ntohs( aa->aa_firstnet );
-			net <= ntohs( aa->aa_lastnet ); net++ ) {
-		    netaddr.sat_addr.s_net = htons( net );
-		    rtinit((struct sockaddr *)&netaddr, &aa->aa_addr,
-			    (int)SIOCADDRT, RTF_UP );
-		}
-	    }
-	}
-#else BSD4_4
-	error = rtinit( &(aa->aa_ifa), (int)RTM_ADD, RTF_UP );
-#endif BSD4_4
+    aa->aa_ifa.ifa_metric = ifp->if_metric;
+    if (ifp->if_flags & IFF_BROADCAST) {
+	bzero(&aa->aa_broadaddr, sizeof(aa->aa_broadaddr));
+	aa->aa_broadaddr.sat_len = sat->sat_len;
+	aa->aa_broadaddr.sat_family = AF_APPLETALK;
+	aa->aa_broadaddr.sat_addr.s_net = htons(0);
+	aa->aa_broadaddr.sat_addr.s_node = 0xff;
+	aa->aa_ifa.ifa_broadaddr = (struct sockaddr *) &aa->aa_broadaddr;
+	aa->aa_netmask.sat_addr.s_net = htons(0xffff);	/* XXX */
+	aa->aa_netmask.sat_addr.s_node = htons(0);	/* XXX */
+    } else if (ifp->if_flags & IFF_LOOPBACK) {
+	aa->aa_ifa.ifa_dstaddr = aa->aa_ifa.ifa_addr;
+	aa->aa_netmask.sat_addr.s_net = htons(0xffff);	/* XXX */
+	aa->aa_netmask.sat_addr.s_node = htons(0xffff);	/* XXX */
+	flags |= RTF_HOST;
+    } else if (ifp->if_flags & IFF_POINTOPOINT) {
+	aa->aa_ifa.ifa_dstaddr = aa->aa_ifa.ifa_addr;
+	aa->aa_netmask.sat_addr.s_net = htons(0xffff);
+	aa->aa_netmask.sat_addr.s_node = htons(0xffff);
+	flags |= RTF_HOST;
     }
+    error = rtinit(&(aa->aa_ifa), (int)RTM_ADD, flags);
+
+#if 0
+    if ( ifp->if_flags & IFF_LOOPBACK ) {
+	struct at_addr	rtaddr, rtmask;
+
+	bzero(&rtaddr, sizeof(rtaddr));
+	bzero(&rtmask, sizeof(rtmask));
+	rtaddr.s_net = AA_SAT( aa )->sat_addr.s_net;
+	rtaddr.s_node = AA_SAT( aa )->sat_addr.s_node;
+	rtmask.s_net = 0xffff;
+	rtmask.s_node = 0xff;
+
+	error = aa_addsingleroute(&aa->aa_ifa, &rtaddr, &rtmask);
+
+    } else {
+
+    /* Install routes for our own network, and then also for
+       all networks above and below it in the network range */
+
+	error = aa_addrangeroute(&aa->aa_ifa,
+		ntohs(aa->aa_addr.sat_addr.s_net),
+		ntohs(aa->aa_addr.sat_addr.s_net) + 1);
+	if (!error
+		&& ntohs(aa->aa_firstnet) < ntohs(aa->aa_addr.sat_addr.s_net))
+	    error = aa_addrangeroute(&aa->aa_ifa,
+		  ntohs(aa->aa_firstnet), ntohs(aa->aa_addr.sat_addr.s_net));
+	if (!error
+		&& ntohs(aa->aa_addr.sat_addr.s_net) < ntohs(aa->aa_lastnet))
+	    error = aa_addrangeroute(&aa->aa_ifa,
+		  ntohs(aa->aa_addr.sat_addr.s_net) + 1,
+		  ntohs(aa->aa_lastnet) + 1);
+    }
+#endif
+
+
     if ( error ) {
 	aa->aa_addr = oldaddr;
 	aa->aa_firstnet = onr.nr_firstnet;
@@ -555,9 +452,7 @@ at_ifinit( ifp, aa, sat )
 	return( error );
     }
 
-#ifdef BSD4_4
     aa->aa_ifa.ifa_flags |= IFA_ROUTE;
-#endif BSD4_4
     aa->aa_flags |= AFA_ROUTE;
     splx( s );
     return( 0 );
@@ -586,6 +481,146 @@ at_broadcast( sat )
     return( 0 );
 }
 
+/*
+ * aa_addrangeroute()
+ *
+ * Add a route for a range of networks from bot to top - 1.
+ * Algorithm:
+ *
+ * Split the range into three subranges such that the middle
+ * subrange is from (base + 2^N) to (base + 2^N + 2^(N-1)) for
+ * some N. Then add a route for the middle range and recurse on
+ * the upper and lower sub-ranges. As a degenerate case, it may
+ * be that the middle subrange is empty.
+ */
+
+static int
+aa_addrangeroute(struct ifaddr *ifa, int bot, int top)
+{
+  int			base, mask, mbot, mtop;
+  int			a, b, abit, bbit, error;
+  struct at_addr	rtaddr, rtmask;
+
+/* Special case the whole range */
+
+  if (bot == 0 && top == 0xffff)
+  {
+    bzero(&rtaddr, sizeof(rtaddr));
+    bzero(&rtmask, sizeof(rtmask));
+    return(aa_addsingleroute(ifa, &rtaddr, &rtmask));
+  }
+
+  if (top <= bot)
+    panic("aa_addrangeroute");
+
+/* Mask out the high order bits on which both bounds agree */
+
+  for (mask = 0xffff; (bot & mask) != (top & mask); mask <<= 1);
+  base = bot & mask;
+  a = bot & ~mask;
+  b = top & ~mask;
+
+/* Find suitable powers of two between a and b we can make a route with */
+
+  for (bbit = 0x8000; bbit > b; bbit >>= 1);
+  if (a == 0)
+    abit = 0;
+  else
+  {
+    for (abit = 0x0001; a > abit; abit <<= 1);
+    if ((abit << 1) > bbit)
+      bbit = abit;
+    else
+      bbit = abit << 1;
+  }
+
+/* Now we have a "square" middle chunk from abit to bbit, possibly empty */
+
+  mbot = base + abit;
+  mtop = base + bbit;
+  mask = ~(bbit - 1);
+
+/* Route to the middle chunk */
+
+  if (mbot < mtop)
+  {
+    bzero(&rtaddr, sizeof(rtaddr));
+    bzero(&rtmask, sizeof(rtmask));
+    rtaddr.s_net = htons((u_short) mbot);
+    rtmask.s_net = htons((u_short) mask);
+    if ((error = aa_addsingleroute(ifa, &rtaddr, &rtmask)))
+      return(error);
+  }
+
+/* Recurse on the upper and lower chunks we didn't get to */
+
+  if (bot < mbot)
+    if ((error = aa_addrangeroute(ifa, bot, mbot)))
+    {
+      if (mbot < mtop)
+	aa_delsingleroute(ifa, &rtaddr, &rtmask);
+      return(error);
+    }
+  if (mtop < top)
+    if ((error = aa_addrangeroute(ifa, mtop, top)))
+    {
+      if (mbot < mtop)
+	aa_delsingleroute(ifa, &rtaddr, &rtmask);
+      return(error);
+    }
+  return(0);
+}
+
+static int
+aa_addsingleroute(struct ifaddr *ifa,
+	struct at_addr *addr, struct at_addr *mask)
+{
+  int	error;
+
+  printf("aa_addsingleroute: %x.%x mask %x.%x ...\n",
+    ntohs(addr->s_net), addr->s_node,
+    ntohs(mask->s_net), mask->s_node);
+
+  error = aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP);
+  if (error)
+    printf("error %d\n", error);
+  return(error);
+}
+
+static int
+aa_delsingleroute(struct ifaddr *ifa,
+	struct at_addr *addr, struct at_addr *mask)
+{
+  int	error;
+
+  error = aa_dosingleroute(ifa, addr, mask, RTM_DELETE, 0);
+  if (error)
+    printf("aa_delsingleroute: error %d\n", error);
+  return(error);
+}
+
+static int
+aa_dosingleroute(struct ifaddr *ifa,
+	struct at_addr *at_addr, struct at_addr *at_mask, int cmd, int flags)
+{
+  struct sockaddr_at	addr, mask;
+
+  bzero(&addr, sizeof(addr));
+  bzero(&mask, sizeof(mask));
+  addr.sat_family = AF_APPLETALK;
+  addr.sat_len = sizeof(struct sockaddr_at);
+  addr.sat_addr.s_net = at_addr->s_net;
+  addr.sat_addr.s_node = at_addr->s_node;
+  mask.sat_addr.s_net = at_mask->s_net;
+  mask.sat_addr.s_node = at_mask->s_node;
+  if (at_mask->s_node)
+    flags |= RTF_HOST;
+  return(rtrequest(cmd, (struct sockaddr *) &addr, ifa->ifa_addr,
+		(struct sockaddr *) &mask, flags, NULL));
+}
+
+#if 0
+
 static void
 aa_clean(void)
 {
@@ -612,3 +647,6 @@ aa_clean(void)
 	}
     }
 }
+
+#endif
+

@@ -58,11 +58,7 @@ struct at_addr {
     u_char	s_node;
 };
 
-#if defined( BSD4_4 ) && !defined( __FreeBSD__ )
-#define ATADDR_ANYNET	(u_short)0xffff
-#else
 #define ATADDR_ANYNET	(u_short)0x0000
-#endif
 #define ATADDR_ANYNODE	(u_char)0x00
 #define ATADDR_ANYPORT	(u_char)0x00
 #define ATADDR_BCAST	(u_char)0xff		/* There is no BCAST for NET */
@@ -75,32 +71,11 @@ struct at_addr {
  * by the kernel.
  */
 struct sockaddr_at {
-#ifdef BSD4_4
     u_char		sat_len;
     u_char		sat_family;
-#else BSD4_4
-    short		sat_family;
-#endif BSD4_4
     u_char		sat_port;
     struct at_addr	sat_addr;
-#ifdef notdef
-    struct {
-	u_char		sh_type;
-# define SATHINT_NONE	0
-# define SATHINT_CONFIG	1
-# define SATHINT_IFACE	2
-	union {
-	    char		su_zero[ 7 ];	/* XXX check size */
-	    struct {
-		u_char		sr_phase;
-		u_short		sr_firstnet, sr_lastnet;
-	    } su_range;
-	    u_short		su_interface;
-	} sh_un;
-    } sat_hints;
-#else notdef
-    char		sat_zero[ 8 ];
-#endif notdef
+    char		sat_zero[ 8 ];	/* Hide a struct netrange in here */
 };
 
 struct netrange {

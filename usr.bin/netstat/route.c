@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.15 1996/06/10 21:03:38 julian Exp $";
+	"$Id: route.c,v 1.16 1996/06/15 17:08:40 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -188,7 +188,7 @@ pr_family(af)
 		afname = "ISO";
 		break;
 	case AF_APPLETALK:
-		afname = "ATALK";
+		afname = "AppleTalk";
 		break;
 	case AF_CCITT:
 		afname = "X.25";
@@ -418,7 +418,10 @@ p_sockaddr(sa, mask, flags, width)
 	    }
 	case AF_APPLETALK:
 	    {
-			cp = atalk_print(sa,3);
+		if (mask)
+			cp = atalk_print2(sa,mask,11);
+		else
+			cp = atalk_print(sa,11);
 		break;
 	    }
 #ifdef NS

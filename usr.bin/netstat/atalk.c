@@ -70,35 +70,37 @@ static	int first = 1;
  * -a (all) flag is specified.
  */
 
-char *
-at_pr_net(struct sockaddr_at *sat)
+static char *
+at_pr_net(struct sockaddr_at *sat, int numeric)
 {
 static	char mybuf[50];
 
-	switch(sat->sat_addr.s_net) {
-	case 0xffff:
-		return "????";
-	case ATADDR_ANYNET:
-		return("*");
-	default:
-		sprintf(mybuf,"%hu",ntohs(sat->sat_addr.s_net));
+	if (!numeric) {
+		switch(sat->sat_addr.s_net) {
+		case 0xffff:
+			return "????";
+		case ATADDR_ANYNET:
+			return("*");
+		}
 	}
+	sprintf(mybuf,"%hu",ntohs(sat->sat_addr.s_net));
 	return mybuf;
 }
 
-char *
-at_pr_host(struct sockaddr_at *sat)
+static char *
+at_pr_host(struct sockaddr_at *sat, int numeric)
 {
 static	char mybuf[50];
 
-	switch(sat->sat_addr.s_node) {
-	case ATADDR_BCAST:
-		return "bcast";
-	case ATADDR_ANYNODE:
-		return("*");
-	default:
-		sprintf(mybuf,"%d",(unsigned int)sat->sat_addr.s_node);
+	if (!numeric) {
+		switch(sat->sat_addr.s_node) {
+		case ATADDR_BCAST:
+			return "bcast";
+		case ATADDR_ANYNODE:
+			return("*");
+		}
 	}
+	sprintf(mybuf,"%d",(unsigned int)sat->sat_addr.s_node);
 	return mybuf;
 }
 
@@ -122,47 +124,48 @@ static	char mybuf[50];
 /*         1 for net */
 /*         2 for host */
 /*         4 for port */
+/*         8 for numeric only */
 char *
 atalk_print(sa,what)
 	register struct sockaddr *sa;
 {
 	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
-static	char mybuf[50];
+	static	char mybuf[50];
+	int numeric = (what & 0x08);
 
 	mybuf[0] = 0;
-	switch (what & 3 ) {
+	switch (what & 3) {
 	case 0:
 		mybuf[0] = 0;
 		break;
 	case 1:
-		sprintf(mybuf,"%s",at_pr_net(sat));
+		sprintf(mybuf,"%s",at_pr_net(sat, numeric));
 		break;
 	case 2:
-		sprintf(mybuf,"%s",at_pr_host(sat));
+		sprintf(mybuf,"%s",at_pr_host(sat, numeric));
 		break;
 	case 3:
-		sprintf(mybuf,"[%s.%s]",
-				at_pr_net(sat),
-				at_pr_host(sat));
+		sprintf(mybuf,"%s.%s",
+				at_pr_net(sat, numeric),
+				at_pr_host(sat, numeric));
 	}
 	if (what & 4) {
 		sprintf(mybuf+strlen(mybuf),"%s",at_pr_port(sat));
 	}
-#if 0
-	switch(sat->sat_hints.type) {
-	case	SATHINT_NONE:
-		sprintf(mybuf,"[no type]");
-		break;
-	case	SATHINT_CONFIG:
-	case	SATHINT_IFACE:
-		sprintf(mybuf,"[too hard for now]");
-		break;
-	default:
-		sprintf(mybuf,"[unknown type]");
-	}
-#endif
 	return mybuf;
 }
+
+char *
+atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
+{
+  int n;
+  static char buf[100];
+
+  n = snprintf(buf, sizeof(buf), "%s", atalk_print(sa, what));
+  snprintf(buf + n, sizeof(buf) - n, "/%s", atalk_print(mask, what));
+  return(buf);
+}
+
 void
 atalkprotopr(off, name)
 	u_long off;
