@@ -130,9 +130,9 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # RAID controllers
-device		ida		# Compaq Smart RAID
-device		amr		# AMI MegaRAID
-device		mlx		# Mylex DAC960 family
+#device		ida		# Compaq Smart RAID
+#device		amr		# AMI MegaRAID
+#device		mlx		# Mylex DAC960 family
 
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD irq 1
