@@ -222,14 +222,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
-	{
-		/*
-		 * Infortrend IFT-3102 SCSI to SCSI controller
-		 * (firmware version 2.23).
-		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "IFT", "3102", "*"},
-		/* quirks*/ DA_Q_NO_SYNC_CACHE
-	},
 
 	/* Below a list of quirks for USB devices supported by umass. */
 	{
