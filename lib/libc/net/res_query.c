@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 1.4 1995/05/30 05:40:57 rgrimes Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.5 1995/08/20 20:03:00 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ static char rcsid[] = "$Id: res_query.c,v 1.4 1995/05/30 05:40:57 rgrimes Exp $"
 #include <stdlib.h>
 #include <string.h>
 
-#include <res_config.h>
+#include "res_config.h"
 
 #if PACKETSZ > 1024
 #define MAXPACKET	PACKETSZ
