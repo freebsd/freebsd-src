@@ -40,19 +40,24 @@ SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 
 MAN=		file.1 magic.5
 
-CLEANFILES+=	magic magic.mgc
+CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
 
 MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
 		${SRCDIR}/Magdir/[a-z]*
 
-all:	file magic magic.mgc
+all:	file magic magic.mgc magic.mime.mgc
 
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
 magic.mgc:	file magic
 	./$(PROG) -C -m magic
+
+magic.mime.mgc:	file magic.mime
+	ln -sf $(SRCDIR)/magic.mime magic.mime.PITA
+	./$(PROG) -C -m magic.mime.PITA
+	mv magic.mime.PITA.mgc magic.mime.mgc
 
 CLEANFILES+=	print-hacked.c
 print-hacked.c: print.c
@@ -63,5 +68,9 @@ beforeinstall:
 	    magic $(DESTDIR)$(MAGICFILE)
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
 	    magic.mgc $(DESTDIR)$(MAGICFILE).mgc
+	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
+	    $(SRCDIR)/magic.mime $(DESTDIR)$(MAGICFILE).mime
+	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
+	    magic.mime.mgc $(DESTDIR)$(MAGICFILE).mime.mgc
 
 .include <bsd.prog.mk>
