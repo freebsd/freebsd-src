@@ -263,6 +263,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-k] [-x] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-k] [-x] [file ...]\n");
 	exit(1);
 }
