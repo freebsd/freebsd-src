@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpcmd.y,v 1.65 2001/04/25 01:46:25 lukem Exp $	*/
+/*	$NetBSD: ftpcmd.y,v 1.66 2001/12/01 10:25:30 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
@@ -1056,10 +1056,10 @@ pathname
 				if ($1[1] == '\0')
 					home = homedir;
 				else {
-					struct passwd	*pw;
+					struct passwd	*hpw;
 
-					if ((pw = getpwnam($1 + 1)) != NULL)
-						home = pw->pw_dir;
+					if ((hpw = getpwnam($1 + 1)) != NULL)
+						home = hpw->pw_dir;
 					else
 						home = $1;
 				}
@@ -1681,12 +1681,12 @@ help(struct tab *ctab, const char *s)
 {
 	struct tab *c;
 	int width, NCMDS;
-	char *type;
+	char *htype;
 
 	if (ctab == sitetab)
-		type = "SITE ";
+		htype = "SITE ";
 	else
-		type = "";
+		htype = "";
 	width = 0, NCMDS = 0;
 	for (c = ctab; c->name != NULL; c++) {
 		int len = strlen(c->name);
@@ -1701,7 +1701,7 @@ help(struct tab *ctab, const char *s)
 		int columns, lines;
 
 		reply(-214, "%s", "");
-		reply(0, "The following %scommands are recognized.", type);
+		reply(0, "The following %scommands are recognized.", htype);
 		reply(0, "(`-' = not implemented, `+' = supports options)");
 		columns = 76 / width;
 		if (columns == 0)
@@ -1740,9 +1740,9 @@ help(struct tab *ctab, const char *s)
 		return;
 	}
 	if (CMD_IMPLEMENTED(c))
-		reply(214, "Syntax: %s%s %s", type, c->name, c->help);
+		reply(214, "Syntax: %s%s %s", htype, c->name, c->help);
 	else
-		reply(214, "%s%-*s\t%s; not implemented.", type, width,
+		reply(214, "%s%-*s\t%s; not implemented.", htype, width,
 		    c->name, c->help);
 }
 
