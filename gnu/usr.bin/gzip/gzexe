@@ -90,9 +90,9 @@ for i do
     sed 1q $0 > $tmp
     sed "s|^if tail|if $tail|" >> $tmp <<'EOF'
 skip=18
-if tail +$skip $0 | "/usr/local/bin"/gzip -cd > /tmp/gztmp$$; then
-  /bin/chmod 700 /tmp/gztmp$$
-  prog="`echo $0 | /bin/sed 's|^.*/||`"
+if tail +$skip $0 | gzip -cd > /tmp/gztmp$$; then
+  chmod 700 /tmp/gztmp$$
+  prog="`echo $0 | sed 's|^.*/||`"
   if /bin/ln /tmp/gztmp$$ "/tmp/$prog" 2>/dev/null; then
     trap '/bin/rm -f /tmp/gztmp$$ "/tmp/$prog"; exit $res' 0
     (/bin/sleep 5; /bin/rm -f /tmp/gztmp$$ "/tmp/$prog") 2>/dev/null &
@@ -106,7 +106,7 @@ else
   echo Cannot decompress $0; exit 1
 fi; exit $res
 EOF
-    "/usr/local/bin"/gzip -cv9 "$i" >> $tmp || {
+    gzip -cv9 "$i" >> $tmp || {
       /bin/rm -f $tmp
       echo ${x}: compression not possible for $i, file unchanged.
       res=1
@@ -119,7 +119,7 @@ EOF
     if sed -e 1d -e 2q "$i" | grep "^skip=[0-9]*$" >/dev/null; then
       eval `sed -e 1d -e 2q "$i"`
     fi
-    if tail +$skip "$i" | "/usr/local/bin"/gzip -cd > $tmp; then
+    if tail +$skip "$i" | gzip -cd > $tmp; then
       :
     else
       echo ${x}: $i probably not in gzexe format, file unchanged.
