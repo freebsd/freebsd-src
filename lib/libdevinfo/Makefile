@@ -2,7 +2,7 @@
 
 LIB=	devinfo
 SRCS=	devinfo.c
-INCS=	devinfo.h devinfo_var.h
+INCS=	devinfo.h
 
 MAN3=	devinfo.3
 
