@@ -45,11 +45,11 @@
 
 MODULE_VERSION(libmchain, 1);
 
-#define MBERROR(format, args...) printf("%s(%d): "format, __func__ , \
-				    __LINE__ ,## args)
+#define MBERROR(format, ...) printf("%s(%d): "format, __func__ , \
+				    __LINE__ , ## __VA_ARGS__)
 
-#define MBPANIC(format, args...) printf("%s(%d): "format, __func__ , \
-				    __LINE__ ,## args)
+#define MBPANIC(format, ...) printf("%s(%d): "format, __func__ , \
+				    __LINE__ , ## __VA_ARGS__)
 
 /*
  * Various helper functions
