@@ -91,8 +91,9 @@
 #include <machine/alpha_cpu.h>
 #include <machine/cpu.h>
 
+#define MAXSMPCPU	8
 #ifdef SMP
-#define MAXCPU		32
+#define MAXCPU		MAXSMPCPU
 #else
 #define MAXCPU		1
 #endif
