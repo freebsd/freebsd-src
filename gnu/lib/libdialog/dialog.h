@@ -21,6 +21,9 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * $FreeBSD$
+ *
  */
 
 #define HAVE_NCURSES
@@ -131,6 +134,7 @@ int     strwidth(const char *p);
 
 void dialog_create_rc(unsigned char *filename);
 int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int width);
+int dialog_noyes(unsigned char *title, unsigned char *prompt, int height, int width);
 int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell);
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause);
 int dialog_textbox(unsigned char *title, unsigned char *file, int height, int width);
