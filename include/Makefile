@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.80 1998/08/01 13:42:12 alex Exp $
+#	$Id: Makefile,v 1.81 1998/09/09 01:21:19 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -114,8 +114,8 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
-.if exists(${.CURDIR}/../sys/${MACHINE}/include)
-	cd ${.CURDIR}/../sys/${MACHINE}/include; \
+.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/machine
 .endif
@@ -127,6 +127,6 @@ symlinks:
 	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
-	ln -s ../../sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
+	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
 
 .include <bsd.prog.mk>
