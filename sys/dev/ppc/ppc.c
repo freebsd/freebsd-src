@@ -1764,7 +1764,31 @@ ppc_probe(device_t dev)
 		device_printf(dev, "cannot reserve I/O port range\n");
 		goto error;
 	}
-	ppc->ppc_base = rman_get_start(ppc->res_ioport);
+
+	/* Assume we support the extended IO range of some ppc chipsets...*/
+
+	ppc->rid_extraio = 1;
+	ppc->res_extraio =
+		bus_alloc_resource(dev,
+				   SYS_RES_IOPORT,
+				   &ppc->rid_extraio,
+				   0,
+				   ~0,
+				   IO_LPTSIZE,
+				   RF_ACTIVE);
+
+	/* If we cannot reserve the extra ports for the extended IO range,
+	indicate this with a non-threatening message (this is not an error,
+	so don't treat it as such)... */
+
+	if (ppc->res_extraio == 0) {
+
+		ppc->rid_extraio = 0;
+
+		device_printf(dev, "This ppc chipset does not support the extended I/O port range...no problem\n");
+}
+
+ 	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
 	ppc->ppc_flags = device_get_flags(dev);
 
