@@ -12,6 +12,7 @@
 .Op Fl options
 .Sh COMMANDS
 .Cd create
+.Fl f
 .Ar description-file
 .in +1i
 Create a volume as described in 
@@ -322,7 +323,7 @@ multiplied by the stripe size.  For example, in a plex of block size 256k, the
 first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
 This calculation ignores parity blocks in RAID-5 plexes.
 .El
-.It Nm create Ar description-file
+.It Nm create Fl f Ar description-file
 .sp
 .Nm
 .Ar create
@@ -337,6 +338,21 @@ Note that the
 .Ar create
 function is additive: if you run it multiple times, you will create multiple
 copies of all unnamed objects.
+.Pp
+Normally the
+.Nm create
+command will not change the names of existing
+.Nm
+drives, in order to avoid accidentally erasing them.  The correct way to dispose
+of no longer wanted
+.Nm
+drives is to reset the configuration with the
+.Nm resetconfig
+command.  In some cases, however, it may be necessary to create new data on 
+.Nm
+drives which can no longer be started.  In this case, use the 
+.Nm create Fl f
+command.
 .It Nm debug
 .Pp
 .Nm
@@ -1148,11 +1164,15 @@ volume vol5
 .Ss DRIVE LAYOUT CONSIDERATIONS
 .Nm
 drives are currently BSD disk partitions.  They must be of type
-.Ar unused 
-in order to avoid overwriting file systems.  In later versions of
+.Ar vinum 
+in order to avoid overwriting file systems.  For compatibility reasons,
+.Nm 
+currently accepts partitions of type
+.Ar unused ,
+but the next release will not allow this kind of partition.
 .Nm
-this requirement will change to type
-.Ar vinum .
+prints a warning message when reading a configuration from a partition of type
+.Ar unused .
 Use
 .Nm disklabel
 .Ar -e
@@ -1167,7 +1187,7 @@ partition layout as shown by
   c:  4226725        0    unused        0     0         # (Cyl.    0 - 2955*)
   e:    81920        0    4.2BSD        0     0     0   # (Cyl.    0 - 57*)
   f:  1900000   425984    4.2BSD        0     0     0   # (Cyl.  297*- 1626*)
-  g:  1900741  2325984    unused        0     0     0   # (Cyl. 1626*- 2955*)
+  g:  1900741  2325984     vinum        0     0     0   # (Cyl. 1626*- 2955*)
 .Ed
 .sp
 In this example, partition 
@@ -1200,8 +1220,11 @@ section above.
 .It
 .Nm
 will not create a device on UFS partitions.  Instead, it will return an error
-message ``wrong partition type''.  The partition type must currently be
-``unused''.
+message ``wrong partition type''.  The partition type should be
+.Ar vinum ,
+though currently partitions of type
+.Ar unused 
+are also accepted.
 .It
 When you create a volume with multiple plexes,
 .Nm 
