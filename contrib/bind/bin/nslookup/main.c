@@ -77,7 +77,7 @@ char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: main.c,v 8.16 2000/12/23 08:14:47 vixie Exp $";
+static const char rcsid[] = "$Id: main.c,v 8.20 2001/06/20 12:40:06 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -168,7 +168,7 @@ int		queryClass = C_IN;
  * Stuff for Interrupt (control-C) signal handler.
  */
 
-extern SIG_FN	IntrHandler();
+extern SIG_FN	IntrHandler(int);
 FILE		*filePtr;
 jmp_buf		env;
 
@@ -176,10 +176,10 @@ jmp_buf		env;
 /*
  * Browser command for help.
  */
-char		*pager;
+const char		*pager;
 
-static void CvtAddrToPtr();
-static void ReadRC();
+static void CvtAddrToPtr(char *name);
+static void ReadRC(void);
 
 /*
  * Forward declarations.
@@ -188,6 +188,7 @@ static void LocalServer(HostInfo *defaultPtr);
 static void res_re_init(void);
 static void res_dnsrch(char *cp);
 static void Usage(void);
+static void ShowOptions(void);
 
 /*
  ******************************************************************************
@@ -381,7 +382,7 @@ main(int argc, char **argv) {
 }
 
 
-void
+static void
 LocalServer(defaultPtr)
     HostInfo *defaultPtr;
 {
@@ -436,10 +437,10 @@ Usage(void) {
 
 Boolean
 IsAddr(host, addrPtr)
-    char *host;
+    const char *host;
     struct in_addr *addrPtr;	/* If return TRUE, contains IP address */
 {
-    register char *cp;
+    register const char *cp;
 
     if (isdigit(host[0])) {
 	    /* Make sure it has only digits and dots. */
@@ -1028,7 +1029,7 @@ SetOption(option)
 /*
  * Fake a reinitialization when the domain is changed.
  */
-void
+static void
 res_re_init(void) {
     register char *cp, **pp;
     int n;
@@ -1050,7 +1051,7 @@ res_re_init(void) {
 
 #define SRCHLIST_SEP '/'
 
-void
+static void
 res_dnsrch(char *cp) {
     char **pp;
     int n;
@@ -1093,8 +1094,8 @@ res_dnsrch(char *cp) {
  ******************************************************************************
  */
 
-void
-ShowOptions()
+static void
+ShowOptions(void)
 {
     register char **cp;
 
@@ -1144,7 +1145,7 @@ ShowOptions()
  */
 
 void
-PrintHelp()
+PrintHelp(void)
 {
 	char cmd[PATH_MAX];
 
@@ -1193,7 +1194,7 @@ CvtAddrToPtr(name)
  */
 
 static void
-ReadRC()
+ReadRC(void)
 {
     register FILE *fp;
     register char *cp;

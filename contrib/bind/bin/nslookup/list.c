@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: list.c,v 8.25 2000/12/23 08:14:46 vixie Exp $";
+static const char rcsid[] = "$Id: list.c,v 8.26 2001/06/18 14:43:38 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -434,7 +434,7 @@ ListSubr(int qtype, char *domain, char *cmd) {
 					strcpy(origin, name);
 				strcpy(name_ctx, "@");
 			}
-			if (qtype == T_ANY || ns_rr_type(rr) == qtype) {
+			if (qtype == T_ANY || (int)ns_rr_type(rr) == qtype) {
 				if (ns_sprintrr(&handle, &rr, name_ctx, origin,
 						buf, sizeof buf) < 0) {
 					perror("ns_sprintrr");

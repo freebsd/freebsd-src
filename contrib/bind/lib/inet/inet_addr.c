@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static const char rcsid[] = "$Id: inet_addr.c,v 8.11 1999/10/13 16:39:25 vixie Exp $";
+static const char rcsid[] = "$Id: inet_addr.c,v 8.12 2001/05/29 05:48:18 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -121,7 +121,7 @@ inet_aton(const char *cp, struct in_addr *addr) {
 		 * Values are specified as for C:
 		 * 0x=hex, 0=octal, isdigit=decimal.
 		 */
-		if (!isdigit(c))
+		if (!isdigit((unsigned char)c))
 			return (0);
 		val = 0; base = 10; digit = 0;
 		if (c == '0') {
@@ -134,15 +134,16 @@ inet_aton(const char *cp, struct in_addr *addr) {
 			}
 		}
 		for (;;) {
-			if (isascii(c) && isdigit(c)) {
+			if (isascii(c) && isdigit((unsigned char)c)) {
 				if (base == 8 && (c == '8' || c == '9'))
 					return (0);
 				val = (val * base) + (c - '0');
 				c = *++cp;
 				digit = 1;
-			} else if (base == 16 && isascii(c) && isxdigit(c)) {
+			} else if (base == 16 && isascii(c) && 
+				   isxdigit((unsigned char)c)) {
 				val = (val << 4) |
-					(c + 10 - (islower(c) ? 'a' : 'A'));
+					(c + 10 - (islower((unsigned char)c) ? 'a' : 'A'));
 				c = *++cp;
 				digit = 1;
 			} else
@@ -165,7 +166,7 @@ inet_aton(const char *cp, struct in_addr *addr) {
 	/*
 	 * Check for trailing characters.
 	 */
-	if (c != '\0' && (!isascii(c) || !isspace(c)))
+	if (c != '\0' && (!isascii(c) || !isspace((unsigned char)c)))
 		return (0);
 	/*
 	 * Did we get a valid digit?

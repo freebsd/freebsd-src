@@ -90,7 +90,7 @@
 
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.44 2000/12/02 23:28:33 vixie Exp $
+ * $Id: db_func.h,v 8.46 2001/06/18 14:42:51 marka Exp $
  */
 
 /* ++from db_update.c++ */
@@ -113,7 +113,7 @@ struct hashbuf *	savehash(struct hashbuf *);
 /* --from db_save.c-- */
 
 /* ++from db_dump.c++ */
-int			db_dump(struct hashbuf *, FILE *, int, char *),
+int			db_dump(struct hashbuf *, FILE *, int, const char *),
 			zt_dump(FILE *);
 void			doadump(void);
 /* --from db_dump.c-- */
@@ -142,7 +142,7 @@ int			parse_sec_rdata(char *inp, int inp_len, int inp_full,
 					char *domain,  u_int32_t ttl, 
 					int type, enum context context,
 					enum transport transport,
-					char **errmsg);
+					const char **errmsg);
 /* --from db_load.c-- */
 
 /* ++from db_glue.c++ */
@@ -165,7 +165,7 @@ struct namebuf *	rm_name(struct namebuf *,
 				struct namebuf **,
 				struct namebuf *);
 void			rm_hash(struct hashbuf *);
-void			db_freedata(struct databuf *);
+void			db_detach(struct databuf **);
 void			db_lame_add(char *zone, char *server, time_t when);
 time_t			db_lame_find(char *zone, struct databuf *dp);
 void			db_lame_clean(void);
@@ -203,7 +203,7 @@ int			db_set_update(char *name, struct databuf *dp,
 /* --from db_sec.c-- */
 
 /* ++from db_tsig.c++ */
-char *			tsig_alg_name(int value);
+const char *		tsig_alg_name(int value);
 int			tsig_alg_value(char *name);
 struct dst_key *	tsig_key_from_addr(struct in_addr addr);
 struct tsig_record *	new_tsig(struct dst_key *key, u_char *sig, int siglen);

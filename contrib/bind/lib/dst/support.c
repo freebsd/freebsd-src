@@ -1,4 +1,4 @@
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/support.c,v 1.9.2.1 2001/06/06 21:45:17 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/support.c,v 1.11 2001/05/29 05:48:16 marka Exp $";
 
 
 /*
@@ -241,7 +241,7 @@ dst_s_dns_key_id(const u_char *dns_key_rdata, const int rdata_len)
 
 	/* compute id */
 	if (dns_key_rdata[3] == KEY_RSA)	/* Algorithm RSA */
-		return dst_s_get_int16((u_char *)
+		return dst_s_get_int16((const u_char *)
 				       &dns_key_rdata[rdata_len - 3]);
 	else if (dns_key_rdata[3] == KEY_HMAC_MD5)
 		/* compatibility */
@@ -393,7 +393,7 @@ dst_s_build_filename(char *filename, const char *name, u_int16_t id,
 		return (-1);
 	my_id = id;
 	sprintf(filename, "K%s+%03d+%05d.%s", name, alg, my_id,
-		(char *) suffix);
+		(const char *) suffix);
 	if (strrchr(filename, '/'))
 		return (-1);
 	if (strrchr(filename, '\\'))
@@ -420,7 +420,7 @@ dst_s_fopen(const char *filename, const char *mode, int perm)
 {
 	FILE *fp;
 	char pathname[PATH_MAX];
-	int plen = sizeof(pathname);
+	size_t plen = sizeof(pathname);
 
 	if (*dst_path != '\0') {
 		strcpy(pathname, dst_path);
@@ -444,6 +444,8 @@ void
 dst_s_dump(const int mode, const u_char *data, const int size, 
 	    const char *msg)
 {
+	UNUSED(data);
+
 	if (size > 0) {
 #ifdef LONG_TEST
 		static u_char scratch[1000];

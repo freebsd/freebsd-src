@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_update.c,v 1.26 2001/03/05 04:03:00 marka Exp $";
+static const char rcsid[] = "$Id: res_update.c,v 1.31 2001/11/01 05:21:23 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -37,7 +37,6 @@ static const char rcsid[] = "$Id: res_update.c,v 1.26 2001/03/05 04:03:00 marka 
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <res_update.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -45,8 +44,10 @@ static const char rcsid[] = "$Id: res_update.c,v 1.26 2001/03/05 04:03:00 marka 
 #include <string.h>
 
 #include <isc/list.h>
+#include <resolv.h>
 
 #include "port_after.h"
+#include "res_private.h"
 
 /*
  * Separate a linked list of records into groups so that all records
@@ -65,7 +66,7 @@ static const char rcsid[] = "$Id: res_update.c,v 1.26 2001/03/05 04:03:00 marka 
 struct zonegrp {
 	char			z_origin[MAXDNAME];
 	ns_class		z_class;
-	struct in_addr		z_nsaddrs[MAXNS];
+	union res_sockaddr_union z_nsaddrs[MAXNS];
 	int			z_nscount;
 	int			z_flags;
 	LIST(ns_updrec)		z_rrlist;
@@ -76,15 +77,15 @@ struct zonegrp {
 
 /* Forward. */
 
-static int	nscopy(struct sockaddr_in *, const struct sockaddr_in *, int);
-static int	nsprom(struct sockaddr_in *, const struct in_addr *, int);
-static void	dprintf(const char *, ...);
+static int	nscopy(union res_sockaddr_union *,
+		       const union res_sockaddr_union *, int);
+static void	res_dprintf(const char *, ...);
 
 /* Macros. */
 
 #define DPRINTF(x) do {\
 		int save_errno = errno; \
-		if ((statp->options & RES_DEBUG) != 0) dprintf x; \
+		if ((statp->options & RES_DEBUG) != 0) res_dprintf x; \
 		errno = save_errno; \
 	} while (0)
 
@@ -97,12 +98,20 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 	struct zonegrp *zptr, tgrp;
 	LIST(struct zonegrp) zgrps;
 	int nzones = 0, nscount = 0, n;
-	struct sockaddr_in nsaddrs[MAXNS];
+	union res_sockaddr_union nsaddrs[MAXNS];
 
 	/* Thread all of the updates onto a list of groups. */
 	INIT_LIST(zgrps);
 	for (rrecp = rrecp_in; rrecp;
 	     rrecp = LINKED(rrecp, r_link) ? NEXT(rrecp, r_link) : NULL) {
+		struct in_addr nsaddrs[MAXNS];
+		int i;
+		/* XXX need to rewrite res_findzonecut */
+		for (i = 0; i < MAXNS; i++) {
+			nsaddrs[i].s_addr = 0;
+			if (tgrp.z_nsaddrs[i].sin.sin_family == AF_INET)
+				nsaddrs[i] = tgrp.z_nsaddrs[i].sin.sin_addr;
+		}
 		/* Find the origin for it if there is one. */
 		tgrp.z_class = rrecp->r_class;
 		tgrp.z_nscount =
@@ -110,7 +119,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 					RES_EXHAUSTIVE,
 					tgrp.z_origin,
 					sizeof tgrp.z_origin,
-					tgrp.z_nsaddrs, MAXNS);
+					nsaddrs, MAXNS);
 		if (tgrp.z_nscount <= 0) {
 			DPRINTF(("res_findzonecut failed (%d)",
 				 tgrp.z_nscount));
@@ -157,8 +166,8 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 			goto done;
 
 		/* Temporarily replace the resolver's nameserver set. */
-		nscount = nscopy(nsaddrs, statp->nsaddr_list, statp->nscount);
-		statp->nscount = nsprom(statp->nsaddr_list,
+		nscount = nscopy(nsaddrs, statp->_u._ext.ext->nsaddrs, statp->nscount);
+		statp->nscount = nscopy(statp->_u._ext.ext->nsaddrs,
 					zptr->z_nsaddrs, zptr->z_nscount);
 
 		/* Send the update and remember the result. */
@@ -176,7 +185,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 			nzones++;
 
 		/* Restore resolver's nameserver set. */
-		statp->nscount = nscopy(statp->nsaddr_list, nsaddrs, nscount);
+		statp->nscount = nscopy(statp->_u._ext.ext->nsaddrs, nsaddrs, nscount);
 		nscount = 0;
 	}
  done:
@@ -188,7 +197,7 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 		free(zptr);
 	}
 	if (nscount != 0)
-		statp->nscount = nscopy(statp->nsaddr_list, nsaddrs, nscount);
+		statp->nscount = nscopy(statp->_u._ext.ext->nsaddrs, nsaddrs, nscount);
 
 	return (nzones);
 }
@@ -196,7 +205,9 @@ res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
 /* Private. */
 
 static int
-nscopy(struct sockaddr_in *dst, const struct sockaddr_in *src, int n) {
+nscopy(union res_sockaddr_union *dst, const union res_sockaddr_union *src,
+       int n)
+{
 	int i;
 
 	for (i = 0; i < n; i++)
@@ -204,21 +215,8 @@ nscopy(struct sockaddr_in *dst, const struct sockaddr_in *src, int n) {
 	return (n);
 }
 
-static int
-nsprom(struct sockaddr_in *dst, const struct in_addr *src, int n) {
-	int i;
-
-	for (i = 0; i < n; i++) {
-		memset(&dst[i], 0, sizeof dst[i]);
-		dst[i].sin_family = AF_INET;
-		dst[i].sin_port = htons(NS_DEFAULTPORT);
-		dst[i].sin_addr = src[i];
-	}
-	return (n);
-}
-
 static void
-dprintf(const char *fmt, ...) {
+res_dprintf(const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_clnt.c,v 8.15 2000/11/14 01:10:36 vixie Exp $";
+static const char rcsid[] = "$Id: ctl_clnt.c,v 8.17 2001/06/06 00:33:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -55,8 +55,9 @@ static const char rcsid[] = "$Id: ctl_clnt.c,v 8.15 2000/11/14 01:10:36 vixie Ex
 /* Macros. */
 
 #define donefunc_p(ctx) ((ctx).donefunc != NULL)
-#define arpacode_p(line) (isdigit(line[0]) && isdigit(line[1]) && \
-			  isdigit(line[2]))
+#define arpacode_p(line) (isdigit((unsigned char)(line[0])) && \
+			  isdigit((unsigned char)(line[1])) && \
+			  isdigit((unsigned char)(line[2])))
 #define arpacont_p(line) (line[3] == '-')
 #define arpadone_p(line) (line[3] == ' ' || line[3] == '\t' || \
 			  line[3] == '\r' || line[3] == '\0')
@@ -135,6 +136,7 @@ ctl_client(evContext lev, const struct sockaddr *cap, size_t cap_len,
 	static const char me[] = "ctl_client";
 	static const int on = 1;
 	struct ctl_cctx *ctx;
+	struct sockaddr *captmp;
 
 	if (logger == NULL)
 		logger = ctl_logger;
@@ -168,18 +170,19 @@ ctl_client(evContext lev, const struct sockaddr *cap, size_t cap_len,
 	}
 	if (cap != NULL) {
 		if (setsockopt(ctx->sock, SOL_SOCKET, SO_REUSEADDR,
-			       (char *)&on, sizeof on) != 0) {
+			       (const char *)&on, sizeof on) != 0) {
 			(*ctx->logger)(ctl_warning,
 				       "%s: setsockopt(REUSEADDR): %s",
 				       me, strerror(errno));
 		}
-		if (bind(ctx->sock, cap, cap_len) < 0) {
+		DE_CONST(cap, captmp);
+		if (bind(ctx->sock, captmp, cap_len) < 0) {
 			(*ctx->logger)(ctl_error, "%s: bind: %s", me,
 				       strerror(errno));
 			goto fatal;
 		}
 	}
-	if (evConnect(lev, ctx->sock, (struct sockaddr *)sap, sap_len,
+	if (evConnect(lev, ctx->sock, (const struct sockaddr *)sap, sap_len,
 		      conn_done, ctx, &ctx->coID) < 0) {
 		(*ctx->logger)(ctl_error, "%s: evConnect(fd %d): %s",
 			       me, (void *)ctx->sock, strerror(errno));
@@ -219,7 +222,7 @@ ctl_command(struct ctl_cctx *ctx, const char *cmd, size_t len,
 {
 	struct ctl_tran *tran;
 	char *pc;
-	int n;
+	unsigned int n;
 
 	switch (ctx->state) {
 	case destroyed:
@@ -243,7 +246,8 @@ ctl_command(struct ctl_cctx *ctx, const char *cmd, size_t len,
 	memcpy(tran->outbuf.text, cmd, len);
 	tran->outbuf.used = len;
 	for (pc = tran->outbuf.text, n = 0; n < tran->outbuf.used; pc++, n++)
-		if (!isascii(*pc) || !isprint(*pc))
+		if (!isascii((unsigned char)*pc) ||
+		    !isprint((unsigned char)*pc))
 			*pc = '\040';
 	start_write(ctx);
 	return (0);
@@ -274,6 +278,7 @@ start_write(struct ctl_cctx *ctx) {
 	static const char me[] = "isc/ctl_clnt::start_write";
 	struct ctl_tran *tran;
 	struct iovec iov[2], *iovp = iov;
+	char * tmp;
 
 	REQUIRE(ctx->state == connecting || ctx->state == connected);
 	/* If there is a write in progress, don't try to write more yet. */
@@ -297,7 +302,8 @@ start_write(struct ctl_cctx *ctx) {
 		return;
 	/* Marshall a newline-terminated message and clock it out. */
 	*iovp++ = evConsIovec(tran->outbuf.text, tran->outbuf.used);
-	*iovp++ = evConsIovec("\r\n", 2);
+	DE_CONST("\r\n", tmp);
+	*iovp++ = evConsIovec(tmp, 2);
 	if (evWrite(ctx->ev, ctx->sock, iov, iovp - iov,
 		    write_done, tran, &ctx->wrID) < 0) {
 		(*ctx->logger)(ctl_error, "%s: evWrite: %s", me,
@@ -387,6 +393,12 @@ conn_done(evContext ev, void *uap, int fd,
 	struct ctl_cctx *ctx = uap;
 	struct ctl_tran *tran;
 
+	UNUSED(ev);
+	UNUSED(la);
+	UNUSED(lalen);
+	UNUSED(ra);
+	UNUSED(ralen);
+
 	ctx->coID.opaque = NULL;
 	if (fd < 0) {
 		(*ctx->logger)(ctl_error, "%s: evConnect: %s", me,
@@ -415,6 +427,9 @@ static void
 write_done(evContext lev, void *uap, int fd, int bytes) {
 	struct ctl_tran *tran = (struct ctl_tran *)uap;
 	struct ctl_cctx *ctx = tran->ctx;
+
+	UNUSED(lev);
+	UNUSED(fd);
 
 	ctx->wrID.opaque = NULL;
 	if (ctx->tiID.opaque != NULL)
@@ -458,6 +473,8 @@ readable(evContext ev, void *uap, int fd, int evmask) {
 	struct ctl_tran *tran;
 	ssize_t n;
 	char *eos;
+
+	UNUSED(ev);
 
 	REQUIRE(ctx != NULL);
 	REQUIRE(fd >= 0);
@@ -573,6 +590,10 @@ static void
 timer(evContext ev, void *uap, struct timespec due, struct timespec itv) {
 	static const char me[] = "isc/ctl_clnt::timer";
 	struct ctl_cctx *ctx = uap;
+
+	UNUSED(ev);
+	UNUSED(due);
+	UNUSED(itv);
 
 	ctx->tiID.opaque = NULL;
 	(*ctx->logger)(ctl_error, "%s: timeout after %u seconds while %s", me,

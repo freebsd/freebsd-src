@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: subr.c,v 8.14 2000/12/23 08:14:48 vixie Exp $";
+static const char rcsid[] = "$Id: subr.c,v 8.15 2001/06/18 14:43:45 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -120,7 +120,7 @@ static const char rcsid[] = "$Id: subr.c,v 8.14 2000/12/23 08:14:48 vixie Exp $"
  */
 
 SIG_FN
-IntrHandler()
+IntrHandler(int sig)
 {
     extern jmp_buf env;
 #if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD) && !defined(__osf__)
@@ -128,6 +128,8 @@ IntrHandler()
     extern void yyrestart();	/* routine to restart scanner after interrupt */
 #endif
     extern void ListHost_close(void);
+
+    UNUSED(sig);
 
     SendRequest_close();
     ListHost_close();
@@ -233,7 +235,7 @@ Calloc(num, size)
 void
 PrintHostInfo(file, title, hp)
 	FILE	*file;
-	char	*title;
+	const char	*title;
 	register HostInfo *hp;
 {
 	register char		**cp;
@@ -387,21 +389,21 @@ OpenFile(string, file, size)
  */
 
 const struct res_sym error_syms[] = {
-	{ NOERROR,	"Success" },
-	{ FORMERR,	"Format error" },
-	{ SERVFAIL,	"Server failed" },
-	{ NXDOMAIN,	"Non-existent host/domain" },
-	{ NOTIMP,	"Not implemented" },
-	{ REFUSED,	"Query refused" },
+	{ NOERROR,	"Success", NULL },
+	{ FORMERR,	"Format error", NULL },
+	{ SERVFAIL,	"Server failed", NULL },
+	{ NXDOMAIN,	"Non-existent host/domain", NULL },
+	{ NOTIMP,	"Not implemented", NULL },
+	{ REFUSED,	"Query refused", NULL },
 #ifdef NOCHANGE
-	{ NOCHANGE,	"No change" },
+	{ NOCHANGE,	"No change", NULL },
 #endif
-	{ TIME_OUT,	"Timed out" },
-	{ NO_INFO,	"No information" },
-	{ ERROR,	"Unspecified error" },
-	{ NONAUTH,	"Non-authoritative answer" },
-	{ NO_RESPONSE,	"No response from server" },
-	{ 0,		NULL }
+	{ TIME_OUT,	"Timed out", NULL },
+	{ NO_INFO,	"No information", NULL },
+	{ ERROR,	"Unspecified error", NULL },
+	{ NONAUTH,	"Non-authoritative answer", NULL },
+	{ NO_RESPONSE,	"No response from server", NULL },
+	{ 0,		NULL, NULL }
 };
 
 const char *

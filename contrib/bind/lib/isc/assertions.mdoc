@@ -1,4 +1,4 @@
-.\" $Id: assertions.mdoc,v 8.2 1999/01/08 19:25:15 vixie Exp $
+.\" $Id: assertions.mdoc,v 8.3 2001/08/08 07:50:20 marka Exp $
 .\"
 .\"Copyright (c) 1997,1999 by Internet Software Consortium.
 .\"
@@ -75,9 +75,9 @@ macro.  If this macro's value is
 when
 .Dq "<isc/assertions.h>"
 is included, then assertions of that type will not be checked.  E.g.
-
+.Pp
 .Dl #define CHECK_ENSURE 0
-
+.Pp
 will disable checking of
 .Fn ENSURE
 and
@@ -93,8 +93,7 @@ assertion types should be checked.
 specifies the function to call when an assertion fails.
 .Pp
 When an
-.li
-assertion_failure_callback
+.Fn assertion_failure_callback
 is called, the 
 .Fa filename
 and
@@ -109,7 +108,7 @@ assert_ensure
 assert_insist
 assert_invariant
 .Ed
-
+.Pp
 and may be used by the callback to determine the type of the failing
 assertion.
 .Fa condition
@@ -127,8 +126,13 @@ For example,
 returns the string
 .Dq REQUIRE .
 .Sh SEE ALSO
-Bertrand Meyer,
-.Sy Object-Oriented Software Construction,
-2nd edition, Prentice\-Hall, 1997, ISBN 0\-13\-629155\-4, chapter 11.
+.Rs
+.%A Bertrand Meyer
+.%B Object-Oriented Software Construction, 2nd edition
+.%Q Prentice\-Hall
+.%D 1997
+.%O ISBN 0\-13\-629155\-4
+.%P chapter 11
+.Re
 .Sh AUTHOR
 Bob Halley (ISC).
