@@ -34,8 +34,16 @@
 . /etc/rc.subr
 
 name="pcvt"
-start_precmd="/usr/sbin/ispcvt -d /dev/ttyv0"
+start_precmd="pcvt_precmd"
 start_cmd="pcvt_start"
+
+pcvt_precmd()
+{
+	if [ -x /usr/sbin/ispcvt ]; then
+		/usr/sbin/ispcvt -d /dev/ttyv0 && return 0
+	fi
+	return 1
+}
 
 pcvt_echo()
 {
