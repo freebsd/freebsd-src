@@ -126,6 +126,8 @@ static char *str_satype[] = {
 	"ripv2",
 	"mip",
 	"ipcomp",
+	"policy",
+	"tcp"
 };
 
 static char *str_mode[] = {
@@ -148,6 +150,7 @@ static struct val2str str_alg_auth[] = {
 	{ SADB_X_AALG_MD5, "md5", },
 	{ SADB_X_AALG_SHA, "sha", },
 	{ SADB_X_AALG_NULL, "null", },
+	{ SADB_X_AALG_TCP_MD5, "tcp-md5", },
 #ifdef SADB_X_AALG_SHA2_256
 	{ SADB_X_AALG_SHA2_256, "hmac-sha2-256", },
 #endif

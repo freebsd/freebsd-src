@@ -252,6 +252,8 @@ AH based on rfc2402
 AH based on rfc1826
 .It Li ipcomp
 IPComp
+.It Li tcp
+TCP-MD5 based on rfc2385
 .El
 .\"
 .Pp
@@ -265,6 +267,8 @@ must be a decimal number, or a hexadecimal number with
 prefix.
 SPI values between 0 and 255 are reserved for future use by IANA
 and they cannot be used.
+TCP-MD5 associations must use 0x1000 and therefore only have per-host
+granularity at this time.
 .\"
 .Pp
 .It Ar extensions
@@ -585,6 +589,7 @@ hmac-ripemd160	160		ah: 96bit ICV (RFC2857)
 				ah-old: 128bit ICV (no document)
 aes-xcbc-mac	128		ah: 96bit ICV (RFC3566)
 		128		ah-old: 128bit ICV (no document)
+tcp-md5		8 to 640	tcp: rfc2385
 .Ed
 .Pp
 Followings are the list of encryption algorithms that can be used as
@@ -648,6 +653,8 @@ dump esp ;
 
 spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 	-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
+
+add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
 
 .Ed
 .\"
