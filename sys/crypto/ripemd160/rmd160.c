@@ -86,9 +86,6 @@ __FBSDID("$FreeBSD$");
 	} while(0)
 
 #define X(i)	x[i]
-#ifdef __NetBSD__
-#define swap32(x)	bswap32(x)
-#endif
 
 static u_char PADDING[64] = {
 	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
