@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.6 (Berkeley) 4/18/94
-.\"	$Id: ls.1,v 1.4 1995/09/26 08:48:09 mpp Exp $
+.\"	$Id: ls.1,v 1.5 1996/08/29 18:05:56 wosch Exp $
 .\"
 .Dd April 18, 1994
 .Dt LS 1
@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm ls
-.Op Fl ACFLRTacdfiloqrstu1
+.Op Fl ACFLRTacdfgiloqrstu1
 .Op Ar file ...
 .Sh DESCRIPTION
 For each operand that names a
@@ -104,6 +104,13 @@ Directories are listed as plain files (not searched recursively) and
 symbolic links in the argument list are not indirected through.
 .It Fl f
 Output is not sorted.
+.It Fl g
+This option is depreciated and is only available for compatibility
+with 
+.Bx 4.3 ;
+it was used to display the group name in the long
+.Pq Fl l
+format output.
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -116,7 +123,7 @@ sizes is output on a line before the long listing.
 .It Fl o
 Include the file flags in a long
 .Pq Fl l
-output
+output.
 .It Fl q
 Force printing of non-graphic characters in file names as
 the character `?'; this is the default when output is to a terminal.
