@@ -1,7 +1,6 @@
-/* $NetBSD: externs2.h,v 1.7 2001/05/28 12:40:38 lukem Exp $ */
+/*	$NetBSD: mem.c,v 1.2 2002/01/21 19:49:51 tv Exp $	*/
 
 /*
- * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -32,62 +31,58 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * main.c
- */
-extern	int	xflag;
-extern	int	uflag;
-extern	int	Cflag;
-extern	const	char *libname;
-extern	int	sflag;
-extern	int	tflag;
-extern	int	Hflag;
-extern	int	hflag;
-extern	int	Fflag;
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: mem.c,v 1.2 2002/01/21 19:49:51 tv Exp $");
+#endif
 
+#include <stdlib.h>
+#include <string.h>
 
-/*
- * hash.c
- */
-extern	void	_inithash(hte_t ***);
-extern	hte_t	*_hsearch(hte_t **, const char *, int);
-extern	void	_forall(hte_t **, void (*)(hte_t *));
-extern	void	_destroyhash(hte_t **);
+#include "lint.h"
 
-#define	inithash()	_inithash(NULL);
-#define	hsearch(a, b)	_hsearch(NULL, (a), (b))
-#define	forall(a)	_forall(NULL, (a))
+void *
+xmalloc(size_t s)
+{
+	void	*p;
 
-/*
- * read.c
- */
-extern	const	char **fnames;
-extern	type_t	**tlst;
+	if ((p = malloc(s)) == NULL)
+		nomem();
+	return (p);
+}
 
-extern	void	readfile(const char *);
-extern	void	mkstatic(hte_t *);
+void *
+xcalloc(size_t n, size_t s)
+{
+	void	*p;
 
-/*
- * mem2.c
- */
-extern	void	initmem(void);
-extern	void	*xalloc(size_t);
+	if ((p = calloc(n, s)) == NULL)
+		nomem();
+	return (p);
+}
 
-/*
- * chk.c
- */
-extern	void	inittyp(void);
-extern	void	mainused(void);
-extern	void	chkname(hte_t *);
+void *
+xrealloc(void *p, size_t s)
+{
 
-/*
- * msg.c
- */
-extern	void	msg(int, ...);
-extern	const	char *mkpos(pos_t *);
+	if ((p = realloc(p, s)) == NULL)
+		nomem();
+	return (p);
+}
 
-/*
- * emit2.c
- */
-extern	void	outlib(const char *);
-extern	int	addoutfile(short);
+char *
+xstrdup(const char *s)
+{
+	char	*s2;
+
+	if ((s2 = strdup(s)) == NULL)
+		nomem();
+	return (s2);
+}
+
+void
+nomem(void)
+{
+
+	errx(1, "virtual memory exhausted");
+}
