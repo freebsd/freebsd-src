@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.82 1998/03/10 17:29:23 jkh Exp $
+#	$Id: Makefile,v 1.246.2.83 1998/03/24 10:22:16 jkh Exp $
 #
 # How to roll a release:
 #
@@ -480,6 +480,8 @@ ftp.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
+	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${FD}/TROUBLE.TXT
+	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${FD}/UPGRADE.TXT
 	echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -514,6 +516,7 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
 	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${CD_DISC1}/TROUBLE.TXT
+	cp ${.CURDIR}/sysinstall/help/upgrade.hlp ${CD_DISC1}/UPGRADE.TXT
 .if !defined(NOPORTS)
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 	  mkdir -p ${CD_DISC1}/ports && \
