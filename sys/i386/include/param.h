@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.9 1997/08/21 04:48:45 smp Exp smp $
+ *	$Id: param.h,v 1.35 1997/08/21 05:07:56 fsmp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -214,9 +214,24 @@
 #define SYSCALL_LOCK				/* NOP */
 #define ALTSYSCALL_LOCK				/* NOP */
 
-#endif  /* SMP */
+#endif /* SMP */
 
 #else /* LOCORE */
+
+#ifdef SMP
+
+/*
+ * Protects com/tty data as a critical region.
+ */
+#define COM_LOCK() 	s_lock(&com_lock)
+#define COM_UNLOCK() 	s_unlock(&com_lock)
+
+#else /* SMP */
+
+#define COM_LOCK()
+#define COM_UNLOCK()
+
+#endif /* SMP */
 
 /*
  * A simple spin lock.
