@@ -22,6 +22,8 @@
  * Author: James da Silva, Systems Design and Analysis Group
  *			   Computer Science Department
  *			   University of Maryland at College Park
+ *
+ * $FreeBSD$
  */
 /*
  * crunched_main.c - main program for crunched binaries, it branches to a
@@ -41,7 +43,7 @@ struct stub {
 
 extern struct stub entry_points[];
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **envp)
 {
     char *slash, *basename;
     struct stub *ep;
@@ -56,7 +58,7 @@ int main(int argc, char **argv)
 	if(!strcmp(basename, ep->name)) break;
 
     if(ep->name)
-	return ep->f(argc, argv);
+	return ep->f(argc, argv, envp);
     else {
 	fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
 	crunched_usage();
