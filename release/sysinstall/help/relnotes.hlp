@@ -1,64 +1,71 @@
                                  RELEASE NOTES
-                             FreeBSD Release 2.1.5
+                          FreeBSD Release 2.2 SNAPSHOT
+
+
+0. What's new since 2.2-960501-SNAP?
+------------------------------------
+A considerable number of changes to the VM system have been made
+to increase the stability under certain types of load.  If you
+had panics under the last snapshot, try this one and see if they
+persist.
+
+The AHC driver now does considerably more in the way of handling errors
+gracefully.
+
+More cosmetic work on the installation, /stand/sysinstall now genuinely
+useful after installation time (though still missing a man page - urk!).
+
+Basically, lots-o-fixes.
 
 
 1. What's New since 2.1.0-RELEASE?
 ----------------------------------
 
-Device Drivers:
----------------
+Early support for APM (automated power management) and PCCARD
+(formerly PCMCIA) features of laptops.  Many PCCARD devices
+are supported, from modems to ethernet cards to SCSI adaptors.
 
-Support for the Adaptec AIC7850 on-board SCSI adapter.
+Adaptec AIC7850 support has been added.
 
-Support for Specialix SI and XIO serial cards.
+The Yellow Pages (NIS) support has had many optimizations made
+and no longer has portions copyright under the GPL.
 
-Support for the Stallion EasyIO, EasyConnection 8/32 and EasyConnection 8/64,
-as well as the older Onboard and Brumby serial cards.
+Various VM system enhancements and a few bugs fixed (gzip'd binaries
+now work again, for example).
 
-Support for the Intel EtherExpress Pro/100B PCI ethernet card.
+The system installation tool has been revamped with slightly different
+menu behavior and a number of bugs have been fixed.  It's hoped that
+this installation will be more intuitive for new users than previous
+ones (feedback welcomed, of course).
 
-Support for the 3COM 3C590 and 3C595 ethernet cards.
+The Intel EtherExpress Pro/100B PCI ethernet card is now supported.
 
-Real PCI Buslogic support (new driver and probing order).
+The 3COM 3C590 and 3C595 ethernet cards are now supported.
 
-Support for the ARNET (now Digiboard) Sync 570i high-speed serial card.
-
-Better support for the Matrox Meteor frame grabber card.
-
-Support for the Connectix Quickcam.
-
-Worm driver - it is now possible to burn CDROMs using the Plasmon or HP 4080i
-CDR drives (see `wormcontrol(1)').
-
-
-Kernel features:
-----------------
-
-Various VM system enhancements and more than a few bugs fixed.
-
-A concatenated disk driver for simple types of RAID applications.
-See the man page for ccd(4) for more inforamation.
-
-Real PCI support (probed before ISA).
+The ARNET (now Digiboard) Sync 570i high-speed serial card is now supported.
 
 The Linux emulation is now good enough to run the Linux version of
 Netscape, with JAVA support (as well as a number of other Linux
 utilities).
 
+The Matrox Meteor frame grabber card is better supported.
+
+It is now possible to burn CDROMs using the Plasmon or HP 4080i
+CDR drives (see `wormcontrol(1)').
+
 The pipe code has been substantially sped up, as have some components
 of the VM system.
 
+A /dev/random device (and associated "pool of entropy") has been added
+for applications which require more unpredicatable sequences of random
+numbers for security.  See the random(4) man page for more info.
 
-Userland code updates:
-----------------------
+Early NFS v3 support (not enabled by default).
 
-The system installation tool has been revamped with slightly different
-menu behavior and a number of bugs have been fixed.  It's hoped that
-this installation will be more intuitive for new users than previous
-ones (feedback welcomed, of course) as well as more useful in the
-post-install scenario (I know, I keep saying this :-).
+An early implementation of the Device Filesystem (devfs) is available
+(see mount_devfs).  Device switch tables are now also dynamically built.
 
-Many improvements to the NIS code.
+Early IPX routing support.
 
 
 2. Technical overview
@@ -501,4 +508,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.17 1996/06/25 19:43:33 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.18 1996/06/26 02:36:06 jkh Exp $
