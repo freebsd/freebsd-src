@@ -353,7 +353,7 @@ sb16mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	sb_setmixer(sb, e->reg, left << e->ofs);
 	if (e->stereo)
-		sb_setmixer(sb, e->reg, right << e->ofs);
+		sb_setmixer(sb, e->reg + 1, right << e->ofs);
 	else
 		right = left;
 
@@ -672,6 +672,7 @@ sb16chan_trigger(void *data, int go)
 		ch->run = 1;
 	else
 		ch->run = 0;
+
 	sb_setup(sb);
 
 	return 0;
