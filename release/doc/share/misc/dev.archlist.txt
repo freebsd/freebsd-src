@@ -73,6 +73,7 @@ mly	i386,amd64
 my	i386,pc98
 ncr	i386,pc98,alpha,sparc64,amd64
 ncv	i386,pc98
+nge	i386,pc98,amd64
 nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
 rl	i386,pc98,alpha,sparc64,amd64
@@ -86,6 +87,7 @@ snd_ds1	i386,amd64
 snd_emu10k1	i386,amd64
 snd_es137x	i386,amd64
 snd_solo	i386,amd64
+ste	i386,pc98,alpha,amd64
 stg	i386,pc98
 sym	i386,pc98,alpha,sparc64,amd64
 trm	i386,amd64
