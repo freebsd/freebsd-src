@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.16 1997/08/02 14:31:23 bde Exp $
+ *	$Id: imgact_shell.c,v 1.17 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -134,5 +134,5 @@ exec_shell_imgact(imgp)
  * Since `const' objects end up in the text segment, TEXT_SET is the
  * correct directive to use.
  */
-static const struct execsw shell_execsw = { exec_shell_imgact, "#!" };
+static struct execsw shell_execsw = { exec_shell_imgact, "#!" };
 EXEC_SET(shell, shell_execsw);
