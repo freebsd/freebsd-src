@@ -1,11 +1,3 @@
-/* 
- * $FreeBSD$
- */
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <netncp/ncp.h>
-#include <netncp/ncp_subr.h>
-
 /*
  *  Routines in this file based on work of Volker Lendecke
  */
@@ -24,7 +16,13 @@
    $*
    $********************************************************* */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <netncp/ncp.h>
+#include <netncp/ncp_subr.h>
 
 typedef unsigned char buf32[32];
 

@@ -33,10 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * From: static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
- *
- * $FreeBSD$
+ * From: @(#)strtol.c	8.1 (Berkeley) 6/4/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

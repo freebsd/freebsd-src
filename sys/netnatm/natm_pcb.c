@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*	$NetBSD: natm_pcb.c,v 1.4 1996/11/09 03:26:27 chuck Exp $	*/
-
 /*
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
@@ -37,6 +35,9 @@
  * atm_pcb.c: manage atm protocol control blocks and keep IP and NATM
  * from trying to use each other's VCs.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
