@@ -298,7 +298,7 @@ Hash_DeleteEntry(Hash_Table *t, Hash_Entry *e)
  *---------------------------------------------------------
  */
 Hash_Entry *
-Hash_EnumFirst(Hash_Table *t, Hash_Search *searchPtr)
+Hash_EnumFirst(const Hash_Table *t, Hash_Search *searchPtr)
 {
 
 	searchPtr->tablePtr = t;
@@ -328,7 +328,7 @@ Hash_Entry *
 Hash_EnumNext(Hash_Search *searchPtr)
 {
 	Hash_Entry *e;
-	Hash_Table *t = searchPtr->tablePtr;
+	const Hash_Table *t = searchPtr->tablePtr;
 
 	/*
 	 * The hashEntryPtr field points to the most recently returned
