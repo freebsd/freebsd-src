@@ -218,12 +218,13 @@ struct vattr {
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.
  */
-#define	VSUID	04000		/* set user id on execution */
-#define	VSGID	02000		/* set group id on execution */
-#define	VSVTX	01000		/* save swapped text even after use */
-#define	VREAD	00400		/* read, write, execute permissions */
-#define	VWRITE	00200
-#define	VEXEC	00100
+#define	VADMIN	010000		/* permission to administer vnode */
+#define	VSUID	004000		/* set user id on execution */
+#define	VSGID	002000		/* set group id on execution */
+#define	VSVTX	001000		/* save swapped text even after use */
+#define	VREAD	000400		/* read, write, execute permissions */
+#define	VWRITE	000200
+#define	VEXEC	000100
 
 /*
  * Token indicating no attribute value yet assigned.
