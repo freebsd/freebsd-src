@@ -303,7 +303,7 @@ isp_pci_attach(device_t dev)
 	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
-	char *sptr;
+	const char *sptr;
 	int locksetup = 0;
 
 	/*
