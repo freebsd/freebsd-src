@@ -347,17 +347,3 @@ bshw_set_dma_trans(bsc, flags)
 		bshw_setup_ctrl_reg(bsc, flags);
 	}
 }
-
-static BS_INLINE void memcopy __P((void *from, void *to, register size_t len));
-
-static BS_INLINE void
-memcopy(from, to, len)
-	void *from, *to;
-	register size_t len;
-{
-
-	len >>= 2;
-	__asm __volatile("cld\n\trep\n\tmovsl" : :
-			 "S" (from), "D" (to), "c" (len) :
-			 "%esi", "%edi", "%ecx");
-}
