@@ -62,7 +62,7 @@
  */
 #define SSH_SERVICE_NAME	"ssh"
 
-#define ETCDIR			"/etc"
+#define ETCDIR			"/etc/ssh"
 #define PIDDIR			"/var/run"
 
 /*
