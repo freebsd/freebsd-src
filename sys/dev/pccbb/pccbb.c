@@ -89,6 +89,10 @@
 	pci_write_config(DEV, REG, (					\
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
+/*
+ * XXX all the pcic code really doesn't belong here and needs to be
+ * XXX migrated to its own file, shared with the 16-bit code
+ */
 #define	PCIC_READ(SC,REG)						\
 	(((u_int8_t*)((SC)->sc_socketreg))[0x800+(REG)])
 #define	PCIC_WRITE(SC,REG,val)						\
@@ -522,6 +526,7 @@ pccbb_detach(device_t dev)
 		else
 			error++;
 	}
+	free(devlist, M_TEMP);
 	if (error > 0)
 		return ENXIO;
 
@@ -585,6 +590,7 @@ pccbb_driver_added(device_t dev, driver_t *driver)
 					      driver->name);
 		}
 	}
+	free(devlist, M_TEMP);
 }
 
 static void
