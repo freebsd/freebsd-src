@@ -1046,11 +1046,31 @@ addresses, specified as the
 .Cm any
 keyword (matching any MAC address), or six groups of hex digits
 separated by colons,
-and optionally followed by a mask indicating how many bits are
-significant, as in
+and optionally followed by a mask indicating the significant bits.
+The mask may be specified using either of the following methods:
+.Bl -enum -width indent
+.It
+A slash
+.Pq /
+followed by the number of significant bits.
+For example, an address with 33 significant bits could be specified as:
 .Pp
 .Dl "MAC 10:20:30:40:50:60/33 any"
 .Pp
+.It
+An ampersand
+.Pq &
+followed by a bitmask specified as six groups of hex digits separated
+by colons.
+For example, an address in which the last 16 bits are significant could
+be specified as:
+.Pp
+.Dl "MAC 10:20:30:40:50:60&00:00:00:00:ff:ff any"
+.Pp
+Note that the ampersand character has a special meaning in many shells
+and should generally be escaped.
+.Pp
+.El
 Note that the order of MAC addresses (destination first,
 source second) is
 the same as on the wire, but the opposite of the one used for
