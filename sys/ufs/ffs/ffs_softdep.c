@@ -222,7 +222,6 @@ static	void add_to_worklist(struct worklist *);
 static	void softdep_disk_io_initiation(struct buf *);
 static	void softdep_disk_write_complete(struct buf *);
 static	void softdep_deallocate_dependencies(struct buf *);
-static	void softdep_move_dependencies(struct buf *, struct buf *);
 static	int softdep_count_dependencies(struct buf *bp, int);
 
 static struct mtx lk;
@@ -597,7 +596,7 @@ process_worklist_item(matchmnt, flags)
 /*
  * Move dependencies from one buffer to another.
  */
-static void
+void
 softdep_move_dependencies(oldbp, newbp)
 	struct buf *oldbp;
 	struct buf *newbp;
@@ -992,7 +991,6 @@ softdep_initialize()
 	bioops.io_start = softdep_disk_io_initiation;
 	bioops.io_complete = softdep_disk_write_complete;
 	bioops.io_deallocate = softdep_deallocate_dependencies;
-	bioops.io_movedeps = softdep_move_dependencies;
 	bioops.io_countdeps = softdep_count_dependencies;
 }
 
