@@ -25,7 +25,7 @@ SRCDIR=	${.CURDIR}/../../contrib/file
 
 PROG=	file
 
-MAGICPATH?=	${DESTDIR}/usr/share/misc
+MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${SRCDIR}
