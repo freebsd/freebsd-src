@@ -1065,6 +1065,14 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	    }
 	}
 	Buf_Destroy(buf, TRUE);
+
+    } else if (str[1] == '\0') {
+	/*
+	 * Error - there is only a dollar sign!
+	 */
+	*lengthPtr = 1;
+	return (err ? var_Error : varNoError);
+
     } else {
 	/*
 	 * If it's not bounded by braces of some sort, life is much simpler.
@@ -1073,16 +1081,13 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	 */
 	char	  name[2];
 
+	*lengthPtr = 2;
+
 	name[0] = str[1];
 	name[1] = '\0';
 
 	v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-	if (v == (Var *)NULL) {
-	    if (str[1] != '\0')
-		*lengthPtr = 2;
-	    else
-		*lengthPtr = 1;
-
+	if (v == NULL) {
 	    if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
 		/*
 		 * If substituting a local variable in a non-local context,
