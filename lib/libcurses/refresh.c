@@ -750,7 +750,8 @@ scrolln(starts, startw, curs, bot, top)
 			if (n == 1)
 				goto f_nl1;
 			tputs(__tscroll(SF, n, 0), n, __cputchar);
-			__mvcur(curscr->maxy - 1, 0, bot - n + 1, 0, 1);
+			__mvcur(curscr->maxy - 1, 0, oy, ox, 1);
+			return;
 		}
 		else if (DL != NULL && top != 0) {
 			__mvcur(oy, ox, top, 0, 1);
@@ -775,6 +776,10 @@ scrolln(starts, startw, curs, bot, top)
 					tputs(NL, 1, __cputchar);
 				else
 					putchar('\n');
+			if (bot == curscr->maxy - 1) {
+				__mvcur(curscr->maxy - 1, 0, oy, ox, 1);
+				return;
+			}
 			__mvcur(curscr->maxy - 1, 0, bot - n + 1, 0, 1);
 		}
 		else
@@ -800,12 +805,15 @@ scrolln(starts, startw, curs, bot, top)
 		 * n < 0
 		 */
 		/* Scroll down the screen. */
-		if (!DA && SR != NULL && bot == curscr->maxy - 1 && top == 0) {
+		if (!DA && (SR != NULL || sr != NULL) && bot == curscr->maxy - 1 && top == 0) {
 			__mvcur(oy, ox, 0, 0, 1);
-			if (sr != NULL && -n == 1)
-				goto b_sr1;
-			tputs(__tscroll(SR, -n, 0), -n, __cputchar);
-			__mvcur(0, 0, top, 0, 1);
+			if (SR == NULL || sr != NULL && -n == 1) {
+				for (i = n; i < 0; i++)
+					tputs(sr, 1, __cputchar);
+			} else
+				tputs(__tscroll(SR, -n, 0), -n, __cputchar);
+			__mvcur(0, 0, oy, ox, 1);
+			return;
 		}
 		else if (DL != NULL) {
 			__mvcur(oy, ox, bot + n + 1, 0, 1);
@@ -820,13 +828,6 @@ scrolln(starts, startw, curs, bot, top)
 		       	for (i = n; i < 0; i++)
 				tputs(dl, 1, __cputchar);
 			__mvcur(bot + n + 1, 0, top, 0, 1);
-		}
-		else if (sr != NULL && bot == curscr->maxy - 1) {
-			__mvcur(oy, ox, 0, 0, 1);
-		b_sr1:
-		       	for (i = n; i < 0; i++)
-				tputs(sr, 1, __cputchar);
-			__mvcur(0, 0, top, 0, 1);
 		}
 		else
 			abort();
