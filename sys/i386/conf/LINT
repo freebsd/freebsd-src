@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.383 1997/12/07 08:07:17 yokota Exp $
+#	$Id: LINT,v 1.384 1997/12/09 12:04:44 jamil Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -988,6 +988,7 @@ options		NATM			#native ATM
 # gus: Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 # gusxvi: Gravis Ultrasound 16-bit PCM	(do not use)
 # mss: Microsoft Sound System
+# css: Crystal Sound System (CSS 423x PnP)
 # sscape: Ensoniq Soundscape MIDI interface
 # sscape_mss: Ensoniq Soundscape PCM (requires sscape)
 # opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
@@ -1044,6 +1045,7 @@ device awe0     at isa? port 0x620
 device gus0 at isa? port 0x220 irq 12 drq 1 vector gusintr
 #device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3 vector gusintr
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+#device css0	at isa? port 0x534 irq 5 drq 1 flags 0x08 vector adintr
 device sscape0  at isa? port 0x330 irq 9 drq 0 vector sscapeintr
 device sscape_mss0  at isa? port 0x534 irq 5 drq 1 vector sndintr
 device opl0     at isa? port 0x388
