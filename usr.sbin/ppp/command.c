@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.137 1998/06/06 23:00:33 brian Exp $
+ * $Id: command.c,v 1.138 1998/06/08 20:23:44 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/06 23:00:33 $";
+const char VersionDate[] = "$Date: 1998/06/08 20:23:44 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -384,7 +384,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
 	p = getpid();
 	if (daemon(1, 1) == -1) {
-	  log_Printf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
+	  log_Printf(LogERROR, "%d: daemon: %s\n", (int)p, strerror(errno));
 	  exit(1);
 	}
       } else if (arg->prompt)
