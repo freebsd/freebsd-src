@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.6 1994/10/27 20:45:12 jkh Exp $
+ * $Id: ufs_disksubr.c,v 1.7 1994/12/16 16:31:23 bde Exp $
  */
 
 #include <sys/param.h>
@@ -632,7 +632,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	slicename[0] = '\0';
 	if (slice != WHOLE_DISK_SLICE)
 		sprintf(slicename, "s%d", slice);
-	(*pr)("%s%d%s", dname, unit, slice);
+	(*pr)("%s%d%s", dname, unit, slicename);
 #ifndef PRE_DISKSLICE_COMPAT
 	if (slice != WHOLE_DISK_SLICE)
 #endif
