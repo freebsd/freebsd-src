@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040420:
+	Due to changes in the callout ABI, kernels compiled after this 
+	date may be incompatible with kernel modules compiled prior to
+	20040406.
+
 20040414:
 	The PCI bus power state stuff has been turned on.  If this causes
 	problems for your system, please disable it using the tunable
