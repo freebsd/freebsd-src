@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.35 1998/03/09 07:00:38 jb Exp $
+ * $Id: malloc.c,v 1.36 1998/04/04 11:01:52 jb Exp $
  *
  */
 
@@ -50,15 +50,15 @@
 #   if !defined(__NETBSD_SYSCALLS)
 #       define HAS_UTRACE
 #   endif
-#   if defined(_THREAD_SAFE)
-#       include <pthread.h>
-#       include "pthread_private.h"
-#       define THREAD_STATUS 		int thread_lock_status;
-#       define THREAD_LOCK()		_thread_kern_sig_block(&thread_lock_status);
-#       define THREAD_UNLOCK()		_thread_kern_sig_unblock(thread_lock_status);
-        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
-        static pthread_mutex_t malloc_lock = &_malloc_lock;
-#   endif
+    /*
+     * Make malloc/free/realloc thread-safe in libc for use with
+     * kernel threads.
+     */
+#   include "libc_private.h"
+#   include "spinlock.h"
+    static long thread_lock	= 0;
+#   define THREAD_LOCK()		if (__isthreaded) _spinlock(&thread_lock);
+#   define THREAD_UNLOCK()		if (__isthreaded) _atomic_unlock(&thread_lock);
 #endif /* __FreeBSD__ */
 
 #if defined(__sparc__) && defined(sun)
@@ -159,10 +159,6 @@ struct pgfree {
 
 #define pageround(foo) (((foo) + (malloc_pagemask))&(~(malloc_pagemask)))
 #define ptr2index(foo) (((u_long)(foo) >> malloc_pageshift)-malloc_origo)
-
-#ifndef THREAD_STATUS
-#define THREAD_STATUS
-#endif
 
 #ifndef THREAD_LOCK
 #define THREAD_LOCK()
@@ -1059,7 +1055,6 @@ void *
 malloc(size_t size)
 {
     register void *r;
-    THREAD_STATUS
 
     malloc_func = " in malloc():";
     THREAD_LOCK();
@@ -1085,8 +1080,6 @@ malloc(size_t size)
 void
 free(void *ptr)
 {
-    THREAD_STATUS
-
     malloc_func = " in free():";
     THREAD_LOCK();
     if (malloc_active++) {
@@ -1104,7 +1097,6 @@ free(void *ptr)
 void *
 realloc(void *ptr, size_t size)
 {
-    THREAD_STATUS
     register void *r;
 
     malloc_func = " in realloc():";
