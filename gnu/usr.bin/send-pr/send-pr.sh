@@ -305,7 +305,7 @@ SEND-PR: will all comments (text enclosed in `<' and `>').
 SEND-PR:
 SEND-PR: Please consult the following URL if you are not sure how to
 SEND-PR: fill out a problem report:
-SEND-PR: http://www.freebsd.org/doc/en/articles/problem-reports/article.html
+SEND-PR: http://www.freebsd.org/doc/en/articles/problem-reports/
 SEND-PR:
 SEND-PR: Note that the Synopsis field is mandatory.
 SEND-PR:
@@ -316,6 +316,10 @@ SEND-PR:
 SEND-PR: BE ADVISED THAT FREEBSD PROBLEM REPORTS ARE PUBLIC INFORMATION AND
 SEND-PR: WILL BE PUBLISHED AS-IS ON THE PROJECT'S MAILING LISTS AND WEB SITES.
 SEND-PR: DO NOT SUBMIT ANY INFORMATION YOU DO NOT WANT MADE PUBLIC.
+SEND-PR:
+SEND-PR: If you wish to submit a problem report confidentially, then contact
+SEND-PR: the FreeBSD bugmaster (bugmaster@FreeBSD.org) to arrange for a
+SEND-PR: relevant developer to be contacted.
 SEND-PR:
 SEND-PR: For sensitive security issues, consider contacting the FreeBSD
 SEND-PR: security officer team (security-officer@freebsd.org) directly.
@@ -501,6 +505,15 @@ while true; do
 	continue 2
 	;;
       s*)
+        if [ $CNT -lt 6 ]; then
+          if [ -z "$BATCH" ]; then
+            echo "But there are still errors in the problem report!"
+            continue 2
+          else
+            echo "Errors found in PR"
+            exit 1
+          fi
+        fi
 	break 2
 	;;
     esac

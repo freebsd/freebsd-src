@@ -7,7 +7,6 @@ SCRIPTS=	send-pr
 MAN=		send-pr.1
 SUBMITTERS=	current-users
 RELEASE=	`uname -rsm`
-RELEASE_EV!=	uname -rsm
 CLEANFILES+=	send-pr send-pr.el
 
 SUBDIR+= doc
@@ -22,8 +21,9 @@ send-pr:	send-pr.sh Makefile
 	    ${.ALLSRC:N*Makefile} > ${.TARGET}
 
 send-pr.el:	send-pr-el.in Makefile
+	default_release=`uname -rsm`; \
 	sed -e 's,@DATADIR@,/etc,g' \
-	    -e 's/@DEFAULT_RELEASE@/$(RELEASE_EV)/g' \
+	    -e "s/@DEFAULT_RELEASE@/$${default_release}/g" \
 	    -e 's/"unknown"/"$(SUBMITTERS)"/g' \
 	    ${.ALLSRC:N*Makefile} > ${.TARGET}
 

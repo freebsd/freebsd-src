@@ -250,7 +250,7 @@ If the originator's relationship to the support organization provides
 for confidentiality, then if the value of this field is @samp{yes} the
 support organization treats the PR as confidential; any code samples
 provided are not made publicly available (e.g., in regression test
-suites).  The default value is @samp{yes}.
+suites).  The default value is @samp{no}.
 
 @cindex @code{Synopsis} field
 @cindex @code{>Synopsis:}
