@@ -57,9 +57,11 @@ static int cnt_prezero;
 SYSCTL_INT(_vm_stats_misc, OID_AUTO, cnt_prezero, CTLFLAG_RD,
     &cnt_prezero, 0, "");
 
-static int idlezero_enable = 1;
+static int idlezero_enable_default = 1;
+TUNABLE_INT("vm.idlezero_enable", &idlezero_enable_default);
+/* Defer setting the enable flag until the kthread is running. */
+static int idlezero_enable = 0;
 SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
-TUNABLE_INT("vm.idlezero_enable", &idlezero_enable);
 
 static int idlezero_maxrun = 16;
 SYSCTL_INT(_vm, OID_AUTO, idlezero_maxrun, CTLFLAG_RW, &idlezero_maxrun, 0, "");
@@ -147,6 +149,7 @@ vm_pagezero(void __unused *arg)
 	rtp_to_pri(&rtp, td->td_ksegrp);
 	pri = td->td_priority;
 	mtx_unlock_spin(&sched_lock);
+	idlezero_enable = idlezero_enable_default;
 
 	for (;;) {
 		if (vm_page_zero_check()) {
