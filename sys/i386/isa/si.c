@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.11 1995/10/28 15:39:19 phk Exp $
+ *	$Id: si.c,v 1.9.2.1 1996/02/23 21:00:51 peter Exp $
  */
 
 #ifndef lint
@@ -1830,16 +1830,27 @@ siintr(int unit)
 			}
 
 			/*
+			 * If the tty input buffers are blocked, stop emptying
+			 * the incoming buffers and let the auto flow control
+			 * assert..
+			 */
+			if (tp->t_state & TS_TBLOCK) {
+				goto end_rx;
+			}
+
+			/*
 			 * Process read characters if not skipped above
 			 */
-			c = ccbp->hi_rxipos - ccbp->hi_rxopos;
+			op = ccbp->hi_rxopos;
+			ip = ccbp->hi_rxipos;
+			c = ip - op;
 			if (c == 0) {
 				goto end_rx;
 			}
 
-			op = ccbp->hi_rxopos;
-			ip = ccbp->hi_rxipos;
 			n = c & 0xff;
+			if (n > 250)
+				n = 250;
 
 			DPRINT((pp, DBG_INTR, "n = %d, op = %d, ip = %d\n",
 						n, op, ip));
