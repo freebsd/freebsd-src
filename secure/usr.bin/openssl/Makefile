@@ -11,13 +11,13 @@ OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
 
 CFLAGS+= -DMONOLITH -DNO_IDEA -I${.CURDIR}
 
-.if !defined(RSA_NONCOMMERCIAL) || ${RSA_NONCOMMERCIAL} != YES
+LOCALBASE?=	/usr/local
+
+.if !exists(${LOCALBASE}/lib/librsaref.a)
 CFLAGS+= -DNO_RSA -DNO_SSL2
-WITH_RSA= NO
 .else
 CFLAGS+= -DRSAref
-LDADD+=	-L/usr/local/lib -lrsaref
-RSAREF= YES
+LDADD+=	-L${LOCALBASE}/lib -lrsaref
 .endif
 
 SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
@@ -29,3 +29,16 @@ SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
 .PATH:	${OPENSSL_SRC}
 
 .include <bsd.prog.mk>
+
+
+
+
+
+
+
+
+
+
+
+
+
