@@ -1,7 +1,9 @@
+/*	$KAME: rtadvd.h,v 1.8 2000/05/16 13:34:14 itojun Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -29,43 +31,64 @@
  * $FreeBSD$
  */
 
-#define	ALLNODES "ff02::1"
-#define	ALLROUTERS "ff02::2"
-#define	ALLSITEROUTERS "ff05::2"
-#define	ANY "::"
-#define	RTSOLLEN 8
+#define ALLNODES "ff02::1"
+#define ALLROUTERS "ff02::2"
+#define ANY "::"
+#define RTSOLLEN 8
 
 /* protocol constants and default values */
-#define	DEF_MAXRTRADVINTERVAL 600
-#define	DEF_ADVLINKMTU 0
-#define	DEF_ADVREACHABLETIME 0
-#define	DEF_ADVRETRANSTIMER 0
-#define	DEF_ADVCURHOPLIMIT 64
-#define	DEF_ADVVALIDLIFETIME 2592000
-#define	DEF_ADVPREFERREDLIFETIME 604800
+#define DEF_MAXRTRADVINTERVAL 600
+#define DEF_ADVLINKMTU 0
+#define DEF_ADVREACHABLETIME 0
+#define DEF_ADVRETRANSTIMER 0
+#define DEF_ADVCURHOPLIMIT 64
+#define DEF_ADVVALIDLIFETIME 2592000
+#define DEF_ADVPREFERREDLIFETIME 604800
 
-#define	MAXROUTERLIFETIME 9000
-#define	MIN_MAXINTERVAL 4
-#define	MAX_MAXINTERVAL 1800
-#define	MIN_MININTERVAL 3
-#define	MAXREACHABLETIME 3600000
+/*XXX int-to-double comparison for INTERVAL items */
+#ifndef MIP6
+#define mobileip6 0
+#endif
 
-#define	MAX_INITIAL_RTR_ADVERT_INTERVAL  16
-#define	MAX_INITIAL_RTR_ADVERTISEMENTS    3
-#define	MAX_FINAL_RTR_ADVERTISEMENTS      3
-#define	MIN_DELAY_BETWEEN_RAS             3
-#define	MAX_RA_DELAY_TIME                 500000 /* usec */
+#define MAXROUTERLIFETIME 9000
+#define MIN_MAXINTERVAL (mobileip6 ? 1.5 : 4.0)
+#define MAX_MAXINTERVAL 1800
+#define MIN_MININTERVAL	(mobileip6 ? 0.5 : 3)
+#define MAXREACHABLETIME 3600000
+
+#ifndef MIP6
+#undef miobileip6
+#endif
+
+#define MAX_INITIAL_RTR_ADVERT_INTERVAL  16
+#define MAX_INITIAL_RTR_ADVERTISEMENTS    3
+#define MAX_FINAL_RTR_ADVERTISEMENTS      3
+#define MIN_DELAY_BETWEEN_RAS             3
+#define MAX_RA_DELAY_TIME                 500000 /* usec */
+
+#define PREFIX_FROM_KERNEL 1
+#define PREFIX_FROM_CONFIG 2
+#define PREFIX_FROM_DYNAMIC 3
 
 struct prefix {
-	struct	prefix *next;	/* forward link */
-	struct	prefix *prev;	/* previous link */
+	struct prefix *next;	/* forward link */
+	struct prefix *prev;	/* previous link */
 
-	u_int32_t	validlifetime; /* AdvValidLifetime */
-	u_int32_t	preflifetime;	/* AdvPreferredLifetime */
-	u_int	onlinkflg;	/* bool: AdvOnLinkFlag */
-	u_int	autoconfflg;	/* bool: AdvAutonomousFlag */
-	int	prefixlen;
-	struct	in6_addr prefix;
+	u_int32_t validlifetime; /* AdvValidLifetime */
+	u_int32_t preflifetime;	/* AdvPreferredLifetime */
+	u_int onlinkflg;	/* bool: AdvOnLinkFlag */
+	u_int autoconfflg;	/* bool: AdvAutonomousFlag */
+#ifdef MIP6
+	u_int routeraddr;	/* bool: RouterAddress */
+#endif
+	int prefixlen;
+	int origin;		/* from kernel or cofig */
+	struct in6_addr prefix;
+};
+
+struct soliciter {
+	struct soliciter *next;
+	struct sockaddr_in6 addr;
 };
 
 struct	rainfo {
@@ -73,35 +96,56 @@ struct	rainfo {
 	struct	rainfo *next;
 
 	/* timer related parameters */
-	struct	rtadvd_timer *timer;
-	int	initcounter; /* counter for the first few advertisements */
-	struct	timeval lastsent; /* timestamp when the lates RA was sent */
-	int	waiting;		/* number of RS waiting for RA */
+	struct rtadvd_timer *timer;
+	int initcounter; /* counter for the first few advertisements */
+	struct timeval lastsent; /* timestamp when the latest RA was sent */
+	int waiting;		/* number of RS waiting for RA */
 
 	/* interface information */
 	int	ifindex;
 	int	advlinkopt;	/* bool: whether include link-layer addr opt */
-	struct	sockaddr_dl *sdl;
+	struct sockaddr_dl *sdl;
 	char	ifname[16];
 	int	phymtu;		/* mtu of the physical interface */
 
 	/* Router configuration variables */
-	u_short	lifetime;	/* AdvDefaultLifetime */
+	u_short lifetime;	/* AdvDefaultLifetime */
 	u_int	maxinterval;	/* MaxRtrAdvInterval */
 	u_int	mininterval;	/* MinRtrAdvInterval */
 	int 	managedflg;	/* AdvManagedFlag */
 	int	otherflg;	/* AdvOtherConfigFlag */
-	u_int32_t	linkmtu;	/* AdvLinkMTU */
-	u_int32_t	reachabletime; /* AdvReachableTime */
-	u_int32_t	retranstimer;	/* AdvRetransTimer */
+#ifdef MIP6
+	int	haflg;		/* HAFlag */
+#endif
+	u_int32_t linkmtu;	/* AdvLinkMTU */
+	u_int32_t reachabletime; /* AdvReachableTime */
+	u_int32_t retranstimer;	/* AdvRetransTimer */
 	u_int	hoplimit;	/* AdvCurHopLimit */
-	struct	prefix prefix;	/* AdvPrefixList(link head) */
+	struct prefix prefix;	/* AdvPrefixList(link head) */
 	int	pfxs;		/* number of prefixes */
 
+#ifdef MIP6
+	u_short	hapref;		/* Home Agent Preference */
+	u_short	hatime;		/* Home Agent Lifetime */
+#endif
+
 	/* actual RA packet data and its length */
-	size_t	ra_datalen;
-	u_char	*ra_data;
+	size_t ra_datalen;
+	u_char *ra_data;
+
+	/* statistics */
+	u_quad_t raoutput;	/* number of RAs sent */
+	u_quad_t rainput;	/* number of RAs received */
+	u_quad_t rainconsistent; /* number of RAs inconsistent with ours */
+	u_quad_t rsinput;	/* number of RSs received */
+
+	/* info about soliciter */
+	struct soliciter *soliciter;	/* recent solication source */
 };
 
-void	ra_timeout __P((void *));
-void	ra_timer_update __P((void *, struct timeval *));
+void ra_timeout __P((void *));
+void ra_timer_update __P((void *, struct timeval *));
+
+#ifdef MIP6
+extern int mobileip6;
+#endif

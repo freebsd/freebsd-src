@@ -1,6 +1,6 @@
 .\" Copyright (C) 1999 WIDE Project.
 .\" All rights reserved.
-.\"
+.\" 
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +12,7 @@
 .\" 3. Neither the name of the project nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\"
+.\" 
 .\" THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,8 +25,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pim6sd.conf.5,v 1.7 1999/12/03 07:31:45 jinmei Exp $
-.\" $FreeBSD$
+.\"	KAME Id: pim6sd.conf.5,v 1.10 2000/07/09 17:28:42 itojun Exp
+.\"	$FreeBSD$
 .\"
 .Dd Oct 6, 1999
 .Dt PIM6SD.CONF 5
@@ -37,7 +37,7 @@
 .\"
 .Sh DESCRIPTION
 The
-.Nm pim6sd
+.Nm
 configuration file consists of a sequence of statements terminated
 by a semi-colon (`;'), each of which specifies how the daemon treats
 each interface on the system, specifies some parameters of the PIM
@@ -50,7 +50,7 @@ Lines beginning with
 are comments.
 .\".Pp
 .\"Note that
-.\".Nm pim6sd
+.\".Xr pim6sd 8
 .\"works even without the configuration file, although the daemon
 .\"will warn that there is no configuration file.
 .\"In such a case, the daemon will automatically set the default value
@@ -65,8 +65,7 @@ The following statements can be specified in the configuration file.
 .Ar option...
 .Ic ;
 .Xc
-Specify debug messages to be printed out.
-Each
+Specify debug messages to be printed out. Each
 .Ar option
 usually specifies a subset of the messages to be printed.
 If an
@@ -74,8 +73,7 @@ If an
 begins with
 .Ic no ,
 it means that the set of the messages that are specified by the option
-will not be printed.
-For example,
+will not be printed. For example,
 .Ic `all nomld'
 means that all the messages except MLD related ones will be printed.
 Valid options are
@@ -106,7 +104,7 @@ By default, a hostname is not resolved.
 .Ic ;
 .Xc
 Specifies
-.Nm
+.Xr pim6sd 8
 to ignore the interface even if the interface is multicast-capable.
 Note that PIM will be activated on all interfaces by default(including
 the case where there is no configuration file).
@@ -127,7 +125,7 @@ assert message on the interface.
 If another optional parameter
 .Ic nolistener
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will not send any MLD packets on the interface.
 This option is usually meaningless but will be useful when
 MLD messages are noisy (e.g. when debugging) and there is surely no
@@ -139,7 +137,7 @@ listner on the interface.
 Specifies a default preference value when sending a PIM assert message.
 Preferences are used by assert elections to determine upstream routers.
 Currently
-.Nm pim6sd
+.Xr pim6sd 8
 cannot reliably obtain preferences and metrics from the
 unicast routing protocols, so a default value may be configured.
 The default preference is 1024.
@@ -147,8 +145,7 @@ The default preference is 1024.
 .It Ic default_source_metric Ar metric;
 Specifies a default metric value when sending a PIM assert message.
 It is recommended that preferences be set such that metrics are never
-consulted.
-However, default metrics may also be set and will default to
+consulted. However, default metrics may also be set and will default to
 1024.
 .\"
 .It Xo
@@ -169,8 +166,7 @@ the holdtime will be
 *
 .Ar coef .
 The default values of the period and the coefficient are 30 and 3.5,
-respectively.
-The default holdtime is 105 seconds as a result.
+respectively. The default holdtime is 105 seconds as a result.
 .\"
 .It Xo
 .Ic join_prune_period Ar period Ar coef;
@@ -184,8 +180,7 @@ the holdtime will be
 *
 .Ar coef .
 The default values of the period and the coefficient are 60 and 3.5,
-respectively.
-Consequently, the default holdtime is 210 seconds.
+respectively. Consequently, the default holdtime is 210 seconds.
 .\"
 .It Xo
 .Ic data_timeout Ar timer;
@@ -234,7 +229,7 @@ All other parameters are optional and will be set automatically.
 If an
 .Ar interface
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will search for a global address on the specified interface
 and set the address in Candidate RP Advertisements.
 An optional parameter
@@ -261,6 +256,7 @@ specifies a group prefix that the RP will handle.
 .Op Ar interface
 .Op Ic time Ar time
 .Op Ic priority Ar priority
+.Op Ic masklen Ar masklen
 .Ic ;
 .Xc
 Specifies to act as a candidate bootstrap router(BSR).
@@ -271,7 +267,7 @@ All other parameters are optional and will be set automatically.
 If an
 .Ar interface
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will search for a global address on the specified interface
 and set the address in Bootstrap messages.
 An optional parameter
@@ -282,6 +278,11 @@ Another optional parameter
 .Ic priority
 specifies the priority of the RP.
 The default value is 0, which means the lowest priority.
+Hash mask length can also be specified by the
+.Ic masklen
+parametr. Its value,
+.Ar masklen ,
+must be no less than 0 and no greater than 128.
 .\"
 .It Xo
 .Ic switch_register_threshold Ic rate Ar rate Ic interval Ar interval;
@@ -312,8 +313,8 @@ The default values are 50000 and 20, respectively.
 # phyint ep0 preference 101;
 phyint de0 disable;
 #
-#followings are for a candidate Rendezvous Point, which should usually
-#be disabled.
+# followings are for a candidate Rendezvous Point, which should usually
+# be disabled.
 cand_bootstrap_router;
 cand_rp;
 .Ed
@@ -321,14 +322,14 @@ cand_rp;
 .Xr pim6sd 8
 .Sh HISTORY
 The
-.Nm pim6sd
+.Xr pim6sd 8
 command is developed by Mickael Hoerdt at LSIIT Laboratory.
 It is based on IPv4 PIM sparse-mode
 .Nm pimd
 developed at University of Southern California,
 which has also been derived from
-.Nm mrouted.
-.Nm Mrouted
+.Nm mrouted .
+.Nm mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
 .Pp

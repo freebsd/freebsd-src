@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,7 +36,9 @@
 #include <sys/time.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -55,8 +57,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#define	DEF_ADVVALIDLIFETIME 2592000
-#define	DEF_ADVPREFERREDLIFETIME 604800
+#define DEF_ADVVALIDLIFETIME 2592000
+#define DEF_ADVPREFERREDLIFETIME 604800
 struct	in6_prefixreq	prereq = {{NULL}, /* interface name */
 				      PR_ORIG_STATIC,
 				      64, /* default plen */
@@ -81,7 +83,7 @@ struct	in6_rrenumreq	rrreq = {{NULL}, /* interface name */
 					 {NULL} /* use prefix */
 					 };
 
-#define	C(x) ((caddr_t) &x)
+#define C(x) ((caddr_t) &x)
 
 struct prefix_cmds {
 	const char *errmsg;
@@ -95,12 +97,12 @@ struct prefix_cmds {
 	{"SIOCSGIFPREFIX_IN6 failed", SIOCSGIFPREFIX_IN6, C(rrreq)}
 };
 
-#define	PREF_CMD_SET		0
-#define	PREF_CMD_DELETE		1
-#define	PREF_CMD_ADD		2
-#define	PREF_CMD_CHANGE		3
-#define	PREF_CMD_SETGLOBAL	4
-#define	PREF_CMD_MAX		5
+#define PREF_CMD_SET		0
+#define PREF_CMD_DELETE		1
+#define PREF_CMD_ADD		2
+#define PREF_CMD_CHANGE		3
+#define PREF_CMD_SETGLOBAL	4
+#define PREF_CMD_MAX		5
 
 u_int	prcmd = PREF_CMD_SET;	/* default command */
 
@@ -109,8 +111,6 @@ int	flags;
 
 int	newprefix_setdel, newprefix_match, newprefix_use, newprefix_uselen,
 	newprefix_keeplen;
-
-char ntop_buf[INET6_ADDRSTRLEN];	/*inet_ntop()*/
 
 void	Perror __P((const char *cmd));
 int	prefix __P((int argc, char *const *argv));
@@ -251,7 +251,7 @@ main(argc, argv)
 	while (next < lim) {
 
 		ifm = (struct if_msghdr *)next;
-
+		
 		if (ifm->ifm_type == RTM_IFINFO) {
 			sdl = (struct sockaddr_dl *)(ifm + 1);
 			flags = ifm->ifm_flags;
@@ -379,9 +379,9 @@ prefix(int argc, char *const *argv)
 	close(s);
 	return(0);
 }
-#define	PREFIX	0
-#define	MPREFIX	1
-#define	UPREFIX	2
+#define PREFIX	0
+#define MPREFIX	1
+#define UPREFIX	2
 
 void
 Perror(cmd)
@@ -402,7 +402,7 @@ Perror(cmd)
 	}
 }
 
-#define	SIN6(x) ((struct sockaddr_in6 *) &(x))
+#define SIN6(x) ((struct sockaddr_in6 *) &(x))
 struct sockaddr_in6 *sin6tab[] = {
 SIN6(prereq.ipr_prefix), SIN6(rrreq.irr_matchprefix),
 SIN6(rrreq.irr_useprefix)};

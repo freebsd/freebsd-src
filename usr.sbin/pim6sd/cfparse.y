@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -50,7 +50,7 @@
 #include "timer.h"
 #include "inet6.h"
 
-#define	set_param(var,val,p) \
+#define set_param(var,val,p) \
 	do {\
 		if ((var) != -1) {\
 			yywarn("%s doubly defined(ignore %d)", (p), (val));\
@@ -76,7 +76,8 @@ struct attr_list {
 };
 
 enum {IFA_FLAG, IFA_PREFERENCE, IFA_METRIC, RPA_PRIORITY, RPA_TIME,
-      BSRA_PRIORITY, BSRA_TIME, IN6_PREFIX, THRESA_RATE, THRESA_INTERVAL};
+      BSRA_PRIORITY, BSRA_TIME, BSRA_MASKLEN, IN6_PREFIX, THRESA_RATE,
+      THRESA_INTERVAL};
 
 static int strict;		/* flag if the grammer check is strict */
 static struct attr_list *rp_attr, *bsr_attr, *grp_prefix, *regthres_attr,
@@ -87,6 +88,8 @@ static int srcmetric, srcpref, helloperiod, jpperiod, granularity,
 static double helloperiod_coef, jpperiod_coef;
 
 static int debugonly;
+
+extern int yylex __P((void));
 %}
 
 %union {
@@ -102,7 +105,7 @@ static int debugonly;
 %token REVERSELOOKUP
 %token PHYINT IFNAME DISABLE PREFERENCE METRIC NOLISTENER
 %token GRPPFX
-%token CANDRP CANDBSR TIME PRIORITY
+%token CANDRP CANDBSR TIME PRIORITY MASKLEN
 %token NUMBER STRING SLASH
 %token REGTHRES DATATHRES RATE INTERVAL
 %token SRCMETRIC SRCPREF HELLOPERIOD GRANULARITY JPPERIOD
@@ -295,6 +298,18 @@ bsr_attributes:
 			    == NULL)
 				return(-1);
 		}
+	|	bsr_attributes MASKLEN NUMBER
+		{
+			int masklen = $3;
+
+			if (masklen < 0 || masklen > 128)
+				yywarn("invalid mask length: %d (ignored)",
+				       masklen);
+			else if (($$ = add_attribute_num($1, BSRA_MASKLEN,
+							 masklen))
+				 == NULL)
+				return(-1);
+		}
 	;
 
 /* group_prefix <group-addr>/<prefix_len> */
@@ -315,6 +330,13 @@ grppfx_statement:
 			       prefix.plen);
 			prefixok = 0;
 		}
+		if (IN6_IS_ADDR_MC_NODELOCAL(&prefix.paddr) ||
+		    IN6_IS_ADDR_MC_LINKLOCAL(&prefix.paddr)) {
+			yywarn("group prefix (%s/%d) has a narrow scope "
+			       "(ignored)",
+			       inet6_fmt(&prefix.paddr), prefix.plen);
+			prefixok = 0;
+		}
 
 		if (prefixok) {
 			struct attr_list *new;
@@ -328,7 +350,7 @@ grppfx_statement:
 			new->type = IN6_PREFIX;
 			new->attru.prefix = prefix;
 			new->next = grp_prefix;
-
+ 
 			grp_prefix = new;
 		}
 	}
@@ -369,7 +391,7 @@ thres_attributes:
 				return(-1);
 		}
 
-/*
+/*  
  * switch_data_threshold [rate <number> interval <number>]
  * Operation: reads and assigns the switch to the spt threshold due to
  * data packets, if used as DR.
@@ -418,6 +440,10 @@ param_statement:
 		{
 			set_param(granularity, $2, "granularity");
 		}
+	|	DATATIME NUMBER EOS
+		{
+			set_param(datatimo, $2, "data_timeout");
+		}
 	|	REGSUPTIME NUMBER EOS
 		{
 			set_param(regsuptimo, $2, "register_suppression_timeout");
@@ -433,6 +459,19 @@ param_statement:
 	;
 %%
 
+static struct attr_list *add_attribute_flag __P((struct attr_list *, int,
+	unsigned int));
+static struct attr_list *add_attribute_num __P((struct attr_list *, int,
+	double));
+static void free_attr_list __P((struct attr_list *));
+static int param_config __P((void));
+static int phyint_config __P((void));
+static int rp_config __P((void));
+static int bsr_config __P((void));
+static int grp_prefix_config __P((void));
+static int regthres_config __P((void));
+static int datathres_config __P((void));
+
 static struct attr_list *
 add_attribute_flag(list, type, flag)
 	struct attr_list *list;
@@ -440,7 +479,7 @@ add_attribute_flag(list, type, flag)
 	unsigned int flag;
 {
 	struct attr_list *p;
-
+	
 	if ((p = malloc(sizeof(*p))) == NULL) {
 		yyerror("malloc failed");
 		return(NULL);
@@ -461,7 +500,7 @@ add_attribute_num(list, type, num)
 	double num;
 {
 	struct attr_list *p;
-
+	
 	if ((p = malloc(sizeof(*p))) == NULL) {
 		yyerror("malloc failed");
 		return(NULL);
@@ -486,7 +525,7 @@ free_attr_list(list)
 	}
 }
 
-int
+static int
 param_config()
 {
 	struct uvif *v;
@@ -533,17 +572,35 @@ param_config()
 		log(LOG_DEBUG, 0, "pim_join_prune_holdtime set to: %u",
 		    pim_join_prune_holdtime);
 	}
-
+	IF_DEBUG(DEBUG_TIMER) {
+		log(LOG_DEBUG,0 , "timer interval set to: %u", timer_interval);
+	}
+	IF_DEBUG(DEBUG_PIM_TIMER) {
+		log(LOG_DEBUG,0 , "PIM data timeout set to: %u",
+		    pim_data_timeout);
+	}
+	IF_DEBUG(DEBUG_PIM_REGISTER) {
+		log(LOG_DEBUG, 0,
+		    "PIM register suppression timeout set to: %u",
+		    pim_register_suppression_timeout);
+		log(LOG_DEBUG, 0, "PIM register probe time set to: %u",
+		    pim_register_probe_time);
+	}
+	IF_DEBUG(DEBUG_PIM_ASSERT) {
+		log(LOG_DEBUG, 0,
+		    "PIM assert timeout set to: %u",
+		    pim_assert_timeout);
+	}
 	return(0);
 }
 
-int
+static int
 phyint_config()
 {
 	struct uvif *v;
 	vifi_t vifi;
 	struct attr_list *al;
-
+	
 	for (vifi = 0, v = uvifs; vifi < numvifs ; ++vifi , ++v) {
 		for (al = (struct attr_list *)v->config_attr; al; al = al->next) {
 			switch(al->type) {
@@ -587,7 +644,7 @@ phyint_config()
 	return(0);
 }
 
-int
+static int
 rp_config()
 {
 	struct sockaddr_in6 *sa6_rp = NULL;
@@ -686,15 +743,17 @@ rp_config()
 	return(0);
 }
 
-int
+static int
 bsr_config()
 {
 	struct sockaddr_in6 *sa6_bsr = NULL;
 	struct attr_list *al;
+	int my_bsr_hash_masklen;
 
 	/* initialization by default values */
 	my_bsr_period = PIM_DEFAULT_BOOTSTRAP_PERIOD;
 	my_bsr_priority = PIM_DEFAULT_BSR_PRIORITY;
+	my_bsr_hash_masklen = RP_DEFAULT_IPV6_HASHMASKLEN;
 
 	if (cand_bsr_ifname) {
 		sa6_bsr = local_iface(cand_bsr_ifname);
@@ -710,6 +769,10 @@ bsr_config()
 		case BSRA_PRIORITY:
 			if (al->attru.number >= 0)
 				my_bsr_priority = al->attru.number;
+			break;
+		case BSRA_MASKLEN:
+			/* validation has been done. */
+			my_bsr_hash_masklen = al->attru.number;
 			break;
 		case BSRA_TIME:
 			if (al->attru.number < 10)
@@ -729,22 +792,22 @@ bsr_config()
 	if (!sa6_bsr)
 		sa6_bsr = max_global_address(); /* this MUST suceed */
 	my_bsr_address = *sa6_bsr;
+	MASKLEN_TO_MASK6(my_bsr_hash_masklen, my_bsr_hash_mask);
 
 	IF_DEBUG(DEBUG_PIM_BOOTSTRAP) {
-		log(LOG_DEBUG, 0,
-		    "Local BSR address: %s",
+		log(LOG_DEBUG, 0, "Local BSR address: %s",
 		    inet6_fmt(&my_bsr_address.sin6_addr));
-		log(LOG_DEBUG, 0,
-		    "Local BSR priority : %u",my_bsr_priority);
-		log(LOG_DEBUG,0,
-		    "Local BSR period is : %u sec.",
+		log(LOG_DEBUG, 0, "Local BSR priority : %u", my_bsr_priority);
+		log(LOG_DEBUG, 0, "Local BSR period is : %u sec.",
 		    my_bsr_period);
+		log(LOG_DEBUG, 0, "Local BSR hash mask length: %d",
+		    my_bsr_hash_masklen);
 	}
 
 	return(0);
 }
 
-int
+static int
 grp_prefix_config()
 {
 	struct attr_list *pl;
@@ -786,7 +849,7 @@ grp_prefix_config()
 	return(0);
 }
 
-int
+static int
 regthres_config()
 {
 	struct attr_list *al;
@@ -836,7 +899,7 @@ regthres_config()
 	return(0);
 }
 
-int
+static int
 datathres_config()
 {
 	struct attr_list *al;

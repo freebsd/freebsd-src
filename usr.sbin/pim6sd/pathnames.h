@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,12 +36,12 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
@@ -56,13 +54,14 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
+ * $FreeBSD$
  */
 
 #ifndef PATHNAMES_H
-#define	PATHNAMES_H
+#define PATHNAMES_H
 
-#define	_PATH_PIM6D_CONF	"/etc/pim6sd.conf"
-#define	_PATH_PIM6D_LOGFILE	"/var/log/pim6sd.log"
+#define _PATH_PIM6D_CONF	"/etc/pim6sd.conf"
+#define _PATH_PIM6D_LOGFILE	"/var/log/pim6sd.log"
 
 #if (defined(BSD) && (BSD >= 199103))
 	#define _PATH_PIM6D_PID		"/var/run/pim6sd.pid"

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,7 +36,9 @@
 #include <sys/uio.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -49,6 +51,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <syslog.h>
+#include <stdlib.h>
 
 #include "rtsold.h"
 
@@ -57,11 +60,19 @@ static struct iovec sndiov[2];
 static int probesock;
 static void sendprobe __P((struct in6_addr *addr, int ifindex));
 
+
 int
 probe_init()
 {
-	static u_char sndcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-				CMSG_SPACE(sizeof(int))];
+	int scmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+		CMSG_SPACE(sizeof(int));
+	static u_char *sndcmsgbuf = NULL;
+	
+	if (sndcmsgbuf == NULL &&
+	    (sndcmsgbuf = (u_char *)malloc(scmsglen)) == NULL) {
+		warnmsg(LOG_ERR, __FUNCTION__, "malloc failed");
+		return(-1);
+	}
 
 	if ((probesock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
 		warnmsg(LOG_ERR, __FUNCTION__, "socket: %s", strerror(errno));
@@ -79,13 +90,13 @@ probe_init()
 	sndmhdr.msg_iov = sndiov;
 	sndmhdr.msg_iovlen = 1;
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
-	sndmhdr.msg_controllen = sizeof(sndcmsgbuf);
+	sndmhdr.msg_controllen = scmsglen;
 
 	return(0);
 }
 
 /*
- * Probe if each router in the default router list is still alive.
+ * Probe if each router in the default router list is still alive. 
  */
 void
 defrouter_probe(int ifindex)

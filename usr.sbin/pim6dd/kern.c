@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,7 +31,7 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
  *  $Id: kern.c,v 1.1.1.1 1999/08/08 23:30:52 itojun Exp $
@@ -57,18 +57,18 @@ int curttl = 0;
 /*
  * Open/init the multicast routing in the kernel and sets the MRT_ASSERT
  * flag in the kernel.
- *
+ * 
  */
 void
 k_init_pim(socket)
   int socket;
 {
     int v = 1;
-
+    
     if (setsockopt(socket, IPPROTO_IPV6,
 		   MRT6_INIT, (char *)&v, sizeof(int)) < 0)
 	log(LOG_ERR, errno, "cannot enable multicast routing in kernel");
-
+    
     if(setsockopt(socket, IPPROTO_IPV6,
 		  MRT6_PIM, (char *)&v, sizeof(int)) < 0)
 	log(LOG_ERR, errno, "cannot set ASSERT flag in kernel");
@@ -91,7 +91,7 @@ k_stop_pim(socket)
 
     if (setsockopt(socket, IPPROTO_IPV6, MRT6_DONE, (char *)NULL, 0) < 0)
 	log(LOG_ERR, errno, "cannot disable multicast routing in kernel");
-
+    
 }
 
 
@@ -106,7 +106,7 @@ void k_set_rcvbuf(socket, bufsize, minsize)
 {
     int delta = bufsize / 2;
     int iter = 0;
-
+    
     /*
      * Set the socket buffer.  If we can't set it as large as we
      * want, search around to try to find the highest acceptable
@@ -120,7 +120,7 @@ void k_set_rcvbuf(socket, bufsize, minsize)
 	    iter++;
 	    if (delta > 1)
 	      delta /= 2;
-
+	    
 	    if (setsockopt(socket, SOL_SOCKET, SO_RCVBUF,
 			   (char *)&bufsize, sizeof(bufsize)) < 0) {
 		bufsize -= delta;
@@ -174,7 +174,7 @@ void k_set_hlim(socket, h)
     curttl = h;
 #else
     int hlim = h;
-
+    
     if (setsockopt(socket, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
 		   (char *)&hlim, sizeof(hlim)) < 0)
 	log(LOG_ERR, errno, "setsockopt IPV6_MULTICAST_HOPS %u", hlim);
@@ -222,7 +222,7 @@ void k_join(socket, grp, ifindex)
     u_int ifindex;
 {
     struct ipv6_mreq mreq;
-
+    
     mreq.ipv6mr_multiaddr = *grp;
     mreq.ipv6mr_interface = ifindex;
 
@@ -245,7 +245,7 @@ void k_leave(socket, grp, ifindex)
 
     mreq.ipv6mr_multiaddr = *grp;
     mreq.ipv6mr_interface = ifindex;
-
+    
     if (setsockopt(socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP,
 		   (char *)&mreq, sizeof(mreq)) < 0)
 	log(LOG_WARNING, errno, "cannot leave group %s on interface %s",
@@ -304,13 +304,13 @@ k_del_mfc(socket, source, group)
 
     mc.mf6cc_origin = *source;
     mc.mf6cc_mcastgrp = *group;
-
+	
     if (setsockopt(socket, IPPROTO_IPV6, MRT6_DEL_MFC, (char *)&mc,
 		   sizeof(mc)) < 0) {
 	log(LOG_WARNING, errno, "setsockopt MRT6_DEL_MFC");
 	return FALSE;
     }
-
+	
     IF_DEBUG(DEBUG_MFC)
 	log(LOG_DEBUG, 0, "Deleted MFC entry: src %s, grp %s",
 	    inet6_fmt(&source->sin6_addr),
@@ -345,7 +345,7 @@ k_chg_mfc(socket, source, group, iif, oifs)
 	else
 	    IF_CLR(vifi, &mc.mf6cc_ifset);
     }
-
+    
     if (setsockopt(socket, IPPROTO_IPV6, MRT6_ADD_MFC, (char *)&mc,
                    sizeof(mc)) < 0) {
         log(LOG_WARNING, errno,
@@ -368,7 +368,7 @@ int k_get_vif_count(vifi, retval)
     struct vif_count *retval;
 {
     struct sioc_mif_req6 mreq;
-
+    
     mreq.mifi = vifi;
     if (ioctl(udp_socket, SIOCGETMIFCNT_IN6, (char *)&mreq) < 0) {
 	log(LOG_WARNING, errno, "SIOCGETMIFCNT_IN6 on vif %d", vifi);
@@ -396,7 +396,7 @@ k_get_sg_cnt(socket, source, group, retval)
     struct sg_count *retval;
 {
     struct sioc_sg_req6 sgreq;
-
+    
     sgreq.src = *source;
     sgreq.grp = *group;
     if (ioctl(socket, SIOCGETSGCNT_IN6, (char *)&sgreq) < 0) {

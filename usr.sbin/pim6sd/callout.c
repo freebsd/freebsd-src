@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include "debug.h"
 #include "defs.h"
+#include "callout.h"
 
 /* the code below implements a callout queue */
 

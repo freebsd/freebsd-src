@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -55,7 +55,7 @@
 #include <syslog.h>
 #include "rtsold.h"
 
-#define	ALLROUTER "ff02::2"
+#define ALLROUTER "ff02::2"
 
 static struct msghdr rcvmhdr;
 static struct msghdr sndmhdr;
@@ -63,7 +63,7 @@ static struct iovec rcviov[2];
 static struct iovec sndiov[2];
 static struct sockaddr_in6 from;
 
-static int rssock;
+int rssock;
 
 static struct sockaddr_in6 sin6_allrouters = {sizeof(sin6_allrouters), AF_INET6};
 
@@ -73,11 +73,21 @@ sockopen()
 	int on;
 	struct icmp6_filter filt;
 	static u_char answer[1500];
-	static u_char rcvcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-				CMSG_SPACE(sizeof(int))];
-	static u_char sndcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo)) +
-				CMSG_SPACE(sizeof(int))];
+	int rcvcmsglen, sndcmsglen;
+	static u_char *rcvcmsgbuf = NULL, *sndcmsgbuf = NULL;
 
+	sndcmsglen = rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+		CMSG_SPACE(sizeof(int));
+	if (rcvcmsgbuf == NULL && (rcvcmsgbuf = malloc(rcvcmsglen)) == NULL) {
+		warnmsg(LOG_ERR, __FUNCTION__,
+			"malloc for receive msghdr failed");
+		return(-1);
+	}
+	if (sndcmsgbuf == NULL && (sndcmsgbuf = malloc(sndcmsglen)) == NULL) { 
+		warnmsg(LOG_ERR, __FUNCTION__,
+			"malloc for send msghdr failed");
+		return(-1);
+	}
 	memset(&sin6_allrouters, 0, sizeof(struct sockaddr_in6));
 	if (inet_pton(AF_INET6, ALLROUTER,
 		      &sin6_allrouters.sin6_addr.s6_addr) != 1) {
@@ -93,21 +103,39 @@ sockopen()
 
 	/* specify to tell receiving interface */
 	on = 1;
+#ifdef IPV6_RECVPKTINFO
+	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
+		       sizeof(on)) < 0) {
+		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_RECVPKTINFO: %s",
+		       strerror(errno));
+		exit(1);
+	}
+#else  /* old adv. API */
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_PKTINFO, &on,
 		       sizeof(on)) < 0) {
 		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_PKTINFO: %s",
 		       strerror(errno));
 		exit(1);
 	}
+#endif 
 
 	on = 1;
 	/* specify to tell value of hoplimit field of received IP6 hdr */
+#ifdef IPV6_RECVHOPLIMIT
+	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on,
+		       sizeof(on)) < 0) {
+		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_RECVHOPLIMIT: %s",
+		       strerror(errno));
+		exit(1);
+	}
+#else  /* old adv. API */
 	if (setsockopt(rssock, IPPROTO_IPV6, IPV6_HOPLIMIT, &on,
 		       sizeof(on)) < 0) {
 		warnmsg(LOG_ERR, __FUNCTION__, "IPV6_HOPLIMIT: %s",
 		       strerror(errno));
 		exit(1);
 	}
+#endif 
 
 	/* specfiy to accept only router advertisements on the socket */
 	ICMP6_FILTER_SETBLOCKALL(&filt);
@@ -127,14 +155,14 @@ sockopen()
 	rcvmhdr.msg_iov = rcviov;
 	rcvmhdr.msg_iovlen = 1;
 	rcvmhdr.msg_control = (caddr_t) rcvcmsgbuf;
-	rcvmhdr.msg_controllen = sizeof(rcvcmsgbuf);
+	rcvmhdr.msg_controllen = rcvcmsglen;
 
 	/* initialize msghdr for sending packets */
 	sndmhdr.msg_namelen = sizeof(struct sockaddr_in6);
 	sndmhdr.msg_iov = sndiov;
 	sndmhdr.msg_iovlen = 1;
 	sndmhdr.msg_control = (caddr_t)sndcmsgbuf;
-	sndmhdr.msg_controllen = sizeof(sndcmsgbuf);
+	sndmhdr.msg_controllen = sndcmsglen;
 
 	return(rssock);
 }

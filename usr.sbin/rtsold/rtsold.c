@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,7 +31,9 @@
 
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 
+#include <net/if.h>
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -55,36 +57,39 @@ static int log_upto = 999;
 static int fflag = 0;
 
 /* protocol constatns */
-#define	MAX_RTR_SOLICITATION_DELAY	1 /* second */
-#define	RTR_SOLICITATION_INTERVAL	4 /* seconds */
-#define	MAX_RTR_SOLICITATIONS		3 /* times */
+#define MAX_RTR_SOLICITATION_DELAY	1 /* second */
+#define RTR_SOLICITATION_INTERVAL	4 /* seconds */
+#define MAX_RTR_SOLICITATIONS		3 /* times */
 
 /* implementation dependent constants */
-#define	PROBE_INTERVAL 60	/* secondes XXX: should be configurable */
+#define PROBE_INTERVAL 60	/* secondes XXX: should be configurable */
 
 /* utility macros */
 /* a < b */
-#define	TIMEVAL_LT(a, b) (((a).tv_sec < (b).tv_sec) ||\
+#define TIMEVAL_LT(a, b) (((a).tv_sec < (b).tv_sec) ||\
 			  (((a).tv_sec == (b).tv_sec) && \
 			    ((a).tv_usec < (b).tv_usec)))
 
 /* a <= b */
-#define	TIMEVAL_LEQ(a, b) (((a).tv_sec < (b).tv_sec) ||\
+#define TIMEVAL_LEQ(a, b) (((a).tv_sec < (b).tv_sec) ||\
 			   (((a).tv_sec == (b).tv_sec) &&\
  			    ((a).tv_usec <= (b).tv_usec)))
 
 /* a == b */
-#define	TIMEVAL_EQ(a, b) (((a).tv_sec==(b).tv_sec) && ((a).tv_usec==(b).tv_usec))
+#define TIMEVAL_EQ(a, b) (((a).tv_sec==(b).tv_sec) && ((a).tv_usec==(b).tv_usec))
 
 int main __P((int argc, char *argv[]));
 
 /* static variables and functions */
 static int mobile_node = 0;
 static int do_dump;
-static char *dumpfilename = "/var/tmp/rtsold.dump"; /* XXX: should be configurable */
+static char *dumpfilename = "/var/run/rtsold.dump"; /* XXX: should be configurable */
 static char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
 
 static int ifconfig __P((char *ifname));
+#if 0
+static int ifreconfig __P((char *ifname));
+#endif
 static int make_packet __P((struct ifinfo *ifinfo));
 static struct timeval *rtsol_check_timer __P((void));
 static void TIMEVAL_ADD __P((struct timeval *a, struct timeval *b,
@@ -92,7 +97,7 @@ static void TIMEVAL_ADD __P((struct timeval *a, struct timeval *b,
 static void TIMEVAL_SUB __P((struct timeval *a, struct timeval *b,
 			     struct timeval *result));
 
-static void rtsold_set_dump_file __P(());
+static void rtsold_set_dump_file __P((void));
 static void usage __P((char *progname));
 
 int
@@ -161,8 +166,10 @@ main(argc, argv)
 			setlogmask(LOG_UPTO(log_upto));
 	}
 
+#ifndef HAVE_ARC4RANDOM
 	/* random value initilization */
 	srandom((u_long)time(NULL));
+#endif
 
 	/* warn if accept_rtadv is down */
 	if (!getinet6sysctl(IPV6CTL_ACCEPT_RTADV))
@@ -172,18 +179,22 @@ main(argc, argv)
 	if (signal(SIGUSR1, (void *)rtsold_set_dump_file) < 0)
 		errx(1, "failed to set signal for dump status");
 
+	/*
+	 * Open a socket for sending RS and receiving RA.
+	 * This should be done before calling ifinit(), since the function
+	 * uses the socket.
+	 */
+	if ((s = sockopen()) < 0)
+		errx(1, "failed to open a socket");
+
 	/* configuration per interface */
 	if (ifinit())
 		errx(1, "failed to initilizatoin interfaces");
 	while (argc--) {
 		if (ifconfig(*argv))
-			errx(1, "failed to initilize %s", *argv);
+			errx(1, "failed to initialize %s", *argv);
 		argv++;
 	}
-
-	/* open a socket for sending RS and receiving RA */
-	if ((s = sockopen()) < 0)
-		errx(1, "failed to open a socket");
 
 	/* setup for probing default routers */
 	if (probe_init())
@@ -210,7 +221,6 @@ main(argc, argv)
 	FD_ZERO(&fdset);
 	FD_SET(s, &fdset);
 	while (1) {		/* main loop */
-		extern int errno;
 		int e;
 		struct fd_set select_fd = fdset;
 
@@ -218,7 +228,7 @@ main(argc, argv)
 			do_dump = 0;
 			rtsold_dump_file(dumpfilename);
 		}
-
+			
 		timeout = rtsol_check_timer();
 
 		if (once) {
@@ -269,11 +279,13 @@ ifconfig(char *ifname)
 	if (find_ifinfo(sdl->sdl_index)) {
 		warnmsg(LOG_ERR, __FUNCTION__,
 			"interface %s was already cofigured", ifname);
+		free(sdl);
 		return(-1);
 	}
 
 	if ((ifinfo = malloc(sizeof(*ifinfo))) == NULL) {
 		warnmsg(LOG_ERR, __FUNCTION__, "memory allocation failed");
+		free(sdl);
 		return(-1);
 	}
 	memset(ifinfo, 0, sizeof(*ifinfo));
@@ -318,10 +330,37 @@ ifconfig(char *ifname)
 	return(0);
 
   bad:
-	free(ifinfo);
 	free(ifinfo->sdl);
+	free(ifinfo);
 	return(-1);
 }
+
+#if 0
+static int
+ifreconfig(char *ifname)
+{
+	struct ifinfo *ifi, *prev;
+	int rv;
+
+	prev = NULL;
+	for (ifi = iflist; ifi; ifi = ifi->next) {
+		if (strncmp(ifi->ifname, ifname, sizeof(ifi->ifname)) == 0)
+			break;
+		prev = ifi;
+	}
+	prev->next = ifi->next;
+
+	rv = ifconfig(ifname);
+
+	/* reclaim it after ifconfig() in case ifname is pointer inside ifi */
+	if (ifi->rs_data)
+		free(ifi->rs_data);
+	free(ifi->sdl);
+	free(ifi);
+
+	return rv;
+}
+#endif
 
 struct ifinfo *
 find_ifinfo(int ifindex)
@@ -480,8 +519,8 @@ rtsol_check_timer()
 void
 rtsol_timer_update(struct ifinfo *ifinfo)
 {
-#define	MILLION 1000000
-#define	DADRETRY 10		/* XXX: adhoc */
+#define MILLION 1000000
+#define DADRETRY 10		/* XXX: adhoc */
 	long interval;
 	struct timeval now;
 
@@ -499,14 +538,18 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 		break;
 	case IFS_IDLE:
 		if (mobile_node) {
-			/* XXX should be configurable */
+			/* XXX should be configurable */ 
 			ifinfo->timer.tv_sec = 3;
 		}
 		else
 			ifinfo->timer = tm_max;	/* stop timer(valid?) */
 		break;
 	case IFS_DELAY:
+#ifndef HAVE_ARC4RANDOM
 		interval = random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
+#else
+		interval = arc4random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
+#endif
 		ifinfo->timer.tv_sec = interval / MILLION;
 		ifinfo->timer.tv_usec = interval % MILLION;
 		break;
@@ -541,7 +584,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 }
 
 /* timer related utility functions */
-#define	MILLION 1000000
+#define MILLION 1000000
 
 /* result = a + b */
 static void

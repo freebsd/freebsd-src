@@ -14,11 +14,11 @@
 # $FreeBSD$
 
 PROG=	rtadvd
-SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c
+SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c
 
-CFLAGS+=-DINET6 -DIPSEC
-LDADD+=	-lcompat -lipsec
-DPADD+=	${LIBCOMPAT} ${LIBIPSEC}
+CFLAGS+=-DINET6
+LDADD+=	-lcompat
+DPADD+=	${LIBCOMPAT}
 
 MAN5=	rtadvd.conf.5
 MAN8=	rtadvd.8

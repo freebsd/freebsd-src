@@ -1,7 +1,9 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -69,7 +71,7 @@ rsh_relay(int s_src, int s_dst)
 	if (error == -1)
 		exit_failure("select %d: %s", s_src, ERRSTR);
 	else if (error == 0)
-		exit_failure("connection timeout");
+		exit_failure("connecion timeout");
 
 	n = read(s_src, rshbuf, sizeof(rshbuf));
 	if (rshbuf[0] != 0) {
@@ -112,7 +114,7 @@ relay(int src, int dst)
 		close(dst);
 		close(s_ctl);
 		close(s_ctl6);			
-		exit_success("terminating rsh/control connections");
+		exit_success("terminating rsh/contorol connections");
 		break;
 	default:
 		write(s_snd, rshbuf, n);
@@ -180,7 +182,7 @@ rsh_dual_relay(int s_src, int s_dst)
 		if (error == -1)
 			exit_failure("select 4 sockets: %s", ERRSTR);
 		else if (error == 0)
-			exit_failure("connection timeout");
+			exit_failure("connecion timeout");
 
 		if (half == NO && FD_ISSET(s_src, &readfds)) {
 			s_rcv = s_src;

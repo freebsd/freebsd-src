@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,20 +32,21 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef RP_H
-#define	RP_H
+#define RP_H
 
 #include "defs.h"
 #include "mrt.h"
@@ -55,7 +54,7 @@
 extern cand_rp_t				*cand_rp_list;
 extern grp_mask_t       *grp_mask_list;
 extern cand_rp_t        *segmented_cand_rp_list;
-extern grp_mask_t       *segmented_grp_mask_list;
+extern grp_mask_t       *segmented_grp_mask_list; 
 
 extern u_int8					cand_rp_flag;
 extern u_int8					cand_bsr_flag;
@@ -82,9 +81,9 @@ extern struct cand_rp_adv_message_ {
 } cand_rp_adv_message;
 
 
-extern void      init_rp6_and_bsr6         __P(());
+extern void      init_rp6_and_bsr6         __P((void));
 void delete_rp_list( cand_rp_t **used_cand_rp_list , grp_mask_t **used_grp_mask_list );
-u_int16 bootstrap_initial_delay();
+u_int16 bootstrap_initial_delay __P((void));
 extern rpentry_t *rp_match      __P((struct sockaddr_in6 *group));
 extern rp_grp_entry_t *rp_grp_match __P((struct sockaddr_in6 *group));
 extern int  create_pim6_bootstrap_message __P((char *send_buff));
@@ -101,8 +100,8 @@ extern rp_grp_entry_t *add_rp_grp_entry __P((cand_rp_t  **used_cand_rp_list,
 extern void delete_rp_grp_entry __P((cand_rp_t  **used_cand_rp_list,
                          grp_mask_t **used_grp_mask_list,
                          rp_grp_entry_t *rp_grp_entry_delete));
-extern void delete_grp_mask     __P((cand_rp_t  **used_cand_rp_list,
-                         grp_mask_t **used_grp_mask_list,
+extern void delete_grp_mask     __P((cand_rp_t  **used_cand_rp_list, 
+                         grp_mask_t **used_grp_mask_list,  
                          struct sockaddr_in6 *group_addr,
                          struct in6_addr group_mask));
 extern void delete_rp       __P((cand_rp_t  **used_cand_rp_list,
@@ -110,7 +109,7 @@ extern void delete_rp       __P((cand_rp_t  **used_cand_rp_list,
                          struct sockaddr_in6 *rp_addr));
 extern void delete_rp_list      __P((cand_rp_t  **used_cand_rp_list,
                          grp_mask_t **used_grp_mask_list));
-extern rpentry_t *rp_match      __P((struct sockaddr_in6 *group));
+extern rpentry_t *rp_match      __P((struct sockaddr_in6 *group)); 
 extern rp_grp_entry_t *rp_grp_match __P((struct sockaddr_in6 *group));
 extern rpentry_t *rp_find       __P((struct sockaddr_in6 *rp_address));
 extern int  remap_grpentry      __P((grpentry_t *grpentry_ptr));

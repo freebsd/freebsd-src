@@ -1,3 +1,5 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1994,1995 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
@@ -35,10 +37,10 @@
 
 __BEGIN_DECLS
 
-extern int	agetent __P((char *, const char *));
-extern int	agetflag __P((const char *));
-extern int	agetnum __P((const char *));
-extern char	*agetstr __P((const char *, char **));
+extern int agetent __P((char *, const char *));
+extern int agetflag __P((const char *));
+extern int agetnum __P((const char *));
+extern char *agetstr __P((const char *, char **));
 
 __END_DECLS
 

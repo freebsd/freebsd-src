@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -34,26 +32,27 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef DEFS_H
-#define	DEFS_H
+#define DEFS_H
 
 #include <sys/types.h>
 
 #define	TRUE		1
 #define	FALSE		0
-#define	ELSE else           /* To make emacs cc-mode happy */
+#define ELSE else           /* To make emacs cc-mode happy */
 
 #define	max( a , b )				( ( a )<( b )?( b ):( a ) )
 
@@ -64,12 +63,12 @@ int register_input_handler __P((int fd,ihfunc_t func));
 
 /*  CONFIGCONFIGCONFIGCONFIG */
 
-#define	HAVE_ROUTING_SOCKETS
-#define	HAVE_SA_LEN
-#define	RANDOM()	random()
+#define HAVE_ROUTING_SOCKETS
+#define HAVE_SA_LEN
+#define RANDOM()	random()
 
-#define	PRINTF printf
-#define	ALL_MCAST_GROUPS_LENGTH 8
+#define PRINTF printf
+#define ALL_MCAST_GROUPS_LENGTH 8 
 
 
 typedef u_int		u_int32;

@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,10 +31,10 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: config.c,v 1.3 1999/12/30 09:23:08 itojun Exp $
+ *  $Id: config.c,v 1.6 2000/02/23 16:10:26 itojun Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
@@ -48,6 +48,9 @@
  */
 
 #include "defs.h"
+#ifdef HAVE_GETIFADDRS
+#include <ifaddrs.h>
+#endif 
 
 
 /*
@@ -69,21 +72,141 @@ static int parse_default_source_preference __P((char *));
  * Query the kernel to find network interfaces that are multicast-capable
  * and install them in the uvifs array.
  */
-void
+void 
 config_vifs_from_kernel()
 {
-    struct ifreq *ifrp, *ifend;
     register struct uvif *v;
     register vifi_t vifi;
-    int n;
     struct sockaddr_in6 addr;
     struct in6_addr mask, prefix;
     short flags;
+#ifdef HAVE_GETIFADDRS
+    struct ifaddrs *ifap, *ifa;
+#else
+    int n;
     int num_ifreq = 64;
     struct ifconf ifc;
+    struct ifreq *ifrp, *ifend;
+#endif 
 
     total_interfaces = 0; /* The total number of physical interfaces */
+    
+#ifdef HAVE_GETIFADDRS
+    if (getifaddrs(&ifap))
+	log(LOG_ERR, errno, "getiaddrs");
 
+    /*
+     * Loop through all of the interfaces.
+     */
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+	/*
+	 * Ignore any interface for an address family other than IPv6.
+	 */
+	if (ifa->ifa_addr->sa_family != AF_INET6) {
+	    total_interfaces++;  /* Eventually may have IPv6 address later */
+	    continue;
+	}
+
+	memcpy(&addr, ifa->ifa_addr, sizeof(struct sockaddr_in6));
+	
+	flags = ifa->ifa_flags;
+	if ((flags & (IFF_LOOPBACK | IFF_MULTICAST)) != IFF_MULTICAST)
+	    continue;
+
+	/*
+	 * Get netmask of the address.
+	 */
+	memcpy(&mask, &((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr,
+	       sizeof(mask));
+
+	if (IN6_IS_ADDR_LINKLOCAL(&addr.sin6_addr)) {
+		addr.sin6_scope_id = if_nametoindex(ifa->ifa_name);
+#ifdef __KAME__
+		/*
+		 * Hack for KAME kernel. Set sin6_scope_id field of a
+		 * link local address and clear the index embedded in
+		 * the address.
+		 */
+		/* clear interface index */
+		addr.sin6_addr.s6_addr[2] = 0;
+		addr.sin6_addr.s6_addr[3] = 0;
+#endif
+	}
+
+	/*
+	 * If the address is connected to the same subnet as one already
+	 * installed in the uvifs array, just add the address to the list
+	 * of addresses of the uvif.
+	 */
+	for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
+	    if (strcmp(v->uv_name, ifa->ifa_name) == 0) {
+		    add_phaddr(v, &addr, &mask);
+		    break;
+	    }
+	}
+	if (vifi != numvifs)
+	    continue;
+
+	/*
+	 * If there is room in the uvifs array, install this interface.
+	 */
+	if (numvifs == MAXMIFS) {
+	    log(LOG_WARNING, 0, "too many ifs, ignoring %s", ifa->ifa_name);
+	    continue;
+	}
+
+	/*
+	 * Everyone below is a potential vif interface.
+	 * We don't care if it has wrong configuration or not configured
+	 * at all.
+	 */
+	total_interfaces++;
+	
+	v = &uvifs[numvifs];
+	v->uv_flags		= 0;
+	v->uv_metric		= DEFAULT_METRIC;
+	v->uv_admetric		= 0;
+	v->uv_rate_limit	= DEFAULT_PHY_RATE_LIMIT;
+	v->uv_dst_addr		= allpim6routers_group;
+	v->uv_prefix.sin6_addr	= prefix;
+	v->uv_subnetmask	= mask;
+	strncpy(v->uv_name, ifa->ifa_name, IFNAMSIZ);
+	v->uv_ifindex	        = if_nametoindex(v->uv_name);
+	v->uv_groups		= (struct listaddr *)NULL;
+	v->uv_dvmrp_neighbors   = (struct listaddr *)NULL;
+	NBRM_CLRALL(v->uv_nbrmap);
+	v->uv_querier           = (struct listaddr *)NULL;
+	v->uv_prune_lifetime    = 0;
+	v->uv_acl               = (struct vif_acl *)NULL;
+	v->uv_leaf_timer        = 0;
+	v->uv_addrs		= (struct phaddr *)NULL;
+	v->uv_filter		= (struct vif_filter *)NULL;
+	v->uv_pim_hello_timer   = 0;
+	v->uv_gq_timer          = 0;
+	v->uv_pim_neighbors	= (struct pim_nbr_entry *)NULL;
+	v->uv_local_pref        = default_source_preference;
+	v->uv_local_metric      = default_source_metric;
+	add_phaddr(v, &addr, &mask);
+	
+	if (flags & IFF_POINTOPOINT)
+	    v->uv_flags |= (VIFF_REXMIT_PRUNES | VIFF_POINT_TO_POINT);
+	log(LOG_INFO, 0,
+	    "installing %s as if #%u - rate=%d",
+	    v->uv_name, numvifs, v->uv_rate_limit);
+	++numvifs;
+	
+	/*
+	 * If the interface is not yet up, set the vifs_down flag to
+	 * remind us to check again later.
+	 */
+	if (!(flags & IFF_UP)) {
+	    v->uv_flags |= VIFF_DOWN;
+	    vifs_down = TRUE;
+	}
+    }
+
+    freeifaddrs(ifap);
+#else /* !HAVE_GETIFADDRS */
     ifc.ifc_len = num_ifreq * sizeof(struct ifreq);
     ifc.ifc_buf = calloc(ifc.ifc_len, sizeof(char));
     while (ifc.ifc_buf) {
@@ -91,7 +214,7 @@ config_vifs_from_kernel()
 
 	if (ioctl(udp_socket, SIOCGIFCONF, (char *)&ifc) < 0)
 	    log(LOG_ERR, errno, "ioctl SIOCGIFCONF");
-
+	
 	/*
 	 * If the buffer was large enough to hold all the addresses
 	 * then break out, otherwise increase the buffer size and
@@ -104,7 +227,7 @@ config_vifs_from_kernel()
 	if ((num_ifreq * sizeof(struct ifreq)) >=
 	    ifc.ifc_len + sizeof(struct ifreq))
 	    break;
-
+	
 	num_ifreq *= 2;
 	ifc.ifc_len = num_ifreq * sizeof(struct ifreq);
 	newbuf = realloc(ifc.ifc_buf, ifc.ifc_len);
@@ -114,7 +237,7 @@ config_vifs_from_kernel()
     }
     if (ifc.ifc_buf == NULL)
 	log(LOG_ERR, 0, "config_vifs_from_kernel: ran out of memory");
-
+    
     ifrp = (struct ifreq *)ifc.ifc_buf;
     ifend = (struct ifreq *)(ifc.ifc_buf + ifc.ifc_len);
     /*
@@ -130,7 +253,7 @@ config_vifs_from_kernel()
 #else
 	n = sizeof(*ifrp);
 #endif /* HAVE_SA_LEN */
-
+	
 	/*
 	 * Ignore any interface for an address family other than IPv6.
 	 */
@@ -140,7 +263,7 @@ config_vifs_from_kernel()
 	}
 
 	memcpy(&addr, &ifrp->ifr_addr, sizeof(struct sockaddr_in6));
-
+	
 	/*
 	 * Need a template to preserve address info that is
 	 * used below to locate the next entry.  (Otherwise,
@@ -211,18 +334,12 @@ config_vifs_from_kernel()
 	 * at all.
 	 */
 	total_interfaces++;
-
+	
 	v = &uvifs[numvifs];
 	v->uv_flags		= 0;
 	v->uv_metric		= DEFAULT_METRIC;
 	v->uv_admetric		= 0;
-#if 0
-	v->uv_threshold		= DEFAULT_THRESHOLD;
-#endif
 	v->uv_rate_limit	= DEFAULT_PHY_RATE_LIMIT;
-#if 0
-	v->uv_rmt_addr		= INADDR_ANY_N;
-#endif
 	v->uv_dst_addr		= allpim6routers_group;
 	v->uv_prefix.sin6_addr	= prefix;
 	v->uv_subnetmask	= mask;
@@ -243,14 +360,14 @@ config_vifs_from_kernel()
 	v->uv_local_pref        = default_source_preference;
 	v->uv_local_metric      = default_source_metric;
 	add_phaddr(v, &addr, &mask);
-
+	
 	if (flags & IFF_POINTOPOINT)
 	    v->uv_flags |= (VIFF_REXMIT_PRUNES | VIFF_POINT_TO_POINT);
 	log(LOG_INFO, 0,
 	    "installing %s as if #%u - rate=%d",
 	    v->uv_name, numvifs, v->uv_rate_limit);
 	++numvifs;
-
+	
 	/*
 	 * If the interface is not yet up, set the vifs_down flag to
 	 * remind us to check again later.
@@ -260,6 +377,7 @@ config_vifs_from_kernel()
 	    vifs_down = TRUE;
 	}
     }
+#endif /* HAVE_GETIFADDRS */
 }
 
 static void
@@ -316,12 +434,12 @@ ifname2mifi(ifname)
 	return(mifi);
 }
 
-#define	UNKNOWN        -1
-#define	EMPTY           1
-#define	PHYINT          2
-#define	DEFAULT_SOURCE_METRIC     3
-#define	DEFAULT_SOURCE_PREFERENCE 4
-#define	FILTER 5
+#define UNKNOWN        -1
+#define EMPTY           1
+#define PHYINT          2
+#define DEFAULT_SOURCE_METRIC     3
+#define DEFAULT_SOURCE_PREFERENCE 4
+#define FILTER 5
 
 /*
  * function name: wordToOption
@@ -330,7 +448,7 @@ ifname2mifi(ifname)
  * operation: converts the result of the string comparisons into numerics.
  * comments: called by config_vifs_from_file()
  */
-static int
+static int 
 wordToOption(word)
     char *word;
 {
@@ -363,13 +481,13 @@ parse_phyint(s)
     vifi_t vifi;
     struct uvif *v;
     u_int n;
-
+    
     if (EQUAL((w = next_word(&s)), "")) {
 	log(LOG_WARNING, 0, "Missing phyint in %s", configfilename);
 	return(FALSE);
     }		/* if empty */
     ifname = w;
-
+    
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (vifi == numvifs) {
 	    log(LOG_WARNING, 0,
@@ -380,14 +498,14 @@ parse_phyint(s)
 
 	if (strcmp(v->uv_name, ifname))
 	    continue;
-
+	
 	while (!EQUAL((w = next_word(&s)), "")) {
 	    if (EQUAL(w, "disable"))
 		v->uv_flags |= VIFF_DISABLED;
 	    else if (EQUAL(w, "nolistener"))
 		v->uv_flags |= VIFF_NOLISTENER;
 	    else if(EQUAL(w, "preference")) {
-                if(EQUAL((w = next_word(&s)), ""))
+                if(EQUAL((w = next_word(&s)), "")) 
                     log(LOG_WARNING, 0,
                         "Missing preference for phyint %s in %s",
                         ifname, configfilename);
@@ -400,13 +518,13 @@ parse_phyint(s)
 		else {
 		    IF_DEBUG(DEBUG_ASSERT)
 			log(LOG_DEBUG, 0,
-			    "Config setting default local preference on %s to %d.",
+			    "Config setting default local preference on %s to %d.", 
 			    ifname, n);
 		    v->uv_local_pref = n;
 		}
-
+	    
 	    } else if(EQUAL(w, "metric")) {
-                if(EQUAL((w = next_word(&s)), ""))
+                if(EQUAL((w = next_word(&s)), "")) 
                     log(LOG_WARNING, 0,
                         "Missing metric for phyint %s in %s",
                         ifname, configfilename);
@@ -419,7 +537,7 @@ parse_phyint(s)
 		else {
 		    IF_DEBUG(DEBUG_ASSERT)
 			log(LOG_DEBUG, 0,
-			    "Config setting default local metric on %s to %d.",
+			    "Config setting default local metric on %s to %d.", 
 			    ifname, n);
 		    v->uv_local_metric = n;
 		}
@@ -526,7 +644,7 @@ parse_filter(s)
  * output: int
  * operation: reads and assigns the default source metric, if no reliable
  *            unicast routing information available.
- *            General form:
+ *            General form: 
  *              'default_source_metric <number>'.
  *            default pref and metric statements should precede all phyint
  *            statements in the config file.
@@ -557,7 +675,7 @@ parse_default_source_metric(s)
     for (vifi = 0, v = uvifs; vifi < MAXMIFS; ++vifi, ++v) {
 	v->uv_local_metric = default_source_metric;
     }
-
+	
     return(TRUE);
 }
 
@@ -568,7 +686,7 @@ parse_default_source_metric(s)
  * output: int
  * operation: reads and assigns the default source preference, if no reliable
  *            unicast routing information available.
- *            General form:
+ *            General form: 
  *              'default_source_preference <number>'.
  *            default pref and metric statements should precede all phyint
  *            statements in the config file.
@@ -604,26 +722,19 @@ parse_default_source_preference(s)
 }
 #endif
 
-void
+void 
 config_vifs_from_file()
 {
 	FILE *f;
 	char linebuf[100];
 	char *w, *s;
-	struct ifconf ifc;
 	int option;
-	char ifbuf[BUFSIZ];
 
 	if ((f = fopen(configfilename, "r")) == NULL) {
-		if (errno != ENOENT) log(LOG_WARNING, errno, "can't open %s",
+		if (errno != ENOENT) log(LOG_WARNING, errno, "can't open %s", 
 					 configfilename);
 		return;
 	}
-
-	ifc.ifc_buf = ifbuf;
-	ifc.ifc_len = sizeof(ifbuf);
-	if (ioctl(udp_socket, SIOCGIFCONF, (char *)&ifc) < 0)
-		log(LOG_ERR, errno, "ioctl SIOCGIFCONF");
 
 	while (fgets(linebuf, sizeof(linebuf), f) != NULL) {
 		s = linebuf;
@@ -652,11 +763,11 @@ next_word(s)
     char **s;
 {
     char *w;
-
+    
     w = *s;
     while (*w == ' ' || *w == '\t')
 	w++;
-
+    
     *s = w;
     for(;;) {
 	switch (**s) {
