@@ -168,7 +168,7 @@ int main (argc, argv, envp)
  			error ("Insufficient memory to %s %s",
  			       "record interface", argv [i]);
  		    memset (tmp, 0, sizeof *tmp);
- 		    strcpy (tmp -> name, argv [i]);
+ 		    strlcpy (tmp -> name, argv [i], IFNAMSIZ);
  		    tmp -> next = interfaces;
  		    tmp -> flags = INTERFACE_REQUESTED;
 		    interfaces_requested = 1;
