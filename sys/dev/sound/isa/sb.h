@@ -8,6 +8,7 @@
 
 struct sbc_softc;
 void sbc_lock(struct sbc_softc *);
+void sbc_lockassert(struct sbc_softc *);
 void sbc_unlock(struct sbc_softc *);
 
 /*
