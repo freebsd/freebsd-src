@@ -550,14 +550,12 @@ dosum()
 	(void)printf("%9u vnode pager pages paged in\n", sum.v_vnodepgsin);
 	(void)printf("%9u vnode pager pageouts\n", sum.v_vnodeout);
 	(void)printf("%9u vnode pager pages paged out\n", sum.v_vnodepgsout);
-	(void)printf("%9u VM object cache lookups\n", sum.v_lookups);
-	(void)printf("%9u VM object hits\n", sum.v_hits);
 	(void)printf("%9u page daemon wakeups\n", sum.v_pdwakeups);
 	(void)printf("%9u pages examined by the page daemon\n", sum.v_pdpages);
 	(void)printf("%9u pages reactivated\n", sum.v_reactivated);
-	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
-	(void)printf("%9u zero fill pages zeroed\n", sum.v_zfod);
 	(void)printf("%9u copy-on-write faults\n", sum.v_cow_faults);
+	(void)printf("%9u zero fill pages zeroed\n", sum.v_zfod);
+	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
 	(void)printf("%9u pages freed\n", sum.v_tfree);
 	(void)printf("%9u pages freed by daemon\n", sum.v_dfree);
