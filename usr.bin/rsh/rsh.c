@@ -87,7 +87,7 @@ int	rfd2;
 int family = PF_UNSPEC;
 char rlogin[] = "rlogin";
 
-char   *copyargs(char **);
+char   *copyargs(char * const *);
 void	sendsig(int);
 void	talk(int, long, pid_t, int, int);
 void	usage(void);
@@ -95,8 +95,8 @@ void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct passwd *pw;
-	struct servent *sp;
+	struct passwd const *pw;
+	struct servent const *sp;
 	long omask;
 	int argoff, asrsh, ch, dflag, nflag, one, rem;
 	pid_t pid = 0;
@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 	char *args, *host, *p, *user;
 	int timeout = 0;
 #ifdef KERBEROS
-	char *k;
+	const char *k;
 #endif
 
 	argoff = asrsh = dflag = nflag = 0;
@@ -338,7 +338,8 @@ talk(int nflag, long omask, pid_t pid, int rem, int timeout)
 {
 	int cc, wc;
 	fd_set readfrom, ready, rembits;
-	char *bp, buf[BUFSIZ];
+	char buf[BUFSIZ];
+	const char *bp;
 	struct timeval tvtimeout;
 	int nfds, srval;
 
@@ -459,10 +460,11 @@ sendsig(int sig)
 }
 
 char *
-copyargs(char **argv)
+copyargs(char * const *argv)
 {
 	int cc;
-	char **ap, *args, *p;
+	char *args, *p;
+	char * const *ap;
 
 	cc = 0;
 	for (ap = argv; *ap; ++ap)
