@@ -1574,8 +1574,10 @@ save_rte(m, option, dst)
 	if (ipprintfs)
 		printf("save_rte: olen %d\n", olen);
 #endif
-	if (olen > sizeof(opts->ip_srcrt) - (1 + sizeof(dst)))
+	if (olen > sizeof(opts->ip_srcrt) - (1 + sizeof(dst))) {
+		m_tag_free((struct m_tag *)opts);
 		return;
+	}
 	bcopy(option, opts->ip_srcrt.srcopt, olen);
 	opts->ip_nhops = (olen - IPOPT_OFFSET - 1) / sizeof(struct in_addr);
 	opts->ip_srcrt.dst = dst;
