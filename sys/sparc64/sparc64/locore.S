@@ -37,18 +37,19 @@
 	.set	kernbase,KERNBASE
 
 /*
- * void _start(struct bootinfo *bi, u_long ofw_vec)
+ * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3, 
+ *	       u_long ofw_vec)
  */
 ENTRY(_start)
 	wrpr	%g0, PSTATE_IE | PSTATE_PRIV | PSTATE_PEF, %pstate
 	mov	%o0, %g1
-	mov	%o1, %g2
+	mov	%o4, %g2
 	flushw
 	wrpr	%g0, 1, %cwp
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 
-	set	kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %o0
+	SET(kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l0, %o0)
 	sub	%o0, SPOFF + CCFSZ, %sp
 
 	mov	%g1, %o0
