@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.18 1996/09/20 11:05:39 davidg Exp $
+ *	$Id: if_fxp.c,v 1.19 1996/09/22 11:48:54 davidg Exp $
  */
 
 /*
@@ -418,7 +418,7 @@ fxp_start(ifp)
 	struct fxp_csr *csr = sc->csr;
 	struct fxp_cb_tx *txp;
 	struct mbuf *m, *mb_head;
-	int segment;
+	int segment, first = 1;
 
 txloop:
 	/*
@@ -513,14 +513,18 @@ tbdinit:
 
 	sc->tx_queued++;
 
-	if (csr->scb_cus == FXP_SCB_CUS_SUSPENDED) {
+	/*
+	 * Only need to wait prior to the first resume command.
+	 */
+	if (first) {
+		first--;
 		fxp_scb_wait(csr);
-
-		/*
-		 * Resume transmission.
-		 */
-		csr->scb_command = FXP_SCB_COMMAND_CU_RESUME;
 	}
+
+	/*
+	 * Resume transmission if suspended.
+	 */
+	csr->scb_command = FXP_SCB_COMMAND_CU_RESUME;
 
 #if NBPFILTER > 0
 	/*
@@ -869,7 +873,7 @@ fxp_init(ifp)
 	cbp->interfrm_spacing =	6;	/* (96 bits of) interframe spacing */
 	cbp->promiscuous =	prm;	/* promiscuous mode */
 	cbp->bcast_disable =	0;	/* (don't) disable broadcasts */
-	cbp->crscdt =		0;	/* (CRS only) */
+	cbp->crscdt =		1;	/* (CRS only) */
 	cbp->stripping =	!prm;	/* truncate rx packet to byte count */
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
