@@ -492,18 +492,17 @@ retry:
 
 	/*
 	 * We have to wait until after acquiring all locks before
-	 * changing p_state.  We need to avoid any possibly context
-	 * switches while marked as a zombie including blocking on
-	 * a mutex.
+	 * changing p_state.  We need to avoid all possible context
+	 * switches (including ones from blocking on a mutex) while
+	 * marked as a zombie.
 	 */
 	mtx_lock_spin(&sched_lock);
 	p->p_state = PRS_ZOMBIE;
+
 	critical_enter();
 	mtx_unlock_spin(&sched_lock);
-
 	wakeup(p->p_pptr);
 	PROC_UNLOCK(p->p_pptr);
-
 	mtx_lock_spin(&sched_lock);
 	critical_exit();
 
@@ -513,8 +512,8 @@ retry:
 	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-
 	cnt.v_swtch++;
+
 	sched_exit(p->p_pptr, td);
 
 	/*
@@ -533,7 +532,9 @@ retry:
 
 #ifdef COMPAT_43
 /*
- * MPSAFE.  The dirty work is handled by kern_wait().
+ * The dirty work is handled by kern_wait().
+ *
+ * MPSAFE.
  */
 int
 owait(struct thread *td, struct owait_args *uap __unused)
@@ -548,7 +549,9 @@ owait(struct thread *td, struct owait_args *uap __unused)
 #endif /* COMPAT_43 */
 
 /*
- * MPSAFE.  The dirty work is handled by kern_wait().
+ * The dirty work is handled by kern_wait().
+ *
+ * MPSAFE.
  */
 int
 wait4(struct thread *td, struct wait_args *uap)
@@ -568,9 +571,8 @@ int
 kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
-	int nfound;
 	struct proc *p, *q, *t;
-	int error;
+	int error, nfound;
 
 	q = td->td_proc;
 	if (pid == 0) {
@@ -663,7 +665,7 @@ loop:
 			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
 
 			/*
-			 * Free credentials, arguments, and sigacts
+			 * Free credentials, arguments, and sigacts.
 			 */
 			crfree(p->p_ucred);
 			p->p_ucred = NULL;
@@ -673,7 +675,7 @@ loop:
 			p->p_sigacts = NULL;
 
 			/*
-			 * do any thread-system specific cleanups
+			 * Do any thread-system specific cleanups.
 			 */
 			thread_wait(p);
 
@@ -695,8 +697,8 @@ loop:
 			return (0);
 		}
 		mtx_lock_spin(&sched_lock);
-		if (P_SHOULDSTOP(p) && (p->p_suspcount == p->p_numthreads) &&
-		    ((p->p_flag & P_WAITED) == 0) &&
+		if (P_SHOULDSTOP(p) && p->p_suspcount == p->p_numthreads &&
+		    (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || options & WUNTRACED)) {
 			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
