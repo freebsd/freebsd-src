@@ -137,8 +137,10 @@ FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
  |      |                    |    v            |             |
  |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
  |      |                    |             OpenBSD 2.8     BSD/OS 4.2
- |      v                 NetBSD 1.5           |             |
- |                           |                 |             v
+ |      |                 NetBSD 1.5           |             |
+ |   FreeBSD 4.3             |                 |             v
+ |      |                    |                 |
+ |      v                    |                 |
  |                           |                 |
 FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
  |                           |                 |
@@ -325,6 +327,7 @@ NetBSD 1.4.3		2000-11-25 [NBD] (patch release)
 BSD/OS 4.2		2000-11-29 [BSDI]
 OpenBSD 2.8		2000-12-01 [OBD]
 NetBSD 1.5              2000-12-06 [NBD]
+FreeBSD 4.3  		2001-03-25 [FBD]
 
 
 Bibliography
@@ -374,7 +377,7 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2000 Wolfram Schneider <wosch@FreeBSD.ORG>
+Copyright (c) 1997-2001 Wolfram Schneider <wosch@FreeBSD.ORG>
 URL: ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/src/share/misc/bsd-family-tree
 
 $FreeBSD$
