@@ -61,13 +61,13 @@ static const char rcsid[] =
 #ifndef STANDALONE
 #include <stdlib.h>
 #else
-extern int atoi __P((char *));
-extern char * getenv __P((char *));
+extern int atoi (char *);
+extern char * getenv (char *);
 #endif
 
 #ifdef FSIRAND
-extern long random __P((void));
-extern void srandomdev __P((void));
+extern long random (void);
+extern void srandomdev (void);
 #endif
 
 /*
@@ -144,23 +144,23 @@ int     randinit;
 daddr_t	alloc();
 long	calcipg();
 static int charsperline();
-void clrblock __P((struct fs *, unsigned char *, int));
-void fsinit __P((time_t));
-void initcg __P((int, time_t));
-int isblock __P((struct fs *, unsigned char *, int));
-void iput __P((struct dinode *, ino_t));
-int makedir __P((struct direct *, int));
-void rdfs __P((daddr_t, int, char *));
-void setblock __P((struct fs *, unsigned char *, int));
-void wtfs __P((daddr_t, int, char *));
-void wtfsflush __P((void));
+void clrblock (struct fs *, unsigned char *, int);
+void fsinit (time_t);
+void initcg (int, time_t);
+int isblock (struct fs *, unsigned char *, int);
+void iput (struct dinode *, ino_t);
+int makedir (struct direct *, int);
+void rdfs (daddr_t, int, char *);
+void setblock (struct fs *, unsigned char *, int);
+void wtfs (daddr_t, int, char *);
+void wtfsflush (void);
 
 #ifndef STANDALONE
 #else
-void free __P((char *));
-char * calloc __P((u_long, u_long));
-caddr_t malloc __P((u_long));
-caddr_t realloc __P((char *, u_long));
+void free (char *);
+char * calloc (u_long, u_long);
+caddr_t malloc (u_long);
+caddr_t realloc (char *, u_long);
 #endif
 
 void
@@ -169,7 +169,7 @@ mkfs(pp, fsys, fi, fo)
 	char *fsys;
 	int fi, fo;
 {
-	register long i, mincpc, mincpg, inospercg;
+	long i, mincpc, mincpg, inospercg;
 	long cylno, rpos, blk, j, warn = 0;
 	long used, mincpgcnt, bpcg;
 	off_t usedb;
@@ -699,7 +699,7 @@ initcg(cylno, utime)
 {
 	daddr_t cbase, d, dlower, dupper, dmax, blkno;
 	long i;
-	register struct csum *cs;
+	struct csum *cs;
 #ifdef FSIRAND
 	long j;
 #endif
@@ -951,7 +951,7 @@ fsinit(utime)
  */
 int
 makedir(protodir, entries)
-	register struct direct *protodir;
+	struct direct *protodir;
 	int entries;
 {
 	char *cp;
@@ -1066,8 +1066,8 @@ calcipg(cpg, bpcg, usedbp)
  */
 void
 iput(ip, ino)
-	register struct dinode *ip;
-	register ino_t ino;
+	struct dinode *ip;
+	ino_t ino;
 {
 	struct dinode buf[MAXINOPB];
 	daddr_t d;
@@ -1105,7 +1105,7 @@ iput(ip, ino)
  */
 caddr_t
 malloc(size)
-	register u_long size;
+	u_long size;
 {
 	char *base, *i;
 	static u_long pgsz;

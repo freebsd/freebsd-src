@@ -205,18 +205,18 @@ int	unlabeled;
 char	device[MAXPATHLEN];
 char	*progname;
 
-extern void mkfs __P((struct partition *, char *, int, int));
-static void usage __P((void));
-static void rewritelabel __P((char *s, int fd, register struct disklabel *lp));
+extern void mkfs (struct partition *, char *, int, int);
+static void usage (void);
+static void rewritelabel (char *s, int fd, register struct disklabel *lp);
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int ch;
-	register struct partition *pp;
-	register struct disklabel *lp;
+	int ch;
+	struct partition *pp;
+	struct disklabel *lp;
 	struct disklabel *getdisklabel();
 	struct partition oldpartition;
 	struct stat st;
@@ -578,7 +578,7 @@ void
 rewritelabel(s, fd, lp)
 	char *s;
 	int fd;
-	register struct disklabel *lp;
+	struct disklabel *lp;
 {
 #ifdef COMPAT
 	if (unlabeled)
