@@ -51,9 +51,9 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,8 +85,8 @@ typedef struct {
 	u_long setcnt;		/* set count */
 	u_long setalloc;	/* set allocated count */
 } INPUT;
-INPUT input1 = { NULL, 0, 0, 1, NULL, 0, 0, 0, },
-      input2 = { NULL, 0, 0, 2, NULL, 0, 0, 0, };
+INPUT input1 = { NULL, 0, 0, 1, NULL, 0, 0, 0, 0 },
+      input2 = { NULL, 0, 0, 2, NULL, 0, 0, 0, 0 };
 
 typedef struct {
 	u_long	filenum;	/* file number */
@@ -100,17 +100,18 @@ int joinout = 1;		/* show lines with matched join fields (-v) */
 int needsep;			/* need separator character */
 int spans = 1;			/* span multiple delimiters (-t) */
 char *empty;			/* empty field replacement string (-e) */
-char *tabchar = " \t";		/* delimiter characters (-t) */
+static char default_tabchar[] = " \t";
+char *tabchar = default_tabchar;/* delimiter characters (-t) */
 
-int  cmp __P((LINE *, u_long, LINE *, u_long));
-void fieldarg __P((char *));
-void joinlines __P((INPUT *, INPUT *));
-void obsolete __P((char **));
-void outfield __P((LINE *, u_long, int));
-void outoneline __P((INPUT *, LINE *));
-void outtwoline __P((INPUT *, LINE *, INPUT *, LINE *));
-void slurp __P((INPUT *));
-void usage __P((void));
+int  cmp(LINE *, u_long, LINE *, u_long);
+void fieldarg(char *);
+void joinlines(INPUT *, INPUT *);
+void obsolete(char **);
+void outfield(LINE *, u_long, int);
+void outoneline(INPUT *, LINE *);
+void outtwoline(INPUT *, LINE *, INPUT *, LINE *);
+void slurp(INPUT *);
+void usage(void);
 
 int
 main(argc, argv)
@@ -120,6 +121,8 @@ main(argc, argv)
 	INPUT *F1, *F2;
 	int aflag, ch, cval, vflag;
 	char *end;
+
+	setlocale(LC_ALL, "");
 
 	F1 = &input1;
 	F2 = &input2;
@@ -365,14 +368,14 @@ cmp(lp1, fieldno1, lp2, fieldno2)
 		return (lp2->fieldcnt <= fieldno2 ? 0 : 1);
 	if (lp2->fieldcnt <= fieldno2)
 		return (-1);
-	return (strcmp(lp1->fields[fieldno1], lp2->fields[fieldno2]));
+	return (strcoll(lp1->fields[fieldno1], lp2->fields[fieldno2]));
 }
 
 void
 joinlines(F1, F2)
 	INPUT *F1, *F2;
 {
-	int cnt1, cnt2;
+	unsigned int cnt1, cnt2;
 
 	/*
 	 * Output the results of a join comparison.  The output may be from
@@ -394,7 +397,7 @@ outoneline(F, lp)
 	INPUT *F;
 	LINE *lp;
 {
-	int cnt;
+	unsigned int cnt;
 
 	/*
 	 * Output a single line from one of the files, according to the
@@ -403,8 +406,10 @@ outoneline(F, lp)
 	 */
 	if (olist)
 		for (cnt = 0; cnt < olistcnt; ++cnt) {
-			if (olist[cnt].filenum == F->number)
+			if (olist[cnt].filenum == (unsigned)F->number)
 				outfield(lp, olist[cnt].fieldno, 0);
+			else if (olist[cnt].filenum == 0)
+				outfield(lp, F->joinf, 0);
 			else
 				outfield(lp, 0, 1);
 		}
@@ -422,12 +427,17 @@ outtwoline(F1, lp1, F2, lp2)
 	INPUT *F1, *F2;
 	LINE *lp1, *lp2;
 {
-	int cnt;
+	unsigned int cnt;
 
 	/* Output a pair of lines according to the join list (if any). */
 	if (olist)
 		for (cnt = 0; cnt < olistcnt; ++cnt)
-			if (olist[cnt].filenum == 1)
+			if (olist[cnt].filenum == 0) {
+				if (lp1->fieldcnt >= F1->joinf)
+					outfield(lp1, F1->joinf, 0);
+				else
+					outfield(lp2, F2->joinf, 0);
+			} else if (olist[cnt].filenum == 1)
 				outfield(lp1, olist[cnt].fieldno, 0);
 			else /* if (olist[cnt].filenum == 2) */
 				outfield(lp2, olist[cnt].fieldno, 0);
@@ -480,27 +490,33 @@ void
 fieldarg(option)
 	char *option;
 {
-	u_long fieldno;
+	u_long fieldno, filenum;
 	char *end, *token;
 
 	while ((token = strsep(&option, ", \t")) != NULL) {
 		if (*token == '\0')
 			continue;
-		if (token[0] != '1' && token[0] != '2' || token[1] != '.')
+		if (token[0] == '0')
+			filenum = fieldno = 0;
+		else if ((token[0] == '1' || token[0] == '2') &&
+		    token[1] == '.') {
+			filenum = token[0] - '0';
+			fieldno = strtol(token + 2, &end, 10);
+			if (*end)
+				errx(1, "malformed -o option field");
+			if (fieldno == 0)
+				errx(1, "field numbers are 1 based");
+			--fieldno;
+		} else
 			errx(1, "malformed -o option field");
-		fieldno = strtol(token + 2, &end, 10);
-		if (*end)
-			errx(1, "malformed -o option field");
-		if (fieldno == 0)
-			errx(1, "field numbers are 1 based");
 		if (olistcnt == olistalloc) {
 			olistalloc += 50;
 			if ((olist = realloc(olist,
 			    olistalloc * sizeof(OLIST))) == NULL)
 				err(1, NULL);
 		}
-		olist[olistcnt].filenum = token[0] - '0';
-		olist[olistcnt].fieldno = fieldno - 1;
+		olist[olistcnt].filenum = filenum;
+		olist[olistcnt].fieldno = fieldno;
 		++olistcnt;
 	}
 }
@@ -509,7 +525,7 @@ void
 obsolete(argv)
 	char **argv;
 {
-	int len;
+	unsigned int len;
 	char **p, *ap, *t;
 
 	while ((ap = *++argv) != NULL) {
@@ -530,8 +546,13 @@ obsolete(argv)
 			 * on the command line.  (Well, we could reallocate
 			 * the argv array, but that hardly seems worthwhile.)
 			 */
-			if (ap[2] == '\0')
+			if (ap[2] == '\0' && (argv[1] == NULL ||
+			    (strcmp(argv[1], "1") != 0 &&
+			    strcmp(argv[1], "2") != 0))) {
 				ap[1] = '\01';
+				warnx("-a option used without an argument; "
+				    "reverting to historical behavior");
+			}
 			break;
 		case 'j':
 			/*
@@ -567,8 +588,8 @@ jbad:				errx(1, "illegal option -- %s", ap);
 			if (ap[2] != '\0')
 				break;
 			for (p = argv + 2; *p; ++p) {
-				if (p[0][0] != '1' &&
-				    p[0][0] != '2' || p[0][1] != '.')
+				if (p[0][0] == '0' || (p[0][0] != '1' &&
+				    p[0][0] != '2' || p[0][1] != '.'))
 					break;
 				len = strlen(*p);
 				if (len - 2 != strspn(*p + 2, "0123456789"))
