@@ -207,7 +207,6 @@ void vm_object_reference (vm_object_t);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 void vm_object_madvise (vm_object_t, vm_pindex_t, int, int);
-void vm_object_init2 (void);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */
