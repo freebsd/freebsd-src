@@ -120,11 +120,12 @@ static int
 wep_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
 {
 	struct wep_ctx *ctx = k->wk_private;
+	struct ieee80211com *ic = ctx->wc_ic;
 	u_int32_t iv;
 	u_int8_t *ivp;
 	int hdrlen;
 
-	hdrlen = ieee80211_hdrsize(mtod(m, void *));
+	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
 
 	/*
 	 * Copy down 802.11 header and add the IV + KeyID.

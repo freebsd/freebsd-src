@@ -171,7 +171,7 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, u_int8_t keyid)
 		ic->ic_stats.is_crypto_tkipcm++;
 		return 0;
 	}
-	hdrlen = ieee80211_hdrsize(mtod(m, void *));
+	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
 
 	/*
 	 * Copy down 802.11 header and add the IV, KeyID, and ExtIV.
@@ -215,10 +215,13 @@ tkip_enmic(struct ieee80211_key *k, struct mbuf *m)
 
 	if (k->wk_flags & IEEE80211_KEY_SWMIC) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-		int hdrlen = ieee80211_hdrsize(wh);
+		struct ieee80211com *ic = ctx->tc_ic;
+		int hdrlen;
 		uint8_t mic[IEEE80211_WEP_MICLEN];
 
-		ctx->tc_ic->ic_stats.is_crypto_tkipenmic++;
+		ic->ic_stats.is_crypto_tkipenmic++;
+
+		hdrlen = ieee80211_hdrspace(ic, wh);
 
 		michael_mic(ctx, k->wk_txmic,
 			m, hdrlen, m->m_pkthdr.len - hdrlen, mic);
