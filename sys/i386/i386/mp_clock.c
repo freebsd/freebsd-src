@@ -53,11 +53,11 @@ static u_int32_t piix_timecounter_address;
 static u_int piix_freq = 14318182/4;
 
 static struct timecounter piix_timecounter = {
-	piix_get_timecount,
-	0,
-	0xffffff,
-	0,
-	"PIIX"
+	piix_get_timecount,	/* get_timecount */
+	0,			/* no poll_pps */
+	0xffffff,		/* counter_mask */
+	0,			/* frequency */
+	"PIIX"			/* name */
 };
 
 
