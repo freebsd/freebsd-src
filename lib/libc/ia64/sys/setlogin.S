@@ -39,4 +39,4 @@ SYSCALL(setlogin)
 	ld8	r14=[r14] ;;
 	st4	[r14]=r0			/* clear it */
 	br.ret.sptk.few rp
-END(setlogin)
+END(__sys_setlogin)
