@@ -64,6 +64,7 @@
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
 #include <openssl/md5.h>
+#include "cryptlib.h"
 
 static long ssl2_default_timeout(void );
 const char *ssl2_version_str="SSLv2" OPENSSL_VERSION_PTEXT;
@@ -78,7 +79,8 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	SSL2_TXT_NULL_WITH_MD5,
 	SSL2_CK_NULL_WITH_MD5,
 	SSL_kRSA|SSL_aRSA|SSL_eNULL|SSL_MD5|SSL_SSLV2,
-	SSL_EXPORT|SSL_EXP40,
+	SSL_EXPORT|SSL_EXP40|SSL_STRONG_NONE,
+	0,
 	0,
 	0,
 	SSL_ALL_CIPHERS,
@@ -198,6 +200,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl2_ciphers[]={
 	SSL2_TXT_NULL,
 	SSL2_CK_NULL,
 	0,
+	SSL_STRONG_NONE,
 	0,
 	0,
 	0,
@@ -427,10 +430,14 @@ void ssl2_generate_key_material(SSL *s)
 #endif
 
 	km=s->s2->key_material;
+ 	die(s->s2->key_material_length <= sizeof s->s2->key_material);
 	for (i=0; i<s->s2->key_material_length; i+=MD5_DIGEST_LENGTH)
 		{
 		MD5_Init(&ctx);
 
+ 		die(s->session->master_key_length >= 0
+ 		    && s->session->master_key_length
+ 		    < sizeof s->session->master_key);
 		MD5_Update(&ctx,s->session->master_key,s->session->master_key_length);
 		MD5_Update(&ctx,&c,1);
 		c++;
@@ -465,6 +472,7 @@ void ssl2_write_error(SSL *s)
 /*	state=s->rwstate;*/
 	error=s->error;
 	s->error=0;
+	die(error >= 0 && error <= 3);
 	i=ssl2_write(s,&(buf[3-error]),error);
 /*	if (i == error) s->rwstate=state; */
 
