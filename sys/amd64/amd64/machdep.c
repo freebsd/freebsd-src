@@ -1533,6 +1533,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_rsp;
 	tp->tf_ss = mcp->mc_ss;
+	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	return (0);
 }
 
