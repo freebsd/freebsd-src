@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.9 1995/07/30 01:44:51 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.10 1995/08/12 18:22:34 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -780,7 +780,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/``cx'' driver/
               Cronyx/Sigma multiport Sync/Async (Cisco and PPP framing)
             <tag/``zp'' driver/
-              3Com PCMCIA Etherlink III (aka 3c389)
+              3Com PCMCIA Etherlink III (aka 3c589)
             <tag/``fea'' driver/
               DEC DEFEA EISA FDDI controller
             <tag/``fpa'' driver/
