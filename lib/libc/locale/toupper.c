@@ -45,17 +45,10 @@ ___toupper(c)
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->mapupper_ext;
 	_RuneEntry *re = rr->ranges;
-#endif
 
-	if (c == EOF)
-		return(EOF);
-	if (c < 0) {
-		if (c >= -128) /* signed char */
-			return(_CurrentRuneLocale->mapupper[(unsigned char)c]);
-		else
-			return(c);
-	}
-#ifdef XPG4
+	if (c < 0 || c == EOF)
+		return(c);
+
 	for (x = 0; x < rr->nranges; ++x, ++re) {
 		if (c < re->min)
 			return(c);
