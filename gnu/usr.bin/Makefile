@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 SUBDIR= awk bc binutils cpio dc dialog diff diff3 gperf \
-	grep groff gzip man patch ptx rcs sdiff send-pr tar texinfo
+	grep groff gzip man patch ptx rcs sdiff send-pr sort tar texinfo
 
 .if !defined(NO_CVS)
 SUBDIR+=cvs
