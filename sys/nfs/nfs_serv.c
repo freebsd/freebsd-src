@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.18 1995/06/28 12:01:03 davidg Exp $
+ * $Id: nfs_serv.c,v 1.19 1995/08/01 18:50:57 davidg Exp $
  */
 
 /*
@@ -2543,6 +2543,7 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_procp = (struct proc *)0;
 	eofflag = 0;
+	VOP_LOCK(vp);
 #ifndef __NetBSD__
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
@@ -2552,6 +2553,7 @@ again:
 #else
 	error = VOP_READDIR(vp, &io, cred, &eofflag, cookies, ncookies);
 #endif
+	VOP_UNLOCK(vp);
 	off = (off_t)io.uio_offset;
 	if (!cookies && !error)
 		error = NFSERR_PERM;
