@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.22 1997/08/13 06:45:11 charnier Exp $";
+	"$Id: vmstat.c,v 1.23 1997/09/25 01:14:25 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -104,6 +104,7 @@ static void putint __P((int, int, int, int));
 static void putfloat __P((double, int, int, int, int, int));
 static int ucount __P((void));
 
+static	int ncpu;
 static	int ut;
 static	char buf[26];
 static	time_t t;
@@ -402,6 +403,7 @@ showkre()
 	}
 	failcnt = 0;
 	etime /= hertz;
+	etime /= ncpu;
 	inttotal = 0;
 	for (i = 0; i < nintr; i++) {
 		if (s.intrcnt[i] == 0)
@@ -642,6 +644,9 @@ getinfo(s, st)
 		error("Can't get kernel info: %s\n", strerror(errno));
 		bzero(&s->Total, sizeof(s->Total));
 	}
+	size = sizeof(ncpu);
+	if (sysctlbyname("hw.ncpu", &ncpu, &size, NULL, 0) < 0)
+		ncpu = 1;
 }
 
 static void
