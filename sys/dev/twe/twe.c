@@ -500,25 +500,9 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
     struct twe_request		*tr;
     u_int8_t			srid;
     int				s, error;
-#ifdef __amd64__
-    struct twe_paramcommand32	*tp32 = (struct twe_paramcommand32 *)addr;
-    struct twe_usercommand32	*tu32 = (struct twe_usercommand32 *)addr;
-    struct twe_paramcommand	tp_swab;
-    struct twe_usercommand	tu_swab;
-#endif
 
     error = 0;
     switch(ioctlcmd) {
-
-#ifdef __amd64__
-    case TWEIO_COMMAND32:
-	tu_swab.tu_command = tu32->tu_command;
-	tu_swab.tu_data = (void *)(uintptr_t)tu32->tu_data;
-	tu_swab.tu_size = tu32->tu_size;
-	tu = &tu_swab;
-	/* FALLTHROUGH */
-#endif
-
 	/* handle a command from userspace */
     case TWEIO_COMMAND:
 	/* get a request */
@@ -604,16 +588,6 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	splx(s);
 	break;
 
-#ifdef __amd64__
-    case TWEIO_GET_PARAM32:
-	tp_swab.tp_table_id = tp32->tp_table_id;
-	tp_swab.tp_param_id = tp32->tp_param_id;
-	tp_swab.tp_data = (void *)(uintptr_t)tp32->tp_data;
-	tp_swab.tp_size = tp32->tp_size;
-	tp = &tp_swab;
-	/* FALLTHROUGH */
-#endif
-
     case TWEIO_GET_PARAM:
 	if ((param = twe_get_param(sc, tp->tp_table_id, tp->tp_param_id, tp->tp_size, NULL)) == NULL) {
 	    twe_printf(sc, "TWEIO_GET_PARAM failed for 0x%x/0x%x/%d\n", 
@@ -630,16 +604,6 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	    free(param, M_DEVBUF);
 	}
 	break;
-
-#ifdef __amd64__
-    case TWEIO_SET_PARAM32:
-	tp_swab.tp_table_id = tp32->tp_table_id;
-	tp_swab.tp_param_id = tp32->tp_param_id;
-	tp_swab.tp_data = (void *)(uintptr_t)tp32->tp_data;
-	tp_swab.tp_size = tp32->tp_size;
-	tp = &tp_swab;
-	/* FALLTHROUGH */
-#endif
 
     case TWEIO_SET_PARAM:
 	if ((data = malloc(tp->tp_size, M_DEVBUF, M_WAITOK)) == NULL) {
