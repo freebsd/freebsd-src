@@ -35,6 +35,10 @@
 #ifndef _MACHINE_IN_CKSUM_H_
 #define	_MACHINE_IN_CKSUM_H_	1
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 #include <sys/cdefs.h>
 
 #define in_cksum(m, len)	in_cksum_skip(m, len, 0)

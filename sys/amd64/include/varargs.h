@@ -71,7 +71,7 @@ typedef char *va_list;
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 
-#ifdef __GNUCLIKE_BUILTIN_VAALIST
+#if defined(__GNUCLIKE_BUILTIN_VAALIST)
 #define	va_alist	__builtin_va_alist
 #endif
 #define	va_dcl	int va_alist; ...
