@@ -8,11 +8,13 @@ DPADD=	${LIBNCURSES} ${LIBMYTINFO}
 LDADD=	-lncurses -lmytinfo
 
 LANGS=	en_US.ISO_8859-1 fr_FR.ISO_8859-1 de_DE.ISO_8859-1
+NLSDIR=	${DESTDIR}/usr/share/nls
 
 afterinstall:
-	@for i in ${LANGS}; do \
-	  gencat -new ${DESTDIR}/usr/share/nls/$$i/ee.cat ${.CURDIR}/nls/$$i/ee.msg; \
-	  chmod 444 ${.CURDIR}/nls/$$i/ee.msg; \
+	for l in ${LANGS}; do \
+		gencat -new ${NLSDIR}/$$l/ee.cat ${.CURDIR}/nls/$$l/ee.msg; \
+		chown ${BINOWN}.${BINGRP} ${NLSDIR}/$$l/ee.cat; \
+		chmod 444 ${NLSDIR}/$$l/ee.cat; \
 	done
 
 .include <bsd.prog.mk>
