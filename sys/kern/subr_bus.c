@@ -1194,6 +1194,9 @@ devclass_get_count(devclass_t dc)
 /**
  * @brief Get the maximum unit number used in a devclass
  *
+ * Note that this is one greater than the highest currently-allocated
+ * unit.
+ *
  * @param dc		the devclass to examine
  */
 int
