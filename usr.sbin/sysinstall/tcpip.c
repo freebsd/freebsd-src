@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.78 1999/05/07 05:15:17 jkh Exp $
+ * $Id: tcpip.c,v 1.79 1999/05/07 11:45:26 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -153,6 +153,7 @@ tcpOpenDialog(Device *devp)
     ComposeObj          *obj = NULL;
     int                 n = 0, filled = 0, cancel = FALSE;
     int			max, ret = DITEM_SUCCESS;
+    int			use_dhcp = 0;
     char                *tmp;
     char		title[80];
 
@@ -167,17 +168,60 @@ tcpOpenDialog(Device *devp)
     else { /* See if there are any defaults */
 	char *cp;
 
-#ifdef notdef	/* This is just a test stub which doesn't work yet either */
-	/* First try a DHCP scan */
-	msgNotify("Scanning for DHCP servers...");
-	Mkdir("/var/db");
-	vsystem("ifconfig %s inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up", devp->name);
-	if (!vsystem("dhclient")) {
-	    msgConfirm("Successful return from dhclient");
+	/* First try a DHCP scan if such behavior is desired */
+	if (!variable_cmp(VAR_TRY_DHCP, "YES")) {
+	    Mkdir("/var/db");
+	    Mkdir("/var/run");
+	    msgNotify("Scanning for DHCP servers...");
+	    vsystem("ifconfig %s inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up", devp->name);
+	    if (!vsystem("dhclient")) {
+		FILE *ifp;
+		char cmd[256];
+
+		if (isDebug())
+		    msgConfirm("Successful return from dhclient");
+		snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
+		ifp = popen(cmd, "r");
+		if (ifp) {
+		    char *cp, data[1024];
+		    int i = 0, j = 0;
+
+		    while ((j = fread(data + i, 1, 512, ifp)) > 0)
+			i += j;
+		    fclose(ifp);
+		    data[i] = 0;
+		    if (isDebug())
+			msgDebug("DHCP configured interface returns %s\n", data);
+		    /* XXX This is gross as it assumes a certain ordering to
+		       ifconfig's output! XXX */
+		    if ((cp = strstr(data, "inet")) != NULL) {
+			i = 0;
+			cp += 5;	/* move over keyword */
+			while (*cp != ' ')
+			    ipaddr[i++] = *(cp++);
+			ipaddr[i] = '\0';
+			if (!strncmp(++cp, "netmask", 7)) {
+			    i = 0;
+			    cp += 8;
+			    while (*cp != ' ')
+				netmask[i++] = *(cp++);
+			    netmask[i] = '\0';
+			}
+			if (file_readable("/etc/resolv.conf"))
+			    configEnvironmentResolv("/etc/resolv.conf");
+			/* See if we have a hostname */
+			if (!gethostname(data, sizeof data - 1) && data[0])
+			    variable_set2(VAR_HOSTNAME, data, 1);
+			use_dhcp = TRUE;
+		    }
+		}
+	    }
+	    else {
+		if (isDebug())
+		    msgConfirm("Unsuccessful return from dhclient");
+		use_dhcp = FALSE;
+	    }
 	}
-	else
-	    msgConfirm("Unsuccessful return from dhclient");
-#endif
 
 	/* Get old IP address from variable space, if available */
 	if (!ipaddr[0]) {
@@ -321,8 +365,11 @@ netconfig:
 	SAFE_STRCPY(di->netmask, netmask);
 	SAFE_STRCPY(di->extras, extras);
 
-	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
+	if (use_dhcp)
+	    sprintf(temp, "DHCP");
+	else
+	    sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	variable_set2(ifn, temp, 1);
 	ifaces = variable_get(VAR_INTERFACES);
 	if (!ifaces)

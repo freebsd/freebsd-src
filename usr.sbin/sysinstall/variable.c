@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.24 1998/07/18 09:42:02 jkh Exp $
+ * $Id: variable.c,v 1.25 1999/02/05 22:15:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,7 +58,8 @@ make_variable(char *var, char *value, int dirty)
 	    setenv(var, value, 1);
 	    free(vp->value);
 	    vp->value = strdup(value);
-	    vp->dirty = dirty;
+	    if (dirty != -1)
+		vp->dirty = dirty;
 	    return;
 	}
     }
@@ -68,6 +69,8 @@ make_variable(char *var, char *value, int dirty)
     vp = (Variable *)safe_malloc(sizeof(Variable));
     vp->name = strdup(var);
     vp->value = strdup(value);
+    if (dirty == -1)
+	dirty = 0;
     vp->dirty = dirty;
     vp->next = VarHead;
     VarHead = vp;
