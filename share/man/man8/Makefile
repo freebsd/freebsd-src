@@ -10,7 +10,7 @@ MAN=	adding_user.8 \
 	sticky.8 \
 	yp.8
 
-MLINKS=	rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8
+MLINKS=	rc.8 rc.early.8 rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8
 MLINKS+=rc.8 rc.firewall.8 rc.8 rc.atm.8 rc.8 rc.local.8 rc.8 rc.shutdown.8
 MLINKS+=yp.8 YP.8 yp.8 NIS.8 yp.8 nis.8
 
