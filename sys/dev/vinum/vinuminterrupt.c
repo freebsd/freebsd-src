@@ -124,7 +124,6 @@ complete_rqe(struct buf *bp)
 	if (PLEX[rqe->rqg->plexno].volno >= 0)
 	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_written += bp->b_bcount;
     }
-    rqg->active--;					    /* one less request active */
     if (rqg->flags & XFR_RECOVERY_READ) {		    /* recovery read, */
 	int *sdata;					    /* source */
 	int *data;					    /* and group data */
@@ -155,8 +154,9 @@ complete_rqe(struct buf *bp)
 	    bcopy(src, dst, length);			    /* move it */
 	}
     } else if ((rqg->flags & (XFR_NORMAL_WRITE | XFR_DEGRADED_WRITE)) /* RAID 4/5 group write operation  */
-    &&(rqg->active == 0))				    /* and we've finished phase 1 */
+    &&(rqg->active == 1))				    /* and this is the last rq of phase 1 */
 	complete_raid5_write(rqe);
+    rqg->active--;					    /* one less request active */
     if (rqg->active == 0) {				    /* request group finished, */
 	rq->active--;					    /* one less */
 	if (rqg->lock) {				    /* got a lock? */
