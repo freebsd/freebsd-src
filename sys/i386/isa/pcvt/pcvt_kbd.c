@@ -751,6 +751,8 @@ loop:
 	{
 		keybuf[0] = dt;
 
+		random_harvest(keybuf, sizeof(keybuf), 1, 0, RANDOM_KEYBOARD);
+
 		return ((u_char *)keybuf);
 	}
 
@@ -824,6 +826,8 @@ loop:
 
 	/* got a normal scan key */
 regular:
+
+	random_harvest(&dt, sizeof(dt), 1, 0, RANDOM_KEYBOARD);
 
 #if PCVT_SCANSET == 1
 	kbd_status.breakseen = dt & 0x80 ? 1 : 0;
