@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardd.c,v 1.3 1999/06/17 21:07:59 markm Exp $";
+	"$Id: pccardd.c,v 1.4 1999/07/23 01:46:47 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -51,6 +51,8 @@ main(int argc, char *argv[])
 	int delay = 0;
 	int i;
 
+	debug_level = 0;
+	pccard_init_sleep = 5000000;
 	while ((count = getopt(argc, argv, ":dvf:i:z")) != -1) {
 		switch (count) {
 		case 'd':

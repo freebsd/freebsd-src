@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.12 1998/03/09 05:18:55 hosokawa Exp $
+ * $Id: cardd.h,v 1.13 1999/07/23 01:33:34 hosokawa Exp $
  *
  *	Common include file for PCMCIA daemon
  */
@@ -131,6 +131,8 @@ EXTERN struct driver *drivers;			/* List of drivers */
 EXTERN struct card *cards;
 EXTERN bitstr_t *mem_avail;
 EXTERN bitstr_t *io_avail;
+EXTERN int pccard_init_sleep;			/* Time to sleep on init */
+EXTERN int debug_level;
 
 /* cardd.c functions */
 void		 dump_config_file(void);
