@@ -71,7 +71,7 @@ static int	show_var(int *, int);
 static int	sysctl_all (int *oid, int len);
 static int	name2oid(char *, int *);
 
-static void	set_T_dev_t (char *, void **, int *);
+static void	set_T_dev_t (char *, void **, size_t *);
 
 static void
 usage(void)
@@ -404,7 +404,7 @@ T_dev_t(int l2, void *p)
 }
 
 static void
-set_T_dev_t (char *path, void **val, int *size)
+set_T_dev_t (char *path, void **val, size_t *size)
 {
 	static struct stat statb;
 
