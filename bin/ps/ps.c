@@ -113,9 +113,9 @@ static char Zfmt[] = "label";
 static kvm_t *kd;
 
 #if defined(LAZY_PS)
-#define PS_ARGS	"aCcefghjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#define PS_ARGS	"aCcefgHhjLlM:mN:O:o:p:rSTt:U:uvwxZ"
 #else
-#define PS_ARGS	"aCceghjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#define PS_ARGS	"aCcegHhjLlM:mN:O:o:p:rSTt:U:uvwxZ"
 #endif
 
 int
@@ -128,7 +128,7 @@ main(int argc, char *argv[])
 	pid_t pid;
 	uid_t *uids;
 	int all, ch, flag, i, _fmt, lineno, nentries, nocludge, dropgid;
-	int prtheader, wflag, what, xflg, uid, nuids;
+	int prtheader, wflag, what, xflg, uid, nuids, showthreads;
 	char *cols;
 	char errbuf[_POSIX2_LINE_MAX];
 	const char *cp, *nlistf, *memf;
@@ -174,6 +174,7 @@ main(int argc, char *argv[])
 	ttydev = NODEV;
 	dropgid = 0;
 	memf = nlistf = _PATH_DEVNULL;
+	showthreads = 0;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch((char)ch) {
 		case 'a':
@@ -190,6 +191,9 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 			break;			/* no-op */
+		case 'H':
+			showthreads = 1;
+			break;
 		case 'h':
 			prtheader = ws.ws_row > 5 ? ws.ws_row : 22;
 			break;
@@ -353,8 +357,11 @@ main(int argc, char *argv[])
 	} else if (pid != -1) {
 		what = KERN_PROC_PID;
 		flag = pid;
-	} else {
+	} else if (showthreads == 1) {
 		what = KERN_PROC_ALL;
+		flag = 0;
+	} else {
+		what = KERN_PROC_PROC;
 		flag = 0;
 	}
 	/*
@@ -664,7 +671,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ps [-aChjlmrSTuvwxZ] [-O|o fmt] [-p pid] [-t tty] [-U user]",
+	    "usage: ps [-aCHhjlmrSTuvwxZ] [-O|o fmt] [-p pid] [-t tty] [-U user]",
 	    "          [-M core] [-N system]",
 	    "       ps [-L]");
 	exit(1);
