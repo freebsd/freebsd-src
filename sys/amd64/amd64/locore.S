@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.1 1997/06/27 18:33:41 smp Exp smp $
+ *	$Id: locore.s,v 1.90 1997/06/27 23:19:43 fsmp Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -660,6 +660,7 @@ identify_cpu:
 	jmp	3f
 
 trynexgen:
+	popfl
 	movl	$CPU_NX586,R(_cpu)
 	movl	$0x4778654e,R(_cpu_vendor)	# store vendor string
 	movl	$0x72446e65,R(_cpu_vendor+4)
