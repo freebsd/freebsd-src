@@ -229,6 +229,8 @@ tcp_reass(tp, th, tlenp, m)
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int flags;
 
+	INP_LOCK_ASSERT(tp->t_inpcb);
+
 	/*
 	 * XXX: tcp_reass() is rather inefficient with its data structures
 	 * and should be rewritten (see NetBSD for optimizations).  While
@@ -236,10 +238,10 @@ tcp_reass(tp, th, tlenp, m)
 	 */
 
 	/*
-	 * Call with th==0 after become established to
+	 * Call with th==NULL after become established to
 	 * force pre-ESTABLISHED data up to user socket.
 	 */
-	if (th == 0)
+	if (th == NULL)
 		goto present;
 
 	/*
@@ -613,6 +615,7 @@ tcp_input(m, off0)
 	INP_INFO_WLOCK(&tcbinfo);
 	headlocked = 1;
 findpcb:
+	KASSERT(headlocked, ("tcp_input: findpcb: head not locked"));
 #ifdef IPFIREWALL_FORWARD
 	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
 	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
@@ -999,7 +1002,7 @@ findpcb:
 		goto drop;
 	}
 after_listen:
-	KASSERT(headlocked, ("tcp_input(): after_listen head is not locked"));
+	KASSERT(headlocked, ("tcp_input: after_listen: head not locked"));
 	INP_LOCK_ASSERT(inp);
 
 	/* XXX temp debugging */
@@ -1403,8 +1406,8 @@ after_listen:
 		}
 
 trimthenstep6:
-		KASSERT(headlocked,
-		    ("tcp_input(): trimthenstep6 head is not locked"));
+		KASSERT(headlocked, ("tcp_input: trimthenstep6: head not "
+		    "locked"));
 		INP_LOCK_ASSERT(inp);
 
 		/*
@@ -1974,8 +1977,8 @@ trimthenstep6:
 		}
 
 process_ACK:
-		KASSERT(headlocked,
-		    ("tcp_input(): process_ACK head is not locked"));
+		KASSERT(headlocked, ("tcp_input: process_ACK: head not "
+		    "locked"));
 		INP_LOCK_ASSERT(inp);
 
 		acked = th->th_ack - tp->snd_una;
@@ -2123,7 +2126,8 @@ process_ACK:
 		 */
 		case TCPS_CLOSING:
 			if (ourfinisacked) {
-				KASSERT(headlocked, ("headlocked"));
+				KASSERT(headlocked, ("tcp_input: process_ACK: "
+				    "head not locked"));
 				tcp_twstart(tp);
 				INP_INFO_WUNLOCK(&tcbinfo);
 				m_freem(m);
@@ -2158,7 +2162,7 @@ process_ACK:
 	}
 
 step6:
-	KASSERT(headlocked, ("tcp_input(): step6 head is not locked"));
+	KASSERT(headlocked, ("tcp_input: step6: head not locked"));
 	INP_LOCK_ASSERT(inp);
 
 	/*
@@ -2243,7 +2247,7 @@ step6:
 			tp->rcv_up = tp->rcv_nxt;
 	}
 dodata:							/* XXX */
-	KASSERT(headlocked, ("tcp_input(): dodata head is not locked"));
+	KASSERT(headlocked, ("tcp_input: dodata: head not locked"));
 	INP_LOCK_ASSERT(inp);
 
 	/*
@@ -2351,7 +2355,8 @@ dodata:							/* XXX */
 		 * standard timers.
 		 */
 		case TCPS_FIN_WAIT_2:
-			KASSERT(headlocked == 1, ("headlocked should be 1"));
+			KASSERT(headlocked == 1, ("tcp_input: dodata: "
+			    "TCP_FIN_WAIT_2: head not locked"));
 			tcp_twstart(tp);
 			INP_INFO_WUNLOCK(&tcbinfo);
 			return;
@@ -2379,7 +2384,7 @@ dodata:							/* XXX */
 		(void) tcp_output(tp);
 
 check_delack:
-	KASSERT(headlocked == 1, ("headlocked should be 1"));
+	KASSERT(headlocked == 1, ("tcp_input: check_delack: head not locked"));
 	INP_LOCK_ASSERT(inp);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
@@ -2391,6 +2396,7 @@ check_delack:
 	return;
 
 dropafterack:
+	KASSERT(headlocked, ("tcp_input: dropafterack: head not locked"));
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies
 	 * sequence space, where the ACK reflects our state.
@@ -2426,6 +2432,7 @@ dropafterack:
 	return;
 
 dropwithreset:
+	KASSERT(headlocked, ("tcp_input: dropwithreset: head not locked"));
 	/*
 	 * Generate a RST, dropping incoming segment.
 	 * Make ACK acceptable to originator of segment.
