@@ -1037,13 +1037,13 @@ tcp_ctloutput(so, sopt)
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
 	if (sopt->sopt_level != IPPROTO_TCP) {
+		INP_UNLOCK(inp);
 #ifdef INET6
 		if (INP_CHECK_SOCKAF(so, AF_INET6))
 			error = ip6_ctloutput(so, sopt);
 		else
 #endif /* INET6 */
 		error = ip_ctloutput(so, sopt);
-		INP_UNLOCK(inp);
 		splx(s);
 		return (error);
 	}
