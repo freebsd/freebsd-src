@@ -1,14 +1,23 @@
-# $Id$
+# $Id: Makefile,v 1.12 1997/02/22 13:56:43 peter Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        da_DK.ISO_8859-1 de_DE.ISO_8859-1 en_GB.ISO_8859-1 \
-		en_US.ISO_8859-1 fr_FR.ISO_8859-1 is_IS.ISO_8859-1 \
-		it_IT.ISO_8859-1 pt_PT.ISO_8859-1 ru_SU.KOI8-R ru_SU.CP866
+LOCALES=        da_DK.ISO_8859-1 \
+		de_AT.ISO_8859-1 \
+		de_DE.ISO_8859-1 \
+		en_GB.ISO_8859-1 \
+		en_US.ISO_8859-1 \
+		fr_FR.ISO_8859-1 \
+		is_IS.ISO_8859-1 \
+		it_IT.ISO_8859-1 \
+		pt_PT.ISO_8859-1 \
+		ru_SU.CP866 	 \
+		ru_SU.KOI8-R 
+
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
-DE_LINKS =      de_AT de_CH
+DE_LINKS =      de_CH
 FR_LINKS =      fr_BE fr_CA fr_CH
 IT_LINKS =      it_CH
 US_LINKS =      en_AU en_CA
