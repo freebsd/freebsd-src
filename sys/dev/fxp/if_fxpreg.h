@@ -355,7 +355,7 @@ struct fxp_stats {
 /*
  * PHY device types
  */
-#define FXP_PHY_DEVICE_MASK	0x03f0
+#define FXP_PHY_DEVICE_MASK	0x3f00
 #define FXP_PHY_SERIAL_ONLY	0x8000
 #define FXP_PHY_NONE		0
 #define FXP_PHY_82553A		1

@@ -448,7 +448,7 @@ fxp_attach(device_t dev)
 	fxp_read_eeprom(sc, &data, 6, 1);
 	if ((data & FXP_PHY_DEVICE_MASK) != 0 &&
 	    (data & FXP_PHY_SERIAL_ONLY))
-		sc->flags &= FXP_FLAG_SERIAL_MEDIA;
+		sc->flags |= FXP_FLAG_SERIAL_MEDIA;
 
 	/*
 	 * Find out the basic controller type; we currently only
