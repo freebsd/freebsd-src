@@ -88,7 +88,7 @@ linker_add_class(const char* desc, void* priv,
     return 0;
 }
 
-static void
+static int
 linker_file_sysinit(linker_file_t lf)
 {
     struct linker_set* sysinits;
@@ -106,16 +106,18 @@ linker_file_sysinit(linker_file_t lf)
 
     KLD_DPF(FILE, ("linker_file_sysinit: SYSINITs %p\n", sysinits));
     if (!sysinits)
-	return;
+	return 0; /* XXX is this correct ? No sysinit ? */
 
     /* HACK ALERT! */
     for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
 	if ((*sipp)->func == module_register_init) {
 	    moddata = (*sipp)->udata;
 	    error = module_register(moddata, lf);
-	    if (error)
+	    if (error) {
 		printf("linker_file_sysinit \"%s\" failed to register! %d\n",
 		    lf->filename, error);
+		return error;
+	    }
 	}
     }
 	    
@@ -150,6 +152,7 @@ linker_file_sysinit(linker_file_t lf)
 	/* Call function */
 	(*((*sipp)->func))((*sipp)->udata);
     }
+    return 0; /* no errors */
 }
 
 static void
@@ -282,10 +285,9 @@ linker_load_file(const char* filename, linker_file_t* result)
 	    foundfile = 1;
 	if (lf) {
 	    linker_file_register_sysctls(lf);
-	    linker_file_sysinit(lf);
+	    error = linker_file_sysinit(lf);
 
 	    *result = lf;
-	    error = 0;
 	    goto out;
 	}
     }
