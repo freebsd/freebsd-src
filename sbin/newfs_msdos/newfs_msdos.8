@@ -23,7 +23,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: newfs_msdos.8,v 1.1.1.1 1998/07/06 20:01:34 rnordier Exp $
 .\"
 .Dd July 6, 1998
 .Dt NEWFS_MSDOS 8
@@ -32,7 +32,7 @@
 .Nm newfs_msdos
 .Nd construct a new MS-DOS (FAT) file system
 .Sh SYNOPSIS
-.Nm
+.Nm newfs_msdos
 .Op Fl N
 .Op Fl B Ar boot
 .Op Fl F Ar FAT-type
@@ -68,7 +68,7 @@ entry
 to determine geometry, if required.
 .Pp
 The options are as follow:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl N
 Don't create a file system: just print out parameters.
 .It Fl B Ar boot
@@ -170,4 +170,4 @@ Create a standard 1.44M file system, with volume label "foo", on
 .Sh DIAGNOSTICS
 Exit status is 0 on success and 1 on error.
 .Sh AUTHORS
-.An Robert Nordier Aq rnordier@FreeBSD.ORG .
+.An Robert Nordier Aq rnordier@FreeBSD.org .
