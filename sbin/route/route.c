@@ -542,6 +542,7 @@ newroute(argc, argv)
 			case K_IFACE:
 			case K_INTERFACE:
 				iflag++;
+				break;
 			case K_NOSTATIC:
 				flags &= ~RTF_STATIC;
 				break;
