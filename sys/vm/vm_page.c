@@ -706,9 +706,10 @@ vm_page_select_cache(int color)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while ((m = vm_pageq_find(PQ_CACHE, color, FALSE)) != NULL) {
-		if ((m->flags & PG_BUSY) == 0 && m->busy == 0 &&
-		    m->hold_count == 0 && (VM_OBJECT_TRYLOCK(m->object) ||
+		if (m->hold_count == 0 && (VM_OBJECT_TRYLOCK(m->object) ||
 		    VM_OBJECT_LOCKED(m->object))) {
+			KASSERT((m->flags & PG_BUSY) == 0 && m->busy == 0,
+			    ("Found busy cache page %p", m));
 			KASSERT(m->dirty == 0,
 			    ("Found dirty cache page %p", m));
 			KASSERT(!pmap_page_is_mapped(m),
@@ -750,6 +751,9 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	int color, flags, page_req;
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
+	KASSERT(curthread->td_intr_nesting_level == 0 ||
+	    page_req == VM_ALLOC_INTERRUPT,
+	    ("vm_page_alloc(NORMAL|SYSTEM) in interrupt context"));
 
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
