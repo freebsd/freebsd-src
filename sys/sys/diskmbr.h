@@ -98,24 +98,7 @@ struct disklabel {
 	u_int16_t d_subtype;		/* controller/d_type specific */
 	char	  d_typename[16];	/* type name, e.g. "eagle" */
 
-	/* 
-	 * d_packname contains the pack identifier and is returned when
-	 * the disklabel is read off the disk or in-core copy.
-	 * d_boot0 and d_boot1 are the (optional) names of the
-	 * primary (block 0) and secondary (block 1-15) bootstraps
-	 * as found in /boot.  These are returned when using
-	 * getdiskbyname(3) to retrieve the values from /etc/disktab.
-	 */
-	union {
-		char	un_d_packname[16];	/* pack identifier */
-		struct {
-			char *un_d_boot0;	/* primary bootstrap name */
-			char *un_d_boot1;	/* secondary bootstrap name */
-		} un_b;
-	} d_un;
-#define d_packname	d_un.un_d_packname
-#define d_boot0		d_un.un_b.un_d_boot0
-#define d_boot1		d_un.un_b.un_d_boot1
+	char      d_packname[16];	/* pack identifier */
 
 			/* disk geometry: */
 	u_int32_t d_secsize;		/* # of bytes per sector */
@@ -183,6 +166,10 @@ struct disklabel {
 		u_int16_t p_cpg;	/* filesystem cylinders per group */
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
+
+#ifdef CTASSERT
+CTASSERT(sizeof(struct disklabel) == 276);
+#endif
 
 static __inline u_int16_t dkcksum(struct disklabel *lp);
 static __inline u_int16_t
@@ -373,6 +360,20 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 #define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
 #define DIOCGFWCYLINDERS _IOR('d', 132, u_int)	/* Get firmware cyl'scount */
 #define DIOCGKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
+
+#ifdef __alpha__
+struct disklabel_alphahack {
+	struct disklabel dl;
+	char pad[4];
+};
+#define DIOCGDINFO_ALPHAHACK	_IOR('d', 101, struct disklabel_alphahack)/* get */
+#define DIOCSDINFO_ALPHAHACK	_IOW('d', 102, struct disklabel_alphahack)/* set */
+#define DIOCWDINFO_ALPHAHACK	_IOW('d', 103, struct disklabel_alphahack)/* set, update disk */
+#define DIOCGDVIRGIN_ALPHAHACK	_IOR('d', 105, struct disklabel_alphahack)/* get virgin label */
+#ifdef CTASSERT
+CTASSERT(sizeof(struct disklabel_alphahack) == 280);
+#endif
+#endif
 
 #ifdef _KERNEL
 
