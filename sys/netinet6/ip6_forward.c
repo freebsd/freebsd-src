@@ -49,6 +49,9 @@
 
 #include <net/if.h>
 #include <net/route.h>
+#ifdef PFIL_HOOKS
+#include <net/pfil.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -74,6 +77,11 @@
 #include <netinet6/ip6_fw.h>
 
 #include <net/net_osdep.h>
+
+#include <netinet6/ip6protosw.h>
+
+extern struct ip6protosw inet6sw[];
+extern u_char ip6_protox[IPPROTO_MAX];
 
 struct	route_in6 ip6_forward_rt;
 
@@ -101,6 +109,11 @@ ip6_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
+#ifdef PFIL_HOOKS
+	struct packet_filter_hook *pfh;
+	struct mbuf *m1;
+	int rv;
+#endif /* PFIL_HOOKS */
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
@@ -502,6 +515,27 @@ ip6_forward(m, srcrt)
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
 #endif
+
+#ifdef PFIL_HOOKS
+	/*
+	 * Run through list of hooks for output packets.
+	 */
+	m1 = m;
+	pfh = pfil_hook_get(PFIL_OUT, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+		if (pfh->pfil_func) {
+			rv = pfh->pfil_func(ip6, sizeof(*ip6),
+					    rt->rt_ifp, 1, &m1);
+			if (rv) {
+				error = EHOSTUNREACH;
+				goto freecopy;
+			}
+			m = m1;
+			if (m == NULL)
+				goto freecopy;
+			ip6 = mtod(m, struct ip6_hdr *);
+		}
+#endif /* PFIL_HOOKS */
 
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);
 	if (error) {
