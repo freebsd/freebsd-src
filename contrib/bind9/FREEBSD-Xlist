@@ -3,11 +3,14 @@
 # Misc. stuff
 .cvsignore
 aclocal.m4
-bin/tests
 config.h.in
 configure
 contrib
 docutil
+
+# Tests
+bin/tests
+lib/tests
 
 # Windows directories
 bin/check/win32
