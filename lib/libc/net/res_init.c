@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
 static char orig_rcsid[] = "From: Id: res_init.c,v 8.7 1996/11/18 09:10:04 vixie Exp $";
-static char rcsid[] = "$Id: res_init.c,v 1.15 1998/06/11 09:02:54 peter Exp $";
+static char rcsid[] = "$Id: res_init.c,v 1.16 1998/09/02 00:53:17 jdp Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -197,8 +197,9 @@ res_init()
 	_res.pfcode = 0;
 
 	/* Allow user to override the local domain definition */
-	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
+	if (issetugid() == 0 && (cp = getenv("LOCALDOMAIN")) != NULL) {
 		(void)strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
+		_res.defdname[sizeof(_res.defdname) - 1] = '\0';
 		haveenv++;
 
 		/*
@@ -251,6 +252,7 @@ res_init()
 		    if ((*cp == '\0') || (*cp == '\n'))
 			    continue;
 		    strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
+		    _res.defdname[sizeof(_res.defdname) - 1] = '\0';
 		    if ((cp = strpbrk(_res.defdname, " \t\n")) != NULL)
 			    *cp = '\0';
 		    havesearch = 0;
@@ -266,6 +268,7 @@ res_init()
 		    if ((*cp == '\0') || (*cp == '\n'))
 			    continue;
 		    strncpy(_res.defdname, cp, sizeof(_res.defdname) - 1);
+		    _res.defdname[sizeof(_res.defdname) - 1] = '\0';
 		    if ((cp = strchr(_res.defdname, '\n')) != NULL)
 			    *cp = '\0';
 		    /*
@@ -399,7 +402,9 @@ res_init()
 #endif /* !RFC1535 */
 	}
 
-	if ((cp = getenv("RES_OPTIONS")) != NULL)
+	if (issetugid())
+		_res.options |= RES_NOALIASES;
+	else if ((cp = getenv("RES_OPTIONS")) != NULL)
 		res_setoptions(cp, "env");
 	_res.options |= RES_INIT;
 	return (0);
