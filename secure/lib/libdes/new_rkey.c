@@ -77,13 +77,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: new_rkey.c,v 1.1.1.1 1996/02/10 15:32:24 markm Exp $
+ * $Id: new_rkey.c,v 1.2 1996/02/10 15:54:48 markm Exp $
  */
 
 /* 21-Nov-95 - eay - I've finally put this into libdes, I have made a
  * few changes since it need to compile on all version of unix and
  * there were a few things that would not :-) */
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -174,9 +175,11 @@ des_init_random_number_generator(key)
 		u_int32_t tv_sec;
 		u_int32_t tv_usec;
 	} time64bit;
+	u_int32_t devrandom[2];
 	des_cblock new_key;
 	int mib[2];
 	size_t len;
+	int dr;
 
 	/* Get host ID using official BSD 4.4 method */
 	mib[0] = CTL_KERN;
@@ -197,6 +200,25 @@ des_init_random_number_generator(key)
 	gettimeofday(&timeblock, NULL);
 	time64bit.tv_sec = (u_int32_t)timeblock.tv_sec;
 	time64bit.tv_usec = (u_int32_t)timeblock.tv_usec;
+	/* If /dev/random is available, read some muck */
+	dr = open("/dev/random", O_RDONLY);
+	if (dr >= 0) {
+		/* Set the descriptor into non-blocking mode. */
+		fcntl(dr, F_SETFL, O_NONBLOCK);
+		len = read(dr, devrandom, sizeof(devrandom));
+		close(dr);
+		if (len > 0) {
+			time64bit.tv_sec ^= devrandom[0];
+			time64bit.tv_usec ^= devrandom[1];
+		}
+#ifdef DEBUG
+		printf("DEBUG: read from /dev/random %d %x %x\n",
+			len, devrandom[0], devrandom[1]);
+#endif
+	}
+#ifdef DEBUG
+	else printf("Cannot open /dev/random\n");
+#endif
 	des_set_sequence_number((unsigned char *)&time64bit);
 
 	/* Do the work */
