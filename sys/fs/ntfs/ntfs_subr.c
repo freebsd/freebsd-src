@@ -41,10 +41,6 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 
-#if defined(__NetBSD__)
-#include <miscfs/specfs/specdev.h>
-#endif
-
 /* #define NTFS_DEBUG 1 */
 #include <fs/ntfs/ntfs.h>
 #include <fs/ntfs/ntfsmount.h>
@@ -54,12 +50,10 @@
 #include <fs/ntfs/ntfs_compr.h>
 #include <fs/ntfs/ntfs_ihash.h>
 
-#if defined(__FreeBSD__)
 MALLOC_DEFINE(M_NTFSNTVATTR, "NTFS vattr", "NTFS file attribute information");
 MALLOC_DEFINE(M_NTFSRDATA, "NTFS res data", "NTFS resident data");
 MALLOC_DEFINE(M_NTFSRUN, "NTFS vrun", "NTFS vrun storage");
 MALLOC_DEFINE(M_NTFSDECOMP, "NTFS decomp", "NTFS decompression temporary");
-#endif
 
 static int ntfs_ntlookupattr __P((struct ntfsmount *, const char *, int, int *, char **));
 static int ntfs_findvattr __P((struct ntfsmount *, struct ntnode *, struct ntvattr **, struct ntvattr **, u_int32_t, const char *, size_t, cn_t));
@@ -781,9 +775,7 @@ ntfs_frele(
 		FREE(fp->f_attrname, M_TEMP);
 	if (fp->f_dirblbuf)
 		FREE(fp->f_dirblbuf, M_NTFSDIR);
-#ifdef __FreeBSD__
 	lockdestroy(&fp->f_lock);
-#endif
 	FREE(fp, M_NTFSFNODE);
 	ntfs_ntrele(ip);
 }
@@ -1448,14 +1440,8 @@ ntfs_writentvattr_plain(
 		off = ntfs_btocnoff(off);
 
 		while (left && ccl) {
-#if defined(__FreeBSD__)
 			tocopy = min(left,
 				  min(ntfs_cntob(ccl) - off, MAXBSIZE - off));
-#else
-			/* under NetBSD, bread() can read
-			 * maximum one block worth of data */
-			tocopy = min(left, ntmp->ntm_bps - off);
-#endif
 			cl = ntfs_btocl(tocopy + off);
 			ddprintf(("ntfs_writentvattr_plain: write: " \
 				"cn: 0x%x cl: %d, off: %d len: %d, left: %d\n",
@@ -1552,16 +1538,9 @@ ntfs_readntvattr_plain(
 				off = ntfs_btocnoff(off);
 
 				while (left && ccl) {
-#if defined(__FreeBSD__)
 					tocopy = min(left,
 						  min(ntfs_cntob(ccl) - off,
 						      MAXBSIZE - off));
-#else
-					/* under NetBSD, bread() can read
-					 * maximum one block worth of data */
-					tocopy = min(left,
-						ntmp->ntm_bps - off);
-#endif
 					cl = ntfs_btocl(tocopy + off);
 					ddprintf(("ntfs_readntvattr_plain: " \
 						"read: cn: 0x%x cl: %d, " \
