@@ -422,9 +422,7 @@ sbreserve(sb, cc, so, td)
 	 * td will only be NULL when we're in an interrupt
 	 * (e.g. in tcp_input())
 	 */
-	if (sb_max < MSIZE + MCLBYTES)
-		sb_max = MSIZE + MCLBYTES;
-	if ((u_quad_t)cc > (u_quad_t)(MCLBYTES * (sb_max / (MSIZE + MCLBYTES))))
+	if ((u_quad_t)cc > (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
 	    td ? td->td_proc->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
