@@ -1897,3 +1897,30 @@ pmap_new_proc(struct proc *p)
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 }
+
+void *
+pmap_mapdev(vm_offset_t pa, vm_size_t len)
+{
+	vm_offset_t     faddr;
+	vm_offset_t     taddr, va;
+	int             off;
+
+	faddr = trunc_page(pa);
+	off = pa - faddr;
+	len = round_page(off + len);
+
+	GIANT_REQUIRED;
+
+	va = taddr = kmem_alloc_pageable(kernel_map, len);
+
+	if (va == 0)
+		return NULL;
+
+	for (; len > 0; len -= PAGE_SIZE) {
+		pmap_kenter(taddr, faddr);
+		faddr += PAGE_SIZE;
+		taddr += PAGE_SIZE;
+	}
+
+	return (void *)(va + off);
+}
