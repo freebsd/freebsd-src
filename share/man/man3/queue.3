@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
-.\"	$Id: queue.3,v 1.11 1997/03/09 00:49:00 mpp Exp $
+.\"	$Id: queue.3,v 1.12 1997/03/19 02:57:50 bde Exp $
 .\"
 .Dd January 24, 1994
 .Dt QUEUE 3
@@ -598,7 +598,7 @@ while (head.lh_first != NULL) {		/* List Deletion. */
 
 n1 = head.lh_first;			/* Faster List Delete. */
 while (n1 != NULL) {
-	n2 = n1->entires.le_next;
+	n2 = n1->entries.le_next;
 	free(n1);
 	n1 = n2;
 }

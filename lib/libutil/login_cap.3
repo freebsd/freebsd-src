@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.7 1997/05/18 09:14:11 davidn Exp $
+.\" $Id: login_cap.3,v 1.8 1997/11/05 04:03:05 steve Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -174,7 +174,7 @@ record to be retrieved, the second being an optional directory name.
 If the first
 .Ar name
 argument is NULL, an empty string, or a class that does not exist
-in the supplimental or system login class database, then the system
+in the supplemental or system login class database, then the system
 .Em default
 record is returned instead.
 If the second
@@ -190,7 +190,7 @@ In the context of a
 .Em login ,
 it should be noted that some options cannot by overridden by
 users for two reasons; many options, such as resource settings
-and deafult process priorities, require root privileges 
+and default process priorities, require root privileges 
 in order to take effect, and other fields in the user's file are
 not be consulted at all during the early phases of login for
 security or administrative reasons.
@@ -330,11 +330,11 @@ parameter is returned, and if an error occurs, the
 parameter is returned.
 .It Fn login_getcapsize
 .Fn login_getcapsize
-returns a value representing a size (typicially, file or memory)
+returns a value representing a size (typically, file or memory)
 which may be expressed as bytes (the default), 512 byte blocks,
 kilobytes, megabytes, gigabytes, and on systems that support the
 .Ar long long
-type, terrabytes.
+type, terabytes.
 The suffix used determines the units, and multiple values and
 units may be used in combination (e.g. 1m500k = 1.5 megabytes).
 A value with no suffix is interpreted as bytes,  B as 512-byte
