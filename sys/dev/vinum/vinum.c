@@ -52,10 +52,10 @@ extern struct mc malloced[];
 STATIC struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
-    vinumioctl, nostop, nullreset, nodevtotty,
+    vinumioctl, nostop, noreset, nodevtotty,
     seltrue, nommap, vinumstrategy, "vinum",
-    NULL, -1, vinumdump, vinumsize,
-    D_DISK, 0, -1
+    NULL, CDEV_MAJOR, vinumdump, vinumsize,
+    D_DISK, 0, BDEV_MAJOR
 };
 
 /* Called by main() during pseudo-device attachment. */
@@ -85,7 +85,7 @@ vinumattach(void *dummy)
     daemonq = NULL;					    /* initialize daemon's work queue */
     dqend = NULL;
 
-    cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vinum_cdevsw);
+    cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
 #ifdef DEVFS
 #error DEVFS not finished yet
 #endif
@@ -236,7 +236,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	    }
 	}
 #endif
-	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
