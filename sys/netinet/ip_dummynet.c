@@ -216,11 +216,11 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	 */
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT: {
-	    struct rtentry *tmp_rt = pkt->ro.ro_rt ;
+	    struct route *ro = &(pkt->ro) ;
 
 	    (void)ip_output((struct mbuf *)pkt, (struct mbuf *)pkt->ifp,
-			&(pkt->ro), pkt->dn_dst, NULL);
-	    rt_unref (tmp_rt) ;
+			ro, pkt->dn_dst, NULL);
+	    rt_unref (ro->ro_rt) ;
 	    }
 	    break ;
 	case DN_TO_IP_IN :
