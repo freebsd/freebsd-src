@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.9 1994/09/09 23:12:47 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.10 1994/09/14 23:21:00 ache Exp $
  */
 
 /*
@@ -183,7 +183,6 @@ int securelevel = -1;
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
 extern int osreldate;
-extern int adjkerntz;
 
 /*
  * kernel related system variables.
@@ -290,8 +289,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 #else
 		return (sysctl_rdint(oldp, oldlenp, newp, 0));
 #endif
-	case KERN_ADJKERNTZ:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz));
 	default:
 		return (EOPNOTSUPP);
 	}
