@@ -53,6 +53,10 @@ RCSID("$FreeBSD$");
 #include "uidswap.h"
 #include "auth-options.h"
 
+#ifdef HAVE_LOGIN_CAP
+#include <login_cap.h>
+#endif /* HAVE_LOGIN_CAP */
+
 /* import */
 extern ServerOptions options;
 extern unsigned char *session_id2;
@@ -152,6 +156,15 @@ input_userauth_request(int type, int plen)
 	int authenticated = 0;
 	char *user, *service, *method, *authmsg = NULL;
 	struct passwd *pw;
+#ifdef HAVE_LOGIN_CAP
+	login_cap_t *lc;
+#endif /* HAVE_LOGIN_CAP */
+#if defined(HAVE_LOGIN_CAP) || defined(LOGIN_ACCESS)
+	const char *from_host, *from_ip;
+
+	from_host = get_canonical_hostname();
+	from_ip = get_remote_ipaddr();
+#endif /* HAVE_LOGIN_CAP || LOGIN_ACCESS */
 
 	if (++attempt == AUTH_FAIL_MAX)
 		packet_disconnect("too many failed userauth_requests");
@@ -177,6 +190,30 @@ input_userauth_request(int type, int plen)
 		log("ROOT LOGIN REFUSED FROM %.200s",
 		    get_canonical_hostname());
 	}
+
+#ifdef HAVE_LOGIN_CAP
+	lc = login_getpwclass(pw);
+	if (lc == NULL)
+		lc = login_getclassbyname(NULL, pw);
+	if (!auth_hostok(lc, from_host, from_ip)) {
+		log("Denied connection for %.200s from %.200s [%.200s].",
+		    pw->pw_name, from_host, from_ip);
+		packet_disconnect("Sorry, you are not allowed to connect.");
+	}
+	if (!auth_timeok(lc, time(NULL))) {
+		log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
+		    pw->pw_name, from_host);
+		packet_disconnect("Logins not available right now.");
+	}
+	login_close(lc);
+#endif  /* HAVE_LOGIN_CAP */
+#ifdef LOGIN_ACCESS
+	if (!login_access(pw->pw_name, from_host)) {
+		log("Denied connection for %.200s from %.200s [%.200s].",
+		    pw->pw_name, from_host, from_ip);
+		packet_disconnect("Sorry, you are not allowed to connect.");
+	}
+#endif /* LOGIN_ACCESS */
 
 	/* Raise logging level */
 	if (authenticated == 1 ||
