@@ -426,16 +426,6 @@ ip_output(m0, opt, ro, flags, imo)
 			goto bad;
 	}
 
-	/* 127/8 must not appear on wire - RFC1122. */
-	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
-	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
-		if ((ifp->if_flags & IFF_LOOPBACK) == 0) {
-			ipstat.ips_badaddr++;
-			error = EADDRNOTAVAIL;
-			goto bad;
-		}
-	}
-
 	/*
 	 * Look for broadcast address and
 	 * verify user is allowed to send
@@ -823,6 +813,16 @@ skip_ipsec:
 
 	ip_fw_fwd_addr = NULL;
 pass:
+	/* 127/8 must not appear on wire - RFC1122. */
+	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
+	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
+		if ((ifp->if_flags & IFF_LOOPBACK) == 0) {
+			ipstat.ips_badaddr++;
+			error = EADDRNOTAVAIL;
+			goto bad;
+		}
+	}
+
 	m->m_pkthdr.csum_flags |= CSUM_IP;
 	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
 	if (sw_csum & CSUM_DELAY_DATA) {
