@@ -30,8 +30,6 @@
 
 #include <dev/sound/chip.h>
 #include <dev/sound/pcm/sound.h>
-#define __SB_MIXER_C__	/* XXX warning... */
-#define SB_NOMIXER
 #include  <dev/sound/isa/sb.h>
 
 #define IO_MAX	3
