@@ -36,6 +36,13 @@ object subclass c-2byte
 end-class
 
 object subclass c-4byte
+	4 chars: .payload
+
+	: get  drop i@ ;
+	: set  drop i! ;
+end-class
+
+object subclass c-cell
 	cell: .payload
 
 	: get  drop @ ;
@@ -56,23 +63,23 @@ end-class
 \ Returns the size in address units of the thing the pointer
 \ refers to.
 object subclass c-ptr
-    c-4byte obj: .addr
+    c-cell obj: .addr
 
     \ get the value of the pointer
     : get-ptr   ( inst class -- addr )
-        c-ptr   => .addr  
-        c-4byte => get  
+        c-ptr  => .addr  
+        c-cell => get  
     ;
 
     \ set the pointer to address supplied
     : set-ptr   ( addr inst class -- )
-        c-ptr   => .addr  
-        c-4byte => set  
+        c-ptr  => .addr  
+        c-cell => set  
     ;
 
     \ force the pointer to be null
 	: clr-ptr
-	    0 -rot  c-ptr => .addr  c-4byte => set
+	    0 -rot  c-ptr => .addr  c-cell => set
 	;
 
     \ return flag indicating null-ness
@@ -108,15 +115,29 @@ end-class
 
 
 \ ** C - C E L L P T R 
-\ Models a pointer to cell (a 32 bit scalar). 
+\ Models a pointer to cell (a 32 or 64 bit scalar). 
 c-ptr subclass c-cellPtr
-    : @size   2drop  4  ;
+    : @size   2drop  1 cells ;
     \ fetch and store through the pointer
 	: get   ( inst class -- cell )
         c-ptr => get-ptr @  
     ;
 	: set   ( value inst class -- )
         c-ptr => get-ptr !  
+    ;
+end-class
+
+
+\ ** C - I N T P T R
+\ Models a pointer to an int (a 32 bit scalar).
+c-ptr subclass c-4bytePtr
+    : @size   2drop  4  ;
+    \ fetch and store through the pointer
+	: get   ( inst class -- value )
+        c-ptr => get-ptr i@  
+    ;
+	: set   ( value inst class -- )
+        c-ptr => get-ptr i!  
     ;
 end-class
 

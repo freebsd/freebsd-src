@@ -316,7 +316,7 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
 int ficlExecFD(FICL_VM *pVM, int fd)
 {
     char    cp[nLINEBUF];
-    int     i, nLine = 0, rval = VM_OUTOFTEXT;
+    int     nLine = 0, rval = VM_OUTOFTEXT;
     char    ch;
     CELL    id;
 
