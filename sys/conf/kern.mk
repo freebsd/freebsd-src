@@ -1,4 +1,4 @@
-#	$Id: bsd.kern.mk,v 1.10 1998/09/09 10:04:58 bde Exp $
+#	$Id: bsd.kern.mk,v 1.11 1998/12/14 21:03:27 archie Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.
@@ -14,3 +14,11 @@ CWARNFLAGS?=	-Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
 #
+
+#
+# On the alpha, make sure that we don't use floating-point registers and
+# allow the use of EV56 instructions (only needed for low-level i/o).
+#
+.if ${MACHINE_ARCH} == "alpha"
+CFLAGS+=	-mno-fp-regs -Wa,-mev56
+.endif
