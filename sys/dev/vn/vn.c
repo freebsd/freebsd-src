@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.81 1999/07/20 09:47:33 phk Exp $
+ *	$Id: vn.c,v 1.82 1999/08/08 18:42:42 phk Exp $
  */
 
 /*
@@ -60,15 +60,6 @@
  * NOTE 3: Doesn't interact with leases, should it?
  */
 #include "vn.h"
-#if NVN > 0
-
-/* default is to have 8 VN's */
-#if NVN < 8
-#undef NVN
-#define	NVN	8
-#endif
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -86,9 +77,6 @@
 #include <sys/stat.h>
 #include <sys/conf.h>
 #include <sys/module.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/vnioctl.h>
 
 #include <vm/vm.h>
@@ -104,7 +92,6 @@
 static	d_ioctl_t	vnioctl;
 static	d_open_t	vnopen;
 static	d_close_t	vnclose;
-static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
 static	d_strategy_t	vnstrategy;
 
@@ -133,15 +120,12 @@ static struct cdevsw vn_cdevsw = {
 	/* name */	"vn",
 	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
-	/* dump */	vndump,
+	/* dump */	nodump,
 	/* psize */	vnsize,
 	/* flags */	D_DISK|D_CANFREE,
 	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
-
-
-#define	vnunit(dev)	dkunit(dev)
 
 #define	getvnbuf()	\
 	((struct buf *)malloc(sizeof(struct buf), M_DEVBUF, M_WAITOK))
@@ -160,23 +144,18 @@ struct vn_softc {
 	int		 sc_maxactive;	/* max # of active requests 	*/
 	struct buf	 sc_tab;	/* transfer queue 		*/
 	u_long		 sc_options;	/* options 			*/
-#ifdef DEVFS
-	void		*r_devfs_token;
-	void		*devfs_token;
-#endif
+	SLIST_ENTRY(vn_softc) sc_list;
 };
+
+static SLIST_HEAD(, vn_softc) vn_list;
 
 /* sc_flags */
 #define VNF_INITED	0x01
 
-static struct vn_softc *vn_softc[NVN];
 static u_long	vn_options;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 
-#if 0
-static void	vniodone (struct buf *bp);
-#endif
 static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
 static void	vnclear (struct vn_softc *vn);
 static int	vn_modevent (module_t, int, void *);
@@ -186,7 +165,7 @@ static int 	vniocattach_swap (struct vn_softc *, struct vn_ioctl *, dev_t dev, i
 static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
-	struct vn_softc *vn = vn_softc[vnunit(dev)];
+	struct vn_softc *vn = dev->si_drv1;
 
 	IFOPT(vn, VN_LABELS)
 		if (vn->sc_slices != NULL)
@@ -197,23 +176,19 @@ vnclose(dev_t dev, int flags, int mode, struct proc *p)
 static	int
 vnopen(dev_t dev, int flags, int mode, struct proc *p)
 {
-	int unit = vnunit(dev);
+	int unit = dkunit(dev);
 	struct vn_softc *vn;
 
-	if (unit >= NVN) {
-		if (vn_options & VN_FOLLOW)
-			printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
-			    (u_long)dev, flags, mode, (void *)p);
-		return(ENOENT);
-	}
-
-	vn = vn_softc[unit];
+	vn = dev->si_drv1;
 	if (!vn) {
 		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
 		if (!vn)
 			return (ENOMEM);
 		bzero(vn, sizeof *vn);
-		vn_softc[unit] = vn;
+		dev->si_drv1 = vn;
+		make_dev(&vn_cdevsw, 0, 
+		    UID_ROOT, GID_OPERATOR, 0640, "vn%d", unit);
+		SLIST_INSERT_HEAD(&vn_list, vn, sc_list);
 	}
 
 	IFOPT(vn, VN_FOLLOW)
@@ -262,8 +237,8 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 static	void
 vnstrategy(struct buf *bp)
 {
-	int unit = vnunit(bp->b_dev);
-	struct vn_softc *vn = vn_softc[unit];
+	int unit = dkunit(bp->b_dev);
+	struct vn_softc *vn = bp->b_dev->si_drv1;
 	int error;
 	int isvplocked = 0;
 	long sz;
@@ -359,30 +334,20 @@ vnstrategy(struct buf *bp)
 	}
 }
 
-
-#if 0
-
-void
-vniodone( struct buf *bp) {
-	bp->b_flags |= B_DONE;
-	wakeup((caddr_t) bp);
-}
-
-#endif
-
 /* ARGSUSED */
 static	int
 vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	struct vn_softc *vn = vn_softc[vnunit(dev)];
+	struct vn_softc *vn;
 	struct vn_ioctl *vio;
 	int error;
 	u_long *f;
 
+	vn = dev->si_drv1;
 	IFOPT(vn,VN_FOLLOW)
 		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
 		   (u_long)dev, cmd, (void *)data, flag, (void *)p,
-		   vnunit(dev));
+		   dkunit(dev));
 
 	switch (cmd) {
 	case VNIOCATTACH:
@@ -436,7 +401,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * XXX handle multiple opens of the device.  Return EBUSY,
 		 * or revoke the fd's.
 		 * How are these problems handled for removable and failing
-		 * hardware devices?
+		 * hardware devices? (Hint: They are not)
 		 */
 		vnclear(vn);
 		IFOPT(vn, VN_FOLLOW)
@@ -675,76 +640,38 @@ vnclear(struct vn_softc *vn)
 static	int
 vnsize(dev_t dev)
 {
-	int unit = vnunit(dev);
 	struct vn_softc *vn;
 
-	if (unit < 0 || unit >= NVN)
+	vn = dev->si_drv1;
+	if (!vn)
 		return(-1);
-
-	vn = vn_softc[unit];
 	if ((vn->sc_flags & VNF_INITED) == 0)
 		return(-1);
 
 	return(vn->sc_size);
 }
 
-static	int
-vndump(dev_t dev)
-{
-	return (ENODEV);
-}
-
 static int 
 vn_modevent(module_t mod, int type, void *data)
 {
-	int unit;
-#ifdef DEVFS
 	struct vn_softc *vn;
-#endif
 
 	switch (type) {
 	case MOD_LOAD:
-#ifdef DEVFS
-		for (unit = 0; unit < NVN; unit++) {
-			vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
-			if (!vn)
-				continue;	/* "oops" */
-			bzero(vn, sizeof *vn);
-			vn_softc[unit] = vn;
-			vn->r_devfs_token = devfs_add_devswf(&vn_cdevsw, 
-						dkmakeminor(unit, 0, 0),
-						DV_CHR, UID_ROOT, 
-						GID_OPERATOR, 0640,
-						"rvn%d", unit);
-			vn->devfs_token = devfs_add_devswf(&vn_cdevsw,
-						dkmakeminor(unit, 0, 0),
-						DV_BLK, UID_ROOT, 
-						GID_OPERATOR, 0640,
-						"vn%d", unit);
-		}
-#endif
 		break;
 
 	case MOD_UNLOAD:
-#ifdef DEVFS
-		for (unit = 0; unit < NVN; unit++) {
-			vn = vn_softc[unit];
-			if (vn->r_devfs_token) {
-				devfs_remove_dev(vn->r_devfs_token);
-				vn->r_devfs_token = 0;
-			}
-			if (vn->devfs_token) {
-				devfs_remove_dev(vn->devfs_token);
-				vn->devfs_token = 0;
-			}
-		}
-#endif
 		/* fall through */
 	case MOD_SHUTDOWN:
-		for (unit = 0; unit < NVN; unit++)
-			if (vn_softc[unit] &&
-			    vn_softc[unit]->sc_flags & VNF_INITED)
-				vnclear(vn_softc[unit]);
+		for (;;) {
+			vn = SLIST_FIRST(&vn_list);
+			if (!vn)
+				break;
+			SLIST_REMOVE_HEAD(&vn_list, sc_list);
+			if (vn->sc_flags & VNF_INITED)
+				vnclear(vn);
+			free(vn, M_DEVBUF);
+		}
 		break;
 	default:
 		break;
@@ -753,5 +680,3 @@ vn_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(vn, CDEV_MAJOR, BDEV_MAJOR, vn_cdevsw, vn_modevent, 0);
-
-#endif
