@@ -31,10 +31,10 @@
 BSS(ia64_pal_entry, 8)
 
 /*
- * struct ia64_pal_result ia64_call_pal(u_int64_t proc,
+ * struct ia64_pal_result ia64_call_pal_static(u_int64_t proc,
  *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
  */
-ENTRY(ia64_call_pal, 4)
+ENTRY(ia64_call_pal_static, 4)
 	
 	.regstk	4,5,0,0
 palret	=	loc0
@@ -47,9 +47,10 @@ psrsave	=	loc4
 	;; 
 	mov	rpsave=rp
 
-	movl	entry=ia64_pal_entry
+	movl	entry=@gprel(ia64_pal_entry)
 1:	mov	palret=ip		// for return address
-	;; 
+	;;
+	add	entry=entry,gp
 	mov	psrsave=psr
 	mov	r28=in0			// procedure number
 	;;
@@ -72,4 +73,45 @@ psrsave	=	loc4
 	srlz.d
 	br.ret.sptk rp
 
-	END(ia64_call_pal)
+END(ia64_call_pal_static)
+	
+/*
+ * struct ia64_pal_result ia64_call_pal_stacked(u_int64_t proc,
+ *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
+ */
+ENTRY(ia64_call_pal_stacked, 4)
+	
+	.regstk	4,4,4,0
+entry	=	loc0
+rpsave	=	loc1
+pfssave =	loc2
+psrsave	=	loc3
+
+	alloc	pfssave=ar.pfs,4,4,4,0
+	;; 
+	mov	rpsave=rp
+	movl	entry=@gprel(ia64_pal_entry)
+	;;
+	add	entry=entry,gp
+	mov	psrsave=psr
+	mov	r28=in0			// procedure number
+	mov	out0=in0
+	;;
+	ld8	entry=[entry]		// read entry point
+	mov	out1=in1		// copy arguments
+	mov	out2=in2
+	mov	out3=in3
+	;;
+	mov	b1=entry
+	;;
+	rsm	psr.i			// disable interrupts
+	;;
+	br.call.sptk.many rp=b1		// call into firmware
+2:	mov	psr.l=psrsave
+	mov	rp=rpsave
+	mov	ar.pfs=pfssave
+	;;
+	srlz.d
+	br.ret.sptk rp
+
+END(ia64_call_pal_stacked)
