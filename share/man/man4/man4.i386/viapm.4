@@ -1,4 +1,4 @@
-.\" Copyright (c) 1999 Nicolas Souchu
+.\" Copyright (c) 2002 Nicolas Souchu
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,36 +24,44 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 1999
-.Dt ALPM 4 i386
+.Dd March 23, 2002
+.Dt VIAPM 4 i386
 .Os
 .Sh NAME
-.Nm alpm
-.Nd Acer Aladdin 15x3 Power Management controller driver
+.Nm viapm
+.Nd VIA chipsets Power Management controller driver
 .Sh SYNOPSIS
+.Cd device iicbb
+.Cd device iicbus
+.Cd device iicsmb
 .Cd device smbus
 .Cd device smb
-.Cd device alpm
+.Cd device viapm
 .Sh DESCRIPTION
 This driver provides access to the
-.Tn Aladdin 15x3 Power Management Unit .
-Currently, only smbus controller
-function is implemented.
+.Tn VIA chipset Power Management Unit family.They are
+VT82C596A, VT82C596B, VT82C686A and VT8233.
 .Pp
-The embedded SMBus controller of the Aladdin chipset may give you access
+The embedded controller of the VIA chipset may give you access
 to the monitoring facilities of your mainboard.
+.Pp
+The 596B support is made by software whereas other controllers support
+the SMBus protocole by hardware.
 See
 .Xr smb 4
 for writing user code to fetch voltages, temperature and so on from the
 monitoring chip of your mainboard.
 .Sh SEE ALSO
 .Xr smb 4 ,
-.Xr smbus 4
+.Xr smbus 4,
+.Xr iicbus 4,
+.Xr iicsmb 4
+.Xr iicbb 4
 .Sh HISTORY
 The
 .Nm
-manual page first appeared in
-.Fx 4.0 .
+manual page example first appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 This
 manual page was written by
