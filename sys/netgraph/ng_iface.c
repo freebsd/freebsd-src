@@ -45,15 +45,11 @@
  * a hook for each protocol (IP, AppleTalk, IPX, etc). Packets
  * are simply relayed between the interface and the hooks.
  *
- * Interfaces are named ng0, ng1, .... FreeBSD does not support
- * the removal of interfaces, so iface nodes are persistent.
+ * Interfaces are named ng0, ng1, etc.  New nodes take the
+ * first available interface name.
  *
  * This node also includes Berkeley packet filter support.
  */
-
-#include "opt_inet.h"
-#include "opt_atalk.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,102 +61,46 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/libkern.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/netisr.h>
+#include <net/intrq.h>
+#include <net/bpf.h>
 
 #include <netinet/in.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_iface.h>
 #include <netgraph/ng_cisco.h>
 
-#ifdef INET
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/in_var.h>
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
-#include <net/bpf.h>
-
 /* This struct describes one address family */
 struct iffam {
-	char   *hookname;	/* Name for hook */
-	u_char  af;		/* Family number */
-	u_char  netisr;		/* or NETISR_NONE */
-	union {
-		void	*_dummy;			/* avoid warning */
-		struct	ifqueue *inq;			/* if netisr */
-		void	(*input)(struct mbuf *m);	/* if direct input */
-	}       u;
+	sa_family_t	family;		/* Address family */
+	const char	*hookname;	/* Name for hook */
 };
 typedef const struct iffam *iffam_p;
 
-#define NETISR_NONE	0xff
-
-/* List of address families supported by our interface. Each address
-   family has a way to input packets to it, either by calling a function
-   directly (such as ip_input()) or by adding the packet to a queue and
-   setting a NETISR bit. */
+/* List of address families supported by our interface */
 const static struct iffam gFamilies[] = {
-#ifdef INET
-	{
-		NG_IFACE_HOOK_INET,
-		AF_INET,
-		NETISR_NONE,
-		{ ip_input }
-	},
-#endif
-#ifdef NETATALK
-	{
-		NG_IFACE_HOOK_ATALK,
-		AF_APPLETALK,
-		NETISR_ATALK,
-		{ &atintrq2 }
-	},
-#endif
-#ifdef IPX
-	{
-		NG_IFACE_HOOK_IPX,
-		AF_IPX,
-		NETISR_IPX,
-		{ &ipxintrq }
-	},
-#endif
-#ifdef NS
-	{
-		NG_IFACE_HOOK_NS,
-		AF_NS,
-		NETISR_NS,
-		{ &nsintrq }
-	},
-#endif
+	{ AF_INET,	NG_IFACE_HOOK_INET	},
+	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
+	{ AF_APPLETALK,	NG_IFACE_HOOK_ATALK	},
+	{ AF_IPX,	NG_IFACE_HOOK_IPX	},
+	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
+	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
+	{ AF_NS,	NG_IFACE_HOOK_NS	},
 };
 #define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
 
 /* Node private data */
 struct ng_iface_private {
-	struct	ifnet *ifp;		/* This interface */
+	struct	ifnet *ifp;		/* Our interface */
+	int	unit;			/* Interface unit number */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
-	struct	private *next;		/* When hung on the free list */
 };
 typedef struct ng_iface_private *priv_p;
 
@@ -168,8 +108,9 @@ typedef struct ng_iface_private *priv_p;
 static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
-		struct sockaddr *dst, struct rtentry *rt0);
-static void	ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, u_int af);
+			struct sockaddr *dst, struct rtentry *rt0);
+static void	ng_iface_bpftap(struct ifnet *ifp,
+			struct mbuf *m, sa_family_t family);
 #ifdef DEBUG
 static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
@@ -183,10 +124,60 @@ static ng_rcvdata_t	ng_iface_rcvdata;
 static ng_disconnect_t	ng_iface_disconnect;
 
 /* Helper stuff */
-static iffam_p	get_iffam_from_af(int af);
+static iffam_p	get_iffam_from_af(sa_family_t family);
 static iffam_p	get_iffam_from_hook(priv_p priv, hook_p hook);
 static iffam_p	get_iffam_from_name(const char *name);
 static hook_p  *get_hook_from_iffam(priv_p priv, iffam_p iffam);
+
+/* Parse type for struct ng_iface_ifname */
+static const struct ng_parse_fixedstring_info ng_iface_ifname_info = {
+	NG_IFACE_IFACE_NAME_MAX + 1
+};
+static const struct ng_parse_type ng_iface_ifname_type = {
+	&ng_parse_fixedstring_type,
+	&ng_iface_ifname_info
+};
+
+/* Parse type for struct ng_cisco_ipaddr */
+static const struct ng_parse_struct_info
+	ng_cisco_ipaddr_type_info = NG_CISCO_IPADDR_TYPE_INFO;
+static const struct ng_parse_type ng_cisco_ipaddr_type = {
+	&ng_parse_struct_type,
+	&ng_cisco_ipaddr_type_info
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_iface_cmds[] = {
+	{
+	  NGM_IFACE_COOKIE,
+	  NGM_IFACE_GET_IFNAME,
+	  "getifname",
+	  NULL,
+	  &ng_iface_ifname_type
+	},
+	{
+	  NGM_IFACE_COOKIE,
+	  NGM_IFACE_POINT2POINT,
+	  "point2point",
+	  NULL,
+	  NULL
+	},
+	{
+	  NGM_IFACE_COOKIE,
+	  NGM_IFACE_BROADCAST,
+	  "broadcast",
+	  NULL,
+	  NULL
+	},
+	{
+	  NGM_CISCO_COOKIE,
+	  NGM_CISCO_GET_IPADDR,
+	  "getipaddr",
+	  NULL,
+	  &ng_cisco_ipaddr_type
+	},
+	{ 0 }
+};
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
@@ -202,12 +193,16 @@ static struct ng_type typestruct = {
 	ng_iface_rcvdata,
 	ng_iface_rcvdata,
 	ng_iface_disconnect,
-	NULL
+	ng_iface_cmds
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-static char ng_iface_ifname[] = NG_IFACE_IFACE_NAME;
-static int ng_iface_next_unit;
+/* We keep a bitmap indicating which unit numbers are free.
+   One means the unit number is free, zero means it's taken. */
+static int	*ng_iface_units = NULL;
+static int	ng_iface_units_len = 0;
+
+#define UNITS_BITSPERWORD	(sizeof(*ng_iface_units) * NBBY)
 
 /************************************************************************
 			HELPER STUFF
@@ -217,14 +212,14 @@ static int ng_iface_next_unit;
  * Get the family descriptor from the family ID
  */
 static __inline__ iffam_p
-get_iffam_from_af(int af)
+get_iffam_from_af(sa_family_t family)
 {
 	iffam_p iffam;
 	int k;
 
 	for (k = 0; k < NUM_FAMILIES; k++) {
 		iffam = &gFamilies[k];
-		if (iffam->af == af)
+		if (iffam->family == family)
 			return (iffam);
 	}
 	return (NULL);
@@ -269,6 +264,63 @@ get_iffam_from_name(const char *name)
 			return (iffam);
 	}
 	return (NULL);
+}
+
+/*
+ * Find the first free unit number for a new interface.
+ * Increase the size of the unit bitmap as necessary.
+ */
+static __inline__ int
+ng_iface_get_unit(int *unit)
+{
+	int index, bit;
+
+	for (index = 0; index < ng_iface_units_len
+	    && ng_iface_units[index] == 0; index++);
+	if (index == ng_iface_units_len) {		/* extend array */
+		int i, *newarray, newlen;
+
+		newlen = (2 * ng_iface_units_len) + 4;
+		MALLOC(newarray, int *, newlen * sizeof(*ng_iface_units),
+		    M_NETGRAPH, M_WAITOK);
+		if (newarray == NULL)
+			return (ENOMEM);
+		bcopy(ng_iface_units, newarray,
+		    ng_iface_units_len * sizeof(*ng_iface_units));
+		for (i = ng_iface_units_len; i < newlen; i++)
+			newarray[i] = ~0;
+		if (ng_iface_units != NULL)
+			FREE(ng_iface_units, M_NETGRAPH);
+		ng_iface_units = newarray;
+		ng_iface_units_len = newlen;
+	}
+	bit = ffs(ng_iface_units[index]) - 1;
+	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
+	    ("%s: word=%d bit=%d", __FUNCTION__, ng_iface_units[index], bit));
+	ng_iface_units[index] &= ~(1 << bit);
+	*unit = (index * UNITS_BITSPERWORD) + bit;
+	return (0);
+}
+
+/*
+ * Free a no longer needed unit number.
+ */
+static __inline__ void
+ng_iface_free_unit(int unit)
+{
+	int index, bit;
+
+	index = unit / UNITS_BITSPERWORD;
+	bit = unit % UNITS_BITSPERWORD;
+	KASSERT(index < ng_iface_units_len,
+	    ("%s: unit=%d len=%d", __FUNCTION__, unit, ng_iface_units_len));
+	KASSERT((ng_iface_units[index] & (1 << bit)) == 0,
+	    ("%s: unit=%d is free", __FUNCTION__, unit));
+	ng_iface_units[index] |= (1 << bit);
+	/*
+	 * XXX We could think about reducing the size of ng_iface_units[]
+	 * XXX here if the last portion is all ones
+	 */
 }
 
 /************************************************************************
@@ -362,6 +414,16 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 		return (ENETDOWN);
 	}
 
+	/* BPF writes need to be handled specially */
+	if (dst->sa_family == AF_UNSPEC) {
+		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
+			return (ENOBUFS);
+		dst->sa_family = (sa_family_t)*mtod(m, int32_t *);
+		m->m_data += 4;
+		m->m_len -= 4;
+		m->m_pkthdr.len -= 4;
+	}
+
 	/* Berkeley packet filter */
 	ng_iface_bpftap(ifp, m, dst->sa_family);
 
@@ -369,7 +431,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (iffam == NULL) {
 		m_freem(m);
 		log(LOG_WARNING, "%s%d: can't handle af%d\n",
-		       ifp->if_name, ifp->if_unit, dst->sa_family);
+		       ifp->if_name, ifp->if_unit, (int)dst->sa_family);
 		return (EAFNOSUPPORT);
 	}
 
@@ -402,23 +464,18 @@ ng_iface_start(struct ifnet *ifp)
  * Note the phoney mbuf; this is OK because BPF treats it read-only.
  */
 static void
-ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, u_int af)
+ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, sa_family_t family)
 {
-	struct mbuf m2;
+	int32_t family4 = (int32_t)family;
+	struct mbuf m0;
 
-	if (ifp->if_bpf) {
-		if (af == AF_UNSPEC) {
-			af = *(mtod(m, int *));
-			m->m_len -= sizeof(int);
-			m->m_pkthdr.len -= sizeof(int);
-			m->m_data += sizeof(int);
-		}
-		if (!ifp->if_bpf)
-			return;
-		m2.m_next = m;
-		m2.m_len = 4;
-		m2.m_data = (char *) &af;
-		bpf_mtap(ifp, &m2);
+	KASSERT(family != AF_UNSPEC, ("%s: family=AF_UNSPEC", __FUNCTION__));
+	if (ifp->if_bpf != NULL) {
+		bzero(&m0, sizeof(m0));
+		m0.m_next = m;
+		m0.m_len = sizeof(family4);
+		m0.m_data = (char *)&family4;
+		bpf_mtap(ifp, &m0);
 	}
 }
 
@@ -489,10 +546,18 @@ ng_iface_constructor(node_p *nodep)
 	ifp->if_softc = priv;
 	priv->ifp = ifp;
 
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
+	/* Get an interface unit number */
+	if ((error = ng_iface_get_unit(&priv->unit)) != 0) {
 		FREE(ifp, M_NETGRAPH);
+		FREE(priv, M_NETGRAPH);
+		return (error);
+	}
+
+	/* Call generic node constructor */
+	if ((error = ng_make_node_common(&typestruct, nodep)) != 0) {
+		ng_iface_free_unit(priv->unit);
+		FREE(ifp, M_NETGRAPH);
+		FREE(priv, M_NETGRAPH);
 		return (error);
 	}
 	node = *nodep;
@@ -502,15 +567,15 @@ ng_iface_constructor(node_p *nodep)
 	priv->node = node;
 
 	/* Initialize interface structure */
-	ifp->if_name = ng_iface_ifname;
-	ifp->if_unit = ng_iface_next_unit++;
+	ifp->if_name = NG_IFACE_IFACE_NAME;
+	ifp->if_unit = priv->unit;
 	ifp->if_output = ng_iface_output;
 	ifp->if_start = ng_iface_start;
 	ifp->if_ioctl = ng_iface_ioctl;
 	ifp->if_watchdog = NULL;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_mtu = NG_IFACE_MTU_DEFAULT;
-	ifp->if_flags = (IFF_SIMPLEX | IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST);
+	ifp->if_flags = (IFF_SIMPLEX|IFF_POINTOPOINT|IFF_NOARP|IFF_MULTICAST);
 	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
@@ -519,8 +584,9 @@ ng_iface_constructor(node_p *nodep)
 
 	/* Give this node the same name as the interface (if possible) */
 	bzero(ifname, sizeof(ifname));
-	sprintf(ifname, "%s%d", ifp->if_name, ifp->if_unit);
-	(void) ng_name_node(node, ifname);
+	snprintf(ifname, sizeof(ifname), "%s%d", ifp->if_name, ifp->if_unit);
+	if (ng_name_node(node, ifname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
 	/* Attach the interface */
 	if_attach(ifp);
@@ -572,46 +638,32 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
 				error = ENOMEM;
 				break;
 			}
-			arg = (struct ng_iface_ifname *) resp->data;
-			sprintf(arg->ngif_name,
+			arg = (struct ng_iface_ifname *)resp->data;
+			snprintf(arg->ngif_name, sizeof(arg->ngif_name),
 			    "%s%d", ifp->if_name, ifp->if_unit);
 			break;
 		    }
 
-		case NGM_IFACE_GET_IFADDRS:
+		case NGM_IFACE_POINT2POINT:
+		case NGM_IFACE_BROADCAST:
 		    {
-			struct ifaddr *ifa;
-			caddr_t ptr;
-			int buflen;
 
-#define SA_SIZE(s)	((s)->sa_len<sizeof(*(s))? sizeof(*(s)):(s)->sa_len)
+			/* Deny request if interface is UP */
+			if ((ifp->if_flags & IFF_UP) != 0)
+				return (EBUSY);
 
-			/* Determine size of response and allocate it */
-			buflen = 0;
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-				buflen += SA_SIZE(ifa->ifa_addr);
-			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
-			if (resp == NULL) {
-				error = ENOMEM;
+			/* Change flags */
+			switch (msg->header.cmd) {
+			case NGM_IFACE_POINT2POINT:
+				ifp->if_flags |= IFF_POINTOPOINT;
+				ifp->if_flags &= ~IFF_BROADCAST;
+				break;
+			case NGM_IFACE_BROADCAST:
+				ifp->if_flags &= ~IFF_POINTOPOINT;
+				ifp->if_flags |= IFF_BROADCAST;
 				break;
 			}
-
-			/* Add addresses */
-			ptr = resp->data;
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				const int len = SA_SIZE(ifa->ifa_addr);
-
-				if (buflen < len) {
-					log(LOG_ERR, "%s%d: len changed?\n",
-					    ifp->if_name, ifp->if_unit);
-					break;
-				}
-				bcopy(ifa->ifa_addr, ptr, len);
-				ptr += len;
-				buflen -= len;
-			}
 			break;
-#undef SA_SIZE
 		    }
 
 		default:
@@ -627,20 +679,19 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
 
 			/* Return the first configured IP address */
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct in_addr *ips;
+				struct ng_cisco_ipaddr *ips;
 
 				if (ifa->ifa_addr->sa_family != AF_INET)
 					continue;
-				NG_MKRESPONSE(resp, msg,
-				    2 * sizeof(*ips), M_NOWAIT);
+				NG_MKRESPONSE(resp, msg, sizeof(ips), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
-				ips = (struct in_addr *) resp->data;
-				ips[0] = ((struct sockaddr_in *)
+				ips = (struct ng_cisco_ipaddr *)resp->data;
+				ips->ipaddr = ((struct sockaddr_in *)
 						ifa->ifa_addr)->sin_addr;
-				ips[1] = ((struct sockaddr_in *)
+				ips->netmask = ((struct sockaddr_in *)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
@@ -676,7 +727,6 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	const priv_p priv = hook->node->private;
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 	struct ifnet *const ifp = priv->ifp;
-	int s, error = 0;
 
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __FUNCTION__));
@@ -696,53 +746,38 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	m->m_pkthdr.rcvif = ifp;
 
 	/* Berkeley packet filter */
-	ng_iface_bpftap(ifp, m, iffam->af);
+	ng_iface_bpftap(ifp, m, iffam->family);
 
 	/* Ignore any meta-data */
 	NG_FREE_META(meta);
 
-	/* Send packet, either by NETISR or use a direct input function */
-	switch (iffam->netisr) {
-	case NETISR_NONE:
-		(*iffam->u.input)(m);
-		break;
-	default:
-		s = splimp();
-		schednetisr(iffam->netisr);
-		if (IF_QFULL(iffam->u.inq)) {
-			IF_DROP(iffam->u.inq);
-			m_freem(m);
-			error = ENOBUFS;
-		} else
-			IF_ENQUEUE(iffam->u.inq, m);
-		splx(s);
-		break;
-	}
-
-	/* Done */
-	return (error);
+	/* Send packet */
+	return family_enqueue(iffam->family, m);
 }
 
 /*
- * Because the BSD networking code doesn't support the removal of
- * networking interfaces, iface nodes (once created) are persistent.
- * So this method breaks all connections and marks the interface
- * down, but does not remove the node.
+ * Shutdown and remove the node and its associated interface.
  */
 static int
 ng_iface_rmnode(node_p node)
 {
 	const priv_p priv = node->private;
-	struct ifnet *const ifp = priv->ifp;
 
 	ng_cutlinks(node);
-	node->flags &= ~NG_INVALID;
-	ifp->if_flags &= ~(IFF_UP | IFF_RUNNING | IFF_OACTIVE);
+	ng_unname(node);
+	bpfdetach(priv->ifp);
+	if_detach(priv->ifp);
+	priv->ifp = NULL;
+	ng_iface_free_unit(priv->unit);
+	FREE(priv, M_NETGRAPH);
+	node->private = NULL;
+	ng_unref(node);
 	return (0);
 }
 
 /*
- * Hook disconnection
+ * Hook disconnection. Note that we do *not* shutdown when all
+ * hooks have been disconnected.
  */
 static int
 ng_iface_disconnect(hook_p hook)
