@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.71 1999/01/21 08:29:07 dillon Exp $
+ * $Id: nfs_subs.c,v 1.72 1999/01/27 22:42:27 dillon Exp $
  */
 
 /*
@@ -1399,6 +1399,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 
 #ifdef NFS_ACDEBUG
 #include <sys/sysctl.h>
+SYSCTL_DECL(_vfs_nfs);
 static int nfs_acdebug;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0, "");
 #endif
