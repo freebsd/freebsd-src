@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: elf_machdep.c,v 1.1 1998/09/11 08:47:02 dfr Exp $
+ *      $Id: elf_machdep.c,v 1.1 1998/10/09 20:35:45 peter Exp $
  */
 
 #include <sys/param.h>
@@ -36,7 +36,7 @@
 #include <sys/linker.h>
 #include <machine/elf.h>
 
-/* Process one elf relocation with addend. (!) */
+/* Process one elf relocation with addend. */
 int
 elf_reloc(linker_file_t lf, const Elf_Rela *rela, const char *sym)
 {
