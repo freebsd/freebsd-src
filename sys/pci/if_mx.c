@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.10 1999/01/28 00:57:53 dillon Exp $
+ *	$Id: if_mx.c,v 1.37 1999/04/01 02:00:04 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.10 1999/01/28 00:57:53 dillon Exp $";
+	"$Id: if_mx.c,v 1.37 1999/04/01 02:00:04 wpaul Exp $";
 #endif
 
 /*
@@ -153,8 +153,8 @@ static void mx_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
 static void mx_delay		__P((struct mx_softc *));
 static void mx_eeprom_idle	__P((struct mx_softc *));
-static void mx_eeprom_putbyte	__P((struct mx_softc *, u_int8_t));
-static void mx_eeprom_getword	__P((struct mx_softc *, u_int8_t, u_int16_t *));
+static void mx_eeprom_putbyte	__P((struct mx_softc *, int));
+static void mx_eeprom_getword	__P((struct mx_softc *, int, u_int16_t *));
 static void mx_read_eeprom	__P((struct mx_softc *, caddr_t, int,
 							int, int));
 
@@ -165,7 +165,7 @@ static void mx_mii_send		__P((struct mx_softc *, u_int32_t, int));
 static int mx_mii_readreg	__P((struct mx_softc *, struct mx_mii_frame *));
 static int mx_mii_writereg	__P((struct mx_softc *, struct mx_mii_frame *));
 static u_int16_t mx_phy_readreg	__P((struct mx_softc *, int));
-static void mx_phy_writereg	__P((struct mx_softc *, u_int16_t, u_int16_t));
+static void mx_phy_writereg	__P((struct mx_softc *, int, int));
 
 static void mx_autoneg_xmit	__P((struct mx_softc *));
 static void mx_autoneg_mii	__P((struct mx_softc *, int, int));
@@ -173,8 +173,8 @@ static void mx_autoneg		__P((struct mx_softc *, int, int));
 static void mx_setmode_mii	__P((struct mx_softc *, int));
 static void mx_setmode		__P((struct mx_softc *, int, int));
 static void mx_getmode_mii	__P((struct mx_softc *));
-static void mx_setcfg		__P((struct mx_softc *, u_int16_t));
-static u_int32_t mx_calchash	__P((u_int8_t *));
+static void mx_setcfg		__P((struct mx_softc *, int));
+static u_int32_t mx_calchash	__P((caddr_t));
 static void mx_setfilt		__P((struct mx_softc *));
 static void mx_reset		__P((struct mx_softc *));
 static int mx_list_rx_init	__P((struct mx_softc *));
@@ -240,7 +240,7 @@ static void mx_eeprom_idle(sc)
  */
 static void mx_eeprom_putbyte(sc, addr)
 	struct mx_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 {
 	register int		d, i;
 
@@ -270,7 +270,7 @@ static void mx_eeprom_putbyte(sc, addr)
  */
 static void mx_eeprom_getword(sc, addr, dest)
 	struct mx_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 	u_int16_t		*dest;
 {
 	register int		i;
@@ -541,8 +541,8 @@ static u_int16_t mx_phy_readreg(sc, reg)
 
 static void mx_phy_writereg(sc, reg, data)
 	struct mx_softc		*sc;
-	u_int16_t		reg;
-	u_int16_t		data;
+	int			reg;
+	int			data;
 {
 	struct mx_mii_frame	frame;
 	u_int32_t		cfg;
@@ -565,7 +565,7 @@ static void mx_phy_writereg(sc, reg, data)
 #define MX_BITS		9
 
 static u_int32_t mx_calchash(addr)
-	u_int8_t		*addr;
+	caddr_t			addr;
 {
 	u_int32_t		idx, bit, data, crc;
 
@@ -1132,7 +1132,7 @@ void mx_setfilt(sc)
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = mx_calchash(etherbroadcastaddr);
+		h = mx_calchash((caddr_t)&etherbroadcastaddr);
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1169,7 +1169,7 @@ void mx_setfilt(sc)
  */
 static void mx_setcfg(sc, bmcr)
 	struct mx_softc		*sc;
-	u_int16_t		bmcr;
+	int			bmcr;
 {
 	int			i, restart = 0;
 
@@ -1297,7 +1297,7 @@ mx_attach(config_id, unit)
 	sc = malloc(sizeof(struct mx_softc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL) {
 		printf("mx%d: no memory for softc struct!\n", unit);
-		return;
+		goto fail;
 	}
 	bzero(sc, sizeof(struct mx_softc));
 
@@ -1350,7 +1350,12 @@ mx_attach(config_id, unit)
 		printf ("mx%d: couldn't map ports\n", unit);
 		goto fail;
         }
+#ifdef __i386__
 	sc->mx_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->mx_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("mx%d: failed to enable memory mapping!\n", unit);
@@ -1361,7 +1366,12 @@ mx_attach(config_id, unit)
 		printf ("mx%d: couldn't map memory\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->mx_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->mx_btag = ALPHA_BUS_SPACE_MEM;
+#endif
 	sc->mx_bhandle = vbase;
 #endif
 
@@ -1373,7 +1383,6 @@ mx_attach(config_id, unit)
 
 	/* Need this info to decide on a chip type. */
 	revision = pci_conf_read(config_id, MX_PCI_REVID) & 0x000000FF;
-	pci_id = pci_conf_read(config_id, MX_PCI_VENDOR_ID) & 0x0000FFFF;
 	pci_id = (pci_conf_read(config_id,MX_PCI_VENDOR_ID) >> 16) & 0x0000FFFF;
 
 	if (pci_id == MX_DEVICEID_98713 && revision < MX_REVISION_98713A)
@@ -1406,7 +1415,7 @@ mx_attach(config_id, unit)
 	if (sc->mx_ldata_ptr == NULL) {
 		free(sc, M_DEVBUF);
 		printf("mx%d: no memory for list buffers!\n", unit);
-		return;
+		goto fail;
 	}
 
 	sc->mx_ldata = (struct mx_list_data *)sc->mx_ldata_ptr;
@@ -1644,6 +1653,9 @@ static void mx_rxeof(sc)
 
 	while(!((rxstat = sc->mx_cdata.mx_rx_head->mx_ptr->mx_status) &
 							MX_RXSTAT_OWN)) {
+#ifdef __alpha__
+		struct mbuf		*m0 = NULL;
+#endif
 		cur_rx = sc->mx_cdata.mx_rx_head;
 		sc->mx_cdata.mx_rx_head = cur_rx->mx_nextdesc;
 
@@ -1691,10 +1703,41 @@ static void mx_rxeof(sc)
 			continue;
 		}
 
+#ifdef __alpha__
+		/*
+		 * Deal with alignment on alpha.
+		 */
+		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		if (m0 == NULL) {
+			ifp->if_ierrors++;
+			cur_rx->mx_ptr->mx_status = MX_RXSTAT;
+			cur_rx->mx_ptr->mx_ctl =
+					MX_RXCTL_RLINK | (MCLBYTES - 1);
+			bzero((char *)mtod(cur_rx->mx_mbuf, char *), MCLBYTES);
+			continue;
+		}
+
+		m0->m_data += 2;
+		if (total_len <= (MHLEN - 2)) {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
+			m = m0;
+			m->m_pkthdr.len = m->m_len = total_len;
+		} else {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
+			m->m_len = total_len - (MHLEN - 2);
+			m->m_data += (MHLEN - 2);
+			m0->m_next = m;
+			m0->m_len = (MHLEN - 2);
+			m = m0;
+			m->m_pkthdr.len = total_len;
+		}
+#else
+		m->m_pkthdr.len = m->m_len = total_len;
+#endif
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = total_len;
+
 #if NBPFILTER > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
@@ -1763,7 +1806,7 @@ static void mx_txeof(sc)
 		cur_tx = sc->mx_cdata.mx_tx_head;
 		txstat = MX_TXSTATUS(cur_tx);
 
-		if ((txstat & MX_TXSTAT_OWN) || txstat == MX_UNSENT)
+		if ((txstat & MX_TXSTAT_OWN) || MX_TXOWN(cur_tx) == MX_UNSENT)
 			break;
 
 		if (txstat & MX_TXSTAT_ERRSUM) {
@@ -2390,7 +2433,7 @@ static void mx_stop(sc)
 			sc->mx_cdata.mx_rx_chain[i].mx_mbuf = NULL;
 		}
 	}
-	bzero((volatile char *)&sc->mx_ldata->mx_rx_list,
+	bzero((char *)&sc->mx_ldata->mx_rx_list,
 		sizeof(sc->mx_ldata->mx_rx_list));
 
 	/*
@@ -2403,7 +2446,7 @@ static void mx_stop(sc)
 		}
 	}
 
-	bzero((volatile char *)&sc->mx_ldata->mx_tx_list,
+	bzero((char *)&sc->mx_ldata->mx_tx_list,
 		sizeof(sc->mx_ldata->mx_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
