@@ -308,13 +308,15 @@ obsolete(argcp, argvp)
 		err(1, NULL);
 
 	*nargv++ = *argv;
-	argv += 2;
+	argv += 2, argc -= 2;
 
 	for (flags = 0; *ap; ++ap) {
 		switch(*ap) {
 		case 'b':
 		case 'f':
 		case 's':
+                      if (argc < 1)
+                              usage();
 			if ((nargv[0] = malloc(strlen(*argv) + 2 + 1)) == NULL)
 				err(1, NULL);
 			nargv[0][0] = '-';
