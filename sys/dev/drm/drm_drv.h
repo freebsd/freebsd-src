@@ -326,9 +326,7 @@ static struct cdevsw DRM( cdevsw) = {
 	.d_name =	DRIVER_NAME,
 	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY | D_TRACKCLOSE,
-#if __FreeBSD_version >= 500000
-	.d_kqfilter =	0
-#else
+#if __FreeBSD_version < 500000
 	/* bmaj */	-1
 #endif
 };
