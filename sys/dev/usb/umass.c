@@ -547,10 +547,9 @@ Static int umass_rbc_transform	__P((struct umass_softc *sc,
 
 #ifdef UMASS_DEBUG
 /* General debugging functions */
-Static void umass_bbb_dump_cbw	(struct umass_softc *sc,
-				umass_bbb_cbw_t *cbw);
-Static void umass_bbb_dump_csw	(struct umass_softc *sc,
-				umass_bbb_csw_t *csw);
+Static void umass_bbb_dump_cbw	(struct umass_softc *sc, umass_bbb_cbw_t *cbw);
+Static void umass_bbb_dump_csw	(struct umass_softc *sc, umass_bbb_csw_t *csw);
+Static void umass_cbi_dump_cmd	(struct umass_softc *sc, void *cmd, int cmdlen);
 Static void umass_dump_buffer	(struct umass_softc *sc, u_int8_t *buffer,
 				int buflen, int printlen);
 #endif
@@ -1524,7 +1523,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 		} else if (sc->transfer_actlen > sc->transfer_datalen) {
 			/* Buffer overrun! Don't let this go by unnoticed */
-			panic("%s: transferred %d bytes instead of %d bytes\n",
+			panic("%s: transferred %db instead of %db\n",
 				USBDEVNAME(sc->sc_dev),
 				sc->transfer_actlen, sc->transfer_datalen);
 		} else if (sc->transfer_datalen - sc->transfer_actlen
@@ -1761,6 +1760,8 @@ umass_cbi_transfer(struct umass_softc *sc, int lun,
 	/* move from idle to the command state */
 	sc->transfer_state = TSTATE_CBI_COMMAND;
 
+	DIF(UDMASS_CBI, umass_cbi_dump_cmd(sc, cmd, cmdlen));
+
 	/* Send the Command Block from host to device via control endpoint. */
 	if (umass_cbi_adsc(sc, cmd, cmdlen, sc->transfer_xfer[XFER_CBI_CB]))
 		umass_cbi_reset(sc, STATUS_WIRE_FAILED);
@@ -1796,7 +1797,7 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 			 * The control pipe has already been unstalled by the
 			 * USB stack.
 			 * Section 2.4.3.1.1 states that the bulk in endpoints
-			 * should not stalled at this point.
+			 * should not be stalled at this point.
 			 */
 
 			sc->transfer_state = TSTATE_IDLE;
@@ -2533,8 +2534,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			sc->cam_scsi_sense.length = csio->sense_len;
 
 			DPRINTF(UDMASS_SCSI,("%s: Fetching %db sense data\n",
-				USBDEVNAME(sc->sc_dev),
-				csio->sense_len));
+				USBDEVNAME(sc->sc_dev), csio->sense_len));
 
 			rcmd = (unsigned char *) &sc->cam_scsi_command;
 			rcmdlen = sizeof(sc->cam_scsi_command);
@@ -2981,7 +2981,7 @@ umass_bbb_dump_cbw(struct umass_softc *sc, umass_bbb_cbw_t *cbw)
 
 	DPRINTF(UDMASS_BBB, ("%s: CBW %d: cmd = %db "
 		"(0x%02x%02x%02x%02x%02x%02x%s), "
-		"data = %d bytes, dir = %s\n",
+		"data = %db, dir = %s\n",
 		USBDEVNAME(sc->sc_dev), tag, clen,
 		c[0], c[1], c[2], c[3], c[4], c[5], (clen > 6? "...":""),
 		dlen, (flags == CBWFLAGS_IN? "in":
@@ -3003,6 +3003,23 @@ umass_bbb_dump_csw(struct umass_softc *sc, umass_bbb_csw_t *csw)
 		status, (status == CSWSTATUS_GOOD? "good":
 			 (status == CSWSTATUS_FAILED? "failed":
 			  (status == CSWSTATUS_PHASE? "phase":"<invalid>")))));
+}
+
+Static void
+umass_cbi_dump_cmd(struct umass_softc *sc, void *cmd, int cmdlen)
+{
+	u_int8_t *c = cmd;
+	int dir = sc->transfer_dir;
+
+	DPRINTF(UDMASS_BBB, ("%s: cmd = %db "
+		"(0x%02x%02x%02x%02x%02x%02x%s), "
+		"data = %db, dir = %s\n",
+		USBDEVNAME(sc->sc_dev), cmdlen,
+		c[0], c[1], c[2], c[3], c[4], c[5], (cmdlen > 6? "...":""),
+		sc->transfer_datalen,
+		(dir == DIR_IN? "in":
+		 (dir == DIR_OUT? "out":
+		  (dir == DIR_NONE? "no data phase": "<invalid>")))));
 }
 
 Static void
