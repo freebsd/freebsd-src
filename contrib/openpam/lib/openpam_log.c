@@ -34,6 +34,7 @@
  * $Id$
  */
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +55,7 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 {
 	va_list ap;
 	char *format;
-	int priority;
+	int len, priority;
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
@@ -71,9 +72,14 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 		break;
 	}
 	va_start(ap, fmt);
-	if ((format = malloc(strlen(func) + strlen(fmt) + 8)) != NULL) {
-		sprintf(format, "in %s(): %s", func, fmt);
+	for (len = strlen(fmt); len > 0 && isspace(fmt[len]); len--)
+		/* nothing */;
+	if ((format = malloc(strlen(func) + len + 16)) != NULL) {
+		sprintf(format, "in %s(): %.*s\n", func, len, fmt);
 		vsyslog(priority, format, ap);
+#ifdef DEBUG
+		vfprintf(stderr, format, ap);
+#endif
 		free(format);
 	} else {
 		vsyslog(priority, fmt, ap);
