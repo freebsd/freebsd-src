@@ -105,9 +105,6 @@ tunattach(dummy)
 	register int i;
 	struct ifnet *ifp;
 	dev_t dev;
-#ifdef DEVFS
-	char	name[32];
-#endif
 
 	if( tun_devsw_installed ) return;
 	dev = makedev(CDEV_MAJOR, 0);
@@ -115,10 +112,9 @@ tunattach(dummy)
 	tun_devsw_installed = 1;
 	for ( i = 0; i < NTUN; i++ ) {
 #ifdef DEVFS
-		sprintf(name, "tun%d", i );
-		tun_devfs_token[i] = devfs_add_devsw(
-			"/", name, &tun_cdevsw , i,
-			DV_CHR, 0, 0, 0600);
+		tun_devfs_token[i] = devfs_add_devswf(&tun_cdevsw, i, DV_CHR,
+						      UID_UUCP, GID_DIALER,
+						      0600, "tun%d", i);
 #endif
 		tunctl[i].tun_flags = TUN_INITED;
 
