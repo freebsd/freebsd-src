@@ -1,6 +1,10 @@
 /*	$NetBSD: usb.c,v 1.67 2002/02/11 15:11:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
+/* Also already merged from NetBSD:
+ *	$NetBSD: usb.c,v 1.73 2002/09/23 05:51:19 simonb Exp $
+ */
+
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -838,7 +842,6 @@ usb_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		sc->sc_dying = 1;
