@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.5 1995/11/24 11:43:55 bde Exp $
+ * $Id: spx_usrreq.c,v 1.6 1995/11/24 12:01:08 bde Exp $
  */
 
 #include <sys/param.h>
@@ -585,10 +585,12 @@ present:
 }
 
 void
-spx_ctlinput(cmd, arg)
+spx_ctlinput(cmd, arg_as_sa, dummy)
 	int cmd;
-	caddr_t arg;
+	struct sockaddr *arg_as_sa;	/* XXX should be swapped with dummy */
+	void *dummy;
 {
+	caddr_t arg = (/* XXX */ caddr_t)arg_as_sa;
 	struct ipx_addr *na;
 	struct ipx_errp *errp = (struct ipx_errp *)arg;
 	struct ipxpcb *ipxp;

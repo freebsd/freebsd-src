@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.5 1995/02/16 01:11:38 wollman Exp $
+ * $Id: raw_usrreq.c,v 1.6 1995/05/30 08:08:22 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -129,9 +129,10 @@ raw_input(m0, proto, src, dst)
 
 /*ARGSUSED*/
 void
-raw_ctlinput(cmd, arg)
+raw_ctlinput(cmd, arg, dummy)
 	int cmd;
 	struct sockaddr *arg;
+	void *dummy;
 {
 
 	if (cmd < 0 || cmd > PRC_NCMDS)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.7 1995/11/20 12:27:00 phk Exp $
+ * $Id: protosw.h,v 1.8 1995/11/21 12:55:13 bde Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -74,7 +74,7 @@ struct protosw {
 					/* input to protocol (from below) */
 	int	(*pr_output)	__P((struct mbuf *m, struct socket *so));
 					/* output to protocol (from above) */
-	void	(*pr_ctlinput)__P((int, struct sockaddr *, caddr_t));
+	void	(*pr_ctlinput)__P((int, struct sockaddr *, void *));
 					/* control input (from below) */
 	int	(*pr_ctloutput)__P((int, struct socket *, int, int,
 				    struct mbuf **));
@@ -166,7 +166,7 @@ char *prurequests[] = {
  * The arguments to the ctlinput routine are
  *	(*protosw[].pr_ctlinput)(cmd, sa, arg);
  * where cmd is one of the commands below, sa is a pointer to a sockaddr,
- * and arg is an optional caddr_t argument used within a protocol family.
+ * and arg is a `void *' argument used within a protocol family.
  */
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */

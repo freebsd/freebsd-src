@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.c
  *
- * $Id: ipx_error.c,v 1.2 1995/10/31 23:36:22 julian Exp $
+ * $Id: ipx_error.c,v 1.3 1995/11/04 09:02:43 julian Exp $
  */
 
 #include <sys/param.h>
@@ -312,11 +312,13 @@ ipx_err_input(m)
 
 		switch(ep->ipx_err_ipx.ipx_pt) {
 		case IPXPROTO_SPX:
-			spx_ctlinput(code, (caddr_t)ep);
+			spx_ctlinput(code, (/* XXX */ struct sockaddr *)ep,
+				     (void *)NULL);
 			break;
 
 		default:
-			ipx_ctlinput(code, (caddr_t)ep);
+			ipx_ctlinput(code, (/* XXX */ struct sockaddr *)ep,
+				     (void *)NULL);
 		}
 		
 		goto freeit;

@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.4 1995/11/04 09:03:29 julian Exp $
+ * $Id: spx.h,v 1.5 1995/11/24 12:25:11 bde Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -172,7 +172,7 @@ struct spxpcb {
 void	spx_abort __P((struct ipxpcb *ipxp));
 struct spxpcb *
 	spx_close __P((struct spxpcb *cb));
-void	spx_ctlinput __P((int cmd, caddr_t arg));
+void	spx_ctlinput __P((int cmd, struct sockaddr *arg_as_sa, void *dummy));
 int	spx_ctloutput __P((int req, struct socket *so, int level, int name,
 			   struct mbuf **value));
 struct spxpcb *
