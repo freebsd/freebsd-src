@@ -106,11 +106,19 @@ struct ioc_initiator_state {
 #define TARGIOCGETISTATE	_IOWR('C', 6, struct ioc_initiator_state)
 #define TARGIOCSETISTATE	_IOW('C', 5, struct ioc_initiator_state)
 
+struct old_ioc_alloc_unit {
+	path_id_t	path_id;
+	target_id_t	target_id;
+	lun_id_t	lun_id;
+	u_int		unit;
+};
+
 struct ioc_alloc_unit {
 	path_id_t	path_id;
 	target_id_t	target_id;
 	lun_id_t	lun_id;
 	u_int		unit;
+	struct scsi_inquiry_data *inquiry_data;
 };
 
 /*
@@ -120,6 +128,8 @@ struct ioc_alloc_unit {
  * newly created instance.  For de-allocation, all fields must match
  * an instance in the inactive (i.e. closed) state.
  */
+#define OTARGCTLIOALLOCUNIT	_IOWR('C', 7, struct old_ioc_alloc_unit)
+#define OTARGCTLIOFREEUNIT	_IOW('C', 8, struct old_ioc_alloc_unit)
 #define TARGCTLIOALLOCUNIT	_IOWR('C', 7, struct ioc_alloc_unit)
 #define TARGCTLIOFREEUNIT	_IOW('C', 8, struct ioc_alloc_unit)
 
