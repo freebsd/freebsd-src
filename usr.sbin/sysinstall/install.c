@@ -50,6 +50,7 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <limits.h>
 #include <unistd.h>
 #include <termios.h>
 
@@ -878,6 +879,44 @@ installFixupXFree(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
+#define	QUEUE_YES	1
+#define	QUEUE_NO	0
+static int
+performNewfs(PartInfo *pi, char *dname, int queue)
+{
+	char buffer[LINE_MAX];
+
+	if (pi->do_newfs) {
+		switch(pi->newfs_type) {
+		case NEWFS_UFS:
+			snprintf(buffer, LINE_MAX, "%s %s %s %s %s",
+			    NEWFS_UFS_CMD,
+			    pi->newfs_data.newfs_ufs.softupdates ?  "-U" : "",
+			    pi->newfs_data.newfs_ufs.ufs2 ? "-O2" : "-O1",
+			    pi->newfs_data.newfs_ufs.user_options,
+			    dname);
+			break;
+
+		case NEWFS_MSDOS:
+			snprintf(buffer, LINE_MAX, "%s %s", NEWFS_MSDOS_CMD,
+			    dname);
+			break;
+
+		case NEWFS_CUSTOM:
+			snprintf(buffer, LINE_MAX, "%s %s",
+			    pi->newfs_data.newfs_custom.command, dname);
+			break;
+		}
+
+		if (queue == QUEUE_YES) {
+			command_shell_add(pi->mountpoint, buffer);
+			return (0);
+		} else
+			return (vsystem(buffer));
+	}
+	return (0);
+}
+
 /* Go newfs and/or mount all the filesystems we've been asked to */
 int
 installFilesystems(dialogMenuItem *self)
@@ -940,12 +979,14 @@ installFilesystems(dialogMenuItem *self)
 	if (strcmp(root->mountpoint, "/"))
 	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
 
-	if (root->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs the root partition?"))) {
+	if (root->do_newfs && (!upgrade ||
+	    !msgNoYes("You are upgrading - are you SURE you want to newfs "
+	    "the root partition?"))) {
 	    int i;
 
 	    dialog_clear_norefresh();
 	    msgNotify("Making a new root filesystem on %s", dname);
-	    i = vsystem("%s %s", root->newfs_cmd, dname);
+	    i = performNewfs(root, dname, QUEUE_NO);
 	    if (i) {
 		msgConfirm("Unable to make new root filesystem on %s!\n"
 			   "Command returned status %d", dname, i);
@@ -964,10 +1005,17 @@ installFilesystems(dialogMenuItem *self)
 		msgConfirm("Warning: fsck returned status of %d for %s.\n"
 			   "This partition may be unsafe to use.", i, dname);
 	}
-	if (root->soft) {
-	    i = vsystem("tunefs -n enable %s", dname);
-	    if (i)
-		msgConfirm("Warning:  Unable to enable softupdates for root filesystem on %s", dname);
+
+	/*
+	 * If soft updates was enabled in the editor but we didn't newfs,
+	 * use tunefs to update the soft updates flag on the file system.
+	 */
+	if (!root->do_newfs && root->newfs_type == NEWFS_UFS &&
+	    root->newfs_data.newfs_ufs.softupdates) {
+		i = vsystem("tunefs -n enable %s", dname);
+		if (i)
+			msgConfirm("Warning: Unable to enable soft updates"
+			    " for root file system on %s", dname);
 	}
 
 	/* Switch to block device */
@@ -1021,12 +1069,23 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
-			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
+			sprintf(dname, "%s/dev/%s",
+			    RunningAsInit ? "/mnt" : "", c2->name);
+
+			if (tmp->do_newfs && (!upgrade ||
+			    !msgNoYes("You are upgrading - are you SURE you"
+			    " want to newfs /dev/%s?", c2->name)))
+				performNewfs(tmp, dname, QUEUE_YES);
 			else
-			    command_shell_add(tmp->mountpoint, "fsck_ffs -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
+			    command_shell_add(tmp->mountpoint,
+				"fsck_ffs -y %s/dev/%s", RunningAsInit ?
+				"/mnt" : "", c2->name);
+#if 0
 			if (tmp->soft)
-			    command_shell_add(tmp->mountpoint, "tunefs -n enable %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
+			    command_shell_add(tmp->mountpoint,
+			    "tunefs -n enable %s/dev/%s", RunningAsInit ?
+			    "/mnt" : "", c2->name);
+#endif
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
@@ -1047,7 +1106,8 @@ installFilesystems(dialogMenuItem *self)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
+	    else if (c1->type == fat && c1->private_data &&
+		(root->do_newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
@@ -1059,8 +1119,13 @@ installFilesystems(dialogMenuItem *self)
 		PartInfo *pi = (PartInfo *)c1->private_data;
 		char *p;
 
-		if (pi->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c1->name)))
-		    command_shell_add(pi->mountpoint, "%s %s/dev/%s", pi->newfs_cmd, RunningAsInit ? "/mnt" : "", c1->name);
+		sprintf(dname, "%s/dev/%s", RunningAsInit ? "/mnt" : "",
+		    c1->name);
+
+		if (pi->do_newfs && (!upgrade ||
+		    !msgNoYes("You are upgrading - are you SURE you want to "
+		    "newfs /dev/%s?", c1->name)))
+			performNewfs(pi, dname, QUEUE_YES);
 
 		command_func_add(pi->mountpoint, Mount_msdosfs, c1->name);
 
