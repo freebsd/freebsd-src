@@ -206,6 +206,23 @@
     variable; &man.dmesg.8; no longer needs to be SGID
     <groupname>kmem</groupname>.</para>
 
+    <para>A simple hash-based lookup optimization for large directories
+    called <literal>dirhash</literal> has been added.  Conditional on the
+    <literal>UFS_DIRHASH</literal> kernel option, it improves the speed of
+    operations on very large directories at the expense of some
+    memory.</para>
+
+    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
+    <command>dhwatch</command>, have been introduced.  Analogous to
+    <command>watch</command> and <command>dwatch</command>, they install
+    hardware watchpoints (as opposed to software watchpoints) if supported
+    by the architecture.</para>
+
+    <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
+    Extensions (<acronym>SSE</acronym>) has been introduced.  The
+    <literal>CPU_ENABLE_SSE</literal> kernel option controls whether
+    support is compiled into the kernel.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
