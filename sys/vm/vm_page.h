@@ -237,7 +237,6 @@ extern struct mtx vm_page_queue_free_mtx;
 #define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
-#define PG_MAPPED	0x0020		/* page is mapped */
 #define	PG_ZERO		0x0040		/* page is zeroed */
 #define PG_REFERENCED	0x0080		/* page has been referenced */
 #define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
