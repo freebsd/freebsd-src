@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.6 1995/08/02 12:59:47 dfr Exp $ */
+/*	$Id: denode.h,v 1.7 1995/10/29 15:31:43 phk Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -226,10 +226,12 @@ struct defid {
 	/* u_long	defid_gen;	 generation number */
 };
 
-extern int (**msdosfs_vnodeop_p)();
+extern vop_t **msdosfs_vnodeop_p;
+
 int msdosfs_lookup __P((struct vop_lookup_args *));
 int msdosfs_inactive __P((struct vop_inactive_args *));
 int msdosfs_reclaim __P((struct vop_reclaim_args *));
+
 /*
  * Internal service routine prototypes.
  */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.6 1995/03/28 07:57:46 bde Exp $
+ * $Id: ffs_extern.h,v 1.7 1995/09/06 05:41:16 dyson Exp $
  */
 
 struct buf;
@@ -92,7 +92,7 @@ void	ffs_checkoverlap __P((struct buf *, struct inode *));
 #endif
 __END_DECLS
 
-extern int (**ffs_vnodeop_p)();
-extern int (**ffs_specop_p)();
-extern int (**ffs_fifoop_p)();
+extern vop_t **ffs_vnodeop_p;
+extern vop_t **ffs_specop_p;
+extern vop_t **ffs_fifoop_p;
 #define FFS_FIFOOPS ffs_fifoop_p

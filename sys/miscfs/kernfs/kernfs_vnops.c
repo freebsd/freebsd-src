@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.10 1995/07/31 09:52:21 mpp Exp $
+ * $Id: kernfs_vnops.c,v 1.11 1995/10/29 15:31:37 phk Exp $
  */
 
 /*
@@ -750,50 +750,50 @@ kernfs_badop()
 #define kernfs_update ((int (*) __P((struct  vop_update_args *)))kernfs_enotsupp)
 #define kernfs_bwrite ((int (*) __P((struct  vop_bwrite_args *)))kernfs_enotsupp)
 
-int (**kernfs_vnodeop_p)();
+vop_t **kernfs_vnodeop_p;
 static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
-	{ &vop_default_desc, vn_default_error },
-	{ &vop_lookup_desc, kernfs_lookup },	/* lookup */
-	{ &vop_create_desc, kernfs_create },	/* create */
-	{ &vop_mknod_desc, kernfs_mknod },	/* mknod */
-	{ &vop_open_desc, kernfs_open },	/* open */
-	{ &vop_close_desc, kernfs_close },	/* close */
-	{ &vop_access_desc, kernfs_access },	/* access */
-	{ &vop_getattr_desc, kernfs_getattr },	/* getattr */
-	{ &vop_setattr_desc, kernfs_setattr },	/* setattr */
-	{ &vop_read_desc, kernfs_read },	/* read */
-	{ &vop_write_desc, kernfs_write },	/* write */
-	{ &vop_ioctl_desc, kernfs_ioctl },	/* ioctl */
-	{ &vop_select_desc, kernfs_select },	/* select */
-	{ &vop_mmap_desc, kernfs_mmap },	/* mmap */
-	{ &vop_fsync_desc, kernfs_fsync },	/* fsync */
-	{ &vop_seek_desc, kernfs_seek },	/* seek */
-	{ &vop_remove_desc, kernfs_remove },	/* remove */
-	{ &vop_link_desc, kernfs_link },	/* link */
-	{ &vop_rename_desc, kernfs_rename },	/* rename */
-	{ &vop_mkdir_desc, kernfs_mkdir },	/* mkdir */
-	{ &vop_rmdir_desc, kernfs_rmdir },	/* rmdir */
-	{ &vop_symlink_desc, kernfs_symlink },	/* symlink */
-	{ &vop_readdir_desc, kernfs_readdir },	/* readdir */
-	{ &vop_readlink_desc, kernfs_readlink },/* readlink */
-	{ &vop_abortop_desc, kernfs_abortop },	/* abortop */
-	{ &vop_inactive_desc, kernfs_inactive },/* inactive */
-	{ &vop_reclaim_desc, kernfs_reclaim },	/* reclaim */
-	{ &vop_lock_desc, kernfs_lock },	/* lock */
-	{ &vop_unlock_desc, kernfs_unlock },	/* unlock */
-	{ &vop_bmap_desc, kernfs_bmap },	/* bmap */
-	{ &vop_strategy_desc, kernfs_strategy },/* strategy */
-	{ &vop_print_desc, kernfs_print },	/* print */
-	{ &vop_islocked_desc, kernfs_islocked },/* islocked */
-	{ &vop_pathconf_desc, kernfs_pathconf },/* pathconf */
-	{ &vop_advlock_desc, kernfs_advlock },	/* advlock */
-	{ &vop_blkatoff_desc, kernfs_blkatoff },/* blkatoff */
-	{ &vop_valloc_desc, kernfs_valloc },	/* valloc */
-	{ &vop_vfree_desc, kernfs_vfree },	/* vfree */
-	{ &vop_truncate_desc, kernfs_truncate },/* truncate */
-	{ &vop_update_desc, kernfs_update },	/* update */
-	{ &vop_bwrite_desc, kernfs_bwrite },	/* bwrite */
-	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
+	{ &vop_default_desc, (vop_t *)vn_default_error },
+	{ &vop_lookup_desc, (vop_t *)kernfs_lookup },		/* lookup */
+	{ &vop_create_desc, (vop_t *)kernfs_create },		/* create */
+	{ &vop_mknod_desc, (vop_t *)kernfs_mknod },		/* mknod */
+	{ &vop_open_desc, (vop_t *)kernfs_open },		/* open */
+	{ &vop_close_desc, (vop_t *)kernfs_close },		/* close */
+	{ &vop_access_desc, (vop_t *)kernfs_access },		/* access */
+	{ &vop_getattr_desc, (vop_t *)kernfs_getattr },		/* getattr */
+	{ &vop_setattr_desc, (vop_t *)kernfs_setattr },		/* setattr */
+	{ &vop_read_desc, (vop_t *)kernfs_read },		/* read */
+	{ &vop_write_desc, (vop_t *)kernfs_write },		/* write */
+	{ &vop_ioctl_desc, (vop_t *)kernfs_ioctl },		/* ioctl */
+	{ &vop_select_desc, (vop_t *)kernfs_select },		/* select */
+	{ &vop_mmap_desc, (vop_t *)kernfs_mmap },		/* mmap */
+	{ &vop_fsync_desc, (vop_t *)kernfs_fsync },		/* fsync */
+	{ &vop_seek_desc, (vop_t *)kernfs_seek },		/* seek */
+	{ &vop_remove_desc, (vop_t *)kernfs_remove },		/* remove */
+	{ &vop_link_desc, (vop_t *)kernfs_link },		/* link */
+	{ &vop_rename_desc, (vop_t *)kernfs_rename },		/* rename */
+	{ &vop_mkdir_desc, (vop_t *)kernfs_mkdir },		/* mkdir */
+	{ &vop_rmdir_desc, (vop_t *)kernfs_rmdir },		/* rmdir */
+	{ &vop_symlink_desc, (vop_t *)kernfs_symlink },		/* symlink */
+	{ &vop_readdir_desc, (vop_t *)kernfs_readdir },		/* readdir */
+	{ &vop_readlink_desc, (vop_t *)kernfs_readlink },	/* readlink */
+	{ &vop_abortop_desc, (vop_t *)kernfs_abortop },		/* abortop */
+	{ &vop_inactive_desc, (vop_t *)kernfs_inactive },	/* inactive */
+	{ &vop_reclaim_desc, (vop_t *)kernfs_reclaim },		/* reclaim */
+	{ &vop_lock_desc, (vop_t *)kernfs_lock },		/* lock */
+	{ &vop_unlock_desc, (vop_t *)kernfs_unlock },		/* unlock */
+	{ &vop_bmap_desc, (vop_t *)kernfs_bmap },		/* bmap */
+	{ &vop_strategy_desc, (vop_t *)kernfs_strategy },	/* strategy */
+	{ &vop_print_desc, (vop_t *)kernfs_print },		/* print */
+	{ &vop_islocked_desc, (vop_t *)kernfs_islocked },	/* islocked */
+	{ &vop_pathconf_desc, (vop_t *)kernfs_pathconf },	/* pathconf */
+	{ &vop_advlock_desc, (vop_t *)kernfs_advlock },		/* advlock */
+	{ &vop_blkatoff_desc, (vop_t *)kernfs_blkatoff },	/* blkatoff */
+	{ &vop_valloc_desc, (vop_t *)kernfs_valloc },		/* valloc */
+	{ &vop_vfree_desc, (vop_t *)kernfs_vfree },		/* vfree */
+	{ &vop_truncate_desc, (vop_t *)kernfs_truncate },	/* truncate */
+	{ &vop_update_desc, (vop_t *)kernfs_update },		/* update */
+	{ &vop_bwrite_desc, (vop_t *)kernfs_bwrite },		/* bwrite */
+	{ NULL, NULL }
 };
 static struct vnodeopv_desc kernfs_vnodeop_opv_desc =
 	{ &kernfs_vnodeop_p, kernfs_vnodeop_entries };

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc.h	8.5 (Berkeley) 1/21/94
  *
- * $Id: fdesc.h,v 1.8 1993/04/06 15:28:33 jsp Exp $
+ * $Id: fdesc.h,v 1.1.1.1 1994/05/24 10:04:59 rgrimes Exp $
  */
 
 #ifdef KERNEL
@@ -77,6 +77,6 @@ extern dev_t devctty;
 extern int fdesc_init __P((void));
 extern int fdesc_root __P((struct mount *, struct vnode **));
 extern int fdesc_allocvp __P((fdntype, int, struct mount *, struct vnode **));
-extern int (**fdesc_vnodeop_p)();
+extern vop_t **fdesc_vnodeop_p;
 extern struct vfsops fdesc_vfsops;
 #endif /* KERNEL */
