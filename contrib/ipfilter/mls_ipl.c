@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -41,8 +41,8 @@
 
 
 #if !defined(lint)
-static const char sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.1 1999/08/04 17:30:14 darrenr Exp $";
+static const char sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.2 2000/03/13 22:10:26 darrenr Exp $";
 #endif
 
 extern	int	ipldetach __P((void));

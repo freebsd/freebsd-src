@@ -12,7 +12,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.1.2.2 1999/11/28 03:43:45 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptest.c,v 2.2 1999/12/04 03:37:05 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <netdb.h>

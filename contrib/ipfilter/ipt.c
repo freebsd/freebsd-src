@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -54,19 +54,22 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipt.c,v 2.1.2.1 2000/01/24 14:49:11 darrenr Exp $";
+static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6 2000/03/13 22:10:25 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
 extern	struct frentry	*ipfilter[2][2];
 extern	struct ipread	snoop, etherf, tcpd, pcap, iptext, iphex;
-extern	struct ifnet	*get_unit __P((char *));
+extern	struct ifnet	*get_unit __P((char *, int));
 extern	void	init_ifp __P((void));
 extern	ipnat_t	*natparse __P((char *, int));
 extern	int	fr_running;
 
 int	opts = 0;
+#ifdef	USE_INET6
+int	use_inet6 = 0;
+#endif
 int	main __P((int, char *[]));
 
 int main(argc,argv)
@@ -80,9 +83,14 @@ char *argv[];
 	ip_t	*ip;
 	int	fd, i, dir = 0, c;
 
-	while ((c = getopt(argc, argv, "bdEHi:I:NoPr:STvX")) != -1)
+	while ((c = getopt(argc, argv, "6bdEHi:I:NoPr:STvX")) != -1)
 		switch (c)
 		{
+#ifdef	USE_INET6
+		case '6' :
+			use_inet6 = 1;
+			break;
+#endif
 		case 'b' :
 			opts |= OPT_BRIEF;
 			break;
@@ -175,7 +183,8 @@ char *argv[];
 				if (!(fr = natparse(line, linenum)))
 					continue;
 				i = IPL_EXTERN(ioctl)(IPL_LOGNAT, SIOCADNAT,
-						      fr, FWRITE|FREAD);
+						      (caddr_t)&fr,
+						      FWRITE|FREAD);
 				if (opts & OPT_DEBUG)
 					fprintf(stderr,
 						"iplioctl(ADNAT,%p,1) = %d\n",
@@ -183,11 +192,12 @@ char *argv[];
 			} else {
 				if (!(fr = parse(line, linenum)))
 					continue;
-				i = IPL_EXTERN(ioctl)(0, SIOCADDFR, fr,
+				i = IPL_EXTERN(ioctl)(0, SIOCADAFR,
+						      (caddr_t)&fr,
 						      FWRITE|FREAD);
 				if (opts & OPT_DEBUG)
 					fprintf(stderr,
-						"iplioctl(ADDFR,%p,1) = %d\n",
+						"iplioctl(ADAFR,%p,1) = %d\n",
 						fr, i);
 			}
 		}
@@ -208,7 +218,7 @@ char *argv[];
 	ip = (ip_t *)buf;
 	while ((i = (*r->r_readip)((char *)buf, sizeof(buf),
 				    &iface, &dir)) > 0) {
-		ifp = iface ? get_unit(iface) : NULL;
+		ifp = iface ? get_unit(iface, ip->ip_v) : NULL;
 		ip->ip_off = ntohs(ip->ip_off);
 		ip->ip_len = ntohs(ip->ip_len);
 		i = fr_check(ip, ip->ip_hl << 2, ifp, dir, (mb_t **)&buf);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1995-1998 by Darren Reed.
+ * Copyright (C) 1995-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -43,7 +43,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_tx.c	1.7 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.1 1999/08/04 17:30:05 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_tx.c,v 2.3 2000/03/13 22:10:24 darrenr Exp $";
 #endif
 
 extern	int	opts;
@@ -54,8 +54,8 @@ static	int	text_open __P((char *)), text_close __P((void));
 static	int	text_readip __P((char *, int, char **, int *));
 static	int	parseline __P((char *, ip_t *, char **, int *));
 
-static	char	tcp_flagset[] = "FSRPAU";
-static	u_char	tcp_flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
+static	char	_tcp_flagset[] = "FSRPAU";
+static	u_char	_tcp_flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
 				TH_ACK, TH_URG };
 
 struct	ipread	iptext = { text_open, text_close, text_readip };
@@ -301,13 +301,13 @@ int	*out;
 	ip->ip_dst.s_addr = tx_hostnum(*cpp, &r);
 	cpp++;
 	if (*cpp && ip->ip_p == IPPROTO_TCP) {
-		extern	char	tcp_flagset[];
-		extern	u_char	tcp_flags[];
+		extern	char	_tcp_flagset[];
+		extern	u_char	_tcp_flags[];
 		char	*s, *t;
 
 		for (s = *cpp; *s; s++)
-			if ((t  = index(tcp_flagset, *s)))
-				tcp->th_flags |= tcp_flags[t - tcp_flagset];
+			if ((t  = index(_tcp_flagset, *s)))
+				tcp->th_flags |= _tcp_flags[t - _tcp_flagset];
 		if (tcp->th_flags)
 			cpp++;
 		assert(tcp->th_flags != 0);

@@ -17,6 +17,7 @@ install:
 	$(INSTALL) -m 0644 -c -o root -g bin ipf.5 $(MANDIR)/man5
 	$(INSTALL) -m 0644 -c -o root -g bin ipnat.5 $(MANDIR)/man5
 	$(INSTALL) -m 0644 -c -o root -g bin ipf.8 $(MANDIR)/man8
+	$(INSTALL) -m 0644 -c -o root -g bin ipfs.8 $(MANDIR)/man8
 	$(INSTALL) -m 0644 -c -o root -g bin ipmon.8 $(MANDIR)/man8
 	$(INSTALL) -m 0644 -c -o root -g bin ipfstat.8 $(MANDIR)/man8
 	@echo "Remember to rebuild the whatis database."

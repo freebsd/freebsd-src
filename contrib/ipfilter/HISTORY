@@ -287,11 +287,6 @@ fix yet another problem with real audio.
 
 3.3.4	4/12/1999 - Released
 
-patches from Guido: fix panic in ip_state:fr_checkicmpmatchingstate(), fix
-byte order problem in ip_id (host order when called from ip_input(), vs
-network byte order when called from ip_output()) and  fix a problem where the
-fragment cache was never timedout early.
-
 fix up the real audio proxy to properly setup state information and NAT
 entries, thanks to Laine Stump for testing/advice/fixes.
 
