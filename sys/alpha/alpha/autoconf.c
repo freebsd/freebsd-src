@@ -71,9 +71,6 @@ device_t isa_bus_device = 0;
 
 extern int nfs_diskless_valid;		/* XXX use include file */
 
-dev_t	rootdev = NODEV;
-dev_t	dumpdev = NODEV;
-
 static void
 configure_start()
 {

@@ -105,9 +105,6 @@ SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
 /* SI_ORDER_MIDDLE is hookable */
 SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 
-dev_t	rootdev = NODEV;
-dev_t	dumpdev = NODEV;
-
 device_t nexus_dev;
 
 /*
