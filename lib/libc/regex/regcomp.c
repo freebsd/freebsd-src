@@ -1942,7 +1942,7 @@ struct re_guts *g;
 	if (p->error != 0)
 		return;
 
-	g->charjump = malloc((NC + 1) * sizeof(int));
+	g->charjump = (int*) malloc((NC + 1) * sizeof(int));
 	if (g->charjump == NULL)	/* Not a fatal error */
 		return;
 	/* Adjust for signed chars, if necessary */
@@ -1993,13 +1993,13 @@ struct re_guts *g;
 	if (p->error != 0)
 		return;
 
-	pmatches = malloc(g->mlen * sizeof(unsigned int));
+	pmatches = (int*) malloc(g->mlen * sizeof(unsigned int));
 	if (pmatches == NULL) {
 		g->matchjump = NULL;
 		return;
 	}
 
-	g->matchjump = malloc(g->mlen * sizeof(unsigned int));
+	g->matchjump = (int*) malloc(g->mlen * sizeof(unsigned int));
 	if (g->matchjump == NULL)	/* Not a fatal error */
 		return;
 
