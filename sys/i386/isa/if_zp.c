@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.11 1995/10/28 15:39:13 phk Exp $
+ *	$Id: if_zp.c,v 1.12 1995/11/18 08:58:14 bde Exp $
  */
 /*-
  * TODO:
@@ -284,7 +284,7 @@ void zpread     __P((struct zp_softc *));
 void zpreset    __P((int));
 void zpstart    __P((struct ifnet *));
 void zpstop     __P((int));
-void zpwatchdog __P((int));
+void zpwatchdog __P((struct ifnet *));
 
 struct isa_driver zpdriver = {
     zpprobe,
@@ -913,7 +913,6 @@ zpattach(isa_dev)
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
     ifp->if_unit = isa_dev->id_unit;
     ifp->if_name = "zp";
-    ifp->if_init = zpinit;
     ifp->if_output = ether_output;
     ifp->if_start = zpstart;
     ifp->if_ioctl = zpioctl;
@@ -2032,22 +2031,20 @@ zpreset(unit)
 }
 
 void
-zpwatchdog(unit)
-    int             unit;
+zpwatchdog(ifp)
+    struct ifnet *ifp;
 {
-    struct zp_softc *sc = &zp_softc[unit];
-
 #ifdef	ZP_DEBUG
     printf("### zpwatchdog ####\n");
 #endif	/* ZP_DEBUG */
 
 #ifdef	MACH_KERNEL
-    ++sc->ds_if.if_oerrors;
+    ifp->if_oerrors++;
 #else	/* MACH_KERNEL */
-    log(LOG_ERR, "zp%d: watchdog\n", unit);
-    ++sc->arpcom.ac_if.if_oerrors;
+    log(LOG_ERR, "zp%d: watchdog\n", ifp->if_unit);
+    ifp->if_oerrors++;
 #endif	/* MACH_KERNEL */
-    zpreset(unit);
+    zpreset(ifp->if_unit);
 }
 
 void

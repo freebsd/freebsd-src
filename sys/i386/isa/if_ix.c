@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.13 1995/10/31 18:41:11 phk Exp $
+ *	$Id: if_ix.c,v 1.14 1995/11/04 17:07:31 bde Exp $
  */
 
 #include "ix.h"
@@ -163,7 +163,7 @@ static int ixstop(struct ifnet *);
 static int ixdone(struct ifnet *);
 static int ixioctl(struct ifnet *, int, caddr_t);
 static void ixreset(int);
-static void ixwatchdog(int);
+static void ixwatchdog(struct ifnet *);
 static u_short ixeeprom_read(int, int);
 static void ixeeprom_outbits(int, int, int);
 static int ixeeprom_inbits(int);
@@ -591,12 +591,10 @@ ixattach(struct isa_device *dvp) {
 	ifp->if_unit = unit;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
-	ifp->if_init = ixinit;
 	ifp->if_output = ether_output;
 	ifp->if_start = ixstart;
 	ifp->if_done = ixdone;
 	ifp->if_ioctl = ixioctl;
-	ifp->if_reset = ixreset;
 	ifp->if_watchdog = ixwatchdog;
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = ETHER_ADDRESS_LENGTH;
@@ -1599,12 +1597,10 @@ ixreset(int unit) {
  * watchdog from happening.
  */
 void
-ixwatchdog(int unit) {
-	ix_softc_t	*sc = &ix_softc[unit];
-
-	log(LOG_ERR, "ix%d: device timeout\n", unit);
-	sc->arpcom.ac_if.if_oerrors++;
-	ixreset(unit);
+ixwatchdog(struct ifnet *ifp) {
+	log(LOG_ERR, "ix%d: device timeout\n", ifp->if_unit);
+	ifp->if_oerrors++;
+	ixreset(ifp->if_unit);
 	return;
 }
 

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.33 1995/10/28 15:39:04 phk Exp $
+ *  $Id: if_ep.c,v 1.34 1995/11/04 17:07:26 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -117,7 +117,7 @@ void epread __P((struct ep_softc *));
 void epreset __P((int));
 void epstart __P((struct ifnet *));
 void epstop __P((int));
-void epwatchdog __P((int));
+void epwatchdog __P((struct ifnet *));
 
 static int send_ID_sequence __P((int));
 static int get_eeprom_data __P((int, int));
@@ -427,12 +427,10 @@ epattach(is)
     ifp->if_name = "ep";
     ifp->if_mtu = ETHERMTU;
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
-    ifp->if_init = epinit;
     ifp->if_output = ether_output;
     ifp->if_start = epstart;
     ifp->if_ioctl = epioctl;
     ifp->if_watchdog = epwatchdog;
-	ifp->if_timer=1;
 
     if_attach(ifp);
     kdc_ep[is->id_unit].kdc_state = DC_BUSY;
@@ -1246,36 +1244,19 @@ epioctl(ifp, cmd, data)
 }
 
 void
-epreset(unit)
-    int unit;
+epwatchdog(ifp)
+    struct ifnet *ifp;
 {
-    int s = splimp();
-
-    epstop(unit);
-    epinit(unit);
-    splx(s);
-}
-
-void
-epwatchdog(unit)
-    int unit;
-{
-    struct ep_softc *sc = &ep_softc[unit];
-    struct ifnet *ifp=&sc->arpcom.ac_if;
-
     /*
     printf("ep: watchdog\n");
 
-    log(LOG_ERR, "ep%d: watchdog\n", unit);
-    ++sc->arpcom.ac_if.if_oerrors;
+    log(LOG_ERR, "ep%d: watchdog\n", ifp->if_unit);
+    ifp->if_oerrors++;
     */
 
-    /* epreset(unit); */
     ifp->if_flags &= ~IFF_OACTIVE;
     epstart(ifp);
-    epintr(unit);
-
-    ifp->if_timer=1;
+    epintr(ifp->if_unit);
 }
 
 void

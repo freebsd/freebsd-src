@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.22 1995/08/31 15:21:31 wollman Exp $
+ * $Id: if.h,v 1.23 1995/10/13 19:48:00 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -135,8 +135,6 @@ struct ifnet {
 	short	if_flags;		/* up/down, broadcast, etc. */
 	struct	if_data if_data;
 /* procedure handles */
-	void	(*if_init)		/* init routine */
-		__P((int));
 	int	(*if_output)		/* output routine (enqueue) */
 		__P((struct ifnet *, struct mbuf *, struct sockaddr *,
 		     struct rtentry *));
@@ -146,10 +144,8 @@ struct ifnet {
 		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
 		__P((struct ifnet *, int, caddr_t));
-	void	(*if_reset)
-		__P((int));		/* new autoconfig will permit removal */
 	void	(*if_watchdog)		/* timer routine */
-		__P((int));
+		__P((struct ifnet *));
 	struct	ifqueue if_snd;		/* output queue */
 	void 	*if_private[IF_NPRIVATE]; /* opaque data for various clients */
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $
+ * $Id: iso_snpac.c,v 1.4 1995/05/30 08:10:58 rgrimes Exp $
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.3 1994/12/13 22:33:05 wollman Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.4 1995/05/30 08:10:58 rgrimes Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso_snpac.c,v $ */
 
 #ifdef ISO
@@ -253,6 +253,7 @@ iso_setmcasts(ifp, req)
 			if (ether_delmulti(&ifr, (struct arpcom *)ifp) == ENETRESET)
 				doreset++;
 	}
+#if 0
 	if (doreset) {
 		if (ifp->if_reset)
 			(*ifp->if_reset)(ifp->if_unit);
@@ -260,6 +261,7 @@ iso_setmcasts(ifp, req)
 			printf("iso_setmcasts: %s%d needs reseting to receive iso mcasts\n",
 					ifp->if_name, ifp->if_unit);
 	}
+#endif
 }
 /*
  * FUNCTION:		iso_snparesolve

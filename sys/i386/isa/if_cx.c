@@ -50,8 +50,7 @@
 #      define CDEV_MAJOR 42 /*XXX*/ /* replace with variable ASAP*/
 #      include <sys/devconf.h>
 #   endif
-#   define init_func_t     void(*)(int)
-#   define watchdog_func_t void(*)(int)
+#   define watchdog_func_t void(*)(struct ifnet *)
 #   define start_func_t    void(*)(struct ifnet*)
 #endif
 
@@ -116,9 +115,8 @@ extern void cxswitch __P((cx_chan_t *c, cx_soft_opt_t new));
 #define IFNETSZ         (sizeof (struct ifnet))
 
 int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data);
-void cxinit (int unit);
 void cxstart (struct ifnet *ifp);
-void cxwatchdog (int unit);
+void cxwatchdog (struct ifnet *ifp);
 void cxinput (cx_chan_t *c, void *buf, unsigned len);
 int cxrinta (cx_chan_t *c);
 void cxtinta (cx_chan_t *c);
@@ -345,7 +343,6 @@ void cxattach (struct device *parent, struct device *self, void *aux)
 			c->ifp->if_start = (start_func_t) cxstart;
 			c->ifp->if_watchdog = (watchdog_func_t) cxwatchdog;
 			/* Init routine is never called by upper level? */
-			c->ifp->if_init = (init_func_t) cxinit;
 			sppp_attach (c->ifp);
 			if_attach (c->ifp);
 #if NBPFILTER > 0
@@ -531,32 +528,6 @@ void cxup (cx_chan_t *c)
 }
 
 /*
- * Initialization of interface.
- */
-void cxinit (int unit)
-{
-	cx_chan_t *q, *c = cxchan[unit];
-	int s = splimp();
-
-	print (("cx%d.%d: cxinit\n", c->board->num, c->num));
-
-	cxdown (c);
-
-	/* Stop all slave subchannels. */
-	for (q=c->slaveq; q; q=q->slaveq)
-		cxdown (q);
-
-	if (c->ifp->if_flags & IFF_RUNNING) {
-		cxup (c);
-
-		/* Start all slave subchannels. */
-		for (q=c->slaveq; q; q=q->slaveq)
-			cxup (q);
-	}
-	splx (s);
-}
-
-/*
  * Fill transmitter buffer with data.
  */
 void cxput (cx_chan_t *c, char b)
@@ -702,13 +673,13 @@ void cxstart (struct ifnet *ifp)
  * Recover after lost transmit interrupts.
  * Always called on splimp().
  */
-void cxwatchdog (int unit)
+void cxwatchdog (struct ifnet *ifp)
 {
-	cx_chan_t *q, *c = cxchan[unit];
+	cx_chan_t *q, *c = cxchan[ifp->if_unit];
 
-	if (! (c->ifp->if_flags & IFF_RUNNING))
+	if (! (ifp->if_flags & IFF_RUNNING))
 		return;
-	if (c->ifp->if_flags & IFF_DEBUG)
+	if (ifp->if_flags & IFF_DEBUG)
 		printf ("cx%d.%d: device timeout\n", c->board->num, c->num);
 
 	cxdown (c);
@@ -719,7 +690,7 @@ void cxwatchdog (int unit)
 	for (q=c->slaveq; q; q=q->slaveq)
 		cxup (q);
 
-		cxstart (c->ifp);
+		cxstart (ifp);
 }
 
 /*

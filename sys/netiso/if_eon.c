@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_eon.c	8.1 (Berkeley) 6/10/93
- * $Id: if_eon.c,v 1.3 1995/04/26 18:10:57 pst Exp $
+ * $Id: if_eon.c,v 1.4 1995/05/30 08:10:45 rgrimes Exp $
  */
 
 /***********************************************************
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.3 1995/04/26 18:10:57 pst Exp $
+ * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.4 1995/05/30 08:10:45 rgrimes Exp $
  * $Source: /home/ncvs/src/sys/netiso/if_eon.c,v $
  *
  *	EON rfc
@@ -147,7 +147,6 @@ eonattach()
 	ifp->if_mtu = ETHERMTU;
 		/* since everything will go out over ether or token ring */
 
-	ifp->if_init = eoninit;
 	ifp->if_ioctl = eonioctl;
 	ifp->if_output = eonoutput;
 	ifp->if_type = IFT_EON;
