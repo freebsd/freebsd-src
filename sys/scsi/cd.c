@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.48 1995/12/08 11:18:38 julian Exp $
+ *      $Id: cd.c,v 1.49 1995/12/08 23:22:17 phk Exp $
  */
 
 #define SPLCD splbio
@@ -224,7 +224,11 @@ cdattach(struct scsi_link *sc_link)
 	 * the command can get the sense back so that it can selectively log
 	 * errors.
 	 */
-	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
+	if (sc_link->quirks & CD_Q_NO_TOUCH) {
+		dp->disksize = 0;
+	} else {
+		cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
+	}
 	if (dp->disksize) {
 		printf("cd present [%ld x %ld byte records]",
 		    cd->params.disksize,

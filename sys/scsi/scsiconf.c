@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.37 1995/11/20 12:42:29 phk Exp $
+ *      $Id: scsiconf.c,v 1.38 1995/11/21 15:14:28 bde Exp $
  */
 
 #include <sys/types.h>
@@ -57,7 +57,8 @@ extern void *extend_set __P((struct extend_array *ea, int index, void *value));
  */
 extern struct scsi_device uk_switch;
 
-/* Extensible arrays: Use a realloc like implementation to permit
+/***********************************************************************
+ * Extensible arrays: Use a realloc like implementation to permit
  * the arrays to be extend.  These are set up to be moved out
  * of this file if needed elsewhere.
  */
@@ -145,7 +146,7 @@ extend_release(struct extend_array *ea, int index)
 	}
 }
 
-/*
+/***********************************************************************
  * This extend_array holds an array of "scsibus_data" pointers.
  * One of these is allocated and filled in for each scsi bus.
  * it holds pointers to allow the scsi bus to get to the driver
@@ -162,40 +163,26 @@ struct extend_array *scbusses;
  */
 struct scsidevs {
 	u_int32 type;
-#ifdef NEW_SCSICONF
 	u_int32 driver;		/* normally the same as type */
-#endif
 	boolean removable;
 	char   *manufacturer;
 	char   *model;
 	char   *version;
 	char   *devname;
 	char    flags;		/* 1 show my comparisons during boot(debug) */
-#ifdef NEW_SCSICONF
 	u_int16	quirks;
 	void   *devmodes;
-#endif
 };
 
 #define SC_SHOWME	0x01
 #define	SC_ONE_LU	0x00
 #define	SC_MORE_LUS	0x02
 
-#ifdef NEW_SCSICONF
 static struct scsidevs unknowndev =
 	{
 		T_UNKNOWN, T_UNKNOWN, 0, "*", "*", "*",
 		"uk", SC_MORE_LUS
 	};
-#else /* !NEW_SCSICONF */
-static struct scsidevs unknowndev =
-	{
-		T_UNKNOWN, 0, "*", "*", "*",
-		"uk", SC_MORE_LUS
-	};
-#endif /* NEW_SCSICONF */
-
-#ifdef NEW_SCSICONF
 static st_modes mode_tandberg3600 =
 	{
 	    {0, 0, 0},					/* minor 0,1,2,3 */
@@ -238,10 +225,8 @@ static st_modes mode_unktape =
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_1600},	/* minor 8,9,10,11 */
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor 12,13,14,15 */
 	};
-#endif /* NEW_SCSICONF */
 
 static struct scsidevs knowndevs[] =
-#ifdef NEW_SCSICONF
 {
 /* od's must be probed before sd's since some of them identify as T_DIRECT */
 #if NOD > 0
@@ -259,10 +244,6 @@ static struct scsidevs knowndevs[] =
 	},
 #endif	/* NOD */
 #if NSD > 0
-	{
-		T_DIRECT, T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
-		"mx1", SC_ONE_LU
-	},
 	{
 		T_DIRECT, T_DIRECT, T_FIXED, "*", "*", "*",
 		"sd", SC_ONE_LU
@@ -307,12 +288,8 @@ static struct scsidevs knowndevs[] =
 		"cd", SC_ONE_LU
 	},
 	{
-		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
-		"cd", SC_MORE_LUS
-	},
-	{
-		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X" ,"*",
-		"cd", SC_MORE_LUS
+		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-6??*" ,"*",
+		"cd", SC_MORE_LUS, CD_Q_NO_TOUCH
 	},
 	{
 		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
@@ -334,71 +311,6 @@ static struct scsidevs knowndevs[] =
 		0
 	}
 };
-#else /* !NEW_SCSICONF */
-{
-#if NSD > 0
-	{
-		T_DIRECT, T_FIXED, "standard", "any"
-		    ,"any", "sd", SC_ONE_LU
-	},
-	{
-		T_DIRECT, T_FIXED, "MAXTOR  ", "XT-4170S        "
-		    ,"B5A ", "mx1", SC_ONE_LU
-	},
-#endif	/* NSD */
-#if NOD > 0
-	{
-		T_OPTICAL, T_REMOV, "standard", "any"
-		    ,"any", "od", SC_ONE_LU
-	},
-	{
-		T_OPTICAL, T_REMOV, "MATSHITA", "PD-1 LF-1000"
-		    ,"any", "od", SC_MORE_LUS
-	},
-#endif	/* NOD */
-#if NST > 0
-	{
-		T_SEQUENTIAL, T_REMOV, "standard", "any"
-		    ,"any", "st", SC_ONE_LU
-	},
-#endif	/* NST */
-#if NCH > 0
-	{
-		T_CHANGER, T_REMOV, "standard", "any"
-		    ,"any", "ch", SC_ONE_LU
-	},
-#endif	/* NCH */
-#if NCD > 0
-#ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
-	{
-		T_READONLY, T_REMOV, "SONY",   "CD-ROM CDU-8012"
-		    ,"3.1a", "cd", SC_ONE_LU
-	},
-	{
-		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600"
-		    ,"any", "cd", SC_MORE_LUS
-	},
-	{
-		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X"
-		    ,"any", "cd", SC_MORE_LUS
-	},
-	{
-		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535"
-		    ,"any", "cd", SC_ONE_LU
-	},
-#endif /* !UKTEST */
-#endif	/* NCD */
-#if NWORM > 0
-	{
-		T_WORM, T_REMOV, "YAMAHA", "CDR100"
-		    ,"any", "worm", SC_ONE_LU
-	},
-#endif /* NWORM */
-	{
-		0
-	}
-};
-#endif /* NEW_SCSICONF */
 
 /*
  * Declarations
@@ -1031,7 +943,6 @@ scsi_probe_bus(int bus, int targ, int lun)
 			sc_link->lun = lun;
 			sc_link->quirks = 0;
 			bestmatch = scsi_probedev(sc_link, &maybe_more, &type);
-#ifdef NEW_SCSICONF
 			if (bestmatch) {
 			    sc_link->quirks = bestmatch->quirks;
 			    sc_link->devmodes = bestmatch->devmodes;
@@ -1039,7 +950,6 @@ scsi_probe_bus(int bus, int targ, int lun)
 			    sc_link->quirks = 0;
 			    sc_link->devmodes = NULL;
 			}
-#endif
 			if (bestmatch) {		/* FOUND */
 				sc_link->device = scsi_device_lookup(type);
 
@@ -1273,12 +1183,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		*type_p = type;
 	else
 		*type_p =
-#ifdef NEW_SCSICONF
 			bestmatch->driver;
-#else
-			bestmatch->type;
-#endif
-
 	return bestmatch;
 }
 
@@ -1302,7 +1207,6 @@ scsi_dev_lookup(d_open)
 	return d;
 }
 
-#ifdef NEW_SCSICONF
 /*
  * Compare name with pattern, return 0 on match.
  * Short pattern matches trailing blanks in name,
@@ -1317,6 +1221,7 @@ match(pattern, name)
 	while (c = *pattern++)
 	{
 		if (c == '*') return 0;
+		if ((c == '?') && (*name > ' ')) continue;
 		if (c != *name++) return 1;
 	}
 	while (c = *name++)
@@ -1325,7 +1230,6 @@ match(pattern, name)
 	}
 	return 0;
 }
-#endif
 
 /*
  * Try make as good a match as possible with
@@ -1337,7 +1241,6 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 	boolean remov;
 	char   *manu, *model, *rev;
 {
-#ifdef NEW_SCSICONF
 	struct scsidevs *bestmatch = NULL;
 	struct scsidevs *thisentry;
 
@@ -1370,62 +1273,6 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 		bestmatch = thisentry;
 		break;
 	}
-#else
-	u_int32 numents = (sizeof(knowndevs) / sizeof(struct scsidevs)) - 1;
-	u_int32 count = 0;
-	u_int32 bestmatches = 0;
-	struct scsidevs *bestmatch = (struct scsidevs *) 0;
-	struct scsidevs *thisentry = knowndevs;
-
-	type |= qualifier;	/* why? */
-
-	thisentry--;
-	while (count++ < numents) {
-		thisentry++;
-		if (type != thisentry->type) {
-			continue;
-		}
-		if (bestmatches < 1) {
-			bestmatches = 1;
-			bestmatch = thisentry;
-		}
-		if (remov != thisentry->removable) {
-			continue;
-		}
-		if (bestmatches < 2) {
-			bestmatches = 2;
-			bestmatch = thisentry;
-		}
-		if (thisentry->flags & SC_SHOWME)
-			printf("'%s'-'%s'\n", thisentry->manufacturer, manu);
-		if (strcmp(thisentry->manufacturer, manu)) {
-			continue;
-		}
-		if (bestmatches < 3) {
-			bestmatches = 3;
-			bestmatch = thisentry;
-		}
-		if (thisentry->flags & SC_SHOWME)
-			printf("'%s'-'%s'\n", thisentry->model, model);
-		if (strcmp(thisentry->model, model)) {
-			continue;
-		}
-		if (bestmatches < 4) {
-			bestmatches = 4;
-			bestmatch = thisentry;
-		}
-		if (thisentry->flags & SC_SHOWME)
-			printf("'%s'-'%s'\n", thisentry->version, rev);
-		if (strcmp(thisentry->version, rev)) {
-			continue;
-		}
-		if (bestmatches < 5) {
-			bestmatches = 5;
-			bestmatch = thisentry;
-			break;
-		}
-	}
-#endif /* NEW_SCSICONF */
 	if (bestmatch == (struct scsidevs *) 0) {
 		bestmatch = &unknowndev;
 	}
