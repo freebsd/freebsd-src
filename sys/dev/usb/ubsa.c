@@ -177,7 +177,6 @@ struct	ubsa_softc {
 
 	u_char			sc_lsr;		/* Local status register */
 	u_char			sc_msr;		/* ubsa status register */
-	
 };
 
 Static	void ubsa_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -286,7 +285,7 @@ USB_ATTACH(ubsa)
 
 	/*
 	 * initialize rts, dtr variables to something
-	 * different from boolean 0, 1 
+	 * different from boolean 0, 1
 	 */
 	sc->sc_dtr = -1;
 	sc->sc_rts = -1;
@@ -305,7 +304,7 @@ USB_ATTACH(ubsa)
 
 	DPRINTF(("ubsa attach: sc = %p\n", sc));
 
-	/* initialize endpoints */ 
+	/* initialize endpoints */
 	ucom->sc_bulkin_no = ucom->sc_bulkout_no = -1;
 	sc->sc_intr_number = -1;
 	sc->sc_intr_pipe = NULL;
@@ -513,7 +512,7 @@ Static void
 ubsa_baudrate(struct ubsa_softc *sc, speed_t speed)
 {
 	u_int16_t value = 0;
-		
+
 	DPRINTF(("ubsa_baudrate: speed = %d\n", speed));
 
 	switch(speed) {
@@ -529,17 +528,17 @@ ubsa_baudrate(struct ubsa_softc *sc, speed_t speed)
 	case B38400:
 	case B57600:
 	case B115200:
-	case B230400: 
+	case B230400:
 		value = B230400 / speed;
 		break;
-	default:	
+	default:
 		printf("%s: ubsa_param: unsupported baudrate, "
 		    "forcing default of 9600\n",
 		    USBDEVNAME(sc->sc_ucom.sc_dev));
 		value = B230400 / B9600;
 		break;
 	};
-		
+
 	if (speed == B0) {
 		ubsa_flow(sc, 0, 0);
 		ubsa_dtr(sc, 0);
@@ -575,7 +574,7 @@ ubsa_databits(struct ubsa_softc *sc, tcflag_t cflag)
 	case CS6: value = 1; break;
 	case CS7: value = 2; break;
 	case CS8: value = 3; break;
-	default:	
+	default:
 		printf("%s: ubsa_param: unsupported databits requested, "
 		    "forcing default of 8\n",
 		    USBDEVNAME(sc->sc_ucom.sc_dev));
@@ -601,7 +600,7 @@ Static void
 ubsa_flow(struct ubsa_softc *sc, tcflag_t cflag, tcflag_t iflag)
 {
 	int value;
-	
+
 	DPRINTF(("ubsa_flow: cflag = 0x%x, iflag = 0x%x\n", cflag, iflag));
 
 	value = 0;
@@ -635,7 +634,7 @@ ubsa_open(void *addr, int portno)
 {
 	struct ubsa_softc *sc;
 	int err;
-	
+
 	sc = addr;
 	if (sc->sc_ucom.sc_dying)
 		return (ENXIO);
@@ -665,7 +664,7 @@ ubsa_open(void *addr, int portno)
 }
 
 Static void
-ubsa_close(void *addr, int portno) 
+ubsa_close(void *addr, int portno)
 {
 	struct ubsa_softc *sc;
 	int err;
