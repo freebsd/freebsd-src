@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.97 1995/04/23 18:30:27 wollman Exp $
+#	$Id: files.i386,v 1.98 1995/04/28 00:51:20 dufault Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -13,6 +13,7 @@ aic7xxx_seq.h			optional	ahc	device-driver	   \
 	compile-with	"./aic7xxx_asm -o $@ $S/dev/aic7xxx/aic7xxx.seq"  \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h"
+i386/scsi/93cx6.c		optional	ahc	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/i386/autoconf.c		standard	device-driver

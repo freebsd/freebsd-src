@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.29 1995/05/03 18:09:13 dufault Exp $
+ *      $Id: scsiconf.c,v 1.30 1995/05/30 08:13:45 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -261,12 +261,20 @@ static struct scsidevs knowndevs[] =
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY", "CD-ROM CDU-8012", "3.1a",
+		T_READONLY, T_REMOV, "SONY",    "CD-ROM CDU-8012", "3.1a",
 		"cd", SC_ONE_LU
 	},
 	{
 		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600", "*",
 		"cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X" ,"*",
+		"cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
+		"cd", SC_ONE_LU
 	},
 #endif
 #endif	/* NCD */
@@ -301,12 +309,20 @@ static struct scsidevs knowndevs[] =
 #if NCD > 0
 #ifndef UKTEST	/* make cdroms unrecognised to test the uk driver */
 	{
-		T_READONLY, T_REMOV, "SONY    ", "CD-ROM CDU-8012 "
+		T_READONLY, T_REMOV, "SONY",   "CD-ROM CDU-8012"
 		    ,"3.1a", "cd", SC_ONE_LU
 	},
 	{
-		T_READONLY, T_REMOV, "PIONEER ", "CD-ROM DRM-600  "
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-600"
 		    ,"any", "cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-602X"
+		    ,"any", "cd", SC_MORE_LUS
+	},
+	{
+		T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535"
+		    ,"any", "cd", SC_ONE_LU
 	},
 #endif
 #endif	/* NCD */
@@ -459,9 +475,9 @@ scsi_init(void)
 		 * specified in config:
 		 */
 		for (i = 0; scsi_cinit[i].driver; i++)
-			if (IS_SPECIFIED(scsi_cinit[i].unit) &&
-			  free_bus <= scsi_cinit[i].unit)
-				free_bus = scsi_cinit[i].unit + 1;
+			if (IS_SPECIFIED(scsi_cinit[i].scbus) &&
+			  free_bus <= scsi_cinit[i].scbus)
+				free_bus = scsi_cinit[i].scbus + 1;
 
 		/* Lowest free unit for each type for auto-configure is one
 		 * more than the first one not specified in the config file:
@@ -500,22 +516,42 @@ scsi_bus_conf(sc_link_proto)
 
 	bus = SCCONF_UNSPEC;
 	for (i = 0; scsi_cinit[i].driver; i++) {
-		if (IS_SPECIFIED(scsi_cinit[i].unit))
+		if (IS_SPECIFIED(scsi_cinit[i].scbus))
 		{
-			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver) &&
-			(sc_link_proto->adapter_unit == scsi_cinit[i].unit) )
+			if (!strcmp(sc_link_proto->adapter->name, scsi_cinit[i].driver)
+			  &&(sc_link_proto->adapter_unit == scsi_cinit[i].unit))
 			{
-				bus = scsi_cinit[i].bus;
-				if (bootverbose)
-					printf("Choosing drivers for scbus configured at %d\n",
-					bus);
-				break;
+			  if (IS_SPECIFIED(scsi_cinit[i].bus)) {
+			     if (sc_link_proto->adapter_bus==scsi_cinit[i].bus){
+				bus = scsi_cinit[i].scbus;
+			   	break;
+			     }
+			  }
+			  else if (sc_link_proto->adapter_bus == 0) {
+			     /* Backwards compatibility for single bus cards */
+			     bus = scsi_cinit[i].scbus;
+			     break;
+			  }
+			  else {
+			     printf("Ambiguous scbus configuration for %s%d "
+				    "bus %d, cannot wire down.  The kernel "
+				    "config entry for scbus%d should specify "
+				    "a controller bus.\n"
+				    "Scbus will be assigned dynamically.\n",
+				    sc_link_proto->adapter->name,
+				    sc_link_proto->adapter_unit,
+				    sc_link_proto->adapter_bus);
+			     break;
+			  }
 			}
 		}
 	}
 
+			
 	if (bus == SCCONF_UNSPEC)
 		bus = free_bus++;
+	else if (bootverbose)
+		printf("Choosing drivers for scbus configured at %d\n", bus);
 
 	return bus;
 }
@@ -1251,7 +1287,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->manufacturer, manu);
+			printf("'%s'-'%s'\n", thisentry->manufacturer, manu);
 		if (strcmp(thisentry->manufacturer, manu)) {
 			continue;
 		}
@@ -1260,7 +1296,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->model, model);
+			printf("'%s'-'%s'\n", thisentry->model, model);
 		if (strcmp(thisentry->model, model)) {
 			continue;
 		}
@@ -1269,7 +1305,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 			bestmatch = thisentry;
 		}
 		if (thisentry->flags & SC_SHOWME)
-			printf("\n%s-\n%s-", thisentry->version, rev);
+			printf("'%s'-'%s'\n", thisentry->version, rev);
 		if (strcmp(thisentry->version, rev)) {
 			continue;
 		}
