@@ -97,7 +97,7 @@ clone_label(lp)
 {
 	struct disklabel *lp1;
 
-	lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
+	lp1 = malloc(sizeof *lp1, M_DEVBUF, 0);
 	*lp1 = *lp;
 	lp = NULL;
 	if (lp1->d_typename[0] == '\0')
@@ -254,7 +254,7 @@ dscheck(bp, ssp)
 	    && sp->ds_offset != 0) {
 		struct iodone_chain *ic;
 
-		ic = malloc(sizeof *ic , M_DEVBUF, M_WAITOK);
+		ic = malloc(sizeof *ic , M_DEVBUF, 0);
 		ic->ic_prev_flags = bp->bio_flags;
 		ic->ic_prev_iodone = bp->bio_done;
 		ic->ic_prev_iodone_chain = bp->bio_done_chain;
@@ -394,7 +394,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 			return (ENODEV);
 		if (!(flags & FWRITE))
 			return (EBADF);
-		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
+		lp = malloc(sizeof *lp, M_DEVBUF, 0);
 		if (sp->ds_label == NULL)
 			bzero(lp, sizeof *lp);
 		else
@@ -450,7 +450,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 		 * complete, then lock out future accesses and opens.
 		 */
 		*sspp = NULL;
-		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
+		lp = malloc(sizeof *lp, M_DEVBUF, 0);
 		*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
 		error = dsopen(dev, S_IFCHR, ssp->dss_oflags, sspp, lp);
 		if (error != 0) {
@@ -567,7 +567,7 @@ dsmakeslicestruct(nslices, lp)
 	struct diskslices *ssp;
 
 	ssp = malloc(offsetof(struct diskslices, dss_slices) +
-		     nslices * sizeof *sp, M_DEVBUF, M_WAITOK);
+		     nslices * sizeof *sp, M_DEVBUF, 0);
 	ssp->dss_first_bsd_slice = COMPATIBILITY_SLICE;
 	ssp->dss_nslices = nslices;
 	ssp->dss_oflags = 0;

@@ -503,7 +503,7 @@ spkropen(dev, flags, fmt, td)
 	(void) printf("spkropen: about to perform play initialization\n");
 #endif /* DEBUG */
 	playinit();
-	spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
+	spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, 0);
 	spkr_active = TRUE;
 	return(0);
     }

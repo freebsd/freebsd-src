@@ -186,7 +186,7 @@ gpopen(dev, flags, fmt, td)
 		return (EBUSY);
 
 	/* Have memory for buffer? */
-	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, 0);
 	if (sc->sc_inbuf == 0)
 		return (ENOMEM);
 

@@ -170,7 +170,7 @@ malloc(size, type, flags)
 #endif
 	if (!(flags & M_NOWAIT))
 		KASSERT(curthread->td_intr_nesting_level == 0,
-		   ("malloc(M_WAITOK) in interrupt context"));
+		   ("malloc() without M_NOWAIT in interrupt context"));
 	if (size <= KMEM_ZMAX) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -203,7 +203,7 @@ out:
 
 	mtx_unlock(&ksp->ks_mtx);
 	if (!(flags & M_NOWAIT))
-		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
+		KASSERT(va != NULL, ("malloc() without M_NOWAIT returned NULL"));
 	if (va == NULL) {
 		t_malloc_fail = time_uptime;
 	}
@@ -493,7 +493,7 @@ sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
 
 	mtx_unlock(&malloc_mtx);
 	bufsize = linesize * (cnt + 1);
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	p = buf = (char *)malloc(bufsize, M_TEMP, M_ZERO);
 	mtx_lock(&malloc_mtx);
 
 	len = snprintf(p, linesize,
@@ -573,7 +573,7 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	waste = 0;
 	mem = 0;
 
-	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+	p = buf = (char *)malloc(bufsize, M_TEMP, M_ZERO);
 	len = snprintf(p, bufsize,
 	    "\n  Size                    Requests  Real Size\n");
 	bufsize -= len;

@@ -192,14 +192,14 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return (error);
 
 	    sc->ic_obuf = malloc(sc->ic_if.if_mtu + ICHDRLEN,
-				  M_DEVBUF, M_WAITOK);
+				  M_DEVBUF, 0);
 	    if (!sc->ic_obuf) {
 		iicbus_release_bus(parent, icdev);
 		return ENOBUFS;
 	    }
 
 	    sc->ic_ifbuf = malloc(sc->ic_if.if_mtu + ICHDRLEN,
-				  M_DEVBUF, M_WAITOK);
+				  M_DEVBUF, 0);
 	    if (!sc->ic_ifbuf) {
 		iicbus_release_bus(parent, icdev);
 		return ENOBUFS;

@@ -490,7 +490,7 @@ hashinit(elements, type, hashmask)
 	for (hashsize = 1; hashsize <= elements; hashsize <<= 1)
 		continue;
 	hashsize >>= 1;
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, M_WAITOK);
+	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, 0);
 	for (i = 0; i < hashsize; i++)
 		LIST_INIT(&hashtbl[i]);
 	*hashmask = hashsize - 1;
@@ -539,7 +539,7 @@ phashinit(elements, type, nentries)
 		hashsize = primes[i];
 	}
 	hashsize = primes[i - 1];
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, M_WAITOK);
+	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, 0);
 	for (i = 0; i < hashsize; i++)
 		LIST_INIT(&hashtbl[i]);
 	*nentries = hashsize;

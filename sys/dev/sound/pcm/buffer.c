@@ -58,7 +58,7 @@ sndbuf_create(device_t dev, char *drv, char *desc)
 {
 	struct snd_dbuf *b;
 
-	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
+	b = malloc(sizeof(*b), M_DEVBUF, M_ZERO);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
 	b->dev = dev;
 

@@ -667,7 +667,7 @@ fsetown(pgid, sigiop)
 	ret = 0;
 
 	/* Allocate and fill in the new sigio out of locks. */
-	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
+	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, 0);
 	sigio->sio_pgid = pgid;
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
@@ -1052,7 +1052,7 @@ fdalloc(td, want, result)
 		 * than KMEM_ZMAX bytes. uma_large_malloc() requires Giant.
 		 */
 		mtx_lock(&Giant);
-		newofile = malloc(nfiles * OFILESIZE, M_FILEDESC, M_WAITOK);
+		newofile = malloc(nfiles * OFILESIZE, M_FILEDESC, 0);
 		mtx_unlock(&Giant);
 
 		/*
@@ -1143,7 +1143,7 @@ falloc(td, resultfp, resultfd)
 	struct file *fp, *fq;
 	int error, i;
 
-	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
+	fp = uma_zalloc(file_zone, M_ZERO);
 	sx_xlock(&filelist_lock);
 	if (nfiles >= maxfiles) {
 		sx_xunlock(&filelist_lock);
@@ -1213,7 +1213,7 @@ fdinit(fdp)
 	struct filedesc0 *newfdp;
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
-	    M_FILEDESC, M_WAITOK | M_ZERO);
+	    M_FILEDESC, M_ZERO);
 	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 	if (newfdp->fd_fd.fd_cdir)
@@ -1269,7 +1269,7 @@ fdcopy(fdp)
 
 	FILEDESC_UNLOCK(fdp);
 	MALLOC(newfdp, struct filedesc *, sizeof(struct filedesc0),
-	    M_FILEDESC, M_WAITOK);
+	    M_FILEDESC, 0);
 	FILEDESC_LOCK(fdp);
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
 	FILEDESC_UNLOCK(fdp);
@@ -1309,7 +1309,7 @@ retry:
 			i /= 2;
 		FILEDESC_UNLOCK(fdp);
 		MALLOC(newfdp->fd_ofiles, struct file **, i * OFILESIZE,
-		    M_FILEDESC, M_WAITOK);
+		    M_FILEDESC, 0);
 		FILEDESC_LOCK(fdp);
 		newfdp->fd_lastfile = fdp->fd_lastfile;
 		newfdp->fd_nfiles = fdp->fd_nfiles;

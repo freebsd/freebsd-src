@@ -194,7 +194,7 @@ cd9660_getattr(ap)
 		struct uio auio;
 		char *cp;
 
-		MALLOC(cp, char *, MAXPATHLEN, M_TEMP, M_WAITOK);
+		MALLOC(cp, char *, MAXPATHLEN, M_TEMP, 0);
 		aiov.iov_base = cp;
 		aiov.iov_len = MAXPATHLEN;
 		auio.uio_iov = &aiov;
@@ -451,7 +451,7 @@ cd9660_readdir(ap)
 	imp = dp->i_mnt;
 	bmask = imp->im_bmask;
 
-	MALLOC(idp, struct isoreaddir *, sizeof(*idp), M_TEMP, M_WAITOK);
+	MALLOC(idp, struct isoreaddir *, sizeof(*idp), M_TEMP, 0);
 	idp->saveent.d_namlen = idp->assocent.d_namlen = 0;
 	/*
 	 * XXX
@@ -468,7 +468,7 @@ cd9660_readdir(ap)
 		 */
 		ncookies = uio->uio_resid / 16;
 		MALLOC(cookies, u_long *, ncookies * sizeof(u_int), M_TEMP,
-		    M_WAITOK);
+		    0);
 		idp->cookies = cookies;
 		idp->ncookies = ncookies;
 	}
@@ -671,7 +671,7 @@ cd9660_readlink(ap)
 	if (uio->uio_segflg == UIO_SYSSPACE)
 		symname = uio->uio_iov->iov_base;
 	else
-		symname = uma_zalloc(namei_zone, M_WAITOK);
+		symname = uma_zalloc(namei_zone, 0);
 	
 	/*
 	 * Ok, we just gathering a symbolic name in SL record.

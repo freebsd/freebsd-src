@@ -172,7 +172,7 @@ spansarp_svcout(ivp, dst)
 	/*
 	 * Now get the new arp entry
 	 */
-	sap = uma_zalloc(spansarp_zone, M_WAITOK);
+	sap = uma_zalloc(spansarp_zone, 0);
 	if (sap == NULL) {
 		(void) splx(s);
 		return (MAP_FAILED);
@@ -720,7 +720,7 @@ spansarp_input(clp, m)
 		/*
 		 * Source unknown and we're the target - add new entry
 		 */
-		sap = uma_zalloc(spansarp_zone, M_WAITOK);
+		sap = uma_zalloc(spansarp_zone, 0);
 		if (sap) {
 			sap->sa_dstip.s_addr = in_src.s_addr;
 			sap->sa_dstatm.address_format = T_ATM_SPANS_ADDR;
@@ -961,7 +961,7 @@ spansarp_ioctl(code, data, arg1)
 			/*
 			 * No, get a new arp entry
 			 */
-			sap = uma_zalloc(spansarp_zone, M_WAITOK);
+			sap = uma_zalloc(spansarp_zone, 0);
 			if (sap == NULL) {
 				err = ENOMEM;
 				break;

@@ -115,7 +115,7 @@ openfirm_getstr(int len, const char *user, char **cpp)
 	if ((u_int)len > OFW_NAME_MAX)
 		return (ENAMETOOLONG);
 
-	*cpp = cp = malloc(len + 1, M_TEMP, M_WAITOK);
+	*cpp = cp = malloc(len + 1, M_TEMP, 0);
 	if (cp == NULL)
 		return (ENOMEM);
 	error = copyin(user, cp, len);
@@ -183,7 +183,7 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		/* -1 means no entry; 0 means no value */
 		if (len <= 0)
 			break;
-		value = malloc(len, M_TEMP, M_WAITOK);
+		value = malloc(len, M_TEMP, 0);
 		if (value == NULL) {
 			error = ENOMEM;
 			break;

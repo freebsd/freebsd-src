@@ -476,7 +476,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	/* if there's a data buffer, allocate and copy it in */
 	tr->tr_length = tu->tu_size;
 	if (tr->tr_length > 0) {
-	    if ((tr->tr_data = malloc(tr->tr_length, M_DEVBUF, M_WAITOK)) == NULL) {
+	    if ((tr->tr_data = malloc(tr->tr_length, M_DEVBUF, 0)) == NULL) {
 		error = ENOMEM;
 		goto cmd_done;
 	    }
@@ -559,7 +559,7 @@ twe_ioctl(struct twe_softc *sc, int cmd, void *addr)
 	break;
 
     case TWEIO_SET_PARAM:
-	if ((data = malloc(tp->tp_size, M_DEVBUF, M_WAITOK)) == NULL) {
+	if ((data = malloc(tp->tp_size, M_DEVBUF, 0)) == NULL) {
 	    error = ENOMEM;
 	} else {
 	    error = copyin(tp->tp_data, data, tp->tp_size);

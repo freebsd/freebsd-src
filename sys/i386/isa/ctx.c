@@ -234,7 +234,7 @@ ctxopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 	/* get space for the LUT buffer */
 
-	sr->lutp = malloc(LUTSIZE, M_DEVBUF, M_WAITOK);
+	sr->lutp = malloc(LUTSIZE, M_DEVBUF, 0);
 	if (sr->lutp == NULL)
 		return (ENOMEM);
 

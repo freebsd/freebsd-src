@@ -562,7 +562,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * Allocate memory and check the tag id's before grabbing a new
 	 * vnode, since it's hard to roll back if there is a problem.
 	 */
-	unode = uma_zalloc(udf_zone_node, M_WAITOK);
+	unode = uma_zalloc(udf_zone_node, 0);
 	if (unode == NULL) {
 		printf("Cannot allocate udf node\n");
 		return (ENOMEM);

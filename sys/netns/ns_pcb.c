@@ -58,7 +58,7 @@ ns_pcballoc(so, head)
 	struct mbuf *m;
 	register struct nspcb *nsp;
 
-	m = m_getclr(M_DONTWAIT, MT_PCB);
+	m = m_getclr(M_NOWAIT, MT_PCB);
 	if (m == NULL)
 		return (ENOBUFS);
 	nsp = mtod(m, struct nspcb *);

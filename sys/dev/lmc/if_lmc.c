@@ -621,9 +621,9 @@ lmc_rx_intr(lmc_softc_t * const sc)
 		 */
 		if (accept || ms == NULL) {
 			struct mbuf *m0;
-			MGETHDR(m0, M_DONTWAIT, MT_DATA);
+			MGETHDR(m0, M_NOWAIT, MT_DATA);
 			if (m0 != NULL) {
-				MCLGET(m0, M_DONTWAIT);
+				MCLGET(m0, M_NOWAIT);
 				if ((m0->m_flags & M_EXT) == 0) {
 					m_freem(m0);
 					m0 = NULL;
@@ -830,10 +830,10 @@ lmc_mbuf_compress(struct mbuf *m)
 {
 	struct mbuf *m0;
 #if MCLBYTES >= LMC_MTU + PPP_HEADER_LEN && !defined(BIG_PACKET)
-	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	MGETHDR(m0, M_NOWAIT, MT_DATA);
 	if (m0 != NULL) {
 		if (m->m_pkthdr.len > MHLEN) {
-			MCLGET(m0, M_DONTWAIT);
+			MCLGET(m0, M_NOWAIT);
 			if ((m0->m_flags & M_EXT) == 0) {
 				m_freem(m);
 				m_freem(m0);
@@ -850,9 +850,9 @@ lmc_mbuf_compress(struct mbuf *m)
 
 	while (len > 0) {
 		if (mlen == MHLEN) {
-			MGETHDR(*mp, M_DONTWAIT, MT_DATA);
+			MGETHDR(*mp, M_NOWAIT, MT_DATA);
 		} else {
-			MGET(*mp, M_DONTWAIT, MT_DATA);
+			MGET(*mp, M_NOWAIT, MT_DATA);
 		}
 		if (*mp == NULL) {
 			m_freem(m0);
@@ -860,7 +860,7 @@ lmc_mbuf_compress(struct mbuf *m)
 			break;
 		}
 		if (len > MLEN) {
-			MCLGET(*mp, M_DONTWAIT);
+			MCLGET(*mp, M_NOWAIT);
 			if (((*mp)->m_flags & M_EXT) == 0) {
 				m_freem(m0);
 				m0 = NULL;

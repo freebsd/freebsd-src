@@ -392,7 +392,7 @@ create_device_from_node(device_t parent, phandle_t node)
 	OF_getprop_alloc(node, "compatible", 1, (void **)&compatible);
 	cdev = device_add_child(parent, NULL, -1);
 	if (cdev != NULL) {
-		dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
+		dinfo = malloc(sizeof(*dinfo), M_NEXUS, 0);
 		dinfo->ndi_node = node;
 		dinfo->ndi_name = name;
 		dinfo->ndi_device_type = type;

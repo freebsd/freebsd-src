@@ -601,7 +601,7 @@ u_int totlen, *drqneed;
   struct mbuf *top, **mp;
   *drqneed = 0;
 
-  MGETHDR(m, M_DONTWAIT, MT_DATA);
+  MGETHDR(m, M_NOWAIT, MT_DATA);
   if (m == NULL)
     return(NULL);
   m->m_pkthdr.rcvif = &sc->enif;
@@ -613,7 +613,7 @@ u_int totlen, *drqneed;
   /* if (top != NULL) then we've already got 1 mbuf on the chain */
   while (totlen > 0) {
     if (top) {
-      MGET(m, M_DONTWAIT, MT_DATA);
+      MGET(m, M_NOWAIT, MT_DATA);
       if (!m) {
 	m_freem(top);	
 	return(NULL);	/* out of mbufs */
@@ -621,7 +621,7 @@ u_int totlen, *drqneed;
       m->m_len = MLEN;
     }
     if (totlen >= MINCLSIZE) {
-      MCLGET(m, M_DONTWAIT);
+      MCLGET(m, M_NOWAIT);
       if ((m->m_flags & M_EXT) == 0) {
 	m_free(m);
 	m_freem(top);
@@ -1770,12 +1770,12 @@ struct mbuf **mm, *prev;
       m->m_data = (caddr_t)d;
     } else {
       /* can't write to an M_EXT mbuf since it may be shared */
-      MGET(new, M_DONTWAIT, MT_DATA);
+      MGET(new, M_NOWAIT, MT_DATA);
       if (!new) {
         EN_COUNT(sc->mfixfail);
         return(0);
       }
-      MCLGET(new, M_DONTWAIT);
+      MCLGET(new, M_NOWAIT);
       if ((new->m_flags & M_EXT) == 0) {
         m_free(new);
         EN_COUNT(sc->mfixfail);
@@ -1837,14 +1837,14 @@ STATIC int en_makeexclusive(sc, mm, prev)
 	
 	if (MEXT_IS_REF(m)) {
 	    /* make a real copy of the M_EXT mbuf since it is shared */
-	    MGET(new, M_DONTWAIT, MT_DATA);
+	    MGET(new, M_NOWAIT, MT_DATA);
 	    if (!new) {
 		EN_COUNT(sc->mfixfail);
 		return(0);
 	    }
 	    if (m->m_flags & M_PKTHDR)
 		M_MOVE_PKTHDR(new, m);
-	    MCLGET(new, M_DONTWAIT);
+	    MCLGET(new, M_NOWAIT);
 	    if ((new->m_flags & M_EXT) == 0) {
 		m_free(new);
 		EN_COUNT(sc->mfixfail);

@@ -688,7 +688,7 @@ sk_newbuf(sc_if, c, m)
 	if (m == NULL) {
 		caddr_t			*buf = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 

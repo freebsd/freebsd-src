@@ -354,7 +354,7 @@ hash_alloc(struct uma_hash *hash)
 	} else {
 		alloc = sizeof(hash->uh_slab_hash[0]) * UMA_HASH_SIZE_INIT;
 		hash->uh_slab_hash = uma_zalloc_internal(hashzone, NULL,
-		    M_WAITOK);
+		    0);
 		hash->uh_hashsize = UMA_HASH_SIZE_INIT;
 	}
 	if (hash->uh_slab_hash) {
@@ -1300,7 +1300,7 @@ uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.align = align;
 	args.flags = flags;
 
-	return (uma_zalloc_internal(zones, &args, M_WAITOK));
+	return (uma_zalloc_internal(zones, &args, 0));
 }
 
 /* See uma.h */
@@ -1326,7 +1326,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
-		   ("malloc(M_WAITOK) in interrupt context"));
+		   ("malloc without M_NOWAIT in interrupt context"));
 		WITNESS_SLEEP(1, NULL);
 	}
 
@@ -1609,7 +1609,7 @@ done:
  * Arguments
  *	zone   The zone to alloc for.
  *	udata  The data to be passed to the constructor.
- *	flags  M_WAITOK, M_NOWAIT, M_ZERO.
+ *	flags  M_NOWAIT, M_ZERO.
  *
  * Returns
  *	NULL if there is no memory and M_NOWAIT is set
@@ -1964,7 +1964,7 @@ uma_prealloc(uma_zone_t zone, int items)
 		slabs++;
 
 	while (slabs > 0) {
-		slab = slab_zalloc(zone, M_WAITOK);
+		slab = slab_zalloc(zone, 0);
 		LIST_INSERT_HEAD(&zone->uz_free_slab, slab, us_link);
 		slabs--;
 	}
@@ -2074,7 +2074,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		cnt++;
 	mtx_unlock(&uma_mtx);
 	MALLOC(tmpbuf, char *, (cnt == 0 ? 1 : cnt) * linesize,
-			M_TEMP, M_WAITOK);
+			M_TEMP, 0);
 	len = snprintf(tmpbuf, linesize,
 	    "\nITEM            SIZE     LIMIT     USED    FREE  REQUESTS\n\n");
 	if (cnt == 0)

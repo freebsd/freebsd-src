@@ -153,7 +153,7 @@ ptyinit(dev_t devc)
 
 	devc->si_flags &= ~SI_CHEAPCLONE;
 
-	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
+	pt = malloc(sizeof(*pt), M_PTY, M_ZERO);
 	pt->devs = devs = make_dev(&pts_cdevsw, n,
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc;

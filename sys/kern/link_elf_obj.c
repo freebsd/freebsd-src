@@ -235,7 +235,7 @@ link_elf_link_common_finish(linker_file_t lf)
 #ifdef DDB
     GDB_STATE(RT_ADD);
     ef->gdb.l_addr = lf->address;
-    newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, M_WAITOK);
+    newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, 0);
     strcpy(newfilename, lf->filename);
     ef->gdb.l_name = newfilename;
     ef->gdb.l_ld = ef->dynamic;
@@ -571,7 +571,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     /*
      * Read the elf header from the file.
      */
-    firstpage = malloc(PAGE_SIZE, M_LINKER, M_WAITOK);
+    firstpage = malloc(PAGE_SIZE, M_LINKER, 0);
     if (firstpage == NULL) {
 	error = ENOMEM;
 	goto out;
@@ -702,7 +702,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	goto out;
     }
 #else
-    ef->address = malloc(mapsize, M_LINKER, M_WAITOK);
+    ef->address = malloc(mapsize, M_LINKER, 0);
     if (!ef->address) {
 	error = ENOMEM;
 	goto out;
@@ -773,7 +773,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     nbytes = hdr->e_shnum * hdr->e_shentsize;
     if (nbytes == 0 || hdr->e_shoff == 0)
 	goto nosyms;
-    shdr = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
+    shdr = malloc(nbytes, M_LINKER, M_ZERO);
     if (shdr == NULL) {
 	error = ENOMEM;
 	goto out;
@@ -796,9 +796,9 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	goto nosyms;
 
     symcnt = shdr[symtabindex].sh_size;
-    ef->symbase = malloc(symcnt, M_LINKER, M_WAITOK);
+    ef->symbase = malloc(symcnt, M_LINKER, 0);
     strcnt = shdr[symstrindex].sh_size;
-    ef->strbase = malloc(strcnt, M_LINKER, M_WAITOK);
+    ef->strbase = malloc(strcnt, M_LINKER, 0);
 
     if (ef->symbase == NULL || ef->strbase == NULL) {
 	error = ENOMEM;
@@ -1124,7 +1124,7 @@ link_elf_lookup_set(linker_file_t lf, const char *name,
 	int len, error = 0, count;
 
 	len = strlen(name) + sizeof("__start_set_"); /* sizeof includes \0 */
-	setsym = malloc(len, M_LINKER, M_WAITOK);
+	setsym = malloc(len, M_LINKER, 0);
 	if (setsym == NULL)
 		return ENOMEM;
 

@@ -206,7 +206,7 @@ ccdnew(int unit)
 	if (IS_ALLOCATED(unit) || unit > 32)
 		return (NULL);
 
-	MALLOC(sc, struct ccd_s *, sizeof(*sc), M_CCD, M_WAITOK | M_ZERO);
+	MALLOC(sc, struct ccd_s *, sizeof(*sc), M_CCD, M_ZERO);
 	sc->sc_unit = unit;
 	LIST_INSERT_HEAD(&ccd_softc_list, sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
@@ -283,7 +283,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 
 	/* Allocate space for the component info. */
 	cs->sc_cinfo = malloc(cs->sc_nccdisks * sizeof(struct ccdcinfo),
-	    M_CCD, M_WAITOK);
+	    M_CCD, 0);
 
 	/*
 	 * Verify that each component piece exists and record
@@ -291,7 +291,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 	 */
 	maxsecsize = 0;
 	minsize = 0;
-	tmppath = malloc(MAXPATHLEN, M_CCD, M_WAITOK);
+	tmppath = malloc(MAXPATHLEN, M_CCD, 0);
 	for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 		vp = cs->sc_vpp[ix];
 		ci = &cs->sc_cinfo[ix];
@@ -304,7 +304,7 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 		    MAXPATHLEN, &ci->ci_pathlen)) != 0) {
 			goto fail;
 		}
-		ci->ci_path = malloc(ci->ci_pathlen, M_CCD, M_WAITOK);
+		ci->ci_path = malloc(ci->ci_pathlen, M_CCD, 0);
 		bcopy(tmppath, ci->ci_path, ci->ci_pathlen);
 
 		ci->ci_dev = vn_todev(vp);
@@ -459,7 +459,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 	 */
 	size = (cs->sc_nccdisks + 1) * sizeof(struct ccdiinfo);
 	cs->sc_itable = (struct ccdiinfo *)malloc(size, M_CCD,
-	    M_WAITOK | M_ZERO);
+	    M_ZERO);
 
 	/*
 	 * Trivial case: no interleave (actually interleave of disk size).
@@ -473,7 +473,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 
 		for (ix = 0; ix < cs->sc_nccdisks; ix++) {
 			/* Allocate space for ii_index. */
-			ii->ii_index = malloc(sizeof(int), M_CCD, M_WAITOK);
+			ii->ii_index = malloc(sizeof(int), M_CCD, 0);
 			ii->ii_ndisk = 1;
 			ii->ii_startblk = bn;
 			ii->ii_startoff = 0;
@@ -496,7 +496,7 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		 * we use.
 		 */
 		ii->ii_index = malloc((sizeof(int) * cs->sc_nccdisks),
-		    M_CCD, M_WAITOK);
+		    M_CCD, 0);
 
 		/*
 		 * Locate the smallest of the remaining components
@@ -1107,9 +1107,9 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		 * componet pathnames and device numbers.
 		 */
 		cpp = malloc(ccio->ccio_ndisks * sizeof(char *),
-		    M_CCD, M_WAITOK);
+		    M_CCD, 0);
 		vpp = malloc(ccio->ccio_ndisks * sizeof(struct vnode *),
-		    M_CCD, M_WAITOK);
+		    M_CCD, 0);
 
 		error = copyin((caddr_t)ccio->ccio_disks, (caddr_t)cpp,
 		    ccio->ccio_ndisks * sizeof(char **));
@@ -1164,7 +1164,7 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		 */
 		ccio->ccio_unit = unit;
 		ccio->ccio_size = cs->sc_size;
-		cs->sc_disk = malloc(sizeof(struct disk), M_CCD, M_WAITOK);
+		cs->sc_disk = malloc(sizeof(struct disk), M_CCD, 0);
 		cs->sc_dev = disk_create(unit, cs->sc_disk, 0,
 		    &ccd_cdevsw, &ccddisk_cdevsw);
 		cs->sc_dev->si_drv1 = cs;

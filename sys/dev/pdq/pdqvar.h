@@ -401,9 +401,9 @@ typedef struct mbuf PDQ_OS_DATABUF_T;
 #ifndef PDQ_OS_DATABUF_ALLOC
 #define	PDQ_OS_DATABUF_ALLOC(pdq, b) do { \
     PDQ_OS_DATABUF_T *x_m0; \
-    MGETHDR(x_m0, M_DONTWAIT, MT_DATA); \
+    MGETHDR(x_m0, M_NOWAIT, MT_DATA); \
     if (x_m0 != NULL) { \
-	MCLGET(x_m0, M_DONTWAIT);	\
+	MCLGET(x_m0, M_NOWAIT);	\
 	if ((x_m0->m_flags & M_EXT) == 0) { \
 	    m_free(x_m0); \
 	    (b) = NULL; \

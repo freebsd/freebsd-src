@@ -78,7 +78,7 @@ i4b_Dgetmbuf(int len)
 		return(NULL);
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_I4B_D);	/* get mbuf with pkthdr */
+	MGETHDR(m, M_NOWAIT, MT_I4B_D);	/* get mbuf with pkthdr */
 
 	/* did we actually get the mbuf ? */
 
@@ -94,7 +94,7 @@ i4b_Dgetmbuf(int len)
 
 	if(len >= MHLEN)
 	{
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if(!(m->m_flags & M_EXT))
 		{
@@ -155,7 +155,7 @@ i4b_Bgetmbuf(int len)
 		return(NULL);
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_I4B_B);	/* get mbuf with pkthdr */
+	MGETHDR(m, M_NOWAIT, MT_I4B_B);	/* get mbuf with pkthdr */
 
 	/* did we actually get the mbuf ? */
 
@@ -171,7 +171,7 @@ i4b_Bgetmbuf(int len)
 
 	if(len >= MHLEN)
 	{
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		if(!(m->m_flags & M_EXT))
 		{

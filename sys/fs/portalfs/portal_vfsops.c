@@ -113,10 +113,10 @@ portal_mount(mp, path, data, ndp, td)
 	}
 
 	MALLOC(pn, struct portalnode *, sizeof(struct portalnode),
-		M_TEMP, M_WAITOK);
+		M_TEMP, 0);
 
 	MALLOC(fmp, struct portalmount *, sizeof(struct portalmount),
-		M_PORTALFSMNT, M_WAITOK);	/* XXX */
+		M_PORTALFSMNT, 0);	/* XXX */
 
 	error = getnewvnode("portal", mp, portal_vnodeop_p, &rvp); /* XXX */
 	if (error) {

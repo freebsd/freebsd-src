@@ -130,7 +130,7 @@ ipx_control(so, cmd, data, ifp, td)
 		if (ia == NULL) {
 			oia = (struct ipx_ifaddr *)
 				malloc(sizeof(*ia), M_IFADDR,
-				M_WAITOK | M_ZERO);
+				M_ZERO);
 			if (oia == NULL)
 				return (ENOBUFS);
 			if ((ia = ipx_ifaddr) != NULL) {

@@ -155,7 +155,7 @@ umapfs_mount(mp, path, data, ndp, td)
 #endif
 
 	amp = (struct umap_mount *) malloc(sizeof(struct umap_mount),
-				M_UMAPFSMNT, M_WAITOK);	/* XXX */
+				M_UMAPFSMNT, 0);	/* XXX */
 
 	/*
 	 * Save reference to underlying FS

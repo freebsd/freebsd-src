@@ -127,7 +127,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
     struct llc		*llc;
     struct sockaddr	sa;
 
-    if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
+    if (( m = m_gethdr( M_NOWAIT, MT_DATA )) == NULL ) {
 	return;
     }
 #ifdef MAC
@@ -166,7 +166,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
 	bcopy((caddr_t)atmulticastaddr, (caddr_t)eh->ether_dhost,
 		sizeof( eh->ether_dhost ));
 	eh->ether_type = htons(sizeof(struct llc) + sizeof(struct ether_aarp));
-	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
+	M_PREPEND( m, sizeof( struct llc ), 0 );
 	llc = mtod( m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
@@ -440,7 +440,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
     if ( aa->aa_flags & AFA_PHASE2 ) {
 	eh->ether_type = htons( sizeof( struct llc ) +
 		sizeof( struct ether_aarp ));
-	M_PREPEND( m, sizeof( struct llc ), M_DONTWAIT );
+	M_PREPEND( m, sizeof( struct llc ), M_NOWAIT );
 	if ( m == NULL ) {
 	    return;
 	}
@@ -551,7 +551,7 @@ aarpprobe( void *arg )
 	aa->aa_ch = timeout( aarpprobe, (caddr_t)ac, hz / 5 );
     }
 
-    if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
+    if (( m = m_gethdr( M_NOWAIT, MT_DATA )) == NULL ) {
 	return;
     }
 #ifdef MAC
@@ -579,7 +579,7 @@ aarpprobe( void *arg )
 		sizeof( eh->ether_dhost ));
 	eh->ether_type = htons( sizeof( struct llc ) +
 		sizeof( struct ether_aarp ));
-	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
+	M_PREPEND( m, sizeof( struct llc ), 0 );
 	llc = mtod( m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;

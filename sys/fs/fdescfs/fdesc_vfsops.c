@@ -89,7 +89,7 @@ fdesc_mount(mp, ndp, td)
 		return (error);
 
 	MALLOC(fmp, struct fdescmount *, sizeof(struct fdescmount),
-				M_FDESCMNT, M_WAITOK);	/* XXX */
+				M_FDESCMNT, 0);	/* XXX */
 	rvp->v_type = VDIR;
 	rvp->v_vflag |= VV_ROOT;
 	fmp->f_root = rvp;

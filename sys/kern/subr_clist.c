@@ -135,8 +135,8 @@ cblock_alloc_cblocks(number)
 		cbp = malloc(sizeof *cbp, M_TTYS, M_NOWAIT);
 		if (cbp == NULL) {
 			printf(
-"cblock_alloc_cblocks: M_NOWAIT malloc failed, trying M_WAITOK\n");
-			cbp = malloc(sizeof *cbp, M_TTYS, M_WAITOK);
+"cblock_alloc_cblocks: M_NOWAIT malloc failed, trying blocking malloc\n");
+			cbp = malloc(sizeof *cbp, M_TTYS, 0);
 		}
 		/*
 		 * Freed cblocks have zero quotes and garbage elsewhere.

@@ -137,7 +137,7 @@ soalloc(waitok)
 	int flag;
 
 	if (waitok == 1)
-		flag = M_WAITOK;
+		flag = 0;
 	else
 		flag = M_NOWAIT;
 	flag |= M_ZERO;
@@ -482,7 +482,7 @@ bad:
 	return (error);
 }
 
-#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
+#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : 0)
 /*
  * Send on a socket.
  * If send must go all at once and message is larger than
@@ -626,7 +626,7 @@ restart:
 			cow_send = 0;
 #endif /* ZERO_COPY_SOCKETS */
 			if (top == 0) {
-				MGETHDR(m, M_TRYWAIT, MT_DATA);
+				MGETHDR(m, 0, MT_DATA);
 				if (m == NULL) {
 					error = ENOBUFS;
 					goto release;
@@ -635,7 +635,7 @@ restart:
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = (struct ifnet *)0;
 			} else {
-				MGET(m, M_TRYWAIT, MT_DATA);
+				MGET(m, 0, MT_DATA);
 				if (m == NULL) {
 					error = ENOBUFS;
 					goto release;
@@ -657,7 +657,7 @@ restart:
 				} 
 				if (!cow_send){
 #endif /* ZERO_COPY_SOCKETS */
-				MCLGET(m, M_TRYWAIT);
+				MCLGET(m, 0);
 				if ((m->m_flags & M_EXT) == 0)
 					goto nopages;
 				mlen = MCLBYTES;
@@ -788,7 +788,7 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	else
 		flags = 0;
 	if (flags & MSG_OOB) {
-		m = m_get(M_TRYWAIT, MT_DATA);
+		m = m_get(0, MT_DATA);
 		if (m == NULL)
 			return (ENOBUFS);
 		error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
@@ -1025,7 +1025,7 @@ dontblock:
 				moff += len;
 			else {
 				if (mp)
-					*mp = m_copym(m, 0, len, M_TRYWAIT);
+					*mp = m_copym(m, 0, len, 0);
 				m->m_data += len;
 				m->m_len -= len;
 				so->so_rcv.sb_cc -= len;
@@ -1128,7 +1128,7 @@ sorflush(so)
 	struct sockbuf asb;
 
 	sb->sb_flags |= SB_NOINTR;
-	(void) sblock(sb, M_WAITOK);
+	(void) sblock(sb, 0);
 	s = splimp();
 	socantrcvmore(so);
 	sbunlock(sb);
@@ -1180,7 +1180,7 @@ do_setopt_accept_filter(so, sopt)
 		goto out;
 	}
 	/* don't put large objects on the kernel stack */
-	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP, M_WAITOK);
+	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP, 0);
 	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
 	afap->af_name[sizeof(afap->af_name)-1] = '\0';
 	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
@@ -1191,12 +1191,12 @@ do_setopt_accept_filter(so, sopt)
 		error = ENOENT;
 		goto out;
 	}
-	MALLOC(af, struct so_accf *, sizeof(*af), M_ACCF, M_WAITOK | M_ZERO);
+	MALLOC(af, struct so_accf *, sizeof(*af), M_ACCF, M_ZERO);
 	if (afp->accf_create != NULL) {
 		if (afap->af_name[0] != '\0') {
 			int len = strlen(afap->af_name) + 1;
 
-			MALLOC(af->so_accept_filter_str, char *, len, M_ACCF, M_WAITOK);
+			MALLOC(af->so_accept_filter_str, char *, len, M_ACCF, 0);
 			strcpy(af->so_accept_filter_str, afap->af_name);
 		}
 		af->so_accept_filter_arg = afp->accf_create(so, afap->af_arg);
@@ -1478,7 +1478,7 @@ sogetopt(so, sopt)
 			if ((so->so_options & SO_ACCEPTCONN) == 0)
 				return (EINVAL);
 			MALLOC(afap, struct accept_filter_arg *, sizeof(*afap),
-				M_TEMP, M_WAITOK | M_ZERO);
+				M_TEMP, M_ZERO);
 			if ((so->so_options & SO_ACCEPTFILTER) != 0) {
 				strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
 				if (so->so_accf->so_accept_filter_str != NULL)
@@ -1581,11 +1581,11 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	struct mbuf *m, *m_prev;
 	int sopt_size = sopt->sopt_valsize;
 
-	MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+	MGET(m, sopt->sopt_td ? 0 : M_NOWAIT, MT_DATA);
 	if (m == 0)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
-		MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
+		MCLGET(m, sopt->sopt_td ? 0 : M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ENOBUFS;
@@ -1599,13 +1599,13 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	m_prev = m;
 
 	while (sopt_size) {
-		MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
+		MGET(m, sopt->sopt_td ? 0 : M_NOWAIT, MT_DATA);
 		if (m == 0) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
+			MCLGET(m, sopt->sopt_td ? 0 : M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(*mp);
 				return ENOBUFS;

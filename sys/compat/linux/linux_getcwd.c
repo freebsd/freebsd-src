@@ -181,7 +181,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	dirbuflen = DIRBLKSIZ;
 	if (dirbuflen < va.va_blocksize)
 		dirbuflen = va.va_blocksize;
-	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+	dirbuf = (char *)malloc(dirbuflen, M_TEMP, 0);
 
 #if 0
 unionread:
@@ -429,7 +429,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 	else if (len < 2)
 		return ERANGE;
 
-	path = (char *)malloc(len, M_TEMP, M_WAITOK);
+	path = (char *)malloc(len, M_TEMP, 0);
 
 	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
 	if (!error) {

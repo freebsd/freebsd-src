@@ -261,7 +261,7 @@ USB_ATTACH(uvscom)
 	usbd_status err;
 	int i;
 
-	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
+	devinfo = malloc(1024, M_USBDEV, 0);
 	ucom = &sc->sc_ucom;
 
 	bzero(sc, sizeof (struct uvscom_softc));
@@ -724,7 +724,7 @@ uvscom_open(void *addr, int portno)
 			return (ENXIO);
 		}
 
-		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
+		sc->sc_intr_buf = malloc(sc->sc_isize, M_USBDEV, 0);
 		err = usbd_open_pipe_intr(sc->sc_ucom.sc_iface,
 					  sc->sc_intr_number,
 					  USBD_SHORT_XFER_OK,

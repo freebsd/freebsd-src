@@ -822,7 +822,7 @@ dqget(vp, id, ump, type, dqp)
 		desireddquot += DQUOTINC;
 	if (numdquot < desireddquot) {
 		dq = (struct dquot *)malloc(sizeof *dq, M_DQUOT,
-		    M_WAITOK | M_ZERO);
+		    M_ZERO);
 		numdquot++;
 	} else {
 		if ((dq = TAILQ_FIRST(&dqfreelist)) == NULL) {

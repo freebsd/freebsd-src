@@ -109,7 +109,7 @@ ia64_mca_save_state(int type)
 		mtx_unlock_spin(&mca_info_block_lock);
 
 		totsz = sizeof(struct sysctl_oid) + recsz + 32;
-		oidp = malloc(totsz, M_MCA, M_WAITOK|M_ZERO);
+		oidp = malloc(totsz, M_MCA, M_ZERO);
 		state = (char*)(oidp + 1);
 		name = state + recsz;
 		sprintf(name, "%lld", (long long)seqnr);
@@ -198,7 +198,7 @@ ia64_mca_init(void)
 	}
 	max_size = round_page(max_size);
 
-	p = contigmalloc(max_size, M_TEMP, M_WAITOK, 0ul, 256*1024*1024 - 1,
+	p = contigmalloc(max_size, M_TEMP, 0, 0ul, 256*1024*1024 - 1,
 	    PAGE_SIZE, 256*1024*1024);
 
 	mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));

@@ -2641,7 +2641,7 @@ allocbuf(struct buf *bp, int size)
 				(bp->b_bufsize == 0) &&
 				(mbsize <= PAGE_SIZE/2)) {
 
-				bp->b_data = malloc(mbsize, M_BIOBUF, M_WAITOK);
+				bp->b_data = malloc(mbsize, M_BIOBUF, 0);
 				bp->b_bufsize = mbsize;
 				bp->b_bcount = size;
 				bp->b_flags |= B_MALLOC;

@@ -919,13 +919,13 @@ mptable_pass2(void)
 	pgeflag = 0;		/* XXX - Not used under SMP yet.  */
 
 	MALLOC(io_apic_versions, u_int32_t *, sizeof(u_int32_t) * mp_napics,
-	    M_DEVBUF, M_WAITOK);
+	    M_DEVBUF, 0);
 	MALLOC(ioapic, volatile ioapic_t **, sizeof(ioapic_t *) * mp_napics,
-	    M_DEVBUF, M_WAITOK);
+	    M_DEVBUF, 0);
 	MALLOC(io_apic_ints, io_int *, sizeof(io_int) * (nintrs + 1),
-	    M_DEVBUF, M_WAITOK);
+	    M_DEVBUF, 0);
 	MALLOC(bus_data, bus_datum *, sizeof(bus_datum) * mp_nbusses,
-	    M_DEVBUF, M_WAITOK);
+	    M_DEVBUF, 0);
 
 	bzero(ioapic, sizeof(ioapic_t *) * mp_napics);
 

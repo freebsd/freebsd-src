@@ -428,7 +428,7 @@ interpret:
 		oldprocsig = p->p_procsig;
 		PROC_UNLOCK(p);
 		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
-		    M_SUBPROC, M_WAITOK);
+		    M_SUBPROC, 0);
 		bcopy(oldprocsig, newprocsig, sizeof(*newprocsig));
 		newprocsig->ps_refcnt = 1;
 		oldprocsig->ps_refcnt--;
@@ -1174,7 +1174,7 @@ exec_register(execsw_arg)
 	if (execsw)
 		for (es = execsw; *es; es++)
 			count++;
-	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
+	newexecsw = malloc(count * sizeof(*es), M_TEMP, 0);
 	if (newexecsw == NULL)
 		return (ENOMEM);
 	xs = newexecsw;
@@ -1208,7 +1208,7 @@ exec_unregister(execsw_arg)
 	for (es = execsw; *es; es++)
 		if (*es != execsw_arg)
 			count++;
-	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
+	newexecsw = malloc(count * sizeof(*es), M_TEMP, 0);
 	if (newexecsw == NULL)
 		return (ENOMEM);
 	xs = newexecsw;

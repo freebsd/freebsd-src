@@ -73,7 +73,7 @@ smb_E(const u_char *key, u_char *data, u_char *dest)
 	kk[5] = key[4] << 3 | (key[5] >> 5 & 0xfe);
 	kk[6] = key[5] << 2 | (key[6] >> 6 & 0xfe);
 	kk[7] = key[6] << 1;
-	ksp = malloc(sizeof(des_key_schedule), M_SMBTEMP, M_WAITOK);
+	ksp = malloc(sizeof(des_key_schedule), M_SMBTEMP, 0);
 	des_set_key((des_cblock *)kk, *ksp);
 	des_ecb_encrypt((des_cblock *)data, (des_cblock *)dest, *ksp, 1);
 	free(ksp, M_SMBTEMP);
@@ -87,7 +87,7 @@ smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN)
 #ifdef NETSMBCRYPTO
 	u_char *p, *P14, *S21;
 
-	p = malloc(14 + 21, M_SMBTEMP, M_WAITOK);
+	p = malloc(14 + 21, M_SMBTEMP, 0);
 	bzero(p, 14 + 21);
 	P14 = p;
 	S21 = p + 14;
@@ -120,12 +120,12 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	int len;
 
 	len = strlen(apwd);
-	unipwd = malloc((len + 1) * sizeof(u_int16_t), M_SMBTEMP, M_WAITOK);
+	unipwd = malloc((len + 1) * sizeof(u_int16_t), M_SMBTEMP, 0);
 	/*
 	 * S21 = concat(MD4(U(apwd)), zeros(5));
 	 */
 	smb_strtouni(unipwd, apwd);
-	ctxp = malloc(sizeof(MD4_CTX), M_SMBTEMP, M_WAITOK);
+	ctxp = malloc(sizeof(MD4_CTX), M_SMBTEMP, 0);
 	MD4Init(ctxp);
 	MD4Update(ctxp, (u_char*)unipwd, len * sizeof(u_int16_t));
 	free(unipwd, M_SMBTEMP);

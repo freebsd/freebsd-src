@@ -418,8 +418,8 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		return (ENOMEM);
 	}
 
-	sc->sc_ibuf = malloc(sc->sc_isize, M_USBDEV, M_WAITOK);
-	sc->sc_obuf = malloc(sc->sc_osize, M_USBDEV, M_WAITOK);
+	sc->sc_ibuf = malloc(sc->sc_isize, M_USBDEV, 0);
+	sc->sc_obuf = malloc(sc->sc_osize, M_USBDEV, 0);
 
 	/* Set up interrupt pipe. */
 	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 

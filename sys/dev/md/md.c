@@ -759,7 +759,7 @@ mdnew(int unit)
 		unit = max + 1;
 	if (unit > 255)
 		return (NULL);
-	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
+	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_ZERO);
 	sc->unit = unit;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
@@ -918,7 +918,7 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		struct uio auio;
 		struct iovec aiov;
 
-		tmpbuf = malloc(sc->secsize, M_TEMP, M_WAITOK);
+		tmpbuf = malloc(sc->secsize, M_TEMP, 0);
 		bzero(&auio, sizeof(auio));
 
 		aiov.iov_base = tmpbuf;

@@ -640,7 +640,7 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 			break;
 
 		/* duplicate the packet */
-		m2 = m_copypacket(m, M_DONTWAIT);
+		m2 = m_copypacket(m, M_NOWAIT);
 		if (m2 == NULL) {
 			s = splnet();
 			IF_PREPEND(&sc->snd_queue, m);

@@ -505,7 +505,7 @@ static void
 mac_biba_init_label(struct label *label)
 {
 
-	SLOT(label) = biba_alloc(M_WAITOK);
+	SLOT(label) = biba_alloc(0);
 }
 
 static int

@@ -400,10 +400,10 @@ mld6_sendpkt(in6m, type, dst)
 	 * We allocate 2 mbufs and make chain in advance because
 	 * it is more convenient when inserting the hop-by-hop option later.
 	 */
-	MGETHDR(mh, M_DONTWAIT, MT_HEADER);
+	MGETHDR(mh, M_NOWAIT, MT_HEADER);
 	if (mh == NULL)
 		return;
-	MGET(md, M_DONTWAIT, MT_DATA);
+	MGET(md, M_NOWAIT, MT_DATA);
 	if (md == NULL) {
 		m_free(mh);
 		return;

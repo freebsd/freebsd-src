@@ -168,7 +168,7 @@ DECODE_PROTOTYPE(copy)
 	struct cis_tupleinfo *tmpbuf;
 
 	tmpbuf = malloc(sizeof(struct cis_tupleinfo) * (ncisread_buf+1),
-	    M_DEVBUF, M_WAITOK);
+	    M_DEVBUF, 0);
 	if (ncisread_buf > 0) {
 		memcpy(tmpbuf, cisread_buf,
 		    sizeof(struct cis_tupleinfo) * ncisread_buf);
@@ -178,7 +178,7 @@ DECODE_PROTOTYPE(copy)
 
 	cisread_buf[ncisread_buf].id = id;
 	cisread_buf[ncisread_buf].len = len;
-	cisread_buf[ncisread_buf].data = malloc(len, M_DEVBUF, M_WAITOK);
+	cisread_buf[ncisread_buf].data = malloc(len, M_DEVBUF, 0);
 	memcpy(cisread_buf[ncisread_buf].data, tupledata, len);
 	ncisread_buf++;
 	return (0);
@@ -705,7 +705,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	if (count == 0)
 		return (0);
 	barlist = malloc(sizeof(struct resource_list_entry*) * count, M_DEVBUF,
-	    M_WAITOK);
+	    0);
 	count = 0;
 	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
 		barlist[count] = rle;

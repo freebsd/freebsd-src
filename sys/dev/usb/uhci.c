@@ -2529,7 +2529,7 @@ uhci_setup_isoc(usbd_pipe_handle pipe)
 
 	iso = &upipe->u.iso;
 	iso->stds = malloc(UHCI_VFRAMELIST_COUNT * sizeof (uhci_soft_td_t *),
-			   M_USBHC, M_WAITOK);
+			   M_USBHC, 0);
 
 	token = rd ? UHCI_TD_IN (0, endpt, addr, 0) :
 		     UHCI_TD_OUT(0, endpt, addr, 0);
@@ -2775,7 +2775,7 @@ uhci_device_setintr(uhci_softc_t *sc, struct uhci_pipe *upipe, int ival)
 
 	upipe->u.intr.npoll = npoll;
 	upipe->u.intr.qhs =
-		malloc(npoll * sizeof(uhci_soft_qh_t *), M_USBHC, M_WAITOK);
+		malloc(npoll * sizeof(uhci_soft_qh_t *), M_USBHC, 0);
 
 	/*
 	 * Figure out which offset in the schedule that has most

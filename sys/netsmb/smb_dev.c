@@ -131,7 +131,7 @@ nsmb_dev_open(dev_t dev, int oflags, int devtype, struct thread *td)
 	if (sdp && (sdp->sd_flags & NSMBFL_OPEN))
 		return EBUSY;
 	if (sdp == NULL) {
-		sdp = malloc(sizeof(*sdp), M_NSMBDEV, M_WAITOK);
+		sdp = malloc(sizeof(*sdp), M_NSMBDEV, 0);
 		dev->si_drv1 = (void*)sdp;
 	}
 	/*

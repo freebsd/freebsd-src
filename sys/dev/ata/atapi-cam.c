@@ -624,7 +624,7 @@ static void
 cam_rescan(struct cam_sim *sim)
 {
     struct cam_path *path;
-    union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_WAITOK | M_ZERO);
+    union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_ZERO);
     
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)

@@ -713,7 +713,7 @@ uniarp_client_mode(uip, aap)
 	 * Now, get an arp entry for the server connection
 	 */
 	uip->uip_arpstate = UIAS_CLIENT_POPEN;
-	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
+	uap = uma_zalloc(uniarp_zone, M_ZERO);
 	if (uap == NULL) {
 		UNIIP_ARP_TIMER(uip, 1 * ATM_HZ);
 		return;

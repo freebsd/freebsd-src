@@ -345,8 +345,8 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	error = 0;
 	pgrp = NULL;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_ZERO);
+	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_ZERO);
 
 	sx_xlock(&proctree_lock);
 
@@ -408,7 +408,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	error = 0;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_ZERO);
 
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
@@ -1687,7 +1687,7 @@ crget(void)
 {
 	register struct ucred *cr;
 
-	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
+	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_ZERO);
 	cr->cr_ref = 1;
 	cr->cr_mtxp = mtx_pool_find(cr);
 #ifdef MAC

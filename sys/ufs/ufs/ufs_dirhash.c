@@ -187,7 +187,7 @@ ufsdirhash_build(struct inode *ip)
 		goto fail;
 	for (i = 0; i < narrays; i++) {
 		if ((dh->dh_hash[i] = uma_zalloc(ufsdirhash_zone,
-		    M_WAITOK)) == NULL)
+		    0)) == NULL)
 			goto fail;
 		for (j = 0; j < DH_NBLKOFF; j++)
 			dh->dh_hash[i][j] = DIRHASH_EMPTY;
