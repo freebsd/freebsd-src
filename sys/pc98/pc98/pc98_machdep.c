@@ -43,18 +43,20 @@
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
 
-extern int Maxmem;
-extern int Maxmem_under16M;
+extern	int Maxmem;
+extern	int Maxmem_under16M;
 
-static void init_cpu_accel_mem __P((void));
-void pc98_init_dmac __P((void));
-void pc98_getmemsize __P((void));
+static	void init_cpu_accel_mem __P((void));
+void	pc98_init_dmac __P((void));
+void	pc98_getmemsize __P((void));
 
 #ifdef EPSON_MEMWIN
-static void init_epson_memwin __P((void));
+static	void init_epson_memwin __P((void));
 
-static void init_epson_memwin(void)
+static void
+init_epson_memwin(void)
 {
+
 	if (pc98_machine_type & M_EPSON_PC98) {
 		if (Maxmem > 3840) {
 			if (Maxmem == Maxmem_under16M) {
@@ -65,23 +67,28 @@ static void init_epson_memwin(void)
 			}
 		}
 
-		/* Disable 15MB-16MB caching */
+		/* Disable 15MB-16MB caching. */
 		switch (epson_machine_id) {
 		case 0x34:	/* PC486HX */
 		case 0x35:	/* PC486HG */
 		case 0x3B:	/* PC486HA */
-			/* Cache control start */
+			/* Cache control start. */
 			outb(0x43f, 0x42);
 			outw(0xc40, 0x0033);
 
-			/* Disable 0xF00000-0xFFFFFF */
-			outb(0xc48, 0x49); outb(0xc4c, 0x00);
-			outb(0xc48, 0x48); outb(0xc4c, 0xf0);
-			outb(0xc48, 0x4d); outb(0xc4c, 0x00);
-			outb(0xc48, 0x4c); outb(0xc4c, 0xff);
-			outb(0xc48, 0x4f); outb(0xc4c, 0x00);
+			/* Disable 0xF00000-0xFFFFFF. */
+			outb(0xc48, 0x49);
+			outb(0xc4c, 0x00);
+			outb(0xc48, 0x48);
+			outb(0xc4c, 0xf0);
+			outb(0xc48, 0x4d);
+			outb(0xc4c, 0x00);
+			outb(0xc48, 0x4c);
+			outb(0xc4c, 0xff);
+			outb(0xc48, 0x4f);
+			outb(0xc4c, 0x00);
 
-			/* Cache control end */
+			/* Cache control end. */
 			outb(0x43f, 0x40);
 			break;
 
@@ -91,7 +98,7 @@ static void init_epson_memwin(void)
 		case 0x32:	/* PC486GR+ */
 		case 0x37:	/* PC486SE */
 		case 0x38:	/* PC486SR */
-			/* Disable 0xF00000-0xFFFFFF */
+			/* Disable 0xF00000-0xFFFFFF. */
 			outb(0x43f, 0x42);
 			outb(0x467, 0xe0);
 			outb(0x567, 0xd8);
@@ -102,13 +109,17 @@ static void init_epson_memwin(void)
 			break;
 		}
 
-		/* Disable 15MB-16MB RAM and enable memory window */
-		outb(0x43b, inb(0x43b) & 0xfd);	/* clear bit1 */
+		/* Disable 15MB-16MB RAM and enable memory window. */
+		outb(0x43b, inb(0x43b) & 0xfd);	/* Clear bit1. */
 	}
 }
 #endif
 
-static void init_cpu_accel_mem(void)
+#ifdef notyet
+static	void init_cpu_accel_mem(void);
+
+static void
+init_cpu_accel_mem(void)
 {
 	u_int target_page;
 	/*
@@ -170,9 +181,10 @@ static void init_cpu_accel_mem(void)
 		invltlb();
 	}
 }
+#endif
 
-
-void pc98_init_dmac(void)
+void
+pc98_init_dmac(void)
 {
 	outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
 	outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
@@ -182,8 +194,8 @@ void pc98_init_dmac(void)
 	outb(0x11, 0x50);	/* PC98 must be 0x40 */
 }
 
-
-void pc98_getmemsize(void)
+void
+pc98_getmemsize(void)
 {
 	unsigned char under16, over16;
 
