@@ -137,7 +137,7 @@ doit(struct sockaddr *fromp)
 	char user[16], pass[16];
 	struct passwd *pwd, pwd_storage;
 	char *pwdbuf;
-	int pwdbuflen;
+	size_t pwdbuflen;
 	int fd, r, sd;
 	u_short port;
 	int pv[2], pid, cc, nfds;
