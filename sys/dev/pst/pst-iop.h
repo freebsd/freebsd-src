@@ -631,7 +631,7 @@ struct i2o_bsa_cache_flush_message {
 
 /* prototypes */
 int iop_init(struct iop_softc *);
-void iop_attach(struct iop_softc *);
+void iop_attach(void *);
 void iop_intr(void *);
 int iop_reset(struct iop_softc *);
 int iop_init_outqueue(struct iop_softc *);
