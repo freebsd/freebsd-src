@@ -60,7 +60,7 @@ extern int	pccard_cis_debug;
 #define	DEVPRINTF(arg)
 #endif
 
-#define	PCCARD_CIS_SIZE		1024
+#define	PCCARD_CIS_SIZE		4096
 
 struct cis_state {
 	int	count;
@@ -96,6 +96,7 @@ pccard_read_cis(struct pccard_softc *sc)
 
 	state.pf = NULL;
 
+	tsleep(&state, 0, "pccard", hz);
 	if (pccard_scan_cis(sc->dev, pccard_parse_cis_tuple,
 	    &state) == -1)
 		state.card->error++;
@@ -126,9 +127,15 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 
 	/* allocate some memory */
 
+	/*
+	 * Some reports from the field suggest that a 64k memory boundary
+	 * helps card CIS being able to be read.  Try it here and see what
+	 * the results actually are.  I'm not sure I understand why this
+	 * would make cards work better, but it is easy enough to test.
+	 */
 	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 
-	    PCCARD_CIS_SIZE, RF_ACTIVE);
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0,
+	    PCCARD_CIS_SIZE, RF_ACTIVE | rman_make_alignment_flags(64*1024));
 	if (res == NULL) {
 		device_printf(dev, "can't alloc memory to read attributes\n");
 		return -1;
