@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 # XXX MISSING:		libmp libplot
-SUBDIR=	libc libcompat libcurses libedit libkvm libm \
+SUBDIR=	libc libcompat libcurses libedit libkvm libm libmd \
 	libresolv librpc/rpc libtelnet libterm libutil liby
 
 .if	${MACHINE} == "tahoe"
