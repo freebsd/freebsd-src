@@ -95,7 +95,7 @@ static int vfs_opv_numops = 64;
 
 /* Allow this number to be tuned at boot */
 TUNABLE_INT("vfs.opv_numops", &vfs_opv_numops);
-SYSCTL_INT(_vfs, OID_AUTO, opv_numops, CTLFLAG_RD, &vfs_opv_numops,
+SYSCTL_INT(_vfs, OID_AUTO, opv_numops, CTLFLAG_RDTUN, &vfs_opv_numops,
 	0, "Maximum number of operations in vop_t vector");
 
 static int int_cmp(const void *a, const void *b);

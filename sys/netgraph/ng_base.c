@@ -3021,11 +3021,11 @@ static int			maxalloc = 128;	/* limit the damage of a leak */
 static int			ngqfreemax = 64;/* cache at most this many */
 
 TUNABLE_INT("net.graph.maxalloc", &maxalloc);
-SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RD, &maxalloc,
+SYSCTL_INT(_net_graph, OID_AUTO, maxalloc, CTLFLAG_RDTUN, &maxalloc,
     0, "Maximum number of queue items to allocate");
 
 TUNABLE_INT("net.graph.ngqfreemax", &ngqfreemax);
-SYSCTL_INT(_net_graph, OID_AUTO, ngqfreemax, CTLFLAG_RD, &ngqfreemax,
+SYSCTL_INT(_net_graph, OID_AUTO, ngqfreemax, CTLFLAG_RDTUN, &ngqfreemax,
     0, "Maximum number of free queue items to cache");
 
 static const int		ngqfreelow = 4; /* try malloc if free < this */

@@ -163,7 +163,7 @@ static int amountpipekvawired;
 
 SYSCTL_DECL(_kern_ipc);
 
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RD,
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekvawired, CTLFLAG_RW,
 	   &maxpipekvawired, 0, "Pipe KVA wired limit");

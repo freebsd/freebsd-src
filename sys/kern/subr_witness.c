@@ -238,7 +238,7 @@ int	witness_skipspin = 1;
 int	witness_skipspin = 0;
 #endif
 TUNABLE_INT("debug.witness_skipspin", &witness_skipspin);
-SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
+SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0,
     "");
 
 static struct mtx w_mtx;

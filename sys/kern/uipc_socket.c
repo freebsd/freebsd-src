@@ -267,7 +267,8 @@ solisten(so, backlog, td)
 	int s, error;
 
 	s = splnet();
-	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING)) {
+	if (so->so_state & (SS_ISCONNECTED | SS_ISCONNECTING |
+			    SS_ISDISCONNECTING)) {
 		splx(s);
 		return (EINVAL);
 	}
