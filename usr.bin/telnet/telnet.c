@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
 
 #include <arpa/telnet.h>
 
+#include <stdlib.h>
 #include <ctype.h>
 
 #include "ring.h"
