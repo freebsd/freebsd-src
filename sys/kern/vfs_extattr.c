@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.4 1994/08/20 16:03:14 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.5 1994/09/02 04:14:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1613,6 +1613,8 @@ truncate(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
+	if (uap->length < 0)
+		return(EINVAL);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
 	if (error = namei(&nd))
 		return (error);
@@ -1651,6 +1653,8 @@ ftruncate(p, uap, retval)
 	struct file *fp;
 	int error;
 
+	if (uap->length < 0)
+		return(EINVAL);
 	if (error = getvnode(p->p_fd, uap->fd, &fp))
 		return (error);
 	if ((fp->f_flag & FWRITE) == 0)
