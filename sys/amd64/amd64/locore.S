@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.26 1994/09/05 14:09:41 bde Exp $
+ *	$Id: locore.s,v 1.27 1994/09/12 11:38:06 davidg Exp $
  */
 
 /*
@@ -102,9 +102,13 @@ _esym:	.long	0				/* ptr to end of syms */
 	.globl	_boothowto,_bootdev,_curpcb
 
 	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
+
+ 	.globl	_video_mode_ptr
+
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
 _cpu_vendor:	.space	20			/* CPU origin code */
+_video_mode_ptr:	.long 0
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
@@ -165,6 +169,24 @@ NON_GPROF_ENTRY(btext)
 	movl	16(%esp),%eax
 	addl	$KERNBASE,%eax
 	movl	%eax,_esym-KERNBASE
+
+	/* get the BIOS video mode pointer */
+ 	movl	$0x4a8, %ecx
+ 	movl	(%ecx), %eax
+ 	movl	%eax, %ecx
+ 	shrl	$12, %ecx
+ 	andl	$0xffff0000, %ecx
+ 	andl	$0x0000ffff, %eax
+ 	orl	%ecx, %eax
+ 	movl	(%eax), %eax
+ 	movl	%eax, %ecx
+ 	shrl	$12, %ecx
+ 	andl	$0xffff0000, %ecx
+ 	andl	$0x0000ffff, %eax
+ 	orl	%ecx, %eax
+ 	addl	$KERNBASE, %eax
+ 	movl	%eax, _video_mode_ptr-KERNBASE	
+
 #ifdef DISKLESS					/* Copy diskless structure */
 	movl	_nfs_diskless_size-KERNBASE,%ecx
 	movl	20(%esp),%esi
