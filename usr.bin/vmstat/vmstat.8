@@ -177,6 +177,9 @@ If no repeat
 interval is specified, the default is 1 second.
 .It Fl z
 Report on memory used by the kernel zone allocator, by zone.
+The information shown is the same as that returned by the
+.Va vm.zone
+sysctl variable.
 .El
 .Pp
 By default,
@@ -302,7 +305,8 @@ default memory file
 .Xr ps 1 ,
 .Xr systat 1 ,
 .Xr iostat 8 ,
-.Xr pstat 8
+.Xr pstat 8 ,
+.Xr sysctl 8
 .Pp
 The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
