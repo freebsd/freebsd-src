@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.10 1994/11/12 09:55:29 jkh Exp $
+# $Id: extract.sh,v 1.11 1994/11/17 11:53:12 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
@@ -9,7 +9,7 @@ if [ -f bin_tgz.aa ] ; then
 		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
 	fi
 	echo; echo "Extracting bindist, please wait." 
-	cat bin_tgz.?? | gzip -c -d | tar --unlink -xvf - -C $DDIR
+	cat bin_tgz.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	if [ -f $DDIR/stand/etc/myname ]; then
 		# Add back what the bindist nuked.
 		cp $DDIR/stand/etc/myname $DDIR/etc
@@ -27,6 +27,6 @@ do
 			mv /sbin/init /sbin/nondes_init
 		fi
 		echo "Extracting $b"
-		cat $b.?? | gzip -c -d | tar --unlink -xvf - -C $DDIR
+		cat $b.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
 	fi
 done
