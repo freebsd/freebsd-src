@@ -2560,15 +2560,8 @@ loop:
 			splx(s);
 			return NULL;
 		}
-		if (vn_isdisk(vp, NULL))
-			bsize = DEV_BSIZE;
-		else if (vp->v_mountedhere)
-			bsize = vp->v_mountedhere->mnt_stat.f_iosize;
-		else if (vp->v_mount)
-			bsize = vp->v_mount->mnt_stat.f_iosize;
-		else
-			bsize = size;
 
+		bsize = bo->bo_bsize;
 		offset = blkno * bsize;
 		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) &&
 		    (vp->v_vflag & VV_OBJBUF);
