@@ -34,10 +34,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id: nfs_srvcache.c,v 1.15 1997/10/12 20:25:46 phk Exp $
+ * $Id: nfs_srvcache.c,v 1.16 1998/02/09 06:10:36 eivind Exp $
  */
 
-#ifndef NFS_NOSERVER 
 /*
  * Reference: Chet Juszczak, "Improving the Performance and Correctness
  *		of an NFS Server", in Proc. Winter 1989 USENIX Conference,
@@ -60,6 +59,7 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsrvcache.h>
 
+#ifndef NFS_NOSERVER 
 extern struct nfsstats nfsstats;
 extern int nfsv2_procid[NFS_NPROCS];
 static long numnfsrvcache;
