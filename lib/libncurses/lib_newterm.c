@@ -31,6 +31,17 @@ static void cleanup(int sig)
 	exit(1);
 }
 
+static void
+size_change(int sig)
+{
+	struct ttysize ws;
+
+	if (ioctl(0, TIOCGSIZE, &ws) == -1)
+		return;
+	LINES = ws.ts_lines;
+	COLS = ws.ts_cols;
+}
+
 WINDOW *stdscr, *curscr, *newscr;
 SCREEN *SP;
 
@@ -130,6 +141,10 @@ char   *use_it = _ncurses_copyright;
 	act.sa_flags = 0;
 	sigaction(SIGINT, &act, NULL);
 	sigaction(SIGTERM, &act, NULL);
+	act.sa_handler = size_change;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	sigaction(SIGWINCH, &act, NULL);
 #if 0
 	sigaction(SIGSEGV, &act, NULL);
 #endif
