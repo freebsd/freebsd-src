@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.33 1996/02/11 14:02:52 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.34 1996/02/12 15:15:01 gclarkii Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1015,6 +1015,48 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           Yes it can on certain machines.  Please look in the <tt/LINT/
           kernel config file under <tt/APM/.
 
+      <sect1>
+        <heading>I cannot get my Bustek 742a EISA SCSI to be recognized by FreeBSD 2.1</heading>
+        <p>
+          This info is specific to the 742a but may also cover other
+          Buslogic cards.  (Bustek = Buslogic)
+
+          There are 2 general ``versions'' of the 742a card.  They are
+          hardware revisions A-G, and revisions H - onwards.  The revision
+          letter is located after the Assembly number on the edge of the
+          card.  The 742a has 2 ROM chips on it, one is the BIOS chip and
+          the other is the Firmware chip.  FreeBSD doesen't care what
+          version of BIOS chip you have but it does care about what version
+          of firmware chip.  Buslogic will send upgrade ROMS out if you
+          call their tech support dept.  The BIOS and Firmware chips are
+          shipped as a matched pair.  You must have the most current
+          Firmware ROM in your adapter card for your hardware revision.
+
+          The REV A-G cards can only accept BIOS/Firmware sets up to
+          2.41/2.21.  The REV H- up cards can accept the most current
+          BIOS/Firmware sets of 4.70/3.37. The difference between the
+          firmware sets is that the 3.37 firmware supports ``round robin''
+
+          The Buslogic cards also have a serial number on them.  If you
+          have a old hardware revision card you can call the Buslogic RMA
+          department and give them the serial number and attempt to
+          exchange the card for a newer hardware revision.  If the card is
+          young enough they will do so.
+
+          FreeBSD 2.1 only supports Firmware revisions 2.21 onward.  If you
+          have a Firmware revision older than this your card will not be
+          recognized as a Buslogic card.  It may be recognized as an
+          Adaptec 1540, however.  The early Buslogic firmware contains an
+          AHA1540 ``emulation'' mode.  This is not a good thing for an EISA
+          card, however.
+
+          If yu have an old hardware revision card and you obtain the 2.21
+          firmware for it, you will need to check the position of jumper W1
+          to B-C, the default is A-B.  
+
+          The 742a EISA cards never had the ``> 16MB'' problem mentioned in
+          the section <ref id="bigram" name="on 32 MB machines">. This is a
+          problem that occurs with the Vesa-Local Buslogic SCSI cards.
 
     <sect>
       <heading>Commercial Applications</heading>
@@ -1113,7 +1155,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
       <heading>User Applications</heading>
         
       <sect1>
-	<heading>I want to run X, how do I go about it?</heading>
+        <heading>I want to run X, how do I go about it?</heading>
 
         <p>
           First, get the XFree86(tm) distribution of X11R6 from
@@ -1129,7 +1171,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           <ref id="xinside" name="on Xaccel"> for more details.
 
       <sect1>
-	<heading>I've been trying to run ghostscript on a 386 (or 486sx) with no math co-processor and I keep getting errors. What's up?<label id="emul"></heading>
+        <heading>I've been trying to run ghostscript on a 386 (or 486sx) with no math co-processor and I keep getting errors. What's up?<label id="emul"></heading>
 
         <p>
           You will need to add the alternate math emulator to your kernel,
@@ -1294,6 +1336,54 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
 </verb>
 
       <sect1>
+        <heading>When I boot FreeBSD with my ATI Mach 64 videocard the following happens: when the system probes the hardware during boot the screen goes black and synchronization is lost and I'm not even using X! What's the problem?!</heading>
+        <p>
+          The problem is that the ATI Mach 64 uses address <tt/2e8/, and
+          the fourth serial port does too. Due to a bug (feature?) in the
+          sio.c driver it will touch this port even if you don't have the
+          fourth serial port, and <bf/even/ if you disable sio3 (the fourth
+          port) which normally uses this address.
+
+      <sect1>
+        <heading>What's the solution or workaround for this problem?</heading>
+        <p>
+          Until the bug has been fixed, you can use this workaround:
+          <enum>
+            <item> Enter <tt/-c/ at the bootprompt. <newline>
+              &lsqb; the kernel goes into configuration mode &rsqb;
+            <item> Disable <tt/sio0/, <tt/sio1/, <tt/sio2/ and <tt/sio3/
+              (all of them).  This way the sio driver doesn't get activated
+              -> no problems.
+            <item> Type exit to continue booting.
+          </enum>
+
+      <sect1>
+        <heading>The workaround works fine, but now I want to use my serial ports.</heading>
+        <p>
+          You'll have to build a new kernel with the following
+          modification: in <tt>/usr/src/sys/i386/isa/sio.c</tt> find the
+          one occurrence of the string <tt/0x2e8/ and remove that string
+          and the preceding comma (keep the trailing comma).  Now follow
+          the normal procedure of building a new kernel.
+
+      <sect1>
+        <heading>Now everything runs great, except for X Window: my screen goed black or X Window runs but with all kinds of problems.</heading>
+        <p>
+          Some newer ATI Mach 64 video cards (notably ATI Mach Xpression)
+          do not run with the current version of <tt/XFree86/. You can get
+          a beta-version of a new X-server that works better, by looking at
+          <url url="http://www.xfree86.org" name="the XFree86 site">
+          and following the links to the new beta release. Get the
+          following files:
+
+          <tt>AccelCards, BetaReport, Cards, Devices, FILES, README.ati,
+            README.FreeBSD, README.Mach64, RELNOTES, VGADriver.Doc,
+            X312BMa64.tgz</tt>
+
+          Replace the older files with the new versions and make sure you
+          run <tt/xf86config/ again.
+
+      <sect1>
 	<heading>How do I access the virtual consoles?</heading>
         <p>
           If the console is not currently displaying X Window, just press
@@ -1387,7 +1477,33 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           running, before running this command.  If you don't, your system
           will probably appear to hang/lock up after executing the kill
           command.
- 
+
+      <sect1>
+        <heading>How do I start XDM from the <tt>/etc/ttys</tt> file ?</heading>
+        <p>
+          Starting xdm via /etc/ttys is a Bad Thing. I don't know why this
+          crept into some README file.
+
+          Start it from your <tt/rc.local/, and be explicit about how it
+          has to start.  If this is your last action in <tt/rc.local/, put
+          a ``<tt/sleep 1/'' behind, to allow <tt/xdm/ to properly
+          daemonize before the <tt/rc/ shell exits.
+
+          <tt/xdm/ should be started without any arguments (i.e., as a
+          daemon).
+
+          The Xserver config file (default:
+          <tt>/usr/X11R6/lib/X11/xdm/Xservers</tt>) should contain the
+          line:
+
+          <code>
+            :0 local /usr/X11R6/bin/X :0 vt08 -wm
+          </code>
+
+          Of course, you can omit the ``<tt/-wm/'' if you don't like it,
+          but the `<tt/`vt08/'' is quite important -- it must point to a vt
+          that won't be used by <tt/getty/'s about a second later.
+
       <sect1>
 	<heading>I've heard of something called FreeBSD-current. How do I run it, and where can I get more information?</heading>
 
@@ -1538,7 +1654,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           </verb>
 
       <sect1>
-	<heading>&lt;XXX&gt; I've had a couple of system panics and would like to be able browse the system dumps.  The normal kernel is stripped and I don't want to run a bloated kernel.  What can I do?</heading>
+        <heading>&lt;XXX&gt; I've had a couple of system panics and would like to be able browse the system dumps.  The normal kernel is stripped and I don't want to run a bloated kernel.  What can I do?</heading>
 
       <sect1>
 	<heading>I've got this neato kernel extension I just know everyone will will want.  How do I get it included into the distribution?</heading>
