@@ -204,11 +204,6 @@ void		pthread_cleanup_push(void (*) (void *), void *routine_arg);
 int		pthread_condattr_destroy(pthread_condattr_t *);
 int		pthread_condattr_init(pthread_condattr_t *);
 
-#if defined(_POSIX_THREAD_PROCESS_SHARED)
-int		pthread_condattr_getpshared(pthread_condattr_t *, int *);
-int		pthread_condattr_setpshared(pthread_condattr_t *, int);
-#endif
-
 int		pthread_cond_broadcast(pthread_cond_t *);
 int		pthread_cond_destroy(pthread_cond_t *);
 int		pthread_cond_init(pthread_cond_t *,
@@ -264,13 +259,6 @@ void		pthread_testcancel(void);
 int		pthread_getprio(pthread_t);
 int		pthread_setprio(pthread_t, int);
 void		pthread_yield(void);
-
-#if defined(_POSIX_THREAD_PROCESS_SHARED)
-int		pthread_mutexattr_getpshared(pthread_mutexattr_t *,
-			int *pshared);
-int		pthread_mutexattr_setpshared(pthread_mutexattr_t *,
-			int pshared);
-#endif
 
 int		pthread_mutexattr_getprioceiling(pthread_mutexattr_t *,
 			int *);
