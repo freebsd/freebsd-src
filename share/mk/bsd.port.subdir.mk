@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.15 1996/11/01 07:22:37 asami Exp $
+#	$Id: bsd.port.subdir.mk,v 1.15.2.1 1997/01/13 02:15:40 asami Exp $
 
 .MAIN: all
 
@@ -47,7 +47,7 @@ ${SUBDIR}::
 	${MAKE} all
 
 .for __target in all fetch fetch-list package extract configure \
-		 build clean depend describe reinstall tags checksum
+		 build clean depend describe distclean reinstall tags checksum
 .if !target(__target)
 ${__target}: _SUBDIRUSE
 .endif
