@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11.2.7 1997/10/12 16:22:28 jkh Exp $
+ * $Id: variable.c,v 1.11.2.8 1998/03/10 17:24:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -183,15 +183,18 @@ variable_check(char *data)
 	    if ((cp3 = index(cp, '"')) != NULL)
 		*cp3 = '\0';
 	}
-	if ((cp3 = index(cp, ',')) != NULL)
+	else if ((cp3 = index(cp, ',')) != NULL)
 	    *cp3 = '\0';
         cp2 = getenv(tmp);
-
-        if (cp2)
-            return !strcmp(cp, cp2);
+        if (cp2) {
+	    if (!*cp)
+		return TRUE;
+	    else
+        	return !strcmp(cp, cp2);
+	}
         else
             return FALSE;
     }
     else
-        return getenv(tmp) ? 1 : 0;
+        return getenv(tmp) ? TRUE : FALSE;
 } 
