@@ -2389,8 +2389,10 @@ bge_init(xsc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (ifp->if_flags & IFF_RUNNING)
+	if (ifp->if_flags & IFF_RUNNING) {
+		splx(s);
 		return;
+	}
 
 	/* Cancel pending I/O and flush buffers. */
 	bge_stop(sc);
