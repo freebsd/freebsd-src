@@ -6,7 +6,7 @@ PROG=${1-UNKNOWN}
 
 ConfStr="$PROG"
 
-ConfStr="$ConfStr 4.1.1a"
+ConfStr="$ConfStr 4.1.1b"
 
 case "$CSET" in
  '') ;;
