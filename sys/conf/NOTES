@@ -1834,6 +1834,7 @@ device		sound
 #
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
+# snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
 # snd_cs4281:		Crystal Semiconductor CS4281 PCI.
 # snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
@@ -1867,6 +1868,7 @@ device		sound
 device		snd_ad1816
 device		snd_als4000
 #device		snd_au88x0
+#device		snd_audiocs
 device		snd_cmi
 device		snd_cs4281
 device		snd_csa
