@@ -465,6 +465,7 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, pathseg, path, td);
 	if ((error = change_dir(&nd, td)) != 0)
 		return (error);
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	FILEDESC_LOCK(fdp);
 	vp = fdp->fd_cdir;
@@ -543,10 +544,11 @@ chroot(td, uap)
 		goto error;
 #ifdef MAC
 	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp))) {
-		vput(vp);
+		vput(nd.ni_vp);
 		goto error;
 	}
 #endif
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	FILEDESC_LOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
 	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
@@ -574,7 +576,8 @@ error:
 }
 
 /*
- * Common routine for chroot and chdir.
+ * Common routine for chroot and chdir.  On success, the directory vnode
+ * is returned locked, and must be unlocked by the caller.
  */
 static int
 change_dir(ndp, td)
@@ -591,15 +594,13 @@ change_dir(ndp, td)
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
 #ifdef MAC
-	else if ((error = mac_check_vnode_chdir(td->td_ucred, vp)) != 0) {
-	}
+	if (error == 0)
+		error = mac_check_vnode_chdir(td->td_ucred, vp);
 #endif
-	else
+	if (error == 0)
 		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	if (error)
 		vput(vp);
-	else
-		VOP_UNLOCK(vp, 0, td);
 	return (error);
 }
 
