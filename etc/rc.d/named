@@ -14,6 +14,7 @@ name="named"
 rcvar=`set_rcvar`
 start_precmd="named_precmd"
 start_postcmd="make_symlinks"
+stop_postcmd="named_poststop"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
 
@@ -79,6 +80,13 @@ make_symlinks()
 {
 	checkyesno named_symlink_enable &&
 	ln -fs "${named_chrootdir}${pidfile}" ${pidfile}
+}
+
+named_poststop()
+{
+	if [ -n "${named_chrootdir}"  -a -c ${named_chrootdir}/dev/null ]; then
+		umount ${named_chrootdir}/dev 2>/dev/null || true
+	fi
 }
 
 named_precmd()
