@@ -35,6 +35,7 @@
 .Nm
 .Op Fl d
 .Op Fl v
+.Op Fl x
 .Op Fl z
 .Op Fl i Ar IRQ
 .Op Fl I
@@ -137,6 +138,14 @@ display error messages.
 .It Fl v
 After reading the configuration file, print out a summary
 of it.
+.It Fl x
+Exits immediately after the cards have been probed and attached.
+This is primarily useful in embedded applications where it is
+desirable to use
+.Nm
+to start PC-CARD devices but prohibitive memory-wise to leave the
+.Nm
+process running.
 .It Fl z
 Delays running as a daemon until after the cards have been probed and attached.
 .It Fl I
