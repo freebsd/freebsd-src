@@ -824,7 +824,8 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 
 	if (bp->b_bcount & PAGE_MASK) {
 		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR | B_INVAL;
+		bp->b_ioflags |= BIO_ERROR;
+		bp->b_flags |= B_INVAL;
 		biodone(bp);
 		printf("swap_pager_strategy: bp %p b_vp %p blk %d size %d, not page bounded\n", bp, bp->b_vp, (int)bp->b_pblkno, (int)bp->b_bcount);
 		return;
@@ -835,7 +836,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 	 */
 
 	bp->b_error = 0;
-	bp->b_flags &= ~B_ERROR;
+	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_resid = bp->b_bcount;
 
 	start = bp->b_pblkno;
@@ -877,7 +878,7 @@ swap_pager_strategy(vm_object_t object, struct buf *bp)
 			blk = swp_pager_getswapspace(1);
 			if (blk == SWAPBLK_NONE) {
 				bp->b_error = ENOMEM;
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 				break;
 			}
 			swp_pager_meta_build(object, start, blk);
@@ -1478,7 +1479,7 @@ swp_pager_async_iodone(bp)
 	 * report error
 	 */
 
-	if (bp->b_flags & B_ERROR) {
+	if (bp->b_ioflags & BIO_ERROR) {
 		printf(
 		    "swap_pager: I/O error - %s failed; blkno %ld,"
 			"size %ld, error %d\n",
@@ -1517,7 +1518,7 @@ swp_pager_async_iodone(bp)
 
 		vm_page_flag_clear(m, PG_SWAPINPROG);
 
-		if (bp->b_flags & B_ERROR) {
+		if (bp->b_ioflags & BIO_ERROR) {
 			/*
 			 * If an error occurs I'd love to throw the swapblk
 			 * away without freeing it back to swapspace, so it

@@ -746,7 +746,7 @@ hpfs_strategy(ap)
 		if (error) {
 			printf("hpfs_strategy: VOP_BMAP FAILED %d\n", error);
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			biodone(bp);
 			return (error);
 		}

@@ -779,7 +779,7 @@ ccdstrategy(bp)
 #endif
 	if ((cs->sc_flags & CCDF_INITED) == 0) {
 		bp->b_error = ENXIO;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto done;
 	}
 
@@ -813,7 +813,8 @@ ccdstrategy(bp)
 			bp->b_resid = bp->b_bcount;
 			if (pbn != cs->sc_size) {
 				bp->b_error = EINVAL;
-				bp->b_flags |= B_ERROR | B_INVAL;
+				bp->b_flags |= B_INVAL;
+				bp->b_ioflags |= BIO_ERROR;
 			}
 			goto done;
 		}
@@ -1108,7 +1109,7 @@ ccdintr(cs, bp)
 	/*
 	 * Request is done for better or worse, wakeup the top half.
 	 */
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 		bp->b_resid = bp->b_bcount;
 	devstat_end_transaction_buf(&cs->device_stats, bp);
 	biodone(bp);
@@ -1148,7 +1149,7 @@ ccdiodone(ibp)
 	 * succeed.
 	 */
 
-	if (cbp->cb_buf.b_flags & B_ERROR) {
+	if (cbp->cb_buf.b_ioflags & BIO_ERROR) {
 		const char *msg = "";
 
 		if ((ccd_softc[unit].sc_cflags & CCDF_MIRROR) &&
@@ -1166,7 +1167,7 @@ ccdiodone(ibp)
 			cs->sc_pick = 1 - cs->sc_pick;
 			cs->sc_blk[cs->sc_pick] = bp->b_blkno;
 		} else {
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = cbp->cb_buf.b_error ? 
 			    cbp->cb_buf.b_error : EIO;
 		}
@@ -1204,7 +1205,7 @@ ccdiodone(ibp)
 			 * occured with this one.
 			 */
 			if ((cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
-				if (cbp->cb_buf.b_flags & B_ERROR) {
+				if (cbp->cb_buf.b_ioflags & BIO_ERROR) {
 					cbp->cb_mirror->cb_pflags |= 
 					    CCDPF_MIRROR_DONE;
 					BUF_STRATEGY(&cbp->cb_mirror->cb_buf);

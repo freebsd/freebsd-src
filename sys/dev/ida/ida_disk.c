@@ -182,7 +182,7 @@ idstrategy(struct buf *bp)
 	return;
 
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 done:
 	/*
@@ -198,7 +198,7 @@ id_intr(struct buf *bp)
 {
 	struct id_softc *drv = (struct id_softc *)bp->b_driver1;
 
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 		bp->b_error = EIO;
 	else
 		bp->b_resid = 0;

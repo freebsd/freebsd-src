@@ -434,7 +434,7 @@ vnode_pager_input_smlfs(object, m)
 				tsleep(bp, PVM, "vnsrd", 0);
 			}
 			splx(s);
-			if ((bp->b_flags & B_ERROR) != 0)
+			if ((bp->b_ioflags & BIO_ERROR) != 0)
 				error = EIO;
 
 			/*
@@ -755,7 +755,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		tsleep(bp, PVM, "vnread", 0);
 	}
 	splx(s);
-	if ((bp->b_flags & B_ERROR) != 0)
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		error = EIO;
 
 	if (!error) {

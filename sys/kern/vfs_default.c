@@ -152,11 +152,11 @@ vop_panic(struct vop_generic_args *ap)
  *
  *	Strategy routine for VFS devices that have none.
  *
- *	B_ERROR and B_INVAL must be cleared prior to calling any strategy
+ *	BIO_ERROR and B_INVAL must be cleared prior to calling any strategy
  *	routine.  Typically this is done for a BIO_READ strategy call.
  *	Typically B_INVAL is assumed to already be clear prior to a write 
  *	and should not be cleared manually unless you just made the buffer
- *	invalid.  B_ERROR should be cleared either way.
+ *	invalid.  BIO_ERROR should be cleared either way.
  */
 
 static int
@@ -165,7 +165,7 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	printf("No strategy for buffer at %p\n", ap->a_bp);
 	vprint("", ap->a_vp);
 	vprint("", ap->a_bp->b_vp);
-	ap->a_bp->b_flags |= B_ERROR;
+	ap->a_bp->b_ioflags |= BIO_ERROR;
 	ap->a_bp->b_error = EOPNOTSUPP;
 	biodone(ap->a_bp);
 	return (EOPNOTSUPP);

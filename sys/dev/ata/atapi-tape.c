@@ -423,7 +423,7 @@ aststrategy(struct buf *bp)
     }
     if (!(bp->b_iocmd == BIO_READ) && stp->flags & F_WRITEPROTECT) {
 	bp->b_error = EPERM;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
@@ -433,7 +433,7 @@ aststrategy(struct buf *bp)
 	printf("ast%d: bad request, must be multiple of %d\n",
 	       stp->lun, stp->blksize);
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
@@ -493,7 +493,7 @@ ast_done(struct atapi_request *request)
 
     if (request->error) {
 	bp->b_error = request->error;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
     }
     else {
 	if (!(bp->b_iocmd == BIO_READ))

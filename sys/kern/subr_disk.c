@@ -191,7 +191,7 @@ diskstrategy(struct buf *bp)
 
 	if (!dp) {
 		bp->b_error = ENXIO;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		biodone(bp);
 		return;
 	}

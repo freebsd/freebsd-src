@@ -80,22 +80,26 @@ struct iodone_chain {
 };
 
 /*
- * The bio structure descripes an I/O operation in the kernel.
+ * The bio structure describes an I/O operation in the kernel.
  */
-
 struct bio {
-	u_int	bio_cmd;		/* BIO_READ, BIO_WRITE, BIO_DELETE */
-	dev_t	bio_dev;		/* Device to do I/O on */
+	u_int	bio_cmd;		/* I/O operation. */
+	dev_t	bio_dev;		/* Device to do I/O on. */
 	daddr_t	bio_blkno;		/* Underlying physical block number. */
-	u_int	bio_flags;		/* BIO_ORDERED, BIO_ERROR */
-	struct buf *__bio_buf;		/* Parent buffer */
-	int	bio_error;		/* Errno for BIO_ERROR */
-	long	bio_resid;		/* Remaining I/0 in bytes */
+	u_int	bio_flags;		/* BIO_ flags. */
+	struct buf	*_bio_buf;	/* Parent buffer. */
+	int	bio_error;		/* Errno for BIO_ERROR. */
+	long	bio_resid;		/* Remaining I/0 in bytes. */
 	void	(*bio_done) __P((struct buf *));
-	void	*bio_driver1;		/* for private use by the driver */
-	void	*bio_driver2;		/* for private use by the driver */
-	void	*bio_caller1;		/* for private use by the caller */
-	void	*bio_caller2;		/* for private use by the caller */
+	void	*bio_driver1;		/* Private use by the callee. */
+	void	*bio_driver2;		/* Private use by the callee. */
+	void	*bio_caller1;		/* Private use by the caller. */
+	void	*bio_caller2;		/* Private use by the caller. */
+	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
+
+	/* XXX: these go away when bio chaining is introduced */
+	daddr_t	bio_pblkno;               /* physical block number */
+	struct	iodone_chain *bio_done_chain;
 };
 
 /*
@@ -115,20 +119,21 @@ struct bio {
  *	completes, b_resid is usually 0 indicating 100% success.
  */
 struct buf {
-	struct bio b_bio;		/* I/O request
-					 * XXX: Must be first element for now
-					 */
-#define b_iocmd		b_bio.bio_cmd
-#define b_ioflags	b_bio.bio_flags
-#define b_iodone	b_bio.bio_done
-#define b_error		b_bio.bio_error
-#define b_resid		b_bio.bio_resid
-#define b_blkno		b_bio.bio_blkno
-#define b_driver1	b_bio.bio_driver1
-#define b_driver2	b_bio.bio_driver2
-#define b_caller1	b_bio.bio_caller1
-#define b_caller2	b_bio.bio_caller2
-#define b_dev		b_bio.bio_dev
+	/* XXX: b_io must be the first element of struct buf for now /phk */
+	struct bio b_io;		/* "Builtin" I/O request. */
+#define	b_blkno		b_io.bio_blkno
+#define	b_caller1	b_io.bio_caller1
+#define	b_caller2	b_io.bio_caller2
+#define	b_dev		b_io.bio_dev
+#define	b_driver1	b_io.bio_driver1
+#define	b_driver2	b_io.bio_driver2
+#define	b_error		b_io.bio_error
+#define	b_iocmd		b_io.bio_cmd
+#define	b_iodone	b_io.bio_done
+#define	b_iodone_chain	b_io.bio_done_chain
+#define	b_ioflags	b_io.bio_flags
+#define	b_pblkno	b_io.bio_pblkno
+#define	b_resid		b_io.bio_resid
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
@@ -144,14 +149,11 @@ struct buf {
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
 	off_t	b_offset;		/* Offset into file */
-					/* Function to call upon completion. */
-	struct	iodone_chain *b_iodone_chain;
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
-	daddr_t	b_pblkno;               /* physical block number */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
 	union	pager_info {
 		void	*pg_spc;
@@ -192,7 +194,7 @@ struct buf {
  *			clear MUST be committed to disk by getblk() so 
  *			B_DELWRI can also be cleared.  See the comments for
  *			getblk() in kern/vfs_bio.c.  If B_CACHE is clear,
- *			the caller is expected to clear B_ERROR|B_INVAL,
+ *			the caller is expected to clear BIO_ERROR and B_INVAL,
  *			set BIO_READ, and initiate an I/O.
  *
  *			The 'entire buffer' is defined to be the range from
@@ -218,6 +220,9 @@ struct buf {
 #define BIO_READ	1
 #define BIO_WRITE	2
 #define BIO_DELETE	4
+
+#define BIO_ERROR	0x00000001
+#define BIO_ORDERED	0x00000002
 
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
 #define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
@@ -417,7 +422,7 @@ bufq_init(struct buf_queue_head *head)
 static __inline void
 bufq_insert_tail(struct buf_queue_head *head, struct buf *bp)
 {
-	if ((bp->b_flags & B_ORDERED) != 0) {
+	if ((bp->b_ioflags & BIO_ORDERED) != 0) {
 		head->insert_point = bp;
 		head->switch_point = NULL;
 	}

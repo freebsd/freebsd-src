@@ -267,7 +267,7 @@ vm_pager_strategy(vm_object_t object, struct buf *bp)
 	if (pagertab[object->type]->pgo_strategy) {
 	    (*pagertab[object->type]->pgo_strategy)(object, bp);
 	} else {
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = ENXIO;
 		biodone(bp);
 	}
@@ -348,6 +348,7 @@ initpbuf(struct buf *bp)
 	bp->b_kvasize = MAXPHYS;
 	bp->b_xflags = 0;
 	bp->b_flags = 0;
+	bp->b_ioflags = 0;
 	bp->b_iodone = NULL;
 	bp->b_error = 0;
 	BUF_LOCK(bp, LK_EXCLUSIVE);
@@ -496,11 +497,11 @@ vm_pager_chain_iodone(struct buf *nbp)
 	struct buf *bp;
 
 	if ((bp = nbp->b_chain.parent) != NULL) {
-		if (nbp->b_flags & B_ERROR) {
-			bp->b_flags |= B_ERROR;
+		if (nbp->b_ioflags & BIO_ERROR) {
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = nbp->b_error;
 		} else if (nbp->b_resid != 0) {
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = EINVAL;
 		} else {
 			bp->b_resid -= nbp->b_bcount;
@@ -513,8 +514,8 @@ vm_pager_chain_iodone(struct buf *nbp)
 		}
 		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
 			bp->b_flags &= ~B_AUTOCHAINDONE;
-			if (bp->b_resid != 0 && !(bp->b_flags & B_ERROR)) {
-				bp->b_flags |= B_ERROR;
+			if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
+				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error = EINVAL;
 			}
 			biodone(bp);
@@ -531,9 +532,6 @@ vm_pager_chain_iodone(struct buf *nbp)
  *	Obtain a physical buffer and chain it to its parent buffer.  When
  *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
  *	automatically propagated to the parent
- *
- *	Since these are brand new buffers, we do not have to clear B_INVAL
- *	and B_ERROR because they are already clear.
  */
 
 struct buf *
@@ -547,7 +545,8 @@ getchainbuf(struct buf *bp, struct vnode *vp, int flags)
 	if (bp->b_chain.count > 4)
 		waitchainbuf(bp, 4, 0);
 
-	nbp->b_flags = (bp->b_flags & B_ORDERED) | flags;
+	nbp->b_ioflags = bp->b_ioflags & BIO_ORDERED;
+	nbp->b_flags = flags;
 	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
 	nbp->b_iodone = vm_pager_chain_iodone;
 
@@ -584,8 +583,8 @@ waitchainbuf(struct buf *bp, int count, int done)
 		tsleep(bp, PRIBIO + 4, "bpchain", 0);
 	}
 	if (done) {
-		if (bp->b_resid != 0 && !(bp->b_flags & B_ERROR)) {
-			bp->b_flags |= B_ERROR;
+		if (bp->b_resid != 0 && !(bp->b_ioflags & BIO_ERROR)) {
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = EINVAL;
 		}
 		biodone(bp);

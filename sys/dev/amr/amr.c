@@ -976,7 +976,7 @@ amr_completeio(struct amr_command *ac)
     
     if (ac->ac_status != AMR_STATUS_SUCCESS) {	/* could be more verbose here? */
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	switch(ac->ac_status) {
 	    /* XXX need more information on I/O error reasons */

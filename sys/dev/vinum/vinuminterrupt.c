@@ -83,7 +83,7 @@ complete_rqe(struct buf *bp)
     if ((drive->active == (DRIVE_MAXACTIVE - 1))	    /* we were at the drive limit */
     ||(vinum_conf.active == VINUM_MAXACTIVE))		    /* or the global limit */
 	wakeup(&launch_requests);			    /* let another one at it */
-    if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
+    if ((bp->b_ioflags & BIO_ERROR) != 0) {			    /* transfer in error */
 	if (bp->b_error != 0)				    /* did it return a number? */
 	    rq->error = bp->b_error;			    /* yes, put it in. */
 	else if (rq->error == 0)			    /* no: do we have one already? */
@@ -174,7 +174,7 @@ complete_rqe(struct buf *bp)
 
 	if (rq->error) {				    /* did we have an error? */
 	    if (rq->isplex) {				    /* plex operation, */
-		ubp->b_flags |= B_ERROR;		    /* yes, propagate to user */
+		ubp->b_ioflags |= BIO_ERROR;		    /* yes, propagate to user */
 		ubp->b_error = rq->error;
 	    } else					    /* try to recover */
 		queue_daemon_request(daemonrq_ioerror, (union daemoninfo) rq); /* let the daemon complete */
@@ -216,8 +216,8 @@ sdio_done(struct buf *bp)
     struct sdbuf *sbp;
 
     sbp = (struct sdbuf *) bp;
-    if (sbp->b.b_flags & B_ERROR) {			    /* had an error */
-	sbp->bp->b_flags |= B_ERROR;			    /* propagate upwards */
+    if (sbp->b.b_ioflags & BIO_ERROR) {			    /* had an error */
+	sbp->bp->b_ioflags |= BIO_ERROR;			    /* propagate upwards */
 	sbp->bp->b_error = sbp->b.b_error;
     }
 #ifdef VINUMDEBUG

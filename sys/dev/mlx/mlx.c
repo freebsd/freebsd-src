@@ -1722,7 +1722,7 @@ mlx_completeio(struct mlx_command *mc)
     
     if (mc->mc_status != MLX_STATUS_OK) {	/* could be more verbose here? */
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	switch(mc->mc_status) {
 	case MLX_STATUS_RDWROFFLINE:		/* system drive has gone offline */

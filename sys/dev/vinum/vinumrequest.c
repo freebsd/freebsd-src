@@ -135,7 +135,7 @@ vinumstrategy(struct buf *bp)
     case VINUM_DRIVE_TYPE:
     default:
 	bp->b_error = EIO;				    /* I/O error */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return;
 
@@ -144,7 +144,7 @@ vinumstrategy(struct buf *bp)
 	vol = &VOL[volno];
 	if (vol->state != volume_up) {			    /* can't access this volume */
 	    bp->b_error = EIO;				    /* I/O error */
-	    bp->b_flags |= B_ERROR;
+	    bp->b_ioflags |= BIO_ERROR;
 	    biodone(bp);
 	    return;
 	}
@@ -192,14 +192,14 @@ vinumstart(struct buf *bp, int reviveok)
 
     if ((bp->b_bcount % DEV_BSIZE) != 0) {		    /* bad length */
 	bp->b_error = EINVAL;				    /* invalid size */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return -1;
     }
     rq = (struct request *) Malloc(sizeof(struct request)); /* allocate a request struct */
     if (rq == NULL) {					    /* can't do it */
 	bp->b_error = ENOMEM;				    /* can't get memory */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return -1;
     }
@@ -257,7 +257,7 @@ vinumstart(struct buf *bp, int reviveok)
 	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 	    }
 	    biodone(bp);
 	    freerq(rq);
@@ -286,7 +286,7 @@ vinumstart(struct buf *bp, int reviveok)
 	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 	    }
 	    if ((bp->b_flags & B_DONE) == 0)
 		biodone(bp);
@@ -480,7 +480,7 @@ bre(struct request *rq,
 	    if (*diskaddr < (sd->plexoffset + sd->sectors)) { /* the request starts in this subdisk */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_flags |= B_ERROR;
+		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;
@@ -519,7 +519,7 @@ bre(struct request *rq,
 		*diskaddr += rqe->datalen;		    /* bump the address */
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_flags |= B_ERROR;
+		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
@@ -564,7 +564,7 @@ bre(struct request *rq,
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_flags |= B_ERROR;
+		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;
@@ -629,7 +629,7 @@ bre(struct request *rq,
 		}
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_flags |= B_ERROR;
+		    bp->b_ioflags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
@@ -791,7 +791,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 
     /* Initialize the buf struct */
     /* copy these flags from user bp */
-    bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_ASYNC);
+    bp->b_flags = ubp->b_flags & (B_NOCACHE | B_ASYNC);
+    bp->b_ioflags = ubp->b_ioflags & BIO_ORDERED;
     bp->b_iocmd = ubp->b_iocmd;
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
@@ -853,7 +854,7 @@ abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
 
-    bp->b_flags |= B_ERROR;
+    bp->b_ioflags |= BIO_ERROR;
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
     biodone(bp);
@@ -896,7 +897,7 @@ sdio(struct buf *bp)
 	    else if (bp->b_iocmd == BIO_WRITE)		    /* writing, */
 		set_sd_state(sd->sdno, sd_stale, setstate_force);
 	}
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = EIO;
 	biodone(bp);
 	return;
@@ -906,7 +907,7 @@ sdio(struct buf *bp)
      * to get the I/O performed.
      */
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = EIO;
 	biodone(bp);
 	return;
@@ -914,7 +915,7 @@ sdio(struct buf *bp)
     /* Get a buffer */
     sbp = (struct sdbuf *) Malloc(sizeof(struct sdbuf));
     if (sbp == NULL) {
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	bp->b_error = ENOMEM;
 	biodone(bp);
 	return;
@@ -996,7 +997,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& (bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
 	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	return -1;
     }
     if (size == 0)					    /* no transfer specified, */
@@ -1013,7 +1014,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	size = maxsize - bp->b_blkno;
 	if (size <= 0) {				    /* nothing to transfer */
 	    bp->b_error = EINVAL;
-	    bp->b_flags |= B_ERROR;
+	    bp->b_ioflags |= BIO_ERROR;
 	    return -1;
 	}
 	bp->b_bcount = size << DEV_BSHIFT;
