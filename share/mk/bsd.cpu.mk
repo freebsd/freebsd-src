@@ -48,12 +48,12 @@ CPUTYPE = athlon
 
 . if ${MACHINE_ARCH} == "i386"
 .  if ${CPUTYPE} == "crusoe"
-_ICC_CPUCFLAGS = -tpp6 -xiM
 _CPUCFLAGS = -march=i686 -falign-functions=0 -falign-jumps=0 -falign-loops=0
+_ICC_CPUCFLAGS = -tpp6 -xiM
 .  elif ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
     ${CPUTYPE} == "athlon-4"
-_ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=${CPUTYPE}
+_ICC_CPUCFLAGS = -tpp6 -xiMK
 .  elif ${CPUTYPE} == "athlon-tbird" || ${CPUTYPE} == "athlon"
 _CPUCFLAGS = -march=${CPUTYPE}
 _ICC_CPUCFLAGS = -tpp6 -xiM
@@ -61,29 +61,29 @@ _ICC_CPUCFLAGS = -tpp6 -xiM
 _CPUCFLAGS = -march=${CPUTYPE}
 _ICC_CPUCFLAGS = -tpp6 -xi
 .  elif ${CPUTYPE} == "k5"
-_ICC_CPUCFLAGS = -tpp5
 _CPUCFLAGS = -march=pentium
+_ICC_CPUCFLAGS = -tpp5
 .  elif ${CPUTYPE} == "p4"
-_ICC_CPUCFLAGS = -tpp7 -xiMKW
 _CPUCFLAGS = -march=pentium4
+_ICC_CPUCFLAGS = -tpp7 -xiMKW
 .  elif ${CPUTYPE} == "p3"
-_ICC_CPUCFLAGS = -tpp6 -xiMK
 _CPUCFLAGS = -march=pentium3
+_ICC_CPUCFLAGS = -tpp6 -xiMK
 .  elif ${CPUTYPE} == "p2"
-_ICC_CPUCFLAGS = -tpp6 -xiM
 _CPUCFLAGS = -march=pentium2
-.  elif ${CPUTYPE} == "i686"
 _ICC_CPUCFLAGS = -tpp6 -xiM
+.  elif ${CPUTYPE} == "i686"
 _CPUCFLAGS = -march=pentiumpro
+_ICC_CPUCFLAGS = -tpp6 -xiM
 .  elif ${CPUTYPE} == "i586/mmx"
-_ICC_CPUCFLAGS = -tpp5 -xM
 _CPUCFLAGS = -march=pentium-mmx
+_ICC_CPUCFLAGS = -tpp5 -xM
 .  elif ${CPUTYPE} == "i586"
-_ICC_CPUCFLAGS = -tpp5
 _CPUCFLAGS = -march=pentium
+_ICC_CPUCFLAGS = -tpp5
 .  elif ${CPUTYPE} == "i486"
-_ICC_CPUCFLAGS =
 _CPUCFLAGS = -march=i486
+_ICC_CPUCFLAGS =
 .  endif
 . elif ${MACHINE_ARCH} == "alpha"
 .  if ${CPUTYPE} == "ev67"
