@@ -157,7 +157,7 @@ endargs:
 
 	if (special)
 		c_special(fd1, file1, skip1, fd2, file2, skip2);
-	else
+	else {
 		if (zflag && sb1.st_size != sb2.st_size) {
 			if (!sflag)
 				(void) printf("%s %s differ: size\n",
@@ -166,6 +166,7 @@ endargs:
 		}
 		c_regular(fd1, file1, skip1, sb1.st_size,
 		    fd2, file2, skip2, sb2.st_size);
+	}
 	exit(0);
 }
 
