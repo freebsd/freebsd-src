@@ -81,6 +81,7 @@
  *	vm_map_entry_t		an entry in an address map.
  */
 
+typedef u_char vm_flags_t;
 typedef u_int vm_eflags_t;
 
 /*
@@ -171,6 +172,7 @@ struct vm_map {
 	u_char needs_wakeup;
 	u_char system_map;		/* Am I a system map? */
 	u_char infork;			/* Am I in fork processing? */
+	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
@@ -178,6 +180,11 @@ struct vm_map {
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
 };
+
+/*
+ * vm_flags_t values
+ */
+#define MAP_WIREFUTURE		0x01	/* wire all future pages */
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
@@ -196,6 +203,12 @@ static __inline pmap_t
 vm_map_pmap(vm_map_t map)
 {
 	return (map->pmap);
+}
+
+static __inline void
+vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
+{
+	map->flags = (map->flags | set) & ~clear;
 }
 #endif	/* _KERNEL */
 
@@ -296,6 +309,15 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define VM_FAULT_WIRE_MASK (VM_FAULT_CHANGE_WIRING|VM_FAULT_USER_WIRE)
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
+/*
+ * vm_map_wire and vm_map_unwire option flags
+ */
+#define VM_MAP_WIRE_SYSTEM	0	/* wiring in a kernel map */
+#define VM_MAP_WIRE_USER	1	/* wiring in a user map */
+
+#define VM_MAP_WIRE_NOHOLES	0	/* region must not have holes */
+#define VM_MAP_WIRE_HOLESOK	2	/* region may have holes */
+
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
@@ -322,9 +344,9 @@ void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t user_unwire);
+    int flags);
 int vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t user_wire);
+    int flags);
 int vmspace_swap_count (struct vmspace *vmspace);
 #endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */

@@ -745,7 +745,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	vm_map_wire(kernel_map,
 		    (vm_offset_t) segbase,
 		    (vm_offset_t) segbase + segs[i]->p_memsz,
-		    FALSE);
+		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 #endif
     }
 

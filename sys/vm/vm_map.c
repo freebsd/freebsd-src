@@ -1604,19 +1604,24 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
  */
 int
 vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-	boolean_t user_unwire)
+    int flags)
 {
 	vm_map_entry_t entry, first_entry, tmp_entry;
 	vm_offset_t saved_start;
 	unsigned int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result;
+	boolean_t need_wakeup, result, user_unwire;
 
+	user_unwire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		vm_map_unlock(map);
-		return (KERN_INVALID_ADDRESS);
+		if (flags & VM_MAP_WIRE_HOLESOK)
+			first_entry = map->header.next;
+		else {
+			vm_map_unlock(map);
+			return (KERN_INVALID_ADDRESS);
+		}
 	}
 	last_timestamp = map->timestamp;
 	entry = first_entry;
@@ -1672,9 +1677,11 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 		/*
 		 * Check the map for holes in the specified region.
+		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
 		 */
-		if (entry->end < end && (entry->next == &map->header ||
-		    entry->next->start > entry->end)) {
+		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
+		    (entry->end < end && (entry->next == &map->header ||
+		    entry->next->start > entry->end))) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
@@ -1733,19 +1740,24 @@ done:
  */
 int
 vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-	boolean_t user_wire)
+    int flags)
 {
 	vm_map_entry_t entry, first_entry, tmp_entry;
 	vm_offset_t saved_end, saved_start;
 	unsigned int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result;
+	boolean_t need_wakeup, result, user_wire;
 
+	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
-		vm_map_unlock(map);
-		return (KERN_INVALID_ADDRESS);
+		if (flags & VM_MAP_WIRE_HOLESOK)
+			first_entry = map->header.next;
+		else {
+			vm_map_unlock(map);
+			return (KERN_INVALID_ADDRESS);
+		}
 	}
 	last_timestamp = map->timestamp;
 	entry = first_entry;
@@ -1856,9 +1868,11 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		}
 		/*
 		 * Check the map for holes in the specified region.
+		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
 		 */
-		if (entry->end < end && (entry->next == &map->header ||
-		    entry->next->start > entry->end)) {
+		if (((flags & VM_MAP_WIRE_HOLESOK) == 0) &&
+		    (entry->end < end && (entry->next == &map->header ||
+		    entry->next->start > entry->end))) {
 			end = entry->end;
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
@@ -2394,6 +2408,10 @@ vmspace_fork(struct vmspace *vm1)
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
+	/* Do not inherit the MAP_WIREFUTURE property. */
+	if ((new_map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE)
+		new_map->flags &= ~MAP_WIREFUTURE;
+
 	old_entry = old_map->header.next;
 
 	while (old_entry != &old_map->header) {
@@ -2704,6 +2722,15 @@ Retry:
 	}
 
 	vm_map_unlock(map);
+	/*
+	 * Heed the MAP_WIREFUTURE flag if it was set for this process.
+	 */
+	if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE))
+		vm_map_wire(map, addr, stack_entry->start,
+			    (p->p_flag & P_SYSTEM ?
+			    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES :
+			    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES));
+
 	return (rv);
 }
 

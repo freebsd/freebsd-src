@@ -189,7 +189,8 @@ vslock(addr, len)
 {
 
 	vm_map_wire(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
-	    round_page((vm_offset_t)addr + len), FALSE);
+	    round_page((vm_offset_t)addr + len),
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 }
 
 /*
@@ -203,7 +204,8 @@ vsunlock(addr, len)
 
 	vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr),
-	    round_page((vm_offset_t)addr + len), FALSE);
+	    round_page((vm_offset_t)addr + len),
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 }
 
 /*

@@ -79,7 +79,9 @@ obreak(td, uap)
 	vm_offset_t new, old, base;
 	int rv;
 	int error = 0;
+	boolean_t do_map_wirefuture;
 
+	do_map_wirefuture = FALSE;
 	new = round_page((vm_offset_t)uap->nsize);
 	vm_map_lock(&vm->vm_map);
 
@@ -121,6 +123,20 @@ obreak(td, uap)
 			goto done;
 		}
 		vm->vm_dsize += btoc(new - old);
+		/*
+		 * Handle the MAP_WIREFUTURE case for legacy applications,
+		 * by marking the newly mapped range of pages as wired.
+		 * We are not required to perform a corresponding
+		 * vm_map_unwire() before vm_map_delete() below, as
+		 * it will forcibly unwire the pages in the range.
+		 *
+		 * XXX If the pages cannot be wired, no error is returned.
+		 */
+		if ((vm->vm_map.flags & MAP_WIREFUTURE) == MAP_WIREFUTURE) {
+			if (bootverbose)
+				printf("obreak: MAP_WIREFUTURE set\n");
+			do_map_wirefuture = TRUE;
+		}
 	} else if (new < old) {
 		rv = vm_map_delete(&vm->vm_map, new, old);
 		if (rv != KERN_SUCCESS) {
@@ -131,6 +147,11 @@ obreak(td, uap)
 	}
 done:
 	vm_map_unlock(&vm->vm_map);
+
+	if (do_map_wirefuture)
+		(void) vm_map_wire(&vm->vm_map, old, new,
+		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+
 	return (error);
 }
 
