@@ -99,7 +99,7 @@ underflow:		warnx("minimum blocksize is 512");
 	} else
 		blocksize = n = 512;
 
-	(void)snprintf(header, sizeof(header), "%d%s-blocks", n, form);
+	(void)snprintf(header, sizeof(header), "%ld%s-blocks", n, form);
 	*headerlenp = strlen(header);
 	*blocksizep = blocksize;
 	return (header);
