@@ -482,19 +482,33 @@ sb_intr(void *arg)
      	 * have to check the io channel to map it to read or write...
      	 */
 
-    	if (c & 1) { /* 8-bit dma */
-		if (sb->pch.dch == sb->dl)
-			reason |= 1;
-		if (sb->rch.dch == sb->dl)
-			reason |= 2;
-    	}
-
-    	if (c & 2) { /* 16-bit dma */
-		if (sb->pch.dch == sb->dh)
-			reason |= 1;
-		if (sb->rch.dch == sb->dh)
-			reason |= 2;
-    	}
+	if (sb->bd_flags & BD_F_SB16X) {
+    		if (c & 1) { /* 8-bit format */
+			if (sb->pch.fmt & AFMT_8BIT)
+				reason |= 1;
+			if (sb->rch.fmt & AFMT_8BIT)
+				reason |= 2;
+    		}
+    		if (c & 2) { /* 16-bit format */
+			if (sb->pch.fmt & AFMT_16BIT)
+				reason |= 1;
+			if (sb->rch.fmt & AFMT_16BIT)
+				reason |= 2;
+    		}
+	} else {
+    		if (c & 1) { /* 8-bit dma */
+			if (sb->pch.dch == sb->dl)
+				reason |= 1;
+			if (sb->rch.dch == sb->dl)
+				reason |= 2;
+    		}
+    		if (c & 2) { /* 16-bit dma */
+			if (sb->pch.dch == sb->dh)
+				reason |= 1;
+			if (sb->rch.dch == sb->dh)
+				reason |= 2;
+    		}
+	}
 #if 0
     	printf("sb_intr: reason=%d c=0x%x\n", reason, c);
 #endif
@@ -527,8 +541,9 @@ sb_setup(struct sb_info *sb)
 	sb_reset_dsp(sb);
 
 	if (sb->bd_flags & BD_F_SB16X) {
-		sb->pch.buffer->chan = sb->dl;
-		sb->rch.buffer->chan = sb->dh;
+		pprio = sb->pch.run? 1 : 0;
+		sb->pch.buffer->chan = pprio? sb->dl : -1;
+		sb->rch.buffer->chan = pprio? sb->dh : sb->dl;
 	} else {
 		if (sb->pch.run && sb->rch.run) {
 			pprio = (sb->rch.fmt & AFMT_16BIT)? 0 : 1;
@@ -552,8 +567,8 @@ sb_setup(struct sb_info *sb)
 	sb->rch.buffer->dir = ISADMA_READ;
 
 	/*
-	printf("setup: pch = %d, pfmt = %d, rch = %d, rfmt = %d\n",
-	       sb->pch.dch, sb->pch.fmt, sb->rch.dch, sb->rch.fmt);
+	printf("setup: [pch = %d, pfmt = %d, pgo = %d] [rch = %d, rfmt = %d, rgo = %d]\n",
+	       sb->pch.dch, sb->pch.fmt, sb->pch.run, sb->rch.dch, sb->rch.fmt, sb->rch.run);
 	*/
 
 	ch = &sb->pch;
@@ -770,7 +785,7 @@ sb16_attach(device_t dev)
 	if (bus_setup_intr(dev, sb->irq, INTR_TYPE_TTY, sb_intr, sb, &sb->ih))
 		goto no;
 
-	if (!sb->drq2)
+	if (!sb->drq2 || (sb->bd_flags & BD_F_SB16X))
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
 	sb->dl = rman_get_start(sb->drq1);
