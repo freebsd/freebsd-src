@@ -74,6 +74,7 @@ ports-all
 # for the ports collection, and your ports may not build correctly if it
 # is not kept up to date.
 #ports-base
+#ports-arabic
 #ports-archivers
 #ports-astro
 #ports-audio
