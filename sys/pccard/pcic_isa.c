@@ -373,7 +373,7 @@ static int
 pcicintr1(void *arg)
 {
 	int	slot, s;
-	unsigned char chg;
+	u_int8_t chg;
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 
