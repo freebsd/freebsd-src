@@ -169,9 +169,9 @@ loadlocale(category)
 	if (category == LC_TIME) {
 		if (__time_load_locale(new_categories[LC_TIME]) < 0)
 			return (NULL);
-		strcpy(current_categories[LC_COLLATE], 
-		       new_categories[LC_COLLATE]);
-		return (current_categories[LC_COLLATE]);
+		(void)strcpy(current_categories[LC_TIME],
+		       new_categories[LC_TIME]);
+		return (current_categories[LC_TIME]);
 	}
 
 	if (!strcmp(new_categories[category], "C") ||
