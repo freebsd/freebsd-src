@@ -131,12 +131,13 @@ retry:
 		kg = ke->ke_ksegrp;
 		if (td->td_flags & TDF_UNBOUND) {
 			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
-			if (kg->kg_last_assigned == td) 
+			if (kg->kg_last_assigned == td) {
 				if (TAILQ_PREV(td, threadqueue, td_runq)
 				    != NULL)
 					printf("Yo MAMA!\n");
 				kg->kg_last_assigned = TAILQ_PREV(td,
 				    threadqueue, td_runq);
+			}
 			/*
 			 *  If we have started running an upcall,
 			 * Then TDF_UNBOUND WAS set because the thread was 
@@ -178,6 +179,7 @@ kse_reassign(struct kse *ke)
 	struct ksegrp *kg;
 	struct thread *td;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg = ke->ke_ksegrp;
 
 	/*
