@@ -201,7 +201,7 @@ device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 controller	miibus0		# MII bus support
-device		dc0		# DEC/Intel 21143 and workalikes
+device		dc0		# DEC/Intel 21143 and various workalikes
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
@@ -214,7 +214,6 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ISA Ethernet NICs.
 #
 # DP8390 NIC
-#device		aue0		# ADMtek USB ethernet
 #
 # ed0: generic driver
 # ed1: LANEED LD-BDN
@@ -246,18 +245,20 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
 #device ed11 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
 
-# NOTE: This removes the isa attachment so that the pccard unit numbers
-# come out right.
-device ep0 at isa? port 0x40d0 irq 3
-# WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
-# exists only as a PCMCIA device, so there is no ISA attatement needed
-# and resources will always be dynamically assigned by the pccard code.
-#device		wi0
+options 	FE_8BIT_SUPPORT		# LAC-98 support
+
 device fe0 at isa? port 0x00d0 irq 3
 device fe1 at isa? port 0x73d0 irq 5
 device lnc0 at isa? port 0x03d0 irq 6
 
-options 	FE_8BIT_SUPPORT		# LAC-98 support
+# NOTE: This removes the isa attachment so that the pccard unit numbers
+# come out right.
+device		ep0 at isa? port 0x40d0 irq 3
+
+# WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
+# exists only as a PCMCIA device, so there is no ISA attatement needed
+# and resources will always be dynamically assigned by the pccard code.
+#device		wi0
 
 #controller	snd0
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
@@ -282,3 +283,15 @@ pseudo-device	md		# Memory "disks"
 pseudo-device	bpf		#Berkeley packet filter
 
 #pseudo-device	compat_atdisk	#IBM-PC HDD support
+
+# USB support
+#controller	uhci0		# UHCI PCI->USB interface
+#controller	ohci0		# OHCI PCI->USB interface
+#controller	usb0		# USB Bus (required)
+#device		ugen0		# Generic
+#device		uhid0		# "Human Interface Devices"
+#device		ukbd0		# Keyboard
+#device		ulpt0		# Printer
+#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device		ums0		# Mouse
+#device		aue0		# ADMtek USB ethernet
