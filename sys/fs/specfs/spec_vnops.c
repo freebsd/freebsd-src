@@ -58,7 +58,6 @@
 
 
 static int	spec_advlock(struct vop_advlock_args *);
-static int	spec_bmap(struct vop_bmap_args *);
 static int	spec_close(struct vop_close_args *);
 static int	spec_freeblks(struct vop_freeblks_args *);
 static int	spec_fsync(struct  vop_fsync_args *);
@@ -77,7 +76,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
-	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
+	{ &vop_bmap_desc,		(vop_t *) vop_panic },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_freeblks_desc,		(vop_t *) spec_freeblks },
@@ -636,39 +635,6 @@ spec_freeblks(ap)
 	bp->b_bcount = ap->a_length;
 	BUF_KERNPROC(bp);
 	DEV_STRATEGY(bp);
-	return (0);
-}
-
-/*
- * Implement degenerate case where the block requested is the block
- * returned, and assume that the entire device is contiguous in regards
- * to the contiguous block range (runp and runb).
- */
-static int
-spec_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	int runp = 0;
-	int runb = 0;
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (vp->v_mount != NULL)
-		runp = runb = MAXBSIZE / vp->v_mount->mnt_stat.f_iosize;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = runp;
-	if (ap->a_runb != NULL)
-		*ap->a_runb = runb;
 	return (0);
 }
 
