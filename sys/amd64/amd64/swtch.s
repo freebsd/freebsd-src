@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.55 1997/07/15 02:51:20 fsmp Exp $
+ *	$Id: swtch.s,v 1.4 1997/07/30 22:51:11 smp Exp smp $
  */
 
 #include "npx.h"
@@ -42,7 +42,6 @@
 #include <sys/rtprio.h>
 
 #include <machine/asmacros.h>
-#include <machine/smptests.h>		/** TEST_LOPRIO */
 
 #ifdef SMP
 #include <machine/pmap.h>
@@ -330,6 +329,7 @@ ENTRY(cpu_switch)
 
 #ifdef SMP
 	movl	_mp_lock, %eax
+	/* XXX FIXME: we should be saving the local APIC TPR */
 #ifdef DIAGNOSTIC
 	cmpl	$FREE_LOCK, %eax		/* is it free? */
 	je	badsw4				/* yes, bad medicine! */
@@ -516,16 +516,10 @@ swtch_com:
 	movl	%ecx, _curproc			/* into next process */
 
 #ifdef SMP
-#ifdef TEST_LOPRIO				/* hold LOPRIO for INTs */
-#ifdef CHEAP_TPR
-	movl	$0, lapic_tpr
-#else
-	andl	$~APIC_TPR_PRIO, lapic_tpr
-#endif /* CHEAP_TPR */
-#endif /* TEST_LOPRIO */
 	movl	_cpu_lockid, %eax
 	orl	PCB_MPNEST(%edx), %eax		/* add next count from PROC */
 	movl	%eax, _mp_lock			/* load the mp_lock */
+	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
 #ifdef	USER_LDT

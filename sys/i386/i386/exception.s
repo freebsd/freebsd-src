@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.2 1997/07/23 20:24:21 smp Exp smp $
+ *	$Id: exception.s,v 1.3 1997/07/30 22:51:11 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -43,8 +43,22 @@
 #ifdef SMP
 
 #include <machine/apic.h>			/* for apic_vector.s */
+
+/* generic giant-lock calls */
 #define GET_MPLOCK		call _get_mplock
 #define REL_MPLOCK		call _rel_mplock
+
+/* ISR specific giant-lock calls */
+#define GET_ISRLOCK(N)		call _get_isrlock
+#define TRY_ISRLOCK(N)					\
+				pushl	$_mp_lock ;	\
+				call	_MPtrylock ; 	\
+				add $4,	%esp
+#define REL_ISRLOCK(N)					\
+				pushl	$_mp_lock ;	\
+				call	_MPrellock ;	\
+				add	$4, %esp
+
 #define	MP_INSTR_LOCK		lock
 
 /* protects the IO APIC and apic_imen as a critical region */
@@ -62,6 +76,8 @@
 
 #define GET_MPLOCK		/* NOP get Kernel Mutex */
 #define REL_MPLOCK		/* NOP release mutex */
+#define GET_ISRLOCK(N)		/* NOP get Kernel Mutex */
+#define REL_ISRLOCK(N)		/* NOP release mutex */
 #define	MP_INSTR_LOCK		/* NOP instruction lock */
 #define IMASK_LOCK		/* NOP IO APIC & apic_imen lock */
 #define IMASK_UNLOCK		/* NOP IO APIC & apic_imen lock */
@@ -164,7 +180,7 @@ IDTVEC(fpu)
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0				/* dummy unit to finish building intr frame */
-	GET_MPLOCK
+	GET_ISRLOCK(-1)
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
@@ -190,7 +206,7 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
-	GET_MPLOCK
+	GET_ISRLOCK(-1)
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
@@ -240,7 +256,7 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 		/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
-	GET_MPLOCK
+	GET_ISRLOCK(-1)
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
@@ -267,7 +283,7 @@ IDTVEC(int0x80_syscall)
 	movl	%ax,%es
 	movl	$2,TF_ERR(%esp)			/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
-	GET_MPLOCK
+	GET_ISRLOCK(-1)
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
