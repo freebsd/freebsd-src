@@ -1227,8 +1227,11 @@ trapsignal(p, sig, code)
 	u_long code;
 {
 	register struct sigacts *ps = p->p_sigacts;
+	struct ksiginfo *ksi;
 
 	PROC_LOCK(p);
+	ksiginfo_alloc(&ksi, sig);
+	ksi->ksi_code = code;
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(p->p_sigcatch, sig) &&
 	    !SIGISMEMBER(p->p_sigmask, sig)) {
 		p->p_stats->p_ru.ru_nsignals++;
@@ -1237,8 +1240,8 @@ trapsignal(p, sig, code)
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
 			    &p->p_sigmask, code);
 #endif
-		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], sig,
-						&p->p_sigmask, code);
+		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], ksi,
+						&p->p_sigmask);
 		SIGSETOR(p->p_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
 			SIGADDSET(p->p_sigmask, sig);
@@ -1799,6 +1802,7 @@ postsig(sig)
 {
 	struct thread *td = curthread;
 	register struct proc *p = td->td_proc;
+	struct ksiginfo *ksi;
 	struct sigacts *ps;
 	sig_t action;
 	sigset_t returnmask;
@@ -1808,7 +1812,7 @@ postsig(sig)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	ps = p->p_sigacts;
-	signal_delete(p, NULL, sig);
+	ksiginfo_dequeue(&ksi, p, sig);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))
@@ -1822,6 +1826,7 @@ postsig(sig)
 		 * Default action, where the default is to kill
 		 * the process.  (Other cases were ignored above.)
 		 */
+		ksiginfo_destroy(&ksi);
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
@@ -1870,7 +1875,7 @@ postsig(sig)
 		if (p->p_flag & P_KSES)
 			if (signal_upcall(p, sig))
 				return;
-		(*p->p_sysent->sv_sendsig)(action, sig, &returnmask, code);
+		(*p->p_sysent->sv_sendsig)(action, ksi, &returnmask);
 	}
 }
 
