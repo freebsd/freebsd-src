@@ -3,7 +3,7 @@ NOMAN = yet
 
 SRCS = example.c
 
-CFLAGS = -g -static
+CFLAGS = -static #-g
 
 .if exists(${.CURDIR}/../obj)
 FORMDIR=${.CURDIR}/../obj
@@ -11,7 +11,7 @@ FORMDIR=${.CURDIR}/../obj
 FORMDIR=${.CURDIR}/..
 .endif
 
-LDADD = -L${FORMDIR} -lforms -lncurses -lmytinfo -ll
-DPADD = /usr/lib/libforms.a
+LDADD = -L${FORMDIR} -lforms -ldialog -lncurses -lmytinfo -ll
+DPADD = ${LIBFORMS} ${LIBNCURSES}
 
 .include <bsd.prog.mk>
