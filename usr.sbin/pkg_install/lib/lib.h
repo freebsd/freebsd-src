@@ -193,6 +193,8 @@ int		pkg_perform(char **);
 
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);
+char		**matchbyorigin(const char *, int *);
+int		isinstalledpkg(const char *name);
 
 /* Dependencies */
 int		sortdeps(char **);

@@ -84,7 +84,6 @@ int
 chkifdepends(const char *pkgname1, const char *pkgname2)
 {
     char *cp1, *cp2;
-    char pkgdir[FILENAME_MAX];
     int errcode;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
@@ -98,8 +97,7 @@ chkifdepends(const char *pkgname1, const char *pkgname2)
 
     errcode = 0;
     /* Check that pkgname2 is actually installed */
-    snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, pkgname2);
-    if (!isdir(pkgdir))
+    if (!isinstalledpkg(pkgname2))
 	goto exit;
 
     errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
@@ -142,7 +140,7 @@ int
 requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Boolean filter)
 {
     FILE *fp;
-    char fbuf[FILENAME_MAX], fname[FILENAME_MAX], pkgdir[FILENAME_MAX];
+    char fbuf[FILENAME_MAX], fname[FILENAME_MAX];
     int retval;
     struct reqr_by_entry *rb_entry;
     static struct reqr_by_head rb_list = STAILQ_HEAD_INITIALIZER(rb_list);
@@ -155,14 +153,14 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
 	free(rb_entry);
     }
 
-    snprintf(fname, sizeof(fname), "%s/%s", LOG_DIR, pkgname);
-    if (!isdir(fname)) {
+    if (!isinstalledpkg(pkgname)) {
 	if (strict == TRUE)
 	    warnx("no such package '%s' installed", pkgname);
 	return -1;
     }
 
-    snprintf(fname, sizeof(fname), "%s/%s", fname, REQUIRED_BY_FNAME);
+    snprintf(fname, sizeof(fname), "%s/%s/%s", LOG_DIR, pkgname,
+	     REQUIRED_BY_FNAME);
     fp = fopen(fname, "r");
     if (fp == NULL) {
 	/* Probably pkgname doesn't have any packages that depend on it */
@@ -175,8 +173,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
 	if (fbuf[strlen(fbuf) - 1] == '\n')
 	    fbuf[strlen(fbuf) - 1] = '\0';
-	snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, fbuf);
-	if (filter == TRUE && !isdir(pkgdir)) {
+	if (filter == TRUE && !isinstalledpkg(fbuf)) {
 	    if (strict == TRUE)
 		warnx("package '%s' is recorded in the '%s' but isn't "
 		      "actually installed", fbuf, fname);

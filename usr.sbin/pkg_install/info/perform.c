@@ -27,34 +27,28 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 
 static int pkg_do(char *);
-static int find_pkg(const char *, struct which_head *);
+static int find_pkg(struct which_head *);
 static int cmp_path(const char *, const char *, const char *);
 static char *abspath(const char *);
-static int find_pkgs_by_origin(const char *, const char *);
+static int find_pkgs_by_origin(const char *);
 
 int
 pkg_perform(char **pkgs)
 {
     char **matched;
-    const char *tmp;
     int err_cnt = 0;
     int i, errcode;
 
     signal(SIGINT, cleanup);
 
-    tmp = LOG_DIR;
-
     /* Overriding action? */
     if (CheckPkg) {
-	char buf[FILENAME_MAX];
-
-	snprintf(buf, FILENAME_MAX, "%s/%s", tmp, CheckPkg);
-	return abs(access(buf, R_OK));
+	return isinstalledpkg(CheckPkg) == TRUE ? 0 : 1;
 	/* Not reached */
     } else if (!TAILQ_EMPTY(whead)) {
-	return find_pkg(tmp, whead);
+	return find_pkg(whead);
     } else if (LookUpOrigin != NULL) {
-	return find_pkgs_by_origin(tmp, LookUpOrigin);
+	return find_pkgs_by_origin(LookUpOrigin);
     }
 
     if (MatchType != MATCH_EXACT) {
@@ -145,11 +139,11 @@ pkg_do(char *pkg)
     }
     /* It's not an ininstalled package, try and find it among the installed */
     else {
-	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
-	if (!fexists(log_dir)) {
+	if (!isinstalledpkg(pkg)) {
 	    warnx("can't find package '%s' installed or in a file!", pkg);
 	    return 1;
 	}
+	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
 	if (chdir(log_dir) == FAIL) {
 	    warnx("can't change directory to '%s'!", log_dir);
 	    return 1;
@@ -316,11 +310,11 @@ cmp_path(const char *target, const char *current, const char *cwd)
 }
 
 /* 
- * Look through package dbs in db_dir and find which
+ * Look through package dbs in LOG_DIR and find which
  * packages installed the files in which_list.
  */
 static int 
-find_pkg(const char *db_dir, struct which_head *which_list)
+find_pkg(struct which_head *which_list)
 {
     char **installed;
     int errcode, i;
@@ -365,7 +359,7 @@ find_pkg(const char *db_dir, struct which_head *which_list)
      	char *cwd = NULL;
      	char tmp[PATH_MAX];
 
-	snprintf(tmp, PATH_MAX, "%s/%s/%s", db_dir, installed[i],
+	snprintf(tmp, PATH_MAX, "%s/%s/%s", LOG_DIR, installed[i],
 		 CONTENTS_FNAME);
 	fp = fopen(tmp, "r");
 	if (fp == NULL) {
@@ -417,65 +411,27 @@ find_pkg(const char *db_dir, struct which_head *which_list)
 }
 
 /* 
- * Look through package dbs in db_dir and find which
+ * Look through package dbs in LOG_DIR and find which
  * packages have the given origin. Don't use read_plist()
  * because this increases time necessary for lookup by 40
  * times, as we don't really have to parse all plist to
  * get origin.
  */
 static int 
-find_pkgs_by_origin(const char *db_dir, const char *origin)
+find_pkgs_by_origin(const char *origin)
 {
-    char **installed;
+    char **matched;
     int errcode, i;
 
-    installed = matchinstalled(MATCH_ALL, NULL, &errcode);
-    if (installed == NULL)
-        return errcode;
- 
     if (!Quiet)
 	printf("The following installed package(s) has %s origin:\n", origin);
-    for (i = 0; installed[i] != NULL; i++) {
-     	FILE *fp;
-     	char *cp, tmp[PATH_MAX];
-     	int cmd;
 
-	snprintf(tmp, PATH_MAX, "%s/%s", db_dir, installed[i]);
-	/*
-	 * SPECIAL CASE: ignore empty dirs, since we can can see them
-	 * during port installation.
-	 */
-	if (isemptydir(tmp))
-	    continue;
-	snprintf(tmp, PATH_MAX, "%s/%s", tmp, CONTENTS_FNAME);
-	fp = fopen(tmp, "r");
-	if (fp == NULL) {
-	    warn("%s", tmp);
-	    return 1;
-	}
+    matched = matchbyorigin(origin, &errcode);
+    if (matched == NULL)
+	return errcode;
 
-	cmd = -1;
-	while (fgets(tmp, sizeof(tmp), fp)) {
-	    int len = strlen(tmp);
-
-	    while (len && isspace(tmp[len - 1]))
-		tmp[--len] = '\0';
-	    if (!len)
-		continue;
-	    cp = tmp;
-	    if (tmp[0] != CMD_CHAR)
-		continue;
-	    cmd = plist_cmd(tmp + 1, &cp);
-	    if (cmd == PLIST_ORIGIN) {
-		if (strcmp(origin, cp) == 0)
-		    puts(installed[i]);
-		break;
-	    }
-	}
-	if (cmd != PLIST_ORIGIN)
-	    warnx("package %s has no origin recorded", installed[i]);
-	fclose(fp);
-    }
+    for (i = 0; matched[i] != NULL; i++)
+	puts(matched[i]);
 
     return 0;
 }
