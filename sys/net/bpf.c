@@ -278,7 +278,9 @@ bpf_detachd(d)
 	struct bpf_d **p;
 	struct bpf_if *bp;
 
+	/* XXX locking */
 	bp = d->bd_bif;
+	d->bd_bif = 0;
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
 	 * If so, turn it off.
@@ -310,9 +312,8 @@ bpf_detachd(d)
 		/*
 		 * Let the driver know that there are no more listeners.
 		 */
-		*d->bd_bif->bif_driverp = 0;
+		*bp->bif_driverp = 0;
 	BPFIF_UNLOCK(bp);
-	d->bd_bif = 0;
 }
 
 /*
