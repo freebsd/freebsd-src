@@ -95,7 +95,7 @@
 
 static int psmprobe(struct isa_device *);
 static int psmattach(struct isa_device *);
-static void psm_poll_status(void);
+static void psm_poll_status(int);
 
 static int psmaddr[NPSM];	/* Base I/O port addresses per unit */
 
@@ -136,23 +136,21 @@ static	struct	cdevsw psm_cdevsw =
 	  psmioctl,	nostop,		nullreset,	nodevtotty,
 	  psmselect,	nommap,		NULL,	"psm",	NULL,	-1 };
 
-#define AUX_PORT 0x60		/* AUX_PORT base (S.Yuen) */
-
 static void
 psm_write_dev(int ioport, u_char value)
 {
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, 0xd4);
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_DATA, value);
 }
 
 static inline void
 psm_command(int ioport, u_char value)
 {
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, 0x60);
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_DATA, value);
 }
 
@@ -166,10 +164,10 @@ psmprobe(struct isa_device *dvp)
 	unit=dvp->id_unit;
 #ifndef PSM_NO_RESET
 	psm_write_dev(ioport, PSM_RESET);	/* Reset aux device */
-	psm_poll_status();
+	psm_poll_status(ioport);
 #endif
 	outb(ioport+PSM_CNTRL, 0xa9);
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, 0xaa);
 	c = inb(ioport+PSM_DATA);
 	if(c & 0x04) {
@@ -193,7 +191,7 @@ psmattach(struct isa_device *dvp)
 	psmaddr[unit] = ioport;
 
 	/* Disable mouse interrupts */
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, PSM_ENABLE);
 #ifdef 0
 	psm_write(ioport, PSM_SET_RES);
@@ -205,7 +203,7 @@ psmattach(struct isa_device *dvp)
 	psm_write(ioport, 0x64);	/* 100 samples/sec */
 	psm_write(ioport, PSM_SET_STREAM);
 #endif
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, PSM_DISABLE);
 	psm_command(ioport, PSM_INT_DISABLE);
 
@@ -254,7 +252,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	/* Enable Bus Mouse interrupts */
 	psm_write_dev(ioport, PSM_DEV_ENABLE);
 	
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, PSM_ENABLE);
 	psm_command(ioport, PSM_INT_ENABLE);
 
@@ -272,12 +270,13 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static void
-psm_poll_status(void)
+psm_poll_status(int ioport)
 {
+	u_char c;
 
-	while(inb(AUX_PORT+PSM_STATUS) & 0x03) {
-		if(inb(AUX_PORT+PSM_STATUS) & 0x2 == 0x2)
-			inb(AUX_PORT+PSM_DATA);
+	while(c = inb(ioport+PSM_STATUS) & 0x03) {
+		if(c & PSM_OUTPUT_ACK == PSM_OUTPUT_ACK)
+			inb(ioport+PSM_DATA);
 	}
 	return;
 }
@@ -295,7 +294,7 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	/* Disable further mouse interrupts */
 	psm_command(ioport, PSM_INT_DISABLE);
-	psm_poll_status();
+	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, PSM_DISABLE);
 
 	/* Complete the close */
