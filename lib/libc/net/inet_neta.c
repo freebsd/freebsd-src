@@ -38,7 +38,7 @@ static const char rcsid[] = "$FreeBSD$";
 /*
  * char *
  * inet_neta(src, dst, size)
- *	format a u_long network number into presentation format.
+ *	format a in_addr_t network number into presentation format.
  * return:
  *	pointer to dst, or NULL if an error occurred (check errno).
  * note:
@@ -48,7 +48,7 @@ static const char rcsid[] = "$FreeBSD$";
  */
 char *
 inet_neta(src, dst, size)
-	u_long src;
+	in_addr_t src;
 	char *dst;
 	size_t size;
 {
