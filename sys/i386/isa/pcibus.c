@@ -395,21 +395,21 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		s = "OPTi 82C822 host to PCI Bridge";
 		break;
 
-		/* RCC -- vendor 0x1166 */
+		/* ServerWorks -- vendor 0x1166 */
 	case 0x00051166:
-		s = "RCC HE host to PCI bridge";
+		s = "ServerWorks NB6536 2.0HE host to PCI bridge";
 		*busnum = pci_cfgread(cfg, 0x44, 1);
 		break;
 	
 	case 0x00061166:
 		/* FALLTHROUGH */
 	case 0x00081166:
-		s = "RCC host to PCI bridge";
+		s = "ServerWorks host to PCI bridge";
 		*busnum = pci_cfgread(cfg, 0x44, 1);
 		break;
 
 	case 0x00091166:
-		s = "RCC LE host to PCI bridge";
+		s = "ServerWorks NB6635 3.0LE host to PCI bridge";
 		*busnum = pci_cfgread(cfg, 0x44, 1);
 		break;
 
