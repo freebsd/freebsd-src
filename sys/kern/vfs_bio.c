@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.92 1996/05/31 00:41:37 dyson Exp $
+ * $Id: vfs_bio.c,v 1.93 1996/06/14 11:01:27 asami Exp $
  */
 
 /*
@@ -1619,8 +1619,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 				obj->paging_in_progress++;
 				m->busy++;
 			}
+			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify) {
-				vm_page_protect(m, VM_PROT_READ);
 				vm_page_set_validclean(m,
 					(vm_offset_t) (foff & PAGE_MASK), resid);
 			} else if (bp->b_bcount >= PAGE_SIZE) {
