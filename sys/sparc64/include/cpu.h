@@ -32,10 +32,13 @@
 #include <machine/frame.h>
 
 #define	CLKF_USERMODE(cfp)	(0)
-#define	CLKF_PC(cfp)		(0)
+#define	CLKF_PC(cfp)		((cfp)->cf_tf.tf_tpc)
 
-#define	cpu_getstack(p)		(0)
-#define	cpu_setstack(p, sp)	(0)
+#define	TRAPF_PC(tfp)		((tfp)->tf_tpc)
+#define	TRAPF_USERMODE(tfp)	(0)
+
+#define	cpu_getstack(p)		((p)->p_frame->tf_sp)
+#define	cpu_setstack(p, sp)	((p)->p_frame->tf_sp = (sp))
 
 /*
  * Arrange to handle pending profiling ticks before returning to user mode.
@@ -66,11 +69,13 @@
 	{ "wall_cmos_clock", CTLTYPE_INT }, \
 }
 
+void	fork_trampoline(void);
+
 static __inline u_int64_t
 get_cyclecount(void)
 {
-	static u_long now;
-	return (++now);
+
+	return (rd(tick));
 }
 
 #endif /* !_MACHINE_CPU_H_ */

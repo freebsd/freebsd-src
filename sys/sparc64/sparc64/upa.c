@@ -26,51 +26,41 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+static int upa_probe(device_t dev);
+static int upa_attach(device_t dev);
 
-#define	BYTE_MSF	(1)
+static device_method_t upa_methods[] = {
+	/* Device interface. */
+	DEVMETHOD(device_probe,		upa_probe),
+	DEVMETHOD(device_attach,	upa_attach),
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
-
-struct db_regs {
-	u_long	dr_global[8];
+	{ NULL, NULL }
 };
 
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
+static driver_t upa_driver = {
+	"upa",
+	upa_methods,
+	1,
+};
+static devclass_t upa_devclass;
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
+DRIVER_MODULE(upa, root, upa_driver, upa_devclass, 0, 0);
 
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
+static int
+upa_probe(device_t dev)
+{
+	return (bus_generic_probe(dev));
+}
 
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+static int
+upa_attach(device_t dev)
+{
+	return (bus_generic_attach(dev));
+}

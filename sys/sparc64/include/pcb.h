@@ -30,6 +30,8 @@
 #define	_MACHINE_PCB_H_
 
 struct	pcb {
+	u_long	pcb_fp;
+	u_long	pcb_pc;
 	caddr_t	pcb_onfault;
 };
 
@@ -37,7 +39,7 @@ struct	md_coredump {
 };
 
 #ifdef _KERNEL
-void	savectx(struct pcb *pcb);
+int	savectx(struct pcb *pcb);
 #endif
 
 #endif /* !_MACHINE_PCB_H_ */

@@ -26,51 +26,45 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_DB_MACHDEP_H_
-#define	_MACHINE_DB_MACHDEP_H_
+#ifndef	_MACHINE_TRAP_H_
+#define	_MACHINE_TRAP_H_
 
-#include <machine/frame.h>
-#include <machine/trap.h>
+#define	T_RESERVED	0x0
+#define	T_POWER_ON	0x1
+#define	T_WATCHDOG	0x2
+#define	T_RESET_EXT	0x3
+#define	T_RESET_SOFT	0x4
+#define	T_RED_STATE	0x5
+#define	T_INSN_EXCPTN	0x6
+#define	T_INSN_ERROR	0x7
+#define	T_INSN_ILLEGAL	0x8
+#define	T_PRIV_OPCODE	0x9
+#define	T_FP_DISABLED	0xa
+#define	T_FP_IEEE	0xb
+#define	T_FP_OTHER	0xc
+#define	T_TAG_OVFLW	0xd
+#define	T_DIVIDE	0xe
+#define	T_DATA_EXCPTN	0xf
+#define	T_DATA_ERROR	0x10
+#define	T_ALIGN		0x11
+#define	T_ALIGN_LDDF	0x12
+#define	T_ALIGN_STDF	0x13
+#define	T_PRIV_ACTION	0x14
+#define	T_INTERRUPT	0x15
+#define	T_WATCH_PHYS	0x16
+#define	T_WATCH_VIRT	0x17
+#define	T_ECC		0x18
+#define	T_IMMU_MISS	0x19
+#define	T_DMMU_MISS	0x1a
+#define	T_DMMU_PROT	0x1b
+#define	T_SPILL		0x1c
+#define	T_FILL		0x1d
+#define	T_BREAKPOINT	0x1e
 
-#define	BYTE_MSF	(1)
+#define	T_KERNEL	0x20
 
-typedef vm_offset_t	db_addr_t;
-typedef u_long		db_expr_t;
+#ifndef LOCORE
+extern const char *trap_msg[];
+#endif
 
-struct db_regs {
-	u_long	dr_global[8];
-};
-
-typedef struct trapframe db_regs_t;
-extern db_regs_t ddb_regs;
-#define	DDB_REGS	(&ddb_regs)
-
-#define	PC_REGS(regs)	((db_addr_t)(regs)->tf_tpc)
-
-#define	BKPT_INST	(0)
-#define	BKPT_SIZE	(4)
-#define	BKPT_SET(inst)	(BKPT_INST)
-
-#define	FIXUP_PC_AFTER_BREAK do {					\
-	ddb_regs.tf_tpc = ddb_regs.tf_tnpc;				\
-	ddb_regs.tf_tnpc += BKPT_SIZE;					\
-} while (0);
-
-#define	db_clear_single_step(regs)
-#define	db_set_single_step(regs)
-
-#define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)
-
-#define	inst_trap_return(ins)	(0)
-#define	inst_return(ins)	(0)
-#define	inst_call(ins)		(0)
-#define	inst_load(ins)		(0)
-#define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#define	DB_ELFSIZE		64
-
-#endif /* !_MACHINE_DB_MACHDEP_H_ */
+#endif /* !_MACHINE_TRAP_H_ */

@@ -32,7 +32,7 @@
 void
 cpu_initclocks(void)
 {
-	TODO;
+	/* XXX */
 }
 
 void
@@ -44,7 +44,7 @@ DELAY(int n)
 void
 inittodr(time_t base)
 {
-	TODO;
+	/* XXX */
 }
 
 void
