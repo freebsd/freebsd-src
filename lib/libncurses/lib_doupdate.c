@@ -126,6 +126,7 @@ sigaction_t act, oact;
 		SP->_endwin = FALSE;
 	}
 
+#if 0   /* Not works for output-only pgms */
 	/* check for pending input */
 	{
 	fd_set fdset;
@@ -138,6 +139,7 @@ sigaction_t act, oact;
 			return OK;
 		}
   	}
+#endif
 
 	if (curscr->_clear) {		/* force refresh ? */
 		T(("clearing and updating curscr"));
