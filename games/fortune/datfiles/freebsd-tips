@@ -439,9 +439,8 @@ Need to see which daemons are listening for connection requests? Use
 "sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6.
 		-- Dru <genesis@istar.ca>
 %
-Can't remember if you've installed a certain port or not? Try "pkg_info |
-grep port_name".
-		-- Dru <genesis@istar.ca>
+Can't remember if you've installed a certain port or not? Try "pkg_info 
+-Ix port_name".
 %
 To erase a line you've written at the command prompt, use "Ctrl-U".
 		-- Dru <genesis@istar.ca>
