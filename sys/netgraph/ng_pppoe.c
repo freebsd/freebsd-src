@@ -181,8 +181,6 @@ static struct ng_type typestruct = {
 	.cmdlist =	ng_pppoe_cmds,
 };
 NETGRAPH_INIT(pppoe, &typestruct);
-/* Depend on ng_ether so we can use the Ethernet parse type */
-MODULE_DEPEND(ng_pppoe, ng_ether, 1, 1, 1);
 
 /*
  * States for the session state machine.
