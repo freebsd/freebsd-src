@@ -29,6 +29,8 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/ad1816.h>
 
+#include <isa/isavar.h>
+
 #include "mixer_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -322,7 +324,7 @@ ad1816chan_setdir(kobj_t obj, void *data, int dir)
 	struct ad1816_chinfo *ch = data;
   	struct ad1816_info *ad1816 = ch->parent;
 
-	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? ad1816->drq1 : ad1816->drq2);
+	sndbuf_dmasetup(ch->buffer, (dir == PCMDIR_PLAY)? ad1816->drq1 : ad1816->drq2);
 	ch->dir = dir;
 	return 0;
 }
@@ -407,7 +409,7 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	sndbuf_isadma(ch->buffer, go);
+	sndbuf_dma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;
 	ad1816_lock(ad1816);
@@ -453,7 +455,7 @@ static int
 ad1816chan_getptr(kobj_t obj, void *data)
 {
 	struct ad1816_chinfo *ch = data;
-	return sndbuf_isadmaptr(ch->buffer);
+	return sndbuf_dmaptr(ch->buffer);
 }
 
 static struct pcmchan_caps *
