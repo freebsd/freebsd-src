@@ -33,7 +33,7 @@
 #define	SNDBUF_F_XRUN		0x00000002
 #define	SNDBUF_F_RUNNING	0x00000004
 
-struct snd_dbuf *sndbuf_create(char *drv, char *desc);
+struct snd_dbuf *sndbuf_create(device_t dev, char *drv, char *desc);
 void sndbuf_destroy(struct snd_dbuf *b);
 
 void sndbuf_dump(struct snd_dbuf *b, char *s, u_int32_t what);

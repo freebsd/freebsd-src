@@ -55,6 +55,8 @@ struct snddev_info {
 
 devclass_t pcm_devclass;
 
+int pcm_veto_load = 1;
+
 #ifdef USING_DEVFS
 int snd_unit = 0;
 TUNABLE_INT("hw.snd.unit", &snd_unit);
@@ -598,6 +600,12 @@ int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 {
     	struct snddev_info *d = device_get_softc(dev);
+
+	if (pcm_veto_load) {
+		device_printf(dev, "disabled due to an error while initialising: %d\n", pcm_veto_load);
+
+		return EINVAL;
+	}
 
 	d->lock = snd_mtxcreate(device_get_nameunit(dev));
 	snd_mtxlock(d->lock);

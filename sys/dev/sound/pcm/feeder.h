@@ -43,10 +43,11 @@ struct feeder_class {
 struct pcm_feeder {
     	KOBJ_FIELDS;
 	int align;
-	struct pcm_feederdesc *desc;
+	struct pcm_feederdesc *desc, desc_static;
 	void *data;
 	struct feeder_class *class;
 	struct pcm_feeder *source, *parent;
+
 };
 
 void feeder_register(void *p);
