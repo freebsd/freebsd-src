@@ -63,6 +63,7 @@ expand_table(void **table, int oldsize, int newsize)
 
 	temp = (int *) Malloc(newsize);			    /* allocate a new table */
 	CHECKALLOC(temp, "vinum: Can't expand table\n");
+	bzero((char *) temp, newsize);			    /* clean it all out */
 	if (*table != NULL) {				    /* already something there, */
 	    bcopy((char *) *table, (char *) temp, oldsize); /* copy it to the old table */
 	    Free(*table);
@@ -89,12 +90,12 @@ MMalloc(int size, char *file, int line)
     struct mc me;					    /* information to pass to allocdatabuf */
 
     if (malloccount >= MALLOCENTRIES) {			    /* too many */
-	printf("vinum: can't allocate table space to trace memory allocation");
+	log(LOG_ERR, "vinum: can't allocate table space to trace memory allocation");
 	return 0;					    /* can't continue */
     }
     result = malloc(size, M_DEVBUF, M_WAITOK);		    /* use malloc for smaller and irregular stuff */
     if (result == NULL)
-	printf("vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
+	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
 	me.flags = 0;					    /* allocation via malloc */
 	s = splhigh();
@@ -147,7 +148,7 @@ FFree(void *mem, char *file, int line)
 	}
     }
     splx(s);
-    printf("Freeing unallocated data at 0x%08x from %s, line %d\n", (int) mem, file, line);
+    log(LOG_ERR, "Freeing unallocated data at 0x%08x from %s, line %d\n", (int) mem, file, line);
     Debugger("Free");
 }
 
