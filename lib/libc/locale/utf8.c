@@ -50,7 +50,7 @@ _UTF8_init(_RuneLocale *rl)
 rune_t
 _UTF8_sgetrune(const char *string, size_t n, const char **result)
 {
-	int ch, len, mask, siglen;
+	int ch, len, mask;
 	rune_t lbound, wch;
 
 	if (n < 1) {

@@ -43,7 +43,7 @@ int
 ns_format_ttl(u_long src, char *dst, size_t dstlen) {
 	char *odst = dst;
 	int secs, mins, hours, days, weeks, x;
-	char tmp[50], *p;
+	char *p;
 
 	secs = src % 60;   src /= 60;
 	mins = src % 60;   src /= 60;
