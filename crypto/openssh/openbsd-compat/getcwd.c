@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
+#include "includes.h"
 
 #if !defined(HAVE_GETCWD)
 

@@ -40,7 +40,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.179 2002/06/12 01:09:52 markus Exp $");
+RCSID("$OpenBSD: ssh.c,v 1.186 2002/09/19 01:58:18 djm Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -147,6 +147,9 @@ int subsystem_flag = 0;
 /* # of replies received for global requests */
 static int client_global_request_id = 0;
 
+/* pid of proxycommand child process */
+pid_t proxy_command_pid = 0;
+
 /* Prints a help message to the user.  This function never returns. */
 
 static void
@@ -175,7 +178,6 @@ usage(void)
 	fprintf(stderr, "  -v          Verbose; display verbose debugging messages.\n");
 	fprintf(stderr, "              Multiple -v increases verbosity.\n");
 	fprintf(stderr, "  -V          Display version number only.\n");
-	fprintf(stderr, "  -P          Don't allocate a privileged port.\n");
 	fprintf(stderr, "  -q          Quiet; don't display any warning messages.\n");
 	fprintf(stderr, "  -f          Fork into background after authentication.\n");
 	fprintf(stderr, "  -e char     Set escape character; ``none'' = disable (default: ~).\n");
@@ -230,6 +232,15 @@ main(int ac, char **av)
 	 */
 	original_real_uid = getuid();
 	original_effective_uid = geteuid();
+ 
+	/*
+	 * Use uid-swapping to give up root privileges for the duration of
+	 * option processing.  We will re-instantiate the rights when we are
+	 * ready to create the privileged port, and will permanently drop
+	 * them when the port has been created (actually, when the connection
+	 * has been made, as we may need to create the port several times).
+	 */
+	PRIV_END;
 
 #ifdef HAVE_SETRLIMIT
 	/* If we are installed setuid root be careful to not drop core. */
@@ -248,15 +259,6 @@ main(int ac, char **av)
 	}
 	/* Take a copy of the returned structure. */
 	pw = pwcopy(pw);
-
-	/*
-	 * Use uid-swapping to give up root privileges for the duration of
-	 * option processing.  We will re-instantiate the rights when we are
-	 * ready to create the privileged port, and will permanently drop
-	 * them when the port has been created (actually, when the connection
-	 * has been made, as we may need to create the port several times).
-	 */
-	PRIV_END;
 
 	/*
 	 * Set our umask to something reasonable, as some files are created
@@ -304,7 +306,7 @@ again:
 		case 'g':
 			options.gateway_ports = 1;
 			break;
-		case 'P':
+		case 'P':	/* deprecated */
 			options.use_privileged_port = 0;
 			break;
 		case 'a':
@@ -553,7 +555,7 @@ again:
 	if (buffer_len(&command) == 0)
 		tty_flag = 1;
 
-	/* Force no tty*/
+	/* Force no tty */
 	if (no_tty_flag)
 		tty_flag = 0;
 	/* Do not allocate a tty if stdin is not a tty. */
@@ -655,7 +657,8 @@ again:
 	if (options.rhosts_rsa_authentication ||
 	    options.hostbased_authentication) {
 		sensitive_data.nkeys = 3;
-		sensitive_data.keys = xmalloc(sensitive_data.nkeys*sizeof(Key));
+		sensitive_data.keys = xmalloc(sensitive_data.nkeys *
+		    sizeof(Key));
 
 		PRIV_START;
 		sensitive_data.keys[0] = key_load_private_type(KEY_RSA1,
@@ -666,7 +669,8 @@ again:
 		    _PATH_HOST_RSA_KEY_FILE, "", NULL);
 		PRIV_END;
 
-		if (sensitive_data.keys[0] == NULL &&
+		if (options.hostbased_authentication == 1 &&
+		    sensitive_data.keys[0] == NULL &&
 		    sensitive_data.keys[1] == NULL &&
 		    sensitive_data.keys[2] == NULL) {
 			sensitive_data.keys[1] = key_load_public(
@@ -739,6 +743,14 @@ again:
 
 	exit_status = compat20 ? ssh_session2() : ssh_session();
 	packet_close();
+
+	/*
+	 * Send SIGHUP to proxy command if used. We don't wait() in 
+	 * case it hangs and instead rely on init to reap the child
+	 */
+	if (proxy_command_pid > 1)
+		kill(proxy_command_pid, SIGHUP);
+
 	return exit_status;
 }
 
@@ -750,11 +762,19 @@ x11_get_proto(char **_proto, char **_data)
 	FILE *f;
 	int got_data = 0, i;
 	char *display;
+	struct stat st;
 
 	*_proto = proto;
 	*_data = data;
 	proto[0] = data[0] = '\0';
-	if (options.xauth_location && (display = getenv("DISPLAY"))) {
+	if (!options.xauth_location ||
+	    (stat(options.xauth_location, &st) == -1)) {
+		debug("No xauth program.");
+	} else {
+		if ((display = getenv("DISPLAY")) == NULL) {
+			debug("x11_get_proto: DISPLAY not set");
+			return;
+		}
 		/* Try to get Xauthority information for the display. */
 		if (strncmp(display, "localhost:", 10) == 0)
 			/*
@@ -769,7 +789,7 @@ x11_get_proto(char **_proto, char **_data)
 		else
 			snprintf(line, sizeof line, "%s list %.200s 2>"
 			    _PATH_DEVNULL, options.xauth_location, display);
-		debug2("x11_get_proto %s", line);
+		debug2("x11_get_proto: %s", line);
 		f = popen(line, "r");
 		if (f && fgets(line, sizeof(line), f) &&
 		    sscanf(line, "%*s %511s %511s", proto, data) == 2)
@@ -788,6 +808,7 @@ x11_get_proto(char **_proto, char **_data)
 	if (!got_data) {
 		u_int32_t rand = 0;
 
+		log("Warning: No xauth data; using fake authentication data for X11 forwarding.");
 		strlcpy(proto, "MIT-MAGIC-COOKIE-1", sizeof proto);
 		for (i = 0; i < 16; i++) {
 			if (i % 4 == 0)
@@ -837,11 +858,8 @@ check_agent_present(void)
 {
 	if (options.forward_agent) {
 		/* Clear agent forwarding if we don\'t have an agent. */
-		int authfd = ssh_get_authentication_socket();
-		if (authfd < 0)
+		if (!ssh_agent_present())
 			options.forward_agent = 0;
-		else
-			ssh_close_authentication_socket(authfd);
 	}
 }
 

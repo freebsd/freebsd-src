@@ -39,7 +39,7 @@
 #include "pathnames.h"
 #include "log.h"
 
-RCSID("$Id: ssh-rand-helper.c,v 1.7 2002/06/09 19:41:49 mouring Exp $");
+RCSID("$Id: ssh-rand-helper.c,v 1.8 2002/07/28 20:42:24 stevesk Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -62,7 +62,6 @@ RCSID("$Id: ssh-rand-helper.c,v 1.7 2002/06/09 19:41:49 mouring Exp $");
 #ifndef SSH_PRNG_COMMAND_FILE
 # define SSH_PRNG_COMMAND_FILE   SSHDIR "/ssh_prng_cmds"
 #endif
-
 
 #ifdef HAVE___PROGNAME
 extern char *__progname;
@@ -115,7 +114,7 @@ double stir_from_programs(void);
 double stir_gettimeofday(double entropy_estimate);
 double stir_clock(double entropy_estimate);
 double stir_rusage(int who, double entropy_estimate);
-double hash_command_output(entropy_cmd_t *src, char *hash);
+double hash_command_output(entropy_cmd_t *src, unsigned char *hash);
 int get_random_bytes_prngd(unsigned char *buf, int len, 
     unsigned short tcp_port, char *socket_path);
 
@@ -274,7 +273,7 @@ timeval_diff(struct timeval *t1, struct timeval *t2)
 }
 
 double
-hash_command_output(entropy_cmd_t *src, char *hash)
+hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 {
 	char buf[8192];
 	fd_set rdset;
@@ -460,7 +459,7 @@ stir_from_programs(void)
 {
 	int c;
 	double entropy, total_entropy;
-	char hash[SHA_DIGEST_LENGTH];
+	unsigned char hash[SHA_DIGEST_LENGTH];
 
 	total_entropy = 0;
 	for(c = 0; entropy_cmds[c].path != NULL; c++) {
@@ -543,7 +542,8 @@ void
 prng_write_seedfile(void)
 {
 	int fd;
-	char seed[SEED_FILE_SIZE], filename[MAXPATHLEN];
+	unsigned char seed[SEED_FILE_SIZE];
+	char filename[MAXPATHLEN];
 	struct passwd *pw;
 
 	pw = getpwuid(getuid());
@@ -862,4 +862,3 @@ main(int argc, char **argv)
 	
 	return ret == bytes ? 0 : 1;
 }
-

@@ -14,14 +14,14 @@
 
 3) Remove trash:
 
-	$ rm -rf $(cat FREEBSD-Xlist)
+	$ eval "rm -rf $(tr '[:space:]' ' ' </usr/src/crypto/openssh/FREEBSD-Xlist)"
 
    Make sure that took care of everything, and if it didn't, make sure
    to update FREEBSD-Xlist so you won't miss it the next time.
 
 4) Import the sources:
 
-	$ cvs import src/crypto/openssh-portable OPENSSH OpenSSH_X_YpZ
+	$ cvs import src/crypto/openssh OPENSSH OpenSSH_X_YpZ
 
 5) Resolve conflicts.  Remember to bump the version number and
    addendum in version.h.

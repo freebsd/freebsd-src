@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.72 2002/06/25 22:35:16 tim Exp $
+# $Id: configure.ac,v 1.89 2002/09/26 00:38:47 tim Exp $
 # $FreeBSD$
 
 AC_INIT
@@ -18,7 +18,6 @@ AC_PATH_PROGS(PERL, perl5 perl)
 AC_SUBST(PERL)
 AC_PATH_PROG(ENT, ent)
 AC_SUBST(ENT)
-AC_PATH_PROGS(FILEPRIV, filepriv, true, /sbin:/usr/sbin)
 AC_PATH_PROG(TEST_MINUS_S_SH, bash)
 AC_PATH_PROG(TEST_MINUS_S_SH, ksh)
 AC_PATH_PROG(TEST_MINUS_S_SH, sh)
@@ -72,7 +71,12 @@ case "$host" in
 		)
 		LDFLAGS="$saved_LDFLAGS"
 	fi
-	AC_CHECK_FUNC(authenticate, [AC_DEFINE(WITH_AIXAUTHENTICATE)])
+	AC_CHECK_FUNC(authenticate, [AC_DEFINE(WITH_AIXAUTHENTICATE)],
+		[AC_CHECK_LIB(s,authenticate,
+			[ AC_DEFINE(WITH_AIXAUTHENTICATE)
+				LIBS="$LIBS -ls"
+			])
+		])
 	AC_DEFINE(BROKEN_GETADDRINFO)
 	AC_DEFINE(BROKEN_REALPATH)
 	dnl AIX handles lastlog as part of its login message
@@ -87,14 +91,24 @@ case "$host" in
 	AC_DEFINE(IPV4_DEFAULT)
 	AC_DEFINE(IP_TOS_IS_BROKEN)
 	AC_DEFINE(NO_X11_UNIX_SOCKETS)
-	AC_DEFINE(BROKEN_FD_PASSING)
+	AC_DEFINE(NO_IPPORT_RESERVED_CONCEPT)
+	AC_DEFINE(DISABLE_FD_PASSING)
 	AC_DEFINE(SETGROUPS_NOOP)
 	;;
 *-*-dgux*)
 	AC_DEFINE(IP_TOS_IS_BROKEN)
 	;;
 *-*-darwin*)
-	AC_DEFINE(BROKEN_GETADDRINFO)
+	AC_MSG_CHECKING(if we have working getaddrinfo)
+	AC_TRY_RUN([#include <mach-o/dyld.h>
+main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
+		exit(0);
+	else
+		exit(1);
+}], [AC_MSG_RESULT(working)],
+	[AC_MSG_RESULT(buggy)
+	AC_DEFINE(BROKEN_GETADDRINFO)],
+	[AC_MSG_RESULT(assume it is working)])
 	;;
 *-*-hpux10.26)
 	if test -z "$GCC"; then
@@ -109,7 +123,8 @@ case "$host" in
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
 	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	LIBS="$LIBS -lxnet -lsec -lsecpw"
+	LIBS="$LIBS -lsec -lsecpw"
+	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	disable_ptmx_check=yes
 	;;
 *-*-hpux10*)
@@ -124,7 +139,8 @@ case "$host" in
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
 	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	LIBS="$LIBS -lxnet -lsec"
+	LIBS="$LIBS -lsec"
+	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	;;
 *-*-hpux11*)
 	CPPFLAGS="$CPPFLAGS -D_HPUX_SOURCE -D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED=1"
@@ -136,7 +152,8 @@ case "$host" in
 	AC_DEFINE(DISABLE_SHADOW)
 	AC_DEFINE(DISABLE_UTMP)
 	AC_DEFINE(SPT_TYPE,SPT_PSTAT)
-	LIBS="$LIBS -lxnet -lsec"
+	LIBS="$LIBS -lsec"
+	AC_CHECK_LIB(xnet, t_error, ,AC_MSG_ERROR([*** -lxnet needed on HP-UX - check config.log ***]))
 	;;
 *-*-irix5*)
 	CPPFLAGS="$CPPFLAGS -I/usr/local/include"
@@ -168,6 +185,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	SONY=1
 	;;
 *-*-netbsd*)
+	check_for_libcrypt_before=1
 	need_dash_r=1
 	;;
 *-*-freebsd*)
@@ -268,17 +286,28 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(USE_PIPES)
 	AC_DEFINE(HAVE_SECUREWARE)
 	AC_DEFINE(DISABLE_SHADOW)
-	AC_DEFINE(BROKEN_FD_PASSING)
+	AC_DEFINE(DISABLE_FD_PASSING)
 	AC_CHECK_FUNCS(getluid setluid)
 	MANTYPE=man
+	;;
+*-*-unicosmk*)
+	no_libsocket=1
+	no_libnsl=1
+	AC_DEFINE(USE_PIPES)
+	AC_DEFINE(DISABLE_FD_PASSING)
+	LDFLAGS="$LDFLAGS"
+	LIBS="$LIBS -lgen -lrsc -lshare -luex -lacm"
+	MANTYPE=cat
 	;;
 *-*-unicos*)
 	no_libsocket=1
 	no_libnsl=1
 	AC_DEFINE(USE_PIPES)
-	AC_DEFINE(BROKEN_FD_PASSING)
-	LDFLAGS="$LDFLAGS -Wl,-Dmsglevel=334:fatal,-L/usr/local/lib"
-	LIBS="$LIBS -lgen -lrsc"
+	AC_DEFINE(DISABLE_FD_PASSING)
+	AC_DEFINE(NO_SSH_LASTLOG)
+	LDFLAGS="$LDFLAGS -Wl,-Dmsglevel=334:fatal"
+	LIBS="$LIBS -lgen -lrsc -lshare -luex -lacm"
+	MANTYPE=cat
 	;;
 *-dec-osf*)
 	AC_MSG_CHECKING(for Digital Unix SIA)
@@ -349,14 +378,14 @@ AC_ARG_WITH(libs,
 
 # Checks for header files.
 AC_CHECK_HEADERS(bstring.h crypt.h endian.h floatingpoint.h \
-	getopt.h glob.h lastlog.h limits.h login.h \
+	getopt.h glob.h ia.h lastlog.h limits.h login.h \
 	login_cap.h maillock.h netdb.h netgroup.h \
 	netinet/in_systm.h paths.h pty.h readpassphrase.h \
 	rpc/types.h security/pam_appl.h shadow.h stddef.h stdint.h \
 	strings.h sys/bitypes.h sys/bsdtty.h sys/cdefs.h \
 	sys/mman.h sys/select.h sys/stat.h \
 	sys/stropts.h sys/sysmacros.h sys/time.h \
-	sys/un.h time.h ttyent.h usersec.h \
+	sys/un.h time.h tmpdir.h ttyent.h usersec.h \
 	util.h utime.h utmp.h utmpx.h)
 
 # Checks for libraries.
@@ -420,7 +449,8 @@ AC_CHECK_FUNC(strcasecmp,
 	[], [ AC_CHECK_LIB(resolv, strcasecmp, LIBS="$LIBS -lresolv") ]
 )
 AC_CHECK_FUNC(utimes, 
-	[], [ AC_CHECK_LIB(c89, utimes, LIBS="$LIBS -lc89") ]
+	[], [ AC_CHECK_LIB(c89, utimes, [AC_DEFINE(HAVE_UTIMES)
+					LIBS="$LIBS -lc89"]) ]
 )
 
 dnl    Checks for libutil functions
@@ -469,7 +499,7 @@ AC_TRY_RUN(
 	[
 #include <sys/types.h>
 #include <dirent.h>
-int main(void){struct dirent d;return(sizeof(d.d_name)<=sizeof(char));}
+int main(void){struct dirent d;exit(sizeof(d.d_name)<=sizeof(char));}
 	],
 	[AC_MSG_RESULT(yes)], 
 	[
@@ -500,7 +530,7 @@ AC_ARG_WITH(skey,
 				[
 #include <stdio.h>
 #include <skey.h>
-int main() { char *ff = skey_keyinfo(""); ff=""; return 0; }
+int main() { char *ff = skey_keyinfo(""); ff=""; exit(0); }
 				],
 				[AC_MSG_RESULT(yes)],
 				[
@@ -603,7 +633,7 @@ AC_ARG_WITH(tcp-wrappers,
 dnl    Checks for library functions.
 AC_CHECK_FUNCS(arc4random b64_ntop bcopy bindresvport_sa \
 	clock fchmod fchown freeaddrinfo futimes gai_strerror \
-	getaddrinfo getcwd getgrouplist getnameinfo getopt \
+	getaddrinfo getcwd getgrouplist getnameinfo getopt getpeereid\
 	getrlimit getrusage getttyent glob inet_aton inet_ntoa \
 	inet_ntop innetgr login_getcapbool md5_crypt memmove \
 	mkdtemp mmap ngetaddrinfo openpty ogetaddrinfo readpassphrase \
@@ -612,31 +642,6 @@ AC_CHECK_FUNCS(arc4random b64_ntop bcopy bindresvport_sa \
 	setrlimit setsid setpcred setvbuf sigaction sigvec snprintf \
 	socketpair strerror strlcat strlcpy strmode strsep sysconf tcgetpgrp \
 	truncate utimes vhangup vsnprintf waitpid __b64_ntop _getpty)
-
-if test $ac_cv_func_mmap = yes ; then
-AC_MSG_CHECKING([for mmap anon shared])
-AC_TRY_RUN(
-	[
-#include <sys/types.h>
-#include <stdio.h>
-#include <sys/mman.h>
-#if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
-#define MAP_ANON MAP_ANONYMOUS
-#endif
-main() { char *p;
-p = (char *) mmap(NULL, 10, PROT_WRITE|PROT_READ, MAP_ANON|MAP_SHARED, -1, 0);
-if (p == (char *)-1)
-	exit(1);
-exit(0);
-}
-	],
-	[
-		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_MMAP_ANON_SHARED)
-	],
-	[ AC_MSG_RESULT(no) ] 
-)
-fi
 
 dnl IRIX and Solaris 2.5.1 have dirname() in libgen
 AC_CHECK_FUNCS(dirname, [AC_CHECK_HEADERS(libgen.h)] ,[
@@ -700,7 +705,7 @@ if test "x$ac_cv_func_snprintf" = "xyes" ; then
 	AC_TRY_RUN(
 		[
 #include <stdio.h>
-int main(void){char b[5];snprintf(b,5,"123456789");return(b[4]!='\0');}
+int main(void){char b[5];snprintf(b,5,"123456789");exit(b[4]!='\0');}
 		],
 		[AC_MSG_RESULT(yes)], 
 		[
@@ -760,6 +765,12 @@ if test "x$PAM_MSG" = "xyes" ; then
 	)
 fi
 
+# Some systems want crypt() from libcrypt, *not* the version in OpenSSL,
+# because the system crypt() is more featureful.
+if test "x$check_for_libcrypt_before" = "x1"; then
+	AC_CHECK_LIB(crypt, crypt)
+fi
+
 # Search for OpenSSL
 saved_CPPFLAGS="$CPPFLAGS"
 saved_LDFLAGS="$LDFLAGS"
@@ -806,6 +817,70 @@ AC_TRY_LINK_FUNC(RAND_add, AC_DEFINE(HAVE_OPENSSL),
 	]
 )
 
+# Determine OpenSSL header version
+AC_MSG_CHECKING([OpenSSL header version])
+AC_TRY_RUN(
+	[
+#include <stdio.h>
+#include <string.h>
+#include <openssl/opensslv.h>
+#define DATA "conftest.sslincver"
+int main(void) {
+        FILE *fd;
+        int rc;
+
+        fd = fopen(DATA,"w");
+        if(fd == NULL)
+                exit(1);
+
+	if ((rc = fprintf(fd ,"%x (%s)\n", OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT)) <0)
+		exit(1);
+
+	exit(0);
+}
+	],
+	[
+		ssl_header_ver=`cat conftest.sslincver`
+		AC_MSG_RESULT($ssl_header_ver)
+	],
+	[
+		AC_MSG_RESULT(not found)
+		AC_MSG_ERROR(OpenSSL version header not found.)
+	]
+)
+
+# Determine OpenSSL library version
+AC_MSG_CHECKING([OpenSSL library version])
+AC_TRY_RUN(
+	[
+#include <stdio.h>
+#include <string.h>
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#define DATA "conftest.ssllibver"
+int main(void) {
+        FILE *fd;
+        int rc;
+
+        fd = fopen(DATA,"w");
+        if(fd == NULL)
+                exit(1);
+
+	if ((rc = fprintf(fd ,"%x (%s)\n", SSLeay(), SSLeay_version(SSLEAY_VERSION))) <0)
+		exit(1);
+
+	exit(0);
+}
+	],
+	[
+		ssl_library_ver=`cat conftest.ssllibver`
+		AC_MSG_RESULT($ssl_library_ver)
+	],
+	[
+		AC_MSG_RESULT(not found)
+		AC_MSG_ERROR(OpenSSL library not found.)
+	]
+)
 
 # Sanity check OpenSSL headers
 AC_MSG_CHECKING([whether OpenSSL's headers match the library])
@@ -813,7 +888,7 @@ AC_TRY_RUN(
 	[
 #include <string.h>
 #include <openssl/opensslv.h>
-int main(void) { return(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1); }
+int main(void) { exit(SSLeay() == OPENSSL_VERSION_NUMBER ? 0 : 1); }
 	],
 	[
 		AC_MSG_RESULT(yes)
@@ -839,7 +914,7 @@ AC_TRY_RUN(
 	[
 #include <string.h>
 #include <openssl/rand.h>
-int main(void) { return(RAND_status() == 1 ? 0 : 1); }
+int main(void) { exit(RAND_status() == 1 ? 0 : 1); }
 	],
 	[
 		OPENSSL_SEEDS_ITSELF=yes
@@ -1093,7 +1168,16 @@ fi
 
 AC_CACHE_CHECK([for int64_t type], ac_cv_have_int64_t, [
 	AC_TRY_COMPILE(
-		[ #include <sys/types.h> ], 
+		[
+#include <sys/types.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#include <sys/socket.h>
+#ifdef HAVE_SYS_BITYPES_H
+# include <sys/bitypes.h>
+#endif
+		], 
 		[ int64_t a; a = 1;], 
 		[ ac_cv_have_int64_t="yes" ],
 		[ ac_cv_have_int64_t="no" ]
@@ -1101,33 +1185,6 @@ AC_CACHE_CHECK([for int64_t type], ac_cv_have_int64_t, [
 ])
 if test "x$ac_cv_have_int64_t" = "xyes" ; then
 	AC_DEFINE(HAVE_INT64_T)
-	have_int64_t=1
-fi
-	
-if test -z "$have_int64_t" ; then
-    AC_MSG_CHECKING([for int64_t type in sys/socket.h])
-	AC_TRY_COMPILE(
-		[ #include <sys/socket.h> ], 
-		[ int64_t a; a = 1],
-		[
-			AC_DEFINE(HAVE_INT64_T)
-			AC_MSG_RESULT(yes)
-		],
-		[ AC_MSG_RESULT(no) ]
-	)
-fi
-
-if test -z "$have_int64_t" ; then
-    AC_MSG_CHECKING([for int64_t type in sys/bitypes.h])
-	AC_TRY_COMPILE(
-		[ #include <sys/bitypes.h> ], 
-		[ int64_t a; a = 1],
-		[
-			AC_DEFINE(HAVE_INT64_T)
-			AC_MSG_RESULT(yes)
-		],
-		[ AC_MSG_RESULT(no) ]
-	)
 fi
 
 AC_CACHE_CHECK([for u_intXX_t types], ac_cv_have_u_intxx_t, [
@@ -1860,7 +1917,7 @@ LIBS="$LIBS $KLIBS $K5LIBS"
 
 PRIVSEP_PATH=/var/empty
 AC_ARG_WITH(privsep-path,
-	[  --with-privsep-path=xxx Path for privilege separation chroot ],
+	[  --with-privsep-path=xxx Path for privilege separation chroot (default=/var/empty)],
 	[
 		if test "x$withval" != "$no" ; then
 			PRIVSEP_PATH=$withval
@@ -1877,7 +1934,12 @@ AC_ARG_WITH(xauth,
 		fi
 	],
 	[
-		AC_PATH_PROG(xauth_path, xauth,,$PATH:/usr/X/bin:/usr/bin/X11:/usr/X11R6/bin:/usr/openwin/bin)
+		TestPath="$PATH"
+		TestPath="${TestPath}${PATH_SEPARATOR}/usr/X/bin"
+		TestPath="${TestPath}${PATH_SEPARATOR}/usr/bin/X11"
+		TestPath="${TestPath}${PATH_SEPARATOR}/usr/X11R6/bin"
+		TestPath="${TestPath}${PATH_SEPARATOR}/usr/openwin/bin"
+		AC_PATH_PROG(xauth_path, xauth, , $TestPath)
 		if (test ! -z "$xauth_path" && test -x "/usr/openwin/bin/xauth") ; then
 			xauth_path="/usr/openwin/bin/xauth"
 		fi
@@ -1931,7 +1993,8 @@ AC_ARG_WITH(mantype,
 	]
 )
 if test -z "$MANTYPE"; then
-	AC_PATH_PROGS(NROFF, nroff awf, /bin/false, /usr/bin:/usr/ucb)
+	TestPath="/usr/bin${PATH_SEPARATOR}/usr/ucb"
+	AC_PATH_PROGS(NROFF, nroff awf, /bin/false, $TestPath)
 	if ${NROFF} -mdoc ${srcdir}/ssh.1 >/dev/null 2>&1; then
 		MANTYPE=doc
 	elif ${NROFF} -man ${srcdir}/ssh.1 >/dev/null 2>&1; then

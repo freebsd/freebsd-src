@@ -1,4 +1,4 @@
-/*	$OpenBSD: dirname.c,v 1.6 2001/06/28 04:27:19 pjanzen Exp $	*/
+/*	$OpenBSD: dirname.c,v 1.7 2002/05/24 21:22:37 deraadt Exp $	*/
 
 /*
  * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
@@ -31,7 +31,7 @@
 #ifndef HAVE_DIRNAME
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: dirname.c,v 1.6 2001/06/28 04:27:19 pjanzen Exp $";
+static char rcsid[] = "$OpenBSD: dirname.c,v 1.7 2002/05/24 21:22:37 deraadt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
@@ -47,7 +47,7 @@ dirname(path)
 
 	/* Empty or NULL string gets treated as "." */
 	if (path == NULL || *path == '\0') {
-		(void)strcpy(bname, ".");
+		(void)strlcpy(bname, ".", sizeof bname);
 		return(bname);
 	}
 
@@ -62,7 +62,7 @@ dirname(path)
 
 	/* Either the dir is "/" or there are no slashes */
 	if (endp == path) {
-		(void)strcpy(bname, *endp == '/' ? "/" : ".");
+		(void)strlcpy(bname, *endp == '/' ? "/" : ".", sizeof bname);
 		return(bname);
 	} else {
 		do {

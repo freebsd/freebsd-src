@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-common.c,v 1.6 2002/06/23 09:30:14 deraadt Exp $");
+RCSID("$OpenBSD: sftp-common.c,v 1.7 2002/09/11 22:41:50 djm Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -63,6 +63,26 @@ stat_to_attrib(struct stat *st, Attrib *a)
 	a->flags |= SSH2_FILEXFER_ATTR_ACMODTIME;
 	a->atime = st->st_atime;
 	a->mtime = st->st_mtime;
+}
+
+/* Convert from filexfer attribs to struct stat */
+void
+attrib_to_stat(Attrib *a, struct stat *st)
+{
+	memset(st, 0, sizeof(*st));
+
+	if (a->flags & SSH2_FILEXFER_ATTR_SIZE)
+		st->st_size = a->size;
+	if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+		st->st_uid = a->uid;
+		st->st_gid = a->gid;
+	}
+	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS)
+		st->st_mode = a->perm;
+	if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+		st->st_atime = a->atime;
+		st->st_mtime = a->mtime;
+	}
 }
 
 /* Decode attributes in buffer */
@@ -148,4 +168,46 @@ fx2txt(int status)
 		return("Unknown status");
 	}
 	/* NOTREACHED */
+}
+
+/*
+ * drwxr-xr-x    5 markus   markus       1024 Jan 13 18:39 .ssh
+ */
+char *
+ls_file(char *name, struct stat *st, int remote)
+{
+	int ulen, glen, sz = 0;
+	struct passwd *pw;
+	struct group *gr;
+	struct tm *ltime = localtime(&st->st_mtime);
+	char *user, *group;
+	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
+
+	strmode(st->st_mode, mode);
+	if (!remote && (pw = getpwuid(st->st_uid)) != NULL) {
+		user = pw->pw_name;
+	} else {
+		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
+		user = ubuf;
+	}
+	if (!remote && (gr = getgrgid(st->st_gid)) != NULL) {
+		group = gr->gr_name;
+	} else {
+		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
+		group = gbuf;
+	}
+	if (ltime != NULL) {
+		if (time(NULL) - st->st_mtime < (365*24*60*60)/2)
+			sz = strftime(tbuf, sizeof tbuf, "%b %e %H:%M", ltime);
+		else
+			sz = strftime(tbuf, sizeof tbuf, "%b %e  %Y", ltime);
+	}
+	if (sz == 0)
+		tbuf[0] = '\0';
+	ulen = MAX(strlen(user), 8);
+	glen = MAX(strlen(group), 8);
+	snprintf(buf, sizeof buf, "%s %3d %-*s %-*s %8llu %s %s", mode,
+	    st->st_nlink, ulen, user, glen, group,
+	    (u_int64_t)st->st_size, tbuf, name);
+	return xstrdup(buf);
 }

@@ -23,9 +23,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2.c,v 1.93 2002/05/31 11:35:15 markus Exp $");
+RCSID("$OpenBSD: auth2.c,v 1.95 2002/08/22 21:33:58 markus Exp $");
 RCSID("$FreeBSD$");
 
+#include "canohost.h"
 #include "ssh2.h"
 #include "xmalloc.h"
 #include "packet.h"
@@ -103,7 +104,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 {
 	Authctxt *authctxt = ctxt;
 	u_int len;
-	int accept = 0;
+	int acceptit = 0;
 	char *service = packet_get_string(&len);
 	packet_check_eom();
 
@@ -112,14 +113,14 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 
 	if (strcmp(service, "ssh-userauth") == 0) {
 		if (!authctxt->success) {
-			accept = 1;
+			acceptit = 1;
 			/* now we can handle user-auth requests */
 			dispatch_set(SSH2_MSG_USERAUTH_REQUEST, &input_userauth_request);
 		}
 	}
 	/* XXX all other service requests are denied */
 
-	if (accept) {
+	if (acceptit) {
 		packet_start(SSH2_MSG_SERVICE_ACCEPT);
 		packet_put_cstring(service);
 		packet_send();
@@ -234,7 +235,8 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		    authctxt->user);
 
 	/* Special handling for root */
-	if (authenticated && authctxt->pw->pw_uid == 0 &&
+	if (!use_privsep &&
+	    authenticated && authctxt->pw->pw_uid == 0 &&
 	    !auth_root_allowed(method))
 		authenticated = 0;
 
@@ -243,6 +245,13 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 	    !do_pam_account(authctxt->user, NULL))
 		authenticated = 0;
 #endif /* USE_PAM */
+
+#ifdef _UNICOS
+	if (authenticated && cray_access_denied(authctxt->user)) {
+		authenticated = 0;
+		fatal("Access denied for user %s.",authctxt->user);
+	}
+#endif /* _UNICOS */
 
 	/* Log before sending the reply */
 	auth_log(authctxt, authenticated, method, " ssh2");
@@ -261,14 +270,12 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		authctxt->success = 1;
 	} else {
 		if (authctxt->failures++ > AUTH_FAIL_MAX) {
-#ifdef WITH_AIXAUTHENTICATE
-			/* XXX: privsep */
-			loginfailed(authctxt->user,
-			    get_canonical_hostname(options.verify_reverse_mapping),
-			    "ssh");
-#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
 		}
+#ifdef _UNICOS
+		if (strcmp(method, "password") == 0)
+			cray_login_failure(authctxt->user, IA_UDBERR);
+#endif /* _UNICOS */
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);

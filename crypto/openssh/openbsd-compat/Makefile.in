@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.21 2002/02/19 20:27:57 mouring Exp $
+# $Id: Makefile.in,v 1.23 2002/09/12 00:33:02 djm Exp $
 
 sysconfdir=@sysconfdir@
 piddir=@piddir@
@@ -18,7 +18,7 @@ LDFLAGS=-L. @LDFLAGS@
 
 OPENBSD=base64.o bindresvport.o daemon.o dirname.o getcwd.o getgrouplist.o getopt.o glob.o inet_aton.o inet_ntoa.o inet_ntop.o mktemp.o readpassphrase.o realpath.o rresvport.o setenv.o setproctitle.o sigact.o strlcat.o strlcpy.o strmode.o strsep.o
 
-COMPAT=bsd-arc4random.o bsd-cray.o bsd-cygwin_util.o bsd-misc.o bsd-nextstep.o bsd-snprintf.o bsd-waitpid.o fake-getaddrinfo.o fake-getnameinfo.o
+COMPAT=bsd-arc4random.o bsd-cray.o bsd-cygwin_util.o bsd-getpeereid.o bsd-misc.o bsd-nextstep.o bsd-snprintf.o bsd-waitpid.o fake-getaddrinfo.o fake-getnameinfo.o xmmap.o
 
 PORTS=port-irix.o port-aix.o
 

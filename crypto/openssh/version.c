@@ -23,13 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include "includes.h"
 #include "version.h"
 #include "xmalloc.h"
 
-RCSID("$FreeBSD$");
 
 static char *version = NULL;
 
