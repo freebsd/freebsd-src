@@ -46,7 +46,7 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
 #define FREAD(a, b, c, d) \
 	do { \
-		if(fread(a, b, c, d) != c) { \
+		if (fread(a, b, c, d) != c) { \
 			fclose(d); \
 			return -1; \
 		} \
