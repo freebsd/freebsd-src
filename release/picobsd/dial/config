@@ -1,15 +1,2 @@
 STAND_LINKS="bin sbin usr/bin usr/sbin usr/libexec"
-#PL_LOCALE_LINKS= pl polish
-#US_LOCALE_LINKS= en english
-MY_DEVS="std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0 \
-	psm0 \
-	wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4"
-#.if ${LANGUAGE} == pl
-#LOCALE=pl_PL.ISO8859-2
-#LOCALE_LINKS=${PL_LOCALE_LINKS}
-#FONT=iso02-8x16.fnt
-#KBD=pl_PL.ISO8859-2.kbd
-#.else
-#LOCALE=en_US.ISO8859-1
-#LOCALE_LINKS=${US_LOCALE_LINKS}
-#.endif
+o_no_devfs=""	# we have devfs
