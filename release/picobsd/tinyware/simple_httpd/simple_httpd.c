@@ -250,8 +250,8 @@ http_request(void)
               } 
            if (access(filename,X_OK)) goto conti;
            stat (filename,&file_status);
-           if (setuid(file_status.st_uid)) return(0);
-           if (seteuid(file_status.st_uid)) return(0);
+           if (setuid(file_status.st_uid)) return;
+           if (seteuid(file_status.st_uid)) return;
            if (!fork())
               {
                close(1);
@@ -264,7 +264,7 @@ http_request(void)
 	       execlp (filename,filename,par,(char *)0);
               } 
             wait(&i);
-            return(0);
+            return;
             }
         conti:
 	if (filename == NULL) {
@@ -472,7 +472,7 @@ main(int argc, char *argv[])
 char *adate()
 {
         static char out[50];
-        long now;
+        time_t now;
         struct tm *t;
         time(&now);
         t = localtime(&now);
