@@ -43,12 +43,6 @@ trlld.o				optional	oltr			\
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386-elf.trlld.o.uu"	\
 	no-implicit-rule
 #
-hal.o				optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/ath/freebsd/i386-elf.hal.o.uu" \
-	no-implicit-rule
-#
-#
 compat/linux/linux_file.c	optional	compat_linux
 compat/linux/linux_getcwd.c	optional	compat_linux
 compat/linux/linux_ioctl.c	optional	compat_linux
@@ -205,14 +199,9 @@ i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		count		bs
-i386/isa/ctx.c			optional	ctx
 i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
-i386/isa/gpib.c			optional	gp
-i386/isa/if_el.c		count		el
-i386/isa/if_le.c		count		le
-i386/isa/if_rdp.c		count		rdp
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
@@ -221,9 +210,7 @@ i386/isa/npx.c			optional	npx
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/spkr.c			optional	speaker
-i386/isa/spigot.c		count		spigot
 i386/isa/stallion.c		optional	stl nowerror
-i386/isa/wt.c			count		wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		\
