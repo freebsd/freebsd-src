@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
