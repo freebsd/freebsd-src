@@ -1,6 +1,6 @@
 // Functions used by iterators -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -61,8 +61,8 @@
  *  functions, such as distance() and advance().
  */
 
-#ifndef __GLIBCPP_INTERNAL_ITERATOR_BASE_FUNCS_H
-#define __GLIBCPP_INTERNAL_ITERATOR_BASE_FUNCS_H
+#ifndef _ITERATOR_BASE_FUNCS_H
+#define _ITERATOR_BASE_FUNCS_H 1
 
 #pragma GCC system_header
 #include <bits/concept_check.h>
@@ -75,25 +75,28 @@ namespace std
                input_iterator_tag)
     {
       // concept requirements
-      __glibcpp_function_requires(_InputIteratorConcept<_InputIterator>)
-  
+      __glibcxx_function_requires(_InputIteratorConcept<_InputIterator>)
+
       typename iterator_traits<_InputIterator>::difference_type __n = 0;
-      while (__first != __last) {
-        ++__first; ++__n;
-      }
+      while (__first != __last)
+	{
+	  ++__first;
+	  ++__n;
+	}
       return __n;
     }
-  
+
   template<typename _RandomAccessIterator>
     inline typename iterator_traits<_RandomAccessIterator>::difference_type
     __distance(_RandomAccessIterator __first, _RandomAccessIterator __last,
                random_access_iterator_tag)
     {
       // concept requirements
-      __glibcpp_function_requires(_RandomAccessIteratorConcept<_RandomAccessIterator>)
+      __glibcxx_function_requires(_RandomAccessIteratorConcept<
+				  _RandomAccessIterator>)
       return __last - __first;
     }
-  
+
   /**
    *  @brief A generalization of pointer arithmetic.
    *  @param  first  An input iterator.
@@ -111,42 +114,47 @@ namespace std
     distance(_InputIterator __first, _InputIterator __last)
     {
       // concept requirements -- taken care of in __distance
-      return __distance(__first, __last, __iterator_category(__first));
+      return std::__distance(__first, __last,
+			     std::__iterator_category(__first));
     }
-  
-  template<typename _InputIter, typename _Distance>
+
+  template<typename _InputIterator, typename _Distance>
     inline void
-    __advance(_InputIter& __i, _Distance __n, input_iterator_tag)
+    __advance(_InputIterator& __i, _Distance __n, input_iterator_tag)
     {
       // concept requirements
-      __glibcpp_function_requires(_InputIteratorConcept<_InputIter>)
-      while (__n--) ++__i;
+      __glibcxx_function_requires(_InputIteratorConcept<_InputIterator>)
+      while (__n--)
+	++__i;
     }
-  
+
   template<typename _BidirectionalIterator, typename _Distance>
     inline void
     __advance(_BidirectionalIterator& __i, _Distance __n,
               bidirectional_iterator_tag)
     {
       // concept requirements
-      __glibcpp_function_requires(_BidirectionalIteratorConcept<_BidirectionalIterator>)
-  
+      __glibcxx_function_requires(_BidirectionalIteratorConcept<
+				  _BidirectionalIterator>)
       if (__n > 0)
-        while (__n--) ++__i;
+        while (__n--)
+	  ++__i;
       else
-        while (__n++) --__i;
+        while (__n++)
+	  --__i;
     }
-  
+
   template<typename _RandomAccessIterator, typename _Distance>
     inline void
     __advance(_RandomAccessIterator& __i, _Distance __n,
               random_access_iterator_tag)
     {
       // concept requirements
-      __glibcpp_function_requires(_RandomAccessIteratorConcept<_RandomAccessIterator>)
+      __glibcxx_function_requires(_RandomAccessIteratorConcept<
+				  _RandomAccessIterator>)
       __i += __n;
     }
-  
+
   /**
    *  @brief A generalization of pointer arithmetic.
    *  @param  i  An input iterator.
@@ -164,8 +172,8 @@ namespace std
     advance(_InputIterator& __i, _Distance __n)
     {
       // concept requirements -- taken care of in __advance
-      __advance(__i, __n, __iterator_category(__i));
+      std::__advance(__i, __n, std::__iterator_category(__i));
     }
 } // namespace std
 
-#endif /* __GLIBCPP_INTERNAL_ITERATOR_BASE_FUNCS_H */
+#endif /* _ITERATOR_BASE_FUNCS_H */

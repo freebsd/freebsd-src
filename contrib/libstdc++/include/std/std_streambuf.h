@@ -1,6 +1,6 @@
 // Stream buffer classes -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -37,14 +37,13 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_STREAMBUF
-#define _CPP_STREAMBUF	1
+#ifndef _CLIBXX_STREAMBUF
+#define _CLIBXX_STREAMBUF 1
 
 #pragma GCC system_header
 
 #include <bits/c++config.h>
 #include <iosfwd>
-#include <cstdio> 	// For SEEK_SET, SEEK_CUR, SEEK_END
 #include <bits/localefwd.h>
 #include <bits/ios_base.h>
 
@@ -57,8 +56,7 @@ namespace std
   */
   template<typename _CharT, typename _Traits>
     streamsize
-    __copy_streambufs(basic_ios<_CharT, _Traits>& _ios,
-		      basic_streambuf<_CharT, _Traits>* __sbin,
+    __copy_streambufs(basic_streambuf<_CharT, _Traits>* __sbin,
 		      basic_streambuf<_CharT, _Traits>* __sbout);
   
   /**
@@ -141,12 +139,10 @@ namespace std
       //@{
       /**
        *  @if maint
-       *  These are non-standard types.
+       *  This is a non-standard type.
        *  @endif
       */
-      typedef ctype<char_type>           		__ctype_type;
       typedef basic_streambuf<char_type, traits_type>  	__streambuf_type;
-      typedef typename traits_type::state_type 		__state_type;
       //@}
       
       friend class basic_ios<char_type, traits_type>;
@@ -156,42 +152,10 @@ namespace std
       friend class ostreambuf_iterator<char_type, traits_type>;
 
       friend streamsize
-      __copy_streambufs<>(basic_ios<char_type, traits_type>& __ios,
-			  __streambuf_type* __sbin,__streambuf_type* __sbout);
+      __copy_streambufs<>(__streambuf_type* __sbin,
+			  __streambuf_type* __sbout);
       
     protected:
-      /**
-       *  @if maint
-       *  Pointer to the beginning of internally-allocated space.  Filebuf
-       *  manually allocates/deallocates this, whereas stringstreams attempt
-       *  to use the built-in intelligence of the string class.  If you are
-       *  managing memory, set this.  If not, leave it NULL.
-       *  @endif
-      */
-      char_type*		_M_buf; 	
-
-      /**
-       *  @if maint
-       *  Actual size of allocated internal buffer, in bytes.
-       *  @endif
-      */
-      size_t			_M_buf_size;
-
-      /**
-       *  @if maint
-       *  Optimal or preferred size of internal buffer, in bytes.
-       *  @endif
-      */
-      size_t			_M_buf_size_opt;
-
-      /**
-       *  @if maint
-       *  True iff _M_in_* and _M_out_* buffers should always point to
-       *  the same place.  True for fstreams, false for sstreams.
-       *  @endif
-      */
-      bool 			_M_buf_unified;	
-
       //@{
       /**
        *  @if maint
@@ -202,20 +166,12 @@ namespace std
        *  -  put == output == write
        *  @endif
       */
-      char_type* 		_M_in_beg;  	// Start of get area. 
-      char_type* 		_M_in_cur;	// Current read area. 
-      char_type* 		_M_in_end;	// End of get area. 
-      char_type* 		_M_out_beg; 	// Start of put area. 
-      char_type* 		_M_out_cur;  	// Current put area. 
-      char_type* 		_M_out_end;  	// End of put area. 
-      //@}
-
-      /**
-       *  @if maint
-       *  Place to stash in || out || in | out settings for current streambuf.
-       *  @endif
-      */
-      ios_base::openmode 	_M_mode;	
+      char_type* 		_M_in_beg;     // Start of get area. 
+      char_type* 		_M_in_cur;     // Current read area. 
+      char_type* 		_M_in_end;     // End of get area. 
+      char_type* 		_M_out_beg;    // Start of put area. 
+      char_type* 		_M_out_cur;    // Current put area. 
+      char_type* 		_M_out_end;    // End of put area.
 
       /**
        *  @if maint
@@ -224,147 +180,11 @@ namespace std
       */
       locale 			_M_buf_locale;	
 
-      /**
-       *  @if maint
-       *  True iff locale is initialized.
-       *  @endif
-      */
-      bool 			_M_buf_locale_init;
-
-      //@{
-      /**
-       *  @if maint
-       *  Necessary bits for putback buffer management. Only used in
-       *  the basic_filebuf class, as necessary for the standard
-       *  requirements. The only basic_streambuf member function that
-       *  needs access to these data members is in_avail...
-       *  
-       *  @note pbacks of over one character are not currently supported.
-       *  @endif
-      */
-      static const size_t   	_S_pback_size = 1; 
-      char_type			_M_pback[_S_pback_size]; 
-      char_type*		_M_pback_cur_save;
-      char_type*		_M_pback_end_save;
-      bool			_M_pback_init; 
-      //@}
-
-      /**
-       *  @if maint
-       *  Yet unused.
-       *  @endif
-      */
-      fpos<__state_type>	_M_pos;
-
-      // Initializes pback buffers, and moves normal buffers to safety.
-      // Assumptions:
-      // _M_in_cur has already been moved back
-      void
-      _M_pback_create()
-      {
-	if (!_M_pback_init)
-	  {
-	    size_t __dist = _M_in_end - _M_in_cur;
-	    size_t __len = min(_S_pback_size, __dist);
-	    traits_type::copy(_M_pback, _M_in_cur, __len);
-	    _M_pback_cur_save = _M_in_cur;
-	    _M_pback_end_save = _M_in_end;
-	    this->setg(_M_pback, _M_pback, _M_pback + __len);
-	    _M_pback_init = true;
-	  }
-      }
-
-      // Deactivates pback buffer contents, and restores normal buffer.
-      // Assumptions:
-      // The pback buffer has only moved forward.
-      void
-      _M_pback_destroy() throw()
-      {
-	if (_M_pback_init)
-	  {
-	    // Length _M_in_cur moved in the pback buffer.
-	    size_t __off_cur = _M_in_cur - _M_pback;
-	    
-	    // For in | out buffers, the end can be pushed back...
-	    size_t __off_end = 0;
-	    size_t __pback_len = _M_in_end - _M_pback;
-	    size_t __save_len = _M_pback_end_save - _M_buf;
-	    if (__pback_len > __save_len)
-	      __off_end = __pback_len - __save_len;
-
-	    this->setg(_M_buf, _M_pback_cur_save + __off_cur, 
-		       _M_pback_end_save + __off_end);
-	    _M_pback_cur_save = NULL;
-	    _M_pback_end_save = NULL;
-	    _M_pback_init = false;
-	  }
-      }
-
-      // Correctly sets the _M_in_cur pointer, and bumps the
-      // _M_out_cur pointer as well if necessary.
-      void 
-      _M_in_cur_move(off_type __n) // argument needs to be +-
-      {
-	bool __testout = _M_out_cur;
-	_M_in_cur += __n;
-	if (__testout && _M_buf_unified)
-	  _M_out_cur += __n;
-      }
-
-      // Correctly sets the _M_out_cur pointer, and bumps the
-      // appropriate _M_*_end pointers as well. Necessary for the
-      // un-tied stringbufs, in in|out mode.
-      // Invariant:
-      // __n + _M_out_[cur, end] <= _M_buf + _M_buf_size
-      // Assuming all _M_*_[beg, cur, end] pointers are operating on
-      // the same range:
-      // _M_buf <= _M_*_ <= _M_buf + _M_buf_size
-      void 
-      _M_out_cur_move(off_type __n) // argument needs to be +-
-      {
-	bool __testin = _M_in_cur;
-
-	_M_out_cur += __n;
-	if (__testin && _M_buf_unified)
-	  _M_in_cur += __n;
-	if (_M_out_cur > _M_out_end)
-	  {
-	    _M_out_end = _M_out_cur;
-	    // NB: in | out buffers drag the _M_in_end pointer along...
-	    if (__testin)
-	      _M_in_end += __n;
-	  }
-      }
-
-      // Return the size of the output buffer.  This depends on the
-      // buffer in use: allocated buffers have a stored size in
-      // _M_buf_size and setbuf() buffers don't.
-      off_type
-      _M_out_buf_size()
-      {
-	off_type __ret = 0;
-	if (_M_out_cur)
-	  {
-	    // Using allocated buffer.
-	    if (_M_out_beg == _M_buf)
-	      __ret = _M_out_beg + _M_buf_size - _M_out_cur;
-	    // Using non-allocated buffer.
-	    else
-	      __ret = _M_out_end - _M_out_cur;
-	  }
-	return __ret;
-      }
-
   public:
       /// Destructor deallocates no buffer space.
       virtual 
       ~basic_streambuf() 
-      {
-	_M_buf_unified = false;
-	_M_buf_size = 0;
-	_M_buf_size_opt = 0;
-	_M_mode = ios_base::openmode(0);
-      }
+      { }
 
       // [27.5.2.2.1] locales
       /**
@@ -379,6 +199,7 @@ namespace std
       {
 	locale __tmp(this->getloc());
 	this->imbue(__loc);
+	_M_buf_locale = __loc;
 	return __tmp;
       }
 
@@ -433,21 +254,8 @@ namespace std
       streamsize 
       in_avail() 
       { 
-	streamsize __ret;
-	if (_M_in_cur && _M_in_cur < _M_in_end)
-	  {
-	    if (_M_pback_init)
-	      {
-		size_t __save_len =  _M_pback_end_save - _M_pback_cur_save;
-		size_t __pback_len = _M_in_cur - _M_pback;
-		__ret = __save_len - __pback_len;
-	      }
-	    else
-	      __ret = this->egptr() - this->gptr();
-	  }
-	else
-	  __ret = this->showmanyc();
-	return __ret;
+	const streamsize __ret = this->egptr() - this->gptr();
+	return __ret ? __ret : this->showmanyc();
       }
 
       /**
@@ -460,9 +268,11 @@ namespace std
       int_type 
       snextc()
       {
-	int_type __eof = traits_type::eof();
-	return (traits_type::eq_int_type(this->sbumpc(), __eof) 
-		? __eof : this->sgetc());
+	int_type __ret = traits_type::eof();
+	if (__builtin_expect(!traits_type::eq_int_type(this->sbumpc(), 
+						       __ret), true))
+	  __ret = this->sgetc();
+	return __ret;
       }
 
       /**
@@ -474,7 +284,18 @@ namespace std
        *  @c uflow().
       */
       int_type 
-      sbumpc();
+      sbumpc()
+      {
+	int_type __ret;
+	if (__builtin_expect(this->gptr() < this->egptr(), true))
+	  {
+	    __ret = traits_type::to_int_type(*this->gptr());
+	    this->gbump(1);
+	  }
+	else 
+	  __ret = this->uflow();
+	return __ret;
+      }
 
       /**
        *  @brief  Getting the next character.
@@ -488,8 +309,8 @@ namespace std
       sgetc()
       {
 	int_type __ret;
-	if (_M_in_cur && _M_in_cur < _M_in_end)
-	  __ret = traits_type::to_int_type(*(this->gptr()));
+	if (__builtin_expect(this->gptr() < this->egptr(), true))
+	  __ret = traits_type::to_int_type(*this->gptr());
 	else 
 	  __ret = this->underflow();
 	return __ret;
@@ -518,7 +339,20 @@ namespace std
        *  fetched from the input stream will be @a c.
       */
       int_type 
-      sputbackc(char_type __c);
+      sputbackc(char_type __c)
+      {
+	int_type __ret;
+	const bool __testpos = this->eback() < this->gptr();
+	if (__builtin_expect(!__testpos || 
+			     !traits_type::eq(__c, this->gptr()[-1]), false))
+	  __ret = this->pbackfail(traits_type::to_int_type(__c));
+	else 
+	  {
+	    this->gbump(-1);
+	    __ret = traits_type::to_int_type(*this->gptr());
+	  }
+	return __ret;
+      }
 
       /**
        *  @brief  Moving backwards in the input stream.
@@ -530,7 +364,18 @@ namespace std
        *  "gotten".
       */
       int_type 
-      sungetc();
+      sungetc()
+      {
+	int_type __ret;
+	if (__builtin_expect(this->eback() < this->gptr(), true))
+	  {
+	    this->gbump(-1);
+	    __ret = traits_type::to_int_type(*this->gptr());
+	  }
+	else 
+	  __ret = this->pbackfail();
+	return __ret;
+      }
 
       // [27.5.2.2.5] put area
       /**
@@ -546,7 +391,19 @@ namespace std
        *  position is not available, returns @c overflow(c).
       */
       int_type 
-      sputc(char_type __c);
+      sputc(char_type __c)
+      {
+	int_type __ret;
+	if (__builtin_expect(this->pptr() < this->epptr(), true))
+	  {
+	    *this->pptr() = __c;
+	    this->pbump(1);
+	    __ret = traits_type::to_int_type(__c);
+	  }
+	else
+	  __ret = this->overflow(traits_type::to_int_type(__c));
+	return __ret;
+      }
 
       /**
        *  @brief  Entry point for all single-character output functions.
@@ -574,12 +431,9 @@ namespace std
        *  - this is not an error
       */
       basic_streambuf()
-      : _M_buf(NULL), _M_buf_size(0), _M_buf_size_opt(BUFSIZ), 
-      _M_buf_unified(false), _M_in_beg(0), _M_in_cur(0), _M_in_end(0), 
-      _M_out_beg(0), _M_out_cur(0), _M_out_end(0), 
-      _M_mode(ios_base::openmode(0)), _M_buf_locale(locale()), 
-      _M_pback_cur_save(0), _M_pback_end_save(0), 
-      _M_pback_init(false)
+      : _M_in_beg(0), _M_in_cur(0), _M_in_end(0), 
+      _M_out_beg(0), _M_out_cur(0), _M_out_end(0),
+      _M_buf_locale(locale()) 
       { }
 
       // [27.5.2.3.1] get area access
@@ -627,8 +481,6 @@ namespace std
 	_M_in_beg = __gbeg;
 	_M_in_cur = __gnext;
 	_M_in_end = __gend;
-	if (!(_M_mode & ios_base::in) && __gbeg && __gnext && __gend)
-	  _M_mode = _M_mode | ios_base::in;
       }
 
       // [27.5.2.3.2] put area access
@@ -673,9 +525,7 @@ namespace std
       setp(char_type* __pbeg, char_type* __pend)
       { 
 	_M_out_beg = _M_out_cur = __pbeg; 
-	_M_out_end = __pend; 
-	if (!(_M_mode & ios_base::out) && __pbeg && __pend)
-	  _M_mode = _M_mode | ios_base::out;
+	_M_out_end = __pend;
       }
 
       // [27.5.2.4] virtual functions
@@ -688,15 +538,13 @@ namespace std
        *  are changed by this call.  The standard adds, "Between invocations
        *  of this function a class derived from streambuf can safely cache
        *  results of calls to locale functions and to members of facets
-       *  so obtained."  This function simply stores the new locale for use
-       *  by derived classes.
+       *  so obtained."
+       *
+       *  @note  Base class version does nothing.
       */
       virtual void 
-      imbue(const locale& __loc) 
-      { 
-	if (_M_buf_locale != __loc)
-	  _M_buf_locale = __loc;
-      }
+      imbue(const locale&) 
+      { }
 
       // [27.5.2.4.2] buffer management and positioning
       /**
@@ -822,14 +670,12 @@ namespace std
       uflow() 
       {
 	int_type __ret = traits_type::eof();
-	bool __testeof = traits_type::eq_int_type(this->underflow(), __ret);
-	bool __testpending = _M_in_cur && _M_in_cur < _M_in_end;
-	if (!__testeof && __testpending)
+	const bool __testeof = traits_type::eq_int_type(this->underflow(), 
+							__ret);
+	if (!__testeof)
 	  {
-	    __ret = traits_type::to_int_type(*_M_in_cur);
-	    ++_M_in_cur;
-	    if (_M_buf_unified && _M_mode & ios_base::out)
-	      ++_M_out_cur;
+	    __ret = traits_type::to_int_type(*this->gptr());
+	    this->gbump(1);
 	  }
 	return __ret;    
       }
@@ -891,7 +737,7 @@ namespace std
       overflow(int_type /* __c */ = traits_type::eof())
       { return traits_type::eof(); }
 
-#ifdef _GLIBCPP_DEPRECATED
+#ifdef _GLIBCXX_DEPRECATED
     // Annex D.6
     public:
       /**
@@ -903,35 +749,36 @@ namespace std
        *  See http://gcc.gnu.org/ml/libstdc++/2002-05/msg00168.html
        *
        *  @note  This function has been deprecated by the standard.  You
-       *         must define @c _GLIBCPP_DEPRECATED to make this visible; see
+       *         must define @c _GLIBCXX_DEPRECATED to make this visible; see
        *         c++config.h.
       */
       void 
       stossc() 
       {
-	if (_M_in_cur < _M_in_end) 
-	  ++_M_in_cur;
+	if (this->gptr() < this->egptr()) 
+	  this->gbump(1);
 	else 
 	  this->uflow();
       }
 #endif
 
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
-    // Side effect of DR 50. 
     private:
-      basic_streambuf(const __streambuf_type&) { }; 
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // Side effect of DR 50. 
+      basic_streambuf(const __streambuf_type& __sb)
+      : _M_in_beg(__sb._M_in_beg), _M_in_cur(__sb._M_in_cur), 
+      _M_in_end(__sb._M_in_end), _M_out_beg(__sb._M_out_beg), 
+      _M_out_cur(__sb._M_out_cur), _M_out_end(__sb._M_out_cur),
+      _M_buf_locale(__sb._M_buf_locale) 
+      { }
 
       __streambuf_type& 
       operator=(const __streambuf_type&) { return *this; };
-#endif
     };
 } // namespace std
 
-#ifdef _GLIBCPP_NO_TEMPLATE_EXPORT
-# define export
-#endif
-#ifdef  _GLIBCPP_FULLY_COMPLIANT_HEADERS
-#include <bits/streambuf.tcc>
+#ifndef _GLIBCXX_EXPORT_TEMPLATE
+# include <bits/streambuf.tcc>
 #endif
 
-#endif	
+#endif /* _GLIBCXX_STREAMBUF */

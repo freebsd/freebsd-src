@@ -58,8 +58,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_ALGORITHM
-#define _CPP_ALGORITHM 1
+#ifndef _GLIBCXX_ALGORITHM
+#define _GLIBCXX_ALGORITHM 1
 
 #pragma GCC system_header
 
@@ -68,8 +68,4 @@
 #include <bits/stl_uninitialized.h>
 #include <bits/stl_algo.h>
 
-#endif /* _CPP_ALGORITHM */
-
-// Local Variables:
-// mode:C++
-// End:
+#endif /* _GLIBCXX_ALGORITHM */

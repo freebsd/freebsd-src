@@ -10,58 +10,61 @@
 #undef HAVE_GETTEXT
 #undef HAVE_STPCPY
 
-// Define if GCC supports weak symbols.
-#undef _GLIBCPP_SUPPORTS_WEAK
-
 // Include I/O support for 'long long' and 'unsigned long long'.
-#undef _GLIBCPP_USE_LONG_LONG
-
-// Define if C99 features such as lldiv_t, llabs, lldiv should be exposed.
-#undef _GLIBCPP_USE_C99
+#undef _GLIBCXX_USE_LONG_LONG
 
 // Include support for 'long double'.
-#undef _GLIBCPP_USE_LONG_DOUBLE
+#undef _GLIBCXX_USE_LONG_DOUBLE
 
-// Include support for shadow headers, ie --enable-cshadow-headers.
-#undef _GLIBCPP_USE_SHADOW_HEADERS
+// Define if C99 math functions (like fpclassify) should be exposed.
+#undef _GLIBCXX_USE_C99_MATH
+
+// Define if C99 features such as lldiv_t, llabs, lldiv should be exposed.
+#undef _GLIBCXX_USE_C99
 
 // Define if code specialized for wchar_t should be used.
-#undef _GLIBCPP_USE_WCHAR_T
+#undef _GLIBCXX_USE_WCHAR_T
 
-// Define if using setrlimit to limit memory usage during 'make check'.
-#undef _GLIBCPP_MEM_LIMITS
+// Define if using setrlimit to set resource limits during 'make check'.
+#undef _GLIBCXX_RES_LIMITS
 
 // Define to use concept checking code from the boost libraries.
-#undef _GLIBCPP_CONCEPT_CHECKS
-
-// Define if the atan2f function exists.
-#undef _GLIBCPP_HAVE_ATAN2F 
-
-// Define if the atan2l function exists.
-#undef _GLIBCPP_HAVE_ATAN2L
-
-// Define if the copysignf function exists.
-#undef _GLIBCPP_HAVE_COPYSIGNF
+#undef _GLIBCXX_CONCEPT_CHECKS
 
 // Define to use symbol versioning in the shared library.
-#undef _GLIBCPP_SYMVER
+#undef _GLIBCXX_SYMVER
 
 // Define symbol versioning in assember directives. If symbol
 // versioning is beigng used, and the assembler supports this kind of
 // thing, then use it.
-// NB: _GLIBCPP_AT_AT is a hack to work around quoting issues in m4.
-#if _GLIBCPP_SYMVER
-  #define _GLIBCPP_ASM_SYMVER(cur, old, version) \
-   asm (".symver " #cur "," #old _GLIBCPP_AT_AT #version);
+// NB: _GLIBCXX_AT_AT is a hack to work around quoting issues in m4.
+#if _GLIBCXX_SYMVER
+  #define _GLIBCXX_ASM_SYMVER(cur, old, version) \
+   asm (".symver " #cur "," #old _GLIBCXX_AT_AT #version);
 #else
-  #define _GLIBCPP_ASM_SYMVER(cur, old, version)
+  #define _GLIBCXX_ASM_SYMVER(cur, old, version)
 #endif
+
+// Define if LFS support is available.
+#undef _GLIBCXX_USE_LFS
+
+// Define if NLS translations are to be used.
+#undef _GLIBCXX_USE_NLS
 
 // Define if gthr-default.h exists (meaning that threading support is enabled).
 #undef HAVE_GTHR_DEFAULT
 
-// Define if drand48 exists.
-#undef HAVE_DRAND48
+// Define if the atan2f function exists.
+#undef HAVE_ATAN2F 
+
+// Define if the atan2l function exists.
+#undef HAVE_ATAN2L
+
+// Define if the tanl function exists.
+#undef HAVE_TANL
+
+// Define if the copysignf function exists.
+#undef HAVE_COPYSIGNF
 
 // Define if getpagesize exists.
 #undef HAVE_GETPAGESIZE
@@ -86,6 +89,9 @@
 
 // Define if you have the expl function.
 #undef HAVE_EXPL
+
+// Define if you have the hypot function.
+#undef HAVE_HYPOT
 
 // Define if you have the hypotf function.
 #undef HAVE_HYPOTF
@@ -143,6 +149,12 @@
 
 // Define if S_IFREG is available in <sys/stat.h>.
 #undef HAVE_S_IFREG
+
+// Define if writev is available in <sys/uio.h>.
+#undef HAVE_WRITEV
+
+// Define if int64_t is available in <stdint.h>.
+#undef HAVE_INT64_T
 
 // Define if LC_MESSAGES is available in <locale.h>.
 #undef HAVE_LC_MESSAGES

@@ -1,73 +1,41 @@
 ## Makefile for the GNU C++ Support library.
 ##
-## Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+## Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 ##
 ## Process this file with automake to produce Makefile.in.
 ##
-## This file is part of GNU CC.
+## This file is part of GCC.
 ##
-## GNU CC is free software; you can redistribute it and/or modify
+## GCC is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
 ## the Free Software Foundation; either version 2, or (at your option)
 ## any later version.
 ##
-## GNU CC is distributed in the hope that it will be useful,
+## GCC is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 ##
 ## You should have received a copy of the GNU General Public License
-## along with GNU CC; see the file COPYING.  If not, write to
+## along with GCC; see the file COPYING.  If not, write to
 ## the Free Software Foundation, 59 Temple Place - Suite 330,
-## Boston, MA 02111-1307, USA. 
+## Boston, MA 02111-1307, USA.
 
-AUTOMAKE_OPTIONS = 1.3 cygnus
-MAINT_CHARSET = latin1
-
-mkinstalldirs = $(SHELL) $(toplevel_srcdir)/mkinstalldirs
-
-# Cross compiler and multilib support.
-CC = @CC@
-CXX = @glibcpp_CXX@
-toolexecdir = @glibcpp_toolexecdir@
-toolexeclibdir = @glibcpp_toolexeclibdir@
-
+include $(top_srcdir)/fragment.am
 
 # Need this library to both be part of libstdc++.a, and installed
 # separately too.
-# 1) separate libsupc++.la 
+# 1) separate libsupc++.la
 toolexeclib_LTLIBRARIES = libsupc++.la
 # 2) integrated libsupc++convenience.la that is to be a part of libstdc++.a
 noinst_LTLIBRARIES = libsupc++convenience.la
 
 
-# Compile flags that should be constant throughout the build, both for
-# SUBDIRS and for libstdc++-v3 in general.
-OPTIMIZE_CXXFLAGS = @OPTIMIZE_CXXFLAGS@
-
-# These bits are all figured out from configure. Look in acinclude.m4
-# or configure.in to see how they are set. See GLIBCPP_EXPORT_FLAGS
-CONFIG_CXXFLAGS = \
-	@SECTION_FLAGS@ @EXTRA_CXX_FLAGS@ 
-
-# Warning flags to use.
-WARN_CXXFLAGS = \
-	@WARN_FLAGS@ $(WERROR) -fdiagnostics-show-location=once
-
-# Use common includes from acinclude.m4/GLIBCPP_EXPORT_INCLUDES
-GLIBCPP_INCLUDES = @GLIBCPP_INCLUDES@
-LIBSUPCXX_INCLUDES = @LIBSUPCXX_INCLUDES@
-GCC_INCLUDES = -I$(toplevel_srcdir)/gcc -I$(toplevel_srcdir)/include
-
-INCLUDES = \
-	$(GCC_INCLUDES) $(GLIBCPP_INCLUDES) $(LIBSUPCXX_INCLUDES)
-
 headers = \
-	exception new typeinfo cxxabi.h exception_defines.h 
+	exception new typeinfo cxxabi.h exception_defines.h
 
 c_sources = \
-	cxa_demangle.c \
-	dyn-string.c 
+	cp-demangle.c 
 
 sources = \
 	del_op.cc \
@@ -80,9 +48,11 @@ sources = \
 	eh_exception.cc \
 	eh_globals.cc \
 	eh_personality.cc \
+	eh_term_handler.cc \
 	eh_terminate.cc \
 	eh_throw.cc \
 	eh_type.cc \
+	eh_unex_handler.cc \
 	guard.cc \
 	new_handler.cc \
 	new_op.cc \
@@ -92,58 +62,52 @@ sources = \
 	pure.cc \
 	tinfo.cc \
 	tinfo2.cc \
-	vec.cc
+	vec.cc \
+	vterminate.cc
 
 libsupc___la_SOURCES = $(sources) $(c_sources)
 libsupc__convenience_la_SOURCES = $(sources) $(c_sources)
 
-glibcppinstalldir = $(gxx_include_dir)
-glibcppinstall_HEADERS = $(headers)
-
-LIBSUPCXX_CXXFLAGS = $(LIBSUPCXX_PICFLAGS)
-
-# Use special rules for pulling things out of libiberty.  These
-# objects should be compiled with the "C" compiler, not the C++
-# compiler, and also should not use the C++ includes.
-C_COMPILE = \
-	$(CC) $(DEFS) $(GCC_INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-
-cxa_demangle.c:
-	rm -f $@
-	$(LN_S) $(toplevel_srcdir)/libiberty/cp-demangle.c $@
-cxa_demangle.lo: cxa_demangle.c
-	$(LTCOMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
-cxa_demangle.o: cxa_demangle.c
-	$(C_COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
-dyn-string.c:
-	rm -f $@
-	$(LN_S) $(toplevel_srcdir)/libiberty/dyn-string.c $@
-dyn-string.lo: dyn-string.c
-	$(LTCOMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
-dyn-string.o: dyn-string.c
-	$(C_COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
-
-# LTCOMPILE is copied from LTCXXCOMPILE below.
-LTCOMPILE = $(LIBTOOL) --tag CC --tag disable-shared --mode=compile $(CC) \
-	    $(DEFS) $(GCC_INCLUDES) $(LIBSUPCXX_PICFLAGS) \
-            $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-
+glibcxxinstalldir = $(gxx_include_dir)
+glibcxxinstall_HEADERS = $(headers)
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
 # modified in a per-library or per-sub-library way.  Need to manually
 # set this option because CONFIG_CXXFLAGS has to be after
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
-# as the occasion call for it. (ie, --enable-debug)
+# as the occasion call for it.
 AM_CXXFLAGS = \
 	-fno-implicit-templates \
-	$(LIBSUPCXX_CXXFLAGS) \
+	$(LIBSUPCXX_PICFLAGS) \
 	$(WARN_CXXFLAGS) \
 	$(OPTIMIZE_CXXFLAGS) \
-	$(CONFIG_CXXFLAGS) 
+	$(CONFIG_CXXFLAGS)
 
 AM_MAKEFLAGS = \
 	"gxx_include_dir=$(gxx_include_dir)"
+
+
+# Use special rules for pulling things out of libiberty.  These
+# objects should be compiled with the "C" compiler, not the C++
+# compiler, and also should not use the C++ includes.
+C_INCLUDES = -I.. -I$(toplevel_srcdir)/libiberty -I$(toplevel_srcdir)/include
+C_COMPILE = \
+	$(CC) $(DEFS) $(C_INCLUDES) \
+	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+
+# LTCOMPILE is copied from LTCXXCOMPILE below.
+LTCOMPILE = $(LIBTOOL) --tag CC --tag disable-shared --mode=compile $(CC) \
+	    $(DEFS) $(C_INCLUDES) $(LIBSUPCXX_PICFLAGS) \
+            $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+
+cp-demangle.c:
+	rm -f $@
+	$(LN_S) $(toplevel_srcdir)/libiberty/cp-demangle.c $@
+cp-demangle.lo: cp-demangle.c
+	$(LTCOMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
+cp-demangle.o: cp-demangle.c
+	$(C_COMPILE) -DIN_GLIBCPP_V3 -Wno-error -c $<
+
 
 # libstdc++ libtool notes
 
@@ -167,8 +131,8 @@ AM_MAKEFLAGS = \
 # We have to put --tag disable-shared after --tag CXX lest things
 # CXX undo the affect of disable-shared.
 LTCXXCOMPILE = $(LIBTOOL) --tag CXX --tag disable-shared \
-               --mode=compile $(CXX) $(INCLUDES) \
-	       $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS) 
+	       --mode=compile $(CXX) $(TOPLEVEL_INCLUDES) \
+	       $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS)
 
 # 3) We'd have a problem when building the shared libstdc++ object if
 # the rules automake generates would be used.  We cannot allow g++ to
@@ -177,24 +141,24 @@ LTCXXCOMPILE = $(LIBTOOL) --tag CXX --tag disable-shared \
 # directory to configure libstdc++-v3 to use gcc as the C++
 # compilation driver.
 CXXLINK = $(LIBTOOL) --tag CXX --tag disable-shared \
-          --mode=link $(CXX) \
-          @OPT_LDFLAGS@ @SECTION_LDFLAGS@ $(AM_CXXFLAGS) $(LDFLAGS) -o $@
+	  --mode=link $(CXX) \
+	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LDFLAGS) -o $@
 
 # We have to have rules modified from the default to counteract SUN make
-# prepending each of $(glibcppinstall_HEADERS) with VPATH below.
-install-glibcppinstallHEADERS: $(glibcppinstall_HEADERS)
+# prepending each of $(glibcxxinstall_HEADERS) with VPATH below.
+install-glibcxxinstallHEADERS: $(glibcxxinstall_HEADERS)
 	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(glibcppinstalldir)
-	@list='$(glibcppinstall_HEADERS)'; for p in $$list; do \
+	$(mkinstalldirs) $(DESTDIR)$(glibcxxinstalldir)
+	@list='$(glibcxxinstall_HEADERS)'; for p in $$list; do \
 	  q=`echo $$p | sed -e 's,.*/,,'`; \
 	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
-	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(glibcppinstalldir)/$$q"; \
-	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(glibcppinstalldir)/$$q; \
+	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(glibcxxinstalldir)/$$q"; \
+	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(glibcxxinstalldir)/$$q; \
 	done
 
-uninstall-glibcppinstallHEADERS:
+uninstall-glibcxxinstallHEADERS:
 	@$(NORMAL_UNINSTALL)
-	list='$(glibcppinstall_HEADERS)'; for p in $$list; do \
+	list='$(glibcxxinstall_HEADERS)'; for p in $$list; do \
 	  q=`echo $$p | sed -e 's,.*/,,'`; \
-	  rm -f $(DESTDIR)$(glibcppinstalldir)/$$q; \
+	  rm -f $(DESTDIR)$(glibcxxinstalldir)/$$q; \
 	done

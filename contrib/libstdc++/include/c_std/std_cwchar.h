@@ -41,8 +41,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CWCHAR
-#define _CPP_CWCHAR 1
+#ifndef _GLIBCXX_CWCHAR
+#define _GLIBCXX_CWCHAR 1
 
 #pragma GCC system_header
 
@@ -50,23 +50,23 @@
 #include <cstddef>
 #include <ctime>
 
-#if _GLIBCPP_HAVE_WCHAR_H
+#if _GLIBCXX_HAVE_WCHAR_H
 #include <wchar.h>
 #endif
 
 // Need to do a bit of trickery here with mbstate_t as char_traits
 // assumes it is in wchar.h, regardless of wchar_t specializations.
-#ifndef _GLIBCPP_HAVE_MBSTATE_T
-extern "C" 
+#ifndef _GLIBCXX_HAVE_MBSTATE_T
+extern "C"
 {
-  typedef struct 
+  typedef struct
   {
     int __fill[6];
   } mbstate_t;
 }
 #endif
 
-namespace std 
+namespace std
 {
   using ::mbstate_t;
 }
@@ -92,11 +92,17 @@ namespace std
 #undef swscanf
 #undef ungetwc
 #undef vfwprintf
-#undef vfwscanf
+#if _GLIBCXX_HAVE_VFWSCANF
+# undef vfwscanf
+#endif
 #undef vswprintf
-#undef vswscanf
+#if _GLIBCXX_HAVE_VSWSCANF
+# undef vswscanf
+#endif
 #undef vwprintf
-#undef vwscanf
+#if _GLIBCXX_HAVE_VWSCANF
+# undef vwscanf
+#endif
 #undef wcrtomb
 #undef wcscat
 #undef wcschr
@@ -115,7 +121,9 @@ namespace std
 #undef wcsspn
 #undef wcsstr
 #undef wcstod
-#undef wcstof
+#if _GLIBCXX_HAVE_WCSTOF
+# undef wcstof
+#endif
 #undef wcstok
 #undef wcstol
 #undef wcstoul
@@ -129,7 +137,7 @@ namespace std
 #undef wprintf
 #undef wscanf
 
-#if _GLIBCPP_USE_WCHAR_T
+#if _GLIBCXX_USE_WCHAR_T
 namespace std
 {
   using ::wint_t;
@@ -154,11 +162,17 @@ namespace std
   using ::swscanf;
   using ::ungetwc;
   using ::vfwprintf;
+#if _GLIBCXX_HAVE_VFWSCANF
   using ::vfwscanf;
+#endif
   using ::vswprintf;
+#if _GLIBCXX_HAVE_VSWSCANF
   using ::vswscanf;
+#endif
   using ::vwprintf;
+#if _GLIBCXX_HAVE_VWSCANF
   using ::vwscanf;
+#endif
   using ::wcrtomb;
   using ::wcscat;
   using ::wcscmp;
@@ -173,7 +187,9 @@ namespace std
   using ::wcsrtombs;
   using ::wcsspn;
   using ::wcstod;
+#if _GLIBCXX_HAVE_WCSTOF
   using ::wcstof;
+#endif
   using ::wcstok;
   using ::wcstol;
   using ::wcstoul;
@@ -207,7 +223,7 @@ namespace std
   using ::wcsstr;
 
   inline wchar_t*
-  wcsstr(wchar_t* __s1, wchar_t* __s2)
+  wcsstr(wchar_t* __s1, const wchar_t* __s2)
   { return wcsstr(const_cast<const wchar_t*>(__s1), __s2); }
 
   using ::wmemchr;
@@ -217,7 +233,7 @@ namespace std
   { return wmemchr(const_cast<const wchar_t*>(__p), __c, __n); }
 }
 
-#if _GLIBCPP_USE_C99
+#if _GLIBCXX_USE_C99
 
 #undef wcstold
 #undef wcstoll
@@ -225,20 +241,20 @@ namespace std
 
 namespace __gnu_cxx
 {
-#if _GLIBCPP_USE_C99_CHECK || _GLIBCPP_USE_C99_DYNAMIC
+#if _GLIBCXX_USE_C99_CHECK || _GLIBCXX_USE_C99_DYNAMIC
   extern "C" long double
     (wcstold)(const wchar_t * restrict, wchar_t ** restrict);
 #endif
-#if !_GLIBCPP_USE_C99_DYNAMIC
+#if !_GLIBCXX_USE_C99_DYNAMIC
   using ::wcstold;
 #endif
-#if _GLIBCPP_USE_C99_LONG_LONG_CHECK || _GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
+#if _GLIBCXX_USE_C99_LONG_LONG_CHECK || _GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   extern "C" long long int
     (wcstoll)(const wchar_t * restrict, wchar_t ** restrict, int);
   extern "C" unsigned long long int
     (wcstoull)(const wchar_t * restrict, wchar_t ** restrict, int);
 #endif
-#if !_GLIBCPP_USE_C99_LONG_LONG_DYNAMIC
+#if !_GLIBCXX_USE_C99_LONG_LONG_DYNAMIC
   using ::wcstoll;
   using ::wcstoull;
 #endif
@@ -252,6 +268,6 @@ namespace std
 }
 #endif
 
-#endif //_GLIBCPP_USE_WCHAR_T
+#endif //_GLIBCXX_USE_WCHAR_T
 
-#endif 
+#endif

@@ -58,8 +58,8 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_SET
-#define _CPP_SET 1
+#ifndef _GLIBCXX_SET
+#define _GLIBCXX_SET 1
 
 #pragma GCC system_header
 
@@ -67,8 +67,8 @@
 #include <bits/stl_set.h>
 #include <bits/stl_multiset.h>
 
-#endif /* _CPP_SET */
+#ifdef _GLIBCXX_DEBUG
+# include <debug/set>
+#endif
 
-// Local Variables:
-// mode:C++
-// End:
+#endif /* _GLIBCXX_SET */

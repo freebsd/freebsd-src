@@ -1,6 +1,7 @@
 // The template and inlines for the -*- C++ -*- gslice class.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004
+// Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,61 +35,101 @@
  *  You should not attempt to use it directly.
  */
 
-#ifndef _CPP_BITS_GSLICE_H
-#define _CPP_BITS_GSLICE_H 1
+#ifndef _GSLICE_H
+#define _GSLICE_H 1
 
 #pragma GCC system_header
 
 namespace std {
-    
+
+  /**
+   *  @brief  Class defining multi-dimensional subset of an array.
+   *
+   *  The slice class represents a multi-dimensional subset of an array,
+   *  specified by three parameter sets: start offset, size array, and stride
+   *  array.  The start offset is the index of the first element of the array
+   *  that is part of the subset.  The size and stride array describe each
+   *  dimension of the slice.  Size is the number of elements in that
+   *  dimension, and stride is the distance in the array between successive
+   *  elements in that dimension.  Each dimension's size and stride is taken
+   *  to begin at an array element described by the previous dimension.  The
+   *  size array and stride array must be the same size.
+   *
+   *  For example, if you have offset==3, stride[0]==11, size[1]==3,
+   *  stride[1]==3, then slice[0,0]==array[3], slice[0,1]==array[6],
+   *  slice[0,2]==array[9], slice[1,0]==array[14], slice[1,1]==array[17],
+   *  slice[1,2]==array[20].
+   */
     class gslice
     {
     public:
-        gslice ();
-        gslice (size_t, const valarray<size_t>&, const valarray<size_t>&);
-        // XXX: the IS says the copy-ctor and copy-assignment operators are
-        //      synthetized by the compiler but they are just unsuitable
-        //      for a ref-counted semantic
-        gslice(const gslice&);
-        ~gslice();
+      ///  Construct an empty slice.
+      gslice ();
 
-        // XXX: See the note above.
-        gslice& operator= (const gslice&);
-        
-        size_t           start () const;
-        valarray<size_t> size () const;
-        valarray<size_t> stride () const;
-        
+      /**
+       *  @brief  Construct a slice.
+       *
+       *  Constructs a slice with as many dimensions as the length of the @a l
+       *  and @a s arrays.
+       *
+       *  @param  o  Offset in array of first element.
+       *  @param  l  Array of dimension lengths.
+       *  @param  s  Array of dimension strides between array elements.
+       */
+      gslice(size_t, const valarray<size_t>&, const valarray<size_t>&);
+
+      // XXX: the IS says the copy-ctor and copy-assignment operators are
+      //      synthetized by the compiler but they are just unsuitable
+      //      for a ref-counted semantic
+      ///  Copy constructor.
+      gslice(const gslice&);
+
+      ///  Destructor.
+      ~gslice();
+
+      // XXX: See the note above.
+      ///  Assignment operator.
+      gslice& operator=(const gslice&);
+
+      ///  Return array offset of first slice element.
+      size_t           start() const;
+
+      ///  Return array of sizes of slice dimensions.
+      valarray<size_t> size() const;
+
+      ///  Return array of array strides for each dimension.
+      valarray<size_t> stride() const;
+
     private:
-        struct _Indexer {
-            size_t _M_count;
-            size_t _M_start;
-            valarray<size_t> _M_size;
-            valarray<size_t> _M_stride;
-            valarray<size_t> _M_index;
-            _Indexer(size_t, const valarray<size_t>&,
-                     const valarray<size_t>&);
-            void _M_increment_use() { ++_M_count; }
-            size_t _M_decrement_use() { return --_M_count; }
-        };
+      struct _Indexer {
+	size_t _M_count;
+	size_t _M_start;
+	valarray<size_t> _M_size;
+	valarray<size_t> _M_stride;
+	valarray<size_t> _M_index; // Linear array of referenced indices
+	_Indexer(size_t, const valarray<size_t>&,
+		 const valarray<size_t>&);
+	void _M_increment_use() { ++_M_count; }
+	size_t _M_decrement_use() { return --_M_count; }
+      };
 
-        _Indexer* _M_index;
-        
-        template<typename _Tp> friend class valarray;
+      _Indexer* _M_index;
+
+      template<typename _Tp> friend class valarray;
     };
-    
+
     inline size_t
     gslice::start () const
     { return _M_index ? _M_index->_M_start : 0; }
-    
+
     inline valarray<size_t>
     gslice::size () const
     { return _M_index ? _M_index->_M_size : valarray<size_t>(); }
-    
+
     inline valarray<size_t>
     gslice::stride () const
     { return _M_index ? _M_index->_M_stride : valarray<size_t>(); }
-    
+
     inline gslice::gslice () : _M_index(0) {}
 
     inline
@@ -99,7 +140,7 @@ namespace std {
     inline
     gslice::gslice(const gslice& __g) : _M_index(__g._M_index)
     { if (_M_index) _M_index->_M_increment_use(); }
-    
+
     inline
     gslice::~gslice()
     { if (_M_index && _M_index->_M_decrement_use() == 0) delete _M_index; }
@@ -112,12 +153,12 @@ namespace std {
         _M_index = __g._M_index;
         return *this;
     }
-            
-    
+
+
 } // std::
 
 
-#endif /* _CPP_BITS_GSLICE_H */
+#endif /* _GSLICE_H */
 
 // Local Variables:
 // mode:c++

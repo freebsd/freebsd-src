@@ -1,6 +1,6 @@
 // -*- C++ -*- forwarding header.
 
-// Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2000, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -31,15 +31,15 @@
 // ISO C++ 14882: <cwctype>
 //
 
-#ifndef _CPP_CWCTYPE
-#define _CPP_CWCTYPE 1
+#ifndef _GLIBCXX_CWCTYPE
+#define _GLIBCXX_CWCTYPE 1
 
 #pragma GCC system_header
 
 #include <bits/c++config.h>
 
-#if _GLIBCPP_HAVE_WCTYPE_H
+#if _GLIBCXX_HAVE_WCTYPE_H
 #include_next <wctype.h>
 #endif
 
-#endif 
+#endif

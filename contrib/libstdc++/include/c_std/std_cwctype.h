@@ -1,6 +1,6 @@
 // -*- C++ -*- forwarding header.
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -41,21 +41,23 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CWCTYPE
-#define _CPP_CWCTYPE 1
+#ifndef _GLIBCXX_CWCTYPE
+#define _GLIBCXX_CWCTYPE 1
 
 #pragma GCC system_header
 
 #include <bits/c++config.h>
 
-#if _GLIBCPP_HAVE_WCTYPE_H
+#if _GLIBCXX_HAVE_WCTYPE_H
 #include <wctype.h>
 #endif
 
 // Get rid of those macros defined in <wctype.h> in lieu of real functions.
 #undef iswalnum
 #undef iswalpha
-#undef iswblank
+#if _GLIBCXX_HAVE_ISWBLANK
+# undef iswblank
+#endif
 #undef iswcntrl
 #undef iswdigit
 #undef iswgraph
@@ -66,24 +68,26 @@
 #undef iswspace
 #undef iswupper
 #undef iswxdigit
-#undef iswctype  
+#undef iswctype
 #undef towlower
 #undef towupper
 #undef towctrans
 #undef wctrans
 #undef wctype
 
-#if _GLIBCPP_USE_WCHAR_T
+#if _GLIBCXX_USE_WCHAR_T
 namespace std
 {
-  using ::wint_t; 	  // cwchar
+  using ::wint_t;	  // cwchar
 
   using ::wctype_t;
   using ::wctrans_t;
 
   using ::iswalnum;
   using ::iswalpha;
+#if _GLIBCXX_HAVE_ISWBLANK
   using ::iswblank;
+#endif
   using ::iswcntrl;
   using ::iswdigit;
   using ::iswgraph;
@@ -101,6 +105,6 @@ namespace std
   using ::wctrans;
   using ::wctype;
 }
-#endif //_GLIBCPP_USE_WCHAR_T
+#endif //_GLIBCXX_USE_WCHAR_T
 
-#endif 
+#endif
