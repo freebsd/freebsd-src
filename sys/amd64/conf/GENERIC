@@ -168,7 +168,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		pcn		# AMD Am79C79x PCI 10/100 NICs
+device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
