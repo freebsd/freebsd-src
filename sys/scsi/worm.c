@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.1 1995/03/04 20:51:10 dufault Exp $
+ *      $Id: worm.c,v 1.2 1995/03/15 14:22:12 dufault Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -54,6 +54,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/proc.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
@@ -198,7 +199,7 @@ wormstart(unit)
 		/* if a special awaits, let it proceed first */
 		if (sc_link->flags & SDEV_WAITING) {
 			sc_link->flags &= ~SDEV_WAITING;
-			wakeup((caddr_t)sc_link);
+			wakeup(sc_link);
 			return;
 		}
 		if ((bp = worm->buf_queue) == NULL) {
