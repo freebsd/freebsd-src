@@ -1037,9 +1037,6 @@ mkfifo(p, uap, retval)
 	} */ *uap;
 	register_t *retval;
 {
-#ifndef FIFO
-	return (EOPNOTSUPP);
-#else
 	struct vattr vattr;
 	int error;
 	struct nameidata nd;
@@ -1061,7 +1058,6 @@ mkfifo(p, uap, retval)
 	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	return (VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr));
-#endif	/* FIFO */
 }
 
 /*
