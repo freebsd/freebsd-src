@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.19 1995/03/25 16:55:46 davidg Exp $
+ * $Id: vm_mmap.c,v 1.20 1995/03/25 17:36:00 davidg Exp $
  */
 
 /*
@@ -361,7 +361,7 @@ msync(p, uap, retval)
 	/*
 	 * Clean the pages and interpret the return value.
 	 */
-	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) != 0,
+	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
 
 	switch (rv) {
