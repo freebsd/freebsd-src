@@ -97,84 +97,6 @@ struct ccd_ioctl {
 	size_t	ccio_size;		/* (returned) size of ccd */
 };
 
-/*
- * Component info table.
- * Describes a single component of a concatenated disk.
- */
-struct ccdcinfo {
-	struct vnode	*ci_vp;			/* device's vnode */
-	dev_t		ci_dev;			/* XXX: device's dev_t */
-	size_t		ci_size; 		/* size */
-	char		*ci_path;		/* path to component */
-	size_t		ci_pathlen;		/* length of component path */
-};
-
-/*
- * Interleave description table.
- * Computed at boot time to speed irregular-interleave lookups.
- * The idea is that we interleave in "groups".  First we interleave
- * evenly over all component disks up to the size of the smallest
- * component (the first group), then we interleave evenly over all
- * remaining disks up to the size of the next-smallest (second group),
- * and so on.
- *
- * Each table entry describes the interleave characteristics of one
- * of these groups.  For example if a concatenated disk consisted of
- * three components of 5, 3, and 7 DEV_BSIZE blocks interleaved at
- * DEV_BSIZE (1), the table would have three entries:
- *
- *	ndisk	startblk	startoff	dev
- *	3	0		0		0, 1, 2
- *	2	9		3		0, 2
- *	1	13		5		2
- *	0	-		-		-
- *
- * which says that the first nine blocks (0-8) are interleaved over
- * 3 disks (0, 1, 2) starting at block offset 0 on any component disk,
- * the next 4 blocks (9-12) are interleaved over 2 disks (0, 2) starting
- * at component block 3, and the remaining blocks (13-14) are on disk
- * 2 starting at offset 5.
- */
-struct ccdiinfo {
-	int	ii_ndisk;	/* # of disks range is interleaved over */
-	daddr_t	ii_startblk;	/* starting scaled block # for range */
-	daddr_t	ii_startoff;	/* starting component offset (block #) */
-	int	*ii_index;	/* ordered list of components in range */
-};
-
-/*
- * Concatenated disk pseudo-geometry information.
- */
-struct ccdgeom {
-	u_int32_t	ccg_secsize;	/* # bytes per sector */
-	u_int32_t	ccg_nsectors;	/* # data sectors per track */
-	u_int32_t	ccg_ntracks;	/* # tracks per cylinder */
-	u_int32_t	ccg_ncylinders;	/* # cylinders per unit */
-};
-
-/*
- * A concatenated disk is described by this structure.
- */
-struct ccd_s {
-	LIST_ENTRY(ccd_s) list;
-
-	int		 sc_unit;		/* logical unit number */
-	struct vnode	 **sc_vpp;		/* array of component vnodes */
-	int		 sc_flags;		/* flags */
-	int		 sc_cflags;		/* configuration flags */
-	size_t		 sc_size;		/* size of ccd */
-	int		 sc_ileave;		/* interleave */
-	u_int		 sc_nccdisks;		/* number of components */
-#define	CCD_MAXNDISKS	 65536
-	struct ccdcinfo	 *sc_cinfo;		/* component info */
-	struct ccdiinfo	 *sc_itable;		/* interleave table */
-	struct ccdgeom   sc_geom;		/* pseudo geometry info */
-	int		 sc_pick;		/* side of mirror picked */
-	daddr_t		 sc_blk[2];		/* mirror localization */
-	struct disk	 *sc_disk;
-	struct cdev	 *__remove00;		/* XXX: remove when convenient */
-};
-
 /* sc_flags */
 #define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
 #define CCDF_MIRROR	0x04	/* use mirroring */
@@ -196,15 +118,3 @@ struct ccd_s {
  */
 #define CCDIOCSET	_IOWR('F', 16, struct ccd_ioctl)   /* enable ccd */
 #define CCDIOCCLR	_IOW('F', 17, struct ccd_ioctl)    /* disable ccd */
-
-struct ccdconf {
-	int		 size;		/* sizeof of buffer below */
-	struct ccd_s	 *buffer;	/* pointer to a configuration array */
-};
-#define CCDCONFINFO	_IOWR('F', 19, struct ccdconf)     /* get config */
-
-struct ccdcpps {
-	int		size;
-	char		*buffer;
-};
-#define CCDCPPINFO	_IOWR('F', 20, struct ccdcpps)	   /* get components */

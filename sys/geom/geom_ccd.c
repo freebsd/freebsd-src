@@ -71,6 +71,85 @@
 
 #include <sys/ccdvar.h>
 
+/*
+ * Component info table.
+ * Describes a single component of a concatenated disk.
+ */
+struct ccdcinfo {
+	struct vnode	*ci_vp;			/* device's vnode */
+	dev_t		ci_dev;			/* XXX: device's dev_t */
+	size_t		ci_size; 		/* size */
+	char		*ci_path;		/* path to component */
+	size_t		ci_pathlen;		/* length of component path */
+};
+
+/*
+ * Interleave description table.
+ * Computed at boot time to speed irregular-interleave lookups.
+ * The idea is that we interleave in "groups".  First we interleave
+ * evenly over all component disks up to the size of the smallest
+ * component (the first group), then we interleave evenly over all
+ * remaining disks up to the size of the next-smallest (second group),
+ * and so on.
+ *
+ * Each table entry describes the interleave characteristics of one
+ * of these groups.  For example if a concatenated disk consisted of
+ * three components of 5, 3, and 7 DEV_BSIZE blocks interleaved at
+ * DEV_BSIZE (1), the table would have three entries:
+ *
+ *	ndisk	startblk	startoff	dev
+ *	3	0		0		0, 1, 2
+ *	2	9		3		0, 2
+ *	1	13		5		2
+ *	0	-		-		-
+ *
+ * which says that the first nine blocks (0-8) are interleaved over
+ * 3 disks (0, 1, 2) starting at block offset 0 on any component disk,
+ * the next 4 blocks (9-12) are interleaved over 2 disks (0, 2) starting
+ * at component block 3, and the remaining blocks (13-14) are on disk
+ * 2 starting at offset 5.
+ */
+struct ccdiinfo {
+	int	ii_ndisk;	/* # of disks range is interleaved over */
+	daddr_t	ii_startblk;	/* starting scaled block # for range */
+	daddr_t	ii_startoff;	/* starting component offset (block #) */
+	int	*ii_index;	/* ordered list of components in range */
+};
+
+/*
+ * Concatenated disk pseudo-geometry information.
+ */
+struct ccdgeom {
+	u_int32_t	ccg_secsize;	/* # bytes per sector */
+	u_int32_t	ccg_nsectors;	/* # data sectors per track */
+	u_int32_t	ccg_ntracks;	/* # tracks per cylinder */
+	u_int32_t	ccg_ncylinders;	/* # cylinders per unit */
+};
+
+
+/*
+ * A concatenated disk is described by this structure.
+ */
+struct ccd_s {
+	LIST_ENTRY(ccd_s) list;
+
+	int		 sc_unit;		/* logical unit number */
+	struct vnode	 **sc_vpp;		/* array of component vnodes */
+	int		 sc_flags;		/* flags */
+	int		 sc_cflags;		/* configuration flags */
+	size_t		 sc_size;		/* size of ccd */
+	int		 sc_ileave;		/* interleave */
+	u_int		 sc_nccdisks;		/* number of components */
+#define	CCD_MAXNDISKS	 65536
+	struct ccdcinfo	 *sc_cinfo;		/* component info */
+	struct ccdiinfo	 *sc_itable;		/* interleave table */
+	struct ccdgeom   sc_geom;		/* pseudo geometry info */
+	int		 sc_pick;		/* side of mirror picked */
+	daddr_t		 sc_blk[2];		/* mirror localization */
+	struct disk	 *sc_disk;
+	struct cdev	 *__remove00;		/* XXX: remove when convenient */
+};
+
 MALLOC_DEFINE(M_CCD, "CCD driver", "Concatenated Disk driver");
 
 /*
@@ -921,7 +1000,6 @@ ccdctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct ccd_ioctl *ccio;
 	u_int unit;
-	int error;
 
 	switch (cmd) {
 	case CCDIOCSET:
@@ -929,85 +1007,8 @@ ccdctlioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		ccio = (struct ccd_ioctl *)data;
 		unit = ccio->ccio_size;
 		return (ccdioctltoo(unit, cmd, data, flag, td));
-	case CCDCONFINFO:
-		{
-		int ninit = 0;
-		struct ccdconf *conf = (struct ccdconf *)data;
-		struct ccd_s *tmpcs;
-		struct ccd_s *ubuf = conf->buffer;
-
-		/* XXX: LOCK(unique unit numbers) */
-		LIST_FOREACH(tmpcs, &ccd_softc_list, list)
-			if (IS_INITED(tmpcs))
-				ninit++;
-
-		if (conf->size == 0) {
-			conf->size = sizeof(struct ccd_s) * ninit;
-			return (0);
-		} else if ((conf->size / sizeof(struct ccd_s) != ninit) ||
-		    (conf->size % sizeof(struct ccd_s) != 0)) {
-			/* XXX: UNLOCK(unique unit numbers) */
-			return (EINVAL);
-		}
-
-		ubuf += ninit;
-		LIST_FOREACH(tmpcs, &ccd_softc_list, list) {
-			if (!IS_INITED(tmpcs))
-				continue;
-			error = copyout(tmpcs, --ubuf,
-			    sizeof(struct ccd_s));
-			if (error != 0)
-				/* XXX: UNLOCK(unique unit numbers) */
-				return (error);
-		}
-		/* XXX: UNLOCK(unique unit numbers) */
-		return (0);
-		}
-
-	case CCDCPPINFO:
-		{
-		struct ccdcpps *cpps = (struct ccdcpps *)data;
-		char *ubuf = cpps->buffer;
-		struct ccd_s *cs;
-
-	
-		error = copyin(ubuf, &unit, sizeof (unit));
-		if (error)
-			return (error);
-
-		if (!IS_ALLOCATED(unit))
-			return (ENXIO);
-		cs = ccdfind(unit);
-		if (!IS_INITED(cs))
-			return (ENXIO);
-
-		{
-			int len = 0, i;
-			struct ccdcpps *cpps = (struct ccdcpps *)data;
-			char *ubuf = cpps->buffer;
-
-
-			for (i = 0; i < cs->sc_nccdisks; ++i)
-				len += cs->sc_cinfo[i].ci_pathlen;
-
-			if (cpps->size < len)
-				return (ENOMEM);
-
-			for (i = 0; i < cs->sc_nccdisks; ++i) {
-				len = cs->sc_cinfo[i].ci_pathlen;
-				error = copyout(cs->sc_cinfo[i].ci_path, ubuf,
-				    len);
-				if (error != 0)
-					return (error);
-				ubuf += len;
-			}
-			return(copyout("", ubuf, 1));
-		}
-		break;
-		}
-
 	default:
-		return (ENXIO);
+		return (ENOIOCTL);
 	}
 }
 
@@ -1266,7 +1267,7 @@ ccdunlock(struct ccd_s *cs)
 }
 
 static struct sbuf *
-g_ccd_list(int verbose)
+g_ccd_list(int unit)
 {
 	struct sbuf *sb;
 	struct ccd_s *cs;
@@ -1277,11 +1278,8 @@ g_ccd_list(int verbose)
 	LIST_FOREACH(cs, &ccd_softc_list, list) {
 		if (!IS_INITED(cs))
 			continue;
-		if (verbose) {
-			sbuf_printf(sb,
-			    "# ccd\t\tileave\tflags\tcomponent devices\n");
-			verbose = 0;
-		}
+		if (unit >= 0 && unit != cs->sc_unit)
+			continue;
 		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
 		    cs->sc_unit, cs->sc_ileave, cs->sc_cflags & CCDF_USERMASK);
 			
@@ -1299,6 +1297,7 @@ static void
 g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
 	struct sbuf *sb;
+	int u, *up;
 
 	g_topology_assert();
 	if (!strcmp(verb, "create geom")) {
@@ -1306,7 +1305,9 @@ g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	} else if (!strcmp(verb, "destroy geom")) {
 		gctl_error(req, "TBD");
 	} else if (!strcmp(verb, "list")) {
-		sb = g_ccd_list(gctl_get_param(req, "verbose", NULL) ? 1 : 0);
+		up = gctl_get_paraml(req, "unit", sizeof (int));
+		u = *up;
+		sb = g_ccd_list(u);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 	} else {
 		gctl_error(req, "unknown verb");
