@@ -172,9 +172,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	td2->td_frame = tf;
 	fp = (struct frame *)tf - 1;
-	fp->f_local[0] = (u_long)fork_return;
-	fp->f_local[1] = (u_long)td2;
-	fp->f_local[2] = (u_long)tf;
+	fp->fr_local[0] = (u_long)fork_return;
+	fp->fr_local[1] = (u_long)td2;
+	fp->fr_local[2] = (u_long)tf;
 	pcb2->pcb_fp = (u_long)fp - SPOFF;
 	pcb2->pcb_pc = (u_long)fork_trampoline - 8;
 
@@ -222,8 +222,8 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 
 	pcb = td->td_pcb;
 	fp = (struct frame *)(pcb->pcb_fp + SPOFF);
-	fp->f_local[0] = (u_long)func;
-	fp->f_local[1] = (u_long)arg;
+	fp->fr_local[0] = (u_long)func;
+	fp->fr_local[1] = (u_long)arg;
 }
 
 void
