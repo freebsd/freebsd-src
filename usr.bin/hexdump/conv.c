@@ -29,13 +29,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 static const char sccsid[] = "@(#)conv.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -49,45 +49,38 @@ conv_c(pr, p)
 	u_char *p;
 {
 	extern int deprecated;
-	char buf[10], *str;
-	static char nul[] = "\\0";
-	static char alarm[] = "\\a";
-	static char backspace[] = "\\b";
-	static char formfeed[] = "\\f";
-	static char newline[] = "\\n";
-	static char carriageret[] = "\\r";
-	static char verticaltab[] = "\\v";
-	static char tab[] = "\\t";
+	char buf[10];
+	char const *str;
 
 	switch(*p) {
 	case '\0':
-		str = nul;
+		str = "\\0";
 		goto strpr;
 	/* case '\a': */
 	case '\007':
 		if (deprecated)		/* od didn't know about \a */
 			break;
-		str = alarm;
+		str = "\\a";
 		goto strpr;
 	case '\b':
-		str = backspace;
+		str = "\\b";
 		goto strpr;
 	case '\f':
-		str = formfeed;
+		str = "\\f";
 		goto strpr;
 	case '\n':
-		str = newline;
+		str = "\\n";
 		goto strpr;
 	case '\r':
-		str = carriageret;
+		str = "\\r";
 		goto strpr;
 	case '\t':
-		str = tab;
+		str = "\\t";
 		goto strpr;
 	case '\v':
 		if (deprecated)
 			break;
-		str = verticaltab;
+		str = "\\v";
 		goto strpr;
 	default:
 		break;
@@ -96,7 +89,8 @@ conv_c(pr, p)
 		*pr->cchar = 'c';
 		(void)printf(pr->fmt, *p);
 	} else {
-		(void)sprintf(str = buf, "%03o", (int)*p);
+		(void)sprintf(buf, "%03o", (int)*p);
+		str = buf;
 strpr:		*pr->cchar = 's';
 		(void)printf(pr->fmt, str);
 	}
@@ -108,7 +102,7 @@ conv_u(pr, p)
 	u_char *p;
 {
 	extern int deprecated;
-	static const char *list[] = {
+	static char const * list[] = {
 		"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 		 "bs",  "ht",  "lf",  "vt",  "ff",  "cr",  "so",  "si",
 		"dle", "dcl", "dc2", "dc3", "dc4", "nak", "syn", "etb",
