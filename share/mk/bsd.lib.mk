@@ -70,15 +70,8 @@ PICFLAG=-fpic
 .m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
-.s.o .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.s.po .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-
-.s.So .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
-	    -c ${.IMPSRC} -o ${.TARGET}
+.s.po .asm.po .s.So .asm.So:
+	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
