@@ -341,6 +341,16 @@ devclass_get_maxunit(devclass_t dc)
 	return (dc->maxunit);
 }
 
+int
+devclass_find_free_unit(devclass_t dc, int unit)
+{
+	if (dc == NULL)
+		return (unit);
+	while (unit < dc->maxunit && dc->devices[unit] != NULL)
+		unit++;
+	return (unit);
+}
+
 static int
 devclass_alloc_unit(devclass_t dc, int *unitp)
 {
