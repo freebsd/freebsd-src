@@ -59,7 +59,7 @@ ldexp (double value, int exp)
 	texp = exp;
 #ifdef __GNUC__
 #if    __GNUC__ >= 2
-	asm ("fscale "
+	__asm ("fscale "
 		: "=u" (temp2), "=t" (temp)
 		: "0" (texp), "1" (value));
 #else
