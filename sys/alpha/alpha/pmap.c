@@ -340,7 +340,6 @@ static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static int pmap_release_free_page(pmap_t pmap, vm_page_t p);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
-static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -914,22 +913,6 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	return ALPHA_PHYS_TO_K0SEG(start);
 }
 
-
-static vm_page_t
-pmap_page_lookup(vm_object_t object, vm_pindex_t pindex)
-{
-	vm_page_t m;
-retry:
-	m = vm_page_lookup(object, pindex);
-	if (m != NULL) {
-		vm_page_lock_queues();
-		if (vm_page_sleep_if_busy(m, FALSE, "pplookp"))
-			goto retry;
-		vm_page_unlock_queues();
-	}
-	return m;
-}
-
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
@@ -967,10 +950,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (m->pindex < NUSERLEV3MAPS) {
 			/* unhold the level 2 page table */
 			vm_page_t lev2pg;
-			lev2pg = vm_page_lookup(pmap->pm_pteobj,
-						  NUSERLEV3MAPS + pmap_lev1_index(va));
-			while (vm_page_sleep_if_busy(lev2pg, FALSE, "pulook"))
-				vm_page_lock_queues();
+
+			lev2pg = PHYS_TO_VM_PAGE(pmap_pte_pa(pmap_lev1pte(pmap, va)));
 			vm_page_unhold(lev2pg);
 			if (lev2pg->hold_count == 0)
 				_pmap_unwire_pte_hold(pmap, va, lev2pg);
@@ -1027,9 +1008,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
-			       vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
-				vm_page_lock_queues();
+			mpte = PHYS_TO_VM_PAGE(pmap_pte_pa(pmap_lev2pte(pmap, va)));
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -1240,9 +1219,9 @@ _pmap_allocpte(pmap, ptepindex)
 		if (!pmap_pte_v(l1pte))
 			_pmap_allocpte(pmap, NUSERLEV3MAPS + l1index);
 		else {
-			vm_page_t l2page =
-				pmap_page_lookup(pmap->pm_pteobj,
-						 NUSERLEV3MAPS + l1index);
+			vm_page_t l2page;
+
+			l2page = PHYS_TO_VM_PAGE(pmap_pte_pa(l1pte));
 			l2page->hold_count++;
 		}
 		l2map = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(pmap_pte_pa(l1pte));
@@ -1297,7 +1276,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
+			m = PHYS_TO_VM_PAGE(pmap_pte_pa(lev2pte));
 			pmap->pm_ptphint = m;
 		}
 		m->hold_count++;
@@ -1999,7 +1978,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->hold_count++;
 		} else {
-retry:
 			/*
 			 * Get the level 2 entry
 			 */
@@ -2014,12 +1992,9 @@ retry:
 				    (pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = pmap_page_lookup(pmap->pm_pteobj,
-					    ptepindex);
+					mpte = PHYS_TO_VM_PAGE(pmap_pte_pa(l2pte));
 					pmap->pm_ptphint = mpte;
 				}
-				if (mpte == NULL)
-					goto retry;
 				mpte->hold_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
