@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.3 1993/11/25 01:30:03 wollman Exp $
+ *	$Id: db_break.c,v 1.4 1994/08/13 03:49:15 wollman Exp $
  */
 
 /*
@@ -43,10 +43,6 @@
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_break.h>
-
-extern boolean_t db_map_equal();
-extern boolean_t db_map_current();
-extern vm_map_t db_map_addr();
 
 #define	NBREAKPOINTS	100
 struct db_breakpoint	db_break_table[NBREAKPOINTS];

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.c,v 1.3 1993/11/25 01:30:07 wollman Exp $
+ *	$Id: db_lex.c,v 1.4 1994/08/13 03:49:20 wollman Exp $
  */
 
 /*
@@ -40,6 +40,8 @@
 
 char	db_line[120];
 char *	db_lp, *db_endlp;
+
+static int db_lex(void);
 
 int
 db_read_line()
@@ -122,7 +124,7 @@ db_flush_lex()
 	db_look_token = 0;
 }
 
-int
+static int
 db_lex()
 {
 	int	c;

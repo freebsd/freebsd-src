@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: ip_input.c,v 1.3 1994/08/02 07:48:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,9 @@ u_char	ip_protox[IPPROTO_MAX];
 int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddr *in_ifaddr;			/* first inet address */
 struct	ifqueue ipintrq;
+
+struct ipstat ipstat;
+struct ipq ipq;
 
 /*
  * We need to save the IP options in case a protocol wants to respond

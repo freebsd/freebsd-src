@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: time.h,v 1.2 1994/08/02 07:53:47 davidg Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -106,7 +106,11 @@ struct clockinfo {
 	int	profhz;		/* profiling clock frequency */
 };
 
-#ifndef KERNEL
+#ifdef KERNEL
+
+extern void microtime(struct timeval *);
+
+#else /* not KERNEL */
 #include <time.h>
 
 #ifndef _POSIX_SOURCE

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.3 1994/08/02 07:55:25 davidg Exp $
+ * $Id: vm_map.c,v 1.4 1994/08/04 19:40:47 davidg Exp $
  */
 
 /*
@@ -141,7 +141,6 @@ vm_map_entry_t	kentry_free;
 vm_map_t	kmap_free;
 
 int		kentry_count;
-vm_map_t	kmap_free;
 static vm_offset_t mapvm=0;
 static int	mapvmpgcnt=0;
 
@@ -241,7 +240,6 @@ vm_map_t vm_map_create(pmap, min, max, pageable)
 	boolean_t	pageable;
 {
 	register vm_map_t	result;
-	extern vm_map_t		kmem_map;
 
 	if (kmem_map == NULL) {
 		result = kmap_free;
@@ -292,7 +290,6 @@ vm_map_init(map, min, max, pageable)
  */
 static struct vm_map_entry *mappool;
 static int mappoolcnt;
-void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 
 vm_map_entry_t
 vm_map_entry_create(map)
@@ -371,7 +368,6 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t	map;
 	vm_map_entry_t	entry;
 {
-	extern vm_map_t		kernel_map, kmem_map, pager_map;
 	int s;
 
 	if (map == kernel_map || map == kmem_map || map == pager_map ||

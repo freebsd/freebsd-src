@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.15 1994/08/11 02:26:08 jkh Exp $
+ *	$Id: cpufunc.h,v 1.16 1994/08/13 03:49:49 wollman Exp $
  */
 
 /*
@@ -153,6 +153,7 @@ void	load_cr0	__P((u_int cr0));
 u_int	rcr0	__P((void));
 void load_cr3(u_long);
 u_long rcr3(void);
+extern void DELAY(int);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);

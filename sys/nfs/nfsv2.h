@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsv2.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfsv2.h,v 1.2 1994/08/02 07:52:26 davidg Exp $
  */
 
 /*
@@ -123,7 +123,6 @@
 
 #define	NFS_NPROCS		23
 /* Conversion macros */
-extern int		vttoif_tab[];
 #define	vtonfs_mode(t,m) \
 		txdr_unsigned(((t) == VFIFO) ? MAKEIMODE(VCHR, (m)) : \
 				MAKEIMODE((t), (m)))

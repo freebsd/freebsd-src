@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.5 1994/08/07 13:10:42 davidg Exp $
+ * $Id: vm_pager.c,v 1.6 1994/08/07 14:53:27 davidg Exp $
  */
 
 /*
@@ -187,7 +187,6 @@ vm_pager_get_pages(pager, m, count, reqpage, sync)
 	int		reqpage;
 	boolean_t	sync;
 {
-	extern boolean_t vm_page_zero_fill();
 	extern int vm_pageout_count;
 	int i;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id$
+ * $Id: tty.h,v 1.2 1994/08/02 07:53:54 davidg Exp $
  */
 
 #include <sys/termios.h>
@@ -178,7 +178,7 @@ extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
-void	 clist_init __P((void));
+/* void	 clist_init __P((void)); */ /* defined in systm.h for main() */
 int	 getc __P((struct clist *q));
 void	 ndflush __P((struct clist *q, int cc));
 int	 ndqb __P((struct clist *q, int flag));

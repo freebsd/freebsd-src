@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ufs_inode.c,v 1.2 1994/08/02 07:54:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -86,7 +86,6 @@ ufs_inactive(ap)
 	register struct inode *ip = VTOI(vp);
 	struct timeval tv;
 	int mode, error;
-	extern int prtactive;
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ffs_inactive: pushing active", vp);

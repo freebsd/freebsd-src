@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.3 1994/08/02 07:46:07 davidg Exp $
+ * $Id: if.h,v 1.4 1994/08/08 10:49:19 davidg Exp $
  */
 
 /*
@@ -343,7 +343,7 @@ void	if_up __P((struct ifnet *));
 void	ifubareset __P((int));
 #endif
 int	ifconf __P((int, caddr_t));
-void	ifinit __P((void));
+/*void	ifinit __P((void));*/ /* declared in systm.h for main() */
 int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((char *));

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_input.c,v 1.4 1993/12/19 00:49:44 wollman Exp $
+ *	$Id: db_input.c,v 1.5 1994/08/13 03:49:19 wollman Exp $
  */
 
 /*
@@ -194,6 +194,12 @@ db_inputchar(c)
 }
 
 int
+cnmaygetc (void)
+{
+	return (-1);
+}
+
+int
 db_readline(lstart, lsize)
 	char *	lstart;
 	int	lsize;
@@ -240,12 +246,6 @@ db_check_interrupt()
 		/* drop on floor */
 		break;
 	}
-}
-
-int
-cnmaygetc (void)
-{
-	return (-1);
 }
 
 /* called from kdb_trap in db_interface.c */

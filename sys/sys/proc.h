@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id$
+ * $Id: proc.h,v 1.3 1994/08/02 07:53:20 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -239,12 +239,12 @@ extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int pidhashmask;			/* In param.c. */
 
-volatile struct proc *allproc; 		/* List of active procs. */
-struct proc *zombproc;			/* List of zombie procs. */
-struct proc *initproc, *pageproc;	/* Process slots for init, pager. */
+extern volatile struct proc *allproc; /* List of active procs. */
+extern struct proc *zombproc;	/* List of zombie procs. */
+extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
-int	whichqs;			/* Bit mask summary of non-empty Q's. */
+extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 struct	prochd {
 	struct	proc *ph_link;		/* Linked list of running processes. */
 	struct	proc *ph_rlink;
@@ -261,5 +261,8 @@ void	sleep __P((void *chan, int pri));
 int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
+
+extern int chgproccnt(uid_t, int);
+
 #endif	/* KERNEL */
 #endif	/* !_SYS_PROC_H_ */

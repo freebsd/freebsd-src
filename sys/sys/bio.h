@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.4 1994/08/02 07:52:39 davidg Exp $
+ * $Id: buf.h,v 1.5 1994/08/06 09:15:33 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -177,14 +177,14 @@ TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 #define B_SYNC		0x02	/* Do all allocations synchronously. */
 
 #ifdef KERNEL
-int	nbuf;			/* The number of buffer headers */
-struct	buf *buf;		/* The buffer headers. */
-char	*buffers;		/* The buffer contents. */
-int	bufpages;		/* Number of memory pages in the buffer pool. */
-struct	buf *swbuf;		/* Swap I/O buffer headers. */
-int	nswbuf;			/* Number of swap I/O buffer headers. */
-TAILQ_HEAD(swqueue, buf) bswlist;
-struct	buf *bclnlist;		/* Head of cleaned page list. */
+extern int	nbuf;			/* The number of buffer headers */
+extern struct	buf *buf;		/* The buffer headers. */
+extern char	*buffers;		/* The buffer contents. */
+extern int	bufpages;		/* Number of memory pages in the buffer pool. */
+extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
+extern int	nswbuf;			/* Number of swap I/O buffer headers. */
+extern TAILQ_HEAD(swqueue, buf) bswlist;
+extern struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 __BEGIN_DECLS
 void	allocbuf __P((struct buf *, int));

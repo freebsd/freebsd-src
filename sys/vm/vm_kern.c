@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.5 1994/08/07 13:10:39 davidg Exp $
+ * $Id: vm_kern.c,v 1.6 1994/08/07 14:53:26 davidg Exp $
  */
 
 /*
@@ -70,11 +70,22 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
+
+vm_map_t	buffer_map;
+vm_map_t	kernel_map;
+vm_map_t	kmem_map;
+vm_map_t	mb_map;
+vm_map_t	io_map;
+vm_map_t	clean_map;
+vm_map_t	pager_map;
+vm_map_t	phys_map;
 
 /*
  *	kmem_alloc_pageable:
@@ -117,7 +128,6 @@ vm_offset_t kmem_alloc(map, size)
 {
 	vm_offset_t		addr;
 	register vm_offset_t	offset;
-	extern vm_object_t	kernel_object;
 	vm_offset_t		i;
 
 	size = round_page(size);
@@ -278,7 +288,6 @@ kmem_malloc(map, size, canwait)
 	vm_map_entry_t		entry;
 	vm_offset_t		addr;
 	vm_page_t		m;
-	extern vm_object_t	kmem_object;
 
 	if (map != kmem_map && map != mb_map)
 		panic("kern_malloc_alloc: map != {kmem,mb}_map");

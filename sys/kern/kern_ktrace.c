@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: kern_ktrace.c,v 1.3 1994/08/02 07:42:02 davidg Exp $
  */
 
 #ifdef KTRACE
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/namei.h>

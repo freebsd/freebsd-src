@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ip_output.c,v 1.4 1994/08/02 07:48:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,8 @@
 #ifdef vax
 #include <machine/mtpr.h>
 #endif
+
+u_short ip_id;
 
 static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
 static void ip_mloopback

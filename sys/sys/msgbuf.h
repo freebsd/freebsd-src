@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: msgbuf.h,v 1.2 1994/08/02 07:53:16 davidg Exp $
  */
 
 #define	MSG_BSIZE	(4096 - 3 * sizeof(long))
@@ -43,5 +43,5 @@ struct	msgbuf {
 	char	msg_bufc[MSG_BSIZE];	/* buffer */
 };
 #ifdef KERNEL
-struct	msgbuf *msgbufp;
+extern struct	msgbuf *msgbufp;
 #endif
