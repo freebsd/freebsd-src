@@ -148,8 +148,6 @@ static Option Options[] = {
       OPT_IS_VAR,	NEWFS_PROMPT,		VAR_NEWFS_ARGS,		varCheck	},
 { "Fixit Console",	"Which tty to use for the Fixit action.",
       OPT_IS_FUNC,	fixitTtyWhich,		VAR_FIXIT_TTY,		varCheck	},
-{ "Config save",	"Whether or not to save installation kernel config changes",
-      OPT_IS_VAR,	NULL,			VAR_KGET,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",
       OPT_IS_FUNC,	deviceRescan },
 { "Use Defaults",	"Reset all values to startup defaults",
