@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.15 1998/10/30 07:15:52 luoqi Exp $
+ *	$Id: biosdisk.c,v 1.16 1998/10/31 02:53:11 msmith Exp $
  */
 
 /*
@@ -103,6 +103,7 @@ static int	bd_int13probe(struct bdinfo *bd);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
+static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -494,6 +495,16 @@ bd_closedisk(struct open_disk *od)
 
 static int 
 bd_strategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
+{
+    struct bcache_devdata	bcd;
+    
+    bcd.dv_strategy = bd_realstrategy;
+    bcd.dv_devdata = devdata;
+    return(bcache_strategy(&bcd, rw, dblk, size, buf, rsize));
+}
+
+static int 
+bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, void *buf, size_t *rsize)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)devdata)->d_kind.biosdisk.data);
     int			blks;

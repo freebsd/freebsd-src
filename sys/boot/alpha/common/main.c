@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.7 1998/10/24 00:31:21 msmith Exp $
+ *	$Id: main.c,v 1.8 1998/10/31 17:12:32 dfr Exp $
  */
 
 
@@ -140,6 +140,11 @@ main(void)
 
     /* switch to OSF pal code. */
     OSFpal();
+
+    /*
+     * Initialise the block cache
+     */
+    bcache_init(32, 512);	/* 16k XXX tune this */
 
     /*
      * March through the device switch probing for things.
