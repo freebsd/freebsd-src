@@ -572,14 +572,14 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 
 	/* Make sure the new IRQ is valid before routing. */
 	if (!acpi_pci_link_is_valid_irq(link, irq)) {
-		printf("acpi link: can't set invalid IRQ %d on %s\n",
+		printf("acpi link set: invalid IRQ %d on %s\n",
 		    irq, acpi_name(link->handle));
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
 	/* If this this link has already been routed, just return. */
 	if (link->flags & ACPI_LINK_ROUTED) {
-		printf("link %s already routed to %d\n",
+		printf("acpi link set: %s already routed to %d\n",
 		    acpi_name(link->handle), link->current_irq);
 		return_ACPI_STATUS (AE_OK);
 	}
@@ -609,32 +609,28 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		resbuf.Data.ExtendedIrq.Interrupts[0] = irq;
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "Resource is not an IRQ entry %s - %d\n",
-		    acpi_name(link->handle), link->possible_resources.Id));
+		printf("acpi link set: %s resource is not an IRQ (%d)\n",
+		    acpi_name(link->handle), link->possible_resources.Id);
 		return_ACPI_STATUS (AE_TYPE);
 	}
 
 	error = acpi_AppendBufferResource(&crsbuf, &resbuf);
 	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "couldn't setup buffer by acpi_AppendBufferResource - %s\n",
-		    acpi_name(link->handle)));
+		printf("acpi link set: AppendBuffer failed for %s\n",
+		    acpi_name(link->handle));
 		return_ACPI_STATUS (error);
 	}
 	if (crsbuf.Pointer == NULL) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-		    "appended buffer for %s is corrupted\n",
-		    acpi_name(link->handle)));
+		printf("acpi link set: AppendBuffer returned empty for %s\n",
+		    acpi_name(link->handle));
 		return_ACPI_STATUS (AE_NO_MEMORY);
 	}
 
 	/* Make the new IRQ active via the link's _SRS method. */
 	error = AcpiSetCurrentResources(link->handle, &crsbuf);
 	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't set link device _SRS %s - %s\n",
-		    acpi_name(link->handle), AcpiFormatException(error)));
+		printf("acpi link set: _SRS failed for link %s - %s\n",
+		    acpi_name(link->handle), AcpiFormatException(error));
 		goto out;
 	}
 	link->flags |= ACPI_LINK_ROUTED;
@@ -647,9 +643,8 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	 */
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
 	if (ACPI_FAILURE(error)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "couldn't get current IRQ from interrupt link %s - %s\n",
-		    acpi_name(link->handle), AcpiFormatException(error)));
+		printf("acpi link set: _CRS failed for link %s - %s\n",
+		    acpi_name(link->handle), AcpiFormatException(error));
 		goto out;
 	}
 	if (link->current_irq != irq) {
