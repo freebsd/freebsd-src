@@ -499,7 +499,7 @@ evalpipe(n)
 				close(prevfd);
 			}
 			if (pip[1] >= 0) {
-				if (!prevfd > 0)
+				if (prevfd < 0)
 					close(pip[0]);
 				if (pip[1] != 1) {
 					close(1);
