@@ -907,8 +907,8 @@ skip_ipsec2:;
 	 */
 	if (exthdrs.ip6e_hbh) {
 		struct ip6_hbh *hbh = mtod(exthdrs.ip6e_hbh, struct ip6_hbh *);
-		u_int32_t dummy1; /* XXX unused */
-		u_int32_t dummy2; /* XXX unused */
+		u_int32_t dummy; /* XXX unused */
+		u_int32_t plen = 0; /* XXX: ip6_process will check the value */
 
 #ifdef DIAGNOSTIC
 		if ((hbh->ip6h_len + 1) << 3 > exthdrs.ip6e_hbh->m_len)
@@ -924,7 +924,7 @@ skip_ipsec2:;
 		m->m_pkthdr.rcvif = ifp;
 		if (ip6_process_hopopts(m, (u_int8_t *)(hbh + 1),
 		    ((hbh->ip6h_len + 1) << 3) - sizeof(struct ip6_hbh),
-		    &dummy1, &dummy2) < 0) {
+		    &dummy, &plen) < 0) {
 			/* m was already freed at this point */
 			error = EINVAL;/* better error? */
 			goto done;
