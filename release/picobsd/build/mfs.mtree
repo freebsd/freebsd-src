@@ -47,6 +47,12 @@
         share          
             misc           
             ..
+            locale           
+            ..
+            syscons           
+            ..
+            nls           
+            ..
         ..
     ..
     var            
