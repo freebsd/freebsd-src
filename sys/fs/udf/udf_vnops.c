@@ -1074,7 +1074,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 	*size = min(*size, MAXBSIZE);
 
 	if ((error = udf_readlblks(udfmp, sector, *size, bp))) {
-		printf("udf_readlblks returned %d\n", error);
+		printf("warning: udf_readlblks returned error %d\n", error);
 		return (error);
 	}
 
@@ -1138,7 +1138,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		lsector = (offset  >> udfmp->bshift) +
 		    ((struct short_ad *)(icb))->pos;
 
-		*max_size = GETICBLEN(short_ad, icb) - offset;
+		*max_size = GETICBLEN(short_ad, icb);
 
 		break;
 	case 1:
@@ -1162,7 +1162,7 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		lsector = (offset >> udfmp->bshift) +
 		    ((struct long_ad *)(icb))->loc.lb_num;
 
-		*max_size = GETICBLEN(long_ad, icb) - offset;
+		*max_size = GETICBLEN(long_ad, icb);
 
 		break;
 	case 3:
