@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *    $Id: ida.c,v 1.1 1999/05/25 19:45:17 julian Exp $
+ *    $Id: ida.c,v 1.1.2.1 1999/05/25 19:47:41 julian Exp $
  *
  */
 
@@ -841,7 +841,8 @@ ida_attach_drives(int cntlr)
     devstat_add_entry(&drv->dk_stats, "id", 
 		      unit, (u_int32_t)drv->drv_info.secsize,
 		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER);
+		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
+		      DEVSTAT_PRIORITY_DA);
 
 #ifdef IDADEBUG
     if (ida_debug & IDA_SHOWMISC) {
