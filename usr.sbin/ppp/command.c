@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.29 1998/02/23 00:38:25 brian Exp $
+ * $Id: command.c,v 1.131.2.30 1998/03/01 01:07:42 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1330,7 +1330,7 @@ SetVariable(struct cmdargs const *arg)
     }
     break;
   case VAR_DEVICE:
-    modem_SetDeviceName(cx->physical, argp);
+    Physical_SetDeviceList(cx->physical, argp);
     break;
   case VAR_ACCMAP:
     sscanf(argp, "%lx", &map);

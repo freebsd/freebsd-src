@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.8 1998/02/17 01:05:22 brian Exp $
+ * $Id: vars.h,v 1.42.2.9 1998/02/17 19:28:01 brian Exp $
  *
  *	TODO:
  */
@@ -62,9 +62,6 @@ struct pppvars {
   int lqr_timeout;		/* LQR timeout value */
   int retry_timeout;		/* Retry timeout value */
   int loopback;			/* Turn around packets addressed to me */
-  char modem_devlist[LINE_LEN];	/* Comma-separated list of devices */
-  char modem_dev[40];		/* Name of device / host:port */
-  const char *base_modem_dev;	/* Pointer to base of modem_dev */
   int open_mode;		/* Delay before first LCP REQ (-1 = passive) */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
@@ -94,9 +91,6 @@ struct pppvars {
 #define VarAccmap		pppVars.var_accmap
 #define VarMRU			pppVars.var_mru
 #define VarPrefMTU		pppVars.pref_mtu
-#define	VarDevice		pppVars.modem_dev
-#define	VarDeviceList		pppVars.modem_devlist
-#define	VarBaseDevice		pppVars.base_modem_dev
 #define	VarOpenMode		pppVars.open_mode
 #define	VarLocalAuth		pppVars.lauth
 #define VarIdleTimeout  	pppVars.idle_timeout

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.10 1998/02/19 02:08:42 brian Exp $
+ * $Id: chap.c,v 1.28.2.11 1998/03/01 01:07:40 brian Exp $
  *
  *	TODO:
  */
@@ -238,14 +238,15 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
         if ((mode & MODE_DIRECT) && Physical_IsATTY(physical)
 	    && Enabled(ConfUtmp))
 	  if (Utmp)
+            /* XXX: one entry per line please ! */
 	    LogPrintf(LogERROR, "Oops, already logged in on %s\n",
-		      VarBaseDevice);
+		      physical->name.base);
 	  else {
 	    struct utmp ut;
 	    memset(&ut, 0, sizeof ut);
 	    time(&ut.ut_time);
 	    strncpy(ut.ut_name, name, sizeof ut.ut_name);
-	    strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
+	    strncpy(ut.ut_line, physical->name.base, sizeof ut.ut_line - 1);
 	    ID0login(&ut);
 	    Utmp = 1;
 	  }

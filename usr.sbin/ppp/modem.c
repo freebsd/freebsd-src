@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.26 1998/02/27 21:46:00 brian Exp $
+ * $Id: modem.c,v 1.77.2.27 1998/03/01 01:07:47 brian Exp $
  *
  *  TODO:
  */
@@ -124,11 +124,16 @@ modem_Create(const char *name)
   p->out = NULL;
   p->connect_count = 0;
 
+  *p->name.full = '\0';
+  p->name.base = p->name.full;
+
   p->cfg.is_direct = 0;		/* not yet used */
   p->cfg.is_dedicated = 0;	/* not yet used */
   p->cfg.rts_cts = MODEM_CTSRTS;
   p->cfg.speed = MODEM_SPEED;
   p->cfg.parity = CS8;
+  strncpy(p->cfg.devlist, MODEM_LIST, sizeof p->cfg.devlist - 1);
+  p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
 
   return p;
 }
@@ -244,6 +249,15 @@ IntToSpeed(int nspeed)
     }
   }
   return B0;
+}
+
+static void
+modem_SetDevice(struct physical *physical, const char *name)
+{
+  strncpy(physical->name.full, name, sizeof physical->name.full - 1);
+  physical->name.full[sizeof physical->name.full - 1] = '\0';
+  physical->name.base = strncmp(physical->name.full, "/dev/", 5) ?
+    physical->name.full : physical->name.full + 5;
 }
 
 struct timeoutArg {
@@ -413,7 +427,7 @@ modem_lock(struct physical *modem, int tunno)
   FILE *lockfile;
   char fn[MAXPATHLEN];
 
-  if (*VarDevice != '/')
+  if (*modem->name.full != '/')
     return 0;
 
   if (
@@ -422,16 +436,16 @@ modem_lock(struct physical *modem, int tunno)
 #else
       !(mode & MODE_DIRECT) &&
 #endif
-      (res = ID0uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
+      (res = ID0uu_lock(modem->name.base)) != UU_LOCK_OK) {
     if (res == UU_LOCK_INUSE)
-      LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
+      LogPrintf(LogPHASE, "Modem %s is in use\n", modem->name.full);
     else
       LogPrintf(LogPHASE, "Modem %s is in use: uu_lock: %s\n",
-                VarDevice, uu_lockerr(res));
+                modem->name.full, uu_lockerr(res));
     return (-1);
   }
 
-  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
+  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, modem->name.base);
   lockfile = ID0fopen(fn, "w");
   if (lockfile != NULL) {
     fprintf(lockfile, "tun%d\n", tunno);
@@ -450,10 +464,10 @@ modem_Unlock(struct physical *modem)
 {
   char fn[MAXPATHLEN];
 
-  if (*VarDevice != '/')
+  if (*modem->name.full != '/')
     return;
 
-  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
+  snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, modem->name.base);
 #ifndef RELEASE_CRUNCH
   if (ID0unlink(fn) == -1)
     LogPrintf(LogALERT, "Warning: Can't remove %s: %s\n", fn, strerror(errno));
@@ -467,7 +481,7 @@ modem_Unlock(struct physical *modem)
 #else
       !(mode & MODE_DIRECT) &&
 #endif
-      ID0uu_unlock(VarBaseDevice) == -1)
+      ID0uu_unlock(modem->name.base) == -1)
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
 }
 
@@ -479,20 +493,6 @@ modem_Found(struct physical *modem)
   LogPrintf(LogPHASE, "Connected!\n");
 }
 
-void
-modem_SetDeviceName(struct physical *modem, const char *name)
-{
-  if (name == NULL)
-    name = "";
-
-  if (link_IsActive(&modem->link))
-    LogPrintf(LogWARN,
-              "Cannot change device to \"%s\" when \"%s\" is open\n",
-              name, Physical_GetDevice(modem));
-  else
-    Physical_SetDevice(modem, name);
-}
-
 int
 modem_Open(struct physical *modem, struct bundle *bundle)
 {
@@ -500,7 +500,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
   int oldflag;
   char *host, *port;
   char *cp;
-  char tmpDeviceList[sizeof VarDeviceList];
+  char tmpDeviceList[sizeof modem->cfg.devlist];
   char *tmpDevice;
 
   if (modem->fd >= 0)
@@ -515,7 +515,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	   ) {
     if (isatty(STDIN_FILENO)) {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is a tty\n");
-      modem_SetDeviceName(modem, ttyname(STDIN_FILENO));
+      modem_SetDevice(modem, ttyname(STDIN_FILENO));
       if (modem_lock(modem, bundle->unit) == -1) {
         close(STDIN_FILENO);
         return -1;
@@ -524,62 +524,63 @@ modem_Open(struct physical *modem, struct bundle *bundle)
       modem_Found(modem);
     } else {
       LogPrintf(LogDEBUG, "modem_Open(direct): Modem is not a tty\n");
-      modem_SetDeviceName(modem, NULL);
+      modem_SetDevice(modem, "");
       /* We don't call modem_Timeout() with this type of connection */
       modem_Found(modem);
       return modem->fd = STDIN_FILENO;
     }
   } else {
-    strncpy(tmpDeviceList, VarDeviceList, sizeof tmpDeviceList - 1);
+    strncpy(tmpDeviceList, modem->cfg.devlist, sizeof tmpDeviceList - 1);
     tmpDeviceList[sizeof tmpDeviceList - 1] = '\0';
 
-    for(tmpDevice=strtok(tmpDeviceList, ","); tmpDevice && (modem->fd < 0);
-	tmpDevice=strtok(NULL,",")) {
-      strncpy(VarDevice, tmpDevice, sizeof VarDevice - 1);
-      VarDevice[sizeof VarDevice - 1]= '\0';
-      VarBaseDevice = strrchr(VarDevice, '/');
-      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
+    for(tmpDevice=strtok(tmpDeviceList, ", "); tmpDevice && (modem->fd < 0);
+	tmpDevice=strtok(NULL,", ")) {
+      modem_SetDevice(modem, tmpDevice);
 
-      if (strncmp(VarDevice, "/dev/", 5) == 0) {
-	if (modem_lock(modem, bundle->unit) == -1) {
+      if (*modem->name.full == '/') {
+	if (modem_lock(modem, bundle->unit) == -1)
 	  modem->fd = -1;
-	}
 	else {
-	  modem->fd = ID0open(VarDevice, O_RDWR | O_NONBLOCK);
+	  modem->fd = ID0open(modem->name.full, O_RDWR | O_NONBLOCK);
 	  if (modem->fd < 0) {
-	    LogPrintf(LogERROR, "modem_Open failed: %s: %s\n", VarDevice,
+	    LogPrintf(LogERROR, "modem_Open failed: %s: %s\n", modem->name.full,
 		      strerror(errno));
 	    modem_Unlock(modem);
 	    modem->fd = -1;
 	  }
 	  else {
 	    modem_Found(modem);
-	    LogPrintf(LogDEBUG, "modem_Open: Modem is %s\n", VarDevice);
+	    LogPrintf(LogDEBUG, "modem_Open: Modem is %s\n", modem->name.full);
 	  }
 	}
       } else {
 	/* PPP over TCP */
-	cp = strchr(VarDevice, ':');
+        /*
+         * XXX: Fix me - this should be another sort of link (similar to a
+         * physical
+         */
+	cp = strchr(modem->name.full, ':');
 	if (cp) {
 	  *cp = '\0';
-	  host = VarDevice;
+	  host = modem->name.full;
 	  port = cp + 1;
 	  if (*host && *port) {
 	    modem->fd = OpenConnection(host, port);
-	    *cp = ':';		/* Don't destroy VarDevice */
+	    *cp = ':';		/* Don't destroy name.full */
 	    if (modem->fd < 0)
 	      return (-1);
 	    modem_Found(modem);
-	    LogPrintf(LogDEBUG, "modem_Open: Modem is socket %s\n", VarDevice);
+	    LogPrintf(LogDEBUG, "modem_Open: Modem is socket %s\n",
+                      modem->name.full);
 	  } else {
-	    *cp = ':';		/* Don't destroy VarDevice */
-	    LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n", VarDevice);
+	    *cp = ':';		/* Don't destroy name.full */
+	    LogPrintf(LogERROR, "Invalid host:port: \"%s\"\n",
+                      modem->name.full);
 	    return (-1);
 	  }
 	} else {
-	  LogPrintf(LogERROR,
-		    "Device (%s) must be in /dev or be a host:port pair\n",
-		    VarDevice);
+	  LogPrintf(LogERROR, "Device (%s) must begin with a '/' or be a"
+                    " host:port pair\n", modem->name.full);
 	  return (-1);
 	}
       }
@@ -847,7 +848,7 @@ modem_LogicalClose(struct physical *modem)
   LogPrintf(LogDEBUG, "modem_LogicalClose\n");
   if (modem->fd >= 0) {
     if (Utmp) {
-      ID0logout(VarBaseDevice);
+      ID0logout(modem->name.base);
       Utmp = 0;
     }
     modem_PhysicalClose(modem);
@@ -906,8 +907,11 @@ modem_ShowStatus(struct cmdargs const *arg)
   int nb;
 #endif
 
-  dev = *VarDevice ? VarDevice : "network";
+  dev = *arg->cx->physical->name.full ?
+    arg->cx->physical->name.full : "stdin";
 
+  prompt_Printf(&prompt, "device configuration: %s\n",
+                arg->cx->physical->cfg.devlist);
   prompt_Printf(&prompt, "device: %s  speed: ", dev);
   if (Physical_IsSync(arg->cx->physical))
     prompt_Printf(&prompt, "sync\n");

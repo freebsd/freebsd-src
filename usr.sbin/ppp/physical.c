@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.11 1998/02/18 19:35:53 brian Exp $
+ *  $Id: physical.c,v 1.1.2.12 1998/02/23 00:38:39 brian Exp $
  *
  */
 
@@ -87,16 +87,16 @@ Physical_FD_SET(struct physical *phys, fd_set *set) {
 }
 
 
-/* XXX-ML - must be moved into the physical struct  */
-const char *Physical_GetDevice(struct physical *phys) {
-   return VarDevice;
+const char *Physical_GetDevice(struct physical *phys)
+{
+   return phys->name.full;
 }
 
 /* XXX-ML - must be moved into the physical struct  */
 void
-Physical_SetDevice(struct physical *phys, const char *new_device_list) {
-   strncpy(VarDeviceList, new_device_list, sizeof VarDeviceList - 1);
-   VarDeviceList[sizeof VarDeviceList - 1] = '\0';
+Physical_SetDeviceList(struct physical *phys, const char *new_device_list) {
+   strncpy(phys->cfg.devlist, new_device_list, sizeof phys->cfg.devlist - 1);
+   phys->cfg.devlist[sizeof phys->cfg.devlist - 1] = '\0';
 }
 
 

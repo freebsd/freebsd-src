@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.11 1998/02/21 01:45:24 brian Exp $
+ *  $Id: physical.h,v 1.1.2.12 1998/02/23 00:38:39 brian Exp $
  *
  */
 
@@ -36,6 +36,11 @@ struct physical {
   struct mbuf *out;
   int connect_count;
 
+  struct {
+    char full[40];
+    char *base;
+  } name;
+
   /* XXX-ML Most of the below is device specific, and probably do not
       belong in the generic physical struct. It comes from modem.c. */
 
@@ -45,6 +50,7 @@ struct physical {
     unsigned rts_cts : 1;      /* Is rts/cts enabled? */
     unsigned int parity;       /* What parity is enabled? (TTY flags) */
     unsigned int speed;        /* Modem speed */
+    char devlist[LINE_LEN];    /* Comma-separated list of devices */
   } cfg;
 
   struct termios ios;          /* To be able to reset from raw mode */
@@ -69,7 +75,7 @@ int Physical_IsDirect(struct physical *phys);
 const char *Physical_GetDevice(struct physical *);
 
 
-void Physical_SetDevice(struct physical *phys, const char *new_device_list);
+void Physical_SetDeviceList(struct physical *, const char *);
 int /* Was this speed OK? */
 Physical_SetSpeed(struct physical *phys, int speed);
 
