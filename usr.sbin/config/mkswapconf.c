@@ -104,6 +104,7 @@ do_swap(fl)
 		    swap->f_swapsize, swap->f_fn);
 		swap = swap->f_next;
 	} while (swap && swap->f_type == SWAPSPEC);
+	fprintf(fp, "\t{ NODEV, 0, 0 },\t/* for NFS diskless */\n");
 	fprintf(fp, "\t{ NODEV, 0, 0 }\n");
 	fprintf(fp, "};\n");
 	fclose(fp);
