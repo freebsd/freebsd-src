@@ -59,8 +59,6 @@
 #include <sys/signalvar.h>
 #include <sys/uio.h>
 
-#include <machine/frame.h>
-#include <machine/psl.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
