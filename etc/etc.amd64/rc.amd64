@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.37 1998/11/11 05:25:32 peter Exp $
+#	$Id: rc.i386,v 1.38 1999/01/29 18:09:38 yokota Exp $
 #	Do i386 specific processing
 #
 
@@ -18,6 +18,11 @@ fi
 # Start the Linux binary emulation if requested.
 if [ "X${linux_enable}" = X"YES" ]; then
 	echo -n ' linux';		linux > /dev/null 2>&1
+fi
+
+# Start the SysVR4 binary emulation if requested.
+if [ "X${svr4_enable}" = X"YES" ]; then
+	echo -n ' svr4';		svr4 > /dev/null 2>&1
 fi
 
 if [ "X${xtend_enable}" = X"YES" ]; then
