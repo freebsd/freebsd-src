@@ -24,6 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  *	$FreeBSD$
  */
 
@@ -83,10 +90,10 @@ static driver_t amr_pci_driver = {
 	sizeof(struct amr_softc)
 };
 
-devclass_t	amr_devclass;
+static devclass_t	amr_devclass;
 DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
 
-static struct 
+static struct
 {
     int		vendor;
     int		device;
@@ -97,11 +104,11 @@ static struct
     {0x101e, 0x9060, 0},
     {0x8086, 0x1960, PROBE_SIGNATURE},/* generic i960RD, check for signature */
     {0x101e, 0x1960, 0},
-    {0x1000, 0x1960, 0}, 
+    {0x1000, 0x1960, PROBE_SIGNATURE},
     {0x1000, 0x0407, 0},
     {0, 0, 0}
 };
-    
+
 static int
 amr_pci_probe(device_t dev)
 {
@@ -119,7 +126,7 @@ amr_pci_probe(device_t dev)
 		if ((sig != AMR_SIGNATURE_1) && (sig != AMR_SIGNATURE_2))
 		    continue;
 	    }
-	    device_set_desc(dev, "AMI MegaRAID");
+	    device_set_desc(dev, "LSILogic MegaRAID");
 	    return(-10);	/* allow room to be overridden */
 	}
     }
@@ -149,7 +156,7 @@ amr_pci_attach(device_t dev)
      * Determine board type.
      */
     command = pci_read_config(dev, PCIR_COMMAND, 1);
-    if (pci_get_device(dev) == 0x1960) {
+    if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407)){
 	/*
 	 * Make sure we are going to be able to talk to this board.
 	 */
@@ -198,7 +205,7 @@ amr_pci_attach(device_t dev)
         device_printf(sc->amr_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO, amr_pci_intr, sc, &sc->amr_intr)) {
+    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO | INTR_ENTROPY, amr_pci_intr, sc, &sc->amr_intr)) {
         device_printf(sc->amr_dev, "can't set up interrupt\n");
 	goto out;
     }

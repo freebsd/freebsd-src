@@ -156,7 +156,7 @@ dev/ata/atapi-all.c	optional atapist
 dev/ata/atapi-cd.c	optional atapicd
 dev/ata/atapi-fd.c	optional atapifd
 dev/ata/atapi-tape.c	optional atapist
-#dev/amr/amr_cam.c	optional amr
+dev/amr/amr_cam.c	optional amr
 dev/amr/amr_disk.c	optional amr
 dev/amr/amr_pci.c	optional amr
 dev/amr/amr.c		optional amr
