@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.85 1994/09/23 06:21:13 rgrimes Exp $
+#	$Id: Makefile,v 1.86 1994/09/28 13:32:59 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -48,8 +48,8 @@ FREEBSD+=	${COPYRIGHT}
 # Floppy drive name, mount point, type and parameters for building Floppies
 FLOPPY?=	fd0
 MOUNT?=		/mnt
-FLOPPY_TYPE?=	fd1200
-FLOPPY_BS?=	15b
+FLOPPY_TYPE?=	fd1440
+FLOPPY_BS?=	18b
 FLOPPY_TRACKS?=	160
 #
 MDEC=		usr/mdec/bootfd usr/mdec/fdboot
@@ -256,6 +256,7 @@ kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERICAH ${.CURDIR}/../sys/i386/conf
 	        ${DESTDIR}/kernel.GENERICBT)
 
 kcopy-floppy:
+	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 8192 -m 0 -o space \
@@ -345,6 +346,7 @@ cdins_bt.flp:
 		>${RELEASEDIR}/floppies/cdins_bt.flp.gz &
 
 filesyst.flp:
+	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
@@ -387,6 +389,7 @@ filesyst.flp:
 		>${RELEASEDIR}/floppies/filesyst.flp.gz &
 
 cpio.flp:
+	echo y | fdformat ${FLOPPY}
 	disklabel -w -r -B -b ${DESTDIR}/usr/mdec/fdboot \
 		-s ${DESTDIR}/usr/mdec/bootfd ${FLOPPY} ${FLOPPY_TYPE}
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
