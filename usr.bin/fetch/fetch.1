@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.17 1997/03/05 18:57:15 fenner Exp $
+.\" $Id: fetch.1,v 1.18 1997/07/25 19:35:41 wollman Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -99,6 +99,10 @@ The filenames specified are ``precious'', and should not be deleted
 under any circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
+.It Fl t
+Ensure that the use of T/TCP is not attempted for connections.  This is
+used to workaround bugs in some remote OS stacks that give improper
+replies to T/TCP connections.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
