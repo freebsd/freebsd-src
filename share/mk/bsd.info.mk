@@ -102,11 +102,11 @@ all: ${IFILES} _SUBDIR
 all:
 .endif
 
-GZIPCMD?=	gzip
+GZIPCMD?=	gzip -c
 
 .for x in ${INFO:S/$/.info/g}
 ${x:S/$/.gz/}:	${x}
-	${GZIPCMD} -c ${.ALLSRC} > ${.TARGET}
+	${GZIPCMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # What to do if there's no dir file there.  This is really gross!!!
