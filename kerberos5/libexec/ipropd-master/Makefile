@@ -20,7 +20,7 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${HDBOBJDIR} -lhdb -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
-		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
+		-L${KADM5SOBJDIR} -lkadm5srv \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBHDB} ${LIBROKEN} ${_krb4deps} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
