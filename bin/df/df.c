@@ -122,7 +122,7 @@ main(argc, argv)
 	char *mntpt, *mntpath, **vfslist;
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "abHhikmnPt:")) != -1)
+	while ((ch = getopt(argc, argv, "abgHhikmnPt:")) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
@@ -131,6 +131,10 @@ main(argc, argv)
 				/* FALLTHROUGH */
 		case 'P':
 			putenv("BLOCKSIZE=512");
+			hflag = 0;
+			break;
+		case 'g':
+			putenv("BLOCKSIZE=1g");
 			hflag = 0;
 			break;
 		case 'H':
