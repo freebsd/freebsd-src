@@ -12,7 +12,8 @@ SOBJS=		crtbegin.So crtend.So
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR
 CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
-		-fno-exceptions -fno-omit-frame-pointer
+		-fno-exceptions -fno-zero-initialized-in-bss \
+		-fno-omit-frame-pointer
 CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
