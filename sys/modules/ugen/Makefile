@@ -4,7 +4,7 @@ MAINTAINER	 = n_hibma@freebsd.org
 SOURCE		 = ${.CURDIR}/../../dev/usb
 
 .PATH:  ${SOURCE}
-KMOD		 = ugen_mod
+KMOD		 = ugen
 SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h ugen.c
 NOMAN		 =
 CFLAGS		+= -g
