@@ -296,6 +296,7 @@ static driver_t ath_pci_driver = {
 };
 static	devclass_t ath_devclass;
 DRIVER_MODULE(if_ath, pci, ath_pci_driver, ath_devclass, 0, 0);
+DRIVER_MODULE(if_ath, cardbus, ath_pci_driver, ath_devclass, 0, 0);
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, ath_hal, 1, 1, 1);	/* Atheros HAL */
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);		/* 802.11 media layer */

@@ -164,6 +164,7 @@ static driver_t puc_pci_driver = {
 };
 
 DRIVER_MODULE(puc, pci, puc_pci_driver, puc_devclass, 0, 0);
+DRIVER_MODULE(puc, cardbus, puc_pci_driver, puc_devclass, 0, 0);
 
 
 #define rdspio(indx)		(bus_space_write_1(bst, bsh, efir, indx), \

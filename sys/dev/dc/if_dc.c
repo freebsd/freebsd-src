@@ -331,6 +331,7 @@ SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW, &dc_quick, 0,
     "do not m_devget() in dc driver");
 #endif
 
+DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
