@@ -86,8 +86,21 @@ typedef int vi_ioctl_t(video_adapter_t *adp, u_long cmd, caddr_t data);
 typedef int vi_clear_t(video_adapter_t *adp);
 typedef int vi_fill_rect_t(video_adapter_t *adp, int val, int x, int y,
 			   int cx, int cy);
-typedef int vi_bitblt_t(video_adapter_t *adp,...);
+typedef int vi_bitblt_t(video_adapter_t *adp, ...);
 typedef int vi_diag_t(video_adapter_t *adp, int level);
+typedef int vi_save_cursor_palette_t(video_adapter_t *adp, u_char *palette);
+typedef int vi_load_cursor_palette_t(video_adapter_t *adp, u_char *palette);
+typedef int vi_copy_t(video_adapter_t *adp, vm_offset_t src, vm_offset_t dst,
+		      int n);
+typedef int vi_putp_t(video_adapter_t *adp, vm_offset_t off, u_int32_t p,
+		       u_int32_t a, int size, int bpp, int bit_ltor,
+		       int byte_ltor);
+typedef int vi_putc_t(video_adapter_t *adp, vm_offset_t off, u_int8_t c,
+		      u_int8_t a);
+typedef int vi_puts_t(video_adapter_t *adp, vm_offset_t off, u_int16_t *s,
+		       int len);
+typedef int vi_putm_t(video_adapter_t *adp, int x, int y,
+		      u_int8_t *pixel_image, u_int32_t pixel_mask, int size);
 
 typedef struct video_switch {
     vi_probe_t		*probe;
@@ -116,6 +129,13 @@ typedef struct video_switch {
     int			(*reserved1)(void);
     int			(*reserved2)(void);
     vi_diag_t		*diag;
+    vi_save_cursor_palette_t	*save_cursor_palette;
+    vi_load_cursor_palette_t	*load_cursor_palette;
+    vi_copy_t		*copy;
+    vi_putp_t		*putp;
+    vi_putc_t		*putc;
+    vi_puts_t		*puts;
+    vi_putm_t		*putm;
 } video_switch_t;
 
 #define save_palette(adp, pal)				\

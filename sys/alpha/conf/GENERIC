@@ -119,6 +119,7 @@ device		atkbd		# at keyboard
 device		psm		# psm mouse
 
 device		vga		# VGA screen
+device		tga		# TGA screen
 
 # splash screen/screen saver
 device		splash

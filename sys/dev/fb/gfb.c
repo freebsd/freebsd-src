@@ -541,7 +541,6 @@ gfb_bitblt(video_adapter_t *adp, ...)
 int
 /*gfb_clear(video_adapter_t *adp, int n)*/
 gfb_clear(video_adapter_t *adp)
-	video_adapter_t *adp;
 {
 	int off;
 
