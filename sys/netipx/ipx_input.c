@@ -42,6 +42,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/random.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -54,8 +55,6 @@
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
-
-#include <machine/random.h>
 
 int	ipxcksum = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, checksum, CTLFLAG_RW,

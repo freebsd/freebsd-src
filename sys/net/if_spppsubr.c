@@ -42,7 +42,7 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include <machine/random.h>
+#include <sys/random.h>
 #endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -58,9 +58,6 @@
 #include <net/if_types.h>
 #include <net/route.h>
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
-#include <machine/random.h>
-#endif
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 #include <machine/cpu.h> /* XXX for softnet */
 #endif
