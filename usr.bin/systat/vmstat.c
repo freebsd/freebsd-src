@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.26 1998/07/06 22:08:00 bde Exp $";
+	"$Id: vmstat.c,v 1.27 1998/09/15 08:16:40 gibbs Exp $";
 #endif /* not lint */
 
 /*
@@ -771,7 +771,7 @@ dinfo(dn, c, now, then)
 
 	busy_seconds = compute_etime(now->busy_time, then ?
 				     then->busy_time :
-				    then->dinfo->devices[di].dev_creation_time);
+				     now->dinfo->devices[di].dev_creation_time);
 
 	if (compute_stats(&now->dinfo->devices[di], then ?
 			  &then->dinfo->devices[di] : NULL, busy_seconds,
