@@ -8,7 +8,7 @@
     dev             mode=0555
     ..
     etc
-        namedb      uname=bind
+        namedb
             master
             ..
             slave   uname=bind
@@ -24,6 +24,7 @@
         run
             named
             ..
+        stats
         ..
     ..
 ..
