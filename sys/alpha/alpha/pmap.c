@@ -520,6 +520,7 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
+	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_lev1 = Lev1map;
 	kernel_pmap->pm_active = ~0;
 	kernel_pmap->pm_asn[alpha_pal_whami()].asn = 0;
@@ -988,6 +989,7 @@ pmap_pinit0(pmap)
 {
 	int i;
 
+	PMAP_LOCK_INIT(pmap);
 	pmap->pm_lev1 = Lev1map;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
@@ -1011,6 +1013,8 @@ pmap_pinit(pmap)
 {
 	vm_page_t lev1pg;
 	int i;
+
+	PMAP_LOCK_INIT(pmap);
 
 	/*
 	 * allocate object for the ptes
@@ -1294,6 +1298,7 @@ retry:
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
+	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -1618,6 +1623,7 @@ pmap_remove_all(vm_page_t m)
 
 	s = splvm();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 
 		pv->pv_pmap->pm_stats.resident_count--;
@@ -1647,6 +1653,7 @@ pmap_remove_all(vm_page_t m)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
+		PMAP_UNLOCK(pv->pv_pmap);
 		free_pv_entry(pv);
 	}
 
@@ -2033,6 +2040,7 @@ pmap_change_wiring(pmap, va, wired)
 	if (pmap == NULL)
 		return;
 
+	PMAP_LOCK(pmap);
 	pte = pmap_lev3pte(pmap, va);
 
 	if (wired && !pmap_pte_w(pte))
@@ -2045,6 +2053,7 @@ pmap_change_wiring(pmap, va, wired)
 	 * invalidate TLB.
 	 */
 	pmap_pte_set_w(pte, wired);
+	PMAP_UNLOCK(pmap);
 }
 
 
@@ -2186,6 +2195,7 @@ pmap_remove_pages(pmap, sva, eva)
 #endif
 
 	s = splvm();
+	PMAP_LOCK(pmap);
 	for(pv = TAILQ_FIRST(&pmap->pm_pvlist);
 		pv;
 		pv = npv) {
@@ -2232,6 +2242,7 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 	splx(s);
 	pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2273,6 +2284,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		}
 #endif
 
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 
 		changed = 0;
@@ -2288,6 +2300,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		}
 		if (changed)
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 	if (!setem && bit == (PG_UWE|PG_KWE))
 		vm_page_flag_clear(m, PG_WRITEABLE);
@@ -2340,6 +2353,7 @@ pmap_ts_referenced(vm_page_t m)
 	 */
 	count = 0;
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & PG_FOR)) {
@@ -2347,6 +2361,7 @@ pmap_ts_referenced(vm_page_t m)
 			*pte |= PG_FOR | PG_FOE;
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 
 	return count;
@@ -2416,12 +2431,14 @@ pmap_clear_modify(vm_page_t m)
 	 * Loop over current mappings setting PG_FOW where needed.
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & PG_FOW)) {
 			*pte |= PG_FOW;
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
 
@@ -2443,12 +2460,14 @@ pmap_clear_reference(vm_page_t m)
 	 * Loop over current mappings setting PG_FOR and PG_FOE where needed.
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 		
 		if (!(*pte & (PG_FOR | PG_FOE))) {
 			*pte |= (PG_FOR | PG_FOE);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 }
 
