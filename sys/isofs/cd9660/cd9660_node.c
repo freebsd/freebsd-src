@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_node.c,v 1.18 1997/02/22 09:38:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -63,11 +63,6 @@ u_long isohash;
 #define	INOHASH(device, inum)	(((device) + ((inum)>>12)) & isohash)
 struct simplelock cd9660_ihash_slock;
 
-#ifdef ISODEVMAP
-struct iso_node **idvhashtbl;
-u_long idvhash;
-#define	DNOHASH(device, inum)	(((device) + ((inum)>>12)) & idvhash)
-#endif
 
 static unsigned	cd9660_chars2ui __P((unsigned char *begin, int len));
 
@@ -81,67 +76,9 @@ cd9660_init(vfsp)
 
 	isohashtbl = hashinit(desiredvnodes, M_ISOFSMNT, &isohash);
 	simple_lock_init(&cd9660_ihash_slock);
-#ifdef ISODEVMAP
-	idvhashtbl = hashinit(desiredvnodes / 8, M_ISOFSMNT, &idvhash);
-#endif
 	return (0);
 }
 
-#ifdef ISODEVMAP
-/*
- * Enter a new node into the device hash list
- */
-struct iso_dnode *
-iso_dmap(device, inum, create)
-	dev_t	device;
-	ino_t	inum;
-	int	create;
-{
-	register struct iso_dnode **dpp, *dp, *dq;
-
-	dpp = &idvhashtbl[DNOHASH(device, inum)];
-	for (dp = *dpp;; dp = dp->d_next) {
-		if (dp == NULL)
-			return (NULL);
-		if (inum == dp->i_number && device == dp->i_dev)
-			return (dp);
-
-	if (!create)
-		return (NULL);
-
-	MALLOC(dp, struct iso_dnode *, sizeof(struct iso_dnode), M_CACHE,
-	       M_WAITOK);
-	dp->i_dev = dev;
-	dp->i_number = ino;
-
-	if (dq = *dpp)
-		dq->d_prev = dp->d_next;
-	dp->d_next = dq;
-	dp->d_prev = dpp;
-	*dpp = dp;
-
-	return (dp);
-}
-
-void
-iso_dunmap(device)
-	dev_t device;
-{
-	struct iso_dnode **dpp, *dp, *dq;
-	
-	for (dpp = idvhashtbl; dpp <= idvhashtbl + idvhash; dpp++) {
-		for (dp = *dpp; dp != NULL; dp = dq)
-			dq = dp->d_next;
-			if (device == dp->i_dev) {
-				if (dq)
-					dq->d_prev = dp->d_prev;
-				*dp->d_prev = dq;
-				FREE(dp, M_CACHE);
-			}
-		}
-	}
-}
-#endif
 
 /*
  * Use the device/inum pair to find the incore inode, and return a pointer

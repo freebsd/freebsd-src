@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.20 1997/03/23 03:36:11 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.21 1997/03/24 11:24:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -428,10 +428,6 @@ cd9660_unmount(mp, mntflags, p)
 
 	isomp = VFSTOISOFS(mp);
 
-#ifdef	ISODEVMAP
-	if (isomp->iso_ftype == ISO_FTYPE_RRIP)
-		iso_dunmap(isomp->im_dev);
-#endif
 
 	isomp->im_devvp->v_specflags &= ~SI_MOUNTEDON;
 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, p);
@@ -764,10 +760,6 @@ cd9660_vget_internal(mp, ino, vpp, relocated, isodir)
 		/*
 		 * if device, look at device number table for translation
 		 */
-#ifdef	ISODEVMAP
-		if (dp = iso_dmap(dev, ino, 0))
-			ip->inode.iso_rdev = dp->d_dev;
-#endif
 		vp->v_op = cd9660_specop_p;
 		if (nvp = checkalias(vp, ip->inode.iso_rdev, mp)) {
 			/*
