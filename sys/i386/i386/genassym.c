@@ -63,6 +63,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+#include <sys/proc.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsproto.h>
@@ -76,6 +77,7 @@
 #include <machine/sigframe.h>
 #include <machine/globaldata.h>
 #include <machine/vm86.h>
+#include <machine/proc.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -91,6 +93,9 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
+
+ASSYM(P_MD, offsetof(struct proc, p_md));
+ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
 
 ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 
@@ -126,7 +131,6 @@ ASSYM(PCB_EBX, offsetof(struct pcb, pcb_ebx));
 ASSYM(PCB_EIP, offsetof(struct pcb, pcb_eip));
 ASSYM(TSS_ESP0, offsetof(struct i386tss, tss_esp0));
 
-ASSYM(PCB_USERLDT, offsetof(struct pcb, pcb_ldt));
 ASSYM(PCB_GS, offsetof(struct pcb, pcb_gs));
 ASSYM(PCB_DR0, offsetof(struct pcb, pcb_dr0));
 ASSYM(PCB_DR1, offsetof(struct pcb, pcb_dr1));

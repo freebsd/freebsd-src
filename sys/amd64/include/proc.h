@@ -38,6 +38,15 @@
 #define	_MACHINE_PROC_H_
 
 #include <machine/globals.h>
+#include <machine/segments.h>
+
+struct proc_ldt {
+        caddr_t ldt_base;
+        int     ldt_len;
+        int     ldt_refcnt;
+        u_long  ldt_active;
+        struct  segment_descriptor ldt_sd;
+};
 
 /*
  * Machine-dependent part of the proc structure for i386.
@@ -46,6 +55,15 @@ struct mdthread {
 };
 
 struct mdproc {
+	struct proc_ldt *md_ldt;	/* per-process ldt */
 };
+
+#ifdef	_KERNEL
+
+void 	set_user_ldt __P((struct mdproc *));
+struct 	proc_ldt *user_ldt_alloc __P((struct mdproc *, int));
+void 	user_ldt_free __P((struct thread *));
+
+#endif	/* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */
