@@ -34,15 +34,18 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)lprint.c	8.3 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <ctype.h>
 #include <db.h>
 #include <err.h>
@@ -61,16 +64,16 @@ static const char rcsid[] =
 #define	LINE_LEN	80
 #define	TAB_LEN		8		/* 8 spaces between tabs */
 
-static int	demi_print __P((char *, int));
-static void	lprint __P((PERSON *));
-static void     vputc __P((unsigned char));
+static int	demi_print(char *, int);
+static void	lprint(PERSON *);
+static void     vputc(unsigned char);
 
 void
 lflag_print()
 {
 	extern int pplan;
-	register PERSON *pn;
-	register int sflag, r;
+	PERSON *pn;
+	int sflag, r;
 	PERSON *tmp;
 	DBT data, key;
 
@@ -91,18 +94,20 @@ lflag_print()
 			(void)show_text(pn->dir, _PATH_PROJECT, "Project");
 			if (!show_text(pn->dir, _PATH_PLAN, "Plan"))
 				(void)printf("No Plan.\n");
+			(void)show_text(pn->dir,
+			    _PATH_PUBKEY, "Public key");
 		}
 	}
 }
 
 static void
 lprint(pn)
-	register PERSON *pn;
+	PERSON *pn;
 {
 	extern time_t now;
-	register struct tm *delta;
-	register WHERE *w;
-	register int cpr, len, maxlen;
+	struct tm *delta;
+	WHERE *w;
+	int cpr, len, maxlen;
 	struct tm *tp;
 	int oddfield;
 	char t[80];
@@ -122,6 +127,8 @@ lprint(pn)
 	    pn->name, pn->realname, pn->dir);
 	(void)printf("\tShell: %-s\n", *pn->shell ? pn->shell : _PATH_BSHELL);
 
+	if (gflag)
+		goto no_gecos;
 	/*
 	 * try and print office, office phone, and home phone on one line;
 	 * if that fails, do line filling so it looks nice.
@@ -155,6 +162,7 @@ lprint(pn)
 	if (oddfield)
 		putchar('\n');
 
+no_gecos:
 	/*
 	 * long format con't:
 	 * if logged in
@@ -171,8 +179,7 @@ lprint(pn)
 			maxlen = len;
 	/* find rest of entries for user */
 	for (w = pn->whead; w != NULL; w = w->next) {
-		switch (w->info) {
-		case LOGGEDIN:
+		if (w->info == LOGGEDIN) {
 			tp = localtime(&w->loginat);
 			strftime(t, sizeof(t),
 			    d_first ? "%a %e %b %R (%Z)" : "%a %b %e %R (%Z)",
@@ -186,7 +193,7 @@ lprint(pn)
 			delta = gmtime(&w->idletime);
 			if (delta->tm_yday || delta->tm_hour || delta->tm_min) {
 				cpr += printf("%-*s idle ",
-				    maxlen - strlen(w->tty) + 1, ",");
+				    maxlen - (int)strlen(w->tty) + 1, ",");
 				if (delta->tm_yday > 0) {
 					cpr += printf("%d day%s ",
 					   delta->tm_yday,
@@ -201,26 +208,22 @@ lprint(pn)
 			}
 			if (!w->writable)
 				cpr += printf(" (messages off)");
-			break;
-		case LASTLOG:
-			if (w->loginat == 0) {
-				(void)printf("Never logged in.");
-				break;
-			}
+		} else if (w->loginat == 0) {
+			cpr = printf("Never logged in.");
+		} else {
 			tp = localtime(&w->loginat);
 			if (now - w->loginat > 86400 * 365 / 2) {
 				strftime(t, sizeof(t),
-					d_first ? "%a %e %b %R %Y (%Z)" :
+					 d_first ? "%a %e %b %R %Y (%Z)" :
 						   "%a %b %e %R %Y (%Z)",
-					tp);
-				} else {
-					strftime(t, sizeof(t),
-						d_first ? "%a %e %b %R (%Z)" :
-							  "%a %b %e %R (%Z)",
-						tp);
+					 tp);
+			} else {
+				strftime(t, sizeof(t),
+					 d_first ? "%a %e %b %R (%Z)" :
+						   "%a %b %e %R (%Z)",
+					 tp);
 			}
 			cpr = printf("Last login %s on %s", t, w->tty);
-			break;
 		}
 		if (*w->host) {
 			if (LINE_LEN < (cpr + 6 + strlen(w->host)))
@@ -296,13 +299,15 @@ demi_print(str, oddfield)
 
 int
 show_text(directory, file_name, header)
-	char *directory, *file_name, *header;
+	const char *directory, *file_name, *header;
 {
 	struct stat sb;
-	register FILE *fp;
-	register int ch, cnt;
-	register char *p, lastc;
+	FILE *fp;
+	int ch, cnt;
+	char *p, lastc;
 	int fd, nr;
+
+	lastc = '\0';
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", directory, file_name);
 	if ((fd = open(tbuf, O_RDONLY)) < 0 || fstat(fd, &sb) ||
@@ -348,7 +353,7 @@ show_text(directory, file_name, header)
 
 static void
 vputc(ch)
-	register unsigned char ch;
+	unsigned char ch;
 {
 	int meta;
 
@@ -359,7 +364,7 @@ vputc(ch)
 		meta = 1;
 	} else
 		meta = 0;
-	if (isprint(ch) || !meta && (ch == ' ' || ch == '\t' || ch == '\n'))
+	if (isprint(ch) || (!meta && (ch == ' ' || ch == '\t' || ch == '\n')))
 		(void)putchar(ch);
 	else {
 		(void)putchar('^');

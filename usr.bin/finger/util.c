@@ -34,13 +34,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -57,17 +58,18 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 #include "finger.h"
+#include "pathnames.h"
 
-static void	 find_idle_and_ttywrite __P((WHERE *));
-static void	 userinfo __P((PERSON *, struct passwd *));
-static WHERE	*walloc __P((PERSON *));
+static void	 find_idle_and_ttywrite(WHERE *);
+static void	 userinfo(PERSON *, struct passwd *);
+static WHERE	*walloc(PERSON *);
 
 int
 match(pw, user)
 	struct passwd *pw;
 	char *user;
 {
-	register char *p, *t;
+	char *p, *t;
 	char name[1024];
 
 	if (!strcasecmp(pw->pw_name, user))
@@ -106,9 +108,9 @@ match(pw, user)
 
 void
 enter_lastlog(pn)
-	register PERSON *pn;
+	PERSON *pn;
 {
-	register WHERE *w;
+	WHERE *w;
 	static int opened, fd;
 	struct lastlog ll;
 	char doit = 0;
@@ -159,7 +161,7 @@ enter_where(ut, pn)
 	struct utmp *ut;
 	PERSON *pn;
 {
-	register WHERE *w;
+	WHERE *w;
 
 	w = walloc(pn);
 	w->info = LOGGEDIN;
@@ -173,7 +175,7 @@ enter_where(ut, pn)
 
 PERSON *
 enter_person(pw)
-	register struct passwd *pw;
+	struct passwd *pw;
 {
 	DBT data, key;
 	PERSON *pn;
@@ -213,7 +215,7 @@ find_person(name)
 {
 	struct passwd *pw;
 
-	register int cnt;
+	int cnt;
 	DBT data, key;
 	PERSON *p;
 	char buf[UT_NAMESIZE + 1];
@@ -242,18 +244,18 @@ palloc()
 {
 	PERSON *p;
 
-	if ((p = malloc((u_int) sizeof(PERSON))) == NULL)
+	if ((p = malloc(sizeof(PERSON))) == NULL)
 		err(1, NULL);
 	return(p);
 }
 
 static WHERE *
 walloc(pn)
-	register PERSON *pn;
+	PERSON *pn;
 {
-	register WHERE *w;
+	WHERE *w;
 
-	if ((w = malloc((u_int) sizeof(WHERE))) == NULL)
+	if ((w = malloc(sizeof(WHERE))) == NULL)
 		err(1, NULL);
 	if (pn->whead == NULL)
 		pn->whead = pn->wtail = w;
@@ -269,7 +271,7 @@ char *
 prphone(num)
 	char *num;
 {
-	register char *p;
+	char *p;
 	int len;
 	static char pbuf[20];
 
@@ -317,7 +319,7 @@ prphone(num)
 
 static void
 find_idle_and_ttywrite(w)
-	register WHERE *w;
+	WHERE *w;
 {
 	extern time_t now;
 	struct stat sb;
@@ -341,10 +343,10 @@ find_idle_and_ttywrite(w)
 
 static void
 userinfo(pn, pw)
-	register PERSON *pn;
-	register struct passwd *pw;
+	PERSON *pn;
+	struct passwd *pw;
 {
-	register char *p, *t;
+	char *p, *t;
 	char *bp, name[1024];
 	struct stat sb;
 
@@ -411,15 +413,15 @@ int
 hide(pw)
 	struct passwd *pw;
 {
-	char buf[MAXPATHLEN+1];
+	struct stat st;
+	char buf[MAXPATHLEN];
 
 	if (!pw->pw_dir)
 		return 0;
 
-	snprintf(buf, sizeof(buf), "%s/.nofinger", pw->pw_dir);
-	buf[sizeof(buf) - 1] = '\0';
+	snprintf(buf, sizeof(buf), "%s/%s", pw->pw_dir, _PATH_NOFINGER);
 
-	if (access(buf, F_OK) == 0)
+	if (stat(buf, &st) == 0)
 		return 1;
 
 	return 0;

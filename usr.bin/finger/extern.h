@@ -38,16 +38,17 @@ extern char tbuf[1024];			/* Temp buffer for anybody. */
 extern int entries;			/* Number of people. */
 extern DB *db;				/* Database. */
 extern int d_first;
+extern int gflag;
 
-void	 enter_lastlog __P((PERSON *));
-PERSON	*enter_person __P((struct passwd *));
-void	 enter_where __P((struct utmp *, PERSON *));
-PERSON	*find_person __P((char *));
-int		hide __P((struct passwd *));
-void	 lflag_print __P((void));
-int	 match __P((struct passwd *, char *));
-void	 netfinger __P((char *));
-PERSON	*palloc __P((void));
-char	*prphone __P((char *));
-void	 sflag_print __P((void));
-int	 show_text __P((char *, char *, char *));
+void	 enter_lastlog(PERSON *);
+PERSON	*enter_person(struct passwd *);
+void	 enter_where(struct utmp *, PERSON *);
+PERSON	*find_person(char *);
+int		hide(struct passwd *);
+void	 lflag_print(void);
+int	 match(struct passwd *, char *);
+void	 netfinger(char *);
+PERSON	*palloc(void);
+char	*prphone(char *);
+void	 sflag_print(void);
+int	 show_text(const char *, const char *, const char *);
