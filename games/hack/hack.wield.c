@@ -57,7 +57,7 @@ corrode_weapon(){
 
 chwepon(otmp,amount)
 struct obj *otmp;
-amount;
+int amount;
 {
 char *color = (amount < 0) ? "black" : "green";
 char *time;

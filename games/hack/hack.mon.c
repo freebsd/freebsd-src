@@ -122,7 +122,7 @@ char *name;
 
 youswld(mtmp,dam,die,name)
 struct monst *mtmp;
-dam,die;
+int dam,die;
 char *name;
 {
 	if(mtmp != u.ustuck) return;
@@ -137,10 +137,10 @@ char *name;
 }
 
 dochugw(mtmp) struct monst *mtmp; {
-x = mtmp->mx;
-y = mtmp->my;
-d = dochug(mtmp);
-dd;
+int x = mtmp->mx;
+int y = mtmp->my;
+int d = dochug(mtmp);
+int dd;
 	if(!d)		/* monster still alive */
 	if(Warning)
 	if(!mtmp->mpeaceful)
@@ -157,7 +157,7 @@ dochug(mtmp)
 struct monst *mtmp;
 {
 	struct permonst *mdat;
-	tmp, nearby, scared;
+	int tmp, nearby, scared;
 
 	if(mtmp->cham && !rn2(6))
 		(void) newcham(mtmp, &mons[dlevel+14+rn2(CMNUM-14-dlevel)]);
@@ -239,7 +239,7 @@ m_move(mtmp,after)
 struct monst *mtmp;
 {
 	struct monst *mtmp2;
-	nx,ny,omx,omy,appr,nearer,cnt,i,j;
+	int nx,ny,omx,omy,appr,nearer,cnt,i,j;
 	xchar gx,gy,nix,niy,chcnt;
 	schar chi;
 	boolean likegold, likegems, likeobjs;
@@ -786,7 +786,7 @@ newcham(mtmp,mdat)	/* make a chameleon look like a new monster */
 struct monst *mtmp;
 struct permonst *mdat;
 {
-	mhp, hpn, hpd;
+	int mhp, hpn, hpd;
 
 	if(mdat == mtmp->data) return(0);	/* still the same monster */
 #ifndef NOWORM

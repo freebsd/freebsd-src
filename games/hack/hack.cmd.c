@@ -95,7 +95,7 @@ char *cmd;
 {
 	struct func_tab *tlist = cmdlist;
 	boolean firsttime = FALSE;
-	res;
+	int res;
 
 	if(!cmd) {
 		firsttime = TRUE;
@@ -256,7 +256,7 @@ boolean s;
 
 confdir()
 {
-	x = rn2(8);
+	int x = rn2(8);
 	u.dx = xdir[x];
 	u.dy = ydir[x];
 }
@@ -297,7 +297,7 @@ isroom(x,y)  x,y; {		/* what about POOL? */
 }
 #endif QUEST
 
-isok(x,y) x,y; {
+isok(x,y) int x,y; {
 	/* x corresponds to curx, so x==1 is the first column. Ach. %% */
 	return(x >= 1 && x <= COLNO-1 && y >= 0 && y <= ROWNO-1);
 }

@@ -21,7 +21,7 @@ makemon(ptr,x,y)
 struct permonst *ptr;
 {
 	struct monst *mtmp;
-	tmp, ct;
+	int tmp, ct;
 	boolean anything = (!ptr);
 	extern boolean in_mklev;
 
@@ -160,7 +160,7 @@ goodpos(x,y)	/* used only in mnexto and rloc */
 rloc(mtmp)
 struct monst *mtmp;
 {
-	tx,ty;
+	int tx,ty;
 	char ch = mtmp->data->mlet;
 
 #ifndef NOWORM

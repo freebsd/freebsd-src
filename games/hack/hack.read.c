@@ -280,7 +280,7 @@ doread() {
 		docrt();
 		break;
 	case SCR_FOOD_DETECTION:
-	    {	ct = 0, ctu = 0;
+	    {	int ct = 0, ctu = 0;
 		struct obj *obj;
 		char foodsym = confused ? POTION_SYM : FOOD_SYM;
 
@@ -448,7 +448,7 @@ struct obj *otmp;
 litroom(on)
 boolean on;
 {
-	num,zx,zy;
+	int num,zx,zy;
 
 	/* first produce the text (provided he is not blind) */
 	if(Blind) goto do_it;

@@ -52,7 +52,7 @@ char *str;
 }
 
 atl(x,y,ch)
-x,y;
+int x,y;
 {
 	struct rm *crm = &levl[x][y];
 
@@ -67,7 +67,7 @@ x,y;
 }
 
 on_scr(x,y)
-x,y;
+int x,y;
 {
 	if(x < scrlx) scrlx = x;
 	if(x > scrhx) scrhx = x;
@@ -114,7 +114,7 @@ Tmp_at(x,y) schar x,y; {
 static char let;
 static xchar cnt;
 static coord tc[COLNO];		/* but watch reflecting beams! */
-xx,yy;
+int xx,yy;
 	if((int)x == -1) {
 		if(y > 0) {	/* open call */
 			let = y;
@@ -184,7 +184,7 @@ doredraw()
 
 docrt()
 {
-	x,y;
+	int x,y;
 	struct rm *room;
 	struct monst *mtmp;
 
@@ -221,8 +221,8 @@ docrt()
 	bot();
 }
 
-docorner(xmin,ymax) xmin,ymax; {
-	x,y;
+docorner(xmin,ymax) int xmin,ymax; {
+	int x,y;
 	struct rm *room;
 	struct monst *mtmp;
 
@@ -382,7 +382,7 @@ xchar x,y;
 }
 
 newsym(x,y)
-x,y;
+int x,y;
 {
 	atl(x,y,news0(x,y));
 }
@@ -390,7 +390,7 @@ x,y;
 /* used with wand of digging (or pick-axe): fill scrsym and force display */
 /* also when a POOL evaporates */
 mnewsym(x,y)
-x,y;
+int x,y;
 {
 	struct rm *room;
 	char newscrsym;
@@ -406,7 +406,7 @@ x,y;
 }
 
 nosee(x,y)
-x,y;
+int x,y;
 {
 	struct rm *room;
 
@@ -421,7 +421,7 @@ x,y;
 
 #ifndef QUEST
 prl1(x,y)
-x,y;
+int x,y;
 {
 	if(u.dx) {
 		if(u.dy) {
@@ -443,7 +443,7 @@ x,y;
 }
 
 nose1(x,y)
-x,y;
+int x,y;
 {
 	if(u.dx) {
 		if(u.dy) {
@@ -466,7 +466,7 @@ x,y;
 #endif QUEST
 
 vism_at(x,y)
-x,y;
+int x,y;
 {
 	struct monst *mtmp;
 
@@ -563,7 +563,7 @@ unpmon(mon) struct monst *mon; {
 
 nscr()
 {
-	x,y;
+	int x,y;
 	struct rm *room;
 
 	if(u.uswallow || u.ux == FAR || flags.nscrinh) return;

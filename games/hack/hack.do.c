@@ -121,7 +121,7 @@ goto_level(newlevel, at_stairs)
 int newlevel;
 boolean at_stairs;
 {
-	fd;
+	int fd;
 	boolean up = (newlevel < dlevel);
 
 	if(newlevel <= 0) done("escaped");    /* in fact < 0 is impossible */
@@ -253,7 +253,7 @@ dothrow()
 {
 	struct obj *obj;
 	struct monst *mon;
-	tmp;
+	int tmp;
 
 	obj = getobj("#)", "throw");   /* it is also possible to throw food */
 				       /* (or jewels, or iron balls ... ) */

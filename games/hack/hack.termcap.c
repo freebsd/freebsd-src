@@ -160,7 +160,7 @@ nocmov(x, y)
 }
 
 cmov(x, y)
-x, y;
+int x, y;
 {
 	xputs(tgoto(CM, x-1, y-1));
 	cury = y;
@@ -181,7 +181,7 @@ cl_end() {
 	else {	/* no-CE fix - free after Harold Rynes */
 		/* this looks terrible, especially on a slow terminal
 		   but is better than nothing */
-		cx = curx, cy = cury;
+		int cx = curx, cy = cury;
 
 		while(curx < COLNO) {
 			xputc(' ');

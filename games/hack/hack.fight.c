@@ -108,7 +108,7 @@ struct monst *mon;
 
 /* u is hit by sth, but not a monster */
 thitu(tlev,dam,name)
-tlev,dam;
+int tlev,dam;
 char *name;
 {
 char buf[BUFSZ];
@@ -131,9 +131,9 @@ boolean
 hmon(mon,obj,thrown)	/* return TRUE if mon still alive */
 struct monst *mon;
 struct obj *obj;
-thrown;
+int thrown;
 {
-	tmp;
+	int tmp;
 	boolean hittxt = FALSE;
 
 	if(!obj){

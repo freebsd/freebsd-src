@@ -29,7 +29,7 @@ outrip(){
 	char **dp = rip;
 	char *dpx;
 	char buf[BUFSZ];
-	x,y;
+	int x,y;
 
 	cls();
 	(void) strcpy(buf, plname);

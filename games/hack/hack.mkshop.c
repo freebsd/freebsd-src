@@ -233,9 +233,9 @@ mkswamp()	/* Michiel Huisjes & Fred de Wilde */
 }
 
 nexttodoor(sx,sy)
-sx,sy;
+int sx,sy;
 {
-	dx,dy;
+	int dx,dy;
 	struct rm *lev;
 	for(dx = -1; dx <= 1; dx++) for(dy = -1; dy <= 1; dy++)
 		if((lev = &levl[sx+dx][sy+dy])->typ == DOOR ||

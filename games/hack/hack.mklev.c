@@ -41,7 +41,7 @@ makelevel()
 {
 	struct mkroom *croom, *troom;
 	unsigned tryct;
-	x,y;
+	int x,y;
 
 	nroom = 0;
 	doorindex = 0;
@@ -290,7 +290,7 @@ struct mkroom *x,*y;
 coord
 finddpos(xl,yl,xh,yh) {
 	coord ff;
-	x,y;
+	int x,y;
 
 	x = (xl == xh) ? xl : (xl + rn2(xh-xl+1));
 	y = (yl == yh) ? yl : (yl + rn2(yh-yl+1));
@@ -315,7 +315,7 @@ gotit:
 
 /* see whether it is allowable to create a door at [x,y] */
 okdoor(x,y)
-x,y;
+int x,y;
 {
 	if(levl[x-1][y].typ == DOOR || levl[x+1][y].typ == DOOR ||
 	   levl[x][y+1].typ == DOOR || levl[x][y-1].typ == DOOR ||
@@ -328,7 +328,7 @@ x,y;
 }
 
 dodoor(x,y,aroom)
-x,y;
+int x,y;
 struct mkroom *aroom;
 {
 	if(doorindex >= DOORMAX) {
@@ -341,12 +341,12 @@ struct mkroom *aroom;
 }
 
 dosdoor(x,y,aroom,type)
-x,y;
+int x,y;
 struct mkroom *aroom;
-type;
+int type;
 {
 	struct mkroom *broom;
-	tmp;
+	int tmp;
 
 	if(!IS_WALL(levl[x][y].typ))	/* avoid SDOORs with '+' as scrsym */
 		type = DOOR;
@@ -369,8 +369,8 @@ maker(lowx,ddx,lowy,ddy)
 schar lowx,ddx,lowy,ddy;
 {
 	struct mkroom *croom;
-	x, y, hix = lowx+ddx, hiy = lowy+ddy;
-	xlim = XLIM + secret, ylim = YLIM + secret;
+	int x, y, hix = lowx+ddx, hiy = lowy+ddy;
+	int xlim = XLIM + secret, ylim = YLIM + secret;
 
 	if(nroom >= MAXNROFROOMS) return(0);
 	if(lowx < XLIM) lowx = XLIM;
@@ -443,7 +443,7 @@ chk:
 }
 
 makecorridors() {
-	a,b;
+	int a,b;
 
 	nxcor = 0;
 	for(a = 0; a < nroom-1; a++)
@@ -465,13 +465,13 @@ makecorridors() {
 }
 
 join(a,b)
-a,b;
+int a,b;
 {
 	coord cc,tt;
-	tx, ty, xx, yy;
+	int tx, ty, xx, yy;
 	struct rm *crm;
 	struct mkroom *croom, *troom;
-	dx, dy, dix, diy, cct;
+	int dx, dy, dix, diy, cct;
 
 	croom = &rooms[a];
 	troom = &rooms[b];
@@ -552,7 +552,7 @@ a,b;
 
 	    /* do we have to change direction ? */
 	    if(dy && dix > diy) {
-		ddx = (xx > tx) ? -1 : 1;
+		int ddx = (xx > tx) ? -1 : 1;
 
 		crm = &levl[xx+ddx][yy];
 		if(!crm->typ || crm->typ == CORR || crm->typ == SCORR) {
@@ -561,7 +561,7 @@ a,b;
 		    continue;
 		}
 	    } else if(dx && diy > dix) {
-		ddy = (yy > ty) ? -1 : 1;
+		int ddy = (yy > ty) ? -1 : 1;
 
 		crm = &levl[xx][yy+ddy];
 		if(!crm->typ || crm->typ == CORR || crm->typ == SCORR) {
@@ -623,7 +623,7 @@ boolean with_trap;
 	struct rm *rm;
 	int vct = 8;
 	coord dd;
-	dy,xx,yy;
+	int dy,xx,yy;
 	struct trap *ttmp;
 
 	if(doorindex < DOORMAX)
@@ -666,7 +666,7 @@ boolean with_trap;
 
 /* make a trap somewhere (in croom if mazeflag = 0) */
 mktrap(num,mazeflag,croom)
-num,mazeflag;
+int num,mazeflag;
 struct mkroom *croom;
 {
 	struct trap *ttmp;
