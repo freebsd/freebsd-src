@@ -144,72 +144,6 @@ char *key, *plain, *answer;
 	return(0);
 }
 
-/*
- * Test the setkey and encrypt functions
- */
-void test_encrypt()
-{
-	char key[64],plain[64],cipher[64],answer[64];
-	char buff[BUFSIZ];
-	unsigned long salt;
-	int i;
-	int test;
-	int fail;
-
-	printf("Testing setkey/encrypt\n");
-
-	for(test=0;fgets(buff, BUFSIZ, stdin);test++){
-
-		/*
-		 * Allow comments.
-		 */
-		if (*buff == '#')
-			continue;
-
-		if ((fail = parse_line(buff, &salt, key, plain, answer)) < 0){
-			printf("test %d garbled (%d)\n", test, fail);
-			continue;
-		}
-
-		if (salt)
-			continue;	/* encrypt has no salt support */
-
-		printf(" K: "); put8(key);
-		printf(" P: "); put8(plain);
-		printf(" C: "); put8(answer);
-
-		setkey(key);
-		for(i = 0; i < 64; i++)
-			cipher[i] = plain[i];
-		encrypt(cipher, 0);
-
-		for(i=0;i<64;i++)
-			if(cipher[i] != answer[i])
-				break;
-		fail = 0;
-		if(i != 64){
-			printf(" Enc FAIL ");
-			put8(cipher);
-			fail++; totfails++;
-		}
-
-		encrypt(cipher, 1);
-
-		for(i=0;i<64;i++)
-			if(cipher[i] != plain[i])
-				break;
-		if(i != 64){
-			printf(" Dec FAIL");
-			fail++; totfails++;
-		}
-
-		if(fail == 0)
-			printf(" OK");
-		printf("\n");
-	}
-}
-
-
 void bytes_to_bits(bytes, bits)
 char *bytes;
 unsigned char *bits;
@@ -224,71 +158,6 @@ unsigned char *bits;
 	}
 }
 
-
-/*
- * Test the des_setkey and des_cipher functions
- */
-void test_des()
-{
-	char ckey[64], cplain[64], canswer[64];
-	unsigned char key[8], plain[8], cipher[8], answer[8];
-	char buff[BUFSIZ];
-	unsigned long salt;
-	int i;
-	int test;
-	int fail;
-
-	printf("Testing des_setkey/des_cipher\n");
-
-	for(test=0;fgets(buff, BUFSIZ, stdin);test++){
-
-		/*
-		 * Allow comments.
-		 */
-		if (*buff == '#')
-			continue;
-
-		if ((fail = parse_line(buff, &salt, ckey, cplain, canswer)) <0){
-			printf("test %d garbled (%d)\n", test, fail);
-			continue;
-		}
-
-		printf(" S: %06x", salt);
-		printf(" K: "); put8(ckey);
-		printf(" P: "); put8(cplain);
-		printf(" C: "); put8(canswer);
-
-		bytes_to_bits(ckey, key);
-		bytes_to_bits(cplain, plain);
-		bytes_to_bits(canswer, answer);
-		des_setkey(key);
-		des_cipher(plain, cipher, salt, 1);
-
-		for(i = 0; i < 8; i++)
-			if(cipher[i] != answer[i])
-				break;
-		fail = 0;
-		if(i != 8){
-			printf(" Enc FAIL ");
-			print_bits(cipher);
-			fail++; totfails++;
-		}
-
-		des_cipher(cipher, cipher, salt, -1);
-
-		for(i = 0; i < 8; i++)
-			if(cipher[i] != plain[i])
-				break;
-		if(i != 8){
-			printf(" Dec FAIL");
-			fail++; totfails++;
-		}
-
-		if(fail == 0)
-			printf(" OK");
-		printf("\n");
-	}
-}
 
 
 /*
@@ -334,11 +203,6 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
-	if(argc < 1 || !strcmp(argv[1], "-e"))
-		test_encrypt();
-	else if(!strcmp(argv[1], "-d"))
-		test_des();
-	else if(!strcmp(argv[1], "-c"))
-		test_crypt();
+	test_crypt();
 	good_bye();
 }
