@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 MAN=	acpi_asus.4 \
+	acpi_fujitsu.4 \
 	acpi_panasonic.4 \
 	acpi_toshiba.4 \
 	aic.4 \
