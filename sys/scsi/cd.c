@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.59 1996/01/30 16:12:18 ache Exp $
+ *      $Id: cd.c,v 1.60 1996/01/30 16:38:30 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -844,11 +844,6 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					data.entries[idx].addr.lba = htonl(th->len);
 					break;
 				}
-			}
-
-			if (te->address_format == CD_LBA_FORMAT) {
-				for (idx = 0; idx < num; idx++)
-					NTOHL(data.entries[idx].addr.lba);
 			}
 
 			error = copyout(data.entries, te->data, len);
