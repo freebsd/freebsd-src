@@ -129,6 +129,8 @@ struct eeProm {
 
 #define	TVTUNER_SETAFC	_IOW('x', 53, int)		/* turn AFC on/off */
 #define TVTUNER_GETAFC	_IOR('x', 54, int)		/* query AFC on/off */
+#define BT848_SLNOTCH	_IOW('x', 55, int)		/* set luma notch */
+#define BT848_GLNOTCH	_IOR('x', 56, int)		/* get luma notch */
 
 /*
  * XXX: more bad magic,
@@ -146,7 +148,8 @@ struct eeProm {
  * renamed and moved to a common header
  */
 
-typedef enum { METEOR_PIXTYPE_RGB, METEOR_PIXTYPE_YUV } METEOR_PIXTYPE;
+typedef enum { METEOR_PIXTYPE_RGB, METEOR_PIXTYPE_YUV,
+	       METEOR_PIXTYPE_YUV_PACKED  } METEOR_PIXTYPE;
 
 struct meteor_pixfmt {
 	u_int          index;         /* Index in supported pixfmt list     */

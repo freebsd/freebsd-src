@@ -62,7 +62,4 @@ src/sys/i386/include/ioctl_bt848.h
 src/sys/pci/brktree_reg.h
 src/sys/pci/brooktree848.c
 
-Note that src/sys/i386/include/ioctl_meteor.h is no longer modifed in any way
-to support the bt848 boards (unless there were prio modifications that I am
-unaware of).
 
