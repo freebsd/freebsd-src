@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.16 1997/08/16 19:15:21 wollman Exp $
+ * $Id: umap_vfsops.c,v 1.17 1997/10/12 20:24:55 phk Exp $
  */
 
 /*
@@ -213,6 +213,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	(void)umapfs_statfs(mp, &mp->mnt_stat, p);
 #ifdef UMAPFS_DIAGNOSTIC
 	printf("umapfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
