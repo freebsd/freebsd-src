@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.6 1994/10/05 21:23:38 wollman Exp $
+ * $Id: kernel.h,v 1.7 1995/03/16 18:16:18 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -83,7 +83,28 @@ extern long timedelta;
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
 #define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
 
+#ifdef PSEUDO_LKM
+#include <sys/conf.h>
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+#define PSEUDO_SET(init, name) \
+	extern struct linker_set MODVNOPS; \
+	MOD_MISC(#fsname); \
+        int name ## _load(struct lkm_table *lkmtp, int cmd) \
+		{ init(); return 0; } \
+	int name ## _unload(struct lkm_table *lkmtp, int cmd) \
+		{ return EINVAL; } \
+	int \
+	name ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
+		DISPATCH(lkmtp, cmd, ver, name ## _load, name ## _unload, \
+			 nosys); }
+#else /* PSEUDO_LKM */
+
 #define PSEUDO_SET(sym)	   TEXT_SET(pseudo_set, sym)
+
+#endif /* PSEUDO_LKM */
 
 struct linker_set {
 	int ls_length;
