@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.41 1997/06/02 20:05:37 jmz Exp $
+ *      $Id: worm.c,v 1.42 1997/07/01 00:22:51 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -228,10 +228,11 @@ worm_size(struct scsi_link *sc_link, int flags)
 {
 	errval ret;
 	struct scsi_data *worm = sc_link->sd;
+	int blk_size;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("worm_size"));
 
-	worm->n_blks = scsi_read_capacity(sc_link, &worm->blk_size,
+	worm->n_blks = scsi_read_capacity(sc_link, &blk_size,
 					  flags);
 
 	/*
