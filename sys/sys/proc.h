@@ -55,8 +55,6 @@
 #else
 #include <sys/pcpu.h>
 #endif
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <vm/uma.h>
@@ -707,50 +705,6 @@ extern uma_zone_t proc_zone;
 
 extern int lastpid;
 
-static __inline struct pargs *
-pargs_alloc(int len)
-{
-	struct pargs *pa;
-
-	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
-		M_WAITOK);
-	pa->ar_ref = 1;
-	pa->ar_length = len;
-	return (pa);
-}
-
-static __inline void
-pargs_free(struct pargs *pa)
-{
-
-	FREE(pa, M_PARGS);
-}
-
-static __inline void
-pargs_hold(struct pargs *pa)
-{
-
-	if (pa == NULL)
-		return;
-	PARGS_LOCK(pa);
-	pa->ar_ref++;
-	PARGS_UNLOCK(pa);
-}
-
-static __inline void
-pargs_drop(struct pargs *pa)
-{
-
-	if (pa == NULL)
-		return;
-	PARGS_LOCK(pa);
-	if (--pa->ar_ref == 0) {
-		PARGS_UNLOCK(pa);
-		pargs_free(pa);
-	} else
-		PARGS_UNLOCK(pa);
-}
-
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
  * bounding the dubious p_estcpu inheritance in wait1().
@@ -785,6 +739,10 @@ int	p_candebug(struct proc *p1, struct proc *p2);
 int	p_cansee(struct proc *p1, struct proc *p2);
 int	p_cansched(struct proc *p1, struct proc *p2);
 int	p_cansignal(struct proc *p1, struct proc *p2, int signum);
+struct	pargs *pargs_alloc(int len);
+void	pargs_drop(struct pargs *pa);
+void	pargs_free(struct pargs *pa);
+void	pargs_hold(struct pargs *pa);
 void	procinit(void);
 void	proc_linkup(struct proc *p, struct ksegrp *kg,
 	    struct kse *ke, struct thread *td);

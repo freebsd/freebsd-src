@@ -944,6 +944,50 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+struct pargs *
+pargs_alloc(int len)
+{
+	struct pargs *pa;
+
+	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
+		M_WAITOK);
+	pa->ar_ref = 1;
+	pa->ar_length = len;
+	return (pa);
+}
+
+void
+pargs_free(struct pargs *pa)
+{
+
+	FREE(pa, M_PARGS);
+}
+
+void
+pargs_hold(struct pargs *pa)
+{
+
+	if (pa == NULL)
+		return;
+	PARGS_LOCK(pa);
+	pa->ar_ref++;
+	PARGS_UNLOCK(pa);
+}
+
+void
+pargs_drop(struct pargs *pa)
+{
+
+	if (pa == NULL)
+		return;
+	PARGS_LOCK(pa);
+	if (--pa->ar_ref == 0) {
+		PARGS_UNLOCK(pa);
+		pargs_free(pa);
+	} else
+		PARGS_UNLOCK(pa);
+}
+
 /*
  * This sysctl allows a process to retrieve the argument list or process
  * title for another process without groping around in the address space
