@@ -129,7 +129,7 @@ default_pager_putpages(object, m, c, sync, rtvals)
 	boolean_t sync;
 	int *rtvals;
 {
-	swap_pager_putpages(object, m, c, sync, rtvals);
+	swappagerops.pgo_putpages(object, m, c, sync, rtvals);
 }
 
 /*
