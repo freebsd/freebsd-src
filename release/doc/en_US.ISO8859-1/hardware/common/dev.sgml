@@ -182,8 +182,7 @@
 
     &hwlist.nsp;
 
-    <para arch="i386">Adaptec AIC-7110 Parallel to SCSI interfaces (&man.vpo.4; driver)
-    </para>
+    &hwlist.vpo;
 
     &hwlist.ida;
 
@@ -191,9 +190,7 @@
 
     &hwlist.iir;
 
-    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
-    driver)
-    </para>
+    &hwlist.pst;
 
     <para arch="i386">The hptmv(4) driver supports the HighPoint
       RocketRAID 182x SATA controllers.</para>
@@ -759,22 +756,12 @@
         <listitem>
 	  <para>ES1868, ES1869, ES1879 and ES1888 (&man.sbc.4; driver)</para>
 	</listitem>
-        <listitem>
-	  <para>Maestro-1, Maestro-2, and Maestro-2E</para>
-	</listitem>
-        <listitem>
-	  <para>Maestro-3/Allegro</para>
-	  <note>
-	    <para>The Maestro-3/Allegro cannot be compiled into the
-	    &os; kernel due to licensing restrictions.  To use this
-	    driver, add the following line to
-	    <filename>/boot/loader.conf</filename>:</para>
-
-            <screen><userinput>snd_maestro3_load="YES"</userinput></screen>
-	  </note>
-	</listitem>
       </itemizedlist>
     </para>
+
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
 
     <para arch="i386,amd64">ForteMedia fm801</para>
 
