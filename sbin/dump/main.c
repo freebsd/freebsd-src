@@ -309,9 +309,16 @@ main(int argc, char *argv[])
 	spcl.c_filesys[NAMELEN-1]='\0';
 
 	if ((mntpt = getmntpt(disk, &mntflags)) != 0) {
-		if (snapdump == 0) {
-			msg("WARNING: %s\n",
-			    "should use -L when dumping live filesystems!");
+		if (mntflags & MNT_RDONLY) {
+			if (snapdump != 0) {
+				msg("WARNING: %s\n",
+				    "-L ignored for read-only filesystem.");
+				snapdump = 0;
+			}
+		} else if (snapdump == 0) {
+			msg("WARNING: %s%s\n",
+			    "should use -L when dumping live read-write ",
+			    "filesystems!");
 		} else {
 			char snapname[BUFSIZ], snapcmd[BUFSIZ];
 
