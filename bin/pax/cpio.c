@@ -509,7 +509,7 @@ cpio_wr(arcn)
 	 */
 	if (ul_asc((u_long)MAGIC, hd->c_magic, sizeof(hd->c_magic), OCT) ||
 	    ul_asc((u_long)arcn->sb.st_dev, hd->c_dev, sizeof(hd->c_dev),
-	        OCT) ||
+		OCT) ||
 	    ul_asc((u_long)arcn->sb.st_ino, hd->c_ino, sizeof(hd->c_ino),
 		OCT) ||
 	    ul_asc((u_long)arcn->sb.st_mode, hd->c_mode, sizeof(hd->c_mode),

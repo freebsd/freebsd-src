@@ -225,7 +225,7 @@ typedef struct oplist {
  * General Macros
  */
 #ifndef MIN
-#define        MIN(a,b) (((a)<(b))?(a):(b))
+#define	       MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 #define MAJOR(x)	major(x)
 #define MINOR(x)	minor(x)
@@ -234,7 +234,7 @@ typedef struct oplist {
 /*
  * General Defines
  */
-#define HEX	16
-#define OCT	8
-#define _PAX_	1
+#define HEX		16
+#define OCT		8
+#define _PAX_		1
 #define _TFILE_BASE	"paxXXXXXXXXXX"
