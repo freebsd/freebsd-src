@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.34 1997/04/07 09:38:39 peter Exp $
+ * $Id: kern_fork.c,v 1.35 1997/04/13 01:48:24 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -98,7 +98,7 @@ vfork(p, uap, retval)
 	struct vfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT|RFMEM), retval));
+	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT), retval));
 }
 
 /* ARGSUSED */
