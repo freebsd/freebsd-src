@@ -864,6 +864,9 @@
     <para><application>Heimdal Kerberos</application> has been
        updated from 0.6 to 0.6.1.
 
+    <para>The <application>ISC DHCP</application> client has been
+       updated to 3.0.1RC14.</para>
+
     <para><application>libpcap</application> has been updated from
       version 0.7.1 to version 0.8.3.</para>
 
