@@ -1009,7 +1009,7 @@ ng_btsocket_hci_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		struct ifnet *ifp, struct thread *td)
 {
 	ng_btsocket_hci_raw_pcb_p	 pcb = so2hci_raw_pcb(so);
-	char				 path[NG_NODELEN + 2];
+	char				 path[NG_NODESIZ + 1];
 	struct ng_mesg			*msg = NULL;
 	int				 error = 0;
 
