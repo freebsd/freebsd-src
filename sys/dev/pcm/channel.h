@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+int chn_reinit(pcm_channel *c);
 int chn_write(pcm_channel *c, struct uio *buf);
 int chn_read(pcm_channel *c, struct uio *buf);
 int chn_sync(pcm_channel *c, int threshold);
