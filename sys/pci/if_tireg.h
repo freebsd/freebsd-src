@@ -143,7 +143,6 @@
  * Miscelaneous Local Control register.
  */
 #define TI_MLC_EE_WRITE_ENB		0x00000010
-#define TI_MLC_SRAM_BANK_256K		0x00000200
 #define TI_MLC_SRAM_BANK_SIZE		0x00000300 /* Tigon 2 only */
 #define TI_MLC_LOCALADDR_21		0x00004000
 #define TI_MLC_LOCALADDR_22		0x00008000
@@ -152,6 +151,12 @@
 #define TI_MLC_EE_TXEN			0x00200000
 #define TI_MLC_EE_DOUT			0x00400000
 #define TI_MLC_EE_DIN			0x00800000
+
+/* Possible memory sizes. */
+#define TI_MLC_SRAM_BANK_DISA           0x00000000
+#define TI_MLC_SRAM_BANK_1024K          0x00000100
+#define TI_MLC_SRAM_BANK_512K           0x00000200
+#define TI_MLC_SRAM_BANK_256K           0x00000300
 
 /*
  * Offset of MAC address inside EEPROM.
