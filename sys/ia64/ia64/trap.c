@@ -973,11 +973,6 @@ syscall(struct trapframe *tf)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	/*
-	 * Try to run the syscall without Giant if the syscall is MP safe.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_lock(&Giant);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, (callp->sy_narg & SYF_ARGMASK), args);
@@ -991,7 +986,15 @@ syscall(struct trapframe *tf)
 
 	PTRACESTOP_SC(p, td, S_PT_SCE);
 
-	error = (*callp->sy_call)(td, args);
+	/*
+	 * Grab Giant if the syscall is not flagged as MP safe.
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+		mtx_lock(&Giant);
+		error = (*callp->sy_call)(td, args);
+		mtx_unlock(&Giant);
+	} else
+		error = (*callp->sy_call)(td, args);
 
 	if (error != EJUSTRETURN) {
 		/*
@@ -1012,12 +1015,6 @@ syscall(struct trapframe *tf)
 			tf->tf_scratch.gr8 = error;
 		}
 	}
-
-	/*
-	 * Release Giant if we had to get it.
-	 */
-	if ((callp->sy_narg & SYF_MPSAFE) == 0)
-		mtx_unlock(&Giant);
 
 	userret(td, tf, sticks);
 
