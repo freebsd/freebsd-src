@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.c,v 1.13 1999/03/17 05:04:38 mjacob Exp $ */
-/* release_03_25_99 */
+/* $Id: isp_freebsd.c,v 1.14 1999/03/25 22:52:44 mjacob Exp $ */
+/* release_4_3_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -112,7 +112,8 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			int s, tgt = xpt_path_target_id(path);
 
 			nflags = DPARM_SAFE_DFLT;
-			if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
+			if (ISP_FW_REVX(isp->isp_fwrev) >=
+			    ISP_FW_REV(7, 55, 0)) {
 				nflags |= DPARM_NARROW | DPARM_ASYNC;
 			}
 			oflags = sdp->isp_devparam[tgt].dev_flags;
@@ -194,7 +195,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if (isp->isp_type & ISP_HA_SCSI) {
 			if (ccb->ccb_h.target_id > (MAX_TARGETS-1)) {
 				ccb->ccb_h.status = CAM_PATH_INVALID;
-			} else if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
+			} else if (ISP_FW_REVX(isp->isp_fwrev) >=
+			    ISP_FW_REV(7, 55, 0)) {
 				/*
 				 * Too much breakage.
 				 */
@@ -527,7 +529,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->initiator_id =
 			    ((sdparam *)isp->isp_param)->isp_initiator_id;
 			cpi->max_target =  MAX_TARGETS-1;
-			if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
+			if (ISP_FW_REVX(isp->isp_fwrev) >=
+			    ISP_FW_REV(7, 55, 0)) {
 #if	0
 				/*
 				 * Too much breakage.
@@ -740,7 +743,22 @@ isp_async(isp, cmd, arg)
 	return (rv);
 }
 
+
+/*
+ * Free any associated resources prior to decommissioning and
+ * set the card to a known state (so it doesn't wake up and kick
+ * us when we aren't expecting it to).
+ *
+ * Locks are held before coming here.
+ */
+void
+isp_uninit(struct ispsoftc *isp)
+{
+	DISABLE_INTS(isp);
+}
 #else
+
+#define WATCH_INTERVAL          30
 
 static void ispminphys __P((struct buf *));
 static u_int32_t isp_adapter_info __P((int));
@@ -771,7 +789,8 @@ isp_attach(struct ispsoftc *isp)
 	if (isp->isp_state == ISP_INITSTATE)
 		isp->isp_state = ISP_RUNSTATE;
 
-	START_WATCHDOG(isp);
+        timeout(isp_watch, isp, WATCH_INTERVAL * hz);
+	isp->isp_dogactive = 1;
 
 	isp->isp_osinfo._link.adapter_unit = isp->isp_osinfo.unit;
 	isp->isp_osinfo._link.adapter_softc = isp;
@@ -783,6 +802,7 @@ isp_attach(struct ispsoftc *isp)
 			((fcparam *)isp->isp_param)->isp_loopid;
 		scbus->maxtarg = MAX_FC_TARG-1;
 	} else {
+		isp->isp_osinfo.delay_throttle_count = 1;
 		isp->isp_osinfo._link.adapter_targ =
 			((sdparam *)isp->isp_param)->isp_initiator_id;
 		scbus->maxtarg = MAX_TARGETS-1;
@@ -847,7 +867,7 @@ ispcmd(ISP_SCSI_XFER_T *xs)
 			XS_SETERR(xs, HBA_BOTCH);
 			return (CMD_COMPLETE);
 		}
-		isp_state = ISP_RUNSTATE;
+		isp->isp_state = ISP_RUNSTATE;
 	}
 	r = ispscsicmd(xs);
 	ENABLE_INTS(isp);
@@ -901,12 +921,12 @@ isp_watch(void *arg)
 	int i;
 	struct ispsoftc *isp = arg;
 	ISP_SCSI_XFER_T *xs;
-	ISP_ILOCKVAL_DECL;
+	int s;
 
 	/*
 	 * Look for completely dead commands (but not polled ones).
 	 */
-	ISP_ILOCK(isp);
+	s = splbio();
 	for (i = 0; i < RQUEST_QUEUE_LEN; i++) {
 		if ((xs = (ISP_SCSI_XFER_T *) isp->isp_xflist[i]) == NULL) {
 			continue;
@@ -915,6 +935,7 @@ isp_watch(void *arg)
 			continue;
 		}
 		XS_TIME(xs) -= (WATCH_INTERVAL * 1000);
+
 		/*
 		 * Avoid later thinking that this
 		 * transaction is not being timed.
@@ -926,6 +947,9 @@ isp_watch(void *arg)
 		else if (XS_TIME(xs) > -(2 * WATCH_INTERVAL * 1000)) {
 			continue;
 		}
+		if (IS_SCSI(isp)) {
+			isp->isp_osinfo.delay_throttle_count = 1;
+		}
 		if (isp_control(isp, ISPCTL_ABORT_CMD, xs)) {
 			printf("%s: isp_watch failed to abort command\n",
 			    isp->isp_name);
@@ -933,8 +957,20 @@ isp_watch(void *arg)
 			break;
 		}
 	}
-	RESTART_WATCHDOG(isp_watch, arg);
-	ISP_IUNLOCK(isp);
+	if (isp->isp_osinfo.delay_throttle_count) {
+		if (--isp->isp_osinfo.delay_throttle_count == 0) {
+			sdparam *sdp = isp->isp_param;
+			for (i = 0; i < MAX_TARGETS; i++) {
+				sdp->isp_devparam[i].dev_flags |=
+					DPARM_WIDE|DPARM_SYNC|DPARM_TQING;
+				sdp->isp_devparam[i].dev_update = 1;
+			}
+			isp->isp_update = 1;
+		}
+	}
+        timeout(isp_watch, isp, WATCH_INTERVAL * hz);
+	isp->isp_dogactive = 1;
+	splx(s);
 }
 
 int
@@ -1016,7 +1052,7 @@ isp_async(isp, cmd, arg)
 		static char *roles[4] = {
 		    "No", "Target", "Initiator", "Target/Initiator"
 		};
-		for (i = 0 i < MAX_FC_TARG; i++)  {
+		for (i = 0; i < MAX_FC_TARG; i++)  {
 			isp_pdb_t *pdbp =
 			    &((fcparam *)isp->isp_param)->isp_pdb[i];
 			if (pdbp->pdb_options == INVALID_PDB_OPTIONS)
@@ -1071,7 +1107,6 @@ isp_async(isp, cmd, arg)
 	}
 	return (0);
 }
-#endif
 
 /*
  * Free any associated resources prior to decommissioning and
@@ -1081,10 +1116,10 @@ isp_async(isp, cmd, arg)
  * Locks are held before coming here.
  */
 void
-isp_uninit(struct ispsoftc *isp)
+isp_uninit(isp)
+	struct ispsoftc *isp;
 {
-	ISP_ILOCKVAL_DECL;
-	ISP_ILOCK(isp);
+	int s = splbio();
 	/*
 	 * Leave with interrupts disabled.
 	 */
@@ -1093,10 +1128,13 @@ isp_uninit(struct ispsoftc *isp)
 	/*
 	 * Turn off the watchdog (if active).
 	 */
-	STOP_WATCHDOG(isp_watch, isp);
-
+	if (isp->isp_dogactive) {
+		untimeout(isp_watch, isp);
+		isp->isp_dogactive = 0;
+	}
 	/*
 	 * And out...
 	 */
-	ISP_IUNLOCK(isp);
+	splx(s);
 }
+#endif
