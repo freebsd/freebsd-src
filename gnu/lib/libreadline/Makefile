@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.17 1994/12/06 03:15:02 ache Exp $
+#       $Id: Makefile,v 1.18 1995/01/16 17:56:20 ache Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
@@ -15,14 +15,9 @@ LDADD+= -ltermcap
 SUBDIR+= doc
 
 beforeinstall:
-	@-if [ ! -d ${DESTDIR}/usr/include/readline ]; then \
-	  mkdir ${DESTDIR}/usr/include/readline; \
-	  chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/readline; \
-	  chmod 755 ${DESTDIR}/usr/include/readline; \
-	fi
 	cd ${.CURDIR}; \
 	for m in ${HEADERS} ; do \
-	  cmp -s $$m ${DESTDIR}/usr/include/readline || \
+	  cmp -s $$m ${DESTDIR}/usr/include/readline/$$m || \
 	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		$$m ${DESTDIR}/usr/include/readline ; \
 	done
