@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.44 1998/08/23 03:07:16 wollman Exp $
+ * $Id: nfs_socket.c,v 1.45 1998/09/07 05:42:15 bde Exp $
  */
 
 /*
@@ -2125,7 +2125,7 @@ nfsrv_getstream(slp, waitflag)
 			slp->ns_flag |= SLP_LASTFRAG;
 		else
 			slp->ns_flag &= ~SLP_LASTFRAG;
-		if (slp->ns_reclen < NFS_MINPACKET || slp->ns_reclen > NFS_MAXPACKET) {
+		if (slp->ns_reclen > NFS_MAXPACKET) {
 			slp->ns_flag &= ~SLP_GETSTREAM;
 			return (EPERM);
 		}
