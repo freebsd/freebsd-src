@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #if	defined(unix)
@@ -1363,7 +1363,7 @@ suspend()
 	(void) kill(0, SIGTSTP);
 	/*
 	 * If we didn't get the window size before the SUSPEND, but we
-	 * can get them now (???), then send the NAWS to make sure that
+	 * can get them now (?), then send the NAWS to make sure that
 	 * we are set up for the right window size.
 	 */
 	if (TerminalWindowSize(&newrows, &newcols) && connected &&
@@ -1403,12 +1403,12 @@ shell(argc, argv)
 	     * Fire up the shell in the child.
 	     */
 	    register char *shellp, *shellname;
-	    extern char *rindex();
+	    extern char *strrchr();
 
 	    shellp = getenv("SHELL");
 	    if (shellp == NULL)
 		shellp = "/bin/sh";
-	    if ((shellname = rindex(shellp, '/')) == 0)
+	    if ((shellname = strrchr(shellp, '/')) == 0)
 		shellname = shellp;
 	    else
 		shellname++;
@@ -1690,10 +1690,10 @@ env_init()
 	extern char **environ;
 	register char **epp, *cp;
 	register struct env_lst *ep;
-	extern char *index();
+	extern char *strchr();
 
 	for (epp = environ; *epp; epp++) {
-		if (cp = index(*epp, '=')) {
+		if (cp = strchr(*epp, '=')) {
 			*cp = '\0';
 			ep = env_define((unsigned char *)*epp,
 					(unsigned char *)cp+1);
@@ -1710,7 +1710,7 @@ env_init()
 	    && ((*ep->value == ':')
 	        || (strncmp((char *)ep->value, "unix:", 5) == 0))) {
 		char hbuf[256+1];
-		char *cp2 = index((char *)ep->value, ':');
+		char *cp2 = strchr((char *)ep->value, ':');
 
 		gethostname(hbuf, 256);
 		hbuf[256] = '\0';
@@ -2240,7 +2240,7 @@ tn(argc, argv)
     char *cmd, *hostp = 0, *portp = 0, *user = 0;
 
     /* clear the socket address prior to use */
-    bzero((char *)&sin, sizeof(sin));
+    memset((char *)&sin, 0, sizeof(sin));
 
     if (connected) {
 	printf("?Already connected to %s\n", hostname);
@@ -2258,7 +2258,7 @@ tn(argc, argv)
     cmd = *argv;
     --argc; ++argv;
     while (argc) {
-	if (isprefix(*argv, "help") || isprefix(*argv, "?"))
+	if (strcmp(*argv, "help") == 0 || isprefix(*argv, "?"))
 	    goto usage;
 	if (strcmp(*argv, "-l") == 0) {
 	    --argc; ++argv;
@@ -2323,10 +2323,10 @@ tn(argc, argv)
 	    if (host) {
 		sin.sin_family = host->h_addrtype;
 #if	defined(h_addr)		/* In 4.3, this is a #define */
-		memcpy((caddr_t)&sin.sin_addr,
+		memmove((caddr_t)&sin.sin_addr,
 				host->h_addr_list[0], host->h_length);
 #else	/* defined(h_addr) */
-		memcpy((caddr_t)&sin.sin_addr, host->h_addr, host->h_length);
+		memmove((caddr_t)&sin.sin_addr, host->h_addr, host->h_length);
 #endif	/* defined(h_addr) */
 		strncpy(_hostname, host->h_name, sizeof(_hostname));
 		_hostname[sizeof(_hostname)-1] = '\0';
@@ -2417,7 +2417,7 @@ tn(argc, argv)
 		errno = oerrno;
 		perror((char *)0);
 		host->h_addr_list++;
-		memcpy((caddr_t)&sin.sin_addr,
+		memmove((caddr_t)&sin.sin_addr,
 			host->h_addr_list[0], host->h_length);
 		(void) NetClose(net);
 		continue;
@@ -2901,16 +2901,16 @@ sourceroute(arg, cpp, lenp)
 			sin_addr.s_addr = tmp;
 		} else if (host = gethostbyname(cp)) {
 #if	defined(h_addr)
-			memcpy((caddr_t)&sin_addr,
+			memmove((caddr_t)&sin_addr,
 				host->h_addr_list[0], host->h_length);
 #else
-			memcpy((caddr_t)&sin_addr, host->h_addr, host->h_length);
+			memmove((caddr_t)&sin_addr, host->h_addr, host->h_length);
 #endif
 		} else {
 			*cpp = cp;
 			return(0);
 		}
-		memcpy(lsrp, (char *)&sin_addr, 4);
+		memmove(lsrp, (char *)&sin_addr, 4);
 		lsrp += 4;
 		if (cp2)
 			cp = cp2;

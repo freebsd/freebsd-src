@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #define	TELOPTS

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)sys_term.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
 # define PARENT_DOES_UTMP
 #endif
 
+int     utmp_len = MAXHOSTNAMELEN;
 #ifdef	NEWINIT
 #include <initreq.h>
-int	utmp_len = MAXHOSTNAMELEN;	/* sizeof(init_request.host) */
 #else	/* NEWINIT*/
 # ifdef	UTMPX
 # include <utmpx.h>
@@ -58,10 +58,17 @@ struct	utmpx wtmp;
 struct	utmp wtmp;
 # endif /* UTMPX */
 
-int	utmp_len = sizeof(wtmp.ut_host);
 # ifndef PARENT_DOES_UTMP
+#ifdef _PATH_WTMP
+char    wtmpf[] = _PATH_WTMP;
+#else
 char	wtmpf[]	= "/usr/adm/wtmp";
+#endif
+#ifdef _PATH_UTMP
+char    utmpf[] = _PATH_UTMP;
+#else
 char	utmpf[] = "/etc/utmp";
+#endif
 # else /* PARENT_DOES_UTMP */
 char	wtmpf[]	= "/etc/wtmp";
 # endif /* PARENT_DOES_UTMP */
@@ -69,21 +76,16 @@ char	wtmpf[]	= "/etc/wtmp";
 # ifdef CRAY
 #include <tmpdir.h>
 #include <sys/wait.h>
-#  if defined(_SC_CRAY_SECURE_SYS) && !defined(SCM_SECURITY)
-   /*
-    * UNICOS 6.0/6.1 do not have SCM_SECURITY defined, so we can
-    * use it to tell us to turn off all the socket security code,
-    * since that is only used in UNICOS 7.0 and later.
-    */
-#   undef _SC_CRAY_SECURE_SYS
+#  if (UNICOS_LVL == '7.0') || (UNICOS_LVL == '7.1')
+#   define UNICOS7x
 #  endif
 
-#  if defined(_SC_CRAY_SECURE_SYS)
+#  ifdef UNICOS7x
 #include <sys/sysv.h>
 #include <sys/secstat.h>
 extern int secflag;
 extern struct sysv sysv;
-#  endif /* _SC_CRAY_SECURE_SYS */
+#  endif /* UNICOS7x */
 # endif	/* CRAY */
 #endif	/* NEWINIT */
 
@@ -215,7 +217,7 @@ copy_termbuf(cp, len)
 {
 	if (len > sizeof(termbuf))
 		len = sizeof(termbuf);
-	bcopy(cp, (char *)&termbuf, len);
+	memmove((char *)&termbuf, cp, len);
 	termbuf2 = termbuf;
 }
 #endif	/* defined(LINEMODE) && defined(TIOCPKT_IOCTL) */
@@ -227,17 +229,19 @@ set_termbuf()
 	 * Only make the necessary changes.
 	 */
 #ifndef	USE_TERMIO
-	if (bcmp((char *)&termbuf.sg, (char *)&termbuf2.sg, sizeof(termbuf.sg)))
+	if (memcmp((char *)&termbuf.sg, (char *)&termbuf2.sg,
+							sizeof(termbuf.sg)))
 		(void) ioctl(pty, TIOCSETN, (char *)&termbuf.sg);
-	if (bcmp((char *)&termbuf.tc, (char *)&termbuf2.tc, sizeof(termbuf.tc)))
+	if (memcmp((char *)&termbuf.tc, (char *)&termbuf2.tc,
+							sizeof(termbuf.tc)))
 		(void) ioctl(pty, TIOCSETC, (char *)&termbuf.tc);
-	if (bcmp((char *)&termbuf.ltc, (char *)&termbuf2.ltc,
+	if (memcmp((char *)&termbuf.ltc, (char *)&termbuf2.ltc,
 							sizeof(termbuf.ltc)))
 		(void) ioctl(pty, TIOCSLTC, (char *)&termbuf.ltc);
 	if (termbuf.lflags != termbuf2.lflags)
 		(void) ioctl(pty, TIOCLSET, (char *)&termbuf.lflags);
 #else	/* USE_TERMIO */
-	if (bcmp((char *)&termbuf, (char *)&termbuf2, sizeof(termbuf)))
+	if (memcmp((char *)&termbuf, (char *)&termbuf2, sizeof(termbuf)))
 # ifdef  STREAMSPTY
 		(void) tcsetattr(ttyfd, TCSANOW, &termbuf);
 # else
@@ -507,7 +511,7 @@ int *ptynum;
 	p2 = &line[14];
 #endif
 
-	for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
+	for (cp = "pqrsPQRS"; *cp; cp++) {
 		struct stat stb;
 
 		*p1 = *cp;
@@ -519,8 +523,8 @@ int *ptynum;
 		 */
 		if (stat(line, &stb) < 0)
 			break;
-		for (i = 0; i < 16; i++) {
-			*p2 = "0123456789abcdef"[i];
+		for (i = 0; i < 32; i++) {
+			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
 			p = open(line, 2);
 			if (p > 0) {
 #ifndef	__hpux
@@ -943,6 +947,15 @@ tty_iscrnl()
 }
 
 /*
+ * Try to guess whether speeds are "encoded" (4.2BSD) or just numeric (4.4BSD).
+ */
+#if B4800 != 4800
+#define	DECODE_BAUD
+#endif
+
+#ifdef	DECODE_BAUD
+
+/*
  * A table of available terminal speeds
  */
 struct termspeeds {
@@ -953,30 +966,68 @@ struct termspeeds {
 	{ 110,   B110 },  { 134,   B134 },  { 150,   B150 },
 	{ 200,   B200 },  { 300,   B300 },  { 600,   B600 },
 	{ 1200,  B1200 }, { 1800,  B1800 }, { 2400,  B2400 },
-	{ 4800,  B4800 }, { 9600,  B9600 }, { 19200, B9600 },
-	{ 38400, B9600 }, { -1,    B9600 }
+	{ 4800,   B4800 },
+#ifdef	B7200
+	{ 7200,  B7200 },
+#endif
+	{ 9600,   B9600 },
+#ifdef	B14400
+	{ 14400,  B14400 },
+#endif
+#ifdef	B19200
+	{ 19200,  B19200 },
+#endif
+#ifdef	B28800
+	{ 28800,  B28800 },
+#endif
+#ifdef	B38400
+	{ 38400,  B38400 },
+#endif
+#ifdef	B57600
+	{ 57600,  B57600 },
+#endif
+#ifdef	B115200
+	{ 115200, B115200 },
+#endif
+#ifdef	B230400
+	{ 230400, B230400 },
+#endif
+	{ -1,     0 }
 };
+#endif	/* DECODE_BUAD */
 
 	void
 tty_tspeed(val)
 	int val;
 {
+#ifdef	DECODE_BAUD
 	register struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
+	if (tp->speed == -1)	/* back up to last valid value */
+		--tp;
 	cfsetospeed(&termbuf, tp->value);
+#else	/* DECODE_BUAD */
+	cfsetospeed(&termbuf, val);
+#endif	/* DECODE_BUAD */
 }
 
 	void
 tty_rspeed(val)
 	int val;
 {
+#ifdef	DECODE_BAUD
 	register struct termspeeds *tp;
 
 	for (tp = termspeeds; (tp->speed != -1) && (val > tp->speed); tp++)
 		;
+	if (tp->speed == -1)	/* back up to last valid value */
+		--tp;
 	cfsetispeed(&termbuf, tp->value);
+#else	/* DECODE_BAUD */
+	cfsetispeed(&termbuf, val);
+#endif	/* DECODE_BAUD */
 }
 
 #if	defined(CRAY2) && defined(UNICOS5)
@@ -1025,6 +1076,7 @@ extern void utmp_sig_notify P((int));
 getptyslave()
 {
 	register int t = -1;
+	char erase;
 
 #if	!defined(CRAY) || !defined(NEWINIT)
 # ifdef	LINEMODE
@@ -1041,12 +1093,13 @@ getptyslave()
 	 * 	if linemode was turned on
 	 *	terminal window size
 	 *	terminal speed
+	 *	erase character
 	 * so that we can re-set them if we need to.
 	 */
 # ifdef	LINEMODE
 	waslm = tty_linemode();
 # endif
-
+	erase = termbuf.c_cc[VERASE];
 
 	/*
 	 * Make sure that we don't have a controlling tty, and
@@ -1092,7 +1145,7 @@ getptyslave()
 	init_termbuf();
 # ifdef	TIOCGWINSZ
 	if (def_row || def_col) {
-		bzero((char *)&ws, sizeof(ws));
+		memset((char *)&ws, 0, sizeof(ws));
 		ws.ws_col = def_col;
 		ws.ws_row = def_row;
 		(void)ioctl(t, TIOCSWINSZ, (char *)&ws);
@@ -1132,6 +1185,8 @@ getptyslave()
 # endif /* defined(USE_TERMIO) && !defined(CRAY) && (BSD <= 43) */
 	tty_rspeed((def_rspeed > 0) ? def_rspeed : 9600);
 	tty_tspeed((def_tspeed > 0) ? def_tspeed : 9600);
+	if (erase)
+		termbuf.c_cc[VERASE] = erase;
 # ifdef	LINEMODE
 	if (waslm)
 		tty_setlinemode(1);
@@ -1172,9 +1227,9 @@ cleanopen(line)
 	char *line;
 {
 	register int t;
-#if	defined(_SC_CRAY_SECURE_SYS)
+#ifdef	UNICOS7x
 	struct secstat secbuf;
-#endif	/* _SC_CRAY_SECURE_SYS */
+#endif	/* UNICOS7x */
 
 #ifndef STREAMSPTY
 	/*
@@ -1188,7 +1243,7 @@ cleanopen(line)
 # if !defined(CRAY) && (BSD > 43)
 	(void) revoke(line);
 # endif
-#if	defined(_SC_CRAY_SECURE_SYS)
+#ifdef	UNICOS7x
 	if (secflag) {
 		if (secstat(line, &secbuf) < 0)
 			return(-1);
@@ -1197,18 +1252,18 @@ cleanopen(line)
 		if (setucmp(secbuf.st_compart) < 0)
 			return(-1);
 	}
-#endif	/* _SC_CRAY_SECURE_SYS */
+#endif	/* UNICOS7x */
 
 	t = open(line, O_RDWR|O_NOCTTY);
 
-#if	defined(_SC_CRAY_SECURE_SYS)
+#ifdef	UNICOS7x
 	if (secflag) {
 		if (setulvl(sysv.sy_minlvl) < 0)
 			return(-1);
 		if (setucmp(0) < 0)
 			return(-1);
 	}
-#endif	/* _SC_CRAY_SECURE_SYS */
+#endif	/* UNICOS7x */
 
 	if (t < 0)
 		return(-1);
@@ -1231,9 +1286,8 @@ cleanopen(line)
 		(void) signal(SIGHUP, SIG_IGN);
 		(void) ioctl(t, TCVHUP, (char *)0);
 		(void) signal(SIGHUP, SIG_DFL);
-		setpgrp();
 
-#if		defined(_SC_CRAY_SECURE_SYS)
+#ifdef	UNICOS7x
 		if (secflag) {
 			if (secstat(line, &secbuf) < 0)
 				return(-1);
@@ -1242,18 +1296,18 @@ cleanopen(line)
 			if (setucmp(secbuf.st_compart) < 0)
 				return(-1);
 		}
-#endif		/* _SC_CRAY_SECURE_SYS */
+#endif	/* UNICOS7x */
 
 		i = open(line, O_RDWR);
 
-#if		defined(_SC_CRAY_SECURE_SYS)
+#ifdef	UNICOS7x
 		if (secflag) {
 			if (setulvl(sysv.sy_minlvl) < 0)
 				return(-1);
 			if (setucmp(0) < 0)
 				return(-1);
 		}
-#endif		/* _SC_CRAY_SECURE_SYS */
+#endif	/* UNICOS7x */
 
 		if (i < 0)
 			return(-1);
@@ -1302,7 +1356,11 @@ login_tty(t)
 	 * setsid() call above may have set our pgrp, so clear
 	 * it out before opening the tty...
 	 */
+#  ifndef SOLARIS
 	(void) setpgrp(0, 0);
+#  else
+	(void) setpgrp();
+#  endif
 	close(open(line, O_RDWR));
 # endif
 	if (t != 0)
@@ -1497,7 +1555,7 @@ start_login(host, autologin, name)
 {
 	register char *cp;
 	register char **argv;
-	char **addarg();
+	char **addarg(), *user;
 	extern char *getenv();
 #ifdef	UTMPX
 	register int pid = getpid();
@@ -1513,7 +1571,7 @@ start_login(host, autologin, name)
 	 * Create utmp entry for child
 	 */
 
-	bzero(&utmpx, sizeof(utmpx));
+	memset(&utmpx, 0, sizeof(utmpx));
 	SCPYN(utmpx.ut_user, ".telnet");
 	SCPYN(utmpx.ut_line, line + sizeof("/dev/") - 1);
 	utmpx.ut_pid = pid;
@@ -1523,8 +1581,8 @@ start_login(host, autologin, name)
 	utmpx.ut_id[3] = SC_WILDC;
 	utmpx.ut_type = LOGIN_PROCESS;
 	(void) time(&utmpx.ut_tv.tv_sec);
-	if (makeutx(&utmpx) == NULL)
-		fatal(net, "makeutx failed");
+	if (pututxline(&utmpx) == NULL)
+		fatal(net, "pututxline failed");
 #endif
 
 	/*
@@ -1567,6 +1625,19 @@ start_login(host, autologin, name)
 #endif
 #if	!defined(NO_LOGIN_P)
 	argv = addarg(argv, "-p");
+#endif
+#ifdef	LINEMODE
+	/*
+	 * Set the environment variable "LINEMODE" to either
+	 * "real" or "kludge" if we are operating in either
+	 * real or kludge linemode.
+	 */
+	if (lmodetype == REAL_LINEMODE)
+		setenv("LINEMODE", "real", 1);
+# ifdef KLUDGELINEMODE
+	else if (lmodetype == KLUDGE_LINEMODE || lmodetype == KLUDGE_OK)
+		setenv("LINEMODE", "kludge", 1);
+# endif
 #endif
 #ifdef	BFTPDAEMON
 	/*
@@ -1667,7 +1738,12 @@ start_login(host, autologin, name)
 # endif
 	} else
 #endif
-	if (getenv("USER")) {
+	if (user = getenv("USER")) {
+	if (strchr(user, '-')) {
+			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
+			       user);
+			fatal(net, "invalid user");
+		}
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
@@ -1688,6 +1764,16 @@ start_login(host, autologin, name)
 		 */
 		unsetenv("USER");
 	}
+#ifdef	SOLARIS
+	else {
+		char **p;
+
+		argv = addarg(argv, "");	/* no login name */
+		for (p = environ; *p; p++) {
+			argv = addarg(argv, *p);
+		}
+	}
+#endif	/* SOLARIS */
 #if	defined(AUTHENTICATION) && defined(NO_LOGIN_F) && defined(LOGIN_R)
 	if (pty > 2)
 		close(pty);
@@ -1722,7 +1808,7 @@ addarg(argv, val)
 	if (cpp == &argv[(int)argv[-1]]) {
 		--argv;
 		*argv = (char *)((int)(*argv) + 10);
-		argv = (char **)realloc(argv, (int)(*argv) + 2);
+		argv = (char **)realloc(argv, sizeof(*argv)*((int)(*argv) + 2));
 		if (argv == NULL)
 			return(NULL);
 		argv++;
@@ -1775,6 +1861,8 @@ cleanup(sig)
 #  ifdef CRAY
 	static int incleanup = 0;
 	register int t;
+	int child_status; /* status of child process as returned by waitpid */
+	int flags = WNOHANG|WUNTRACED;
 
 	/*
 	 * 1: Pick up the zombie, if we are being called
@@ -1785,9 +1873,17 @@ cleanup(sig)
 	 * 5: Close down the network and pty connections.
 	 * 6: Finish up the TMPDIR cleanup, if needed.
 	 */
-	if (sig == SIGCHLD)
-		while (waitpid(-1, 0, WNOHANG) > 0)
+	if (sig == SIGCHLD) {
+		while (waitpid(-1, &child_status, flags) > 0)
 			;	/* VOID */
+		/* Check if the child process was stopped
+		 * rather than exited.  We want cleanup only if
+		 * the child has died.
+		 */
+		if (WIFSTOPPED(child_status)) {
+			return;
+		}
+	}
 	t = sigblock(sigmask(SIGCHLD));
 	if (incleanup) {
 		sigsetmask(t);
@@ -1795,6 +1891,7 @@ cleanup(sig)
 	}
 	incleanup = 1;
 	sigsetmask(t);
+#ifdef	UNICOS7x
 	if (secflag) {
 		/*
 		 *	We need to set ourselves back to a null
@@ -1804,6 +1901,7 @@ cleanup(sig)
 		setulvl(sysv.sy_minlvl);
 		setucmp((long)0);
 	}
+#endif	/* UNICOS7x */
 
 	t = cleantmp(&wtmp);
 	setutent();	/* just to make sure */
@@ -1904,6 +2002,28 @@ sigjob(sig)
 }
 
 /*
+ *	jid_getutid:
+ *		called by jobend() before calling cleantmp()
+ *		to find the correct $TMPDIR to cleanup.
+ */
+
+	struct utmp *
+jid_getutid(jid)
+	int jid;
+{
+	struct utmp *cur = NULL;
+
+	setutent();	/* just to make sure */
+	while (cur = getutent()) {
+		if ( (cur->ut_type != NULL) && (jid == cur->ut_jid) ) {
+			return(cur);
+		}
+	}
+
+	return(0);
+}
+
+/*
  * Clean up the TMPDIR that login created.
  * The first time this is called we pick up the info
  * from the utmp.  If the job has already gone away,
@@ -1959,8 +2079,26 @@ jobend(jid, path, user)
 	register char *user;
 {
 	static int saved_jid = 0;
+	static int pty_saved_jid = 0;
 	static char saved_path[sizeof(wtmp.ut_tpath)+1];
 	static char saved_user[sizeof(wtmp.ut_user)+1];
+
+	/*
+	 * this little piece of code comes into play
+	 * only when ptyreconnect is used to reconnect
+	 * to an previous session.
+	 *
+	 * this is the only time when the
+	 * "saved_jid != jid" code is executed.
+	 */
+
+	if ( saved_jid && saved_jid != jid ) {
+		if (!path) {	/* called from signal handler */
+			pty_saved_jid = jid;
+		} else {
+			pty_saved_jid = saved_jid;
+		}
+	}
 
 	if (path) {
 		strncpy(saved_path, path, sizeof(wtmp.ut_tpath));
@@ -1972,6 +2110,24 @@ jobend(jid, path, user)
 		saved_jid = jid;
 		return(0);
 	}
+
+	/* if the jid has changed, get the correct entry from the utmp file */
+
+	if ( saved_jid != jid ) {
+		struct utmp *utp = NULL;
+		struct utmp *jid_getutid();
+
+		utp = jid_getutid(pty_saved_jid);
+
+		if (utp == 0) {
+			syslog(LOG_ERR, "Can't get /etc/utmp entry to clean TMPDIR");
+			return(-1);
+		}
+
+		cleantmpdir(jid, utp->ut_tpath, utp->ut_user);
+		return(1);
+	}
+
 	cleantmpdir(jid, saved_path, saved_user);
 	return(1);
 }

@@ -1,11 +1,38 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
-#	$Id: Makefile,v 1.2 1994/08/05 02:02:36 wollman Exp $
+#	$Id: Makefile,v 1.10 1995/09/14 21:29:05 gibbs Exp $
 
 LIB=	telnet
-SRCS=	auth.c encrypt.c genget.c getent.c misc.c
-SRCS+=	kerberos.c enc_des.c
-#SRCS+=	kerberos5.c
+SRCS=   auth.c encrypt.c genget.c getent.c misc.c
+SRCS+=  enc_des.c
+SRCS+=	spx.c rsaencpwd.c read_password.c
 CFLAGS+= -DHAS_CGETENT
+
+#ifdef	ENCRYPTION
+
+CFLAGS+= -DENCRYPTION -DAUTHENTICATION
+
+.ifdef  MAKE_EBONES
+.if exists(/usr/lib/libkrb.a)
+CFLAGS+= -DKRB4 -I/usr/include/kerberosIV -DDES_ENCRYPTION
+# KRB4_ENCPWD not yet defined
+#CFLAGS+= -DKRB4_ENCPWD
+SRCS+=  kerberos.c
+# KRB4_ENCPWD not yet defined
+#SRCS+=   krb4encpwd.c
+LDADD+= -ldes -lkrb
+.endif
+.endif
+
+.if exists(/usr/lib/libkrb5.a)
+CFLAGS+= -DKRB5 -DFORWARD -DDES_ENCRYPTION
+SRCS+=	kerberos5.c forward.c
+LDADD+= -ldes -lkrb5
+.endif
+
+# Used only in krb4encpwd.c and rsaencpwd.c, not yet active
+#LDADD+= -ldescrypt
+
+#endif	/* ENCRYPTION */
 
 # These are the sources that have encryption stuff in them.
 CRYPT_SRC= auth.c enc-proto.h enc_des.c encrypt.c

@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -451,7 +451,7 @@ main(argc, argv)
 		int szi = sizeof(int);
 #endif /* SO_SEC_MULTI */
 
-		bzero((char *)&dv, sizeof(dv));
+		memset((char *)&dv, 0, sizeof(dv));
 
 		if (getsysv(&sysv, sizeof(struct sysv)) != 0) {
 			perror("getsysv");
@@ -637,34 +637,40 @@ getterminaltype(name)
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_TSPEED, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_XDISPLOC)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_XDISPLOC, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_NEW_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_NEW_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     else if (his_state_is_will(TELOPT_OLD_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_OLD_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_TTYPE)) {
 
-	bcopy(ttytype_sbbuf, nfrontp, sizeof ttytype_sbbuf);
+	memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
 	nfrontp += sizeof ttytype_sbbuf;
+	DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     }
     if (his_state_is_will(TELOPT_TSPEED)) {
 	while (sequenceIs(tspeedsubopt, baseline))
@@ -737,8 +743,10 @@ _gettermname()
     if (his_state_is_wont(TELOPT_TTYPE))
 	return;
     settimer(baseline);
-    bcopy(ttytype_sbbuf, nfrontp, sizeof ttytype_sbbuf);
+    memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
     nfrontp += sizeof ttytype_sbbuf;
+    DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     while (sequenceIs(ttypesubopt, baseline))
 	ttloop();
 }
@@ -772,12 +780,10 @@ char *hostname;
 char host_name[MAXHOSTNAMELEN];
 char remote_host_name[MAXHOSTNAMELEN];
 
-#ifndef	convex
-extern void telnet P((int, int));
-#else
 extern void telnet P((int, int, char *));
-#endif
 
+int level;
+char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
@@ -787,9 +793,7 @@ doit(who)
 	char *host, *inet_ntoa();
 	int t;
 	struct hostent *hp;
-	int level;
 	int ptynum;
-	char user_name[256];
 
 	/*
 	 * Find an available pty to use.
@@ -838,7 +842,8 @@ doit(who)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
          Please contact your net administrator");
 	} else if (hp &&
-	    (strlen(hp->h_name) <= ((utmp_len < 0) ? -utmp_len : utmp_len))) {
+	    (strlen(hp->h_name) <= (unsigned int)((utmp_len < 0) ? -utmp_len
+								 : utmp_len))) {
 		host = hp->h_name;
 	} else {
 		host = inet_ntoa(who->sin_addr);
@@ -866,12 +871,6 @@ doit(who)
 	level = getterminaltype(user_name);
 	setenv("TERM", terminaltype ? terminaltype : "network", 1);
 
-	/*
-	 * Start up the login process on the slave side of the terminal
-	 */
-#ifndef	convex
-	startslave(host, level, user_name);
-
 #if	defined(_SC_CRAY_SECURE_SYS)
 	if (secflag) {
 		if (setulvl(dv.dv_actlvl) < 0)
@@ -881,10 +880,8 @@ doit(who)
 	}
 #endif	/* _SC_CRAY_SECURE_SYS */
 
-	telnet(net, pty);  /* begin server processing */
-#else
-	telnet(net, pty, host);
-#endif
+	telnet(net, pty, host);		/* begin server process */
+
 	/*NOTREACHED*/
 }  /* end of doit */
 
@@ -908,15 +905,9 @@ Xterm_output(ibufp, obuf, icountp, ocount)
  * hand data to telnet receiver finite state machine.
  */
 	void
-#ifndef	convex
-telnet(f, p)
-#else
 telnet(f, p, host)
-#endif
 	int f, p;
-#ifdef convex
 	char *host;
-#endif
 {
 	int on = 1;
 #define	TABBUFSIZ	512
@@ -927,6 +918,7 @@ telnet(f, p, host)
 	char *HN;
 	char *IM;
 	void netflush();
+	int nfd;
 
 	/*
 	 * Initialize the slc mapping table.
@@ -1152,10 +1144,14 @@ telnet(f, p, host)
 		{sprintf(nfrontp, "td: Entering processing loop\r\n");
 		 nfrontp += strlen(nfrontp);});
 
-#ifdef	convex
-	startslave(host);
-#endif
+	/*
+	 * Startup the login process on the slave side of the terminal
+	 * now.  We delay this until here to insure option negotiation
+	 * is complete.
+	 */
+	startslave(host, level, user_name);
 
+	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {
 		fd_set ibits, obits, xbits;
 		register int c;
@@ -1187,7 +1183,7 @@ telnet(f, p, host)
 		if (!SYNCHing) {
 			FD_SET(f, &xbits);
 		}
-		if ((c = select(16, &ibits, &obits, &xbits,
+		if ((c = select(nfd, &ibits, &obits, &xbits,
 						(struct timeval *)0)) < 1) {
 			if (c == -1) {
 				if (errno == EINTR) {
@@ -1326,6 +1322,9 @@ telnet(f, p, host)
 					*nfrontp++ = IAC;
 					*nfrontp++ = DM;
 					neturg = nfrontp-1; /* off by one XXX */
+					DIAG(TD_OPTIONS,
+					    printoption("td: send IAC", DM));
+
 #endif
 				}
 				if (his_state_is_will(TELOPT_LFLOW) &&
@@ -1342,6 +1341,9 @@ telnet(f, p, host)
 								 : LFLOW_OFF,
 							IAC, SE);
 						nfrontp += 6;
+						DIAG(TD_OPTIONS, printsub('>',
+						    (unsigned char *)nfrontp-4,
+						    4););
 					}
 				}
 				pcc--;
@@ -1507,6 +1509,14 @@ interrupt()
 {
 	ptyflush();	/* half-hearted */
 
+#if defined(STREAMSPTY) && defined(TIOCSIGNAL)
+	/* Streams PTY style ioctl to post a signal */
+	{
+		int sig = SIGINT;
+		(void) ioctl(pty, TIOCSIGNAL, &sig);
+		(void) ioctl(pty, I_FLUSH, FLUSHR);
+	}
+#else
 #ifdef	TCSIG
 	(void) ioctl(pty, TCSIG, (char *)SIGINT);
 #else	/* TCSIG */
@@ -1514,6 +1524,7 @@ interrupt()
 	*pfrontp++ = slctab[SLC_IP].sptr ?
 			(unsigned char)*slctab[SLC_IP].sptr : '\177';
 #endif	/* TCSIG */
+#endif
 }
 
 /*
