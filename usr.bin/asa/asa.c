@@ -43,29 +43,50 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 static void asa(FILE *);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
 {
+	int ch, exval;
 	FILE *fp;
+	const char *fn;
 
-	/* skip progname */
-	argv++;
+	while ((ch = getopt(argc, argv, "")) != -1) {
+		switch (ch) {
+		case '?':
+		default:
+			usage();
+			/*NOTREACHED*/
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-        fp = stdin;
-        do {
-                if (*argv != NULL) {
-                        if ((fp = fopen(*argv, "r")) == NULL) {
-				warn("%s", *argv);
+	exval = 0;
+	if (argc == 0)
+		asa(stdin);
+	else {
+		while ((fn = *argv++) != NULL) {
+                        if ((fp = fopen(fn, "r")) == NULL) {
+				warn("%s", fn);
+				exval = 1;
 				continue;
                         }
-                }
-                asa(fp);
-                if (fp != stdin)
-                        (void)fclose(fp);
-        } while (*argv++ != NULL);
+			asa(fp);
+			fclose(fp);
+		}
+	}
 
-	exit(0);
+	exit(exval);
+}
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: asa [file...]\n");
+	exit(1);
 }
 
 static void
