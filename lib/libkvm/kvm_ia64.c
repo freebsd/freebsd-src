@@ -196,9 +196,9 @@ _kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 		pgaddr += (pgno * sizeof(pte));
 		if (kvm_read(kd, pgaddr, &pte, sizeof(pte)) != sizeof(pte))
 			goto fail;
-		if (!pte.pte_p)
+		if (!(pte.pte & PTE_PRESENT))
 			goto fail;
-		va = ((u_long)pte.pte_ppn << 12) + (va & (pgsz - 1));
+		va = (pte.pte & PTE_PPN_MASK) + (va & (pgsz - 1));
 		return (_kvm_pa2off(kd, va, pa, pgsz));
 	}
 
