@@ -69,7 +69,7 @@ enum {
  */
 
 static midi_intr_t seq_intr;
-static seq_callback_t seq_callback;
+static midi_callback_t seq_callback;
 
 /* These are the entries to the sequencer driver. */
 static d_open_t seq_open;
@@ -372,9 +372,10 @@ seq_close(dev_t i_dev, int flags, int mode, struct thread *td)
 int
 seq_read(dev_t i_dev, struct uio *buf, int flag)
 {
-	int unit, ret, len;
+	int unit, ret, len, lenr;
 	sc_p scp;
 	seqdev_info *sd;
+	u_char *uiobuf;
 
 	unit = MIDIUNIT(i_dev);
 
@@ -396,26 +397,33 @@ seq_read(dev_t i_dev, struct uio *buf, int flag)
 		return (EIO);
 	}
 
+	len = buf->uio_resid;
+	lenr = 0;
+
+	uiobuf = (u_char *)malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (uiobuf == NULL)
+		return (ENOMEM);
+
 	mtx_lock(&sd->flagqueue_mtx);
 
 	/* Begin recording. */
 	if ((sd->flags & SEQ_F_READING) == 0)
 		sd->callback(sd, SEQ_CB_START | SEQ_CB_RD);
 
-	len = 0;
-
 	/* Have we got the data to read? */
 	if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
-	else {
-		len = buf->uio_resid;
-		ret = midibuf_uioread(&sd->midi_dbuf_in, buf, len, &sd->flagqueue_mtx);
-		if (ret < 0)
-			ret = -ret;
-		else
-			ret = 0;
-	}
+	else
+		ret = midibuf_seqread(&sd->midi_dbuf_in, uiobuf, len, &lenr,
+				      sd->callback, sd, SEQ_CB_START | SEQ_CB_RD,
+				      &sd->flagqueue_mtx);
+
 	mtx_unlock(&sd->flagqueue_mtx);
+
+	if (ret == 0 && lenr > 0)
+		ret = uiomove(uiobuf, lenr, buf);
+
+	free(uiobuf, M_DEVBUF);
 
 	return (ret);
 }
@@ -965,10 +973,13 @@ seq_intr(void *p, mididev_info *md)
 }
 
 static int
-seq_callback(seqdev_info *sd, int reason)
+seq_callback(void *d, int reason)
 {
 	int unit;
 	sc_p scp;
+	seqdev_info *sd;
+
+	sd = (seqdev_info *)d;
 
 	/*DEB(printf("seq_callback: reason 0x%x.\n", reason));*/
 
@@ -1020,7 +1031,7 @@ seq_callback(seqdev_info *sd, int reason)
 static int
 seq_queue(sc_p scp, u_char *note)
 {
-	int unit, err;
+	int unit, err, lenw;
 	seqdev_info *sd;
 
 	sd = scp->devinfo;
@@ -1030,10 +1041,8 @@ seq_queue(sc_p scp, u_char *note)
 
 	/*DEB(printf("seq%d: queueing.\n", unit));*/
 
-	if ((sd->flags & SEQ_F_INSYNC) != 0) {
+	if ((sd->flags & SEQ_F_INSYNC) != 0)
 		cv_wait(&sd->insync_cv, &sd->flagqueue_mtx);
-		cv_signal(&sd->insync_cv);
-	}
 
 	if (sd->midi_dbuf_out.fl < EV_SZ) {
 		/* We have no space. Start playing if not yet. */
@@ -1042,26 +1051,14 @@ seq_queue(sc_p scp, u_char *note)
 		if ((sd->flags & SEQ_F_NBIO) != 0 && sd->midi_dbuf_out.fl < EV_SZ)
 			/* We would block. */
 			return (EAGAIN);
-		else {
-			while (sd->midi_dbuf_out.fl < EV_SZ) {
-				/* We have no space. Good night. */
-				err = msleep(&sd->midi_dbuf_out.tsleep_out, &sd->flagqueue_mtx, PRIBIO | PCATCH, "seqque", 0);
-				if (err == EINTR || err == ERESTART) {
-					if (err == EINTR)
-						sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
-					return (err);
-				}
-			}
-		}
 	}
 
-	/* We now have enough space to write. */
-	err = midibuf_seqwrite(&sd->midi_dbuf_out, note, EV_SZ, &sd->flagqueue_mtx);
+	/* Write to the queue. */
+	err = midibuf_seqwrite(&sd->midi_dbuf_out, note, EV_SZ, &lenw,
+			       sd->callback, sd, SEQ_CB_START | SEQ_CB_WR,
+			       &sd->flagqueue_mtx);
 
-	if (err < 0)
-		err = -err;
-	else {
-		err = 0;
+	if (err == 0) {
 		/* Start playing if we have some data in the queue. */
 		if (sd->midi_dbuf_out.rl >= EV_SZ && ((sd->flags & SEQ_F_WRITING) == 0))
 			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
@@ -1073,7 +1070,7 @@ seq_queue(sc_p scp, u_char *note)
 static void
 seq_startplay(sc_p scp)
 {
-	int unit;
+	int unit, lenr;
 	u_char event[EV_SZ];
 	seqdev_info *sd;
 
@@ -1082,19 +1079,28 @@ seq_startplay(sc_p scp)
 
 	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
 
+	sd->flags |= SEQ_F_WRITING;
+
 	/* Dequeue the events to play. */
 	while (sd->midi_dbuf_out.rl >= EV_SZ) {
 
-		midibuf_seqread(&sd->midi_dbuf_out, event, EV_SZ, &sd->flagqueue_mtx);
+		midibuf_seqcopy(&sd->midi_dbuf_out, event, EV_SZ, &lenr,
+				NULL, NULL, 0,
+				&sd->flagqueue_mtx);
 
 		switch (seq_playevent(scp, event)) {
 		case TIMERARMED:
+			midibuf_seqdelete(&sd->midi_dbuf_out, EV_SZ, &lenr,
+					  NULL, NULL, 0,
+					  &sd->flagqueue_mtx);
 			return;
 		case QUEUEFULL:
 			/* We cannot play any further. */
-			midibuf_sequnread(&sd->midi_dbuf_out, event, EV_SZ, &sd->flagqueue_mtx);
 			return;
 		case MORE:
+			midibuf_seqdelete(&sd->midi_dbuf_out, EV_SZ, &lenr,
+					  NULL, NULL, 0,
+					  &sd->flagqueue_mtx);
 			break;
 		}
 	}
@@ -1106,7 +1112,7 @@ seq_startplay(sc_p scp)
 static int
 seq_playevent(sc_p scp, u_char *event)
 {
-	int unit, ret;
+	int unit, ret, lenw;
 	long *delay;
 	seqdev_info *sd;
 	mididev_info *md;
@@ -1182,14 +1188,12 @@ seq_playevent(sc_p scp, u_char *event)
 			break;
 		}
 		mtx_unlock(&sd->flagqueue_mtx);
-		if (md->synth.writeraw(md, &event[1], sizeof(event[1]), 1) == EAGAIN) {
-			mtx_lock(&sd->flagqueue_mtx);
+		if (md->synth.writeraw(md, &event[1], sizeof(event[1]), &lenw, 1) == EAGAIN)
 			/* The queue was full. Try again later. */
 			ret = QUEUEFULL;
-			break;
-		}
+		else
+			ret = MORE;
 		mtx_lock(&sd->flagqueue_mtx);
-		ret = MORE;
 		break;
 	case SEQ_ECHO:
 		/* Echo this event back. */
@@ -1325,7 +1329,7 @@ seq_stoptimer(sc_p scp)
 static void
 seq_midiinput(sc_p scp, mididev_info *md)
 {
-	int unit, midiunit;
+	int unit, midiunit, lenr;
 	u_long tstamp;
 	u_char event[4];
 	seqdev_info *sd;
@@ -1342,7 +1346,7 @@ seq_midiinput(sc_p scp, mididev_info *md)
 
 	if ((md->flags & MIDI_F_READING) != 0 && md->intrarg == sd) {
 		/* Read the input data. */
-		while (md->synth.readraw(md, &event[1], sizeof(event[1]), 1) == 0) {
+		while (md->synth.readraw(md, &event[1], sizeof(event[1]), &lenr, 1) == 0) {
 			tstamp = seq_gettime() - scp->seq_time;
 			if (tstamp != scp->prev_input_time) {
 				/* Insert a wait between events. */
@@ -1361,16 +1365,16 @@ seq_midiinput(sc_p scp, mididev_info *md)
 static int
 seq_copytoinput(sc_p scp, u_char *event, int len)
 {
+	int ret, leni;
 	seqdev_info *sd;
 
 	sd = scp->devinfo;
 
 	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
 
-	if (midibuf_input_intr(&sd->midi_dbuf_in, event, len) == -EAGAIN)
-		return (EAGAIN);
+	ret = midibuf_input_intr(&sd->midi_dbuf_in, event, len, &leni);
 
-	return (0);
+	return (ret);
 }
 
 static int
@@ -1482,7 +1486,7 @@ seq_chnvoice(sc_p scp, u_char *event)
 #if notyet
 			if (voice == -1 && scp->seq_mode == SEQ_2 && md->synth.allocvoice)
 				/* This is an internal synthesizer. (FM, GUS, etc) */
-				if ((voice = seq_allocvoice(scp, md, chn, note)) == -EAGAIN)
+				if ((voice = seq_allocvoice(scp, md, chn, note)) == EAGAIN)
 					return (QUEUEFULL);
 #endif /* notyet */
 			if (voice == -1)
@@ -1572,9 +1576,9 @@ seq_allocvoice(sc_p scp, mididev_info *md, int chn, int note)
 	key = (chn << 8) | (note + 1);
 
 	mtx_unlock(&scp->devinfo->flagqueue_mtx);
-	if ((voice = md->synth.allocvoice(md, chn, note, &md->synth.alloc)) == -EAGAIN) {
+	if ((voice = md->synth.allocvoice(md, chn, note, &md->synth.alloc)) == EAGAIN) {
 		mtx_lock(&scp->devinfo->flagqueue_mtx);
-		return (-EAGAIN);
+		return (EAGAIN);
 	}
 	mtx_lock(&scp->devinfo->flagqueue_mtx);
 
@@ -1737,9 +1741,9 @@ seq_timing(sc_p scp, u_char *event)
 #endif /* notyet */
 	switch (event[1]) {
 	case TMR_WAIT_REL:
+		parm += scp->prev_event_time;
+		/* FALLTHRU */
 	case TMR_WAIT_ABS:
-		if (event[1] == TMR_WAIT_REL)
-			parm += scp->prev_event_time;
 		if (parm > 0) {
 			sd->flags |= SEQ_F_WRITING;
 			if (seq_requesttimer(scp, parm))
@@ -1881,7 +1885,7 @@ seq_openmidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *td)
 	TAILQ_INSERT_TAIL(&scp->midi_open, md, md_linkseq);
 
 	if (insync)
-		cv_signal(&scp->devinfo->insync_cv);
+		cv_broadcast(&scp->devinfo->insync_cv);
 
 	return (0);
 }
@@ -1916,7 +1920,7 @@ seq_closemidi(sc_p scp, mididev_info *md, int flags, int mode, struct thread *td
 	TAILQ_REMOVE(&scp->midi_open, md, md_linkseq);
 
 	if (insync)
-		cv_signal(&scp->devinfo->insync_cv);
+		cv_broadcast(&scp->devinfo->insync_cv);
 
 	return (0);
 }
@@ -1932,7 +1936,7 @@ seq_panic(sc_p scp)
 static int
 seq_reset(sc_p scp)
 {
-	int unit, chn;
+	int unit, chn, lenw;
 	seqdev_info *sd;
 	mididev_info *md;
 	u_char c[3];
@@ -1942,10 +1946,8 @@ seq_reset(sc_p scp)
 
 	mtx_assert(&sd->flagqueue_mtx, MA_OWNED);
 
-	if ((sd->flags & SEQ_F_INSYNC) != 0) {
+	if ((sd->flags & SEQ_F_INSYNC) != 0)
 		cv_wait(&sd->insync_cv, &sd->flagqueue_mtx);
-		cv_signal(&sd->insync_cv);
-	}
 
 	/* Stop reading and writing. */
 	sd->callback(sd, SEQ_CB_ABORT | SEQ_CB_RD | SEQ_CB_WR);
@@ -1977,11 +1979,11 @@ seq_reset(sc_p scp)
 				c[0] = 0xb0 | (chn & 0x0f);
 				c[1] = (u_char)0x78; /* All sound off */
 				c[2] = (u_char)0;
-				md->synth.writeraw(md, c, 3, 0);
+				md->synth.writeraw(md, c, 3, &lenw, 0);
 				c[1] = (u_char)0x7b; /* All note off */
-				md->synth.writeraw(md, c, 3, 0);
+				md->synth.writeraw(md, c, 3, &lenw, 0);
 				c[1] = (u_char)0x79; /* Reset all controller */
-				md->synth.writeraw(md, c, 3, 0);
+				md->synth.writeraw(md, c, 3, &lenw, 0);
 			}
 		}
 		seq_sync(scp);
@@ -2012,7 +2014,7 @@ seq_sync(sc_p scp)
 		if ((sd->flags & SEQ_F_WRITING) == 0)
 			sd->callback(sd, SEQ_CB_START | SEQ_CB_WR);
 		rl = sd->midi_dbuf_out.rl;
-		i = msleep(&sd->midi_dbuf_out.tsleep_out, &sd->flagqueue_mtx, PRIBIO | PCATCH, "seqsnc", SEQ_SYNC_TIMEOUT * hz);
+		i = cv_timedwait_sig(&sd->midi_dbuf_out.cv_out, &sd->flagqueue_mtx, SEQ_SYNC_TIMEOUT * hz);
 		if (i == EINTR || i == ERESTART) {
 			if (i == EINTR)
 				sd->callback(sd, SEQ_CB_STOP | SEQ_CB_WR);
@@ -2048,7 +2050,7 @@ seq_sync(sc_p scp)
 
 	mtx_lock(&sd->flagqueue_mtx);
 	sd->flags &= ~SEQ_F_INSYNC;
-	cv_signal(&sd->insync_cv);
+	cv_broadcast(&sd->insync_cv);
 
 	return (0);
 }

@@ -38,17 +38,17 @@
 typedef struct _midi_dbuf {
 	char *buf;
 	int     bufsize ;
-	volatile int rp, fp; /* pointers to the ready and free area */
-	volatile int dl; /* transfer size */
-	volatile int rl, fl; /* length of ready and free areas. */
+	volatile int rp, fp;		/* pointers to the ready and free area */
+	volatile int dl;		/* transfer size */
+	volatile int rl, fl;		/* length of ready and free areas. */
 	int int_count;
-	int chan;       /* dma channel */
-	int unit_size ; /* unit size */
+	int chan;			/* dma channel */
+	int unit_size ;			/* unit size */
 	struct selinfo sel;
-	u_long total;	/* total bytes processed */
-	u_long prev_total; /* copy of the above when GETxPTR called */
-	int tsleep_in, tsleep_out; /* pillows to tsleep on */
-	int blocksize; /* block size */
+	u_long total;			/* total bytes processed */
+	u_long prev_total;		/* copy of the above when GETxPTR called */
+	struct cv cv_in, cv_out;	/* condvars */
+	int blocksize;			/* block size */
 } midi_dbuf ;
 
 /*
@@ -57,11 +57,9 @@ typedef struct _midi_dbuf {
 int midibuf_init(midi_dbuf *dbuf);
 int midibuf_destroy(midi_dbuf *dbuf);
 int midibuf_clear(midi_dbuf *dbuf);
-int midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
-int midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m);
-int midibuf_output_intr(midi_dbuf *dbuf, u_char *data, int len);
-int midibuf_input_intr(midi_dbuf *dbuf, u_char *data, int len);
-int midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
-int midibuf_sequnread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
-int midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m);
-int midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m);
+int midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len, int *lenw, midi_callback_t *cb, void *d, int reason, struct mtx *m);
+int midibuf_output_intr(midi_dbuf *dbuf, u_char *data, int len, int *leno);
+int midibuf_input_intr(midi_dbuf *dbuf, u_char *data, int len, int *leni);
+int midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len, int *lenr, midi_callback_t *cb, void *d, int reason, struct mtx *m);
+int midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len, int *lenc, midi_callback_t *cb, void *d, int reason, struct mtx *m);
+int midibuf_seqdelete(midi_dbuf *dbuf, int len, int *lend, midi_callback_t *cb, void *d, int reason, struct mtx *m);

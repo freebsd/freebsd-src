@@ -320,10 +320,13 @@ uartsio_intr(void *arg)
 }
 
 static int
-uartsio_callback(mididev_info *d, int reason)
+uartsio_callback(void *di, int reason)
 {
 	int unit;
 	sc_p scp;
+	mididev_info *d;
+
+	d = (mididev_info *)di;
 
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
@@ -386,7 +389,7 @@ uartsio_xmit(sc_p scp)
 {
 	mididev_info *devinfo;
 	midi_dbuf *dbuf;
-	int lsr, msr, iir, i, txsize;
+	int lsr, msr, iir, i, txsize, leni, leno;
 	u_char c[TX_FIFO_SIZE];
 
 	devinfo = scp->devinfo;
@@ -406,12 +409,12 @@ uartsio_xmit(sc_p scp)
 				mtx_unlock(&scp->mtx);
 				/* Queue into the passthru buffer and start transmitting if we can. */
 				if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
-					midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c[0], sizeof(c[0]));
+					midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c[0], sizeof(c[0]), &leni);
 					devinfo->flags |= MIDI_F_WRITING;
 				}
 				/* Queue if we are reading. Discard an active sensing. */
 				if ((devinfo->flags & MIDI_F_READING) != 0 && c[0] != 0xfe)
-					midibuf_input_intr(&devinfo->midi_dbuf_in, &c[0], sizeof(c[0]));
+					midibuf_input_intr(&devinfo->midi_dbuf_in, &c[0], sizeof(c[0]), &leni);
 				mtx_lock(&scp->mtx);
 			}
 		}
@@ -440,7 +443,7 @@ uartsio_xmit(sc_p scp)
 					txsize = scp->tx_size;
 					if (dbuf->rl < txsize)
 						txsize = dbuf->rl;
-					midibuf_output_intr(dbuf, c, txsize);
+					midibuf_output_intr(dbuf, c, txsize, &leno);
 					for (i = 0 ; i < txsize ; i++)
 						uartsio_writeport(scp, com_data, c[i]);
 					/* We are playing now. */

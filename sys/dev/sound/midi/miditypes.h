@@ -30,5 +30,5 @@
 
 typedef struct _mididev_info mididev_info;
 
-typedef int (midi_callback_t)(mididev_info *d, int reason);
+typedef int (midi_callback_t)(void *d, int reason);
 typedef void (midi_intr_t)(void *p, mididev_info *md);

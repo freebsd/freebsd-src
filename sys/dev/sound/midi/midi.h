@@ -67,6 +67,7 @@
 #include <sys/mman.h>
 #include <sys/poll.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 
 #include <dev/sound/midi/miditypes.h>
 #include <dev/sound/midi/midibuf.h>
