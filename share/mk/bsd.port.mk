@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.127 1995/03/28 01:14:29 asami Exp $
+# $Id: bsd.port.mk,v 1.128 1995/04/01 09:34:11 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -34,9 +34,9 @@
 # MAINTAINER	- The e-mail address of the contact person for this port
 #				  (default: ports@FreeBSD.ORG).
 # CATEGORIES	- A list of descriptive categories into which this port falls
-#				  (no default - optional).
+#				  (default: orphans).
 # KEYWORDS		- A list of descriptive keywords that might index well for this
-#				  port (no default - optional).
+#				  port (default: orphans).
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
