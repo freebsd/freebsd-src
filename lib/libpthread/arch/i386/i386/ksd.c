@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <ucontext.h>
 
+#include "pthread_md.h"
 #include "ksd.h"
 
 #define LDT_ENTRIES 8192

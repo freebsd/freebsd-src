@@ -54,7 +54,6 @@
 #include <pthread.h>
 #include <pthread_np.h>
 
-#include "ksd.h"
 #include "lock.h"
 #include "pthread_md.h"
 

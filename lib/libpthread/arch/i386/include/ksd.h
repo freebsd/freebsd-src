@@ -34,20 +34,7 @@
 
 #include <sys/types.h>
 
-struct pthread;
-struct __ucontext;
 struct kse;
-
-/*
- * KSE Specific Data.
- */
-struct ksd {
-	int	ldt;
-#define	KSDF_INITIALIZED	0x01
-	long	flags;
-	void	*base;
-	long	size;
-};
 
 /*
  * Evaluates to the byte offset of the per-kse variable name.
