@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tar.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$Id: tar.h,v 1.4 1997/02/22 14:04:46 peter Exp $
  */
 
 /*
@@ -45,13 +45,13 @@
 #define TNMSZ		100		/* size of name field */
 #ifdef _PAX_
 #define NULLCNT		2		/* number of null blocks in trailer */
-#define CHK_OFFSET	148		/* start of chksum field */
+#define CHK_OFFSET	148		/* start of checksum field */
 #define BLNKSUM		256L		/* sum of checksum field using ' ' */
 #endif /* _PAX_ */
 
 /*
  * Values used in typeflag field in all tar formats
- * (only REGTYPE, LNKTYPE and SYMTYPE are used in old bsd tar headers)
+ * (only REGTYPE, LNKTYPE and SYMTYPE are used in old BSD tar headers)
  */
 #define	REGTYPE		'0'		/* Regular File */
 #define	AREGTYPE	'\0'		/* Regular File */

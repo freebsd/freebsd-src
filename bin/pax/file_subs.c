@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)file_subs.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: file_subs.c,v 1.10 1998/05/15 06:27:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -94,7 +94,7 @@ file_creat(arcn)
 	 * detect this, we use O_EXCL. For example when trying to create a
 	 * file and a character device or fifo exists with the same name, we
 	 * can accidently open the device by mistake (or block waiting to open)
-	 * If we find that the open has failed, then figure spend the effore to
+	 * If we find that the open has failed, then figure spend the effort to
 	 * figure out why. This strategy was found to have better average
 	 * performance in common use than checking the file (and the path)
 	 * first with lstat.
@@ -235,7 +235,7 @@ cross_lnk(arcn)
 #endif
 {
 	/*
-	 * try to make a link to orginal file (-l flag in copy mode). make sure
+	 * try to make a link to original file (-l flag in copy mode). make sure
 	 * we do not try to link to directories in case we are running as root
 	 * (and it might succeed).
 	 */

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mkdir.1	8.2 (Berkeley) 1/25/94
-.\"	$Id: mkdir.1,v 1.6 1997/02/22 14:04:08 peter Exp $
+.\"	$Id: mkdir.1,v 1.7 1998/05/15 06:23:43 charnier Exp $
 .\"
 .Dd January 25, 1994
 .Dt MKDIR 1
@@ -80,9 +80,10 @@ permission for the owner.
 .El
 .Pp
 The user must have write permission in the parent directory.
-.Pp
-.Nm Mkdir
-exits 0 if successful, and >0 if an error occurred.
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr rmdir 1
 .Sh STANDARDS

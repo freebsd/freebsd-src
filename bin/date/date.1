@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.27 1999/03/09 09:38:53 brian Exp $
+.\"	$Id: date.1,v 1.26.2.1 1999/05/02 06:28:06 kris Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -278,7 +278,9 @@ a record of the user setting the time
 .%A S. Zatti
 .Re
 .Sh DIAGNOSTICS
-Exit status is 0 on success, 1 if unable to set the date, and 2
+The
+.Nm
+utility exits 0 on success, 1 if unable to set the date, and 2
 if able to set the local date, but unable to set it globally.
 .Pp
 Occasionally, when

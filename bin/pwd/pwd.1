@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pwd.1	8.2 (Berkeley) 4/28/95
-.\"	$Id: pwd.1,v 1.5 1997/02/22 14:05:15 peter Exp $
+.\"	$Id: pwd.1,v 1.6 1998/05/15 06:30:57 charnier Exp $
 .\"
 .Dd April 28, 1995
 .Dt PWD 1
@@ -47,12 +47,14 @@
 .Nm Pwd
 writes the absolute pathname of the current working directory to
 the standard output.
-.Pp
-The pwd utility exits 0 on success, and >0 if an error occurs.
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh STANDARDS
 The
 .Nm
-command is expected to be
+utility is expected to be
 .St -p1003.2
 compatible.
 .Sh SEE ALSO
