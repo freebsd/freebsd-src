@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.62 1998/02/15 21:38:17 eivind Exp $
+#	$Id: Makefile,v 1.63 1998/03/07 10:48:07 eivind Exp $
 #
 
 PROG=	boot
@@ -97,6 +97,10 @@ install:
 		ln -s boot1 $${i}boot ; \
 		ln -s boot2 boot$${i} ; ) \
 	done
+
+install-boothelp:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+		${.CURDIR}/boot.help ${DESTDIR}/
 
 .include <bsd.kern.mk>
 .include <bsd.prog.mk>
