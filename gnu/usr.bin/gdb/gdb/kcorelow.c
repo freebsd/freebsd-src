@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: kcorelow.c,v 1.1 1994/12/30 23:32:56 jkh Exp $
+	$Id: kcorelow.c,v 1.1.1.1 1995/04/23 18:35:48 garyj Exp $
 */
 
 #include "defs.h"
@@ -181,7 +181,7 @@ kcore_open (filename, from_tty)
               error ("kgdb could not open the exec-file, please check the name you used !");
 
 	core_kd = kvm_open (exec_bfd->filename, filename, NULL,
-                          write_files? O_RDWR: O_RDONLY, "kgdb: ");
+                          kernel_writablecore? O_RDWR: O_RDONLY, "kgdb: ");
 	if (core_kd < 0)
 		perror_with_name (filename);
 
