@@ -348,9 +348,8 @@ reread_mbr:
 		 (cp[7] != '1')) &&
 		((strncmp(dname, "sd", 2) == 0) || (strncmp(dname, "wd", 2) == 0))) {
 		/* IBM-PC HDD */
-		bp->b_flags = B_INVAL | B_AGE;
+		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
-		free(ssp, M_DEVBUF);
 		return atcompat_dsinit(dname, dev, strat, lp, sspp);
 	}
 #endif
