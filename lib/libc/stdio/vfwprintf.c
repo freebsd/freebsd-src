@@ -328,7 +328,6 @@ __mbsconv(char *mbsarg, int prec)
 	wchar_t *convbuf, *wcp;
 	const char *p;
 	size_t insize, nchars, nconv;
-	mbstate_t mbs;
 
 	if (mbsarg == NULL)
 		return (NULL);
@@ -342,11 +341,10 @@ __mbsconv(char *mbsarg, int prec)
 		 * String is not guaranteed to be NUL-terminated. Find the
 		 * number of characters to print.
 		 */
-		memset(&mbs, 0, sizeof(mbs));
 		p = mbsarg;
 		insize = nchars = 0;
 		while (nchars != (size_t)prec) {
-			nconv = mbrlen(p, MB_CUR_MAX, &mbs);
+			nconv = mbrlen(p, MB_CUR_MAX, NULL);
 			if (nconv == 0 || nconv == (size_t)-1 ||
 			    nconv == (size_t)-2)
 				break;
@@ -369,9 +367,8 @@ __mbsconv(char *mbsarg, int prec)
 		return (NULL);
 	wcp = convbuf;
 	p = mbsarg;
-	memset(&mbs, 0, sizeof(mbs));
 	while (insize != 0) {
-		nconv = mbrtowc(wcp, p, insize, &mbs);
+		nconv = mbrtowc(wcp, p, insize, NULL);
 		if (nconv == 0 || nconv == (size_t)-1 || nconv == (size_t)-2)
 			break;
 		wcp++;

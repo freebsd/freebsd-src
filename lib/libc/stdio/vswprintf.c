@@ -45,7 +45,6 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 {
 	FILE f;
 	struct __sFILEX ext;
-	mbstate_t mbs;
 	char *mbp;
 	int ret, sverrno;
 
@@ -73,12 +72,11 @@ vswprintf(wchar_t * __restrict s, size_t n, const wchar_t * __restrict fmt,
 	}
 	*f._p = '\0';
 	mbp = f._bf._base;
-	memset(&mbs, 0, sizeof(mbs));
 	/*
 	 * XXX Undo the conversion from wide characters to multibyte that
 	 * fputwc() did in __vfwprintf().
 	 */
-	if (mbsrtowcs(s, (const char **)&mbp, n, &mbs) == (size_t)-1) {
+	if (mbsrtowcs(s, (const char **)&mbp, n, NULL) == (size_t)-1) {
 		free(f._bf._base);
 		errno = EILSEQ;
 		return (-1);
