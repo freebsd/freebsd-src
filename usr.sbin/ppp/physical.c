@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.16 1999/06/02 00:46:54 brian Exp $
+ *  $Id: physical.c,v 1.17 1999/06/05 21:35:51 brian Exp $
  *
  */
 
@@ -898,7 +898,7 @@ physical_Found(struct physical *p)
 int
 physical_Open(struct physical *p, struct bundle *bundle)
 {
-  int devno, h, wasopen;
+  int devno, h, wasopen, err;
   char *dev;
 
   if (p->fd >= 0)
@@ -922,8 +922,13 @@ physical_Open(struct physical *p, struct bundle *bundle)
     while (devno < p->cfg.ndev && p->fd < 0) {
       physical_SetDevice(p, dev);
       if (physical_Lock(p)) {
-        if (*p->name.full == '/')
+        err = 0;
+
+        if (*p->name.full == '/') {
           p->fd = ID0open(p->name.full, O_RDWR | O_NONBLOCK);
+          if (p->fd < 0)
+            err = errno;
+        }
 
         wasopen = p->fd >= 0;
         for (h = 0; h < NDEVICES && p->handler == NULL; h++)
@@ -932,10 +937,15 @@ physical_Open(struct physical *p, struct bundle *bundle)
             break;
 
         if (p->fd < 0) {
-          if (h == NDEVICES)
-	    log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
-                       " a '!' or be a host:port pair\n", p->link.name,
-                       p->name.full);
+          if (h == NDEVICES) {
+            if (err)
+	      log_Printf(LogWARN, "%s: %s: %s\n", p->link.name, p->name.full,
+                         strerror(errno));
+            else
+	      log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
+                         " a '!' or be a host:port pair\n", p->link.name,
+                         p->name.full);
+          }
           physical_Unlock(p);
         } else
           physical_Found(p);
