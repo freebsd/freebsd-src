@@ -2227,6 +2227,10 @@ pmap_remove_pages(pmap, sva, eva)
 
 		pv->pv_pmap->pm_stats.resident_count--;
 
+		if ((tpte & PG_FOW) == 0)
+			if (pmap_track_modified(pv->pv_va))
+				vm_page_dirty(m);
+
 		npv = TAILQ_NEXT(pv, pv_plist);
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 
