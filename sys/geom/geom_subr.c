@@ -92,10 +92,10 @@ g_load_class(void *arg, int flag)
 		    ("A GEOM class named %s is already loaded", mp2->name));
 	}
 
-	if (mp->init != NULL)
-		mp->init(mp);
 	LIST_INIT(&mp->geom);
 	LIST_INSERT_HEAD(&g_classes, mp, class);
+	if (mp->init != NULL)
+		mp->init(mp);
 	if (mp->taste == NULL)
 		return;
 	LIST_FOREACH(mp2, &g_classes, class) {
@@ -154,9 +154,9 @@ g_unload_class(void *arg, int flag)
 			break;
 	}
 	if (error == 0) {
-		LIST_REMOVE(mp, class);
 		if (mp->fini != NULL)
 			mp->fini(mp);
+		LIST_REMOVE(mp, class);
 	}
 	hh->error = error;
 	return;
@@ -206,6 +206,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	struct sbuf *sb;
 
 	g_topology_assert();
+	KASSERT(g_valid_obj(mp), ("g_new_geom_f() on alien class %p", mp));
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
@@ -803,6 +804,7 @@ g_valid_obj(void const *ptr)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
+	g_topology_assert();
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (ptr == mp)
 			return (1);
