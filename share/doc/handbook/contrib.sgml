@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.245 1997/05/17 22:08:16 tegge Exp $ -->
+<!-- $Id: contrib.sgml,v 1.246 1997/05/19 15:54:37 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -352,7 +352,6 @@ groups of people:
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
 	  <item>Pedro A M Vazquez &lt;vazquez@IQM.Unicamp.BR&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
-	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
 	  <item>Ralf S. Engelschall &lt;rse@engelschall.com&gt;
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
