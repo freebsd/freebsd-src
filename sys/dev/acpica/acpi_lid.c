@@ -72,7 +72,7 @@ static driver_t acpi_lid_driver = {
     sizeof(struct acpi_lid_softc),
 };
 
-devclass_t acpi_lid_devclass;
+static devclass_t acpi_lid_devclass;
 DRIVER_MODULE(acpi_lid, acpi, acpi_lid_driver, acpi_lid_devclass, 0, 0);
 
 static int

@@ -122,7 +122,7 @@ static driver_t acpi_tz_driver = {
     sizeof(struct acpi_tz_softc),
 };
 
-devclass_t acpi_tz_devclass;
+static devclass_t acpi_tz_devclass;
 DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
 
 static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;

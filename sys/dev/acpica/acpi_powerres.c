@@ -112,8 +112,8 @@ struct acpi_powerresource {
     ACPI_INTEGER	ap_order;
 };
 
-TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)	acpi_powerresources;
-TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)	acpi_powerconsumers;
+static TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)	acpi_powerresources;
+static TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)	acpi_powerconsumers;
 
 static ACPI_STATUS		acpi_pwr_register_consumer(ACPI_HANDLE consumer);
 static ACPI_STATUS		acpi_pwr_deregister_consumer(ACPI_HANDLE consumer);
