@@ -283,22 +283,27 @@ grscan(search, gid, name)
 
 #ifdef YP
 
-static void
+static int
 _gr_breakout_yp(struct group *gr, char *result)
 {
 	char *s, *cp;
 	char **m;
 
-	s = strsep(&result, ":"); /* name */
+	/*
+	 * XXX If 's' ends up being a NULL pointer, punt on this group.
+	 * It means the NIS group entry is badly formatted and should
+	 * be skipped.
+	 */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* name */
 	gr->gr_name = s;
 
-	s = strsep(&result, ":"); /* password */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* password */
 	gr->gr_passwd = s;
 
-	s = strsep(&result, ":"); /* gid */
+	if ((s = strsep(&result, ":")) == NULL) return 0; /* gid */
 	gr->gr_gid = atoi(s);
 
-	s = result;
+	if ((s = result) == NULL) return 0;
 	cp = 0;
 
 	for (m = _gr_group.gr_mem = members; /**/; s++) {
@@ -322,6 +327,8 @@ _gr_breakout_yp(struct group *gr, char *result)
 		}
 	}
 	*m = NULL;
+
+	return 1;
 }
 
 static char *_gr_yp_domain;
@@ -348,9 +355,8 @@ _getypgroup(struct group *gr, const char *name, char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	result = resultbuf;
-	_gr_breakout_yp(gr, resultbuf);
+	return(_gr_breakout_yp(gr, resultbuf));
 
-	return 1;
 }
 
 
@@ -398,9 +404,8 @@ unpack:
 		strcpy(resultbuf, result);
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		_gr_breakout_yp(gr, resultbuf);
+		return(_gr_breakout_yp(gr, resultbuf));
 	}
-	return 1;
 }
 
 #endif /* YP */
