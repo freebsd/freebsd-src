@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.11 1998/10/04 09:12:54 msmith Exp $
+ *	$Id: main.c,v 1.12 1998/10/21 20:10:33 msmith Exp $
  */
 
 /*
@@ -107,10 +107,6 @@ main(void)
     printf("\n");
     printf("%s, Revision %s  %d/%dkB\n", bootprog_name, bootprog_rev, getbasemem(), getextmem());
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-#if 0
-    printf("recovered args howto = 0x%x bootdev = 0x%x bootinfo = %p\n",
-	   initial_howto, initial_bootdev, initial_bootinfo);
-#endif
 
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
