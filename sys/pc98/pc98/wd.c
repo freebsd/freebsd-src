@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.20 1997/03/13 17:00:27 kato Exp $
+ *	$Id: wd.c,v 1.21 1997/03/24 12:29:48 bde Exp $
  */
 
 /* TODO:
@@ -1537,12 +1537,55 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 
 	wdc = du->dk_port;
 	if (du->cfg_flags & WDOPT_SLEEPHACK) {
+		/* OK, so the APM bios has put the disk into SLEEP mode,
+		 * how can we tell ?  Uhm, we can't.  There is no 
+		 * standardized way of finding out, and the only way to
+		 * wake it up is to reset it.  Bummer.
+		 *
+		 * All the many and varied versions of the IDE/ATA standard
+		 * explicitly tells us not to look at these registers if
+		 * the disk is in SLEEP mode.  Well, too bad really, we
+		 * have to find out if it's in sleep mode before we can 
+		 * avoid reading the registers.
+		 *
+		 * I have reason to belive that most disks will return
+		 * either 0xff or 0x00 in all but the status register 
+		 * when in SLEEP mode, but I have yet to see one return 
+		 * 0x00, so we don't check for that yet.
+		 *
+		 * The check for WDCS_BUSY is for the case where the
+		 * bios spins up the disk for us, but doesn't initialize
+		 * it correctly					/phk
+		 */
 		if (old_epson_note) {
-			if(epson_inb(wdc + wd_status) == WDCS_BUSY)
-			wdunwedge(du);
+			if(epson_inb(wdc + wd_precomp) + epson_inb(wdc + wd_cyl_lo) +
+			   epson_inb(wdc + wd_cyl_hi) + epson_inb(wdc + wd_sdh) +
+			   epson_inb(wdc + wd_sector) +
+			   epson_inb(wdc + wd_seccnt) == 6 * 0xff) {
+				if (bootverbose)
+					printf("wd(%d,%d): disk aSLEEP\n",
+						   du->dk_ctrlr, du->dk_unit);
+				wdunwedge(du);
+			} else if(epson_inb(wdc + wd_status) == WDCS_BUSY) {
+				if (bootverbose)
+					printf("wd(%d,%d): disk is BUSY\n",
+						   du->dk_ctrlr, du->dk_unit);
+				wdunwedge(du);
+			}
 		} else {
-			if(inb(wdc + wd_status) == WDCS_BUSY)
-			wdunwedge(du);
+			if(inb(wdc + wd_precomp) + inb(wdc + wd_cyl_lo) +
+			   inb(wdc + wd_cyl_hi) + inb(wdc + wd_sdh) +
+			   inb(wdc + wd_sector) + inb(wdc + wd_seccnt) == 6 * 0xff) {
+				if (bootverbose)
+					printf("wd(%d,%d): disk aSLEEP\n",
+						   du->dk_ctrlr, du->dk_unit);
+				wdunwedge(du);
+			} else if(inb(wdc + wd_status) == WDCS_BUSY) {
+				if (bootverbose)
+					printf("wd(%d,%d): disk is BUSY\n",
+						   du->dk_ctrlr, du->dk_unit);
+				wdunwedge(du);
+			}
 		}
 	}
 
