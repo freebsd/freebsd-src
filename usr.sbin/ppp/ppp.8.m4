@@ -178,7 +178,7 @@ wire.
 will always keep the device open and will ignore any configured
 chat scripts unless the
 .Dq force-scripts
-option has been enabled. 
+option has been enabled.
 .It Fl ddial
 This mode is equivalent to
 .Fl auto
@@ -2947,9 +2947,9 @@ invocation with the udp link.
 .It force-scripts
 Default: Disabled.
 Forces execution of the configured chat scripts in
-.Dv direct 
+.Dv direct
 and
-.Dv dedicated 
+.Dv dedicated
 modes.
 .It idcheck
 Default: Enabled.
