@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.18 1997/05/11 00:44:37 ache Exp $
+ * $Id: lcp.c,v 1.19 1997/05/19 02:00:04 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -128,7 +128,7 @@ int new;
   case PHASE_DEAD:
     if (mode & MODE_DIRECT)
       Cleanup(EX_DEAD);
-    if (mode & MODE_BACKGROUND && !reconnectRequired)
+    if (mode & MODE_BACKGROUND && reconnectState != RECON_TRUE)
       Cleanup(EX_DEAD);
     break;
   }

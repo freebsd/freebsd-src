@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.13 1997/05/10 03:39:57 brian Exp $
+ * $Id: vars.h,v 1.14 1997/05/19 02:00:16 brian Exp $
  *
  *	TODO:
  */
@@ -117,9 +117,42 @@ extern struct pppvars pppVars;
 
 int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
+
+#define RECON_TRUE (1)
+#define RECON_FALSE (2)
+#define RECON_UNKNOWN (3)
+#define RECON_ENVOKED (3)
+#define reconnect(x)                          \
+  do                                          \
+    if (reconnectState == RECON_UNKNOWN) { \
+      reconnectState = x;                  \
+      if (x == RECON_FALSE)                   \
+        reconnectCount = 0;                   \
+    }                                         \
+  while(0)
+
+int reconnectState, reconnectCount;
 /*
- * One of these should be set (reconnectRequired=1 or reconnectCount=0)
- * every time LcpClose is called
+ * This is the logic behind the reconnect variables:
+ * We have four reconnect "states".  We start off not requiring anything
+ * from the reconnect code (reconnectState == RECON_UNKNOWN).  If the
+ * line is brought down (via LcpClose() or LcpDown()), we have to decide
+ * whether to set to RECON_TRUE or RECON_FALSE.  It's only here that we
+ * know the correct action.  Once we've decided, we don't want that
+ * decision to be overridden (hence the above reconnect() macro) - If we
+ * call LcpClose, the ModemTimeout() still gets to "notice" that the line
+ * is down.  When it "notice"s, it should only set RECON_TRUE if a decision
+ * hasn't already been made.
+ *
+ * In main.c, when we notice we have RECON_TRUE, we must only action
+ * it once.  The fourth "state" is where we're bringing the line up,
+ * but if we call LcpClose for any reason (failed PAP/CHAP etc) we
+ * don't want to set to RECON_{TRUE,FALSE}.
+ *
+ * If we get a connection or give up dialing, we go back to RECON_UNKNOWN.
+ * If we get give up dialing or reconnecting or if we chose to down the
+ * connection, we set reconnectCount back to zero.
+ *
  */
-int reconnectRequired, reconnectCount;
+
 #endif
