@@ -36,7 +36,7 @@ options 	MD_ROOT			#MD is a potential root device
 options 	MD_ROOT_SIZE=64
 
 # Debugging for use in -current
-options 	DDB
+options 	DDB			#Enable the kernel debugger
 
 # Pseudo devices - the number indicates how many units to allocate.
 device		md
