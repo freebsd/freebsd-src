@@ -55,8 +55,10 @@
 #      define t_out t_outq
 #      define RB_LEN(q) ((q).c_cc)
 #      define RB_GETC(q) getc(&q)
+#ifndef TSA_CARR_ON /* FreeBSD 2.x before not long after 2.0.5 */
 #      define TSA_CARR_ON(tp) tp
 #      define TSA_OLOWAT(q) ((caddr_t)&(q)->t_out)
+#endif
 #endif
 
 #include <machine/cronyx.h>

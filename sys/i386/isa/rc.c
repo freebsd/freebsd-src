@@ -825,7 +825,7 @@ again:
 	if (!(tp->t_state & TS_CARR_ON) && !CALLOUT(dev)
 	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
 		rc->rc_dcdwaits++;
-		error = tsleep(&tp->t_rawq, TTIPRI | PCATCH, "rcdcd", 0);
+		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "rcdcd", 0);
 		rc->rc_dcdwaits--;
 		if (error != 0)
 			goto out;
@@ -895,7 +895,7 @@ register struct rc_chans *rc;
 	}
 	rc->rc_flags &= ~RC_ACTOUT;
 	wakeup((caddr_t) &rc->rc_rcb);  /* wake bi */
-	wakeup((caddr_t) &tp->t_rawq);  /* wake dcd */
+	wakeup(TSA_CARR_ON(tp));
 	(void) splx(s);
 }
 
