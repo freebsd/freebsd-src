@@ -98,6 +98,7 @@ struct pthread_rwlock;
 struct pthread_rwlockattr;
 struct pthread_barrier;
 struct pthread_barrier_attr;
+struct pthread_spinlock;
 
 /*
  * Primitive system data type definitions required by P1003.1c.
@@ -118,6 +119,7 @@ typedef struct	pthread_rwlock		*pthread_rwlock_t;
 typedef struct	pthread_rwlockattr	*pthread_rwlockattr_t;
 typedef struct	pthread_barrier		*pthread_barrier_t;
 typedef struct	pthread_barrierattr	*pthread_barrierattr_t;
+typedef struct	pthread_spinlock	*pthread_spinlock_t;
 
 /*
  * Additional type definitions:
@@ -275,6 +277,11 @@ pthread_t	pthread_self(void);
 int		pthread_setspecific(pthread_key_t, const void *);
 int		pthread_sigmask(int, const sigset_t *, sigset_t *);
 
+int		pthread_spin_init(pthread_spinlock_t *, int);
+int		pthread_spin_destroy(pthread_spinlock_t *);
+int		pthread_spin_lock(pthread_spinlock_t *);
+int		pthread_spin_trylock(pthread_spinlock_t *);
+int		pthread_spin_unlock(pthread_spinlock_t *);
 int		pthread_cancel(pthread_t);
 int		pthread_setcancelstate(int, int *);
 int		pthread_setcanceltype(int, int *);
