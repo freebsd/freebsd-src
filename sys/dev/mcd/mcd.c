@@ -64,7 +64,7 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <dev/mcd/mcdreg.h>
 #include <dev/mcd/mcdvar.h>
 
-#define	MCD_TRACE(format, args...)						\
+#define	MCD_TRACE(format, args...)					\
 {									\
 	if (sc->debug) {						\
 		device_printf(sc->dev, "status=0x%02x: ",		\
@@ -446,11 +446,9 @@ MCD_TRACE("ioctl called 0x%lx\n", cmd);
 	case DIOCGMEDIASIZE:
 		*(off_t *)addr = (off_t)sc->data.disksize * sc->data.blksize;
 		return (0);
-		break;
 	case DIOCGSECTORSIZE:
 		*(u_int *)addr = sc->data.blksize;
 		return (0);
-		break;
 
 	case CDIOCPLAYTRACKS:
 		return mcd_playtracks(sc, (struct ioc_play_track *) addr);
@@ -542,11 +540,9 @@ twiddle_thumbs(struct mcd_softc *sc, int count, char *whine)
 int
 mcd_probe(struct mcd_softc *sc)
 {
-	int unit;
 	int i, j;
 	unsigned char stbytes[3];
 
-	unit = device_get_unit(sc->dev);
 	sc->data.flags = MCDPROBING;
 
 #ifdef NOTDEF
