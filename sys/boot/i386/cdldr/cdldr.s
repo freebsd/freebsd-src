@@ -257,4 +257,5 @@ bootinfo_msg:	.asciz	"Building the boot loader arguments\r\n"
 relocate_msg:	.asciz	"Relocating the loader and the BTX\r\n"
 jump_message:	.asciz	"Starting the BTX loader\r\n"
 
+		.p2align 4
 end:
