@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.7 1995/04/14 21:26:49 joerg Exp $
+ *	$Id: boot.h,v 1.8 1995/04/21 16:07:12 bde Exp $
  */
 
 #include <sys/types.h>
@@ -62,8 +62,6 @@ int memsize(int extended);
 
 /* boot.c */
 void boot(int drive);
-void loadprog(int howto);
-void getbootdev(int *howto);
 
 /* boot2.S */
 void boot2(void);
