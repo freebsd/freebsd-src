@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.6 1994/09/14 03:10:09 wollman Exp $
+ * $Id: ip_input.c,v 1.7 1994/10/02 17:48:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1019,7 +1019,7 @@ ip_forward(m, srcrt)
 	dest = 0;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf("forward: src %x dst %x ttl %x\n", 
+		printf("forward: src %lx dst %lx ttl %x\n", 
 			ip->ip_src.s_addr, ip->ip_dst.s_addr, ip->ip_ttl);
 #endif
 	if (m->m_flags & M_BCAST || in_canforward(ip->ip_dst) == 0) {
