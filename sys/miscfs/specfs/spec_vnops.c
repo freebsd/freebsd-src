@@ -756,7 +756,6 @@ spec_getpages(ap)
 	}
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
-#ifndef MAX_PERF
 		printf(
 	    "spec_getpages:(%s) I/O read failure: (error=%d) bp %p vp %p\n",
 			devtoname(bp->b_dev), error, bp, bp->b_vp);
@@ -766,7 +765,6 @@ spec_getpages(ap)
 		printf(
 	    "               nread: %d, reqpage: %d, pindex: %lu, pcount: %d\n",
 		    nread, ap->a_reqpage, (u_long)m->pindex, pcount);
-#endif
 		/*
 		 * Free the buffer header back to the swap buffer pool.
 		 */

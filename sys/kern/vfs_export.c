@@ -1110,7 +1110,6 @@ pbrelvp(bp)
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 
-#if !defined(MAX_PERF)
 	/* XXX REMOVE ME */
 	if (bp->b_vnbufs.tqe_next != NULL) {
 		panic(
@@ -1119,7 +1118,6 @@ pbrelvp(bp)
 		    (int)bp->b_flags
 		);
 	}
-#endif
 	bp->b_vp = (struct vnode *) 0;
 	bp->b_flags &= ~B_PAGING;
 }
@@ -1129,14 +1127,12 @@ pbreassignbuf(bp, newvp)
 	struct buf *bp;
 	struct vnode *newvp;
 {
-#if !defined(MAX_PERF)
 	if ((bp->b_flags & B_PAGING) == 0) {
 		panic(
 		    "pbreassignbuf() on non phys bp %p", 
 		    bp
 		);
 	}
-#endif
 	bp->b_vp = newvp;
 }
 
@@ -1160,14 +1156,12 @@ reassignbuf(bp, newvp)
 	}
 	++reassignbufcalls;
 
-#if !defined(MAX_PERF)
 	/*
 	 * B_PAGING flagged buffers cannot be reassigned because their vp
 	 * is not fully linked in.
 	 */
 	if (bp->b_flags & B_PAGING)
 		panic("cannot reassign paging buffer");
-#endif
 
 	s = splbio();
 	/*
