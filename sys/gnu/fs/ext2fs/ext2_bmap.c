@@ -171,7 +171,7 @@ ext2_bmaparray(vp, bn, bnp, runp, runb)
 		 */
 
 		metalbn = ap->in_lbn;
-		if ((daddr == 0 && !incore(vp, metalbn)) || metalbn == bn)
+		if ((daddr == 0 && !incore(&vp->v_bufobj, metalbn)) || metalbn == bn)
 			break;
 		/*
 		 * If we get here, we've either got the block in the cache

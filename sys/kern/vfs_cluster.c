@@ -149,7 +149,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 				 * Stop if the buffer does not exist or it
 				 * is invalid (about to go away?)
 				 */
-				rbp = gbincore(vp, lblkno+i);
+				rbp = gbincore(&vp->v_bufobj, lblkno+i);
 				if (rbp == NULL || (rbp->b_flags & B_INVAL))
 					break;
 
@@ -770,7 +770,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 * partake in the clustered write.
 		 */
 		VI_LOCK(vp);
-		if ((tbp = gbincore(vp, start_lbn)) == NULL ||
+		if ((tbp = gbincore(&vp->v_bufobj, start_lbn)) == NULL ||
 		    (tbp->b_vflags & BV_BKGRDINPROG)) {
 			VI_UNLOCK(vp);
 			++start_lbn;
@@ -825,6 +825,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_bcount = 0;
 		bp->b_magic = tbp->b_magic;
 		bp->b_op = tbp->b_op;
+		bp->b_bufobj = tbp->b_bufobj;
 		bp->b_bufsize = 0;
 		bp->b_npages = 0;
 		if (tbp->b_wcred != NOCRED)
@@ -859,7 +860,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * can't need to be written.
 				 */
 				VI_LOCK(vp);
-				if ((tbp = gbincore(vp, start_lbn)) == NULL ||
+				if ((tbp = gbincore(&vp->v_bufobj, start_lbn)) == NULL ||
 				    (tbp->b_vflags & BV_BKGRDINPROG)) {
 					VI_UNLOCK(vp);
 					splx(s);
@@ -965,7 +966,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp);		/* put on clean list */
-			bufobj_wref(&tbp->b_vp->v_bufobj);
+			bufobj_wref(tbp->b_bufobj);
 			splx(s);
 			BUF_KERNPROC(tbp);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,

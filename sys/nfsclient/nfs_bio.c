@@ -455,7 +455,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		    for (nra = 0; nra < nmp->nm_readahead && nra < seqcount &&
 			(off_t)(lbn + 1 + nra) * biosize < np->n_size; nra++) {
 			rabn = lbn + 1 + nra;
-			if (incore(vp, rabn) == NULL) {
+			if (incore(&vp->v_bufobj, rabn) == NULL) {
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, td);
 			    if (!rabp) {
 				error = nfs_sigintr(nmp, NULL, td);
@@ -651,7 +651,7 @@ again:
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
-		    incore(vp, lbn + 1) == NULL) {
+		    incore(&vp->v_bufobj, lbn + 1) == NULL) {
 			rabp = nfs_getcacheblk(vp, lbn + 1, NFS_DIRBLKSIZ, td);
 			if (rabp) {
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {

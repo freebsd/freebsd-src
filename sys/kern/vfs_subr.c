@@ -1247,19 +1247,18 @@ buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
 	return (root);
 }
 
-static
-void
+static void
 buf_vlist_remove(struct buf *bp)
 {
-	struct vnode *vp = bp->b_vp;
 	struct buf *root;
 	struct bufv *bv;
 
-	ASSERT_VI_LOCKED(vp, "buf_vlist_remove");
+	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
+	ASSERT_BO_LOCKED(bp->b_bufobj);
 	if (bp->b_xflags & BX_VNDIRTY) 
-		bv = &vp->v_bufobj.bo_dirty;
+		bv = &bp->b_bufobj->bo_dirty;
 	else
-		bv = &vp->v_bufobj.bo_clean;
+		bv = &bp->b_bufobj->bo_clean;
 	if (bp != bv->bv_root) {
 		root = buf_splay(bp->b_lblkno, bp->b_xflags, bv->bv_root);
 		KASSERT(root == bp, ("splay lookup failed in remove"));
@@ -1282,60 +1281,39 @@ buf_vlist_remove(struct buf *bp)
  *
  * NOTE: xflags is passed as a constant, optimizing this inline function!
  */
-static
-void
-buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
+static void
+buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 {
 	struct buf *root;
+	struct bufv *bv;
 
-	ASSERT_VI_LOCKED(vp, "buf_vlist_add");
+	ASSERT_BO_LOCKED(bo);
 	bp->b_xflags |= xflags;
-	if (xflags & BX_VNDIRTY) {
-		root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_dirtyblkroot);
-		if (root == NULL) {
-			bp->b_left = NULL;
-			bp->b_right = NULL;
-			TAILQ_INSERT_TAIL(&vp->v_dirtyblkhd, bp, b_bobufs);
-		} else if (bp->b_lblkno < root->b_lblkno ||
-		    (bp->b_lblkno == root->b_lblkno &&
-		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
-			bp->b_left = root->b_left;
-			bp->b_right = root;
-			root->b_left = NULL;
-			TAILQ_INSERT_BEFORE(root, bp, b_bobufs);
-		} else {
-			bp->b_right = root->b_right;
-			bp->b_left = root;
-			root->b_right = NULL;
-			TAILQ_INSERT_AFTER(&vp->v_dirtyblkhd,
-			    root, bp, b_bobufs);
-		}
-		vp->v_dirtybufcnt++;
-		vp->v_dirtyblkroot = bp;
+	if (xflags & BX_VNDIRTY)
+		bv = &bo->bo_dirty;
+	else
+		bv = &bo->bo_clean;
+
+	root = buf_splay(bp->b_lblkno, bp->b_xflags, bv->bv_root);
+	if (root == NULL) {
+		bp->b_left = NULL;
+		bp->b_right = NULL;
+		TAILQ_INSERT_TAIL(&bv->bv_hd, bp, b_bobufs);
+	} else if (bp->b_lblkno < root->b_lblkno ||
+	    (bp->b_lblkno == root->b_lblkno &&
+	    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+		bp->b_left = root->b_left;
+		bp->b_right = root;
+		root->b_left = NULL;
+		TAILQ_INSERT_BEFORE(root, bp, b_bobufs);
 	} else {
-		/* KASSERT(xflags & BX_VNCLEAN, ("xflags not clean")); */
-		root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_cleanblkroot);
-		if (root == NULL) {
-			bp->b_left = NULL;
-			bp->b_right = NULL;
-			TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_bobufs);
-		} else if (bp->b_lblkno < root->b_lblkno ||
-		    (bp->b_lblkno == root->b_lblkno &&
-		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
-			bp->b_left = root->b_left;
-			bp->b_right = root;
-			root->b_left = NULL;
-			TAILQ_INSERT_BEFORE(root, bp, b_bobufs);
-		} else {
-			bp->b_right = root->b_right;
-			bp->b_left = root;
-			root->b_right = NULL;
-			TAILQ_INSERT_AFTER(&vp->v_cleanblkhd,
-			    root, bp, b_bobufs);
-		}
-		vp->v_cleanbufcnt++;
-		vp->v_cleanblkroot = bp;
+		bp->b_right = root->b_right;
+		bp->b_left = root;
+		root->b_right = NULL;
+		TAILQ_INSERT_AFTER(&bv->bv_hd, root, bp, b_bobufs);
 	}
+	bv->bv_cnt++;
+	bv->bv_root = bp;
 }
 
 /*
@@ -1351,26 +1329,26 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
  * first tree splayed.
  */
 struct buf *
-gbincore(struct vnode *vp, daddr_t lblkno)
+gbincore(struct bufobj *bo, daddr_t lblkno)
 {
 	struct buf *bp;
 
 	GIANT_REQUIRED;
 
-	ASSERT_VI_LOCKED(vp, "gbincore");
-	if ((bp = vp->v_cleanblkroot) != NULL &&
+	ASSERT_BO_LOCKED(bo);
+	if ((bp = bo->bo_clean.bv_root) != NULL &&
 	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
 		return (bp);
-	if ((bp = vp->v_dirtyblkroot) != NULL &&
+	if ((bp = bo->bo_dirty.bv_root) != NULL &&
 	    bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
 		return (bp);
-	if ((bp = vp->v_cleanblkroot) != NULL) {
-		vp->v_cleanblkroot = bp = buf_splay(lblkno, 0, bp);
+	if ((bp = bo->bo_clean.bv_root) != NULL) {
+		bo->bo_clean.bv_root = bp = buf_splay(lblkno, 0, bp);
 		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
 			return (bp);
 	}
-	if ((bp = vp->v_dirtyblkroot) != NULL) {
-		vp->v_dirtyblkroot = bp = buf_splay(lblkno, 0, bp);
+	if ((bp = bo->bo_dirty.bv_root) != NULL) {
+		bo->bo_dirty.bv_root = bp = buf_splay(lblkno, 0, bp);
 		if (bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
 			return (bp);
 	}
@@ -1381,9 +1359,7 @@ gbincore(struct vnode *vp, daddr_t lblkno)
  * Associate a buffer with a vnode.
  */
 void
-bgetvp(vp, bp)
-	register struct vnode *vp;
-	register struct buf *bp;
+bgetvp(struct vnode *vp, struct buf *bp)
 {
 
 	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
@@ -1394,20 +1370,21 @@ bgetvp(vp, bp)
 	ASSERT_VI_LOCKED(vp, "bgetvp");
 	vholdl(vp);
 	bp->b_vp = vp;
+	bp->b_bufobj = &vp->v_bufobj;
 	bp->b_dev = vn_todev(vp);
 	/*
 	 * Insert onto list for new vnode.
 	 */
-	buf_vlist_add(bp, vp, BX_VNCLEAN);
+	buf_vlist_add(bp, &vp->v_bufobj, BX_VNCLEAN);
 }
 
 /*
  * Disassociate a buffer from a vnode.
  */
 void
-brelvp(bp)
-	register struct buf *bp;
+brelvp(struct buf *bp)
 {
+	struct bufobj *bo;
 	struct vnode *vp;
 
 	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
@@ -1417,6 +1394,7 @@ brelvp(bp)
 	 */
 	vp = bp->b_vp;
 	VI_LOCK(vp);
+	bo = bp->b_bufobj;
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
 		buf_vlist_remove(bp);
 	if ((vp->v_iflag & VI_ONWORKLST) && TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
@@ -1427,7 +1405,8 @@ brelvp(bp)
 		mtx_unlock(&sync_mtx);
 	}
 	vdropl(vp);
-	bp->b_vp = (struct vnode *) 0;
+	bp->b_vp = NULL;
+	bp->b_bufobj = NULL;
 	if (bp->b_object)
 		bp->b_object = NULL;
 	VI_UNLOCK(vp);
@@ -1715,6 +1694,7 @@ pbgetvp(vp, bp)
 	bp->b_object = vp->v_object;
 	bp->b_flags |= B_PAGING;
 	bp->b_dev = vn_todev(vp);
+	bp->b_bufobj = &vp->v_bufobj;
 }
 
 /*
@@ -1726,9 +1706,10 @@ pbrelvp(bp)
 {
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
+	KASSERT(bp->b_bufobj != NULL, ("pbrelvp: NULL bufobj"));
 
 	/* XXX REMOVE ME */
-	VI_LOCK(bp->b_vp);
+	BO_LOCK(bp->b_bufobj);
 	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
 		panic(
 		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
@@ -1736,9 +1717,10 @@ pbrelvp(bp)
 		    (int)bp->b_flags
 		);
 	}
-	VI_UNLOCK(bp->b_vp);
-	bp->b_vp = (struct vnode *) 0;
+	BO_UNLOCK(bp->b_bufobj);
+	bp->b_vp = NULL;
 	bp->b_object = NULL;
+	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }
 
@@ -1751,9 +1733,11 @@ void
 reassignbuf(struct buf *bp)
 {
 	struct vnode *vp;
+	struct bufobj *bo;
 	int delay;
 
 	vp = bp->b_vp;
+	bo = bp->b_bufobj;
 	++reassignbufcalls;
 
 	/*
@@ -1787,12 +1771,11 @@ reassignbuf(struct buf *bp)
 			}
 			vn_syncer_add_to_worklist(vp, delay);
 		}
-		buf_vlist_add(bp, vp, BX_VNDIRTY);
+		buf_vlist_add(bp, bo, BX_VNDIRTY);
 	} else {
-		buf_vlist_add(bp, vp, BX_VNCLEAN);
+		buf_vlist_add(bp, bo, BX_VNCLEAN);
 
-		if ((vp->v_iflag & VI_ONWORKLST) &&
-		    TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if ((vp->v_iflag & VI_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 			mtx_lock(&sync_mtx);
 			LIST_REMOVE(vp, v_synclist);
  			syncer_worklist_len--;
@@ -2151,8 +2134,7 @@ vhold(struct vnode *vp)
 }
 
 void
-vholdl(vp)
-	register struct vnode *vp;
+vholdl(struct vnode *vp)
 {
 
 	vp->v_holdcnt++;
@@ -2414,7 +2396,7 @@ vclean(vp, flags, td)
 	 */
 	if (flags & DOCLOSE) {
 		struct buf *bp;
-		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+		bp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
 		if (bp != NULL)
 			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 		if (vinvalbuf(vp, V_SAVE, NOCRED, td, 0, 0) != 0)
@@ -3129,10 +3111,7 @@ loop:
  * vp must be locked when vfs_object_create is called.
  */
 int
-vfs_object_create(vp, td, cred)
-	struct vnode *vp;
-	struct thread *td;
-	struct ucred *cred;
+vfs_object_create(struct vnode *vp, struct thread *td, struct ucred *cred)
 {
 
 	GIANT_REQUIRED;
@@ -3143,8 +3122,7 @@ vfs_object_create(vp, td, cred)
  * Mark a vnode as free, putting it up for recycling.
  */
 void
-vfree(vp)
-	struct vnode *vp;
+vfree(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, "vfree");
@@ -3165,8 +3143,7 @@ vfree(vp)
  * Opposite of vfree() - mark a vnode as in use.
  */
 void
-vbusy(vp)
-	struct vnode *vp;
+vbusy(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, "vbusy");
