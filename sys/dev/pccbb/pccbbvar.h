@@ -65,8 +65,10 @@ struct pccbb_softc {
 	struct resource *sc_irq_res;
 	void *sc_intrhand;
 	struct pccbb_socketreg *sc_socketreg;
-	u_int32_t sc_flags;
+	u_int8_t sc_secbus;
+	u_int8_t sc_subbus;
 	struct mtx sc_mtx;
+	u_int32_t sc_flags;
 #define PCCBB_PCIC_IO_RELOC	0x01
 #define PCCBB_PCIC_MEM_32	0x02
 #define	PCCBB_CARDATTACHED	0x01000000

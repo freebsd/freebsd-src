@@ -96,8 +96,6 @@ static int cardbus_attach_card(device_t dev);
 static int cardbus_detach_card(device_t dev, int flags);
 static struct cardbus_devinfo *cardbus_read_device(device_t pcib,
 						   int b, int s, int f);
-static void *cardbus_readppb(device_t pcib, int b, int s, int f);
-static void *cardbus_readpcb(device_t pcib, int b, int s, int f);
 static void cardbus_hdrtypedata(device_t pcib, int b, int s, int f,
 				pcicfgregs *cfg);
 static int cardbus_freecfg(struct cardbus_devinfo *dinfo);
@@ -194,7 +192,7 @@ cardbus_attach_card(device_t dev)
 
 	POWER_ENABLE_SOCKET(bdev, dev);
 
-	bus = pci_get_secondarybus(bdev);
+	bus = pcib_get_bus(dev);
 	if (bus == 0) {
 		/*
 		 * XXX EVILE BAD XXX
@@ -389,80 +387,6 @@ cardbus_read_device(device_t pcib, int b, int s, int f)
 #undef REG
 }
 
-/* read config data specific to header type 1 device (PCI to PCI bridge) */
-
-static void *
-cardbus_readppb(device_t pcib, int b, int s, int f)
-{
-	pcih1cfgregs *p;
-
-	p = malloc(sizeof (pcih1cfgregs), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (p == NULL)
-		return (NULL);
-
-	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_1, 2);
-	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_1, 2);
-
-	p->seclat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_1, 1);
-
-	p->iobase = PCI_PPBIOBASE (PCIB_READ_CONFIG(pcib, b, s, f,
-						    PCIR_IOBASEH_1, 2),
-				   PCIB_READ_CONFIG(pcib, b, s, f,
-						    PCIR_IOBASEL_1, 1));
-	p->iolimit = PCI_PPBIOLIMIT (PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_IOLIMITH_1, 2),
-				     PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_IOLIMITL_1, 1));
-
-	p->membase = PCI_PPBMEMBASE (0,
-				     PCIB_READ_CONFIG(pcib, b, s, f,
-						      PCIR_MEMBASE_1, 2));
-	p->memlimit = PCI_PPBMEMLIMIT (0,
-				       PCIB_READ_CONFIG(pcib, b, s, f,
-							PCIR_MEMLIMIT_1, 2));
-
-	p->pmembase = PCI_PPBMEMBASE (
-		(pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEH_1, 4),
-		PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEL_1, 2));
-
-	p->pmemlimit = PCI_PPBMEMLIMIT (
-		(pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f,
-					     PCIR_PMLIMITH_1, 4),
-		PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMLIMITL_1, 2));
-
-	return (p);
-}
-
-/* read config data specific to header type 2 device (PCI to CardBus bridge) */
-
-static void *
-cardbus_readpcb(device_t pcib, int b, int s, int f)
-{
-	pcih2cfgregs *p;
-
-	p = malloc(sizeof (pcih2cfgregs), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (p == NULL)
-		return (NULL);
-
-	p->secstat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_2, 2);
-	p->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_2, 2);
-
-	p->seclat = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_2, 1);
-
-	p->membase0 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMBASE0_2, 4);
-	p->memlimit0 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMLIMIT0_2, 4);
-	p->membase1 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMBASE1_2, 4);
-	p->memlimit1 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMLIMIT1_2, 4);
-
-	p->iobase0 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASE0_2, 4);
-	p->iolimit0 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMIT0_2, 4);
-	p->iobase1 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASE1_2, 4);
-	p->iolimit1 = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMIT1_2, 4);
-
-	p->pccardif = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PCCARDIF_2, 4);
-	return p;
-}
-
 /* extract header type specific config data */
 
 static void
@@ -478,18 +402,12 @@ cardbus_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 	case 1:
 		cfg->subvendor      = REG(PCIR_SUBVEND_1, 2);
 		cfg->subdevice      = REG(PCIR_SUBDEV_1, 2);
-		cfg->secondarybus   = REG(PCIR_SECBUS_1, 1);
-		cfg->subordinatebus = REG(PCIR_SUBBUS_1, 1);
 		cfg->nummaps	    = PCI_MAXMAPS_1;
-		cfg->hdrspec        = cardbus_readppb(pcib, b, s, f);
 		break;
 	case 2:
 		cfg->subvendor      = REG(PCIR_SUBVEND_2, 2);
 		cfg->subdevice      = REG(PCIR_SUBDEV_2, 2);
-		cfg->secondarybus   = REG(PCIR_SECBUS_2, 1);
-		cfg->subordinatebus = REG(PCIR_SUBBUS_2, 1);
 		cfg->nummaps	    = PCI_MAXMAPS_2;
-		cfg->hdrspec        = cardbus_readpcb(pcib, b, s, f);
 		break;
 	}
 #undef REG
@@ -518,8 +436,6 @@ cardbus_print_verbose(struct cardbus_devinfo *dinfo)
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		       cfg->baseclass, cfg->subclass, cfg->progif,
 		       cfg->hdrtype, cfg->mfdev);
-		printf("\tsubordinatebus=%x \tsecondarybus=%x\n",
-		       cfg->subordinatebus, cfg->secondarybus);
 #ifdef CARDBUS_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n",
 		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
@@ -922,12 +838,6 @@ cardbus_read_ivar(device_t dev, device_t child, int which, u_long *result)
 	case PCI_IVAR_FUNCTION:
 		*result = cfg->func;
 		break;
-	case PCI_IVAR_SECONDARYBUS:
-		*result = cfg->secondarybus;
-		break;
-	case PCI_IVAR_SUBORDINATEBUS:
-		*result = cfg->subordinatebus;
-		break;
 	default:
 		return ENOENT;
 	}
@@ -959,12 +869,6 @@ cardbus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case PCI_IVAR_SLOT:
 	case PCI_IVAR_FUNCTION:
 		return EINVAL;	/* disallow for now */
-	case PCI_IVAR_SECONDARYBUS:
-		cfg->secondarybus = value;
-		break;
-	case PCI_IVAR_SUBORDINATEBUS:
-		cfg->subordinatebus = value;
-		break;
 	default:
 		return ENOENT;
 	}
