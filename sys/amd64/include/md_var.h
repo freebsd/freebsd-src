@@ -65,11 +65,12 @@ void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
 void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
-void	pagezero(void *addr);
+void	fpstate_drop(struct thread *td);
 int	is_physical_memory(vm_offset_t addr);
 int	isa_nmi(int cd);
+void	pagecopy(void *from, void *to);
+void	pagezero(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
 int	user_dbreg_trap(void);
-void	fpstate_drop(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
