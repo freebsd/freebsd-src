@@ -2,7 +2,7 @@
 
 PROG	 =	i4brunppp
 SRCS	 =	i4brunppp.c
-MAN8	 =	i4brunppp.8
+MAN	 =	i4brunppp.8
 
 RUNPPPDEST=	/etc/isdn
 
