@@ -27,74 +27,13 @@
  */
 
 #include "acpi.h"
+#include <dev/acpica/madt.h>
 
 #include <machine/md_var.h>
 
 extern u_int64_t ia64_lapic_address;
 
 struct sapic *sapic_create(int, int, u_int64_t);
-
-#pragma pack(1)
-
-#define	APIC_INTERRUPT_SOURCE_OVERRIDE	2
-#define	APIC_NMI			3
-#define	APIC_LOCAL_APIC_NMI		4
-#define	APIC_LOCAL_APIC_OVERRIDE	5
-#define	APIC_IO_SAPIC			6
-#define	APIC_LOCAL_SAPIC		7
-#define	APIC_PLATFORM_INTERRUPT		8
- 
-typedef struct	/* Interrupt Source Override */
-{
-	APIC_HEADER	Header;
-	UINT8		Bus;
-	UINT8		Source;
-	UINT32		GlobalSystemInterrupt;
-	UINT16		Flags;
-} INTERRUPT_SOURCE_OVERRIDE;
-
-typedef struct	/* IO SAPIC */
-{
-	APIC_HEADER	Header;
-	UINT8		IoSapicId;		/* I/O SAPIC ID */
-	UINT8		Reserved;		/* reserved - must be zero */
-	UINT32		Vector;			/* interrupt base */
-	UINT64		IoSapicAddress;		/* SAPIC's physical address */
-} IO_SAPIC;
-
-typedef struct  /* LOCAL SAPIC */
-{
-	APIC_HEADER	Header;
-	UINT8		ProcessorId;		/* ACPI processor id */
-	UINT8		LocalSapicId;		/* Processor local SAPIC id */
-	UINT8		LocalSapicEid;		/* Processor local SAPIC eid */
-	UINT8		Reserved[3];
-	UINT32		ProcessorEnabled: 1;
-	UINT32		FlagsReserved: 31;
-} LOCAL_SAPIC;
-
-typedef struct	/* LOCAL APIC OVERRIDE */
-{
-	APIC_HEADER	Header;
-	UINT16		Reserved;
-	UINT64		LocalApicAddress;
-} LAPIC_OVERRIDE;
-
-typedef struct  /* PLATFORM INTERRUPT SOURCE */
-{
-	APIC_HEADER	Header;
-	UINT16		Polarity   : 2;		/* Polarity of input signal */
-	UINT16		TriggerMode: 2;		/* Trigger mode of input signal */
-	UINT16		Reserved1  : 12;
-	UINT8		InterruptType;		/* 1-PMI, 2-INIT, 3-Error */
-	UINT8		ProcessorId;		/* Processor ID of destination */
-	UINT8		ProcessorEid;		/* Processor EID of destination */
-	UINT8		IoSapicVector;		/* Value for redirection table */
-	UINT32		GlobalSystemInterrupt;	/* Global System Interrupt */
-	UINT32		Reserved2;
-} PLATFORM_INTERRUPT_SOURCE;
-
-#pragma pack()
 
 static void
 print_entry(APIC_HEADER *entry)
