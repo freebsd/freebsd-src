@@ -184,7 +184,9 @@ idle_loop:
 	 * in order to be able to take IPI's while blocked.
 	 */
 3:
+#ifdef GRAB_LOPRIO
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
+#endif
 	sti
 	call	_get_mplock
 	cli

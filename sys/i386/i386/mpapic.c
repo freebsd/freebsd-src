@@ -28,7 +28,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <machine/smptests.h>	/** TEST_TEST1 */
+#include <machine/smptests.h>	/** TEST_TEST1, GRAB_LOPRIO */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
 #include <machine/segments.h>
@@ -68,14 +68,14 @@ apic_initialize(void)
 	temp = lapic.lvt_lint1;
 	temp &= ~(APIC_LVT_M | APIC_LVT_TM | APIC_LVT_IIPP | APIC_LVT_DM);
 	temp |= 0x00010400;		/* masked, edge trigger, active hi */
-
 	lapic.lvt_lint1 = temp;
 
 	/* set the Task Priority Register as needed */
 	temp = lapic.tpr;
 	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
+#ifdef GRAB_LOPRIO
 	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
-
+#endif
 	lapic.tpr = temp;
 
 	/* enable the local APIC */
