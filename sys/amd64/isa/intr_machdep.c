@@ -45,6 +45,8 @@
 
 #include "opt_auto_eoi.h"
 
+#include "isa.h"
+
 #include <sys/param.h>
 #ifndef SMP
 #include <machine/lock.h>
@@ -72,7 +74,9 @@
 #endif
 #include <i386/isa/icu.h>
 
+#if NISA > 0
 #include <isa/isavar.h>
+#endif
 #include <i386/isa/intr_machdep.h>
 #include <sys/interrupt.h>
 #ifdef APIC_IO
@@ -304,6 +308,7 @@ isa_strayintr(vcookiep)
 		    "too many stray irq %d's; not logging any more\n", intr);
 }
 
+#if NISA > 0
 /*
  * Return a bitmap of the current interrupt requests.  This is 8259-specific
  * and is only suitable for use at probe time.
@@ -318,6 +323,7 @@ isa_irq_pending()
 	irr2 = inb(IO_ICU2);
 	return ((irr2 << 8) | irr1);
 }
+#endif
 
 int
 update_intr_masks(void)
