@@ -2,7 +2,7 @@
 
 PROG=	lpc
 CFLAGS+=-I${.CURDIR}/../common_source
-MAN8=	lpc.0
+MAN8=	lpc.8
 SRCS=	lpc.c cmds.c cmdtab.c startdaemon.c common.c
 BINGRP=	daemon
 BINMODE=2555

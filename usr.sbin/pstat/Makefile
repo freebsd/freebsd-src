@@ -6,5 +6,6 @@ BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
+MAN8=	pstat.8
 
 .include <bsd.prog.mk>

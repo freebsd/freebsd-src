@@ -3,6 +3,6 @@
 PROG=	portmap
 DPADD=	${LIBRPC}
 LDADD=	-lrpc
-MAN8=	portmap.0
+MAN8=	portmap.8
 
 .include <bsd.prog.mk>
