@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.5 1997/02/22 13:06:48 peter Exp $
+#	$Id: Makefile,v 1.2.6.3 1997/03/15 23:36:41 jkh Exp $
 
 .if exists(${.CURDIR}/../../../../games)
 VOLUME=	usd/31.trek
@@ -10,18 +10,5 @@ USE_TBL=	yes
 
 .include <bsd.doc.mk>
 .else
-depend:
-
-obj:
-
-all:
-
-install:
-
-distribute:
-
-clean:
-
-cleandir:
-
+all clean cleandepend cleandir depend distribute install obj:
 .endif
