@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.140 2001/10/24 20:20:03 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.141 2001/10/24 21:04:04 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1143,10 +1143,27 @@ uhci_remove_bulk(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 		sc->sc_bulk_end = pqh;
 }
 
+Static int uhci_intr1(uhci_softc_t *);
+
 int
 uhci_intr(void *arg)
 {
 	uhci_softc_t *sc = arg;
+
+	DPRINTFN(15,("uhci_intr: real interrupt\n"));
+	if (sc->sc_bus.use_polling) {
+#ifdef DIAGNOSTIC
+		printf("uhci_intr: ignored interrupt while polling\n");
+#endif
+		return (0);
+	}
+	return (uhci_intr1(sc));
+}
+
+int
+uhci_intr1(uhci_softc_t *sc)
+{
+
 	int status;
 	int ack;
 
@@ -1168,7 +1185,7 @@ uhci_intr(void *arg)
 
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 15) {
-		DPRINTF(("%s: uhci_intr\n", USBDEVNAME(sc->sc_bus.bdev)));
+		DPRINTF(("%s: uhci_intr1\n", USBDEVNAME(sc->sc_bus.bdev)));
 		uhci_dumpregs(sc);
 	}
 #endif
@@ -1476,7 +1493,7 @@ uhci_waitintr(uhci_softc_t *sc, usbd_xfer_handle xfer)
 		usb_delay_ms(&sc->sc_bus, 1);
 		DPRINTFN(20,("uhci_waitintr: 0x%04x\n", UREAD2(sc, UHCI_STS)));
 		if (UREAD2(sc, UHCI_STS) & UHCI_STS_USBINT) {
-			uhci_intr(sc);
+			uhci_intr1(sc);
 			if (xfer->status != USBD_IN_PROGRESS)
 				return;
 		}
@@ -1501,7 +1518,7 @@ uhci_poll(struct usbd_bus *bus)
 	uhci_softc_t *sc = (uhci_softc_t *)bus;
 
 	if (UREAD2(sc, UHCI_STS) & UHCI_STS_USBINT)
-		uhci_intr(sc);
+		uhci_intr1(sc);
 }
 
 #if 0
