@@ -107,8 +107,18 @@ ia64_fbsd_regcache_collect (struct regcache *regcache, int regno,
     return;
 
   ofs = reg_offset[regno];
-  if (ofs >= 0)
-    regcache_raw_collect (regcache, regno, (char*)regs + ofs);
+  if (regno == IA64_BSP_REGNUM)
+    {
+      uint64_t bsp, bspstore;
+      regcache_raw_collect (regcache, regno, &bsp);
+      regcache_raw_collect (regcache, IA64_BSPSTORE_REGNUM, &bspstore);
+      *(uint64_t *)((char *)regs + ofs) = bsp - bspstore;
+    }
+  else
+    {
+      if (ofs >= 0)
+	regcache_raw_collect (regcache, regno, (char*)regs + ofs);
+    }
 }
 
 static void
@@ -178,17 +188,11 @@ fill_gregset (void *gregs, int regno)
 }
 
 void
-ia64_fbsd_supply_fpregs (const void *fpregs, int regno)
+supply_fpregset (const void *fpregs)
 {
-  if (regno == -1)
-    {
-      for (regno = 0; regno < NUM_REGS; regno++)
-	{
-	  if (FPREG_SUPPLIES(regno))
-	    ia64_fbsd_regcache_supply (current_regcache, regno, fpregs);
-	}
-    }
-  else
+  int regno;
+
+  for (regno = 0; regno < NUM_REGS; regno++)
     {
       if (FPREG_SUPPLIES(regno))
 	ia64_fbsd_regcache_supply (current_regcache, regno, fpregs);
@@ -196,17 +200,11 @@ ia64_fbsd_supply_fpregs (const void *fpregs, int regno)
 }
 
 void
-ia64_fbsd_supply_gregs (const void *gregs, int regno)
+supply_gregset (const void *gregs)
 {
-  if (regno == -1)
-    {
-      for (regno = 0; regno < NUM_REGS; regno++)
-	{
-	  if (GREG_SUPPLIES(regno))
-	    ia64_fbsd_regcache_supply (current_regcache, regno, gregs);
-	}
-    }
-  else
+  int regno;
+
+  for (regno = 0; regno < NUM_REGS; regno++)
     {
       if (GREG_SUPPLIES(regno))
 	ia64_fbsd_regcache_supply (current_regcache, regno, gregs);
