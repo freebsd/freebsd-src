@@ -49,11 +49,9 @@
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
+#include <gnu/ext2fs/ext2_extern.h>
 
 /*
  * Bmap converts a the logical block number of a file to its physical block
@@ -61,7 +59,7 @@
  * number to index into the array of block pointers described by the dinode.
  */
 int
-ufs_bmap(ap)
+ext2_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
 		daddr_t a_bn;
@@ -83,7 +81,7 @@ ufs_bmap(ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	error = ufs_bmaparray(ap->a_vp, ap->a_bn, &blkno,
+	error = ext2_bmaparray(ap->a_vp, ap->a_bn, &blkno,
 	    ap->a_runp, ap->a_runb);
 	*ap->a_bnp = blkno;
 	return (error);
@@ -104,20 +102,20 @@ ufs_bmap(ap)
  */
 
 int
-ufs_bmaparray(vp, bn, bnp, runp, runb)
+ext2_bmaparray(vp, bn, bnp, runp, runb)
 	struct vnode *vp;
-	ufs_daddr_t bn;
-	ufs_daddr_t *bnp;
+	daddr_t bn;
+	daddr_t *bnp;
 	int *runp;
 	int *runb;
 {
 	struct inode *ip;
 	struct buf *bp;
-	struct ufsmount *ump;
+	struct ext2mount *ump;
 	struct mount *mp;
 	struct vnode *devvp;
 	struct indir a[NIADDR+1], *ap;
-	ufs_daddr_t daddr;
+	daddr_t daddr;
 	long metalbn;
 	int error, num, maxrun = 0;
 	int *nump;
@@ -125,7 +123,7 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 	ap = NULL;
 	ip = VTOI(vp);
 	mp = vp->v_mount;
-	ump = VFSTOUFS(mp);
+	ump = VFSTOEXT2(mp);
 	devvp = ump->um_devvp;
 
 	if (runp) {
@@ -140,29 +138,15 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 
 	ap = a;
 	nump = &num;
-	error = ufs_getlbns(vp, bn, ap, nump);
+	error = ext2_getlbns(vp, bn, ap, nump);
 	if (error)
 		return (error);
 
 	num = *nump;
 	if (num == 0) {
 		*bnp = blkptrtodb(ump, ip->i_db[bn]);
-		/*
-		 * Since this is FFS independent code, we are out of
-		 * scope for the definitions of BLK_NOCOPY and
-		 * BLK_SNAP, but we do know that they will fall in
-		 * the range 1..um_seqinc, so we use that test and
-		 * return a request for a zeroed out buffer if attempts
-		 * are made to read a BLK_NOCOPY or BLK_SNAP block.
-		 */
-		if ((ip->i_flags & SF_SNAPSHOT) &&
-		    ip->i_db[bn] > 0 && ip->i_db[bn] < ump->um_seqinc) {
+		if (*bnp == 0) {
 			*bnp = -1;
-		} else if (*bnp == 0) {
-			if (ip->i_flags & SF_SNAPSHOT)
-				*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
-			else
-				*bnp = -1;
 		} else if (runp) {
 			daddr_t bnb = bn;
 			for (++bn; bn < NDADDR && *runp < maxrun &&
@@ -221,13 +205,13 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 			}
 		}
 
-		daddr = ((ufs_daddr_t *)bp->b_data)[ap->in_off];
+		daddr = ((daddr_t *)bp->b_data)[ap->in_off];
 		if (num == 1 && daddr && runp) {
 			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump,
-			    ((ufs_daddr_t *)bp->b_data)[bn - 1],
-			    ((ufs_daddr_t *)bp->b_data)[bn]);
+			    ((daddr_t *)bp->b_data)[bn - 1],
+			    ((daddr_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
 			bn = ap->in_off;
 			if (runb && bn) {
@@ -254,10 +238,7 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 	}
 	*bnp = blkptrtodb(ump, daddr);
 	if (*bnp == 0) {
-		if (ip->i_flags & SF_SNAPSHOT)
-			*bnp = blkptrtodb(ump, bn * ump->um_seqinc);
-		else
-			*bnp = -1;
+		*bnp = -1;
 	}
 	return (0);
 }
@@ -272,18 +253,18 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
  * once with the offset into the page itself.
  */
 int
-ufs_getlbns(vp, bn, ap, nump)
+ext2_getlbns(vp, bn, ap, nump)
 	struct vnode *vp;
-	ufs_daddr_t bn;
+	daddr_t bn;
 	struct indir *ap;
 	int *nump;
 {
 	long blockcnt, metalbn, realbn;
-	struct ufsmount *ump;
+	struct ext2mount *ump;
 	int i, numlevels, off;
 	int64_t qblockcnt;
 
-	ump = VFSTOUFS(vp->v_mount);
+	ump = VFSTOEXT2(vp->v_mount);
 	if (nump)
 		*nump = 0;
 	numlevels = 0;
