@@ -32,6 +32,7 @@
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 4/9/90
  *	$Id: pathnames.h,v 1.25 1998/02/03 23:29:30 assar Exp $
+ * $FreeBSD$
  */
 
 /******* First fix default path, we stick to _PATH_DEFPATH everywhere */

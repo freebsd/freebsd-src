@@ -1,5 +1,6 @@
 /*
- * $Id$ 
+ * $Id: krb_db.h,v 1.15 1996/12/17 20:34:32 assar Exp $ 
+ * $FreeBSD$ 
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
  *

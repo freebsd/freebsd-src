@@ -29,126 +29,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-RCSID("$Id$");
-#endif
-
-/*
- * FTP server.
- */
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#if defined(HAVE_SYS_IOCTL_H) && SunOS != 4
-#include <sys/ioctl.h>
-#endif
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-#ifdef HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
-#endif
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_NETINET_IN_SYSTM_H
-#include <netinet/in_systm.h>
-#endif
-#ifdef HAVE_NETINET_IP_H
-#include <netinet/ip.h>
-#endif
-
-#ifdef HAVE_SYS_MMAN_H
-#include <sys/mman.h>
-#endif
 
 #define	FTP_NAMES
-#include <arpa/ftp.h>
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-#ifdef HAVE_ARPA_TELNET_H
-#include <arpa/telnet.h>
+#include "ftpd_locl.h"
+#ifdef KRB5
+#include <krb5.h>
 #endif
 
-#include <ctype.h>
-#ifdef HAVE_DIRENT_H
-#include <dirent.h>
-#endif
-#include <errno.h>
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-#include <glob.h>
-#include <limits.h>
-#ifdef HAVE_PWD_H
-#include <pwd.h>
-#endif
-#include <setjmp.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#ifdef HAVE_SYSLOG_H
-#include <syslog.h>
-#endif
-#include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
-#endif
-
-#include <err.h>
-
-#include "pathnames.h"
-#include "extern.h"
-#include "common.h"
-
-#include "auth.h"
-
-#include <krb.h>
-
-#include <kafs.h>
-#include "roken.h"
-
-#ifdef OTP
-#include <otp.h>
-#endif
-
-#ifdef SOCKS
-#include <socks.h>
-extern int LIBPREFIX(fclose)      __P((FILE *));
-#endif
-
-void yyparse();
-
-#ifndef LOG_FTP
-#define LOG_FTP LOG_DAEMON
-#endif
+RCSID("$Id: ftpd.c,v 1.115 1999/06/15 03:51:47 assar Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -166,7 +57,7 @@ jmp_buf	errcatch, urgcatch;
 int	oobflag;
 int	logged_in;
 struct	passwd *pw;
-int	debug;
+int	debug = 0;
 int	ftpd_timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
@@ -250,12 +141,12 @@ static void	 usage(void);
 static char *
 curdir(void)
 {
-	static char path[MaxPathLen+1+1];	/* path + '/' + '\0' */
+	static char path[MaxPathLen+1];	/* path + '/' + '\0' */
 
-	if (getcwd(path, sizeof(path)-2) == NULL)
+	if (getcwd(path, sizeof(path)-1) == NULL)
 		return ("");
 	if (path[1] != '\0')		/* special case for root dir. */
-		strcat(path, "/");
+		strcat_truncate(path, "/", sizeof(path));
 	/* For guest account, skip / since it's chrooted */
 	return (guest ? path+1 : path);
 }
@@ -317,18 +208,20 @@ main(int argc, char **argv)
 	int not_inetd = 0;
 	int port;
 	struct servent *sp;
-	char tkfile[1024];
 
 	set_progname (argv[0]);
 
+#ifdef KRB4
 	/* detach from any tickets and tokens */
-
-	snprintf(tkfile, sizeof(tkfile),
-		 "/tmp/ftp_%u", (unsigned)getpid());
-	krb_set_tkt_string(tkfile);
-	if(k_hasafs())
-	    k_setpag();
-
+	{
+	    char tkfile[1024];
+	    snprintf(tkfile, sizeof(tkfile),
+		     "/tmp/ftp_%u", (unsigned)getpid());
+	    krb_set_tkt_string(tkfile);
+	    if(k_hasafs())
+		k_setpag();
+	}
+#endif
 	sp = getservbyname("ftp", "tcp");
 	if(sp)
 	    port = sp->s_port;
@@ -430,7 +323,6 @@ main(int argc, char **argv)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 #endif
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
-	debug = 0;
 
 	/* set this here so it can be put in wtmp */
 	snprintf(ttyline, sizeof(ttyline), "ftp%u", (unsigned)getpid());
@@ -443,8 +335,6 @@ main(int argc, char **argv)
 	if (signal(SIGURG, myoob) == SIG_ERR)
 	    syslog(LOG_ERR, "signal: %m");
 #endif
-
-	auth_init();
 
 	/* Try to handle urgent data inline */
 #if defined(SO_OOBINLINE) && defined(HAVE_SETSOCKOPT)
@@ -490,9 +380,22 @@ main(int argc, char **argv)
 		fclose(fd);
 		/* reply(220,) must follow */
 	}
-	k_gethostname(hostname, sizeof(hostname));
-	reply(220, "%s FTP server (%s+%s) ready.", hostname, 
-	      version, krb4_version);
+	gethostname(hostname, sizeof(hostname));
+	reply(220, "%s FTP server (%s"
+#ifdef KRB5
+	      "+%s"
+#endif
+#ifdef KRB4
+	      "+%s"
+#endif
+	      ") ready.", hostname, version
+#ifdef KRB5
+	      ,heimdal_version
+#endif
+#ifdef KRB4
+	      ,krb4_version
+#endif
+	      );
 	setjmp(errcatch);
 	for (;;)
 	    yyparse();
@@ -576,7 +479,7 @@ user(char *name)
 {
 	char *cp, *shell;
 
-	if(auth_level == 0 && !auth_complete){
+	if(auth_level == 0 && !sec_complete){
 	    reply(530, "No login allowed without authorization.");
 	    return;
 	}
@@ -611,7 +514,7 @@ user(char *name)
 		       remotehost, inet_ntoa(his_addr.sin_addr));
 	    return;
 	}
-	if((auth_level & AUTH_PLAIN) == 0 && !auth_complete){
+	if((auth_level & AUTH_PLAIN) == 0 && !sec_complete){
 	    reply(530, "Only authorized and anonymous login allowed.");
 	    return;
 	}
@@ -636,32 +539,41 @@ user(char *name)
 		}
 	}
 	if (logging)
-		strncpy(curname, name, sizeof(curname)-1);
-	if(auth_ok())
-		ct->userok(name);
-#ifdef OTP
-	else {
+	    strcpy_truncate(curname, name, sizeof(curname));
+	if(sec_complete) {
+	    if(sec_userok(name) == 0)
+		do_login(232, name);
+	    else
+		reply(530, "User %s access denied.", name);
+	} else {
 		char ss[256];
 
+#ifdef OTP
 		if (otp_challenge(&otp_ctx, name, ss, sizeof(ss)) == 0) {
 			reply(331, "Password %s for %s required.",
 			      ss, name);
 			askpasswd = 1;
-		} else if ((auth_level & AUTH_OTP) == 0) {
+		} else
+#endif
+		if ((auth_level & AUTH_OTP) == 0) {
 		    reply(331, "Password required for %s.", name);
 		    askpasswd = 1;
 		} else {
 		    char *s;
 		    
-		    if (s = otp_error (&otp_ctx))
+#ifdef OTP
+		    if ((s = otp_error (&otp_ctx)) != NULL)
 			lreply(530, "OTP: %s", s);
+#endif
 		    reply(530,
-			  "Only authorized, anonymous and OTP "
+			  "Only authorized, anonymous"
+#ifdef OTP
+			  " and OTP "
+#endif
 			  "login allowed.");
 		}
 
 	}
-#endif
 	/*
 	 * Delay before reading passwd after first failed
 	 * attempt to slow down passwd-guessing programs.
@@ -714,11 +626,7 @@ checkuser(char *fname, char *name)
 static int
 match(const char *pattern, const char *string)
 {
-#ifdef HAVE_FNMATCH
     return fnmatch(pattern, string, FNM_NOESCAPE);
-#else
-    return strcmp(pattern, "*") != 0 && strcmp(pattern, string) != 0;
-#endif
 }
 
 static int
@@ -767,7 +675,7 @@ int do_login(int code, char *passwd)
 	initgroups(pw->pw_name, pw->pw_gid);
 
 	/* open wtmp before chroot */
-	logwtmp(ttyline, pw->pw_name, remotehost);
+	ftpd_logwtmp(ttyline, pw->pw_name, remotehost);
 	logged_in = 1;
 
 	dochroot = checkuser(_PATH_FTPCHROOT, pw->pw_name);
@@ -850,7 +758,7 @@ end_login(void)
 
 	seteuid((uid_t)0);
 	if (logged_in)
-		logwtmp(ttyline, "", "");
+		ftpd_logwtmp(ttyline, "", "");
 	pw = NULL;
 	logged_in = 0;
 	guest = 0;
@@ -878,28 +786,33 @@ pass(char *passwd)
 		if (pw == NULL)
 			rval = 1;	/* failure below */
 #ifdef OTP
-		else if (otp_verify_user (&otp_ctx, passwd) == 0)
+		else if (otp_verify_user (&otp_ctx, passwd) == 0) {
 		    rval = 0;
+		}
 #endif
 		else if((auth_level & AUTH_OTP) == 0) {
+#ifdef KRB4
 		    char realm[REALM_SZ];
 		    if((rval = krb_get_lrealm(realm, 1)) == KSUCCESS)
-			rval = krb_verify_user(pw->pw_name, "", realm, 
-					       passwd, 1, NULL);
-		    if (rval == KSUCCESS ){
+			rval = krb_verify_user(pw->pw_name,
+					       "", realm, 
+					       passwd, 
+					       KRB_VERIFY_SECURE, NULL);
+		    if (rval == KSUCCESS ) {
+			chown (tkt_string(), pw->pw_uid, pw->pw_gid);
 			if(k_hasafs())
-			    k_afsklog(0, 0);
-		    }else 
+			    krb_afslog(0, 0);
+		    } else 
+#endif
 			rval = unix_verify_user(pw->pw_name, passwd);
-		}
-#ifdef OTP
-		else {
+		} else {
 		    char *s;
 		    
-		    if (s = otp_error(&otp_ctx))
+#ifdef OTP
+		    if ((s = otp_error(&otp_ctx)) != NULL)
 			lreply(530, "OTP: %s", s);
-		}
 #endif
+		}
 		memset (passwd, 0, strlen(passwd));
 
 		/*
@@ -948,14 +861,15 @@ retrieve(char *cmd, char *name)
 		st.st_size = 0;
 		if(fin == NULL){
 		    struct cmds {
-			char *ext;
-			char *cmd;
+			const char *ext;
+			const char *cmd;
+		        const char *rev_cmd;
 		    } cmds[] = {
-			{".tar", "/bin/gtar cPf - %s"},
-			{".tar.gz", "/bin/gtar zcPf - %s"},
-			{".tar.Z", "/bin/gtar ZcPf - %s"},
-			{".gz", "/bin/gzip -c %s"},
-			{".Z", "/bin/compress -c %s"},
+			{".tar", "/bin/gtar cPf - %s", NULL},
+			{".tar.gz", "/bin/gtar zcPf - %s", NULL},
+			{".tar.Z", "/bin/gtar ZcPf - %s", NULL},
+			{".gz", "/bin/gzip -c %s", "/bin/gzip -c -d %s"},
+			{".Z", "/bin/compress -c %s", "/bin/uncompress -c -d %s"},
 			{NULL, NULL}
 		    };
 		    struct cmds *p;
@@ -971,6 +885,21 @@ retrieve(char *cmd, char *name)
 			    break;
 			}
 			*tail = c;
+			if (p->rev_cmd != NULL) {
+			    char *ext;
+
+			    asprintf(&ext, "%s%s", name, p->ext);
+			    if (ext != NULL) { 
+  			        if (access(ext, R_OK) == 0) {
+				    snprintf (line, sizeof(line),
+					      p->rev_cmd, ext);
+				    free(ext);
+				    break;
+				}
+			        free(ext);
+			    }
+			}
+			
 		    }
 		    if(p->ext){
 			fin = ftpd_popen(line, "r", 0, 0);
@@ -1186,14 +1115,14 @@ dataconn(char *name, off_t size, char *mode)
 {
 	char sizebuf[32];
 	FILE *file;
-	int retry = 0, tos;
+	int retry = 0;
 
 	file_size = size;
 	byte_count = 0;
-	if (size != (off_t) -1)
-		snprintf(sizebuf, sizeof(sizebuf), " (%ld bytes)", size);
+	if (size >= 0)
+	    snprintf(sizebuf, sizeof(sizebuf), " (%ld bytes)", (long)size);
 	else
-		strcpy(sizebuf, "");
+	    *sizebuf = '\0';
 	if (pdata >= 0) {
 		struct sockaddr_in from;
 		int s, fromlen = sizeof(from);
@@ -1208,9 +1137,12 @@ dataconn(char *name, off_t size, char *mode)
 		close(pdata);
 		pdata = s;
 #if defined(IP_TOS) && defined(HAVE_SETSOCKOPT)
-		tos = IPTOS_THROUGHPUT;
-		setsockopt(s, IPPROTO_IP, IP_TOS, (void *)&tos,
-		    sizeof(int));
+		{
+		    int tos = IPTOS_THROUGHPUT;
+		    
+		    setsockopt(s, IPPROTO_IP, IP_TOS, (void *)&tos,
+			       sizeof(tos));
+		}
 #endif
 		reply(150, "Opening %s mode data connection for '%s'%s.",
 		     type == TYPE_A ? "ASCII" : "BINARY", name, sizebuf);
@@ -1262,8 +1194,6 @@ send_data(FILE *instr, FILE *outstr)
 	int c, cnt, filefd, netfd;
 	static char *buf;
 	static size_t bufsize;
-	int i = 0;
-	char s[1024];
 
 	transflag++;
 	if (setjmp(urgcatch)) {
@@ -1273,31 +1203,24 @@ send_data(FILE *instr, FILE *outstr)
 	switch (type) {
 
 	case TYPE_A:
-		while ((c = getc(instr)) != EOF) {
-		    byte_count++;
-		    if(i > 1022){
-			auth_write(fileno(outstr), s, i);
-			i = 0;
-		    }
-		    if(c == '\n')
-			s[i++] = '\r';
-		    s[i++] = c;
-		}
-		if(i)
-		    auth_write(fileno(outstr), s, i);
-		auth_write(fileno(outstr), s, 0);
-		fflush(outstr);
-		transflag = 0;
-		if (ferror(instr))
-			goto file_err;
-		if (ferror(outstr))
-			goto data_err;
-		reply(226, "Transfer complete.");
-		return;
+	    while ((c = getc(instr)) != EOF) {
+		byte_count++;
+		if(c == '\n')
+		    sec_putc('\r', outstr);
+		sec_putc(c, outstr);
+	    }
+	    sec_fflush(outstr);
+	    transflag = 0;
+	    if (ferror(instr))
+		goto file_err;
+	    if (ferror(outstr))
+		goto data_err;
+	    reply(226, "Transfer complete.");
+	    return;
 		
 	case TYPE_I:
 	case TYPE_L:
-#ifdef HAVE_MMAP
+#if defined(HAVE_MMAP) && !defined(NO_MMAP)
 #ifndef MAP_FAILED
 #define MAP_FAILED (-1)
 #endif
@@ -1307,13 +1230,13 @@ send_data(FILE *instr, FILE *outstr)
 		int in = fileno(instr);
 		if(fstat(in, &st) == 0 && S_ISREG(st.st_mode)) {
 		    chunk = mmap(0, st.st_size, PROT_READ, MAP_SHARED, in, 0);
-		    if(chunk != (void *)MAP_FAILED) {
+		    if((void *)chunk != (void *)MAP_FAILED) {
 			cnt = st.st_size - restart_point;
-			auth_write(fileno(outstr),
+			sec_write(fileno(outstr),
 				   chunk + restart_point,
 				   cnt);
 			munmap(chunk, st.st_size);
-			auth_write(fileno(outstr), NULL, 0);
+			sec_fflush(outstr);
 			byte_count = cnt;
 			transflag = 0;
 		    }
@@ -1334,9 +1257,9 @@ send_data(FILE *instr, FILE *outstr)
 		return;
 	    }
 	    while ((cnt = read(filefd, buf, bufsize)) > 0 &&
-		   auth_write(netfd, buf, cnt) == cnt)
+		   sec_write(netfd, buf, cnt) == cnt)
 		byte_count += cnt;
-	    auth_write(netfd, buf, 0); /* to end an encrypted stream */
+	    sec_fflush(outstr); /* to end an encrypted stream */
 	    transflag = 0;
 	    if (cnt != 0) {
 		if (cnt < 0)
@@ -1394,7 +1317,7 @@ receive_data(FILE *instr, FILE *outstr)
 
     case TYPE_I:
     case TYPE_L:
-	while ((cnt = auth_read(fileno(instr), buf, bufsize)) > 0) {
+	while ((cnt = sec_read(fileno(instr), buf, bufsize)) > 0) {
 	    if (write(fileno(outstr), buf, cnt) != cnt)
 		goto file_err;
 	    byte_count += cnt;
@@ -1413,7 +1336,7 @@ receive_data(FILE *instr, FILE *outstr)
     {
 	char *p, *q;
 	int cr_flag = 0;
-	while ((cnt = auth_read(fileno(instr),
+	while ((cnt = sec_read(fileno(instr),
 				buf + cr_flag, 
 				bufsize - cr_flag)) > 0){
 	    byte_count += cnt;
@@ -1422,7 +1345,7 @@ receive_data(FILE *instr, FILE *outstr)
 	    for(p = buf, q = buf; p < buf + cnt;) {
 		if(*p == '\n')
 		    bare_lfs++;
-		if(*p == '\r')
+		if(*p == '\r') {
 		    if(p == buf + cnt - 1){
 			cr_flag = 1;
 			p++;
@@ -1432,6 +1355,7 @@ receive_data(FILE *instr, FILE *outstr)
 			p += 2;
 			continue;
 		    }
+		}
 		*q++ = *p++;
 	    }
 	    fwrite(buf, q - buf, 1, outstr);
@@ -1576,21 +1500,21 @@ __attribute__ ((format (printf, 3, 0)))
 static void
 int_reply(int n, char *c, const char *fmt, va_list ap)
 {
-  char buf[10240];
-  char *p;
-  p=buf;
-  if(n){
-      snprintf(p, sizeof(buf), "%d%s", n, c);
-      p+=strlen(p);
-  }
-  vsnprintf(p, sizeof(buf) - strlen(p), fmt, ap);
-  p+=strlen(p);
-  snprintf(p, sizeof(buf) - strlen(p), "\r\n");
-  p+=strlen(p);
-  auth_printf("%s", buf);
-  fflush(stdout);
-  if (debug)
-    syslog(LOG_DEBUG, "<--- %s- ", buf);
+    char buf[10240];
+    char *p;
+    p=buf;
+    if(n){
+	snprintf(p, sizeof(buf), "%d%s", n, c);
+	p+=strlen(p);
+    }
+    vsnprintf(p, sizeof(buf) - strlen(p), fmt, ap);
+    p+=strlen(p);
+    snprintf(p, sizeof(buf) - strlen(p), "\r\n");
+    p+=strlen(p);
+    sec_fprintf(stdout, "%s", buf);
+    fflush(stdout);
+    if (debug)
+	syslog(LOG_DEBUG, "<--- %s- ", buf);
 }
 
 void
@@ -1711,7 +1635,7 @@ removedir(char *name)
 void
 pwd(void)
 {
-    char path[MaxPathLen + 1];
+    char path[MaxPathLen];
     char *ret;
 
     /* SunOS has a broken getcwd that does popen(pwd) (!!!), this
@@ -1775,10 +1699,10 @@ dologout(int status)
     transflag = 0;
     if (logged_in) {
 	seteuid((uid_t)0);
-	logwtmp(ttyline, "", "");
-	dest_tkt();
-	if(k_hasafs())
-	    k_unlog();
+	ftpd_logwtmp(ttyline, "", "");
+#ifdef KRB4
+	cond_kdestroy();
+#endif
     }
     /* beware of flushing buffers after a SIGPIPE */
 #ifdef XXX
@@ -1814,7 +1738,7 @@ myoob(int signo)
 
 #if 0 
 	cp = tmpline;
-	if (getline(cp, 7) == NULL) {
+	if (ftpd_getline(cp, 7) == NULL) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
 	}
@@ -1995,7 +1919,7 @@ send_file_list(char *whichf)
       }
       snprintf(buf, sizeof(buf), "%s%s\n", dirname,
 	      type == TYPE_A ? "\r" : "");
-      auth_write(fileno(dout), buf, strlen(buf));
+      sec_write(fileno(dout), buf, strlen(buf));
       byte_count += strlen(dirname) + 1;
       continue;
     } else if (!S_ISDIR(st.st_mode))
@@ -2032,7 +1956,7 @@ send_file_list(char *whichf)
 	else
 	  snprintf(buf, sizeof(buf), "%s%s\n", nbuf,
 		   type == TYPE_A ? "\r" : "");
-	auth_write(fileno(dout), buf, strlen(buf));
+	sec_write(fileno(dout), buf, strlen(buf));
 	byte_count += strlen(nbuf) + 1;
       }
     }
@@ -2047,7 +1971,7 @@ send_file_list(char *whichf)
 
   transflag = 0;
   if (dout != NULL){
-    auth_write(fileno(dout), buf, 0); /* XXX flush */
+    sec_write(fileno(dout), buf, 0); /* XXX flush */
 	    
     fclose(dout);
   }

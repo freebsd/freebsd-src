@@ -7,6 +7,8 @@
 #
 # Kerberos administration server error table
 #
+# $FreeBSD$
+#
 	et	kadm
 
 # KADM_SUCCESS, as all success codes should be, is zero
