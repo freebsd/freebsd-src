@@ -62,6 +62,13 @@ FreeBSD 2.0.5 representiert die zweijährige Arbeit eines internationalen
 Entwicklerteams, das viele tausend Mann-Stunden eingebracht hat.  Wir
 hoffen sehr, daß es Anklang findet!
 
+Eine Reihe weiterer Dokumente, die während der Installation und im Betrieb
+von FreeBSD hilfreich sein können, befindet sich im Verzeichnis ,,FAQ'',
+entweder in einem installierten System unter /usr/share/FAQ, oder aber in
+der obersten Ebene der CDROM- oder FTP-Distribution, in der ebendiese Datei
+zu finden ist.  Ein Überblick der im FAQ-Verzeichnis enthaltenen Dokumen-
+tation befindet sich in der Datei FAQ/Text/ROADMAP.
+
 Eine Liste all derjenigen, die zum Projekt beigetragen haben, verbunden
 mit einer allgemeinen Beschreibung des Projektes selbst, befindet sich in
 der Datei ,,CONTRIB.FreeBSD'' in der Binär-Distribution.
@@ -755,5 +762,5 @@ allgemeinen Anklang findet!
 
                         Das FreeBSD Core-Team
 
-$Id: RELNOTES,v 1.1 1995/06/06 01:24:51 jkh Exp $
+$Id: RELNOTES,v 1.2 1995/06/07 05:51:03 jkh Exp $
 =======================================================================
