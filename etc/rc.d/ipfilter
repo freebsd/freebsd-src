@@ -81,7 +81,7 @@ ipfilter_start()
 	FreeBSD)
 		if [ `sysctl -n net.inet.ipf.fr_running` -eq 0 ]; then
 			${ipfilter_program:-/sbin/ipf} -E
-		fi 
+		fi
 		${ipfilter_program:-/sbin/ipf} -Fa
 		if [ -r "${ipfilter_rules}" ]; then
 			${ipfilter_program:-/sbin/ipf} \

@@ -63,7 +63,7 @@ jail_start()
 {
 	echo -n 'Configuring jails:'
 	echo -n ' set_hostname_allowed='
-	if checkyesno jail_set_hostname_allow ; then 
+	if checkyesno jail_set_hostname_allow ; then
 		echo -n 'YES'
 		${SYSCTL_W} 1>/dev/null security.jail.set_hostname_allowed=1
 	else
@@ -72,7 +72,7 @@ jail_start()
 	fi
 
 	echo -n ' unixiproute_only='
-	if checkyesno jail_socket_unixiproute_only ; then 
+	if checkyesno jail_socket_unixiproute_only ; then
 		echo -n 'YES'
 		${SYSCTL_W} 1>/dev/null security.jail.socket_unixiproute_only=1
 	else
@@ -91,7 +91,7 @@ jail_start()
 	echo '.'
 
 	echo -n 'Starting Jails:'
-	for _jail in ${jail_list} 
+	for _jail in ${jail_list}
 	do
 		init_variables $_jail
 		if checkyesno jail_devfs; then
