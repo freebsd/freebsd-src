@@ -57,10 +57,9 @@ static const char *ipsp_policy_strs[] = {
 	"discard", "none", "ipsec", "entrust", "bypass",
 };
 
-static char *ipsec_dump_ipsecrequest __P((char *, size_t,
-	struct sadb_x_ipsecrequest *, size_t));
-static int set_addresses __P((char *, size_t, struct sockaddr *,
-	struct sockaddr *));
+static char *ipsec_dump_ipsecrequest(char *, size_t,
+	struct sadb_x_ipsecrequest *, size_t);
+static int set_addresses(char *, size_t, struct sockaddr *, struct sockaddr *);
 static char *set_address(char *, size_t, struct sockaddr *);
 
 /*

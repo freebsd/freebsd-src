@@ -49,17 +49,16 @@ struct in_addr;
 
 __BEGIN_DECLS
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
-int	extattr_string_to_namespace __P((const char *_string,
-					 int *_attrnamespace));
+int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 void	login(struct utmp *_ut);
 int	login_tty(int _fd);
 int	logout(const char *_line);
 void	logwtmp(const char *_line, const char *_name, const char *_host);
 void	trimdomain(char *_fullhost, int _hostsize);
-int	openpty __P((int *_amaster, int *_aslave, char *_name,
-		     struct termios *_termp, struct winsize *_winp));
-int	forkpty __P((int *_amaster, char *_name,
-		     struct termios *_termp, struct winsize *_winp));
+int	openpty(int *_amaster, int *_aslave, char *_name,
+		     struct termios *_termp, struct winsize *_winp);
+int	forkpty(int *_amaster, char *_name,
+		     struct termios *_termp, struct winsize *_winp);
 const char *uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
@@ -71,8 +70,8 @@ char	*property_find(properties list, const char *name);
 char	*auth_getval(const char *name);
 int	realhostname(char *host, size_t hsize, const struct in_addr *ip);
 struct sockaddr;
-int	realhostname_sa __P((char *host, size_t hsize, struct sockaddr *addr,
-			     int addrlen));
+int	realhostname_sa(char *host, size_t hsize, struct sockaddr *addr,
+			     int addrlen);
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 #endif

@@ -85,15 +85,13 @@ extern int		get_hex_atm_addr(char *, u_char *, int);
 extern char		*format_atm_addr(Atm_addr *);
 
 /* cache_key.c */
-extern void		scsp_cache_key __P((Atm_addr *,
-				struct in_addr  *, int, char *));
+extern void		scsp_cache_key(Atm_addr *,
+				struct in_addr  *, int, char *);
 
 /* ioctl_subr.c */
 extern int		do_info_ioctl(struct atminfreq *, int);
-extern int		get_vcc_info __P((char *,
-				struct air_vcc_rsp **));
-extern int		get_subnet_mask __P((char *,
-				struct sockaddr_in *));
+extern int		get_vcc_info(char *, struct air_vcc_rsp **);
+extern int		get_subnet_mask(char *, struct sockaddr_in *);
 extern int		get_mtu(char *);
 extern int		verify_nif_name(char *);
 extern int		get_cfg_info(char *, struct air_cfg_rsp **);

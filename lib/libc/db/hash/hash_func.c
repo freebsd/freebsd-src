@@ -53,7 +53,7 @@ static u_int32_t hash3(const void *, size_t);
 static u_int32_t hash4(const void *, size_t);
 
 /* Global default hash function */
-u_int32_t (*__default_hash) __P((const void *, size_t)) = hash4;
+u_int32_t (*__default_hash)(const void *, size_t) = hash4;
 
 /*
  * HASH FUNCTIONS

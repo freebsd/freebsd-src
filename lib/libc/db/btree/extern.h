@@ -53,8 +53,8 @@ int	 __bt_ret(BTREE *, EPG *, DBT *, DBT *, DBT *, DBT *, int);
 EPG	*__bt_search(BTREE *, const DBT *, int *);
 int	 __bt_seq(const DB *, DBT *, DBT *, u_int);
 void	 __bt_setcur(BTREE *, pgno_t, u_int);
-int	 __bt_split __P((BTREE *, PAGE *,
-	    const DBT *, const DBT *, int, size_t, u_int32_t));
+int	 __bt_split(BTREE *, PAGE *,
+	    const DBT *, const DBT *, int, size_t, u_int32_t);
 int	 __bt_sync(const DB *, u_int);
 
 int	 __ovfl_delete(BTREE *, void *);

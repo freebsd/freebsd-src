@@ -613,11 +613,11 @@ svc_vc_rendezvous_ops(xprt)
 		ops.xp_recv = rendezvous_request;
 		ops.xp_stat = rendezvous_stat;
 		ops.xp_getargs =
-		    (bool_t (*) __P((SVCXPRT *, xdrproc_t, caddr_t)))abort;
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, caddr_t))abort;
 		ops.xp_reply =
-		    (bool_t (*) __P((SVCXPRT *, struct rpc_msg *)))abort;
+		    (bool_t (*)(SVCXPRT *, struct rpc_msg *))abort;
 		ops.xp_freeargs =
-		    (bool_t (*) __P((SVCXPRT *, xdrproc_t, caddr_t)))abort,
+		    (bool_t (*)(SVCXPRT *, xdrproc_t, caddr_t))abort,
 		ops.xp_destroy = svc_vc_destroy;
 		ops2.xp_control = svc_vc_control;
 	}

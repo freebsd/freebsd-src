@@ -40,8 +40,8 @@ int	 __big_delete(HTAB *, BUFHEAD *);
 int	 __big_insert(HTAB *, BUFHEAD *, const DBT *, const DBT *);
 int	 __big_keydata(HTAB *, BUFHEAD *, DBT *, DBT *, int);
 int	 __big_return(HTAB *, BUFHEAD *, int, DBT *, int);
-int	 __big_split __P((HTAB *, BUFHEAD *, BUFHEAD *, BUFHEAD *,
-		int, u_int32_t, SPLIT_RETURN *));
+int	 __big_split(HTAB *, BUFHEAD *, BUFHEAD *, BUFHEAD *,
+		int, u_int32_t, SPLIT_RETURN *);
 int	 __buf_free(HTAB *, int, int);
 void	 __buf_init(HTAB *, int);
 u_int32_t	 __call_hash(HTAB *, char *, int);

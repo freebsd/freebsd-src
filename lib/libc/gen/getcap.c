@@ -70,7 +70,7 @@ static char	*toprec;	/* Additional record specified by cgetset() */
 static int	 gottoprec;	/* Flag indicating retrieval of toprecord */
 
 static int	cdbget(DB *, char **, char *);
-static int 	getent(char **, u_int *, char **, int, char *, int, char *);
+static int 	getent(char **, u_int *, char **, int, const char *, int, char *);
 static int	nfcmp(char *, char *);
 
 /*
@@ -113,7 +113,8 @@ cgetset(const char *ent)
 char *
 cgetcap(char *buf, const char *cap, int type)
 {
-	char *bp, *cp;
+	char *bp;
+	const char *cp;
 
 	bp = buf;
 	for (;;) {
@@ -187,8 +188,8 @@ cgetent(char **buf, char **db_array, const char *name)
  *	  MAX_RECURSION.
  */
 static int
-getent(char **cap, u_int *len, char **db_array, int fd, char *name, int depth,
-    char *nfield)
+getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
+    int depth, char *nfield)
 {
 	DB *capdbp;
 	char *r_end, *rp, **db_p;
