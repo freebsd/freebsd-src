@@ -30,19 +30,16 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
-
-static char *id =
-	"@(#)loadfont.c, 3.20, Last Edit-Date: [Fri Apr  7 10:13:16 1995]";
 
 /*---------------------------------------------------------------------------*
  *
- *	load a font into vga character font memory
+ *	load a font into VGA character font memory
+ *	------------------------------------------
  *
- *	-hm	removing explicit HGC support (same as MDA ..)
- *	-hm	new pcvt_ioctl.h SIZ_xxROWS
- *	-hm	add -d option
+ *	Last Edit-Date: [Mon Mar 27 17:09:25 2000];
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
