@@ -74,7 +74,7 @@
 #define	CIS_BYTEORDER	0x43	/* Byte order of memory data */
 #define	CIS_DATE	0x44	/* Format data/time */
 #define	CIS_BATTERY	0x45	/* Battery replacement date */
-#define	CIS_ORG		0x46	/* Organisation of data on card */
+#define	CIS_ORG		0x46	/* Organization of data on card */
 #define	CIS_END		0xFF	/* Termination code */
 
 /*
