@@ -119,7 +119,9 @@ propagate_priority(struct thread *td)
 
 		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
-		KASSERT(!TD_IS_SLEEPING(td), ("sleeping thread owns a mutex"));
+		KASSERT(!TD_IS_SLEEPING(td), (
+		    "sleeping thread (pid %d) owns a mutex",
+		    td->td_proc->p_pid));
 		if (td->td_priority <= pri) /* lower is higher priority */
 			return;
 
