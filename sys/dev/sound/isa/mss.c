@@ -1371,12 +1371,12 @@ pnpmss_attach(device_t dev)
 	mss->irq_rid = 0;
 	mss->drq1_rid = 0;
 	mss->drq2_rid = 1;
+	mss->bd_id = MD_CS42XX;
 
 	switch (isa_get_logicalid(dev)) {
 	case 0x0000630e:			/* CSC0000 */
 	case 0x0001630e:			/* CSC0100 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
-	    mss->bd_id = MD_CS42XX;
 	    break;
 
 	case 0x2100a865:			/* YHM0021 */
@@ -1404,7 +1404,6 @@ pnpmss_attach(device_t dev)
 
 	case 0x1022b839:			/* NMX2210 */
 	    mss->io_rid = 1;
-	    mss->bd_id = MD_CS42XX;
 	    break;
 
 #if 0
@@ -1417,10 +1416,13 @@ pnpmss_attach(device_t dev)
             mss->bd_id = MD_GUSPNP;
 	    break;
 #endif
+	case 0x01000000:			/* @@@0001 */
+	    mss->drq2_rid = -1;
+            break;
+
 	/* Unknown MSS default.  We could let the CSC0000 stuff match too */
         default:
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
-	    mss->bd_id = MD_CS42XX;
 	    break;
 	}
     	return mss_doattach(dev, mss);
@@ -1637,7 +1639,8 @@ ymmix_init(snd_mixer *m)
 	struct mss_info *mss = mix_getdevinfo(m);
 
 	mssmix_init(m);
-	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC);
+	mix_setdevs(m, mix_getdevs(m) | SOUND_MASK_VOLUME | SOUND_MASK_MIC
+				      | SOUND_MASK_BASS | SOUND_MASK_TREBLE);
 	/* Set master volume */
 	conf_wr(mss, OPL3SAx_VOLUMEL, 7);
 	conf_wr(mss, OPL3SAx_VOLUMER, 7);
@@ -1649,7 +1652,7 @@ static int
 ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
-	int t;
+	int t, l, r;
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
@@ -1669,8 +1672,18 @@ ymmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		break;
 
 	case SOUND_MIXER_BASS:
+		l = (left * 7) / 100;
+		r = (right * 7) / 100;
+		t = (r << 4) | l;
+		conf_wr(mss, OPL3SAx_BASS, t);
+		break;
+
 	case SOUND_MIXER_TREBLE:
-		/* Later maybe */
+		l = (left * 7) / 100;
+		r = (right * 7) / 100;
+		t = (r << 4) | l;
+		conf_wr(mss, OPL3SAx_TREBLE, t);
+		break;
 
 	default:
 		mss_mixer_set(mss, dev, left, right);
