@@ -1242,6 +1242,7 @@ meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 	 */
 	mtr->base->cap_cntl = 0x8ff0;
 	mtr->flags &= ~(METEOR_CAP_MASK|METEOR_WANT_MASK);
+	mtr->proc = (struct proc *)0;
 
 #ifdef METEOR_DEALLOC_PAGES
 	if (mtr->bigbuf != NULL) {
@@ -1402,7 +1403,11 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 		break;
 	case METEORSSIGNAL:
 		mtr->signal = *(int *) arg;
-		mtr->proc = pr;
+		if (mtr->signal) {
+		  mtr->proc = pr;
+		} else {
+		  mtr->proc = (struct proc *)0;
+		}
 		break;
 	case METEORGSIGNAL:
 		*(int *)arg = mtr->signal;
