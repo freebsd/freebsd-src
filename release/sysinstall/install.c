@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.139 1996/11/09 16:25:47 joerg Exp $
+ * $Id: install.c,v 1.140 1996/11/12 18:39:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -491,7 +491,7 @@ installNovice(dialogMenuItem *self)
     }
 
     dialog_clear_norefresh();
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 550 ready-to-run\n"
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 600 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  Would you like\n"
 		  "to browse the collection now?"))
 	configPackages(self);
