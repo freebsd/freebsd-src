@@ -2385,17 +2385,15 @@ socksetup(af, bindhostname)
 			logerror("socket");
 			continue;
 		}
-#ifdef IPV6_BINDV6ONLY
 		if (r->ai_family == AF_INET6) {
 			int on = 1;
-			if (setsockopt(*s, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
 				       (char *)&on, sizeof (on)) < 0) {
 				logerror("setsockopt");
 				close(*s);
 				continue;
 			}
 		}
-#endif
 		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
 			close(*s);
 			logerror("bind");

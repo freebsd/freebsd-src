@@ -461,14 +461,12 @@ main(argc, argv, envp)
 		if (setsockopt(ctl_sock, SOL_SOCKET, SO_REUSEADDR,
 		    (char *)&on, sizeof(on)) < 0)
 			syslog(LOG_ERR, "control setsockopt: %m");
-#ifdef IPV6_BINDV6ONLY
 		if (family == AF_INET6 && enable_v4 == 0) {
-			if (setsockopt(ctl_sock, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+			if (setsockopt(ctl_sock, IPPROTO_IPV6, IPV6_V6ONLY,
 				       (char *)&on, sizeof (on)) < 0)
 				syslog(LOG_ERR,
-				       "control setsockopt(IPV6_BINDV6ONLY): %m");
+				       "control setsockopt(IPV6_V6ONLY): %m");
 		}
-#endif /* IPV6_BINDV6ONLY */
 		memcpy(&server_addr, res->ai_addr, res->ai_addr->sa_len);
 		if (bind(ctl_sock, (struct sockaddr *)&server_addr,
 			 server_addr.su_len) < 0) {
