@@ -165,6 +165,9 @@ acpi_perf_probe(device_t dev)
 	ACPI_BUFFER buf;
 	int error, rid, type;
 
+	if (resource_disabled("acpi_perf", 0))
+		return (ENXIO);
+
 	/*
 	 * Check the performance state registers.  If they are of type
 	 * "functional fixed hardware", we attach quietly since we will
