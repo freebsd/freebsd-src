@@ -563,7 +563,7 @@ ctl_renametf(const char *ptrname, const char *tfname)
 	if (cjinf->cji_mailto == NULL)
 		nogood = 1;
 	else {
-		for (cp = cjinf->cji_acctuser; *cp != '\0'; cp++) {
+		for (cp = cjinf->cji_mailto; *cp != '\0'; cp++) {
 			if (*cp <= ' ') {
 				nogood = 1;
 				break;
