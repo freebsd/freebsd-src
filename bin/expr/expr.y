@@ -70,6 +70,7 @@ int		yyerror(const char *);
 int		yylex(void);
 int		yyparse(void);
 
+static int	eflag;
 char **av;
 %}
 
@@ -154,7 +155,10 @@ make_str(const char *s)
 	 * non-digits MUST NOT be considered integers.  strtoimax() will
 	 * figure this out for us.
 	 */
-	(void)strtoimax(s, &ep, 10);
+	if (eflag)
+		(void)strtoimax(s, &ep, 10);
+	else
+		(void)strtol(s, &ep, 10);
 
 	if (*ep != '\0')
 		vp->type = string;
@@ -186,9 +190,13 @@ to_integer(struct val *vp)
 
 	/* vp->type == numeric_string, make it numeric */
 	errno = 0;
-	i  = strtoimax(vp->u.s, (char **)NULL, 10);
-	if (errno == ERANGE)
-		err(ERR_EXIT, NULL);
+	if (eflag) {
+		i  = strtoimax(vp->u.s, (char **)NULL, 10);
+		if (errno == ERANGE)
+			err(ERR_EXIT, NULL);
+	} else {
+		i = strtol(vp->u.s, (char **)NULL, 10);
+	}
 
 	free (vp->u.s);
 	vp->u.i = i;
@@ -273,10 +281,15 @@ main(int argc, char *argv[])
 	if (getenv("EXPR_COMPAT") != NULL) {
 		av = argv + 1;
 	} else {
-		while ((c = getopt(argc, argv, "")) != -1)
+		while ((c = getopt(argc, argv, "e")) != -1)
 			switch (c) {
+			case 'e':
+				eflag = 1;
+				break;
+
 			default:
-				fprintf(stderr,"usage: expr [--] expression\n");
+				fprintf(stderr,
+				    "usage: expr [-e] expression\n");
 				exit(ERR_EXIT);
 			}
 		av = argv + optind;
@@ -327,7 +340,7 @@ op_and(struct val *a, struct val *b)
 struct val *
 op_eq(struct val *a, struct val *b)
 {
-	struct val *r; 
+	struct val *r;
 
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
@@ -447,6 +460,7 @@ op_ne(struct val *a, struct val *b)
 int
 chk_plus(intmax_t a, intmax_t b, intmax_t r)
 {
+
 	/* sum of two positive numbers must be positive */
 	if (a > 0 && b > 0 && r <= 0)
 		return 1;
@@ -462,14 +476,18 @@ op_plus(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer(a) || !to_integer(b)) {
 		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(intmax_t)*/(a->u.i + b->u.i));
-	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	if (eflag) {
+		r = make_integer(a->u.i + b->u.i);
+		if (chk_plus(a->u.i, b->u.i, r->u.i)) {
+			errx(ERR_EXIT, "overflow");
+		}
+	} else
+		r = make_integer((long)a->u.i + (long)b->u.i);
+
 	free_value (a);
 	free_value (b);
 	return r;
@@ -478,6 +496,7 @@ op_plus(struct val *a, struct val *b)
 int
 chk_minus(intmax_t a, intmax_t b, intmax_t r)
 {
+
 	/* special case subtraction of INTMAX_MIN */
 	if (b == INTMAX_MIN) {
 		if (a >= 0)
@@ -494,14 +513,18 @@ op_minus(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer(a) || !to_integer(b)) {
 		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(intmax_t)*/(a->u.i - b->u.i));
-	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	if (eflag) {
+		r = make_integer(a->u.i - b->u.i);
+		if (chk_minus(a->u.i, b->u.i, r->u.i)) {
+			errx(ERR_EXIT, "overflow");
+		}
+	} else
+		r = make_integer((long)a->u.i - (long)b->u.i);
+
 	free_value (a);
 	free_value (b);
 	return r;
@@ -524,14 +547,18 @@ op_times(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer(a) || !to_integer(b)) {
 		errx(ERR_EXIT, "non-numeric argument");
 	}
 
-	r = make_integer (/*(intmax_t)*/(a->u.i * b->u.i));
-	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	if (eflag) {
+		r = make_integer(a->u.i * b->u.i);
+		if (chk_times(a->u.i, b->u.i, r->u.i)) {
+			errx(ERR_EXIT, "overflow");
+		}
+	} else
+		r = make_integer((long)a->u.i * (long)b->u.i);
+
 	free_value (a);
 	free_value (b);
 	return (r);
@@ -553,7 +580,7 @@ op_div(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer(a) || !to_integer(b)) {
 		errx(ERR_EXIT, "non-numeric argument");
 	}
 
@@ -561,10 +588,14 @@ op_div(struct val *a, struct val *b)
 		errx(ERR_EXIT, "division by zero");
 	}
 
-	r = make_integer (/*(intmax_t)*/(a->u.i / b->u.i));
-	if (chk_div (a->u.i, b->u.i)) {
-		errx(ERR_EXIT, "overflow");
-	}
+	if (eflag) {
+		r = make_integer(a->u.i / b->u.i);
+		if (chk_div(a->u.i, b->u.i)) {
+			errx(ERR_EXIT, "overflow");
+		}
+	} else
+		r = make_integer((long)a->u.i / (long)b->u.i);
+
 	free_value (a);
 	free_value (b);
 	return r;
@@ -575,7 +606,7 @@ op_rem(struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer(a) || !to_integer(b)) {
 		errx(ERR_EXIT, "non-numeric argument");
 	}
 
@@ -583,8 +614,12 @@ op_rem(struct val *a, struct val *b)
 		errx(ERR_EXIT, "division by zero");
 	}
 
-	r = make_integer (/*(intmax_t)*/(a->u.i % b->u.i));
-	/* chk_rem necessary ??? */
+	if (eflag)
+		r = make_integer(a->u.i % b->u.i);
+	        /* chk_rem necessary ??? */
+	else
+		r = make_integer((long)a->u.i % (long)b->u.i);
+
 	free_value (a);
 	free_value (b);
 	return r;

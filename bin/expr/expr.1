@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2002
+.Dd May 10, 2002
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd evaluate expression
 .Sh SYNOPSIS
 .Nm
-.Op Fl \&-
+.Op Fl e
 .Ar expression
 .Sh DESCRIPTION
 The
@@ -50,15 +50,25 @@ and writes the result on standard output.
 All operators and operands must be passed as separate arguments.
 Several of the operators have special meaning to command interpreters
 and must therefore be quoted appropriately.
+All integer operands are interpreted in base 10.
 .Pp
-Arithmetic operations are performed using signed integer math,
-in the largest integral type available in the C language.  The
+Arithmetic operations are performed using signed integer math.
+If the
+.Fl e
+flag is specified, arithmetic uses the C
+.Ql intmax_t
+data type (the largest integral type available), and
 .Nm
-utility will detect arithmetic overflow and division by zero, and
-returns with an exit status of 2 in those cases.  If a numeric operand
-is specified which is so large as to overflow conversion to an integer,
-it is parsed as a string instead.  All numeric operands are interpreted
-in base 10.
+will detect arithmetic overflow and return an error indication.
+If a numeric operand is specified which is so large as to overflow
+conversion to an integer, it is parsed as a string instead.
+If
+.Fl e
+is not specified, arithmetic operations and parsing of integer
+arguments will overflow silently according to the rules of the C
+standard, and integer computations will be performed using the
+.Ql long
+data type.
 .Pp
 Operators are listed below in order of increasing precedence; all
 are left-associative.
@@ -174,7 +184,7 @@ command, one might rearrange the expression:
 More generally, parenthesize possibly-negative values:
 .Dl a=$(expr \e( $a \e) + 1)
 .It
-The following example prints the filename portion of a pathname stored
+This example prints the filename portion of a pathname stored
 in variable
 .Va a .
 Since
@@ -231,9 +241,6 @@ utility conforms to
 provided that the
 .Ev EXPR_COMPAT
 environment variable is not defined.
-.Tn POSIX
-does not specify whether arithmetic overflow is detected, nor does it specify
-the possible range of integer arguments to
-.Nm ,
-so a portable application must assume that the range is small and that
-overflow may not be detected.
+The
+.Fl e
+flag is an extension.
