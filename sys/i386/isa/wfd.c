@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.14 1998/07/30 15:16:05 bde Exp $
+ *      $Id: wfd.c,v 1.15 1998/08/23 20:16:34 phk Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/devicestat.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/cdio.h>
@@ -141,6 +142,8 @@ struct wfd {
 	void	*bdevs;
 #endif
 	struct diskslices *dk_slices;	/* virtual drives */
+
+	struct devstat device_stats;
 };
 
 static struct wfd *wfdtab[NUNIT]; /* Drive info by unit number */
@@ -263,6 +266,14 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 				    DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
 				    "rwfd%d", t->lun);
 #endif /* DEVFS */
+
+	/*
+	 * Export the drive to the devstat interface.
+	 */
+	devstat_add_entry(&t->device_stats, "wfd", 
+			  wfdnlun, t->cap.sector_size,
+			  DEVSTAT_NO_ORDERED_TAGS,
+			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_IDE);
 	return (1);
 }
 
@@ -487,6 +498,9 @@ static void wfd_start (struct wfd *t)
 	/* Unqueue the request. */
 	bufq_remove(&t->buf_queue, bp);
 
+	/* Tell devstat we are starting on the transaction */
+	devstat_start_transaction(&t->device_stats);
+
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the
 	 * logical blocksize of the device. */
@@ -574,6 +588,13 @@ static void wfd_done (struct wfd *t, struct buf *bp, int resid,
 	 */
 	if (((int)bp->b_driver1)-- <= 0) {
 		bp->b_resid = (int)bp->b_driver2;
+
+		/* Tell devstat we have finished with the transaction */
+		devstat_end_transaction(&t->device_stats,
+					bp->b_bcount - bp->b_resid,
+					DEVSTAT_TAG_NONE,
+					(bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
+
 		biodone (bp);
 	}
 	
