@@ -233,8 +233,8 @@
 				const struct sched_param *param); }
 157	STD	POSIX	{ int linux_sched_getscheduler(pid_t pid); }
 158	NOPROTO	POSIX	{ int sched_yield (void); }
-159	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
-160	NOPROTO	POSIX	{ int sched_get_priority_min (int policy); }
+159	STD	POSIX	{ int linux_sched_get_priority_max(int policy); }
+160	STD	POSIX	{ int linux_sched_get_priority_min(int policy); }
 161	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, \
 				struct timespec *interval); }
 162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
