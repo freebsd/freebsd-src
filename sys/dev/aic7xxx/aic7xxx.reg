@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: aic7xxx.reg,v 1.1 1997/03/16 07:08:11 gibbs Exp $
  */
 
 /*
@@ -773,6 +773,7 @@ scb {
 		size	1
 		bit	SELBUSB		0x08
 		mask	TID		0xf0
+		mask	LID		0x07
 	}
 	SCB_TARGET_STATUS {
 		size	1

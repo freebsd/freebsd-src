@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.21 1997/04/07 18:33:10 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.22 1997/04/10 19:26:09 gibbs Exp $
  */
 /*
  * TODO:
@@ -262,6 +262,13 @@ restart_sequencer(ahc)
 #define	IS_SCSIBUS_B(ahc, sc_link)	\
 	((sc_link)->scsibus == (ahc)->sc_link_b.scsibus)
 #endif
+
+#define SCB_TARGET(scb) \
+	(((scb)->hscb->tcl & TID) >> 4)
+#define SCB_LUN(scb)    \
+	((scb)->hscb->tcl & LID)
+#define SCB_IS_SCSIBUS_B(scb)   \
+	(((scb)->hscb->tcl & SELBUSB) != 0)
 
 static u_int8_t	ahc_abort_wscb __P((struct ahc_softc *ahc, struct scb *scbp,
 				    u_int8_t scbpos, u_int8_t prev,
@@ -916,14 +923,21 @@ ahc_handle_seqint(ahc, intstat)
 				break;
 			}
 		}
+
 		/*
 		 * We expect a busfree to occur, so don't bother to interrupt
 		 * when it happens - we've already handled the error.
 		 */
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
 
-		busy_scbid = ahc_index_busy_target(ahc, target, channel,
-						   /*unbusy*/TRUE);
+		/*
+		 * XXX Don't know why this happened or which transaction
+		 * caused it, so we have to be pretty heavy handed.  We should
+		 * probably modify the sequencer so we can issue a bus device
+		 * reset instead of an abort in this case.
+		 */
+		ahc_reset_device(ahc, target, channel, ALL_LUNS, SCB_LIST_NULL,
+				 XS_TIMEOUT);
 
 		printf("%s:%c:%d: no active SCB for reconnecting "
 		       "target - issuing ABORT\n",
@@ -1586,12 +1600,6 @@ ahc_handle_scsiint(ahc, intstat)
 				/*
 				 * We have an SCB we have to clean up.
 				 */
-				if ((scb_control & DISCONNECTED) != 0) 
-					ahc_rem_scb_from_disc_list(ahc, scbptr);
-				else {
-					ahc_add_curscb_to_free_list(ahc);
-				}
-
 				/* Did we ask for this?? */
 				if ((lastphase == P_MESGOUT
 				  || lastphase == P_MESGIN) && scb != NULL) {
@@ -1602,11 +1610,9 @@ ahc_handle_scsiint(ahc, intstat)
 					} else if (scb->flags & SCB_ABORT) {
 						struct hardware_scb *hscb;
 						u_int8_t tag;
-						int lun;
 
 						hscb = scb->hscb;
 						tag = SCB_LIST_NULL;
-						lun = hscb->tcl & 0x7;
 						sc_print_addr(scb->xs->sc_link);
 						printf("SCB %d - Abort "
 						       "Completed.\n",
@@ -1616,7 +1622,7 @@ ahc_handle_scsiint(ahc, intstat)
 						ahc_reset_device(ahc,
 								 target,
 								 channel,
-								 lun,
+								 SCB_LUN(scb),
 								 tag,
 								 XS_TIMEOUT);
 						ahc_run_done_queue(ahc);
@@ -1628,30 +1634,22 @@ ahc_handle_scsiint(ahc, intstat)
 		}
 		if (printerror != 0) {
 			if (scb != NULL) {
-				u_int8_t next;
-				ahc_index_busy_target(ahc, target,
-						     channel, /*unbusy*/TRUE);
-				
-				ahc_outb(ahc, SCBPTR, scbptr);
-				next = ahc_inb(ahc, SCB_LINKED_NEXT);
-				if (next != SCB_LIST_NULL) {
-					/*
-					 * Re-queue the waiting SCB via the
-					 * waiting list.
-					 */
-					struct scb *next_scb;
+				u_int8_t tag;
 
-					next_scb =
-					    ahc->scb_data->scbarray[next];
-					STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
-							   next_scb, links);
-					next_scb->flags |= SCB_WAITINGQ;
-				}
-				scb->xs->error = XS_TIMEOUT;
-				sc_print_addr(scb->xs->sc_link);
-				ahc_done(ahc, scb);
-				scb = NULL;
+				if ((scb->hscb->control & TAG_ENB) != 0)
+					tag = scb->hscb->tag;
+				else
+					tag = SCB_LIST_NULL;
+				ahc_reset_device(ahc, target, channel,
+						 SCB_LUN(scb), tag, XS_TIMEOUT);
 			} else {
+				/*
+				 * XXX can we handle this better?
+				 * Reset the bus?  Send a Bus Device Reset?
+				 */
+				ahc_reset_device(ahc, target, channel,
+						 ALL_LUNS, SCB_LIST_NULL,
+						 XS_TIMEOUT);
 				printf("%s: ", ahc_name(ahc));
 			}
 			printf("Unexpected busfree.  LASTPHASE == 0x%x\n"
@@ -1683,6 +1681,12 @@ ahc_handle_scsiint(ahc, intstat)
 			printf("%s: ahc_intr - referenced scb not "
 			       "valid during SELTO scb(%d)\n",
 			       ahc_name(ahc), scb_index);
+			printf("SEQADDR = 0x%x SCSISEQ = 0x%x "
+				"SSTAT0 = 0x%x SSTAT1 = 0x%x\n",
+				ahc_inb(ahc, SEQADDR0)
+				| (ahc_inb(ahc, SEQADDR1) << 8),
+				ahc_inb(ahc, SCSISEQ), ahc_inb(ahc, SSTAT0),
+				ahc_inb(ahc,SSTAT1));
 		} else {
 			/*
 			 * XXX If we queued an abort tag, go clean up the
@@ -1695,9 +1699,9 @@ ahc_handle_scsiint(ahc, intstat)
 			 * target, and mark the target as free
 			 */
 			ahc_outb(ahc, MSG_LEN, 0);
-			ahc_index_busy_target(ahc, xs->sc_link->target,
-				IS_SCSIBUS_B(ahc, xs->sc_link) ? 'B' : 'A',
-				/*unbusy*/TRUE);
+			ahc_index_busy_target(ahc, SCB_TARGET(scb),
+					      SCB_IS_SCSIBUS_B(scb) ? 'B' : 'A',
+					      /*unbusy*/TRUE);
 
 			ahc_outb(ahc, SCB_CONTROL, 0);
 			/* Shift the waiting Q forward. */
@@ -1826,7 +1830,6 @@ ahc_handle_devreset(ahc, scb)
 	 * Go back to async/narrow transfers and
 	 * renegotiate.
 	 */
-	ahc_index_busy_target(ahc, target, channel, /*unbusy*/TRUE);
 	ahc->needsdtr |= ahc->needsdtr_orig & targ_mask;
 	ahc->needwdtr |= ahc->needwdtr_orig & targ_mask;
 	ahc->sdtrpending &= ~targ_mask;
@@ -3014,8 +3017,10 @@ ahc_timeout(arg)
 
 	printf(", SCSISIGI == 0x%x\n", ahc_inb(ahc, SCSISIGI));
 
-	printf("SEQADDR == 0x%x\n", ahc_inb(ahc, SEQADDR0)
-				 | (ahc_inb(ahc, SEQADDR1) << 8));
+	printf("SEQADDR = 0x%x SCSISEQ = 0x%x SSTAT0 = 0x%x SSTAT1 = 0x%x\n",
+		ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8),
+		ahc_inb(ahc, SCSISEQ), ahc_inb(ahc, SSTAT0),
+		ahc_inb(ahc,SSTAT1));
 	/* Decide our course of action */
 
 	channel = (scb->hscb->tcl & SELBUSB) ? 'B': 'A';
@@ -3073,6 +3078,10 @@ bus_reset:
 		if (bus_state != P_BUSFREE) {
 			if (active_scb_index >= ahc->scb_data->numscbs) {
 				/* Go "immediatly" to the bus reset */
+				/*
+				 * XXX queue an abort for the timedout SCB
+				 * instead.
+				 */
 				sc_print_addr(scb->xs->sc_link);
 				printf("SCB %d: Yucky Immediate reset.  "
 					"Flags = 0x%x\n", scb->hscb->tag,
@@ -3101,20 +3110,29 @@ bus_reset:
 		} else {
 			int	 disconnected;
 			u_int8_t hscb_index;
+			u_int8_t linked_next;
 
 			disconnected = FALSE;
 			hscb_index = ahc_find_scb(ahc, scb);
 			if (hscb_index == SCB_LIST_NULL) {
 				disconnected = TRUE;
+				linked_next = (scb->hscb->datalen >> 24)
+					      & 0xFF000000;
 			} else {
 				ahc_outb(ahc, SCBPTR, hscb_index);
 				if (ahc_inb(ahc, SCB_CONTROL) & DISCONNECTED)
 					disconnected = TRUE;
+				linked_next = ahc_inb(ahc, SCB_LINKED_NEXT);
 			}
 
 			if (disconnected) {
-				/* Simply set the ABORT_SCB control bit */
+				/*
+				 * Simply set the ABORT_SCB control bit
+				 * and preserve the linked next pointer
+				 */
 				scb->hscb->control |= ABORT_SCB|MK_MESSAGE;
+				scb->hscb->datalen &= ~0xFF000000;
+				scb->hscb->datalen |= linked_next << 24;
 				if ((ahc->flags & AHC_PAGESCBS) == 0)
 					scb->hscb->control &= ~DISCONNECTED;
 				scb->flags |= SCB_QUEUED_ABORT
@@ -3273,14 +3291,86 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 	u_int8_t  tag;
 	u_int32_t xs_error;
 {
-        struct scb *scbp;
-	u_char active_scb;
-	int i = 0;
+	struct scb *scbp;
+	u_int8_t active_scb;
+	int i;
 	int found;
 
 	/* restore this when we're done */
 	active_scb = ahc_inb(ahc, SCBPTR);
 
+	/*
+	 * Deal with the busy target and linked next issues.
+	 */
+	{
+		int min_target, max_target;
+		u_int8_t busy_scbid;
+
+		/* Make all targets 'relative' to bus A */
+		if (target == ALL_TARGETS) {
+			switch (channel) {
+			case 'A':
+				min_target = 0;
+				max_target = ahc->type & AHC_WIDE ? 15 : 7;
+				break;
+			case 'B':
+				min_target = 8;
+				max_target = 15;
+				break;
+			case ALL_CHANNELS:
+				min_target = 0;
+				max_target = ahc->type & AHC_WIDE|AHC_TWIN
+					     ? 15 : 7;
+				break;
+			}
+		} else {
+			min_target = max_target = target
+						  + channel == 'B' ? 8 : 0;
+		}
+
+		for (i = min_target; i <= max_target; i++) {
+			busy_scbid = ahc_index_busy_target(ahc, i, 'A',
+						           /*unbusy*/FALSE);
+			if (busy_scbid < ahc->scb_data->numscbs) {
+				struct scb *busy_scb;
+				struct scb *next_scb;
+				u_int8_t next_scbid;
+
+				busy_scb = ahc->scb_data->scbarray[busy_scbid];
+	
+				next_scbid = busy_scb->hscb->datalen >> 24;
+
+				if (next_scbid == SCB_LIST_NULL) {
+					busy_scbid = ahc_find_scb(ahc,
+								  busy_scb);
+
+					if (busy_scbid != SCB_LIST_NULL) {
+						ahc_outb(ahc, SCBPTR,
+							 busy_scbid);
+						next_scbid = ahc_inb(ahc,
+							       SCB_LINKED_NEXT);
+					}
+				}
+
+				if (ahc_match_scb(busy_scb, target, channel,
+						  lun, tag)) {
+					ahc_index_busy_target(ahc, i, 'A',
+							      /*unbusy*/TRUE);
+				}
+
+				if (next_scbid != SCB_LIST_NULL) {
+					next_scb = ahc->scb_data->scbarray[next_scbid];
+					if (ahc_match_scb(next_scb, target,
+							   channel, lun, tag))
+						continue;
+					/* Requeue for later processing */
+					STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
+							   next_scb, links);
+					next_scb->flags |= SCB_WAITINGQ;
+				}
+			}
+		}
+	}
 	/*
 	 * Remove any entries from the Queue-In FIFO.
 	 */
@@ -3339,74 +3429,6 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 		}
 	}
 	/*
-	 * Go through the entire SCB array now and look for 
-	 * commands for this target that are active.  These
-	 * are other (most likely tagged) commands that 
-	 * were disconnected when the reset occured.
-	 */
-	for (i = 0; i < ahc->scb_data->numscbs; i++) {
-		scbp = ahc->scb_data->scbarray[i];
-		if ((scbp->flags & SCB_ACTIVE) != 0
-		 && (scbp->flags & SCB_QUEUED_FOR_DONE) == 0
-		 &&  ahc_match_scb(scbp, target, channel, lun, tag)) {
-			u_int8_t busy_scbid;
-
-			scbp->flags |= SCB_ABORTED|SCB_QUEUED_FOR_DONE;
-			scbp->flags &= ~SCB_ACTIVE;
-			scbp->xs->error = xs_error;
-			found++;
-
-			if ((scbp->flags & SCB_WAITINGQ) != 0) {
-				STAILQ_REMOVE(&ahc->waiting_scbs, scbp, scb,
-					      links);
-				scbp->flags &= ~SCB_WAITINGQ;
-			}
-			/* Ensure the target is "free" */
-			busy_scbid = ahc_index_busy_target(ahc, target,
-							   (scbp->hscb->tcl & SELBUSB) ?
-							   'B' : 'A', /*unbusy*/FALSE);
-			if (busy_scbid != SCB_LIST_NULL) {
-				struct scb *busy_scb;
-				struct scb *next_scb;
-				u_int8_t next_scbid;
-
-				busy_scb = ahc->scb_data->scbarray[busy_scbid];
-
-				if (!ahc_match_scb(busy_scb, target,
-						   channel, lun, tag))
-					continue;
-
-				ahc_index_busy_target(ahc, target,
-						      (scbp->hscb->tcl & SELBUSB) ?
-						      'B' : 'A', /*unbusy*/TRUE);
-
-				next_scbid = busy_scb->hscb->datalen >> 24;
-
-				if (next_scbid == SCB_LIST_NULL) {
-					busy_scbid = ahc_find_scb(ahc, busy_scb);
-
-					if (busy_scbid == SCB_LIST_NULL)
-						panic("Couldn't find busy SCB");
-
-					ahc_outb(ahc, SCBPTR, busy_scbid);
-					next_scbid = ahc_inb(ahc,
-							     SCB_LINKED_NEXT);
-				}
-
-				if (next_scbid != SCB_LIST_NULL) {
-					next_scb = ahc->scb_data->scbarray[next_scbid];
-					if (!ahc_match_scb(next_scb, target,
-							   channel, lun, tag)) {
-						STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
-								   next_scb, links);
-						next_scb->flags |= SCB_WAITINGQ;
-					}
-				}
-			}
-		}
-	}
-
-	/*
 	 * Go through the disconnected list and remove any entries we
 	 * have queued for completion, 0'ing their control byte too.
 	 */
@@ -3432,6 +3454,45 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 			} else {
 				prev = next;
 				next = ahc_inb(ahc, SCB_NEXT);
+			}
+		}
+	}
+	/*
+	 * Go through the hardware SCB array looking for commands that
+	 * were active but not on any list.
+	 */
+	for(i = 0; i < ahc->scb_data->maxhscbs; i++) {
+		u_int8_t scbid;
+
+		ahc_outb(ahc, SCBPTR, i);
+		scbid = ahc_inb(ahc, SCB_TAG);
+		if (scbid < ahc->scb_data->numscbs) {
+			scbp = ahc->scb_data->scbarray[scbid];
+			if (ahc_match_scb(scbp, target, channel, lun, tag)) {
+				ahc_add_curscb_to_free_list(ahc);
+			}
+		}
+	}
+	/*
+	 * Go through the entire SCB array now and look for 
+	 * commands for this target that are still active.  These
+	 * are other tagged commands that were disconnected when
+	 * the reset occured or untagged commands that were linked
+	 * to the command that preceeded it.
+	 */
+	for (i = 0; i < ahc->scb_data->numscbs; i++) {
+		scbp = ahc->scb_data->scbarray[i];
+		if ((scbp->flags & SCB_ACTIVE) != 0
+		 &&  ahc_match_scb(scbp, target, channel, lun, tag)) {
+			scbp->flags |= SCB_ABORTED|SCB_QUEUED_FOR_DONE;
+			scbp->flags &= ~SCB_ACTIVE;
+			scbp->xs->error = xs_error;
+			found++;
+
+			if ((scbp->flags & SCB_WAITINGQ) != 0) {
+				STAILQ_REMOVE(&ahc->waiting_scbs, scbp, scb,
+					      links);
+				scbp->flags &= ~SCB_WAITINGQ;
 			}
 		}
 	}
@@ -3504,7 +3565,6 @@ ahc_abort_wscb (ahc, scbp, scbpos, prev, xs_error)
 
 	/* Clear the necessary fields */
 	ahc_outb(ahc, SCB_CONTROL, 0);
-	ahc_index_busy_target(ahc, target, channel, /*unbusy*/TRUE);
 
 	ahc_add_curscb_to_free_list(ahc);
 
