@@ -130,8 +130,6 @@ Static int kue_match(device_ptr_t);
 Static int kue_attach(device_ptr_t);
 Static int kue_detach(device_ptr_t);
 Static void kue_shutdown(device_ptr_t);
-Static int kue_tx_list_init(struct kue_softc *);
-Static int kue_rx_list_init(struct kue_softc *);
 Static int kue_encap(struct kue_softc *, struct mbuf *, int);
 Static void kue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void kue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -546,78 +544,29 @@ kue_detach(device_ptr_t dev)
 	return(0);
 }
 
-Static int
-kue_rx_list_init(struct kue_softc *sc)
-{
-	struct kue_cdata	*cd;
-	struct kue_chain	*c;
-	int			i;
-
-	cd = &sc->kue_cdata;
-	for (i = 0; i < KUE_RX_LIST_CNT; i++) {
-		c = &cd->kue_rx_chain[i];
-		c->kue_sc = sc;
-		c->kue_idx = i;
-		c->kue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->kue_dev));
-		if (c->kue_mbuf == NULL)
-			return(ENOBUFS);
-		if (c->kue_xfer == NULL) {
-			c->kue_xfer = usbd_alloc_xfer(sc->kue_udev);
-			if (c->kue_xfer == NULL)
-				return(ENOBUFS);
-		}
-	}
-
-	return(0);
-}
-
-Static int
-kue_tx_list_init(struct kue_softc *sc)
-{
-	struct kue_cdata	*cd;
-	struct kue_chain	*c;
-	int			i;
-
-	cd = &sc->kue_cdata;
-	for (i = 0; i < KUE_TX_LIST_CNT; i++) {
-		c = &cd->kue_tx_chain[i];
-		c->kue_sc = sc;
-		c->kue_idx = i;
-		c->kue_mbuf = NULL;
-		if (c->kue_xfer == NULL) {
-			c->kue_xfer = usbd_alloc_xfer(sc->kue_udev);
-			if (c->kue_xfer == NULL)
-				return(ENOBUFS);
-		}
-		c->kue_buf = malloc(KUE_BUFSZ, M_USBDEV, M_NOWAIT);
-		if (c->kue_buf == NULL)
-			return(ENOBUFS);
-	}
-
-	return(0);
-}
-
 Static void
 kue_rxstart(struct ifnet *ifp)
 {
 	struct kue_softc	*sc;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
 
 	sc = ifp->if_softc;
 	KUE_LOCK(sc);
-	c = &sc->kue_cdata.kue_rx_chain[sc->kue_cdata.kue_rx_prod];
+	c = &sc->kue_cdata.ue_rx_chain[sc->kue_cdata.ue_rx_prod];
 
-	c->kue_mbuf = usb_ether_newbuf(USBDEVNAME(sc->kue_dev));
-	if (c->kue_mbuf == NULL) {
+	c->ue_mbuf = usb_ether_newbuf();
+	if (c->ue_mbuf == NULL) {
+		printf("%s: no memory for rx list "
+		    "-- packet dropped!\n", USBDEVNAME(sc->kue_dev));
 		ifp->if_ierrors++;
 		return;
 	}
 
 	/* Setup new transfer. */
-	usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
-	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
+	usbd_setup_xfer(c->ue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+	    c, mtod(c->ue_mbuf, char *), UE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, kue_rxeof);
-	usbd_transfer(c->kue_xfer);
+	usbd_transfer(c->ue_xfer);
 
 	KUE_UNLOCK(sc);
 
@@ -632,14 +581,14 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 		      usbd_status status)
 {
 	struct kue_softc	*sc;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	int			total_len = 0;
 	u_int16_t		len;
 
 	c = priv;
-	sc = c->kue_sc;
+	sc = c->ue_sc;
 	KUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
@@ -662,7 +611,7 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 	}
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
-	m = c->kue_mbuf;
+	m = c->ue_mbuf;
 	if (total_len <= 1)
 		goto done;
 
@@ -689,10 +638,10 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 done:
 
 	/* Setup new transfer. */
-	usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
-	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
+	usbd_setup_xfer(c->ue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+	    c, mtod(c->ue_mbuf, char *), UE_BUFSZ, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, kue_rxeof);
-	usbd_transfer(c->kue_xfer);
+	usbd_transfer(c->ue_xfer);
 	KUE_UNLOCK(sc);
 
 	return;
@@ -707,12 +656,12 @@ Static void
 kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct kue_softc	*sc;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
 	struct ifnet		*ifp;
 	usbd_status		err;
 
 	c = priv;
-	sc = c->kue_sc;
+	sc = c->ue_sc;
 	KUE_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -732,12 +681,12 @@ kue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		return;
 	}
 
-	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &err);
+	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &err);
 
-	if (c->kue_mbuf != NULL) {
-		c->kue_mbuf->m_pkthdr.rcvif = ifp;
-		usb_tx_done(c->kue_mbuf);
-		c->kue_mbuf = NULL;
+	if (c->ue_mbuf != NULL) {
+		c->ue_mbuf->m_pkthdr.rcvif = ifp;
+		usb_tx_done(c->ue_mbuf);
+		c->ue_mbuf = NULL;
 	}
 
 	if (err)
@@ -754,36 +703,36 @@ Static int
 kue_encap(struct kue_softc *sc, struct mbuf *m, int idx)
 {
 	int			total_len;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
 	usbd_status		err;
 
-	c = &sc->kue_cdata.kue_tx_chain[idx];
+	c = &sc->kue_cdata.ue_tx_chain[idx];
 
 	/*
 	 * Copy the mbuf data into a contiguous buffer, leaving two
 	 * bytes at the beginning to hold the frame length.
 	 */
-	m_copydata(m, 0, m->m_pkthdr.len, c->kue_buf + 2);
-	c->kue_mbuf = m;
+	m_copydata(m, 0, m->m_pkthdr.len, c->ue_buf + 2);
+	c->ue_mbuf = m;
 
 	total_len = m->m_pkthdr.len + 2;
 	total_len += 64 - (total_len % 64);
 
 	/* Frame length is specified in the first 2 bytes of the buffer. */
-	c->kue_buf[0] = (u_int8_t)m->m_pkthdr.len;
-	c->kue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
+	c->ue_buf[0] = (u_int8_t)m->m_pkthdr.len;
+	c->ue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
 
-	usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_TX],
-	    c, c->kue_buf, total_len, 0, 10000, kue_txeof);
+	usbd_setup_xfer(c->ue_xfer, sc->kue_ep[KUE_ENDPT_TX],
+	    c, c->ue_buf, total_len, 0, 10000, kue_txeof);
 
 	/* Transmit */
-	err = usbd_transfer(c->kue_xfer);
+	err = usbd_transfer(c->ue_xfer);
 	if (err != USBD_IN_PROGRESS) {
 		kue_stop(sc);
 		return(EIO);
 	}
 
-	sc->kue_cdata.kue_tx_cnt++;
+	sc->kue_cdata.ue_tx_cnt++;
 
 	return(0);
 }
@@ -837,7 +786,7 @@ kue_init(void *xsc)
 {
 	struct kue_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
 	usbd_status		err;
 	int			i;
 
@@ -871,14 +820,16 @@ kue_init(void *xsc)
 	kue_setword(sc, KUE_CMD_SET_URB_SIZE, 64);
 
 	/* Init TX ring. */
-	if (kue_tx_list_init(sc) == ENOBUFS) {
+	if (usb_ether_tx_list_init(sc, &sc->kue_cdata,
+	    USBDEVNAME(sc->kue_dev), sc->kue_udev) == ENOBUFS) {
 		printf("kue%d: tx list init failed\n", sc->kue_unit);
 		KUE_UNLOCK(sc);
 		return;
 	}
 
 	/* Init RX ring. */
-	if (kue_rx_list_init(sc) == ENOBUFS) {
+	if (usb_ether_rx_list_init(sc, &sc->kue_cdata,
+	    USBDEVNAME(sc->kue_dev), sc->kue_udev) == ENOBUFS) {
 		printf("kue%d: rx list init failed\n", sc->kue_unit);
 		KUE_UNLOCK(sc);
 		return;
@@ -907,12 +858,12 @@ kue_init(void *xsc)
 	}
 
 	/* Start up the receive pipe. */
-	for (i = 0; i < KUE_RX_LIST_CNT; i++) {
-		c = &sc->kue_cdata.kue_rx_chain[i];
-		usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
-		    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ,
+	for (i = 0; i < UE_RX_LIST_CNT; i++) {
+		c = &sc->kue_cdata.ue_rx_chain[i];
+		usbd_setup_xfer(c->ue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+		    c, mtod(c->ue_mbuf, char *), UE_BUFSZ,
 	    	USBD_SHORT_XFER_OK, USBD_NO_TIMEOUT, kue_rxeof);
-		usbd_transfer(c->kue_xfer);
+		usbd_transfer(c->ue_xfer);
 	}
 
 	ifp->if_flags |= IFF_RUNNING;
@@ -974,7 +925,7 @@ Static void
 kue_watchdog(struct ifnet *ifp)
 {
 	struct kue_softc	*sc;
-	struct kue_chain	*c;
+	struct ue_chain	*c;
 	usbd_status		stat;
 
 	sc = ifp->if_softc;
@@ -982,9 +933,9 @@ kue_watchdog(struct ifnet *ifp)
 	ifp->if_oerrors++;
 	printf("kue%d: watchdog timeout\n", sc->kue_unit);
 
-	c = &sc->kue_cdata.kue_tx_chain[0];
-	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &stat);
-	kue_txeof(c->kue_xfer, c, stat);
+	c = &sc->kue_cdata.ue_tx_chain[0];
+	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &stat);
+	kue_txeof(c->ue_xfer, c, stat);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		kue_start(ifp);
@@ -1052,36 +1003,9 @@ kue_stop(struct kue_softc *sc)
 	}
 
 	/* Free RX resources. */
-	for (i = 0; i < KUE_RX_LIST_CNT; i++) {
-		if (sc->kue_cdata.kue_rx_chain[i].kue_buf != NULL) {
-			free(sc->kue_cdata.kue_rx_chain[i].kue_buf, M_USBDEV);
-			sc->kue_cdata.kue_rx_chain[i].kue_buf = NULL;
-		}
-		if (sc->kue_cdata.kue_rx_chain[i].kue_mbuf != NULL) {
-			m_freem(sc->kue_cdata.kue_rx_chain[i].kue_mbuf);
-			sc->kue_cdata.kue_rx_chain[i].kue_mbuf = NULL;
-		}
-		if (sc->kue_cdata.kue_rx_chain[i].kue_xfer != NULL) {
-			usbd_free_xfer(sc->kue_cdata.kue_rx_chain[i].kue_xfer);
-			sc->kue_cdata.kue_rx_chain[i].kue_xfer = NULL;
-		}
-	}
-
+	usb_ether_rx_list_free(&sc->kue_cdata);
 	/* Free TX resources. */
-	for (i = 0; i < KUE_TX_LIST_CNT; i++) {
-		if (sc->kue_cdata.kue_tx_chain[i].kue_buf != NULL) {
-			free(sc->kue_cdata.kue_tx_chain[i].kue_buf, M_USBDEV);
-			sc->kue_cdata.kue_tx_chain[i].kue_buf = NULL;
-		}
-		if (sc->kue_cdata.kue_tx_chain[i].kue_mbuf != NULL) {
-			m_freem(sc->kue_cdata.kue_tx_chain[i].kue_mbuf);
-			sc->kue_cdata.kue_tx_chain[i].kue_mbuf = NULL;
-		}
-		if (sc->kue_cdata.kue_tx_chain[i].kue_xfer != NULL) {
-			usbd_free_xfer(sc->kue_cdata.kue_tx_chain[i].kue_xfer);
-			sc->kue_cdata.kue_tx_chain[i].kue_xfer = NULL;
-		}
-	}
+	usb_ether_tx_list_free(&sc->kue_cdata);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	KUE_UNLOCK(sc);

@@ -43,7 +43,6 @@
 
 #define RUE_TIMEOUT		1000
 #define	ETHER_ALIGN		2
-#define RUE_BUFSZ		1536
 #define RUE_MIN_FRAMELEN	60
 #define	RUE_INTR_INTERVAL	100	/* ms */
 
@@ -187,29 +186,6 @@ struct rue_type {
 	u_int16_t		rue_did;
 };
 
-#define RUE_TX_LIST_CNT		1
-#define RUE_RX_LIST_CNT		1
-
-struct rue_softc;
-
-struct rue_chain {
-	struct rue_softc	*rue_sc;
-	usbd_xfer_handle	rue_xfer;
-	char			*rue_buf;
-	struct mbuf		*rue_mbuf;
-	int			rue_idx;
-};
-
-struct rue_cdata {
-	struct rue_chain	rue_tx_chain[RUE_TX_LIST_CNT];
-	struct rue_chain	rue_rx_chain[RUE_RX_LIST_CNT];
-	struct rue_intrpkt	*rue_ibuf;
-	int			rue_tx_prod;
-	int			rue_tx_cons;
-	int			rue_tx_cnt;
-	int			rue_rx_prod;
-};
-
 struct rue_softc {
 	struct arpcom		arpcom;
 	device_t		rue_dev;
@@ -222,7 +198,7 @@ struct rue_softc {
 	int			rue_unit;
 	u_int8_t		rue_link;
 	int			rue_if_flags;
-	struct rue_cdata	rue_cdata;
+	struct ue_cdata		rue_cdata;
 	struct callout_handle	rue_stat_ch;
 #if __FreeBSD_version >= 500000
 	struct mtx		rue_mtx;
