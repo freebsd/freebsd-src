@@ -33,7 +33,6 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/instr.h>
 
