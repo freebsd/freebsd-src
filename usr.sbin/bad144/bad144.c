@@ -74,7 +74,7 @@ int	dups;
 int	badfile = -1;		/* copy of badsector table to use, -1 if any */
 #define MAXSECSIZE	1024
 struct	dkbad curbad, oldbad;
-#define	DKBAD_MAGIC	0
+#define	DKBAD_MAGIC	0x4321
 
 char	label[BBSIZE];
 daddr_t	size, getold(), badsn();
