@@ -99,11 +99,15 @@ getgrnam(name)
 
 	if (!start_gr())
 		return(NULL);
+#ifdef YP
+	tryagain:
+#endif
 	rval = grscan(1, 0, name);
 #ifdef YP
-	if(!rval && (_gr_yp_enabled < 0 || (_gr_yp_enabled &&
+	if(rval == -1 && (_gr_yp_enabled < 0 || (_gr_yp_enabled &&
 					_gr_group.gr_name[0] == '+'))) {
-		rval = _getypgroup(&_gr_group, name, "group.byname");
+		if (!(rval = _getypgroup(&_gr_group, name, "group.byname")))
+			goto tryagain;
 	}
 #endif
 	if (!_gr_stayopen)
@@ -123,12 +127,16 @@ getgrgid(gid)
 
 	if (!start_gr())
 		return(NULL);
+#ifdef YP
+	tryagain:
+#endif
 	rval = grscan(1, gid, NULL);
 #ifdef YP
-	if(!rval && _gr_yp_enabled) {
+	if(rval == -1 && _gr_yp_enabled) {
 		char buf[16];
 		snprintf(buf, sizeof buf, "%d", (unsigned)gid);
-		rval = _getypgroup(&_gr_group, buf, "group.bygid");
+		if (!(rval = _getypgroup(&_gr_group, buf, "group.bygid")))
+			goto tryagain;
 	}
 #endif
 	if (!_gr_stayopen)
@@ -209,8 +217,9 @@ grscan(search, gid, name)
 {
 	register char *cp, **m;
 	char *bp;
-	char *fgets(), *strsep(), *index();
-
+#ifdef YP
+	int _ypfound = 0;
+#endif;
 	for (;;) {
 		if (!fgets(line, sizeof(line), _gr_fp))
 			return(0);
@@ -223,21 +232,8 @@ grscan(search, gid, name)
 				;
 			continue;
 		}
-		_gr_group.gr_name = strsep(&bp, ":\n");
-		if (search && name) {
-#ifdef YP
-			if(_gr_group.gr_name[0] == '+') {
-				if(strcmp(&_gr_group.gr_name[1], name)) {
-					continue;
-				}
-				return _getypgroup(&_gr_group, name,
-						   "group.byname");
-			}
-#endif /* YP */
-			if(strcmp(_gr_group.gr_name, name)) {
-				continue;
-			}
-		}
+		if ((_gr_group.gr_name = strsep(&bp, ":\n")) == NULL)
+			break;
 #ifdef YP
 		/*
 		 * XXX   We need to be careful to avoid proceeding
@@ -245,19 +241,40 @@ grscan(search, gid, name)
 		 * we risk dereferencing null pointers down below.
 		 */
 		if (_gr_group.gr_name[0] == '+') {
-			switch(search) {
+			if (strlen(_gr_group.gr_name) == 1) {
+				switch(search) {
 				case 0:
 					return(1);
 				case 1:
-					return(0);
+					return(-1);
 				default:
 					return(0);
+				}
+			} else {
+				if (!_getypgroup(&_gr_group, &_gr_group.gr_name[1],
+						"group.byname"))
+					continue;
+			/* We're going to override -- tell the world. */
+				members[0] = NULL;
+				_ypfound++;
 			}
 		}
+#else
+		if (_gr_group.gr_name[0] == '+')
+			continue;
 #endif /* YP */
-		_gr_group.gr_passwd = strsep(&bp, ":\n");
+		if (search && name) {
+			if(strcmp(_gr_group.gr_name, name)) {
+				continue;
+			}
+		}
+		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
+			break;;
 		if (!(cp = strsep(&bp, ":\n")))
 			continue;
+#ifdef YP
+		if (!_ypfound)
+#endif
 		_gr_group.gr_gid = atoi(cp);
 		if (search && name == NULL && _gr_group.gr_gid != gid)
 			continue;
