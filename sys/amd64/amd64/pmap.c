@@ -3035,7 +3035,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		return;
 
 	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Loop over all current mappings setting/clearing as appropos If
 	 * setting RO do we need to clear the VAC?
@@ -3129,7 +3129,7 @@ pmap_ts_referenced(vm_page_t m)
 		return (rtval);
 
 	s = splvm();
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 
 		pvf = pv;
