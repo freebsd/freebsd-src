@@ -273,7 +273,7 @@ Set the state of the object to \fIstate\fP\|
 .Cd setdaemon
 .Op value
 .in +1i
-Set daemon configuration.
+Set dæmon configuration.
 .in
 .Cd setstate
 .Ar state
@@ -1219,7 +1219,7 @@ care: it can result in total loss of data on a volume.
 .Nm setdaemon
 sets a variable bitmask for the
 .Nm
-daemon.  This command is temporary and will be replaced.  Currently, the bit mask
+dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
 may contain the bits 1 (log every action to syslog) and 4 (don't update
 configuration).  Option bit 4 can be useful for error recovery.
 .It Nm setstate
@@ -1685,15 +1685,23 @@ read policy reads from the specified plex every time.
 .It Nm setupstate
 .Pp
 When creating a multi-plex volume, assume that the contents of all the plexes
-are consistent.  This is normally not the case, and correctly you should use the
-.Nm init
+are consistent.  This is normally not the case, so by default
+.Nm
+sets all plexes except the first one to the
+.Em faulty
+state.  Use the
+.Nm start
 command to first bring them to a consistent state.  In the case of striped and
 concatenated plexes, however, it does not normally cause problems to leave them
 inconsistent: when using a volume for a file system or a swap partition, the
 previous contents of the disks are not of interest, so they may be ignored.
-If you want to take this risk, use this keyword.  It will only apply to the
-plexes defined immediately after the volume in the configuration file.  If you
-add plexes to a volume at a later time, you must integrate them.
+If you want to take this risk, use the
+.Nm setupstate
+keyword.  It will only apply to the plexes defined immediately after the volume
+in the configuration file.  If you add plexes to a volume at a later time, you
+must integrate them manually with the
+.Nm start
+command.
 .Pp
 Note that you \fImust\fP\| use the
 .Nm init
@@ -1743,7 +1751,8 @@ smaller will result in a significant increase in I/O activity due to mapping of
 individual requests over multiple disks.  The performance improvement due to the
 increased number of concurrent transfers caused by this mapping will not make up
 for the performance drop due to the increase in latency.  A good guideline for
-stripe size is between 256 kB and 512 kB.
+stripe size is between 256 kB and 512 kB.  Avoid powers of 2, however: they tend
+to cause all superblocks to be placed on the first subdisk.
 .Pp
 A striped plex must have at least two subdisks (otherwise it is a concatenated
 plex), and each must be the same size.  A RAID-5 plex must have at least three
@@ -2306,24 +2315,23 @@ performance.  In particular, most systems use far too small a stripe size.  The
 following discussion applies to all RAID systems, not just to
 .Nm vinum .
 .Pp
-The
-.Fx
-block I/O system issues requests of between .5kB and 60 kB; a
+The FreeBSD block I/O system issues requests of between .5kB and 128 kB; a
 typical mix is somewhere round 8 kB.  You can't stop any striping system from
-breaking a request into two physical requests, and if you do it wrong it can be
-broken into several.  This will result in a significant drop in performance: the
-decrease in transfer time per disk is offset by the order of magnitude greater
-increase in latency.
+breaking a request into two physical requests, and if you make the stripe small
+enough, it can be broken into several.  This will result in a significant drop
+in performance: the decrease in transfer time per disk is offset by the order of
+magnitude greater increase in latency.
 .Pp
-With modern disk sizes and the
-.Fx
-I/O system, you can expect to have a
+With modern disk sizes and the FreeBSD I/O system, you can expect to have a
 reasonably small number of fragmented requests with a stripe size between 256 kB
 and 512 kB; with correct RAID implementations there is no obvious reason not to
 increase the size to 2 or 4 MB on a large disk.
 .Pp
 When choosing a stripe size, consider that most current ufs file systems have
-cylinder groups 32 MB in size.  
+cylinder groups 32 MB in size.  If you have a stripe size and number of disks
+both of which are a power of two, it is probable that all superblocks and inodes
+will be placed on the same subdisk, which will impact performance significantly.
+Choose an odd number instead, for example 479 kB.
 .Pp
 The easiest way to consider the impact of any transfer in a multi-access system
 is to look at it from the point of view of the potential bottleneck, the disk
@@ -2471,7 +2479,7 @@ use the
 command.  Normally other states are created automatically by the relationship
 between objects.  For example, if you add a plex to a volume, the subdisks of
 the plex will be set in the
-.Em stale
+.Em empty
 state, indicating that, though the hardware is accessible, the data on the
 subdisk is invalid.  As a result of this state, the plex will be set in the
 .Em faulty
@@ -2534,10 +2542,10 @@ does not automatically initialize the plexes.  This means that the contents are
 not known, but they are certainly not consistent.  As a result, by default
 .Nm
 sets the state of all newly-created plexes except the first to
-.Ar stale .
+.Ar faulty .
 In order to synchronize them with the first plex, you must
 .Nm start
-their subdisks, which causes
+them, which causes
 .Nm
 to copy the data from a plex which is in the
 .Ar up
