@@ -310,8 +310,7 @@ ip_output(m0, opt, ro, flags, imo)
 		if (ip->ip_src.s_addr == INADDR_ANY) {
 			register struct in_ifaddr *ia1;
 
-			for (ia1 = in_ifaddrhead.tqh_first; ia1;
-			     ia1 = ia1->ia_link.tqe_next)
+			TAILQ_FOREACH(ia1, &in_ifaddrhead, ia_link)
 				if (ia1->ia_ifp == ifp) {
 					ip->ip_src = IA_SIN(ia1)->sin_addr;
 					break;
@@ -556,8 +555,7 @@ sendit:
 			 * as the packet runs through ip_input() as
 			 * it is done through a ISR.
 			 */
-			for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
-					ia = TAILQ_NEXT(ia, ia_link)) {
+			TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
 				/*
 				 * If the addr to forward to is one
 				 * of ours, we pretend to
