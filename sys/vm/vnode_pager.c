@@ -817,6 +817,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 */
 	relpbuf(bp, &vnode_pbuf_freecnt);
 
+	vm_page_lock_queues();
 	for (i = 0, tfoff = foff; i < count; i++, tfoff = nextoff) {
 		vm_page_t mt;
 
@@ -873,6 +874,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			}
 		}
 	}
+	vm_page_unlock_queues();
 	if (error) {
 		printf("vnode_pager_getpages: I/O read error\n");
 	}
