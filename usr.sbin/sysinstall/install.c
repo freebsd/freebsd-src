@@ -68,6 +68,33 @@ static void	fixit_common(void);
 
 static void	installConfigure(void);
 
+#ifdef __ia64__
+static const char *
+efi_mountpoint(void)
+{
+    Device **devs;
+    Disk *disk;
+    Chunk *c;
+    PartInfo *pi;
+    int i;
+
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    for (i = 0; devs[i] != NULL; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+	disk = (Disk *)devs[i]->private;
+	for (c = disk->chunks->part; c != NULL; c = c->next) {
+	    if (c->type == efi && c->private_data != NULL) {
+		pi = (PartInfo *)c->private_data;
+		if (pi->mountpoint[0] == '/')
+		    return (pi->mountpoint);
+	    }
+	}
+    }
+    return (NULL);
+}
+#endif
+
 Boolean
 checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **tdev, Chunk **hdev)
 {
@@ -248,6 +275,12 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 		     "if you do not have enough RAM.  Continue anyway?"))
 	    status = FALSE;
     }
+#ifdef __ia64__
+    if (efi_mountpoint() == NULL && whinge) {
+	if (msgYesNo("No EFI system partition found. Is this what you want?"))
+	    status = FALSE;
+    }
+#endif
     return status;
 }
 
@@ -824,6 +857,9 @@ installFixupBase(dialogMenuItem *self)
 {
     FILE *fp;
     int kstat = 1;
+#ifdef __ia64__
+    const char *efi_mntpt;
+#endif
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
@@ -857,6 +893,16 @@ installFixupBase(dialogMenuItem *self)
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
         vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
+
+#ifdef __ia64__
+	/* Move /boot to the the EFI partition and make /boot a link to it. */
+	efi_mntpt = efi_mountpoint();
+	if (efi_mntpt != NULL) {
+		vsystem("if [ ! -L /boot ]; then mv /boot %s; fi", efi_mntpt);
+		vsystem("if [ ! -e /boot ]; then ln -sf %s/boot /boot; fi",
+		    efi_mntpt + 1);	/* Skip leading '/' */
+	}
+#endif
 
 	/* Do all the last ugly work-arounds here */
     }
@@ -912,9 +958,6 @@ installFilesystems(dialogMenuItem *self)
     PartInfo *root;
     char dname[80];
     Boolean upgrade = FALSE;
-#if defined(__ia64__)
-    char efi_bootdir[FILENAME_MAX];
-#endif
 
     /* If we've already done this, bail out */
     if (!variable_cmp(DISK_LABELLED, "written"))
@@ -1121,24 +1164,6 @@ installFilesystems(dialogMenuItem *self)
 			performNewfs(pi, dname, QUEUE_YES);
 
 		command_func_add(pi->mountpoint, Mount_msdosfs, c1->name);
-
-		/*
-		 * Create a directory boot on the EFI filesystem and create a
-		 * link boot on the root filesystem pointing to the one on the
-		 * EFI filesystem. That way, we install the loader, kernel
-		 * and modules on the EFI filesystem.
-		 */
-		sprintf(bootdir, "%s", RunningAsInit ? "/mnt" : "");
-		sprintf(efi_bootdir, "%s/%s", bootdir, pi->mountpoint);
-		strcat(bootdir, "/boot");
-		strcat(efi_bootdir, "/boot");
-		command_func_add(pi->mountpoint, Mkdir_command, efi_bootdir);
-
-		/* Make a relative link. */
-		p = &efi_bootdir[(RunningAsInit) ? 4 : 0];
-		while (*p == '/')
-			p++;
-		symlink(p, bootdir);
 	    }
 #endif
 	}
