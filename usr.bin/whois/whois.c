@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	DNICHOST	"whois.nic.mil"
 #define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
+#define	LNICHOST	"whois.lacnic.net"
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
 #define	RUNICHOST	"whois.ripn.net"
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #define ishost(h) (isalnum((unsigned char)h) || h == '.' || h == '-')
 
-const char *ip_whois[] = { RNICHOST, PNICHOST, BNICHOST, NULL };
+const char *ip_whois[] = { LNICHOST, RNICHOST, PNICHOST, BNICHOST, NULL };
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
@@ -100,7 +101,7 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "ac:dgh:impQrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "ac:dgh:ilmpQrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
@@ -119,6 +120,9 @@ main(int argc, char *argv[])
 			break;
 		case 'i':
 			host = INICHOST;
+			break;
+		case 'l':
+			host = LNICHOST;
 			break;
 		case 'm':
 			host = MNICHOST;
@@ -310,7 +314,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-adgimpQrR6] [-c country-code | -h hostname] "
+	    "usage: whois [-adgilmpQrR6] [-c country-code | -h hostname] "
 	    "name ...\n");
 	exit(EX_USAGE);
 }
