@@ -228,7 +228,7 @@ struct	in6_ndifreq {
 #define TEMPADDR_REGEN_ADVANCE		5	/* sec */
 #define MAX_TEMP_DESYNC_FACTOR		600	/* 10 min */
 #define ND_COMPUTE_RTIME(x) \
-		(((MIN_RANDOM_FACTOR * (x >> 10)) + (random() & \
+		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
 
 TAILQ_HEAD(nd_drhead, nd_defrouter);
