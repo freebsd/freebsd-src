@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.95 1998/05/31 18:25:32 peter Exp $
+ * $Id: nfs_vnops.c,v 1.96 1998/05/31 18:27:07 peter Exp $
  */
 
 
@@ -1450,7 +1450,9 @@ nfs_remove(ap)
 	if (vp->v_usecount < 1)
 		panic("nfs_remove: bad v_usecount");
 #endif
-	if (vp->v_usecount == 1 || (np->n_sillyrename &&
+	if (vp->v_type == VDIR)
+		error = EPERM;
+	else if (vp->v_usecount == 1 || (np->n_sillyrename &&
 	    VOP_GETATTR(vp, &vattr, cnp->cn_cred, cnp->cn_proc) == 0 &&
 	    vattr.va_nlink > 1)) {
 		/*
