@@ -597,8 +597,7 @@ typedef int		pid_t;
 # if defined(__FreeBSD__)
 #  undef SPT_TYPE
 #  if __FreeBSD__ == 2
-#   include <osreldate.h>		/* and this works */
-#   if __FreeBSD_version >= 199512	/* 2.2-current right now */
+#   if !defined(DONT_HAVE_SETPROCTITLE)	/* add to the Makefile for < 2.0.5 */
 #    define SPT_TYPE	SPT_BUILTIN
 #    include <libutil.h>
 #   endif

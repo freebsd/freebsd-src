@@ -17,7 +17,8 @@ PROG=	sendmail
 # spiral snail, but it will work.
 DBMDEF=	-DNEWDB
 
-CFLAGS+=-I${.CURDIR} ${DBMDEF} #-DNETISO
+# To building this on a system without setproctitle, uncomment:
+CFLAGS+=-I${.CURDIR} ${DBMDEF} -DNETISO #-DDONT_HAVE_SETPROCTITLE
 
 SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	deliver.c domain.c envelope.c err.c headers.c macro.c main.c map.c \
