@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.c,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
+ *	$Id: smbconf.c,v 1.2 1998/10/31 11:39:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -171,7 +171,7 @@ smbus_release_bus(device_t bus, device_t dev)
 u_char
 smbus_get_addr(device_t dev)
 {
-	u_long addr;
+	uintptr_t addr;
 	device_t parent = device_get_parent(dev);
 
 	BUS_READ_IVAR(parent, dev, SMBUS_IVAR_ADDR, &addr);

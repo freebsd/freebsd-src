@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
+ *	$Id: smbus.c,v 1.2 1998/10/31 11:39:54 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -81,8 +81,6 @@ static device_method_t smbus_methods[] = {
         DEVMETHOD(bus_print_child,      smbus_print_child),
         DEVMETHOD(bus_read_ivar,        smbus_read_ivar),
         DEVMETHOD(bus_write_ivar,       bus_generic_write_ivar),
-        DEVMETHOD(bus_create_intr,      bus_generic_create_intr),
-        DEVMETHOD(bus_connect_intr,     bus_generic_connect_intr),
 
         { 0, 0 }
 };
