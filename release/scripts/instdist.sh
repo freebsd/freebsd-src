@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.14 1995/02/13 02:28:14 jkh Exp $
+# $Id: instdist.sh,v 1.15 1995/03/02 04:18:43 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -296,7 +296,7 @@ media_install_set()
 			fi
 		else
 			dialog --clear
-			ftp ${MEDIA_DEVICE}
+			SHELL=/stand/sh ftp ${MEDIA_DEVICE}
 			dialog --clear
 			media_extract_dist
 		fi
