@@ -255,13 +255,6 @@ state.
 Flush packets in the
 .Tn TCP
 reassembly queue if the system is low on mbufs.
-.\"
-.\" This option should go away and become the default.
-.\"
-.It tcp.tcp_lq_overflow
-If a connection is dropped due to a listen queue overflow, delete the
-cloned route associated with the connection if it does not have any
-prior information.
 .It tcp.blackhole
 If enabled, disable sending of RST when a connection is attempted
 to a port where there is not a socket accepting connections.
@@ -290,12 +283,10 @@ in the
 .It tcp.pcbcount
 Number of active process control blocks
 (read-only).
-.It tcp.strict_rfc1948
-Enable strict RFC 1948 (Defending Against Sequence Number Attacks)
-compliance.
-Setting this variable to a non-zero value will disable reseeding and
-will disable the use of randomized initial sequence numbers in favor
-of MD5-generated initial sequence numbers.
+.It tcp.syncookies
+Determines whether or not syn cookies should be generated for
+outbound syn-ack packets.  Syn cookies are a great help during
+syn flood attacks, and are enabled by default.
 .It tcp.isn_reseed_interval
 The interval (in seconds) specifying how often the secret data used in
 RFC 1948 initial sequence number calculations should be reseeded.
