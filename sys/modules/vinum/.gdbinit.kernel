@@ -637,3 +637,9 @@ end
 document kldstat
 Equivalent of the kldstat(9) command, without options.
 end
+define msgbuf
+printf "%s", msgbufp->msg_ptr
+end
+document msgbuf
+Print the system message buffer (dmesg).  This can take a long time due to the time it takes to transmit the data across a serial line.
+end
