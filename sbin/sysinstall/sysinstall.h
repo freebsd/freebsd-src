@@ -96,7 +96,7 @@ char	*StrAlloc __P((char *str));
 void	Fatal __P((char *fmt, ...));
 void	AskAbort __P((char *fmt, ...));
 void	MountUfs __P((char *device, char *mountpoint, int do_mkdir,int flags));
-void	Mkdir __P((char *path));
+void	Mkdir __P((char *path, int die));
 void	Link __P((char *from, char *to));
 void	CopyFile __P((char *p1, char *p2));
 u_long	PartMb(struct disklabel *lbl,int part);
