@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.30.2.2 1999/02/22 15:59:39 bde Exp $
+ *	$Id: machdep.c,v 1.30.2.3 1999/04/14 04:55:14 jdp Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -176,10 +176,18 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 void	*ksym_start, *ksym_end;
 #endif
 
-/* for cpu_sysctl() */
 int	alpha_unaligned_print = 1;	/* warn about unaligned accesses */
 int	alpha_unaligned_fix = 1;	/* fix up unaligned accesses */
 int	alpha_unaligned_sigbus = 0;	/* don't SIGBUS on fixed-up accesses */
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_PRINT, unaligned_print,
+	CTLFLAG_RW, &alpha_unaligned_print, 0, "");
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_FIX, unaligned_fix,
+	CTLFLAG_RW, &alpha_unaligned_fix, 0, "");
+
+SYSCTL_INT(_machdep, CPU_UNALIGNED_SIGBUS, unaligned_sigbus,
+	CTLFLAG_RW, &alpha_unaligned_sigbus, 0, "");
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -199,6 +207,27 @@ int	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[10];
+
+static int
+sysctl_hw_physmem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0, alpha_ptob(physmem), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "I", "");
+
+static int
+sysctl_hw_usermem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0,
+		alpha_ptob(physmem - cnt.v_wire_count), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "I", "");
 
 SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
@@ -1227,7 +1256,7 @@ remrq(p)
 			REMRQ(rtqs, whichrtqs, pri, p);
 		} else {
 			/* idle priority */
-			REMRQ(rtqs, whichrtqs, pri, p);
+			REMRQ(idqs, whichidqs, pri, p);
 		}
 	}
 }

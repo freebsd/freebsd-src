@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.6 1998/07/30 08:12:14 dfr Exp $ */
+/* $Id: param.h,v 1.7 1998/09/09 01:21:25 jdp Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -46,10 +46,18 @@
 /*
  * Machine dependent constants for the Alpha.
  */
+#ifndef _MACHINE
 #define	_MACHINE	alpha
+#endif
+#ifndef MACHINE
 #define	MACHINE		"alpha"
+#endif
+#ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	alpha
+#endif
+#ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"alpha"
+#endif
 #define	MID_MACHINE	MID_ALPHA
 
 #include <machine/alpha_cpu.h>
@@ -120,13 +128,6 @@
 #endif	/* MCLSHIFT */
 #define	MCLBYTES	(1 << MCLSHIFT)	/* size of a m_buf cluster */
 #define	MCLOFSET	(MCLBYTES - 1)
-#ifndef NMBCLUSTERS
-#ifdef GATEWAY
-#define	NMBCLUSTERS	512		/* map size, max cluster allocation */
-#else
-#define	NMBCLUSTERS	256		/* map size, max cluster allocation */
-#endif
-#endif
 
 /*
  * Size of kernel malloc arena in CLBYTES-sized logical pages

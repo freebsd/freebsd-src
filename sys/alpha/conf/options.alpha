@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.7 1998/09/16 08:22:09 dfr Exp $
+#	$Id: options.alpha,v 1.8 1999/01/18 20:26:50 gallatin Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
@@ -28,13 +28,28 @@ SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
 
+VGA_ALT_SEQACCESS	opt_vga.h
+VGA_DEBUG		opt_vga.h
+VGA_NO_FONT_LOADING	opt_vga.h
+VGA_NO_MODE_CHANGE	opt_vga.h
+VGA_SLOW_IOACCESS	opt_vga.h
+
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
-KBD_RESETDELAY		opt_kbdio.h
-KBD_MAXRETRY		opt_kbdio.h
-KBD_MAXWAIT		opt_kbdio.h
-KBDIO_DEBUG		opt_kbdio.h
+# Fb options
+FB_INSTALL_CDEV		opt_fb.h
+
+# Atkbd options
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
+# Kbd options
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
+KBD_INSTALL_CDEV	opt_kbd.h
+KBD_MAXRETRY		opt_kbd.h
+KBD_MAXWAIT		opt_kbd.h
+KBD_RESETDELAY		opt_kbd.h
+KBDIO_DEBUG		opt_kbd.h
 
 BREAK_TO_DEBUGGER	opt_comconsole.h

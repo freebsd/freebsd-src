@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.14.2.3 1999/04/01 02:13:13 wpaul Exp $
+#	$Id: GENERIC,v 1.14.2.4 1999/04/08 17:45:22 wpaul Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -78,8 +78,17 @@ device		cd0
 # real time clock
 device		mcclock0 at isa0 port 0x70
 
+controller	atkbdc0	at isa? port IO_KBD
+device		atkbd0	at atkbdc? irq 1
+device		psm0	at atkbdc? irq 12
+
+device		vga0	at isa? port ? conflicts
+
+# splash screen/screen saver
+pseudo-device	splash
+
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa0 port "IO_KBD" irq 1
+device		sc0	at isa?
 
 device		sio0	at isa0 port "IO_COM1" irq 4
 device		sio1	at isa0 port "IO_COM2" irq 3 flags 0x50
