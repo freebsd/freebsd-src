@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_exp.c,v 1.2 1995/05/30 05:48:08 rgrimes Exp $";
+static char rcsid[] = "$Id: e_exp.c,v 1.3 1996/07/12 18:57:55 jkh Exp $";
 #endif
 
 /* __ieee754_exp(x)
@@ -104,9 +104,9 @@ P5   =  4.13813679705723846039e-08; /* 0x3E663769, 0x72BEA4D0 */
 
 
 #ifdef __STDC__
-	double __ieee754_exp(double x)	/* default IEEE double exp */
+	double __generic___ieee754_exp(double x)	/* default IEEE double exp */
 #else
-	double __ieee754_exp(x)	/* default IEEE double exp */
+	double __generic___ieee754_exp(x)	/* default IEEE double exp */
 	double x;
 #endif
 {

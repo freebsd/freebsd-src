@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_significand.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_significand.c,v 1.2 1995/05/30 05:50:26 rgrimes Exp $";
 #endif
 
 /*
@@ -24,9 +24,9 @@ static char rcsid[] = "$Id: s_significand.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Ex
 #include "math_private.h"
 
 #ifdef __STDC__
-	double significand(double x)
+	double __generic_significand(double x)
 #else
-	double significand(x)
+	double __generic_significand(x)
 	double x;
 #endif
 {

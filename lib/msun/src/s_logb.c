@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_logb.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_logb.c,v 1.2 1995/05/30 05:49:59 rgrimes Exp $";
 #endif
 
 /*
@@ -24,9 +24,9 @@ static char rcsid[] = "$Id: s_logb.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double logb(double x)
+	double __generic_logb(double x)
 #else
-	double logb(x)
+	double __generic_logb(x)
 	double x;
 #endif
 {

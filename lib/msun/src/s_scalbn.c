@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_scalbn.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_scalbn.c,v 1.2 1995/05/30 05:50:23 rgrimes Exp $";
 #endif
 
 /*
@@ -35,9 +35,9 @@ huge   = 1.0e+300,
 tiny   = 1.0e-300;
 
 #ifdef __STDC__
-	double scalbn (double x, int n)
+	double __generic_scalbn (double x, int n)
 #else
-	double scalbn (x,n)
+	double __generic_scalbn (x,n)
 	double x; int n;
 #endif
 {

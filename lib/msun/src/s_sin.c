@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_sin.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_sin.c,v 1.2 1995/05/30 05:50:30 rgrimes Exp $";
 #endif
 
 /* sin(x)
@@ -49,9 +49,9 @@ static char rcsid[] = "$Id: s_sin.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	double sin(double x)
+	double __generic_sin(double x)
 #else
-	double sin(x)
+	double __generic_sin(x)
 	double x;
 #endif
 {

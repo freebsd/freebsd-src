@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_ilogb.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_ilogb.c,v 1.2 1995/05/30 05:49:45 rgrimes Exp $";
 #endif
 
 /* ilogb(double x)
@@ -24,9 +24,9 @@ static char rcsid[] = "$Id: s_ilogb.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
 #include "math_private.h"
 
 #ifdef __STDC__
-	int ilogb(double x)
+	int __generic_ilogb(double x)
 #else
-	int ilogb(x)
+	int __generic_ilogb(x)
 	double x;
 #endif
 {

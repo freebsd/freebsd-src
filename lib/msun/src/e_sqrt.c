@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_sqrt.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
+static char rcsid[] = "$Id: e_sqrt.c,v 1.2 1995/05/30 05:48:50 rgrimes Exp $";
 #endif
 
 /* __ieee754_sqrt(x)
@@ -94,9 +94,9 @@ static	double	one	= 1.0, tiny=1.0e-300;
 #endif
 
 #ifdef __STDC__
-	double __ieee754_sqrt(double x)
+	double __generic___ieee754_sqrt(double x)
 #else
-	double __ieee754_sqrt(x)
+	double __generic___ieee754_sqrt(x)
 	double x;
 #endif
 {

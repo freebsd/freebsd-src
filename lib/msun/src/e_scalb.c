@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_scalb.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
+static char rcsid[] = "$Id: e_scalb.c,v 1.2 1995/05/30 05:48:43 rgrimes Exp $";
 #endif
 
 /*
@@ -25,16 +25,16 @@ static char rcsid[] = "$Id: e_scalb.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 
 #ifdef _SCALB_INT
 #ifdef __STDC__
-	double __ieee754_scalb(double x, int fn)
+	double __generic___ieee754_scalb(double x, int fn)
 #else
-	double __ieee754_scalb(x,fn)
+	double __generic___ieee754_scalb(x,fn)
 	double x; int fn;
 #endif
 #else
 #ifdef __STDC__
-	double __ieee754_scalb(double x, double fn)
+	double __generic___ieee754_scalb(double x, double fn)
 #else
-	double __ieee754_scalb(x,fn)
+	double __generic___ieee754_scalb(x,fn)
 	double x, fn;
 #endif
 #endif
