@@ -27,7 +27,6 @@ KSTACK_PAGES
 # (see src/sys/conf/options), except for broken debugging options.
 IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
-DEBUG_LINUX		opt_linux.h
 COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
 PECOFF_SUPPORT		opt_dontuse.h
@@ -108,8 +107,6 @@ PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
-PCIC_RESUME_RESET	opt_pcic.h
-
 ATKBD_DFLT_KEYMAP	opt_atkbd.h
 
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
@@ -134,11 +131,6 @@ PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
 PCVT_GREENSAVER		opt_pcvt.h
-
-# voxware options
-GUS_DMA2		opt_sound.h
-GUS_DMA			opt_sound.h
-GUS_IRQ			opt_sound.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
@@ -170,11 +162,6 @@ COMPAQ_M610		opt_i4b.h
 # isdn4bsd: passive PCI cards
 # -------------------------------
 ELSA_QS1PCI		opt_i4b.h
-AVM_A1_PCI		opt_i4b.h
-# -------------------------------
-# isdn4bsd: passive PCMCIA cards
-# -------------------------------
-#AVM_A1_PCMCIA		opt_i4b.h
 # -------------------------------
 # isdn4bsd: misc options
 # -------------------------------
@@ -184,21 +171,12 @@ I4B_SMP_WORKAROUND      opt_i4b.h
 IPR_VJ			opt_i4b.h
 IPR_LOG			opt_i4b.h
 
-# -------------------------------
-# oltr: build options
-# -------------------------------
-# Exclude microcode options
-OLTR_NO_TMS_MAC		opt_oltr.h
-OLTR_NO_HAWKEYE_MAC	opt_oltr.h
-OLTR_NO_BULLSEYE_MAC	opt_oltr.h
-
 # Total number of ports controlled by the dgb(4) driver.
 # Defaults to NDGB*16.
 NDGBPORTS		opt_dgb.h
 
 # Device options
 DEV_NPX			opt_npx.h
-DEV_APM			opt_apm.h
 DEV_SPLASH		opt_splash.h
 
 # SMB/CIFS requester
