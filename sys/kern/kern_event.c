@@ -62,10 +62,11 @@ static int	kqueue_write(struct file *fp, struct uio *uio,
 		    struct ucred *active_cred, int flags, struct thread *td);
 static int	kqueue_ioctl(struct file *fp, u_long com, void *data,
 		    struct thread *td);
-static int 	kqueue_poll(struct file *fp, int events, struct ucred *cred,
-		    struct thread *td);
+static int 	kqueue_poll(struct file *fp, int events,
+		    struct ucred *active_cred, struct thread *td);
 static int 	kqueue_kqfilter(struct file *fp, struct knote *kn);
-static int 	kqueue_stat(struct file *fp, struct stat *st, struct thread *td);
+static int 	kqueue_stat(struct file *fp, struct stat *st,
+		    struct ucred *active_cred, struct thread *td);
 static int 	kqueue_close(struct file *fp, struct thread *td);
 static void 	kqueue_wakeup(struct kqueue *kq);
 
@@ -800,7 +801,8 @@ kqueue_ioctl(struct file *fp, u_long com, void *data, struct thread *td)
 
 /*ARGSUSED*/
 static int
-kqueue_poll(struct file *fp, int events, struct ucred *cred, struct thread *td)
+kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct kqueue *kq;
 	int revents = 0;
@@ -821,7 +823,8 @@ kqueue_poll(struct file *fp, int events, struct ucred *cred, struct thread *td)
 
 /*ARGSUSED*/
 static int
-kqueue_stat(struct file *fp, struct stat *st, struct thread *td)
+kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct kqueue *kq;
 

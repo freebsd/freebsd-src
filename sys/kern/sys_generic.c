@@ -899,7 +899,8 @@ selscan(td, ibits, obits, nfd)
 					FILEDESC_UNLOCK(fdp);
 					return (EBADF);
 				}
-				if (fo_poll(fp, flag[msk], fp->f_cred, td)) {
+				if (fo_poll(fp, flag[msk], td->td_ucred,
+				    td)) {
 					obits[msk][(fd)/NFDBITS] |=
 					    ((fd_mask)1 << ((fd) % NFDBITS));
 					n++;
@@ -1072,7 +1073,7 @@ pollscan(td, fds, nfd)
 				 * POLLERR if appropriate.
 				 */
 				fds->revents = fo_poll(fp, fds->events,
-				    fp->f_cred, td);
+				    td->td_ucred, td);
 				if (fds->revents != 0)
 					n++;
 			}

@@ -474,9 +474,10 @@ fifo_poll(ap)
 		}
 
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
+		filetmp.f_cred = ap->a_cred;
 		if (filetmp.f_data)
-			revents |= soo_poll(&filetmp, events, ap->a_cred,
-			    ap->a_td);
+			revents |= soo_poll(&filetmp, events,
+			    ap->a_td->td_ucred, ap->a_td);
 
 		/* Reverse the above conversion. */
 		if ((revents & POLLINIGNEOF) &&

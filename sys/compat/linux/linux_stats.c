@@ -112,7 +112,7 @@ linux_newstat(struct thread *td, struct linux_newstat_args *args)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = vn_stat(nd.ni_vp, &buf, td);
+	error = vn_stat(nd.ni_vp, &buf, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -143,7 +143,7 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF); 
 
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -166,7 +166,7 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	if ((error = fget(td, args->fd, &fp)) != 0)
 		return (error);
 
-	error = fo_stat(fp, &buf, td);
+	error = fo_stat(fp, &buf, td->td_ucred, td);
 	fdrop(fp, td);
 	if (!error)
 		error = newstat_copyout(&buf, args->buf);
@@ -433,7 +433,7 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = vn_stat(nd.ni_vp, &buf, td);
+	error = vn_stat(nd.ni_vp, &buf, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -464,7 +464,7 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF); 
 
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -490,7 +490,7 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	    (fp = fdp->fd_ofiles[args->fd]) == NULL)
 		return (EBADF);
 
-	error = fo_stat(fp, &buf, td);
+	error = fo_stat(fp, &buf, td->td_ucred, td);
 	if (!error)
 		error = stat64_copyout(&buf, args->statbuf);
 

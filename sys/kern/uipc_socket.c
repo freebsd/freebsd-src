@@ -1687,7 +1687,8 @@ sohasoutofband(so)
 }
 
 int
-sopoll(struct socket *so, int events, struct ucred *cred, struct thread *td)
+sopoll(struct socket *so, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	int revents = 0;
 	int s = splnet();

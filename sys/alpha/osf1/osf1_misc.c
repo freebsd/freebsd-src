@@ -618,7 +618,7 @@ osf1_stat(td, uap)
 	    SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -649,7 +649,7 @@ osf1_lstat(td, uap)
 	    SCARG(uap, path), td);
 	if ((error = namei(&nd)))
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td);
+	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
@@ -674,7 +674,7 @@ osf1_fstat(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
-	error = fo_stat(fp, &ub, td);
+	error = fo_stat(fp, &ub, td->td_ucred, td);
 	fdrop(fp, td);
 	cvtstat2osf1(&ub, &oub);
 	if (error == 0)
