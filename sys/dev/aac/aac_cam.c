@@ -572,20 +572,19 @@ aac_cam_get_tran_settings(struct aac_softc *sc, struct ccb_trans_settings *cts, 
 	}
 
 	cts->bus_width = ((vmi_resp->Inquiry7 & 0x60) >> 5);
+	cts->valid = CCB_TRANS_BUS_WIDTH_VALID;
+
 	if (vmi_resp->ScsiRate) {
 		cts->sync_period =
 		    scsi_calc_syncparam((10000 / vmi_resp->ScsiRate));
 		cts->sync_offset = vmi_resp->ScsiOffset;
-	} else {
-		cts->sync_period = 0;
-		cts->sync_offset = 0;
+		cts->valid |= CCB_TRANS_SYNC_RATE_VALID		|
+			      CCB_TRANS_SYNC_OFFSET_VALID;
 	}
+
 	cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-	cts->valid = CCB_TRANS_DISC_VALID		|
-		     CCB_TRANS_SYNC_RATE_VALID		|
-		     CCB_TRANS_SYNC_OFFSET_VALID	|
-		     CCB_TRANS_BUS_WIDTH_VALID		|
-		     CCB_TRANS_TQ_VALID;
+	cts->valid |= CCB_TRANS_DISC_VALID		|
+		      CCB_TRANS_TQ_VALID;
 
 	aac_release_sync_fib(sc);
 	return (CAM_REQ_CMP);
