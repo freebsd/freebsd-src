@@ -181,22 +181,22 @@ ata_pci_match(device_t dev)
 
     case 0x55131039:
 	if (ata_find_dev(dev, 0x06301039, 0x30) ||
-	    ata_find_dev(dev, 0x06331039, 0x00) ||
-	    ata_find_dev(dev, 0x06351039, 0x00) ||
-	    ata_find_dev(dev, 0x06401039, 0x00) ||
-	    ata_find_dev(dev, 0x06451039, 0x00) ||
-	    ata_find_dev(dev, 0x06501039, 0x00) ||
-	    ata_find_dev(dev, 0x07301039, 0x00) ||
-	    ata_find_dev(dev, 0x07331039, 0x00) ||
-	    ata_find_dev(dev, 0x07351039, 0x00) ||
-	    ata_find_dev(dev, 0x07401039, 0x00) ||
-	    ata_find_dev(dev, 0x07451039, 0x00) ||
-	    ata_find_dev(dev, 0x07501039, 0x00))
+	    ata_find_dev(dev, 0x06331039, 0) ||
+	    ata_find_dev(dev, 0x06351039, 0) ||
+	    ata_find_dev(dev, 0x06401039, 0) ||
+	    ata_find_dev(dev, 0x06451039, 0) ||
+	    ata_find_dev(dev, 0x06501039, 0) ||
+	    ata_find_dev(dev, 0x07301039, 0) ||
+	    ata_find_dev(dev, 0x07331039, 0) ||
+	    ata_find_dev(dev, 0x07351039, 0) ||
+	    ata_find_dev(dev, 0x07401039, 0) ||
+	    ata_find_dev(dev, 0x07451039, 0) ||
+	    ata_find_dev(dev, 0x07501039, 0))
 	    return "SiS 5591 ATA100 controller";
-	else if (ata_find_dev(dev, 0x05301039, 0x00) ||
-	    ata_find_dev(dev, 0x05401039, 0x00) ||
-	    ata_find_dev(dev, 0x06201039, 0x00) ||
-	    ata_find_dev(dev, 0x06301039, 0x00))
+	else if (ata_find_dev(dev, 0x05301039, 0) ||
+	    ata_find_dev(dev, 0x05401039, 0) ||
+	    ata_find_dev(dev, 0x06201039, 0) ||
+	    ata_find_dev(dev, 0x06301039, 0))
 	    return "SiS 5591 ATA66 controller";
 	else
 	    return "SiS 5591 ATA33 controller";

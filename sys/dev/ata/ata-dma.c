@@ -411,7 +411,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 }};	/* ATA133 */
 	    int *reg_val = NULL;
 
-	    if (ata_find_dev(parent, 0x31471106, 0x40)) {	/* 8233a */
+	    if (ata_find_dev(parent, 0x31471106, 0)) {		/* 8233a */
 		udmamode = imin(udmamode, 6);
 		reg_val = via_modes[3];
 	    }
@@ -427,7 +427,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 		udmamode = imin(udmamode, 4);
 		reg_val = via_modes[1];
 	    }
-	    else if (ata_find_dev(parent, 0x06861106, 0x0)) {	/* 82C686 */
+	    else if (ata_find_dev(parent, 0x06861106, 0)) {	/* 82C686 */
 		udmamode = imin(udmamode, 2);
 		reg_val = via_modes[1];
 	    }
@@ -509,17 +509,17 @@ via_82c586:
 
     case 0x55131039:	/* SiS 5591 */
 	if (ata_find_dev(parent, 0x06301039, 0x30) ||	/* SiS 630 */
-	    ata_find_dev(parent, 0x06331039, 0x00) ||	/* SiS 633 */
-	    ata_find_dev(parent, 0x06351039, 0x00) ||	/* SiS 635 */
-	    ata_find_dev(parent, 0x06401039, 0x00) ||	/* SiS 640 */
-	    ata_find_dev(parent, 0x06451039, 0x00) ||	/* SiS 645 */
-	    ata_find_dev(parent, 0x06501039, 0x00) ||	/* SiS 650 */
-	    ata_find_dev(parent, 0x07301039, 0x00) ||	/* SiS 730 */
-	    ata_find_dev(parent, 0x07331039, 0x00) ||	/* SiS 733 */
-	    ata_find_dev(parent, 0x07351039, 0x00) ||	/* SiS 735 */
-	    ata_find_dev(parent, 0x07401039, 0x00) ||	/* SiS 740 */
-	    ata_find_dev(parent, 0x07451039, 0x00) ||	/* SiS 745 */
-	    ata_find_dev(parent, 0x07501039, 0x00)) {	/* SiS 750 */
+	    ata_find_dev(parent, 0x06331039, 0) ||	/* SiS 633 */
+	    ata_find_dev(parent, 0x06351039, 0) ||	/* SiS 635 */
+	    ata_find_dev(parent, 0x06401039, 0) ||	/* SiS 640 */
+	    ata_find_dev(parent, 0x06451039, 0) ||	/* SiS 645 */
+	    ata_find_dev(parent, 0x06501039, 0) ||	/* SiS 650 */
+	    ata_find_dev(parent, 0x07301039, 0) ||	/* SiS 730 */
+	    ata_find_dev(parent, 0x07331039, 0) ||	/* SiS 733 */
+	    ata_find_dev(parent, 0x07351039, 0) ||	/* SiS 735 */
+	    ata_find_dev(parent, 0x07401039, 0) ||	/* SiS 740 */
+	    ata_find_dev(parent, 0x07451039, 0) ||	/* SiS 745 */
+	    ata_find_dev(parent, 0x07501039, 0)) {	/* SiS 750 */
 	    int8_t reg = 0x40 + (devno << 1);
 	    int16_t val = pci_read_config(parent, reg, 2) & 0x0fff;
 
