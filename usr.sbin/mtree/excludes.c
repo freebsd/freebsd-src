@@ -102,7 +102,7 @@ check_excludes(const char *fname, const char *path)
 	/* fnmatch(3) has a funny return value convention... */
 #define MATCH(g, n) (fnmatch((g), (n), FNM_PATHNAME) == 0)
 
-	for (e = excludes.lh_first; e != 0; e = e->link.le_next) {
+	LIST_FOREACH(e, &excludes, link) {
 		if (e->pathname && MATCH(e->glob, path) 
 		    || MATCH(e->glob, fname))
 			return 1;

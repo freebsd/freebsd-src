@@ -891,9 +891,9 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}
-		a_gid = grpargs.lh_first;
+		a_gid = LIST_FIRST(&grpargs);
 		while (a_gid != NULL) {
-			struct carg    *t = a_gid->list.le_next;
+			struct carg    *t = LIST_NEXT(a_gid, list);
 			LIST_REMOVE(a_gid, list);
 			a_gid = t;
 		}

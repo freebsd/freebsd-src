@@ -420,10 +420,10 @@ cmdhelp(int mode, int which)
 struct carg    *
 getarg(struct cargs * _args, int ch)
 {
-	struct carg    *c = _args->lh_first;
+	struct carg    *c = LIST_FIRST(_args);
 
 	while (c != NULL && c->ch != ch)
-		c = c->list.le_next;
+		c = LIST_NEXT(c, list);
 	return c;
 }
 
