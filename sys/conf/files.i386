@@ -107,6 +107,7 @@ dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
+dev/lnc/if_lnc_isa.c		optional	lnc isa
 dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc

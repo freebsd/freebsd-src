@@ -36,8 +36,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
-#include <machine/bus_memio.h>
-#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -122,7 +120,6 @@ lnc_pci_attach(device_t dev)
 	if (err)
 		device_printf(dev, "Cannot setup irq handler\n");
 
-	sc->iobase = rman_get_start(sc->portres);
 	sc->lnc_btag = rman_get_bustag(sc->portres);
 	sc->lnc_bhandle = rman_get_bushandle(sc->portres);
 
