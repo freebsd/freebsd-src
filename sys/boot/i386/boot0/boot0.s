@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot0.s,v 1.5 1998/11/29 14:09:00 rnordier Exp $
+#	$Id: boot0.s,v 1.6 1998/12/05 11:58:33 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -33,8 +33,9 @@
 		.set KEY_ENTER,0x1c		# Enter key scan code
 		.set KEY_F1,0x3b		# F1 key scan code
 
-		.set _NXTDRV,-0x47		# Drive number
-		.set _OPT,-0x46 		# Default option
+		.set _NXTDRV,-0x48		# Next drive
+		.set _OPT,-0x47 		# Default option
+		.set _SETDRV,-0x46		# Drive to force
 		.set _FLAGS,-0x45		# Flags
 		.set _TICKS,-0x44		# Timeout ticks
 		.set _FAKE,0x10 		# Fake partition entry
@@ -60,7 +61,10 @@ start:		cld				# String ops inc
 		incb1(-0xe,_di_)		# Sector number
 		jmpnwi(main-LOAD+ORIGIN)	# To relocated code
 
-main:		movbr1(_dl,_FAKE,_bp_)		# Save drive number
+main:		tstbi1(0x20,_FLAGS,_bp_)	# Set drive?
+		jz main.0			# No
+		movb1r(_SETDRV,_bp_,_dl)	# Drive to force
+main.0: 	movbr1(_dl,_FAKE,_bp_)		# Save drive number
 		callwi(putn)			# To new line
 		movwir(partbl,_bx)		# Partition table
 		xorl %edx,%edx			# Item
@@ -240,11 +244,12 @@ os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
-		.org PRT_OFF-0xb,0x90
+		.org PRT_OFF-0xc,0x90
 
 drive:		.ascii "Drive "
 nxtdrv: 	.byte 0x0			# Next drive number
 opt:		.byte 0x0			# Option
+setdrv: 	.byte 0x80			# Drive to force
 flags:		.byte FLAGS			# Flags
 ticks:		.word TICKS			# Delay
 
