@@ -348,16 +348,17 @@ tooshort:
 #endif
 
 #if defined(IPFILTER) || defined(IPFILTER_LKM)
-    {
-	struct	mbuf	*m0 = m;
 	/*
 	 * Check if we want to allow this packet to be processed.
 	 * Consider it to be bad if not.
 	 */
-	if (fr_checkp && (*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m0))
-		goto next;
-	ip = mtod(m = m0, struct ip *);
-    }
+	if (fr_check) {
+		struct	mbuf	*m1 = m;
+
+		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
+			goto next;
+		ip = mtod(m = m1, struct ip *);
+	}
 #endif
 
 	/*
