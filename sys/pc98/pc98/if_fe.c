@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.12 1996/12/04 04:20:54 asami Exp $
+ * $Id: if_fe.c,v 1.13 1996/12/15 09:14:48 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -128,7 +128,11 @@
 
 #include <machine/clock.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
