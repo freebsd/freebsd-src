@@ -74,12 +74,16 @@ static void *
 greg_ptr(mcontext_t *mc, int gr)
 {
 	uint64_t *p;
+	int bias, nslots;
 
 	if (gr <= 0 || gr >= 32 + (mc->mc_special.cfm & 0x7f))
 		return (NULL);
 	if (gr >= 32) {
 		p = (void*)mc->mc_special.bspstore;
-		p += gr - 32;
+		nslots = (mc->mc_special.cfm & 0x7f) - gr + 32;
+		bias = (0x1f8 - (mc->mc_special.bspstore & 0x1f8)) >> 3;
+		nslots += (nslots + bias) / 63;
+		p -= nslots;
 		gr = 0;
 	} else if (gr >= 14) {
 		p = &mc->mc_scratch.gr14;
@@ -134,6 +138,13 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 	uint64_t postinc;
 
 	switch (i->i_op) {
+	case ASM_OP_LD2:
+		copyin((void*)va, (void*)&buf.i, 2);
+		reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		wrreg(reg, buf.i & 0xffffU);
+		break;
 	case ASM_OP_LD4:
 		copyin((void*)va, (void*)&buf.i, 4);
 		reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
@@ -154,6 +165,27 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		if (reg == NULL)
 			return (EINVAL);
 		spillfd((void*)&buf.d, reg);
+		break;
+	case ASM_OP_ST2:
+		reg = greg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		buf.i = rdreg(reg);
+		copyout((void*)&buf.i, (void*)va, 2);
+		break;
+	case ASM_OP_ST4:
+		reg = greg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		buf.i = rdreg(reg);
+		copyout((void*)&buf.i, (void*)va, 4);
+		break;
+	case ASM_OP_ST8:
+		reg = greg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		buf.i = rdreg(reg);
+		copyout((void*)&buf.i, (void*)va, 8);
 		break;
 	default:
 		return (ENOENT);
