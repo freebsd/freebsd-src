@@ -1,12 +1,12 @@
    -----------------------------------------
-       FreeBSD 4.0  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 3.4  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a binary snapshot of 4.0-current, the         /- _  `-/  '
-(HEAD) branch which is currently moving towards      (/\/ \ \   /\
-the follow-on release to 4.0.                        / /   | `    \
-                                                     O O   ) /    |
-                                                     `-^--'`<     '
+This is a full release of FreeBSD, 3.4-RELEASE,       /- _  `-/  '
+from the 3.0-STABLE branch of the FreeBSD CVS        (/\/ \ \   /\
+repository.  This is the follow-on release to        / /   | `    \
+FreeBSD 3.3-RELEASE, more information being          O O   ) /    |
+available in RELNOTES.TXT                            `-^--'`<     '
                                                     (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
