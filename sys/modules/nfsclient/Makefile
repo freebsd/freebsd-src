@@ -22,9 +22,8 @@ SRCS+= rpcclnt.c
 # USE THE NEW IDMAPPER
 CFLAGS+= -DUSE_NEW_IDMAPPER
 
-opt_inet.h:
-	touch ${.TARGET}
 .if ${NFS_INET} > 0
+opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
 .endif
 
