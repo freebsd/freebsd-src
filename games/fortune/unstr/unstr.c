@@ -66,6 +66,7 @@ static const char rcsid[] =
 # include	<arpa/inet.h>
 # include	<stdio.h>
 # include	<ctype.h>
+# include	<stdlib.h>
 # include       <string.h>
 # include	"strfile.h"
 
