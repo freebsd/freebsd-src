@@ -567,7 +567,7 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
  */
 static int
 ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr)
+	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const priv_p priv = node->private;
@@ -783,7 +783,8 @@ done:
  * Receive incoming data on our hook.  Send it out the socket.
  */
 static int
-ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const node_p node = hook->node;

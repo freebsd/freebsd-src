@@ -83,7 +83,7 @@ struct ng_mesg {
 }
 
 /* Negraph type binary compatibility field */
-#define NG_VERSION	2
+#define NG_VERSION	3
 
 /* Flags field flags */
 #define NGF_ORIG	0x0000		/* the msg is the original request */

@@ -283,7 +283,7 @@ ngmn_shutdown(node_p nodep)
 }
 
 static int
-ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
+ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp, hook_p lasthook)
 {
 	struct softc *sc;
 	struct schan *sch;
@@ -497,7 +497,8 @@ mn_fmt_ts(char *p, u_int32_t ts)
  */
 
 static int
-ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+			struct mbuf **ret_m, meta_p *ret_meta)
 {
 	struct mbuf  *m2;
 	struct trxd *dp, *dp2;

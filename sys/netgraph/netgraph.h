@@ -132,12 +132,14 @@ typedef struct ng_meta *meta_p;
 /* node method definitions */
 typedef	int	ng_constructor_t(node_p *node);
 typedef	int	ng_rcvmsg_t(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp);
+			const char *retaddr, struct ng_mesg **resp,
+			hook_p lasthook);
 typedef	int	ng_shutdown_t(node_p node);
 typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
 typedef	hook_p	ng_findhook_t(node_p node, const char *name);
 typedef	int	ng_connect_t(hook_p hook);
-typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta);
+typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta,
+			struct mbuf **ret_m, meta_p *ret_meta);
 typedef	int	ng_disconnect_t(hook_p hook);
 
 /*
@@ -182,7 +184,7 @@ struct ng_type {
 /* Send data packet with meta-data */
 #define NG_SEND_DATA(error, hook, m, a)					\
 	do {								\
-		(error) = ng_send_data((hook), (m), (a));		\
+		(error) = ng_send_data((hook), (m), (a), NULL, NULL);	\
 		(m) = NULL;						\
 		(a) = NULL;						\
 	} while (0)
@@ -190,9 +192,18 @@ struct ng_type {
 /* Send  queued data packet with meta-data */
 #define NG_SEND_DATAQ(error, hook, m, a)				\
 	do {								\
-		(error) = ng_send_dataq((hook), (m), (a));		\
+		(error) = ng_send_dataq((hook), (m), (a), NULL, NULL);	\
 		(m) = NULL;						\
 		(a) = NULL;						\
+	} while (0)
+
+#define NG_SEND_DATA_RET(error, hook, m, a)				\
+	do {								\
+		struct mbuf *ret_m = NULL;				\
+		meta_p ret_meta = NULL;					\
+		(error) = ng_send_dataq((hook), (m), (a), &ret_m, &ret_meta);\
+		(m) = ret_m;						\
+		(a) = ret_meta;						\
 	} while (0)
 
 /* Free metadata */
@@ -255,14 +266,17 @@ int	ng_mod_event(module_t mod, int what, void *arg);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
-int	ng_path2node(node_p here, const char *path, node_p *dest, char **rtnp);
+int	ng_path2node(node_p here, const char *path, node_p *dest, char **rtnp,
+			hook_p *lasthook);
 int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 int	ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta);
 int	ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address);
 void	ng_release_node(node_p node);
 void	ng_rmnode(node_p node);
-int	ng_send_data(hook_p hook, struct mbuf *m, meta_p meta);
-int	ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta);
+int	ng_send_data(hook_p hook, struct mbuf *m, meta_p meta,
+			struct mbuf **ret_m, meta_p *ret_meta);
+int	ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta,
+			struct mbuf **ret_m, meta_p *ret_meta);
 int	ng_send_msg(node_p here, struct ng_mesg *msg,
 	    const char *address, struct ng_mesg **resp);
 void	ng_unname(node_p node);

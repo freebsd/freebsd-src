@@ -452,7 +452,7 @@ ngauto_state_machine(sc_p sc)
  */
 static int
 nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	     struct ng_mesg **resp)
+	     struct ng_mesg **resp, hook_p lasthook)
 {
 	int     error = 0;
 	sc_p    sc = node->private;
@@ -559,7 +559,8 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Anything coming in on the debug port is discarded.
  */
 static int
-nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	sc_p    sc = hook->node->private;
 	u_char *data;

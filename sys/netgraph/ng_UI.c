@@ -150,7 +150,7 @@ ng_UI_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
-	     const char *raddr, struct ng_mesg **rp)
+	     const char *raddr, struct ng_mesg **rp, hook_p lasthook)
 {
 	FREE(msg, M_NETGRAPH);
 	return (EINVAL);
@@ -163,7 +163,8 @@ ng_UI_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive a data frame
  */
 static int
-ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_UI_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+		struct mbuf **ret_m, meta_p *ret_meta)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
