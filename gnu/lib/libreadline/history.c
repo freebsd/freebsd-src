@@ -25,10 +25,6 @@
    you can call.  I think I have done that. */
 #define READLINE_LIBRARY
 
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/file.h>
@@ -1536,9 +1532,9 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	    j += sl; \
 	    if (j >= result_len) \
 	      { \
-	        while (j >= result_len) \
-	          result_len += 128; \
-	        result = xrealloc (result, result_len); \
+		while (j >= result_len) \
+		  result_len += 128; \
+		result = xrealloc (result, result_len); \
 	      } \
 	    strcpy (result + j - sl, s); \
 	  } \
@@ -1906,13 +1902,14 @@ history_arg_extract (first, last, string)
 
   last++;
 
-  if (first > len || last > len || first < 0 || last < 0)
+  if (first >= len || last > len || first < 0 || last < 0 || first > last)
     result = ((char *)NULL);
   else
     {
       for (size = 0, i = first; i < last; i++)
 	size += strlen (list[i]) + 1;
       result = xmalloc (size + 1);
+      result[0] = '\0';
 
       for (i = first; i < last; i++)
 	{

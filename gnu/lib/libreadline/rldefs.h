@@ -30,13 +30,13 @@
 #  include "config.h"
 #endif
 
-#if defined (HAVE_UNISTD_H)
-#  include <unistd.h>           /* for _POSIX_VERSION */
-#endif /* HAVE_UNISTD_H */
-
 #if !defined (PRAGMA_ALLOCA)
 #  include "memalloc.h"
 #endif
+
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #define NEW_TTY_DRIVER
 #define HAVE_BSD_SIGNALS
