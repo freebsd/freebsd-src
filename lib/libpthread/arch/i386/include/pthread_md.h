@@ -31,12 +31,9 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
-#include <sys/kse.h>
 #include <setjmp.h>
 #include <ucontext.h>
 
-extern int _thread_enter_uts(struct kse_thr_mailbox *, struct kse_mailbox *);
-extern int _thread_switch(struct kse_thr_mailbox *, struct kse_thr_mailbox **);
 extern int _thr_setcontext(ucontext_t *);
 extern int _thr_getcontext(ucontext_t *);
 

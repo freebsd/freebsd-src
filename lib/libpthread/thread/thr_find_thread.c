@@ -85,15 +85,6 @@ _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 		thread->refcount--;
 		curthread->critical_count--;
-		if (((thread->flags & THR_FLAGS_GC_SAFE) != 0) &&
-		    (thread->refcount == 0) &&
-		    ((thread->attr.flags & PTHREAD_DETACHED) != 0)) {
-			THR_LIST_REMOVE(thread);
-			THR_GCLIST_ADD(thread);
-			_gc_check = 1;
-			if (KSE_WAITING(_kse_initial))
-				KSE_WAKEUP(_kse_initial);
-		}
 		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
 		_kse_critical_leave(crit);
 	}
