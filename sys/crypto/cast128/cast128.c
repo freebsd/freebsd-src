@@ -1,9 +1,9 @@
-/*	$FreeBSD$	*/
 /*	$KAME: cast128.c,v 1.5 2001/11/27 09:47:32 sakane Exp $	*/
 
 /*
  * heavily modified by Tomomi Suzuki <suzuki@grelot.elec.ryukoku.ac.jp>
  */
+
 /*
  * The CAST-128 Encryption Algorithm (RFC 2144)
  *
@@ -35,6 +35,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
