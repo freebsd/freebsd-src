@@ -18,7 +18,7 @@
   012   '-'    '='    nop    nop    '-'    '='    nop    nop     O
   013   '^'    '~'    rs     rs     '^'    '~'    rs     rs      O
   014   bs     bs     del    del    bs     bs     del    del     O
-  015   ht     bs     nop    nop    ht     bs     nop    nop     O
+  015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
   018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
@@ -79,14 +79,14 @@
   073   fkey51 '9'    '9'    '9'    '9'    '9'    '9'    '9'     N
   074   fkey52 '-'    '-'    '-'    '-'    '-'    '-'    '-'     N
   075   fkey53 '4'    '4'    '4'    '4'    '4'    '4'    '4'     N
-  076   nop    '5'    '5'    '5'    '5'    '5'    '5'    '5'     N
+  076   fkey54 '5'    '5'    '5'    '5'    '5'    '5'    '5'     N
   077   fkey55 '6'    '6'    '6'    '6'    '6'    '6'    '6'     N
   078   fkey56 '+'    '+'    '+'    '+'    '+'    '+'    '+'     N
   079   fkey57 '1'    '1'    '1'    '1'    '1'    '1'    '1'     N
   080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
-  083   del    '.'    del    del    del    del    boot   del     N
+  083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -106,9 +106,12 @@
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103   fkey54 fkey54 fkey54 fkey54 fkey54 fkey54 boot   fkey54  O
+  103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
-  121   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
-  123   ' '    ' '    ' '    ' '    ' '    ' '    ' '    ' '     O
+  121   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
+  123   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   125   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
