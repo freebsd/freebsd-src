@@ -95,6 +95,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
+	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) fifo_badop },
 	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
@@ -103,7 +104,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
-	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
 	{ &vop_readdir_desc,		(vop_t *) fifo_badop },
@@ -204,16 +204,20 @@ fifo_open(ap)
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
 			fip->fi_writesock->so_state &= ~SS_CANTSENDMORE;
-			if (fip->fi_writers > 0)
+			if (fip->fi_writers > 0) {
 				wakeup((caddr_t)&fip->fi_writers);
+				sowwakeup(fip->fi_writesock);
+			}
 		}
 	}
 	if (ap->a_mode & FWRITE) {
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
-			if (fip->fi_readers > 0)
+			if (fip->fi_readers > 0) {
 				wakeup((caddr_t)&fip->fi_readers);
+				sorwakeup(fip->fi_writesock);
+			}
 		}
 	}
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
@@ -360,16 +364,19 @@ fifo_kqfilter(ap)
 		struct knote *a_kn;
 	} */ *ap;
 {
-	struct socket *so = (struct socket *)ap->a_vp->v_fifoinfo->fi_readsock;
+	struct fifoinfo *fi = ap->a_vp->v_fifoinfo;
+	struct socket *so;
 	struct sockbuf *sb;
 
 	switch (ap->a_kn->kn_filter) {
 	case EVFILT_READ:
 		ap->a_kn->kn_fop = &fiforead_filtops;
+		so = fi->fi_readsock;
 		sb = &so->so_rcv;
 		break;
 	case EVFILT_WRITE:
 		ap->a_kn->kn_fop = &fifowrite_filtops;
+		so = fi->fi_writesock;
 		sb = &so->so_snd;
 		break;
 	default:
