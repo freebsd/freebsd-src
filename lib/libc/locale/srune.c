@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Tim J. Robbins
+ * Copyright (c) 2003-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+/* Not required when sgetrune() and sputrune() are removed. */
+#define	OBSOLETE_IN_6
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -39,6 +42,8 @@ __FBSDID("$FreeBSD$");
 rune_t
 __emulated_sgetrune(const char *string, size_t n, const char **result)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	wchar_t wc;
 	size_t nconv;
 
@@ -46,7 +51,8 @@ __emulated_sgetrune(const char *string, size_t n, const char **result)
 	 * Pass a NULL conversion state to mbrtowc() since multibyte
 	 * conversion states are not supported.
 	 */
-	nconv = mbrtowc(&wc, string, n, NULL);
+	mbs = initial;
+	nconv = mbrtowc(&wc, string, n, &mbs);
 	if (nconv == (size_t)-2) {
 		if (result != NULL)
 			*result = string;
@@ -71,10 +77,13 @@ __emulated_sgetrune(const char *string, size_t n, const char **result)
 int
 __emulated_sputrune(rune_t rune, char *string, size_t n, char **result)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	char buf[MB_LEN_MAX];
 	size_t nconv;
 
-	nconv = wcrtomb(buf, (wchar_t)rune, NULL);
+	mbs = initial;
+	nconv = wcrtomb(buf, (wchar_t)rune, &mbs);
 	if (nconv == (size_t)-1) {
 		if (result != NULL)
 			*result = NULL;
