@@ -160,9 +160,7 @@ static char *objdir;			/* where we chdir'ed to */
  *	given
  */
 static void
-MainParseArgs(argc, argv)
-	int argc;
-	char **argv;
+MainParseArgs(int argc, char **argv)
 {
 	char *p;
 	int c;
@@ -394,8 +392,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
  *	Only those that come from the various arguments.
  */
 void
-Main_ParseArgLine(line)
-	char *line;			/* Line to fracture */
+Main_ParseArgLine(char *line)
 {
 	char **argv;			/* Manufactured argument vector */
 	int argc;			/* Number of arguments in argv */
@@ -412,9 +409,7 @@ Main_ParseArgLine(line)
 }
 
 char *
-chdir_verify_path(path, obpath)
-	char *path;
-	char *obpath;
+chdir_verify_path(char *path, char *obpath)
 {
 	struct stat sb;
 
@@ -448,9 +443,7 @@ chdir_verify_path(path, obpath)
  *	The program exits when done. Targets are created. etc. etc. etc.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
@@ -925,15 +918,15 @@ main(argc, argv)
  *	lots
  */
 static Boolean
-ReadMakefile(p, q)
-	void *p;
-	void *q __unused;
+ReadMakefile(void *p, void *q __unused)
 {
-	char *fname = p;		/* makefile to read */
+	char *fname;			/* makefile to read */
 	FILE *stream;
 	char *name, path[MAXPATHLEN];
 	char *MAKEFILE;
 	int setMAKEFILE;
+
+	fname = p;
 
 	if (!strcmp(fname, "-")) {
 		Parse_File("(stdin)", stdin);
@@ -1018,9 +1011,7 @@ found:
  *	The string must be freed by the caller.
  */
 char *
-Cmd_Exec(cmd, error)
-    char *cmd;
-    char **error;
+Cmd_Exec(char *cmd, char **error)
 {
     char	*args[4];   	/* Args for invoking the shell */
     int 	fds[2];	    	/* Pipe streams */
@@ -1031,7 +1022,6 @@ Cmd_Exec(cmd, error)
     Buffer	buf;		/* buffer to store the result */
     char	*cp;
     int		cc;
-
 
     *error = NULL;
 
@@ -1263,7 +1253,7 @@ Punt(const char *fmt, ...)
  *	A big one...
  */
 void
-DieHorribly()
+DieHorribly(void)
 {
 	if (jobsRunning)
 		Job_AbortAll();
@@ -1275,7 +1265,7 @@ DieHorribly()
 /*
  * Finish --
  *	Called when aborting due to errors in child shell to signal
- *	abnormal exit.
+ *	abnormal exit, with the number of errors encountered in Make_Make.
  *
  * Results:
  *	None
@@ -1284,8 +1274,7 @@ DieHorribly()
  *	The program exits
  */
 void
-Finish(errors)
-	int errors;	/* number of errors encountered in Make_Make */
+Finish(int errors)
 {
 	Fatal("%d error%s", errors, errors == 1 ? "" : "s");
 }
@@ -1295,8 +1284,7 @@ Finish(errors)
  *	malloc, but die on error.
  */
 void *
-emalloc(len)
-	size_t len;
+emalloc(size_t len)
 {
 	void *p;
 
@@ -1310,8 +1298,7 @@ emalloc(len)
  *	strdup, but die on error.
  */
 char *
-estrdup(str)
-	const char *str;
+estrdup(const char *str)
 {
 	char *p;
 
@@ -1325,9 +1312,7 @@ estrdup(str)
  *	realloc, but die on error.
  */
 void *
-erealloc(ptr, size)
-	void *ptr;
-	size_t size;
+erealloc(void *ptr, size_t size)
 {
 	if ((ptr = realloc(ptr, size)) == NULL)
 		enomem();
@@ -1339,7 +1324,7 @@ erealloc(ptr, size)
  *	die when out of memory.
  */
 void
-enomem()
+enomem(void)
 {
 	err(2, NULL);
 }
@@ -1349,8 +1334,7 @@ enomem()
  *	Remove a file carefully, avoiding directories.
  */
 int
-eunlink(file)
-	const char *file;
+eunlink(const char *file)
 {
 	struct stat st;
 
@@ -1369,7 +1353,7 @@ eunlink(file)
  *	exit with usage message
  */
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 "usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
@@ -1380,9 +1364,7 @@ usage()
 
 
 int
-PrintAddr(a, b)
-    void * a;
-    void * b __unused;
+PrintAddr(void *a, void *b __unused)
 {
     printf("%p ", a);
     return 0;

@@ -106,8 +106,7 @@ static int ForExec(void *, void *);
  *-----------------------------------------------------------------------
  */
 int
-For_Eval (line)
-    char    	    *line;    /* Line to parse */
+For_Eval (char *line)
 {
     char	    *ptr = line, *sub, *wrd;
     int	    	    level;  	/* Level at which to report errors. */
@@ -247,9 +246,7 @@ For_Eval (line)
  *-----------------------------------------------------------------------
  */
 static int
-ForExec(namep, argp)
-    void * namep;
-    void * argp;
+ForExec(void *namep, void *argp)
 {
     char *name = (char *) namep;
     For *arg = (For *) argp;
@@ -278,7 +275,7 @@ ForExec(namep, argp)
  *-----------------------------------------------------------------------
  */
 void
-For_Run()
+For_Run(void)
 {
     For arg;
 

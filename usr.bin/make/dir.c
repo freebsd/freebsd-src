@@ -209,7 +209,7 @@ static int DirPrintDir(void *, void *);
  *-----------------------------------------------------------------------
  */
 void
-Dir_Init ()
+Dir_Init (void)
 {
     dirSearchPath = Lst_Init (FALSE);
     openDirectories = Lst_Init (FALSE);
@@ -246,7 +246,7 @@ Dir_Init ()
  *-----------------------------------------------------------------------
  */
 void
-Dir_End()
+Dir_End(void)
 {
     dot->refCount -= 1;
     Dir_Destroy((void *) dot);
@@ -272,9 +272,7 @@ Dir_End()
  *-----------------------------------------------------------------------
  */
 static int
-DirFindName (p, dname)
-    void *    p;	      /* Current name */
-    void *	  dname;      /* Desired name */
+DirFindName (void *p, void *dname)
 {
     return (strcmp (((Path *)p)->name, (char *) dname));
 }
@@ -282,7 +280,7 @@ DirFindName (p, dname)
 /*-
  *-----------------------------------------------------------------------
  * Dir_HasWildcards  --
- *	see if the given name has any wildcard characters in it
+ *	See if the given name has any wildcard characters in it.
  *
  * Results:
  *	returns TRUE if the word should be expanded, FALSE otherwise
@@ -292,8 +290,7 @@ DirFindName (p, dname)
  *-----------------------------------------------------------------------
  */
 Boolean
-Dir_HasWildcards (name)
-    char          *name;	/* name to check */
+Dir_HasWildcards (char *name)
 {
     char *cp;
     int wild = 0, brace = 0, bracket = 0;
@@ -343,10 +340,7 @@ Dir_HasWildcards (name)
  *-----------------------------------------------------------------------
  */
 static int
-DirMatchFiles (pattern, p, expansions)
-    char	  *pattern;   	/* Pattern to look for */
-    Path	  *p;         	/* Directory to search */
-    Lst	    	  expansions;	/* Place to store the results */
+DirMatchFiles (char *pattern, Path *p, Lst expansions)
 {
     Hash_Search	  search;   	/* Index into the directory's table */
     Hash_Entry	  *entry;   	/* Current entry in the table */
@@ -383,7 +377,10 @@ DirMatchFiles (pattern, p, expansions)
  *	Expand curly braces like the C shell. Does this recursively.
  *	Note the special case: if after the piece of the curly brace is
  *	done there are no wildcard characters in the result, the result is
- *	placed on the list WITHOUT CHECKING FOR ITS EXISTENCE.
+ *	placed on the list WITHOUT CHECKING FOR ITS EXISTENCE.  The
+ *	given arguments are the entire word to expand, the first curly
+ *	brace in the word, the search path, and the list to store the
+ *	expansions in.
  *
  * Results:
  *	None.
@@ -394,11 +391,7 @@ DirMatchFiles (pattern, p, expansions)
  *-----------------------------------------------------------------------
  */
 static void
-DirExpandCurly(word, brace, path, expansions)
-    char    	  *word;    	/* Entire word to expand */
-    char    	  *brace;   	/* First curly brace in it */
-    Lst	    	  path;	    	/* Search path to use */
-    Lst	    	  expansions;	/* Place to store the expansions */
+DirExpandCurly(char *word, char *brace, Lst path, Lst expansions)
 {
     char    	  *end;	    	/* Character after the closing brace */
     char    	  *cp;	    	/* Current position in brace clause */
@@ -496,7 +489,8 @@ DirExpandCurly(word, brace, path, expansions)
  * DirExpandInt --
  *	Internal expand routine. Passes through the directories in the
  *	path one by one, calling DirMatchFiles for each. NOTE: This still
- *	doesn't handle patterns in directories...
+ *	doesn't handle patterns in directories...  Works given a word to
+ *	expand, a path to look in, and a list to store expansions in.
  *
  * Results:
  *	None.
@@ -507,10 +501,7 @@ DirExpandCurly(word, brace, path, expansions)
  *-----------------------------------------------------------------------
  */
 static void
-DirExpandInt(word, path, expansions)
-    char    	  *word;    	/* Word to expand */
-    Lst	    	  path;	    	/* Path on which to look */
-    Lst	    	  expansions;	/* Place to store the result */
+DirExpandInt(char *word, Lst path, Lst expansions)
 {
     LstNode 	  ln;	    	/* Current node */
     Path	  *p;	    	/* Directory in the node */
@@ -539,13 +530,11 @@ DirExpandInt(word, path, expansions)
  *-----------------------------------------------------------------------
  */
 static int
-DirPrintWord(word, dummy)
-    void *  word;
-    void *  dummy;
+DirPrintWord(void *word, void *dummy __unused)
 {
     DEBUGF(DIR, ("%s ", (char *) word));
 
-    return(dummy ? 0 : 0);
+    return (0);
 }
 
 /*-
@@ -556,18 +545,14 @@ DirPrintWord(word, dummy)
  *
  * Results:
  *	A list of words consisting of the files which exist along the search
- *	path matching the given pattern.
+ *	path matching the given pattern is placed in expansions.
  *
  * Side Effects:
  *	Directories may be opened. Who knows?
  *-----------------------------------------------------------------------
  */
 void
-Dir_Expand (word, path, expansions)
-    char    *word;      /* the word to expand */
-    Lst     path;   	/* the list of directories in which to find
-			 * the resulting files */
-    Lst	    expansions;	/* the list on which to place the results */
+Dir_Expand (char *word, Lst path, Lst expansions)
 {
     char    	  *cp;
 
@@ -678,9 +663,7 @@ Dir_Expand (word, path, expansions)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_FindFile (name, path)
-    char    	  *name;    /* the file to find */
-    Lst           path;	    /* the Lst of directories to search */
+Dir_FindFile (char *name, Lst path)
 {
     char          *p1;	    /* pointer into p->name */
     char          *p2;	    /* pointer into name */
@@ -936,9 +919,7 @@ Dir_FindFile (name, path)
  *-----------------------------------------------------------------------
  */
 int
-Dir_MTime (gn)
-    GNode         *gn;	      /* the file whose modification time is
-			       * desired */
+Dir_MTime (GNode *gn)
 {
     char          *fullName;  /* the full pathname of name */
     struct stat	  stb;	      /* buffer for finding the mod time */
@@ -1000,10 +981,7 @@ Dir_MTime (gn)
  *-----------------------------------------------------------------------
  */
 void
-Dir_AddDir (path, name)
-    Lst           path;	      /* the path to which the directory should be
-			       * added */
-    char          *name;      /* the name of the directory to add */
+Dir_AddDir (Lst path, char *name)
 {
     LstNode       ln;	      /* node in case Path structure is found */
     Path          *p;	      /* pointer to new Path structure */
@@ -1074,8 +1052,7 @@ Dir_AddDir (path, name)
  *-----------------------------------------------------------------------
  */
 void *
-Dir_CopyDir(p)
-    void * p;
+Dir_CopyDir(void *p)
 {
     ((Path *) p)->refCount += 1;
 
@@ -1100,9 +1077,7 @@ Dir_CopyDir(p)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_MakeFlags (flag, path)
-    char	  *flag;  /* flag which should precede each directory */
-    Lst	    	  path;	  /* list of directories */
+Dir_MakeFlags (char *flag, Lst path)
 {
     char	  *str;	  /* the string which will be returned */
     char	  *tstr;  /* the current directory preceded by 'flag' */
@@ -1139,8 +1114,7 @@ Dir_MakeFlags (flag, path)
  *-----------------------------------------------------------------------
  */
 void
-Dir_Destroy (pp)
-    void * 	  pp;	    /* The directory descriptor to nuke */
+Dir_Destroy (void *pp)
 {
     Path    	  *p = (Path *) pp;
     p->refCount -= 1;
@@ -1172,8 +1146,7 @@ Dir_Destroy (pp)
  *-----------------------------------------------------------------------
  */
 void
-Dir_ClearPath(path)
-    Lst	    path; 	/* Path to clear */
+Dir_ClearPath(Lst path)
 {
     Path    *p;
     while (!Lst_IsEmpty(path)) {
@@ -1198,9 +1171,7 @@ Dir_ClearPath(path)
  *-----------------------------------------------------------------------
  */
 void
-Dir_Concat(path1, path2)
-    Lst	    path1;  	/* Dest */
-    Lst	    path2;  	/* Source */
+Dir_Concat(Lst path1, Lst path2)
 {
     LstNode ln;
     Path    *p;
@@ -1216,7 +1187,7 @@ Dir_Concat(path1, path2)
 
 /********** DEBUG INFO **********/
 void
-Dir_PrintDirectories()
+Dir_PrintDirectories(void)
 {
     LstNode	ln;
     Path	*p;
@@ -1236,17 +1207,16 @@ Dir_PrintDirectories()
     }
 }
 
-static int DirPrintDir (p, dummy)
-    void *	p;
-    void *	dummy;
+static int
+DirPrintDir (void *p, void *dummy __unused)
 {
     printf ("%s ", ((Path *) p)->name);
-    return (dummy ? 0 : 0);
+
+    return (0);
 }
 
 void
-Dir_PrintPath (path)
-    Lst	path;
+Dir_PrintPath (Lst path)
 {
     Lst_ForEach (path, DirPrintDir, (void *)0);
 }
