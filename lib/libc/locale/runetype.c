@@ -39,7 +39,7 @@
 
 unsigned long
 ___runetype(c)
-	_BSD_RUNE_T_ c;
+	_BSD_CT_RUNE_T_ c;
 {
 #ifdef XPG4
 	int x;
@@ -62,4 +62,3 @@ ___runetype(c)
 #endif
 	return(0L);
 }
-
