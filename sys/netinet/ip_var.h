@@ -68,6 +68,7 @@ struct ipq {
 	u_int32_t ipq_div_info;		/* ipfw divert port & flags */
 	u_int16_t ipq_div_cookie;	/* ipfw divert cookie */
 #endif
+	struct label ipq_label;		/* MAC label */
 };
 #endif /* _KERNEL */
 
