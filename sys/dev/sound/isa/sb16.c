@@ -1274,6 +1274,7 @@ sbpnp_probe(device_t dev)
 		break;
 
 	case 0x69187316: /* ESS1869 */
+	case 0xacb0110e: /* Compaq's Presario 1621 ESS1869 */
 		s = "ESS1869";
 		break;
 
