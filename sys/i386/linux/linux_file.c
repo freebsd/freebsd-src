@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.7.4.1 1997/05/14 08:19:24 dfr Exp $
+ *  $Id: linux_file.c,v 1.7.4.2 1998/01/05 04:03:42 jmb Exp $
  */
 
 #include <sys/param.h>
@@ -801,3 +801,23 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args, int *retval)
 	return otruncate(p, &bsd, retval);
 }
 
+int
+linux_lchown(struct proc *p, struct linux_lchown_args *args, int *retval)
+{
+	struct lchown_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+	printf("Linux-emul(%d): lchown(%s, %d, %d)\n",
+		p->p_pid, args->path, args->uid, args->gid);
+#endif
+	bsd.path = args->path;
+	/* XXX size casts here */
+	bsd.uid = args->uid;
+	bsd.gid = args->gid;
+
+	return lchown(p, &bsd, retval);
+}

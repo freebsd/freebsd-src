@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.20.2.2 1998/02/19 00:37:32 jkh Exp $
+ *  $Id: linux_misc.c,v 1.20.2.3 1998/09/04 17:00:06 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,10 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 
+#include <machine/frame.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
@@ -82,7 +86,7 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
     it.it_value.tv_usec = 0;
     it.it_interval.tv_sec = 0;
     it.it_interval.tv_usec = 0;
-    s = splclock();
+    s = splclock(); /* XXX Still needed ? */
     old_it = p->p_realtimer;
     tv = time;
     if (timerisset(&old_it.it_value))
@@ -150,9 +154,9 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
     new = (vm_offset_t)args->dsend;
     tmp.nsize = (char *) new;
     if (((caddr_t)new > vm->vm_daddr) && !obreak(p, &tmp, retval))
-	retval[0] = (int)new;
+	*retval = (int)new;
     else
-	retval[0] = (int)old;
+	*retval = (int)old;
 
     return 0;
 #endif
@@ -624,6 +628,38 @@ linux_mmap(struct proc *p, struct linux_mmap_args *args, int *retval)
 }
 
 int
+linux_mremap(struct proc *p, struct linux_mremap_args *args, int *retval)
+{
+	struct munmap_args /* {
+		void *addr;
+		size_t len;
+	} */ bsd_args;
+	int error = 0;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): mremap(%p, %08x, %08x, %08x)\n",
+	    (long)p->p_pid, (void *)args->addr, args->old_len, args->new_len,
+	    args->flags);
+#endif
+	args->new_len = round_page(args->new_len);
+	args->old_len = round_page(args->old_len);
+
+	if (args->new_len > args->old_len) {
+		*retval = 0;
+		return ENOMEM;
+	}
+
+	if (args->new_len < args->old_len) {
+		bsd_args.addr = args->addr + args->new_len;
+		bsd_args.len = args->old_len - args->new_len;
+		error = munmap(p, &bsd_args, retval);
+	}
+
+	*retval = error ? 0 : (int)args->addr;
+	return error;
+}
+
+int
 linux_msync(struct proc *p, struct linux_msync_args *args, int *retval)
 {
 	struct msync_args bsd_args;
@@ -897,7 +933,7 @@ linux_personality(struct proc *p, struct linux_personality_args *args,
 		return EINVAL;
 
 	/* Yes Jim, it's still a Linux... */
-	retval[0] = 0;
+	*retval = 0;
 	return 0;
 }
 
