@@ -3,13 +3,14 @@
 PROG=	tcpslice
 CFLAGS+=-Wall -I.
 MAN1=	tcpslice.1
-SRCS=	version.c tcpslice.c gwtm2secs.c search.c util.c
+SRCS=	gwtm2secs.c search.c tcpslice.c util.c version.c version.h
 CLEANFILES+=	version.c version.h
 DPADD+=	${LIBPCAP}
 LDADD+= -lpcap
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 
+.ORDER: version.c version.h
 version.c version.h: ${TCPDUMP_DISTDIR}/VERSION
 	rm -f version.c ; \
 	sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION > version.c
