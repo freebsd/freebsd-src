@@ -90,7 +90,7 @@ static int
 ata_pccard_probe(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct resource *io, *altio;
+    struct resource *io, *ctlio;
     int i, rid;
 
     /* allocate the io range to get start and length */
@@ -101,32 +101,34 @@ ata_pccard_probe(device_t dev)
 	return ENXIO;
 
     /* setup the resource vectors */
-    for (i = ATA_DATA; i <= ATA_STATUS; i++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = io;
 	ch->r_io[i].offset = i;
     }
+    ch->r_io[ATA_IDX_ADDR].res = io;
 
     /*
      * if we got more than the default ATA_IOSIZE ports, this is a device
-     * where altio is located at offset 14 into "normal" io space.
+     * where ctlio is located at offset 14 into "normal" io space.
      */
     if (rman_get_size(io) > ATA_IOSIZE) {
-	ch->r_io[ATA_ALTSTAT].res = io;
-	ch->r_io[ATA_ALTSTAT].offset = 14;
+	ch->r_io[ATA_CONTROL].res = io;
+	ch->r_io[ATA_CONTROL].offset = 14;
     }
     else {
-	rid = ATA_ALTADDR_RID;
-	altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-				   ATA_ALTIOSIZE, RF_ACTIVE);
-	if (!altio) {
+	rid = ATA_CTLADDR_RID;
+	ctlio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+				   ATA_CTLIOSIZE, RF_ACTIVE);
+	if (!ctlio) {
 	    bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	    for (i = ATA_DATA; i < ATA_MAX_RES; i++)
 		ch->r_io[i].res = NULL;
 	    return ENXIO;
 	}
-	ch->r_io[ATA_ALTSTAT].res = altio;
-	ch->r_io[ATA_ALTSTAT].offset = 0;
+	ch->r_io[ATA_CONTROL].res = ctlio;
+	ch->r_io[ATA_CONTROL].offset = 0;
     }
+    ata_default_registers(ch);
 
     /* initialize softc for this channel */
     ch->unit = 0;
@@ -142,9 +144,9 @@ ata_pccard_detach(device_t dev)
     int i;
 
     ata_detach(dev);
-    if (ch->r_io[ATA_ALTSTAT].res != ch->r_io[ATA_DATA].res)
-	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID,
-			     ch->r_io[ATA_ALTSTAT].res);
+    if (ch->r_io[ATA_CONTROL].res != ch->r_io[ATA_DATA].res)
+	bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID,
+			     ch->r_io[ATA_CONTROL].res);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID,
 			 ch->r_io[ATA_DATA].res);
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
