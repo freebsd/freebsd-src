@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.14 1997/04/29 03:07:45 steve Exp $
+ *	$Id: skeleton.c,v 1.15 1999/04/18 13:37:49 peter Exp $
  */
 
 #ifndef lint
@@ -67,7 +67,7 @@ char *banner[] =
     "#define YYEMPTY -1",
     "#define yyclearin (yychar=(YYEMPTY))",
     "#define yyerrok (yyerrflag=0)",
-    "#define YYRECOVERING (yyerrflag!=0)",
+    "#define YYRECOVERING() (yyerrflag!=0)",
 #if 0
     "extern int yylex();",
     "extern int yyparse();",
