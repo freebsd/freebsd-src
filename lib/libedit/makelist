@@ -54,11 +54,12 @@ FILES="$@"
 
 case $FLAG in
 -h)
+    fn=`basename $FILES`
     OIFS="$IFS"
     IFS=".$IFS"
-    set - $FILES
+    set - $fn
     IFS="$OIFS"
-    hdr="_h_`basename $1`_$2"
+    hdr="_h_$1_$2"
     cat $FILES | $AWK '
 	BEGIN {
 	    printf("/* Automatically generated file, do not edit */\n");
