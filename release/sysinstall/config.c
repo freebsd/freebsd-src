@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.50 1996/10/03 07:50:08 jkh Exp $
+ * $Id: config.c,v 1.51 1996/10/14 21:32:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -428,11 +428,42 @@ skip:
 }
 
 int
-configRoutedFlags(dialogMenuItem *self)
+configRouter(dialogMenuItem *self)
 {
-    return (variable_get_value(VAR_ROUTEDFLAGS, 
-			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+    int ret;
+
+    ret = variable_get_value(VAR_ROUTER,
+			     "Please specify the router you wish to use.  Routed is\n"
+			     "provided with the stock system and gated is provided\n"
+			     "as an optional package which this installation system\n"
+			     "will attempt to load if you select gated.  Any other\n"
+			     "choice of routing daemon will be assumed to be something\n"
+			     "the user intends to install themselves before rebooting\n"
+			     "the system.  If you don't want any routing daemon, say NO") ?
+	DITEM_SUCCESS : DITEM_FAILURE;
+
+    if (ret == DITEM_SUCCESS) {
+	char *cp;
+
+	cp = variable_get(VAR_ROUTER);
+	if (strcmp(cp, "NO")) {
+	    if (!strcmp(cp, "gated")) {
+		if (package_add(PACKAGE_GATED) != DITEM_SUCCESS) {
+		    msgConfirm("Unable to load gated package.  Falling back to routed.");
+		    variable_set2(VAR_ROUTER, "routed");
+		}
+	    }
+	    /* Now get the flags, if they chose a router */
+	    ret = variable_get_value(VAR_ROUTERFLAGS, 
+				     "Please Specify the routing daemon flags; if you're running routed\n"
+				     "then -q is the right choice for nodes and -s for gateway hosts.\n") ? DITEM_SUCCESS : DITEM_FAILURE;
+	    if (ret != DITEM_SUCCESS) {
+		variable_unset(VAR_ROUTER);
+		variable_unset(VAR_ROUTERFLAGS);
+	    }
+	}
+    }
+    return ret | DITEM_RESTORE;
 }
 
 int
@@ -510,22 +541,6 @@ configPackages(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
-/* Load gated package */
-int
-configGated(dialogMenuItem *self)
-{
-    int ret = DITEM_SUCCESS;
-
-    if (variable_get(VAR_GATED))
-	variable_unset(VAR_GATED);
-    else {
-	ret = package_add("gated-3.5a11");
-	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
-	    variable_set2(VAR_GATED, "YES");
-   }
-   return ret;
-}
-
 /* Load novell client/server package */
 int
 configNovell(dialogMenuItem *self)
@@ -539,7 +554,7 @@ configNovell(dialogMenuItem *self)
     if (variable_get(VAR_NOVELL))
 	variable_unset(VAR_NOVELL);
     else {
-	ret = package_add("commerce/netcon/bsd60");
+	ret = package_add(PACKAGE_NETCON);
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
 	    variable_set2(VAR_NOVELL, "YES");
     }
@@ -555,7 +570,7 @@ configPCNFSD(dialogMenuItem *self)
     if (variable_get(VAR_PCNFSD))
 	variable_unset(VAR_PCNFSD);
     else {
-	ret = package_add("pcnfsd-93.02.16");
+	ret = package_add(PACKAGE_PCNFSD);
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
 	    variable_set2("weak_mountd_authentication", "YES");
