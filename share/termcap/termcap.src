@@ -4261,12 +4261,13 @@ pi|pilot|tgtelnet:am:xn:bs:co#39:li#16:cl=\Ec:cm=\Em%+ %+ :ho=\Em  :nw=\Em~ :\
 # Termcap entry for rxvt, taken from the sources of rxvt-2.6.3
 # with additional @7 capability to make END work correctly.
 # From Giorgos Keramidas <charon@labs.gr>
-rxvt|rxvt terminal emulator (X Window System):\
+# Fix alternate character set capabilities (ae, as) -- nectar@freebsd.org
+rxvt-mono|rxvt terminal emulator (monochrome) (X Window System):\
 	:am:eo:km:mi:ms:xn:xo:\
 	:co#80:it#8:li#24:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
 	:K1=\EOw:K2=\EOu:K3=\EOy:K4=\EOq:K5=\EOs:LE=\E[%dD:\
-	:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
+	:RI=\E[%dC:UP=\E[%dA:ae=\E(B:al=\E[L:as=\E(0:bl=^G:cd=\E[J:\
 	:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cr=^M:\
 	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:ei=\E[4l:\
 	:ho=\E[H:i1=\E[?47l\E=\E[?1l:ic=\E[@:im=\E[4h:\
@@ -4279,6 +4280,9 @@ rxvt|rxvt terminal emulator (X Window System):\
 	:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
 	:te=\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:us=\E[4m:\
 	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
+
+rxvt|rxvt terminal emulator (X Window System):\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=rxvt-mono:
 
 # Termcap entry for Eterm, taken from the sources of Eterm-0.9.1
 # From Jeremy Norris <ishmael27@home.com>
