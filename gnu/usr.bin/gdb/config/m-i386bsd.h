@@ -44,6 +44,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #define IEEE_FLOAT
+#define LONG_LONG
 
 /* Library stuff: POSIX tty (not supported yet), V7 tty (sigh), vprintf.  */
 
@@ -138,10 +139,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 /* Largest integer type */
-#define LONGEST long
+#define LONGEST long long
 
 /* Name of the builtin type for the LONGEST type above. */
-#define BUILTIN_TYPE_LONGEST builtin_type_long
+#define BUILTIN_TYPE_LONGEST builtin_type_long_long
 
 /* Say how long (ordinary) registers are.  */
 
