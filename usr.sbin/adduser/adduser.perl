@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.30 1997/05/01 23:23:06 ache Exp $
+# $Id: adduser.perl,v 1.31 1997/05/01 23:34:25 ache Exp $
 
 
 # read variables
@@ -974,7 +974,7 @@ sub home_create {
     # copy files from  $dotdir to $homedir
     # rename 'dot.foo' files to '.foo'
     print "Copy files from $dotdir to $homedir\n" if $verbose;
-    system("cp -r $dotdir $homedir");
+    system("cp -R $dotdir $homedir");
     system("chmod -R u+wrX,go-w $homedir");
     system("chown -R $name:$group $homedir");
 
