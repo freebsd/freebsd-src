@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.24 1996/09/03 14:22:02 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.25 1996/09/10 08:27:39 bde Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1545,6 +1545,7 @@ DBPRINT(("reclaim\n"));
 		return error;
 	}
 
+	ap->a_vp->v_data = NULL;
 	file_node->vn = 0;
 	file_node->vn_id = 0;
 	return(0);
@@ -1816,7 +1817,7 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)spec_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)spec_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)devfs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)spec_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)spec_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)spec_bmap },		/* bmap */
