@@ -241,7 +241,7 @@ schedcpu(arg)
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	register struct proc *p;
-	register int realstathz, s;
+	register int realstathz;
 
 	realstathz = stathz ? stathz : hz;
 	sx_slock(&allproc_lock);
@@ -266,11 +266,6 @@ schedcpu(arg)
 			mtx_unlock_spin(&sched_lock);
 			continue;
 		}
-
-		/*
-		 * prevent state changes and protect run queue
-		 */
-		s = splhigh();
 
 		/*
 		 * p_pctcpu is only for ps.
@@ -303,7 +298,6 @@ schedcpu(arg)
 				p->p_pri.pri_level = p->p_pri.pri_user;
 		}
 		mtx_unlock_spin(&sched_lock);
-		splx(s);
 	}
 	sx_sunlock(&allproc_lock);
 	vmmeter();
@@ -688,12 +682,10 @@ endtsleep(arg)
 	void *arg;
 {
 	register struct proc *p;
-	int s;
 
 	p = (struct proc *)arg;
 	CTR3(KTR_PROC, "endtsleep: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan) {
 		if (p->p_stat == SSLEEP)
@@ -703,7 +695,6 @@ endtsleep(arg)
 		p->p_sflag |= PS_TIMEOUT;
 	}
 	mtx_unlock_spin(&sched_lock);
-	splx(s);
 }
 
 /*
@@ -713,16 +704,13 @@ void
 unsleep(p)
 	register struct proc *p;
 {
-	int s;
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan) {
 		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_slpq);
 		p->p_wchan = NULL;
 	}
 	mtx_unlock_spin(&sched_lock);
-	splx(s);
 }
 
 /*
@@ -734,9 +722,7 @@ wakeup(ident)
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
-	int s;
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
 restart:
@@ -765,7 +751,6 @@ restart:
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
-	splx(s);
 }
 
 /*
@@ -779,9 +764,7 @@ wakeup_one(ident)
 {
 	register struct slpquehead *qp;
 	register struct proc *p;
-	int s;
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
 
@@ -810,12 +793,10 @@ wakeup_one(ident)
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
-	splx(s);
 }
 
 /*
  * The machine independent parts of mi_switch().
- * Must be called at splstatclock() or higher.
  */
 void
 mi_switch()
@@ -912,9 +893,7 @@ void
 setrunnable(p)
 	register struct proc *p;
 {
-	register int s;
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	switch (p->p_stat) {
 	case 0:
@@ -935,18 +914,16 @@ setrunnable(p)
 		break;
 	}
 	p->p_stat = SRUN;
-	if (p->p_sflag & PS_INMEM)
-		setrunqueue(p);
-	splx(s);
 	if (p->p_slptime > 1)
 		updatepri(p);
 	p->p_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		p->p_sflag |= PS_SWAPINREQ;
 		wakeup((caddr_t)&proc0);
-	}
-	else
+	} else {
+		setrunqueue(p);
 		maybe_resched(p);
+	}
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -1021,11 +998,9 @@ schedclock(p)
 int
 yield(struct proc *p, struct yield_args *uap)
 {
-	int s;
 
 	p->p_retval[0] = 0;
 
-	s = splhigh();
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	p->p_pri.pri_level = PRI_MAX_TIMESHARE;
@@ -1034,7 +1009,6 @@ yield(struct proc *p, struct yield_args *uap)
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
-	splx(s);
 
 	return (0);
 }
