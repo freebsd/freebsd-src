@@ -265,7 +265,8 @@ i386/isa/sound/ad1848.c		optional	trix
 i386/isa/sound/ad1848.c		optional	sscape_mss
 i386/isa/sound/adlib_card.c	optional	opl
 i386/isa/sound/adlib_card.c	optional	trix
-i386/isa/sound/audio.c		optional	snd
+i386/isa/sound/audio.c		optional	snd	\
+	warning "The snd drivers are deprecated. Please see pcm/sbc/etc."
 i386/isa/sound/cs4232.c		optional	css
 i386/isa/sound/dev_table.c	optional	snd
 i386/isa/sound/dmabuf.c		optional	snd
