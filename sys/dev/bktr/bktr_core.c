@@ -459,6 +459,15 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 		    Ladislav Kostal <kostal@pefstud.uniag.sk>
                     Added select() code (for VBI) for the 2.2.x driver
                     tested by Steve Richards <steve@richsoft.demon.co.uk>
+
+1.74    17 Sep 1999 Roger Hardiman <roger@freebsd.org>
+		    Fix bug where FM radio stations were offset after using FXTV
+                    AVerMedia tuner type autodetection added for cards with
+		    a configuration EEPROM (currently their Bt878 range)
+                    Thanks to Frank at AVerMedia for providing the information.
+		    Tested by David La Croix <dlacroix@cowpie.acm.vt.edu>
+		    Tidy up some tuner code and Hauppauge detection code.
+                    New NetBSD code from Bernd Ernesti<bernd@arresum.inka.de>
 */
 
 #ifdef __FreeBSD__
@@ -836,7 +845,7 @@ static struct {
 #define TSCH5_RADIO		0x86
 
 /* The control value for the ALPS TSBH1 Tuner */
-#define TSBH1_FCONTROL	0xce
+#define TSBH1_FCONTROL		0xce
 
 
 /* sync detect threshold */
@@ -870,9 +879,9 @@ static struct {
 #define PHILIPS_SECAM		6
 #define TEMIC_PALI		7
 #define PHILIPS_PALI		8
-#define PHILIPS_FR1236_NTSC     9
-#define PHILIPS_FR1216_PAL	10
-#define PHILIPS_FR1236_SECAM    11
+#define PHILIPS_FR1236_NTSC     9	/* These have FM Radio support */
+#define PHILIPS_FR1216_PAL	10	/* These have FM Radio support */
+#define PHILIPS_FR1236_SECAM    11	/* These have FM Radio support */
 #define	ALPS_TSCH5		12
 #define	ALPS_TSBH1		13
 #define Bt848_MAX_TUNER         14
@@ -1006,10 +1015,10 @@ static const struct TUNER tuners[] = {
 	    TSA552x_SCONTROL,
 	    TSA552x_RADIO  },
           { 0x00, 0x00 },			/* band-switch crosspoints */
-	  { 0xa0, 0x90, 0x30,0xa4 } },		/* the band-switch values */
+	  { 0xa0, 0x90, 0x30, 0xa4 } },		/* the band-switch values */
 
 	/* PHILIPS_FR1216_PAL */
-	{ "Philips FR1216 PAL" ,		/* the 'name' */
+	{ "Philips FR1216 PAL FM" ,		/* the 'name' */
 	   TTYPE_PAL,				/* input type */
 	   { TSA552x_FCONTROL,			/* control byte for Tuner PLL */
 	     TSA552x_FCONTROL,
@@ -1029,7 +1038,7 @@ static const struct TUNER tuners[] = {
 	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
 
         /* ALPS TSCH5 NTSC */
-        { "ALPS TSCH5",                         /* the 'name' */
+        { "ALPS TSCH5 NTSC FM",                 /* the 'name' */
            TTYPE_NTSC,                          /* input type */
            { TSCH5_FCONTROL,                    /* control byte for Tuner PLL */
              TSCH5_FCONTROL,
@@ -1039,7 +1048,7 @@ static const struct TUNER tuners[] = {
            { 0x14, 0x12, 0x11, 0x04 } },        /* the band-switch values */
 
         /* ALPS TSBH1 NTSC */
-        { "ALPS TSBH1",                         /* the 'name' */
+        { "ALPS TSBH1 NTSC",                    /* the 'name' */
            TTYPE_NTSC,                          /* input type */
            { TSBH1_FCONTROL,                    /* control byte for Tuner PLL */
              TSBH1_FCONTROL,
@@ -1521,6 +1530,8 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 	bktr->tuner.frequency = 0;
 	bktr->tuner.channel = 0;
 	bktr->tuner.chnlset = DEFAULT_CHNLSET;
+	bktr->tuner.afc = 0;
+        bktr->tuner.radio_mode = 0;
 	bktr->audio_mux_select = 0;
 	bktr->audio_mute_state = FALSE;
 	bktr->bt848_card = -1;
@@ -2000,6 +2011,10 @@ tuner_open( bktr_ptr_t bktr )
 		return( 0 );
 
 	bktr->tflags |= TUNER_OPEN;
+	bktr->tuner.frequency = 0;
+	bktr->tuner.channel = 0;
+	bktr->tuner.chnlset = DEFAULT_CHNLSET;
+	bktr->tuner.afc = 0;
         bktr->tuner.radio_mode = 0;
 
 	/* enable drivers on the GPIO port that control the MUXes */
@@ -3594,8 +3609,9 @@ rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	bt848_ptr_t		bt848;
 	volatile u_long		target_buffer, buffer, target,width;
 	volatile u_long		pitch;
-	volatile  u_long	*dma_prog;
-	vm_offset_t		loop_point;
+	volatile u_long		*dma_prog;	/* DMA prog is an array of
+						32 bit RISC instructions */
+	volatile u_long		*loop_point;
         struct meteor_pixfmt_internal *pf_int = &pixfmt_table[ bktr->pixfmt ];
 	u_int                   Bpp = pf_int->public.Bpp;
 	unsigned int            vbisamples;     /* VBI samples per line */
@@ -5355,7 +5371,6 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 	u_char 		probe_signature[128], *probe_temp;
         int   		any_i2c_devices;
 	u_char 		eeprom[256];
-	u_char 		tuner_code = 0;
 	int 		tuner_i2c_address = -1;
 	int 		eeprom_i2c_address = -1;
 
@@ -5668,65 +5683,132 @@ checkTuner:
 
 	    */
 
-	    readEEProm(bktr, 0, 128, (u_char *) &eeprom );
-
-
-	    /* Determine the model number from the eeprom */
-	    {
+	    if (bktr->card.eepromAddr != 0) {
+		u_char tuner_code;
 		u_int model;
 		u_int revision;
+
+		readEEProm(bktr, 0, 128, (u_char *) &eeprom );
+
+
+		/* Determine the model number from the eeprom */
 		model    = (eeprom[12] << 8  | eeprom[11]);
 		revision = (eeprom[15] << 16 | eeprom[14] << 8 | eeprom[13]);
 		if (verbose)
-		    printf("bktr%d: Hauppauge Model %d %c%c%c%c\n",
+		printf("bktr%d: Hauppauge Model %d %c%c%c%c\n",
 			unit,
 			model,
 			((revision >> 18) & 0x3f) + 32,
 			((revision >> 12) & 0x3f) + 32,
 			((revision >>  6) & 0x3f) + 32,
 			((revision >>  0) & 0x3f) + 32 );
+
+		/* Determine the tuner type from the eeprom */
+		tuner_code = eeprom[9];
+		switch (tuner_code) {
+
+		case 0x5:
+                case 0x0a:
+	        case 0x1a:
+		  bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
+		  goto checkDBX;
+
+                case 0x12:
+	        case 0x17:
+		  bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
+		  goto checkDBX;
+
+	        case 0x6:
+	        case 0x8:
+	        case 0xb:
+	        case 0x1d:
+		  bktr->card.tuner = &tuners[ PHILIPS_PALI ];
+		  goto checkDBX;
+
+	        case 0xd:
+		  bktr->card.tuner = &tuners[ TEMIC_NTSC ];
+		  goto checkDBX;
+
+                case 0xe:
+		  bktr->card.tuner = &tuners[ TEMIC_PAL];
+		  goto checkDBX;
+
+	        case 0xf:
+		  bktr->card.tuner = &tuners[ TEMIC_PALI ];
+		  goto checkDBX;
+
+                case 0x15:
+		  bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
+		  goto checkDBX;
+
+	        default :
+		  printf("Warning - Unknown Hauppauge Tuner 0x%x\n",tuner_code);
+	        }
 	    }
+	    break;
 
-	    /* Determine the tuner type from the eeprom */
-	    tuner_code = eeprom[9];
-	    switch (tuner_code) {
+	case CARD_AVER_MEDIA:
+	    /* AVerMedia kindly supplied some details of their EEPROM contents
+	     * which allow us to auto select the Tuner Type.
+	     * Only the newer AVerMedia cards actually have an EEPROM.
+	     */
+	    if (bktr->card.eepromAddr != 0) {
 
-	       case 0x5:
-               case 0x0a:
-	       case 0x1a:
-		 bktr->card.tuner = &tuners[ PHILIPS_NTSC  ];
-		 goto checkDBX;
+		u_char tuner_make;   /* Eg Philips, Temic */
+		u_char tuner_tv_fm;  /* TV or TV with FM Radio */
+		u_char tuner_format; /* Eg NTSC, PAL, SECAM */
+		int    tuner;
 
-               case 0x12:
-	       case 0x17:
-		 bktr->card.tuner = &tuners[ PHILIPS_FR1236_NTSC  ];
-		 goto checkDBX;
+		int tuner_0_table[] = {
+			PHILIPS_NTSC,  PHILIPS_PAL,
+			PHILIPS_PAL,   PHILIPS_PAL,
+			PHILIPS_PAL,   PHILIPS_PAL,
+			PHILIPS_SECAM, PHILIPS_SECAM,
+			PHILIPS_SECAM, PHILIPS_PAL};
 
-	       case 0x6:
-	       case 0x8:
-	       case 0xb:
-	       case 0x1d:
-		 bktr->card.tuner = &tuners[ PHILIPS_PALI ];
-		 goto checkDBX;
+		int tuner_0_fm_table[] = {
+			PHILIPS_FR1236_NTSC,  PHILIPS_FR1216_PAL,
+			PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
+			PHILIPS_FR1216_PAL,   PHILIPS_FR1216_PAL,
+			PHILIPS_FR1236_SECAM, PHILIPS_FR1236_SECAM,
+			PHILIPS_FR1236_SECAM, PHILIPS_FR1216_PAL};
 
-	       case 0xd:
-		 bktr->card.tuner = &tuners[ TEMIC_NTSC ];
-		 goto checkDBX;
+		int tuner_1_table[] = {
+			TEMIC_NTSC,  TEMIC_PAL,   TEMIC_PAL,
+			TEMIC_PAL,   TEMIC_PAL,   TEMIC_PAL,
+			TEMIC_SECAM, TEMIC_SECAM, TEMIC_SECAM,
+			TEMIC_PAL};
 
-               case 0xe:
-		 bktr->card.tuner = &tuners[ TEMIC_PAL];
-		 goto checkDBX;
 
-	       case 0xf:
-		 bktr->card.tuner = &tuners[ TEMIC_PALI ];
-		 goto checkDBX;
+		/* Extract information from the EEPROM data */
+	    	readEEProm(bktr, 0, 128, (u_char *) &eeprom );
+		tuner_make   = (eeprom[0x41] & 0x7);
+		tuner_tv_fm  = (eeprom[0x41] & 0x18) >> 3;
+		tuner_format = (eeprom[0x42] & 0xf0) >> 4;
 
-               case 0x15:
-		 bktr->card.tuner = &tuners[ PHILIPS_FR1216_PAL];
-		 goto checkDBX;
+		/* Treat tuner makes 0 (Philips) and 2 (LG) the same */
+		if ( ((tuner_make == 0) || (tuner_make == 2))
+		    && (tuner_format <= 9) && (tuner_tv_fm == 0) ) {
+			tuner = tuner_0_table[tuner_format];
+			bktr->card.tuner = &tuners[ tuner ];
+			goto checkDBX;
+		}
 
-	       default :
-		 printf("Warning - Unknown Hauppauge Tuner 0x%x\n",tuner_code);
+		if ( ((tuner_make == 0) || (tuner_make == 2))
+		    && (tuner_format <= 9) && (tuner_tv_fm == 1) ) {
+			tuner = tuner_0_fm_table[tuner_format];
+			bktr->card.tuner = &tuners[ tuner ];
+			goto checkDBX;
+		}
+
+		if ( (tuner_make == 1) && (tuner_format <= 9) ) {
+			tuner = tuner_1_table[tuner_format];
+			bktr->card.tuner = &tuners[ tuner ];
+			goto checkDBX;
+		}
+
+	    	printf("Warning - Unknown AVerMedia Tuner Make %d Format %d\n",
+			tuner_make, tuner_format);
 	    }
 	    break;
 
