@@ -49,6 +49,7 @@ SUBDIR=	accf_data \
 	mii \
 	mlx \
 	msdos \
+	my \
 	ncp \
 	pcn \
 	netgraph \
