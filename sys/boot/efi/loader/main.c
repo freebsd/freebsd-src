@@ -384,15 +384,15 @@ command_sal(int argc, char *argv[])
 int
 print_trs(int type)
 {
-	struct ia64_pal_result	res;
-	int			i, maxtr;
+	struct ia64_pal_result res;
+	int i, maxtr;
 	struct {
 		struct ia64_pte	pte;
 		struct ia64_itir itir;
-		struct ia64_ifa ifa;
+		uint64_t	ifa;
 		struct ia64_rr	rr;
-	}			buf;
-	static const char*	psnames[] = {
+	} buf;
+	static const char *psnames[] = {
 		"1B",	"2B",	"4B",	"8B",
 		"16B",	"32B",	"64B",	"128B",
 		"256B",	"512B",	"1K",	"2K",
@@ -402,10 +402,9 @@ print_trs(int type)
 		"16M",	"32M",	"64M",	"128M",
 		"256M",	"512M",	"1G",	"2G"
 	};
-	static const char*	manames[] = {
+	static const char *manames[] = {
 		"WB",	"bad",	"bad",	"bad",
 		"UC",	"UCE",	"WC",	"NaT",
-		
 	};
 
 	res = ia64_call_pal_static(PAL_VM_SUMMARY, 0, 0, 0);
@@ -433,7 +432,7 @@ print_trs(int type)
 			break;
 
 		/* Only display valid translations */
-		if ((buf.ifa.ifa_ig & 1) == 0)
+		if ((buf.ifa & 1) == 0)
 			continue;
 
 		if (!(res.pal_result[0] & 1))
@@ -448,7 +447,7 @@ print_trs(int type)
 	"%03d %06x %013lx %013lx %4s %d  %d  %d  %d %d %-3s %d %06x\n",
 			i,
 			buf.rr.rr_rid,
-			buf.ifa.ifa_vpn,
+			buf.ifa >> 12,
 			buf.pte.pte_ppn,
 			psnames[buf.itir.itir_ps],
 			buf.pte.pte_ed,
