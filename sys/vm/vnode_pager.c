@@ -336,6 +336,7 @@ vnode_pager_setsize(vp, nsize)
 				 */
 				pmap_zero_page_area(m, base, size);
 
+				vm_page_lock_queues();
 				/*
 				 * XXX work around SMP data integrity race
 				 * by unmapping the page from user processes.
@@ -366,6 +367,7 @@ vnode_pager_setsize(vp, nsize)
 				vm_page_set_validclean(m, base, size);
 				if (m->dirty != 0)
 					m->dirty = VM_PAGE_BITS_ALL;
+				vm_page_unlock_queues();
 			}
 		}
 	}
