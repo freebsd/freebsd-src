@@ -1504,6 +1504,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "1200 USB Plus scanner",
 	},
 	{
+	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_1200CUPLUS,
+	    0,
+	    "Mustek Systems, Inc.",
+	    "1200 CU Plus scanner",
+	},
+	{
 	    USB_VENDOR_MUSTEK, USB_PRODUCT_MUSTEK_BEARPAW1200F,
 	    0,
 	    "Mustek Systems, Inc.",
