@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.359 1997/08/28 12:18:07 jkh Exp $
+#	$Id: LINT,v 1.360 1997/08/28 15:00:05 jlemon Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -724,8 +724,6 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
 #
-# NB: ``Enhanced IDE'' is NOT supported at this time.
-#
 # The flags fields are used to enable the multi-sector I/O and
 # the 32BIT I/O modes.  The flags may be used in either the controller
 # definition or in the individual disk definitions.  The controller
@@ -735,7 +733,10 @@ controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 #	The low 8 bits are the maximum value for the multi-sector I/O,
 #	where 0xff defaults to the maximum that the drive can handle.
 #	The high bit of the 16 bit flags (0x8000) allows probing for
-#	32 bit transfers.
+#	32 bit transfers.  Bit 14 (0x4000) enables a hack to wake
+#	up powered-down laptop drives.  Bit 13 (0x2000) allows
+#	probing for PCI IDE DMA controllers, such as Intel's PIIX
+#	south bridges.  See the wd.4 man page.
 #
 # The flags field for the drives can be specified in the controller
 # specification with the low 16 bits for drive 0, and the high 16 bits

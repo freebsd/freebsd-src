@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.17 1997/02/22 09:37:27 peter Exp $
+ *	$Id: wdreg.h,v 1.12.2.3 1997/01/14 17:32:07 bde Exp $
  */
 
 /*
@@ -284,10 +284,11 @@ struct wddma {
 #define	WDDS_ERROR	0x0002
 #define	WDDS_INTERRUPT	0x0004
 
-#if 0
-/* XXX are these now useless? */
-/* local defines for ATA timing modes */
-#define WDDMA_GRPMASK	0xf0
+#define WDDS_BITS	"\20\4interrupt\2error\1active"
+
+/* defines for ATA timing modes */
+#define WDDMA_GRPMASK	0xf8
+#define WDDMA_MODEMASK	0x07
 /* flow-controlled PIO modes */
 #define	WDDMA_PIO	0x10
 #define WDDMA_PIO3	0x10
@@ -299,11 +300,10 @@ struct wddma {
 #define	WDDMA_MDMA2	0x22
 
 /* Ultra DMA timing modes */
-#define	WDDMA_UDMA	0x30
-#define	WDDMA_UDMA0	0x30
-#define	WDDMA_UDMA1	0x31
-#define	WDDMA_UDMA2	0x32
-#endif
+#define	WDDMA_UDMA	0x40
+#define	WDDMA_UDMA0	0x40
+#define	WDDMA_UDMA1	0x41
+#define	WDDMA_UDMA2	0x42
 
 extern struct wddma wddma;
 
