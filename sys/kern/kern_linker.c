@@ -298,8 +298,8 @@ linker_load_file(const char* filename, linker_file_t* result)
     lf = NULL;
     foundfile = 0;
     TAILQ_FOREACH(lc, &classes, link) {
-	KLD_DPF(FILE, ("linker_load_file: trying to load %s as %s\n",
-		       filename, lc->desc));
+	KLD_DPF(FILE, ("linker_load_file: trying to load %s\n",
+		       filename));
 	error = LINKER_LOAD_FILE(lc, filename, &lf);
 	/*
 	 * If we got something other than ENOENT, then it exists but we cannot
