@@ -28,6 +28,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 #include <sys/types.h>
@@ -82,12 +84,12 @@ extern int yy_flex_debug;
 extern int yydebug;
 #endif
 extern FILE *yyin;
-extern int yyparse __P((void));
+extern int yyparse(void);
+
+int main(int argc, char *argv[]);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	extern char *optarg;
 	extern int optind;
@@ -350,7 +352,7 @@ ahc_patch%d_func(struct ahc_softc *ahc)
 	}
 
 	fprintf(ofile,
-"typedef int patch_func_t __P((struct ahc_softc *));
+"typedef int patch_func_t (struct ahc_softc *);
 struct patch {
 	patch_func_t	*patch_func;
 	uint32_t	begin	   :10,
@@ -462,6 +464,7 @@ output_listing(char *ifilename)
 	    cur_func = SLIST_NEXT(cur_func, links))
 		func_count++;
 
+	func_values = NULL;
 	if (func_count != 0) {
 		func_values = (int *)malloc(func_count * sizeof(int));
 
@@ -589,9 +592,7 @@ check_patch(patch_t **start_patch, int start_instr,
  * terminating the program.
  */
 void
-stop(string, err_code)
-	const char *string;
-	int  err_code;
+stop(const char *string, int err_code)
 {
 	if (string != NULL) {
 		fprintf(stderr, "%s: ", appname);

@@ -1,3 +1,5 @@
+# $Id$
+#
 # $FreeBSD$
 
 PROG=	aicasm
@@ -19,12 +21,12 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -nostdinc -I${.CURDIR}/../.. -I. -I/usr/include
+CFLAGS+= -nostdinc -I${.CURDIR}/../../.. -I. -I/usr/include
 NOMAN=	noman
 
 .ifdef DEBUG
 CFLAGS+= -DDEBUG -g
-YFLAGS+= -t
+YFLAGS+= -t -v
 LFLAGS+= -d
 .endif
 

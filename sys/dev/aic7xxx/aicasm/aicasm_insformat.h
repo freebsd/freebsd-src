@@ -29,10 +29,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
+#if linux
+#include <endian.h>
+#else
 #include <machine/endian.h>
+#endif
 
 struct ins_format1 {
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -90,7 +96,7 @@ union ins_formats {
 		struct ins_format1 format1;
 		struct ins_format2 format2;
 		struct ins_format3 format3;
-		uint8_t	   bytes[4];
+		uint8_t		   bytes[4];
 		uint32_t	   integer;
 };
 struct instruction {
