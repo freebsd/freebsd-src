@@ -83,8 +83,6 @@ static	int int_rman_activate_resource(struct rman *rm, struct resource *r,
 static	int int_rman_deactivate_resource(struct resource *r);
 static	int int_rman_release_resource(struct rman *rm, struct resource *r);
 
-#define	CIRCLEQ_TERMCOND(var, head)	(var == (void *)&(head))
-
 int
 rman_init(struct rman *rm)
 {
@@ -101,7 +99,7 @@ rman_init(struct rman *rm)
 	if (rm->rm_type == RMAN_GAUGE)
 		panic("implement RMAN_GAUGE");
 
-	CIRCLEQ_INIT(&rm->rm_list);
+	TAILQ_INIT(&rm->rm_list);
 	rm->rm_slock = malloc(sizeof *rm->rm_slock, M_RMAN, M_NOWAIT);
 	if (rm->rm_slock == 0)
 		return ENOMEM;
@@ -134,15 +132,15 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r->r_rm = rm;
 
 	simple_lock(rm->rm_slock);
-	for (s = CIRCLEQ_FIRST(&rm->rm_list);	
-	     !CIRCLEQ_TERMCOND(s, rm->rm_list) && s->r_end < r->r_start;
-	     s = CIRCLEQ_NEXT(s, r_link))
+	for (s = TAILQ_FIRST(&rm->rm_list);	
+	     s && s->r_end < r->r_start;
+	     s = TAILQ_NEXT(s, r_link))
 		;
 
-	if (CIRCLEQ_TERMCOND(s, rm->rm_list)) {
-		CIRCLEQ_INSERT_TAIL(&rm->rm_list, r, r_link);
+	if (s == NULL) {
+		TAILQ_INSERT_TAIL(&rm->rm_list, r, r_link);
 	} else {
-		CIRCLEQ_INSERT_BEFORE(&rm->rm_list, s, r, r_link);
+		TAILQ_INSERT_BEFORE(s, r, r_link);
 	}
 
 	simple_unlock(rm->rm_slock);
@@ -155,7 +153,7 @@ rman_fini(struct rman *rm)
 	struct resource *r;
 
 	simple_lock(rm->rm_slock);
-	CIRCLEQ_FOREACH(r, &rm->rm_list, r_link) {
+	TAILQ_FOREACH(r, &rm->rm_list, r_link) {
 		if (r->r_flags & RF_ALLOCATED) {
 			simple_unlock(rm->rm_slock);
 			return EBUSY;
@@ -166,9 +164,9 @@ rman_fini(struct rman *rm)
 	 * There really should only be one of these if we are in this
 	 * state and the code is working properly, but it can't hurt.
 	 */
-	while (!CIRCLEQ_EMPTY(&rm->rm_list)) {
-		r = CIRCLEQ_FIRST(&rm->rm_list);
-		CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
+	while (!TAILQ_EMPTY(&rm->rm_list)) {
+		r = TAILQ_FIRST(&rm->rm_list);
+		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		free(r, M_RMAN);
 	}
 	simple_unlock(rm->rm_slock);
@@ -198,12 +196,12 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 
 	simple_lock(rm->rm_slock);
 
-	for (r = CIRCLEQ_FIRST(&rm->rm_list); 
-	     !CIRCLEQ_TERMCOND(r, rm->rm_list) && r->r_end < start;
-	     r = CIRCLEQ_NEXT(r, r_link))
+	for (r = TAILQ_FIRST(&rm->rm_list); 
+	     r && r->r_end < start;
+	     r = TAILQ_NEXT(r, r_link))
 		;
 
-	if (CIRCLEQ_TERMCOND(r, rm->rm_list)) {
+	if (r == NULL) {
 		DPRINTF(("could not find a region\n"));
 		goto out;
 	}
@@ -211,8 +209,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	/*
 	 * First try to find an acceptable totally-unshared region.
 	 */
-	for (s = r; !CIRCLEQ_TERMCOND(s, rm->rm_list);
-	     s = CIRCLEQ_NEXT(s, r_link)) {
+	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
 		if (s->r_start > end) {
 			DPRINTF(("s->r_start (%#lx) > end (%#lx)\n", s->r_start, end));
@@ -284,9 +281,9 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				r->r_sharehead = 0;
 				r->r_rm = rm;
 				s->r_end = rv->r_start - 1;
-				CIRCLEQ_INSERT_AFTER(&rm->rm_list, s, rv,
+				TAILQ_INSERT_AFTER(&rm->rm_list, s, rv,
 						     r_link);
-				CIRCLEQ_INSERT_AFTER(&rm->rm_list, rv, r,
+				TAILQ_INSERT_AFTER(&rm->rm_list, rv, r,
 						     r_link);
 			} else if (s->r_start == rv->r_start) {
 				DPRINTF(("allocating from the beginning\n"));
@@ -294,15 +291,14 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				 * We are allocating at the beginning.
 				 */
 				s->r_start = rv->r_end + 1;
-				CIRCLEQ_INSERT_BEFORE(&rm->rm_list, s, rv,
-						      r_link);
+				TAILQ_INSERT_BEFORE(s, rv, r_link);
 			} else {
 				DPRINTF(("allocating at the end\n"));
 				/*
 				 * We are allocating at the end.
 				 */
 				s->r_end = rv->r_start - 1;
-				CIRCLEQ_INSERT_AFTER(&rm->rm_list, s, rv,
+				TAILQ_INSERT_AFTER(&rm->rm_list, s, rv,
 						     r_link);
 			}
 			goto out;
@@ -321,8 +317,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
 		goto out;
 
-	for (s = r; !CIRCLEQ_TERMCOND(s, rm->rm_list);
-	     s = CIRCLEQ_NEXT(s, r_link)) {
+	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		if (s->r_start > end)
 			break;
 		if ((s->r_flags & flags) != flags)
@@ -517,8 +512,8 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		s = LIST_FIRST(r->r_sharehead);
 		if (r->r_flags & RF_FIRSTSHARE) {
 			s->r_flags |= RF_FIRSTSHARE;
-			CIRCLEQ_INSERT_BEFORE(&rm->rm_list, r, s, r_link);
-			CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
+			TAILQ_INSERT_BEFORE(r, s, r_link);
+			TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		}
 
 		/*
@@ -537,8 +532,8 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 	 * Look at the adjacent resources in the list and see if our
 	 * segment can be merged with any of them.
 	 */
-	s = CIRCLEQ_PREV(r, r_link);
-	t = CIRCLEQ_NEXT(r, r_link);
+	s = TAILQ_PREV(r, resource_head, r_link);
+	t = TAILQ_NEXT(r, r_link);
 
 	if (s != (void *)&rm->rm_list && (s->r_flags & RF_ALLOCATED) == 0
 	    && t != (void *)&rm->rm_list && (t->r_flags & RF_ALLOCATED) == 0) {
@@ -546,8 +541,8 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		 * Merge all three segments.
 		 */
 		s->r_end = t->r_end;
-		CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
-		CIRCLEQ_REMOVE(&rm->rm_list, t, r_link);
+		TAILQ_REMOVE(&rm->rm_list, r, r_link);
+		TAILQ_REMOVE(&rm->rm_list, t, r_link);
 		free(t, M_RMAN);
 	} else if (s != (void *)&rm->rm_list
 		   && (s->r_flags & RF_ALLOCATED) == 0) {
@@ -555,14 +550,14 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		 * Merge previous segment with ours.
 		 */
 		s->r_end = r->r_end;
-		CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
+		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 	} else if (t != (void *)&rm->rm_list
 		   && (t->r_flags & RF_ALLOCATED) == 0) {
 		/*
 		 * Merge next segment with ours.
 		 */
 		t->r_start = r->r_start;
-		CIRCLEQ_REMOVE(&rm->rm_list, r, r_link);
+		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 	} else {
 		/*
 		 * At this point, we know there is nothing we

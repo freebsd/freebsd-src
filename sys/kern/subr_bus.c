@@ -2559,13 +2559,11 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 		return(error);
 	}
 
-#define	CIRCLEQ_TERMCOND(var, head)	(var == (void *)&(head))
 	/*
 	 * Find the indexed resource and return it.
 	 */
-	for (res = CIRCLEQ_FIRST(&rm->rm_list); 
-	     !CIRCLEQ_TERMCOND(res, rm->rm_list);
-	     res = CIRCLEQ_NEXT(res, r_link)) {
+	for (res = TAILQ_FIRST(&rm->rm_list); res;
+	     res = TAILQ_NEXT(res, r_link)) {
 		if (res_idx-- == 0) {
 			ures.r_handle = (uintptr_t)res;
 			ures.r_parent = (uintptr_t)res->r_rm;

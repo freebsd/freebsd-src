@@ -89,9 +89,9 @@ struct u_rman {
  * at some point in the future, particularly if we want to support 36-bit
  * addresses on IA32 hardware.
  */
-CIRCLEQ_HEAD(resource_head, resource);
+TAILQ_HEAD(resource_head, resource);
 struct	resource {
-	CIRCLEQ_ENTRY(resource)	r_link;
+	TAILQ_ENTRY(resource)	r_link;
 	LIST_ENTRY(resource)	r_sharelink;
 	LIST_HEAD(, resource) 	*r_sharehead;
 	u_long	r_start;	/* index of the first entry in this resource */
