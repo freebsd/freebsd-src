@@ -711,21 +711,21 @@ m_print(const struct mbuf *m)
 	return;
 }
 
-int
+unsigned
 m_fixhdr(struct mbuf *m0)
 {
-	int len;
+	unsigned len;
 
 	len = m_length(m0, NULL);
 	m0->m_pkthdr.len = len;
 	return (len);
 }
 
-int
+unsigned
 m_length(struct mbuf *m0, struct mbuf **last)
 {
 	struct mbuf *m;
-	int len;
+	unsigned len;
 
 	len = 0;
 	for (m = m0; m != NULL; m = m->m_next) {
