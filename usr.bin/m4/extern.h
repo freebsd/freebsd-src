@@ -60,7 +60,7 @@ extern void doprintlineno(struct input_file *);
 extern void doprintfilename(struct input_file *);
 
 extern void doesyscmd(const char *);
- 
+
 
 /* look.c */
 extern ndptr	addent(const char *);
@@ -104,7 +104,7 @@ extern void	release_input(struct input_file *);
 			enlarge_bufspace();	\
 		*bp++ = (c);			\
 	} while(0)
-	
+
 #define CHRSAVE(c)				\
 	do {					\
 		if (ep >= endest)		\
@@ -162,7 +162,7 @@ static __inline int gpbc(void)
 	int chscratch;		/* Scratch space. */
 
 	if (bp > bufbase) {
-		if (*--bp) 
+		if (*--bp)
 			return ((unsigned char)*bp);
 		else
 			return (EOF);
