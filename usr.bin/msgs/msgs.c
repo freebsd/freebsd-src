@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: msgs.c,v 1.9 1997/07/29 06:47:18 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -169,6 +169,7 @@ int argc; char *argv[];
 	int rcback = 0;			/* amount to back off of rcfirst */
 	int firstmsg = 0, nextmsg = 0, lastmsg = 0;
 	int blast = 0;
+	struct stat buf;		/* stat to check access of bounds */
 	FILE *bounds;
 
 #ifdef UNBUFFERED
@@ -244,6 +245,11 @@ int argc; char *argv[];
 	 * determine current message bounds
 	 */
 	snprintf(fname, sizeof(fname), "%s/%s", _PATH_MSGS, BOUNDS);
+	if (stat(fname, &buf) < 0)
+	{
+		perror(fname);
+		exit(1);
+	}
 	bounds = fopen(fname, "r");
 
 	if (bounds != NULL) {
