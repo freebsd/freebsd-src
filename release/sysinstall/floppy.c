@@ -117,7 +117,7 @@ mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (floppyMounted)
 	return TRUE;
@@ -188,7 +188,7 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownFloppy(Device *dev)
 {
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (floppyMounted) {
 	if (unmount(mountpoint, MNT_FORCE) != 0)

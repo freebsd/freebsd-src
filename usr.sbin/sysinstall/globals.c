@@ -44,7 +44,6 @@
 int		DebugFD;	/* Where diagnostic output goes */
 Boolean		Fake;		/* Only pretend to be useful */
 Boolean		RunningAsInit;	/* Are we running as init? */
-Boolean		Chrooted;	/* Yow, have we chrooted yet? */
 Boolean		DialogActive;	/* Is libdialog initialized? */
 Boolean		ColorDisplay;	/* Are we on a color display? */
 Boolean		OnVTY;		/* Are we on a VTY? */
@@ -68,5 +67,4 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
-    Chrooted = FALSE;
 }
