@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.6 1996/04/07 10:22:37 joerg Exp $
+# $Id: easy-import.pl,v 1.7 1996/04/28 12:32:43 joerg Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.6 $' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.7 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .
@@ -364,7 +364,7 @@ if (!$branchimport) {
 
     print "${so}Inserting new module...${se}\n";
     open(ED, "|ed modules/modules") || die "${us}Cannot start ed${ue}\n";
-    print(ED "${cmd}${modname}" . ' ' x (16 - length($modname)) .
+    print(ED "${cmd}${modname} " . ' ' x (15 - length($modname)) .
 	  "$area/${modpath}\n.\nw\nq\n");
     close(ED);
 
