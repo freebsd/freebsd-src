@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1992-1994 by Joerg Wunsch, Dresden
+ * Copyright (C) 1992-1994,2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -173,6 +173,7 @@ main(int argc, char **argv)
 	int rate = -1, gaplen = -1, secsize = -1, steps = -1;
 	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0, confirm = 0;
 	int fd, c, track, error, tracks_per_dot, bytes_per_track, errs;
+	int fdopts;
 	const char *devname, *suffix;
 	struct fd_type fdt;
 
@@ -265,6 +266,9 @@ main(int argc, char **argv)
 
 	if(ioctl(fd, FD_GTYPE, &fdt) < 0)
 		errx(1, "not a floppy disk: %s", devname);
+	fdopts = FDOPT_NOERRLOG;
+	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
+		err(1, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
 
 	switch(rate) {
 	case -1:  break;
