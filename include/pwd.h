@@ -42,9 +42,24 @@
 #ifndef _PWD_H_
 #define	_PWD_H_
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
+#include <sys/_types.h>
 
-#ifndef _POSIX_SOURCE
+#ifdef _BSD_GID_T_
+typedef	_BSD_GID_T_	gid_t;
+#undef _BSD_GID_T_
+#endif
+
+#ifdef _BSD_TIME_T_
+typedef	_BSD_TIME_T_	time_t;
+#undef _BSD_TIME_T_
+#endif
+
+#ifdef _BSD_UID_T_
+typedef	_BSD_UID_T_	uid_t;
+#undef _BSD_UID_T_
+#endif
+
 #define _PATH_PWD		"/etc"
 #define	_PATH_PASSWD		"/etc/passwd"
 #define	_PASSWD			"passwd"
@@ -67,7 +82,6 @@
 #define	_PASSWORD_EFMT1		'_'	/* extended encryption format */
 
 #define	_PASSWORD_LEN		128	/* max length, not counting NULL */
-#endif
 
 struct passwd {
 	char	*pw_name;		/* user name */
@@ -101,16 +115,21 @@ struct passwd {
 #define _PWF_NIS	0x2000
 #define _PWF_HESIOD	0x3000
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
-struct passwd	*getpwuid(uid_t);
 struct passwd	*getpwnam(const char *);
-#ifndef _POSIX_SOURCE
-struct passwd	*getpwent(void);
-int		 setpassent(int);
-void		 setpwent(void);
+struct passwd	*getpwuid(uid_t);
+
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
 void		 endpwent(void);
+struct passwd	*getpwent(void);
+void		 setpwent(void);
+/*
+ * XXX missing getpwnam_r() and getpwuid_r().
+ */
+#endif
+
+#if __BSD_VISIBLE
+int		 setpassent(int);
 const char	*user_from_uid(uid_t, int);
 #endif
 __END_DECLS
