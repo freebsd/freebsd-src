@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.355 1999/07/09 04:15:40 jlemon Exp $
+ *	$Id: machdep.c,v 1.356 1999/07/19 23:36:30 peter Exp $
  */
 
 #include "apm.h"
@@ -1004,8 +1004,8 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GAPMCODE32_SEL 9 APM BIOS 32-bit interface (32bit Code) */
-{	0,			/* segment base address (overwritten by APM)  */
+/* GBIOSCODE32_SEL 9 BIOS 32-bit interface (32bit Code) */
+{	0,			/* segment base address (overwritten)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1013,8 +1013,8 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GAPMCODE16_SEL 10 APM BIOS 32-bit interface (16bit Code) */
-{	0,			/* segment base address (overwritten by APM)  */
+/* GBIOSCODE16_SEL 10 BIOS 32-bit interface (16bit Code) */
+{	0,			/* segment base address (overwritten)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -1022,14 +1022,32 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GAPMDATA_SEL	11 APM BIOS 32-bit interface (Data) */
-{	0,			/* segment base address (overwritten by APM) */
+/* GBIOSDATA_SEL 11 BIOS 32-bit interface (Data) */
+{	0,			/* segment base address (overwritten) */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GBIOSUTIL_SEL 12 BIOS 16-bit interface (Utility) */
+{	0,			/* segment base address (overwritten) */
+	0xfffff,		/* length */
+	SDT_MEMRWA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GBIOSARGS_SEL 13 BIOS 16-bit interface (Arguments) */
+{	0,			/* segment base address (overwritten) */
+	0xfffff,		/* length */
+	SDT_MEMRWA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
 };
 

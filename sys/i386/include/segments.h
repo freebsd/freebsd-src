@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.19 1999/04/28 01:04:06 luoqi Exp $
+ *	$Id: segments.h,v 1.20 1999/06/18 14:32:21 bde Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -215,14 +215,16 @@ struct region_descriptor {
 #define	GUSERLDT_SEL	6	/* User LDT */
 #define	GTGATE_SEL	7	/* Process task switch gate */
 #define	GPANIC_SEL	8	/* Task state to consider panic from */
-#define GAPMCODE32_SEL	9	/* APM BIOS 32-bit interface (32bit Code) */
-#define GAPMCODE16_SEL	10	/* APM BIOS 32-bit interface (16bit Code) */
-#define GAPMDATA_SEL	11	/* APM BIOS 32-bit interface (Data) */
+#define GBIOSCODE32_SEL	9	/* BIOS interface (32bit Code) */
+#define GBIOSCODE16_SEL	10	/* BIOS interface (16bit Code) */
+#define GBIOSDATA_SEL	11	/* BIOS interface (Data) */
+#define GBIOSUTIL_SEL	12	/* BIOS interface (Utility) */
+#define GBIOSARGS_SEL	13	/* BIOS interface (Arguments) */
 
 #ifdef BDE_DEBUGGER
 #define	NGDT		18	/* some of 11-17 are reserved for debugger */
 #else
-#define NGDT 		12
+#define NGDT 		14
 #endif
 
 /*

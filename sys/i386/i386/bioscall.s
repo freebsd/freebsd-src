@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: bioscall.s,v 1.1 1997/08/01 06:07:13 msmith Exp $
  */
 
 /*
@@ -32,28 +32,136 @@
 	
 #include <machine/asmacros.h>
 
+#include "assym.s"
+
+#define	KCSEL		0x08 		/* GSEL(GCODE_SEL, SEL_KPL) */
+#define	KDSEL		0x10 		/* GSEL(GDATA_SEL, SEL_KPL) */
+#define	BC32SEL		0x40 		/* GSEL(GBIOSCODE32_SEL, SEL_KPL) */
+#define	BSSEL		0x60 		/* GSEL(GBIOSSTACK_SEL, SEL_KPL) */
+
+#define data16		.byte	0x66
+
+	.data
+	ALIGN_DATA
+bioscall_frame:		.long	0
+bioscall_stack:		.long	0
+
 	.text
 /*
- * bios32(caddr_t func_addr, bios32_args *args)
+ * bios32(regs, offset, segment)
+ *	struct bios_regs *regs;
+ *	u_int offset;
+ * 	u_short segment;
  */
-
 ENTRY(bios32)
+	pushl	%ebp
+	movl	16(%esp),%ebp
+	mov	%bp,_bioscall_vector+4
+	movl	12(%esp),%ebp
+	movl	%ebp,_bioscall_vector
+	movl	8(%esp),%ebp
 	pushl	%ebx
 	pushl	%esi
-	movl	(2*4+2*4)(%esp), %esi
-	movl	0(%esi), %eax
-	movl	4(%esi), %ebx
-	movl	8(%esi), %ecx
-	movl	12(%esi), %edx
-	movl	(2*4+1*4)(%esp), %esi
-	mov	%cs, %di
-	pushl	%edi				/* really lcall/lret */
-	call	%esi
-	movl	(2*4+2*4)(%esp), %esi
-	movl	%eax, 0(%esi)
-	movl	%ebx, 4(%esi)
-	movl	%ecx, 8(%esi)
-	movl	%edx, 12(%esi)
+	pushl	%edi
+	movl	0(%ebp),%eax
+	movl	4(%ebp),%ebx
+	movl	8(%ebp),%ecx
+	movl	12(%ebp),%edx
+	movl	16(%ebp),%esi
+	movl	20(%ebp),%edi
+	pushl	%ebp
+	lcall	_bioscall_vector
+	popl	%ebp
+	movl	%eax,0(%ebp)
+	movl	%ebx,4(%ebp)
+	movl	%ecx,8(%ebp)
+	movl	%edx,12(%ebp)
+	movl	%esi,16(%ebp)
+	movl	%edi,20(%ebp)
+	movl	$0,%eax			/* presume success */
+	jnc	1f
+	movl	$1,%eax			/* nope */
+1:
+	popl	%edi
 	popl	%esi
 	popl	%ebx
-        ret
+	popl	%ebp
+	ret
+
+
+/*
+ * bios16_call(regs, stack)
+ *	struct bios_regs *regs;
+ *	char *stack;
+ */
+ENTRY(bios16_call)
+	pushl	%ebp
+	movl	%esp,%ebp
+	addl	$4,%ebp			/* frame pointer */
+	movl	%ebp,bioscall_frame	/* ... save it */
+	pushl	%ebx
+	pushl	%esi
+	pushl	%edi
+/*
+ * the problem with a full 32-bit stack segment is that 16-bit code
+ * tends to do a pushf, which only pushes %sp, not %esp.  This value
+ * is then popped off (into %esp) which causes a page fault because 
+ * it is the wrong address.
+ *
+ * the reverse problem happens for 16-bit stack addresses; the kernel
+ * code attempts to get the address of something on the stack, and the
+ * value returned is the address relative to %ss, not %ds.
+ *
+ * we fix this by installing a temporary stack at page 0, so the
+ * addresses are always valid in both 32 bit and 16 bit modes.
+ */
+	movl	%esp,bioscall_stack	/* save current stack location */
+	movl	8(%ebp),%esp		/* switch to page 0 stack */
+
+	movl	4(%ebp),%ebp		/* regs */
+
+	movl	0(%ebp),%eax
+	movl	4(%ebp),%ebx
+	movl	8(%ebp),%ecx
+	movl	12(%ebp),%edx
+	movl	16(%ebp),%esi
+	movl	20(%ebp),%edi
+
+	pushl	$BC32SEL
+	leal	bios_jmp,%ebp
+	andl	$PAGE_MASK,%ebp
+	pushl	%ebp			/* reload %cs and */
+	lret				/* ...continue below */
+bios_jmp:
+	data16
+	lcall	_bioscall_vector	/* 16-bit call */
+
+	jc	1f
+	pushl	$0			/* success */
+	jmp	2f
+1:
+	pushl	$1			/* failure */
+2:
+	movl	bioscall_frame,%ebp
+
+	movl	4(%ebp),%ebp		/* regs */
+
+	movl	%eax,0(%ebp)
+	movl	%ebx,4(%ebp)
+	movl	%ecx,8(%ebp)
+	movl	%edx,12(%ebp)
+	movl	%esi,16(%ebp)
+	movl	%edi,20(%ebp)
+
+	popl	%eax			/* recover return value */
+	movl	bioscall_stack,%esp	/* return to normal stack */
+
+	popl	%edi
+	popl	%esi
+	popl	%ebx
+	popl	%ebp
+
+	movl	(%esp),%ecx
+	pushl	%ecx			/* return address */
+	movl	$KCSEL,4(%esp)
+	lret				/* reload %cs on the way out */
