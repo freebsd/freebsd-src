@@ -1,5 +1,6 @@
 src/etc/sendmail/freebsd.mc*
 ports/chinese
+ports/french
 ports/german
 ports/hebrew
 ports/japanese
