@@ -52,9 +52,14 @@ pccarddevs.h			standard				   \
 	clean		"pccarddevs.h"
 usbdevs.h			optional usb				   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
-	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
-	clean		"usbdevs.h usbdevs_data.h"
+	clean		"usbdevs.h"
+usbdevs_data.h			optional usb				   \
+	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
+	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"usbdevs_data.h"
 kern/device_if.m		standard
 kern/bus_if.m			standard
 kern/clock_if.m			optional genclock
