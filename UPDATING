@@ -5,6 +5,11 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011001:
+	The kernel interface that burncd depends on has changed.
+	You must recompile both the kernel and userland applications
+	at the same time.
+
 20010929:
 	When crossbuilding, please set TARGET_ARCH rather than
 	MACHINE_ARCH to indicate the target.  In the future, one will
