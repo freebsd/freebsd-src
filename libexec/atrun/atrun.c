@@ -71,7 +71,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.5 1995/08/10 04:06:53 ache Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.5 1995/08/21 12:34:17 ache Exp $";
 static debug = 0;
 
 void perr(const char *a);
@@ -153,6 +153,15 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     stream=fopen(filename, "r");
 
     PRIV_END
+
+#ifdef __FreeBSD__
+    if (pentry->pw_expire && time(NULL) >= pentry->pw_expire)
+    {
+	syslog(LOG_ERR, "Userid %lu is expired - aborting job %s",
+		(unsigned long) uid, filename);
+	exit(EXIT_FAILURE);
+    }
+#endif
 
     if (stream == NULL)
 	perr("Cannot open input file");
