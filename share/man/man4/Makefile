@@ -132,6 +132,7 @@ MAN=	aac.4 \
 	ncr.4 \
 	netgraph.4 \
 	netintro.4 \
+	ng_atm.4 \
 	ng_UI.4 \
 	ng_async.4 \
 	ng_bluetooth.4 \
