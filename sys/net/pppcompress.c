@@ -49,6 +49,7 @@
   
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socketvar.h>
 
@@ -57,7 +58,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-#include <net/slcompress.h>
+#include <net/pppcompress.h>
 
 #ifndef SL_NO_STATS
 #define INCR(counter) ++comp->counter;
