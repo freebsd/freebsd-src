@@ -35,6 +35,21 @@ documentation sets for FreeBSD.  You can also use the browser to visit
 other WEB sites on the net (such as http://www.freebsd.org) if you
 have an Internet connection.
 
+NOTE: If you read no other documentation before installing a given
+version of FreeBSD, you should at least by all means *READ THE ERRATA*
+for that release so that you don't stumble over problems which have
+already been found and fixed.  The ERRATA.TXT file accompanying your
+release (it should be right next to this file) is obviously already
+out of date by definition, but other copies are kept updated on the
+net and should be consulted as the "current errata" for your release
+(this is also what your ERRATA.TXT file says, by the way).  These
+other copies of the errata are located at:
+
+  1. http://www.freebsd.org/releases/
+
+  2. ftp://ftp.freebsd.org/pub/FreeBSD/releases/<your-release>/ERRATA.TXT
+     (and any sites which keep up-to-date mirrors of this location).
+
 
 DISCLAIMER: While FreeBSD does its best to safeguard against
 accidental loss of data, it's still more than possible to WIPE OUT

@@ -1,21 +1,26 @@
-This file contains post-release ERRATA for 3.1 and should always
-be considered the definitive place to look *first* before reporting
-a problem with this release.  This file will also be periodically
-updated as new issues are reported so even if you've checked this
-file recently, check it again before filing a bug report.
-The latest revision of this file can be viewed at:
+If you read no other documentation before installing this
+version of FreeBSD, you should at least by all means *READ
+THE ERRATA* for this release so that you don't stumble over
+problems which have already been found and fixed.  This ERRATA.TXT
+file is obviously already out of date by definition, but other
+copies are kept updated on the net and should be consulted as
+the "current errata" for your release.  These other copies of
+the errata are located at: 
 
-        http://www.freebsd.org/releases/3.1/errata.html
+  1. http://www.freebsd.org/releases/   
+
+  2. ftp://ftp.freebsd.org/pub/FreeBSD/releases/<your-release>/ERRATA.TXT   
+     (and any sites which keep up-to-date mirrors of this location).          
 
 Any changes to this file are also automatically emailed to:
 
-	freebsd-current@freebsd.org
+	freebsd-stable@freebsd.org
 
-For 3.1 security advisories, see:
+For all CERT security advisories, see:
 
 	ftp://ftp.freebsd.org/pub/FreeBSD/CERT/
 
-For the latest information.
+For the latest security incident information.
 
 ---- Security Advisories:
 
