@@ -669,7 +669,8 @@ So you are stuck with old Qlogic bits too. I have had quite some problems
 when I wanted to use Ultra-SCSI drives on the Alpine/Qlogic. The
 FreeBSD/alpha kernel can be compiled to include a much newer Qlogic firmware
 revision. This is not the default because it adds hundreds of kBytes worth
-of bloat to the kernel. All of this might mean that you need to use a
+of bloat to the kernel. In FreeBSD 4.1 and later the isp firmware is contained 
+in a kernel loadable module. All of this might mean that you need to use a
 non-Qlogic adapter to boot from. 
 
 For the EB64+ class machines the kernel config file must contain:
@@ -1152,7 +1153,6 @@ Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 ** AlphaPC 264DP / UP2000
-	<need more info on this one; please check for correctness>
 
 Features:
 - 21264 EV6 CPU at 670 MHz
@@ -1197,7 +1197,6 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 *
 * AlphaServer 2000 ("DemiSable"), 2100 ("Sable"), 2100A ("Lynx")
 *
-	<need more info on this one; please check for correctness>
 
 The AlphaServer 2[01]00 machines are aimed as departmental servers.
 This is medium iron, not a hobbyist system. These are multi-CPU machines, 
@@ -1222,6 +1221,7 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
 
 CPU:
 The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz.
+Currently FreeBSD only uses one CPU in a multiprocessor machine.
 
 Memory:
 The machines use dedicated memory boards. These boards live on a 128 bit 
@@ -1258,7 +1258,6 @@ The kernel config file must contain:
 *
 * AlphaServer 4100 ("Rawhide")
 *
-	<need more info on this one; please check for correctness>
 
 The AlphaServer 4100 machine is aimed as an enterprise server.
 Expect a 30" high pedestal cabinet or alternatively the same system box in a
@@ -1280,6 +1279,10 @@ Features:
 - 1 parallel port
 - PS/2 style keyboard & mouse port
 
+CPU:
+Rawhide is very much a multiprocessor machine. Currently FreeBSD only
+uses one CPU.
+
 Memory:
 Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
 and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
@@ -1290,7 +1293,7 @@ is allowed. A mix of EDO and SDRAM is also reported as working (assuming you
 don't try to mix EDO and SDRAM in one module pair).
 
 Embedded SCSI:
-Rawhide has a embedded NCR810 Fast SCSI bus.
+Rawhide has an embedded NCR810 Fast SCSI bus.
 
 Expansion:
 Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
