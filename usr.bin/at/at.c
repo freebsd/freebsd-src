@@ -80,7 +80,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.2 1994/06/08 18:19:43 kernel Exp $";
+static char rcsid[] = "$Id: at.c,v 1.2 1995/04/12 02:42:28 ache Exp $";
 char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
@@ -249,12 +249,6 @@ writefile(time_t runtimer, char queue)
 	perr("Cannot give away file");
 
     PRIV_END
-
-    /* We no longer need suid root; now we just need to be able to write
-     * to the directory, if necessary.
-     */
-
-    REDUCE_PRIV(DAEMON_UID, DAEMON_GID)
 
     /* We've successfully created the file; let's set the flag so it 
      * gets removed in case of an interrupt or error.
@@ -466,11 +460,13 @@ delete_jobs(int argc, char **argv)
 	perr("Cannot change to " ATJOB_DIR);
     
     for (i=optind; i < argc; i++) {
-	if (stat(argv[i], &buf) != 0)
+	if (stat(argv[i], &buf) != 0) {
 	    perr(argv[i]);
+	    continue;
+	}
 	if ((buf.st_uid != real_uid) && !(real_uid == 0)) {
 	    fprintf(stderr, "%s: Not owner\n", argv[i]);
-	    exit(EXIT_FAILURE);
+	    continue;
 	}
 	if (unlink(argv[i]) != 0)
 	    perr(argv[i]);
