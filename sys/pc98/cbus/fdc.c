@@ -354,7 +354,6 @@ static int enable_fifo(fdc_p fdc);
 static int fd_sense_drive_status(fdc_p, int *);
 static int fd_sense_int(fdc_p, int *, int *);
 static int fd_read_status(fdc_p);
-static void fdc_add_child(device_t, const char *, int);
 static int fd_probe(device_t);
 static int fd_attach(device_t);
 static int fd_detach(device_t);
@@ -761,11 +760,17 @@ fdc_release_resources(struct fdc_data *fdc)
 	device_t dev;
 
 	dev = fdc->fdc_dev;
+	if (fdc->fdc_intr) {
+		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
+		    fdc->fdc_intr);
+		fdc->fdc_intr = NULL;
+	}
 	if (fdc->res_irq != 0) {
 		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
 					fdc->res_irq);
 		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
 				     fdc->res_irq);
+		fdc->res_irq = NULL;
 	}
 #ifndef PC98
 	if (fdc->res_ctl != 0) {
@@ -773,6 +778,7 @@ fdc_release_resources(struct fdc_data *fdc)
 					fdc->res_ctl);
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
 				     fdc->res_ctl);
+		fdc->res_ctl = NULL;
 	}
 #endif
 #ifdef PC98
@@ -780,11 +786,13 @@ fdc_release_resources(struct fdc_data *fdc)
 		bus_deactivate_resource(dev, SYS_RES_IOPORT, 3,
 					fdc->res_fdsio);
 		bus_release_resource(dev, SYS_RES_IOPORT, 3, fdc->res_fdsio);
+		fdc->res_fdsio = NULL;
 	}
 	if (fdc->res_fdemsio != 0) {
 		bus_deactivate_resource(dev, SYS_RES_IOPORT, 4,
 					fdc->res_fdemsio);
 		bus_release_resource(dev, SYS_RES_IOPORT, 4, fdc->res_fdemsio);
+		fdc->res_fdemsio = NULL;
 	}
 #endif
 	if (fdc->res_ioport != 0) {
@@ -792,12 +800,14 @@ fdc_release_resources(struct fdc_data *fdc)
 					fdc->res_ioport);
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
 				     fdc->res_ioport);
+		fdc->res_ioport = NULL;
 	}
 	if (fdc->res_drq != 0) {
 		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
 					fdc->res_drq);
 		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
 				     fdc->res_drq);
+		fdc->res_drq = NULL;
 	}
 }
 
@@ -883,14 +893,6 @@ fdc_detach(device_t dev)
 	fdout_wr(fdc, 0);
 #endif
 
-	if ((fdc->flags & FDC_ATTACHED) == 0) {
-		device_printf(dev, "already unloaded\n");
-		return (0);
-	}
-	fdc->flags &= ~FDC_ATTACHED;
-
-	BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
-			  fdc->fdc_intr);
 	fdc_release_resources(fdc);
 	return (0);
 }
@@ -898,38 +900,36 @@ fdc_detach(device_t dev)
 /*
  * Add a child device to the fdc controller.  It will then be probed etc.
  */
-static void
+device_t
 fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int	fdu, flags;
+	int flags;
 	struct fdc_ivars *ivar;
 	device_t child;
 
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT | M_ZERO);
 	if (ivar == NULL)
-		return;
+		return (NULL);
 	child = device_add_child(dev, name, unit);
 	if (child == NULL) {
 		free(ivar, M_DEVBUF);
-		return;
+		return (NULL);
 	}
 	device_set_ivars(child, ivar);
-	if (resource_int_value(name, unit, "drive", &fdu) != 0)
-		fdu = 0;
-	fdc_set_fdunit(child, fdu);
-	fdc_set_fdtype(child, FDT_NONE);
+	ivar->fdunit = unit;
+	ivar->fdtype = FDT_NONE;
 	if (resource_int_value(name, unit, "flags", &flags) == 0)
 		device_set_flags(child, flags);
 	if (resource_disabled(name, unit))
 		device_disable(child);
+	return (child);
 }
 
 int
 fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
-	const char *name, *dname;
-	int	i, dunit, error;
+	int	error;
 
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
@@ -941,7 +941,7 @@ fdc_attach(device_t dev)
 		return error;
 	}
 	fdc->fdcu = device_get_unit(dev);
-	fdc->flags |= FDC_ATTACHED | FDC_NEEDS_RESET;
+	fdc->flags |= FDC_NEEDS_RESET;
 
 	fdc->state = DEVIDLE;
 
@@ -954,18 +954,28 @@ fdc_attach(device_t dev)
 #endif
 	bioq_init(&fdc->head);
 
+	return (0);
+}
+
+int
+fdc_hints_probe(device_t dev)
+{
+	const char *name, *dname;
+	int i, error, dunit;
+
 	/*
 	 * Probe and attach any children.  We should probably detect
 	 * devices from the BIOS unless overridden.
 	 */
 	name = device_get_nameunit(dev);
 	i = 0;
-	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
+	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0) {
+		resource_int_value(dname, dunit, "drive", &dunit);
 		fdc_add_child(dev, dname, dunit);
+	}
 
 	if ((error = bus_generic_attach(dev)) != 0)
 		return (error);
-
 	return (0);
 }
 
@@ -1009,9 +1019,8 @@ fd_probe(device_t dev)
 	fd->fdsu = fdsu;
 	fd->fdu = device_get_unit(dev);
 
-	type = FD_DTYPE(flags);
-
 	/* Auto-probe if fdinfo is present, but always allow override. */
+	type = FD_DTYPE(flags);
 	if (type == FDT_NONE && (type = fdc_get_fdtype(dev)) != FDT_NONE) {
 		fd->type = type;
 		goto done;
@@ -1105,7 +1114,7 @@ fd_probe(device_t dev)
 
 done:
 #ifndef PC98
-	/* This doesn't work before the first reset.  Or set_motor?? */
+	/* This doesn't work before the first reset. */
 	if ((fdc->flags & FDC_HAS_FIFO) == 0 &&
 	    fdc->fdct == FDC_ENHANCED &&
 	    (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0 &&
