@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: intro.9,v 1.7 1997/03/07 02:53:35 jmg Exp $
+.\"	$Id: intro.9,v 1.8 1998/01/02 19:22:52 alex Exp $
 .\"
 .Dd December 13, 1995
 .Dt INTRO 9
@@ -93,7 +93,7 @@ the main one is that the kernel is one monolithic name-space,
 and pollution is not a good idea here either.
 .Pp
 For device drivers and other modules that don't add new internal interfaces
-to the kernel, the entire source should be in one file it possible.
+to the kernel, the entire source should be in one file if possible.
 That way all symbols can be made static.
 .Pp
 If for some reason a module is split over multiple source files, then try
