@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.45 1997/03/07 16:39:17 jkh Exp $
+ * $Id: installUpgrade.c,v 1.46 1997/03/11 09:29:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"fbtab",		TRUE, NULL },
    { JUST_COPY,		"fstab",		FALSE, NULL },
    { JUST_COPY,		"ftpusers",		TRUE, NULL },
+   { JUST_COPY,		"gettytab",		TRUE, NULL },
    { JUST_COPY,		"gnats",		TRUE, NULL },
    { JUST_COPY,		"group",		FALSE, NULL },
    { JUST_COPY,		"host.conf",		TRUE, NULL },
