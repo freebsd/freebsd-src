@@ -59,8 +59,10 @@
 #ifdef __NetBSD__
 #include <sys/disklabel.h>
 #endif
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500001
+#ifdef __FreeBSD__
+#if __FreeBSD_version >= 500001
 #include <sys/bio.h>
+#endif
 #include <sys/devicestat.h>
 #endif
 #include <sys/buf.h>
@@ -94,6 +96,7 @@
 #include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
 
 #include <cam/scsi/scsi_low.h>
 
@@ -126,7 +129,7 @@ static struct slccb *scsi_low_establish_ccb __P((struct targ_info *, struct lun_
 static int scsi_low_done __P((struct scsi_low_softc *, struct slccb *));
 static void scsi_low_twiddle_wait __P((void));
 static struct lun_info *scsi_low_alloc_li __P((struct targ_info *, int, int));
-static struct targ_info *scsi_low_alloc_ti __P((struct scsi_low_softc *, int));
+static struct targ_info *scsi_low_alloc_ti __P((struct scsi_low_softc *, int, int));
 static void scsi_low_calcf __P((struct targ_info *, struct lun_info *));
 static struct lun_info *scsi_low_establish_lun __P((struct targ_info *, int));
 #ifndef CAM
@@ -227,7 +230,6 @@ scsi_low_alloc_li(ti, lun, alloc)
 	int lun;
 	int alloc;
 {
-	struct scsi_low_softc *slp = ti->ti_sc;
 	struct lun_info *li;
 
 	li = LIST_FIRST(&ti->ti_litab); 
@@ -250,11 +252,11 @@ scsi_low_alloc_li(ti, lun, alloc)
 	if (alloc == 0)
 		return li;
 
-	li = malloc(ti->ti_lunsize, M_DEVBUF, M_NOWAIT);
+	li = malloc(sizeof(struct lun_info), M_DEVBUF, M_NOWAIT);
 	if (li == NULL)
 		panic("no lun info mem\n");
 
-	memset(li, 0, ti->ti_lunsize);
+	memset(li, 0, sizeof(struct lun_info));
 	li->li_lun = lun;
 	li->li_ti = ti;
 #if	defined(SDEV_NOPARITY) && defined(SDEV_NODISC)
@@ -264,9 +266,6 @@ scsi_low_alloc_li(ti, lun, alloc)
 
 	LIST_INSERT_HEAD(&ti->ti_litab, li, lun_chain);
 
-	/* host specific structure initialization per lun */
-	(void) ((*slp->sl_funcs->scsi_low_lun_init) (slp, ti, li));
-
 	return li;
 }
 
@@ -274,20 +273,20 @@ scsi_low_alloc_li(ti, lun, alloc)
  * allocate targ_info
  **************************************************************/
 static struct targ_info *
-scsi_low_alloc_ti(slp, targ)
+scsi_low_alloc_ti(slp, targ, targ_size)
 	struct scsi_low_softc *slp;
-	int targ;
+	int targ, targ_size;
 {
 	struct targ_info *ti;
 
 	if (TAILQ_FIRST(&slp->sl_titab) == NULL)
 		TAILQ_INIT(&slp->sl_titab);
 
-	ti = malloc(sizeof(struct targ_info), M_DEVBUF, M_NOWAIT);
+	ti = malloc(targ_size, M_DEVBUF, M_NOWAIT);
 	if (ti == NULL)
 		panic("%s short of memory\n", slp->sl_xname);
 
-	memset(ti, 0, sizeof(struct targ_info));
+	memset(ti, 0, targ_size);
 	ti->ti_id = targ;
 	ti->ti_sc = slp;
 
@@ -295,6 +294,9 @@ scsi_low_alloc_ti(slp, targ)
 	TAILQ_INSERT_TAIL(&slp->sl_titab, ti, ti_chain);
 	TAILQ_INIT(&ti->ti_discq);
 	LIST_INIT(&ti->ti_litab);
+
+	/* host specific structure initialization per target */
+	(void) ((*slp->sl_funcs->scsi_low_targ_init) (slp, ti));
 
 	return ti;
 }
@@ -463,9 +465,9 @@ scsi_low_rescan_bus(struct scsi_low_softc *slp)
 #endif
 
 int
-scsi_low_attach(slp, openings, ntargs, nluns, lunsize)
+scsi_low_attach(slp, openings, ntargs, nluns, targ_size)
 	struct scsi_low_softc *slp;
-	int openings, ntargs, nluns, lunsize;
+	int openings, ntargs, nluns, targ_size;
 {
 	struct targ_info *ti;
 	struct lun_info *li;
@@ -488,13 +490,12 @@ scsi_low_attach(slp, openings, ntargs, nluns, lunsize)
 		printf("change kernel options SCSI_LOW_NTARGETS");
 	}
 
-	if (lunsize < sizeof(struct lun_info))
-		lunsize = sizeof(struct lun_info);
+	if (targ_size < sizeof(struct targ_info))
+		targ_size = sizeof(struct targ_info);
 
 	for (i = 0; i < ntargs; i ++)
 	{
-		ti = scsi_low_alloc_ti(slp, i);
-		ti->ti_lunsize = lunsize;
+		ti = scsi_low_alloc_ti(slp, i, targ_size);
 		li = scsi_low_alloc_li(ti, 0, 1);
 	}
 
@@ -641,11 +642,12 @@ scsi_low_scsi_action(struct cam_sim *sim, union ccb *ccb)
 	struct slccb *cb;
 
 #if 0
-	printf("scsi_low_scsi_action() func code %d Target: %d, LUN: %d\n",
+	printf("scsi_low_scsi_action() func code 0x%x Target: %d, LUN: %d\n",
 	       ccb->ccb_h.func_code, target, ccb->ccb_h.target_lun);
 #endif
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
+	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 		if (((cb = scsi_low_get_ccb()) == NULL)) {
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			xpt_done(ccb);
@@ -670,7 +672,6 @@ scsi_low_scsi_action(struct cam_sim *sim, union ccb *ccb)
 
 		splx(s);
 		break;
-	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	case XPT_EN_LUN:		/* Enable LUN as a target */
 	case XPT_TARGET_IO:		/* Execute target I/O request */
 	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
@@ -693,12 +694,12 @@ scsi_low_scsi_action(struct cam_sim *sim, union ccb *ccb)
 
 		cts = &ccb->cts;
 		ti = slp->sl_ti[ccb->ccb_h.target_id];
+		s = splcam();
 		li = LIST_FIRST(&ti->ti_litab); 
 		if (li != NULL && li->li_lun != lun)
 			while ((li = LIST_NEXT(li, lun_chain)) != NULL)
 				if (li->li_lun == lun)
 					break;
-		s = splcam();
 		if (li != NULL && (cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
 			if (li->li_cfgflags & SCSI_LOW_DISC)
 				cts->flags = CCB_TRANS_DISC_ENB;
@@ -707,7 +708,9 @@ scsi_low_scsi_action(struct cam_sim *sim, union ccb *ccb)
 			if (li->li_cfgflags & SCSI_LOW_QTAG)
 				cts->flags |= CCB_TRANS_TAG_ENB;
 
-			cts->bus_width = 0;/*HN2*/
+			cts->sync_period = ti->ti_maxsynch.period;
+			cts->sync_offset = ti->ti_maxsynch.offset;
+			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 
 			cts->valid = CCB_TRANS_SYNC_RATE_VALID
 				   | CCB_TRANS_SYNC_OFFSET_VALID
@@ -979,12 +982,10 @@ scsi_low_cmd_exec:
 	if ((cb->ccb_flags & CCB_SENSE) != 0)
 	{
 		memset(&cb->ccb_sense, 0, sizeof(cb->ccb_sense));
-#ifdef CAM
-#else
+		memset(&cb->ccb_sense_cmd, 0, sizeof(cb->ccb_sense_cmd));
 		cb->ccb_sense_cmd.opcode = REQUEST_SENSE;
 		cb->ccb_sense_cmd.byte2 = (li->li_lun << 5);
 		cb->ccb_sense_cmd.length = sizeof(cb->ccb_sense);
-#endif
 		cb->ccb_scp.scp_cmd = (u_int8_t *) &cb->ccb_sense_cmd;
 		cb->ccb_scp.scp_cmdlen = sizeof(cb->ccb_sense_cmd);
 		cb->ccb_scp.scp_data = (u_int8_t *) &cb->ccb_sense;
@@ -1030,7 +1031,7 @@ scsi_low_cmd_exec:
 		break;
 
 	case UNIT_SYNCH:
-		if (li->li_maxsynch.offset > 0)
+		if (ti->ti_maxsynch.offset > 0)
 		{
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_SYNCH, 0);
 			scsi_low_unit_ready_cmd(cb);
@@ -1040,7 +1041,7 @@ scsi_low_cmd_exec:
 
 	case UNIT_WIDE:
 #ifdef	SCSI_LOW_SUPPORT_WIDE
-		if (li->li_width > 0)
+		if (ti->ti_width > 0)
 		{
 			scsi_low_assert_msg(slp, ti, SCSI_LOW_MSG_WIDE, 0);
 			scsi_low_unit_ready_cmd(cb);
@@ -1128,10 +1129,11 @@ scsi_low_done(slp, cb)
 		{
 			cb->ccb_flags &= ~CCB_SENSE;
 #ifdef CAM
-			ccb->csio.sense_data = cb->ccb_sense;
-			/* ccb->ccb_h.status = CAM_AUTOSENSE_FAIL; */
-			ccb->ccb_h.status = CAM_REQ_CMP;
-			/* ccb->ccb_h.status = CAM_AUTOSNS_VALID|CAM_SCSI_STATUS_ERROR; */
+			memcpy(&ccb->csio.sense_data,
+				&cb->ccb_sense,
+				sizeof(ccb->csio.sense_data));
+			ccb->ccb_h.status = CAM_AUTOSNS_VALID 
+						| CAM_REQ_CMP_ERR;
 #else
 			xs->sense.scsi_sense = cb->ccb_sense;
 			xs->error = XS_SENSE;
@@ -1153,7 +1155,7 @@ scsi_low_done(slp, cb)
 #define	SCSIPI_SCSI_CD_COMPLETELY_BUGGY	"YES"
 #ifdef	SCSIPI_SCSI_CD_COMPLETELY_BUGGY
 #ifdef CAM
-			if (/* cb->bp == NULL &&  */
+			if (cb->bp == NULL &&
 			    slp->sl_scp.scp_datalen < cb->ccb_scp.scp_datalen)
 #else
 			if (xs->bp == NULL &&
@@ -1171,7 +1173,7 @@ scsi_low_done(slp, cb)
 
 			cb->ccb_error |= PDMAERR;
 #ifdef CAM
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			ccb->ccb_h.status = CAM_UNREC_HBA_ERROR;
 #else
 			xs->error = XS_DRIVER_STUFFUP;
 #endif
@@ -1179,18 +1181,23 @@ scsi_low_done(slp, cb)
 
 		case ST_CHKCOND:
 		case ST_MET:
-			cb->ccb_flags |= CCB_SENSE;
 #ifdef CAM
-			ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+			if ((ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
+				cb->ccb_flags |= CCB_SENSE;
+				goto retry;
+			}
+			ccb->ccb_h.status = CAM_AUTOSENSE_FAIL | CAM_REQ_CMP_ERR;
+			break;
 #else
+			cb->ccb_flags |= CCB_SENSE;
 			xs->error = XS_SENSE;
-#endif
 			goto retry;
+#endif
 
 		case ST_BUSY:
 			cb->ccb_error |= BUSYERR;
 #ifdef CAM
-			ccb->ccb_h.status = CAM_BUSY; /* SCSI_STATUS_ERROR; */
+			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 #else
 			xs->error = XS_BUSY;
 #endif
@@ -1199,7 +1206,7 @@ scsi_low_done(slp, cb)
 		default:
 			cb->ccb_error |= FATALIO;
 #ifdef CAM
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			ccb->ccb_h.status = CAM_UNREC_HBA_ERROR;
 #else
 			xs->error = XS_DRIVER_STUFFUP;
 #endif
@@ -1223,7 +1230,7 @@ scsi_low_done(slp, cb)
 		else
 		{
 #ifdef CAM
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			ccb->ccb_h.status = CAM_UNREC_HBA_ERROR;
 #else
 			xs->error = XS_DRIVER_STUFFUP;
 #endif
@@ -1257,11 +1264,9 @@ scsi_low_done(slp, cb)
 	}
 	else
 	{
-#if 0
-		if (ccb->ccb_h.status != CAM_AUTOSENSE_FAIL && 
+		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID == 0) && 
 		    cb->ccb_rcnt < slp->sl_max_retry)
 			goto retry;
-#endif
 #else
 	if (xs->error == XS_NOERROR)
 	{
@@ -1274,19 +1279,23 @@ scsi_low_done(slp, cb)
 			goto retry;
 #endif
 
-#ifndef CAM
 #ifdef SCSI_LOW_WARNINGS
+#ifdef CAM
+		if (cb->bp != NULL)
+#else
 		if (xs->bp != NULL)
+#endif
 		{
 			scsi_low_print(slp, ti);
 			printf("%s: WARNING: File system IO abort\n",
 				slp->sl_xname);
 		}
 #endif	/* SCSI_LOW_WARNINGS */
-#endif
 	}
 
 #ifdef CAM
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == 0)
+		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	ccb->csio.scsi_status = ti->ti_status;
 	xpt_done(ccb);
 #else
@@ -1363,7 +1372,7 @@ scsi_low_reset_nexus(slp, fdone)
 		{
 			li->li_state = UNIT_SLEEP;
 			li->li_disc = 0;
-			((*slp->sl_funcs->scsi_low_lun_init) (slp, ti, li));
+			((*slp->sl_funcs->scsi_low_targ_init) (slp, ti));
 			scsi_low_calcf(ti, li);
 		}
 
@@ -1650,7 +1659,7 @@ scsi_low_data(slp, ti, bp, direction)
 	}
 
 #ifdef CAM
-	*bp = NULL; /* (cb->ccb == NULL) ? NULL : cb->bp; */
+	*bp = (cb == NULL) ? NULL : cb->bp;
 #else
 	*bp = (cb->xs == NULL) ? NULL : cb->xs->bp;
 #endif
@@ -1796,8 +1805,8 @@ scsi_low_msgfunc_synch(ti)
 	ti->ti_msgoutstr[ptr + 0] = MSG_EXTEND;
 	ti->ti_msgoutstr[ptr + 1] = MSG_EXTEND_SYNCHLEN;
 	ti->ti_msgoutstr[ptr + 2] = MSG_EXTEND_SYNCHCODE;
-	ti->ti_msgoutstr[ptr + 3] = li->li_maxsynch.period;
-	ti->ti_msgoutstr[ptr + 4] = li->li_maxsynch.offset;
+	ti->ti_msgoutstr[ptr + 3] = ti->ti_maxsynch.period;
+	ti->ti_msgoutstr[ptr + 4] = ti->ti_maxsynch.offset;
 	return MSG_EXTEND_SYNCHLEN + 2;
 }
 
@@ -1817,7 +1826,7 @@ scsi_low_msgfunc_wide(ti)
 	ti->ti_msgoutstr[ptr + 0] = MSG_EXTEND;
 	ti->ti_msgoutstr[ptr + 1] = MSG_EXTEND_WIDELEN;
 	ti->ti_msgoutstr[ptr + 2] = MSG_EXTEND_WIDECODE;
-	ti->ti_msgoutstr[ptr + 3] = li->li_width;
+	ti->ti_msgoutstr[ptr + 3] = ti->ti_width;
 	return MSG_EXTEND_WIDELEN + 2;
 }
 
@@ -1911,9 +1920,7 @@ scsi_low_errfunc_wide(ti, msgflags)
 	struct targ_info *ti;
 	u_int msgflags;
 {
-	struct lun_info *li = ti->ti_li;
-
-	li->li_width = 0;
+	ti->ti_width = 0;
 	return 0;
 }
 
@@ -2085,8 +2092,8 @@ scsi_low_synch(ti)
 	u_char *s;
 	int error;
 
-	if (MSGIN_PERIOD(ti) >= li->li_maxsynch.period &&
-	    MSGIN_OFFSET(ti) <= li->li_maxsynch.offset)
+	if (MSGIN_PERIOD(ti) >= ti->ti_maxsynch.period &&
+	    MSGIN_OFFSET(ti) <= ti->ti_maxsynch.offset)
 	{
 		if ((offset = MSGIN_OFFSET(ti)) != 0)
 			period = MSGIN_PERIOD(ti);
@@ -2098,15 +2105,15 @@ scsi_low_synch(ti)
 		 * Target seems to be brain damaged.
 		 * Force async transfer.
 		 */
-		li->li_maxsynch.period = 0;
-		li->li_maxsynch.offset = 0;
+		ti->ti_maxsynch.period = 0;
+		ti->ti_maxsynch.offset = 0;
 		printf("%s: target brain damaged. async transfer\n",
 			slp->sl_xname);
 		return EINVAL;
 	}
 
-	li->li_maxsynch.period = period;
-	li->li_maxsynch.offset = offset;
+	ti->ti_maxsynch.period = period;
+	ti->ti_maxsynch.offset = offset;
 
 	error = (*slp->sl_funcs->scsi_low_msg) (slp, ti, SCSI_LOW_MSG_SYNCH);
 	if (error != 0)
@@ -2420,8 +2427,8 @@ scsi_low_calcf(ti, li)
 	    (slp->sl_cfgflags & CFG_ASYNC) == 0)
 	{
 		offset = SCSI_LOW_OFFSET(li->li_cfgflags);
-		if (offset > li->li_maxsynch.offset)
-			offset = li->li_maxsynch.offset;
+		if (offset > ti->ti_maxsynch.offset)
+			offset = ti->ti_maxsynch.offset;
 		li->li_flags |= SCSI_LOW_SYNC;
 	}
 	else
@@ -2434,14 +2441,14 @@ scsi_low_calcf(ti, li)
 			period = SCSI_LOW_MAX_SYNCH_SPEED;
 		if (period != 0)
 			period = 1000 * 10 / (period * 4);
-		if (period < li->li_maxsynch.period)
-			period = li->li_maxsynch.period;
+		if (period < ti->ti_maxsynch.period)
+			period = ti->ti_maxsynch.period;
 	}
 	else
 		period = 0;
 
-	li->li_maxsynch.offset = offset;
-	li->li_maxsynch.period = period;
+	ti->ti_maxsynch.offset = offset;
+	ti->ti_maxsynch.period = period;
 }
 
 #ifdef	SCSI_LOW_TARGET_OPEN
@@ -2471,8 +2478,8 @@ scsi_low_target_open(link, cf)
 
 	printf("%s(%d:%d): max period(%dns) max offset(%d) flags 0x%b\n",
 		slp->sl_xname, target, lun,
-		li->li_maxsynch.period * 4,
-		li->li_maxsynch.offset,
+		ti->ti_maxsynch.period * 4,
+		ti->ti_maxsynch.offset,
 		li->li_flags, SCSI_LOW_BITS);
 	return 0;
 }
