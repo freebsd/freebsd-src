@@ -233,6 +233,8 @@ efifs_stat(struct open_file *f, struct stat *sb)
 		sb->st_mode = S_IRUSR | S_IWUSR;
 	if (info->Attribute & EFI_FILE_DIRECTORY)
 		sb->st_mode |= S_IFDIR;
+	else
+		sb->st_mode |= S_IFREG;
 	sb->st_size = info->FileSize;
 
 	free(buf);
