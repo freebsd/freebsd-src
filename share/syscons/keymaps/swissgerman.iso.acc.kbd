@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# swissgerman ISO 8859-1 keymap, no dead keys
+# swissgerman ISO 8859-1 keymap, accent keys
 # created 14.11.1999 by Martin Blapp <mb@imp.ch>
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
@@ -18,8 +18,8 @@
   009   '8'    '('    esc    esc    222    222    esc    esc     O
   010   '9'    ')'    gs     gs     '9'    ')'    gs     gs      O
   011   '0'    '='    nop    nop    '0'    '='    nop    nop     O
-  012   '''    '?'    fs     fs     180    180    fs     fs      O
-  013   '^'    '`'    nop    nop    '~'    '~'    nop    nop     O
+  012   '''    '?'    fs     fs     dacu   dacu   fs     fs      O
+  013   dcir   dgra   nop    nop    dtil   dtil   nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
@@ -33,7 +33,7 @@
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
   026   252    232    esc    esc    '['    220    esc    esc     C
-  027   168    '!'    gs     gs     ']'    ']'    gs     gs      O
+  027   duml   '!'    gs     gs     ']'    ']'    gs     gs      O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
@@ -115,3 +115,19 @@
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
+
+  dacu  180  ( 'a' 225 ) ( 'A' 193 ) ( 'e' 233 ) ( 'E' 201 )
+             ( 'i' 237 ) ( 'I' 205 ) ( 'o' 243 ) ( 'O' 211 )
+             ( 'u' 250 ) ( 'U' 218 ) ( 'c' 231 ) ( 'C' 199 )
+             ( 'y' 253 ) ( 'Y' 221 )
+  dgra  '`'  ( 'a' 224 ) ( 'A' 192 ) ( 'e' 232 ) ( 'E' 200 )
+             ( 'i' 236 ) ( 'I' 204 ) ( 'o' 242 ) ( 'O' 210 )
+             ( 'u' 249 ) ( 'U' 217 )
+  dcir  '^'  ( 'a' 226 ) ( 'A' 194 ) ( 'e' 234 ) ( 'E' 202 )
+             ( 'i' 238 ) ( 'I' 206 ) ( 'o' 244 ) ( 'O' 212 )
+             ( 'u' 251 ) ( 'U' 219 )
+  dtil  '~'  ( 'a' 227 ) ( 'A' 195 ) ( 'o' 245 ) ( 'O' 213 )
+             ( 'n' 241 ) ( 'N' 209 )
+  duml  168  ( 'a' 228 ) ( 'A' 196 ) ( 'e' 235 ) ( 'E' 203 )
+             ( 'i' 239 ) ( 'I' 207 ) ( 'o' 246 ) ( 'O' 214 )
+             ( 'u' 252 ) ( 'U' 220 ) ( 'y' 255 )
