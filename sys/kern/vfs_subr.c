@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.61 1996/09/28 03:36:07 dyson Exp $
+ * $Id: vfs_subr.c,v 1.62 1996/10/17 02:49:24 dyson Exp $
  */
 
 /*
@@ -891,11 +891,13 @@ vrele(vp)
 		panic("vrele: negative reference cnt");
 	}
 	if (vp->v_flag & VAGE) {
-		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+		if(vp->v_tag != VT_TFS)
+			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		vp->v_flag &= ~VAGE;
 		vp->v_usage = 0;
 	} else {
-		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		if(vp->v_tag != VT_TFS)
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	freevnodes++;
 
@@ -1218,8 +1220,10 @@ vgone(vp)
 	if (vp->v_usecount == 0 &&
 	    vp->v_freelist.tqe_prev != (struct vnode **) 0xdeadb &&
 	    vnode_free_list.tqh_first != vp) {
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+		if(vp->v_tag != VT_TFS) {
+			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+		}
 	}
 	vp->v_type = VBAD;
 }
