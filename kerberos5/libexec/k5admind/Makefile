@@ -25,10 +25,10 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		${_krb4libs} \
 		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 NOMAN=		yes
 
 .include <bsd.prog.mk>
