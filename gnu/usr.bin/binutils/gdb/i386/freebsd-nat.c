@@ -109,7 +109,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
    * First get virtual address of user structure. Then calculate offset.
    */
   memcpy(&tmp_uaddr,
-	 &((struct user *) core_reg_sect)->u_kproc.kp_proc.p_addr,
+	 &((struct user *) core_reg_sect)->u_kproc.ki_addr,
 	 sizeof(tmp_uaddr));
   offset = -reg_addr - (int) tmp_uaddr;
   
