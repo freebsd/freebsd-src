@@ -222,7 +222,7 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 		    fmthist('R', info, (char *) (cz = cbuff), sizeof(cbuff));
 		else
 		    cz = (unsigned char *) str;
-		if (str != NULL)
+		if (cz != NULL)
 		    for (; *cz; *p++ = attributes | *cz++)
 			if (p >= ep) break;
 		break;
@@ -477,7 +477,7 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    case 'w':
 		if (p >= ep - 5) break;
 		for (cz = (unsigned char *) month_list[t->tm_mon]; *cz;
-		    *p++ = attributes | *cz++);
+		    *p++ = attributes | *cz++)
 		    if (p >= ep) break;
 		break;
 	    case 'W':
