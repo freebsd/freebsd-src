@@ -384,7 +384,8 @@
       <para>at the serial console.</para>
 
       <para>There have been reports that you sometimes need to press
-      <Control>-<Alt>-<Del> to capture the SRM's attention. I have
+      <keycap>Control</keycap>-<keycap>Alt</keycap>-<keycap>Del</keycap> 
+      to capture the SRM's attention. I have
       never seen this myself, but it is worth trying if you are greeted
       by a blank screen after powerup.</para>
 
@@ -536,8 +537,9 @@ cpu	EV4</programlisting>
       workaround to install &os; is to boot from a SCSI CDROM.</para>
 
       <para>There have been reports that you sometimes need to press
-      <Control>-<Alt>-<Del> to capture the SRM's attention. I have
-      never seen this myself, but it is worth trying if you are greeted
+      <keycap>Control</keycap>-<keycap>Alt</keycap>-<keycap>Del</keycap> 
+      to capture the SRM's attention. I have
+      never seen this myself, but it is worth trying when you are greeted
       by a blank screen after powerup.</para>
 
       <para>Sound works fine using &man.pcm.4; driver and a line in the
