@@ -2011,7 +2011,9 @@ an_ioctl(ifp, command, data)
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
 		if ((error = suser(td)))
 			goto out;
-		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		if (error)
+			goto out;
 		mode = l_ioctl.command;
 
 		if (mode >= AIROGCAP && mode <= AIROGSTATSD32) {
@@ -2023,18 +2025,20 @@ an_ioctl(ifp, command, data)
 		} else {
 			error =-1;
 		}
-
-		/* copy out the updated command info */
-		copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
-
+		if (!error) {
+			/* copy out the updated command info */
+			error = copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
+		}
 		break;
 	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
 		if ((error = suser(td)))
 			goto out;
-		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		if (error)
+			goto out;
 		l_ioctl.command = 0;
 		error = AIROMAGIC;
-		copyout(&error, l_ioctl.data, sizeof(error));
+		(void) copyout(&error, l_ioctl.data, sizeof(error));
 	        error = 0;
 		break;
 	case SIOCG80211:
@@ -3376,9 +3380,10 @@ writerids(ifp, l_ioctl)
 		sc->areq.an_type = rid;
 
 		/* Just copy the data back */
-		copyin((l_ioctl->data) + 2, &sc->areq.an_val,
-		       l_ioctl->len);
-
+		if (copyin((l_ioctl->data) + 2, &sc->areq.an_val,
+		       l_ioctl->len)) {
+			return -EFAULT;
+		}
 		an_cmd(sc, AN_CMD_DISABLE, 0);
 		an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
 		an_cmd(sc, AN_CMD_ENABLE, 0);
@@ -3689,15 +3694,18 @@ flashcard(ifp, l_ioctl)
 			return ENOBUFS;
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
-		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		if (status)
+			return status;
 		z = *(int *)&sc->areq;
 		if ((status = flashgchar(ifp, z, 8000)) == 1)
 			return 0;
 		else
 			return -1;
-		break;
 	case AIROFLSHPCHR:	/* Send char to card. */
-		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		if (status)
+			return status;
 		z = *(int *)&sc->areq;
 		if ((status = flashpchar(ifp, z, 8000)) == -1)
 			return -EIO;
@@ -3710,7 +3718,9 @@ flashcard(ifp, l_ioctl)
 			       l_ioctl->len, FLASH_SIZE);
 			return -EINVAL;
 		}
-		copyin(l_ioctl->data, sc->an_flash_buffer, l_ioctl->len);
+		status = copyin(l_ioctl->data, sc->an_flash_buffer, l_ioctl->len);
+		if (status)
+			return status;
 
 		if ((status = flashputbuf(ifp)) != 0)
 			return -EIO;
