@@ -1425,6 +1425,25 @@ static int cx_close (struct cdev *dev, int flag, int mode, struct thread *td)
 	return 0;
 }
 
+static int cx_modem_status (drv_t *d)
+{
+	int status = 0, s = splhigh ();
+
+	/* Already opened by someone or network interface is up? */
+	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
+	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
+		status = TIOCM_LE;	/* always enabled while open */
+
+	if (cx_get_dsr (d->chan)) status |= TIOCM_DSR;
+	if (cx_get_cd  (d->chan)) status |= TIOCM_CD;
+	if (cx_get_cts (d->chan)) status |= TIOCM_CTS;
+	if (d->chan->dtr)	  status |= TIOCM_DTR;
+	if (d->chan->rts)	  status |= TIOCM_RTS;
+
+	splx (s);
+	return status;
+}
+
 static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	drv_t *d;
@@ -1718,6 +1737,52 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			d->pp.pp_if.if_flags &= (~IFF_DEBUG);
 #endif
 		return 0;
+	}
+
+	switch (cmd) {
+	case TIOCSDTR:	/* Set DTR */
+		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
+		s = splhigh ();
+		cx_set_dtr (c, 1);
+		splx (s);
+		return 0;
+
+	case TIOCCDTR:	/* Clear DTR */
+		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
+		s = splhigh ();
+		cx_set_dtr (c, 0);
+		splx (s);
+		return 0;
+
+	case TIOCMSET:	/* Set DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
+		s = splhigh ();
+		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
+		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
+		splx (s);
+		return 0;
+
+	case TIOCMBIS:	/* Add DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
+		s = splhigh ();
+		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
+		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
+		splx (s);
+		return 0;
+
+	case TIOCMBIC:	/* Clear DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
+		s = splhigh ();
+		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
+		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
+		splx (s);
+		return 0;
+
+	case TIOCMGET:	/* Get modem status */
+		CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
+		*(int*)data = cx_modem_status (d);
+		return 0;
+
 	}
 
 	CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
