@@ -75,6 +75,7 @@ SUBDIR=	accf_data \
 	mac_partition \
 	mac_portacl \
 	mac_seeotheruids \
+	mac_stub \
 	mac_test \
 	mcd \
 	md \
