@@ -43,6 +43,7 @@ wakeup_16:
 	movw	%ax,%ds
 	movw	%ax,%ss
 	
+#ifndef ACPI_NO_RESET_VIDEO
 	/*
 	 * Re-initialize video BIOS.  Restore DS and SS from CS in
 	 * case the BIOS modified them.
@@ -51,6 +52,7 @@ wakeup_16:
 	movw	%cs, %ax
 	movw	%ax, %ds
 	movw	%ax, %ss
+#endif
 
 	/* Load GDT for real mode */
 	lgdt	physical_gdt
