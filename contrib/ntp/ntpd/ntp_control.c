@@ -1615,7 +1615,7 @@ ctl_getitem(
 	/*
 	 * Delete leading commas and white space
 	 */
-	while (reqpt < reqend && (*reqpt == ',' || isspace((int)*reqpt))) {
+	while (reqpt < reqend && (*reqpt == ',' || isspace((unsigned char)*reqpt))) {
 		reqpt++;
 	}
 
@@ -1639,7 +1639,7 @@ ctl_getitem(
 				tp++;
 			}
 			if ((*tp == '\0') || (*tp == '=')) {
-				while (cp < reqend && isspace((int)*cp))
+				while (cp < reqend && isspace((unsigned char)*cp))
 					cp++;
 				if (cp == reqend || *cp == ',') {
 					buf[0] = '\0';
@@ -1652,11 +1652,11 @@ ctl_getitem(
 				if (*cp == '=') {
 					cp++;
 					tp = buf;
-					while (cp < reqend && isspace((int)*cp))
+					while (cp < reqend && isspace((unsigned char)*cp))
 						cp++;
 					while (cp < reqend && *cp != ',') {
 						*tp++ = *cp++;
-						if (tp > buf + sizeof(buf)) {
+						if (tp >= buf + sizeof(buf)) {
 							 msyslog(LOG_WARNING, "Attempted \"ntpdx\" exploit from IP %d.%d.%d.%d:%d (possibly spoofed)\n", 
 	(ntohl(rmt_addr->sin_addr.s_addr) >> 24) & 0xff,
 	(ntohl(rmt_addr->sin_addr.s_addr) >> 16) & 0xff,
@@ -1671,7 +1671,7 @@ ctl_getitem(
 					if (cp < reqend)
 						cp++;
 					*tp = '\0';
-					while (isspace((int)(*(tp-1))))
+					while (tp != buf && isspace((unsigned char)(*(tp-1))))
 						*(--tp) = '\0';
 					reqpt = cp;
 					*data = buf;
