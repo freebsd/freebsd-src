@@ -63,9 +63,8 @@
       </itemizedlist>
 
     <para>Ultra 1, 30, 80 and Blade 1000 are expected to work, maybe
-      with minor modifications.  SMP support is being worked on; for
-      now, SMP machines will only use one of the available
-      processors.</para>
+      with minor modifications.  SMP is supported on Ultra 2 and Ultra
+      60 workstations.</para>
   </sect2>
 
   <sect2>
@@ -117,7 +116,7 @@
         <listitem><para>Built-in Ethernet
           (<devicename>hme</devicename> compatible)
           interface</para></listitem>
-        <listitem><para>Built-in PCI-IDE controller</para></listitem> 
+        <listitem><para>Built-in PCI-IDE controller &perforce;</para></listitem> 
         <listitem><para>Two PC-AT style `com' ports for the mouse and keyboard</para></listitem>
         <listitem><para>Floppy driver controller</para></listitem>
         <listitem><para>Siemens SAB82532 dual-channel serial ports for ttya and ttyb</para></listitem>
@@ -160,10 +159,10 @@
         <listitem><para>Three PCI busses</para></listitem>
         <listitem><para>Built-in Ethernet
           (<devicename>gem</devicename> compatible)
-          interface &perforce;</para></listitem>
+          interface</para></listitem>
         <listitem><para>Two USB ports &unsupported;</para></listitem>
         <listitem><para>Two Firewire ports &unsupported;</para></listitem>
-        <listitem><para>Built-in PCI-IDE controller</para></listitem>
+        <listitem><para>Built-in PCI-IDE controller &perforce;</para></listitem>
         <listitem><para>Two PC-AT style `com' ports for the mouse and keyboard</para></listitem>
         <listitem><para>Floppy driver controller</para></listitem>
         <listitem><para>&man.sio.4; supported serial ports for ttya
@@ -200,7 +199,7 @@
       supported.</para>
 
     <para>ATA and ATAPI (IDE) devices are supported via the &man.ata.4;
-      driver framework.</para>
+      driver framework. &perforce;</para>
 
     <para>There is full SCSI support via the CAM layer.  However, only
       NCR/Symbios cards are currently working.  Adaptec 2940x (AIC
@@ -213,8 +212,7 @@
       recognizes.</para>
 
     <para><devicename>hme</devicename>, <devicename>gem</devicename>,
-      and <devicename>eri</devicename> based network devices
-      &perforce;.</para>
+      and <devicename>eri</devicename> based network devices.</para>
 
     <para>The <quote>PC standard</quote> serial ports found on most
       newer Sun workstations are supported.</para>
