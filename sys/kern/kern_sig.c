@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.18 1996/01/31 12:44:13 davidg Exp $
+ * $Id: kern_sig.c,v 1.19 1996/03/02 19:38:09 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -671,7 +671,7 @@ void
 trapsignal(p, signum, code)
 	struct proc *p;
 	register int signum;
-	u_int code;
+	u_long code;
 {
 	register struct sigacts *ps = p->p_sigacts;
 	int mask;
@@ -691,6 +691,7 @@ trapsignal(p, signum, code)
 				(mask & ~ps->ps_nodefer);
 	} else {
 		ps->ps_code = code;	/* XXX for core dump/debugger */
+		ps->ps_sig = signum;	/* XXX to verify code */
 		psignal(p, signum);
 	}
 }
@@ -1131,6 +1132,7 @@ postsig(signum)
 		} else {
 			code = ps->ps_code;
 			ps->ps_code = 0;
+			ps->ps_sig = 0;
 		}
 		(*p->p_sysent->sv_sendsig)(action, signum, returnmask, code);
 	}
