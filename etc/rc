@@ -46,6 +46,8 @@ stty status '^T'
 trap : 2
 trap : 3	# shouldn't be needed
 
+bootmode=$1
+
 HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
@@ -101,7 +103,7 @@ esac
 
 swapon -a
 
-case $1 in
+case ${bootmode} in
 autoboot)
 	echo Automatic boot in progress...
 	fsck -p
