@@ -14,9 +14,11 @@ wrk=./_acpi_ca_unpack
 dst=./acpi_ca_destination
 
 # files to remove
-stripdirs="common compiler generate"
-stripfiles="osunixxf.c Makefile adisasm.h acdos16.h\
+stripdirs="common compiler generate acpisrc"
+stripfiles="osunixxf.c Makefile README adisasm.h acdos16.h \
     acintel.h aclinux.h acmsvc.h acwin.h acwin64.h"
+# files to update paths in
+src_update_files="acpi.h acpiosxf.h"
 
 # pre-clean
 echo pre-clean
@@ -49,6 +51,19 @@ echo copy
 find ${wrk} -type f | xargs -J % mv % ${dst}
 mv CHANGES.txt ${dst}
 
+# update src/headers for appropriate paths
+echo updating paths
+for i in ${src_update_files}; do
+    i=${dst}/$i
+    sed -e 's/platform\///' $i > $i.new && mv $i.new $i
+done
+
 # post-clean
 echo post-clean
 rm -rf ${wrk}
+
+# assist the developer in generating a diff
+echo "Directories you may want to 'cvs diff':"
+echo "    src/sys/dev/acpica src/sys/i386/acpica src/sys/ia64/acpica \\"
+echo "    src/sys/modules/acpi src/sys/boot src/sys/i386/include \\"
+echo "    src/usr.sbin/acpi src/sys/contrib/dev/acpica"
