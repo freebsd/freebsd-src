@@ -21,15 +21,21 @@ find_gbde_devices()
 {
 	case "${gbde_devices-auto}" in
 	[Aa][Uu][Tt][Oo])
-		gbde_devices="";;
+		gbde_devices=""
+		;;
 	*)
-		return 0;;
+		return 0
+		;;
 	esac
 
 	case "$1" in
-	start)	fstab="/etc/fstab";;
-	stop)	fstab=$(mktemp /tmp/mtab.XXXXXX)
+	start)
+		fstab="/etc/fstab"
+		;;
+	stop)
+		fstab=$(mktemp /tmp/mtab.XXXXXX)
 		mount -p >${fstab}
+		;;
 	esac
 
 	#
@@ -61,7 +67,9 @@ find_gbde_devices()
 	done <${fstab}
 
 	case "$1" in
-	stop)	rm -f ${fstab};;
+	stop)
+		rm -f ${fstab}
+		;;
 	esac
 
 	return 0
