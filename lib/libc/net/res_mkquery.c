@@ -229,6 +229,8 @@ res_opt(n0, buf, buflen, anslen)
 
 	__putshort(T_OPT, cp);	/* TYPE */
 	cp += INT16SZ;
+	if (anslen > 0xffff)
+		anslen = 0xffff;		/* limit to 16bit value */
 	__putshort(anslen & 0xffff, cp);	/* CLASS = UDP payload size */
 	cp += INT16SZ;
 	*cp++ = NOERROR;	/* extended RCODE */
