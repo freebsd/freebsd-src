@@ -81,8 +81,9 @@ main(argc, argv)
 				err(1, NULL);
 			strcpy(masterpasswd, optarg);
 			if (masterpasswd[strlen(masterpasswd) - 1] != '/')
-				masterpasswd[strlen(masterpasswd)] = '/';
-			strcat(masterpasswd, _MASTERPASSWD);
+				strcat(masterpasswd, "/" _MASTERPASSWD);
+			else
+				strcat(masterpasswd, _MASTERPASSWD);
 			if ((mppath = strdup(optarg)) == NULL)
 				err(1, NULL);
 			if (mppath[strlen(mppath) - 1] == '/')
