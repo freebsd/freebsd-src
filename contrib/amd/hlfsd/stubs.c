@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.1.1.1 1998/11/05 02:04:55 ezk Exp $
+ * $Id: stubs.c,v 1.3 1999/01/13 23:31:19 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -158,7 +158,8 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 	un_fattr.na_fileid = uid;
 	res.ns_u.ns_attr_u = un_fattr;
 #ifdef DEBUG
-	dlog("nfs_getattr: successful search for uid=%d, gid=%d", uid, gid);
+	dlog("nfs_getattr: successful search for uid=%ld, gid=%ld",
+	     (long) uid, (long) gid);
 #endif /* DEBUG */
       } else {			/* not found */
 	res.ns_status = NFSERR_STALE;
@@ -248,8 +249,8 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       res.dr_u.dr_drok_u.drok_fhandle = un_fhandle;
       res.dr_status = NFS_OK;
 #ifdef DEBUG
-      dlog("nfs_lookup: successful lookup for uid=%d, gid=%d: username=%s",
-	   uid, gid, untab[idx].username);
+      dlog("nfs_lookup: successful lookup for uid=%ld, gid=%ld: username=%s",
+	   (long) uid, (long) gid, untab[idx].username);
 #endif /* DEBUG */
       return &res;
     }
@@ -344,8 +345,8 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
 
   /* print info, but try to avoid repetitions */
   if (userid != last_uid) {
-    plog(XLOG_USER, "mailbox for uid=%d, gid=%d is %s",
-	 userid, groupid, (char *) res.rlr_u.rlr_data_u);
+    plog(XLOG_USER, "mailbox for uid=%ld, gid=%ld is %s",
+	 (long) userid, (long) groupid, (char *) res.rlr_u.rlr_data_u);
     last_uid = userid;
   }
 

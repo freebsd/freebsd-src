@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 1.2 1998/12/27 06:25:21 ezk Exp $
+ * $Id: fsinfo.c,v 1.4 1999/02/04 07:24:44 ezk Exp $
  *
  */
 
@@ -78,14 +78,6 @@ char *dumpset_pref;
 char *exportfs_pref;
 char *fstab_pref;
 char *mount_pref;
-
-/* dummy variables */
-#if 0
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 
 /*

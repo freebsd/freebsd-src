@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_cdfs.c,v 1.1.1.1 1998/11/05 02:04:50 ezk Exp $
+ * $Id: ops_cdfs.c,v 1.3 1999/03/30 17:22:46 ezk Exp $
  *
  */
 
@@ -148,6 +148,19 @@ mount_cdfs(char *dir, char *fs_name, char *opts)
   if (hasmntopt(&mnt, MNTTAB_OPT_RRIP))
     cdfs_flags |= MNT2_CDFS_OPT_RRIP;
 #endif /* defined(MNT2_CDFS_OPT_RRIP) && defined(MNTTAB_OPT_RRIP) */
+#if defined(MNT2_CDFS_OPT_NORRIP) && defined(MNTTAB_OPT_NORRIP)
+  if (hasmntopt(&mnt, MNTTAB_OPT_NORRIP))
+    cdfs_flags |= MNT2_CDFS_OPT_NORRIP;
+#endif /* defined(MNT2_CDFS_OPT_NORRIP) && defined(MNTTAB_OPT_NORRIP) */
+
+#if defined(MNT2_CDFS_OPT_GENS) && defined(MNTTAB_OPT_GENS)
+  if (hasmntopt(&mnt, MNTTAB_OPT_GENS))
+    cdfs_flags |= MNT2_CDFS_OPT_GENS;
+#endif /* defined(MNT2_CDFS_OPT_GENS) && defined(MNTTAB_OPT_GENS) */
+#if defined(MNT2_CDFS_OPT_EXTATT) && defined(MNTTAB_OPT_EXTATT)
+  if (hasmntopt(&mnt, MNTTAB_OPT_EXTATT))
+    cdfs_flags |= MNT2_CDFS_OPT_EXTATT;
+#endif /* defined(MNT2_CDFS_OPT_EXTATT) && defined(MNTTAB_OPT_EXTATT) */
 
   genflags = compute_mount_flags(&mnt);
 

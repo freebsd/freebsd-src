@@ -36,12 +36,35 @@ main()
   exit(0);
 }
 
+It is possible that sufficiently newer version of libc for RH4.2 fix this
+problem.
+
 
 (3) mips-dec-ultrix4.3
 
 Rainer Orth <ro@TechFak.Uni-Bielefeld.DE> reports
 
-[3A] At least the gcc 2.7.0 fixincludes-mangled <sys/utsname.h> needs a
+[3A] One needs the Kernel Config Files (UDTBIN430) subset installed to
+compile am-utils, otherwise essential header files (net/if.h, net/route.h,
+rpcsvc/mount.h, rpcsvc/yp_prot.h, rpcsvc/ypclnt.h, sys/proc.h) are
+missing.
+
+[3B] It's probably impossible to build am-utils with DEC C on Ultrix V4.3.
+This compiler is pseudo-ANSI only.  Maybe the new ANSI C compiler in V4.3A
+and beyond will do.  I successfully used gcc 2.8.1.
+
+[3C] You need to build against a recent libhesiod (I used 3.0.2) and
+libresolv/lib44bsd (I used BIND 4.9.5-P1).  The resolver routines in
+libc seem to cause random memory corruption.  It is necessary to specify
+LIBS=-l44bsd.  lib44bsd is a helper library of libresolv used to supply
+functions like strdup which are missing on the host system.  This isn't
+currently autoconfiscated.
+
+[3D] You need to configure with CONFIG_SHELL=/bin/sh5 /bin/sh5 buildall;
+/bin/sh cannot handle the shell functions used in buildall and is both
+buggy and slow.
+
+[3E] At least the gcc 2.7.0 fixincludes-mangled <sys/utsname.h> needs a
 forward declaration of struct utsname to avoid lots of gcc warnings:
 
 RCS file: RCS/utsname.h,v
@@ -57,9 +80,6 @@ diff -u -r1.1 utsname.h
  extern int     uname _PARAMS((struct utsname *));
  #endif
  #define __SYS_NMLN 32
-
-[3B] It autoconfigures and compiles cleanly, but currently hangs after a
-couple of hours without leaving any traces in the syslog output.
 
 
 (4) powerpc-ibm-aix4.2.1.0

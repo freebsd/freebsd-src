@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_host.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
+ * $Id: amfs_host.c,v 1.3 1999/01/13 23:30:57 ezk Exp $
  *
  */
 
@@ -224,7 +224,7 @@ fetch_fhandle(CLIENT * client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versi
    * get the filehandle.  Use NFS version specific call.
    */
 
-  plog(XLOG_INFO, "fetch_fhandle: NFS version %d", nfs_version);
+  plog(XLOG_INFO, "fetch_fhandle: NFS version %d", (int) nfs_version);
 #ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3) {
     memset((char *) &fhp->v3, 0, sizeof(fhp->v3));
@@ -335,7 +335,7 @@ amfs_host_fmount(mntfs *mf)
    */
   host = mf->mf_server->fs_host;
   sin = *mf->mf_server->fs_ip;
-  plog(XLOG_INFO, "amfs_host_fmount: NFS version %d", mf->mf_server->fs_version);
+  plog(XLOG_INFO, "amfs_host_fmount: NFS version %d", (int) mf->mf_server->fs_version);
 #ifdef HAVE_FS_NFS3
   if (mf->mf_server->fs_version == NFS_VERSION3)
     mnt_version = MOUNTVERS3;
@@ -630,7 +630,7 @@ amfs_host_umounted(am_node *mp)
    */
   host = mf->mf_server->fs_host;
   sin = *mf->mf_server->fs_ip;
-  plog(XLOG_INFO, "amfs_host_umounted: NFS version %d", mf->mf_server->fs_version);
+  plog(XLOG_INFO, "amfs_host_umounted: NFS version %d", (int) mf->mf_server->fs_version);
 #ifdef HAVE_FS_NFS3
   if (mf->mf_server->fs_version == NFS_VERSION3)
     mnt_version = MOUNTVERS3;
@@ -674,7 +674,7 @@ amfs_host_umounted(am_node *mp)
   if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_SYSTEMERROR) {
     /* RPC_SYSTEMERROR seems to be returned for no good reason ... */
     const char *msg = clnt_sperrno(clnt_stat);
-    plog(XLOG_ERROR, "unmount all from %s rpc failed: %s", host, msg, clnt_stat);
+    plog(XLOG_ERROR, "unmount all from %s rpc failed: %s", host, msg);
     goto out;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_program.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
+ * $Id: amfs_program.c,v 1.4 1999/06/24 06:15:55 ezk Exp $
  *
  */
 
@@ -131,6 +131,8 @@ amfs_program_exec(char *info)
    * Put stdout to stderr
    */
   (void) fclose(stdout);
+  if (!logfp)
+    logfp = stderr;		/* initialize before possible first use */
   (void) dup(fileno(logfp));
   if (fileno(logfp) != fileno(stderr)) {
     (void) fclose(stderr);
@@ -145,7 +147,7 @@ amfs_program_exec(char *info)
     char **cp = xivec;
     plog(XLOG_DEBUG, "executing (un)mount command...");
     while (*cp) {
-      plog(XLOG_DEBUG, "arg[%d] = '%s'", cp - xivec, *cp);
+      plog(XLOG_DEBUG, "arg[%ld] = '%s'", (long) (cp - xivec), *cp);
       cp++;
     }
   }
