@@ -469,7 +469,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					 start, end, count, flags);
 		if (res) {
 			start = rman_get_start(res) + 2;
-			end = start + ATA_ALTIOSIZE - 1;
+			end = rman_get_start(res) + ATA_ALTIOSIZE - 1;
 			count = ATA_ALTIOSIZE;
 			BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					     SYS_RES_IOPORT, myrid, res);
@@ -507,11 +507,11 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 	}
 	else {
-	    /* primary and secondary channels share the same interrupt */
-	    sc->irqcnt++;
+	    /* primary and secondary channels share interrupt, keep track */
 	    if (!sc->irq)
 		sc->irq = BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
 					     SYS_RES_IRQ, rid, 0, ~0, 1, flags);
+	    sc->irqcnt++;
 	    return sc->irq;
 	}
     }
@@ -524,40 +524,33 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 {
     struct ata_pci_softc *sc = device_get_softc(dev);
     int channel = ((struct ata_softc *)device_get_softc(child))->channel;
-    int myrid = 0;
 
     if (type == SYS_RES_IOPORT) {
 	switch (rid) {
 	case ATA_IOADDR_RID:
 	    if (ATA_MASTERDEV(dev))
-		myrid = 0;
+		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+					    SYS_RES_IOPORT, 0x0, r);
 	    else
-		myrid = 0x10 + 8 * channel;
+		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					    SYS_RES_IOPORT, 0x10+8*channel, r);
 	    break;
 
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev))
-		myrid = 0;
+		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+					    SYS_RES_IOPORT, 0x0, r);
 	    else
-		myrid = 0x14 + 8 * channel;
+		return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					    SYS_RES_IOPORT, 0x14+8*channel, r);
 	    break;
 
 	case ATA_BMADDR_RID:
-	    myrid = 0x20;
-	    break;
-
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+					SYS_RES_IOPORT, 0x20, r);
 	default:
 	    return ENOENT;
 	}
-
-	if (ATA_MASTERDEV(dev))
-	    /* make the parent just pass through the allocation. */
-	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-					SYS_RES_IOPORT, myrid, r);
-	else
-	    /* we are using the parent resource directly. */
-	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-					SYS_RES_IOPORT, myrid, r);
     }
     if (type == SYS_RES_IRQ) {
 	if (rid != ATA_IRQ_RID)
@@ -567,16 +560,17 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 #ifdef __alpha__
 	    return alpha_platform_release_ide_intr(channel, r);
 #else
-	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
-					child, SYS_RES_IRQ, rid, r);
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+					SYS_RES_IRQ, rid, r);
 #endif
 	}
 	else {
+	    /* primary and secondary channels share interrupt, keep track */
 	    if (--sc->irqcnt)
 		return 0;
-
-	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
-					dev, SYS_RES_IRQ, rid, r);
+	    sc->irq = 0;
+	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
+					SYS_RES_IRQ, rid, r);
 	}
     }
     return EINVAL;
