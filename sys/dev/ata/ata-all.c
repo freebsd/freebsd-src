@@ -196,12 +196,14 @@ ata_detach(device_t dev)
     mtx_unlock(&ch->queue_mtx);
 
     if (ch->device[MASTER].param) {
-	ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
+	if (ch->device[MASTER].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
+	    ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
 	free(ch->device[MASTER].param, M_ATA);
 	ch->device[MASTER].param = NULL;
     }
     if (ch->device[SLAVE].param) {
-	ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
+	if (ch->device[SLAVE].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
+	    ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
 	free(ch->device[SLAVE].param, M_ATA);
 	ch->device[SLAVE].param = NULL;
     }
@@ -303,9 +305,11 @@ ata_shutdown(void *arg, int howto)
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
-	if (ch->device[MASTER].param)
+	if (ch->device[MASTER].param &&
+	    ch->device[MASTER].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	    ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
-	if (ch->device[SLAVE].param)
+	if (ch->device[SLAVE].param &&
+	    ch->device[SLAVE].param->support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	    ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
     }
 }
