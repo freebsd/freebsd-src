@@ -378,6 +378,8 @@ AcpiDsCallControlMethod (
         return_ACPI_STATUS (AE_NULL_OBJECT);
     }
 
+    ObjDesc->Method.OwningId = AcpiUtAllocateOwnerId (ACPI_OWNER_TYPE_METHOD);
+
     /* Init for new method, wait on concurrency semaphore */
 
     Status = AcpiDsBeginMethodExecution (MethodNode, ObjDesc,
