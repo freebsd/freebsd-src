@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -651,7 +650,7 @@ devfs_xwrite(struct vop_write_args *ap)
 	case VBLK:
 		panic("devfs:  vnode methods");
 	default:
-		panic("devfs_write(): bad file type");
+		panic("devfs_xwrite(): bad file type");
 	}
 }
 
@@ -1412,199 +1411,24 @@ devfs_open( struct vop_open_args *ap)
 	return (error);
 }
 
-/*
- * Vnode op for read
-	struct vop_read_args {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} 
- */
 /* ARGSUSED */
 static int
 devfs_read( struct vop_read_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
- 	struct proc *p = uio->uio_procp;
-	struct buf *bp;
-	daddr_t bn, nextbn;
-	long bsize, bscale;
-	struct partinfo dpart;
-	int n, on;
-	d_ioctl_t *ioctl;
-	int error = 0;
-	dev_t dev;
-	dn_p	dnp;
+	int error;
 
-	if ((error = devfs_vntodn(vp,&dnp)) != 0)
-		return error;
-
-
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_READ)
-		panic("devfs_read mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
-		panic("devfs_read proc");
-#endif
-	if (uio->uio_resid == 0)
-		return (0);
-
-	switch (vp->v_type) {
-
-	case VCHR:
-		VOP_UNLOCK(vp, 0, p);
-		error = (*vp->v_rdev->si_devsw->d_read)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		break;
-
-	case VBLK:
-		if (uio->uio_offset < 0)
-			return (EINVAL);
-		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
-		 */
-
-		dev = vp->v_rdev;
-		bsize = dev->si_bsize_best;
-		/*
-		 * This is a hack!
-		 */
-		if ( (ioctl = dev->si_devsw->d_ioctl) != NULL &&
-		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
-		    dpart.part->p_fstype == FS_BSDFFS &&
-		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
-			bsize = dpart.part->p_frag * dpart.part->p_fsize;
-		bscale = btodb(bsize);
-		/* 
-		 * Get buffers with this data from the buffer cache.
-		 * If it's not there the strategy() entrypoint will be called.
-		 * We may do this in several chunks.
-		 */
-		do {
-			bn = btodb(uio->uio_offset) & ~(bscale - 1);
-			on = uio->uio_offset % bsize;
-			n = min((unsigned)(bsize - on), uio->uio_resid);
-			if (vp->v_lastr + bscale == bn) {
-				nextbn = bn + bscale;
-				error = breadn(vp, bn, (int)bsize, &nextbn,
-					(int *)&bsize, 1, NOCRED, &bp);
-			} else
-				error = bread(vp, bn, (int)bsize, NOCRED, &bp);
-			vp->v_lastr = bn;
-			n = min(n, bsize - bp->b_resid);
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-			/* 
-			 * Copy it to the user's space
-			 */
-			error = uiomove((char *)bp->b_data + on, n, uio);
-			brelse(bp);
-		} while (error == 0 && uio->uio_resid > 0 && n != 0);
-		break;
-	default:
-		panic("devfs_read type");
-	}
-	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
-		dnp->flags |= IN_ACCESS;        
+        error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
 	return (error);
 }
 
-/*
- * Vnode op for write
-	struct vop_write_args  {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	}
- */
 /* ARGSUSED */
 static int
 devfs_write( struct vop_write_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct uio *uio = ap->a_uio;
-	struct proc *p = uio->uio_procp;
-	struct buf *bp;
-	daddr_t bn;
-	int bsize, blkmask;
-	struct partinfo dpart;
-	int n, on;
-	int error = 0;
-	dn_p	dnp;
+	int error;
 
-	if ((error = devfs_vntodn(vp,&dnp)) != 0)
-		return error;
-
-
-#ifdef DIAGNOSTIC
-	if (uio->uio_rw != UIO_WRITE)
-		panic("devfs_write mode");
-	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
-		panic("devfs_write proc");
-#endif
-
-	switch (vp->v_type) {
-
-	case VCHR:
-		VOP_UNLOCK(vp, 0, p);
-		error = (*vp->v_rdev->si_devsw->d_write)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-
-	case VBLK:
-		if (uio->uio_resid == 0)
-			return (0);
-		if (uio->uio_offset < 0)
-			return (EINVAL);
-
-		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
-		 */
-		bsize = vp->v_rdev->si_bsize_best;
-
-		if ((vp->v_rdev->si_devsw->d_ioctl != NULL)
-		&& ((*vp->v_rdev->si_devsw->d_ioctl)(vp->v_rdev, DIOCGPART,
-					(caddr_t)&dpart, FREAD, p) == 0)
-		&& (dpart.part->p_fstype == FS_BSDFFS)
-		&& (dpart.part->p_frag != 0)
-		&& (dpart.part->p_fsize != 0)) {
-			bsize = dpart.part->p_frag * dpart.part->p_fsize;
-		}
-		blkmask = btodb(bsize) - 1;
-		do {
-			bn = btodb(uio->uio_offset) & ~blkmask;
-			on = uio->uio_offset % bsize;
-			n = min((unsigned)(bsize - on), uio->uio_resid);
-			if (n == bsize)
-				bp = getblk(vp, bn, bsize, 0, 0);
-			else
-				error = bread(vp, bn, bsize, NOCRED, &bp);
-			if (error) {
-				brelse(bp);
-				return (error);
-			}
-			n = min(n, bsize - bp->b_resid);
-			error = uiomove((char *)bp->b_data + on, n, uio);
-			if (n + on == bsize)
-				bawrite(bp);
-			else
-				bdwrite(bp);
-		} while (error == 0 && uio->uio_resid > 0 && n != 0);
-		return (error);
-
-	default:
-		panic("devfs_write type");
-	}
-	/* NOTREACHED */
+	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
+	return (error);
 }
 
 /*
