@@ -309,6 +309,7 @@
 #define	USB_VENDOR_MSYSTEMS	0x08ec		/* M-Systems */
 #define	USB_VENDOR_AUTHENTEC	0x08ff		/* AuthenTec */
 #define	USB_VENDOR_ALATION	0x0910		/* Alation Systems */
+#define	USB_VENDOR_GOHUBS	0x0921		/* GoHubs */
 #define	USB_VENDOR_BIOMETRIC	0x0929		/* American Biometric Company */
 #define	USB_VENDOR_YANO	0x094f		/* Yano */
 #define	USB_VENDOR_KINGSTON	0x0951		/* Kingston Technology */
@@ -468,6 +469,8 @@
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
 #define	USB_PRODUCT_BELKIN2_F5U002	0x0002		/* F5U002 Parallel printer adapter */
 #define	USB_PRODUCT_BELKIN_USB2LAN	0x0121		/* USB to LAN Converter */
+#define	USB_PRODUCT_BELKIN_F5U103	0x0103		/* F5U103 Serial adapter */
+#define	USB_PRODUCT_BELKIN_F5U120	0x1203		/* F5U120-PC Hub */
 
 /* Billionton products */
 #define	USB_PRODUCT_BILLIONTON_USB100	0x0986		/* USB100N 10/100 FastEthernet Adapter */
@@ -603,6 +606,9 @@
 
 /* Extended Systems products */
 #define	USB_PRODUCT_EXTENDED_XTNDACCESS	0x0100		/* XTNDAccess IrDA */
+
+/* GoHubs products */
+#define	USB_PRODUCT_GOHUBS_GOCOM232	0x1001		/* GoCOM232 Serial converter */
 
 /* Gravis products */
 #define	USB_PRODUCT_GRAVIS_GAMEPADPRO	0x4001		/* GamePad Pro */
