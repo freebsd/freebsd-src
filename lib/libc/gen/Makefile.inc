@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.16.4.2 1996/06/05 02:46:43 jkh Exp $
+#	$Id: Makefile.inc,v 1.16.4.3 1996/06/27 05:31:42 gpalmer Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -112,3 +112,5 @@ MLINKS+=tcsetattr.3 tcgetattr.3 tcsetattr.3 cfsetospeed.3 \
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
+MLINKS+=fts.3 fts_open.3 fts.3 fts_read.3 fts.3 fts_children.3 \
+	fts.3 fts_close.3
