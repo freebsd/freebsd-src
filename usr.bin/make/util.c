@@ -217,13 +217,13 @@ getwd(pathname)
 
 	/* open the parent directory */
 	if (stat(nextpathptr, &st_dotdot) == -1) {
-	    (void) sprintf(pathname,
+	    snprintf(pathname, sizeof(pathname),
 			    "getwd: Cannot stat directory \"%s\" (%s)",
 			    nextpathptr, strerror(errno));
 	    return (NULL);
 	}
 	if ((dp = opendir(nextpathptr)) == NULL) {
-	    (void) sprintf(pathname,
+	     snprintf(pathname, sizeof(pathname),
 			    "getwd: Cannot open directory \"%s\" (%s)",
 			    nextpathptr, strerror(errno));
 	    return (NULL);
@@ -246,7 +246,7 @@ getwd(pathname)
 		    continue;
 		(void) strcpy(cur_name_add, d->d_name);
 		if (lstat(nextpathptr, &st_next) == -1) {
-		    (void) sprintf(pathname, "getwd: Cannot stat \"%s\" (%s)",
+		    snprintf(pathname, sizeof(pathname), "getwd: Cannot stat \"%s\" (%s)",
 				    d->d_name, strerror(errno));
 		    (void) closedir(dp);
 		    return (NULL);
