@@ -1,4 +1,4 @@
-# @(#)pacificnew	7.7
+# @(#)pacificnew	7.8
 
 # From Arthur David Olson (April 5, 1989):
 # On April 5, 1989, the U. S. House of Representatives passed (238-154) a bill
@@ -18,9 +18,9 @@
 ## Rule	Twilite	XXXX	max	uspres	Nov	Sun>=7	2:00	0	S
 ## Rule	Twilite	XXXX	max	nonpres	Oct	lastSun	2:00	0	S
 
-# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
-## Zone	US/Pacific-PET	-8:00	US		P%sT	XXXX
-##			-8:00	Twilite		P%sT
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+## Zone	America/Los_Angeles-PET	-8:00	US		P%sT	XXXX
+##				-8:00	Twilite		P%sT
 
 # For now...
 Link	America/Los_Angeles	US/Pacific-New	##
