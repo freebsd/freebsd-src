@@ -293,6 +293,11 @@
       fixed.  For more details see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
 
+    <para>Two recently-publicized flaws in
+      <application>OpenSSL</application> have been corrected.  For
+      more details, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
