@@ -83,14 +83,6 @@ int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
 		struct sockaddr *dst, short *tp, int *hlen);
 #endif
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-ushort ns_nettype;
-int ether_outputdebug = 0;
-int ether_inputdebug = 0;
-#endif
-
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -230,43 +222,6 @@ ether_output(ifp, m, dst, rt0)
 	    break;
 	  }
 #endif /* NETATALK */
-#ifdef NS
-	case AF_NS:
-		switch(ns_nettype){
-		default:
-		case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
-			type = 0x8137;
-			break;
-		case 0x0: /* Novell 802.3 */
-			type = htons( m->m_pkthdr.len);
-			break;
-		case 0xe0e0: /* Novell 802.2 and Token-Ring */
-			M_PREPEND(m, 3, M_TRYWAIT);
-			type = htons( m->m_pkthdr.len);
-			cp = mtod(m, u_char *);
-			*cp++ = 0xE0;
-			*cp++ = 0xE0;
-			*cp++ = 0x03;
-			break;
-		}
- 		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
-		    (caddr_t)edst, sizeof (edst));
-		/*
-		 * XXX if ns_thishost is the same as the node's ethernet
-		 * address then just the default code will catch this anyhow.
-		 * So I'm not sure if this next clause should be here at all?
-		 * [JRE]
-		 */
-		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst))){
-			m->m_pkthdr.rcvif = ifp;
-			netisr_queue(NETISR_NS, m);
-			return (error);
-		}
-		if (!bcmp((caddr_t)edst, (caddr_t)&ns_broadhost, sizeof(edst))){
-			m->m_flags |= M_BCAST;
-		}
-		break;
-#endif /* NS */
 
 	case pseudo_AF_HDRCMPLT:
 		hdrcmplt = 1;
@@ -777,12 +732,6 @@ post_stats:
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef NS
-	case 0x8137: /* Novell Ethernet_II Ethernet TYPE II */
-		isr = NETISR_NS;
-		break;
-
-#endif /* NS */
 #ifdef NETATALK
 	case ETHERTYPE_AT:
 		isr = NETISR_ATALK1;
@@ -796,20 +745,6 @@ post_stats:
 		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)
 			return;
 #endif /* IPX */
-#ifdef NS
-		checksum = mtod(m, ushort *);
-		/* Novell 802.3 */
-		if ((ether_type <= ETHERMTU) &&
-		    ((*checksum == 0xffff) || (*checksum == 0xE0E0))) {
-			if (*checksum == 0xE0E0) {
-				m->m_pkthdr.len -= 3;
-				m->m_len -= 3;
-				m->m_data += 3;
-			}
-			isr = NETISR_NS;
-			break;
-		}
-#endif /* NS */
 #if defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto discard;
@@ -978,31 +913,6 @@ ether_ioctl(ifp, command, data)
 			ifp->if_init(ifp->if_softc);
 			break;
 			}
-#endif
-#ifdef NS
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_NS:
-		{
-			struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-			struct arpcom *ac = IFP2AC(ifp);
-
-			if (ns_nullhost(*ina))
-				ina->x_host =
-				    *(union ns_host *) (ac->ac_enaddr);
-			else {
-				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) ac->ac_enaddr,
-				      sizeof(ac->ac_enaddr));
-			}
-
-			/*
-			 * Set new address
-			 */
-			ifp->if_init(ifp->if_softc);
-			break;
-		}
 #endif
 		default:
 			ifp->if_init(ifp->if_softc);

@@ -48,7 +48,6 @@
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
-#include "opt_ns.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -335,11 +334,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 #ifdef NETATALK
 		case AF_APPLETALK:
 			etype = ETHERTYPE_ATALK;
-			break;
-#endif
-#ifdef NS
-		case AF_NS:
-			etype = ETHERTYPE_NS;
 			break;
 #endif
 		default:

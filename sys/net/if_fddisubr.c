@@ -75,11 +75,6 @@
 #include <netipx/ipx_if.h>
 #endif
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 #ifdef DECNET
 #include <netdnet/dn.h>
 #endif
@@ -201,13 +196,6 @@ fddi_output(ifp, m, dst, rt0)
 	    break;
 	}
 #endif /* NETATALK */
-#ifdef NS
-	case AF_NS:
-		type = htons(ETHERTYPE_NS);
- 		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
-		    (caddr_t)edst, FDDI_ADDR_LEN);
-		break;
-#endif
 
 	case pseudo_AF_HDRCMPLT:
 	{
@@ -467,11 +455,6 @@ fddi_input(ifp, m)
 			isr = NETISR_IPX;
 			break;  
 #endif   
-#ifdef NS
-		case ETHERTYPE_NS:
-			isr = NETISR_NS;
-			break;
-#endif
 #ifdef DECNET
 		case ETHERTYPE_DECNET:
 			isr = NETISR_DECNET;

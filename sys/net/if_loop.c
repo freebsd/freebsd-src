@@ -82,11 +82,6 @@
 #include <netinet/ip6.h>
 #endif
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -250,7 +245,6 @@ contiguousfail:
 	case AF_INET:
 	case AF_INET6:
 	case AF_IPX:
-	case AF_NS:
 	case AF_APPLETALK:
 		break;
 	default:
@@ -347,11 +341,6 @@ if_simloop(ifp, m, af, hlen)
 #ifdef IPX
 	case AF_IPX:
 		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NS
-	case AF_NS:
-		isr = NETISR_NS;
 		break;
 #endif
 #ifdef NETATALK

@@ -1421,16 +1421,6 @@ netncp/ncp_nls.c	optional ncp
 netncp/ncp_rq.c		optional ncp
 netncp/ncp_sock.c	optional ncp
 netncp/ncp_subr.c	optional ncp
-netns/idp_usrreq.c	optional ns
-netns/ns.c		optional ns
-netns/ns_error.c	optional ns
-netns/ns_input.c	optional ns
-netns/ns_ip.c		optional ns
-netns/ns_output.c	optional ns
-netns/ns_pcb.c		optional ns
-netns/ns_proto.c	optional ns
-netns/spp_debug.c	optional ns
-netns/spp_usrreq.c	optional ns
 netsmb/smb_conn.c		optional netsmb
 netsmb/smb_crypt.c		optional netsmb
 netsmb/smb_dev.c		optional netsmb

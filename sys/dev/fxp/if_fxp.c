@@ -45,11 +45,6 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 #include <net/bpf.h>
 #include <sys/sockio.h>
 #include <sys/bus.h>

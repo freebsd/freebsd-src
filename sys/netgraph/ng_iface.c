@@ -97,7 +97,6 @@ const static struct iffam gFamilies[] = {
 	{ AF_IPX,	NG_IFACE_HOOK_IPX	},
 	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
 	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
-	{ AF_NS,	NG_IFACE_HOOK_NS	},
 };
 #define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
 
@@ -768,11 +767,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 #ifdef IPX
 	case AF_IPX:
 		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NS
-	case AF_NS:
-		isr = NETISR_NS;
 		break;
 #endif
 #ifdef NETATALK

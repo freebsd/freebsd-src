@@ -58,7 +58,6 @@
 #define NG_IFACE_HOOK_IPX		"ipx"
 #define NG_IFACE_HOOK_ATM		"atm"
 #define NG_IFACE_HOOK_NATM		"natm"
-#define NG_IFACE_HOOK_NS		"ns"
 
 /* MTU bounds */
 #define NG_IFACE_MTU_MIN		72
