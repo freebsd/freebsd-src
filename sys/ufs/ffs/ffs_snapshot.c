@@ -35,6 +35,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
@@ -47,6 +48,7 @@
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/disklabel.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
@@ -62,20 +64,34 @@
 #define DEBUG 1
 
 static int cgaccount(int, struct vnode *, struct buf *, int);
-static int expunge(struct vnode *, struct inode *, struct fs *,
-    int (*)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *, struct fs *,
-    ufs_daddr_t, int), int);
-static int indiracct(struct vnode *, struct vnode *, int, ufs_daddr_t,
-    int, int, int, int, struct fs *, int (*)(struct vnode *,
-    ufs_daddr_t *, ufs_daddr_t *, struct fs *, ufs_daddr_t, int), int);
-static int fullacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int);
-static int snapacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int);
-static int mapacct(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-    struct fs *, ufs_daddr_t, int);
+static int expunge_ufs1(struct vnode *, struct inode *, struct fs *,
+    int (*)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *, struct fs *,
+    ufs_lbn_t, int), int);
+static int indiracct_ufs1(struct vnode *, struct vnode *, int,
+    ufs1_daddr_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, struct fs *,
+    int (*)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *, struct fs *,
+    ufs_lbn_t, int), int);
+static int fullacct_ufs1(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
+static int snapacct_ufs1(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
+static int mapacct_ufs1(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
+static int expunge_ufs2(struct vnode *, struct inode *, struct fs *,
+    int (*)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *, struct fs *,
+    ufs_lbn_t, int), int);
+static int indiracct_ufs2(struct vnode *, struct vnode *, int,
+    ufs2_daddr_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, ufs_lbn_t, struct fs *,
+    int (*)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *, struct fs *,
+    ufs_lbn_t, int), int);
+static int fullacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
+static int snapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
+static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
+    struct fs *, ufs_lbn_t, int);
 static int ffs_copyonwrite(struct vnode *, struct buf *);
-static int readblock(struct buf *, daddr_t);
+static int readblock(struct buf *, ufs2_daddr_t);
 
 /*
  * To ensure the consistency of snapshots across crashes, we must
@@ -104,8 +120,8 @@ ffs_snapshot(mp, snapfile)
 	struct mount *mp;
 	char *snapfile;
 {
-	ufs_daddr_t blkno;
-	int error, cg, snaploc, numblks;
+	ufs2_daddr_t numblks, blkno;
+	int error, cg, snaploc;
 	int i, size, len, loc;
 	int flag = mp->mnt_flag;
 	struct timespec starttime = {0, 0}, endtime;
@@ -191,6 +207,7 @@ restart:
 	if (error)
 		goto out;
 	ip->i_size = lblktosize(fs, (off_t)numblks);
+	DIP(ip, i_size) = ip->i_size;
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	if ((error = readblock(bp, numblks - 1)) != 0)
 		goto out;
@@ -216,7 +233,8 @@ restart:
 	/*
 	 * Allocate copies for the superblock and its summary information.
 	 */
-	error = UFS_BALLOC(vp, (off_t)(SBOFF), SBSIZE, KERNCRED, 0, &nbp);
+	error = UFS_BALLOC(vp, lfragtosize(fs, fs->fs_sblockloc),
+	    fs->fs_sbsize, KERNCRED, 0, &nbp);
 	if (error)
 		goto out;
 	bawrite(nbp);
@@ -266,6 +284,7 @@ restart:
 	 * Change inode to snapshot type file.
 	 */
 	ip->i_flags |= SF_SNAPSHOT;
+	DIP(ip, i_flags) = ip->i_flags;
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
 	 * Ensure that the snapshot is completely on disk.
@@ -315,19 +334,21 @@ restart:
 	 * Grab a copy of the superblock and its summary information.
 	 * We delay writing it until the suspension is released below.
 	 */
-	error = bread(vp, lblkno(fs, SBOFF), fs->fs_bsize, KERNCRED, &sbp);
+	error = bread(vp, fragstoblks(fs, fs->fs_sblockloc), fs->fs_bsize,
+	    KERNCRED, &sbp);
 	if (error) {
 		brelse(sbp);
 		sbp = NULL;
 		goto out1;
 	}
-	copy_fs = (struct fs *)(sbp->b_data + blkoff(fs, SBOFF));
+	loc = blkoff(fs, lfragtosize(fs, fs->fs_sblockloc));
+	copy_fs = (struct fs *)(sbp->b_data + loc);
 	bcopy(fs, copy_fs, fs->fs_sbsize);
 	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 		copy_fs->fs_clean = 1;
-	if (fs->fs_sbsize < SBSIZE)
-		bzero(&sbp->b_data[blkoff(fs, SBOFF) + fs->fs_sbsize],
-		    SBSIZE - fs->fs_sbsize);
+	if (fs->fs_sbsize < SBLOCKSIZE)
+		bzero(&sbp->b_data[loc + fs->fs_sbsize],
+		    SBLOCKSIZE - fs->fs_sbsize);
 	size = blkroundup(fs, fs->fs_cssize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
@@ -399,15 +420,20 @@ loop:
 		if (loc < NDADDR) {
 			len = fragroundup(fs, blkoff(fs, xp->i_size));
 			if (len < fs->fs_bsize) {
-				ffs_blkfree(copy_fs, vp, xp->i_db[loc], len,
-				    xp->i_number);
-				blkno = xp->i_db[loc];
-				xp->i_db[loc] = 0;
+				ffs_blkfree(copy_fs, vp, DIP(xp, i_db[loc]),
+				    len, xp->i_number);
+				blkno = DIP(xp, i_db[loc]);
+				DIP(xp, i_db[loc]) = 0;
 			}
 		}
-		error = expunge(vp, xp, copy_fs, fullacct, BLK_NOCOPY);
+		if (xp->i_ump->um_fstype == UFS1)
+			error = expunge_ufs1(vp, xp, copy_fs, fullacct_ufs1,
+			    BLK_NOCOPY);
+		else
+			error = expunge_ufs2(vp, xp, copy_fs, fullacct_ufs2,
+			    BLK_NOCOPY);
 		if (blkno)
-			xp->i_db[loc] = blkno;
+			DIP(xp, i_db[loc]) = blkno;
 		if (!error)
 			error = ffs_freefile(copy_fs, vp, xp->i_number,
 			    xp->i_mode);
@@ -458,7 +484,13 @@ out1:
 	TAILQ_FOREACH(xp, snaphead, i_nextsnap) {
 		if (xp == ip)
 			break;
-		if ((error = expunge(vp, xp, fs, snapacct, BLK_SNAP)) != 0) {
+		if (xp->i_ump->um_fstype == UFS1)
+			error = expunge_ufs1(vp, xp, fs, snapacct_ufs1,
+			    BLK_SNAP);
+		else
+			error = expunge_ufs2(vp, xp, fs, snapacct_ufs2,
+			    BLK_SNAP);
+		if (error) {
 			fs->fs_snapinum[snaploc] = 0;
 			goto done;
 		}
@@ -467,7 +499,11 @@ out1:
 	 * Expunge the blocks used by the snapshots from the set of
 	 * blocks marked as used in the snapshot bitmaps.
 	 */
-	if ((error = expunge(vp, ip, copy_fs, mapacct, BLK_SNAP)) != 0) {
+	if (ip->i_ump->um_fstype == UFS1)
+		error = expunge_ufs1(vp, ip, copy_fs, mapacct_ufs1, BLK_SNAP);
+	else
+		error = expunge_ufs2(vp, ip, copy_fs, mapacct_ufs2, BLK_SNAP);
+	if (error) {
 		fs->fs_snapinum[snaploc] = 0;
 		goto done;
 	}
@@ -528,7 +564,8 @@ cgaccount(cg, vp, nbp, passno)
 	struct inode *ip;
 	struct cg *cgp;
 	struct fs *fs;
-	int error, numblks, base, len, loc, indiroff;
+	ufs2_daddr_t base, numblks;
+	int error, len, loc, indiroff;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -559,10 +596,10 @@ cgaccount(cg, vp, nbp, passno)
 	if (base < NDADDR) {
 		for ( ; loc < NDADDR; loc++) {
 			if (ffs_isblock(fs, cg_blksfree(cgp), loc))
-				ip->i_db[loc] = BLK_NOCOPY;
-			else if (passno == 2 && ip->i_db[loc] == BLK_NOCOPY)
-				ip->i_db[loc] = 0;
-			else if (passno == 1 && ip->i_db[loc] == BLK_NOCOPY)
+				DIP(ip, i_db[loc]) = BLK_NOCOPY;
+			else if (passno == 2 && DIP(ip, i_db[loc])== BLK_NOCOPY)
+				DIP(ip, i_db[loc]) = 0;
+			else if (passno == 1 && DIP(ip, i_db[loc])== BLK_NOCOPY)
 				panic("ffs_snapshot: lost direct block");
 		}
 	}
@@ -587,13 +624,25 @@ cgaccount(cg, vp, nbp, passno)
 			}
 			indiroff = 0;
 		}
+		if (ip->i_ump->um_fstype == UFS1) {
+			if (ffs_isblock(fs, cg_blksfree(cgp), loc))
+				((ufs1_daddr_t *)(ibp->b_data))[indiroff] =
+				    BLK_NOCOPY;
+			else if (passno == 2 && ((ufs1_daddr_t *)(ibp->b_data))
+			    [indiroff] == BLK_NOCOPY)
+				((ufs1_daddr_t *)(ibp->b_data))[indiroff] = 0;
+			else if (passno == 1 && ((ufs1_daddr_t *)(ibp->b_data))
+			    [indiroff] == BLK_NOCOPY)
+				panic("ffs_snapshot: lost indirect block");
+			continue;
+		}
 		if (ffs_isblock(fs, cg_blksfree(cgp), loc))
-			((ufs_daddr_t *)(ibp->b_data))[indiroff] = BLK_NOCOPY;
+			((ufs2_daddr_t *)(ibp->b_data))[indiroff] = BLK_NOCOPY;
 		else if (passno == 2 &&
-			 ((ufs_daddr_t *)(ibp->b_data))[indiroff] == BLK_NOCOPY)
-			((ufs_daddr_t *)(ibp->b_data))[indiroff] = 0;
+		    ((ufs2_daddr_t *)(ibp->b_data)) [indiroff] == BLK_NOCOPY)
+			((ufs2_daddr_t *)(ibp->b_data))[indiroff] = 0;
 		else if (passno == 1 &&
-			 ((ufs_daddr_t *)(ibp->b_data))[indiroff] == BLK_NOCOPY)
+		    ((ufs2_daddr_t *)(ibp->b_data)) [indiroff] == BLK_NOCOPY)
 			panic("ffs_snapshot: lost indirect block");
 	}
 	bqrelse(bp);
@@ -608,34 +657,37 @@ cgaccount(cg, vp, nbp, passno)
  * blocks that it claims with BLK_SNAP so that fsck will
  * be able to account for those blocks properly and so
  * that this snapshot knows that it need not copy them
- * if the other snapshot holding them is freed.
+ * if the other snapshot holding them is freed. This code
+ * is reproduced once each for UFS1 and UFS2.
  */
 static int
-expunge(snapvp, cancelip, fs, acctfunc, expungetype)
+expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 	struct vnode *snapvp;
 	struct inode *cancelip;
 	struct fs *fs;
-	int (*acctfunc)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-	    struct fs *, ufs_daddr_t, int);
+	int (*acctfunc)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
+	    struct fs *, ufs_lbn_t, int);
 	int expungetype;
 {
-	int i, len, error, numblks, blksperindir;
-	ufs_daddr_t lbn, rlbn, blkno, indiroff;
+	int i, error, indiroff;
+	ufs_lbn_t lbn, rlbn;
+	ufs2_daddr_t len, blkno, numblks, blksperindir;
+	struct ufs1_dinode *dip;
 	struct thread *td = curthread;
-	struct dinode *dip;
 	struct buf *bp;
 
 	numblks = howmany(cancelip->i_size, fs->fs_bsize);
-	if ((error = (*acctfunc)(snapvp, &cancelip->i_db[0],
-	     &cancelip->i_ib[NIADDR], fs, 0, expungetype)))
+	if ((error = (*acctfunc)(snapvp, &cancelip->i_din1->di_db[0],
+	    &cancelip->i_din1->di_ib[NIADDR], fs, 0, expungetype)))
 		return (error);
 	blksperindir = 1;
 	lbn = -NDADDR;
 	len = numblks - NDADDR;
 	rlbn = NDADDR;
 	for (i = 0; len > 0 && i < NIADDR; i++) {
-		error = indiracct(snapvp, ITOV(cancelip), i, cancelip->i_ib[i],
-		    lbn, rlbn, len, blksperindir, fs, acctfunc, expungetype);
+		error = indiracct_ufs1(snapvp, ITOV(cancelip), i,
+		    cancelip->i_din1->di_ib[i], lbn, rlbn, len,
+		    blksperindir, fs, acctfunc, expungetype);
 		if (error)
 			return (error);
 		blksperindir *= NINDIR(fs);
@@ -650,7 +702,7 @@ expunge(snapvp, cancelip, fs, acctfunc, expungetype)
 	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
 	blkno = 0;
 	if (lbn < NDADDR) {
-		blkno = cancelip->i_db[lbn];
+		blkno = cancelip->i_din1->di_db[lbn];
 	} else {
 		td->td_proc->p_flag |= P_COWINPROGRESS;
 		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
@@ -659,7 +711,7 @@ expunge(snapvp, cancelip, fs, acctfunc, expungetype)
 		if (error)
 			return (error);
 		indiroff = (lbn - NDADDR) % NINDIR(fs);
-		blkno = ((ufs_daddr_t *)(bp->b_data))[indiroff];
+		blkno = ((ufs1_daddr_t *)(bp->b_data))[indiroff];
 		bqrelse(bp);
 	}
 	error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
@@ -672,13 +724,14 @@ expunge(snapvp, cancelip, fs, acctfunc, expungetype)
 	 * Set a snapshot inode to be a zero length file, regular files
 	 * to be completely unallocated.
 	 */
-	dip = (struct dinode *)bp->b_data + ino_to_fsbo(fs, cancelip->i_number);
+	dip = (struct ufs1_dinode *)bp->b_data +
+	    ino_to_fsbo(fs, cancelip->i_number);
 	if (expungetype == BLK_NOCOPY)
 		dip->di_mode = 0;
 	dip->di_size = 0;
 	dip->di_blocks = 0;
 	dip->di_flags &= ~SF_SNAPSHOT;
-	bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs_daddr_t));
+	bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs1_daddr_t));
 	bdwrite(bp);
 	return (0);
 }
@@ -688,24 +741,25 @@ expunge(snapvp, cancelip, fs, acctfunc, expungetype)
  * its indirect blocks in snapvp.
  */ 
 static int
-indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir, fs,
-	    acctfunc, expungetype)
+indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
+	    blksperindir, fs, acctfunc, expungetype)
 	struct vnode *snapvp;
 	struct vnode *cancelvp;
 	int level;
-	ufs_daddr_t blkno;
-	int lbn;
-	int rlbn;
-	int remblks;
-	int blksperindir;
+	ufs1_daddr_t blkno;
+	ufs_lbn_t lbn;
+	ufs_lbn_t rlbn;
+	ufs_lbn_t remblks;
+	ufs_lbn_t blksperindir;
 	struct fs *fs;
-	int (*acctfunc)(struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
-	    struct fs *, ufs_daddr_t, int);
+	int (*acctfunc)(struct vnode *, ufs1_daddr_t *, ufs1_daddr_t *,
+	    struct fs *, ufs_lbn_t, int);
 	int expungetype;
 {
-	int subblksperindir, error, last, num, i;
+	int error, num, i;
+	ufs_lbn_t subblksperindir;
 	struct indir indirs[NIADDR + 2];
-	ufs_daddr_t *bap;
+	ufs1_daddr_t last, *bap;
 	struct buf *bp;
 
 	if ((error = ufs_getlbns(cancelvp, rlbn, indirs, &num)) != 0)
@@ -729,7 +783,7 @@ indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir, fs,
 	last = howmany(remblks, blksperindir);
 	if (last > NINDIR(fs))
 		last = NINDIR(fs);
-	MALLOC(bap, ufs_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	MALLOC(bap, ufs1_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
 	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
 	bqrelse(bp);
 	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs, rlbn, expungetype);
@@ -741,7 +795,7 @@ indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir, fs,
 	 */
 	subblksperindir = blksperindir / NINDIR(fs);
 	for (lbn++, level--, i = 0; i < last; i++) {
-		error = indiracct(snapvp, cancelvp, level, bap[i], lbn,
+		error = indiracct_ufs1(snapvp, cancelvp, level, bap[i], lbn,
 		    rlbn, remblks, subblksperindir, fs, acctfunc, expungetype);
 		if (error)
 			goto out;
@@ -758,33 +812,34 @@ out:
  * Do both snap accounting and map accounting.
  */
 static int
-fullacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
+fullacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, exptype)
 	struct vnode *vp;
-	ufs_daddr_t *oldblkp, *lastblkp;
+	ufs1_daddr_t *oldblkp, *lastblkp;
 	struct fs *fs;
-	ufs_daddr_t lblkno;
-	int expungetype;	/* BLK_SNAP or BLK_NOCOPY */
+	ufs_lbn_t lblkno;
+	int exptype;	/* BLK_SNAP or BLK_NOCOPY */
 {
 	int error;
 
-	if ((error = snapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)))
+	if ((error = snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, exptype)))
 		return (error);
-	return (mapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype));
+	return (mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, exptype));
 }
 
 /*
  * Identify a set of blocks allocated in a snapshot inode.
  */
 static int
-snapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
+snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	struct vnode *vp;
-	ufs_daddr_t *oldblkp, *lastblkp;
+	ufs1_daddr_t *oldblkp, *lastblkp;
 	struct fs *fs;
-	ufs_daddr_t lblkno;
+	ufs_lbn_t lblkno;
 	int expungetype;	/* BLK_SNAP or BLK_NOCOPY */
 {
 	struct inode *ip = VTOI(vp);
-	ufs_daddr_t lbn, blkno, *blkp;
+	ufs1_daddr_t blkno, *blkp;
+	ufs_lbn_t lbn;
 	struct buf *ibp;
 	int error;
 
@@ -794,14 +849,14 @@ snapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			continue;
 		lbn = fragstoblks(fs, blkno);
 		if (lbn < NDADDR) {
-			blkp = &ip->i_db[lbn];
+			blkp = &ip->i_din1->di_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 			if (error)
 				return (error);
-			blkp = &((ufs_daddr_t *)(ibp->b_data))
+			blkp = &((ufs1_daddr_t *)(ibp->b_data))
 			    [(lbn - NDADDR) % NINDIR(fs)];
 		}
 		/*
@@ -828,14 +883,267 @@ snapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
  * Account for a set of blocks allocated in a snapshot inode.
  */
 static int
-mapacct(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
+mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	struct vnode *vp;
-	ufs_daddr_t *oldblkp, *lastblkp;
+	ufs1_daddr_t *oldblkp, *lastblkp;
 	struct fs *fs;
-	ufs_daddr_t lblkno;
+	ufs_lbn_t lblkno;
 	int expungetype;
 {
-	ufs_daddr_t blkno;
+	ufs1_daddr_t blkno;
+	ino_t inum;
+
+	inum = VTOI(vp)->i_number;
+	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
+		blkno = *oldblkp;
+		if (blkno == 0 || blkno == BLK_NOCOPY)
+			continue;
+		if (blkno == BLK_SNAP)
+			blkno = blkstofrags(fs, lblkno);
+		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
+	}
+	return (0);
+}
+
+/*
+ * Before expunging a snapshot inode, note all the
+ * blocks that it claims with BLK_SNAP so that fsck will
+ * be able to account for those blocks properly and so
+ * that this snapshot knows that it need not copy them
+ * if the other snapshot holding them is freed. This code
+ * is reproduced once each for UFS1 and UFS2.
+ */
+static int
+expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
+	struct vnode *snapvp;
+	struct inode *cancelip;
+	struct fs *fs;
+	int (*acctfunc)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
+	    struct fs *, ufs_lbn_t, int);
+	int expungetype;
+{
+	int i, error, indiroff;
+	ufs_lbn_t lbn, rlbn;
+	ufs2_daddr_t len, blkno, numblks, blksperindir;
+	struct ufs2_dinode *dip;
+	struct thread *td = curthread;
+	struct buf *bp;
+
+	numblks = howmany(cancelip->i_size, fs->fs_bsize);
+	if ((error = (*acctfunc)(snapvp, &cancelip->i_din2->di_db[0],
+	    &cancelip->i_din2->di_ib[NIADDR], fs, 0, expungetype)))
+		return (error);
+	blksperindir = 1;
+	lbn = -NDADDR;
+	len = numblks - NDADDR;
+	rlbn = NDADDR;
+	for (i = 0; len > 0 && i < NIADDR; i++) {
+		error = indiracct_ufs2(snapvp, ITOV(cancelip), i,
+		    cancelip->i_din2->di_ib[i], lbn, rlbn, len,
+		    blksperindir, fs, acctfunc, expungetype);
+		if (error)
+			return (error);
+		blksperindir *= NINDIR(fs);
+		lbn -= blksperindir + 1;
+		len -= blksperindir;
+		rlbn += blksperindir;
+	}
+	/*
+	 * Prepare to expunge the inode. If its inode block has not
+	 * yet been copied, then allocate and fill the copy.
+	 */
+	lbn = fragstoblks(fs, ino_to_fsba(fs, cancelip->i_number));
+	blkno = 0;
+	if (lbn < NDADDR) {
+		blkno = cancelip->i_din2->di_db[lbn];
+	} else {
+		td->td_proc->p_flag |= P_COWINPROGRESS;
+		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		   fs->fs_bsize, KERNCRED, B_METAONLY, &bp);
+		td->td_proc->p_flag &= ~P_COWINPROGRESS;
+		if (error)
+			return (error);
+		indiroff = (lbn - NDADDR) % NINDIR(fs);
+		blkno = ((ufs2_daddr_t *)(bp->b_data))[indiroff];
+		bqrelse(bp);
+	}
+	error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+	    fs->fs_bsize, KERNCRED, 0, &bp);
+	if (error)
+		return (error);
+	if (blkno == 0 && (error = readblock(bp, lbn)))
+		return (error);
+	/*
+	 * Set a snapshot inode to be a zero length file, regular files
+	 * to be completely unallocated.
+	 */
+	dip = (struct ufs2_dinode *)bp->b_data +
+	    ino_to_fsbo(fs, cancelip->i_number);
+	if (expungetype == BLK_NOCOPY)
+		dip->di_mode = 0;
+	dip->di_size = 0;
+	dip->di_blocks = 0;
+	dip->di_flags &= ~SF_SNAPSHOT;
+	bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs2_daddr_t));
+	bdwrite(bp);
+	return (0);
+}
+
+/*
+ * Descend an indirect block chain for vnode cancelvp accounting for all
+ * its indirect blocks in snapvp.
+ */ 
+static int
+indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
+	    blksperindir, fs, acctfunc, expungetype)
+	struct vnode *snapvp;
+	struct vnode *cancelvp;
+	int level;
+	ufs2_daddr_t blkno;
+	ufs_lbn_t lbn;
+	ufs_lbn_t rlbn;
+	ufs_lbn_t remblks;
+	ufs_lbn_t blksperindir;
+	struct fs *fs;
+	int (*acctfunc)(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
+	    struct fs *, ufs_lbn_t, int);
+	int expungetype;
+{
+	int error, num, i;
+	ufs_lbn_t subblksperindir;
+	struct indir indirs[NIADDR + 2];
+	ufs2_daddr_t last, *bap;
+	struct buf *bp;
+
+	if ((error = ufs_getlbns(cancelvp, rlbn, indirs, &num)) != 0)
+		return (error);
+	if (lbn != indirs[num - 1 - level].in_lbn || blkno == 0 || num < 2)
+		panic("indiracct: botched params");
+	/*
+	 * We have to expand bread here since it will deadlock looking
+	 * up the block number for any blocks that are not in the cache.
+	 */
+	bp = getblk(cancelvp, lbn, fs->fs_bsize, 0, 0);
+	bp->b_blkno = fsbtodb(fs, blkno);
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0 &&
+	    (error = readblock(bp, fragstoblks(fs, blkno)))) {
+		brelse(bp);
+		return (error);
+	}
+	/*
+	 * Account for the block pointers in this indirect block.
+	 */
+	last = howmany(remblks, blksperindir);
+	if (last > NINDIR(fs))
+		last = NINDIR(fs);
+	MALLOC(bap, ufs2_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
+	bqrelse(bp);
+	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs, rlbn, expungetype);
+	if (error || level == 0)
+		goto out;
+	/*
+	 * Account for the block pointers in each of the indirect blocks
+	 * in the levels below us.
+	 */
+	subblksperindir = blksperindir / NINDIR(fs);
+	for (lbn++, level--, i = 0; i < last; i++) {
+		error = indiracct_ufs2(snapvp, cancelvp, level, bap[i], lbn,
+		    rlbn, remblks, subblksperindir, fs, acctfunc, expungetype);
+		if (error)
+			goto out;
+		rlbn += blksperindir;
+		lbn -= blksperindir;
+		remblks -= blksperindir;
+	}
+out:
+	FREE(bap, M_DEVBUF);
+	return (error);
+}
+
+/*
+ * Do both snap accounting and map accounting.
+ */
+static int
+fullacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, exptype)
+	struct vnode *vp;
+	ufs2_daddr_t *oldblkp, *lastblkp;
+	struct fs *fs;
+	ufs_lbn_t lblkno;
+	int exptype;	/* BLK_SNAP or BLK_NOCOPY */
+{
+	int error;
+
+	if ((error = snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, exptype)))
+		return (error);
+	return (mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, exptype));
+}
+
+/*
+ * Identify a set of blocks allocated in a snapshot inode.
+ */
+static int
+snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
+	struct vnode *vp;
+	ufs2_daddr_t *oldblkp, *lastblkp;
+	struct fs *fs;
+	ufs_lbn_t lblkno;
+	int expungetype;	/* BLK_SNAP or BLK_NOCOPY */
+{
+	struct inode *ip = VTOI(vp);
+	ufs2_daddr_t blkno, *blkp;
+	ufs_lbn_t lbn;
+	struct buf *ibp;
+	int error;
+
+	for ( ; oldblkp < lastblkp; oldblkp++) {
+		blkno = *oldblkp;
+		if (blkno == 0 || blkno == BLK_NOCOPY || blkno == BLK_SNAP)
+			continue;
+		lbn = fragstoblks(fs, blkno);
+		if (lbn < NDADDR) {
+			blkp = &ip->i_din2->di_db[lbn];
+			ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		} else {
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			if (error)
+				return (error);
+			blkp = &((ufs2_daddr_t *)(ibp->b_data))
+			    [(lbn - NDADDR) % NINDIR(fs)];
+		}
+		/*
+		 * If we are expunging a snapshot vnode and we
+		 * find a block marked BLK_NOCOPY, then it is
+		 * one that has been allocated to this snapshot after
+		 * we took our current snapshot and can be ignored.
+		 */
+		if (expungetype == BLK_SNAP && *blkp == BLK_NOCOPY) {
+			if (lbn >= NDADDR)
+				brelse(ibp);
+		} else {
+			if (*blkp != 0)
+				panic("snapacct: bad block");
+			*blkp = expungetype;
+			if (lbn >= NDADDR)
+				bdwrite(ibp);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Account for a set of blocks allocated in a snapshot inode.
+ */
+static int
+mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
+	struct vnode *vp;
+	ufs2_daddr_t *oldblkp, *lastblkp;
+	struct fs *fs;
+	ufs_lbn_t lblkno;
+	int expungetype;
+{
+	ufs2_daddr_t blkno;
 	ino_t inum;
 
 	inum = VTOI(vp)->i_number;
@@ -901,8 +1209,8 @@ ffs_snapremove(vp)
 	struct vnode *devvp;
 	struct buf *ibp;
 	struct fs *fs;
-	ufs_daddr_t blkno, dblk;
-	int error, numblks, loc, last;
+	ufs2_daddr_t numblks, blkno, dblk;
+	int error, loc, last;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -927,14 +1235,14 @@ ffs_snapremove(vp)
 	 * snapshots that want them (see ffs_snapblkfree below).
 	 */
 	for (blkno = 1; blkno < NDADDR; blkno++) {
-		dblk = ip->i_db[blkno];
+		dblk = DIP(ip, i_db[blkno]);
 		if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
-			ip->i_db[blkno] = 0;
+			DIP(ip, i_db[blkno]) = 0;
 		else if ((dblk == blkstofrags(fs, blkno) &&
 		     ffs_snapblkfree(fs, ip->i_devvp, dblk, fs->fs_bsize,
 		     ip->i_number))) {
-			ip->i_blocks -= btodb(fs->fs_bsize);
-			ip->i_db[blkno] = 0;
+			DIP(ip, i_blocks) -= btodb(fs->fs_bsize);
+			DIP(ip, i_db[blkno]) = 0;
 		}
 	}
 	numblks = howmany(ip->i_size, fs->fs_bsize);
@@ -943,17 +1251,32 @@ ffs_snapremove(vp)
 		    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 		if (error)
 			continue;
-		if ((last = fs->fs_size - blkno) > NINDIR(fs))
+		if (fs->fs_size - blkno > NINDIR(fs))
 			last = NINDIR(fs);
+		else
+			last = fs->fs_size - blkno;
 		for (loc = 0; loc < last; loc++) {
-			dblk = ((ufs_daddr_t *)(ibp->b_data))[loc];
+			if (ip->i_ump->um_fstype == UFS1) {
+				dblk = ((ufs1_daddr_t *)(ibp->b_data))[loc];
+				if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
+					((ufs1_daddr_t *)(ibp->b_data))[loc]= 0;
+				else if ((dblk == blkstofrags(fs, blkno) &&
+				     ffs_snapblkfree(fs, ip->i_devvp, dblk,
+				     fs->fs_bsize, ip->i_number))) {
+					ip->i_din1->di_blocks -=
+					    btodb(fs->fs_bsize);
+					((ufs1_daddr_t *)(ibp->b_data))[loc]= 0;
+				}
+				continue;
+			}
+			dblk = ((ufs2_daddr_t *)(ibp->b_data))[loc];
 			if (dblk == BLK_NOCOPY || dblk == BLK_SNAP)
-				((ufs_daddr_t *)(ibp->b_data))[loc] = 0;
+				((ufs2_daddr_t *)(ibp->b_data))[loc] = 0;
 			else if ((dblk == blkstofrags(fs, blkno) &&
 			     ffs_snapblkfree(fs, ip->i_devvp, dblk,
 			     fs->fs_bsize, ip->i_number))) {
-				ip->i_blocks -= btodb(fs->fs_bsize);
-				((ufs_daddr_t *)(ibp->b_data))[loc] = 0;
+				ip->i_din2->di_blocks -= btodb(fs->fs_bsize);
+				((ufs2_daddr_t *)(ibp->b_data))[loc] = 0;
 			}
 		}
 		bawrite(ibp);
@@ -962,6 +1285,7 @@ ffs_snapremove(vp)
 	 * Clear snapshot flag and drop reference.
 	 */
 	ip->i_flags &= ~SF_SNAPSHOT;
+	DIP(ip, i_flags) = ip->i_flags;
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 }
 
@@ -987,7 +1311,7 @@ int
 ffs_snapblkfree(fs, devvp, bno, size, inum)
 	struct fs *fs;
 	struct vnode *devvp;
-	ufs_daddr_t bno;
+	ufs2_daddr_t bno;
 	long size;
 	ino_t inum;
 {
@@ -995,7 +1319,8 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 	struct thread *td = curthread;
 	struct inode *ip;
 	struct vnode *vp;
-	ufs_daddr_t lbn, blkno;
+	ufs_lbn_t lbn;
+	ufs2_daddr_t blkno;
 	int indiroff = 0, error = 0, claimedblk = 0;
 	struct snaphead *snaphead;
 
@@ -1007,7 +1332,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		 * Lookup block being written.
 		 */
 		if (lbn < NDADDR) {
-			blkno = ip->i_db[lbn];
+			blkno = DIP(ip, i_db[lbn]);
 		} else {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			td->td_proc->p_flag |= P_COWINPROGRESS;
@@ -1018,46 +1343,52 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 			if (error)
 				break;
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
-			blkno = ((ufs_daddr_t *)(ibp->b_data))[indiroff];
+			if (ip->i_ump->um_fstype == UFS1)
+				blkno=((ufs1_daddr_t *)(ibp->b_data))[indiroff];
+			else
+				blkno=((ufs2_daddr_t *)(ibp->b_data))[indiroff];
 		}
 		/*
 		 * Check to see if block needs to be copied.
 		 */
-		switch (blkno) {
-		/*
-		 * If the snapshot has already copied the block (default),
-		 * or does not care about the block, it is not needed.
-		 */
-		default:
-		case BLK_NOCOPY:
-			if (lbn >= NDADDR)
-				bqrelse(ibp);
-			continue;
-		/*
-		 * No previous snapshot claimed the block, so it will be
-		 * freed and become a BLK_NOCOPY (don't care) for us.
-		 */
-		case BLK_SNAP:
+		if (blkno == 0) {
+			/*
+			 * A block that we map is being freed. If it has not
+			 * been claimed yet, we will claim or copy it (below).
+			 */
+			claimedblk = 1;
+		} else if (blkno == BLK_SNAP) {
+			/*
+			 * No previous snapshot claimed the block,
+			 * so it will be * freed and become a BLK_NOCOPY
+			 * (don't care) for us.
+			 */
 			if (claimedblk)
 				panic("snapblkfree: inconsistent block type");
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (lbn < NDADDR) {
-				ip->i_db[lbn] = BLK_NOCOPY;
+				DIP(ip, i_db[lbn]) = BLK_NOCOPY;
 				ip->i_flag |= IN_CHANGE | IN_UPDATE;
+			} else if (ip->i_ump->um_fstype == UFS1) {
+				((ufs1_daddr_t *)(ibp->b_data))[indiroff] =
+				    BLK_NOCOPY;
+				bdwrite(ibp);
 			} else {
-				((ufs_daddr_t *)(ibp->b_data))[indiroff] =
+				((ufs2_daddr_t *)(ibp->b_data))[indiroff] =
 				    BLK_NOCOPY;
 				bdwrite(ibp);
 			}
 			VOP_UNLOCK(vp, 0, td);
 			continue;
-		/*
-		 * A block that we map is being freed. If it has not been
-		 * claimed yet, we will claim or copy it (below).
-		 */
-		case 0:
-			claimedblk = 1;
-			break;
+		} else /* BLK_NOCOPY or default */ {
+			/*
+			 * If the snapshot has already copied the block
+			 * (default), or does not care about the block,
+			 * it is not needed.
+			 */
+			if (lbn >= NDADDR)
+				bqrelse(ibp);
+			continue;
 		}
 		/*
 		 * If this is a full size block, we will just grab it
@@ -1069,18 +1400,21 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		if (size == fs->fs_bsize) {
 #ifdef DEBUG
 			if (snapdebug)
-				printf("%s %d lbn %d from inum %d\n",
-				    "Grabonremove: snapino", ip->i_number, lbn,
-				    inum);
+				printf("%s %d lbn %lld from inum %d\n",
+				    "Grabonremove: snapino", ip->i_number,
+				    (intmax_t)lbn, inum);
 #endif
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (lbn < NDADDR) {
-				ip->i_db[lbn] = bno;
+				DIP(ip, i_db[lbn]) = bno;
+			} else if (ip->i_ump->um_fstype == UFS1) {
+				((ufs1_daddr_t *)(ibp->b_data))[indiroff] = bno;
+				bdwrite(ibp);
 			} else {
-				((ufs_daddr_t *)(ibp->b_data))[indiroff] = bno;
+				((ufs2_daddr_t *)(ibp->b_data))[indiroff] = bno;
 				bdwrite(ibp);
 			}
-			ip->i_blocks += btodb(size);
+			DIP(ip, i_blocks) += btodb(size);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			VOP_UNLOCK(vp, 0, td);
 			return (1);
@@ -1103,10 +1437,10 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		}
 #ifdef DEBUG
 		if (snapdebug)
-			printf(
-"Copyonremove: snapino %lu lbn %ld for inum %lu size %ld to blkno %lld\n",
-			    (unsigned long)ip->i_number, (long)lbn,
-			    (unsigned long)inum, size, (long long)cbp->b_blkno);
+			printf("%s%d lbn %lld %s %d size %ld to blkno %lld\n",
+			    "Copyonremove: snapino ", ip->i_number,
+			    (intmax_t)lbn, "for inum", inum, size,
+			    (intmax_t)cbp->b_blkno);
 #endif
 		/*
 		 * If we have already read the old block contents, then
@@ -1245,7 +1579,7 @@ ffs_copyonwrite(devvp, bp)
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
-	ufs_daddr_t lbn, blkno;
+	ufs2_daddr_t lbn, blkno;
 	int indiroff, error = 0;
 
 	fs = TAILQ_FIRST(&devvp->v_rdev->si_snapshots)->i_fs;
@@ -1273,7 +1607,7 @@ ffs_copyonwrite(devvp, bp)
 retry:
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (lbn < NDADDR) {
-			blkno = ip->i_db[lbn];
+			blkno = DIP(ip, i_db[lbn]);
 		} else {
 			td->td_proc->p_flag |= P_COWINPROGRESS;
 			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
@@ -1287,7 +1621,10 @@ retry:
 				goto retry;
 			}
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
-			blkno = ((ufs_daddr_t *)(ibp->b_data))[indiroff];
+			if (ip->i_ump->um_fstype == UFS1)
+				blkno=((ufs1_daddr_t *)(ibp->b_data))[indiroff];
+			else
+				blkno=((ufs2_daddr_t *)(ibp->b_data))[indiroff];
 			bqrelse(ibp);
 		}
 #ifdef DIAGNOSTIC
@@ -1316,14 +1653,14 @@ retry:
 		}
 #ifdef DEBUG
 		if (snapdebug) {
-			printf("Copyonwrite: snapino %d lbn %d for ",
-			    ip->i_number, lbn);
+			printf("Copyonwrite: snapino %d lbn %lld for ",
+			    ip->i_number, (intmax_t)lbn);
 			if (bp->b_vp == devvp)
 				printf("fs metadata");
 			else
 				printf("inum %d", VTOI(bp->b_vp)->i_number);
 			printf(" lblkno %lld to blkno %lld\n",
-			    (long long)bp->b_lblkno, (long long)cbp->b_blkno);
+			    (intmax_t)bp->b_lblkno, (intmax_t)cbp->b_blkno);
 		}
 #endif
 		/*
@@ -1379,7 +1716,7 @@ retry:
 static int
 readblock(bp, lbn)
 	struct buf *bp;
-	daddr_t lbn;
+	ufs2_daddr_t lbn;
 {
 	struct uio auio;
 	struct iovec aiov;

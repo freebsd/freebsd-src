@@ -131,8 +131,8 @@ ufs_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct vnode *vdp;	/* vnode for directory being searched */
-	struct inode *dp;	/* inode for directory being searched */
+	struct vnode *vdp;		/* vnode for directory being searched */
+	struct inode *dp;		/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
 	struct direct *ep;		/* the current directory entry */
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
@@ -467,6 +467,7 @@ found:
 	if (dp->i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
 		ufs_dirbad(dp, dp->i_offset, "i_size too small");
 		dp->i_size = dp->i_offset + DIRSIZ(OFSFMT(vdp), ep);
+		DIP(dp, i_size) = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
 	brelse(bp);
@@ -644,8 +645,7 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 	struct direct *ep;
 	int entryoffsetinblock;
 {
-	int i;
-	int namlen;
+	int i, namlen;
 
 #	if (BYTE_ORDER == LITTLE_ENDIAN)
 		if (OFSFMT(dp))
@@ -760,6 +760,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			return (error);
 		}
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
+		DIP(dp, i_size) = dp->i_size;
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		vnode_pager_setsize(dvp, (u_long)dp->i_size);
 		dirp->d_reclen = DIRBLKSIZ;
@@ -838,8 +839,10 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	 *
 	 * N.B. - THIS IS AN ARTIFACT OF 4.2 AND SHOULD NEVER HAPPEN.
 	 */
-	if (dp->i_offset + dp->i_count > dp->i_size)
+	if (dp->i_offset + dp->i_count > dp->i_size) {
 		dp->i_size = dp->i_offset + dp->i_count;
+		DIP(dp, i_size) = dp->i_size;
+	}
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
@@ -1049,6 +1052,7 @@ out:
 		if (ip) {
 			ip->i_effnlink--;
 			ip->i_nlink--;
+			DIP(ip, i_nlink) = ip->i_nlink;
 			ip->i_flag |= IN_CHANGE;
 		}
 		if (flags & DOWHITEOUT)
@@ -1102,6 +1106,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 		bdwrite(bp);
 	} else {
 		oip->i_nlink--;
+		DIP(oip, i_nlink) = oip->i_nlink;
 		oip->i_flag |= IN_CHANGE;
 		if (DOINGASYNC(vdp)) {
 			bdwrite(bp);
@@ -1138,7 +1143,7 @@ ufs_dirempty(ip, parentino, cred)
 	ino_t parentino;
 	struct ucred *cred;
 {
-	off_t off;
+	doff_t off;
 	struct dirtemplate dbuf;
 	struct direct *dp = (struct direct *)&dbuf;
 	int error, count, namlen;
@@ -1197,7 +1202,8 @@ ufs_checkpath(source, target, cred)
 	struct ucred *cred;
 {
 	struct vnode *vp;
-	int error, rootino, namlen;
+	int error, namlen;
+	ino_t rootino;
 	struct dirtemplate dirbuf;
 
 	vp = ITOV(target);

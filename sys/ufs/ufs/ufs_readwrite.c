@@ -68,11 +68,11 @@ READ(ap)
 	struct uio *uio;
 	FS *fs;
 	struct buf *bp;
-	daddr_t lbn, nextlbn;
+	ufs_lbn_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
-	u_short mode;
+	mode_t mode;
 	int seqcount;
 	int ioflag;
 	vm_object_t object;
@@ -394,7 +394,7 @@ WRITE(ap)
 	FS *fs;
 	struct buf *bp;
 	struct thread *td;
-	ufs_daddr_t lbn;
+	ufs_lbn_t lbn;
 	off_t osize;
 	int seqcount;
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
@@ -519,6 +519,7 @@ WRITE(ap)
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
+			DIP(ip, i_size) = ip->i_size;
 			extended = 1;
 		}
 
@@ -571,8 +572,10 @@ WRITE(ap)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ap->a_cred && 
-	    suser_cred(ap->a_cred, PRISON_ROOT))
+	    suser_cred(ap->a_cred, PRISON_ROOT)) {
 		ip->i_mode &= ~(ISUID | ISGID);
+		DIP(ip, i_mode) = ip->i_mode;
+	}
 	if (resid > uio->uio_resid)
 		VN_KNOTE(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
 	if (error) {
@@ -609,8 +612,7 @@ ffs_getpages(ap)
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
 	int firstpage;
-	int reqlblkno;
-	ufs_daddr_t reqblkno;
+	ufs2_daddr_t reqblkno, reqlblkno;
 	int poff;
 	int pcount;
 	int rtval;

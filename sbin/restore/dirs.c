@@ -120,7 +120,7 @@ struct odirect {
 	char	d_name[ODIRSIZ];
 };
 
-static struct inotab	*allocinotab(ino_t, struct dinode *, long);
+static struct inotab	*allocinotab(struct context *, long);
 static void		 dcvt(struct odirect *, struct direct *);
 static void		 flushent(void);
 static struct inotab	*inotablookup(ino_t);
@@ -140,11 +140,9 @@ static struct direct	*searchdir(ino_t, char *);
 void
 extractdirs(int genmode)
 {
-	int i;
-	struct dinode *ip;
 	struct inotab *itp;
 	struct direct nulldir;
-	int fd;
+	int i, fd;
 	const char *tmpdir;
 
 	vprintf(stdout, "Extract directories from tape\n");
@@ -184,8 +182,7 @@ extractdirs(int genmode)
 	for (;;) {
 		curfile.name = "<directory file - name unknown>";
 		curfile.action = USING;
-		ip = curfile.dip;
-		if (ip == NULL || (ip->di_mode & IFMT) != IFDIR) {
+		if (curfile.mode == 0 || (curfile.mode & IFMT) != IFDIR) {
 			(void) fclose(df);
 			dirp = opendirfile(dirfile);
 			if (dirp == NULL)
@@ -198,7 +195,7 @@ extractdirs(int genmode)
 				panic("Root directory is not on tape\n");
 			return;
 		}
-		itp = allocinotab(curfile.ino, ip, seekpt);
+		itp = allocinotab(&curfile, seekpt);
 		getfile(putdir, xtrnull);
 		putent(&nulldir);
 		flushent();
@@ -213,7 +210,7 @@ void
 skipdirs(void)
 {
 
-	while (curfile.dip && (curfile.dip->di_mode & IFMT) == IFDIR) {
+	while (curfile.ino && (curfile.mode & IFMT) == IFDIR) {
 		skipfile();
 	}
 }
@@ -343,53 +340,34 @@ putdir(char *buf, long size)
 	struct direct *dp;
 	long loc, i;
 
-	if (cvtflag) {
-		eodp = (struct odirect *)&buf[size];
-		for (odp = (struct odirect *)buf; odp < eodp; odp++)
-			if (odp->d_ino != 0) {
-				dcvt(odp, &cvtbuf);
-				putent(&cvtbuf);
-			}
-	} else {
-		for (loc = 0; loc < size; ) {
-			dp = (struct direct *)(buf + loc);
-			if (Bcvt)
-				swabst((u_char *)"ls", (u_char *) dp);
-			if (oldinofmt && dp->d_ino != 0) {
-#				if BYTE_ORDER == BIG_ENDIAN
-					if (Bcvt)
-						dp->d_namlen = dp->d_type;
-#				else
-					if (!Bcvt)
-						dp->d_namlen = dp->d_type;
-#				endif
-				dp->d_type = DT_UNKNOWN;
-			}
-			i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
-			if ((dp->d_reclen & 0x3) != 0 ||
-			    dp->d_reclen > i ||
-			    dp->d_reclen < DIRSIZ(0, dp) ||
-			    dp->d_namlen > NAME_MAX) {
-				vprintf(stdout, "Mangled directory: ");
-				if ((dp->d_reclen & 0x3) != 0)
-					vprintf(stdout,
-					   "reclen not multiple of 4 ");
-				if (dp->d_reclen < DIRSIZ(0, dp))
-					vprintf(stdout,
-					   "reclen less than DIRSIZ (%d < %d) ",
-					   dp->d_reclen, DIRSIZ(0, dp));
-				if (dp->d_namlen > NAME_MAX)
-					vprintf(stdout,
-					   "reclen name too big (%d > %d) ",
-					   dp->d_namlen, NAME_MAX);
-				vprintf(stdout, "\n");
-				loc += i;
-				continue;
-			}
-			loc += dp->d_reclen;
-			if (dp->d_ino != 0) {
-				putent(dp);
-			}
+	for (loc = 0; loc < size; ) {
+		dp = (struct direct *)(buf + loc);
+		if (Bcvt)
+			swabst((u_char *)"ls", (u_char *) dp);
+		i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
+		if ((dp->d_reclen & 0x3) != 0 ||
+		    dp->d_reclen > i ||
+		    dp->d_reclen < DIRSIZ(0, dp) ||
+		    dp->d_namlen > NAME_MAX) {
+			vprintf(stdout, "Mangled directory: ");
+			if ((dp->d_reclen & 0x3) != 0)
+				vprintf(stdout,
+				   "reclen not multiple of 4 ");
+			if (dp->d_reclen < DIRSIZ(0, dp))
+				vprintf(stdout,
+				   "reclen less than DIRSIZ (%d < %d) ",
+				   dp->d_reclen, DIRSIZ(0, dp));
+			if (dp->d_namlen > NAME_MAX)
+				vprintf(stdout,
+				   "reclen name too big (%d > %d) ",
+				   dp->d_namlen, NAME_MAX);
+			vprintf(stdout, "\n");
+			loc += i;
+			continue;
+		}
+		loc += dp->d_reclen;
+		if (dp->d_ino != 0) {
+			putent(dp);
 		}
 	}
 }
@@ -692,7 +670,7 @@ inodetype(ino_t ino)
  * If requested, save its pertinent mode, owner, and time info.
  */
 static struct inotab *
-allocinotab(ino_t ino, struct dinode *dip, long seekpt)
+allocinotab(struct context *ctxp, long seekpt)
 {
 	struct inotab	*itp;
 	struct modeinfo node;
@@ -700,21 +678,21 @@ allocinotab(ino_t ino, struct dinode *dip, long seekpt)
 	itp = calloc(1, sizeof(struct inotab));
 	if (itp == NULL)
 		panic("no memory directory table\n");
-	itp->t_next = inotab[INOHASH(ino)];
-	inotab[INOHASH(ino)] = itp;
-	itp->t_ino = ino;
+	itp->t_next = inotab[INOHASH(ctxp->ino)];
+	inotab[INOHASH(ctxp->ino)] = itp;
+	itp->t_ino = ctxp->ino;
 	itp->t_seekpt = seekpt;
 	if (mf == NULL)
 		return (itp);
-	node.ino = ino;
-	node.timep[0].tv_sec = dip->di_atime;
-	node.timep[0].tv_usec = dip->di_atimensec / 1000;
-	node.timep[1].tv_sec = dip->di_mtime;
-	node.timep[1].tv_usec = dip->di_mtimensec / 1000;
-	node.mode = dip->di_mode;
-	node.flags = dip->di_flags;
-	node.uid = dip->di_uid;
-	node.gid = dip->di_gid;
+	node.ino = ctxp->ino;
+	node.timep[0].tv_sec = ctxp->atime_sec;
+	node.timep[0].tv_usec = ctxp->atime_nsec / 1000;
+	node.timep[1].tv_sec = ctxp->mtime_sec;
+	node.timep[1].tv_usec = ctxp->mtime_nsec / 1000;
+	node.mode = ctxp->mode;
+	node.flags = ctxp->file_flags;
+	node.uid = ctxp->uid;
+	node.gid = ctxp->gid;
 	(void) fwrite((char *)&node, 1, sizeof(struct modeinfo), mf);
 	return (itp);
 }

@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/stdint.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/eventhandler.h>
@@ -2368,7 +2369,7 @@ loop:
 		else
 			bsize = size;
 
-		offset = (off_t)blkno * bsize;
+		offset = blkno * bsize;
 		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) && (vp->v_flag & VOBJBUF);
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
@@ -2946,13 +2947,13 @@ bufdone(struct buf *bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 				if (!vn_isdisk(vp, NULL))
-					printf(" iosize: %ld, lblkno: %d, flags: 0x%lx, npages: %d\n",
+					printf(" iosize: %ld, lblkno: %lld, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
-					    (int) bp->b_lblkno,
+					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				else
-					printf(" VDEV, lblkno: %d, flags: 0x%lx, npages: %d\n",
-					    (int) bp->b_lblkno,
+					printf(" VDEV, lblkno: %lld, flags: 0x%lx, npages: %d\n",
+					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
 				    m->valid, m->dirty, m->wire_count);
@@ -3336,8 +3337,8 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 			if (p->busy) {
 				printf(
 			    "vm_hold_free_pages: blkno: %lld, lblkno: %lld\n",
-				    (long long)bp->b_blkno,
-				    (long long)bp->b_lblkno);
+				    (intmax_t)bp->b_blkno,
+				    (intmax_t)bp->b_lblkno);
 			}
 			bp->b_pages[index] = NULL;
 			pmap_qremove(pg, 1);
@@ -3371,7 +3372,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	    "b_dev = (%d,%d), b_data = %p, b_blkno = %lld, b_pblkno = %lld\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    major(bp->b_dev), minor(bp->b_dev), bp->b_data,
-	    (long long)bp->b_blkno, (long long)bp->b_pblkno);
+	    (intmax_t)bp->b_blkno, (intmax_t)bp->b_pblkno);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);

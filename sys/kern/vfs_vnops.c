@@ -563,8 +563,7 @@ vn_stat(vp, sb, td)
 	 * Zero the spare stat fields
 	 */
 	sb->st_lspare = 0;
-	sb->st_qspare[0] = 0;
-	sb->st_qspare[1] = 0;
+	sb->st_qspare = 0;
 
 	/*
 	 * Copy from vattr table
@@ -616,6 +615,7 @@ vn_stat(vp, sb, td)
 	sb->st_atimespec = vap->va_atime;
 	sb->st_mtimespec = vap->va_mtime;
 	sb->st_ctimespec = vap->va_ctime;
+	sb->st_createtimespec = vap->va_createtime;
 
         /*
 	 * According to www.opengroup.org, the meaning of st_blksize is 

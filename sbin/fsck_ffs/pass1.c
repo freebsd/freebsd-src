@@ -52,8 +52,8 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-static ufs_daddr_t badblk;
-static ufs_daddr_t dupblk;
+static ufs2_daddr_t badblk;
+static ufs2_daddr_t dupblk;
 static ino_t lastino;		/* last inode in use */
 
 static void checkinode(ino_t inumber, struct inodesc *);
@@ -61,11 +61,12 @@ static void checkinode(ino_t inumber, struct inodesc *);
 void
 pass1(void)
 {
-	u_int8_t *cp;
-	ino_t inumber;
-	int c, i, cgd, inosused;
 	struct inostat *info;
 	struct inodesc idesc;
+	ino_t inumber, inosused;
+	ufs2_daddr_t i, cgd;
+	u_int8_t *cp;
+	int c;
 
 	/*
 	 * Set filesystem reserved blocks in used block map.
@@ -93,7 +94,11 @@ pass1(void)
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
-		inosused = sblock.fs_ipg;
+		getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
+		if (sblock.fs_magic == FS_UFS2_MAGIC)
+			inosused = cgrp.cg_initediblk;
+		else
+			inosused = sblock.fs_ipg;
 		if (got_siginfo) {
 			printf("%s: phase 1: cyl group %d of %d (%d%%)\n",
 			    cdevname, c, sblock.fs_ncg,
@@ -108,10 +113,9 @@ pass1(void)
 		 * read only those inodes in from disk.
 		 */
 		if (preen && usedsoftdep) {
-			getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
 			if (!cg_chkmagic(&cgrp))
 				pfatal("CG %d: BAD MAGIC NUMBER\n", c);
-			cp = &cg_inosused(&cgrp)[(sblock.fs_ipg - 1) / NBBY];
+			cp = &cg_inosused(&cgrp)[(inosused - 1) / NBBY];
 			for ( ; inosused > 0; inosused -= NBBY, cp--) {
 				if (*cp == 0)
 					continue;
@@ -157,9 +161,10 @@ pass1(void)
 		 * to the size necessary to describe the inodes that we
 		 * really found.
 		 */
-		inosused = lastino - (c * sblock.fs_ipg);
-		if (inosused < 0)
+		if (lastino < (c * sblock.fs_ipg))
 			inosused = 0;
+		else
+			inosused = lastino - (c * sblock.fs_ipg);
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
 			free(inostathead[c].il_stat);
@@ -180,21 +185,29 @@ pass1(void)
 static void
 checkinode(ino_t inumber, struct inodesc *idesc)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	struct zlncnt *zlnp;
-	u_int64_t kernmaxfilesize;
-	ufs_daddr_t ndb, j;
+	off_t kernmaxfilesize;
+	ufs2_daddr_t ndb;
 	mode_t mode;
 	char *symbuf;
+	int j;
 
 	dp = getnextinode(inumber);
-	mode = dp->di_mode & IFMT;
+	mode = DIP(dp, di_mode) & IFMT;
 	if (mode == 0) {
-		if (memcmp(dp->di_db, zino.di_db,
-			NDADDR * sizeof(ufs_daddr_t)) ||
-		    memcmp(dp->di_ib, zino.di_ib,
-			NIADDR * sizeof(ufs_daddr_t)) ||
-		    dp->di_mode || dp->di_size) {
+		if ((sblock.fs_magic == FS_UFS1_MAGIC &&
+		     (memcmp(dp->dp1.di_db, ufs1_zino.di_db,
+			NDADDR * sizeof(ufs1_daddr_t)) ||
+		      memcmp(dp->dp1.di_ib, ufs1_zino.di_ib,
+			NIADDR * sizeof(ufs1_daddr_t)) ||
+		      dp->dp1.di_mode || dp->dp1.di_size)) ||
+		    (sblock.fs_magic == FS_UFS2_MAGIC &&
+		     (memcmp(dp->dp2.di_db, ufs2_zino.di_db,
+			NDADDR * sizeof(ufs2_daddr_t)) ||
+		      memcmp(dp->dp2.di_ib, ufs2_zino.di_ib,
+			NIADDR * sizeof(ufs2_daddr_t)) ||
+		      dp->dp2.di_mode || dp->dp2.di_size))) {
 			pfatal("PARTIALLY ALLOCATED INODE I=%lu",
 			    (u_long)inumber);
 			if (reply("CLEAR") == 1) {
@@ -208,36 +221,37 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	}
 	lastino = inumber;
 	/* This should match the file size limit in ffs_mountfs(). */
-	kernmaxfilesize = (u_int64_t)0x40000000 * sblock.fs_bsize - 1;
-	if (dp->di_size > kernmaxfilesize ||
-	    dp->di_size > sblock.fs_maxfilesize ||
-	    (mode == IFDIR && dp->di_size > MAXDIRSIZE)) {
+	kernmaxfilesize = (off_t)0x40000000 * sblock.fs_bsize - 1;
+	if (DIP(dp, di_size) > kernmaxfilesize ||
+	    DIP(dp, di_size) > sblock.fs_maxfilesize ||
+	    (mode == IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
 		if (debug)
-			printf("bad size %qu:", dp->di_size);
+			printf("bad size %qu:", DIP(dp, di_size));
 		goto unknown;
 	}
 	if (!preen && mode == IFMT && reply("HOLD BAD BLOCK") == 1) {
 		dp = ginode(inumber);
-		dp->di_size = sblock.fs_fsize;
-		dp->di_mode = IFREG|0600;
+		DIP(dp, di_size) = sblock.fs_fsize;
+		DIP(dp, di_mode) = IFREG|0600;
 		inodirty();
 	}
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
-	     mode == IFSOCK) && dp->di_size != 0) {
+	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
 		if (debug)
-			printf("bad special-file size %qu:", dp->di_size);
+			printf("bad special-file size %qu:", DIP(dp, di_size));
 		goto unknown;
 	}
-	if ((mode == IFBLK || mode == IFCHR) && (dev_t)dp->di_rdev == NODEV) {
+	if ((mode == IFBLK || mode == IFCHR) &&
+	    (dev_t)DIP(dp, di_rdev) == NODEV) {
 		if (debug)
 			printf("bad special-file rdev NODEV:");
 		goto unknown;
 	}
-	ndb = howmany(dp->di_size, sblock.fs_bsize);
+	ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
 	if (ndb < 0) {
 		if (debug)
-			printf("bad size %qu ndb %d:",
-				dp->di_size, ndb);
+			printf("bad size %qu ndb %qu:",
+				DIP(dp, di_size), ndb);
 		goto unknown;
 	}
 	if (mode == IFBLK || mode == IFCHR)
@@ -247,8 +261,13 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 		 * Fake ndb value so direct/indirect block checks below
 		 * will detect any garbage after symlink string.
 		 */
-		if (dp->di_size < (u_int64_t)sblock.fs_maxsymlinklen) {
-			ndb = howmany(dp->di_size, sizeof(ufs_daddr_t));
+		if (DIP(dp, di_size) < (off_t)sblock.fs_maxsymlinklen) {
+			if (sblock.fs_magic == FS_UFS1_MAGIC)
+				ndb = howmany(DIP(dp, di_size),
+				    sizeof(ufs1_daddr_t));
+			else
+				ndb = howmany(DIP(dp, di_size),
+				    sizeof(ufs2_daddr_t));
 			if (ndb > NDADDR) {
 				j = ndb - NDADDR;
 				for (ndb = 1; j > 1; j--)
@@ -258,26 +277,26 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 		}
 	}
 	for (j = ndb; j < NDADDR; j++)
-		if (dp->di_db[j] != 0) {
+		if (DIP(dp, di_db[j]) != 0) {
 			if (debug)
-				printf("bad direct addr: %ld\n",
-				    (long)dp->di_db[j]);
+				printf("bad direct addr[%d]: %qu\n", j,
+				    (ufs2_daddr_t)DIP(dp, di_db[j]));
 			goto unknown;
 		}
 	for (j = 0, ndb -= NDADDR; ndb > 0; j++)
 		ndb /= NINDIR(&sblock);
 	for (; j < NIADDR; j++)
-		if (dp->di_ib[j] != 0) {
+		if (DIP(dp, di_ib[j]) != 0) {
 			if (debug)
-				printf("bad indirect addr: %ld\n",
-				    (long)dp->di_ib[j]);
+				printf("bad indirect addr: %qu\n",
+				    DIP(dp, di_ib[j]));
 			goto unknown;
 		}
 	if (ftypeok(dp) == 0)
 		goto unknown;
 	n_files++;
-	inoinfo(inumber)->ino_linkcnt = dp->di_nlink;
-	if (dp->di_nlink <= 0) {
+	inoinfo(inumber)->ino_linkcnt = DIP(dp, di_nlink);
+	if (DIP(dp, di_nlink) <= 0) {
 		zlnp = (struct zlncnt *)malloc(sizeof *zlnp);
 		if (zlnp == NULL) {
 			pfatal("LINK COUNT TABLE OVERFLOW");
@@ -292,7 +311,7 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 		}
 	}
 	if (mode == IFDIR) {
-		if (dp->di_size == 0)
+		if (DIP(dp, di_size) == 0)
 			inoinfo(inumber)->ino_state = DCLEAR;
 		else
 			inoinfo(inumber)->ino_state = DSTATE;
@@ -303,30 +322,30 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	inoinfo(inumber)->ino_type = IFTODT(mode);
 	badblk = dupblk = 0;
 	idesc->id_number = inumber;
-	if (dp->di_flags & SF_SNAPSHOT)
+	if (DIP(dp, di_flags) & SF_SNAPSHOT)
 		idesc->id_type = SNAP;
 	else
 		idesc->id_type = ADDR;
 	(void)ckinode(dp, idesc);
 	idesc->id_entryno *= btodb(sblock.fs_fsize);
-	if (dp->di_blocks != idesc->id_entryno) {
-		pwarn("INCORRECT BLOCK COUNT I=%lu (%ld should be %ld)",
-		    (u_long)inumber, (long)dp->di_blocks,
-		    (long)idesc->id_entryno);
+	if (DIP(dp, di_blocks) != idesc->id_entryno) {
+		pwarn("INCORRECT BLOCK COUNT I=%lu (%qu should be %qu)",
+		    (u_long)inumber, DIP(dp, di_blocks),
+		    idesc->id_entryno);
 		if (preen)
 			printf(" (CORRECTED)\n");
 		else if (reply("CORRECT") == 0)
 			return;
 		if (bkgrdflag == 0) {
 			dp = ginode(inumber);
-			dp->di_blocks = idesc->id_entryno;
+			DIP(dp, di_blocks) = idesc->id_entryno;
 			inodirty();
 		} else {
 			cmd.value = idesc->id_number;
-			cmd.size = idesc->id_entryno - dp->di_blocks;
+			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
 			if (debug)
-				printf("adjblkcnt ino %ld amount %ld\n",
-				    (long)cmd.value, cmd.size);
+				printf("adjblkcnt ino %qu amount %ld\n",
+				    cmd.value, cmd.size);
 			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
@@ -349,7 +368,7 @@ pass1check(struct inodesc *idesc)
 {
 	int res = KEEPON;
 	int anyout, nfrags;
-	ufs_daddr_t blkno = idesc->id_blkno;
+	ufs2_daddr_t blkno = idesc->id_blkno;
 	struct dups *dlp;
 	struct dups *new;
 

@@ -77,10 +77,16 @@ int	_dbg_lvl_ = (DL_INFO);	/* DL_TRC */
 
 static union {
 	struct fs	fs;
-	char	pad[SBSIZE];
+	char	pad[SBLOCKSIZE];
 } fsun1, fsun2;
 #define	sblock	fsun1.fs	/* the new superblock */
 #define	osblock	fsun2.fs	/* the old superblock */
+
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
+static ufs2_daddr_t sblockloc;
 
 static union {
 	struct cg	cg;
@@ -89,25 +95,20 @@ static union {
 #define	acg	cgun1.cg	/* a cylinder cgroup (new) */
 #define	aocg	cgun2.cg	/* an old cylinder group */
 
-static char	ablk[MAXBSIZE];		/* a block */
-static char	i1blk[MAXBSIZE];	/* some indirect blocks */
-static char	i2blk[MAXBSIZE];
-static char	i3blk[MAXBSIZE];
+static char	ablk[MAXBSIZE];	/* a block */
 
-	/* where to write back updated blocks */
-static daddr_t	in_src, i1_src, i2_src, i3_src;
+static struct csum	*fscs;	/* cylinder summary */
 
-	/* what object contains the reference */
-enum pointer_source {
-	GFS_PS_INODE,
-	GFS_PS_IND_BLK_LVL1,
-	GFS_PS_IND_BLK_LVL2,
-	GFS_PS_IND_BLK_LVL3
+union dinode {
+	struct ufs1_dinode dp1;
+	struct ufs2_dinode dp2;
 };
-
-static struct csum	*fscs;		/* cylinder summary */
-
-static struct dinode	zino[MAXBSIZE/sizeof(struct dinode)]; /* some inodes */
+#define	DIP(dp, field) \
+	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
+	(dp)->dp1.field : (dp)->dp2.field)
+static ufs2_daddr_t 	inoblk;			/* inode block address */
+static char		inobuf[MAXBSIZE];	/* inode block */
+static int		maxino;			/* last valid inode */
 
 /*
  * An  array of elements of type struct gfs_bpp describes all blocks  to
@@ -115,8 +116,8 @@ static struct dinode	zino[MAXBSIZE/sizeof(struct dinode)]; /* some inodes */
  * summary for all cylinder groups located in the first cylinder group.
  */
 struct gfs_bpp {
-	daddr_t	old;		/* old block number */
-	daddr_t	new;		/* new block number */
+	ufs2_daddr_t	old;		/* old block number */
+	ufs2_daddr_t	new;		/* new block number */
 #define GFS_FL_FIRST	1
 #define GFS_FL_LAST	2
 	unsigned int	flags;	/* special handling required */
@@ -125,9 +126,9 @@ struct gfs_bpp {
 
 /* ******************************************************** PROTOTYPES ***** */
 static void	growfs(int, int, unsigned int);
-static void	rdfs(daddr_t, size_t, void *, int);
-static void	wtfs(daddr_t, size_t, void *, int, unsigned int);
-static daddr_t	alloc(void);
+static void	rdfs(ufs2_daddr_t, size_t, void *, int);
+static void	wtfs(ufs2_daddr_t, size_t, void *, int, unsigned int);
+static ufs2_daddr_t alloc(void);
 static int	charsperline(void);
 static void	usage(void);
 static int	isblock(struct fs *, unsigned char *, int);
@@ -138,12 +139,14 @@ static void	updjcg(int, time_t, int, int, unsigned int);
 static void	updcsloc(time_t, int, int, unsigned int);
 static struct disklabel	*get_disklabel(int);
 static void	return_disklabel(int, struct disklabel *, unsigned int);
-static struct dinode	*ginode(ino_t, int, int);
-static void	frag_adjust(daddr_t, int);
-static void	cond_bl_upd(ufs_daddr_t *, struct gfs_bpp *,
-    enum pointer_source, int, unsigned int);
+static union dinode *ginode(ino_t, int, int);
+static void	frag_adjust(ufs2_daddr_t, int);
+static int	cond_bl_upd(ufs2_daddr_t *, struct gfs_bpp *, int, int,
+		    unsigned int);
 static void	updclst(int);
 static void	updrefs(int, ino_t, struct gfs_bpp *, int, int, unsigned int);
+static void	indirchk(ufs_lbn_t, ufs_lbn_t, ufs2_daddr_t, ufs_lbn_t,
+		    struct gfs_bpp *, int, int, unsigned int);
 
 /* ************************************************************ growfs ***** */
 /*
@@ -221,16 +224,16 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	/*
 	 * Dump out summary information about filesystem.
 	 */
-	printf("growfs:\t%d sectors in %d %s of %d tracks, %d sectors\n",
-	    sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
-	    "cylinders", sblock.fs_ntrak, sblock.fs_nsect);
-#define B2MBFACTOR (1 / (1024.0 * 1024.0))
-	printf("\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)\n",
+#	define B2MBFACTOR (1 / (1024.0 * 1024.0))
+	printf("growfs: %.1fMB (%qd sectors) block size %d, fragment size %d\n",
 	    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-	    sblock.fs_ncg, sblock.fs_cpg,
-	    (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
-	    sblock.fs_ipg);
-#undef B2MBFACTOR
+	    fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize, sblock.fs_fsize);
+	printf("\tusing %d cylinder groups of %.2fMB, %d blks, %d inodes.\n",
+	    sblock.fs_ncg, (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
+	    sblock.fs_fpg / sblock.fs_frag, sblock.fs_ipg);
+	if (sblock.fs_flags & FS_DOSOFTDEP)
+		printf("\twith soft updates\n");
+#	undef B2MBFACTOR
 
 	/*
 	 * Now build the cylinders group blocks and
@@ -295,8 +298,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 * Now write the new superblock back to disk.
 	 */
 	sblock.fs_time = utime;
-	wtfs((daddr_t)(SBOFF / DEV_BSIZE), (size_t)SBSIZE, (void *)&sblock,
-	    fso, Nflag);
+	wtfs(sblockloc, (size_t)SBLOCKSIZE, (void *)&sblock, fso, Nflag);
 	DBG_PRINT0("sblock written\n");
 	DBG_DUMP_FS(&sblock,
 	    "new initial sblock");
@@ -338,7 +340,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 */
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		wtfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)),
-		    (size_t)SBSIZE, (void *)&sblock, fso, Nflag);
+		    (size_t)SBLOCKSIZE, (void *)&sblock, fso, Nflag);
 	}
 	DBG_PRINT0("sblock copies written\n");
 	DBG_DUMP_FS(&sblock,
@@ -359,96 +361,110 @@ static void
 initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
-	daddr_t cbase, d, dlower, dupper, dmax, blkno;
-	int i;
+	static caddr_t iobuf;
+	long i, j, d, dlower, dupper, blkno, start;
+	ufs2_daddr_t cbase, dmax;
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
 	struct csum *cs;
-#ifdef FSIRAND
-	int j;
-#endif
 
-	DBG_ENTER;
-
+	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize)) == NULL) {
+		errx(37, "panic: cannot allocate I/O buffer");
+	}
 	/*
 	 * Determine block bounds for cylinder group.
+	 * Allow space for super block summary information in first
+	 * cylinder group.
 	 */
 	cbase = cgbase(&sblock, cylno);
 	dmax = cbase + sblock.fs_fpg;
-	if (dmax > sblock.fs_size) {
+	if (dmax > sblock.fs_size)
 		dmax = sblock.fs_size;
-	}
 	dlower = cgsblock(&sblock, cylno) - cbase;
 	dupper = cgdmin(&sblock, cylno) - cbase;
-	if (cylno == 0) { /* XXX fscs may be relocated */
+	if (cylno == 0)	/* XXX fscs may be relocated */
 		dupper += howmany(sblock.fs_cssize, sblock.fs_fsize);
-	}
-	cs = fscs + cylno;
-	memset(&acg, 0, (size_t)sblock.fs_cgsize);
+	cs = &fscs[cylno];
+	memset(&acg, 0, sblock.fs_cgsize);
 	acg.cg_time = utime;
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
-	if (cylno == sblock.fs_ncg - 1) {
-		acg.cg_ncyl = sblock.fs_ncyl % sblock.fs_cpg;
-	} else {
-		acg.cg_ncyl = sblock.fs_cpg;
-	}
 	acg.cg_niblk = sblock.fs_ipg;
+	acg.cg_initediblk = sblock.fs_ipg;
 	acg.cg_ndblk = dmax - cbase;
-	if (sblock.fs_contigsumsize > 0) {
+	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
-	}
-	acg.cg_btotoff = &acg.cg_space[0] - (u_char *)(&acg.cg_firstfield);
-	acg.cg_boff = acg.cg_btotoff + sblock.fs_cpg * sizeof(int32_t);
-	acg.cg_iusedoff = acg.cg_boff +
-	    sblock.fs_cpg * sblock.fs_nrpos * sizeof(u_int16_t);
-	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
-	if (sblock.fs_contigsumsize <= 0) {
-		acg.cg_nextfreeoff = acg.cg_freeoff +
-		    howmany(sblock.fs_cpg* sblock.fs_spc/ NSPF(&sblock), NBBY);
+	start = &acg.cg_space[0] - (u_char *)(&acg.cg_firstfield);
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		acg.cg_iusedoff = start;
 	} else {
-		acg.cg_clustersumoff = acg.cg_freeoff + howmany
-		    (sblock.fs_cpg * sblock.fs_spc / NSPF(&sblock), NBBY) -
-		    sizeof(u_int32_t);
+		acg.cg_old_ncyl = sblock.fs_old_cpg;
+		acg.cg_old_time = acg.cg_time;
+		acg.cg_time = 0;
+		acg.cg_old_niblk = acg.cg_niblk;
+		acg.cg_niblk = 0;
+		acg.cg_initediblk = 0;
+		acg.cg_old_btotoff = start;
+		acg.cg_old_boff = acg.cg_old_btotoff +
+		    sblock.fs_old_cpg * sizeof(int32_t);
+		acg.cg_iusedoff = acg.cg_old_boff +
+		    sblock.fs_old_cpg * sizeof(u_int16_t);
+	}
+	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
+	acg.cg_nextfreeoff = acg.cg_freeoff + howmany(sblock.fs_fpg, NBBY);
+	if (sblock.fs_contigsumsize > 0) {
 		acg.cg_clustersumoff =
-		    roundup(acg.cg_clustersumoff, sizeof(u_int32_t));
+		    roundup(acg.cg_nextfreeoff, sizeof(u_int32_t));
+		acg.cg_clustersumoff -= sizeof(u_int32_t);
 		acg.cg_clusteroff = acg.cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
-		acg.cg_nextfreeoff = acg.cg_clusteroff + howmany
-		    (sblock.fs_cpg * sblock.fs_spc / NSPB(&sblock), NBBY);
+		acg.cg_nextfreeoff = acg.cg_clusteroff +
+		    howmany(fragstoblks(&sblock, sblock.fs_fpg), NBBY);
 	}
-	if (acg.cg_nextfreeoff-(int)(&acg.cg_firstfield) > sblock.fs_cgsize) {
+	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
 		/*
-		 * XXX This should never happen as we would have had that panic
-		 *     already on filesystem creation
+		 * This should never happen as we would have had that panic
+		 * already on filesystem creation
 		 */
 		errx(37, "panic: cylinder group too big");
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
-		for (i = 0; (size_t)i < ROOTINO; i++) {
+		for (i = 0; i < ROOTINO; i++) {
 			setbit(cg_inosused(&acg), i);
 			acg.cg_cs.cs_nifree--;
 		}
+	bzero(iobuf, sblock.fs_bsize);
 	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag) {
+		dp1 = (struct ufs1_dinode *)iobuf;
+		dp2 = (struct ufs2_dinode *)iobuf;
 #ifdef FSIRAND
-		for (j = 0; j < sblock.fs_bsize / sizeof(struct dinode); j++) {
-			zino[j].di_gen = random();
-		}
+		for (j = 0; j < INOPB(&sblock); j++)
+			if (sblock.fs_magic == FS_UFS1_MAGIC) {
+				dp1->di_gen = random();
+				dp1++;
+			} else {
+				dp2->di_gen = random();
+				dp2++;
+			}
 #endif
 		wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
-		    (size_t)sblock.fs_bsize, (void *)zino, fso, Nflag);
+		    sblock.fs_bsize, iobuf, fso, Nflag);
 	}
-	for (d = 0; d < dlower; d += sblock.fs_frag) {
-		blkno = d / sblock.fs_frag;
-		setblock(&sblock, cg_blksfree(&acg), blkno);
-		if (sblock.fs_contigsumsize > 0) {
-			setbit(cg_clustersfree(&acg), blkno);
+	if (cylno > 0) {
+		/*
+		 * In cylno 0, beginning space is reserved
+		 * for boot and super blocks.
+		 */
+		for (d = 0; d < dlower; d += sblock.fs_frag) {
+			blkno = d / sblock.fs_frag;
+			setblock(&sblock, cg_blksfree(&acg), blkno);
+			if (sblock.fs_contigsumsize > 0)
+				setbit(cg_clustersfree(&acg), blkno);
+			acg.cg_cs.cs_nbfree++;
 		}
-		acg.cg_cs.cs_nbfree++;
-		cg_blktot(&acg)[cbtocylno(&sblock, d)]++;
-		cg_blks(&sblock, &acg, cbtocylno(&sblock, d))
-		    [cbtorpos(&sblock, d)]++;
+		sblock.fs_dsize += dlower;
 	}
-	sblock.fs_dsize += dlower;
 	sblock.fs_dsize += acg.cg_ndblk - dupper;
 	if ((i = dupper % sblock.fs_frag)) {
 		acg.cg_frsum[sblock.fs_frag - i]++;
@@ -457,53 +473,47 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nffree++;
 		}
 	}
-	for (d = dupper; d + sblock.fs_frag <= dmax - cbase; ) {
+	for (d = dupper; d + sblock.fs_frag <= acg.cg_ndblk;
+	     d += sblock.fs_frag) {
 		blkno = d / sblock.fs_frag;
 		setblock(&sblock, cg_blksfree(&acg), blkno);
-		if (sblock.fs_contigsumsize > 0) {
+		if (sblock.fs_contigsumsize > 0)
 			setbit(cg_clustersfree(&acg), blkno);
-		}
 		acg.cg_cs.cs_nbfree++;
-		cg_blktot(&acg)[cbtocylno(&sblock, d)]++;
-		cg_blks(&sblock, &acg, cbtocylno(&sblock, d))
-		    [cbtorpos(&sblock, d)]++;
-		d += sblock.fs_frag;
 	}
-	if (d < dmax - cbase) {
-		acg.cg_frsum[dmax - cbase - d]++;
-		for (; d < dmax - cbase; d++) {
+	if (d < acg.cg_ndblk) {
+		acg.cg_frsum[acg.cg_ndblk - d]++;
+		for (; d < acg.cg_ndblk; d++) {
 			setbit(cg_blksfree(&acg), d);
 			acg.cg_cs.cs_nffree++;
 		}
 	}
 	if (sblock.fs_contigsumsize > 0) {
-		int32_t	*sump = cg_clustersum(&acg);
-		u_char	*mapp = cg_clustersfree(&acg);
-		int	map = *mapp++;
-		int	bit = 1;
-		int	run = 0;
+		int32_t *sump = cg_clustersum(&acg);
+		u_char *mapp = cg_clustersfree(&acg);
+		int map = *mapp++;
+		int bit = 1;
+		int run = 0;
 
 		for (i = 0; i < acg.cg_nclusterblks; i++) {
-			if ((map & bit) != 0) {
+			if ((map & bit) != 0)
 				run++;
-			} else if (run != 0) {
-				if (run > sblock.fs_contigsumsize) {
+			else if (run != 0) {
+				if (run > sblock.fs_contigsumsize)
 					run = sblock.fs_contigsumsize;
-				}
 				sump[run]++;
 				run = 0;
 			}
-			if ((i & (NBBY - 1)) != (NBBY - 1)) {
+			if ((i & (NBBY - 1)) != NBBY - 1)
 				bit <<= 1;
-			} else {
+			else {
 				map = *mapp++;
 				bit = 1;
 			}
 		}
 		if (run != 0) {
-			if (run > sblock.fs_contigsumsize) {
+			if (run > sblock.fs_contigsumsize)
 				run = sblock.fs_contigsumsize;
-			}
 			sump[run]++;
 		}
 	}
@@ -513,7 +523,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	sblock.fs_cstotal.cs_nifree += acg.cg_cs.cs_nifree;
 	*cs = acg.cg_cs;
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
-	    (size_t)sblock.fs_bsize, (void *)&acg, fso, Nflag);
+		sblock.fs_bsize, (char *)&acg, fso, Nflag);
 	DBG_DUMP_CG(&sblock,
 	    "new cg",
 	    &acg);
@@ -530,7 +540,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
  * statistic, which seems to be otherwise an rather complex operation.
  */
 static void
-frag_adjust(daddr_t frag, int sign)
+frag_adjust(ufs2_daddr_t frag, int sign)
 {
 	DBG_FUNC("frag_adjust")
 	int fragsize;
@@ -590,72 +600,57 @@ frag_adjust(daddr_t frag, int sign)
  * as there is no easy way for our general block reading engine to figure
  * out if a write back operation is needed.
  */
-static void
-cond_bl_upd(ufs_daddr_t *block, struct gfs_bpp *field,
-    enum pointer_source source, int fso, unsigned int Nflag)
+static int
+cond_bl_upd(ufs2_daddr_t *block, struct gfs_bpp *field, int fsi, int fso,
+    unsigned int Nflag)
 {
 	DBG_FUNC("cond_bl_upd")
-	struct gfs_bpp	*f;
-	char *src;
-	daddr_t dst=0;
+	struct gfs_bpp *f;
+	ufs2_daddr_t src, dst;
+	int fragnum;
+	void *ibuf;
 
 	DBG_ENTER;
 
-	f=field;
-	while(f->old) { /* for all old blocks */
-		if(*block/sblock.fs_frag == f->old) {
-			/*
-			 * The fragment is part of the block, so update.
-			 */
-			*block=(f->new*sblock.fs_frag+(*block%sblock.fs_frag));
-			f->found++;
-			DBG_PRINT3("scg (%d->%d)[%d] reference updated\n",
-			    f->old,
-			    f->new,
-			    *block%sblock.fs_frag);
+	f = field;
+	for (f = field; f->old != 0; f++) {
+		src = *block;
+		if (fragstoblks(&sblock, src) != f->old)
+			continue;
+		/*
+		 * The fragment is part of the block, so update.
+		 */
+		dst = blkstofrags(&sblock, f->new);
+		fragnum = fragnum(&sblock, src);
+		*block = dst + fragnum;
+		f->found++;
+		DBG_PRINT3("scg (%d->%d)[%d] reference updated\n",
+		    f->old,
+		    f->new,
+		    fragnum);
 
-			/* Write the block back to disk immediately */
-			switch (source) {
-			case GFS_PS_INODE:
-				src=ablk;
-				dst=in_src;
-				break;
-			case GFS_PS_IND_BLK_LVL1:
-				src=i1blk;
-				dst=i1_src;
-				break;
-			case GFS_PS_IND_BLK_LVL2:
-				src=i2blk;
-				dst=i2_src;
-				break;
-			case GFS_PS_IND_BLK_LVL3:
-				src=i3blk;
-				dst=i3_src;
-				break;
-			default:	/* error */
-				src=NULL;
-				break;
-			}
-			if(src) {
-				/*
-				 * XXX	If src is not of type inode we have to
-				 *	implement  copy on write here in  case
-				 *	of active snapshots.
-				 */
-				wtfs(dst, (size_t)sblock.fs_bsize, (void *)src,
-				    fso, Nflag);
-			}
-
-			/*
-			 * The same block can't be found again in this loop.
-			 */
-			break;
-		}
-		f++;
+		/*
+		 * Copy the block back immediately.
+		 *
+		 * XXX	If src is is from an indirect block we have
+		 *	to implement copy on write here in case of
+		 *	active snapshots.
+		 */
+		ibuf = malloc(sblock.fs_bsize);
+		if (!ibuf)
+			errx(1, "malloc failed");
+		src -= fragnum;
+		rdfs(fsbtodb(&sblock, src), (size_t)sblock.fs_bsize, ibuf, fsi);
+		wtfs(dst, (size_t)sblock.fs_bsize, ibuf, fso, Nflag);
+		free(ibuf);
+		/*
+		 * The same block can't be found again in this loop.
+		 */
+		return (1);
 	}
 
 	DBG_LEAVE;
-	return;
+	return (0);
 }
 
 /* ************************************************************ updjcg ***** */
@@ -674,7 +669,7 @@ static void
 updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("updjcg")
-	daddr_t	cbase, dmax, dupper;
+	ufs2_daddr_t	cbase, dmax, dupper;
 	struct csum	*cs;
 	int	i,k;
 	int	j=0;
@@ -703,7 +698,8 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 	 */ 
 
 	if(cgbase(&osblock, cylno+1) == osblock.fs_size) {
-		acg.cg_ncyl=sblock.fs_cpg;
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
+			acg.cg_old_ncyl=sblock.fs_old_cpg;
 
 		wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
 		    (size_t)sblock.fs_cgsize, (void *)&acg, fso, Nflag);
@@ -742,15 +738,20 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 		/*
 		 * This is still the last cylinder group.
 		 */
-		acg.cg_ncyl = sblock.fs_ncyl % sblock.fs_cpg;
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
+			acg.cg_old_ncyl =
+			    sblock.fs_old_ncyl % sblock.fs_old_cpg;
 	} else {
-		acg.cg_ncyl = sblock.fs_cpg;
+		acg.cg_old_ncyl = sblock.fs_old_cpg;
 	}
-	DBG_PRINT4("jcg dbg: %d %u %d %u\n",
+	DBG_PRINT2("jcg dbg: %d %u",
 	    cylno,
-	    sblock.fs_ncg,
-	    acg.cg_ncyl,
-	    sblock.fs_cpg);
+	    sblock.fs_ncg);
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		DBG_PRINT2("%d %u",
+		    acg.cg_old_ncyl,
+		    sblock.fs_old_cpg);
+	DBG_PRINT0("\n");
 	acg.cg_ndblk = dmax - cbase;
 	sblock.fs_dsize += acg.cg_ndblk-aocg.cg_ndblk;
 	if (sblock.fs_contigsumsize > 0) {
@@ -801,9 +802,6 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 				acg.cg_cs.cs_nffree-=sblock.fs_frag;
 				k=rounddown(osblock.fs_size-cbase,
 				    sblock.fs_frag);
-				cg_blktot(&acg)[cbtocylno(&sblock, k)]++;
-				cg_blks(&sblock, &acg, cbtocylno(&sblock, k))
-		   		    [cbtorpos(&sblock, k)]++;
 				updclst((osblock.fs_size-cbase)/sblock.fs_frag);
 			} else {
 				/*
@@ -861,9 +859,6 @@ updjcg(int cylno, time_t utime, int fsi, int fso, unsigned int Nflag)
 		setblock(&sblock, cg_blksfree(&acg), j);
 		updclst(j);
 		acg.cg_cs.cs_nbfree++;
-		cg_blktot(&acg)[cbtocylno(&sblock, i)]++;
-		cg_blks(&sblock, &acg, cbtocylno(&sblock, i))
-		    [cbtorpos(&sblock, i)]++;
 	}
 
 	/*
@@ -930,7 +925,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 	struct csum	*cs;
 	int	ocscg, ncscg;
 	int	blocks;
-	daddr_t	cbase, dupper, odupper, d, f, g;
+	ufs2_daddr_t	cbase, dupper, odupper, d, f, g;
 	int	ind;
 	int	cylno, inc;
 	struct gfs_bpp	*bp;
@@ -1062,11 +1057,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 				acg.cg_cs.cs_nbfree++;
 				sblock.fs_cstotal.cs_nffree-=sblock.fs_frag;
 				sblock.fs_cstotal.cs_nbfree++;
-				cg_blktot(&acg)[cbtocylno(&sblock,
-				    d%sblock.fs_fpg)]++;
-				cg_blks(&sblock, &acg, cbtocylno(&sblock,
-				    d%sblock.fs_fpg))[cbtorpos(&sblock,
-				    d%sblock.fs_fpg)]++;
 				if(sblock.fs_contigsumsize > 0) {
 					setbit(cg_clustersfree(&acg),
 					    (d%sblock.fs_fpg)/sblock.fs_frag);
@@ -1098,10 +1088,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			    (d%sblock.fs_fpg)/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree++;
 			sblock.fs_cstotal.cs_nbfree++;
-			cg_blktot(&acg)[cbtocylno(&sblock, d%sblock.fs_fpg)]++;
-			cg_blks(&sblock, &acg, cbtocylno(&sblock,
-			    d%sblock.fs_fpg))[cbtorpos(&sblock,
-			    d%sblock.fs_fpg)]++;
 			if(sblock.fs_contigsumsize > 0) {
 				setbit(cg_clustersfree(&acg),
 				    (d%sblock.fs_fpg)/sblock.fs_frag);
@@ -1174,10 +1160,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			    (d%sblock.fs_fpg)/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree--;
 			sblock.fs_cstotal.cs_nbfree--;
-			cg_blktot(&acg)[cbtocylno(&sblock, d%sblock.fs_fpg)]--;
-			cg_blks(&sblock, &acg, cbtocylno(&sblock,
-			    d%sblock.fs_fpg))[cbtorpos(&sblock,
-			    d%sblock.fs_fpg)]--;
 			if(sblock.fs_contigsumsize > 0) {
 				clrbit(cg_clustersfree(&acg),
 				    (d%sblock.fs_fpg)/sblock.fs_frag);
@@ -1200,10 +1182,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nffree+=sblock.fs_frag;
 			sblock.fs_cstotal.cs_nbfree--;
 			sblock.fs_cstotal.cs_nffree+=sblock.fs_frag;
-			cg_blktot(&acg)[cbtocylno(&sblock, d%sblock.fs_fpg)]--;
-			cg_blks(&sblock, &acg, cbtocylno(&sblock,
-			    d%sblock.fs_fpg))[cbtorpos(&sblock,
-			    d%sblock.fs_fpg)]--;
 			if(sblock.fs_contigsumsize > 0) {
 				clrbit(cg_clustersfree(&acg),
 				    (d%sblock.fs_fpg)/sblock.fs_frag);
@@ -1323,9 +1301,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			clrblock(&sblock, cg_blksfree(&acg), d/sblock.fs_frag);
 			acg.cg_cs.cs_nbfree--;
 			sblock.fs_cstotal.cs_nbfree--;
-			cg_blktot(&acg)[cbtocylno(&sblock, d)]--;
-			cg_blks(&sblock, &acg, cbtocylno(&sblock, d))
-			    [cbtorpos(&sblock, d)]--;
 			if(sblock.fs_contigsumsize > 0) {
 				clrbit(cg_clustersfree(&acg), d/sblock.fs_frag);
 				for(lcs=0, l=(d/sblock.fs_frag)+1;
@@ -1360,9 +1335,6 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 			sblock.fs_cstotal.cs_nbfree--;
 			acg.cg_cs.cs_nffree+=sblock.fs_frag;
 			sblock.fs_cstotal.cs_nffree+=sblock.fs_frag;
-			cg_blktot(&acg)[cbtocylno(&sblock, d)]--;
-			cg_blks(&sblock, &acg, cbtocylno(&sblock, d))
-			    [cbtorpos(&sblock, d)]--;
 			if(sblock.fs_contigsumsize > 0) {
 				clrbit(cg_clustersfree(&acg), d/sblock.fs_frag);
 				for(lcs=0, l=(d/sblock.fs_frag)+1;
@@ -1559,7 +1531,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
  * Here we read some block(s) from disk.
  */
 static void
-rdfs(daddr_t bno, size_t size, void *bf, int fsi)
+rdfs(ufs2_daddr_t bno, size_t size, void *bf, int fsi)
 {
 	DBG_FUNC("rdfs")
 	ssize_t	n;
@@ -1583,7 +1555,7 @@ rdfs(daddr_t bno, size_t size, void *bf, int fsi)
  * Here we write some block(s) to disk.
  */
 static void
-wtfs(daddr_t bno, size_t size, void *bf, int fso, unsigned int Nflag)
+wtfs(ufs2_daddr_t bno, size_t size, void *bf, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("wtfs")
 	ssize_t	n;
@@ -1612,11 +1584,11 @@ wtfs(daddr_t bno, size_t size, void *bf, int fso, unsigned int Nflag)
  * that  acg contains the current cylinder group. As we may take a block  from
  * somewhere in the filesystem we have to handle cluster summary here.
  */
-static daddr_t
+static ufs2_daddr_t
 alloc(void)
 {
 	DBG_FUNC("alloc")
-	daddr_t	d, blkno;
+	ufs2_daddr_t	d, blkno;
 	int	lcs1, lcs2;
 	int	l;
 	int	csmin, csmax;
@@ -1735,8 +1707,6 @@ alloc(void)
 	 */
 	acg.cg_cs.cs_nbfree--;
 	sblock.fs_cstotal.cs_nbfree--;
-	cg_blktot(&acg)[cbtocylno(&sblock, d)]--;
-	cg_blks(&sblock, &acg, cbtocylno(&sblock, d))[cbtorpos(&sblock, d)]--;
 
 	DBG_LEAVE;
 	return (d);
@@ -1857,32 +1827,29 @@ setblock(struct fs *fs, unsigned char *cp, int h)
  * not  read the same block again and again if we iterate linearly  over  all
  * inodes.
  */
-static struct dinode *
+static union dinode *
 ginode(ino_t inumber, int fsi, int cg)
 {
 	DBG_FUNC("ginode")
-	ufs_daddr_t	iblk;
-	static ino_t	startinum=0;	/* first inode in cached block */
-	struct dinode	*pi;
+	static ino_t	startinum = 0;	/* first inode in cached block */
 
 	DBG_ENTER;
 
-	pi=(struct dinode *)(void *)ablk;
-	inumber+=(cg * sblock.fs_ipg);
-	if (startinum == 0 || inumber < startinum ||
-	    inumber >= startinum + INOPB(&sblock)) {
-		/*
-		 * The block needed is not cached, so we have to read it from
-		 * disk now.
-		 */
-		iblk = ino_to_fsba(&sblock, inumber);
-		in_src=fsbtodb(&sblock, iblk);
-		rdfs(in_src, (size_t)sblock.fs_bsize, (void *)&ablk, fsi);
+	inumber += (cg * sblock.fs_ipg);
+	if (inumber < ROOTINO || inumber > maxino)
+		errx(8, "bad inode number %d to ginode", inumber);
+	if (startinum == 0 ||
+	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
+		inoblk = fsbtodb(&sblock, ino_to_fsba(&sblock, inumber));
+		rdfs(inoblk, (size_t)sblock.fs_bsize, inobuf, fsi);
 		startinum = (inumber / INOPB(&sblock)) * INOPB(&sblock);
 	}
-
 	DBG_LEAVE;
-	return (&(pi[inumber % INOPB(&sblock)]));
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		return ((union dinode *)
+		    &((struct ufs1_dinode *)inobuf)[inumber % INOPB(&sblock)]);
+	return ((union dinode *)
+	    &((struct ufs2_dinode *)inobuf)[inumber % INOPB(&sblock)]);
 }
 
 /* ****************************************************** charsperline ***** */
@@ -1952,7 +1919,7 @@ main(int argc, char **argv)
 	struct stat	st;
 	struct disklabel	*lp;
 	struct partition	*pp;
-	int	fsi,fso;
+	int	i,fsi,fso;
 	char	reply[5];
 #ifdef FSMAXSNAP
 	int	j;
@@ -2075,12 +2042,22 @@ main(int argc, char **argv)
 	/*
 	 * Read the current superblock, and take a backup.
 	 */
-	rdfs((daddr_t)(SBOFF/DEV_BSIZE), (size_t)SBSIZE, (void *)&(osblock),
-	    fsi);
-	if (osblock.fs_magic != FS_MAGIC) {
+	for (i = 0; sblock_try[i] != -1; i++) {
+		sblockloc = sblock_try[i] / DEV_BSIZE;
+		rdfs(sblockloc, (size_t)SBLOCKSIZE, (void *)&(osblock), fsi);
+		if ((osblock.fs_magic == FS_UFS1_MAGIC ||
+		     (osblock.fs_magic == FS_UFS2_MAGIC &&
+		      osblock.fs_sblockloc ==
+			  numfrags(&osblock, sblock_try[i]))) &&
+		    osblock.fs_bsize <= MAXBSIZE &&
+		    osblock.fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[i] == -1) {
 		errx(1, "superblock not recognized");
 	}
 	memcpy((void *)&fsun1, (void *)&fsun2, sizeof(fsun2));
+	maxino = sblock.fs_ncg * sblock.fs_ipg;
 
 	DBG_OPEN("/tmp/growfs.debug"); /* already here we need a superblock */
 	DBG_DUMP_FS(&sblock,
@@ -2144,8 +2121,8 @@ main(int argc, char **argv)
 	 * later on realize we have to abort our operation, on that block
 	 * there should be no data, so we can't destroy something yet.
 	 */
-	wtfs((daddr_t)pp->p_size-1, (size_t)DEV_BSIZE, (void *)&sblock, fso,
-	    Nflag);
+	wtfs((ufs2_daddr_t)pp->p_size-1, (size_t)DEV_BSIZE, (void *)&sblock,
+	    fso, Nflag);
 
 	/*
 	 * Now calculate new superblock values and check for reasonable
@@ -2158,40 +2135,30 @@ main(int argc, char **argv)
 	 */
 
 	/*
-	 * Update the number of cylinders in the filesystem.
+	 * Update the number of cylinders and cylinder groups in the filesystem.
 	 */
-	sblock.fs_ncyl = sblock.fs_size * NSPF(&sblock) / sblock.fs_spc;
-	if (sblock.fs_size * NSPF(&sblock) > sblock.fs_ncyl * sblock.fs_spc) {
-		sblock.fs_ncyl++;
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		sblock.fs_old_ncyl =
+		    sblock.fs_size * sblock.fs_old_nspf / sblock.fs_old_spc;
+		if (sblock.fs_size * sblock.fs_old_nspf >
+		    sblock.fs_old_ncyl * sblock.fs_old_spc)
+			sblock.fs_old_ncyl++;
 	}
+	sblock.fs_ncg = howmany(sblock.fs_size, sblock.fs_fpg);
+	maxino = sblock.fs_ncg * sblock.fs_ipg;
 
-	/*
-	 * Update the number of cylinder groups in the filesystem.
-	 */
-	sblock.fs_ncg = sblock.fs_ncyl / sblock.fs_cpg;
-	if (sblock.fs_ncyl % sblock.fs_cpg) {
-		sblock.fs_ncg++;
-	}
-
-	if ((sblock.fs_size - (sblock.fs_ncg-1) * sblock.fs_fpg) <
-	    sblock.fs_fpg && cgdmin(&sblock, (sblock.fs_ncg-1))-
-	    cgbase(&sblock, (sblock.fs_ncg-1)) > (sblock.fs_size -
-	    (sblock.fs_ncg-1) * sblock.fs_fpg )) {
+	if (sblock.fs_size % sblock.fs_fpg != 0 &&
+	    sblock.fs_size % sblock.fs_fpg < cgdmin(&sblock, sblock.fs_ncg)) {
 		/*
 		 * The space in the new last cylinder group is too small,
 		 * so revert back.
 		 */
 		sblock.fs_ncg--;
-#if 1 /* this is a bit more safe */
-		sblock.fs_ncyl = sblock.fs_ncg * sblock.fs_cpg;
-#else
-		sblock.fs_ncyl -= sblock.fs_ncyl % sblock.fs_cpg;
-#endif
-		sblock.fs_ncyl -= sblock.fs_ncyl % sblock.fs_cpg;
-		printf( "Warning: %d sector(s) cannot be allocated.\n",
-		    (sblock.fs_size-(sblock.fs_ncg)*sblock.fs_fpg) *
-		    NSPF(&sblock));
-		sblock.fs_size = sblock.fs_ncyl * sblock.fs_spc / NSPF(&sblock);
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
+			sblock.fs_old_ncyl = sblock.fs_ncg * sblock.fs_old_cpg;
+		printf("Warning: %d sector(s) cannot be allocated.\n",
+		    fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
+		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
 	}
 
 	/*
@@ -2217,7 +2184,7 @@ main(int argc, char **argv)
 	 */
 	pp->p_fsize = sblock.fs_fsize;
 	pp->p_frag = sblock.fs_frag;
-	pp->p_cpg = sblock.fs_cpg;
+	pp->p_cpg = sblock.fs_fpg;
 
 	return_disklabel(fso, lp, Nflag);
 	DBG_PRINT0("label rewritten\n");
@@ -2370,32 +2337,33 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
     Nflag)
 {	
 	DBG_FUNC("updrefs")
-	unsigned int	ictr, ind2ctr, ind3ctr;
-	ufs_daddr_t	*iptr, *ind2ptr, *ind3ptr;
-	struct dinode	*ino;
-	int	remaining_blocks;
+	ufs_lbn_t	len, lbn, numblks;
+	ufs2_daddr_t	iptr, blksperindir;
+	union dinode	*ino;
+	int		i, mode, remaining_blocks, inodeupdated;
 
 	DBG_ENTER;
 
 	/*
-	 * XXX We should skip unused inodes even from beeing read from disk
+	 * XXX We should skip unused inodes even from being read from disk
 	 *     here by using the bitmap.
 	 */
-	ino=ginode(in, fsi, cg);
-	if(!((ino->di_mode & IFMT)==IFDIR || (ino->di_mode & IFMT)==IFREG ||
-	    (ino->di_mode & IFMT)==IFLNK)) {
+	ino = ginode(in, fsi, cg);
+	mode = DIP(ino, di_mode) & IFMT;
+	if (mode != IFDIR && mode != IFREG && mode != IFLNK) {
 		DBG_LEAVE;
 		return; /* only check DIR, FILE, LINK */
 	}
-	if(((ino->di_mode & IFMT)==IFLNK) && (ino->di_size<MAXSYMLINKLEN)) {
+	if (mode == IFLNK && DIP(ino, di_size) < sblock.fs_maxsymlinklen) {
 		DBG_LEAVE;
 		return;	/* skip short symlinks */
 	}
-	if(!ino->di_size) {
+	numblks = howmany(DIP(ino, di_size), sblock.fs_bsize);
+	if (numblks == 0) {
 		DBG_LEAVE;
 		return;	/* skip empty file */
 	}
-	if(!ino->di_blocks) {
+	if (DIP(ino, di_blocks) == 0) {
 		DBG_LEAVE;
 		return;	/* skip empty swiss cheesy file or old fastlink */
 	}
@@ -2404,134 +2372,87 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 	    cg);
 
 	/*
-	 * Start checking all direct blocks.
+	 * Check all the blocks.
 	 */
-	remaining_blocks=howmany(ino->di_size, sblock.fs_bsize);
-	for(ictr=0; ictr < MIN(NDADDR, (unsigned int)remaining_blocks);
-	    ictr++) {
-		iptr=&(ino->di_db[ictr]);
-		if(*iptr) {
-			cond_bl_upd(iptr, bp, GFS_PS_INODE, fso, Nflag);
+	inodeupdated = 0;
+	len = numblks < NDADDR ? numblks : NDADDR;
+	for (i = 0; i < len; i++) {
+		iptr = DIP(ino, di_db[i]);
+		if (iptr == 0)
+			continue;
+		if (cond_bl_upd(&iptr, bp, fsi, fso, Nflag)) {
+			DIP(ino, di_db[i]) = iptr;
+			inodeupdated++;
 		}
 	}
 	DBG_PRINT0("~~scg direct blocks checked\n");
 
-	remaining_blocks-=NDADDR;
-	if(remaining_blocks<0) {
-		DBG_LEAVE;
-		return;
-	}
-	if(ino->di_ib[0]) {
-		/*
-		 * Start checking first indirect block
-		 */
-		cond_bl_upd(&(ino->di_ib[0]), bp, GFS_PS_INODE, fso, Nflag);
-		i1_src=fsbtodb(&sblock, ino->di_ib[0]);
-		rdfs(i1_src, (size_t)sblock.fs_bsize, (void *)&i1blk, fsi);
-		for(ictr=0; ictr < MIN(howmany(sblock.fs_bsize,
-		    sizeof(ufs_daddr_t)), (unsigned int)remaining_blocks);
-		    ictr++) {
-			iptr=&((ufs_daddr_t *)(void *)&i1blk)[ictr];
-			if(*iptr) {
-				cond_bl_upd(iptr, bp, GFS_PS_IND_BLK_LVL1,
-				    fso, Nflag);
-			}
+	blksperindir = 1;
+	len = numblks - NDADDR;
+	lbn = NDADDR;
+	for (i = 0; len > 0 && i < NIADDR; i++) {
+		iptr = DIP(ino, di_ib[i]);
+		if (iptr == 0)
+			continue;
+		if (cond_bl_upd(&iptr, bp, fsi, fso, Nflag)) {
+			DIP(ino, di_ib[i]) = iptr;
+			inodeupdated++;
 		}
+		indirchk(blksperindir, lbn, iptr, numblks, bp, fsi, fso, Nflag);
+		blksperindir *= NINDIR(&sblock);
+		lbn += blksperindir;
+		len -= blksperindir;
+		DBG_PRINT1("scg indirect_%d blocks checked\n", i + 1);
 	}
-	DBG_PRINT0("scg indirect_1 blocks checked\n");
-
-	remaining_blocks-= howmany(sblock.fs_bsize, sizeof(ufs_daddr_t));
-	if(remaining_blocks<0) {
-		DBG_LEAVE;
-		return;
-	}
-	if(ino->di_ib[1]) {
-		/*
-		 * Start checking second indirect block
-		 */
-		cond_bl_upd(&(ino->di_ib[1]), bp, GFS_PS_INODE, fso, Nflag);
-		i2_src=fsbtodb(&sblock, ino->di_ib[1]);
-		rdfs(i2_src, (size_t)sblock.fs_bsize, (void *)&i2blk, fsi);
-		for(ind2ctr=0; ind2ctr < howmany(sblock.fs_bsize,
-		    sizeof(ufs_daddr_t)); ind2ctr++) {
-			ind2ptr=&((ufs_daddr_t *)(void *)&i2blk)[ind2ctr];
-			if(!*ind2ptr) {
-				continue;
-			}
-			cond_bl_upd(ind2ptr, bp, GFS_PS_IND_BLK_LVL2, fso,
-			    Nflag);
-			i1_src=fsbtodb(&sblock, *ind2ptr);
-			rdfs(i1_src, (size_t)sblock.fs_bsize, (void *)&i1blk,
-			    fsi);
-			for(ictr=0; ictr<MIN(howmany((unsigned int)
-			    sblock.fs_bsize, sizeof(ufs_daddr_t)),
-			    (unsigned int)remaining_blocks); ictr++) {
-				iptr=&((ufs_daddr_t *)(void *)&i1blk)[ictr];
-				if(*iptr) {
-					cond_bl_upd(iptr, bp,
-					    GFS_PS_IND_BLK_LVL1, fso, Nflag);
-				}
-			}
-		}
-	}
-	DBG_PRINT0("scg indirect_2 blocks checked\n");
-
-#define SQUARE(a) ((a)*(a))
-	remaining_blocks-=SQUARE(howmany(sblock.fs_bsize, sizeof(ufs_daddr_t)));
-#undef SQUARE
-	if(remaining_blocks<0) {
-		DBG_LEAVE;
-		return;
-	}
-			
-	if(ino->di_ib[2]) {
-		/*
-		 * Start checking third indirect block
-		 */
-		cond_bl_upd(&(ino->di_ib[2]), bp, GFS_PS_INODE, fso, Nflag);
-		i3_src=fsbtodb(&sblock, ino->di_ib[2]);
-		rdfs(i3_src, (size_t)sblock.fs_bsize, (void *)&i3blk, fsi);
-		for(ind3ctr=0; ind3ctr < howmany(sblock.fs_bsize,
-		    sizeof(ufs_daddr_t)); ind3ctr ++) {
-			ind3ptr=&((ufs_daddr_t *)(void *)&i3blk)[ind3ctr];
-			if(!*ind3ptr) {
-				continue;
-			}
-			cond_bl_upd(ind3ptr, bp, GFS_PS_IND_BLK_LVL3, fso,
-			    Nflag);
-			i2_src=fsbtodb(&sblock, *ind3ptr);
-			rdfs(i2_src, (size_t)sblock.fs_bsize, (void *)&i2blk,
-			    fsi);
-			for(ind2ctr=0; ind2ctr < howmany(sblock.fs_bsize,
-			    sizeof(ufs_daddr_t)); ind2ctr ++) {
-				ind2ptr=&((ufs_daddr_t *)(void *)&i2blk)
-				    [ind2ctr];
-				if(!*ind2ptr) {
-					continue;
-				}
-				cond_bl_upd(ind2ptr, bp, GFS_PS_IND_BLK_LVL2,
-				    fso, Nflag);
-				i1_src=fsbtodb(&sblock, *ind2ptr);
-				rdfs(i1_src, (size_t)sblock.fs_bsize,
-				    (void *)&i1blk, fsi);
-				for(ictr=0; ictr < MIN(howmany(sblock.fs_bsize,
-				    sizeof(ufs_daddr_t)),
-				    (unsigned int)remaining_blocks); ictr++) {
-					iptr=&((ufs_daddr_t *)(void *)&i1blk)
-					    [ictr];
-					if(*iptr) {
-						cond_bl_upd(iptr, bp,
-						    GFS_PS_IND_BLK_LVL1, fso,
-						    Nflag);
-					}
-				}
-			}
-		}
-	}
-
-	DBG_PRINT0("scg indirect_3 blocks checked\n");
+	if (inodeupdated)
+		wtfs(inoblk, sblock.fs_bsize, inobuf, fso, Nflag);
 
 	DBG_LEAVE;
 	return;
 }
 
+/*
+ * Recursively check all the indirect blocks.
+ */
+static void
+indirchk(ufs_lbn_t blksperindir, ufs_lbn_t lbn, ufs2_daddr_t blkno,
+    ufs_lbn_t lastlbn, struct gfs_bpp *bp, int fsi, int fso, unsigned int Nflag)
+{
+	DBG_FUNC("indirchk")
+	void *ibuf;
+	off_t offset;
+	int i, last;
+	ufs2_daddr_t iptr;
+
+	DBG_ENTER;
+
+	/* read in the indirect block. */
+	ibuf = malloc(sblock.fs_bsize);
+	if (!ibuf)
+		errx(1, "malloc failed");
+	rdfs(fsbtodb(&sblock, blkno), (size_t)sblock.fs_bsize, ibuf, fsi);
+	last = howmany(lastlbn - lbn, blksperindir) < NINDIR(&sblock) ?
+	    howmany(lastlbn - lbn, blksperindir) : NINDIR(&sblock);
+	for (i = 0; i < last; i++) {
+		if (sblock.fs_magic == FS_UFS1_MAGIC)
+			iptr = ((ufs1_daddr_t *)ibuf)[i];
+		else
+			iptr = ((ufs2_daddr_t *)ibuf)[i];
+		if (iptr == 0)
+			continue;
+		if (cond_bl_upd(&iptr, bp, fsi, fso, Nflag)) {
+			if (sblock.fs_magic == FS_UFS1_MAGIC)
+				((ufs1_daddr_t *)ibuf)[i] = iptr;
+			else
+				((ufs2_daddr_t *)ibuf)[i] = iptr;
+		}
+		if (blksperindir == 1)
+			continue;
+		indirchk(blksperindir / NINDIR(&sblock), lbn + blksperindir * i,
+		    iptr, lastlbn, bp, fsi, fso, Nflag);
+	}
+	free(ibuf);
+
+	DBG_LEAVE;
+	return;
+}

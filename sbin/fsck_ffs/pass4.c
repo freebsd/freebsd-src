@@ -54,7 +54,7 @@ pass4(void)
 {
 	ino_t inumber;
 	struct zlncnt *zlnp;
-	struct dinode *dp;
+	union dinode *dp;
 	struct inodesc idesc;
 	int i, n, cg;
 
@@ -100,7 +100,7 @@ pass4(void)
 
 			case DCLEAR:
 				dp = ginode(inumber);
-				if (dp->di_size == 0) {
+				if (DIP(dp, di_size) == 0) {
 					clri(&idesc, "ZERO LENGTH", 1);
 					break;
 				}
@@ -125,7 +125,7 @@ pass4check(struct inodesc *idesc)
 {
 	struct dups *dlp;
 	int nfrags, res = KEEPON;
-	ufs_daddr_t blkno = idesc->id_blkno;
+	ufs2_daddr_t blkno = idesc->id_blkno;
 
 	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
 		if (chkrange(blkno, 1)) {

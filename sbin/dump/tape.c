@@ -62,7 +62,7 @@ static const char rcsid[] =
 #include "dump.h"
 
 int	writesize;		/* size of malloc()ed buffer for tape */
-long	lastspclrec = -1;	/* tape block number of last written header */
+int64_t	lastspclrec = -1;	/* tape block number of last written header */
 int	trecno = 0;		/* next record to write in current block */
 extern	long blocksperfile;	/* number of blocks per output file */
 long	blocksthisvol;		/* number of blocks on current output file */
@@ -87,21 +87,21 @@ static	void rollforward(void);
  * The following structure defines the instruction packets sent to slaves.
  */
 struct req {
-	ufs_daddr_t dblk;
+	ufs2_daddr_t dblk;
 	int count;
 };
 int reqsiz;
 
 #define SLAVES 3		/* 1 slave writing, 1 reading, 1 for slack */
 struct slave {
-	int tapea;		/* header number at start of this chunk */
+	int64_t tapea;		/* header number at start of this chunk */
+	int64_t firstrec;	/* record number of this block */
 	int count;		/* count to next header (used for TS_TAPE */
 				/* after EOT) */
 	int inode;		/* inode that we are currently dealing with */
 	int fd;			/* FD for this slave */
 	int pid;		/* PID for this slave */
 	int sent;		/* 1 == we've sent this slave requests */
-	int firstrec;		/* record number of this block */
 	char (*tblock)[TP_BSIZE]; /* buffer for data blocks */
 	struct req *req;	/* buffer for requests */
 } slaves[SLAVES+1];
@@ -161,7 +161,7 @@ void
 writerec(char *dp, int isspcl)
 {
 
-	slp->req[trecno].dblk = (ufs_daddr_t)0;
+	slp->req[trecno].dblk = (ufs2_daddr_t)0;
 	slp->req[trecno].count = 1;
 	/* Can't do a structure assignment due to alignment problems */
 	bcopy(dp, *(nextblock)++, sizeof (union u_spcl));
@@ -174,9 +174,10 @@ writerec(char *dp, int isspcl)
 }
 
 void
-dumpblock(ufs_daddr_t blkno, int size)
+dumpblock(ufs2_daddr_t blkno, int size)
 {
-	int avail, tpblks, dblkno;
+	int avail, tpblks;
+	ufs2_daddr_t dblkno;
 
 	dblkno = fsbtodb(sblock, blkno);
 	tpblks = size >> tp_bshift;
@@ -226,7 +227,7 @@ static void
 flushtape(void)
 {
 	int i, blks, got;
-	long lastfirstrec;
+	int64_t lastfirstrec;
 
 	int siz = (char *)nextblock - (char *)slp->req;
 
@@ -385,7 +386,8 @@ rollforward(void)
 {
 	struct req *p, *q, *prev;
 	struct slave *tslp;
-	int i, size, savedtapea, got;
+	int i, size, got;
+	int64_t savedtapea;
 	union u_spcl *ntb, *otb;
 	tslp = &slaves[SLAVES];
 	ntb = (union u_spcl *)tslp->tblock[1];
@@ -618,9 +620,7 @@ restore_check_point:
 		spcl.c_firstrec = slp->firstrec;
 		spcl.c_volume++;
 		spcl.c_type = TS_TAPE;
-		spcl.c_flags |= DR_NEWHEADER;
 		writeheader((ino_t)slp->inode);
-		spcl.c_flags &=~ DR_NEWHEADER;
 		if (tapeno > 1)
 			msg("Volume %d begins with blocks from inode %d\n",
 				tapeno, slp->inode);

@@ -148,8 +148,6 @@ typedef	_BSD_SEGSZ_T_	segsz_t;	/* segment size (in pages) */
 #endif
 
 typedef	int32_t		swblk_t;	/* swap offset */
-typedef	int32_t		ufs_daddr_t;
-typedef	int32_t		ufs_time_t;
 
 #ifdef _BSD_UID_T_
 typedef	_BSD_UID_T_	uid_t;		/* user id */

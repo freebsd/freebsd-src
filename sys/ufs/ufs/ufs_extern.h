@@ -60,7 +60,8 @@ int	ufs_vnoperatefifo(struct vop_generic_args *);
 int	ufs_vnoperatespec(struct vop_generic_args *);
 
 int	 ufs_bmap(struct vop_bmap_args *);
-int	 ufs_bmaparray(struct vnode *, ufs_daddr_t, ufs_daddr_t *, int *, int *);
+int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *, int *,
+	    int *);
 int	 ufs_fhtovp(struct mount *, struct ufid *, struct vnode **);
 int	 ufs_checkpath(struct inode *, struct inode *, struct ucred *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);
@@ -72,7 +73,7 @@ int	 ufs_direnter(struct vnode *, struct vnode *, struct direct *,
 	    struct componentname *, struct buf *);
 int	 ufs_dirremove(struct vnode *, struct inode *, int, int);
 int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, int);
-int	 ufs_getlbns(struct vnode *, ufs_daddr_t, struct indir *, int *);
+int	 ufs_getlbns(struct vnode *, ufs2_daddr_t, struct indir *, int *);
 int	 ufs_ihashget(dev_t, ino_t, int, struct vnode **);
 void	 ufs_ihashinit(void);
 int	 ufs_ihashins(struct inode *, int, struct vnode **);
@@ -94,12 +95,12 @@ int	 ufs_vinit(struct mount *, vop_t **, vop_t **, struct vnode **);
  * Soft update function prototypes.
  */
 int	softdep_setup_directory_add(struct buf *, struct inode *, off_t,
-	    long, struct buf *, int);
+	    ino_t, struct buf *, int);
 void	softdep_change_directoryentry_offset(struct inode *, caddr_t,
 	    caddr_t, caddr_t, int);
 void	softdep_setup_remove(struct buf *,struct inode *, struct inode *, int);
 void	softdep_setup_directory_change(struct buf *, struct inode *,
-	    struct inode *, long, int);
+	    struct inode *, ino_t, int);
 void	softdep_change_linkcnt(struct inode *);
 void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);

@@ -32,7 +32,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd May 18, 2002
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -42,7 +42,6 @@
 .Nm
 .Op Fl A
 .Op Fl a Ar maxcontig
-.Op Fl d Ar rotdelay
 .Op Fl e Ar maxbpg
 .Op Fl f Ar avgfilesize
 .Op Fl m Ar minfree
@@ -57,6 +56,13 @@
 .Nm Tunefs
 is designed to change the dynamic parameters of a filesystem
 which affect the layout policies.
+The
+.Nm
+program cannot be run on an active filesystem.
+To change an active filesystem,
+you must either downgrade the filesystem to read-only
+or unmount it.
+.Pp
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width indent
@@ -66,19 +72,8 @@ this option will cause all backups to be modified as well as the
 primary super-block.  This is potentially dangerous - use with caution.
 .It Fl a Ar maxcontig
 Specify the maximum number of contiguous blocks that will
-be laid out before forcing a rotational delay (see
-.Fl d
-below).
-The default value is one, since most device drivers require
-an interrupt per disk transfer.
-Device drivers that can chain several buffers together in a single
-transfer should set this to the maximum chain length.
-.It Fl d Ar rotdelay
-Specify the expected time (in milliseconds)
-to service a transfer completion
-interrupt and initiate a new transfer on the same disk.
-It is used to decide how much rotational spacing to place between
-successive blocks in a file.
+be laid out before allowing a rotational delay.
+The default value is 16.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -131,9 +126,11 @@ the percent fragmentation changes on the filesystem.
 .It Fl p
 Show a summary of what the current tunable settings
 are on the selected filesystem.  More detailed information can be
-obtained in the
+obtained from the
 .Xr dumpfs 8
-manual page.
+or
+.Xr ffsinfo 8
+programs.
 .It Fl s Ar avgfpdir
 Specify the expected number of files per directory.
 .El
@@ -148,6 +145,7 @@ specified mount point.
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr dumpfs 8 ,
+.Xr ffsinfo 8 ,
 .Xr newfs 8
 .Rs
 .%A M. McKusick
@@ -162,13 +160,8 @@ specified mount point.
 .%O "(reprinted in the BSD System Manager's Manual, SMM:5)"
 .Re
 .Sh BUGS
-This program should work on mounted and active filesystems.
-Because the super-block is not kept in the buffer cache,
-the changes will only take effect if the program
-is run on dismounted filesystems.
-To change the root filesystem, the system must be rebooted
-after the filesystem is tuned.
-.\" Take this out and a Unix Demon will dog your steps from now until
+This program should work on active filesystems.
+.\" Take this out and a Unix Daemon will dog your steps from now until
 .\" the time_t's wrap around.
 .Pp
 You can tune a filesystem, but you can't tune a fish.

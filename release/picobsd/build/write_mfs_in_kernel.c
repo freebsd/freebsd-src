@@ -19,8 +19,11 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/disklabel.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
+static int sblock_try[] = SBLOCKSEARCH;
 static int force = 0;	/* don't check for zeros, may corrupt kernel */
 
 int
@@ -29,7 +32,8 @@ main(int argc, char **argv)
 	unsigned char *buf_kernel, *buf_fs, *p,*q, *prog;
 	int fd_kernel, fd_fs, ch, errs=0;
 	struct stat st_kernel, st_fs;
-	u_long l;
+	struct fs *fs;
+	u_long l, sboff;
 
 	prog= *argv;
 	while ((ch = getopt(argc, argv, "f")) != EOF)
@@ -68,17 +72,31 @@ main(int argc, char **argv)
 	fprintf(stderr,"MFS filesystem signature not found in %s\n",argv[1]);
 	exit(1);
 found:
+	for (l = 0; sblock_try[l] != -1; l++) {
+		sboff = sblock_try[l];
+		fs = (struct fs *)(buf_fs + sboff);
+		if ((fs->fs_magic == FS_UFS1_MAGIC ||
+		     (fs->fs_magic == FS_UFS2_MAGIC &&
+		      fs->fs_sblockloc == numfrags(fs, sblock_try[l]))) &&
+		    fs->fs_bsize <= MAXBSIZE &&
+		    fs->fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[l] == -1) {
+		fprintf(stderr, "Cannot find filesystem\n");
+		exit(2);
+	}
 	if (!force)
-		for(l=0,q= p + SBOFF; l < st_fs.st_size - SBOFF ; l++,q++ )
+		for(l=0,q= p + sboff; l < st_fs.st_size - sboff ; l++,q++ )
 			if (*q)
 				goto fail;
-	memcpy(p+SBOFF,buf_fs+SBOFF,st_fs.st_size-SBOFF);
+	memcpy(p+sboff,buf_fs+sboff,st_fs.st_size-sboff);
 	lseek(fd_kernel,0L,SEEK_SET);
 	if (st_kernel.st_size != write(fd_kernel,buf_kernel,st_kernel.st_size))
 		{ perror(argv[1]); exit(2); }
 	exit(0);
 fail:
-	l += SBOFF;
+	l += sboff;
 	fprintf(stderr,"Obstruction in kernel after %ld bytes (%ld Kbyte)\n",
 		l, l/1024);
 	fprintf(stderr,"Filesystem is %ld bytes (%ld Kbyte)\n",

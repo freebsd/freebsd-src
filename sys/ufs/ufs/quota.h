@@ -104,8 +104,8 @@ struct dqblk {
 	u_int32_t dqb_ihardlimit;	/* maximum # allocated inodes + 1 */
 	u_int32_t dqb_isoftlimit;	/* preferred inode limit */
 	u_int32_t dqb_curinodes;	/* current # allocated inodes */
-	ufs_time_t dqb_btime;		/* time limit for excessive disk use */
-	ufs_time_t dqb_itime;		/* time limit for excessive files */
+	int32_t   dqb_btime;		/* time limit for excessive disk use */
+	int32_t   dqb_itime;		/* time limit for excessive files */
 };
 
 #ifdef _KERNEL
@@ -178,8 +178,8 @@ struct thread;
 struct ucred;
 struct vnode;
 
-int	chkdq(struct inode *, long, struct ucred *, int);
-int	chkiq(struct inode *, long, struct ucred *, int);
+int	chkdq(struct inode *, int64_t, struct ucred *, int);
+int	chkiq(struct inode *, ino_t, struct ucred *, int);
 void	dqinit(void);
 void	dqrele(struct vnode *, struct dquot *);
 int	getinoquota(struct inode *);

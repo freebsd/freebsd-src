@@ -1,4 +1,16 @@
 /*
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Marshall
+ * Kirk McKusick and Network Associates Laboratories, the Security
+ * Research Division of Network Associates, Inc. under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+ * research program
+ *
+ * Copyright (c) 1982, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 1980, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,16 +50,16 @@
  * variables set up by front end.
  */
 extern int	Nflag;		/* run mkfs without writing filesystem */
+extern int	Oflag;		/* build UFS1 format filesystem */
 extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for filesystem */
-extern u_int	fssize;		/* filesystem size */
-extern u_int	secpercyl;	/* sectors per cylinder */
-extern u_int	sectorsize;	/* bytes/sector */
+extern quad_t	fssize;		/* file system size */
+extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	fsize;		/* fragment size */
 extern int	bsize;		/* block size */
-extern int	cpg;		/* cylinders/cylinder group */
-extern int	cpgflg;		/* cylinders/cylinder group flag was given */
+extern int	maxbsize;	/* maximum clustering */
+extern int	maxblkspercg;	/* maximum blocks per cylinder group */
 extern int	minfree;	/* free space threshold */
 extern int	opt;		/* optimization preference (space or time) */
 extern int	density;	/* number of bytes per inode */

@@ -4,9 +4,9 @@ LIB=			i386
 INTERNALLIB=		true
 
 SRCS=	aout_freebsd.c biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
-	biospci.c bootinfo.c comconsole.c devicename.c elf_freebsd.c gatea20.c \
-	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
-	time.c vidconsole.c
+	biospci.c bootinfo.c comconsole.c devicename.c divdi3.c elf_freebsd.c \
+	gatea20.c i386_copy.c i386_module.c moddi3.c nullconsole.c pxe.c \
+	pxetramp.s qdivrem.c time.c vidconsole.c
 
 CFLAGS+=	-ffreestanding
 BOOT_COMCONSOLE_PORT?= 0x3f8
@@ -39,9 +39,12 @@ beforedepend ${OBJS}: machine
 
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${.CURDIR}/../../../../lib/libc/quad/divdi3.c divdi3.c
+	ln -sf ${.CURDIR}/../../../../lib/libc/quad/moddi3.c moddi3.c
+	ln -sf ${.CURDIR}/../../../../lib/libc/quad/qdivrem.c qdivrem.c
 
 .endif
 
-CLEANFILES+=	machine
+CLEANFILES+=	machine divdi3.c moddi3.c qdivrem.c
 
 .include <bsd.lib.mk>

@@ -5,6 +5,7 @@
 
 # SYS is normally set in Make.tags.inc
 # SYS=/sys
+SYS=/nsys
 
 TAGDIR=	i386
 
