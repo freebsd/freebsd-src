@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.8 1998/08/24 16:25:30 wosch Exp $";
+	"$Id: gcore.c,v 1.9 1998/09/14 10:09:30 des Exp $";
 #endif /* not lint */
 
 /*
@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <machine/vmparam.h>
 
 #include <a.out.h>
+#include <elf.h>
 #include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
@@ -174,6 +175,13 @@ main(argc, argv)
 	if (cnt != sizeof(exec))
 		errx(1, "%s exec header: %s",
 		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
+	if (N_BADMAG(exec)) {
+		const Elf_Ehdr *ehdr = (const Elf_Ehdr *)&exec;
+
+		if (IS_ELF(*ehdr))
+			errx(1, "ELF executables are not supported yet");
+		errx(1, "Invalid executable file");
+	}
 
 	/* check the text segment size of the executable and the process */
 	if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
