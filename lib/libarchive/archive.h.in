@@ -43,9 +43,9 @@
  *
  *    1 - Version test is available.
  */
-#define	ARCHIVE_API_VERSION	1
+#define	ARCHIVE_API_VERSION	@ARCHIVE_API_VERSION@
 int		archive_api_version(void);
-#define	ARCHIVE_API_FEATURE	1
+#define	ARCHIVE_API_FEATURE	@ARCHIVE_API_FEATURE@
 int		archive_api_feature(void);
 /* Textual name/version of the library. */
 const char *	archive_version(void);
