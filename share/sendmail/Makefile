@@ -22,6 +22,7 @@ all clean cleandir depend lint tags:
 beforeinstall: ${SHARED}
 
 copies::
+	if [ -L ${DDIR}/${CFDIR} ]; then rm -f ${DDIR}/${CFDIR}; fi
 .for dir in ${CFDIRS}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 -d ${DDIR}/${dir}
 .endfor
