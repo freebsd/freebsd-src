@@ -119,7 +119,7 @@ static struct vfsops udf_vfsops = {
 	udf_root,
 	vfs_stdquotactl,
 	udf_statfs,
-	vfs_stdsync,
+	vfs_stdnosync,
 	udf_vget,
 	udf_fhtovp,
 	vfs_stdcheckexp,

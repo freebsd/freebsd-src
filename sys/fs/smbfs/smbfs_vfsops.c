@@ -83,7 +83,6 @@ static int smbfs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *);
 static int smbfs_root(struct mount *, struct vnode **);
 static int smbfs_start(struct mount *, int, struct thread *);
 static int smbfs_statfs(struct mount *, struct statfs *, struct thread *);
-static int smbfs_sync(struct mount *, int, struct ucred *, struct thread *);
 static int smbfs_unmount(struct mount *, int, struct thread *);
 static int smbfs_init(struct vfsconf *vfsp);
 static int smbfs_uninit(struct vfsconf *vfsp);
@@ -95,7 +94,7 @@ static struct vfsops smbfs_vfsops = {
 	smbfs_root,
 	smbfs_quotactl,
 	smbfs_statfs,
-	smbfs_sync,
+	vfs_stdsync,
 	vfs_stdvget,
 	vfs_stdfhtovp,		/* shouldn't happen */
 	vfs_stdcheckexp,
@@ -401,46 +400,3 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	strncpy(sbp->f_fstypename, mp->mnt_vfc->vfc_name, MFSNAMELEN);
 	return 0;
 }
-
-/*
- * Flush out the buffer cache
- */
-/* ARGSUSED */
-static int
-smbfs_sync(mp, waitfor, cred, td)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct thread *td;
-{
-	struct vnode *vp;
-	int error, allerror = 0;
-	/*
-	 * Force stale buffer cache information to be flushed.
-	 */
-loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	     vp != NULL;
-	     vp = TAILQ_NEXT(vp, v_nmntvnodes)) {
-		/*
-		 * If the vnode that we are about to sync is no longer
-		 * associated with this mount point, start over.
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-		VI_LOCK(vp);
-		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-		    waitfor == MNT_LAZY) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
-			goto loop;
-		error = VOP_FSYNC(vp, cred, waitfor, td);
-		if (error)
-			allerror = error;
-		vput(vp);
-	}
-	return (allerror);
-}
-
