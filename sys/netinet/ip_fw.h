@@ -58,7 +58,7 @@ struct ip_fw {
 				 * (ports[0] <= port <= ports[1])     *
 				 *                                    */
 #define IP_FW_F_PRN	32	/* In verbose mode print this firewall*/
-#define IP_FW_F_MASK	0x2F	/* All possible flag bits mask        */
+#define IP_FW_F_MASK	0x3F	/* All possible flag bits mask        */
 
 /*    
  * New IP firewall options for [gs]etsockopt at the RAW IP level.
