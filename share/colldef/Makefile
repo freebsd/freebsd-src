@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1995/11/03 14:53:50 ache Exp $
+# $Id: Makefile,v 1.2 1996/06/24 04:24:30 jkh Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -20,9 +20,13 @@ LATIN1LINKS = \
 .SUFFIXES: .src .out
 
 .src.out:
-	${COLLDEF} -o ${.TARGET} ${.IMPSRC}
+	${COLLDEF} -I ${.CURDIR} -o ${.TARGET} ${.IMPSRC}
 
 all: ${LOCALES:S/$/.out/g}
+
+ru_SU.KOI8-R.out:       map.KOI8-R
+ru_SU.CP866.out:        map.CP866
+lt_LN.ISO_8859-1.out:   map.ISO_8859-1
 
 afterinstall:
 	for l in ${LOCALES}; do \
