@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 /* prototypes */
 static void ata_completed(void *, int);
 static void ata_timeout(struct ata_request *);
-static char *ata_sensekey2str(u_int8_t);
+static char *ata_skey2str(u_int8_t);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATA_REQ, "ATA request", "ATA request");
@@ -260,12 +260,12 @@ ata_completed(void *context, int pending)
 
     /* ATAPI errors */
     case ATA_R_ATAPI:
-	/* is result already set return */
+	/* skip if result already set */
 	if (request->result)
 	    break;
 
 	if (request->error & ATA_E_MASK) {
-	    switch ((request->result & ATA_SK_MASK)) {
+	    switch ((request->error & ATA_SK_MASK)) {
 	    case ATA_SK_RECOVERED_ERROR:
 		ata_prtdev(request->device, "WARNING - %s recovered error\n",
 			   ata_cmd2str(request));
@@ -285,18 +285,18 @@ ata_completed(void *context, int pending)
 		break;
 
 	    default:
+		if (!(request->flags & ATA_R_QUIET))
+		    ata_prtdev(request->device,
+			       "FAILURE - %s status=%b sensekey=%s error=%b\n",
+			       ata_cmd2str(request),
+			       request->status, "\20\10BUSY\7READY\6DMA"
+			       "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
+			       ata_skey2str((request->error & ATA_SK_MASK)>>4),
+			       (request->error & ATA_E_MASK),
+			       "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
+			       "\2NO_MEDIA\1ILLEGAL_LENGTH");
 		request->result = EIO;
 	    }
-	    if (request->result && !(request->flags & ATA_R_QUIET))
-		ata_prtdev(request->device,
-			   "FAILURE - %s status=%b sensekey=%s error=%b\n",
-			   ata_cmd2str(request),
-			   request->status, "\20\10BUSY\7READY\6DMA"
-			   "\5DSC\4DRQ\3CORRECTABLE\2INDEX\1ERROR",
-			   ata_sensekey2str((request->error & ATA_SK_MASK)>>4),
-			   (request->error & ATA_E_MASK),
-			   "\20\4MEDIA_CHANGE_REQUEST\3ABORTED"
-			   "\2NO_MEDIA\1ILLEGAL_LENGTH");
 	}
 	break;
     }
@@ -449,7 +449,7 @@ ata_cmd2str(struct ata_request *request)
 }
 
 static char *
-ata_sensekey2str(u_int8_t skey)
+ata_skey2str(u_int8_t skey)
 {
     switch (skey) {
     case 0x00: return ("NO SENSE");
