@@ -39,7 +39,7 @@
 .Nm sync
 .Nd force completion of pending disk writes (flush cache)
 .Sh SYNOPSIS
-.Nm sync
+.Nm
 .Sh DESCRIPTION
 .Nm Sync
 can be called to insure that all disk writes have been completed before the
@@ -55,7 +55,7 @@ to shut down the system,
 as they may perform additional actions
 such as resynchronizing the hardware clock
 and flushing internal caches before performing a final
-.Nm Ns .
+.Nm .
 .Pp
 .Nm Sync
 utilizes the
