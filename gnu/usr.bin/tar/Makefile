@@ -5,10 +5,8 @@ TARDIR=	${.CURDIR}/../../../contrib/tar
 
 PROG=	gtar
 
-.if defined(WITH_GTAR)
 SYMLINKS=  ${BINDIR}/gtar ${BINDIR}/tar
 MLINKS= gtar.1 tar.1
-.endif
 
 SUBDIR=	doc
 

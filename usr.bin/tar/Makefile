@@ -14,11 +14,8 @@ DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 CFLAGS+=	-I${.CURDIR}
-
-.if !defined(WITH_GTAR)
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
-.endif
 
 DIST_BUILD_DIR=	${.OBJDIR}/${PROG}-${VERSION}
 CLEANDIRS+=	${DIST_BUILD_DIR}
