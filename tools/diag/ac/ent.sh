@@ -1,7 +1,7 @@
 #!/bin/sh -x
 # Copyright (c) 2002 Alexey Zelkin <phantom@FreeBSD.org>
 #
-# ent.sh -- this scripts checks for correcness {authors,teams}.ent files
+# ent.sh -- this script checks {authors,teams}.ent files for correctness
 #
 # $FreeBSD$
 
