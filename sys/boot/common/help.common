@@ -279,8 +279,6 @@
 	Displays the value of <variable>, or all variables if not specified.
 	Multiple paths can be separated with a semicolon.
 
-	See the set command for a list of some variables.
-
 ################################################################################
 # Tinclude DRead commands from a script file
 
