@@ -22,9 +22,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is tested by i386gas.h.  */
 #define YES_UNDERSCORES
 
-/* Don't assume anything about the header files. */
-#define NO_IMPLICIT_EXTERN_C
-
 #include "i386/gstabs.h"
 
 /* Get perform_* macros to build libgcc.a.  */
@@ -68,7 +65,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HAVE_ATEXIT
 
-/* Redefine this to use %eax instead of %edx.  */
+/* Tell final.c that we don't need a label passed to mcount.  */
+
+#define NO_PROFILE_DATA
+
+/* Redefine this to not pass an unused label in %edx.  */
+
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
@@ -88,10 +90,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 }
 #endif
 
-/* There are conflicting reports about whether this system uses
-   a different assembler syntax.  wilson@cygnus.com says # is right.  */
-#undef COMMENT_BEGIN
-#define COMMENT_BEGIN "#"
+/* Override the default comment-starter of "/".  */
+
+#undef ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
 
 #undef ASM_APP_ON
 #define ASM_APP_ON "#APP\n"
