@@ -135,9 +135,7 @@ CLEANFILES+=	sysdep.h asm-syntax.h
 mpz mpf mpq:
 	mkdir ${.TARGET}
 
-CLEANDIRS+=	${.OBJDIR}/mpz \
-		${.OBJDIR}/mpf \
-		${.OBJDIR}/mpq
+CLEANDIRS+=	mpz mpf mpq
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
