@@ -64,6 +64,7 @@ int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
 
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
+static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
@@ -663,9 +664,15 @@ limcopy(lim)
 void
 uihashinit()
 {
+
 	uihashtbl = hashinit(maxproc / 16, M_UIDINFO, &uihash);
+	mtx_init(&uihashtbl_mtx, "uidinfo hash", MTX_DEF);
 }
 
+/*
+ * lookup a uidinfo struct for the parameter uid.
+ * uihashtbl_mtx must be locked.
+ */
 static struct uidinfo *
 uilookup(uid)
 	uid_t uid;
@@ -673,6 +680,7 @@ uilookup(uid)
 	struct	uihashhead *uipp;
 	struct	uidinfo *uip;
 
+	mtx_assert(&uihashtbl_mtx, MA_OWNED);
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
@@ -681,51 +689,54 @@ uilookup(uid)
 	return (uip);
 }
 
+/*
+ * Create a uidinfo struct for the parameter uid.
+ * uihashtbl_mtx must be locked.
+ */
 static struct uidinfo *
 uicreate(uid)
 	uid_t uid;
 {
-	struct	uidinfo *uip, *norace;
+	struct	uidinfo *uip;
 
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_NOWAIT);
-	if (uip == NULL) {
-		MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_WAITOK);
-		/*
-		 * if we M_WAITOK we must look afterwards or risk
-		 * redundant entries
-		 */
-		norace = uilookup(uid);
-		if (norace != NULL) {
-			FREE(uip, M_UIDINFO);
-			return (norace);
-		}
-	}
+	mtx_assert(&uihashtbl_mtx, MA_OWNED);
+	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_WAITOK|M_ZERO);
 	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 	uip->ui_uid = uid;
-	uip->ui_proccnt = 0;
-	uip->ui_sbsize = 0;
-	uip->ui_ref = 0;
+	mtx_init(&uip->ui_mtx, "uidinfo struct", MTX_DEF);
 	return (uip);
 }
 
+/*
+ * find or allocate a struct uidinfo for a particular uid
+ * increases refcount on uidinfo struct returned.
+ * uifree() should be called on a struct uidinfo when released.
+ */
 struct uidinfo *
 uifind(uid)
 	uid_t uid;
 {
 	struct	uidinfo *uip;
 
+	mtx_enter(&uihashtbl_mtx, MTX_DEF);
 	uip = uilookup(uid);
 	if (uip == NULL)
 		uip = uicreate(uid);
-	uip->ui_ref++;
+	uihold(uip);
+	mtx_exit(&uihashtbl_mtx, MTX_DEF);
 	return (uip);
 }
 
-int
+/*
+ * subtract one from the refcount in the struct uidinfo, if 0 free it
+ */
+void
 uifree(uip)
 	struct	uidinfo *uip;
 {
 
+	mtx_enter(&uihashtbl_mtx, MTX_DEF);
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
 	if (--uip->ui_ref == 0) {
 		if (uip->ui_sbsize != 0)
 			/* XXX no %qd in kernel.  Truncate. */
@@ -735,10 +746,14 @@ uifree(uip)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
 		LIST_REMOVE(uip, ui_hash);
+		mtx_exit(&uihashtbl_mtx, MTX_DEF);
+		mtx_destroy(&uip->ui_mtx);
 		FREE(uip, M_UIDINFO);
-		return (1);
+		return;
 	}
-	return (0);
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
+	mtx_exit(&uihashtbl_mtx, MTX_DEF);
+	return;
 }
 
 /*
@@ -751,12 +766,17 @@ chgproccnt(uip, diff, max)
 	int	diff;
 	int	max;
 {
+
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
 	/* don't allow them to exceed max, but allow subtraction */
-	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0)
+	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
+		mtx_exit(&uip->ui_mtx, MTX_DEF);
 		return (0);
+	}
 	uip->ui_proccnt += diff;
 	if (uip->ui_proccnt < 0)
 		printf("negative proccnt for uid = %d\n", uip->ui_uid);
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
 	return (1);
 }
 
@@ -773,11 +793,13 @@ chgsbsize(uip, hiwat, to, max)
 	rlim_t new;
 	int s;
 
+	mtx_enter(&uip->ui_mtx, MTX_DEF);
 	s = splnet();
 	new = uip->ui_sbsize + to - *hiwat;
 	/* don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
 		splx(s);
+		mtx_exit(&uip->ui_mtx, MTX_DEF);
 		return (0);
 	}
 	uip->ui_sbsize = new;
@@ -785,5 +807,6 @@ chgsbsize(uip, hiwat, to, max)
 	if (uip->ui_sbsize < 0)
 		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	splx(s);
+	mtx_exit(&uip->ui_mtx, MTX_DEF);
 	return (1);
 }

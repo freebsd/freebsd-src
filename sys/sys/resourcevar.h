@@ -39,6 +39,7 @@
 
 #include <sys/resource.h>
 #include <sys/queue.h>
+#include <sys/mutex.h>	/* XXX */
 
 /*
  * Kernel per-process accounting / statistics
@@ -90,10 +91,17 @@ struct uidinfo {
 	long	ui_proccnt;		/* number of processes */
 	uid_t	ui_uid;			/* uid */
 	u_short	ui_ref;			/* reference count */
+	struct mtx	ui_mtx;		/* protect counts */
 };
 
 #ifdef _KERNEL
-#define uihold(uip)	(uip)->ui_ref++
+#define uihold(uip)	\
+	do {						\
+		mtx_enter(&(uip)->ui_mtx, MTX_DEF);	\
+		(uip)->ui_ref++;			\
+		mtx_exit(&(uip)->ui_mtx, MTX_DEF);	\
+	} while(0)
+
 struct proc;
 
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
@@ -110,7 +118,7 @@ void	 ruadd __P((struct rusage *ru, struct rusage *ru2));
 int	 suswintr __P((void *base, int word));
 struct uidinfo
 	*uifind __P((uid_t uid));
-int	 uifree __P((struct uidinfo *uip));
+void	 uifree __P((struct uidinfo *uip));
 void	uihashinit __P((void));
 #endif
 
