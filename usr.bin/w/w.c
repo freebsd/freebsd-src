@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.16.2.3 1997/08/26 06:47:45 charnier Exp $";
+	"$Id: w.c,v 1.16.2.4 1997/08/29 05:30:12 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -96,6 +96,7 @@ int		ttywidth;	/* width of tty */
 int		argwidth;	/* width of tty */
 int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
+int		dflag;		/* true if -d flag: output debug info */
 int		sortidle;	/* sort bu idle time */
 char	       *sel_user;	/* login of particular user selected */
 char		domain[MAXHOSTNAMELEN];
@@ -106,10 +107,11 @@ char		domain[MAXHOSTNAMELEN];
 struct	entry {
 	struct	entry *next;
 	struct	utmp utmp;
-	dev_t	tdev;		/* dev_t of terminal */
-	time_t	idle;		/* idle time of terminal in seconds */
-	struct	kinfo_proc *kp;	/* `most interesting' proc */
-	char	*args;		/* arg list of interesting process */
+	dev_t	tdev;			/* dev_t of terminal */
+	time_t	idle;			/* idle time of terminal in seconds */
+	struct	kinfo_proc *kp;		/* `most interesting' proc */
+	char	*args;			/* arg list of interesting process */
+	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
 static void	 pr_header __P((time_t *, int));
@@ -126,6 +128,7 @@ main(argc, argv)
 {
 	extern char *__progname;
 	struct kinfo_proc *kp;
+	struct kinfo_proc *dkp;
 	struct hostent *hp;
 	struct stat *stp;
 	FILE *ut;
@@ -146,12 +149,15 @@ main(argc, argv)
 		p = "";
 	} else {
 		wcmd = 1;
-		p = "hiflM:N:nsuw";
+		p = "dhiflM:N:nsuw";
 	}
 
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, p)) !=  -1)
+	while ((ch = getopt(argc, argv, p)) != -1)
 		switch (ch) {
+		case 'd':
+			dflag = 1;
+			break;
 		case 'h':
 			header = 0;
 			break;
@@ -239,7 +245,7 @@ main(argc, argv)
 		if (wcmd == 0)
 			exit (0);
 
-#define HEADER	"USER     TTY FROM              LOGIN@  IDLE WHAT\n"
+#define HEADER	"USER             TTY FROM              LOGIN@  IDLE WHAT\n"
 #define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
 		(void)printf(HEADER);
 	}
@@ -254,13 +260,26 @@ main(argc, argv)
 			continue;
 		e = &kp->kp_eproc;
 		for (ep = ehead; ep != NULL; ep = ep->next) {
-			if (ep->tdev == e->e_tdev && e->e_pgid == e->e_tpgid) {
+			if (ep->tdev == e->e_tdev) {
 				/*
-				 * Proc is in foreground of this terminal
+				 * proc is associated with this terminal
 				 */
-				if (proc_compare(&ep->kp->kp_proc, p))
-					ep->kp = kp;
-				break;
+				if (ep->kp == NULL && e->e_pgid == e->e_tpgid) {
+					/*
+					 * Proc is 'most interesting'
+					 */
+					if (proc_compare(&ep->kp->kp_proc, p))
+						ep->kp = kp;
+				}
+				/*
+				 * Proc debug option info; add to debug
+				 * list using kinfo_proc kp_eproc.e_spare
+				 * as next pointer; ptr to ptr avoids the
+				 * ptr = long assumption.
+				 */
+				dkp = ep->dkp;
+				ep->dkp = kp;
+				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[ 0])) = dkp;
 			}
 		}
 	}
@@ -342,6 +361,16 @@ main(argc, argv)
 			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
 			p = buf;
 		}
+		if( dflag) {
+			for( dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[ 0]))) {
+				char *p;
+				p = fmt_argv(kvm_getargv(kd, dkp, argwidth),
+					    dkp->kp_proc.p_comm, MAXCOMLEN);
+				if (p == NULL)
+					p = "-";
+				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, p);
+			}
+		}
 		(void)printf("%-*.*s %-3.3s %-*.*s ",
 		    UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
 		    strncmp(ep->utmp.ut_line, "tty", 3) &&
@@ -370,7 +399,7 @@ pr_header(nowp, nusers)
 {
 	double avenrun[3];
 	time_t uptime;
-	int days, hrs, i, mins;
+	int days, hrs, i, mins, secs;
 	int mib[2];
 	size_t size;
 	char buf[256];
@@ -402,19 +431,21 @@ pr_header(nowp, nusers)
 		hrs = uptime / 3600;
 		uptime %= 3600;
 		mins = uptime / 60;
+		secs = uptime % 60;
 		(void)printf(" up");
 		if (days > 0)
 			(void)printf(" %d day%s,", days, days > 1 ? "s" : "");
 		if (hrs > 0 && mins > 0)
 			(void)printf(" %2d:%02d,", hrs, mins);
-		else {
-			if (hrs > 0)
-				(void)printf(" %d hr%s,",
-				    hrs, hrs > 1 ? "s" : "");
-			if (mins > 0)
-				(void)printf(" %d min%s,",
-				    mins, mins > 1 ? "s" : "");
-		}
+		else if (hrs > 0)
+			(void)printf(" %d hr%s,",
+				     hrs, hrs > 1 ? "s" : "");
+		else if (mins > 0)
+			(void)printf(" %d min%s,",
+				     mins, mins > 1 ? "s" : "");
+		else
+			(void)printf(" %d sec%s,",
+				     secs, secs > 1 ? "s" : "");
 	}
 
 	/* Print number of users logged in to system */
@@ -455,7 +486,7 @@ usage(wcmd)
 {
 	if (wcmd)
 		(void)fprintf(stderr,
-		    "usage: w [-hin] [-M core] [-N system] [user]\n");
+		    "usage: w [-dhin] [-M core] [-N system] [user]\n");
 	else
 		(void)fprintf(stderr,
 			"usage: uptime\n");
