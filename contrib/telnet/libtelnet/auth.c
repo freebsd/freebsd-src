@@ -511,7 +511,7 @@ auth_name(unsigned char *data, int cnt)
 	if ((size_t)cnt > sizeof(savename) - 1) {
 		if (auth_debug_mode)
 			printf(">>>%s: Name in NAME (%d) exceeds %d length\r\n",
-					Name, cnt, sizeof(savename)-1);
+					Name, cnt, (u_int)sizeof(savename)-1);
 		return;
 	}
 	memmove((void *)savename, (void *)data, cnt);
