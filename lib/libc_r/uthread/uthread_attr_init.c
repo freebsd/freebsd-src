@@ -41,11 +41,16 @@ int pthread_attr_init(pthread_attr_t *attr)
 {
 	int	ret;
 	pthread_attr_t	pattr;
-	if ((pattr = (pthread_attr_t) malloc(sizeof(struct pthread_attr))) == NULL) {
-		errno = ENOMEM;
-		ret = -1;
-	} else {
+
+	/* Allocate memory for the attribute object: */
+	if ((pattr = (pthread_attr_t) malloc(sizeof(struct pthread_attr))) == NULL)
+		/* Insufficient memory: */
+		ret = ENOMEM;
+	else {
+		/* Initialise the attribute object with the defaults: */
 		memcpy(pattr, &pthread_attr_default, sizeof(struct pthread_attr));
+
+		/* Return a pointer to the attribute object: */
 		*attr = pattr;
 		ret = 0;
 	}

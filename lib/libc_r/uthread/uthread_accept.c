@@ -44,7 +44,7 @@ accept(int fd, struct sockaddr * name, int *namelen)
 {
 	int             ret;
 
-	/* Lock teh file descriptor: */
+	/* Lock the file descriptor: */
 	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
 		/* Enter a loop to wait for a connection request: */
 		while ((ret = _thread_sys_accept(fd, name, namelen)) < 0) {
@@ -52,6 +52,8 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 && (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				/* Save the socket file descriptor: */
 				_thread_run->data.fd.fd = fd;
+				_thread_run->data.fd.fname = __FILE__;
+				_thread_run->data.fd.branch = __LINE__;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);

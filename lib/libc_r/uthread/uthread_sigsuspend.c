@@ -57,7 +57,7 @@ sigsuspend(const sigset_t * set)
 		_thread_run->sigmask = oset;
 	} else {
 		/* Return an invalid argument error: */
-		_thread_seterrno(_thread_run, EINVAL);
+		errno = EINVAL;
 	}
 
 	/* Return the completion status: */

@@ -59,6 +59,15 @@
 #define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
 
 /*
+ * State change macro:
+ */
+#define PTHREAD_NEW_STATE(thrd, newstate) {				\
+	(thrd)->state = newstate;					\
+	(thrd)->fname = __FILE__;					\
+	(thrd)->lineno = __LINE__;					\
+}
+
+/*
  * Queue definitions.
  */
 struct pthread_queue {
@@ -75,12 +84,6 @@ struct pthread_queue {
 /* 
  * Mutex definitions.
  */
-enum pthread_mutextype {
-	MUTEX_TYPE_FAST		= 1,
-	MUTEX_TYPE_COUNTING_FAST	= 2,	/* Recursive */
-	MUTEX_TYPE_MAX
-};
-
 union pthread_mutex_data {
 	void	*m_ptr;
 	int	m_count;
@@ -211,19 +214,6 @@ struct sched_param {
  * Time slice period in microseconds.
  */
 #define TIMESLICE_USEC				100000
-
-/*
- * Flags.
- */
-#define PTHREAD_DETACHED            0x1
-#define PTHREAD_SCOPE_SYSTEM        0x2
-#define PTHREAD_INHERIT_SCHED       0x4
-#define PTHREAD_NOFLOAT             0x8
-
-#define PTHREAD_CREATE_DETACHED     PTHREAD_DETACHED
-#define PTHREAD_CREATE_JOINABLE     0
-#define PTHREAD_SCOPE_PROCESS       0
-#define PTHREAD_EXPLICIT_SCHED      0
 
 struct pthread_key {
 	pthread_mutex_t mutex;
@@ -413,6 +403,15 @@ struct pthread {
 	/* Wait data. */
 	union pthread_wait_data data;
 
+	/*
+	 * Set to TRUE if a blocking operation was
+	 * interrupted by a signal:
+	 */
+	int		interrupted;
+
+	/* Signal number when in state PS_SIGWAIT: */
+	int		signo;
+
 	/* Miscellaneous data. */
 	char		flags;
 	char		pthread_priority;
@@ -422,6 +421,8 @@ struct pthread {
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup *cleanup;
+	char			*fname;	/* Ptr to source file name  */
+	int			lineno;	/* Source line number.      */
 };
 
 /*
@@ -432,7 +433,7 @@ struct pthread {
 SCLASS struct pthread   _thread_kern_thread;
 
 /* Ptr to the thread structure for the running thread: */
-SCLASS struct pthread   *_thread_run
+SCLASS struct pthread   * volatile _thread_run
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = &_thread_kern_thread;
 #else
@@ -443,7 +444,7 @@ SCLASS struct pthread   *_thread_run
  * Ptr to the thread running in single-threaded mode or NULL if
  * running multi-threaded (default POSIX behaviour).
  */
-SCLASS struct pthread   *_thread_single
+SCLASS struct pthread   * volatile _thread_single
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL;
 #else
@@ -451,7 +452,7 @@ SCLASS struct pthread   *_thread_single
 #endif
 
 /* Ptr to the first thread in the thread linked list: */
-SCLASS struct pthread   *_thread_link_list
+SCLASS struct pthread   * volatile _thread_link_list
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL;
 #else
@@ -487,7 +488,7 @@ SCLASS struct timeval   kern_inc_prio_time
 #endif
 
 /* Dead threads: */
-SCLASS struct pthread *_thread_dead
+SCLASS struct pthread * volatile _thread_dead
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL;
 #else
@@ -510,6 +511,29 @@ SCLASS struct pthread_attr pthread_attr_default
 #else
 ;
 #endif
+
+/* Default mutex attributes: */
+SCLASS struct pthread_mutex_attr pthread_mutexattr_default
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= { MUTEX_TYPE_FAST, 0 };
+#else
+;
+#endif
+
+/* Default condition variable attributes: */
+SCLASS struct pthread_cond_attr pthread_condattr_default
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= { COND_TYPE_FAST, 0 };
+#else
+;
+#endif
+
+/*
+ * Standard I/O file descriptors need special flag treatment since
+ * setting one to non-blocking does all on *BSD. Sigh. This array
+ * is used to store the initial flag settings.
+ */
+SCLASS int	_pthread_stdio_flags[3];
 
 /* File table information: */
 SCLASS struct fd_table_entry **_thread_fd_table
@@ -544,7 +568,6 @@ char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *,char *fname,int lineno);
-int     nanosleep(struct timespec *, struct timespec *);
 void    _thread_exit(char *, int, char *);
 void    _thread_fd_unlock(int, int);
 void    *_thread_cleanup(pthread_t);
@@ -556,7 +579,6 @@ void    _thread_kern_sched_state(enum pthread_state,char *fname,int lineno);
 void    _thread_kern_set_timeout(struct timespec *);
 void    _thread_kern_sig_block(int *);
 void    _thread_kern_sig_unblock(int);
-void    _thread_cleanup_pop(int);
 void    _thread_sig_handler(int, int, struct sigcontext *);
 void    _thread_start(void);
 void    _thread_start_sig_handler(void);

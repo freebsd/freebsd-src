@@ -49,7 +49,7 @@ pthread_detach(pthread_t * p_pthread)
 	/* Check for invalid calling parameters: */
 	if (p_pthread == NULL || (pthread = *p_pthread) == NULL) {
 		/* Return an invalid argument error: */
-		_thread_seterrno(_thread_run, EINVAL);
+		errno = EINVAL;
 		rval = -1;
 	}
 	/* Check if the thread has not been detached: */
@@ -60,7 +60,7 @@ pthread_detach(pthread_t * p_pthread)
 		/* Enter a loop to bring all threads off the join queue: */
 		while ((next_thread = _thread_queue_deq(&pthread->join_queue)) != NULL) {
 			/* Make the thread run: */
-			next_thread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
 		}
 
 		/*
@@ -70,7 +70,7 @@ pthread_detach(pthread_t * p_pthread)
 		*p_pthread = NULL;
 	} else {
 		/* Return an error: */
-		_thread_seterrno(_thread_run, ESRCH);
+		errno = ESRCH;
 		rval = -1;
 	}
 

@@ -48,8 +48,8 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 		rval = -1;
 	} else {
 		/*
-		 * Check if a pointer to a condition variable attribute structure was
-		 * passed by the caller: 
+		 * Check if a pointer to a condition variable attribute
+		 * structure was passed by the caller: 
 		 */
 		if (cond_attr != NULL && *cond_attr != NULL) {
 			/* Default to a fast condition variable: */
@@ -61,12 +61,12 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 
 		/* Process according to condition variable type: */
 		switch (type) {
-			/* Fast condition variable: */
+		/* Fast condition variable: */
 		case COND_TYPE_FAST:
 			/* Nothing to do here. */
 			break;
 
-			/* Trap invalid condition variable types: */
+		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -76,7 +76,8 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 
 		/* Check for no errors: */
 		if (rval == 0) {
-			if ((pcond = (pthread_cond_t) malloc(sizeof(struct pthread_cond))) == NULL) {
+			if ((pcond = (pthread_cond_t)
+			    malloc(sizeof(struct pthread_cond))) == NULL) {
 				errno = ENOMEM;
 				rval = -1;
 			} else {
@@ -106,12 +107,12 @@ pthread_cond_destroy(pthread_cond_t * cond)
 	} else {
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
-			/* Fast condition variable: */
+		/* Fast condition variable: */
 		case COND_TYPE_FAST:
 			/* Nothing to do here. */
 			break;
 
-			/* Trap invalid condition variable types: */
+		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -147,16 +148,23 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
-			/* Fast condition variable: */
+		/* Fast condition variable: */
 		case COND_TYPE_FAST:
-			/* Queue the running thread for the condition variable: */
-				_thread_queue_enq(&(*cond)->c_queue, _thread_run);
+			/*
+			 * Queue the running thread for the condition
+			 * variable:
+			 */
+			_thread_queue_enq(&(*cond)->c_queue, _thread_run);
 
 			/* Unlock the mutex: */
 			pthread_mutex_unlock(mutex);
 
+			/* Wait forever: */
+			_thread_run->wakeup_time.tv_sec = -1;
+
 			/* Schedule the next thread: */
-			_thread_kern_sched_state(PS_COND_WAIT, __FILE__, __LINE__);
+			_thread_kern_sched_state(PS_COND_WAIT,
+			    __FILE__, __LINE__);
 
 			/* Block signals: */
 			_thread_kern_sig_block(NULL);
@@ -165,7 +173,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			rval = pthread_mutex_lock(mutex);
 			break;
 
-			/* Trap invalid condition variable types: */
+		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -197,7 +205,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
-			/* Fast condition variable: */
+		/* Fast condition variable: */
 		case COND_TYPE_FAST:
 			/* Set the wakeup time: */
 			_thread_run->wakeup_time.tv_sec = abstime->tv_sec;
@@ -206,19 +214,24 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			/* Reset the timeout flag: */
 			_thread_run->timeout = 0;
 
-			/* Queue the running thread for the condition variable: */
+			/*
+			 * Queue the running thread for the condition
+			 * variable:
+			 */
 			_thread_queue_enq(&(*cond)->c_queue, _thread_run);
 
 			/* Unlock the mutex: */
 			if ((rval = pthread_mutex_unlock(mutex)) != 0) {
 				/*
-				 * Cannot unlock the mutex, so remove the running
-				 * thread from the condition variable queue: 
+				 * Cannot unlock the mutex, so remove the
+				 * running thread from the condition
+				 * variable queue: 
 				 */
 				_thread_queue_deq(&(*cond)->c_queue);
 			} else {
 				/* Schedule the next thread: */
-				_thread_kern_sched_state(PS_COND_WAIT, __FILE__, __LINE__);
+				_thread_kern_sched_state(PS_COND_WAIT,
+				    __FILE__, __LINE__);
 
 				/* Block signals: */
 				_thread_kern_sig_block(NULL);
@@ -235,7 +248,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			}
 			break;
 
-			/* Trap invalid condition variable types: */
+		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -267,16 +280,16 @@ pthread_cond_signal(pthread_cond_t * cond)
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
-			/* Fast condition variable: */
+		/* Fast condition variable: */
 		case COND_TYPE_FAST:
 			/* Bring the next thread off the condition queue: */
 			if ((pthread = _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
 				/* Allow the thread to run: */
-				pthread->state = PS_RUNNING;
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 			}
 			break;
 
-			/* Trap invalid condition variable types: */
+		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
 			errno = EINVAL;
@@ -304,16 +317,20 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 
 	/* Process according to condition variable type: */
 	switch ((*cond)->c_type) {
-		/* Fast condition variable: */
+	/* Fast condition variable: */
 	case COND_TYPE_FAST:
-		/* Enter a loop to bring all threads off the condition queue: */
-		while ((pthread = _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
+		/*
+		 * Enter a loop to bring all threads off the
+		 * condition queue:
+		 */
+		while ((pthread =
+		    _thread_queue_deq(&(*cond)->c_queue)) != NULL) {
 			/* Allow the thread to run: */
-			pthread->state = PS_RUNNING;
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 		}
 		break;
 
-		/* Trap invalid condition variable types: */
+	/* Trap invalid condition variable types: */
 	default:
 		/* Return an invalid argument error: */
 		errno = EINVAL;
