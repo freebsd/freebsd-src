@@ -470,11 +470,11 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	/*
 	 * Slow down disk requests for niced processes.
 	 */
-	if (doslowdown && td && td->td_ksegrp->kg_nice > 0) {
+	if (doslowdown && td && td->td_proc->p_nice > 0) {
 		mtx_lock(&strategy_mtx);
 		msleep(&strategy_mtx, &strategy_mtx,
 		    PPAUSE | PCATCH | PDROP, "ioslow",
-		    td->td_ksegrp->kg_nice);
+		    td->td_proc->p_nice);
 	}
 	/*
 	 * Collect statistics on synchronous and asynchronous read

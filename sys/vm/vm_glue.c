@@ -824,7 +824,7 @@ loop:
 				kg = td->td_ksegrp;
 				pri = p->p_swtime + kg->kg_slptime;
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
-					pri -= kg->kg_nice * 8;
+					pri -= p->p_nice * 8;
 				}
 
 				/*

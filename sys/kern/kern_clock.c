@@ -392,7 +392,7 @@ statclock(frame)
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
 		p->p_uticks++;
-		if (td->td_ksegrp->kg_nice > NZERO)
+		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
 			cp_time[CP_USER]++;
