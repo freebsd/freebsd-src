@@ -27,16 +27,20 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+#include <rpcsvc/ypclnt.h>
+
 #include <netinet/in.h>
+
 #include <arpa/inet.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
@@ -48,7 +52,6 @@ static const char rcsid[] =
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
 struct dom_binding{};
-#include <rpcsvc/ypclnt.h>
 
 #define ERR_USAGE	1	/* bad arguments - display 'usage' message */
 #define ERR_NOSUCHHOST	2	/* no such host */
@@ -59,7 +62,7 @@ struct dom_binding{};
 extern bool_t xdr_domainname();
 
 struct ypalias {
-	char *alias, *name;
+	const char *alias, *name;
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
@@ -73,7 +76,7 @@ struct ypalias {
 };
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
 		"usage: ypwhich [-d domain] [[-t] -m [mname] | host]",
@@ -85,10 +88,8 @@ usage()
 /*
  * Like yp_bind except can query a specific host
  */
-int
-bind_host(dom, sin)
-char *dom;
-struct sockaddr_in *sin;
+static int
+bind_host(char *dom, struct sockaddr_in *lsin)
 {
 	struct hostent *hent = NULL;
 	struct ypbind_resp ypbr;
@@ -100,7 +101,7 @@ struct sockaddr_in *sin;
 	sock = RPC_ANYSOCK;
 	tv.tv_sec = 15;
 	tv.tv_usec = 0;
-	client = clntudp_create(sin, YPBINDPROG, YPBINDVERS, tv, &sock);
+	client = clntudp_create(lsin, YPBINDPROG, YPBINDVERS, tv, &sock);
 	if(client==NULL) {
 		warnx("can't clntudp_create: %s", yperr_string(YPERR_YPBIND));
 		return YPERR_YPBIND;
@@ -135,15 +136,16 @@ struct sockaddr_in *sin;
 }
 
 int
-main(argc, argv)
-char **argv;
+main(int argc, char *argv[])
 {
-	char *domainname = NULL, *master, *map = NULL;
+	char *domnam = NULL, *master;
+	const char *map = NULL;
 	struct ypmaplist *ypml, *y;
 	struct hostent *hent;
-	struct sockaddr_in sin;
+	struct sockaddr_in lsin;
 	int notrans, mode, getmap;
-	int c, r, i;
+	int c, r;
+	u_int i;
 
 	getmap = notrans = mode = 0;
 	while( (c=getopt(argc, argv, "xd:mt")) != -1)
@@ -155,7 +157,7 @@ char **argv;
 					ypaliases[i].name);
 			exit(0);
 		case 'd':
-			domainname = optarg;
+			domnam = optarg;
 			break;
 		case 't':
 			notrans++;
@@ -167,30 +169,30 @@ char **argv;
 			usage();
 		}
 
-	if(!domainname)
-		yp_get_default_domain(&domainname);
+	if(!domnam)
+		yp_get_default_domain(&domnam);
 
 	if(mode==0) {
 		switch(argc-optind) {
 		case 0:
-			bzero(&sin, sizeof sin);
-			sin.sin_family = AF_INET;
-			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+			bzero(&lsin, sizeof lsin);
+			lsin.sin_family = AF_INET;
+			lsin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-			if(bind_host(domainname, &sin))
+			if(bind_host(domnam, &lsin))
 				exit(ERR_NOBINDING);
 			break;
 		case 1:
-			bzero(&sin, sizeof sin);
-			sin.sin_family = AF_INET;
-			if( (sin.sin_addr.s_addr=inet_addr(argv[optind]))==-1) {
+			bzero(&lsin, sizeof lsin);
+			lsin.sin_family = AF_INET;
+			if( (lsin.sin_addr.s_addr=inet_addr(argv[optind]))==-1) {
 				hent = gethostbyname(argv[optind]);
 				if(!hent)
 					errx(ERR_NOSUCHHOST, "host %s unknown", argv[optind]);
 				bcopy((char *)hent->h_addr_list[0],
-					(char *)&sin.sin_addr, sizeof sin.sin_addr);
+					(char *)&lsin.sin_addr, sizeof lsin.sin_addr);
 			}
-			if(bind_host(domainname, &sin))
+			if(bind_host(domnam, &lsin))
 				exit(ERR_NOBINDING);
 			break;
 		default:
@@ -207,7 +209,7 @@ char **argv;
 		for(i=0; (!notrans) && i<sizeof ypaliases/sizeof ypaliases[0]; i++)
 			if( strcmp(map, ypaliases[i].alias) == 0)
 				map = ypaliases[i].name;
-		r = yp_master(domainname, map, &master);
+		r = yp_master(domnam, map, &master);
 		switch(r) {
 		case 0:
 			printf("%s\n", master);
@@ -223,12 +225,12 @@ char **argv;
 	}
 
 	ypml = NULL;
-	r = yp_maplist(domainname, &ypml);
+	r = yp_maplist(domnam, &ypml);
 	switch(r) {
 	case 0:
 		for(y=ypml; y; ) {
 			ypml = y;
-			r = yp_master(domainname, ypml->map, &master);
+			r = yp_master(domnam, ypml->map, &master);
 			switch(r) {
 			case 0:
 				printf("%s %s\n", ypml->map, master);
@@ -247,7 +249,7 @@ char **argv;
 		errx(ERR_NOYPBIND, "not running ypbind");
 	default:
 		errx(ERR_NOMASTER, "can't get map list for domain %s. reason: %s",
-			domainname, yperr_string(r));
+			domnam, yperr_string(r));
 	}
 	exit(0);
 }
