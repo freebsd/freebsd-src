@@ -184,6 +184,9 @@ under isdn4bsd has been added.
 The itjc(4) driver for supporting NETjet-S / Teles PCI-TJ under
 isdn4bsd has been added.
 
+Experimental support for the Eicon.Diehl DIVA 2.0 and 2.02 ISA PnP
+ISDN cards has been added to the isic(4) isdn4bsd driver.
+
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [MERGED]
 
