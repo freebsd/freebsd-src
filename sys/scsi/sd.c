@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *	$Id: sd.c,v 1.6 1993/08/28 03:08:56 rgrimes Exp $
+ *	$Id: sd.c,v 1.7 1993/09/09 01:30:46 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -809,7 +809,7 @@ sd_size(unit, flags)
 			NULL,
 			flags | SCSI_DATA_IN) != 0)
 	{
-		printf("sd0%: could not get size\n", unit);
+		printf("sd%d: could not get size\n", unit);
 		return(0);
 	} else {
 		size = rdcap.addr_0 + 1 ;
