@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <rune.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 #include "un-namespace.h"
 #include "libc_private.h"
@@ -39,18 +39,34 @@ __FBSDID("$FreeBSD$");
 wint_t
 fgetwc(FILE *fp)
 {
-	wint_t wc;
-	long r;
+	char buf[MB_LEN_MAX];
+	mbstate_t mbs;
+	size_t n, nconv;
+	int c;
+	wchar_t wc;
 
 	ORIENTLOCK(fp, 1);
 
-	if ((r = fgetrune(fp)) == _INVALID_RUNE) {
-		wc = WEOF;
-		errno = EILSEQ;
-	} else if (r == EOF)
-		wc = WEOF;
-	else
-		wc = (wint_t)r;
+	n = 0;
+	while (n < MB_CUR_MAX) {
+		if ((c = fgetc(fp)) == EOF) {
+			if (n == 0)
+				return (WEOF);
+			break;
+		}
+		buf[n++] = (char)c;
+		memset(&mbs, 0, sizeof(mbs));
+		nconv = mbrtowc(&wc, buf, n, &mbs);
+		if (nconv == n)
+			return (wc);
+		else if (nconv == 0)
+			return (L'\0');
+		else if (nconv == (size_t)-2 || nconv == (size_t)-1)
+			break;
+	}
 
-	return (wc);
+	while (n-- != 0)
+		ungetc((unsigned char)buf[n], fp);
+	errno = EILSEQ;
+	return (WEOF);
 }

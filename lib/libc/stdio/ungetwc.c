@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <rune.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 #include "un-namespace.h"
 #include "libc_private.h"
@@ -39,8 +39,21 @@ __FBSDID("$FreeBSD$");
 wint_t
 ungetwc(wint_t wc, FILE *fp)
 {
+	char buf[MB_LEN_MAX];
+	mbstate_t mbs;
+	size_t len;
 
 	ORIENTLOCK(fp, 1);
 
-	return (fungetrune((rune_t)wc, fp) == EOF ? WEOF : wc);
+	if (wc == WEOF)
+		return (WEOF);
+
+	memset(&mbs, 0, sizeof(mbs));
+	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
+		return (WEOF);
+	while (len-- != 0)
+		if (ungetc((unsigned char)buf[len], fp) == EOF)
+			return (WEOF);
+
+	return (wc);
 }
