@@ -2,10 +2,38 @@
 #
 # $FreeBSD$
 #
-# pccard_ether interfacename [ifconfig option]
+# pccard_ether interfacename [start|stop] [ifconfig option]
 #
-# example: pccard_ether ep0 -link0
+# example: pccard_ether ep0 start -link0
 #
+
+stop_dhcp() {
+	if [ -r /sbin/dhclient ]; then
+		pidfile="/var/run/dhclient.${interface}.pid"
+		if [ -s ${pidfile} ]; then
+			kill `cat ${pidfile}`
+			rm ${pidfile}
+		fi
+	elif [ -r /usr/local/sbin/dhcpc ]; then
+		pidfile="/var/run/dhcpc.${interface}.pid"
+		if [ -s ${pidfile} ]; then
+			kill `cat ${pidfile}`
+			rm ${pidfile}
+		fi
+	fi
+}
+
+start_dhcp() {
+	stop_dhcp
+	if [ -r /sbin/dhclient ]; then
+		pidfile="/var/run/dhclient.${interface}.pid"
+		/sbin/dhclient -pf ${pidfile} $interface
+	elif [ -r /usr/local/sbin/dhcpc ]; then
+		/usr/local/sbin/dhcpc $interface
+	else
+		echo "DHCP client software not available (isc-dhcp2)"
+	fi
+}
 
 # Suck in the configuration variables
 #
@@ -18,65 +46,62 @@ fi
 
 interface=$1
 shift
+startstop=$1
+shift
 
-case ${pccard_ifconfig} in
-[Nn][Oo] | '')
-        ;;
-[Dd][Hh][Cc][Pp])
-	if [ -r /sbin/dhclient ]; then
-		if [ -s /var/run/dhclient.pid ]; then
-			kill `cat /var/run/dhclient.pid`
-			rm /var/run/dhclient.pid
-		fi
-		/sbin/dhclient $interface
-	elif [ -r /usr/local/sbin/dhcpc ]; then
-		if [ -s /var/run/dhcpc.pid ]; then
-			kill `cat /var/run/dhcpc.pid`
-			rm /var/run/dhcpc.pid
-		fi
-		/usr/local/sbin/dhcpc $interface $*
-	else
-		echo "DHCP client software not available (isc-dhcp2)"
-	fi
-	;;
-*)
-	ifconfig ${interface} ${pccard_ifconfig} $*
-	;;
-esac
-
-case ${defaultrouter} in
-[Nn][Oo] | '')
-        ;;
-*)
-	static_routes="default ${static_routes}"
-	route_default="default ${defaultrouter}"
-	;;
-esac
-
-# Set up any static routes.
-#
-if [ -n "${static_routes}" ]; then
-	# flush beforehand, just in case....
-        route -n flush
-	arp -d -a
-	for i in ${static_routes}; do
-		eval route_args=\$route_${i}
-		route add ${route_args}
-	done
-fi
-
-# IPv6 setup
-case ${ipv6_enable} in
-[Yy][Ee][Ss])
-	case ${ipv6_gateway_enable} in
-	[Yy][Ee][Ss])
+case ${startstop} in
+[Ss][Tt][Aa][Rr][Tt] | '')
+	case ${pccard_ifconfig} in
+	[Nn][Oo] | '')
+		;;
+	[Dd][Hh][Cc][Pp])
+		start_dhcp
 		;;
 	*)
-		sysctl -w net.inet6.ip6.forwarding=0
-		sysctl -w net.inet6.ip6.accept_rtadv=1
-		ifconfig ${interface} up
-		rtsol ${interface}
+		ifconfig ${interface} ${pccard_ifconfig} $*
 		;;
 	esac
+
+	case ${defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		static_routes="default ${static_routes}"
+		route_default="default ${defaultrouter}"
+		;;
+	esac
+
+	# Set up any static routes.
+	#
+	if [ -n "${static_routes}" ]; then
+		# flush beforehand, just in case....
+		route -n flush
+		arp -d -a
+		for i in ${static_routes}; do
+			eval route_args=\$route_${i}
+			route add ${route_args}
+		done
+	fi
+
+	# IPv6 setup
+	case ${ipv6_enable} in
+	[Yy][Ee][Ss])
+		case ${ipv6_gateway_enable} in
+		[Yy][Ee][Ss])
+			;;
+		*)
+			sysctl -w net.inet6.ip6.forwarding=0
+			sysctl -w net.inet6.ip6.accept_rtadv=1
+			ifconfig ${interface} up
+			rtsol ${interface}
+			;;
+		esac
+		;;
+	esac
+	;;
+# Stop the interface
+*)
+	/sbin/ifconfig ${interface} delete
+	stop_dhcp
 	;;
 esac
