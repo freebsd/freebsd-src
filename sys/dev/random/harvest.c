@@ -101,13 +101,8 @@ read_random_phony(void *buf, int count)
 {
 	u_long randval;
 	int size, i;
-	static int initialised = 0;
 
-	/* Try to give random(9) a half decent initialisation
-	 * DO NOT make the mistake of thinking this is secure!!
-	 */
-	if (!initialised)
-		srandom((u_long)get_cyclecount());
+	/* srandom() is called in kern/init_main.c:proc0_post() */
 
 	/* Fill buf[] with random(9) output */
 	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
