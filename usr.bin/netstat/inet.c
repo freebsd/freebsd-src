@@ -94,10 +94,8 @@ static int udp_done, tcp_done;
  * -a (all) flag is specified.
  */
 void
-protopr(proto, name, af)
-	u_long proto;		/* for sysctl version we pass proto # */
-	char *name;
-	int af;
+protopr(u_long proto,		/* for sysctl version we pass proto # */
+	char *name, int af)
 {
 	int istcp;
 	static int first = 1;
@@ -167,7 +165,7 @@ protopr(proto, name, af)
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != proto)
+		if (so->xso_protocol != (int)proto)
 			continue;
 
 		/* Ignore PCBs which were freed during copyout. */
@@ -348,9 +346,7 @@ protopr(proto, name, af)
  * Dump TCP statistics structure.
  */
 void
-tcp_stats(off, name)
-	u_long off;
-	char *name;
+tcp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct tcpstat tcpstat;
 	size_t len = sizeof tcpstat;
@@ -448,9 +444,7 @@ tcp_stats(off, name)
  * Dump UDP statistics structure.
  */
 void
-udp_stats(off, name)
-	u_long off;
-	char *name;
+udp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct udpstat udpstat;
 	size_t len = sizeof udpstat;
@@ -501,9 +495,7 @@ udp_stats(off, name)
  * Dump IP statistics structure.
  */
 void
-ip_stats(off, name)
-	u_long off;
-	char *name;
+ip_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct ipstat ipstat;
 	size_t len = sizeof ipstat;
@@ -583,9 +575,7 @@ static	char *icmpnames[] = {
  * Dump ICMP statistics.
  */
 void
-icmp_stats(off, name)
-	u_long off;
-	char *name;
+icmp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct icmpstat icmpstat;
 	int i, first;
@@ -651,9 +641,7 @@ icmp_stats(off, name)
  * Dump IGMP statistics structure.
  */
 void
-igmp_stats(off, name)
-	u_long off;
-	char *name;
+igmp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct igmpstat igmpstat;
 	size_t len = sizeof igmpstat;
@@ -686,11 +674,7 @@ igmp_stats(off, name)
  * Pretty print an Internet address (net address + port).
  */
 void
-inetprint(in, port, proto, numeric_port)
-	register struct in_addr *in;
-	int port;
-	char *proto;
-	int numeric_port;
+inetprint(struct in_addr *in, int port, char *proto, int numeric_port)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -720,8 +704,7 @@ inetprint(in, port, proto, numeric_port)
  * numeric value, otherwise try for symbolic name.
  */
 char *
-inetname(inp)
-	struct in_addr *inp;
+inetname(struct in_addr *inp)
 {
 	register char *cp;
 	static char line[MAXHOSTNAMELEN];
