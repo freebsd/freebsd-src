@@ -1783,7 +1783,6 @@ static int dc_attach(dev)
 
 	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	DC_LOCK(sc);
 
 	/*
 	 * Handle power management nonsense.
@@ -1802,13 +1801,13 @@ static int dc_attach(dev)
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("dc%d: failed to enable I/O ports!\n", unit);
 		error = ENXIO;
-		goto fail;
+		goto fail_nolock;
 	}
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("dc%d: failed to enable memory mapping!\n", unit);
 		error = ENXIO;
-		goto fail;
+		goto fail_nolock;
 	}
 #endif
 
@@ -1819,7 +1818,7 @@ static int dc_attach(dev)
 	if (sc->dc_res == NULL) {
 		printf("dc%d: couldn't map ports/memory\n", unit);
 		error = ENXIO;
-		goto fail;
+		goto fail_nolock;
 	}
 
 	sc->dc_btag = rman_get_bustag(sc->dc_res);
@@ -1834,7 +1833,7 @@ static int dc_attach(dev)
 		printf("dc%d: couldn't map interrupt\n", unit);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		error = ENXIO;
-		goto fail;
+		goto fail_nolock;
 	}
 
 	error = bus_setup_intr(dev, sc->dc_irq, INTR_TYPE_NET | 
@@ -1845,8 +1844,9 @@ static int dc_attach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->dc_irq);
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 		printf("dc%d: couldn't set up irq\n", unit);
-		goto fail;
+		goto fail_nolock;
 	}
+	DC_LOCK(sc);
 
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);
@@ -2167,6 +2167,7 @@ static int dc_attach(dev)
 
 fail:
 	DC_UNLOCK(sc);
+fail_nolock:
 	mtx_destroy(&sc->dc_mtx);
 	return(error);
 }
