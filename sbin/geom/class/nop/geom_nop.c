@@ -73,7 +73,7 @@ void
 usage(const char *name)
 {
 
-	fprintf(stderr, "usage: %s create [-v] [-f failprob] [-o offset] [-s size] [-S secsize] <dev1> [dev2 [...]]\n", name);
-	fprintf(stderr, "       %s configure [-v] [-f failprob] <prov1> [prov2 [...]]\n", name);
-	fprintf(stderr, "       %s destroy [-fv] <prov1> [prov2 [...]]\n", name);
+	fprintf(stderr, "usage: %s create [-v] [-f failprob] [-o offset] [-s size] [-S secsize] dev ...\n", name);
+	fprintf(stderr, "       %s configure [-v] [-f failprob] prov ...\n", name);
+	fprintf(stderr, "       %s destroy [-fv] prov ...\n", name);
 }
