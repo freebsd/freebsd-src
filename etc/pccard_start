@@ -1,0 +1,20 @@
+#!/bin/sh -
+#
+# PC-card startup script
+# HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+#
+
+if [ "x$apm_enable" = "xYES" ] ; then
+	echo "Enable APM BIOS."
+	/usr/sbin/apmconf -e
+fi
+
+if [ "x$pccard_enable" != "xNO" ] ; then
+	if [ "x$pccard_mem" != "xNO" ] ; then
+		/usr/sbin/pccardc pccardmem $pccard_mem
+	else
+		/usr/sbin/pccardc pccardmem 0xd0000
+	fi
+	echo -n "Enable PC-card." 
+	/usr/sbin/pccardd 2>&1 > /var/log/pccardd.debug &
+fi

@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.84 1996/02/09 12:20:37 jkh Exp $
+#	$Id: rc,v 1.85 1996/02/23 10:44:49 adam Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -92,6 +92,11 @@ fi
 # configure serial devices
 if [ -f /etc/rc.serial ]; then
 	. /etc/rc.serial
+fi
+
+# start up PC-card configuration
+if [ -f /etc/pccardstart ]; then
+	. /etc/pccardstart
 fi
 
 # start up the network
