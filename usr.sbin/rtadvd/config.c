@@ -478,7 +478,7 @@ getconfig(intface)
 		MAYHAVE(val, entbuf, 0);
 		rti->rtpref = val & ND_RA_FLAG_RTPREF_MASK;
 		if (rti->rtpref == ND_RA_FLAG_RTPREF_RSV) {
-			syslog(LOG_ERR, "<%s> invalid route preference",
+			syslog(LOG_ERR, "<%s> invalid router preference",
 			       __FUNCTION__);
 			exit(1);
 		}
@@ -1055,7 +1055,7 @@ make_packet(struct rainfo *rainfo)
 		ndopt_rti->nd_opt_rti_len = 1 + psize;
 		ndopt_rti->nd_opt_rti_prefixlen = rti->prefixlen;
 		ndopt_rti->nd_opt_rti_flags = 0xff & rti->rtpref;
-		ndopt_rti->nd_opt_rti_lifetime = htonl(rti->ltime);
+		ndopt_rti->nd_opt_rti_lifetime = rti->ltime;
 		memcpy(ndopt_rti + 1, &rti->prefix, psize * 8);
 		buf += sizeof(struct nd_opt_route_info) + psize * 8;
 	}
