@@ -39,6 +39,7 @@ SUBDIR=	IPXrouted \
 	kvm_mkdb \
 	lpr \
 	manctl \
+	memcontrol \
 	moused \
 	mrouted \
 	mtest \
