@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.39 1998/12/07 21:58:42 archie Exp $
+ *	$Id: tcp_usrreq.c,v 1.40 1999/01/20 17:31:59 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -111,7 +111,7 @@ tcp_usr_attach(struct socket *so, int proto, struct proc *p)
 		goto out;
 
 	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-		so->so_linger = TCP_LINGERTIME * hz;
+		so->so_linger = TCP_LINGERTIME;
 	tp = sototcpcb(so);
 out:
 	TCPDEBUG2(PRU_ATTACH);
