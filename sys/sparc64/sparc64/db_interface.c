@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/cons.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
@@ -51,66 +52,42 @@
 #include <machine/atomic.h>
 #include <machine/setjmp.h>
 
-static jmp_buf *db_nofault = 0;
-extern jmp_buf db_jmpbuf;
-
-int db_active;
-db_regs_t ddb_regs;
-
-static jmp_buf db_global_jmpbuf;
-static int db_global_jmpbuf_valid;
-
 int
-kdb_trap(struct trapframe *tf)
-{
-
-	if (db_global_jmpbuf_valid)
-		longjmp(db_global_jmpbuf, 1);
-	flushw();
-	ddb_regs = *tf;
-	critical_enter();
-	setjmp(db_global_jmpbuf);
-	db_global_jmpbuf_valid = TRUE;
-	atomic_add_acq_int(&db_active, 1);
-#ifdef SMP
-	stop_cpus(PCPU_GET(other_cpus));
-#endif
-	cndbctl(TRUE);
-	db_trap(tf->tf_type, 0);
-	cndbctl(FALSE);
-	db_active--;
-#ifdef SMP
-	restart_cpus(stopped_cpus);
-#endif
-	db_global_jmpbuf_valid = FALSE;
-	critical_exit();
-	*tf = ddb_regs;
-	TF_DONE(tf);
-	return (1);
-}
-
-void
 db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
+	jmp_buf jb;
+	void *prev_jb;
 	char *src;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-	src = (char *)addr;
-	while (size-- > 0)
-		*data++ = *src++;
-	db_nofault = NULL;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		src = (char *)addr;
+		while (size-- > 0)
+			*data++ = *src++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
-void
+int
 db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
+	jmp_buf jb;
+	void *prev_jb;
 	char *dst;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-	dst = (char *)addr;
-	while (size-- > 0)
-		*dst++ = *data++;
-	db_nofault = NULL;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		dst = (char *)addr;
+		while (size-- > 0)
+			*dst++ = *data++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
 void

@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>
@@ -58,7 +59,11 @@ db_get_value(addr, size, is_signed)
 	register db_expr_t value;
 	register int	i;
 
-	db_read_bytes(addr, size, data);
+	if (db_read_bytes(addr, size, data) != 0) {
+		db_printf("*** error reading from address %llx ***\n",
+		    (long long)addr);
+		kdb_reenter();
+	}
 
 	value = 0;
 #if	BYTE_MSF
@@ -96,6 +101,9 @@ db_put_value(addr, size, value)
 	    value >>= 8;
 	}
 
-	db_write_bytes(addr, size, data);
+	if (db_write_bytes(addr, size, data) != 0) {
+		db_printf("*** error writing to address %llx ***\n",
+		    (long long)addr);
+		kdb_reenter();
+	}
 }
-

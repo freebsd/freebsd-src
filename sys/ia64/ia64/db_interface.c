@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /* 
  * Mach Operating System
  * Copyright (c) 1992,1991,1990 Carnegie Mellon University
@@ -28,29 +26,26 @@
  *	db_interface.c,v 2.4 1991/02/05 17:11:13 mrt (CMU)
  */
 
-/*
- * Parts of this file are derived from Mach 3:
- *
- *	File: alpha_instruction.c
- *	Author: Alessandro Forin, Carnegie Mellon University
- *	Date:	6/92
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Interface to DDB.
  */
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/cons.h>
+#include <sys/kdb.h>
+#include <sys/ktr.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/smp.h>
-#include <sys/cons.h>
-#include <sys/ktr.h>
 
 #include <vm/vm.h>
 
 #include <machine/db_machdep.h>
+#include <machine/frame.h>
 #include <machine/mutex.h>
 #include <machine/setjmp.h>
 
@@ -61,433 +56,319 @@
 
 #include <ia64/disasm/disasm.h>
 
-static jmp_buf *db_nofault = 0;
-extern jmp_buf	db_jmpbuf;
+#define	TMPL_BITS	5
+#define	TMPL_MASK	((1 << TMPL_BITS) - 1)
+#define	SLOT_BITS	41
+#define	SLOT_COUNT	3
+#define	SLOT_MASK	((1ULL << SLOT_BITS) - 1ULL)
+#define	SLOT_SHIFT(i)	(TMPL_BITS+((i)<<3)+(i))
 
-extern void	gdb_handle_exception(db_regs_t *, int);
+static db_varfcn_t db_frame;
+static db_varfcn_t db_getrse;
+static db_varfcn_t db_getip;
 
-int	db_active;
-db_regs_t ddb_regs;
-
-static int db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op);
-static int db_get_ip_reg(struct db_variable *vp, db_expr_t *valuep, int op);
-
+#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	/* Misc control/app registers */
-#define DB_MISC_REGS	13	/* make sure this is correct */
-
-	{"ip",		NULL,			db_get_ip_reg},
-	{"psr",		(db_expr_t*) &ddb_regs.tf_special.psr,	FCN_NULL},
-	{"cr.isr",	(db_expr_t*) &ddb_regs.tf_special.isr,	FCN_NULL},
-	{"cr.ifa",	(db_expr_t*) &ddb_regs.tf_special.ifa,	FCN_NULL},
-	{"pr",		(db_expr_t*) &ddb_regs.tf_special.pr,	FCN_NULL},
-	{"ar.rsc",	(db_expr_t*) &ddb_regs.tf_special.rsc,	FCN_NULL},
-	{"ar.pfs",	(db_expr_t*) &ddb_regs.tf_special.pfs,	FCN_NULL},
-	{"cr.ifs",	(db_expr_t*) &ddb_regs.tf_special.cfm,	FCN_NULL},
-	{"ar.bspstore",	(db_expr_t*) &ddb_regs.tf_special.bspstore, FCN_NULL},
-	{"ndirty",	(db_expr_t*) &ddb_regs.tf_special.ndirty, FCN_NULL},
-	{"ar.rnat",	(db_expr_t*) &ddb_regs.tf_special.rnat,	FCN_NULL},
-	{"ar.unat",	(db_expr_t*) &ddb_regs.tf_special.unat,	FCN_NULL},
-	{"ar.fpsr",	(db_expr_t*) &ddb_regs.tf_special.fpsr,	FCN_NULL},
-
-	/* Branch registers */
-	{"rp",		(db_expr_t*) &ddb_regs.tf_special.rp,	FCN_NULL},
-	/* b1, b2, b3, b4, b5 are preserved */
-	{"b6",		(db_expr_t*) &ddb_regs.tf_scratch.br6,	FCN_NULL},
-	{"b7",		(db_expr_t*) &ddb_regs.tf_scratch.br7,	FCN_NULL},
-
-	/* Static registers */
-	{"gp",		(db_expr_t*) &ddb_regs.tf_special.gp,	FCN_NULL},
-	{"r2",		(db_expr_t*) &ddb_regs.tf_scratch.gr2,	FCN_NULL},
-	{"r3",		(db_expr_t*) &ddb_regs.tf_scratch.gr3,	FCN_NULL},
-	{"r8",		(db_expr_t*) &ddb_regs.tf_scratch.gr8,	FCN_NULL},
-	{"r9",		(db_expr_t*) &ddb_regs.tf_scratch.gr9,	FCN_NULL},
-	{"r10",		(db_expr_t*) &ddb_regs.tf_scratch.gr10,	FCN_NULL},
-	{"r11",		(db_expr_t*) &ddb_regs.tf_scratch.gr11,	FCN_NULL},
-	{"sp",		(db_expr_t*) &ddb_regs.tf_special.sp,	FCN_NULL},
-	{"tp",		(db_expr_t*) &ddb_regs.tf_special.tp,	FCN_NULL},
-	{"r14",		(db_expr_t*) &ddb_regs.tf_scratch.gr14,	FCN_NULL},
-	{"r15",		(db_expr_t*) &ddb_regs.tf_scratch.gr15,	FCN_NULL},
-	{"r16",		(db_expr_t*) &ddb_regs.tf_scratch.gr16,	FCN_NULL},
-	{"r17",		(db_expr_t*) &ddb_regs.tf_scratch.gr17,	FCN_NULL},
-	{"r18",		(db_expr_t*) &ddb_regs.tf_scratch.gr18,	FCN_NULL},
-	{"r19",		(db_expr_t*) &ddb_regs.tf_scratch.gr19,	FCN_NULL},
-	{"r20",		(db_expr_t*) &ddb_regs.tf_scratch.gr20,	FCN_NULL},
-	{"r21",		(db_expr_t*) &ddb_regs.tf_scratch.gr21,	FCN_NULL},
-	{"r22",		(db_expr_t*) &ddb_regs.tf_scratch.gr22,	FCN_NULL},
-	{"r23",		(db_expr_t*) &ddb_regs.tf_scratch.gr23,	FCN_NULL},
-	{"r24",		(db_expr_t*) &ddb_regs.tf_scratch.gr24,	FCN_NULL},
-	{"r25",		(db_expr_t*) &ddb_regs.tf_scratch.gr25,	FCN_NULL},
-	{"r26",		(db_expr_t*) &ddb_regs.tf_scratch.gr26,	FCN_NULL},
-	{"r27",		(db_expr_t*) &ddb_regs.tf_scratch.gr27,	FCN_NULL},
-	{"r28",		(db_expr_t*) &ddb_regs.tf_scratch.gr28,	FCN_NULL},
-	{"r29",		(db_expr_t*) &ddb_regs.tf_scratch.gr29,	FCN_NULL},
-	{"r30",		(db_expr_t*) &ddb_regs.tf_scratch.gr30,	FCN_NULL},
-	{"r31",		(db_expr_t*) &ddb_regs.tf_scratch.gr31,	FCN_NULL},
-
-	/* Stacked registers */
-	{"r32",		(db_expr_t*) 32,	db_get_rse_reg},
-	{"r33",		(db_expr_t*) 33,	db_get_rse_reg},
-	{"r34",		(db_expr_t*) 34,	db_get_rse_reg},
-	{"r35",		(db_expr_t*) 35,	db_get_rse_reg},
-	{"r36",		(db_expr_t*) 36,	db_get_rse_reg},
-	{"r37",		(db_expr_t*) 37,	db_get_rse_reg},
-	{"r38",		(db_expr_t*) 38,	db_get_rse_reg},
-	{"r39",		(db_expr_t*) 39,	db_get_rse_reg},
-	{"r40",		(db_expr_t*) 40,	db_get_rse_reg},
-	{"r41",		(db_expr_t*) 41,	db_get_rse_reg},
-	{"r42",		(db_expr_t*) 42,	db_get_rse_reg},
-	{"r43",		(db_expr_t*) 43,	db_get_rse_reg},
-	{"r44",		(db_expr_t*) 44,	db_get_rse_reg},
-	{"r45",		(db_expr_t*) 45,	db_get_rse_reg},
-	{"r46",		(db_expr_t*) 46,	db_get_rse_reg},
-	{"r47",		(db_expr_t*) 47,	db_get_rse_reg},
-	{"r48",		(db_expr_t*) 48,	db_get_rse_reg},
-	{"r49",		(db_expr_t*) 49,	db_get_rse_reg},
-	{"r50",		(db_expr_t*) 50,	db_get_rse_reg},
-	{"r51",		(db_expr_t*) 51,	db_get_rse_reg},
-	{"r52",		(db_expr_t*) 52,	db_get_rse_reg},
-	{"r53",		(db_expr_t*) 53,	db_get_rse_reg},
-	{"r54",		(db_expr_t*) 54,	db_get_rse_reg},
-	{"r55",		(db_expr_t*) 55,	db_get_rse_reg},
-	{"r56",		(db_expr_t*) 56,	db_get_rse_reg},
-	{"r57",		(db_expr_t*) 57,	db_get_rse_reg},
-	{"r58",		(db_expr_t*) 58,	db_get_rse_reg},
-	{"r59",		(db_expr_t*) 59,	db_get_rse_reg},
-	{"r60",		(db_expr_t*) 60,	db_get_rse_reg},
-	{"r61",		(db_expr_t*) 61,	db_get_rse_reg},
-	{"r62",		(db_expr_t*) 62,	db_get_rse_reg},
-	{"r63",		(db_expr_t*) 63,	db_get_rse_reg},
-	{"r64",		(db_expr_t*) 64,	db_get_rse_reg},
-	{"r65",		(db_expr_t*) 65,	db_get_rse_reg},
-	{"r66",		(db_expr_t*) 66,	db_get_rse_reg},
-	{"r67",		(db_expr_t*) 67,	db_get_rse_reg},
-	{"r68",		(db_expr_t*) 68,	db_get_rse_reg},
-	{"r69",		(db_expr_t*) 69,	db_get_rse_reg},
-	{"r70",		(db_expr_t*) 70,	db_get_rse_reg},
-	{"r71",		(db_expr_t*) 71,	db_get_rse_reg},
-	{"r72",		(db_expr_t*) 72,	db_get_rse_reg},
-	{"r73",		(db_expr_t*) 73,	db_get_rse_reg},
-	{"r74",		(db_expr_t*) 74,	db_get_rse_reg},
-	{"r75",		(db_expr_t*) 75,	db_get_rse_reg},
-	{"r76",		(db_expr_t*) 76,	db_get_rse_reg},
-	{"r77",		(db_expr_t*) 77,	db_get_rse_reg},
-	{"r78",		(db_expr_t*) 78,	db_get_rse_reg},
-	{"r79",		(db_expr_t*) 79,	db_get_rse_reg},
-	{"r80",		(db_expr_t*) 80,	db_get_rse_reg},
-	{"r81",		(db_expr_t*) 81,	db_get_rse_reg},
-	{"r82",		(db_expr_t*) 82,	db_get_rse_reg},
-	{"r83",		(db_expr_t*) 83,	db_get_rse_reg},
-	{"r84",		(db_expr_t*) 84,	db_get_rse_reg},
-	{"r85",		(db_expr_t*) 85,	db_get_rse_reg},
-	{"r86",		(db_expr_t*) 86,	db_get_rse_reg},
-	{"r87",		(db_expr_t*) 87,	db_get_rse_reg},
-	{"r88",		(db_expr_t*) 88,	db_get_rse_reg},
-	{"r89",		(db_expr_t*) 89,	db_get_rse_reg},
-	{"r90",		(db_expr_t*) 90,	db_get_rse_reg},
-	{"r91",		(db_expr_t*) 91,	db_get_rse_reg},
-	{"r92",		(db_expr_t*) 92,	db_get_rse_reg},
-	{"r93",		(db_expr_t*) 93,	db_get_rse_reg},
-	{"r94",		(db_expr_t*) 94,	db_get_rse_reg},
-	{"r95",		(db_expr_t*) 95,	db_get_rse_reg},
-	{"r96",		(db_expr_t*) 96,	db_get_rse_reg},
-	{"r97",		(db_expr_t*) 97,	db_get_rse_reg},
-	{"r98",		(db_expr_t*) 98,	db_get_rse_reg},
-	{"r99",		(db_expr_t*) 99,	db_get_rse_reg},
-	{"r100",	(db_expr_t*) 100,	db_get_rse_reg},
-	{"r101",	(db_expr_t*) 101,	db_get_rse_reg},
-	{"r102",	(db_expr_t*) 102,	db_get_rse_reg},
-	{"r103",	(db_expr_t*) 103,	db_get_rse_reg},
-	{"r104",	(db_expr_t*) 104,	db_get_rse_reg},
-	{"r105",	(db_expr_t*) 105,	db_get_rse_reg},
-	{"r106",	(db_expr_t*) 106,	db_get_rse_reg},
-	{"r107",	(db_expr_t*) 107,	db_get_rse_reg},
-	{"r108",	(db_expr_t*) 108,	db_get_rse_reg},
-	{"r109",	(db_expr_t*) 109,	db_get_rse_reg},
-	{"r110",	(db_expr_t*) 110,	db_get_rse_reg},
-	{"r111",	(db_expr_t*) 111,	db_get_rse_reg},
-	{"r112",	(db_expr_t*) 112,	db_get_rse_reg},
-	{"r113",	(db_expr_t*) 113,	db_get_rse_reg},
-	{"r114",	(db_expr_t*) 114,	db_get_rse_reg},
-	{"r115",	(db_expr_t*) 115,	db_get_rse_reg},
-	{"r116",	(db_expr_t*) 116,	db_get_rse_reg},
-	{"r117",	(db_expr_t*) 117,	db_get_rse_reg},
-	{"r118",	(db_expr_t*) 118,	db_get_rse_reg},
-	{"r119",	(db_expr_t*) 119,	db_get_rse_reg},
-	{"r120",	(db_expr_t*) 120,	db_get_rse_reg},
-	{"r121",	(db_expr_t*) 121,	db_get_rse_reg},
-	{"r122",	(db_expr_t*) 122,	db_get_rse_reg},
-	{"r123",	(db_expr_t*) 123,	db_get_rse_reg},
-	{"r124",	(db_expr_t*) 124,	db_get_rse_reg},
-	{"r125",	(db_expr_t*) 125,	db_get_rse_reg},
-	{"r126",	(db_expr_t*) 126,	db_get_rse_reg},
-	{"r127",	(db_expr_t*) 127,	db_get_rse_reg},
+	{"ip",		NULL,				db_getip},
+	{"cr.ifs",	DB_OFFSET(tf_special.cfm),	db_frame},
+	{"cr.ifa",	DB_OFFSET(tf_special.ifa),	db_frame},
+	{"ar.bspstore",	DB_OFFSET(tf_special.bspstore),	db_frame},
+	{"ndirty",	DB_OFFSET(tf_special.ndirty),	db_frame},
+	{"rp",		DB_OFFSET(tf_special.rp),	db_frame},
+	{"ar.pfs",	DB_OFFSET(tf_special.pfs),	db_frame},
+	{"psr",		DB_OFFSET(tf_special.psr),	db_frame},
+	{"cr.isr",	DB_OFFSET(tf_special.isr),	db_frame},
+	{"pr",		DB_OFFSET(tf_special.pr),	db_frame},
+	{"ar.rsc",	DB_OFFSET(tf_special.rsc),	db_frame},
+	{"ar.rnat",	DB_OFFSET(tf_special.rnat),	db_frame},
+	{"ar.unat",	DB_OFFSET(tf_special.unat),	db_frame},
+	{"ar.fpsr",	DB_OFFSET(tf_special.fpsr),	db_frame},
+	{"gp",		DB_OFFSET(tf_special.gp),	db_frame},
+	{"sp",		DB_OFFSET(tf_special.sp),	db_frame},
+	{"tp",		DB_OFFSET(tf_special.tp),	db_frame},
+	{"b6",		DB_OFFSET(tf_scratch.br6),	db_frame},
+	{"b7",		DB_OFFSET(tf_scratch.br7),	db_frame},
+	{"r2",		DB_OFFSET(tf_scratch.gr2),	db_frame},
+	{"r3",		DB_OFFSET(tf_scratch.gr3),	db_frame},
+	{"r8",		DB_OFFSET(tf_scratch.gr8),	db_frame},
+	{"r9",		DB_OFFSET(tf_scratch.gr9),	db_frame},
+	{"r10",		DB_OFFSET(tf_scratch.gr10),	db_frame},
+	{"r11",		DB_OFFSET(tf_scratch.gr11),	db_frame},
+	{"r14",		DB_OFFSET(tf_scratch.gr14),	db_frame},
+	{"r15",		DB_OFFSET(tf_scratch.gr15),	db_frame},
+	{"r16",		DB_OFFSET(tf_scratch.gr16),	db_frame},
+	{"r17",		DB_OFFSET(tf_scratch.gr17),	db_frame},
+	{"r18",		DB_OFFSET(tf_scratch.gr18),	db_frame},
+	{"r19",		DB_OFFSET(tf_scratch.gr19),	db_frame},
+	{"r20",		DB_OFFSET(tf_scratch.gr20),	db_frame},
+	{"r21",		DB_OFFSET(tf_scratch.gr21),	db_frame},
+	{"r22",		DB_OFFSET(tf_scratch.gr22),	db_frame},
+	{"r23",		DB_OFFSET(tf_scratch.gr23),	db_frame},
+	{"r24",		DB_OFFSET(tf_scratch.gr24),	db_frame},
+	{"r25",		DB_OFFSET(tf_scratch.gr25),	db_frame},
+	{"r26",		DB_OFFSET(tf_scratch.gr26),	db_frame},
+	{"r27",		DB_OFFSET(tf_scratch.gr27),	db_frame},
+	{"r28",		DB_OFFSET(tf_scratch.gr28),	db_frame},
+	{"r29",		DB_OFFSET(tf_scratch.gr29),	db_frame},
+	{"r30",		DB_OFFSET(tf_scratch.gr30),	db_frame},
+	{"r31",		DB_OFFSET(tf_scratch.gr31),	db_frame},
+	{"r32",		(db_expr_t*)0,			db_getrse},
+	{"r33",		(db_expr_t*)1,			db_getrse},
+	{"r34",		(db_expr_t*)2,			db_getrse},
+	{"r35",		(db_expr_t*)3,			db_getrse},
+	{"r36",		(db_expr_t*)4,			db_getrse},
+	{"r37",		(db_expr_t*)5,			db_getrse},
+	{"r38",		(db_expr_t*)6,			db_getrse},
+	{"r39",		(db_expr_t*)7,			db_getrse},
+	{"r40",		(db_expr_t*)8,			db_getrse},
+	{"r41",		(db_expr_t*)9,			db_getrse},
+	{"r42",		(db_expr_t*)10,			db_getrse},
+	{"r43",		(db_expr_t*)11,			db_getrse},
+	{"r44",		(db_expr_t*)12,			db_getrse},
+	{"r45",		(db_expr_t*)13,			db_getrse},
+	{"r46",		(db_expr_t*)14,			db_getrse},
+	{"r47",		(db_expr_t*)15,			db_getrse},
+	{"r48",		(db_expr_t*)16,			db_getrse},
+	{"r49",		(db_expr_t*)17,			db_getrse},
+	{"r50",		(db_expr_t*)18,			db_getrse},
+	{"r51",		(db_expr_t*)19,			db_getrse},
+	{"r52",		(db_expr_t*)20,			db_getrse},
+	{"r53",		(db_expr_t*)21,			db_getrse},
+	{"r54",		(db_expr_t*)22,			db_getrse},
+	{"r55",		(db_expr_t*)23,			db_getrse},
+	{"r56",		(db_expr_t*)24,			db_getrse},
+	{"r57",		(db_expr_t*)25,			db_getrse},
+	{"r58",		(db_expr_t*)26,			db_getrse},
+	{"r59",		(db_expr_t*)27,			db_getrse},
+	{"r60",		(db_expr_t*)28,			db_getrse},
+	{"r61",		(db_expr_t*)29,			db_getrse},
+	{"r62",		(db_expr_t*)30,			db_getrse},
+	{"r63",		(db_expr_t*)31,			db_getrse},
+	{"r64",		(db_expr_t*)32,			db_getrse},
+	{"r65",		(db_expr_t*)33,			db_getrse},
+	{"r66",		(db_expr_t*)34,			db_getrse},
+	{"r67",		(db_expr_t*)35,			db_getrse},
+	{"r68",		(db_expr_t*)36,			db_getrse},
+	{"r69",		(db_expr_t*)37,			db_getrse},
+	{"r70",		(db_expr_t*)38,			db_getrse},
+	{"r71",		(db_expr_t*)39,			db_getrse},
+	{"r72",		(db_expr_t*)40,			db_getrse},
+	{"r73",		(db_expr_t*)41,			db_getrse},
+	{"r74",		(db_expr_t*)42,			db_getrse},
+	{"r75",		(db_expr_t*)43,			db_getrse},
+	{"r76",		(db_expr_t*)44,			db_getrse},
+	{"r77",		(db_expr_t*)45,			db_getrse},
+	{"r78",		(db_expr_t*)46,			db_getrse},
+	{"r79",		(db_expr_t*)47,			db_getrse},
+	{"r80",		(db_expr_t*)48,			db_getrse},
+	{"r81",		(db_expr_t*)49,			db_getrse},
+	{"r82",		(db_expr_t*)50,			db_getrse},
+	{"r83",		(db_expr_t*)51,			db_getrse},
+	{"r84",		(db_expr_t*)52,			db_getrse},
+	{"r85",		(db_expr_t*)53,			db_getrse},
+	{"r86",		(db_expr_t*)54,			db_getrse},
+	{"r87",		(db_expr_t*)55,			db_getrse},
+	{"r88",		(db_expr_t*)56,			db_getrse},
+	{"r89",		(db_expr_t*)57,			db_getrse},
+	{"r90",		(db_expr_t*)58,			db_getrse},
+	{"r91",		(db_expr_t*)59,			db_getrse},
+	{"r92",		(db_expr_t*)60,			db_getrse},
+	{"r93",		(db_expr_t*)61,			db_getrse},
+	{"r94",		(db_expr_t*)62,			db_getrse},
+	{"r95",		(db_expr_t*)63,			db_getrse},
+	{"r96",		(db_expr_t*)64,			db_getrse},
+	{"r97",		(db_expr_t*)65,			db_getrse},
+	{"r98",		(db_expr_t*)66,			db_getrse},
+	{"r99",		(db_expr_t*)67,			db_getrse},
+	{"r100",	(db_expr_t*)68,			db_getrse},
+	{"r101",	(db_expr_t*)69,			db_getrse},
+	{"r102",	(db_expr_t*)70,			db_getrse},
+	{"r103",	(db_expr_t*)71,			db_getrse},
+	{"r104",	(db_expr_t*)72,			db_getrse},
+	{"r105",	(db_expr_t*)73,			db_getrse},
+	{"r106",	(db_expr_t*)74,			db_getrse},
+	{"r107",	(db_expr_t*)75,			db_getrse},
+	{"r108",	(db_expr_t*)76,			db_getrse},
+	{"r109",	(db_expr_t*)77,			db_getrse},
+	{"r110",	(db_expr_t*)78,			db_getrse},
+	{"r111",	(db_expr_t*)79,			db_getrse},
+	{"r112",	(db_expr_t*)80,			db_getrse},
+	{"r113",	(db_expr_t*)81,			db_getrse},
+	{"r114",	(db_expr_t*)82,			db_getrse},
+	{"r115",	(db_expr_t*)83,			db_getrse},
+	{"r116",	(db_expr_t*)84,			db_getrse},
+	{"r117",	(db_expr_t*)85,			db_getrse},
+	{"r118",	(db_expr_t*)86,			db_getrse},
+	{"r119",	(db_expr_t*)87,			db_getrse},
+	{"r120",	(db_expr_t*)88,			db_getrse},
+	{"r121",	(db_expr_t*)89,			db_getrse},
+	{"r122",	(db_expr_t*)90,			db_getrse},
+	{"r123",	(db_expr_t*)91,			db_getrse},
+	{"r124",	(db_expr_t*)92,			db_getrse},
+	{"r125",	(db_expr_t*)93,			db_getrse},
+	{"r126",	(db_expr_t*)94,			db_getrse},
+	{"r127",	(db_expr_t*)95,			db_getrse},
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
 static int
-db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+	uint64_t *reg;
+
+	if (kdb_frame == NULL)
+		return (0);
+	reg = (uint64_t*)((uintptr_t)kdb_frame + (uintptr_t)vp->valuep);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
+}
+
+static int
+db_getrse(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 	u_int64_t *reg;
 	uint64_t bsp;
 	int nats, regno, sof;
 
-	bsp = ddb_regs.tf_special.bspstore + ddb_regs.tf_special.ndirty;
-	regno = (db_expr_t)vp->valuep - 32;
-	sof = (int)(ddb_regs.tf_special.cfm & 0x7f);
+	if (kdb_frame == NULL)
+		return (0);
+
+	regno = (int)(intptr_t)valuep;
+	bsp = kdb_frame->tf_special.bspstore + kdb_frame->tf_special.ndirty;
+	sof = (int)(kdb_frame->tf_special.cfm & 0x7f);
+
+	if (regno >= sof)
+		return (0);
+
 	nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
-
 	reg = (void*)(bsp - ((sof - regno + nats) << 3));
-
-	if (regno < sof) {
-		if (op == DB_VAR_GET)
-			*valuep = *reg;
-		else
-			*reg = *valuep;
-	} else {
-		if (op == DB_VAR_GET)
-			*valuep = 0xdeadbeefdeadbeef;
-	}
-
-	return (0);
+	if (op == DB_VAR_GET)
+		*valuep = *reg;
+	else
+		*reg = *valuep;
+	return (1);
 }
 
 static int
-db_get_ip_reg(struct db_variable *vp, db_expr_t *valuep, int op)
+db_getip(struct db_variable *vp, db_expr_t *valuep, int op)
 {
-	/* Read only */
-	if (op == DB_VAR_GET)
-		*valuep = PC_REGS(DDB_REGS);
-	return 0;
-}
+	u_long iip, slot;
 
-#if 0
-/*
- * Print trap reason.
- */
-static void
-ddbprinttrap(int vector)
-{
+	if (kdb_frame == NULL)
+		return (0);
 
-	/* XXX Implement. */
-
-	printf("ddbprinttrap(%d)\n", vector);
-}
-#endif
-
-#define CPUSTOP_ON_DDBBREAK
-#define VERBOSE_CPUSTOP_ON_DDBBREAK
-
-/*
- *  ddb_trap - field a kernel trap
- */
-int
-kdb_trap(int vector, struct trapframe *regs)
-{
-	int ddb_mode = !(boothowto & RB_GDB);
-	register_t s;
-
-	/*
-	 * Don't bother checking for usermode, since a benign entry
-	 * by the kernel (call to Debugger() or a breakpoint) has
-	 * already checked for usermode.  If neither of those
-	 * conditions exist, something Bad has happened.
-	 */
-
-	if (vector != IA64_VEC_BREAK
-	    && vector != IA64_VEC_SINGLE_STEP_TRAP) {
-#if 0
-		if (ddb_mode) {
-			db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
-				  regs->tf_regs[FRAME_PC]);
-			ddbprinttrap(a0, a1, a2, entry);
-			/*
-			 * Tell caller "We did NOT handle the trap."
-			 * Caller should panic, or whatever.
-			 */
+	if (op == DB_VAR_GET) {
+		iip = kdb_frame->tf_special.iip;
+		slot = (kdb_frame->tf_special.psr >> 41) & 3;
+		*valuep = iip + slot;
+	} else {
+		iip = *valuep & ~0xf;
+		slot = *valuep & 0xf;
+		if (slot > 2)
 			return (0);
-		}
-#endif
-		if (db_nofault) {
-			jmp_buf *no_fault = db_nofault;
-			db_nofault = 0;
-			longjmp(*no_fault, 1);
-		}
+		kdb_frame->tf_special.iip = iip;
+		kdb_frame->tf_special.psr &= ~IA64_PSR_RI;
+		kdb_frame->tf_special.psr |= slot << 41;
 	}
-
-	/*
-	 * XXX Should switch to DDB's own stack, here.
-	 */
-
-	s = intr_disable();
-
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("CPU%d stopping CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    PCPU_GET(other_cpus));
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* We stop all CPUs except ourselves (obviously) */
-	stop_cpus(PCPU_GET(other_cpus));
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" stopped.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
-
-	ddb_regs = *regs;
-
-	/*
-	 * XXX pretend that registers outside the current frame don't exist.
-	 */
-	db_eregs = db_regs + DB_MISC_REGS + 3 + 27 +
-	    (ddb_regs.tf_special.cfm & 0x7f);
-
-	__asm __volatile("flushrs"); /* so we can look at them */
-
-	db_active++;
-
-	if (ddb_mode) {
-	    cndbctl(TRUE);	/* DDB active, unblank video */
-	    db_trap(vector, 0);	/* Where the work happens */
-	    cndbctl(FALSE);	/* DDB inactive */
-	} else
-	    gdb_handle_exception(&ddb_regs, vector);
-
-	db_active--;
-
-#ifdef SMP
-#ifdef CPUSTOP_ON_DDBBREAK
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf("CPU%d restarting CPUs: 0x%08x...", PCPU_GET(cpuid),
-	    stopped_cpus);
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-	/* Restart all the CPUs we previously stopped */
-	if (stopped_cpus != PCPU_GET(other_cpus) && smp_started != 0) {
-		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
-			  PCPU_GET(other_cpus), stopped_cpus);
-		panic("stop_cpus() failed");
-	}
-	restart_cpus(stopped_cpus);
-
-#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
-	db_printf(" restarted.\n");
-#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
-
-#endif /* CPUSTOP_ON_DDBBREAK */
-#endif /* SMP */
-
-	*regs = ddb_regs;
-
-	intr_restore(s);
-
-
-	/*
-	 * Tell caller "We HAVE handled the trap."
-	 */
 	return (1);
 }
 
 /*
  * Read bytes from kernel address space for debugger.
  */
-void
+int
 db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
+	jmp_buf jb;
+	void *prev_jb;
+	char *src;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-
-	if (addr < VM_MAX_ADDRESS)
-		copyin((char *)addr, data, size);
-	else
-		bcopy((char *)addr, data, size);
-
-	db_nofault = 0;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		src = (char *)addr;
+		while (size-- > 0)
+			*data++ = *src++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
 /*
  * Write bytes to kernel address space for debugger.
  */
-void
+int
 db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
+	jmp_buf jb;
+	void *prev_jb;
+	char *dst;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-
-	if (addr < VM_MAX_ADDRESS)
-		copyout(data, (char *)addr, size);
-	else
-		bcopy(data, (char *)addr, size);
-
-	db_nofault = 0;
-}
-
-void
-Debugger(const char* msg)
-{
-	printf("%s\n", msg);
-	__asm("break 0x80100");
-}
-
-u_long
-db_register_value(db_regs_t *regs, int regno)
-{
-	uint64_t *rsp;
-	uint64_t bsp;
-	int nats, sof;
-
-	if (regno == 0)
-		return (0);
-	if (regno == 1)
-		return (regs->tf_special.gp);
-	if (regno >= 2 && regno <= 3)
-		return ((&regs->tf_scratch.gr2)[regno - 2]);
-	if (regno >= 8 && regno <= 11)
-		return ((&regs->tf_scratch.gr8)[regno - 8]);
-	if (regno == 12)
-		return (regs->tf_special.sp);
-	if (regno == 13)
-		return (regs->tf_special.tp);
-	if (regno >= 14 && regno <= 31)
-		return ((&regs->tf_scratch.gr14)[regno - 14]);
-
-	sof = (int)(regs->tf_special.cfm & 0x7f);
-	if (regno >= 32 && regno < sof + 32) {
-		bsp = regs->tf_special.bspstore + regs->tf_special.ndirty;
-		regno -= 32;
-		nats = (sof - regno + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
-		rsp = (void*)(bsp - ((sof - regno + nats) << 3));
-		return (*rsp);
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		dst = (char *)addr;
+		while (size-- > 0)
+			*dst++ = *data++;
 	}
-
-	db_printf(" **** STRANGE REGISTER NUMBER %d **** ", regno);
-	return (0);
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
 void
-db_write_breakpoint(vm_offset_t addr, u_int64_t *storage)
+db_bkpt_write(db_addr_t addr, BKPT_INST_TYPE *storage)
 {
+	BKPT_INST_TYPE tmp;
+	db_addr_t loc;
+	int slot;
+
+	slot = addr & 0xfUL;
+	if (slot >= SLOT_COUNT)
+		return;
+	loc = (addr & ~0xfUL) + (slot << 2);
+
+	db_read_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
+	*storage = (tmp >> SLOT_SHIFT(slot)) & SLOT_MASK;
+
+	tmp &= ~(SLOT_MASK << SLOT_SHIFT(slot));
+	tmp |= (0x84000 << 6) << SLOT_SHIFT(slot);
+	db_write_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
 }
 
 void
-db_clear_breakpoint(vm_offset_t addr, u_int64_t *storage)
+db_bkpt_clear(db_addr_t addr, BKPT_INST_TYPE *storage)
 {
+	BKPT_INST_TYPE tmp;
+	db_addr_t loc;
+	int slot;
+
+	slot = addr & 0xfUL;
+	if (slot >= SLOT_COUNT)
+		return;
+	loc = (addr & ~0xfUL) + (slot << 2);
+
+	db_read_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
+	tmp &= ~(SLOT_MASK << SLOT_SHIFT(slot));
+	tmp |= *storage << SLOT_SHIFT(slot);
+	db_write_bytes(loc, sizeof(BKPT_INST_TYPE), (char *)&tmp);
 }
 
 void
-db_skip_breakpoint()
+db_bkpt_skip(void)
 {
 
-	ddb_regs.tf_special.psr += IA64_PSR_RI_1;
-	if ((ddb_regs.tf_special.psr & IA64_PSR_RI) > IA64_PSR_RI_2) {
-		ddb_regs.tf_special.psr &= ~IA64_PSR_RI;
-		ddb_regs.tf_special.iip += 16;
+	if (kdb_frame == NULL)
+		return;
+
+	kdb_frame->tf_special.psr += IA64_PSR_RI_1;
+	if ((kdb_frame->tf_special.psr & IA64_PSR_RI) > IA64_PSR_RI_2) {
+		kdb_frame->tf_special.psr &= ~IA64_PSR_RI;
+		kdb_frame->tf_special.iip += 16;
 	}
 }
 

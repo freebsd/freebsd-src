@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
+#include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
  */
 boolean_t	db_cmd_loop_done;
 db_addr_t	db_dot;
-jmp_buf		db_jmpbuf;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
 db_addr_t	db_next;
@@ -67,7 +67,6 @@ SET_DECLARE(db_cmd_set, struct command);
 SET_DECLARE(db_show_cmd_set, struct command);
 
 static db_cmdfcn_t	db_fncall;
-static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
 static db_cmdfcn_t	db_watchdog;
@@ -375,9 +374,6 @@ db_command(last_cmdp, cmd_table, aux_cmd_tablep, aux_cmd_tablep_end)
  */
 
 static struct command db_show_all_cmds[] = {
-#if 0
-	{ "threads",	db_show_all_threads,	0,	0 },
-#endif
 	{ "procs",	db_ps,			0,	0 },
 	{ (char *)0 }
 };
@@ -386,10 +382,7 @@ static struct command db_show_cmds[] = {
 	{ "all",	0,			0,	db_show_all_cmds },
 	{ "registers",	db_show_regs,		0,	0 },
 	{ "breaks",	db_listbreak_cmd, 	0,	0 },
-	{ "thread",	db_show_one_thread,	0,	0 },
-#if 0
-	{ "port",	ipc_port_print,		0,	0 },
-#endif
+	{ "threads",	db_show_threads,	0,	0 },
 	{ (char *)0, }
 };
 
@@ -421,28 +414,14 @@ static struct command db_command_table[] = {
 	{ "call",	db_fncall,		CS_OWN,	0 },
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
-	{ "gdb",	db_gdb,			0,	0 },
 	{ "reset",	db_reset,		0,	0 },
 	{ "kill",	db_kill,		CS_OWN,	0 },
 	{ "watchdog",	db_watchdog,		0,	0 },
+	{ "thread",	db_set_thread,		CS_OWN,	0 },
 	{ (char *)0, }
 };
 
 static struct command	*db_last_command = 0;
-
-#if 0
-void
-db_help_cmd()
-{
-	struct command *cmd = db_command_table;
-
-	while (cmd->name != 0) {
-	    db_printf("%-12s", cmd->name);
-	    db_end_line();
-	    cmd++;
-	}
-}
-#endif
 
 /*
  * At least one non-optional command must be implemented using
@@ -464,8 +443,6 @@ db_command_loop()
 
 	db_cmd_loop_done = 0;
 	while (!db_cmd_loop_done) {
-
-	    (void) setjmp(db_jmpbuf);
 	    if (db_print_position() != 0)
 		db_printf("\n");
 
@@ -484,7 +461,7 @@ db_error(s)
 	if (s)
 	    db_printf("%s", s);
 	db_flush_lex();
-	longjmp(db_jmpbuf, 1);
+	kdb_reenter();
 }
 
 
@@ -551,32 +528,6 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	retval = (*func)(args[0], args[1], args[2], args[3], args[4],
 			 args[5], args[6], args[7], args[8], args[9] );
 	db_printf("%#lr\n", (long)retval);
-}
-
-/* Enter GDB remote protocol debugger on the next trap. */
-
-void	  *gdb_arg = NULL;
-cn_getc_t *gdb_getc;
-cn_putc_t *gdb_putc;
-
-static void
-db_gdb (dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
-{
-
-	if (gdb_arg == NULL) {
-		db_printf("No gdb port enabled. Set flag 0x80 on desired port\n");
-		db_printf("in your configuration file (currently sio only).\n");
-		return;
-	}
-	boothowto ^= RB_GDB;
-
-	db_printf("Next trap will enter %s\n",
-		   boothowto & RB_GDB ? "GDB remote protocol mode"
-				      : "DDB debugger");
 }
 
 static void

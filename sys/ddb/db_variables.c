@@ -39,11 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_variables.h>
 
 static int	db_find_variable(struct db_variable **varp);
-static void	db_write_variable(struct db_variable *, db_expr_t *);
-
-#ifdef notused
-static int	db_set_variable(db_expr_t value);
-#endif
 
 static struct db_variable db_vars[] = {
 	{ "radix",	&db_radix, FCN_NULL },
@@ -51,123 +46,107 @@ static struct db_variable db_vars[] = {
 	{ "maxwidth",	&db_max_width, FCN_NULL },
 	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
 };
-static struct db_variable *db_evars = 
-		db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
+static struct db_variable *db_evars =
+	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
 
 static int
-db_find_variable(varp)
-	struct db_variable	**varp;
+db_find_variable(struct db_variable **varp)
 {
-	int	t;
 	struct db_variable *vp;
+	int t;
 
 	t = db_read_token();
 	if (t == tIDENT) {
-	    for (vp = db_vars; vp < db_evars; vp++) {
-		if (!strcmp(db_tok_string, vp->name)) {
-		    *varp = vp;
-		    return (1);
+		for (vp = db_vars; vp < db_evars; vp++) {
+			if (!strcmp(db_tok_string, vp->name)) {
+				*varp = vp;
+				return (1);
+			}
 		}
-	    }
-	    for (vp = db_regs; vp < db_eregs; vp++) {
-		if (!strcmp(db_tok_string, vp->name)) {
-		    *varp = vp;
-		    return (1);
+		for (vp = db_regs; vp < db_eregs; vp++) {
+			if (!strcmp(db_tok_string, vp->name)) {
+				*varp = vp;
+				return (1);
+			}
 		}
-	    }
 	}
 	db_error("Unknown variable\n");
 	return (0);
 }
 
 int
-db_get_variable(valuep)
-	db_expr_t	*valuep;
+db_get_variable(db_expr_t *valuep)
 {
 	struct db_variable *vp;
 
 	if (!db_find_variable(&vp))
-	    return (0);
+		return (0);
 
-	db_read_variable(vp, valuep);
-
-	return (1);
+	return (db_read_variable(vp, valuep));
 }
 
-#ifdef notused
-static int
-db_set_variable(value)
-	db_expr_t	value;
+int
+db_set_variable(db_expr_t value)
 {
 	struct db_variable *vp;
 
 	if (!db_find_variable(&vp))
-	    return (0);
+		return (0);
 
-	db_write_variable(vp, &value);
-
-	return (1);
-}
-#endif
-
-void
-db_read_variable(vp, valuep)
-	struct db_variable *vp;
-	db_expr_t	*valuep;
-{
-	db_varfcn_t	*func = vp->fcn;
-
-	if (func == FCN_NULL)
-	    *valuep = *(vp->valuep);
-	else
-	    (*func)(vp, valuep, DB_VAR_GET);
+	return (db_write_variable(vp, value));
 }
 
-static void
-db_write_variable(vp, valuep)
-	struct db_variable *vp;
-	db_expr_t	*valuep;
+int
+db_read_variable(struct db_variable *vp, db_expr_t *valuep)
 {
-	db_varfcn_t	*func = vp->fcn;
+	db_varfcn_t *func = vp->fcn;
 
-	if (func == FCN_NULL)
-	    *(vp->valuep) = *valuep;
-	else
-	    (*func)(vp, valuep, DB_VAR_SET);
+	if (func == FCN_NULL) {
+		*valuep = *(vp->valuep);
+		return (1);
+	}
+	return ((*func)(vp, valuep, DB_VAR_GET));
+}
+
+int
+db_write_variable(struct db_variable *vp, db_expr_t value)
+{
+	db_varfcn_t *func = vp->fcn;
+
+	if (func == FCN_NULL) {
+		*(vp->valuep) = value;
+		return (1);
+	}
+	return ((*func)(vp, &value, DB_VAR_SET));
 }
 
 void
-db_set_cmd(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+db_set_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 {
-	db_expr_t	value;
 	struct db_variable *vp;
-	int	t;
+	db_expr_t value;
+	int t;
 
 	t = db_read_token();
 	if (t != tDOLLAR) {
-	    db_error("Unknown variable\n");
-	    return;
+		db_error("Unknown variable\n");
+		return;
 	}
 	if (!db_find_variable(&vp)) {
-	    db_error("Unknown variable\n");
-	    return;
+		db_error("Unknown variable\n");
+		return;
 	}
 
 	t = db_read_token();
 	if (t != tEQ)
-	    db_unread_token(t);
+		db_unread_token(t);
 
 	if (!db_expression(&value)) {
-	    db_error("No value\n");
-	    return;
+		db_error("No value\n");
+		return;
 	}
-	if (db_read_token() != tEOL) {
-	    db_error("?\n");
-	}
+	if (db_read_token() != tEOL)
+		db_error("?\n");
 
-	db_write_variable(vp, &value);
+	db_write_variable(vp, value);
 }

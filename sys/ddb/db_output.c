@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -112,9 +113,9 @@ db_putchar(c, arg)
 	 * If not in the debugger or the user requests it, output data to
 	 * both the console and the message buffer.
 	 */
-	if (!db_active || ddb_use_printf) {
+	if (!kdb_active || ddb_use_printf) {
 		printf("%c", c);
-		if (!db_active)
+		if (!kdb_active)
 			return;
 		if (c == '\r' || c == '\n')
 			db_check_interrupt();

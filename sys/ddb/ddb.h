@@ -69,9 +69,7 @@ func_name(addr, have_addr, count, modif)			\
 	db_expr_t count;					\
 	char *modif;
 
-extern char *esym;
 extern db_expr_t db_maxoff;
-extern int db_active;
 extern int db_indent;
 extern int db_inst_count;
 extern int db_load_count;
@@ -81,11 +79,9 @@ extern db_expr_t db_radix;
 extern db_expr_t db_max_width;
 extern db_expr_t db_tab_stop_width;
 
+struct thread;
 struct vm_map;
 
-#ifdef ALT_BREAK_TO_DEBUGGER
-int		db_alt_break(int, int *);
-#endif
 void		db_check_interrupt(void);
 void		db_clear_watchpoints(void);
 db_addr_t	db_disasm(db_addr_t loc, boolean_t altfmt);
@@ -98,24 +94,23 @@ struct vm_map	*db_map_addr(vm_offset_t);
 boolean_t	db_map_current(struct vm_map *);
 boolean_t	db_map_equal(struct vm_map *, struct vm_map *);
 void		db_print_loc_and_inst(db_addr_t loc);
+void		db_print_thread(void);
 void		db_printf(const char *fmt, ...) __printflike(1, 2);
-void		db_read_bytes(vm_offset_t addr, size_t size, char *data);
+int		db_read_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
 int		db_readline(char *lstart, int lsize);
 void		db_restart_at_pc(boolean_t watchpt);
+int		db_set_variable(db_expr_t value);
 void		db_set_watchpoints(void);
 void		db_setup_paging(db_page_calloutfcn_t *callout, void *arg,
 				int maxlines);
 void		db_skip_to_eol(void);
 boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
 #define		db_strcpy	strcpy
-void		db_trap(int type, int code);
+void		db_trace_self(void);
+int		db_trace_thread(struct thread *, int);
 int		db_value_of_name(const char *name, db_expr_t *valuep);
-void		db_write_bytes(vm_offset_t addr, size_t size, char *data);
-				/* machine-dependent */
-void		db_stack_thread(db_expr_t addr, boolean_t have_addr,
-				db_expr_t count, char *modif);
-void		kdb_init(void);
+int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_continue_cmd;
@@ -129,26 +124,17 @@ db_cmdfcn_t	db_print_cmd;
 db_cmdfcn_t	db_ps;
 db_cmdfcn_t	db_search_cmd;
 db_cmdfcn_t	db_set_cmd;
+db_cmdfcn_t	db_set_thread;
 db_cmdfcn_t	db_show_regs;
+db_cmdfcn_t	db_show_threads;
 db_cmdfcn_t	db_single_step_cmd;
 db_cmdfcn_t	db_stack_trace_cmd;
 db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
-db_cmdfcn_t	db_show_one_thread;
-
-#if 0
-db_cmdfcn_t	db_help_cmd;
-db_cmdfcn_t	db_show_all_threads;
-db_cmdfcn_t	ipc_port_print;
-db_cmdfcn_t	vm_page_print;
-#endif
 
 db_page_calloutfcn_t db_simple_pager;
-
-/* Scare the user with backtrace of curthread to console. */
-void		db_print_backtrace(void);
 
 /*
  * Command table.
@@ -163,15 +149,5 @@ struct command {
 #define	CS_SET_DOT	0x100	/* set dot after command */
 	struct command *more;	/* another level of command */
 };
-
-/* XXX: UGLY hack */
-#ifdef CN_DEAD
-/*
- * Routines to support GDB on an sio port.
- */
-extern void	 *gdb_arg;
-extern cn_getc_t *gdb_getc;
-extern cn_putc_t *gdb_putc;
-#endif
 
 #endif /* !_DDB_DDB_H_ */
