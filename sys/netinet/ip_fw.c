@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.59 1997/06/04 22:09:15 julian Exp $
+ *	$Id: ip_fw.c,v 1.60 1997/08/02 14:32:51 bde Exp $
  */
 
 /*
@@ -631,6 +631,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	}
 
 	bcopy(frwl, ftmp, sizeof(struct ip_fw));
+	ftmp->fw_in_if.fu_via_if.name[FW_IFNLEN - 1] = '\0';
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
 	fwc->rule = ftmp;
