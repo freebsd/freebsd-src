@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 #
 .SUFFIXES: .nr .grn
 

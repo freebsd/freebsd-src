@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 # Original revision: 1.17
 # The FreeBSD Japanese Documentation Project
 

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 7/27/93
-.\"	$FreeBSD$
+.\"	$Id$
 .\"
 .ds lq ``
 .ds rq ''
