@@ -34,11 +34,31 @@
  * $FreeBSD$
  */
 
-#ifdef _KERNEL
+#ifndef _FS_DEVFS_DEVFS_H_
+#define _FS_DEVFS_DEVFS_H_
 
-#ifdef DEVFS_INTERN
+#ifdef _KERNEL	/* No userland stuff in here... */
 
-#define NDEVINO 1024
+/*
+ * These are default sizes for the DEVFS inode table and the overflow
+ * table.  If the default table overflows we allocate the overflow 
+ * table, the size of which can also be set with a sysctl.  If the
+ * overflow table fills you're toast.
+ */
+#ifndef NDEVFSINO
+#define NDEVFSINO 1024
+#endif
+
+#ifndef NDEVFSOVERFLOW
+#define NDEVFSOVERFLOW 32768
+#endif
+
+/*
+ * This is the first "per mount" inode, these are used for directories
+ * and symlinks and the like.  Must be larger than the number of "true"
+ * device nodes and symlinks.  It is.
+ */
+#define DEVFSINOMOUNT	0x2000000
 
 MALLOC_DECLARE(M_DEVFS);
 
@@ -63,37 +83,36 @@ struct devfs_dirent {
 	char *	de_symlink;
 };
 
-struct devfs_node {
-	struct kern_target *kf_kt;
-};
-
 struct devfs_mount {
 	struct vnode	*dm_root;	/* Root node */
 	struct devfs_dirent *dm_rootdir;
 	struct devfs_dirent *dm_basedir;
 	unsigned	dm_generation;
-	struct devfs_dirent *dm_dirent[NDEVINO];
-#define DE_DELETED ((struct devfs_dirent *)&devfs_inot[0])
+	struct devfs_dirent *dm_dirent[NDEVFSINO];
+	struct devfs_dirent **dm_overflow;
 	int	dm_inode;
+	struct lock dm_lock;
 };
 
-
-extern dev_t devfs_inot[NDEVINO];
-extern int devfs_nino;
-extern unsigned devfs_generation;
-
+/*
+ * This is what we fill in dm_dirent[N] for a deleted entry.
+ */
+#define DE_DELETED ((struct devfs_dirent *)sizeof(struct devfs_dirent))
 
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 extern vop_t **devfs_vnodeop_p;
 extern vop_t **devfs_specop_p;
 
-int devfs_allocv __P((struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p));
-struct devfs_dirent * devfs_find __P((struct devfs_dirent *dd, const char *name, int namelen));
-int devfs_populate __P((struct devfs_mount *dm));
-struct devfs_dirent * devfs_newdirent __P((char *name, int namelen));
-void devfs_purge __P((struct devfs_dirent *dd));
-struct devfs_dirent * devfs_vmkdir __P((char *name, int namelen,
-    struct devfs_dirent *dotdot));
-#endif /* DEVFS_INTERN */
+int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p);
+void devfs_attemptoverflow(int insist);
+struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
+dev_t *devfs_itod (int inode);
+struct devfs_dirent **devfs_itode (struct devfs_mount *dm, int inode);
+int devfs_populate (struct devfs_mount *dm);
+struct devfs_dirent *devfs_newdirent (char *name, int namelen);
+void devfs_purge (struct devfs_dirent *dd);
+struct devfs_dirent *devfs_vmkdir (char *name, int namelen, struct devfs_dirent *dotdot);
+
 #endif /* _KERNEL */
+#endif /* _FS_DEVFS_DEVFS_H_ */

@@ -29,17 +29,148 @@
  * $FreeBSD$
  */
 
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
+#include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/eventhandler.h>
-#include <sys/ctype.h>
+#include <sys/sysctl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 
-#define DEVFS_INTERN
+#include <machine/atomic.h>
+
 #include <fs/devfs/devfs.h>
+
+static dev_t devfs_inot[NDEVFSINO];
+static dev_t *devfs_overflow;
+static int devfs_ref[NDEVFSINO];
+static int *devfs_refoverflow;
+static int devfs_nextino = 3;
+static int devfs_numino;
+static int devfs_topino;
+static int devfs_noverflowwant = NDEVFSOVERFLOW;
+static int devfs_noverflow;
+static unsigned devfs_generation;
+
+SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, noverflow, CTLFLAG_RW,
+	&devfs_noverflowwant, 0, "Size of DEVFS overflow table");
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, generation, CTLFLAG_RD,
+	&devfs_generation, 0, "DEVFS generation number");
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, inodes, CTLFLAG_RD,
+	&devfs_numino, 0, "DEVFS inodes");
+SYSCTL_UINT(_vfs_devfs, OID_AUTO, topinode, CTLFLAG_RD,
+	&devfs_topino, 0, "DEVFS highest inode#");
+
+static int *
+devfs_itor(int inode)
+{
+	if (inode < NDEVFSINO)
+		return (&devfs_ref[inode]);
+	else if (inode < NDEVFSINO + devfs_noverflow)
+		return (&devfs_refoverflow[inode - NDEVFSINO]);
+	else
+		panic ("YRK!");
+}
+
+static void
+devfs_dropref(int inode)
+{
+	int *ip;
+
+	ip = devfs_itor(inode);
+	atomic_add_int(ip, -1);
+}
+
+static int
+devfs_getref(int inode)
+{
+	int *ip, i, j;
+	dev_t *dp;
+
+	ip = devfs_itor(inode);
+	dp = devfs_itod(inode);
+	for (;;) {
+		i = *ip;
+		j = i + 1;
+		if (!atomic_cmpset_int(ip, i, j))
+			continue;
+		if (*dp != NULL)
+			return (1);
+		atomic_add_int(ip, -1);
+		return(0);
+	}
+}
+
+struct devfs_dirent **
+devfs_itode (struct devfs_mount *dm, int inode)
+{
+
+	if (inode < NDEVFSINO)
+		return (&dm->dm_dirent[inode]);
+	if (devfs_overflow == NULL)
+		return (NULL);
+	if (inode < NDEVFSINO + devfs_noverflow)
+		return (&dm->dm_overflow[inode - NDEVFSINO]);
+	return (NULL);
+}
+
+dev_t *
+devfs_itod (int inode)
+{
+
+	if (inode < NDEVFSINO)
+		return (&devfs_inot[inode]);
+	if (devfs_overflow == NULL)
+		return (NULL);
+	if (inode < NDEVFSINO + devfs_noverflow)
+		return (&devfs_overflow[inode - NDEVFSINO]);
+	return (NULL);
+}
+
+void
+devfs_attemptoverflow(int insist)
+{
+	dev_t **ot;
+	int *or;
+	int n, nb;
+
+	/* Check if somebody beat us to it */
+	if (devfs_overflow != NULL)
+		return;
+	ot = NULL;
+	or = NULL;
+	n = devfs_noverflowwant;
+	nb = sizeof (struct dev_t *) * n;
+	MALLOC(ot, dev_t **, nb, M_DEVFS, insist ? M_WAITOK : M_NOWAIT);
+	if (ot == NULL)
+		goto bail;
+	bzero(ot, nb);
+	nb = sizeof (int) * n;
+	MALLOC(or, int *, nb, M_DEVFS, insist ? M_WAITOK : M_NOWAIT);
+	if (or == NULL) 
+		goto bail;
+	bzero(or, nb);
+	if (!atomic_cmpset_ptr(&devfs_overflow, NULL, ot)) 
+		goto bail;
+	devfs_refoverflow = or;
+	devfs_noverflow = n;
+	printf("DEVFS Overflow table with %d entries allocated when %d in use\n", n, devfs_numino);
+	return;
+
+bail:
+	/* Somebody beat us to it, or something went wrong. */
+	if (ot != NULL)
+		FREE(ot, M_DEVFS);
+	if (or != NULL)
+		FREE(or, M_DEVFS);
+	return;
+}
 
 struct devfs_dirent *
 devfs_find(struct devfs_dirent *dd, const char *name, int namelen)
@@ -147,32 +278,45 @@ devfs_populate(struct devfs_mount *dm)
 	int i, j;
 	dev_t dev, pdev;
 	struct devfs_dirent *dd;
-	struct devfs_dirent *de;
+	struct devfs_dirent *de, **dep;
 	char *q, *s;
 
+	if (dm->dm_generation == devfs_generation) 
+		return (0);
+	lockmgr(&dm->dm_lock, LK_UPGRADE, 0, curproc);
+	if (devfs_noverflow && dm->dm_overflow == NULL) {
+		i = devfs_noverflow * sizeof (struct devfs_dirent *);
+		MALLOC(dm->dm_overflow, struct devfs_dirent **, i,
+			M_DEVFS, M_WAITOK);
+		bzero(dm->dm_overflow, i);
+	}
 	while (dm->dm_generation != devfs_generation) {
 		dm->dm_generation = devfs_generation;
-		for (i = 0; i < NDEVINO; i++) {
-			dev = devfs_inot[i];
-			de = dm->dm_dirent[i];
+		for (i = 0; i <= devfs_topino; i++) {
+			dev = *devfs_itod(i);
+			dep = devfs_itode(dm, i);
+			de = *dep;
 			if (dev == NULL && de == DE_DELETED) {
-				dm->dm_dirent[i] = NULL;
+				*dep = NULL;
 				continue;
 			}
 			if (dev == NULL && de != NULL) {
 				dd = de->de_dir;
-				dm->dm_dirent[i] = NULL;
+				*dep = NULL;
 				TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 				if (de->de_vnode) {
 					de->de_vnode->v_data = NULL;
 					vdrop(de->de_vnode);
 				}
 				FREE(de, M_DEVFS);
+				devfs_dropref(i);
 				continue;
 			}
 			if (dev == NULL)
 				continue;
 			if (de != NULL)
+				continue;
+			if (!devfs_getref(i))
 				continue;
 			dd = dm->dm_basedir;
 			s = dev->si_name;
@@ -209,7 +353,7 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_mode = dev->si_mode;
 				de->de_dirent->d_type = DT_CHR;
 			}
-			dm->dm_dirent[i] = de;
+			*dep = de;
 			de->de_dir = dd;
 			TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 #if 0
@@ -217,31 +361,75 @@ devfs_populate(struct devfs_mount *dm)
 #endif
 		}
 	}
+	lockmgr(&dm->dm_lock, LK_DOWNGRADE, 0, curproc);
 	return (0);
 }
-
-dev_t devfs_inot[NDEVINO];
-int devfs_nino = 3;
-unsigned devfs_generation;
 
 static void
 devfs_create(dev_t dev)
 {
-	if (dev->si_inode == 0 && devfs_nino < NDEVINO)
-		dev->si_inode = devfs_nino++;
-	if (dev->si_inode == 0) {
-		printf("NDEVINO too small\n");
-		return;
+	int ino, i, *ip;
+	dev_t *dp;
+
+	for (;;) {
+		/* Grab the next inode number */
+		ino = devfs_nextino;
+		i = ino + 1;
+		/* wrap around when we reach the end */
+		if (i >= NDEVFSINO + devfs_noverflow)
+			i = 3;
+		if (!atomic_cmpset_int(&devfs_nextino, ino, i))
+			continue;
+
+		/* see if it was occupied */
+		dp = devfs_itod(ino);
+		if (dp == NULL)
+			Debugger("dp == NULL\n");
+		if (*dp != NULL)
+			continue;
+		ip = devfs_itor(ino);
+		if (ip == NULL)
+			Debugger("ip == NULL\n");
+		if (*ip != 0)
+			continue;
+
+		if (!atomic_cmpset_ptr(dp, NULL, dev))
+			continue;
+
+		dev->si_inode = ino;
+		for (;;) {
+			i = devfs_topino;
+			if (i >= ino)
+				break;
+			if (atomic_cmpset_int(&devfs_topino, i, ino))
+				break;
+			printf("failed topino %d %d\n", i, ino);
+		}
+		break;
 	}
-	devfs_inot[dev->si_inode] = dev;
-	devfs_generation++;
+
+	atomic_add_int(&devfs_numino, 1);
+	atomic_add_int(&devfs_generation, 1);
+	if (devfs_overflow == NULL && devfs_numino + 100 > NDEVFSINO)
+		devfs_attemptoverflow(0);
 }
 
 static void
 devfs_destroy(dev_t dev)
 {
-	devfs_inot[dev->si_inode] = NULL;
-	devfs_generation++;
+	int ino, i;
+
+	ino = dev->si_inode;
+	dev->si_inode = 0;
+	if (ino == 0)
+		return;
+	if (atomic_cmpset_ptr(devfs_itod(ino), dev, NULL)) {
+		atomic_add_int(&devfs_generation, 1);
+		atomic_add_int(&devfs_numino, -1);
+		i = devfs_nextino;
+		if (ino < i)
+			atomic_cmpset_int(&devfs_nextino, i, ino);
+	}
 }
 
 devfs_create_t *devfs_create_hook = devfs_create;
