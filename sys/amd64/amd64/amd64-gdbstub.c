@@ -90,23 +90,20 @@
  *
  ****************************************************************************/
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+
+#include <machine/cons.h>
+
+#include <ddb/ddb.h>
+
 #include <setjmp.h>
-#include <stdio.h>
-#include <string.h>
-#include <machine/db_machdep.h>
-#include <machine/trap.h>
-#include <machine/psl.h>
 
 /************************************************************************/
 
 void		gdb_handle_exception (db_regs_t *, int, int);
 
 extern jmp_buf	db_jmpbuf;
-extern void	db_read_bytes (vm_offset_t addr, int size, char *data);
-extern void	db_write_bytes (vm_offset_t addr, int size, char *data);
-extern void	siocnputc (dev_t, int c);
-extern int	siocngetc (dev_t);
 
 /************************************************************************/
 /* BUFMAX defines the maximum number of characters in inbound/outbound buffers*/
@@ -116,6 +113,10 @@ extern int	siocngetc (dev_t);
 /* Create private copies of common functions used by the stub.  This prevents
    nasty interactions between app code and the stub (for instance if user steps
    into strlen, etc..) */
+/* XXX this is fairly bogus.  strlen() and strcpy() should be reentrant,
+   and are reentrant under FreeBSD.  In any case, our versions should not
+   be named the same as the standard versions, so that the address `strlen'
+   is unambiguous...  */
 
 static int
 strlen (const char *s)
@@ -137,17 +138,20 @@ strcpy (char *dst, const char *src)
   return retval;
 }
 
+/* XXX sio always uses its major with minor 0 no matter what we specify.  */
+#define	REMOTE_DEV	0
+
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-  siocnputc (NULL, c);
+  siocnputc (REMOTE_DEV, c);
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-  return siocngetc (NULL);
+  return siocngetc (REMOTE_DEV);
 }
 
 static const char hexchars[]="0123456789abcdef";
