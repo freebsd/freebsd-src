@@ -577,8 +577,9 @@ nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		log(LOG_WARNING, "nglmi: packetlen (%d) too big\n", packetlen);
 		goto drop;
 	}
-	if ((m = m_pullup(m, packetlen)) == NULL) {
-		log(LOG_WARNING, "nglmi: m_pullup failed for %d bytes\n", packetlen);
+	if (m->m_len < packetlen && (m = m_pullup(m, packetlen)) == NULL) {
+		log(LOG_WARNING,
+		    "nglmi: m_pullup failed for %d bytes\n", packetlen);
 		NG_FREE_META(meta);
 		return (0);
 	}
