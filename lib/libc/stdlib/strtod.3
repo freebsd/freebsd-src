@@ -36,37 +36,65 @@
 .\"     @(#)strtod.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 2, 2003
 .Dt STRTOD 3
 .Os
 .Sh NAME
-.Nm strtod
+.Nm strtod , strtof , strtold
 .Nd convert
 .Tn ASCII
-string to double
+string to floating point
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft double
 .Fn strtod "const char * restrict nptr" "char ** restrict endptr"
+.Ft float
+.Fn strtof "const char * restrict nptr" "char ** restrict endptr"
+.Ft long double
+.Fn strtold "const char * restrict nptr" "char ** restrict endptr"
 .Sh DESCRIPTION
-The
-.Fn strtod
-function converts the initial portion of the string
+These conversion
+functions convert the initial portion of the string
 pointed to by
 .Fa nptr
 to
-.Vt double
-representation.
+.Vt double ,
+.Vt float ,
+and
+.Vt long double
+representation, respectively.
 .Pp
 The expected form of the string is an optional plus (``+'') or minus
-sign (``\-'') followed by a sequence of digits optionally containing
-a decimal-point character, optionally followed by an exponent.
-An exponent consists of an ``E'' or ``e'', followed by an optional plus
-or minus sign, followed by a sequence of digits.
+sign (``\-'') followed by either:
+.Bl -bullet
+.It
+a decimal significand consisting of a sequence of decimal digits
+optionally containing a decimal-point character, or
+.It
+a hexadecimal significand consisting of a ``0X'' or ``0x'' followed
+by a sequence of hexadecimal digits optionally containing a
+decimal-point character.
+.El
 .Pp
-Leading white-space characters in the string (as defined by the
+In both cases, the significand may be optionally followed by an
+exponent.
+An exponent consists of an ``E'' or ``e'' (for decimal
+constants) or a ``P'' or ``p'' (for hexadecimal constants),
+followed by an optional plus or minus sign, followed by a
+sequence of decimal digits.
+For decimal constants, the exponent indicates the power of 10 by
+which the significand should be scaled.
+For hexadecimal constants, the scaling is instead done by powers
+of 2.
+.Pp
+Alternatively, if the portion of the string following the optional
+plus or minus sign begins with ``INFINITY'' or ``NAN'', ignoring
+case, it is interpreted as an infinity or a quiet NaN, respectively.
+.Pp
+In any of the above cases, leading white-space characters in the
+string (as defined by the
 .Xr isspace 3
 function) are skipped.
 The decimal point
@@ -74,8 +102,11 @@ character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
 .Sh RETURN VALUES
 The
-.Fn strtod
-function returns the converted value, if any.
+.Fn strtod ,
+.Fn strtof ,
+and
+.Fn strtold
+functions return the converted value, if any.
 .Pp
 If
 .Fa endptr
@@ -91,8 +122,11 @@ is stored in the location referenced by
 .Fa endptr .
 .Pp
 If the correct value would cause overflow, plus or minus
-.Dv HUGE_VAL
-is returned (according to the sign of the value), and
+.Dv HUGE_VAL ,
+.Dv HUGE_VALF ,
+or
+.Dv HUGE_VALL
+is returned (according to the sign and type of the return value), and
 .Er ERANGE
 is stored in
 .Va errno .
@@ -118,24 +152,33 @@ The
 .Fn strtod
 function
 conforms to
-.St -isoC .
+.St -isoC-99 ,
+with the exception of the bug noted below.
+.Sh BUGS
+These routines do not recognize the C99 ``NaN(...)'' syntax.
 .Sh AUTHORS
 The author of this software is
 .An David M. Gay .
 .Pp
-Copyright (c) 1991 by AT&T.
+Copyright (c) 1998 by Lucent Technologies
+.br
+All Rights Reserved
 .Pp
-Permission to use, copy, modify, and distribute this software for any
-purpose without fee is hereby granted, provided that this entire notice
-is included in all copies of any software which is or includes a copy
-or modification of this software and in all copies of the supporting
-documentation for such software.
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all
+copies and that both that the copyright notice and this
+permission notice and warranty disclaimer appear in supporting
+documentation, and that the name of Lucent or any of its entities
+not be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior
+permission.
 .Pp
-THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
-WARRANTY.  IN PARTICULAR, NEITHER THE AUTHOR NOR AT&T MAKES ANY
-REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
-OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
-.Pp
-Contact your vendor for a free copy of the source code to
-.Fn strtod
-and accompanying functions.
+LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
