@@ -31,15 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
+static char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
+#endif /* not lint */
 #endif
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
+#include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/user.h>
 
@@ -55,7 +57,7 @@ static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
  *	   with the highest cpu utilization is picked (p_estcpu).  Ties are
  *	   broken by picking the highest pid.
  *	3) The sleeper with the shortest sleep time is next.  With ties,
- *	   we pick out just "short-term" sleepers (PS_SINTR == 0).
+ *	   we pick out just "short-term" sleepers (TDF_SINTR == 0).
  *	4) Further ties are broken by picking the highest pid.
  *
  * If you change this, be sure to consider making the change in the kernel
@@ -63,10 +65,6 @@ static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
  *
  * TODO - consider whether pctcpu should be used.
  */
-
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
 
 #define ISRUN(p)	(((p)->ki_stat == SRUN) || ((p)->ki_stat == SIDL))
 #define TESTAB(a, b)    ((a)<<1 | (b))
@@ -96,7 +94,7 @@ proc_compare(struct kinfo_proc *p1, struct kinfo_proc *p2)
 			return (1);
 		if (p1->ki_estcpu > p2->ki_estcpu)
 			return (0);
-		return (p2->ki_pid > p1->ki_pid);	/* tie - return highest pid */
+		return (p2->ki_pid > p1->ki_pid); /* tie - return highest pid */
 	}
 	/*
  	 * weed out zombies
