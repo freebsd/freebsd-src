@@ -57,6 +57,9 @@ static struct {
 	{ "DAEMON",	SYSLOG_FACILITY_DAEMON },
 	{ "USER",	SYSLOG_FACILITY_USER },
 	{ "AUTH",	SYSLOG_FACILITY_AUTH },
+#ifdef LOG_AUTHPRIV
+	{ "AUTHPRIV",	SYSLOG_FACILITY_AUTHPRIV },
+#endif
 	{ "LOCAL0",	SYSLOG_FACILITY_LOCAL0 },
 	{ "LOCAL1",	SYSLOG_FACILITY_LOCAL1 },
 	{ "LOCAL2",	SYSLOG_FACILITY_LOCAL2 },
@@ -273,6 +276,11 @@ log_init(char *av0, LogLevel level, SyslogFacility facility, int on_stderr)
 	case SYSLOG_FACILITY_AUTH:
 		log_facility = LOG_AUTH;
 		break;
+#ifdef LOG_AUTHPRIV
+	case SYSLOG_FACILITY_AUTHPRIV:
+		log_facility = LOG_AUTHPRIV;
+		break;
+#endif
 	case SYSLOG_FACILITY_LOCAL0:
 		log_facility = LOG_LOCAL0;
 		break;

@@ -49,8 +49,16 @@ userauth_kbdint(Authctxt *authctxt)
 	if (options.challenge_response_authentication)
 		authenticated = auth2_challenge(authctxt, devs);
 
+#ifdef USE_PAM
+	if (authenticated == 0 && options.pam_authentication_via_kbd_int)
+		authenticated = auth2_pam(authctxt);
+#endif
 	xfree(devs);
 	xfree(lang);
+#ifdef HAVE_CYGWIN
+	if (check_nt_auth(0, authctxt->pw) == 0)
+		return(0);
+#endif
 	return authenticated;
 }
 

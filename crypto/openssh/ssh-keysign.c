@@ -38,6 +38,12 @@ RCSID("$OpenBSD: ssh-keysign.c,v 1.4 2002/06/19 00:27:55 deraadt Exp $");
 #include "canohost.h"
 #include "pathnames.h"
 
+#ifdef HAVE___PROGNAME
+extern char *__progname;
+#else
+char *__progname;
+#endif
+
 static int
 valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
     u_int datalen)
@@ -140,6 +146,10 @@ main(int argc, char **argv)
 
 	seteuid(getuid());
 	setuid(getuid());
+
+	init_rng();
+	seed_rng();
+	arc4random_stir();
 
 #ifdef DEBUG_SSH_KEYSIGN
 	log_init("ssh-keysign", SYSLOG_LEVEL_DEBUG3, SYSLOG_FACILITY_AUTH, 0);
