@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.12 1994/05/30 05:23:53 ache Exp $
+ *	$Id: boot.c,v 1.13 1994/06/14 07:31:42 rgrimes Exp $
  */
 
 
@@ -75,7 +75,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.13 $");
+		"$Revision: 1.14 $");
 	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
@@ -137,13 +137,12 @@ loadprog(howto)
 	{
 		if((addr + head.a_text + head.a_data) > ouraddr)
 		{
-			printf("kernel will not fit below loader\n");
+			printf("kernel overlaps loader\n");
 			return;
 		}
 		if((addr + head.a_text + head.a_data + head.a_bss) > 0xa0000)
 		{
-			printf("kernel won't fit in 640K with bss\n");
-			printf("only hope is to link it for > 1MB\n");
+			printf("bss exceeds 640k limit\n");
 			return;
 		}
 	}
