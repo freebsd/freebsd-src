@@ -5,6 +5,7 @@
 
 sed	-e '/pty/d' \
 	-e '/pass/d' \
+	-e '/	agp/d' \
 	-e '/	apm/d' \
 	-e '/ppp/d' \
 	-e '/gif/d' \
