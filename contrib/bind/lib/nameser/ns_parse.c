@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_parse.c,v 8.13 1999/10/13 16:39:35 vixie Exp $";
+static const char rcsid[] = "$Id: ns_parse.c,v 8.15 2000/12/23 08:14:55 vixie Exp $";
 #endif
 
 /* Import. */
@@ -63,6 +63,10 @@ struct _ns_flagdata _ns_flagdata[16] = {
 	{ 0x0000, 0 },		/* expansion (5/6). */
 	{ 0x0000, 0 },		/* expansion (6/6). */
 };
+
+int ns_msg_getflag(ns_msg handle, int flag) {
+	return(((handle)._flags & _ns_flagdata[flag].mask) >> _ns_flagdata[flag].shift);
+}
 
 int
 ns_skiprr(const u_char *ptr, const u_char *eom, ns_sect section, int count) {

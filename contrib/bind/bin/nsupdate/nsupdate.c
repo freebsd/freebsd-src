@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.24 2000/07/11 06:32:01 vixie Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.26 2000/12/23 08:14:48 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -141,15 +141,10 @@ int dns_findprimary (res_state, char *, struct ns_tsig_key *, char *,
  * zone to which a resource record belongs
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
-{
+main(int argc, char **argv) {
 	FILE *fp = NULL;
-	char buf[BUFSIZ], buf2[BUFSIZ], hostbuf[100], filebuf[100];
+	char buf[BUFSIZ], buf2[BUFSIZ];
 	char dnbuf[MAXDNAME], data[MAXDATA];
-	u_char packet[PACKETSZ], answer[PACKETSZ];
-	char *host = hostbuf, *batchfile = filebuf;
 	char *r_dname, *cp, *startp, *endp, *svstartp;
 	char section[15], opcode[10];
 	int i, c, n, n1, inside, lineno = 0, vc = 0,
@@ -160,13 +155,11 @@ main(argc, argv)
 	struct map *mp;
 	ns_updrec *rrecp;
 	ns_updque listuprec;
-	struct in_addr hostaddr;
 	extern int getopt();
 	extern char *optarg;
 	extern int optind, opterr, optopt;
 	ns_tsig_key key;
-	char *keyfile=NULL, *keyname=NULL, *p, *pp;
-	int file_major, file_minor, alg;
+	char *keyfile=NULL, *keyname=NULL;
 
 	progname = argv[0];
 
@@ -429,8 +422,8 @@ main(argc, argv)
 		switch (r_section) {
 		case S_PREREQ:
 		    if (r_ttl) {
-			fprintf(stderr, "nonzero ttl in prereq section: %ul\n",
-				r_ttl);
+			fprintf(stderr, "nonzero ttl in prereq section: %lu\n",
+				(u_long)r_ttl);
 			r_ttl = 0;
 		    }
 		    switch (r_opcode) {

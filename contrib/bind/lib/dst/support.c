@@ -1,4 +1,4 @@
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/support.c,v 1.8 1999/10/13 16:39:24 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/support.c,v 1.8 1999/10/13 16:39:24 vixie Exp $";
 
 
 /*

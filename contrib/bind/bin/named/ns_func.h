@@ -90,42 +90,42 @@
 
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 8.96 2000/04/21 06:54:06 vixie Exp $
+ * $Id: ns_func.h,v 8.104 2001/01/25 05:50:54 marka Exp $
  */
 
 /* ++from ns_glue.c++ */
-extern struct in_addr	ina_get(const u_char *data);
-extern const char	*sin_ntoa(struct sockaddr_in);
-extern int		ns_wouldlog(int category, int level);
-extern void		ns_debug(int, int, const char *, ...),
-			ns_info(int, const char *, ...),
-			ns_notice(int, const char *, ...),
-			ns_warning(int, const char *, ...),
-			ns_error(int, const char *, ...),
-			ns_panic(int, int, const char *, ...),
-			ns_assertion_failed(char *file, int line,
+struct in_addr		ina_get(const u_char *data);
+const char *		sin_ntoa(struct sockaddr_in);
+int			ns_wouldlog(int category, int level);
+void			ns_debug(int, int, const char *, ...);
+void			ns_info(int, const char *, ...);
+void			ns_notice(int, const char *, ...);
+void			ns_warning(int, const char *, ...);
+void			ns_error(int, const char *, ...);
+void			ns_panic(int, int, const char *, ...);
+void			ns_assertion_failed(char *file, int line,
 					    assertion_type type, char *cond,
 					    int print_errno);
-extern void		panic(const char *, const void *),
-			gettime(struct timeval *);
-extern int		nlabels(const char *),
-			my_close(int),
-			my_fclose(FILE *);
-extern void		__freestr(char *);
-extern char		*__newstr(size_t, int),
-			*__savestr(const char *, int),
-			*checked_ctime(const time_t *t),
-			*ctimel(long);
-extern void		__freestr_record(char *, char *, int);
-extern char		*__newstr_record(size_t, int, char *, int);
-extern char		*__savestr_record(const char *, int, char *, int);
-extern u_char		*ina_put(struct in_addr ina, u_char *data),
-			*savebuf(const u_char *, size_t, int);
-extern void		dprintf(int level, const char *format, ...);
+void			panic(const char *, const void *);
+void			gettime(struct timeval *);
+int			nlabels(const char *);
+int			my_close(int);
+int			my_fclose(FILE *);
+void			__freestr(char *);
+char *			__newstr(size_t, int);
+char *			__savestr(const char *, int);
+char *			checked_ctime(const time_t *t);
+char *			ctimel(long);
+void			__freestr_record(char *, char *, int);
+char *			__newstr_record(size_t, int, char *, int);
+char *			__savestr_record(const char *, int, char *, int);
+u_char *		ina_put(struct in_addr ina, u_char *data);
+u_char *		savebuf(const u_char *, size_t, int);
+void			dprintf(int level, const char *format, ...);
 #ifdef DEBUG_STRINGS
-extern char		*debug_newstr(size_t, int, const char *, int),
-			*debug_savestr(const char *, int, const char *, int);
-extern void		debug_freestr(char *, const char *, int);
+char *			debug_newstr(size_t, int, const char *, int);
+char *			debug_savestr(const char *, int, const char *, int);
+void			debug_freestr(char *, const char *, int);
 #define newstr(l, n) debug_newstr((l), (n), __FILE__, __LINE__)
 #define savestr(s, n) debug_savestr((s), (n), __FILE__, __LINE__)
 #define freestr(s) debug_freestr((s), __FILE__, __LINE__)
@@ -140,7 +140,6 @@ extern void		debug_freestr(char *, const char *, int);
 #define freestr(s) __freestr((s))
 #endif
 #endif /* DEBUG_STRINGS */
-int movefile(const char *, const char *);
 /* --from ns_glue.c-- */
 
 /* ++from ns_notify.c++ */
@@ -153,43 +152,43 @@ void			ns_stopnotify(const char *, ns_class);
 /* --from ns_notify.c-- */
 
 /* ++from ns_resp.c++ */
-extern void		ns_resp(u_char *, int, struct sockaddr_in,
-				struct qstream *),
-			prime_cache(void),
-			delete_all(struct namebuf *, int, int);
-extern int		delete_stale(struct namebuf *);
-extern struct qinfo	*sysquery(const char *, int, int,
-				  struct in_addr *, int, u_int16_t, int);
-extern int		doupdate(u_char *, u_char *, struct databuf **,
-				 int, int, int, u_int, struct sockaddr_in),
-			send_msg(u_char *, int, struct qinfo *),
-			findns(struct namebuf **, int,
-			       struct databuf **, int *, int),
-			finddata(struct namebuf *, int, int, HEADER *,
-				 char **, int *, int *),
-			add_data(struct namebuf *,
+void			ns_resp(u_char *, int, struct sockaddr_in,
+				struct qstream *);
+void			prime_cache(void);
+void			delete_all(struct namebuf *, int, int);
+int			delete_stale(struct namebuf *);
+struct qinfo *		sysquery(const char *, int, int,
+				 struct in_addr *, int, u_int16_t, int);
+int			doupdate(u_char *, u_char *, struct databuf **,
+				 int, int, int, u_int, struct sockaddr_in);
+int			send_msg(u_char *, int, struct qinfo *);
+int			findns(struct namebuf **, int,
+			       struct databuf **, int *, int);
+int			finddata(struct namebuf *, int, int, HEADER *,
+				 char **, int *, int *);
+int			add_data(struct namebuf *,
 				 struct databuf **,
-				 u_char *, int, int *),
-			trunc_adjust(u_char *, int, int);
+				 u_char *, int, int *);
+int			trunc_adjust(u_char *, int, int);
 /* --from ns_resp.c-- */
 
 /* ++from ns_req.c++ */
-extern void		ns_req(u_char *, int, int,
+void			ns_req(u_char *, int, int,
 			       struct qstream *,
 			       struct sockaddr_in,
-			       int),
-			free_addinfo(void),
-			free_nsp(struct databuf **);
-extern int		stale(struct databuf *),
-			make_rr(const char *, struct databuf *,
+			       int);
+void			free_addinfo(void);
+void			free_nsp(struct databuf **);
+int			stale(struct databuf *);
+int			make_rr(const char *, struct databuf *,
 				u_char *, int, int,
-				u_char **, u_char **, int),
-			doaddinfo(HEADER *, u_char *, int),
-			doaddauth(HEADER *, u_char *, int,
+				u_char **, u_char **, int);
+int			doaddinfo(HEADER *, u_char *, int);
+int			doaddauth(HEADER *, u_char *, int,
 				  struct namebuf *,
 				  struct databuf *);
 #ifdef BIND_NOTIFY
-extern int		findZonePri(const struct zoneinfo *,
+int			findZonePri(const struct zoneinfo *,
 				    const struct sockaddr_in);
 #endif
 /* --from ns_req.c-- */
@@ -198,12 +197,12 @@ extern int		findZonePri(const struct zoneinfo *,
 void			ns_xfr(struct qstream *qsp, struct namebuf *znp,
 			       int zone, int class, int type,
 			       int id, int opcode, u_int32_t serial_ixfr, 
-				   struct tsig_record *in_tsig),
-			ns_stopxfrs(struct zoneinfo *),
-			ns_freexfr(struct qstream *),
-			sx_newmsg(struct qstream *qsp),
-			sx_sendlev(struct qstream *qsp),
-			sx_sendsoa(struct qstream *qsp);
+			       struct tsig_record *in_tsig);
+void			ns_stopxfrs(struct zoneinfo *);
+void			ns_freexfr(struct qstream *);
+void			sx_newmsg(struct qstream *qsp);
+void			sx_sendlev(struct qstream *qsp);
+void			sx_sendsoa(struct qstream *qsp);
 /* --from ns_xfr.c-- */
 
 /* ++from ns_ctl.c++ */
@@ -219,12 +218,13 @@ void			ns_ctl_install(controls *);
 /* --from ns_ctl.c-- */
 
 /* ++from ns_ixfr.c++ */
-void			sx_send_ixfr(struct qstream *qsp);
+void			sx_send_ixfr(struct qstream *);
+int			ixfr_log_maint(struct zoneinfo *);
 /* --from ns_ixfr.c-- */
 
 /* ++from ns_forw.c++ */
-extern time_t		retrytime(struct qinfo *);
-extern int		ns_forw(struct databuf *nsp[],
+time_t			retrytime(struct qinfo *);
+int			ns_forw(struct databuf *nsp[],
 				u_char *msg,
 				int msglen,
 				struct sockaddr_in from,
@@ -236,139 +236,142 @@ extern int		ns_forw(struct databuf *nsp[],
 				int type,
 				struct namebuf *np,
 				int use_tcp,
-				struct tsig_record *in_tsig),
-			haveComplained(u_long, u_long),
-			nslookup(struct databuf *nsp[],
+				struct tsig_record *in_tsig);
+int			haveComplained(u_long, u_long);
+int			nslookup(struct databuf *nsp[],
 				 struct qinfo *qp,
 				 const char *syslogdname,
-				 const char *sysloginfo),
-			qcomp(struct qserv *, struct qserv *);
-extern void		schedretry(struct qinfo *, time_t),
-			unsched(struct qinfo *),
-			reset_retrytimer(void),
-			retrytimer(evContext ctx, void *uap,
-				   struct timespec due, struct timespec ival),
-			retry(struct qinfo *),
-			qflush(void),
-			qremove(struct qinfo *),
-                        ns_freeqns(struct qinfo *, char *),
-			ns_freeqry(struct qinfo *),
-			freeComplaints(void),
-			nsfwdadd(struct qinfo *, struct fwdinfo *);
-extern struct qinfo	*qfindid(u_int16_t),
-			*qnew(const char *, int, int, int);
+				 const char *sysloginfo);
+int			qcomp(struct qserv *, struct qserv *);
+void			schedretry(struct qinfo *, time_t);
+void			unsched(struct qinfo *);
+void			reset_retrytimer(void);
+void			retrytimer(evContext ctx, void *uap,
+				   struct timespec due, struct timespec ival);
+void			retry(struct qinfo *);
+void			qflush(void);
+void			qremove(struct qinfo *);
+void			ns_freeqns(struct qinfo *, char *);
+void			ns_freeqry(struct qinfo *);
+void			freeComplaints(void);
+void			nsfwdadd(struct qinfo *, struct fwdinfo *);
+struct qinfo *		qfindid(u_int16_t);
+struct qinfo *		qnew(const char *, int, int, int);
 /* --from ns_forw.c-- */
 
 /* ++from ns_main.c++ */
-extern struct in_addr	net_mask(struct in_addr);
-extern void		sq_remove(struct qstream *),
-			sq_flushw(struct qstream *),
-			sq_flush(struct qstream *allbut),
-			dq_remove_gen(time_t gen),
-			dq_remove_all(),
-			sq_done(struct qstream *),
-			ns_setproctitle(char *, int),
-			getnetconf(int),
-			nsid_init(void),
-			ns_setoption(int option),
-			writestream(struct qstream *, const u_char *, int),
-			ns_need_unsafe(enum need),
-			ns_need(enum need),
-			opensocket_f(void),
-			nsid_hash(u_char *, size_t);
-extern u_int16_t	nsid_next(void);
-extern int		sq_openw(struct qstream *, int),
-			sq_writeh(struct qstream *, sq_closure),
-			sq_write(struct qstream *, const u_char *, int),
-			tcp_send(struct qinfo *),
-			aIsUs(struct in_addr);
+void			toggle_qrylog(void);
+struct in_addr		net_mask(struct in_addr);
+void			sq_remove(struct qstream *);
+void			sq_flushw(struct qstream *);
+void			sq_flush(struct qstream *allbut);
+void			dq_remove_gen(time_t gen);
+void			dq_remove_all();
+void			sq_done(struct qstream *);
+void			ns_setproctitle(char *, int);
+void			getnetconf(int);
+void			nsid_init(void);
+void			ns_setoption(int option);
+void			writestream(struct qstream *, const u_char *, int);
+void			ns_need_unsafe(enum need);
+void			ns_need(enum need);
+void			opensocket_f(void);
+void			nsid_hash(u_char *, size_t);
+u_int16_t		nsid_next(void);
+int			sq_openw(struct qstream *, int);
+int			sq_writeh(struct qstream *, sq_closure);
+int			sq_write(struct qstream *, const u_char *, int);
+int			tcp_send(struct qinfo *);
+int			aIsUs(struct in_addr);
 /* --from ns_main.c-- */
 
 /* ++from ns_maint.c++ */
-extern void		zone_maint(struct zoneinfo *),
-			sched_zone_maint(struct zoneinfo *),
-			ns_cleancache(evContext ctx, void *uap,
+void			zone_maint(struct zoneinfo *);
+void			sched_zone_maint(struct zoneinfo *);
+void			ns_cleancache(evContext ctx, void *uap,
 				      struct timespec due,
-				      struct timespec inter),
-			clean_cache_from(char *dname, struct hashbuf *htp),
-			remove_zone(struct zoneinfo *, const char *),
-			purge_zone(const char *, struct hashbuf *, int),
-			loadxfer(void),
-			qserial_retrytime(struct zoneinfo *, time_t),
-			qserial_query(struct zoneinfo *),
-			qserial_answer(struct qinfo *),
+				      struct timespec inter);
+void			clean_cache_from(char *dname, struct hashbuf *htp);
+void			remove_zone(struct zoneinfo *, const char *);
+void			purge_zone(const char *, struct hashbuf *, int);
+void			loadxfer(void);
+void			qserial_retrytime(struct zoneinfo *, time_t);
+void			qserial_query(struct zoneinfo *);
+void			qserial_answer(struct qinfo *);
 #ifdef DEBUG
-			printzoneinfo(int, int, int),
+void			printzoneinfo(int, int, int);
 #endif
-			endxfer(void),
-			addxfer(struct zoneinfo *),
-			ns_zreload(void),
-			ns_reload(void),
-			ns_reconfig(void),
-			ns_noexpired(void);
+void			endxfer(void);
+void			addxfer(struct zoneinfo *);
+void			ns_zreload(void);
+void			ns_reload(void);
+void			ns_reconfig(void);
+void			ns_noexpired(void);
 #if 0
-extern int		reload_all_unsafe(void);
+int			reload_all_unsafe(void);
 #endif
-extern int		zonefile_changed_p(struct zoneinfo *);
+int			zonefile_changed_p(struct zoneinfo *);
 int			reload_master(struct zoneinfo *);
-extern const char *	deferred_reload_unsafe(struct zoneinfo *);
-extern struct namebuf *	purge_node(struct hashbuf *htp, struct namebuf *np);
-extern int		clean_cache(struct hashbuf *, int);
-extern void		reapchild(void);
-extern const char *	zoneTypeString(unsigned int);
-extern void		ns_heartbeat(evContext ctx, void *uap,
+const char *		deferred_reload_unsafe(struct zoneinfo *);
+struct namebuf *	purge_node(struct hashbuf *htp, struct namebuf *np);
+int			clean_cache(struct hashbuf *, int);
+void			reapchild(void);
+const char *		zoneTypeString(unsigned int);
+void			ns_heartbeat(evContext ctx, void *uap,
 				     struct timespec, struct timespec);
-extern void		make_new_zones(void);
-extern void		free_zone(struct zoneinfo *);
-extern struct zoneinfo *find_auth_zone(const char *, ns_class);
-extern int		purge_nonglue(const char *dname, struct hashbuf *htp,
-				      int class);
+void			make_new_zones(void);
+void			free_zone(struct zoneinfo *);
+struct zoneinfo *	find_auth_zone(const char *, ns_class);
+int			purge_nonglue(const char *dname, struct hashbuf *htp,
+				      int class, int log);
 /* --from ns_maint.c-- */
 
 /* ++from ns_sort.c++ */
-extern void		sort_response(u_char *, u_char *, int,
+void			sort_response(u_char *, u_char *, int,
 				      struct sockaddr_in *);
 /* --from ns_sort.c-- */
 
 /* ++from ns_init.c++ */
-extern void		ns_refreshtime(struct zoneinfo *, time_t);
-extern void		ns_retrytime(struct zoneinfo *, time_t);
-extern void		ns_init(const char *);
-extern void		purgeandload(struct zoneinfo *zp);
-extern enum context	ns_ptrcontext(const char *owner);
-extern enum context	ns_ownercontext(int type, enum transport);
-extern int		ns_nameok(const struct qinfo *qry, const char *name,
+void			ns_refreshtime(struct zoneinfo *, time_t);
+void			ns_retrytime(struct zoneinfo *, time_t);
+time_t			ns_init(const char *);
+void			purgeandload(struct zoneinfo *zp);
+enum context		ns_ptrcontext(const char *owner);
+enum context		ns_ownercontext(int type, enum transport);
+int			ns_nameok(const struct qinfo *qry, const char *name,
 				  int class, struct zoneinfo *zp,
 				  enum transport, enum context,
 				  const char *owner,
 				  struct in_addr source);
-extern int		ns_wildcard(const char *name);
-extern void		zoneinit(struct zoneinfo *);
-extern void		do_reload(const char *, int, int, int);
-extern void		ns_shutdown(void);
+int			ns_wildcard(const char *name);
+void			zoneinit(struct zoneinfo *);
+void			do_reload(const char *, int, int, int);
+void			ns_shutdown(void);
 /* --from ns_init.c-- */
 
 /* ++from ns_ncache.c++ */
-extern void		cache_n_resp(u_char *, int, struct sockaddr_in,
+void			cache_n_resp(u_char *, int, struct sockaddr_in,
 				     const char *, int, int);
 /* --from ns_ncache.c-- */
 
 /* ++from ns_udp.c++ */
-extern void		ns_udp(void);
+void			ns_udp(void);
 /* --from ns_udp.c-- */
 
 /* ++from ns_stats.c++ */
-extern void		ns_stats(void),
-			ns_freestats(void);
-extern void		ns_logstats(evContext ctx, void *uap,
+void			ns_stats(void);
+void			ns_stats_dumpandclear(void);
+void			ns_freestats(void);
+void			ns_logstats(evContext ctx, void *uap,
 				    struct timespec, struct timespec);
-extern void		qtypeIncr(int qtype);
-extern struct nameser	*nameserFind(struct in_addr addr, int flags);
+void			qtypeIncr(int qtype);
+struct nameser *	nameserFind(struct in_addr addr, int flags);
 #define NS_F_INSERT	0x0001
 #define nameserIncr(a,w) NS_INCRSTAT(a,w)	/* XXX should change name. */
 /* --from ns_stats.c-- */
 
 /* ++from ns_update.c++ */
+struct databuf *	findzonesoa(struct zoneinfo *);
 void			free_rrecp(ns_updque *, int rcode, struct sockaddr_in);
 int			findzone(const char *, int, int, int *, int);
 u_char *		findsoaserial(u_char *data);
@@ -389,6 +392,16 @@ void			rdata_dump(struct databuf *dp, FILE *fp);
 /* --from ns_update.c-- */
 
 /* ++from ns_config.c++ */
+void			add_to_rrset_order_list(rrset_order_list,
+						rrset_order_element);
+const char *		p_order(int);
+int			set_zone_ixfr_file(zone_config, char *);
+int			set_zone_master_port(zone_config, u_short);
+int			set_zone_max_log_size_ixfr(zone_config, int);
+int			set_zone_dialup(zone_config, int);
+int			set_trusted_key(const char *, const int,
+					const int, const int, const char *);
+int			set_zone_ixfr_tmp(zone_config, char *);
 void			free_zone_timerinfo(struct zoneinfo *);
 void			free_zone_contents(struct zoneinfo *, int);
 struct zoneinfo *	find_zone(const char *, int);
@@ -485,17 +498,19 @@ void			init_logging(void);
 void			shutdown_logging(void);
 void			init_configuration(void);
 void			shutdown_configuration(void);
-void			load_configuration(const char *);
+time_t			load_configuration(const char *);
 /* --from ns_config.c-- */
+
 /* ++from parser.y++ */
 ip_match_list		lookup_acl(char *);
 void			define_acl(char *, ip_match_list);
 struct dst_key		*lookup_key(char *);
 void			define_key(char *, struct dst_key *);
-void			parse_configuration(const char *);
+time_t			parse_configuration(const char *);
 void			parser_initialize(void);
 void			parser_shutdown(void);
 /* --from parser.y-- */
+
 /* ++from ns_signal.c++ */
 void                    init_signals(void);
 void			block_signals(void);

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_lexer.c,v 8.20 2000/04/21 06:54:07 vixie Exp $";
+static const char rcsid[] = "$Id: ns_lexer.c,v 8.22 2000/11/29 06:55:58 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -260,7 +260,11 @@ static struct keyword keywords[] = {
 	{"has-old-clients", T_HAS_OLD_CLIENTS},
 	{"heartbeat-interval", T_HEARTBEAT},
 	{"hint", T_HINT},
+#ifdef HITCOUNTS
+	{"hit-count", T_HITCOUNT},
+#endif /* HITCOUNTS */
 	{"host-statistics", T_HOSTSTATS},
+	{"host-statistics-max", T_HOSTSTATSMAX},
 	{"if-no-answer", T_IF_NO_ANSWER},
 	{"if-no-domain", T_IF_NO_DOMAIN},
 	{"ignore", T_IGNORE},

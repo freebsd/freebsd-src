@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.119 2000/08/21 05:57:09 vixie Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.129 2001/01/08 23:46:41 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -174,11 +174,14 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 	HEADER *hp = (HEADER *) msg;
 	u_char *cp, *eom;
 	enum req_action action;
-	int n, ra, has_tsig, msglen_orig, tsig_size, siglen, sig2len;
+	int n, ra, has_tsig, tsig_size, sig2len;
 	u_char *tsigstart;
 	u_char sig[TSIG_SIG_SIZE], sig2[TSIG_SIG_SIZE];
 	struct tsig_record *in_tsig = NULL;
 	int error = NOERROR;
+	int msglen_orig = msglen;
+	int buflen_orig = buflen;
+	int siglen = sizeof sig;
 	DST_KEY *key;
 	time_t tsig_time;
 
@@ -188,8 +191,6 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		fp_nquery(msg, msglen, log_get_stream(packet_channel));
 	}
 #endif
-	msglen_orig = msglen;
-	siglen = sizeof(sig);
 	
 	tsigstart = ns_find_tsig(msg, msg + msglen);
 	if (tsigstart == NULL)
@@ -198,7 +199,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		char buf[MAXDNAME];
 
 		has_tsig = 1;
-		n = dn_expand(msg, msg + msglen, tsigstart, buf, sizeof(buf));
+		n = dn_expand(msg, msg + msglen, tsigstart, buf, sizeof buf);
 		if (n < 0) {
 			ns_debug(ns_log_default, 1,
 				 "ns_req: bad TSIG key name",
@@ -374,24 +375,31 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 	 * a TSIG error, build a new message with no data and a TSIG.
 	 */
 	if ((hp->tc || error != NOERROR) && has_tsig > 0) {
+ sign_again:
 		hp->ancount = htons(0);
 		hp->nscount = htons(0);
 		hp->arcount = htons(0);
 		cp = msg + HFIXEDSZ;
 		cp += ns_skiprr(cp, msg + msglen, ns_s_qd, ntohs(hp->qdcount));
-		sig2len = sizeof(sig2);
-		buflen += (msglen - (cp - msg));
+		sig2len = sizeof sig2;
 		msglen = cp - msg;
+		buflen = buflen_orig - msglen;
 		n = ns_sign(msg, &msglen, msglen + buflen, error, key,
 			    sig, siglen, sig2, &sig2len, tsig_time);
-		if (n != 0) {
-			INSIST(0);
+		if (n == NS_TSIG_ERROR_NO_SPACE && ntohs(hp->qdcount) != 0) {
+			hp->qdcount = htons(0);
+			goto sign_again;
 		}
+		if (n != 0)
+			ns_info(ns_log_default,
+				"ns_req: unable to sign response");
 		cp = msg + msglen;
-		
 	}
 	/* Either the message is not truncated or there was no TSIG */
 	else {
+		/*
+		 * Reserve space for tsig if required.
+		 */
 		if (has_tsig > 0)
 			buflen -= tsig_size;
 		n = doaddinfo(hp, cp, buflen);
@@ -399,7 +407,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		buflen -= n;
 		if (has_tsig > 0) {
 			buflen += tsig_size;
-			sig2len = sizeof(sig2);
+			sig2len = sizeof sig2;
 			msglen = cp - msg;
 			n = ns_sign(msg, &msglen, msglen + buflen, error, key,
 				    sig, siglen, sig2, &sig2len, tsig_time);
@@ -417,12 +425,12 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		 ntohs(hp->id), cp - msg, hp->rcode);
 	if (debug >= 10)
 		res_pquery(&res, msg, cp - msg,
-			   log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif /*DEBUG*/
 	if (qsp == NULL) {
 		if (sendto(dfd, (char*)msg, cp - msg, 0,
 			   (struct sockaddr *)&from,
-			   sizeof(from)) < 0) {
+			   sizeof from) < 0) {
 			if (!haveComplained(ina_ulong(from.sin_addr),
 					    (u_long)sendtoStr))
 				ns_info(ns_log_default,
@@ -460,7 +468,7 @@ static enum req_action
 req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 	   struct sockaddr_in from)
 {
-	int n, type, class, zn;
+	int n, type, class;
 	char dnbuf[MAXDNAME];
 	struct zoneinfo *zp;
 
@@ -950,6 +958,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
 			nameserIncr(from.sin_addr, nssRcvdUXFR);
+			if (type == ns_t_ixfr) {
+				hp->rcode = ns_r_refused;
+				return (Finish);
+			}
 			return (Refuse);
 		}
 
@@ -961,6 +973,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
 			nameserIncr(from.sin_addr, nssRcvdUXFR);
+			if (type == ns_t_ixfr) {
+				hp->rcode = ns_r_refused;
+				return (Finish);
+			}
 			return (Refuse);
 		}
 
@@ -972,6 +988,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
 			nameserIncr(from.sin_addr, nssRcvdUXFR);
+			if (type == ns_t_ixfr) {
+				hp->rcode = ns_r_refused;
+				return (Finish);
+			}
 			return (Refuse);
 		}
 
@@ -983,6 +1003,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
 			nameserIncr(from.sin_addr, nssRcvdUXFR);
+			if (type == ns_t_ixfr) {
+				hp->rcode = ns_r_refused;
+				return (Finish);
+			}
 			return (Refuse);
 		}
 
@@ -1389,15 +1413,20 @@ static enum req_action
 req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 	   u_char *msg, struct sockaddr_in from)
 {
-	int dlen, alen, n, type, class, count;
-	char dnbuf[MAXDNAME], anbuf[PACKETSZ], *data, *fname;
+	u_int rdata_offset;
+	size_t alen;
+	int dlen, n;
+	ns_type type;
+	ns_class class;
+	u_char anbuf[PACKETSZ], *anptr;
+	char dnbuf[MAXDNAME];
 
 	nameserIncr(from.sin_addr, nssRcvdIQ);
 
-	if (ntohs(hp->ancount) != 1
-	    || ntohs(hp->qdcount) != 0
-	    || ntohs(hp->nscount) != 0
-	    || ntohs(hp->arcount) != 0) {
+	if (ntohs(hp->ancount) != 1 ||
+	    ntohs(hp->qdcount) != 0 ||
+	    ntohs(hp->nscount) != 0 ||
+	    ntohs(hp->arcount) != 0) {
 		ns_debug(ns_log_default, 1,
 			 "FORMERR IQuery header counts wrong");
 		hp->rcode = ns_r_formerr;
@@ -1407,7 +1436,9 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 	/*
 	 * Skip domain name, get class, and type.
 	 */
-	if ((n = dn_skipname(*cpp, eom)) < 0) {
+	anptr = *cpp;
+	n = dn_skipname(*cpp, eom);
+	if (n < 0) {
 		ns_debug(ns_log_default, 1,
 			 "FORMERR IQuery packet name problem");
 		hp->rcode = ns_r_formerr;
@@ -1430,43 +1461,41 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 		hp->rcode = ns_r_formerr;
 		return (Finish);
 	}
+	rdata_offset = *cpp - anptr;
 	*cpp += dlen;
+	INSIST(*cpp == eom);
 
 	/*
-	 * not all inverse queries are handled.
+	 * Not all inverse queries are handled.
 	 */
-	switch (type) {
-	case T_A:
-		if (!NS_OPTION_P(OPTION_FAKE_IQUERY) || dlen != INT32SZ) {
-			if (dlen != INT32SZ)
-				ns_warning(ns_log_security,
-					   "bad iquery from %s",
-					   inet_ntoa(from.sin_addr));
-			return (Refuse);
-		}
-		break;
-	default:
+	if (type != ns_t_a) {
 		ns_warning(ns_log_security,
 			   "unsupported iquery type from %s",
 			   inet_ntoa(from.sin_addr));
 		return (Refuse);
 	}
-	ns_debug(ns_log_default, 1,
-		 "req: IQuery class %d type %d", class, type);
-
-	fname = (char *)msg + HFIXEDSZ;
-	alen = (char *)*cpp - fname;
-	if ((size_t)alen > sizeof anbuf) {
+	if (dlen != INT32SZ) {
 		ns_warning(ns_log_security,
 			   "bad iquery from %s",
 			   inet_ntoa(from.sin_addr));
 		return (Refuse);
 	}
-	memcpy(anbuf, fname, alen);
-	data = anbuf + alen - dlen;
-	*cpp = (u_char *)fname;
+	if (!NS_OPTION_P(OPTION_FAKE_IQUERY))
+		return (Refuse);
+
+	ns_debug(ns_log_default, 1,
+		 "req: IQuery class %d type %d", class, type);
+
+	alen = eom - anptr;
+	if (alen > sizeof anbuf) {
+		ns_warning(ns_log_security,
+			   "bad iquery from %s",
+			   inet_ntoa(from.sin_addr));
+		return (Refuse);
+	}
+	memcpy(anbuf, anptr, alen);
+	*cpp = anptr;
 	*buflenp -= HFIXEDSZ;
-	count = 0;
 
 #ifdef QRYLOG
 	if (qrylog) {
@@ -1474,7 +1503,7 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 
 		strcpy(tmp, inet_ntoa(from.sin_addr));
 		ns_info(ns_log_queries, "XX /%s/%s/-%s",
-			tmp, inet_ntoa(ina_get((u_char *)data)),
+			tmp, inet_ntoa(ina_get(&anbuf[rdata_offset])),
 			p_type(type));
 	}
 #endif /*QRYLOG*/
@@ -1487,7 +1516,7 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 	 * A better strategy would be to turn this into a PTR query, but that
 	 * would legitimize inverse queries in a way they do not deserve.
 	 */
-	sprintf(dnbuf, "[%s]", inet_ntoa(ina_get((u_char *)data)));
+	sprintf(dnbuf, "[%s]", inet_ntoa(ina_get(&anbuf[rdata_offset])));
 	*buflenp -= QFIXEDSZ;
 	n = dn_comp(dnbuf, *cpp, *buflenp, NULL, NULL);
 	if (n < 0) {
@@ -1495,19 +1524,20 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 		return (Finish);
 	}
 	*cpp += n;
-	PUTSHORT((u_int16_t)type, *cpp);
-	PUTSHORT((u_int16_t)class, *cpp);
 	*buflenp -= n;
-	count++;
+	PUTSHORT((u_int16_t)type, *cpp);
+	*buflenp -= INT16SZ;
+	PUTSHORT((u_int16_t)class, *cpp);
+	*buflenp -= INT16SZ;
 
-	ns_debug(ns_log_default, 1, "req: IQuery %d records", count);
-	hp->qdcount = htons((u_int16_t)count);
+	hp->qdcount = htons(1);
 	if (alen > *buflenp) {
 		hp->tc = 1;
 		return (Finish);
 	}
 	memcpy(*cpp, anbuf, alen);
 	*cpp += alen;
+	*buflenp -= alen;
 	return (Finish);
 }
 
@@ -1540,7 +1570,7 @@ stale(struct databuf *dp) {
 		if ((int32_t)(tt.tv_sec - zp->z_lastupdate)
 		    > (int32_t)zp->z_expire) {
 			ns_debug(ns_log_default, 1,
-				 "stale: secondary zone %s expired",
+				 "stale: slave zone %s expired",
 				zp->z_origin);
 			if (!haveComplained((u_long)zp, (u_long)stale)) {
 				ns_notice(ns_log_default,
@@ -1775,7 +1805,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 
 		/* Replacement */
 		ns_debug(ns_log_default, 1, "Replacement = %s", cp1);
-		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
+		n = dn_comp((char *)cp1, cp, buflen, NULL, NULL);
 		ns_debug(ns_log_default, 1, "dn_comp's n = %u", n);
 		if (n < 0)
 			goto cleanup;

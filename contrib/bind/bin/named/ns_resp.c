@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.144 2000/07/11 08:26:09 vixie Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.149 2001/01/03 09:47:27 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -201,6 +201,8 @@ learntFrom(struct qinfo *qp, struct sockaddr_in *server) {
 	char *a, *ns, *na;
 	struct databuf *db;
 	int i;
+	char nsbuf[20];
+	char abuf[20];
 	
 	a = ns = na = "<Not Available>";
 
@@ -209,34 +211,22 @@ learntFrom(struct qinfo *qp, struct sockaddr_in *server) {
 			      server->sin_addr)) {
 			db = qp->q_addr[i].ns;
 			if (db != NULL) {
-				if (NS_OPTION_P(OPTION_HOSTSTATS)) {
-					char nsbuf[20];
-
-					if (db->d_ns != NULL) {
-						strcpy(nsbuf,
-						    inet_ntoa(db->d_ns->addr));
-						ns = nsbuf;
-					} else {
-						ns = zones[db->d_zone]
-							.z_origin;
-					}
+				if (db->d_addr.s_addr != htonl(0)) {
+					strcpy(nsbuf, inet_ntoa(db->d_addr));
+					ns = nsbuf;
+				} else {
+					ns = zones[db->d_zone].z_origin;
 				}
 				if (db->d_rcode == 0)
 					na = (char*)qp->q_addr[i].ns->d_data;
 			}
-
-			if (NS_OPTION_P(OPTION_HOSTSTATS)) {
-				char abuf[20];
-
-				db = qp->q_addr[i].nsdata;
-				if (db != NULL) {
-					if (db->d_ns != NULL) {
-						strcpy(abuf,
-						    inet_ntoa(db->d_ns->addr));
-						a = abuf;
-					} else {
-						a = zones[db->d_zone].z_origin;
-					}
+			db = qp->q_addr[i].nsdata;
+			if (db != NULL) {
+				if (db->d_addr.s_addr != htonl(0)) {
+					strcpy(abuf, inet_ntoa(db->d_addr));
+					a = abuf;
+				} else {
+					a = zones[db->d_zone].z_origin;
 				}
 			}
 			break;
@@ -466,7 +456,6 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	for (fwd = NS_ZFWDTAB(qp->q_fzone); fwd; fwd = fwd->next)
 		if (ina_equal(fwd->fwddata->fwdaddr.sin_addr, from.sin_addr))
 			break;
-	/*
 	/*
 	 * find the qinfo pointer and update
 	 * the rtt and fact that we have called on this server before.
@@ -714,7 +703,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 #ifdef DEBUG
 		if (debug > 0)
 			res_pquery(&res, msg, msglen,
-				   log_get_stream(packet_channel));
+				    log_get_stream(packet_channel));
 #endif
 		/*
 		 * Since there is no answer section (ancount == 0),
@@ -1096,6 +1085,10 @@ tcp_retry:
 					: DB_C_ADDITIONAL;
 			}
 		}
+#ifdef HITCOUNTS
+		++dp->d_hitcnt;
+		++db_total_hits;
+#endif /* HITCOUNTS */
 		rrsetadd(flushset, name, dp);
 	}
 	free_related_additional();
@@ -1498,7 +1491,7 @@ tcp_retry:
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qp->q_msg, qp->q_msglen,
-			   log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif
 	key = tsig_key_from_addr(nsa->sin_addr);
 	if (key != NULL) {
@@ -1535,7 +1528,7 @@ tcp_retry:
 			if (!haveComplained(ina_ulong(nsa->sin_addr),
 					    (u_long)tcpsendStr))
 				ns_info(ns_log_default,
-					"ns_forw: tcp_send(%s) failed: %s",
+					"ns_resp: tcp_send(%s) failed: %s",
 					sin_ntoa(*nsa), strerror(errno));
 		}
 	} else if (sendto(ds, (char*)qp->q_msg, qp->q_msglen, 0,
@@ -2474,7 +2467,7 @@ sysquery(const char *dname, int class, int type,
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qp->q_msg, qp->q_msglen,
-			   log_get_stream(packet_channel));
+			    log_get_stream(packet_channel));
 #endif
 
 	key = tsig_key_from_addr(nsa->sin_addr);
@@ -2927,6 +2920,10 @@ finddata(struct namebuf *np, int class, int type,
 				goto done;
 			}
 		}
+#ifdef HITCOUNTS
+		++dp->d_hitcnt;
+		++db_total_hits;
+#endif /* HITCOUNTS */
 
 		/* Don't put anything but key or sig RR's in response to
 			     requests for key or sig */
@@ -3021,7 +3018,8 @@ finddata(struct namebuf *np, int class, int type,
 
 		order = match_order(np, class, foundcname ? T_CNAME : type);
 
-		/* shuffle the SIG records down to the bottom of the array
+		/*
+		 * shuffle the SIG records down to the bottom of the array
 		 * as we need to make sure they get packed last, no matter
 		 * what the ordering is. We're sure to maintain the
 		 * original ordering within the two sets of records (so
@@ -3037,10 +3035,11 @@ finddata(struct namebuf *np, int class, int type,
 		sig_count = found_count - jdx;
 		first_sig = jdx ;
 		
-		/* now shift the SIG records down to the end of the array
+		/*
+		 * now shift the SIG records down to the end of the array
 		 *  and copy in the non-SIG records
 		 */
-		for (i = idx = found_count - 1 ; idx >= 0 ; idx--) {
+		for (i = idx = found_count - 1 ; i >= 0 ; idx--) {
 			if (i < non_sig_count) {
 				found[i] = tmpfound[i];
 				i--;

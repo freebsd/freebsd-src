@@ -16,14 +16,16 @@
  */
 
 /*
- * $Id: misc.h,v 8.2 1999/01/08 19:23:10 vixie Exp $
+ * $Id: misc.h,v 8.4 2000/12/23 08:14:52 vixie Exp $
  */
 
 #ifndef _ISC_MISC_H
 #define _ISC_MISC_H
 
 #define	bitncmp		__bitncmp
+/*#define isc_movefile	__isc_movefile */
 
 extern int		bitncmp(const void *l, const void *r, int n);
+extern int		isc_movefile(const char *, const char *);
 
 #endif /*_ISC_MISC_H*/
