@@ -582,8 +582,6 @@ main(argc, argv)
 	strncpy(shell, pwd->pw_shell, sizeof shell);
 #endif /* LOGIN_CAP */
 	shell[sizeof shell - 1] = '\0';
-	if (*shell == '\0')
-		strcpy(shell, _PATH_BSHELL);
 
 #ifdef LOGIN_ACCESS
 	if (login_access(pwd->pw_name, hostname ? full_hostname : tty) == 0) {
@@ -661,7 +659,12 @@ main(argc, argv)
 	(void)setuid(rootlogin ? 0 : pwd->pw_uid);
 #endif
 
-	(void)setenv("SHELL", shell, 1);
+	if (*pwd->pw_shell == '\0') {
+		pwd->pw_shell = _PATH_BSHELL;
+		if (*shell == '\0')   /* Not overridden */
+			strcpy(shell, pwd->pw_shell);
+	}
+	(void)setenv("SHELL", pwd->pw_shell, 1);
 	(void)setenv("HOME", pwd->pw_dir, 1);
 	if (term[0] != '\0')
 		(void)setenv("TERM", term, 1);	/* Preset overrides */
@@ -713,7 +716,7 @@ main(argc, argv)
 
 	/* Login shells have a leading '-' in front of argv[0] */
 	tbuf[0] = '-';
-	(void)strcpy(tbuf + 1, (p = strrchr(shell, '/')) ? p + 1 : shell);
+	(void)strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
 
 #ifdef LOGIN_CAP
 	login_close(lc);
