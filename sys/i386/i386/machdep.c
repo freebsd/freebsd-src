@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128 1995/05/30 07:59:33 rgrimes Exp $
+ *	$Id: machdep.c,v 1.129 1995/06/26 07:39:52 bde Exp $
  */
 
 #include "npx.h"
@@ -821,11 +821,7 @@ boot(arghowto)
 
 		waittime = 0;
 		printf("\nsyncing disks... ");
-		/*
-		 * Release inodes held by texts before update.
-		 */
-		if (panicstr == 0)
-			vnode_pager_umount(NULL);
+
 		sync(&proc0, NULL, NULL);
 
 		for (iter = 0; iter < 20; iter++) {
