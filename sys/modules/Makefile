@@ -53,6 +53,7 @@ SUBDIR=	accf_data \
 	if_faith \
 	if_gif \
 	if_gre \
+	if_ndis \
 	if_ppp \
 	if_sl \
 	if_stf \
@@ -90,6 +91,7 @@ SUBDIR=	accf_data \
 	msdosfs \
 	msdosfs_iconv \
 	my \
+	ndis \
 	nfsclient \
 	nfsserver \
 	nge \
