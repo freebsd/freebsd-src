@@ -470,7 +470,7 @@ load_format(char *pagedb_path, int page)
 			} else if (depth == 0 && ! BUFFERFULL(str_pagenum)) {
 				strncat(str_pagenum, &c, 1);
 			} else if (depth == 0) {
-				errx(EX_OSFILE, "%s:%d: %s %d %s", pagedb_path,
+				errx(EX_OSFILE, "%s:%d: %s %zd %s", pagedb_path,
 				    lineno, "page identifier exceeds",
 				    sizeof(str_pagenum) - 1, "characters");
 			}
@@ -486,7 +486,7 @@ load_format(char *pagedb_path, int page)
 			} else if (! BUFFERFULL(str_pagename)) {
 				strncat(str_pagename, &c, 1);
 			} else {
-				errx(EX_OSFILE, "%s:%d: %s %d %s", pagedb_path,
+				errx(EX_OSFILE, "%s:%d: %s %zd %s", pagedb_path,
 				    lineno, "page name exceeds",
 				    sizeof(str_pagenum) - 1, "characters");
 			}
@@ -503,7 +503,7 @@ load_format(char *pagedb_path, int page)
 			} else if (! BUFFERFULL(format)) {
 				strncat(format, &c, 1);
 			} else {
-				errx(EX_OSFILE, "%s:%d: %s %d %s", pagedb_path,
+				errx(EX_OSFILE, "%s:%d: %s %zd %s", pagedb_path,
 				    lineno, "page definition exceeds",
 				    sizeof(format) - 1, "characters");
 			}
