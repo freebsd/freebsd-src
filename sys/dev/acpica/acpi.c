@@ -433,8 +433,13 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 		   OID_AUTO, "disable_on_poweroff", CTLFLAG_RD | CTLFLAG_RW,
 		   &sc->acpi_disable_on_poweroff, 0, "ACPI subsystem disable on poweroff");
+
+    /*
+     * Default to 5 seconds before sleeping to give some machines time to
+     * stabilize.
+     */
+    sc->acpi_sleep_delay = 5;
     sc->acpi_disable_on_poweroff = 1;
-    sc->acpi_sleep_delay = 0;
     sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
