@@ -664,7 +664,7 @@ hint.pcf.0.irq="5"
 #---------------------------------------------------------------------------
 #	isic driver (Siemens/Infineon chipsets)
 #
-device	isic	1
+device	isic
 #
 # ISA bus non-PnP Cards:
 # ----------------------
@@ -763,7 +763,7 @@ options 	ELSA_QS1PCI
 #	ifpnp driver for AVM Fritz!Card PnP
 #
 # AVM Fritz!Card PnP
-device ifpnp	1
+device ifpnp
 #
 #---------------------------------------------------------------------------
 #	ihfc driver for Cologne Chip ISA chipsets (experimental!)
@@ -771,37 +771,37 @@ device ifpnp	1
 # Teles 16.3c ISA PnP
 # AcerISDN P10 ISA PnP
 # TELEINT ISDN SPEED No.1
-device ihfc	1
+device ihfc
 #
 #---------------------------------------------------------------------------
 #	ifpi driver for AVM Fritz!Card PCI
 #
 # AVM Fritz!Card PCI
-device  ifpi	1
+device  ifpi
 #
 #---------------------------------------------------------------------------
 #	ifpi2 driver for AVM Fritz!Card PCI version 2
 #
 # AVM Fritz!Card PCI version 2
-device  "ifpi2"	1
+device  "ifpi2"
 #
 #---------------------------------------------------------------------------
 #	iwic driver for Winbond W6692 chipset
 #
 # ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
-device  iwic	1
+device  iwic
 #
 #---------------------------------------------------------------------------
 #	itjc driver for Simens ISAC / TJNet Tiger300/320 chipset
 #
 # Traverse Technologies NETjet-S
 # Teles PCI-TJ
-device  itjc	1
+device  itjc
 #
 #---------------------------------------------------------------------------
 #	iavc driver (AVM active cards, needs i4bcapi driver!)
 #
-device	iavc	1
+device	iavc
 #
 # AVM B1 ISA bus (PnP mode not supported!)
 # ----------------------------------------
@@ -813,13 +813,13 @@ hint.iavc.0.irq="5"
 #	ISDN Protocol Stack - mandatory for all hardware drivers
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
-device		"i4bq921"	1
+device		"i4bq921"
 #
 # Q.931 / layer 3 - i4b passive cards D channel handling
-device		"i4bq931"	1
+device		"i4bq931"
 #
 # layer 4 - i4b common passive and active card handling
-device		"i4b"		1
+device		"i4b"
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - mandatory for all hardware drivers
@@ -828,7 +828,7 @@ device		"i4b"		1
 device		"i4btrc"	4
 #
 # userland driver to control the whole thing
-device		"i4bctl"	1
+device		"i4bctl"
 #
 #---------------------------------------------------------------------------
 #	ISDN devices - optional
@@ -854,7 +854,7 @@ device		"i4bisppp"	4
 device		"i4bing"	2
 #
 # CAPI driver needed for active ISDN cards (see iavc driver above)
-device		"i4bcapi"	1
+device		"i4bcapi"
 #
 #---------------------------------------------------------------------------
 

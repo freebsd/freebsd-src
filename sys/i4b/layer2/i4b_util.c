@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq921.h"
-
-#if NI4BQ921 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -306,6 +302,3 @@ i4b_l2_nr_ok(int nr, int va, int vs)
 	}
 	return 1;		/* good */
 }
-	
-#endif /* NI4BQ921 > 0 */
-

@@ -42,10 +42,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if NISIC > 0 && defined(SIEMENS_ISURF2)
+#if defined(SIEMENS_ISURF2)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -227,4 +226,4 @@ isic_attach_siemens_isurf(device_t dev)
 
 	return(0);
 }
-#endif /* NISIC > 0 && defined(SIEMENS_ISURF2) */
+#endif /* defined(SIEMENS_ISURF2) */

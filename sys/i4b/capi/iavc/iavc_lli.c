@@ -28,11 +28,6 @@
  * $FreeBSD$
  */
 
-#include "iavc.h"
-#include "i4bcapi.h"
-
-#if (NIAVC > 0) && (NI4BCAPI > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -830,5 +825,3 @@ static void iavc_start_tx(iavc_softc_t *sc)
 	    AMCC_WRITE(sc, AMCC_INTCSR, sc->sc_csr);
     }
 }
-
-#endif

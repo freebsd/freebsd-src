@@ -33,10 +33,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(USR_STI)
+#if defined(USR_STI)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -495,4 +494,4 @@ isic_attach_usrtai(device_t dev)
 	return (0);
 }
 
-#endif /* ISIC > 0 */
+#endif /* defined(USR_STI) */

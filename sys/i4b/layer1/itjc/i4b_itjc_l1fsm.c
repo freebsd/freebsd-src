@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "itjc.h"
-
-#if (NITJC > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -515,5 +511,3 @@ itjc_printstate(struct l1_softc *sc)
 	return((char *) state_text[sc->sc_I430state]);
 }
 #endif
-	
-#endif /* NITJC > 0 */

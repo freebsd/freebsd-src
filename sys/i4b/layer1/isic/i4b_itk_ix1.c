@@ -60,10 +60,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if NISIC > 0 && defined(ITKIX1)
+#if defined(ITKIX1)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -394,4 +393,4 @@ isic_attach_itkix1(device_t dev)
 	return 0;
 }
 
-#endif /* ITKIX1 */
+#endif /* defined(ITKIX1) */

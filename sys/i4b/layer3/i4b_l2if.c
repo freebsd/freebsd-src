@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -681,5 +677,3 @@ i4b_l3_tx_alert(call_desc_t *cd)
 
 	DL_Data_Req(ctrl_desc[cd->controller].unit, m);
 }
-
-#endif /* NI4BQ931 > 0 */

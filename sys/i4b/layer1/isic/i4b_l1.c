@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
-
-#if NISIC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -250,5 +246,3 @@ isic_mph_command_req(int unit, int command, void *parm)
 
 	return(0);
 }
-
-#endif /* NISIC > 0 */

@@ -40,10 +40,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ihfc.h"
-
-#if (NIHFC > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -513,5 +509,3 @@ ihfc_B_linkinit(ihfc_sc_t *sc)
 		S_BLINK.rx_mbuf    = &S_MBUFDUMMY;
 	}
 }
-
-#endif /* NIHFC > 0 */

@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -715,5 +711,3 @@ i4b_decode_q931_message(int unit, call_desc_t *cd, u_char message_type)
 		NDBGL3(L3_PRIM, "%s: unit %d, cr = 0x%02x\n", m, unit, cd->cr);
 	}
 }
-
-#endif /* NI4BQ931 > 0 */

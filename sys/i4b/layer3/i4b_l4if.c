@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -323,5 +319,3 @@ n_alert_request(u_int cdid)
 
 	next_l3state(cd, EV_ALERTRQ);
 }
-
-#endif /* NI4BQ931 > 0 */

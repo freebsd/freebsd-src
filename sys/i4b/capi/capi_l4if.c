@@ -27,9 +27,6 @@
  * $FreeBSD$
  */
 
-#include "i4bcapi.h"
-#if NI4BCAPI > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -446,5 +443,3 @@ n_download(int unit, int numprotos, struct isdn_dr_prot *protocols)
 
     return(0);
 }
-
-#endif /* NI4BCAPI > 0 */

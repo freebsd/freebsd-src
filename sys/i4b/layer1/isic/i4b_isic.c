@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
-
-#if NISIC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -494,6 +491,3 @@ isic_detach_common(device_t dev)
 		}
 	}
 }
-
-#endif /* NISIC > 0 */
-

@@ -36,10 +36,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "ifpnp.h"
-
-#if (NIFPNP > 0)
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -240,5 +236,3 @@ ifpnp_mph_command_req(int unit, int command, void *parm)
 
 	return(0);
 }
-
-#endif /* NIFPNP > 0 */

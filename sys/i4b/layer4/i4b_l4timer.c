@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4b.h"
-
-#if NI4B > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -90,5 +86,3 @@ T400_stop(call_desc_t *cd)
 	CRIT_END;
 	NDBGL4(L4_MSG, "cr = %d", cd->cr);
 }
-
-#endif /* NI4B > 0 */

@@ -27,9 +27,6 @@
  * $FreeBSD$
  */
 
-#include "i4bcapi.h"
-#if NI4BCAPI > 0
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -162,5 +159,3 @@ capi_ll_receive(capi_softc_t *sc, struct mbuf *m)
     i4b_Dfreembuf(m);
     return(0);
 }
-
-#endif /* NI4BCAPI > 0*/

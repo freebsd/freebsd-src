@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "iwic.h"
 #include "opt_i4b.h"
-
-#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -222,6 +219,4 @@ iwic_printstate(struct iwic_softc *sc)
 {
 	return((char *)state_names[sc->sc_I430state]);
 }
-#endif
-  
 #endif

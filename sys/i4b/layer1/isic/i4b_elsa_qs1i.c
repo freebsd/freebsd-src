@@ -33,10 +33,9 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && defined(ELSA_QS1ISA)
+#if defined(ELSA_QS1ISA)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -234,4 +233,4 @@ isic_attach_Eqs1pi(device_t dev)
 
 	return 0;
 }
-#endif /* (NISIC > 0) && defined(ELSA_QS1ISA) */
+#endif /* defined(ELSA_QS1ISA) */

@@ -28,11 +28,6 @@
  * $FreeBSD$
  */
 
-#include "iavc.h"
-#include "i4bcapi.h"
-
-#if (NIAVC > 0) && (NI4BCAPI > 0)
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -287,5 +282,3 @@ void t1_reset(iavc_softc_t *sc)
     iavc_write_port(sc, T1_IRQMASTER, 0x00);
     iavc_write_port(sc, T1_RESETBOARD, 0x0f);
 }
-
-#endif

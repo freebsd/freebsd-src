@@ -33,10 +33,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "iwic.h"
 #include "opt_i4b.h"
-
-#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -468,5 +465,3 @@ iwic_dchan_transmit(struct iwic_softc *sc)
 	sc->sc_dchan.tx_ready = 0;
 	IWIC_WRITE(sc, D_CMDR, cmd);
 }
-
-#endif	/* (NIWIC > 0) */

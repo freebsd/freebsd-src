@@ -33,10 +33,6 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "i4bq931.h"
-
-#if NI4BQ931 > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -1038,5 +1034,3 @@ static void F_DLRIA(call_desc_t *cd)
 
 	DL_Est_Req(ctrl_desc[cd->controller].unit);
 }
-	
-#endif /* NI4BQ931 > 0 */
