@@ -86,7 +86,7 @@ static struct cdevsw mixer_cdevsw = {
 static eventhandler_tag mixer_ehtag;
 #endif
 
-static dev_t
+static struct cdev *
 mixer_get_devt(device_t dev)
 {
 	struct snddev_info *snddev;
@@ -190,7 +190,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 	struct snddev_info *snddev;
 	struct snd_mixer *m;
 	u_int16_t v;
-	dev_t pdev;
+	struct cdev *pdev;
 	int i, unit;
 
 	m = (struct snd_mixer *)kobj_create(cls, M_MIXER, M_WAITOK | M_ZERO);
@@ -231,7 +231,7 @@ mixer_uninit(device_t dev)
 {
 	int i;
 	struct snd_mixer *m;
-	dev_t pdev;
+	struct cdev *pdev;
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
@@ -262,7 +262,7 @@ int
 mixer_reinit(device_t dev)
 {
 	struct snd_mixer *m;
-	dev_t pdev;
+	struct cdev *pdev;
 	int i;
 
 	pdev = mixer_get_devt(dev);
@@ -318,7 +318,7 @@ int
 mixer_hwvol_init(device_t dev)
 {
 	struct snd_mixer *m;
-	dev_t pdev;
+	struct cdev *pdev;
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
@@ -339,7 +339,7 @@ void
 mixer_hwvol_mute(device_t dev)
 {
 	struct snd_mixer *m;
-	dev_t pdev;
+	struct cdev *pdev;
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
@@ -360,7 +360,7 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 {
 	struct snd_mixer *m;
 	int level, left, right;
-	dev_t pdev;
+	struct cdev *pdev;
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
@@ -387,7 +387,7 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 /* ----------------------------------------------------------------------- */
 
 static int
-mixer_open(dev_t i_dev, int flags, int mode, struct thread *td)
+mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;
@@ -404,7 +404,7 @@ mixer_open(dev_t i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-mixer_close(dev_t i_dev, int flags, int mode, struct thread *td)
+mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;
@@ -426,7 +426,7 @@ mixer_close(dev_t i_dev, int flags, int mode, struct thread *td)
 }
 
 int
-mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
+mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
 	struct snd_mixer *m;
 	intrmask_t s;
@@ -479,7 +479,7 @@ mixer_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 
 #ifdef USING_DEVFS
 static void
-mixer_clone(void *arg, char *name, int namelen, dev_t *dev)
+mixer_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	struct snddev_info *sd;
 

@@ -1199,7 +1199,7 @@ setkeydef(Ovl_tbl *data)
  *	keyboard ioctl's entry
  *---------------------------------------------------------------------------*/
 int
-kbdioctl(dev_t dev, int cmd, caddr_t data, int flag)
+kbdioctl(struct cdev *dev, int cmd, caddr_t data, int flag)
 {
 	int key;
 

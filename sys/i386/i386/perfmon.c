@@ -299,7 +299,7 @@ static int writer;
 static int writerpmc;
 
 static int
-perfmon_open(dev_t dev, int flags, int fmt, struct thread *td)
+perfmon_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	if (!perfmon_cpuok)
 		return ENXIO;
@@ -316,7 +316,7 @@ perfmon_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-perfmon_close(dev_t dev, int flags, int fmt, struct thread *td)
+perfmon_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	if (flags & FWRITE) {
 		int i;
@@ -331,7 +331,7 @@ perfmon_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-perfmon_ioctl(dev_t dev, u_long cmd, caddr_t param, int flags, struct thread *td)
+perfmon_ioctl(struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thread *td)
 {
 	struct pmc *pmc;
 	struct pmc_data *pmcd;

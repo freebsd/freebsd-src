@@ -130,7 +130,7 @@ struct ums_softc {
 #	  define	UMS_SELECT	0x02	/* select is waiting */
 	struct selinfo	rsel;		/* process waiting in select */
 
-	dev_t		dev;		/* specfs */
+	struct cdev *dev;		/* specfs */
 };
 
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
@@ -589,7 +589,7 @@ ums_disable(priv)
 }
 
 Static int
-ums_open(dev_t dev, int flag, int fmt, usb_proc_ptr p)
+ums_open(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
 
@@ -599,7 +599,7 @@ ums_open(dev_t dev, int flag, int fmt, usb_proc_ptr p)
 }
 
 Static int
-ums_close(dev_t dev, int flag, int fmt, usb_proc_ptr p)
+ums_close(struct cdev *dev, int flag, int fmt, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
 
@@ -615,7 +615,7 @@ ums_close(dev_t dev, int flag, int fmt, usb_proc_ptr p)
 }
 
 Static int
-ums_read(dev_t dev, struct uio *uio, int flag)
+ums_read(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ums_softc *sc;
 	int s;
@@ -685,7 +685,7 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 }
 
 Static int
-ums_poll(dev_t dev, int events, usb_proc_ptr p)
+ums_poll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
 	int revents = 0;
@@ -711,7 +711,7 @@ ums_poll(dev_t dev, int events, usb_proc_ptr p)
 }
 
 int
-ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 	struct ums_softc *sc;
 	int error = 0;

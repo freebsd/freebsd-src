@@ -174,7 +174,7 @@ printf("error = %d\n", error);
 /* for DEVFS, using bpf & tun drivers as examples*/
 static void coda_fbsd_drvinit(void *unused);
 static void coda_fbsd_drvuninit(void *unused);
-static void coda_fbsd_clone(void *arg, char *name, int namelen, dev_t *dev);
+static void coda_fbsd_clone(void *arg, char *name, int namelen, struct cdev **dev);
 
 static eventhandler_tag clonetag;
 
@@ -182,7 +182,7 @@ static void coda_fbsd_clone(arg, name, namelen, dev)
     void *arg;
     char *name;
     int namelen;
-    dev_t *dev;
+    struct cdev **dev;
 {
     int u;
 

@@ -145,7 +145,7 @@ struct ses_softc {
 	ses_encstat	ses_encstat;	/* overall status */
 	u_int8_t	ses_flags;
 	union ccb	ses_saved_ccb;
-	dev_t		ses_dev;
+	struct cdev *ses_dev;
 	struct cam_periph *periph;
 };
 #define	SES_FLAG_INVALID	0x01
@@ -405,7 +405,7 @@ sesregister(struct cam_periph *periph, void *arg)
 }
 
 static int
-sesopen(dev_t dev, int flags, int fmt, struct thread *td)
+sesopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ses_softc *softc;
@@ -461,7 +461,7 @@ out:
 }
 
 static int
-sesclose(dev_t dev, int flag, int fmt, struct thread *td)
+sesclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ses_softc *softc;
@@ -517,7 +517,7 @@ seserror(union ccb *ccb, u_int32_t cflags, u_int32_t sflags)
 }
 
 static int
-sesioctl(dev_t dev, u_long cmd, caddr_t arg_addr, int flag, struct thread *td)
+sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	ses_encstat tmp;

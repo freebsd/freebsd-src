@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 struct pps_data {
 	struct	ppb_device pps_dev;	
 	struct	pps_state pps[9];
-	dev_t	devs[9];
+	struct cdev *devs[9];
 	device_t ppsdev;
 	device_t ppbus;
 	int	busy;
@@ -106,7 +106,7 @@ ppsattach(device_t dev)
 {
 	struct pps_data *sc = DEVTOSOFTC(dev);
 	device_t ppbus = device_get_parent(dev);
-	dev_t d;
+	struct cdev *d;
 	intptr_t irq;
 	int i, unit, zero = 0;
 
@@ -191,7 +191,7 @@ ppsattach(device_t dev)
 }
 
 static	int
-ppsopen(dev_t dev, int flags, int fmt, struct thread *td)
+ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
 	int subdev = (intptr_t)dev->si_drv2;
@@ -227,7 +227,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static	int
-ppsclose(dev_t dev, int flags, int fmt, struct thread *td)
+ppsclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
 	int subdev = (intptr_t)dev->si_drv2;
@@ -293,7 +293,7 @@ ppsintr(void *arg)
 }
 
 static int
-ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+ppsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	struct pps_data *sc = dev->si_drv1;
 	int subdev = (intptr_t)dev->si_drv2;

@@ -104,7 +104,7 @@ struct softc {
 	struct resource		*r0, *r1, *ri;
 	bus_space_tag_t		t0, t1;
 	bus_space_handle_t	h0, h1;
-	dev_t			dev;
+	struct cdev *dev;
 	off_t			mapvir;
 
 	struct proc		*procp;
@@ -241,7 +241,7 @@ adlink_loran(void *arg)
 }
 
 static int
-adlink_open(dev_t dev, int oflags, int devtype, struct thread *td)
+adlink_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	static int once;
 	struct softc *sc;
@@ -307,7 +307,7 @@ adlink_open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-adlink_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct softc *sc;
 	struct wave *wp;
@@ -341,7 +341,7 @@ adlink_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 }
 
 static int
-adlink_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+adlink_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct softc *sc;
 	struct wave *wp;

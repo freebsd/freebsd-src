@@ -167,7 +167,7 @@ struct mac_policy_ops {
 	void	(*mpo_associate_vnode_singlelabel)(struct mount *mp,
 		    struct label *fslabel, struct vnode *vp,
 		    struct label *vlabel);
-	void	(*mpo_create_devfs_device)(struct mount *mp, dev_t dev,
+	void	(*mpo_create_devfs_device)(struct mount *mp, struct cdev *dev,
 		    struct devfs_dirent *de, struct label *label);
 	void	(*mpo_create_devfs_directory)(struct mount *mp, char *dirname,
 		    int dirnamelen, struct devfs_dirent *de,

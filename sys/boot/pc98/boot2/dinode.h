@@ -94,7 +94,7 @@ struct dinode {
  * The di_db fields may be overlaid with other information for
  * file types that do not have associated disk storage. Block
  * and character devices overlay the first data block with their
- * dev_t value. Short symbolic links place their path in the
+ * struct cdev *value. Short symbolic links place their path in the
  * di_db area.
  */
 #define	di_inumber	di_u.inumber

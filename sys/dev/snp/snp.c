@@ -62,7 +62,7 @@ static struct linesw snpdisc = {
 struct snoop {
 	LIST_ENTRY(snoop)	snp_list;	/* List glue. */
 	int			snp_unit;	/* Device number. */
-	dev_t			snp_target;	/* Target tty device. */
+	struct cdev *snp_target;	/* Target tty device. */
 	struct tty		*snp_tty;	/* Target tty pointer. */
 	u_long			 snp_len;	/* Possible length. */
 	u_long			 snp_base;	/* Data base. */
@@ -106,9 +106,9 @@ static int snooplinedisc;
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
 static struct clonedevs	  *snpclones;
 
-static struct tty	*snpdevtotty(dev_t dev);
+static struct tty	*snpdevtotty(struct cdev *dev);
 static void		snp_clone(void *arg, char *name,
-			    int namelen, dev_t *dev);
+			    int namelen, struct cdev **dev);
 static int		snp_detach(struct snoop *snp);
 static int		snp_down(struct snoop *snp);
 static int		snp_in(struct snoop *snp, char *buf, int n);
@@ -175,7 +175,7 @@ snplwrite(tp, uio, flag)
 
 static struct tty *
 snpdevtotty(dev)
-	dev_t dev;
+	struct cdev *dev;
 {
 	struct cdevsw *cdp;
 
@@ -192,7 +192,7 @@ snpdevtotty(dev)
 
 static int
 snpwrite(dev, uio, flag)
-	dev_t dev;
+	struct cdev *dev;
 	struct uio *uio;
 	int flag;
 {
@@ -231,7 +231,7 @@ tty_input:
 
 static int
 snpread(dev, uio, flag)
-	dev_t dev;
+	struct cdev *dev;
 	struct uio *uio;
 	int flag;
 {
@@ -377,7 +377,7 @@ snp_in(snp, buf, n)
 
 static int
 snpopen(dev, flag, mode, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flag, mode;
 	struct thread *td;
 {
@@ -451,7 +451,7 @@ detach_notty:
 
 static int
 snpclose(dev, flags, fmt, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flags;
 	int fmt;
 	struct thread *td;
@@ -486,7 +486,7 @@ snp_down(snp)
 
 static int
 snpioctl(dev, cmd, data, flags, td)
-	dev_t dev;
+	struct cdev *dev;
 	u_long cmd;
 	caddr_t data;
 	int flags;
@@ -494,7 +494,7 @@ snpioctl(dev, cmd, data, flags, td)
 {
 	struct snoop *snp;
 	struct tty *tp, *tpo;
-	dev_t tdev;
+	struct cdev *tdev;
 	int s;
 
 	snp = dev->si_drv1;
@@ -577,7 +577,7 @@ snpioctl(dev, cmd, data, flags, td)
 
 static int
 snppoll(dev, events, td)
-	dev_t dev;
+	struct cdev *dev;
 	int events;
 	struct thread *td;
 {
@@ -605,7 +605,7 @@ snp_clone(arg, name, namelen, dev)
 	void *arg;
 	char *name;
 	int namelen;
-	dev_t *dev;
+	struct cdev **dev;
 {
 	int u, i;
 

@@ -243,12 +243,17 @@ sizespec(char *spec)
     return -1;
 }
 
+#ifdef _KERNEL
+#define FOOTYPE struct cdev *
+#else
+#define FOOTYPE dev_t
+#endif
 /*
  * Extract the volume number from a device number.  Check that it's
  * the correct type, and that it isn't one of the superdevs.
  */
 int
-Volno(dev_t dev)
+Volno(FOOTYPE dev)
 {
     int volno = minor(dev);
 
@@ -269,7 +274,7 @@ Volno(dev_t dev)
  * type.  Return -1 for invalid types.
  */
 int
-Plexno(dev_t dev)
+Plexno(FOOTYPE dev)
 {
     int plexno = minor(dev);
 
@@ -285,7 +290,7 @@ Plexno(dev_t dev)
  * type.  Return -1 for invalid types.
  */
 int
-Sdno(dev_t dev)
+Sdno(FOOTYPE dev)
 {
     int sdno = minor(dev);
 

@@ -139,9 +139,9 @@ struct ubt_softc {
 	hook_p			 sc_hook;	/* upstream hook */
 
 	/* Device specific */
-	dev_t			 sc_ctrl_dev;	/* control device */
-	dev_t			 sc_intr_dev;	/* interrupt device */
-	dev_t			 sc_bulk_dev;	/* bulk device */
+	struct cdev *sc_ctrl_dev;	/* control device */
+	struct cdev *sc_intr_dev;	/* interrupt device */
+	struct cdev *sc_bulk_dev;	/* bulk device */
 
 	int			 sc_refcnt;	/* device ref. count */
 	int			 sc_dying;

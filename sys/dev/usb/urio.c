@@ -148,7 +148,7 @@ struct urio_softc {
 
 	int sc_refcnt;
 #if defined(__FreeBSD__)
-	dev_t sc_dev_t;
+	struct cdev *sc_dev_t;
 #endif	/* defined(__FreeBSD__) */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	u_char sc_dying;
@@ -262,7 +262,7 @@ USB_ATTACH(urio)
 	}
 
 #if defined(__FreeBSD__)
-	/* XXX no error trapping, no storing of dev_t */
+	/* XXX no error trapping, no storing of struct cdev **/
 	sc->sc_dev_t = make_dev(&urio_cdevsw, device_get_unit(self),
 			UID_ROOT, GID_OPERATOR,
 			0644, "urio%d", device_get_unit(self));
@@ -282,7 +282,7 @@ USB_ATTACH(urio)
 
 
 int
-urioopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+urioopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -322,7 +322,7 @@ urioopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-urioclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+urioclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -345,7 +345,7 @@ urioclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-urioread(dev_t dev, struct uio *uio, int flag)
+urioread(struct cdev *dev, struct uio *uio, int flag)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -419,7 +419,7 @@ urioread(dev_t dev, struct uio *uio, int flag)
 }
 
 int
-uriowrite(dev_t dev, struct uio *uio, int flag)
+uriowrite(struct cdev *dev, struct uio *uio, int flag)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;
@@ -486,7 +486,7 @@ uriowrite(dev_t dev, struct uio *uio, int flag)
 
 
 int
-urioioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+urioioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 #if (USBDI >= 1)
 	struct urio_softc * sc;

@@ -108,7 +108,7 @@ static void devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm);
 static int  devfs_rule_autonumber(struct devfs_ruleset *ds, devfs_rnum *rnp);
 static struct devfs_krule *devfs_rule_byid(devfs_rid rid);
 static int  devfs_rule_delete(struct devfs_krule **dkp);
-static dev_t devfs_rule_getdev(struct devfs_dirent *de);
+static struct cdev *devfs_rule_getdev(struct devfs_dirent *de);
 static int  devfs_rule_input(struct devfs_rule *dr, struct devfs_mount *dm);
 static int  devfs_rule_insert(struct devfs_rule *dr);
 static int  devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de);
@@ -480,26 +480,26 @@ devfs_rule_delete(struct devfs_krule **dkp)
 }
 
 /*
- * Get a dev_t corresponding to de so we can try to match rules based
- * on it.  If this routine returns NULL, there is no dev_t associated
+ * Get a struct cdev *corresponding to de so we can try to match rules based
+ * on it.  If this routine returns NULL, there is no struct cdev *associated
  * with the dirent (symlinks and directories don't have dev_ts), and
  * the caller should assume that any critera dependent on a dev_t
  * don't match.
  */
-static dev_t
+static struct cdev *
 devfs_rule_getdev(struct devfs_dirent *de)
 {
-	dev_t *devp, dev;
+	struct cdev **devp, *dev;
 
 	devp = devfs_itod(de->de_inode);
 	if (devp != NULL)
 		dev = *devp;
 	else
 		dev = NULL;
-	/* If we think this dirent should have a dev_t, alert the user. */
+	/* If we think this dirent should have a struct cdev *, alert the user. */
 	if (dev == NULL && de->de_dirent->d_type != DT_LNK &&
 	    de->de_dirent->d_type != DT_DIR)
-		printf("Warning: no dev_t for %s\n", de->de_dirent->d_name);
+		printf("Warning: no struct cdev *for %s\n", de->de_dirent->d_name);
 	return (dev);
 }
 
@@ -590,7 +590,7 @@ static int
 devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 {
 	struct devfs_rule *dr = &dk->dk_rule;
-	dev_t dev;
+	struct cdev *dev;
 
 	dev = devfs_rule_getdev(de);
 	/*
@@ -598,7 +598,7 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 	 * criteria that depend on it don't match.  We should *not*
 	 * just ignore them (i.e., act like they weren't specified),
 	 * since that makes a rule that only has criteria dependent on
-	 * the dev_t match all symlinks and directories.
+	 * the struct cdev *match all symlinks and directories.
 	 *
 	 * Note also that the following tests are somewhat reversed:
 	 * They're actually testing to see whether the condition does
@@ -630,7 +630,7 @@ devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_dirent *de)
 {
 	struct devfs_rule *dr = &dk->dk_rule;
 	char *pname;
-	dev_t dev;
+	struct cdev *dev;
 
 	dev = devfs_rule_getdev(de);
 	if (dev != NULL)

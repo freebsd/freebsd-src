@@ -948,7 +948,7 @@ void	get_usl_keymap( keymap_t *map );
 
 void	init_sfkl ( struct video_state *svsp );
 void	init_ufkl ( struct video_state *svsp );
-int	kbdioctl ( dev_t dev, int cmd, caddr_t data, int flag );
+int	kbdioctl ( struct cdev *dev, int cmd, caddr_t data, int flag );
 void	kbd_code_init ( void );
 void	kbd_code_init1 ( void );
 
@@ -1001,14 +1001,14 @@ void 	update_hp ( struct video_state *svsp );
 void	update_led ( void );
 
 #ifdef XSERVER
-int	usl_vt_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct thread *);
+int	usl_vt_ioctl (struct cdev *dev, int cmd, caddr_t data, int flag, struct thread *);
 #endif
 
 void	vga10_vga10 ( u_char *invga, u_char *outvga );
 void	vga10_vga14 ( u_char *invga, u_char *outvga );
 void	vga10_vga16 ( u_char *invga, u_char *outvga );
 void	vga10_vga8 ( u_char *invga, u_char *outvga );
-int	vgaioctl ( dev_t dev, int cmd, caddr_t data, int flag );
+int	vgaioctl ( struct cdev *dev, int cmd, caddr_t data, int flag );
 
 #ifdef XSERVER
 int	vgapage ( int n );

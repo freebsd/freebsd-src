@@ -2393,7 +2393,7 @@ vgapage(int new_screen)
  *	ioctl handling for VT_USL mode
  *---------------------------------------------------------------------------*/
 int
-usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
+usl_vt_ioctl(struct cdev *dev, int cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct proc *p;
 	int i, j, error, opri;

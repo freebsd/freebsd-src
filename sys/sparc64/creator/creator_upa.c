@@ -212,19 +212,19 @@ creator_upa_attach(device_t dev)
 }
 
 static int
-creator_open(dev_t dev, int flags, int mode, struct thread *td)
+creator_open(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	return (0);
 }
 
 static int
-creator_close(dev_t dev, int flags, int mode, struct thread *td)
+creator_close(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	return (0);
 }
 
 static int
-creator_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
+creator_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct creator_softc *sc;
@@ -262,7 +262,7 @@ creator_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 }
 
 static int
-creator_mmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+creator_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	struct creator_softc *sc;
 	struct ffb_map *fm;

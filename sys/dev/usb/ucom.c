@@ -249,7 +249,7 @@ ucom_shutdown(struct ucom_softc *sc)
 }
 
 Static int
-ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ucomopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	int unit = UCOMUNIT(dev);
 	struct ucom_softc *sc;
@@ -443,7 +443,7 @@ bad:
 }
 
 static int
-ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+ucomclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct ucom_softc *sc;
 	struct tty *tp;
@@ -488,7 +488,7 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 static int
-ucomread(dev_t dev, struct uio *uio, int flag)
+ucomread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ucom_softc *sc;
 	struct tty *tp;
@@ -510,7 +510,7 @@ ucomread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-ucomwrite(dev_t dev, struct uio *uio, int flag)
+ucomwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct ucom_softc *sc;
 	struct tty *tp;
@@ -532,7 +532,7 @@ ucomwrite(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-ucomioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
+ucomioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	struct ucom_softc *sc;
 	struct tty *tp;

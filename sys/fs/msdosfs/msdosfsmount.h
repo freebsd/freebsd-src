@@ -62,7 +62,7 @@ MALLOC_DECLARE(M_MSDOSFSMNT);
  */
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */
-	dev_t pm_dev;		/* block special device mounted */
+	struct cdev *pm_dev;		/* block special device mounted */
 	uid_t pm_uid;		/* uid to set as owner of the files */
 	gid_t pm_gid;		/* gid to set as owner of the files */
 	mode_t pm_mask;		/* mask to and with file protection bits 

@@ -63,7 +63,7 @@ struct g_class g_gate_class = {
 	.destroy_geom = g_gate_destroy_geom
 };
 
-static dev_t status_dev;
+static struct cdev *status_dev;
 static d_ioctl_t g_gate_ioctl;
 static struct cdevsw g_gate_cdevsw = {
 	.d_version =	D_VERSION,
@@ -437,7 +437,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		return (EINVAL);					\
 } while (0)
 static int
-g_gate_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct g_gate_softc *sc;
 	struct bio *bp;

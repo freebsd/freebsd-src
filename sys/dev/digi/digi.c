@@ -694,7 +694,7 @@ digimctl(struct digi_p *port, int bits, int how)
 }
 
 static int
-digiopen(dev_t dev, int flag, int mode, struct thread *td)
+digiopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct digi_softc *sc;
 	struct tty *tp;
@@ -859,7 +859,7 @@ out:
 }
 
 static int
-digiclose(dev_t dev, int flag, int mode, struct thread *td)
+digiclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	int mynor;
 	struct tty *tp;
@@ -938,7 +938,7 @@ digihardclose(struct digi_p *port)
 }
 
 static int
-digiread(dev_t dev, struct uio *uio, int flag)
+digiread(struct cdev *dev, struct uio *uio, int flag)
 {
 	int mynor;
 	struct tty *tp;
@@ -964,7 +964,7 @@ digiread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-digiwrite(dev_t dev, struct uio *uio, int flag)
+digiwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	int mynor;
 	struct tty *tp;
@@ -1066,7 +1066,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 }
 
 static int
-digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit, pnum, mynor, error, s;
 	struct digi_softc *sc;

@@ -72,7 +72,7 @@ struct fw_device{
 
 struct firewire_softc {
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
-	dev_t dev;
+	struct cdev *dev;
 #endif
 	struct firewire_comm *fc;
 };
@@ -156,7 +156,7 @@ struct firewire_comm{
 	uint32_t (*cyctimer) (struct  firewire_comm *);
 	void (*ibr) (struct firewire_comm *);
 	uint32_t (*set_bmr) (struct firewire_comm *, uint32_t);
-	int (*ioctl) (dev_t, u_long, caddr_t, int, fw_proc *);
+	int (*ioctl) (struct cdev *, u_long, caddr_t, int, fw_proc *);
 	int (*irx_enable) (struct firewire_comm *, int);
 	int (*irx_disable) (struct firewire_comm *, int);
 	int (*itx_enable) (struct firewire_comm *, int);
@@ -303,7 +303,7 @@ struct fw_bind *fw_bindlookup (struct firewire_comm *, uint16_t, uint32_t);
 void fw_drain_txq (struct firewire_comm *);
 int fwdev_makedev (struct firewire_softc *);
 int fwdev_destroydev (struct firewire_softc *);
-void fwdev_clone (void *, char *, int, dev_t *);
+void fwdev_clone (void *, char *, int, struct cdev **);
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;

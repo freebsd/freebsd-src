@@ -202,7 +202,7 @@ struct amr_softc
     TAILQ_HEAD(, ccb_hdr)	amr_cam_ccbq;
 
     /* control device */
-    dev_t			amr_dev_t;
+    struct cdev *amr_dev_t;
 
     /* controller type-specific support */
     int				amr_type;

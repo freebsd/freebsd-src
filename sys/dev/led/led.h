@@ -14,7 +14,7 @@
 
 typedef	void led_t(void *, int);
 
-dev_t	led_create(led_t *, void *, char const *);
-void	led_destroy(dev_t);
+struct cdev *led_create(led_t *, void *, char const *);
+void	led_destroy(struct cdev *);
 
 #endif

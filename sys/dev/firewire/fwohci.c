@@ -345,7 +345,7 @@ again:
 }
 /* Device specific ioctl. */
 int
-fwohci_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
+fwohci_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
 	struct firewire_softc *sc;
 	struct fwohci_softc *fc;

@@ -44,7 +44,9 @@
 /* XXX missing blkcnt_t, blksize_t. */
 
 #ifndef _DEV_T_DECLARED
+#ifndef _KERNEL
 typedef	__dev_t		dev_t;
+#endif
 #define	_DEV_T_DECLARED
 #endif
 

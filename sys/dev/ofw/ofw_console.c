@@ -83,7 +83,7 @@ cn_drvinit(void *unused)
 {
 	phandle_t options;
 	char output[32];
-	dev_t dev;
+	struct cdev *dev;
 
 	if (ofw_consdev.cn_pri != CN_DEAD &&
 	    ofw_consdev.cn_name[0] != '\0') {
@@ -103,7 +103,7 @@ static int	stdin;
 static int	stdout;
 
 static int
-ofw_dev_open(dev_t dev, int flag, int mode, struct thread *td)
+ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct	tty *tp;
 	int	unit;
@@ -150,7 +150,7 @@ ofw_dev_open(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static int
-ofw_dev_close(dev_t dev, int flag, int mode, struct thread *td)
+ofw_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	int	unit;
 	struct	tty *tp;

@@ -301,7 +301,7 @@ struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 	struct	devstat *device_stats;
-	dev_t	masterdev;
+	struct cdev *masterdev;
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -393,11 +393,11 @@ static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
 static driver_intr_t fdc_intr;
 static int fdcpio(fdc_p, long, caddr_t, u_int);
-static int fdautoselect(dev_t);
+static int fdautoselect(struct cdev *);
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
 static void fdbiodone(struct bio *);
-static int fdmisccmd(dev_t, u_int, void *);
+static int fdmisccmd(struct cdev *, u_int, void *);
 static	d_ioctl_t	fdioctl;
 
 static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
@@ -1496,7 +1496,7 @@ out_fdc(struct fdc_data *fdc, int x)
  * auxiliary functions).
  */
 static int
-fdopen(dev_t dev, int flags, int mode, struct thread *td)
+fdopen(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	fd_p	fd;
 	fdc_p	fdc;
@@ -1591,7 +1591,7 @@ fdopen(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-fdclose(dev_t dev, int flags, int mode, struct thread *td)
+fdclose(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct fd_data *fd;
 
@@ -1795,7 +1795,7 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
  * Try figuring out the density of the media present in our device.
  */
 static int
-fdautoselect(dev_t dev)
+fdautoselect(struct cdev *dev)
 {
  	fd_p fd;
 	struct fd_type *fdtp;
@@ -2492,7 +2492,7 @@ fdbiodone(struct bio *bp)
 }
 
 static int
-fdmisccmd(dev_t dev, u_int cmd, void *data)
+fdmisccmd(struct cdev *dev, u_int cmd, void *data)
 {
  	fdu_t fdu;
  	fd_p fd;
@@ -2543,7 +2543,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 }
 
 static int
-fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+fdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
  	fdu_t fdu;
  	fd_p fd;

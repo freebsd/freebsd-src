@@ -182,8 +182,9 @@ struct g_provider {
 };
 
 /* geom_dev.c */
+struct cdev;
 void g_dev_print(void);
-struct g_provider *g_dev_getprovider(dev_t dev);
+struct g_provider *g_dev_getprovider(struct cdev *dev);
 
 /* geom_dump.c */
 void g_trace(int level, const char *, ...);

@@ -133,7 +133,7 @@ ssccncheckc(struct consdev *cp)
 }
 
 static int
-sscopen(dev_t dev, int flag, int mode, struct thread *td)
+sscopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 	int s;
@@ -176,7 +176,7 @@ sscopen(dev_t dev, int flag, int mode, struct thread *td)
 }
  
 static int
-sscclose(dev_t dev, int flag, int mode, struct thread *td)
+sscclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	int unit = minor(dev);
 	struct tty *tp = ssc_tp;

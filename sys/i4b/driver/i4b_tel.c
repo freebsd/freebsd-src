@@ -196,7 +196,7 @@ i4btelattach(void *dummy)
  *	open tel device
  *---------------------------------------------------------------------------*/
 static int
-i4btelopen(dev_t dev, int flag, int fmt, struct thread *td)
+i4btelopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -225,7 +225,7 @@ i4btelopen(dev_t dev, int flag, int fmt, struct thread *td)
  *	close tel device
  *---------------------------------------------------------------------------*/
 static int
-i4btelclose(dev_t dev, int flag, int fmt, struct thread *td)
+i4btelclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -268,7 +268,7 @@ i4btelclose(dev_t dev, int flag, int fmt, struct thread *td)
  *	i4btelioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
 static int
-i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+i4btelioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -390,7 +390,7 @@ i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  *	read from tel device
  *---------------------------------------------------------------------------*/
 static int
-i4btelread(dev_t dev, struct uio *uio, int ioflag)
+i4btelread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -523,7 +523,7 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
  *	write to tel device
  *---------------------------------------------------------------------------*/
 static int
-i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
+i4btelwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	int unit = UNIT(dev);
 	int func = FUNC(dev);
@@ -683,7 +683,7 @@ tel_tone(tel_sc_t *sc)
  *	device driver poll
  *---------------------------------------------------------------------------*/
 static int
-i4btelpoll(dev_t dev, int events, struct thread *td)
+i4btelpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int revents = 0;	/* Events we found */
 	int s;

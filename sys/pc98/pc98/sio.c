@@ -351,7 +351,7 @@ struct com_s {
 	struct resource *ioportres;
 	int	ioportrid;
 	void	*cookie;
-	dev_t	devs[6];
+	struct cdev *devs[6];
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -452,13 +452,13 @@ static	int	sysclock;
 #define IS_8251(if_type)		(!(if_type & 0x10))
 #define COM1_EXT_CLOCK			0x40000
 
-static	void	commint(dev_t dev);
+static	void	commint(struct cdev *dev);
 static	void	com_tiocm_set(struct com_s *com, int msr);
 static	void	com_tiocm_bis(struct com_s *com, int msr);
 static	void	com_tiocm_bic(struct com_s *com, int msr);
 static	int	com_tiocm_get(struct com_s *com);
 static	int	com_tiocm_get_delta(struct com_s *com);
-static	void	pc98_msrint_start(dev_t dev);
+static	void	pc98_msrint_start(struct cdev *dev);
 static	void	com_cflag_and_speed_set(struct com_s *com, int cflag, int speed);
 static	int	pc98_ttspeedtab(struct com_s *com, int speed, u_int *divisor);
 static	int	pc98_get_modem_status(struct com_s *com);
@@ -1847,7 +1847,7 @@ determined_type: ;
 
 static int
 sioopen(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -2080,7 +2080,7 @@ out:
 
 static int
 sioclose(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -2221,7 +2221,7 @@ comhardclose(com)
 
 static int
 sioread(dev, uio, flag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
@@ -2239,7 +2239,7 @@ sioread(dev, uio, flag)
 
 static int
 siowrite(dev, uio, flag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
@@ -2934,7 +2934,7 @@ txrdy:
 
 static int
 sioioctl(dev, cmd, data, flag, td)
-	dev_t		dev;
+	struct cdev *dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		flag;
@@ -3861,7 +3861,7 @@ comwakeup(chan)
 #ifdef PC98
 /* commint is called when modem control line changes */
 static void
-commint(dev_t dev)
+commint(struct cdev *dev)
 {
 	register struct tty *tp;
 	int	stat,delta;
@@ -4551,9 +4551,9 @@ pc98_check_msr(void* chan)
 	struct	com_s *com;
 	int	mynor;
 	int	unit;
-	dev_t	dev;
+	struct cdev *dev;
 
-	dev=(dev_t)chan;
+	dev=(struct cdev *)chan;
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
 	com = com_addr(unit);
@@ -4591,7 +4591,7 @@ pc98_check_msr(void* chan)
 }
 
 static void
-pc98_msrint_start(dev_t dev)
+pc98_msrint_start(struct cdev *dev)
 {
 	struct	com_s *com;
 	int	mynor;

@@ -43,7 +43,7 @@
 
 struct ntnode {
 	struct vnode   *i_devvp;	/* vnode of blk dev we live on */
-	dev_t           i_dev;		/* Device associated with the inode. */
+	struct cdev *i_dev;		/* Device associated with the inode. */
 
 	LIST_ENTRY(ntnode)	i_hash;
 	struct ntnode  *i_next;

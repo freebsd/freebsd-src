@@ -93,8 +93,8 @@ typedef struct mse_softc {
 	u_char		sc_bytes[MOUSE_SYS_PACKETSIZE];
 	struct		callout_handle sc_callout;
 	int		sc_watchdog;
-	dev_t		sc_dev;
-	dev_t		sc_ndev;
+	struct cdev *sc_dev;
+	struct cdev *sc_ndev;
 	mousehw_t	hw;
 	mousemode_t	mode;
 	mousestatus_t	status;
@@ -446,7 +446,7 @@ mse_detach(dev)
  */
 static	int
 mseopen(dev, flags, fmt, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flags;
 	int fmt;
 	struct thread *td;
@@ -486,7 +486,7 @@ mseopen(dev, flags, fmt, td)
  */
 static	int
 mseclose(dev, flags, fmt, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flags;
 	int fmt;
 	struct thread *td;
@@ -510,7 +510,7 @@ mseclose(dev, flags, fmt, td)
  */
 static	int
 mseread(dev, uio, ioflag)
-	dev_t dev;
+	struct cdev *dev;
 	struct uio *uio;
 	int ioflag;
 {
@@ -577,7 +577,7 @@ mseread(dev, uio, ioflag)
  */
 static int
 mseioctl(dev, cmd, addr, flag, td)
-	dev_t dev;
+	struct cdev *dev;
 	u_long cmd;
 	caddr_t addr;
 	int flag;
@@ -694,7 +694,7 @@ mseioctl(dev, cmd, addr, flag, td)
  */
 static	int
 msepoll(dev, events, td)
-	dev_t dev;
+	struct cdev *dev;
 	int events;
 	struct thread *td;
 {
@@ -727,10 +727,10 @@ static void
 msetimeout(arg)
 	void *arg;
 {
-	dev_t dev;
+	struct cdev *dev;
 	mse_softc_t *sc;
 
-	dev = (dev_t)arg;
+	dev = (struct cdev *)arg;
 	sc = devclass_get_softc(mse_devclass, MSE_UNIT(dev));
 	if (sc->sc_watchdog) {
 		if (bootverbose)

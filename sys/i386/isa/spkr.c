@@ -472,7 +472,7 @@ static char *spkr_inbuf;  /* incoming buf */
 
 static int
 spkropen(dev, flags, fmt, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flags;
 	int		fmt;
 	struct thread	*td;
@@ -499,7 +499,7 @@ spkropen(dev, flags, fmt, td)
 
 static int
 spkrwrite(dev, uio, ioflag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		ioflag;
 {
@@ -531,7 +531,7 @@ spkrwrite(dev, uio, ioflag)
 
 static int
 spkrclose(dev, flags, fmt, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flags;
 	int		fmt;
 	struct thread	*td;
@@ -554,7 +554,7 @@ spkrclose(dev, flags, fmt, td)
 
 static int
 spkrioctl(dev, cmd, cmdarg, flags, td)
-	dev_t		dev;
+	struct cdev *dev;
 	unsigned long	cmd;
 	caddr_t		cmdarg;
 	int		flags;
@@ -610,7 +610,7 @@ static struct isa_pnp_id speaker_ids[] = {
 	{ 0 }
 };
 
-static dev_t speaker_dev;
+static struct cdev *speaker_dev;
 
 static int
 speaker_probe(device_t dev)

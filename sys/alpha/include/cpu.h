@@ -66,7 +66,7 @@ struct clockframe {
 /*
  * CTL_MACHDEP definitions.
  */
-#define	CPU_CONSDEV		1	/* dev_t: console terminal device */
+#define	CPU_CONSDEV		1	/* struct cdev *: console terminal device */
 #define	CPU_ROOT_DEVICE		2	/* string: root device name */
 #define	CPU_UNALIGNED_PRINT	3	/* int: print unaligned accesses */
 #define	CPU_UNALIGNED_FIX	4	/* int: fix unaligned accesses */

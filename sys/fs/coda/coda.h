@@ -58,7 +58,7 @@ typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
 typedef u_long ino_t;
-typedef u_long dev_t;
+typedef u_long struct cdev *;
 typedef void * caddr_t;
 #ifdef DOS
 typedef unsigned __int64 u_quad_t;

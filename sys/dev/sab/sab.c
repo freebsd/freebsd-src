@@ -83,7 +83,7 @@ struct sabtty_softc {
 	struct sab_softc	*sc_parent;
 	bus_space_tag_t		sc_bt;
 	bus_space_handle_t	sc_bh;
-	dev_t			sc_si;
+	struct cdev *sc_si;
 	struct tty		*sc_tty;
 	int			sc_channel;
 	int			sc_icnt;
@@ -639,7 +639,7 @@ sabtty_softintr(struct sabtty_softc *sc)
 }
 
 static int
-sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
+sabttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct sabtty_softc *sc;
 	struct tty *tp;
@@ -717,7 +717,7 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-sabttyclose(dev_t dev, int flags, int mode, struct thread *td)
+sabttyclose(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct tty *tp;
 
@@ -733,7 +733,7 @@ sabttyclose(dev_t dev, int flags, int mode, struct thread *td)
 }
 
 static int
-sabttyioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+sabttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	struct sabtty_softc *sc;
 	struct tty *tp;

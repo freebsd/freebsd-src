@@ -81,8 +81,8 @@
 static int		tapmodevent(module_t, int, void *);
 
 /* device */
-static void		tapclone(void *, char *, int, dev_t *);
-static void		tapcreate(dev_t);
+static void		tapclone(void *, char *, int, struct cdev **);
+static void		tapcreate(struct cdev *);
 
 /* network interface */
 static void		tapifstart(struct ifnet *);
@@ -222,7 +222,7 @@ tapclone(arg, name, namelen, dev)
 	void	*arg;
 	char	*name;
 	int	 namelen;
-	dev_t	*dev;
+	struct cdev **dev;
 {
 	u_int		extra;
 	int		i, unit;
@@ -264,7 +264,7 @@ tapclone(arg, name, namelen, dev)
  */
 static void
 tapcreate(dev)
-	dev_t	dev;
+	struct cdev *dev;
 {
 	struct ifnet		*ifp = NULL;
 	struct tap_softc	*tp = NULL;
@@ -334,7 +334,7 @@ tapcreate(dev)
  */
 static int
 tapopen(dev, flag, mode, td)
-	dev_t		 dev;
+	struct cdev *dev;
 	int		 flag;
 	int		 mode;
 	struct thread	*td;
@@ -384,7 +384,7 @@ tapopen(dev, flag, mode, td)
  */
 static int
 tapclose(dev, foo, bar, td)
-	dev_t		 dev;
+	struct cdev *dev;
 	int		 foo;
 	int		 bar;
 	struct thread	*td;
@@ -588,7 +588,7 @@ tapifstart(ifp)
  */
 static int
 tapioctl(dev, cmd, data, flag, td)
-	dev_t		 dev;
+	struct cdev *dev;
 	u_long		 cmd;
 	caddr_t		 data;
 	int		 flag;
@@ -712,7 +712,7 @@ tapioctl(dev, cmd, data, flag, td)
  */
 static int
 tapread(dev, uio, flag)
-	dev_t		 dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		 flag;
 {
@@ -786,7 +786,7 @@ tapread(dev, uio, flag)
  */
 static int
 tapwrite(dev, uio, flag)
-	dev_t		 dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		 flag;
 {
@@ -858,7 +858,7 @@ tapwrite(dev, uio, flag)
  */
 static int
 tappoll(dev, events, td)
-	dev_t		 dev;
+	struct cdev *dev;
 	int		 events;
 	struct thread	*td;
 {

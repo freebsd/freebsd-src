@@ -173,7 +173,7 @@ struct ciss_softc
 {
     /* bus connections */
     device_t			ciss_dev;		/* bus attachment */
-    dev_t			ciss_dev_t;		/* control device */
+    struct cdev *ciss_dev_t;		/* control device */
 
     struct resource		*ciss_regs_resource;	/* register interface window */
     int				ciss_regs_rid;		/* resource ID */

@@ -78,7 +78,7 @@
     bus_dmamap_t		twe_cmdmap;	/* DMA map for command */				\
     u_int32_t			twe_cmdphys;	/* address of command in controller space */		\
     device_t			twe_dev;		/* bus device */		\
-    dev_t			twe_dev_t;		/* control device */		\
+    struct cdev *twe_dev_t;		/* control device */		\
     struct resource		*twe_io;		/* register interface window */	\
     bus_space_handle_t		twe_bhandle;		/* bus space handle */		\
     bus_space_tag_t		twe_btag;		/* bus space tag */		\

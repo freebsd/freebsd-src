@@ -61,7 +61,7 @@ static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 static void ptsstart(struct tty *tp);
 static void ptsstop(struct tty *tp, int rw);
 static void ptcwakeup(struct tty *tp, int flag);
-static dev_t ptyinit(dev_t cdev);
+static struct cdev *ptyinit(struct cdev *cdev);
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -109,7 +109,7 @@ struct	ptsc {
 	u_char	pt_send;
 	u_char	pt_ucntl;
 	struct tty *pt_tty;
-	dev_t	devs, devc;
+	struct cdev *devs, *devc;
 	struct	prison *pt_prison;
 };
 
@@ -133,10 +133,10 @@ static char *names = "pqrsPQRS";
  * XXX: define and add mapping of upper minor bits to allow more
  *      than 256 ptys.
  */
-static dev_t
-ptyinit(dev_t devc)
+static struct cdev *
+ptyinit(struct cdev *devc)
 {
-	dev_t devs;
+	struct cdev *devs;
 	struct ptsc *pt;
 	int n;
 
@@ -161,7 +161,7 @@ ptyinit(dev_t devc)
 
 /*ARGSUSED*/
 static	int
-ptsopen(dev_t dev, int flag, int devtype, struct thread *td)
+ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp;
 	int error;
@@ -199,7 +199,7 @@ ptsopen(dev_t dev, int flag, int devtype, struct thread *td)
 }
 
 static	int
-ptsclose(dev_t dev, int flag, int mode, struct thread *td)
+ptsclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 	int err;
@@ -211,7 +211,7 @@ ptsclose(dev_t dev, int flag, int mode, struct thread *td)
 }
 
 static	int
-ptsread(dev_t dev, struct uio *uio, int flag)
+ptsread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -274,7 +274,7 @@ again:
  * indirectly, when tty driver calls ptsstart.
  */
 static	int
-ptswrite(dev_t dev, struct uio *uio, int flag)
+ptswrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp;
 
@@ -318,7 +318,7 @@ ptcwakeup(struct tty *tp, int flag)
 }
 
 static	int
-ptcopen(dev_t dev, int flag, int devtype, struct thread *td)
+ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
 	struct tty *tp;
 	struct ptsc *pt;
@@ -344,7 +344,7 @@ ptcopen(dev_t dev, int flag, int devtype, struct thread *td)
 }
 
 static	int
-ptcclose(dev_t dev, int flags, int fmt, struct thread *td)
+ptcclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct tty *tp;
 
@@ -370,7 +370,7 @@ ptcclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static	int
-ptcread(dev_t dev, struct uio *uio, int flag)
+ptcread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
@@ -450,7 +450,7 @@ ptsstop(struct tty *tp, int flush)
 }
 
 static	int
-ptcpoll(dev_t dev, int events, struct thread *td)
+ptcpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
@@ -498,7 +498,7 @@ ptcpoll(dev_t dev, int events, struct thread *td)
 }
 
 static	int
-ptcwrite(dev_t dev, struct uio *uio, int flag)
+ptcwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct tty *tp = dev->si_tty;
 	u_char *cp = 0;
@@ -606,7 +606,7 @@ block:
 
 /*ARGSUSED*/
 static	int
-ptyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+ptyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
@@ -773,7 +773,7 @@ ptyioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 }
 
 static void
-pty_clone(void *arg, char *name, int namelen, dev_t *dev)
+pty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	int u;
 

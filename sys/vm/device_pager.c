@@ -101,7 +101,7 @@ dev_pager_init()
 static vm_object_t
 dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
-	dev_t dev;
+	struct cdev *dev;
 	d_mmap_t *mapfunc;
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -204,7 +204,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_pindex_t offset;
 	vm_paddr_t paddr;
 	vm_page_t page;
-	dev_t dev;
+	struct cdev *dev;
 	int i, ret;
 	d_mmap_t *mapfunc;
 	int prot;

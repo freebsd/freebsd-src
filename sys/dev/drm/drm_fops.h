@@ -54,7 +54,7 @@ drm_file_t *DRM(find_file_by_proc)(drm_device_t *dev, DRM_STRUCTPROC *p)
 }
 
 /* DRM(open_helper) is called whenever a process opens /dev/drm. */
-int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p,
+int DRM(open_helper)(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    drm_device_t *dev)
 {
 	int	     m = minor(kdev);
@@ -106,12 +106,12 @@ int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 /* The DRM(read) and DRM(poll) are stubs to prevent spurious errors
  * on older X Servers (4.3.0 and earlier) */
 
-int DRM(read)(dev_t kdev, struct uio *uio, int ioflag)
+int DRM(read)(struct cdev *kdev, struct uio *uio, int ioflag)
 {
 	return 0;
 }
 
-int DRM(poll)(dev_t kdev, int events, DRM_STRUCTPROC *p)
+int DRM(poll)(struct cdev *kdev, int events, DRM_STRUCTPROC *p)
 {
 	return 0;
 }

@@ -192,11 +192,11 @@ typedef enum {
 
 #define SA_NUM_MODES	4
 struct sa_devs {
-	dev_t	ctl_dev;
+	struct cdev *ctl_dev;
 	struct sa_mode_devs {
-		dev_t	r_dev;
-		dev_t	nr_dev;
-		dev_t	er_dev;
+		struct cdev *r_dev;
+		struct cdev *nr_dev;
+		struct cdev *er_dev;
 	} mode_devs[SA_NUM_MODES];
 };
 
@@ -398,7 +398,7 @@ static void		saprevent(struct cam_periph *periph, int action);
 static int		sarewind(struct cam_periph *periph);
 static int		saspace(struct cam_periph *periph, int count,
 				scsi_space_code code);
-static int		samount(struct cam_periph *, int, dev_t);
+static int		samount(struct cam_periph *, int, struct cdev *);
 static int		saretension(struct cam_periph *periph);
 static int		sareservereleaseunit(struct cam_periph *periph,
 					     int reserve);
@@ -437,7 +437,7 @@ static struct cdevsw sa_cdevsw = {
 };
 
 static int
-saopen(dev_t dev, int flags, int fmt, struct thread *td)
+saopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
@@ -497,7 +497,7 @@ saopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-saclose(dev_t dev, int flag, int fmt, struct thread *td)
+saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	sa_softc *softc;
@@ -756,7 +756,7 @@ sastrategy(struct bio *bp)
 }
 
 static int
-saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
@@ -1473,7 +1473,7 @@ saregister(struct cam_periph *periph, void *arg)
 		 * Make the (well known) aliases for the first mode.
 		 */
 		if (i == 0) {
-			dev_t alias;
+			struct cdev *alias;
 
 			alias = make_dev_alias(softc->devs.mode_devs[i].r_dev,
 			   "%s%d", periph->periph_name, periph->unit_number);
@@ -1777,7 +1777,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
  * Mount the tape (make sure it's ready for I/O).
  */
 static int
-samount(struct cam_periph *periph, int oflags, dev_t dev)
+samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 {
 	struct	sa_softc *softc;
 	union	ccb *ccb;

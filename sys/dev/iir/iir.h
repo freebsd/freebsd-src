@@ -602,7 +602,7 @@ struct gdt_softc {
 #define GDT_POLLING     0x01
 #define GDT_SHUTDOWN    0x02
 #define GDT_POLL_WAIT   0x80
-    dev_t sc_dev;
+    struct cdev *sc_dev;
     bus_space_tag_t sc_dpmemt;
     bus_space_handle_t sc_dpmemh;
     bus_addr_t sc_dpmembase;
@@ -746,8 +746,8 @@ gdt_dec32(addr)
 extern TAILQ_HEAD(gdt_softc_list, gdt_softc) gdt_softcs;
 extern u_int8_t gdt_polling;
 
-dev_t   gdt_make_dev(int unit);
-void    gdt_destroy_dev(dev_t dev);
+struct cdev *gdt_make_dev(int unit);
+void    gdt_destroy_dev(struct cdev *dev);
 void    gdt_next(struct gdt_softc *gdt);
 void gdt_free_ccb(struct gdt_softc *gdt, struct gdt_ccb *gccb);
 

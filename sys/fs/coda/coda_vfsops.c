@@ -81,7 +81,7 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 #define MRAK_INT_GEN(op) (coda_vfsopstats[op].gen_intrn++)
 
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
-extern int vc_nb_open(dev_t, int, int, struct thread *);
+extern int vc_nb_open(struct cdev *, int, int, struct thread *);
 
 int
 coda_vfsopstats_init(void)
@@ -114,7 +114,7 @@ coda_mount(vfsp, path, data, ndp, td)
 {
     struct vnode *dvp;
     struct cnode *cp;
-    dev_t dev;
+    struct cdev *dev;
     struct coda_mntinfo *mi;
     struct vnode *rootvp;
     CodaFid rootfid = INVAL_FID;
@@ -528,7 +528,7 @@ getNewVnode(vpp)
  * device corresponds to a UFS. Return NULL if no device is found.
  */ 
 struct mount *devtomp(dev)
-    dev_t dev;
+    struct cdev *dev;
 {
     struct mount *mp;
    

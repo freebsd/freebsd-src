@@ -65,7 +65,7 @@ jmp_buf command_fail;					    /* return on a failed command */
 
 /* ioctl routine */
 int
-vinumioctl(dev_t dev,
+vinumioctl(struct cdev *dev,
     u_long cmd,
     caddr_t data,
     int flag,
@@ -178,7 +178,7 @@ vinumioctl(dev_t dev,
 
 /* Handle ioctls for the super device */
 int
-vinum_super_ioctl(dev_t dev,
+vinum_super_ioctl(struct cdev *dev,
     u_long cmd,
     caddr_t data)
 {

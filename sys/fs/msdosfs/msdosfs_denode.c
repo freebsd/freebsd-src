@@ -94,7 +94,7 @@ union _qcvt {
 }
 
 static struct denode *
-		msdosfs_hashget(dev_t dev, u_long dirclust, u_long diroff);
+		msdosfs_hashget(struct cdev *dev, u_long dirclust, u_long diroff);
 static void	msdosfs_hashins(struct denode *dep);
 static void	msdosfs_hashrem(struct denode *dep);
 
@@ -133,7 +133,7 @@ msdosfs_uninit(vfsp)
 
 static struct denode *
 msdosfs_hashget(dev, dirclust, diroff)
-	dev_t dev;
+	struct cdev *dev;
 	u_long dirclust;
 	u_long diroff;
 {
@@ -215,7 +215,7 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode **depp;		/* returns the addr of the gotten denode */
 {
 	int error;
-	dev_t dev = pmp->pm_dev;
+	struct cdev *dev = pmp->pm_dev;
 	struct mount *mntp = pmp->pm_mountp;
 	struct direntry *direntptr;
 	struct denode *ldep;

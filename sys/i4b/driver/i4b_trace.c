@@ -223,7 +223,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
  *	open trace device
  *---------------------------------------------------------------------------*/
 static int
-i4btrcopen(dev_t dev, int flag, int fmt, struct thread *td)
+i4btrcopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int x;
 	int unit = minor(dev);
@@ -250,7 +250,7 @@ i4btrcopen(dev_t dev, int flag, int fmt, struct thread *td)
  *	close trace device
  *---------------------------------------------------------------------------*/
 static int
-i4btrcclose(dev_t dev, int flag, int fmt, struct thread *td)
+i4btrcclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
 	int i, x;
@@ -296,7 +296,7 @@ i4btrcclose(dev_t dev, int flag, int fmt, struct thread *td)
  *	read from trace device
  *---------------------------------------------------------------------------*/
 static int
-i4btrcread(dev_t dev, struct uio * uio, int ioflag)
+i4btrcread(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
 	int x;
@@ -346,7 +346,7 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
  *	poll device
  *---------------------------------------------------------------------------*/
 static int
-i4btrcpoll(dev_t dev, int events, struct thread *td)
+i4btrcpoll(struct cdev *dev, int events, struct thread *td)
 {
 	return(ENODEV);
 }
@@ -355,7 +355,7 @@ i4btrcpoll(dev_t dev, int events, struct thread *td)
  *	device driver ioctl routine
  *---------------------------------------------------------------------------*/
 static int
-i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+i4btrcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	int error = 0;
 	int unit = minor(dev);

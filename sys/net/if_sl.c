@@ -179,7 +179,7 @@ static l_close_t	slclose;
 static l_rint_t		slinput;
 static l_ioctl_t	sltioctl;
 static int	slioctl(struct ifnet *, u_long, caddr_t);
-static int	slopen(dev_t, struct tty *);
+static int	slopen(struct cdev *, struct tty *);
 static int	sloutput(struct ifnet *,
 	    struct mbuf *, struct sockaddr *, struct rtentry *);
 static int	slstart(struct tty *);
@@ -340,7 +340,7 @@ slcreate()
 /* ARGSUSED */
 static int
 slopen(dev, tp)
-	dev_t dev;
+	struct cdev *dev;
 	register struct tty *tp;
 {
 	register struct sl_softc *sc;

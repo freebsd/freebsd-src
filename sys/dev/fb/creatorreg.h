@@ -142,7 +142,7 @@
 struct creator_softc {
 	video_adapter_t		sc_va;			/* XXX must be first */
 
-	dev_t			sc_si;
+	struct cdev *sc_si;
 
 	struct resource		*sc_reg[FFB_NREG];
 	bus_space_tag_t		sc_bt[FFB_NREG];

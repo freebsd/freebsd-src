@@ -198,7 +198,7 @@ venus_root(void *mdp,
 int
 venus_open(void *mdp, CodaFid *fid, int flag,
 	struct ucred *cred, struct proc *p,
-/*out*/	dev_t *dev, ino_t *inode)
+/*out*/	struct cdev **dev, ino_t *inode)
 {
     int cflag;
     DECL(coda_open);			/* sets Isize & Osize */

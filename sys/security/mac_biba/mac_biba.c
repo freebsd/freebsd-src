@@ -772,7 +772,7 @@ mac_biba_copy_label(struct label *src, struct label *dest)
  * a lot like file system objects.
  */
 static void
-mac_biba_create_devfs_device(struct mount *mp, dev_t dev,
+mac_biba_create_devfs_device(struct mount *mp, struct cdev *dev,
     struct devfs_dirent *devfs_dirent, struct label *label)
 {
 	struct mac_biba *mac_biba;

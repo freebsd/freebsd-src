@@ -55,7 +55,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_newstat tbuf;
 	struct cdevsw *cdevsw;
-	dev_t dev;
+	struct cdev *dev;
 
 	bzero(&tbuf, sizeof(tbuf));
 	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
@@ -342,7 +342,7 @@ int
 linux_ustat(struct thread *td, struct linux_ustat_args *args)
 {
 	struct l_ustat lu;
-	dev_t dev;
+	struct cdev *dev;
 	struct vnode *vp;
 	struct statfs *stat;
 	int error;
@@ -360,9 +360,9 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 
 	/*
 	 * XXX - Don't return an error if we can't find a vnode for the
-	 * device. Our dev_t is 32-bits whereas Linux only has a 16-bits
-	 * dev_t. The dev_t that is used now may as well be a truncated
-	 * dev_t returned from previous syscalls. Just return a bzeroed
+	 * device. Our struct cdev *is 32-bits whereas Linux only has a 16-bits
+	 * struct cdev *. The struct cdev *that is used now may as well be a truncated
+	 * struct cdev *returned from previous syscalls. Just return a bzeroed
 	 * ustat in that case.
 	 */
 	dev = udev2dev(makeudev(args->dev >> 8, args->dev & 0xFF));
@@ -393,7 +393,7 @@ stat64_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_stat64 lbuf;
 	struct cdevsw *cdevsw;
-	dev_t dev;
+	struct cdev *dev;
 
 	bzero(&lbuf, sizeof(lbuf));
 	lbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);

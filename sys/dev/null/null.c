@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 /* For use with destroy_dev(9). */
-static dev_t null_dev;
-static dev_t zero_dev;
+static struct cdev *null_dev;
+static struct cdev *zero_dev;
 
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
@@ -73,7 +73,7 @@ static void *zbuf;
 
 /* ARGSUSED */
 static int
-null_write(dev_t dev __unused, struct uio *uio, int flags __unused)
+null_write(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
 	uio->uio_resid = 0;
 	return 0;
@@ -81,7 +81,7 @@ null_write(dev_t dev __unused, struct uio *uio, int flags __unused)
 
 /* ARGSUSED */
 static int
-null_ioctl(dev_t dev __unused, u_long cmd, caddr_t data __unused,
+null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
     int flags __unused, struct thread *td)
 {
 	int error;
@@ -96,7 +96,7 @@ null_ioctl(dev_t dev __unused, u_long cmd, caddr_t data __unused,
 
 /* ARGSUSED */
 static int
-zero_read(dev_t dev __unused, struct uio *uio, int flags __unused)
+zero_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
 	int c;
 	int error = 0;

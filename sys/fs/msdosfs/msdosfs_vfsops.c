@@ -301,7 +301,7 @@ mountmsdosfs(devvp, mp, td, argp)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
-	dev_t dev = devvp->v_rdev;
+	struct cdev *dev = devvp->v_rdev;
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;

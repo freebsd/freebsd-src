@@ -358,7 +358,7 @@ typedef struct Asr_softc {
 
 	/* Links into other parents and HBAs */
 	struct Asr_softc      * ha_next;       /* HBA list */
-	dev_t			ha_devt;
+	struct cdev *ha_devt;
 } Asr_softc_t;
 
 static Asr_softc_t * Asr_softc;
@@ -371,11 +371,11 @@ static Asr_softc_t * Asr_softc;
 static int	asr_probe(device_t tag);
 static int	asr_attach(device_t tag);
 
-static int	asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag,
+static int	asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			  struct thread *td);
-static int	asr_open(dev_t dev, int32_t flags, int32_t ifmt,
+static int	asr_open(struct cdev *dev, int32_t flags, int32_t ifmt,
 			 struct thread *td);
-static int	asr_close(dev_t dev, int flags, int ifmt, struct thread *td);
+static int	asr_close(struct cdev *dev, int flags, int ifmt, struct thread *td);
 static int	asr_intr(Asr_softc_t *sc);
 static void	asr_timeout(void *arg);
 static int	ASR_init(Asr_softc_t *sc);
@@ -2999,7 +2999,7 @@ typedef U32   DPT_RTN_T;
 static u_int8_t ASR_ctlr_held;
 
 static int
-asr_open(dev_t dev, int32_t flags, int32_t ifmt, struct thread *td)
+asr_open(struct cdev *dev, int32_t flags, int32_t ifmt, struct thread *td)
 {
 	int		 s;
 	int		 error;
@@ -3018,7 +3018,7 @@ asr_open(dev_t dev, int32_t flags, int32_t ifmt, struct thread *td)
 } /* asr_open */
 
 static int
-asr_close(dev_t dev, int flags, int ifmt, struct thread *td)
+asr_close(struct cdev *dev, int flags, int ifmt, struct thread *td)
 {
 
 	ASR_ctlr_held = 0;
@@ -3495,7 +3495,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 /*----------------------------------------------------------------------*/
 
 static int
-asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	Asr_softc_t	*sc = dev->si_drv1;
 	int		i, error = 0;

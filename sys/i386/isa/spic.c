@@ -443,7 +443,7 @@ spictimeout(void *arg)
 }
 
 static int
-spicopen(dev_t dev, int flag, int fmt, struct thread *td)
+spicopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct spic_softc *sc;
 
@@ -461,7 +461,7 @@ spicopen(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-spicclose(dev_t dev, int flag, int fmt, struct thread *td)
+spicclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct spic_softc *sc;
 
@@ -474,7 +474,7 @@ spicclose(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-spicread(dev_t dev, struct uio *uio, int flag)
+spicread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct spic_softc *sc;
 	int l, s, error;
@@ -508,7 +508,7 @@ spicread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+spicioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct spic_softc *sc;
 
@@ -518,7 +518,7 @@ spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 static int
-spicpoll(dev_t dev, int events, struct thread *td)
+spicpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct spic_softc *sc;
 	int revents = 0, s;

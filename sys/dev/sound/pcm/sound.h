@@ -278,10 +278,10 @@ struct snddev_channel {
 	SLIST_ENTRY(snddev_channel) link;
 	struct pcm_channel *channel;
 	int chan_num;
-	dev_t dsp_devt;
-	dev_t dspW_devt;
-	dev_t audio_devt;
-	dev_t dspr_devt;
+	struct cdev *dsp_devt;
+	struct cdev *dspW_devt;
+	struct cdev *audio_devt;
+	struct cdev *dspr_devt;
 };
 
 struct snddev_info {
@@ -297,7 +297,7 @@ struct snddev_info {
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
 	struct mtx *lock;
-	dev_t mixer_dev;
+	struct cdev *mixer_dev;
 
 };
 

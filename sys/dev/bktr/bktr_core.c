@@ -1191,7 +1191,7 @@ vbi_close( bktr_ptr_t bktr )
  *
  */
 int
-video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
+video_read(bktr_ptr_t bktr, int unit, struct cdev *dev, struct uio *uio)
 {
         int             status;
         int             count;

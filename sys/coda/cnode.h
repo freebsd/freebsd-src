@@ -109,7 +109,7 @@ struct cnode {
     struct vattr	 c_vattr; 	/* attributes */
     char		*c_symlink;	/* pointer to symbolic link */
     u_short		 c_symlen;	/* length of symbolic link */
-    dev_t		 c_device;	/* associated vnode device */
+    struct cdev *c_device;	/* associated vnode device */
     ino_t		 c_inode;	/* associated vnode inode */
     struct cnode	*c_next;	/* links if on NetBSD machine */
 };
@@ -153,7 +153,7 @@ struct coda_mntinfo {
     struct vnode	*mi_rootvp;
     struct mount	*mi_vfsp;
     struct vcomm	 mi_vcomm;
-    dev_t                dev;
+    struct cdev *dev;
     int                  mi_started;
 };
 extern struct coda_mntinfo coda_mnttbl[]; /* indexed by minor device number */
@@ -201,7 +201,7 @@ extern struct cnode *make_coda_node(CodaFid *fid, struct mount *vfsp, short type
 extern int coda_vnodeopstats_init(void);
 
 /* coda_vfsops.h */
-extern struct mount *devtomp(dev_t dev);
+extern struct mount *devtomp(struct cdev *dev);
 
 /* sigh */
 #define CODA_RDWR ((u_long) 31)

@@ -86,7 +86,7 @@ void	promcons_delayed_makedev(void);
 
 int
 promopen(dev, flag, mode, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flag, mode;
 	struct thread *td;
 {
@@ -137,7 +137,7 @@ promopen(dev, flag, mode, td)
  
 int
 promclose(dev, flag, mode, td)
-	dev_t dev;
+	struct cdev *dev;
 	int flag, mode;
 	struct thread *td;
 {

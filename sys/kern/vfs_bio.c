@@ -3083,7 +3083,7 @@ dev_strategy(struct buf *bp)
 	bp->b_io.bio_caller2 = bp;
 	csw = devsw(bp->b_io.bio_dev);
 	KASSERT(bp->b_io.bio_dev->si_refcount > 0,
-	    ("dev_strategy on un-referenced dev_t (%s)",
+	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(bp->b_io.bio_dev)));
 	cdevsw_ref(csw);
 	(*devsw(bp->b_io.bio_dev)->d_strategy)(&bp->b_io);

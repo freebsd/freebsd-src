@@ -66,9 +66,9 @@
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static dev_t memdev, kmemdev;
+static struct cdev *memdev, *kmemdev;
 #ifdef PERFMON
-static dev_t perfdev;
+static struct cdev *perfdev;
 #endif /* PERFMON */
 
 static	d_open_t	mmopen;
@@ -100,7 +100,7 @@ ia64_pa_access(vm_offset_t pa)
 }
 
 static int
-mmclose(dev_t dev, int flags, int fmt, struct thread *td)
+mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 #ifdef PERFMON
@@ -114,7 +114,7 @@ mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-mmopen(dev_t dev, int flags, int fmt, struct thread *td)
+mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int error;
 
@@ -141,7 +141,7 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 
 /*ARGSUSED*/
 static int
-mmrw(dev_t dev, struct uio *uio, int flags)
+mmrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
 	vm_offset_t addr, eaddr, o, v;
@@ -225,7 +225,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
@@ -246,7 +246,7 @@ memmmap(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 }
 
 static int
-mmioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct thread *td)
+mmioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread *td)
 {
 	switch(minor(dev)) {
 #ifdef PERFMON

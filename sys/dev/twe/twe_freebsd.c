@@ -79,7 +79,7 @@ static struct cdevsw twe_cdevsw = {
  * Accept an open operation on the control device.
  */
 static int
-twe_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+twe_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -92,7 +92,7 @@ twe_open(dev_t dev, int flags, int fmt, d_thread_t *td)
  * Accept the last close on the control device.
  */
 static int
-twe_close(dev_t dev, int flags, int fmt, d_thread_t *td)
+twe_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
@@ -105,7 +105,7 @@ twe_close(dev_t dev, int flags, int fmt, d_thread_t *td)
  * Handle controller-specific control operations.
  */
 static int
-twe_ioctl_wrapper(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
+twe_ioctl_wrapper(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
     
@@ -423,7 +423,7 @@ twe_free(struct twe_softc *sc)
 	bus_release_resource(sc->twe_dev, SYS_RES_IOPORT, TWE_IO_CONFIG_REG, sc->twe_io);
 
     /* destroy control device */
-    if (sc->twe_dev_t != (dev_t)NULL)
+    if (sc->twe_dev_t != (struct cdev *)NULL)
 	destroy_dev(sc->twe_dev_t);
 
     sysctl_ctx_free(&sc->sysctl_ctx);

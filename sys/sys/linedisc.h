@@ -44,7 +44,7 @@
 
 struct tty;
 
-typedef int l_open_t(dev_t dev, struct tty *tp);
+typedef int l_open_t(struct cdev *dev, struct tty *tp);
 typedef int l_close_t(struct tty *tp, int flag);
 typedef int l_read_t(struct tty *tp, struct uio *uio, int flag);
 typedef int l_write_t(struct tty *tp, struct uio *uio, int flag);
@@ -81,7 +81,7 @@ l_write_t	l_nowrite;
 l_ioctl_t	l_nullioctl;
 
 static __inline int
-ttyld_open(struct tty *tp, dev_t dev)
+ttyld_open(struct tty *tp, struct cdev *dev)
 {
 
 	return ((*linesw[tp->t_line]->l_open)(dev, tp));

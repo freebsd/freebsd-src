@@ -592,7 +592,7 @@ cyattach_common(cy_iobase, cy_align)
 
 static int
 sioopen(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -776,7 +776,7 @@ out:
 
 static int
 sioclose(dev, flag, mode, td)
-	dev_t		dev;
+	struct cdev *dev;
 	int		flag;
 	int		mode;
 	struct thread	*td;
@@ -891,7 +891,7 @@ comhardclose(com)
 
 static int
 siowrite(dev, uio, flag)
-	dev_t		dev;
+	struct cdev *dev;
 	struct uio	*uio;
 	int		flag;
 {
@@ -1528,7 +1528,7 @@ terminate_tx_service:
 
 static int
 sioioctl(dev, cmd, data, flag, td)
-	dev_t		dev;
+	struct cdev *dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		flag;

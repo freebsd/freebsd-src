@@ -84,7 +84,7 @@ struct cdevsw pcicdev = {
 };
   
 static int
-pci_open(dev_t dev, int oflags, int devtype, struct thread *td)
+pci_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	int error;
 
@@ -98,7 +98,7 @@ pci_open(dev_t dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-pci_close(dev_t dev, int flag, int devtype, struct thread *td)
+pci_close(struct cdev *dev, int flag, int devtype, struct thread *td)
 {
 	return 0;
 }
@@ -171,7 +171,7 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 }
 
 static int
-pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	device_t pci, pcib;
 	struct pci_io *io;

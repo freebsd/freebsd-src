@@ -26,7 +26,7 @@ struct ledsc {
 	LIST_ENTRY(ledsc)	list;
 	void			*private;
 	led_t			*func;
-	dev_t			dev;
+	struct cdev *dev;
 	struct sbuf		*spec;
 	char			*str;
 	char			*ptr;
@@ -72,7 +72,7 @@ led_timeout(void *p)
 }
 
 static int
-led_write(dev_t dev, struct uio *uio, int ioflag)
+led_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
 	char *s, *s2;
@@ -221,7 +221,7 @@ static struct cdevsw led_cdevsw = {
 	.d_name =	"LED",
 };
 
-dev_t
+struct cdev *
 led_create(led_t *func, void *priv, char const *name)
 {
 	struct ledsc	*sc;
@@ -259,7 +259,7 @@ led_create(led_t *func, void *priv, char const *name)
 }
 
 void
-led_destroy(dev_t dev)
+led_destroy(struct cdev *dev)
 {
 	struct ledsc *sc;
 

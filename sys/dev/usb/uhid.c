@@ -136,7 +136,7 @@ struct uhid_softc {
 	u_char sc_dying;
 
 #if defined(__FreeBSD__)
-	dev_t dev;
+	struct cdev *dev;
 #endif
 };
 
@@ -393,7 +393,7 @@ uhid_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 }
 
 int
-uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
+uhidopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uhid_softc *sc;
 	usbd_status err;
@@ -440,7 +440,7 @@ uhidopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 }
 
 int
-uhidclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
+uhidclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 {
 	struct uhid_softc *sc;
 
@@ -530,7 +530,7 @@ uhid_do_read(struct uhid_softc *sc, struct uio *uio, int flag)
 }
 
 int
-uhidread(dev_t dev, struct uio *uio, int flag)
+uhidread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct uhid_softc *sc;
 	int error;
@@ -576,7 +576,7 @@ uhid_do_write(struct uhid_softc *sc, struct uio *uio, int flag)
 }
 
 int
-uhidwrite(dev_t dev, struct uio *uio, int flag)
+uhidwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct uhid_softc *sc;
 	int error;
@@ -710,7 +710,7 @@ uhid_do_ioctl(struct uhid_softc *sc, u_long cmd, caddr_t addr, int flag,
 }
 
 int
-uhidioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
+uhidioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 {
 	struct uhid_softc *sc;
 	int error;
@@ -725,7 +725,7 @@ uhidioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 }
 
 int
-uhidpoll(dev_t dev, int events, usb_proc_ptr p)
+uhidpoll(struct cdev *dev, int events, usb_proc_ptr p)
 {
 	struct uhid_softc *sc;
 	int revents = 0;

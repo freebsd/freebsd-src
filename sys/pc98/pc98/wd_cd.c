@@ -97,7 +97,7 @@ struct acd *
 acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
 {
     struct acd *ptr;
-    dev_t pdev;
+    struct cdev *pdev;
 
     if (!(ptr = malloc(sizeof(struct acd), M_TEMP, M_NOWAIT | M_ZERO)))
         return NULL;
@@ -360,7 +360,7 @@ acd_describe(struct acd *cdp)
 }
 
 static int
-acdopen(dev_t dev, int flags, int fmt, struct thread *td)
+acdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct acd *cdp;
 
@@ -385,7 +385,7 @@ acdopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 int 
-acdclose(dev_t dev, int flags, int fmt, struct thread *td)
+acdclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     struct acd *cdp = dev->si_drv1;
 
@@ -550,7 +550,7 @@ msf2lba(u_char m, u_char s, u_char f)
 }
 
 int 
-acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+acdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     struct acd *cdp = dev->si_drv1;
     int error = 0;

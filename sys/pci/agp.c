@@ -762,7 +762,7 @@ agp_unbind_user(device_t dev, agp_unbind *unbind)
 }
 
 static int
-agp_open(dev_t kdev, int oflags, int devtype, struct thread *td)
+agp_open(struct cdev *kdev, int oflags, int devtype, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
@@ -776,7 +776,7 @@ agp_open(dev_t kdev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-agp_close(dev_t kdev, int fflag, int devtype, struct thread *td)
+agp_close(struct cdev *kdev, int fflag, int devtype, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
@@ -799,7 +799,7 @@ agp_close(dev_t kdev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-agp_ioctl(dev_t kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+agp_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	device_t dev = KDEV2DEV(kdev);
 
@@ -834,7 +834,7 @@ agp_ioctl(dev_t kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 }
 
 static int
-agp_mmap(dev_t kdev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+agp_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);

@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #define	ADDR2HDR(addr)	((struct smapi_bios_header *)BIOS_PADDRTOVADDR(addr))
 
 struct smapi_softc {
-	dev_t			cdev;
+	struct cdev *cdev;
 	device_t		dev;
 	struct resource *	res;
 	int			rid;
@@ -98,7 +98,7 @@ extern int	smapi32_new		(u_long, u_short,
 
 static int
 smapi_ioctl (dev, cmd, data, fflag, td)
-	dev_t		dev;
+	struct cdev *dev;
 	u_long		cmd;
 	caddr_t		data;
 	int		fflag;

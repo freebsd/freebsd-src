@@ -103,8 +103,8 @@ void			 cleanup_pf_zone(void);
 int			 pfattach(void);
 #else
 void			 pfattach(int);
-int			 pfopen(dev_t, int, int, struct proc *);
-int			 pfclose(dev_t, int, int, struct proc *);
+int			 pfopen(struct cdev *, int, int, struct proc *);
+int			 pfclose(struct cdev *, int, int, struct proc *);
 #endif
 struct pf_pool		*pf_get_pool(char *, char *, u_int32_t,
 			    u_int8_t, u_int32_t, u_int8_t, u_int8_t, u_int8_t);
@@ -113,9 +113,9 @@ void			 pf_init_ruleset(struct pf_ruleset *);
 void			 pf_mv_pool(struct pf_palist *, struct pf_palist *);
 void			 pf_empty_pool(struct pf_palist *);
 #ifdef __FreeBSD__
-int			 pfioctl(dev_t, u_long, caddr_t, int, struct thread *);
+int			 pfioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 #else
-int			 pfioctl(dev_t, u_long, caddr_t, int, struct proc *);
+int			 pfioctl(struct cdev *, u_long, caddr_t, int, struct proc *);
 #endif
 
 #ifdef __FreeBSD__
@@ -139,7 +139,7 @@ TAILQ_HEAD(pf_tags, pf_tagname)	pf_tags = TAILQ_HEAD_INITIALIZER(pf_tags);
 
 
 #ifdef __FreeBSD__
-static dev_t		pf_dev;
+static struct cdev *pf_dev;
 
 /*
  * XXX - These are new and need to be checked when moveing to a new version
@@ -421,7 +421,7 @@ pfattach(int num)
 }
 
 int
-pfopen(dev_t dev, int flags, int fmt, struct proc *p)
+pfopen(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
 	if (minor(dev) >= 1)
 		return (ENXIO);
@@ -429,7 +429,7 @@ pfopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-pfclose(dev_t dev, int flags, int fmt, struct proc *p)
+pfclose(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
 	if (minor(dev) >= 1)
 		return (ENXIO);
@@ -771,10 +771,10 @@ pf_tag_unref(u_int16_t tag)
 
 #ifdef __FreeBSD__
 int
-pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 #else
 int
-pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 #endif
 {
 	struct pf_pooladdr	*pa = NULL;

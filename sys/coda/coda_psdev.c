@@ -117,7 +117,7 @@ vcodaattach(n)
 
 int 
 vc_nb_open(dev, flag, mode, td)    
-    dev_t        dev;      
+    struct cdev *dev;      
     int          flag;     
     int          mode;     
     struct thread *td;             /* NetBSD only */
@@ -149,7 +149,7 @@ vc_nb_open(dev, flag, mode, td)
 
 int 
 vc_nb_close (dev, flag, mode, td)    
-    dev_t        dev;      
+    struct cdev *dev;      
     int          flag;     
     int          mode;     
     struct thread *td;
@@ -233,7 +233,7 @@ vc_nb_close (dev, flag, mode, td)
 
 int 
 vc_nb_read(dev, uiop, flag)   
-    dev_t        dev;  
+    struct cdev *dev;  
     struct uio  *uiop; 
     int          flag;
 {
@@ -287,7 +287,7 @@ vc_nb_read(dev, uiop, flag)
 
 int
 vc_nb_write(dev, uiop, flag)   
-    dev_t        dev;  
+    struct cdev *dev;  
     struct uio  *uiop; 
     int          flag;
 {
@@ -387,7 +387,7 @@ vc_nb_write(dev, uiop, flag)
 
 int
 vc_nb_ioctl(dev, cmd, addr, flag, td) 
-    dev_t         dev;       
+    struct cdev *dev;       
     u_long        cmd;       
     caddr_t       addr;      
     int           flag;      
@@ -441,7 +441,7 @@ vc_nb_ioctl(dev, cmd, addr, flag, td)
 
 int
 vc_nb_poll(dev, events, td)         
-    dev_t         dev;    
+    struct cdev *dev;    
     int           events;   
     struct thread *td;
 {

@@ -371,7 +371,7 @@ struct CONTROLLER_str
 	struct tty		*tty;		/* tty */
 
 	/* Device nodes */
-	dev_t			*dev_nodes;
+	struct cdev **dev_nodes;
 
 	/* Bus-specific properties */
 	void			*bus_ctlp;
