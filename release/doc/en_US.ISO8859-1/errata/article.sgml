@@ -17,11 +17,12 @@
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 <!ENTITY release.bugfix "5.3-RELEASE">
+<!ENTITY release.bugfix.next "5.4-RELEASE">
 ]>
 
 <article>
   <articleinfo>
-    <title>&os; &release.current; Errata</title>
+    <title>&os; &release.bugfix; Errata</title>
 
     <corpauthor>
     The &os; Project
@@ -47,7 +48,7 @@
   </articleinfo>
 
   <abstract>
-    <para>This document lists errata items for &os; &release.current;,
+    <para>This document lists errata items for &os; &release.bugfix;,
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
       release documentation.
@@ -57,8 +58,8 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os; &release.current;
-      will be maintained until the release of &os; &release.next;.</para>
+    <para>This errata document for &os; &release.bugfix;
+      will be maintained until the release of &os; &release.bugfix.next;.</para>
   </abstract>
 
   <sect1 id="intro">
