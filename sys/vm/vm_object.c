@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.54 1995/10/23 03:49:43 dyson Exp $
+ * $Id: vm_object.c,v 1.55 1995/11/05 20:46:00 dyson Exp $
  */
 
 /*
@@ -160,8 +160,6 @@ _vm_object_allocate(type, size, object)
 void
 vm_object_init(vm_offset_t nothing)
 {
-	register int i;
-
 	TAILQ_INIT(&vm_object_cached_list);
 	TAILQ_INIT(&vm_object_list);
 	vm_object_count = 0;
@@ -345,8 +343,7 @@ void
 vm_object_terminate(object)
 	register vm_object_t object;
 {
-	register vm_page_t p, next;
-	vm_object_t backing_object;
+	register vm_page_t p;
 	int s;
 
 	/*
@@ -444,7 +441,6 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 		end = round_page(end);
 	}
 
-startover:
 	tstart = start;
 	if (end == 0) {
 		tend = object->size;
@@ -599,7 +595,6 @@ vm_object_pmap_remove(object, start, end)
 	register vm_offset_t end;
 {
 	register vm_page_t p;
-	int s;
 
 	if (object == NULL)
 		return;
@@ -629,12 +624,6 @@ vm_object_copy(src_object, src_offset, size,
 	vm_offset_t *dst_offset;/* OUT */
 	boolean_t *src_needs_copy;	/* OUT */
 {
-	register vm_object_t new_copy;
-	register vm_object_t old_copy;
-	vm_offset_t new_start, new_end;
-
-	register vm_page_t p;
-
 	if (src_object == NULL) {
 		/*
 		 * Nothing to copy
@@ -1338,8 +1327,10 @@ vm_object_check() {
 					object->size);
 			}
 			if (!vm_object_in_map(object)) {
-				printf("vmochk: internal obj is not in a map: ref: %d, size: %d: 0x%x, backing_object: 0x%x\n",
-				    object->ref_count, object->size, object->backing_object);
+				printf("vmochk: internal obj is not in a map: "
+		"ref: %d, size: %d: 0x%x, backing_object: 0x%x\n",
+				    object->ref_count, object->size, 
+				    object->size, object->backing_object);
 			}
 		}
 	}

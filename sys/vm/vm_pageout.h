@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.14 1995/08/28 09:19:25 julian Exp $
+ * $Id: vm_pageout.h,v 1.15 1995/11/05 20:46:03 dyson Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -123,10 +123,8 @@ vm_wait()
 
 
 #ifdef KERNEL
-int vm_pageout_scan __P((void));
 void vm_pageout_page __P((vm_page_t, vm_object_t));
 void vm_pageout_cluster __P((vm_page_t, vm_object_t));
-int vm_pageout_clean __P((vm_page_t, int));
 int vm_pageout_flush __P((vm_page_t *, int, int));
 
 #endif

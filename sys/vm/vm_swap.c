@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.23 1995/07/29 11:44:31 bde Exp $
+ * $Id: vm_swap.c,v 1.24 1995/11/12 06:43:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -58,10 +58,10 @@
 #define NSWAPDEV	4
 #endif
 static struct swdevt should_be_malloced[NSWAPDEV];
-struct swdevt *swdevt = should_be_malloced;
+static struct swdevt *swdevt = should_be_malloced;
 struct vnode *swapdev_vp;
 int nswap;			/* first block after the interleaved devs */
-int nswdev = NSWAPDEV;
+static int nswdev = NSWAPDEV;
 int vm_swap_size;
 
 void
@@ -138,11 +138,9 @@ swapon(p, uap, retval)
 	int *retval;
 {
 	register struct vnode *vp;
-	register struct swdevt *sp;
 	dev_t dev;
-	int error,i;
 	struct nameidata nd;
-	struct vattr attr;
+	int error;
 
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
@@ -207,9 +205,7 @@ swaponvp(p, vp, dev, nblks)
 	register swblk_t vsbase;
 	register long blk;
 	swblk_t dvbase;
-	struct swdevt *swp;
 	int error;
-	int perdev;
 
 	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
 		if (sp->sw_vp == vp)

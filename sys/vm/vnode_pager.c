@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.51 1995/10/23 02:23:29 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.52 1995/10/30 17:56:30 bde Exp $
  */
 
 /*
@@ -197,7 +197,7 @@ vnode_pager_haspage(object, offset, before, after)
 {
 	struct vnode *vp = object->handle;
 	daddr_t bn;
-	int err, run;
+	int err;
 	daddr_t reqblock;
 	int poff;
 	int bsize;
@@ -863,8 +863,9 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 				rtvals[i] = VM_PAGER_BAD;
 			}
 			if (ncount == 0) {
-				printf("vnode_pager_putpages: write past end of file: %d, %d\n",
-					m[0]->offset, object->un_pager.vnp.vnp_size);
+				printf("vnode_pager_putpages: write past end of file: %ld, %ld\n",
+					m[0]->offset,
+					object->un_pager.vnp.vnp_size);
 				return rtvals[0];
 			}
 		}
@@ -892,7 +893,8 @@ vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 		printf("vnode_pager_putpages: I/O error %d\n", error);
 	}
 	if (auio.uio_resid) {
-		printf("vnode_pager_putpages: residual I/O %d at %d\n", auio.uio_resid, m[0]->offset);
+		printf("vnode_pager_putpages: residual I/O %d at %ld\n",
+			auio.uio_resid, m[0]->offset);
 	}
 	for (i = 0; i < count; i++) {
 		m[i]->busy--;
