@@ -118,11 +118,15 @@ acpi_battinfo(int num)
 	battio.unit = num;
 	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BST, &battio) == -1)
 		err(EX_IOERR, "get battery info (%d) failed", num);
-	printf("State:\t\t\t%d\n", battio.bst.state);
-	printf("Present rate:\t\t%d\n", battio.bst.rate);
-	printf("Remaining capacity:\t%d mWh\n", battio.bst.cap);
-	printf("Volt:\t\t\t%.3f V\n", battio.bst.volt * .001);
 
+	if (battio.bst.state != ACPI_BATT_STAT_NOT_PRESENT) {
+		printf("State:\t\t\tPresent\n");
+		printf("Present Rate:\t\t%d mWh\n", battio.bst.rate);
+		printf("Remaining Capacity:\t%d mWh\n", battio.bst.cap);
+		printf("Volt:\t\t\t%d mV\n", battio.bst.volt);
+	} else {
+		printf("State:\t\t\tNot Present\n");
+	}
 	return (0);
 }
 
