@@ -422,6 +422,8 @@ configRC_conf(void)
 	while(fgets(line, sizeof(line), rcOld)) {
 	    if(line[0] == '#' || variable_check2(line) != 0)
 		fprintf(rcSite, "%s", line);
+	    else
+		fprintf(rcSite, "#REMOVED: %s", line);
 	}
 	fclose(rcOld);
     } else {
