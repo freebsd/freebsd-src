@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.10 1997/02/22 12:48:31 peter Exp $
+ *	$Id: linux.c,v 1.11 1997/04/06 10:47:59 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@ linux_load(struct lkm_table *lkmtp, int cmd)
 {
 	if (elf_insert_brand_entry(&linux_brand))
 		uprintf("Could not install ELF interpreter entry\n");
-	uprintf("Linux emulator installed\n");
+	/* uprintf("Linux emulator installed\n"); XXX - shut up, you! */
 	return 0;
 }
 
