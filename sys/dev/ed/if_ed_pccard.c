@@ -402,7 +402,8 @@ ed_pccard_match(device_t dev)
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->prod.pp_name);
+		if (pp->prod.pp_name != NULL)
+			device_set_desc(dev, pp->prod.pp_name);
 		if (pp->flags & NE2000DVF_DL10019)
 			device_set_flags(dev, ED_FLAGS_LINKSYS);
 		else if (pp->flags & NE2000DVF_AX88190)
