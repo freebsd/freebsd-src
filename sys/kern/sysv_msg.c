@@ -251,6 +251,7 @@ static moduledata_t sysvmsg_moduledata = {
 	NULL
 };
 
+SYSCALL_MODULE_HELPER(msgsys, 6);
 SYSCALL_MODULE_HELPER(msgctl, 3);
 SYSCALL_MODULE_HELPER(msgget, 2);
 SYSCALL_MODULE_HELPER(msgsnd, 4);
