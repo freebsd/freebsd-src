@@ -54,6 +54,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
 
@@ -118,9 +119,9 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	unsigned long memfree;		/* free memory in bytes */
 	unsigned long memshared;	/* shared memory ??? */
 	unsigned long buffers, cached;	/* buffer / cache memory ??? */
-	unsigned long swaptotal;	/* total swap space in bytes */
-	unsigned long swapused;		/* used swap space in bytes */
-	unsigned long swapfree;		/* free swap space in bytes */
+	u_quad_t swaptotal;		/* total swap space in bytes */
+	u_quad_t swapused;		/* used swap space in bytes */
+	u_quad_t swapfree;		/* free swap space in bytes */
 	vm_object_t object;
 
 	if (uio->uio_rw != UIO_READ)
@@ -143,8 +144,8 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 		swaptotal = 0;
 		swapfree = 0;
 	} else {
-		swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
-		swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+		swaptotal = (u_quad_t)swapblist->bl_blocks * 1024; /* XXX why 1024? */
+		swapfree = (u_quad_t)swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
 	}
 	swapused = swaptotal - swapfree;
 	memshared = 0;
@@ -167,14 +168,14 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	sbuf_printf(&sb,
 	    "        total:    used:    free:  shared: buffers:  cached:\n"
 	    "Mem:  %lu %lu %lu %lu %lu %lu\n"
-	    "Swap: %lu %lu %lu\n"
+	    "Swap: %llu %llu %llu\n"
 	    "MemTotal: %9lu kB\n"
 	    "MemFree:  %9lu kB\n"
 	    "MemShared:%9lu kB\n"
 	    "Buffers:  %9lu kB\n"
 	    "Cached:   %9lu kB\n"
-	    "SwapTotal:%9lu kB\n"
-	    "SwapFree: %9lu kB\n",
+	    "SwapTotal:%9llu kB\n"
+	    "SwapFree: %9llu kB\n",
 	    memtotal, memused, memfree, memshared, buffers, cached,
 	    swaptotal, swapused, swapfree,
 	    B2K(memtotal), B2K(memfree),
@@ -333,6 +334,38 @@ linprocfs_doversion(curp, p, pfs, uio)
 	    " #4 Sun Dec 18 04:30:00 CET 1977\n",
 	    linux_get_osname(curp),
 	    linux_get_osrelease(curp));
+
+	COMMON_END;
+}
+
+int
+linprocfs_doloadavg(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	COMMON_START;
+	int lastpid, ilen;
+
+	ilen = sizeof(lastpid);
+	if (kernel_sysctlbyname(p, "kern.lastpid",
+	    &lastpid, &ilen, NULL, 0, NULL) != 0)
+		lastpid = -1;				/* fake it */
+
+	sbuf_new(&sb, NULL, 128, 0);
+	sbuf_printf(&sb,
+	    "%d.%02d %d.%02d %d.%02d %d/%d %d\n",
+	    (int)(averunnable.ldavg[0] / averunnable.fscale),
+	    (int)(averunnable.ldavg[0] * 100 / averunnable.fscale % 100),
+	    (int)(averunnable.ldavg[1] / averunnable.fscale),
+	    (int)(averunnable.ldavg[1] * 100 / averunnable.fscale % 100),
+	    (int)(averunnable.ldavg[2] / averunnable.fscale),
+	    (int)(averunnable.ldavg[2] * 100 / averunnable.fscale % 100),
+	    1,				/* number of running tasks */
+	    nprocs,			/* number of tasks */
+	    lastpid			/* the last pid */
+	);
 
 	COMMON_END;
 }
