@@ -17,7 +17,7 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
 
-CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
+CLEANFILES+=	magic magic.mgc magic.mime.mgc
 
 FILES=		magic magic.mgc ${CONTRDIR}/magic.mime magic.mime.mgc
 FILESDIR=	${MAGICPATH}
@@ -26,9 +26,6 @@ MAGFILES=	${CONTRDIR}/Header\
 		${CONTRDIR}/Localstuff\
 		${CONTRDIR}/Magdir/[a-z]*
 
-.ORDER: ${LIB} magic.mgc magic.mime.mgc ${MAN}
-all: ${LIB} magic.mgc magic.mime.mgc ${MAN}
-
 magic: ${MAGFILES}
 	cat ${.ALLSRC} > ${.TARGET}
 
@@ -36,9 +33,7 @@ magic.mgc: mkmagic magic
 	./mkmagic magic
 
 magic.mime.mgc: mkmagic magic.mime
-	ln -sf ${.ALLSRC:M*magic.mime*} magic.mime.PITA
-	./mkmagic magic.mime.PITA
-	mv magic.mime.PITA.mgc magic.mime.mgc
+	./mkmagic ${CONTRDIR}/magic.mime
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
