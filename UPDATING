@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020827:
+	Our /etc/termcap now has all the entries from the XFree86 xterm
+	almost unchanged. This means xterm now supports color by default.
+	If you used TERM=xterm-color in the past you now should use
+	TERM=xterm. (xterm-color will lead to benign warnings).
+
 20020815:
 	A "bug" in gcc(1) that was hiding warning in system headers was
 	fixed.  It's probably time to add -DNO_WERROR to your make line
