@@ -49,7 +49,7 @@ SUBDIR=	${_3dfx} \
 	coda5 \
 	${_coff} \
 	${_cp} \
-	cpufreq \
+	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
@@ -307,6 +307,7 @@ _awi=		awi
 _bktr=		bktr
 _coff=		coff
 _cp=		cp
+_cpufreq=	cpufreq
 _digi=		digi
 _drm=		drm
 _ed=		ed
@@ -400,6 +401,7 @@ _aac=		aac
 #_acpi=		acpi		# doesn't work on amd64 yet
 _agp=		agp
 _ciss=		ciss
+_cpufreq=	cpufreq
 _digi=		digi
 _drm=		drm
 _em=		em
