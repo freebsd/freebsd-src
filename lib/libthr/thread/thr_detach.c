@@ -44,20 +44,19 @@ _pthread_detach(pthread_t pthread)
 	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		return (EINVAL);
 
-	if (pthread->attr.flags & PTHREAD_DETACHED)
+	_SPINLOCK(&pthread->lock);
+
+	if (pthread->attr.flags & PTHREAD_DETACHED) {
+		_SPINUNLOCK(&pthread->lock);
 		return (EINVAL);
+	}
 
 	pthread->attr.flags |= PTHREAD_DETACHED;
-
-	/*
-	 * Defer signals to protect the scheduling queues from
-	 * access by the signal handler:
-	 */
-	GIANT_LOCK(curthread);
 
 	/* Check if there is a joiner: */
 	if (pthread->joiner != NULL) {
 		struct pthread	*joiner = pthread->joiner;
+		_thread_critical_enter(joiner);
 
 		/* Make the thread runnable: */
 		PTHREAD_NEW_STATE(joiner, PS_RUNNING);
@@ -71,9 +70,10 @@ _pthread_detach(pthread_t pthread)
 		 * Disconnect the joiner from the thread being detached:
 		 */
 		pthread->joiner = NULL;
+		_thread_critical_exit(joiner);
 	}
 
-	GIANT_UNLOCK(curthread);
+	_SPINUNLOCK(&pthread->lock);
 
 	return (0);
 }
