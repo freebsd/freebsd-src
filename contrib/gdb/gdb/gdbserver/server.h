@@ -20,31 +20,53 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 #include <setjmp.h>
 
-void read_inferior_memory ();
-unsigned char mywait ();
-void myresume();
-int mythread_alive ();
+/* Target-specific functions */
+
+int create_inferior PARAMS ((char *program, char **allargs));
+void kill_inferior PARAMS ((void));
+void fetch_inferior_registers PARAMS ((int regno));
+void store_inferior_registers PARAMS ((int regno));
+int mythread_alive PARAMS ((int pid));
+void myresume PARAMS ((int step, int signo));
+unsigned char mywait PARAMS ((char *status));
+void read_inferior_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len));
+int write_inferior_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len));
 int create_inferior ();
 
+/* Target-specific variables */
+
 extern char registers[];
-int inferior_pid;
+
+/* Public variables in server.c */
+
 extern int cont_thread;
 extern int general_thread;
 extern int thread_from_wait;
 extern int old_thread_from_wait;
 
-int remote_send ();
-int putpkt ();
-int getpkt ();
-void remote_open ();
-void write_ok ();
-void write_enn ();
-void convert_ascii_to_int ();
-void convert_int_to_ascii ();
-void prepare_resume_reply ();
-void decode_m_packet ();
-void decode_M_packet ();
+extern jmp_buf toplevel;
+extern int inferior_pid;
 
-jmp_buf toplevel;
+/* Functions from remote-utils.c */
 
-void perror_with_name ();
+int putpkt PARAMS ((char *buf));
+int getpkt PARAMS ((char *buf));
+void remote_open PARAMS ((char *name));
+void remote_close PARAMS ((void));
+void write_ok PARAMS ((char *buf));
+void write_enn PARAMS ((char *buf));
+void enable_async_io PARAMS ((void));
+void disable_async_io PARAMS ((void));
+void convert_ascii_to_int PARAMS ((char *from, char *to, int n));
+void convert_int_to_ascii PARAMS ((char *from, char *to, int n));
+void prepare_resume_reply PARAMS ((char *buf, char status, unsigned char sig));
+
+void decode_m_packet PARAMS ((char *from, CORE_ADDR *mem_addr_ptr,
+			     unsigned int *len_ptr));
+void decode_M_packet PARAMS ((char *from, CORE_ADDR *mem_addr_ptr,
+			     unsigned int *len_ptr, char *to));
+
+
+/* Functions from utils.c */
+
+void perror_with_name PARAMS ((char *string));

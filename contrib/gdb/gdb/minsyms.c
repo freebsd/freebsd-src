@@ -1,5 +1,5 @@
 /* GDB routines for manipulating the minimal symbol tables.
-   Copyright 1992, 1993, 1994, 1996, 1996 Free Software Foundation, Inc.
+   Copyright 1992, 93, 94, 96, 97, 1998 Free Software Foundation, Inc.
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
 This file is part of GDB.
@@ -142,7 +142,7 @@ lookup_minimal_symbol (name, sfile, objf)
 #endif
 		      break;
 
-		    case mst_solib_trampoline:
+                    case mst_solib_trampoline:
 
 		      /* If a trampoline symbol is found, we prefer to
 			 keep looking for the *real* symbol. If the
@@ -302,25 +302,33 @@ lookup_minimal_symbol_solib_trampoline (name, sfile, objf)
 }
 
 
-/* Search through the minimal symbol table for each objfile and find the
-   symbol whose address is the largest address that is still less than or
-   equal to PC.  Returns a pointer to the minimal symbol if such a symbol
-   is found, or NULL if PC is not in a suitable range.  Note that we need
-   to look through ALL the minimal symbol tables before deciding on the
-   symbol that comes closest to the specified PC.  This is because objfiles
-   can overlap, for example objfile A has .text at 0x100 and .data at 0x40000
-   and objfile B has .text at 0x234 and .data at 0x40048.  */
+/* Search through the minimal symbol table for each objfile and find
+   the symbol whose address is the largest address that is still less
+   than or equal to PC, and matches SECTION (if non-null).  Returns a
+   pointer to the minimal symbol if such a symbol is found, or NULL if
+   PC is not in a suitable range.  Note that we need to look through
+   ALL the minimal symbol tables before deciding on the symbol that
+   comes closest to the specified PC.  This is because objfiles can
+   overlap, for example objfile A has .text at 0x100 and .data at
+   0x40000 and objfile B has .text at 0x234 and .data at 0x40048.  */
 
 struct minimal_symbol *
-lookup_minimal_symbol_by_pc (pc)
-     register CORE_ADDR pc;
+lookup_minimal_symbol_by_pc_section (pc, section)
+     CORE_ADDR pc;
+     asection *section;
 {
-  register int lo;
-  register int hi;
-  register int new;
-  register struct objfile *objfile;
-  register struct minimal_symbol *msymbol;
-  register struct minimal_symbol *best_symbol = NULL;
+  int lo;
+  int hi;
+  int new;
+  struct objfile *objfile;
+  struct minimal_symbol *msymbol;
+  struct minimal_symbol *best_symbol = NULL;
+
+  /* pc has to be in a known section. This ensures that anything beyond
+     the end of the last segment doesn't appear to be part of the last
+     function in the last segment.  */
+  if (find_pc_section (pc) == NULL)
+    return NULL;
 
   for (objfile = object_files;
        objfile != NULL;
@@ -355,7 +363,7 @@ lookup_minimal_symbol_by_pc (pc)
 
 	     Warning: this code is trickier than it would appear at first. */
 
-	  /* Should also requires that pc is <= end of objfile.  FIXME! */
+	  /* Should also require that pc is <= end of objfile.  FIXME! */
 	  if (pc >= SYMBOL_VALUE_ADDRESS (&msymbol[lo]))
 	    {
 	      while (SYMBOL_VALUE_ADDRESS (&msymbol[hi]) > pc)
@@ -399,6 +407,13 @@ lookup_minimal_symbol_by_pc (pc)
 		     && msymbol[hi].type == mst_abs)
 		--hi;
 
+	      /* If "section" specified, skip any symbol from wrong section */
+	      /* This is the new code that distinguishes it from the old function */
+	      if (section)
+		while (hi >= 0
+		       && SYMBOL_BFD_SECTION (&msymbol[hi]) != section)
+		  --hi;
+
 	      if (hi >= 0
 		  && ((best_symbol == NULL) ||
 		      (SYMBOL_VALUE_ADDRESS (best_symbol) < 
@@ -410,6 +425,16 @@ lookup_minimal_symbol_by_pc (pc)
 	}
     }
   return (best_symbol);
+}
+
+/* Backward compatibility: search through the minimal symbol table 
+   for a matching PC (no section given) */
+
+struct minimal_symbol *
+lookup_minimal_symbol_by_pc (pc)
+     CORE_ADDR pc;
+{
+  return lookup_minimal_symbol_by_pc_section (pc, find_pc_mapped_section (pc));
 }
 
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
@@ -427,11 +452,20 @@ find_stab_function_addr (namestring, pst, objfile)
   if (p == NULL)
     p = namestring;
   n = p - namestring;
-  p = alloca (n + 1);
+  p = alloca (n + 2);
   strncpy (p, namestring, n);
   p[n] = 0;
 
   msym = lookup_minimal_symbol (p, pst->filename, objfile);
+  if (msym == NULL)
+    {
+      /* Sun Fortran appends an underscore to the minimal symbol name,
+	 try again with an appended underscore if the minimal symbol
+	 was not found.  */
+      p[n] = '_';
+      p[n + 1] = 0;
+      msym = lookup_minimal_symbol (p, pst->filename, objfile);
+    }
   return msym == NULL ? 0 : SYMBOL_VALUE_ADDRESS (msym);
 }
 #endif /* SOFUN_ADDRESS_MAYBE_MISSING */
@@ -494,19 +528,21 @@ prim_record_minimal_symbol (name, address, ms_type, objfile)
     }
 
   prim_record_minimal_symbol_and_info (name, address, ms_type,
-				       NULL, section, objfile);
+				       NULL, section, NULL, objfile);
 }
 
 /* Record a minimal symbol in the msym bunches.  Returns the symbol
    newly created.  */
+
 struct minimal_symbol *
 prim_record_minimal_symbol_and_info (name, address, ms_type, info, section,
-				     objfile)
+				     bfd_section, objfile)
      const char *name;
      CORE_ADDR address;
      enum minimal_symbol_type ms_type;
      char *info;
      int section;
+     asection *bfd_section;
      struct objfile *objfile;
 {
   register struct msym_bunch *new;
@@ -541,10 +577,12 @@ prim_record_minimal_symbol_and_info (name, address, ms_type, info, section,
       msym_bunch = new;
     }
   msymbol = &msym_bunch -> contents[msym_bunch_index];
-  SYMBOL_NAME (msymbol) = (char *) name;
+  SYMBOL_NAME (msymbol) = obsavestring ((char *) name, strlen (name),
+					&objfile->symbol_obstack);
   SYMBOL_INIT_LANGUAGE_SPECIFIC (msymbol, language_unknown);
   SYMBOL_VALUE_ADDRESS (msymbol) = address;
   SYMBOL_SECTION (msymbol) = section;
+  SYMBOL_BFD_SECTION (msymbol) = bfd_section;
 
   MSYMBOL_TYPE (msymbol) = ms_type;
   /* FIXME:  This info, if it remains, needs its own field.  */
@@ -556,7 +594,8 @@ prim_record_minimal_symbol_and_info (name, address, ms_type, info, section,
 }
 
 /* Compare two minimal symbols by address and return a signed result based
-   on unsigned comparisons, so that we sort into unsigned numeric order.  */
+   on unsigned comparisons, so that we sort into unsigned numeric order.  
+   Within groups with the same address, sort by name.  */
 
 static int
 compare_minimal_symbols (fn1p, fn2p)
@@ -571,15 +610,25 @@ compare_minimal_symbols (fn1p, fn2p)
 
   if (SYMBOL_VALUE_ADDRESS (fn1) < SYMBOL_VALUE_ADDRESS (fn2))
     {
-      return (-1);
+      return (-1);	/* addr 1 is less than addr 2 */
     }
   else if (SYMBOL_VALUE_ADDRESS (fn1) > SYMBOL_VALUE_ADDRESS (fn2))
     {
-      return (1);
+      return (1);	/* addr 1 is greater than addr 2 */
     }
-  else
+  else			/* addrs are equal: sort by name */
     {
-      return (0);
+      char *name1 = SYMBOL_NAME (fn1);
+      char *name2 = SYMBOL_NAME (fn2);
+
+      if (name1 && name2)	/* both have names */
+	return strcmp (name1, name2);
+      else if (name2)
+	return 1;	/* fn1 has no name, so it is "less" */
+      else if (name1)	/* fn2 has no name, so it is "less" */
+	return -1;
+      else
+	return (0);	/* neither has a name, so they're equal. */
     }
 }
 

@@ -20,9 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #if !defined (EXPRESSION_H)
 #define EXPRESSION_H 1
 
-#ifdef __STDC__
-struct block;	/* Forward declaration for prototypes */
-#endif
+
+#include "symtab.h"  /* Needed for "struct block" type. */
+
 
 /* Definitions for saved C expressions.  */
 
@@ -270,7 +270,6 @@ enum exp_opcode
   STRUCTOP_STRUCT,
   STRUCTOP_PTR,
 
-
   /* C++ */
   /* OP_THIS is just a placeholder for the class instance variable.
      It just comes in a tight (OP_THIS, OP_THIS) pair.  */
@@ -371,16 +370,13 @@ extern void print_expression PARAMS ((struct expression *, GDB_FILE *));
 
 extern char *op_string PARAMS ((enum exp_opcode));
 
-/* To enable dumping of all parsed expressions in a human readable
-   form, define DEBUG_EXPRESSIONS.  This is a compile time constant
-   at the moment, since it's not clear that this feature is important
-   enough to include by default. */
-
-#ifdef DEBUG_EXPRESSIONS
-extern void dump_expression PARAMS ((struct expression *, GDB_FILE *, char *));
-#define DUMP_EXPRESSION(exp,file,note) dump_expression ((exp), (file), (note))
-#else
-#define DUMP_EXPRESSION(exp,file,note)	/* Null expansion */
-#endif	/* DEBUG_EXPRESSIONS */
+#ifdef MAINTENANCE_CMDS
+extern void dump_prefix_expression PARAMS ((struct expression *,
+					    GDB_FILE *,
+					    char *));
+extern void dump_postfix_expression PARAMS ((struct expression *,
+					     GDB_FILE *,
+					     char *));
+#endif /* MAINTENANCE_CMDS */
 
 #endif	/* !defined (EXPRESSION_H) */

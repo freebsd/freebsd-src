@@ -22,14 +22,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "valprint.h"
+#include "m2-lang.h"
 
 /* FIXME:  For now, just explicitly declare c_val_print and use it instead */
 
 int
-m2_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
-	      pretty)
+m2_val_print (type, valaddr, embedded_offset, address,
+              stream, format, deref_ref, recurse, pretty)
      struct type *type;
      char *valaddr;
+     int embedded_offset;
      CORE_ADDR address;
      GDB_FILE *stream;
      int format;
@@ -38,8 +40,8 @@ m2_val_print (type, valaddr, address, stream, format, deref_ref, recurse,
      enum val_prettyprint pretty;
 {
   extern int
-  c_val_print PARAMS ((struct type *, char *, CORE_ADDR, GDB_FILE *, int, int,
-		       int, enum val_prettyprint));
-  return (c_val_print (type, valaddr, address, stream, format, deref_ref,
+  c_val_print PARAMS ((struct type *, char *, int, CORE_ADDR,
+                       GDB_FILE *, int, int, int, enum val_prettyprint));
+  return (c_val_print (type, valaddr, 0, address, stream, format, deref_ref,
 		       recurse, pretty));
 }

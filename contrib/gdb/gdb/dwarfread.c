@@ -1,5 +1,5 @@
 /* DWARF debugging format support for GDB.
-   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996
+   Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1998
    Free Software Foundation, Inc.
    Written by Fred Fish at Cygnus Support.  Portions based on dbxread.c,
    mipsread.c, coffread.c, and dwarfread.c from a Data General SVR4 gdb port.
@@ -53,10 +53,6 @@ other things to work on, if you get bored. :-)
 
 #include <fcntl.h>
 #include "gdb_string.h"
-
-#ifndef	NO_SYS_FILE
-#include <sys/file.h>
-#endif
 
 /* Some macros to provide DIE info for complaints. */
 
@@ -318,6 +314,23 @@ struct dieinfo {
   unsigned int		has_at_stmt_list:1;
   unsigned int		has_at_byte_size:1;
   unsigned int		short_element_list:1;
+
+  /* Kludge to identify register variables */
+
+  unsigned int		isreg;
+
+  /* Kludge to identify optimized out variables */
+
+  unsigned int		optimized_out;
+
+  /* Kludge to identify basereg references.
+     Nonzero if we have an offset relative to a basereg.  */
+
+  unsigned int		offreg;
+
+  /* Kludge to identify which base register is it relative to.  */
+
+  unsigned int		basereg;
 };
 
 static int diecount;	/* Approximate count of dies for compilation unit */
@@ -327,13 +340,6 @@ static char *dbbase;	/* Base pointer to dwarf info */
 static int dbsize;	/* Size of dwarf info in bytes */
 static int dbroff;	/* Relative offset from start of .debug section */
 static char *lnbase;	/* Base pointer to line section */
-static int isreg;	/* Kludge to identify register variables */
-static int optimized_out;  /* Kludge to identify optimized out variables */
-/* Kludge to identify basereg references.  Nonzero if we have an offset
-   relative to a basereg.  */
-static int offreg;
-/* Which base register is it relative to?  */
-static int basereg;
 
 /* This value is added to each symbol value.  FIXME:  Generalize to 
    the section_offsets structure used by dbxread (once this is done,
@@ -441,6 +447,9 @@ static const struct language_defn *cu_language_defn;
 
 /* Forward declarations of static functions so we don't have to worry
    about ordering within this file.  */
+
+static void
+free_utypes PARAMS ((PTR));
 
 static int
 attribute_size PARAMS ((unsigned int));
@@ -558,7 +567,7 @@ synthesize_typedef PARAMS ((struct dieinfo *, struct objfile *,
 			    struct type *));
 
 static int
-locval PARAMS ((char *));
+locval PARAMS ((struct dieinfo *));
 
 static void
 set_cu_language PARAMS ((struct dieinfo *));
@@ -665,11 +674,13 @@ set_cu_language (dip)
       case LANG_MODULA2:
 	cu_language = language_m2;
 	break;
+      case LANG_FORTRAN77:
+      case LANG_FORTRAN90:
+	cu_language = language_fortran;
+	break;
       case LANG_ADA83:
       case LANG_COBOL74:
       case LANG_COBOL85:
-      case LANG_FORTRAN77:
-      case LANG_FORTRAN90:
       case LANG_PASCAL83:
 	/* We don't know anything special about these yet. */
 	cu_language = language_unknown;
@@ -965,7 +976,7 @@ decode_die_type (dip)
     }
   else
     {
-      type = dwarf_fundamental_type (current_objfile, FT_INTEGER);
+      type = dwarf_fundamental_type (current_objfile, FT_VOID);
     }
   return (type);
 }
@@ -1077,10 +1088,10 @@ struct_type (dip, thisdie, enddie, objfile)
 	  list -> field.name =
 	      obsavestring (mbr.at_name, strlen (mbr.at_name),
 			    &objfile -> type_obstack);
-	  list -> field.type = decode_die_type (&mbr);
-	  list -> field.bitpos = 8 * locval (mbr.at_location);
+	  FIELD_TYPE (list->field) = decode_die_type (&mbr);
+	  FIELD_BITPOS (list->field) = 8 * locval (&mbr);
 	  /* Handle bit fields. */
-	  list -> field.bitsize = mbr.at_bit_size;
+	  FIELD_BITSIZE (list->field) = mbr.at_bit_size;
 	  if (BITS_BIG_ENDIAN)
 	    {
 	      /* For big endian bits, the at_bit_offset gives the
@@ -1088,7 +1099,7 @@ struct_type (dip, thisdie, enddie, objfile)
 		 anonymous object to the MSB of the field.  We don't
 		 have to do anything special since we don't need to
 		 know the size of the anonymous object. */
-	      list -> field.bitpos += mbr.at_bit_offset;
+	      FIELD_BITPOS (list->field) += mbr.at_bit_offset;
 	    }
 	  else
 	    {
@@ -1118,7 +1129,7 @@ struct_type (dip, thisdie, enddie, objfile)
 			 a debug information size optimization. */
 		      anonymous_size = TYPE_LENGTH (list -> field.type);
 		    }
-		  list -> field.bitpos +=
+		  FIELD_BITPOS (list->field) +=
 		    anonymous_size * 8 - mbr.at_bit_offset - mbr.at_bit_size;
 		}
 	    }
@@ -1492,10 +1503,8 @@ read_tag_pointer_type (dip)
       TYPE_POINTER_TYPE (type) = utype;
 
       /* We assume the machine has only one representation for pointers!  */
-      /* FIXME:  This confuses host<->target data representations, and is a
-	 poor assumption besides. */
-      
-      TYPE_LENGTH (utype) = sizeof (char *);
+      /* FIXME:  Possably a poor assumption  */
+      TYPE_LENGTH (utype) = TARGET_PTR_BIT / TARGET_CHAR_BIT ;
       TYPE_CODE (utype) = TYPE_CODE_PTR;
     }
 }
@@ -1762,9 +1771,9 @@ enum_type (dip, objfile)
 	  new = (struct nextfield *) alloca (sizeof (struct nextfield));
 	  new -> next = list;
 	  list = new;
-	  list -> field.type = NULL;
-	  list -> field.bitsize = 0;
-	  list -> field.bitpos =
+	  FIELD_TYPE (list->field) = NULL;
+	  FIELD_BITSIZE (list->field) = 0;
+	  FIELD_BITPOS (list->field) =
 	    target_to_host (scan, TARGET_FT_LONG_SIZE (objfile), GET_SIGNED,
 			    objfile);
 	  scan += TARGET_FT_LONG_SIZE (objfile);
@@ -1782,7 +1791,7 @@ enum_type (dip, objfile)
 	  SYMBOL_NAMESPACE (sym) = VAR_NAMESPACE;
 	  SYMBOL_CLASS (sym) = LOC_CONST;
 	  SYMBOL_TYPE (sym) = type;
-	  SYMBOL_VALUE (sym) = list -> field.bitpos;
+	  SYMBOL_VALUE (sym) = FIELD_BITPOS (list->field);
 	  if (SYMBOL_VALUE (sym) < 0)
 	    unsigned_enum = 0;
 	  add_symbol_to_list (sym, list_in_scope);
@@ -1893,10 +1902,17 @@ handle_producer (producer)
   /* If this compilation unit was compiled with g++ or gcc, then set the
      processing_gcc_compilation flag. */
 
-  processing_gcc_compilation =
-    STREQN (producer, GPLUS_PRODUCER, strlen (GPLUS_PRODUCER))
-      || STREQN (producer, CHILL_PRODUCER, strlen (CHILL_PRODUCER))
-      || STREQN (producer, GCC_PRODUCER, strlen (GCC_PRODUCER));
+  if (STREQN (producer, GCC_PRODUCER, strlen (GCC_PRODUCER)))
+    {
+      char version = producer[strlen (GCC_PRODUCER)];
+      processing_gcc_compilation = (version == '2' ? 2 : 1);
+    }
+  else
+    {
+      processing_gcc_compilation =
+	STREQN (producer, GPLUS_PRODUCER, strlen (GPLUS_PRODUCER))
+	|| STREQN (producer, CHILL_PRODUCER, strlen (CHILL_PRODUCER));
+    }
 
   /* Select a demangling style if we can identify the producer and if
      the current style is auto.  We leave the current style alone if it
@@ -1966,6 +1982,7 @@ read_file_scope (dip, thisdie, enddie, objfile)
   memset (utypes, 0, numutypes * sizeof (struct type *));
   memset (ftypes, 0, FT_NUM_MEMBERS * sizeof (struct type *));
   start_symtab (dip -> at_name, dip -> at_comp_dir, dip -> at_low_pc);
+  record_debugformat ("DWARF 1");
   decode_line_numbers (lnbase);
   process_dies (thisdie + dip -> die_length, enddie, objfile);
 
@@ -2187,23 +2204,23 @@ LOCAL FUNCTION
 
 SYNOPSIS
 
-	static int locval (char *loc)
+	static int locval (struct dieinfo *dip)
 
 DESCRIPTION
 
 	Given pointer to a string of bytes that define a location, compute
 	the location and return the value.
 	A location description containing no atoms indicates that the
-	object is optimized out. The global optimized_out flag is set for
-	those, the return value is meaningless.
+	object is optimized out. The optimized_out flag is set for those,
+	the return value is meaningless.
 
 	When computing values involving the current value of the frame pointer,
 	the value zero is used, which results in a value relative to the frame
 	pointer, rather than the absolute value.  This is what GDB wants
 	anyway.
     
-	When the result is a register number, the global isreg flag is set,
-	otherwise it is cleared.  This is a kludge until we figure out a better
+	When the result is a register number, the isreg flag is set, otherwise
+	it is cleared.  This is a kludge until we figure out a better
 	way to handle the problem.  Gdb's design does not mesh well with the
 	DWARF notion of a location computing interpreter, which is a shame
 	because the flexibility goes unused.
@@ -2215,30 +2232,32 @@ NOTES
  */
 
 static int
-locval (loc)
-     char *loc;
+locval (dip)
+     struct dieinfo *dip;
 {
   unsigned short nbytes;
   unsigned short locsize;
   auto long stack[64];
   int stacki;
+  char *loc;
   char *end;
   int loc_atom_code;
   int loc_value_size;
   
+  loc = dip -> at_location;
   nbytes = attribute_size (AT_location);
   locsize = target_to_host (loc, nbytes, GET_UNSIGNED, current_objfile);
   loc += nbytes;
   end = loc + locsize;
   stacki = 0;
   stack[stacki] = 0;
-  isreg = 0;
-  offreg = 0;
-  optimized_out = 1;
+  dip -> isreg = 0;
+  dip -> offreg = 0;
+  dip -> optimized_out = 1;
   loc_value_size = TARGET_FT_LONG_SIZE (current_objfile);
   while (loc < end)
     {
-      optimized_out = 0;
+      dip -> optimized_out = 0;
       loc_atom_code = target_to_host (loc, SIZEOF_LOC_ATOM_CODE, GET_UNSIGNED,
 				      current_objfile);
       loc += SIZEOF_LOC_ATOM_CODE;
@@ -2255,15 +2274,15 @@ locval (loc)
 						     GET_UNSIGNED,
 						     current_objfile));
 	    loc += loc_value_size;
-	    isreg = 1;
+	    dip -> isreg = 1;
 	    break;
 	  case OP_BASEREG:
 	    /* push value of register (number) */
 	    /* Actually, we compute the value as if register has 0, so the
 	       value ends up being the offset from that register.  */
-	    offreg = 1;
-	    basereg = target_to_host (loc, loc_value_size, GET_UNSIGNED,
-				      current_objfile);
+	    dip -> offreg = 1;
+	    dip -> basereg = target_to_host (loc, loc_value_size, GET_UNSIGNED,
+					     current_objfile);
 	    loc += loc_value_size;
 	    stack[++stacki] = 0;
 	    break;
@@ -2433,7 +2452,8 @@ psymtab_to_symtab_1 (pst)
 	  if (DBLENGTH (pst))		/* Otherwise it's a dummy */
 	    {
 	      buildsym_init ();
-	      old_chain = make_cleanup (really_free_pendings, 0);
+	      old_chain = make_cleanup ((make_cleanup_func) 
+                                        really_free_pendings, 0);
 	      read_ofile_symtab (pst);
 	      if (info_verbose)
 		{
@@ -2958,6 +2978,8 @@ new_symbol (dip, objfile)
 	case TAG_subroutine:
 	  SYMBOL_VALUE_ADDRESS (sym) = dip -> at_low_pc;
 	  SYMBOL_TYPE (sym) = lookup_function_type (SYMBOL_TYPE (sym));
+	  if (dip -> at_prototyped)
+	    TYPE_FLAGS (SYMBOL_TYPE (sym)) |= TYPE_FLAG_PROTOTYPED;
 	  SYMBOL_CLASS (sym) = LOC_BLOCK;
 	  if (dip -> die_tag == TAG_global_subroutine)
 	    {
@@ -2971,7 +2993,7 @@ new_symbol (dip, objfile)
 	case TAG_global_variable:
 	  if (dip -> at_location != NULL)
 	    {
-	      SYMBOL_VALUE (sym) = locval (dip -> at_location);
+	      SYMBOL_VALUE_ADDRESS (sym) = locval (dip);
 	      add_symbol_to_list (sym, &global_symbols);
 	      SYMBOL_CLASS (sym) = LOC_STATIC;
 	      SYMBOL_VALUE (sym) += baseaddr;
@@ -2980,42 +3002,52 @@ new_symbol (dip, objfile)
 	case TAG_local_variable:
 	  if (dip -> at_location != NULL)
 	    {
-	      SYMBOL_VALUE (sym) = locval (dip -> at_location);
-	      add_symbol_to_list (sym, list_in_scope);
-	      if (optimized_out)
+	      int loc = locval (dip);
+	      if (dip -> optimized_out)
 		{
 		  SYMBOL_CLASS (sym) = LOC_OPTIMIZED_OUT;
 		}
-	      else if (isreg)
+	      else if (dip -> isreg)
 		{
 		  SYMBOL_CLASS (sym) = LOC_REGISTER;
 		}
-	      else if (offreg)
+	      else if (dip -> offreg)
 		{
 		  SYMBOL_CLASS (sym) = LOC_BASEREG;
-		  SYMBOL_BASEREG (sym) = basereg;
+		  SYMBOL_BASEREG (sym) = dip -> basereg;
 		}
 	      else
 		{
 		  SYMBOL_CLASS (sym) = LOC_STATIC;
 		  SYMBOL_VALUE (sym) += baseaddr;
 		}
+	      if (SYMBOL_CLASS (sym) == LOC_STATIC)
+		{
+		  /* LOC_STATIC address class MUST use SYMBOL_VALUE_ADDRESS,
+		     which may store to a bigger location than SYMBOL_VALUE. */
+		  SYMBOL_VALUE_ADDRESS (sym) = loc;
+		}
+	      else
+		{
+		  SYMBOL_VALUE (sym) = loc;
+		}
+	      add_symbol_to_list (sym, list_in_scope);
 	    }
 	  break;
 	case TAG_formal_parameter:
 	  if (dip -> at_location != NULL)
 	    {
-	      SYMBOL_VALUE (sym) = locval (dip -> at_location);
+	      SYMBOL_VALUE (sym) = locval (dip);
 	    }
 	  add_symbol_to_list (sym, list_in_scope);
-	  if (isreg)
+	  if (dip -> isreg)
 	    {
 	      SYMBOL_CLASS (sym) = LOC_REGPARM;
 	    }
-	  else if (offreg)
+	  else if (dip -> offreg)
 	    {
 	      SYMBOL_CLASS (sym) = LOC_BASEREG_ARG;
-	      SYMBOL_BASEREG (sym) = basereg;
+	      SYMBOL_BASEREG (sym) = dip -> basereg;
 	    }
 	  else
 	    {

@@ -1,5 +1,5 @@
 /* Low level interface to ptrace, for GDB when running under Unix.
-   Copyright 1986, 1987, 1989, 1991, 1992, 1995 Free Software Foundation, Inc.
+   Copyright 1986-87, 1989, 1991-92, 1995, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "serial.h"
 #include "terminal.h"
 #include "target.h"
-#include "thread.h"
+#include "gdbthread.h"
 
 #include "gdb_string.h"
 #include <signal.h>
@@ -38,6 +38,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PROCESS_GROUP_TYPE pid_t
 #endif
 
+#ifdef HAVE_TERMIO
+#define PROCESS_GROUP_TYPE int
+#endif
+
 #ifdef HAVE_SGTTY
 #ifdef SHORT_PGRP
 /* This is only used for the ultra.  Does it have pid_t?  */
@@ -46,6 +50,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PROCESS_GROUP_TYPE int
 #endif
 #endif /* sgtty */
+
+#if defined (SIGIO) && defined (FASYNC) && defined (FD_SET) && defined (F_SETOWN)
+static void
+handle_sigio PARAMS ((int));
+#endif
+
+static void
+pass_signal PARAMS ((int));
 
 static void
 kill_command PARAMS ((char *, int));
@@ -82,6 +94,7 @@ PROCESS_GROUP_TYPE inferior_process_group;
    inferior only.  If we have job control, that takes care of it.  If not,
    we save our handlers in these two variables and set SIGINT and SIGQUIT
    to SIG_IGN.  */
+
 static void (*sigint_ours) ();
 static void (*sigquit_ours) ();
 
@@ -94,7 +107,7 @@ static char *inferior_thisrun_terminal;
    inferior's settings are in effect.  Ignored if !gdb_has_a_terminal
    ().  */
 
-static int terminal_is_ours;
+int terminal_is_ours;
 
 enum {yes, no, have_not_checked} gdb_has_a_terminal_flag = have_not_checked;
 
@@ -129,6 +142,9 @@ gdb_has_a_terminal ()
 #ifdef HAVE_TERMIOS
 	      our_process_group = tcgetpgrp (0);
 #endif
+#ifdef HAVE_TERMIO
+	      our_process_group = getpgrp ();
+#endif
 #ifdef HAVE_SGTTY
 	      ioctl (0, TIOCGPGRP, &our_process_group);
 #endif
@@ -155,7 +171,8 @@ static void terminal_ours_1 PARAMS ((int));
    before we actually run the inferior.  */
 
 void
-terminal_init_inferior ()
+terminal_init_inferior_with_pgrp (pgrp)
+     int pgrp;
 {
   if (gdb_has_a_terminal ())
     {
@@ -164,18 +181,9 @@ terminal_init_inferior ()
       if (inferior_ttystate)
 	free (inferior_ttystate);
       inferior_ttystate = SERIAL_GET_TTY_STATE (stdin_serial);
+
 #ifdef PROCESS_GROUP_TYPE
-#ifdef PIDGET
-      /* This is for Lynx, and should be cleaned up by having Lynx be
-	 a separate debugging target with a version of
-	 target_terminal_init_inferior which passes in the process
-	 group to a generic routine which does all the work (and the
-	 non-threaded child_terminal_init_inferior can just pass in
-	 inferior_pid to the same routine).  */
-      inferior_process_group = PIDGET (inferior_pid);
-#else
-      inferior_process_group = inferior_pid;
-#endif
+      inferior_process_group = pgrp;
 #endif
 
       /* Make sure that next time we call terminal_inferior (which will be
@@ -183,6 +191,20 @@ terminal_init_inferior ()
 	 process group.  */
       terminal_is_ours = 1;
     }
+}
+
+void
+terminal_init_inferior ()
+{
+#ifdef PROCESS_GROUP_TYPE
+  /* This is for Lynx, and should be cleaned up by having Lynx be a separate
+     debugging target with a version of target_terminal_init_inferior which
+     passes in the process group to a generic routine which does all the work
+     (and the non-threaded child_terminal_init_inferior can just pass in
+     inferior_pid to the same routine).  */
+  /* We assume INFERIOR_PID is also the child's process group.  */
+  terminal_init_inferior_with_pgrp (PIDGET (inferior_pid));
+#endif /* PROCESS_GROUP_TYPE */
 }
 
 /* Put the inferior's terminal settings into effect.
@@ -214,7 +236,9 @@ terminal_inferior ()
       if (!job_control)
 	{
 	  sigint_ours = (void (*) ()) signal (SIGINT, SIG_IGN);
+#ifdef SIGQUIT
 	  sigquit_ours = (void (*) ()) signal (SIGQUIT, SIG_IGN);
+#endif
 	}
 
       /* If attach_flag is set, we don't know whether we are sharing a
@@ -307,6 +331,9 @@ terminal_ours_1 (output_only)
 #ifdef HAVE_TERMIOS
       inferior_process_group = tcgetpgrp (0);
 #endif
+#ifdef HAVE_TERMIO
+      inferior_process_group = getpgrp ();
+#endif
 #ifdef HAVE_SGTTY
       ioctl (0, TIOCGPGRP, &inferior_process_group);
 #endif
@@ -356,7 +383,9 @@ terminal_ours_1 (output_only)
       if (!job_control)
 	{
 	  signal (SIGINT, sigint_ours);
+#ifdef SIGQUIT
 	  signal (SIGQUIT, sigquit_ours);
+#endif
 	}
 
 #ifdef F_GETFL
@@ -478,7 +507,7 @@ new_tty ()
 
   if (inferior_thisrun_terminal == 0)
     return;
-#if !defined(__GO32__) && !defined(__WIN32__)
+#if !defined(__GO32__) && !defined(_WIN32)
 #ifdef TIOCNOTTY
   /* Disconnect the child process from our controlling terminal.  On some
      systems (SVR4 for example), this may cause a SIGTTOU, so temporarily
@@ -559,7 +588,9 @@ static void
 pass_signal (signo)
     int signo;
 {
-  kill (inferior_pid, SIGINT);
+#ifndef _WIN32
+  kill (PIDGET (inferior_pid), SIGINT);
+#endif
 }
 
 static void (*osig)();
@@ -599,8 +630,10 @@ handle_sigio (signo)
   numfds = select (target_activity_fd + 1, &readfds, NULL, NULL, NULL);
   if (numfds >= 0 && FD_ISSET (target_activity_fd, &readfds))
     {
+#ifndef _WIN32
       if ((*target_activity_function) ())
 	kill (inferior_pid, SIGINT);
+#endif
     }
 }
 

@@ -40,15 +40,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <errno.h>
 
 #if 0	/* Currently unused */
-static void f_type_print_args PARAMS ((struct type *, FILE *));
+static void f_type_print_args PARAMS ((struct type *, GDB_FILE *));
 #endif
 
-static void f_type_print_varspec_suffix PARAMS ((struct type *, FILE *,
+static void print_equivalent_f77_float_type PARAMS ((struct type *,
+						     GDB_FILE *));
+
+static void f_type_print_varspec_suffix PARAMS ((struct type *, GDB_FILE *,
 						 int, int, int));
 
-void f_type_print_varspec_prefix PARAMS ((struct type *, FILE *, int, int));
+void f_type_print_varspec_prefix PARAMS ((struct type *, GDB_FILE *,
+					  int, int));
 
-void f_type_print_base PARAMS ((struct type *, FILE *, int, int));
+void f_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
 
 
 /* LEVEL is the depth to indent lines by.  */
@@ -57,7 +61,7 @@ void
 f_print_type (type, varstring, stream, show, level)
      struct type *type;
      char *varstring;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {
@@ -100,7 +104,7 @@ f_print_type (type, varstring, stream, show, level)
 void
 f_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int passed_a_ptr;
 {
@@ -158,7 +162,7 @@ f_type_print_varspec_prefix (type, stream, show, passed_a_ptr)
 static void
 f_type_print_args (type, stream)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   int i;
   struct type **args;
@@ -198,7 +202,7 @@ f_type_print_args (type, stream)
 static void
 f_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int passed_a_ptr;
      int demangled_args;
@@ -307,10 +311,10 @@ f_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
     }
 }
 
-void
+static void
 print_equivalent_f77_float_type (type, stream)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   /* Override type name "float" and make it the
      appropriate real. XLC stupidly outputs -12 as a type
@@ -335,7 +339,7 @@ print_equivalent_f77_float_type (type, stream)
 void
 f_type_print_base (type, stream, show, level)
      struct type *type;
-     FILE *stream;
+     GDB_FILE *stream;
      int show;
      int level;
 {

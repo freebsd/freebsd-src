@@ -1,5 +1,5 @@
 /* Data structures associated with breakpoints in GDB.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93, 94, 95, 96, 98, 1999 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
       possible like a single-step to wait_for_inferior).  */
 
 enum bptype {
+  bp_none = 0,                  /* Eventpoint has been deleted. */
   bp_breakpoint,		/* Normal breakpoint */
   bp_hardware_breakpoint,	/* Hardware assisted breakpoint */
   bp_until,			/* used by until command */
@@ -87,17 +88,55 @@ enum bptype {
      when these significant events occur.  GDB can then re-examine
      the dynamic linker's data structures to discover any newly loaded
      dynamic libraries.  */
-  bp_shlib_event
+  bp_shlib_event,
+ 
+  /* These breakpoints are used to implement the "catch load" command
+     on platforms whose dynamic linkers support such functionality.  */
+  bp_catch_load,
+ 
+  /* These breakpoints are used to implement the "catch unload" command
+     on platforms whose dynamic linkers support such functionality.  */
+  bp_catch_unload,
+ 
+  /* These are not really breakpoints, but are catchpoints that
+     implement the "catch fork", "catch vfork" and "catch exec" commands
+     on platforms whose kernel support such functionality.  (I.e.,
+     kernels which can raise an event when a fork or exec occurs, as
+     opposed to the debugger setting breakpoints on functions named
+     "fork" or "exec".) */
+  bp_catch_fork,
+  bp_catch_vfork,
+  bp_catch_exec,
+
+  /* These are catchpoints to implement "catch catch" and "catch throw"
+     commands for C++ exception handling. */
+  bp_catch_catch,
+  bp_catch_throw
+ 
 };
 
 /* States of enablement of breakpoint. */
 
-enum enable { disabled, enabled, shlib_disabled};
+enum enable { 
+  disabled,           /* The eventpoint is inactive, and cannot trigger. */
+  enabled,            /* The eventpoint is active, and can trigger. */
+  shlib_disabled,     /* The eventpoint's address is within an unloaded solib.
+                         The eventpoint will be automatically enabled & reset
+                         when that solib is loaded. */
+  call_disabled       /* The eventpoint has been disabled while a call into
+                         the inferior is "in flight", because some eventpoints
+                         interfere with the implementation of a call on some
+                         targets.  The eventpoint will be automatically enabled
+                         & reset when the call "lands" (either completes, or
+                         stops at another eventpoint). */
+};
+
 
 /* Disposition of breakpoint.  Ie: what to do after hitting it. */
 
 enum bpdisp {
   del,				/* Delete it */
+  del_at_next_stop,		/* Delete at next stop, whether hit or not */
   disable,			/* Disable it */
   donttouch			/* Leave it alone */
 };
@@ -204,6 +243,24 @@ struct breakpoint
      aborting, so you can back up to just before the abort.  */
   int hit_count;
 
+  /* Filename of a dynamically-linked library (dll), used for bp_catch_load
+     and bp_catch_unload (malloc'd), or NULL if any library is significant.  */
+  char *  dll_pathname;
+ 
+  /* Filename of a dll whose state change (e.g., load or unload)
+     triggered this catchpoint.  This field is only vaid immediately
+     after this catchpoint has triggered.  */
+  char *  triggered_dll_pathname;
+ 
+  /* Process id of a child process whose forking triggered this catchpoint.
+     This field is only vaid immediately after this catchpoint has triggered.  */
+  int  forked_inferior_pid;
+ 
+  /* Filename of a program whose exec triggered this catchpoint.  This
+     field is only vaid immediately after this catchpoint has triggered.  */
+  char *  exec_pathname;
+  
+  asection *section;
 };
 
 /* The following stuff is an abstract data type "bpstat" ("breakpoint status").
@@ -274,6 +331,10 @@ enum bpstat_what_main_action {
      keep checking.  */
   BPSTAT_WHAT_CHECK_SHLIBS,
 
+  /* Check the dynamic linker's data structures for new libraries, then
+     resume out of the dynamic linker's callback, stop and print.  */
+  BPSTAT_WHAT_CHECK_SHLIBS_RESUME_FROM_HOOK,
+
   /* This is just used to keep track of how many enums there are.  */
   BPSTAT_WHAT_LAST
 };
@@ -294,6 +355,18 @@ struct bpstat_what bpstat_what PARAMS ((bpstat));
 /* Find the bpstat associated with a breakpoint.  NULL otherwise. */
 bpstat bpstat_find_breakpoint PARAMS ((bpstat, struct breakpoint *));
 
+/* Find a step_resume breakpoint associated with this bpstat.
+   (If there are multiple step_resume bp's on the list, this function
+   will arbitrarily pick one.)
+
+   It is an error to use this function if BPSTAT doesn't contain a
+   step_resume breakpoint.
+
+   See wait_for_inferior's use of this function.
+   */
+extern struct breakpoint *
+bpstat_find_step_resume_breakpoint PARAMS ((bpstat));
+
 /* Nonzero if a signal that we got in wait() was due to circumstances
    explained by the BS.  */
 /* Currently that is true if we have hit a breakpoint, or if there is
@@ -304,6 +377,9 @@ bpstat bpstat_find_breakpoint PARAMS ((bpstat, struct breakpoint *));
    without hardware support).  This isn't related to a specific bpstat,
    just to things like whether watchpoints are set.  */
 extern int bpstat_should_step PARAMS ((void));
+
+/* Nonzero if there are enabled hardware watchpoints. */
+extern int bpstat_have_active_hw_watchpoints PARAMS ((void));
 
 /* Print a message indicating what happened.  Returns nonzero to
    say that only the source line should be printed after this (zero
@@ -325,6 +401,12 @@ extern void bpstat_do_actions PARAMS ((bpstat *));
 /* Modify BS so that the actions will not be performed.  */
 extern void bpstat_clear_actions PARAMS ((bpstat));
 
+/* Given a bpstat that records zero or more triggered eventpoints, this
+   function returns another bpstat which contains only the catchpoints
+   on that first list, if any.
+   */
+extern void bpstat_get_triggered_catchpoints PARAMS ((bpstat, bpstat *));
+ 
 /* Implementation:  */
 struct bpstats
 {
@@ -349,6 +431,14 @@ struct bpstats
      bpstat_print, or -1 if it can't deal with it.  */
   int (*print_it) PARAMS((bpstat bs));
 };
+
+enum inf_context
+{
+  inf_starting,
+  inf_running,
+  inf_exited
+};
+
 
 /* Prototypes for breakpoint-related functions.  */
 
@@ -358,6 +448,8 @@ struct frame_info;
 
 extern int breakpoint_here_p PARAMS ((CORE_ADDR));
 
+extern int breakpoint_inserted_here_p PARAMS ((CORE_ADDR));
+
 extern int frame_in_dummy PARAMS ((struct frame_info *));
 
 extern int breakpoint_thread_match PARAMS ((CORE_ADDR, int));
@@ -366,7 +458,9 @@ extern void until_break_command PARAMS ((char *, int));
 
 extern void breakpoint_re_set PARAMS ((void));
 
-extern void clear_momentary_breakpoints PARAMS ((void));
+extern void breakpoint_re_set_thread PARAMS ((struct breakpoint *));
+
+extern int ep_is_exception_catchpoint PARAMS ((struct breakpoint *));
 
 extern struct breakpoint *set_momentary_breakpoint
   PARAMS ((struct symtab_and_line, struct frame_info *, enum bptype));
@@ -377,7 +471,7 @@ extern void set_default_breakpoint PARAMS ((int, CORE_ADDR, struct symtab *, int
 
 extern void mark_breakpoints_out PARAMS ((void));
 
-extern void breakpoint_init_inferior PARAMS ((void));
+extern void breakpoint_init_inferior PARAMS ((enum inf_context));
 
 extern void delete_breakpoint PARAMS ((struct breakpoint *));
 
@@ -387,16 +481,80 @@ extern void breakpoint_clear_ignore_counts PARAMS ((void));
 
 extern void break_command PARAMS ((char *, int));
 
+extern void tbreak_command PARAMS ((char *, int));
+
 extern int insert_breakpoints PARAMS ((void));
 
 extern int remove_breakpoints PARAMS ((void));
 
+/* This function can be used to physically insert eventpoints from the
+   specified traced inferior process, without modifying the breakpoint
+   package's state.  This can be useful for those targets which support
+   following the processes of a fork() or vfork() system call, when both
+   of the resulting two processes are to be followed.  */
+extern int reattach_breakpoints PARAMS ((int));
+
+/* This function can be used to update the breakpoint package's state
+   after an exec() system call has been executed.
+
+   This function causes the following:
+
+     - All eventpoints are marked "not inserted".
+     - All eventpoints with a symbolic address are reset such that
+       the symbolic address must be reevaluated before the eventpoints
+       can be reinserted.
+     - The solib breakpoints are explicitly removed from the breakpoint
+       list.
+     - A step-resume breakpoint, if any, is explicitly removed from the
+       breakpoint list.
+     - All eventpoints without a symbolic address are removed from the
+       breakpoint list. */
+extern void update_breakpoints_after_exec PARAMS ((void));
+
+/* This function can be used to physically remove hardware breakpoints
+   and watchpoints from the specified traced inferior process, without
+   modifying the breakpoint package's state.  This can be useful for
+   those targets which support following the processes of a fork() or
+   vfork() system call, when one of the resulting two processes is to
+   be detached and allowed to run free.
+ 
+   It is an error to use this function on the process whose id is
+   inferior_pid.  */
+extern int detach_breakpoints PARAMS ((int));
+ 
 extern void enable_longjmp_breakpoint PARAMS ((void));
 
 extern void disable_longjmp_breakpoint PARAMS ((void));
 
 extern void set_longjmp_resume_breakpoint PARAMS ((CORE_ADDR,
 						   struct frame_info *));
+/* These functions respectively disable or reenable all currently
+   enabled watchpoints.  When disabled, the watchpoints are marked
+   call_disabled.  When reenabled, they are marked enabled.
+
+   The intended client of these functions is infcmd.c\run_stack_dummy.
+
+   The inferior must be stopped, and all breakpoints removed, when
+   these functions are used.
+
+   The need for these functions is that on some targets (e.g., HP-UX),
+   gdb is unable to unwind through the dummy frame that is pushed as
+   part of the implementation of a call command.  Watchpoints can
+   cause the inferior to stop in places where this frame is visible,
+   and that can cause execution control to become very confused.
+
+   Note that if a user sets breakpoints in an interactively call
+   function, the call_disabled watchpoints will have been reenabled
+   when the first such breakpoint is reached.  However, on targets
+   that are unable to unwind through the call dummy frame, watches
+   of stack-based storage may then be deleted, because gdb will
+   believe that their watched storage is out of scope.  (Sigh.) */
+extern void
+disable_watchpoints_before_interactive_call_start PARAMS ((void));
+
+extern void
+enable_watchpoints_after_interactive_call_stop PARAMS ((void));
+
  
 extern void clear_breakpoint_hit_counts PARAMS ((void));
 
@@ -419,6 +577,28 @@ extern void create_solib_event_breakpoint PARAMS ((CORE_ADDR));
 
 extern void remove_solib_event_breakpoints PARAMS ((void));
 
+extern void disable_breakpoints_in_shlibs PARAMS ((int silent));
+
 extern void re_enable_breakpoints_in_shlibs PARAMS ((void));
+
+extern void create_solib_load_event_breakpoint PARAMS ((char *, int, char *, char *));
+ 
+extern void create_solib_unload_event_breakpoint PARAMS ((char *, int, char *, char *));
+ 
+extern void create_fork_event_catchpoint PARAMS ((int, char *));
+ 
+extern void create_vfork_event_catchpoint PARAMS ((int, char *));
+
+extern void create_exec_event_catchpoint PARAMS ((int, char *));
+ 
+/* This function returns TRUE if ep is a catchpoint. */
+extern int ep_is_catchpoint PARAMS ((struct breakpoint *));
+ 
+/* This function returns TRUE if ep is a catchpoint of a
+   shared library (aka dynamically-linked library) event,
+   such as a library load or unload. */
+extern int ep_is_shlib_catchpoint PARAMS ((struct breakpoint *));
+ 
+extern struct breakpoint *set_breakpoint_sal PARAMS ((struct symtab_and_line));
 
 #endif /* !defined (BREAKPOINT_H) */

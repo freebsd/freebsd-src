@@ -1,6 +1,6 @@
 /* Generic support for remote debugging interfaces.
 
-   Copyright 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -50,6 +50,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "inferior.h" /* for generic_mourn_inferior */
 #include "remote-utils.h"
 
+
+void _initialize_sr_support PARAMS ((void));
+
 struct _sr_settings sr_settings = {
   4, /* timeout:
 	remote-hms.c had 2
@@ -68,6 +71,9 @@ struct _sr_settings sr_settings = {
 };
 
 struct gr_settings *gr_settings = NULL;
+
+static void usage PARAMS ((char *, char *));
+static void sr_com PARAMS ((char *, int));
 
 static void
 usage(proto, junk)
@@ -241,10 +247,12 @@ sr_pollchar()
   if (buf == SERIAL_TIMEOUT)
     buf = 0;
   if (sr_get_debug() > 0)
-    if (buf)
-      printf_unfiltered ("%c", buf);
-    else
-      printf_unfiltered ("<empty character poll>");
+    {
+      if (buf)
+        printf_unfiltered ("%c", buf);
+      else
+        printf_unfiltered ("<empty character poll>");
+    }
 
   return buf & 0x7f;
 }
@@ -380,7 +388,7 @@ sr_get_hex_word ()
    prompt from the remote is seen.
    FIXME: Can't handle commands that take input.  */
 
-void
+static void
 sr_com (args, fromtty)
      char *args;
      int fromtty;
@@ -488,7 +496,7 @@ gr_create_inferior (execfile, args, env)
     error ("Can't pass arguments to remote process.");
 
   if (execfile == 0 || exec_bfd == 0)
-    error ("No exec file specified");
+    error ("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
   sr_check_open ();
