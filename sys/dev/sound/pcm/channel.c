@@ -115,11 +115,21 @@ chn_pollreset(struct pcm_channel *c)
 static void
 chn_wakeup(struct pcm_channel *c)
 {
-    	struct snd_dbuf *bs = c->bufsoft;
+	struct snd_dbuf *bs = c->bufsoft;
+	struct pcmchan_children *pce;
 
 	CHN_LOCKASSERT(c);
-	if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
-		selwakeuppri(sndbuf_getsel(bs), PRIBIO);
+	if (SLIST_EMPTY(&c->children)) {
+		if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
+			selwakeup(sndbuf_getsel(bs));
+	} else {
+		SLIST_FOREACH(pce, &c->children, link) {
+			CHN_LOCK(pce->channel);
+			chn_wakeup(pce->channel);
+			CHN_UNLOCK(pce->channel);
+		}
+	}
+
 	wakeup(bs);
 }
 
