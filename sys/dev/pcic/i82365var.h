@@ -59,9 +59,9 @@ struct pcic_handle {
 	int	flags;
 	int laststate;
 	int	memalloc;
-	struct pccard_mem_handle mem[PCIC_MEM_WINS];
+	struct pccard_mem_handle mem[PCIC_MEM_WINS];	/* XXX BAD XXX */
 	int	ioalloc;
-	struct pccard_io_handle io[PCIC_IO_WINS];
+	struct pccard_io_handle io[PCIC_IO_WINS];	/* XXX BAD XXX */
 	int	ih_irq;
 
 	int shutdown;
