@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.21 1995/01/28 13:17:38 jkh Exp $
+$Id: MIRROR.SITES,v 1.22 1995/01/30 21:58:39 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -19,6 +19,9 @@ France		ftp://ftp.ibp.fr/pub/FreeBSD
 
 Germany		ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD
 		<ftp@ftp.fb9dv.uni-duisburg.de>
+
+Hong Kong	ftp://ftp.hk.super.net/pub/FreeBSD
+		<ftp-admin@HK.Super.NET>
 
 Korea		ftp://ftp.cau.ac.kr/pub/FreeBSD
 		<ftpadm@ftp.cau.ac.kr>
