@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
@@ -193,6 +194,17 @@ cpu_fork(td1, p2, td2, flags)
 	td2->td_frame->tf_eax = 0;		/* Child returns zero */
 	td2->td_frame->tf_eflags &= ~PSL_C;	/* success */
 	td2->td_frame->tf_edx = 1;
+
+	/*
+	 * If the parent process has the trap bit set (i.e. a debugger had
+	 * single stepped the process to the system call), we need to clear
+	 * the trap flag from the new frame unless the debugger had set PF_FORK
+	 * on the parent.  Otherwise, the child will receive a (likely
+	 * unexpected) SIGTRAP when it executes the first instruction after
+	 * returning  to userland.
+	 */
+	if ((p1->p_pfsflags & PF_FORK) == 0)
+		td2->td_frame->tf_eflags &= ~PSL_T;
 
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
