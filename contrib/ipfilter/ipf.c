@@ -50,7 +50,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.14 2002/04/10 04:56:36 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.16 2002/06/06 10:48:35 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -193,8 +193,11 @@ char *ipfdev;
 
 	if (!(opts & OPT_DONOTHING) && fd == -1)
 		if ((fd = open(ipfdev, O_RDWR)) == -1)
-			if ((fd = open(ipfdev, O_RDONLY)) == -1)
+			if ((fd = open(ipfdev, O_RDONLY)) == -1) {
 				perror("open device");
+				if (errno == ENODEV)
+					fprintf(stderr, "IPFilter enabled?\n");
+			}
 	return fd;
 }
 

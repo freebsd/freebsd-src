@@ -28,7 +28,7 @@ echo ""
 echo "Linking /usr/include/osreldate.h to /sys/sys/osreldate.h"
 ln -s /usr/include/osreldate.h /sys/sys/osreldate.h
 
-set patchfile=FreeBSd-4.0/ipv6-patch-$krev
+set patchfile=FreeBSD-4.0/ipv6-patch-$krev
 if ( -f $patchfile ) then
 	echo ""
 	echo "Patching ip6_input.c and ip6_output.c"
