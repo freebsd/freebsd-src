@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.15 1997/04/06 11:49:46 kato Exp $
+ *	$Id: trap.c,v 1.16 1997/04/07 11:00:48 kato Exp $
  */
 
 /*
@@ -84,6 +84,8 @@
 
 #include "isa.h"
 #include "npx.h"
+
+extern struct i386tss common_tss;
 
 int (*pmath_emulate) __P((struct trapframe *));
 
@@ -809,15 +811,11 @@ trap_fatal(frame)
 void
 dblfault_handler()
 {
-	struct pcb *pcb = curpcb;
 
-	if (pcb != NULL) {
-		printf("\nFatal double fault:\n");
-		printf("eip = 0x%x\n", pcb->pcb_eip);
-		printf("esp = 0x%x\n", pcb->pcb_esp);
-		printf("ebp = 0x%x\n", pcb->pcb_ebp);
-	}
-
+	printf("\nFatal double fault:\n");
+	printf("eip = 0x%x\n", common_tss.tss_eip);
+	printf("esp = 0x%x\n", common_tss.tss_esp);
+	printf("ebp = 0x%x\n", common_tss.tss_ebp);
 	panic("double fault");
 }
 
