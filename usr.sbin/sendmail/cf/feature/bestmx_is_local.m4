@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bestmx_is_local.m4	8.4 (Berkeley) 10/23/96')
+VERSIONID(`@(#)bestmx_is_local.m4	8.5 (Berkeley) 3/28/97')
 divert(-1)
 
 LOCAL_CONFIG
@@ -60,7 +60,7 @@ LOCAL_NET_CONFIG
 ifelse(_ARG_, `', `', `#')dnl		unlimited bestmx
 R$* < @ $* > $*			$: $1 < @ $2 @@ $(bestmx $2 $) > $3
 ifelse(_ARG_, `', `#', `')dnl		limit bestmx to $=B
-R$* < @ $* $=B > $*		$: $1 < @ $2 $3 @@ $(bestmx $2 $3 $) > $4
+R$* < @ $* $=B . > $*		$: $1 < @ $2 $3 . @@ $(bestmx $2 $3 . $) > $4
 R$* $=O $* < @ $* @@ $=w . > $*	$@ $>97 $1 $2 $3
 R$* < @ $* @@ $=w . > $*	$#local $: $1
 R$* < @ $* @@ $* > $*		$: $1 < @ $2 > $4

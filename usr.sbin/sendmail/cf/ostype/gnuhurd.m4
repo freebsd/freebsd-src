@@ -1,4 +1,4 @@
-PUSHDIVERT(-1)
+divert(-1)
 #
 # Copyright (c) 1983 Eric P. Allman
 # Copyright (c) 1988, 1993
@@ -32,23 +32,10 @@ PUSHDIVERT(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+#
 
-ifdef(`PROCMAIL_MAILER_PATH',,
-	`ifdef(`PROCMAIL_PATH',
-		`define(`PROCMAIL_MAILER_PATH', PROCMAIL_PATH)',
-		`define(`PROCMAIL_MAILER_PATH', /usr/local/bin/procmail)')')
-ifdef(`PROCMAIL_MAILER_FLAGS',,
-	`define(`PROCMAIL_MAILER_FLAGS', `SPhnu9')')
-ifdef(`PROCMAIL_MAILER_ARGS',,
-	`define(`PROCMAIL_MAILER_ARGS', `procmail -Y -m $h $f $u')')
-
-POPDIVERT
-
-######################*****##############
-###   PROCMAIL Mailer specification   ###
-##################*****##################
-
-VERSIONID(`@(#)procmail.m4	8.6 (Berkeley) 4/30/97')
-
-Mprocmail,	P=PROCMAIL_MAILER_PATH, F=CONCAT(`DFM', PROCMAIL_MAILER_FLAGS), S=11/31, R=21/31, T=DNS/RFC822/X-Unix,
-		ifdef(`PROCMAIL_MAILER_MAX', `M=PROCMAIL_MAILER_MAX, ')A=PROCMAIL_MAILER_ARGS
+divert(0)
+VERSIONID(`@(#)gnuhurd.m4	8.1 (Berkeley) 3/8/97')
+ifdef(`HELP_FILE',, `define(`HELP_FILE', /share/misc/sendmail.hf)')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/log/sendmail.st)')dnl
+ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /libexec/mail.local)')dnl
