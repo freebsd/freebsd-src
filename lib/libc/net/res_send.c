@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.13 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_send.c,v 1.17 1997/06/27 13:00:51 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.18 1997/06/28 04:19:52 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -81,6 +81,10 @@ static char rcsid[] = "$Id: res_send.c,v 1.17 1997/06/27 13:00:51 peter Exp $";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <poll.h>
+
+static int use_poll = 1;	/* adapt to poll() syscall availability */
+				/* 0 = not present, 1 = try it, 2 = exists */
 
 static int s = -1;	/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
@@ -468,6 +472,8 @@ read_len:
 			/*
 			 * Use datagrams.
 			 */
+			struct pollfd pfd;
+			int msec;
 			struct timeval timeout;
 			fd_set dsmask, *dsmaskp;
 			int dsmasklen;
@@ -569,36 +575,72 @@ read_len:
 			/*
 			 * Wait for reply
 			 */
-			timeout.tv_sec = (_res.retrans << try);
-			if (try > 0)
-				timeout.tv_sec /= _res.nscount;
-			if ((long) timeout.tv_sec <= 0)
-				timeout.tv_sec = 1;
-			timeout.tv_usec = 0;
+    othersyscall:
+			if (use_poll) {
+				msec = (_res.retrans << try) * 1000;
+				if (try > 0)
+					msec /= _res.nscount;
+				if (msec <= 0)
+					msec = 1000;
+			} else {
+			    timeout.tv_sec = (_res.retrans << try);
+				if (try > 0)
+					timeout.tv_sec /= _res.nscount;
+				if ((long) timeout.tv_sec <= 0)
+					timeout.tv_sec = 1;
+			}
     wait:
-			dsmasklen = howmany(s+1, NFDBITS) * sizeof(fd_mask);
-			if (dsmasklen > sizeof(fd_set)) {
-				dsmaskp = (fd_set *)malloc(dsmasklen);
-				if (dsmaskp == NULL) {
+			if (use_poll) {
+				struct sigaction sa, osa;
+				int sigsys_installed = 0;
+
+				pfd.fd = s;
+				pfd.events = POLLIN;
+				if (use_poll == 1) {
+					bzero(&sa, sizeof(sa));
+					sa.sa_handler = SIG_IGN;
+					if (sigaction(SIGSYS, &sa, &osa) >= 0)
+						sigsys_installed = 1;
+				}
+				n = poll(&pfd, 1, msec);
+				if (sigsys_installed == 1) {
+					int oerrno = errno;
+					sigaction(SIGSYS, &osa, NULL);
+					errno = oerrno;
+				}
+				if (n < 0) {
+					if (errno == ENOSYS) {
+						use_poll = 0;
+						goto othersyscall;
+					}
+					if (errno == EINTR)
+						goto wait;
+					Perror(stderr, "poll", errno);
 					res_close();
 					goto next_ns;
 				}
-			} else
-				dsmaskp = &dsmask;
-			/* only zero what we need */
-			bzero((char *)dsmaskp, dsmasklen);
-			FD_SET(s, dsmaskp);
-			n = select(s+1, dsmaskp, (fd_set *)NULL,
-				   (fd_set *)NULL, &timeout);
-			if (dsmaskp != &dsmask)
-				free(dsmaskp);
-			if (n < 0) {
-				if (errno == EINTR)
-					goto wait;
-				Perror(stderr, "select", errno);
-				res_close();
-				goto next_ns;
+				if (use_poll == 1)
+					use_poll = 2;
+			} else {
+				dsmasklen = howmany(s + 1, NFDBITS) *
+					    sizeof(fd_mask);
+				if (dsmasklen > sizeof(fd_set)) {
+					dsmaskp = (fd_set *)malloc(dsmasklen);
+					if (dsmaskp == NULL) {
+						res_close();
+						goto next_ns;
+					}
+				} else
+					dsmaskp = &dsmask;
+				/* only zero what we need */
+				bzero((char *)dsmaskp, dsmasklen);
+				FD_SET(s, dsmaskp);
+				n = select(s + 1, dsmaskp, (fd_set *)NULL,
+					   (fd_set *)NULL, &timeout);
+				if (dsmaskp != &dsmask)
+					free(dsmaskp);
 			}
+
 			if (n == 0) {
 				/*
 				 * timeout
