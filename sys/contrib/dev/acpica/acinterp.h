@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 87 $
+ *       $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -138,6 +138,7 @@
 #define METHOD_DELETE_AT_COMPLETION 0x2
 
 
+
 ACPI_STATUS
 AcpiAmlResolveOperands (
     UINT16                  Opcode,
@@ -161,9 +162,34 @@ AcpiAmlExecuteMethod (
 
 
 /*
- * amfield - ACPI AML (p-code) execution - field manipulation
+ * amconvrt - object conversion
  */
 
+ACPI_STATUS
+AcpiAmlConvertToInteger (
+    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiAmlConvertToBuffer (
+    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiAmlConvertToString (
+    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiAmlConvertToTargetType (
+    OBJECT_TYPE_INTERNAL    DestinationType,
+    ACPI_OPERAND_OBJECT     **ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+
+/*
+ * amfield - ACPI AML (p-code) execution - field manipulation
+ */
 
 ACPI_STATUS
 AcpiAmlReadField (
@@ -510,17 +536,75 @@ AcpiAmlExecStore (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiAmlStoreObjectToObject (
+AcpiAmlStoreObjectToIndex (
     ACPI_OPERAND_OBJECT     *ValDesc,
     ACPI_OPERAND_OBJECT     *DestDesc,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiAmlStoreObjectToNode (
-    ACPI_OPERAND_OBJECT     *ValDesc,
+    ACPI_OPERAND_OBJECT     *SourceDesc,
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_WALK_STATE         *WalkState);
 
+ACPI_STATUS
+AcpiAmlStoreObjectToObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *DestDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+
+/*
+ * 
+ */
+
+ACPI_STATUS
+AcpiAmlResolveObject (
+    ACPI_OPERAND_OBJECT     **SourceDescPtr,
+    OBJECT_TYPE_INTERNAL    TargetType,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiAmlStoreObject (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    OBJECT_TYPE_INTERNAL    TargetType,
+    ACPI_OPERAND_OBJECT     **TargetDescPtr,
+    ACPI_WALK_STATE         *WalkState);
+
+
+/*
+ * amcopy - object copy
+ */
+
+ACPI_STATUS
+AcpiAmlCopyBufferToBuffer (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *TargetDesc);
+
+ACPI_STATUS
+AcpiAmlCopyStringToString (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *TargetDesc);
+
+ACPI_STATUS
+AcpiAmlCopyIntegerToIndexField (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *TargetDesc);
+
+ACPI_STATUS
+AcpiAmlCopyIntegerToBankField (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *TargetDesc);
+
+ACPI_STATUS
+AcpiAmlCopyDataToNamedField (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_NAMESPACE_NODE     *Node);
+
+ACPI_STATUS
+AcpiAmlCopyIntegerToFieldUnit (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_OPERAND_OBJECT     *TargetDesc);
 
 /*
  * amutils - interpreter/scanner utilities

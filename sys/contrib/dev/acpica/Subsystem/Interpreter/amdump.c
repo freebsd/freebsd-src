@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amdump - Interpreter debug output routines
- *              $Revision: 97 $
+ *              $Revision: 100 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -130,7 +130,7 @@
  * The following routines are used for debug output only
  */
 
-#ifdef ACPI_DEBUG
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
 /*****************************************************************************
  *
@@ -334,12 +334,12 @@ AcpiAmlDumpOperand (
             DEBUG_PRINT_RAW (ACPI_INFO, ("Reference: Arg%d",
                         EntryDesc->Reference.Offset));
 
-            if (ACPI_TYPE_NUMBER == EntryDesc->Common.Type)
+            if (ACPI_TYPE_INTEGER == EntryDesc->Common.Type)
             {
                 /* Value is a Number */
 
                 DEBUG_PRINT_RAW (ACPI_INFO, (" value is [%ld]",
-                                            EntryDesc->Number.Value));
+                                            EntryDesc->Integer.Value));
             }
 
             DEBUG_PRINT_RAW (ACPI_INFO, ("\n"));
@@ -351,13 +351,13 @@ AcpiAmlDumpOperand (
             DEBUG_PRINT_RAW (ACPI_INFO, ("Reference: Local%d",
                         EntryDesc->Reference.Offset));
 
-            if (ACPI_TYPE_NUMBER == EntryDesc->Common.Type)
+            if (ACPI_TYPE_INTEGER == EntryDesc->Common.Type)
             {
 
                 /* Value is a Number */
 
                 DEBUG_PRINT_RAW (ACPI_INFO, (" value is [%ld]",
-                                            EntryDesc->Number.Value));
+                                            EntryDesc->Integer.Value));
             }
 
             DEBUG_PRINT_RAW (ACPI_INFO, ("\n"));
@@ -412,24 +412,24 @@ AcpiAmlDumpOperand (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
 
         DEBUG_PRINT_RAW (ACPI_INFO, ("Number %lX\n",
-                    EntryDesc->Number.Value));
+                    EntryDesc->Integer.Value));
         break;
 
 
     case INTERNAL_TYPE_IF:
 
         DEBUG_PRINT_RAW (ACPI_INFO, ("If [Number] %lX\n",
-                    EntryDesc->Number.Value));
+                    EntryDesc->Integer.Value));
         break;
 
 
     case INTERNAL_TYPE_WHILE:
 
         DEBUG_PRINT_RAW (ACPI_INFO, ("While [Number] %lX\n",
-                    EntryDesc->Number.Value));
+                    EntryDesc->Integer.Value));
         break;
 
 
@@ -763,10 +763,10 @@ AcpiAmlDumpObjectDescriptor (
 
     switch (ObjDesc->Common.Type)
     {
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
 
         AcpiOsPrintf ("%20s : %s\n", "Type", "Number");
-        AcpiOsPrintf ("%20s : %X\n", "Value", ObjDesc->Number.Value);
+        AcpiOsPrintf ("%20s : %X\n", "Value", ObjDesc->Integer.Value);
         break;
 
 
@@ -782,7 +782,6 @@ AcpiAmlDumpObjectDescriptor (
 
         AcpiOsPrintf ("%20s : %s\n", "Type", "Buffer");
         AcpiOsPrintf ("%20s : %X\n", "Length", ObjDesc->Buffer.Length);
-        AcpiOsPrintf ("%20s : %X\n", "Sequence", ObjDesc->Buffer.Sequence);
         AcpiOsPrintf ("%20s : %p\n", "Pointer", ObjDesc->Buffer.Pointer);
         break;
 

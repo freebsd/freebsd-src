@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amutils - interpreter/scanner utilities
- *              $Revision: 66 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -138,12 +138,9 @@ typedef struct Internal_Search_st
 
 
 /* Used to traverse nested packages when copying*/
+/* TBD: This must be removed! */
 
 INTERNAL_PKG_SEARCH_INFO        CopyLevel[MAX_PACKAGE_DEPTH];
-
-
-static NATIVE_CHAR          hex[] =
-    {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
 
 /*******************************************************************************
@@ -252,7 +249,7 @@ AcpiAmlTruncateFor32bitTable (
      */
 
     if ((!ObjDesc) ||
-        (ObjDesc->Common.Type != ACPI_TYPE_NUMBER) ||
+        (ObjDesc->Common.Type != ACPI_TYPE_INTEGER) ||
         (!WalkState->MethodNode))
     {
         return;
@@ -264,7 +261,7 @@ AcpiAmlTruncateFor32bitTable (
          * We are running a method that exists in a 32-bit ACPI table.
          * Truncate the value to 32 bits by zeroing out the upper 32-bit field
          */
-        ObjDesc->Number.Value &= (ACPI_INTEGER) ACPI_UINT32_MAX;
+        ObjDesc->Integer.Value &= (ACPI_INTEGER) ACPI_UINT32_MAX;
     }
 }
 
@@ -463,10 +460,10 @@ AcpiAmlEisaIdToString (
     OutString[0] = (char) ('@' + ((id >> 26) & 0x1f));
     OutString[1] = (char) ('@' + ((id >> 21) & 0x1f));
     OutString[2] = (char) ('@' + ((id >> 16) & 0x1f));
-    OutString[3] = hex[(id >> 12) & 0xf];
-    OutString[4] = hex[(id >> 8) & 0xf];
-    OutString[5] = hex[(id >> 4) & 0xf];
-    OutString[6] = hex[id & 0xf];
+    OutString[3] = AcpiGbl_HexToAscii[(id >> 12) & 0xf];
+    OutString[4] = AcpiGbl_HexToAscii[(id >> 8) & 0xf];
+    OutString[5] = AcpiGbl_HexToAscii[(id >> 4) & 0xf];
+    OutString[6] = AcpiGbl_HexToAscii[id & 0xf];
     OutString[7] = 0;
 
     return (AE_OK);

@@ -3,7 +3,7 @@
  * Module Name: rscreate - AcpiRsCreateResourceList
  *                         AcpiRsCreatePciRoutingTable
  *                         AcpiRsCreateByteStream
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  ******************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -341,10 +341,10 @@ AcpiRsCreatePciRoutingTable (
             /*
              * Dereference the Address
              */
-            if (ACPI_TYPE_NUMBER == (*SubObjectList)->Common.Type)
+            if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
                 UserPrt->Data.Address =
-                        (*SubObjectList)->Number.Value;
+                        (*SubObjectList)->Integer.Value;
             }
 
             else
@@ -357,10 +357,10 @@ AcpiRsCreatePciRoutingTable (
              */
             SubObjectList++;
 
-            if (ACPI_TYPE_NUMBER == (*SubObjectList)->Common.Type)
+            if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
                 UserPrt->Data.Pin =
-                        (UINT32) (*SubObjectList)->Number.Value;
+                        (UINT32) (*SubObjectList)->Integer.Value;
             }
 
             else
@@ -391,7 +391,7 @@ AcpiRsCreatePciRoutingTable (
                  * is NULL, since the entire buffer was zeroed
                  * out, we can leave this alone.
                  */
-                if (ACPI_TYPE_NUMBER == (*SubObjectList)->Common.Type)
+                if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
                 {
                     /*
                      * Add to the Length field the length of
@@ -415,10 +415,10 @@ AcpiRsCreatePciRoutingTable (
              */
             SubObjectList++;
 
-            if (ACPI_TYPE_NUMBER == (*SubObjectList)->Common.Type)
+            if (ACPI_TYPE_INTEGER == (*SubObjectList)->Common.Type)
             {
                 UserPrt->Data.SourceIndex =
-                        (UINT32) (*SubObjectList)->Number.Value;
+                        (UINT32) (*SubObjectList)->Integer.Value;
             }
 
             else

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -230,8 +230,8 @@ AcpiDbDumpObject (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
-        AcpiOsPrintf ("[Number]  Value: %ld (%lX)\n", ObjDesc->Number.Value, ObjDesc->Number.Value);
+    case ACPI_TYPE_INTEGER:
+        AcpiOsPrintf ("[Number]  Value: %ld (%lX)\n", ObjDesc->Integer.Value, ObjDesc->Integer.Value);
         break;
 
 

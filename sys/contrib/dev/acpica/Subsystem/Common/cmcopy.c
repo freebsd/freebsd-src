@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmcopy - Internal to external object translation utilities
- *              $Revision: 61 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -214,9 +214,9 @@ AcpiCmBuildExternalSimpleObject (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
 
-        ExternalObj->Number.Value= InternalObj->Number.Value;
+        ExternalObj->Integer.Value= InternalObj->Integer.Value;
         break;
 
 
@@ -584,11 +584,11 @@ AcpiCmBuildInternalSimpleObject (
         break;
 
 
-    case ACPI_TYPE_NUMBER:
+    case ACPI_TYPE_INTEGER:
         /*
          * Number is included in the object itself
          */
-        InternalObj->Number.Value   = ExternalObj->Number.Value;
+        InternalObj->Integer.Value   = ExternalObj->Integer.Value;
         break;
 
 

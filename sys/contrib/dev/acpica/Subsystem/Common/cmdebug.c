@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmdebug - Debug print routines
- *              $Revision: 62 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -373,7 +373,7 @@ FunctionValueExit (
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     NATIVE_CHAR             *FunctionName,
-    NATIVE_UINT             Value)
+    ACPI_INTEGER            Value)
 {
 
     DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
