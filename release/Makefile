@@ -398,12 +398,7 @@ rerelease release:
 	echo "export MANBUILDCAT=YES"		>> ${CHROOTDIR}/mk
 	echo "if [ ! -f /tmp/.world_done ]; then" >> ${CHROOTDIR}/mk
 	echo "	cd /usr/src"			>> ${CHROOTDIR}/mk
-.if make(release)
-	echo "	make ${WORLD_FLAGS} buildworld && \\" >> ${CHROOTDIR}/mk
-.endif
-.if make(rerelease)
 	echo "	make ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
-.endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
