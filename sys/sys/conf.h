@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.73 1999/08/14 11:40:49 phk Exp $
+ * $Id: conf.h,v 1.74 1999/08/15 09:32:44 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -263,6 +263,7 @@ int	cdevsw_remove __P((struct cdevsw *old));
 dev_t	chrtoblk __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 int	devsw_module_handler __P((struct module *mod, int what, void *arg));
+char   *devtoname __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
