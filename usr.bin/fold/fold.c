@@ -64,8 +64,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	register int ch;
 	int width;
 	char *p;
