@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.461 1999/01/25 04:57:07 jkh Exp $
+#	$Id: Makefile,v 1.462 1999/01/26 15:22:29 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -73,14 +73,18 @@ MNT=			/mnt
 #
 BOOTSIZE=		1440
 FIXITSIZE=		1440
+MFSSIZE=		1440
 BOOTINODE=		80000
 MFSINODE=		8000
 FIXITINODE=		2000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
+MFSLABEL=		fd1440
 
 # overrides.
 .if ${MACHINE_ARCH} == "alpha"
+MFSSIZE=		2880
+MFSLABEL=		minimum2
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
 .endif
@@ -444,8 +448,8 @@ release.8: write_mfs_in_kernel dumpnlist
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-	@sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
-		${BOOTSIZE} ${RD}/mfsfd ${MFSINODE} ${BOOTLABEL}
+	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
+		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
@@ -674,9 +678,15 @@ doMFSKERN:
 	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
 	@touch ${RD}/image.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+.if defined(_MFSKERN)
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
+		${RD} ${MNT} ${MFSSIZE} ${RD}/image.${FSIMAGE} \
+		${BOOTINODE} ${MFSLABEL}
+.else
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${BOOTSIZE} ${RD}/image.${FSIMAGE} \
 		${BOOTINODE} ${BOOTLABEL}
+.endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
 .include <bsd.prog.mk>
