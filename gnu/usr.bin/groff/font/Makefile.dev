@@ -2,7 +2,7 @@
 # Client Makefiles define DEV and DEVFILES and provide rules for
 # individual font files
 #
-# $Id$
+# $Id: Makefile.dev,v 2.1 1996/09/08 01:27:11 pst Exp $
 
 .include "../Makefile.cfg"
 
@@ -24,9 +24,9 @@ beforeinstall:: ${.CURDIR}/$f
 	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
 		${.CURDIR}/$f $(DESTDIR)$(DEVICEDIR)
 .else
-beforeinstall:: $(DISTDIR)/$f
+beforeinstall:: $(DIST_DIR)/$f
 	$(INSTALL) -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) \
-		$(DISTDIR)/$f $(DESTDIR)$(DEVICEDIR)
+		$(DIST_DIR)/$f $(DESTDIR)$(DEVICEDIR)
 .endif
 .endfor
 
