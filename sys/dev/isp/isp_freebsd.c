@@ -1963,6 +1963,8 @@ isp_kthread(void *arg)
 
 #ifdef	ISP_SMPLOCK
 	mtx_lock(&isp->isp_lock);
+#else
+	mtx_lock(&Giant);
 #endif
 	/*
 	 * The first loop is for our usage where we have yet to have
