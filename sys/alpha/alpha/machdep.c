@@ -1989,6 +1989,29 @@ alpha_pa_access(vm_offset_t pa)
 #endif
 }
 
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_context[0] = tf->tf_regs[FRAME_S0];
+	pcb->pcb_context[1] = tf->tf_regs[FRAME_S1];
+	pcb->pcb_context[2] = tf->tf_regs[FRAME_S2];
+	pcb->pcb_context[3] = tf->tf_regs[FRAME_S3];
+	pcb->pcb_context[4] = tf->tf_regs[FRAME_S4];
+	pcb->pcb_context[5] = tf->tf_regs[FRAME_S5];
+	pcb->pcb_context[6] = tf->tf_regs[FRAME_S6];
+	pcb->pcb_context[7] = tf->tf_regs[FRAME_PC];
+	pcb->pcb_context[8] = tf->tf_regs[FRAME_PS];
+	pcb->pcb_hw.apcb_ksp = tf->tf_regs[FRAME_SP];
+}
+
 int
 fill_regs(td, regs)
 	struct thread *td;
