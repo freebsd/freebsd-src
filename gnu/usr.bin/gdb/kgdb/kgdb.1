@@ -28,19 +28,75 @@
 .Dt KGDB 1
 .Sh NAME
 .Nm kgdb
-.Nd The kernel debugger
+.Nd "kernel debugger"
 .Sh SYNOPSIS
 .Nm
-.Op Ar -v
-.Op Ar -d crashdir
-.Op Ar -c core | -n dumpnr | -r device
-.Op Ar kernel [ Ar core ]
+.Op Fl v
+.Op Fl d Ar crashdir
+.Op Fl c Ar core | Fl n Ar dumpnr | Fl r Ar device
+.Op Ar kernel Op Ar core
 .Sh DESCRIPTION
 The
 .Nm
 utility is a debugger based on
 .Xr gdb 1
 that allows debugging of kernel core files.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar crashdir"
+.It Fl v
+Increase verbosity.
+.It Fl d Ar crashdir
+Use
+.Ar crashdir
+instead of the default,
+.Pa /var/crash
+to locate kernel core dump files in.
+The name
+.Pa vmcore.
+plus the dump number will be appended to determine
+the actual dump file name.
+.It Fl c Ar core
+Explicitly use
+.Ar core
+as the core dump file.
+.It Fl n Ar dumpnr
+Use the kernel core dump file numbered
+.Ar dumpnr
+for debugging.
+.It Fl r Ar device
+Use
+.Ar device
+to connect
+.Nm
+to for a remote debugging session.
+.El
+.Pp
+The
+.Fl c , n ,
+and
+.Fl r
+options are mutually exclusive.
+.Pp
+Optionally, the name of the kernel symbol file and
+the name of the core dump file can be supplied on the
+command-line as positional arguments.
+If no kernel symbol file name has been given, the
+symbol file of the currently running kernel will be
+used.
+If no core dump file has been specified through either
+of the options or the last command-line argument,
+.Pa /dev/mem
+will be opened to allow debugging the currenlty running
+kernel.
+.Sh FILES
+.Bl -tag -width ".Pa /var/crash"
+.It Pa /dev/mem
+Default memory image to open if no core dump file
+has been specified.
+.It Pa /var/crash
+Default directory to locate kernel core dump files.
+.El
 .Sh SEE ALSO
 .Xr gdb 1
 .Sh HISTORY
