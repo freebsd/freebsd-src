@@ -13,6 +13,4 @@ install:
 	    ${DESTDIR}${BINDIR}/dict
 	(cd ${DESTDIR}${BINDIR}/dict; rm -f words; ln -s web2 words)
 
-MAINTAINER=	obrien@FreeBSD.org
-
 .include <bsd.prog.mk>
