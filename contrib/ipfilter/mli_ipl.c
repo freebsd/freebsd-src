@@ -274,10 +274,10 @@ ipfilterattach(void)
 static void
 nifattach()
 {
-	nif_t *nif, *qf2;
 	struct ifnet *ifp;
 	struct frentry *f;
 	ipnat_t *np;
+	nif_t *nif;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
@@ -430,8 +430,8 @@ ipfsync(void)
 static void
 nifdetach()
 {
-	nif_t *nif, *qf2, **qp;
 	struct ifnet *ifp;
+	nif_t *nif, **qp;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	/*

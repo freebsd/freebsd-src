@@ -12,7 +12,7 @@
 #  endif
 # endif
 #endif
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # define _KMEMUSER
 # include <sys/ptimers.h>
 #endif
@@ -64,7 +64,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.22 2002/06/04 14:52:58 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipt.c,v 2.6.2.24 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -92,6 +92,7 @@ char *argv[];
 {
 	char	*datain, *iface, *ifname, *packet, *logout;
 	int	fd, i, dir, c, loaded, dump, hlen;
+	struct	in_addr	src;
 	struct	ifnet	*ifp;
 	struct	ipread	*r;
 	u_long	buf[2048];
@@ -103,6 +104,7 @@ char *argv[];
 	r = &iptext;
 	iface = NULL;
 	logout = NULL;
+	src.s_addr = 0;
 	ifname = "anon0";
 	datain = NULL;
 
@@ -112,7 +114,7 @@ char *argv[];
 	ipflog_init();
 	fr_running = 1;
 
-	while ((c = getopt(argc, argv, "6bdDEHi:I:l:NoPr:RSTvxX")) != -1)
+	while ((c = getopt(argc, argv, "6bdDEHi:I:l:NoPr:Rs:STvxX")) != -1)
 		switch (c)
 		{
 		case '6' :
@@ -148,6 +150,9 @@ char *argv[];
 			if (loadrules(optarg) == -1)
 				return -1;
 			loaded = 1;
+			break;
+		case 's' :
+			src.s_addr = inet_addr(optarg);
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
@@ -208,11 +213,21 @@ char *argv[];
 			ip->ip_off = ntohs(ip->ip_off);
 			ip->ip_len = ntohs(ip->ip_len);
 			hlen = ip->ip_hl << 2;
+			if (src.s_addr != 0) {
+				if (src.s_addr == ip->ip_src.s_addr)
+					dir = 1;
+				else if (src.s_addr == ip->ip_dst.s_addr)
+					dir = 0;
+			}
 		}
 #ifdef	USE_INET6
 		else
 			hlen = sizeof(ip6_t);
 #endif
+		if (opts & OPT_VERBOSE) {
+			printf("%s on [%s]: ", dir ? "out" : "in",
+				(iface && *iface) ? iface : "??");
+		}
 		packet = (char *)buf;
 		/* ipfr_slowtimer(); */
 		i = fr_check(ip, hlen, ifp, dir, (mb_t **)&packet);
