@@ -55,8 +55,8 @@ enum constants {
     MAXCONFIGLINE = 1024,				    /* maximum size of a single config line */
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
-    CDEV_MAJOR = 91,					    /* major number for character device */
-    BDEV_MAJOR = 25,					    /* and legacy major number for block device */
+    VINUM_CDEV_MAJOR = 91,				    /* major number for character device */
+    VINUM_BDEV_MAJOR = 25,				    /* and legacy major number for block device */
 
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
@@ -107,14 +107,14 @@ enum constants {
 			      | (t << VINUM_TYPE_SHIFT) )
 
 /* Create device minor numbers */
-#define VINUMDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
+#define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
-#define VINUM_PLEX(p)	makedev (CDEV_MAJOR,				\
+#define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR,				\
 					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
 					 | (p & 0xff)				\
 					 | ((p & ~0xff) << 8) )
 
-#define VINUM_SD(s)	makedev (CDEV_MAJOR,				\
+#define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR,				\
 					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
 					 | (s & 0xff)				\
 					 | ((s & ~0xff) << 8) )
@@ -128,7 +128,7 @@ enum constants {
 			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
 			  | (t << VINUM_TYPE_SHIFT) )
 
-#define VINUMRBDEV(d,t)	makedev (BDEV_MAJOR, VINUMRMINOR (d, t))
+#define VINUMRBDEV(d,t)	makedev (VINUM_BDEV_MAJOR, VINUMRMINOR (d, t))
 
 /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
@@ -280,7 +280,7 @@ struct _vinum_conf {
 
     int flags;
 
-#define VINUM_MAXACTIVE  256				    /* maximum number of active requests */
+#define VINUM_MAXACTIVE  30000				    /* maximum number of active requests */
     int active;						    /* current number of requests outstanding */
     int maxactive;					    /* maximum number of requests ever outstanding */
 #if VINUMDEBUG
@@ -393,8 +393,7 @@ struct drive {
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
     char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
-    struct vnode *vp;					    /* vnode pointer */
-    struct proc *p;
+    dev_t dev;						    /* device information */
     struct vinum_label label;				    /* and the label information */
     struct partinfo partinfo;				    /* partition information */
     int freelist_size;					    /* number of entries alloced in free list */
@@ -403,7 +402,7 @@ struct drive {
 	u_int64_t offset;				    /* offset of entry */
 	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
-#define DRIVE_MAXACTIVE  10				    /* maximum number of active requests */
+#define DRIVE_MAXACTIVE  30000				    /* maximum number of active requests */
     int active;						    /* current number of requests outstanding */
     int maxactive;					    /* maximum number of requests ever outstanding */
 #ifdef VINUMDEBUG
@@ -421,10 +420,11 @@ struct sd {
     /* offsets in blocks */
     int64_t driveoffset;				    /* offset on drive */
     /*
-     * plexoffset is the offset from the beginning of the
-     * plex to the very first part of the subdisk, in
-     * sectors.  For striped and RAID-5 plexes, only
-     * the first stripe is located at this offset
+     * plexoffset is the offset from the beginning
+     * of the plex to the very first part of the
+     * subdisk, in sectors.  For striped, RAID-4 and
+     * RAID-5 plexes, only the first stripe is
+     * located at this offset
      */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
@@ -457,8 +457,13 @@ enum plexorg {
     plex_disorg,					    /* disorganized */
     plex_concat,					    /* concatenated plex */
     plex_striped,					    /* striped plex */
+    plex_raid4,						    /* RAID4 plex */
     plex_raid5						    /* RAID5 plex */
 };
+
+/* Recognize plex organizations */
+#define isstriped(p) (p->organization >= plex_striped)	    /* RAID 1, 4 or 5 */
+#define isparity(p) (p->organization >= plex_raid4)	    /* RAID 4 or 5 */
 
 struct plex {
     enum plexorg organization;				    /* Plex organization */
