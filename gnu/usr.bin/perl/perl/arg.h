@@ -1,4 +1,4 @@
-/* $RCSfile: arg.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:34 $
+/* $RCSfile: arg.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: arg.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:34  nate
  * PERL!
  *
@@ -685,7 +688,7 @@ struct arg {
 #define AF_COMMON 16		/* left and right have symbols in common */
 #define AF_DEPR 32		/* an older form of the construct */
 #define AF_LISTISH 64		/* turn into list if important */
-#define AF_LOCAL 128		/* list of local variables */
+#define AF_LOCAL_XX 128		/* list of local variables */
 
 /*
  * Most of the ARG pointers are used as pointers to arrays of ARG.  When
