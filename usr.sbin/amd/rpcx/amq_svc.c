@@ -37,7 +37,7 @@
  *
  *	@(#)amq_svc.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: amq_svc.c,v 1.3 1997/02/22 16:04:03 peter Exp $
  *
  */
 
@@ -120,7 +120,7 @@ amq_program_1(rqstp, transp)
 		return;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t) &argument)) {
 		svcerr_decode(transp);
 		return;
 	}
@@ -128,7 +128,7 @@ amq_program_1(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument)) {
+	if (!svc_freeargs(transp, xdr_argument, (caddr_t) &argument)) {
 		plog(XLOG_FATAL, "unable to free rpc arguments in amqprog_1");
 		going_down(1);
 	}
