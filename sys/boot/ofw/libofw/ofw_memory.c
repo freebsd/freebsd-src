@@ -88,9 +88,9 @@ ofw_alloc_heap(unsigned int size)
 	memory = OF_instance_to_package(meminstance);
 	OF_getprop(memory, "available", &available, sizeof(available));
 
-	heap_base = OF_claim((void *)available.base, size, 4);
+	heap_base = OF_claim((void *)available.base, size, sizeof(register_t));
 
-	if (heap_base != (void *)0xffffffff) {
+	if (heap_base != (void *)-1) {
 		heap_size = size;
 	}
 
