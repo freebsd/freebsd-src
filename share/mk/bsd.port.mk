@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.299 1998/11/25 00:12:27 asami Exp $
+#	$Id: bsd.port.mk,v 1.300 1998/12/12 07:39:30 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -103,6 +103,12 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  setting ${BATCH}, or compiling only the interactive ports
 #				  by setting ${INTERACTIVE}.
 #
+# Set these if your port only makes sense to certain archetictures.
+# They are lists containing names for them (e.g., "alpha i386").
+#
+# ONLY_FOR_ARCHS - Only build ports if ${ARCH} matches one of these.
+# NOT_FOR_ARCHS  - Only build ports if ${ARCH} doesn't match one of these.
+#
 # Use these if your port uses some of the common software packages.
 #
 # USE_GMAKE		- Says that the port uses gmake.
@@ -118,6 +124,8 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  Use this if you need to replace "#!" lines in scripts.
 # PERL_VERSION	- Full version of perl5 (see below for current value).
 # PERL_VER		- Short version of perl5 (see below for current value).
+# PERL_ARCH		- Directory name of architecture dependent libraries
+#				  (value: ${ARCH}-freebsd).
 # USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
 # XMKMF			- Set to path of `xmkmf' if not in $PATH (default: xmkmf -a ).
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
@@ -448,6 +456,7 @@ LOCALBASE?=		${DESTDIR}/usr/local
 X11BASE?=		${DESTDIR}/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles
 _DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
+EXTRACT_SUFX?=	.tar.gz
 PACKAGES?=		${PORTSDIR}/packages
 TEMPLATES?=		${PORTSDIR}/templates
 
@@ -546,15 +555,18 @@ GNU_CONFIGURE=	yes
 BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .endif
 
-#.if defined(REQUIRES_MOTIF)
-#BUILD_DEPENDS+=		${X11BASE}/lib/libXm.a:${PORTSDIR}/tmp/motif
-#.endif
+.if defined(REQUIRES_MOTIF) && defined(PARALLEL_PACKAGE_BUILD)
+BUILD_DEPENDS+=		${X11BASE}/lib/libXm.a:${PORTSDIR}/x11-toolkits/Motif-dummy
+.endif
 
 PERL_VERSION=	5.00502
 PERL_VER=		5.005
+PERL_ARCH=		${ARCH}-freebsd
 PLIST_SUB+=		PERL_VERSION=${PERL_VERSION} \
-				PERL_VER=${PERL_VER}
-.if exists(/usr/bin/perl5)
+				PERL_VER=${PERL_VER} \
+				PERL_ARCH=${PERL_ARCH}
+
+.if exists(/usr/bin/perl5) && ${OSVERSION} >= 300000
 # 3.0-current after perl5 import
 .if !exists(/usr/bin/perl${PERL_VERSION}) && defined(USE_PERL5)
 .BEGIN:
@@ -577,7 +589,7 @@ LIB_DEPENDS+=	X11.6:${PORTSDIR}/x11/XFree86
 .endif
 
 .if defined(USE_QT)
-LIB_DEPENDS+=	qt.1:${PORTSDIR}/x11-toolkits/qt141
+LIB_DEPENDS+=	qt.2:${PORTSDIR}/x11-toolkits/qt142
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
@@ -653,7 +665,6 @@ EXTRACT_CMD?=	/bin/tar
 .else
 EXTRACT_CMD?=	/usr/bin/tar
 .endif
-EXTRACT_SUFX?=	.tar.gz
 # Backwards compatability.
 .if defined(EXTRACT_ARGS)
 EXTRACT_BEFORE_ARGS?=   ${EXTRACT_ARGS}
@@ -780,7 +791,7 @@ INSTALL_TARGET?=	install
 # Popular master sites
 MASTER_SITE_XCONTRIB+=	\
 	ftp://crl.dec.com/pub/X11/contrib/%SUBDIR%/ \
-    ftp://ftp.eu.net/X11/contrib/%SUBDIR%/
+	ftp://ftp.eu.net/X11/contrib/%SUBDIR%/
 
 MASTER_SITE_GNU+=	\
 	ftp://prep.ai.mit.edu/pub/gnu/%SUBDIR%/ \
@@ -798,11 +809,11 @@ MASTER_SITE_PERL_CPAN+=	\
 	ftp://ftp.cdrom.com/pub/perl/CPAN/modules/by-module/%SUBDIR%/
 
 MASTER_SITE_TEX_CTAN+=  \
-        ftp://ftp.cdrom.com/pub/tex/ctan/%SUBDIR%/  \
-        ftp://wuarchive.wustl.edu/packages/TeX/%SUBDIR%/  \
-        ftp://ftp.funet.fi/pub/TeX/CTAN/%SUBDIR%/  \
-        ftp://ftp.tex.ac.uk/tex-archive/%SUBDIR%/  \
-        ftp://ftp.dante.de/tex-archive/%SUBDIR%/
+	ftp://ftp.cdrom.com/pub/tex/ctan/%SUBDIR%/  \
+	ftp://wuarchive.wustl.edu/packages/TeX/%SUBDIR%/  \
+	ftp://ftp.funet.fi/pub/TeX/CTAN/%SUBDIR%/  \
+	ftp://ftp.tex.ac.uk/tex-archive/%SUBDIR%/  \
+	ftp://ftp.dante.de/tex-archive/%SUBDIR%/
 
 MASTER_SITE_SUNSITE+=	\
 	ftp://sunsite.unc.edu/pub/Linux/%SUBDIR%/ \
@@ -814,9 +825,12 @@ MASTER_SITE_KDE+=	\
 	ftp://ftp.kde.org/pub/kde/%SUBDIR%/ \
 	ftp://ftp.tuniv.szczecin.pl/pub/kde/%SUBDIR%/ \
 	ftp://ftp.fu-berlin.de/pub/unix/X11/gui/kde/%SUBDIR%/ \
-	ftp://ftp.blaze.net.au/pub/kde/%SUBDIR%/ \
-	ftp://ftp.dataplus.se/pub/linux/kde/%SUBDIR%/ \
-	ftp://ftp.caldera.com/pub/mirrors/kde/%SUBDIR%/
+	ftp://ftp.dataplus.se/pub/linux/kde/%SUBDIR%/
+
+MASTER_SITE_COMP_SOURCES+=	\
+	ftp://gatekeeper.dec.com/pub/usenet/comp.sources.%SUBDIR%/ \
+	ftp://ftp.uu.net/usenet/comp.sources.%SUBDIR%/ \
+	ftp://rtfm.mit.edu/pub/usenet/comp.sources.%SUBDIR%/
 
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
@@ -902,6 +916,11 @@ EXTRACT_ONLY?=	${DISTFILES}
 
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
+
+.if !target(maintainer)
+maintainer:
+	@${ECHO} ${MAINTAINER}
+.endif
 
 .if !defined(CATEGORIES)
 .BEGIN:
@@ -1060,6 +1079,33 @@ IGNORE=	": You have an old file \(${file}\) that could cause problems for some p
 .endfor
 .endif
 
+.if defined(ONLY_FOR_ARCHS)
+.for __ARCH in ${ONLY_FOR_ARCHS}
+.if ${MACHINE_ARCH:M${__ARCH}} != ""
+__ARCH_OK?=     1
+.endif
+.endfor
+.else
+__ARCH_OK?=     1
+.endif
+
+.if defined(NOT_FOR_ARCHS)
+.for __NARCH in ${NOT_FOR_ARCHS}
+.if ${MACHINE_ARCH:M${__NARCH}} != ""
+.undef __ARCH_OK
+.endif
+.endfor
+.endif
+
+.if !defined(__ARCH_OK)
+.if defined(ONLY_FOR_ARCHS)
+IGNORE=		"is only for ${ONLY_FOR_ARCHS},"
+.else # defined(NOT_FOR_ARCHS)
+IGNORE=		"does not run on ${NOT_FOR_ARCHS},"
+.endif
+IGNORE+=	"and you are running ${ARCH}"
+.endif
+
 .if !defined(NO_IGNORE)
 .if (defined(IS_INTERACTIVE) && defined(BATCH))
 IGNORE=	"is an interactive port"
@@ -1119,12 +1165,15 @@ reinstall:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
+.endif
+
+.endif
+
+.if defined(IGNORE) || defined(NO_PACKAGE)
 ignorelist: package-name
 .else
 ignorelist:
 	@${DO_NADA}
-.endif
-
 .endif
 
 ################################################################
