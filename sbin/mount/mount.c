@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.22 1998/02/13 04:54:27 bde Exp $";
+	"$Id: mount.c,v 1.23 1998/03/08 09:56:02 julian Exp $";
 #endif
 #endif /* not lint */
 
@@ -496,8 +496,11 @@ prmount(sfp)
 		else
 			(void)printf("%d", sfp->f_owner);
 	}
-	(void)printf("%swrites: sync %d async %d)\n", !f++ ? " (" : ", ",
-	    sfp->f_syncwrites, sfp->f_asyncwrites);
+	if ((sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0) &&
+	    (sfp->f_flags & MNT_RDONLY) == 0)
+		(void)printf("%swrites: sync %d async %d)",
+		    !f++ ? " (" : ", ", sfp->f_syncwrites, sfp->f_asyncwrites);
+	(void)printf("%s\n", f ? ")" : "");
 }
 
 struct statfs *
