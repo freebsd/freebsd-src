@@ -248,7 +248,7 @@ pcic_unload()
 int	slot;
 struct pcic_slot *cp = pcic_slots;
 
-	untimeout(pcictimeout);
+	untimeout(pcictimeout,0);
 	if (pcic_irq)
 		{
 		for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, cp++) {
