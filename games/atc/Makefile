@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	atc
 CFLAGS+=-DBSD -I${.CURDIR} -I.
@@ -11,7 +12,7 @@ GAMES=  Game_List Killer crossover default easy game_2
 HIDEGAME=hidegame
 
 beforeinstall:
-	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 \
+	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
 
 .include <bsd.prog.mk>
