@@ -38,6 +38,8 @@ static const char rcsid[] =
 #define TEST_BLOCK_LEN 10000
 #define TEST_BLOCK_COUNT 100000
 
+int rflag;
+
 static void MDString PROTO_LIST((char *));
 static void MDTimeTrial PROTO_LIST((void));
 static void MDTestSuite PROTO_LIST((void));
@@ -63,10 +65,13 @@ main(argc, argv)
 	char	buf[33];
 
 	if (argc > 1) {
-		while ((ch = getopt(argc, argv, "ps:tx")) != -1) {
+		while ((ch = getopt(argc, argv, "ps:rtx")) != -1) {
 			switch (ch) {
 			case 'p':
 				MDFilter(1);
+				break;
+			case 'r':
+				rflag = 1;
 				break;
 			case 's':
 				MDString(optarg);
@@ -86,7 +91,11 @@ main(argc, argv)
 			if (!p)
 				warn("%s", argv[optind]);
 			else
-				printf("MD5 (%s) = %s\n", argv[optind], p);
+				if (rflag)
+					printf("MD5 %s  %s\n", p, argv[optind]);
+				else
+					printf("MD5 (%s) = %s\n", argv[optind],
+					    p);
 			optind++;
 		}
 	} else
@@ -104,7 +113,10 @@ MDString(string)
 	size_t len = strlen(string);
 	char buf[33];
 
-	printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
+	if (rflag)
+		printf("MD5 %s (\"%s\")\n", MD5Data(string, len, buf), string);
+	else
+		printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
 }
 /*
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
