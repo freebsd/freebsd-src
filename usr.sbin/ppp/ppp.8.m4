@@ -1332,7 +1332,7 @@ It is
 .Em VITAL
 that either PAP or CHAP are enabled as above.
 If they are not, you are
-allowing anybody to establish ppp session with your machine
+allowing anybody to establish a ppp session with your machine
 .Em without
 a password, opening yourself up to all sorts of potential attacks.
 .Sh AUTHENTICATING INCOMING CONNECTIONS
