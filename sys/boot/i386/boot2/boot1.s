@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.4 1998/11/05 20:52:25 rnordier Exp $
+#	$Id: boot1.s,v 1.5 1998/11/08 15:36:35 rnordier Exp $
 
 		.set MEM_REL,0x600		# Relocation address
 		.set MEM_ARG,0x800		# Arguments
@@ -221,7 +221,7 @@ read.5: 	ret				# To caller
 msg_read:	.asciz "Read"
 msg_part:	.asciz "Boot"
 
-prompt: 	.asciz " error\r\nHit return: "
+prompt: 	.asciz " error\r\n"
 
 		.org PRT_OFF,0x90
 
