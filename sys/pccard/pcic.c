@@ -546,7 +546,7 @@ pcic_reset(void *chan)
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
 	    case 2: /* Deassert it again */
-		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
+		pcic_setb(sp, PCIC_INT_GEN, PCIC_CARDRESET | PCIC_IOCARD);
 		slt->insert_seq = 3;
 		timeout(pcic_reset, (void *)slt, hz/4);
 		return;
