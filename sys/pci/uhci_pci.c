@@ -347,12 +347,12 @@ uhci_pci_detach(device_t self)
 		    we should call something like uhci_deinit
 #endif
 
-		/*
-		 * disable interrupts that might have been switched on in
-		 * uhci_init.
-		 */
-		    if (sc->iot && sc->ioh)
-			bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
+	/*
+	 * disable interrupts that might have been switched on in
+	 * uhci_init.
+	 */
+	if (sc->iot && sc->ioh)
+		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
