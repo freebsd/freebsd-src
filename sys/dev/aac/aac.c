@@ -1992,11 +1992,13 @@ aac_timeout(struct aac_softc *sc)
 {
 	struct aac_command *cm;
 	time_t deadline;
+	int timedout, code;
 
 	/*
 	 * Traverse the busy command list, bitch about late commands once
 	 * only.
 	 */
+	timedout = 0;
 	deadline = time_second - AAC_CMD_TIMEOUT;
 	TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
 		if ((cm->cm_timestamp  < deadline)
@@ -2006,9 +2008,17 @@ aac_timeout(struct aac_softc *sc)
 				      "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
 				      cm, (int)(time_second-cm->cm_timestamp));
 			AAC_PRINT_FIB(sc, cm->cm_fib);
+			timedout++;
 		}
 	}
 
+	if (timedout) {
+		code = AAC_GET_FWSTATUS(sc);
+		if (code != AAC_UP_AND_RUNNING) {
+			device_printf(sc->aac_dev, "WARNING! Controller is no "
+				      "longer running! code= 0x%x\n", code);
+		}
+	}
 	return;
 }
 
