@@ -596,6 +596,7 @@ parse_flag:
 
 		case sDenyUsers:
 			while ((cp = strtok(NULL, WHITESPACE))) {
+				if (options->num_deny_users >= MAX_DENY_USERS)
 					fatal("%.200s line %d: too many deny users.\n",
 					    filename, linenum);
 				options->deny_users[options->num_deny_users++] = xstrdup(cp);
