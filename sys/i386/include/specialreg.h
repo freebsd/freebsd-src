@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.13 1997/03/22 18:53:11 kato Exp $
+ *	$Id: specialreg.h,v 1.14 1997/07/21 17:53:51 fsmp Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -150,6 +150,10 @@
 #define	CCR5_SLOP		0x02	/* LOOP instruction slowed down */
 #define	CCR5_LBR1		0x10	/* Local bus region 1 */
 #define	CCR5_ARREN		0x20	/* Enables ARR region */
+
+#define	CCR6			0xea
+
+#define	CCR7			0xeb
 
 /* Performance Control Register (5x86 only). */
 #define	PCR0			0x20
