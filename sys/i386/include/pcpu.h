@@ -62,7 +62,6 @@ struct globaldata {
 	struct segment_descriptor *gd_tss_gdt;
 	int		gd_currentldt;		/* only used for USER_LDT */
 	u_int		gd_cpuid;
-	u_int		gd_cpu_lockid;
 	u_int		gd_other_cpus;
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
