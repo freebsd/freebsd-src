@@ -38,7 +38,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>     /* setproctitle() under OpenBSD (+NetBSD ?)*/
 #include <string.h>
 #include <sysexits.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
@@ -271,23 +270,6 @@ ID0kill(pid_t pid, int sig)
   log_Printf(LogID0, "%d = kill(%d, %d)\n", result, (int)pid, sig);
   ID0setuser();
   return result;
-}
-
-void
-ID0setproctitle(const char *title)
-{
-  ID0set0();
-  if (title == NULL) {
-    setproctitle(NULL);
-    log_Printf(LogID0, "setproctitle(NULL)\n");
-  } else {
-    if (title[0] == '-' && title[1] != '\0')
-      setproctitle("-%s", title + 1);
-    else
-      setproctitle("%s", title);
-    log_Printf(LogID0, "setproctitle(\"%%s\", \"%s\")\n", title);
-  }
-  ID0setuser();
 }
 
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)

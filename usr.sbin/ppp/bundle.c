@@ -51,7 +51,6 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-#include <sys/linker.h>
 #include <sys/module.h>
 #endif
 #include <termios.h>
@@ -1852,7 +1851,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
          */
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
-        ID0setproctitle("session owner");
+        SetTitle("session owner");
         setuid(ID0realuid());
         /*
          * Hang around for a HUP.  This should happen as soon as the
