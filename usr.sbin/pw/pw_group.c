@@ -88,7 +88,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		if (a_name == NULL)
 			errx(EX_DATAERR, "group name or id required");
 
-		if (mode != M_ADD && grp == NULL && isdigit(*a_name->val)) {
+		if (mode != M_ADD && grp == NULL && isdigit((unsigned char)*a_name->val)) {
 			(a_gid = a_name)->ch = 'g';
 			a_name = NULL;
 		}
@@ -220,7 +220,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			int     j;
 			if ((pwd = GETPWNAM(p)) == NULL) {
-				if (!isdigit(*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
+				if (!isdigit((unsigned char)*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
 					errx(EX_NOUSER, "user `%s' does not exist", p);
 			}
 			/*
