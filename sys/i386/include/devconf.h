@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.4 1994/10/19 01:58:42 wollman Exp $
+ *	$Id: devconf.h,v 1.5 1994/10/23 21:26:53 wollman Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -72,13 +72,10 @@ struct machdep_devconf {
 #include <scsi/scsiconf.h>
 
 #define CPU_EXTERNALLEN (0)
-#define PCI_EXTERNALLEN (sizeof(struct pci_device))
 #define DISK_EXTERNALLEN (sizeof(int))
 #define BUS_EXTERNALLEN (0)
 
-#ifdef KERNEL			/* XXX move these */
-extern int pci_externalize(struct pci_device *, void *, size_t *);
-
+#ifdef KERNEL			/* XXX move this */
 extern int disk_externalize(int, void *, size_t *);
 #endif
 
