@@ -567,7 +567,6 @@ void
 sched_switch(struct thread *td)
 {
 	struct thread *newtd;
-	u_long sched_nest;
 	struct kse *ke;
 	struct proc *p;
 
@@ -597,11 +596,9 @@ sched_switch(struct thread *td)
 		 */
 		kse_reassign(ke);
 	}
-	sched_nest = sched_lock.mtx_recurse;
 	newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);
-	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
 }
