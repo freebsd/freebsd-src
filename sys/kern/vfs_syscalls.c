@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.113 1999/01/24 06:28:37 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.114 1999/01/27 21:49:58 dillon Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -111,7 +111,9 @@ mount(p, uap)
 	struct vfsconf *vfsp;
 	int error, flag = 0, flag2 = 0;
 	struct vattr va;
+#ifdef COMPAT_43
 	u_long fstypenum;
+#endif
 	struct nameidata nd;
 	char fstypename[MFSNAMELEN];
 
