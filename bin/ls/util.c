@@ -32,13 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)util.c	8.3 (Berkeley) 4/2/94
  */
 
 #ifndef lint
+#if 0
+static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
+#else
 static const char rcsid[] =
-	"$Id: util.c,v 1.9 1997/03/26 17:48:40 obrien Exp $";
+	"$Id: util.c,v 1.10 1997/08/07 15:33:50 steve Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>

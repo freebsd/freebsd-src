@@ -32,13 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)cmp.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
+#if 0
+static char sccsid[] = "@(#)cmp.c	8.1 (Berkeley) 5/31/93";
+#else
 static const char rcsid[] =
-	"$Id: cmp.c,v 1.6 1997/02/22 14:03:53 peter Exp $";
+	"$Id: cmp.c,v 1.7 1997/08/07 15:33:45 steve Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
