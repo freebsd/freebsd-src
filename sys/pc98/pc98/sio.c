@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.10 1996/12/04 04:21:07 asami Exp $
+ *	$Id: sio.c,v 1.11 1996/12/04 04:36:59 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1840,8 +1840,7 @@ more_intr:
 				if (line_status & LSR_BI) {
 #if defined(DDB) && defined(BREAK_TO_DEBUGGER)
 					if (com->unit == comconsole) {
-						Debugger(
-						    "serial console break");
+						breakpoint();
 						goto cont;
 					}
 #endif
