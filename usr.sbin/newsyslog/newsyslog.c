@@ -290,7 +290,7 @@ parse_file(char **files)
 {
 	FILE *f;
 	char line[BUFSIZ], *parse, *q;
-	char *errline, *group;
+	char *cp, *errline, *group;
 	char **p;
 	struct conf_entry *first, *working;
 	struct passwd *pass;
@@ -306,9 +306,21 @@ parse_file(char **files)
 	if (!f)
 		err(1, "%s", conf);
 	while (fgets(line, BUFSIZ, f)) {
-		if ((line[0] == '\n') || (line[0] == '#'))
+		if ((line[0] == '\n') || (line[0] == '#') ||
+		    (strlen(line) == 0))
 			continue;
 		errline = strdup(line);
+		for (cp = line + 1; *cp != '\0'; cp++) {
+			if (*cp != '#')
+				continue;
+			if (*(cp - 1) == '\\') {
+				strcpy(cp - 1, cp);
+				cp--;
+				continue;
+			}
+			*cp = '\0';
+			break;
+		}
 
 		q = parse = missing_field(sob(line), errline);
 		parse = son(line);
