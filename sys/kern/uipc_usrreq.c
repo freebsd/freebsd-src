@@ -114,6 +114,7 @@ uipc_abort(struct socket *so)
 	UNP_LOCK();
 	unp_drop(unp, ECONNABORTED);
 	unp_detach(unp);	/* NB: unlocks */
+	SOCK_LOCK(so);
 	sotryfree(so);
 	return (0);
 }

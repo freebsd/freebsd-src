@@ -253,6 +253,7 @@ void
 at_pcbdetach(struct socket *so, struct ddpcb *ddp)
 {
     soisdisconnected(so);
+    SOCK_LOCK(so);
     so->so_pcb = NULL;
     sotryfree(so);
 

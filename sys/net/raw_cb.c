@@ -32,7 +32,9 @@
 
 #include <sys/param.h>
 #include <sys/domain.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -93,6 +95,7 @@ raw_detach(rp)
 {
 	struct socket *so = rp->rcb_socket;
 
+	SOCK_LOCK(so);
 	so->so_pcb = 0;
 	sotryfree(so);
 	LIST_REMOVE(rp, list);
