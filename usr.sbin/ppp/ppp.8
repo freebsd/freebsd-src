@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.6 1995/05/21 17:32:35 jkh Exp $
+.\" $Id: ppp.8,v 1.7 1995/05/24 05:51:29 jkh Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -588,10 +588,7 @@ Logging and debugging information file.
 tty port locking file.
 
 .SH HISTORY
-This program was submitted to the FreeBSD core team for FreeBSD-2.0.5 by Atsushi
-Murai (amurai@spec.co.jp).
+This program was submitted in FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).
 
 .SH AUTHORS
 Toshiharu OHNO (tony-o@iij.ad.jp)
-
-Jordan Hubbard (jkh@freebsd.org) - significantly edited this document.
