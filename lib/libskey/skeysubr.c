@@ -1,20 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef	__MSDOS__
-#include <dos.h>
-#endif
-#ifdef unix
 #include <fcntl.h>
 #include <termios.h>
 #include <signal.h>
-#endif
 
 #include "skey.h"
 #include "mdx.h"
 
 /* Crunch a key:
- * concatenate the seed and the password, run through MD4 and
+ * concatenate the seed and the password, run through MDX and
  * collapse to 64 bits. This is defined as the user's starting key.
  */
 int
@@ -64,7 +59,6 @@ char *x;
 	results[0] ^= results[2];
 	results[1] ^= results[3];
 
-	/* Only works on byte-addressed little-endian machines!! */
 	memcpy(x,(char *)results,8);
 }
 
@@ -73,36 +67,13 @@ void
 rip(buf)
 char *buf;
 {
-	char *cp;
-
-	if((cp = strchr(buf,'\r')) != NULL)
-		*cp = '\0';
-
-	if((cp = strchr(buf,'\n')) != NULL)
-		*cp = '\0';
+	buf[strcspn(buf, "\r\n")] = 0;
 }
-/************************/
-#ifdef	__MSDOS__
-char *
-readpass(buf,n)
-char *buf;
-int n;
-{
-	int i;
-	char *cp;
 
-	for(cp=buf,i = 0; i < n ; i++)
-		if ((*cp++ = bdos(7,0,0)) == '\r')
-			break;
-	*cp = '\0';
-	printf("\n");
-	rip(buf);
-	return buf;
-}
-#else
 static struct termios saved_ttymode;
 
-static void interrupt()
+static void interrupt(sig)
+int sig;
 {
 	tcsetattr(0, TCSANOW, &saved_ttymode);
 	exit(1);
@@ -147,14 +118,12 @@ int n;
 	return buf;
 }
 
-#endif
-
 sevenbit(s)
 char *s;
 {
 	/* make sure there are only 7 bit code in the line*/
 	while(*s){
-		*s = 0x7f & ( *s);
+		*s &= 0x7f;
 		s++;
 	}
 }
