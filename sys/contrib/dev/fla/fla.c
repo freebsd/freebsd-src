@@ -299,7 +299,6 @@ flaattach (device_t dev)
 	struct fla_s *sc;
 
 	unit = device_get_unit(dev);
-
 	sc = &softc[unit];
 
 	error = doc2k_open(unit);
@@ -340,7 +339,7 @@ flaattach (device_t dev)
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 0x190);
 
-	sc->dev = disk_create(unit, &sc->disk, &fla_cdevsw);
+	sc->dev = disk_create(unit, &sc->disk, 0, &fla_cdevsw);
 	sc->dev->si_drv1 = sc;
 	sc->unit = unit;
 
