@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.4 1995/02/08 20:18:47 wollman Exp $
+ * $Id: tcp_var.h,v 1.6 1995/02/09 23:13:27 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -65,13 +65,11 @@ struct tcpcb {
 #define	TF_REQ_TSTMP	0x0080		/* have/will request timestamps */
 #define	TF_RCVD_TSTMP	0x0100		/* a timestamp was received in SYN */
 #define	TF_SACK_PERMIT	0x0200		/* other side said I could SACK */
-#ifdef TTCP
 #define TF_NEEDSYN	0x0400		/* send SYN (implicit state) */
 #define TF_NEEDFIN	0x0800		/* send FIN (implicit state) */
 #define TF_NOPUSH	0x1000		/* don't push */
 #define TF_REQ_CC	0x2000		/* have/will request CC */
 #define	TF_RCVD_CC	0x4000		/* a CC was received in SYN */
-#endif
 
 	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
@@ -134,18 +132,15 @@ struct tcpcb {
 	u_long	ts_recent;		/* timestamp echo data */
 	u_long	ts_recent_age;		/* when last updated */
 	tcp_seq	last_ack_sent;
-#ifdef TTCP
 /* RFC 1644 variables */
 	tcp_cc	cc_send;		/* send connection count */
 	tcp_cc	cc_recv;		/* receive connection count */
 	u_long	t_duration;		/* connection duration */
-#endif /* TTCP */
 
 /* TUBA stuff */
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
 };
 
-#ifdef TTCP
 /*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
@@ -180,7 +175,6 @@ struct rmxp_tao {
 #endif /* notyet */
 };
 #define rmx_taop(r)	((struct rmxp_tao *)(r).rmx_filler)
-#endif /* TTCP */
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
 #define	sototcpcb(so)	(intotcpcb(sotoinpcb(so)))
@@ -295,23 +289,21 @@ struct	tcpstat {
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
-	{ "do_rfc1323", CTLTYPE_INT }, \
-	{ "do_rfc1644", CTLTYPE_INT }, \
+	{ "rfc1323", CTLTYPE_INT }, \
+	{ "rfc1644", CTLTYPE_INT }, \
 	{ "mssdflt", CTLTYPE_INT }, \
 }
 
 #ifdef KERNEL
-struct	inpcb tcb;		/* head of queue of active tcpcb's */
-struct	tcpstat tcpstat;	/* tcp statistics */
-u_long	tcp_now;		/* for RFC 1323 timestamps */
+extern	struct inpcb tcb;	/* head of queue of active tcpcb's */
+extern	struct tcpstat tcpstat;	/* tcp statistics */
+extern	u_long tcp_now;		/* for RFC 1323 timestamps */
 
 int	 tcp_attach __P((struct socket *));
 void	 tcp_canceltimers __P((struct tcpcb *));
 struct tcpcb *
 	 tcp_close __P((struct tcpcb *));
-#ifdef TTCP
 int	 tcp_connect __P((struct tcpcb *, struct mbuf *));
-#endif
 void	 tcp_ctlinput __P((int, struct sockaddr *, struct ip *));
 int	 tcp_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
 struct tcpcb *
@@ -327,10 +319,8 @@ void	 tcp_dooptions __P((struct tcpcb *,
 #endif
 void	 tcp_drain __P((void));
 void	 tcp_fasttimo __P((void));
-#ifdef TTCP
 struct rmxp_tao *
 	 tcp_gettaocache __P((struct inpcb *));
-#endif
 void	 tcp_init __P((void));
 void	 tcp_input __P((struct mbuf *, int));
 void	 tcp_mss __P((struct tcpcb *, int));
@@ -360,6 +350,6 @@ struct tcpcb *
 int	 tcp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	 tcp_xmit_timer __P((struct tcpcb *, int));
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* _NETINET_TCP_VAR_H_ */
