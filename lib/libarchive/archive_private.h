@@ -29,8 +29,6 @@
 #ifndef ARCHIVE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_PRIVATE_H_INCLUDED
 
-#include <stdint.h>
-
 #include "archive.h"
 #include "archive_string.h"
 
@@ -56,17 +54,6 @@ struct archive {
 
 	struct archive_entry	*entry;
 
-	/*
-	 * Space to store per-entry strings.  Most header strings are
-	 * copied here from the format-specific header, in order to
-	 * gaurantee null-termination.  Maybe these should go into
-	 * per-format storage?
-	 */
-	struct archive_string	 entry_name;
-	struct archive_string	 entry_linkname;
-	struct archive_string	 entry_uname;
-	struct archive_string	 entry_gname;
-
 	/* Utility:  Pointer to a block of nulls. */
 	const char 		*nulls;
 	size_t			 null_length;
@@ -76,8 +63,8 @@ struct archive {
 	 * will be able to register it's own read_data routine and these
 	 * will move into the per-format data for the formats that use them.
 	 */
-	uint64_t	  entry_bytes_remaining;
-	uint64_t	  entry_padding; /* Skip this much after entry data. */
+	off_t		  entry_bytes_remaining;
+	off_t		  entry_padding; /* Skip this much after entry data. */
 
 	uid_t		  user_uid;	/* UID of current user. */
 
@@ -108,25 +95,10 @@ struct archive {
 	int		  pad_uncompressed;
 	int		  pad_uncompressed_byte; /* TODO: Support this. */
 
-	/*
-	 * PAX extended header data.  When reading,
-	 * name/linkname/uname/gname fields may point into here.  This
-	 * should be moved into per-format data storage.
-	 */
-	struct archive_string	pax_header;
-
-	/*
-	 * GNU header fields.  These should be moved into format-specific
-	 * storage.
-	 */
-	struct archive_string	gnu_name;
-	struct archive_string	gnu_linkname;
-	int		  	gnu_header_recursion_depth;
-
 	/* Position in UNCOMPRESSED data stream. */
-	intmax_t	  file_position;
+	off_t		  file_position;
 	/* File offset of beginning of most recently-read header. */
-	intmax_t	  header_position;
+	off_t		  header_position;
 
 	/*
 	 * Detection functions for decompression: bid functions are
@@ -192,8 +164,8 @@ struct archive {
 	 * multiple format readers active at one time, so we need to
 	 * allow for multiple format readers to have their data
 	 * available.  The pformat_data slot here is the solution: on
-	 * read, it's set up in the bid phase and is gauranteed to
-	 * always point to a void* variable that the format can use.
+	 * read, it is gauranteed to always point to a void* variable
+	 * that the format can use.
 	 */
 	void	**pformat_data;		/* Pointer to current format_data. */
 	void	 *format_data;		/* Used by writers. */
@@ -254,5 +226,7 @@ int	__archive_read_register_format(struct archive *a,
 int	__archive_read_register_compression(struct archive *a,
 	    int (*bid)(const void *, size_t),
 	    int (*init)(struct archive *, const void *,	size_t));
+
+#define err_combine(a,b)	((a) < (b) ? (a) : (b))
 
 #endif

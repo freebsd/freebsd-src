@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 struct write_file_data {
-	intmax_t	offset;
+	off_t		offset;
 	int		fd;
 	char		filename[1];
 };

@@ -32,10 +32,33 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "archive_entry.h"
+
+/*
+ * Handle wide character (i.e., Unicode) and non-wide character
+ * strings transparently.
+ *
+ */
+
+struct aes {
+	const char *aes_mbs;
+	char *aes_mbs_alloc;
+	const wchar_t *aes_wcs;
+	wchar_t *aes_wcs_alloc;
+};
+
+void		aes_clean(struct aes *);
+void		aes_copy(struct aes *dest, struct aes *src);
+const char *	aes_get_mbs(struct aes *);
+const wchar_t *	aes_get_wcs(struct aes *);
+void		aes_set_mbs(struct aes *, const char *mbs);
+void		aes_set_wcs(struct aes *, const wchar_t *wcs);
+void		aes_copy_wcs(struct aes *, const wchar_t *wcs);
 
 /*
  * Description of an archive entry.
@@ -70,24 +93,144 @@ struct archive_entry {
 	int ae_tartype;
 
 	/*
-	 * Note: If you add any more string fields, update
-	 * archive_entry_clone accordingly.
+	 * Use aes here so that we get transparent mbs<->wcs conversions.
 	 */
-	const char *ae_acl;		/* ACL text */
-	const char *ae_acl_default;	/* default ACL */
-	const char *ae_fflags;		/* Text fflags per fflagstostr(3) */
-	const char *ae_gname;		/* Name of owning group */
-	const char *ae_hardlink;	/* Name of target for hardlink */
-	const char *ae_pathname;	/* Name of entry */
-	const char *ae_symlink;		/* symlink contents */
-	const char *ae_uname;		/* Name of owner */
-
-	char buff[1]; /* MUST BE AT END OF STRUCT!!! */
+	struct aes ae_acl;		/* ACL text */
+	struct aes ae_acl_default;	/* default ACL */
+	struct aes ae_fflags;		/* Text fflags per fflagstostr(3) */
+	struct aes ae_gname;		/* Name of owning group */
+	struct aes ae_hardlink;	/* Name of target for hardlink */
+	struct aes ae_pathname;	/* Name of entry */
+	struct aes ae_symlink;		/* symlink contents */
+	struct aes ae_uname;		/* Name of owner */
 };
+
+void
+aes_clean(struct aes *aes)
+{
+	if (aes->aes_mbs_alloc) {
+		free(aes->aes_mbs_alloc);
+		aes->aes_mbs_alloc = NULL;
+	}
+	if (aes->aes_wcs_alloc) {
+		free(aes->aes_wcs_alloc);
+		aes->aes_wcs_alloc = NULL;
+	}
+	memset(aes, 0, sizeof(*aes));
+}
+
+void
+aes_copy(struct aes *dest, struct aes *src)
+{
+	*dest = *src;
+	if (src->aes_mbs_alloc != NULL) {
+		dest->aes_mbs_alloc = strdup(src->aes_mbs_alloc);
+		dest->aes_mbs = dest->aes_mbs_alloc;
+	}
+
+	if (src->aes_wcs_alloc != NULL) {
+		dest->aes_wcs_alloc = malloc((wcslen(src->aes_wcs_alloc) + 1)
+		    * sizeof(wchar_t));
+		dest->aes_wcs = dest->aes_wcs_alloc;
+		wcscpy(dest->aes_wcs_alloc, src->aes_wcs);
+	}
+}
+
+const char *
+aes_get_mbs(struct aes *aes)
+{
+	if (aes->aes_mbs == NULL && aes->aes_wcs != NULL) {
+		/*
+		 * XXX Need to estimate the number of byte in the
+		 * multi-byte form.  Assume that, on average, wcs
+		 * chars encode to no more than 3 bytes.  There must
+		 * be a better way... XXX
+		 */
+		int mbs_length = wcslen(aes->aes_wcs) * 3 + 64;
+		aes->aes_mbs_alloc = malloc(mbs_length);
+		aes->aes_mbs = aes->aes_mbs_alloc;
+		wcstombs(aes->aes_mbs_alloc, aes->aes_wcs, mbs_length - 1);
+		aes->aes_mbs_alloc[mbs_length - 1] = 0;
+	}
+	return (aes->aes_mbs);
+}
+
+const wchar_t *
+aes_get_wcs(struct aes *aes)
+{
+	if (aes->aes_wcs == NULL && aes->aes_mbs != NULL) {
+		/*
+		 * No single byte will be more than one wide character,
+		 * so this length estimate will always be big enough.
+		 */
+		int wcs_length = strlen(aes->aes_mbs);
+		aes->aes_wcs_alloc
+		    = malloc((wcs_length + 1) * sizeof(wchar_t));
+		aes->aes_wcs = aes->aes_wcs_alloc;
+		mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
+		aes->aes_wcs_alloc[wcs_length] = 0;
+	}
+	return (aes->aes_wcs);
+}
+
+void
+aes_set_mbs(struct aes *aes, const char *mbs)
+{
+	if (aes->aes_mbs_alloc) {
+		free(aes->aes_mbs_alloc);
+		aes->aes_mbs_alloc = NULL;
+	}
+	if (aes->aes_wcs_alloc) {
+		free(aes->aes_wcs_alloc);
+		aes->aes_wcs_alloc = NULL;
+	}
+	aes->aes_mbs = mbs;
+	aes->aes_wcs = NULL;
+}
+
+void
+aes_set_wcs(struct aes *aes, const wchar_t *wcs)
+{
+	if (aes->aes_mbs_alloc) {
+		free(aes->aes_mbs_alloc);
+		aes->aes_mbs_alloc = NULL;
+	}
+	if (aes->aes_wcs_alloc) {
+		free(aes->aes_wcs_alloc);
+		aes->aes_wcs_alloc = NULL;
+	}
+	aes->aes_mbs = NULL;
+	aes->aes_wcs = wcs;
+}
+
+void
+aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
+{
+	if (aes->aes_mbs_alloc) {
+		free(aes->aes_mbs_alloc);
+		aes->aes_mbs_alloc = NULL;
+	}
+	if (aes->aes_wcs_alloc) {
+		free(aes->aes_wcs_alloc);
+		aes->aes_wcs_alloc = NULL;
+	}
+	aes->aes_mbs = NULL;
+	aes->aes_wcs_alloc = malloc((wcslen(wcs) + 1) * sizeof(wchar_t));
+	wcscpy(aes->aes_wcs_alloc, wcs);
+	aes->aes_wcs = aes->aes_wcs_alloc;
+}
 
 struct archive_entry *
 archive_entry_clear(struct archive_entry *entry)
 {
+	aes_clean(&entry->ae_acl);
+	aes_clean(&entry->ae_acl_default);
+	aes_clean(&entry->ae_fflags);
+	aes_clean(&entry->ae_gname);
+	aes_clean(&entry->ae_hardlink);
+	aes_clean(&entry->ae_pathname);
+	aes_clean(&entry->ae_symlink);
+	aes_clean(&entry->ae_uname);
 	memset(entry, 0, sizeof(*entry));
 	entry->ae_tartype = -1;
 	return entry;
@@ -96,98 +239,29 @@ archive_entry_clear(struct archive_entry *entry)
 struct archive_entry *
 archive_entry_clone(struct archive_entry *entry)
 {
-	int size;
-	struct archive_entry *entry2;
-	char *p;
-
-	size = sizeof(*entry2);
-	if (entry->ae_acl)
-		size += strlen(entry->ae_acl) + 1;
-	if (entry->ae_acl_default)
-		size += strlen(entry->ae_acl_default) + 1;
-	if (entry->ae_fflags)
-		size += strlen(entry->ae_fflags) + 1;
-	if (entry->ae_gname)
-		size += strlen(entry->ae_gname) + 1;
-	if (entry->ae_hardlink)
-		size += strlen(entry->ae_hardlink) + 1;
-	if (entry->ae_pathname)
-		size += strlen(entry->ae_pathname) + 1;
-	if (entry->ae_symlink)
-		size += strlen(entry->ae_symlink) + 1;
-	if (entry->ae_uname)
-		size += strlen(entry->ae_uname) + 1;
-
-	entry2 = malloc(size);
-	*entry2 = *entry;
-
-	/* Copy all of the strings from the original. */
-	p = entry2->buff;
-
-	if (entry->ae_acl) {
-		entry2->ae_acl = p;
-		strcpy(p, entry->ae_acl);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_acl_default) {
-		entry2->ae_acl_default = p;
-		strcpy(p, entry->ae_acl_default);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_fflags) {
-		entry2->ae_fflags = p;
-		strcpy(p, entry->ae_fflags);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_gname) {
-		entry2->ae_gname = p;
-		strcpy(p, entry->ae_gname);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_hardlink) {
-		entry2->ae_hardlink = p;
-		strcpy(p, entry->ae_hardlink);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_pathname) {
-		entry2->ae_pathname = p;
-		strcpy(p, entry->ae_pathname);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_symlink) {
-		entry2->ae_symlink = p;
-		strcpy(p, entry->ae_symlink);
-		p += strlen(p) + 1;
-	}
-
-	if (entry->ae_uname) {
-		entry2->ae_uname = p;
-		strcpy(p, entry->ae_uname);
-		p += strlen(p) + 1;
-	}
-
-	return (entry2);
-}
-
-struct archive_entry *
-archive_entry_dup(struct archive_entry *entry)
-{
 	struct archive_entry *entry2;
 
+	/* Allocate new structure and copy over all of the fields. */
 	entry2 = malloc(sizeof(*entry2));
-	*entry2 = *entry;
+	entry2->ae_stat = entry->ae_stat;
+	entry2->ae_tartype = entry->ae_tartype;
+
+	aes_copy(&entry2->ae_acl ,&entry->ae_acl);
+	aes_copy(&entry2->ae_acl_default ,&entry->ae_acl_default);
+	aes_copy(&entry2->ae_fflags ,&entry->ae_fflags);
+	aes_copy(&entry2->ae_gname ,&entry->ae_gname);
+	aes_copy(&entry2->ae_hardlink ,&entry->ae_hardlink);
+	aes_copy(&entry2->ae_pathname, &entry->ae_pathname);
+	aes_copy(&entry2->ae_symlink ,&entry->ae_symlink);
+	aes_copy(&entry2->ae_uname ,&entry->ae_uname);
+
 	return (entry2);
 }
 
 void
 archive_entry_free(struct archive_entry *entry)
 {
+	archive_entry_clear(entry);
 	free(entry);
 }
 
@@ -199,10 +273,10 @@ archive_entry_new(void)
 	entry = malloc(sizeof(*entry));
 	if(entry == NULL)
 		return (NULL);
-	archive_entry_clear(entry);
+	memset(entry, 0, sizeof(*entry));
+	entry->ae_tartype = -1;
 	return (entry);
 }
-
 
 /*
  * Functions for reading fields from an archive_entry.
@@ -211,14 +285,14 @@ archive_entry_new(void)
 const char *
 archive_entry_acl(struct archive_entry *entry)
 {
-	return (entry->ae_acl);
+	return (aes_get_mbs(&entry->ae_acl));
 }
 
 
 const char *
 archive_entry_acl_default(struct archive_entry *entry)
 {
-	return (entry->ae_acl_default);
+	return (aes_get_mbs(&entry->ae_acl_default));
 }
 
 dev_t
@@ -237,19 +311,19 @@ archive_entry_devminor(struct archive_entry *entry)
 const char *
 archive_entry_fflags(struct archive_entry *entry)
 {
-	return (entry->ae_fflags);
+	return (aes_get_mbs(&entry->ae_fflags));
 }
 
 const char *
 archive_entry_gname(struct archive_entry *entry)
 {
-	return (entry->ae_gname);
+	return (aes_get_mbs(&entry->ae_gname));
 }
 
 const char *
 archive_entry_hardlink(struct archive_entry *entry)
 {
-	return (entry->ae_hardlink);
+	return (aes_get_mbs(&entry->ae_hardlink));
 }
 
 mode_t
@@ -261,7 +335,13 @@ archive_entry_mode(struct archive_entry *entry)
 const char *
 archive_entry_pathname(struct archive_entry *entry)
 {
-	return (entry->ae_pathname);
+	return (aes_get_mbs(&entry->ae_pathname));
+}
+
+const wchar_t *
+archive_entry_pathname_w(struct archive_entry *entry)
+{
+	return (aes_get_wcs(&entry->ae_pathname));
 }
 
 int64_t
@@ -279,7 +359,7 @@ archive_entry_stat(struct archive_entry *entry)
 const char *
 archive_entry_symlink(struct archive_entry *entry)
 {
-	return (entry->ae_symlink);
+	return (aes_get_mbs(&entry->ae_symlink));
 }
 
 int
@@ -291,7 +371,7 @@ archive_entry_tartype(struct archive_entry *entry)
 const char *
 archive_entry_uname(struct archive_entry *entry)
 {
-	return (entry->ae_uname);
+	return (aes_get_mbs(&entry->ae_uname));
 }
 
 /*
@@ -311,14 +391,25 @@ archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 void
 archive_entry_set_acl(struct archive_entry *entry, const char *acl)
 {
-	entry->ae_acl = acl;
+	aes_set_mbs(&entry->ae_acl, acl);
 }
 
+void
+archive_entry_copy_acl_w(struct archive_entry *entry, const wchar_t *acl)
+{
+	aes_copy_wcs(&entry->ae_acl, acl);
+}
 
 void
 archive_entry_set_acl_default(struct archive_entry *entry, const char *acl)
 {
-	entry->ae_acl_default = acl;
+	aes_set_mbs(&entry->ae_acl_default, acl);
+}
+
+void
+archive_entry_copy_acl_default_w(struct archive_entry *entry, const wchar_t *acl)
+{
+	aes_copy_wcs(&entry->ae_acl_default, acl);
 }
 
 void
@@ -342,7 +433,13 @@ archive_entry_set_devminor(struct archive_entry *entry, dev_t m)
 void
 archive_entry_set_fflags(struct archive_entry *entry, const char *flags)
 {
-	entry->ae_fflags = flags;
+	aes_set_mbs(&entry->ae_fflags, flags);
+}
+
+void
+archive_entry_copy_fflags_w(struct archive_entry *entry, const wchar_t *flags)
+{
+	aes_copy_wcs(&entry->ae_fflags, flags);
 }
 
 void
@@ -354,13 +451,25 @@ archive_entry_set_gid(struct archive_entry *entry, gid_t g)
 void
 archive_entry_set_gname(struct archive_entry *entry, const char *name)
 {
-	entry->ae_gname = name;
+	aes_set_mbs(&entry->ae_gname, name);
+}
+
+void
+archive_entry_copy_gname_w(struct archive_entry *entry, const wchar_t *name)
+{
+	aes_copy_wcs(&entry->ae_gname, name);
 }
 
 void
 archive_entry_set_hardlink(struct archive_entry *entry, const char *target)
 {
-	entry->ae_hardlink = target;
+	aes_set_mbs(&entry->ae_hardlink, target);
+}
+
+void
+archive_entry_copy_hardlink_w(struct archive_entry *entry, const wchar_t *target)
+{
+	aes_copy_wcs(&entry->ae_hardlink, target);
 }
 
 void
@@ -372,7 +481,13 @@ archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 void
 archive_entry_set_pathname(struct archive_entry *entry, const char *name)
 {
-	entry->ae_pathname = name;
+	aes_set_mbs(&entry->ae_pathname, name);
+}
+
+void
+archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
+{
+	aes_copy_wcs(&entry->ae_pathname, name);
 }
 
 void
@@ -382,9 +497,15 @@ archive_entry_set_size(struct archive_entry *entry, int64_t s)
 }
 
 void
-archive_entry_set_symlink(struct archive_entry *entry, const char *link)
+archive_entry_set_symlink(struct archive_entry *entry, const char *linkname)
 {
-	entry->ae_symlink = link;
+	aes_set_mbs(&entry->ae_symlink, linkname);
+}
+
+void
+archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linkname)
+{
+	aes_copy_wcs(&entry->ae_symlink, linkname);
 }
 
 void
@@ -402,6 +523,26 @@ archive_entry_set_uid(struct archive_entry *entry, uid_t u)
 void
 archive_entry_set_uname(struct archive_entry *entry, const char *name)
 {
-	entry->ae_uname = name;
+	aes_set_mbs(&entry->ae_uname, name);
 }
 
+void
+archive_entry_copy_uname_w(struct archive_entry *entry, const wchar_t *name)
+{
+	aes_copy_wcs(&entry->ae_uname, name);
+}
+
+#if TEST
+int
+main(int argc, char **argv)
+{
+	struct aes aes;
+
+	memset(&aes, 0, sizeof(aes));
+	aes_clean(&aes);
+	aes_set_mbs(&aes, "»»»abc");
+	wprintf("%S\n", L"abcdef");
+	wprintf("%S\n",aes_get_wcs(&aes));
+	return (0);
+}
+#endif

@@ -52,7 +52,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 		    a->entry_bytes_remaining);
 		if (bytes_read < 0)
 			return (-1);
-		if ((size_t)bytes_read > a->entry_bytes_remaining)
+		if (bytes_read > a->entry_bytes_remaining)
 			bytes_read = (ssize_t)a->entry_bytes_remaining;
 
 		bytes_written = write(fd, buff, bytes_read);

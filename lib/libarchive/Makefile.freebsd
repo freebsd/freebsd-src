@@ -1,8 +1,14 @@
 # Makefile for libarchive.
 #
 # $FreeBSD$
-#
+
 LIB=	archive
+SHLIB_MAJOR=	1
+
+# I'm not yet ready for a shared version of this library, as
+# there are still a couple of API changes still in the works.
+NOSHLIBS=	1
+
 SRCS=	archive_check_magic.c				\
 	archive_entry.c					\
 	archive_read.c					\
@@ -114,8 +120,8 @@ DEBUG_FLAGS+= -DDEBUG -g
 CFLAGS+= -DHAVE_DMALLOC -I/usr/local/include
 LDFLAGS+= -L/usr/local/lib -ldmalloc
 .endif
+CFLAGS+= -O3
 
-# Should be WARNS=6, except that zlib.h is borked. <sigh>
-WARNS?=	3
+WARNS?=	6
 
 .include <bsd.lib.mk>

@@ -331,8 +331,15 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 	ssize_t bytes_read;
 
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
-	if (s > a->entry_bytes_remaining)
-		s = a->entry_bytes_remaining;
+	/*
+	 * off_t is generally at least as wide as size_t, so widen for
+	 * comparison and narrow for the assignment.  Otherwise, on
+	 * platforms with 32-bit size_t and 64-bit off_t, we won't be
+	 * able to correctly read archives with entries larger than
+	 * 4gig.
+	 */
+	if ((off_t)s > a->entry_bytes_remaining)
+		s = (size_t)a->entry_bytes_remaining;
 	if (s > 0) {
 		bytes_read = (a->compression_read_ahead)(a, &data, 1);
 		if (bytes_read < 0) {
@@ -424,20 +431,6 @@ archive_read_finish(struct archive *a)
 	 */
 	/* Casting a pointer to int allows us to remove 'const.' */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	if (a->entry_name.s != NULL)
-		free(a->entry_name.s);
-	if (a->entry_linkname.s != NULL)
-		free(a->entry_linkname.s);
-	if (a->entry_uname.s != NULL)
-		free(a->entry_uname.s);
-	if (a->entry_gname.s != NULL)
-		free(a->entry_gname.s);
-	if (a->pax_header.s != NULL)
-		free(a->pax_header.s);
-	if (a->gnu_name.s != NULL)
-		free(a->gnu_name.s);
-	if (a->gnu_linkname.s != NULL)
-		free(a->gnu_linkname.s);
 	if (a->extract_mkdirpath.s != NULL)
 		free(a->extract_mkdirpath.s);
 	if (a->entry)

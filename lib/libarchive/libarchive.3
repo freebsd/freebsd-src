@@ -80,10 +80,10 @@ POSIX
 .Dq pax interchange format
 archives,
 .It
-POSIX octet-oriented cpio archives.
+POSIX octet-oriented cpio archives,
+.It
+two different variants of shar archives.
 .El
-The default write format is the pax interchange
-format.
 Pax interchange format is an extension of the tar archive format that
 eliminates essentially all of the limitations of historic tar formats
 in a standard fashion that is supported
@@ -91,6 +91,9 @@ by POSIX-compliant
 .Xr pax 1
 implementations on many systems as well as several newer implementations of
 .Xr tar 1 .
+Note that the default write format will suppress the pax extended
+attributes for most entries; explicitly requesting pax format will
+enable those attributes for all entries.
 .Pp
 The read and write APIs are accessed through the
 .Fn archive_read_XXX
@@ -238,10 +241,18 @@ variants have eliminated most restrictions on the length of textual fields.
 Clients should not assume that filenames, link names, user names, or
 group names are limited in length.
 In particular, pax interchange format can easily accomodate pathnames
-that exceed
+in arbitrary character sets that exceed
 .Va PATH_MAX .
 .Sh RETURN VALUES
 Most functions return zero on success, non-zero on error.
+The return value indicates the general severity of the error, ranging
+from
+.Cm ARCHIVE_WARNING ,
+which indicates a minor problem that should probably be reported
+to the user, to
+.Cm ARCHIVE_FATAL ,
+which indicates a serious problem that will prevent any further
+operations on this archive.
 On error, the
 .Fn archive_errno
 function can be used to retrieve a numeric error code (see
@@ -257,21 +268,6 @@ return pointers to an allocated and initialized
 .Tn struct archive
 object.
 .Pp
-.Fn archive_read_next_header
-returns a pointer to an
-.Tn struct archive_entry
-structure or
-.Dv NULL .
-If
-.Dv NULL
-is returned, the value from
-.Fn archive_errno
-will be zero if the end of the archive was reached,
--1 if there was a recoverable error reading the archive,
-or positive if there was a non-recoverable error reading the archive.
-If there was a recoverable error, the client should retry the
-operation.
-.Pp
 .Fn archive_read_data
 and
 .Fn archive_write_data
@@ -284,6 +280,9 @@ and
 functions can be used to obtain more information.
 .Sh ENVIRONMENT
 The library currently obeys no environment variables.
+There are character set conversions within the
+.Xr archive_entry
+functions that are impacted by the currently-selected locale.
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr archive_entry 3 ,
@@ -304,8 +303,8 @@ library was written by
 .An Tim Kientzle Aq kientzle@acm.org .
 .Sh BUGS
 Some archive formats support information that is not supported by
-.Tn struct archive_entry
-and cannot therefore be archived or restored using this library.
+.Tn struct archive_entry .
+Such information cannot be fully archived or restored using this library.
 This includes, for example, comments, character sets, sparse
 file information, or the arbitrary key/value pairs that can appear in
 pax interchange format archives.
@@ -317,9 +316,7 @@ is supported by all formats.
 For example, cpio formats do not support nanosecond timestamps;
 old tar formats do not support large device numbers.
 .Pp
-The library does not have write support for pre-POSIX tar archives.
+The library cannot write pre-POSIX tar archives.
 The support for GNU tar format is incomplete.
 .Pp
-The library should obey the current locale and convert
-UTF8 filenames stored by pax interchange format to and from the
-currently-active character coding.
+Support for ACLs is still evolving and subject to change.

@@ -33,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <err.h>
 #include <errno.h>
-#include <stdint.h>
+/* #include <stdint.h> */ /* See archive_platform.h */
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -76,10 +77,21 @@ struct archive_entry_header_gnutar {
 	 */
 };
 
+struct gnutar {
+	struct archive_string	entry_name;
+	struct archive_string	entry_linkname;
+	struct archive_string	entry_uname;
+	struct archive_string	entry_gname;
+	struct archive_string	gnu_name;
+	struct archive_string	gnu_linkname;
+	int		  	gnu_header_recursion_depth;
+};
+
 static int	archive_block_is_null(const unsigned char *p);
 static int	archive_header_gnu(struct archive *, struct archive_entry *,
 		    const void *);
 static int	archive_read_format_gnutar_bid(struct archive *a);
+static int	archive_read_format_gnutar_cleanup(struct archive *);
 static int	archive_read_format_gnutar_read_header(struct archive *a,
 		    struct archive_entry *);
 static int	checksum(struct archive *a, const void *h);
@@ -93,11 +105,40 @@ static int64_t	tar_atol256(const char *, unsigned);
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
+	struct gnutar *gnutar;
+
+	gnutar = malloc(sizeof(*gnutar));
+	memset(gnutar, 0, sizeof(*gnutar));
+
 	return (__archive_read_register_format(a,
-	    NULL,
+	    gnutar,
 	    archive_read_format_gnutar_bid,
 	    archive_read_format_gnutar_read_header,
-	    NULL));
+	    archive_read_format_gnutar_cleanup));
+}
+
+static int
+archive_read_format_gnutar_cleanup(struct archive *a)
+{
+	struct gnutar *gnutar;
+
+	gnutar = *(a->pformat_data);
+	if (gnutar->entry_name.s != NULL)
+		free(gnutar->entry_name.s);
+	if (gnutar->entry_linkname.s != NULL)
+		free(gnutar->entry_linkname.s);
+	if (gnutar->entry_uname.s != NULL)
+		free(gnutar->entry_uname.s);
+	if (gnutar->entry_gname.s != NULL)
+		free(gnutar->entry_gname.s);
+	if (gnutar->gnu_name.s != NULL)
+		free(gnutar->gnu_name.s);
+	if (gnutar->gnu_linkname.s != NULL)
+		free(gnutar->gnu_linkname.s);
+
+	free(gnutar);
+	*(a->pformat_data) = NULL;
+	return (ARCHIVE_OK);
 }
 
 static int
@@ -154,7 +195,9 @@ archive_read_format_gnutar_read_header(struct archive *a,
 	const void *h;
 	ssize_t bytes;
 	int oldstate;
+	struct gnutar *gnutar;
 
+	gnutar = *(a->pformat_data);
 	a->archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
 	a->archive_format_name = "GNU tar";
 
@@ -188,14 +231,14 @@ archive_read_format_gnutar_read_header(struct archive *a,
 	}
 
 	/* This function gets called recursively for long name headers, etc. */
-	if (++a->gnu_header_recursion_depth > 32)
+	if (++gnutar->gnu_header_recursion_depth > 32)
 	    errx(EINVAL,
 		 "*** Too many special headers for one entry; giving up. "
 		 "(%s:%s@%d)\n",
 		 __FUNCTION__, __FILE__, __LINE__);
 
 	archive_header_gnu(a, entry, h);
-	a->gnu_header_recursion_depth--;
+	gnutar->gnu_header_recursion_depth--;
 	return (0);
 }
 
@@ -267,10 +310,13 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 {
 	struct stat st;
 	const struct archive_entry_header_gnutar *header;
+	struct gnutar *gnutar;
 	char tartype;
+	unsigned oldstate;
 
 	/* Clear out entry structure */
 	memset(&st, 0, sizeof(st));
+	gnutar = *(a->pformat_data);
 
 	/*
 	 * GNU header is like POSIX, except 'prefix' is
@@ -280,12 +326,13 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 
 	/* Copy filename over (to ensure null termination). */
 	header = h;
-	archive_strncpy(&(a->entry_name), header->name, sizeof(header->name));
-	archive_entry_set_pathname(entry, a->entry_name.s);
+	archive_strncpy(&(gnutar->entry_name), header->name,
+	    sizeof(header->name));
+	archive_entry_set_pathname(entry, gnutar->entry_name.s);
 
 	/* Copy linkname over */
 	if (header->linkname[0])
-		archive_strncpy(&(a->entry_linkname), header->linkname,
+		archive_strncpy(&(gnutar->entry_linkname), header->linkname,
 		    sizeof(header->linkname));
 
 	/* Parse out the numeric fields (all are octal) */
@@ -301,13 +348,13 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 	st.st_mode &= ~S_IFMT;
 
 	/* Fields common to ustar and GNU */
-	archive_strncpy(&(a->entry_uname),
+	archive_strncpy(&(gnutar->entry_uname),
 	    header->uname, sizeof(header->uname));
-	archive_entry_set_uname(entry, a->entry_uname.s);
+	archive_entry_set_uname(entry, gnutar->entry_uname.s);
 
-	archive_strncpy(&(a->entry_gname),
+	archive_strncpy(&(gnutar->entry_gname),
 	    header->gname, sizeof(header->gname));
-	archive_entry_set_gname(entry, a->entry_gname.s);
+	archive_entry_set_gname(entry, gnutar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4')
@@ -329,7 +376,7 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 	/* Interpret entry type */
 	switch (tartype) {
 	case '1': /* Hard link */
-		archive_entry_set_hardlink(entry, a->entry_linkname.s);
+		archive_entry_set_hardlink(entry, gnutar->entry_linkname.s);
 		/*
 		 * Note: Technically, tar does not store the file type
 		 * for a "hard link" entry, only the fact that it is a
@@ -341,7 +388,7 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 	case '2': /* Symlink */
 		st.st_mode |= S_IFLNK;
 		st.st_size = 0;
-		archive_entry_set_symlink(entry, a->entry_linkname.s);
+		archive_entry_set_symlink(entry, gnutar->entry_linkname.s);
 		archive_entry_copy_stat(entry, &st);
 		break;
 	case '3': /* Character device */
@@ -376,32 +423,43 @@ archive_header_gnu(struct archive *a, struct archive_entry *entry,
 		break;
 	case 'K': /* GNU long linkname */
 		/* Entry body is full name of link for next header. */
-		archive_string_ensure(&(a->gnu_linkname), st.st_size+1);
-		archive_read_data_into_buffer(a, a->gnu_linkname.s,
+		archive_string_ensure(&(gnutar->gnu_linkname), st.st_size+1);
+		/* Temporarily fudge internal state for read_data call. */
+		oldstate = a->state;
+		a->state = ARCHIVE_STATE_DATA;
+		archive_read_data_into_buffer(a, gnutar->gnu_linkname.s,
 		    st.st_size);
-		a->gnu_linkname.s[st.st_size] = 0; /* Null term name! */
+		a->state = oldstate;
+		gnutar->gnu_linkname.s[st.st_size] = 0; /* Null term name! */
 		/*
 		 * This next call will usually overwrite
-		 * a->entry_linkname, which is why we _must_ have a
-		 * separate gnu_linkname field.
+		 * gnutar->entry_linkname, which is why we _must_ have
+		 * a separate gnu_linkname field.
 		 */
 		archive_read_format_gnutar_read_header(a, entry);
 		if (archive_entry_tartype(entry) == '1')
-			archive_entry_set_hardlink(entry, a->gnu_linkname.s);
+			archive_entry_set_hardlink(entry, gnutar->gnu_linkname.s);
 		else if (archive_entry_tartype(entry) == '2')
-			archive_entry_set_symlink(entry, a->gnu_linkname.s);
+			archive_entry_set_symlink(entry, gnutar->gnu_linkname.s);
 		/* TODO: else { ... } */
 		break;
 	case 'L': /* GNU long filename */
 		/* Entry body is full pathname for next header. */
-		archive_string_ensure(&(a->gnu_name), st.st_size+1);
-		archive_read_data_into_buffer(a, a->gnu_name.s,
+		archive_string_ensure(&(gnutar->gnu_name), st.st_size+1);
+		/* Temporarily fudge internal state for read_data call. */
+		oldstate = a->state;
+		a->state = ARCHIVE_STATE_DATA;
+		archive_read_data_into_buffer(a, gnutar->gnu_name.s,
 		    st.st_size);
-		a->gnu_name.s[st.st_size] = 0; /* Null terminate name! */
-		/* This next call will typically overwrite a->entry_name, which
-		 * is why we _must_ have a separate gnu_name field */
+		a->state = oldstate;
+		gnutar->gnu_name.s[st.st_size] = 0; /* Null terminate name! */
+		/*
+		 * This next call will typically overwrite
+		 * gnutar->entry_name, which is why we _must_ have a
+		 * separate gnu_name field.
+		 */
 		archive_read_format_gnutar_read_header(a, entry);
-		archive_entry_set_pathname(entry, a->gnu_name.s);
+		archive_entry_set_pathname(entry, gnutar->gnu_name.s);
 		break;
 	case 'M': /* GNU Multi-volume (remainder of file from last archive) */
 		/*
