@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: comm.c,v 8.54.2.2 2002/08/16 17:09:13 ca Exp $")
+SM_RCSID("@(#)$Id: comm.c,v 8.54.2.4 2002/12/03 17:32:45 ca Exp $")
 
 #include "libmilter.h"
 #include <sm/errstring.h>
@@ -55,14 +55,6 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	*cmd = '\0';
 	*rlen = 0;
 
-	if (sd >= FD_SETSIZE)
-	{
-		smi_log(SMI_LOG_ERR, "%s: fd %d is larger than FD_SETSIZE %d",
-			name, sd, FD_SETSIZE);
-		*cmd = SMFIC_SELECT;
-		return NULL;
-	}
-
 	i = 0;
 	for (;;)
 	{
@@ -87,7 +79,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s, mi_rd_cmd: read returned %d: %s",
-				name, len, sm_errstring(errno));
+				name, (int) len, sm_errstring(errno));
 			*cmd = SMFIC_RECVERR;
 			return NULL;
 		}
@@ -160,7 +152,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 		{
 			smi_log(SMI_LOG_ERR,
 				"%s: mi_rd_cmd: read returned %d: %s",
-				name, len, sm_errstring(errno));
+				name, (int) len, sm_errstring(errno));
 			ret = -1;
 			break;
 		}
@@ -224,7 +216,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 
 /*
 **  we don't care much about the timeout here, it's very long anyway
-**  FD_SETSIZE is only checked in mi_rd_cmd.
+**  FD_SETSIZE is checked when socket is created.
 **  XXX l == 0 ?
 */
 

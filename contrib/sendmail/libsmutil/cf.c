@@ -9,7 +9,7 @@
  */
 
 #include <sendmail.h>
-SM_RCSID("@(#)$Id: cf.c,v 8.18 2002/05/25 00:09:16 gshapiro Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 8.18.2.1 2002/09/24 21:48:23 ca Exp $")
 #include <sendmail/pathnames.h>
 
 /*
@@ -37,20 +37,12 @@ getcfname(opmode, submitmode, cftype, conffile)
 	int cftype;
 	char *conffile;
 {
+#if NETINFO
+	char *cflocation;
+#endif /* NETINFO */
 
 	if (conffile != NULL)
 		return conffile;
-
-#if NETINFO
-	{
-		char *cflocation;
-
-		cflocation = ni_propval("/locations", NULL, "sendmail",
-					"sendmail.cf", '\0');
-		if (cflocation != NULL)
-			return cflocation;
-	}
-#endif /* NETINFO */
 
 	if (cftype == SM_GET_SUBMIT_CF ||
 	    ((submitmode != SUBMIT_UNKNOWN ||
@@ -62,10 +54,23 @@ getcfname(opmode, submitmode, cftype, conffile)
 		struct stat sbuf;
 		static char cf[MAXPATHLEN];
 
-		(void) sm_strlcpyn(cf, sizeof cf, 2, _DIR_SENDMAILCF,
-				   "submit.cf");
+#if NETINFO
+		cflocation = ni_propval("/locations", NULL, "sendmail",
+					"submit.cf", '\0');
+		if (cflocation != NULL)
+			(void) sm_strlcpy(cf, cflocation, sizeof cf);
+		else
+#endif /* NETINFO */
+			(void) sm_strlcpyn(cf, sizeof cf, 2, _DIR_SENDMAILCF,
+					   "submit.cf");
 		if (cftype == SM_GET_SUBMIT_CF || stat(cf, &sbuf) == 0)
 			return cf;
 	}
+#if NETINFO
+	cflocation = ni_propval("/locations", NULL, "sendmail",
+				"sendmail.cf", '\0');
+	if (cflocation != NULL)
+		return cflocation;
+#endif /* NETINFO */
 	return _PATH_SENDMAILCF;
 }

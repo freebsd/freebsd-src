@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1994 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: local_procmail.m4,v 8.21 1999/11/18 05:06:23 ca Exp $')
+VERSIONID(`$Id: local_procmail.m4,v 8.21.42.1 2002/11/17 04:25:07 ca Exp $')
 divert(-1)
 
 ifdef(`_MAILER_local_',
@@ -30,3 +30,7 @@ define(`LOCAL_MAILER_ARGS',
 	ifelse(len(X`'_ARG2_), `1', `procmail -Y -a $h -d $u', _ARG2_))
 define(`LOCAL_MAILER_FLAGS',
 	ifelse(len(X`'_ARG3_), `1', `SPfhn9', _ARG3_))
+dnl local_procmail conflicts with local_lmtp but the latter might be
+dnl defined in an OS/ file (solaris8). Let's just undefine it.
+undefine(`_LOCAL_LMTP_')
+undefine(`LOCAL_MAILER_DSN_DIAGNOSTIC_CODE')
