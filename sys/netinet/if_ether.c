@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.23 1995/12/14 09:53:37 phk Exp $
+ * $Id: if_ether.c,v 1.24 1995/12/16 00:05:40 bde Exp $
  */
 
 /*
@@ -61,20 +61,19 @@
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
 
-SYSCTL_NODE(_net, OID_AUTO, arp, CTLFLAG_RW, 0, "");
+SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
 /* timer values */
-static int	arpt_prune = (5*60*1);
-	/* walk list every 5 minutes */
-SYSCTL_INT(_net_arp, OID_AUTO, t_prune, CTLFLAG_RW, &arpt_prune, 0, "");
+static int arpt_prune = (5*60*1); /* walk list every 5 minutes */
+static int arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
+static int arpt_down = 20;	/* once declared down, don't send for 20 sec */
 
-static int	arpt_keep = (20*60);
-	/* once resolved, good for 20 more minutes */
-SYSCTL_INT(_net_arp, OID_AUTO, t_keep, CTLFLAG_RW, &arpt_keep, 0, "");
-
-static int	arpt_down = 20;
-	/* once declared down, don't send for 20 secs */
-SYSCTL_INT(_net_arp, OID_AUTO, t_down, CTLFLAG_RW, &arpt_down, 0, "");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, prune_intvl, CTLFLAG_RW,
+	   &arpt_prune, 0, "");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW, 
+	   &arpt_keep, 0, "");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, host_down_time, CTLFLAG_RW,
+	   &arpt_down, 0, "");
 
 #define	rt_expire rt_rmx.rmx_expire
 
@@ -92,14 +91,15 @@ struct	ifqueue arpintrq = {0, 0, 0, 50};
 static int	arp_inuse, arp_allocated;
 
 static int	arp_maxtries = 5;
-SYSCTL_INT(_net_arp, OID_AUTO, maxtries, CTLFLAG_RW, &arp_maxtries, 0, "");
-
-static int	useloopback = 1;
-	/* use loopback interface for local traffic */
-SYSCTL_INT(_net_arp, OID_AUTO, useloopback, CTLFLAG_RW, &useloopback, 0, "");
-
+static int	useloopback = 1; /* use loopback interface for local traffic */
 static int	arp_proxyall = 0;
-SYSCTL_INT(_net_arp, OID_AUTO, proxyall, CTLFLAG_RW, &arp_proxyall, 0, "");
+
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
+	   &arp_maxtries, 0, "");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
+	   &useloopback, 0, "");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
+	   &arp_proxyall, 0, "");
 
 static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static void	arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
