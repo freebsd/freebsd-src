@@ -93,7 +93,6 @@ static int load__block_bitmap (struct mount * mp,
 	struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
 	unsigned long block_bitmap_number;
 	struct buffer_head * block_bitmap;
-	int error;
 
 	if (block_group >= sb->s_groups_count)
 		panic ( "load_block_bitmap: "
@@ -227,7 +226,7 @@ void ext2_free_blocks (struct mount * mp, unsigned long block,
 	}
 
 	mark_buffer_dirty(bh2);
-	mark_buffer_dirty(bh, 1);
+	mark_buffer_dirty(bh);
 /****
 	if (sb->s_flags & MS_SYNCHRONOUS) {
 		ll_rw_block (WRITE, 1, &bh);
@@ -444,7 +443,7 @@ got_block:
 		    "Goal hits %d of %d.\n", j, goal_hits, goal_attempts);
 
 	gdp->bg_free_blocks_count--;
-	mark_buffer_dirty(bh2, 1);
+	mark_buffer_dirty(bh2);
 	es->s_free_blocks_count--;
 	sb->s_dirt = 1;
 	unlock_super (VFSTOUFS(mp)->um_devvp);

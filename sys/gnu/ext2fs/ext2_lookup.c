@@ -56,11 +56,13 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
+#include <sys/systm.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
@@ -73,17 +75,7 @@
 */
 #undef  DIRBLKSIZ
 
-#if 1
-extern struct	nchstats nchstats;
-static int dirchk = 1;
-#else
-struct	nchstats nchstats;
-#if DIAGNOSTIC
-int	dirchk = 1;
-#else
-int	dirchk = 0;
-#endif
-#endif
+extern	int dirchk;
 
 /*
  * the problem that is tackled below is the fact that FFS
@@ -155,7 +147,7 @@ ext2_readdir(ap)
         } */ *ap;
 {
         register struct uio *uio = ap->a_uio;
-        int count, lost, error;
+        int count, error;
 
 	struct ext2_dir_entry *edp, *dp;
 	struct dirent dstdp;
@@ -164,8 +156,6 @@ ext2_readdir(ap)
 	caddr_t dirbuf;
 	int readcnt;
 	u_quad_t startoffset = uio->uio_offset;
-	u_char tmp;
-	int	DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->s_blocksize;
 
         count = uio->uio_resid;		/* legyenek boldogok akik akarnak ... */
         uio->uio_resid = count;
@@ -426,7 +416,7 @@ searchloop:
 		ep = (struct ext2_dir_entry *)
 			((char *)bp->b_data + entryoffsetinblock);
 		if (ep->rec_len == 0 ||
-		    dirchk && ext2_dirbadentry(vdp, ep, entryoffsetinblock)) {
+		    (dirchk && ext2_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 			ufs_dirbad(dp, dp->i_offset, "mangled entry");
 			i = DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1));
@@ -725,8 +715,6 @@ ext2_dirbadentry(dp, de, entryoffsetinblock)
 	register struct ext2_dir_entry *de;
 	int entryoffsetinblock;
 {
-	register int i;
-	int namlen;
 	int	DIRBLKSIZ = VTOI(dp)->i_e2fs->s_blocksize;
 
         char * error_msg = NULL;
@@ -911,7 +899,6 @@ ext2_dirremove(dvp, cnp)
 	struct ext2_dir_entry *ep;
 	struct buf *bp;
 	int error;
-        int     DIRBLKSIZ = VTOI(dvp)->i_e2fs->s_blocksize;
 	 
 	dp = VTOI(dvp);
 	if (dp->i_count == 0) {
