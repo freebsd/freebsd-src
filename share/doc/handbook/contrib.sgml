@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.169 1996/12/09 14:13:05 joerg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.170 1996/12/10 23:55:00 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -326,6 +326,7 @@
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
+	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
 	  <item>Suzuki Yoshiaki &lt;zensyo@ann.tama.kawasaki.jp&gt;
 	  <item>Tadashi Kumano &lt;kumano@strl.nhk.or.jp&gt;
