@@ -133,7 +133,6 @@ pcfclock_probe(device_t dev)
 	device_set_desc(dev, "PCF-1.0");
 
 	sc = DEVTOSOFTC(dev);
-	bzero(sc, sizeof(struct pcfclock_data));
 	
 	return (0);
 }

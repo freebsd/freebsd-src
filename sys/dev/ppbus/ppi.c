@@ -152,7 +152,6 @@ ppi_probe(device_t dev)
 	device_set_desc(dev, "Parallel I/O");
 
 	ppi = DEVTOSOFTC(dev);
-	bzero(ppi, sizeof(struct ppi_data));
 
 	return (0);
 }
