@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.9 1995/05/06 09:34:20 jkh Exp $
+ * $Id: sysinstall.h,v 1.10 1995/05/07 02:04:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -177,9 +177,13 @@ typedef enum {
     PART_FILESYSTEM
 } PartType;
 
+/* The longest newfs command we'll hand to system() */
+#define NEWFS_CMD_MAX	256
+
 typedef struct _part_info {
     Boolean newfs;
     char mountpoint[FILENAME_MAX];
+    char newfs_cmd[NEWFS_CMD_MAX];
 } PartInfo;
 
 

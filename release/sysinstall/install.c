@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.8 1995/05/05 23:47:40 jkh Exp $
+ * $Id: install.c,v 1.9 1995/05/06 09:34:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,8 +167,10 @@ make_filesystems(struct disk **disks)
 		struct chunk *c2 = c1->part;
 
 		while (c2) {
-		    if (c2->type == part && c2->subtype != FS_SWAP)
-			vsystem("newfs %s", c2->name);
+		    if (c2->type == part && c2->subtype != FS_SWAP &&
+			c2->private && ((PartInfo *)c2->private)->newfs)
+			vsystem("%s %s", ((PartInfo *)c2->private)->newfs_cmd,
+				c2->name);
 		    c2 = c2->next;
 		}
 	    }
@@ -180,6 +182,7 @@ make_filesystems(struct disk **disks)
 void
 cpio_extract(struct disk **disks)
 {
+    
 }
 
 void
