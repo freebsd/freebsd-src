@@ -207,7 +207,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 		    seconds = 1;
 		if (seconds != last_msg) {
 		    last_msg = seconds;
-		    msgInfo("%10d bytes read from package %s @ %4.1f KBytes/second", tot, name, (tot / seconds) / 1024.0);
+		    msgInfo("%10d bytes read from package %s @ %4.1f KBytes/second", tot, name, (tot / seconds) / 1000.0);
 		}
 		/* Write it out */
 		if (sigpipe_caught || write(pfd[1], buf, i) != i) {
