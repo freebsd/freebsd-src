@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.51 1998/04/30 09:13:48 jb Exp $
+#	$Id: Makefile.inc,v 1.52 1998/05/01 15:46:06 bde Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -130,7 +130,6 @@ MLINKS+=intro.2 errno.2
 MLINKS+=lseek.2 seek.2
 MLINKS+=mlock.2 munlock.2
 MLINKS+=mount.2 unmount.2
-MLINKS+=nanosleep.2 signanosleep.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=read.2 readv.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
