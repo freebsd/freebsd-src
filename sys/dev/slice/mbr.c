@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: mbr.c,v 1.2 1998/04/22 10:25:09 julian Exp $
+ *	$Id: mbr.c,v 1.3 1998/04/22 19:27:51 julian Exp $
  */
 
 #include <sys/param.h>
@@ -85,6 +85,7 @@ static sl_h_claim_t mbr_claim;	/* upwards travelling claim */
 static sl_h_revoke_t mbr_revoke;/* upwards travelling revokation */
 static sl_h_verify_t mbr_verify;/* things changed, are we stil valid? */
 static sl_h_upconfig_t mbr_upconfig;/* config request from below */
+static sl_h_dump_t mbr_dump;	/* core dump req downward */
 
 static struct slice_handler slicetype = {
 	"MBR",
@@ -99,7 +100,8 @@ static struct slice_handler slicetype = {
 	&mbr_revoke,		/* revoke */
 	&mbr_claim,		/* claim */
 	&mbr_verify,		/* verify */
-	&mbr_upconfig		/* config from below */
+	&mbr_upconfig,		/* config from below */
+	&mbr_dump
 };
 
 static void
@@ -839,6 +841,8 @@ mbr_upconfig(struct slice *slice, int cmd, caddr_t addr,
 		daddr_t blkno;
 		int part;
 
+		if (!slice->handler_up)
+			return (0);
 		blkno = *(daddr_t *)addr;
 		pd = slice->private_up;
 		sdp = pd->subdevs;
@@ -868,3 +872,17 @@ mbr_upconfig(struct slice *slice, int cmd, caddr_t addr,
 	return (0);
 }
 
+static int
+mbr_dump(void *private, int32_t blkoff, int32_t blkcnt)
+{
+	struct private_data *pd;
+	struct subdev *sdp;
+	register struct slice *slice;
+
+RR;
+	sdp = private;
+	pd = sdp->pd;
+	slice = pd->slice_down;
+	blkoff += sdp->offset;
+	return (*slice->handler_down->dump)(slice->private_down, blkoff, blkcnt);
+}

@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.57 1998/04/22 10:25:12 julian Exp $
+ *	$Id: vn.c,v 1.58 1998/04/24 07:53:59 julian Exp $
  */
 
 /*
@@ -114,6 +114,7 @@ static sl_h_IO_req_t	nvsIOreq;	/* IO req downward (to device) */
 static sl_h_ioctl_t	nvsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	nvsopen;	/* downwards travelling open */
 /*static sl_h_close_t	nvsclose; */	/* downwards travelling close */
+static sl_h_dump_t	nvsdump;	/* core dump req downward */
 
 static struct slice_handler slicetype = {
 	"vn",
@@ -128,7 +129,8 @@ static struct slice_handler slicetype = {
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
-	NULL	/* upconfig */
+	NULL,	/* upconfig */
+	&nvsdump
 };
 #endif
 
@@ -448,6 +450,14 @@ nvsIOreq(void *private ,struct buf *bp)
 	bn = bp->b_pblkno;
 	bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
 	sz = howmany(bp->b_bcount, DEV_BSIZE);
+	if (bn < 0 || bn + sz > vn->sc_size) {
+		if (bn != vn->sc_size) {
+			bp->b_error = EINVAL;
+			bp->b_flags |= B_ERROR;
+		}
+		biodone(bp);
+		return;
+	}
 
 	if( (bp->b_flags & B_PAGING) == 0) {
 		aiov.iov_base = bp->b_data;
@@ -936,5 +946,10 @@ nvsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 	return(vnioctl(makedev(0,vn->mynor), cmd, addr, flag, p));
 }
 
+static int
+nvsdump(void *private, int32_t blkoff, int32_t blkcnt)
+{
+	return (ENODEV);
+}
 #endif
 #endif
