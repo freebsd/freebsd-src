@@ -387,3 +387,21 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
         } while (errorc == EBUSY);
 	return (ptr);
 }
+
+int
+g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
+{
+	struct bio *bp;
+	int error;
+
+	bp = g_new_bio();
+	bp->bio_cmd = BIO_WRITE;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	error = biowait(bp, "gwrite");
+	g_destroy_bio(bp);
+	return (error);
+}
