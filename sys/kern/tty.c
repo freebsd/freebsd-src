@@ -69,6 +69,10 @@ char ttybuf[]	= "ttybuf";
 char ttyin[]	= "ttyin";
 char ttyout[]	= "ttyout";
 
+#ifndef CBLOCKS_PER_TTY
+#define CBLOCKS_PER_TTY 10
+#endif
+
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
  * the 7th bit indicates the character is an alphameric or underscore (for
@@ -162,6 +166,10 @@ ttyopen(device, tp)
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
 		SET(tp->t_state, TS_ISOPEN);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
+		/*
+		 * Add some cblocks to the clistfree pool.
+		 */
+		cblock_alloc_cblocks(CBLOCKS_PER_TTY);
 	}
 	CLR(tp->t_state, TS_WOPEN);
 	splx(s);
@@ -187,6 +195,13 @@ ttyclose(tp)
 	tp->t_gen++;
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
+	/*
+	 * If the tty has not already been closed, free the cblocks
+	 * that were allocated in ttyopen() back to the system malloc
+	 * pool.
+	 */
+	if (ISSET(tp->t_state, (TS_ISOPEN|TS_WOPEN)))
+		cblock_free_cblocks(CBLOCKS_PER_TTY);
 	tp->t_state = 0;
 	return (0);
 }
