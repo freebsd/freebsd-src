@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.22 1994/01/09 13:30:50 ats Exp $
+#	$Id: files.i386,v 1.23 1994/01/16 12:01:34 ats Exp $
 #
 i386/i386/autoconf.c		standard		device-driver
 i386/i386/cons.c		standard
@@ -69,3 +69,9 @@ i386/isa/tw.c			optional	tw	device-driver
 i386/isa/ultra14f.c		optional	uha	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/wt.c			optional	wt	device-driver
+i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
