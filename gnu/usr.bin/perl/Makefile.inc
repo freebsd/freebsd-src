@@ -47,8 +47,7 @@ linkfarm: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
-	@ln -sf ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
-		config.sh
+	@ln -sf ${CANONICALOBJDIR}/../libperl/config.sh config.sh
 	@touch ${.TARGET}
 
 CLEANFILES+=	linkfarm
