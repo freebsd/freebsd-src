@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
