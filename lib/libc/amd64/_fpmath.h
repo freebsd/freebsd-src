@@ -33,7 +33,8 @@ union IEEEl2bits {
 		unsigned int	manh	:32;
 		unsigned int	exp	:15;
 		unsigned int	sign	:1;
-		unsigned int	junk	:16;
+		unsigned int	junkl	:16;
+		unsigned int	junkh	:32;
 	} bits;
 };
 
