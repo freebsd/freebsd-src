@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <netdb.h>
+#include <paths.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -529,11 +530,11 @@ make_devices(void)
     else
 	devfs_is_active = 0;
 
-    if (!devfs_is_active && access("/dev", W_OK) < 0) {			    /* can't access /dev to write? */
+    if (!devfs_is_active && access(_PATH_DEV, W_OK) < 0) {			    /* can't access /dev to write? */
 	if (errno == EROFS)				    /* because it's read-only, */
-	    fprintf(stderr, VINUMMOD ": /dev is mounted read-only, not rebuilding " VINUM_DIR "\n");
+	    fprintf(stderr, VINUMMOD ": %s is mounted read-only, not rebuilding %s\n", _PATH_DEV, VINUM_DIR);
 	else
-	    vinum_perror(VINUMMOD ": Can't write to /dev");
+	    vinum_perror(VINUMMOD ": Can't write to " _PATH_DEV);
 	return;
     }
     if (history) {
