@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.3 1999/07/14 18:57:32 wpaul Exp $
+ *	$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $
  */
 
 /*
@@ -88,6 +88,9 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -99,7 +102,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.3 1999/07/14 18:57:32 wpaul Exp $";
+	"$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -108,9 +111,9 @@ static struct sk_type sk_devs[] = {
 };
 
 static unsigned long sk_count = 0;
-static unsigned long skc_count = 0;
-static const char *sk_probe	__P((pcici_t, pcidi_t));
-static void sk_attach		__P((pcici_t, int));
+static int sk_probe		__P((device_t));
+static int sk_attach		__P((device_t));
+static int sk_detach		__P((device_t));
 static int sk_attach_xmac	__P((struct sk_softc *, int));
 static void sk_intr		__P((void *));
 static void sk_intr_xmac	__P((struct sk_if_softc *));
@@ -124,7 +127,7 @@ static void sk_init		__P((void *));
 static void sk_init_xmac	__P((struct sk_if_softc *));
 static void sk_stop		__P((struct sk_if_softc *));
 static void sk_watchdog		__P((struct ifnet *));
-static void sk_shutdown		__P((int, void *));
+static void sk_shutdown		__P((device_t));
 static int sk_ifmedia_upd	__P((struct ifnet *));
 static void sk_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 static void sk_reset		__P((struct sk_softc *));
@@ -154,15 +157,24 @@ static u_int32_t sk_calchash	__P((caddr_t));
 static void sk_setfilt		__P((struct sk_if_softc *, caddr_t, int));
 static void sk_setmulti		__P((struct sk_if_softc *));
 
-#ifdef __i386__
-#define SK_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
-#define SK_BUS_SPACE_IO		I386_BUS_SPACE_IO
-#endif
+static device_method_t sk_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sk_probe),
+	DEVMETHOD(device_attach,	sk_attach),
+	DEVMETHOD(device_detach,	sk_detach),
+	DEVMETHOD(device_shutdown,	sk_shutdown),
+	{ 0, 0 }
+};
 
-#ifdef __alpha__
-#define SK_BUS_SPACE_MEM	ALPHA_BUS_SPACE_MEM
-#define SK_BUS_SPACE_IO		ALPHA_BUS_SPACE_IO
-#endif
+static driver_t sk_driver = {
+	"sk",
+	sk_methods,
+	sizeof(struct sk_softc)
+};
+
+static devclass_t sk_devclass;
+
+DRIVER_MODULE(sk, pci, sk_driver, sk_devclass, 0, 0);
 
 #define SK_SETBIT(sc, reg, x)		\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
@@ -922,23 +934,23 @@ static int sk_ioctl(ifp, command, data)
  * Probe for a SysKonnect GEnesis chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *sk_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int sk_probe(dev)
+	device_t		dev;
 {
 	struct sk_type		*t;
 
 	t = sk_devs;
 
 	while(t->sk_name != NULL) {
-		if ((device_id & 0xFFFF) == t->sk_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->sk_did) {
-			return(t->sk_name);
+		if ((pci_get_vendor(dev) == t->sk_vid) &&
+		    (pci_get_device(dev) == t->sk_did)) {
+			device_set_desc(dev, t->sk_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
@@ -1130,94 +1142,103 @@ static int sk_attach_xmac(sc, port)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-sk_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int sk_attach(dev)
+	device_t		dev;
 {
 	int			s;
-#ifndef SK_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_int32_t		command;
 	struct sk_softc		*sc;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct sk_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("skc%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sk_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
-	command = pci_conf_read(config_id, SK_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, SK_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, SK_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, SK_PCI_PWRMGMTCTRL, 4);
 		if (command & SK_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, SK_PCI_LOIO);
-			membase = pci_conf_read(config_id, SK_PCI_LOMEM);
-			irq = pci_conf_read(config_id, SK_PCI_INTLINE);
+			iobase = pci_read_config(dev, SK_PCI_LOIO, 4);
+			membase = pci_read_config(dev, SK_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, SK_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("skc%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & SK_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, SK_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, SK_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, SK_PCI_LOIO, iobase);
-			pci_conf_write(config_id, SK_PCI_LOMEM, membase);
-			pci_conf_write(config_id, SK_PCI_INTLINE, irq);
+			pci_write_config(dev, SK_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, SK_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, SK_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef SK_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("skc%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_port(config_id, SK_PCI_LOIO,
-	    (pci_port_t *)&(sc->sk_bhandle))) {
-		printf ("skc%d: couldn't map ports\n", unit);
-		goto fail;
-        }
-
-	sc->sk_btag = SK_BUS_SPACE_IO;
+	rid = SK_PCI_LOIO;
+	sc->sk_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("skc%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, SK_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("skc%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-	sc->sk_btag = SK_BUS_SPACE_MEM;
-	sc->sk_bhandle = vbase;
+	rid = SK_PCI_LOMEM;
+	sc->sk_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 #endif
 
+	if (sc->sk_res == NULL) {
+		printf("sk%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	sc->sk_btag = rman_get_bustag(sc->sk_res);
+	sc->sk_bhandle = rman_get_bushandle(sc->sk_res);
+
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, sk_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->sk_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->sk_irq == NULL) {
 		printf("skc%d: couldn't map interrupt\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->sk_irq, INTR_TYPE_NET,
+	    sk_intr, sc, &sc->sk_intrhand);
+
+	if (error) {
+		printf("skc%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1250,6 +1271,7 @@ sk_attach(config_id, unit)
 	default:
 		printf("skc%d: unknown ram size: %d\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_EPROM0));
+		error = ENXIO;
 		goto fail;
 		break;
 	}
@@ -1271,6 +1293,7 @@ sk_attach(config_id, unit)
 	default:
 		printf("skc%d: unknown media type: 0x%x\n",
 		    sc->sk_unit, sk_win_read_1(sc, SK_PMDTYPE));
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1284,11 +1307,48 @@ sk_attach(config_id, unit)
 	/* Turn on the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_ON);
 
-	at_shutdown(sk_shutdown, sc, SHUTDOWN_POST_SYNC);
-
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int sk_detach(dev)
+	device_t		dev;
+{
+	struct sk_softc		*sc;
+	struct sk_if_softc	*sc_if0 = NULL, *sc_if1 = NULL;
+	struct ifnet		*ifp0 = NULL, *ifp1 = NULL;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	sc_if0 = sc->sk_if[SK_PORT_A];
+	ifp0 = &sc_if0->arpcom.ac_if;
+	sk_stop(sc_if0);
+	if_detach(ifp0);
+	free(sc_if0->sk_cdata.sk_jumbo_buf, M_DEVBUF);
+	ifmedia_removeall(&sc_if0->ifmedia);
+	if (sc->sk_if[SK_PORT_B] != NULL) {
+		sc_if1 = sc->sk_if[SK_PORT_B];
+		ifp1 = &sc_if1->arpcom.ac_if;
+		sk_stop(sc_if1);
+		if_detach(ifp1);
+		free(sc_if1->sk_cdata.sk_jumbo_buf, M_DEVBUF);
+		ifmedia_removeall(&sc_if1->ifmedia);
+	}
+
+	bus_teardown_intr(dev, sc->sk_irq, sc->sk_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
+#ifdef SK_USEIOSPACE
+	bus_release_resource(dev, SYS_RES_IOPORT, SK_PCI_LOIO, sc->sk_res);
+#else
+	bus_release_resource(dev, SYS_RES_IOPORT, SK_PCI_LOMEM, sc->sk_res);
+#endif
+
+	splx(s);
+
+	return(0);
 }
 
 static int sk_encap(sc_if, m_head, txidx)
@@ -1403,13 +1463,12 @@ static void sk_watchdog(ifp)
 	return;
 }
 
-static void sk_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void sk_shutdown(dev)
+	device_t		dev;
 {
 	struct sk_softc		*sc;
 
-	sc = arg;
+	sc = device_get_softc(dev);
 
 	/* Turn off the 'driver is loaded' LED. */
 	CSR_WRITE_2(sc, SK_LED, SK_LED_GREEN_OFF);
@@ -1900,12 +1959,3 @@ static void sk_stop(sc_if)
 
 	return;
 }
-
-static struct pci_device sk_device = {
-	"skc",
-	sk_probe,
-	sk_attach,
-	&skc_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(sk, sk_device);
