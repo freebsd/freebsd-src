@@ -31,10 +31,12 @@
 #ifndef _MACHINE_SIGNAL_H_
 #define	_MACHINE_SIGNAL_H_
 
+#include <sys/cdefs.h>
+#include <sys/_sigset.h>
+
 typedef long	sig_atomic_t;
 
-#ifndef _ANSI_SOURCE
-
+#if __BSD_VISIBLE
 /* portable macros for SIGFPE/ARITHTRAP */
 #define FPE_INTOVF	1	/* integer overflow */
 #define FPE_INTDIV	2	/* integer divide by zero */
@@ -46,12 +48,17 @@ typedef long	sig_atomic_t;
 #define FPE_FLTSUB	8	/* subscript out of range */
 
 #define BUS_SEGM_FAULT	30	/* segment protection base */
+#endif
 
+#if __XSI_VISIBLE
 /*
  * Minimum signal stack size. The current signal frame
  * for IA-64 is 2656 bytes large.
  */
 #define MINSIGSTKSZ     (3072 * 4)
+#endif
+
+#ifdef _KERNEL
 
 #ifndef _IA64_FPREG_DEFINED
 
@@ -78,12 +85,15 @@ struct  osigcontext {
 	int	_not_used;
 };
 
+#endif /* !_KERNEL */
+
+#if __BSD_VISIBLE
 /*
  * The sequence of the fields should match those in
  * mcontext_t. Keep them in sync!
  */
 struct sigcontext {
-	sigset_t	sc_mask;		/* signal mask to restore */
+	struct __sigset	sc_mask;		/* signal mask to restore */
 	unsigned long	sc_onstack;
 	unsigned long	sc_flags;
 	unsigned long	sc_nat;
@@ -103,6 +113,6 @@ struct sigcontext {
 	unsigned long	sc_gr[32];
 	struct ia64_fpreg sc_fr[128];
 };
+#endif /* __BSD_VISIBLE */
 
-#endif /* !_ANSI_SOURCE */
 #endif /* !_MACHINE_SIGNAL_H_*/

@@ -31,15 +31,18 @@
 #ifndef _ALPHA_SIGNAL_H_
 #define	_ALPHA_SIGNAL_H_
 
+#include <sys/cdefs.h>
+#include <sys/_sigset.h>
+
 typedef long	sig_atomic_t;
 
-#ifndef _ANSI_SOURCE
-
+#if __XSI_VISIBLE
 /*
  * Minimum signal stack size. The current signal frame
  * for Alpha is 808 bytes large.
  */
 #define	MINSIGSTKSZ	(1024 * 4)
+#endif
 
 /*
  * Only the kernel should need these old type definitions.
@@ -74,14 +77,15 @@ struct  osigcontext {
 	unsigned long sc_traparg_a2;	/* a2 argument to trap at exception */
 	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
 };
-#endif
+#endif /* _KERNEL */
 
+#if __BSD_VISIBLE
 /*
  * The sequence of the fields should match those in
  * mcontext_t. Keep them in sync!
  */
 struct sigcontext {
-	sigset_t sc_mask;		/* signal mask to restore */
+	struct __sigset sc_mask;	/* signal mask to restore */
 	long	sc_onstack;             /* sigstack state to restore */
 	unsigned long sc_regs[32];	/* integer register set (see above) */
 	long	sc_ps;			/* ps to restore */
@@ -100,5 +104,6 @@ struct sigcontext {
 
 #define	sc_sp	sc_regs[R_SP]
 
-#endif /* !_ANSI_SOURCE */
+#endif /* __BSD_VISIBLE */
+
 #endif /* !_ALPHA_SIGNAL_H_*/
