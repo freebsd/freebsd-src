@@ -51,7 +51,6 @@ struct option {
 #include <langinfo.h>
 #endif
 #include <locale.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -150,8 +149,7 @@ main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	const struct option	*option;
-	struct passwd		*pwent;
-	int			 opt;
+	int			 opt, t;
 	char			 mode;
 	char			 possible_help_request;
 	char			 buff[16];
@@ -172,14 +170,8 @@ main(int argc, char **argv)
 	mode = '\0';
 	possible_help_request = 0;
 
-	/* Look up uid/uname of current user for future reference */
+	/* Look up uid of current user for future reference */
 	bsdtar->user_uid = geteuid();
-	bsdtar->user_uname = NULL;
-	if ((pwent = getpwuid(bsdtar->user_uid))) {
-		bsdtar->user_uname = (char *)malloc(strlen(pwent->pw_name)+1);
-		if (bsdtar->user_uname)
-			strcpy(bsdtar->user_uname, pwent->pw_name);
-	}
 
 	/* Default: open tape drive. */
 	bsdtar->filename = getenv("TAPE");
@@ -211,7 +203,11 @@ main(int argc, char **argv)
 			/* libarchive doesn't need this; just ignore it. */
 			break;
 		case 'b': /* SUSv2 */
-			bsdtar->bytes_per_block = 512 * atoi(optarg);
+			t = atoi(optarg);
+			if (t <= 0 || t > 1024)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Argument to -b is out of range (1..1024)");
+			bsdtar->bytes_per_block = 512 * t;
 			break;
 		case 'C': /* GNU tar */
 			/* Defer first -C until after -f is opened. */
@@ -414,7 +410,7 @@ main(int argc, char **argv)
 		only_mode(bsdtar, mode, "-o", "xc");
 		/* Warn about nonsensical -co combination, but ignore it. */
 		if (mode == 'c')
-			bsdtar_warnc(bsdtar, 0, "-o is incompatible with -c");
+			bsdtar_warnc(bsdtar, 0, "Ignoring nonsensical -o option");
 	}
 	if (bsdtar->option_no_subdirs)
 		only_mode(bsdtar, mode, "-n", "cru");
@@ -461,9 +457,6 @@ main(int argc, char **argv)
 		tar_mode_x(bsdtar);
 		break;
 	}
-
-	if (bsdtar->user_uname != NULL)
-		free(bsdtar->user_uname);
 
 	cleanup_exclusions(bsdtar);
 	return (bsdtar->return_value);
