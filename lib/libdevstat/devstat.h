@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 #include <sys/devicestat.h>
 
+#include <kvm.h>
+
 #define DEVSTAT_ERRBUF_SIZE  2048 /* size of the devstat library error string */
 
 extern char devstat_errbuf[];
@@ -43,6 +45,37 @@ typedef enum {
 	DEVSTAT_MATCH_IF	= 0x02,
 	DEVSTAT_MATCH_PASS	= 0x04
 } devstat_match_flags;
+
+typedef enum {
+	DSM_NONE,
+	DSM_TOTAL_BYTES,
+	DSM_TOTAL_BYTES_READ,
+	DSM_TOTAL_BYTES_WRITE,
+	DSM_TOTAL_TRANSFERS,
+	DSM_TOTAL_TRANSFERS_READ,
+	DSM_TOTAL_TRANSFERS_WRITE,
+	DSM_TOTAL_TRANSFERS_OTHER,
+	DSM_TOTAL_BLOCKS,
+	DSM_TOTAL_BLOCKS_READ,
+	DSM_TOTAL_BLOCKS_WRITE,
+	DSM_KB_PER_TRANSFER,
+	DSM_KB_PER_TRANSFER_READ,
+	DSM_KB_PER_TRANSFER_WRITE,
+	DSM_TRANSFERS_PER_SECOND,
+	DSM_TRANSFERS_PER_SECOND_READ,
+	DSM_TRANSFERS_PER_SECOND_WRITE,
+	DSM_TRANSFERS_PER_SECOND_OTHER,
+	DSM_MB_PER_SECOND,
+	DSM_MB_PER_SECOND_READ,
+	DSM_MB_PER_SECOND_WRITE,
+	DSM_BLOCKS_PER_SECOND,
+	DSM_BLOCKS_PER_SECOND_READ,
+	DSM_BLOCKS_PER_SECOND_WRITE,
+	DSM_MS_PER_TRANSACTION,
+	DSM_MS_PER_TRANSACTION_READ,
+	DSM_MS_PER_TRANSACTION_WRITE,
+	DSM_MAX
+} devstat_metric;
 
 struct devstat_match {
 	devstat_match_flags	match_fields;
@@ -88,6 +121,7 @@ typedef enum {
 } devstat_select_mode;
 
 __BEGIN_DECLS
+/* Legacy interfaces. */
 int getnumdevs(void);
 long getgeneration(void);
 int getversion(void);
@@ -110,6 +144,27 @@ int compute_stats(struct devstat *current, struct devstat *previous,
 		  long double *blocks_per_second,
 		  long double *ms_per_transaction);
 long double compute_etime(struct timeval cur_time, struct timeval prev_time);
+
+/* New interfaces. */
+int devstat_getnumdevs(kvm_t *kd);
+long devstat_getgeneration(kvm_t *kd);
+int devstat_getversion(kvm_t *kd);
+int devstat_checkversion(kvm_t *kd);
+int devstat_getdevs(kvm_t *kd, struct statinfo *stats);
+int devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
+		       int *num_selections, long *select_generation, 
+		       long current_generation, struct devstat *devices,
+		       int numdevs, struct devstat_match *matches,
+		       int num_matches, char **dev_selections,
+		       int num_dev_selections, devstat_select_mode select_mode,
+		       int maxshowdevs, int perf_select);
+int devstat_buildmatch(char *match_str, struct devstat_match **matches,
+		       int *num_matches);
+int devstat_compute_statistics(struct devstat *current,
+			       struct devstat *previous,
+			       long double etime, ...);
+long double devstat_compute_etime(struct timeval cur_time,
+				  struct timeval prev_time);
 __END_DECLS
 
 #endif /* _DEVSTAT_H  */
