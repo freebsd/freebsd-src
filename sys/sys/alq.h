@@ -65,7 +65,9 @@ struct ale {
  * Returns:
  *	error from open or 0 on success
  */
-int alq_open(struct alq **, const char *file, int size, int count);
+struct ucred;
+int alq_open(struct alq **, const char *file, struct ucred *cred, int size,
+	    int count);
 
 /*
  * alq_write:  Write data into the queue
