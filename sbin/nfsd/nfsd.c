@@ -193,7 +193,7 @@ main(argc, argv, envp)
 
 	nfsdcnt = DEFNFSDCNT;
 	cltpflag = unregister = reregister = tcpflag = 0;
-	bindanyflag = udpflag = ip6flag = 0;
+	bindanyflag = udpflag;
 #define	GETOPT	"ah:n:rdtu"
 #define	USAGE	"[-ardtu] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
@@ -253,13 +253,18 @@ main(argc, argv, envp)
 			nfsdcnt = DEFNFSDCNT;
 		}
 	}
+
 	ip6flag = 1;
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (s < 0 && (errno == EPROTONOSUPPORT ||
-	   errno == EPFNOSUPPORT || errno == EAFNOSUPPORT) ||
-	   (getnetconfigent("udp6") == NULL && getnetconfigent("tcp6") == NULL))
+	if (s == -1) {
+		if (errno != EPROTONOSUPPORT)
+			err(1, "socket");
 		ip6flag = 0;
-	else
+	} else if (getnetconfigent("udp6") == NULL ||
+		getnetconfigent("tcp6") == NULL) {
+		ip6flag = 0;
+	}
+	if (s != -1)
 		close(s);
 
 	if (bindhostc == 0 || bindanyflag) {
@@ -272,22 +277,6 @@ main(argc, argv, envp)
 			errx(1, "Out of memory");
 	}
 
-	if (debug == 0) {
-		daemon(0, 0);
-		(void)signal(SIGHUP, SIG_IGN);
-		(void)signal(SIGINT, SIG_IGN);
-		(void)signal(SIGSYS, nonfs);
-		(void)signal(SIGUSR1, cleanup);
-		/*
-		 * nfsd sits in the kernel most of the time.  It needs
-		 * to ignore SIGTERM/SIGQUIT in order to stay alive as long
-		 * as possible during a shutdown, otherwise loopback
-		 * mounts will not be able to unmount. 
-		 */
-		(void)signal(SIGTERM, SIG_IGN);
-		(void)signal(SIGQUIT, SIG_IGN);
-	}
-	(void)signal(SIGCHLD, reapchild);
 	if (unregister) {
 		unregistration();
 		exit (0);
@@ -300,11 +289,8 @@ main(argc, argv, envp)
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp);
-			if (ecode != 0) {
-				syslog(LOG_ERR, "getaddrinfo udp: %s",
-				    gai_strerror(ecode));
-				exit(1);
-			}
+			if (ecode != 0)
+				err(1, "getaddrinfo udp: %s", gai_strerror(ecode));
 			nconf_udp = getnetconfigent("udp");
 			if (nconf_udp == NULL)
 				err(1, "getnetconfigent udp failed");
@@ -322,11 +308,8 @@ main(argc, argv, envp)
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_protocol = IPPROTO_UDP;
 			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_udp6);
-			if (ecode != 0) {
-				syslog(LOG_ERR, "getaddrinfo udp6: %s",
-				   gai_strerror(ecode));
-				exit(1);
-			}
+			if (ecode != 0)
+				err(1, "getaddrinfo udp6: %s", gai_strerror(ecode));
 			nconf_udp6 = getnetconfigent("udp6");
 			if (nconf_udp6 == NULL)
 				err(1, "getnetconfigent udp6 failed");
@@ -344,11 +327,8 @@ main(argc, argv, envp)
 			hints.ai_socktype = SOCK_STREAM;
 			hints.ai_protocol = IPPROTO_TCP;
 			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_tcp);
-			if (ecode != 0) {
-				syslog(LOG_ERR, "getaddrinfo tcp: %s",
-				   gai_strerror(ecode));
-				exit(1);
-			}
+			if (ecode != 0)
+				err(1, "getaddrinfo tcp: %s", gai_strerror(ecode));
 			nconf_tcp = getnetconfigent("tcp");
 			if (nconf_tcp == NULL)
 				err(1, "getnetconfigent tcp failed");
@@ -366,11 +346,8 @@ main(argc, argv, envp)
 			hints.ai_socktype = SOCK_STREAM;
 			hints.ai_protocol = IPPROTO_TCP;
 			ecode = getaddrinfo(NULL, "nfs", &hints, &ai_tcp6);
-			if (ecode != 0) {
-				syslog(LOG_ERR, "getaddrinfo tcp6: %s",
-				   gai_strerror(ecode));
-				exit(1);
-			}
+			if (ecode != 0)
+				err(1, "getaddrinfo tcp6: %s", gai_strerror(ecode));
 			nconf_tcp6 = getnetconfigent("tcp6");
 			if (nconf_tcp6 == NULL)
 				err(1, "getnetconfigent tcp6 failed");
@@ -383,6 +360,22 @@ main(argc, argv, envp)
 		}
 		exit (0);
 	}
+	if (debug == 0) {
+		daemon(0, 0);
+		(void)signal(SIGHUP, SIG_IGN);
+		(void)signal(SIGINT, SIG_IGN);
+		(void)signal(SIGSYS, nonfs);
+		(void)signal(SIGUSR1, cleanup);
+		/*
+		 * nfsd sits in the kernel most of the time.  It needs
+		 * to ignore SIGTERM/SIGQUIT in order to stay alive as long
+		 * as possible during a shutdown, otherwise loopback
+		 * mounts will not be able to unmount. 
+		 */
+		(void)signal(SIGTERM, SIG_IGN);
+		(void)signal(SIGQUIT, SIG_IGN);
+	}
+	(void)signal(SIGCHLD, reapchild);
 
 	openlog("nfsd:", LOG_PID, LOG_DAEMON);
 
