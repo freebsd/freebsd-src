@@ -82,26 +82,21 @@ main(int argc, char **argv)
     argv += optind;
 
     /* Get all the remaining package names, if any */
-    while (*argv)
-    {
-        if( (pkgs_split = rindex(*argv, (int) '/')) != NULL )
-        {
-            while( !isalpha(*(pkgs_split+1)) )
-            {
+    while (*argv) {
+        if ((pkgs_split = rindex(*argv, (int)'/')) != NULL) {
+            while (!isalpha(*(pkgs_split + 1))) {
                 *pkgs_split = '\0';
-                if ( (pkgs_split = rindex(*argv, (int) '/')) == NULL )
+                if ((pkgs_split = rindex(*argv, (int) '/')) == NULL)
                     pkgs_split = *argv;
             }
-            if(pkgs_split != NULL)
-            {
+            if (pkgs_split != NULL) {
                 if (*pkgs_split == '/')
                     pkgs_split++;
                 *pkgs = pkgs_split;
                 pkgs++;
             }
         }
-        else
-        {
+        else {
             *pkgs = *argv;
             pkgs++;
         }
