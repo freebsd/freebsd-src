@@ -58,9 +58,11 @@ int rdonly;		/* device is opened read only (supersedes above) */
 static void usage(void) __dead2;
 
 static void
-usage()
+usage(void)
 {
-	errexit("usage: fsck_msdos [-fnpy] filesystem ... \n");
+
+	fprintf(stderr, "usage: fsck_msdos [-fnpy] filesystem ...\n");
+	exit(1);
 }
 
 int
