@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$id$
+#	$Id$
 
 PROG=	init
 MAN8=	init.8
