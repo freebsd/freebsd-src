@@ -50,9 +50,7 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-
+#include <gnu/ext2fs/inode.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
@@ -121,7 +119,7 @@ ext2_checkoverlap(bp, ip)
 			continue;
 		vprint("Disk overlap", vp);
 		(void)printf("\tstart %d, end %d overlap start %lld, end %ld\n",
-			start, last, ep->b_blkno,
+			start, last, (long long)ep->b_blkno,
 			(long)(ep->b_blkno + btodb(ep->b_bcount) - 1));
 		panic("Disk buffer overlap");
 	}

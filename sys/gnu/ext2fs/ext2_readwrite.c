@@ -301,12 +301,12 @@ WRITE(ap)
 		ip->i_mode &= ~(ISUID | ISGID);
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)UFS_TRUNCATE(vp, osize,
+			(void)ext2_truncate(vp, osize,
 			    ioflag & IO_SYNC, ap->a_cred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
-		error = UFS_UPDATE(vp, 1);
+		error = ext2_update(vp, 1);
 	return (error);
 }

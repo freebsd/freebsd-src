@@ -43,8 +43,8 @@
 #ifndef _SYS_GNU_EXT2FS_EXT2_EXTERN_H_
 #define	_SYS_GNU_EXT2FS_EXT2_EXTERN_H_
 
-struct dinode;
 struct ext2_inode;
+struct indir;
 struct inode;
 struct mount;
 struct vfsconf;
@@ -58,7 +58,18 @@ int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
 void	ext2_blkfree(struct inode *, daddr_t, long);
 daddr_t	ext2_blkpref(struct inode *, daddr_t, int, daddr_t *, daddr_t);
 int	ext2_bmap(struct vop_bmap_args *);
-int	ext2_init(struct vfsconf *);
+int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
+void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
+void	ext2_ei2i(struct ext2_inode *, struct inode *);
+int	ext2_getlbns(struct vnode *, daddr_t, struct indir *, int *);
+void	ext2_i2ei(struct inode *, struct ext2_inode *);
+int	ext2_ihashget(dev_t, ino_t, int, struct vnode **);
+void	ext2_ihashinit(void);
+void	ext2_ihashins(struct inode *);
+struct vnode *
+	ext2_ihashlookup(dev_t, ino_t);
+void	ext2_ihashrem(struct inode *);
+void	ext2_itimes(struct vnode *vp);
 int	ext2_reallocblks(struct vop_reallocblks_args *);
 int	ext2_reclaim(struct vop_reclaim_args *);
 void	ext2_setblock(struct ext2_sb_info *, u_char *, daddr_t);
@@ -66,9 +77,9 @@ int	ext2_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ext2_update(struct vnode *, int);
 int	ext2_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 int	ext2_vfree(struct vnode *, ino_t, int);
+int	ext2_vinit(struct mount *, vop_t **, vop_t **, struct vnode **vpp);
 int 	ext2_lookup(struct vop_cachedlookup_args *);
 int 	ext2_readdir(struct vop_readdir_args *);
-void	ext2_print_dinode(struct dinode *);
 void	ext2_print_inode(struct inode *);
 int	ext2_direnter(struct inode *, 
 		struct vnode *, struct componentname *);
@@ -89,15 +100,13 @@ unsigned long ext2_count_free(struct buf *map, unsigned int numchars);
 void	ext2_free_blocks(struct mount *mp, unsigned long block,
 	    unsigned long count);
 void	ext2_free_inode(struct inode * inode);
-void	ext2_ei2di(struct ext2_inode *ei, struct dinode *di);
-void	ext2_di2ei(struct dinode *di, struct ext2_inode *ei);
 void	mark_buffer_dirty(struct buf *bh);
 
-/*
- * This macro allows the ufs code to distinguish between an EXT2 and a
- * non-ext2(FFS/LFS) vnode.
- */
-#define  IS_EXT2_VNODE(vp) (vp->v_mount->mnt_stat.f_type == MOUNT_EXT2FS)
+/* Flags to low-level allocation routines. */
+#define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
+#define B_SYNC		0x02	/* Do all allocations synchronously. */
+#define B_METAONLY	0x04	/* Return indirect block buffer. */
+#define B_NOWAIT	0x08	/* do not sleep to await lock */
 
 extern vop_t **ext2_vnodeop_p;
 extern vop_t **ext2_specop_p;

@@ -148,7 +148,7 @@ extern u_char *fragtbl[];
  * I haven't figured out yet what BSD does
  * I think I'll try a VOP_LOCK/VOP_UNLOCK on the device vnode
  */
-#define  DEVVP(inode)		(VFSTOUFS(ITOV(inode)->v_mount)->um_devvp)
+#define  DEVVP(inode)		(VFSTOEXT2(ITOV(inode)->v_mount)->um_devvp)
 #define  lock_super(devvp)   	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, curthread)
 #define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curthread)
 

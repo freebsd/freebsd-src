@@ -55,13 +55,10 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
 
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
@@ -364,7 +361,7 @@ ext2_lookup(ap)
 	 * profiling time and hence has been removed in the interest
 	 * of simplicity.
 	 */
-	bmask = VFSTOUFS(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = VFSTOEXT2(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 	if (nameiop != LOOKUP || dp->i_diroff == 0 ||
 	    dp->i_diroff > dp->i_size) {
 		entryoffsetinblock = 0;
@@ -373,7 +370,8 @@ ext2_lookup(ap)
 	} else {
 		dp->i_offset = dp->i_diroff;
 		if ((entryoffsetinblock = dp->i_offset & bmask) &&
-		    (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)))
+		    (error = ext2_blkatoff(vdp, (off_t)dp->i_offset, NULL,
+		    &bp)))
 			return (error);
 		numdirpasses = 2;
 		nchstats.ncs_2passes++;
@@ -391,7 +389,8 @@ searchloop:
 			if (bp != NULL)
 				brelse(bp);
 			if ((error =
-			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)) != 0)
+			    ext2_blkatoff(vdp, (off_t)dp->i_offset, NULL,
+			    &bp)) != 0)
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -416,7 +415,7 @@ searchloop:
 		if (ep->rec_len == 0 ||
 		    (dirchk && ext2_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
-			ufs_dirbad(dp, dp->i_offset, "mangled entry");
+			ext2_dirbad(dp, dp->i_offset, "mangled entry");
 			i = DIRBLKSIZ - (entryoffsetinblock & (DIRBLKSIZ - 1));
 			dp->i_offset += i;
 			entryoffsetinblock += i;
@@ -558,7 +557,7 @@ found:
 	 */
 	if (entryoffsetinblock + EXT2_DIR_REC_LEN(ep->name_len)
 		> dp->i_size) {
-		ufs_dirbad(dp, dp->i_offset, "i_size too small");
+		ext2_dirbad(dp, dp->i_offset, "i_size too small");
 		dp->i_size = entryoffsetinblock+EXT2_DIR_REC_LEN(ep->name_len);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
@@ -700,6 +699,21 @@ found:
 	return (0);
 }
 
+void
+ext2_dirbad(ip, offset, how)
+	struct inode *ip;
+	doff_t offset;
+	char *how;
+{
+	struct mount *mp;
+
+	mp = ITOV(ip)->v_mount;
+	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
+	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		panic("ext2_dirbad: bad dir");
+}
+
 /*
  * Do consistency checking on a directory entry:
  *	record length must be multiple of 4
@@ -804,7 +818,7 @@ ext2_direnter(ip, dvp, cnp)
 		auio.uio_td = (struct thread *)0;
 		error = VOP_WRITE(dvp, &auio, IO_SYNC, cnp->cn_cred);
 		if (DIRBLKSIZ >
-		    VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
+		    VFSTOEXT2(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
 			/* XXX should grow with balloc() */
 			panic("ext2_direnter: frag size");
 		else if (!error) {
@@ -835,7 +849,8 @@ ext2_direnter(ip, dvp, cnp)
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
-	if ((error = UFS_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp)) != 0)
+	if ((error = ext2_blkatoff(dvp, (off_t)dp->i_offset, &dirbuf,
+	    &bp)) != 0)
 		return (error);
 	/*
 	 * Find space for the new entry. In the simple case, the entry at
@@ -881,7 +896,7 @@ ext2_direnter(ip, dvp, cnp)
 	error = BUF_WRITE(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
-		error = UFS_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
+		error = ext2_truncate(dvp, (off_t)dp->i_endoff, IO_SYNC,
 		    cnp->cn_cred, cnp->cn_thread);
 	return (error);
 }
@@ -914,7 +929,8 @@ ext2_dirremove(dvp, cnp)
 		 * First entry in block: set d_ino to zero.
 		 */
 		if ((error =
-		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
+		    ext2_blkatoff(dvp, (off_t)dp->i_offset, (char **)&ep,
+		    &bp)) != 0)
 			return (error);
 		ep->inode = 0;
 		error = BUF_WRITE(bp);
@@ -924,7 +940,7 @@ ext2_dirremove(dvp, cnp)
 	/*
 	 * Collapse new free space into previous entry.
 	 */
-	if ((error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
+	if ((error = ext2_blkatoff(dvp, (off_t)(dp->i_offset - dp->i_count),
 	    (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->rec_len += dp->i_reclen;
@@ -948,7 +964,8 @@ ext2_dirrewrite(dp, ip, cnp)
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
-	if ((error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
+	if ((error = ext2_blkatoff(vdp, (off_t)dp->i_offset, (char **)&ep,
+	    &bp)) != 0)
 		return (error);
 	ep->inode = ip->i_number;
 	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs->s_es,

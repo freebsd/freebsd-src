@@ -40,8 +40,6 @@
  * $FreeBSD$
  */
 
-#include "opt_quota.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
@@ -53,12 +51,8 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
-
+#include <gnu/ext2fs/inode.h>
+#include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
@@ -66,12 +60,6 @@
 
 static int ext2_indirtrunc(struct inode *, daddr_t, daddr_t, daddr_t, int,
 	    long *);
-
-int
-ext2_init(struct vfsconf *vfsp)
-{
-	return (ufs_init(vfsp));
-}
 
 /*
  * Update the access, modified, and inode change times as specified by the
@@ -92,7 +80,7 @@ ext2_update(vp, waitfor)
 	struct inode *ip;
 	int error;
 
-	ufs_itimes(vp);
+	ext2_itimes(vp);
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0)
 		return (0);
@@ -106,8 +94,8 @@ ext2_update(vp, waitfor)
 		brelse(bp);
 		return (error);
 	}
-	ext2_di2ei( &ip->i_din, (struct ext2_inode *) ((char *)bp->b_data + EXT2_INODE_SIZE *
-	    ino_to_fsbo(fs, ip->i_number)));
+	ext2_i2ei(ip, (struct ext2_inode *)((char *)bp->b_data +
+	    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)));
 /*
 	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
@@ -166,16 +154,12 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		bzero((char *)&oip->i_shortlink, (u_int)oip->i_size);
 		oip->i_size = 0;
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 1));
+		return (ext2_update(ovp, 1));
 	}
 	if (oip->i_size == length) {
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 0));
+		return (ext2_update(ovp, 0));
 	}
-#if QUOTA
-	if ((error = getinoquota(oip)) != 0)
-		return (error);
-#endif
 	fs = oip->i_e2fs;
 	osize = oip->i_size;
 	ext2_discard_prealloc(oip);
@@ -200,7 +184,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 		else
 			bawrite(bp);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
-		return (UFS_UPDATE(ovp, 1));
+		return (ext2_update(ovp, 1));
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
@@ -256,7 +240,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	for (i = NDADDR - 1; i > lastblock; i--)
 		oip->i_db[i] = 0;
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
-	allerror = UFS_UPDATE(ovp, 1);
+	allerror = ext2_update(ovp, 1);
 
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -361,9 +345,6 @@ done:
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);
-#if QUOTA
-	(void) chkdq(oip, -blocksreleased, NOCRED, 0);
-#endif
 	return (allerror);
 }
 
@@ -488,9 +469,86 @@ int
 ext2_inactive(ap)
         struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct thread *a_td;
 	} */ *ap;
 {
-	ext2_discard_prealloc(VTOI(ap->a_vp));
-	return ufs_inactive(ap);
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct thread *td = ap->a_td;
+	int mode, error = 0;
+
+	ext2_discard_prealloc(ip);
+	if (prtactive && vp->v_usecount != 0)
+		vprint("ext2_inactive: pushing active", vp);
+
+	/*
+	 * Ignore inodes related to stale file handles.
+	 */
+	if (ip->i_mode == 0)
+		goto out;
+	if (ip->i_nlink <= 0) {
+		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+		error = ext2_truncate(vp, (off_t)0, 0, NOCRED, td);
+		ip->i_rdev = 0;
+		mode = ip->i_mode;
+		ip->i_mode = 0;
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		ext2_vfree(vp, ip->i_number, mode);
+	}
+	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
+		if ((ip->i_flag & (IN_CHANGE | IN_UPDATE | IN_MODIFIED)) == 0 &&
+		    vn_write_suspend_wait(vp, NULL, V_NOWAIT)) {
+			ip->i_flag &= ~IN_ACCESS;
+		} else {
+			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
+			ext2_update(vp, 0);
+		}
+	}
+out:
+	VOP_UNLOCK(vp, 0, td);
+	/*
+	 * If we are done with the inode, reclaim it
+	 * so that it can be reused immediately.
+	 */
+	if (ip->i_mode == 0)
+		vrecycle(vp, NULL, td);
+	return (error);
 }
 
+/*
+ * Reclaim an inode so that it can be used for other purposes.
+ */
+int
+ext2_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct thread *a_td;
+	} */ *ap;
+{
+	struct inode *ip;
+	struct vnode *vp = ap->a_vp;
+
+	if (prtactive && vp->v_usecount != 0)
+		vprint("ufs_reclaim: pushing active", vp);
+	ip = VTOI(vp);
+	if (ip->i_flag & IN_LAZYMOD) {
+		ip->i_flag |= IN_MODIFIED;
+		ext2_update(vp, 0);
+	}
+	/*
+	 * Remove the inode from its hash chain.
+	 */
+	ext2_ihashrem(ip);
+	/*
+	 * Purge old data structures associated with the inode.
+	 */
+	cache_purge(vp);
+	if (ip->i_devvp) {
+		vrele(ip->i_devvp);
+		ip->i_devvp = 0;
+	}
+	lockdestroy(&vp->v_lock);
+	FREE(vp->v_data, M_EXT2NODE);
+	vp->v_data = 0;
+	return (0);
+}
