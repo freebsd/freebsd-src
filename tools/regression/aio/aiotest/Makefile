@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	aiotest
-NOMAN=	YES
+NO_MAN=	YES
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil

@@ -4,6 +4,6 @@
 PROG=	uudecode
 WARNS?=	4
 LINKS=	${BINDIR}/uudecode ${BINDIR}/b64decode
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

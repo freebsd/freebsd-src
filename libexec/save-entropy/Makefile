@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 SCRIPTS=	save-entropy.sh
-NOOBJ=
+NO_OBJ=
 
 .include <bsd.prog.mk>

@@ -2,6 +2,6 @@
 
 PROG=   pirtool
 SRCS=   pirtool.c
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

@@ -3,7 +3,7 @@
 
 BASE= 		loader
 PROG= 		${BASE}.exe
-NOMAN=
+NO_MAN=
 NEWVERSWHAT=	"ARC disk boot" ${MACHINE_ARCH}
 
 .PATH:		${.CURDIR}/../common

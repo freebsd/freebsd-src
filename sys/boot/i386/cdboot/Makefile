@@ -3,7 +3,7 @@
 PROG=	cdboot
 STRIP=
 BINMODE=${NOBINMODE}
-NOMAN=
+NO_MAN=
 SRCS=	${PROG}.s
 
 ORG=	0x7c00

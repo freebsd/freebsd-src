@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=
+NO_OBJ=
 FILES=	Acknowledgements Bibliography CharGen \
 	Charsets EscapeSequences Keyboard.HP Keyboard.VT \
 	NotesAndHints

@@ -4,6 +4,6 @@
 
 CFLAGS+=	-Wall
 PROG=	netsend
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

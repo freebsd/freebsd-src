@@ -4,7 +4,7 @@ S=	${.CURDIR}/..
 .PATH: $S
 
 PROG=	testrsrr
-NOMAN=
+NO_MAN=
 SRCS=	testrsrr.c
 
 CFLAGS+= -I$S

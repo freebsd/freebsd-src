@@ -6,7 +6,7 @@ GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
 LIB=    objc
-NOMAN=
+NO_MAN=
 .if ${MACHINE_ARCH} == "amd64"
 SHLIB_MAJOR= 1
 .else

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	make-roken
-NOMAN=
+NO_MAN=
 
 CLEANFILES= make-roken.c
 

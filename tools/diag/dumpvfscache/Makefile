@@ -4,7 +4,7 @@ PROG=	dumpvfscache
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
-NOMAN=
+NO_MAN=
 
 test:	${PROG}
 	./${PROG} > a

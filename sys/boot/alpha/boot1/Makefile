@@ -3,7 +3,7 @@
 
 PROG=	boot1.sym
 INTERNALPROG=
-NOMAN=
+NO_MAN=
 LINKS=	${BINDIR}/boot1 ${BINDIR}/boot
 
 .PATH: ${.CURDIR}/../libalpha

@@ -2,7 +2,7 @@
 
 PROG=	ttls2
 LDADD+= -lpthread
-NOMAN=
+NO_MAN=
 DEBUG_FLAGS= -g
 
 .include <bsd.prog.mk>

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	make-print-version
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>
 

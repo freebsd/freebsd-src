@@ -3,7 +3,7 @@
 PROG?=	boot0
 STRIP=
 BINMODE=${NOBINMODE}
-NOMAN=
+NO_MAN=
 SRCS=	${PROG}.S
 
 # The default set of flags compiled into boot0.  This enables update (writing

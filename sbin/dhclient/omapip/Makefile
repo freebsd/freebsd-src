@@ -13,6 +13,6 @@ SRCS=	alloc.c array.c auth.c buffer.c connection.c convert.c dispatch.c \
 	message.c mrtrace.c protocol.c result.c support.c toisc.c trace.c
 
 MAN=	omapi.3
-NOMAN=
+NO_MAN=
 
 .include <bsd.lib.mk>

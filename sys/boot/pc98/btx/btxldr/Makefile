@@ -2,7 +2,7 @@
 
 PROG=	btxldr
 INTERNALPROG=
-NOMAN=
+NO_MAN=
 SRCS=	btxldr.S
 
 CFLAGS+=-DPC98

@@ -50,7 +50,7 @@ CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 CLEANFILES+=	boot.nohdr boot.strip boot.ldr boot1 boot2 sizetest
 LDFLAGS+=	-N -Ttext 0 -e start
 NOSHARED=	YES
-NOMAN=
+NO_MAN=
 STRIP=
 
 # tunable timeout parameter, waiting for keypress, calibrated in ms

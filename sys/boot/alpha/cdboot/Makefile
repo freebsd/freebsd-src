@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 BOOT= 		cdboot
-NOMAN=
+NO_MAN=
 NEWVERSWHAT=	"SRM CD9660 boot" alpha
 LOAD_ADDRESS=	${PRIMARY_LOAD_ADDRESS}
 

@@ -9,7 +9,7 @@ PROG=	c++
 SRCS=	gcc.c g++spec.c
 LINKS=	${BINDIR}/c++ ${BINDIR}/g++
 LINKS+=	${BINDIR}/c++ ${BINDIR}/CC
-NOMAN=
+NO_MAN=
 
 DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}

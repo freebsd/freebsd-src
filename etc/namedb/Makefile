@@ -2,7 +2,7 @@
 
 FILES=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
-NOOBJ=
+NO_OBJ=
 FILESDIR= /etc/namedb
 FILESMODE= 644
 

@@ -170,7 +170,7 @@ ${LINTLIB}: ${LINTOBJS}
 
 all: ${_LIBS}
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 all: _manpages
 .endif
 
@@ -246,7 +246,7 @@ _libinstall:
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
@@ -258,7 +258,7 @@ lint: ${SRCS:M*.c}
 	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 .include <bsd.man.mk>
 .endif
 

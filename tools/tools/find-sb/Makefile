@@ -1,5 +1,5 @@
 # $FreeBSD$
 PROG=	find-sb
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

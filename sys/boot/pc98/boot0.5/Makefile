@@ -3,7 +3,7 @@
 PROG=	${BOOT}.out
 INTERNALPROG=
 FILES=	${BOOT}
-NOMAN=
+NO_MAN=
 SRCS=	start.s boot.s boot0.5.s disk.s selector.s support.s syscons.s
 CLEANFILES= ${BOOT} ${BOOT}.bin
 

@@ -3,7 +3,7 @@
 PROG=		loader.sym
 INTERNALPROG=
 SRCS=		conf.c dev_net.c efimd.c main.c start.S vers.c
-NOMAN=
+NO_MAN=
 
 CFLAGS+=	-DLOADER
 CFLAGS+=	-I${.CURDIR}/../../efi/include
