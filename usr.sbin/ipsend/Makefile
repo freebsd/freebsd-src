@@ -11,7 +11,7 @@ MAN=	ipsend.1 ipsend.5
 
 CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \
 	-DUSE_INET6 \
-	-I. \
+	-I- -I. -I${.CURDIR}/../../sys/netinet \
 	-I${.CURDIR}/../../contrib/ipfilter/ipsend \
 	-I${.CURDIR}/../../contrib/ipfilter/iplang \
 	-I${.CURDIR}/../../contrib/ipfilter
