@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.94 1999/08/13 10:10:11 phk Exp $
+ * $Id: vnode.h,v 1.95 1999/08/22 00:15:15 jdp Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -568,6 +568,8 @@ int	vop_panic __P((struct vop_generic_args *ap));
 
 struct vnode *
 	checkalias __P((struct vnode *vp, udev_t nvp_rdev, struct mount *mp));
+struct vnode *
+	checkalias2 __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));

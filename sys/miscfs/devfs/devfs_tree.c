@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.59 1999/01/27 22:42:04 dillon Exp $
+ *	$Id: devfs_tree.c,v 1.60 1999/08/24 20:30:15 julian Exp $
  */
 
 
@@ -501,8 +501,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 * and device specific fields are correct
 		 */
 		dnp->ops = &devfs_spec_vnodeop_p;
-		dnp->by.Bdev.bdevsw = by->Bdev.bdevsw;
-		dnp->by.Bdev.dev = by->Bdev.dev;
+		dnp->by.dev.dev = by->dev.dev;
 		break;
 	case DEV_CDEV:
 		/*
@@ -510,8 +509,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 * and device specific fields are correct
 		 */
 		dnp->ops = &devfs_spec_vnodeop_p;
-		dnp->by.Cdev.cdevsw = by->Cdev.cdevsw;
-		dnp->by.Cdev.dev = by->Cdev.dev;
+		dnp->by.dev.dev = by->dev.dev;
 		break;
 	case DEV_DDEV:
 		/*
@@ -984,8 +982,8 @@ DBPRINT(("(New vnode)"));
 			break;
 		case	DEV_BDEV:
 			vn_p->v_type = VBLK;
-			if ((nvp = checkalias(vn_p,
-			   dnp->by.Bdev.dev,
+			if ((nvp = checkalias2(vn_p,
+			   dnp->by.dev.dev,
 			  (struct mount *)0)) != NULL)
 			{
 				vput(vn_p);
@@ -994,8 +992,8 @@ DBPRINT(("(New vnode)"));
 			break;
 		case	DEV_CDEV:
 			vn_p->v_type = VCHR;
-			if ((nvp = checkalias(vn_p,
-			   dnp->by.Cdev.dev,
+			if ((nvp = checkalias2(vn_p,
+			   dnp->by.dev.dev,
 			  (struct mount *)0)) != NULL)
 			{
 				vput(vn_p);
@@ -1082,10 +1080,9 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 	int	major;
 	devnm_p	new_dev;
 	dn_p	dnp;	/* devnode for parent directory */
-	struct	cdevsw *cd;
-	struct	cdevsw *bd;
 	int	retval;
 	union	typeinfo by;
+	struct cdevsw	*cd;
 
 	va_list ap;
 	char *name, *path, buf[256]; /* XXX */
@@ -1121,17 +1118,15 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 		cd = devsw;
 		major = cd->d_maj;
 		if ( major == -1 ) return NULL;
-		by.Cdev.cdevsw = cd;
-		by.Cdev.dev = makedev(major, minor);
+		by.dev.dev = makedev(major, minor);
 		if( dev_add_entry(name, dnp, DEV_CDEV, &by, NULL, NULL, &new_dev))
 			return NULL;
 		break;
 	case	DV_BLK:
-		bd = devsw;
-		major = bd->d_bmaj;
+		cd = devsw;
+		major = cd->d_bmaj;
 		if ( major == -1 ) return NULL;
-		by.Bdev.bdevsw = bd;
-		by.Bdev.dev = makedev(major, minor);
+		by.dev.dev = makebdev(major, minor);
 		if( dev_add_entry(name, dnp, DEV_BDEV, &by, NULL, NULL, &new_dev))
 			return NULL;
 		break;
@@ -1291,6 +1286,7 @@ devfs_close_device(struct vnode *vn)
 	vput(vn);
 }
 
+#if 0
 /*
  * Little utility routine for compatibilty.
  * Returns the dev_t that a devfs vnode represents.
@@ -1303,11 +1299,12 @@ devfs_vntodev(struct vnode *vn)
 	dnp = (dn_p)vn->v_data;
 	switch (dnp->type) {
 	case	DEV_BDEV:
-		return (dnp->by.Bdev.dev);
+		return (dnp->by.dev.dev);
 		break;
 	case	DEV_CDEV:
-		return (dnp->by.Cdev.dev);
+		return (dnp->by.dev.dev);
 		break;
 	}
 	panic ("bad devfs DEVICE vnode");
 }
+#endif
