@@ -242,12 +242,12 @@ acpi_button_fixed_handler(void *context)
 {
     struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
 
-    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+    ACPI_FUNCTION_TRACE_PTR((char *)(uintptr_t)__func__, context);
 
     if (context == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
 
     acpi_button_notify_handler(sc->button_handle,
 			       ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP, sc);
-    return_VALUE (AE_OK);
+    return_ACPI_STATUS (AE_OK);
 }
