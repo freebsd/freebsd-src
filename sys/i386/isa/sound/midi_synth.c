@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * midi_synth.c,v 1.2 1994/10/01 02:16:46 swallace Exp
  */
 
 #include "sound_config.h"

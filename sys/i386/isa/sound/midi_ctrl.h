@@ -1,3 +1,6 @@
+/*
+ * midi_ctrl.h,v 1.2 1994/10/01 02:16:45 swallace Exp
+ */
 static unsigned char ctrl_def_values[128] =
 {
 	0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00,	/*   0 to   7 */

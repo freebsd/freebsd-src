@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * ad1848.c,v 1.3 1994/10/01 05:46:01 davidg Exp
  */
 
 #include "sound_config.h"

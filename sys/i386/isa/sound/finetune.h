@@ -23,6 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * finetune.h,v 1.3 1994/08/02 07:39:51 davidg Exp
  */
 
   unsigned short finetune_table[128] =
