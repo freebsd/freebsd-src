@@ -54,7 +54,9 @@ void dbg_dump_hex(struct fs *, const char *, unsigned char *);
 void dbg_dump_fs(struct fs *, const char *);
 void dbg_dump_cg(const char *, struct cg *);
 void dbg_dump_csum(const char *, struct csum *);
-void dbg_dump_ino(struct fs *, const char *, struct dinode *);
+void dbg_dump_csum_total(const char *, struct csum_total *);
+void dbg_dump_ufs1_ino(struct fs *, const char *, struct ufs1_dinode *);
+void dbg_dump_ufs2_ino(struct fs *, const char *, struct ufs2_dinode *);
 void dbg_dump_iblk(struct fs *, const char *, char *, size_t);
 void dbg_dump_inmap(struct fs *, const char *, struct cg *);
 void dbg_dump_frmap(struct fs *, const char *, struct cg *);
@@ -68,13 +70,17 @@ void dbg_dump_sptbl(struct fs *, const char *, struct cg *);
 #define DBG_DUMP_FS(F,C) dbg_dump_fs((F),(C))
 #define DBG_DUMP_CG(F,C,M) dbg_dump_cg((C),(M))
 #define DBG_DUMP_CSUM(F,C,M) dbg_dump_csum((C),(M))
-#define DBG_DUMP_INO(F,C,M) dbg_dump_ino((F),(C),(M))
+#define DBG_DUMP_INO(F,C,M) (F)->fs_magic == FS_UFS1_MAGIC \
+	? dbg_dump_ufs1_ino((F),(C),(struct ufs1_dinode *)(M)) \
+	: dbg_dump_ufs2_ino((F),(C),(struct ufs2_dinode *)(M))
 #define DBG_DUMP_IBLK(F,C,M,L) dbg_dump_iblk((F),(C),(M),(L))
 #define DBG_DUMP_INMAP(F,C,M) dbg_dump_inmap((F),(C),(M))
 #define DBG_DUMP_FRMAP(F,C,M) dbg_dump_frmap((F),(C),(M))
 #define DBG_DUMP_CLMAP(F,C,M) dbg_dump_clmap((F),(C),(M))
 #define DBG_DUMP_CLSUM(F,C,M) dbg_dump_clsum((F),(C),(M))
+#ifdef NOT_CURRENTLY
 #define DBG_DUMP_SPTBL(F,C,M) dbg_dump_sptbl((F),(C),(M))
+#endif
 
 #define DL_TRC	0x01
 #define DL_INFO	0x02
