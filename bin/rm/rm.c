@@ -199,8 +199,8 @@ rm_tree(char **argv)
 			errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
 		case FTS_NS:
 			/*
-			 * FTS_NS: assume that if can't stat the file, it
-			 * can't be unlinked.
+			 * Assume that since fts_read() couldn't stat the
+			 * file, it can't be unlinked.
 			 */
 			if (!needstat)
 				break;
@@ -269,6 +269,14 @@ rm_tree(char **argv)
 				}
 				break;
 
+			case FTS_NS:
+				/*
+				 * Assume that since fts_read() couldn't stat
+				 * the file, it can't be unlinked.
+				 */
+				if (fflag)
+					continue;
+				/* FALLTHROUGH */
 			default:
 				if (Pflag)
 					if (!rm_overwrite(p->fts_accpath, NULL))
