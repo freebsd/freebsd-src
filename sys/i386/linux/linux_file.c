@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.29 1999/08/13 09:27:54 marcel Exp $
+ *  $Id: linux_file.c,v 1.30 1999/08/14 18:20:44 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -217,11 +217,11 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	   p->p_pid, args->fd, args->cmd);
 #endif
     fcntl_args.fd = args->fd;
-    fcntl_args.arg = 0;
 
     switch (args->cmd) {
     case LINUX_F_DUPFD:
 	fcntl_args.cmd = F_DUPFD;
+	fcntl_args.arg = args->arg;
 	return fcntl(p, &fcntl_args);
 
     case LINUX_F_GETFD:
@@ -230,6 +230,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 
     case LINUX_F_SETFD:
 	fcntl_args.cmd = F_SETFD;
+	fcntl_args.arg = args->arg;
 	return fcntl(p, &fcntl_args);
 
     case LINUX_F_GETFL:
@@ -247,6 +248,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	return error;
 
     case LINUX_F_SETFL:
+	fcntl_args.arg = 0;
 	if (args->arg & LINUX_O_NDELAY) fcntl_args.arg |= O_NONBLOCK;
 	if (args->arg & LINUX_O_APPEND) fcntl_args.arg |= O_APPEND;
 	if (args->arg & LINUX_O_SYNC) fcntl_args.arg |= O_FSYNC;
