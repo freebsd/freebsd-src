@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.13 1995/04/14 15:10:35 dufault Exp $
+ * $Id: scsi_ioctl.c,v 1.14 1995/05/03 18:09:12 dufault Exp $
  *
  *
  */
@@ -204,6 +204,12 @@ void scsistrategy(struct buf *bp)
 
 	if (screq->flags & SCCMD_ESCAPE)
 		flags |= SCSI_ESCAPE;
+
+#ifdef BOUNCE_BUFFERS
+	if (sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
+
 	err = scsi_scsi_cmd(sc_link,
 			(struct	scsi_generic *)screq->cmd,
 			screq->cmdlen,
