@@ -14,7 +14,7 @@ For the import of AMD the following files were removed:
 	amq/
 	Makefile.am     Makefile.in
 
-	checkmount/
+	conf/checkmount/
 	checkmount_aix.c	checkmount_osf.c	checkmount_ultrix.c
 	checkmount_default.c	checkmount_svr4.c
 
@@ -31,8 +31,8 @@ For the import of AMD the following files were removed:
 	conf/mount/
 	mount_aix.c		mount_irix6.c		mount_stellix.c
 	mount_bsdi3.c		mount_isc3.c		mount_svr4.c
-	mount_hpux.c		mount_linux.c
-	mount_irix5.c		mount_mach3.c
+	mount_hpux.c		mount_linux.c		mount_freebsd3.c
+	mount_irix5.c		mount_mach3.c		(was for pre-3.0-R)
 
 	conf/mtab/
 	mtab_aix.c	mtab_isc3.c	mtab_osf.c	mtab_ultrix.c
@@ -61,7 +61,8 @@ For the import of AMD the following files were removed:
 	trap_aix3.h     trap_hpux.h     trap_linux.h    trap_stellix.h
 	trap_aux.h      trap_hpux11.h   trap_mach3.h    trap_svr4.h
 	trap_dgux.h     trap_irix.h     trap_news4.h    trap_ultrix.h
-	trap_hcx.h      trap_isc3.h     trap_rtu6.h
+	trap_hcx.h      trap_isc3.h     trap_rtu6.h	trap_freebsd3.h
+							(was for pre-3.0-R)
 
 	conf/umount/
 	umount_default.c	umount_osf.c
@@ -94,7 +95,7 @@ For the import of AMD the following files were removed:
 
 Imported by:
 
-	cvs import -m 'Virgin import of AMD (am-utils) v6.0a16' \
+	cvs import -ko -m 'Virgin import of AMD (am-utils) v6.0a16' \
 		src/contrib/amd COLUMBIA amd_6_0a16
 
 
