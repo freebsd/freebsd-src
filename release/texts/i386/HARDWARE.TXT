@@ -300,8 +300,6 @@ sym:    Alternate high-performance driver for NCR/LSI Logic SCSI controllers
 spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
-ze:     IBM/National Semiconductor PCMCIA Ethernet Controller
-zp:     3Com 3c589 Etherlink III PCMCIA Ethernet Controller
 
 --- end of list ---
 
