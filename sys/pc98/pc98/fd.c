@@ -1331,10 +1331,14 @@ fd_attach(device_t dev)
 	int	typemynor;
 	int	typesize;
 #endif
+	static int cdevsw_add_done = 0;
 
 	fd = device_get_softc(dev);
 
-	cdevsw_add(&fd_cdevsw);	/* XXX */
+	if (!cdevsw_add_done) {
+		cdevsw_add(&fd_cdevsw);	/* XXX */
+		cdevsw_add_done++;
+	}
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
 		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
 
