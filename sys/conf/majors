@@ -46,7 +46,7 @@ chrdev	name		comments
 26	spkr		PC speaker (/dev/spkr)
 27	mse		Microsoft bus-mouse
 28	sio		16450/16550 serial
-29	mcd		Mitsumi CDROM interface
+29	mcd		Mitsumi CDROM interface <mdodd>
 30	snd		sound driver system
 31	pass		SCSI "Application Pass-Thru"
 32	lkmc		Loadable Kernel Module Controller
@@ -62,7 +62,7 @@ chrdev	name		comments
 42	cx		Cronyx/Sigma serial adapter
 43	vn		vnode "disk" device (retired)
 44	gp		GPIB
-45	scd		Sony CDROM interface
+45	scd		Sony CDROM interface <mdodd>
 46	-		-
 47	gsc		Genius Scanner
 48	cy		Cyclades
@@ -198,9 +198,10 @@ chrdev	name		comments
 177	openfirm	OpenFirmware control device <tmm>
 178	raidctl		RAIDframe (control device)
 179	raid		RAIDframe (disk device)
-180	nvidia		NVIDIA (nvidiaN/nvidiactl)
+180	nvidia		NVIDIA (nvidiaN/nvidiactl) <mdodd>
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 182	zs		Zilog 8350 serial chip <jake>
+183	smapi		SMAPI BIOS interface <mdodd>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	was:MFS		was: used by MFS in <= RELENG_4
