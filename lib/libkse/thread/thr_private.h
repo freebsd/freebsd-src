@@ -1396,6 +1396,20 @@ extern void	__siglongjmp(sigjmp_buf, int) __dead2;
 extern void	__longjmp(jmp_buf, int) __dead2;
 extern void	___longjmp(jmp_buf, int) __dead2;
 #endif
+
+/* #include <sys/capability.h> */
+#ifdef _SYS_CAPABILITY_H
+int	__sys___cap_get_fd(int, struct cap *);
+int	__sys___cap_set_fd(int, struct cap *);
+#endif
+
+/* #include <sys/acl.h> */
+#ifdef _SYS_ACL_H
+int	__sys___acl_aclcheck_fd(int, acl_type_t, struct acl *);
+int	__sys___acl_delete_fd(int, acl_type_t);
+int	__sys___acl_get_fd(int, acl_type_t, struct acl *);
+int	__sys___acl_set_fd(int, acl_type_t, struct acl *);
+#endif
 __END_DECLS
 
 #endif  /* !_PTHREAD_PRIVATE_H */
