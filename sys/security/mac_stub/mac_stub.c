@@ -617,6 +617,29 @@ mac_none_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_none_check_system_reboot(struct ucred *cred, int how)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_system_sysctl(struct ucred *cred, int *name, u_int namelen,
+    void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen)
+{
+
+	return (0);
+}
+
+static int
 mac_none_check_vnode_access(struct ucred *cred, struct vnode *vp,
     struct label *label, mode_t flags)
 {
@@ -1064,6 +1087,12 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_check_socket_relabel },
 	{ MAC_CHECK_SOCKET_VISIBLE,
 	    (macop_t)mac_none_check_socket_visible },
+	{ MAC_CHECK_SYSTEM_REBOOT,
+	    (macop_t)mac_none_check_system_reboot },
+	{ MAC_CHECK_SYSTEM_SWAPON,
+	    (macop_t)mac_none_check_system_swapon },
+	{ MAC_CHECK_SYSTEM_SYSCTL,
+	    (macop_t)mac_none_check_system_sysctl },
 	{ MAC_CHECK_VNODE_ACCESS,
 	    (macop_t)mac_none_check_vnode_access },
 	{ MAC_CHECK_VNODE_CHDIR,
