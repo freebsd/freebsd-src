@@ -17,8 +17,7 @@ DESTSBIN=	/usr/sbin
 DESTHELP=	/usr/share/misc
 
 CFLAGS+=	-I${BIND_DIR}/port/freebsd/include \
-		-I${.CURDIR}/../../contrib/bind/bin/named \
-		-DNOADDITIONAL
+		-I${.CURDIR}/../../contrib/bind/bin/named
 
 # This is mostly for named and named-xfer
 .if defined(USE_LIBBIND)
