@@ -23,6 +23,9 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include "filetypes.h"
 #include "system.h"
 #include "cpiohdr.h"
@@ -458,6 +461,9 @@ main (argc, argv)
   program_name = argv[0];
   umask (0);
 
+#ifdef __FreeBSD__
+  (void) setlocale (LC_ALL, "");
+#endif
 #ifdef __TURBOC__
   _fmode = O_BINARY;		/* Put stdin and stdout in binary mode.  */
 #endif
