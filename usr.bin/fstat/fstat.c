@@ -393,8 +393,8 @@ dommap(kp)
 	}
 	map = &vmspace.vm_map;
 
-	for (entryp = map->header.next; entryp != &vmspace.vm_map.header;
-	    entryp = entry.next) {
+	for (entryp = map->header.next;
+	    entryp != &kp->ki_vmspace->vm_map.header; entryp = entry.next) {
 		if (!KVM_READ(entryp, &entry, sizeof(entry))) {
 			dprintf(stderr,
 			    "can't read vm_map_entry at %p for pid %d\n",
