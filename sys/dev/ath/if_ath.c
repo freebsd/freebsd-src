@@ -1725,6 +1725,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			return ENOMEM;
 		}
 		ivp = hdrbuf + hdrlen;
+		wh = mtod(m0, struct ieee80211_frame *);
 		/*
 		 * XXX
 		 * IV must not duplicate during the lifetime of the key.
