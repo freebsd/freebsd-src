@@ -2148,7 +2148,7 @@ fdstrategy(struct bio *bp)
 		}
 		bp->bio_bcount = (nblocks - blknum) * fdblk;
 	}
- 	bp->bio_pblkno = bp->bio_blkno;
+ 	bp->bio_pblkno = blknum;
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
@@ -3103,6 +3103,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	struct fd_formb *finfo;
 	struct fdc_readid *idfield;
 	size_t fdblk;
+	int error;
 
  	fdu = FDUNIT(minor(dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
@@ -3138,17 +3139,12 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	bp->bio_done = fdbiodone;
 	bp->bio_flags = 0;
 
-	/*
-	 * Now run the command.  The wait loop is a version of bufwait()
-	 * adapted for struct bio instead of struct buf and specialized
-	 * for the current context.
-	 */
+	/* Now run the command. */
 	fdstrategy(bp);
-	while ((bp->bio_flags & BIO_DONE) == 0)
-		tsleep(bp, PRIBIO, "fdcmd", 0);
+	error = biowait(bp, "fdcmd");
 
 	free(bp, M_TEMP);
-	return (bp->bio_flags & BIO_ERROR ? bp->bio_error : 0);
+	return (error);
 }
 
 static int
