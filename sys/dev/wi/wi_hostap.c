@@ -693,6 +693,17 @@ wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	/* Pull out request parameters. */
 	capinfo = take_hword(&pkt, &len);
 	lstintvl = take_hword(&pkt, &len);
+
+	if ((rxfrm->wi_frame_ctl & htole16(WI_FCTL_STYPE)) ==
+	    htole16(WI_STYPE_MGMT_REASREQ)) {
+		if (len < 6)
+			return;
+		/* Eat the MAC address of the current AP */
+		take_hword(&pkt, &len);
+		take_hword(&pkt, &len);
+		take_hword(&pkt, &len);
+	}
+
 	if ((ssid_len = take_tlv(&pkt, &len, IEEE80211_ELEMID_SSID,
 	    ssid, sizeof(ssid) - 1))<0)
 		return;
@@ -700,13 +711,6 @@ wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	if ((rates_len = take_tlv(&pkt, &len, IEEE80211_ELEMID_RATES,
 	    rates, sizeof(rates)))<0)
 		return;
-
-	if ((rxfrm->wi_frame_ctl & htole16(WI_FCTL_STYPE)) ==
-	    htole16(WI_STYPE_MGMT_REASREQ)) {
-		/* Reassociation Request-- * Current AP.  (Ignore?) */
-		if (len < 6)
-			return;
-	}
 
 	if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
 		printf("wihap_assoc_req: from station %6D\n",
