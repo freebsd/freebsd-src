@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.488
+    Original revision: 1.490
 -->
 
 <articleinfo>
@@ -105,6 +105,18 @@
     それらはたとえば文書の修正や改良、ごく影響の小さいバグの修正、
     監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正、
     ソースコードの整理などです。</para>
+
+  <sect2 id="security">
+    <title>セキュリティ勧告</title>
+
+    <para>バージョン 1.11.5 の統合により、<application>CVS</application>
+      にあったリモートから悪用可能なセキュリティ上の弱点が修正されました。
+      問題の詳細は、セキュリティ勧告 <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
+      をご覧ください。
+      &merged;</para>
+
+  </sect2>
 
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
@@ -211,12 +223,6 @@
 
       <para></para>
     </sect3>
-  </sect2>
-
-  <sect2 id="security">
-    <title>セキュリティ関連の修正</title>
-
-    <para></para>
   </sect2>
 
   <sect2 id="userland">
