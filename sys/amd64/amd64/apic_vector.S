@@ -52,7 +52,7 @@ IDTVEC(vec_name) ;							\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	addl	$4, %esp ;						\
-	movl	$0, lapic_eoi ;						\
+	movl	$0, _lapic+LA_EOI ;					\
 	lock ; 								\
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */		\
 	movl	_intr_countp + (irq_num) * 4, %eax ;			\
@@ -95,15 +95,15 @@ IDTVEC(vec_name) ;							\
 	movl	(%eax), %eax ;						\
 	testl	_apic_isrbit_location + 4 + 8 * (irq_num), %eax ;	\
 	jz	9f ;				/* not active */	\
-	movl	$0, lapic_eoi ;						\
+	movl	$0, _lapic+LA_EOI ;					\
 	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
 9:
 
 #else
 #define EOI_IRQ(irq_num)						\
-	testl	$IRQ_BIT(irq_num), lapic_isr1;				\
+	testl	$IRQ_BIT(irq_num), _lapic+LA_ISR1;			\
 	jz	9f	;			/* not active */	\
-	movl	$0, lapic_eoi;						\
+	movl	$0, _lapic+LA_EOI;					\
 	APIC_ITRACE(apic_itrace_eoi, irq_num, APIC_ITRACE_EOI) ;	\
 9:
 #endif
@@ -273,7 +273,7 @@ _Xinvltlb:
 	movl	%eax, %cr3
 
 	ss				/* stack segment, avoid %ds load */
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	popl	%eax
 	iret
@@ -310,7 +310,7 @@ _Xcpucheckstate:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	movl	$0, %ebx		
 	movl	20(%esp), %eax	
@@ -362,7 +362,7 @@ _Xcpuast:
 	movl	PCPU(CPUID), %eax
 	lock				/* checkstate_need_ast &= ~(1<<id) */
 	btrl	%eax, _checkstate_need_ast
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	lock
 	btsl	%eax, _checkstate_pending_ast
@@ -409,7 +409,7 @@ _Xforward_irq:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	FAKE_MCOUNT(13*4(%esp))
 
@@ -452,21 +452,21 @@ forward_irq:
 	shrl	$24,%eax
 	movl	_cpu_num_to_apic_id(,%eax,4),%ecx
 	shll	$24,%ecx
-	movl	lapic_icr_hi, %eax
+	movl	_lapic+LA_ICR_HI, %eax
 	andl	$~APIC_ID_MASK, %eax
 	orl	%ecx, %eax
-	movl	%eax, lapic_icr_hi
+	movl	%eax, _lapic+LA_ICR_HI
 
 2:
-	movl	lapic_icr_lo, %eax
+	movl	_lapic+LA_ICR_LO, %eax
 	andl	$APIC_DELSTAT_MASK,%eax
 	jnz	2b
-	movl	lapic_icr_lo, %eax
+	movl	_lapic+LA_ICR_LO, %eax
 	andl	$APIC_RESV2_MASK, %eax
 	orl	$(APIC_DEST_DESTFLD|APIC_DELMODE_FIXED|XFORWARD_IRQ_OFFSET), %eax
-	movl	%eax, lapic_icr_lo
+	movl	%eax, _lapic+LA_ICR_LO
 3:
-	movl	lapic_icr_lo, %eax
+	movl	_lapic+LA_ICR_LO, %eax
 	andl	$APIC_DELSTAT_MASK,%eax
 	jnz	3b
 4:		
@@ -498,7 +498,7 @@ _Xcpustop:
 	movl	$KPSEL, %eax
 	mov	%ax, %fs
 
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 
 	movl	PCPU(CPUID), %eax
 	imull	$PCB_SIZE, %eax
@@ -628,7 +628,7 @@ _Xrendezvous:
 
 	call	_smp_rendezvous_action
 
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
 	POP_FRAME
 	iret
 	

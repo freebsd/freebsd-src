@@ -103,12 +103,12 @@ mp_begin:	/* now running relocated at KERNBASE */
 1:
 
 	/* disable the APIC, just to be SURE */
-	movl	lapic_svr, %eax			/* get spurious vector reg. */
+	movl	_lapic+LA_SVR, %eax		/* get spurious vector reg. */
 	andl	$~APIC_SVR_SWEN, %eax		/* clear software enable bit */
-	movl	%eax, lapic_svr
+	movl	%eax, _lapic+LA_SVR
 
 	/* signal our startup to the BSP */
-	movl	lapic_ver, %eax			/* our version reg contents */
+	movl	_lapic+LA_VER, %eax		/* our version reg contents */
 	movl	%eax, _cpu_apic_versions	/* into [ 0 ] */
 	incl	_mp_ncpus			/* signal BSP */
 
