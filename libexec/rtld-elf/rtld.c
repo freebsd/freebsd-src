@@ -1425,11 +1425,9 @@ rtld_exit(void)
     Obj_Entry *obj;
 
     dbg("rtld_exit()");
-    wlock_acquire();
     /* Clear all the reference counts so the fini functions will be called. */
     for (obj = obj_list;  obj != NULL;  obj = obj->next)
 	obj->refcount = 0;
-    wlock_release();
     objlist_call_fini(&list_fini);
     /* No need to remove the items from the list, since we are exiting. */
 }
