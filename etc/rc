@@ -314,6 +314,10 @@ if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 		sh ${diskless_mount}
 fi
 
+# If we booted a special kernel remove the record so we will boot
+# the default kernel next time
+rm -f /boot/nextkernel
+
 # Reseed /dev/random with previously stored entropy.
 case ${entropy_dir} in
 [Nn][Oo])
