@@ -372,6 +372,8 @@ static int aue_miibus_readreg(dev, phy, reg)
 	int			i;
 	u_int16_t		val = 0;
 
+	sc = device_get_softc(dev);
+
 	/*
 	 * The Am79C901 HomePNA PHY actually contains
 	 * two transceivers: a 1Mbps HomePNA PHY and a
@@ -382,13 +384,13 @@ static int aue_miibus_readreg(dev, phy, reg)
 	 * happens to be configured for MII address 3,
 	 * so we filter that out.
 	 */
-	if (phy == 3)
-		return(0);
-
-	if (phy != 1)
-		return(0);
-
-	sc = device_get_softc(dev);
+	if (sc->aue_info->aue_vid == USB_VENDOR_ADMTEK &&
+	    sc->aue_info->aue_did == USB_PRODUCT_ADMTEK_PEGASUS) {
+		if (phy == 3)
+			return(0);
+		if (phy != 1)
+			return(0);
+	}
 
 	csr_write_1(sc, AUE_PHY_ADDR, phy);
 	csr_write_1(sc, AUE_PHY_CTL, reg|AUE_PHYCTL_READ);
@@ -582,6 +584,7 @@ USB_ATTACH(aue)
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
+	struct aue_type		*t;
 
 	s = splimp();
 
@@ -589,6 +592,16 @@ USB_ATTACH(aue)
 	sc->aue_iface = uaa->iface;
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
+
+	t = aue_devs;
+	while(t->aue_name != NULL) {
+		if (uaa->vendor == t->aue_vid &&
+		    uaa->product == t->aue_did) {
+			sc->aue_info = t;
+			break;
+		}
+		t++;
+	}
 
 	id = usbd_get_interface_descriptor(uaa->iface);
 
