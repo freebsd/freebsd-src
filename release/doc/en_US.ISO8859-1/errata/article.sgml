@@ -270,6 +270,13 @@
       shutdown and would report this fact.  The problem can be
       worked around by running &man.sync.8; a few times before rebooting, or
       solved by updating to a recent &os; &release.current; snapshot.</para>
+
+    <para>The ciss driver was inadvertently omitted from the &os;
+      &release.prev; <filename>GENERIC</filename> kernel, thus making
+      it impossible (or at least very difficult) to perform an initial
+      install to disks attached to this controller.  This problem has
+      been corrected in &os; &release.current;.</para>
+
 ]]>
   </sect1>
 </article>
