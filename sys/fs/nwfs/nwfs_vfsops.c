@@ -68,6 +68,7 @@ SYSCTL_INT(_vfs_nwfs, OID_AUTO, version, CTLFLAG_RD, &nwfs_version, 0, "");
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "");
 
 MODULE_DEPEND(nwfs, ncp, 1, 1, 1);
+MODULE_DEPEND(nwfs, libmchain, 1, 1, 1);
 
 static int nwfs_mount(struct mount *, char *, caddr_t,
 			struct nameidata *, struct proc *);
