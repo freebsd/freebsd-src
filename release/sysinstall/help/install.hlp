@@ -213,6 +213,20 @@ For as many distributions as you wish to install from DOS (and you
 have free space for), install each one in a directory under
 `C:\FREEBSD' - the BIN dist is only the minimal requirement.
 
+IMPORTANT NOTE:  Though you can do all of the above by hand if you really
+want to, all of it is much more easily accomplished now by Robert Nordier's
+"setup.exe" program.  It will give you a menu of distribution choices,
+verify that you have enough free space and do all the copying to C:\FREEBSD
+for you automatically.
+
+
+Once you've copied the directories or run setup.exe and let it do all the
+work for you, you can simply launch the installation from DOS by running the
+install.bat script (NOTE:  Some memory managers don't like this -
+disable QEMM or EMM386 if they're running before trying this) or making
+a boot floppy as described in section 2.1.
+
+
 
 2.4     Before installing from QIC/SCSI Tape:
 
