@@ -4,7 +4,8 @@ SUBDIR+=	ConfCmp GLib Test
 
 .include <bsd.subdir.mk>
 
-test:	all _SUBDIRUSE
+test:	all _SUBDIR
+
 
 toflat:
 	scp *.c *.h *.sh Makefile root@flat:/sys/geom
