@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.59 1997/10/02 09:14:32 kato Exp $
+ *  $Id: syscons.c,v 1.60 1997/10/23 09:26:30 kato Exp $
  */
 
 #include "sc.h"
@@ -2367,6 +2367,7 @@ exchange_scr(void)
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
         old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
 	shfts = ctls = alts = agrs = metas = 0;
+    set_border(new_scp->border);
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
@@ -4671,9 +4672,7 @@ set_border(u_char color)
     case KD_EGA:
     case KD_VGA:
         inb(crtc_addr + 6);		/* reset flip-flop */
-        outb(ATC, 0x11); outb(ATC, color);
-        inb(crtc_addr + 6);		/* reset flip-flop */
-        outb(ATC, 0x20);		/* enable Palette */
+        outb(ATC, 0x31); outb(ATC, color);
 	break;
     case KD_CGA:
 	outb(crtc_addr + 5, color & 0x0f); /* color select register */
