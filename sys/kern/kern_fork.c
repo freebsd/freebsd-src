@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
 #include <sys/sx.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <sys/user.h>
 #include <machine/critical.h>
 
 #ifndef _SYS_SYSPROTO_H_
@@ -473,29 +473,25 @@ again:
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 	bzero(&p2->p_startzero,
-	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
+	    __rangeof(struct proc, p_startzero, p_endzero));
 	bzero(&td2->td_startzero,
-	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
+	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&kg2->kg_startzero,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
+	    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
-	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
+	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
-	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
+	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
-#undef RANGEOF
+	    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
 
 	td2->td_sigstk = td->td_sigstk;
 
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
-	 * The p_stats substruct is set in vm_forkproc.
 	 */
 	p2->p_flag = 0;
 	if (p1->p_flag & P_PROFIL)
@@ -533,6 +529,9 @@ again:
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	p2->p_limit = lim_hold(p1->p_limit);
+
+	pstats_fork(p1->p_stats, p2->p_stats);
+
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
