@@ -288,6 +288,9 @@ struct acpi_ec_softc {
 	 ((event) == EC_EVENT_INPUT_BUFFER_EMPTY && 	\
 	 ((status) & EC_FLAG_INPUT_BUFFER) == 0))
 
+static int	ec_poll_timeout = EC_POLL_TIMEOUT;
+TUNABLE_INT("hw.acpi.ec.poll_timeout", &ec_poll_timeout);
+
 static __inline ACPI_STATUS
 EcLock(struct acpi_ec_softc *sc)
 {
@@ -792,12 +795,12 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 	sc->ec_polldelay = 100;
 
     /*
-     * If we still don't have a response, wait up to EC_POLL_TIMEOUT ms
+     * If we still don't have a response, wait up to ec_poll_timeout ms
      * for completion, sleeping for chunks of 10 ms.
      */
     if (Status != AE_OK) {
 	retval = -1;
-	for (i = 0; i < EC_POLL_TIMEOUT / 10; i++) {
+	for (i = 0; i < ec_poll_timeout / 10; i++) {
 	    if (retval != 0)
 		EcStatus = EC_GET_CSR(sc);
 	    else
