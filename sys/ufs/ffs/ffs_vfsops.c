@@ -72,8 +72,8 @@ static int	ffs_sbupdate(struct ufsmount *, int);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
-static int	ffs_init(struct vfsconf *);
-static int	ffs_uninit(struct vfsconf *);
+static vfs_init_t ffs_init;
+static vfs_uninit_t ffs_uninit;
 
 static struct vfsops ufs_vfsops = {
 	ffs_mount,
