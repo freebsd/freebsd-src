@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.20 1996/02/11 21:24:14 pst Exp $
+#	$Id: services,v 1.21 1996/03/08 10:54:00 ache Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1594,6 +1594,7 @@ hacl-local	5304/tcp
 hacl-local	5304/udp			    
 hacl-test	5305/tcp			    
 hacl-test	5305/udp			    
+rplay		5555/udp
 proshareaudio	5713/tcp   #proshare conf audio
 proshareaudio	5713/udp   #proshare conf audio
 prosharevideo	5714/tcp   #proshare conf video
