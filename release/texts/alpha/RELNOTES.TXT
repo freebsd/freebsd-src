@@ -83,6 +83,41 @@ rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 TCP now uses stronger randomness in choosing its initial sequence 
 numbers (see security advisory FreeBSD-SA-00:52).
 
+A local root vulnerability in the chpass(1) family of programs has
+been fixed (see security advisory FreeBSD-SA-00:58).
+
+Several buffer overflows in tcpdump(1) were corrected (see security
+advisory FreeBSD-SA-00:61).
+
+A security hole in top(1) was corrected (see security advisory
+FreeBSD-SA-00:62).
+
+A vulnerability in telnetd(8) that could cause it to consume large
+amounts of server resources has been fixed (see security advisory
+FreeBSD-SA-00:69).
+
+The "nat deny_incoming" command in ppp(8) now works correctly (see
+security advisory FreeBSD-SA-00:70).
+
+A vulnerability in csh(1) temporary files that could allow
+overwriting of arbitary user-writable files has been closed (see
+security advisory FreeBSD-SA-00:76).
+
+Several vulnerabilities in procfs(4) were fixed (see security advisory
+FreeBSD-SA-00:77).
+
+A bug in ipfw(8) and ipfw6(8) in which inbound TCP segments could
+incorrectly be treated as being part of an "established" connection
+has been fixed (see security advisory FreeBSD-SA-01:08).
+
+A bug in crontab(8) that could allow users to read any file on the
+system in valid crontab(5) syntax has been fixed (see security
+advisory FreeBSD-SA-01:09).
+
+A vulnerability in named(8) that could cause it to crash when
+receiving certain requests has been closed by updating the BIND
+software (see security advisory FreeBSD-SA-01:10).
+
 Many other small but meaningful changes, too many to list.  See CVS
 repository for more details.  Suffice it to say from a user
 perspective that "various things were tightened up."
