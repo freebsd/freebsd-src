@@ -202,6 +202,8 @@ struct	cmd {
 	{ "-arp",	IFF_NOARP,	setifflags },
 	{ "debug",	IFF_DEBUG,	setifflags },
 	{ "-debug",	-IFF_DEBUG,	setifflags },
+	{ "promisc",	IFF_PPROMISC,	setifflags },
+	{ "-promisc",	-IFF_PPROMISC,	setifflags },
 	{ "add",	IFF_UP,		notealias },
 	{ "alias",	IFF_UP,		notealias },
 	{ "-alias",	-IFF_UP,	notealias },
@@ -999,7 +1001,7 @@ setifflags(const char *vname, int value, int s, const struct afswtch *afp)
  		exit(1);
  	}
 	strncpy(my_ifr.ifr_name, name, sizeof (my_ifr.ifr_name));
- 	flags = (my_ifr.ifr_flags & 0xffff) | (my_ifr.ifr_flagshigh << 16);
+	flags = (my_ifr.ifr_flags & 0xffff) | (my_ifr.ifr_flagshigh << 16);
 
 	if (value < 0) {
 		value = -value;
