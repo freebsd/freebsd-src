@@ -137,16 +137,12 @@ apm_event SUSPENDREQ {
 .Pp
 will cause
 .Nm apmd
-to recieve the APM event
+to receive the APM event
 .Ql SUSPENDREQ 
 (which may be posted by an LCD close), run the
 .Ql sync
 command 3 times and wait for a while, then execute
-.Nm zzz 
-(
-.Nm apm
-.Fl z
-)
+.Nm zzz ( Ns Nm apm Fl z )
 to put the system in the suspend state.
 .Pp
 .Bl -bullet
