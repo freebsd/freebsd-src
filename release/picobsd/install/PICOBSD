@@ -51,7 +51,7 @@ device		wd3	at wdc1 drive 1
 
 controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
-device		vga0	at isa? port ? conflicts
+device		vga0	at isa? port ?
 device		sc0	at isa? tty
 
 device		npx0	at isa? port IO_NPX irq 13
