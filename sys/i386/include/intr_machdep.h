@@ -77,6 +77,11 @@ struct intrframe;
 
 extern struct mtx icu_lock;
 
+/* XXX: The elcr_* prototypes probably belong somewhere else. */
+int	elcr_probe(void);
+enum intr_trigger elcr_read_trigger(u_int irq);
+void	elcr_resume(void);
+void	elcr_write_trigger(u_int irq, enum intr_trigger trigger);
 int	intr_add_handler(const char *name, int vector, driver_intr_t handler,
     void *arg, enum intr_type flags, void **cookiep);
 void	intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe);
