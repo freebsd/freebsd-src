@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.40 1997/09/24 16:41:18 kato Exp $
+#	$Id: files.pc98,v 1.41 1997/10/28 14:29:23 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -220,6 +220,11 @@ i386/isa/sound/midi_synth.c	optional	uart	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
 i386/isa/sound/trix.c		optional	trix	device-driver
 i386/isa/sound/sscape.c		optional	sscape	device-driver
+i386/isa/sound/ad1848.c		optional	sscape	device-driver
+i386/isa/sound/sound_timer.c	optional	sscape	device-driver
+i386/isa/sound/mpu401.c		optional	sscape	device-driver
+i386/isa/sound/midi_synth.c	optional	sscape	device-driver
+i386/isa/sound/midibuf.c	optional	sscape	device-driver
 i386/isa/sound/awe_wave.c	optional	awe	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 pc98/pc98/spkr.c		optional	speaker	device-driver
