@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.155 1995/03/13 18:49:24 swallace Exp $
+#	$Id: LINT,v 1.156 1995/03/14 09:14:05 davidg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -247,9 +247,15 @@ options		QUOTA			#enable disk quotas
 
 
 #####################################################################
+# SCSI DEVICES
+
+# SCSI OPTIONS:
+
+# SCSIDEBUG: When defined enables debugging macros
+# NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
+
 # SCSI DEVICE CONFIGURATION
 
-#
 # The SCSI subsystem consists of the `base' SCSI code, a number of
 # high-level SCSI device `type' drivers, and the low-level host-adapter
 # device drivers.  The host adapters are listed in the ISA and PCI
