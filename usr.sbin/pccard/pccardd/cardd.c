@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.30 1998/03/09 05:18:50 hosokawa Exp $";
+	"$Id: cardd.c,v 1.31 1998/04/20 15:24:28 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -142,18 +142,11 @@ slot_change(struct slot *sp)
 	switch (state.state) {
 	case empty:
 	case noslot:
-		if (state.laststate == filled)
+		/* Debounce potentially incorrectly reported removals */
+		if (state.laststate == filled || state.laststate == suspend)
 			card_removed(sp);
 		break;
 	case filled:
-		/*
-		 * If the previous state was suspend, fake a removal to get
-		 * our state in sync with the kernel. This happens when the
-		 * system resumes, since we can only reliably process
-		 * the state change after we resume.
-		 */
-		if (state.laststate == suspend)
-			card_removed(sp);
 		card_inserted(sp);
 		break;
 	case suspend:
