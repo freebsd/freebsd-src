@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 180 $
+ *              $Revision: 182 $
  *
  ******************************************************************************/
 
@@ -190,7 +190,7 @@ AcpiNsRootInitialize (void)
         }
 
         Status = AcpiNsLookup (NULL, InitVal->Name, InitVal->Type,
-                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH, 
+                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
                         NULL, &NewNode);
 
         if (ACPI_FAILURE (Status) || (!NewNode)) /* Must be on same line for code converter */
@@ -210,7 +210,7 @@ AcpiNsRootInitialize (void)
             Status = AcpiOsPredefinedOverride (InitVal, &Val);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                     "Could not override predefined %s\n",
                     InitVal->Name));
             }
@@ -239,7 +239,7 @@ AcpiNsRootInitialize (void)
             switch (InitVal->Type)
             {
             case ACPI_TYPE_METHOD:
-                ObjDesc->Method.ParamCount = (UINT8) ACPI_STRTOUL 
+                ObjDesc->Method.ParamCount = (UINT8) ACPI_STRTOUL
                                                         (Val, NULL, 10);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
@@ -277,7 +277,7 @@ AcpiNsRootInitialize (void)
             case ACPI_TYPE_MUTEX:
 
                 ObjDesc->Mutex.Node = NewNode;
-                ObjDesc->Mutex.SyncLevel = (UINT16) ACPI_STRTOUL 
+                ObjDesc->Mutex.SyncLevel = (UINT8) ACPI_STRTOUL
                                                         (Val, NULL, 10);
 
                 if (ACPI_STRCMP (InitVal->Name, "_GL_") == 0)

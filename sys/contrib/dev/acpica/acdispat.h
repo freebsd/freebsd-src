@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 57 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -510,8 +510,7 @@ AcpiDsInitAmlWalk (
     ACPI_NAMESPACE_NODE     *MethodNode,
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
-    ACPI_OPERAND_OBJECT     **Params,
-    ACPI_OPERAND_OBJECT     **ReturnObjDesc,
+    ACPI_PARAMETER_INFO     *Info,
     UINT32                  PassNumber);
 
 ACPI_STATUS

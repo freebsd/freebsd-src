@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdebug.h - ACPI/AML debugger
- *       $Revision: 73 $
+ *       $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -238,6 +238,10 @@ AcpiDbFindNameInNamespace (
 void
 AcpiDbSetScope (
     char                    *Name);
+
+ACPI_STATUS
+AcpiDbSleep (
+    char                    *ObjectArg);
 
 void
 AcpiDbFindReferences (
