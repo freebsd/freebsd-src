@@ -1,5 +1,5 @@
 <html>
-<! $Id: TODO.html,v 1.1 1998/10/28 16:16:30 abial Exp $ >
+<! $Id: TODO.html,v 1.2 1998/12/22 21:40:56 abial Exp $ >
 <body>
 <h1><center>		Small FreeBSD ToDo List.
 </center></h1>
@@ -21,7 +21,7 @@ part of the work, please contact the coordinator of PicoBSD project
 <li>
 Eliminate need for patching FreeBSD source tree - either by
 keeping our own version of Makefiles, or by adding (many) knobs to
-the standard ones.
+the standard ones. (NOTE: this will be resolved in v. 0.44).
 </li>
 <li>
 Provide options for building separate kernel and FS images of
@@ -33,15 +33,14 @@ and "net" for most common tasks.
 </li>
 <li>
 Replace most of currently used scripts with Makefiles.
+(NOTE: this will be resolved in v. 0.44).
 </li>
 <li>
 Add simple authentication module to oinit.
 </li>
 <li>
 Fix kzip to be able to produce kzip'ped ELF kernels.
-</li>
-<li>
-Clear up the issue of DiskOnChip driver.
+(NOTE: currently we work around it by using kzipped /boot/loader).
 </li>
 <li>
 Write better documentation. This is very important - the most
@@ -68,6 +67,7 @@ removing drivers when running stripped kernels.
 <li>
 Investigate pros and cons of using the new boot/loader together
 with ELF kernels.
+(NOTE for v.0.43: it was simply mandatory to use it :-)
 </li>
 <li>
 Change currently used crunched binaries to something more flexible
