@@ -110,6 +110,7 @@ initialize_server_options(ServerOptions *options)
 	options->client_alive_count_max = -1;
 	options->authorized_keys_file = NULL;
 	options->authorized_keys_file2 = NULL;
+	options->check_mail = -1;
 }
 
 void

@@ -1143,9 +1143,10 @@ do_nologin(struct passwd *pw)
 
 /* Set login name, uid, gid, and groups. */
 static char **
-do_setusercontext(struct passwd *pw, Session *s)
+do_setusercontext(Session *s)
 {
 	char **env = NULL;
+	struct passwd *pw = s->pw;
 #ifdef HAVE_LOGIN_CAP
 	char buf[256];
 	char **tmpenv;
@@ -1222,6 +1223,7 @@ do_child(Session *s, const char *command)
 	const char *shell, *shell0, *hostname = NULL;
 	struct passwd *pw = s->pw;
 	u_int i;
+	int ttyfd = s->ttyfd;
 
 	/* remove hostkey from the child's memory */
 	destroy_sensitive_data();
@@ -1236,7 +1238,7 @@ do_child(Session *s, const char *command)
 	 */
 	if (!options.use_login) {
 		do_nologin(pw);
-		env = do_setusercontext(pw, s);
+		env = do_setusercontext(s);
 	}
 
 	/*
@@ -1357,6 +1359,25 @@ do_child(Session *s, const char *command)
 			errno = EINVAL;
 			perror(shell);
 			exit(1);
+		}
+
+		/*
+		 * Check for mail if we have a tty and it was enabled
+		 * in server options.
+		 */
+		if (ttyfd != -1 && options.check_mail) {
+			char *mailbox;
+			struct stat mailstat;
+
+			mailbox = getenv("MAIL");
+			if (mailbox != NULL) {
+				if (stat(mailbox, &mailstat) != 0 || mailstat.st_size == 0)
+					;
+				else if (mailstat.st_mtime < mailstat.st_atime)
+					printf("You have mail.\n");
+				else
+					printf("You have new mail.\n");
+			}
 		}
 
 		/* Execute the shell. */
