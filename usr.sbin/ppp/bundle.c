@@ -45,6 +45,9 @@
 #include <string.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#include <sys/linker.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
@@ -601,6 +604,9 @@ bundle_Create(const char *prefix, int type, const char **argv)
   static struct bundle bundle;		/* there can be only one */
   int enoentcount, err;
   const char *ifname;
+#ifdef KLDSYM_LOOKUP
+  int kldtried;
+#endif
 #if defined(TUNSIFMODE) || defined(TUNSLMODE)
   int iff;
 #endif
@@ -612,6 +618,9 @@ bundle_Create(const char *prefix, int type, const char **argv)
 
   err = ENOENT;
   enoentcount = 0;
+#ifdef KLDSYM_LOOKUP
+  kldtried = 0;
+#endif
   for (bundle.unit = 0; ; bundle.unit++) {
     snprintf(bundle.dev.Name, sizeof bundle.dev.Name, "%s%d",
              prefix, bundle.unit);
@@ -619,6 +628,26 @@ bundle_Create(const char *prefix, int type, const char **argv)
     if (bundle.dev.fd >= 0)
       break;
     else if (errno == ENXIO) {
+#ifdef KLDSYM_LOOKUP
+      if (bundle.unit == 0 && !kldtried++) {
+        /*
+         * XXX:  For some odd reason, FreeBSD (right now) allows if_tun.ko to
+         *       load even when the kernel contains the tun device. This lookup
+         *       should go away when this is fixed, leaving just the kldload().
+         * Note also that kldsym() finds static symbols...
+         */
+        char devsw[] = "tun_cdevsw";
+        struct kld_sym_lookup ksl = { sizeof ksl, devsw, 0, 0 };
+
+        if (kldsym(0, KLDSYM_LOOKUP, &ksl) == -1) {
+          if (ID0kldload("if_tun") != -1) {
+            bundle.unit--;
+            continue;
+          }
+          log_Printf(LogWARN, "kldload: if_tun: %s\n", strerror(errno));
+        }
+      }
+#endif
       err = errno;
       break;
     } else if (errno == ENOENT) {
