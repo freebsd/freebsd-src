@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.150 1995/05/10 17:54:09 jkh Exp $
+#	$Id: Makefile,v 1.151 1995/05/11 06:32:10 jkh Exp $
 #
 # How to roll a release:
 #
@@ -262,7 +262,7 @@ release.6:
 	rm -rf ${RD}/bootfd
 	mkdir ${RD}/bootfd
 	cd ${RD}/bootfd && \
-		mkdir dev mnt stand
+		mkdir -p dev mnt stand/help
 	ln -f ${RD}/kernels/GENERIC.kz ${RD}/bootfd/kernel
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/bootfd/stand ZIP=true
@@ -270,14 +270,13 @@ release.6:
 		ls console tty ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
 	cpio -dump ${RD}/bootfd/dev )
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd
+	tar cf - -C ${.CURDIR}/sysinstall help | tar xvf - -C ${RD}/bootfd/stand
+	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd/stand/help/COPYRIGHT
 	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
-		install -c diskspace.FAQ ${RD}/bootfd/DISKSPACE.FAQ ;\
-		install -c RELNOTES.FreeBSD ${RD}/bootfd ;\
-		install -c TROUBLESHOOTING ${RD}/bootfd ;\
-		install -c README ${RD}/bootfd/README
+		install -c RELNOTES.FreeBSD ${RD}/bootfd/stand/help/RELNOTES; \
+		install -c README ${RD}/bootfd/stand/help/README
 	touch ${RD}/bootfd/this_is_boot_flp
-	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
+	CD ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.6
 
 # Complete the cpiofd directory
