@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.56 1998/07/20 20:11:05 msmith Exp $
+#	$Id: LINT,v 1.286.2.57 1998/08/10 09:00:09 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1129,6 +1129,12 @@ options	"EISA_SLOTS=12"
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
 #
+# The `xl' driver provides support for the 3Com 3c900, 3c905 and
+# 3c905B (Fast) Etherlink XL cards and integrated controllers. This
+# includes the integrated 3c905B-TX chips in certain Dell Optiplex and
+# Dell Precision desktop machines and the integrated 3c905-TX chips
+# in Dell Latitude laptop docking stations.
+#
 # The `fpa' device provides support for the Digital DEFPA PCI FDDI
 # adapter. pseudo-device fddi is also needed.
 #
@@ -1189,6 +1195,7 @@ device		de0
 device		fxp0
 device		tx0
 device		vx0
+device		xl0
 device		fpa0
 device		meteor0
 device		bktr0

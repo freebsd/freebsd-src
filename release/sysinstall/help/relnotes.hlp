@@ -9,7 +9,7 @@
 Kernel features:
 ----------------
 o Add support for >8G IDE drives.
-
+o Add support for 3Com 3c905B ethernet adapters
 
 Userland features:
 ------------------
@@ -146,7 +146,7 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B PCI and EISA
 (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards

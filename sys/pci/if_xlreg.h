@@ -557,7 +557,6 @@ struct xl_softc {
 	caddr_t			xl_ldata_ptr;
 	struct xl_list_data	*xl_ldata;
 	struct xl_chain_data	xl_cdata;
-	struct callout_handle	xl_stat_ch;
 };
 
 #define xl_rx_goodframes(x) \
