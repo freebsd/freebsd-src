@@ -377,7 +377,11 @@ rip6_output(m, va_alist)
 		code = icmp6->icmp6_code;
 	}
 
-	M_PREPEND(m, sizeof(*ip6), M_TRYWAIT);
+	M_PREPEND(m, sizeof(*ip6), M_DONTWAIT);
+	if (m == NULL) {
+		error = ENOBUFS;
+		goto bad;
+	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/*
