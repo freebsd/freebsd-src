@@ -82,7 +82,7 @@ static void	if_grow(void);
 static void	if_init(void *);
 static void	if_check(void *);
 static int	if_findindex(struct ifnet *);
-static void	if_qflush(struct ifqueue *);
+static void	if_qflush(struct ifaltq *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static void	if_slowtimo(void *);
 static void	if_unroute(struct ifnet *, int flag, int fam);
@@ -441,6 +441,13 @@ if_attach(struct ifnet *ifp)
 	ifa->ifa_refcnt = 1;
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = 0; /* reliably crash if used uninitialized */
+#ifdef ALTQ
+	ifp->if_snd.altq_type = 0;
+	ifp->if_snd.altq_disc = NULL;
+	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
+	ifp->if_snd.altq_tbr  = NULL;
+	ifp->if_snd.altq_ifp  = ifp;
+#endif
 
 	if (domains)
 		if_attachdomain1(ifp);
@@ -519,6 +526,12 @@ if_detach(struct ifnet *ifp)
 	 */
 	s = splnet();
 	if_down(ifp);
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+		altq_disable(&ifp->if_snd);
+	if (ALTQ_IS_ATTACHED(&ifp->if_snd))
+		altq_detach(&ifp->if_snd);
+#endif
 
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; ifa = next) {
 		next = TAILQ_NEXT(ifa, ifa_link);
@@ -1189,10 +1202,14 @@ if_up(struct ifnet *ifp)
  * Flush an interface queue.
  */
 static void
-if_qflush(struct ifqueue *ifq)
+if_qflush(struct ifaltq *ifq)
 {
 	struct mbuf *m, *n;
 
+#ifdef ALTQ
+	if (ALTQ_IS_ENABLED(ifq))
+		ALTQ_PURGE(ifq);
+#endif
 	n = ifq->ifq_head;
 	while ((m = n) != 0) {
 		n = m->m_act;

@@ -781,7 +781,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		s = splimp();
 	}
 
-	ifq = &ifp->if_snd;
+	ifq = (struct ifqueue *)&ifp->if_snd;
 #ifdef INET
 	if (dst->sa_family == AF_INET) {
 		/* XXX Check mbuf length here? */
@@ -1038,7 +1038,7 @@ sppp_flush(struct ifnet *ifp)
 {
 	struct sppp *sp = (struct sppp*) ifp;
 
-	sppp_qflush (&sp->pp_if.if_snd);
+	sppp_qflush ((struct ifqueue *)&sp->pp_if.if_snd);
 	sppp_qflush (&sp->pp_fastq);
 	sppp_qflush (&sp->pp_cpq);
 }

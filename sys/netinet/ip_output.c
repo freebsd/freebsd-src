@@ -404,6 +404,12 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 		}
 	}
 #endif /* notdef */
+#ifdef ALTQ
+	/*
+	 * disable packet drop hack.
+	 * packetdrop should be done by queueing.
+	 */
+#else /* !ALTQ */
 	/*
 	 * Verify that we have any chance at all of being able to queue
 	 *      the packet or packet fragments
@@ -414,6 +420,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 			ipstat.ips_odropped++;
 			goto bad;
 	}
+#endif /* !ALTQ */
 
 	/*
 	 * Look for broadcast address and

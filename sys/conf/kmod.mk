@@ -96,6 +96,10 @@ CFLAGS+=       -include ${KERNBUILDDIR}/opt_global.h
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I. -I@
 
+# Add -I path for altq headers as they are included via net/if_var.h
+# for example.
+CFLAGS+=	-I@/contrib/altq
+
 # Add a -I path to standard headers like <stddef.h>.  Use a relative
 # path to src/include if possible.  If the @ symlink hasn't been built
 # yet, then we can't tell if the relative path exists.  Add both the
