@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.27 1995/05/27 23:39:27 phk Exp $
+ * $Id: dist.c,v 1.28 1995/05/28 03:04:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -303,7 +303,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd < 0) {
-		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
+		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
 		goto punt;
 	    }
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
