@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.8 2002/04/04 06:12:48 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.9 2002/04/11 07:03:27 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -66,6 +66,7 @@
 #define	MII_OUI_LEVEL1	0x00207b	/* Level 1 */
 #define	MII_OUI_NATSEMI	0x080017	/* National Semiconductor */
 #define	MII_OUI_QUALSEMI	0x006051	/* Quality Semiconductor */
+#define	MII_OUI_REALTEK	0x000020	/* RealTek Semicondctor */
 #define	MII_OUI_SEEQ	0x00a07d	/* Seeq */
 #define	MII_OUI_SIS	0x00e006	/* Silicon Integrated Systems */
 #define	MII_OUI_TDK	0x00c039	/* TDK */
@@ -166,6 +167,10 @@
 /* Quality Semiconductor PHYs */
 #define	MII_MODEL_QUALSEMI_QS6612	0x0000
 #define	MII_STR_QUALSEMI_QS6612	"QS6612 10/100 media interface"
+
+/* RealTek Semiconductor PHYs */
+#define	MII_MODEL_REALTEK_RTL8201L	0x0020
+#define	MII_STR_REALTEK_RTL8201L	"RTL8201L 10/100 media interface"
 
 /* Seeq PHYs */
 #define	MII_MODEL_xxSEEQ_80220	0x0003
