@@ -258,7 +258,9 @@ ipx_down()
 #		nodhcp - all interfaces, excluding DHCP configured interfaces
 #		dhcp   - list only DHCP configured interfaces
 #	If no argument is specified all network interfaces are output.
-#	Note that the list always includes cloned interfaces.
+#	Note that the list will include cloned interfaces if applicable.
+#	Cloned interfaces must already exist to have a chance to appear
+#	in the list if ${network_interfaces} is set to `auto'.
 #
 list_net_interfaces()
 {
@@ -271,10 +273,9 @@ list_net_interfaces()
 		_tmplist="`ifconfig -l`"
 		;;
 	*)
-		_tmplist="${network_interfaces}"
+		_tmplist="${network_interfaces} ${cloned_interfaces}"
 		;;
 	esac
-	_tmplist="${_tmplist} ${cloned_interfaces}"
 
 	if [ -z "$type" ]; then
 		echo $_tmplist
@@ -284,7 +285,7 @@ list_net_interfaces()
 	# Separate out dhcp and non-dhcp intefraces
 	#
 	_aprefix=
-	_brefix=
+	_bprefix=
 	for _if in ${_tmplist} ; do
 		eval _ifarg="\$ifconfig_${_if}"
 		case "$_ifarg" in
