@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.6 1994/10/24 20:09:18 phk Exp $
+# $Id: Makefile,v 1.7 1995/03/04 20:36:44 phk Exp $
 #
 
 PROG=		ctm
@@ -15,7 +15,8 @@ SRCS=   	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
 		ctm_syntax.c ctm_ed.c
 LDADD+=		-lmd
 DPADD+=		${LIBMD}
-NOMAN=		1
+MAN1=		ctm.1
+MAN5=		ctm.5
 CFLAGS+=	-Wall -g
 
 .if exists(${.CURDIR}/../../Makefile.inc)
