@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #define RP_DEVICE_ID_4J		0x0007
 #define RP_DEVICE_ID_6M		0x000C
 #define RP_DEVICE_ID_4M		0x000D
+#define RP_DEVICE_ID_UPCI_8O	0x0805
 
 /**************************************************************************
   MUDBAC remapped for PCI
@@ -129,7 +130,7 @@ rp_pciprobe(device_t dev)
 	char *s;
 
 	s = NULL;
-	if ((pci_get_devid(dev) & 0xffff) == RP_VENDOR_ID)
+	if (pci_get_vendor(dev) == RP_VENDOR_ID)
 		s = "RocketPort PCI";
 
 	if (s != NULL) {
@@ -177,7 +178,14 @@ rp_pciattach(device_t dev)
 
 	ctlp->bus_ctlp = NULL;
 
-	ctlp->io_rid[0] = 0x10;
+	switch (pci_get_device(dev)) {
+	case RP_DEVICE_ID_UPCI_8O:
+		ctlp->io_rid[0] = PCIR_BAR(2);
+		break;
+	default:
+		ctlp->io_rid[0] = PCIR_BAR(0);
+		break;
+	}
 	ctlp->io[0] = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		&ctlp->io_rid[0], RF_ACTIVE);
 	if(ctlp->io[0] == NULL) {
@@ -188,7 +196,7 @@ rp_pciattach(device_t dev)
 
 	num_aiops = sPCIInitController(ctlp,
 				       MAX_AIOPS_PER_BOARD, 0,
-				       FREQ_DIS, 0, (pci_get_devid(dev) >> 16) & 0xffff);
+				       FREQ_DIS, 0, pci_get_device(dev));
 
 	num_ports = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
