@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.49 1994/08/18 05:09:35 davidg Exp $
+ *	$Id: sio.c,v 1.50 1994/08/23 07:52:23 paul Exp $
  */
 
 #include "sio.h"
 #if NSIO > 0
-#define DONT_MALLOC_TTYS
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
  * Mostly rewritten to use pseudo-DMA.
@@ -46,39 +45,53 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioctl.h>
+#define	TTYDEFCHARS		/* XXX TK2.0 */
 #include <sys/tty.h>
+#undef	TTYDEFCHARS
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/conf.h>
+#include <sys/dkstat.h>
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/syslog.h>
 
+#include <i386/isa/icu.h>	/* XXX just to get at `imen' */
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
 #include <i386/isa/ic/ns16550.h>
 
-#define	FAKE_DCD(unit)	((unit) == comconsole)
+/*
+ * XXX temporary kludges for 2.0 (XXX TK2.0).
+ */
+#define	TS_RTS_IFLOW	0
+#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
+#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
+#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
+void
+termioschars(t)
+	struct termios *t;
+{
+
+	bcopy(ttydefchars, t->c_cc, sizeof t->c_cc);
+}
+
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
-#define RBSZ 1024
-#define	RB_I_HIGH_WATER	(RBSZ - 2 * RS_IBUFSIZE)
-#define	RB_I_LOW_WATER	((RBSZ - 2 * RS_IBUFSIZE) * 7 / 8)
+#define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
-#define RS_OBUFSIZE	256
 #define	TTY_BI		TTY_FE		/* XXX */
 #define	TTY_OE		TTY_PE		/* XXX */
 
-#ifdef COM_BIDIR
-#define	CALLOUT(x)		(minor(x) & COM_CALLOUT_MASK)
-#define	COM_CALLOUT_MASK	0x80
-#define	COM_MINOR_MAGIC_MASK	0x80
-#else /* COM_BIDIR */
-#define	COM_MINOR_MAGIC_MASK	0
-#endif /* COM_BIDIR */
-
-#define	UNIT(x)			(minor(x) & ~COM_MINOR_MAGIC_MASK)
+#define	CALLOUT_MASK		0x80
+#define	CONTROL_MASK		0x60
+#define	CONTROL_INIT_STATE	0x20
+#define	CONTROL_LOCK_STATE	0x40
+#define	DEV_TO_UNIT(dev)	(MINOR_TO_UNIT(minor(dev)))
+#define	MINOR_MAGIC_MASK	(CALLOUT_MASK | CONTROL_MASK)
+#define	MINOR_TO_UNIT(mynor)	((mynor) & ~MINOR_MAGIC_MASK)
 
 #ifdef COM_MULTIPORT
 /* checks in flags for multiport and which is multiport "master chip"
@@ -86,31 +99,13 @@
  */
 #define	COM_ISMULTIPORT(dev)	((dev)->id_flags & 0x01)
 #define	COM_MPMASTER(dev)	(((dev)->id_flags >> 8) & 0x0ff)
-#define COM_NOMASTER(dev)    ((dev)->id_flags & 0x04)
+#define	COM_NOTAST4(dev)	((dev)->id_flags & 0x04)
 #endif /* COM_MULTIPORT */
 
 #define	COM_NOFIFO(dev)	((dev)->id_flags & 0x02)
-
-#ifndef	FIFO_TRIGGER
-/*
- * This driver is fast enough to work with any value and for high values
- * to be only slightly more efficient.  Low values may be better because
- * they give lower latency.
- * TODO: always use low values for low speeds.  Mouse movements are jerky
- * if more than one packet arrives at once.  The low speeds used for
- * serial mice help avoid this, but not if (large) fifos are enabled.
- */
-#define	FIFO_TRIGGER	FIFO_TRIGGER_14
-#endif
+#define	COM_VERBOSE(dev) ((dev)->id_flags & 0x80)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
-
-#ifndef setsofttty
-#define	OLD_INTERRUPT_HANDLING	/* XXX FreeBSD-1.1 and earlier */
-#define	setsofttty()	(ipending |= 1 << 4)	/* XXX requires owning IRQ4 */
-extern	u_int		ipending;	/* XXX */
-void	softsio1	__P((void));
-#endif
 
 /*
  * Input buffer watermarks.
@@ -136,17 +131,19 @@ void	softsio1	__P((void));
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
  * TS_FLUSH is not used.
- * Bug: I think TIOCSETA doesn't clear TS_TTSTOP when it clears IXON.
+ * XXX I think TIOCSETA doesn't clear TS_TTSTOP when it clears IXON.
+ * XXX CS_*FLOW should be CF_*FLOW in com->flags (control flags not state).
  */
 #define	CS_BUSY		0x80	/* output in progress */
 #define	CS_TTGO		0x40	/* output not stopped by XOFF */
 #define	CS_ODEVREADY	0x20	/* external device h/w ready (CTS) */
 #define	CS_CHECKMSR	1	/* check of MSR scheduled */
 #define	CS_CTS_OFLOW	2	/* use CTS output flow control */
+#define	CS_DTR_OFF	0x10	/* DTR held off */
 #define	CS_ODONE	4	/* output completed */
 #define	CS_RTS_IFLOW	8	/* use RTS input flow control */
 
-static	char	*error_desc[] = {
+static	char const * const	error_desc[] = {
 #define	CE_OVERRUN			0
 	"silo overflow",
 #define	CE_INTERRUPT_BUF_OVERFLOW	1
@@ -165,20 +162,19 @@ typedef u_char	bool_t;		/* boolean */
 /* com device structure */
 struct com_s {
 	u_char	state;		/* miscellaneous flag bits */
+	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
+	u_char	ftl;		/* current rx fifo trigger level */
+	u_char	ftl_init;	/* ftl_max for next open() */
+	u_char	ftl_max;	/* maximum ftl for curent open() */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	u_char	mcr_image;	/* copy of value written to MCR */
-#ifdef COM_BIDIR
-	bool_t  bidir;		/* is this unit bidirectional? */
-	bool_t  active;		/* is the port active _at all_? */
-	bool_t  active_in;	/* is the incoming port in use? */
-	bool_t  active_out;	/* is the outgoing port in use? */
-#endif /* COM_BIDIR */
 #ifdef COM_MULTIPORT
 	bool_t	multiport;	/* is this unit part of a multiport device? */
 #endif /* COM_MULTIPORT */
-	int	dtr_wait;	/* time to hold DTR down on close (* 1/HZ) */
+	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	tx_fifo_size;
+	u_int	wopeners;	/* # processes waiting for DCD in open() */
 
 	/*
 	 * The high level of the driver never reads status registers directly
@@ -189,13 +185,13 @@ struct com_s {
 	u_char	last_modem_status;	/* last MSR read by intr handler */
 	u_char	prev_modem_status;	/* last MSR handled by high level */
 
+	u_char	hotchar;	/* ldisc-specific char to be handled ASAP */
 	u_char	*ibuf;		/* start of input buffer */
 	u_char	*ibufend;	/* end of input buffer */
 	u_char	*ihighwater;	/* threshold in input buffer */
 	u_char	*iptr;		/* next free spot in input buffer */
 
 	u_char	*obufend;	/* end of output buffer */
-	int	ocount;		/* original count for current output */
 	u_char	*optr;		/* next char to output */
 
 	Port_t	data_port;	/* i/o ports */
@@ -206,6 +202,14 @@ struct com_s {
 	Port_t	modem_status_port;
 
 	struct tty	*tp;	/* cross reference */
+
+	/* Initial state. */
+	struct termios	it_in;	/* should be in struct tty */
+	struct termios	it_out;
+
+	/* Lock state. */
+	struct termios	lt_in;	/* should be in struct tty */
+	struct termios	lt_out;
 
 #ifdef TIOCTIMESTAMP
 	bool_t	do_timestamp;
@@ -224,7 +228,11 @@ struct com_s {
 #define	CE_INPUT_OFFSET		RS_IBUFSIZE
 	u_char	ibuf1[2 * RS_IBUFSIZE];
 	u_char	ibuf2[2 * RS_IBUFSIZE];
-	u_char	obuf[RS_OBUFSIZE];
+
+	/*
+	 * Output buffer.  Someday we should avoid copying.  Twice.
+	 */
+	u_char	obuf[256];
 };
 
 /*
@@ -259,6 +267,7 @@ void	siocnprobe	__P((struct consdev *cp));
 void	siocnputc	__P((dev_t dev, int c));
 
 static	int	sioattach	__P((struct isa_device *dev));
+static	timeout_t siodtrwakeup;
 static	void	comflush	__P((struct com_s *com));
 static	void	comhardclose	__P((struct com_s *com));
 static	void	siointr1	__P((struct com_s *com));
@@ -272,8 +281,6 @@ static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
 /* table and macro for fast conversion from a unit number to its com struct */
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
-
-static	struct com_s	com_structs[NSIO];
 
 #ifdef TIOCTIMESTAMP
 static  struct timeval	intr_timestamp;
@@ -291,12 +298,12 @@ static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
-#define TB_OUT(tp)	(&(tp)->t_outq)
-#define TB_RAW(tp)	(&(tp)->t_rawq)
+#if 0 /* XXX TK2.0 */
+struct tty	*sio_tty[NSIO];
+#else
 struct tty	sio_tty[NSIO];
-extern	struct tty	*constty;
-extern	int	tk_nin;		/* XXX */
-extern	int	tk_rawcc;	/* XXX */
+#endif
+extern	struct tty	*constty;	/* XXX */
 
 #ifdef KGDB
 #include "machine/remote-sl.h"
@@ -337,7 +344,11 @@ sioprobe(dev)
 {
 	static bool_t	already_init;
 	Port_t		*com_ptr;
+	bool_t		failures[10];
+	int		fn;
+	struct isa_device	*idev;
 	Port_t		iobase;
+	u_char		mcr_image;
 	int		result;
 
 	if (!already_init) {
@@ -345,6 +356,7 @@ sioprobe(dev)
 		 * Turn off MCR_IENABLE for all likely serial ports.  An unused
 		 * port with its MCR_IENABLE gate open will inhibit interrupts
 		 * from any used port that shares the interrupt vector.
+		 * XXX the gate enable is elsewhere for some multiports.
 		 */
 		for (com_ptr = likely_com_ports;
 		     com_ptr < &likely_com_ports[sizeof likely_com_ports
@@ -353,8 +365,45 @@ sioprobe(dev)
 			outb(*com_ptr + com_mcr, 0);
 		already_init = TRUE;
 	}
+
+	/*
+	 * If the port is on a multiport card and has a master port,
+	 * initialize the common interrupt control register in the
+	 * master and prepare to leave MCR_IENABLE clear in the mcr.
+	 * Otherwise, prepare to set MCR_IENABLE in the mcr.
+	 * Point idev to the device struct giving the correct id_irq.
+	 * This is the struct for the master device if there is one.
+	 */
+	idev = dev;
+	mcr_image = MCR_IENABLE;
+#ifdef COM_MULTIPORT
+	if (COM_ISMULTIPORT(dev)) {
+		idev = find_isadev(isa_devtab_tty, &siodriver,
+				   COM_MPMASTER(dev));
+		if (idev == NULL) {
+			printf("sio%d: master device %d not found\n",
+			       dev->id_unit, COM_MPMASTER(dev));
+			return (0);
+		}
+		if (idev->id_irq == 0) {
+			printf("sio%d: master device %d irq not configured\n",
+			       dev->id_unit, COM_MPMASTER(dev));
+			return (0);
+		}
+		if (!COM_NOTAST4(dev)) {
+			outb(idev->id_iobase + com_scr,	0x80);
+			mcr_image = 0;
+		}
+	}
+	else
+#endif /* COM_MULTIPORT */
+	if (idev->id_irq == 0) {
+		printf("sio%d: irq not configured\n", dev->id_unit);
+		return (0);
+	}
+
+	bzero(failures, sizeof failures);
 	iobase = dev->id_iobase;
-	result = IO_COMSIZE;
 
 	/*
 	 * We don't want to get actual interrupts, just masked ones.
@@ -365,55 +414,115 @@ sioprobe(dev)
 	disable_intr();
 
 	/*
-	 * Initialize the speed so that any junk in the THR or output fifo will
-	 * be transmitted in a known time.  (There may be lots of junk after a
-	 * soft reboot, and output interrupts don't work right after a master
-	 * reset, at least for 16550s.  (The speed is undefined after MR, but
-	 * MR empties the THR and the TSR so it's not clear why this matters)).
-	 * Enable output interrupts (only) and check the following:
+	 * XXX DELAY() reenables CPU interrupts.  This is a problem for
+	 * shared interrupts after the first device using one has been
+	 * successfully probed - config_isadev() has enabled the interrupt
+	 * in the ICU.
+	 */
+	outb(IO_ICU1 + 1, 0xff);
+
+	/*
+	 * Initialize the speed and the word size and wait long enough to
+	 * drain the maximum of 16 bytes of junk in device output queues.
+	 * The speed is undefined after a master reset and must be set
+	 * before relying on anything related to output.  There may be
+	 * junk after a (very fast) soft reboot and (apparently) after
+	 * master reset.
+	 * XXX what about the UART bug avoided by waiting in comparam()?
+	 * We don't want to to wait long enough to drain at 2 bps.
+	 */
+	outb(iobase + com_cfcr, CFCR_DLAB);
+	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
+	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
+	outb(iobase + com_cfcr, CFCR_8BITS);
+	DELAY((16 + 1) * 9600 / 10);
+
+	/*
+	 * Enable the interrupt gate and disable device interupts.  This
+	 * should leave the device driving the interrupt line low and
+	 * guarantee an edge trigger if an interrupt can be generated.
+	 */
+	outb(iobase + com_mcr, mcr_image);
+	outb(iobase + com_ier, 0);
+
+	/*
+	 * Attempt to set loopback mode so that we can send a null byte
+	 * without annoying any external device.
+	 */
+	outb(iobase + com_mcr, mcr_image | MCR_LOOPBACK);
+
+	/*
+	 * Attempt to generate an output interrupt.  On 8250's, setting
+	 * IER_ETXRDY generates an interrupt independent of the current
+	 * setting and independent of whether the THR is empty.  On 16450's,
+	 * setting IER_ETXRDY generates an interrupt independent of the
+	 * current setting.  On 16550A's, setting IER_ETXRDY only
+	 * generates an interrupt when IER_ETXRDY is not already set.
+	 */
+	outb(iobase + com_ier, IER_ETXRDY);
+
+	/*
+	 * On some 16x50 incompatibles, setting IER_ETXRDY doesn't generate
+	 * an interrupt.  They'd better generate one for actually doing
+	 * output.  Loopback may be broken on the same incompatibles but
+	 * it's unlikely to do more than allow the null byte out.
+	 */
+	outb(iobase + com_data, 0);
+	DELAY((2 + 1) * 9600 / 10);
+
+	/*
+	 * Turn off loopback mode so that the interrupt gate works again
+	 * (MCR_IENABLE was hidden).  This should leave the device driving
+	 * an interrupt line high.  It doesn't matter if the interrupt
+	 * line oscillates while we are not looking at it, since interrupts
+	 * are disabled.
+	 */
+	outb(iobase + com_mcr, mcr_image);
+
+	/*
+	 * Check that
 	 *	o the CFCR, IER and MCR in UART hold the values written to them
 	 *	  (the values happen to be all distinct - this is good for
 	 *	  avoiding false positive tests from bus echoes).
 	 *	o an output interrupt is generated and its vector is correct.
 	 *	o the interrupt goes away when the IIR in the UART is read.
 	 */
-	outb(iobase + com_cfcr, CFCR_DLAB);
-	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
-	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
-	outb(iobase + com_cfcr, CFCR_8BITS);	/* ensure IER is addressed */
-	outb(iobase + com_mcr, MCR_IENABLE);	/* open gate early */
-	outb(iobase + com_ier, 0);		/* ensure edge on next intr */
-	outb(iobase + com_ier, IER_ETXRDY);	/* generate interrupt */
-	DELAY((16 + 1) * 9600 / 10);		/* enough to drain 16 bytes */
-	if (   inb(iobase + com_cfcr) != CFCR_8BITS
-	    || inb(iobase + com_ier) != IER_ETXRDY
-	    || inb(iobase + com_mcr) != MCR_IENABLE
-#ifndef COM_MULTIPORT /* XXX - need to do more to enable interrupts */
-	    || !isa_irq_pending(dev)
-#endif
-	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_TXRDY
-	    || isa_irq_pending(dev)
-	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_NOPEND)
-		result = 0;
+	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
+	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
+	failures[2] = inb(iobase + com_mcr) - mcr_image;
+	if (idev->id_irq != 0)
+		failures[3] = isa_irq_pending(idev) ? 0 : 1;
+	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
+	failures[5] = isa_irq_pending(idev) ? 1	: 0;
+	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
 	 * Turn off all device interrupts and check that they go off properly.
-	 * Leave MCR_IENABLE set.  It gates the OUT2 output of the UART to
+	 * Leave MCR_IENABLE alone.  For ports without a master port, it gates
+	 * the OUT2 output of the UART to
 	 * the ICU input.  Closing the gate would give a floating ICU input
 	 * (unless there is another device driving at) and spurious interrupts.
 	 * (On the system that this was first tested on, the input floats high
 	 * and gives a (masked) interrupt as soon as the gate is closed.)
 	 */
 	outb(iobase + com_ier, 0);
-	outb(iobase + com_mcr, MCR_IENABLE);	/* dummy to avoid bus echo */
-	if (   inb(iobase + com_ier) != 0
-	    || isa_irq_pending(dev)
-	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_NOPEND)
-		result = 0;
-	if (result == 0)
-		outb(iobase + com_mcr, 0);
+	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
+	failures[7] = inb(iobase + com_ier);
+	failures[8] = isa_irq_pending(idev) ? 1	: 0;
+	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
+	outb(IO_ICU1 + 1, imen);	/* XXX */
 	enable_intr();
+
+	result = IO_COMSIZE;
+	for (fn = 0; fn < sizeof failures; ++fn)
+		if (failures[fn]) {
+			outb(iobase + com_mcr, 0);
+			result = 0;
+			if (COM_VERBOSE(dev))
+				printf("sio%d: probe test %d failed\n",
+				       dev->id_unit, fn);
+		}
 	return (result);
 }
 
@@ -430,7 +539,9 @@ sioattach(isdp)
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
-	s = spltty();
+	com = malloc(sizeof *com, M_TTYS, M_NOWAIT);
+	if (com == NULL)
+		return (0);
 
 	/*
 	 * sioprobe() has initialized the device registers as follows:
@@ -439,14 +550,12 @@ sioattach(isdp)
 	 *	  data port is not hidden when we enable interrupts.
 	 *	o ier = 0.
 	 *	  Interrupts are only enabled when the line is open.
-	 *	o mcr = MCR_IENABLE.
+	 *	o mcr = MCR_IENABLE, or 0 if the port has a master port.
 	 *	  Keeping MCR_DTR and MCR_RTS off might stop the external
 	 *	  device from sending before we are ready.
 	 */
-
-	com = &com_structs[unit];	/* XXX malloc it */
+	bzero(com, sizeof *com);
 	com->cfcr_image = CFCR_8BITS;
-	com->mcr_image = MCR_IENABLE;
 	com->dtr_wait = 3 * hz;
 	com->tx_fifo_size = 1;
 	com->iptr = com->ibuf = com->ibuf1;
@@ -456,11 +565,30 @@ sioattach(isdp)
 	com->data_port = iobase + com_data;
 	com->int_id_port = iobase + com_iir;
 	com->modem_ctl_port = iobase + com_mcr;
+	com->mcr_image = inb(com->modem_ctl_port);
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
-#ifdef DONT_MALLOC_TTYS
-	com->tp = &sio_tty[unit];
-#endif
+
+	/*
+	 * We don't use all the flags from <sys/ttydefaults.h> since they
+	 * are only relevant for logins.  It's important to have echo off
+	 * initially so that the line doesn't start blathering before the
+	 * echo flag can be turned off.
+	 */
+	com->it_in.c_iflag = 0;
+	com->it_in.c_oflag = 0;
+	com->it_in.c_cflag = TTYDEF_CFLAG;
+	com->it_in.c_lflag = 0;
+	if (unit == comconsole) {
+		com->it_in.c_iflag = TTYDEF_IFLAG;
+		com->it_in.c_oflag = TTYDEF_OFLAG;
+		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+		com->it_in.c_lflag = TTYDEF_LFLAG;
+		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
+	}
+	termioschars(&com->it_in);
+	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+	com->it_out = com->it_in;
 
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
@@ -501,6 +629,7 @@ sioattach(isdp)
 			printf(" fifo disabled");
 		else {
 			com->hasfifo = TRUE;
+			com->ftl_init = FIFO_TRIGGER_14;
 			com->tx_fifo_size = 16;
 		}
 		break;
@@ -510,32 +639,18 @@ determined_type: ;
 
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(isdp)) {
-	    com->multiport = TRUE;
-	    printf(" (multiport)");
-
-	    /* Note: some cards have no master port (e.g., BocaBoards) */
-	    if (!COM_NOMASTER(isdp)) {
-		struct isa_device *masterdev;
-
-		/* set the master's common-interrupt-enable reg.,
-		 * as appropriate. YYY See your manual
-		 */
-		/* enable only common interrupt for port */
-		outb(com->modem_ctl_port, com->mcr_image = 0);
-
-		masterdev = find_isadev(isa_devtab_tty, &siodriver,
-					COM_MPMASTER(isdp));
-		outb(masterdev->id_iobase + com_scr, 0x80);
-	    }
-
-	} else
-		com->multiport = FALSE;
+		com->multiport = TRUE;
+		printf(" (multiport");
+		if (unit == COM_MPMASTER(isdp))
+			printf(" master");
+		printf(")");
+	 }
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
-		if (comconsole == unit)
+		if (unit == comconsole)
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
 			int divisor;
@@ -567,10 +682,11 @@ determined_type: ;
 	}
 #endif
 
+	s = spltty();
 	com_addr(unit) = com;
 	splx(s);
 	if (!comwakeup_started) {
-		comwakeup((caddr_t) NULL);
+		comwakeup((void *)NULL);
 		comwakeup_started = TRUE;
 	}
 	return (1);
@@ -584,227 +700,130 @@ sioopen(dev, flag, mode, p)
 	int		mode;
 	struct proc	*p;
 {
-#ifdef COM_BIDIR
-	bool_t		callout;
-#endif /* COM_BIDIR */
 	struct com_s	*com;
-	int		error = 0;
-	bool_t          got_status = FALSE;
+	int		error;
 	Port_t		iobase;
+	int		mynor;
 	int		s;
 	struct tty	*tp;
 	int		unit;
 
-	unit = UNIT(dev);
+	mynor = minor(dev);
+	unit = MINOR_TO_UNIT(mynor);
 	if ((u_int) unit >= NSIO || (com = com_addr(unit)) == NULL)
 		return (ENXIO);
-#ifdef COM_BIDIR
-	/* if it's a callout device, and bidir not possible on that dev, die */
-	callout = CALLOUT(dev);
-	if (callout && !(com->bidir))
-		return (ENXIO);
-#endif /* COM_BIDIR */
-
-#ifdef DONT_MALLOC_TTYS
-	tp = com->tp;
+	if (mynor & CONTROL_MASK)
+		return (0);
+#if 0 /* XXX TK2.0 */
+	tp = com->tp = sio_tty[unit] = ttymalloc(sio_tty[unit]);
 #else
-	sio_tty[unit] = ttymalloc(sio_tty[unit]);
-	tp = com->tp = sio_tty[unit];
+	tp = com->tp = &sio_tty[unit];
 #endif
 	s = spltty();
-
-#ifdef COM_BIDIR
-
-bidir_open_top:
-	got_status = FALSE;
-	/* if it's bidirectional, we've gotta deal with it... */
-	if (com->bidir) {
-		if (callout) {
-			if (com->active_in) {
-			    /* it's busy. die */
-			    splx(s);
-			    return (EBUSY);
-			} else {
-			    /* it's ours.  lock it down, and set it up */
-			    com->active_out = TRUE;
+	/*
+	 * We jump to this label after all non-interrupted sleeps to pick
+	 * up any changes of the device state.
+	 */
+open_top:
+	while (com->state & CS_DTR_OFF) {
+		error = tsleep(&com->dtr_wait, TTIPRI | PCATCH, "siodtr", 0);
+		if (error != 0)
+			goto out;
+	}
+	if (tp->t_state & TS_ISOPEN) {
+		/*
+		 * The device is open, so everything has been initialized.
+		 * Handle conflicts.
+		 */
+		if (mynor & CALLOUT_MASK) {
+			if (!com->active_out) {
+				error = EBUSY;
+				goto out;
 			}
 		} else {
 			if (com->active_out) {
-				/* it's busy, outgoing.  wait, if possible */
 				if (flag & O_NONBLOCK) {
-				    /* can't wait; bail */
-				    splx(s);
-				    return (EBUSY);
-				} else {
-				    /* wait for it... */
-				    error = tsleep((caddr_t)&com->active_out,
-						   TTIPRI|PCATCH,
-						   "siooth",
-						   0);
-				    /* if there was an error, take off. */
-				    if (error != 0) {
-					splx(s);
-					return (error);
-				    }
-				    /* else take it from the top */
-				    goto bidir_open_top;
+					error = EBUSY;
+					goto out;
 				}
-			}
-			disable_intr();
-			com->prev_modem_status =
-			com->last_modem_status = inb(com->modem_status_port);
-			enable_intr();
-			got_status = TRUE;
-			if (com->prev_modem_status & MSR_DCD
-			    || FAKE_DCD(unit)) {
-				/* there's a carrier on the line; we win */
-				com->active_in = TRUE;
-			} else {
-				/* there is no carrier on the line */
-				if (flag & O_NONBLOCK) {
-				    /* can't wait; let it open */
-				    com->active_in = TRUE;
-				} else {
-				    /* put DTR & RTS up */
-				    /* XXX - bring up RTS earlier? */
-				    commctl(com, MCR_DTR | MCR_RTS, DMSET);
-				    outb(com->iobase + com_ier, IER_EMSC);
-
-				    /* wait for it... */
-				    error = tsleep((caddr_t)&com->active_in,
-						   TTIPRI|PCATCH,
-						   "siodcd",
-						   0);
-
-				    /* if not active, turn intrs and DTR off */
-				    if (!com->active) {
-					outb(com->iobase + com_ier, 0);
-					commctl(com, MCR_DTR, DMBIC);
-				    }
-
-				    /* if there was an error, take off. */
-				    if (error != 0) {
-					splx(s);
-					return (error);
-				    }
-				    /* else take it from the top */
-				    goto bidir_open_top;
-				}
+				error =	tsleep(&com->active_out,
+					       TTIPRI | PCATCH, "siobi", 0);
+				if (error != 0)
+					goto out;
+				goto open_top;
 			}
 		}
-	}
-
-	com->active = TRUE;
-#endif /* COM_BIDIR */
-
-	tp->t_oproc = comstart;
-	tp->t_param = comparam;
-	tp->t_dev = dev;
-	if (!(tp->t_state & TS_ISOPEN)) {
-		tp->t_state |= TS_WOPEN;
-		ttychars(tp);
-		if (tp->t_ispeed == 0) {
-			/*
-			 * We don't use all the flags from <sys/ttydefaults.h>
-			 * since those are only relevant for logins.  It's
-			 * important to have echo off initially so that the
-			 * line doesn't start blathering before the echo flag
-			 * can be turned off.
-			 */
-			tp->t_iflag = 0;
-			tp->t_oflag = 0;
-			tp->t_cflag = CREAD | CS8;
-#ifdef COM_BIDIR
-			if (com->bidir && !callout)
-				tp->t_cflag |= HUPCL;
-#endif
-			tp->t_lflag = 0;
-			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
-			if (unit == comconsole) {
-				tp->t_iflag = TTYDEF_IFLAG;
-				tp->t_oflag = TTYDEF_OFLAG;
-				tp->t_cflag = TTYDEF_CFLAG;
-				tp->t_lflag = TTYDEF_LFLAG;
-			}
+		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+			error = EBUSY;
+			goto out;
 		}
-
+	} else {
 		/*
-		 * XXX the full state after a first open() needs to be
-		 * programmable and separate for callin and callout.
+		 * The device isn't open, so there are no conflicts.
+		 * Initialize it.  Initialization is done twice in many
+		 * cases: to preempt sleeping callin opens if we are
+		 * callout, and to complete a callin open after DCD rises.
 		 */
-#ifdef COM_BIDIR
-		if (com->bidir) {
-			if (callout)
-				tp->t_cflag |= CLOCAL;
-			else
-				tp->t_cflag &= ~CLOCAL;
-		}
-#endif
-
+		tp->t_oproc = comstart;
+		tp->t_param = comparam;
+		tp->t_dev = dev;
+		tp->t_termios = mynor & CALLOUT_MASK
+				? com->it_out : com->it_in;
 		commctl(com, MCR_DTR | MCR_RTS, DMSET);
+		com->ftl_max = com->ftl_init;
+		++com->wopeners;
 		error = comparam(tp, &tp->t_termios);
+		--com->wopeners;
 		if (error != 0)
 			goto out;
+		/*
+		 * XXX we should goto open_top if comparam() slept.
+		 */
 		ttsetwater(tp);
 		iobase = com->iobase;
 		if (com->hasfifo) {
-			/* (re)enable and drain FIFO */
-			outb(iobase + com_fifo, FIFO_ENABLE | FIFO_TRIGGER
-						| FIFO_RCV_RST | FIFO_XMT_RST);
+			/* Drain fifo. */
+			outb(iobase + com_fifo,
+			     FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST
+			     | com->ftl);
 			DELAY(100);
 		}
 		disable_intr();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
-		if (!got_status)
 			com->prev_modem_status =
 			com->last_modem_status = inb(com->modem_status_port);
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
 		enable_intr();
-		if (com->prev_modem_status & MSR_DCD || FAKE_DCD(unit))
-			tp->t_state |= TS_CARR_ON;
-	} else if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
-		splx(s);
-		return (EBUSY);
-	}
-	while (!(flag & O_NONBLOCK) && !(tp->t_cflag & CLOCAL)
-#ifdef COM_BIDIR
-		/* We went through a lot of trouble to open it,
-		 * but it's certain we have a carrier now, so
-		 * don't spend any time on it now.
+		/*
+		 * Handle initial DCD.  Callout devices get a fake initial
+		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
+		 * callin opens get woken up and resume sleeping on "siobi"
+		 * instead of "siodcd".
 		 */
-	       && !(com->bidir)
-#endif /* COM_BIDIR */
-	       && !(tp->t_state & TS_CARR_ON)) {
-		tp->t_state |= TS_WOPEN;
-		error = ttysleep(tp, (caddr_t)TB_RAW(tp), TTIPRI | PCATCH,
-				 ttopen, 0);
-		if (error != 0)
-			break;
+		if (com->prev_modem_status & MSR_DCD || mynor & CALLOUT_MASK)
+			(*linesw[tp->t_line].l_modem)(tp, 1);
 	}
-out:
-	if (error == 0)
-		error = (*linesw[tp->t_line].l_open)(dev, tp);
-	splx(s);
-
-#ifdef COM_BIDIR
-	/* wakeup sleepers */
-	wakeup((caddr_t) &com->active_in);
-#endif /* COM_BIDIR */
-
 	/*
-	 * XXX - the next step was once not done, so interrupts, DTR and RTS
-	 * remained hot if the process was killed while it was sleeping
-	 * waiting for carrier.  Now there is the opposite problem.  If several
-	 * processes are sleeping waiting for carrier on the same line and one
-	 * is killed, interrupts are turned off so the other processes will
-	 * never see the carrier rise.
+	 * Wait for DCD if necessary.
 	 */
-	if (error != 0 && !(tp->t_state & TS_ISOPEN))
+	if (!(tp->t_state & TS_CARR_ON) && !(mynor & CALLOUT_MASK)
+	    && !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
+		++com->wopeners;
+		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "siodcd", 0);
+		--com->wopeners;
+		if (error != 0)
+			goto out;
+		goto open_top;
+	}
+	error =	(*linesw[tp->t_line].l_open)(dev, tp);
+	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
+		com->active_out = TRUE;
+out:
+	splx(s);
+	if (!(tp->t_state & TS_ISOPEN) && com->wopeners == 0)
 		comhardclose(com);
-	tp->t_state &= ~TS_WOPEN;
-
 	return (error);
 }
 
@@ -817,10 +836,14 @@ sioclose(dev, flag, mode, p)
 	struct proc	*p;
 {
 	struct com_s	*com;
+	int		mynor;
 	int		s;
 	struct tty	*tp;
 
-	com = com_addr(UNIT(dev));
+	mynor = minor(dev);
+	if (mynor & CONTROL_MASK)
+		return (0);
+	com = com_addr(MINOR_TO_UNIT(mynor));
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -840,7 +863,7 @@ comhardclose(com)
 	struct tty	*tp;
 	int		unit;
 
-	unit = com - &com_structs[0];
+	unit = DEV_TO_UNIT(com->tp->t_dev);
 	iobase = com->iobase;
 	s = spltty();
 #ifdef TIOCTIMESTAMP
@@ -854,43 +877,28 @@ comhardclose(com)
 	{
 		outb(iobase + com_ier, 0);
 		tp = com->tp;
-		if (tp->t_cflag & HUPCL || tp->t_state & TS_WOPEN
-#ifdef COM_BIDIR
+		if (tp->t_cflag & HUPCL
 		    /*
 		     * XXX we will miss any carrier drop between here and the
 		     * next open.  Perhaps we should watch DCD even when the
 		     * port is closed; it is not sufficient to check it at
 		     * the next open because it might go up and down while
-		     * we're not watching.  And we shouldn't look at DCD if
-		     * CLOCAL is set (here or for the dialin device ...).
-		     * When the termios state is reinitialized for initial
-		     * opens, the correct CLOCAL bit will be
-		     * ((the bit now) & (the initial bit)).
+		     * we're not watching.
 		     */
-		    || com->active_in
-		       && !(com->prev_modem_status & MSR_DCD) && !FAKE_DCD(unit)
-#endif
+		    || !com->active_out
+		       && !(com->prev_modem_status & MSR_DCD)
+		       && !(com->it_in.c_cflag & CLOCAL)
 		    || !(tp->t_state & TS_ISOPEN)) {
 			commctl(com, MCR_RTS, DMSET);
-			if (com->dtr_wait != 0)
-				/*
-				 * Uninterruptible sleep since we want to
-				 * wait a fixed time.
-				 * XXX - delay in open() (if necessary),
-				 * not here (always).
-				 */
-				tsleep((caddr_t)&com->dtr_wait, TTIPRI,
-				       "sioclose", com->dtr_wait);
+			if (com->dtr_wait != 0) {
+				timeout(siodtrwakeup, com, com->dtr_wait);
+				com->state |= CS_DTR_OFF;
+			}
 		}
 	}
-
-#ifdef COM_BIDIR
-	com->active = com->active_in = com->active_out = FALSE;
-
-	/* wakeup sleepers who are waiting for out to finish */
-	wakeup((caddr_t) &com->active_out);
-#endif /* COM_BIDIR */
-
+	com->active_out = FALSE;
+	wakeup(&com->active_out);
+	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
 	splx(s);
 }
 
@@ -900,8 +908,13 @@ sioread(dev, uio, flag)
 	struct uio	*uio;
 	int		flag;
 {
-	struct tty	*tp = com_addr(UNIT(dev))->tp;
+	int		mynor;
+	struct tty	*tp;
 
+	mynor = minor(dev);
+	if (mynor & CONTROL_MASK)
+		return (ENODEV);
+	tp = com_addr(MINOR_TO_UNIT(mynor))->tp;
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
@@ -911,9 +924,15 @@ siowrite(dev, uio, flag)
 	struct uio	*uio;
 	int		flag;
 {
-	int		unit = UNIT(dev);
-	struct tty	*tp = com_addr(unit)->tp;
+	int		mynor;
+	struct tty	*tp;
+	int		unit;
 
+	mynor = minor(dev);
+	if (mynor & CONTROL_MASK)
+		return (ENODEV);
+	unit = MINOR_TO_UNIT(mynor);
+	tp = com_addr(unit)->tp;
 	/*
 	 * (XXX) We disallow virtual consoles if the physical console is
 	 * a serial port.  This is in case there is a display attached that
@@ -923,6 +942,17 @@ siowrite(dev, uio, flag)
 	if (constty && unit == comconsole)
 		constty = NULL;
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+}
+
+static void
+siodtrwakeup(chan)
+	void	*chan;
+{
+	struct com_s	*com;
+
+	com = (struct com_s *)chan;
+	com->state &= ~CS_DTR_OFF;
+	wakeup(&com->dtr_wait);
 }
 
 #ifdef TIOCTIMESTAMP
@@ -943,8 +973,8 @@ siointr(unit)
 #ifndef COM_MULTIPORT
 	siointr1(com_addr(unit));
 #else /* COM_MULTIPORT */
-	bool_t		possibly_more_intrs;
 	struct com_s    *com;
+	bool_t		possibly_more_intrs;
 
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
@@ -993,9 +1023,7 @@ siointr1(com)
 			else
 				recv_data = inb(com->data_port);
 			++com->bytes_in;
-			/* XXX reduce SLIP input latency */
-#define	FRAME_END	0xc0
-			if (recv_data == FRAME_END)
+			if (com->hotchar != 0 && recv_data == com->hotchar)
 				setsofttty();
 #ifdef KGDB
 			/* trap into kgdb? (XXX - needs testing and optim) */
@@ -1121,26 +1149,75 @@ sioioctl(dev, cmd, data, flag, p)
 	Port_t		iobase;
 	int		mcr;
 	int		msr;
+	int		mynor;
 	int		s;
 	int		tiocm_xxx;
 	struct tty	*tp;
 
-	com = com_addr(UNIT(dev));
+	mynor = minor(dev);
+	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (mynor & CONTROL_MASK) {
+		struct termios *ct;
+
+		switch (mynor & CONTROL_MASK) {
+		case CONTROL_INIT_STATE:
+			ct = mynor & CALLOUT_MASK ? &com->it_out : &com->it_in;
+			break;
+		case CONTROL_LOCK_STATE:
+			ct = mynor & CALLOUT_MASK ? &com->lt_out : &com->lt_in;
+			break;
+		default:
+			return (ENODEV);	/* /dev/nodev */
+		}
+		switch (cmd) {
+		case TIOCSETA:
+			error = suser(p->p_ucred, &p->p_acflag);
+			if (error)
+				return (error);
+			*ct = *(struct termios *)data;
+			return (0);
+		case TIOCGETA:
+			*(struct termios *)data = *ct;
+			return (0);
+		case TIOCGETD:
+			*(int *)data = TTYDISC;
+			return (0);
+		case TIOCGWINSZ:
+			bzero(data, sizeof(struct winsize));
+			return (0);
+		default:
+			return (ENOTTY);
+		}
+	}
 	tp = com->tp;
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+		int cc;
+		struct termios *dt = (struct termios *)data;
+		struct termios *lt = mynor & CALLOUT_MASK
+				     ? &com->lt_out : &com->lt_in;
+
+		dt->c_iflag = (tp->t_iflag & lt->c_iflag)
+			      | (dt->c_iflag & ~lt->c_iflag);
+		dt->c_oflag = (tp->t_oflag & lt->c_oflag)
+			      | (dt->c_oflag & ~lt->c_oflag);
+		dt->c_cflag = (tp->t_cflag & lt->c_cflag)
+			      | (dt->c_cflag & ~lt->c_cflag);
+		dt->c_lflag = (tp->t_lflag & lt->c_lflag)
+			      | (dt->c_lflag & ~lt->c_lflag);
+		for (cc = 0; cc < NCCS; ++cc)
+			if (lt->c_cc[cc] != 0)
+				dt->c_cc[cc] = tp->t_cc[cc];
+		if (lt->c_ispeed != 0)
+			dt->c_ispeed = tp->t_ispeed;
+		if (lt->c_ospeed != 0)
+			dt->c_ospeed = tp->t_ospeed;
+	}
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
-
-#ifdef COM_BIDIR
-	/* XXX: plug security hole while sticky bits not yet implemented */
-	if (com->bidir && com->active_in && p->p_ucred->cr_uid != 0)
-		tp->t_cflag &= ~CLOCAL;
-#endif
-
 	if (error >= 0)
 		return (error);
-
 	iobase = com->iobase;
 	s = spltty();
 	switch (cmd) {
@@ -1188,58 +1265,18 @@ sioioctl(dev, cmd, data, flag, p)
 			tiocm_xxx |= TIOCM_RI;
 		*(int *)data = tiocm_xxx;
 		break;
-#ifdef COM_BIDIR
-	case TIOCMSBIDIR:
-		/* must be root to set bidir. capability */
-		error = suser(p->p_ucred, &p->p_acflag);
-		if (error != 0) {
-			splx(s);
-			return(EPERM);
-		}
-
-		/* if it's the console, can't do it (XXX why?) */
-		if (UNIT(dev) == comconsole) {
-			splx(s);
-			return(ENOTTY);
-		}
-
-#if 0
-		/* XXX - can't do the next, for obvious reasons...
-		 * but there are problems to be looked at...
-		 */
-		/* if the port is active, don't do it */
-		if (com->active) {
-			splx(s);
-			return(EBUSY);
-		}
-#endif
-
-		com->bidir = *(int *)data;
-		break;
-	case TIOCMGBIDIR:
-		*(int *)data = com->bidir;
-		break;
-#endif /* COM_BIDIR */
-#if 0
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error != 0) {
 			splx(s);
-			return(EPERM);
+			return (EPERM);
 		}
-
-		/* if it's the console, can't do it (XXX why?) */
-		if (UNIT(dev) == comconsole) {
-			splx(s);
-			return(ENOTTY);
-		}
-		com->dtr_wait = *(int *)data;
+		com->dtr_wait = *(int *)data * 100 / hz;
 		break;
 	case TIOCMGDTRWAIT:
 		*(int *)data = com->dtr_wait;
 		break;
-#endif
 #ifdef TIOCTIMESTAMP
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
@@ -1259,41 +1296,21 @@ static void
 comflush(com)
 	struct com_s	*com;
 {
-	struct clist *rbp;
-
 	disable_intr();
 	if (com->state & CS_ODONE)
 		com_events -= LOTS_OF_EVENTS;
 	com->state &= ~(CS_ODONE | CS_BUSY);
 	enable_intr();
-	while( getc( TB_OUT(com->tp)) != -1);
-	com->ocount = 0;
 	com->tp->t_state &= ~TS_BUSY;
 }
 
 void
 siopoll()
 {
-#ifdef OLD_INTERRUPT_HANDLING
-	static bool_t	awake = FALSE;
-	int		s;
-#endif
 	int		unit;
 
 	if (com_events == 0)
 		return;
-
-#ifdef OLD_INTERRUPT_HANDLING
-	disable_intr();
-	if (awake) {
-		enable_intr();
-		return;
-	}
-	awake = TRUE;
-	enable_intr();
-	s = spltty();
-#endif
-
 repeat:
 	for (unit = 0; unit < NSIO; ++unit) {
 		u_char		*buf;
@@ -1306,16 +1323,25 @@ repeat:
 		if (com == NULL)
 			continue;
 		tp = com->tp;
-#ifdef DONT_MALLOC_TTYS
 		if (tp == NULL)
 			continue;
-#endif
 
 		/* switch the role of the low-level input buffers */
 		if (com->iptr == (ibuf = com->ibuf)) {
 			buf = NULL;     /* not used, but compiler can't tell */
 			incc = 0;
 		} else {
+			/*
+			 * Prepare to reduce input latency for packet
+			 * discplines with a end of packet character.
+			 * XXX should be elsewhere.
+			 */
+			if (tp->t_line == SLIPDISC)
+				com->hotchar = 0xc0;
+			else if (tp->t_line == PPPDISC)
+				com->hotchar = 0x7e;
+			else
+				com->hotchar = 0;
 			buf = ibuf;
 			disable_intr();
 			incc = com->iptr - buf;
@@ -1341,8 +1367,8 @@ repeat:
 			 * CS_RTS_IFLOW is on.
 			 */
 			if ((com->state & CS_RTS_IFLOW)
-			    && !(com->mcr_image & MCR_RTS) /*
-			    && !(tp->t_state & TS_RTS_IFLOW) */)
+			    && !(com->mcr_image & MCR_RTS)
+			    && !(tp->t_state & TS_RTS_IFLOW))
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
 			enable_intr();
@@ -1359,15 +1385,9 @@ repeat:
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
 			enable_intr();
-			if (delta_modem_status & MSR_DCD && !FAKE_DCD(unit)) {
-				if (com->prev_modem_status & MSR_DCD) {
-					(*linesw[tp->t_line].l_modem)(tp, 1);
-#ifdef COM_BIDIR
-					wakeup((caddr_t) &com->active_in);
-#endif /* COM_BIDIR */
-				} else
-					(*linesw[tp->t_line].l_modem)(tp, 0);
-			}
+			if (delta_modem_status & MSR_DCD)
+				(*linesw[tp->t_line].l_modem)
+					(tp, com->prev_modem_status & MSR_DCD);
 		}
 
 		/* XXX */
@@ -1381,13 +1401,29 @@ repeat:
 				delta = com->delta_error_counts[errnum];
 				com->delta_error_counts[errnum] = 0;
 				enable_intr();
-				if (delta != 0) {
-					total =
-					com->error_counts[errnum] += delta;
+				if (delta == 0 || !(tp->t_state & TS_ISOPEN))
+					continue;
+				total = com->error_counts[errnum] += delta;
 					log(LOG_WARNING,
 					"sio%d: %u more %s%s (total %lu)\n",
 					    unit, delta, error_desc[errnum],
 					    delta == 1 ? "" : "s", total);
+				if (errnum == CE_OVERRUN && com->hasfifo
+				    && com->ftl > FIFO_TRIGGER_1) {
+					static	u_char ftl_in_bytes[] =
+						{ 1, 4, 8, 14, };
+
+					com->ftl_init = FIFO_TRIGGER_8;
+#define	FIFO_TRIGGER_DELTA	FIFO_TRIGGER_4
+					com->ftl_max =
+					com->ftl -= FIFO_TRIGGER_DELTA;
+					outb(com->iobase + com_fifo,
+					     FIFO_ENABLE | com->ftl);
+					log(LOG_WARNING,
+				"sio%d: reduced fifo trigger level to %d\n",
+					    unit,
+					    ftl_in_bytes[com->ftl
+							 / FIFO_TRIGGER_DELTA]);
 				}
 			}
 		}
@@ -1402,17 +1438,16 @@ repeat:
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
 		if (com->state & CS_RTS_IFLOW
-		    && TB_RAW(tp)->c_cc + incc >= RB_I_HIGH_WATER /*
-		    && !(tp->t_state & TS_RTS_IFLOW) */
+		    && tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
+		    && !(tp->t_state & TS_RTS_IFLOW)
 		    /*
 		     * XXX - need RTS flow control for all line disciplines.
 		     * Only have it in standard one now.
 		     */
 		    && linesw[tp->t_line].l_rint == ttyinput) {
-/*			tp->t_state |= TS_RTS_IFLOW; */
+			tp->t_state |= TS_RTS_IFLOW;
 			ttstart(tp);
 		}
-#if 0
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
 		 * (ttyinput) in "raw" mode.  It usually takes about 450
@@ -1430,8 +1465,7 @@ repeat:
 			tk_rawcc += incc;
 			tp->t_rawcc += incc;
 			com->delta_error_counts[CE_TTY_BUF_OVERFLOW]
-				+= incc - rb_write(TB_RAW(tp), (char *) buf,
-						   incc);
+				+= b_to_q((char *)buf, incc, &tp->t_rawq);
 			ttwakeup(tp);
 			if (tp->t_state & TS_TTSTOP
 			    && (tp->t_iflag & IXANY
@@ -1441,7 +1475,6 @@ repeat:
 				ttstart(tp);
 			}
 		} else {
-#endif
 			do {
 				u_char	line_status;
 				int	recv_data;
@@ -1461,19 +1494,12 @@ repeat:
 				}
 				(*linesw[tp->t_line].l_rint)(recv_data, tp);
 			} while (--incc > 0);
-#if 0
 		}
-#endif
 		if (com_events == 0)
 			break;
 	}
 	if (com_events >= LOTS_OF_EVENTS)
 		goto repeat;
-
-#ifdef OLD_INTERRUPT_HANDLING
-	splx(s);
-	awake = FALSE;
-#endif
 }
 
 static int
@@ -1494,11 +1520,11 @@ comparam(tp, t)
 	divisor = ttspeedtab(t->c_ospeed, comspeedtab);
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
-	if (divisor < 0 || t->c_ispeed != t->c_ospeed)
+	if (divisor < 0 || divisor > 0 && t->c_ispeed != t->c_ospeed)
 		return (EINVAL);
 
 	/* parameters are OK, convert them to the com struct and the device */
-	unit = UNIT(tp->t_dev);
+	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	iobase = com->iobase;
 	s = spltty();
@@ -1529,6 +1555,22 @@ comparam(tp, t)
 	if (cflag & CSTOPB)
 		cfcr |= CFCR_STOPB;
 
+	if (com->hasfifo) {
+		/*
+		 * Use a fifo trigger level low enough so that the input
+		 * latency from the fifo is less than about 16 msec and
+		 * the total latency is less than about 30 msec.  These
+		 * latencies are reasonable for humans.  Serial comms
+		 * protocols shouldn't expect anything better since modem
+		 * latencies are larger.
+		 */
+		com->ftl = t->c_ospeed <= 4800
+			   ? FIFO_TRIGGER_1 : FIFO_TRIGGER_14;
+		if (com->ftl > com->ftl_max)
+			com->ftl = com->ftl_max;
+		outb(iobase + com_fifo, FIFO_ENABLE | com->ftl);
+	}
+
 	/*
 	 * Some UARTs lock up if the divisor latch registers are selected
 	 * while the UART is doing output (they refuse to transmit anything
@@ -1543,8 +1585,8 @@ retry:
 	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
-		error = ttysleep(tp, (caddr_t)TB_RAW(tp), TTIPRI | PCATCH,
-				 "sioparam", 1);
+		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
+				 "siotx", hz / 100);
 		if (error != 0 && error != EAGAIN) {
 			if (!(tp->t_state & TS_TTSTOP)) {
 				disable_intr();
@@ -1584,7 +1626,7 @@ retry:
 	/*
 	 * Set up state to handle output flow control.
 	 * XXX - worth handling MDMBUF (DCD) flow control at the lowest level?
-	 * Now has 16+ msec latency, while CTS flow has 50- usec latency.
+	 * Now has 10+ msec latency, while CTS flow has 50- usec latency.
 	 */
 	com->state &= ~CS_CTS_OFLOW;
 	com->state |= CS_ODEVREADY;
@@ -1598,9 +1640,6 @@ retry:
 	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
 	 * unconditionally, but that defeated the careful discarding of
 	 * stale input in sioopen().
-	 *
-	 * XXX sioopen() is not careful waiting for carrier for the callout
-	 * case.
 	 */
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);
@@ -1618,7 +1657,7 @@ comstart(tp)
 	int		s;
 	int		unit;
 
-	unit = UNIT(tp->t_dev);
+	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	s = spltty();
 	disable_intr();
@@ -1626,12 +1665,10 @@ comstart(tp)
 		com->state &= ~CS_TTGO;
 	else
 		com->state |= CS_TTGO;
-#if 0
 	if (tp->t_state & TS_RTS_IFLOW) {
 		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 	} else {
-#endif
 		/*
 		 * XXX don't raise MCR_RTS if CTS_RTS_IFLOW is off.  Set it
 		 * appropriately in comparam() if RTS-flow is being changed.
@@ -1639,29 +1676,33 @@ comstart(tp)
 		 */
 		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
-#if 0
 	}
-#endif
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP))
 		goto out;
-	if (TB_OUT(tp)->c_cc <= tp->t_lowat) {
+#if 0 /* XXX TK2.0 */
+	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
+		ttwwakeup(tp);
+#else
+	if (tp->t_outq.c_cc <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)TB_OUT(tp));
+			wakeup(TSA_OLOWAT(tp));
 		}
 		selwakeup(&tp->t_wsel);
 	}
-	if (com->ocount != 0) {
+#endif
+	if (com->state & CS_BUSY) {
 		disable_intr();
 		siointr1(com);
 		enable_intr();
-	} else if (TB_OUT(tp)->c_cc != 0) {
+	} else if (tp->t_outq.c_cc != 0) {
+		u_int	ocount;
+
 		tp->t_state |= TS_BUSY;
+		ocount = q_to_b(&tp->t_outq, com->obuf, sizeof com->obuf);
 		disable_intr();
-		com->ocount = q_to_b(TB_OUT(tp), com->obuf, sizeof com->obuf);
-		com->optr = com->obuf;
-		com->obufend = com->obuf + com->ocount;
+		com->obufend = (com->optr = com->obuf) + ocount;
 		com->state |= CS_BUSY;
 		siointr1(com);	/* fake interrupt to start output */
 		enable_intr();
@@ -1677,7 +1718,7 @@ siostop(tp, rw)
 {
 	struct com_s	*com;
 
-	com = com_addr(UNIT(tp->t_dev));
+	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (rw & FWRITE)
 		comflush(com);
 	disable_intr();
@@ -1698,7 +1739,9 @@ sioselect(dev, rw, p)
 	int		rw;
 	struct proc	*p;
 {
-	return (ttselect(dev & ~COM_MINOR_MAGIC_MASK, rw, p));
+	if (minor(dev) & CONTROL_MASK)
+		return (ENODEV);
+	return (ttselect(dev & ~MINOR_MAGIC_MASK, rw, p));
 }
 
 static void
@@ -1725,20 +1768,18 @@ commctl(com, bits, how)
 
 static void
 comwakeup(chan)
-	void *chan;
+	void	*chan;
 {
 	int	unit;
 
-	timeout(comwakeup, (caddr_t) NULL, hz / 100);
+	timeout(comwakeup, (void *)NULL, hz / 100);
 
 	if (com_events != 0) {
-#ifndef OLD_INTERRUPT_HANDLING
-		int	s = spltty();
-#endif
+		int	s;
+
+		s = splsofttty();
 		siopoll();
-#ifndef OLD_INTERRUPT_HANDLING
 		splx(s);
-#endif
 	}
 
 	/* recover from lost output interrupts */
@@ -1754,14 +1795,6 @@ comwakeup(chan)
 	}
 }
 
-#ifdef OLD_INTERRUPT_HANDLING
-void
-softsio1()
-{
-	siopoll();
-}
-#endif
-
 /*
  * Following are all routines needed for SIO to act as console
  */
@@ -1776,6 +1809,10 @@ struct siocnstate {
 };
 
 static	Port_t	siocniobase;
+
+static void siocnclose	__P((struct siocnstate *sp));
+static void siocnopen	__P((struct siocnstate *sp));
+static void siocntxwait	__P((void));
 
 static void
 siocntxwait()
@@ -1837,7 +1874,7 @@ siocnclose(sp)
 	outb(iobase + com_dlbh, sp->dlbh);
 	outb(iobase + com_cfcr, sp->cfcr);
 	/*
-	 * XXX damp osicllations of MCR_DTR or MCR_RTS by not restoring them.
+	 * XXX damp oscllations of MCR_DTR and MCR_RTS by not restoring them.
 	 */
 	outb(iobase + com_mcr, sp->mcr | MCR_DTR | MCR_RTS);
 	outb(iobase + com_ier, sp->ier);
@@ -1856,7 +1893,7 @@ siocnprobe(cp)
 			break;
 
 	/* XXX: ick */
-	unit = UNIT(CONUNIT);
+	unit = DEV_TO_UNIT(CONUNIT);
 	siocniobase = CONADDR;
 
 	/* make sure hardware exists?  XXX */
@@ -1878,7 +1915,7 @@ siocninit(cp)
 	 * XXX can delete more comconsole stuff now that i/o routines are
 	 * fairly reentrant.
 	 */
-	comconsole = UNIT(cp->cn_dev);
+	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
 int
