@@ -1,7 +1,7 @@
 /*
  * Music
  *
- * $Id$
+ * $Id: calendar.music,v 1.6 1997/02/22 19:28:23 peter Exp $
  */
 
 #ifndef _calendar_music_
@@ -10,6 +10,7 @@
 01/01	Country Joe McDonald is born in El Monte, California, 1942
 01/03	Steven Stills is born in Dallas, 1945
 01/04	Jazz great Charlie Mingus dies at 57 in Cuernavaca, Mexico, 1979
+01/08	Elvis Presley born, 1935
 01/08	David Bowie (then David Robert Jones) is born in London, 1947
 01/09	James Patrick Page (Led Zeppelin) is born in Middlesex, England, 1945
 01/10	Blues guitarist Howlin' Wolf dies in Chicago, 1976

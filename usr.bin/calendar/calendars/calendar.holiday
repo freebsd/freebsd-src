@@ -1,7 +1,7 @@
 /*
  * Holiday
  *
- * $Id$
+ * $Id: calendar.holiday,v 1.6 1997/02/22 19:28:22 peter Exp $
  */
 
 #ifndef _calendar_holiday_
@@ -352,7 +352,8 @@
 10/01	National Liberation Day (2 days) in China
 10/01	Public Holiday in Botswana
 10/03	National Foundation Day in South Korea
-10/03	U.N. Day in Varbados
+10/03	U.N. Day in Barbados
+10/03	German Reunification Day in Germany
 10/04	Independence Day in Lesotho
 10/06	National Sports Day in Lesotho
 10/07	National Heroes Day in Jamaica
@@ -432,6 +433,7 @@
 11/30	National Heroes Day in Philippines
 11/30	St. Andrew's Day
 12/01	Independence Day in Central African Republic
+12/01	World AIDS Day
 12/02	National Holiday in United Arab Emirates
 12/03	National Holiday in Laos
 12/06	Independence Day in Finland
