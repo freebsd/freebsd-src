@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: rwho.c,v 1.7.2.1 1997/08/11 07:14:28 charnier Exp $";
+	"$Id: rwho.c,v 1.7.2.2 1997/08/29 05:29:52 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <utmp.h>
 
 DIR	*dirp;
 
@@ -63,7 +64,7 @@ struct	whod wd;
 int	utmpcmp();
 #define	NUSERS	1000
 struct	myutmp {
-	char	myhost[MAXHOSTNAMELEN];
+	char    myhost[sizeof(wd.wd_hostname)];
 	int	myidle;
 	struct	outmp myutmp;
 } myutmp[NUSERS];
@@ -93,11 +94,10 @@ main(argc, argv)
 	register struct whoent *we;
 	register struct myutmp *mp;
 	int f, n, i;
-	time_t time();
 
 	(void) setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "a")) !=  -1)
+	while ((ch = getopt(argc, argv, "a")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflg = 1;
@@ -145,7 +145,7 @@ main(argc, argv)
 	width = 0;
 	for (i = 0; i < nusers; i++) {
 		/* append one for the blank and use 8 for the out_line */
-		int j = strlen(mp->myhost) + 1 + 8;
+		int j = strlen(mp->myhost) + 1 + sizeof(mp->myutmp.out_line);
 		if (j > width)
 			width = j;
 		mp++;
@@ -154,8 +154,10 @@ main(argc, argv)
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
 		strftime(cbuf, sizeof(cbuf), "%c", localtime((time_t *)&mp->myutmp.out_time));
-		(void)sprintf(buf, "%s:%-.8s", mp->myhost, mp->myutmp.out_line);
-		printf("%-8.8s %-*s %.12s",
+		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
+		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
+		printf("%-*.*s %-*s %.12s",
+		   UT_NAMESIZE, sizeof(mp->myutmp.out_name),
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
@@ -193,11 +195,11 @@ utmpcmp(u1, u2)
 {
 	int rc;
 
-	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, 8);
+	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, sizeof(u2->myutmp.out_name));
 	if (rc)
 		return (rc);
-	rc = strncmp(u1->myhost, u2->myhost, 8);
+	rc = strcmp(u1->myhost, u2->myhost);
 	if (rc)
 		return (rc);
-	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, 8));
+	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, sizeof(u2->myutmp.out_line)));
 }
