@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.215 1995/11/29 01:06:59 jkh Exp $
+#	$Id: LINT,v 1.217 1995/11/29 20:07:49 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -195,10 +195,6 @@ options		HDLC			#X.25 link layer for serial lines
 # the obvious thing.
 # IPACCT enables IP accounting.
 #
-# ARP_PROXYALL enables global proxy ARP.  Beware!  This can burn
-# your house down!  See netinet/if_ether.c for the gory details.
-# (Eventually there will be a better management interface.)
-#
 # TCPDEBUG is undocumented.
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
@@ -208,7 +204,6 @@ options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 options		IPACCT			#ipaccounting
 					# dropped packets
-options		ARP_PROXYALL		# global proxy ARP
 options		TCPDEBUG
 
 
