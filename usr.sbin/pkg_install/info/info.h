@@ -36,6 +36,7 @@ extern int Flags;
 extern Boolean AllInstalled;
 extern char *InfoPrefix;
 extern char *PlayPen;
+extern char *CheckPkg;
 
 extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);
