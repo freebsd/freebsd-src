@@ -53,6 +53,7 @@
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/signalvar.h>
