@@ -1,7 +1,7 @@
 #
 # Makefile for xntpd.
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 16:14:13 peter Exp $
 #
-SUBDIR= lib parse xntpd xntpdc ntpq ntpdate ntptrace authstuff util
+SUBDIR= lib parse xntpd xntpdc ntpq ntpdate ntptrace authstuff
 
 .include <bsd.subdir.mk>
