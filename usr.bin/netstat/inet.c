@@ -568,7 +568,6 @@ ip_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(ips_cantfrag, "\t%lu datagram%s that can't be fragmented\n");
 	p(ips_nogif, "\t%lu tunneling packet%s that can't find gif\n");
 	p(ips_badaddr, "\t%lu datagram%s with bad address in header\n");
-	p(ips_evil, "\t%lu EVIL datagram%s received.\n");
 #undef p
 #undef p1a
 }

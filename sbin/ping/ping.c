@@ -143,7 +143,6 @@ int options;
 #define	F_HDRINCL	0x40000
 #define	F_MASK		0x80000
 #define	F_TIME		0x100000
-#define	F_SO_EVIL	0x200000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -257,7 +256,7 @@ main(argc, argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdEfI:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
+		"Aac:DdfI:i:Ll:M:m:nop:QqRrS:s:T:t:vz:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -286,9 +285,6 @@ main(argc, argv)
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
-			break;
-		case 'E':
-			options |= F_SO_EVIL;
 			break;
 		case 'f':
 			if (uid) {
@@ -551,10 +547,6 @@ main(argc, argv)
 	if (options & F_SO_DONTROUTE)
 		(void)setsockopt(s, SOL_SOCKET, SO_DONTROUTE, (char *)&hold,
 		    sizeof(hold));
-	if (options & F_SO_EVIL)
-		if (setsockopt(s, IPPROTO_IP, IP_EVIL_INTENT, (char *)&hold,
-		    sizeof(hold)) != 0)
-		err(EX_OSERR, "setsockopt(s, IPPROTO_IP, IP_EVIL_INTENT, ...)");
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 	if (options & F_POLICY) {
@@ -601,8 +593,6 @@ main(argc, argv)
 		ip->ip_tos = tos;
 		ip->ip_id = 0;
 		ip->ip_off = df ? IP_DF : 0;
-		if (options & F_SO_EVIL)
-			ip->ip_off |= IP_EF;
 		ip->ip_ttl = ttl;
 		ip->ip_p = IPPROTO_ICMP;
 		ip->ip_src.s_addr = source ? sock_in.sin_addr.s_addr : INADDR_ANY;
@@ -1001,8 +991,6 @@ pr_pack(buf, cc, from, tv)
 			(void)printf(" ttl=%d", ip->ip_ttl);
 			if (timing)
 				(void)printf(" time=%.3f ms", triptime);
-			if (ip->ip_off & IP_EF)
-				(void)printf(" (EVIL)");
 			if (dupflag)
 				(void)printf(" (DUP!)");
 			if (options & F_AUDIBLE)
