@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.6 1994/12/31 17:15:16 jkh Exp $
+ *	$Id: kern_devconf.c,v 1.7 1995/02/14 06:34:49 phk Exp $
  */
 
 /*
@@ -71,24 +71,24 @@ dev_detach(struct kern_devconf *kdc)
 }
 
 /*
- * NB: the device must do a dev_detach inside its goaway routine, if it
+ * NB: the device must do a dev_detach inside its shutdown routine, if it
  * succeeds.  If no routine is specified, we assume no special treatment is
  * required.
  */
 int
-dev_goawayall(int force)
+dev_shutdownall(int force)
 {
 	int rv = 0;
 	struct kern_devconf *kdc = dc_list;
 
 	while(kdc) {
-		if(!kdc->kdc_goaway) {
+		if(!kdc->kdc_shutdown) {
 			dev_detach(kdc);
 			kdc = dc_list;
 			continue;
 		}
 
-		if(kdc->kdc_goaway(kdc, force)) {
+		if(kdc->kdc_shutdown(kdc, force)) {
 			rv++;
 			kdc = kdc->kdc_next;
 		} else {
