@@ -60,7 +60,6 @@
  * See sys_pipe.c for info on what these limits mean. 
  */
 extern int	maxpipekva;
-extern int	maxpipekvawired;
 
 /*
  * Pipe buffer information.
@@ -79,7 +78,6 @@ struct pipebuf {
  * Information to support direct transfers between processes for pipes.
  */
 struct pipemapping {
-	vm_offset_t	kva;		/* kernel virtual address */
 	vm_size_t	cnt;		/* number of chars in buffer */
 	vm_size_t	pos;		/* current position of transfer */
 	int		npages;		/* number of pages */
