@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 /* XXX _G_VTABLE_LABEL_PREFIX is different between ELF and a.out */
 
 /* AUTOMATICALLY GENERATED; DO NOT EDIT! */ 
@@ -5,11 +7,10 @@
 #define _G_config_h
 #define _G_LIB_VERSION "3.0.0"
 #define _G_VTABLE_LABEL_HAS_LENGTH 1
-#define _G_USING_THUNKS
 #ifdef __ELF__
 #define _G_NAMES_HAVE_UNDERSCORE 0
-#define _G_VTABLE_LABEL_PREFIX "__vt_"
-#define _G_VTABLE_LABEL_PREFIX_ID __vt_
+#define _G_VTABLE_LABEL_PREFIX "_vt$"
+#define _G_VTABLE_LABEL_PREFIX_ID _vt$
 #else
 #define _G_NAMES_HAVE_UNDERSCORE 1
 #define _G_VTABLE_LABEL_PREFIX "__vt$"
