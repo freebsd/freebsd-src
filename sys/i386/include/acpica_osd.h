@@ -37,6 +37,8 @@
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
 
+#define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
+
 /*
  * ACPICA compatibility
  */
@@ -55,7 +57,7 @@ OsdInX(ACPI_IO_ADDRESS InPort, int bytes)
 	bus_space_handle_t	bsh;
 	UINT32			retval;
 
-	bst = I386_BUS_SPACE_IO;
+	bst = ACPI_BUS_SPACE_IO;
 	bsh = InPort;
 	switch (bytes) {
 	case 1:
@@ -107,7 +109,7 @@ OsdOutX(ACPI_IO_ADDRESS OutPort, UINT32 Value, int bytes)
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 
-	bst = I386_BUS_SPACE_IO;
+	bst = ACPI_BUS_SPACE_IO;
 	bsh = OutPort;
 	switch (bytes) {
 	case 1:
