@@ -811,8 +811,8 @@ installFixupBin(dialogMenuItem *self)
 	
 	/* BOGON #4: /compat created by default in root fs */
 	Mkdir("/usr/compat");
-	vsystem("ln -s /usr/compat /compat");
-	
+	vsystem("ln -s usr/compat /compat");
+
 	/* BOGON #5: aliases database not build for bin */
 	vsystem("newaliases");
 
