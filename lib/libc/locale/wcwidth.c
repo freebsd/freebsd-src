@@ -45,12 +45,16 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
+#define _CTYPE_SWM 0xe0000000L	/* Mask to get screen width data */
+#define _CTYPE_SWS 30 		/* Bits to shift to get width */
+
 int
 wcwidth(wc)
         wchar_t wc;
 {
 	int width = __maskrune(wc, _CTYPE_SWM);
 
+	/* 0 is autowidth (default) */
 	return (width ? (int)((unsigned)width >> _CTYPE_SWS)
 		      : (iswprint(wc) ? 1 : -1));
 }
