@@ -107,7 +107,7 @@ char    *optarg;		/* argument associated with option */
 static int getopt_internal(int, char * const *, const char *,
 			   const struct option *, int *, int);
 static int parse_long_options(char * const *, const char *,
-			      const struct option *, int *, int);
+			      const struct option *, int *, int, int);
 static int gcd(int, int);
 static void permute_args(int, int, int, char * const *);
 
@@ -197,14 +197,14 @@ permute_args(int panonopt_start, int panonopt_end, int opt_end,
  */
 static int
 parse_long_options(char * const *nargv, const char *options,
-	const struct option *long_options, int *idx, int short_too)
+	const struct option *long_options, int *idx, int short_too, int flags)
 {
 	char *current_argv, *has_equal;
 #ifdef GNU_COMPATIBLE
 	char *current_dash;
 #endif
 	size_t current_argv_len;
-	int i, match;
+	int i, match, exact_match, second_partial_match;
 
 	current_argv = place;
 #ifdef GNU_COMPATIBLE
@@ -224,6 +224,8 @@ parse_long_options(char * const *nargv, const char *options,
 	}
 #endif
 	match = -1;
+	exact_match = 0;
+	second_partial_match = 0;
 
 	optind++;
 
@@ -243,29 +245,37 @@ parse_long_options(char * const *nargv, const char *options,
 		if (strlen(long_options[i].name) == current_argv_len) {
 			/* exact match */
 			match = i;
+			exact_match = 1;
 			break;
 		}
 		/*
 		 * If this is a known short option, don't allow
 		 * a partial match of a single character.
 		 */
-		if (short_too && current_argv_len == 1)
+		if (short_too &&
+		    (!(flags & FLAG_LONGONLY) || current_argv_len == 1))
 			continue;
 
-		if (match == -1)	/* partial match */
+		if (match == -1)        /* first partial match */
 			match = i;
-		else {
-			/* ambiguous abbreviation */
-			if (PRINT_ERROR)
-				warnx(ambig,
+		else if ((flags & FLAG_LONGONLY) ||
+			 long_options[i].has_arg !=
+			     long_options[match].has_arg ||
+			 long_options[i].flag != long_options[match].flag ||
+			 long_options[i].val != long_options[match].val)
+			second_partial_match = 1;
+	}
+	if (!exact_match && second_partial_match) {
+		/* ambiguous abbreviation */
+		if (PRINT_ERROR)
+			warnx(ambig,
 #ifdef GNU_COMPATIBLE
-				     current_dash,
+			     current_dash,
 #endif
-				     (int)current_argv_len,
-				     current_argv);
-			optopt = 0;
-			return (BADCH);
-		}
+			     (int)current_argv_len,
+			     current_argv);
+		optopt = 0;
+		return (BADCH);
 	}
 	if (match != -1) {		/* option found */
 		if (long_options[match].has_arg == no_argument
@@ -492,7 +502,7 @@ start:
 			short_too = 1;		/* could be short option too */
 
 		optchar = parse_long_options(nargv, options, long_options,
-		    idx, short_too);
+		    idx, short_too, flags);
 		if (optchar != -1) {
 			place = EMSG;
 			return (optchar);
@@ -538,7 +548,7 @@ start:
 		dash_prefix = W_PREFIX;
 #endif
 		optchar = parse_long_options(nargv, options, long_options,
-		    idx, 0);
+		    idx, 0, flags);
 		place = EMSG;
 		return (optchar);
 	}
