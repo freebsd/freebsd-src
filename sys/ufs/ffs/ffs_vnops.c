@@ -975,14 +975,18 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 
 #endif
 	orig_resid = uio->uio_resid;
-	if (orig_resid <= 0)
+	if (orig_resid == 0)
 		return (0);
+	/*
+	 * The caller is supposed to check if
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 */
 
 	bytesinfile = dp->di_extsize - uio->uio_offset;
 	if (bytesinfile <= 0) {
 		if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 			ip->i_flag |= IN_ACCESS;
-		return 0;
+		return (0);
 	}
 
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
