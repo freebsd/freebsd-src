@@ -30,7 +30,7 @@
 extern void srandom P((unsigned int seed));
 #endif
 #ifndef linux
-extern char *initstate P((unsigned seed, char *state, int n));
+extern char *initstate P((unsigned long seed, char *state, long n));
 extern char *setstate P((char *state));
 extern long random P((void));
 #endif
