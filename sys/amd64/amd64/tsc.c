@@ -70,11 +70,35 @@ static 	void (*new_function)();
 static 	u_int new_rate;
 static 	u_int hardclock_divisor;
 
+#ifdef I586_CPU
+int pentium_mhz = 0;
+#endif
 
 void
 clkintr(frame)
 	struct clockframe frame;
 {
+#ifdef I586_CPU
+	/*
+	 * This resets the CPU cycle counter to zero, to make our
+	 * job easier in microtime().  Some fancy ifdefs could speed
+	 * this up for Pentium-only kernels.
+	 * We want this to be done as close as possible to the actual
+	 * timer incrementing in hardclock(), because there is a window
+	 * between the two where the value is no longer valid.  Experimentation
+	 * may reveal a good precompensation to apply in microtime().
+	 */
+	if(pentium_mhz) {
+		__asm __volatile("movl $0x10,%%ecx\n"
+				 "xorl %%eax,%%eax\n"
+				 "movl %%eax,%%edx\n"
+				 ".byte 0x0f, 0x30\n"
+				 "#%0%1"
+				 : "=m"(frame)	/* no outputs */
+				 : "b"(&frame) /* fake input */
+				 : "ax", "cx", "dx");
+	}
+#endif
 	hardclock(&frame);
 }
 
@@ -182,9 +206,13 @@ getit()
 }
 
 #ifdef I586_CPU
-int pentium_mhz = 0;
 static long long cycles_per_sec = 0;
 
+/*
+ * Figure out how fast the cyclecounter runs.  This must be run with
+ * clock interrupts disabled, but with the timer/counter programmed
+ * and running.
+ */
 void
 calibrate_cyclecounter(void)
 {
