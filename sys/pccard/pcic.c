@@ -56,7 +56,7 @@
 /*
  *	Prototypes for interrupt handler.
  */
-static void		pcicintr	__P((int unit));
+static inthand2_t	pcicintr;
 static int		pcic_ioctl __P((struct slot *, int, caddr_t));
 static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;
@@ -284,7 +284,7 @@ pcic_dump_attributes(unsigned char *scratch, int maxlen)
 #endif
 
 static void
-nullfunc(int unit)
+nullfunc(void *unused)
 {
 	/* empty */
 }
@@ -1058,7 +1058,7 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	pcicintr(0);
+	pcicintr(NULL);
 	pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 }
 
@@ -1069,7 +1069,7 @@ pcictimeout(void *chan)
  *	on this card, so send an event to the main code.
  */
 static void
-pcicintr(int unit)
+pcicintr(void *unused)
 {
 	int	slot, s;
 	unsigned char chg;

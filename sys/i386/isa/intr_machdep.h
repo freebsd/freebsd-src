@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.11 1998/03/03 22:56:30 tegge Exp $
+ *	$Id: intr_machdep.h,v 1.12 1998/05/31 10:53:54 bde Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -144,7 +144,7 @@ extern char intrnames[];	/* string table containing device names */
 extern u_long *intr_countp[];	/* pointers into intrcnt[] */
 extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
 extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
-extern int intr_unit[];		/* cookies to pass to intr handlers */
+extern void *intr_unit[];	/* cookies to pass to intr handlers */
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),
