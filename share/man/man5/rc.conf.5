@@ -168,8 +168,10 @@ are
 .Dq client
 - basic protection for a workstation;
 .Dq simple
-- basic protection for a LAN.  If a filename is specified, the full path 
-must be given.
+- basic protection for a LAN.
+If a filename is specified, the full path must be given;
+if the file is executable, it is sourced, otherwise if the file is
+just readable, it is used as input into the ipfw program.
 .It Ar firewall_quiet
 (bool) Set to 
 .Ar YES
