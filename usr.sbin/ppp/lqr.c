@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: lqr.c,v 1.2 1995/02/26 12:17:39 amurai Exp $
  * 
  *	o LQR based on RFC1333
  *
@@ -234,7 +234,7 @@ LqrDump(message, lqr)
 char *message;
 struct lqrdata *lqr;
 {
-  if (loglevel >= LOG_LQM) {
+  if (loglevel & (1 << LOG_LQM)) {
     LogTimeStamp();
     logprintf("%s:\n", message);
     LogTimeStamp();
