@@ -27,7 +27,7 @@
 .\"
 .Dd September 28, 2000
 .Dt MODSTAT 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm modstat
 .Nd get status of kernel module
@@ -82,12 +82,7 @@ The id of the module specified in
 Module specific data.
 .El
 .Sh RETURN VALUES
-The function
-.Fn modstat
-returns 0 on success.
-It returns -1 on failure, and sets
-.Va errno
-to indicate the error.
+.Rv -std modstat
 .Sh ERRORS
 The information for the module referred to by
 .Fa modid
