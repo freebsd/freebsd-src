@@ -20,6 +20,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* GNU DIFF was written by Mike Haertel, David Hayes,
    Richard Stallman, Len Tower, and Paul Eggert.  */
 
+/* $FreeBSD$ */
+
 #define GDIFF_MAIN
 #include "diff.h"
 #include <signal.h>
@@ -30,6 +32,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #else
 #include "fnmatch.h"
 #endif
+#include "prepend_args.h"
 
 #ifndef DEFAULT_WIDTH
 #define DEFAULT_WIDTH 130
@@ -249,10 +252,12 @@ main (argc, argv)
   output_style = OUTPUT_NORMAL;
   context = -1;
 
+  prepend_default_options (getenv ("DIFF_OPTIONS"), &argc, &argv);
+
   /* Decode the options.  */
 
   while ((c = getopt_long (argc, argv,
-			   "0123456789abBcC:dD:efF:hHiI:lL:nNpPqrsS:tTuU:vwW:x:X:y",
+			   "0123456789abBcC:dD:efF:hHiI:lL:nNopPqrsS:tTuU:vwW:x:X:y",
 			   longopts, 0)) != EOF)
     {
       switch (c)
@@ -422,6 +427,11 @@ main (argc, argv)
 	  /* When comparing directories, if a file appears only in one
 	     directory, treat it as present but empty in the other.  */
 	  entire_new_file_flag = 1;
+	  break;
+
+	case 'o':
+	  /* Output in the old tradition style.  */
+	  specify_style (OUTPUT_NORMAL);
 	  break;
 
 	case 'p':
