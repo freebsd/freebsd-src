@@ -88,7 +88,7 @@ kdebug_sadb(base)
 
 	/* sanity check */
 	if (base == NULL)
-		panic("kdebug_sadb: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_msg{ version=%u type=%u errno=%u satype=%u\n",
 	    base->sadb_msg_version, base->sadb_msg_type,
@@ -105,11 +105,12 @@ kdebug_sadb(base)
 		    ext->sadb_ext_len, ext->sadb_ext_type);
 
 		if (ext->sadb_ext_len == 0) {
-			printf("kdebug_sadb: invalid ext_len=0 was passed.\n");
+			printf("%s: invalid ext_len=0 was passed.\n", __func__);
 			return;
 		}
 		if (ext->sadb_ext_len > tlen) {
-			printf("kdebug_sadb: ext_len exceeds end of buffer.\n");
+			printf("%s: ext_len too big (%u > %u).\n",
+				__func__, ext->sadb_ext_len, tlen);
 			return;
 		}
 
@@ -154,7 +155,7 @@ kdebug_sadb(base)
 			kdebug_sadb_x_sa2(ext);
 			break;
 		default:
-			printf("kdebug_sadb: invalid ext_type %u was passed.\n",
+			printf("%s: invalid ext_type %u\n", __func__,
 			    ext->sadb_ext_type);
 			return;
 		}
@@ -177,7 +178,7 @@ kdebug_sadb_prop(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_prop: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	len = (PFKEY_UNUNIT64(prop->sadb_prop_len) - sizeof(*prop))
 		/ sizeof(*comb);
@@ -226,7 +227,7 @@ kdebug_sadb_identity(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_identity: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	len = PFKEY_UNUNIT64(id->sadb_ident_len) - sizeof(*id);
 	printf("sadb_ident_%s{",
@@ -270,7 +271,7 @@ kdebug_sadb_supported(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_supported: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	len = (PFKEY_UNUNIT64(sup->sadb_supported_len) - sizeof(*sup))
 		/ sizeof(*alg);
@@ -295,7 +296,7 @@ kdebug_sadb_lifetime(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		printf("kdebug_sadb_lifetime: NULL pointer was passed.\n");
+		printf("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_lifetime{ alloc=%u, bytes=%u\n",
 		lft->sadb_lifetime_allocations,
@@ -315,7 +316,7 @@ kdebug_sadb_sa(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_sa: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_sa{ spi=%u replay=%u state=%u\n",
 	    (u_int32_t)ntohl(sa->sadb_sa_spi), sa->sadb_sa_replay,
@@ -334,7 +335,7 @@ kdebug_sadb_address(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_address: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_address{ proto=%u prefixlen=%u reserved=0x%02x%02x }\n",
 	    addr->sadb_address_proto, addr->sadb_address_prefixlen,
@@ -354,7 +355,7 @@ kdebug_sadb_key(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_key: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_key{ bits=%u reserved=%u\n",
 	    key->sadb_key_bits, key->sadb_key_reserved);
@@ -363,7 +364,8 @@ kdebug_sadb_key(ext)
 	/* sanity check 2 */
 	if ((key->sadb_key_bits >> 3) >
 		(PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key))) {
-		printf("kdebug_sadb_key: key length mismatch, bit:%d len:%ld.\n",
+		printf("%s: key length mismatch, bit:%d len:%ld.\n",
+			__func__,
 			key->sadb_key_bits >> 3,
 			(long)PFKEY_UNUNIT64(key->sadb_key_len) - sizeof(struct sadb_key));
 	}
@@ -382,7 +384,7 @@ kdebug_sadb_x_sa2(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_x_sa2: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_x_sa2{ mode=%u reqid=%u\n",
 	    sa2->sadb_x_sa2_mode, sa2->sadb_x_sa2_reqid);
@@ -402,7 +404,7 @@ kdebug_sadb_x_policy(ext)
 
 	/* sanity check */
 	if (ext == NULL)
-		panic("kdebug_sadb_x_policy: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("sadb_x_policy{ type=%u dir=%u id=%x }\n",
 		xpl->sadb_x_policy_type, xpl->sadb_x_policy_dir,
@@ -435,12 +437,14 @@ kdebug_sadb_x_policy(ext)
 
 			/* prevent infinite loop */
 			if (xisr->sadb_x_ipsecrequest_len <= 0) {
-				printf("kdebug_sadb_x_policy: wrong policy struct.\n");
+				printf("%s: wrong policy struct.\n", __func__);
 				return;
 			}
 			/* prevent overflow */
 			if (xisr->sadb_x_ipsecrequest_len > tlen) {
-				printf("invalid ipsec policy length\n");
+				printf("%s: invalid ipsec policy length "
+					"(%u > %u)\n", __func__,
+					xisr->sadb_x_ipsecrequest_len, tlen);
 				return;
 			}
 
@@ -451,7 +455,7 @@ kdebug_sadb_x_policy(ext)
 		}
 
 		if (tlen != 0)
-			panic("kdebug_sadb_x_policy: wrong policy struct.\n");
+			panic("%s: wrong policy struct.\n", __func__);
 	}
 
 	return;
@@ -465,7 +469,7 @@ kdebug_secpolicy(sp)
 {
 	/* sanity check */
 	if (sp == NULL)
-		panic("kdebug_secpolicy: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("secpolicy{ refcnt=%u state=%u policy=%u\n",
 		sp->refcnt, sp->state, sp->policy);
@@ -500,8 +504,7 @@ kdebug_secpolicy(sp)
 		printf("  type=entrust }\n");
 		break;
 	default:
-		printf("kdebug_secpolicy: Invalid policy found. %d\n",
-			sp->policy);
+		printf("%s: Invalid policy found. %d\n", __func__, sp->policy);
 		break;
 	}
 
@@ -514,7 +517,7 @@ kdebug_secpolicyindex(spidx)
 {
 	/* sanity check */
 	if (spidx == NULL)
-		panic("kdebug_secpolicyindex: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("secpolicyindex{ dir=%u prefs=%u prefd=%u ul_proto=%u\n",
 		spidx->dir, spidx->prefs, spidx->prefd, spidx->ul_proto);
@@ -535,7 +538,7 @@ kdebug_secasindex(saidx)
 {
 	/* sanity check */
 	if (saidx == NULL)
-		panic("kdebug_secpolicyindex: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("secasindex{ mode=%u proto=%u\n",
 		saidx->mode, saidx->proto);
@@ -556,7 +559,7 @@ kdebug_secasv(sav)
 {
 	/* sanity check */
 	if (sav == NULL)
-		panic("kdebug_secasv: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf("secas{");
 	kdebug_secasindex(&sav->sah->saidx);
@@ -600,7 +603,7 @@ kdebug_secreplay(rpl)
 
 	/* sanity check */
 	if (rpl == NULL)
-		panic("kdebug_secreplay: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	printf(" secreplay{ count=%u wsize=%u seq=%u lastseq=%u",
 	    rpl->count, rpl->wsize, rpl->seq, rpl->lastseq);
@@ -685,7 +688,7 @@ kdebug_sockaddr(addr)
 
 	/* sanity check */
 	if (addr == NULL)
-		panic("kdebug_sockaddr: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	/* NOTE: We deal with port number as host byte order. */
 	printf("sockaddr{ len=%u family=%u", addr->sa_len, addr->sa_family);
