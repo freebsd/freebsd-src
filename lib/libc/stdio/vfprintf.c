@@ -421,10 +421,10 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	struct __siov iov[NIOV];/* ... and individual io vectors */
 	char buf[BUF];		/* space for %c, %[diouxX], %[eEfFgG] */
 	char ox[2];		/* space for 0x hex-prefix */
-        union arg *argtable;    /* args, built due to positional arg */
-        union arg statargtable [STATIC_ARG_TBL_SIZE];
-        int nextarg;            /* 1-based argument index */
-        va_list orgap;          /* original argument pointer */
+	union arg *argtable;    /* args, built due to positional arg */
+	union arg statargtable [STATIC_ARG_TBL_SIZE];
+	int nextarg;            /* 1-based argument index */
+	va_list orgap;          /* original argument pointer */
 
 	/*
 	 * Choose PADSIZE to trade efficiency vs. size.  If larger printf
@@ -467,14 +467,14 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	iovp = iov; \
 }
 
-        /*
-         * Get the argument indexed by nextarg.   If the argument table is
-         * built, use it to get the argument.  If its not, get the next
-         * argument (and arguments must be gotten sequentially).
-         */
+	/*
+	 * Get the argument indexed by nextarg.   If the argument table is
+	 * built, use it to get the argument.  If its not, get the next
+	 * argument (and arguments must be gotten sequentially).
+	 */
 #define GETARG(type) \
-        ((argtable != NULL) ? *((type*)(&argtable[nextarg++])) : \
-            (nextarg++, va_arg(ap, type)))
+	((argtable != NULL) ? *((type*)(&argtable[nextarg++])) : \
+	    (nextarg++, va_arg(ap, type)))
 
 	/*
 	 * To extend shorts properly, we need both signed and unsigned
@@ -502,30 +502,30 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	    flags&PTRDIFFT ? (uintmax_t)GETARG(ptrdiff_t) : \
 	    (uintmax_t)GETARG(unsigned long long))
 
-        /*
-         * Get * arguments, including the form *nn$.  Preserve the nextarg
-         * that the argument can be gotten once the type is determined.
-         */
+	/*
+	 * Get * arguments, including the form *nn$.  Preserve the nextarg
+	 * that the argument can be gotten once the type is determined.
+	 */
 #define GETASTER(val) \
-        n2 = 0; \
-        cp = fmt; \
-        while (is_digit(*cp)) { \
-                n2 = 10 * n2 + to_digit(*cp); \
-                cp++; \
-        } \
-        if (*cp == '$') { \
-            	int hold = nextarg; \
-                if (argtable == NULL) { \
-                        argtable = statargtable; \
-                        __find_arguments (fmt0, orgap, &argtable); \
-                } \
-                nextarg = n2; \
-                val = GETARG (int); \
-                nextarg = hold; \
-                fmt = ++cp; \
-        } else { \
+	n2 = 0; \
+	cp = fmt; \
+	while (is_digit(*cp)) { \
+		n2 = 10 * n2 + to_digit(*cp); \
+		cp++; \
+	} \
+	if (*cp == '$') { \
+		int hold = nextarg; \
+		if (argtable == NULL) { \
+			argtable = statargtable; \
+			__find_arguments (fmt0, orgap, &argtable); \
+		} \
+		nextarg = n2; \
 		val = GETARG (int); \
-        }
+		nextarg = hold; \
+		fmt = ++cp; \
+	} else { \
+		val = GETARG (int); \
+	}
 
 
 	thousands_sep = '\0';
@@ -544,9 +544,9 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		return (__sbprintf(fp, fmt0, ap));
 
 	fmt = (char *)fmt0;
-        argtable = NULL;
-        nextarg = 1;
-        orgap = ap;
+	argtable = NULL;
+	nextarg = 1;
+	orgap = ap;
 	uio.uio_iov = iovp = iov;
 	uio.uio_resid = 0;
 	uio.uio_iovcnt = 0;
@@ -643,13 +643,13 @@ reswitch:	switch (ch) {
 			} while (is_digit(ch));
 			if (ch == '$') {
 				nextarg = n;
-                        	if (argtable == NULL) {
-                                	argtable = statargtable;
-                                	__find_arguments (fmt0, orgap,
-						&argtable);
+				if (argtable == NULL) {
+					argtable = statargtable;
+					__find_arguments (fmt0, orgap,
+					    &argtable);
 				}
 				goto rflag;
-                        }
+			}
 			width = n;
 			goto reswitch;
 #ifdef FLOATING_POINT
@@ -1042,8 +1042,8 @@ error:
 #endif
 	if (__sferror(fp))
 		ret = EOF;
-        if ((argtable != NULL) && (argtable != statargtable))
-                free (argtable);
+	if ((argtable != NULL) && (argtable != statargtable))
+		free (argtable);
 	return (ret);
 	/* NOTREACHED */
 }
