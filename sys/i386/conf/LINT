@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.388 1997/12/28 00:28:46 jkh Exp $
+#	$Id: LINT,v 1.389 1997/12/28 13:35:59 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -634,10 +634,13 @@ controller	isa0
 # Some broken EISA and VLB hardware may need this, too.
 #
 # MAXMEM specifies the amount of RAM on the machine; if this is not
-# specified, FreeBSD will read the amount of memory from the CMOS RAM,
-# so the amount of memory will be limited to 64MB or 16MB depending on
-# the BIOS.  The amount is in kilobytes, so for a machine with 128MB of
-# RAM, it would be 131072 (128 * 1024).
+# specified, FreeBSD will first read the amount of memory from the CMOS
+# RAM, so the amount of memory will initially be limited to 64MB or 16MB
+# depending on the BIOS.  If the BIOS reports 64MB, a memory probe will
+# then attempt to detect the installed amount of RAM.  If this probe
+# fails to detect >64MB RAM you will have to use the MAXMEM option.
+# The amount is in kilobytes, so for a machine with 128MB of RAM, it would
+# be 131072 (128 * 1024).
 #
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
