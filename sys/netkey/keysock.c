@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipsec.h"
 
-/* This code has derived from sys/net/rtsock.c on FreeBSD2.2.5 */
+/* This code has derived from sys/net/rtsock.c on FreeBSD 2.2.5 */
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -305,7 +305,7 @@ key_abort(struct socket *so)
  * derived from net/rtsock.c:rts_attach()
  */
 static int
-key_attach(struct socket *so, int proto, struct thread *td)
+key_attach(struct socket *so, int proto, struct thread *p)
 {
 	struct keycb *kp;
 	int s, error;
@@ -326,7 +326,7 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	 */
 	s = splnet();
 	so->so_pcb = (caddr_t)kp;
-	error = raw_usrreqs.pru_attach(so, proto, td);
+	error = raw_usrreqs.pru_attach(so, proto, p);
 	kp = (struct keycb *)sotorawcb(so);
 	if (error) {
 		free(kp, M_PCB);
@@ -354,11 +354,11 @@ key_attach(struct socket *so, int proto, struct thread *td)
  * derived from net/rtsock.c:rts_bind()
  */
 static int
-key_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
+key_bind(struct socket *so, struct sockaddr *nam, struct thread *p)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_bind(so, nam, td); /* xxx just EINVAL */
+	error = raw_usrreqs.pru_bind(so, nam, p); /* xxx just EINVAL */
 	splx(s);
 	return error;
 }
@@ -368,11 +368,11 @@ key_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
  * derived from net/rtsock.c:rts_connect()
  */
 static int
-key_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
+key_connect(struct socket *so, struct sockaddr *nam, struct thread *p)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_connect(so, nam, td); /* XXX just EINVAL */
+	error = raw_usrreqs.pru_connect(so, nam, p); /* XXX just EINVAL */
 	splx(s);
 	return error;
 }
@@ -435,11 +435,11 @@ key_peeraddr(struct socket *so, struct sockaddr **nam)
  */
 static int
 key_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct thread *td)
+	 struct mbuf *control, struct thread *p)
 {
 	int s, error;
 	s = splnet();
-	error = raw_usrreqs.pru_send(so, flags, m, nam, control, td);
+	error = raw_usrreqs.pru_send(so, flags, m, nam, control, p);
 	splx(s);
 	return error;
 }
@@ -473,7 +473,9 @@ key_sockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs key_usrreqs = {
-	key_abort, pru_accept_notsupp, key_attach, key_bind,
+	key_abort, pru_accept_notsupp,
+	key_attach,
+	key_bind,
 	key_connect,
 	pru_connect2_notsupp, pru_control_notsupp, key_detach,
 	key_disconnect, pru_listen_notsupp, key_peeraddr,
