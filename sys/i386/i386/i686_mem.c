@@ -618,5 +618,3 @@ i686_mem_drvinit(void *unused)
 }
 
 SYSINIT(i686memdev,SI_SUB_DRIVERS,SI_ORDER_FIRST,i686_mem_drvinit,NULL)
-
-	
