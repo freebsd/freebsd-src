@@ -75,7 +75,9 @@ static struct uts_runq runq2;
 static struct uts_data data3, data4;
 static struct kse_thr_mailbox	*aa;
 
+#ifdef TRACE_UTS
 static int progress = 0;
+#endif
 
 static void	init_uts(struct uts_data *data, struct uts_runq *q);
 static void	start_uts(struct uts_data *data, int newgrp);
@@ -85,12 +87,16 @@ static void	pfmt(const char *fmt, ...);
 static void	pstr(const char *s);
 static void	runq_init(struct uts_runq *q);
 static void	runq_insert(struct uts_runq *q, struct kse_thr_mailbox *tm);
-static struct kse_thr_mailbox *runq_remove(struct uts_runq *q);
-static struct kse_thr_mailbox *runq_remove_nolock(struct uts_runq *q);
+static struct	kse_thr_mailbox *runq_remove(struct uts_runq *q);
+static struct	kse_thr_mailbox *runq_remove_nolock(struct uts_runq *q);
 static void	thread_start(struct uts_data *data, const void *func, int arg);
 static void	uts(struct kse_mailbox *km);
 
-extern int uts_to_thread(struct kse_thr_mailbox *tdp, struct kse_thr_mailbox **curthreadp);
+/* Functions implemented in assembly */
+extern int	uts_to_thread(struct kse_thr_mailbox *tdp,
+			struct kse_thr_mailbox **curthreadp);
+extern int	thread_to_uts(struct kse_thr_mailbox *tm,
+			struct kse_mailbox *km);
 
 static void
 nano(int len)
@@ -192,7 +198,9 @@ init_uts(struct uts_data *data, struct uts_runq *q)
 	struct kse_thr_mailbox *tm;
 	int mib[2];
 	char	*p;
+#if 0
 	size_t len;
+#endif
 
 	/*
 	 * Create initial thread.
@@ -377,10 +385,12 @@ runq_remove_nolock(struct uts_runq *q)
 static void
 uts(struct kse_mailbox *km)
 {
+#ifdef TRACE_KSE
 	static struct uts_data *prev_data;
+#endif
 	struct kse_thr_mailbox *tm, *p;
 	struct uts_data *data;
-	int ret, i;
+	int i;
 
 	UPSTR("\n--uts() start--\n");
 	UPFMT("mailbox -> %x\n", km);
