@@ -1,4 +1,4 @@
-#	$Id: options,v 1.53 1998/01/31 07:23:03 eivind Exp $
+#	$Id: options,v 1.54 1998/02/04 03:47:13 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -96,6 +96,7 @@ SHMSEG		opt_param.h
 SCSIDEBUG		opt_scsi.h
 SCSI_DELAY		opt_scsi.h
 SCSI_REPORT_GEOMETRY	opt_scsi.h
+SCSI_2_DEF		opt_scsi.h
 
 # Options used only in scsi/od.c.
 OD_AUTO_TURNOFF		opt_od.h
