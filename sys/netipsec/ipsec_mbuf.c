@@ -60,7 +60,7 @@ m_clone(struct mbuf *m0)
 	struct mbuf *n, *mfirst, *mlast;
 	int len, off;
 
-	KASSERT(m0 != NULL, ("m_clone: null mbuf"));
+	IPSEC_ASSERT(m0 != NULL, ("null mbuf"));
 
 	mprev = NULL;
 	for (m = m0; m != NULL; m = mprev->m_next) {
@@ -105,8 +105,7 @@ m_clone(struct mbuf *m0)
 		 * it anyway, we try to reduce the number of mbufs and
 		 * clusters so that future work is easier).
 		 */
-		KASSERT(m->m_flags & M_EXT,
-			("m_clone: m_flags 0x%x", m->m_flags));
+		IPSEC_ASSERT(m->m_flags & M_EXT, ("m_flags 0x%x", m->m_flags));
 		/* NB: we only coalesce into a cluster or larger */
 		if (mprev != NULL && (mprev->m_flags & M_EXT) &&
 		    m->m_len <= M_TRAILINGSPACE(mprev)) {
@@ -208,8 +207,8 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 	struct mbuf *m;
 	unsigned remain;
 
-	KASSERT(m0 != NULL, ("m_dmakespace: null mbuf"));
-	KASSERT(hlen < MHLEN, ("m_makespace: hlen too big: %u", hlen));
+	IPSEC_ASSERT(m0 != NULL, ("null mbuf"));
+	IPSEC_ASSERT(hlen < MHLEN, ("hlen too big: %u", hlen));
 
 	for (m = m0; m && skip > m->m_len; m = m->m_next)
 		skip -= m->m_len;
@@ -228,8 +227,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 		struct mbuf *n;
 
 		/* XXX code doesn't handle clusters XXX */
-		KASSERT(remain < MLEN,
-			("m_makespace: remainder too big: %u", remain));
+		IPSEC_ASSERT(remain < MLEN, ("remainder too big: %u", remain));
 		/*
 		 * Not enough space in m, split the contents
 		 * of m, inserting new mbufs as required.
@@ -313,7 +311,7 @@ m_pad(struct mbuf *m, int n)
 	caddr_t retval;
 
 	if (n <= 0) {  /* No stupid arguments. */
-		DPRINTF(("m_pad: pad length invalid (%d)\n", n));
+		DPRINTF(("%s: pad length invalid (%d)\n", __func__, n));
 		m_freem(m);
 		return NULL;
 	}
@@ -323,14 +321,14 @@ m_pad(struct mbuf *m, int n)
 	m0 = m;
 
 	while (m0->m_len < len) {
-KASSERT(m0->m_next != NULL, ("m_pad: m0 null, len %u m_len %u", len, m0->m_len));/*XXX*/
 		len -= m0->m_len;
 		m0 = m0->m_next;
 	}
 
 	if (m0->m_len != len) {
-		DPRINTF(("m_pad: length mismatch (should be %d instead of %d)\n",
-		    m->m_pkthdr.len, m->m_pkthdr.len + m0->m_len - len));
+		DPRINTF(("%s: length mismatch (should be %d instead of %d)\n",
+			__func__, m->m_pkthdr.len,
+			m->m_pkthdr.len + m0->m_len - len));
 
 		m_freem(m);
 		return NULL;
@@ -339,10 +337,10 @@ KASSERT(m0->m_next != NULL, ("m_pad: m0 null, len %u m_len %u", len, m0->m_len))
 	/* Check for zero-length trailing mbufs, and find the last one. */
 	for (m1 = m0; m1->m_next; m1 = m1->m_next) {
 		if (m1->m_next->m_len != 0) {
-			DPRINTF(("m_pad: length mismatch (should be %d "
-			    "instead of %d)\n",
-			    m->m_pkthdr.len,
-			    m->m_pkthdr.len + m1->m_next->m_len));
+			DPRINTF(("%s: length mismatch (should be %d instead "
+				"of %d)\n", __func__,
+				m->m_pkthdr.len,
+				m->m_pkthdr.len + m1->m_next->m_len));
 
 			m_freem(m);
 			return NULL;
@@ -356,7 +354,7 @@ KASSERT(m0->m_next != NULL, ("m_pad: m0 null, len %u m_len %u", len, m0->m_len))
 		MGET(m1, M_DONTWAIT, MT_DATA);
 		if (m1 == 0) {
 			m_freem(m0);
-			DPRINTF(("m_pad: unable to get extra mbuf\n"));
+			DPRINTF(("%s: unable to get extra mbuf\n", __func__));
 			return NULL;
 		}
 

@@ -94,7 +94,7 @@ key_output(m, va_alist)
 	va_end(ap);
 
 	if (m == 0)
-		panic("key_output: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	pfkeystat.out_total++;
 	pfkeystat.out_bytes += m->m_pkthdr.len;
@@ -195,10 +195,10 @@ key_sendup(so, msg, len, target)
 
 	/* sanity check */
 	if (so == 0 || msg == 0)
-		panic("key_sendup: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	KEYDEBUG(KEYDEBUG_KEY_DUMP,
-		printf("key_sendup: \n");
+		printf("%s: \n", __func__);
 		kdebug_sadb(msg));
 
 	/*
@@ -283,7 +283,7 @@ key_sendup_mbuf(so, m, target)
 	if (m == NULL)
 		panic("key_sendup_mbuf: NULL pointer was passed.\n");
 	if (so == NULL && target == KEY_SENDUP_ONE)
-		panic("key_sendup_mbuf: NULL pointer was passed.\n");
+		panic("%s: NULL pointer was passed.\n", __func__);
 
 	pfkeystat.in_total++;
 	pfkeystat.in_bytes += m->m_pkthdr.len;

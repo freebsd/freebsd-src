@@ -89,15 +89,13 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	struct secasindex *saidx;
 	int error;
 
-#if 0
-	SPLASSERT(net, "ipsec_process_done");
-#endif
+	IPSEC_SPLASSERT_SOFTNET(__func__);
 
-	KASSERT(m != NULL, ("ipsec_process_done: null mbuf"));
-	KASSERT(isr != NULL, ("ipsec_process_done: null ISR"));
+	IPSEC_ASSERT(m != NULL, ("null mbuf"));
+	IPSEC_ASSERT(isr != NULL, ("null ISR"));
 	sav = isr->sav;
-	KASSERT(sav != NULL, ("ipsec_process_done: null SA"));
-	KASSERT(sav->sah != NULL, ("ipsec_process_done: null SAH"));
+	IPSEC_ASSERT(sav != NULL, ("null SA"));
+	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
 
 	saidx = &sav->sah->saidx;
 	switch (saidx->dst.sa.sa_family) {
@@ -124,7 +122,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		break;
 #endif /* INET6 */
 	default:
-		DPRINTF(("ipsec_process_done: unknown protocol family %u\n",
+		DPRINTF(("%s: unknown protocol family %u\n", __func__,
 		    saidx->dst.sa.sa_family));
 		error = ENXIO;
 		goto bad;
@@ -137,7 +135,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	mtag = m_tag_get(PACKET_TAG_IPSEC_OUT_DONE,
 			sizeof(struct tdb_ident), M_NOWAIT);
 	if (mtag == NULL) {
-		DPRINTF(("ipsec_process_done: could not get packet tag\n"));
+		DPRINTF(("%s: could not get packet tag\n", __func__));
 		error = ENOMEM;
 		goto bad;
 	}
@@ -205,11 +203,11 @@ ipsec_nextisr(
 			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
 	struct secasvar *sav;
 
-#if 0
-	SPLASSERT(net, "ipsec_nextisr");
-#endif
-	KASSERT(af == AF_INET || af == AF_INET6,
-		("ipsec_nextisr: invalid address family %u", af));
+	IPSEC_SPLASSERT_SOFTNET(__func__);
+	IPSECREQUEST_LOCK_ASSERT(isr);
+
+	IPSEC_ASSERT(af == AF_INET || af == AF_INET6,
+		("invalid address family %u", af));
 again:
 	/*
 	 * Craft SA index to search for proper SA.  Note that
@@ -287,15 +285,17 @@ again:
 	}
 	sav = isr->sav;
 	if (sav == NULL) {		/* XXX valid return */
-		KASSERT(ipsec_get_reqlevel(isr) == IPSEC_LEVEL_USE,
-			("ipsec_nextisr: no SA found, but required; level %u",
+		IPSEC_ASSERT(ipsec_get_reqlevel(isr) == IPSEC_LEVEL_USE,
+			("no SA found, but required; level %u",
 			ipsec_get_reqlevel(isr)));
+		IPSECREQUEST_UNLOCK(isr);
 		isr = isr->next;
 		if (isr == NULL) {
 			/*XXXstatistic??*/
 			*error = EINVAL;		/*XXX*/
 			return isr;
 		}
+		IPSECREQUEST_LOCK(isr);
 		goto again;
 	}
 
@@ -305,8 +305,8 @@ again:
 	if ((isr->saidx.proto == IPPROTO_ESP && !esp_enable) ||
 	    (isr->saidx.proto == IPPROTO_AH && !ah_enable) ||
 	    (isr->saidx.proto == IPPROTO_IPCOMP && !ipcomp_enable)) {
-		DPRINTF(("ipsec_nextisr: IPsec outbound packet dropped due"
-			" to policy (check your sysctls)\n"));
+		DPRINTF(("%s: IPsec outbound packet dropped due"
+			" to policy (check your sysctls)\n", __func__));
 		IPSEC_OSTAT(espstat.esps_pdrops, ahstat.ahs_pdrops,
 		    ipcompstat.ipcomps_pdrops);
 		*error = EHOSTUNREACH;
@@ -318,7 +318,7 @@ again:
 	 * before they invoke the xform output method.
 	 */
 	if (sav->tdb_xform == NULL) {
-		DPRINTF(("ipsec_nextisr: no transform for SA\n"));
+		DPRINTF(("%s: no transform for SA\n", __func__));
 		IPSEC_OSTAT(espstat.esps_noxform, ahstat.ahs_noxform,
 		    ipcompstat.ipcomps_noxform);
 		*error = EHOSTUNREACH;
@@ -326,7 +326,8 @@ again:
 	}
 	return isr;
 bad:
-	KASSERT(*error != 0, ("ipsec_nextisr: error return w/ no error code"));
+	IPSEC_ASSERT(*error != 0, ("error return w/ no error code"));
+	IPSECREQUEST_UNLOCK(isr);
 	return NULL;
 #undef IPSEC_OSTAT
 }
@@ -347,10 +348,10 @@ ipsec4_process_packet(
 	struct ip *ip;
 	int error, i, off;
 
-	KASSERT(m != NULL, ("ipsec4_process_packet: null mbuf"));
-	KASSERT(isr != NULL, ("ipsec4_process_packet: null isr"));
+	IPSEC_ASSERT(m != NULL, ("null mbuf"));
+	IPSEC_ASSERT(isr != NULL, ("null isr"));
 
-	mtx_lock(&isr->lock);		/* insure SA contents don't change */
+	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
 
 	isr = ipsec_nextisr(m, isr, AF_INET, &saidx, &error);
 	if (isr == NULL)
@@ -420,8 +421,8 @@ ipsec4_process_packet(
 			error = ipip_output(m, isr, &mp, 0, 0);
 			if (mp == NULL && !error) {
 				/* Should never happen. */
-				DPRINTF(("ipsec4_process_packet: ipip_output "
-					"returns no mbuf and no error!"));
+				DPRINTF(("%s: ipip_output returns no mbuf and "
+					"no error!", __func__));
 				error = EFAULT;
 			}
 			if (error) {
@@ -469,10 +470,11 @@ ipsec4_process_packet(
 	} else {
 		error = ipsec_process_done(m, isr);
 	}
-	mtx_unlock(&isr->lock);
+	IPSECREQUEST_UNLOCK(isr);
 	return error;
 bad:
-	mtx_unlock(&isr->lock);
+	if (isr)
+		IPSECREQUEST_UNLOCK(isr);
 	if (m)
 		m_freem(m);
 	return error;
@@ -490,8 +492,8 @@ ipsec6_splithdr(struct mbuf *m)
 	struct ip6_hdr *ip6;
 	int hlen;
 
-	KASSERT(m->m_len >= sizeof (struct ip6_hdr),
-		("ipsec6_splithdr: first mbuf too short, len %u", m->m_len));
+	IPSEC_ASSERT(m->m_len >= sizeof (struct ip6_hdr),
+		("first mbuf too short, len %u", m->m_len));
 	ip6 = mtod(m, struct ip6_hdr *);
 	hlen = sizeof(struct ip6_hdr);
 	if (m->m_len > hlen) {
@@ -533,15 +535,15 @@ ipsec6_output_trans(
 	int error = 0;
 	struct mbuf *m;
 
-	KASSERT(state != NULL, ("ipsec6_output: null state"));
-	KASSERT(state->m != NULL, ("ipsec6_output: null m"));
-	KASSERT(nexthdrp != NULL, ("ipsec6_output: null nexthdrp"));
-	KASSERT(mprev != NULL, ("ipsec6_output: null mprev"));
-	KASSERT(sp != NULL, ("ipsec6_output: null sp"));
-	KASSERT(tun != NULL, ("ipsec6_output: null tun"));
+	IPSEC_ASSERT(state != NULL, ("null state"));
+	IPSEC_ASSERT(state->m != NULL, ("null m"));
+	IPSEC_ASSERT(nexthdrp != NULL, ("null nexthdrp"));
+	IPSEC_ASSERT(mprev != NULL, ("null mprev"));
+	IPSEC_ASSERT(sp != NULL, ("null sp"));
+	IPSEC_ASSERT(tun != NULL, ("null tun"));
 
 	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("ipsec6_output_trans: applyed SP\n");
+		printf("%s: applyed SP\n", __func__);
 		kdebug_secpolicy(sp));
 
 	isr = sp->req;
@@ -596,8 +598,8 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 		m_freem(m);
 		return EINVAL;
 	}
-	KASSERT(m->m_len != sizeof (struct ip6_hdr),
-		("ipsec6_encapsulate: mbuf wrong size; len %u", m->m_len));
+	IPSEC_ASSERT(m->m_len != sizeof (struct ip6_hdr),
+		("mbuf wrong size; len %u", m->m_len));
 
 
 	/*
@@ -662,12 +664,12 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 	struct sockaddr_in6* dst6;
 	struct mbuf *m;
 
-	KASSERT(state != NULL, ("ipsec6_output: null state"));
-	KASSERT(state->m != NULL, ("ipsec6_output: null m"));
-	KASSERT(sp != NULL, ("ipsec6_output: null sp"));
+	IPSEC_ASSERT(state != NULL, ("null state"));
+	IPSEC_ASSERT(state->m != NULL, ("null m"));
+	IPSEC_ASSERT(sp != NULL, ("null sp"));
 
 	KEYDEBUG(KEYDEBUG_IPSEC_DATA,
-		printf("ipsec6_output_tunnel: applyed SP\n");
+		printf("%s: applyed SP\n", __func__);
 		kdebug_secpolicy(sp));
 
 	m = state->m;
@@ -693,8 +695,8 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		 */
 		/* XXX should be processed with other familiy */
 		if (isr->sav->sah->saidx.src.sa.sa_family != AF_INET6) {
-			ipseclog((LOG_ERR, "ipsec6_output_tunnel: "
-			    "family mismatched between inner and outer, spi=%u\n",
+			ipseclog((LOG_ERR, "%s: family mismatched between "
+			    "inner and outer, spi=%u\n", __func__,
 			    ntohl(isr->sav->spi)));
 			newipsecstat.ips_out_inval++;
 			error = EAFNOSUPPORT;
