@@ -21,7 +21,10 @@ struct	nfs_diskless nfsdiskless;
 int	hostnamelen;
 char	config_buffer[512];		/* Max TFTP packet */
 struct	bootinfo bootinfo;
+int	root_nfs_port;
 unsigned long	netmask;
+char	kernel_handle[32];
+int 	offset;
 
 extern char eth_driver[];
 extern	char packet[];
@@ -67,6 +70,29 @@ main()
 	}
 }
 
+void
+nfsload(length)
+{
+	int err, read_size;
+
+	while (length > 0) {
+		read_size = length > NFS_READ_SIZE ?
+				NFS_READ_SIZE : length;
+		if ((err = nfs_read(ARP_ROOTSERVER, root_nfs_port,
+			&kernel_handle, offset, read_size, loadpoint)) !=
+				read_size) {
+			if (err < 0) {
+				printf("Unable to read data: ");
+				nfs_err(err);
+			}
+			longjmp(jmp_bootmenu, 1);
+		}
+		loadpoint += err;
+		length -= err;
+		offset += err;
+	}
+}
+
 /**************************************************************************
 LOAD - Try to get booted
 **************************************************************************/
@@ -74,14 +100,13 @@ load()
 {
 	char	*p,*q;
 	char	cfg[64];
-	int	root_nfs_port;
 	int	root_mount_port;
 	int	swap_nfs_port;
 	int	swap_mount_port;
-	char	kernel_handle[32];
 	char	cmd_line[80];
-	int	err, offset, read_size;
+	int	err, read_size, i;
 	long	addr, broadcast;
+	unsigned long pad;
 
 /* Initialize this early on */
 
@@ -252,43 +277,36 @@ cfg_done:
 	loadpoint = (char *)0x100000;
 	offset = N_TXTOFF(head);
 	printf("text=0x%X, ",head.a_text);
-	while (head.a_text > 0) {
-		read_size = head.a_text > NFS_READ_SIZE ?
-				NFS_READ_SIZE : head.a_text;
-		if ((err = nfs_read(ARP_ROOTSERVER, root_nfs_port,
-			&kernel_handle, offset, read_size, loadpoint)) !=
-				read_size) {
-			if (err < 0) {
-				printf("Unable to read text: ");
-				nfs_err(err);
-			}
-			longjmp(jmp_bootmenu, 1);
-		}
-		loadpoint += err;
-		head.a_text -= err;
-		offset += err;
-	}
+	nfsload(head.a_text);
 	while (((int)loadpoint) & CLOFSET)
 		*(loadpoint++) = 0;
+
 	printf("data=0x%X, ",head.a_data);
-	while (head.a_data > 0) {
-		read_size = head.a_data > NFS_READ_SIZE ?
-				NFS_READ_SIZE : head.a_data;
-		if ((err = nfs_read(ARP_ROOTSERVER, root_nfs_port,
-			&kernel_handle, offset, read_size, loadpoint)) !=
-				read_size) {
-			if (err < 0) {
-				printf("Unable to read data: ");
-				nfs_err(err);
-			}
-			longjmp(jmp_bootmenu, 1);
-		}
-		loadpoint += err;
-		head.a_data -= err;
-		offset += err;
-	}
+	nfsload(head.a_data);
+
 	printf("bss=0x%X, ",head.a_bss);
 	while(head.a_bss--) *(loadpoint++) = 0;
+
+	while (((int)loadpoint) & CLOFSET)
+		*(loadpoint++) = 0;
+
+	bootinfo.bi_symtab = (int) loadpoint;
+
+	p = (char*)&head.a_syms;
+	for (i=0;i<sizeof(head.a_syms);i++)
+		*loadpoint++ = *p++;
+
+	printf("symbols=[+0x%x+0x%x", sizeof(head.a_syms), head.a_syms);
+	
+	nfsload(head.a_syms);
+	i = sizeof(int);
+	p = loadpoint;
+	nfsload(i);
+	i = *(int*)p;
+	printf("+0x%x]\n", i);
+	i -= sizeof(int);
+	nfsload(i);
+	bootinfo.bi_esymtab = (int) loadpoint;
 
 	printf("entry=0x%X.\n\r",head.a_entry);
 
@@ -296,8 +314,9 @@ cfg_done:
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_kernelname = kernel;
 	bootinfo.bi_nfs_diskless = &nfsdiskless;
+	bootinfo.bi_size = sizeof bootinfo;
 	kernelentry = (void *)(head.a_entry & 0x00FFFFFF);
-	(*kernelentry)(0,NODEV,0,0,0,&bootinfo,0,0,0);
+	(*kernelentry)(RB_BOOTINFO,NODEV,0,0,0,&bootinfo,0,0,0);
 	printf("*** %s execute failure ***\n",kernel);
 }
 

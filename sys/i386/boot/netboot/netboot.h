@@ -7,6 +7,7 @@ Author: Martin Renters
 **************************************************************************/
 
 #include <sys/types.h>
+#include <sys/reboot.h>
 #include <a.out.h>
 #include <netdb.h>
 #include <sys/param.h>
