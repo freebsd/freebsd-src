@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.16 1995/02/22 09:39:22 davidg Exp $
+ * $Id: vfs_subr.c,v 1.17 1995/02/27 06:50:08 davidg Exp $
  */
 
 /*
@@ -370,9 +370,8 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
 	}
-	cache_purge(vp);
 	vp->v_type = VNON;
-	vp->v_rdev = NODEV;
+	cache_purge(vp);
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	insmntque(vp, mp);
