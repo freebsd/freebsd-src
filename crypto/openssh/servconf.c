@@ -680,6 +680,7 @@ parse_flag:
 			break;
 
 		case sConnectionsPerPeriod:
+			(void)strdelim(&cp);
 			error("ConnectionsPerPeriod has been deprecated!");
 			break;
 
