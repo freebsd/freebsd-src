@@ -113,7 +113,7 @@ dec_kn300_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/*
 		 * Delay to allow PROM putchars to complete.

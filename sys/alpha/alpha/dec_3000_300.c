@@ -46,10 +46,10 @@ void dec_3000_300_init(int);
 static void dec_3000_300_cons_init(void);
 
 static const struct alpha_variation_table dec_3000_300_variations[] = {
-        { SV_ST_PELICAN, "DEC 3000/300 (\"Pelican\")" },
-        { SV_ST_PELICA, "DEC 3000/300L (\"Pelica\")" },
-        { SV_ST_PELICANPLUS, "DEC 3000/300X (\"Pelican+\")" },
-        { SV_ST_PELICAPLUS, "DEC 3000/300LX (\"Pelica+\")" },
+	{ SV_ST_PELICAN, "DEC 3000/300 (\"Pelican\")" },
+	{ SV_ST_PELICA, "DEC 3000/300L (\"Pelica\")" },
+	{ SV_ST_PELICANPLUS, "DEC 3000/300X (\"Pelican+\")" },
+	{ SV_ST_PELICAPLUS, "DEC 3000/300LX (\"Pelica+\")" },
 	{ 0, NULL },
 };
 
@@ -78,5 +78,6 @@ dec_3000_300_init(int cputype)
 static void
 dec_3000_300_cons_init(void)
 {
+
 	return;
 }

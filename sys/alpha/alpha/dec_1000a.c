@@ -43,17 +43,17 @@
  * All rights reserved.
  *
  * Author: Chris G. Demetriou
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -68,7 +68,7 @@
  * Additional Copyright (c) 1997 by Matthew Jacob for NASA/Ames Research Center
  */
 /*
- * Additional Copyright (c) 1999 by Andrew Gallatin 
+ * Additional Copyright (c) 1999 by Andrew Gallatin
  *
  * $FreeBSD$
  */
@@ -163,7 +163,9 @@ dec_1000a_init(int cputype)
 	platform.cons_init = dec_1000a_cons_init;
 }
 
-extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
+/* XXX for forcing comconsole when srm serial console is used */
+extern int comconsole;
+
 static void
 dec_1000a_cons_init()
 {
@@ -182,20 +184,20 @@ dec_1000a_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/* XXX */
 		{
 			/*
 			 * Delay to allow PROM putchars to complete.
 			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10))
+			 * character time = (1000000 / (defaultrate / 10)).
 			 */
 			DELAY(160000000 / comcnrate);
 
-                        /* 
-                         * force a comconsole on com1 if the SRM has a serial
-			 * console
+                        /*
+                         * Force a comconsole on com1 if the SRM has a serial
+			 * console.
                          */
                         comconsole = 0;
 			if (siocnattach(0x3f8, comcnrate))
@@ -220,7 +222,7 @@ dec_1000a_cons_init()
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
 		panic("consinit: unknown console type %d\n",
-		    (int) ctb->ctb_term_type);
+		    (int)ctb->ctb_term_type);
 	}
 }
 
@@ -229,8 +231,9 @@ static void
 dec_1000_intr_map(arg)
 	void *arg;
 {
-	pcicfgregs *cfg = (pcicfgregs *)arg;
+	pcicfgregs *cfg;
 
+	cfg = (pcicfgregs *)arg;
 	if (cfg->intpin == 0)	/* No IRQ used. */
 		return;
 	if (!(1 <= cfg->intpin && cfg->intpin <= 4))
@@ -251,26 +254,27 @@ dec_1000_intr_map(arg)
 		break;
 	}
 bad:	printf("dec_1000_intr_map: can't map dev %d pin %d\n",
-                cfg->slot, cfg->intpin);
+	    cfg->slot, cfg->intpin);
 }
 
 
 /*
  * Read and write the mystery ICU IMR registers
- * on the AlphaServer 1000
+ * on the AlphaServer 1000.
  */
 
 #define IR() 	inw(0x536)
 #define IW(x)	outw(0x536, (x))
 
 /*
- * Enable and disable interrupts at the ICU level
+ * Enable and disable interrupts at the ICU level.
  */
 
 static void
 dec_1000_intr_enable(irq)
 	int irq;
 {
+
 	IW(IR() | 1 << irq);
 }
 
@@ -278,6 +282,7 @@ static void
 dec_1000_intr_disable(irq)
 	int irq;
 {
+
 	IW(IR() & ~(1 << irq));
 }
 
@@ -285,19 +290,20 @@ dec_1000_intr_disable(irq)
 static void
 dec_1000_intr_init()
 {
-/*
- * Initialize mystery ICU
- */
+	/*
+ 	 * Initialize mystery ICU.
+ 	 */
 	IW(0);					/* XXX ?? */	
-/*
- * Enable cascade interrupt.
- */
+
+	/*
+ 	 * Enable cascade interrupt.
+ 	 */
 	dec_1000_intr_enable(2);
 }
 
 /*
  * Read and write the mystery ICU IMR registers
- * on the AlphaServer 1000a
+ * on the AlphaServer 1000a.
  */
 
 #define IRA(o) 		inw(0x54a + 2*(o))
@@ -305,15 +311,14 @@ dec_1000_intr_init()
 #define IMR2IRQ(bn) 	((bn) - 1)
 #define IRQ2IMR(irq) 	((irq) + 1)
 
-static void 
+static void
 dec_1000a_intr_map(arg)
 	void *arg;
 {
-	pcicfgregs *cfg = (pcicfgregs *)arg;
-	int device = cfg->slot;
-	int imrbit;
+	pcicfgregs *cfg;
+	int device, imrbit;
 	/*
-	 * Get bit number in mystery ICU imr
+	 * Get bit number in mystery ICU imr.
 	 */
 	static const signed char imrmap[][4] = {
 #		define	IRQSPLIT(o) { (o), (o)+1, (o)+16, (o)+16+1 }
@@ -335,6 +340,9 @@ dec_1000a_intr_map(arg)
 		/* 14  */ IRQSPLIT(8)		/* Corelle */
 	};
 
+	cfg = (pcicfgregs *)arg;
+	device = cfg->slot;
+
 	if (cfg->intpin == 0)	/* No IRQ used. */
 		return;
 	if (!(1 <= cfg->intpin && cfg->intpin <= 4))
@@ -347,7 +355,8 @@ dec_1000a_intr_map(arg)
 			return;
 		}
 	}
-bad:	printf("dec_1000a_intr_map: can't map dev %d pin %d\n", device, cfg->intpin);
+bad:	printf("dec_1000a_intr_map: can't map dev %d pin %d\n",
+	    device, cfg->intpin);
 }
 
 
@@ -357,20 +366,24 @@ static void
 dec_1000a_intr_enable(irq)
 	int irq;
 {
-	int imrval = IRQ2IMR(irq);
-	int i = imrval >= 16;
+	int imrval, i;
+
+	imrval = IRQ2IMR(irq);
+	i = imrval >= 16;
 
 	IWA(i, IRA(i) | 1 << (imrval & 0xf));
 }
 
 
 
-static void 
+static void
 dec_1000a_intr_disable(irq)
 	int irq;
 {
-	int imrval = IRQ2IMR(irq);
-	int i = imrval >= 16;
+	int imrval, i;
+
+	imrval = IRQ2IMR(irq);
+	i = imrval >= 16;
 
 	IWA(i, IRA(i) & ~(1 << (imrval & 0xf)));
 }
@@ -380,14 +393,13 @@ dec_1000a_intr_init()
 {
 
 /*
- * Initialize mystery ICU
+ * Initialize mystery ICU.
  */
+	IWA(0, IRA(0) & 1);
+	IWA(1, IRA(0) & 3);
 
-        IWA(0, IRA(0) & 1);
-        IWA(1, IRA(0) & 3);
 /*
  * Enable cascade interrupt.
- */	
+ */
 	dec_1000_intr_enable(2);
 }
-

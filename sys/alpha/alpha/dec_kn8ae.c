@@ -84,6 +84,7 @@ dec_kn8ae_init(int cputype)
 static void
 dec_kn8ae_cons_init(void)
 {
+
 	boothowto |= RB_SERIAL;
 	zs_cnattach(TLSB_GBUS_BASE, GBUS_DUART0_OFFSET);
 }
