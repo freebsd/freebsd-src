@@ -1025,3 +1025,12 @@ ether_resolvemulti(ifp, llsa, sa)
 		return EAFNOSUPPORT;
 	}
 }
+
+static moduledata_t ether_mod = {
+        "ether",
+        NULL,
+        0
+};
+                
+DECLARE_MODULE(ether, ether_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(ether, 1);
