@@ -39,6 +39,10 @@
 #define	OP_REMOVE_EXT		0x02	/* remove extended acl's (-b) */
 #define	OP_REMOVE_ACL		0x03	/* remove acl's (-xX) */
 
+/* ACL types for the acl array */
+#define ACCESS_ACL	0
+#define DEFAULT_ACL	1
+
 /* TAILQ entry for acl operations */
 struct sf_entry {
 	uint	op;
