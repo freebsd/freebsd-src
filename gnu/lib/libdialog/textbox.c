@@ -618,7 +618,7 @@ static unsigned char *get_line(void)
  */
 static int get_search_term(WINDOW *win, unsigned char *search_term, int height, int width)
 {
-  int i, x, y, input_x = 0, scroll = 0, key = 0,
+  int x, y, key = 0, first,
       box_height = 3, box_width = 30;
 
   x = (width - box_width)/2;
@@ -633,55 +633,19 @@ static int get_search_term(WINDOW *win, unsigned char *search_term, int height, 
   waddstr(win, " Search ");
 
   box_width -= 2;
-  wmove(win, y+1, x+1);
-  wrefresh(win);
   search_term[0] = '\0';
-  wattrset(win, searchbox_attr);
+
+  first = 1;
   while (key != ESC) {
-    key = wgetch(win);
+    key = line_edit(win, y+1, x+1, box_width, searchbox_attr, first, search_term);
+    first = 0;
     switch (key) {
       case '\n':
         if (search_term[0] != '\0')
           return 0;
         break;
-      case KEY_BACKSPACE:
-        if (input_x || scroll) {
-          if (!input_x) {
-            scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
-            wmove(win, y+1, x+1);
-            for (i = 0; i < box_width; i++)
-              waddch(win, search_term[scroll+input_x+i] ?
-                            search_term[scroll+input_x+i] : ' ');
-            input_x = strlen(search_term) - scroll;
-          }
-          else
-            input_x--;
-          search_term[scroll+input_x] = '\0';
-          wmove(win, y+1, input_x + x+1);
-          waddch(win, ' ');
-          wmove(win, y+1, input_x + x+1);
-          wrefresh(win);
-        }
-        break;
       case ESC:
-        break;
-      default:
-        if (isprint(key))
-          if (scroll+input_x < MAX_LEN) {
-            search_term[scroll+input_x] = key;
-            search_term[scroll+input_x+1] = '\0';
-            if (input_x == box_width-1) {
-              scroll++;
-              wmove(win, y+1, x+1);
-              for (i = 0; i < box_width-1; i++)
-                waddch(win, search_term[scroll+i]);
-            }
-            else {
-              wmove(win, y+1, input_x++ + x+1);
-              waddch(win, key);
-            }
-            wrefresh(win);
-          }
+	break;
     }
   }
 
