@@ -172,7 +172,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
-#if !defined(SMP)
+#if defined(KERNEL) && !defined(SMP)
 
 /*
  * We assume that a = b will do atomic loads and stores.  However, on a
@@ -191,7 +191,6 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile("" : : : "memory");		\
 	*p = v;						\
 }							\
 struct __hack
