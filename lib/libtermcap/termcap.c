@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -133,7 +135,8 @@ othersyscall:
 		int unsafe;
 
 		if (use_issetugid == 1) {
-			bzero(&sa, sizeof(sa));
+			sigemptyset(&sa.sa_mask);
+			sa.sa_flags = 0;
 			sa.sa_handler = SIG_IGN;
 			if (sigaction(SIGSYS, &sa, &osa) >= 0)
 				sigsys_installed = 1;
