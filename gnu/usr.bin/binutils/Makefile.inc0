@@ -8,7 +8,6 @@ VERSION=	"2.12.1 [FreeBSD] 2002-07-20"
 VERSION_DATE=	20020720
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-BINUTIL_ARCH=	${TARGET_ARCH}
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
@@ -23,18 +22,18 @@ WARNS=	2
 .endif
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I.
-.if exists(${.CURDIR}/${BINUTIL_ARCH})
-CFLAGS+= -I${.CURDIR}/${BINUTIL_ARCH}
+.if exists(${.CURDIR}/${TARGET_ARCH})
+CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
 .endif
 CFLAGS+= -I${.CURDIR}
-CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd/${BINUTIL_ARCH}
+CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd/${TARGET_ARCH}
 CFLAGS+= -I${SRCDIR}/include
 
-.if exists(${.CURDIR}/${BINUTIL_ARCH})
-.PATH: ${.CURDIR}/${BINUTIL_ARCH}
+.if exists(${.CURDIR}/${TARGET_ARCH})
+.PATH: ${.CURDIR}/${TARGET_ARCH}
 .endif
 
-ARCHS=	${BINUTIL_ARCH}
+ARCHS=	${TARGET_ARCH}
 
 .for _arch in ${CROSS_ARCH}
 .if (${ARCHS:R:M${_arch:R}} == "")
