@@ -271,7 +271,10 @@ union_newsize(vp, uppersz, lowersz)
 	if (sz != VNOVAL) {
 		UDEBUG(("union: %s size now %ld\n",
 			(uppersz != VNOVAL ? "upper" : "lower"), (long)sz));
-		vnode_pager_setsize(vp, sz);
+		/*
+		 * There is no need to change size of non-existent object
+		 */
+		/* vnode_pager_setsize(vp, sz); */
 	}
 }
 
@@ -1282,40 +1285,6 @@ union_dircache(vp, p)
 out:
 	VOP_UNLOCK(vp, 0, p);
 	return (nvp);
-}
-
-/*
- * Guarentee coherency with the VM cache by invalidating any clean VM pages
- * associated with this write and updating any dirty VM pages.  Since our
- * vnode is locked, other processes will not be able to read the pages in
- * again until after our write completes.
- *
- * We also have to be coherent with reads, by flushing any pending dirty
- * pages prior to issuing the read.
- *
- * XXX this is somewhat of a hack at the moment.  To support this properly
- * we would have to be able to run VOP_READ and VOP_WRITE through the VM
- * cache.  Then we wouldn't need to worry about coherency.
- */
-
-void 
-union_vm_coherency(struct vnode *vp, struct uio *uio, int cleanfls)
-{
-	vm_object_t object;
-	vm_pindex_t pstart;
-	vm_pindex_t pend;
-	int pgoff;
-
-	if ((object = vp->v_object) == NULL)
-	    return;
-
-	pgoff = uio->uio_offset & PAGE_MASK;
-	pstart = uio->uio_offset / PAGE_SIZE;
-	pend = pstart + (uio->uio_resid + pgoff + PAGE_MASK) / PAGE_SIZE;
-
-	vm_object_page_clean(object, pstart, pend, OBJPC_SYNC);
-	if (cleanfls)
-		vm_object_page_remove(object, pstart, pend, TRUE);
 }
 
 /*

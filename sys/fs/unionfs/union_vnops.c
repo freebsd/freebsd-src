@@ -71,8 +71,11 @@ static int	union_access __P((struct vop_access_args *ap));
 static int	union_advlock __P((struct vop_advlock_args *ap));
 static int	union_close __P((struct vop_close_args *ap));
 static int	union_create __P((struct vop_create_args *ap));
+static int	union_createvobject __P((struct vop_createvobject_args *ap));
+static int	union_destroyvobject __P((struct vop_destroyvobject_args *ap));
 static int	union_fsync __P((struct vop_fsync_args *ap));
 static int	union_getattr __P((struct vop_getattr_args *ap));
+static int	union_getvobject __P((struct vop_getvobject_args *ap));
 static int	union_inactive __P((struct vop_inactive_args *ap));
 static int	union_ioctl __P((struct vop_ioctl_args *ap));
 static int	union_lease __P((struct vop_lease_args *ap));
@@ -1029,9 +1032,6 @@ union_read(ap)
 	uvp = union_lock_other(un, p);
 	KASSERT(uvp != NULL, ("union_read: backing vnode missing!"));
 
-	if (ap->a_vp->v_flag & VOBJBUF)
-		union_vm_coherency(ap->a_vp, ap->a_uio, 0);
-
 	error = VOP_READ(uvp, ap->a_uio, ap->a_ioflag, ap->a_cred);
 	union_unlock_other(uvp, p);
 
@@ -1072,27 +1072,6 @@ union_write(ap)
 
 	if ((uppervp = union_lock_upper(un, p)) == NULLVP)
 		panic("union: missing upper layer in write");
-
-	/*
-	 * Since our VM pages are associated with our vnode rather then
-	 * the real vnode, and since we do not run our reads and writes 
-	 * through our own VM cache, we have a VM/VFS coherency problem. 
-	 * We solve them by invalidating or flushing the associated VM
-	 * pages prior to allowing a normal read or write to occur.
-	 *
-	 * VM-backed writes (UIO_NOCOPY) have to be converted to normal
-	 * writes because we are not cache-coherent.  Normal writes need
-	 * to be made coherent with our VM-backing store, which we do by
-	 * first flushing any dirty VM pages associated with the write
-	 * range, and then destroying any clean VM pages associated with
-	 * the write range.
-	 */
-
-	if (ap->a_uio->uio_segflg == UIO_NOCOPY) {
-		ap->a_uio->uio_segflg = UIO_SYSSPACE;
-	} else if (ap->a_vp->v_flag & VOBJBUF) {
-		union_vm_coherency(ap->a_vp, ap->a_uio, 1);
-	}
 
 	error = VOP_WRITE(uppervp, ap->a_uio, ap->a_ioflag, ap->a_cred);
 
@@ -1792,6 +1771,56 @@ union_unlock(ap)
 	return(error);
 }
 
+/*
+ * unionvp do not hold a VM object and there is no need to create one for
+ * upper or lower vp because it is done in the union_open()
+ */
+static int
+union_createvobject(ap)
+	struct vop_createvobject_args /* {
+		struct vnode *vp;
+		struct ucred *cred;
+		struct proc *p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vp->v_flag |= VOBJBUF;
+	return (0);
+}
+
+/*
+ * We have nothing to destroy and this operation shouldn't be bypassed.
+ */
+static int
+union_destroyvobject(ap)
+	struct vop_destroyvobject_args /* {
+		struct vnode *vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vp->v_flag &= ~VOBJBUF;
+	return (0);
+}
+
+/*
+ * Get VM object from the upper or lower vp
+ */
+static int
+union_getvobject(ap)
+	struct vop_getvobject_args /* {
+		struct vnode *vp;
+		struct vm_object **objpp;
+	} */ *ap;
+{
+	struct vnode *ovp = OTHERVP(ap->a_vp);
+
+	if (ovp == NULL)
+		return EINVAL;
+	return (VOP_GETVOBJECT(ovp, ap->a_objpp));
+}
+
 static int
 union_print(ap)
 	struct vop_print_args /* {
@@ -1888,8 +1917,11 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_bmap_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_close_desc,		(vop_t *) union_close },
 	{ &vop_create_desc,		(vop_t *) union_create },
+	{ &vop_createvobject_desc,	(vop_t *) union_createvobject },
+	{ &vop_destroyvobject_desc,	(vop_t *) union_destroyvobject },
 	{ &vop_fsync_desc,		(vop_t *) union_fsync },
 	{ &vop_getattr_desc,		(vop_t *) union_getattr },
+	{ &vop_getvobject_desc,		(vop_t *) union_getvobject },
 	{ &vop_inactive_desc,		(vop_t *) union_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) union_ioctl },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
