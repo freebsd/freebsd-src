@@ -34,56 +34,97 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/sx.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
 
 struct umtx_q {
 	LIST_ENTRY(umtx_q)	uq_next;	/* Linked list for the hash. */
-	TAILQ_HEAD(, thread) uq_tdq;	/* List of threads blocked here. */
-	struct umtx	*uq_umtx;	/* Pointer key component. */
-	pid_t		uq_pid;		/* Pid key component. */
+	TAILQ_HEAD(, thread)	uq_tdq;		/* List of threads blocked here. */
+	struct umtx		*uq_umtx;	/* Pointer key component. */
+	pid_t			uq_pid;		/* Pid key component. */
+	int			uq_count;	/* How many threads blocked. */
 };
 
-#define	UMTX_QUEUES	128
-#define	UMTX_HASH(pid, umtx)						\
-    (((uintptr_t)pid + ((uintptr_t)umtx & ~65535)) % UMTX_QUEUES)
-
 LIST_HEAD(umtx_head, umtx_q);
-static struct umtx_head queues[UMTX_QUEUES];
+struct umtxq_chain {
+	struct mtx		uc_lock;	/* lock for this chain. */
+	struct umtx_head	uc_queues;	/* List of sleep queues. */
+};
+
+#define	GOLDEN_RATIO_PRIME	2654404609U
+#define	UMTX_CHAINS		128
+#define	UMTX_SHIFTS		(__WORD_BIT - 7)
+
+static struct umtxq_chain umtxq_chains[UMTX_CHAINS];
 static MALLOC_DEFINE(M_UMTX, "umtx", "UMTX queue memory");
-
-static struct mtx umtx_lock;
-MTX_SYSINIT(umtx, &umtx_lock, "umtx", MTX_DEF);
-
-#define	UMTX_LOCK()	mtx_lock(&umtx_lock);
-#define	UMTX_UNLOCK()	mtx_unlock(&umtx_lock);
 
 #define	UMTX_CONTESTED	LONG_MIN
 
-static struct umtx_q *umtx_lookup(struct thread *, struct umtx *umtx);
-static struct umtx_q *umtx_insert(struct thread *, struct umtx *umtx);
+static void umtx_init_chains(void *);
+static int umtxq_hash(struct thread *, struct umtx *);
+static void umtxq_lock(struct thread *td, struct umtx *key);
+static void umtxq_unlock(struct thread *td, struct umtx *key);
+static struct umtx_q *umtxq_lookup(struct thread *, struct umtx *);
+static struct umtx_q *umtxq_insert(struct thread *, struct umtx *);
+static int umtxq_count(struct thread *td, struct umtx *umtx);
+static int umtx_sleep(struct thread *td, struct umtx *umtx, int priority,
+	   const char *wmesg, int timo);
+static void umtx_signal(struct thread *td, struct umtx *umtx);
+
+SYSINIT(umtx, SI_SUB_LOCK, SI_ORDER_MIDDLE, umtx_init_chains, NULL);
+
+static void
+umtx_init_chains(void *arg __unused)
+{
+	int i;
+
+	for (i = 0; i < UMTX_CHAINS; ++i) {
+		mtx_init(&umtxq_chains[i].uc_lock, "umtxq_lock", NULL,
+			 MTX_DEF | MTX_DUPOK);
+		LIST_INIT(&umtxq_chains[i].uc_queues);
+	}
+}
+
+static inline int
+umtxq_hash(struct thread *td, struct umtx *umtx)
+{
+	unsigned n = (uintptr_t)umtx + td->td_proc->p_pid;
+	return (((n * GOLDEN_RATIO_PRIME) >> UMTX_SHIFTS) % UMTX_CHAINS);
+}
+
+static inline void
+umtxq_lock(struct thread *td, struct umtx *key)
+{
+	int chain = umtxq_hash(td, key);
+	mtx_lock(&umtxq_chains[chain].uc_lock);
+}
+
+static void
+umtxq_unlock(struct thread *td, struct umtx *key)
+{
+	int chain = umtxq_hash(td, key);
+	mtx_unlock(&umtxq_chains[chain].uc_lock);
+}
 
 static struct umtx_q *
-umtx_lookup(struct thread *td, struct umtx *umtx)
+umtxq_lookup(struct thread *td, struct umtx *umtx)
 {
 	struct umtx_head *head;
 	struct umtx_q *uq;
 	pid_t pid;
+	int chain;
 
+	chain = umtxq_hash(td, umtx);
+	mtx_assert(&umtxq_chains[chain].uc_lock, MA_OWNED);
 	pid = td->td_proc->p_pid;
-
-	head = &queues[UMTX_HASH(td->td_proc->p_pid, umtx)];
-
+	head = &umtxq_chains[chain].uc_queues;
 	LIST_FOREACH(uq, head, uq_next) {
 		if (uq->uq_pid == pid && uq->uq_umtx == umtx)
 			return (uq);
 	}
-
 	return (NULL);
 }
 
@@ -91,53 +132,108 @@ umtx_lookup(struct thread *td, struct umtx *umtx)
  * Insert a thread onto the umtx queue.
  */
 static struct umtx_q *
-umtx_insert(struct thread *td, struct umtx *umtx)
+umtxq_insert(struct thread *td, struct umtx *umtx)
 {
 	struct umtx_head *head;
-	struct umtx_q *uq;
+	struct umtx_q *uq, *ins = NULL;
 	pid_t pid;
+	int chain;
 
+	chain = umtxq_hash(td, umtx);
 	pid = td->td_proc->p_pid;
-
-	if ((uq = umtx_lookup(td, umtx)) == NULL) {
-		struct umtx_q *ins;
-
-		UMTX_UNLOCK();
+	if ((uq = umtxq_lookup(td, umtx)) == NULL) {
+		umtxq_unlock(td, umtx);
 		ins = malloc(sizeof(*uq), M_UMTX, M_ZERO | M_WAITOK);
-		UMTX_LOCK();
+		umtxq_lock(td, umtx);
 
 		/*
 		 * Some one else could have succeeded while we were blocked
 		 * waiting on memory.
 		 */
-		if ((uq = umtx_lookup(td, umtx)) == NULL) {
-			head = &queues[UMTX_HASH(pid, umtx)];
+		if ((uq = umtxq_lookup(td, umtx)) == NULL) {
+			head = &umtxq_chains[chain].uc_queues;
 			uq = ins;
 			uq->uq_pid = pid;
 			uq->uq_umtx = umtx;
+			uq->uq_count = 0;
 			LIST_INSERT_HEAD(head, uq, uq_next);
 			TAILQ_INIT(&uq->uq_tdq);
-		} else
-			free(ins, M_UMTX);
+			ins = NULL;
+		}
 	}
-
-	/*
-	 * Insert us onto the end of the TAILQ.
-	 */
 	TAILQ_INSERT_TAIL(&uq->uq_tdq, td, td_umtx);
-
+	uq->uq_count++;
+	if (ins) {
+		umtxq_unlock(td, umtx);
+		free(ins, M_UMTX);
+		umtxq_lock(td, umtx);
+	}
 	return (uq);
 }
 
+/*
+ * Remove thread from umtx queue, umtx chain lock is also
+ * released.
+ */
 static void
-umtx_remove(struct umtx_q *uq, struct thread *td)
+umtx_remove(struct umtx_q *uq, struct thread *td, struct umtx *umtx)
 {
-	TAILQ_REMOVE(&uq->uq_tdq, td, td_umtx);
+	int chain;
 
+	chain = umtxq_hash(td, umtx);
+	mtx_assert(&umtxq_chains[chain].uc_lock, MA_OWNED);
+	TAILQ_REMOVE(&uq->uq_tdq, td, td_umtx);
+	uq->uq_count--;
 	if (TAILQ_EMPTY(&uq->uq_tdq)) {
 		LIST_REMOVE(uq, uq_next);
+		umtxq_unlock(td, umtx);
 		free(uq, M_UMTX);
+	} else
+		umtxq_unlock(td, umtx);
+}
+
+static inline int
+umtxq_count(struct thread *td, struct umtx *umtx)
+{
+	struct umtx_q *uq;
+	int count = 0;
+
+	umtxq_lock(td, umtx);
+	if ((uq = umtxq_lookup(td, umtx)) != NULL)
+		count = uq->uq_count;
+	umtxq_unlock(td, umtx);
+	return (count);
+}
+
+static inline int
+umtx_sleep(struct thread *td, struct umtx *umtx, int priority,
+	   const char *wmesg, int timo)
+{
+	int chain;
+
+	chain = umtxq_hash(td, umtx);
+	mtx_assert(&umtxq_chains[chain].uc_lock, MA_OWNED);
+	return (msleep(td, &umtxq_chains[chain].uc_lock, priority,
+		       wmesg, timo));	
+}
+
+static void
+umtx_signal(struct thread *td, struct umtx *umtx)
+{
+	struct umtx_q *uq;
+	struct thread *blocked = NULL;
+
+	umtxq_lock(td, umtx);
+	if ((uq = umtxq_lookup(td, umtx)) != NULL) {
+		if ((blocked = TAILQ_FIRST(&uq->uq_tdq)) != NULL) {
+			mtx_lock_spin(&sched_lock);
+			blocked->td_flags |= TDF_UMTXWAKEUP;
+			mtx_unlock_spin(&sched_lock);
+		}
 	}
+	umtxq_unlock(td, umtx);
+	if (blocked != NULL)
+		wakeup(blocked);
 }
 
 int
@@ -148,7 +244,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 	struct umtx *umtx;
 	intptr_t owner;
 	intptr_t old;
-	int error;
+	int error = 0;
 
 	uq = NULL;
 
@@ -165,34 +261,40 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		owner = casuptr((intptr_t *)&umtx->u_owner,
 		    UMTX_UNOWNED, td->td_tid);
 
-		/* The address was invalid. */
-		if (owner == -1)
-			return (EFAULT);
-
 		/* The acquire succeeded. */
 		if (owner == UMTX_UNOWNED)
 			return (0);
+
+		/* The address was invalid. */
+		if (owner == -1)
+			return (EFAULT);
 
 		/* If no one owns it but it is contested try to acquire it. */
 		if (owner == UMTX_CONTESTED) {
 			owner = casuptr((intptr_t *)&umtx->u_owner,
 			    UMTX_CONTESTED, td->td_tid | UMTX_CONTESTED);
 
+			if (owner == UMTX_CONTESTED)
+				return (0);
+
 			/* The address was invalid. */
 			if (owner == -1)
 				return (EFAULT);
-
-			if (owner == UMTX_CONTESTED)
-				return (0);
 
 			/* If this failed the lock has changed, restart. */
 			continue;
 		}
 
+		/*
+		 * If we caught a signal, we have retried and now
+		 * exit immediately.
+		 */
+		if (error)
+			return (error);
 
-		UMTX_LOCK();
-		uq = umtx_insert(td, umtx);
-		UMTX_UNLOCK();
+		umtxq_lock(td, umtx);
+		uq = umtxq_insert(td, umtx);
+		umtxq_unlock(td, umtx);
 
 		/*
 		 * Set the contested bit so that a release in user space
@@ -205,9 +307,9 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 
 		/* The address was invalid. */
 		if (old == -1) {
-			UMTX_LOCK();
-			umtx_remove(uq, td);
-			UMTX_UNLOCK();
+			umtxq_lock(td, umtx);
+			umtx_remove(uq, td, umtx);
+			/* unlocked by umtx_remove */
 			return (EFAULT);
 		}
 
@@ -216,24 +318,28 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * and we need to retry or we lost a race to the thread
 		 * unlocking the umtx.
 		 */
-		PROC_LOCK(td->td_proc);
+		umtxq_lock(td, umtx);
 		if (old == owner && (td->td_flags & TDF_UMTXWAKEUP) == 0)
-			error = msleep(td, &td->td_proc->p_mtx,
-			    td->td_priority | PCATCH, "umtx", 0);
+			error = umtx_sleep(td, umtx, td->td_priority | PCATCH,
+				    "umtx", 0);
 		else
 			error = 0;
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_UMTXWAKEUP;
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(td->td_proc);
+		umtx_remove(uq, td, umtx);
+		/* unlocked by umtx_remove */
 
-		UMTX_LOCK();
-		umtx_remove(uq, td);
-		UMTX_UNLOCK();
+		if (td->td_flags & TDF_UMTXWAKEUP) {
+			/*
+			 * If we were resumed by umtxq_unlock, we should retry
+			 * to avoid a race.
+			 */
+			mtx_lock_spin(&sched_lock);
+			td->td_flags &= ~TDF_UMTXWAKEUP;
+			mtx_unlock_spin(&sched_lock);
+			continue;
+		}
 
 		/*
-		 * If we caught a signal we might have to retry or exit 
-		 * immediately.
+		 * If we caught a signal, exit immediately.
 		 */
 		if (error)
 			return (error);
@@ -246,11 +352,10 @@ int
 _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
     /* struct umtx *umtx */
 {
-	struct thread *blocked;
 	struct umtx *umtx;
-	struct umtx_q *uq;
 	intptr_t owner;
 	intptr_t old;
+	int count;
 
 	umtx = uap->umtx;
 
@@ -269,63 +374,55 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	/* We should only ever be in here for contested locks */
 	if ((owner & UMTX_CONTESTED) == 0)
 		return (EINVAL);
-	blocked = NULL;
 
 	/*
 	 * When unlocking the umtx, it must be marked as unowned if
 	 * there is zero or one thread only waiting for it.
 	 * Otherwise, it must be marked as contested.
 	 */
-	UMTX_LOCK();
-	uq = umtx_lookup(td, umtx);
-	if (uq == NULL ||
-	    (uq != NULL && (blocked = TAILQ_FIRST(&uq->uq_tdq)) != NULL &&
-	    TAILQ_NEXT(blocked, td_umtx) == NULL)) {
-		UMTX_UNLOCK();
-		old = casuptr((intptr_t *)&umtx->u_owner, owner,
-		    UMTX_UNOWNED);
-		if (old == -1)
-			return (EFAULT);
-		if (old != owner)
-			return (EINVAL);
-
-		/*
-		 * Recheck the umtx queue to make sure another thread
-		 * didn't put itself on it after it was unlocked.
-		 */
-		UMTX_LOCK();
-		uq = umtx_lookup(td, umtx);
-		if (uq != NULL &&
-		    ((blocked = TAILQ_FIRST(&uq->uq_tdq)) != NULL &&
-		    TAILQ_NEXT(blocked, td_umtx) != NULL)) {
-			UMTX_UNLOCK();
-			old = casuptr((intptr_t *)&umtx->u_owner,
-			    UMTX_UNOWNED, UMTX_CONTESTED);
-		} else {
-			UMTX_UNLOCK();
-		}
-	} else {
-		UMTX_UNLOCK();
-		old = casuptr((intptr_t *)&umtx->u_owner,
-		    owner, UMTX_CONTESTED);
-		if (old != -1 && old != owner)
-			return (EINVAL);
-	}
-
+	old = casuptr((intptr_t *)&umtx->u_owner, owner, UMTX_UNOWNED);
 	if (old == -1)
 		return (EFAULT);
+	if (old != owner)
+		return (EINVAL);
 
 	/*
-	 * If there is a thread waiting on the umtx, wake it up.
+	 * At the point, a new thread can lock the umtx before we
+	 * reach here, so contested bit will not be set, if there
+	 * are two or more threads on wait queue, we should set
+	 * contensted bit for them.
 	 */
-	if (blocked != NULL) {
-		PROC_LOCK(blocked->td_proc);
-		mtx_lock_spin(&sched_lock);
-		blocked->td_flags |= TDF_UMTXWAKEUP;
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(blocked->td_proc);
-		wakeup(blocked);
+	count = umtxq_count(td, umtx);
+	if (count <= 0)
+		return (0);
+
+	/*
+	 * If there is second thread waiting on umtx, set contested bit,
+	 * if they are resumed before we reach here, it is harmless,
+	 * just a bit unefficient.
+	 */
+	if (count > 1) {
+		owner = UMTX_UNOWNED;
+		for (;;) {
+			old = casuptr((intptr_t *)&umtx->u_owner, owner,
+				    owner | UMTX_CONTESTED);
+			if (old == owner)
+				break;
+			if (old == -1)
+				return (EFAULT);
+			owner = old;
+		}
+		/*
+		 * Another thread locked the umtx before us, so don't bother
+		 * to wake more threads, that thread will do it when it unlocks
+		 * the umtx.
+		 */
+		if ((owner & ~UMTX_CONTESTED) != 0)
+			return (0);
 	}
+
+	/* Wake blocked thread. */
+	umtx_signal(td, umtx);
 
 	return (0);
 }
