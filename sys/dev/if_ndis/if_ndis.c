@@ -651,7 +651,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 	for (i = 0; i < pktcnt; i++) {
 		p = packets[i];
 		/* Stash the softc here so ptom can use it. */
-		p->np_rsvd[0] = (uint32_t *)sc;
+		p->np_softc = sc;
 		if (ndis_ptom(&m0, p)) {
 			printf ("ndis%d: ptom failed\n", sc->ndis_unit);
 			ndis_return_packet(sc, p);
@@ -686,13 +686,10 @@ ndis_txeof(adapter, packet, status)
 	sc = (struct ndis_softc *)block->nmb_ifp;
 	ifp = block->nmb_ifp;
 
-	if (packet->np_rsvd[1] == NULL)
-		panic("NDIS driver corrupted reserved packet fields");
-
 	NDIS_LOCK(sc);
 
-	m = (struct mbuf *)packet->np_rsvd[1];
-	idx = (int)packet->np_rsvd[0];
+	m = packet->np_m0;
+	idx = packet->np_txidx;
 	ifp->if_opackets++;
 	if (sc->ndis_sc)
 		bus_dmamap_unload(sc->ndis_ttag, sc->ndis_tmaps[idx]);
@@ -900,9 +897,8 @@ ndis_start(ifp)
 		 * so we can free it later.
 		 */
 
-		(sc->ndis_txarray[sc->ndis_txidx])->np_rsvd[0] =
-		    (uint32_t *)sc->ndis_txidx;
-		(sc->ndis_txarray[sc->ndis_txidx])->np_rsvd[1] = (uint32_t *)m;
+		(sc->ndis_txarray[sc->ndis_txidx])->np_txidx = sc->ndis_txidx;
+		(sc->ndis_txarray[sc->ndis_txidx])->np_m0 = m;
 
 		/*
 		 * Do scatter/gather processing, if driver requested it.
