@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.13 1998/07/11 17:01:25 kato Exp $
+ *	$Id: diskslice_machdep.c,v 1.14 1998/07/21 12:06:04 kato Exp $
  */
 
 /*
@@ -250,7 +250,7 @@ reread_mbr:
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
-			LOG_PRINTF, 0, lp);
+		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;
 		goto done;
@@ -540,7 +540,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",
-			LOG_PRINTF, 0, lp);
+		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		goto done;
 	}
