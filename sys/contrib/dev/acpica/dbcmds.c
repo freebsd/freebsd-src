@@ -1292,7 +1292,7 @@ AcpiDbGenerateGpe (
     BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
 
 
-    GpeEventInfo = AcpiEvGetGpeEventInfo ((void *) BlockNumber, GpeNumber);
+    GpeEventInfo = AcpiEvGetGpeEventInfo ((void *)(uintptr_t) BlockNumber, GpeNumber);
     if (!GpeEventInfo)
     {
         AcpiOsPrintf ("Invalid GPE\n");
