@@ -262,6 +262,33 @@ xgets(char *buf, int buflen, FILE *fp)
 #define SYSTEM_VALIDATE	2
 #define SYSTEM_EXEC	3
 
+static char *
+GetLabel(char *line, const char *filename, int linenum)
+{
+  char *wp;
+
+  if ((wp = findblank(line, 0, 1)) != NULL) {
+    while (issep(*wp))
+      *wp++ = '\0';
+    if (*wp == '#')
+      *wp = '\0';
+    if (*wp != '\0') {
+      log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
+                   filename, linenum);
+      return NULL;
+    }
+  }
+  wp = strchr(line, ':');
+  if (wp == NULL || wp[1] != '\0') {
+      log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
+                 filename, linenum);
+      return NULL;
+  }
+  *wp = '\0';
+
+  return line;
+}
+
 /* Returns -2 for ``file not found'' and -1 for ``label not found'' */
 
 static int
@@ -269,7 +296,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
            struct prompt *prompt, struct datalink *cx, int how)
 {
   FILE *fp;
-  char *cp, *wp;
+  char *cp;
   int n, len;
   char line[LINE_LEN];
   char filename[MAXPATHLEN];
@@ -320,24 +347,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
-      if ((wp = findblank(cp, 0, 1)) != NULL) {
-        while (issep(*wp))
-          *wp++ = '\0';
-        if (*wp == '#')
-          *wp = '\0';
-        if (*wp != '\0') {
-	  log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
-		    filename, linenum);
-	  continue;
-        }
-      }
-      wp = strchr(cp, ':');
-      if (wp == NULL || wp[1] != '\0') {
-	log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
-		  filename, linenum);
-	continue;
-      }
-      *wp = '\0';
+      if ((cp = GetLabel(cp, filename, linenum)) == NULL)
+        continue;
       cp = strip(cp);  /* lose any spaces between the label and the ':' */
 
       if (strcmp(cp, name) == 0) {
@@ -349,16 +360,12 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           indent = issep(*line);
           cp = strip(line);
 
-          if (*cp == '\0')  /* empty / comment */
+          if (*cp == '\0')			/* empty / comment */
             continue;
 
-          if (!indent) {    /* start of next section */
-            if (*cp != '!') {
-              wp = strchr(cp, ':');
-              if ((how == SYSTEM_EXEC) && (wp == NULL || wp[1] != '\0'))
-	        log_Printf(LogWARN, "Unindented command (%s line %d) -"
-                           " ignored\n", filename, linenum);
-            }
+          if (!indent) {			/* start of next section */
+            if (*cp != '!' && how == SYSTEM_EXEC)
+              GetLabel(cp, filename, linenum);
             break;
           }
 
