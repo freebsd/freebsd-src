@@ -885,12 +885,38 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
+	struct sockaddr *sa = NULL;
+	meta_p meta;
 	int error;
 	struct mbuf *m;
 
+	/* Extract data and meta information */
 	NGI_GET_M(item, m);
+	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
-	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, 0, 0, m, 0, 0, td);
+
+	/* If any meta info, look for peer socket address */
+	if (meta != NULL) {
+		struct meta_field_header *field;
+
+		/* Look for peer socket address */
+		for (field = &meta->options[0];
+		    (caddr_t)field < (caddr_t)meta + meta->used_len;
+		    field = (struct meta_field_header *)
+		      ((caddr_t)field + field->len)) {
+			if (field->cookie != NGM_KSOCKET_COOKIE
+			    || field->type != NG_KSOCKET_META_SOCKADDR)
+				continue;
+			sa = (struct sockaddr *)field->data;
+			break;
+		}
+	}
+
+	/* Send packet */
+	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, td);
+
+	/* Clean up and exit */
+	NG_FREE_META(meta);
 	return (error);
 }
 
@@ -1056,20 +1082,55 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 	auio.uio_td = NULL;
 	auio.uio_resid = 1000000000;
 	flags = MSG_DONTWAIT;
-	do {
-		if ((error = (*so->so_proto->pr_usrreqs->pru_soreceive)
-		      (so, (struct sockaddr **)0, &auio, &m,
-		      (struct mbuf **)0, &flags)) == 0
-		    && m != NULL) {
-			struct mbuf *n;
+	while (1) {
+		struct sockaddr *sa = NULL;
+		meta_p meta = NULL;
+		struct mbuf *n;
 
-			/* Don't trust the various socket layers to get the
-			   packet header and length correct (eg. kern/15175) */
-			for (n = m, m->m_pkthdr.len = 0; n; n = n->m_next)
-				m->m_pkthdr.len += n->m_len;
-			NG_SEND_DATA_ONLY(error, priv->hook, m);
+		/* Try to get next packet from socket */
+		if ((error = (*so->so_proto->pr_usrreqs->pru_soreceive)
+		    (so, (so->so_state & SS_ISCONNECTED) ? NULL : &sa,
+		    &auio, &m, (struct mbuf **)0, &flags)) != 0)
+			break;
+
+		/* See if we got anything */
+		if (m == NULL) {
+			if (sa != NULL)
+				FREE(sa, M_SONAME);
+			break;
 		}
-	} while (error == 0 && m != NULL);
+
+		/* Don't trust the various socket layers to get the
+		   packet header and length correct (eg. kern/15175) */
+		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next)
+			m->m_pkthdr.len += n->m_len;
+
+		/* Put peer's socket address (if any) into a meta info blob */
+		if (sa != NULL) {
+			struct meta_field_header *mhead;
+			u_int len;
+
+			len = sizeof(*meta) + sizeof(*mhead) + sa->sa_len;
+			MALLOC(meta, meta_p, len, M_NETGRAPH_META, M_NOWAIT);
+			if (meta == NULL) {
+				FREE(sa, M_SONAME);
+				goto sendit;
+			}
+			mhead = &meta->options[0];
+			bzero(meta, sizeof(*meta));
+			bzero(mhead, sizeof(*mhead));
+			meta->allocated_len = len;
+			meta->used_len = len;
+			mhead->cookie = NGM_KSOCKET_COOKIE;
+			mhead->type = NG_KSOCKET_META_SOCKADDR;
+			mhead->len = sizeof(*mhead) + sa->sa_len;
+			bcopy(sa, mhead->data, sa->sa_len);
+			FREE(sa, M_SONAME);
+		}
+
+sendit:		/* Forward data with optional peer sockaddr as meta info */
+		NG_SEND_DATA(error, priv->hook, m, meta);
+	}
 
 	/*
 	 * If the peer has closed the connection, forward a 0-length mbuf
