@@ -433,8 +433,12 @@ interface.
 .Aq D
 Disable network address resolution on this interface.
 .It Dv IFF_PROMISC
-.Aq D
+.Aq D*
 This interface is in promiscuous mode.
+.It Dv IFF_PPROMISC
+.Aq D
+This interface is in the permanently promiscuous mode (implies
+IFF_PROMISC).
 .It Dv IFF_ALLMULTI
 .Aq D*
 This interface is in all-multicasts mode (used by multicast routers).
