@@ -35,13 +35,15 @@
 .Dt SYSCTL 3
 .Os
 .Sh NAME
-.Nm sysctl
+.Nm sysctl ,
+.Nm sysctlbyname
 .Nd get or set system information
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/sysctl.h>
 .Ft int
 .Fn sysctl "int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
+.Fn sysctlbyname "const char *name" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
 .Sh DESCRIPTION
 The
 .Fn sysctl
@@ -70,6 +72,14 @@ style name, listed in
 which is a
 .Fa namelen
 length array of integers.
+.Pp
+The
+.Fn sysctlbyname
+function accepts an ascii representation of the name and internally
+looks up the integer name vector.  Apart from that, it behaves the same
+as the standard
+.Fn sysctl
+function.
 .Pp
 The information is copied into the buffer specified by
 .Fa oldp .
