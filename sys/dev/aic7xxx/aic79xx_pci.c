@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#84 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#86 $
  */
 
 #ifdef __linux__
@@ -65,10 +65,10 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 }
 
 #define ID_ALL_MASK			0xFFFFFFFFFFFFFFFFull
-#define ID_ALL_IROC_MASK		0xFFFFFF7FFFFFFFFFull
+#define ID_ALL_IROC_MASK		0xFF7FFFFFFFFFFFFFull
 #define ID_DEV_VENDOR_MASK		0xFFFFFFFF00000000ull
 #define ID_9005_GENERIC_MASK		0xFFF0FFFF00000000ull
-#define ID_9005_GENERIC_IROC_MASK	0xFFF0FF7F00000000ull
+#define ID_9005_GENERIC_IROC_MASK	0xFF70FFFF00000000ull
 
 #define ID_AIC7901			0x800F9005FFFF9005ull
 #define ID_AHA_29320A			0x8000900500609005ull
@@ -92,10 +92,11 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_HP			0x0E11
 
+#define DEVID_9005_HOSTRAID(id) ((id) & 0x80)
+
 #define DEVID_9005_TYPE(id) ((id) & 0xF)
 #define		DEVID_9005_TYPE_HBA		0x0	/* Standard Card */
 #define		DEVID_9005_TYPE_HBA_2EXT	0x1	/* 2 External Ports */
-#define		DEVID_9005_TYPE_IROC		0x8	/* Raid(0,1,10) Card */
 #define		DEVID_9005_TYPE_MB		0xF	/* On Motherboard */
 
 #define DEVID_9005_MFUNC(id) ((id) & 0x10)
@@ -198,7 +199,7 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
 	{
-		ID_AIC7901 & ID_DEV_VENDOR_MASK,
+		ID_AIC7901 & ID_9005_GENERIC_MASK,
 		ID_DEV_VENDOR_MASK,
 		"Adaptec AIC7901 Ultra320 SCSI adapter",
 		ahd_aic7901_setup
@@ -282,6 +283,14 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 				 subdevice,
 				 subvendor);
 
+	/*
+	 * If we are configured to attach to HostRAID
+	 * controllers, mask out the IROC/HostRAID bit
+	 * in the 
+	 */
+	if (ahd_attach_to_HostRAID_controllers)
+		full_id &= ID_ALL_IROC_MASK;
+
 	for (i = 0; i < ahd_num_pci_devs; i++) {
 		entry = &ahd_pci_ident_table[i];
 		if (entry->full_id == (full_id & entry->id_mask)) {
@@ -301,11 +310,20 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	u_long		 l;
 	u_int		 command;
 	uint32_t	 devconfig;
+	uint16_t	 device; 
 	uint16_t	 subvendor; 
 	int		 error;
 
 	shared_scb_data = NULL;
 	ahd->description = entry->name;
+	/*
+	 * Record if this is a HostRAID board.
+	 */
+	device = aic_pci_read_config(ahd->dev_softc,
+				     PCIR_DEVICE, /*bytes*/2);
+	if (DEVID_9005_HOSTRAID(device))
+		ahd->flags |= AHD_HOSTRAID_BOARD;
+
 	/*
 	 * Record if this is an HP board.
 	 */
