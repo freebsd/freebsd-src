@@ -687,9 +687,9 @@ ndis_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(sc->ndis_mtx),
+	KASSERT(mtx_initialized(&sc->ndis_mtx),
 	    ("ndis mutex not initialized"));
-	KASSERT(mtx_initialized(sc->ndis_intrmtx),
+	KASSERT(mtx_initialized(&sc->ndis_intrmtx),
 	    ("ndis interrupt mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
@@ -1032,6 +1032,8 @@ ndis_ticktask(xsc)
 	ndis_media_state	linkstate;
 	int			error, len;
 
+	mtx_unlock(&Giant);
+
 	sc = xsc;
 
 	hangfunc = sc->ndis_chars.nmc_checkhang_func;
@@ -1065,6 +1067,8 @@ ndis_ticktask(xsc)
 	}
 
 	NDIS_UNLOCK(sc);
+
+	mtx_lock(&Giant);
 
 	return;
 }
