@@ -1,6 +1,6 @@
 	    Internet Software Consortium DHCP Distribution
 			     Version 3.0.1
-			  Release Candidate 9
+			  Release Candidate 12
 			     April 28, 2002
 
 			      README FILE
@@ -97,7 +97,7 @@ system.
 
 			    RELEASE STATUS
 
-This is the tenth release candidate of version 3.0.1 of the ISC DHCP
+This is the twelfth release candidate of version 3.0.1 of the ISC DHCP
 Distribution.  Development of this release is approaching the point at
 which it will be frozen, and no significant new features will be
 added.
