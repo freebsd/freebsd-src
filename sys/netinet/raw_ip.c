@@ -344,6 +344,16 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (sopt->sopt_level != IPPROTO_IP)
 		return (EINVAL);
 
+	/*
+	 * Even though super-user is required to create a raw socket, the
+	 * calling cred could be prison root. If so we want to restrict the
+	 * access to IP_HDRINCL only.
+	 */
+	if (sopt->sopt_name != IP_HDRINCL) {
+		error = suser(curthread);
+		if (error != 0)
+			return (error);
+	}
 	error = 0;
 
 	switch (sopt->sopt_dir) {
