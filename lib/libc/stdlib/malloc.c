@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.41 1998/09/20 01:07:50 alex Exp $
+ * $Id: malloc.c,v 1.42 1998/09/23 21:26:04 dfr Exp $
  *
  */
 
@@ -1068,7 +1068,6 @@ malloc(size_t size)
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
         malloc_active--;
-	/*THREAD_UNLOCK();*/	/* XXX */
 	return (0);
     }
     if (!malloc_started)
@@ -1092,18 +1091,6 @@ free(void *ptr)
     malloc_func = " in free():";
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
-	/*
-	 * XXX
-	 * Ideally the next two lines would be gone and free() would
-	 * exit below.  Unfortunately our spinlock implementation
-	 * allows a particular thread to obtain a lock multiple times
-	 * without counting how many times said operation has been
-	 * performed.  The practical upshot of which is a single unlock
-	 * causes all locks to be undone at once.  For this reason,
-	 * we return without performing an unlock in the case of
-	 * recursion (see also the commented out THREAD_UNLOCK calls
-	 * in malloc & realloc).
-	 */
 	malloc_active--;
 	return;
     } else {
@@ -1125,7 +1112,6 @@ realloc(void *ptr, size_t size)
     if (malloc_active++) {
 	wrtwarning("recursive call.\n");
         malloc_active--;
-	/*THREAD_UNLOCK();*/	/* XXX */
 	return (0);
     }
     if (ptr && !malloc_started) {
