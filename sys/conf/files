@@ -365,7 +365,7 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
-dev/ie/if_ie.c		count ie isa
+dev/ie/if_ie.c		count ie isa nowerror
 dev/iicbus/iicbb_if.m	optional iicbb
 dev/iicbus/iicbus_if.m	optional iicbus
 dev/iicbus/if_ic.c	optional ic
@@ -378,10 +378,10 @@ dev/iicbus/iicsmb.c	optional iicsmb					\
 dev/iir/iir.c		optional iir
 dev/iir/iir_ctrl.c	optional iir
 dev/iir/iir_pci.c	optional iir pci
-dev/isp/isp.c		optional isp
+dev/isp/isp.c		optional isp nowerror
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp_target.c	optional isp
-dev/isp/isp_pci.c	optional isp
+dev/isp/isp_pci.c	optional isp nowerror
 dev/ispfw/ispfw.c	optional ispfw
 dev/joy/joy.c		optional joy
 dev/joy/joy_isa.c	optional joy isa
