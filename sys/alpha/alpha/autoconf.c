@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.8 1998/09/16 08:19:29 dfr Exp $
+ *	$Id: autoconf.c,v 1.9 1998/09/26 12:22:53 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -190,7 +190,8 @@ configure(void *dummy)
 		/*
 		 * Probe ISA devices after everything.
 		 */
-		bus_generic_attach(isa_bus_device);
+		if (isa_bus_device)
+			bus_generic_attach(isa_bus_device);
 	} 
 	configure_finish();
 
