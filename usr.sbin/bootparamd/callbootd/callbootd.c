@@ -9,13 +9,15 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: callbootd.c,v 1.6 1997/09/04 11:50:37 charnier Exp $";
 #endif /* not lint */
 
 #include "bootparam_prot.h"
 #include <rpc/rpc.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <err.h>
 #include <netdb.h>
 
@@ -186,7 +188,7 @@ bp_getfile_res *res;
       if (res) {
 	printf("server_name:\t%s\nserver_address:\t%s\npath:\t%s\n",
 	       res->server_name,
-	       inet_ntoa(res->server_address.bp_address_u.ip_addr),
+	       inet_ntoa(*(struct in_addr *)&res->server_address.bp_address_u.ip_addr),
 	       res->server_path);
 	return(0);
       } else {
