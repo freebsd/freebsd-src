@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.45 1997/03/23 03:33:39 bde Exp $
+ *	$Id: vn.c,v 1.46 1997/03/24 11:23:22 bde Exp $
  */
 
 /*
@@ -104,7 +104,7 @@ static	d_strategy_t	vnstrategy;
 static struct cdevsw vn_cdevsw;
 static struct bdevsw vn_bdevsw = 
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
-	  vndump,	vnsize,		0,	"vn",	&vn_cdevsw,	-1 };
+	  vndump,	vnsize,		D_DISK,	"vn",	&vn_cdevsw,	-1 };
 
 
 #ifdef DEBUG
