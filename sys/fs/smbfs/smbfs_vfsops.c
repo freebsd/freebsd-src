@@ -78,7 +78,8 @@ static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
 
 static vfs_init_t       smbfs_init;
 static vfs_uninit_t     smbfs_uninit;
-static vfs_omount_t     smbfs_omount;
+static vfs_cmount_t     smbfs_cmount;
+static vfs_mount_t      smbfs_mount;
 static vfs_root_t       smbfs_root;
 static vfs_quotactl_t   smbfs_quotactl;
 static vfs_statfs_t     smbfs_statfs;
@@ -86,7 +87,8 @@ static vfs_unmount_t    smbfs_unmount;
 
 static struct vfsops smbfs_vfsops = {
 	.vfs_init =		smbfs_init,
-	.vfs_omount =		smbfs_omount,
+	.vfs_cmount =		smbfs_cmount,
+	.vfs_mount =		smbfs_mount,
 	.vfs_quotactl =		smbfs_quotactl,
 	.vfs_root =		smbfs_root,
 	.vfs_statfs =		smbfs_statfs,
@@ -105,36 +107,67 @@ MODULE_DEPEND(smbfs, libmchain, 1, 1, 1);
 int smbfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 static int
-smbfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
+smbfs_cmount(struct mntarg *ma, void * data, int flags, struct thread *td)
 {
-	struct smbfs_args args; 	  /* will hold data from mount request */
-	struct smbmount *smp = NULL;
-	struct smb_vc *vcp;
-	struct smb_share *ssp = NULL;
-	struct vnode *vp;
-	struct smb_cred scred;
+	struct smbfs_args args;
 	int error;
-	char *pc, *pe;
-
-	if (data == NULL) {
-		printf("missing data argument\n");
-		return EINVAL;
-	}
-	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
-		return EOPNOTSUPP;
 
 	error = copyin(data, (caddr_t)&args, sizeof(struct smbfs_args));
 	if (error)
 		return error;
+
 	if (args.version != SMBFS_VERSION) {
 		printf("mount version mismatch: kernel=%d, mount=%d\n",
 		    SMBFS_VERSION, args.version);
 		return EINVAL;
 	}
+	ma = mount_argf(ma, "dev", "%d", args.dev);
+	ma = mount_argb(ma, args.flags & SMBFS_MOUNT_SOFT, "nosoft");
+	ma = mount_argb(ma, args.flags & SMBFS_MOUNT_INTR, "nointr");
+	ma = mount_argb(ma, args.flags & SMBFS_MOUNT_STRONG, "nostrong");
+	ma = mount_argb(ma, args.flags & SMBFS_MOUNT_HAVE_NLS, "nohave_nls");
+	ma = mount_argb(ma, !(args.flags & SMBFS_MOUNT_NO_LONG), "nolong");
+	ma = mount_arg(ma, "rootpath", args.root_path, -1);
+	ma = mount_argf(ma, "uid", "%d", args.uid);
+	ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "file_mode", "%d", args.file_mode);
+	ma = mount_argf(ma, "dir_mode", "%d", args.dir_mode);
+	ma = mount_argf(ma, "caseopt", "%d", args.caseopt);
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+
+static const char *smbfs_opts[] = {
+	"dev", "soft", "intr", "strongs", "have_nls", "long",
+	"mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
+	"caseopt", NULL
+};
+
+static int
+smbfs_mount(struct mount *mp, struct thread *td)
+{
+	struct smbmount *smp = NULL;
+	struct smb_vc *vcp;
+	struct smb_share *ssp = NULL;
+	struct vnode *vp;
+	struct smb_cred scred;
+	int error, v;
+	char *pc, *pe;
+
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
+		return EOPNOTSUPP;
+
+	if (vfs_filteropt(mp->mnt_optnew, smbfs_opts))
+		return (EINVAL);
+
 	smb_makescred(&scred, td, td->td_ucred);
-	error = smb_dev2share(args.dev, SMBM_EXEC, &scred, &ssp);
+	if (1 != vfs_scanopt(mp->mnt_optnew, "dev", "%d", &v))
+		return (EINVAL);
+	error = smb_dev2share(v, SMBM_EXEC, &scred, &ssp);
 	if (error) {
-		printf("invalid device handle %d (%d)\n", args.dev, error);
+		printf("invalid device handle %d (%d)\n", v, error);
 		return error;
 	}
 	vcp = SSTOVC(ssp);
@@ -160,12 +193,39 @@ smbfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	lockinit(&smp->sm_hashlock, PVFS, "smbfsh", 0, 0);
 	smp->sm_share = ssp;
 	smp->sm_root = NULL;
-        smp->sm_args = args;
-	smp->sm_caseopt = args.caseopt;
-	smp->sm_args.file_mode = (smp->sm_args.file_mode &
-			    (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFREG;
-	smp->sm_args.dir_mode  = (smp->sm_args.dir_mode &
-			    (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
+	if (1 != vfs_scanopt(mp->mnt_optnew,
+	    "caseopt", "%d", &smp->sm_caseopt)) {
+		error = EINVAL;
+		goto bad;
+	}
+	if (1 != vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v)) {
+		error = EINVAL;
+		goto bad;
+	}
+	smp->sm_uid = v;
+
+	if (1 != vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v)) {
+		error = EINVAL;
+		goto bad;
+	}
+	smp->sm_gid = v;
+
+	if (1 != vfs_scanopt(mp->mnt_optnew, "file_mode", "%d", &v)) {
+		error = EINVAL;
+		goto bad;
+	}
+	smp->sm_file_mode = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFREG;
+
+	if (1 != vfs_scanopt(mp->mnt_optnew, "dir_mode", "%d", &v)) {
+		error = EINVAL;
+		goto bad;
+	}
+	smp->sm_dir_mode  = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
+
+	vfs_flagopt(mp->mnt_optnew,
+	    "long", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
+
+	smp->sm_flags ^= SMBFS_MOUNT_NO_LONG;
 
 /*	simple_lock_init(&smp->sm_npslock);*/
 	pc = mp->mnt_stat.f_mntfromname;
@@ -182,8 +242,6 @@ smbfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 			strncpy(pc, ssp->ss_name, pe - pc - 2);
 		}
 	}
-	/* protect against invalid mount points */
-	smp->sm_args.mount_point[sizeof(smp->sm_args.mount_point) - 1] = '\0';
 	vfs_getnewfsid(mp);
 	error = smbfs_root(mp, &vp, td);
 	if (error)
