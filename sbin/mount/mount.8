@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.23 1998/07/09 05:49:58 jkoshy Exp $
+.\"	$Id: mount.8,v 1.25 1999/04/08 13:59:42 ghelmer Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -315,7 +315,7 @@ Various, most of them are self-explanatory.
 The kernel doesn't support the respective filesystem type.  Note that
 support for a particular filesystem might be provided either on a static
 (kernel compile-time), or dynamic basis (loaded as a kernel module by
-.Xr modload 8 ).
+.Xr kldload 8 ).
 Normally,
 .Nm
 or its subprocesses attempt to dynamically load a filesystem module if
@@ -332,6 +332,7 @@ file system table
 .Xr mount 2 ,
 .Xr vfsload 3 ,
 .Xr fstab 5 ,
+.Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
 .Xr mount_devfs 8 ,
 .Xr mount_fdesc 8 ,
