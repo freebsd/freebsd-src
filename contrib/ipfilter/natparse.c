@@ -56,7 +56,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.23 2002/02/22 15:32:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.24 2002/04/24 17:30:51 darrenr Exp $";
 #endif
 
 
@@ -394,15 +394,24 @@ int linenum;
 	cpp++;
 
 	if (ipn.in_redir & NAT_MAPBLK) {
-		if (*cpp && strcasecmp(*cpp, "ports")) {
-			fprintf(stderr,
-				"%d: expected \"ports\" - got \"%s\"\n",
-				linenum, *cpp);
-			return NULL;
-		}
-		cpp++;
 		if (*cpp) {
-			ipn.in_pmin = atoi(*cpp);
+			if (strcasecmp(*cpp, "ports")) {
+				fprintf(stderr,
+					"%d: expected \"ports\" - got \"%s\"\n",
+					linenum, *cpp);
+				return NULL;
+			}
+			cpp++;
+			if (*cpp == NULL) {
+				fprintf(stderr,
+					"%d: missing argument to \"ports\"\n",
+					linenum);
+				return NULL;
+			}
+			if (!strcasecmp(*cpp, "auto"))
+				ipn.in_flags |= IPN_AUTOPORTMAP;
+			else
+				ipn.in_pmin = atoi(*cpp);
 			cpp++;
 		} else
 			ipn.in_pmin = 0;
@@ -483,6 +492,10 @@ int linenum;
 						ipn.in_p = atoi(proto);
 				}
 			}
+			if ((ipn.in_flags & IPN_TCPUDP) == 0) {
+				port1a = "0";
+				port2a = "0";
+			}
 
 			if (*cpp && !strcasecmp(*cpp, "round-robin")) {
 				cpp++;
@@ -548,7 +561,7 @@ int linenum;
 	if ((ipn.in_redir & NAT_MAPBLK) != 0)
 		nat_setgroupmap(&ipn);
 
-	if (*cpp && !strcasecmp(*cpp, "frag")) {
+	if (*cpp && !*(cpp+1) && !strcasecmp(*cpp, "frag")) {
 		cpp++;
 		ipn.in_flags |= IPN_FRAG;
 	}
@@ -618,12 +631,6 @@ int linenum;
 		(void) strncpy(ipn.in_plabel, *cpp, sizeof(ipn.in_plabel));
 		cpp++;
 
-		if (*cpp) {
-			fprintf(stderr,
-				"%d: too many parameters for \"proxy\"\n",
-				linenum);
-			return NULL;
-		}
 	} else if (!strcasecmp(*cpp, "portmap")) {
 		if (ipn.in_redir == NAT_BIMAP) {
 			fprintf(stderr, "%d: cannot use portmap with bimap\n",
@@ -683,6 +690,11 @@ int linenum;
 		}
 	}
 
+	if (*cpp && !strcasecmp(*cpp, "frag")) {
+		cpp++;
+		ipn.in_flags |= IPN_FRAG;
+	}
+
 	if (*cpp && !strcasecmp(*cpp, "age")) {
 		cpp++;
 		if (!*cpp) {
@@ -690,6 +702,7 @@ int linenum;
 				linenum);
 			return NULL;
 		}
+		ipn.in_age[0] = atoi(*cpp);
 		s = index(*cpp, '/');
 		if (s != NULL)
 			ipn.in_age[1] = atoi(s + 1);

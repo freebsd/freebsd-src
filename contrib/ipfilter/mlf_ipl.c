@@ -12,23 +12,11 @@
 #include <sys/param.h>
 
 #if defined(__FreeBSD__)
+# ifndef __FreeBSD_version
+#  include <sys/osreldate.h>
+# endif
 # ifdef	IPFILTER_LKM
-#  ifndef __FreeBSD_cc_version
-#   include <osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <osreldate.h>
-#   endif
-#  endif
 #  define	ACTUALLY_LKM_NOT_KERNEL
-# else
-#  ifndef __FreeBSD_cc_version
-#   include <sys/osreldate.h>
-#  else
-#   if __FreeBSD_cc_version < 430000
-#    include <sys/osreldate.h>
-#   endif
-#  endif
 # endif
 #endif
 #include <sys/systm.h>

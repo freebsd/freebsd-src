@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.15.2.29 2002/01/15 14:36:54 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.30 2002/04/23 14:57:51 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -1112,7 +1112,7 @@ again:
 		freemsg(mb);
 	}
 	RWLOCK_EXIT(&ipf_solaris);
-	return 0;
+	return 1;
 }
 
 
@@ -1263,7 +1263,7 @@ again:
 		freemsg(mb);
 	}
 	RWLOCK_EXIT(&ipf_solaris);
-	return 0;
+	return 1;
 }
 
 

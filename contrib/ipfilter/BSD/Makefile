@@ -7,6 +7,8 @@
 #
 BINDEST=/usr/sbin
 SBINDEST=/sbin
+SEARCHDIRS=$(BINDEST) $(SBINDEST) /bin /usr/bin /sbin /usr/sbin \
+	/usr/local/bin /usr/local/sbin
 MANDIR=/usr/share/man
 CC=cc -Wall -Wstrict-prototypes -Wuninitialized -O
 CFLAGS=-g -I$(TOP)
@@ -49,6 +51,14 @@ IPNAT=ipnat.o kmem.o natparse.o common.o printnat.o
 FILS=fils.o parse.o kmem.o opt.o facpri.o common.o printstate.o
 
 build all: ipf ipfs ipfstat ipftest ipmon ipnat $(LKM)
+	/bin/rm -f $(TOP)/ipf
+	ln -s `pwd`/ipf $(TOP)
+	/bin/rm -f $(TOP)/ipftest
+	ln -s `pwd`/ipftest $(TOP)
+	/bin/rm -f $(TOP)/ipmon
+	ln -s `pwd`/ipmon $(TOP)
+	/bin/rm -f $(TOP)/ipnat
+	ln -s `pwd`/ipnat $(TOP)
 
 ipfstat: $(FILS)
 	$(CC) -static $(DEBUG) $(CFLAGS) $(STATETOP_CFLAGS) $(STATETOP_INC) \
@@ -56,13 +66,9 @@ ipfstat: $(FILS)
 
 ipf: $(IPF)
 	$(CC) -static $(DEBUG) $(CFLAGS) $(IPF) -o $@ $(LIBS)
-	/bin/rm -f $(TOP)/ipf
-	ln -s `pwd`/ipf $(TOP)
 
 ipftest: $(IPT)
 	$(CC) $(DEBUG) $(CFLAGS) $(IPT) -o $@ $(LIBS)
-	/bin/rm -f $(TOP)/ipftest
-	ln -s `pwd`/ipftest $(TOP)
 
 ipnat: $(IPNAT)
 	$(CC) -static $(DEBUG) $(CFLAGS) $(IPNAT) -o $@ $(LIBS) -lkvm
@@ -220,8 +226,6 @@ facpri.o: $(TOP)/facpri.c $(TOP)/facpri.h
 
 ipmon: $(TOP)/ipmon.c
 	$(CC) $(DEBUG) $(CFLAGS) $(LOGFAC) $(TOP)/ipmon.c -o $@ $(LIBS)
-	/bin/rm -f $(TOP)/ipmon
-	ln -s `pwd`/ipmon $(TOP)
 
 clean:
 	${RM} -f *.core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl ipnat \
@@ -250,8 +254,8 @@ install:
 	    ipfstat:$(SBINDEST) ipftest:$(SBINDEST) ipmon:$(BINDEST); do \
 		def="`expr $$i : '[^:]*:\(.*\)'`"; \
 		p="`expr $$i : '\([^:]*\):.*'`"; \
-		for d in $(BINDEST) $(SBINDEST); do \
-			if [ -f $$d/$$i ] ; then \
+		for d in $(SEARCHDIRS); do \
+			if [ -f $$d/$$p ] ; then \
 				echo "$(INSTALL) -cs -g wheel -m 755 -o root $$p $$d"; \
 				$(INSTALL) -cs -g wheel -m 755 -o root $$p $$d; \
 				dd=$$d; \

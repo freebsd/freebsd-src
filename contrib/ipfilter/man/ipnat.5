@@ -7,8 +7,8 @@ The format for files accepted by ipnat is described by the following grammar:
 .nf
 ipmap :: = mapblock | redir | map .
 
-map ::= mapit ifname ipmask "->" ipmask [ mapport ] .
-map ::= mapit ifname fromto "->" ipmask [ mapport ] .
+map ::= mapit ifname ipmask "->" dstipmask [ mapport ] .
+map ::= mapit ifname fromto "->" dstipmask [ mapport ] .
 mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] .
 redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport options .
 
@@ -18,6 +18,7 @@ rdrport ::= "port" portnum .
 mapit ::= "map" | "bimap" .
 fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
+dstipmask ::= ipmask | "range" ip "-" ip .
 mapport ::= "portmap" tcpudp portnumber ":" portnumber .
 options ::= [ tcpudp ] [ rr ] .
 
@@ -33,6 +34,10 @@ ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
 
 numbers ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .
 .fi
+.PP
+In addition to this, # is used to mark the start of a comment and may
+appear at the end of a line with a NAT rule (as described above) or on its
+own lines.  Blank lines are ignored.
 .PP
 For standard NAT functionality, a rule should start with \fBmap\fP and then
 proceeds to specify the interface for which outgoing packets will have their
