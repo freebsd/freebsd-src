@@ -1,5 +1,5 @@
 /* GAS cgen support.
-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,7 +26,9 @@ extern CGEN_CPU_DESC gas_cgen_cpu_desc;
 
 /* Maximum number of fixups in an insn.
    If you need to change this, allow target to override and do so there.  */
+#ifndef GAS_CGEN_MAX_FIXUPS
 #define GAS_CGEN_MAX_FIXUPS 3
+#endif
 
 /* Struct defining result of gas_cgen_finish_insn.  */
 typedef struct {
@@ -54,7 +56,7 @@ extern void gas_cgen_init_parse PARAMS ((void));
 extern void gas_cgen_save_fixups PARAMS ((void));
 extern void gas_cgen_restore_fixups PARAMS ((void));
 extern void gas_cgen_swap_fixups PARAMS ((void));
-     
+
 /* Add a register to the assembler's hash table.
    This makes lets GAS parse registers for us.
    ??? This isn't currently used, but it could be in the future.  */

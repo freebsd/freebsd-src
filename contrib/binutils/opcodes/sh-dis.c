@@ -1,5 +1,6 @@
 /* Disassemble SH instructions.
-   Copyright (C) 1993, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1997, 1998, 2000
+   Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include "sysdep.h"
 #include <stdio.h>
+#include "sysdep.h"
 #define STATIC_TABLE
 #define DEFINE_TABLE
 
@@ -34,22 +35,22 @@ print_movxy (op, rn, rm, fprintf_fn, stream)
 {
   int n;
 
-  fprintf_fn (stream,"%s\t", op->name);
+  fprintf_fn (stream, "%s\t", op->name);
   for (n = 0; n < 2; n++)
     {
       switch (op->arg[n])
 	{
 	case A_IND_N:
-	  fprintf_fn (stream, "@r%d", rn);	
+	  fprintf_fn (stream, "@r%d", rn);
 	  break;
 	case A_INC_N:
-	  fprintf_fn (stream, "@r%d+", rn);	
+	  fprintf_fn (stream, "@r%d+", rn);
 	  break;
 	case A_PMOD_N:
-	  fprintf_fn (stream, "@r%d+r8", rn);	
+	  fprintf_fn (stream, "@r%d+r8", rn);
 	  break;
 	case A_PMODY_N:
-	  fprintf_fn (stream, "@r%d+r9", rn);	
+	  fprintf_fn (stream, "@r%d+r9", rn);
 	  break;
 	case DSP_REG_M:
 	  fprintf_fn (stream, "a%c", '0' + rm);
@@ -64,7 +65,7 @@ print_movxy (op, rn, rm, fprintf_fn, stream)
 	  abort ();
 	}
       if (n == 0)
-	fprintf_fn (stream, ",");	
+	fprintf_fn (stream, ",");
     }
 }
 
@@ -72,6 +73,7 @@ print_movxy (op, rn, rm, fprintf_fn, stream)
    nibbles of the insn, i.e. field a and the bit that indicates if
    a parallel processing insn follows.
    Return nonzero if a field b of a parallel processing insns follows.  */
+
 static void
 print_insn_ddt (insn, info)
      int insn;
@@ -97,19 +99,20 @@ print_insn_ddt (insn, info)
     {
       static sh_opcode_info *first_movx, *first_movy;
       sh_opcode_info *opx, *opy;
-      int insn_x, insn_y;
+      unsigned int insn_x, insn_y;
 
       if (! first_movx)
 	{
-	  for (first_movx = sh_table; first_movx->nibbles[1] != MOVX; )
+	  for (first_movx = sh_table; first_movx->nibbles[1] != MOVX;)
 	    first_movx++;
-	  for (first_movy = first_movx; first_movy->nibbles[1] != MOVY; )
+	  for (first_movy = first_movx; first_movy->nibbles[1] != MOVY;)
 	    first_movy++;
 	}
       insn_x = (insn >> 2) & 0xb;
       if (insn_x)
 	{
-	  for (opx = first_movx; opx->nibbles[2] != insn_x; ) opx++;
+	  for (opx = first_movx; opx->nibbles[2] != insn_x;)
+	    opx++;
 	  print_movxy (opx, ((insn >> 9) & 1) + 4, (insn >> 7) & 1,
 		       fprintf_fn, stream);
 	}
@@ -118,7 +121,8 @@ print_insn_ddt (insn, info)
 	{
 	  if (insn_x)
 	    fprintf_fn (stream, "\t");
-	  for (opy = first_movy; opy->nibbles[2] != insn_y; ) opy++;
+	  for (opy = first_movy; opy->nibbles[2] != insn_y;)
+	    opy++;
 	  print_movxy (opy, ((insn >> 8) & 1) + 6, (insn >> 6) & 1,
 		       fprintf_fn, stream);
 	}
@@ -174,12 +178,12 @@ print_insn_ppi (field_b, info)
      int field_b;
      struct disassemble_info *info;
 {
-  static char *sx_tab[] = {"x0","x1","a0","a1"};
-  static char *sy_tab[] = {"y0","y1","m0","m1"};
+  static char *sx_tab[] = { "x0", "x1", "a0", "a1" };
+  static char *sy_tab[] = { "y0", "y1", "m0", "m1" };
   fprintf_ftype fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
-  int nib1, nib2, nib3;
-  char *dc;
+  unsigned int nib1, nib2, nib3;
+  char *dc = NULL;
   sh_opcode_info *op;
 
   if ((field_b & 0xe800) == 0)
@@ -192,10 +196,10 @@ print_insn_ppi (field_b, info)
     }
   if ((field_b & 0xc000) == 0x4000 && (field_b & 0x3000) != 0x1000)
     {
-      static char *du_tab[] = {"x0","y0","a0","a1"};
-      static char *se_tab[] = {"x0","x1","y0","a1"};
-      static char *sf_tab[] = {"y0","y1","x0","a1"};
-      static char *sg_tab[] = {"m0","m1","a0","a1"};
+      static char *du_tab[] = { "x0", "y0", "a0", "a1" };
+      static char *se_tab[] = { "x0", "x1", "y0", "a1" };
+      static char *sf_tab[] = { "y0", "y1", "x0", "a1" };
+      static char *sg_tab[] = { "m0", "m1", "a0", "a1" };
 
       if (field_b & 0x2000)
 	{
@@ -243,11 +247,11 @@ print_insn_ppi (field_b, info)
 	  int n;
 
 	  fprintf_fn (stream, "%s%s\t", dc, op->name);
-	  for (n = 0; n < 3 && op->arg[n] != A_END; n++) 
+	  for (n = 0; n < 3 && op->arg[n] != A_END; n++)
 	    {
 	      if (n && op->arg[1] != A_END)
 		fprintf_fn (stream, ",");
-	      switch (op->arg[n]) 
+	      switch (op->arg[n])
 		{
 		case DSP_REG_N:
 		  print_dsp_reg (field_b & 0xf, fprintf_fn, stream);
@@ -262,7 +266,7 @@ print_insn_ppi (field_b, info)
 		  fprintf_fn (stream, "mach");
 		  break;
 		case A_MACL:
-		  fprintf_fn (stream ,"macl");
+		  fprintf_fn (stream, "macl");
 		  break;
 		default:
 		  abort ();
@@ -275,7 +279,7 @@ print_insn_ppi (field_b, info)
   fprintf_fn (stream, ".word 0x%x", field_b);
 }
 
-static int 
+static int
 print_insn_shx (memaddr, info)
      bfd_vma memaddr;
      struct disassemble_info *info;
@@ -285,7 +289,7 @@ print_insn_shx (memaddr, info)
   unsigned char insn[2];
   unsigned char nibs[4];
   int status;
-  bfd_vma relmask = ~ (bfd_vma) 0;
+  bfd_vma relmask = ~(bfd_vma) 0;
   sh_opcode_info *op;
   int target_arch;
 
@@ -318,13 +322,13 @@ print_insn_shx (memaddr, info)
 
   status = info->read_memory_func (memaddr, insn, 2, info);
 
-  if (status != 0) 
+  if (status != 0)
     {
       info->memory_error_func (status, memaddr, info);
       return -1;
     }
 
-  if (info->flags & LITTLE_BIT) 
+  if (info->flags & LITTLE_BIT)
     {
       nibs[0] = (insn[1] >> 4) & 0xf;
       nibs[1] = insn[1] & 0xf;
@@ -332,7 +336,7 @@ print_insn_shx (memaddr, info)
       nibs[2] = (insn[0] >> 4) & 0xf;
       nibs[3] = insn[0] & 0xf;
     }
-  else 
+  else
     {
       nibs[0] = (insn[0] >> 4) & 0xf;
       nibs[1] = insn[0] & 0xf;
@@ -349,13 +353,13 @@ print_insn_shx (memaddr, info)
 
 	  status = info->read_memory_func (memaddr + 2, insn, 2, info);
 
-	  if (status != 0) 
+	  if (status != 0)
 	    {
 	      info->memory_error_func (status, memaddr + 2, info);
 	      return -1;
 	    }
 
-	  if (info->flags & LITTLE_BIT) 
+	  if (info->flags & LITTLE_BIT)
 	    field_b = insn[1] << 8 | insn[0];
 	  else
 	    field_b = insn[0] << 8 | insn[1];
@@ -367,7 +371,7 @@ print_insn_shx (memaddr, info)
       print_insn_ddt ((nibs[1] << 8) | (nibs[2] << 4) | nibs[3], info);
       return 2;
     }
-  for (op = sh_table; op->name; op++) 
+  for (op = sh_table; op->name; op++)
     {
       int n;
       int imm = 0;
@@ -383,7 +387,7 @@ print_insn_shx (memaddr, info)
 	{
 	  int i = op->nibbles[n];
 
-	  if (i < 16) 
+	  if (i < 16)
 	    {
 	      if (nibs[n] == i)
 		continue;
@@ -392,10 +396,10 @@ print_insn_shx (memaddr, info)
 	  switch (i)
 	    {
 	    case BRANCH_8:
-	      imm = (nibs[2] << 4) | (nibs[3]);	  
+	      imm = (nibs[2] << 4) | (nibs[3]);
 	      if (imm & 0x80)
 		imm |= ~0xff;
-	      imm = ((char)imm) * 2 + 4 ;
+	      imm = ((char) imm) * 2 + 4;
 	      goto ok;
 	    case BRANCH_12:
 	      imm = ((nibs[1]) << 8) | (nibs[2] << 4) | (nibs[3]);
@@ -403,37 +407,37 @@ print_insn_shx (memaddr, info)
 		imm |= ~0xfff;
 	      imm = imm * 2 + 4;
 	      goto ok;
-	    case IMM_4:
+	    case IMM0_4:
+	    case IMM1_4:
 	      imm = nibs[3];
 	      goto ok;
-	    case IMM_4BY2:
-	      imm = nibs[3] <<1;
+	    case IMM0_4BY2:
+	    case IMM1_4BY2:
+	      imm = nibs[3] << 1;
 	      goto ok;
-	    case IMM_4BY4:
-	      imm = nibs[3] <<2;
+	    case IMM0_4BY4:
+	    case IMM1_4BY4:
+	      imm = nibs[3] << 2;
 	      goto ok;
-	    case IMM_8:
+	    case IMM0_8:
+	    case IMM1_8:
 	      imm = (nibs[2] << 4) | nibs[3];
 	      goto ok;
 	    case PCRELIMM_8BY2:
-	      imm = ((nibs[2] << 4) | nibs[3]) <<1;
-	      relmask = ~ (bfd_vma) 1;
+	      imm = ((nibs[2] << 4) | nibs[3]) << 1;
+	      relmask = ~(bfd_vma) 1;
 	      goto ok;
 	    case PCRELIMM_8BY4:
-	      imm = ((nibs[2] << 4) | nibs[3]) <<2;
-	      relmask = ~ (bfd_vma) 3;
+	      imm = ((nibs[2] << 4) | nibs[3]) << 2;
+	      relmask = ~(bfd_vma) 3;
 	      goto ok;
-	    case IMM_8BY2:
-	      imm = ((nibs[2] << 4) | nibs[3]) <<1;
+	    case IMM0_8BY2:
+	    case IMM1_8BY2:
+	      imm = ((nibs[2] << 4) | nibs[3]) << 1;
 	      goto ok;
-	    case IMM_8BY4:
-	      imm = ((nibs[2] << 4) | nibs[3]) <<2;
-	      goto ok;
-	    case DISP_8:
-	      imm = (nibs[2] << 4) | (nibs[3]);	  
-	      goto ok;
-	    case DISP_4:
-	      imm = nibs[3];
+	    case IMM0_8BY4:
+	    case IMM1_8BY4:
+	      imm = ((nibs[2] << 4) | nibs[3]) << 2;
 	      goto ok;
 	    case REG_N:
 	      rn = nibs[n];
@@ -447,33 +451,34 @@ print_insn_shx (memaddr, info)
 	      break;
 	    case REG_B:
 	      rb = nibs[n] & 0x07;
-	      break;	
+	      break;
 	    case SDT_REG_N:
 	      /* sh-dsp: single data transfer.  */
 	      rn = nibs[n];
 	      if ((rn & 0xc) != 4)
 		goto fail;
 	      rn = rn & 0x3;
-	      rn |= (rn & 2) << 1;
+	      rn |= (!(rn & 2)) << 2;
 	      break;
 	    case PPI:
+	    case REPEAT:
 	      goto fail;
 	    default:
-	      abort();
+	      abort ();
 	    }
 	}
 
     ok:
-      fprintf_fn (stream,"%s\t", op->name);
+      fprintf_fn (stream, "%s\t", op->name);
       disp_pc = 0;
-      for (n = 0; n < 3 && op->arg[n] != A_END; n++) 
+      for (n = 0; n < 3 && op->arg[n] != A_END; n++)
 	{
 	  if (n && op->arg[1] != A_END)
 	    fprintf_fn (stream, ",");
-	  switch (op->arg[n]) 
+	  switch (op->arg[n])
 	    {
 	    case A_IMM:
-	      fprintf_fn (stream, "#%d", (char)(imm));
+	      fprintf_fn (stream, "#%d", (char) (imm));
 	      break;
 	    case A_R0:
 	      fprintf_fn (stream, "r0");
@@ -482,34 +487,34 @@ print_insn_shx (memaddr, info)
 	      fprintf_fn (stream, "r%d", rn);
 	      break;
 	    case A_INC_N:
-	      fprintf_fn (stream, "@r%d+", rn);	
+	      fprintf_fn (stream, "@r%d+", rn);
 	      break;
 	    case A_DEC_N:
-	      fprintf_fn (stream, "@-r%d", rn);	
+	      fprintf_fn (stream, "@-r%d", rn);
 	      break;
 	    case A_IND_N:
-	      fprintf_fn (stream, "@r%d", rn);	
+	      fprintf_fn (stream, "@r%d", rn);
 	      break;
 	    case A_DISP_REG_N:
-	      fprintf_fn (stream, "@(%d,r%d)", imm, rn);	
+	      fprintf_fn (stream, "@(%d,r%d)", imm, rn);
 	      break;
 	    case A_PMOD_N:
-	      fprintf_fn (stream, "@r%d+r8", rn);	
+	      fprintf_fn (stream, "@r%d+r8", rn);
 	      break;
 	    case A_REG_M:
 	      fprintf_fn (stream, "r%d", rm);
 	      break;
 	    case A_INC_M:
-	      fprintf_fn (stream, "@r%d+", rm);	
+	      fprintf_fn (stream, "@r%d+", rm);
 	      break;
 	    case A_DEC_M:
-	      fprintf_fn (stream, "@-r%d", rm);	
+	      fprintf_fn (stream, "@-r%d", rm);
 	      break;
 	    case A_IND_M:
-	      fprintf_fn (stream, "@r%d", rm);	
+	      fprintf_fn (stream, "@r%d", rm);
 	      break;
 	    case A_DISP_REG_M:
-	      fprintf_fn (stream, "@(%d,r%d)", imm, rm);	
+	      fprintf_fn (stream, "@(%d,r%d)", imm, rm);
 	      break;
 	    case A_REG_B:
 	      fprintf_fn (stream, "r%d_bank", rb);
@@ -521,12 +526,12 @@ print_insn_shx (memaddr, info)
 	      break;
 	    case A_IND_R0_REG_N:
 	      fprintf_fn (stream, "@(r0,r%d)", rn);
-	      break; 
+	      break;
 	    case A_IND_R0_REG_M:
 	      fprintf_fn (stream, "@(r0,r%d)", rm);
-	      break; 
+	      break;
 	    case A_DISP_GBR:
-	      fprintf_fn (stream, "@(%d,gbr)",imm);
+	      fprintf_fn (stream, "@(%d,gbr)", imm);
 	      break;
 	    case A_R0_GBR:
 	      fprintf_fn (stream, "@(r0,gbr)");
@@ -584,7 +589,7 @@ print_insn_shx (memaddr, info)
 	      fprintf_fn (stream, "mach");
 	      break;
 	    case A_MACL:
-	      fprintf_fn (stream ,"macl");
+	      fprintf_fn (stream, "macl");
 	      break;
 	    case A_PR:
 	      fprintf_fn (stream, "pr");
@@ -607,7 +612,6 @@ print_insn_shx (memaddr, info)
 		  fprintf_fn (stream, "xd%d", rn & ~1);
 		  break;
 		}
-	    d_reg_n:
 	    case D_REG_N:
 	      fprintf_fn (stream, "dr%d", rn);
 	      break;
@@ -632,16 +636,16 @@ print_insn_shx (memaddr, info)
 	      fprintf_fn (stream, "fr0");
 	      break;
 	    case V_REG_N:
-	      fprintf_fn (stream, "fv%d", rn*4);
+	      fprintf_fn (stream, "fv%d", rn * 4);
 	      break;
 	    case V_REG_M:
-	      fprintf_fn (stream, "fv%d", rm*4);
+	      fprintf_fn (stream, "fv%d", rm * 4);
 	      break;
 	    case XMTRX_M4:
 	      fprintf_fn (stream, "xmtrx");
 	      break;
 	    default:
-	      abort();
+	      abort ();
 	    }
 	}
 
@@ -654,7 +658,7 @@ print_insn_shx (memaddr, info)
       if (!(info->flags & 1)
 	  && (op->name[0] == 'j'
 	      || (op->name[0] == 'b'
-		  && (op->name[1] == 'r' 
+		  && (op->name[1] == 'r'
 		      || op->name[1] == 's'))
 	      || (op->name[0] == 'r' && op->name[1] == 't')
 	      || (op->name[0] == 'b' && op->name[2] == '.')))
@@ -673,7 +677,7 @@ print_insn_shx (memaddr, info)
 	  int size;
 	  bfd_byte bytes[4];
 
-	  if (relmask == ~ (bfd_vma) 1)
+	  if (relmask == ~(bfd_vma) 1)
 	    size = 2;
 	  else
 	    size = 4;
@@ -709,7 +713,7 @@ print_insn_shx (memaddr, info)
   return 2;
 }
 
-int 
+int
 print_insn_shl (memaddr, info)
      bfd_vma memaddr;
      struct disassemble_info *info;
@@ -721,7 +725,7 @@ print_insn_shl (memaddr, info)
   return r;
 }
 
-int 
+int
 print_insn_sh (memaddr, info)
      bfd_vma memaddr;
      struct disassemble_info *info;

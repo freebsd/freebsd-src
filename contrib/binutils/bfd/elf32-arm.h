@@ -1295,7 +1295,7 @@ elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
 
 	case R_ARM_REL32:
 	  value -= (input_section->output_section->vma
-		    + input_section->output_offset);
+		    + input_section->output_offset + rel->r_offset);
 	  value += addend;
 	  break;
 	}

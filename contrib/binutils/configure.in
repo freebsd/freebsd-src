@@ -127,9 +127,6 @@ appdirs=""
 # Work in distributions that contain no compiler tools, like Autoconf.
 if [ -d ${srcdir}/config ]; then
 case "${host}" in
-  alpha*-*-freebsd*)
-    host_makefile_frag="${host_makefile_frag} config/mh-fbsdaxp"
-    ;;
   m68k-hp-hpux*)
     host_makefile_frag="${host_makefile_frag} config/mh-hp300"
     ;;
