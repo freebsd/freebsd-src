@@ -222,10 +222,10 @@ trap(frame)
 			    type);
 			/*
 			 * Page faults need interrupts diasabled until later,
-			 * and we shouldn't enable interrupts while holding a
-			 * spin lock.
+			 * and we shouldn't enable interrupts while in a
+			 * critical section.
 			 */
-			if (type != T_PAGEFLT && PCPU_GET(spinlocks) == NULL)
+			if (type != T_PAGEFLT && td->td_critnest == 0)
 				enable_intr();
 		}
 	}
@@ -240,7 +240,7 @@ trap(frame)
 		 * are finally ready to read %cr2 and then must
 		 * reenable interrupts.
 		 *
-		 * If we get a page fault while holding a spin lock, then
+		 * If we get a page fault while in a critical section, then
 		 * it is most likely a fatal kernel page fault.  The kernel
 		 * is already going to panic trying to get a sleep lock to
 		 * do the VM lookup, so just consider it a fatal trap so the
@@ -248,7 +248,7 @@ trap(frame)
 		 * to the debugger.
 		 */
 		eva = rcr2();
-		if (PCPU_GET(spinlocks) == NULL)
+		if (td->td_critnest == 0)
 			enable_intr();
 		else
 			trap_fatal(&frame, eva);
