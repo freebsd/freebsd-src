@@ -61,7 +61,7 @@ static struct midi_buf *midi_in_buf[MAX_MIDI_DEV] =
 {NULL};
 static struct midi_parms parms[MAX_MIDI_DEV];
 
-static void     midi_poll (unsigned long dummy);
+static void     midi_poll (void *dummy);
 
 DEFINE_TIMER (poll_timer, midi_poll);
 static volatile int open_devs = 0;
@@ -141,7 +141,7 @@ midi_output_intr (int dev)
 }
 
 static void
-midi_poll (unsigned long dummy)
+midi_poll (void *dummy)
 {
   unsigned long   flags;
   int             dev;

@@ -105,7 +105,7 @@ m6850intr (int unit)
  */
 
 static void
-poll_uart6850 (unsigned long dummy)
+poll_uart6850 (void *dummy)
 {
   unsigned long   flags;
 
