@@ -349,7 +349,7 @@
 #define PCIR_MSI_ADDR		0x4
 #define PCIR_MSI_ADDR_HIGH	0x8
 #define PCIR_MSI_DATA		0x8
-#define PCIR_MSI_DATA_HIGH	0xc
+#define PCIR_MSI_DATA_64BIT	0xc
 #define PCIR_MSI_MASK		0x10
 #define PCIR_MSI_PENDING	0x14
 
