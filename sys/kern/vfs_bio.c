@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.3 1997/02/13 08:17:18 bde Exp $
+ * $Id: vfs_bio.c,v 1.104.2.4 1997/05/28 18:26:40 dfr Exp $
  */
 
 /*
@@ -81,7 +81,8 @@ static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
 static void vfs_buf_set_valid(struct buf *bp, vm_ooffset_t foff,
 			      vm_offset_t off, vm_offset_t size,
 			      vm_page_t m);
-static void vfs_page_set_valid(struct buf *bp, vm_offset_t off, vm_page_t m);
+static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
+			       int pageno, vm_page_t m);
 static void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
@@ -1574,7 +1575,7 @@ biodone(register struct buf * bp)
 	}
 	if (bp->b_flags & B_VMIO) {
 		int i, resid;
-		vm_ooffset_t foff, bfoff;
+		vm_ooffset_t foff;
 		vm_page_t m;
 		vm_object_t obj;
 		int iosize;
@@ -1584,7 +1585,6 @@ biodone(register struct buf * bp)
 			foff = (vm_ooffset_t) DEV_BSIZE * bp->b_lblkno;
 		else
 			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
-		bfoff = foff;
 		obj = vp->v_object;
 		if (!obj) {
 			panic("biodone: no object");
@@ -1626,7 +1626,7 @@ biodone(register struct buf * bp)
 			 * here in the read case.
 			 */
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
-				vfs_page_set_valid(bp, foff - bfoff, m);
+				vfs_page_set_valid(bp, foff, i, m);
 			}
 
 			/*
@@ -1820,23 +1820,31 @@ vfs_buf_set_valid(struct buf *bp,
 /*
  * Set the valid bits in a page, taking care of the b_validoff,
  * b_validend fields which NFS uses to optimise small reads.  Off is
- * the offset of the page within the buf.
+ * the offset within the file and pageno is the page index within the buf.
  */
 static void
-vfs_page_set_valid(struct buf *bp, vm_offset_t off, vm_page_t m)
+vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 {
 	struct vnode *vp = bp->b_vp;
-	vm_offset_t soff, eoff;
+	vm_ooffset_t soff, eoff;
 
 	soff = off;
-	eoff = min(off + PAGE_SIZE, bp->b_bufsize);
+	eoff = off + min(PAGE_SIZE, bp->b_bufsize);
+	vm_page_set_invalid(m,
+			    (vm_offset_t) (soff & PAGE_MASK),
+			    (vm_offset_t) (eoff - soff));
 	if (vp->v_tag == VT_NFS) {
-		soff = max((bp->b_validoff + DEV_BSIZE - 1) & -DEV_BSIZE, soff);
-		eoff = min(bp->b_validend & -DEV_BSIZE, eoff);
+		vm_ooffset_t sv, ev;
+		off = off - pageno * PAGE_SIZE;
+		sv = off + ((bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1));
+		ev = off + (bp->b_validend & ~(DEV_BSIZE - 1));
+		soff = max(sv, soff);
+		eoff = min(ev, eoff);
 	}
-	vm_page_set_invalid(m, 0, PAGE_SIZE);
 	if (eoff > soff)
-		vm_page_set_validclean(m, soff, eoff - soff);
+		vm_page_set_validclean(m,
+				       (vm_offset_t) (soff & PAGE_MASK),
+				       (vm_offset_t) (eoff - soff));
 }
 
 /*
@@ -1853,11 +1861,16 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 	int i;
 
 	if (bp->b_flags & B_VMIO) {
-		vm_object_t obj = bp->b_vp->v_object;
-		vm_offset_t off;
+		struct vnode *vp = bp->b_vp;
+		vm_object_t obj = vp->v_object;
+		vm_ooffset_t foff;
 
+		if (vp->v_type == VBLK)
+			foff = (vm_ooffset_t) DEV_BSIZE * bp->b_lblkno;
+		else
+			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
 		vfs_setdirty(bp);
-		for (i = 0, off = 0; i < bp->b_npages; i++, off += PAGE_SIZE) {
+		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 
 			if ((bp->b_flags & B_CLUSTER) == 0) {
@@ -1866,7 +1879,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 			}
 			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify)
-				vfs_page_set_valid(bp, off, m);
+				vfs_page_set_valid(bp, foff, i, m);
 			else if (bp->b_bcount >= PAGE_SIZE) {
 				if (m->valid && (bp->b_flags & B_CACHE) == 0) {
 					bp->b_pages[i] = bogus_page;
@@ -1888,12 +1901,18 @@ vfs_clean_pages(struct buf * bp)
 	int i;
 
 	if (bp->b_flags & B_VMIO) {
-		vm_offset_t off;
+		struct vnode *vp = bp->b_vp;
+		vm_object_t obj = vp->v_object;
+		vm_ooffset_t foff;
 
-		for (i = 0, off = 0; i < bp->b_npages; i++, off += PAGE_SIZE) {
+		if (vp->v_type == VBLK)
+			foff = (vm_ooffset_t) DEV_BSIZE * bp->b_lblkno;
+		else
+			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
+		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 
-			vfs_page_set_valid(bp, off, m);
+			vfs_page_set_valid(bp, foff, i, m);
 		}
 	}
 }
