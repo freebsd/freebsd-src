@@ -372,10 +372,8 @@ extern int ser_printf(const char *fmt, ...);
 #define GDT_SCRATCH_SZ          3072            /* 3KB scratch buffer */
 
 /* macros */
-#define htole32(v)      (v)
-#define htole16(v)      (v)
-#define letoh32(v)      (v)
-#define letoh16(v)      (v)
+#define letoh32(v)      le32toh(v)
+#define letoh16(v)      le16toh(v)
 
 /* Map minor numbers to device identity */
 #define LUN_MASK                0x0007

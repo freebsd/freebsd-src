@@ -314,7 +314,6 @@ typedef struct thread *usb_proc_ptr;
 /* XXX Change this when FreeBSD has memset */
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
-#define bswap32(x)		swap32(x)
 #define kthread_create1(f, s, p, a0, a1) \
 		kthread_create((f), (s), (p), RFHIGHPID, (a0), (a1))
 

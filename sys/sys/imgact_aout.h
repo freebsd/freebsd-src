@@ -50,13 +50,13 @@
 	((mag) & 0xffff) )
 
 #define N_GETMAGIC_NET(ex) \
-	(__ntohl((ex).a_midmag) & 0xffff)
+	(ntohl((ex).a_midmag) & 0xffff)
 #define N_GETMID_NET(ex) \
-	((__ntohl((ex).a_midmag) >> 16) & 0x03ff)
+	((ntohl((ex).a_midmag) >> 16) & 0x03ff)
 #define N_GETFLAG_NET(ex) \
-	((__ntohl((ex).a_midmag) >> 26) & 0x3f)
+	((ntohl((ex).a_midmag) >> 26) & 0x3f)
 #define N_SETMAGIC_NET(ex,mag,mid,flag) \
-	( (ex).a_midmag = __htonl( (((flag)&0x3f)<<26) | (((mid)&0x03ff)<<16) \
+	( (ex).a_midmag = htonl( (((flag)&0x3f)<<26) | (((mid)&0x03ff)<<16) \
 	| (((mag)&0xffff)) ) )
 
 #define N_ALIGN(ex,x) \
