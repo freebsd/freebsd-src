@@ -209,7 +209,7 @@ adw_pci_attach(device_t dev)
 	regs_type = 0;
 	regs_id = 0;
 #ifdef ADW_ALLOW_MEMIO
-	 if ((command & PCIM_CMD_MEMEN) != 0)
+	 if ((command & PCIM_CMD_MEMEN) != 0) {
 		regs_type = SYS_RES_MEMORY;
 		regs_id = ADW_PCI_MEMBASE;
 		regs = bus_alloc_resource(dev, regs_type,
