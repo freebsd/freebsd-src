@@ -95,17 +95,15 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
           if (input_x || scroll) {
             wattrset(dialog, inputbox_attr);
             if (!input_x) {
+	      int oldscroll = scroll;
               scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
               wmove(dialog, box_y, box_x);
               for (i = 0; i < box_width; i++)
                 waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
-              input_x = strlen(instr) - scroll;
+	      input_x = oldscroll - 1 - scroll;
             }
             else
               input_x--;
-	    i = strlen(instr);
-	    while (i-1 >= scroll+input_x && instr[i-1] == ' ')
-	      instr[--i] = '\0';
             wmove(dialog, box_y, input_x + box_x);
             wrefresh(dialog);
           }
@@ -118,8 +116,9 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
 	      if (input_x == box_width-1) {
 		scroll++;
 		wmove(dialog, box_y, box_x);
-		for (i = 0; i < box_width-1; i++)
-		  waddch(dialog, instr[scroll+i]);
+		for (i = 0; i < box_width; i++)
+		  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+		wmove(dialog, box_y, box_x + box_width - 1);
 	      }
 	      else {
 		wmove(dialog, box_y, input_x + box_x);
@@ -131,33 +130,37 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
 	      flash(); /* Alarm user about overflow */
           continue;
         case KEY_BACKSPACE:
+	case KEY_DC:
           if (input_x || scroll) {
+	    i = strlen(instr);
+	    memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
             wattrset(dialog, inputbox_attr);
             if (!input_x) {
+	      int oldscroll = scroll;
               scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
               wmove(dialog, box_y, box_x);
               for (i = 0; i < box_width; i++)
                 waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
-              input_x = strlen(instr) - scroll;
+	      input_x = oldscroll - 1 - scroll;
             }
             else
               input_x--;
-	    instr[scroll+input_x] = ' ';
             wmove(dialog, box_y, input_x + box_x);
-            waddch(dialog, ' ');
+	    for (i = input_x; i < box_width; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
             wmove(dialog, box_y, input_x + box_x);
             wrefresh(dialog);
-	    i = strlen(instr);
-	    while (i-1 >= scroll+input_x && instr[i-1] == ' ')
-	      instr[--i] = '\0';
           }
           continue;
         default:
           if (key < 0x100 && isprint(key)) {
-            if (scroll+input_x < MAX_LEN) {
+	    for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
+	      instr[i] = '\0';
+	    i++;
+	    if (i < MAX_LEN) {
+	      memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
               wattrset(dialog, inputbox_attr);
               instr[scroll+input_x] = key;
-              instr[scroll+input_x+1] = '\0';
               if (input_x == box_width-1) {
                 scroll++;
                 wmove(dialog, box_y, box_x);
@@ -165,8 +168,10 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
                   waddch(dialog, instr[scroll+i]);
               }
               else {
-                wmove(dialog, box_y, input_x++ + box_x);
-                waddch(dialog, key);
+		wmove(dialog, box_y, input_x + box_x);
+		for (i = input_x; i < box_width && instr[scroll+i]; i++)
+                  waddch(dialog, instr[scroll+i]);
+		wmove(dialog, box_y, ++input_x + box_x);
               }
               wrefresh(dialog);
             } else
@@ -239,6 +244,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
       case ' ':
       case '\n':
         delwin(dialog);
+	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
+	  instr[i] = '\0';
         fprintf(stderr, instr);
         return (button == -1 ? 0 : button);
       case ESC:
