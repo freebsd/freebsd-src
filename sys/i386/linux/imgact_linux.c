@@ -56,8 +56,7 @@
 static int	exec_linux_imgact(struct image_params *iparams);
 
 static int
-exec_linux_imgact(imgp)
-    struct image_params *imgp;
+exec_linux_imgact(struct image_params *imgp)
 {
     const struct exec *a_out = (const struct exec *) imgp->image_header;
     struct vmspace *vmspace;
