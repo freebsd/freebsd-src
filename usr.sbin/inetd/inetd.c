@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.63 1999/07/21 16:09:45 sheldonh Exp $";
+	"$Id: inetd.c,v 1.64 1999/07/22 14:11:26 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -656,7 +656,7 @@ void flag_signal(c)
 {
 	if (write(signalpipe[1], &c, 1) != 1) {
 		syslog(LOG_ERR, "write: %m");
-		exit(EX_OSERR);
+		_exit(EX_OSERR);
 	}
 }
 
