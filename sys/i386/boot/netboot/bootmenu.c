@@ -276,14 +276,19 @@ execute(buf)
 {
 	char *p, *q;
 	struct bootcmds_t *cmd = bootcmds;
-	if ((!(*buf)) || (*buf == '#')) return(0);
+	while (*buf == ' ' || *buf == '\t')
+		buf++;
+	if ((!(*buf)) || (*buf == '#')) 
+		return(0);
 	while(cmd->name) {
 		p = buf;
 		q = cmd->name;
 		while (*q && (*(q++) == *(p++))) ;
-		if ((!(*q)) && ((*p == ' ') || (!(*p)))) {
-			if (!cmd->func) return(1);
-			while (*p == ' ') p++;
+		if ((!(*q)) && ((*p == ' ') || (*p == '\t') || (!(*p)))) {
+			if (!cmd->func) 
+				return(1);
+			while (*p == ' ')
+				p++;
 			(cmd->func)(p);
 			return(0);
 		} else
