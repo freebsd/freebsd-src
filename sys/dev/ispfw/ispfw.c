@@ -2,10 +2,8 @@
 /*
  * ISP Firmware Helper Pseudo Device for FreeBSD
  *
- *---------------------------------------
  * Copyright (c) 2000, by Matthew Jacob
  * All rights reserved.
- *---------------------------------------
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -107,7 +105,10 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 				rp = isp_1080_risc_code;
 			break;
 		case PCI_PRODUCT_QLOGIC_ISP12160:
-			rp = isp_12160_risc_code;
+			if (tgtmode)
+				rp = isp_12160_risc_code_it;
+			else
+				rp = isp_12160_risc_code;
 			break;
 		case PCI_PRODUCT_QLOGIC_ISP2100:
 			rp = isp_2100_risc_code;
