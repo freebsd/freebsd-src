@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_run.c 1.1 87/10/13 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_run.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_run.c,v 1.3 1996/06/10 00:49:19 jraynard Exp $";
+static char *rcsid = "$Id: svc_run.c,v 1.4 1996/12/30 15:14:29 peter Exp $";
 #endif
 
 /*
@@ -62,7 +62,7 @@ svc_run()
 			memcpy(fds, __svc_fdset, bytes);
 		} else
 			fds = NULL;
-		switch (select(svc_maxfd, fds, NULL, NULL,
+		switch (select(svc_maxfd + 1, fds, NULL, NULL,
 				(struct timeval *)0)) {
 		case -1:
 			if (errno == EINTR) {
@@ -79,7 +79,7 @@ svc_run()
 				free(fds);
 			continue;
 		default:
-			/* XXX What the hell?? what if fds == NULL?? */
+			/* if fds == NULL, select() can't return a result */
 			svc_getreqset2(fds, svc_maxfd + 1);
 			free(fds);
 		}
