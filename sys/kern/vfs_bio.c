@@ -29,13 +29,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/kthread.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
+#include <sys/buf.h>
+#include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/proc.h>
+#include <sys/reboot.h>
+#include <sys/resourcevar.h>
+#include <sys/sysctl.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -44,11 +51,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
-#include <sys/buf.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
-#include <sys/resourcevar.h>
-#include <sys/conf.h>
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
@@ -1666,6 +1668,13 @@ static void
 buf_daemon()
 {
 	int s;
+
+	/*
+	 * This process needs to be suspended prior to shutdown sync.
+	 */
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, bufdaemonproc,
+	    SHUTDOWN_PRI_LAST);
+
 	/*
 	 * This process is allowed to take the buffer cache to the limit
 	 */
@@ -1676,7 +1685,9 @@ buf_daemon()
 	bd_flushto = hidirtybuffers;	/* dynamically adjusted */
 	bd_flushinc = 1;
 
-	while (TRUE) {
+	for (;;) {
+		kproc_suspend_loop(bufdaemonproc);
+
 		bd_request = 0;
 
 		/*
