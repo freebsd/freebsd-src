@@ -150,8 +150,10 @@ int psmprobe(struct isa_device *dvp)
 
 	ioport=dvp->id_iobase;
 	unit=dvp->id_unit;
+#ifndef PSM_NO_RESET
 	psm_write_dev(ioport,0xff); /* Reset aux device */
 	psm_poll_status();
+#endif
 	outb(ioport+CNTRL,0xa9);
 	psm_poll_status();
 	outb(ioport+CNTRL,0xaa);
