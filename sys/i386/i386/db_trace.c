@@ -223,7 +223,8 @@ db_nextframe(fp, ip, p)
 	if (name != NULL) {
 		if (!strcmp(name, "calltrap")) {
 			frame_type = TRAP;
-		} else if (!strncmp(name, "Xresume", 7)) {
+		} else if (!strncmp(name, "Xintr", 5) ||
+		    !strncmp(name, "Xfastintr", 9)) {
 			frame_type = INTERRUPT;
 		} else if (!strcmp(name, "syscall_with_err_pushed")) {
 			frame_type = SYSCALL;
