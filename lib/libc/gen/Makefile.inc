@@ -29,7 +29,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
 	ttyslot.c ualarm.c ulimit.c uname.c unvis.c usleep.c utime.c \
-	valloc.c vis.c wait.c wait3.c waitpid.c
+	valloc.c vis.c wait.c wait3.c waitpid.c wordexp.c
 
 # machine-dependent gen sources
 .if exists(${.CURDIR}/${MACHINE_ARCH}/gen/Makefile.inc)
@@ -56,7 +56,7 @@ MAN+=	alarm.3 arc4random.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
 	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
 	ttyname.3 tzset.3 ualarm.3 ucontext.3 ulimit.3 uname.3 \
-	unvis.3 usleep.3 utime.3 valloc.3 vis.3
+	unvis.3 usleep.3 utime.3 valloc.3 vis.3 wordexp.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3
 MLINKS+=ctermid.3 ctermid_r.3
@@ -131,3 +131,4 @@ MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
+MLINKS+=wordexp.3 wordfree.3
