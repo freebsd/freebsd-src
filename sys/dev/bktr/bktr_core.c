@@ -191,6 +191,10 @@
                            Submitted general ioctl to set video broadcast
                            formats (PAL, NTSC, etc..) previously we depended
                            on the Bt848 auto video detect feature.
+1.21            10/24/97   Randall Hopper <rhh@ct.picker.com>
+                           Fix temporal decimation, disable it when
+                           doing CAP_SINGLEs, and in dual-field capture, don't
+                           capture fields for different frames
 */
 
 #define DDB(x) x
@@ -281,6 +285,10 @@ static void	bktr_intr __P((void *arg));
 #define BROOKTREE_ALLOC_PAGES	217*4
 #endif
 #define BROOKTREE_ALLOC		(BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
+
+/*  Defines for fields  */
+#define ODD_F  0x01
+#define EVEN_F 0x02
 
 #ifdef __FreeBSD__
 
@@ -602,6 +610,7 @@ static u_long	status_sum = 0;
 #define BIT_EIGHT_HIGH		(1<<8)
 
 #define I2C_BITS		(BT848_INT_RACK | BT848_INT_I2CDONE)
+#define TDEC_BITS               (BT848_INT_FDSR | BT848_INT_FBUS)
 
 
 /*
@@ -855,6 +864,9 @@ bktr_intr( void *arg )
 	bt848_ptr_t		bt848;
 	u_long			bktr_status;
 	u_char			dstatus;
+	u_long                  field;
+	u_long                  w_field;
+	u_long                  req_field;
 
 	bktr = (bktr_ptr_t) arg;
 	bt848 = bktr->base;
@@ -892,21 +904,40 @@ bktr_intr( void *arg )
 		*/		
 	/* if risc was disabled re-start process again */
 	if ( !(bktr_status & BT848_INT_RISC_EN) ||
-	     ((bktr_status & (BT848_INT_FBUS   |
-			      BT848_INT_FTRGT  |
-			      BT848_INT_FDSR   |
+	     ((bktr_status & (BT848_INT_FTRGT  |
 			      BT848_INT_PPERR  |
 			      BT848_INT_RIPERR |
 			      BT848_INT_PABORT |
 			      BT848_INT_OCERR  |
-			      BT848_INT_SCERR)) != 0) ) {
+			      BT848_INT_SCERR)) != 0) ||
+	     ((bt848->tdec == 0) && (bktr_status & TDEC_BITS)) ) {
+
+		u_short	tdec_save = bt848->tdec;
 
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 
 		bt848->int_mask = ALL_INTS_DISABLED;
 
-		bt848->risc_strt_add = vtophys(bktr->dma_prog);
+		/*  Reset temporal decimation ctr  */
+		bt848->tdec = 0;
+		bt848->tdec = tdec_save;
+		
+		/*  Reset to no-fields captured state  */
+		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
+			switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+			case METEOR_ONLY_ODD_FIELDS:
+				bktr->flags |= METEOR_WANT_ODD;
+				break;
+			case METEOR_ONLY_EVEN_FIELDS:
+				bktr->flags |= METEOR_WANT_EVEN;
+				break;
+			default:
+				bktr->flags |= METEOR_WANT_MASK;
+				break;
+			}
+		}
 
+		bt848->risc_strt_add = vtophys(bktr->dma_prog);
 		bt848->gpio_dma_ctl = FIFO_ENABLED;
 		bt848->gpio_dma_ctl = bktr->capcontrol;
 
@@ -937,11 +968,51 @@ bktr_intr( void *arg )
 
 	/*
 	 *  Register the completed field
+	 *    (For dual-field mode, require fields from the same frame)
 	 */
-	if ( bktr_status & BT848_INT_FIELD )
+	field = ( bktr_status & BT848_INT_FIELD ) ? EVEN_F : ODD_F;
+	switch ( bktr->flags & METEOR_WANT_MASK ) {
+		case METEOR_WANT_ODD  : w_field = ODD_F         ;  break;
+		case METEOR_WANT_EVEN : w_field = EVEN_F        ;  break;
+		default               : w_field = (ODD_F|EVEN_F);  break;
+	}
+	switch ( bktr->flags & METEOR_ONLY_FIELDS_MASK ) {
+		case METEOR_ONLY_ODD_FIELDS  : req_field = ODD_F  ;  break;
+		case METEOR_ONLY_EVEN_FIELDS : req_field = EVEN_F ;  break;
+		default                      : req_field = (ODD_F|EVEN_F);  
+			                       break;
+	}
+
+	if (( field == EVEN_F ) && ( w_field == EVEN_F ))
 		bktr->flags &= ~METEOR_WANT_EVEN;
-	else
+	else if (( field == ODD_F ) && ( req_field == ODD_F ) &&
+		 ( w_field == ODD_F ))
 		bktr->flags &= ~METEOR_WANT_ODD;
+	else if (( field == ODD_F ) && ( req_field == (ODD_F|EVEN_F) ) &&
+		 ( w_field == (ODD_F|EVEN_F) ))
+		bktr->flags &= ~METEOR_WANT_ODD;
+	else if (( field == ODD_F ) && ( req_field == (ODD_F|EVEN_F) ) &&
+		 ( w_field == ODD_F )) {
+		bktr->flags &= ~METEOR_WANT_ODD;
+		bktr->flags |=  METEOR_WANT_EVEN;
+	}
+	else {
+		/*  We're out of sync.  Start over.  */
+		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
+			switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+			case METEOR_ONLY_ODD_FIELDS:
+				bktr->flags |= METEOR_WANT_ODD;
+				break;
+			case METEOR_ONLY_EVEN_FIELDS:
+				bktr->flags |= METEOR_WANT_EVEN;
+				break;
+			default:
+				bktr->flags |= METEOR_WANT_MASK;
+				break;
+			}
+		}
+		return;
+	}
 
 	/*
 	 * If we have a complete frame.
@@ -1353,11 +1424,11 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	    for (i = 0; i < BT848_MAX_CLIP_NODE; i++) {
 		if (bktr->clip_list[i].y_min ==  0 &&
-		    bktr->clip_list[i].y_max == 0) {
-		    bktr->max_clip_node = i;
+		    bktr->clip_list[i].y_max == 0)
 		    break;
-		}
 	    }
+	    bktr->max_clip_node = i;
+
 	    /* make sure that the list contains a valid clip secquence */
 	    /* the clip rectangles should be sorted by x then by y as the
                second order sort key */
@@ -1879,6 +1950,21 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		}
 		break;
 	/* end of METEORSETGEO */
+
+	case BT848_I2CWR:
+		u_long par = *(u_long *)arg;
+		u_char write = (par >> 24) & 0xff ;
+		int i2c_addr = (par >> 16) & 0xff ;
+		int i2c_port = (par >> 8) & 0xff ;
+		u_long data = (par) & 0xff ;
+ 
+		if (write) { 
+			i2cWrite( bktr, i2c_addr, i2c_port, data);
+		} else {
+			data = i2cRead( bktr, i2c_addr);
+		}
+		*(u_long *)arg = (par & 0xffffff00) | ( data & 0xff );
+		break;
 
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
@@ -2960,6 +3046,9 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 {
 	bt848_ptr_t		bt848;
 	u_char			i_flag;
+	struct format_params   *fp;
+
+	fp = &format_params[bktr->format_params];
 
 	bt848 = bktr->base;
 
@@ -2967,6 +3056,7 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 	bt848->int_stat = bt848->int_stat;
 
 	bktr->flags |= type;
+	bktr->flags &= ~METEOR_WANT_MASK;
 	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
 		bktr->flags |= METEOR_WANT_EVEN;
@@ -2982,7 +3072,16 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 		break;
 	}
 
-	set_fps(bktr, bktr->fps);
+	/*  TDEC is only valid for continuous captures  */
+	if ( type == METEOR_SINGLE ) {
+		u_short	fps_save = bktr->fps;
+
+		set_fps(bktr, fp->frame_rate);
+		bktr->fps = fps_save;
+	}
+	else
+		set_fps(bktr, bktr->fps);
+
 	if (bktr->dma_prog_loaded == FALSE) {
 		build_dma_prog(bktr, i_flag);
 		bktr->dma_prog_loaded = TRUE;
@@ -3030,9 +3129,9 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 	bt848->tdec = 0;
 
 	if (fps < fp->frame_rate)
-			bt848->tdec = i_flag*(fp->frame_rate - fps) & 0x3f;
-		else
-			bt848->tdec = 0;
+		bt848->tdec = i_flag*(fp->frame_rate - fps) & 0x3f;
+	else
+		bt848->tdec = 0;
 	return;
 
 }
