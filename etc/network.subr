@@ -493,6 +493,11 @@ network_pass3() {
 
 			echo -n ' nfsd';	nfsd ${nfs_server_flags}
 
+			if [ -n "${nfs_bufpackets}" ]; then
+				sysctl -w vfs.nfs.bufpackets=${nfs_bufpackets} \
+					> /dev/null
+			fi
+
 			case ${rpc_lockd_enable} in
 			[Yy][Ee][Ss])
 				echo -n ' rpc.lockd';	rpc.lockd
