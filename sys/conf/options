@@ -1,4 +1,4 @@
-#	$Id: options,v 1.86 1998/07/02 05:50:57 julian Exp $
+#	$Id: options,v 1.87 1998/07/06 04:55:22 julian Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -116,6 +116,7 @@ CD9660_ROOTDELAY	opt_cd9660.h
 UNION
 
 # Options used only in param.c.
+MAXUSERS	opt_param.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
 MSGSEG		opt_param.h
