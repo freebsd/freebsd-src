@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.16 1999/04/16 21:21:39 peter Exp $
+ *	$Id: cia.c,v 1.17 1999/05/08 21:58:41 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -332,7 +332,7 @@ cia_check_abort(void)
 	   | ((b) << 16) | ((s) << 11) | ((f) << 8) | (r))
 
 static u_int8_t
-cia_bwx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+cia_bwx_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	u_int8_t data;
@@ -348,7 +348,7 @@ cia_bwx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
 }
 
 static u_int16_t
-cia_bwx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+cia_bwx_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	u_int16_t data;
@@ -364,7 +364,7 @@ cia_bwx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
 }
 
 static u_int32_t
-cia_bwx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+cia_bwx_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	u_int32_t data;
@@ -380,7 +380,7 @@ cia_bwx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
 }
 
 static void
-cia_bwx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+cia_bwx_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	cia_clear_abort();
@@ -390,7 +390,7 @@ cia_bwx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 }
 
 static void
-cia_bwx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+cia_bwx_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 2)) return;
@@ -399,7 +399,7 @@ cia_bwx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 }
 
 static void
-cia_bwx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+cia_bwx_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	vm_offset_t va = CIA_BWX_CFGADDR(b, s, f, r);
 	if (badaddr((caddr_t)va, 4)) return;
@@ -579,37 +579,37 @@ cia_swiz_maxdevs(u_int b)
 	return;							
 
 static u_int8_t
-cia_swiz_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+cia_swiz_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, BYTE, u_int8_t);
 }
 
 static u_int16_t
-cia_swiz_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+cia_swiz_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, WORD, u_int16_t);
 }
 
 static u_int32_t
-cia_swiz_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+cia_swiz_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	SWIZ_CFGREAD(b, s, f, r, LONG, u_int32_t);
 }
 
 static void
-cia_swiz_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+cia_swiz_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, BYTE, u_int8_t);
 }
 
 static void
-cia_swiz_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+cia_swiz_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, WORD, u_int16_t);
 }
 
 static void
-cia_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+cia_swiz_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
 }

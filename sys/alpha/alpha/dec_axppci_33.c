@@ -1,4 +1,4 @@
-/* $Id: dec_axppci_33.c,v 1.1 1998/08/10 07:53:58 dfr Exp $ */
+/* $Id: dec_axppci_33.c,v 1.2 1999/04/23 19:53:37 dt Exp $ */
 /* $NetBSD: dec_axppci_33.c,v 1.38 1998/07/07 08:49:12 ross Exp $ */
 
 /*
@@ -261,7 +261,7 @@ dec_axppci_33_intr_map(void *arg)
                 return;
 	}
 
-	pirqreg = chipset.cfgreadl(0, 7, 0, SIO_PCIREG_PIRQ_RTCTRL);
+	pirqreg = chipset.cfgreadl(0, 0, 7, 0, SIO_PCIREG_PIRQ_RTCTRL);
 #if 0
 	printf("dec_axppci_33_intr_map: device %d pin %c: pirq %d, reg = %x\n",
 		device, '@' + cfg->intpin, pirq, pirqreg);

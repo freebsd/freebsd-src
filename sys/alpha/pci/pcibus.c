@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.12 1999/05/08 21:58:44 dfr Exp $
+ * $Id: pcibus.c,v 1.13 1999/05/18 23:20:14 peter Exp $
  *
  */
 
@@ -82,11 +82,14 @@ pci_cfgread(pcicfgregs *cfg, int reg, int bytes)
 {
 	switch (bytes) {
 	case 1:
-		return chipset.cfgreadb(cfg->bus, cfg->slot, cfg->func, reg);
+		return chipset.cfgreadb(cfg->hose, cfg->bus, 
+					cfg->slot, cfg->func, reg);
 	case 2:
-		return chipset.cfgreadw(cfg->bus, cfg->slot, cfg->func, reg);
+		return chipset.cfgreadw(cfg->hose, cfg->bus, 
+					cfg->slot, cfg->func, reg);
 	case 4:
-		return chipset.cfgreadl(cfg->bus, cfg->slot, cfg->func, reg);
+		return chipset.cfgreadl(cfg->hose, cfg->bus, 
+					cfg->slot, cfg->func, reg);
 	}
 	return ~0;
 }		
@@ -99,11 +102,14 @@ pci_cfgwrite(pcicfgregs *cfg, int reg, int data, int bytes)
 {
 	switch (bytes) {
 	case 1:
-		return chipset.cfgwriteb(cfg->bus, cfg->slot, cfg->func, reg, data);
+		return chipset.cfgwriteb(cfg->hose, cfg->bus, 
+					 cfg->slot, cfg->func, reg, data);
 	case 2:
-		return chipset.cfgwritew(cfg->bus, cfg->slot, cfg->func, reg, data);
+		return chipset.cfgwritew(cfg->hose, cfg->bus, 
+					 cfg->slot, cfg->func, reg, data);
 	case 4:
-		return chipset.cfgwritel(cfg->bus, cfg->slot, cfg->func, reg, data);
+		return chipset.cfgwritel(cfg->hose, cfg->bus, 
+					 cfg->slot, cfg->func, reg, data);
 	}
 }
 
@@ -155,11 +161,11 @@ static struct rman irq_rman, port_rman, mem_rman;
 void pci_init_resources()
 {
 	irq_rman.rm_start = 0;
-	irq_rman.rm_end = 32;
+	irq_rman.rm_end = 64;
 	irq_rman.rm_type = RMAN_ARRAY;
 	irq_rman.rm_descr = "PCI Interrupt request lines";
 	if (rman_init(&irq_rman)
-	    || rman_manage_region(&irq_rman, 0, 31))
+	    || rman_manage_region(&irq_rman, 0, 63))
 		panic("pci_init_resources irq_rman");
 
 	port_rman.rm_start = 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.8 1999/04/16 21:21:42 peter Exp $
+ *	$Id: dwlpx.c,v 1.9 1999/05/08 21:58:51 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -218,37 +218,37 @@ dwlpx_maxdevs(u_int b)
 	SPARSE_WRITE(kv, SPARSE_##width##_INSERT(off, data))
 
 static u_int8_t
-dwlpx_cfgreadb(u_int b, u_int s, u_int f, u_int r)
+dwlpx_cfgreadb(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, BYTE);
 }
 
 static u_int16_t
-dwlpx_cfgreadw(u_int b, u_int s, u_int f, u_int r)
+dwlpx_cfgreadw(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, WORD);
 }
 
 static u_int32_t
-dwlpx_cfgreadl(u_int b, u_int s, u_int f, u_int r)
+dwlpx_cfgreadl(u_int h, u_int b, u_int s, u_int f, u_int r)
 {
 	CFGREAD(b, s, f, r, LONG);
 }
 
 static void
-dwlpx_cfgwriteb(u_int b, u_int s, u_int f, u_int r, u_int8_t data)
+dwlpx_cfgwriteb(u_int h, u_int b, u_int s, u_int f, u_int r, u_int8_t data)
 {
 	CFGWRITE(b, s, f, r, data, BYTE);
 }
 
 static void
-dwlpx_cfgwritew(u_int b, u_int s, u_int f, u_int r, u_int16_t data)
+dwlpx_cfgwritew(u_int h, u_int b, u_int s, u_int f, u_int r, u_int16_t data)
 {
 	CFGWRITE(b, s, f, r, data, WORD);
 }
 
 static void
-dwlpx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
+dwlpx_cfgwritel(u_int h, u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	CFGWRITE(b, s, f, r, data, LONG);
 }

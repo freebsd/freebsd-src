@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs_pci.c,v 1.1 1999/04/16 21:21:38 peter Exp $
+ *	$Id: apecs_pci.c,v 1.2 1999/05/08 21:58:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <pci/pcivar.h>
 
 static devclass_t	pcib_devclass;
 
@@ -46,6 +47,16 @@ apecs_pcib_probe(device_t dev)
 	return 0;
 }
 
+static int
+apecs_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	if (which == PCIB_IVAR_HOSE) {
+		*result = 0;
+		return 0;
+	}
+	return ENOENT;
+}
+
 static device_method_t apecs_pcib_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		apecs_pcib_probe),
@@ -53,6 +64,7 @@ static device_method_t apecs_pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	apecs_pcib_read_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
