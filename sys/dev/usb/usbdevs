@@ -110,6 +110,7 @@ vendor SMC		0x0707	Standard Microsystems Corp
 vendor MIDIMAN		0x0763	Midiman
 vendor SANDISK		0x0781	SanDisk Corp
 vendor ADMTEK		0x07a6	ADMtek Inc.
+vendor COREGA		0x07aa	Corega
 vendor SIIG		0x07cc	SIIG
 vendor HANDSPRING	0x082d	Handspring Inc.
 vendor ACTIVEWIRE	0x0854	ActiveWire Inc.
@@ -147,6 +148,8 @@ product MELCO LUATX		0x0001	LU-ATX Ethernet adapter
 
 /* CATC products */
 product CATC ANDROMEDA		0x1237	Andromeda hub
+product CATC NETMATE		0x000a	Netmate ethernet adapter
+product CATC NETMATE2		0x000c	Netmate2 ethernet adapter
 product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 
 /* Gravis products */
@@ -356,6 +359,9 @@ product	SANDISK IMAGEMATE	0x0001	USB ImageMate
 
 /* ADMtek products */
 product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
+
+/* Corega products */
+product COREGA USB_T		0x0001	USB ethernet adapter
 
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader

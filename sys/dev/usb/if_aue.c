@@ -121,6 +121,8 @@ static struct aue_type aue_devs[] = {
 	{ 0, 0, NULL }
 };
 
+static struct usb_qdat aue_qdat;
+
 static int aue_match		__P((device_t));
 static int aue_attach		__P((device_t));
 static int aue_detach		__P((device_t));
@@ -137,6 +139,7 @@ static void aue_rxeof		__P((usbd_xfer_handle,
 static void aue_txeof		__P((usbd_xfer_handle,
 				    usbd_private_handle, usbd_status));
 static void aue_tick		__P((void *));
+static void aue_rxstart		__P((struct ifnet *));
 static void aue_start		__P((struct ifnet *));
 static int aue_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void aue_init		__P((void *));
@@ -534,11 +537,24 @@ static void aue_reset(sc)
 	 * in reset until we flip on the GPIO outputs. Make sure
 	 * to set the GPIO pins high so that the PHY(s) will
 	 * be enabled.
+	 *
+	 * Note: We force all of the GPIO pins low first, *then*
+	 * enable the ones we want.
 	 */
+	csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0);
 	csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 
+	/* Grrr. LinkSys has to be different from everyone else. */
+	if (sc->aue_info->aue_vid == USB_VENDOR_LINKSYS &&
+	    sc->aue_info->aue_did == USB_PRODUCT_LINKSYS_USB100TX) {
+		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
+		csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1|
+			AUE_GPIO_OUT0);
+	}
+
 	/* Wait a little while for the chip to get its brains in order. */
-	DELAY(1000);
+	DELAY(10000);
+
         return;
 }
 
@@ -552,6 +568,8 @@ USB_MATCH(aue)
 
 	if (!uaa->iface)
 		return(UMATCH_NONE);
+
+	printf("vendor: %x device %x\n", uaa->vendor, uaa->product);
 
 	t = aue_devs;
 	while(t->aue_name != NULL) {
@@ -674,6 +692,9 @@ USB_ATTACH(aue)
 		splx(s);
 		USB_ATTACH_ERROR_RETURN;
 	}
+
+	aue_qdat.ifp = ifp;
+	aue_qdat.if_rxstart = aue_rxstart;
 
 	/*
 	 * Call MI attach routines.
@@ -849,6 +870,29 @@ static void aue_intr(xfer, priv, status)
 	return;
 }
 
+static void aue_rxstart(ifp)
+	struct ifnet		*ifp;
+{
+	struct aue_softc	*sc;
+	struct aue_chain	*c;
+
+	sc = ifp->if_softc;
+	c = &sc->aue_cdata.aue_rx_chain[sc->aue_cdata.aue_rx_prod];
+
+	if (aue_newbuf(sc, c, NULL) == ENOBUFS) {
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/* Setup new transfer. */
+	usbd_setup_xfer(c->aue_xfer, sc->aue_ep[AUE_ENDPT_RX],
+	    c, mtod(c->aue_mbuf, char *), AUE_BUFSZ, USBD_SHORT_XFER_OK,
+	    USBD_NO_TIMEOUT, aue_rxeof);
+	usbd_transfer(c->aue_xfer);
+
+	return;
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -869,7 +913,6 @@ static void aue_rxeof(xfer, priv, status)
 {
 	struct aue_softc	*sc;
 	struct aue_chain	*c;
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	int			total_len = 0;
@@ -936,44 +979,22 @@ static void aue_rxeof(xfer, priv, status)
 
 	/* No errors; receive the packet. */
 	total_len -= (4 + ETHER_CRC_LEN);
-	if (aue_newbuf(sc, c, NULL) == ENOBUFS) {
-		ifp->if_ierrors++;
-		goto done;
-	}
-
 
 	ifp->if_ipackets++;
-	eh = mtod(m, struct ether_header *);
-	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.rcvif = (struct ifnet *)&aue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
-
-	/*
-	 * Handle BPF listeners. Let the BPF user see the packet, but
-	 * don't pass it up to the ether_input() layer unless it's
-	 * a broadcast packet, multicast packet, matches our ethernet
-	 * address or the interface is in promiscuous mode.
-	 */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
-		if (ifp->if_flags & IFF_PROMISC &&
-		    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		    ETHER_ADDR_LEN) && !(eh->ether_dhost[0] & 1))) {
-			m_freem(m);
-			goto done;
-		}
-	}
 
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
 
 done:
-
+#ifdef foo
 	/* Setup new transfer. */
 	usbd_setup_xfer(xfer, sc->aue_ep[AUE_ENDPT_RX],
 	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(xfer);
-
+#endif
 	return;
 }
 
