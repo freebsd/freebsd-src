@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.18 1995/10/21 14:06:38 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.19 1995/10/21 18:28:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,6 +56,8 @@ Boolean ftpInitted = FALSE;
 static FTP_t ftp;
 extern int FtpPort;
 
+static int reselectCount = 0;
+
 static Boolean
 get_new_host(Device *dev, Boolean tentative)
 {
@@ -68,6 +70,8 @@ get_new_host(Device *dev, Boolean tentative)
     /* Don't have to check for "abort" because that's always checked by ftpShouldAbort(), so we can
      * assume onerror = reselect at this point.
      */
+    ++reselectCount;
+
     MenuMediaFTP.title = "Request failed - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
@@ -88,9 +92,9 @@ static int
 ftpShouldAbort(Device *dev, int retries)
 {
     char *cp;
-    static int allFailures = 0;
 
-    if (++allFailures > 4) {
+    if (reselectCount > 3) {
+	reselectCount = 0;
 	if (!msgYesNo("This doesn't seem to be working.  Your network card may be\n"
 		      "misconfigured, the information you entered in the network setup\n"
 		      "screen may be wrong or your network connection may just simply be\n"
@@ -98,8 +102,6 @@ ftpShouldAbort(Device *dev, int retries)
 	    dev->shutdown(dev);
 	    return -1;
 	}
-	else
-	    allFailures = 0;
     }
 
     if (retries >= MAX_FTP_RETRIES)
@@ -108,6 +110,7 @@ ftpShouldAbort(Device *dev, int retries)
     cp = variable_get(OPT_FTP_ONERROR);
     if (cp && !strcmp(cp, "abort")) {
 	dev->shutdown(dev);
+	reselectCount = 0;
 	return 1;
     }
     return 0;
@@ -233,7 +236,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2) {
-	    ftpInitted = FALSE;
+	    dev->shutdown(dev);
 	    return -2;
 	}
 	else if (tentative)
