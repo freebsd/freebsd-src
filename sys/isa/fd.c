@@ -1180,7 +1180,13 @@ fd_probe(device_t dev)
 	fd->flags = FD_UA;	/* make sure fdautoselect() will be called */
 
 	fd->type = FD_DTYPE(flags);
-#if _MACHINE_ARCH == i386
+/*
+ * XXX I think using __i386__ is wrong here since we actually want to probe
+ * for the machine type, not the CPU type (so non-PC arch's like the PC98 will
+ * fail the probe).  However, for whatever reason, testing for _MACHINE_ARCH
+ * == i386 breaks the test on FreeBSD/Alpha.
+ */
+#ifdef __i386__
 	if (fd->type == FDT_NONE && (fd->fdu == 0 || fd->fdu == 1)) {
 		/* Look up what the BIOS thinks we have. */
 		if (fd->fdu == 0) {
@@ -1200,7 +1206,7 @@ fd_probe(device_t dev)
 		if (fd->type == FDT_288M_1)
 			fd->type = FDT_288M;
 	}
-#endif /* _MACHINE_ARCH == i386 */
+#endif /* __i386__ */
 	/* is there a unit? */
 	if (fd->type == FDT_NONE)
 		return (ENXIO);
