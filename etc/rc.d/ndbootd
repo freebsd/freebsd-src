@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $NetBSD$
+#
+
+# PROVIDE: ndbootd
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="ndbootd"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/ethers"
+
+load_rc_config $name
+run_rc_command "$1"
