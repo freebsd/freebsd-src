@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd_cam.h,v 1.11 1999/01/10 02:51:06 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $Id: isp_freebsd_cam.h,v 1.12 1999/01/10 11:15:23 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -55,12 +55,22 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
+#include "opt_isp.h"
+#ifdef	SCSI_ISP_FABRIC
+#define	ISP2100_FABRIC	1
+#endif
+#ifdef	SCSI_ISP_SCCLUN
+#define	ISP2100_SCCLUN	1
+#endif
 
 #ifndef	SCSI_CHECK
 #define	SCSI_CHECK	SCSI_STATUS_CHECK_COND
 #endif
 #ifndef	SCSI_BUSY
 #define	SCSI_BUSY	SCSI_STATUS_BUSY
+#endif
+#ifndef	SCSI_QFULL
+#define	SCSI_QFULL	SCSI_STATUS_QUEUE_FULL
 #endif
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
@@ -69,35 +79,31 @@ struct isposinfo {
 	int			unit;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct cam_sim		*sim2;
+	struct cam_path		*path2;
 	volatile char		simqfrozen;
 };
+#define	SIMQFRZ_RESOURCE	0x1
+#define	SIMQFRZ_LOOPDOWN	0x2
 
 #define	isp_sim		isp_osinfo.sim
 #define	isp_path	isp_osinfo.path
+#define	isp_sim2	isp_osinfo.sim2
+#define	isp_path2	isp_osinfo.path2
 #define	isp_unit	isp_osinfo.unit
 #define	isp_name	isp_osinfo.name
 
-
-#define	MAXISPREQUEST	64
-
-#define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
 
 #include <dev/isp/ispreg.h>
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
 
-#define	PRINTF			printf
-#define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
-
-#define	MEMZERO			bzero
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
-
+#define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
 #ifdef	CAMDEBUG
 #define	DFLT_DBLEVEL		2
 #else
 #define	DFLT_DBLEVEL		1
 #endif
-
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
@@ -111,6 +117,7 @@ struct isposinfo {
 
 #define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
+#define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_RESID(ccb)		(ccb)->resid
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
@@ -157,7 +164,6 @@ extern void isp_done(struct ccb_scsiio *);
 /*
  * Can we tag?
  */
-
 #define	XS_CANTAG(ccb)		(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) \
 				  && (ccb)->tag_action != CAM_TAG_ACTION_NONE)
 /*
@@ -172,10 +178,6 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_COMPLETE		0
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
-
-#define	SYS_DELAY(x)	DELAY(x)
 #define	STOP_WATCHDOG(f, s)
-extern void isp_attach __P((struct ispsoftc *));
-extern void isp_uninit __P((struct ispsoftc *));
 
 #endif	/* _ISP_FREEBSD_CAM_H */
