@@ -31,10 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)struct.h	8.1 (Berkeley) 6/2/93
+ *
+ * $FreeBSD$
  */
 
 #ifndef _STRUCT_H_
 #define	_STRUCT_H_
+
+#if __GNUC__
+#warning "this file includes <struct.h> which is deprecated, use <stddef.h> instead"
+#endif
 
 /* Offset of the field in the structure. */
 #define	fldoff(name, field) \

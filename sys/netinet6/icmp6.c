@@ -1061,9 +1061,7 @@ icmp6_mtudisc_update(dst, icmp6, m)
  *   with hostname changes by sethostname(3)
  */
 #define hostnamelen	strlen(hostname)
-#ifndef offsetof		/* XXX */
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
-#endif
+
 static struct mbuf *
 ni6_input(m, off)
 	struct mbuf *m;

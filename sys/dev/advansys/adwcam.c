@@ -44,7 +44,6 @@
  * code retain the above copyright notice and this comment without
  * modification.
  */
-#include <stddef.h>	/* For offsetof */
 
 #include <sys/param.h>
 #include <sys/systm.h>

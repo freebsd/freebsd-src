@@ -42,9 +42,6 @@
 
 #include <cam/scsi/scsi_all.h>
 
-/* XXX: This is not where we should get fldoff() from. */
-#include <struct.h>
-
 #include <dev/mly/mlyreg.h>
 #include <dev/mly/mlyvar.h>
 #define MLY_DEFINE_TABLES
@@ -442,9 +439,9 @@ mly_enable_mmbox(struct mly_softc *sc)
     bzero(&mci, sizeof(mci));
     mci.sub_ioctl = MDACIOCTL_SETMEMORYMAILBOX;
     /* set buffer addresses */
-    mci.param.setmemorymailbox.command_mailbox_physaddr = sc->mly_mmbox_busaddr + fldoff(mly_mmbox, mmm_command);
-    mci.param.setmemorymailbox.status_mailbox_physaddr = sc->mly_mmbox_busaddr + fldoff(mly_mmbox, mmm_status);
-    mci.param.setmemorymailbox.health_buffer_physaddr = sc->mly_mmbox_busaddr + fldoff(mly_mmbox, mmm_health);
+    mci.param.setmemorymailbox.command_mailbox_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_command);
+    mci.param.setmemorymailbox.status_mailbox_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_status);
+    mci.param.setmemorymailbox.health_buffer_physaddr = sc->mly_mmbox_busaddr + offsetof(struct mly_mmbox, mmm_health);
 
     /* set buffer sizes - abuse of data_size field is revolting */
     sp = (u_int8_t *)&mci.data_size;
