@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: arp.c,v 1.12 1997/09/03 06:32:31 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -82,12 +82,17 @@ static const char rcsid[] =
 #include <strings.h>
 #include <unistd.h>
 
-void dump(u_long addr);
+void search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm));
+void print_entry(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm);
+void nuke_entry(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm);
 int delete(char *host, char *info);
 void ether_print(u_char *cp);
 void usage(void);
 int set(int argc, char **argv);
-void get(char *host);
+int get(char *host);
 int file(char *name);
 void getsocket(void);
 int my_ether_aton(char *a, u_char *n);
@@ -95,49 +100,96 @@ int rtmsg(int cmd);
 int get_ether_addr(u_long ipaddr, u_char *hwaddr);
 
 static int pid;
-static int nflag;
+static int nflag;	/* no reverse dns lookups */
+static int aflag;	/* do it for all entries */
 static int s = -1;
+
+/* which function we're supposed to do */
+#define F_GET		1
+#define F_SET		2
+#define F_FILESET	3
+#define F_REPLACE	4
+#define F_DELETE	5
+
+#define SETFUNC(f)	{ if (func) usage(); func = (f); }
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int ch;
+	int ch, func = 0;
+	int rtn = 0;
 
 	pid = getpid();
 	while ((ch = getopt(argc, argv, "andfsS")) != -1)
 		switch((char)ch) {
 		case 'a':
-			dump(0);
-			exit(0);
+			aflag = 1;
+			break;
 		case 'd':
-			if (argc < 3 || argc > 4)
-				usage();
-			delete(argv[2], argv[3]);
-			exit(0);
+			SETFUNC(F_DELETE);
+			break;
 		case 'n':
 			nflag = 1;
-			continue;
+			break;
 		case 'S':
-			delete(argv[2], NULL);
-			/* FALL THROUGH */
+			SETFUNC(F_REPLACE);
+			break;
 		case 's':
-			if (argc < 4 || argc > 7)
-				usage();
-			exit(set(argc-2, &argv[2]) ? 1 : 0);
+			SETFUNC(F_SET);
+			break;
 		case 'f' :
-			if (argc != 3)
-				usage();
-			return (file(argv[2]));
+			SETFUNC(F_FILESET);
+			break;
 		case '?':
 		default:
 			usage();
 		}
-	if (argc != 2)
-		usage();
-	get(argv[1]);
-	exit(0);
+	argc -= optind;
+	argv += optind;
+
+	if (!func)
+		func = F_GET;
+	switch (func) {
+	case F_GET:
+		if (aflag) {
+			if (argc != 0)
+				usage();
+			search(0, print_entry);
+		} else {
+			if (argc != 1)
+				usage();
+			get(argv[0]);
+		}
+		break;
+	case F_SET:
+	case F_REPLACE:
+		if (argc < 2 || argc > 5)
+			usage();
+		if (func == F_REPLACE)
+			(void) delete(argv[0], NULL);
+		rtn = set(argc, argv) ? 1 : 0;
+		break;
+	case F_DELETE:
+		if (aflag) {
+			if (argc != 0)
+				usage();
+			search(0, nuke_entry);
+		} else {
+			if (argc < 1 || argc > 2)
+				usage();
+			rtn = delete(argv[0], argv[1]);
+		}
+		break;
+	case F_FILESET:
+		if (argc != 1)
+			usage();
+		rtn = file(argv[0]);
+		break;
+	}
+
+	return(rtn);
 }
 
 /*
@@ -285,7 +337,7 @@ overwrite:
 /*
  * Display an individual arp entry
  */
-void
+int
 get(char *host)
 {
 	struct hostent *hp;
@@ -299,12 +351,13 @@ get(char *host)
 		bcopy((char *)hp->h_addr, (char *)&sin->sin_addr,
 		    sizeof sin->sin_addr);
 	}
-	dump(sin->sin_addr.s_addr);
+	search(sin->sin_addr.s_addr, print_entry);
 	if (found_entry == 0) {
 		printf("%s (%s) -- no entry\n",
 		    host, inet_ntoa(sin->sin_addr));
-		exit(1);
+		return(1);
 	}
+	return(0);
 }
 
 /*
@@ -367,19 +420,19 @@ delete:
 }
 
 /*
- * Dump the entire arp table
+ * Search the arp table and do some action on matching entries
  */
 void
-dump(u_long addr)
+search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm))
 {
 	int mib[6];
 	size_t needed;
-	char *host, *lim, *buf, *next;
+	char *lim, *buf, *next;
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin;
 	struct sockaddr_dl *sdl;
 	extern int h_errno;
-	struct hostent *hp;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -403,37 +456,64 @@ dump(u_long addr)
 				continue;
 			found_entry = 1;
 		}
-		if (nflag == 0)
-			hp = gethostbyaddr((caddr_t)&(sin->sin_addr),
-			    sizeof sin->sin_addr, AF_INET);
-		else
-			hp = 0;
-		if (hp)
-			host = hp->h_name;
-		else {
-			host = "?";
-			if (h_errno == TRY_AGAIN)
-				nflag = 1;
-		}
-		printf("%s (%s) at ", host, inet_ntoa(sin->sin_addr));
-		if (sdl->sdl_alen)
-			ether_print(LLADDR(sdl));
-		else
-			printf("(incomplete)");
-		if (rtm->rtm_rmx.rmx_expire == 0)
-			printf(" permanent");
-		if (sin->sin_other & SIN_PROXY)
-			printf(" published (proxy only)");
-		if (rtm->rtm_addrs & RTA_NETMASK) {
-			sin = (struct sockaddr_inarp *)
-				(sdl->sdl_len + (char *)sdl);
-			if (sin->sin_addr.s_addr == 0xffffffff)
-				printf(" published");
-			if (sin->sin_len != 8)
-				printf("(wierd)");
-		}
-		printf("\n");
+		(*action)(sdl, sin, rtm);
 	}
+}
+
+/*
+ * Display an arp entry
+ */
+void
+print_entry(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
+{
+	char *host;
+	extern int h_errno;
+	struct hostent *hp;
+
+	if (nflag == 0)
+		hp = gethostbyaddr((caddr_t)&(sin->sin_addr),
+		    sizeof sin->sin_addr, AF_INET);
+	else
+		hp = 0;
+	if (hp)
+		host = hp->h_name;
+	else {
+		host = "?";
+		if (h_errno == TRY_AGAIN)
+			nflag = 1;
+	}
+	printf("%s (%s) at ", host, inet_ntoa(sin->sin_addr));
+	if (sdl->sdl_alen)
+		ether_print(LLADDR(sdl));
+	else
+		printf("(incomplete)");
+	if (rtm->rtm_rmx.rmx_expire == 0)
+		printf(" permanent");
+	if (sin->sin_other & SIN_PROXY)
+		printf(" published (proxy only)");
+	if (rtm->rtm_addrs & RTA_NETMASK) {
+		sin = (struct sockaddr_inarp *)
+			(sdl->sdl_len + (char *)sdl);
+		if (sin->sin_addr.s_addr == 0xffffffff)
+			printf(" published");
+		if (sin->sin_len != 8)
+			printf("(wierd)");
+	}
+	printf("\n");
+}
+
+/*
+ * Nuke an arp entry
+ */
+void
+nuke_entry(struct sockaddr_dl *sdl,
+	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
+{
+	char ip[20];
+
+	snprintf(ip, sizeof(ip), "%s", inet_ntoa(sin->sin_addr));
+	delete(ip, NULL);
 }
 
 void
@@ -461,10 +541,11 @@ my_ether_aton(char *a, u_char *n)
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 		"usage: arp [-n] hostname",
-		"       arp [-n] -a [kernel] [kernel_memory]",
-		"       arp -d hostname",
+		"       arp [-n] -a",
+		"       arp -d hostname [proxy]",
+		"       arp -d -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
 		"       arp -S hostname ether_addr [temp] [pub]",
 		"       arp -f filename");
