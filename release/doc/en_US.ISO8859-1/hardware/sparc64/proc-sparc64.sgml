@@ -36,6 +36,9 @@
         <listitem>
           <para>Enterprise 420R</para>
         </listitem>
+	<listitem>
+	  <para>Enterprise 450</para>
+	</listitem>
         <listitem>
           <para>Fire V100</para>
         </listitem>
@@ -98,6 +101,9 @@
 
       <itemizedlist>
         <listitem>
+          <para>Enterprise 3500</para>
+        </listitem>
+        <listitem>
           <para>Enterprise 4500</para>
         </listitem>
         <listitem>
@@ -120,9 +126,6 @@
       <itemizedlist>
         <listitem>
           <para>All systems containing UltraSPARC III processor(s).</para>
-        </listitem>
-        <listitem>
-          <para>Enterprise 450</para>
         </listitem>
         <listitem>
           <para>Ultra 1</para>
