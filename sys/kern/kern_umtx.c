@@ -95,8 +95,6 @@ struct umtxq_chain {
 static struct umtxq_chain umtxq_chains[UMTX_CHAINS];
 static MALLOC_DEFINE(M_UMTX, "umtx", "UMTX queue memory");
 
-#define	UMTX_CONTESTED	LONG_MIN
-
 static void umtxq_init_chains(void *);
 static int umtxq_hash(struct umtx_key *key);
 static struct mtx *umtxq_mtx(int chain);
@@ -682,7 +680,7 @@ do_unlock_and_wait(struct thread *td, struct umtx *umtx, long id, void *uaddr,
 				error = umtxq_sleep(td, &uq.uq_key,
 					    td->td_priority | PCATCH,
 					    "ucond", timo);
-			if (!td->td_flags & TDF_UMTXQ)
+			if (!(td->td_flags & TDF_UMTXQ))
 				break;
 			umtxq_unlock(&uq.uq_key);
 		}
