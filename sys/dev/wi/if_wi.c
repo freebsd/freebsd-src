@@ -312,6 +312,7 @@ wi_attach(device_t dev)
 	ic->ic_flags = IEEE80211_F_HASPMGT | IEEE80211_F_HASAHDEMO;
 	ic->ic_state = IEEE80211_S_INIT;
 	ic->ic_newstate = wi_newstate;
+	ic->ic_fixed_rate = -1;	/* Auto */
 
 	/* Find available channels */
 	buflen = sizeof(val);
@@ -1238,8 +1239,10 @@ wi_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		/* convert to 802.11 rate */
 		rate = val * 2;
 		if (sc->sc_firmware_type == WI_LUCENT) {
-			if (rate == 10)
+			if (rate == 4 * 2)
 				rate = 11;	/* 5.5Mbps */
+			else if (rate == 5 * 2)
+				rate = 22;	/* 11Mbps */
 		} else {
 			if (rate == 4*2)
 				rate = 11;	/* 5.5Mbps */
@@ -2005,8 +2008,20 @@ wi_write_txrate(struct wi_softc *sc)
 
 	switch (sc->sc_firmware_type) {
 	case WI_LUCENT:
-		if (rate == 0)
-			rate = 3;	/* auto */
+		switch (rate) {
+		case 0:			/* auto == 11mbps auto */
+			rate = 3;
+			break;
+		/* case 1, 2 map to 1, 2*/
+		case 5:			/* 5.5Mbps -> 4 */
+			rate = 4;
+			break;
+		case 11:		/* 11mbps -> 5 */
+			rate = 5;
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		/* Choose a bit according to this table.
