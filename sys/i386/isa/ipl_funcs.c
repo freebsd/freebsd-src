@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.13 1998/02/01 22:04:58 bde Exp $
+ *	$Id: ipl_funcs.c,v 1.14 1998/12/07 21:58:22 archie Exp $
  */
 
 #include <sys/types.h>
@@ -87,7 +87,7 @@ GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
-GENSPL(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splvm, cpl |= net_imask | bio_imask | cam_imask)
 
 void
 spl0(void)
@@ -248,7 +248,7 @@ GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
 GENSPL(splsoftvm,	|=,	SWI_VM_MASK,				16)
 GENSPL(splstatclock,	|=,	stat_imask,				13)
 GENSPL(spltty,		|=,	tty_imask,				14)
-GENSPL(splvm,		|=,	net_imask | bio_imask,			15)
+GENSPL(splvm,		|=,	net_imask | bio_imask | cam_imask,	15)
 
 #else /* INTR_SPL */
 
@@ -285,7 +285,7 @@ GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
-GENSPL(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splvm, cpl |= net_imask | bio_imask | cam_imask)
 
 #endif /* INTR_SPL */
 
