@@ -1,4 +1,4 @@
-/* $RCSfile: consarg.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:02:57 $
+/* $RCSfile: consarg.c,v $$Revision: 1.4 $$Date: 1997/08/08 20:53:58 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,12 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: consarg.c,v $
+ * Revision 1.4  1997/08/08 20:53:58  joerg
+ * Fix a buffer overflow condition (that causes a security hole in suidperl).
+ *
+ * Closes: CERT Advisory CA-97.17 - Vulnerability in suidperl
+ * Obtained from: (partly) the fix in CA-97.17
+ *
  * Revision 1.3  1995/05/30 05:02:57  rgrimes
  * Remove trailing whitespace.
  *
@@ -273,21 +279,21 @@ ARG *arg3;
     }
 #ifdef DEBUGGING
     if (debug & 16) {
-	fprintf(stderr,"%lx <= make_op(%s",arg,opname[arg->arg_type]);
+	fprintf(stderr,"%p <= make_op(%s",arg,opname[arg->arg_type]);
 	if (arg1)
-	    fprintf(stderr,",%s=%lx",
+	    fprintf(stderr,",%s=%p",
 		argname[arg[1].arg_type&A_MASK],arg[1].arg_ptr.arg_arg);
 	if (arg2)
-	    fprintf(stderr,",%s=%lx",
+	    fprintf(stderr,",%s=%p",
 		argname[arg[2].arg_type&A_MASK],arg[2].arg_ptr.arg_arg);
 	if (arg3)
-	    fprintf(stderr,",%s=%lx",
+	    fprintf(stderr,",%s=%p",
 		argname[arg[3].arg_type&A_MASK],arg[3].arg_ptr.arg_arg);
 	if (newlen >= 4)
-	    fprintf(stderr,",%s=%lx",
+	    fprintf(stderr,",%s=%p",
 		argname[arg[4].arg_type&A_MASK],arg[4].arg_ptr.arg_arg);
 	if (newlen >= 5)
-	    fprintf(stderr,",%s=%lx",
+	    fprintf(stderr,",%s=%p",
 		argname[arg[5].arg_type&A_MASK],arg[5].arg_ptr.arg_arg);
 	fprintf(stderr,")\n");
     }
