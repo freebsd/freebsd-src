@@ -3758,11 +3758,10 @@ will attempt to create a
 .Em PPP
 over Ethernet connection using the given
 .Ar iface
-interface.  If a
+interface.  The given
 .Ar provider
-is given,
-.Nm
-will attempt to make a connection to that provider only.  Refer to
+is passed as the service name in the PPPoE Discovery Initiation (PADI)
+packet.  If no provider is given, an empty value will be used.  Refer to
 .Xr netgraph 4
 and
 .Xr ng_pppoe 8
