@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Nuke a list and all its resources
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -64,13 +65,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_Destroy(Lst l, void (*freeProc)(void *))
+Lst_Destroy(Lst list, void (*freeProc)(void *))
 {
-    ListNode	ln;
-    ListNode	tln = NULL;
-    List 	list = (List)l;
+    LstNode	ln;
+    LstNode	tln = NULL;
 
-    if (l == NULL || ! l) {
+    if (list == NULL || ! list) {
 	/*
 	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
 	 * Gross, but useful.
@@ -82,7 +82,7 @@ Lst_Destroy(Lst l, void (*freeProc)(void *))
     if (list->lastPtr != NULL)
 	list->lastPtr->nextPtr = NULL;
     else {
-	free (l);
+	free (list);
 	return;
     }
 
@@ -99,5 +99,5 @@ Lst_Destroy(Lst l, void (*freeProc)(void *))
 	}
     }
 
-    free (l);
+    free (list);
 }

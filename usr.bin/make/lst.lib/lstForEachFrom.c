@@ -47,7 +47,8 @@ __FBSDID("$FreeBSD$");
  *	a given point.
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -65,15 +66,13 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 void
-Lst_ForEachFrom(Lst l, LstNode ln, int (*proc)(void *, void *), void *d)
+Lst_ForEachFrom(Lst list, LstNode ln, int (*proc)(void *, void *), void *d)
 {
-    ListNode	tln = (ListNode)ln;
-    List 	list = (List)l;
-    ListNode	next;
+    LstNode	next;
     Boolean 	done;
     int     	result;
 
-    if (!LstValid (list) || LstIsEmpty (list)) {
+    if (!Lst_Valid (list) || Lst_IsEmpty (list)) {
 	return;
     }
 
@@ -83,11 +82,11 @@ Lst_ForEachFrom(Lst l, LstNode ln, int (*proc)(void *, void *), void *d)
 	 * us.
 	 */
 
-	next = tln->nextPtr;
+	next = ln->nextPtr;
 
-	(void) tln->useCount++;
-	result = (*proc) (tln->datum, d);
-	(void) tln->useCount--;
+	(void) ln->useCount++;
+	result = (*proc) (ln->datum, d);
+	(void) ln->useCount--;
 
 	/*
 	 * We're done with the traversal if
@@ -95,14 +94,14 @@ Lst_ForEachFrom(Lst l, LstNode ln, int (*proc)(void *, void *), void *d)
 	 *  - the next node to examine is the first in the queue or
 	 *    doesn't exist.
 	 */
-	done = (next == tln->nextPtr &&
+	done = (next == ln->nextPtr &&
 		(next == NULL || next == list->firstPtr));
 
-	next = tln->nextPtr;
+	next = ln->nextPtr;
 
-	if (tln->flags & LN_DELETED) {
-	    free((char *)tln);
+	if (ln->flags & LN_DELETED) {
+	    free(ln);
 	}
-	tln = next;
-    } while (!result && !LstIsEmpty(list) && !done);
+	ln = next;
+    } while (!result && !Lst_IsEmpty(list) && !done);
 }

@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
  *	Treat the list as a queue and place a datum at its end
  */
 
-#include	"lstInt.h"
+#include "make.h"
+#include "lst.h"
 
 /*-
  *-----------------------------------------------------------------------
@@ -66,7 +67,7 @@ ReturnStatus
 Lst_EnQueue(Lst l, void *d)
 {
 
-    if (LstValid (l) == FALSE) {
+    if (Lst_Valid (l) == FALSE) {
 	return (FAILURE);
     }
 

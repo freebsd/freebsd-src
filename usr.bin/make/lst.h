@@ -52,11 +52,46 @@
 #include	"sprite.h"
 
 /*
- * basic typedef. This is what the Lst_ functions handle
+ * Structure of a list node.
  */
-
-typedef	struct	Lst	*Lst;
+struct LstNode {
+	struct LstNode	*prevPtr;   /* previous element in list */
+	struct LstNode	*nextPtr;   /* next in list */
+	int	useCount:8; /* Count of functions using the node. Node may not
+			     * be deleted until count goes to 0 */
+ 	int	flags:8;    /* Node status flags */
+	void	*datum;	    /* datum associated with this element */
+};
 typedef	struct	LstNode	*LstNode;
+
+/*
+ * Flags required for synchronization
+ */
+#define	LN_DELETED  	0x0001      /* List node should be removed when done */
+
+typedef enum {
+	LstHead, LstMiddle, LstTail, LstUnknown
+} LstWhere;
+
+/*
+ * The list itself
+ */
+struct Lst {
+	LstNode  	firstPtr; /* first node in list */
+	LstNode  	lastPtr;  /* last node in list */
+	Boolean	  	isCirc;	  /* true if the list should be considered
+				   * circular */
+	/*
+	 * fields for sequential access
+	 */
+	LstWhere	atEnd;	  /* Where in the list the last access was */
+	Boolean	  	isOpen;	  /* true if list has been Lst_Open'ed */
+	LstNode  	curPtr;	  /* current node, if open. NULL if
+				   * *just* opened */
+	LstNode  	prevPtr;  /* Previous node, if open. Used by
+				   * Lst_Remove */
+};
+typedef	struct	Lst	*Lst;
 
 /*
  * NOFREE can be used as the freeProc to Lst_Destroy when the elements are
@@ -78,8 +113,6 @@ Lst		Lst_Init(Boolean);
 Lst		Lst_Duplicate(Lst, void * (*)(void *));
 /* Destroy an old one */
 void		Lst_Destroy(Lst, void (*)(void *));
-/* True if list is empty */
-Boolean		Lst_IsEmpty(Lst);
 
 /*
  * Functions to modify a list
@@ -152,5 +185,24 @@ void		Lst_Close(Lst);
 ReturnStatus	Lst_EnQueue(Lst, void *);
 /* Remove an element from head of queue */
 void *	Lst_DeQueue(Lst);
+
+/*
+ * LstValid (L) --
+ *	Return TRUE if the list L is valid
+ */
+#define Lst_Valid(L)	(((L) == NULL) ? FALSE : TRUE)
+
+/*
+ * LstNodeValid (LN, L) --
+ *	Return TRUE if the LstNode LN is valid with respect to L
+ */
+#define Lst_NodeValid(LN, L)	(((LN) == NULL) ? FALSE : TRUE)
+
+/*
+ * Lst_IsEmpty(L) --
+ *	TRUE if the list L is empty.
+ */
+#define Lst_IsEmpty(L)	(!Lst_Valid(L) || (L)->firstPtr == NULL)
+
 
 #endif /* _LST_H_ */
