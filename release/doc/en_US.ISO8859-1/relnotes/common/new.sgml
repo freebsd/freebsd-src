@@ -117,12 +117,12 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A bug in &man.mksnap.ffs.8; caused the creation of a
+    <para>A bug in &man.mksnap.ffs.8; has been fixed; it caused the creation of a
       filesystem snapshot to reset the flags on the filesystem to
-      their default values.  The possible consequences depend on local
-      usage, but can include disabling extended access control lists
+      their default values.  The possible consequences depended on local
+      usage, but could include disabling extended access control lists
       or enabling the use of setuid executables stored on an untrusted
-      filesystem.  This bug also affects the &man.dump.8;
+      filesystem.  This bug also affected the &man.dump.8;
       <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
       that &man.mksnap.ffs.8; is normally only available to the
       superuser and members of the <groupname>operator</groupname>
