@@ -215,6 +215,7 @@ statd(t, parent, puid, pgid, pmode)
 	uid_t saveuid = *puid;
 	mode_t savemode = *pmode;
 	u_short maxgid, maxuid, maxmode, g[MAXGID], u[MAXUID], m[MAXMODE];
+	static int first = 1;
 
 	if ((p = fts_children(t, 0)) == NULL) {
 		if (errno)
@@ -248,11 +249,13 @@ statd(t, parent, puid, pgid, pmode)
 	}
 	/*
 	 * If the /set record is the same as the last one we do not need to output
-	 * a new one.  So first we check to see if anything changed.
+	 * a new one.  So first we check to see if anything changed.  Note that we
+	 * always output a /set record for the first directory.
 	 */
 	if ((((keys & F_UNAME) | (keys & F_UID)) && (*puid != saveuid)) ||
 	    (((keys & F_GNAME) | (keys & F_GID)) && (*pgid != savegid)) ||
-	    ((keys & F_MODE) && (*pmode != savemode))) {
+	    ((keys & F_MODE) && (*pmode != savemode)) || (first)) {
+		first = 0;
 		if (dflag)
 			(void)printf("/set type=dir");
 		else
