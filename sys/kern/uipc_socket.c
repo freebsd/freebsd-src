@@ -305,7 +305,7 @@ soclose(so)
 	int s = splnet();		/* conservative */
 	int error = 0;
 
-	funsetown(so->so_sigio);
+	funsetown(&so->so_sigio);
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp, *sonext;
 

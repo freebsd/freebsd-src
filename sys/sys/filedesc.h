@@ -156,7 +156,7 @@ void	ffree(struct file *fp);
 static __inline struct file *	fget_locked(struct filedesc *fdp, int fd);
 pid_t	fgetown(struct sigio *sigio);
 int	fsetown(pid_t pgid, struct sigio **sigiop);
-void	funsetown(struct sigio *sigio);
+void	funsetown(struct sigio **sigiop);
 void	funsetownlst(struct sigiolst *sigiolst);
 int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
 void	setugidsafety(struct thread *td);
