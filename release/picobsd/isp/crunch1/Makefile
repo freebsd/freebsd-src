@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/08/02 12:22:04 abial Exp $
+# $Id: Makefile,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 SRC?=/usr/src
 
@@ -43,7 +43,7 @@ install:
 	rm /mnt/stand/crunch
 	# Install the MIB files
 	mkdir -p /mnt/usr/local/share/snmp/mibs
-	cp mibs/*.txt /mnt/usr/local/share/snmp/mibs/
+	cp ../../net/crunch1/mibs/*.txt /mnt/usr/local/share/snmp/mibs/
 
 
 .include <bsd.prog.mk>
