@@ -2051,10 +2051,6 @@ _kse_alloc(struct pthread *curthread)
 				_lockuser_destroy(&kse->k_lockusers[i]);
 			}
 			free(kse);
-			if (curthread != NULL) {
-				KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
-				_kse_critical_leave(crit);
-			}
 			return (NULL);
 		}
 		kse->k_flags = 0;
