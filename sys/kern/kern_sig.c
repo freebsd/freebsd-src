@@ -1629,6 +1629,9 @@ psignal(struct proc *p, int sig)
 	struct thread *td;
 	int prop;
 
+	if (!_SIG_VALID(sig))
+		panic("psignal(): invalid signal");
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	prop = sigprop(sig);
 
@@ -1673,8 +1676,8 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	register int prop;
 	struct sigacts *ps;
 
-	KASSERT(_SIG_VALID(sig),
-	    ("tdsignal(): invalid signal %d\n", sig));
+	if (!_SIG_VALID(sig))
+		panic("do_tdsignal(): invalid signal");
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
