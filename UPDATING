@@ -1,42 +1,29 @@
-<html>
-<head>
-<title>Updating Information for FreeBSD current users</title>
-</head>
-<body>
-<h1>Updating Information for FreeBSD current users</h1>
-<p>
-This file is maintainted by <a href="mailto:imp@village.org">Warner
-Losh</a>.  Please send new entries in it to him.  It contains a list,
-in reverse chronologocal order, of major breakages in tracking
--current.  Not all things will be listed here, and it only starts on
-Novemeber 18, 1998.  If you have an earlier version of FreeBSD, you
-are on your own to get to November 18, 1998.</P>
+Updating Information for FreeBSD current users
 
-<table cellpadding=0 cellspacing=0 boarder=0 width="95%" align=center>
-  <tr>
-    <td width="10%" valign=top align=left><b>19990111</b></td>
-    <td valign=top align=left>
+This file is maintainted by imp@village.org.  Please send new entries
+in it to him.  It contains a list, in reverse chronologocal order, of
+major breakages in tracking -current.  Not all things will be listed
+here, and it only starts on Novemeber 18, 1998.  If you have an
+earlier version of FreeBSD, you are on your own to get to November 18,
+1998.
+
+19990111:
 	New keyboard and video card drivers are introduced as the first
 	stage of console driver reorganization.  You are required to
 	update the kernel configuration file and rebuild the kernel.
 	kbdcontrol, vidcontrol, and screen savers also need recompilation.
 	The instruction can be found in
-    <br>
-	<a href="http://www.freebsd.org/~yokota/sc_update.txt">
-	http://www.freebsd.org/~yokota/sc_update.txt</a>
-    <br>
+
+		http://www.freebsd.org/~yokota/sc_update.txt</a>
+
 	It has notes on splash screen too.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19990106</b></td>
-    <td valign=top align=left>
+
+19990106:
 	Robert Nordier was kind enough to make this page to enable people to
 	install the new bootblocks:
-    <br>
-	<a href="http://www.freebsd.org/~rnordier/boot.txt">
-	http://www.freebsd.org/~rnordier/boot.txt</a>
-    <p>
+
+		http://www.freebsd.org/~rnordier/boot.txt</a>
+
 	When updating to ELF, make sure that you have updated your
 	/etc/rc files which have different ldconfig invocations for
 	elf and aout.  Otherwise things like X will stop working with
@@ -44,23 +31,16 @@ are on your own to get to November 18, 1998.</P>
 	mergemaster utility in ports/sysutils/mergemaster helps to
 	keep critical files like this in sync, and its use is
 	recommended.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19990104</b></td>
-    <td valign=top align=left>
+
+19990104:
 	Information about ELF day (see 19981230) can be found in
-    <br>
-	<a href="http://www.freebsd.org/~peter/elfday.html">
-	http://www.freebsd.org/~peter/elfday.html</a>
-    <br>
+
+		http://www.freebsd.org/~peter/elfday.html</a>
+
 	about the upcoming change, its motivations and instructions
 	for doing the upgrade.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19981230</b></td>
-    <td valign=top align=left>
+
+19981230:
 	You should install new bootblocks now.  The ELF kernel will
 	become default soon.  In addition, you'll need to upgrade
 	your userland programs to ELF before then as well.  Use
@@ -68,55 +48,35 @@ are on your own to get to November 18, 1998.</P>
 	a.out programs in, for example, /usr/local/bin will
 	continue to work, even after the upgrade).  See src/Makefile
 	for more details.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19981224</b></td>
-    <td valign=top align=left>
+
+19981224:
 	The old wcd driver has been deleted from the kernel.  The
 	driver that replaces it is named acd.  You'll need to change
 	this in your configuration files.
-    <p>
+
 	Failure to do this will result in "ATAPI CD-ROMs not
 	configured" at boot time.
-    <p>
+
 	The floppy tape driver (ft) has been removed from the kernel,
 	with no replacement driver.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19981202</b></td>
-    <td valign=top align=left>
+
+19981202:
 	New groups from 19981201 commented out of mtree, so they
 	aren't strictly needed, but still a good idea to have.
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19981201</b></td>
-    <td valign=top align=left>
+
+19981201:
 	New user/group added: bind.  From src/etc/master.passwd and
 	src/etc/group:
-    <pre>
 		% grep <newstuff> /usr/src/etc/group 
 		bind:*:53:
 		% grep <newstuff> /usr/src/etc/master.passwd 
 		tty:*:4:65533::0:0:Tty Sandbox:/:/sbin/nologin
 		kmem:*:5:65533::0:0:KMem Sandbox:/:/sbin/nologin
 		bind:*:53:53::0:0:Bind Sandbox:/:/sbin/nologin
-    </pre>
-    </td>
-  </tr>
-  <tr>
-    <td width="10%" valign=top align=left><b>19981118</b></td>
-    <td valign=top align=left>
+
+19981118:
 	PAM integrated into the tree.   Requires new /etc/pam.conf file
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
-    </td>
-  </tr>
-</table>
-<p>
-<comment>
-$Id: UPDATING,v 1.10 1999/01/11 09:07:18 imp Exp $
-</comment>
-</body>
+
+$Id: UPDATING,v 1.11 1999/01/12 20:11:29 imp Exp $
