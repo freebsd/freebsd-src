@@ -54,7 +54,6 @@
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/kse.h>
 #include <sys/pioctl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -954,7 +953,6 @@ syscall(frame)
 		mtx_unlock(&Giant);
 	}
 #endif
-	KASSERT((td->td_kse != NULL), ("syscall: kse/thread UNLINKED"));
 
 	sticks = td->td_sticks;
 	td->td_frame = &frame;
