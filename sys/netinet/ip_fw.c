@@ -444,6 +444,10 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		    snprintf(SNPARGS(action2, 0), "Pipe %d",
 			f->fw_skipto_rule);
 		    break;
+	    case IP_FW_F_QUEUE:
+		    snprintf(SNPARGS(action2, 0), "Queue %d",
+			f->fw_skipto_rule);
+		    break;
 #endif
 #ifdef IPFIREWALL_FORWARD
 	    case IP_FW_F_FWD:
@@ -664,7 +668,10 @@ found:
 	    break ;
 	default:
 #if 0
-	    /* reset or some invalid combination */
+	    /*
+	     * reset or some invalid combination, but can also
+	     * occur if we use keep-state the wrong way.
+	     */
 	    if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
 		printf("invalid state: 0x%x\n", q->state);
 #endif
@@ -745,6 +752,8 @@ static void
 install_state(struct ip_fw_chain *chain)
 {
     struct ipfw_dyn_rule *q ;
+    static int last_log ;
+
     u_long type = ((struct ip_fw_ext *)chain->rule)->dyn_type ;
 
     DEB(printf("-- install state type %d 0x%08lx %u -> 0x%08lx %u\n",
@@ -754,12 +763,18 @@ install_state(struct ip_fw_chain *chain)
 
     q = lookup_dyn_rule(&last_pkt, NULL) ;
     if (q != NULL) {
+	if (last_log == time_second)
+	    return ;
+	last_log = time_second ;
        printf(" entry already present, done\n");
        return ;
     }
     if (dyn_count >= dyn_max) /* try remove old ones... */
 	remove_dyn_rule(NULL, 0 /* expire */);
     if (dyn_count >= dyn_max) {
+	if (last_log == time_second)
+	    return ;
+	last_log = time_second ;
        printf(" Too many dynamic rules, sorry\n");
        return ;
     }
@@ -1226,6 +1241,7 @@ got_match:
 			goto again ;
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
+		case IP_FW_F_QUEUE:
 			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
 #endif
 #ifdef IPFIREWALL_FORWARD
@@ -1557,7 +1573,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 		return (EINVAL);
 	}
 	if (frwl->fw_flg == IP_FW_F_CHECK_S) {
-		printf("check dynamic rules...\n");
+		/* check-state */
 		return 0 ;
 	}
 	/* Must apply to incoming or outgoing (or both) */
@@ -1651,6 +1667,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 #endif
 #ifdef DUMMYNET
 	case IP_FW_F_PIPE:              /* piping through 0 is invalid */
+	case IP_FW_F_QUEUE:             /* piping through 0 is invalid */
 #endif
 		if (frwl->fw_divert_port == 0) {
 			dprintf(("%s can't divert to port 0\n", err_prefix));
