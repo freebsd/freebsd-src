@@ -147,15 +147,6 @@ alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
 alpha/tlsb/zs_tlsb.c		optional	dec_kn8ae
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
-dev/ata/ata-all.c		count		ata
-dev/ata/ata-disk.c		count		atadisk
-dev/ata/ata-dma.c		optional	ata
-dev/ata/atapi-all.c		count		atapicd
-dev/ata/atapi-all.c		count		atapifd
-dev/ata/atapi-all.c		count		atapist
-dev/ata/atapi-cd.c		optional	atapicd
-dev/ata/atapi-fd.c		optional	atapifd
-dev/ata/atapi-tape.c		optional	atapist
 dev/dec/mcclock.c		optional	mcclock
 dev/dec/mcclock_if.m		optional	mcclock
 dev/ed/if_ed_isa.c		optional	ed isa
