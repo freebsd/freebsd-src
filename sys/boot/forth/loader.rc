@@ -4,7 +4,7 @@
 \ Includes additional commands
 include /boot/loader.4th
 
-\ Reads and processes loader.rc
+\ Reads and processes loader.conf variables
 start
 
 \ Tests for password -- executes autoboot first if a password was defined
