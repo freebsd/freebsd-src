@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.24 1999/03/31 15:38:38 sada Exp $
+#	$Id: Makefile,v 1.25 1999/03/31 23:53:50 asami Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
 FILES=	bsd.README
@@ -12,6 +12,6 @@ NOOBJ=	noobj
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FILES} \
 	    ${DESTDIR}${BINDIR}/mk
-	date '+%Y%m%d' > ${DESTDIR}/var/db/pkg/.mkversion
+	date '+%Y%m%d' > ${DESTDIR}/var/db/port.mkversion
 
 .include <bsd.prog.mk>
