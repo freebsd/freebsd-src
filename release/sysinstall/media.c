@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.20 1995/05/27 23:39:31 phk Exp $
+ * $Id: media.c,v 1.21 1995/05/28 03:04:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -164,13 +164,15 @@ int
 mediaSetDOS(char *str)
 {
     Device **devs;
-    Disk *d;
-    Chunk *c1;
-    int i, cnt;
+    int cnt;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DOS);
     cnt = deviceCount(devs);
-    if (cnt > 1) {
+    if (!cnt) {
+	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
+	return 0;
+    }
+    else if (cnt > 1) {
 	DMenu *menu;
 
 	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook);
@@ -179,34 +181,8 @@ mediaSetDOS(char *str)
 	dmenuOpenSimple(menu);
 	free(menu);
     }
-    else if (cnt) {
+    else
 	mediaDevice = devs[0];
-	return 1;
-    }
-    else {
-	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-	if (!devs) {
-	    msgConfirm("No disk devices found!");
-	    return 0;
-	}
-	/* Now go chewing through looking for a DOS FAT partition */
-	for (i = 0; devs[i]; i++) {
-	    d = (Disk *)devs[i]->private;
-	    /* Now try to find a DOS partition */
-	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
-		if (c1->type == fat) {
-		    /* Got one! */
-		    mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
-						 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
-		    mediaDevice->private = c1;
-		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
-		    break;
-		}
-	    }
-	}
-    }
-    if (!mediaDevice)
-	msgConfirm("No DOS primary partitions found!  This installation method is unavailable");
     return mediaDevice ? 1 : 0;
 }
 
@@ -280,25 +256,49 @@ mediaSetFTP(char *str)
     return 1;
 }
 
-/*
- * Return 0 if we successfully found and set the installation type to
- * be some sort of mounted filesystem (it's also mounted at this point)
- */
 int
-mediaSetFS(char *str)
+mediaSetUFS(char *str)
 {
-    return 0;
+    static Device ufsDevice;
+    char *val;
+
+    val = msgGetInput(NULL, "Enter a fully qualified pathname for the directory\ncontaining the FreeBSD distribtion files:");
+    if (!val)
+	return 0;
+    strcpy(ufsDevice.name, "ufs");
+    ufsDevice.type = DEVICE_TYPE_UFS;
+    ufsDevice.get = mediaGetUFS;
+    ufsDevice.private = strdup(val);
+    mediaDevice = &ufsDevice;
+    return 1;
+}
+
+int
+mediaSetNFS(char *str)
+{
+    static Device nfsDevice;
+    char *val;
+
+    val = msgGetInput(NULL, "Please enter the full NFS file specification for the remote\nhost and directory containing the FreeBSD distribution files.\nThis should be in the format:  hostname:/some/freebsd/dir");
+    if (!val)
+	return 0;
+    strcpy(nfsDevice.name, "nfs");
+    nfsDevice.type = DEVICE_TYPE_NFS;
+    nfsDevice.init = mediaInitNFS;
+    nfsDevice.get = mediaGetNFS;
+    nfsDevice.shutdown = mediaShutdownNFS;
+    nfsDevice.private = strdup(val);
+    mediaDevice = &nfsDevice;
+    return 1;
 }
 
 Boolean
-mediaExtractDistBegin(char *distname, char *dir, int *fd, int *zpid, int *cpid)
+mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 {
     int i, pfd[2],qfd[2];
 
     if (!dir)
 	dir = "/";
-    msgWeHaveOutput("Extracting %s into %s directory..", distname, dir);
-
     Mkdir(dir, NULL);
     chdir(dir);
     pipe(pfd);
@@ -316,7 +316,8 @@ mediaExtractDistBegin(char *distname, char *dir, int *fd, int *zpid, int *cpid)
 	close(qfd[1]);
 	close(pfd[0]);
 	i = execl("/stand/gunzip", "/stand/gunzip", 0);
-	msgDebug("/stand/gunzip command returns %d status\n", i);
+	if (isDebug())
+	    msgDebug("/stand/gunzip command returns %d status\n", i);
 	exit(i);
     }
     *fd = qfd[1];
@@ -335,7 +336,8 @@ mediaExtractDistBegin(char *distname, char *dir, int *fd, int *zpid, int *cpid)
 	    dup2(1, 2);
 	}
 	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
-	msgDebug("/stand/cpio command returns %d status\n", i);
+	if (isDebug())
+	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
     }
     close(pfd[0]);
@@ -351,13 +353,15 @@ mediaExtractDistEnd(int zpid, int cpid)
     i = waitpid(zpid, &j, 0);
     if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
 	dialog_clear();
-	msgDebug("wait for gunzip returned status of %d!\n", i);
+	if (isDebug())
+	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
     if (i < 0 || WEXITSTATUS(j)) {
 	dialog_clear();
-	msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
+	if (isDebug())
+	    msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
 	return FALSE;
     }
     return TRUE;
@@ -365,13 +369,12 @@ mediaExtractDistEnd(int zpid, int cpid)
 
 
 Boolean
-mediaExtractDist(char *distname, char *dir, int fd)
+mediaExtractDist(char *dir, int fd)
 {
     int i, j, zpid, cpid, pfd[2];
 
     if (!dir)
 	dir = "/";
-    msgWeHaveOutput("Extracting %s into %s directory..", distname, dir);
 
     Mkdir(dir, NULL);
     chdir(dir);
@@ -388,7 +391,8 @@ mediaExtractDist(char *distname, char *dir, int fd)
 	}
 	close(pfd[0]);
 	i = execl("/stand/gunzip", "/stand/gunzip", 0);
-	msgDebug("/stand/gunzip command returns %d status\n", i);
+	if (isDebug())
+	    msgDebug("/stand/gunzip command returns %d status\n", i);
 	exit(i);
     }
     cpid = fork();
@@ -405,7 +409,8 @@ mediaExtractDist(char *distname, char *dir, int fd)
 	    dup2(1, 2);
 	}
 	i = execl("/stand/cpio", "/stand/cpio", "-iduVm", "-H", "tar", 0);
-	msgDebug("/stand/cpio command returns %d status\n", i);
+	if (isDebug())
+	    msgDebug("/stand/cpio command returns %d status\n", i);
 	exit(i);
     }
     close(pfd[0]);
@@ -414,13 +419,15 @@ mediaExtractDist(char *distname, char *dir, int fd)
     i = waitpid(zpid, &j, 0);
     if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
 	dialog_clear();
-	msgDebug("wait for gunzip returned status of %d!\n", i);
+	if (isDebug())
+	    msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
     if (i < 0 || WEXITSTATUS(j)) {
 	dialog_clear();
-	msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
+	if (isDebug())
+	    msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
 	return FALSE;
     }
     return TRUE;

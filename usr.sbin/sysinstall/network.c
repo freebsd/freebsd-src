@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.3 1995/05/28 09:31:38 jkh Exp $
+ * $Id: network.c,v 1.4 1995/05/29 01:43:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,7 @@
 
 #include "sysinstall.h"
 #include <sys/fcntl.h>
+#include <sys/stat.h>
 
 static Boolean networkInitialized;
 static Boolean startPPP(Device *devp);
@@ -68,8 +69,22 @@ mediaInitNetwork(Device *dev)
 		return FALSE;
 	    }
 	}
-	else
-	    msgConfirm("Warning:  SLIP is rather poorly supported in this revision\nof the installation due to the lack of a dialing utility.\nIf you can use PPP for this instead then you're much better\noff doing so, otherwise SLIP works fairly well for *hardwired*\nlinks.  Use the shell on the 4TH screen (ALT-F4) to run slattach\nand otherwise set the link up, then hit return here to continue.");
+	else {
+	    char *val;
+	    char attach[256];
+
+	    /* Cheesy slip attach */
+	    snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
+	    val = msgGetInput(attach, "Warning:  SLIP is rather poorly supported in this revision\nof the installation due to the lack of a dialing utility.\nIf you can use PPP for this instead then you're much better\noff doing so, otherwise SLIP works fairly well for *hardwired*\nlinks.  Please edit the following slattach command for\ncorrectness (default here is VJ compression, Hardware flow-control,\nignore carrier and 9600 baud data rate) and hit return to execute it.");
+	    if (!val)
+		return FALSE;
+	    else if (!vsystem(attach))
+		return TRUE;
+	    else {
+		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
+		return FALSE;
+	    }
+	}
     }
     else {
 	char *cp, ifconfig[64];

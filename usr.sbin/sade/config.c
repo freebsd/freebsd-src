@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.11 1995/05/28 09:31:29 jkh Exp $
+ * $Id: config.c,v 1.12 1995/05/28 20:28:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -174,7 +174,7 @@ configFstab(void)
     }
 
     /* Go for the burn */
-    msgDebug("Generating /etc/fstab file");
+    msgDebug("Generating /etc/fstab file\n");
     for (i = 0; i < nchunks; i++) {
 	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]),
@@ -351,7 +351,7 @@ configPackages(char *str)
 	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
 	}
     }
-    if (i != 0)
+    if (i != 0 && isDebug())
 	msgDebug("pkg_manage returns status of %d\n", i);
     return 0;
 }

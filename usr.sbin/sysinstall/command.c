@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.8 1995/05/19 21:30:32 jkh Exp $
+ * $Id: command.c,v 1.9 1995/05/20 13:24:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,14 +167,16 @@ command_execute(void)
 	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
 		msgNotify("Doing %s", commandStack[i]->cmds[j].ptr);
 		ret = vsystem((char *)commandStack[i]->cmds[j].ptr);
-		msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
+		if (isDebug())
+		    msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
 	    else {
 		/* It's a function pointer - call it with the key and the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
 		msgNotify("%x: Execute(%s, %s)", func, commandStack[i]->key, commandStack[i]->cmds[j].data);
 		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);
-		msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
+		if (isDebug())
+		    msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
 	}
     }
