@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.19 1995/08/01 18:50:55 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.20 1995/08/02 12:59:49 dfr Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1554,6 +1554,14 @@ msdosfs_readdir(ap)
 		if (diff <= 0) {
 			if(ap->a_eofflag)
 				*ap->a_eofflag = 1;
+			if(ap->a_ncookies != NULL) {
+				u_int *cookies;
+
+				MALLOC(cookies, u_int *, 1 * sizeof(u_int),
+				       M_TEMP, M_WAITOK);
+				*ap->a_ncookies = 0;
+				*ap->a_cookies = cookies;
+			}
 			return 0;
 		}
 		if (diff < n)
