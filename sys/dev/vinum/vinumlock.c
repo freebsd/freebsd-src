@@ -120,7 +120,7 @@ lockvol(struct volume *vol)
 	 * guarantee that this address won't change due to
 	 * table expansion.  The address we choose won't change.
 	 */
-	if ((error = tsleep(&vinum_conf.volume + vol->devno,
+	if ((error = tsleep(&vinum_conf.volume + vol->volno,
 		    PRIBIO | PCATCH,
 		    "volock",
 		    0)) != 0)
@@ -137,7 +137,7 @@ unlockvol(struct volume *vol)
     vol->flags &= ~VF_LOCKED;
     if ((vol->flags & VF_LOCKING) != 0) {
 	vol->flags &= ~VF_LOCKING;
-	wakeup(&vinum_conf.volume + vol->devno);
+	wakeup(&vinum_conf.volume + vol->volno);
     }
 }
 

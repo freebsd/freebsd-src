@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.21 1999/05/07 08:07:08 grog Exp $
+ * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -266,13 +266,10 @@ vinumopen(dev_t dev,
     struct volume *vol;
     struct plex *plex;
     struct sd *sd;
-    struct devcode *device;
-
-    device = (struct devcode *) &dev;
 
     error = 0;
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
 	index = Volno(dev);
 	if (index >= vinum_conf.volumes_allocated)
@@ -367,11 +364,10 @@ vinumclose(dev_t dev,
 {
     unsigned int index;
     struct volume *vol;
-    struct devcode *device = (struct devcode *) &dev;
 
     index = Volno(dev);
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
 	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */

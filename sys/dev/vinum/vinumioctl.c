@@ -71,10 +71,8 @@ vinumioctl(dev_t dev,
     int fe;						    /* free list element number */
     struct _ioctl_reply *ioctl_reply = (struct _ioctl_reply *) data; /* struct to return */
 
-    struct devcode *device = (struct devcode *) &dev;
-
     /* First, decide what we're looking at */
-    switch (device->type) {
+    switch (DEVTYPE(dev)) {
     case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* save the address to reply to */
 	error = setjmp(command_fail);			    /* come back here on error */

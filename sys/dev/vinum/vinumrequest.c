@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.22 1999/05/07 10:10:07 phk Exp $
+ * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -104,9 +104,8 @@ vinumstrategy(struct buf *bp)
 {
     int volno;
     struct volume *vol = NULL;
-    struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
 
-    switch (device->type) {
+    switch (DEVTYPE(bp->b_dev)) {
     case VINUM_SD_TYPE:
     case VINUM_RAWSD_TYPE:
 	sdio(bp);
@@ -328,11 +327,12 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		"Revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		rq->sdno,
 		(u_int) rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
-		rq->bp->b_dev,
+		major(rq->bp->b_dev),
+		minor(rq->bp->b_dev),
 		rq->bp->b_blkno,
 		rq->bp->b_bcount);			    /* XXX */
 #endif
@@ -348,10 +348,11 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	    "Request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 	    (u_int) rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
-	    rq->bp->b_dev,
+	    major(rq->bp->b_dev),
+	    minor(rq->bp->b_dev),
 	    rq->bp->b_blkno,
 	    rq->bp->b_bcount);				    /* XXX */
     vinum_conf.lastrq = (int) rq;
@@ -374,9 +375,10 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
-			"  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 			rqe->b.b_flags & B_READ ? "Read" : "Write",
-			rqe->b.b_dev,
+			major(rqe->b.b_dev),
+			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			rqe->b.b_blkno,
@@ -729,7 +731,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
      * set B_ORDERED if so?
      */
     bp->b_iodone = complete_rqe;			    /* by calling us here */
-    bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
+    bp->b_dev = DRIVE[rqe->driveno].vp->v_rdev;		    /* drive device */
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
@@ -824,7 +826,7 @@ sdio(struct buf *bp)
     bcopy(bp, &sbp->b, sizeof(struct buf));		    /* start with the user's buffer */
     sbp->b.b_flags |= B_CALL;				    /* tell us when it's done */
     sbp->b.b_iodone = sdio_done;			    /* here */
-    sbp->b.b_dev = DRIVE[sd->driveno].dev;		    /* device */
+    sbp->b.b_dev = DRIVE[sd->driveno].vp->v_rdev;	    /* device */
     sbp->b.b_vp = DRIVE[sd->driveno].vp;		    /* vnode */
     sbp->b.b_blkno += sd->driveoffset;
     sbp->bp = bp;					    /* note the address of the original header */
@@ -851,9 +853,10 @@ sdio(struct buf *bp)
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 	    sbp->b.b_flags & B_READ ? "Read" : "Write",
-	    sbp->b.b_dev,
+	    major(sbp->b.b_dev),
+	    minor(sbp->b.b_dev),
 	    sbp->sdno,
 	    (u_int) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
 	    (int) sbp->b.b_blkno,
