@@ -185,7 +185,8 @@ do {									\
 #define MA_NOTOWNED	2
 #define MA_RECURSED	4
 #define MA_NOTRECURSED	8
-void	mtx_assert(struct mtx *m, int what);
+void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
+#define	mtx_assert(m, what) _mtx_assert((m), (what), __FILE__, __LINE__)
 #else	/* INVARIANTS */
 #define mtx_assert(m, what)
 #endif	/* INVARIANTS */
@@ -275,8 +276,6 @@ int	witness_sleep(int, struct mtx *, const char *, int);
 #define	WITNESS_SAVE(m, n)
 #define	WITNESS_RESTORE(m, n)
 #endif	/* WITNESS */
-
-/* XXX jasone Move. */ 
 
 #endif	/* _KERNEL */
 #endif	/* !LOCORE */
