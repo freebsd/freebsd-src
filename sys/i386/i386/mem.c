@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.48 1997/11/20 19:30:30 bde Exp $
+ *	$Id: mem.c,v 1.49 1998/01/24 02:54:13 eivind Exp $
  */
 
 /*
@@ -60,7 +60,7 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
-#include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/random.h>
 #include <machine/psl.h>
 #ifdef PERFMON
@@ -518,7 +518,7 @@ iszerodev(dev)
 
 
 
-static mem_devsw_installed = 0;
+static int mem_devsw_installed;
 
 static void
 mem_drvinit(void *unused)
