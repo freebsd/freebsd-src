@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.74 1999/05/11 19:54:46 phk Exp $
+ * $Id: nfs_subs.c,v 1.75 1999/06/05 05:35:00 peter Exp $
  */
 
 /*
@@ -1490,6 +1490,13 @@ nfs_getattrcache(vp, vaper)
  * absolute pathnames. However, the caller is expected to check that
  * the lookup result is within the public fs, and deny access if
  * it is not.
+ *
+ * nfs_namei() clears out garbage fields that namei() might leave garbage.
+ * This is mainly ni_vp and ni_dvp when an error occurs, and ni_dvp when no
+ * error occurs but the parent was not requested.
+ *
+ * dirp may be set whether an error is returned or not, and must be 
+ * released by the caller.
  */
 int
 nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
@@ -1570,6 +1577,10 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	if (rdonly)
 		cnp->cn_flags |= RDONLY;
 
+	/*
+	 * Set return directory.  Reference to dp is implicitly transfered 
+	 * to the returned pointer
+	 */
 	*retdirp = dp;
 
 	if (pubflag) {
@@ -1634,42 +1645,56 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		cnp->cn_flags |= NOCROSSMOUNT;
 	}
 
+	/*
+	 * Initialize for scan, set ni_startdir and bump ref on dp again
+	 * becuase lookup() will dereference ni_startdir.
+	 */
+
 	cnp->cn_proc = p;
 	VREF(dp);
-
-    for (;;) {
-	cnp->cn_nameptr = cnp->cn_pnbuf;
 	ndp->ni_startdir = dp;
-	/*
-	 * And call lookup() to do the real work
-	 */
-	error = lookup(ndp);
-	if (error)
-		break;
-	/*
-	 * Check for encountering a symbolic link
-	 */
-	if ((cnp->cn_flags & ISSYMLINK) == 0) {
-		nfsrv_object_create(ndp->ni_vp);
-		if (cnp->cn_flags & (SAVENAME | SAVESTART)) {
-			cnp->cn_flags |= HASBUF;
-			return (0);
+
+	for (;;) {
+		cnp->cn_nameptr = cnp->cn_pnbuf;
+		/*
+		 * Call lookup() to do the real work.  If an error occurs,
+		 * ndp->ni_vp and ni_dvp are left uninitialized or NULL and
+		 * we do not have to dereference anything before returning.
+		 * In either case ni_startdir will be dereferenced and NULLed
+		 * out.
+		 */
+		error = lookup(ndp);
+		if (error)
+			break;
+
+		/*
+		 * Check for encountering a symbolic link.  Trivial 
+		 * termination occurs if no symlink encountered.
+		 * Note: zfree is safe because error is 0, so we will
+		 * not zfree it again when we break.
+		 */
+		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			nfsrv_object_create(ndp->ni_vp);
+			if (cnp->cn_flags & (SAVENAME | SAVESTART))
+				cnp->cn_flags |= HASBUF;
+			else
+				zfree(namei_zone, cnp->cn_pnbuf);
+			break;
 		}
-		break;
-	} else {
+
+		/*
+		 * Validate symlink
+		 */
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
 			VOP_UNLOCK(ndp->ni_dvp, 0, p);
 		if (!pubflag) {
-			vrele(ndp->ni_dvp);
-			vput(ndp->ni_vp);
-			ndp->ni_vp = NULL;
 			error = EINVAL;
-			break;
+			goto badlink2;
 		}
 
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
 			error = ELOOP;
-			break;
+			goto badlink2;
 		}
 		if (ndp->ni_pathlen > 1)
 			cp = zalloc(namei_zone);
@@ -1686,20 +1711,27 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
-		badlink:
+		badlink1:
 			if (ndp->ni_pathlen > 1)
 				zfree(namei_zone, cp);
+		badlink2:
+			vrele(ndp->ni_dvp);
+			vput(ndp->ni_vp);
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
 		if (linklen == 0) {
 			error = ENOENT;
-			goto badlink;
+			goto badlink1;
 		}
 		if (linklen + ndp->ni_pathlen >= MAXPATHLEN) {
 			error = ENAMETOOLONG;
-			goto badlink;
+			goto badlink1;
 		}
+
+		/*
+		 * Adjust or replace path
+		 */
 		if (ndp->ni_pathlen > 1) {
 			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
 			zfree(namei_zone, cnp->cn_pnbuf);
@@ -1707,20 +1739,41 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		} else
 			cnp->cn_pnbuf[linklen] = '\0';
 		ndp->ni_pathlen += linklen;
-		vput(ndp->ni_vp);
-		dp = ndp->ni_dvp;
+
 		/*
-		 * Check if root directory should replace current directory.
+		 * Cleanup refs for next loop and check if root directory 
+		 * should replace current directory.  Normally ni_dvp 
+		 * becomes the new base directory and is cleaned up when
+		 * we loop.  Explicitly null pointers after invalidation
+		 * to clarify operation.
 		 */
+		vput(ndp->ni_vp);
+		ndp->ni_vp = NULL;
+
 		if (cnp->cn_pnbuf[0] == '/') {
-			vrele(dp);
-			dp = ndp->ni_rootdir;
-			VREF(dp);
+			vrele(ndp->ni_dvp);
+			ndp->ni_dvp = ndp->ni_rootdir;
+			VREF(ndp->ni_dvp);
 		}
+		ndp->ni_startdir = ndp->ni_dvp;
+		ndp->ni_dvp = NULL;
 	}
-   }
+
+	/*
+	 * nfs_namei() guarentees that fields will not contain garbage
+	 * whether an error occurs or not.  This allows the caller to track
+	 * cleanup state trivially.
+	 */
 out:
-	zfree(namei_zone, cnp->cn_pnbuf);
+	if (error) {
+		zfree(namei_zone, cnp->cn_pnbuf);
+		ndp->ni_vp = NULL;
+		ndp->ni_dvp = NULL;
+		ndp->ni_startdir = NULL;
+		cnp->cn_flags &= ~HASBUF;
+	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
+		ndp->ni_dvp = NULL;
+	}
 	return (error);
 }
 
