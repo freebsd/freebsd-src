@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46AdDEmMoOrRSUv
+.Op Fl 46AdDEmMoOrRSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl p Ar file
@@ -190,6 +190,9 @@ option will revert to the old behavior.
 .It Fl v
 A synonym for
 .Fl d .
+.It Fl W
+Don't log FTP sessions to
+.Pa /var/log/wtmp .
 .El
 .Pp
 The file
