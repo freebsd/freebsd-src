@@ -343,6 +343,7 @@ dev/acpica/acpi_powerres.c	optional acpi
 dev/acpica/acpi_quirk.c		optional acpi
 dev/acpica/acpi_resource.c	optional acpi
 dev/acpica/acpi_thermal.c	optional acpi
+dev/acpica/acpi_throttle.c	optional acpi_perf acpi
 dev/acpica/acpi_timer.c		optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/adlink/adlink.c		optional adlink
