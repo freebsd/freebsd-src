@@ -32,6 +32,7 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
+#include <sys/bus.h>
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
@@ -80,7 +81,7 @@ dec_2100_a500_init(cputype)
 
 	platform.iobus = "t2";
 	platform.cons_init = dec_2100_a500_cons_init;
-	platform.pci_intr_map = t2_intr_map;
+	platform.pci_intr_route = t2_intr_route;
 	platform.pci_intr_init = dec_2100_a500_intr_init;
 
 	t2_init();

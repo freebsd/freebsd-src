@@ -55,7 +55,7 @@ static int comcnrate = CONSPEED;
 void st6600_init __P((void));
 static void st6600_cons_init __P((void));
 static void st6600_intr_init __P((void));
-static void st6600_intr_map __P((void *));
+static int st6600_intr_route __P((device_t, device_t, int));
 
 #define ST6600_PCI_IRQ_BEGIN 8
 #define ST6600_PCI_MAX_IRQ  63
@@ -77,7 +77,7 @@ st6600_init()
 	platform.iobus = "tsunami";
 	platform.cons_init = st6600_cons_init;
 	platform.pci_intr_init = st6600_intr_init;
-	platform.pci_intr_map = st6600_intr_map;
+	platform.pci_intr_route = st6600_intr_route;
 }
 
 extern int comconsole;
@@ -145,10 +145,10 @@ st6600_intr_init()
 	platform.pci_intr_enable(2);	
 }
 
-static void
-st6600_intr_map(void *arg)
+static int
+st6600_intr_route(device_t pcib, device_t dev, int pin)
 {
 
-	return;
+	return(255);
 }
 

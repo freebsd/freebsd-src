@@ -40,6 +40,7 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
+#include <sys/bus.h>
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
@@ -58,7 +59,7 @@ static int comcnrate = CONSPEED;
 
 void dec_2100_a50_init __P((void));
 static void dec_2100_a50_cons_init __P((void));
-static void dec_2100_a50_intr_map  __P((void *));
+static int dec_2100_a50_intr_route  __P((device_t, device_t, int));
 void sio_intr_establish __P((int));
 void sio_intr_disestablish __P((int));
 void sio_intr_setup __P((void));
@@ -97,7 +98,7 @@ dec_2100_a50_init()
 
 	platform.iobus = "apecs";
 	platform.cons_init = dec_2100_a50_cons_init;
-	platform.pci_intr_map  = dec_2100_a50_intr_map;
+	platform.pci_intr_route  = dec_2100_a50_intr_route;
 }
 
 /* XXX for forcing comconsole when srm serial console is used */
@@ -158,35 +159,27 @@ dec_2100_a50_cons_init()
 
 #define	SIO_PCIREG_PIRQ_RTCTRL	0x60    /* PIRQ0 Route Control */
 
-void
-dec_2100_a50_intr_map(void *arg)
+int
+dec_2100_a50_intr_route(device_t bus, device_t dev, int pin)
 {
 	u_int8_t pirqline;
 	u_int32_t pirqreg;
 	int pirq;
-	pcicfgregs *cfg;
 
-	pirq = 0;  /* gcc -Wuninitialized XXX */
-	cfg = (pcicfgregs *)arg;
+	pirq = 255;
 
 	/*
 	 * Slot->interrupt translation.  Taken from NetBSD.
 	 */
 
-	if(cfg->intpin == 0)
-		return;
-
-	if(cfg->intpin > 4)
-		panic("dec_2100_a50_intr_map: bad intpin %d",cfg->intpin);
-
-	switch (cfg->slot) {
+	switch (pci_get_slot(dev)) {
 	case 6:					/*  NCR SCSI */
 		pirq = 3;
 		break;
 
 	case 11:				/* slot 1 */
 	case 14:				/* slot 3 */
-		switch(cfg->intpin) {
+		switch(pin) {
 		case 1:
 		case 4:
 			pirq = 0;
@@ -198,13 +191,12 @@ dec_2100_a50_intr_map(void *arg)
 			pirq = 1;
 			break;
 		default:
-			panic("dec_2100_a50_intr_map bogus PCI pin %d\n",
-			    cfg->intpin);
-
+			panic("dec_2100_a50_intr_map bogus PCI pin %d\n", pin);
 		}
 		break;
+
 	case 12:				/* slot 2 */
-		switch (cfg->intpin) {
+		switch (pin) {
 		case 1:
 		case 4:
 			pirq = 1;
@@ -216,14 +208,12 @@ dec_2100_a50_intr_map(void *arg)
 			pirq = 2;
 			break;
 		default:
-			panic("dec_2100_a50_intr_map bogus PCI pin %d\n",
-			    cfg->intpin);
-
+			panic("dec_2100_a50_intr_map bogus PCI pin %d\n", pin);
 		};
 		break;
 
 	case 13:				/* slot 3 */
-		switch (cfg->intpin) {
+		switch (pin) {
 		case 1:
 		case 4:
 			pirq = 2;
@@ -237,8 +227,8 @@ dec_2100_a50_intr_map(void *arg)
 		};
 		break;
 default:
-		printf("dec_2100_a50_intr_map: weird slot %d\n",
-		    cfg->slot);
+		printf("dec_2100_a50_intr_map: weird slot %d\n", 
+		       pci_get_slot(dev));
 
 		/* return; */
         }
@@ -254,5 +244,5 @@ default:
 	if ((pirqline & 0x80) != 0)
 		panic("bad pirqline %d",pirqline);
 	pirqline &= 0xf;
-	cfg->intline = pirqline;
+	return(pirqline);
 }

@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
 

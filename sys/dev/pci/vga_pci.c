@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2000 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2000 BSDi
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +24,52 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	$FreeBSD$
  */
 
-extern vm_offset_t	sable_lynx_base;
+/*
+ * Stub handler for PCI VGA-compatible adapters.
+ */
 
-extern void t2_init(void);
-extern int t2_intr_route(device_t, device_t, int);
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
+static int	vga_pci_probe(device_t dev);
+
+static device_method_t vga_pci_methods[] = {
+    /* Device interface */
+    DEVMETHOD(device_probe,		vga_pci_probe),
+    DEVMETHOD(device_attach,		bus_generic_attach),
+
+    { 0, 0 }
+};
+
+static driver_t vga_pci_driver = {
+    "vga_pci",
+    vga_pci_methods,
+    0,
+};
+
+static devclass_t vga_pci_devclass;
+
+DRIVER_MODULE(vga_pci, pci, vga_pci_driver, vga_pci_devclass, 0, 0);
+
+static int
+vga_pci_probe(device_t dev)
+{
+    if ((pci_get_class(dev) == PCIC_OLD) &&
+	(pci_get_subclass(dev) == PCIS_OLD_VGA)) {
+	device_set_desc(dev, "VGA-compatible display device");
+	return(-10000);
+    }
+    if ((pci_get_class(dev) == PCIC_DISPLAY) &&
+	(pci_get_subclass(dev) == PCIS_DISPLAY_VGA)) {
+	device_set_desc(dev, "VGA-compatible display device");
+	return(-10000);
+    }
+    return(ENXIO);
+}

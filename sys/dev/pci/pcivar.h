@@ -144,13 +144,6 @@ struct pci_devinfo {
 };
 #endif
 
-/* externally visible functions */
-
-const char *pci_ata_match(struct device *dev);
-const char *pci_usb_match(struct device *dev);
-const char *pci_vga_match(struct device *dev);
-const char *pci_chip_match(struct device *dev);
-
 /* low level PCI config register functions provided by pcibus.c */
 
 int pci_cfgread (pcicfgregs *cfg, int reg, int bytes);
