@@ -194,12 +194,17 @@ trap(struct trapframe *tf)
 		sig = SIGFPE;
 		goto trapsig;
 	case T_FP_DISABLED:
-		if (fp_enable_thread(td))
+		if (fp_enable_thread(td, tf))
 			goto user;
 		/* Fallthrough. */
 	case T_FP_IEEE:
-	case T_FP_OTHER:
 		sig = SIGFPE;
+		goto trapsig;
+	case T_FP_OTHER:
+		if ((sig = fp_exception_other(td, tf)) == 0) {
+			TF_DONE(tf);
+			goto user;
+		}
 		goto trapsig;
 	case T_DATA_ERROR:
 	case T_DATA_EXCPTN:
@@ -590,7 +595,7 @@ syscall(struct trapframe *tf)
 	}
 #endif
 	td->td_retval[0] = 0;
-	td->td_retval[1] = tf->tf_out[1];
+	td->td_retval[1] = 0;
 
 	STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
