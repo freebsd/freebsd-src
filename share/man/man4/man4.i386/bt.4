@@ -30,32 +30,34 @@
 .Os FreeBSD
 .Sh NAME
 .Nm bt
-.Nd
-Buslogic SCSI host adapter driver
+.Nd Buslogic SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd "controller bt0 at isa? port" \&"IO_BT0\&" bio irq ? vector btintr
-.Cd "controller scbus0
-.sp
-For each connected disk:
-.Cd "device sd0
-.sp
-For each connected tape device:
-.Cd "device st0
-.sp
-For one or more cdroms:
-.Cd "device cd0
+.Cd "controller bt0 at isa? port IO_BT0 bio irq ? vector btintr"
+.Cd controller scbus0 at bt0
 .Sh DESCRIPTION
-This driver provides access to SCSI devices connected to a Buslogic 
-545, 445, 742, 747 or 946 hostadapter. 
-.Sh FILES
-.Bl -tag -width Pa -compact
-.It Pa /sys/i386/conf/GENERIC
-sample generic kernel config file for Buslogic based systems
-.It Pa /sys/i386/isa/bt742a.c
-driver source
-.El
+This driver provides access to the
+.Tn SCSI
+bus connected to a Buslogic 
+545, 445, 742, 747 or 946 host adapter. 
+.\"
+.\" .Sh DIAGNOSTICS
+.\"
 .Sh SEE ALSO
-.Xr cd 4
-.Xr scsi 4
-.Xr sd 4
+.Xr cd 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
 .Xr st 4
+.Sh AUTHOR
+The
+.Nm
+driver was written by Julian Elischer for use with
+.Tn Mach
+2.5.  The interface for the
+.Tn PCI
+and
+.Tn EISA
+busses was written by Justin Gibbs.
+.Sh HISTORY
+We're not sure when the
+.Nm
+driver first appeared.
