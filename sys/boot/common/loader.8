@@ -476,6 +476,8 @@ Note that
 the NBUF parameter will override this limit.
 Modifies
 .Va VM_BCACHE_SIZE_MAX .
+.It Va machdep.disable_mtrrs
+Disable the use of i686 MTRRs (x86 only).
 .It Va machdep.pccard.pcic_irq
 Overrides the IRQ normally assigned to a PCCARD controller.
 Typically the first available interrupt will be allocated,

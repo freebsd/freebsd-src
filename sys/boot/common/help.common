@@ -256,6 +256,10 @@
 
 		Disable the use of the PCI BIOS (i386 only)
 
+	set machdep.disable_mtrrs=1
+
+		Disable the use of i686 MTRRs (i386 only)
+
 	set net.inet.tcp.tcbhashsize=<value>	TCBHASHSIZE
 
 		Overrides the compile-time set value of TCBHASHSIZE or
