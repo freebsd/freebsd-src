@@ -29,7 +29,7 @@
 
 #include "SYS.h"
 
-SYSCALL(vfork)
+PSYSCALL(vfork)
 	cmovne	a4, zero, v0		/* a4 (rv[1]) != 0, child */
 	RET
-END(vfork)
+PEND(vfork)
