@@ -1,8 +1,11 @@
 lib/X11/doc/Japanese/
+lib/X11/doc/Japanese/AccelCards
 lib/X11/doc/Japanese/COPYRIGHT
 lib/X11/doc/Japanese/README
 lib/X11/doc/Japanese/README.Config
 lib/X11/doc/Japanese/BUILD
+lib/X11/doc/Japanese/INSTALL
+lib/X11/doc/Japanese/LinkKit
 lib/X11/doc/Japanese/RELNOTES
 lib/X11/doc/Japanese/README.Linux
 lib/X11/doc/Japanese/README.ati
@@ -35,6 +38,7 @@ lib/X11/doc/Japanese/README.3DLabs
 lib/X11/doc/Japanese/README.cyrix
 lib/X11/doc/Japanese/README.i740
 lib/X11/doc/Japanese/README.r128
+lib/X11/doc/Japanese/README.FreeBSD
 lib/X11/doc/Japanese/VideoModes.doc
 lib/X11/doc/Japanese/QuickStart.doc
 lib/X11/doc/Japanese/README.clkprog
