@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <string.h>
 
 void usage(void);
 
@@ -64,7 +64,7 @@ main(int argc, char *argv[])
 
 	if (argc != 2) {
 		usage();
-		/* NOTREACHED */
+		return(1);
 	}
 
 	p = argv[1];
@@ -78,9 +78,10 @@ main(int argc, char *argv[])
 	if (*p == '-') {
 		neg = 1;
 		++p;
-		if (!isdigit((unsigned char)*p) && *p != '.')
+		if (!isdigit((unsigned char)*p) && *p != '.') {
 			usage();
-			/* NOTREACHED */
+			return(1);
+		}
 	}
 	else if (*p == '+')
 		++p;
@@ -109,20 +110,20 @@ main(int argc, char *argv[])
 				time_to_sleep.tv_nsec += (*p - '0') * l;
 			else
 				break;
-		} while (l /= 10);
+			l /= 10;
+		} while (l);
 	}
 
 	if (!neg && (time_to_sleep.tv_sec > 0 || time_to_sleep.tv_nsec > 0))
 		(void)nanosleep(&time_to_sleep, (struct timespec *)NULL);
 
-	exit(0);
+	return(0);
 }
 
 void
 usage(void)
 {
-	const char *msg = "usage: sleep seconds\n";
+	const char msg[] = "usage: sleep seconds\n";
 
-	write(STDERR_FILENO, msg, strlen(msg));
-	exit(1);
+	write(STDERR_FILENO, msg, sizeof(msg) - 1);
 }
