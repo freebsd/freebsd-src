@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.4 1997/09/02 20:06:00 bde Exp $
+ * $Id: vfs_aio.c,v 1.5 1997/10/09 04:14:41 dyson Exp $
  */
 
 /*
@@ -474,7 +474,12 @@ aio_startproc(void *uproc)
 			TAILQ_INSERT_HEAD(&aio_freeproc, aiop, list);
 			aiop->aioprocflags |= AIOP_FREE;
 		}
-		tsleep(cp, PRIBIO, "aiordy", 0);
+		if (tsleep(cp, PRIBIO, "aiordy", hz*30)) {
+			if ((num_aio_procs > target_aio_procs) &&
+				(TAILQ_FIRST(&aiop->jobtorun) == NULL))
+				exit1(curproc, 0);
+		}
+
 		if (aiop->aioprocflags & AIOP_FREE) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
@@ -657,6 +662,17 @@ _aio_aqueue(struct proc *p, struct aiocb *job, int type) {
 		}
 		return EBADF;
 	}
+
+#if DEBUGAIO > 0
+	if (debugaio > 3)
+		printf("aio_aqueue: fd: %d, cmd: %d, buf: %d, cnt: %d, fileoffset: %d\n",
+			aiocbe->uaiocb.aio_fildes,
+			aiocbe->uaiocb.aio_lio_opcode,
+			(int) aiocbe->uaiocb.aio_buf & 0xffffffff,
+			aiocbe->uaiocb.aio_nbytes,
+			(int) aiocbe->uaiocb.aio_offset & 0xffffffff);
+#endif
+		
 
 	fp = fdp->fd_ofiles[fd];
 	if ((fp == NULL) ||
