@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #define APMDEV	"/dev/apm"
 
+#define APM_UNKNOWN	255
+
 #define xh(a)	(((a) & 0xff00) >> 8)
 #define xl(a)	((a) & 0xff)
 #define APMERR(a) xh(a)
@@ -168,7 +170,7 @@ static void
 print_batt_life(u_int batt_life)
 {
 	printf("Remaining battery life: ");
-	if (batt_life >= 255)
+	if (batt_life == APM_UNKNOWN)
 		printf("unknown\n");
 	else if (batt_life <= 100)
 		printf("%d%%\n", batt_life);
@@ -182,7 +184,7 @@ print_batt_stat(u_int batt_stat)
 	const char *batt_msg[] = { "high", "low", "critical", "charging" };
 
 	printf("Battery Status: ");
-	if (batt_stat >= 255)
+	if (batt_stat == APM_UNKNOWN)
 		printf("unknown\n");
 	else if (batt_stat > 3)
 		printf("invalid value (0x%x)\n", batt_stat);
@@ -200,7 +202,7 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
 	printf("APM Management: %s\n", aip->ai_status ? "Enabled" : "Disabled");
 	printf("AC Line status: ");
-	if (aip->ai_acline >= 255)
+	if (aip->ai_acline == APM_UNKNOWN)
 		printf("unknown\n");
 	else if (aip->ai_acline > 1)
 		printf("invalid value (0x%x)\n", aip->ai_acline);
@@ -213,7 +215,7 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 
 	if (aip->ai_infoversion >= 1) {
 		printf("Number of batteries: ");
-		if (aip->ai_batteries >= 255)
+		if (aip->ai_batteries == ~0U)
 			printf("unknown\n");
 		else {
 			u_int i;
@@ -226,12 +228,10 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 				if (ioctl(fd, APMIO_GETPWSTATUS, &aps) == -1)
 					continue;
 				printf("Battery %d:\n", i);
-				if (aps.ap_batt_flag <= 255 &&
-				    (aps.ap_batt_flag & APM_BATT_NOT_PRESENT)) {
+				if (aps.ap_batt_flag & APM_BATT_NOT_PRESENT) {
 					printf("not present\n");
 					continue;
 				}
-
 				printf("\t");
 				print_batt_stat(aps.ap_batt_stat);
 				printf("\t");
@@ -306,9 +306,9 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 	}
 
 	if (aip->ai_infoversion >= 1) {
-		printf("APM Capabilities:\n");
 		if (aip->ai_capabilities == 0xff00)
-			printf("\tunknown\n");
+		    return;
+		printf("APM Capabilities:\n");
 		if (aip->ai_capabilities & 0x01)
 			printf("\tglobal standby state\n");
 		if (aip->ai_capabilities & 0x02)
