@@ -36,7 +36,7 @@
 
 /* Header files used by all modules */
 /*
- * $Id: vinumhdr.h,v 1.18 2001/01/04 00:14:14 grog Exp grog $
+ * $Id: vinumhdr.h,v 1.19 2001/05/22 04:07:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -75,25 +75,6 @@
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumkw.h>
 #include <dev/vinum/vinumext.h>
+#include <dev/vinum/vinumutil.h>
 #include <machine/cpu.h>
-
-#undef Free						    /* defined in some funny net stuff */
-#ifdef _KERNEL
-#ifdef VINUMDEBUG
-#define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
-#define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
-caddr_t MMalloc (int size, char *, int);
-void FFree (void *mem, char *, int);
-#define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
-#else
-#define Malloc(x)  malloc((x), M_DEVBUF, \
-	curproc->p_intr_nesting_level == 0? M_WAITOK: M_NOWAIT)
-#define Free(x)    free((x), M_DEVBUF)
-#define LOCKDRIVE(d) lockdrive (d)
-#endif
-#else
-#define Malloc(x)  malloc ((x))				    /* just the size */
-#define Free(x)	   free ((x))				    /* just the address */
-#endif
-
 extern struct cdevsw vinum_cdevsw;
