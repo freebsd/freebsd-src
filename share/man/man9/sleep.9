@@ -95,6 +95,11 @@ runnable with the specified
 Sleeps at most
 .Fa timo
 \&/ hz seconds (0 means no timeout).
+If the
+.Va Giant
+lock is not held, then
+.Fa timo
+must be non-zero.
 If
 .Fa priority
 includes the
