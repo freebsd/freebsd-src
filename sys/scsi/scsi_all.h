@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.8 1995/01/08 13:38:30 dufault Exp $
+ *	$Id: scsi_all.h,v 1.9 1995/02/22 01:44:21 gibbs Exp $
  */
 
 /*
@@ -203,10 +203,14 @@ struct scsi_changedef
 #define T_READONLY	5
 #define T_SCANNER 	6
 #define T_OPTICAL 	7
-#define T_NODEVICE	0x1F
-
 #define T_CHANGER	8
 #define T_COMM		9
+#define T_ASC0     10
+#define T_ASC1     11
+#define T_UNKNOWN  12
+#define T_NTYPES   13
+
+#define T_NODEVICE	0x1F
 
 #define T_REMOV		1
 #define	T_FIXED		0
