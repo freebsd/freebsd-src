@@ -113,7 +113,8 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	 */
 	mtx_lock(&pfs_vncache_mutex);
 	for (pvd = pfs_vncache; pvd; pvd = pvd->pvd_next) {
-		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid) {
+		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid &&
+		    pvd->pvd_vnode->v_mount == mp) {
 			if (vget(pvd->pvd_vnode, 0, curthread) == 0) {
 				++pfs_vncache_hits;
 				*vpp = pvd->pvd_vnode;
