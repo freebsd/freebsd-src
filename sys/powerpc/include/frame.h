@@ -35,7 +35,7 @@
 #ifndef	_MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
-#include <machine/types.h>
+#include <sys/types.h>
 
 /*
  * We have to save all registers on every trap, because
