@@ -408,8 +408,6 @@ main(argc, argv, envp)
 				error = getaddrinfo(bindname, "ftp", &hints,
 						    &res);
 			}
-			if (error == 0 && res->ai_addr != NULL)
-				family = res->ai_addr->sa_family;
 		}
 		if (error) {
 			syslog(LOG_ERR, gai_strerror(error));
@@ -420,7 +418,8 @@ main(argc, argv, envp)
 		if (res->ai_addr == NULL) {
 			syslog(LOG_ERR, "-a %s: getaddrinfo failed", hostname);
 			exit(1);
-		}
+		} else
+			family = res->ai_addr->sa_family;
 		/*
 		 * Open a socket, bind it to the FTP port, and start
 		 * listening.
