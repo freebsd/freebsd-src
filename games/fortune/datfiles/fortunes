@@ -10373,6 +10373,11 @@ is from the wrong kind of tree."
 to have been written by Bruce Evans."
 		-- Linus Torvalds, comp.os.minix, Jan. 1992
 %
+Note: The system panics with a "NULL pointer dereference" message
+
+Failed due to : SunOS 5.8 is installed.
+		-- Output of a SunCheckup run on a Solaris 8 machine
+%
 Notes for a ballet, "The Spell": ... Suddenly Sigmund hears the flutter
 of wings, and a group of wild swans flies across the moon ... Sigmund
 is astounded to see that their leader is part swan and part woman --
