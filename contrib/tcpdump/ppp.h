@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.8 1999/11/21 03:43:56 assar Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ppp.h,v 1.11 2000/10/09 01:53:19 guy Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *
@@ -17,6 +17,8 @@
  *
  * $FreeBSD$
  */
+#define PPP_HDRLEN	4	/* length of PPP header */
+
 #undef PPP_ADDRESS
 #define PPP_ADDRESS	0xff	/* The address byte value */
 #undef PPP_CONTROL
@@ -38,6 +40,7 @@
 #define PPP_BRPDU	0x0031	/* Bridging PDU */
 #define PPP_STII	0x0033	/* Stream Protocol (ST-II) */
 #define PPP_VINES	0x0035	/* Banyan Vines */
+#define PPP_IPV6	0x0057	/* IPv6 */
 
 #define PPP_HELLO	0x0201	/* 802.1d Hello Packets */
 #define PPP_LUXCOM	0x0231	/* Luxcom */
@@ -51,9 +54,15 @@
 #define PPP_IPXCP	0x802b	/* Novell IPX Control Protocol */
 #define PPP_STIICP	0x8033	/* Strean Protocol Control Protocol */
 #define PPP_VINESCP	0x8035	/* Banyan Vines Control Protocol */
+#define PPP_IPV6CP	0x8057	/* IPv6 Control Protocol */
+#define PPP_CCP		0x80fd	/* Compress Control Protocol */
 
 #define PPP_LCP		0xc021	/* Link Control Protocol */
 #define PPP_PAP		0xc023	/* Password Authentication Protocol */
 #define PPP_LQM		0xc025	/* Link Quality Monitoring */
 #define PPP_CHAP	0xc223	/* Challenge Handshake Authentication Protocol */
+#define PPP_BACP	0xc02b	/* Bandwidth Allocation Control Protocol */
+#define PPP_BAP		0xc02d	/* BAP */
+#define PPP_MP		0xc03d	/* Multi-Link */
+
 extern struct tok ppptype2str[];

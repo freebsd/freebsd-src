@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.44 1999/11/21 09:36:48 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.49 2000/10/10 05:05:07 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -32,28 +32,83 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/socket.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
-#endif
-#include <net/if.h>
-#include <net/if_var.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "ether.h"
 #include "ethertype.h"
 #include "extract.h"			/* must come after interface.h */
+
+/*
+ * Address Resolution Protocol.
+ *
+ * See RFC 826 for protocol description.  ARP packets are variable
+ * in size; the arphdr structure defines the fixed-length portion.
+ * Protocol type values are the same as those for 10 Mb/s Ethernet.
+ * It is followed by the variable-sized fields ar_sha, arp_spa,
+ * arp_tha and arp_tpa in that order, according to the lengths
+ * specified.  Field names used correspond to RFC 826.
+ */
+struct	arphdr {
+	u_short	ar_hrd;		/* format of hardware address */
+#define ARPHRD_ETHER 	1	/* ethernet hardware format */
+#define ARPHRD_IEEE802	6	/* token-ring hardware format */
+#define ARPHRD_FRELAY 	15	/* frame relay hardware format */
+	u_short	ar_pro;		/* format of protocol address */
+	u_char	ar_hln;		/* length of hardware address */
+	u_char	ar_pln;		/* length of protocol address */
+	u_short	ar_op;		/* one of: */
+#define	ARPOP_REQUEST	1	/* request to resolve address */
+#define	ARPOP_REPLY	2	/* response to previous request */
+#define	ARPOP_REVREQUEST 3	/* request protocol address given hardware */
+#define	ARPOP_REVREPLY	4	/* response giving protocol address */
+#define ARPOP_INVREQUEST 8 	/* request to identify peer */
+#define ARPOP_INVREPLY	9	/* response identifying peer */
+/*
+ * The remaining fields are variable in size,
+ * according to the sizes above.
+ */
+#ifdef COMMENT_ONLY
+	u_char	ar_sha[];	/* sender hardware address */
+	u_char	ar_spa[];	/* sender protocol address */
+	u_char	ar_tha[];	/* target hardware address */
+	u_char	ar_tpa[];	/* target protocol address */
+#endif
+};
+
+#define ARP_HDRLEN	8
+
+/*
+ * Ethernet Address Resolution Protocol.
+ *
+ * See RFC 826 for protocol description.  Structure below is adapted
+ * to resolving internet addresses.  Field names used correspond to 
+ * RFC 826.
+ */
+struct	ether_arp {
+	struct	arphdr ea_hdr;	/* fixed-size header */
+	u_char	arp_sha[6];	/* sender hardware address */
+	u_char	arp_spa[4];	/* sender protocol address */
+	u_char	arp_tha[6];	/* target hardware address */
+	u_char	arp_tpa[4];	/* target protocol address */
+};
+#define	arp_hrd	ea_hdr.ar_hrd
+#define	arp_pro	ea_hdr.ar_pro
+#define	arp_hln	ea_hdr.ar_hln
+#define	arp_pln	ea_hdr.ar_pln
+#define	arp_op	ea_hdr.ar_op
+
+#define ETHER_ARP_HDRLEN	(ARP_HDRLEN + 6 + 4 + 6 + 4)	
+
+#define SHA(ap) ((ap)->arp_sha)
+#define THA(ap) ((ap)->arp_tha)
+#define SPA(ap) ((ap)->arp_spa)
+#define TPA(ap) ((ap)->arp_tpa)
 
 /* Compatibility */
 #ifndef REVARP_REQUEST
@@ -77,7 +132,7 @@ arp_print(register const u_char *bp, u_int length, u_int caplen)
 		printf("[|arp]");
 		return;
 	}
-	if (length < sizeof(struct ether_arp)) {
+	if (length < ETHER_ARP_HDRLEN) {
 		(void)printf("truncated-arp");
 		default_print((u_char *)ap, length);
 		return;
