@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.1 1995/05/31 10:17:32 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.2 1995/05/31 20:55:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
  */
 
 #include "sysinstall.h"
+#include <sys/types.h>
 
 #define MAX_MENU		10
 
@@ -96,32 +97,16 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 
 	/* Pop up that dialog! */
 	if (menu->options & DMENU_NORMAL_TYPE) {
-	    rval = dialog_menu((unsigned char *)menu->title,
-			       (unsigned char *)menu->prompt,
-			       -1, -1,
-			       n > MAX_MENU ? MAX_MENU : n,
-			       n,
-			       (unsigned char **)nitems,
-			       (unsigned char *)result,
-			       choice, scroll);
+	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+			       n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result, choice, scroll);
 	}
 	else if (menu->options & DMENU_RADIO_TYPE) {
-	    rval = dialog_radiolist((unsigned char *)menu->title,
-				    (unsigned char *)menu->prompt,
-				    -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n,
-				    n,
-				    (unsigned char **)nitems,
-				    (unsigned char *)result);
+	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
 	}
 	else if (menu->options & DMENU_MULTIPLE_TYPE) {
-	    rval = dialog_checklist((unsigned char *)menu->title,
-				    (unsigned char *)menu->prompt,
-				    -1, -1,
-				    n > MAX_MENU ? MAX_MENU : n,
-				    n,
-				    (unsigned char **)nitems,
-				    (unsigned char *)result);
+	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+				    n > MAX_MENU ? MAX_MENU : n, n, (u_char **)nitems, (u_char *)result);
 	}
 
 	/* This seems to be the only technique that works for getting the display to look right */
@@ -142,6 +127,10 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    else {
 		if ((tmp = decode(menu, result)) == NULL)
 		    msgFatal("Menu item `%s' not found??", result);
+	    }
+	    if (dispatch(tmp, result) || (menu->options & DMENU_SELECTION_RETURNS)) {
+		items_free(nitems, curr, max);
+		return TRUE;
 	    }
 	}
 	else {
