@@ -92,8 +92,8 @@ kmstartup(dummy)
 	int nullfunc_loop_overhead;
 	int nullfunc_loop_profiled_time;
 	uintfptr_t tmp_addr;
-#endif
 	int intrstate;
+#endif
 
 	/*
 	 * Round lowpc and highpc to multiples of the density we're using
