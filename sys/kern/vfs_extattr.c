@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.80 1997/11/06 19:29:30 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.81 1997/11/12 05:42:17 julian Exp $
  */
 
 /*
@@ -261,10 +261,10 @@ update:
 		mp->mnt_kern_flag |= MNTK_WANTRDWR;
 	mp->mnt_flag &=~ (MNT_NOSUID | MNT_NOEXEC | MNT_NODEV |
 	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
-	    MNT_NOCLUSTERR | MNT_NOCLUSTERW);
+	    MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
 	mp->mnt_flag |= SCARG(uap, flags) & (MNT_NOSUID | MNT_NOEXEC |
 	    MNT_NODEV | MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_FORCE |
-	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW);
+	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
 	/*
 	 * Mount the filesystem.
 	 */

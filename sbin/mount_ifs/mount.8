@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.18 1997/08/24 21:02:48 steve Exp $
+.\"	$Id: mount.8,v 1.19 1997/09/27 13:44:12 kato Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -154,6 +154,22 @@ mount the file system read-only (even the super-user may not write it).
 All
 .Tn I/O
 to the file system should be done synchronously.
+.It suiddir
+A directory on the mounted filesystem will respond to the SUID bit 
+being set, by setting the owner of any new files to be the same
+as the owner of the directory.
+New directories will inherit the bit from their parents.
+Execute bits are removed from
+the file, and it will not be given to root.
+.Pp
+This feature is designed for use on fileservers serving PC users via
+ftp, SAMBA, or netatalk. It provides security holes for shell users and as
+such should not be used on shell machines, especially on home directories.
+This option requires the SUIDDIR
+option in the kernel to work. Only UFS filesystems support this option.
+See
+.Xr chmod 2
+for more information.
 .It update
 The same as
 .Fl u ;

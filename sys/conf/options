@@ -1,4 +1,4 @@
-#	$Id: options,v 1.36 1997/10/18 01:15:32 peter Exp $
+#	$Id: options,v 1.37 1997/11/05 20:17:06 joerg Exp $
 
 # Format:
 # Option name	filename
@@ -9,6 +9,7 @@ DDB
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS_ROOT	opt_devfs.h
+SUIDDIR
 KTRACE
 QUOTA
 SYSVMSG		opt_sysvipc.h
