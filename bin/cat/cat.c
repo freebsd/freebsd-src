@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 int bflag, eflag, nflag, sflag, tflag, vflag;
