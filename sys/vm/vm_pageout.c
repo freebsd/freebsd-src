@@ -1543,7 +1543,9 @@ vm_daemon()
 			 * if this is a system process or if we have already
 			 * looked at this process, skip it.
 			 */
+			PROC_LOCK(p);
 			if (p->p_flag & (P_SYSTEM | P_WEXIT)) {
+				PROC_UNLOCK(p);
 				continue;
 			}
 			/*
@@ -1560,8 +1562,9 @@ vm_daemon()
 					break;
 				}
 			}
+			mtx_unlock_spin(&sched_lock);
 			if (breakout) {
-				mtx_unlock_spin(&sched_lock);
+				PROC_UNLOCK(p);
 				continue;
 			}
 			/*
@@ -1578,7 +1581,7 @@ vm_daemon()
 			 */
 			if ((p->p_sflag & PS_INMEM) == 0)
 				limit = 0;	/* XXX */
-			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 
 			size = vmspace_resident_count(p->p_vmspace);
 			if (limit >= 0 && size >= limit) {
