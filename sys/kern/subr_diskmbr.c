@@ -207,6 +207,6 @@ done:
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	if (error == EINVAL)
-		error = (dkslice(dev) == 0 ? 0 : ENXIO);
+		error = (dkslice(dev) == WHOLE_DISK_SLICE ? 0 : ENXIO);
 	return (error);
 }
