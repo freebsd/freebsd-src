@@ -217,3 +217,9 @@ The
 .Nm
 utility conforms to
 .St -p1003.1-2001 .
+.Tn POSIX
+does not specify whether arithmetic overflow is detected, nor does it specify
+the possible range of integer arguments to
+.Nm ,
+so a portable application must assume that the range is small and that
+overflow may not be detected.
