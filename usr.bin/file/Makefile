@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id$
+# @(#)$Id: Makefile,v 1.9 1997/02/22 19:29:07 peter Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -29,11 +29,11 @@ MAGICOWN=	bin
 MAGICGRP=	bin
 MAGICMODE=	444
 
-CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"'
+CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"' -DBUILTIN_ELF
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  print.c international.c
+		compress.c is_tar.c  readelf.c internat.c print.c
 
 MAN1=		file.1
 MAN5=		magic.5
