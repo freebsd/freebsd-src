@@ -339,7 +339,6 @@ define kernel
 end
 
 define kldstat
-y
   set $kld = linker_files.tqh_first
   printf "Id Refs Address    Size     Name\n"
   while ($kld != 0)
@@ -354,7 +353,6 @@ document kldstat
 end
  
 define kldstat-v
-y
   set $kld = linker_files.tqh_first
   printf "Id Refs Address    Size     Name\n"
   while ($kld != 0)
