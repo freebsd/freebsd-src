@@ -1,10 +1,10 @@
-# $Id$
+# $Id: Makefile,v 1.1 1998/09/03 10:41:20 abial Exp $
 #
 
 SRC?=/usr/src
 CONF?=$(SRC)/sys/i386/conf
 
-CONFFILE=PICOBSD-D.${SIZE}
+CONFFILE=PICOBSD${suffix}.${SIZE}
 COMPILE=$(SRC)/sys/compile/$(CONFFILE)
 KERNFILE=$(COMPILE)/kernel
 
