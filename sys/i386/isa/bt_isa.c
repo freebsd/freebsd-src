@@ -118,8 +118,8 @@ bt_isa_probe(dev)
 		bt_mark_probed_bio(port_index);
 
 		if (bt_port_probe(bt, &info) != 0) {
-			printf("bt_isa_probe: Probe failed for card at 0x%x\n",
-			       ioport);
+			if (bootverbose)
+				printf("bt_isa_probe: Probe failed for card at 0x%x\n", ioport);
 			bt_free(bt);
 			continue;
 		}
