@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.173 1997/03/07 16:39:15 jkh Exp $
+ * $Id: install.c,v 1.174 1997/03/08 12:57:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -560,6 +560,10 @@ installNovice(dialogMenuItem *self)
 	dmenuOpenSimple(&MenuMouse, FALSE);
 	restorescr(w);
     }
+
+    /* Now would be a good time to checkpoint the configuration data */
+    configSysconfig("/etc/sysconfig");
+    sync();
 
     if (directory_exists("/usr/X11R6")) {
 	dialog_clear_norefresh();
