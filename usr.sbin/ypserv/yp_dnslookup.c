@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995
+ * Copyright (c) 1995, 1996
  *	Bill Paul <wpaul@ctr.columbia.edu>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.4 1996/12/22 22:30:54 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.9 1996/12/25 17:52:35 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.4 1996/12/22 22:30:54 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.9 1996/12/25 17:52:35 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -106,9 +106,9 @@ struct circleq_dnsentry {
 	SVCXPRT *xprt;
 	unsigned long xid;
 	struct sockaddr_in client_addr;
+	unsigned long ypvers;
 	unsigned long id;
 	unsigned long ttl;
-	unsigned long sent;
 	unsigned long type;
 	unsigned short prot_type;
 	char **domain;
@@ -135,11 +135,6 @@ int yp_init_resolver()
 		return(1);
 	}
 	return(0);
-}
-
-int yp_dnsq_pending()
-{
-	return(pending);
 }
 
 static struct circleq_dnsentry *yp_malloc_dnsent()
@@ -202,7 +197,7 @@ static struct circleq_dnsentry *yp_find_dnsqent(id)
 	register struct circleq_dnsentry *q;
 
 	for (q = qhead.cqh_first; q != (void *)&qhead; q = q->links.cqe_next) {
-		if (q->id == id)
+		if (id == q->id)
 			return(q);
 	}
 	return (NULL);
@@ -212,25 +207,60 @@ static void yp_send_dns_reply(q, buf)
 	struct circleq_dnsentry *q;
 	char *buf;
 {
-	ypresp_val result;
+	ypresponse result_v1;
+	ypresp_val result_v2;
 	unsigned long xid;
 	struct sockaddr_in client_addr;
+	xdrproc_t xdrfunc;
+	char *result;
 
-	bzero((char *)&result, sizeof(result));
+	/*
+	 * Set up correct reply struct and
+	 * XDR filter depending on ypvers.
+	 */
+	switch(q->ypvers) {
+	case YPVERS:
+		bzero((char *)&result_v2, sizeof(result_v2));
 
-	if (buf == NULL)
-		result.stat = YP_NOKEY;
-	else {
-		result.val.valdat_len = strlen(buf);
-		result.val.valdat_val = buf;
-		result.stat = YP_TRUE;
+		if (buf == NULL)
+			result_v2.stat = YP_NOKEY;
+		else {
+			result_v2.val.valdat_len = strlen(buf);
+			result_v2.val.valdat_val = buf;
+			result_v2.stat = YP_TRUE;
+		}
+		result = (char *)&result_v2;
+		xdrfunc = (xdrproc_t)xdr_ypresp_val;
+		break;
+	case YPOLDVERS:
+		/*
+		 * The odds are we will _never_ execute this
+		 * particular code, but we include it anyway
+		 * for the sake of completeness.
+		 */
+		bzero((char *)&result_v1, sizeof(result_v1));
+		result_v1.yp_resptype = YPRESP_VAL;
+#		define YPVAL ypresponse_u.yp_resp_valtype
+
+		if (buf == NULL)
+			result_v1.YPVAL.stat = YP_NOKEY;
+		else {
+			result_v1.YPVAL.val.valdat_len = strlen(buf);
+			result_v1.YPVAL.val.valdat_val = buf;
+			result_v1.YPVAL.stat = YP_TRUE;
+		}
+		result = (char *)&result_v1;
+		xdrfunc = (xdrproc_t)xdr_ypresponse;
+		break;
+	default:
+		yp_error("Bad YP program version (%lu)!",q->ypvers);
+			return;
+		break;
 	}
 
 	if (debug)
 		yp_error("Sending dns reply to %s (%lu)",
-					inet_ntoa(q->client_addr.sin_addr),
-					q->id);
-
+			inet_ntoa(q->client_addr.sin_addr), q->id);
 	/*
 	 * XXX This is disgusting. There's basically one transport
 	 * handle for UDP, but we're holding off on replying to a
@@ -245,20 +275,31 @@ static void yp_send_dns_reply(q, buf)
 	 * not even supported by the RPC library.
 	 */
 	/*
-	 * XXX Don't from the transaction ID for TCP handles.
+	 * XXX Don't frob the transaction ID for TCP handles.
 	 */
 	if (q->prot_type == SOCK_DGRAM)
 		xid = svcudp_set_xid(q->xprt, q->xid);
 	client_addr = q->xprt->xp_raddr;
 	q->xprt->xp_raddr = q->client_addr;
-	if (!svc_sendreply(q->xprt, xdr_ypresp_val, (char *)&result))
+
+	if (!svc_sendreply(q->xprt, xdrfunc, result))
 		yp_error("svc_sendreply failed");
+
+	/*
+	 * Now that we sent the reply,
+	 * put the handle back the way it was.
+	 */
 	if (q->prot_type == SOCK_DGRAM)
 		svcudp_set_xid(q->xprt, xid);
 	q->xprt->xp_raddr = client_addr;
+
 	return;
 }
 
+/*
+ * Decrement TTL on all queue entries, possibly nuking
+ * any that have been around too long without being serviced.
+ */
 void yp_prune_dnsq()
 {
 	register struct circleq_dnsentry *q;
@@ -279,10 +320,15 @@ void yp_prune_dnsq()
 	return;
 }
 
+/*
+ * Data is pending on the DNS socket; check for valid replies
+ * to our queries and dispatch them to waiting clients.
+ */
 void yp_run_dnsq()
 {
 	register struct circleq_dnsentry *q;
 	char buf[sizeof(HEADER) + MAXPACKET];
+	char retrybuf[MAXHOSTNAMELEN];
 	struct sockaddr_in sin;
 	int rval;
 	int len;
@@ -303,9 +349,16 @@ void yp_run_dnsq()
 		return;
 	}
 
+	/*
+	 * We may have data left in the socket that represents
+	 * replies to earlier queries that we don't care about
+	 * anymore. If there are no lookups pending or the packet
+	 * ID doesn't match any of the queue IDs, just drop it
+	 * on the floor.
+	 */
 	hptr = (HEADER *)&buf;
-	if ((q = yp_find_dnsqent(ntohs(hptr->id))) == NULL) {
-		/* bogus id -- ignore */
+	if (!pending || (q = yp_find_dnsqent(ntohs(hptr->id))) == NULL) {
+		/* ignore */
 		return;
 	}
 
@@ -314,9 +367,12 @@ void yp_run_dnsq()
 
 	hent = __dns_getanswer(buf, rval, q->name, q->type);
 
+	/*
+	 * If the lookup failed, try appending one of the domains
+	 * from resolv.conf. If we have no domains to test, the
+	 * query has failed.
+	 */
 	if (hent == NULL) {
-		char retrybuf[MAXHOSTNAMELEN];
-
 		if (h_errno == TRY_AGAIN && q->domain && *q->domain) {
 			snprintf(retrybuf, sizeof(retrybuf), "%s.%s",
 						q->name, *q->domain);
@@ -334,20 +390,24 @@ void yp_run_dnsq()
 		}
 	}
 
+	/* Got an answer ready for a client -- send it off. */
 	yp_send_dns_reply(q, parse(hent));
-
 	pending--;
 	CIRCLEQ_REMOVE(&qhead, q, links);
 	free(q->name);
 	free(q);
 
+	/* Decrement TTLs on other entries while we're here. */
 	yp_prune_dnsq();
 
 	return;
 }
 
-ypstat yp_async_lookup_name(xprt, name)
-	SVCXPRT	*xprt;
+/*
+ * Queue and transmit an asynchronous DNS hostname lookup.
+ */
+ypstat yp_async_lookup_name(rqstp, name)
+	struct svc_req *rqstp;
 	char *name;
 {
 	register struct circleq_dnsentry *q;
@@ -358,17 +418,17 @@ ypstat yp_async_lookup_name(xprt, name)
 
 	q->type = T_A;
 	q->ttl = DEF_TTL;
-	q->sent = 1;
-	q->xprt = xprt;
+	q->xprt = rqstp->rq_xprt;
+	q->ypvers = rqstp->rq_vers;
 	type = -1; len = sizeof(type);
-	if (getsockopt(xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
+	if (getsockopt(q->xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
 		return(YP_YPERR);
 	}
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
-		q->xid = svcudp_get_xid(xprt);
-	q->client_addr = xprt->xp_raddr;
+		q->xid = svcudp_get_xid(q->xprt);
+	q->client_addr = q->xprt->xp_raddr;
 	if (!strchr(name, '.'))
 		q->domain = _res.dnsrch;
 	else
@@ -391,8 +451,11 @@ ypstat yp_async_lookup_name(xprt, name)
 	return(YP_TRUE);
 }
 
-ypstat yp_async_lookup_addr(xprt, addr)
-	SVCXPRT *xprt;
+/*
+ * Queue and transmit an asynchronous DNS IP address lookup.
+ */
+ypstat yp_async_lookup_addr(rqstp, addr)
+	struct svc_req *rqstp;
 	char *addr;
 {
 	register struct circleq_dnsentry *q;
@@ -414,18 +477,18 @@ ypstat yp_async_lookup_addr(xprt, addr)
 
 	q->type = T_PTR;
 	q->ttl = DEF_TTL;
-	q->sent = 1;
-	q->xprt = xprt;
+	q->xprt = rqstp->rq_xprt;
+	q->ypvers = rqstp->rq_vers;
 	q->domain = NULL;
 	type = -1; len = sizeof(type);
-	if (getsockopt(xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
+	if (getsockopt(q->xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
 		yp_error("getsockopt failed: %s", strerror(errno));
 		return(YP_YPERR);
 	}
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
-		q->xid = svcudp_get_xid(xprt);
-	q->client_addr = xprt->xp_raddr;
+		q->xid = svcudp_get_xid(q->xprt);
+	q->client_addr = q->xprt->xp_raddr;
 	q->id = yp_send_dns_query(buf, q->type);
 
 	if (q->id == 0) {

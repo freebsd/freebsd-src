@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.2 1996/12/22 06:57:55 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.3 1996/12/24 18:43:53 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -169,10 +169,10 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 				  argp->key.keydat_val);
 
 		if (!strcmp(argp->map, "hosts.byname"))
-			result.stat = yp_async_lookup_name(rqstp->rq_xprt,
+			result.stat = yp_async_lookup_name(rqstp,
 					(char *)argp->key.keydat_val);
 		else if (!strcmp(argp->map, "hosts.byaddr"))
-			result.stat = yp_async_lookup_addr(rqstp->rq_xprt,
+			result.stat = yp_async_lookup_addr(rqstp,
 					(char *)argp->key.keydat_val);
 
 		if (result.stat == YP_TRUE)
