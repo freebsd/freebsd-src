@@ -87,6 +87,7 @@ static int     num_tok(void);
 static void    error(char *);
 static int     keyword(char *);
 static int     irq_tok(int);
+static int     config_tok(unsigned char *);
 static int     debuglevel_tok(int);
 static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
@@ -214,6 +215,7 @@ static void
 parse_card(void)
 {
 	char   *man, *vers, *tmp;
+	unsigned char index_type;
 	struct card *cp;
 	int     i, iosize;
 	struct card_config *confp, *lastp;
@@ -232,7 +234,7 @@ parse_card(void)
 		switch (keyword(next_tok())) {
 		case KWD_CONFIG:
 			/* config */
-			i = num_tok();
+			i = config_tok(&index_type);
 			if (i == -1) {
 				error("illegal card config index");
 				break;
@@ -251,6 +253,7 @@ parse_card(void)
 				break;
 			}
 			confp->index = i & 0x3F;
+			confp->index_type = index_type;
 
 			/*
 			 * If no valid driver for this config, then do not save
@@ -437,6 +440,26 @@ irq_tok(int force)
 	if (force)
 		error("illegal IRQ value");
 	return (-1);
+}
+
+/*
+ *	Config index token
+ */
+static int
+config_tok(unsigned char *index_type)
+{
+	if (strcmp("default", next_tok()) == 0)	{
+		*index_type = DEFAULT_INDEX;
+		return 0;
+	}
+	pusht = 1;
+	if (strcmp("auto", next_tok()) == 0) {
+		*index_type = AUTO_INDEX;
+		return 0;
+	}
+	pusht = 1;
+	*index_type = NORMAL_INDEX;
+	return num_tok();
 }
 
 /*

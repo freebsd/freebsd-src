@@ -147,6 +147,11 @@ from the range available in the card's CIS, the driver that
 is to be associated with this configuration, and the interrupt
 level (if any) to be assigned. An optional set of flags may
 be assigned.
+In
+.Ar index ,
+specify either ``auto'' or ``default'' or the range available in the card's CIS.
+``auto'' allows to allocate resources automatically with information
+from the CIS and status of using I/O resources.
 .Pp
 The optional
 .Em ether
