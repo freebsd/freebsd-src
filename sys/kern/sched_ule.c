@@ -772,18 +772,12 @@ sched_pickcpu(void)
 void
 sched_prio(struct thread *td, u_char prio)
 {
-	struct kse *ke;
-	struct runq *rq;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	ke = td->td_kse;
-	td->td_priority = prio;
-
 	if (TD_ON_RUNQ(td)) {
-		rq = ke->ke_runq;
-
-		runq_remove(rq, ke);
-		runq_add(rq, ke);
+		adjustrunqueue(td, prio);
+	} else {
+		td->td_priority = prio;
 	}
 }
 
@@ -802,15 +796,20 @@ sched_switchout(struct thread *td)
         td->td_flags &= ~TDF_NEEDRESCHED;
 
 	if (TD_IS_RUNNING(td)) {
-		/*
-		 * This queue is always correct except for idle threads which
-		 * have a higher priority due to priority propagation.
-		 */
-		if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE &&
-		    ke->ke_thread->td_priority > PRI_MIN_IDLE)
-			ke->ke_runq = KSEQ_SELF()->ksq_curr;
-		runq_add(ke->ke_runq, ke);
-		/* setrunqueue(td); */
+		if (td->td_proc->p_flag & P_SA) {
+			kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			setrunqueue(td);
+		} else {
+			/*
+			 * This queue is always correct except for idle threads which
+			 * have a higher priority due to priority propagation.
+			 */
+			if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE &&
+			    ke->ke_thread->td_priority > PRI_MIN_IDLE)
+				ke->ke_runq = KSEQ_SELF()->ksq_curr;
+			runq_add(ke->ke_runq, ke);
+			/* setrunqueue(td); */
+		}
 		return;
 	}
 	if (ke->ke_runq)
