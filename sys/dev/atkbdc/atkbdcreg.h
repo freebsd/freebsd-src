@@ -210,6 +210,9 @@ enum kbdc_device_ivar {
 
 typedef caddr_t KBDC;
 
+#define KBDC_RID_KBD	0
+#define KBDC_RID_AUX	1
+
 /* function prototypes */
 
 atkbdc_softc_t *atkbdc_get_softc(int unit);
