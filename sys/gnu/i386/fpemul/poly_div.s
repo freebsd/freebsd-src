@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: poly_div.s,v 1.6 1997/02/22 09:29:16 peter Exp $
  *
  */
 
@@ -66,9 +66,7 @@
 .text
 
 /*---------------------------------------------------------------------------*/
-	.align 2,144
-.globl _poly_div2
-_poly_div2:
+ENTRY(poly_div2)
 	pushl %ebp
 	movl %esp,%ebp
 
@@ -88,9 +86,7 @@ poly_div2_exit:
 	leave
 	ret
 /*---------------------------------------------------------------------------*/
-	.align 2,144
-.globl _poly_div4
-_poly_div4:
+ENTRY(poly_div4)
 	pushl %ebp
 	movl %esp,%ebp
 
@@ -115,9 +111,7 @@ poly_div4_exit:
 	leave
 	ret
 /*---------------------------------------------------------------------------*/
-	.align 2,144
-.globl _poly_div16
-_poly_div16:
+ENTRY(poly_div16)
 	pushl %ebp
 	movl %esp,%ebp
 

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id$
+ *      $Id: reg_u_div.s,v 1.6 1997/02/22 09:29:26 peter Exp $
  *
  */
 
@@ -85,7 +85,7 @@
 	Result:		accum_3:accum_2:accum_1:accum_0
 	Overflow flag:	ovfl_flag
  */
-	.align 2,0
+	ALIGN_DATA
 accum_3:
 	.long	0
 accum_2:
@@ -103,13 +103,10 @@ ovfl_flag:
 
 
 .text
-	.align 2,144
-
-.globl _reg_u_div
 
 .globl _divide_kernel
 
-_reg_u_div:
+ENTRY(reg_u_div)
 	pushl	%ebp
 	movl	%esp,%ebp
 

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: reg_u_mul.s,v 1.6 1997/02/22 09:29:27 peter Exp $
  *
  */
 
@@ -77,7 +77,7 @@
 
 
 .data
-	.align 2,0
+	ALIGN_DATA
 accum_0:
 	.long	0
 accum_1:
@@ -85,10 +85,7 @@ accum_1:
 
 
 .text
-	.align 2,144
-
-.globl _reg_u_mul
-_reg_u_mul:
+ENTRY(reg_u_mul)
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	%esi
