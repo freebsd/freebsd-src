@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.37 2000/09/07 20:27:53 deraadt Exp $");
+RCSID("$OpenBSD: session.c,v 1.42 2000/10/27 07:32:18 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -41,7 +41,6 @@ RCSID("$FreeBSD$");
 #include "pty.h"
 #include "packet.h"
 #include "buffer.h"
-#include "cipher.h"
 #include "mpaux.h"
 #include "servconf.h"
 #include "uidswap.h"
@@ -206,7 +205,7 @@ do_authenticated(struct passwd * pw)
 	 * by the client telling us, so we can equally well trust the client
 	 * not to request anything bogus.)
 	 */
-	if (!no_port_forwarding_flag)
+	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
 
 	s = session_new();
@@ -358,6 +357,10 @@ do_authenticated(struct passwd * pw)
 				debug("Port forwarding not permitted for this authentication.");
 				break;
 			}
+			if (!options.allow_tcp_forwarding) {
+				debug("Port forwarding not permitted.");
+				break;
+			}
 			debug("Received TCP/IP port forwarding request.");
 			channel_input_port_forward_request(pw->pw_uid == 0, options.gateway_ports);
 			success = 1;
@@ -445,7 +448,13 @@ do_exec_no_pty(Session *s, const char *command, struct passwd * pw)
 	if (s == NULL)
 		fatal("do_exec_no_pty: no session");
 
+	signal(SIGPIPE, SIG_DFL);
+
 	session_proctitle(s);
+
+#ifdef USE_PAM
+	do_pam_setcred();
+#endif /* USE_PAM */
 
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
@@ -551,6 +560,11 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 	ptyfd = s->ptyfd;
 	ttyfd = s->ttyfd;
 
+#ifdef USE_PAM
+	do_pam_session(pw->pw_name, s->tty);
+	do_pam_setcred();
+#endif /* USE_PAM */
+
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
 		/* Child.  Reinitialize the log because the pid has changed. */
@@ -645,7 +659,6 @@ do_login(Session *s, const char *command)
 	struct passwd * pw = s->pw;
 	pid_t pid = getpid();
 #ifdef HAVE_LOGIN_CAP
-	login_cap_t *lc;
 	char *fname;
 #endif /* HAVE_LOGIN_CAP */
 #ifdef __FreeBSD__
@@ -679,7 +692,20 @@ do_login(Session *s, const char *command)
 	record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
 	    get_remote_name_or_ip(), (struct sockaddr *)&from);
 
-	/* Done if .hushlogin exists. */
+#ifdef USE_PAM
+	/*
+	 * If password change is needed, do it now.
+	 * This needs to occur before the ~/.hushlogin check.
+	 */
+	if (pam_password_change_required()) {
+		print_pam_messages();
+		do_pam_chauthtok();
+	}
+#endif
+
+	/* Done if .hushlogin exists or a command given. */
+	if (command != NULL)
+		return;
 	snprintf(buf, sizeof(buf), "%.200s/.hushlogin", pw->pw_dir);
 #ifdef HAVE_LOGIN_CAP
 	lc = login_getpwclass(pw);
@@ -687,8 +713,12 @@ do_login(Session *s, const char *command)
 		lc = login_getclassbyname(NULL, pw);
 	quiet_login = login_getcapbool(lc, "hushlogin", quiet_login) || stat(buf, &st) >= 0;
 #else
-	quiet_login = stat(line, &st) >= 0;
+	quiet_login = stat(buf, &st) >= 0;
 #endif /* HAVE_LOGIN_CAP */
+#ifdef USE_PAM
+	if (!quiet_login && !pam_password_change_required())
+		print_pam_messages();
+#endif /* USE_PAM */
 
 #ifdef __FreeBSD__
 	if (pw->pw_change || pw->pw_expire)
@@ -707,7 +737,9 @@ do_login(Session *s, const char *command)
 			    "Sorry -- your password has expired.\n");
 			log("%s Password expired - forcing change",
 			    pw->pw_name);
-			newcommand = _PATH_CHPASS;
+			if (newcommand != NULL)
+				xfree(newcommand);
+			newcommand = xstrdup(_PATH_CHPASS);
 		} else if (pw->pw_change - tv.tv_sec < warntime &&
 			   !quiet_login)
 			(void)printf(
@@ -718,6 +750,7 @@ do_login(Session *s, const char *command)
 	warntime = login_getcaptime(lc, "warnexpire",
 				    DEFAULT_WARN, DEFAULT_WARN);
 #endif /* HAVE_LOGIN_CAP */
+#ifndef USE_PAM
 	if (pw->pw_expire) {
 		if (tv.tv_sec >= pw->pw_expire) {
 			(void)printf(
@@ -732,6 +765,7 @@ do_login(Session *s, const char *command)
 			    "Warning: your account expires on %s",
 			     ctime(&pw->pw_expire));
 	}
+#endif /* !USE_PAM */
 #endif /* __FreeBSD__ */
 
 #ifdef HAVE_LOGIN_CAP
@@ -759,9 +793,7 @@ do_login(Session *s, const char *command)
 		/* Remove the trailing newline. */
 		if (strchr(time_string, '\n'))
 			*strchr(time_string, '\n') = 0;
-		/* Display the last login time.  Host if displayed
-		   if known. */
-		if (strcmp(buf, "") == 0)
+		if (strcmp(hostname, "") == 0)
 			printf("Last login: %s\r\n", time_string);
 		else
 			printf("Last login: %s from %s\r\n", time_string, hostname);
@@ -805,6 +837,7 @@ do_login(Session *s, const char *command)
 
 #ifdef HAVE_LOGIN_CAP
 	login_close(lc);
+	lc = NULL;
 #endif /* HAVE_LOGIN_CAP */
 	return newcommand;
 }
@@ -889,6 +922,37 @@ read_environment_file(char ***env, unsigned int *envsize,
 	fclose(f);
 }
 
+#ifdef USE_PAM
+/*
+ * Sets any environment variables which have been specified by PAM
+ */
+void do_pam_environment(char ***env, int *envsize)
+{
+	char *equals, var_name[512], var_val[512];
+	char **pam_env;
+	int i;
+
+	if ((pam_env = fetch_pam_environment()) == NULL)
+		return;
+	
+	for(i = 0; pam_env[i] != NULL; i++) {
+		if ((equals = strstr(pam_env[i], "=")) == NULL)
+			continue;
+			
+		if (strlen(pam_env[i]) < (sizeof(var_name) - 1)) {
+			memset(var_name, '\0', sizeof(var_name));
+			memset(var_val, '\0', sizeof(var_val));
+
+			strncpy(var_name, pam_env[i], equals - pam_env[i]);
+			strcpy(var_val, equals + 1);
+
+			child_set_env(env, envsize, var_name, var_val);
+		}
+	}
+}
+#endif /* USE_PAM */
+
+
 /*
  * Performs common processing for the child, such as setting up the
  * environment, closing extra file descriptors, setting the user and group
@@ -908,14 +972,12 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	extern char **environ;
 	struct stat st;
 	char *argv[10];
-#ifdef HAVE_LOGIN_CAP
-	login_cap_t *lc;
-#endif
 
 	/* login(1) is only called if we execute the login shell */
 	if (options.use_login && command != NULL)
 		options.use_login = 0;
 
+#ifndef USE_PAM
 	if (!options.use_login) {
 #ifdef HAVE_LOGIN_CAP
 		lc = login_getpwclass(pw);
@@ -937,6 +999,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 			exit(254);
 		}
 	}
+#endif /* !USE_PAM */
 	/* Set login name, uid, gid, and groups. */
 	/* Login(1) does this as well, and it needs uid 0 for the "-h"
 	   switch, so we let login(1) to this for us. */
@@ -1119,6 +1182,11 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	}
 #endif /* KRB5 */
 
+#ifdef USE_PAM
+	/* Pull in any environment variables that may have been set by PAM. */
+	do_pam_environment(&env, &envsize);
+#endif /* USE_PAM */
+
 	if (xauthfile)
 		child_set_env(&env, &envsize, "XAUTHORITY", xauthfile);
 	if (auth_get_socket_name() != NULL)
@@ -1215,6 +1283,7 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	}
 #ifdef HAVE_LOGIN_CAP
 	login_close(lc);
+	lc = NULL;
 #endif /* HAVE_LOGIN_CAP */
 
 	/*
@@ -1702,7 +1771,8 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr)
 		fatal("no channel for session %d", s->self);
 	channel_set_fds(s->chanid,
 	    fdout, fdin, fderr,
-	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ);
+	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+	    1);
 }
 
 void
@@ -1834,6 +1904,8 @@ session_close_by_channel(int id, void *arg)
 		session_close(s);
 	} else {
 		/* notify child, delay session cleanup */
+		if (s->pid <= 1) 
+			fatal("session_close_by_channel: Unsafe s->pid = %d", s->pid);
 		if (kill(s->pid, (s->ttyfd == -1) ? SIGTERM : SIGHUP) < 0)
 			error("session_close_by_channel: kill %d: %s",
 			    s->pid, strerror(errno));
