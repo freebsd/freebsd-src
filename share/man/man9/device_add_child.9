@@ -39,9 +39,9 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
 .Ft int
-.Fn bus_add_child "device_t dev" "const char *name" "int unit" "void *ivars"
+.Fn device_add_child "device_t dev" "const char *name" "int unit" "void *ivars"
 .Ft int
-.Fn bus_add_child_ordered "device_t dev" "int order" "const char *name" "int unit" "void *ivars"
+.Fn device_add_child_ordered "device_t dev" "int order" "const char *name" "int unit" "void *ivars"
 .Sh DESCRIPTION
 .Pp
 Create a new child device of
