@@ -436,22 +436,23 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 	}
 	if (uap->pgid == 0)
 		uap->pgid = targp->p_pid;
-	if (uap->pgid == targp->p_pid) {
-		if (targp->p_pgid == uap->pgid)
-			goto done;
-		error = enterpgrp(targp, uap->pgid, newpgrp, NULL);
-		if (error == 0)
-			newpgrp = NULL;
-	} else {
-		if ((pgrp = pgfind(uap->pgid)) == NULL ||
-		    pgrp->pg_session != curp->p_session) {
-			if (pgrp != NULL)
-				PGRP_UNLOCK(pgrp);
+	if ((pgrp = pgfind(uap->pgid)) == NULL) {
+		if (uap->pgid == targp->p_pid) {
+			error = enterpgrp(targp, uap->pgid, newpgrp,
+			    NULL);
+			if (error == 0)
+				newpgrp = NULL;
+		} else
 			error = EPERM;
-			goto done;
-		}
+	} else {
 		if (pgrp == targp->p_pgrp) {
 			PGRP_UNLOCK(pgrp);
+			goto done;
+		}
+		if (pgrp->pg_id != targp->p_pid &&
+		    pgrp->pg_session != curp->p_session) {
+			PGRP_UNLOCK(pgrp);
+			error = EPERM;
 			goto done;
 		}
 		PGRP_UNLOCK(pgrp);
