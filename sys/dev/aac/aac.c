@@ -727,6 +727,8 @@ aac_map_command(struct aac_command *cm)
 			sc->flags |= AAC_QUEUE_FRZN;
 			error = 0;
 		}
+	} else {
+		aac_map_command_sg(cm, NULL, 0, 0);
 	}
 	return (error);
 }
