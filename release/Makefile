@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.366 1998/08/12 11:49:22 jkh Exp $
+#	$Id: Makefile,v 1.367 1998/08/16 00:44:29 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -154,6 +154,9 @@ rerelease release:
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
+.endif
+.if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
+	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
 .endif
 .if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
