@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.90 1996/12/09 08:22:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.91 1996/12/11 09:35:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,10 +57,6 @@
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
 #define PACKAGE_LYNX	"lynx-2.6"
-
-/* variable limits */
-#define VAR_NAME_MAX		128
-#define VAR_VALUE_MAX		1024
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
@@ -173,8 +169,8 @@ typedef struct _dmenu {
 /* A sysconfig variable */
 typedef struct _variable {
     struct _variable *next;
-    char name[VAR_NAME_MAX];
-    char value[VAR_VALUE_MAX];
+    char *name;
+    char *value;
 } Variable;
 
 /* For attribs */
@@ -183,8 +179,8 @@ typedef struct _variable {
 #define MAX_VALUE	256
 
 typedef struct _attribs {
-    char name[MAX_NAME];
-    char value[MAX_VALUE];
+    char *name;
+    char *value;
 } Attribs;
 
 typedef enum {
@@ -359,6 +355,7 @@ extern int	configAnonFTP(dialogMenuItem *self);
 extern char	*attr_match(Attribs *attr, char *name);
 extern int	attr_parse_file(Attribs *attr, char *file);
 extern int	attr_parse(Attribs *attr, FILE *fp);
+extern void	attr_free(Attribs *attr);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
