@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/11/22 03:00:17 wpaul Exp wpaul $
+#	$Id: Makefile,v 1.1.1.1 1997/05/28 15:44:22 wpaul Exp $
 
 PROG=	keyserv
 SRCS=	keyserv.c setkey.c keyserv_uid.c crypt_svc.c crypt_server.c
@@ -7,7 +7,8 @@ MAN8=	keyserv.8
 
 CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 
-LDADD+= -lmp -lrpcsvc
+DPADD=	${LIBMP} ${LIBRPCSVC}
+LDADD=	-lmp -lrpcsvc
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
