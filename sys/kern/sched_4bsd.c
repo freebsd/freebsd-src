@@ -100,6 +100,7 @@ struct kg_sched *ksegrp0_sched = NULL;
 struct p_sched *proc0_sched = NULL;
 struct td_sched *thread0_sched = NULL;
 
+static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 #define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
 
@@ -474,6 +475,9 @@ sched_setup(void *dummy)
 
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
+
+	/* Account for thread0. */
+	sched_tdcnt++;
 }
 
 /* External interfaces start here */
@@ -560,6 +564,8 @@ sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
+	if (td->td_ithd == NULL)
+		sched_tdcnt--;
 }
 
 void
@@ -645,10 +651,12 @@ sched_switch(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_state == KES_THREAD), ("sched_switch: kse state?"));
 
+	if ((td->td_flags & TDF_IDLETD) == 0 && td->td_ithd == NULL)
+		sched_tdcnt--;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
-	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
+	td->td_oncpu = NOCPU;
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,
 	 * then put it back on the run queue as it has not been suspended
@@ -716,7 +724,8 @@ sched_add(struct thread *td)
 #else
 	ke->ke_runq = &runq;
 #endif
-	
+	if (td->td_ithd == NULL)
+		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);
 }
 
@@ -732,6 +741,8 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 
+	if (td->td_ithd == NULL)
+		sched_tdcnt--;
 	runq_remove(ke->ke_sched->ske_runq, ke);
 
 	ke->ke_state = KES_THREAD;
@@ -830,6 +841,12 @@ sched_unbind(struct thread* td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_kse->ke_flags &= ~KEF_BOUND;
+}
+
+int
+sched_load(void)
+{
+	return (sched_tdcnt);
 }
 
 int
