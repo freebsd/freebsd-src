@@ -1414,14 +1414,12 @@ osigreturn(struct proc *p,
 	struct osigcontext *scp, ksc;
 
 	scp = uap->sigcntxp;
-	if (ALIGN(scp) != (u_int64_t)scp)
-		return (EINVAL);
 
 	/*
 	 * Fetch the entire context structure at once for speed.
 	 */
 	if (copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
-		return (EINVAL);
+		return (EFAULT);
 
 	/*
 	 * XXX - Should we do this. What if we get a "handcrafted"
@@ -1482,14 +1480,11 @@ sigreturn(struct proc *p,
 	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, ucp);
 #endif
 
-	if (ALIGN(ucp) != (u_int64_t)ucp)
-		return (EINVAL);
-
 	/*
 	 * Fetch the entire context structure at once for speed.
 	 */
 	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
-		return (EINVAL);
+		return (EFAULT);
 
 	/*
 	 * Restore the user-supplied information
