@@ -336,6 +336,8 @@ marshal(const char *name)
 
 	printf("# newfs command for %s (%s)\n", name, disk.d_name);
 	printf("newfs ");
+	if (fs->fs_volname[0] != '\0')
+		printf("-L %s ", fs->fs_volname);
 	printf("-O %d ", disk.d_ufs);
 	if (fs->fs_flags & FS_DOSOFTDEP)
 		printf("-U ");
