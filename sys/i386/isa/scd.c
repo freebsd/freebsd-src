@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.19 1996/05/03 14:57:25 phk Exp $ */
+/* $Id: scd.c,v 1.20 1996/05/03 16:49:03 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -247,20 +247,22 @@ int scd_attach(struct isa_device *dev)
 	TAILQ_INIT(&cd->head);
 
 #ifdef DEVFS
-#define SCD_UID 0
-#define SCD_GID 13
 	cd->ra_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, (unit * 8 ) + 0, DV_CHR, SCD_UID,
-				 SCD_GID, 0600, "rscd%da", unit);
+		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, 0),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rscd%da", unit);
 	cd->rc_devfs_token = 
-		devfs_add_devswf(&scd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
-				 SCD_UID,  SCD_GID, 0600, "rscd%dc", unit);
+		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rscd%dc", unit);
 	cd->a_devfs_token = 
-		devfs_add_devswf(&scd_bdevsw, (unit * 8 ) + 0, DV_BLK, SCD_UID,
-				 SCD_GID, 0600, "scd%da", unit);
+		devfs_add_devswf(&scd_bdevsw, dkmakeminor(unit, 0, 0),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "scd%da", unit);
 	cd->c_devfs_token = 
-		devfs_add_devswf(&scd_bdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
-				 SCD_UID,  SCD_GID, 0600, "scd%dc", unit);
+		devfs_add_devswf(&scd_bdevsw, dkmakeminor(unit, 0, RAW_PART),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "scd%dc", unit);
 #endif
 	return 1;
 }
