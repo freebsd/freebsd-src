@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id: docmd.c,v 1.4 1996/07/12 04:00:13 nate Exp $";
+	"$Id: docmd.c,v 1.5 1996/08/10 07:54:12 peter Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -512,7 +512,7 @@ rcmptime(st)
 	struct stat *st;
 {
 	register DIR *d;
-	register struct direct *dp;
+	register struct dirent *dp;
 	register char *cp;
 	char *otp;
 	int len;

@@ -69,9 +69,9 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 /* #define UNBUFFERED *//* use unbuffered output */
 
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <locale.h>
 #include <pwd.h>
@@ -245,7 +245,7 @@ int argc; char *argv[];
 		keep = t - (rcback? rcback : NDAYS) DAYS;
 
 	if (clean || bounds == NULL) {	/* relocate message bounds */
-		struct direct *dp;
+		struct dirent *dp;
 		struct stat stbuf;
 		bool seenany = NO;
 		DIR	*dirp;

@@ -61,7 +61,7 @@
  */
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/dir.h>
+#include <dirent.h>
 #include <pwd.h>
 #include <ctype.h>
 #include <libc.h>
@@ -159,7 +159,7 @@ endit:
 static matchdir(pattern)
 	char *pattern;
 {
-	register struct direct *dp;
+	register struct dirent *dp;
 	DIR *dirp;
 
 	dirp = opendir(path);

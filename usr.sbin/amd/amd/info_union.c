@@ -37,7 +37,7 @@
  *
  *	@(#)info_union.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_union.c,v 5.2.2.1 1992/02/09 15:08:34 jsp beta $
+ * $Id: info_union.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp $
  *
  */
 
@@ -52,7 +52,9 @@
 
 #ifdef HAS_UNION_MAPS
 
-#ifdef _POSIX_SOURCE
+#include <unistd.h>		/* for _POSIX_VERSION ifdef */
+
+#if defined(_POSIX_SOURCE) || defined(_POSIX_VERSION)
 #include <dirent.h>
 #define	DIRENT struct dirent
 #else

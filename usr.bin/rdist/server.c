@@ -306,7 +306,7 @@ sendf(rname, opts)
 	int sizerr, f, u, len;
 	off_t i;
 	DIR *d;
-	struct direct *dp;
+	struct dirent *dp;
 	char *otp, *cp;
 	extern struct subcmd *subcmds;
 	static char user[15], group[15];
@@ -1184,7 +1184,7 @@ clean(cp)
 	register char *cp;
 {
 	DIR *d;
-	register struct direct *dp;
+	register struct dirent *dp;
 	struct stat stb;
 	char *otp;
 	int len, opts;
@@ -1258,7 +1258,7 @@ removeit(stp)
 	struct stat *stp;
 {
 	DIR *d;
-	struct direct *dp;
+	struct dirent *dp;
 	register char *cp;
 	struct stat stb;
 	char *otp;
