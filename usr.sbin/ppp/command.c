@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.141 1998/06/12 20:12:25 brian Exp $
+ * $Id: command.c,v 1.142 1998/06/15 19:05:12 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/12 20:12:25 $";
+const char VersionDate[] = "$Date: 1998/06/15 19:05:12 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -275,7 +275,7 @@ LoadCommand(struct cmdargs const *arg)
      * we handle nested `load' commands.
      */
     bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
-    if (system_Select(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
+    if (system_Select(arg->bundle, name, CONFFILE, arg->prompt, arg->cx) < 0) {
       bundle_SetLabel(arg->bundle, NULL);
       log_Printf(LogWARN, "%s: label not found.\n", name);
       return -1;
@@ -467,7 +467,7 @@ static struct cmdtab const Commands[] = {
   "Enable option", "enable option .."},
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
-  {"load", NULL, LoadCommand, LOCAL_AUTH,
+  {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Load settings", "load [remote]"},
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open [lcp|ccp]"},
@@ -750,7 +750,7 @@ arghidden(int argc, char const *const *argv, int n)
 
 void
 command_Run(struct bundle *bundle, int argc, char const *const *argv,
-           struct prompt *prompt, const char *label)
+           struct prompt *prompt, const char *label, struct datalink *cx)
 {
   if (argc > 0) {
     if (log_IsKept(LogCOMMAND)) {
@@ -775,7 +775,7 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
       }
       log_Printf(LogCOMMAND, "%s\n", buf);
     }
-    FindExec(bundle, Commands, argc, 0, argv, prompt, NULL);
+    FindExec(bundle, Commands, argc, 0, argv, prompt, cx);
   }
 }
 
@@ -787,7 +787,7 @@ command_Decode(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
   char **argv;
 
   command_Interpret(buff, nb, &argc, &argv);
-  command_Run(bundle, argc, (char const *const *)argv, prompt, label);
+  command_Run(bundle, argc, (char const *const *)argv, prompt, label, NULL);
 }
 
 static int
