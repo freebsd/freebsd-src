@@ -580,7 +580,7 @@ sparc64_bus_mem_unmap(void *bh, bus_size_t size)
 	sva = trunc_page((vm_offset_t)bh);
 	endva = sva + round_page(size);
 	for (va = sva; va < endva; va += PAGE_SIZE)
-		pmap_kremove(va);
+		pmap_kremove_flags(va);
 	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
 	kmem_free(kernel_map, sva, size);
 	return (0);
