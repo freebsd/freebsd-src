@@ -3105,7 +3105,7 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks)
 	softc->dsreg = MTIO_DSREG_FMK;
 	/* this *must* not be retried */
 	scsi_write_filemarks(&ccb->csio, 0, sadone, MSG_SIMPLE_Q_TAG,
-	    FALSE, setmarks, nmarks, SSD_FULL_SIZE, 60000);
+	    FALSE, setmarks, nmarks, SSD_FULL_SIZE, 180000);
 	softc->dsreg = MTIO_DSREG_REST;
 
 
