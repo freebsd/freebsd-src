@@ -79,9 +79,6 @@ struct bus_space sa11x0_bs_tag = {
 	/* get kernel virtual address */
 	sa11x0_bs_vaddr,
 
-	/* mmap bus space for userland */
-	sa11x0_bs_mmap,
-
 	/* barrier */
 	sa11x0_bs_barrier,
 
@@ -221,13 +218,6 @@ sa11x0_bs_subregion(t, bsh, offset, size, nbshp)
 {
 
 	*nbshp = bsh + offset;
-	return (0);
-}
-
-int
-sa11x0_bs_mmap(struct cdev *t, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
-{
-	*paddr = offset;
 	return (0);
 }
 
