@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.8 1994/10/23 23:26:18 wollman Exp $
+ * $Id: nfs_vfsops.c,v 1.9 1994/12/08 20:59:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -290,6 +290,12 @@ nfs_mountroot()
 				swdevt[i].sw_nblks/2);
 		} else
 			printf("using %d kbyte.\n",swdevt[i].sw_nblks/2);
+	} else {
+	  /*
+	   * No NFS swap space was specified, try using local disk
+	   */
+	  if (bdevvp(swapdev, &swapdev_vp))
+	    panic("nfs_mountroot: can't setup bdevvp for swap");
 	}
 
 	/*
