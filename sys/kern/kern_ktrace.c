@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.21 1997/11/06 19:29:10 phk Exp $
+ * $Id: kern_ktrace.c,v 1.22 1997/12/05 19:55:38 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -81,7 +81,7 @@ ktrsyscall(vp, code, narg, args)
 {
 	struct	ktr_header *kth;
 	struct	ktr_syscall *ktp;
-	register len = sizeof(struct ktr_syscall) + (narg * sizeof(int));
+	register int len = sizeof(struct ktr_syscall) + (narg * sizeof(int));
 	struct proc *p = curproc;	/* XXX */
 	int 	*argp, i;
 
