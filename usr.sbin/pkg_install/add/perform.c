@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.6 1993/10/10 20:25:31 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.7 1994/05/25 06:24:18 jkh Exp $";
 #endif
 
 /*
@@ -108,9 +108,6 @@ pkg_do(char *pkg)
 	    delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
 	    add_plist_top(&Plist, PLIST_CWD, Prefix);
 	}
-	/* Just to be safe - overridden if package has made a choice */
-	else
-	    add_plist_top(&Plist, PLIST_CWD, home);
 	/* If we're running in MASTER mode, just output the plist and return */
 	if (AddMode == MASTER) {
 	    printf("%s\n", where_playpen());
@@ -118,6 +115,8 @@ pkg_do(char *pkg)
 	    return 0;
 	}
     }
+    setenv(PKG_PREFIX_VNAME,
+	   (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
     PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
