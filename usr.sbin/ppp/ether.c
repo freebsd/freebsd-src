@@ -423,8 +423,8 @@ ether_Create(struct physical *p)
     p->fd--;				/* We own the device - change fd */
 
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-    if (modfind("netgraph") == -1) {
-      log_Printf(LogWARN, "Netgraph is not built into the kernel\n");
+    if (modfind("netgraph") == -1 && ID0kldload("netgraph") == -1) {
+      log_Printf(LogWARN, "kldload: netgraph: %s\n", strerror(errno));
       return NULL;
     }
 
