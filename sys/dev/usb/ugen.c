@@ -65,9 +65,9 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ugendebug) printf x
-#define DPRINTFN(n,x)	if (ugendebug>(n)) printf x
+#ifdef UGEN_DEBUG
+#define DPRINTF(x)	if (ugendebug) logprintf x
+#define DPRINTFN(n,x)	if (ugendebug>(n)) logprintf x
 int	ugendebug = 1;
 #else
 #define DPRINTF(x)
@@ -735,7 +735,7 @@ ugenioctl(dev, cmd, addr, flag, p)
 		return (EINVAL);
 
 	switch (cmd) {
-#ifdef USB_DEBUG
+#ifdef UGEN_DEBUG
 	case USB_SETDEBUG:
 		ugendebug = *(int *)addr;
 		break;
