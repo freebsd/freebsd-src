@@ -1,0 +1,94 @@
+##
+## $Id: Make.Rules.in,v 1.6 2001/02/10 22:33:09 agmorgan Exp $
+##
+## @configure_input@
+##
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+
+absolute_srcdir = @LOCALSRCDIR@
+
+# major and minor numbers of this release
+MAJOR_REL=@LIBPAM_VERSION_MAJOR@
+MINOR_REL=@LIBPAM_VERSION_MINOR@
+
+# The following is the generic set of compiler options for compiling
+# Linux-PAM. True, they are a little anal. Pay attention to the comments
+# they generate.
+
+HEADER_DIRS=-I./include -I$(absolute_srcdir)/libpam/include \
+	-I$(absolute_srcdir) -I$(absolute_srcdir)/libpamc/include
+WARNINGS=@WARNINGS@
+OS_CFLAGS=@OS_CFLAGS@
+PIC=@PIC@
+
+# Mode to install shared libraries with
+SHLIBMODE=@SHLIBMODE@
+
+NEED_LINK_LIB_C=@PAM_NEEDS_LIBC@
+HAVE_LCKPWDF=@HAVE_LCKPWDF@
+HAVE_LIBCRACK=@HAVE_LIBCRACK@
+HAVE_LIBCRYPT=@HAVE_LIBCRYPT@
+HAVE_LIBUTIL=@HAVE_LIBUTIL@
+HAVE_NDBM_H=@HAVE_NDBM_H@
+HAVE_LIBNDBM=@HAVE_LIBNDBM@
+HAVE_LIBDB=@HAVE_LIBDB@
+HAVE_LIBFL=@HAVE_LIBFL@
+HAVE_LIBNSL=@HAVE_LIBNSL@
+HAVE_LIBPWDB=@HAVE_LIBPWDB@
+
+# documentation support
+HAVE_SGML2TXT=@HAVE_SGML2TXT@
+HAVE_SGML2HTML=@HAVE_SGML2HTML@
+PSER=@PSER@
+
+# configuration settings
+WITH_DEBUG=@WITH_DEBUG@
+WITH_LIBDEBUG=@WITH_LIBDEBUG@
+WITH_PAMLOCKING=@WITH_PAMLOCKING@
+WITH_LCKPWDF=@WITH_LCKPWDF@
+STATIC_LIBPAM=@STATIC_LIBPAM@
+DYNAMIC_LIBPAM=@DYNAMIC_LIBPAM@
+STATIC=@STATIC@
+DYNAMIC=@DYNAMIC@
+
+# Location of libraries when installed on the system
+FAKEROOT=@FAKEROOT@
+SECUREDIR=@SECUREDIR@
+SCONFIGD=@SCONFIGDIR@
+SUPLEMENTED=@SUPLEMENTED@
+INCLUDED=@INCLUDEDIR@/security
+CRACKLIB_DICTPATH=@CRACKLIB_DICTPATH@
+
+# generic build setup
+OS=@OS@
+CC=@CC@
+CFLAGS=$(WARNINGS) -D$(OS) $(OS_CFLAGS) $(HEADER_DIRS) @CONF_CFLAGS@
+LD=@LD@
+LD_D=@LD_D@
+LD_L=@LD_L@
+DYNTYPE=@DYNTYPE@
+LIBDL=@LIBDL@
+MKDIR=@MKDIR@
+INSTALL=@INSTALL@
+RANLIB=@RANLIB@
+STRIP=@STRIP@
+CC_STATIC=@CC_STATIC@
+
+LINKLIBS = $(NEED_LINK_LIB_C) $(LIBDL)

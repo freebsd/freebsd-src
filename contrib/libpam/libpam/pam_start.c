@@ -3,9 +3,8 @@
 /* Creator Marc Ewing
  * Maintained by AGM
  *
- * $Id: pam_start.c,v 1.10 1997/04/05 06:58:11 morgan Exp $
+ * $Id: pam_start.c,v 1.2 2001/01/22 06:07:29 agmorgan Exp $
  *
- * $Log: pam_start.c,v $
  */
 
 #include <ctype.h>
@@ -26,17 +25,21 @@ int pam_start (
        ,service_name, user, pam_conversation, pamh));
 
     if ((*pamh = calloc(1, sizeof(**pamh))) == NULL) {
-	pam_system_log(NULL, NULL, LOG_CRIT,
-		       "pam_start: calloc failed for *pamh");
+	_pam_system_log(LOG_CRIT, "pam_start: calloc failed for *pamh");
 	return (PAM_BUF_ERR);
     }
+
+    /* Mark the caller as the application - permission to do certain
+       things is limited to a module or an application */
+
+    __PAM_TO_APP(*pamh);
 
     if (service_name) {
 	char *tmp;
 
 	if (((*pamh)->service_name = _pam_strdup(service_name)) == NULL) {
-	    pam_system_log(NULL, NULL, LOG_CRIT,
-			   "pam_start: _pam_strdup failed for service name");
+	    _pam_system_log(LOG_CRIT,
+			    "pam_start: _pam_strdup failed for service name");
 	    _pam_drop(*pamh);
 	    return (PAM_BUF_ERR);
 	}
@@ -47,8 +50,8 @@ int pam_start (
 
     if (user) {
 	if (((*pamh)->user = _pam_strdup(user)) == NULL) {
-	    pam_system_log(NULL, NULL, LOG_CRIT,
-			   "pam_start: _pam_strdup failed for user");
+	    _pam_system_log(LOG_CRIT,
+			    "pam_start: _pam_strdup failed for user");
 	    _pam_drop((*pamh)->service_name);
 	    _pam_drop(*pamh);
 	    return (PAM_BUF_ERR);
@@ -68,8 +71,7 @@ int pam_start (
     if (pam_conversation == NULL
 	|| ((*pamh)->pam_conversation = (struct pam_conv *)
 	    malloc(sizeof(struct pam_conv))) == NULL) {
-	pam_system_log(NULL, NULL, LOG_CRIT,
-		       "pam_start: malloc failed for pam_conv");
+	_pam_system_log(LOG_CRIT, "pam_start: malloc failed for pam_conv");
 	_pam_drop((*pamh)->service_name);
 	_pam_drop((*pamh)->user);
 	_pam_drop(*pamh);
@@ -81,8 +83,7 @@ int pam_start (
 
     (*pamh)->data = NULL;
     if ( _pam_make_env(*pamh) != PAM_SUCCESS ) {
-	pam_system_log(NULL, NULL, LOG_ERR,
-		       "pam_start: failed to initialize environment");
+	_pam_system_log(LOG_ERR,"pam_start: failed to initialize environment");
 	_pam_drop((*pamh)->service_name);
 	_pam_drop((*pamh)->user);
 	_pam_drop(*pamh);
@@ -96,21 +97,15 @@ int pam_start (
     /* According to the SunOS man pages, loading modules and resolving
      * symbols happens on the first call from the application. */
 
-    /*
-     * XXX - should we call _pam_init_handlers() here ? The following
-     * is new as of Linux-PAM 0.55
-     */
-
     if ( _pam_init_handlers(*pamh) != PAM_SUCCESS ) {
-	pam_system_log(NULL, NULL, LOG_ERR,
-		       "pam_start: failed to initialize handlers");
+	_pam_system_log(LOG_ERR, "pam_start: failed to initialize handlers");
 	_pam_drop_env(*pamh);                 /* purge the environment */
 	_pam_drop((*pamh)->service_name);
 	_pam_drop((*pamh)->user);
 	_pam_drop(*pamh);
 	return PAM_ABORT;
     }
-
+    
     D(("exiting pam_start successfully"));
 
     return PAM_SUCCESS;
