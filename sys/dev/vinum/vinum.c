@@ -54,7 +54,7 @@ STATIC struct cdevsw vinum_cdevsw =
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, nostop, noreset, nodevtotty,
     seltrue, nommap, vinumstrategy, "vinum",
-    NULL, CDEV_MAJOR, vinumdump, vinumsize,
+    noparms, CDEV_MAJOR, vinumdump, vinumsize,
     D_DISK, 0, BDEV_MAJOR
 };
 
@@ -236,6 +236,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	    }
 	}
 #endif
+	cdevsw_remove(&vinum_cdevsw);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
