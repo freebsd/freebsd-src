@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.10 1994/10/12 19:38:38 sos Exp $
+ *	$Id: ibcs2_xenix.c,v 1.1 1994/10/14 08:53:12 sos Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -251,7 +251,7 @@ ibcs2_cxenix(struct proc *p, void *args, int *retval)
 			*retval = (CHILD_MAX); 
 			break;
 		case 2:		/* _SC_CLK_TCK */
-			*retval = (CLK_TCK);
+			*retval = (_BSD_CLK_TCK_);
 			break;
 		case 3:		/* _SC_NGROUPS_MAX */
 			*retval = (NGROUPS_MAX);
