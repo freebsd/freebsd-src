@@ -98,13 +98,10 @@ ntfs_bmap(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct fnode *fp = VTOF(vp);
-	struct ntnode *ip = FTONT(fp);
-	struct ntfsmount *ntmp = ip->i_mp;
 
 	dprintf(("ntfs_bmap: vn: %p, blk: %d\n", ap->a_vp,(u_int32_t)ap->a_bn));
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &ntmp->ntm_devvp->v_bufobj;
+		*ap->a_bop = &vp->v_bufobj;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
@@ -444,6 +441,8 @@ ntfs_open(ap)
 
 	printf("ntfs_open: %d\n",ip->i_number);
 #endif
+
+	vnode_create_vobject(ap->a_vp, VTOF(ap->a_vp)->f_size, ap->a_td);
 
 	/*
 	 * Files marked append-only must be opened for appending.
