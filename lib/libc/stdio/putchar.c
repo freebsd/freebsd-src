@@ -59,7 +59,8 @@ putchar(c)
 	FILE *so = stdout;
 
 	FLOCKFILE(so);
-	ORIENT(so, -1);
+	/* Orientation set by __sputc() when buffer is full. */
+	/* ORIENT(so, -1); */
 	retval = __sputc(c, so);
 	FUNLOCKFILE(so);
 	return (retval);
