@@ -215,19 +215,14 @@ static struct cdevsw sc_cdevsw = {
 	/* read */	scread,
 	/* write */	scwrite,
 	/* ioctl */	scioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	scmmap,
 	/* strategy */	nostrategy,
 	/* name */	"sc",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 
@@ -481,7 +476,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     tp = dev->si_tty = ttymalloc(dev->si_tty);
     tp->t_oproc = (SC_VTY(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
-    tp->t_stop = nostop;
+    tp->t_stop = nottystop;
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
 	ttychars(tp);

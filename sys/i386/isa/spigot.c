@@ -42,6 +42,8 @@
  *
  * Version 1.7, December 1995.
  *
+ * $FreeBSD$
+ *
  */
 
 #include	"spigot.h"
@@ -101,19 +103,14 @@ static struct cdevsw spigot_cdevsw = {
 	/* read */	spigot_read,
 	/* write */	spigot_write,
 	/* ioctl */	spigot_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	spigot_mmap,
 	/* strategy */	nostrategy,
 	/* name */	"spigot",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

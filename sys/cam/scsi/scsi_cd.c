@@ -248,19 +248,14 @@ static struct cdevsw cd_cdevsw = {
 	/* read */	physread,
 	/* write */	nowrite,
 	/* ioctl */	cdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	cdstrategy,
 	/* name */	"cd",
-	/* parms */	noparms,
 	/* maj */	CD_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	CD_BDEV_MAJOR
 };
 

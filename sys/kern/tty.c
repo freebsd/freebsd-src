@@ -2434,3 +2434,11 @@ sysctl_kern_ttys SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_kern_ttys, "S,tty", "All struct ttys");
+
+void
+nottystop(tp, rw)
+	struct tty *tp;
+	int rw;
+{
+	return;
+}

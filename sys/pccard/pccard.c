@@ -146,19 +146,14 @@ static struct cdevsw crd_cdevsw = {
 	/* read */	crdread,
 	/* write */	crdwrite,
 	/* ioctl */	crdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	crdpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"crd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -896,19 +896,14 @@ static struct cdevsw pcicdev = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	pci_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"pci",
-	/* parms */	noparms,
 	/* maj */	PCI_CDEV,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -113,19 +113,14 @@ static struct cdevsw vn_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	vnioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	vnstrategy,
 	/* name */	"vn",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	vnsize,
 	/* flags */	D_DISK|D_CANFREE,
-	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
 

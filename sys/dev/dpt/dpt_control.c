@@ -97,19 +97,14 @@ static struct cdevsw dpt_cdevsw = {
 	/* read */	dpt_read,
 	/* write */	dpt_write,
 	/* ioctl */	dpt_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"dpt",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

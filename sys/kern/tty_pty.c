@@ -80,19 +80,14 @@ static struct cdevsw pts_cdevsw = {
 	/* read */	ptsread,
 	/* write */	ptswrite,
 	/* ioctl */	ptyioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"pts",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR_S,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 
@@ -103,19 +98,14 @@ static struct cdevsw ptc_cdevsw = {
 	/* read */	ptcread,
 	/* write */	ptcwrite,
 	/* ioctl */	ptyioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ptcpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ptc",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR_C,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

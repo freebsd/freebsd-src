@@ -58,19 +58,14 @@ static struct cdevsw ast_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	astioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	aststrategy,
 	/* name */	"ast",
-	/* parms */	noparms,
 	/* maj */	119,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TAPE,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

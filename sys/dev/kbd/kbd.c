@@ -393,19 +393,14 @@ static struct cdevsw kbd_cdevsw = {
 	/* read */	genkbdread,
 	/* write */	genkbdwrite,
 	/* ioctl */	genkbdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	genkbdpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"kbd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -136,19 +136,14 @@ static struct cdevsw ulpt_cdevsw = {
 	/* read */	noread,
 	/* write */	ulptwrite,
 	/* ioctl */	ulptioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ulpt",
-	/* parms */	noparms,
 	/* maj */	ULPT_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #endif

@@ -1529,19 +1529,14 @@ static struct cdevsw fore_cdev = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	noioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	noname,
-	/* parms */	noparms,
 	/* maj */	-1,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

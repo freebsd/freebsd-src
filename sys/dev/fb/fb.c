@@ -365,19 +365,14 @@ static struct cdevsw fb_cdevsw = {
 	/* read */	fbread,
 	/* write */	fbwrite,
 	/* ioctl */	fbioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	fbmmap,
 	/* strategy */	nostrategy,
 	/* name */	FB_DRIVER_NAME,
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -66,19 +66,14 @@ static struct cdevsw cn_cdevsw = {
 	/* read */	cnread,
 	/* write */	cnwrite,
 	/* ioctl */	cnioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	cnpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"console",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 
