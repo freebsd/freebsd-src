@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_input.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_input.c,v 1.2 1994/08/02 07:51:49 davidg Exp $
+ * $Id: ns_input.c,v 1.3 1995/03/16 18:15:28 bde Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <net/if.h>
 #include <net/route.h>
 #include <net/raw_cb.h>
+#include <net/netisr.h>
 
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -101,7 +102,7 @@ ns_init()
 int nsintr_getpck = 0;
 int nsintr_swtch = 0;
 void
-nsintr()
+nsintr(void)
 {
 	register struct idp *idp;
 	register struct mbuf *m;
@@ -235,6 +236,8 @@ bad:
 	m_freem(m);
 	goto next;
 }
+
+NETISR_SET(NETISR_NS, nsintr);
 
 u_char nsctlerrmap[PRC_NCMDS] = {
 	ECONNABORTED,	ECONNABORTED,	0,		0,

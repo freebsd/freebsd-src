@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $Id: uipc_usrreq.c,v 1.6 1995/02/07 02:01:16 wollman Exp $
+ *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
+ *	$Id: uipc_usrreq.c,v 1.7 1995/02/15 11:30:35 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
  *	rethink name space problems
  *	need a proper out-of-band
  */
-struct	sockaddr sun_noname = { sizeof(sun_noname), AF_UNIX };
+struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 ino_t	unp_ino;			/* prototype for fake inode numbers */
 
 /*ARGSUSED*/
@@ -696,7 +696,7 @@ unp_internalize(control, p)
 }
 
 int	unp_defer, unp_gcing;
-extern	struct domain unixdomain;
+extern	struct domain localdomain;
 
 void
 unp_gc()
@@ -729,7 +729,7 @@ unp_gc()
 			if (fp->f_type != DTYPE_SOCKET ||
 			    (so = (struct socket *)fp->f_data) == 0)
 				continue;
-			if (so->so_proto->pr_domain != &unixdomain ||
+			if (so->so_proto->pr_domain != &localdomain ||
 			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
 				continue;
 #ifdef notdef

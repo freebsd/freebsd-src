@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: uipc_proto.c,v 1.2 1994/08/02 07:43:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -41,20 +41,20 @@
 #include <sys/mbuf.h>
 
 /*
- * Definitions of protocols supported in the UNIX domain.
+ * Definitions of protocols supported in the LOCAL domain.
  */
 
 int	uipc_usrreq(), raw_usrreq();
 void	raw_init(),raw_input(),raw_ctlinput();
-extern	struct domain unixdomain;		/* or at least forward */
+extern	struct domain localdomain;		/* or at least forward */
 
-struct protosw unixsw[] = {
-{ SOCK_STREAM,	&unixdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
+struct protosw localsw[] = {
+{ SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
   0,		0,		0,		0,
   uipc_usrreq,
   0,		0,		0,		0,
 },
-{ SOCK_DGRAM,	&unixdomain,	0,		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+{ SOCK_DGRAM,	&localdomain,	0,		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
   0,		0,		0,		0,
   uipc_usrreq,
   0,		0,		0,		0,
@@ -68,6 +68,6 @@ struct protosw unixsw[] = {
 
 int	unp_externalize(), unp_dispose();
 
-struct domain unixdomain =
-    { AF_UNIX, "unix", 0, unp_externalize, unp_dispose,
-      unixsw, &unixsw[sizeof(unixsw)/sizeof(unixsw[0])] };
+struct domain localdomain =
+    { AF_LOCAL, "local", 0, unp_externalize, unp_dispose,
+      localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
