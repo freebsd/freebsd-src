@@ -82,6 +82,7 @@ typedef struct {
 typedef struct elf_file {
 	struct linker_file lf;		/* Common fields */
 
+	int		preloaded;
 	caddr_t		address;	/* Relocation address */
 	vm_object_t	object;		/* VM object to hold file pages */
 	Elf_Shdr	*e_shdr;
@@ -168,15 +169,206 @@ static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
     linker_file_t *result)
 {
+	Elf_Ehdr *hdr;
+	Elf_Shdr *shdr;
+	Elf_Sym *es;
+	void *modptr, *baseptr, *sizeptr;
+	char *type;
+	elf_file_t ef;
+	linker_file_t lf;
+	Elf_Addr off;
+	int error, i, j, pb, ra, rl, shstrindex, symstrindex, symtabindex;
+
+	/* Look to see if we have the file preloaded */
+	modptr = preload_search_by_name(filename);
+	if (modptr == NULL)
+		return ENOENT;
+
+	type = (char *)preload_search_info(modptr, MODINFO_TYPE);
+	baseptr = preload_search_info(modptr, MODINFO_ADDR);
+	sizeptr = preload_search_info(modptr, MODINFO_SIZE);
+	hdr = (Elf_Ehdr *)preload_search_info(modptr, MODINFO_METADATA |
+	    MODINFOMD_ELFHDR);
+	shdr = (Elf_Shdr *)preload_search_info(modptr, MODINFO_METADATA |
+	    MODINFOMD_SHDR);
+	if (type == NULL || (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE)
+	    " obj module") != 0 &&
+	    strcmp(type, "elf obj module") != 0)) {
+		return (EFTYPE);
+	}
+	if (baseptr == NULL || sizeptr == NULL || hdr == NULL ||
+	    shdr == NULL)
+		return (EINVAL);
+
+	lf = linker_make_file(filename, &link_elf_class);
+	if (lf == NULL)
+		return (ENOMEM);
+
+	ef = (elf_file_t)lf;
+	ef->preloaded = 1;
+	ef->address = *(caddr_t *)baseptr;
+	lf->address = *(caddr_t *)baseptr;
+	lf->size = *(size_t *)sizeptr;
+
+	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
+	    hdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    hdr->e_version != EV_CURRENT ||
+	    hdr->e_type != ET_REL ||
+	    hdr->e_machine != ELF_TARG_MACH) {
+		error = EFTYPE;
+		goto out;
+	}
+	ef->e_shdr = shdr;
+
+	/* Scan the section header for information and table sizing. */
+	symtabindex = -1;
+	symstrindex = -1;
+	for (i = 0; i < hdr->e_shnum; i++) {
+		switch (shdr[i].sh_type) {
+		case SHT_PROGBITS:
+		case SHT_NOBITS:
+			ef->nprogtab++;
+			break;
+		case SHT_SYMTAB:
+			symtabindex = i;
+			symstrindex = shdr[i].sh_link;
+			break;
+		case SHT_REL:
+			ef->nrel++;
+			break;
+		case SHT_RELA:
+			ef->nrela++;
+			break;
+		}
+	}
+
+	shstrindex = hdr->e_shstrndx;
+	if (ef->nprogtab == 0 || symstrindex < 0 ||
+	    symstrindex >= hdr->e_shnum ||
+	    shdr[symstrindex].sh_type != SHT_STRTAB || shstrindex == 0 ||
+	    shstrindex >= hdr->e_shnum ||
+	    shdr[shstrindex].sh_type != SHT_STRTAB) {
+		printf("%s: bad/missing section headers\n", filename);
+		error = ENOEXEC;
+		goto out;
+	}
+
+	/* Allocate space for tracking the load chunks */
+	if (ef->nprogtab != 0)
+		ef->progtab = malloc(ef->nprogtab * sizeof(*ef->progtab),
+		    M_LINKER, M_WAITOK | M_ZERO);
+	if (ef->nrel != 0)
+		ef->reltab = malloc(ef->nrel * sizeof(*ef->reltab), M_LINKER,
+		    M_WAITOK | M_ZERO);
+	if (ef->nrela != 0)
+		ef->relatab = malloc(ef->nrela * sizeof(*ef->relatab), M_LINKER,
+		    M_WAITOK | M_ZERO);
+	if ((ef->nprogtab != 0 && ef->progtab == NULL) ||
+	    (ef->nrel != 0 && ef->reltab == NULL) ||
+	    (ef->nrela != 0 && ef->relatab == NULL)) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	/* XXX, relocate the sh_addr fields saved by the loader. */
+	off = 0;
+	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_addr != 0 && (off == 0 || shdr[i].sh_addr < off))
+			off = shdr[i].sh_addr;
+	}
+	for (i = 0; i < hdr->e_shnum; i++) {
+		if (shdr[i].sh_addr != 0)
+			shdr[i].sh_addr = shdr[i].sh_addr - off +
+			    (Elf_Addr)ef->address;
+	}
+
+	ef->ddbsymcnt = shdr[symtabindex].sh_size / sizeof(Elf_Sym);
+	ef->ddbsymtab = (Elf_Sym *)shdr[symtabindex].sh_addr;
+	ef->ddbstrcnt = shdr[symstrindex].sh_size;
+	ef->ddbstrtab = (char *)shdr[symstrindex].sh_addr;
+	ef->shstrcnt = shdr[shstrindex].sh_size;
+	ef->shstrtab = (char *)shdr[shstrindex].sh_addr;
+
+	/* Now fill out progtab and the relocation tables. */
+	pb = 0;
+	rl = 0;
+	ra = 0;
+	for (i = 0; i < hdr->e_shnum; i++) {
+		switch (shdr[i].sh_type) {
+		case SHT_PROGBITS:
+		case SHT_NOBITS:
+			ef->progtab[pb].addr = (void *)shdr[i].sh_addr;
+			if (shdr[i].sh_type == SHT_PROGBITS)
+				ef->progtab[pb].name = "<<PROGBITS>>";
+			else
+				ef->progtab[pb].name = "<<NOBITS>>";
+			ef->progtab[pb].size = shdr[i].sh_size;
+			ef->progtab[pb].sec = i;
+			if (ef->shstrtab && shdr[i].sh_name != 0)
+				ef->progtab[pb].name =
+				    ef->shstrtab + shdr[i].sh_name;
+
+			/* Update all symbol values with the offset. */
+			for (j = 0; j < ef->ddbsymcnt; j++) {
+				es = &ef->ddbsymtab[j];
+				if (es->st_shndx != i)
+					continue;
+				es->st_value += (Elf_Addr)ef->progtab[pb].addr;
+			}
+			pb++;
+			break;
+		case SHT_REL:
+			ef->reltab[rl].rel = (Elf_Rel *)shdr[i].sh_addr;
+			ef->reltab[rl].nrel = shdr[i].sh_size / sizeof(Elf_Rel);
+			ef->reltab[rl].sec = shdr[i].sh_info;
+			rl++;
+			break;
+		case SHT_RELA:
+			ef->relatab[ra].rela = (Elf_Rela *)shdr[i].sh_addr;
+			ef->relatab[ra].nrela =
+			    shdr[i].sh_size / sizeof(Elf_Rela);
+			ef->relatab[ra].sec = shdr[i].sh_info;
+			ra++;
+			break;
+		}
+	}
+	if (pb != ef->nprogtab)
+		panic("lost progbits");
+	if (rl != ef->nrel)
+		panic("lost rel");
+	if (ra != ef->nrela)
+		panic("lost rela");
+
+	/* Local intra-module relocations */
+	link_elf_reloc_local(lf);
+
+	*result = lf;
+	return (0);
+
+out:
 	/* preload not done this way */
-	return (EFTYPE);
+	linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+	return (error);
 }
 
 static int
 link_elf_link_preload_finish(linker_file_t lf)
 {
-	/* preload not done this way */
-	return (EFTYPE);
+	elf_file_t ef;
+	int error;
+
+	ef = (elf_file_t)lf;
+	error = relocate_file(ef);
+	if (error)
+		return error;
+
+	/* Notify MD code that a module is being loaded. */
+	error = elf_cpu_load_file(lf);
+	if (error)
+		return (error);
+
+	return (0);
 }
 
 static int
@@ -605,6 +797,19 @@ link_elf_unload_file(linker_file_t file)
 
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
+
+	if (ef->preloaded) {
+		if (ef->reltab)
+			free(ef->reltab, M_LINKER);
+		if (ef->relatab)
+			free(ef->relatab, M_LINKER);
+		if (ef->progtab)
+			free(ef->progtab, M_LINKER);
+		if (file->filename != NULL)
+			preload_delete_name(file->filename);
+		/* XXX reclaim module memory? */
+		return;
+	}
 
 	for (i = 0; i < ef->nrel; i++)
 		if (ef->reltab[i].rel)
