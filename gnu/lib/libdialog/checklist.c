@@ -255,12 +255,12 @@ draw:
 		break;
 	
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) || key == KEY_UP ||
-	    key == KEY_DOWN || key == ' ' || key == '+' || key == '-' ) {
+	    key == KEY_DOWN || key == ' ' || key == '+' || key == '-' || key == '' || key == '') {
 
 	    if (key >= '1' && key <= MIN('9', '0'+max_choice))
 		i = key - '1';
 	    
-	    else if (key == KEY_UP || key == '-') {
+	    else if (key == KEY_UP || key == '-' || key == '') {
 		if (!choice) {
 		    if (scroll) {
 			/* Scroll list down */
@@ -283,7 +283,7 @@ draw:
 		else
 		    i = choice - 1;
 	    }
-	    else if (key == KEY_DOWN || key == '+') {
+	    else if (key == KEY_DOWN || key == '+' || key == '') {
 		if (choice == max_choice - 1) {
 		    if (scroll+choice < item_no-1) {
 			/* Scroll list up */

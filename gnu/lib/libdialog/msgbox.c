@@ -193,9 +193,11 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
 	    startline = max_lines - theight;
 	    if (startline < 0) startline = 0;
 	    break;
+	case '\020':	/* ^P */
 	case KEY_UP:
 	    if (startline > 0) startline--;
 	    break;
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	    if (startline < max_lines - theight) startline++;
 	    break;
