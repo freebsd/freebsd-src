@@ -547,7 +547,7 @@ fdc_release_resources(struct fdc_data *fdc)
 					fdc->res_drq);
 		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
 				     fdc->res_drq);
-		fdc->res_ioport = NULL;
+		fdc->res_drq = NULL;
 	}
 }
 
