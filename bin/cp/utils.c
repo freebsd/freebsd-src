@@ -62,7 +62,9 @@ copy_file(FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
-	int ch, checkch, from_fd, rcount, rval, to_fd, wcount, wresid;
+	int ch, checkch, from_fd, rcount, rval, to_fd;
+	ssize_t wcount;
+	size_t wresid;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
@@ -132,7 +134,7 @@ copy_file(FTSENT *entp, int dne)
 			rval = 1;
 		} else {
 			for (bufp = p, wresid = fs->st_size; ;
-			    bufp += wcount, wresid -= wcount) {
+			    bufp += wcount, wresid -= (size_t)wcount) {
 				wcount = write(to_fd, bufp, wresid);
 				if (wcount >= wresid || wcount <= 0)
 					break;

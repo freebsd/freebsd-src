@@ -91,8 +91,8 @@ static int Rflag, rflag, vflag;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
-int copy(char *[], enum op, int);
-int mastercmp(const FTSENT **, const FTSENT **);
+static int copy(char *[], enum op, int);
+static int mastercmp(const FTSENT **, const FTSENT **);
 
 int
 main(int argc, char *argv[])
