@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.16 1993/12/19 00:40:49 ache Exp $
+ *	$Id: fd.c,v 1.17 1993/12/19 00:50:33 wollman Exp $
  *
  */
 
@@ -94,21 +94,21 @@
 
 struct fd_type fd_types[NUMTYPES] =
 {
-	{ 21,2,0xFF,0x0C,82,3444,1,FDC_500KBPS,2,2 }, /* 1.72M in HD 3.5in */
-	{ 18,2,0xFF,0x6C,82,2952,1,FDC_500KBPS,2,1 }, /* 1.48M in HD 3.5in */
-	{ 18,2,0xFF,0x6C,80,2880,1,FDC_500KBPS,2,1 }, /* 1.44M in HD 3.5in */
-	{ 15,2,0xFF,0x54,80,2400,1,FDC_500KBPS,2,1 }, /*  1.2M in HD 5.25/3.5 */
-	{ 10,2,0xFF,0x2E,82,1640,1,FDC_250KBPS,2,1 }, /*  820K in HD 3.5in */
-	{ 10,2,0xFF,0x2E,80,1600,1,FDC_250KBPS,2,1 }, /*  800K in HD 3.5in */
-	{  9,2,0xFF,0x50,80,1440,1,FDC_250KBPS,2,1 }, /*  720K in HD 3.5in */
-	{  9,2,0xFF,0x50,40, 720,1,FDC_300KBPS,2,1 }, /*  360K in DD 5.25in */
+{ 21,2,0xFF,0x04,82,3444,1,FDC_500KBPS,2,0x0C,2 }, /* 1.72M in HD 3.5in */
+{ 18,2,0xFF,0x1B,82,2952,1,FDC_500KBPS,2,0x6C,1 }, /* 1.48M in HD 3.5in */
+{ 18,2,0xFF,0x1B,80,2880,1,FDC_500KBPS,2,0x6C,1 }, /* 1.44M in HD 3.5in */
+{ 15,2,0xFF,0x1B,80,2400,1,FDC_500KBPS,2,0x54,1 }, /*  1.2M in HD 5.25/3.5 */
+{ 10,2,0xFF,0x10,82,1640,1,FDC_250KBPS,2,0x2E,1 }, /*  820K in HD 3.5in */
+{ 10,2,0xFF,0x10,80,1600,1,FDC_250KBPS,2,0x2E,1 }, /*  800K in HD 3.5in */
+{  9,2,0xFF,0x20,80,1440,1,FDC_250KBPS,2,0x50,1 }, /*  720K in HD 3.5in */
+{  9,2,0xFF,0x2A,40, 720,1,FDC_300KBPS,2,0x50,1 }, /*  360K in DD 5.25in */
 
-	{ 18,2,0xFF,0x02,82,2952,1,FDC_500KBPS,2,2 }, /* 1.48M in HD 5.25in */
-	{ 18,2,0xFF,0x02,80,2880,1,FDC_500KBPS,2,2 }, /* 1.44M in HD 5.25in */
-	{ 10,2,0xFF,0x2E,82,1640,1,FDC_300KBPS,2,1 }, /*  820K in HD 5.25in */
-	{ 10,2,0xFF,0x2E,80,1600,1,FDC_300KBPS,2,1 }, /*  800K in HD 5.25in */
-	{  9,2,0xFF,0x50,80,1440,1,FDC_300KBPS,2,1 }, /*  720K in HD 5.25in */
-	{  9,2,0xFF,0x50,40, 720,2,FDC_300KBPS,2,1 }, /*  360K in HD 5.25in */
+{ 18,2,0xFF,0x02,82,2952,1,FDC_500KBPS,2,0x02,2 }, /* 1.48M in HD 5.25in */
+{ 18,2,0xFF,0x02,80,2880,1,FDC_500KBPS,2,0x02,2 }, /* 1.44M in HD 5.25in */
+{ 10,2,0xFF,0x10,82,1640,1,FDC_300KBPS,2,0x2E,1 }, /*  820K in HD 5.25in */
+{ 10,2,0xFF,0x10,80,1600,1,FDC_300KBPS,2,0x2E,1 }, /*  800K in HD 5.25in */
+{  9,2,0xFF,0x20,80,1440,1,FDC_300KBPS,2,0x50,1 }, /*  720K in HD 5.25in */
+{  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
 };
 
 #define DRVS_PER_CTLR 2
@@ -875,10 +875,7 @@ fdstate(fdcu, fdc)
 			out_fdc(fdcu,sec);              /* sector XXX +1? */
 			out_fdc(fdcu,fd->ft->secsize);  /* sector size */
 			out_fdc(fdcu,sectrac);          /* sectors/track */
-#if 0
 			out_fdc(fdcu,fd->ft->gap);      /* gap size */
-#endif
-			out_fdc(fdcu,2);  /* always use gap 2 for read/write */
 			out_fdc(fdcu,fd->ft->datalen);  /* data length */
 		}
 		fdc->state = IOCOMPLETE;
