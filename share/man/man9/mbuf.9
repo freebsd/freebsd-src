@@ -94,7 +94,7 @@
 .Ft struct mbuf *
 .Fn m_dup "struct mbuf *mbuf" "int how"
 .Ft void
-.Fn m_copydata "struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
+.Fn m_copydata "const struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
 .Ft void
 .Fn m_copyback "struct mbuf *mbuf" "int offset" "int len" "caddr_t buf"
 .Ft struct mbuf *
