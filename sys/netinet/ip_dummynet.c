@@ -1065,7 +1065,7 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 {
 #if IPFW2
     struct dn_flow_set *fs;
-    ipfw_insn *cmd = rule->cmd + rule->act_ofs;
+    ipfw_insn *cmd = ACTION_PTR(rule);
 
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
@@ -1132,7 +1132,7 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
     struct dn_flow_queue *q = NULL ;
     int is_pipe;
 #if IPFW2
-    ipfw_insn *cmd = fwa->rule->cmd + fwa->rule->act_ofs;
+    ipfw_insn *cmd = ACTION_PTR(fwa->rule);
 #endif
 
     KASSERT(m->m_nextpkt == NULL,
