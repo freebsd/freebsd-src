@@ -5,4 +5,7 @@ CFLAGS+= -I${.CURDIR}/../cron
 NOSHARED=	yes
 NOPROFILE=	yes
 
+install:
+	@echo -n
+
 .include <bsd.lib.mk>
