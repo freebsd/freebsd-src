@@ -1,15 +1,14 @@
 $FreeBSD$
 
-Import of GNU awk 3.0.4
+Import of GNU awk 3.0.6
 
-Original source available as ftp://prep.ai.mit.edu/pub/gnu/gawk-3.0.4.tar.gz
+Obtained from: ftp://prep.ai.mit.edu/pub/gnu/gawk/gawk-3.0.6.tar.gz
 
 The following files and directories were removed for this import:
 
-Makefile.in
 README_d/README.VMS
 README_d/README.atari
-README_d/README.irix
+README_d/README.beos
 README_d/README.linux
 README_d/README.pc
 README_d/README.sco
@@ -19,43 +18,7 @@ README_d/README.sony
 README_d/README.sunos4
 README_d/README.ultrix
 README_d/README.yacc
-aclocal.m4
-alloca.c
 atari/
-awklib/
-awktab.c
-config.guess
-config.sub
-configh.in
-configure
-configure.in
-doc/Makefile.in
-doc/README.card
-doc/ad.block
-doc/awkcard.in
-doc/awkforai.txt
-doc/cardfonts
-doc/colors
-doc/igawk.1
-doc/gawk.info
-doc/macros
-doc/no.colors
-doc/setter.outline
-doc/texinfo.tex
-install-sh
 missing/
-missing.c
-mkinstalldirs
 pc/
-protos.h
-random.c
-random.h
-regex.c
-regex.h
-stamp-h.in
-test/
 vms/
-
-In addition, doc/gawk.1 was renamed to awk.1.
-
-jraynard@freebsd.org

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -68,6 +68,11 @@ static int func_tag_valid = FALSE;
 static jmp_buf func_tag;
 extern int exiting, exit_val;
 
+/* This rather ugly macro is for VMS C */
+#ifdef C
+#undef C
+#endif
+#define C(c) ((char)c)  
 /*
  * This table is used by the regexp routines to do case independant
  * matching. Basically, every ascii character maps to itself, except
@@ -110,44 +115,46 @@ char casetable[] = {
 	/* 'x'     'y'     'z'     '{'     '|'     '}'     '~' */
 	'\170', '\171', '\172', '\173', '\174', '\175', '\176', '\177',
 #ifndef USE_PURE_ASCII
-	'\200', '\201', '\202', '\203', '\204', '\205', '\206', '\207',
-	'\210', '\211', '\212', '\213', '\214', '\215', '\216', '\217',
-	'\220', '\221', '\222', '\223', '\224', '\225', '\226', '\227',
-	'\230', '\231', '\232', '\233', '\234', '\235', '\236', '\237',
-	'\240', '\241', '\242', '\243', '\244', '\245', '\246', '\247',
-	'\250', '\251', '\252', '\253', '\254', '\255', '\256', '\257',
-	'\260', '\261', '\262', '\263', '\264', '\265', '\266', '\267',
-	'\270', '\271', '\272', '\273', '\274', '\275', '\276', '\277',
-	'\340', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
-	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
-	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\327',
-	'\370', '\371', '\372', '\373', '\374', '\375', '\376', '\337',
-	'\340', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
-	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
-	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\367',
-	'\370', '\371', '\372', '\373', '\374', '\375', '\376', '\377',
+	C('\200'), C('\201'), C('\202'), C('\203'), C('\204'), C('\205'), C('\206'), C('\207'),
+	C('\210'), C('\211'), C('\212'), C('\213'), C('\214'), C('\215'), C('\216'), C('\217'),
+	C('\220'), C('\221'), C('\222'), C('\223'), C('\224'), C('\225'), C('\226'), C('\227'),
+	C('\230'), C('\231'), C('\232'), C('\233'), C('\234'), C('\235'), C('\236'), C('\237'),
+	C('\240'), C('\241'), C('\242'), C('\243'), C('\244'), C('\245'), C('\246'), C('\247'),
+	C('\250'), C('\251'), C('\252'), C('\253'), C('\254'), C('\255'), C('\256'), C('\257'),
+	C('\260'), C('\261'), C('\262'), C('\263'), C('\264'), C('\265'), C('\266'), C('\267'),
+	C('\270'), C('\271'), C('\272'), C('\273'), C('\274'), C('\275'), C('\276'), C('\277'),
+	C('\340'), C('\341'), C('\342'), C('\343'), C('\344'), C('\345'), C('\346'), C('\347'),
+	C('\350'), C('\351'), C('\352'), C('\353'), C('\354'), C('\355'), C('\356'), C('\357'),
+	C('\360'), C('\361'), C('\362'), C('\363'), C('\364'), C('\365'), C('\366'), C('\327'),
+	C('\370'), C('\371'), C('\372'), C('\373'), C('\374'), C('\375'), C('\376'), C('\337'),
+	C('\340'), C('\341'), C('\342'), C('\343'), C('\344'), C('\345'), C('\346'), C('\347'),
+	C('\350'), C('\351'), C('\352'), C('\353'), C('\354'), C('\355'), C('\356'), C('\357'),
+	C('\360'), C('\361'), C('\362'), C('\363'), C('\364'), C('\365'), C('\366'), C('\367'),
+	C('\370'), C('\371'), C('\372'), C('\373'), C('\374'), C('\375'), C('\376'), C('\377'),
 #else
-	'\200', '\201', '\202', '\203', '\204', '\205', '\206', '\207',
-	'\210', '\211', '\212', '\213', '\214', '\215', '\216', '\217',
-	'\220', '\221', '\222', '\223', '\224', '\225', '\226', '\227',
-	'\230', '\231', '\232', '\233', '\234', '\235', '\236', '\237',
-	'\240', '\241', '\242', '\243', '\244', '\245', '\246', '\247',
-	'\250', '\251', '\252', '\253', '\254', '\255', '\256', '\257',
-	'\260', '\261', '\262', '\263', '\264', '\265', '\266', '\267',
-	'\270', '\271', '\272', '\273', '\274', '\275', '\276', '\277',
-	'\300', '\301', '\302', '\303', '\304', '\305', '\306', '\307',
-	'\310', '\311', '\312', '\313', '\314', '\315', '\316', '\317',
-	'\320', '\321', '\322', '\323', '\324', '\325', '\326', '\327',
-	'\330', '\331', '\332', '\333', '\334', '\335', '\336', '\337',
-	'\340', '\341', '\342', '\343', '\344', '\345', '\346', '\347',
-	'\350', '\351', '\352', '\353', '\354', '\355', '\356', '\357',
-	'\360', '\361', '\362', '\363', '\364', '\365', '\366', '\367',
-	'\370', '\371', '\372', '\373', '\374', '\375', '\376', '\377',
+	C('\200'), C('\201'), C('\202'), C('\203'), C('\204'), C('\205'), C('\206'), C('\207'),
+	C('\210'), C('\211'), C('\212'), C('\213'), C('\214'), C('\215'), C('\216'), C('\217'),
+	C('\220'), C('\221'), C('\222'), C('\223'), C('\224'), C('\225'), C('\226'), C('\227'),
+	C('\230'), C('\231'), C('\232'), C('\233'), C('\234'), C('\235'), C('\236'), C('\237'),
+	C('\240'), C('\241'), C('\242'), C('\243'), C('\244'), C('\245'), C('\246'), C('\247'),
+	C('\250'), C('\251'), C('\252'), C('\253'), C('\254'), C('\255'), C('\256'), C('\257'),
+	C('\260'), C('\261'), C('\262'), C('\263'), C('\264'), C('\265'), C('\266'), C('\267'),
+	C('\270'), C('\271'), C('\272'), C('\273'), C('\274'), C('\275'), C('\276'), C('\277'),
+	C('\300'), C('\301'), C('\302'), C('\303'), C('\304'), C('\305'), C('\306'), C('\307'),
+	C('\310'), C('\311'), C('\312'), C('\313'), C('\314'), C('\315'), C('\316'), C('\317'),
+	C('\320'), C('\321'), C('\322'), C('\323'), C('\324'), C('\325'), C('\326'), C('\327'),
+	C('\330'), C('\331'), C('\332'), C('\333'), C('\334'), C('\335'), C('\336'), C('\337'),
+	C('\340'), C('\341'), C('\342'), C('\343'), C('\344'), C('\345'), C('\346'), C('\347'),
+	C('\350'), C('\351'), C('\352'), C('\353'), C('\354'), C('\355'), C('\356'), C('\357'),
+	C('\360'), C('\361'), C('\362'), C('\363'), C('\364'), C('\365'), C('\366'), C('\367'),
+	C('\370'), C('\371'), C('\372'), C('\373'), C('\374'), C('\375'), C('\376'), C('\377'),
 #endif
 };
 #else
 #include "You lose. You will need a translation table for your character set."
 #endif
+
+#undef C
 
 /*
  * This table maps node types to strings for debugging.
@@ -207,6 +214,7 @@ static char *nodetypes[] = {
 	"Node_K_do",
 	"Node_K_return",
 	"Node_K_delete",
+	"Node_K_delete_loop",
 	"Node_K_getline",
 	"Node_K_function",
 	"Node_K_nextfile",
@@ -227,6 +235,7 @@ static char *nodetypes[] = {
 	"Node_regex",
 	"Node_hashnode",
 	"Node_ahash",
+	"Node_array_ref",
 	"Node_NF",
 	"Node_NR",
 	"Node_FNR",
@@ -482,6 +491,8 @@ register NODE *volatile tree;
 		t = tree->arrvar;
 		if (t->type == Node_param_list)
 			t = stack_ptr[t->param_cnt];
+		if (t->type == Node_array_ref)
+			t = t->orig_array;
 		stable_tree = tree;
 		if ((t->flags & SCALAR) != 0)
 			fatal("attempt to use scalar as array");
@@ -563,6 +574,10 @@ register NODE *volatile tree;
 
 	case Node_K_delete:
 		do_delete(tree->lnode, tree->rnode);
+		break;
+
+	case Node_K_delete_loop:
+		do_delete_loop(tree->lnode, tree->rnode);
 		break;
 
 	case Node_K_next:
@@ -661,12 +676,18 @@ int iscond;
 	if (tree->type == Node_param_list) {
 		int paramnum = tree->param_cnt + 1;
 
+		if ((tree->flags & FUNC) != 0)
+			fatal("can't use function name `%s' as variable or array",
+					tree->vname);
+
 		tree = stack_ptr[tree->param_cnt];
 		if (tree == NULL)
 			return Nnull_string;
 		sprintf(namebuf, "parameter #%d", paramnum);
 		tree->vname = namebuf;
-	}
+	} 
+	if (tree->type == Node_array_ref)
+		tree = tree->orig_array;
 
 	switch (tree->type) {
 	case Node_var:
@@ -986,11 +1007,12 @@ register NODE *tree;
 		 * able to begin and end on a single input record, so this
 		 * isn't an ELSE IF, as noted above.
 		 */
-		if (! tree->triggered)
+		if (! tree->triggered) {
 			if (! eval_condition(tree->condpair->lnode))
 				return FALSE;
 			else
 				tree->triggered = TRUE;
+		}
 		/* Else we are triggered */
 		if (eval_condition(tree->condpair->rnode))
 			tree->triggered = FALSE;
@@ -1071,16 +1093,17 @@ register NODE *tree;
 	NODE *tmp;
 	Func_ptr after_assign = NULL;
 
-	lhs = get_lhs(tree->lnode, &after_assign);
-	lval = force_number(*lhs);
-
 	/*
-	 * Can't unref *lhs until we know the type; doing so
-	 * too early breaks   x += x   sorts of things.
+	 * For ++ and --, get the lhs when doing the op and then
+	 * return.  For += etc, do the rhs first, since it can
+	 * rearrange things, and *then* get the lhs.
 	 */
+
 	switch(tree->type) {
 	case Node_preincrement:
 	case Node_predecrement:
+		lhs = get_lhs(tree->lnode, &after_assign);
+		lval = force_number(*lhs);
 		unref(*lhs);
 		*lhs = make_number(lval +
 			       (tree->type == Node_preincrement ? 1.0 : -1.0));
@@ -1091,6 +1114,8 @@ register NODE *tree;
 
 	case Node_postincrement:
 	case Node_postdecrement:
+		lhs = get_lhs(tree->lnode, &after_assign);
+		lval = force_number(*lhs);
 		unref(*lhs);
 		*lhs = make_number(lval +
 			       (tree->type == Node_postincrement ? 1.0 : -1.0));
@@ -1102,16 +1127,16 @@ register NODE *tree;
 		break;	/* handled below */
 	}
 
+	/*
+	 * It's a += kind of thing.  Do the rhs, then the lhs.
+	 */
+
 	tmp = tree_eval(tree->rnode);
 	rval = force_number(tmp);
 	free_temp(tmp);
 
-	/*
-	 * Do this again; the lhs and the rhs could both be fields.
-	 * Accessing the rhs could cause the lhs to have moved around.
-	 * (Yet another special case. Gack.)
-	 */
 	lhs = get_lhs(tree->lnode, &after_assign);
+	lval = force_number(*lhs);
 
 	unref(*lhs);
 	switch(tree->type) {
@@ -1227,7 +1252,7 @@ pop_fcall()
 		if (arg->type == Node_param_list)
 			arg = stack_ptr[arg->param_cnt];
 		n = *sp++;
-		if ((arg->type == Node_var || arg->type == Node_var_array)
+		if ((arg->type == Node_var /* || arg->type == Node_var_array */)
 		    && n->type == Node_var_array) {
 			/* should we free arg->var_value ? */
 			arg->var_array = n->var_array;
@@ -1237,7 +1262,7 @@ pop_fcall()
 			arg->flags = n->flags;
 		}
 		/* n->lnode overlays the array size, don't unref it if array */
-		if (n->type != Node_var_array)
+		if (n->type != Node_var_array && n->type != Node_array_ref)
 			unref(n->lnode);
 		freenode(n);
 		count--;
@@ -1247,7 +1272,9 @@ pop_fcall()
 		/* if n is a local array, all the elements should be freed */
 		if (n->type == Node_var_array)
 			assoc_clear(n);
-		unref(n->lnode);
+		/* n->lnode overlays the array size, don't unref it if array */
+		if (n->type != Node_var_array && n->type != Node_array_ref)
+			unref(n->lnode);
 		freenode(n);
 	}
 	if (f->stack)
@@ -1307,11 +1334,19 @@ char *func_name;
 		r->type = Node_var;
 
 		/* call by reference for arrays; see below also */
-		if (arg->type == Node_param_list)
+		if (arg->type == Node_param_list) {
+			/* we must also reassign f here; see below */
+			f = & fcall_list[curfcall];
 			arg = f->prevstack[arg->param_cnt];
-		if (arg->type == Node_var_array)
+		}
+		if (arg->type == Node_var_array) {
+			r->type = Node_array_ref;
+			r->flags &= ~SCALAR;
+			r->orig_array = arg;
+			r->vname = arg->vname;
+		} else if (arg->type == Node_array_ref) {
 			*r = *arg;
-		else {
+		} else {
 			n = tree_eval(arg);
 			r->lnode = dupnode(n);
 			r->rnode = (NODE *) NULL;
@@ -1445,6 +1480,7 @@ Func_ptr *assign;
 	}
 
 	switch (ptr->type) {
+	case Node_array_ref:
 	case Node_var_array:
 		fatal("attempt to use array `%s' in a scalar context",
 			ptr->vname);
@@ -1567,7 +1603,12 @@ Func_ptr *assign;
 			n = stack_ptr[n->param_cnt];
 			if ((n->flags & SCALAR) != 0)
 				fatal("attempt to use scalar parameter %d as an array", i);
-		} else if (n->type == Node_func) {
+		}
+		if (n->type == Node_array_ref) {
+			n = n->orig_array;
+			assert(n->type == Node_var_array || n->type == Node_var);
+		}
+		if (n->type == Node_func) {
 			fatal("attempt to use function `%s' as array",
 				n->lnode->param);
 		}
@@ -1581,6 +1622,8 @@ Func_ptr *assign;
 	case Node_builtin:
 		fatal("assignment is not allowed to result of builtin function");
 	default:
+		fprintf(stderr, "type = %s\n", nodetype2str(ptr->type));
+		fflush(stderr);
 		cant_happen();
 	}
 	return aptr;

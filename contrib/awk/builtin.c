@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -815,7 +815,8 @@ check_pos:
 				*cp++ = '#';
 			if (zero_flag)
 				*cp++ = '0';
-			cp = strcpy(cp, "*.*") + 3;
+			strcpy(cp, "*.*");
+			cp += 3;
 			*cp++ = cs1;
 			*cp = '\0';
 #ifndef GFMT_WORKAROUND
@@ -2103,9 +2104,11 @@ size_t len;
 			retval = (retval * 16) + val;
 		}
 	} else if (*str == '0') {
+		if (strchr(str, '8') != NULL || strchr(str, '9') != NULL)
+			goto decimal;
 		for (; len > 0; len--) {
-			if (! isdigit(*str) || *str == '8' || *str == '9')
-				goto decimal;
+			if (! isdigit(*str))
+				goto done;
 			retval = (retval * 8) + (*str - '0');
 			str++;
 		}
