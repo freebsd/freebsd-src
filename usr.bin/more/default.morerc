@@ -51,6 +51,14 @@
 # ${_curhscroll}	number of columns scrolled horizontally
 # ${_ls_regexp}		regular expression from the last search
 #
+# In addition to variables set by deftog, the following variables are
+# also available,
+#
+# ${_sc_height}		number of rows on the screen
+# ${_sc_width}		number of columns on the screen
+# ${_termcap_XX}	where 'XX' refers to any of the termcap codes from
+#			termcap(5), string, numeric, or flag
+#
 
 deftog
 
@@ -72,11 +80,15 @@ set savedhscroll 87382
 
 macro 1 j	'forw_scroll ${number}'
 macro 1 k	'back_scroll ${number}'
-macro 1 \e[B	'forw_scroll ${number}'
-macro 1 \e[A	'back_scroll ${number}'
+macro 1 "${_termcap_kd}" \
+		'forw_scroll ${number}'
+macro 1 "${_termcap_ku}" \
+		'back_scroll ${number}'
 macro 1 \n	'forw_scroll ${number}'
-macro 1 \e[G	'forw (${_sc_height} * ${number})'
-macro 1 \e[I	'back (${_sc_height} * ${number})'
+macro 1 "${_termcap_kN}" \
+		'forw (${_sc_height} * ${number})'
+macro 1 "${_termcap_kP}" \
+		'back (${_sc_height} * ${number})'
 set com_getscr	'condition (${number} != 0);      \
              	   set scr_scroll ${number};      \
              	 condition (${number} == 0);      \
@@ -115,9 +127,12 @@ macro 0 l	'condition ${hkey_scroll};   eval ${com_rscroll};      \
          	 condition_! ${hkey_scroll}; error "key not enabled";  \
           	 condition true;'
 macro 0 :help	'help'
-macro 0 \e[C	'eval ${com_rscroll}'
-macro 0 \e[D	'eval ${com_lscroll}'
-macro 0 \e[H	'condition (${_wraplines_n} && (${savedhscroll} != 87382));  \
+macro 0 "${_termcap_kr}" \
+		'eval ${com_rscroll}'
+macro 0 "${_termcap_kl}" \
+		'eval ${com_lscroll}'
+macro 0 "${_termcap_kh}" \
+		'condition (${_wraplines_n} && (${savedhscroll} != 87382));  \
             	   rscroll 1;                                                \
             	   rscroll ${savedhscroll};                                  \
             	 condition_toggle;                                           \
@@ -135,7 +150,8 @@ macro 0 G	'condition (${number} == 0); goend;             \
 macro 1 g	'goline ${number}'
 macro 0 p	'gopercent ${number}'
 macro 0 %	'gopercent ${number}'
-macro 0 \e[F	'goend'
+macro 0 "${_termcap_@7}" \
+		'goend'
 # Quote  since it's technically an isspace() character
 macro 0 ""	'repaint'
 macro 0 r	'repaint'
