@@ -2574,6 +2574,10 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_whiteout_desc,		(vop_t *) ufs_whiteout },
+#ifdef UFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_setextattr },
+#endif
 #ifdef UFS_ACL
 	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
 	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
@@ -2600,6 +2604,10 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsspec_write },
+#ifdef UFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_setextattr },
+#endif
 #ifdef UFS_ACL
 	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
 	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
@@ -2627,6 +2635,10 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
+#ifdef UFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_setextattr },
+#endif
 #ifdef UFS_ACL
 	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
 	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
