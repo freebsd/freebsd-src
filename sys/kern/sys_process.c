@@ -149,7 +149,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 {
 	struct vmspace *vm;
 	vm_map_t map;
-	vm_object_t object = NULL;
+	vm_object_t backing_object, object = NULL;
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
 	vm_offset_t kva;
@@ -239,19 +239,19 @@ proc_rwmem(struct proc *p, struct uio *uio)
 
 			break;
 		}
-
-		m = vm_page_lookup(object, pindex);
-
-		/* Allow fallback to backing objects if we are reading */
-
-		while (m == NULL && !writing && object->backing_object) {
-
+		VM_OBJECT_LOCK(object);
+		while ((m = vm_page_lookup(object, pindex)) == NULL &&
+		    !writing &&
+		    (backing_object = object->backing_object) != NULL) {
+			/*
+			 * Allow fallback to backing objects if we are reading.
+			 */
+			VM_OBJECT_LOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			object = object->backing_object;
-
-			m = vm_page_lookup(object, pindex);
+			VM_OBJECT_UNLOCK(object);
+			object = backing_object;
 		}
-
+		VM_OBJECT_UNLOCK(object);
 		if (m == NULL) {
 			error = EFAULT;
 
