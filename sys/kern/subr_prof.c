@@ -160,8 +160,8 @@ kmstartup(dummy)
 	p->lowpc = ROUNDDOWN((u_long)btext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->highpc = ROUNDUP((u_long)etext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->textsize = p->highpc - p->lowpc;
-	printf("Profiling kernel, textsize=%lu [%x..%x]\n",
-	       p->textsize, p->lowpc, p->highpc);
+	printf("Profiling kernel, textsize=%lu [%jx..%jx]\n",
+	    p->textsize, (uintmax_t)p->lowpc, (uintmax_t)p->highpc);
 	p->kcountsize = p->textsize / HISTFRACTION;
 	p->hashfraction = HASHFRACTION;
 	p->fromssize = p->textsize / HASHFRACTION;
