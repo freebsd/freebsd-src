@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.397 1998/10/04 02:32:18 jkh Exp $
+#	$Id: Makefile,v 1.398 1998/10/04 10:33:41 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -197,6 +197,7 @@ rerelease release:
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 	echo "export CFLAGS='-O -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
@@ -239,7 +240,7 @@ rerelease release:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make objlink"			>> ${CHROOTDIR}/mk
 	echo "(cd obj; rm -f ${REDOREDO})"	>> ${CHROOTDIR}/mk
-	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
