@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.25 1997/07/28 03:39:06 smp Exp smp $
+ *	$Id: mpapic.c,v 1.26 1997/07/30 22:51:11 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <machine/smptests.h>	/** TEST_LOPRIO, PEND_INTS, TEST_TEST1 */
+#include <machine/smptests.h>	/** PEND_INTS, TEST_TEST1 */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
 #include <machine/segments.h>
@@ -76,10 +76,7 @@ apic_initialize(void)
 	/* set the Task Priority Register as needed */
 	temp = lapic.tpr;
 	temp &= ~APIC_TPR_PRIO;		/* clear priority field */
-
-#if defined(TEST_LOPRIO)
 	temp |= LOPRIO_LEVEL;		/* allow INT arbitration */
-#endif	/* TEST_LOPRIO */
 
 	lapic.tpr = temp;
 
@@ -132,8 +129,6 @@ apic_dump(char* str)
 static int trigger __P((int apic, int pin, u_int32_t * flags));
 static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 
-
-#if defined(TEST_LOPRIO)
 #define DEFAULT_FLAGS		\
 	((u_int32_t)		\
 	 (IOART_INTMSET |	\
@@ -147,21 +142,6 @@ static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
 	  IOART_DELLOPRI))
-#else
-#define DEFAULT_FLAGS		\
-	((u_int32_t)		\
-	 (IOART_INTMSET |	\
-	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
-
-#define DEFAULT_ISA_FLAGS	\
-	((u_int32_t)		\
-	 (IOART_INTMSET |	\
-	  IOART_TRGREDG |	\
-	  IOART_INTAHI |	\
-	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
-#endif	/* TEST_LOPRIO */
 
 /*
  * Setup the IO APIC.
@@ -179,18 +159,14 @@ io_apic_setup(int apic)
 	u_int32_t	vector;		/* the window register is 32 bits */
 	int		pin, level;
 
-#if defined(TEST_LOPRIO)
 	target = IOART_DEST;
-#else
-	target = boot_cpu_id << 24;
-#endif	/* TEST_LOPRIO */
 
 #if defined(PEND_INTS)
 	apic_pin_trigger[apic] = 0;	/* default to edge-triggered */
 #endif /* PEND_INTS */
 
 	if (apic == 0) {
-		maxpin = REDIRCNT_IOAPIC(apic);		/* pins-1 in APIC */
+		maxpin = REDIRCNT_IOAPIC(apic);		/* pins in APIC */
 		for (pin = 0; pin < maxpin; ++pin) {
 			int bus, bustype;
 
@@ -244,7 +220,6 @@ io_apic_setup(int apic)
 #undef DEFAULT_FLAGS
 
 
-#if defined(TEST_LOPRIO)
 #define DEFAULT_EXTINT_FLAGS	\
 	((u_int32_t)		\
 	 (IOART_INTMSET |	\
@@ -252,15 +227,6 @@ io_apic_setup(int apic)
 	  IOART_INTAHI |	\
 	  IOART_DESTPHY |	\
 	  IOART_DELLOPRI))
-#else
-#define DEFAULT_EXTINT_FLAGS	\
-	((u_int32_t)		\
-	 (IOART_INTMSET |	\
-	  IOART_TRGREDG |	\
-	  IOART_INTAHI |	\
-	  IOART_DESTPHY |	\
-	  IOART_DELFIXED))
-#endif	/* TEST_LOPRIO */
 
 /*
  * Setup the source of External INTerrupts.
