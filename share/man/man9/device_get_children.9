@@ -35,8 +35,8 @@
 .Nm device_get_children
 .Nd get a list of devices connected to a device
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft int
 .Fn device_get_children "device_t dev" "device_t **devlistp" "int *devcountp"
 .Sh DESCRIPTION

@@ -42,8 +42,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <dirent.h>
+.In sys/types.h
+.In dirent.h
 .Ft int
 .Fn scandir "const char *dirname" "struct dirent ***namelist" "int \\*(lp*select\\*(rp\\*(lpstruct dirent *\\*(rp" "int \\*(lp*compar\\*(rp\\*(lpconst void *, const void *\\*(rp"
 .Ft int

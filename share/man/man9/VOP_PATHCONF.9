@@ -35,9 +35,9 @@
 .Nm VOP_PATHCONF
 .Nd return POSIX pathconf information
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <sys/unistd.h>
+.In sys/param.h
+.In sys/vnode.h
+.In sys/unistd.h
 .Ft int
 .Fn VOP_PATHCONF "struct vnode *vp" "int name" "int *retval"
 .Sh DESCRIPTION

@@ -35,8 +35,8 @@
 .Nm VOP_BWRITE
 .Nd write a filesystem buffer
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_BWRITE "struct vnode *vp" "struct buf *bp"
 .Sh DESCRIPTION

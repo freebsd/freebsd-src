@@ -35,8 +35,8 @@
 .Nm devclass_get_softc
 .Nd translate unit number to driver private structure
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft void *
 .Fn devclass_get_softc "devclass_t dc" "int unit"
 .Sh DESCRIPTION

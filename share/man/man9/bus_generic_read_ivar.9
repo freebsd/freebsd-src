@@ -40,8 +40,8 @@ and
 .Dv BUS_WRITE_IVAR
 for busses
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft int
 .Fn bus_generic_read_ivar "device_t dev" "device_t child" "int index" "uintptr_t *result"
 .Ft int

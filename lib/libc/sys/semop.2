@@ -34,9 +34,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/ipc.h>
-.Fd #include <sys/sem.h>
+.In sys/types.h
+.In sys/ipc.h
+.In sys/sem.h
 .Ft int
 .Fn semop "int semid" "struct sembuf array[]" "unsigned nops"
 .Sh DESCRIPTION
