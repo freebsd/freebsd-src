@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.65 1999/07/17 18:43:49 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.66 1999/07/20 09:47:55 phk Exp $
  */
 
 
@@ -206,6 +206,7 @@ mfs_mount(mp, path, data, ndp, p)
 	struct mfsnode *mfsp;
 	size_t size;
 	int flags, err;
+	dev_t dev;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -330,6 +331,10 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_1;
 	}
 	devvp->v_type = VBLK;
+	dev = make_dev(&mfs_cdevsw, mfs_minor, 0, 0, 0, "MFS%d", mfs_minor);
+	dev->si_bsize_phys = DEV_BSIZE;
+	dev->si_bsize_best = BLKDEV_IOSIZE;
+	dev->si_bsize_max = MAXBSIZE;
 	if (checkalias(devvp, makeudev(253, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
 	devvp->v_data = mfsp;
@@ -481,13 +486,19 @@ static int
 mfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+
 	cdevsw_add(&mfs_cdevsw);
 #ifdef MFS_ROOT
 	if (bootverbose)
 		printf("Considering MFS root f/s.\n");
 	if (mfs_getimage()) {
 		mountrootfsname = "mfs";
-		rootdev = makedev(253, mfs_minor++);
+		rootdev = make_dev(&mfs_cdevsw, mfs_minor, 
+		    0, 0, 0, "MFS%d", mfs_minor);
+		rootdev->si_bsize_phys = DEV_BSIZE;
+		rootdev->si_bsize_best = BLKDEV_IOSIZE;
+		rootdev->si_bsize_max = MAXBSIZE;
+		mfs_minor++;
 	} else if (bootverbose)
 		printf("No MFS image available as root f/s.\n");
 #endif
