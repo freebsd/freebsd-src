@@ -1302,8 +1302,8 @@ suser_xxx(cred, proc, flag)
 
 /*
  * Test securelevel values against passed required securelevel.
- * _gt implements (level > securelevel), _ge implements (level <=
- * securelevel).  Returns 0 or EPERM.
+ * _gt implements (securelevel > level), and _ge implements
+ * (securelevel >= level).  Returns 0 oer EPERM.
  *
  * cr is permitted to be NULL for the time being, as there were some
  * existing securelevel checks that occurred without a process/credential
