@@ -491,12 +491,16 @@ pgdelete(pgrp)
 	savesess->s_count--;
 	SESS_UNLOCK(savesess);
 	PGRP_UNLOCK(pgrp);
+	mtx_destroy(&pgrp->pg_mtx);
+	sx_xunlock(&proctree_lock);
+	mtx_lock(&Giant);
+	sx_xlock(&proctree_lock);
 	if (savesess->s_count == 0) {
 		mtx_destroy(&savesess->s_mtx);
 		FREE(pgrp->pg_session, M_SESSION);
 	}
-	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
+	mtx_unlock(&Giant);
 }
 
 /*

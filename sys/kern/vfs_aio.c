@@ -794,9 +794,11 @@ aio_daemon(void *uproc)
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
 		M_WAITOK | M_ZERO);
 
+	mtx_unlock(&Giant);
 	sx_xlock(&proctree_lock);
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
 	sx_xunlock(&proctree_lock);
+	mtx_lock(&Giant);
 
 	/* Mark special process type. */
 	mycp->p_flag |= P_SYSTEM;
