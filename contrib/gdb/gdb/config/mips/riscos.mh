@@ -1,0 +1,16 @@
+# Host: MIPS running RISC/os
+
+XM_FILE= xm-riscos.h
+
+NAT_FILE= nm-riscos.h
+NATDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o mips-nat.o
+
+MH_CFLAGS=-Wf,-XNh10000
+
+# ptrace(2) apparently has problems in the BSD environment.  No workaround is
+# known except to select the sysv environment.  Could we use /proc instead?
+# These "sysv environments" and "bsd environments" often end up being a pain.
+#
+# This is not part of CFLAGS because perhaps not all C compilers have this
+# option.
+CC= cc -systype sysv

@@ -1,5 +1,5 @@
 /* config.h.  Generated automatically by configure.  */
-/* $Header: /home/daffy/u0/vern/flex/RCS/conf.in,v 1.2 95/01/09 12:11:51 vern Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/config.h,v 1.2 1996/06/19 20:47:02 nate Exp $ */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */

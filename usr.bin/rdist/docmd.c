@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id: docmd.c,v 1.6 1996/09/24 08:06:21 bde Exp $";
+	"$Id: docmd.c,v 1.6.2.1 1997/02/23 23:44:00 joerg Exp $";
 #endif /* not lint */
 
 #include "defs.h"

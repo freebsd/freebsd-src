@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_arith.c,v 1.4 1995/05/30 07:57:43 rgrimes Exp $
+ *     $Id: fpu_arith.c,v 1.5 1996/09/10 08:23:34 bde Exp $
  *
  */
 

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.7 1995/12/16 02:14:35 bde Exp $
+ * $Id: spx_usrreq.c,v 1.8 1996/04/13 12:53:53 bde Exp $
  */
 
 #include <sys/param.h>

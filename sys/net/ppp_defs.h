@@ -1,5 +1,5 @@
 /*	from Id: ppp_defs.h,v 1.7 1995/08/10 06:49:35 paulus Exp */
-/*	$Id$	*/
+/*	$Id: ppp_defs.h,v 1.2 1995/10/31 20:24:13 peter Exp $	*/
 
 /*
  * ppp_defs.h - PPP definitions.

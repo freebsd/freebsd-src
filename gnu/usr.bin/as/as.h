@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: as.h,v 1.4 1995/05/30 04:46:02 rgrimes Exp $
+ * $Id: as.h,v 1.5 1996/10/01 00:11:25 peter Exp $
  */
 
 #define GAS 1

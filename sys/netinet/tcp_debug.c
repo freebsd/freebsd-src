@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.6 1996/03/11 15:13:26 davidg Exp $
+ * $Id: tcp_debug.c,v 1.7 1996/04/13 12:45:56 bde Exp $
  */
 
 #ifdef TCPDEBUG

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)output.h	8.2 (Berkeley) 5/4/95
- *	$Id: output.h,v 1.2 1994/09/24 02:58:08 davidg Exp $
+ *	$Id: output.h,v 1.3 1996/09/01 10:21:29 peter Exp $
  */
 
 #ifndef OUTPUT_INCL

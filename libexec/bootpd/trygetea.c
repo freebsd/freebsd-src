@@ -1,7 +1,7 @@
 /*
  * trygetea.c - test program for getether.c
  *
- *	$Id$
+ *	$Id: trygetea.c,v 1.2 1996/09/22 21:52:29 wosch Exp $
  */
 
 #include <sys/types.h>

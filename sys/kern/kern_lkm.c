@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.32 1996/09/03 22:52:14 bde Exp $
+ * $Id: kern_lkm.c,v 1.32.2.1 1997/02/22 20:50:43 joerg Exp $
  */
 
 #include <sys/param.h>

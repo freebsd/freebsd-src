@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.5 1995/10/23 21:31:48 ache Exp $
+ *	$Id: dd.c,v 1.5.2.1 1996/11/21 16:30:32 phk Exp $
  */
 
 #ifndef lint

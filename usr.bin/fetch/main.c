@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: main.c,v 1.26.2.4 1997/03/06 07:21:40 mpp Exp $ */
 
 #include <sys/types.h>
 

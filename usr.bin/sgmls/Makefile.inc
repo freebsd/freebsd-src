@@ -1,7 +1,7 @@
 #
 # Bmakefile for rast
 #
-# $Id: Makefile.inc,v 1.3 1996/06/19 20:36:35 jkh Exp $
+# $Id: Makefile.inc,v 1.4 1996/06/24 04:24:39 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../../Makefile.inc)

@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.12.2.1 1997/01/14 01:33:57 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.12.2.2 1997/02/06 05:31:10 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;

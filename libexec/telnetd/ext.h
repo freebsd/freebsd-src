@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
- *	$Id$
+ *	$Id: ext.h,v 1.4 1996/09/22 21:55:33 wosch Exp $
  */
 
 /*

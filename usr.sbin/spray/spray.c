@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: spray.c,v 1.3 1994/12/23 16:42:47 cgd Exp $
+ *	$Id: spray.c,v 1.1.1.1 1996/01/05 09:09:30 graichen Exp $
  */
 
 #include <stdio.h>

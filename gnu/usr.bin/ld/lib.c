@@ -30,7 +30,7 @@
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- * $Id: lib.c,v 1.17 1996/07/12 19:08:23 jkh Exp $	- library routines
+ * $Id: lib.c,v 1.18 1996/10/01 01:22:30 peter Exp $	- library routines
  */
 
 #include <sys/param.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.3 1997/01/28 07:15:44 davidg Exp $
+ *	$Id: ftpd.c,v 1.25.2.4 1997/02/13 20:07:16 guido Exp $
  */
 
 #if 0

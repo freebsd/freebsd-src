@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.8 1997/01/17 19:28:26 davidg Exp $
+ *	$Id: machdep.c,v 1.209.2.9 1997/02/14 01:11:30 bde Exp $
  */
 
 #include "npx.h"

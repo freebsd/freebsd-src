@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id$
+ **      $Id: userconfig.c,v 1.63.2.17 1997/03/13 22:24:36 joerg Exp $
  **/
 
 /**
@@ -2358,7 +2358,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: userconfig.c,v 1.63.2.17 1997/03/13 22:24:36 joerg Exp $
  */
 
 #include "scbus.h"

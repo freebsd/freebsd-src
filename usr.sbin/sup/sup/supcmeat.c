@@ -32,6 +32,12 @@
  *	across the network to save BandWidth
  *
  * $Log: supcmeat.c,v $
+ * Revision 1.3  1996/10/30 23:58:07  ache
+ * 1) print only errors if -v not given, it allows non-verbose
+ * crontab runnig
+ * 2) use full path /usr/bin/mail for security reasons
+ * 3) Use time_t instead of long for time (in one place)
+ *
  * Revision 1.2  1995/12/26 05:03:05  peter
  * Apply ports/net/sup/patches/patch-aa...
  *

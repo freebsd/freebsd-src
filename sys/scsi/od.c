@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.23 1996/11/06 17:31:14 joerg Exp $
+ *	$Id: od.c,v 1.22.2.1 1996/11/06 19:12:01 joerg Exp $
  */
 
 /*

@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: revnetgroup.c,v 1.3 1996/08/04 19:17:15 wpaul Exp $
+ *	$Id: revnetgroup.c,v 1.3.2.1 1996/12/22 15:13:03 joerg Exp $
  */
 
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: revnetgroup.c,v 1.4 1996/12/13 02:40:39 wpaul Exp $";
+static const char rcsid[] = "$Id: revnetgroup.c,v 1.3.2.1 1996/12/22 15:13:03 joerg Exp $";
 #endif
 
 /* Default location of netgroup file. */

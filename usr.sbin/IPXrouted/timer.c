@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: timer.c,v 1.8 1995/10/11 18:57:32 jhay Exp $
+ *	$Id: timer.c,v 1.1 1995/10/26 21:28:28 julian Exp $
  */
 
 #ifndef lint

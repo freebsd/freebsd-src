@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_cksum.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_cksum.c,v 1.2 1994/08/02 07:51:45 davidg Exp $
+ * $Id: ns_cksum.c,v 1.4 1996/10/17 18:41:52 jkh Exp $
  */
 
 #include <sys/param.h>

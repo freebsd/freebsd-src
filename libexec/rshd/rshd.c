@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.9.2.1 1997/01/27 15:39:28 joerg Exp $
+ *	$Id: rshd.c,v 1.9.2.2 1997/02/09 04:33:28 imp Exp $
  */
 
 #ifndef lint

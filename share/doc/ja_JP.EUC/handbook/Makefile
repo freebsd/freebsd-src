@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1997/02/25 04:53:50 hanai Exp $
+# $Id: Makefile,v 1.1.1.1.2.4 1997/03/15 23:31:34 jkh Exp $
 # Original revision: 1.22
 # The FreeBSD Japanese Documentation Project
 

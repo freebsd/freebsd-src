@@ -1,4 +1,4 @@
-# $Id: secure-stable-supfile,v 1.6 1995/12/21 09:09:51 ache Exp $
+# $Id: secure-stable-supfile,v 1.7 1996/05/04 14:08:47 jkh Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # International secure distribution from the stable (bug-fix only) development

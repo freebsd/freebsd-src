@@ -1,0 +1,3 @@
+# Host: Little-endian MIPS machine such as DECstation.
+XDEPFILES= infptrace.o inftarg.o fork-child.o corelow.o core-aout.o
+XM_FILE= xm-mips.h

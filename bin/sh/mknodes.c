@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mknodes.c,v 1.3 1996/09/01 10:20:51 peter Exp $
+ *	$Id: mknodes.c,v 1.4 1996/09/03 13:35:11 peter Exp $
  */
 
 #ifndef lint

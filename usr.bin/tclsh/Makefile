@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/06/26 17:52:19 phk Exp $
 
 PROG=   tclsh
 SRCS=   tclAppInit.c

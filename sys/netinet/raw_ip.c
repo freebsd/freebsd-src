@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37.2.1 1996/11/11 23:40:55 phk Exp $
+ *	$Id: raw_ip.c,v 1.37.2.2 1997/03/03 09:24:38 davidg Exp $
  */
 
 #include <sys/param.h>

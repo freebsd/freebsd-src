@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_ld_str.c,v 1.6 1996/06/25 20:29:26 bde Exp $
+ *     $Id: reg_ld_str.c,v 1.7 1996/09/10 08:24:15 bde Exp $
  *
  */
 

@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.11 1996/11/21 07:19:00 julian Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.10.2.1 1996/11/23 08:32:10 phk Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */

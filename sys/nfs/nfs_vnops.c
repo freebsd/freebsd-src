@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.36.2.2 1997/01/07 06:18:27 wpaul Exp $
+ * $Id: nfs_vnops.c,v 1.36.2.3 1997/03/04 17:59:42 dfr Exp $
  */
 
 /*

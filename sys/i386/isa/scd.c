@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.24 1996/07/23 21:51:39 phk Exp $ */
+/* $Id: scd.c,v 1.25 1996/09/06 23:07:59 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 

@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)a.t	5.1 (Berkeley) 4/16/91
-.\"	$Id: a.t,v 1.5 1997/02/22 13:03:56 peter Exp $
+.\"	$Id: a.t,v 1.2.2.1 1997/03/15 23:34:56 jkh Exp $
 .\"
 .sp 2
 .ne 2i

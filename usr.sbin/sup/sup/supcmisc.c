@@ -27,6 +27,10 @@
  **********************************************************************
  * HISTORY
  * $Log: supcmisc.c,v $
+ * Revision 1.3  1996/10/31 00:03:14  ache
+ * Oops, don't suppress initial output header (from previous commit),
+ * it is superfluous
+ *
  * Revision 1.2  1996/10/30 23:58:08  ache
  * 1) print only errors if -v not given, it allows non-verbose
  * crontab runnig

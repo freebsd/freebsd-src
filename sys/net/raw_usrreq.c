@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_usrreq.c,v 1.7 1995/12/16 02:14:06 bde Exp $
+ * $Id: raw_usrreq.c,v 1.8 1996/03/11 15:13:04 davidg Exp $
  */
 
 #include <sys/param.h>

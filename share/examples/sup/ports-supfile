@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.12.2.1 1996/11/10 11:53:07 phk Exp $
+# $Id: ports-supfile,v 1.12.2.2 1996/12/14 13:46:39 joerg Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # ports distribution.  SUP (Software Update Protocol) allows you to download

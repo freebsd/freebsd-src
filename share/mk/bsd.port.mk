@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.15 1997/02/23 13:27:21 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.16 1997/03/06 08:33:14 asami Exp $
 #
 # Please view me with 4 column tabs!
 

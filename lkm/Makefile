@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1996/06/12 03:49:35 asami Exp $
+#	$Id: Makefile,v 1.24 1996/06/23 13:31:20 bde Exp $
 
 # XXX present but broken: ip_mroute_mod mfs
 SUBDIR=	atapi ccd cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: slc.c,v 1.3 1996/09/22 21:55:37 wosch Exp $
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.7 1995/12/17 21:12:27 phk Exp $
+ * $Id: nfs_srvcache.c,v 1.8 1996/01/13 23:27:55 phk Exp $
  */
 
 #ifndef NFS_NOSERVER 

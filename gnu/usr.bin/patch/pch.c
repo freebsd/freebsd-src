@@ -1,4 +1,4 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.8 1996/04/12 11:37:32 markm Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.8.2.1 1997/03/17 22:32:27 jmg Exp $
  *
  * Log: pch.c,v
  * Revision 2.0.2.0  90/05/01  22:17:51  davison

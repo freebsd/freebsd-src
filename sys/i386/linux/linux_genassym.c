@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: linux_genassym.c,v 1.2 1996/03/02 21:00:10 peter Exp $ */
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/buf.h>

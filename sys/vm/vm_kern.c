@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.27.2.1 1997/01/17 19:28:38 davidg Exp $
+ * $Id: vm_kern.c,v 1.27.2.2 1997/03/25 04:54:25 dyson Exp $
  */
 
 /*

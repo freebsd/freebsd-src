@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.4 1997/02/11 20:46:05 wollman Exp $
+ *	$Id: http.c,v 1.4.2.1 1997/03/10 07:12:51 fenner Exp $
  */
 
 #include <sys/types.h>

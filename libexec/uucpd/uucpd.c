@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: uucpd.c,v 1.7 1996/09/22 21:56:15 wosch Exp $
  */
 
 #ifndef lint

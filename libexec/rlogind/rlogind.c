@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rlogind.c,v 1.12 1996/09/22 21:54:59 wosch Exp $
+ *	$Id: rlogind.c,v 1.12.2.1 1997/02/09 04:33:30 imp Exp $
  */
 
 #ifndef lint

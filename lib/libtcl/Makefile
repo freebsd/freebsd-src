@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 1996/10/31 16:09:02 peter Exp $
+# $Id: Makefile,v 1.12.2.1 1997/01/07 06:22:35 asami Exp $
 #
 # This file is generated automatically, do not edit it here!
 #

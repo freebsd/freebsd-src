@@ -1,4 +1,4 @@
-/* $Id: ccdvar.h,v 1.3 1995/12/28 00:21:32 asami Exp $ */
+/* $Id: ccdvar.h,v 1.4 1996/01/30 22:33:31 asami Exp $ */
 
 /*	$NetBSD: ccdvar.h,v 1.7.2.1 1995/10/12 21:30:18 thorpej Exp $	*/
 

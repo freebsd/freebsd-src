@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $
+ *	$Id: ypxfr_getmap.c,v 1.3 1996/06/05 05:42:49 wpaul Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>
@@ -40,7 +40,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_getmap.c,v 1.3 1996/06/05 05:42:49 wpaul Exp $";
 #endif
 
 extern bool_t xdr_ypresp_all_seq __P(( XDR *, unsigned long * ));

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.13 1996/10/21 07:30:26 peter Exp $
+ *	$Id: ps.c,v 1.13.2.1 1996/11/11 21:23:15 phk Exp $
  */
 
 #ifndef lint

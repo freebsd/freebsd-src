@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mksyntax.c,v 1.5 1996/08/12 22:14:47 ache Exp $
+ *	$Id: mksyntax.c,v 1.6 1996/09/01 10:20:56 peter Exp $
  */
 
 #ifndef lint

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memalloc.c,v 1.3 1996/09/01 10:20:42 peter Exp $
+ *	$Id: memalloc.c,v 1.4 1996/09/03 14:15:53 peter Exp $
  */
 
 #ifndef lint

@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	1.2 (Berkeley) 11/8/90
-.\"	$Id: 1.t,v 1.4 1997/02/22 13:03:17 peter Exp $
+.\"	$Id: 1.t,v 1.2.2.1 1997/03/15 23:34:25 jkh Exp $
 .\"
 .ds RH Introduction
 .NH 1

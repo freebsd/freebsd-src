@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tests.ms	6.2 (Berkeley) 4/16/91
-.\"	$Id: tests.ms,v 1.4 1997/02/22 13:03:01 peter Exp $
+.\"	$Id: tests.ms,v 1.2.2.1 1997/03/15 23:34:14 jkh Exp $
 .\"
 .ds RH Tests
 .NH

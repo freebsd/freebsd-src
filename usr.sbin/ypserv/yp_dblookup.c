@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.9.2.1 1997/01/14 01:33:55 wpaul Exp $
+ *	$Id: yp_dblookup.c,v 1.9.2.2 1997/01/20 03:34:55 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -47,7 +47,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.9.2.1 1997/01/14 01:33:55 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.9.2.2 1997/01/20 03:34:55 wpaul Exp $";
 #endif
 
 int ypdb_debug = 0;

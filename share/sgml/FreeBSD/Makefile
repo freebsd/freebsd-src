@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1.4.1 1995/09/17 23:42:31 davidg Exp $
+#	$Id: Makefile,v 1.2 1996/09/08 20:37:10 jfieber Exp $
 
 FILES=	linuxdoc.dtd linuxdoc.dcl linuxdoc.sty
 NOOBJ=	noobj

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: talkd.c,v 1.4 1996/09/22 21:55:22 wosch Exp $
+ *	$Id: talkd.c,v 1.4.2.1 1997/01/18 08:35:17 pst Exp $
  */
 
 #ifndef lint

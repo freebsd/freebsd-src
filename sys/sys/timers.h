@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: timers.h,v 1.1 1996/01/22 00:31:06 julian Exp $
  *
  * Description : Basic timers header.
  */

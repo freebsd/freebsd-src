@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.1.2.9 1997/02/18 04:39:18 jkh Exp $
+ * $Id: user.c,v 1.1.2.10 1997/03/09 22:38:01 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.5 1995/05/30 00:07:08 rgrimes Exp $
+ *	$Id: rmail.c,v 1.6 1995/09/16 18:52:51 pst Exp $
  */
 
 #ifndef lint

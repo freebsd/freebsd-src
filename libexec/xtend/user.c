@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: user.c,v 1.3 1996/09/22 21:56:27 wosch Exp $
  */
 
 #include <stdio.h>

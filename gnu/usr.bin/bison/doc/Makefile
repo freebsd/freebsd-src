@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1995/10/29 09:08:35 peter Exp $
+# $Id: Makefile,v 1.1 1996/09/10 13:23:46 peter Exp $
 
 INFO = bison
 

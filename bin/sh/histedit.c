@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: histedit.c,v 1.5 1996/09/01 10:20:12 peter Exp $
+ *	$Id: histedit.c,v 1.6 1996/09/03 13:35:09 peter Exp $
  */
 
 #ifndef lint

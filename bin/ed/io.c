@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: io.c,v 1.4 1995/03/19 13:28:32 joerg Exp $
+ *	$Id: io.c,v 1.5 1996/05/23 06:36:34 tg Exp $
  */
 
 #ifndef lint

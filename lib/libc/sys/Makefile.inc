@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.19 1996/05/28 16:24:53 phk Exp $
+#	$Id: Makefile.inc,v 1.20 1996/09/20 13:55:25 phk Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys

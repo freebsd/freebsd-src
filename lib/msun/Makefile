@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.11.2.3 1997/02/23 11:02:55 joerg Exp $
+#  $Id: Makefile,v 1.11.2.4 1997/03/03 14:20:58 bde Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.

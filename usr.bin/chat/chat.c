@@ -31,7 +31,7 @@
  *
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.1.1.1 1994/11/12 05:25:32 lars Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.4 1995/10/31 23:28:29 peter Exp $";
 
 #include <stdio.h>
 #include <time.h>

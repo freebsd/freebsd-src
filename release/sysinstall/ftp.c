@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.18.2.11 1997/02/18 16:23:10 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.12 1997/02/27 11:48:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -1,4 +1,4 @@
-<!-- $Id: memoryuse.sgml,v 1.9 1997/02/22 12:58:51 peter Exp $ -->
+<!-- $Id: memoryuse.sgml,v 1.7.2.1 1997/03/15 23:29:59 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>PC memory utilization<label id="memoryuse"></heading>

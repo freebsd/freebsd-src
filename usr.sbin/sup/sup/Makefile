@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1996/06/24 04:25:57 jkh Exp $
+# $Id: Makefile,v 1.5 1996/09/05 17:15:48 bde Exp $
 
 PROG=	sup
 SRCS=	supcmain.c supcvers.c supcparse.c supcname.c supcmisc.c supcmeat.c

@@ -621,10 +621,11 @@ experience *is* required to use the fixit option!
 3.2     Upgrading from earlier releases of FreeBSD.
 ---     -------------------------------------------
 
-It must first be said that this upgrade DOES NOT take a particularly
-sophisticated approach to the upgrade problem, it being more a
-question of providing what seemed "good enough" at the time.  A truly
-polished upgrade that deals properly with the broad spectrum of
+It must first be said that the system installation boot floppy's
+"Upgrade" option DOES NOT take a particularly sophisticated approach to
+the problem of upgrading, it being more of an attempt to provide the very
+minimum in what is necessary to upgrade from one release to the next.
+A more polished upgrade that dealt properly with the broad spectrum of
 installed 2.1 systems would be nice to have, but until that gets
 written what you get is this - the brute-force approach!
 
@@ -644,20 +645,26 @@ easier.
 
 IMPORTANT NOTE: What this upgrade procedure may also do, in fact, is
 completely destroy your system (though much more quickly than you
-would have been able to destroy it yourself). It is simply impossible
+would have been able to destroy it yourself) and it is simply impossible
 to guarantee that this procedure's crude form of upgrade automation
-will work in all cases and if you do this upgrade without proper
+will work in all cases.  If you do this upgrade without proper
 BACKUPS for any important data then you really must like living life
 close to the edge, that's all we can say!
 
-NOTE to 2.0 users: We're sorry, but the "slice" changes that were
-added in FreeBSD 2.0.5 made automated upgrades pretty difficult due to
-the fact that a complete reinstall is pretty much called for.  Things
-may still *work* after a 2.2 upgrade, but you will also no doubt
-receive many warnings at boot time about non-aligned slices and such;
-we really do recommend a fresh installation for 2.0 systems!  (But
-back up your user data first :-).
+SECOND IMPORTANT NOTE:  If you are upgrading your source distribution,
+you should *totally remove* your old /usr/src first (after saving
+your kernel configuration files in /sys/i386/conf and any other src
+customizations, of course) before doing the upgrade.  Since the upgrade
+overlays new files on top of old, things which have *moved* in /usr/src
+will end up having two copies (to the great confusion of various parts of
+the build system, I should also add) if you do not do this.
 
-                                        Jordan
+2.0 users: We're sorry, but the "slice" changes that were added in
+FreeBSD 2.0.5 made automated upgrades pretty difficult due to the fact
+that a complete reinstall is pretty much called for.  Things may still
+*work* after a 2.2 upgrade, but you will also no doubt receive many
+warnings at boot time about non-aligned slices and such.
+
+We really do recommend a fresh installation for 2.0 systems!
 
 ---- End of Installation Guide ---

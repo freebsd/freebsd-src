@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.66.2.4 1997/02/02 18:11:01 joerg Exp $
+#	$Id: termcap.src,v 1.66.2.5 1997/02/02 18:44:45 joerg Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.7 1996/02/20 23:27:57 wosch Exp $
+ *	$Id: mv.c,v 1.8 1996/03/01 06:14:13 wosch Exp $
  */
 
 #ifndef lint

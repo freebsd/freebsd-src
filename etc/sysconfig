@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.52.2.2 1996/12/10 16:53:55 joerg Exp $
+#	$Id: sysconfig,v 1.52.2.3 1997/01/09 02:42:45 alex Exp $
 
 ######################### Start Of Local Configuration Section ###########
 

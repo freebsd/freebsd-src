@@ -1,6 +1,6 @@
 <!--
 
-  $Id: linuxdoc-roff.ts,v 1.2 1996/09/08 19:20:05 jfieber Exp $
+  $Id: linuxdoc-roff.ts,v 1.2.2.1 1996/12/22 15:32:25 joerg Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init.h	8.2 (Berkeley) 5/4/95
- *	$Id: init.h,v 1.2 1994/09/24 02:57:37 davidg Exp $
+ *	$Id: init.h,v 1.3 1996/09/01 10:20:15 peter Exp $
  */
 
 void init __P((void));

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.5 1995/11/24 12:25:10 bde Exp $
+ * $Id: ipx_pcb.h,v 1.5.4.1 1996/11/25 07:18:09 phk Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_

@@ -1,4 +1,4 @@
-.\"	$Id: addr.nr,v 1.4 1997/02/22 13:00:08 peter Exp $
+.\"	$Id: addr.nr,v 1.2.2.1 1997/03/15 23:31:12 jkh Exp $
 .\"
 .NC "NSAP Addresses & Routing"
 .sh 1 "OSI Address Formats"

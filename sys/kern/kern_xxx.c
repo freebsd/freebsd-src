@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.22 1995/12/06 23:37:12 bde Exp $
+ * $Id: kern_xxx.c,v 1.23 1996/08/19 20:07:02 julian Exp $
  */
 
 #include <sys/param.h>

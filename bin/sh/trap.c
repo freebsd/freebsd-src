@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trap.c,v 1.3 1995/05/30 00:07:23 rgrimes Exp $
+ *	$Id: trap.c,v 1.4 1996/09/01 10:21:47 peter Exp $
  */
 
 #ifndef lint

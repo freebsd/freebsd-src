@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.2 1994/09/24 02:55:01 davidg Exp $
+ *	$Id: misc.c,v 1.2.8.1 1996/11/21 16:30:35 phk Exp $
  */
 
 #ifndef lint

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: psdate.h,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: psdate.h,v 1.1.1.1.2.1 1996/12/11 00:14:12 joerg Exp $
  */
 
 #ifndef _PSDATE_H_

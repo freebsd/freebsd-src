@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/05/20 16:42:30 pst Exp $
+#	$Id: Makefile,v 1.5 1996/06/24 04:25:17 jkh Exp $
 
 PROG=	mrinfo
 

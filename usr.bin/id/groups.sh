@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)groups.sh	8.1 (Berkeley) 6/6/93
-#	$Id: groups.sh,v 1.3 1996/11/05 07:22:47 wosch Exp $
+#	$Id: groups.sh,v 1.2.8.1 1996/11/06 09:33:14 phk Exp $
 
 PATH=/bin:/usr/bin; export PATH
 

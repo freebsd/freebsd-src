@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9.2.2 1996/12/23 18:13:25 jkh Exp $
+#	$Id: Makefile,v 1.9.2.3 1997/02/22 17:59:04 joerg Exp $
 
 PROG=	ppp
 SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \

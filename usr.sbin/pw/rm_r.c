@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm_r.c,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: rm_r.c,v 1.1.1.1.2.1 1996/12/11 00:14:19 joerg Exp $
  */
 
 #include <stdio.h>

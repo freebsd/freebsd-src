@@ -1,4 +1,4 @@
-dnl @(#) $Header: configure.in,v 1.10 96/09/24 18:44:24 leres Exp $ (LBL)
+dnl @(#) $Header: /home/ncvs/src/contrib/traceroute/configure.in,v 1.1.1.1 1996/09/30 19:09:54 fenner Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996
 dnl	The Regents of the University of California.  All rights reserved.

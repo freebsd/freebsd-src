@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pwupd.c,v 1.1.1.1.2.2 1996/12/11 00:14:18 joerg Exp $
+ *	$Id: pwupd.c,v 1.1.1.1.2.3 1997/01/05 04:55:32 davidn Exp $
  */
 
 #include <stdio.h>

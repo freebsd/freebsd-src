@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
-# $Id: vnode_if.src,v 1.8 1995/10/23 02:55:55 dyson Exp $
+# $Id: vnode_if.src,v 1.9 1995/12/11 04:56:17 dyson Exp $
 #
 vop_lookup {
 	IN struct vnode *dvp;

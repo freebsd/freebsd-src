@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.1 1996/10/29 03:53:21 jhay Exp $
+ * $Id: if_sr_p.c,v 1.1.2.1 1996/11/16 21:19:18 phk Exp $
  */
 
 #include "pci.h"

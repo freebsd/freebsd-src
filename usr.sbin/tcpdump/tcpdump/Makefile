@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1996/08/20 05:44:01 pst Exp $
+#	$Id: Makefile,v 1.14 1996/08/21 16:50:15 pst Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \

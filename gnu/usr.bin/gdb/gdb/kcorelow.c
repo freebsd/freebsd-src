@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: kcorelow.c,v 1.5 1996/10/29 21:52:19 gj Exp $
+	$Id: kcorelow.c,v 1.5.2.1 1997/02/02 20:48:34 joerg Exp $
 */
 
 #include "defs.h"

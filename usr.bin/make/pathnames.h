@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *	$Id: pathnames.h,v 1.4 1996/09/18 06:06:39 swallace Exp $
+ *	$Id: pathnames.h,v 1.5 1996/10/06 02:34:36 steve Exp $
  */
 
 #define	_PATH_OBJDIR		"obj"

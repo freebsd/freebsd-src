@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.30 1996/10/20 15:01:58 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.30.2.1 1996/11/09 21:11:03 phk Exp $
  */
 
 #include <sys/param.h>

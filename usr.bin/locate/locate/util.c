@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: util.c,v 1.1 1996/08/31 23:14:54 wosch Exp $
+ * $Id: util.c,v 1.2 1996/10/09 00:33:34 wosch Exp $
  */
 
 

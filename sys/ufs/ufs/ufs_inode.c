@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.7 1995/11/05 23:35:57 dyson Exp $
+ * $Id: ufs_inode.c,v 1.8 1996/01/05 18:31:55 wollman Exp $
  */
 
 #include "opt_quota.h"

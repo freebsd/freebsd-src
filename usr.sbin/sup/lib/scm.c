@@ -69,6 +69,15 @@
  *	since Tahoe version of <netinet/in.h> does not define them.
  *
  * $Log: scm.c,v $
+ * Revision 1.3  1996/09/06 16:08:32  peter
+ * Turn on SO_KEEPALIVE on network connections.  Since we limit the number
+ * of connections, we cannot afford to allow "disappeared" client to cause
+ * us to leave one of the 14 connections open and hanging in a read() forever.
+ *
+ * (SO_KEEPALIVE causes probe packets to be sent after a few hours of IDLE
+ * time where no data has been transferred.  Sup should NEVER do this, so the
+ * only time it will have an effect is if it looses the remote machine)
+ *
  * Revision 1.2  1995/12/26  05:02:49  peter
  * Apply ports/net/sup/patches/patch-aa...
  *

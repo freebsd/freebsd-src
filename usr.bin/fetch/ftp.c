@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3.2.1 1997/03/10 07:12:49 fenner Exp $
+ *	$Id: ftp.c,v 1.3.2.2 1997/03/11 20:09:49 joerg Exp $
  */
 
 #include <sys/types.h>

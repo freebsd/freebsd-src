@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id:$
+ * $Id: sasc.c,v 1.2 1995/09/08 18:42:46 julian Exp $
  */
 
 #include <stdlib.h>

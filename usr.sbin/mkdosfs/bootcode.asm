@@ -11,7 +11,7 @@
 ;;; (This is written in as86 syntax.  as86 is part of Bruce Evans'
 ;;; bcc package.)
 ;;;
-;;; $Id$
+;;; $Id: bootcode.asm,v 1.1.1.1 1995/11/05 16:02:04 joerg Exp $
 ;;; 
 ;;; This code must be linked to address 0x7c00 in order to function
 ;;; correctly (the BIOS boot address).

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utility.c,v 1.5 1996/09/22 21:55:52 wosch Exp $
+ *	$Id: utility.c,v 1.5.2.1 1997/01/12 21:56:36 joerg Exp $
  */
 
 #ifndef lint

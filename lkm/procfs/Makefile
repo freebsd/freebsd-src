@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/01/24 19:34:49 peter Exp $
+#	$Id: Makefile,v 1.3 1996/06/18 16:58:44 ache Exp $
 
 .PATH:	${.CURDIR}/../../sys/miscfs/procfs
 KMOD=	procfs_mod

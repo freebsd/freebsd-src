@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_inherit.h,v 1.3 1995/01/09 16:05:41 davidg Exp $
+ * $Id: vm_inherit.h,v 1.4 1995/07/13 08:48:23 davidg Exp $
  */
 
 /*

@@ -6,7 +6,7 @@
 
 #ifndef lint
 static char RCSid[] = 
-"$Id: rshrcmd.c,v 1.1 1996/08/10 07:54:17 peter Exp $";
+"$Id: rshrcmd.c,v 1.1.2.1 1996/12/14 14:04:52 joerg Exp $";
 #endif
 
 #include	"defs.h"

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.6 1995/10/31 19:22:31 peter Exp $
+ * $Id: slcompress.c,v 1.7 1996/04/11 06:46:24 davidg Exp $
  */
 
 /*

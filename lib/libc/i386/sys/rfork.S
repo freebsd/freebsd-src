@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rfork.S,v 1.2 1996/05/05 07:56:15 peter Exp $
+ *	$Id: rfork.S,v 1.3 1996/08/20 08:20:06 julian Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: rfork.S,v 1.2 1996/05/05 07:56:15 peter Exp $"
+	.asciz "$Id: rfork.S,v 1.3 1996/08/20 08:20:06 julian Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

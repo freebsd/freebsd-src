@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.8 1996/10/29 03:12:48 steve Exp $
+ *	$Id: options.c,v 1.8.2.1 1996/12/21 21:10:25 joerg Exp $
  */
 
 #ifndef lint

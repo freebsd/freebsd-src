@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1996/06/06 03:58:06 wpaul Exp $
+# $Id: Makefile,v 1.4 1996/09/05 17:14:42 bde Exp $
 
 PROG=	ypxfr
 SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \

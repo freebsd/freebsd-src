@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.4 1997/03/02 14:59:49 joerg Exp $";
+	"$Id: syslogd.c,v 1.12.2.5 1997/03/14 01:35:16 joerg Exp $";
 #endif /* not lint */
 
 /*

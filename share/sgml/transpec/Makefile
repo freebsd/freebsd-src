@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+#	$Id: Makefile,v 1.1.1.1.2.1 1996/11/10 12:01:54 phk Exp $
 
 FILES=	roff.cmap roff.sdata linuxdoc-roff.ts
 FILES+= html.cmap html.sdata linuxdoc-html.ts

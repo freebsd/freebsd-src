@@ -34,7 +34,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$Id: softmagic.c,v 1.3 1995/05/30 06:30:09 rgrimes Exp $";
+	"@(#)$Id: softmagic.c,v 1.4 1996/01/23 12:40:24 mpp Exp $";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));

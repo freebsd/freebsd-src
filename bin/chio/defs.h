@@ -1,4 +1,4 @@
-/*	$Id: $	*/
+/*	$Id: defs.h,v 1.1.1.1 1997/03/06 15:30:06 joerg Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>

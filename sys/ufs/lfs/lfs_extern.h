@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.11 1995/12/22 17:56:37 bde Exp $
+ * $Id: lfs_extern.h,v 1.12 1996/05/01 02:16:00 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chmod.c,v 1.4 1995/03/19 13:27:43 joerg Exp $
+ *	$Id: chmod.c,v 1.5 1996/08/10 15:05:26 adam Exp $
  */
 
 #ifndef lint

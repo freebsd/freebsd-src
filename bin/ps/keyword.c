@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.8 1995/10/28 20:11:15 phk Exp $
+ *	$Id: keyword.c,v 1.9 1996/07/31 09:27:23 davidg Exp $
  */
 
 #ifndef lint

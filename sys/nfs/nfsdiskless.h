@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsdiskless.h,v 1.4 1994/08/21 06:50:09 paul Exp $
+ * $Id: nfsdiskless.h,v 1.5 1995/06/27 11:06:54 dfr Exp $
  */
 
 #ifndef _NFS_NFSDISKLESS_H_

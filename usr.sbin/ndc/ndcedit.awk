@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.1.2.1 1996/11/05 20:16:00 phk Exp $
+# $Id: ndcedit.awk,v 1.1.2.2 1996/11/12 09:11:33 phk Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/10/06 02:42:11 peter Exp $
+#	$Id: Makefile,v 1.3 1996/08/21 19:07:21 mpp Exp $
 
 PROG=	kzip
 MAN8=	kzip.8

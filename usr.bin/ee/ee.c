@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.5 1995/11/08 09:54:19 ache Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.6 1996/05/27 20:59:36 joerg Exp $
  |
  */
 
@@ -62,7 +62,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.2.4  $Revision: 1.5 $";
+char *version = "@(#) ee, version 1.2.4  $Revision: 1.6 $";
 
 #ifdef NCURSE
 #include "new_curse.h"

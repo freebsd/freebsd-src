@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *   $Id: poly_2xm1.c,v 1.3 1994/06/10 07:44:32 rich Exp $
+ *   $Id: poly_2xm1.c,v 1.4 1996/09/10 08:23:52 bde Exp $
  *
  */
 

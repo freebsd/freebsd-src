@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.c,v 1.1.1.1.2.2 1996/12/11 00:14:14 joerg Exp $
+ *	$Id: pw.c,v 1.1.1.1.2.3 1997/02/07 11:21:45 davidn Exp $
  */
 
 #include "pw.h"

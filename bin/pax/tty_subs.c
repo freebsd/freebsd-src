@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty_subs.c,v 1.2 1994/09/24 02:56:38 davidg Exp $
+ *	$Id: tty_subs.c,v 1.3 1995/10/23 21:23:27 ache Exp $
  */
 
 #ifndef lint

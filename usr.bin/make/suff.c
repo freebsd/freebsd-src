@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: suff.c,v 1.6 1996/10/08 04:06:10 steve Exp $
  */
 
 #ifndef lint

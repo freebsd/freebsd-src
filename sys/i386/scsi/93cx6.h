@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.h,v 1.5.2.2 1997/03/01 06:53:33 gibbs Exp $
  */
 
 #include <sys/param.h>

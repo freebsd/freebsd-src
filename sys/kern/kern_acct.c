@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.9 1995/11/12 06:42:51 bde Exp $
+ *	$Id: kern_acct.c,v 1.10 1995/12/14 08:31:11 phk Exp $
  */
 
 #include <sys/param.h>

@@ -38,7 +38,7 @@
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 6/6/93
 #
-# $Id: newvers.sh,v 1.1.1.1 1994/05/26 05:22:06 rgrimes Exp $
+# $Id: newvers.sh,v 1.1.1.1.8.1 1996/11/28 22:04:22 phk Exp $
 #
 PATH=/usr/ucb:/bin:/usr/bin:$PATH
 if [ $# -ne 3 ]; then echo "Usage: newvers program arch os" >&2; exit 1; fi

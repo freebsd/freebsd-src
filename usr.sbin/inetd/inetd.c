@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.15.2.1 1996/11/11 23:42:30 phk Exp $";
+	"$Id: inetd.c,v 1.15.2.2 1997/02/05 23:25:10 joerg Exp $";
 #endif /* not lint */
 
 /*

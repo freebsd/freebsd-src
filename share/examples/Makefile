@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1996/01/21 17:57:25 bde Exp $
+#	$Id: Makefile,v 1.20 1996/09/06 06:30:57 jkh Exp $
 #
 # Doing a make install builds /usr/share/examples
 

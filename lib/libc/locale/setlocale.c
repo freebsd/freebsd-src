@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.5 1997/02/08 14:15:48 joerg Exp $
+ * $Id: setlocale.c,v 1.8.2.6 1997/02/22 20:17:21 joerg Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.5 1997/02/08 14:15:48 joerg Exp $";
+	"$Id: setlocale.c,v 1.8.2.6 1997/02/22 20:17:21 joerg Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)

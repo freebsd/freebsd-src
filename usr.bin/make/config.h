@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)config.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: config.h,v 1.4 1996/10/08 04:05:45 steve Exp $
  */
 
 #define	DEFSHELL	1			/* Bourne shell */

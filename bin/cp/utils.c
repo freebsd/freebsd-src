@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.6 1996/02/18 18:48:26 wosch Exp wosch $
+ *	$Id: utils.c,v 1.9 1996/03/08 06:58:08 wosch Exp $
  */
 
 #ifndef lint

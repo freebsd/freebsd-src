@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3.2.1 1997/02/07 02:29:32 jfieber Exp $
 
 FILES=	cals-tbl.dtd dbgenent.mod dbhier.mod dbpool.mod
 FILES+=	docbook.dcl docbook.dtd

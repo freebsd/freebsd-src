@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.8 1996/10/22 20:20:14 se Exp $
+**  $Id: pcireg.h,v 1.8.2.1 1996/11/25 07:19:06 phk Exp $
 **
 **  Names for PCI configuration space registers.
 **

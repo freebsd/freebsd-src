@@ -53,7 +53,7 @@
 #ifdef STORAGE
 #ifndef lint
 static char *gen_h_RCSid =
-  "$Header: /usr/src/docbook-to-man/Instant/RCS/general.h,v 1.5 1996/06/11 20:25:03 fld Exp $";
+  "$Header: /home/ncvs/src/usr.bin/sgmls/instant/general.h,v 1.1.1.1 1996/09/08 01:55:10 jfieber Exp $";
 #endif
 #endif
 

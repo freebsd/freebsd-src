@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.17 1996/09/08 10:44:10 phk Exp $
+ *  $Id: if_epreg.h,v 1.17.2.1 1996/11/12 09:08:33 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

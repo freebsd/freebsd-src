@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.16.2.1 1996/11/05 20:09:33 phk Exp $";
+	"$Id: route.c,v 1.16.2.2 1997/02/21 08:25:22 roberto Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

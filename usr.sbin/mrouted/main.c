@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 1.8 1996/10/01 23:14:33 fenner Exp $
+ * $Id: main.c,v 1.8.2.1 1996/11/11 23:37:46 phk Exp $
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $Id: main.c,v 1.8 1996/10/01 23:14:33 fenner Exp $";
+	"@(#) $Id: main.c,v 1.8.2.1 1996/11/11 23:37:46 phk Exp $";
 #endif
 
 extern char *configfilename;

@@ -37,7 +37,7 @@
  *
  *	@(#)afs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: afs_ops.c,v 1.3 1995/06/27 11:07:23 dfr Exp $
+ * $Id: afs_ops.c,v 1.3.2.1 1996/11/28 08:26:58 phk Exp $
  *
  */
 

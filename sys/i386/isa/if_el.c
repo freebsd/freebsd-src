@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.25 1996/08/06 21:14:04 phk Exp $
+ * $Id: if_el.c,v 1.26 1996/09/06 23:07:32 phk Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile.inc,v 1.1 1996/10/20 09:27:46 markm Exp $
 #
 
 SHLIB_MAJOR=	3

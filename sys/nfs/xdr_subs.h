@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)xdr_subs.h	8.1 (Berkeley) 6/10/93
- * $Id: xdr_subs.h,v 1.5 1995/06/27 11:07:03 dfr Exp $
+ * $Id: xdr_subs.h,v 1.6 1996/09/19 18:21:06 nate Exp $
  */
 
 #ifndef _NFS_XDR_SUBS_H_

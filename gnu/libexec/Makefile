@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/01/31 09:29:38 wpaul Exp $
+#	$Id: Makefile,v 1.3 1995/12/25 02:56:12 wpaul Exp $
 
 SUBDIR=	uucp
 

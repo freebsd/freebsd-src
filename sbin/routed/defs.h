@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id$
+ *	$Id: defs.h,v 1.2 1996/09/16 17:03:29 wollman Exp $
  */
 
 #ifndef  __NetBSD__
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision: 1.2 $"
 #endif
 
 /* Definitions for RIPv2 routing process.

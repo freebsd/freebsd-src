@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: conclusion.ms,v 1.4 1997/02/22 13:03:30 peter Exp $
+.\" $Id: conclusion.ms,v 1.1.2.2 1997/03/15 23:34:36 jkh Exp $
 .\"
 .ds RH Conclusion and experience.
 .NH

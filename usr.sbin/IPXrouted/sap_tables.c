@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_tables.c,v 1.9 1995/10/11 18:57:29 jhay Exp $
+ *	$Id: sap_tables.c,v 1.1 1995/10/26 21:28:25 julian Exp $
  */
 
 #include "defs.h"

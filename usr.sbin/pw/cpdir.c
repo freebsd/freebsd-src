@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpdir.c,v 1.1.1.1.2.1 1996/12/10 00:31:53 joerg Exp $
+ *	$Id: cpdir.c,v 1.1.1.1.2.2 1996/12/11 00:14:08 joerg Exp $
  */
 
 #include <stdio.h>

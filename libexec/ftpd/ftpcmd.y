@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94
- *	$Id$
+ *	$Id: ftpcmd.y,v 1.8 1996/09/22 21:53:23 wosch Exp $
  */
 
 /*

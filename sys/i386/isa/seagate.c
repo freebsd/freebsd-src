@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.17 1996/03/10 07:04:47 gibbs Exp $
+ * $Id: seagate.c,v 1.18 1996/09/06 23:08:02 phk Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: util.c,v 1.5 1996/04/18 04:25:17 nate Exp $
+ * $Id: util.c,v 1.6 1996/06/20 21:06:53 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>

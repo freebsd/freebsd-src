@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hash.c,v 1.3 1996/06/24 22:48:50 wpaul Exp $
+ *	$Id: hash.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -39,7 +39,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: hash.c,v 1.3 1996/06/24 22:48:50 wpaul Exp $";
+static const char rcsid[] = "$Id: hash.c,v 1.1.1.1 1996/06/25 20:26:38 wpaul Exp $";
 #endif
 
 

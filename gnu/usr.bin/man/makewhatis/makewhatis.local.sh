@@ -33,7 +33,7 @@
 #
 # PS: this wrapper works also for catman(1)
 #
-# $Id: makewhatis.local.sh,v 1.2 1996/05/22 00:57:40 wosch Exp $
+# $Id: makewhatis.local.sh,v 1.3 1996/08/27 20:04:07 wosch Exp $
 
 PATH=/bin:/usr/bin:$PATH; export PATH
 opt= dirs= localdirs=

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 13:05:04 peter Exp $
+#	$Id: Makefile,v 1.1.6.1 1997/03/15 23:35:34 jkh Exp $
 
 VOLUME=	psd/26.rpcrfc
 SRCS=	rpc.rfc.ms

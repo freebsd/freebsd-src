@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_icmp.h,v 1.8 1996/07/24 18:46:18 wollman Exp $
+ * $Id: ip_icmp.h,v 1.9 1996/08/20 23:11:30 fenner Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-VERSION $Id: buf.c,v 1.26 92/01/09 09:15:26 margo Exp $
+VERSION $Id: mpool.libtp,v 1.1.1.1 1996/02/27 01:59:06 pst Exp $
 PACKAGE: 	User Level Shared Memory Manager
 
 DESCRIPTION: 	

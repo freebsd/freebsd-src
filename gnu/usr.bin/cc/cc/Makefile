@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.9 1996/02/09 16:18:56 mpp Exp $
+# $Id: Makefile,v 1.10 1996/09/19 15:38:13 peter Exp $
 #
 
 PROG =	cc
