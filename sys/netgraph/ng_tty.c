@@ -69,6 +69,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/tty.h>
+#include <sys/ttycom.h>
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/ioccom.h>
@@ -158,7 +159,6 @@ static struct linesw ngt_disc = {
 	ttymodem,
 	NG_TTY_DFL_HOTCHAR	/* XXX can't change this in serial driver */
 };
-static int ngt_ldisc = -1;
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
@@ -203,7 +203,7 @@ ngt_open(dev_t dev, struct tty *tp)
 	(void) spltty();	/* XXX is this necessary? */
 
 	/* Already installed? */
-	if (tp->t_line == ngt_ldisc) {
+	if (tp->t_line == NETGRAPHDISC) {
 		sc = (sc_p) tp->t_sc;
 		if (sc != NULL && sc->tp == tp)
 			goto done;
@@ -676,17 +676,13 @@ ngt_mod_event(module_t mod, int event, void *data)
 
 		/* Register line discipline */
 		s = spltty();
-		if ((ngt_ldisc = ldisc_register(LDISC_LOAD, &ngt_disc)) < 0) {
+		if ((ngt_ldisc = ldisc_register(NETGRAPHDISC, &ngt_disc)) < 0) {
 			splx(s);
 			log(LOG_ERR, "%s: can't register line discipline",
 			    __FUNCTION__);
 			return (EIO);
 		}
 		splx(s);
-
-		/* OK */
-		log(LOG_INFO, "line discipline #%d registered to"
-		    " netgraph node type \"%s\"\n", ngt_ldisc, type->name);
 		break;
 
 	case MOD_UNLOAD:

@@ -66,7 +66,7 @@
  * Netgraph commands understood by this node type.
  * FAIL, SUCCESS and CLOSE are sent by the node rather than received.
  ********************************************************************/
-enum {
+enum cmd {
 	NGM_PPPOE_SET_FLAG = 1,
 	NGM_PPPOE_CONNECT  = 2,	/* Client, Try find this service */
 	NGM_PPPOE_LISTEN   = 3,	/* Server, Await a request for this service */
@@ -115,7 +115,7 @@ struct ngPPPoE_init_data {
  * (to report which hook has failed or connected). The message is sent
  * to whoever requested the connection. (close may use this too).
  */
-struct ngPPPoE_req {
+struct ngPPPoE_sts {
 	char	hook[NG_HOOKLEN + 1]; /* hook associated with event session */
 };
 

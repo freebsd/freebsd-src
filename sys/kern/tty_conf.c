@@ -47,7 +47,7 @@
 #include <sys/conf.h>
 
 #ifndef MAXLDISC
-#define MAXLDISC 8
+#define MAXLDISC 9
 #endif
 
 static l_open_t		l_noopen;
@@ -82,15 +82,16 @@ struct	linesw linesw[MAXLDISC] =
 	NODISC(3),		/* TABLDISC */
 	NODISC(4),		/* SLIPDISC */
 	NODISC(5),		/* PPPDISC */
-	NODISC(6),		/* loadable */
+	NODISC(6),		/* NETGRAPHDISC */
 	NODISC(7),		/* loadable */
+	NODISC(8),		/* loadable */
 };
 
 int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
 
 static struct linesw nodisc = NODISC(0);
 
-#define LOADABLE_LDISC 6
+#define LOADABLE_LDISC 7
 /*
  * ldisc_register: Register a line discipline.
  *
@@ -125,7 +126,7 @@ ldisc_register(discipline, linesw_p)
 
 /*
  * ldisc_deregister: Deregister a line discipline obtained with
- * ldisc_register.  Can only deregister "loadable" ones now.
+ * ldisc_register.
  *
  * discipline: Index for discipline to unload.
  */
@@ -133,7 +134,7 @@ void
 ldisc_deregister(discipline)
 	int discipline;
 {
-	if (discipline >= LOADABLE_LDISC && discipline < MAXLDISC) {
+	if (discipline < MAXLDISC) {
 		linesw[discipline] = nodisc;
 	}
 }
