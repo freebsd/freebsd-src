@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.25 1999/07/05 02:46:20 hoek Exp $
 #
 
 PROG=	man
@@ -6,9 +6,7 @@ SRCS=	man.c manpath.c glob.c
 MAN1=   man.1
 BINOWN= man
 BINMODE=4555
-.if !defined(NOFSCHG)
 INSTALLFLAGS+= -fschg
-.endif
 
 CFLAGS+= -I${LIBDESTDIR}
 DPADD=	${LIBMAN}
