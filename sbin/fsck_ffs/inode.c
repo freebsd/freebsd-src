@@ -156,7 +156,7 @@ static int
 iblock(struct inodesc *idesc, long ilevel, off_t isize)
 {
 	struct bufarea *bp;
-	int i, n, (*func)(), nif;
+	int i, n, (*func)(struct inodesc *), nif;
 	off_t sizepb;
 	char buf[BUFSIZ];
 	char pathbuf[MAXPATHLEN + 1];
@@ -469,7 +469,7 @@ inodirty(void)
 }
 
 void
-clri(struct inodesc *idesc, char *type, int flag)
+clri(struct inodesc *idesc, const char *type, int flag)
 {
 	union dinode *dp;
 
@@ -492,8 +492,8 @@ clri(struct inodesc *idesc, char *type, int flag)
 			cmd.value = idesc->id_number;
 			cmd.size = -DIP(dp, di_nlink);
 			if (debug)
-				printf("adjrefcnt ino %ld amt %ld\n",
-				    (long)cmd.value, cmd.size);
+				printf("adjrefcnt ino %ld amt %lld\n",
+				    (long)cmd.value, (long long)cmd.size);
 			if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST INODE", cmd.value);
@@ -569,7 +569,7 @@ pinode(ino_t ino)
 }
 
 void
-blkerror(ino_t ino, char *type, ufs2_daddr_t blk)
+blkerror(ino_t ino, const char *type, ufs2_daddr_t blk)
 {
 
 	pfatal("%lld %s I=%lu", (intmax_t)blk, type, (u_long)ino);

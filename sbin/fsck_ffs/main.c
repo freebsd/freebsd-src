@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "fsck.h"
 
 static void usage(void) __dead2;
-static int argtoi(int flag, char *req, char *str, int base);
+static int argtoi(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
 static struct statfs *getmntpt(const char *);
 
@@ -166,7 +166,7 @@ main(int argc, char *argv[])
 }
 
 static int
-argtoi(int flag, char *req, char *str, int base)
+argtoi(int flag, const char *req, const char *str, int base)
 {
 	char *cp;
 	int ret;
@@ -190,7 +190,7 @@ checkfilesys(char *filesys)
 	struct statfs *mntp;
 	struct zlncnt *zlnp;
 	ufs2_daddr_t blks;
-	int cylno, size;
+	int cylno, size, ret;
 	ino_t files;
 
 	cdevname = filesys;
@@ -295,8 +295,9 @@ checkfilesys(char *filesys)
 	clean:
 		pwarn("clean, %ld free ", (long)(sblock.fs_cstotal.cs_nffree +
 		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree));
-		printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
-		    sblock.fs_cstotal.cs_nffree, sblock.fs_cstotal.cs_nbfree,
+		printf("(%lld frags, %lld blocks, %.1f%% fragmentation)\n",
+		    (long long)sblock.fs_cstotal.cs_nffree,
+		    (long long)sblock.fs_cstotal.cs_nbfree,
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
@@ -368,22 +369,23 @@ checkfilesys(char *filesys)
 	blks = maxfsblock - (n_ffree + sblock.fs_frag * n_bfree) - blks;
 	if (bkgrdflag && (files > 0 || blks > 0)) {
 		countdirs = sblock.fs_cstotal.cs_ndir - countdirs;
-		pwarn("Reclaimed: %ld directories, %ld files, %d fragments\n",
-		    countdirs, (long)files - countdirs, blks);
+		pwarn("Reclaimed: %ld directories, %ld files, %lld fragments\n",
+		    countdirs, (long)files - countdirs, (long long)blks);
 	}
-	pwarn("%ld files, %ld used, %qu free ",
-	    (long)n_files, (long)n_blks, n_ffree + sblock.fs_frag * n_bfree);
+	pwarn("%ld files, %lld used, %llu free ",
+	    (long)n_files, (long long)n_blks,
+	    n_ffree + sblock.fs_frag * n_bfree);
 	printf("(%qu frags, %qu blocks, %.1f%% fragmentation)\n",
 	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
 			printf("%d inodes missing\n", -files);
 		if (blks < 0)
-			printf("%d blocks missing\n", -blks);
+			printf("%lld blocks missing\n", -(long long)blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
-				printf(" %d,", dp->dup);
+				printf(" %lld,", (long long)dp->dup);
 			printf("\n");
 		}
 		if (zlnhead != NULL) {
@@ -430,8 +432,6 @@ checkfilesys(char *filesys)
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
 	if (mntp != NULL) {
-		struct ufs_args args;
-		int ret;
 		/*
 		 * We modified a mounted filesystem.  Do a mount update on
 		 * it unless it is read-write, so we can continue using it
@@ -466,7 +466,7 @@ getmntpt(const char *name)
 {
 	struct stat devstat, mntdevstat;
 	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
-	char *devname;
+	char *ddevname;
 	struct statfs *mntbuf, *statfsp;
 	int i, mntsize, isdev;
 
@@ -479,10 +479,10 @@ getmntpt(const char *name)
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
 		statfsp = &mntbuf[i];
-		devname = statfsp->f_mntfromname;
-		if (*devname != '/') {
+		ddevname = statfsp->f_mntfromname;
+		if (*ddevname != '/') {
 			strcpy(device, _PATH_DEV);
-			strcat(device, devname);
+			strcat(device, ddevname);
 			strcpy(statfsp->f_mntfromname, device);
 		}
 		if (isdev == 0) {
@@ -490,7 +490,7 @@ getmntpt(const char *name)
 				continue;
 			return (statfsp);
 		}
-		if (stat(devname, &mntdevstat) == 0 &&
+		if (stat(ddevname, &mntdevstat) == 0 &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (statfsp);
 	}
