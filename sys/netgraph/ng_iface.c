@@ -331,6 +331,8 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	/* Stuff that's not supported */
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		error = 0;
+		break;
 	case SIOCSIFPHYS:
 		error = EOPNOTSUPP;
 		break;
@@ -512,7 +514,7 @@ ng_iface_constructor(node_p *nodep)
 	ifp->if_watchdog = NULL;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_mtu = NG_IFACE_MTU_DEFAULT;
-	ifp->if_flags = (IFF_SIMPLEX | IFF_POINTOPOINT | IFF_NOARP);
+	ifp->if_flags = (IFF_SIMPLEX | IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST);
 	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
