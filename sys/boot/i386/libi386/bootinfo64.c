@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.12 1998/10/09 23:24:55 peter Exp $
+ *	$Id: bootinfo.c,v 1.13 1998/10/14 05:07:23 peter Exp $
  */
 
 #include <stand.h>
@@ -277,9 +277,11 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
     bi.bi_extmem = getextmem();
 
     /* find the last module in the chain */
-    for (xp = mod_findmodule(NULL, NULL); xp->m_next != NULL; xp = xp->m_next)
-	;
-    addr = xp->m_addr + xp->m_size;
+    addr = 0;
+    for (xp = mod_findmodule(NULL, NULL); xp != NULL; xp = xp->m_next) {
+	if (addr < (xp->m_addr + xp->m_size))
+	    addr = xp->m_addr + xp->m_size;
+    }
     /* pad to a page boundary */
     pad = (u_int)addr & PAGE_MASK;
     if (pad != 0) {
