@@ -67,17 +67,7 @@ construct_cvspass_filename ()
 	return (char *) NULL;
     }
 
-    passfile =
-	(char *) xmalloc (strlen (homedir) + strlen (CVS_PASSWORD_FILE) + 3);
-    strcpy (passfile, homedir);
-#ifndef NO_SLASH_AFTER_HOME
-    /* NO_SLASH_AFTER_HOME is defined for VMS, where foo:[bar]/.cvspass is not
-       a legal filename but foo:[bar].cvspass is.  A more clean solution would
-       be something more along the lines of a "join a directory to a filename"
-       kind of thing....  */
-    strcat (passfile, "/");
-#endif
-    strcat (passfile, CVS_PASSWORD_FILE);
+    passfile = strcat_filename_onto_homedir (homedir, CVS_PASSWORD_FILE);
 
     /* Safety first and last, Scouts. */
     if (isfile (passfile))
@@ -315,6 +305,8 @@ password_entry_operation (operation, root, newpassword)
 	error (1, 0, "CVSROOT: %s", root->original);
     }
 
+    cvsroot_canonical = normalize_cvsroot (root);
+
     /* Yes, the method below reads the user's password file twice when we have
      * to delete an entry.  It's inefficient, but we're not talking about a gig of
      * data here.
@@ -327,8 +319,6 @@ password_entry_operation (operation, root, newpassword)
 	error (0, errno, "warning: failed to open %s for reading", passfile);
 	goto process;
     }
-
-    cvsroot_canonical = normalize_cvsroot (root);
 
     /* Check each line to see if we have this entry already. */
     line = 0;
