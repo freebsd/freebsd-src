@@ -710,17 +710,8 @@ wdstart(int ctrlr)
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
 
-	if (du->dk_skip == 0) {
+	if (du->dk_skip == 0)
 		du->dk_bc = bp->b_bcount;
-
-		if (bp->b_flags & B_BAD
-		    /*
-		     * XXX handle large transfers inefficiently instead
-		     * of crashing on them.
-		     */
-		    || howmany(du->dk_bc, DEV_BSIZE) > MAXTRANSFER)
-			du->dk_flags |= DKFL_SINGLE;
-	}
 
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
