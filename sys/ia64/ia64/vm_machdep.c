@@ -363,28 +363,6 @@ cpu_wait(p)
 }
 
 /*
- * Dump the machine specific header information at the start of a core dump.
- */
-int
-cpu_coredump(td, vp, cred)
-	struct thread *td;
-	struct vnode *vp;
-	struct ucred *cred;
-{
-	int error;
-
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_proc->p_uarea,
-	    ctob(UAREA_PAGES), (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, NOCRED, (int *)NULL, td);
-	if (error)
-		return error;
-	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) td->td_kstack,
-	    ctob(KSTACK_PAGES), (off_t)0,
-	    UIO_SYSSPACE, IO_UNIT, cred, NOCRED, (int *)NULL, td);
-	return error;
-}
-
-/*
  * Map an IO request into kernel virtual address space.
  *
  * All requests are (re)mapped into kernel VA space.
