@@ -216,8 +216,8 @@ static struct cdevsw sc_cdevsw = {
 	/* ioctl */	scioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	scdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	scmmap,
 	/* strategy */	nostrategy,
 	/* name */	"sc",
@@ -437,13 +437,6 @@ sc_resume_unit(int unit)
     return 0;
 }
 
-struct tty
-*scdevtotty(dev_t dev)
-{
-
-    return (dev->si_tty);
-}
-
 static int
 scdevtounit(dev_t dev)
 {
@@ -531,7 +524,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 int
 scclose(dev_t dev, int flag, int mode, struct proc *p)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty;
     struct scr_stat *scp;
     int s;
 
@@ -586,7 +579,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty;
 
     sc_touch_scrn_saver();
     return((*linesw[tp->t_line].l_read)(tp, uio, flag));
@@ -595,7 +588,7 @@ scread(dev_t dev, struct uio *uio, int flag)
 int
 scwrite(dev_t dev, struct uio *uio, int flag)
 {
-    struct tty *tp = scdevtotty(dev);
+    struct tty *tp = dev->si_tty;
 
     return((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -689,7 +682,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     scr_stat *scp;
     int s;
 
-    tp = scdevtotty(dev);
+    tp = dev->si_tty;
 
     /* If there is a user_ioctl function call that first */
     if (sc_user_ioctl) {

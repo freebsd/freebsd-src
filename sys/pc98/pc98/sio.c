@@ -253,7 +253,7 @@
  *
  * The following com and tty flags correspond closely:
  *	CS_BUSY		= TS_BUSY (maintained by comstart(), siopoll() and
- *				   siostop())
+ *				   comstop())
  *	CS_TTGO		= ~TS_TTSTOP (maintained by comparam() and comstart())
  *	CS_CTS_OFLOW	= CCTS_OFLOW (maintained by comparam())
  *	CS_RTS_IFLOW	= CRTS_IFLOW (maintained by comparam())
@@ -427,6 +427,7 @@ static	int	sioprobe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
+static	void	comstop		__P((struct tty *tp, int rw));
 static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
@@ -458,8 +459,6 @@ static	d_close_t	sioclose;
 static	d_read_t	sioread;
 static	d_write_t	siowrite;
 static	d_ioctl_t	sioioctl;
-static	d_stop_t	siostop;
-static	d_devtotty_t	siodevtotty;
 
 #define	CDEV_MAJOR	28
 static struct cdevsw sio_cdevsw = {
@@ -468,10 +467,10 @@ static struct cdevsw sio_cdevsw = {
 	/* read */	sioread,
 	/* write */	siowrite,
 	/* ioctl */	sioioctl,
-	/* stop */	siostop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	siodevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	driver_name,
@@ -1946,6 +1945,7 @@ open_top:
 		 * callout, and to complete a callin open after DCD rises.
 		 */
 		tp->t_oproc = comstart;
+		tp->t_stop = comstop;
 		tp->t_param = comparam;
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
@@ -2127,7 +2127,7 @@ sioclose(dev, flag, mode, p)
 	com->modem_checking = 0;
 #endif
 	disc_optim(tp, &tp->t_termios, com);
-	siostop(tp, FREAD | FWRITE);
+	comstop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();
@@ -3612,7 +3612,7 @@ comstart(tp)
 }
 
 static void
-siostop(tp, rw)
+comstop(tp, rw)
 	struct tty	*tp;
 	int		rw;
 {
@@ -3676,22 +3676,6 @@ siostop(tp, rw)
 	}
 	enable_intr();
 	comstart(tp);
-}
-
-static struct tty *
-siodevtotty(dev)
-	dev_t	dev;
-{
-	int	mynor;
-	int	unit;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (NULL);
-	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NSIOTOT)
-		return (NULL);
-	return (dev->si_tty);
 }
 
 static int

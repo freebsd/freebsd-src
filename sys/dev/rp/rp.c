@@ -797,8 +797,6 @@ static	d_close_t	rpclose;
 static	d_read_t	rpread;
 static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
-static	d_stop_t	rpstop;
-static	d_devtotty_t	rpdevtotty;
 
 #define	CDEV_MAJOR	81
 static struct cdevsw rp_cdevsw = {
@@ -807,10 +805,10 @@ static struct cdevsw rp_cdevsw = {
 	/* read */	rpread,
 	/* write */	rpwrite,
 	/* ioctl */	rpioctl,
-	/* stop */	rpstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	rpdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	driver_name,
@@ -859,10 +857,9 @@ static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
  * The top-level routines begin here
  */
 
-int	rpselect __P((dev_t, int, struct proc *));
-
 static	int	rpparam __P((struct tty *, struct termios *));
 static	void	rpstart __P((struct tty *));
+static	void	rpstop __P((struct tty *, int));
 static	void	rphardclose	__P((struct rp_port *));
 #define rpmap	nomap
 #define rpreset noreset
@@ -1310,6 +1307,7 @@ rpopen(dev, flag, mode, p)
 /*	rp->rp_tty = &rp_tty[rp->rp_port];
 */
 	tp = rp->rp_tty;
+	dev->si_tty = tp;
 
 	oldspl = spltty();
 
@@ -1349,6 +1347,7 @@ open_top:
 		tp->t_dev = dev;
 		tp->t_param = rpparam;
 		tp->t_oproc = rpstart;
+		tp->t_stop = rpstop;
 		tp->t_line = 0;
 		tp->t_termios = IS_CALLOUT(dev) ? rp->it_out : rp->it_in;
 		flags = 0;
@@ -2016,30 +2015,4 @@ rpstop(tp, flag)
 	}
 	splx(spl);
 	rpstart(tp);
-}
-
-int
-rpselect(dev, flag, p)
-	dev_t dev;
-	int flag;
-	struct proc *p;
-{
-	return(0);
-}
-
-struct tty *
-rpdevtotty(dev_t dev)
-{
-	struct	rp_port *rp;
-	int	unit, port, mynor, umynor;         /* SG */
-
-   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
-	port  = (minor(dev) & 0x1f);                /* SG */
-	mynor = (port + umynor);                    /* SG */
-   unit = minor_to_unit[mynor];                /* SG */
-
-	if(IS_CONTROL(dev))
-		return(NULL);
-	rp = rp_addr(unit) + port;
-	return(rp->rp_tty);
 }

@@ -217,8 +217,8 @@ static struct cdevsw sc_cdevsw = {
 	/* ioctl */	scioctl,
 	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	scdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	scmmap,
 	/* strategy */	nostrategy,
 	/* name */	"sc",
@@ -441,13 +441,6 @@ sc_resume_unit(int unit)
     return 0;
 }
 
-struct tty
-*scdevtotty(dev_t dev)
-{
-
-    return (dev->si_tty);
-}
-
 static int
 scdevtounit(dev_t dev)
 {
@@ -488,6 +481,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     tp = dev->si_tty = ttymalloc(dev->si_tty);
     tp->t_oproc = (SC_VTY(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
+    tp->t_stop = nostop;
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
 	ttychars(tp);

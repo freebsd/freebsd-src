@@ -528,13 +528,6 @@ STATIC	d_close_t	stliclose;
 STATIC	d_read_t	stliread;
 STATIC	d_write_t	stliwrite;
 STATIC	d_ioctl_t	stliioctl;
-STATIC	d_stop_t	stlistop;
-
-#if VFREEBSD >= 220
-STATIC	d_devtotty_t	stlidevtotty;
-#else
-struct tty		*stlidevtotty(dev_t dev);
-#endif
 
 /*
  *	Internal function prototypes.
@@ -559,6 +552,7 @@ static long	stli_mktiocm(unsigned long sigvalue);
 static void	stli_rxprocess(stlibrd_t *brdp, stliport_t *portp);
 static void	stli_flush(stliport_t *portp, int flag);
 static void	stli_start(struct tty *tp);
+static void	stli_stop(struct tty *tp, int rw);
 static int	stli_param(struct tty *tp, struct termios *tiosp);
 static void	stli_ttyoptim(stliport_t *portp, struct termios *tiosp);
 static void	stli_dtrwakeup(void *arg);
@@ -646,10 +640,10 @@ static struct cdevsw stli_cdevsw = {
 	/* read */	stliread,
 	/* write */	stliwrite,
 	/* ioctl */	stliioctl,
-	/* stop */	stlistop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	stlidevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	stli_drvname,
@@ -951,6 +945,7 @@ STATIC int stliopen(dev_t dev, int flag, int mode, struct proc *p)
 	if (portp == (stliport_t *) NULL)
 		return(ENXIO);
 	tp = &portp->tty;
+	dev->si_tty = tp;
 	callout = minor(dev) & STL_CALLOUTDEV;
 	error = 0;
 
@@ -986,6 +981,7 @@ stliopen_restart:
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_oproc = stli_start;
 		tp->t_param = stli_param;
+		tp->t_stop = stli_stop;
 		tp->t_dev = dev;
 		tp->t_termios = callout ? portp->initouttios :
 			portp->initintios;
@@ -1109,10 +1105,10 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 
 #if VFREEBSD >= 220
 
-STATIC void stlistop(struct tty *tp, int rw)
+STATIC void stli_stop(struct tty *tp, int rw)
 {
 #if DEBUG
-	printf("stlistop(tp=%x,rw=%x)\n", (int) tp, rw);
+	printf("stli_stop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
 	stli_flush((stliport_t *) tp, rw);
@@ -1131,16 +1127,6 @@ STATIC int stlistop(struct tty *tp, int rw)
 }
 
 #endif
-
-/*****************************************************************************/
-
-STATIC struct tty *stlidevtotty(dev_t dev)
-{
-#if DEBUG
-	printf("stlidevtotty(dev=%s)\n", devtoname(dev));
-#endif
-	return((struct tty *) stli_dev2port(dev));
-}
 
 /*****************************************************************************/
 

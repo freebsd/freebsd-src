@@ -14,6 +14,9 @@
  * all derivative works or modified versions.
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
+ *
+ * $FreeBSD$
+ *
  */
 #undef DEBUG
 
@@ -85,8 +88,6 @@ static	d_close_t	cxclose;
 static	d_read_t	cxread;
 static	d_write_t	cxwrite;
 static	d_ioctl_t	cxioctl;
-static	d_stop_t	cxstop;
-static	d_devtotty_t	cxdevtotty;
 
 #define	CDEV_MAJOR	42
 /* Don't make this static, since if_cx.c uses it. */
@@ -96,10 +97,10 @@ struct cdevsw cx_cdevsw = {
 	/* read */	cxread,
 	/* write */	cxwrite,
 	/* ioctl */	cxioctl,
-	/* stop */	cxstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	cxdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"cx",
@@ -116,6 +117,7 @@ struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
 
 static void cxoproc (struct tty *tp);
+static void cxstop (struct tty *tp, int flag);
 static int cxparam (struct tty *tp, struct termios *t);
 
 int cxopen (dev_t dev, int flag, int mode, struct proc *p)
@@ -149,8 +151,10 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		c->ttyp = cx_tty[unit];
 #endif
 		c->ttyp->t_oproc = cxoproc;
+		c->ttyp->t_stop = cxstop;
 		c->ttyp->t_param = cxparam;
 	}
+	dev->si_tty = c->ttyp;
 #ifdef __bsdi__
 	if (! c->ttydev) {
 		MALLOC (c->ttydev, struct ttydevice_tmp*,
@@ -741,15 +745,6 @@ cxparam (struct tty *tp, struct termios *t)
 	}
 	splx (s);
 	return (0);
-}
-
-struct tty *cxdevtotty (dev_t dev)
-{
-	int unit = UNIT(dev);
-
-	if (unit == UNIT_CTL || unit >= NCX*NCHAN)
-		return (0);
-	return (cxchan[unit]->ttyp);
 }
 
 /*
