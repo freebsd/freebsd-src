@@ -64,7 +64,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -143,7 +142,6 @@ struct md_s {
 	LIST_ENTRY(md_s) list;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
-	struct disk disk;
 	dev_t dev;
 	enum md_types type;
 	unsigned nsect;
