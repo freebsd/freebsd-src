@@ -25,6 +25,7 @@ DEST_CF=	${DESTDIR}/etc/mail/sendmail.cf
 DEST_SUBMIT_CF=	${DESTDIR}/etc/mail/submit.cf
 
 ALL=		freebsd.cf
+CLEANFILES=	freebsd.cf
 
 # Local SENDMAIL_MC or SENDMAIL_CF may be set in /etc/make.conf.
 # Warning!  If set, this causes 'make install' to always copy it
@@ -33,14 +34,17 @@ ALL=		freebsd.cf
 .if defined(SENDMAIL_MC)
 INSTALL_CF=	${SENDMAIL_MC:T:R}.cf
 ALL+=		${INSTALL_CF}
+CLEANFILES+=	${SENDMAIL_MC:T:R}.cf
 ${INSTALL_CF}: ${SENDMAIL_MC}
 .elif defined(SENDMAIL_CF)
+ALL+=		${SENDMAIL_CF}
 INSTALL_CF=	${SENDMAIL_CF}
 .endif
 
 .if !defined(SENDMAIL_SET_USER_ID) && defined(SENDMAIL_SUBMIT_MC)
 INSTALL_SUBMIT_CF= ${SENDMAIL_SUBMIT_MC:T:R}.cf
 ALL+=		${INSTALL_SUBMIT_CF}
+CLEANFILES+=	${INSTALL_SUBMIT_CF}
 ${INSTALL_SUBMIT_CF}: ${SENDMAIL_SUBMIT_MC}
 .endif
 
@@ -48,12 +52,11 @@ ${INSTALL_SUBMIT_CF}: ${SENDMAIL_SUBMIT_MC}
 .if defined(SENDMAIL_ADDITIONAL_MC)
 SENDMAIL_ADDITIONAL_CF= ${SENDMAIL_ADDITIONAL_MC:T:S/.mc$/.cf/}
 ALL+=		${SENDMAIL_ADDITIONAL_CF}
+CLEANFILES+=	${SENDMAIL_ADDITIONAL_CF}
 .for mc in ${SENDMAIL_ADDITIONAL_MC}
 ${mc:T:R}.cf: ${mc}
 .endfor
 .endif
-
-CLEANFILES=	${ALL}
 
 all: ${ALL}
 
