@@ -10,6 +10,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/kernel.h>
@@ -179,8 +182,19 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	struct prison *pr;
 	int error;
 	
-	p = td->td_proc;
+	/*
+	 * XXX: Note that there is a slight race here if two threads
+	 * in the same privileged process attempt to attach to two
+	 * different jails at the same time.  It is important for
+	 * user processes not to do this, or they might end up with
+	 * a process root from one prison, but attached to the jail
+	 * of another.
+	 */
+	error = suser(td);
+	if (error)
+		return (error);
 
+	p = td->td_proc;
 	mtx_lock(&allprison_mtx);
 	pr = prison_find(uap->jid);
 	if (pr == NULL) {
@@ -191,9 +205,6 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	mtx_unlock(&pr->pr_mtx);
 	mtx_unlock(&allprison_mtx);
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
-	if (error)
-		goto e_dropref;
 	mtx_lock(&Giant);
 	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY, td);
 	if ((error = change_dir(pr->pr_root, td)) != 0)
@@ -208,13 +219,6 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 
 	newcred = crget();
 	PROC_LOCK(p);
-	/* Implicitly fail if already in jail.  */
-	error = suser_cred(p->p_ucred, 0);
-	if (error) {
-		PROC_UNLOCK(p);
-		crfree(newcred);
-		goto e_dropref;
-	}
 	oldcred = p->p_ucred;
 	setsugid(p);
 	crcopy(newcred, oldcred);
@@ -226,7 +230,6 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 e_unlock:
 	VOP_UNLOCK(pr->pr_root, 0, td);
 	mtx_unlock(&Giant);
-e_dropref:
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	mtx_unlock(&pr->pr_mtx);
