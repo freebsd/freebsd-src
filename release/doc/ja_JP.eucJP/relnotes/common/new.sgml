@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.246
+    Original revision: 1.22.2.248
 -->
 
 <articleinfo>
@@ -99,21 +99,21 @@
     <title>カーネルの変更点</title>
 
     <para arch="i386">&man.puc.4;
-      (PCI <quote>ユニバーサル</quote> コミュンケーション)
+      (PCI <quote>ユニバーサル</quote> コミュニケーション)
       ドライバが追加されました。
       これは PCI ベースのシリアルポートを
-      &man.sio.4; ドライバへ接続するのに役立ちます。</para>
+      &man.sio.4; ドライバへ関連付けるのに役立ちます。</para>
 
-    <para>新しくローダから変更可能な変数 <varname>dumpdev</varname>
+    <para>ローダから変更可能な新規の変数 <varname>dumpdev</varname>
       が追加され、カーネルダンプデバイスが設定できるようになりました。
       これにより、カーネル初期化の後の方 (システムがシングルユーザモードに入る前)
       で発生した panic のクラッシュダンプを取得することが可能になっています。</para>
 
-    <para>&man.snp.4; ドライバはスタティックなものではなくなり、
+    <para>&man.snp.4; ドライバは静的にカーネルに組み込む必要はなくなり、
       モジュールとしてコンパイルできるようになりました。</para>
 
-    <para arch="i386">Sony の laptop で、
-      ジョグダイアルへアクセスする機能を提供する
+    <para arch="i386">Sony のいくつかのラップトップ機が搭載する
+      ジョグダイアルへアクセスするための
       &man.spic.4; ドライバが追加されました。
       同様に、このデバイスに対する
       &man.moused.8 のサポートも追加されました。</para>
@@ -133,17 +133,18 @@
 	BIOS で無効にされていた場合に有効化しようと試みるものです。</para>
 
       <para arch="i386">いくつかのシステムでは、
-	BIOS が PCI デバイスの I/O ポートやメモリを活動させず、
+	BIOS が PCI デバイスの I/O ポートやメモリを動作可能に設定しないため、
 	利用することができません。
 	カーネルオプション <literal>PCI_ENABLE_IO_MODES</literal> は
-	デバイスを利用するために &os; に強制的に有効化させます。</para>
+	それらのデバイスを利用できるようにするために、
+	&os; がそれらを強制的に有効化するようにします。</para>
     </sect3>
 
     <sect3>
       <title>起動ローダ関連</title>
 
-      <para arch="i386"><filename>boot2</filename>が
-	キーボード操作による boot 中断を無効化する
+      <para arch="i386"><filename>boot2</filename>が、
+	キーボード操作によって boot が中断されることを防ぐ
 	<option>-n</option> オプションをサポートするようになりました。</para>
       
 <!-- Above this line, order boot loader changes by manpage/variable name-->
@@ -153,8 +154,9 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
       
-      <para>&man.an.4; ドライバが新しく Cisco LEAP および
-        <quote>Home</quote> WEP 暗号鍵に対応しました。
+      <para>&man.an.4; ドライバが
+	<quote>Home</quote> WEP 暗号鍵に加えて
+	新しく Cisco LEAP にも対応しました。
         Linux Aironet ユーティリティは現在、
         エミュレーション環境下での動作に対応しています。</para>
 
@@ -203,7 +205,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
         そして sysctl 変数 <varname>kern.polling.enable</varname>
         を設定することで、ポーリングモードを有効にすることができます。
         この時、<varname>kern.polling.user_frac</varname> sysctl 変数は
-        ユーザランド用に予約された CPU 時間の百分率を示します。
+        ユーザランド用に予約された CPU 時間の割合を百分率で示します。
         ポーリングに対応したデバイスは今のところ
         &man.dc.4;、&man.fxp.4;、&man.rl.4;、&man.sis.4; です。
         詳細については &man.polling.4; のマニュアルページを参照してください。</para>
@@ -244,6 +246,20 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <para>&man.ata.4; ドライバが
 	2002 年 5 月 18 時点の &os; -CURRENT と同期しました。</para>
 
+      <important>
+	<para>ATA タグ付きキューイングを使ってテストしている際に
+	  問題が生じている場合があるようです。
+	  典型的な症状はブート時にリードタイムアウトしてしまい、
+	  ルートファイルシステムのマウントに失敗するというものです。
+	  これらはマザーボードの ATA コントローラに接続されている
+	  ディスクがタグ付きキューイングに対応している場合にのみ現れます。
+	  この機能は特定の ATA ハードディスクでのみサポートされているので、
+	  <filename>/boot/loader.conf</filename> で
+	  <literal>hw.ata.tags="1"</literal> として明示的に有効にする
+	  必要があります。これは多くのユーザには影響を与えない
+	  はずです。</para>
+      </important>
+
       <para>&man.ata.4; ドライバが &man.atacontrol.8; の制御化の下に
 	ATA RAID の生成、削除、クエリ、再構築をサポートするようになりました。</para>
     </sect3>
@@ -251,11 +267,11 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <sect3>
       <title>ファイルシステム</title>
 
-      <para>soft updates において、
-	新しいカーネルやソフトウェアをインストールするといった
+      <para>新しいカーネルやソフトウェアをインストールするといった
 	ファイルシステムに負荷のかかる作業を行った直後に
 	システムをシャットダウンした場合、
-	ファイルシステムがまれに汚染を引き起こす可能性があるバグが修正されました。</para>
+	ファイルシステムが破壊される可能性がある
+	soft updates のバグが修正されました。</para>
     </sect3>
 
     <sect3>
@@ -379,49 +395,62 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <para>TCP SYN cache (<quote>syncache</quote>) の実装において
       accept filter (&man.accept.filter.9; 参照) が使用されていた時に
       リモートの攻撃者がサービスへのアクセスを拒否できる
-      可能性のあるバグが修正されました。</para>
+      可能性のあるバグが修正されました。
+      より詳しい情報は
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>
+      を参照してください。
+    </para>
+
+    <para>&man.rc.8; においてシェルのグロブの使い方が間違っていたため、
+      <filename>/tmp/.X11-unix</filename> が存在せず、システムをリブート
+      できる場合に、ユーザが任意のファイルの中身を消すことができるように
+      なっていました。
+      このバグは修正されました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>
+      を参照)。</para>
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
     <para>&man.atacontrol.8; が &man.ata.4; ドライバの
-      様々の側面を制御するために追加されました。</para>
+      様々な振る舞いを制御するために追加されました。</para>
 
-    <para>ATAPI CDROM ドライブにおいて、
-      &man.cdcontrol.1; が ドライブの最大速度を制御するために
+    <para>ATAPI CDROM ドライブに対して、
+      &man.cdcontrol.1; が ドライブの最大速度を設定するための
       <literal>speed</literal> コマンドをサポートするようになりました。</para>
 
-    <para>&man.ctags.1; が、ソースファイルが (C++ スタイルの)
-      <literal>//</literal> コメントが使用している場合に
-      腐ったタグファイルを生成しなくなりました。</para>
+    <para>&man.ctags.1; が、ソースファイルに (C++ スタイルの)
+      <literal>//</literal> コメントが使用されている場合でも
+      壊れたタグファイルを生成しなくなりました。</para>
 
     <para>&man.dump.8; は進行状況をプロセスタイトルに出力するようになりました。
       これは自動化したバックアップを監視する際に有用です。</para>
 
     <para><filename>/etc/rc.firewall</filename> と
-      <filename>/etc/rc.firewall6</filename> は
-      <varname>firewall_type</varname> 変数にセットしたルールファイルや
-      存在しない防火壁の種類が指定された場合に
+      <filename>/etc/rc.firewall6</filename> は、
+      <varname>firewall_type</varname> 変数にルールファイルが設定された場合と
+      存在しないファイアウォールの種類が指定された場合に
       ハードコーディングされたルールを追加しなくなりました
-      (この変更をすることになったきっかけは
-      サイトの防火壁のポリシーについての仮定に従う動作を回避するためです)。
-      さらに、<literal>closed</literal> と設定された防火壁は
+      (この変更の目的は、サイトのファイアウォールに関するポリシーを
+      (訳注: 勝手に) 仮定して動作してしまうことを避けることです)。
+      さらに、<literal>closed</literal> 型に設定されたファイアウォールは
       &man.rc.firewall.8; のマニュアルに記述されているように動作するようになりました。</para>
 
     <para>ローカルでのカスタマイズや保守の手間を軽減するため、
       <filename>/etc/security</filename> の機能が
-      &man.periodic.8; フレームワークにおけるスクリプト群に統合されました。
+      &man.periodic.8; フレームワークにおけるスクリプト群に移動されました。
       現在、これらのスクリプトは
       <filename>/etc/periodic/security/</filename> に置かれています。</para>
 
     <para>&man.ifconfig.8; の
       <option>ether</option> アドレスファミリーが
       より一般的な <option>link</option> ファミリーに変更されました
-      (<option>ether</option> は後方互換性のためにまた許容されています)。</para>
+      (<option>ether</option> は後方互換性のためにまだ利用できます)。</para>
 
     <para>&man.fsdb.8; が
-      特定の inode によって配分されるブロックを一覧にするために、
+      特定の inode によって割り当てられたブロック一覧を表示するための、
       <literal>blocks</literal> コマンドをサポートするようになりました。</para>
 
     <para>&man.ispppcontrol.8; が削除され、
@@ -440,29 +469,28 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 
     <para>&man.last.1; が
       <option>-y</option> フラグをサポートするようになりました。
-      セッションの開始時刻に含まれるべき年をもたらすものです。</para>
+      セッションの開始時刻として年の表示を含めるようにします。</para>
 
     <para><filename>libstand</filename> が
       いくつかの物理メディアをまたがって分割された
-      大きなカーネルとモジュールをロードできるようになりました。</para>
+      大きなカーネルやモジュール群をロードできるようになりました。</para>
 
     <para><filename>libusb</filename> の名前が
       <filename>libusbhid</filename> に変更されました。
       これは NetBSD の命名規則に従ったものです。</para>
 
     <para>&man.lpd.8; が
-      <option>-p</option> フラグにとってより好まれる類義語として
+      <option>-p</option> フラグと同じ意味を持ち、より好ましい
       <option>-s</option> フラグを認識するようになりました
       (これらのフラグは &man.lpd.8; に
-      ネットワークプリンタジョブへ対するソケットをオープンさせません)。</para>
+      ネットワーク経由のプリントジョブ用ソケットを閉じさせます)。</para>
 
     <para>&man.lpd.8; へ
       新たに <literal>rc</literal> printcap オプションが実装されました。
-      リモートホストのプリントキューに指定されると、
-      ブールオプションにより
+      この bool オプションがリモートホストのプリントキューに指定されると、
       <command>lpr -#<replaceable>n</replaceable></command>
-      を通してユーザがリクエストしたデータファイルのコピーを
-      &man.lpd.8; に再送させます。</para>
+      によるユーザ要求に対して、必要な回数分繰り返してデータファイルが
+      &man.lpd.8; により転送されます。</para>
 
     <para>&man.ls.1; が
       <option>-h</option> フラグを受け付けるようになりました。
@@ -470,37 +498,37 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       ファイルに単位 (訳注: B, KB, MB など) をつけて
       3 以下の桁数でファイルサイズを出力させることができます。</para>
 
-    <para>&man.m4.1; が &man.cpp.1; で利用するために
-      <literal>#line</literal> ディレクティブを出力する
+    <para>&man.m4.1; が、&man.cpp.1; で利用するための
+      <literal>#line</literal> ディレクティブを出力するように指示する
       <option>-s</option> フラグを受け付けるようになりました。</para>
 
     <para>&man.mergemaster.8; が新たに
       2 つのフラグをサポートするようになりました。
-      <option>-p</option> フラグは
-      システムのアップグレードステップの
+      <option>-p</option> フラグは、
       <literal>buildworld</literal> と
-      <literal>installworld</literal> の
-      成功に不可欠として知られているファイルを比較する
+      <literal>installworld</literal> という
+      システムのアップグレードステップが成功するために重要であると
+      わかっているファイル群を比較するための
       <quote>pre-<literal>buildworld</literal></quote>
       モードを有効にします。
       <option>-C</option> フラグは &man.mergemaster.8; がうまく動作した後、
-      <filename>/etc/rc.conf</filename> と
-      デフォルトのオプションが定義されている
-      <filename>/etc/defaults/rc.conf</filename> のオプションを比較します。</para>
+      <filename>/etc/rc.conf</filename> で指定されているオプションと
+      <filename>/etc/defaults/rc.conf</filename> で
+      定義されているデフォルトのオプションを比較します。</para>      
 
     <para>&man.ngctl.8; が新しく <option>write</option>
       コマンドに対応しました。
-      これはデータパケットを指定したフックに送ります。</para>
+      これは指定したフックにデータパケットを送ります。</para>
 
     <para>&man.patch.1; が
-      標準入力よりもファイルからパッチを読み込むために
+      標準入力ではなくファイルからパッチを読み込むことを指定する
       <option>-i</option> コマンドラインフラグを受け付けるようになりました。</para>
 
     <para>&man.pam.ssh.8; モジュールが
-      SSH パスフレーズと鍵認証の利用を受け付けるために追加されました。
-      このモジュールは &man.ssh-agent.1; を用いるセッション管理も処理します。</para>
+      SSH のパスフレーズと鍵の対を使った認証を受け付けるために追加されました。
+      このモジュールは &man.ssh-agent.1; を起動することによりセッション管理も処理します。</para>
 
-    <para>&man.pr.1; が端末への出力を停止するために
+    <para>&man.pr.1; が、端末への出力を一時停止するよう指示する
       <option>-f</option>、<option>-p</option>
       フラグをサポートするようになりました。</para>
 
@@ -508,18 +536,18 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       (指定したスワップデバイスから情報を抽出する) が削除されました。
       このオプションは少し前から使えなくなっていたものです。</para>
 
-    <para>&man.reboot.8; が次の起動時のカーネルを指定するために
-      <option>-k</option> をつけることができるようになりました。</para>
+    <para>&man.reboot.8; は次の起動時のカーネルを指定するための
+      <option>-k</option> オプションを受け付けるようになりました。</para>
 
-    <para>&man.sshd.8; が S/Key が有効化されていないクライアントに
-      偽の S/Key チャレンジに対する応答をしないようになりました。
-      最近の SSH クライアントが &os; システムに接続した時に
-      one-time-password を促さない限り、
-      上述の振舞いは混乱をもたらすからです。</para>
+    <para>&man.sshd.8; は S/Key が有効化されていないユーザに対して
+      偽の S/Key チャレンジを出力しないようになりました。
+      以前の振る舞いは、比較的新しいいくつかの SSH クライアントが
+      &os; システムに接続した時に役に立たずユーザを混乱させるような
+      one-time-password を出力していました。</para>
 
     <para>未完成ですが、&man.sysinstall.8; が
       (複数の CD による配布のような)
-      複数のボリュームの正しいボリュームから
+      複数のボリュームを利用するインストールにおいて、正しいボリュームから
       package を拾い出す機能をサポートするようになりました。</para>
 
     <para>&man.tftp.1; と &man.tftpd.8; が
@@ -532,7 +560,7 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <option>-o</option> オプションを受け付けるようになりました。
       また、<option>-m</option> フラグが与えられた時に
       &man.uuencode.1; が base64 エンコーディングをするようなり、
-      一包、&man.uudecode.1; は自動的に
+      一方、&man.uudecode.1; は自動的に
       base64 ファイルをデコードするようになりました。</para>
 
     <para>&man.watch.8; が
@@ -545,17 +573,17 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       <literal>*.euc??</literal> 形式へ改名されました。
       例えば、<literal>ja_JP.EUC</literal> は
       <literal>ja_JP.eucJP</literal> になります。
-      これは &os; CURRENT、X11R6 およびたくさんの UNIX のバージョンとの
+      これは &os; CURRENT、X11R6 およびたくさんの他の UNIX のバージョンとの
       locale 名の互換性を改善するものです。</para>
 
     <para>locale のサポートが &os; -CURRENT のコードと同期しました。
-      この変更は
+      この変更により
+      &man.strftime.3; が改善し、
+      locale の定義が改訂され、
+      多くのベースシステムプログラムの地域化が改善し、さらに
       <literal>LC_NUMERIC</literal>、
       <literal>LC_MONETARY</literal> および
-      <literal>LC_MESSAGES</literal> カテゴリのサポートをもたらすもので、
-      &man.strftime.3; の改善と同様に、
-      locale の定義を改訂し、
-      多くのベースシステムプログラムの地域化の改善しました。</para>
+      <literal>LC_MESSAGES</literal> カテゴリがサポートされました。</para>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
@@ -585,17 +613,17 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	<para><application>sendmail</application> が
 	  8.12.3 に更新されました。
 	  &man.sendmail.8; は root に set-user-ID されたバイナリとして
-	  インストールされなくなりました (smmsp に set-group-ID されています)。
+	  インストールされなくなりました
+          (現在は smmsp に set-group-ID されています)。
 	  詳細は
 	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> と
-	  <filename>/etc/mail/README</filename>
-	  をご覧ください。</para>
+	  <filename>/etc/mail/README</filename> をご覧ください。</para>
 
 	<para>この <application>sendmail</application> の更新に伴い、
-	  <application>sendmail</application> デーモン
-	  (外へ出ていくメールを扱うためにこれを要求するものがあります) は
+	  複数の <application>sendmail</application> デーモン
+	  (外へ出ていくメールを扱うためにいくつかが必要です) は
 	  <varname>sendmail_enable</varname> 変数が
-	  <literal>NO</literal> にセットされていても
+	  <literal>NO</literal> にセットされている場合であっても
 	  &man.rc.8; によって起動されるようになりました。
 	  <application>sendmail</application> を完全に無効化するには、
 	  <varname>sendmail_enable</varname> を
@@ -605,18 +633,19 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 	  を用いて異なる起動スクリプトを指定することが可能です
 	  (詳細は &man.rc.sendmail.8; をご覧ください)。</para>
 
-	<para><filename>/etc/mail/Makefile</filename> をから構築される
+	<para><filename>/etc/mail/Makefile</filename> から構築されるときの
 	  <application>sendmail</application> のエイリアスと
-	  map database の許可属性はローカルのサービス拒否をロックする
-	  ファイルに対して防御するためにデフォルトでモード 0640 になりました。
+	  map に関するデータベースファイルの許可属性は、
+	  ロックファイルに対するローカルからのサービス妨害攻撃を防ぐために
+	  デフォルトがモード 0640 になりました。
 	  これは <filename>make.conf</filename> の
 	  <varname>SENDMAIL_MAP_PERMS</varname>
-	  オプションをセットして変更することが可能です。</para>
+	  という新しいオプションをセットして変更することが可能です。</para>
 
 	<para><application>sendmail</application> の統計ファイル
-	  (<filename>/var/log/sendmail.st</filename>)
-	  の許可属性がローカルのサービス拒否をロックするファイルに
-	  対して防御するためにモード 0644 から 0640 へ変更されました。</para>
+	  (<filename>/var/log/sendmail.st</filename>) の許可属性が
+	  ロックファイルに対するローカルからのサービス妨害攻撃を防ぐために
+	  モード 0644 から 0640 へ変更されました。</para>
 
       </sect4>
 
@@ -625,9 +654,9 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>Ports Collection の基盤は、依存関係を満足するために
-	X Window System のデフォルトのバージョンとして
-	<application>XFree86</application> 4.2.0 を利用するようになりました。
+      <para>Ports Collection の基本設定として、(訳注: 各 port が) 依存する
+	X Window System のデフォルトのバージョンを
+	<application>XFree86</application> 4.2.0 へ変更しました。
 	<application>XFree86</application> 3.3.6 へ戻すには、
 	次の行を <filename>/etc/make.conf</filename> へ加えてください。</para>
 
@@ -644,8 +673,8 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       X Window System のデフォルトのバージョンになりました。
       標準のバイナリパッケージセットとして
       <application>XFree86</application> がインストールされるので、
-      &man.pkg.info.1; のような通常の package ユーティリティは
-      このコンポーネントを調べ、巧妙に操作して利用することができます。</para>
+      &man.pkg.info.1; のような通常の package ユーティリティを
+      それらのコンポーネントを調べたり操作したりするために利用することができます。</para>
   </sect2>
 </sect1>
 
@@ -699,6 +728,6 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
   <important>
     <para>もちろん言うまでもないことですが、
       &os; のアップグレードは、データと設定ファイルを
-      <emphasis>すべて</emphasis>退避させた後に行なうべきです。</para>
+      <emphasis>すべて</emphasis> バックアップさせた後に行なうべきです。</para>
   </important>
 </sect1>
