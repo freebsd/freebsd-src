@@ -788,6 +788,7 @@ mptable_pass1(void)
 
 		/* fill in with defaults */
 		mp_naps = 2;		/* includes BSP */
+		mp_maxid = 1;
 		mp_nbusses = default_data[MPFPS_MPFB1 - 1][0];
 #if defined(APIC_IO)
 		mp_napics = 1;
@@ -809,8 +810,10 @@ mptable_pass1(void)
 			switch (type = *(u_char *) position) {
 			case 0: /* processor_entry */
 				if (((proc_entry_ptr)position)->cpu_flags
-					& PROCENTRY_FLAG_EN)
+				    & PROCENTRY_FLAG_EN) {
 					++mp_naps;
+					mp_maxid++;
+				}
 				break;
 			case 1: /* bus_entry */
 				++mp_nbusses;
