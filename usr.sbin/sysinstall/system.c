@@ -191,7 +191,9 @@ systemExecute(char *command)
 {
     int status;
     struct termios foo;
+    WINDOW *w = savescr();
 
+    dialog_clear();
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
@@ -206,6 +208,7 @@ systemExecute(char *command)
 	msgDebug("systemExecute:  Faked execution of `%s'\n", command);
     }
     DialogActive = TRUE;
+    restorescr(w);
     return status;
 }
 
@@ -216,7 +219,8 @@ systemDisplayHelp(char *file)
     char *fname = NULL;
     char buf[FILENAME_MAX];
     int ret = 0;
-
+    WINDOW *w = savescr();
+    
     fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
@@ -230,6 +234,7 @@ systemDisplayHelp(char *file)
 	use_helpline(NULL);
 	dialog_textbox(file, fname, LINES, COLS);
     }
+    restorescr(w);
     return ret;
 }
 

@@ -417,7 +417,7 @@ configSaverTimeout(dialogMenuItem *self)
 {
     return (variable_get_value(VAR_BLANKTIME,
 	    "Enter time-out period in seconds for screen saver", 1) ?
-	    DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+	DITEM_SUCCESS : DITEM_FAILURE);
 }
 
 int
@@ -436,16 +436,18 @@ configNTP(dialogMenuItem *self)
 	self->data = tmp;
 	dmenuSetVariables(self);
     }
-    return status | DITEM_RESTORE;
+    return status;
 }
 
 int
 configUsers(dialogMenuItem *self)
 {
+    WINDOW *w = savescr();
+
     dialog_clear_norefresh();
     dmenuOpenSimple(&MenuUsermgmt, FALSE); 
-    dialog_clear();
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 int
@@ -498,10 +500,13 @@ configXDesktop(dialogMenuItem *self)
 {
     char *desk;
     int ret = DITEM_SUCCESS;
-
-    if (!dmenuOpenSimple(&MenuXDesktops, FALSE) ||
-	!(desk = variable_get(VAR_DESKSTYLE)))
+    WINDOW *w = savescr();
+    
+    dialog_clear_norefresh();
+    if (!dmenuOpenSimple(&MenuXDesktops, FALSE) || !(desk = variable_get(VAR_DESKSTYLE))) {
+	restorescr(w);
 	return DITEM_FAILURE;
+    }
     if (!strcmp(desk, "kde")) {
 	ret = package_add("kde");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
@@ -544,6 +549,7 @@ configXDesktop(dialogMenuItem *self)
 		   "by this desktop type.  Please change installation media\n"
 		   "and/or select a different, perhaps simpler, desktop\n"
 		   "environment and try again.");
+    restorescr(w);
     return ret;
 }
 
@@ -552,21 +558,27 @@ configXSetup(dialogMenuItem *self)
 {
     char *config, *execfile, *style;
     char *moused;
-
+    WINDOW *w;
+    
     setenv("XWINHOME", "/usr/X11R6", 1);
 tryagain:
-    dialog_clear_norefresh();
+    w = savescr();
     variable_unset(VAR_DESKSTYLE);
     variable_unset(VAR_XF86_CONFIG);
-    if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
-	return DITEM_FAILURE | DITEM_RESTORE;
+    dialog_clear_norefresh();
+    if (!dmenuOpenSimple(&MenuXF86Config, FALSE)) {
+	restorescr(w);
+	return DITEM_FAILURE;
+    }
     config = variable_get(VAR_XF86_CONFIG);
     style = variable_get(VAR_DESKSTYLE);
     if (!config) {
 	if (style)
 	    goto config_desktop;
-	else
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	else {
+	    restorescr(w);
+	    return DITEM_FAILURE;
+	}
     }
 
     if (file_readable("/var/run/ld.so.hints"))
@@ -577,7 +589,6 @@ tryagain:
     vsystem("/sbin/ifconfig lo0 127.0.0.1");
     execfile = string_concat("/usr/X11R6/bin/", config);
     if (file_executable(execfile)) {
-	dialog_clear_norefresh();
 	moused = variable_get(VAR_MOUSED);
 	while (!moused || strcmp(moused, "YES")) {
 	    if (msgYesNo("The X server may access the mouse in two ways: direct access\n"
@@ -586,8 +597,8 @@ tryagain:
 			 "now?  If you intend to let the X server access the mouse\n"
 			 "directly, choose \"No\" at this time."))
 		break;
+	    dialog_clear_norefresh();
 	    dmenuOpenSimple(&MenuMouse, FALSE); 
-	    dialog_clear();
 	    moused = variable_get(VAR_MOUSED);
 	}
 	if (moused && !strcmp(moused, "YES"))
@@ -595,23 +606,25 @@ tryagain:
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
-	dialog_clear();
 	systemExecute(execfile);
 	if (!file_readable("/etc/XF86Config")) {
 	    if (!msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
 		goto tryagain;
-	    else
-		return DITEM_FAILURE | DITEM_RESTORE;
+	    else {
+		restorescr(w);
+		return DITEM_FAILURE;
+	    }
 	}
 config_desktop:
 	configXDesktop(self);
-	return DITEM_SUCCESS | DITEM_RESTORE;
+	restorescr(w);
+	return DITEM_SUCCESS;
     }
     else {
-	dialog_clear_norefresh();
 	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
 		   "Please install this before attempting to configure XFree86.");
-	return DITEM_FAILURE | DITEM_RESTORE;
+	restorescr(w);
+	return DITEM_FAILURE;
     }
 }
 
@@ -713,7 +726,7 @@ configRouter(dialogMenuItem *self)
 	    variable_unset(VAR_ROUTER);
 	}
     }
-    return ret | DITEM_RESTORE;
+    return ret;
 }
 
 /* Shared between us and index_initialize() */
@@ -750,7 +763,6 @@ configPackages(dialogMenuItem *self)
 	    }
 	}
 	else {
-	    dialog_clear_norefresh();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
@@ -763,7 +775,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &Plist);
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 
 /* Load pcnfsd package */
@@ -809,9 +821,9 @@ configNFSServer(dialogMenuItem *self)
 	    sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
 	    dialog_clear();
 	    systemExecute(cmd);
-	    restorescr(w);
 	}
 	variable_set2(VAR_NFS_SERVER, "YES", 1);
+	restorescr(w);
     }
     else if (variable_get(VAR_NFS_SERVER)) { /* We want to turn it off again? */
 	vsystem("mv -f /etc/exports /etc/exports.disabled");

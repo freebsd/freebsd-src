@@ -191,12 +191,14 @@ anonftpOpenDialog(void)
     int                 n = 0, cancel = FALSE;
     int                 max;
     char                title[80];
-    
+    WINDOW		*w = savescr();
+
     /* We need a curses window */
     if (!(ds_win = openLayoutDialog(ANONFTP_HELPFILE, " Anonymous FTP Configuration ",
 			      ANONFTP_DIALOG_X, ANONFTP_DIALOG_Y, ANONFTP_DIALOG_WIDTH, ANONFTP_DIALOG_HEIGHT))) {
 	beep();
 	msgConfirm("Cannot open anonymous ftp dialog window!!");
+	restorescr(w);
 	return DITEM_FAILURE;
     }
     
@@ -225,9 +227,8 @@ anonftpOpenDialog(void)
 
     /* Clear this crap off the screen */
     delwin(ds_win);
-    dialog_clear_norefresh();
     use_helpfile(NULL);
-    
+    restorescr(w);
     if (cancel)
 	return DITEM_FAILURE;
     return DITEM_SUCCESS;
@@ -241,11 +242,10 @@ configAnonFTP(dialogMenuItem *self)
     /* Be optimistic */
     i = DITEM_SUCCESS;
     
-    dialog_clear_norefresh();
     i = anonftpOpenDialog();
     if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
-	return i | DITEM_RESTORE;
+	return i;
     }
     
     /*** Use defaults for any invalid values ***/
@@ -296,7 +296,6 @@ configAnonFTP(dialogMenuItem *self)
 	
 	if (!msgYesNo("Create a welcome message file for anonymous FTP users?")) {
 	    char cmd[256];
-	    dialog_clear();
 	    vsystem("echo Your welcome message here. > %s/etc/%s", tconf.homedir, MOTD_FILE);
 	    sprintf(cmd, "%s %s/etc/%s", variable_get(VAR_EDITOR), tconf.homedir, MOTD_FILE);
 	    if (!systemExecute(cmd))
@@ -312,5 +311,5 @@ configAnonFTP(dialogMenuItem *self)
     }
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("anon_ftp", "YES", 0);
-    return i | DITEM_RESTORE;
+    return i;
 }

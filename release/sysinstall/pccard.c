@@ -74,7 +74,8 @@ pccardInitialize(void)
     char *scard_irq;
     char pccardd_flags[128];
     char pccardd_cmd[256];
-
+    WINDOW *w;
+    
     pccard_mode = 1;
     
     if (!RunningAsInit && !Fake) {
@@ -122,15 +123,16 @@ pccardInitialize(void)
     }
 
     sprintf(card_device, CARD_DEVICE, 0);
-    
-    dialog_clear();
-    msgConfirm("Now starts initializing PC-card controller and cards.\n"
-	       "If you've executed this installer from PC-card floppy\n"
+
+    w = savescr();
+    dialog_clear_norefresh();
+    msgConfirm("Now we start initializing PC-card controller and cards.\n"
+	       "If you've executed this installer from a PC-card floppy\n"
 	       "drive, this is the last chance to replace it with\n"
 	       "installation media (PC-card Ethernet, CDROM, etc.).\n"
 	       "Please insert installation media and press [Enter].\n"
 	       "If you've not plugged the PC-card installation media\n"
-	       "yet, please plug it now and press [Enter].\n"
+	       "in yet, please plug it in now and press [Enter].\n"
 	       "Otherwise, just press [Enter] to proceed."); 
 
     dialog_clear();
@@ -140,11 +142,13 @@ pccardInitialize(void)
 	if ((fd = open(card_device, O_RDWR)) < 1) {
 	    msgNotify("Can't open PC-card controller %s.\n", 
 		      card_device);
+	    restorescr(w);
 	    return;
 	}
 
 	if (ioctl(fd, PIOCRWMEM, &pcic_mem) < 0){
 	    msgNotify("ioctl %s failed.\n", card_device);
+	    restorescr(w);
 	    return;
 	}
     }
@@ -157,6 +161,7 @@ pccardInitialize(void)
     variable_set2("pccardd_flags", card_irq, 1);
 
     vsystem(pccardd_cmd);
+    restorescr(w);
 }
 
 #endif	/* PCCARD */
