@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.87 1999/02/19 14:25:34 luoqi Exp $
+ * $Id: kern_clock.c,v 1.88 1999/02/19 19:34:49 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -675,10 +675,7 @@ tco_setscales(struct timecounter *tc)
 	u_int64_t scale;
 
 	scale = 1000000000LL << 32;
-	if (tc->tc_adjustment > 0)
-		scale += (tc->tc_adjustment * 1000LL) << 10;
-	else
-		scale -= (-tc->tc_adjustment * 1000LL) << 10;
+	scale += tc->tc_adjustment;
 	scale /= tc->tc_frequency;
 	tc->tc_scale_micro = scale / 1000;
 	tc->tc_scale_nano_f = scale & 0xffffffff;
