@@ -3,7 +3,7 @@
 # files or on the command line.
 #
 #	$OpenBSD: ssh_config,v 1.10 2001/04/03 21:19:38 todd Exp $
-#	$FreeBSD$
+# $FreeBSD$
 
 # This is ssh client systemwide configuration file.  See ssh(1) for more
 # information.  This file provides defaults for users, and the values can
