@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.46 1995/07/22 22:32:49 joerg Exp $
+ *	$Id: boot.c,v 1.47 1996/03/08 06:29:06 bde Exp $
  */
 
 
@@ -100,29 +100,38 @@ boot(int drive)
 
 	gateA20();
 
-
-	/***************************************************************\
-	* As a default set it to the first partition of the boot	*
-	* floppy or hard drive						*
-	* Define BOOT_HT to boot sd0 when wd0 is also installed		*
-	\***************************************************************/
-	part = 0;
+	/*
+	 * The default boot device is the first partition in the
+	 * compatibility slice on the boot drive.
+	 */
+	dosdev = drive;
+	maj = 2;
 	unit = drive & 0x7f;
-#ifdef	BOOT_HD
-	maj = (drive&0x80 ? 1 : 2);		/* a good first bet */
-#else
-	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
+#ifdef dontneed
+	slice = 0;
+	part = 0;
 #endif
+	if (drive & 0x80) {
+		/*
+		 * Hard drive.  Adjust.  Guess that the FreeBSD unit number
+		 * is the BIOS drive number biased by BOOT_HD_BIAS,
+		 */
+		maj = 0;
+#if BOOT_HD_BIAS > 0
+		if (BOOT_HD_BIAS <= unit)
+			unit -= BOOT_HD_BIAS;
+#endif
+	}
 
 loadstart:
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n"
-	       "Usage: [[%s(%d,a)]%s][-abcCdhrsv]\n"
+	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdhrsv]\n"
+	       "Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1\n"
 	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
-	       devs[maj], unit, name);
+	       dosdev & 0x7f, devs[maj], unit, name);
 
 	name = dflname;		/* re-initialize in case of loop */
 	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
@@ -166,7 +175,8 @@ loadprog(void)
 	 */
 	startaddr = head.a_entry & 0x00FFFFFF;
 	addr =  startaddr;
-	printf("Booting %s(%d,%c)%s @ 0x%x\n"
+	printf("Booting %d:%s(%d,%c)%s @ 0x%x\n"
+			, dosdev & 0x7f
 			, devs[maj]
 			, unit
 			, 'a'+part

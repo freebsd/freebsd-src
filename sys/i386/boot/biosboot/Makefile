@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.37 1996/02/03 21:12:27 joerg Exp $
+#	$Id: Makefile,v 1.38 1996/03/08 06:29:05 bde Exp $
 #
 
 PROG=	boot
@@ -20,10 +20,12 @@ CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 # PROBE_KEYBOARD is defined).
 #CFLAGS+=	-DFORCE_COMCONSOLE
 
-# Assume hd(*,a) instead of wd(*,a) if the boot seems to happen from
-# a hard disk.
-# This can be useful for people booting in a mixed IDE/SCSI environment.
-#CFLAGS+=	-DBOOT_HD
+# Bias the conversion from the BIOS drive number to the FreeBSD unit number
+# for hard disks to save typing.  E.g., BOOT_HD_BIAS=1 makes BIOS drive 1
+# correspond to 1:sd(0,a) instead of 1:sd(1,a).
+# This may be useful for people booting in a mixed IDE/SCSI environment
+# (set BOOT_HD_BIAS to the number of IDE drives).
+#CFLAGS+=	-DBOOT_HD_BIAS=1
 
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2 sizetest
 DPADD=		${LIBC}
