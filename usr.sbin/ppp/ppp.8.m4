@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.103 1998/06/12 17:45:26 brian Exp $
+.\" $Id: ppp.8,v 1.104 1998/06/12 20:12:26 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2321,9 +2321,17 @@ command below.
 The default link name is
 .Dq deflink .
 .It close Op lcp|ccp[!]
-If no arguments are given, or if
+If no arguments are given, the relevant protocol layers will be brought
+down and the link will be closed.  If
 .Dq lcp
-is specified, the link will be closed.  If
+is specified, the LCP layer is brought down, but
+.Nm
+will not bring the link offline.  It is subsequently possible to use
+.Dq term
+.Pq see below
+to talk to the peer machine if, for example, something like
+.Dq slirp
+is being used.  If
 .Dq ccp
 is specified, only the relevant compression layer is closed.  If the
 .Dq \&!
