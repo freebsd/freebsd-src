@@ -131,7 +131,7 @@ s/\$//g
 		printf "#endif\n\n" > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
-		printf "char *%s[] = {\n", namesname > sysnames
+		printf "const char *%s[] = {\n", namesname > sysnames
 
 		printf " * created from%s\n */\n\n", $0 > syshdr
 
