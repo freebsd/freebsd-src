@@ -30,11 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.29 1998/06/06 20:45:25 julian Exp $
+ *	$Id: ip_divert.c,v 1.30 1998/06/12 01:54:29 julian Exp $
  */
 
 #include "opt_inet.h"
 #include "opt_ipfw.h"
+#include "opt_ipdivert.h"
 
 #ifndef INET
 #error "IPDIVERT requires INET."
