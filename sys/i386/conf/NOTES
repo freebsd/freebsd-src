@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.445 1998/06/30 14:43:01 bde Exp $
+#	$Id: LINT,v 1.446 1998/07/11 04:46:27 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1003,6 +1003,7 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
 #
 # ar: Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver (requires sppp)
+# cs: IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx: Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
@@ -1021,6 +1022,7 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 #
 
 device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr
+device cs0 at isa? port 0x300 net irq ? vector csintr
 device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device eg0 at isa? port 0x310 net irq 5 vector egintr
