@@ -34,6 +34,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <setjmp.h>
 #include <machine/sal.h>
+#include <machine/pal.h>
+#include <machine/pte.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -49,11 +51,57 @@ extern char bootprog_maker[];
 struct efi_devdesc	currdev;	/* our current device */
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
+extern u_int64_t	ia64_pal_entry;
+
+static void
+find_pal_proc(void)
+{
+	int i;
+	struct sal_system_table *saltab = 0;
+	static int sizes[6] = {
+		48, 32, 16, 32, 16, 16
+	};
+	u_int8_t *p;
+
+	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
+		if (!memcmp(&ST->ConfigurationTable[i].VendorGuid,
+				 &sal, sizeof(EFI_GUID)))
+			saltab = ST->ConfigurationTable[i].VendorTable;
+	}
+
+	if (!saltab) {
+		printf("Can't find SAL System Table\n");
+		return;
+	}
+
+	if (memcmp(saltab->sal_signature, "SST_", 4)) {
+		printf("Bad signature for SAL System Table\n");
+		return;
+	}
+
+	p = (u_int8_t *) (saltab + 1);
+	for (i = 0; i < saltab->sal_entry_count; i++) {
+		if (*p == 0) {
+			struct sal_entrypoint_descriptor *dp;
+			dp = (struct sal_entrypoint_descriptor *) p;
+			ia64_pal_entry = dp->sale_pal_proc;
+			return;
+		}
+		p += sizes[*p];
+	}
+
+	printf("Can't find PAL proc\n");
+	return;
+}
+
 EFI_STATUS
 efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 {
 	int i;
 	EFI_PHYSICAL_ADDRESS mem;
+	struct ia64_pal_result res;
+	char buf[32];
 
 	efi_init(image_handle, system_table);
 
@@ -78,6 +126,14 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	 * Initialise the block cache
 	 */
 	bcache_init(32, 512);		/* 16k XXX tune this */
+
+	find_pal_proc();
+	printf("ia64_pal_entry=0x%lx\n", ia64_pal_entry);
+
+	res = ia64_call_pal_static(PAL_CACHE_SUMMARY, 0, 0, 0);
+	printf("status=%d\n", res.pal_status);
+	printf("cache_levels=%d\n", res.pal_result[0]);
+	printf("unique_caches=%d\n", res.pal_result[1]);
 
 	/*
 	 * March through the device switch probing for things.
@@ -324,3 +380,95 @@ command_sal(int argc, char *argv[])
 
 	return CMD_OK;
 }
+
+int
+print_trs(int type)
+{
+	struct ia64_pal_result	res;
+	int			i, maxtr;
+	struct {
+		struct ia64_pte	pte;
+		struct ia64_itir itir;
+		struct ia64_ifa ifa;
+		struct ia64_rr	rr;
+	}			buf;
+	static const char*	psnames[] = {
+		"1B",	"2B",	"4B",	"8B",
+		"16B",	"32B",	"64B",	"128B",
+		"256B",	"512B",	"1K",	"2K",
+		"4K",	"8K",	"16K",	"32K",
+		"64K",	"128K",	"256K",	"512K",
+		"1M",	"2M",	"4M",	"8M",
+		"16M",	"32M",	"64M",	"128M",
+		"256M",	"512M",	"1G",	"2G"
+	};
+	static const char*	manames[] = {
+		"WB",	"bad",	"bad",	"bad",
+		"UC",	"UCE",	"WC",	"NaT",
+		
+	};
+
+	res = ia64_call_pal_static(PAL_VM_SUMMARY, 0, 0, 0);
+	if (res.pal_status != 0) {
+		printf("Can't get VM summary\n");
+		return CMD_ERROR;
+	}
+
+	if (type == 0)
+		maxtr = (res.pal_result[0] >> 40) & 0xff;
+	else
+		maxtr = (res.pal_result[0] >> 32) & 0xff;
+
+	pager_open();
+	pager_output("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
+	for (i = 0; i <= maxtr; i++) {
+		char lbuf[128];
+		struct ia64_pte *pte;
+
+		bzero(&buf, sizeof(buf));
+		res = ia64_call_pal_stacked(PAL_VM_TR_READ, i, type,
+					    (u_int64_t) &buf);
+		if (!(res.pal_result[0] & 1))
+			buf.pte.pte_ar = 0;
+		if (!(res.pal_result[0] & 2))
+			buf.pte.pte_pl = 0;
+		if (!(res.pal_result[0] & 4))
+			buf.pte.pte_d = 0;
+		if (!(res.pal_result[0] & 8))
+			buf.pte.pte_ma = 0;
+		sprintf(lbuf,
+			"%d %06x %013x %013x %4s %d  %d  %d  %d %d %-3s %d %06x\n",
+			res.pal_result[0] != 0,
+			buf.rr.rr_rid,
+			buf.ifa.ifa_vpn,
+			buf.pte.pte_ppn,
+			psnames[buf.itir.itir_ps],
+			buf.pte.pte_ed,
+			buf.pte.pte_ar,
+			buf.pte.pte_pl,
+			buf.pte.pte_d,
+			buf.pte.pte_a,
+			manames[buf.pte.pte_ma],
+			buf.pte.pte_p,
+			buf.itir.itir_key);
+		pager_output(lbuf);
+	}
+	pager_close();
+}
+
+COMMAND_SET(itr, "itr", "print instruction TRs", command_itr);
+
+static int
+command_itr(int argc, char *argv[])
+{
+	return print_trs(0);
+}
+
+COMMAND_SET(dtr, "dtr", "print data TRs", command_dtr);
+
+static int
+command_dtr(int argc, char *argv[])
+{
+	return print_trs(1);
+}
+
