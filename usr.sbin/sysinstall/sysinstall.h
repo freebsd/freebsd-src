@@ -757,6 +757,7 @@ extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
 
 /* modules.c */
+extern void	driverFloppyCheck(void);
 extern void	moduleInitialize(void);
 extern int	kldBrowser(dialogMenuItem *self);
 
