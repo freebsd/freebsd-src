@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.31 1996/03/22 18:09:21 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.32 1996/04/26 18:32:58 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -214,8 +214,8 @@ struct rmxp_tao {
  * fast networks.
  */
 #define	TCP_REXMTVAL(tp) \
-	((((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_RTTVAR_SHIFT)) \
-	  + ((tp)->t_rttvar) >> TCP_RTTVAR_SHIFT))
+	((((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))  \
+	  + (tp)->t_rttvar) >> TCP_DELTA_SHIFT)
 
 /* XXX
  * We want to avoid doing m_pullup on incoming packets but that

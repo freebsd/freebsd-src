@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.27 1996/03/22 18:11:25 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.28 1996/03/27 18:23:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -270,7 +270,7 @@ tcp_newtcpcb(inp)
 	 * reasonable initial retransmit time.
 	 */
 	tp->t_srtt = TCPTV_SRTTBASE;
-	tp->t_rttvar = tcp_rttdflt * PR_SLOWHZ << 2;
+	tp->t_rttvar = tcp_rttdflt * PR_SLOWHZ << TCP_RTTVAR_SHIFT;
 	tp->t_rttmin = TCPTV_MIN;
 	TCPT_RANGESET(tp->t_rxtcur,
 	    ((TCPTV_SRTTBASE >> 2) + (TCPTV_SRTTDFLT << 2)) >> 1,
@@ -320,7 +320,6 @@ tcp_close(tp)
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
 	register struct mbuf *m;
-#ifdef RTV_RTT
 	register struct rtentry *rt;
 
 	/*
@@ -391,7 +390,6 @@ tcp_close(tp)
 			tcpstat.tcps_cachedssthresh++;
 		}
 	}
-#endif /* RTV_RTT */
 	/* free the reassembly queue, if any */
 	t = tp->seg_next;
 	while (t != (struct tcpiphdr *)tp) {
