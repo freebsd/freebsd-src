@@ -1,6 +1,6 @@
 # ex:ts=8
 
-ISC DHCP client 2.0b1pl27
+ISC DHCP client 2.0
 	originals can be found at: ftp://ftp.isc.org/isc/dhcp/
 
 
@@ -30,8 +30,8 @@ For the import of ISC-dhclient the following files were removed:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of ISC-DHCP v2.0b1pl27' \
-		src/contrib/isc-dhcp ISC isc_dhcp_2_0_b_1_pl_27
+	cvs import -ko -m 'Virgin import of ISC-DHCP v2.0' \
+		src/contrib/isc-dhcp ISC isc_dhcp_2_0
 
 
 To make local changes to isc-dhcp, simply patch and commit to the main
@@ -41,4 +41,4 @@ All local changes should be submitted to the ISC for inclusion in the
 next vendor release.
 
 obrien@NUXI.com
-1-May-1999
+23-June-1999
