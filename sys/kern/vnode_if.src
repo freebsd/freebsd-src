@@ -51,6 +51,13 @@
 #
 
 #
+#% islocked	vp	= = =
+#
+vop_islocked {
+	IN struct vnode *vp;
+};
+
+#
 #% lookup	dvp	L ? ?
 #% lookup	vpp	- L -
 #
@@ -397,13 +404,6 @@ vop_strategy {
 #% print	vp	= = =
 #
 vop_print {
-	IN struct vnode *vp;
-};
-
-#
-#% islocked	vp	= = =
-#
-vop_islocked {
 	IN struct vnode *vp;
 };
 
