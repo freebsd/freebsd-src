@@ -56,11 +56,7 @@ void mark_buffer_dirty(struct buf *bh)
 	int s;
 
 	s = splbio();
-	if (!(bh->b_flags & B_DELWRI)) {
-		numdirtybuffers++;
-		bh->b_flags |= B_DELWRI;
-		bh->b_flags &= ~(B_READ | B_ERROR);
-	}
+	bh->b_flags |= B_DIRTY;
 	splx(s);
 } 
 

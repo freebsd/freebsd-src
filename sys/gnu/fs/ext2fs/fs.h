@@ -168,10 +168,16 @@ extern u_char *fragtbl[];
 }
 
 #define ULCK_BUF(bp) { \
+	long flags; \
 	int s; \
 	s = splbio(); \
-	(bp)->b_flags &= ~B_LOCKED; \
-	splx(s); \
+	flags = (bp)->b_flags; \
+	(bp)->b_flags &= ~(B_DIRTY | B_LOCKED); \
 	bremfree(bp); \
-	brelse(bp); \
+	(bp)->b_flags |= B_BUSY; \
+	splx(s); \
+	if (flags & B_DIRTY) \
+		bdwrite(bp); \
+	else \
+		brelse(bp); \
 }
