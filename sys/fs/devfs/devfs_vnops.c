@@ -159,14 +159,29 @@ devfs_getattr(ap)
 		vap->va_size = 0;
 	vap->va_blocksize = DEV_BSIZE;
 	vap->va_type = vp->v_type;
+
+#define fix(aa)							\
+	do {							\
+		if ((aa).tv_sec == 0) {				\
+			(aa).tv_sec = boottime.tv_sec;		\
+			(aa).tv_nsec = boottime.tv_usec * 1000; \
+		}						\
+	} while (0)
+
 	if (vp->v_type != VCHR)  {
+		fix(de->de_atime);
 		vap->va_atime = de->de_atime;
+		fix(de->de_mtime);
 		vap->va_mtime = de->de_mtime;
+		fix(de->de_ctime);
 		vap->va_ctime = de->de_ctime;
 	} else {
 		dev = vp->v_rdev;
+		fix(dev->si_atime);
 		vap->va_atime = dev->si_atime;
+		fix(dev->si_mtime);
 		vap->va_mtime = dev->si_mtime;
+		fix(dev->si_ctime);
 		vap->va_ctime = dev->si_ctime;
 		vap->va_rdev = dev->si_udev;
 	}
