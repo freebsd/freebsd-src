@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.134 1998/10/27 13:22:51 dg Exp $
+ * $Id: vm_object.c,v 1.135 1998/11/05 14:28:26 dg Exp $
  */
 
 /*
@@ -119,7 +119,9 @@ static void	vm_object_qcollapse __P((vm_object_t object));
  */
 
 struct object_q vm_object_list;
+#ifndef NULL_SIMPLELOCKS
 static struct simplelock vm_object_list_lock;
+#endif
 static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
