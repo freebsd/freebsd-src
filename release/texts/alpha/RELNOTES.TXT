@@ -155,8 +155,9 @@ supported for backwards compatibility. [MERGED]
 
 The ahc(4) driver has been updated.  Among various improvements are
 improved compatibility with chips in "RAID Port" mode and systems with
-AAA and ARO cards installed, as well as performance
-improvements. [MERGED]
+AAA and ARO cards installed, as well as performance improvements.
+Some bugs were also fixed, including a rare hang on Ultra2/U160
+controllers. [MERGED]
 
 ACPI support has been merged in from the FreeBSD-ACPI project.
 
@@ -311,6 +312,13 @@ Acrobat 4 on EV4 and EV5.
 The fxp(4) driver now requires a "device miibus" entry in the kernel
 configuration file.
 
+A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
+has been implemented to improve NFS performance by increasing the
+efficiency of the nfsnode hash tables. [MERGED]
+
+The syscons(4) driver now supports keyboard-controlled pasting, by
+default bound to Shift-Insert.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -418,6 +426,10 @@ FreeBSD-SA-01:28). [MERGED]
 A bug in rwhod(8), which caused it to crash if send certain malformed
 packets, has been corrected (see security advisory
 FreeBSD-SA-01:29). [MERGED]
+
+To prevent some forms of DOS attacks, glob(3) allows specification of
+a limit on the number of pathname matches it will return.  ftpd(8) now
+uses this feature. [MERGED]
 
 
 1.3. USERLAND CHANGES
@@ -899,6 +911,8 @@ needed. [MERGED]
 ftpd(8) now supports a -r flag for read-only mode and a -E flag to
 disable EPSV.  It also has some fixes to reduce information leakage
 and the ability to specify compile-time port ranges. [MERGED]
+
+ping(8) now supports a -m option to set the TTL of outgoing packets.
 
 
 2. Supported Configurations
