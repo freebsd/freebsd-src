@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.8 1997/02/22 12:47:39 peter Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod
@@ -29,7 +29,7 @@ opt_atapi.h:
 		echo "#define ATAPI 1"> opt_atapi.h
 
 .c.o:
-		-@$(LN) /sys/i386/include machine
+		-@$(LN) ${.CURDIR}/../../sys/i386/include machine
 		$(CC) $(CFLAGS) -c $<
 		-@rm -f machine
 
