@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.3 1995/09/02 17:20:51 amurai Exp $
+ * $Id: defs.h,v 1.4 1995/10/08 14:57:28 amurai Exp $
  *
  *	TODO:
  */
@@ -59,6 +59,8 @@
 #define MODE_AUTO	2	/* Auto calling mode */
 #define	MODE_DIRECT	4	/* Direct connection mode */
 #define	MODE_DEDICATED	8	/* Dedicated line mode */
+#define	MODE_DDIAL	16	/* Dedicated dialing line mode */
+#define	MODE_ALIAS	32	/* Packet aliasing (masquerading) */
 
 #define	EX_NORMAL	0
 #define	EX_START	1

@@ -17,29 +17,33 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.8 1996/10/06 13:32:35 jkh Exp $
+ * $Id: route.c,v 1.10 1996/12/10 17:00:39 wollman Exp $
  *
  */
 #include <sys/types.h>
 #include <machine/endian.h>
+#include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <net/route.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <errno.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #if (BSD >= 199306)
 #include <sys/sysctl.h>
 #else
 #include <sys/kinfo.h>
 #endif
+#include <sys/time.h>
+
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <net/route.h>
+#include <net/if.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "log.h"
 
 static int IfIndex;

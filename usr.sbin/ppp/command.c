@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.23 1996/10/12 16:20:28 jkh Exp $
+ * $Id: command.c,v 1.24 1996/10/13 15:05:14 sos Exp $
  *
  */
 #include <sys/types.h>
@@ -102,7 +102,9 @@ IsInteractive()
 {
   char *mes = NULL;
 
-  if (mode & MODE_AUTO)
+  if (mode & MODE_DDIAL)
+    mes = "Working in dedicated dial mode.";
+  else if (mode & MODE_AUTO)
     mes = "Working in auto mode.";
   else if (mode & MODE_DIRECT)
     mes = "Working in direct mode.";

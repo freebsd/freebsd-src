@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.8 1996/01/30 11:08:33 dfr Exp $
+ * $Id: ip.c,v 1.9 1996/05/11 20:48:25 phk Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include "vars.h"
 #include "filter.h"
+#include "alias.h"
 
 extern void SendPppFrame();
 extern void LcpClose();
@@ -53,7 +54,7 @@ static void IdleTimeout()
 void
 StartIdleTimer()
 {
-  if (!(mode & MODE_DEDICATED)) {
+  if (!(mode & (MODE_DEDICATED|MODE_DDIAL))) {
     StopTimer(&IdleTimer);
     IdleTimer.func = IdleTimeout;
     IdleTimer.load = VarIdleTimeout * SECTICKS;
@@ -74,7 +75,7 @@ StopIdleTimer()
 static void
 RestartIdleTimer()
 {
-  if (!(mode & MODE_DEDICATED) && ipKeepAlive ) {
+  if (!(mode & (MODE_DEDICATED|MODE_DDIAL)) && ipKeepAlive ) {
     StartTimer(&IdleTimer);
     ipIdleSecs = 0;
   }
@@ -329,6 +330,11 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     bcopy(MBUF_CTOP(wp), cp, wp->cnt);
     cp += wp->cnt;
     nb += wp->cnt;
+  }
+
+  if (mode & MODE_ALIAS) {
+    PacketAliasIn(tunbuff);
+    nb = ntohs(((struct ip *) tunbuff)->ip_len);
   }
 
   if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
