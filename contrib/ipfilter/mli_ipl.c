@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  * (C)opyright 1997 by Marc Boucher.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -49,7 +49,7 @@ unsigned IPL_EXTERN(devflag) = D_MP;
 char *IPL_EXTERN(mversion) = M_VERSION;
 #endif
 
-kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw;
+kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw, ipf_hostmap;
 kmutex_t ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 
 int     (*fr_checkp) __P((struct ip *, int, void *, int, mb_t **));
@@ -313,14 +313,14 @@ nifattach()
 		for (f = ipfilter[0][0]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				if (f->fr_ifname[0] &&
-				    (GETUNIT(f->fr_ifname) == ifp))
+				    (GETUNIT(f->fr_ifname, 4) == ifp))
 					f->fr_ifa = ifp;
 			}
 		}
 		for (f = ipfilter[1][0]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				if (f->fr_ifname[0] &&
-				    (GETUNIT(f->fr_ifname) == ifp))
+				    (GETUNIT(f->fr_ifname, 4) == ifp))
 					f->fr_ifa = ifp;
 			}
 		}
@@ -329,7 +329,7 @@ nifattach()
 		for (np = nat_list; np; np = np->in_next) {
 			if ((np->in_ifp == (void *)-1)) {
 				if (np->in_ifname[0] &&
-				    (GETUNIT(np->in_ifname) == ifp))
+				    (GETUNIT(np->in_ifname, 4) == ifp))
 					np->in_ifp = (void *)ifp;
 			}
 		}
@@ -539,6 +539,7 @@ IPL_EXTERN(unload)(void)
 	LOCK_DEALLOC(ipf_rw.l);
 	LOCK_DEALLOC(ipf_auth.l);
 	LOCK_DEALLOC(ipf_natfrag.l);
+	LOCK_DEALLOC(ipf_hostmap.l);
 	LOCK_DEALLOC(ipf_nat.l);
 	LOCK_DEALLOC(ipf_state.l);
 	LOCK_DEALLOC(ipf_frag.l);
@@ -561,6 +562,7 @@ IPL_EXTERN(init)(void)
 	ipf_frag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_state.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_nat.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_hostmap.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_natfrag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_auth.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_rw.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
@@ -568,7 +570,7 @@ IPL_EXTERN(init)(void)
 
 	if (!ipfi_mutex.l || !ipf_mutex.l || !ipf_frag.l || !ipf_state.l ||
 	    !ipf_nat.l || !ipf_natfrag.l || !ipf_auth.l || !ipf_rw.l ||
-	    !ipl_mutex.l)
+	    !ipl_mutex.l || !ipf_hostmap.l)
 		panic("IP Filter: LOCK_ALLOC failed");
 
 #ifdef IPFILTER_LKM

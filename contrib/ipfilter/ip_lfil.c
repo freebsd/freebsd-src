@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.1.2.1 2000/01/16 10:13:02 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6 2000/03/13 22:10:21 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -179,8 +179,9 @@ caddr_t	data;
 	fio.f_active = fr_active;
 	fio.f_froute[0] = ipl_frouteok[0];
 	fio.f_froute[1] = ipl_frouteok[1];
-	IWCOPY((caddr_t)&fio, data, sizeof(fio));
-	bzero((char *)frstats, sizeof(*frstats) * 2);
+	error = IWCOPYPTR((caddr_t)&fio, data, sizeof(fio));
+	if (!error)
+		bzero((char *)frstats, sizeof(*frstats) * 2);
 	return error;
 }
 
@@ -219,8 +220,8 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 	switch (cmd) {
 	case FIONREAD :
 #ifdef IPFILTER_LOG
-		IWCOPY((caddr_t)&iplused[IPL_LOGIPF], data,
-		       sizeof(iplused[IPL_LOGIPF]));
+		error = IWCOPY((caddr_t)&iplused[IPL_LOGIPF], data,
+			       sizeof(iplused[IPL_LOGIPF]));
 #endif
 		break;
 #if !defined(IPFILTER_LKM) && defined(_KERNEL)
@@ -231,7 +232,7 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else {
-			IRCOPY(data, (caddr_t)&enable, sizeof(enable));
+			error = IRCOPY(data, (caddr_t)&enable, sizeof(enable));
 			if (error)
 				break;
 			if (enable)
@@ -246,10 +247,11 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else
-			IRCOPY(data, (caddr_t)&fr_flags, sizeof(fr_flags));
+			error = IRCOPY(data, (caddr_t)&fr_flags,
+				       sizeof(fr_flags));
 		break;
 	case SIOCGETFF :
-		IWCOPY((caddr_t)&fr_flags, data, sizeof(fr_flags));
+		error = IWCOPY((caddr_t)&fr_flags, data, sizeof(fr_flags));
 		break;
 	case SIOCINAFR :
 	case SIOCRMAFR :
@@ -295,22 +297,25 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 		fio.f_active = fr_active;
 		fio.f_froute[0] = ipl_frouteok[0];
 		fio.f_froute[1] = ipl_frouteok[1];
-		IWCOPY((caddr_t)&fio, data, sizeof(fio));
+		error = IWCOPYPTR((caddr_t)&fio, data, sizeof(fio));
 		break;
 	}
 	case	SIOCFRZST :
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else
-			frzerostats(data);
+			error = frzerostats(data);
 		break;
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else {
-			IRCOPY(data, (caddr_t)&tmp, sizeof(tmp));
-			tmp = frflush(unit, tmp);
-			IWCOPY((caddr_t)&tmp, data, sizeof(tmp));
+			error = IRCOPY(data, (caddr_t)&tmp, sizeof(tmp));
+			if (!error) {
+				tmp = frflush(unit, tmp);
+				error = IWCOPY((caddr_t)&tmp, data,
+					       sizeof(tmp));
+			}
 		}
 		break;
 #ifdef	IPFILTER_LOG
@@ -322,7 +327,8 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 		break;
 #endif /* IPFILTER_LOG */
 	case SIOCGFRST :
-		IWCOPY((caddr_t)ipfr_fragstats(), data, sizeof(ipfrstat_t));
+		error = IWCOPYPTR((caddr_t)ipfr_fragstats(), data,
+			       sizeof(ipfrstat_t));
 		break;
 	case SIOCAUTHW :
 	case SIOCAUTHR :
@@ -377,7 +383,7 @@ caddr_t data;
 	u_int group;
 
 	fp = &frd;
-	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
+	error = IRCOPYPTR(data, (caddr_t)fp, sizeof(*fp));
 	if (error)
 		return error;
 
@@ -412,7 +418,7 @@ caddr_t data;
 	bzero((char *)frcache, sizeof(frcache[0]) * 2);
 
 	if (*fp->fr_ifname) {
-		fp->fr_ifa = GETUNIT(fp->fr_ifname);
+		fp->fr_ifa = GETUNIT(fp->fr_ifname, fp->fr_ip.fi_v);
 		if (!fp->fr_ifa)
 			fp->fr_ifa = (void *)-1;
 	}
@@ -420,7 +426,7 @@ caddr_t data;
 	fdp = &fp->fr_dif;
 	fp->fr_flags &= ~FR_DUP;
 	if (*fdp->fd_ifname) {
-		fdp->fd_ifp = GETUNIT(fdp->fd_ifname);
+		fdp->fd_ifp = GETUNIT(fdp->fd_ifname, fp->fr_ip.fi_v);
 		if (!fdp->fd_ifp)
 			fdp->fd_ifp = (struct ifnet *)-1;
 		else
@@ -429,7 +435,7 @@ caddr_t data;
 
 	fdp = &fp->fr_tif;
 	if (*fdp->fd_ifname) {
-		fdp->fd_ifp = GETUNIT(fdp->fd_ifname);
+		fdp->fd_ifp = GETUNIT(fdp->fd_ifname, fp->fr_ip.fi_v);
 		if (!fdp->fd_ifp)
 			fdp->fd_ifp = (struct ifnet *)-1;
 	}
@@ -449,7 +455,7 @@ caddr_t data;
 	if (req == SIOCZRLST) {
 		if (!f)
 			return ESRCH;
-		IWCOPY((caddr_t)f, data, sizeof(*f));
+		error = IWCOPYPTR((caddr_t)f, data, sizeof(*f));
 		if (error)
 			return error;
 		f->fr_hits = 0;
@@ -458,17 +464,18 @@ caddr_t data;
 	}
 
 	if (!f) {
-		ftail = fprev;
-		if (req != SIOCINAFR && req != SIOCINIFR)
-			while ((f = *ftail))
-				ftail = &f->fr_next;
-		else if (fp->fr_hits)
-			while (--fp->fr_hits && (f = *ftail))
-				ftail = &f->fr_next;
+		if (req == SIOCINAFR || req == SIOCINIFR) {
+			ftail = fprev;
+			if (fp->fr_hits) {
+				while (--fp->fr_hits && (f = *ftail)) {
+					ftail = &f->fr_next;
+				}
+			}
+		}
 		f = NULL;
 	}
 
-	if (req == SIOCDELFR || req == SIOCRMIFR) {
+	if (req == SIOCRMAFR || req == SIOCRMIFR) {
 		if (!f)
 			error = ESRCH;
 		else {
@@ -796,9 +803,9 @@ int uiomove(caddr_t src, size_t ssize, int rw, struct uio *uio)
 	size_t mv = MIN(ssize, uio->uio_resid);
 
 	if (rw == UIO_READ) {
-		IWCOPY(src, (caddr_t)uio->uio_buf, mv);
+		error = IWCOPY(src, (caddr_t)uio->uio_buf, mv);
 	} else if (rw == UIO_WRITE) {
-		IRCOPY((caddr_t)uio->uio_buf, src, mv);
+		error = IRCOPY((caddr_t)uio->uio_buf, src, mv);
 	} else
 		error = EINVAL;
 	if (!error) {
@@ -880,8 +887,9 @@ static int write_output __P((mb_t *m, struct ifnet *ifp))
 }
 
 
-struct ifnet *get_unit(name)
+struct ifnet *get_unit(name, v)
 char *name;
+int v;
 {
 	struct ifnet *ifp, **ifa;
 	char ifname[32], *s;

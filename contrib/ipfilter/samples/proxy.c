@@ -51,6 +51,7 @@ char *argv[];
 {
 	struct	sockaddr_in	sin, sloc, sout;
 	natlookup_t	natlook;
+	natlookup_t	*natlookp = &natlook;
 	char	buffer[512];
 	int	namelen, fd, n;
 
@@ -88,7 +89,7 @@ char *argv[];
 	 * Open the NAT device and lookup the mapping pair.
 	 */
 	fd = open(IPL_NAT, O_RDONLY);
-	if (ioctl(fd, SIOCGNATL, &natlook) == -1) {
+	if (ioctl(fd, SIOCGNATL, &natlookp) == -1) {
 		perror("ioctl");
 		exit(-1);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -8,8 +8,8 @@
  * I hate legaleese, don't you ?
  */
 #if !defined(lint)
-static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.6 2000/01/16 10:12:44 darrenr Exp $";
+static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.2 2000/05/22 10:26:14 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -42,6 +42,9 @@ static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.1.2.6 2000/01/16 10:12:44 da
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
 #include "ip_compat.h"
+#ifdef	USE_INET6
+# include <netinet/icmp6.h>
+#endif
 #include "ip_fil.h"
 #include "ip_state.h"
 #include "ip_nat.h"
@@ -58,10 +61,10 @@ extern	fr_flags, fr_active;
 int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
 u_long	ipl_frouteok[2] = {0, 0};
-static	void	frzerostats __P((caddr_t));
+static	int	frzerostats __P((caddr_t));
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
-kmutex_t	ipl_mutex, ipf_authmx, ipf_rw;
+kmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
 KRWLOCK_T	ipf_mutex, ipfs_mutex, ipf_solaris;
 KRWLOCK_T	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 kcondvar_t	iplwait, ipfauthwait;
@@ -85,6 +88,7 @@ int ipldetach()
 	ip_natunload();
 	cv_destroy(&iplwait);
 	cv_destroy(&ipfauthwait);
+	mutex_destroy(&ipf_hostmap);
 	mutex_destroy(&ipf_authmx);
 	mutex_destroy(&ipl_mutex);
 	mutex_destroy(&ipf_rw);
@@ -108,9 +112,10 @@ int iplattach __P((void))
 	cmn_err(CE_CONT, "iplattach()\n");
 #endif
 	bzero((char *)frcache, sizeof(frcache));
-	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_rw, "ipf rw mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_authmx, "ipf auth log mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipf_hostmap, "ipf hostmap mutex", MUTEX_DRIVER, NULL);
 	RWLOCK_INIT(&ipf_solaris, "ipf filter load/unload mutex", NULL);
 	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock", NULL);
 	RWLOCK_INIT(&ipfs_mutex, "ipf solaris mutex", NULL);
@@ -134,26 +139,20 @@ int iplattach __P((void))
 }
 
 
-static	void	frzerostats(data)
+static	int	frzerostats(data)
 caddr_t	data;
 {
 	friostat_t fio;
+	int error;
 
-	bcopy((char *)frstats, (char *)fio.f_st,
-		sizeof(struct filterstats) * 2);
-	fio.f_fin[0] = ipfilter[0][0];
-	fio.f_fin[1] = ipfilter[0][1];
-	fio.f_fout[0] = ipfilter[1][0];
-	fio.f_fout[1] = ipfilter[1][1];
-	fio.f_acctin[0] = ipacct[0][0];
-	fio.f_acctin[1] = ipacct[0][1];
-	fio.f_acctout[0] = ipacct[1][0];
-	fio.f_acctout[1] = ipacct[1][1];
-	fio.f_active = fr_active;
-	fio.f_froute[0] = ipl_frouteok[0];
-	fio.f_froute[1] = ipl_frouteok[1];
-	IWCOPY((caddr_t)&fio, data, sizeof(fio));
+	fr_getstat(&fio);
+	error = IWCOPYPTR((caddr_t)&fio, data, sizeof(fio));
+	if (error)
+		return EFAULT;
+
 	bzero((char *)frstats, sizeof(*frstats) * 2);
+
+	return 0;
 }
 
 
@@ -197,6 +196,11 @@ int *rp;
 		RWLOCK_EXIT(&ipf_solaris);
 		return error;
 	}
+	if (unit == IPL_LOGAUTH) {
+		error = fr_auth_ioctl((caddr_t)data, cmd, NULL, NULL);
+		RWLOCK_EXIT(&ipf_solaris);
+		return error;
+	}
 
 	switch (cmd) {
 	case SIOCFRENB :
@@ -206,7 +210,8 @@ int *rp;
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else
-			IRCOPY((caddr_t)data, (caddr_t)&enable, sizeof(enable));
+			error = IRCOPY((caddr_t)data, (caddr_t)&enable,
+				       sizeof(enable));
 		break;
 	}
 	case SIOCSETFF :
@@ -214,13 +219,14 @@ int *rp;
 			error = EPERM;
 		else {
 			WRITE_ENTER(&ipf_mutex);
-			IRCOPY((caddr_t)data, (caddr_t)&fr_flags,
+			error = IRCOPY((caddr_t)data, (caddr_t)&fr_flags,
 			       sizeof(fr_flags));
 			RWLOCK_EXIT(&ipf_mutex);
 		}
 		break;
 	case SIOCGETFF :
-		IWCOPY((caddr_t)&fr_flags, (caddr_t)data, sizeof(fr_flags));
+		error = IWCOPY((caddr_t)&fr_flags, (caddr_t)data,
+			       sizeof(fr_flags));
 		break;
 	case SIOCINAFR :
 	case SIOCRMAFR :
@@ -246,71 +252,61 @@ int *rp;
 		else {
 			WRITE_ENTER(&ipf_mutex);
 			bzero((char *)frcache, sizeof(frcache[0]) * 2);
-			IWCOPY((caddr_t)&fr_active, (caddr_t)data,
-			       sizeof(fr_active));
+			error = IWCOPY((caddr_t)&fr_active, (caddr_t)data,
+				       sizeof(fr_active));
 			fr_active = 1 - fr_active;
 			RWLOCK_EXIT(&ipf_mutex);
 		}
 		break;
 	case SIOCGETFS :
 	{
-		struct	friostat	fio;
+		friostat_t	fio;
 
 		READ_ENTER(&ipf_mutex);
-		bcopy((char *)frstats, (char *)fio.f_st,
-			sizeof(struct filterstats) * 2);
-		fio.f_fin[0] = ipfilter[0][0];
-		fio.f_fin[1] = ipfilter[0][1];
-		fio.f_fout[0] = ipfilter[1][0];
-		fio.f_fout[1] = ipfilter[1][1];
-		fio.f_acctin[0] = ipacct[0][0];
-		fio.f_acctin[1] = ipacct[0][1];
-		fio.f_acctout[0] = ipacct[1][0];
-		fio.f_acctout[1] = ipacct[1][1];
-		fio.f_active = fr_active;
-		fio.f_froute[0] = ipl_frouteok[0];
-		fio.f_froute[1] = ipl_frouteok[1];
-		fio.f_running = fr_running;
-		fio.f_groups[0][0] = ipfgroups[0][0];
-		fio.f_groups[0][1] = ipfgroups[0][1];
-		fio.f_groups[1][0] = ipfgroups[1][0];
-		fio.f_groups[1][1] = ipfgroups[1][1];
-		fio.f_groups[2][0] = ipfgroups[2][0];
-		fio.f_groups[2][1] = ipfgroups[2][1];
-#ifdef	IPFILTER_LOG
-		fio.f_logging = 1;
-#else
-		fio.f_logging = 0;
-#endif
-		fio.f_defpass = fr_pass;
-		strncpy(fio.f_version, fio.f_version,
-			sizeof(fio.f_version));
+		fr_getstat(&fio);
 		RWLOCK_EXIT(&ipf_mutex);
-		IWCOPY((caddr_t)&fio, (caddr_t)data, sizeof(fio));
+		error = IWCOPYPTR((caddr_t)&fio, (caddr_t)data, sizeof(fio));
+		if (error)
+			error = EFAULT;
 		break;
 	}
 	case SIOCFRZST :
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else
-			frzerostats((caddr_t)data);
+			error = frzerostats((caddr_t)data);
 		break;
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else {
-			IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
-			tmp = frflush(unit, tmp);
-			IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+			error = IRCOPY((caddr_t)data, (caddr_t)&tmp,
+				       sizeof(tmp));
+			if (!error) {
+				tmp = frflush(unit, tmp);
+				error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
+					       sizeof(tmp));
+			}
 		}
 		break;
+	case SIOCSTLCK :
+		error = IRCOPY((caddr_t)data, (caddr_t)&tmp, sizeof(tmp));
+		if (!error) {
+			fr_state_lock = tmp;
+			fr_nat_lock = tmp;
+			fr_frag_lock = tmp;
+			fr_auth_lock = tmp;
+		} else
+			error = EFAULT;
+	break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :
 		if (!(mode & FWRITE))
 			error = EPERM;
 		else {
 			tmp = ipflog_clear(unit);
-			IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
+			error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
+				       sizeof(tmp));
 		}
 		break;
 #endif /* IPFILTER_LOG */
@@ -321,27 +317,20 @@ int *rp;
 			error = ipfsync();
 		break;
 	case SIOCGFRST :
-		IWCOPY((caddr_t)ipfr_fragstats(), (caddr_t)data,
-		       sizeof(ipfrstat_t));
+		error = IWCOPYPTR((caddr_t)ipfr_fragstats(), (caddr_t)data,
+				  sizeof(ipfrstat_t));
+		if (error)
+			error = EFAULT;
 		break;
 	case FIONREAD :
 	{
 #ifdef	IPFILTER_LOG
 		int copy = (int)iplused[IPL_LOGIPF];
 
-		IWCOPY((caddr_t)&copy, (caddr_t)data, sizeof(copy));
+		error = IWCOPY((caddr_t)&copy, (caddr_t)data, sizeof(copy));
 #endif
 		break;
 	}
-	case SIOCAUTHW :
-	case SIOCAUTHR :
-		if (!(mode & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-	case SIOCATHST :
-		error = fr_auth_ioctl((caddr_t)data, cmd, NULL, NULL);
-		break;
 	default :
 		error = EINVAL;
 		break;
@@ -351,14 +340,22 @@ int *rp;
 }
 
 
-ill_t	*get_unit(name)
+ill_t	*get_unit(name, v)
 char	*name;
+int	v;
 {
-	size_t	len = strlen(name) + 1;	/* includes \0 */
-	ill_t	*il;
+	size_t len = strlen(name) + 1;	/* includes \0 */
+	ill_t *il;
+	int sap;
 
+	if (v == 4)
+		sap = 0x0800;
+	else if (v == 6)
+		sap = 0x86dd;
+	else
+		return NULL;
 	for (il = ill_g_head; il; il = il->ill_next)
-		if ((len == il->ill_name_length) &&
+		if ((len == il->ill_name_length) && (il->ill_sap == sap) &&
 		    !strncmp(il->ill_name, name, len))
 			return il;
 	return NULL;
@@ -375,15 +372,28 @@ caddr_t data;
 	frentry_t fr;
 	frdest_t *fdp;
 	frgroup_t *fg = NULL;
+	u_int   *p, *pp;
 	int error = 0, in;
-	u_int group;
+	u_32_t group;
 	ill_t *ill;
 	ipif_t *ipif;
 	ire_t *ire;
 
 	fp = &fr;
-	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
+	error = IRCOPYPTR(data, (caddr_t)fp, sizeof(*fp));
+	if (error)
+		return EFAULT;
 	fp->fr_ref = 0;
+#if SOLARIS2 >= 8
+	if (fp->fr_v == 4)
+		fp->fr_sap = IP_DL_SAP;
+	else if (fp->fr_v == 6)
+		fp->fr_sap = IP6_DL_SAP;
+	else
+		return EINVAL;
+#else
+	fp->fr_sap = 0;
+#endif
 
 	WRITE_ENTER(&ipf_mutex);
 	/*
@@ -391,12 +401,12 @@ caddr_t data;
 	 * has been specified, doesn't exist.
 	 */
 	if ((req != SIOCZRLST) && fp->fr_grhead &&
-	    fr_findgroup((u_int)fp->fr_grhead, fp->fr_flags, unit, set, NULL)) {
+	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL)) {
 		error = EEXIST;
 		goto out;
 	}
 	if ((req != SIOCZRLST) && fp->fr_group &&
-	    !fr_findgroup((u_int)fp->fr_group, fp->fr_flags, unit, set, NULL)) {
+	    !fr_findgroup(fp->fr_group, fp->fr_flags, unit, set, NULL)) {
 		error = ESRCH;
 		goto out;
 	}
@@ -405,10 +415,16 @@ caddr_t data;
 
 	if (unit == IPL_LOGAUTH)
 		ftail = fprev = &ipauth;
-	else if (fp->fr_flags & FR_ACCOUNT)
+	else if ((fp->fr_flags & FR_ACCOUNT) && (fp->fr_v == 4))
 		ftail = fprev = &ipacct[in][set];
-	else if (fp->fr_flags & (FR_OUTQUE|FR_INQUE))
+	else if ((fp->fr_flags & (FR_OUTQUE|FR_INQUE)) && (fp->fr_v == 4))
 		ftail = fprev = &ipfilter[in][set];
+#ifdef	USE_INET6
+	else if ((fp->fr_flags & FR_ACCOUNT) && (fp->fr_v == 6))
+		ftail = fprev = &ipacct6[in][set];
+	else if ((fp->fr_flags & (FR_OUTQUE|FR_INQUE)) && (fp->fr_v == 6))
+		ftail = fprev = &ipfilter6[in][set];
+#endif
 	else {
 		error = ESRCH;
 		goto out;
@@ -427,7 +443,8 @@ caddr_t data;
 	bzero((char *)frcache, sizeof(frcache[0]) * 2);
 
 	if (*fp->fr_ifname) {
-		fp->fr_ifa = (void *)get_unit((char *)fp->fr_ifname);
+		fp->fr_ifa = (void *)get_unit((char *)fp->fr_ifname,
+					      (int)fp->fr_v);
 		if (!fp->fr_ifa)
 			fp->fr_ifa = (struct ifnet *)-1;
 	}
@@ -435,10 +452,10 @@ caddr_t data;
 	fdp = &fp->fr_dif;
 	fp->fr_flags &= ~FR_DUP;
 	if (*fdp->fd_ifname) {
-		ill = get_unit(fdp->fd_ifname);
+		ill = get_unit(fdp->fd_ifname, (int)fp->fr_v);
 		if (!ill)
 			ire = (ire_t *)-1;
-		else if ((ipif = ill->ill_ipif)) {
+		else if ((ipif = ill->ill_ipif) && (fp->fr_v == 4)) {
 #if SOLARIS2 > 5
 			ire = ire_ctable_lookup(ipif->ipif_local_addr, 0,
 						IRE_LOCAL, NULL, NULL,
@@ -451,15 +468,26 @@ caddr_t data;
 			else
 				fp->fr_flags |= FR_DUP;
 		}
+#ifdef	USE_INET6
+		else if ((ipif = ill->ill_ipif) && (fp->fr_v == 6)) {
+			ire = ire_ctable_lookup_v6(&ipif->ipif_v6lcl_addr, 0,
+						   IRE_LOCAL, NULL, NULL,
+						   MATCH_IRE_TYPE);
+			if (!ire)
+				ire = (ire_t *)-1;
+			else
+				fp->fr_flags |= FR_DUP;
+		}
+#endif
 		fdp->fd_ifp = (struct ifnet *)ire;
 	}
 
 	fdp = &fp->fr_tif;
 	if (*fdp->fd_ifname) {
-		ill = get_unit(fdp->fd_ifname);
+		ill = get_unit(fdp->fd_ifname, (int)fp->fr_v);
 		if (!ill)
 			ire = (ire_t *)-1;
-		else if ((ipif = ill->ill_ipif)) {
+		else if ((ipif = ill->ill_ipif) && (fp->fr_v == 4)) {
 #if SOLARIS2 > 5
 			ire = ire_ctable_lookup(ipif->ipif_local_addr, 0,
 						IRE_LOCAL, NULL, NULL,
@@ -470,6 +498,15 @@ caddr_t data;
 			if (!ire)
 				ire = (ire_t *)-1;
 		}
+#ifdef	USE_INET6
+		else if ((ipif = ill->ill_ipif) && (fp->fr_v == 6)) {
+			ire = ire_ctable_lookup_v6(&ipif->ipif_v6lcl_addr, 0,
+						   IRE_LOCAL, NULL, NULL,
+						   MATCH_IRE_TYPE);
+			if (!ire)
+				ire = (ire_t *)-1;
+		}
+#endif
 		fdp->fd_ifp = (struct ifnet *)ire;
 	}
 
@@ -477,9 +514,13 @@ caddr_t data;
 	 * Look for a matching filter rule, but don't include the next or
 	 * interface pointer in the comparison (fr_next, fr_ifa).
 	 */
+	for (fp->fr_cksum = 0, p = (u_int *)&fp->fr_ip, pp = &fp->fr_cksum;
+	     p != pp; p++)
+		fp->fr_cksum += *p;
+
 	for (; (f = *ftail); ftail = &f->fr_next)
-		if (bcmp((char *)&f->fr_ip, (char *)&fp->fr_ip,
-			 FR_CMPSIZ) == 0)
+		if ((fp->fr_cksum == f->fr_cksum) &&
+		    !bcmp((char *)&f->fr_ip, (char *)&fp->fr_ip, FR_CMPSIZ))
 			break;
 
 	/*
@@ -491,7 +532,11 @@ caddr_t data;
 			goto out;
 		}
 		MUTEX_DOWNGRADE(&ipf_mutex);
-		IWCOPY((caddr_t)f, data, sizeof(*f));
+		error = IWCOPYPTR((caddr_t)f, data, sizeof(*f));
+		if (error) {
+			error = EFAULT;
+			goto out;
+		}
 		f->fr_hits = 0;
 		f->fr_bytes = 0;
 		goto out;
@@ -511,26 +556,33 @@ caddr_t data;
 		}
 	}
 
-	if (req == SIOCDELFR || req == SIOCRMIFR) {
+	if (req == SIOCRMAFR || req == SIOCRMIFR) {
 		if (!f)
 			error = ESRCH;
 		else {
-			if (f->fr_ref > 1) {
+			/*
+			 * Only return EBUSY if there is a group list, else
+			 * it's probably just state information referencing
+			 * the rule.
+			 */
+			if ((f->fr_ref > 1) && f->fr_grp) {
 				error = EBUSY;
 				goto out;
 			}
 			if (fg && fg->fg_head)
 				fg->fg_head->fr_ref--;
 			if (unit == IPL_LOGAUTH) {
-				error = fr_auth_ioctl(data, req, f, ftail);
+				error = fr_auth_ioctl(data, req, fp, ftail);
 				goto out;
 			}
 			if (f->fr_grhead)
-				fr_delgroup((u_int)f->fr_grhead, fp->fr_flags,
+				fr_delgroup(f->fr_grhead, fp->fr_flags,
 					    unit, set);
 			fixskip(fprev, f, -1);
 			*ftail = f->fr_next;
-			KFREE(f);
+			f->fr_next = NULL;
+			if (f->fr_ref == 0)
+				KFREE(f);
 		}
 	} else {
 		if (f) {
@@ -623,14 +675,16 @@ cred_t *cp;
  * send_reset - this could conceivably be a call to tcp_respond(), but that
  * requires a large amount of setting up and isn't any more efficient.
  */
-int send_reset(fin, iphdr, qif)
+int send_reset(oip, fin)
+ip_t *oip;
 fr_info_t *fin;
-ip_t *iphdr;
-qif_t *qif;
 {
 	tcphdr_t *tcp, *tcp2;
-	int tlen = 0;
+	int tlen = 0, hlen;
 	mblk_t *m;
+#ifdef	USE_INET6
+	ip6_t *ip6, *oip6 = (ip6_t *)oip;
+#endif
 	ip_t *ip;
 
 	tcp = (struct tcphdr *)fin->fin_dp;
@@ -638,105 +692,212 @@ qif_t *qif;
 		return -1;
 	if (tcp->th_flags & TH_SYN)
 		tlen = 1;
-	if ((m = (mblk_t *)allocb(sizeof(*ip) + sizeof(*tcp),BPRI_HI)) == NULL)
+#ifdef	USE_INET6
+	if (fin->fin_v == 6)
+		hlen = sizeof(ip6_t);
+	else
+#endif
+		hlen = sizeof(ip_t);
+	hlen += sizeof(*tcp2);
+	if ((m = (mblk_t *)allocb(hlen + 16, BPRI_HI)) == NULL)
 		return -1;
 
+	m->b_rptr += 16;
 	MTYPE(m) = M_DATA;
-	m->b_wptr += sizeof(*ip) + sizeof(*tcp);
-	bzero((char *)m->b_rptr, sizeof(*ip) + sizeof(*tcp));
-	ip = (ip_t *)m->b_rptr;
-	tcp2 = (struct tcphdr *)(m->b_rptr + sizeof(*ip));
-
-	ip->ip_src.s_addr = iphdr->ip_dst.s_addr;
-	ip->ip_dst.s_addr = iphdr->ip_src.s_addr;
+	m->b_wptr = m->b_rptr + hlen;
+	bzero((char *)m->b_rptr, hlen);
+	tcp2 = (struct tcphdr *)(m->b_rptr + hlen - sizeof(*tcp2));
 	tcp2->th_dport = tcp->th_sport;
 	tcp2->th_sport = tcp->th_dport;
 	tcp2->th_ack = htonl(ntohl(tcp->th_seq) + tlen);
 	tcp2->th_seq = tcp->th_ack;
 	tcp2->th_off = sizeof(struct tcphdr) >> 2;
 	tcp2->th_flags = TH_RST|TH_ACK;
+
 	/*
 	 * This is to get around a bug in the Solaris 2.4/2.5 TCP checksum
 	 * computation that is done by their put routine.
 	 */
 	tcp2->th_sum = htons(0x14);
-	ip->ip_hl = sizeof(*ip) >> 2;
-	ip->ip_v = IPVERSION;
-	ip->ip_p = IPPROTO_TCP;
-	ip->ip_len = htons(sizeof(*ip) + sizeof(*tcp));
-	ip->ip_tos = iphdr->ip_tos;
-	ip->ip_off = 0;
-	ip->ip_ttl = 60;
-	ip->ip_sum = 0;
+#ifdef	USE_INET6
+	if (fin->fin_v == 6) {
+		ip6 = (ip6_t *)m->b_rptr;
+		ip6->ip6_src = oip6->ip6_dst;
+		ip6->ip6_dst = oip6->ip6_src;
+		ip6->ip6_plen = htons(sizeof(*tcp));
+		ip6->ip6_nxt = IPPROTO_TCP;
+	} else
+#endif
+	{
+		ip = (ip_t *)m->b_rptr;
+		ip->ip_src.s_addr = oip->ip_dst.s_addr;
+		ip->ip_dst.s_addr = oip->ip_src.s_addr;
+		ip->ip_hl = sizeof(*ip) >> 2;
+		ip->ip_p = IPPROTO_TCP;
+		ip->ip_len = htons(sizeof(*ip) + sizeof(*tcp));
+		ip->ip_tos = oip->ip_tos;
+	}
+	return send_ip(fin, m);
+}
+
+
+int send_ip(fin, m)
+fr_info_t *fin;
+mblk_t *m;
+{
 	RWLOCK_EXIT(&ipfs_mutex);
 	RWLOCK_EXIT(&ipf_solaris);
-	ip_wput(qif->qf_ill->ill_wq, m);
+#ifdef	USE_INET6
+	if (fin->fin_v == 6) {
+		ip6_t *ip6;
+
+		ip6 = (ip6_t *)m->b_rptr;
+		ip6->ip6_flow = 0;
+		ip6->ip6_vfc = 0x60;
+		ip6->ip6_hlim = 127;
+		ip_wput_v6(((qif_t *)fin->fin_qif)->qf_ill->ill_wq, m);
+	} else
+#endif
+	{
+		ip_t *ip;
+
+		ip = (ip_t *)m->b_rptr;
+		ip->ip_v = IPVERSION;
+		ip->ip_ttl = 60;
+		ip_wput(((qif_t *)fin->fin_qif)->qf_ill->ill_wq, m);
+	}
 	READ_ENTER(&ipf_solaris);
 	READ_ENTER(&ipfs_mutex);
 	return 0;
 }
 
 
-int	icmp_error(ip, type, code, qif, dst)
-ip_t	*ip;
-int	type, code;
-qif_t	*qif;
-struct	in_addr	dst;
+int send_icmp_err(oip, type, fin, dst)
+ip_t *oip;
+int type;
+fr_info_t *fin;
+int dst;
 {
-	mblk_t *mb;
+	struct in_addr dst4;
 	struct icmp *icmp;
-	ip_t *nip;
-	u_short sz = sizeof(*nip) + sizeof(*icmp) + 8;
+	mblk_t *m, *mb;
+	int hlen, code;
+	qif_t	*qif;
+	u_short sz;
+#ifdef	USE_INET6
+	ip6_t *ip6, *oip6;
+#endif
+	ip_t *ip;
 
-	if ((mb = (mblk_t *)allocb((size_t)sz, BPRI_HI)) == NULL)
+	if ((type < 0) || (type > ICMP_MAXTYPE))
+		return -1;
+
+	code = fin->fin_icode;
+#ifdef USE_INET6
+	if ((code < 0) || (code > sizeof(icmptoicmp6unreach)/sizeof(int)))
+		return -1;
+#endif
+
+	qif = fin->fin_qif;
+	m = fin->fin_qfm;
+
+#ifdef	USE_INET6
+	if (oip->ip_v == 6) {
+		oip6 = (ip6_t *)oip;
+		sz = sizeof(ip6_t);
+		sz += MIN(m->b_wptr - m->b_rptr, 512);
+		hlen = sizeof(ip6_t);
+		type = icmptoicmp6types[type];
+		if (type == ICMP6_DST_UNREACH)
+			code = icmptoicmp6unreach[code];
+	} else
+#endif
+	{
+		if ((oip->ip_p == IPPROTO_ICMP) &&
+		    !(fin->fin_fi.fi_fl & FI_SHORT))
+			switch (ntohs(fin->fin_data[0]) >> 8)
+			{
+			case ICMP_ECHO :
+			case ICMP_TSTAMP :
+			case ICMP_IREQ :
+			case ICMP_MASKREQ :
+				break;
+			default :
+				return 0;
+			}
+
+		sz = sizeof(ip_t) * 2;
+		sz += 8;		/* 64 bits of data */
+		hlen = sz;
+	}
+
+	sz += offsetof(struct icmp, icmp_ip);
+	if ((mb = (mblk_t *)allocb((size_t)sz + 16, BPRI_HI)) == NULL)
 		return -1;
 	MTYPE(mb) = M_DATA;
-	mb->b_wptr += sz;
+	mb->b_rptr += 16;
+	mb->b_wptr = mb->b_rptr + sz;
 	bzero((char *)mb->b_rptr, (size_t)sz);
-	nip = (ip_t *)mb->b_rptr;
-	icmp = (struct icmp *)(nip + 1);
-
-	nip->ip_v = IPVERSION;
-	nip->ip_hl = (sizeof(*nip) >> 2);
-	nip->ip_p = IPPROTO_ICMP;
-	nip->ip_id = ip->ip_id;
-	nip->ip_sum = 0;
-	nip->ip_ttl = 60;
-	nip->ip_tos = ip->ip_tos;
-	nip->ip_len = (u_short)htons(sz);
-	if (dst.s_addr == 0) {
-		if (fr_ifpaddr(qif->qf_ill, &dst) == -1)
-			return -1;
-	}
-	nip->ip_src = dst;
-	nip->ip_dst = ip->ip_src;
-
+	icmp = (struct icmp *)(mb->b_rptr + sizeof(*ip));
 	icmp->icmp_type = type;
 	icmp->icmp_code = code;
 	icmp->icmp_cksum = 0;
-	bcopy((char *)ip, (char *)&icmp->icmp_ip, sizeof(*ip));
-	bcopy((char *)ip + (ip->ip_hl << 2),
-	      (char *)&icmp->icmp_ip + sizeof(*ip), 8);	/* 64 bits */
-#ifndef	sparc
-	ip = &icmp->icmp_ip;
-	{
-	u_short	__iplen, __ipoff;
 
-	__iplen = ip->ip_len;
-	__ipoff = ip->ip_len;
-	ip->ip_len = htons(__iplen);
-	ip->ip_off = htons(__ipoff);
-	}
+#ifdef	USE_INET6
+	if (oip->ip_v == 6) {
+		struct in6_addr dst6;
+		int csz;
+
+		if (dst == 0) {
+			if (fr_ifpaddr(6, ((qif_t *)fin->fin_qif)->qf_ill,
+				       (struct in_addr *)&dst6) == -1)
+				return -1;
+		} else
+			dst6 = oip6->ip6_dst;
+
+		csz = sz;
+		sz -= sizeof(ip6_t);
+		ip6 = (ip6_t *)mb->b_rptr;
+		ip6->ip6_flow = 0;
+		ip6->ip6_vfc = 0x60;
+		ip6->ip6_hlim = 127;
+		ip6->ip6_plen = htons(sz);
+		ip6->ip6_nxt = IPPROTO_ICMPV6;
+		ip6->ip6_src = dst6;
+		ip6->ip6_dst = oip6->ip6_src;
+		sz -= offsetof(struct icmp, icmp_ip);
+		bcopy((char *)m->b_rptr, (char *)&icmp->icmp_ip, sz);
+		icmp->icmp_cksum = csz - sizeof(ip6_t);
+	} else
 #endif
-	icmp->icmp_cksum = ipf_cksum((u_short *)icmp, sizeof(*icmp) + 8);
+	{
+		ip = (ip_t *)mb->b_rptr;
+		ip->ip_v = IPVERSION;
+		ip->ip_hl = (sizeof(*ip) >> 2);
+		ip->ip_p = IPPROTO_ICMP;
+		ip->ip_id = oip->ip_id;
+		ip->ip_sum = 0;
+		ip->ip_ttl = 60;
+		ip->ip_tos = oip->ip_tos;
+		ip->ip_len = (u_short)htons(sz);
+		if (dst == 0) {
+			if (fr_ifpaddr(4, ((qif_t *)fin->fin_qif)->qf_ill,
+				       &dst4) == -1)
+				return -1;
+		} else
+			dst4 = oip->ip_dst;
+		ip->ip_src = dst4;
+		ip->ip_dst = oip->ip_src;
+		bcopy((char *)oip, (char *)&icmp->icmp_ip, sizeof(*oip));
+		bcopy((char *)oip + (oip->ip_hl << 2),
+		      (char *)&icmp->icmp_ip + sizeof(*oip), 8);
+		icmp->icmp_cksum = ipf_cksum((u_short *)icmp,
+					     sizeof(*icmp) + 8);
+	}
+
 	/*
 	 * Need to exit out of these so we don't recursively call rw_enter
 	 * from fr_qout.
 	 */
-	RWLOCK_EXIT(&ipfs_mutex);
-	RWLOCK_EXIT(&ipf_solaris);
-	ip_wput(qif->qf_ill->ill_wq, mb);
-	READ_ENTER(&ipf_solaris);
-	READ_ENTER(&ipfs_mutex);
-	return 0;
+	return send_ip(fin, mb);
 }

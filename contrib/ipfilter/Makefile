@@ -1,11 +1,11 @@
 #
-# Copyright (C) 1993-1998 by Darren Reed.
+# Copyright (C) 1993-2000 by Darren Reed.
 #
 # Redistribution and use in source and binary forms are permitted
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.2 1999/08/04 17:29:52 darrenr Exp $
+# $Id: Makefile,v 2.11.2.1 2000/04/26 12:14:58 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -15,7 +15,7 @@ CC=gcc -Wstrict-prototypes -Wmissing-prototypes
 #CC=gcc
 #CC=cc -Dconst=
 DEBUG=-g
-CFLAGS=-I$$(TOP)
+CFLAGS=-I$$(TOP) -g
 CPU=`uname -m`
 CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
 #
@@ -30,6 +30,26 @@ IPFLOG=-DIPFILTER_LOG
 # The facility you wish to log messages from ipmon to syslogd with.
 #
 LOGFAC=-DLOGFAC=LOG_LOCAL0
+
+#
+# Uncomment the next 3 lines if you want to view the state table a la top(1)
+# (requires that you have installed ncurses).
+#STATETOP_CFLAGS=-DSTATETOP
+#
+# Where to find the ncurses include files (if not in default path), 
+#
+#STATETOP_INC=
+#STATETOP_INC=-I/usr/local/include
+#
+# How to link the ncurses library
+#
+#STATETOP_LIB=-lncurses
+#STATETOP_LIB=-L/usr/local/lib -lncurses
+
+#
+# Uncomment this when building IPv6 capability.
+#
+#INET6=-DUSE_INET6
 #
 # For packets which don't match any pass rules or any block rules, set either
 # FR_PASS or FR_BLOCK (respectively).  It defaults to FR_PASS if left
@@ -39,11 +59,12 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 #
 POLICY=-DIPF_DEFAULT_PASS=FR_PASS
 #
-MFLAGS1="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
-	'CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2)' \
+MFLAGS1='CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2) $(INET6)' \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
-	"CPUDIR=$(CPUDIR)"
+	"CPUDIR=$(CPUDIR)" 'STATETOP_CFLAGS=$(STATETOP_CFLAGS)' \
+        'STATETOP_INC=$(STATETOP_INC)' 'STATETOP_LIB=$(STATETOP_LIB)'
+DEST="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)"
 MFLAGS=$(MFLAGS1) "IPFLKM=$(IPFLKM)"
 #
 SHELL=/bin/sh
@@ -65,6 +86,7 @@ all:
 	@echo "freebsd	- compile for FreeBSD 2.0, 2.1 or earlier"
 	@echo "freebsd22	- compile for FreeBSD-2.2 or greater"
 	@echo "freebsd3	- compile for FreeBSD-3.x"
+	@echo "freebsd4	- compile for FreeBSD-4.x"
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
@@ -103,6 +125,11 @@ freebsd22: include
 	fi
 	make freebsd
 
+freebsd4: include
+	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
+	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlfk_ipl.c" "MLD=mlfk_ipl.c" "LKM=ipf.ko" "DLKM=-DKLD_MODULE"; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS1); cd ..)
+
 freebsd3 freebsd30: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
 	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS1) "ML=mlf_ipl.c" LKM= ; cd ..)
@@ -135,16 +162,16 @@ bsdi bsdos: include
 
 irix IRIX: include
 	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"
-	(cd IRIX/$(CPUDIR); smake build TOP=../.. $(MFLAGS); cd ..)
-	(cd IRIX/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
+	(cd IRIX/$(CPUDIR); smake build TOP=../.. $(DEST) $(MFLAGS); cd ..)
+	(cd IRIX/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(DEST) $(MFLAGS); cd ..)
 
 linux: include
 	make setup "TARGOS=Linux" "CPUDIR=$(CPUDIR)"
 	./buildlinux
 
 linuxrev:
-	(cd Linux/$(CPUDIR); make build TOP=../.. $(MFLAGS) LKM= ; cd ..)
-	(cd Linux/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
+	(cd Linux/$(CPUDIR); make build TOP=../.. $(DEST) $(MFLAGS) LKM= ; cd ..)
+	(cd Linux/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(DEST) $(MFLAGS); cd ..)
 
 setup:
 	-if [ ! -d $(TARGOS)/$(CPUDIR) ] ; then mkdir $(TARGOS)/$(CPUDIR); fi
@@ -155,8 +182,8 @@ setup:
 clean: clean-include
 	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
 	vnode_if.h $(LKM) *~
-	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS4; make clean); fi
-	if [ "`uname -s`" = "SunOS" ]; then (cd SunOS5; make clean); fi
+	(cd SunOS4; make clean)
+	(cd SunOS5; make clean)
 	(cd BSD; make clean)
 	(cd Linux; make clean)
 	if [ "`uname -s`" = "IRIX" ]; then (cd IRIX; make clean); fi
@@ -196,20 +223,20 @@ get:
 	done
 
 sunos4 solaris1:
-	(cd SunOS4; make build TOP=.. "CC=$(CC)" $(MFLAGS); cd ..)
-	(cd SunOS4; make -f Makefile.ipsend "CC=$(CC)" TOP=.. $(MFLAGS); cd ..)
+	(cd SunOS4; make build TOP=.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
+	(cd SunOS4; make -f Makefile.ipsend "CC=$(CC)" TOP=.. $(DEST) $(MFLAGS); cd ..)
 
 sunos5 solaris2:
-	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
-	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(MFLAGS); cd ..)
+	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
+	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
 sunos5x86 solaris2x86:
-	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
-	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(MFLAGS); cd ..)
+	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
+	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
 install-linux:
-	(cd Linux/$(CPUDIR); make install "TOP=../.." $(MFLAGS); cd ..)
-	(cd Linux/$(CPUDIR); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
+	(cd Linux/$(CPUDIR); make install "TOP=../.." $(DEST) $(MFLAGS); cd ..)
+	(cd Linux/$(CPUDIR); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(DEST) $(MFLAGS); cd ..)
 
 install-bsd:
 	(cd BSD/$(CPUDIR); make install "TOP=../.." $(MFLAGS); cd ..)
@@ -222,7 +249,7 @@ install-sunos5: solaris
 	(cd SunOS5; $(MAKE) "CPU=$(CPU) TOP=.." install)
 
 install-irix: irix
-	(cd IRIX; smake install "CPU=$(CPU) TOP=.." $(MFLAGS))
+	(cd IRIX; smake install "CPU=$(CPU) TOP=.." $(DEST) $(MFLAGS))
 
 rcsget:
 	-@for i in ipf.c ipt.h solaris.c ipf.h kmem.c ipft_ef.c linux.h \
