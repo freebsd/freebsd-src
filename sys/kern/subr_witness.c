@@ -545,7 +545,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			panic("recurse");
 		}
 		CTR3(KTR_WITNESS, __func__ ": pid %d recursed on %s r=%d",
-		    curproc->p_pid, lock->lo_name,
+		    td->td_proc->p_pid, lock->lo_name,
 		    lock1->li_flags & LI_RECURSEMASK);
 		lock1->li_file = file;
 		lock1->li_line = line;
@@ -700,7 +700,7 @@ out:
 			return;
 		lle->ll_next = *lock_list;
 		CTR2(KTR_WITNESS, __func__ ": pid %d added lle %p",
-		    curproc->p_pid, lle);
+		    td->td_proc->p_pid, lle);
 		*lock_list = lle;
 	}
 	lock1 = &lle->ll_children[lle->ll_count++];
@@ -712,7 +712,7 @@ out:
 	else
 		lock1->li_flags = 0;
 	CTR3(KTR_WITNESS, __func__ ": pid %d added %s as lle[%d]",
-	    curproc->p_pid, lock->lo_name, lle->ll_count - 1);
+	    td->td_proc->p_pid, lock->lo_name, lle->ll_count - 1);
 }
 
 void
@@ -830,7 +830,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				if ((instance->li_flags & LI_RECURSEMASK) > 0) {
 					CTR3(KTR_WITNESS,
 				    __func__ ": pid %d unrecursed on %s r=%d",
-					    curproc->p_pid,
+					    td->td_proc->p_pid,
 					    instance->li_lock->lo_name,
 					    instance->li_flags);
 					instance->li_flags--;
@@ -839,7 +839,8 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				s = critical_enter();
 				CTR3(KTR_WITNESS,
 				    __func__ ": pid %d removed %s from lle[%d]",
-				    curproc->p_pid, instance->li_lock->lo_name,
+				    td->td_proc->p_pid,
+				    instance->li_lock->lo_name,
 				    (*lock_list)->ll_count - 1);
 				(*lock_list)->ll_count--;
 				for (j = i; j < (*lock_list)->ll_count; j++)
@@ -851,7 +852,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					*lock_list = lle->ll_next;
 					CTR2(KTR_WITNESS,
 					    __func__ ": pid %d removed lle %p",
-					    curproc->p_pid, lle);
+					    td->td_proc->p_pid, lle);
 					witness_lock_list_free(lle);
 				}
 				goto out;
@@ -909,7 +910,7 @@ again:
 				if (check_only == 0) {
 					CTR3(KTR_WITNESS,
 				    "pid %d: sleeping with lock (%s) %s held",
-					    curproc->p_pid,
+					    td->td_proc->p_pid,
 					    lock1->li_lock->lo_class->lc_name,
 					    lock1->li_lock->lo_name);
 					lock1->li_flags |= LI_SLEPT;
