@@ -73,13 +73,16 @@ comments apply
 (created by
 .Xr sysinstall 8 )
 .It Pa /dev/
-block and character device files
+device special files managed by
+.Xr devfs 5
 .Pp
-.Bl -tag -width ".Pa fd/" -compact
+.Bl -tag -width ".Pa net/" -compact
 .It Pa fd/
 file descriptor files;
 see
 .Xr \&fd 4
+.It Pa net/
+network devices
 .El
 .It Pa /dist/
 mount point used by
@@ -840,6 +843,8 @@ this document.
 .Xr whatis 1 ,
 .Xr whereis 1 ,
 .Xr which 1 ,
+.Xr fd 4 ,
+.Xr devfs 5 ,
 .Xr fsck 8
 .Sh HISTORY
 A
