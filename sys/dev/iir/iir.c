@@ -1,5 +1,7 @@
 /*
- *       Copyright (c) 2000-03 Intel Corporation
+ *       Copyright (c) 2000-03 ICP vortex GmbH
+ *       Copyright (c) 2002-03 Intel Corporation
+ *       Copyright (c) 2003    Adaptec Inc.
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,17 +32,16 @@
 /*
  * iir.c: SCSI dependant code for the Intel Integrated RAID Controller driver
  *
- * Written by: Achim Leubner <achim.leubner@intel.com>
+ * Written by: Achim Leubner <achim_leubner@adaptec.com>
  * Fixes/Additions: Boji Tony Kannanthanam <boji.t.kannanthanam@intel.com>
  *
  * credits:     Niklas Hallqvist;       OpenBSD driver for the ICP Controllers.
  *              Mike Smith;             Some driver source code.
  *              FreeBSD.ORG;            Great O/S to work on and for.
  *
- * TODO:     
+ * $Id: iir.c 1.4 2003/08/26 12:29:44 achim Exp $"
  */
 
-#ident "$Id: iir.c 1.3 2003/03/21 16:28:32 achim Exp $"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -1458,7 +1459,10 @@ iir_action( struct cam_sim *sim, union ccb *ccb )
                   (bus == gdt->sc_virt_bus ? 127 : gdt->sc_bus_id[bus]);
               cpi->base_transfer_speed = 3300;
               strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-              strncpy(cpi->hba_vid, "Intel Corp.", HBA_IDLEN);
+              if (gdt->sc_vendor == INTEL_VENDOR_ID)
+                  strncpy(cpi->hba_vid, "Intel Corp.", HBA_IDLEN);
+              else
+                  strncpy(cpi->hba_vid, "ICP vortex ", HBA_IDLEN);
               strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
               cpi->ccb_h.status = CAM_REQ_CMP;
               --gdt_stat.io_count_act;
