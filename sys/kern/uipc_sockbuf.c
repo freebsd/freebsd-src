@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.24 1997/04/27 20:00:44 wollman Exp $
+ *	$Id: uipc_socket2.c,v 1.25 1997/05/24 17:23:10 peter Exp $
  */
 
 #include <sys/param.h>
@@ -193,12 +193,9 @@ sodropablereq(head)
  * then we allocate a new structure, propoerly linked into the
  * data structure of the original socket, and return this.
  * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
- *
- * Currently, sonewconn() is defined as sonewconn1() in socketvar.h
- * to catch calls that are missing the (new) second parameter.
  */
 struct socket *
-sonewconn1(head, connstatus)
+sonewconn(head, connstatus)
 	register struct socket *head;
 	int connstatus;
 {
