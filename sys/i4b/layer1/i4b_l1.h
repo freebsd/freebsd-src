@@ -27,9 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_l1.h,v 1.57 1999/02/17 14:31:42 hm Exp $ 
+ *	$Id: i4b_l1.h,v 1.2 1999/03/07 16:08:16 hm Exp $ 
  *
- *      last edit-date: [Wed Feb 17 15:16:48 1999]
+ *      last edit-date: [Tue Mar 16 10:38:03 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -383,12 +383,12 @@ extern struct isic_softc isic_sc[];
 extern void isic_recover(struct isic_softc *sc);
 extern int isic_realattach(struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_avma1 ( struct isa_device *dev );
-extern int isic_attach_fritzpcmcia ( struct isa_device *dev );
+extern int isic_attach_fritz ( struct isa_device *dev );
 extern int isic_attach_Cs0P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_Dyn ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_s016 ( struct isa_device *dev );
 extern int isic_attach_s0163 ( struct isa_device *dev );
-extern int isic_attach_s0163P ( struct isa_device *dev );
+extern int isic_attach_s0163P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_s08 ( struct isa_device *dev );
 extern int isic_attach_usrtai ( struct isa_device *dev );
 extern int isic_attach_itkix1 ( struct isa_device *dev );
@@ -414,7 +414,7 @@ extern int isic_probe_Cs0P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_Dyn ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_s016 ( struct isa_device *dev );
 extern int isic_probe_s0163 ( struct isa_device *dev );
-extern int isic_probe_s0163P ( struct isa_device *dev );
+extern int isic_probe_s0163P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_s08 ( struct isa_device *dev );
 extern int isic_probe_usrtai ( struct isa_device *dev );
 extern int isic_probe_itkix1 ( struct isa_device *dev );

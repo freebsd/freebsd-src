@@ -27,9 +27,9 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.16 1999/02/14 19:51:02 hm Exp $ 
+ *	$Id: i4b_isic_isa.c,v 1.2 1999/03/07 16:08:15 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:27:26 1999]
+ *      last edit-date: [Tue Mar 16 10:35:38 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -402,9 +402,9 @@ isicattach(int flags, struct isic_softc *sc)
 				   out of this ISA specific part for the other
 				   OS */
 
-#ifdef AVM_PCMCIA
+#ifdef AVM_A1_PCMCIA
 		case FLAG_AVM_A1_PCMCIA:
-			ret = isic_attach_fritzpcmcia(PARM);
+                      ret = isic_attach_fritz(PARM);
 			break;
 #endif
 
