@@ -119,13 +119,17 @@ main(argc, argv)
 	rval = 0;
 	if (*argv)
 		for (; *argv; ++argv) {
-			if (!(fp = fopen(*argv, "r"))) {
-				warn("%s", *argv);
-				rval = 1;
-				continue;
+			if (strcmp(*argv, "-") == 0)
+				fcn(stdin, "stdin");
+			else {
+				if (!(fp = fopen(*argv, "r"))) {
+					warn("%s", *argv);
+					rval = 1;
+					continue;
+				}
+				fcn(fp, *argv);
+				(void)fclose(fp);
 			}
-			fcn(fp, *argv);
-			(void)fclose(fp);
 		}
 	else
 		fcn(stdin, "stdin");
