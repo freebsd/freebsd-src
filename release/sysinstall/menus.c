@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.52 1996/04/25 17:31:23 jkh Exp $
+ * $Id: menus.c,v 1.53 1996/04/26 18:19:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,6 +51,12 @@ clearSrc(dialogMenuItem *self)
     Dists &= ~DIST_SRC;
     SrcDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+checkSrc(dialogMenuItem *self)
+{
+    return ((Dists & DIST_SRC) && (SrcDists == DIST_SRC_ALL | DIST_SRC_SMAILCF));
 }
 
 static int
@@ -104,6 +110,78 @@ clearX11Servers(dialogMenuItem *self)
     XF86Dists &= ~DIST_XF86_SERVER;
     XF86ServerDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+checkDistDeveloper(dialogMenuItem *self)
+{
+    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_ALL);
+}
+
+static int
+checkDistXDeveloper(dialogMenuItem *self)
+{
+    return (Dists == _DIST_DEVELOPER | DIST_XF86 && SrcDists == DIST_SRC_ALL &&
+	    XF86Dists == DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN |
+	    DIST_XF86_SERVER | DIST_XF86_FONTS && (XF86ServerDists & DIST_XF86_SERVER_SVGA) &&
+	    (XF86FontDists & DIST_XF86_FONTS_MISC));
+}
+
+static int
+checkDistKernDeveloper(dialogMenuItem *self)
+{
+    return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_SYS);
+}
+
+static int
+checkDistUser(dialogMenuItem *self)
+{
+    return (Dists == _DIST_USER);
+}
+
+static int
+checkDistXUser(dialogMenuItem *self)
+{
+    return (Dists == _DIST_USER &&
+	    XF86Dists == DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS &&
+	    (XF86ServerDists & DIST_XF86_SERVER_SVGA) && (XF86FontDists & DIST_XF86_FONTS_MISC));
+}
+
+static int
+checkDistMinimum(dialogMenuItem *self)
+{
+    return (Dists == DIST_BIN);
+}
+
+static int
+checkDistEverything(dialogMenuItem *self)
+{
+    return (Dists == DIST_ALL && SrcDists == DIST_SRC_ALL && XF86Dists == DIST_XF86_ALL &&
+	    XF86ServerDists == DIST_XF86_SERVER_ALL && XF86FontDists == DIST_XF86_FONTS_ALL);
+}
+
+static int
+DESFlagCheck(dialogMenuItem *item)
+{
+    return DESDists;
+}
+
+static int
+srcFlagCheck(dialogMenuItem *item)
+{
+    return SrcDists;
+}
+
+static int
+x11FlagCheck(dialogMenuItem *item)
+{
+    return XF86Dists;
+}
+
+static int
+checkTrue(dialogMenuItem *item)
+{
+    return TRUE;
 }
 
 /* All the system menus go here.
@@ -265,7 +343,7 @@ distribution files.",
 };
 
 DMenu MenuMediaFTP = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select a FreeBSD FTP distribution site",
     "Please select the site closest to you or \"other\" if you'd like to\n\
 specify a different choice.  Also note that not every site listed here\n\
@@ -449,7 +527,7 @@ media.",
 
 /* The distributions menu */
 DMenu MenuDistributions = {
-    DMENU_NORMAL_TYPE,
+    DMENU_CHECKLIST_TYPE,
     "Choose Distributions",
     "As a convenience, we provide several \"canned\" distribution sets.\n\
 These select what we consider to be the most reasonable defaults for the\n\
@@ -460,45 +538,27 @@ When you are finished, select Cancel or chose Exit.",
     "Press F1 for more information on these options.",
     "distributions",
 { { "1 Developer",	"Full sources, binaries and doc but no games [180MB]",
-    NULL, distSetDeveloper },
+    checkDistDeveloper, distSetDeveloper },
   { "2 X-Developer",	"Same as above, but includes XFree86 [201MB]",
-    NULL, distSetXDeveloper },
+    checkDistXDeveloper, distSetXDeveloper },
   { "3 Kern-Developer",	"Full binaries and doc, kernel sources only [70MB]",
-    NULL, distSetKernDeveloper },
-  { "4 User",		"Average user - binaries and doc but no sources [52MB]",
-    NULL, distSetUser },
+    checkDistKernDeveloper, distSetKernDeveloper },
+  { "4 User",		"Average user - binaries and doc only [52MB]",
+    checkDistUser, distSetUser },
   { "5 X-User",		"Same as above, but includes XFree86 [52MB]",
-    NULL, distSetXUser },
+    checkDistXUser, distSetXUser },
   { "6 Minimal",	"The smallest configuration possible [44MB]",
-    NULL, distSetMinimum },
+    checkDistMinimum, distSetMinimum },
   { "7 Custom",		"Specify your own distribution set [?]",
-    NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
+    checkTrue, dmenuSubmenu, NULL, &MenuSubDistributions, '-', '-', '-' },
   { "8 All",		"All sources, binaries and XFree86 binaries [700MB]",
-    NULL, distSetEverything	},
+    checkDistEverything, distSetEverything },
   { "9 Clear",		"Reset selected distribution list to nothing [0MB]",
-    NULL, distReset },
+    NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
   { "0 Exit",		"Exit this menu (returning to previous)",
-    NULL, dmenuCancel },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
-
-static int
-DESFlagCheck(dialogMenuItem *item)
-{
-    return DESDists;
-}
-
-static int
-srcFlagCheck(dialogMenuItem *item)
-{
-    return SrcDists;
-}
-
-static int
-x11FlagCheck(dialogMenuItem *item)
-{
-    return XF86Dists;
-}
 
 DMenu MenuSubDistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
@@ -543,7 +603,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
   { "Clear",		"Reset all of the above [0MB]",
     NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -566,7 +626,7 @@ software, please consult the release notes.",
   { "ssecure",	"Sources for DES [1MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SSECURE },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -610,11 +670,11 @@ you wish to install.",
   { "smailcf",	"/usr/src/usr.sbin (sendmail config macros) [341K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SMAILCF },
   { "All",	"Select all of the above [120MB]",
-    NULL, setSrc, NULL, NULL, ' ', ' ', ' ' },
+    checkSrc, setSrc },
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearSrc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -637,7 +697,7 @@ component set and at least one entry from the Server and Font set menus.",
   { "Clear",	"Reset XFree86 distribution list",
     NULL, clearX11All },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -679,7 +739,7 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -705,7 +765,7 @@ install.  At the minimum, you should install the standard\n\
   { "server",	"Font server [0.3MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -747,7 +807,7 @@ Mono servers are particularly well-suited to most LCD displays).",
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -898,7 +958,7 @@ aspects of your system's network configuration.",
   { "PCNFSD",		"Run authentication server for clients with PC-NFS.",
     NULL, configPCNFSD },
   { "Exit",	"Exit this menu (returning to previous)",
-    NULL, dmenuCancel, NULL, NULL, ' ', ' ', ' ' },
+    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
