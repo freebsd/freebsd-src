@@ -69,7 +69,8 @@ scan (info, string)
 
   switch (number) 
     {
-
+    case bfd_mach_v850e:  arch = bfd_arch_v850; break;
+    case bfd_mach_v850ea: arch = bfd_arch_v850; break;
     default:  
       return false;
     }
@@ -89,6 +90,14 @@ scan (info, string)
 
 #define NEXT NULL
 
+static const bfd_arch_info_type arch_info_struct[] = 
+{
+  N (bfd_mach_v850e,  "v850e",  false, &arch_info_struct[1]),
+  N (bfd_mach_v850ea, "v850ea", false, NULL)
+};
+
+#undef NEXT
+#define NEXT &arch_info_struct[0]
 
 const bfd_arch_info_type bfd_v850_arch =
   N (bfd_mach_v850, "v850", true, NEXT);

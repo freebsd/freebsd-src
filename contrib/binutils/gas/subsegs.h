@@ -1,5 +1,5 @@
 /* subsegs.h -> subsegs.c
-   Copyright (C) 1987, 92, 93, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1987, 92, 93, 94, 95, 96, 1998 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -14,8 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 /*
  * For every sub-segment the user mentions in the ASsembler program,
@@ -63,7 +64,7 @@ extern frchainS *frchain_root;
 extern frchainS *frchain_now;
 
 
-typedef struct
+typedef struct segment_info_struct
 {
   frchainS *frchainP;
   unsigned int hadone : 1;

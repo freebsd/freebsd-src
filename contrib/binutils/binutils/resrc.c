@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -29,9 +29,49 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <sys/stat.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
-#if defined (_WIN32) && ! defined (__CYGWIN32__)
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#else /* ! HAVE_SYS_WAIT_H */
+#if ! defined (_WIN32) || defined (__CYGWIN__)
+#ifndef WIFEXITED
+#define WIFEXITED(w)	(((w)&0377) == 0)
+#endif
+#ifndef WIFSIGNALED
+#define WIFSIGNALED(w)	(((w)&0377) != 0177 && ((w)&~0377) == 0)
+#endif
+#ifndef WTERMSIG
+#define WTERMSIG(w)	((w) & 0177)
+#endif
+#ifndef WEXITSTATUS
+#define WEXITSTATUS(w)	(((w) >> 8) & 0377)
+#endif
+#else /* defined (_WIN32) && ! defined (__CYGWIN__) */
+#ifndef WIFEXITED
+#define WIFEXITED(w)	(((w) & 0xff) == 0)
+#endif
+#ifndef WIFSIGNALED
+#define WIFSIGNALED(w)	(((w) & 0xff) != 0 && ((w) & 0xff) != 0x7f)
+#endif
+#ifndef WTERMSIG
+#define WTERMSIG(w)	((w) & 0x7f)
+#endif
+#ifndef WEXITSTATUS
+#define WEXITSTATUS(w)	(((w) & 0xff00) >> 8)
+#endif
+#endif /* defined (_WIN32) && ! defined (__CYGWIN__) */
+#endif /* ! HAVE_SYS_WAIT_H */
+
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
+ 
+#if defined (_WIN32) && ! defined (__CYGWIN__)
 #define popen _popen
 #define pclose _pclose
 #endif
@@ -86,6 +126,15 @@ int rc_lineno;
 
 static FILE *cpp_pipe;
 
+/* The temporary file used if we're not using popen, so we can delete it
+   if we exit.  */
+
+static char *cpp_temp_file;
+
+/* Input stream is either a file or a pipe. */
+
+static enum {ISTREAM_PIPE, ISTREAM_FILE} istream_type;
+
 /* As we read the rc file, we attach information to this structure.  */
 
 static struct res_directory *resources;
@@ -112,7 +161,11 @@ static int icons;
 
 /* Local functions.  */
 
-static void close_pipe PARAMS ((void));
+static int run_cmd PARAMS ((char *, const char *));
+static FILE *open_input_stream PARAMS ((char *));
+static FILE *look_for_default PARAMS ((char *, const char *, int,
+				       const char *, const char *));
+static void close_input_stream PARAMS ((void));
 static void unexpected_eof PARAMS ((const char *));
 static int get_word PARAMS ((FILE *, const char *));
 static unsigned long get_long PARAMS ((FILE *, const char *));
@@ -120,37 +173,307 @@ static void get_data
   PARAMS ((FILE *, unsigned char *, unsigned long, const char *));
 static void define_fontdirs PARAMS ((void));
 
+/* Run `cmd' and redirect the output to `redir'. */
+
+static int
+run_cmd (cmd, redir)
+     char *cmd;
+     const char *redir;
+{
+  char *s;
+  int pid, wait_status, retcode;
+  int i;
+  const char **argv;
+  char *errmsg_fmt, *errmsg_arg;
+  char *temp_base = choose_temp_base ();
+  int in_quote;
+  char sep;
+  int redir_handle = -1;
+  int stdout_save = -1;
+
+  /* Count the args.  */
+  i = 0;
+  
+  for (s = cmd; *s; s++)
+    if (*s == ' ')
+      i++;
+  
+  i++;
+  argv = alloca (sizeof (char *) * (i + 3));
+  i = 0;
+  s = cmd;
+  
+  while (1)
+    {
+      while (*s == ' ' && *s != 0)
+	s++;
+      
+      if (*s == 0)
+	break;
+      
+      in_quote = (*s == '\'' || *s == '"');
+      sep = (in_quote) ? *s++ : ' ';
+      argv[i++] = s;
+      
+      while (*s != sep && *s != 0)
+	s++;
+      
+      if (*s == 0)
+	break;
+      
+      *s++ = 0;
+      
+      if (in_quote)
+        s++;
+    }
+  argv[i++] = NULL;
+
+  /* Setup the redirection.  We can't use the usual fork/exec and redirect
+     since we may be running on non-POSIX Windows host.  */
+
+  fflush (stdout);
+  fflush (stderr);
+
+  /* Open temporary output file.  */
+  redir_handle = open (redir, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+  if (redir_handle == -1)
+    fatal (_("can't open temporary file `%s': %s"), redir, 
+           strerror (errno));
+
+  /* Duplicate the stdout file handle so it can be restored later.  */
+  stdout_save = dup (STDOUT_FILENO);
+  if (stdout_save == -1)
+    fatal (_("can't redirect stdout: `%s': %s"), redir, strerror (errno));
+
+  /* Redirect stdout to our output file.  */
+  dup2 (redir_handle, STDOUT_FILENO);
+
+  pid = pexecute (argv[0], (char * const *) argv, program_name, temp_base,
+		  &errmsg_fmt, &errmsg_arg, PEXECUTE_ONE | PEXECUTE_SEARCH);
+
+  /* Restore stdout to its previous setting.  */
+  dup2 (stdout_save, STDOUT_FILENO);
+
+  /* Close reponse file.  */
+  close (redir_handle);
+
+  if (pid == -1)
+    {
+      fatal (_("%s %s: %s"), errmsg_fmt, errmsg_arg, strerror (errno));
+      return 1;
+    }
+
+  retcode = 0;
+  pid = pwait (pid, &wait_status, 0);
+  
+  if (pid == -1)
+    {
+      fatal (_("wait: %s"), strerror (errno));
+      retcode = 1;
+    }
+  else if (WIFSIGNALED (wait_status))
+    {
+      fatal (_("subprocess got fatal signal %d"), WTERMSIG (wait_status));
+      retcode = 1;
+    }
+  else if (WIFEXITED (wait_status))
+    {
+      if (WEXITSTATUS (wait_status) != 0)
+	{
+	  fatal (_("%s exited with status %d"), cmd, 
+	         WEXITSTATUS (wait_status));
+	  retcode = 1;
+	}
+    }
+  else
+    retcode = 1;
+  
+  return retcode;
+}
+
+static FILE *
+open_input_stream (cmd)
+     char *cmd;
+{
+  if (istream_type == ISTREAM_FILE)
+    {
+      char *fileprefix;
+
+      fileprefix = choose_temp_base ();
+      cpp_temp_file = (char *) xmalloc (strlen (fileprefix) + 5);
+      sprintf (cpp_temp_file, "%s.irc", fileprefix);
+      free (fileprefix);
+
+      if (run_cmd (cmd, cpp_temp_file))
+	fatal (_("can't execute `%s': %s"), cmd, strerror (errno));
+
+      cpp_pipe = fopen (cpp_temp_file, FOPEN_RT);;
+      if (cpp_pipe == NULL)
+        fatal (_("can't open temporary file `%s': %s"), 
+	       cpp_temp_file, strerror (errno));
+      
+      if (verbose)
+	fprintf (stderr, 
+	         _("Using temporary file `%s' to read preprocessor output\n"),
+		 cpp_temp_file);
+    }
+  else
+    {
+      cpp_pipe = popen (cmd, FOPEN_RT);
+      if (cpp_pipe == NULL)
+        fatal (_("can't popen `%s': %s"), cmd, strerror (errno));
+      if (verbose)
+	fprintf (stderr, _("Using popen to read preprocessor output\n"));
+    }
+
+  xatexit (close_input_stream);
+  return cpp_pipe;
+}
+
+/* look for the preprocessor program */
+
+static FILE *
+look_for_default (cmd, prefix, end_prefix, preprocargs, filename)
+     char *cmd;
+     const char *prefix;
+     int end_prefix;
+     const char *preprocargs;
+     const char *filename;
+{
+  char *space;
+  int found;
+  struct stat s;
+
+  strcpy (cmd, prefix);
+
+  sprintf (cmd + end_prefix, "%s", DEFAULT_PREPROCESSOR);
+  space = strchr (cmd + end_prefix, ' ');
+  if (space)
+    *space = 0;
+
+  if (
+#if defined (__DJGPP__) || defined (__CYGWIN__) || defined (_WIN32)
+      strchr (cmd, '\\') ||
+#endif
+      strchr (cmd, '/'))
+    {
+      found = (stat (cmd, &s) == 0
+#ifdef HAVE_EXECUTABLE_SUFFIX
+	       || stat (strcat (cmd, EXECUTABLE_SUFFIX), &s) == 0
+#endif
+	       );
+
+      if (! found)
+	{
+	  if (verbose)
+	    fprintf (stderr, _("Tried `%s'\n"), cmd);
+	  return NULL;
+	}
+    }
+
+  strcpy (cmd, prefix);
+
+  sprintf (cmd + end_prefix, "%s %s %s",
+	   DEFAULT_PREPROCESSOR, preprocargs, filename);
+
+  if (verbose)
+    fprintf (stderr, _("Using `%s'\n"), cmd);
+
+  cpp_pipe = open_input_stream (cmd);
+  return cpp_pipe;
+}
+
 /* Read an rc file.  */
 
 struct res_directory *
-read_rc_file (filename, preprocessor, preprocargs, language)
+read_rc_file (filename, preprocessor, preprocargs, language, use_temp_file)
      const char *filename;
      const char *preprocessor;
      const char *preprocargs;
      int language;
+     int use_temp_file;
 {
   char *cmd;
 
-  if (preprocessor == NULL)
-    preprocessor = DEFAULT_PREPROCESSOR;
+  istream_type = (use_temp_file) ? ISTREAM_FILE : ISTREAM_PIPE;
 
   if (preprocargs == NULL)
     preprocargs = "";
   if (filename == NULL)
     filename = "-";
 
-  cmd = xmalloc (strlen (preprocessor)
-		 + strlen (preprocargs)
-		 + strlen (filename)
-		 + 10);
-  sprintf (cmd, "%s %s %s", preprocessor, preprocargs, filename);
+  if (preprocessor)
+    {
+      cmd = xmalloc (strlen (preprocessor)
+		     + strlen (preprocargs)
+		     + strlen (filename)
+		     + 10);
+      sprintf (cmd, "%s %s %s", preprocessor, preprocargs, filename);
 
-  cpp_pipe = popen (cmd, FOPEN_RT);
-  if (cpp_pipe == NULL)
-    fatal ("can't popen `%s': %s", cmd, strerror (errno));
+      cpp_pipe = open_input_stream (cmd);
+    }
+  else
+    {
+      char *dash, *slash, *cp;
+
+      preprocessor = DEFAULT_PREPROCESSOR;
+
+      cmd = xmalloc (strlen (program_name)
+		     + strlen (preprocessor)
+		     + strlen (preprocargs)
+		     + strlen (filename)
+#ifdef HAVE_EXECUTABLE_SUFFIX
+		     + strlen (EXECUTABLE_SUFFIX)
+#endif
+		     + 10);
+
+
+      dash = slash = 0;
+      for (cp = program_name; *cp; cp++)
+	{
+	  if (*cp == '-')
+	    dash = cp;
+	  if (
+#if defined (__DJGPP__) || defined (__CYGWIN__) || defined(_WIN32)
+	      *cp == ':' || *cp == '\\' ||
+#endif
+	      *cp == '/')
+	    {
+	      slash = cp;
+	      dash = 0;
+	    }
+	}
+
+      cpp_pipe = 0;
+
+      if (dash)
+	{
+	  /* First, try looking for a prefixed gcc in the windres
+	     directory, with the same prefix as windres */
+
+	  cpp_pipe = look_for_default (cmd, program_name, dash-program_name+1,
+				       preprocargs, filename);
+	}
+
+      if (slash && !cpp_pipe)
+	{
+	  /* Next, try looking for a gcc in the same directory as
+             that windres */
+
+	  cpp_pipe = look_for_default (cmd, program_name, slash-program_name+1,
+				       preprocargs, filename);
+	}
+
+      if (!cpp_pipe)
+	{
+	  /* Sigh, try the default */
+
+	  cpp_pipe = look_for_default (cmd, "", 0, preprocargs, filename);
+	}
+
+    }
+  
   free (cmd);
-
-  xatexit (close_pipe);
 
   rc_filename = xstrdup (filename);
   rc_lineno = 1;
@@ -159,10 +482,8 @@ read_rc_file (filename, preprocessor, preprocargs, language)
   yyin = cpp_pipe;
   yyparse ();
 
-  if (pclose (cpp_pipe) != 0)
-    fprintf (stderr, "%s: warning: preprocessor failed\n", program_name);
-  cpp_pipe = NULL;
-
+  close_input_stream ();
+  
   if (fontdirs != NULL)
     define_fontdirs ();
 
@@ -172,13 +493,37 @@ read_rc_file (filename, preprocessor, preprocargs, language)
   return resources;
 }
 
-/* Close the pipe if it is open.  This is called via xatexit.  */
+/* Close the input stream if it is open.  */
 
-void
-close_pipe ()
+static void
+close_input_stream ()
 {
   if (cpp_pipe != NULL)
     pclose (cpp_pipe);
+  
+  if (istream_type == ISTREAM_FILE)
+    {
+      if (cpp_pipe != NULL)
+	fclose (cpp_pipe);
+
+      if (cpp_temp_file != NULL)
+	{
+	  int errno_save = errno;
+	  
+	  unlink (cpp_temp_file);
+	  errno = errno_save;
+	  free (cpp_temp_file);
+	}
+    }
+  else
+    {
+      if (cpp_pipe != NULL)
+	pclose (cpp_pipe);
+    }
+
+  /* Since this is also run via xatexit, safeguard. */
+  cpp_pipe = NULL;
+  cpp_temp_file = NULL;
 }
 
 /* Report an error while reading an rc file.  */
@@ -196,7 +541,7 @@ void
 rcparse_warning (msg)
      const char *msg;
 {
-  fprintf (stderr, "%s:%d: %s\n", rc_filename, rc_lineno, msg);
+  fprintf (stderr, _("%s:%d: %s\n"), rc_filename, rc_lineno, msg);
 }
 
 /* Die if we get an unexpected end of file.  */
@@ -205,7 +550,7 @@ static void
 unexpected_eof (msg)
      const char *msg;
 {
-  fatal ("%s: unexpected EOF", msg);
+  fatal (_("%s: unexpected EOF"), msg);
 }
 
 /* Read a 16 bit word from a file.  The data is assumed to be little
@@ -262,7 +607,7 @@ get_data (e, p, c, msg)
   if (got == c)
     return;
 
-  fatal ("%s: read of %lu returned %lu", msg, c, got);
+  fatal (_("%s: read of %lu returned %lu"), msg, c, got);
 }
 
 /* Define an accelerator resource.  */
@@ -275,7 +620,7 @@ define_accelerator (id, resinfo, data)
 {
   struct res_resource *r;
 
-  r = define_standard_resource (&resources, RT_ACCELERATORS, id,
+  r = define_standard_resource (&resources, RT_ACCELERATOR, id,
 				resinfo->language, 0);
   r->type = RES_TYPE_ACCELERATOR;
   r->u.acc = data;
@@ -304,7 +649,7 @@ define_bitmap (id, resinfo, filename)
   e = open_file_search (filename, FOPEN_RB, "bitmap file", &real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal ("stat failed on bitmap file `%s': %s", real_filename,
+    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size - BITMAP_SKIP);
@@ -357,7 +702,7 @@ define_cursor (id, resinfo, filename)
   type = get_word (e, real_filename);
   count = get_word (e, real_filename);
   if (type != 2)
-    fatal ("cursor file `%s' does not contain cursor data", real_filename);
+    fatal (_("cursor file `%s' does not contain cursor data"), real_filename);
 
   /* Read in the icon directory entries.  */
 
@@ -389,7 +734,7 @@ define_cursor (id, resinfo, filename)
       struct cursor *c;
 
       if (fseek (e, icondirs[i].offset, SEEK_SET) != 0)
-	fatal ("%s: fseek to %lu failed: %s", real_filename,
+	fatal (_("%s: fseek to %lu failed: %s"), real_filename,
 	       icondirs[i].offset, strerror (errno));
 
       data = (unsigned char *) res_alloc (icondirs[i].bytes);
@@ -535,7 +880,7 @@ define_font (id, resinfo, filename)
   e = open_file_search (filename, FOPEN_RB, "font file", &real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal ("stat failed on bitmap file `%s': %s", real_filename,
+    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size);
@@ -648,7 +993,7 @@ define_icon (id, resinfo, filename)
   type = get_word (e, real_filename);
   count = get_word (e, real_filename);
   if (type != 1)
-    fatal ("icon file `%s' does not contain icon data", real_filename);
+    fatal (_("icon file `%s' does not contain icon data"), real_filename);
 
   /* Read in the icon directory entries.  */
 
@@ -679,7 +1024,7 @@ define_icon (id, resinfo, filename)
       struct res_id name;
 
       if (fseek (e, icondirs[i].offset, SEEK_SET) != 0)
-	fatal ("%s: fseek to %lu failed: %s", real_filename,
+	fatal (_("%s: fseek to %lu failed: %s"), real_filename,
 	       icondirs[i].offset, strerror (errno));
 
       data = (unsigned char *) res_alloc (icondirs[i].bytes);
@@ -808,7 +1153,7 @@ define_messagetable (id, resinfo, filename)
 			&real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal ("stat failed on bitmap file `%s': %s", real_filename,
+    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size);
@@ -962,7 +1307,7 @@ define_user_file (id, type, resinfo, filename)
   e = open_file_search (filename, FOPEN_RB, "font file", &real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal ("stat failed on bitmap file `%s': %s", real_filename,
+    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size);
@@ -1167,7 +1512,7 @@ write_rc_file (filename, resources)
     {
       e = fopen (filename, FOPEN_WT);
       if (e == NULL)
-	fatal ("can't open `%s' for output: %s", filename, strerror (errno));
+	fatal (_("can't open `%s' for output: %s"), filename, strerror (errno));
     }
 
   language = -1;
@@ -1223,7 +1568,7 @@ write_rc_directory (e, rd, type, name, language, level)
 	  /* If we're at level 3, then this key represents a language.
 	     Use it to update the current language.  */
 	  if (! re->id.named
-	      && re->id.u.id != *language
+	      && re->id.u.id != (unsigned long) (unsigned int) *language
 	      && (re->id.u.id & 0xffff) == re->id.u.id)
 	    {
 	      fprintf (e, "LANGUAGE %lu, %lu\n",
@@ -1294,7 +1639,7 @@ write_rc_subdir (e, re, type, name, language, level)
 	    case RT_STRING: s = "stringtable"; break;
 	    case RT_FONTDIR: s = "fontdir"; break;
 	    case RT_FONT: s = "font"; break;
-	    case RT_ACCELERATORS: s = "accelerators"; break;
+	    case RT_ACCELERATOR: s = "accelerators"; break;
 	    case RT_RCDATA: s = "rcdata"; break;
 	    case RT_MESSAGETABLE: s = "messagetable"; break;
 	    case RT_GROUP_CURSOR: s = "group cursor"; break;
@@ -1364,7 +1709,7 @@ write_rc_resource (e, type, name, res, language)
 
     case RES_TYPE_ACCELERATOR:
       s = "ACCELERATOR";
-      rt = RT_ACCELERATORS;
+      rt = RT_ACCELERATOR;
       break;
 
     case RES_TYPE_BITMAP:
@@ -1452,7 +1797,7 @@ write_rc_resource (e, type, name, res, language)
 
   if (rt != 0
       && type != NULL
-      && (type->named || type->u.id != rt))
+      && (type->named || type->u.id != (unsigned long) rt))
     {
       fprintf (e, "// Unexpected resource type mismatch: ");
       res_id_print (e, *type, 1);
@@ -1787,8 +2132,9 @@ write_rc_dialog_control (e, control)
 		|| ci->style == (control->style & 0xff)))
 	  break;
     }
-
-  if (ci->name != NULL)
+  if (ci == NULL)
+    fprintf (e, "CONTROL");
+  else if (ci->name != NULL)
     fprintf (e, "%s", ci->name);
   else
     fprintf (e, "CONTROL");
@@ -1802,9 +2148,13 @@ write_rc_dialog_control (e, control)
 
   fprintf (e, " %d, ", control->id);
 
-  if (ci->name == NULL)
+  if (ci == NULL)
     {
+      if (control->class.named)
+	fprintf (e, "\"");
       res_id_print (e, control->class, 0);
+      if (control->class.named)
+	fprintf (e, "\"");
       fprintf (e, ", 0x%lx, ", control->style);
     }
 
@@ -2013,7 +2363,7 @@ write_rc_rcdata (e, rcdata, ind)
 	    s = ri->u.string.s;
 	    for (i = 0; i < ri->u.string.length; i++)
 	      {
-		if (isprint (*s))
+		if (isprint ((unsigned char) *s))
 		  putc (*s, e);
 		else
 		  fprintf (e, "\\%03o", *s);
@@ -2039,60 +2389,100 @@ write_rc_rcdata (e, rcdata, ind)
 	    for (i = 0; i + 3 < ri->u.buffer.length; i += 4)
 	      {
 		unsigned long l;
+		int j;
 
+		if (! first)
+		  indent (e, ind + 2);
 		l = ((((((ri->u.buffer.data[i + 3] << 8)
 			 | ri->u.buffer.data[i + 2]) << 8)
 		       | ri->u.buffer.data[i + 1]) << 8)
 		     | ri->u.buffer.data[i]);
-		if (first)
-		  first = 0;
-		else
-		  {
-		    fprintf (e, ",\n");
-		    indent (e, ind + 2);
-		  }
 		fprintf (e, "%luL", l);
+		if (i + 4 < ri->u.buffer.length || ri->next != NULL)
+		  fprintf (e, ",");
+		for (j = 0; j < 4; ++j)
+		  if (! isprint (ri->u.buffer.data[i + j])
+		      && ri->u.buffer.data[i + j] != 0)
+		    break;
+		if (j >= 4)
+		  {
+		    fprintf (e, "\t// ");
+		    for (j = 0; j < 4; ++j)
+		      {
+			if (! isprint (ri->u.buffer.data[i + j]))
+			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
+			else
+			  {
+			    if (ri->u.buffer.data[i + j] == '\\')
+			      fprintf (e, "\\");
+			    fprintf (e, "%c", ri->u.buffer.data[i + j]);
+			  }
+		      }
+		  }
+		fprintf (e, "\n");
+		first = 0;
 	      }
 
 	    if (i + 1 < ri->u.buffer.length)
 	      {
-		int i;
+		int s;
+		int j;
 
-		i = (ri->u.buffer.data[i + 1] << 8) | ri->u.buffer.data[i];
-		if (first)
-		  first = 0;
-		else
+		if (! first)
+		  indent (e, ind + 2);
+		s = (ri->u.buffer.data[i + 1] << 8) | ri->u.buffer.data[i];
+		fprintf (e, "%d", s);
+		if (i + 2 < ri->u.buffer.length || ri->next != NULL)
+		  fprintf (e, ",");
+		for (j = 0; j < 2; ++j)
+		  if (! isprint (ri->u.buffer.data[i + j])
+		      && ri->u.buffer.data[i + j] != 0)
+		    break;
+		if (j >= 2)
 		  {
-		    fprintf (e, ",\n");
-		    indent (e, ind + 2);
+		    fprintf (e, "\t// ");
+		    for (j = 0; j < 2; ++j)
+		      {
+			if (! isprint (ri->u.buffer.data[i + j]))
+			  fprintf (e, "\\%03o", ri->u.buffer.data[i + j]);
+			else
+			  {
+			    if (ri->u.buffer.data[i + j] == '\\')
+			      fprintf (e, "\\");
+			    fprintf (e, "%c", ri->u.buffer.data[i + j]);
+			  }
+		      }
 		  }
-		fprintf (e, "%d", i);
+		fprintf (e, "\n");
 		i += 2;
+		first = 0;
 	      }
 
 	    if (i < ri->u.buffer.length)
 	      {
-		if (first)
-		  first = 0;
-		else
-		  {
-		    fprintf (e, ",\n");
-		    indent (e, ind + 2);
-		  }
+		if (! first)
+		  indent (e, ind + 2);
 		if ((ri->u.buffer.data[i] & 0x7f) == ri->u.buffer.data[i]
 		    && isprint (ri->u.buffer.data[i]))
 		  fprintf (e, "\"%c\"", ri->u.buffer.data[i]);
 		else
-		  fprintf (e, "\"\%03o\"", ri->u.buffer.data[i]);
+		  fprintf (e, "\"\\%03o\"", ri->u.buffer.data[i]);
+		if (ri->next != NULL)
+		  fprintf (e, ",");
+		fprintf (e, "\n");
+		first = 0;
 	      }
 
 	    break;
 	  }
 	}
 
-      if (ri->next != NULL)
-	fprintf (e, ",");
-      fprintf (e, "\n");
+      if (ri->type != RCDATA_BUFFER)
+	{
+	  if (ri->next != NULL)
+	    fprintf (e, ",");
+	  fprintf (e, "\n");
+	}
     }
 
   indent (e, ind);

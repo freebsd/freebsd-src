@@ -1,7 +1,8 @@
 /* obj.h - defines the object dependent hooks for all object
    format backends.
 
-   Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 90, 91, 92, 93, 95, 96, 97, 99, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +17,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 char *obj_default_output_file_name PARAMS ((void));
 void obj_emit_relocations PARAMS ((char **where, fixS * fixP,
@@ -55,8 +57,10 @@ struct format_ops {
   void (*s_set_size) PARAMS ((symbolS *, bfd_vma));
   bfd_vma (*s_get_align) PARAMS ((symbolS *));
   void (*s_set_align) PARAMS ((symbolS *, bfd_vma));
+  int (*s_get_other) PARAMS ((symbolS *));
+  int (*s_get_desc) PARAMS ((symbolS *));
   void (*copy_symbol_attributes) PARAMS ((symbolS *, symbolS *));
-  void (*generate_asm_lineno) PARAMS ((const char *, int));
+  void (*generate_asm_lineno) PARAMS ((void));
   void (*process_stab) PARAMS ((segT, int, const char *, int, int, int));
   int (*sec_sym_ok_for_reloc) PARAMS ((asection *));
   void (*pop_insert) PARAMS ((void));
@@ -70,6 +74,7 @@ struct format_ops {
 extern const struct format_ops elf_format_ops;
 extern const struct format_ops ecoff_format_ops;
 extern const struct format_ops coff_format_ops;
+extern const struct format_ops aout_format_ops;
 
 #ifndef this_format
 COMMON const struct format_ops *this_format;

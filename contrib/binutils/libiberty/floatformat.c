@@ -1,5 +1,5 @@
 /* IEEE floating point support routines, for GDB, the GNU Debugger.
-   Copyright (C) 1991, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 1999 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -128,7 +128,7 @@ get_field (data, order, total_len, start, len)
     --cur_byte;
 
   /* Move towards the most significant part of the field.  */
-  while (cur_bitshift < len)
+  while ((unsigned int) cur_bitshift < len)
     {
       if (len - cur_bitshift < FLOATFORMAT_CHAR_BIT)
 	/* This is the last byte; zero out the bits which are not part of
@@ -179,7 +179,7 @@ floatformat_to_double (fmt, from, to)
   mant_off = fmt->man_start;
   dto = 0.0;
 
-  special_exponent = exponent == 0 || exponent == fmt->exp_nan;
+  special_exponent = exponent == 0 || (unsigned long) exponent == fmt->exp_nan;
 
   /* Don't bias zero's, denorms or NaNs.  */
   if (!special_exponent)
@@ -192,10 +192,12 @@ floatformat_to_double (fmt, from, to)
      increment the exponent by one to account for the integer bit.  */
 
   if (!special_exponent)
-    if (fmt->intbit == floatformat_intbit_no)
-      dto = ldexp (1.0, exponent);
-    else
-      exponent++;
+    {
+      if (fmt->intbit == floatformat_intbit_no)
+	dto = ldexp (1.0, exponent);
+      else
+	exponent++;
+    }
 
   while (mant_bits_left > 0)
     {
@@ -253,7 +255,7 @@ put_field (data, order, total_len, start, len, stuff_to_put)
     --cur_byte;
 
   /* Move towards the most significant part of the field.  */
-  while (cur_bitshift < len)
+  while ((unsigned int) cur_bitshift < len)
     {
       if (len - cur_bitshift < FLOATFORMAT_CHAR_BIT)
 	{
@@ -279,7 +281,7 @@ put_field (data, order, total_len, start, len, stuff_to_put)
 
 void
 floatformat_from_double (fmt, from, to)
-     CONST struct floatformat *fmt;
+     const struct floatformat *fmt;
      double *from;
      char *to;
 {
@@ -333,7 +335,7 @@ floatformat_from_double (fmt, from, to)
 	 If we are discarding a zero, we should be (but are not) creating
 	 a denormalized	number which means adjusting the exponent
 	 (I think).  */
-      if (mant_bits_left == fmt->man_len
+      if ((unsigned int) mant_bits_left == fmt->man_len
 	  && fmt->intbit == floatformat_intbit_no)
 	{
 	  mant_long &= 0x7fffffff;

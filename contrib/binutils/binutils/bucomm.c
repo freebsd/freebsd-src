@@ -1,5 +1,6 @@
 /* bucomm.c -- Bin Utils COMmon code.
-   Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 97, 98, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -33,12 +34,6 @@
 typedef long time_t;
 #endif
 #endif
-
-#ifdef ANSI_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 /* Error reporting */
 
@@ -64,18 +59,36 @@ bfd_fatal (string)
   xexit (1);
 }
 
+void
+report (format, args)
+     const char * format;
+     va_list args;
+{
+  fprintf (stderr, "%s: ", program_name);
+  vfprintf (stderr, format, args);
+  putc ('\n', stderr);
+}
+
 #ifdef ANSI_PROTOTYPES
 void
 fatal (const char *format, ...)
 {
   va_list args;
 
-  fprintf (stderr, "%s: ", program_name);
   va_start (args, format);
-  vfprintf (stderr, format, args);
+  report (format, args);
   va_end (args);
-  putc ('\n', stderr);
   xexit (1);
+}
+
+void
+non_fatal (const char *format, ...)
+{
+  va_list args;
+
+  va_start (args, format);
+  report (format, args);
+  va_end (args);
 }
 #else
 void 
@@ -85,13 +98,24 @@ fatal (va_alist)
   char *Format;
   va_list args;
 
-  fprintf (stderr, "%s: ", program_name);
   va_start (args);
   Format = va_arg (args, char *);
-  vfprintf (stderr, Format, args);
+  report (Format, args);
   va_end (args);
-  putc ('\n', stderr);
   xexit (1);
+}
+
+void 
+non_fatal (va_alist)
+     va_dcl
+{
+  char *Format;
+  va_list args;
+
+  va_start (args);
+  Format = va_arg (args, char *);
+  report (Format, args);
+  va_end (args);
 }
 #endif
 
@@ -107,13 +131,8 @@ set_default_bfd_target ()
   const char *target = TARGET;
 
   if (! bfd_set_default_target (target))
-    {
-      char *errmsg;
-
-      errmsg = (char *) xmalloc (100 + strlen (target));
-      sprintf (errmsg, "can't set BFD default target to `%s'", target);
-      bfd_fatal (errmsg);
-    }
+    fatal (_("can't set BFD default target to `%s': %s"),
+	   target, bfd_errmsg (bfd_get_error ()));
 }
 
 /* After a false return from bfd_check_format_matches with
@@ -124,10 +143,10 @@ void
 list_matching_formats (p)
      char **p;
 {
-  fprintf(stderr, "%s: Matching formats:", program_name);
+  fprintf (stderr, _("%s: Matching formats:"), program_name);
   while (*p)
-    fprintf(stderr, " %s", *p++);
-  fprintf(stderr, "\n");
+    fprintf (stderr, " %s", *p++);
+  fputc ('\n', stderr);
 }
 
 /* List the supported targets.  */
@@ -141,9 +160,9 @@ list_supported_targets (name, f)
   int t;
 
   if (name == NULL)
-    fprintf (f, "Supported targets:");
+    fprintf (f, _("Supported targets:"));
   else
-    fprintf (f, "%s: supported targets:", name);
+    fprintf (f, _("%s: supported targets:"), name);
   for (t = 0; bfd_target_vector[t] != NULL; t++)
     fprintf (f, " %s", bfd_target_vector[t]->name);
   fprintf (f, "\n");
@@ -234,10 +253,9 @@ parse_vma (s, arg)
   const char *end;
 
   ret = bfd_scan_vma (s, &end, 0);
+  
   if (*end != '\0')
-    {
-      fprintf (stderr, "%s: %s: bad number: %s\n", program_name, arg, s);
-      exit (1);
-    }
+    fatal (_("%s: bad number: %s"), arg, s);
+
   return ret;
 }

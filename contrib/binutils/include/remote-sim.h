@@ -211,7 +211,27 @@ int sim_store_register PARAMS ((SIM_DESC sd, int regno, unsigned char *buf, int 
 void sim_info PARAMS ((SIM_DESC sd, int verbose));
 
 
-/* Run (or resume) the simulated program.  */
+/* Run (or resume) the simulated program.
+
+   STEP, when non-zero indicates that only a single simulator cycle
+   should be emulated.
+
+   SIGGNAL, if non-zero is a (HOST) SIGRC value indicating the type of
+   event (hardware interrupt, signal) to be delivered to the simulated
+   program.
+
+   Hardware simulator: If the SIGRC value returned by
+   sim_stop_reason() is passed back to the simulator via SIGGNAL then
+   the hardware simulator shall correctly deliver the hardware event
+   indicated by that signal.  If a value of zero is passed in then the
+   simulation will continue as if there were no outstanding signal.
+   The effect of any other SIGGNAL value is is implementation
+   dependant.
+
+   Process simulator: If SIGRC is non-zero then the corresponding
+   signal is delivered to the simulated program and execution is then
+   continued.  A zero SIGRC value indicates that the program should
+   continue as normal. */
 
 void sim_resume PARAMS ((SIM_DESC sd, int step, int siggnal));
 
@@ -234,13 +254,13 @@ int sim_stop PARAMS ((SIM_DESC sd));
    (SIGTRAP); a completed single step (SIGTRAP); an internal error
    condition (SIGABRT); an illegal instruction (SIGILL); Access to an
    undefined memory region (SIGSEGV); Mis-aligned memory access
-   (SIGBUS).
+   (SIGBUS).  For some signals information in addition to the signal
+   number may be retained by the simulator (e.g. offending address),
+   that information is not directly accessable via this interface.
 
-   SIM_SIGNALLED: The program has stopped. The simulator has
-   encountered target code that requires the (HOST) signal SIGRC to be
-   delivered to the simulated program.  Ex: `kill (getpid (),
-   TARGET_SIGxxx)'.  Where TARGET_SIGxxx has been translated into a
-   host signal.  FIXME: This is not always possible..
+   SIM_SIGNALLED: The program has been terminated by a signal. The
+   simulator has encountered target code that causes the the program
+   to exit with signal SIGRC.
 
    SIM_RUNNING, SIM_POLLING: The return of one of these values
    indicates a problem internal to the simulator. */
@@ -288,13 +308,25 @@ void sim_set_callbacks PARAMS ((struct host_callback_struct *));
 void sim_size PARAMS ((int i));
 
 
-/* Run a simulation with tracing enabled.
+/* Single-step simulator with tracing enabled.
    THIS PROCEDURE IS DEPRECIATED.
+   THIS PROCEDURE IS EVEN MORE DEPRECATED THAN SIM_SET_TRACE
    GDB and NRUN do not use this interface.
-   This procedure does not take a SIM_DESC argument as it is
-   used before sim_open. */
+   This procedure returns: ``0'' indicating that the simulator should
+   be continued using sim_trace() calls; ``1'' indicating that the
+   simulation has finished. */
 
 int sim_trace PARAMS ((SIM_DESC sd));
+
+
+/* Enable tracing.
+   THIS PROCEDURE IS DEPRECIATED.
+   GDB and NRUN do not use this interface.
+   This procedure returns: ``0'' indicating that the simulator should
+   be continued using sim_trace() calls; ``1'' indicating that the
+   simulation has finished. */
+
+void sim_set_trace PARAMS ((void));
 
 
 /* Configure the size of the profile buffer.

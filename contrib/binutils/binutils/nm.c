@@ -1,5 +1,6 @@
 /* nm.c -- Describe symbol table of a rel file.
-   Copyright 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -15,7 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 #include "bfd.h"
 #include "progress.h"
@@ -253,6 +255,8 @@ static char *target = NULL;
 static bfd *lineno_cache_bfd;
 static bfd *lineno_cache_rel_bfd;
 
+#define OPTION_TARGET 200
+
 static struct option long_options[] =
 {
   {"debug-syms", no_argument, &print_debug_syms, 1},
@@ -273,7 +277,7 @@ static struct option long_options[] =
   {"reverse-sort", no_argument, &reverse_sort, 1},
   {"size-sort", no_argument, &sort_by_size, 1},
   {"stats", no_argument, &show_stats, 1},
-  {"target", required_argument, 0, 200},
+  {"target", required_argument, 0, OPTION_TARGET},
   {"defined-only", no_argument, &defined_only, 1},
   {"undefined-only", no_argument, &undefined_only, 1},
   {"version", no_argument, &show_version, 1},
@@ -287,7 +291,7 @@ usage (stream, status)
      FILE *stream;
      int status;
 {
-  fprintf (stream, "\
+  fprintf (stream, _("\
 Usage: %s [-aABCDglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
        [--debug-syms] [--extern-only] [--print-armap] [--print-file-name]\n\
        [--numeric-sort] [--no-sort] [--reverse-sort] [--size-sort]\n\
@@ -295,11 +299,11 @@ Usage: %s [-aABCDglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
        [--format={bsd,sysv,posix}] [--demangle] [--no-demangle] [--dynamic]\n\
        [--defined-only] [--line-numbers]\n\
        [--version] [--help]\n\
-       [file...]\n",
+       [file...]\n"),
 	   program_name);
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
+    fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
@@ -332,8 +336,7 @@ set_print_radix (radix)
       other_format[3] = desc_format[3] = *radix;
       break;
     default:
-      fprintf (stderr, "%s: %s: invalid radix\n", program_name, radix);
-      exit (1);
+      fatal (_("%s: invalid radix"), radix);
     }
 }
 
@@ -358,8 +361,7 @@ set_output_format (f)
       i = FORMAT_SYSV;
       break;
     default:
-      fprintf (stderr, "%s: %s: invalid output format\n", program_name, f);
-      exit (1);
+      fatal (_("%s: invalid output format"), f);
     }
   format = &formats[i];
 }
@@ -371,6 +373,12 @@ main (argc, argv)
 {
   int c;
   int retval;
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   program_name = *argv;
   xmalloc_set_program_name (program_name);
@@ -440,7 +448,7 @@ main (argc, argv)
 	  show_version = 1;
 	  break;
 
-	case 200:		/* --target */
+	case OPTION_TARGET:	/* --target */
 	  target = optarg;
 	  break;
 
@@ -477,11 +485,9 @@ main (argc, argv)
 #ifdef HAVE_SBRK
   if (show_stats)
     {
-      extern char **environ;
       char *lim = (char *) sbrk (0);
 
-      fprintf (stderr, "%s: data size %ld\n", program_name,
-	       (long) (lim - (char *) &environ));
+      non_fatal (_("data size %ld"), (long) (lim - (char *) &environ));
     }
 #endif
 
@@ -892,7 +898,7 @@ display_rel_file (abfd, archive_bfd)
     {
       if (!(bfd_get_file_flags (abfd) & HAS_SYMS))
 	{
-	  printf ("No symbols in \"%s\".\n", bfd_get_filename (abfd));
+	  non_fatal (_("%s: no symbols"), bfd_get_filename (abfd));
 	  return;
 	}
     }
@@ -903,7 +909,7 @@ display_rel_file (abfd, archive_bfd)
 
   if (symcount == 0)
     {
-      fprintf (stderr, "%s: no symbols\n", bfd_get_filename (abfd));
+      non_fatal (_("%s: no symbols"), bfd_get_filename (abfd));
       return;
     }
 
@@ -1271,11 +1277,11 @@ print_object_filename_sysv (filename)
      char *filename;
 {
   if (undefined_only)
-    printf ("\n\nUndefined symbols from %s:\n\n", filename);
+    printf (_("\n\nUndefined symbols from %s:\n\n"), filename);
   else
-    printf ("\n\nSymbols from %s:\n\n", filename);
-  printf ("\
-Name                  Value   Class        Type         Size   Line  Section\n\n");
+    printf (_("\n\nSymbols from %s:\n\n"), filename);
+  printf (_("\
+Name                  Value   Class        Type         Size   Line  Section\n\n"));
 }
 
 static void
@@ -1298,13 +1304,13 @@ print_archive_filename_bsd (filename)
 
 static void
 print_archive_filename_sysv (filename)
-     char *filename;
+     char *filename ATTRIBUTE_UNUSED;
 {
 }
 
 static void
 print_archive_filename_posix (filename)
-     char *filename;
+     char *filename ATTRIBUTE_UNUSED;
 {
 }
 
@@ -1312,7 +1318,7 @@ print_archive_filename_posix (filename)
 
 static void
 print_archive_member_bsd (archive, filename)
-     char *archive;
+     char *archive ATTRIBUTE_UNUSED;
      CONST char *filename;
 {
   if (!filename_per_symbol)
@@ -1325,11 +1331,11 @@ print_archive_member_sysv (archive, filename)
      CONST char *filename;
 {
   if (undefined_only)
-    printf ("\n\nUndefined symbols from %s[%s]:\n\n", archive, filename);
+    printf (_("\n\nUndefined symbols from %s[%s]:\n\n"), archive, filename);
   else
-    printf ("\n\nSymbols from %s[%s]:\n\n", archive, filename);
-  printf ("\
-Name                  Value   Class        Type         Size   Line  Section\n\n");
+    printf (_("\n\nSymbols from %s[%s]:\n\n"), archive, filename);
+  printf (_("\
+Name                  Value   Class        Type         Size   Line  Section\n\n"));
 }
 
 static void
@@ -1420,7 +1426,7 @@ print_symbol_info_bsd (info, abfd)
      symbol_info *info;
      bfd *abfd;
 {
-  if (info->type == 'U')
+  if (bfd_is_undefined_symclass (info->type))
     {
       printf ("%*s",
 #ifdef BFD64
@@ -1451,7 +1457,7 @@ print_symbol_info_sysv (info, abfd)
      bfd *abfd;
 {
   print_symname ("%-20s|", info->name, abfd);	/* Name */
-  if (info->type == 'U')
+  if (bfd_is_undefined_symclass (info->type))
     printf ("        ");	/* Value */
   else
     print_value (info->value);
@@ -1474,7 +1480,7 @@ print_symbol_info_posix (info, abfd)
 {
   print_symname ("%s ", info->name, abfd);
   printf ("%c ", info->type);
-  if (info->type == 'U')
+  if (bfd_is_undefined_symclass (info->type))
     printf ("        ");
   else
     print_value (info->value);
@@ -1498,7 +1504,7 @@ print_symdef_entry (abfd)
       bfd *elt;
       if (!everprinted)
 	{
-	  printf ("\nArchive index:\n");
+	  printf (_("\nArchive index:\n"));
 	  everprinted = true;
 	}
       elt = bfd_get_elt_at_index (abfd, idx);

@@ -35,12 +35,8 @@ Boston, MA 02111-1307, USA.  */
 #ifdef __STDC__
 
 #include <stddef.h>
-extern void *memcpy (void *s1, const void *s2, size_t n);	/* 4.11.2.1 */
-extern size_t strlen (const char *s);				/* 4.11.6.3 */
-extern void *malloc (size_t size);				/* 4.10.3.3 */
-extern void *realloc (void *ptr, size_t size);			/* 4.10.3.4 */
-extern void free (void *ptr);					/* 4.10.3.2 */
-extern char *strdup (const char *s);				/* Non-ANSI */
+#include <string.h>
+#include <stdlib.h>
 
 #else	/* !__STDC__ */
 
@@ -82,7 +78,7 @@ SYNOPSIS
 DESCRIPTION
 
 	Duplicate an argument vector.  Simply scans through the
-	vector, duplicating each argument argument until the
+	vector, duplicating each argument until the
 	terminating NULL is found.
 
 RETURNS
@@ -225,7 +221,7 @@ char *input;
 
   if (input != NULL)
     {
-      copybuf = alloca (strlen (input) + 1);
+      copybuf = (char *) alloca (strlen (input) + 1);
       /* Is a do{}while to always execute the loop once.  Always return an
 	 argv, even for null strings.  See NOTES above, test case below. */
       do

@@ -9,12 +9,10 @@ $2 x;
 x = ($2) $1;
 ], gas_cv_decl_needed_$1=no, gas_cv_decl_needed_$1=yes))dnl
 AC_MSG_RESULT($gas_cv_decl_needed_$1)
-test $gas_cv_decl_needed_$1 = no || {
- ifelse(index($1,[$]),-1,
-    [AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]))],
-    [gas_decl_name_upcase=`echo $1 | tr '[a-z]' '[A-Z]'`
-     AC_DEFINE_UNQUOTED(NEED_DECLARATION_$gas_decl_name_upcase)])
-}
+if test $gas_cv_decl_needed_$1 = yes; then
+ AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]), 1,
+	   [Define if $1 is not declared in system header files.])
+fi
 ])dnl
 dnl
 dnl Some non-ANSI preprocessors botch requoting inside strings.  That's bad
@@ -35,7 +33,7 @@ assert (a == b
         || c == d);
 ], gas_cv_assert_ok=yes, gas_cv_assert_ok=no))dnl
 AC_MSG_RESULT($gas_cv_assert_ok)
-test $gas_cv_assert_ok = yes || AC_DEFINE(BROKEN_ASSERT)
+test $gas_cv_assert_ok = yes || AC_DEFINE(BROKEN_ASSERT, 1, [assert broken?])
 ])dnl
 dnl
 dnl Since many Bourne shell implementations lack subroutines, use this

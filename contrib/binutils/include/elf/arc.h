@@ -23,14 +23,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef _ELF_ARC_H
 #define _ELF_ARC_H
 
-enum reloc_type
-{
-  R_ARC_NONE = 0,
-  R_ARC_32,
-  R_ARC_B26,
-  R_ARC_B22_PCREL,
-  R_ARC_max
-};
+#include "elf/reloc-macros.h"
+
+/* Relocations.  */
+START_RELOC_NUMBERS (elf_arc_reloc_type)
+  RELOC_NUMBER (R_ARC_NONE, 0)
+  RELOC_NUMBER (R_ARC_32, 1)
+  RELOC_NUMBER (R_ARC_B26, 2)
+  RELOC_NUMBER (R_ARC_B22_PCREL, 3)
+  EMPTY_RELOC  (R_ARC_max)
+END_RELOC_NUMBERS
 
 /* Processor specific flags for the ELF header e_flags field.  */
 

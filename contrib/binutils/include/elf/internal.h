@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1991, 92, 93, 94, 95, 97, 1998 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    I.E. it describes the in-memory representation of ELF.  It requires
    the elf-common.h file which contains the portions that are common to
    both the internal and external representations. */
-   
+
 
 /* NOTE that these structures are not kept in the same order as they appear
    in the object file.  In some cases they've been reordered for more optimal
@@ -129,7 +129,9 @@ typedef struct elf_internal_note {
   unsigned long	namesz;			/* Size of entry's owner string */
   unsigned long	descsz;			/* Size of the note descriptor */
   unsigned long	type;			/* Interpretation of the descriptor */
-  char		name[1];		/* Start of the name+desc data */
+  char *	namedata;		/* Start of the name+desc data */
+  char *	descdata;		/* Start of the desc data */
+  bfd_vma	descpos;		/* File offset of the descdata */
 } Elf_Internal_Note;
 #define Elf32_Internal_Note	Elf_Internal_Note
 #define elf32_internal_note	elf_internal_note
@@ -206,7 +208,7 @@ typedef struct elf_internal_verdaux {
   const char *vda_nodename;			/* vda_name as pointer.  */
   struct elf_internal_verdaux *vda_nextptr;	/* vda_next as pointer.  */
 } Elf_Internal_Verdaux;
- 
+
 /* This structure appears in a SHT_GNU_verneed section.  */
 
 typedef struct elf_internal_verneed {
@@ -246,6 +248,14 @@ typedef struct elf_internal_versym {
   unsigned short vs_vers;
 } Elf_Internal_Versym;
 
+/* Structure for syminfo section.  */
+typedef struct
+{
+  unsigned short int 	si_boundto;
+  unsigned short int	si_flags;
+} Elf_Internal_Syminfo;
+
+
 #define elf32_internal_verdef elf_internal_verdef
 #define elf64_internal_verdef elf_internal_verdef
 #define elf32_internal_verdaux elf_internal_verdaux
@@ -267,6 +277,8 @@ typedef struct elf_internal_versym {
 #define Elf64_Internal_Vernaux Elf_Internal_Vernaux
 #define Elf32_Internal_Versym Elf_Internal_Versym
 #define Elf64_Internal_Versym Elf_Internal_Versym
+#define Elf32_Internal_Syminfo Elf_Internal_Syminfo
+#define Elf64_Internal_Syminfo Elf_Internal_Syminfo
 
 /* This structure is used to describe how sections should be assigned
    to program segments.  */

@@ -285,10 +285,25 @@ bfd_open_file (abfd)
 	}
       else
 	{
-	  /* Create the file.  Unlink it first, for the convenience of
-             operating systems which worry about overwriting running
-             binaries.  */
-	  unlink (abfd->filename);
+	  /* Create the file.
+
+	     Some operating systems won't let us overwrite a running
+	     binary.  For them, we want to unlink the file first.
+
+	     However, gcc 2.95 will create temporary files using
+	     O_EXCL and tight permissions to prevent other users from
+	     substituting other .o files during the compilation.  gcc
+	     will then tell the assembler to use the newly created
+	     file as an output file.  If we unlink the file here, we
+	     open a brief window when another user could still
+	     substitute a file.
+
+	     So we unlink the output file if and only if it has
+	     non-zero size.  */
+	  struct stat s;
+
+	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
+	    unlink (abfd->filename);
 	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WB);
 	  abfd->opened_once = true;
 	}

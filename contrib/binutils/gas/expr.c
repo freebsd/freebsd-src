@@ -1,5 +1,5 @@
 /* expr.c -operands, expressions-
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -34,6 +34,10 @@
 #include "obstack.h"
 
 static void floating_constant PARAMS ((expressionS * expressionP));
+static valueT generic_bignum_to_int32 PARAMS ((void));
+#ifdef BFD64
+static valueT generic_bignum_to_int64 PARAMS ((void));
+#endif
 static void integer_constant PARAMS ((int radix, expressionS * expressionP));
 static void mri_char_constant PARAMS ((expressionS *));
 static void current_location PARAMS ((expressionS *));
@@ -64,6 +68,7 @@ symbolS *
 make_expr_symbol (expressionP)
      expressionS *expressionP;
 {
+  expressionS zero;
   const char *fake;
   symbolS *symbolP;
   struct expr_symbol_line *n;
@@ -71,6 +76,22 @@ make_expr_symbol (expressionP)
   if (expressionP->X_op == O_symbol
       && expressionP->X_add_number == 0)
     return expressionP->X_add_symbol;
+
+  if (expressionP->X_op == O_big)
+    {
+      /* This won't work, because the actual value is stored in
+         generic_floating_point_number or generic_bignum, and we are
+         going to lose it if we haven't already.  */
+      if (expressionP->X_add_number > 0)
+	as_bad (_("bignum invalid; zero assumed"));
+      else
+	as_bad (_("floating point number invalid; zero assumed"));
+      zero.X_op = O_constant;
+      zero.X_add_number = 0;
+      zero.X_unsigned = 0;
+      clean_up_expression (&zero);
+      expressionP = &zero;
+    }
 
   fake = FAKE_LABEL_NAME;
 
@@ -83,7 +104,7 @@ make_expr_symbol (expressionP)
 			    ? absolute_section
 			    : expr_section),
 			   0, &zero_address_frag);
-  symbolP->sy_value = *expressionP;
+  symbol_set_value_expression (symbolP, expressionP);
 
   if (expressionP->X_op == O_constant)
     resolve_symbol_value (symbolP, 1);
@@ -177,6 +198,17 @@ expr_build_binary (op, s1, s2)
   e.X_add_number = 0;
   return make_expr_symbol (&e);
 }
+
+/* Build an expression for the current location ('.').  */
+
+symbolS *
+expr_build_dot ()
+{
+  expressionS e;
+
+  current_location (&e);
+  return make_expr_symbol (&e);
+}
 
 /*
  * Build any floating-point literal here.
@@ -215,11 +247,11 @@ floating_constant (expressionP)
     {
       if (error_code == ERROR_EXPONENT_OVERFLOW)
 	{
-	  as_bad ("bad floating-point constant: exponent overflow, probably assembling junk");
+	  as_bad (_("bad floating-point constant: exponent overflow, probably assembling junk"));
 	}
       else
 	{
-	  as_bad ("bad floating-point constant: unknown error code=%d.", error_code);
+	  as_bad (_("bad floating-point constant: unknown error code=%d."), error_code);
 	}
     }
   expressionP->X_op = O_big;
@@ -295,7 +327,7 @@ integer_constant (radix, expressionP)
 #define valuesize 32
 #endif
 
-  if (flag_m68k_mri && radix == 0)
+  if ((NUMBERS_WITH_SUFFIX || flag_m68k_mri) && radix == 0)
     {
       int flt = 0;
 
@@ -357,7 +389,7 @@ integer_constant (radix, expressionP)
       break;
     case 10:
       maxdig = radix = 10;
-      too_many_digits = (valuesize + 12) / 4; /* very rough */
+      too_many_digits = (valuesize + 11) / 4; /* very rough */
     }
 #undef valuesize
   start = input_line_pointer;
@@ -399,7 +431,7 @@ integer_constant (radix, expressionP)
 
 	  /* Check for 8 digit per word max.  */
 	  if (ndigit > 8) 
-	    as_bad ("An bignum with underscores may not have more than 8 hex digits in any word.");
+	    as_bad (_("A bignum with underscores may not have more than 8 hex digits in any word."));
 
 	  /* Add this chunk to the bignum.  Shift things down 2 little digits.*/
 	  know (LITTLENUM_NUMBER_OF_BITS == 16);
@@ -419,7 +451,7 @@ integer_constant (radix, expressionP)
       assert (num_little_digits >= 4);
 
       if (num_little_digits != 8)
-	as_bad ("A bignum with underscores must have exactly 4 words.");
+	as_bad (_("A bignum with underscores must have exactly 4 words."));
 
       /* We might have some leading zeros.  These can be trimmed to give
        * us a change to fit this constant into a small number.
@@ -509,7 +541,9 @@ integer_constant (radix, expressionP)
 	}
     }
 
-  if (flag_m68k_mri && suffix != NULL && input_line_pointer - 1 == suffix)
+  if ((NUMBERS_WITH_SUFFIX || flag_m68k_mri) 
+      && suffix != NULL 
+      && input_line_pointer - 1 == suffix)
     c = *input_line_pointer++;
 
   if (small)
@@ -546,7 +580,7 @@ integer_constant (radix, expressionP)
 	      /* either not seen or not defined. */
 	      /* @@ Should print out the original string instead of
 		 the parsed number.  */
-	      as_bad ("backw. ref to unknown label \"%d:\", 0 assumed.",
+	      as_bad (_("backw. ref to unknown label \"%d:\", 0 assumed."),
 		      (int) number);
 	      expressionP->X_op = O_constant;
 	    }
@@ -670,7 +704,7 @@ mri_char_constant (expressionP)
 
   if (i < 0)
     {
-      as_bad ("Character constant too large");
+      as_bad (_("Character constant too large"));
       i = 0;
     }
 
@@ -778,13 +812,15 @@ operand (expressionP)
     case '9':
       input_line_pointer--;
 
-      integer_constant (flag_m68k_mri ? 0 : 10, expressionP);
+      integer_constant ((NUMBERS_WITH_SUFFIX || flag_m68k_mri) 
+                        ? 0 : 10,
+                        expressionP);
       break;
 
     case '0':
       /* non-decimal radix */
 
-      if (flag_m68k_mri)
+      if (NUMBERS_WITH_SUFFIX || flag_m68k_mri)
 	{
 	  char *s;
 
@@ -797,8 +833,7 @@ operand (expressionP)
 	      integer_constant (0, expressionP);
 	      break;
 	    }
-	}
-
+        }
       c = *input_line_pointer;
       switch (c)
 	{
@@ -808,7 +843,7 @@ operand (expressionP)
 	case 'Q':
 	case '8':
 	case '9':
-	  if (flag_m68k_mri)
+	  if (NUMBERS_WITH_SUFFIX || flag_m68k_mri)
 	    {
 	      integer_constant (0, expressionP);
 	      break;
@@ -841,7 +876,7 @@ operand (expressionP)
 	  break;
 
 	case 'b':
-	  if (LOCAL_LABELS_FB && ! flag_m68k_mri)
+	  if (LOCAL_LABELS_FB && ! (flag_m68k_mri || NUMBERS_WITH_SUFFIX))
 	    {
 	      /* This code used to check for '+' and '-' here, and, in
 		 some conditions, fall through to call
@@ -863,7 +898,7 @@ operand (expressionP)
 	  /* Fall through.  */
 	case 'B':
 	  input_line_pointer++;
-	  if (flag_m68k_mri)
+	  if (flag_m68k_mri || NUMBERS_WITH_SUFFIX)
 	    goto default_case;
 	  integer_constant (2, expressionP);
 	  break;
@@ -876,7 +911,9 @@ operand (expressionP)
 	case '5':
 	case '6':
 	case '7':
-	  integer_constant (flag_m68k_mri ? 0 : 8, expressionP);
+	  integer_constant ((flag_m68k_mri || NUMBERS_WITH_SUFFIX)
+                            ? 0 : 8, 
+                            expressionP);
 	  break;
 
 	case 'f':
@@ -886,7 +923,8 @@ operand (expressionP)
 		 number, make it one.  Otherwise, make it a local label,
 		 and try to deal with parsing the rest later.  */
 	      if (!input_line_pointer[1]
-		  || (is_end_of_line[0xff & input_line_pointer[1]]))
+		  || (is_end_of_line[0xff & input_line_pointer[1]])
+		  || strchr (FLT_CHARS, 'f') == NULL)
 		goto is_0f_label;
 	      {
 		char *cp = input_line_pointer + 1;
@@ -899,10 +937,14 @@ operand (expressionP)
 		    if (*cp == 'f' || *cp == 'b')
 		      /* looks like a difference expression */
 		      goto is_0f_label;
+		    else if (cp == input_line_pointer + 1)
+		      /* No characters has been accepted -- looks like
+                         end of operand. */
+		      goto is_0f_label;
 		    else
 		      goto is_0f_float;
 		  default:
-		    as_fatal ("expr.c(operand): bad atof_generic return val %d",
+		    as_fatal (_("expr.c(operand): bad atof_generic return val %d"),
 			      r);
 		  }
 	      }
@@ -922,7 +964,7 @@ operand (expressionP)
 
 	case 'd':
 	case 'D':
-	  if (flag_m68k_mri)
+	  if (flag_m68k_mri || NUMBERS_WITH_SUFFIX)
 	    {
 	      integer_constant (0, expressionP);
 	      break;
@@ -953,30 +995,34 @@ operand (expressionP)
       break;
 
     case '(':
+#ifndef NEED_INDEX_OPERATOR
     case '[':
+#endif
       /* didn't begin with digit & not a name */
       segment = expression (expressionP);
       /* Expression() will pass trailing whitespace */
       if ((c == '(' && *input_line_pointer++ != ')')
 	  || (c == '[' && *input_line_pointer++ != ']'))
 	{
-	  as_bad ("Missing ')' assumed");
+	  as_bad (_("Missing ')' assumed"));
 	  input_line_pointer--;
 	}
       SKIP_WHITESPACE ();
       /* here with input_line_pointer->char after "(...)" */
       return segment;
 
+#ifdef TC_M68K
     case 'E':
       if (! flag_m68k_mri || *input_line_pointer != '\'')
 	goto de_fault;
-      as_bad ("EBCDIC constants are not supported");
+      as_bad (_("EBCDIC constants are not supported"));
       /* Fall through.  */
     case 'A':
       if (! flag_m68k_mri || *input_line_pointer != '\'')
 	goto de_fault;
       ++input_line_pointer;
       /* Fall through.  */
+#endif
     case '\'':
       if (! flag_m68k_mri)
 	{
@@ -996,11 +1042,13 @@ operand (expressionP)
       (void) operand (expressionP);
       break;
 
+#ifdef TC_M68K
     case '"':
       /* Double quote is the bitwise not operator in MRI mode.  */
       if (! flag_m68k_mri)
 	goto de_fault;
       /* Fall through.  */
+#endif
     case '~':
       /* ~ is permitted to start a label on the Delta.  */
       if (is_name_beginner (c))
@@ -1037,11 +1085,12 @@ operand (expressionP)
 	    expressionP->X_add_number = 0;
 	  }
 	else
-	  as_warn ("Unary operator %c ignored because bad operand follows",
+	  as_warn (_("Unary operator %c ignored because bad operand follows"),
 		   c);
       }
       break;
 
+#if defined (DOLLAR_DOT) || defined (TC_M68K)
     case '$':
       /* $ is the program counter when in MRI mode, or when DOLLAR_DOT
          is defined.  */
@@ -1062,6 +1111,7 @@ operand (expressionP)
 
       current_location (expressionP);
       break;
+#endif
 
     case '.':
       if (!is_part_of_name (*input_line_pointer))
@@ -1081,7 +1131,7 @@ operand (expressionP)
 	  input_line_pointer += start ? 8 : 7;
 	  SKIP_WHITESPACE ();
 	  if (*input_line_pointer != '(')
-	    as_bad ("syntax error in .startof. or .sizeof.");
+	    as_bad (_("syntax error in .startof. or .sizeof."));
 	  else
 	    {
 	      char *buf;
@@ -1106,7 +1156,7 @@ operand (expressionP)
 	      *input_line_pointer = c;
 	      SKIP_WHITESPACE ();
 	      if (*input_line_pointer != ')')
-		as_bad ("syntax error in .startof. or .sizeof.");
+		as_bad (_("syntax error in .startof. or .sizeof."));
 	      else
 		++input_line_pointer;
 	    }
@@ -1125,6 +1175,7 @@ operand (expressionP)
       input_line_pointer--;
       break;
 
+#ifdef TC_M68K
     case '%':
       if (! flag_m68k_mri)
 	goto de_fault;
@@ -1154,9 +1205,12 @@ operand (expressionP)
 
       current_location (expressionP);
       break;
+#endif
 
     default:
+#ifdef TC_M68K
     de_fault:
+#endif
       if (is_end_of_line[(unsigned char) c])
 	goto eol;
       if (is_name_beginner (c))	/* here if did not begin with a digit */
@@ -1255,7 +1309,7 @@ operand (expressionP)
 	  if (expressionP->X_op == O_absent)
 	    {
 	      ++input_line_pointer;
-	      as_bad ("Bad expression");
+	      as_bad (_("Bad expression"));
 	      expressionP->X_op = O_constant;
 	      expressionP->X_add_number = 0;
 	    }
@@ -1273,7 +1327,7 @@ operand (expressionP)
 
   /* The PA port needs this information.  */
   if (expressionP->X_add_symbol)
-    expressionP->X_add_symbol->sy_used = 1;
+    symbol_mark_used (expressionP->X_add_symbol);
 
   switch (expressionP->X_op)
     {
@@ -1320,8 +1374,8 @@ clean_up_expression (expressionP)
       break;
     case O_subtract:
       if (expressionP->X_op_symbol == expressionP->X_add_symbol
-	  || ((expressionP->X_op_symbol->sy_frag
-	       == expressionP->X_add_symbol->sy_frag)
+	  || ((symbol_get_frag (expressionP->X_op_symbol)
+	       == symbol_get_frag (expressionP->X_add_symbol))
 	      && SEG_NORMAL (S_GET_SEGMENT (expressionP->X_add_symbol))
 	      && (S_GET_VALUE (expressionP->X_op_symbol)
 		  == S_GET_VALUE (expressionP->X_add_symbol))))
@@ -1366,7 +1420,7 @@ clean_up_expression (expressionP)
 #undef __
 #define __ O_illegal
 
-static operatorT op_encoding[256] =
+static const operatorT op_encoding[256] =
 {				/* maps ASCII->operators */
 
   __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,
@@ -1379,7 +1433,13 @@ static operatorT op_encoding[256] =
   __, __, __, __, __, __, __, __,
   __, __, __, __, __, __, __, __,
   __, __, __, __, __, __, __, __,
-  __, __, __, __, __, __, O_bit_exclusive_or, __,
+  __, __, __,
+#ifdef NEED_INDEX_OPERATOR
+  O_index,
+#else
+  __,
+#endif
+  __, __, O_bit_exclusive_or, __,
   __, __, __, __, __, __, __, __,
   __, __, __, __, __, __, __, __,
   __, __, __, __, __, __, __, __,
@@ -1417,44 +1477,79 @@ static operator_rankT op_rank[] =
   0,	/* O_symbol_rva */
   0,	/* O_register */
   0,	/* O_bit */
-  8,	/* O_uminus */
-  8,	/* O_bit_not */
-  8,	/* O_logical_not */
-  7,	/* O_multiply */
-  7,	/* O_divide */
-  7,	/* O_modulus */
-  7,	/* O_left_shift */
-  7,	/* O_right_shift */
-  6,	/* O_bit_inclusive_or */
-  6,	/* O_bit_or_not */
-  6,	/* O_bit_exclusive_or */
-  6,	/* O_bit_and */
-  4,	/* O_add */
-  4,	/* O_subtract */
-  3,	/* O_eq */
-  3,	/* O_ne */
-  3,	/* O_lt */
-  3,	/* O_le */
-  3,	/* O_ge */
-  3,	/* O_gt */
-  2,	/* O_logical_and */
-  1	/* O_logical_or */
+  9,	/* O_uminus */
+  9,	/* O_bit_not */
+  9,	/* O_logical_not */
+  8,	/* O_multiply */
+  8,	/* O_divide */
+  8,	/* O_modulus */
+  8,	/* O_left_shift */
+  8,	/* O_right_shift */
+  7,	/* O_bit_inclusive_or */
+  7,	/* O_bit_or_not */
+  7,	/* O_bit_exclusive_or */
+  7,	/* O_bit_and */
+  5,	/* O_add */
+  5,	/* O_subtract */
+  4,	/* O_eq */
+  4,	/* O_ne */
+  4,	/* O_lt */
+  4,	/* O_le */
+  4,	/* O_ge */
+  4,	/* O_gt */
+  3,	/* O_logical_and */
+  2,	/* O_logical_or */
+  1,	/* O_index */
+  0,	/* O_md1 */
+  0,	/* O_md2 */
+  0,	/* O_md3 */
+  0,	/* O_md4 */
+  0,	/* O_md5 */
+  0,	/* O_md6 */
+  0,	/* O_md7 */
+  0,	/* O_md8 */
+  0,	/* O_md9 */
+  0,	/* O_md10 */
+  0,	/* O_md11 */
+  0,	/* O_md12 */
+  0,	/* O_md13 */
+  0,	/* O_md14 */
+  0,	/* O_md15 */
+  0,	/* O_md16 */
 };
+
+/* Unfortunately, in MRI mode for the m68k, multiplication and
+   division have lower precedence than the bit wise operators.  This
+   function sets the operator precedences correctly for the current
+   mode.  Also, MRI uses a different bit_not operator, and this fixes
+   that as well.  */
+
+#define STANDARD_MUL_PRECEDENCE (7)
+#define MRI_MUL_PRECEDENCE (5)
+
+void
+expr_set_precedence ()
+{
+  if (flag_m68k_mri)
+    {
+      op_rank[O_multiply] = MRI_MUL_PRECEDENCE;
+      op_rank[O_divide] = MRI_MUL_PRECEDENCE;
+      op_rank[O_modulus] = MRI_MUL_PRECEDENCE;
+    }
+  else
+    {
+      op_rank[O_multiply] = STANDARD_MUL_PRECEDENCE;
+      op_rank[O_divide] = STANDARD_MUL_PRECEDENCE;
+      op_rank[O_modulus] = STANDARD_MUL_PRECEDENCE;
+    }
+}
 
 /* Initialize the expression parser.  */
 
 void
 expr_begin ()
 {
-  /* In MRI mode for the m68k, multiplication and division have lower
-     precedence than the bit wise operators.  */
-  if (flag_m68k_mri)
-    {
-      op_rank[O_multiply] = 5;
-      op_rank[O_divide] = 5;
-      op_rank[O_modulus] = 5;
-      op_encoding['"'] = O_bit_not;
-    }
+  expr_set_precedence ();
 
   /* Verify that X_op field is wide enough.  */
   {
@@ -1474,7 +1569,7 @@ operator ()
   int c;
   operatorT ret;
 
-  c = *input_line_pointer;
+  c = *input_line_pointer & 0xff;
 
   switch (c)
     {
@@ -1553,10 +1648,11 @@ operator ()
 /* Parse an expression.  */
 
 segT
-expr (rank, resultP)
-     operator_rankT rank;	/* Larger # is higher rank. */
+expr (rankarg, resultP)
+     int rankarg;	/* Larger # is higher rank. */
      expressionS *resultP;	/* Deliver result here. */
 {
+  operator_rankT rank = (operator_rankT) rankarg;
   segT retval;
   expressionS right;
   operatorT op_left;
@@ -1578,7 +1674,7 @@ expr (rank, resultP)
       rightseg = expr (op_rank[(int) op_left], &right);
       if (right.X_op == O_absent)
 	{
-	  as_warn ("missing operand; zero assumed");
+	  as_warn (_("missing operand; zero assumed"));
 	  right.X_op = O_constant;
 	  right.X_add_number = 0;
 	  right.X_add_symbol = NULL;
@@ -1586,6 +1682,17 @@ expr (rank, resultP)
 	}
 
       know (*input_line_pointer != ' ');
+
+      if (op_left == O_index)
+	{
+	  if (*input_line_pointer != ']')
+	    as_bad ("missing right bracket");
+	  else
+	    {
+	      ++input_line_pointer;
+	      SKIP_WHITESPACE ();
+	    }
+	}
 
       if (retval == undefined_section)
 	{
@@ -1600,7 +1707,7 @@ expr (rank, resultP)
 	       && op_left != O_subtract
 #endif
 	       )
-	as_bad ("operation combines symbols in different segments");
+	as_bad (_("operation combines symbols in different segments"));
 
       op_right = operator ();
 
@@ -1615,8 +1722,10 @@ expr (rank, resultP)
 
       if (resultP->X_op == O_big)
 	{
-	  as_warn ("left operand is a %s; integer 0 assumed",
-		   resultP->X_add_number > 0 ? "bignum" : "float");
+	  if (resultP->X_add_number > 0)
+	    as_warn (_("left operand is a bignum; integer 0 assumed"));
+	  else
+	    as_warn (_("left operand is a float; integer 0 assumed"));
 	  resultP->X_op = O_constant;
 	  resultP->X_add_number = 0;
 	  resultP->X_add_symbol = NULL;
@@ -1624,8 +1733,10 @@ expr (rank, resultP)
 	}
       if (right.X_op == O_big)
 	{
-	  as_warn ("right operand is a %s; integer 0 assumed",
-		   right.X_add_number > 0 ? "bignum" : "float");
+	  if (right.X_add_number > 0)
+	    as_warn (_("right operand is a bignum; integer 0 assumed"));
+	  else
+	    as_warn (_("right operand is a float; integer 0 assumed"));
 	  right.X_op = O_constant;
 	  right.X_add_number = 0;
 	  right.X_add_symbol = NULL;
@@ -1642,8 +1753,8 @@ expr (rank, resultP)
       else if (op_left == O_subtract
 	       && right.X_op == O_symbol
 	       && resultP->X_op == O_symbol
-	       && (right.X_add_symbol->sy_frag
-		   == resultP->X_add_symbol->sy_frag)
+	       && (symbol_get_frag (right.X_add_symbol)
+		   == symbol_get_frag (resultP->X_add_symbol))
 	       && SEG_NORMAL (S_GET_SEGMENT (right.X_add_symbol)))
 
 	{
@@ -1673,7 +1784,7 @@ expr (rank, resultP)
 	  offsetT v = right.X_add_number;
 	  if (v == 0 && (op_left == O_divide || op_left == O_modulus))
 	    {
-	      as_warn ("division by zero");
+	      as_warn (_("division by zero"));
 	      v = 1;
 	    }
 	  switch (op_left)
@@ -1757,7 +1868,7 @@ expr (rank, resultP)
 
   /* The PA port needs this information.  */
   if (resultP->X_add_symbol)
-    resultP->X_add_symbol->sy_used = 1;
+    symbol_mark_used (resultP->X_add_symbol);
 
   return resultP->X_op == O_constant ? absolute_section : retval;
 }
@@ -1785,9 +1896,13 @@ get_symbol_end ()
   /* We accept \001 in a name in case this is being called with a
      constructed string.  */
   if (is_name_beginner (c = *input_line_pointer++) || c == '\001')
-    while (is_part_of_name (c = *input_line_pointer++)
-	   || c == '\001')
-      ;
+    {
+      while (is_part_of_name (c = *input_line_pointer++)
+	     || c == '\001')
+	;
+      if (is_name_ender (c))
+	c = *input_line_pointer++;
+    }
   *--input_line_pointer = 0;
   return (c);
 }
