@@ -61,6 +61,8 @@
 #include <netatm/uni/sscop_pdu.h>
 #include <netatm/uni/sscop_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -77,13 +79,7 @@ struct sscop_stat	sscop_stat = {0};
 
 struct atm_time		sscop_timer = {0, 0};
 
-struct sp_info	sscop_pool = {
-	"sscop pool",			/* si_name */
-	sizeof(struct sscop),		/* si_blksiz */
-	5,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
+uma_zone_t	sscop_zone;
 
 /*
  * Local functions
@@ -159,6 +155,12 @@ sscop_start()
 {
 	int	err = 0;
 
+	sscop_zone = uma_zcreate("sscop", sizeof(struct sscop), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (sscop_zone == NULL)
+		panic("sscop_start: uma_zcreate");
+	uma_zone_set_max(sscop_zone, 100);
+
 	/*
 	 * Register stack service
 	 */
@@ -198,31 +200,21 @@ sscop_stop()
 	int	err = 0;
 
 	/*
-	 * Any connections still exist??
+	 * Any connections still exist??  If so, we can't bail just yet.
 	 */
-	if (sscop_vccnt) {
-
-		/*
-		 * Yes, can't stop yet
-		 */
+	if (sscop_vccnt)
 		return (EBUSY);
-	}
 
 	/*
 	 * Stop our timer
 	 */
-	(void) atm_untimeout(&sscop_timer);
+	(void)atm_untimeout(&sscop_timer);
 
 	/*
 	 * Deregister the stack service
 	 */
-	(void) atm_stack_deregister(&sscop_service);
-
-	/*
-	 * Free our storage pools
-	 */
-	atm_release_pool(&sscop_pool);
-
+	(void)atm_stack_deregister(&sscop_service);
+	uma_zdestroy(sscop_zone);
 	return (err);
 }
 
@@ -266,7 +258,7 @@ sscop_inst(ssp, cvp)
 	/*
 	 * Allocate our control block
 	 */
-	sop = (struct sscop *)atm_allocate(&sscop_pool);
+	sop = uma_zalloc(sscop_zone, M_WAITOK);
 	if (sop == NULL)
 		return (ENOMEM);
 
@@ -294,7 +286,7 @@ sscop_inst(ssp, cvp)
 		/*
 		 * Lower layer instantiation failed, free our resources
 		 */
-		atm_free((caddr_t)sop);
+		uma_zfree(sscop_zone, sop);
 		return (err);
 	}
 

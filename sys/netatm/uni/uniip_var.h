@@ -252,7 +252,7 @@ extern struct ip_serv		uniip_ipserv;
 extern struct uniarp		*uniarp_arptab[];
 extern struct uniarp		*uniarp_nomaptab;
 extern struct uniarp		*uniarp_pvctab;
-extern struct sp_info		uniarp_pool;
+extern uma_zone_t	uniarp_zone;
 extern struct atm_time		uniarp_timer;
 extern int			uniarp_print;
 extern Atm_endpoint		uniarp_endpt;

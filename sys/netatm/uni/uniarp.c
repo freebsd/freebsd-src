@@ -66,6 +66,8 @@
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/uniip_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
@@ -99,12 +101,7 @@ Atm_endpoint	uniarp_endpt = {
 	NULL
 };
 
-struct sp_info	uniarp_pool = {
-	"uni arp pool",			/* si_name */
-	sizeof(struct uniarp),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	200				/* si_maxallow */
-};
+uma_zone_t	uniarp_zone;
 
 
 /*
@@ -132,11 +129,16 @@ uniarp_start()
 {
 	int	err;
 
+	uniarp_zone = uma_zcreate("uni arp", sizeof(struct uniarp), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (uniarp_zone == NULL)
+		panic("uniarp_start: uma_zcreate");
+	uma_zone_set_max(uniarp_zone, 200);
+
 	/*
 	 * Register our endpoint
 	 */
 	err = atm_endpoint_register(&uniarp_endpt);
-
 	return (err);
 }
 
@@ -181,7 +183,7 @@ uniarp_stop()
 	/*
 	 * Free our storage pools
 	 */
-	atm_release_pool(&uniarp_pool);
+	uma_zdestroy(uniarp_zone);
 }
 
 
@@ -279,7 +281,7 @@ uniarp_ipdact(uip)
 			 * Delete entry from arp table and free entry
 			 */
 			UNIARP_DELETE(uap);
-			atm_free((caddr_t)uap);
+			uma_zfree(uniarp_zone, uap);
 		}
 	}
 
@@ -307,7 +309,7 @@ uniarp_ipdact(uip)
 		 * Delete entry from 'no map' table and free entry
 		 */
 		UNLINK(uap, struct uniarp, uniarp_nomaptab, ua_next);
-		atm_free((caddr_t)uap);
+		uma_zfree(uniarp_zone, uap);
 	}
 
 	/*
@@ -497,7 +499,7 @@ uniarp_server_mode(uip)
 			if (uap->ua_ivp == NULL) {
 				UNIARP_CANCEL(uap);
 				UNIARP_DELETE(uap);
-				atm_free((caddr_t)uap);
+				uma_zfree(uniarp_zone, uap);
 				continue;
 			}
 
@@ -631,7 +633,7 @@ uniarp_client_mode(uip, aap)
 				if (uap->ua_ivp == NULL) {
 					UNIARP_CANCEL(uap);
 					UNIARP_DELETE(uap);
-					atm_free((caddr_t)uap);
+					uma_zfree(uniarp_zone, uap);
 					continue;
 				}
 
@@ -711,7 +713,7 @@ uniarp_client_mode(uip, aap)
 	 * Now, get an arp entry for the server connection
 	 */
 	uip->uip_arpstate = UIAS_CLIENT_POPEN;
-	uap = (struct uniarp *)atm_allocate(&uniarp_pool);
+	uap = uma_zalloc(uniarp_zone, M_WAITOK | M_ZERO);
 	if (uap == NULL) {
 		UNIIP_ARP_TIMER(uip, 1 * ATM_HZ);
 		return;
@@ -722,7 +724,7 @@ uniarp_client_mode(uip, aap)
 	 */
 	if ((*inp->inf_createsvc)(&inp->inf_nif->nif_if, AF_ATM,
 			(caddr_t)&uip->uip_arpsvratm, &ivp)) {
-		atm_free((caddr_t)uap);
+		uma_zfree(uniarp_zone, uap);
 		UNIIP_ARP_TIMER(uip, 1 * ATM_HZ);
 		return;
 	}
@@ -928,7 +930,7 @@ uniarp_ioctl(code, data, arg1)
 		 */
 		UNIARP_CANCEL(uap);
 		UNIARP_DELETE(uap);
-		atm_free((caddr_t)uap);
+		uma_zfree(uniarp_zone, uap);
 		break;
 
 	case AIOCS_SET_ASV:

@@ -92,7 +92,7 @@ unisig_free_msg(msg)
 		ie = msg->msg_ie_vec[i];
 		while (ie) {
 			ienxt = ie->ie_next;
-			atm_free(ie);
+			uma_zfree(unisig_ie_zone, ie);
 			ie = ienxt;
 		}
 	}
@@ -100,9 +100,8 @@ unisig_free_msg(msg)
 	/*
 	 * Finally, free the message structure itself
 	 */
-	atm_free(msg);
+	uma_zfree(unisig_msg_zone, msg);
 }
-
 
 /*
  * Verify a VCCB

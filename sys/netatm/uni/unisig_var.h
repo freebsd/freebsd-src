@@ -44,6 +44,9 @@
 #endif
 
 #ifdef _KERNEL
+
+#include <vm/uma.h>
+
 /*
  * Structure containing state information for each UNI protocol
  * instance.  There will be one instance for each ATM device interface
@@ -314,10 +317,8 @@ int		unisig_vc_state(struct unisig *,
 /*
  * External variables
  */
-extern struct sp_info	unisig_vcpool;
-extern struct sp_info	unisig_msgpool;
-extern struct sp_info	unisig_iepool;
-
+extern uma_zone_t	unisig_vc_zone;
+extern uma_zone_t	unisig_msg_zone;
+extern uma_zone_t	unisig_ie_zone;
 #endif	/* _KERNEL */
-
 #endif	/* _UNISIG_VAR_H */

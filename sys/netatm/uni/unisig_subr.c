@@ -275,7 +275,7 @@ unisig_open_vcc(usp, cvp)
 	/*
 	 * Allocate control block for VCC
 	 */
-	uvp = (struct unisig_vccb *)atm_allocate(&unisig_vcpool);
+	uvp = uma_zalloc(unisig_vc_zone, M_WAITOK | M_ZERO);
 	if (uvp == NULL) {
 		return(ENOMEM);
 	}
@@ -318,7 +318,7 @@ unisig_open_vcc(usp, cvp)
 			 */
 			DEQUEUE(uvp, struct unisig_vccb, uv_sigelem,
 					usp->us_vccq);
-			atm_free((caddr_t)uvp);
+			uma_zfree(unisig_vc_zone, uvp);
 			return(err);
 		}
 	}
@@ -896,8 +896,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->aal.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_aalp) {
-			msg->msg_ie_aalp = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_aalp = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_aalp == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -954,8 +954,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->traffic.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_clrt) {
-			msg->msg_ie_clrt = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_clrt = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_clrt == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1011,8 +1011,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->bearer.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_bbcp) {
-			msg->msg_ie_bbcp = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_bbcp = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_bbcp == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1039,8 +1039,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->bhli.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_bhli) {
-			msg->msg_ie_bhli = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_bhli = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_bhli == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1079,8 +1079,8 @@ unisig_set_attrs(usp, msg, ap)
 	if (ap->blli.tag_l2 == T_ATM_PRESENT ||
 			ap->blli.tag_l3 == T_ATM_PRESENT) {
 		if (!msg->msg_ie_blli) {
-			msg->msg_ie_blli = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_blli = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_blli == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1164,8 +1164,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->called.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_cdad) {
-			msg->msg_ie_cdad = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_cdad = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_cdad == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1180,8 +1180,8 @@ unisig_set_attrs(usp, msg, ap)
 
 		if (ap->called.subaddr.address_format != T_ATM_ABSENT) {
 			if (!msg->msg_ie_cdsa) {
-				msg->msg_ie_cdsa = (struct ie_generic *)
-						atm_allocate(&unisig_iepool);
+				msg->msg_ie_cdsa = uma_zalloc(unisig_ie_zone,
+				    M_WAITOK | M_ZERO);
 				if (msg->msg_ie_cdsa == NULL) {
 					err = ENOMEM;
 					goto done;
@@ -1202,8 +1202,8 @@ unisig_set_attrs(usp, msg, ap)
 
 	if (ap->calling.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_cgad) {
-			msg->msg_ie_cgad = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_cgad = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_cgad == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1219,8 +1219,8 @@ unisig_set_attrs(usp, msg, ap)
 		if (ap->calling.subaddr.address_format !=
 				T_ATM_ABSENT) {
 			if (!msg->msg_ie_cgsa) {
-				msg->msg_ie_cgsa = (struct ie_generic *)
-						atm_allocate(&unisig_iepool);
+				msg->msg_ie_cgsa = uma_zalloc(unisig_ie_zone,
+				    M_WAITOK | M_ZERO);
 				if (msg->msg_ie_cgsa == NULL) {
 					err = ENOMEM;
 					goto done;
@@ -1240,8 +1240,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->qos.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_qosp) {
-			msg->msg_ie_qosp = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_qosp = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_qosp == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1272,8 +1272,8 @@ unisig_set_attrs(usp, msg, ap)
 	if (ap->transit.tag == T_ATM_PRESENT &&
 				ap->transit.v.length != 0) {
 		if (!msg->msg_ie_trnt) {
-			msg->msg_ie_trnt = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_trnt = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_trnt == NULL) {
 				err = ENOMEM;
 				goto done;
@@ -1297,8 +1297,8 @@ unisig_set_attrs(usp, msg, ap)
 	 */
 	if (ap->cause.tag == T_ATM_PRESENT) {
 		if (!msg->msg_ie_caus) {
-			msg->msg_ie_caus = (struct ie_generic *)
-					atm_allocate(&unisig_iepool);
+			msg->msg_ie_caus = uma_zalloc(unisig_ie_zone,
+			    M_WAITOK | M_ZERO);
 			if (msg->msg_ie_caus == NULL) {
 				err = ENOMEM;
 				goto done;

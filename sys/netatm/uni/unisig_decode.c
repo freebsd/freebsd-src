@@ -66,11 +66,11 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-#define	ALLOC_IE(ie)						\
-	(ie) = (struct ie_generic *) atm_allocate(&unisig_iepool); \
-	if (!ie)						\
-		return(ENOMEM);
-
+#define	ALLOC_IE(ie) do {						\
+	(ie) = uma_zalloc(unisig_ie_zone, M_WAITOK | M_ZERO);		\
+	if ((ie) == NULL)						\
+		return (ENOMEM);					\
+} while (0)
 
 /*
  * Local functions
@@ -845,7 +845,7 @@ usf_dec_msg(usf, msg)
 		ALLOC_IE(ie);
 		rc = usf_dec_ie(usf, msg, ie);
 		if (rc) {
-			atm_free(ie);
+			uma_zfree(unisig_ie_zone, ie);
 			return(rc);
 		}
 		len -= (ie->ie_length + UNI_IE_HDR_LEN);
@@ -945,7 +945,7 @@ usf_dec_ie(usf, msg, ie)
 	 * Ignore the IE if it is of zero length.
 	 */
 	if (!ie->ie_length) {
-		atm_free(ie);
+		uma_zfree(unisig_ie_zone, ie);
 		return(0);
 	}
 
