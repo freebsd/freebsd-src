@@ -2167,6 +2167,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int target)
     if (xpt_create_path(&sc->ciss_cam_path, xpt_periph, cam_sim_path(sc->ciss_cam_sim), target, 0)
 	!= CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");
+	free(ccb, M_TEMP);
 	return;
     }
 
