@@ -1381,7 +1381,9 @@ frdest_t *fdp;
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
 					  ro->ro_rt);
 		if (i) {
+#  ifndef __FreeBSD__
 			ip->ip_id = ntohs(ip->ip_id);
+#  endif
 			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_off = ntohs(ip->ip_off);
 		}
