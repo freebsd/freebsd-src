@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.26 1995/04/09 09:54:41 rgrimes Exp $
+#	$Id: netstart,v 1.27 1995/04/11 01:22:15 rgrimes Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # If there is a global system configuration file, suck it in.
@@ -51,7 +51,7 @@ if [ "x$gated" != "xNO" -o "x$routedflags" != "xNO" ] ; then
 	# If $routedflags == NO, routed isn't run.
 
 	if [ "X${gated}" = X"YES" -a -r /etc/gated.conf ]; then
-		echo -n ' gated';	gated $gatedflags
+		echo -n	' gated';	/usr/local/sbin/gated $gatedflags
 	elif [ "X${routedflags}" != X"NO" ]; then
 		echo -n ' routed';	routed $routedflags
 	fi
