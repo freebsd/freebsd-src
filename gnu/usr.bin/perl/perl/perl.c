@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:37 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:37  nate
  * PERL!
  *
@@ -273,7 +276,7 @@ setuid perl scripts securely.\n");
 #endif /* TAINT */
 
 #ifndef PRIVLIB
-#define PRIVLIB "/usr/local/lib/perl"
+#define PRIVLIB "/usr/share/perl"
 #endif
     incpush(PRIVLIB);
     (void)apush(stab_array(incstab),str_make(".",1));
