@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 PROG=	rwhod
-WARNS?=	4
+# XXX breaks on Alpha due to alignment constraints
+#WARNS?=	4
 MAN=	rwhod.8
 
 .include <bsd.prog.mk>
