@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.57 1999/04/06 03:03:34 peter Exp $
+ * $Id: kern_fork.c,v 1.58 1999/04/17 08:36:04 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -355,8 +355,8 @@ again:
 		MALLOC (p2->p_procsig, struct procsig *, sizeof(struct procsig),
 			M_SUBPROC, M_WAITOK);
 		bcopy(&p1->p_procsig->ps_begincopy, &p2->p_procsig->ps_begincopy,
-			(unsigned)&p1->p_procsig->ps_endcopy -
-			(unsigned)&p1->p_procsig->ps_begincopy);
+			(char *)&p1->p_procsig->ps_endcopy -
+			(char *)&p1->p_procsig->ps_begincopy);
 		p2->p_procsig->ps_refcnt = 1;
 		/* Note that we fill in the values of sigacts in vm_fork */
 		p2->p_sigacts = NULL;
