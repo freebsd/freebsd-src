@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.2 1993/09/03 23:00:57 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.3 1994/08/28 14:15:23 jkh Exp $";
 #endif
 
 /*
@@ -40,6 +40,7 @@ check_list(char *home, Package *pkg)
     char cmd[FILENAME_MAX];
     char name[FILENAME_MAX];
     char *where = home;
+    char *there = NULL;
     PackingList p = pkg->head;
 
     while (p) {
@@ -47,11 +48,12 @@ check_list(char *home, Package *pkg)
 	    where = p->name;
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
-	else if (p->type == PLIST_SRC)
-	    where = p->name;
+	else if (p->type == PLIST_SRC) {
+	    there = p->name;
+	}
 	else if (p->type == PLIST_FILE) {
 	    cmd[0] = '\0';
-	    sprintf(name, "%s/%s", where, p->name);
+	    sprintf(name, "%s/%s", there ? there : where, p->name);
 	    /* gzip? */
 	    if ((suffix(name, "gz") || suffix(name, "z")) &&
 		y_or_n(TRUE, QUERY_GZIP, name))
@@ -82,12 +84,13 @@ copy_plist(char *home, Package *plist)
 {
     PackingList p = plist->head;
     char *where = home;
+    char *there = NULL;
 
     while (p) {
 	if (p->type == PLIST_CWD)
 	    where = p->name;
 	else if (p->type == PLIST_SRC)
-	    where = p->name;
+	    there = p->name;
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
 	else if (p->type == PLIST_FILE && !p->marked) {
@@ -101,7 +104,7 @@ copy_plist(char *home, Package *plist)
 	     * Otherwise, try along the actual extraction path..
 	     */
 	    else
-		copy_hierarchy(where, p->name, FALSE);
+		copy_hierarchy(there ? there : where, p->name, FALSE);
 	}
 	p = p->next;
     }
