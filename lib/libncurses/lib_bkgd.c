@@ -27,10 +27,13 @@ int x, y;
 	T(("wbkgd(%x, %x) called", win, ch));
 	for (y = 0; y < win->_maxy; y++)
 		for (x = 0; x < win->_maxx; x++) 
-			if (win->_line[y][x]&A_CHARTEXT == ' ')
-				win->_line[y][x] |= ch;
+			/* Don't attempt to replace existing attrs */
+			if ((win->_line[y][x]&A_ATTRIBUTES) == A_NORMAL) {
+				if (win->_line[y][x] == ' ')
+					win->_line[y][x] = ch;
 			else
 				win->_line[y][x] |= (ch&A_ATTRIBUTES);
+			}
 	touchwin(win);
 	return OK;
 }
