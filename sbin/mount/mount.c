@@ -265,6 +265,7 @@ main(argc, argv)
 			    mntbuf->f_mntonname, init_flags, options, 0);
 			break;
 		}
+		rmslashes(*argv, *argv);
 		if ((fs = getfsfile(*argv)) == NULL &&
 		    (fs = getfsspec(*argv)) == NULL)
 			errx(1, "%s: unknown special file or file system",
