@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id$
+ * $Id: nfs_node.c,v 1.3 1994/08/02 07:52:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -146,6 +146,7 @@ loop:
 	np->n_sillyrename = (struct sillyrename *)0;
 	np->n_size = 0;
 	np->n_mtime = 0;
+	np->n_lockf = 0;
 	if (VFSTONFS(mntp)->nm_flag & NFSMNT_NQNFS) {
 		np->n_brev = 0;
 		np->n_lrev = 0;
