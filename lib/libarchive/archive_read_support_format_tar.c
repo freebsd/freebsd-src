@@ -209,9 +209,15 @@ archive_read_format_tar_bid(struct archive *a)
 		return (1);
 	}
 	if (bytes_read < 512) {
-		if (bid > 0)
-			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "Truncated tar archive");
+		/* If it's a new archive, then just return a zero bid. */
+		if (bid == 0)
+			return (0);
+		/*
+		 * If we already know this is a tar archive,
+		 * then we have a problem.
+		 */
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
 	}
 
