@@ -281,9 +281,7 @@ set80211nwkey(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 void
-ieee80211_status (s, info)
-	int s;
-	struct rt_addrinfo *info __unused;
+ieee80211_status (int s, struct rt_addrinfo *info __unused)
 {
 	int			i;
 	int			num;

@@ -89,22 +89,20 @@
 
 #include "ifconfig.h"
 
-static void	domediaopt __P((const char *, int, int));
-static int	get_media_subtype __P((int, const char *));
-static int	get_media_options __P((int, const char *));
-static int	lookup_media_word __P((struct ifmedia_description *, const char *));
-static void	print_media_word __P((int, int));
-static void	print_media_word_ifconfig __P((int));
+static void	domediaopt(const char *, int, int);
+static int	get_media_subtype(int, const char *);
+static int	get_media_options(int, const char *);
+static int	lookup_media_word(struct ifmedia_description *, const char *);
+static void	print_media_word(int, int);
+static void	print_media_word_ifconfig(int);
 
-static struct ifmedia_description *get_toptype_desc __P((int));
-static struct ifmedia_type_to_subtype *get_toptype_ttos __P((int));
-static struct ifmedia_description *get_subtype_desc __P((int,
-    struct ifmedia_type_to_subtype *ttos));
+static struct ifmedia_description *get_toptype_desc(int);
+static struct ifmedia_type_to_subtype *get_toptype_ttos(int);
+static struct ifmedia_description *get_subtype_desc(int,
+    struct ifmedia_type_to_subtype *ttos);
 
 void
-media_status(s, info)
-	int s;
-	struct rt_addrinfo *info __unused;
+media_status(int s, struct rt_addrinfo *info __unused)
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
@@ -184,11 +182,7 @@ media_status(s, info)
 }
 
 void
-setmedia(val, d, s, afp)
-	const char *val;
-	int d;
-	int s;
-	const struct afswtch *afp;
+setmedia(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifmediareq ifmr;
 	int first_type, subtype;
@@ -230,32 +224,21 @@ setmedia(val, d, s, afp)
 }
 
 void
-setmediaopt(val, d, s, afp)
-	const char *val;
-	int d;
-	int s;
-	const struct afswtch *afp;
+setmediaopt(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	domediaopt(val, 0, s);
 }
 
 void
-unsetmediaopt(val, d, s, afp)
-	const char *val;
-	int d;
-	int s;
-	const struct afswtch *afp;
+unsetmediaopt(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	domediaopt(val, 1, s);
 }
 
 static void
-domediaopt(val, clear, s)
-	const char *val;
-	int clear;
-	int s;
+domediaopt(const char *val, int clear, int s)
 {
 	struct ifmediareq ifmr;
 	int *mwords, options;
@@ -422,9 +405,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 };
 
 static int
-get_media_subtype(type, val)
-	int type;
-	const char *val;
+get_media_subtype(int type, const char *val)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
@@ -448,9 +429,7 @@ get_media_subtype(type, val)
 }
 
 static int
-get_media_options(type, val)
-	int type;
-	const char *val;
+get_media_options(int type, const char *val)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
@@ -491,9 +470,7 @@ get_media_options(type, val)
 }
 
 static int
-lookup_media_word(desc, val)
-	struct ifmedia_description *desc;
-	const char *val;
+lookup_media_word(struct ifmedia_description *desc, const char *val)
 {
 
 	for (; desc->ifmt_string != NULL; desc++)
@@ -503,8 +480,7 @@ lookup_media_word(desc, val)
 	return (-1);
 }
 
-static struct ifmedia_description *get_toptype_desc(ifmw)
-	int ifmw;
+static struct ifmedia_description *get_toptype_desc(int ifmw)
 {
 	struct ifmedia_description *desc;
 
@@ -515,8 +491,7 @@ static struct ifmedia_description *get_toptype_desc(ifmw)
 	return desc;
 }
 
-static struct ifmedia_type_to_subtype *get_toptype_ttos(ifmw)
-	int ifmw;
+static struct ifmedia_type_to_subtype *get_toptype_ttos(int ifmw)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
@@ -529,9 +504,8 @@ static struct ifmedia_type_to_subtype *get_toptype_ttos(ifmw)
 	return ttos;
 }
 
-static struct ifmedia_description *get_subtype_desc(ifmw, ttos)
-	int ifmw;
-	struct ifmedia_type_to_subtype *ttos;
+static struct ifmedia_description *get_subtype_desc(int ifmw, 
+    struct ifmedia_type_to_subtype *ttos)
 {
 	int i;
 	struct ifmedia_description *desc;
@@ -550,9 +524,7 @@ static struct ifmedia_description *get_subtype_desc(ifmw, ttos)
 }
 
 static void
-print_media_word(ifmw, print_toptype)
-	int ifmw;
-	int print_toptype;
+print_media_word(int ifmw, int print_toptype)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
@@ -606,8 +578,7 @@ print_media_word(ifmw, print_toptype)
 }
 
 static void
-print_media_word_ifconfig(ifmw)
-	int ifmw;
+print_media_word_ifconfig(int ifmw)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
