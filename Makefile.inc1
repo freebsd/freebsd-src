@@ -142,6 +142,7 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # Common environment for bootstrap related stages
 BOOTSTRAPENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR=${WORLDTMP} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MACHINE_ARCH=${BUILD_ARCH} \
 		TOOLS_PREFIX=${WORLDTMP} \
 		PATH=${TMPPATH}
@@ -159,6 +160,7 @@ BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML
 
 # build-tool stage
 TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
 
@@ -171,6 +173,7 @@ XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		DESTDIR=${WORLDTMP} \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
