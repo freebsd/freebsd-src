@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_chauthtok.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_chauthtok.c#11 $
  */
 
 #include <sys/param.h>
@@ -82,8 +82,10 @@ pam_chauthtok(pam_handle_t *pamh,
  * The =flags argument is the binary or of zero or more of the following
  * values:
  *
- *	=PAM_SILENT
+ *	=PAM_SILENT:
  *		Do not emit any messages.
- *	=PAM_CHANGE_EXPIRED_AUTHTOK
+ *	=PAM_CHANGE_EXPIRED_AUTHTOK:
  *		Change only those authentication tokens that have expired.
+ *
+ * If any other bits are set, =pam_chauthtok will return =PAM_SYMBOL_ERR.
  */
