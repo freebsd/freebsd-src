@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.12 1999/04/20 13:32:04 peter Exp $
+ *	$Id: ip_dummynet.c,v 1.13 1999/05/04 07:30:07 luigi Exp $
  */
 
 /*
@@ -211,8 +211,9 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	 * m_next = the actual mbuf to be processed by ip_input/output
 	 * m_data = the matching rule
 	 * The vestigial element is the same memory area used by
-	 * the dn_pkt, and IS FREED IN ip_input/ip_output. IT IS
-	 * NOT A REAL MBUF, just a block of memory acquired with malloc().
+	 * the dn_pkt, and IS FREED HERE because it can contain
+	 * parameters passed to the called routine. The buffer IS NOT
+	 * A REAL MBUF, just a block of memory acquired with malloc().
 	 */
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT: {
@@ -239,9 +240,9 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	default:
 	    printf("dummynet: bad switch %d!\n", pkt->dn_dir);
 	    m_freem(pkt->dn_m);
-	    FREE(pkt, M_IPFW);
 	    break ;
 	}
+	FREE(pkt, M_IPFW);
     }
 }
 /*

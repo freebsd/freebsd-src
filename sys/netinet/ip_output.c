@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.88 1999/04/20 13:32:06 peter Exp $
+ *	$Id: ip_output.c,v 1.89 1999/05/04 09:26:12 luigi Exp $
  */
 
 #define _IP_VHL
@@ -139,7 +139,6 @@ ip_output(m0, opt, ro, flags, imo)
          * rule.
          */ 
         if (m->m_type == MT_DUMMYNET) {
-            struct mbuf *tmp_m = m ;
             /*
              * the packet was already tagged, so part of the
              * processing was already done, and we need to go down.
@@ -148,7 +147,6 @@ ip_output(m0, opt, ro, flags, imo)
              */
             rule = (struct ip_fw_chain *)(m->m_data) ;
             m0 = m = m->m_next ;
-            free(tmp_m, M_IPFW);
             ip = mtod(m, struct ip *);
             dst = (struct sockaddr_in *)flags ;
             ifp = (struct ifnet *)opt;
