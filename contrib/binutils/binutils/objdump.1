@@ -1,5 +1,6 @@
-.\" Copyright (c) 1991, 1996, 1997 Free Software Foundation
+.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
+.\" $FreeBSD$
 .TH objdump 1 "5 November 1991" "cygnus support" "GNU Development Tools"
 .de BP
 .sp
@@ -44,6 +45,7 @@ objdump \- display information from object files.
 .RB " | " "\-\-architecture="\c
 .I machine\c
 \&\|] 
+.RB "[\|" \-p | \-\-private\-headers "\|]" 
 .RB "[\|" \-\-prefix\-addresses "\|]" 
 .RB "[\|" \-r | \-\-reloc "\|]" 
 .RB "[\|" \-R | \-\-dynamic\-reloc "\|]" 
@@ -259,6 +261,14 @@ architecture information, such as S-records.  You can list the available
 architectures with the \fB\-i\fP option. 
 
 .TP
+.B \-p
+.TP
+.B \-\-private\-headers
+Print information that is specific to the object file format.  The
+exact information printed depends upon the object file format.  For
+some object file formats, no additional information is printed.
+
+.TP
 .B \-r
 .TP
 .B \-\-reloc
@@ -308,7 +318,8 @@ sections from an ELF file.  This is only useful on systems (such as
 Solaris 2.0) in which .stab debugging symbol-table entries are carried
 in an ELF section.  In most other file formats, debugging symbol-table
 entries are interleaved with linkage symbols, and are visible in the
-\fB\-\-syms\fP output.
+.B \-\-syms
+output.
 
 .TP
 .BI "\-\-start\-address=" "address"

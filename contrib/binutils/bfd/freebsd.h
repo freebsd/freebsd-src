@@ -1,5 +1,5 @@
-/* BFD back-end definitions used by all FreeBSD a.out targets.
-   Copyright (C) 1990, 1991, 1992, 1996 Free Software Foundation, Inc.
+/* BFD back-end definitions used by all FreeBSD targets.
+   Copyright (C) 1990, 1991, 1992, 1996, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,6 +18,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+/* $FreeBSD$ */
+
 /* FreeBSD QMAGIC files have the header in the text. */
 #define	N_HEADER_IN_TEXT(x)	1
 #define MY_text_includes_header 1
@@ -35,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * FIXME - Probably we should always produce the _native_ byte
  * ordering.  I.e., it should be in the architecture-specific
- * file, not here.  But in reality, there is almost zero chance
+ * file, not here.  But in reality, there is no chance
  * that FreeBSD will ever use a.out in a new port.
  */
 
@@ -64,17 +66,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #define SWAP_MAGIC(ext)			(freebsd_swap_magic(ext))
 
-#define MY_bfd_final_link		freebsd_bfd_final_link
-#define MY_write_object_contents	freebsd_write_object_contents
+#define MY_bfd_final_link MY(bfd_final_link)
+#define MY_write_object_contents MY(write_object_contents)
 
-static boolean freebsd_bfd_final_link PARAMS ((bfd *, struct bfd_link_info *));
+static boolean MY(bfd_final_link) PARAMS ((bfd *, struct bfd_link_info *));
+static boolean MY(write_object_contents) PARAMS ((bfd *abfd));
 static long freebsd_swap_magic PARAMS ((void *ext));
-static boolean freebsd_write_object_contents PARAMS ((bfd *abfd));
 
 #include "aout-target.h"
 
 static boolean
-freebsd_bfd_final_link(abfd, info)
+MY(bfd_final_link) (abfd, info)
   bfd *abfd;
   struct bfd_link_info *info;
 {
@@ -85,7 +87,7 @@ freebsd_bfd_final_link(abfd, info)
 /* Swap a magic number.  We accept either endian, whichever looks valid. */
 
 static long
-freebsd_swap_magic(ext)
+freebsd_swap_magic (ext)
   void *ext;
 {
   long linfo = bfd_getl32(ext);
@@ -105,17 +107,13 @@ freebsd_swap_magic(ext)
    file header, symbols, and relocation.  */
 
 static boolean
-freebsd_write_object_contents(abfd)
+MY(write_object_contents) (abfd)
      bfd *abfd;
 {
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
 
-#if CHOOSE_RELOC_SIZE
-  CHOOSE_RELOC_SIZE(abfd);
-#else
   obj_reloc_entry_size (abfd) = RELOC_STD_SIZE;
-#endif
 
   /* Magic number, maestro, please!  */
   switch (bfd_get_arch(abfd)) {
