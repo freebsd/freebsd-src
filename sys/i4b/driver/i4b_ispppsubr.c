@@ -569,9 +569,9 @@ isppp_input(struct ifnet *ifp, struct mbuf *m)
 		case PPP_VJ_UCOMP:
 			if (sp->state[IDX_IPCP] == STATE_OPENED) {
 				u_char *iphdr;
-				int hlen, vjlen;
+				int hlen;
 
-				if ((vjlen = sl_uncompress_tcp_core(m->m_data,
+				if ((sl_uncompress_tcp_core(m->m_data,
 				   m->m_len, m->m_len, TYPE_UNCOMPRESSED_TCP,
 				   &sp->pp_comp, &iphdr, &hlen)) != 0)
 					goto drop;
