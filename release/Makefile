@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.26 1995/10/09 11:14:45 jkh Exp $
+#	$Id: Makefile,v 1.193.2.27 1995/10/11 01:00:31 jkh Exp $
 #
 # How to roll a release:
 #
@@ -199,15 +199,9 @@ release.3:
 		fgrep -v PROCFS | \
 		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
-		echo "options  MFS" >> BOOTMFS && \
-		fgrep -v SYSV ATAPI | \
-		fgrep -v pty | \
-		fgrep -v PROCFS | \
-		sed 's/ATAPIKERN/BOOTMFS/g' > BOOTMFS_A && \
-		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS_A && \
-		echo "options  MFS" >> BOOTMFS_A
+		echo "options  MFS" >> BOOTMFS
 
-	for i in BOOTMFS BOOTMFS_A GENERIC ATAPI ; do \
+	for i in BOOTMFS GENERIC ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
 		cd ${.CURDIR}/../sys/compile/$$i && \
@@ -243,7 +237,6 @@ release.4:
 release.5:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
-	ln -f ${RD}/kernels/ATAPI ${RD}/trees/bin/kernel.ATAPI
 	if [ -d ${RD}/trees/bin/usr/share/man ] ; then \
 		rm -rf ${RD}/trees/manpages/usr/share/man ;\
 		mv ${RD}/trees/bin/usr/share/man \
@@ -400,20 +393,6 @@ release.8: write_mfs_in_kernel
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
-
-	# Now the IDE CDROM floppy, with ATAPI kernel
-	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
-		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
-		FSINODE=${MFSINODE}
-	rm -rf ${RD}/atapifd
-	mkdir ${RD}/atapifd
-	cp ${RD}/kernels/BOOTMFS_A ${RD}/atapifd/kernel
-	./write_mfs_in_kernel ${RD}/atapifd/kernel fs-image
-	kzip ${RD}/atapifd/kernel
-	mv ${RD}/atapifd/kernel ${RD}/kernels/MFSKERNEL_A
-	mv ${RD}/atapifd/kernel.kz ${RD}/atapifd/kernel
-	ls -l ${RD}/atapifd/kernel
-	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=atapi
 	touch release.8
 
 # Complete the rootfd directory
@@ -471,7 +450,6 @@ cdrom.1:
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
-	ln -f ${RD}/kernels/MFSKERNEL_A ${CD}/kernel.atapi
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
