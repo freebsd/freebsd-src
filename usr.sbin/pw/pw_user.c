@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.20 1997/05/24 10:41:49 davidn Exp $
+ *	$Id: pw_user.c,v 1.21 1997/06/14 00:23:49 ache Exp $
  */
 
 #include <unistd.h>
@@ -732,7 +732,7 @@ pw_pwdpolicy(struct userconf * cnf, struct cargs * args)
 {
 	time_t          result = 0;
 	time_t          now = time(NULL);
-	struct carg    *arg = getarg(args, 'e');
+	struct carg    *arg = getarg(args, 'p');
 
 	if (arg != NULL) {
 		if ((result = parse_date(now, arg->val)) == now)
