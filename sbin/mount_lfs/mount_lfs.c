@@ -72,6 +72,7 @@ main(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags, noclean;
 	char *fs_name, *options;
+	struct vfsconf *vfc;
 
 	options = NULL;
 	mntflags = noclean = 0;
@@ -109,7 +110,15 @@ main(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	if (mount(MOUNT_LFS, fs_name, mntflags, &args))
+	vfc = getvfsbyname("lfs");
+	if(!vfc && vfsisloadable("lfs")) {
+		if(vfsload("lfs"))
+			err(1, "vfsload(lfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("lfs");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_LFS, fs_name, mntflags, &args))
 		err(1, NULL);
 
 	if (!noclean)

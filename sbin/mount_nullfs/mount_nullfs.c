@@ -72,6 +72,7 @@ main(argc, argv)
 	struct null_args args;
 	int ch, mntflags;
 	char target[MAXPATHLEN];
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
@@ -98,7 +99,15 @@ main(argc, argv)
 
 	args.target = target;
 
-	if (mount(MOUNT_NULL, argv[1], mntflags, &args))
+	vfc = getvfsbyname("null");
+	if(!vfc && vfsisloadable("null")) {
+		if(vfsload("null"))
+			err(1, "vfsload(null)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("null");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_NULL, argv[1], mntflags, &args))
 		err(1, NULL);
 	exit(0);
 }

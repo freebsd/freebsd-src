@@ -94,6 +94,7 @@ main(argc, argv)
 	char *mountpt;
 	int mntflags = 0;
 	char tag[32];
+	struct vfsconf *vfc;
 
 	qelem q;
 	int rc;
@@ -156,7 +157,15 @@ main(argc, argv)
 	sprintf(tag, "portal:%d", getpid());
 	args.pa_config = tag;
 
-	rc = mount(MOUNT_PORTAL, mountpt, mntflags, &args);
+	vfc = getvfsbyname("portal");
+	if(!vfc && vfsisloadable("portal")) {
+		if(vfsload("portal"))
+			err(1, "vfsload(portal)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("portal");
+	}
+
+	rc = mount(vfc ? vfc->vfc_index : MOUNT_PORTAL, mountpt, mntflags, &args);
 	if (rc < 0)
 		err(1, NULL);
 

@@ -100,12 +100,30 @@ server specification; see
 .%T "Network File System Protocol Specification" ,
 RFC1094.
 .Pp
+If
+.Nm nfsd
+detects that 
+.Tn NFS
+is not loaded in the running kernel, it will attempt
+to load a loadable kernel module containing
+.Tn NFS
+support using
+.Xr modload 8
+by way of
+.Xr vfsload 3 .
+If this fails, or no
+.Tn NFS
+LKM is available,
+.Nm nfsd
+will exit with an error.
+.Pp
 The
 .Nm nfsd
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr nfssvc 2 ,
+.Xr modload 8 ,
 .Xr mountd 8 ,
 .Xr portmap 8
 .Sh HISTORY

@@ -148,6 +148,7 @@ main(argc, argv)
 	int mntflags, i, nfssvc_flag, num;
 	char *name, *p, *spec;
 	int error = 0;
+	struct vfsconf *vfc;
 #ifdef KERBEROS
 	uid_t last_ruid;
 #endif
@@ -294,7 +295,16 @@ main(argc, argv)
 
 	if (!getnfsargs(spec, nfsargsp))
 		exit(1);
-	if (mount(MOUNT_NFS, name, mntflags, nfsargsp))
+
+	vfc = getvfsbyname("nfs");
+	if(!vfc && vfsisloadable("nfs")) {
+		if(vfsload("nfs"))
+			err(1, "vfsload(nfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("nfs");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_NFS, name, mntflags, nfsargsp))
 		err(1, "%s", name);
 	if (nfsargsp->flags & (NFSMNT_NQNFS | NFSMNT_KERB)) {
 		if ((opflags & ISBGRND) == 0) {
