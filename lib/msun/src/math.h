@@ -79,10 +79,22 @@ extern const union __nan_un {
     : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
     : __fpclassifyl(x))
 
-#define	isfinite(x)	((fpclassify(x) & (FP_INFINITE|FP_NAN)) == 0)
-#define	isinf(x)	(fpclassify(x) == FP_INFINITE)
-#define	isnan(x)	(fpclassify(x) == FP_NAN)
-#define	isnormal(x)	(fpclassify(x) == FP_NORMAL)
+#define	isfinite(x)					\
+    ((sizeof (x) == sizeof (float)) ? __isfinitef(x)	\
+    : (sizeof (x) == sizeof (double)) ? __isfinite(x)	\
+    : __isfinitel(x))
+#define	isinf(x)					\
+    ((sizeof (x) == sizeof (float)) ? __isinff(x)	\
+    : (sizeof (x) == sizeof (double)) ? isinf(x)	\
+    : __isinfl(x))
+#define	isnan(x)					\
+    ((sizeof (x) == sizeof (float)) ? isnanf(x)		\
+    : (sizeof (x) == sizeof (double)) ? isnan(x)	\
+    : __isnanl(x))
+#define	isnormal(x)					\
+    ((sizeof (x) == sizeof (float)) ? __isnormalf(x)	\
+    : (sizeof (x) == sizeof (double)) ? __isnormal(x)	\
+    : __isnormall(x))
 
 #ifdef __MATH_BUILTIN_RELOPS
 #define	isgreater(x, y)		__builtin_isgreater((x), (y))
@@ -161,8 +173,6 @@ struct exception {
 };
 #endif
 
-#define	isnanf(x)      	isnan(x)
-
 #if 0
 /* Old value from 4.4BSD-Lite math.h; this is probably better. */
 #define	HUGE		HUGE_VAL
@@ -195,6 +205,15 @@ __BEGIN_DECLS
 int	__fpclassifyd(double) __pure2;
 int	__fpclassifyf(float) __pure2;
 int	__fpclassifyl(long double) __pure2;
+int	__isfinitef(float) __pure2;
+int	__isfinite(double) __pure2;
+int	__isfinitel(long double) __pure2;
+int	__isinff(float) __pure2;
+int	__isinfl(long double) __pure2;
+int	__isnanl(long double) __pure2;
+int	__isnormalf(float) __pure2;
+int	__isnormal(double) __pure2;
+int	__isnormall(long double) __pure2;
 int	__signbit(double) __pure2;
 
 double	acos(double);
@@ -241,6 +260,8 @@ double	fmax(double, double) __pure2;
 double	fmin(double, double) __pure2;
 double	hypot(double, double);
 int	ilogb(double);
+int	(isinf)(double) __pure2;
+int	(isnan)(double) __pure2;
 double	lgamma(double);
 double	log1p(double) __pure2;
 double	logb(double) __pure2;
@@ -279,6 +300,7 @@ double	tgamma(double);
 #if __BSD_VISIBLE
 double	drem(double, double);
 int	finite(double) __pure2;
+int	isnanf(float) __pure2;
 
 /*
  * Reentrant version of gamma & lgamma; passes signgam back by reference
