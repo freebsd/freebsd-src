@@ -220,7 +220,7 @@ sha1_pad(ctxt)
 void
 sha1_loop(ctxt, input0, len)
 	struct sha1_ctxt *ctxt;
-	caddr_t input0;
+	const caddr_t input0;
 	size_t len;
 {
 	u_int8_t *input;
