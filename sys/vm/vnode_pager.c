@@ -292,32 +292,28 @@ vnode_pager_setsize(vp, nsize)
 	struct vnode *vp;
 	vm_ooffset_t nsize;
 {
+	vm_object_t object;
+	vm_page_t m;
 	vm_pindex_t nobjsize;
-	vm_object_t object = vp->v_object;
 
-	GIANT_REQUIRED;
-
-	if (object == NULL)
+	if ((object = vp->v_object) == NULL)
 		return;
-
-	/*
-	 * Hasn't changed size
-	 */
-	if (nsize == object->un_pager.vnp.vnp_size)
+	VM_OBJECT_LOCK(object);
+	if (nsize == object->un_pager.vnp.vnp_size) {
+		/*
+		 * Hasn't changed size
+		 */
+		VM_OBJECT_UNLOCK(object);
 		return;
-
+	}
 	nobjsize = OFF_TO_IDX(nsize + PAGE_MASK);
-
-	/*
-	 * File has shrunk. Toss any cached pages beyond the new EOF.
-	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
-		if (nobjsize < object->size) {
-			VM_OBJECT_LOCK(object);
+		/*
+		 * File has shrunk. Toss any cached pages beyond the new EOF.
+		 */
+		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-				FALSE);
-			VM_OBJECT_UNLOCK(object);
-		}
+			    FALSE);
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
@@ -326,11 +322,10 @@ vnode_pager_setsize(vp, nsize)
 		 * completely invalid page and mark it partially valid
 		 * it can screw up NFS reads, so we don't allow the case.
 		 */
-		if (nsize & PAGE_MASK) {
-			vm_page_t m;
-
-			m = vm_page_lookup(object, OFF_TO_IDX(nsize));
-			if (m && m->valid) {
+		if ((nsize & PAGE_MASK) &&
+		    (m = vm_page_lookup(object, OFF_TO_IDX(nsize))) != NULL) {
+			vm_page_lock_queues();
+			if (m->valid) {
 				int base = (int)nsize & PAGE_MASK;
 				int size = PAGE_SIZE - base;
 
@@ -340,7 +335,6 @@ vnode_pager_setsize(vp, nsize)
 				 */
 				pmap_zero_page_area(m, base, size);
 
-				vm_page_lock_queues();
 				/*
 				 * XXX work around SMP data integrity race
 				 * by unmapping the page from user processes.
@@ -371,12 +365,13 @@ vnode_pager_setsize(vp, nsize)
 				vm_page_set_validclean(m, base, size);
 				if (m->dirty != 0)
 					m->dirty = VM_PAGE_BITS_ALL;
-				vm_page_unlock_queues();
 			}
+			vm_page_unlock_queues();
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;
 	object->size = nobjsize;
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
