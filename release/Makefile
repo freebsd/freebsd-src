@@ -675,9 +675,9 @@ release.9:
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
-	@perl ${.CURDIR}/scripts/driver-copy2.pl \
-		${.CURDIR}/${TARGET}/drivers.conf \
-		${RD}/trees/bin/modules ${RD}/mfsfd/stand/modules
+	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk \
+	    ${.CURDIR}/${TARGET}/drivers.conf \
+	    ${RD}/trees/bin/modules ${RD}/mfsfd/stand/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -961,7 +961,7 @@ doMFSKERN:
 	  ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@perl ${.CURDIR}/scripts/driver-remove.pl \
+	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
 		${.CURDIR}/${TARGET}/drivers.conf \
 		${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
 .endif
