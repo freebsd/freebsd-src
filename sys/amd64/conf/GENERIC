@@ -101,7 +101,8 @@ device		aha	1
 device		aic
 
 # RAID controllers interfaced to the SCSI subsystem
-device		dpt		# DPT Smartcache - See NOTES for options!
+device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
+device		dpt		# DPT Smartcache III, IV - See NOTES for options!
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
