@@ -39,6 +39,8 @@
 #include <sys/consio.h>
 #include "vgl.h"
 
+/* XXX Direct Color 24bits modes unsupported */
+
 #define min(x, y)	(((x) < (y)) ? (x) : (y))
 #define max(x, y)	(((x) > (y)) ? (x) : (y))
 
@@ -178,6 +180,25 @@ VGLInit(int mode)
   case V_INFO_MM_VGAX:
     VGLDisplay->Type = VIDBUF8X;
     break;
+  case V_INFO_MM_DIRECT:
+    VGLDisplay->PixelBytes = VGLModeInfo.vi_pixel_size;
+    switch (VGLDisplay->PixelBytes) {
+    case 2:
+      VGLDisplay->Type = VIDBUF16;
+      break;
+#if notyet
+    case 3:
+      VGLDisplay->Type = VIDBUF24;
+      break;
+#endif
+    case 4:
+      VGLDisplay->Type = VIDBUF32;
+      break;
+    default:
+      VGLEnd();
+      return -4;
+    }
+    break;
   default:
     VGLEnd();
     return -4;
@@ -224,10 +245,26 @@ VGLInit(int mode)
 
   /* see if we are in the windowed buffer mode or in the linear buffer mode */
   if (VGLBufSize/VGLModeInfo.vi_planes > VGLAdpInfo.va_window_size) {
-    if (VGLDisplay->Type == VIDBUF4)
+    switch (VGLDisplay->Type) {
+    case VIDBUF4:
       VGLDisplay->Type = VIDBUF4S;
-    else if (VGLDisplay->Type == VIDBUF8)
+      break;
+    case VIDBUF8:
       VGLDisplay->Type = VIDBUF8S;
+      break;
+    case VIDBUF16:
+      VGLDisplay->Type = VIDBUF16S;
+      break;
+    case VIDBUF24:
+      VGLDisplay->Type = VIDBUF24S;
+      break;
+    case VIDBUF32:
+      VGLDisplay->Type = VIDBUF32S;
+      break;
+    default:
+      VGLEnd();
+      return -8;
+    }
   }
 
   VGLMode = mode;
@@ -308,13 +345,35 @@ VGLCheckSwitch()
 	    VGLDisplay->Type = VIDBUF8S;
 	  else
 	    VGLDisplay->Type = VIDBUF8;
-	} else {
-	  /* shouldn't be happening */
 	}
         break;
       case V_INFO_MM_VGAX:
 	VGLDisplay->Type = VIDBUF8X;
 	break;
+      case V_INFO_MM_DIRECT:
+	switch (VGLModeInfo.vi_pixel_size) {
+	  case 2:
+	    if (VGLBufSize/VGLModeInfo.vi_planes > VGLAdpInfo.va_window_size)
+	      VGLDisplay->Type = VIDBUF16S;
+	    else
+	      VGLDisplay->Type = VIDBUF16;
+	    break;
+	  case 3:
+	    if (VGLBufSize/VGLModeInfo.vi_planes > VGLAdpInfo.va_window_size)
+	      VGLDisplay->Type = VIDBUF24S;
+	    else
+	      VGLDisplay->Type = VIDBUF24;
+	    break;
+	  case 4:
+	    if (VGLBufSize/VGLModeInfo.vi_planes > VGLAdpInfo.va_window_size)
+	      VGLDisplay->Type = VIDBUF32S;
+	    else
+	      VGLDisplay->Type = VIDBUF32;
+	    break;
+	  default:
+	  /* shouldn't be happening */
+          break;
+        }
       default:
 	/* shouldn't be happening */
         break;
@@ -357,6 +416,12 @@ VGLCheckSwitch()
 	break;
       case VIDBUF8:
       case VIDBUF8S:
+      case VIDBUF16:
+      case VIDBUF16S:
+      case VIDBUF24:
+      case VIDBUF24S:
+      case VIDBUF32:
+      case VIDBUF32S:
 	for (offset = 0; offset < VGLBufSize; offset += len) {
 	  VGLSetSegment(offset);
 	  len = min(VGLBufSize - offset, VGLAdpInfo.va_window_size);
@@ -398,6 +463,12 @@ VGLCheckSwitch()
 	break;
       case VIDBUF8:
       case VIDBUF8S:
+      case VIDBUF16:
+      case VIDBUF16S:
+      case VIDBUF24:
+      case VIDBUF24S:
+      case VIDBUF32:
+      case VIDBUF32S:
 	for (offset = 0; offset < VGLBufSize; offset += len) {
 	  VGLSetSegment(offset);
 	  len = min(VGLBufSize - offset, VGLAdpInfo.va_window_size);

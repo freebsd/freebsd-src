@@ -41,10 +41,57 @@ static byte VGLSavePaletteBlue[256];
 #define min(x, y)	(((x) < (y)) ? (x) : (y))
 #define max(x, y)	(((x) > (y)) ? (x) : (y))
 
+static void
+color2mem(u_long color, byte *b, int len)
+{
+  switch (len) {
+  case 4:
+    b[3] = (color >> 24) & 0xff;
+    /* fallthrough */
+  case 3:
+    b[2] = (color >> 16) & 0xff;
+    /* fallthrough */
+  case 2:
+    b[1] = (color >> 8) & 0xff;
+    /* fallthrough */
+  case 1:
+  default:
+    b[0] = color & 0xff;
+    break;
+  }
+
+  return;
+}
+
+static u_long
+mem2color(byte *b, int len)
+{
+  u_long color = 0;
+
+  switch (len) {
+  case 4:
+    color |= (b[3] & 0xff) << 24;
+    /* fallthrough */
+  case 3:
+    color |= (b[2] & 0xff) << 16;
+    /* fallthrough */
+  case 2:
+    color |= (b[1] & 0xff) << 8;
+    /* fallthrough */
+  case 1:
+  default:
+    color |= (b[0] & 0xff);
+    break;
+  }
+
+  return color;
+}
+
 void
-VGLSetXY(VGLBitmap *object, int x, int y, byte color)
+VGLSetXY(VGLBitmap *object, int x, int y, u_long color)
 {
   int offset;
+  byte b[4];
 
   VGLCheckSwitch();
   if (x>=0 && x<object->VXsize && y>=0 && y<object->VYsize) {
@@ -52,15 +99,29 @@ VGLSetXY(VGLBitmap *object, int x, int y, byte color)
       switch (object->Type) {
       case MEMBUF:
       case VIDBUF8:
-        object->Bitmap[y*object->VXsize+x]=(color);
+        object->Bitmap[y*object->VXsize+x]=((byte)color);
         break;
       case VIDBUF8S:
-	object->Bitmap[VGLSetSegment(y*object->VXsize+x)]=(color);
+	object->Bitmap[VGLSetSegment(y*object->VXsize+x)]=((byte)color);
+	break;
+      case VIDBUF16:
+      case VIDBUF24:
+      case VIDBUF32:
+	color2mem(color, b, object->PixelBytes);
+        bcopy(b, &object->Bitmap[(y*object->VXsize+x) * object->PixelBytes],
+		object->PixelBytes);
+        break;
+      case VIDBUF16S:
+      case VIDBUF24S:
+      case VIDBUF32S:
+	color2mem(color, b, object->PixelBytes);
+	offset = VGLSetSegment((y*object->VXsize+x) * object->PixelBytes);
+	bcopy(b, &object->Bitmap[offset], object->PixelBytes);
 	break;
       case VIDBUF8X:
         outb(0x3c4, 0x02);
         outb(0x3c5, 0x01 << (x&0x3));
-	object->Bitmap[(unsigned)(VGLAdpInfo.va_line_width*y)+(x/4)] = (color);
+	object->Bitmap[(unsigned)(VGLAdpInfo.va_line_width*y)+(x/4)] = ((byte)color);
 	break;
       case VIDBUF4S:
 	offset = VGLSetSegment(y*VGLAdpInfo.va_line_width + x/8);
@@ -69,23 +130,24 @@ VGLSetXY(VGLBitmap *object, int x, int y, byte color)
 	offset = y*VGLAdpInfo.va_line_width + x/8;
 set_planar:
         outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
-        outb(0x3ce, 0x00); outb(0x3cf, color & 0x0f);	/* set/reset */
+        outb(0x3ce, 0x00); outb(0x3cf, (byte)color & 0x0f);	/* set/reset */
         outb(0x3ce, 0x01); outb(0x3cf, 0x0f);		/* set/reset enable */
         outb(0x3ce, 0x08); outb(0x3cf, 0x80 >> (x%8));	/* bit mask */
-	object->Bitmap[offset] |= color;
+	object->Bitmap[offset] |= (byte)color;
       }
     }
     VGLMouseUnFreeze();
   }
 }
 
-byte
+u_long
 VGLGetXY(VGLBitmap *object, int x, int y)
 {
   int offset;
+  byte b[4];
 #if 0
   int i;
-  byte color;
+  u_long color;
   byte mask;
 #endif
 
@@ -98,6 +160,19 @@ VGLGetXY(VGLBitmap *object, int x, int y)
       return object->Bitmap[((y*object->VXsize)+x)];
     case VIDBUF8S:
       return object->Bitmap[VGLSetSegment(y*object->VXsize+x)];
+    case VIDBUF16:
+    case VIDBUF24:
+    case VIDBUF32:
+      bcopy(&object->Bitmap[(y*object->VXsize+x) * object->PixelBytes],
+		b, object->PixelBytes);
+      return (mem2color(b, object->PixelBytes));
+    case VIDBUF16S:
+    case VIDBUF24S:
+    case VIDBUF32S:
+	offset = VGLSetSegment((y*object->VXsize+x) * object->PixelBytes);
+	bcopy(&object->Bitmap[offset], b, object->PixelBytes);
+
+      return (mem2color(b, object->PixelBytes));
     case VIDBUF8X:
       outb(0x3ce, 0x04); outb(0x3cf, x & 0x3);
       return object->Bitmap[(unsigned)(VGLAdpInfo.va_line_width*y)+(x/4)];
@@ -119,11 +194,11 @@ get_planar:
       return color;
 #endif
   }
-  return 0;
+  return 0;		/* XXX black? */
 }
 
 void
-VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
+VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
 {
   int d, x, y, ax, ay, sx, sy, dx, dy;
 
@@ -157,7 +232,7 @@ VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
 }
 
 void
-VGLBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
+VGLBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
 {
   VGLLine(object, x1, y1, x2, y1, color);
   VGLLine(object, x2, y1, x2, y2, color);
@@ -166,7 +241,7 @@ VGLBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
 }
 
 void
-VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
+VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
 {
   int y;
 
@@ -174,7 +249,7 @@ VGLFilledBox(VGLBitmap *object, int x1, int y1, int x2, int y2, byte color)
 }
 
 void
-inline set4pixels(VGLBitmap *object, int x, int y, int xc, int yc, byte color) 
+inline set4pixels(VGLBitmap *object, int x, int y, int xc, int yc, u_long color) 
 {
   if (x!=0) { 
     VGLSetXY(object, xc+x, yc+y, color); 
@@ -192,7 +267,7 @@ inline set4pixels(VGLBitmap *object, int x, int y, int xc, int yc, byte color)
 }
 
 void
-VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color)
+VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color)
 {
   int x = 0, y = b, asq = a*a, asq2 = a*a*2, bsq = b*b;
   int bsq2 = b*b*2, d = bsq-asq*b+asq/4, dx = 0, dy = asq2*b;
@@ -215,7 +290,7 @@ VGLEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color)
 }
 
 void
-inline set2lines(VGLBitmap *object, int x, int y, int xc, int yc, byte color) 
+inline set2lines(VGLBitmap *object, int x, int y, int xc, int yc, u_long color) 
 {
   if (x!=0) { 
     VGLLine(object, xc+x, yc+y, xc-x, yc+y, color); 
@@ -228,7 +303,7 @@ inline set2lines(VGLBitmap *object, int x, int y, int xc, int yc, byte color)
 }
 
 void
-VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color)
+VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, u_long color)
 {
   int x = 0, y = b, asq = a*a, asq2 = a*a*2, bsq = b*b;
   int bsq2 = b*b*2, d = bsq-asq*b+asq/4, dx = 0, dy = asq2*b;
@@ -251,17 +326,19 @@ VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color)
 }
 
 void
-VGLClear(VGLBitmap *object, byte color)
+VGLClear(VGLBitmap *object, u_long color)
 {
   int offset;
   int len;
+  int i, total = 0;
+  byte b[4];
 
   VGLCheckSwitch();
-  VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color);
+  VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color); /* XXX */
   switch (object->Type) {
   case MEMBUF:
   case VIDBUF8:
-    memset(object->Bitmap, color, object->VXsize*object->VYsize);
+    memset(object->Bitmap, (byte)color, object->VXsize*object->VYsize);
     break;
 
   case VIDBUF8S:
@@ -269,7 +346,29 @@ VGLClear(VGLBitmap *object, byte color)
       VGLSetSegment(offset);
       len = min(object->VXsize*object->VYsize - offset,
 		VGLAdpInfo.va_window_size);
-      memset(object->Bitmap, color, len);
+      memset(object->Bitmap, (byte)color, len);
+      offset += len;
+    }
+    break;
+  case VIDBUF16:
+  case VIDBUF24:
+  case VIDBUF32:
+    color2mem(color, b, object->PixelBytes);
+    total = object->VXsize*object->VYsize*object->PixelBytes;
+    for (i = 0; i < total; i += object->PixelBytes)
+      bcopy(b, object->Bitmap + i, object->PixelBytes);
+    break;
+
+  case VIDBUF16S:
+  case VIDBUF24S:
+  case VIDBUF32S:
+    color2mem(color, b, object->PixelBytes);
+    total = object->VXsize*object->VYsize*object->PixelBytes;
+    for (offset = 0; offset < total; ) {
+      VGLSetSegment(offset);
+      len = min(total - offset, VGLAdpInfo.va_window_size);
+      for (i = 0; i < len; i += object->PixelBytes)
+	bcopy(b, object->Bitmap + offset + i, object->PixelBytes);
       offset += len;
     }
     break;
@@ -278,7 +377,7 @@ VGLClear(VGLBitmap *object, byte color)
     /* XXX works only for Xsize % 4 = 0 */
     outb(0x3c6, 0xff);
     outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
-    memset(object->Bitmap, color, VGLAdpInfo.va_line_width*object->VYsize);
+    memset(object->Bitmap, (byte)color, VGLAdpInfo.va_line_width*object->VYsize);
     break;
 
   case VIDBUF4:
@@ -292,7 +391,7 @@ VGLClear(VGLBitmap *object, byte color)
       VGLSetSegment(offset);
       len = min(object->VXsize*object->VYsize - offset,
 		VGLAdpInfo.va_window_size);
-      memset(object->Bitmap, color, len);
+      memset(object->Bitmap, (byte)color, len);
       offset += len;
     }
     outb(0x3ce, 0x05); outb(0x3cf, 0x00);
