@@ -27,3 +27,6 @@
 # Motorola/88Open BCS
 #
 0	beshort		0555		88K BCS executable
+#
+# Motorola S-Records, from Gerd Truschinski <gt@freebsd.first.gmd.de>
+0   string      S0          Motorola S-Record; binary data in text format
