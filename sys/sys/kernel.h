@@ -277,10 +277,7 @@ struct tunable_int {
 	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
 	     tunable_int_init, &__tunable_int_ ## line)
 
-#define	TUNABLE_INT_FETCH(path, var)			\
-do {							\
-	getenv_int((path), (var));			\
-} while (0)
+#define	TUNABLE_INT_FETCH(path, var)	getenv_int((path), (var))
 
 extern void tunable_quad_init(void *);
 struct tunable_quad {
@@ -300,10 +297,7 @@ struct tunable_quad {
 	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
 	    tunable_quad_init, &__tunable_quad_ ## line)
 
-#define	TUNABLE_QUAD_FETCH(path, var)			\
-do {							\
-	getenv_quad((path), (var));			\
-} while (0)
+#define	TUNABLE_QUAD_FETCH(path, var)	getenv_quad((path), (var))
 
 extern void tunable_str_init(void *);
 struct tunable_str {
@@ -325,15 +319,8 @@ struct tunable_str {
 	SYSINIT(__Tunable_init_ ## line, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, \
 	     tunable_str_init, &__tunable_str_ ## line)
 
-#define	TUNABLE_STR_FETCH(path, var, size)		\
-do {							\
-	char *tmp;					\
-	tmp = getenv((path));				\
-	if (tmp != NULL) {				\
-		strncpy((var), tmp, (size));		\
-		(var)[(size) - 1] = 0;			\
-	}						\
-} while (0)
+#define	TUNABLE_STR_FETCH(path, var, size)			\
+	getenv_string((path), (var), (size))
 
 struct intr_config_hook {
 	TAILQ_ENTRY(intr_config_hook) ich_links;
