@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.24 1995/06/06 06:14:53 jkh Exp $
+ * $Id: config.c,v 1.15.2.25 1995/06/06 06:16:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -182,7 +182,7 @@ configFstab(void)
 	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc", NULL);
-    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs rw 0 0\n");
+    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -191,7 +191,7 @@ configFstab(void)
     /* Write the first one out as /cdrom */
     if (cnt) {
 	Mkdir("/cdrom", NULL);
-	fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660 ro 0 0\n", devs[0]->name);
+	fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -200,7 +200,7 @@ configFstab(void)
 
 	sprintf(cdname, "/cdrom%d", i);
 	Mkdir(cdname, NULL);
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660 ro 0 0\n", devs[i]->name, cdname);
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.6 1995/06/06 06:08:00 jkh Exp $
+#	$Id: Makefile,v 1.192.2.7 1995/06/06 08:03:17 jkh Exp $
 #
 # How to roll a release:
 #
@@ -19,7 +19,7 @@
 # Things which without too much trouble can be considered variables
 
 EXPORT_DISTS=	games manpages proflibs dict info
-EXTRA_DISTS=	des ${EXPORT_DISTS}
+EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
 BOOT1=	etc/protocols etc/sysconfig
@@ -163,6 +163,10 @@ release.2:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
+	cd ${.CURDIR}/../eBones && ( \
+		make obj all help-distribute DISTDIR=${RD}/trees ;\
+		make kprog \
+	)
 	chflags -R noschg ${RD}/trees
 	uudecode ${.CURDIR}/compat20/libgcc.so.261.0.uu
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
@@ -273,6 +277,8 @@ release.6:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
+	( cd ${RD}/dists/krb && \
+	if [ -f krb.aa ] ; then mv krb.* ../des ; fi )
 	touch release.6
 
 

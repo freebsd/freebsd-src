@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.25 1995/06/06 07:57:39 jkh Exp $
+ * $Id: menus.c,v 1.41.2.26 1995/06/06 23:45:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -382,8 +382,10 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0, dmenuFlagCheck	},
       { "compat20", "FreeBSD 2.0 binary compatibility package [2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0, dmenuFlagCheck	},
-      { "DES", "DES encryption code and sources [.3MB]",
+      { "DES", "NOT FOR EXPORT! DES encryption code [.3MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DES, 0, dmenuFlagCheck		},
+      { "eBones", "NOT FOR EXPORT! Kerberos Authentication [1.3MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_KRB, 0, dmenuFlagCheck		},
       { "dict", "Spelling checker dictionary files [4.2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0, dmenuFlagCheck		},
       { "games", "Games and other amusements (non-commercial) [6.4MB]",
@@ -438,6 +440,10 @@ you wish to install.",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0, dmenuFlagCheck	},
       { "usbin", "/usr/src/usr.sbin (aux system binaries) [14MB]",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0, dmenuFlagCheck	},
+      { "secure", "/usr/src/secure (NO EXPORT! DES and others) [1.3MB]",
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SECURE, 0, dmenuFlagCheck	},
+      { "eBones", "/usr/src/eBones (NO EXPORT! Kerberos) [1.1MB]",
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_EBONES, 0, dmenuFlagCheck	},
       { NULL } },
 };
 

@@ -4,13 +4,13 @@
    -----------------------------------------          /(        )`
                                                       \ \___   / |
 Willkommen zum Release 2.0.5 von FreeBSD, einem       /- _  `-/  '
-Zwischen-Release von FreeBSD, das eine oft gefor-    (/\/ \ \   /\
-derte Lücke füllt zwischen 2.0R (das im Nov. 94      / /   | `    \
-erschien) und 2.1R, das Ende Juli '95 erscheinen     O O   ) /    |
-wird.  FreeBSD 2.0.5 enthält wesentliche Verbes-     `-^--'`<     '
-serungen gegenüber 2.0R, deren wichtigste eine      (_.)  _  )   /
-erhöhte Systemstabilität (wesentlich besser),        `.___/`    /
-Dutzende neuer Features und ein stark                  `-----' /
+Zwischen-Release von FreeBSD, das eine eine Lücke    (/\/ \ \   /\
+füllt zwischen 2.0R (das im Nov. 94 erschien) und    / /   | `    \
+2.1R, das Ende Juli '95 erscheinen wird, die oft     O O   ) /    |
+beklagt wurde.  FreeBSD 2.0.5 enthältt wesentliche   `-^--'`<     '
+Verbesserungen gegenüber 2.0R, deren wichtigste     (_.)  _  )   /
+eine erhöhte Systemstabilität (wesentlich besser     `.___/`    /
+besser), Dutzende neuer Features und ein stark         `-----' /
 verbessertes Installationsprogramm        <----.     __ / __   \
 sind. Lesen Sie die Release Notes         <----|====O)))==) \) /====
 für weitere Details bzgl. der Neu-        <----'    `--' `.__,' \

@@ -15,7 +15,8 @@
 #define DIST_XF86		0x0400
 #define DIST_COMMERCIAL		0x0800
 #define DIST_DES		0x1000
-#define DIST_EXPERIMENTAL	0x2000
+#define DIST_KRB		0x2000
+#define DIST_EXPERIMENTAL	0x4000
 #define DIST_ALL		0x0FFF
 
 /* Canned distribution sets */
@@ -41,7 +42,9 @@
 #define DIST_SRC_SYS		0x0800
 #define DIST_SRC_UBIN		0x1000
 #define DIST_SRC_USBIN		0x2000
-#define DIST_SRC_ALL		0xFFFF
+#define DIST_SRC_SECURE		0x4000
+#define DIST_SRC_EBONES		0x8000
+#define DIST_SRC_ALL		0x3FFF
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001

@@ -87,7 +87,7 @@ please skip to section 2.3:  Before installing from a DOS partition.
 
 There is not a lot of preparatory work that needs to be done to
 successfully install from one of Walnut Creek's FreeBSD CDROMs (other
-CDROM distributions may work as well, I simply cannot say as I
+CDROM distributions may work as well, we simply cannot say as we
 have no hand or say in their creation).  You can either boot into the
 CD installation directly from DOS using Walnut Creek's supplied
 ``install.bat'' batch file or you can make a boot floppy with
@@ -121,6 +121,26 @@ Which would allow you to then "cd /usr/ports; make" and get all the
 sources from the CD, but yet create all the intermediate files in
 /usr/ports, which is presumably on a more writable media! :-)
 
+SPECIAL NOTE:  Before invoking the installation, be sure that the
+CDROM is in the drive so that the "probe" can find it!
+This is also true if you wish the CDROM to be added to the default
+system configuration automatically during the install (whether or
+not you actually use it as the installation media).  This will be
+fixed for 2.1, but for now this simple work-around will ensure that
+your CDROM is detected properly.
+
+Finally, if you would like people to be able to FTP install
+FreeBSD directly from the CDROM in your machine, you'll find
+it quite easy.  After the machine is fully installed, you 
+simply need to add the following line to /etc/passwd (using
+the vipw command):
+
+        ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
+
+No further work is necessary.  The other installers will now be able
+to chose a Media type of FTP and type in:  ftp://<your machine>
+after picking "Other" in the ftp sites menu!
+
 
 2.2     Before installing from Floppy:
 
@@ -137,11 +157,11 @@ on a UNIX Workstation (see notes in section 2.1 concerning the
 to make the distribution set floppies:
 
 You will need, at minimum, as many 1.44MB or 1.2MB floppies as it takes
-to hold all files in the bin (binary distribution) directory.
-THESE floppies *must* be formatted using MS-DOS, using with the FORMAT
-command in MS-DOS or the File Manager format command in Microsoft
-Windows(tm).  Don't trust Factory Preformatted floppies!  Format
-them again yourself, just to make sure!
+to hold all files in the bin (binary distribution) directory.  THESE
+floppies *must* be formatted using MS-DOS, using the FORMAT command in
+MS-DOS or the File Manager format command in Microsoft Windows(tm).
+Don't trust Factory Preformatted floppies!  Format them again yourself,
+just to make sure!
 
 Many problems reported by our users in the past have resulted from the
 use of improperly formatted media, so we simply take special care to
@@ -184,7 +204,7 @@ the minimal requirement.
 2.4     Before installing from QIC/SCSI Tape:
 
 Installing from tape is probably the easiest method, short of an
-on-line install using FTP or a CDROM instal.  The installation program
+on-line install using FTP or a CDROM install.  The installation program
 expects the files to be simply tar'ed onto the tape, so after getting
 all of the files for distribution you're interested in, simply tar
 them onto the tape with a command like:
@@ -203,6 +223,10 @@ created.  Due to the non-random access nature of tapes, this method of
 installation requires quite a bit of temporary storage!  You should
 expect to require as much temporary storage as you have stuff written
 on tape.
+
+SPECIAL NOTE:  When going to do the installation, the tape must be in
+the drive *before* booting from the boot floppy.  The installation
+"probe" may otherwise fail to find it.
 
 
 2.5     Before installing over a network:
@@ -233,20 +257,20 @@ terminal emulator.
 If a hard-wired connection to another FreeBSD (2.0R or later) machine
 is available, you might also consider installing over a "laplink"
 parallel port cable.  The data rate over the parallel port is much
-higher than is what's typically possible over a serial line (up to
+higher than what is typically possible over a serial line (up to
 50k/sec), thus resulting in a quicker installation.
 
 Finally, for the fastest possible network installation, an ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC
 ethernet cards, a table of supported cards (and their required
-settings) provided as part of the FreeBSD Hardware Guide - see the
+settings) is provided as part of the FreeBSD Hardware Guide - see the
 Documentation menu on the boot floppy.  If you are using one of the
 supported PCMCIA ethernet cards, also be sure that it's plugged in
 _before_ the laptop is powered on!  FreeBSD does not, unfortunately,
 currently support "hot insertion" of PCMCIA cards.
 
 You will also need to know your IP address on the network, the
-"netmask" value for your address class and the name of your machine.
+"netmask" value for your address class, and the name of your machine.
 Your system administrator can tell you which values to use for your
 particular network setup.  If you will be referring to other hosts by
 name rather than IP address, you'll also need a name server and
@@ -262,8 +286,8 @@ can continue over NFS or FTP.
 2.5.1   Preparing for NFS installation:
 
         NFS installation is fairly straight-forward: Simply copy the
-        FreeBSD distribution files you're interested onto a server
-        somewhere and then point the NFS media selection at it.
+        FreeBSD distribution files you want onto a server somewhere
+        and then point the NFS media selection at it.
 
         If this server supports only "privileged port" access (as is
         generally the default for Sun workstations), you will need to set
@@ -274,7 +298,7 @@ can continue over NFS or FTP.
         Options flag.
 
         In order for NFS installation to work, the server must support
-        "subdir mounts", e.g. if your FreeBSD 2.0.5 distribution directory
+        "subdir mounts"; e.g., if your FreeBSD 2.0.5 distribution directory
         lives on:  ziggy:/usr/archive/stuff/FreeBSD
         Then ziggy will have to allow the direct mounting of
         /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
@@ -289,9 +313,9 @@ can continue over NFS or FTP.
 2.5.2   Preparing for FTP Installation
 
         FTP installation may be done from any mirror site containing a
-        reasonably up-to-date version of FreeBSD 2.0.5, a full menu of
-        reasonable choices from almost anywhere in the world being
-        provided by the FTP site menu.
+        reasonably up-to-date version of FreeBSD 2.0.5.  A full menu of
+        reasonable choices from almost anywhere in the world is provided
+        by the FTP site menu.
 
         If you are installing from some other FTP site not listed in this
         menu, or you are having troubles getting your name server configured
@@ -405,7 +429,7 @@ o You can do anything you like in this menu without altering
 
   At this point, you're generally done with the sysinstall utility and
 can select the final `Quit'.  If you're running it as an installer
-(e.g. before the system is all the way up) then the system will now
+(e.g., before the system is all the way up) then the system will now
 reboot.  If you selected the boot manager option, you will see a small
 boot menu with an `F?' prompt.  Press the function key for BSD (it
 will be shown) and you should boot up into FreeBSD off the hard disk.

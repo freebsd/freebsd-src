@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.12 1995/06/05 20:22:49 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.13 1995/06/06 00:11:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -172,7 +172,7 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
     }
 
     fd = open(buf, O_RDONLY);
-    if (dist_attrs != NULL) {
+    if (dist_attrs != NULL && fd != -1) {
 	extn = rindex(buf, '.');
 	snprintf(attrib, 10, "cksum%s", extn);
 	val = attr_match(dist_attrs, attrib);
@@ -183,18 +183,18 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	    
 	    cval1 = strtol(var, &extn, 10);
 	    clen1 = strtol(extn, NULL, 10);
-	
+
 	    if (crc(fd, &cval2, &clen2) != 0) {
 		msgConfirm("crc() of file `%s' failed!", file);
 		close(fd);
 		return -1;
 	    }
-	
 	    if ((cval1 != cval2) || (clen1 != clen2)) {
 		msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
 		close(fd);
 		return -1;
 	    }
+	    lseek(fd, 0, 0);
 	}
 	else
 	    msgNotify("No checksum information for file %s..", file);

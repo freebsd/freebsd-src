@@ -316,7 +316,7 @@ use ``cat'' or ``kermit'' to look at the output of the mouse.  Connect
 to it and just make sure that it generates output when the mouse is
 moved or clicked:
 
-      % cat < /dev/tty00
+      % cat < /dev/cuaa0
 
 If you can't find the right mouse device then use ``dmesg|grep sio''
 to get a list of devices that were detected upon booting:
@@ -329,7 +329,7 @@ Use the script /dev/MAKEDEV to create entries if they don't already
 exist:
 
       % cd /dev
-      % sh MAKEDEV tty00
+      % sh MAKEDEV cuaa0
 
 If you plan to fine tune the screen size or position on your monitor
 you'll need the specs for sync frequencies from your monitor's manual.
