@@ -356,6 +356,8 @@ Int_Open_Disk(const char *name)
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
 		else if (!strcmp(t, "BDE"))
 			; /* nothing */
+		else if (!strcmp(t, "CCD"))
+			; /* nothing */
 		else {
 			printf("BARF %d\n", __LINE__);
 			exit(0);
