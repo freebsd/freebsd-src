@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.29 1993/11/17 23:24:12 wollman Exp $
+#	$Id: LINT,v 1.30 1993/11/18 05:01:45 rgrimes Exp $
 #
 
 machine		"i386"
@@ -65,9 +65,10 @@ options		INET			#Internet communications protocols
 options		ISO
 options		ISOFS			#ISO 9660 File System
 pseudo-device	loop
-options		MFS			#Memroy File System
+options		MFS			#Memory File System
 options		NFS			#Network File System
 options		NS			#Xerox NS communications protocols
+options		NSIP			#XNS over IP
 options		PCFS			#PC (MSDOS) File System
 pseudo-device	ppp	2
 pseudo-device	pty	4
@@ -85,7 +86,7 @@ pseudo-device	swappager
 options		SYSVSHM
 options		"SHMMAXPGS=64"		# 256Kb of sharable memory
 #pseudo-device	tb			#tablet line discipline.
-pseudo-device	tpip
+options		TPIP			# ISO TP class 4 over IP
 #pseudo-device	tun
 device		uk0			#unknown scsi devices
 pseudo-device	vnodepager
