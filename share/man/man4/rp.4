@@ -13,8 +13,8 @@
 .Pp
 For ISA cards, you must specify the port address in
 .Pa /boot/device.hints :
-.Cd hints.rp.0.at="isa"
-.Cd hints.rp.0.port="0x100"
+.Cd hint.rp.0.at="isa"
+.Cd hint.rp.0.port="0x100"
 .Sh DESCRIPTION
 This driver provides a kernel device driver for the
 .Tn RocketPort
@@ -91,10 +91,10 @@ If you have two ISA cards, one installed at 0x100 and the
 second installed at 0x180, then you should add the following to
 .Pa /boot/device.hints :
 .Pp
-.Dl hints.rp.0.at="isa"
-.Dl hints.rp.0.port="0x100"
-.Dl hints.rp.1.at="isa"
-.Dl hints.rp.1.port="0x180"
+.Dl hint.rp.0.at="isa"
+.Dl hint.rp.0.port="0x100"
+.Dl hint.rp.1.at="isa"
+.Dl hint.rp.1.port="0x180"
 .Pp
 The configuration of the
 .Tn RocketPort
