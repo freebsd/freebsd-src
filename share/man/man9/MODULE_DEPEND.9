@@ -46,9 +46,17 @@ macro sets a dependency on another kernel module with name
 which has registered
 its version with
 .Fn MODULE_VERSION .
-Three versions must be specified on which the module can depend:
-The minimal and maximal versions this module can depend on as well
-as the preferred version.
+.Pp
+Three versions must be specified for
+.Fa moddepend :
+.Bl -tag -width ".Fa prefversion"
+.It Fa minversion
+The minimum version on which the current module can depend.
+.It Fa maxversion
+The maximum version on which the current module can depend.
+.It Fa prefversion
+The preferred version on which the current module can depend.
+.El
 .Sh EXAMPLES
 .Bd -literal
 MODULE_DEPEND(foo, bar, 1, 3, 4);
