@@ -31,9 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
+ *	$Id$
  */
-
-#ident "$Revision: 1.1.3.1 $"
 
 /* Definitions for RIPv2 routing process.
  *
@@ -104,12 +103,10 @@ struct walkarg;
 #define _HAVE_SIN_LEN
 #endif
 
-#ifdef sgi
 /* Turn on if IP_DROP_MEMBERSHIP and IP_ADD_MEMBERSHIP do not look at
  * the dstaddr of point-to-point interfaces.
  */
-#define MCAST_PPP_BUG
-#endif
+/* #define MCAST_PPP_BUG */
 
 #define NEVER (24*60*60)		/* a long time */
 #define EPOCH NEVER			/* bias time by this to avoid <0 */
@@ -120,12 +117,6 @@ struct walkarg;
 #define	CHECK_BAD_INTERVAL	5	/* when an interface is known bad */
 #define	CHECK_ACT_INTERVAL	30	/* when advertising */
 #define	CHECK_QUIET_INTERVAL	300	/* when not */
-
-
-/* set times to this to continue poisoning a route */
-#define	POISON_SECS	(GARBAGE_TIME - POISON_TIME)
-
-#define NET_S_METRIC	1		/* metric used on synthetic routes */
 
 #define LIM_SEC(s,l) ((s).tv_sec = MIN((s).tv_sec, (l)))
 
@@ -162,16 +153,15 @@ struct rt_entry {
 	struct	radix_node rt_nodes[2];	/* radix tree glue */
 	u_int	rt_state;
 #	    define RS_IF	0x001	/* for network interface */
-#	    define RS_NET_SUB	0x002	/* fake net route for subnet */
-#	    define RS_NET_HOST	0x004	/* fake net route for host */
-#	    define RS_NET_INT	0x008	/* authority route */
-#	    define RS_NET_S (RS_NET_SUB | RS_NET_HOST | RS_NET_INT)
-#	    define RS_SUBNET	0x010	/* subnet route from any source */
-#	    define RS_LOCAL	0x020	/* loopback for pt-to-pt */
-#	    define RS_MHOME	0x040	/* from -m */
-#	    define RS_GW	0x080	/* from -g */
-#	    define RS_STATIC	0x100	/* from the kernel */
-#	    define RS_RDISC     0x200	/* from router discovery */
+#	    define RS_NET_INT	0x002	/* authority route */
+#	    define RS_NET_SYN	0x004	/* fake net route for subnet */
+#	    define RS_NO_NET_SYN (RS_LOCAL | RS_LOCAL | RS_IF)
+#	    define RS_SUBNET	0x008	/* subnet route from any source */
+#	    define RS_LOCAL	0x010	/* loopback for pt-to-pt */
+#	    define RS_MHOME	0x020	/* from -m */
+#	    define RS_STATIC	0x040	/* from the kernel */
+#	    define RS_RDISC     0x080	/* from router discovery */
+#	    define RS_PERMANENT (RS_MHOME | RS_STATIC | RS_NET_SYN | RS_RDISC)
 	struct sockaddr_in rt_dst_sock;
 	naddr   rt_mask;
 	struct rt_spare {
@@ -184,8 +174,8 @@ struct rt_entry {
 #define NUM_SPARES 4
 	} rt_spares[NUM_SPARES];
 	u_int	rt_seqno;		/* when last changed */
-	char	rt_hold_metric;
-	time_t	rt_hold_down;
+	char	rt_poison_metric;	/* to notice maximum recently */
+	time_t	rt_poison_time;		/*	advertised metric */
 };
 #define rt_dst	rt_dst_sock.sin_addr.s_addr
 #define rt_ifp	rt_spares[0].rts_ifp
@@ -205,9 +195,7 @@ struct rt_entry {
  *	nor non-passive, remote interfaces that are not aliases
  *		(i.e. remote & metric=0)
  */
-#define AGE_RT(rt,ifp) (0 == ((rt)->rt_state & (RS_GW | RS_MHOME | RS_STATIC \
-						| RS_NET_SUB | RS_NET_HOST \
-						| RS_RDISC))		\
+#define AGE_RT(rt,ifp) (0 == ((rt)->rt_state & RS_PERMANENT)		\
 			&& (!((rt)->rt_state & RS_IF)			\
 			    || (ifp) == 0				\
 			    || (((ifp)->int_state & IS_REMOTE)		\
@@ -220,14 +208,18 @@ struct rt_entry {
  *	- and A has a shorter path
  *		- or is the router speaking for itself
  *		- or the current route is equal but stale
+ *		- or it is a host route advertised by a system for itself
  */
-#define BETTER_LINK(A, B) ((A)->rts_metric != HOPCNT_INFINITY		\
-			   && now_stale <= (A)->rts_time		\
-			   && ((A)->rts_metric < (B)->rts_metric	\
-			       || ((A)->rts_gate == (A)->rts_router	\
-				   && (B)->rts_gate != (B)->rts_router)	\
-			       || ((A)->rts_metric == (B)->rts_metric	\
-				   && now_stale > (B)->rts_time)))
+#define BETTER_LINK(rt,A,B) ((A)->rts_metric < HOPCNT_INFINITY	\
+			     && now_stale <= (A)->rts_time		\
+			     && ((A)->rts_metric < (B)->rts_metric	\
+				 || ((A)->rts_gate == (A)->rts_router	\
+				     && (B)->rts_gate != (B)->rts_router) \
+				 || ((A)->rts_metric == (B)->rts_metric	\
+				     && now_stale > (B)->rts_time)	\
+				 || (RT_ISHOST(rt)			\
+				     && (rt)->rt_dst == (A)->rts_router	\
+				     && (A)->rts_metric == (B)->rts_metric)))
 
 
 /* An "interface" is similar to a kernel ifnet structure, except it also
@@ -242,27 +234,27 @@ struct interface {
 	naddr	int_dstaddr;		/* other end of pt-to-pt link (n) */
 	naddr	int_net;		/* working network # (host order)*/
 	naddr	int_mask;		/* working net mask (host order) */
+	naddr	int_ripv1_mask;		/* for inferring a mask (n) */
 	naddr	int_std_addr;		/* class A/B/C address (n) */
 	naddr	int_std_net;		/* class A/B/C network (h) */
 	naddr	int_std_mask;		/* class A/B/C netmask (h) */
-	naddr	int_host_addr;		/* RIPv1 net for pt-to-pt link (h) */
-	naddr	int_host_mask;		/* RIPv1 mask for pt-to-pt (h) */
 	int	int_rip_sock;		/* for queries */
 	int	int_if_flags;		/* copied from kernel */
 	u_int	int_state;
 	time_t	int_act_time;		/* last thought healthy */
-	time_t	int_quiet_time;		/* last inactive */
 	u_short	int_transitions;	/* times gone up-down */
 	char	int_metric;
 	char	int_d_metric;		/* for faked default route */
-	u_int	int_data_ipackets;	/* previous network stats */
-	u_int	int_data_ierrors;
-	u_int	int_data_opackets;
-	u_int	int_data_oerrors;
+	struct int_data {
+		u_int	ipackets;	/* previous network stats */
+		u_int	ierrors;
+		u_int	opackets;
+		u_int	oerrors;
 #ifdef sgi
-	u_int	int_data_odrops;
+		u_int	odrops;
 #endif
-	time_t	int_data_ts;		/* timestamp on network stats */
+		time_t	ts;		/* timestamp on network stats */
+	} int_data;
 	char	int_passwd[RIP_AUTH_PW_LEN];	/* RIPv2 password */
 	int	int_rdisc_pref;		/* advertised rdisc preference */
 	int	int_rdisc_int;		/* MaxAdvertiseInterval */
@@ -280,25 +272,32 @@ struct interface {
 #define IS_ALL_ROUTERS	    0x0000080	/* in INADDR_ALLROUTERS_GROUP */
 #define IS_RIP_QUERIED	    0x0000100	/* query broadcast */
 #define IS_BROKE	    0x0000200	/* seems to be broken */
-#define IS_ACTIVE	    0x0000400	/* heard from it at least once */
-#define IS_QUIET	    0x0000800	/* have not heard from it recently */
-#define IS_NEED_NET_SUB	    0x0001000	/* need RS_NET_SUB route */
-#define IS_NO_AG	    0x0002000	/* do not aggregate subnets */
-#define IS_NO_SUPER_AG	    0x0004000	/* do not aggregate networks */
-#define IS_NO_RIPV1_IN	    0x0008000	/* no RIPv1 input at all */
-#define IS_NO_RIPV2_IN	    0x0010000	/* no RIPv2 input at all */
-#define IS_NO_RIP_IN	(IS_NO_RIPV2_IN | IS_NO_RIPV2_IN)
-#define IS_NO_RIPV1_OUT	    0x0020000	/* no RIPv1 output at all */
-#define IS_NO_RIPV2_OUT	    0x0040000	/* no RIPv2 output at all */
+#define IS_SICK		    0x0000400	/* seems to be broken */
+#define IS_DUP		    0x0000800	/* has a duplicate address */
+#define IS_ACTIVE	    0x0001000	/* heard from it at least once */
+#define IS_NEED_NET_SYN	    0x0002000	/* need RS_NET_SYN route */
+#define IS_NO_AG	    0x0004000	/* do not aggregate subnets */
+#define IS_NO_SUPER_AG	    0x0008000	/* do not aggregate networks */
+#define IS_NO_RIPV1_IN	    0x0010000	/* no RIPv1 input at all */
+#define IS_NO_RIPV2_IN	    0x0020000	/* no RIPv2 input at all */
+#define IS_NO_RIP_IN	(IS_NO_RIPV1_IN | IS_NO_RIPV2_IN)
+#define IS_RIP_IN_OFF(s) (((s) & IS_NO_RIP_IN) == IS_NO_RIP_IN)
+#define IS_NO_RIPV1_OUT	    0x0040000	/* no RIPv1 output at all */
+#define IS_NO_RIPV2_OUT	    0x0080000	/* no RIPv2 output at all */
 #define IS_NO_RIP_OUT	(IS_NO_RIPV1_OUT | IS_NO_RIPV2_OUT)
-#define IS_NO_ADV_IN	    0x0080000
-#define IS_NO_SOL_OUT	    0x0100000	/* no solicitations */
-#define IS_SOL_OUT	    0x0200000	/* send solicitations */
+#define IS_NO_RIP	(IS_NO_RIP_OUT | IS_NO_RIP_IN)
+#define IS_RIP_OUT_OFF(s) (((s) & IS_NO_RIP_OUT) == IS_NO_RIP_OUT)
+#define IS_RIP_OFF(s)	(((s) & IS_NO_RIP) == IS_NO_RIP)
+#define IS_NO_ADV_IN	    0x0100000
+#define IS_NO_SOL_OUT	    0x0200000	/* no solicitations */
+#define IS_SOL_OUT	    0x0400000	/* send solicitations */
 #define GROUP_IS_SOL	(IS_NO_ADV_IN|IS_NO_SOL_OUT)
-#define IS_NO_ADV_OUT	    0x0400000	/* do not advertise rdisc */
-#define IS_ADV_OUT	    0x0800000	/* advertise rdisc */
+#define IS_NO_ADV_OUT	    0x0800000	/* do not advertise rdisc */
+#define IS_ADV_OUT	    0x1000000	/* advertise rdisc */
 #define GROUP_IS_ADV	(IS_NO_ADV_OUT|IS_ADV_OUT)
-#define IS_BCAST_RDISC	    0x1000000	/* broadcast instead of multicast */
+#define IS_BCAST_RDISC	    0x2000000	/* broadcast instead of multicast */
+#define IS_NO_RDISC	(IS_NO_ADV_IN | IS_NO_SOL_OUT | IS_NO_ADV_OUT)
+#define IS_PM_RDISC	    0x4000000	/* poor-man's router discovery */
 
 #ifdef sgi
 #define IFF_UP_RUNNING (IFF_RUNNING|IFF_UP)
@@ -316,21 +315,30 @@ struct ag_info {
 	naddr	ag_dst_h;		/* destination in host byte order */
 	naddr	ag_mask;
 	naddr	ag_gate;
+	naddr	ag_nhop;
 	char	ag_metric;		/* metric to be advertised */
 	char	ag_pref;		/* aggregate based on this */
 	u_int	ag_seqno;
 	u_short	ag_tag;
 	u_short	ag_state;
-#define	    AGS_SUPPRESS 0x01		/* combine with coaser mask */
-#define	    AGS_PROMOTE	0x002		/* synthesize combined routes */
-#define	    AGS_REDUN0	0x004		/* redundant, finer routes output */
-#define	    AGS_REDUN1	0x008
+#define	    AGS_SUPPRESS    0x001	/* combine with coaser mask */
+#define	    AGS_PROMOTE	    0x002	/* synthesize combined routes */
+#define	    AGS_REDUN0	    0x004	/* redundant, finer routes output */
+#define	    AGS_REDUN1	    0x008
 #define	    AG_IS_REDUN(state) (((state) & (AGS_REDUN0 | AGS_REDUN1)) \
 				== (AGS_REDUN0 | AGS_REDUN1))
-#define	    AGS_GATEWAY	0x010		/* tell kernel RTF_GATEWAY */
-#define	    AGS_RIPV2	0x020		/* send only as RIPv2 */
-#define	    AGS_DEAD	0x080		/* dead--ignore differing gate */
-#define	    AGS_RDISC	0x100		/* suppresses most routes */
+#define	    AGS_GATEWAY	    0x010	/* tell kernel RTF_GATEWAY */
+#define	    AGS_IF	    0x020	/* for an interface */
+#define	    AGS_RIPV2	    0x040	/* send only as RIPv2 */
+#define	    AGS_FINE_GATE   0x080	/* ignore differing ag_gate when this
+					 * has the finer netmask */
+#define	    AGS_CORS_GATE   0x100	/* ignore differing gate when this
+					 * has the coarser netmaks */
+#define	    AGS_SPLIT_HZ    0x200	/* suppress for split horizon */
+
+	/* some bits are set if they are set on either route */
+#define	    AGS_PROMOTE_EITHER (AGS_RIPV2 | AGS_GATEWAY |   \
+				AGS_SUPPRESS | AGS_CORS_GATE)
 };
 
 
@@ -338,8 +346,8 @@ struct ag_info {
 extern struct parm {
 	struct parm *parm_next;
 	char	parm_name[IFNAMSIZ+1];
-	naddr	parm_a_h;
-	naddr	parm_m;
+	naddr	parm_addr_h;
+	naddr	parm_mask;
 
 	char	parm_d_metric;
 	u_int	parm_int_state;
@@ -353,6 +361,7 @@ extern struct intnet {
 	struct intnet *intnet_next;
 	naddr	intnet_addr;
 	naddr	intnet_mask;
+	char	intnet_metric;
 } *intnets;
 
 
@@ -371,11 +380,9 @@ extern int	rdisc_sock;		/* router-discovery raw socket */
 
 extern int	seqno;			/* sequence number for messages */
 extern int	supplier;		/* process should supply updates */
-extern int	default_gateway;	/* 1=advertise default */
 extern int	lookforinterfaces;	/* 1=probe for new up interfaces */
 extern int	supplier_set;		/* -s or -q requested */
 extern int	ridhosts;		/* 1=reduce host routes */
-extern int	ppp_noage;		/* 1=do not age quiet link routes */
 extern int	mhome;			/* 1=want multi-homed host route */
 extern int	advertise_mhome;	/* 1=must continue adverising it */
 extern int	auth_ok;		/* 1=ignore auth if we do not care */
@@ -397,15 +404,16 @@ extern naddr	loopaddr;		/* our address on loopback */
 extern int	tot_interfaces;		/* # of remote and local interfaces */
 extern int	rip_interfaces;		/* # of interfaces doing RIP */
 extern struct interface *ifnet;		/* all interfaces */
-extern int	have_ripv1;		/* have a RIPv1 interface */
+extern int	have_ripv1_out;		/* have a RIPv1 interface */
+extern int	have_ripv1_in;
 extern int	need_flash;		/* flash update needed */
 extern struct timeval need_kern;	/* need to update kernel table */
 extern int	update_seqno;		/* a route has changed */
 
 extern u_int	tracelevel, new_tracelevel;
 #define MAX_TRACELEVEL 3
-#define TRACEPACKETS (tracelevel >= 2)	/* note packets */
 #define	TRACECONTENTS (tracelevel >= 3)	/* display packet contents */
+#define TRACEPACKETS (tracelevel >= 2)	/* note packets */
 #define	TRACEACTIONS (tracelevel != 0)
 extern FILE	*ftrace;		/* output trace file */
 
@@ -422,7 +430,8 @@ extern void fix_select(void);
 extern void rip_off(void);
 extern void rip_on(struct interface *);
 
-enum output_type {OUT_QUERY, OUT_UNICAST, OUT_BROADCAST, OUT_MULTICAST};
+enum output_type {OUT_QUERY, OUT_UNICAST, OUT_BROADCAST, OUT_MULTICAST,
+	NO_OUT_MULTICAST, NO_OUT_RIPV2};
 extern int	output(enum output_type, struct sockaddr_in *,
 		       struct interface *, struct rip *, int);
 extern void rip_query(void);
@@ -454,14 +463,16 @@ extern int	getnet(char *, naddr *, naddr *);
 extern int	gethost(char *, naddr *);
 extern void	gwkludge(void);
 extern char	*parse_parms(char *);
+extern char	*check_parms(struct parm *);
 extern void	get_parms(struct interface *);
 
 extern void	lastlog(void);
 extern void	trace_on(char *, int);
-extern void	trace_off(char*, char*);
+extern void	trace_off(char*, ...);
 extern void	trace_flush(void);
 extern void	set_tracelevel(void);
-extern void	trace_msg(char *, ...);
+extern void	trace_act(char *, ...);
+extern void	trace_pkt(char *, ...);
 extern void	trace_add_del(char *, struct rt_entry *);
 extern void	trace_change(struct rt_entry *, u_int, naddr, naddr, int,
 			     u_short, struct interface *, time_t, char *);
@@ -476,8 +487,8 @@ extern char	*addrname(naddr, naddr, int);
 extern void	rdisc_age(naddr);
 extern void	set_rdisc_mg(struct interface *, int);
 extern void	set_supplier(void);
-extern void	ifbad_rdisc(struct interface *);
-extern void	ifok_rdisc(struct interface *);
+extern void	if_bad_rdisc(struct interface *);
+extern void	if_ok_rdisc(struct interface *);
 extern void	read_rip(int, struct interface *);
 extern void	read_rt(void);
 extern void	read_d(void);
@@ -490,12 +501,11 @@ extern void	sigterm(int);
 extern void	sigtrace_on(int);
 extern void	sigtrace_off(int);
 
-extern void	fix_kern(void);
 extern void	flush_kern(void);
 extern void	age(naddr);
 
 extern void	ag_flush(naddr, naddr, void (*)(struct ag_info *));
-extern void	ag_check(naddr, naddr, naddr, char, char, u_int,
+extern void	ag_check(naddr, naddr, naddr, naddr, char, char, u_int,
 			 u_short, u_short, void (*)(struct ag_info *));
 extern void	del_static(naddr, naddr, int);
 extern void	del_redirects(naddr, time_t);
@@ -512,21 +522,21 @@ extern void	rtswitch(struct rt_entry *, struct rt_spare *);
 extern void	rtbad(struct rt_entry *);
 
 
-extern struct rt_addrinfo rtinfo;
 #define S_ADDR(x)	(((struct sockaddr_in *)(x))->sin_addr.s_addr)
-#define RTINFO_DST	rtinfo.rti_info[RTAX_DST]
-#define RTINFO_GATE	rtinfo.rti_info[RTAX_GATEWAY]
-#define RTINFO_NETMASK	rtinfo.rti_info[RTAX_NETMASK]
-#define RTINFO_IFA	rtinfo.rti_info[RTAX_IFA]
-#define RTINFO_AUTHOR	rtinfo.rti_info[RTAX_AUTHOR]
-#define RTINFO_BRD	rtinfo.rti_info[RTAX_BRD]
-#define RTINFO_IFP	((struct sockaddr_dl *)rtinfo.rti_info[RTAX_IFP])
-void rt_xaddrs(struct sockaddr *, struct sockaddr *, int);
+#define INFO_DST(I)	((I)->rti_info[RTAX_DST])
+#define INFO_GATE(I)	((I)->rti_info[RTAX_GATEWAY])
+#define INFO_MASK(I)	((I)->rti_info[RTAX_NETMASK])
+#define INFO_IFA(I)	((I)->rti_info[RTAX_IFA])
+#define INFO_IFP(I)	((I)->rti_info[RTAX_IFP])
+#define INFO_AUTHOR(I)	((I)->rti_info[RTAX_AUTHOR])
+#define INFO_BRD(I)	((I)->rti_info[RTAX_BRD])
+void rt_xaddrs(struct rt_addrinfo *, struct sockaddr *, struct sockaddr *,
+	       int);
 
 extern naddr	std_mask(naddr);
-extern naddr	ripv1_mask_net(naddr, struct interface *, struct interface *);
-extern naddr	ripv1_mask_host(naddr,struct interface *, struct interface *);
-#define		on_net(tgt, net, mask) ((ntohl(tgt) & mask) == (net & mask))
+extern naddr	ripv1_mask_net(naddr, struct interface *);
+extern naddr	ripv1_mask_host(naddr,struct interface *);
+#define		on_net(a,net,mask) (((ntohl(a) ^ (net)) & (mask)) == 0)
 extern int	check_dst(naddr);
 #ifdef sgi
 extern int	sysctl(int *, u_int, void *, size_t *, void *, size_t);
@@ -534,8 +544,9 @@ extern int	sysctl(int *, u_int, void *, size_t *, void *, size_t);
 extern void	addrouteforif(register struct interface *);
 extern void	ifinit(void);
 extern int	walk_bad(struct radix_node *, struct walkarg *);
-extern int	ifok(struct interface *, char *);
-extern void	ifbad(struct interface *, char *);
+extern int	if_ok(struct interface *, char *);
+extern void	if_sick(struct interface *);
+extern void	if_bad(struct interface *);
 extern struct interface *ifwithaddr(naddr, int, int);
 extern struct interface *ifwithname(char *, naddr);
 extern struct interface *ifwithindex(u_short);
