@@ -1044,12 +1044,14 @@ rcvloop:
                                                 goto dropit ;
                                             if (bdg_ifp != BDG_LOCAL)
                                                 bdg_forward(&m, bdg_ifp);
+					    if (m == NULL)
+						goto dropit ;
                                             if (bdg_ifp != BDG_LOCAL &&
                                                     bdg_ifp != BDG_BCAST &&
                                                     bdg_ifp != BDG_MCAST)
                                                 goto dropit ;
-                                            goto getit ;
-                                        }
+					    eh = mtod(m, struct ether_header *);
+                                        } else
 #endif
 					/*
 					 * Only pass this packet up
@@ -1066,7 +1068,6 @@ dropit:
 						m_freem(m);
 					    goto rcvloop;
 					}
-getit:
 					m->m_data +=
 					    sizeof(struct ether_header);
 					m->m_len -=
