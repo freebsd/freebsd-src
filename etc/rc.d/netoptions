@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.44 1999/04/12 15:26:41 brian Exp $
+#	$Id: rc.network,v 1.45 1999/06/05 05:45:47 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -151,48 +151,48 @@ network_pass1() {
     echo -n 'Additional routing options:'
     if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
 	    echo -n ' tcp extensions=NO'
-	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
+	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null
     fi
 
     if [ -n "$log_in_vain" -a "x$log_in_vain" != "xNO" ] ; then
 	    echo -n ' log_in_vain=YES'
-	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null 2>&1
-	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null 2>&1
+	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
+	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
     fi
 
     if [ X"$icmp_bmcastecho" = X"YES" ]; then
 	    echo -n ' broadcast ping responses=YES'
-	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null 2>&1
+	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
     fi
 
     if [ "X$gateway_enable" = X"YES" ]; then
 	    echo -n ' IP gateway=YES'
-	    sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
+	    sysctl -w net.inet.ip.forwarding=1 >/dev/null
     fi
     
     if [ "X$forward_sourceroute" = X"YES" ]; then
 	    echo -n ' do source routing=YES'
-	    sysctl -w net.inet.ip.sourceroute=1 >/dev/null 2>&1
+	    sysctl -w net.inet.ip.sourceroute=1 >/dev/null
     fi
 
     if [ "X$accept_sourceroute" = X"YES" ]; then
 	    echo -n ' accept source routing=YES'
-	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null 2>&1
+	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null
     fi
 
     if [ "X$tcp_keepalive" = X"YES" ]; then
 	    echo -n ' TCP keepalive=YES'
-	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null 2>&1
+	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
     fi
 
     if [ "X$ipxgateway_enable" = X"YES" ]; then
 	    echo -n ' IPX gateway=YES'
-	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
+	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
     fi
     
     if [ "X$arpproxy_all" = X"YES" ]; then
-	    echo -n ' enabling ARP_PROXY_ALL: '
-	    sysctl -w net.link.ether.inet.proxyall=1 2>&1
+	    echo -n ' ARP proxyall=YES'
+	    sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
     fi
     echo '.'
 
@@ -289,7 +289,8 @@ network_pass3() {
 	    fi
 	    mountd ${mountd_flags}
 	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
-		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
+		    echo -n ' NFS on reserved port only=YES'
+		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
 	    fi
 	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
 	    if [ "X$rpc_lockd_enable" = X"YES" ]; then
@@ -303,8 +304,9 @@ network_pass3() {
     if [ "X${nfs_client_enable}" = X"YES" ]; then
 	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
 	    if [ "X${nfs_access_cache}" != X ]; then
+		echo -n " NFS access cache time=${nfs_access_cache}"
 		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
-			>/dev/null 2>&1
+		    >/dev/null
 	    fi
     fi
 
