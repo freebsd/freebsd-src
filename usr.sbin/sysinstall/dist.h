@@ -12,20 +12,10 @@
 #define DIST_SRC		0x00020
 #define DIST_DOC		0x00040
 #define DIST_INFO		0x00080
-#ifdef __i386__			/* only applicable on x86 */
-#define DIST_COMPAT1X		0x00100
-#define DIST_COMPAT20		0x00200
-#define DIST_COMPAT21		0x00400
-#define DIST_COMPAT22		0x00800
-#define DIST_COMPAT3X		0x01000
-#endif
-#if defined(__i386__) || defined(__alpha__)
-#define DIST_COMPAT4X		0x02000
-#endif
-#define DIST_XORG		0x04000
-#define DIST_CATPAGES		0x10000
-#define DIST_PORTS		0x20000
-#define DIST_LOCAL		0x40000
+#define DIST_XORG		0x00100
+#define DIST_CATPAGES		0x00200
+#define DIST_PORTS		0x00400
+#define DIST_LOCAL		0x00800
 #define DIST_ALL		0xFFFFF
 
 /* Subtypes for SRC distribution */
