@@ -331,9 +331,7 @@ struct com_s {
 	struct termios	lt_out;
 
 	bool_t	do_timestamp;
-	bool_t	do_dcd_timestamp;
 	struct timeval	timestamp;
-	struct timeval	dcd_timestamp;
 	struct	pps_state pps;
 	int	pps_bit;
 #ifdef ALT_BREAK_TO_DEBUGGER
@@ -2169,7 +2167,6 @@ comhardclose(com)
 	com->poll = FALSE;
 	com->poll_output = FALSE;
 	com->do_timestamp = FALSE;
-	com->do_dcd_timestamp = FALSE;
 	com->pps.ppsparam.mode = 0;
 #ifdef PC98
 	if (IS_8251(com->pc98_if_type))
@@ -2807,11 +2804,6 @@ cont:
 #endif
 		modem_status = inb(com->modem_status_port);
 		if (modem_status != com->last_modem_status) {
-			if (com->do_dcd_timestamp
-			    && !(com->last_modem_status & MSR_DCD)
-			    && modem_status & MSR_DCD)
-				microtime(&com->dcd_timestamp);
-
 			/*
 			 * Schedule high level to handle DCD changes.  Note
 			 * that we don't use the delta bits anywhere.  Some
@@ -3135,10 +3127,6 @@ sioioctl(dev, cmd, data, flag, td)
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
 		break;
-	    case TIOCDCDTIMESTAMP:
-		com->do_dcd_timestamp = TRUE;
-		*(struct timeval *)data = com->dcd_timestamp;
-		break;
 	    default:
 		splx(s);
 		error = pps_ioctl(cmd, data, &com->pps);
@@ -3192,10 +3180,6 @@ sioioctl(dev, cmd, data, flag, td)
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
-		break;
-	case TIOCDCDTIMESTAMP:
-		com->do_dcd_timestamp = TRUE;
-		*(struct timeval *)data = com->dcd_timestamp;
 		break;
 	default:
 		splx(s);
