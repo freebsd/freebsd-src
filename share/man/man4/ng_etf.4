@@ -128,7 +128,7 @@ connect ${ETHER_IF}: etf: upper nomatch
 DONE
 ngctl -f /tmp/xwert
 
-# something to set a hook to catch packets an dshow them.
+# something to set a hook to catch packets and show them.
 echo "Unrecognised packets:"
 nghook -a etf: newproto &
 # Filter two random ethertypes to that hook.
