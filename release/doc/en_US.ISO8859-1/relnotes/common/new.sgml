@@ -165,7 +165,7 @@
       devices.</para>
 
     <para arch="i386,pc98,powerpc">Initial support has been added for
-      Firewire devices (see &man.firewire.4;).</para>
+      Firewire devices (see &man.firewire.4;). &merged;</para>
 
     <para arch="i386" role="historic">The &man.ichsmb.4; driver for the Intel 82801AA
       (ICH) SMBus controller and compatibles has been
@@ -1280,7 +1280,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &man.da.4;, &man.st.4;, and &man.pass.4;).  This feature requires
         <literal>device atapicam</literal> in the kernel
         configuration.  More information can be found in
-        &man.atapicam.4;.</para>
+        &man.atapicam.4;. &merged;</para>
 
       <para>The &man.ata.4; driver now has support for the Sil 0680
         and VIA 8233/8235 controllers. &merged;</para>
@@ -2610,6 +2610,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       watchpoints (using the kernel's debug register + support that
       has been introduced in &os; 4.0). &merged;</para>
 
+    <para>The &man.getconf.1; utility has been added.  It prints the
+      values of POSIX or X/Open path or system configuration
+      variables. &merged;</para>
+
     <para role="historic">The &man.getprogname.3; and &man.setprogname.3; library
       functions have been added to manipulate the name of the current
       program.  They are used by error-reporting routines to produce
@@ -3073,6 +3077,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       using &man.bzip2.1; by default.  (The former behavior of using
       &man.gzip.1; can be specified in
       <filename>/etc/newsyslog.conf</filename>.)</para>
+
+    <para>The &man.nextboot.8; utility has been added to specify an
+      alternate kernel and/or boot flags to be used the next time the
+      machine is booted.  A previous incarnation of this feature
+      first appeared in &os; 2.2.</para>
 
     <para><application>NFS</application> now works over IPv6.</para>
 
@@ -3615,7 +3624,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The base64 capabilities of &man.uuencode.1; and
       &man.uudecode.1; can now be automatically enabled by invoking
       these utilities as &man.b64encode.1; and &man.b64decode.1;
-      respectively.</para>
+      respectively. &merged;</para>
 
     <para>Functions to implement and manipulate OSF/DCE 1.1-compliant
       UUIDs have been added to <filename>libc</filename>.  More
@@ -3901,7 +3910,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	5.2-20020615.</para>
 
       <para>The <application>NTP</application> suite of programs has
-	been updated to 4.1.1a.</para>
+	been updated to 4.1.1b.</para>
 
       <para><application>OpenPAM</application>
         (<quote>Citronella</quote> release) has been imported,
