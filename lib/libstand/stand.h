@@ -122,6 +122,7 @@ extern struct fs_ops tftp_fsops;
 extern struct fs_ops nfs_fsops;
 extern struct fs_ops cd9660_fsops;
 extern struct fs_ops zipfs_fsops;
+extern struct fs_ops bzipfs_fsops;
 extern struct fs_ops dosfs_fsops;
 extern struct fs_ops ext2fs_fsops;
 

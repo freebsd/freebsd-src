@@ -1,0 +1,55 @@
+$FreeBSD$
+
+A patch to avoid linking into libstand compression routines from the bzip2
+that never being used anyway, while bloat loader(8) by additional 15KB.
+
+--- _bzlib.c	2001/09/13 12:20:50	1.1
++++ _bzlib.c	2001/09/13 12:29:24
+@@ -75,6 +75,7 @@
+ 
+ #include "bzlib_private.h"
+ 
++#ifndef BZ_NO_COMPRESS
+ 
+ /*---------------------------------------------------*/
+ /*--- Compression stuff                           ---*/
+@@ -101,6 +102,7 @@
+ }
+ #endif
+ 
++#endif /* BZ_NO_COMPRESS */
+ 
+ /*---------------------------------------------------*/
+ static
+@@ -127,6 +128,7 @@
+    if (addr != NULL) free ( addr );
+ }
+ 
++#ifndef BZ_NO_COMPRESS
+ 
+ /*---------------------------------------------------*/
+ static
+@@ -499,6 +501,7 @@
+    return BZ_OK;
+ }
+ 
++#endif /* BZ_NO_COMPRESS */
+ 
+ /*---------------------------------------------------*/
+ /*--- Decompression stuff                         ---*/
+@@ -869,6 +869,7 @@
+    return BZ_OK;
+ }
+ 
++#ifndef BZ_NO_COMPRESS
+ 
+ #ifndef BZ_NO_STDIO
+ /*---------------------------------------------------*/
+@@ -1558,6 +1559,7 @@
+ }
+ #endif
+ 
++#endif /* BZ_NO_COMPRESS */
+ 
+ /*-------------------------------------------------------------*/
+ /*--- end                                           bzlib.c ---*/

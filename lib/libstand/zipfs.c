@@ -173,8 +173,9 @@ zf_open(const char *fname, struct open_file *f)
     if (f->f_flags != F_READ)
 	return(EPERM);
 
-    /* If the name already ends in .gz, ignore it */
-    if ((cp = strrchr(fname, '.')) && !strcmp(cp, ".gz"))
+    /* If the name already ends in .gz or .bz2, ignore it */
+    if ((cp = strrchr(fname, '.')) && (!strcmp(cp, ".gz")
+	    || !strcmp(cp, ".bz2")))
 	return(ENOENT);
 
     /* Construct new name */
