@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.43 1996/10/01 05:28:20 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.44 1996/10/04 22:54:03 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -615,8 +615,9 @@ url="http://www.Exabyte.COM:80/Products/8mm/8505XL/Rfeatures.html"
 name="Exabyte EXB-8505"></Heading>
 	<p>The boot message identifier for this drive is "EXABYTE
 EXB-85058SQANXR1 05B0" "type 1 removable SCSI 2"
-	<p>This is an 8mm tape drive.
-	<p>Native capacity is 2GB.  
+	<p>This is an 8mm tape drive which supports compression, and is
+              upward compatable with the EXB-5200 and EXB-8500.
+	<p>Native capacity is 5GB.  
 	<p>The drive supports hardware data compression.
 	<p>Data transfer rate is 300kB/s.
 	<p>Reported by: Glen Foster gfoster@gfoster.com
