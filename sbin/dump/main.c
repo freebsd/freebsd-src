@@ -578,7 +578,7 @@ usage(void)
 #endif
 		"nSu] [-B records] [-b blocksize] [-D dumpdates]\n"
 		"            [-d density] [-f file] [-h level] [-s feet] "
-		"[-T date] filesystem\n"
+		"[-T date] [-C cachesizeMB] filesystem\n"
 		"       dump -W | -w\n");
 	exit(X_STARTUP);
 }
