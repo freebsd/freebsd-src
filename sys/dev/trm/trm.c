@@ -2992,6 +2992,25 @@ trm_srbmapSG(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	return;
 }
 
+static void
+trm_destroySRB(PACB pACB)
+{
+	PSRB pSRB;
+
+	pSRB = pACB->pFreeSRB;
+	while (pSRB) {
+		if (pSRB->sg_dmamap) {
+			bus_dmamap_unload(pACB->sg_dmat, pSRB->sg_dmamap);
+			bus_dmamem_free(pACB->sg_dmat, pSRB->pSRBSGL,
+			    pSRB->sg_dmamap);
+			bus_dmamap_destroy(pACB->sg_dmat, pSRB->sg_dmamap);
+		}
+		if (pSRB->dmamap)
+			bus_dmamap_destroy(pACB->buffer_dmat, pSRB->dmamap);
+		pSRB = pSRB->pNextSRB;
+	}
+}
+
 static int
 trm_initSRB(PACB pACB)
 {
@@ -3002,29 +3021,11 @@ trm_initSRB(PACB pACB)
 	for (i = 0; i < TRM_MAX_SRB_CNT; i++) {
 	       	pSRB = (PSRB)&pACB->pFreeSRB[i];
 
-		/* DMA tag for our S/G structures */
-		if (bus_dma_tag_create(                    
-		    /*parent_dmat*/pSRB->parent_dmat, 
-		    /*alignment*/  1,
-		    /*boundary*/   0,
-		    /*lowaddr*/    BUS_SPACE_MAXADDR,
-		    /*highaddr*/   BUS_SPACE_MAXADDR,
-		    /*filter*/     NULL, 
-		    /*filterarg*/  NULL,
-		    /*maxsize*/    TRM_MAX_SG_LISTENTRY * sizeof(SGentry), 
-		    /*nsegments*/  1,
-		    /*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
-		    /*flags*/      0, 
-		    /*lockfunc*/   busdma_lock_mutex,
-		    /*lockarg*/    &Giant,
-		    /*dmat*/       &pSRB->sg_dmat) != 0) {
-			return ENXIO;
-		}
-		if (bus_dmamem_alloc(pSRB->sg_dmat, (void **)&pSRB->pSRBSGL,
+		if (bus_dmamem_alloc(pACB->sg_dmat, (void **)&pSRB->pSRBSGL,
 		    BUS_DMA_NOWAIT, &pSRB->sg_dmamap) !=0 ) {
 			return ENXIO;
 		}
-		bus_dmamap_load(pSRB->sg_dmat, pSRB->sg_dmamap, pSRB->pSRBSGL,
+		bus_dmamap_load(pACB->sg_dmat, pSRB->sg_dmamap, pSRB->pSRBSGL,
 		    TRM_MAX_SG_LISTENTRY * sizeof(SGentry),
 		    trm_srbmapSG, pSRB, /*flags*/0);
 		if (i != TRM_MAX_SRB_CNT - 1) {
@@ -3042,9 +3043,6 @@ trm_initSRB(PACB pACB)
 
 		/*
 		 * Create the dmamap.  This is no longer optional!
-		 *
-		 * XXX This is not freed on unload!  None of the other
-		 * allocations in this function are either!
 		 */
 		if ((error = bus_dmamap_create(pACB->buffer_dmat, 0,
 					       &pSRB->dmamap)) != 0)
@@ -3499,6 +3497,23 @@ trm_init(u_int16_t unit, device_t dev)
 		}
 	}
 	bzero(pACB->pFreeSRB, TRM_MAX_SRB_CNT * sizeof(TRM_SRB));
+	if (bus_dma_tag_create(                    
+		    /*parent_dmat*/NULL, 
+		    /*alignment*/  1,
+		    /*boundary*/   0,
+		    /*lowaddr*/    BUS_SPACE_MAXADDR,
+		    /*highaddr*/   BUS_SPACE_MAXADDR,
+		    /*filter*/     NULL, 
+		    /*filterarg*/  NULL,
+		    /*maxsize*/    TRM_MAX_SG_LISTENTRY * sizeof(SGentry), 
+		    /*nsegments*/  1,
+		    /*maxsegsz*/   TRM_MAXTRANSFER_SIZE,
+		    /*flags*/      0, 
+		    /*lockfunc*/   busdma_lock_mutex,
+		    /*lockarg*/    &Giant,
+		    /*dmat*/       &pACB->sg_dmat) != 0)
+		goto bad;
+
 	if (trm_initSRB(pACB)) {
 		printf("trm_initSRB: error\n");
 		goto bad;
@@ -3520,6 +3535,10 @@ bad:
 	}
 	if (pACB->sense_dmat)
 		bus_dma_tag_destroy(pACB->sense_dmat);
+	if (pACB->sg_dmat) {
+		trm_destroySRB(pACB);
+		bus_dma_tag_destroy(pACB->sg_dmat);
+	}
 	if (pACB->srb_dmamap) {
 		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
@@ -3628,6 +3647,11 @@ bad:
 	if (pACB->iores)
 		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 		    pACB->iores);
+	if (pACB->sg_dmat) {		
+		trm_destroySRB(pACB);
+		bus_dma_tag_destroy(pACB->sg_dmat);
+	}
+	
 	if (pACB->srb_dmamap) {
 		bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 		bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB, 
@@ -3685,6 +3709,8 @@ trm_detach(device_t dev)
 	PACB pACB = device_get_softc(dev);
 
 	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), pACB->iores);
+	trm_destroySRB(pACB);
+	bus_dma_tag_destroy(pACB->sg_dmat);
 	bus_dmamap_unload(pACB->srb_dmat, pACB->srb_dmamap);
 	bus_dmamem_free(pACB->srb_dmat, pACB->pFreeSRB,
 	    pACB->srb_dmamap);
