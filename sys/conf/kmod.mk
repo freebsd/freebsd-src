@@ -100,7 +100,7 @@ CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
 # Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I. -I@
+CFLAGS+=	-I. -I@ -I@/dev
 
 # Add a -I path to standard headers like <stddef.h>.  Use a relative
 # path to src/include if possible.  If the @ symlink hasn't been built
@@ -259,8 +259,9 @@ ${_src}:
 
 MFILES?= kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
     dev/iicbus/iicbus_if.m isa/isa_if.m dev/mii/miibus_if.m \
-    dev/pccard/card_if.m dev/pccard/power_if.m pci/pci_if.m pci/pcib_if.m \
-    dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m dev/usb/usb_if.m
+    dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
+    dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
+    dev/usb/usb_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h

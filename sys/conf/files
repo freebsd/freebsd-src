@@ -368,6 +368,15 @@ dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
 dev/pccard/power_if.m	optional pccbb
 dev/pccard/power_if.m	optional pccard
+dev/pci/eisa_pci.c	optional pci eisa
+dev/pci/fixup_pci.c	optional pci
+dev/pci/ignore_pci.c	optional pci
+dev/pci/isa_pci.c	optional pci isa
+dev/pci/pci.c		count pci
+dev/pci/pci_if.m	optional pci
+dev/pci/pci_pci.c	optional pci
+dev/pci/pcib_if.m	optional pci
+dev/pci/vga_pci.c	optional pci
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa
@@ -1088,13 +1097,9 @@ pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 dev/pccbb/pccbb.c	optional pccbb
-pci/pci.c		count pci
 pci/pci_compat.c	optional pci compat_oldpci \
 	warning "Old PCI driver compatability shims present."
 pci/pcic_p.c		optional pcic pci card
-pci/pcisupport.c	optional pci
-pci/pci_if.m		optional pci
-pci/pcib_if.m		optional pci
 pci/simos.c		optional simos
 pci/uhci_pci.c		optional uhci
 pci/xrpu.c		optional xrpu
