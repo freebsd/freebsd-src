@@ -1,4 +1,9 @@
-#	$Id: bsd.libnames.mk,v 1.3.2.1 1997/02/07 17:06:24 pst Exp $
+#	$Id: bsd.libnames.mk,v 1.3.2.2 1997/05/24 10:27:06 brian Exp $
+#
+# The include file <bsd.libnames.mk> define library names. 
+# Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
+# file where necessary.
+
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
@@ -7,6 +12,7 @@ LIBKZTAIL?=	${DESTDIR}/usr/lib/kztail.o
 LIBALIAS?=	${DESTDIR}/usr/lib/libalias.a
 LIBC?=		${DESTDIR}/usr/lib/libc.a
 LIBC_PIC=	${DESTDIR}/usr/lib/libc_pic.a
+LIBCALENDAR?=	${DESTDIR}/usr/lib/libcalendar.a
 LIBCOM_ERR=	${DESTDIR}/usr/lib/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
 LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
@@ -55,3 +61,4 @@ LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
 LIBXPG4?=	${DESTDIR}/usr/lib/libxpg4.a
 LIBY?=		${DESTDIR}/usr/lib/liby.a
+LIBZ?=		${DESTDIR}/usr/lib/libz.a

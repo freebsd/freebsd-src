@@ -1,5 +1,22 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.26.2.3 1997/04/04 01:26:08 mpp Exp $
+#	$Id: bsd.doc.mk,v 1.26.2.4 1997/06/21 15:48:16 jkh Exp $
+#
+# The include file <bsd.doc.mk> handles installing BSD troff documents.
+#
+#
+# +++ variables +++
+#
+# LPR		Printer command. [lpr]
+#
+# 	[incomplete]
+#
+# +++ targets +++
+#
+# 	[incomplete]
+
+.if exists(${.CURDIR}/../Makefile.inc)
+.include "${.CURDIR}/../Makefile.inc"
+.endif
 
 PRINTERDEVICE?=	ascii
 
@@ -24,6 +41,7 @@ SOELIMPPARGS=	${SOELIMPPARGS2:S/\\'/'/g}
 TBL?=		tbl
 
 DOC?=		paper
+LPR?=		lpr
 
 TRFLAGS+=	-T${PRINTERDEVICE}
 .if defined(USE_EQN)
@@ -42,15 +60,23 @@ TRFLAGS+=	-s
 TRFLAGS+=	-R
 .endif
 
-.if defined(NODOCCOMPRESS)
+DCOMPRESS_EXT?=	${COMPRESS_EXT}
+.if defined(NODOCCOMPRESS) || ${PRINTERDEVICE} == "html"
 DFILE=	${DOC}.${PRINTERDEVICE}
-GZIPCMD=	cat
+DCOMPRESS_CMD=	cat
 .else
-DFILE=	${DOC}.${PRINTERDEVICE}.gz
-GZIPCMD=	gzip -c
+DFILE=	${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
+DCOMPRESS_CMD?=	${COMPRESS_CMD}
 .endif
 
 PAGES?=		1-
+
+UNROFF?=	unroff
+HTML_SPLIT?=	yes
+UNROFFFLAGS?=	-fhtml
+.if ${HTML_SPLIT} == "yes"
+UNROFFFLAGS+=	split=1
+.endif
 
 # Compatibility mode flag for groff.  Use this when formatting documents with
 # Berkeley me macros.
@@ -64,20 +90,29 @@ all:	${DFILE}
 .if !target(print)
 print: ${DFILE}
 .if defined(NODOCCOMPRESS)
-	lpr ${DFILE}
+	${LPR} ${DFILE}
 .else
-	${GZIPCMD} -d ${DFILE} | lpr
+	${DCOMPRESS_CMD} -d ${DFILE} | ${LPR}
 .endif
 .endif
 
-clean:
-	rm -f ${DOC}.${PRINTERDEVICE} ${DOC}.ps ${DOC}.ascii \
-		${DOC}.ps.gz ${DOC}.ascii.gz Errs errs mklog ${CLEANFILES}
+CLEANFILES+=	${DOC}.${PRINTERDEVICE} \
+		${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT} \
+		${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
+		${DOC}.ps ${DOC}.ps${DCOMPRESS_EXT} \
+		${DOC}.html ${DOC}-*.html
+
 
 FILES?=	${SRCS}
 realinstall:
+.if ${PRINTERDEVICE} == "html"
+	cd ${SRCDIR}; \
+		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+.else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
+.endif
 
 install:	beforeinstall realinstall afterinstall
 
@@ -108,19 +143,26 @@ BINMODE=        444
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
+.if ${PRINTERDEVICE} == "html"
+${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
+	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
+		document=${DOC} ${SRCS}
+.else
+
 ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
 # XXX ${.ALLSRC} doesn't work unless there are a lot of .PATH.foo statements.
 ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
 ${DFILE}::	${SRCS}
 .if defined(USE_SOELIMPP)
-	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${GZIPCMD} > ${.TARGET}
+	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${DCOMPRESS_CMD} > ${.TARGET}
 .else
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .else
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTERDEVICE}
-	${GZIPCMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
+	${DCOMPRESS_CMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
+.endif
 .endif
 .endif
 

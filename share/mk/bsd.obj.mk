@@ -1,7 +1,7 @@
-#	$Id: bsd.obj.mk,v 1.16 1996/09/29 18:28:55 bde Exp $
+#	$Id: bsd.obj.mk,v 1.16.2.1 1997/02/14 05:11:07 jdp Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
-# and cleaning up object files, log files etc.
+# and cleaning up object files, etc.
 #
 #
 # +++ variables +++
@@ -32,7 +32,7 @@
 # +++ targets +++
 #
 #	clean:
-#		remove a.out Errs errs mklog ${CLEANFILES} 
+#		remove ${CLEANFILES} 
 #
 #	cleandir:
 #		remove the build directory (and all its contents) created by obj
@@ -66,9 +66,9 @@ obj:
 .else
 .if !defined(OBJLINK)
 obj:	_SUBDIR
-	@if ! test -d ${CANONICALOBJDIR}; then \
+	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
-		if ! test -d ${CANONICALOBJDIR}; then \
+		if ! test -d ${CANONICALOBJDIR}/; then \
 			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
@@ -76,9 +76,9 @@ obj:	_SUBDIR
 	fi
 .else
 obj:	_SUBDIR
-	@if ! test -d ${CANONICALOBJDIR}; then \
+	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
-		if ! test -d ${CANONICALOBJDIR}; then \
+		if ! test -d ${CANONICALOBJDIR}/; then \
 			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
 			exit 1; \
 		fi; \
@@ -92,7 +92,7 @@ obj:	_SUBDIR
 
 .if !target(objlink)
 objlink: _SUBDIR
-	@if test -d ${CANONICALOBJDIR}; then \
+	@if test -d ${CANONICALOBJDIR}/; then \
 		rm -f ${.CURDIR}/obj; \
 		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
 	else \
@@ -108,30 +108,19 @@ whereobj:
 	@cd ${.CURDIR}; ${MAKE} -V .OBJDIR
 .endif
 
-#
-# cleanup
-#
 cleanobj:
-	@if [ -d ${CANONICALOBJDIR} ]; then \
+	@if [ -d ${CANONICALOBJDIR}/ ]; then \
 		rm -rf ${CANONICALOBJDIR}; \
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
 	fi
 	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
-.if !target(cleanfiles)
-cleanfiles:
-	rm -f a.out Errs errs mklog ${CLEANFILES} 
-.endif
-
-# see bsd.dep.mk
-.if !target(cleandepend)
-cleandepend:
-	@rm -f .depend
-.endif
-
 .if !target(clean)
-clean: cleanfiles _SUBDIR
+clean: _SUBDIR
+.if defined(CLEANFILES) && !empty(CLEANFILES)
+	rm -f ${CLEANFILES} 
+.endif
 .endif
 
 .if !target(checkdpadd)
