@@ -45,6 +45,12 @@ lkmnosys(struct proc *p, struct nosys_args *args)
 }
 
 int
+lkmressys(struct proc *p, struct nosys_args *args)
+{
+	return(nosys(p, args));
+}
+
+int
 syscall_register(int *offset, struct sysent *new_sysent,
 		 struct sysent *old_sysent)
 {
@@ -59,7 +65,8 @@ syscall_register(int *offset, struct sysent *new_sysent,
                *offset = i;
        } else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
                return EINVAL;
-       else if (sysent[*offset].sy_call != (sy_call_t *)lkmnosys)
+       else if (sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
+				sysent[*offset].sy_call != (sy_call_t *)lkmressys)
                return EEXIST;
 
        *old_sysent = sysent[*offset];

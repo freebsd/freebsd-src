@@ -1280,6 +1280,7 @@ int	__cap_get_fd __P((struct proc *, struct __cap_get_fd_args *));
 int	__cap_get_file __P((struct proc *, struct __cap_get_file_args *));
 int	__cap_set_fd __P((struct proc *, struct __cap_set_fd_args *));
 int	__cap_set_file __P((struct proc *, struct __cap_set_file_args *));
+int	lkmressys __P((struct proc *, struct nosys_args *));
 
 #ifdef COMPAT_43
 
