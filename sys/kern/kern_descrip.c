@@ -1371,22 +1371,6 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 }
 
 /*
- * Free a file descriptor.
- */
-void
-ffree(struct file *fp)
-{
-
-	KASSERT(fp->f_count == 0, ("ffree: fp_fcount not 0!"));
-	sx_xlock(&filelist_lock);
-	LIST_REMOVE(fp, f_list);
-	openfiles--;
-	sx_xunlock(&filelist_lock);
-	crfree(fp->f_cred);
-	uma_zfree(file_zone, fp);
-}
-
-/*
  * Build a new filedesc structure from another.
  * Copy the current, root, and jail root vnode references.
  */
@@ -2089,7 +2073,14 @@ fdrop_locked(struct file *fp, struct thread *td)
 		error = fo_close(fp, td);
 	else
 		error = 0;
-	ffree(fp);
+
+	sx_xlock(&filelist_lock);
+	LIST_REMOVE(fp, f_list);
+	openfiles--;
+	sx_xunlock(&filelist_lock);
+	crfree(fp->f_cred);
+	uma_zfree(file_zone, fp);
+
 	return (error);
 }
 
