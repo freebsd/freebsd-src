@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.27 1998/06/05 22:39:52 julian Exp $
+ *	$Id: ip_divert.c,v 1.28 1998/06/06 19:39:08 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -98,7 +98,7 @@ u_short ip_divert_port;
  * 0 will restart processing at the beginning. 
  * #endif 
  */
-u_short ip_divert_cookie;
+u_int16_t ip_divert_cookie;
 
 /* Internal variables */
 
@@ -163,11 +163,11 @@ div_input(struct mbuf *m, int hlen)
 
 	/* Record divert port */
 #ifdef IPFW_DIVERT_OLDRESTART
-	divsrc.sin_port = htons(ip_divert_port);
+	divsrc.sin_port = htons(ip_divert_cookie);
 #else
 	divsrc.sin_port = ip_divert_cookie;
-	ip_divert_cookie = 0;
 #endif /* IPFW_DIVERT_OLDRESTART */
+	ip_divert_cookie = 0;
 
 	/* Restore packet header fields */
 	ip->ip_len += hlen;
@@ -333,7 +333,8 @@ div_output(so, m, addr, control)
 		ip_input(m);
 	}
 
-	/* Reset for next time (and other packets) */
+	/* paranoid: Reset for next time (and other packets) */
+	/* almost definitly already done in the ipfw filter but.. */
 	ip_divert_cookie = 0;
 	return error;
 
