@@ -19,8 +19,6 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 #ifndef GCC_C_COMMON_H
 #define GCC_C_COMMON_H
 
@@ -45,7 +43,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 */
 
 /* Reserved identifiers.  This is the union of all the keywords for C,
-   C++, and Objective C.  All the type modifiers have to be in one
+   C++, and Objective-C.  All the type modifiers have to be in one
    block at the beginning, because they are used as mask bits.  There
    are 27 type modifiers; if we add many more we will have to redesign
    the mask mechanism.  */
@@ -60,7 +58,7 @@ enum rid
   RID_VOLATILE, RID_SIGNED,  RID_AUTO,  RID_RESTRICT,
 
   /* C extensions */
-  RID_BOUNDED, RID_UNBOUNDED, RID_COMPLEX,
+  RID_BOUNDED, RID_UNBOUNDED, RID_COMPLEX, RID_THREAD,
 
   /* C++ */
   RID_FRIEND, RID_VIRTUAL, RID_EXPLICIT, RID_EXPORT, RID_MUTABLE,
@@ -95,12 +93,7 @@ enum rid
   /* casts */
   RID_CONSTCAST, RID_DYNCAST, RID_REINTCAST, RID_STATCAST,
 
-  /* alternate spellings */
-  RID_AND, RID_AND_EQ, RID_NOT, RID_NOT_EQ,
-  RID_OR,  RID_OR_EQ,  RID_XOR, RID_XOR_EQ,
-  RID_BITAND, RID_BITOR, RID_COMPL,
-
-  /* Objective C */
+  /* Objective-C */
   RID_ID,          RID_AT_ENCODE,    RID_AT_END,
   RID_AT_CLASS,    RID_AT_ALIAS,     RID_AT_DEFS,
   RID_AT_PRIVATE,  RID_AT_PROTECTED, RID_AT_PUBLIC,
@@ -181,10 +174,10 @@ enum c_tree_index
 
 /* Identifier part common to the C front ends.  Inherits from
    tree_identifier, despite appearances.  */
-struct c_common_identifier
+struct c_common_identifier GTY(())
 {
   struct tree_common common;
-  struct cpp_hashnode node;
+  struct cpp_hashnode GTY ((skip (""))) node;
 };
 
 #define wchar_type_node			c_global_trees[CTI_WCHAR_TYPE]
@@ -228,7 +221,7 @@ struct c_common_identifier
 /* A node for `((void) 0)'.  */
 #define void_zero_node                  c_global_trees[CTI_VOID_ZERO]
 
-extern tree c_global_trees[CTI_MAX];
+extern GTY(()) tree c_global_trees[CTI_MAX];
 
 /* Mark which labels are explicitly declared.
    These may be shadowed, and may be referenced from nested functions.  */
@@ -240,16 +233,14 @@ extern tree c_global_trees[CTI_MAX];
 
 typedef enum c_language_kind
 {
-  clk_c,           /* A dialect of C: K&R C, ANSI/ISO C89, C2000,
-		       etc.  */
-  clk_cplusplus,   /* ANSI/ISO C++ */
-  clk_objective_c  /* Objective C */
+  clk_c = 0,      /* A dialect of C: K&R C, ANSI/ISO C89, C2000, etc.  */
+  clk_cplusplus   /* ANSI/ISO C++ */
 }
 c_language_kind;
 
 /* Information about a statement tree.  */
 
-struct stmt_tree_s {
+struct stmt_tree_s GTY(()) {
   /* The last statement added to the tree.  */
   tree x_last_stmt;
   /* The type of the last expression statement.  (This information is
@@ -257,12 +248,12 @@ struct stmt_tree_s {
   tree x_last_expr_type;
   /* The last filename we recorded.  */
   const char *x_last_expr_filename;
-  /* In C++, Non-zero if we should treat statements as full
+  /* In C++, Nonzero if we should treat statements as full
      expressions.  In particular, this variable is no-zero if at the
      end of a statement we should destroy any temporaries created
      during that statement.  Similarly, if, at the end of a block, we
      should destroy any local variables in this block.  Normally, this
-     variable is non-zero, since those are the normal semantics of
+     variable is nonzero, since those are the normal semantics of
      C++.
 
      However, in order to represent aggregate initialization code as
@@ -279,7 +270,7 @@ typedef struct stmt_tree_s *stmt_tree;
 /* Global state pertinent to the current function.  Some C dialects
    extend this structure with additional fields.  */
 
-struct language_function {
+struct c_language_function GTY(()) {
   /* While we are parsing the function, this contains information
      about the statement-tree that we are building.  */
   struct stmt_tree_s x_stmt_tree;
@@ -318,11 +309,14 @@ extern int (*lang_statement_code_p)             PARAMS ((enum tree_code));
 extern void (*lang_expand_stmt)                 PARAMS ((tree));
 extern void (*lang_expand_decl_stmt)            PARAMS ((tree));
 extern void (*lang_expand_function_end)         PARAMS ((void));
+extern tree gettags				PARAMS ((void));
 
 /* Callback that determines if it's ok for a function to have no
    noreturn attribute.  */
 extern int (*lang_missing_noreturn_ok_p)	PARAMS ((tree));
 
+extern int yyparse				PARAMS ((void));
+extern void free_parser_stacks			PARAMS ((void));
 
 extern stmt_tree current_stmt_tree              PARAMS ((void));
 extern tree *current_scope_stmt_stack           PARAMS ((void));
@@ -338,7 +332,6 @@ extern tree walk_stmt_tree			PARAMS ((tree *,
 							 void *));
 extern void prep_stmt                           PARAMS ((tree));
 extern void expand_stmt                         PARAMS ((tree));
-extern void mark_stmt_tree                      PARAMS ((void *));
 extern void shadow_warning			PARAMS ((const char *,
 							 tree, tree));
 extern tree c_begin_if_stmt			PARAMS ((void));
@@ -351,7 +344,7 @@ extern void c_finish_while_stmt_cond		PARAMS ((tree, tree));
    structure for FUNCTION_DECLs; all other DECLs have a NULL
    DECL_LANG_SPECIFIC field.  */
 
-struct c_lang_decl {
+struct c_lang_decl GTY(()) {
   unsigned declared_inline : 1;
 };
 
@@ -362,17 +355,35 @@ struct c_lang_decl {
 #define DECL_NUM_STMTS(NODE) \
   (FUNCTION_DECL_CHECK (NODE)->decl.u1.i)
 
-extern void c_mark_lang_decl                    PARAMS ((struct c_lang_decl *));
-
 /* The variant of the C language being processed.  Each C language
    front-end defines this variable.  */
 
 extern c_language_kind c_language;
 
-/* Nonzero means give string constants the type `const char *', rather
-   than `char *'.  */
+/* Switches common to the C front ends.  */
 
-extern int flag_const_strings;
+/* Nonzero if prepreprocessing only.  */
+extern int flag_preprocess_only;
+
+/* Nonzero if an ISO standard was selected.  It rejects macros in the
+   user's namespace.  */
+extern int flag_iso;
+
+/* Nonzero whenever Objective-C functionality is being used.  */
+extern int flag_objc;
+
+/* Nonzero if -undef was given.  It suppresses target built-in macros
+   and assertions.  */
+extern int flag_undef;
+
+/* Nonzero means don't recognize the non-ANSI builtin functions.  */
+
+extern int flag_no_builtin;
+
+/* Nonzero means don't recognize the non-ANSI builtin functions.
+   -ansi sets this.  */
+
+extern int flag_no_nonansi_builtin;
 
 /* Nonzero means give `double' the same size as `float'.  */
 
@@ -382,7 +393,94 @@ extern int flag_short_double;
 
 extern int flag_short_wchar;
 
-/* Warn about *printf or *scanf format/argument anomalies.  */
+/* Nonzero means allow Microsoft extensions without warnings or errors.  */
+extern int flag_ms_extensions;
+
+/* Nonzero means don't recognize the keyword `asm'.  */
+
+extern int flag_no_asm;
+
+/* Nonzero means give string constants the type `const char *', as mandated
+   by the standard.  */
+
+extern int flag_const_strings;
+
+/* Nonzero means `$' can be in an identifier.  */
+
+extern int dollars_in_ident;
+
+/* Nonzero means to treat bitfields as signed unless they say `unsigned'.  */
+
+extern int flag_signed_bitfields;
+extern int explicit_flag_signed_bitfields;
+
+/* Nonzero means warn about pointer casts that can drop a type qualifier
+   from the pointer target type.  */
+
+extern int warn_cast_qual;
+
+/* Warn about functions which might be candidates for format attributes.  */
+
+extern int warn_missing_format_attribute;
+
+/* Nonzero means do not warn that K&R style main() is not a function prototype.  */
+extern int flag_bsd_no_warn_kr_main;
+
+/* Nonzero means warn about sizeof(function) or addition/subtraction
+   of function pointers.  */
+
+extern int warn_pointer_arith;
+
+/* Nonzero means warn for any global function def
+   without separate previous prototype decl.  */
+
+extern int warn_missing_prototypes;
+
+/* Warn if adding () is suggested.  */
+
+extern int warn_parentheses;
+
+/* Warn if initializer is not completely bracketed.  */
+
+extern int warn_missing_braces;
+
+/* Warn about comparison of signed and unsigned values.
+   If -1, neither -Wsign-compare nor -Wno-sign-compare has been specified.  */
+
+extern int warn_sign_compare;
+
+/* Nonzero means warn about usage of long long when `-pedantic'.  */
+
+extern int warn_long_long;
+
+/* Nonzero means warn about deprecated conversion from string constant to
+   `char *'.  */
+
+extern int warn_write_strings;
+
+/* Nonzero means warn about multiple (redundant) decls for the same single
+   variable or function.  */
+
+extern int warn_redundant_decls;
+
+/* Warn about testing equality of floating point numbers.  */
+
+extern int warn_float_equal;
+
+/* Warn about a subscript that has type char.  */
+
+extern int warn_char_subscripts;
+
+/* Warn if a type conversion is done that might have confusing results.  */
+
+extern int warn_conversion;
+
+/* Warn about #pragma directives that are not recognized.  */      
+
+extern int warn_unknown_pragmas; /* Tri state variable.  */  
+
+/* Warn about format/argument anomalies in calls to formatted I/O functions
+   (*printf, *scanf, strftime, strfmon, etc.).  */
 
 extern int warn_format;
 
@@ -394,6 +492,10 @@ extern int warn_format_y2k;
 
 extern int warn_format_extra_args;
 
+/* Warn about zero-length formats.  */
+
+extern int warn_format_zero_length;
+
 /* Warn about non-literal format arguments.  */
 
 extern int warn_format_nonliteral;
@@ -402,29 +504,19 @@ extern int warn_format_nonliteral;
 
 extern int warn_format_security;
 
-/* Warn about possible violations of sequence point rules.  */
 
-extern int warn_sequence_point;
+/* C/ObjC language option variables.  */
 
-/* Warn about functions which might be candidates for format attributes.  */
 
-extern int warn_missing_format_attribute;
+/* Nonzero means message about use of implicit function declarations;
+ 1 means warning; 2 means error.  */
 
-/* Nonzero means do not warn that K&R style main() is not a function prototype.  */
+extern int mesg_implicit_function_declaration;
 
-extern int flag_bsd_no_warn_kr_main;
+/* Nonzero means allow type mismatches in conditional expressions;
+   just make their values `void'.  */
 
-/* Nonzero means warn about sizeof (function) or addition/subtraction
-   of function pointers.  */
-
-extern int warn_pointer_arith;
-
-/* Nonzero means to warn about compile-time division by zero.  */
-extern int warn_div_by_zero;
-
-/* Nonzero means do some things the same way PCC does.  */
-
-extern int flag_traditional;
+extern int flag_cond_mismatch;
 
 /* Nonzero means enable C89 Amendment 1 features.  */
 
@@ -438,7 +530,7 @@ extern int flag_isoc99;
 
 extern int flag_bsd_format;
 
-/* Nonzero means environment is hosted (i.e., not freestanding) */
+/* Nonzero means that we have builtin functions, and main is an int */
 
 extern int flag_hosted;
 
@@ -447,27 +539,286 @@ extern int flag_hosted;
 
 extern int flag_noniso_default_format_attributes;
 
-/* Nonzero means don't recognize any builtin functions.  */
+/* Nonzero means warn when casting a function call to a type that does
+   not match the return type (e.g. (float)sqrt() or (anything*)malloc()
+   when there is no previous declaration of sqrt or malloc.  */
 
-extern int flag_no_builtin;
+extern int warn_bad_function_cast;
 
-/* Nonzero means don't recognize the non-ANSI builtin functions.
-   -ansi sets this.  */
+/* Warn about traditional constructs whose meanings changed in ANSI C.  */
 
-extern int flag_no_nonansi_builtin;
+extern int warn_traditional;
 
-/* Nonzero means warn about suggesting putting in ()'s.  */
+/* Nonzero means warn for non-prototype function decls
+   or non-prototyped defs without previous prototype.  */
 
-extern int warn_parentheses;
+extern int warn_strict_prototypes;
 
-/* Warn if a type conversion is done that might have confusing results.  */
+/* Nonzero means warn for any global function def
+   without separate previous decl.  */
 
-extern int warn_conversion;
+extern int warn_missing_declarations;
 
-/* Nonzero means warn about usage of long long,
-   when `-pedantic' and not C99.  */
+/* Nonzero means warn about extern declarations of objects not at
+   file-scope level and about *all* declarations of functions (whether
+   extern or static) not at file-scope level.  Note that we exclude
+   implicit function declarations.  To get warnings about those, use
+   -Wimplicit.  */
 
-extern int warn_long_long;
+extern int warn_nested_externs;
+
+/* Warn if main is suspicious.  */
+
+extern int warn_main;
+
+/* Nonzero means warn about possible violations of sequence point rules.  */
+
+extern int warn_sequence_point;
+
+/* Nonzero means to warn about compile-time division by zero.  */
+extern int warn_div_by_zero;
+
+/* Nonzero means warn about use of implicit int.  */
+
+extern int warn_implicit_int;
+
+/* Warn about NULL being passed to argument slots marked as requiring
+   non-NULL.  */ 
+      
+extern int warn_nonnull;
+
+
+/* ObjC language option variables.  */
+
+
+/* Open and close the file for outputting class declarations, if
+   requested (ObjC).  */
+
+extern int flag_gen_declaration;
+
+/* Generate code for GNU or NeXT runtime environment.  */
+
+extern int flag_next_runtime;
+
+/* Tells the compiler that this is a special run.  Do not perform any
+   compiling, instead we are to test some platform dependent features
+   and output a C header file with appropriate definitions.  */
+
+extern int print_struct_values;
+
+/* ???.  Undocumented.  */
+
+extern const char *constant_string_class_name;
+
+/* Warn if multiple methods are seen for the same selector, but with
+   different argument types.  Performs the check on the whole selector
+   table at the end of compilation.  */
+
+extern int warn_selector;
+
+/* Warn if a @selector() is found, and no method with that selector
+   has been previously declared.  The check is done on each
+   @selector() as soon as it is found - so it warns about forward
+   declarations.  */
+
+extern int warn_undeclared_selector;
+
+/* Warn if methods required by a protocol are not implemented in the 
+   class adopting it.  When turned off, methods inherited to that
+   class are also considered implemented.  */
+
+extern int warn_protocol;
+
+
+/* C++ language option variables.  */
+
+
+/* Nonzero means don't recognize any extension keywords.  */
+
+extern int flag_no_gnu_keywords;
+
+/* Nonzero means do emit exported implementations of functions even if
+   they can be inlined.  */
+
+extern int flag_implement_inlines;
+
+/* Nonzero means do emit exported implementations of templates, instead of
+   multiple static copies in each file that needs a definition.  */
+
+extern int flag_external_templates;
+
+/* Nonzero means that the decision to emit or not emit the implementation of a
+   template depends on where the template is instantiated, rather than where
+   it is defined.  */
+
+extern int flag_alt_external_templates;
+
+/* Nonzero means that implicit instantiations will be emitted if needed.  */
+
+extern int flag_implicit_templates;
+
+/* Nonzero means that implicit instantiations of inline templates will be
+   emitted if needed, even if instantiations of non-inline templates
+   aren't.  */
+
+extern int flag_implicit_inline_templates;
+
+/* Nonzero means generate separate instantiation control files and
+   juggle them at link time.  */
+
+extern int flag_use_repository;
+
+/* Nonzero if we want to issue diagnostics that the standard says are not
+   required.  */
+
+extern int flag_optional_diags;
+
+/* Nonzero means we should attempt to elide constructors when possible.  */
+
+extern int flag_elide_constructors;
+
+/* Nonzero means that member functions defined in class scope are
+   inline by default.  */
+
+extern int flag_default_inline;
+
+/* Controls whether compiler generates 'type descriptor' that give
+   run-time type information.  */
+
+extern int flag_rtti;
+
+/* Nonzero if we want to conserve space in the .o files.  We do this
+   by putting uninitialized data and runtime initialized data into
+   .common instead of .data at the expense of not flagging multiple
+   definitions.  */
+
+extern int flag_conserve_space;
+
+/* Nonzero if we want to obey access control semantics.  */
+
+extern int flag_access_control;
+
+/* Nonzero if we want to check the return value of new and avoid calling
+   constructors if it is a null pointer.  */
+
+extern int flag_check_new;
+
+/* Nonzero if we want the new ISO rules for pushing a new scope for `for'
+   initialization variables.
+   0: Old rules, set by -fno-for-scope.
+   2: New ISO rules, set by -ffor-scope.
+   1: Try to implement new ISO rules, but with backup compatibility
+   (and warnings).  This is the default, for now.  */
+
+extern int flag_new_for_scope;
+
+/* Nonzero if we want to emit defined symbols with common-like linkage as
+   weak symbols where possible, in order to conform to C++ semantics.
+   Otherwise, emit them as local symbols.  */
+
+extern int flag_weak;
+
+/* Nonzero to use __cxa_atexit, rather than atexit, to register
+   destructors for local statics and global objects.  */
+
+extern int flag_use_cxa_atexit;
+
+/* Nonzero means output .vtable_{entry,inherit} for use in doing vtable gc.  */
+
+extern int flag_vtable_gc;
+
+/* Nonzero means make the default pedwarns warnings instead of errors.
+   The value of this flag is ignored if -pedantic is specified.  */
+
+extern int flag_permissive;
+
+/* Nonzero means to implement standard semantics for exception
+   specifications, calling unexpected if an exception is thrown that
+   doesn't match the specification.  Zero means to treat them as
+   assertions and optimize accordingly, but not check them.  */
+
+extern int flag_enforce_eh_specs;
+
+/*  The version of the C++ ABI in use.  The following values are
+    allowed:
+
+    0: The version of the ABI believed most conformant with the 
+       C++ ABI specification.  This ABI may change as bugs are
+       discovered and fixed.  Therefore, 0 will not necessarily
+       indicate the same ABI in different versions of G++.
+
+    1: The version of the ABI first used in G++ 3.2.
+
+    Additional positive integers will be assigned as new versions of
+    the ABI become the default version of the ABI.  */
+
+extern int flag_abi_version;
+
+/* Nonzero means warn about things that will change when compiling
+   with an ABI-compliant compiler.  */
+
+extern int warn_abi;
+
+/* Nonzero means warn about implicit declarations.  */
+
+extern int warn_implicit;
+
+/* Nonzero means warn when all ctors or dtors are private, and the class
+   has no friends.  */
+
+extern int warn_ctor_dtor_privacy;
+
+/* Nonzero means warn in function declared in derived class has the
+   same name as a virtual in the base class, but fails to match the
+   type signature of any virtual function in the base class.  */
+
+extern int warn_overloaded_virtual;
+
+/* Nonzero means warn when declaring a class that has a non virtual
+   destructor, when it really ought to have a virtual one.  */
+
+extern int warn_nonvdtor;
+
+/* Nonzero means warn when the compiler will reorder code.  */
+
+extern int warn_reorder;
+
+/* Nonzero means warn when synthesis behavior differs from Cfront's.  */
+
+extern int warn_synth;
+
+/* Nonzero means warn when we convert a pointer to member function
+   into a pointer to (void or function).  */
+
+extern int warn_pmf2ptr;
+
+/* Nonzero means warn about violation of some Effective C++ style rules.  */
+
+extern int warn_ecpp;
+
+/* Nonzero means warn where overload resolution chooses a promotion from
+   unsigned to signed over a conversion to an unsigned of the same size.  */
+
+extern int warn_sign_promo;
+
+/* Nonzero means warn when an old-style cast is used.  */
+
+extern int warn_old_style_cast;
+
+/* Nonzero means warn when non-templatized friend functions are
+   declared within a template */
+
+extern int warn_nontemplate_friend;
+
+/* Nonzero means complain about deprecated features.  */
+
+extern int warn_deprecated;
+
+/* Maximum template instantiation depth.  This limit is rather
+   arbitrary, but it exists to limit the time it takes to notice
+   infinite template instantiations.  */
+
+extern int max_tinst_depth;
 
 /* Nonzero means the expression being parsed will never be evaluated.
    This is a count, since unevaluated expressions can nest.  */
@@ -494,6 +845,10 @@ extern int skip_evaluation;
    what operator was specified for it.  */
 #define C_EXP_ORIGINAL_CODE(exp) ((enum tree_code) TREE_COMPLEXITY (exp))
 
+/* Attribute table common to the C front ends.  */
+extern const struct attribute_spec c_common_attribute_table[];
+extern const struct attribute_spec c_common_format_attribute_table[];
+
 /* Pointer to function to lazily generate the VAR_DECL for __FUNCTION__ etc.
    ID is the identifier to use, NAME is the string.
    TYPE_DEP indicates whether it depends on type of the function or not
@@ -511,6 +866,12 @@ extern const char *fname_as_string		PARAMS ((int));
 extern tree fname_decl				PARAMS ((unsigned, tree));
 extern const char *fname_string			PARAMS ((unsigned));
 
+extern void check_function_arguments		PARAMS ((tree, tree));
+extern void check_function_arguments_recurse	PARAMS ((void (*) (void *,
+								   tree,
+								   unsigned HOST_WIDE_INT),
+							 void *, tree,
+							 unsigned HOST_WIDE_INT));
 extern void check_function_format		PARAMS ((int *, tree, tree));
 extern void set_Wformat				PARAMS ((int));
 extern tree handle_format_attribute		PARAMS ((tree *, tree, tree,
@@ -518,23 +879,34 @@ extern tree handle_format_attribute		PARAMS ((tree *, tree, tree,
 extern tree handle_format_arg_attribute		PARAMS ((tree *, tree, tree,
 							 int, bool *));
 extern void c_common_insert_default_attributes	PARAMS ((tree));
+extern int c_common_decode_option		PARAMS ((int, char **));
+extern tree c_common_type_for_mode		PARAMS ((enum machine_mode,
+							 int));
+extern tree c_common_type_for_size		PARAMS ((unsigned int, int));
+extern tree c_common_unsigned_type		PARAMS ((tree));
+extern tree c_common_signed_type		PARAMS ((tree));
+extern tree c_common_signed_or_unsigned_type	PARAMS ((int, tree));
+extern tree c_common_truthvalue_conversion	PARAMS ((tree));
 extern void c_apply_type_quals_to_decl		PARAMS ((int, tree));
-extern tree c_sizeof				PARAMS ((tree));
-extern tree c_alignof				PARAMS ((tree));
+extern tree c_sizeof_or_alignof_type	PARAMS ((tree, enum tree_code, int));
 extern tree c_alignof_expr			PARAMS ((tree));
 /* Print an error message for invalid operands to arith operation CODE.
    NOP_EXPR is used as a special case (see truthvalue_conversion).  */
 extern void binary_op_error			PARAMS ((enum tree_code));
+#define my_friendly_assert(EXP, N) (void) \
+ (((EXP) == 0) ? (fancy_abort (__FILE__, __LINE__, __FUNCTION__), 0) : 0)
+
 extern tree c_expand_expr_stmt			PARAMS ((tree));
 extern void c_expand_start_cond			PARAMS ((tree, int, tree));
 extern void c_finish_then                       PARAMS ((void));
 extern void c_expand_start_else			PARAMS ((void));
-extern void c_finish_else                   PARAMS ((void));
+extern void c_finish_else			PARAMS ((void));
 extern void c_expand_end_cond			PARAMS ((void));
 /* Validate the expression after `case' and apply default promotions.  */
 extern tree check_case_value			PARAMS ((tree));
-/* Concatenate a list of STRING_CST nodes into one STRING_CST.  */
-extern tree combine_strings			PARAMS ((tree));
+extern tree fix_string_type			PARAMS ((tree));
+struct varray_head_tag;
+extern tree combine_strings		PARAMS ((struct varray_head_tag *));
 extern void constant_expression_warning		PARAMS ((tree));
 extern tree convert_and_check			PARAMS ((tree, tree));
 extern void overflow_warning			PARAMS ((tree));
@@ -543,6 +915,8 @@ extern void unsigned_conversion_warning		PARAMS ((tree, tree));
 /* Read the rest of the current #-directive line.  */
 extern char *get_directive_line			PARAMS ((void));
 #define GET_DIRECTIVE_LINE() get_directive_line ()
+#define c_sizeof(T)  c_sizeof_or_alignof_type (T, SIZEOF_EXPR, 1)
+#define c_alignof(T) c_sizeof_or_alignof_type (T, ALIGNOF_EXPR, 1)
 
 /* Subroutine of build_binary_op, used for comparison operations.
    See if the operands have both been converted from subword integer types
@@ -564,13 +938,13 @@ extern void disable_builtin_function		PARAMS ((const char *));
 extern tree build_va_arg			PARAMS ((tree, tree));
 
 extern void c_common_init_options		PARAMS ((enum c_language_kind));
-extern void c_common_post_options		PARAMS ((void));
+extern bool c_common_post_options		PARAMS ((void));
 extern const char *c_common_init		PARAMS ((const char *));
 extern void c_common_finish			PARAMS ((void));
+extern void c_common_parse_file			PARAMS ((int));
 extern HOST_WIDE_INT c_common_get_alias_set	PARAMS ((tree));
 extern bool c_promoting_integer_type_p		PARAMS ((tree));
 extern int self_promoting_args_p		PARAMS ((tree));
-extern tree simple_type_promotes_to		PARAMS ((tree));
 extern tree strip_array_types                   PARAMS ((tree));
 
 /* These macros provide convenient access to the various _STMT nodes.  */
@@ -601,7 +975,7 @@ extern tree strip_array_types                   PARAMS ((tree));
 /* RETURN_STMT accessors. These give the expression associated with a
    return statement, and whether it should be ignored when expanding
    (as opposed to inlining).  */
-#define RETURN_EXPR(NODE)       TREE_OPERAND (RETURN_STMT_CHECK (NODE), 0)
+#define RETURN_STMT_EXPR(NODE)  TREE_OPERAND (RETURN_STMT_CHECK (NODE), 0)
 
 /* EXPR_STMT accessor. This gives the expression associated with an
    expression statement.  */
@@ -731,7 +1105,7 @@ extern tree strip_array_types                   PARAMS ((tree));
 #define STMT_LINENO(NODE)			\
   (TREE_COMPLEXITY ((NODE)))
 
-/* If non-zero, the STMT_LINENO for NODE is the line at which the
+/* If nonzero, the STMT_LINENO for NODE is the line at which the
    function ended.  */
 #define STMT_LINENO_FOR_FN_P(NODE)		\
   (TREE_LANG_FLAG_2 ((NODE)))
@@ -754,7 +1128,6 @@ enum c_tree_code {
 
 #undef DEFTREECODE
 
-extern void add_c_tree_codes		        PARAMS ((void));
 extern void genrtl_do_pushlevel                 PARAMS ((void));
 extern void genrtl_goto_stmt                    PARAMS ((tree));
 extern void genrtl_expr_stmt                    PARAMS ((tree));
@@ -840,8 +1213,6 @@ extern tree boolean_increment			PARAMS ((enum tree_code,
    after entering or leaving a header file.  */
 extern void extract_interface_info		PARAMS ((void));
 
-extern void mark_c_language_function            PARAMS ((struct language_function *));
-
 extern int case_compare                         PARAMS ((splay_tree_key,
 							 splay_tree_key));
 
@@ -857,18 +1228,19 @@ extern tree finish_label_address_expr		PARAMS ((tree));
    different implementations.  Used in c-common.c.  */
 extern tree lookup_label			PARAMS ((tree));
 
-/* enum expand_modified is in expr.h, as is the macro below.  */
-
-#ifdef QUEUED_VAR
-extern rtx c_expand_expr            PARAMS ((tree, rtx, enum machine_mode,
-					     enum expand_modifier));
-#endif
+extern rtx c_expand_expr			PARAMS ((tree, rtx,
+							 enum machine_mode,
+							 int));
 
 extern int c_safe_from_p                        PARAMS ((rtx, tree));
 
 extern int c_staticp                            PARAMS ((tree));
 
-extern int c_unsafe_for_reeval			PARAMS ((tree));
+extern int c_common_unsafe_for_reeval		PARAMS ((tree));
+
+extern const char *init_c_lex			PARAMS ((const char *));
+
+extern void cb_register_builtins		PARAMS ((cpp_reader *));
 
 /* Information recorded about each file examined during compilation.  */
 
@@ -881,5 +1253,7 @@ struct c_fileinfo
 
 struct c_fileinfo *get_fileinfo			PARAMS ((const char *));
 extern void dump_time_statistics		PARAMS ((void));
+
+extern int c_dump_tree				PARAMS ((void *, tree));
 
 #endif /* ! GCC_C_COMMON_H */
