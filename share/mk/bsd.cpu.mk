@@ -137,6 +137,10 @@ MACHINE_CPU = itanium
 . endif
 .endif
 
+.if ${MACHINE_ARCH} == "alpha"
+_CPUCFLAGS += -mieee
+.endif
+
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/Makefile.<arch>
 
 .if !defined(NO_CPU_CFLAGS)
