@@ -1,5 +1,5 @@
 /*
- * ppp-comp.h - Definitions for doing PPP packet compression.
+ * ppp_comp.h - Definitions for doing PPP packet compression.
  *
  * Copyright (c) 1994 The Australian National University.
  * All rights reserved.
@@ -24,7 +24,8 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ppp-comp.h,v 1.7 1995/05/01 01:43:37 paulus Exp $
+ * From: Id: ppp-comp.h,v 1.7 1995/05/01 01:43:37 paulus Exp
+ * $Id$
  */
 
 #ifndef _NET_PPP_COMP_H

@@ -70,7 +70,8 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp $ */
+/* $Id$ */
+/* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -90,7 +91,15 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/vnode.h>
+
+#undef KERNEL	/* so that vnode.h does not try to include vnode_if.h */
+# include <sys/vnode.h>
+#define KERNEL
+
+#ifdef i386	/* fiddle with the spl locking */
+# include <machine/spl.h>
+# include <i386/isa/isa_device.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -99,14 +108,16 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <net/pppcompress.h>
+#include <net/slcompress.h>
 #endif
 
 #include <net/ppp_defs.h>
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
 
-void	pppasyncattach __P((void));
+void	pppasyncattach __P((void *));
+PSEUDO_SET(pppasyncattach, ppp_tty);
+
 int	pppopen __P((dev_t dev, struct tty *tp));
 int	pppclose __P((struct tty *tp, int flag));
 int	pppread __P((struct tty *tp, struct uio *uio, int flag));
@@ -120,6 +131,7 @@ static u_short	pppfcs __P((u_short fcs, u_char *cp, int len));
 static void	pppasyncstart __P((struct ppp_softc *));
 static void	pppasyncctlp __P((struct ppp_softc *));
 static void	pppasyncrelinq __P((struct ppp_softc *));
+static void	pppasyncsetmtu __P((struct ppp_softc *));
 static void	ppp_timeout __P((void *));
 static void	pppgetm __P((struct ppp_softc *sc));
 static void	pppdumpb __P((u_char *b, int l));
@@ -147,7 +159,7 @@ static void	ppplogchar __P((struct ppp_softc *, int));
  * Procedures for using an async tty interface for PPP.
  */
 
-/* This is a FreeBSD-2.0 kernel. */
+/* This is a FreeBSD-2.X kernel. */
 #define CCOUNT(q)	((q)->c_cc)
 #define	PPP_HIWAT	400	/* Don't start a new packet if HIWAT on que */
 
@@ -161,16 +173,36 @@ static struct linesw pppdisc = {
 };
 
 void
-pppasyncattach()
+pppasyncattach(dummy)
+    void *dummy;
 {
+#ifdef i386
+    int s;
+
+    s = splhigh();
+
+    /*
+     * Make sure that the soft net "engine" cannot run while spltty code is
+     * active.  The if_ppp.c code can walk down into b_to_q etc, and it is
+     * bad if the tty system was in the middle of another b_to_q...
+     */
+    tty_imask |= SWI_NET_MASK;	/* spltty() block spl[soft]net() */
+    net_imask |= SWI_TTY_MASK;	/* splimp() block splsofttty() */
+    net_imask |= tty_imask;	/* splimp() block spltty() */
+    update_intr_masks();
+
+    splx(s);
+    printf("new masks: bio %x, tty %x, net %x\n", bio_imask, tty_imask, net_imask);
+#endif
+
+    /* register line discipline */
     linesw[PPPDISC] = pppdisc;
 }
-
-TEXT_SET(pseudo_set, pppasyncattach);
 
 /*
  * Line specific open routine for async tty devices.
  * Attach the given tty to the first available ppp unit.
+ * Called from device open routine or ttioctl() at >= splsofttty()
  */
 /* ARGSUSED */
 int
@@ -185,19 +217,24 @@ pppopen(dev, tp)
     if (error = suser(p->p_ucred, &p->p_acflag))
 	return (error);
 
+    s = spltty();		/* also netisr's, including NETISR_PPP */
+
     if (tp->t_line == PPPDISC) {
 	sc = (struct ppp_softc *) tp->t_sc;
-	if (sc != NULL && sc->sc_devp == (void *) tp)
+	if (sc != NULL && sc->sc_devp == (void *) tp) {
+	    splx(s);
 	    return (0);
+	}
     }
 
-    if ((sc = pppalloc(p->p_pid)) == NULL)
+    if ((sc = pppalloc(p->p_pid)) == NULL) {
+	splx(s);
 	return ENXIO;
+    }
 
     if (sc->sc_relinq)
 	(*sc->sc_relinq)(sc);	/* get previous owner to relinquish the unit */
 
-    s = splimp();
     sc->sc_ilen = 0;
     sc->sc_m = NULL;
     bzero(sc->sc_asyncmap, sizeof(sc->sc_asyncmap));
@@ -208,19 +245,33 @@ pppopen(dev, tp)
     sc->sc_start = pppasyncstart;
     sc->sc_ctlp = pppasyncctlp;
     sc->sc_relinq = pppasyncrelinq;
+    sc->sc_setmtu = pppasyncsetmtu;
     sc->sc_outm = NULL;
     pppgetm(sc);
     sc->sc_if.if_flags |= IFF_RUNNING;
+    sc->sc_if.if_baudrate = tp->t_ospeed;
 
     tp->t_sc = (caddr_t) sc;
     ttyflush(tp, FREAD | FWRITE);
+
+    /*
+     * Pre-allocate cblocks to the "just right" amount.  The 1 byte t_canq
+     * allocation helps avoid the need for select and/or FIONREAD.
+     * We also pass 1 byte tokens through t_canq...
+     */
+    clist_alloc_cblocks(&tp->t_canq, 1, 1);
+    clist_alloc_cblocks(&tp->t_outq, sc->sc_if.if_mtu + PPP_HIWAT,
+			sc->sc_if.if_mtu + PPP_HIWAT);
+    clist_alloc_cblocks(&tp->t_rawq, 0, 0);
+
     splx(s);
 
     return (0);
 }
 
 /*
- * Line specific close routine.
+ * Line specific close routine, called from device close routine
+ * and from ttioctl at >= splsofttty().
  * Detach the tty from the ppp unit.
  * Mimics part of ttyclose().
  */
@@ -233,8 +284,10 @@ pppclose(tp, flag)
     struct mbuf *m;
     int s;
 
-    ttywflush(tp);
-    s = splimp();		/* paranoid; splnet probably ok */
+    s = spltty();		/* also netisr's, including NETISR_PPP */
+    ttyflush(tp, FREAD | FWRITE);
+    clist_free_cblocks(&tp->t_canq);
+    clist_free_cblocks(&tp->t_outq);
     tp->t_line = 0;
     sc = (struct ppp_softc *) tp->t_sc;
     if (sc != NULL) {
@@ -257,7 +310,7 @@ pppasyncrelinq(sc)
 {
     int s;
 
-    s = splimp();
+    s = spltty(); 		/* also netisr's, including NETISR_PPP */
     if (sc->sc_outm) {
 	m_freem(sc->sc_outm);
 	sc->sc_outm = NULL;
@@ -274,7 +327,26 @@ pppasyncrelinq(sc)
 }
 
 /*
+ * This gets called from the upper layer to notify a mtu change
+ */
+static void
+pppasyncsetmtu(sc)
+register struct ppp_softc *sc;
+{
+    register struct tty *tp = (struct tty *) sc->sc_devp;
+    int s;
+
+    s = spltty();		/* also netisr's, including NETISR_PPP */
+    if (tp != NULL)
+	clist_alloc_cblocks(&tp->t_outq, sc->sc_if.if_mtu + PPP_HIWAT,
+			     sc->sc_if.if_mtu + PPP_HIWAT);
+    splx(s);
+}
+
+/*
  * Line specific (tty) read routine.
+ * called at no spl from the device driver in the response to user-level
+ * reads on the tty file descriptor (ie: pppd).
  */
 int
 pppread(tp, uio, flag)
@@ -293,7 +365,7 @@ pppread(tp, uio, flag)
      * Loop waiting for input, checking that nothing disasterous
      * happens in the meantime.
      */
-    s = splimp();
+    s = spltty();		/* also netisr's, including NETISR_PPP */
     for (;;) {
 	if (tp != (struct tty *) sc->sc_devp || tp->t_line != PPPDISC) {
 	    splx(s);
@@ -301,7 +373,7 @@ pppread(tp, uio, flag)
 	}
 	if (sc->sc_inq.ifq_head != NULL)
 	    break;
-	if ((tp->t_state & TS_CONNECTED) == 0 && (tp->t_state & TS_ISOPEN)) {
+	if ((tp->t_state & TS_CONNECTED) == 0) {
 	    splx(s);
 	    return 0;		/* end of file */
 	}
@@ -332,6 +404,8 @@ pppread(tp, uio, flag)
 
 /*
  * Line specific (tty) write routine.
+ * called at no spl from the device driver in the response to user-level
+ * writes on the tty file descriptor (ie: pppd).
  */
 int
 pppwrite(tp, uio, flag)
@@ -342,7 +416,7 @@ pppwrite(tp, uio, flag)
     register struct ppp_softc *sc = (struct ppp_softc *)tp->t_sc;
     struct mbuf *m, *m0, **mp;
     struct sockaddr dst;
-    int len, error;
+    int len, error, s;
 
     if ((tp->t_state & TS_CONNECTED) == 0)
 	return 0;		/* wrote 0 bytes */
@@ -353,10 +427,13 @@ pppwrite(tp, uio, flag)
     if (uio->uio_resid > sc->sc_if.if_mtu + PPP_HDRLEN ||
 	uio->uio_resid < PPP_HDRLEN)
 	return (EMSGSIZE);
+
+    s = spltty();		/* also netisr's, including NETISR_PPP */
     for (mp = &m0; uio->uio_resid; mp = &m->m_next) {
 	MGET(m, M_WAIT, MT_DATA);
 	if ((*mp = m) == NULL) {
 	    m_freem(m0);
+	    splx(s);
 	    return (ENOBUFS);
 	}
 	m->m_len = 0;
@@ -367,6 +444,7 @@ pppwrite(tp, uio, flag)
 	    len = uio->uio_resid;
 	if (error = uiomove(mtod(m, u_char *), len, uio)) {
 	    m_freem(m0);
+	    splx(s);
 	    return (error);
 	}
 	m->m_len = len;
@@ -375,7 +453,11 @@ pppwrite(tp, uio, flag)
     bcopy(mtod(m0, u_char *), dst.sa_data, PPP_HDRLEN);
     m0->m_data += PPP_HDRLEN;
     m0->m_len -= PPP_HDRLEN;
-    return (pppoutput(&sc->sc_if, m0, &dst, (struct rtentry *)0));
+
+    /* call the upper layer to "transmit" it... */
+    error = pppoutput(&sc->sc_if, m0, &dst, (struct rtentry *)0);
+    splx(s);
+    return (error);
 }
 
 /*
@@ -422,7 +504,7 @@ ppptioctl(tp, cmd, data, flag, p)
     case PPPIOCSXASYNCMAP:
 	if (error = suser(p->p_ucred, &p->p_acflag))
 	    break;
-	s = spltty();
+	s = spltty();		/* also netisr's, including NETISR_PPP */
 	bcopy(data, sc->sc_asyncmap, sizeof(sc->sc_asyncmap));
 	sc->sc_asyncmap[1] = 0;		    /* mustn't escape 0x20 - 0x3f */
 	sc->sc_asyncmap[2] &= ~0x40000000;  /* mustn't escape 0x5e */
@@ -506,30 +588,39 @@ pppasyncstart(sc)
     register struct tty *tp = (struct tty *) sc->sc_devp;
     int s;
 
-    s = splimp();
+    s = spltty();	/* raise from splnet to spltty */
     pppstart(tp);
     splx(s);
 }
 
 /*
  * This gets called when a received packet is placed on
- * the inq.
+ * the inq.  The pppd daemon is to be woken up to do a read().
  */
 static void
 pppasyncctlp(sc)
     struct ppp_softc *sc;
 {
     struct tty *tp;
+    int s;
 
     /* Put a placeholder byte in canq for ttselect()/ttnread(). */
+    s = spltty();	/* raise from splnet to spltty */
     tp = (struct tty *) sc->sc_devp;
     putc(0, &tp->t_canq);
     ttwakeup(tp);
+    splx(s);
 }
 
 /*
  * Start output on async tty interface.  Get another datagram
  * to send from the interface queue and start sending it.
+ *
+ * Called from tty system at splsofttty() or spltty().
+ * Called from the upper half at softnet, raised to spltty via asyncstart.
+ *
+ * Harmless to be called while the upper netisr code is preempted, but we
+ * do not want to be preempted by it again.
  */
 int
 pppstart(tp)
@@ -542,13 +633,15 @@ pppstart(tp)
     int n, s, ndone, done, idle;
     struct mbuf *m2;
 
-    if ((tp->t_state & TS_CONNECTED) == 0
-	|| sc == NULL || tp != (struct tty *) sc->sc_devp) {
+    if ((tp->t_state & TS_CONNECTED) == 0 
+        || sc == NULL || tp != (struct tty *) sc->sc_devp
+	|| tp->t_line != PPPDISC) {
 	if (tp->t_oproc != NULL)
 	    (*tp->t_oproc)(tp);
 	return 0;
     }
 
+    s = spltty();	/* in case.. do not want netisrs to preempt us */
     idle = 0;
     while (CCOUNT(&tp->t_outq) < PPP_HIWAT) {
 	/*
@@ -578,6 +671,7 @@ pppstart(tp)
 
 	    /* Calculate the FCS for the first mbuf's worth. */
 	    sc->sc_outfcs = pppfcs(PPP_INITFCS, mtod(m, u_char *), m->m_len);
+	    sc->sc_if.if_lastchange = time;
 	}
 
 	for (;;) {
@@ -694,7 +788,7 @@ pppstart(tp)
     }
 
     /*
-     * Send anything that may be in the output queue.
+     * Call output process whether or not there is any output.
      * We are being called in lieu of ttstart and must do what it would.
      */
     if (tp->t_oproc != NULL)
@@ -709,6 +803,7 @@ pppstart(tp)
 	timeout(ppp_timeout, (void *) sc, 1);
 	sc->sc_flags |= SC_TIMEOUT;
     }
+    splx(s);
 
     return 0;
 }
@@ -724,7 +819,7 @@ ppp_timeout(x)
     struct tty *tp = (struct tty *) sc->sc_devp;
     int s;
 
-    s = splimp();
+    s = spltty();		/* also netisr's, including NETISR_PPP */
     sc->sc_flags &= ~SC_TIMEOUT;
     pppstart(tp);
     splx(s);
@@ -741,7 +836,7 @@ pppgetm(sc)
     int len;
     int s;
 
-    s = splimp();
+    s = spltty();		/* also netisr's, including NETISR_PPP */
     mp = &sc->sc_m;
     for (len = sc->sc_mru + PPP_HDRLEN + PPP_FCSLEN; len > 0; ){
 	if ((m = *mp) == NULL) {
@@ -765,6 +860,11 @@ static unsigned paritytab[8] = {
     0x69969669, 0x96696996, 0x96696996, 0x69969669
 };
 
+/*
+ * Called when character is available from device driver.
+ * Only guaranteed to be at splsofttty() or spltty()
+ * This is safe to be called while the upper half's netisr is preempted.
+ */
 int
 pppinput(c, tp)
     int c;
@@ -778,18 +878,25 @@ pppinput(c, tp)
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
 	return 0;
 
-    s = spltty();
+    s = spltty();		/* also netisr's, including NETISR_PPP */
     ++tk_nin;
     ++sc->sc_bytesrcvd;
 
-    if (c & TTY_FE) {
-	/* framing error or overrun on this char - abort packet */
+    if ((tp->t_state & TS_CONNECTED) == 0) {
 	if (sc->sc_flags & SC_DEBUG)
-	    printf("ppp%d: bad char %x\n", sc->sc_if.if_unit, c);
+	    printf("ppp%d: no carrier\n", sc->sc_if.if_unit);
 	goto flush;
     }
 
-    c &= 0xff;
+    if (c & TTY_ERRORMASK) {
+	/* framing error or overrun on this char - abort packet */
+	if (sc->sc_flags & SC_DEBUG)
+	    printf("ppp%d: line error %x\n", sc->sc_if.if_unit,
+						c & TTY_ERRORMASK);
+	goto flush;
+    }
+
+    c &= TTY_CHARMASK;
 
     if (c & 0x80)
 	sc->sc_flags |= SC_RCV_B7_1;
