@@ -83,6 +83,7 @@ SUBDIR=	${_3dfx} \
 	${_hfa} \
 	hifn \
 	hme \
+	${_hptmv} \
 	${_i2c} \
 	${_ibcs2} \
 	${_ichwd} \
@@ -346,6 +347,7 @@ _dpt=		dpt
 _el=		el
 _ex=		ex
 _exca=		exca
+_hptmv=		hptmv
 _ichwd=		ichwd
 _ida=		ida
 _idt=		idt
