@@ -70,7 +70,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 {
 	uid_t id;
 	int root;
-	char *p, *sh;
+	char *ep, *p, *sh;
 
 	if (pw_big_ids_warning == -1)
 		pw_big_ids_warning = getenv("PW_SCAN_BIG_IDS") == NULL ? 1 : 0;
@@ -98,10 +98,15 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			return (0);
 		}
 	}
-	id = strtoul(p, (char **)NULL, 10);
+	id = strtoul(p, &ep, 10);
 	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s > max uid value (%lu)", p, ULONG_MAX);
+		return (0);
+	}
+	if (*ep != '\0' || ep == p) {
+		if (flags & _PWSCAN_WARN)
+			warnx("%s uid is incorrect", p);
 		return (0);
 	}
 	if (root && id) {
@@ -119,10 +124,15 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 		goto fmt;
 	if (p[0])
 		pw->pw_fields |= _PWF_GID;
-	id = strtoul(p, (char **)NULL, 10);
+	id = strtoul(p, &ep, 10);
 	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s > max gid value (%lu)", p, ULONG_MAX);
+		return (0);
+	}
+	if (*ep != '\0' || ep == p) {
+		if (flags & _PWSCAN_WARN)
+			warnx("%s gid is incorrect", p);
 		return (0);
 	}
 	if (flags & _PWSCAN_WARN && pw_big_ids_warning && id > USHRT_MAX) {
