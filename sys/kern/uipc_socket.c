@@ -256,7 +256,6 @@ sofree(so)
 		} else {
 			panic("sofree: not queued");
 		}
-		head->so_qlen--;
 		so->so_state &= ~SS_INCOMP;
 		so->so_head = NULL;
 	}
@@ -1641,6 +1640,6 @@ filt_solisten(struct knote *kn, long hint)
 {
 	struct socket *so = (struct socket *)kn->kn_fp->f_data;
 
-	kn->kn_data = so->so_qlen - so->so_incqlen;
+	kn->kn_data = so->so_qlen;
 	return (! TAILQ_EMPTY(&so->so_comp));
 }
