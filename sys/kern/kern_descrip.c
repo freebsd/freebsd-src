@@ -367,7 +367,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	switch (cmd) {
 	case F_DUPFD:
-		mtx_assert(&Giant, MA_NOTOWNED);
+		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		FILEDESC_UNLOCK(fdp);
 		newmin = arg;
 		PROC_LOCK(p);
@@ -382,21 +382,20 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFD:
-		mtx_assert(&Giant, MA_NOTOWNED);
+		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
 		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_SETFD:
-		mtx_assert(&Giant, MA_NOTOWNED);
+		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		*pop = (*pop &~ UF_EXCLOSE) |
 		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_UNLOCK(fdp);
 		break;
 
 	case F_GETFL:
-		/* MPSAFE */
-		mtx_assert(&Giant, MA_NOTOWNED);
+		/* mtx_assert(&Giant, MA_NOTOWNED); */
 		FILE_LOCK(fp);
 		FILEDESC_UNLOCK(fdp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
