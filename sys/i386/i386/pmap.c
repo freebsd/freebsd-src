@@ -2155,18 +2155,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	else {
 		pd_entry_t *pdeaddr = pmap_pde(pmap, va);
 		if (((origpte = *pdeaddr) & PG_V) == 0) { 
-			panic("pmap_enter: invalid kernel page table page(0), pdir=%p, pde=%p, va=%p\n",
+			panic("pmap_enter: invalid kernel page table page, pdir=%p, pde=%p, va=%p\n",
 				pmap->pm_pdir[PTDPTDI], origpte, va);
-		}
-		if (smp_active) {
-			pdeaddr = (vm_offset_t *) IdlePTDS[PCPU_GET(cpuid)];
-			if (((newpte = pdeaddr[va >> PDRSHIFT]) & PG_V) == 0) {
-				if ((vm_offset_t) my_idlePTD != (vm_offset_t) vtophys(pdeaddr))
-					printf("pde mismatch: %x, %x\n", my_idlePTD, pdeaddr);
-				printf("cpuid: %d, pdeaddr: 0x%x\n", PCPU_GET(cpuid), pdeaddr);
-				panic("pmap_enter: invalid kernel page table page(1), pdir=%p, npde=%p, pde=%p, va=%p\n",
-					pmap->pm_pdir[PTDPTDI], newpte, origpte, va);
-			}
 		}
 	}
 #endif
