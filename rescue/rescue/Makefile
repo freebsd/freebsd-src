@@ -128,7 +128,7 @@ CRUNCH_PROGS_sbin+= vinum
 .endif
 
 .if !defined(NO_IPFILTER)
-CRUNCH_PROGS_sbin+= ipf ipfs ipfstat ipmon ipnat
+CRUNCH_PROGS_sbin+= ipf ipfs ipmon
 .endif
 
 # crunchgen does not like C++ programs; this should be fixed someday
