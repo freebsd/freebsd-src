@@ -1965,6 +1965,7 @@ device		card	1
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 # viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit 
 # amdpm		AMD 756 Power Management Unit
+# nfpm		NVIDIA nForce Power Management Unit
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -1972,6 +1973,8 @@ device		intpm
 device		alpm
 device		ichsmb
 device		viapm
+device		amdpm
+device		nfpm
 
 device		smb
 
