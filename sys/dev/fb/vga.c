@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #if !defined(__amd64__)
 #define	BIOS_PADDRTOVADDR(x)	(x)
 #else
-#define BIOS_PADDRTOVADDR(x) (((x) - ISA_HOLE_START) + atdevbase)
+#define BIOS_PADDRTOVADDR(x)	((x) + KERNBASE)
 #endif
 #endif
 
