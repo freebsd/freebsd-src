@@ -909,10 +909,10 @@ adjtime(struct thread *td, struct adjtime_args *uap)
 	struct timeval atv;
 	int error;
 
-	mtx_lock(&Giant);
-
 	if ((error = suser(td)))
-		goto done2;
+		return (error);
+
+	mtx_lock(&Giant);
 	if (uap->olddelta) {
 		atv.tv_sec = time_adjtime / 1000000;
 		atv.tv_usec = time_adjtime % 1000000;
