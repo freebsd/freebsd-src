@@ -35,6 +35,7 @@
  *
  * Revision history:
  *
+ * dd-mmm-yyyy: Multicast support ported from NetBSD's if_iy driver.
  * 30-Oct-1996: first beta version. Inet and BPF supported, but no multicast.
  */
 
@@ -54,6 +55,7 @@
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_dl.h>
 #include <net/if_media.h> 
 #include <net/ethernet.h>
 #include <net/bpf.h>
@@ -103,6 +105,7 @@ static void	ex_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static int	ex_get_media	(u_int32_t iobase);
 
 static void	ex_reset	(struct ex_softc *);
+static void	ex_setmulti	(struct ex_softc *);
 
 static void	ex_tx_intr	(struct ex_softc *);
 static void	ex_rx_intr	(struct ex_softc *);
@@ -235,7 +238,7 @@ ex_attach(device_t dev)
 	ifp->if_unit = unit;
 	ifp->if_name = "ex";
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST /* XXX not done yet. | IFF_MULTICAST */;
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_output = ether_output;
 	ifp->if_start = ex_start;
 	ifp->if_ioctl = ex_ioctl;
@@ -348,6 +351,8 @@ ex_init(void *xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	DODEBUG(Status, printf("OIDLE init\n"););
+	
+	ex_setmulti(sc);
 	
 	/*
 	 * Final reset of the board, and enable operation.
@@ -809,11 +814,9 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 #endif
 		case SIOCADDMULTI:
-			DODEBUG(Start_End, printf("SIOCADDMULTI"););
 		case SIOCDELMULTI:
-			DODEBUG(Start_End, printf("SIOCDELMULTI"););
-			/* XXX Support not done yet. */
-			error = EINVAL;
+			ex_init(sc);
+			error = 0;
 			break;
 		case SIOCSIFMEDIA:
 		case SIOCGIFMEDIA:
@@ -831,6 +834,99 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	return(error);
 }
 
+static void
+ex_setmulti(struct ex_softc *sc)
+{
+	struct ifnet *ifp;
+	struct ifmultiaddr *maddr;
+	u_int16_t *addr;
+	int iobase = sc->iobase;
+	int count;
+	int timeout, status;
+	
+	ifp = &sc->arpcom.ac_if;
+
+	count = 0;
+	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+		if (maddr->ifma_addr->sa_family != AF_LINK)
+			continue;
+		count++;
+	}
+
+	if ((ifp->if_flags & IFF_PROMISC) || (ifp->if_flags & IFF_ALLMULTI)
+			|| count > 63) {
+		/* Interface is in promiscuous mode or there are too many
+		 * multicast addresses for the card to handle */
+		outb(iobase + CMD_REG, Bank2_Sel);
+		outb(iobase + REG2, inb(iobase + REG2) | Promisc_Mode);
+		outb(iobase + REG3, inb(iobase + REG3));
+		outb(iobase + CMD_REG, Bank0_Sel);
+	}
+	else if ((ifp->if_flags & IFF_MULTICAST) && (count > 0)) {
+		/* Program multicast addresses plus our MAC address
+		 * into the filter */
+		outb(iobase + CMD_REG, Bank2_Sel);
+		outb(iobase + REG2, inb(iobase + REG2) | Multi_IA);
+		outb(iobase + REG3, inb(iobase + REG3));
+		outb(iobase + CMD_REG, Bank0_Sel);
+
+		/* Borrow space from TX buffer; this should be safe
+		 * as this is only called from ex_init */
+		
+		outw(iobase + HOST_ADDR_REG, sc->tx_lower_limit);
+		outw(iobase + IO_PORT_REG, MC_Setup_CMD);
+		outw(iobase + IO_PORT_REG, 0);
+		outw(iobase + IO_PORT_REG, 0);
+		outw(iobase + IO_PORT_REG, (count + 1) * 6);
+		
+		TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+			if (maddr->ifma_addr->sa_family != AF_LINK)
+				continue;
+
+			addr = (u_int16_t*)LLADDR((struct sockaddr_dl *)
+					maddr->ifma_addr);
+			outw(iobase + IO_PORT_REG, *addr++);
+			outw(iobase + IO_PORT_REG, *addr++);
+			outw(iobase + IO_PORT_REG, *addr++);
+		}
+
+		/* Program our MAC address as well */
+		/* XXX: Is this necessary?  The Linux driver does this
+		 * but the NetBSD driver does not */
+		addr = (u_int16_t*)(&sc->arpcom.ac_enaddr);
+		outw(iobase + IO_PORT_REG, *addr++);
+		outw(iobase + IO_PORT_REG, *addr++);
+		outw(iobase + IO_PORT_REG, *addr++);
+
+		inw(iobase + IO_PORT_REG);
+		outw(iobase + XMT_BAR, sc->tx_lower_limit);
+		outb(iobase + CMD_REG, MC_Setup_CMD);
+
+		sc->tx_head = sc->tx_lower_limit;
+		sc->tx_tail = sc->tx_head + XMT_HEADER_LEN + (count + 1) * 6;
+
+		for (timeout=0; timeout<100; timeout++) {
+			DELAY(2);
+			if ((inb(iobase + STATUS_REG) & Exec_Int) == 0)
+				continue;
+
+			status = inb(iobase + CMD_REG);
+			outb(iobase + STATUS_REG, Exec_Int);
+			break;
+		}
+
+		sc->tx_head = sc->tx_tail;
+	}
+	else
+	{
+		/* No multicast or promiscuous mode */
+		outb(iobase + CMD_REG, Bank2_Sel);
+		outb(iobase + REG2, inb(iobase + REG2) & 0xDE);
+			/* ~(Multi_IA | Promisc_Mode) */
+		outb(iobase + REG3, inb(iobase + REG3));
+		outb(iobase + CMD_REG, Bank0_Sel);
+	}
+}
 
 static void
 ex_reset(struct ex_softc *sc)

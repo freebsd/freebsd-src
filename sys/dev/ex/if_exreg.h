@@ -119,8 +119,10 @@
 #define Disc_Bad_Fr 0x80
 #define Tx_Chn_ErStp 0x40
 #define Tx_Chn_Int_Md 0x20
+#define Multi_IA 0x20
 #define No_SA_Ins 0x10
 #define RX_CRC_InMem 0x04
+#define Promisc_Mode 0x01
 #define BNC_bit 0x20
 #define TPE_bit 0x04
 #define I_ADDR_REG0 4
