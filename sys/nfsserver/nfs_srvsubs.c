@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.38 1997/04/04 17:49:29 dfr Exp $
+ * $Id: nfs_subs.c,v 1.39 1997/07/16 09:06:29 dfr Exp $
  */
 
 /*
@@ -1455,7 +1455,10 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	tocp = cnp->cn_pnbuf;
 	md = *mdp;
 	rem = mtod(md, caddr_t) + md->m_len - fromcp;
+#ifdef __FreeBSD__
+	/* XXX why is this in FreeBSD but not in NetBSD? */
 	cnp->cn_hash = 0;
+#endif
 	for (i = 0; i < len; i++) {
 		while (rem == 0) {
 			md = md->m_next;
@@ -1470,7 +1473,10 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			error = EACCES;
 			goto out;
 		}
+#ifdef __FreeBSD__
+	/* XXX why is this in FreeBSD but not in NetBSD? */
 		cnp->cn_hash += (unsigned char)*fromcp;
+#endif
 		*tocp++ = *fromcp++;
 		rem--;
 	}
@@ -1481,7 +1487,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	if (len > 0) {
 		if (rem >= len)
 			*dposp += len;
-		else if (error = nfs_adv(mdp, dposp, len, rem))
+		else if ((error = nfs_adv(mdp, dposp, len, rem)) != 0)
 			goto out;
 	}
 
@@ -1500,6 +1506,8 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 
 	if (rdonly)
 		cnp->cn_flags |= RDONLY;
+
+	*retdirp = dp;
 
 	if (pubflag) {
 		/*
@@ -1560,20 +1568,20 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 		if (cnp->cn_pnbuf[0] == '/')
 			dp = rootvnode;
 	} else {
-  		cnp->cn_flags |= NOCROSSMOUNT;
+		cnp->cn_flags |= NOCROSSMOUNT;
 	}
 
 	cnp->cn_proc = p;
 	VREF(dp);
 
-      for (;;) {
+    for (;;) {
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	ndp->ni_startdir = dp;
 	/*
 	 * And call lookup() to do the real work
 	 */
-	cnp->cn_proc = p;
-	if (error = lookup(ndp))
+	error = lookup(ndp);
+	if (error)
 		break;
 	/*
 	 * Check for encountering a symbolic link
@@ -1600,7 +1608,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			error = ELOOP;
 			break;
 		}
-		if (ndp->ni_pathlen > 0)
+		if (ndp->ni_pathlen > 1)
 			MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
 		else
 			cp = cnp->cn_pnbuf;
@@ -1647,7 +1655,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			VREF(dp);
 		}
 	}
-      }
+   }
 out:
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	return (error);
