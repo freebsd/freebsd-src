@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.14 1996/06/17 21:57:50 jkh Exp $
+ * $Id: misc.c,v 1.12.2.15 1996/06/26 09:32:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -249,24 +249,24 @@ items_free(dialogMenuItem *list, int *curr, int *max)
 }
 
 int
-Mkdir(char *ipath, void *data)
+Mkdir(char *ipath)
 {
     struct stat sb;
-    int final=0;
+    int final;
     char *p, *path;
 
     if (file_readable(ipath) || Fake)
 	return DITEM_SUCCESS;
 
-    path = strdup(ipath);
+    path = strcpy(alloca(strlen(ipath) + 1), ipath);
     if (isDebug())
 	msgDebug("mkdir(%s)\n", path);
     p = path;
     if (p[0] == '/')		/* Skip leading '/'. */
 	++p;
-    for (;!final; ++p) {
+    for (final = FALSE; !final; ++p) {
 	if (p[0] == '\0' || (p[0] == '/' && p[1] == '\0'))
-	    final++;
+	    final = TRUE;
 	else if (p[0] != '/')
 	    continue;
 	*p = '\0';
@@ -284,7 +284,6 @@ Mkdir(char *ipath, void *data)
 	}
 	*p = '/';
     }
-    free(path);
     return DITEM_SUCCESS;
 }
 
@@ -308,7 +307,7 @@ Mount(char *mountp, void *dev)
     }
     memset(&ufsargs,0,sizeof ufsargs);
 
-    if (Mkdir(mountpoint, NULL)) {
+    if (Mkdir(mountpoint)) {
 	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
 	return DITEM_FAILURE;
     }

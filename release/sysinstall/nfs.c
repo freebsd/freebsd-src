@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.9 1996/04/23 01:29:30 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.20 1996/05/24 06:09:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,7 +54,7 @@ mediaInitNFS(Device *dev)
     if (!netDevice->init(netDevice))
 	return FALSE;
 
-    if (Mkdir("/dist", NULL))
+    if (Mkdir("/dist"))
 	return FALSE;
 
     msgNotify("Mounting %s over NFS.", dev->name);

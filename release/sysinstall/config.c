@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.56 1996/07/05 00:55:13 jkh Exp $
+ * $Id: config.c,v 1.16.2.57 1996/07/05 08:43:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,7 +204,7 @@ configFstab(void)
     for (i = 0; i < nchunks; i++)
 	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
-    Mkdir("/proc", NULL);
+    Mkdir("/proc");
     fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
 
     /* Now look for the CDROMs */
@@ -213,7 +213,7 @@ configFstab(void)
 
     /* Write the first one out as /cdrom */
     if (cnt) {
-	if (Mkdir("/cdrom", NULL)) {
+	if (Mkdir("/cdrom")) {
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
@@ -225,7 +225,7 @@ configFstab(void)
 	char cdname[10];
 
 	sprintf(cdname, "/cdrom%d", i);
-	if (Mkdir(cdname, NULL)) {
+	if (Mkdir(cdname)) {
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
@@ -380,7 +380,7 @@ configResolv(void)
 		       "may fail as a result!");
 	goto skip;
     }
-    if (Mkdir("/etc", NULL)) {
+    if (Mkdir("/etc")) {
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
@@ -527,7 +527,7 @@ configPorts(dialogMenuItem *self)
 			 "as you'll need space to compile any ports.");
 	if (!cp || !*cp)
 	    return DITEM_FAILURE;
-	if (Mkdir(cp, NULL))
+	if (Mkdir(cp))
 	    return DITEM_FAILURE;
 	else {
 	    if (strcmp(cp, "/usr/ports")) {

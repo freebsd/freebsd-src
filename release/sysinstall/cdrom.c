@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.20 1996/06/11 10:00:56 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.21 1996/06/14 18:34:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,7 @@ mediaInitCDROM(Device *dev)
     if (cdromMounted != CD_UNMOUNTED)
 	return TRUE;
 
-    if (Mkdir("/cdrom", NULL))
+    if (Mkdir("/cdrom"))
 	return FALSE;
 
     bzero(&args, sizeof(args));
