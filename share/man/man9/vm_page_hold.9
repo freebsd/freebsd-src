@@ -46,9 +46,20 @@ The
 .Fn vm_page_hold
 function increases the hold count on a page.
 This prevents the page daemon from freeing the page.
+.Pp
 .Fn vm_page_hold
-should only be used for very temporary wiring of a page.
-If the page needs to be held for a longer period
+should only be used for very temporary wiring of a page,
+as that page will not be considered for paging or
+reallocation for as long as its hold count is greater
+than zero.
+Also note that while wired pages are removed from whatever
+queue they are on,
+.Fn vm_page_hold
+does not affect the location of the page.
+If it is on a queue prior to the call, it will still
+be there afterward.
+.Pp
+If the page needs to be held for a long period of time,
 .Fn vm_page_write
 should be used.
 .Pp
@@ -60,5 +71,5 @@ page daemon.
 .Xr vm_page_wire 9
 .Xr wm_page_unwire 9
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Chad David Aq davidc@acns.ab.ca .

@@ -26,71 +26,73 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2001
-.Dt VM_PAGE_INSERT 9
+.Dd July 24, 2001
+.Dt VM_PAGE_FREE 9
 .Os
 .Sh NAME
-.Nm vm_page_insert ,
-.Nm vm_page_remove
-.Nd "add and remove pages from an object"
+.Nm vm_page_free
+.Nm vm_page_free_toq
+.Nm vm_page_free_zero
+.Nm vm_page_try_to_free
+.Nd "free a page"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
 .In vm/vm_page.h
 .Ft void
-.Fn vm_page_insert "vm_page_t m" "vm_object_t object" "vm_pindex_t pindex"
+.Fn vm_page_free "vm_page_t m"
 .Ft void
-.Fn vm_page_remove "vm_page_t m"
+.Fn vm_page_free_toq "vm_page_t m"
+.Ft void
+.Fn vm_page_free_zero "vm_page_t m"
+.Ft int
+.Fn vm_page_try_to_free "vm_page_t m"
 .Sh DESCRIPTION
 The
-.Fn vm_page_insert
-function adds a page to the given object at the given index.
-The page is added to both the VM page hash table and to the
-object's list of pages, but the hardware page tables are not updated.
-In the case of a user page, it will be faulted in when it is
-accessed.
-If the page is a kernel page the caller is expected to
-handle adding the page to the kernels pmap.
+.Fn vm_page_free_toq
+function moves a page into the free queue, and disassociates it from
+its object.
+If the page is held, wired, already free, or its busy count is not
+zero the system will panic.
+If the
+.Dv PG_ZERO
+flag is set on the page is it placed at the end of the free queue;
+otherwise, it is placed at the front.
 .Pp
-If
-.Dv PG_WRITEABLE
-is set in the page's flags
-.Dv OBJ_WRITEABLE
-and
-.Dv OBJ_MIGHTBEDIRTY
-are set in the object's flags.
+If the page's object is of type
+.Dv OBJT_VNODE
+and it is the last page associated with the object the underlying
+vnode may be freed.
 .Pp
 The
-.Fn vm_page_remove
-function removes the given page from it's object, and from the
-VM page hash table.
-The page must be busy prior to this call or the system will panic.
-The pmap entry for the page is not removed by this function.
+.Fn vm_page_free
+and
+.Fn vm_page_free_zero
+functions both call
+.Fn vm_page_free_toq
+to actually free page, but
+.Fn vm_page_free_zero 
+sets the
+.Dv PG_ZERO
+flag and
+.Fn vm_page_free
+clears the
+.Dv PG_ZERO
+flag prior to the call to
+.Fn vm_page_free_toq .
 .Pp
-The arguments to 
-.Fn vm_page_insert
-are:
-.Bl -tag -width ".Fa object
-.It m
-The page to add to the object.
-.It object
-The object the page should be added to.
-.It pindex
-The index into the object the page should be at.
-.El
-.Pp
-The arguments to
-.Fn vm_page_remove
-are:
-.Bl -tag -width ".Fa m"
-.It m
-The page to remove.
-.El
-.Sh IMPLEMENTATION NOTES
-The index of a page in a VM object is the byte index into the
-same object truncated to a page boundary.
-For example, if the page size is 4096 bytes, and the address
-in the object is 81944, the page index is 20.
+The
+.Fn vm_page_try_to_free
+function verifies that the page is not held, wired, busy or dirty, and
+if so marks the page as busy, drops any protection that may be set on
+the page, and frees it.
+.Sh RETURN VALUES
+.Fn vm_page_try_to_free
+returns 1 if it is able to free the page; otherwise, 0 is returned.
+.Sh SEE ALSO
+.Xr vm_page_busy 9 ,
+.Xr vm_page_hold 9 ,
+.Xr vm_page_wire 9
 .Sh AUTHORS
 This manual page was written by
 .An Chad David Aq davidc@acns.ab.ca .
