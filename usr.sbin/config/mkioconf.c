@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.42 1998/09/16 09:34:07 dfr Exp $";
+	"$Id: mkioconf.c,v 1.43 1998/10/16 15:00:18 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -608,7 +608,6 @@ hpbadslave(mp, dp)
 #endif
 
 #if MACHINE_I386
-char *shandler();
 char *sirq();
 
 void
@@ -715,7 +714,7 @@ isa_biotab(fp, table)
 	fprintf(fp, "\n");
 	fprintf(fp, "struct isa_device isa_biotab_%s[] = {\n", table);
 	fprintf(fp, "\
-/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags  drive alive ri_flags reconfig enabled conflicts next */\n");
+/* id     driver    iobase    irq drq      maddr   msiz intr unit   flags  drive alive ri_flags reconfig enabled conflicts next */\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (dp->d_unit == QUES || mp == 0 ||
@@ -723,9 +722,9 @@ isa_biotab(fp, table)
 			continue;
 		fprintf(fp, "{ -1, &%3sdriver, %8s,",
 			mp->d_name, mp->d_port);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s, %3d, 0x%04X, %5d,    0,       0,       0, %6d, %8d,   0 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d,   0, %3d, 0x%04X, %5d,    0,       0,       0, %6d, %8d,   0 },\n",
 			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
-			mp->d_msize, shandler(mp), dp->d_unit,
+			mp->d_msize, dp->d_unit,
 			dp->d_flags, dp->d_drive, !dp->d_disabled,
 			dp->d_conflicts);
 	}
@@ -749,7 +748,7 @@ isa_devtab(fp, table, dev_idp)
 	fprintf(fp, "\n");
 	fprintf(fp, "struct isa_device isa_devtab_%s[] = {\n", table);
 	fprintf(fp, "\
-/* id     driver    iobase    irq drq      maddr   msiz      intr unit   flags scsiid alive ri_flags reconfig enabled conflicts next */\n");
+/* id     driver    iobase    irq drq      maddr   msiz intr unit   flags scsiid alive ri_flags reconfig enabled conflicts next */\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_unit == QUES || !eq(dp->d_mask, table))
 			continue;
@@ -763,9 +762,9 @@ isa_devtab(fp, table, dev_idp)
 			fprintf(fp, "       %d,", dp->d_portn);
 		else
 			fprintf(fp, "   0x%04x,", dp->d_portn);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, %8s, %3d, 0x%04X,     0,    0,       0,       0, %6d, %8d,   0 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d,   0, %3d, 0x%04X,     0,    0,       0,       0, %6d, %8d,   0 },\n",
 			sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
-			dp->d_msize, shandler(dp), dp->d_unit,
+			dp->d_msize, dp->d_unit,
 			dp->d_flags, !dp->d_disabled, dp->d_conflicts);
 	}
 	fprintf(fp, "0\n};\n");
@@ -881,24 +880,6 @@ scbus_devtab(fp, dev_idp)
  * XXX - there should be a general function to print devtabs instead of these
  * little pieces of it.
  */
-
-char *
-shandler(dp)
-	register struct device *dp;
-{
-	static char buf[32 + 1];
-
-	if (dp->d_vec == NULL || dp->d_vec->id == NULL)
-		return "NULL";
-	/*
-	 * This is for ISA.  We only support one interrupt handler in the
-	 * devtabs.  Handlers in the config file after the first for each
-	 * device  are ignored.  Special handlers may be registered at
-	 * runtime.
-	 */
-	sprintf(buf, "%.32s", dp->d_vec->id);
-	return (buf);
-}
 
 char *
 sirq(num)
