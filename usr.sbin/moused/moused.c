@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.13 1997/12/23 08:04:38 yokota Exp $";
+	"$Id: moused.c,v 1.14 1998/01/20 03:38:36 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -210,10 +210,12 @@ static symtab_t pnpprod[] = {
     { "MSH0001",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
     /* MS IntelliMouse TrackBall */
     { "MSH0004",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
-    /* Genius EZScroll */
-    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
+    /* Genius PnP Mouse */
+    { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* Genius NetMouse */
     { "KYE0003",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_NET },
+    /* Genius EZScroll */
+    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
     /* Logitech MouseMan (new 4 button model) */
     { "LGI800C",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan+ */
