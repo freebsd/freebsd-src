@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fmt.c,v 1.3 1994/09/24 02:56:43 davidg Exp $
+ *	$Id: fmt.c,v 1.4 1994/11/10 23:25:12 ats Exp $
  */
 
 #ifndef lint
@@ -75,6 +75,9 @@ shquote(argv)
 			dst++;
 		*dst++ = ' ';
 	}
+	/* Chop off trailing space */
+	if (dst != buf)
+		dst--;
 	*dst = '\0';
 	return (buf);
 }
@@ -109,9 +112,9 @@ fmt_argv(argv, cmd, maxlen)
 	if ((cp = malloc(len)) == NULL)
 		return (NULL);
 	if (ap == NULL)
-		sprintf(cp, "(%.*s)", maxlen, cmd);
+		sprintf(cp, " (%.*s)", maxlen, cmd);
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
-		sprintf(cp, "%s(%.*s)", ap, maxlen, cmd);
+		sprintf(cp, "%s (%.*s)", ap, maxlen, cmd);
 	else
 		(void) strcpy(cp, ap);
 	return (cp);
