@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.21 1996/08/17 20:50:26 joerg Exp $
+ *	$Id: od.c,v 1.22 1996/09/06 23:09:11 phk Exp $
  */
 
 /*
@@ -309,18 +309,18 @@ od_open(dev, mode, fmt, p, sc_link)
 		dev, unit, PARTITION(dev)));
 
 	/*
-	 * Try to start the drive (ignore failure).
-	 */
-	scsi_start_unit(sc_link, SCSI_ERR_OK | SCSI_SILENT);
-	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
-
-	/*
-	 * Try to clear "Unit Attention" condition, when media had
-	 * been changed	before.
+	 * Try to start the drive, and try to clear "Unit Attention"
+	 * condition, when media had been changed before.
 	 * This operation also clears the SDEV_MEDIA_LOADED flag in its
 	 * error handling routine.
 	 */
-	scsi_test_unit_ready(sc_link, SCSI_SILENT);
+	scsi_start_unit(sc_link, SCSI_SILENT);
+	scsi_prevent(sc_link, PR_PREVENT, SCSI_ERR_OK | SCSI_SILENT);
+
+	/*
+	 * Make sure the drive is ready.
+	 */
+	scsi_test_unit_ready(sc_link, 0);
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("'start' attempted "));
 
@@ -361,9 +361,7 @@ od_open(dev, mode, fmt, p, sc_link)
 	switch (od->params.secsiz) {
 	case SECSIZE :
 	case 1024 :
-#ifdef notyet
 	case 2048 :
-#endif
 		break;
 	default :
 		printf("od%ld: Can't deal with %d bytes logical blocks\n",
@@ -962,5 +960,3 @@ static void 	od_drvinit(void *unused)
 }
 
 SYSINIT(oddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,od_drvinit,NULL)
-
-
