@@ -1167,7 +1167,7 @@ fdinit(td)
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK | M_ZERO);
-	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, MTX_DEF);
+	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	FILEDESC_LOCK(&newfdp->fd_fd);
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 	if (newfdp->fd_fd.fd_cdir)
@@ -1228,7 +1228,7 @@ fdcopy(td)
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
 	FILEDESC_UNLOCK(fdp);
 	bzero(&newfdp->fd_mtx, sizeof(newfdp->fd_mtx));
-	mtx_init(&newfdp->fd_mtx, FILEDESC_LOCK_DESC, MTX_DEF);
+	mtx_init(&newfdp->fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
 	if (newfdp->fd_cdir)
 		VREF(newfdp->fd_cdir);
 	if (newfdp->fd_rdir)

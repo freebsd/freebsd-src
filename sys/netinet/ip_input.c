@@ -253,7 +253,7 @@ ip_init()
 	ip_id = time_second & 0xffff;
 #endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
-	mtx_init(&ipintrq.ifq_mtx, "ip_inq", MTX_DEF);
+	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	ipintrq_present = 1;
 
 	register_netisr(NETISR_IP, ipintr);

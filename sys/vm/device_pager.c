@@ -92,7 +92,7 @@ dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
 	sx_init(&dev_pager_sx, "dev_pager create");
-	mtx_init(&dev_pager_mtx, "dev_pager list", MTX_DEF);
+	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
 	fakepg_zone = uma_zcreate("DP fakepg", sizeof(struct vm_page),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE); 
 }

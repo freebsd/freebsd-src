@@ -1183,7 +1183,8 @@ static int sk_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sk_softc));
 
-	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	SK_LOCK(sc);
 
 	/*

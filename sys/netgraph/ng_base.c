@@ -616,7 +616,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
-	mtx_init(&node->nd_input_queue.q_mtx, "ng_node", MTX_SPIN);
+	mtx_init(&node->nd_input_queue.q_mtx, "ng_node", NULL, MTX_SPIN);
 	node->nd_input_queue.queue = NULL;
 	node->nd_input_queue.last = &node->nd_input_queue.queue;
 	node->nd_input_queue.q_flags = 0;
@@ -2981,11 +2981,11 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Register line discipline */
-		mtx_init(&ng_worklist_mtx, "ng_worklist", MTX_SPIN);
-		mtx_init(&ng_typelist_mtx, "netgraph types mutex", 0);
-		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", 0);
-		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", 0);
-		mtx_init(&ngq_mtx, "netgraph netisr mutex", 0);
+		mtx_init(&ng_worklist_mtx, "ng_worklist", NULL, MTX_SPIN);
+		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL, 0);
+		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", NULL, 0);
+		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL, 0);
+		mtx_init(&ngq_mtx, "netgraph netisr mutex", NULL, 0);
 		s = splimp();
 		error = register_netisr(NETISR_NETGRAPH, ngintr);
 		splx(s);

@@ -265,7 +265,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
 
 			if(!mtx_initialized(&l2sc->i_queue.ifq_mtx))
-				mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", MTX_DEF);
+				mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", NULL, MTX_DEF);
 
 			l2sc->ua_frame = NULL;
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			

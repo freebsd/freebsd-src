@@ -513,7 +513,8 @@ sioprobe(dev, xrid, rclk, noprobe)
 
 	while (sio_inited != 2)
 		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
-			mtx_init(&sio_lock, sio_driver_name, (comconsole != -1) ?
+			mtx_init(&sio_lock, sio_driver_name, NULL,
+			    (comconsole != -1) ?
 			    MTX_SPIN | MTX_QUIET : MTX_SPIN);
 			atomic_store_rel_int(&sio_inited, 2);
 		}

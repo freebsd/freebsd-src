@@ -134,7 +134,7 @@ atm_initialize()
 	atm_init = 1;
 
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
-	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", MTX_DEF);
+	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
 	atmintrq_present = 1;
 
 #ifdef sgi

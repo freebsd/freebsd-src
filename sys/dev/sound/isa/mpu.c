@@ -358,7 +358,7 @@ mpu_attach(device_t dev)
 
 	MIDI_DEBUG(printf("mpu: attaching.\n"));
 
-	mtx_init(&scp->mtx, "mpumid", MTX_DEF);
+	mtx_init(&scp->mtx, "mpumid", NULL, MTX_DEF);
 
 	/* Allocate the resources, switch to uart mode. */
 	if (mpu_allocres(scp, dev) || mpu_uartmode(scp)) {

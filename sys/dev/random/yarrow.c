@@ -139,7 +139,7 @@ random_init(void)
 		random_state.counter[i] = 0;
 
 	/* Set up a lock for the reseed process */
-	mtx_init(&random_reseed_mtx, "random reseed", MTX_DEF);
+	mtx_init(&random_reseed_mtx, "random reseed", NULL, MTX_DEF);
 }
 
 void

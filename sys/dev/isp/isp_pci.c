@@ -683,7 +683,7 @@ isp_pci_attach(device_t dev)
             "debug", &isp_debug);
 
 	/* Make sure the lock is set up. */
-	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
+	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 	locksetup++;
 
 #ifdef	ISP_SMPLOCK

@@ -218,7 +218,8 @@ txp_attach(dev)
 	sc->sc_dev = dev;
 	sc->sc_cold = 1;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_DEF|MTX_RECURSE);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 
 	/*
 	 * Handle power management nonsense.

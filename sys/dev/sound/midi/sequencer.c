@@ -303,7 +303,7 @@ seq_init(void)
 {
 	SEQ_DEBUG(printf("seq: initing.\n"));
 
-	mtx_init(&seqinfo_mtx, "seqinf", MTX_DEF);
+	mtx_init(&seqinfo_mtx, "seqinf", NULL, MTX_DEF);
 	TAILQ_INIT(&seq_info);
 
 	seq_initunit(0);
@@ -2371,7 +2371,7 @@ create_seqdev_info_unit(int unit, seqdev_info *seq)
 	sdnew->unit = unit;
 	midibuf_init(&sdnew->midi_dbuf_in);
 	midibuf_init(&sdnew->midi_dbuf_out);
-	mtx_init(&sdnew->flagqueue_mtx, "seqflq", MTX_DEF);
+	mtx_init(&sdnew->flagqueue_mtx, "seqflq", NULL, MTX_DEF);
 	cv_init(&sdnew->insync_cv, "seqins");
 
 	mtx_lock(&seqinfo_mtx);

@@ -148,8 +148,8 @@ el_probe(device_t dev)
 
 	sc->el_btag = rman_get_bustag(sc->el_res);
 	sc->el_bhandle = rman_get_bushandle(sc->el_res);
-	mtx_init(&sc->el_mtx,
-	    device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->el_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	EL_LOCK(sc);
 
 	/* Now attempt to grab the station address from the PROM

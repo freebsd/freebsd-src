@@ -827,7 +827,7 @@ uihashinit()
 {
 
 	uihashtbl = hashinit(maxproc / 16, M_UIDINFO, &uihash);
-	mtx_init(&uihashtbl_mtx, "uidinfo hash", MTX_DEF);
+	mtx_init(&uihashtbl_mtx, "uidinfo hash", NULL, MTX_DEF);
 }
 
 /*

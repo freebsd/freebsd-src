@@ -58,7 +58,7 @@ static void
 dksort_init(void)
 {
 
-	mtx_init(&dksort_mtx, "dksort", MTX_DEF);
+	mtx_init(&dksort_mtx, "dksort", NULL, MTX_DEF);
 }
 SYSINIT(dksort, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dksort_init, NULL)
 

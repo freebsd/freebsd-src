@@ -127,7 +127,7 @@ i4battach(void *dummy)
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
 
 	if(!mtx_initialized(&i4b_rdqueue.ifq_mtx))
-		mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
+		mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", NULL, MTX_DEF);
 
 	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
 }

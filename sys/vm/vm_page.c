@@ -261,7 +261,8 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 		bucket++;
 	}
 	for (i = 0; i < BUCKET_HASH_SIZE; ++i)
-		mtx_init(&vm_buckets_mtx[i],  "vm buckets hash mutexes", MTX_DEF);
+		mtx_init(&vm_buckets_mtx[i],  "vm buckets hash mutexes", NULL,
+		    MTX_DEF);
 
 	/*
 	 * Compute the number of pages of memory that will be available for

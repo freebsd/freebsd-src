@@ -129,7 +129,7 @@ ichsmb_attach(device_t dev)
 	}
 
 	/* Create mutex */
-	mtx_init(&sc->mutex, device_get_nameunit(dev), MTX_DEF);
+	mtx_init(&sc->mutex, device_get_nameunit(dev), "ichsmb", MTX_DEF);
 	return (0);
 }
 

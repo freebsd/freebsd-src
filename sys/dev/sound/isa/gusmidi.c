@@ -194,7 +194,7 @@ gusmidi_init(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	mtx_init(&scp->mtx, "gusmid", MTX_DEF);
+	mtx_init(&scp->mtx, "gusmid", NULL, MTX_DEF);
 	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &gusmidi_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */

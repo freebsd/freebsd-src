@@ -377,8 +377,8 @@ an_attach(sc, unit, flags)
 {
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
-	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_DEF |
-	    MTX_RECURSE);
+	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	AN_LOCK(sc);
 
 	sc->an_gone = 0;

@@ -240,9 +240,9 @@ capi_ll_attach(capi_softc_t *sc)
 	sc->sc_bchan[i].rx_queue.ifq_maxlen = IFQ_MAXLEN;
 
 	if(!mtx_initialized(&sc->sc_bchan[i].tx_queue.ifq_mtx))
-		mtx_init(&sc->sc_bchan[i].tx_queue.ifq_mtx, "i4b_capi_tx", MTX_DEF);
+		mtx_init(&sc->sc_bchan[i].tx_queue.ifq_mtx, "i4b_capi_tx", NULL, MTX_DEF);
 	if(!mtx_initialized(&sc->sc_bchan[i].rx_queue.ifq_mtx))	
-		mtx_init(&sc->sc_bchan[i].rx_queue.ifq_mtx, "i4b_capi_rx", MTX_DEF);	
+		mtx_init(&sc->sc_bchan[i].rx_queue.ifq_mtx, "i4b_capi_rx", NULL, MTX_DEF);	
 
 	sc->sc_bchan[i].txcount = 0;
 	sc->sc_bchan[i].rxcount = 0;

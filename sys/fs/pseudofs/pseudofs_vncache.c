@@ -78,7 +78,8 @@ extern vop_t **pfs_vnodeop_p;
 void
 pfs_vncache_load(void)
 {
-	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", MTX_DEF|MTX_RECURSE);
+	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", NULL,
+	    MTX_DEF | MTX_RECURSE);
 	/* XXX at_exit() can fail with ENOMEN */
 	at_exit(pfs_exit);
 }

@@ -79,7 +79,7 @@ void m_dumpm(struct mbuf *m);
 #include <sys/mutex.h>
 
 #define	smb_slock			mtx
-#define	smb_sl_init(mtx, desc)		mtx_init(mtx, desc, MTX_DEF)
+#define	smb_sl_init(mtx, desc)		mtx_init(mtx, desc, NULL, MTX_DEF)
 #define	smb_sl_destroy(mtx)		mtx_destroy(mtx)
 #define	smb_sl_lock(mtx)		mtx_lock(mtx)
 #define	smb_sl_unlock(mtx)		mtx_unlock(mtx)
