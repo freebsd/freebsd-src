@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -135,9 +135,9 @@ ata_probe(device_t dev)
 		   (int)rman_get_start(ch->r_altio),
 		   (ch->r_bmio) ? (int)rman_get_start(ch->r_bmio) : 0);
 
-    ch->lock_func(ch, ATA_LF_LOCK);
+    ch->locking(ch, ATA_LF_LOCK);
     ata_reset(ch);
-    ch->lock_func(ch, ATA_LF_UNLOCK);
+    ch->locking(ch, ATA_LF_UNLOCK);
 
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
@@ -183,13 +183,16 @@ ata_attach(device_t dev)
 	return error;
     }
 
+    if (ch->dma)
+	ch->dma->create(ch);
+
     /*
      * do not attach devices if we are in early boot, this is done later 
      * when interrupts are enabled by a hook into the boot process.
      * otherwise attach what the probe has found in ch->devices.
      */
     if (!ata_delayed_attach) {
-	ch->lock_func(ch, ATA_LF_LOCK);
+	ch->locking(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_SLAVE;
@@ -217,7 +220,7 @@ ata_attach(device_t dev)
 #ifdef DEV_ATAPICAM
 	atapi_cam_attach_bus(ch);
 #endif
-	ch->lock_func(ch, ATA_LF_UNLOCK);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
     return 0;
 }
@@ -233,7 +236,7 @@ ata_detach(device_t dev)
 	return ENXIO;
 
     /* make sure channel is not busy */
-    ch->lock_func(ch, ATA_LF_LOCK);
+    ch->locking(ch, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
 
     s = splbio();
@@ -267,7 +270,8 @@ ata_detach(device_t dev)
     ch->device[MASTER].mode = ATA_PIO;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->devices = 0;
-    ata_dmafreetags(ch);
+    if (ch->dma)
+	ch->dma->destroy(ch);
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
@@ -280,7 +284,7 @@ ata_detach(device_t dev)
     ch->r_bmio = NULL;
     ch->r_irq = NULL;
     ATA_UNLOCK_CH(ch);
-    ch->lock_func(ch, ATA_LF_UNLOCK);
+    ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
 }
 
@@ -293,9 +297,9 @@ ata_resume(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    ch->lock_func(ch, ATA_LF_LOCK);
+    ch->locking(ch, ATA_LF_LOCK);
     error = ata_reinit(ch);
-    ch->lock_func(ch, ATA_LF_UNLOCK);
+    ch->locking(ch, ATA_LF_UNLOCK);
     return error;
 }
 
@@ -329,10 +333,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	case ATAREINIT:
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
-	    ch->lock_func(ch, ATA_LF_LOCK);
+	    ch->locking(ch, ATA_LF_LOCK);
 	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
 	    error = ata_reinit(ch);
-	    ch->lock_func(ch, ATA_LF_UNLOCK);
+	    ch->locking(ch, ATA_LF_UNLOCK);
 	    return error;
 
 	case ATAGMODE:
@@ -356,7 +360,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 
-	    ch->lock_func(ch, ATA_LF_LOCK);
+	    ch->locking(ch, ATA_LF_LOCK);
 	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
 		iocmd->u.mode.mode[MASTER] >= 0 && ch->device[MASTER].param) {
 		ata_change_mode(&ch->device[MASTER],iocmd->u.mode.mode[MASTER]);
@@ -372,7 +376,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    }
 	    else
 		iocmd->u.mode.mode[SLAVE] = -1;
-	    ch->lock_func(ch, ATA_LF_UNLOCK);
+	    ch->locking(ch, ATA_LF_UNLOCK);
 	    return 0;
 
 	case ATAGPARM:
@@ -446,8 +450,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	    if (iocmd->u.atapi.flags & ATAPI_CMD_WRITE) {
 		error = copyin(iocmd->u.atapi.data, buf, iocmd->u.atapi.count);
-		if (error)
+		if (error) {
+		    free(buf, M_ATA);
 		    return error;
+		}
 	    }
 	    error = atapi_queue_cmd(atadev, iocmd->u.atapi.ccb,
 				    buf, iocmd->u.atapi.count,
@@ -535,7 +541,7 @@ ata_boot_attach(void)
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
-	ch->lock_func(ch, ATA_LF_LOCK);
+	ch->locking(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_SLAVE;
@@ -548,26 +554,26 @@ ata_boot_attach(void)
 	if (ch->devices & ATA_ATAPI_MASTER)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
 		ch->devices &= ~ATA_ATAPI_MASTER;
-	ch->lock_func(ch, ATA_LF_UNLOCK);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
 #ifdef DEV_ATADISK
     /* now we know whats there, do the real attach, first the ATA disks */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
-	ch->lock_func(ch, ATA_LF_LOCK);
+	ch->locking(ch, ATA_LF_LOCK);
 	if (ch->devices & ATA_ATA_MASTER)
 	    ad_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
-	ch->lock_func(ch, ATA_LF_UNLOCK);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
 #endif
     /* then the atapi devices */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
-	ch->lock_func(ch, ATA_LF_LOCK);
+	ch->locking(ch, ATA_LF_LOCK);
 #if DEV_ATAPIALL
 	if (ch->devices & ATA_ATAPI_MASTER)
 	    atapi_attach(&ch->device[MASTER]);
@@ -577,7 +583,7 @@ ata_boot_attach(void)
 #ifdef DEV_ATAPICAM
 	atapi_cam_attach_bus(ch);
 #endif
-	ch->lock_func(ch, ATA_LF_UNLOCK);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
     if (ata_delayed_attach) {
 	config_intrhook_disestablish(ata_delayed_attach);
@@ -593,15 +599,8 @@ static void
 ata_intr(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
-    /* 
-     * on PCI systems we might share an interrupt line with another
-     * device or our twin ATA channel, so call ch->intr_func to figure 
-     * out if it is really an interrupt we should process here
-     */
-    if (!ch->intr_func(ch))
-	return;
 
-    /* if drive is busy it didn't interrupt */
+    /* if device is busy it didn't interrupt */
     if (ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_BUSY) {
 	DELAY(100);
 	if (!(ATA_INB(ch->r_altio, ATA_ALTSTAT) & ATA_S_DRQ))
@@ -651,7 +650,7 @@ ata_intr(void *data)
     }
     ch->running = NULL;
     ATA_UNLOCK_CH(ch);
-    ch->lock_func(ch, ATA_LF_UNLOCK);
+    ch->locking(ch, ATA_LF_UNLOCK);
     ata_start(ch);
     return;
 }
@@ -667,7 +666,7 @@ ata_start(struct ata_channel *ch)
 #endif
     int s;
 
-    ch->lock_func(ch, ATA_LF_LOCK);
+    ch->locking(ch, ATA_LF_LOCK);
     if (!ATA_LOCK_CH(ch, ATA_ACTIVE))
 	return;
 
@@ -710,7 +709,7 @@ ata_start(struct ata_channel *ch)
     }
 #endif
     ATA_UNLOCK_CH(ch);
-    ch->lock_func(ch, ATA_LF_UNLOCK);
+    ch->locking(ch, ATA_LF_UNLOCK);
     splx(s);
 }
 
@@ -725,14 +724,14 @@ ata_reset(struct ata_channel *ch)
     ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ostat0 = ATA_INB(ch->r_io, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
+    if ((ostat0 & 0xf8) == 0x50 && ostat0 != 0xa5) {
 	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
     }
     ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(10);	
     ostat1 = ATA_INB(ch->r_io, ATA_STATUS);
-    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
+    if ((ostat1 & 0xf8) == 0x50 && ostat1 != 0xa5) {
 	stat1 = ATA_S_BUSY;
 	mask |= 0x02;
     }
@@ -748,7 +747,7 @@ ata_reset(struct ata_channel *ch)
     }
 
     if (bootverbose)
-	ata_printf(ch, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
+	ata_printf(ch, -1, "pre reset mask=%02x ostat0=%02x ostat2=%02x\n",
 		   mask, ostat0, ostat1);
 
     /* reset channel */
@@ -811,7 +810,7 @@ ata_reset(struct ata_channel *ch)
     if (stat1 & ATA_S_BUSY)
 	mask &= ~0x02;
     if (bootverbose)
-	ata_printf(ch, -1, "mask=%02x stat0=%02x stat1=%02x\n", 
+	ata_printf(ch, -1, "after reset mask=%02x stat0=%02x stat1=%02x\n", 
 		   mask, stat0, stat1);
     if (!mask)
 	return;
@@ -901,31 +900,31 @@ ata_reinit(struct ata_channel *ch)
     }
     newdev = ~devices & ch->devices;
 #ifdef DEV_ATADISK
-    if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
-	ad_attach(&ch->device[MASTER]);
-    else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
-	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
-	ad_reinit(&ch->device[MASTER]);
-    }
     if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver)
 	ad_attach(&ch->device[SLAVE]);
     else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY);
 	ad_reinit(&ch->device[SLAVE]);
     }
+    if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
+	ad_attach(&ch->device[MASTER]);
+    else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
+	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
+	ad_reinit(&ch->device[MASTER]);
+    }
 #endif
 #if DEV_ATAPIALL
-    if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
-	atapi_attach(&ch->device[MASTER]);
-    else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
-	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
-	atapi_reinit(&ch->device[MASTER]);
-    }
     if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver)
 	atapi_attach(&ch->device[SLAVE]);
     else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver) {
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[SLAVE]);
+    }
+    if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
+	atapi_attach(&ch->device[MASTER]);
+    else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
+	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
+	atapi_reinit(&ch->device[MASTER]);
     }
 #endif
 #ifdef DEV_ATAPICAM
@@ -942,8 +941,10 @@ ata_service(struct ata_channel *ch)
 {
     /* do we have a SERVICE request from the drive ? */
     if ((ch->status & (ATA_S_SERVICE|ATA_S_ERROR|ATA_S_DRQ)) == ATA_S_SERVICE) {
+#if 0 /* XXX */
 	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
-		 ata_dmastatus(ch) | ATA_BMSTAT_INTERRUPT);
+		 ch->dma->status(ch) | ATA_BMSTAT_INTERRUPT);
+#endif
 #ifdef DEV_ATADISK
 	if ((ATA_INB(ch->r_io, ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
 	    if ((ch->devices & ATA_ATA_MASTER) && ch->device[MASTER].driver)
@@ -1250,7 +1251,7 @@ ata_enclosure_status(struct ata_device *atadev,
     u_int8_t id1, id2, cnt, div;
 
     if (atadev->flags & ATA_D_ENC_PRESENT) {
-	atadev->channel->lock_func(atadev->channel, ATA_LF_LOCK);
+	atadev->channel->locking(atadev->channel, ATA_LF_LOCK);
 	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
 	ata_enclosure_sensor(atadev, 1, 0x4e, 0);
 	id1 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
@@ -1271,7 +1272,7 @@ ata_enclosure_status(struct ata_device *atadev,
 	*v05 = ata_enclosure_sensor(atadev, 0, 0x23, 0) * 27;
 	*v12 = ata_enclosure_sensor(atadev, 0, 0x24, 0) * 61;
 	ATA_UNLOCK_CH(atadev->channel);
-	atadev->channel->lock_func(atadev->channel, ATA_LF_UNLOCK);
+	atadev->channel->locking(atadev->channel, ATA_LF_UNLOCK);
 	return 0;
     }
     return ENXIO;
@@ -1283,7 +1284,7 @@ ata_enclosure_print(struct ata_device *atadev)
     u_int8_t id, st;
     int fan, temp, v05, v12;
 
-    atadev->channel->lock_func(atadev->channel, ATA_LF_LOCK);
+    atadev->channel->locking(atadev->channel, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     ata_enclosure_start(atadev);
     id = ATA_INB(atadev->channel->r_io, ATA_DRIVE);
@@ -1292,7 +1293,7 @@ ata_enclosure_print(struct ata_device *atadev)
     DELAY(1);
     ata_enclosure_end(atadev);
     ATA_UNLOCK_CH(atadev->channel);
-    atadev->channel->lock_func(atadev->channel, ATA_LF_UNLOCK);
+    atadev->channel->locking(atadev->channel, ATA_LF_UNLOCK);
 
     switch (id & 0x93) {
     case 0x00:
@@ -1306,11 +1307,12 @@ ata_enclosure_print(struct ata_device *atadev)
 	ata_prtdev(atadev, "SuperSwap enclosure");
 	break;
     default:
-        atadev->flags &= ~ATA_D_ENC_PRESENT;
+	atadev->flags &= ~ATA_D_ENC_PRESENT;
 	return;
     }
     atadev->flags |= ATA_D_ENC_PRESENT;
 
+    ata_enclosure_leds(atadev, ATA_LED_GREEN);
     if (ata_enclosure_status(atadev, &fan, &temp, &v05, &v12))
 	printf(" detected\n");
     else
@@ -1337,31 +1339,8 @@ ata_enclosure_leds(struct ata_device *atadev, u_int8_t color)
 static void
 ata_change_mode(struct ata_device *atadev, int mode)
 {
-    int umode, wmode, pmode;
-
-    umode = ata_umode(atadev->param);
-    wmode = ata_wmode(atadev->param);
-    pmode = ata_pmode(atadev->param);
-    
-    switch (mode & ATA_DMA_MASK) {
-    case ATA_UDMA:
-	if ((mode & ATA_MODE_MASK) < umode)
-	    umode = mode & ATA_MODE_MASK;
-	break;
-    case ATA_WDMA:
-	if ((mode & ATA_MODE_MASK) < wmode)
-	    wmode = mode & ATA_MODE_MASK;
-	umode = -1;
-	break;
-    default:
-	if (((mode & ATA_MODE_MASK) - ATA_PIO0) < pmode)
-	    pmode = (mode & ATA_MODE_MASK) - ATA_PIO0;
-	umode = -1;
-	wmode = -1;
-    }
-
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
-    ata_dmainit(atadev, pmode, wmode, umode);
+    atadev->setmode(atadev, mode);
     ATA_UNLOCK_CH(atadev->channel);
     ata_start(atadev->channel);
 }
@@ -1452,8 +1431,13 @@ ata_mode2str(int mode)
     case ATA_PIO3: return "PIO3";
     case ATA_PIO4: return "PIO4";
     case ATA_DMA: return "BIOSDMA";
+    case ATA_WDMA0: return "WDMA0";
+    case ATA_WDMA1: return "WDMA1";
     case ATA_WDMA2: return "WDMA2";
+    case ATA_UDMA0: return "UDMA16";
+    case ATA_UDMA1: return "UDMA25";
     case ATA_UDMA2: return "UDMA33";
+    case ATA_UDMA3: return "UDMA40";
     case ATA_UDMA4: return "UDMA66";
     case ATA_UDMA5: return "UDMA100";
     case ATA_UDMA6: return "UDMA133";
@@ -1465,29 +1449,33 @@ int
 ata_pmode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_64_70) {
-	if (ap->apiomodes & 2)
-	    return 4;
-	if (ap->apiomodes & 1) 
-	    return 3;
+	if (ap->apiomodes & 0x02)
+	    return ATA_PIO4;
+	if (ap->apiomodes & 0x01) 
+	    return ATA_PIO3;
     }	
     if (ap->retired_piomode == 2)
-	return 2;
+	return ATA_PIO2;
     if (ap->retired_piomode == 1)
-	return 1;
+	return ATA_PIO1;
     if (ap->retired_piomode == 0)
-	return 0;
-    return -1; 
+	return ATA_PIO0;
+    if (ap->support_dma)
+	return ATA_PIO4;
+    return ATA_PIO0; 
 } 
 
 int
 ata_wmode(struct ata_params *ap)
 {
     if (ap->mwdmamodes & 0x04)
-	return 2;
+	return ATA_WDMA2;
     if (ap->mwdmamodes & 0x02)
-	return 1;
+	return ATA_WDMA1;
     if (ap->mwdmamodes & 0x01)
-	return 0;
+	return ATA_WDMA0;
+    if (ap->support_dma)
+	return ATA_WDMA2;
     return -1;
 }
 
@@ -1496,21 +1484,39 @@ ata_umode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_88) {
 	if (ap->udmamodes & 0x40)
-	    return 6;
+	    return ATA_UDMA6;
 	if (ap->udmamodes & 0x20)
-	    return 5;
+	    return ATA_UDMA5;
 	if (ap->udmamodes & 0x10)
-	    return 4;
+	    return ATA_UDMA4;
 	if (ap->udmamodes & 0x08)
-	    return 3;
+	    return ATA_UDMA3;
 	if (ap->udmamodes & 0x04)
-	    return 2;
+	    return ATA_UDMA2;
 	if (ap->udmamodes & 0x02)
-	    return 1;
+	    return ATA_UDMA1;
 	if (ap->udmamodes & 0x01)
-	    return 0;
+	    return ATA_UDMA0;
     }
     return -1;
+}
+
+int
+ata_limit_mode(struct ata_device *atadev, int mode, int maxmode)
+{
+    if (maxmode && mode > maxmode)
+	mode = maxmode;
+
+    if (mode >= ATA_UDMA0 && ata_umode(atadev->param) > 0)
+	return min(mode, ata_umode(atadev->param));
+
+    if (mode >= ATA_WDMA0 && ata_wmode(atadev->param) > 0)
+	return min(mode, ata_wmode(atadev->param));
+
+    if (mode > ata_pmode(atadev->param)) 
+	return min(mode, ata_pmode(atadev->param));
+
+    return mode;
 }
 
 static void
