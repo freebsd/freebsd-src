@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_log.c,v 2.5.2.17 2002/03/13 03:57:05 darrenr Exp $
+ * $Id: ip_log.c,v 2.5.2.18 2002/03/26 15:54:40 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -84,6 +84,7 @@
 # include <net/route.h>
 # include <netinet/in.h>
 # ifdef __sgi
+#  define _KMEMUSER
 #  include <sys/ddi.h>
 #  ifdef IFF_DRVRLOCK /* IRIX6 */
 #   include <sys/hashing.h>

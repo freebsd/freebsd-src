@@ -68,7 +68,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.32 2002/03/13 03:30:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.34 2002/03/22 10:27:16 darrenr Exp $";
 #endif
 
 

@@ -31,11 +31,10 @@
 #include <netinet/ip_var.h>
 #endif
 #include "ipsend.h"
-#include "ipf.h"
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.4 2002/02/22 15:32:57 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.5 2002/04/23 14:58:57 darrenr Exp $";
 #endif
 
 
