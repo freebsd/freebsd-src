@@ -674,12 +674,6 @@ udf_closedir(struct udf_dirstream *ds)
 	uma_zfree(udf_zone_ds, ds);
 }
 
-/* Prebuild the . and .. dirents.  d_fileno will need to be filled in */
-static struct dirent udf_de_dot =
-	{ 0, sizeof(struct dirent), DT_DIR, 1, "." };
-static struct dirent udf_de_dotdot =
-	{ 0, sizeof(struct dirent), DT_DIR, 2, ".." };
-
 static int
 udf_readdir(struct vop_readdir_args *a)
 {
@@ -692,12 +686,11 @@ udf_readdir(struct vop_readdir_args *a)
 	struct udf_dirstream *ds;
 	u_long *cookies = NULL;
 	int ncookies;
-	int error = 0, de_size;
+	int error = 0;
 
 	vp = a->a_vp;
 	uio = a->a_uio;
 	node = VTON(vp);
-	de_size = sizeof(struct dirent);
 	uiodir.eofflag = 1;
 
 	if (a->a_ncookies != NULL) {
@@ -743,17 +736,25 @@ udf_readdir(struct vop_readdir_args *a)
 			/* Do up the '.' and '..' entries.  Dummy values are
 			 * used for the cookies since the offset here is
 			 * usually zero, and NFS doesn't like that value
-			 * XXX Should the magic dirents be locked?
 			 */
-			udf_de_dot.d_fileno = node->hash_id;
-			uiodir.dirent = &udf_de_dot;
-			error = udf_uiodir(&uiodir, de_size, uio, 1); 
+			dir.d_fileno = node->hash_id;
+			dir.d_type = DT_DIR;
+			dir.d_name[0] = '.';
+			dir.d_namlen = 1;
+			dir.d_reclen = GENERIC_DIRSIZ(&dir);
+			uiodir.dirent = &dir;
+			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 1); 
 			if (error)
 				break;
 
-			udf_de_dotdot.d_fileno = udf_getid(&fid->icb);
-			uiodir.dirent = &udf_de_dotdot;
-			error = udf_uiodir(&uiodir, de_size, uio, 2);
+			dir.d_fileno = udf_getid(&fid->icb);
+			dir.d_type = DT_DIR;
+			dir.d_name[0] = '.';
+			dir.d_name[1] = '.';
+			dir.d_namlen = 2;
+			dir.d_reclen = GENERIC_DIRSIZ(&dir);
+			uiodir.dirent = &dir;
+			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 2);
 		} else {
 			dir.d_namlen = udf_transname(&fid->data[fid->l_iu],
 			    &dir.d_name[0], fid->l_fi);
