@@ -230,7 +230,7 @@ acd_init_lun(struct ata_device *atadev)
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO)))
 	return NULL;
     bioq_init(&cdp->queue);
-    mtx_init(&cdp->queue_mtx, "ATAPI CD bioqueue lock", MTX_DEF, 0);
+    mtx_init(&cdp->queue_mtx, "ATAPI CD bioqueue lock", NULL, MTX_DEF);
     cdp->device = atadev;
     cdp->lun = ata_get_lun(&acd_lun_map);
     cdp->block_size = 2048;
