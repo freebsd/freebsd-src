@@ -376,7 +376,7 @@ lpt_attach(device_t dev)
 	struct lpt_data *sc = DEVTOSOFTC(dev);
 	int zero = 0, unit = device_get_unit(dev);
 	int error;
-	uintptr_t irq;
+	intptr_t irq;
 
 	sc->sc_primed = 0;	/* not primed yet */
 
@@ -405,7 +405,7 @@ lpt_attach(device_t dev)
 		sc->sc_irq = 0;
 		device_printf(dev, "Polled port\n");
 	}
-	lprintf(("irq %x %x\n", irq, sc->sc_irq));
+	lprintf(("irq %x %x\n", (int)irq, sc->sc_irq));
 
 	lpt_release_ppbus(dev);
 
