@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.10 1997/02/22 09:36:13 peter Exp $
+ *	$Id: icu.h,v 1.11 1997/04/26 11:45:53 peter Exp $
  */
 
 /*
@@ -106,8 +106,10 @@ INTRDIS( unsigned s )
 #if 0
 #ifdef PC98
 #define	SET_ICUS()	(outb(IO_ICU1 + 2, imen), outb(IU_ICU2 + 2, imen >> 8))
+#define INTRGET()	((inb(IO_ICU2) << 8 | inb(IO_ICU1)) & 0xffff)
 #else	/* IBM-PC */
 #define	SET_ICUS()	(outb(IO_ICU1 + 1, imen), outb(IU_ICU2 + 1, imen >> 8))
+#define INTRGET()	((inb(IO_ICU2) << 8 | inb(IO_ICU1)) & 0xffff)
 #endif	/* PC98 */
 #else
 /*
@@ -116,8 +118,11 @@ INTRDIS( unsigned s )
  */
 #ifdef PC98
 #define	SET_ICUS()	(outb(0x02, imen), outb(0x0a, imen >> 8))
+/* XXX is this correct? */
+#define INTRGET()	((inb(0x0a) << 8 | inb(0x02)) & 0xffff)
 #else
 #define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
+#define INTRGET()	((inb(0xa1) << 8 | inb(0x21)) & 0xffff)
 #endif
 #endif
 
@@ -160,14 +165,8 @@ INTRDIS( unsigned s )
 
 #if defined(APIC_IO)
 
-#include <machine/apic.h>
-#if defined(IPI_INTS)
-/* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ23, 56-59: LOCAL APIC IPI */
-#define	ICU_LEN		28
-#else
 /* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ23 */
 #define	ICU_LEN		24
-#endif /* IPI_INTS */
 
 #else
 
