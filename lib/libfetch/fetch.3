@@ -444,7 +444,10 @@ Invalid URL
 The accompanying error message includes a protocol-specific error code
 and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
-.Bl -tag -width FTP_PASSIVE_MODE
+.Bl -tag -width ".Ev FETCH_BIND_ADDRESS"
+.It Ev FETCH_BIND_ADDRESS
+Specifies a hostname or IP address to which sockets used for outgoing
+connections will be bound.
 .It Ev FTP_LOGIN
 Default FTP login if none was provided in the URL.
 .It Ev FTP_PASSIVE_MODE
@@ -520,6 +523,14 @@ the document URL will be used as referrer URL.
 Specifies the User-Agent string to use for HTTP requests.
 This can be useful when working with HTTP origin or proxy servers that
 differentiate between user agents.
+.It Ev NETRC
+Specifies a file to use instead of
+.Pa ~/.netrc
+to look up login names and passwords for FTP sites.
+See
+.Xr ftp 1
+for a description of the file format.
+This feature is experimental.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,

@@ -77,6 +77,10 @@ fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 	int direct;
 
 	direct = CHECK_FLAG('d');
+	if (us != NULL) {
+		us->size = -1;
+		us->atime = us->mtime = 0;
+	}
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchXGetFile(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
@@ -131,6 +135,10 @@ fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 	int direct;
 
 	direct = CHECK_FLAG('d');
+	if (us != NULL) {
+		us->size = -1;
+		us->atime = us->mtime = 0;
+	}
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchStatFile(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)

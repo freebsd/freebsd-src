@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -226,6 +227,28 @@ _fetch_ref(conn_t *conn)
 
 
 /*
+ * Bind a socket to a specific local address
+ */
+int
+_fetch_bind(int sd, int af, const char *addr)
+{
+	struct addrinfo hints, *res, *res0;
+	int err;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = af;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	if ((err = getaddrinfo(addr, NULL, &hints, &res0)) != 0)
+		return (-1);
+	for (res = res0; res; res = res->ai_next)
+		if (bind(sd, res->ai_addr, res->ai_addrlen) == 0)
+			return (0);
+	return (-1);
+}
+
+
+/*
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
@@ -233,6 +256,7 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 {
 	conn_t *conn;
 	char pbuf[10];
+	const char *bindaddr;
 	struct addrinfo hints, *res, *res0;
 	int sd, err;
 
@@ -251,19 +275,25 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 		_netdb_seterr(err);
 		return (NULL);
 	}
+	bindaddr = getenv("FETCH_BIND_ADDRESS");
 
 	if (verbose)
 		_fetch_info("connecting to %s:%d", host, port);
 
 	/* try to connect */
-	for (sd = -1, res = res0; res; res = res->ai_next) {
+	for (sd = -1, res = res0; res; sd = -1, res = res->ai_next) {
 		if ((sd = socket(res->ai_family, res->ai_socktype,
 			 res->ai_protocol)) == -1)
 			continue;
-		if (connect(sd, res->ai_addr, res->ai_addrlen) != -1)
+		if (bindaddr != NULL && *bindaddr != '\0' &&
+		    _fetch_bind(sd, res->ai_family, bindaddr) != 0) {
+			_fetch_info("failed to bind to '%s'", bindaddr);
+			close(sd);
+			continue;
+		}
+		if (connect(sd, res->ai_addr, res->ai_addrlen) == 0)
 			break;
 		close(sd);
-		sd = -1;
 	}
 	freeaddrinfo(res0);
 	if (sd == -1) {
@@ -457,7 +487,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 {
 	struct iovec iov;
 
-	iov.iov_base = buf;
+	iov.iov_base = (char *)buf;
 	iov.iov_len = len;
 	return _fetch_writev(conn, &iov, 1);
 }
@@ -531,7 +561,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		}
 		if (iovcnt > 0) {
 			iov->iov_len -= wlen;
-			iov->iov_base = iov->iov_base + wlen;
+			iov->iov_base = (char *)iov->iov_base + wlen;
 		}
 	}
 	return (total);
@@ -548,9 +578,9 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
 	int ret;
 
 	DEBUG(fprintf(stderr, ">>> %s\n", str));
-	iov[0].iov_base = str;
+	iov[0].iov_base = (char *)str;
 	iov[0].iov_len = len;
-	iov[1].iov_base = ENDL;
+	iov[1].iov_base = (char *)ENDL;
 	iov[1].iov_len = sizeof(ENDL);
 	if (len == 0)
 		ret = _fetch_writev(conn, &iov[1], 1);
@@ -610,4 +640,94 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 	(++tmp)->name[0] = 0;
 
 	return (0);
+}
+
+
+/*** Authentication-related utility functions ********************************/
+
+static const char *
+_fetch_read_word(FILE *f)
+{
+	static char word[1024];
+
+	if (fscanf(f, " %1024s ", word) != 1)
+		return (NULL);
+	return (word);
+}
+
+/*
+ * Get authentication data for a URL from .netrc
+ */
+int
+_fetch_netrc_auth(struct url *url)
+{
+	char fn[PATH_MAX];
+	const char *word;
+	char *p;
+	FILE *f;
+
+	if ((p = getenv("NETRC")) != NULL) {
+		if (snprintf(fn, sizeof(fn), "%s", p) >= (int)sizeof(fn)) {
+			_fetch_info("$NETRC specifies a file name "
+			    "longer than PATH_MAX");
+			return (-1);
+		}
+	} else {
+		if ((p = getenv("HOME")) != NULL) {
+			struct passwd *pwd;
+
+			if ((pwd = getpwuid(getuid())) == NULL ||
+			    (p = pwd->pw_dir) == NULL)
+				return (-1);
+		}
+		if (snprintf(fn, sizeof(fn), "%s/.netrc", p) >= (int)sizeof(fn))
+			return (-1);
+	}
+
+	if ((f = fopen(fn, "r")) == NULL)
+		return (-1);
+	while ((word = _fetch_read_word(f)) != NULL) {
+		if (strcmp(word, "default") == 0) {
+			DEBUG(_fetch_info("Using default .netrc settings"));
+			break;
+		}
+		if (strcmp(word, "machine") == 0 &&
+		    (word = _fetch_read_word(f)) != NULL &&
+		    strcasecmp(word, url->host) == 0) {
+			DEBUG(_fetch_info("Using .netrc settings for %s", word));
+			break;
+		}
+	}
+	if (word == NULL)
+		goto ferr;
+	while ((word = _fetch_read_word(f)) != NULL) {
+		if (strcmp(word, "login") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			if (snprintf(url->user, sizeof(url->user),
+				"%s", word) > (int)sizeof(url->user)) {
+				_fetch_info("login name in .netrc is too long");
+				url->user[0] = '\0';
+			}
+		} else if (strcmp(word, "password") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			if (snprintf(url->pwd, sizeof(url->pwd),
+				"%s", word) > (int)sizeof(url->pwd)) {
+				_fetch_info("password in .netrc is too long");
+				url->pwd[0] = '\0';
+			}
+		} else if (strcmp(word, "account") == 0) {
+			if ((word = _fetch_read_word(f)) == NULL)
+				goto ferr;
+			/* XXX not supported! */
+		} else {
+			break;
+		}
+	}
+	fclose(f);
+	return (0);
+ ferr:
+	fclose(f);
+	return (-1);
 }

@@ -730,10 +730,12 @@ _ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 	/* XXX FTP_AUTH, and maybe .netrc */
 
 	/* send user name and password */
+	if (url->user[0] == '\0')
+		_fetch_netrc_auth(url);
 	user = url->user;
-	if (!user || !*user)
+	if (*user == '\0')
 		user = getenv("FTP_LOGIN");
-	if (!user || !*user)
+	if (user == NULL || *user == '\0')
 		user = FTP_ANONYMOUS_USER;
 	if (purl && url->port == _fetch_default_port(url->scheme))
 		e = _ftp_cmd(conn, "USER %s@%s", user, url->host);
@@ -745,9 +747,9 @@ _ftp_authenticate(conn_t *conn, struct url *url, struct url *purl)
 	/* did the server request a password? */
 	if (e == FTP_NEED_PASSWORD) {
 		pwd = url->pwd;
-		if (!pwd || !*pwd)
+		if (*pwd == '\0')
 			pwd = getenv("FTP_PASSWORD");
-		if (!pwd || !*pwd) {
+		if (pwd == NULL || *pwd == '\0') {
 			if ((logname = getlogin()) == 0)
 				logname = FTP_ANONYMOUS_USER;
 			if ((len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname)) < 0)
@@ -887,11 +889,13 @@ _ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
  * Check the proxy settings
  */
 static struct url *
-_ftp_get_proxy(void)
+_ftp_get_proxy(const char *flags)
 {
 	struct url *purl;
 	char *p;
 
+	if (flags != NULL && strchr(flags, 'd') != NULL)
+		return (NULL);
 	if (((p = getenv("FTP_PROXY")) || (p = getenv("ftp_proxy")) ||
 		(p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
 	    *p && (purl = fetchParseURL(p)) != NULL) {
@@ -968,7 +972,7 @@ _ftp_request(struct url *url, const char *op, struct url_stat *us,
 FILE *
 fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
 {
-	return (_ftp_request(url, "RETR", us, _ftp_get_proxy(), flags));
+	return (_ftp_request(url, "RETR", us, _ftp_get_proxy(flags), flags));
 }
 
 /*
@@ -987,8 +991,8 @@ FILE *
 fetchPutFTP(struct url *url, const char *flags)
 {
 
-	return _ftp_request(url, CHECK_FLAG('a') ? "APPE" : "STOR", NULL,
-	    _ftp_get_proxy(), flags);
+	return (_ftp_request(url, CHECK_FLAG('a') ? "APPE" : "STOR", NULL,
+	    _ftp_get_proxy(flags), flags));
 }
 
 /*
@@ -997,9 +1001,12 @@ fetchPutFTP(struct url *url, const char *flags)
 int
 fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 {
+	FILE *f;
 
-	if (_ftp_request(url, "STAT", us, _ftp_get_proxy(), flags) == NULL)
+	f = _ftp_request(url, "STAT", us, _ftp_get_proxy(flags), flags);
+	if (f == NULL)
 		return (-1);
+	fclose(f);
 	return (0);
 }
 

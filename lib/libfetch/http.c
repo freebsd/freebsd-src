@@ -696,11 +696,13 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 }
 
 static struct url *
-_http_get_proxy(void)
+_http_get_proxy(const char *flags)
 {
 	struct url *purl;
 	char *p;
 
+	if (flags != NULL && strchr(flags, 'd') != NULL)
+		return (NULL);
 	if (((p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
 	    (purl = fetchParseURL(p))) {
 		if (!*purl->scheme)
@@ -887,7 +889,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_http_cmd(conn, "User-Agent: %s", p);
 		else
 			_http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
-		if (url->offset)
+		if (url->offset > 0)
 			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		_http_cmd(conn, "Connection: close");
 		_http_cmd(conn, "");
@@ -1059,7 +1061,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* too far? */
-	if (offset > URL->offset) {
+	if (URL->offset > 0 && offset > URL->offset) {
 		_http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
@@ -1108,7 +1110,7 @@ ouch:
 FILE *
 fetchXGetHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
-	return (_http_request(URL, "GET", us, _http_get_proxy(), flags));
+	return (_http_request(URL, "GET", us, _http_get_proxy(flags), flags));
 }
 
 /*
@@ -1138,7 +1140,8 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
 	FILE *f;
 
-	if ((f = _http_request(URL, "HEAD", us, _http_get_proxy(), flags)) == NULL)
+	f = _http_request(URL, "HEAD", us, _http_get_proxy(flags), flags);
+	if (f == NULL)
 		return (-1);
 	fclose(f);
 	return (0);

@@ -76,6 +76,7 @@ void		 _fetch_syserr(void);
 void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
+int		 _fetch_bind(int, int, const char *);
 conn_t		*_fetch_connect(const char *, int, int, int);
 conn_t		*_fetch_reopen(int);
 conn_t		*_fetch_ref(conn_t *);
@@ -88,6 +89,7 @@ int		 _fetch_putln(conn_t *, const char *, size_t);
 int		 _fetch_close(conn_t *);
 int		 _fetch_add_entry(struct url_ent **, int *, int *,
 		     const char *, struct url_stat *);
+int		 _fetch_netrc_auth(struct url *url);
 
 #define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
 #define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
