@@ -139,6 +139,30 @@
 #define DEFAULTOPT	FS_OPTTIME
 
 /*
+ * The maximum number of snapshot nodes that can be associated
+ * with each filesystem. This limit affects only the number of
+ * snapshot files that can be recorded within the superblock so
+ * that they can be found when the filesystem is mounted. However,
+ * maintaining too many will slow the filesystem performance, so
+ * having this limit is a good idea.
+ */
+#define FSMAXSNAP 20
+
+/*
+ * Used to identify special blocks in snapshots:
+ *
+ * BLK_NOCOPY - A block that was unallocated at the time the snapshot
+ *	was taken, hence does not need to be copied when written.
+ * BLK_SNAP - A block held by another snapshot that is not needed by this
+ *	snapshot. When the other snapshot is freed, the BLK_SNAP entries
+ *	are converted to BLK_NOCOPY. These are needed to allow fsck to
+ *	identify blocks that are in use by other snapshots (which are
+ *	expunged from this snapshot).
+ */
+#define BLK_NOCOPY ((ufs_daddr_t)(1))
+#define BLK_SNAP ((ufs_daddr_t)(2))
+
+/*
  * Per cylinder group information; summarized in blocks allocated
  * from first cylinder group data blocks.  These blocks have to be
  * read in from fs_csaddr (size fs_cssize) in addition to the
@@ -230,7 +254,8 @@ struct fs {
 	int32_t	 *fs_maxcluster;	/* max cluster in each cyl group */
 	int32_t	 fs_cpc;		/* cyl per cycle in postbl */
 	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
-	int32_t	 fs_sparecon[50];	/* reserved for future constants */
+	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
+	int32_t	 fs_sparecon[30];	/* reserved for future constants */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
 	int32_t	 fs_inodefmt;		/* format of on-disk inodes */
