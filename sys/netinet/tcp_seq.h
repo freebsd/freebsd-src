@@ -77,7 +77,4 @@
 #define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * hz)
 					/* timestamp wrap-around time */
 
-#ifdef _KERNEL
-extern tcp_cc	tcp_ccgen;		/* global connection count */
-#endif /* _KERNEL */
 #endif /* _NETINET_TCP_SEQ_H_ */

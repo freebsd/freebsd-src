@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2004
+.Dd November 2, 2004
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -233,16 +233,11 @@ protocol implements a number of variables in the
 branch of the
 .Xr sysctl 3
 MIB.
-.Bl -tag -width ".Va TCPCTL_DO_RFC1644"
+.Bl -tag -width ".Va TCPCTL_DO_RFC1323"
 .It Dv TCPCTL_DO_RFC1323
 .Pq Va rfc1323
 Implement the window scaling and timestamp options of RFC 1323
 (default is true).
-.It Dv TCPCTL_DO_RFC1644
-.Pq Va rfc1644
-Implement Transaction
-.Tn TCP ,
-as described in RFC 1644.
 .It Dv TCPCTL_MSSDFLT
 .Pq Va mssdflt
 The default value used for the maximum segment size
@@ -517,7 +512,6 @@ address.
 .Xr intro 4 ,
 .Xr ip 4 ,
 .Xr syncache 4 ,
-.Xr ttcp 4 ,
 .Xr setkey 8
 .Rs
 .%A "V. Jacobson"
@@ -525,11 +519,6 @@ address.
 .%A "D. Borman"
 .%T "TCP Extensions for High Performance"
 .%O "RFC 1323"
-.Re
-.Rs
-.%A "R. Braden"
-.%T "T/TCP - TCP Extensions for Transactions"
-.%O "RFC 1644"
 .Re
 .Rs
 .%A "A. Heffernan"
