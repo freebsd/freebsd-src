@@ -291,7 +291,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 		       "Aladdin: two atapi devices on this channel, no DMA\n");
 	    break;
 	}
-	if (udmamode >= 2 && pci_read_config(parent, 0x08, 1) > 0x20) {
+	if (udmamode >= 2 && pci_get_revid(parent) > 0x20) {
 	    int32_t word54 = pci_read_config(parent, 0x54, 4);
 	
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -413,7 +413,7 @@ via_82c586:
 	break;
 
     case 0x55131039:	/* SiS 5591 */
-	if (udmamode >= 2) {
+	if (udmamode >= 2 && pci_get_revid(parent) > 0xc1) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -710,7 +710,7 @@ via_82c586:
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA5 on HPT370 chip\n",
+			   "%s setting UDMA5 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA5);
@@ -718,14 +718,13 @@ via_82c586:
 		return;
 	    }
 	}
-
 	if (udmamode >=4 && 
 	    !(pci_read_config(parent, 0x5a, 1) & (scp->unit ? 0x01 : 0x02))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA4 on HPT366 chip\n",
+			   "%s setting UDMA4 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA4);
@@ -738,7 +737,7 @@ via_82c586:
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting UDMA2 on HPT366 chip\n",
+			   "%s setting UDMA2 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA2);
@@ -751,7 +750,7 @@ via_82c586:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting WDMA2 on HPT366 chip\n",
+			   "%s setting WDMA2 on HighPoint chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_WDMA2);
@@ -763,7 +762,7 @@ via_82c586:
 			    ata_pio2mode(apiomode), 
 			    ATA_C_F_SETXFER, ATA_WAIT_READY);
 	if (bootverbose)
-	    ata_printf(scp, device, "%s setting PIO%d on HPT366 chip\n",
+	    ata_printf(scp, device, "%s setting PIO%d on HighPoint chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
 	hpt_timing(scp, devno, ata_pio2mode(apiomode));
