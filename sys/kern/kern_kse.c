@@ -731,6 +731,17 @@ thread_suspend_check(int return_instead)
 		 * (lent kse's can not go back to userland?)
 		 * and can only be lent in STOPPED state.
 		 */
+		mtx_lock_spin(&sched_lock);
+		if ((p->p_flag & P_STOPPED_SGNL) &&
+		    (p->p_suspcount+1 == p->p_numthreads)) {
+			mtx_unlock_spin(&sched_lock);
+			PROC_LOCK(p->p_pptr);
+			if ((p->p_pptr->p_procsig->ps_flag &
+				PS_NOCLDSTOP) == 0) {
+				psignal(p->p_pptr, SIGCHLD);
+			}
+			PROC_UNLOCK(p->p_pptr);
+		}
 		mtx_assert(&Giant, MA_NOTOWNED);
 		mtx_lock_spin(&sched_lock);
 		p->p_suspcount++;
