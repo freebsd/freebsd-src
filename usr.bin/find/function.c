@@ -341,7 +341,7 @@ f_fstype(plan, entry)
 	static dev_t curdev;	/* need a guaranteed illegal dev value */
 	static int first = 1;
 	struct statfs sb;
-	static short val;
+	static int val_type, val_flags;
 	char *p, save[2];
 
 	/* Only check when we cross mount point. */
@@ -380,14 +380,14 @@ f_fstype(plan, entry)
 		 * Further tests may need both of these values, so
 		 * always copy both of them.
 		 */
-		val = sb.f_flags;
-		val = sb.f_type;
+		val_flags = sb.f_flags;
+		val_type = sb.f_type;
 	}
 	switch (plan->flags) {
 	case F_MTFLAG:
-		return (val & plan->mt_data);
+		return (val_flags & plan->mt_data) != 0;
 	case F_MTTYPE:
-		return (val == plan->mt_data);
+		return (val_type == plan->mt_data);
 	default:
 		abort();
 	}
