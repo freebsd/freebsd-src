@@ -38,7 +38,8 @@
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
-/* Some configuration maxima.  They're an enum because
+/*
+ * Some configuration maxima.  They're an enum because
  * we can't define global constants.  Sorry about that.
  *
  * These aren't as bad as they look: most of them are soft limits.
@@ -73,8 +74,10 @@ enum constants {
     VINUM_PLEX_WIDTH = 3,
     VINUM_SD_WIDTH = 8,
 
-    /* Shifts for the second half of raw plex and
-     * subdisk numbers */
+/*
+   * Shifts for the second half of raw plex and
+   * subdisk numbers 
+ */
     VINUM_RAWPLEX_SHIFT = 8,				    /* shift the second half this much */
     VINUM_RAWPLEX_WIDTH = 12,				    /* width of second half */
 
@@ -118,7 +121,8 @@ enum constants {
 
     VINUM_SUPERDEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
 
-/* the number of object entries to cater for initially, and also the
+/*
+ * the number of object entries to cater for initially, and also the
  * value by which they are incremented.  It doesn't take long
  * to extend them, so theoretically we could start with 1 of each, but
  * it's untidy to allocate such small areas.  These values are
@@ -157,22 +161,25 @@ enum constants {
  */
 
 struct devcode {
-/* CARE.  These fields assume a big-endian word.  On a
- * little-endian system, they're the wrong way around */
+/*
+ * CARE.  These fields assume a big-endian word.  On a
+ * little-endian system, they're the wrong way around 
+ */
     unsigned volume:8;					    /* up to 256 volumes */
     unsigned major:8;					    /* this is where the major number fits */
     unsigned plex:3;					    /* up to 8 plexes per volume */
     unsigned unused:1;					    /* up for grabs */
     unsigned sd:8;					    /* up to 256 subdisks per plex */
     unsigned type:3;					    /* type of object */
-    /* type field
-       VINUM_VOLUME = 0,
-       VINUM_PLEX = 1,
-       VINUM_SUBDISK = 2,
-       VINUM_DRIVE = 3,
-       VINUM_SUPERDEV = 4,
-       VINUM_RAWPLEX = 5,                                     
-       VINUM_RAWSD = 6 */
+    /*
+     * type field
+     VINUM_VOLUME = 0,
+     VINUM_PLEX = 1,
+     VINUM_SUBDISK = 2,
+     VINUM_DRIVE = 3,
+     VINUM_SUPERDEV = 4,
+     VINUM_RAWPLEX = 5,                                       
+     VINUM_RAWSD = 6 */
     unsigned signbit:1;					    /* to make 32 bits */
 };
 
@@ -180,9 +187,11 @@ struct devcode {
 #define VINUM_RDIR   "/dev/rvinum"
 #define VINUM_SUPERDEV_NAME VINUM_DIR"/control"
 
-/* Flags for all objects.  Most of them only apply to
+/*
+ * Flags for all objects.  Most of them only apply to
  * specific objects, but we have space for all in any
- * 32 bit flags word. */
+ * 32 bit flags word. 
+ */
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
     VF_LOCKING = 2,					    /* we want access to this object */
@@ -240,8 +249,9 @@ struct _vinum_conf {
 #define VOL vinum_conf.volume
 #define VFLAGS vinum_conf.flags
 
-/* Slice header
-
+/*
+ * Slice header
+ *
  * Vinum drives start with this structure:
  *
  *\                                            Sector
@@ -271,10 +281,12 @@ enum {
     DATASTART = (MAXCONFIG * 2 + VINUM_CONFIG_OFFSET) / DEV_BSIZE /* this is where the data starts */
 };
 
-/* hostname is 256 bytes long, but we don't need to shlep
+/*
+ * hostname is 256 bytes long, but we don't need to shlep
  * multiple copies in vinum.  We use the host name just
  * to identify this system, and 32 bytes should be ample
- * for that purpose */
+ * for that purpose 
+ */
 
 struct vinum_label {
     char sysname[VINUMHOSTNAMELEN];			    /* system name at time of creation */
@@ -307,9 +319,11 @@ enum drive_label_info {
 };
 
 /*** Drive definitions ***/
-/* A drive corresponds to a disk slice.  We use a different term to show
+/*
+ * A drive corresponds to a disk slice.  We use a different term to show
  * the difference in usage: it doesn't have to be a slice, and could
- * theroretically be a complete, unpartitioned disk */
+ * theroretically be a complete, unpartitioned disk 
+ */
 
 struct drive {
     enum drivestate state;				    /* current state */
@@ -349,10 +363,12 @@ struct sd {
     int lasterror;					    /* last error occurred */
     /* offsets in blocks */
     int64_t driveoffset;				    /* offset on drive */
-    /* plexoffset is the offset from the beginning of the
+    /*
+     * plexoffset is the offset from the beginning of the
      * plex to the very first part of the subdisk, in
      * sectors.  For striped and RAID-5 plexes, only
-     * the first stripe is located at this offset */
+     * the first stripe is located at this offset 
+     */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
     int plexno;						    /* index of plex, if it belongs */
@@ -442,9 +458,11 @@ struct volume {
     struct disklabel label;				    /* for DIOCGPART */
 };
 
-/* Table expansion.  Expand table, which contains oldcount
+/*
+ * Table expansion.  Expand table, which contains oldcount
  * entries of type element, by increment entries, and change
- * oldcount accordingly */
+ * oldcount accordingly 
+ */
 #define EXPAND(table, element, oldcount, increment)         \
 {							    \
   expand_table ((void **) &table,			    \
@@ -472,14 +490,16 @@ struct mc {
     char file[16];
 };
 
-/* These enums are used by the state transition
+/*
+ * These enums are used by the state transition
  * routines.  They're in bit map format:
  *
  * Bit 0: Other plexes in the volume are down
  * Bit 1: Other plexes in the volume are up
  * Bit 2: The current plex is up
  * Maybe they should be local to
- * state.c */
+ * state.c 
+ */
 enum volplexstate {
     volplex_onlyusdown = 0,				    /* we're the only plex, and we're down */
     volplex_alldown,					    /* 1: another plex is down, and so are we */
@@ -504,10 +524,12 @@ enum sdstates {
     sd_otherstate = 256					    /* found an SD in some other state */
 };
 
-/* This is really just a parameter to pass to
+/*
+ * This is really just a parameter to pass to
  * set_<foo>_state, but since it needs to be known
  * in the external definitions, we need to define
- * it here */
+ * it here 
+ */
 enum setstateflags {
     setstate_none = 0,					    /* no flags */
     setstate_force = 1,					    /* force the state change */

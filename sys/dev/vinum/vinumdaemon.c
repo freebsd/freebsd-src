@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.1 1999/01/21 00:31:31 grog Exp $
+ * $Id: vinumdaemon.c,v 1.3 1999/01/18 04:32:50 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -71,8 +71,10 @@ vinum_daemon(void)
 	    splx(s);
 
 	    switch (request->type) {
-		/* We had an I/O error on a request.  Go through the
-		 * request and try to salvage it */
+		/*
+		 * We had an I/O error on a request.  Go through the
+		 * request and try to salvage it 
+		 */
 	    case daemonrq_ioerror:
 		if (daemon_options & daemon_verbose) {
 		    struct request *rq = request->info.rq;
@@ -87,9 +89,11 @@ vinum_daemon(void)
 		recover_io(request->info.rq);		    /* the failed request */
 		break;
 
-		/* Write the config to disk.  We could end up with
+		/*
+		 * Write the config to disk.  We could end up with
 		 * quite a few of these in a row.  Only honour the
-		 * last one */
+		 * last one 
+		 */
 	    case daemonrq_saveconfig:
 		if ((daemonq == NULL)			    /* no more requests */
 		||(daemonq->type != daemonrq_saveconfig)) { /* or the next isn't the same */
@@ -128,8 +132,9 @@ vinum_daemon(void)
     }
 }
 
-/* Recover a failed I/O operation.
-
+/*
+ * Recover a failed I/O operation.
+ *
  * The correct way to do this is to examine the request and determine
  * how to recover each individual failure.  In the case of a write,
  * this could be as simple as doing nothing: the defective drives may
@@ -172,8 +177,10 @@ queue_daemon_request(enum daemonrq type, union daemoninfo info)
     wakeup(&vinum_daemon);				    /* and give the dæmon a kick */
 }
 
-/* see if the daemon is running.  Return 0 (no error)
- * if it is, ESRCH otherwise */
+/*
+ * see if the daemon is running.  Return 0 (no error)
+ * if it is, ESRCH otherwise 
+ */
 
 int 
 vinum_finddaemon()

@@ -122,8 +122,10 @@ sd_state(enum sdstate state)
 }
 
 /* Now convert in the other direction */
-/* These are currently used only internally,
- * so we don't do too much error checking */
+/*
+ * These are currently used only internally,
+ * so we don't do too much error checking 
+ */
 enum drivestate 
 DriveState(char *text)
 {
@@ -164,7 +166,8 @@ VolState(char *text)
     return -1;
 }
 
-/* Take a number with an optional scale factor and convert
+/*
+ * Take a number with an optional scale factor and convert
  * it to a number of bytes.
  *
  * The scale factors are:
@@ -216,8 +219,10 @@ sizespec(char *spec)
     return -1;
 }
 
-/* Extract the volume number from a device number.
- * Perform no checking. */
+/*
+ * Extract the volume number from a device number.
+ * Perform no checking. 
+ */
 int 
 Volno(dev_t dev)
 {
@@ -225,9 +230,11 @@ Volno(dev_t dev)
     return (x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
 }
 
-/* Extract a plex number from a device number.
+/*
+ * Extract a plex number from a device number.
  * Don't check the major number, but check the
- * type.  Return -1 for invalid types. */
+ * type.  Return -1 for invalid types. 
+ */
 int 
 Plexno(dev_t dev)
 {
@@ -253,9 +260,11 @@ Plexno(dev_t dev)
     return 0;						    /* compiler paranoia */
 }
 
-/* Extract a subdisk number from a device number.
+/*
+ * Extract a subdisk number from a device number.
  * Don't check the major number, but check the
- * type.  Return -1 for invalid types. */
+ * type.  Return -1 for invalid types. 
+ */
 int 
 Sdno(dev_t dev)
 {
@@ -274,7 +283,8 @@ Sdno(dev_t dev)
 
     case VINUM_RAWSD_TYPE:
 	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((x >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH) << (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH))); /* upper 12 bits */
+	|((x >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
+		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
     }
     return -1;						    /* compiler paranoia */
 }
