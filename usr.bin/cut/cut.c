@@ -80,7 +80,7 @@ main(argc, argv)
 
 	/* Since we don't support multi-byte characters, the -c and -b 
 	   options are equivalent, and the -n option is meaningless. */
-	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != EOF)
+	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
 		switch(ch) {
 		case 'b':
 		case 'c':
@@ -147,7 +147,7 @@ get_list(list)
 	 * overlapping lists.  We also handle "-3-5" although there's no
 	 * real reason too.
 	 */
-	for (; (p = strtok(list, ", \t")); list = NULL) {
+	for (; (p = strsep(&list, ", \t"));) {
 		setautostart = start = stop = 0;
 		if (*p == '-') {
 			++p;
@@ -231,7 +231,7 @@ f_cut(fp, fname)
 		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
 			if (!(ch = *p))
-				errx(1, "%s: line too long", fname);
+				errx(1, "%s: line too long.", fname);
 			/* this should work if newline is delimiter */
 			if (ch == sep)
 				isdelim = 1;
