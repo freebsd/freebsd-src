@@ -128,7 +128,7 @@ notfound:
 	atp = NULL;
     }
     /* store our softc */
-    atp->controller->dev_softc[(atp->unit==ATA_MASTER)?0:1] = atp;
+    atp->controller->dev_softc[ATA_DEV(atp->unit)] = atp;
 }
 
 int32_t	  
