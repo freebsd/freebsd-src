@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $Id: sockio.h,v 1.4 1994/09/06 22:42:31 wollman Exp $
+ * $Id: sockio.h,v 1.5 1994/12/21 22:57:05 wollman Exp $
  */
 
 #ifndef	_SYS_SOCKIO_H_
@@ -50,9 +50,6 @@
 
 #define	SIOCADDRT	 _IOW('r', 10, struct ortentry)	/* add route */
 #define	SIOCDELRT	 _IOW('r', 11, struct ortentry)	/* delete route */
-#define	SIOCSETRTINFO	_IOWR('r', 12, struct fullrtentry) /* change aux info */
-#define	SIOCGETRTINFO	_IOWR('r', 13, struct fullrtentry) /* read aux info */
-#define	SIOCGETVIFINF	_IOWR('r', 14, struct vif_conf)   /* read m/c vifs  */
 #define SIOCGETVIFCNT	_IOWR('r', 15, struct sioc_vif_req)/* get vif pkt cnt */
 #define SIOCGETSGCNT	_IOWR('r', 16, struct sioc_sg_req) /* get s,g pkt cnt */
 
