@@ -39,7 +39,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.58 2003/04/14 11:24:53 das Exp");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.62 2004/01/18 10:32:49 das Exp");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -70,8 +70,9 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "fvwrite.h"
 
-/* Define FLOATING_POINT to get floating point. */
+/* Define FLOATING_POINT to get floating point, HEXFLOAT to get %a. */
 #define	FLOATING_POINT
+#define	HEXFLOAT
 
 union arg {
 	int	intarg;
@@ -115,9 +116,9 @@ enum typeid {
 
 static int	__sbprintf(FILE *, const wchar_t *, va_list);
 static wint_t	__xfputwc(wchar_t, FILE *);
-static wchar_t	*__ujtoa(uintmax_t, wchar_t *, int, int, const wchar_t *, int,
+static wchar_t	*__ujtoa(uintmax_t, wchar_t *, int, int, const char *, int,
 		    char, const char *);
-static wchar_t	*__ultoa(u_long, wchar_t *, int, int, const wchar_t *, int,
+static wchar_t	*__ultoa(u_long, wchar_t *, int, int, const char *, int,
 		    char, const char *);
 static wchar_t	*__mbsconv(char *, int);
 static void	__find_arguments(const wchar_t *, va_list, union arg **);
@@ -197,7 +198,7 @@ __xfputwc(wchar_t wc, FILE *fp)
  * use the given digits.
  */
 static wchar_t *
-__ultoa(u_long val, wchar_t *endp, int base, int octzero, const wchar_t *xdigs,
+__ultoa(u_long val, wchar_t *endp, int base, int octzero, const char *xdigs,
 	int needgrp, char thousep, const char *grp)
 {
 	wchar_t *cp = endp;
@@ -275,7 +276,7 @@ __ultoa(u_long val, wchar_t *endp, int base, int octzero, const wchar_t *xdigs,
 /* Identical to __ultoa, but for intmax_t. */
 static wchar_t *
 __ujtoa(uintmax_t val, wchar_t *endp, int base, int octzero,
-	const wchar_t *xdigs, int needgrp, char thousep, const char *grp)
+	const char *xdigs, int needgrp, char thousep, const char *grp)
 {
 	wchar_t *cp = endp;
 	intmax_t sval;
@@ -528,7 +529,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	int realsz;		/* field size expanded by dprec, sign, etc */
 	int size;		/* size of converted field or string */
 	int prsize;             /* max size of printed field */
-	const wchar_t *xdigs;	/* digits for [xX] conversion */
+	const char *xdigs;	/* digits for [xX] conversion */
 	wchar_t buf[BUF];	/* buffer with space for digits of uintmax_t */
 	wchar_t ox[2];		/* space for 0x hex-prefix */
 	union arg *argtable;	/* args, built due to positional arg */
@@ -548,8 +549,8 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 	static wchar_t zeroes[PADSIZE] =
 	 {'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0'};
 
-	static const wchar_t xdigs_lower[16] = L"0123456789abcdef";
-	static const wchar_t xdigs_upper[16] = L"0123456789ABCDEF";
+	static const char xdigs_lower[16] = "0123456789abcdef";
+	static const char xdigs_upper[16] = "0123456789ABCDEF";
 
 	/*
 	 * BEWARE, these `goto error' on error, PRINT uses `n2' and
@@ -833,12 +834,10 @@ reswitch:	switch (ch) {
 				xdigs = xdigs_upper;
 				expchar = 'P';
 			}
-			/*
-			 * XXX We don't actually have a conversion
-			 * XXX routine for this yet.
-			 */
+			if (prec >= 0)
+				prec++;
 			if (flags & LONGDBL) {
-				fparg.ldbl = (double)GETARG(long double);
+				fparg.ldbl = GETARG(long double);
 				dtoaresult =
 				    __hldtoa(fparg.ldbl, xdigs, prec,
 				        &expt, &signflag, &dtoaend);
@@ -848,12 +847,17 @@ reswitch:	switch (ch) {
 				    __hdtoa(fparg.dbl, xdigs, prec,
 				        &expt, &signflag, &dtoaend);
 			}
+			if (prec < 0)
+				prec = dtoaend - dtoaresult;
+			if (expt == INT_MAX)
+				ox[1] = '\0';
 			if (convbuf != NULL)
 				free(convbuf);
+			ndig = dtoaend - dtoaresult;
 			cp = convbuf = __mbsconv(dtoaresult, -1);
 			freedtoa(dtoaresult);
-			goto fp_begin;
-#endif
+			goto fp_common;
+#endif	/* HEXFLOAT */
 		case 'e':
 		case 'E':
 			expchar = ch;
@@ -892,6 +896,7 @@ fp_begin:
 			ndig = dtoaend - dtoaresult;
 			cp = convbuf = __mbsconv(dtoaresult, -1);
 			freedtoa(dtoaresult);
+fp_common:
 			if (signflag)
 				sign = '-';
 			if (expt == INT_MAX) {	/* inf or nan */
@@ -1134,7 +1139,7 @@ number:			if ((dprec = prec) >= 0)
 		realsz = dprec > size ? dprec : size;
 		if (sign)
 			realsz++;
-		else if (ox[1])
+		if (ox[1])
 			realsz += 2;
 
 		prsize = width > realsz ? width : realsz;
@@ -1148,9 +1153,10 @@ number:			if ((dprec = prec) >= 0)
 			PAD(width - realsz, blanks);
 
 		/* prefix */
-		if (sign) {
+		if (sign)
 			PRINT(&sign, 1);
-		} else if (ox[1]) {	/* ox[1] is either x, X, or \0 */
+
+		if (ox[1]) {	/* ox[1] is either x, X, or \0 */
 			ox[0] = '0';
 			PRINT(ox, 2);
 		}
