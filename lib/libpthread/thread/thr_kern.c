@@ -465,10 +465,10 @@ void
 _thread_kern_idle(void)
 {
 	struct timespec ts;
-	struct timeval tod, timeout;
+	struct timeval timeout;
 
 	for (;;) {
-		timersub(&_kern_idle_timeout, &tod, &timeout);
+		timersub(&_kern_idle_timeout, &_sched_tod, &timeout);
 		TIMEVAL_TO_TIMESPEC(&timeout, &ts);
 		__sys_nanosleep(&ts, NULL);
 	}
