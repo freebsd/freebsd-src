@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.36 1996/01/25 07:21:33 phk Exp $
+ *	$Id: si.c,v 1.37 1996/03/28 14:28:51 scrappy Exp $
  */
 
 #ifndef lint
@@ -82,9 +82,10 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
  */
 
 #define	POLL		/* turn on poller to generate buffer empty interrupt */
-#undef	FASTPOLL	/* turn on 100Hz poller, (XXX: NOTYET!) */
 #define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
+#define INT_COUNT 25000	/* max of 125 ints per second */
+#define RXINT_COUNT 1	/* one rxint per 10 milliseconds */
 
 enum si_mctl { GET, SET, BIS, BIC };
 
@@ -227,7 +228,10 @@ static int si_default_cflag =	TTYDEF_CFLAG;
 #endif
 
 #ifdef POLL
-#define	POLL_INTERVAL	(hz/2)
+static int si_pollrate = (hz / 10);	/* 10 per second, in addition to irq */
+
+SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RD, &si_pollrate, 0, "");
+		 
 static int init_finished = 0;
 static int fastpoll = 0;
 static void si_poll __P((void *));
@@ -560,9 +564,9 @@ siattach(id)
 		return 0;
 	case 1:
 			/* set throttle to 125 intr per second */
-		regp->int_count = 25000;
+		regp->int_count = INT_COUNT;
 			/* rx intr max of 25 timer per second */
-		regp->rx_int_count = 4;
+		regp->rx_int_count = RXINT_COUNT;
 		regp->int_pending = 0;		/* no intr pending */
 		regp->int_scounter = 0;	/* reset counter */
 		break;
@@ -761,7 +765,7 @@ siopen(dev, flag, mode, p)
 	 * We've now got a device, so start the poller.
 	 */
 	if (init_finished == 0) {
-		timeout(si_poll, (caddr_t)0L, POLL_INTERVAL);
+		timeout(si_poll, (caddr_t)0L, si_pollrate);
 		init_finished = 1;
 	}
 #endif
@@ -1733,7 +1737,7 @@ si_poll(void *nothing)
 out:
 	splx(oldspl);
 
-	timeout(si_poll, (caddr_t)0L, POLL_INTERVAL);
+	timeout(si_poll, (caddr_t)0L, si_pollrate);
 }
 #endif	/* ifdef POLL */
 
