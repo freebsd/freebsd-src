@@ -788,7 +788,7 @@ xms_entry(regcontext_t *REGS)
 
 	    if (eptr->dst_handle != 0) {
 		dstptr = xms_hand[dstidx].addr;
-		if (dstptr == NULL || dstptr == XMS_NULL_ALLOC) {
+		if (dstptr == 0 || dstptr == XMS_NULL_ALLOC) {
 		    R_AX = 0x0;
 		    R_BL = XMS_INVALID_DESTINATION_HANDLE;
 		    debug(D_XMS, " Invalid dest handle\n");
