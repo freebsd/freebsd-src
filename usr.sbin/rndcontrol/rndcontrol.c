@@ -53,7 +53,7 @@ main(int argc, char *argv[])
 
 	fd = open("/dev/random", O_RDONLY, 0);
 	if (fd == -1) {
-		perror(argv[0]);
+		perror("/dev/random");
 		return (1);
 	}
 	else {
