@@ -136,10 +136,52 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
 #define	FIND_ENV  	0x4   /* look in the environment also */
 
-static void VarDelete(void *);
 static char *VarGetPattern(GNode *, int, char **, int, int *, size_t *,
 			   VarPattern *);
 static int VarPrintVar(void *, void *);
+
+/*
+ * Create a Var object.
+ *
+ * Params:
+ *	name		Name of variable (copied).
+ *	value		Value of variable (copied) or NULL.
+ *	flags		Flags set on variable.
+ *
+ * Returns:
+ *	New variable.
+ */
+static Var *
+VarCreate(const char name[], const char value[], int flags)
+{
+	Var *v;
+
+	v = emalloc(sizeof(Var));
+	v->name = estrdup(name);
+	v->val = Buf_Init(0);
+	v->flags = flags;
+
+	if (value != NULL) {
+		Buf_Append(v->val, value);
+	}
+	return (v);
+}
+
+/*
+ * Destroy a Var object.
+ *
+ * Params:
+ * 	v	Object to destroy.
+ * 	f	True if internal buffer in Buffer object is to be removed.
+ */
+static void
+VarDestroy(Var *v, Boolean f)
+{
+
+	Buf_Destroy(v->val, f);
+	free(v->name);
+	free(v);
+}
 
 /*-
  *-----------------------------------------------------------------------
@@ -286,13 +328,7 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	char *env;
 
 	if ((env = getenv(name)) != NULL) {
-	    v = emalloc(sizeof(Var));
-	    v->name = estrdup(name);
-	    v->val = Buf_Init(0);
-	    v->flags = VAR_FROM_ENV;
-
-	    Buf_Append(v->val, env);
-
+	    v = VarCreate(name, env, VAR_FROM_ENV);
 	    return (v);
 	} else if ((checkEnvFirst || localCheckEnvFirst) &&
 		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
@@ -330,41 +366,9 @@ VarFind(const char *name, GNode *ctxt, int flags)
 static void
 VarAdd(const char *name, const char *val, GNode *ctxt)
 {
-    Var		  *v;
 
-    v = emalloc(sizeof(Var));
-    v->name = estrdup(name);
-    v->val = Buf_Init(0);
-    v->flags = 0;
-
-    if (val != NULL) {
-	Buf_Append(v->val, val);
-    }
-
-    Lst_AtFront(&ctxt->context, v);
+    Lst_AtFront(&ctxt->context, VarCreate(name, val, 0));
     DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
-}
-
-/*-
- *-----------------------------------------------------------------------
- * VarDelete  --
- *	Delete a variable and all the space associated with it.
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	None
- *-----------------------------------------------------------------------
- */
-static void
-VarDelete(void *vp)
-{
-    Var *v = vp;
-
-    free(v->name);
-    Buf_Destroy(v->val, TRUE);
-    free(v);
 }
 
 /*-
@@ -388,7 +392,7 @@ Var_Delete(const char *name, GNode *ctxt)
     DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
     ln = Lst_Find(&ctxt->context, name, VarCmp);
     if (ln != NULL) {
-	VarDelete(Lst_Datum(ln));
+	VarDestroy(Lst_Datum(ln), TRUE);
 	Lst_Remove(&ctxt->context, ln);
     }
 }
@@ -525,9 +529,7 @@ Var_Exists(const char *name, GNode *ctxt)
     if (v == NULL) {
 	return (FALSE);
     } else if (v->flags & VAR_FROM_ENV) {
-	free(v->name);
-	Buf_Destroy(v->val, TRUE);
-	free(v);
+	VarDestroy(v, TRUE);
     }
     return (TRUE);
 }
@@ -558,9 +560,7 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 	char *p = (char *)Buf_GetAll(v->val, (size_t *)NULL);
 
 	if (v->flags & VAR_FROM_ENV) {
-	    Buf_Destroy(v->val, FALSE);
-	    free(v->name);
-	    free(v);
+	    VarDestroy(v, FALSE);
 	    *frp = p;
 	}
 	return (p);
@@ -1095,10 +1095,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 * Still need to get to the end of the variable specification,
 		 * so kludge up a Var structure for the modifications
 		 */
-		v = emalloc(sizeof(Var));
-		v->name = estrdup(str);
-		v->val = Buf_Init(1);
-		v->flags = VAR_JUNK;
+		v = VarCreate(str, NULL, VAR_JUNK);
 	    }
 	}
 	Buf_Destroy(buf, TRUE);
@@ -1686,9 +1683,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	     */
 	    *freePtr = TRUE;
 	}
-	free(v->name);
-	Buf_Destroy(v->val, destroy);
-	free(v);
+	VarDestroy(v, destroy);
     } else if (v->flags & VAR_JUNK) {
 	/*
 	 * Perform any free'ing needed and set *freePtr to FALSE so the caller
@@ -1698,9 +1693,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	    free(str);
 	}
 	*freePtr = FALSE;
-	free(v->name);
-	Buf_Destroy(v->val, TRUE);
-	free(v);
+	VarDestroy(v, TRUE);
 	if (dynamic) {
 	    str = emalloc(*lengthPtr + 1);
 	    strncpy(str, start, *lengthPtr);
