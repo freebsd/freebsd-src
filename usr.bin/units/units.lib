@@ -542,6 +542,8 @@ surveyyard		3 surveyfoot
 surveyorschain		66 ft
 surveyorslink		66|100 ft
 tablespoon		4 fldr
+tbl			tablespoon
+tbsp			tablespoon
 teaspoon		4|3 fldr
 tesla			weber/m2
 therm			1e+5 btu
@@ -551,6 +553,7 @@ tnt			4.6e+6 m2/sec2
 tonne			1e+6 gm
 torr			mm hg
 township		36 mi2
+tsp			teaspoon
 tun			8 barrel
 water			gram g / cc
 wey			40 bu
