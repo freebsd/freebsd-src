@@ -154,6 +154,7 @@ static int	 sendfile(struct printer *_pp, int _type, char *_file,
 static int	 sendit(struct printer *_pp, char *_file);
 static void	 sendmail(struct printer *_pp, char *_userid, int _bombed);
 static void	 setty(const struct printer *_pp);
+static void	 wait4data(struct printer *_pp, const char *_dfile);
 
 void
 printjob(struct printer *pp)
@@ -617,6 +618,9 @@ print(struct printer *pp, int format, char *file)
 	int p[2], retcode, stopped, wstatus, wstatus_set;
 	struct stat stb;
 
+	/* Make sure the entire data file has arrived. */
+	wait4data(pp, file);
+
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
 		syslog(LOG_INFO, "%s: unable to open %s ('%c' line)",
 		    pp->printer, file, format);
@@ -997,6 +1001,9 @@ sendfile(struct printer *pp, int type, char *file, char format, int copyreq)
 	char buf[SPL_BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
 	int copycnt, filtstat, narg, resp, sfd, sfres, sizerr, statrc;
 
+	/* Make sure the entire data file has arrived. */
+	wait4data(pp, file);
+
 	statrc = lstat(file, &stb);
 	if (statrc < 0) {
 		syslog(LOG_ERR, "%s: error from lstat(%s): %m",
@@ -1217,6 +1224,99 @@ return_sfres:
 	}
 	return (sfres);
 }
+
+/*
+ * Some print servers send the control-file first, and then start sending the
+ * matching data file(s).  That is not the correct order.  If some queue is
+ * already printing an active job, then when that job is finished the queue
+ * may proceed to the control file of any incoming print job.  This turns
+ * into a race between the process which is receiving the data file, and the
+ * process which is actively printing the very same file.  When the remote
+ * server sends files in the wrong order, it is even possible that a queue
+ * will start to print a data file before the file has been created!
+ *
+ * So before we start to print() or send() a data file, we call this routine
+ * to make sure the data file is not still changing in size.  Note that this
+ * problem will only happen for jobs arriving from a remote host, and that
+ * the process which has decided to print this job (and is thus making this
+ * check) is *not* the process which is receiving the job.
+ *
+ * A second benefit of this is that any incoming job is guaranteed to appear
+ * in a queue listing for at least a few seconds after it has arrived.  Some
+ * lpr implementations get confused if they send a job and it disappears
+ * from the queue before they can check on it.
+ */
+#define	MAXWAIT_ARRIVE	16	    /* max to wait for the file to *exist* */
+#define	MAXWAIT_4DATA	(20*60)	    /* max to wait for it to stop changing */
+#define	MINWAIT_4DATA	4	    /* This value must be >= 1 */
+#define	DEBUG_MINWAIT	1
+static void
+wait4data(struct printer *pp, const char *dfile)
+{
+	const char *cp;
+	int statres;
+	size_t dlen, hlen;
+	time_t amtslept, checktime;
+	struct stat statdf;
+
+	/* Skip these checks if the print job is from the local host. */
+	dlen = strlen(dfile);
+	hlen = strlen(local_host);
+	if (dlen > hlen) {
+		cp = dfile + dlen - hlen;
+		if (strcmp(cp, local_host) == 0)
+			return;
+	}
+
+	/*
+	 * If this data file does not exist, then wait up to MAXWAIT_ARRIVE
+	 * seconds for it to arrive.
+	 */
+	amtslept = 0;
+	statres = stat(dfile, &statdf);
+	while (statres < 0 && amtslept < MAXWAIT_ARRIVE) {
+		if (amtslept == 0)
+			pstatus(pp, "Waiting for data file from remote host");
+		amtslept += MINWAIT_4DATA - sleep(MINWAIT_4DATA);
+		statres = stat(dfile, &statdf);
+	}
+	if (statres < 0) {
+		/* The file still does not exist, so just give up on it. */
+		syslog(LOG_WARNING, "%s: wait4data() abandoned wait for %s",
+		    pp->printer, dfile);
+		return;
+	}
+
+	/*
+	 * The file exists, so keep waiting until the data file has not
+	 * changed for some reasonable amount of time.
+	 */
+	while (statres == 0 && amtslept < MAXWAIT_4DATA) {
+		checktime = time(NULL) - MINWAIT_4DATA;
+		if (statdf.st_mtime <= checktime)
+			break;
+		if (amtslept == 0)
+			pstatus(pp, "Waiting for data file from remote host");
+		amtslept += MINWAIT_4DATA - sleep(MINWAIT_4DATA);
+		statres = stat(dfile, &statdf);
+	}
+
+	if (statres != 0)
+		syslog(LOG_WARNING, "%s: %s disappeared during wait4data()",
+		    pp->printer, dfile);
+	else if (amtslept > MAXWAIT_4DATA)
+		syslog(LOG_WARNING,
+		    "%s: %s still changing after %lu secs in wait4data()",
+		    pp->printer, dfile, (unsigned long)amtslept);
+#if DEBUG_MINWAIT
+	else if (amtslept > MINWAIT_4DATA)
+		syslog(LOG_INFO, "%s: slept %lu secs in wait4data(%s)",
+		    pp->printer, (unsigned long)amtslept, dfile);
+#endif
+}
+#undef	MAXWAIT_ARRIVE
+#undef	MAXWAIT_4DATA
+#undef	MINWAIT_4DATA
 
 /*
  *  This routine is called to execute one of the filters as was
