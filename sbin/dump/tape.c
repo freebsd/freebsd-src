@@ -527,6 +527,7 @@ restore_check_point:
 	/*
 	 *	All signals are inherited...
 	 */
+	setproctitle(NULL);	/* Restore the proctitle. */
 	childpid = fork();
 	if (childpid < 0) {
 		msg("Context save fork fails in parent %d\n", parentpid);
