@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.4 1995/02/26 02:00:35 phk Exp $
+ * $Id: md5.c,v 1.5 1995/05/30 06:09:19 rgrimes Exp $
  *
  * Derived from:
  */
@@ -54,6 +54,7 @@ main(argc, argv)
 {
 	int     i;
 	char   *p;
+	char	buf[33];
 
 	if (argc > 1)
 		for (i = 1; i < argc; i++)
@@ -66,7 +67,7 @@ main(argc, argv)
 			else if (strcmp(argv[i], "-x") == 0)
 				MDTestSuite();
 			else {
-				p = MD5File(argv[i]);
+				p = MD5File(argv[i],buf);
 				if (!p)
 					perror(argv[i]);
 				else
@@ -85,8 +86,9 @@ MDString(string)
 	char   *string;
 {
 	unsigned int len = strlen(string);
+	char buf[33];
 
-	printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len));
+	printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
 }
 /*
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
@@ -98,7 +100,7 @@ MDTimeTrial()
 	time_t  endTime, startTime;
 	unsigned char block[TEST_BLOCK_LEN];
 	unsigned int i;
-	char   *p;
+	char   *p, buf[33];
 
 	printf
 	    ("MD5 time trial. Digesting %d %d-byte blocks ...",
@@ -115,7 +117,7 @@ MDTimeTrial()
 	MD5Init(&context);
 	for (i = 0; i < TEST_BLOCK_COUNT; i++)
 		MD5Update(&context, block, TEST_BLOCK_LEN);
-	p = MD5End(&context);
+	p = MD5End(&context,buf);
 
 	/* Stop timer */
 	time(&endTime);
@@ -158,6 +160,7 @@ MDFilter(int pipe)
 	MD5_CTX context;
 	int     len;
 	unsigned char buffer[BUFSIZ], digest[16];
+	char buf[33];
 
 	MD5Init(&context);
 	while (len = fread(buffer, 1, BUFSIZ, stdin)) {
@@ -167,5 +170,5 @@ MDFilter(int pipe)
 		}
 		MD5Update(&context, buffer, len);
 	}
-	printf("%s\n", MD5End(&context));
+	printf("%s\n", MD5End(&context,buf));
 }
