@@ -64,14 +64,19 @@ static const char rcsid[] =
 #define dbtob(db)  ((unsigned)(db) << UBSHIFT)
 #endif
 
-#define CE_COMPACT 1		/* Compact the achived log files */
-#define CE_BINARY  2		/* Logfile is in binary, don't add */
-#define CE_BZCOMPACT 8		/* Compact the achived log files with bzip2 */
-				/*  status messages */
-#define	CE_TRIMAT  4		/* trim at a specific time */
-#define	CE_GLOB    16		/* name of the log is file name pattern */
-#define	CE_COMPACTWAIT 32	/* wait till compressing finishes before */
-				/* starting the next one */
+/*
+ * Bit-values for the 'flags' parsed from a config-file entry.
+ */
+#define CE_COMPACT	0x0001	/* Compact the achived log files with gzip. */
+#define CE_BZCOMPACT	0x0002	/* Compact the achived log files with bzip2. */
+#define	CE_COMPACTWAIT	0x0004	/* wait until compressing one file finishes */
+				/*    before starting the next step. */
+#define CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
+				/*    messages to logfile(s) when rotating. */
+#define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
+				/*    trimming this file. */
+#define	CE_TRIMAT	0x0020	/* trim file at a specific time. */
+#define	CE_GLOB		0x0040	/* name of the log is file name pattern. */
 
 #define NONE -1
 
@@ -97,6 +102,7 @@ int archtodir = 0;		/* Archive old logfiles to other directory */
 int verbose = 0;		/* Print out what's going on */
 int needroot = 1;		/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
+int nosignal;			/* Do not send any signals */
 int force = 0;			/* Force the trim no matter what */
 char *archdirname;		/* Directory path to old logfiles archive */
 const char *conf = _PATH_CONF;	/* Configuration file to use */
@@ -117,9 +123,10 @@ static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
 static void PRS(int argc, char **argv);
 static void usage(void);
-static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
-		int perm, int owner_uid, int group_gid, int sig, int def_cfg);
-static int log_trim(char *log, int def_cfg);
+static void dotrim(const struct conf_entry *trim_ent, char *log,
+		int numdays, int flags, int perm, int owner_uid,
+		int group_gid, int sig);
+static int log_trim(const char *log, const struct conf_entry *log_ent);
 static void compress_log(char *log, int dowait);
 static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
@@ -130,6 +137,14 @@ static void movefile(char *from, char *to, int perm, int owner_uid,
 		int group_gid);
 static void createdir(char *dirpart);
 static time_t parseDWM(char *s, char *errline);
+
+/*
+ * All the following are defined to work on an 'int', in the
+ * range 0 to 255, plus EOF.  Define wrappers which can take
+ * values of type 'char', either signed or unsigned.
+ */
+#define isspacech(Anychar)    isspace(((int) Anychar) & 255)
+#define tolowerch(Anychar)    tolower(((int) Anychar) & 255)
 
 int
 main(int argc, char **argv)
@@ -244,7 +259,6 @@ static void
 do_entry(struct conf_entry * ent)
 {
 	int size, modtime;
-	const char *pid_file;
 
 	if (verbose) {
 		if (ent->flags & CE_COMPACT)
@@ -292,18 +306,8 @@ do_entry(struct conf_entry * ent)
 					printf("%s <%d>: trimming\n",
 					    ent->log, ent->numlogs);
 			}
-			if (ent->pid_file) {
-				pid_file = ent->pid_file;
-			} else {
-				/* Only try to notify syslog if we are root */
-				if (needroot)
-					pid_file = _PATH_SYSLOGPID;
-				else
-					pid_file = NULL;
-			}
-			dotrim(ent->log, pid_file, ent->numlogs,
-			    ent->flags, ent->permissions, ent->uid, ent->gid,
-			    ent->sig, ent->def_cfg);
+			dotrim(ent, ent->log, ent->numlogs, ent->flags,
+			    ent->permissions, ent->uid, ent->gid, ent->sig);
 		} else {
 			if (verbose)
 				printf("--> skipping\n");
@@ -328,29 +332,35 @@ PRS(int argc, char **argv)
 	if ((p = strchr(hostname, '.'))) {
 		*p = '\0';
 	}
-	while ((c = getopt(argc, argv, "nrvFf:a:")) != -1)
+
+	/* Parse command line options. */
+	while ((c = getopt(argc, argv, "a:f:nrsvF")) != -1)
 		switch (c) {
-		case 'n':
-			noaction++;
-			break;
 		case 'a':
 			archtodir++;
 			archdirname = optarg;
 			break;
+		case 'f':
+			conf = optarg;
+			break;
+		case 'n':
+			noaction++;
+			break;
 		case 'r':
 			needroot = 0;
 			break;
+		case 's':
+			nosignal = 1;
+			break;
 		case 'v':
 			verbose++;
-			break;
-		case 'f':
-			conf = optarg;
 			break;
 		case 'F':
 			force++;
 			break;
 		default:
 			usage();
+			/* NOTREACHED */
 		}
 }
 
@@ -359,7 +369,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-Fnrv] [-f config-file] [-a directory] [ filename ... ]\n");
+	    "usage: newsyslog [-Fnrsv] [-f config-file] [-a directory] [ filename ... ]\n");
 	exit(1);
 }
 
@@ -574,21 +584,42 @@ parse_file(char **files)
 			*parse = '\0';
 		}
 
-		while (q && *q && !isspace(*q)) {
-			if ((*q == 'Z') || (*q == 'z'))
-				working->flags |= CE_COMPACT;
-			else if ((*q == 'J') || (*q == 'j'))
-				working->flags |= CE_BZCOMPACT;
-			else if ((*q == 'B') || (*q == 'b'))
+		for (; q && *q && !isspacech(*q); q++) {
+			switch (tolowerch(*q)) {
+			case 'b':
 				working->flags |= CE_BINARY;
-			else if ((*q == 'G') || (*q == 'c'))
+				break;
+			case 'c':
+				/*
+				 * netbsd uses 'c' for "create".  We will
+				 * temporarily accept it for 'g', because
+				 * earlier freebsd versions had a typo
+				 * of ('G' || 'c')...
+				 */
+				warnx("Assuming 'g' for 'c' in flags for line:\n%s",
+				    errline);
+				/* FALLTHROUGH */
+			case 'g':
 				working->flags |= CE_GLOB;
-			else if ((*q == 'W') || (*q == 'w'))
+				break;
+			case 'j':
+				working->flags |= CE_BZCOMPACT;
+				break;
+			case 'n':
+				working->flags |= CE_NOSIGNAL;
+				break;
+			case 'w':
 				working->flags |= CE_COMPACTWAIT;
-			else if (*q != '-')
+				break;
+			case 'z':
+				working->flags |= CE_COMPACT;
+				break;
+			case '-':
+				break;
+			default:
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
-			q++;
+			}
 		}
 
 		if (eol)
@@ -633,7 +664,46 @@ parse_file(char **files)
 			if (working->sig < 1 || working->sig >= NSIG)
 				goto err_sig;
 		}
+
+		/*
+		 * Finish figuring out what pid-file to use (if any) in
+		 * later processing if this logfile needs to be rotated.
+		 */
+		if ((working->flags & CE_NOSIGNAL) == CE_NOSIGNAL) {
+			/*
+			 * This config-entry specified 'n' for nosignal,
+			 * see if it also specified an explicit pid_file.
+			 * This would be a pretty pointless combination.
+			 */
+			if (working->pid_file != NULL) {
+				warnx("Ignoring '%s' because flag 'n' was specified in line:\n%s",
+				    working->pid_file, errline);
+				free(working->pid_file);
+				working->pid_file = NULL;
+			}
+		} else if (nosignal) {
+			/*
+			 * While this entry might usually signal some
+			 * process via the pid-file, newsyslog was run
+			 * with '-s', so quietly ignore the pid-file.
+			 */
+			if (working->pid_file != NULL) {
+				free(working->pid_file);
+				working->pid_file = NULL;
+			}
+		} else if (working->pid_file == NULL) {
+			/*
+			 * This entry did not specify the 'n' flag, which
+			 * means it should signal syslogd unless it had
+			 * specified some other pid-file.  But we only
+			 * try to notify syslog if we are root
+			 */
+			if (needroot)
+				working->pid_file = strdup(_PATH_SYSLOGPID);
+		}
+
 		free(errline);
+		errline = NULL;
 	}
 	(void) fclose(f);
 
@@ -699,8 +769,8 @@ missing_field(char *p, char *errline)
 }
 
 static void
-dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
-    int owner_uid, int group_gid, int sig, int def_cfg)
+dotrim(const struct conf_entry *trim_ent, char *log, int numdays, int flags,
+    int perm, int owner_uid, int group_gid, int sig)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
@@ -817,7 +887,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	}
 	if (!noaction && !(flags & CE_BINARY)) {
 		/* Report the trimming to the old log */
-		(void) log_trim(log, def_cfg);
+		(void) log_trim(log, trim_ent);
 	}
 
 	if (!_numdays) {
@@ -851,7 +921,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 		(void) close(fd);
 		if (!(flags & CE_BINARY)) {
 			/* Add status message to new log file */
-			if (log_trim(tfile, def_cfg))
+			if (log_trim(tfile, trim_ent))
 				err(1, "can't add status message to log");
 		}
 	}
@@ -867,9 +937,9 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 
 	pid = 0;
 	need_notification = notified = 0;
-	if (pid_file != NULL) {
+	if (trim_ent->pid_file != NULL) {
 		need_notification = 1;
-		pid = get_pid(pid_file);
+		pid = get_pid(trim_ent->pid_file);
 	}
 	if (pid) {
 		if (noaction) {
@@ -919,7 +989,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 
 /* Log the fact that the logs were turned over */
 static int
-log_trim(char *log, int def_cfg)
+log_trim(const char *log, const struct conf_entry *log_ent)
 {
 	FILE *f;
 	const char *xtra;
@@ -927,7 +997,7 @@ log_trim(char *log, int def_cfg)
 	if ((f = fopen(log, "a")) == NULL)
 		return (-1);
 	xtra = "";
-	if (def_cfg)
+	if (log_ent->def_cfg)
 		xtra = " using <default> rule";
 	fprintf(f, "%s %s newsyslog[%d]: logfile turned over%s\n",
 	    daytime, hostname, (int) getpid(), xtra);
