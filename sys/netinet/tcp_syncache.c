@@ -635,7 +635,6 @@ syncache_socket(sc, lso, m)
 			inp->in6p_laddr = laddr6;
 			goto abort;
 		}
-		FREE(sin6, M_SONAME);
 	} else
 #endif
 	{
