@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.28 1999/05/31 11:27:52 phk Exp $
+ * $Id: kernfs_vfsops.c,v 1.29 1999/08/13 10:29:22 phk Exp $
  */
 
 /*
@@ -79,7 +79,6 @@ static void
 kernfs_get_rrootdev()
 {
 	static int tried = 0;
-	int cmaj;
 	struct cdevsw *sw;
 
 	if (tried) {
