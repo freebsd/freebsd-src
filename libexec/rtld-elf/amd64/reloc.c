@@ -129,6 +129,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
 	for (rela = obj->rela;  rela < relalim;  rela++) {
 	    Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
+	    Elf32_Addr *where32 = (Elf32_Addr *)where;
 
 	    switch (ELF_R_TYPE(rela->r_info)) {
 
@@ -164,9 +165,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		    if (def == NULL)
 			goto done;
 
-		    *where =
-		      (Elf_Addr) (defobj->relocbase + def->st_value + rela->r_addend) -
-		      (Elf_Addr) where;
+		    *where32 = (Elf32_Addr) (unsigned long) (defobj->relocbase +
+		        def->st_value + rela->r_addend - (Elf_Addr) where);
 		}
 		break;
 	/* missing: R_X86_64_GOT32 R_X86_64_PLT32 */
