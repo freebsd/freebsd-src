@@ -1028,18 +1028,6 @@ tcp_attach(so, p)
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
-#ifdef IPSEC
-	error = ipsec_init_policy(so, &inp->inp_sp);
-	if (error) {
-#ifdef INET6
-		if (isipv6)
-			in6_pcbdetach(inp);
-		else
-#endif
-		in_pcbdetach(inp);
-		return (error);
-	}
-#endif /*IPSEC*/
 #ifdef INET6
 	if (isipv6) {
 		inp->inp_vflag |= INP_IPV6;
