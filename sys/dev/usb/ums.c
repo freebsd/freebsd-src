@@ -394,10 +394,12 @@ ums_detach(device_t self)
 	/* someone waiting for data */
 	if (sc->state & UMS_ASLEEP) {
 		DPRINTF(("Waking up %p\n", sc));
+		sc->state &= ~UMS_ASLEEP;	/* PR2 */
 		wakeup(sc);
 	}
 	if (sc->state & UMS_SELECT) {
 		DPRINTF(("Waking up select %p\n", &sc->rsel));
+		sc->state &= ~UMS_SELECT;	/* PR2 */
 		selwakeup(&sc->rsel);
 	}
 
@@ -513,10 +515,12 @@ ums_intr(reqh, addr, status)
 		/* someone waiting for data */
 		if (sc->state & UMS_ASLEEP) {
 			DPRINTF(("Waking up %p\n", sc));
+			sc->state &= ~UMS_ASLEEP;	/* PR2 */
 			wakeup(sc);
 		}
 		if (sc->state & UMS_SELECT) {
 			DPRINTF(("Waking up select %p\n", &sc->rsel));
+			sc->state &= ~UMS_SELECT;	/* PR2 */
 			selwakeup(&sc->rsel);
 		}
 #endif
@@ -636,7 +640,9 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 		*/
 		sc->state |= UMS_ASLEEP;
 		error = tsleep(sc, PZERO | PCATCH, "umsrea", 0);
+		/* PR2: statement moved to ums_poll/ums_detach
 		sc->state &= ~UMS_ASLEEP;
+		 */
 		if (error) {
 			splx(s);
 			return error;
@@ -683,7 +689,9 @@ ums_poll(dev_t dev, int events, struct proc *p)
 		} else {
 			sc->state |= UMS_SELECT;
 			selrecord(p, &sc->rsel);
+			/* PR2: statement moved to ums_poll/ums_detach
 			sc->state &= ~UMS_SELECT;
+			 */
 		}
 	}
 	splx(s);
