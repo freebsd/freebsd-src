@@ -138,7 +138,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
-	u_char esrc[6], edst[6];
+	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
 	struct rtentry *rt;
 	struct ether_header *eh;
 	int loop_copy = 0;
@@ -651,8 +651,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-		if (bcmp((caddr_t)etherbroadcastaddr, (caddr_t)eh->ether_dhost,
-			 sizeof(etherbroadcastaddr)) == 0)
+		if (bcmp(etherbroadcastaddr, eh->ether_dhost,
+		    sizeof(etherbroadcastaddr)) == 0)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
