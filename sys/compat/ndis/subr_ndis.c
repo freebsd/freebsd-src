@@ -103,8 +103,9 @@ __FBSDID("$FreeBSD$");
 #define __stdcall __attribute__((__stdcall__))
 #define FUNC void(*)(void)
 
-static struct mtx ndis_interlock;
+static struct mtx *ndis_interlock;
 static char ndis_filepath[MAXPATHLEN];
+struct mtx_pool *ndis_mtxpool;
 
 SYSCTL_STRING(_hw, OID_AUTO, ndis_filepath, CTLFLAG_RW, ndis_filepath,
         MAXPATHLEN, "Path used by NdisOpenFile() to search for files");
@@ -278,17 +279,17 @@ __stdcall static void dummy(void);
 int
 ndis_libinit()
 {
-	mtx_init(&ndis_interlock, "ndislock", MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
 	strcpy(ndis_filepath, "/compat/ndis");
-
+	ndis_mtxpool = mtx_pool_create("ndis mutex pool",
+	    1024, MTX_DEF | MTX_RECURSE | MTX_DUPOK);;
+	ndis_interlock = mtx_pool_alloc(ndis_mtxpool);
 	return(0);
 }
 
 int
 ndis_libfini()
 {
-	mtx_destroy(&ndis_interlock);
+	mtx_pool_destroy(&ndis_mtxpool);
 	return(0);
 }
 
@@ -678,15 +679,7 @@ __stdcall static void
 ndis_create_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	struct mtx		*mtx;
-
-	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (mtx == NULL)
-		return;
-	mtx_init(mtx, "ndislock", "ndis spin lock",
-	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
-	lock->nsl_spinlock = (ndis_kspin_lock)mtx;
-
+	lock->nsl_spinlock = (ndis_kspin_lock)mtx_pool_alloc(ndis_mtxpool);
 	return;
 }
 
@@ -694,13 +687,7 @@ __stdcall static void
 ndis_destroy_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	struct mtx		*ndis_mtx;
-
-	ndis_mtx = (struct mtx *)lock->nsl_spinlock;
-	mtx_destroy(ndis_mtx);
-	free(ndis_mtx, M_DEVBUF);
-	lock->nsl_spinlock = 0xdeadf00d; /* XXX */
-
+	/* We use a mutex pool, so this is a no-op. */
 	return;
 }
 
@@ -708,32 +695,7 @@ __stdcall static void
 ndis_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	if (lock == NULL)
-		return;
-	/*
-	 * Workaround for certain broken NDIS drivers. I have
-	 * encountered one case where a driver creates a spinlock
-	 * within its DriverEntry() routine, which is then destroyed
-	 * in its MiniportHalt() routine. This is a bug, because
-	 * MiniportHalt() is meant to only destroy what MiniportInit()
-	 * creates. This leads to the following problem:
-	 *     DriverEntry() <- spinlock created
-	 *     MiniportInit() <- NIC initialized
-	 *     MiniportHalt() <- NIC halted, spinlock destroyed
-	 *     MiniportInit() <- NIC initialized, spinlock not recreated
-	 *     NdisAcquireSpinLock(boguslock) <- panic
-	 * To work around this, we poison the spinlock on destroy, and
-	 * if we try to re-acquire the poison pill^Wspinlock, we init
-	 * it again so subsequent calls will work.
-	 *
-	 * Drivers that behave in this way are likely not officially
-	 * certified by Microsoft, since their I would expect the
-	 * Microsoft NDIS test tool to catch mistakes like this.
-	 */
-	if (lock->nsl_spinlock == 0xdeadf00d)
-		ndis_create_lock(lock);
-	mtx_lock((struct mtx *)lock->nsl_spinlock);
-
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	return;
 }
 
@@ -741,10 +703,7 @@ __stdcall static void
 ndis_unlock(lock)
 	ndis_spin_lock		*lock;
 {
-	if (lock == NULL)
-		return;
-	mtx_unlock((struct mtx *)lock->nsl_spinlock);
-
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	return;
 }
 
@@ -2102,13 +2061,13 @@ ndis_insert_head(head, entry, lock)
 {
 	ndis_list_entry		*flink;
 
-	mtx_lock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	flink = head->nle_flink;
 	entry->nle_flink = flink;
 	entry->nle_blink = head;
 	flink->nle_blink = entry;
 	head->nle_flink = entry;
-	mtx_unlock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 
 	return(flink);
 }
@@ -2121,12 +2080,12 @@ ndis_remove_head(head, lock)
 	ndis_list_entry		*flink;
 	ndis_list_entry		*entry;
 
-	mtx_lock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	entry = head->nle_flink;
 	flink = entry->nle_flink;
 	head->nle_flink = flink;
 	flink->nle_blink = head;
-	mtx_unlock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 
 	return(entry);
 }
@@ -2139,13 +2098,13 @@ ndis_insert_tail(head, entry, lock)
 {
 	ndis_list_entry		*blink;
 
-	mtx_lock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 	blink = head->nle_blink;
 	entry->nle_flink = head;
 	entry->nle_blink = blink;
 	blink->nle_flink = entry;
 	head->nle_blink = entry;
-	mtx_unlock((struct mtx *)lock->nsl_spinlock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)lock->nsl_spinlock);
 
 	return(blink);
 }
@@ -2165,9 +2124,9 @@ ndis_sync_with_intr(intr, syncfunc, syncctx)
 
 	sc = (struct ndis_softc *)intr->ni_block->nmb_ifp;
 	sync = syncfunc;
-	mtx_lock(&sc->ndis_intrmtx);
+	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
 	rval = sync(syncctx);
-	mtx_unlock(&sc->ndis_intrmtx);
+	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
 
 	return(rval);
 }
