@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.32 1999/01/10 15:28:37 peter Exp $";
+	"$Id: w.c,v 1.33 1999/03/31 21:01:39 brian Exp $";
 #endif /* not lint */
 
 /*
@@ -335,7 +335,11 @@ main(argc, argv)
 		}
 
 	for (ep = ehead; ep != NULL; ep = ep->next) {
-		p = *ep->utmp.ut_host ? ep->utmp.ut_host : "-";
+		char host_buf[UT_HOSTSIZE + 1];
+
+		host_buf[UT_HOSTSIZE] = '\0';
+		strncpy(host_buf, ep->utmp.ut_host, UT_HOSTSIZE);
+		p = *host_buf ? host_buf : "-";
 		if ((x = strchr(p, ':')) != NULL)
 			*x++ = '\0';
 		if (!nflag && isdigit(*p) &&
@@ -362,8 +366,7 @@ main(argc, argv)
 			}
 		}
 		if (x) {
-			(void)snprintf(buf, sizeof(buf), "%s:%.*s", p,
-			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
+			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x);
 			p = buf;
 		}
 		if (dflag) {
