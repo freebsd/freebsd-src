@@ -32,10 +32,6 @@
  * (aka SMC9432TX based on SMC83c170 EPIC chip)
  * 
  * Thanks are going to Steve Bauer and Jason Wright.
- *
- * todo:
- *	Implement FULL IFF_MULTICAST support.
- *	
  */
 
 #include <sys/param.h>
@@ -53,6 +49,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 
 #include <net/bpf.h>
@@ -154,6 +151,7 @@ static void epic_start_activity(epic_softc_t *);
 static void epic_set_rx_mode(epic_softc_t *);
 static void epic_set_tx_mode(epic_softc_t *);
 static void epic_set_mc_table(epic_softc_t *);
+static u_int8_t epic_calchash(caddr_t);
 static int epic_read_eeprom(epic_softc_t *,u_int16_t);
 static void epic_output_eepromw(epic_softc_t *, u_int16_t);
 static u_int16_t epic_input_eepromw(epic_softc_t *);
@@ -715,8 +713,9 @@ epic_ifioctl(ifp, command, data)
 			}
 		}
 
-		/* Handle IFF_PROMISC flag */
+		/* Handle IFF_PROMISC and IFF_ALLMULTI flags */
 		epic_stop_activity(sc);	
+		epic_set_mc_table(sc);
 		epic_set_rx_mode(sc);
 		epic_start_activity(sc);	
 		break;
@@ -1529,27 +1528,76 @@ epic_set_tx_mode(sc)
 }
 
 /*
- * Synopsis: This function should update multicast hash table.
- * I suppose there is a bug in chips MC filter so this function
- * only set it to receive all MC packets. The second problem is
- * that we should wait for TX and RX processes to stop before
- * reprogramming MC filter. The epic_stop_activity() and 
- * epic_start_activity() should help to do this.
+ * Synopsis: Program multicast filter honoring IFF_ALLMULTI and IFF_PROMISC
+ * flags. (Note, that setting PROMISC bit in EPIC's RXCON will only touch
+ * individual frames, multicast filter must be manually programmed)
+ *
+ * Note: EPIC must be in idle state.
  */
 static void
 epic_set_mc_table(sc)
 	epic_softc_t *sc;
 {
 	struct ifnet *ifp = &sc->sc_if;
+	struct ifmultiaddr *ifma;
+	u_int16_t filter[4];
+	u_int8_t h;
 
-	if( ifp->if_flags & IFF_MULTICAST ){
-		CSR_WRITE_4( sc, MC0, 0xFFFF );
-		CSR_WRITE_4( sc, MC1, 0xFFFF );
-		CSR_WRITE_4( sc, MC2, 0xFFFF );
-		CSR_WRITE_4( sc, MC3, 0xFFFF );
+	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+		CSR_WRITE_4(sc, MC0, 0xFFFF);
+		CSR_WRITE_4(sc, MC1, 0xFFFF);
+		CSR_WRITE_4(sc, MC2, 0xFFFF);
+		CSR_WRITE_4(sc, MC3, 0xFFFF);
+
+		return;
 	}
 
+	filter[0] = 0;
+	filter[1] = 0;
+	filter[2] = 0;
+	filter[3] = 0;
+
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		if (ifma->ifma_addr->sa_family != AF_LINK)
+			continue;
+		h = epic_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		filter[h >> 4] |= 1 << (h & 0xF);
+	}
+
+	CSR_WRITE_4(sc, MC0, filter[0]);
+	CSR_WRITE_4(sc, MC1, filter[1]);
+	CSR_WRITE_4(sc, MC2, filter[2]);
+	CSR_WRITE_4(sc, MC3, filter[3]);
+
 	return;
+}
+
+/*
+ * Synopsis: calculate EPIC's hash of multicast address.
+ */
+static u_int8_t
+epic_calchash(addr)
+	caddr_t addr;
+{
+	u_int32_t crc, carry;
+	int i, j;
+	u_int8_t c;
+
+	/* Compute CRC for the address value. */
+	crc = 0xFFFFFFFF; /* initial value */
+
+	for (i = 0; i < 6; i++) {
+		c = *(addr + i);
+		for (j = 0; j < 8; j++) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+			crc <<= 1;
+			c >>= 1;
+			if (carry)
+				crc = (crc ^ 0x04c11db6) | carry;
+		}
+	}
+
+	return ((crc >> 26) & 0x3F);
 }
 
 
