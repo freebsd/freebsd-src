@@ -53,7 +53,7 @@ vs_line(sp, smp, yp, xp)
 	size_t chlen, cno_cnt, cols_per_screen, len, nlen;
 	size_t offset_in_char, offset_in_line, oldx, oldy;
 	size_t scno, skip_cols, skip_screens;
-	int ch, dne, is_cached, is_partial, is_tab;
+	int ch, dne, is_cached, is_partial, is_tab, no_draw;
 	int list_tab, list_dollar;
 	char *p, *cbp, *ecbp, cbuf[128];
 
@@ -65,10 +65,11 @@ vs_line(sp, smp, yp, xp)
 	 * If ex modifies the screen after ex output is already on the screen,
 	 * don't touch it -- we'll get scrolling wrong, at best.
 	 */
+	no_draw = 0;
 	if (!F_ISSET(sp, SC_TINPUT_INFO) && VIP(sp)->totalcount > 1)
-		return (0);
+		no_draw = 1;
 	if (F_ISSET(sp, SC_SCR_EXWROTE) && smp - HMAP != LASTLINE(sp))
-		return (0);
+		no_draw = 1;
 
 	/*
 	 * Assume that, if the cache entry for the line is filled in, the
@@ -77,7 +78,7 @@ vs_line(sp, smp, yp, xp)
 	 * cursor position, we can just return.
 	 */
 	is_cached = SMAP_CACHE(smp);
-	if (yp == NULL && is_cached)
+	if (yp == NULL && (is_cached || no_draw))
 		return (0);
 
 	/*
@@ -162,7 +163,7 @@ vs_line(sp, smp, yp, xp)
 		}
 
 		/* If the line is on the screen, quit. */
-		if (is_cached)
+		if (is_cached || no_draw)
 			goto ret1;
 
 		/* Set line cache information. */
@@ -329,7 +330,7 @@ display:
 	    offset_in_line + cols_per_screen < sp->cno) {
 		cno_cnt = 0;
 		/* If the line is on the screen, quit. */
-		if (is_cached)
+		if (is_cached || no_draw)
 			goto ret1;
 	} else
 		cno_cnt = (sp->cno - offset_in_line) + 1;
@@ -393,12 +394,12 @@ display:
 				*xp += O_NUMBER_LENGTH;
 
 			/* If the line is on the screen, quit. */
-			if (is_cached)
+			if (is_cached || no_draw)
 				goto ret1;
 		}
 
 		/* If the line is on the screen, don't display anything. */
-		if (is_cached)
+		if (is_cached || no_draw)
 			continue;
 
 #define	FLUSH {								\
