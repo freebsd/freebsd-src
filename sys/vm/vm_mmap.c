@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.44 1996/05/31 00:38:00 dyson Exp $
+ * $Id: vm_mmap.c,v 1.45 1996/07/27 03:24:00 dyson Exp $
  */
 
 /*
@@ -72,7 +72,9 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#ifdef notyet
 #include <vm/loadaout.h>
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
