@@ -145,7 +145,8 @@ static PptpCallId AliasVerifyPptp(struct ip *, u_int16_t *);
 
 
 void
-AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
+AliasHandlePptpOut(struct libalias *la,
+		   struct ip *pip,	    /* IP packet to examine/patch */
                    struct alias_link *link) /* The PPTP control link */
 {
     struct alias_link   *pptp_link;
@@ -165,13 +166,13 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
     case PPTP_InCallRequest:
     case PPTP_InCallReply:
 	/* Establish PPTP link for address and Call ID found in control message. */
-	pptp_link = AddPptp(GetOriginalAddress(link), GetDestAddress(link),
+	pptp_link = AddPptp(la, GetOriginalAddress(link), GetDestAddress(link),
 			    GetAliasAddress(link), cptr->cid1);
 	break;
     case PPTP_CallClearRequest:
     case PPTP_CallDiscNotify:
 	/* Find PPTP link for address and Call ID found in control message. */
-	pptp_link = FindPptpOutByCallId(GetOriginalAddress(link),
+	pptp_link = FindPptpOutByCallId(la, GetOriginalAddress(link),
 					GetDestAddress(link),
 					cptr->cid1);
 	break;
@@ -208,7 +209,8 @@ AliasHandlePptpOut(struct ip *pip,	    /* IP packet to examine/patch */
 }
 
 void
-AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
+AliasHandlePptpIn(struct libalias *la, 
+		  struct ip *pip,	   /* IP packet to examine/patch */
                   struct alias_link *link) /* The PPTP control link */
 {
     struct alias_link   *pptp_link;
@@ -234,7 +236,7 @@ AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
       pcall_id = &cptr->cid2;
       break;
     case PPTP_CallDiscNotify:			/* Connection closed. */
-      pptp_link = FindPptpInByCallId(GetDestAddress(link),
+      pptp_link = FindPptpInByCallId(la, GetDestAddress(link),
 				     GetAliasAddress(link),
 				     cptr->cid1);
       if (pptp_link != NULL)
@@ -245,7 +247,7 @@ AliasHandlePptpIn(struct ip *pip,	   /* IP packet to examine/patch */
     }
 
     /* Find PPTP link for address and Call ID found in PPTP Control Msg */
-    pptp_link = FindPptpInByPeerCallId(GetDestAddress(link),
+    pptp_link = FindPptpInByPeerCallId(la, GetDestAddress(link),
 				       GetAliasAddress(link),
 				       *pcall_id);
 
@@ -311,7 +313,7 @@ AliasVerifyPptp(struct ip *pip, u_int16_t *ptype) /* IP packet to examine/patch 
 
 
 int
-AliasHandlePptpGreOut(struct ip *pip)
+AliasHandlePptpGreOut(struct libalias *la, struct ip *pip)
 {
     GreHdr		*gr;
     struct alias_link	*link;
@@ -322,7 +324,7 @@ AliasHandlePptpGreOut(struct ip *pip)
     if ((ntohl(*((u_int32_t *)gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
 	return (-1);
 
-    link = FindPptpOutByPeerCallId(pip->ip_src, pip->ip_dst, gr->gh_call_id);
+    link = FindPptpOutByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
     if (link != NULL) {
 	struct in_addr alias_addr = GetAliasAddress(link);
 
@@ -339,7 +341,7 @@ AliasHandlePptpGreOut(struct ip *pip)
 
 
 int
-AliasHandlePptpGreIn(struct ip *pip)
+AliasHandlePptpGreIn(struct libalias *la, struct ip *pip)
 {
     GreHdr		*gr;
     struct alias_link	*link;
@@ -350,7 +352,7 @@ AliasHandlePptpGreIn(struct ip *pip)
     if ((ntohl(*((u_int32_t *)gr)) & PPTP_INIT_MASK) != PPTP_INIT_VALUE)
 	return (-1);
 
-    link = FindPptpInByPeerCallId(pip->ip_src, pip->ip_dst, gr->gh_call_id);
+    link = FindPptpInByPeerCallId(la, pip->ip_src, pip->ip_dst, gr->gh_call_id);
     if (link != NULL) {
 	struct in_addr src_addr = GetOriginalAddress(link);
 

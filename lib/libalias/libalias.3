@@ -67,24 +67,26 @@ of the kernel, without any access to private kernel data structure, but
 the source code can also be ported to a kernel environment.
 .Sh INITIALIZATION AND CONTROL
 One special function,
-.Fn PacketAliasInit ,
-must always be called before any packet handling may be performed.
+.Fn LibAliasInit ,
+must always be called before any packet handling may be performed and
+the returned instance pointer passed to all the other functions.
 Normally, the
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 function is called afterwards, to set the default aliasing address.
 In addition, the operating mode of the packet aliasing engine can be
 customized by calling
-.Fn PacketAliasSetMode .
+.Fn LibAliasSetMode .
 .Pp
-.Ft void
-.Fn PacketAliasInit void
+.Ft "struct libalias *"
+.Fn LibAliasInit "struct libalias *"
 .Bd -ragged -offset indent
-This function has no arguments or return value and is used to initialize
+This function is used to initialize
 internal data structures.
+When called first time a NULL pointer should be passed as argument.
 The following mode bits are always set after calling
-.Fn PacketAliasInit .
+.Fn LibAliasInit .
 See the description of
-.Fn PacketAliasSetMode
+.Fn LibAliasSetMode
 below for the meaning of these mode bits.
 .Pp
 .Bl -item -offset indent -compact
@@ -99,19 +101,19 @@ below for the meaning of these mode bits.
 This function will always return the packet aliasing engine to the same
 initial state.
 The
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 function is normally called afterwards, and any desired changes from the
 default mode bits listed above require a call to
-.Fn PacketAliasSetMode .
+.Fn LibAliasSetMode .
 .Pp
 It is mandatory that this function be called at the beginning of a program
 prior to any packet handling.
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasUninit void
+.Fn LibAliasUninit "struct libalias *"
 .Bd -ragged -offset indent
-This function has no arguments or return value and is used to clear any
+This function has no return value and is used to clear any
 resources attached to internal data structures.
 .Pp
 This functions should be called when a program stops using the aliasing
@@ -120,18 +122,17 @@ To provide backwards compatibility and extra security, it is added to
 the
 .Xr atexit 3
 chain by
-.Fn PacketAliasInit .
-Calling it multiple times is harmless.
+.Fn LibAliasInit .
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasSetAddress "struct in_addr addr"
+.Fn LibAliasSetAddress "struct libalias *" "struct in_addr addr"
 .Bd -ragged -offset indent
 This function sets the source address to which outgoing packets from the
 local area network are aliased.
 All outgoing packets are re-mapped to this address unless overridden by a
 static address mapping established by
-.Fn PacketAliasRedirectAddr .
+.Fn LibAliasRedirectAddr .
 If this function is not called, and no static rules match, an outgoing
 packet retains its source address.
 .Pp
@@ -153,7 +154,7 @@ It is mandatory that this function be called prior to any packet handling.
 .Ed
 .Pp
 .Ft unsigned int
-.Fn PacketAliasSetMode "unsigned int flags" "unsigned int mask"
+.Fn LibAliasSetMode "struct libalias *" "unsigned int flags" "unsigned int mask"
 .Bd -ragged -offset indent
 This function sets or clears mode bits
 according to the value of
@@ -174,7 +175,7 @@ Mainly useful for debugging when the log file is viewed continuously with
 .It Dv PKT_ALIAS_DENY_INCOMING
 If this mode bit is set, all incoming packets associated with new TCP
 connections or new UDP transactions will be marked for being ignored
-.Fn ( PacketAliasIn
+.Fn ( LibAliasIn
 returns
 .Dv PKT_ALIAS_IGNORED
 code)
@@ -214,7 +215,7 @@ The registered subnet is fully accessible to the outside world, so traffic
 from it does not need to be passed through the packet aliasing engine.
 .It Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
 When this mode bit is set and
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is called to change the aliasing address, the internal link table of the
 packet aliasing engine will be cleared.
 This operating mode is useful for
@@ -238,7 +239,7 @@ To cater to unexpected death of a program using
 changing the state of the flag will clear the entire firewall range
 allocated for holes.
 This will also happen on the initial call to
-.Fn PacketAliasSetFWBase .
+.Fn LibAliasSetFWBase .
 This call must happen prior to setting this flag.
 .It Dv PKT_ALIAS_REVERSE
 This option makes
@@ -252,13 +253,13 @@ This option tells
 to obey transparent proxy rules only.
 Normal packet aliasing is not performed.
 See
-.Fn PacketAliasProxyRule
+.Fn LibAliasProxyRule
 below for details.
 .El
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasSetFWBase "unsigned int base" "unsigned int num"
+.Fn LibAliasSetFWBase "struct libalias *" "unsigned int base" "unsigned int num"
 .Bd -ragged -offset indent
 Set firewall range allocated for punching firewall holes (with the
 .Dv PKT_ALIAS_PUNCH_FW
@@ -267,7 +268,7 @@ The range will be cleared for all rules on initialization.
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasSkinnyPort "unsigned int port"
+.Fn LibAliasSkinnyPort "struct libalias *" "unsigned int port"
 .Bd -ragged -offset indent
 Set the TCP port used by the Skinny Station protocol.
 Skinny is used by Cisco IP phones to communicate with
@@ -282,18 +283,18 @@ The calling program is responsible for receiving and sending packets via
 network interfaces.
 .Pp
 Along with
-.Fn PacketAliasInit
+.Fn LibAliasInit
 and
-.Fn PacketAliasSetAddress ,
+.Fn LibAliasSetAddress ,
 the two packet handling functions,
-.Fn PacketAliasIn
+.Fn LibAliasIn
 and
-.Fn PacketAliasOut ,
+.Fn LibAliasOut ,
 comprise minimal set of functions needed for a basic IP masquerading
 implementation.
 .Pp
 .Ft int
-.Fn PacketAliasIn "char *buffer" "int maxpacketsize"
+.Fn LibAliasIn "struct libalias *" "char *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An incoming packet coming from a remote machine to the local network is
 de-aliased by this function.
@@ -315,26 +316,26 @@ type is not handled or if incoming packets for new connections are being
 ignored (if
 .Dv PKT_ALIAS_DENY_INCOMING
 mode bit was set by
-.Fn PacketAliasSetMode ) .
+.Fn LibAliasSetMode ) .
 .It Dv PKT_ALIAS_UNRESOLVED_FRAGMENT
 This is returned when a fragment cannot be resolved because the header
 fragment has not been sent yet.
 In this situation, fragments must be saved with
-.Fn PacketAliasSaveFragment
+.Fn LibAliasSaveFragment
 until a header fragment is found.
 .It Dv PKT_ALIAS_FOUND_HEADER_FRAGMENT
 The packet aliasing process was successful, and a header fragment was found.
 This is a signal to retrieve any unresolved fragments with
-.Fn PacketAliasGetFragment
+.Fn LibAliasGetFragment
 and de-alias them with
-.Fn PacketAliasFragmentIn .
+.Fn LibAliasFragmentIn .
 .It Dv PKT_ALIAS_ERROR
 An internal error within the packet aliasing engine occurred.
 .El
 .Ed
 .Pp
 .Ft int
-.Fn PacketAliasOut "char *buffer" "int maxpacketsize"
+.Fn LibAliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An outgoing packet coming from the local network to a remote machine is
 aliased by this function.
@@ -369,7 +370,8 @@ Individual ports can be re-mapped or static network address translations can
 be designated.
 .Pp
 .Ft struct alias_link *
-.Fo PacketAliasRedirectPort
+.Fo LibAliasRedirectPort
+.Fa "struct libalias *"
 .Fa "struct in_addr local_addr"
 .Fa "u_short local_port"
 .Fa "struct in_addr remote_addr"
@@ -396,12 +398,12 @@ or
 .Fa alias_addr
 is zero, this indicates that the packet aliasing address as established
 by
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is to be used.
 Even if
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is called to change the address after
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 is called, a zero reference will track this change.
 .Pp
 If the link is further set up to operate for a load sharing, then
@@ -409,7 +411,7 @@ If the link is further set up to operate for a load sharing, then
 and
 .Fa local_port
 are ignored, and are selected dynamically from the server pool, as described in
-.Fn PacketAliasAddServer
+.Fn LibAliasAddServer
 below.
 .Pp
 If
@@ -422,12 +424,12 @@ port number.
 Almost always, the remote port specification will be zero, but non-zero
 remote addresses can sometimes be useful for firewalling.
 If two calls to
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 overlap in their address/port specifications, then the most recent call
 will have precedence.
 .Pp
 This function returns a pointer which can subsequently be used by
-.Fn PacketAliasRedirectDelete .
+.Fn LibAliasRedirectDelete .
 If
 .Dv NULL
 is returned, then the function call did not complete successfully.
@@ -443,7 +445,8 @@ data type.
 .Ed
 .Pp
 .Ft struct alias_link *
-.Fo PacketAliasRedirectAddr
+.Fo LibAliasRedirectAddr
+.Fa "struct libalias *"
 .Fa "struct in_addr local_addr"
 .Fa "struct in_addr alias_addr"
 .Fc
@@ -462,22 +465,22 @@ If
 or
 .Fa alias_addr
 is zero, this indicates that the packet aliasing address as established by
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is to be used.
 Even if
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is called to change the address after
-.Fn PacketAliasRedirectAddr
+.Fn LibAliasRedirectAddr
 is called, a zero reference will track this change.
 .Pp
 If the link is further set up to operate for a load sharing, then
 .Fa local_addr
 is ignored, and is selected dynamically from the server pool, as described in
-.Fn PacketAliasAddServer
+.Fn LibAliasAddServer
 below.
 .Pp
 If subsequent calls to
-.Fn PacketAliasRedirectAddr
+.Fn LibAliasRedirectAddr
 use the same aliasing address, all new incoming traffic to this aliasing
 address will be redirected to the local address made in the last function
 call.
@@ -485,11 +488,11 @@ New traffic generated by any of the local machines, designated in the
 several function calls, will be aliased to the same address.
 Consider the following example:
 .Bd -literal -offset indent
-PacketAliasRedirectAddr(inet_aton("192.168.0.2"),
+LibAliasRedirectAddr(inet_aton("192.168.0.2"),
                         inet_aton("141.221.254.101"));
-PacketAliasRedirectAddr(inet_aton("192.168.0.3"),
+LibAliasRedirectAddr(inet_aton("192.168.0.3"),
                         inet_aton("141.221.254.101"));
-PacketAliasRedirectAddr(inet_aton("192.168.0.4"),
+LibAliasRedirectAddr(inet_aton("192.168.0.4"),
                         inet_aton("141.221.254.101"));
 .Ed
 .Pp
@@ -502,19 +505,20 @@ from 192.168.0.2, 192.168.0.3 and 192.168.0.4 will appear to come from
 Any incoming connections to 141.221.254.101 will be directed to 192.168.0.4.
 .Pp
 Any calls to
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 will have precedence over address mappings designated by
-.Fn PacketAliasRedirectAddr .
+.Fn LibAliasRedirectAddr .
 .Pp
 This function returns a pointer which can subsequently be used by
-.Fn PacketAliasRedirectDelete .
+.Fn LibAliasRedirectDelete .
 If
 .Dv NULL
 is returned, then the function call did not complete successfully.
 .Ed
 .Pp
 .Ft int
-.Fo PacketAliasAddServer
+.Fo LibAliasAddServer
+.Fa "struct libalias *"
 .Fa "struct alias_link *link"
 .Fa "struct in_addr addr"
 .Fa "u_short port"
@@ -541,17 +545,17 @@ the host.
 First, the
 .Fa link
 is created by either
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 or
-.Fn PacketAliasRedirectAddr .
+.Fn LibAliasRedirectAddr .
 Then,
-.Fn PacketAliasAddServer
+.Fn LibAliasAddServer
 is called multiple times to add entries to the
 .Fa link Ns 's
 server pool.
 .Pp
 For links created with
-.Fn PacketAliasRedirectAddr ,
+.Fn LibAliasRedirectAddr ,
 the
 .Fa port
 argument is ignored and could have any value, e.g. htons(~0).
@@ -560,10 +564,10 @@ This function returns 0 on success, \-1 otherwise.
 .Ed
 .Pp
 .Ft int
-.Fn PacketAliasRedirectDynamic "struct alias_link *link"
+.Fn LibAliasRedirectDynamic "struct libalias *" "struct alias_link *link"
 .Bd -ragged -offset indent
 This function marks the specified static redirect rule entered by
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 as dynamic.
 This can be used to e.g. dynamically redirect a single TCP connection,
 after which the rule is removed.
@@ -579,23 +583,23 @@ This function returns 0 on success, \-1 otherwise.
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasRedirectDelete "struct alias_link *link"
+.Fn LibAliasRedirectDelete "struct libalias *" "struct alias_link *link"
 .Bd -ragged -offset indent
 This function will delete a specific static redirect rule entered by
-.Fn PacketAliasRedirectPort
+.Fn LibAliasRedirectPort
 or
-.Fn PacketAliasRedirectAddr .
+.Fn LibAliasRedirectAddr .
 The parameter
 .Fa link
 is the pointer returned by either of the redirection functions.
 If an invalid pointer is passed to
-.Fn PacketAliasRedirectDelete ,
+.Fn LibAliasRedirectDelete ,
 then a program crash or unpredictable operation could result, so it is
 necessary to be careful using this function.
 .Ed
 .Pp
 .Ft int
-.Fn PacketAliasProxyRule "const char *cmd"
+.Fn LibAliasProxyRule "struct libalias *" "const char *cmd"
 .Bd -ragged -offset indent
 The passed
 .Fa cmd
@@ -640,14 +644,14 @@ specification is mandatory unless the
 command is being used.
 .It Cm rule Ar index
 Normally, each call to
-.Fn PacketAliasProxyRule
+.Fn LibAliasProxyRule
 inserts the next rule at the start of a linear list of rules.
 If an
 .Ar index
 is specified, the new rule will be checked after all rules with lower
 indices.
 Calls to
-.Fn PacketAliasProxyRule
+.Fn LibAliasProxyRule
 that do not specify a rule are assigned rule 0.
 .It Cm delete Ar index
 This token and its argument MUST NOT be used with any other tokens.
@@ -688,7 +692,8 @@ access, or to restrict access to certain external machines.
 .Ed
 .Pp
 .Ft struct alias_link *
-.Fo PacketAliasRedirectProto
+.Fo LibAliasRedirectProto
+.Fa "struct libalias *"
 .Fa "struct in_addr local_addr"
 .Fa "struct in_addr remote_addr"
 .Fa "struct in_addr alias_addr"
@@ -706,12 +711,12 @@ or
 .Fa alias_addr
 is zero, this indicates that the packet aliasing address as established
 by
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is to be used.
 Even if
-.Fn PacketAliasSetAddress
+.Fn LibAliasSetAddress
 is called to change the address after
-.Fn PacketAliasRedirectProto
+.Fn LibAliasRedirectProto
 is called, a zero reference will track this change.
 .Pp
 If
@@ -720,12 +725,12 @@ is zero, this indicates to redirect packets from any remote address.
 Non-zero remote addresses can sometimes be useful for firewalling.
 .Pp
 If two calls to
-.Fn PacketAliasRedirectProto
+.Fn LibAliasRedirectProto
 overlap in their address specifications, then the most recent call
 will have precedence.
 .Pp
 This function returns a pointer which can subsequently be used by
-.Fn PacketAliasRedirectDelete .
+.Fn LibAliasRedirectDelete .
 If
 .Dv NULL
 is returned, then the function call did not complete successfully.
@@ -734,11 +739,11 @@ is returned, then the function call did not complete successfully.
 The functions in this section are used to deal with incoming fragments.
 .Pp
 Outgoing fragments are handled within
-.Fn PacketAliasOut
+.Fn LibAliasOut
 by changing the address according to any applicable mapping set by
-.Fn PacketAliasRedirectAddr ,
+.Fn LibAliasRedirectAddr ,
 or the default aliasing address set by
-.Fn PacketAliasSetAddress .
+.Fn LibAliasSetAddress .
 .Pp
 Incoming fragments are handled in one of two ways.
 If the header of a fragmented IP packet has already been seen, then all
@@ -748,10 +753,10 @@ Fragments which arrive before the header are saved and then retrieved
 once the header fragment has been resolved.
 .Pp
 .Ft int
-.Fn PacketAliasSaveFragment "char *ptr"
+.Fn LibAliasSaveFragment "struct libalias *" "char *ptr"
 .Bd -ragged -offset indent
 When
-.Fn PacketAliasIn
+.Fn LibAliasIn
 returns
 .Dv PKT_ALIAS_UNRESOLVED_FRAGMENT ,
 this function can be used to save the pointer to the unresolved fragment.
@@ -773,33 +778,33 @@ if there was an error.
 .Ed
 .Pp
 .Ft char *
-.Fn PacketAliasGetFragment "char *buffer"
+.Fn LibAliasGetFragment "struct libalias *" "char *buffer"
 .Bd -ragged -offset indent
 This function can be used to retrieve fragment pointers saved by
-.Fn PacketAliasSaveFragment .
+.Fn LibAliasSaveFragment .
 The IP header fragment pointed to by
 .Fa buffer
 is the header fragment indicated when
-.Fn PacketAliasIn
+.Fn LibAliasIn
 returns
 .Dv PKT_ALIAS_FOUND_HEADER_FRAGMENT .
 Once a fragment pointer is retrieved, it becomes the calling program's
 responsibility to free the dynamically allocated memory for the fragment.
 .Pp
 The
-.Fn PacketAliasGetFragment
+.Fn LibAliasGetFragment
 function can be called sequentially until there are no more fragments
 available, at which time it returns
 .Dv NULL .
 .Ed
 .Pp
 .Ft void
-.Fn PacketAliasFragmentIn "char *header" "char *fragment"
+.Fn LibAliasFragmentIn "struct libalias *" "char *header" "char *fragment"
 .Bd -ragged -offset indent
 When a fragment is retrieved with
-.Fn PacketAliasGetFragment ,
+.Fn LibAliasGetFragment ,
 it can then be de-aliased with a call to
-.Fn PacketAliasFragmentIn .
+.Fn LibAliasFragmentIn .
 The
 .Fa header
 argument is the pointer to a header fragment used as a template, and
@@ -808,17 +813,17 @@ is the pointer to the packet to be de-aliased.
 .Ed
 .Sh MISCELLANEOUS FUNCTIONS
 .Ft void
-.Fn PacketAliasSetTarget "struct in_addr addr"
+.Fn LibAliasSetTarget "struct libalias *" "struct in_addr addr"
 .Bd -ragged -offset indent
 When an incoming packet not associated with any pre-existing aliasing link
 arrives at the host machine, it will be sent to the address indicated by a
 call to
-.Fn PacketAliasSetTarget .
+.Fn LibAliasSetTarget .
 .Pp
 If this function is called with an
 .Dv INADDR_NONE
 address argument, then all new incoming packets go to the address set by
-.Fn PacketAliasSetAddress .
+.Fn LibAliasSetAddress .
 .Pp
 If this function is not called, or is called with an
 .Dv INADDR_ANY
@@ -829,17 +834,17 @@ can route packets to the machine in question.
 .Ed
 .Pp
 .Ft int
-.Fn PacketAliasCheckNewLink void
+.Fn LibAliasCheckNewLink void
 .Bd -ragged -offset indent
 This function returns a non-zero value when a new aliasing link is created.
 In circumstances where incoming traffic is being sequentially sent to
 different local servers, this function can be used to trigger when
-.Fn PacketAliasSetTarget
+.Fn LibAliasSetTarget
 is called to change the default target address.
 .Ed
 .Pp
 .Ft u_short
-.Fn PacketAliasInternetChecksum "u_short *buffer" "int nbytes"
+.Fn LibAliasInternetChecksum "struct libalias *" "u_short *buffer" "int nbytes"
 .Bd -ragged -offset indent
 This is a utility function that does not seem to be available elsewhere and
 is included as a convenience.
@@ -856,12 +861,12 @@ The 16-bit checksum field should be zeroed before computing the checksum.
 Checksums can also be verified by operating on a block of data including
 its checksum.
 If the checksum is valid,
-.Fn PacketAliasInternetChecksum
+.Fn LibAliasInternetChecksum
 will return zero.
 .Ed
 .Pp
 .Ft int
-.Fn PacketUnaliasOut "char *buffer" "int maxpacketsize"
+.Fn LibAliasUnaliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An outgoing packet, which has already been aliased,
 has its private address/port information restored by this function.

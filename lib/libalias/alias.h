@@ -39,7 +39,37 @@
 #ifndef _ALIAS_H_
 #define	_ALIAS_H_
 
-/* The external interface to libalias, the packet aliasing engine. */
+/*
+ * The external interface to libalias, the packet aliasing engine.
+ *
+ * There are two sets of functions:
+ *
+ * PacketAlias*() the old API which doesn't take an instance pointer
+ * and therefore can only have one packet engine at a time.
+ *
+ * LibAlias*() the new API which takes as first argument a pointer to 
+ * the instance of the packet aliasing engine.
+ *
+ * The functions otherwise correspond to each other one for one, except
+ * for the LibAliasUnaliasOut()/PacketUnaliasOut() function which were 
+ * were misnamed in the old API.
+ */
+
+/*
+ * The instance structure
+ */
+struct libalias;
+
+/*
+ * An anonymous structure, a pointer to which is returned from
+ * PacketAliasRedirectAddr(), PacketAliasRedirectPort() or
+ * PacketAliasRedirectProto(), passed to PacketAliasAddServer(),
+ * and freed by PacketAliasRedirectDelete().
+ */
+struct	alias_link;
+
+
+/* OLD API */
 
 /* Initialization and control functions. */
 void	 PacketAliasInit(void);
@@ -57,13 +87,6 @@ int	 PacketUnaliasOut(char *_ptr, int _maxpacketsize);
 
 /* Port and address redirection functions. */
 
-/*
- * An anonymous structure, a pointer to which is returned from
- * PacketAliasRedirectAddr(), PacketAliasRedirectPort() or
- * PacketAliasRedirectProto(), passed to PacketAliasAddServer(),
- * and freed by PacketAliasRedirectDelete().
- */
-struct	alias_link;
 
 int	 PacketAliasAddServer(struct alias_link *_link,
 	    struct in_addr _addr, unsigned short _port);
@@ -95,6 +118,61 @@ void	 PacketAliasSetTarget(struct in_addr _target_addr);
 
 /* Transparent proxying routines. */
 int	 PacketAliasProxyRule(const char *_cmd);
+
+/* NEW API */
+
+/* Initialization and control functions. */
+struct libalias	*LibAliasInit(struct libalias *);
+void	 LibAliasSetAddress(struct libalias *, struct in_addr _addr);
+void	 LibAliasSetFWBase(struct libalias *, unsigned int _base, unsigned int _num);
+void	 LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
+unsigned int
+	 LibAliasSetMode(struct libalias *, unsigned int _flags, unsigned int _mask);
+void	 LibAliasUninit(struct libalias *);
+
+/* Packet Handling functions. */
+int	 LibAliasIn(struct libalias *, char *_ptr, int _maxpacketsize);
+int	 LibAliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
+int	 LibAliasUnaliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
+
+/* Port and address redirection functions. */
+
+int	 LibAliasAddServer(struct libalias *, struct alias_link *_link,
+	    struct in_addr _addr, unsigned short _port);
+struct alias_link *
+	 LibAliasRedirectAddr(struct libalias *, struct in_addr _src_addr,
+	    struct in_addr _alias_addr);
+int	 LibAliasRedirectDynamic(struct libalias *, struct alias_link *_link);
+void	 LibAliasRedirectDelete(struct libalias *, struct alias_link *_link);
+struct alias_link *
+	 LibAliasRedirectPort(struct libalias *, struct in_addr _src_addr,
+	    unsigned short _src_port, struct in_addr _dst_addr,
+	    unsigned short _dst_port, struct in_addr _alias_addr,
+	    unsigned short _alias_port, unsigned char _proto);
+struct alias_link *
+	 LibAliasRedirectProto(struct libalias *, struct in_addr _src_addr,
+	    struct in_addr _dst_addr, struct in_addr _alias_addr,
+	    unsigned char _proto);
+
+/* Fragment Handling functions. */
+void	 LibAliasFragmentIn(struct libalias *, char *_ptr, char *_ptr_fragment);
+char	*LibAliasGetFragment(struct libalias *, char *_ptr);
+int	 LibAliasSaveFragment(struct libalias *, char *_ptr);
+
+/* Miscellaneous functions. */
+int	 LibAliasCheckNewLink(struct libalias *);
+unsigned short
+	 LibAliasInternetChecksum(struct libalias *, unsigned short *_ptr, int _nbytes);
+void	 LibAliasSetTarget(struct libalias *, struct in_addr _target_addr);
+
+/* Transparent proxying routines. */
+int	 LibAliasProxyRule(struct libalias *, const char *_cmd);
+
+
+/*
+ * Mode flags and other constants.
+ */
+
 
 /* Mode flags, set using PacketAliasSetMode() */
 
