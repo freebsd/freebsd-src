@@ -891,7 +891,7 @@ usage()
 	    "8DEKLd", " [-k realm] ");
 #endif
 #else
-	    "8DELd", " ");
+	    "8DEKLd", " ");
 #endif
 	exit(1);
 }
