@@ -208,7 +208,7 @@ environment variable
 .Va debug.acpi.disable .
 .Pp
 ACPI sub-devices and features that can be disabled:
-.Bl -tag -width processor
+.Bl -tag -width children
 .It Li bus
 .Pq Vt feature
 Probes and attaches subdevices.
@@ -239,7 +239,7 @@ system to sleep.
 .It Li pci
 .Pq Vt device
 Supports Host to PCI bridges.
-.It Li processor
+.It Li cpu
 .Pq Vt device
 Supports CPU power-saving and speed-setting functions.
 .It Li thermal
