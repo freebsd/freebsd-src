@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <ufs/ufs/ufsmount.h>
