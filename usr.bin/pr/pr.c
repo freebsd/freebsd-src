@@ -1457,16 +1457,23 @@ prtail(cnt, incomp)
 		/*
 		 * only pad with no headers when incomplete last line
 		 */
-		if (!incomp)
-			return(0);
-		if ((dspace && (putchar('\n') == EOF)) ||
-		    (putchar('\n') == EOF)) {
+		if (incomp &&
+		    ((dspace && (putchar('\n') == EOF)) ||
+		     (putchar('\n') == EOF))) {
 			pfail();
 			return(1);
 		}
+		/*
+		 * but honor the formfeed request
+		 */
+		if (formfeed) {
+			if (putchar('\f') == EOF) {
+				pfail();
+				return(1);
+			}
+		}
 		return(0);
 	}
-
 	/*
 	 * if double space output two \n
 	 */
