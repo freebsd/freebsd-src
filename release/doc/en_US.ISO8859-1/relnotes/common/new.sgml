@@ -103,6 +103,17 @@
     <para>A single-byte buffer overflow in &man.realpath.3; has been
       fixed.  See security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
+
+    <para>A bug that could allow the kernel to attempt delivery of
+      invalid signals has been fixed.  The bug could have led to a
+      kernel panic.  For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>.</para>
+
+    <para>A bug in the iBCS2 emulation module, which could result in
+      disclosing the contents of kernel memory, has been fixed.  This
+      module is not enabled in &os; by default.  For more information,
+      see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
