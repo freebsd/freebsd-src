@@ -1803,7 +1803,7 @@ msdosfs_strategy(ap)
 	 */
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = dep->de_pmp->pm_bo;
-	bo->bo_ops->bop_strategy(bo, bp);
+	BO_STRATEGY(bo, bp);
 	return (0);
 }
 

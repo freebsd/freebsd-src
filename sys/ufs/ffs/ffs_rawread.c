@@ -252,7 +252,7 @@ ffs_rawread_readahead(struct vnode *vp,
 	if (vmapbuf(bp) < 0)
 		return EFAULT;
 	
-	dp->v_bufobj.bo_ops->bop_strategy(&dp->v_bufobj, bp);
+	BO_STRATEGY(&dp->v_bufobj, bp);
 	return 0;
 }
 
