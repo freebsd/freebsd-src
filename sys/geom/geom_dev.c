@@ -155,7 +155,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
 		if (error) {
 			mediasize = 0;
-			printf("g_dev_taste: %d Mediasize is %lld bytes\n",
+			printf("g_dev_taste: error %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
 		g_topology_lock();
@@ -261,6 +261,9 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 	case DIOCGFWHEADS:
 		error = g_io_getattr("GEOM::fwheads", cp, &i, data);
+		break;
+	case DIOCGFRONTSTUFF:
+		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);

@@ -45,6 +45,8 @@ typedef int g_slice_start_t (struct bio *bp);
 
 struct g_slicer {
 	int		nslice;
+	off_t		cfrontstuff;
+	off_t		frontstuff;
 	struct g_slice	*slices;
 	void		*softc;
 	g_slice_start_t	*start;
