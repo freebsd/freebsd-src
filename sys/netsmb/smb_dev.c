@@ -111,13 +111,14 @@ static eventhandler_tag nsmb_dev_tag;
 static void
 nsmb_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
-	int min;
+	int u;
 
 	if (*dev != NODEV)
 		return;
-	if (dev_stdclone(name, NULL, NSMB_NAME, &min) != 1)
+	if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
 		return;
-	*dev = make_dev(&nsmb_cdevsw, min, 0, 0, 0600, NSMB_NAME"%d", min);
+	*dev = make_dev(&nsmb_cdevsw, unit2minor(u), 0, 0, 0600,
+	    NSMB_NAME"%d", u);
 }
 
 static int
