@@ -251,7 +251,7 @@ schedcpu(arg)
 	register unsigned int newcpu;
 
 	realstathz = stathz ? stathz : hz;
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		/*
 		 * Increment time in/out of memory and sleep time
 		 * (if sleeping).  We ignore overflow; with 16-bit int's
@@ -689,7 +689,7 @@ wakeup(ident)
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 restart:
-	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
+	TAILQ_FOREACH(p, qp, p_procq) {
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
@@ -730,7 +730,7 @@ wakeup_one(ident)
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 
-	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
+	TAILQ_FOREACH(p, qp, p_procq) {
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;

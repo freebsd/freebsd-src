@@ -97,8 +97,7 @@ getpriority(curp, uap)
 			pg = curp->p_pgrp;
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
-		for (p = pg->pg_members.lh_first; p != 0;
-		     p = p->p_pglist.le_next) {
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			if (p->p_nice < low)
 				low = p->p_nice;
 		}
@@ -108,7 +107,7 @@ getpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
+		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
@@ -159,8 +158,7 @@ setpriority(curp, uap)
 			pg = curp->p_pgrp;
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
-		for (p = pg->pg_members.lh_first; p != 0;
-		    p = p->p_pglist.le_next) {
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			error = donice(curp, p, uap->prio);
 			found++;
 		}
@@ -170,7 +168,7 @@ setpriority(curp, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = curp->p_ucred->cr_uid;
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
+		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who) {
 				error = donice(curp, p, uap->prio);
 				found++;

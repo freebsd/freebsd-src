@@ -394,7 +394,7 @@ funsetownlst(sigiolst)
 {
 	struct sigio *sigio;
 
-	while ((sigio = sigiolst->slh_first) != NULL)
+	while ((sigio = SLIST_FIRST(sigiolst)) != NULL)
 		funsetown(sigio);
 }
 
@@ -1226,7 +1226,7 @@ sysctl_kern_file SYSCTL_HANDLER_ARGS
 	/*
 	 * followed by an array of file structures
 	 */
-	for (fp = filehead.lh_first; fp != NULL; fp = fp->f_list.le_next) {
+	LIST_FOREACH(fp, &filehead, f_list) {
 		error = SYSCTL_OUT(req, (caddr_t)fp, sizeof (struct file));
 		if (error)
 			return (error);
