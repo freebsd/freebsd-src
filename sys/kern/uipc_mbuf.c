@@ -66,6 +66,8 @@ int	max_hdr;
 int	max_datalen;
 int	nmbclusters;
 int	nmbufs;
+u_int	m_mballoc_wid = 0;
+u_int	m_clalloc_wid = 0;
 
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
