@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.131 1998/10/27 22:53:19 brian Exp $
+.\" $Id: ppp.8,v 1.132 1998/10/27 22:53:22 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -15,7 +15,7 @@
 .Fl dedicated
 .Oc
 .Op Fl alias
-.Op Ar system
+.Op Ar system ...
 .Sh DESCRIPTION
 This is a user process
 .Em PPP
@@ -2471,7 +2471,7 @@ will not complain if the route does not already exist.
 .It dial|call Op Ar label
 When used with no argument, this command is the same as the
 .Dq open
-command.  When
+command.  When one or more
 .Ar label
 is specified, a
 .Dq load
@@ -2572,9 +2572,9 @@ is
 .Dq * ,
 .Ar command
 is executed on all links.
-.It load Op Ar label
+.It load Op Ar label ...
 Load the given
-.Ar label
+.Ar label(s)
 from the
 .Pa ppp.conf
 file.  If

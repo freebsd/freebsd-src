@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.143 1998/09/17 00:45:27 brian Exp $
+ * $Id: main.c,v 1.144 1998/10/22 02:32:49 brian Exp $
  *
  *	TODO:
  */
@@ -179,27 +179,27 @@ Usage(void)
 #ifndef NOALIAS
           " [ -alias ]"
 #endif
-          " [system]\n");
+          " [system ...]\n");
   exit(EX_START);
 }
 
-static char *
+static int
 ProcessArgs(int argc, char **argv, int *mode, int *alias)
 {
-  int optc, labelrequired, newmode;
+  int optc, newmode, arg;
   char *cp;
 
-  optc = labelrequired = 0;
+  optc = 0;
   *mode = PHYS_INTERACTIVE;
   *alias = 0;
-  while (argc > 0 && **argv == '-') {
-    cp = *argv + 1;
+  for (arg = 1; arg < argc && *argv[arg] == '-'; arg++, optc++) {
+    cp = argv[arg] + 1;
     newmode = Nam2mode(cp);
     switch (newmode) {
       case PHYS_NONE:
         if (strcmp(cp, "alias") == 0) {
 #ifdef NOALIAS
-          log_Printf(LogWARN, "Cannot load alias library\n");
+          log_Printf(LogWARN, "Cannot load alias library (compiled out)\n");
 #else
           *alias = 1;
 #endif
@@ -212,23 +212,9 @@ ProcessArgs(int argc, char **argv, int *mode, int *alias)
         Usage();
         break;
 
-      case PHYS_AUTO:
-      case PHYS_BACKGROUND:
-      case PHYS_DDIAL:
-        labelrequired = 1;
-        /* fall through */
-
       default:
         *mode = newmode;
     }
-    optc++;
-    argv++;
-    argc--;
-  }
-
-  if (argc > 1) {
-    fprintf(stderr, "You may specify only one system label.\n");
-    exit(EX_START);
   }
 
   if (optc > 1) {
@@ -236,20 +222,36 @@ ProcessArgs(int argc, char **argv, int *mode, int *alias)
     exit(EX_START);
   }
 
-  if (labelrequired && argc != 1) {
-    fprintf(stderr, "Destination system must be specified in"
-            " auto, background or ddial mode.\n");
+  if (*mode == PHYS_AUTO && arg == argc) {
+    fprintf(stderr, "A system must be specified in auto mode.\n");
     exit(EX_START);
   }
 
-  return argc == 1 ? *argv : NULL;	/* Don't SetLabel yet ! */
+  return arg;		/* Don't SetLabel yet ! */
 }
+
+static void
+CheckLabel(const char *label, struct prompt *prompt, int mode)
+{
+  const char *err;
+
+  if ((err = system_IsValid(label, prompt, mode)) != NULL) {
+    fprintf(stderr, "You may not use ppp in this mode with this label\n");
+    fprintf(stderr, "%s: %s\n", label, err);
+    if (mode == PHYS_DIRECT)
+      log_Printf(LogWARN, "Label %s rejected -direct connection: %s\n",
+                 label, err);
+    log_Close();
+    exit(1);
+  }
+}
+
 
 int
 main(int argc, char **argv)
 {
-  char *name, *label;
-  int nfds, mode, alias;
+  char *name;
+  int nfds, mode, alias, label, arg;
   struct bundle *bundle;
   struct prompt *prompt;
 
@@ -269,7 +271,7 @@ main(int argc, char **argv)
 #ifndef NOALIAS
   PacketAliasInit();
 #endif
-  label = ProcessArgs(argc - 1, argv + 1, &mode, &alias);
+  label = ProcessArgs(argc, argv, &mode, &alias);
 
 #ifdef __FreeBSD__
   /*
@@ -313,16 +315,11 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (!system_IsValid(label, prompt, mode)) {
-    fprintf(stderr, "You may not use ppp in this mode with this label\n");
-    if (mode == PHYS_DIRECT) {
-      const char *l;
-      l = label ? label : "default";
-      log_Printf(LogWARN, "Label %s rejected -direct connection\n", l);
-    }
-    log_Close();
-    return 1;
-  }
+  if (label < argc)
+    for (arg = label; arg < argc; arg++)
+      CheckLabel(argv[arg], prompt, mode);
+  else
+    CheckLabel("default", prompt, mode);
 
   if ((bundle = bundle_Create(TUN_PREFIX, mode, (const char **)argv)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
@@ -352,25 +349,21 @@ main(int argc, char **argv)
 
   sig_signal(SIGUSR2, BringDownServer);
 
-  if (label) {
-    /*
-     * Set label both before and after system_Select !
-     * This way, "set enddisc label" works during system_Select, and we
-     * also end up with the correct label if we have embedded load
-     * commands.
-     */
-    bundle_SetLabel(bundle, label);
-    if (system_Select(bundle, label, CONFFILE, prompt, NULL) < 0) {
-      prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
-      AbortProgram(EX_START);
-    }
-    bundle_SetLabel(bundle, label);
-    if (mode == PHYS_AUTO &&
-	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-      prompt_Printf(prompt, "You must \"set ifaddr\" with a peer address "
-                    "in label %s for auto mode.\n", label);
-      AbortProgram(EX_START);
-    }
+  for (arg = label; arg < argc; arg++) {
+    /* In case we use LABEL or ``set enddisc label'' */
+    bundle_SetLabel(bundle, argv[argc - 1]);
+    system_Select(bundle, argv[arg], CONFFILE, prompt, NULL);
+  }
+
+  if (label < argc)
+    /* In case the last label did a ``load'' */
+    bundle_SetLabel(bundle, argv[argc - 1]);
+
+  if (mode == PHYS_AUTO &&
+      bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+    prompt_Printf(prompt, "You must ``set ifaddr'' with a peer address "
+                  "in auto mode.\n");
+    AbortProgram(EX_START);
   }
 
   if (mode != PHYS_INTERACTIVE) {
