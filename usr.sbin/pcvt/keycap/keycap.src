@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1992, 2000 Hellmuth Michaelis
+# Copyright (c) 1992, 2002 Hellmuth Michaelis
 #
 # Copyright (c) 1992, 1994 Joerg Wunsch and Holger Veit
 #
@@ -38,7 +38,7 @@
 #	keyboard mappings for vt220 emulator pcvt 3.00
 #	----------------------------------------------
 #
-#	Last Edit-Date: [Wed Mar 29 10:53:19 2000]
+#	Last Edit-Date: [Wed Apr 24 16:27:35 2002]
 #
 # $FreeBSD$
 #
@@ -393,14 +393,14 @@ is:iceland:Island mapping:\
 # from codrv, untested
 i1|italy141|Italian 141 mapping:\
 	:K1=\\:S1=|:\
-	:S3=":S4=\243:S7=&:S8=/:S9=(:S10=):S11==:\
-	:K12=':S12=\077:\
-	:K13=\354:S13=\136:\
+       :S3=":S4=\243:S7=&:S8=/:A8={:S9=(:A9=[:S10=):A10=]:S11==:A11=}:\
+       :K12=':A12=`:S12=\077:\
+       :K13=\354:S13=\136:A13=~:\
 	:K27=\350:S27=\351:\A27=[:\
 	:K28=+:S28=*:A28=]:\
 	:K40=\362:S40=\347:A40=@:\
 	:K41=\340:S41=\260:A41=#:\
-	:K42=\371:S42=\247:\
+       :K29=\371:S29=\247:\
 	:K45=<:S45=>:\
 	:S53=;:S54=\072:\
 	:K55=-:S55=_:\
