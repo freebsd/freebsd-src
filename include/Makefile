@@ -142,6 +142,9 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/pf/net; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/net
+	cd ${.CURDIR}/../sys/crypto; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
+	    ${DESTDIR}${INCLUDEDIR}/crypto
 	cd ${.CURDIR}/../sys/opencrypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -198,6 +201,11 @@ symlinks:
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/pf/net/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/net; \
+	done
+	cd ${.CURDIR}/../sys/crypto; \
+	for h in rijndael/rijndael.h; do \
+		ln -fs ../../../sys/crypto/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${.CURDIR}/../sys/opencrypto; \
 	for h in *.h; do \

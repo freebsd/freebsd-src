@@ -34,11 +34,6 @@
 #define RIJNDAEL_MAXKB	(256/8)
 #define RIJNDAEL_MAXNR	14
 
-/* XXX: avoid conflicts with opencrypto */
-#define	rijndael_set_key	_rijndael_set_key
-#define	rijndael_decrypt	_rijndael_decrypt
-#define	rijndael_encrypt	_rijndael_encrypt
-
 typedef struct {
 	int	decrypt;
 	int	Nr;		/* key-length-dependent number of rounds */
