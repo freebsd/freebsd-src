@@ -48,8 +48,13 @@
 /*
  * Data types.
  */
+#include <machine/ansi.h>
+
 typedef u_char		sa_family_t;
-typedef u_int32_t	socklen_t;
+#ifdef	_BSD_SOCKLEN_T_
+typedef	_BSD_SOCKLEN_T_	socklen_t;
+#undef	_BSD_SOCKLEN_T_
+#endif
  
 /*
  * Types
