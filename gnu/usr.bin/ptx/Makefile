@@ -5,6 +5,6 @@ LDADD+=	-lgnuregex
 DPADD+= ${GNUREGEX}
 CFLAGS+= -DHAVE_CONFIG_H -DDEFAULT_IGNORE_FILE=\"/usr/share/dict/eign\"
 
-MAN1=	NOMAN
+NOMAN=
 
 .include <bsd.prog.mk>
