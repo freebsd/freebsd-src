@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.5 1997/01/15 15:32:26 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.6 1997/01/19 09:59:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -185,21 +185,6 @@ installUpgrade(dialogMenuItem *self)
     if (!(Dists & DIST_BIN))
 	extractingBin = FALSE;
 
-    if (!mediaVerify()) {
-	msgConfirm("Now you must specify an installation medium for the upgrade.");
-media:
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
-
-    if (!mediaDevice->init(mediaDevice)) {
-	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
-		   "to adjust your media selection and try again?"))
-	    goto media;
-	else
-	    return DITEM_FAILURE | DITEM_REDRAW;
-    }
-
     if (RunningAsInit) {
 	Device **devs;
 	int i, cnt;
@@ -244,6 +229,9 @@ media:
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
+	msgNotify("Updating /stand on root filesystem");
+	(void)vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
+
 	if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
 	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		       "root partition or the way it's mounted if this doesn't work.");
@@ -254,6 +242,21 @@ media:
 	systemCreateHoloshell();
     }
 
+    if (!mediaVerify()) {
+	msgConfirm("Now you must specify an installation medium for the upgrade.");
+media:
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaDevice->init(mediaDevice)) {
+	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
+		   "to adjust your media selection and try again?"))
+	    goto media;
+	else
+	    return DITEM_FAILURE | DITEM_REDRAW;
+    }
+    
     saved_etc = NULL;
     if (extractingBin) {
 	while (!saved_etc) {
