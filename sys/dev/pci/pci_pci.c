@@ -49,7 +49,6 @@
 #include "opt_pci.h"
 
 static int		pcib_probe(device_t dev);
-static int		pcib_attach(device_t dev);
 static int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
 static device_method_t pcib_methods[] = {
@@ -194,7 +193,7 @@ pcib_attach_common(device_t dev)
      */
 }
 
-static int
+int
 pcib_attach(device_t dev)
 {
     struct pcib_softc	*sc;
