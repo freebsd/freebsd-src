@@ -1,7 +1,8 @@
-# $Id: Makefile,v 1.4 1999/03/18 13:42:21 kato Exp $
+# $Id: Makefile,v 1.5 1999/04/02 08:59:11 kato Exp $
 
 BASE=		loader
 PROG=		${BASE}
+MAN5=		${.CURDIR}/../../i386/loader/loader.conf.5
 MAN8=		${.CURDIR}/../../i386/loader/loader.8
 #NOMAN=
 STRIP=
