@@ -675,12 +675,6 @@ uscannerpoll(dev_t dev, int events, usb_proc_ptr p)
 	return (revents);
 }
 
-int
-uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
-{
-	return (EINVAL);
-}
-
 #if defined(__FreeBSD__)
 DRIVER_MODULE(uscanner, uhub, uscanner_driver, uscanner_devclass, usbd_driver_load, 0);
 #endif
