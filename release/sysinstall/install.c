@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.69 1995/11/04 12:20:20 jkh Exp $
+ * $Id: install.c,v 1.71.2.70 1995/11/04 15:08:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -431,9 +431,11 @@ installCommit(char *str)
 		      "between interfaces)?"))
 	    variable_set2("gateway", "YES");
 
+#if 0
 	dialog_clear();
 	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
 	    configAnonFTP(NULL);
+#endif
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as an NFS server?"))

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.40 1995/11/04 08:47:33 jkh Exp $
+ * $Id: menus.c,v 1.42.2.41 1995/11/04 15:08:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -755,8 +755,10 @@ aspects of your system's network configuration.",
 	DMENU_CALL,		configRoutedFlags, (int)"routed", 0, dmenuVarCheck	},
   { "Rwhod",			"This machine wants to run the rwho daemon",
 	DMENU_SET_VARIABLE,	"rwhod=YES", 0, 0, dmenuVarCheck			},
+#if 0
   { "Anon FTP",			"This machine wishes to allow anonymous FTP.",
 	DMENU_CALL,		configAnonFTP, 0, 0, 0					},
+#endif
   { "WEB Server",		"This machine wishes to be a WWW server.",
 	DMENU_CALL,		configApache, 0, 0, 0					},
   { "Samba",			"Install Samba for LanManager (NETBUI) access.",
