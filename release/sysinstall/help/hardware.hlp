@@ -1,4 +1,4 @@
-ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.7 1996/12/26 21:31:37 joerg Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.8 1997/01/03 06:38:29 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -65,6 +65,7 @@ uha0    330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
+amd0	n/a	n/a	n/a	n/a	Tekram DC-390(T) / AMD 53c974 PCI SCSI
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
