@@ -2894,6 +2894,89 @@ ath_tx_cleanup(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->sc_txq[i]);
 }
 
+/*
+ * Defragment an mbuf chain, returning at most maxfrags separate
+ * mbufs+clusters.  If this is not possible NULL is returned and
+ * the original mbuf chain is reclaimed.  We use two techniques:
+ * collapsing consecutive mbufs and replacing consecutive mbufs
+ * by a cluster.
+ */
+static struct mbuf *
+ath_defrag(struct mbuf *m0, int how, int maxfrags)
+{
+	struct mbuf *m, *n, *n2, **prev;
+	u_int curfrags;
+
+	/*
+	 * Calculate the current number of frags.
+	 */
+	curfrags = 0;
+	for (m = m0; m != NULL; m = m->m_next)
+		curfrags++;
+	/*
+	 * First, try to collapse mbufs.  Note that we always collapse
+	 * towards the front so we don't need to deal with moving the
+	 * pkthdr.  This may be suboptimal if the first mbuf has much
+	 * less data than the following.
+	 */
+	m = m0;
+again:
+	for (;;) {
+		n = m->m_next;
+		if (n == NULL)
+			break;
+		if (n->m_len < M_TRAILINGSPACE(m)) {
+			bcopy(mtod(n, void *), mtod(m, char *) + m->m_len,
+				n->m_len);
+			m->m_len += n->m_len;
+			m->m_next = n->m_next;
+			m_free(n);
+			if (--curfrags <= maxfrags)
+				return m0;
+		} else
+			m = n;
+	}
+	KASSERT(maxfrags > 1,
+		("maxfrags %u, but normal collapse failed", maxfrags));
+	/*
+	 * Collapse consecutive mbufs to a cluster.
+	 */
+	prev = &m0->m_next;		/* NB: not the first mbuf */
+	while ((n = *prev) != NULL) {
+		if ((n2 = n->m_next) != NULL &&
+		    n->m_len + n2->m_len < MCLBYTES) {
+			m = m_getcl(how, MT_DATA, 0);
+			if (m == NULL)
+				goto bad;
+			bcopy(mtod(n, void *), mtod(m, void *), n->m_len);
+			bcopy(mtod(n2, void *), mtod(m, char *) + n->m_len,
+				n2->m_len);
+			m->m_len = n->m_len + n2->m_len;
+			m->m_next = n2->m_next;
+			*prev = m;
+			m_free(n);
+			m_free(n2);
+			if (--curfrags <= maxfrags)	/* +1 cl -2 mbufs */
+				return m0;
+			/*
+			 * Still not there, try the normal collapse
+			 * again before we allocate another cluster.
+			 */
+			goto again;
+		}
+		prev = &n->m_next;
+	}
+	/*
+	 * No place where we can collapse to a cluster; punt.
+	 * This can occur if, for example, you request 2 frags
+	 * but the packet requires that both be clusters (we
+	 * never reallocate the first mbuf to avoid moving the
+	 * packet header).
+	 */
+bad:
+	return NULL;
+}
+
 static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
@@ -2912,6 +2995,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	const HAL_RATE_TABLE *rt;
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
+	struct mbuf *m;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
@@ -2987,12 +3071,13 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		m0 = m_defrag(m0, M_DONTWAIT);
-		if (m0 == NULL) {
-			sc->sc_stats.ast_tx_nombuf++;
+		m = ath_defrag(m0, M_DONTWAIT, ATH_TXDESC);
+		if (m == NULL) {
 			m_freem(m0);
+			sc->sc_stats.ast_tx_nombuf++;
 			return ENOMEM;
 		}
+		m0 = m;
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
 					     bf->bf_segs, &bf->bf_nseg,
 					     BUS_DMA_NOWAIT);
