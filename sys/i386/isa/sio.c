@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.93 1995/04/13 11:11:11 ache Exp $
+ *	$Id: sio.c,v 1.94 1995/04/13 15:03:29 wollman Exp $
  */
 
 #include "sio.h"
@@ -562,7 +562,6 @@ sioprobe(dev)
 	return (result);
 }
 
-
 static int
 sioattach(isdp)
 	struct isa_device	*isdp;
@@ -636,9 +635,9 @@ sioattach(isdp)
 #ifdef DSI_SOFT_MODEM
 	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
 	    printf(" Digicom Systems, Inc. SoftModem");
-	    kdc_sio[isdp->id_unit].kdc_description = 
+	    kdc_sio[unit].kdc_description = 
 	      "Serial port: Digicom Systems SoftModem";
-        goto determined_type;
+	goto determined_type;
 	}
 #endif /* DSI_SOFT_MODEM */
 
@@ -658,7 +657,7 @@ sioattach(isdp)
 		outb(iobase + com_scr, scr);
 		if (scr1 != 0xa5 || scr2 != 0x5a) {
 			printf(" 8250");
-			kdc_sio[isdp->id_unit].kdc_description =
+			kdc_sio[unit].kdc_description =
 			  "Serial port: National 8250 or compatible";
 			goto determined_type;
 		}
@@ -668,30 +667,30 @@ sioattach(isdp)
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
 	case FIFO_TRIGGER_1:
 		printf(" 16450");
-		kdc_sio[isdp->id_unit].kdc_description =
+		kdc_sio[unit].kdc_description =
 		  "Serial port: National 16450 or compatible";
 		break;
 	case FIFO_TRIGGER_4:
 		printf(" 16450?");
-		kdc_sio[isdp->id_unit].kdc_description =
+		kdc_sio[unit].kdc_description =
 		  "Serial port: maybe National 16450";
 		break;
 	case FIFO_TRIGGER_8:
 		printf(" 16550?");
-		kdc_sio[isdp->id_unit].kdc_description =
+		kdc_sio[unit].kdc_description =
 		  "Serial port: maybe National 16550";
 		break;
 	case FIFO_TRIGGER_14:
 		printf(" 16550A");
 		if (COM_NOFIFO(isdp)) {
 			printf(" fifo disabled");
-			kdc_sio[isdp->id_unit].kdc_description =
+			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A, FIFO disabled";
 		} else {
 			com->hasfifo = TRUE;
 			com->ftl_init = FIFO_TRIGGER_14;
 			com->tx_fifo_size = 16;
-			kdc_sio[isdp->id_unit].kdc_description =
+			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A or compatible";
 		}
 		break;
@@ -712,8 +711,9 @@ determined_type: ;
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
-	kdc_sio[unit].kdc_state = 
-	  (unit == comconsole) ? DC_BUSY : DC_IDLE;
+	kdc_sio[unit].kdc_state =
+		(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
+		? DC_BUSY : DC_IDLE;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
@@ -735,7 +735,6 @@ determined_type: ;
 			outb(iobase + com_cfcr, CFCR_8BITS);
 			outb(com->modem_status_port,
 			     com->mcr_image |= MCR_DTR | MCR_RTS);
-			kdc_sio[unit].kdc_state = DC_BUSY;
 
 			if (kgdb_debug_init) {
 				/*
@@ -928,13 +927,11 @@ sioclose(dev, flag, mode, p)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
-	int		unit;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (0);
-	unit = MINOR_TO_UNIT(mynor);
-	com = com_addr(unit);
+	com = com_addr(MINOR_TO_UNIT(mynor));
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -990,7 +987,8 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF))
+	if (!(com->state & CS_DTR_OFF)
+	    && !(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
 		kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 }
@@ -1047,7 +1045,8 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	kdc_sio[com->unit].kdc_state = DC_IDLE;
+	if (!(com->unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+		kdc_sio[com->unit].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
 
@@ -1281,19 +1280,19 @@ sioioctl(dev, cmd, data, flag, p)
 	int		mcr;
 	int		msr;
 	int		mynor;
-	int             s;
+	int		s;
 	int		tiocm_xxx;
 	struct tty	*tp;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	struct termios  term;
-	int             oldcmd;
+	int		oldcmd;
+	struct termios	term;
 #endif
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	iobase = com->iobase;
 	if (mynor & CONTROL_MASK) {
-		struct termios  *ct;
+		struct termios	*ct;
 
 		switch (mynor & CONTROL_MASK) {
 		case CONTROL_INIT_STATE:
@@ -1357,8 +1356,9 @@ sioioctl(dev, cmd, data, flag, p)
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	term = tp->t_termios;
 	oldcmd = cmd;
-	if ((error = ttsetcompat(tp, &cmd, data, &term)) != 0)
-		return error;
+	error = ttsetcompat(tp, &cmd, data, &term);
+	if (error != 0)
+		return (error);
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
 #endif
@@ -1575,23 +1575,28 @@ repeat:
 		}
 		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
 			continue;
-		if (((com->state & CS_RTS_IFLOW) || (tp->t_iflag & IXOFF))
+		/*
+		 * XXX only do this when we bypass ttyinput.
+		 */
+		if (tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
+		    && (com->state & CS_RTS_IFLOW || tp->t_iflag & IXOFF)
 		    && !(tp->t_state & TS_TBLOCK)
-		    && tp->t_rawq.c_cc + incc >= RB_I_HIGH_WATER
 		    /*
 		     * XXX - need flow control for all line disciplines.
 		     * Only have it in standard one now.
 		     */
 		    && linesw[tp->t_line].l_rint == ttyinput) {
-			int queue_full = 0;
+			int	putc_status = FALSE;
 
-			if ((tp->t_iflag & IXOFF) &&
-			    tp->t_cc[VSTOP] != _POSIX_VDISABLE &&
-			    (queue_full = putc(tp->t_cc[VSTOP], &tp->t_outq)) == 0 ||
-			    (com->state & CS_RTS_IFLOW)) {
+			if ((tp->t_iflag & IXOFF
+			     && tp->t_cc[VSTOP] != _POSIX_VDISABLE
+			     && (putc_status = putc(tp->t_cc[VSTOP],
+						    &tp->t_outq)) == 0)
+			    || com->state & CS_RTS_IFLOW) {
 				tp->t_state |= TS_TBLOCK;
 				ttstart(tp);
-				if (queue_full) /* try again */
+				if (putc_status != 0)
+					/* Try again later. */
 					tp->t_state &= ~TS_TBLOCK;
 			}
 		}
@@ -1650,7 +1655,7 @@ comparam(tp, t)
 	struct termios	*t;
 {
 	u_int		cfcr;
-	int             cflag;
+	int		cflag;
 	struct com_s	*com;
 	int		divisor;
 	int		error;
