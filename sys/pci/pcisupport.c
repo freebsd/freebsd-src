@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.12 1995/03/17 04:27:20 davidg Exp $
+**  $Id: pcisupport.c,v 1.13 1995/03/21 23:01:05 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -87,15 +87,22 @@ static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
 	u_long data;
+	unsigned	rev;
 
 	switch (type) {
 	case 0x04848086:
+		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
+		if (rev == 3)
+		    return ("Intel 82378ZB PCI-ISA bridge");
 		return ("Intel 82378IB PCI-ISA bridge");
 	case 0x04838086:
 		return ("Intel 82424ZX cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x04a38086:
+		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
+		if (rev == 16 || rev == 17)
+		    return ("Intel 82434NX PCI cache memory controller");
 		return ("Intel 82434LX PCI cache memory controller");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
@@ -196,11 +203,11 @@ static const struct condmsg conf82434lx[] =
     { 0x53, 0x01, 0x01, M_NE, "OFF" },
     { 0x53, 0x01, 0x01, M_EQ, "ON" },
 
-    { 0x53, 0x04, 0x00, M_NE, ", read around write"},
+    { 0x53, 0x08, 0x00, M_NE, ", read around write"},
 
-    { 0x71, 0xc0, 0x00, M_NE, "\n\tWarning: NO cache parity!" },
-    { 0x57, 0x20, 0x00, M_NE, "\n\tWarning: NO DRAM parity!" },
-    { 0x55, 0x01, 0x01, M_EQ, "\n\tWarning: refresh OFF! " },
+    { 0x70, 0x04, 0x00, M_EQ, "\n\tWarning: Cache parity disabled!" },
+    { 0x57, 0x20, 0x00, M_NE, "\n\tWarning: DRAM parity mask!" },
+    { 0x57, 0x01, 0x00, M_EQ, "\n\tWarning: refresh OFF! " },
 
     { 0x00, 0x00, 0x00, TRUE, "\n\tCache: " },
     { 0x52, 0x01, 0x00, M_EQ, "None" },
@@ -211,8 +218,13 @@ static const struct condmsg conf82434lx[] =
     { 0x52, 0x03, 0x03, M_EQ, " writeback" },
 
     { 0x52, 0x01, 0x01, M_EQ, ", cache clocks=" },
-    { 0x52, 0x20, 0x00, M_EQ, "3-2-2-2/4-2-2-2" },
-    { 0x52, 0x20, 0x00, M_NE, "3-1-1-1" },
+    { 0x52, 0x21, 0x01, M_EQ, "3-2-2-2/4-2-2-2" },
+    { 0x52, 0x21, 0x21, M_EQ, "3-1-1-1" },
+
+    { 0x52, 0x01, 0x01, M_EQ, "\n\tCache flags: " },
+    { 0x52, 0x11, 0x11, M_EQ, " cache-all" },
+    { 0x52, 0x09, 0x09, M_EQ, " byte-control" },
+    { 0x52, 0x05, 0x05, M_EQ, " powersaver" },
 
     { 0x00, 0x00, 0x00, TRUE, "\n\tDRAM:" },
     { 0x57, 0x10, 0x00, M_EQ, " page mode" },
@@ -222,6 +234,8 @@ static const struct condmsg conf82434lx[] =
     { 0x57, 0xc0, 0x40, M_EQ, "X-4-4-4/X-3-3-3 (60ns)" },
     { 0x57, 0xc0, 0x80, M_EQ, "???" },
     { 0x57, 0xc0, 0xc0, M_EQ, "X-3-3-3 (50ns)" },
+    { 0x58, 0x02, 0x02, M_EQ, ", RAS-wait" },
+    { 0x58, 0x01, 0x01, M_EQ, ", CAS-wait" },
 
     { 0x00, 0x00, 0x00, TRUE, "\n\tCPU->PCI: posting " },
     { 0x53, 0x02, 0x02, M_EQ, "ON" },
