@@ -24,6 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include "libdisk.h"
 
+#ifndef PC98
 u_char mbrboot[] = {
 250,51,192,142,208,188,0,124,139,244,80,7,80,31,251,252,191,0,6,185,0,1,
 242,165,234,29,6,0,0,190,190,7,179,4,128,60,128,116,14,128,60,0,117,28,
@@ -72,6 +73,7 @@ u_char bteasy17[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,85,170
 };
+#endif
 
 int
 scan_block(int fd, daddr_t block)
@@ -250,6 +252,7 @@ main(int argc, char **argv)
 			Scan_Disk(d);
 			continue;
 		}
+#ifndef PC98
 		if (!strcasecmp(*cmds,"bteasy")) {
 			Set_Boot_Mgr(d,bteasy17,sizeof (bteasy17));
 			continue;
@@ -258,6 +261,7 @@ main(int argc, char **argv)
 			Set_Boot_Mgr(d,mbrboot,sizeof (mbrboot));
 			continue;
 		}
+#endif
 #if 0		/* XXX boot1 undefined, fix me */
 		if (!strcasecmp(*cmds,"boot")) {
 			Set_Boot_Blocks(d,boot1,boot2);
@@ -278,7 +282,9 @@ main(int argc, char **argv)
 		printf("\tdedicate\n");
 		printf("\tbios cyl hd sect\n");
 		printf("\tboot\n");
+#ifndef PC98
 		printf("\tbteasy17\n");
+#endif
 #if 0
 		printf("\tcollapse [pointer]\n");
 #endif
@@ -290,7 +296,9 @@ main(int argc, char **argv)
 		printf("\t\tsubtype(part): swap=1, ffs=7\n");
 		printf("\tdelete pointer\n");
 		printf("\tlist\n");
+#ifndef PC98
 		printf("\tmbr\n");
+#endif
 #if 0
 		printf("\tphys cyl hd sect\n");
 #endif
