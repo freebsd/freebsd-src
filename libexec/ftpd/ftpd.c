@@ -1401,7 +1401,7 @@ skip:
 		}
 	}
 	login_attempts = 0;		/* this time successful */
-	if (setegid((gid_t)pw->pw_gid) < 0) {
+	if (setegid(pw->pw_gid) < 0) {
 		reply(550, "Can't set gid.");
 		return;
 	}
