@@ -44,8 +44,9 @@ static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <paths.h>
 
-#define _PATH_LOCKDIRNAME "/var/spool/lock/LCK..%s"
+#define LOCKFMT "LCK..%s"
 
 /* Forward declarations */
 static int put_pid (int fd, pid_t pid);
@@ -61,9 +62,9 @@ int uu_lock (char *ttyname)
 {
 	int fd;
 	pid_t pid;
-	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
+	char tbuf[MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
+	(void)sprintf(tbuf, _PATH_LOCK LOCKFMT, ttyname);
 	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
 	if (fd < 0) {
 		/*
@@ -109,9 +110,9 @@ int uu_lock (char *ttyname)
 
 int uu_unlock (char *ttyname)
 {
-	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
+	char tbuf[MAXNAMLEN];
 
-	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
+	(void)sprintf(tbuf, _PATH_LOCK LOCKFMT, ttyname);
 	return(unlink(tbuf));
 }
 
