@@ -173,28 +173,30 @@ retry:
 	PTHREAD_SET_STATE(curthread, PS_DEAD);
 	_thread_critical_exit(curthread);
 	
-	/*
-	 * Signal the garbage collector thread that there is something
-	 * to clean up.
-	 */
-	if (pthread_cond_signal(&_gc_cond) != 0)
-		PANIC("Cannot signal gc cond");
-
 	/* If we're the last thread, call it quits */
 	if (TAILQ_EMPTY(&_thread_list))
 		exitNow = 1;
 
 	THREAD_LIST_UNLOCK;
-	DEAD_LIST_UNLOCK;
+
+	/*
+	 * Signal the garbage collector thread that there is something
+	 * to clean up. But don't allow it to free the memory until after
+	 * it is retired by holding on to the dead list lock.
+	 */
+	if (pthread_cond_signal(&_gc_cond) != 0)
+		PANIC("Cannot signal gc cond");
 
 	if (exitNow)
 		exit(0);
 
+	DEAD_LIST_UNLOCK;
+
 	/*
-	 * Retire the architecture specific id so that it can be used for
-	 * new threads.
+	 * This function will not return unless we are the last
+	 * thread, which we can't be because we've already checked
+	 * for that.
 	 */
-	_retire_thread(curthread->arch_id);
 	_thr_exit();
 
 	/* This point should not be reached. */
