@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -585,11 +586,7 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 			}
 			if (i < 60000000)
 				DELAY(1);
-#ifdef DDB
-			else if (!db_active) {
-#else
-			else {
-#endif
+			else if (!kdb_active) {
 				printf("spin lock %s held by %p for > 5 seconds\n",
 				    m->mtx_object.lo_name, (void *)m->mtx_lock);
 #ifdef WITNESS
