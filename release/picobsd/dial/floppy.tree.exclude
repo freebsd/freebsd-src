@@ -12,4 +12,5 @@ etc/rc.serial
 etc/remote
 etc/shells
 etc/snmpd.conf
+etc/sshd_config
 etc/ttys

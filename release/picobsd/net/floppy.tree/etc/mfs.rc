@@ -26,6 +26,7 @@ mount -o rdonly /dev/fd0a /start_floppy
 cd /start_floppy/etc
 cp -Rp . /etc/
 cd /etc
+gzip -d -f *.gz
 pwd_mkdb -p ./master.passwd
 umount /start_floppy
 echo "Ok. (Now you can remove floppy if you like)"
