@@ -34,8 +34,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_SELECT_H_
-#define	_SYS_SELECT_H_
+#ifndef _SYS_SELINFO_H_
+#define	_SYS_SELINFO_H_
 
 #include <sys/event.h>			/* for struct klist */
 
@@ -57,4 +57,4 @@ void	selrecord __P((struct proc *selector, struct selinfo *));
 void	selwakeup __P((struct selinfo *));
 #endif
 
-#endif /* !_SYS_SELECT_H_ */
+#endif /* !_SYS_SELINFO_H_ */

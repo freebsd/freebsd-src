@@ -30,31 +30,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)select.h	8.2 (Berkeley) 1/4/94
  * $FreeBSD$
  */
 
 #ifndef _SYS_SELECT_H_
 #define	_SYS_SELECT_H_
 
-#include <sys/event.h>			/* for struct klist */
-
 /*
- * Used to maintain information about processes that wish to be
- * notified when I/O becomes possible.
+ * For the moment, just include <sys/selinfo.h> until all clients are
+ * fixed.
  */
-struct selinfo {
-	pid_t	si_pid;		/* process to be notified */
-	struct	klist si_note;	/* kernel note list */
-	short	si_flags;	/* see below */
-};
-#define	SI_COLL	0x0001		/* collision occurred */
+#include <sys/selinfo.h>
 
-#ifdef _KERNEL
-struct proc;
-
-void	selrecord __P((struct proc *selector, struct selinfo *));
-void	selwakeup __P((struct selinfo *));
-#endif
-
-#endif /* !_SYS_SELECT_H_ */
+#endif /* _SYS_SELECT_H_ */
