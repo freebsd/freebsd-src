@@ -886,13 +886,10 @@ int trapwrite(addr)
 	++p->p_lock;
 	PROC_UNLOCK(p);
 
-	if (vm_map_growstack(p, va) != KERN_SUCCESS)
-		rv = KERN_FAILURE;
-	else
-		/*
-		 * fault the data page
-		 */
-		rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
+	/*
+	 * fault the data page
+	 */
+	rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
 
 	PROC_LOCK(p);
 	--p->p_lock;
