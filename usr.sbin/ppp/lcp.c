@@ -17,15 +17,21 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.44 1997/11/11 13:08:12 brian Exp $
+ * $Id: lcp.c,v 1.45 1997/11/14 15:39:15 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
 #include <sys/param.h>
+#include <sys/time.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_tun.h>
 
 #include <signal.h>
 #include <stdio.h>
@@ -58,6 +64,7 @@
 #include "main.h"
 #include "ip.h"
 #include "modem.h"
+#include "tun.h"
 
 struct lcpstate LcpInfo;
 
@@ -350,7 +357,7 @@ static void
 LcpLayerUp(struct fsm * fp)
 {
   LogPrintf(LogLCP, "LcpLayerUp\n");
-  OsSetInterfaceParams(23, LcpInfo.his_mru, ModemSpeed());
+  tun_configure(LcpInfo.his_mru, ModemSpeed());
   SetLinkParams(&LcpInfo);
 
   NewPhase(PHASE_AUTHENTICATE);

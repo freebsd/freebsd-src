@@ -17,19 +17,24 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.97 1997/11/13 14:44:06 brian Exp $
+ * $Id: main.c,v 1.98 1997/11/13 15:35:06 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
  */
 #include <sys/param.h>
+#include <sys/time.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_tun.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -70,6 +75,7 @@
 #include "vjcomp.h"
 #include "async.h"
 #include "pathnames.h"
+#include "tun.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -728,11 +734,12 @@ DoLoop()
   struct timeval timeout, *tp;
   int ssize = sizeof(hisaddr);
   u_char *cp;
-  u_char rbuff[MAX_MRU];
   int tries;
   int qlen;
   int res;
   pid_t pgroup;
+  struct tun_data tun;
+#define rbuff tun.data
 
   pgroup = getpgrp();
 
@@ -1004,11 +1011,18 @@ DoLoop()
     }
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read
 							 * from tun */
-      n = read(tun_in, rbuff, sizeof(rbuff));
+      n = read(tun_in, &tun, sizeof(tun));
       if (n < 0) {
 	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
       }
+      n -= sizeof(tun)-sizeof(tun.data);
+      if (n <= 0) {
+	LogPrintf(LogERROR, "read from tun: Only %d bytes read\n", n);
+	continue;
+      }
+      if (!tun_check_header(tun, AF_INET))
+          continue;
       if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.want_ipaddr.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
