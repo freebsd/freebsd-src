@@ -287,6 +287,7 @@ static tree c_make_fname_decl           PARAMS ((tree, int));
 static void c_expand_body               PARAMS ((tree, int, int));
 static void warn_if_shadowing		PARAMS ((tree, tree));
 static bool flexible_array_type_p	PARAMS ((tree));
+static int field_decl_cmp		PARAMS ((const PTR, const PTR));
 static tree set_save_expr_context	PARAMS ((tree *, int *, void *));
 
 /* States indicating how grokdeclarator() should handle declspecs marked
@@ -2013,8 +2014,10 @@ pushdecl (x)
 
 	  while (TREE_CODE (element) == ARRAY_TYPE)
 	    element = TREE_TYPE (element);
-	  if (TREE_CODE (element) == RECORD_TYPE
-	      || TREE_CODE (element) == UNION_TYPE)
+	  if ((TREE_CODE (element) == RECORD_TYPE
+	       || TREE_CODE (element) == UNION_TYPE)
+	      && (TREE_CODE (x) != TYPE_DECL
+		  || TREE_CODE (TREE_TYPE (x)) == ARRAY_TYPE))
 	    b->incomplete_list = tree_cons (NULL_TREE, x, b->incomplete_list);
 	}
     }
@@ -5116,6 +5119,28 @@ grokfield (filename, line, declarator, declspecs, width)
   return value;
 }
 
+/* Function to help qsort sort FIELD_DECLs by name order.  */
+
+
+static int
+field_decl_cmp (xp, yp)
+      const PTR xp;
+      const PTR yp;
+{
+  tree *x = (tree *)xp, *y = (tree *)yp;
+  
+  if (DECL_NAME (*x) == DECL_NAME (*y))
+    return 0;
+  if (DECL_NAME (*x) == NULL)
+    return -1;
+  if (DECL_NAME (*y) == NULL)
+    return 1;
+  if (DECL_NAME (*x) < DECL_NAME (*y))
+    return -1;
+  return 1;
+}
+ 
+
 /* Fill in the fields of a RECORD_TYPE or UNION_TYPE node, T.
    FIELDLIST is a chain of FIELD_DECL nodes for the fields.
    ATTRIBUTES are attributes to be applied to the structure.  */
@@ -5360,6 +5385,53 @@ finish_struct (t, fieldlist, attributes)
 
   TYPE_FIELDS (t) = fieldlist;
 
+  /* If there are lots of fields, sort so we can look through them fast.
+    We arbitrarily consider 16 or more elts to be "a lot".  */
+
+  {
+    int len = 0;
+
+    for (x = fieldlist; x; x = TREE_CHAIN (x))
+      {
+        if (len > 15 || DECL_NAME (x) == NULL)
+          break;
+        len += 1;
+      }
+
+    if (len > 15)
+      {
+        tree *field_array;
+        char *space;
+        
+        len += list_length (x);
+  
+        /* Use the same allocation policy here that make_node uses, to
+          ensure that this lives as long as the rest of the struct decl.
+          All decls in an inline function need to be saved.  */
+  
+        space = ggc_alloc (sizeof (struct lang_type) + len * sizeof (tree));
+        
+        len = 0;
+	field_array = &(((struct lang_type *) space)->elts[0]);
+        for (x = fieldlist; x; x = TREE_CHAIN (x))
+          {
+            field_array[len++] = x;
+          
+            /* if there is anonymous struct or unoin break out of the loop */
+            if (DECL_NAME (x) == NULL)
+              break;
+          }
+        /* found no anonymous struct/union add the TYPE_LANG_SPECIFIC. */
+        if (x == NULL)
+          {
+            TYPE_LANG_SPECIFIC (t) = (struct lang_type *) space;
+            TYPE_LANG_SPECIFIC (t)->len = len;
+            field_array = &TYPE_LANG_SPECIFIC (t)->elts[0];
+            qsort (field_array, len, sizeof (tree), field_decl_cmp);
+          }
+      }
+  }
+  
   for (x = TYPE_MAIN_VARIANT (t); x; x = TYPE_NEXT_VARIANT (x))
     {
       TYPE_FIELDS (x) = TYPE_FIELDS (t);
@@ -5393,7 +5465,8 @@ finish_struct (t, fieldlist, attributes)
 	      && TREE_CODE (decl) != TYPE_DECL)
 	    {
 	      layout_decl (decl, 0);
-	      /* This is a no-op in c-lang.c or something real in objc-act.c.  */
+	      /* This is a no-op in c-lang.c or something real in
+		 objc-act.c.  */
 	      if (flag_objc)
 		objc_check_decl (decl);
 	      rest_of_decl_compilation (decl, NULL, toplevel, 0);
@@ -5429,7 +5502,11 @@ finish_struct (t, fieldlist, attributes)
 		  else
 		    current_binding_level->incomplete_list = TREE_CHAIN (x);
 		}
+	      else
+		prev = x;
 	    }
+	  else
+	    prev = x;
 	}
     }
 
@@ -6444,6 +6521,13 @@ finish_function (nested, can_defer_p)
       && DECL_INLINE (fndecl))
     warning ("no return statement in function returning non-void");
 
+  /* With just -W, complain only if function returns both with
+     and without a value.  */
+  if (extra_warnings
+      && current_function_returns_value
+      && current_function_returns_null)
+    warning ("this function may return with or without a value");
+
   /* Clear out memory we no longer need.  */
   free_after_parsing (cfun);
   /* Since we never call rest_of_compilation, we never clear
@@ -6627,13 +6711,6 @@ c_expand_body (fndecl, nested_p, can_defer_p)
   /* Undo the GC context switch.  */
   if (nested_p)
     ggc_pop_context ();
-
-  /* With just -W, complain only if function returns both with
-     and without a value.  */
-  if (extra_warnings
-      && current_function_returns_value
-      && current_function_returns_null)
-    warning ("this function may return with or without a value");
 
   /* If requested, warn about function definitions where the function will
      return a value (usually of some struct or union type) which itself will
