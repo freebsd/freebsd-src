@@ -42,6 +42,7 @@ static char rcsid[] =
 
 #include "ww.h"
 #include <fcntl.h>
+#include <stdlib.h>
 #if !defined(OLD_TTY) && !defined(TIOCPKT)
 #include <sys/ioctl.h>
 #endif
@@ -49,41 +50,28 @@ static char rcsid[] =
 wwgetpty(w)
 register struct ww *w;
 {
-	register char c, *p;
-	int tty;
-	int on = 1;
+	char *ttyname;
+	int master, slave, on;
 #define PTY "/dev/XtyXX"
-#define _PT	5
-#define _PQRS	8
-#define _0_9	9
 
-	(void) strcpy(w->ww_ttyname, PTY);
-	for (c = 'p'; c <= 'u'; c++) {
-		w->ww_ttyname[_PT] = 'p';
-		w->ww_ttyname[_PQRS] = c;
-		w->ww_ttyname[_0_9] = '0';
-		if (access(w->ww_ttyname, 0) < 0)
-			break;
-		for (p = "0123456789abcdefghijklmnopqrstuv"; *p; p++) {
-			w->ww_ttyname[_PT] = 'p';
-			w->ww_ttyname[_0_9] = *p;
-			if ((w->ww_pty = open(w->ww_ttyname, 2)) < 0)
-				continue;
-			w->ww_ttyname[_PT] = 't';
-			if ((tty = open(w->ww_ttyname, 2)) < 0) {
-				(void) close(w->ww_pty);
-				continue;
-			}
-			(void) close(tty);
-			if (ioctl(w->ww_pty, TIOCPKT, (char *)&on) < 0) {
-				(void) close(w->ww_pty);
-				continue;
-			}
+	on = 1;
+	w->ww_pty = -1;
+
+	ttyname = malloc(strlen(PTY) + 1);
+	if (openpty(&master, &slave, ttyname, NULL, NULL) == 0) {
+		w->ww_pty = master;
+		(void) strcpy(w->ww_ttyname, ttyname);
+		if (ioctl(w->ww_pty, TIOCPKT, (char *)&on) < 0) {
+			(void) close(w->ww_pty);
+			wwerrno = WWE_SYS;
+		} else {
 			(void) fcntl(w->ww_pty, F_SETFD, 1);
+			free(ttyname);
 			return 0;
 		}
 	}
-	w->ww_pty = -1;
+	free(ttyname);
+
 	wwerrno = WWE_NOPTY;
 	return -1;
 }
