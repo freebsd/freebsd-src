@@ -2,7 +2,7 @@
 	system that a program might need.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Added symbolic flag names for
+		opiepasswd(). Added __opieparsechallenge() prototype.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection.
 	Modified by cmetz for OPIE 2.3. Renamed PTR to VOIDPTR. Added
 		re-init key and extension file fields to struct opie. Added
@@ -31,6 +33,8 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skey.h).
+
+$FreeBSD$
 */
 #ifndef _OPIE_H
 #define _OPIE_H 1
@@ -60,8 +64,11 @@ struct opie {
 /* Maximum length of a seed */
 #define OPIE_SEED_MAX 16
 
+/* Max length of hash algorithm name (md4/md5) */
+#define OPIE_HASHNAME_MAX 3
+
 /* Maximum length of a challenge (otp-md? 9999 seed) */
-#define OPIE_CHALLENGE_MAX (7+1+4+1+OPIE_SEED_MAX)
+#define OPIE_CHALLENGE_MAX (4+OPIE_HASHNAME_MAX+1+4+1+OPIE_SEED_MAX)
 
 /* Maximum length of a response that we allow */
 #define OPIE_RESPONSE_MAX (9+1+19+1+9+OPIE_SEED_MAX+1+19+1+19+1+19)
@@ -89,6 +96,9 @@ void opiehash __P((void *, unsigned));
 int  opiehtoi __P((register char));
 int  opiekeycrunch __P((int, char *, char *, char *));
 int  opielock __P((char *));
+int  opieunlock __P((void));
+void opieunlockaeh __P((void));
+void opiedisableaeh __P((void));
 int  opielookup __P((struct opie *,char *));
 int  opiepasscheck __P((char *));
 void opierandomchallenge __P((char *));
@@ -98,6 +108,10 @@ int  opieverify __P((struct opie *,char *));
 int opiepasswd __P((struct opie *, int, char *, int, char *, char *));
 char *opiereadpass __P((char *, int, int));
 int opielogin __P((char *line, char *name, char *host));
+const char *opie_get_algorithm __P((void));
+int  opie_haskey __P((char *username));
+char *opie_keyinfo __P((char *));
+int  opie_passverify __P((char *username, char *passwd));
 __END_DECLS
 
 #if _OPIE
@@ -117,6 +131,11 @@ FILE *__opieopen __P((char *, int, int));
 #endif /* EOF */
 int __opiereadrec __P((struct opie *));
 int __opiewriterec __P((struct opie *));
+int __opieparsechallenge __P((char *buffer, int *algorithm, int *sequence, char **seed, int *exts));
 __END_DECLS
 #endif /* _OPIE */
+
+#define OPIEPASSWD_CONSOLE 1
+#define OPIEPASSWD_FORCE   2
+
 #endif /* _OPIE_H */

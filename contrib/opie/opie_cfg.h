@@ -1,7 +1,7 @@
 /* opie_cfg.h: Various configuration-type pieces of information for OPIE.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Include <sys/types.h> before
+		<dirent.h> to make *BSD happy.
 	Modified by cmetz for OPIE 2.31. Added 4.4BSD-Lite pathnames.h
 		definitions from ftpd. Added struct spwd definition and
 		HAVE_SHADOW logic for SunOS C2 shadow password support.
@@ -44,13 +46,15 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.1. Fixed sigprocmask declaration.
 		Gutted for autoconf. Split up for autoconf.
 	Written at NRL for OPIE 2.0.
+
+$FreeBSD$
 */
 
 #ifndef _OPIE_CFG_H
 #define _OPIE_CFG_H 1
 
-#define VERSION "2.31"
-#define DATE    "Thursday, March 20, 1997"
+#define VERSION "2.32"
+#define DATE    "Thursday, January 1, 1998"
 
 #ifndef unix
 #define unix 1
@@ -66,8 +70,8 @@ License Agreement applies to this software.
 #define DOUTMPX 0
 #endif /* HAVE_GETUTXLINE && HAVE_UTMPX_H */
 
-/* Adapted from the Autoconf hypertext info pages */
 #include <sys/types.h>
+/* Adapted from the Autoconf hypertext info pages */
 #if HAVE_DIRENT_H
 #include <dirent.h>
 #else /* HAVE_DIRENT_H */

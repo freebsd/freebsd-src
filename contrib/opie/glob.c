@@ -1,7 +1,7 @@
 /* glob.c: The csh et al glob pattern matching routines.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
@@ -13,6 +13,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Remove include of dirent.h here; it's
+		done already (and conditionally) in opie_cfg.h.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
              Remove useless strings. Prototype right.
 	Modified at NRL for OPIE 2.0.
@@ -62,7 +64,6 @@ License Agreement applies to this software.
 #endif /* HAVE_SYS_PARAM_H */
 #include <sys/stat.h>
 
-#include <dirent.h>
 #if HAVE_PWD_H
 #include <pwd.h>
 #endif /* HAVE_PWD_H */

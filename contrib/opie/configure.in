@@ -1,7 +1,7 @@
 dnl configure.in: Input for Autoconf
 dnl
 dnl %%% portions-copyright-cmetz-96
-dnl Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+dnl Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 dnl Reserved. The Inner Net License Version 2 applies to these portions of
 dnl the software.
 dnl You should have received a copy of the license with this software. If
@@ -14,6 +14,9 @@ dnl License Agreement applies to this software.
 dnl
 dnl	History:
 dnl
+dnl	Modified by cmetz for OPIE 2.32. Substitute default for LOCK_DIR.
+dnl	     Fix the --disable-user-locking bug. AC_DEFINE variables to 1.
+dnl          Really check for ut_host.
 dnl	Modified by cmetz for OPIE 2.31. Put back manual utmp[x]/wtmp[x]
 dnl          checks -- too many OSs can't be trusted to tell us where they are.
 dnl	     Check for sys/select.h. Spell endutent right. Replace strtoul()
@@ -48,31 +51,30 @@ ACCESS_FILE="$enable_access_file"
 AC_SUBST(ACCESS_FILE)
 AC_ARG_ENABLE(server-md4, [  --enable-server-md4     Use MD4 instead of MD5 for the server], AC_DEFINE(MDX, 4), AC_DEFINE(MDX, 5))
 
-set do_user_locking=1;
 AC_ARG_ENABLE(user-locking, [  --disable-user-locking  Disable user locking
   --enable-user-locking[=DIR]
-                          Put user lock files in DIR [/etc/opielocks]],, set do_user_locking=0)
-if $do_user_locking;
+                          Put user lock files in DIR [/etc/opielocks]],,)
+if test "$enable_user_locking" != no;
 then
-  AC_DEFINE(USER_LOCKING)
   if test -z "$enable_user_locking"
   then
     AC_DEFINE(OPIE_LOCK_DIR, "/etc/opielocks")
+    LOCK_DIR="/etc/opielocks"
   else
     AC_DEFINE_UNQUOTED(OPIE_LOCK_DIR, "$enable_user_locking")
+    LOCK_DIR="$enable_user_locking"
   fi
 fi
-LOCK_DIR="$enable_user_locking"
 AC_SUBST(LOCK_DIR)
 
-AC_ARG_ENABLE(retype, [  --enable-retype         Ask users to re-type their secret pass phrases], AC_DEFINE(RETYPE))
-AC_ARG_ENABLE(su-star-check, [  --enable-su-star-check  Refuse to switch to disabled accounts], AC_DEFINE(SU_STAR_CHECK))
-AC_ARG_ENABLE(new-prompts, [  --disable-new-prompts   Use more compatible (but less informative) prompts],, AC_DEFINE(NEW_PROMPTS))
+AC_ARG_ENABLE(retype, [  --enable-retype         Ask users to re-type their secret pass phrases], AC_DEFINE(RETYPE, 1))
+AC_ARG_ENABLE(su-star-check, [  --enable-su-star-check  Refuse to switch to disabled accounts], AC_DEFINE(SU_STAR_CHECK, 1))
+AC_ARG_ENABLE(new-prompts, [  --disable-new-prompts   Use more compatible (but less informative) prompts],, AC_DEFINE(NEW_PROMPTS, 1))
 AC_ARG_ENABLE(insecure-override, [  --enable-insecure-override
-                          Allow users to override insecure checks], AC_DEFINE(INSECURE_OVERRIDE))
-AC_ARG_ENABLE(anonymous-ftp, [  --enable-anonymous-ftp  Enable anonymous FTP support], AC_DEFINE(DOANONYMOUS) echo "Enabling anonymous FTP support in ftp -- don't say we didn't warn you!")
-AC_ARG_ENABLE(utmp, [  --disable-utmp          Disable utmp logging], AC_DEFINE(DISABLE_UTMP) echo "Disabling utmp logging")
-AC_ARG_ENABLE(wtmp, [  --disable-wtmp          Disable wtmp logging], AC_DEFINE(DISABLE_UTMP) echo "Disabling wtmp logging")
+                          Allow users to override insecure checks], AC_DEFINE(INSECURE_OVERRIDE, 1))
+AC_ARG_ENABLE(anonymous-ftp, [  --enable-anonymous-ftp  Enable anonymous FTP support], AC_DEFINE(DOANONYMOUS, 1) echo "Enabling anonymous FTP support in ftp -- don't say we didn't warn you!")
+AC_ARG_ENABLE(utmp, [  --disable-utmp          Disable utmp logging], AC_DEFINE(DISABLE_UTMP, 1) echo "Disabling utmp logging")
+AC_ARG_ENABLE(wtmp, [  --disable-wtmp          Disable wtmp logging], AC_DEFINE(DISABLE_UTMP, 1) echo "Disabling wtmp logging")
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -479,7 +481,9 @@ AC_TRY_COMPILE([#include <sys/types.h>
 dnl AC_MSG_CHECKING(for ut_user in struct utmp)
 dnl AC_TRY_COMPILE([#include <sys/types.h>
 dnl #include <utmp.h>], [struct utmp foo; return (int)foo.ut_user[0];], AC_DEFINE(HAVE_UT_USER) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
-AC_DEFINE(HAVE_UT_HOST)
+AC_MSG_CHECKING(for ut_host in struct utmp)
+AC_TRY_COMPILE([#include <sys/types.h>
+#include <utmp.h>], [struct utmp foo; return (int)foo.ut_host[0];], AC_DEFINE(HAVE_UT_HOST) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
 
 dnl Checks for library functions.
 dnl AC_PROG_GCC_TRADITIONAL

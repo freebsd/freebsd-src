@@ -1,7 +1,7 @@
 /* insecure.c: The opieinsecure() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -118,34 +118,36 @@ int opieinsecure FUNCTION_NOARGS
   };
 
 #if HAVE_UT_HOST
-  memset(&utmp, 0, sizeof(struct utmp));
-  {
-  int i = __opiegetutmpentry(ttyname(0), &utmp);
-  endutent();
-  if (!i && utmp.ut_host[0]) {
-    insecure = 1;
+  if (isatty(0)) {
+    memset(&utmp, 0, sizeof(struct utmp));
+    {
+      int i = __opiegetutmpentry(ttyname(0), &utmp);
+      endutent();
+      if (!i && utmp.ut_host[0]) {
+	insecure = 1;
 
-    if (s = strchr(utmp.ut_host, ':')) {
-      int n = s - utmp.ut_host;
-      if (!n)
-	insecure = 0;
-      else
-        if (display_name) {
-          if (!strncmp(utmp.ut_host, display_name, n))
-            insecure = 0;
+	if (s = strchr(utmp.ut_host, ':')) {
+	  int n = s - utmp.ut_host;
+	  if (!n)
+	    insecure = 0;
+	  else
+	    if (display_name) {
+	      if (!strncmp(utmp.ut_host, display_name, n))
+		insecure = 0;
 #ifdef SOLARIS
-          else
-            if (s = strchr(utmp.ut_host, ' ')) {
-              *s = ':';
-              if (s = strchr(s + 1, ' '))
-                *s = '.';
-              if (!strncmp(utmp.ut_host, display_name, n))
-                insecure = 0; 
-            }
+	      else
+		if (s = strchr(utmp.ut_host, ' ')) {
+		  *s = ':';
+		  if (s = strchr(s + 1, ' '))
+		    *s = '.';
+		  if (!strncmp(utmp.ut_host, display_name, n))
+		    insecure = 0; 
+		}
 #endif /* SOLARIS */
-        }
-    }
-  }
+	    }
+	}
+      }
+    };
   };
 #endif /* HAVE_UT_HOST */
   if (insecure)

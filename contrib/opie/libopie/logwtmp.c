@@ -1,7 +1,7 @@
 /* logwtmp.c: Put an entry in the wtmp file.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,11 +14,14 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Don't leave line=NULL, skip
+		past /dev/ in line. Fill in ut_host on systems with UTMPX and
+		ut_host.
 	Modified by cmetz for OPIE 2.31. Move wtmp log functions here, to
-	     improve portability. Added DISABLE_WTMP.
+		improve portability. Added DISABLE_WTMP.
 	Modified by cmetz for OPIE 2.22. Call gettimeofday() properly.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
-             Ifdef around some headers. Added file close hook.
+        	Ifdef around some headers. Added file close hook.
 	Modified at NRL for OPIE 2.1. Set process type for HPUX.
 	Modified at NRL for OPIE 2.0.
 	Originally from BSD.
@@ -124,7 +127,10 @@ VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND c
 #if DOUTMPX && defined(_PATH_WTMPX)
     close(fdx);
 #endif /* DOUTMPX && defined(_PATH_WTMPX) */
-  }
+    line = "";
+  } else
+    if (!strncmp(line, "/dev/", 5))
+      line += 5;
 
   if (fd < 0 && (fd = open(_PATH_WTMP, O_WRONLY | O_APPEND, 0)) < 0)
     return;
@@ -137,9 +143,9 @@ VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND c
 #endif /* HAVE_UT_PID */
     strncpy(ut.ut_line, line, sizeof(ut.ut_line));
     strncpy(ut.ut_name, name, sizeof(ut.ut_name));
-#if !DOUTMPX
+#if HAVE_UT_HOST
     strncpy(ut.ut_host, host, sizeof(ut.ut_host));
-#endif	/* !DOUTMPX */
+#endif /* HAVE_UT_HOST */
     time(&ut.ut_time);
     if (write(fd, (char *) &ut, sizeof(struct utmp)) !=
 	sizeof(struct utmp))
