@@ -140,6 +140,9 @@
 	BIOS problem observed on some systems when booting from USB
 	CDROM drives.</para>
 
+      <para>The <command>autoboot</command> loader command
+	now supports the prompt parameter.</para>
+
       <!-- Above this line, order boot loader changes by keyword-->
 
     </sect3>
@@ -155,9 +158,12 @@
 	performance states), icss (Intel SpeedStep for ICH), and
 	acpi_throttle (ACPI CPU throttling).</para>
 
-      <para arch="i386,pc98">Support for the OLDCARD subsystem has
+      <para arch="i386">Support for the OLDCARD subsystem has
 	been removed.  The NEWCARD system is now used for all PCCARD
 	device support.</para>
+
+      <para>The &man.uplcom.4; now supports handling of the
+	<literal>CTS</literal> signal.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -177,6 +183,8 @@
 	  <literal>device ath_rate_amrr</literal> must be included in
 	  the kernel configuration when using the &man.ath.4;
 	  driver.</para>
+
+	<para>The &man.dc.4; now supports the &man.altq.4; framework.</para>
 
 	<para arch="amd64">The &man.ndis.4; device driver wrapper now
 	  supports &windows;/x86-64 binaries on amd64
@@ -203,6 +211,13 @@
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>The MTU feedback in IPv6 has been disabled when the sender writes
+	data that must be fragmented.</para>
+
+      <para>&man.ipfw.8; now supports classification and tagging
+	of the &man.altq.4;, packets via a divert socket,
+	and TCP data length.</para>
 
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
@@ -289,6 +304,12 @@
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added.</para>
 
+    <para>The &man.newsyslog.8; utility now supports
+	a <option>-d</option> option to specify an alternate root for log files
+	similar to <varname>DESTDIR</varname> in the BSD make process.
+	This only affects log file paths, not config file (<option>-f</option>)
+	or archive directory (<option>-a</option>) paths.</para>
+
     <para>The &man.ncal.1; utility now supports a <option>-m</option>
       flag to generate a calendar for a specified month in the current
       year. &merged;</para>
@@ -306,14 +327,14 @@
       <varname>NO_<replaceable>FOO</replaceable></varname> form.  The
       file <filename>/usr/share/mk/bsd.compat.mk</filename> has a
       complete list of these variables; it also implements some
-      temporary backward compatability for the old names.</para>
+      temporary backward compatibility for the old names.</para>
 
     <para>The &man.ppp.8; program now implements an
       <option>echo</option> parameter, which allows LCP ECHOs to be
       enabled independently of LQR reports.  Older versions of
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
-      echo</command> to get this behaviour. &merged;</para>
+      echo</command> to get this behavior. &merged;</para>
 
     <para>The &man.tcpdrop.8; command, which closes a selected TCP
       connection, has been added.  It was obtained from
