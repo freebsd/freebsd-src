@@ -1142,7 +1142,7 @@ pf_change_icmp(struct pf_addr *ia, u_int16_t *ip, struct pf_addr *oa,
 	/* Change inner protocol port, fix inner protocol checksum. */
 	if (ip != NULL) {
 		u_int16_t	oip = *ip;
-		u_int32_t	opc;
+		u_int32_t	opc = 0;	/* make the compiler happy */
 
 		if (pc != NULL)
 			opc = *pc;
@@ -1222,14 +1222,14 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 {
 	struct mbuf	*m;
 	struct m_tag	*mtag;
-	int		 len, tlen;
+	int		 len = 0, tlen;		/* make the compiler happy */
 #ifdef INET
-	struct ip	*h;
+	struct ip	*h = NULL;		/* make the compiler happy */
 #endif /* INET */
 #ifdef INET6
-	struct ip6_hdr	*h6;
+	struct ip6_hdr	*h6 = NULL;		/* make the compiler happy */
 #endif /* INET6 */
-	struct tcphdr	*th;
+	struct tcphdr	*th = NULL;		/* make the compiler happy */
 #ifdef __FreeBSD__
 	struct ip 	*ip;
 #if (__FreeBSD_version < 501114)
@@ -2343,7 +2343,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, u_int16_t offer)
 	struct route_in6	 ro6;
 #endif /* INET6 */
 	struct rtentry		*rt = NULL;
-	int			 hlen;
+	int			 hlen = 0;	/* make the compiler happy */
 	u_int16_t		 mss = tcp_mssdflt;
 
 	switch (af) {
@@ -3014,9 +3014,10 @@ pf_test_icmp(struct pf_rule **rm, struct pf_state **sm, int direction,
 	struct pf_rule		*r, *a = NULL;
 	struct pf_ruleset	*ruleset = NULL;
 	u_short			 reason;
-	u_int16_t		 icmpid;
+	u_int16_t		 icmpid = 0;	/* make the compiler happy */
 	sa_family_t		 af = pd->af;
-	u_int8_t		 icmptype, icmpcode;
+	u_int8_t		 icmptype = 0;	/* make the compiler happy */
+	u_int8_t		 icmpcode = 0;	/* make the compiler happy */
 	int			 state_icmp = 0;
 	struct pf_tag		*pftag = NULL;
 	int			 tag = -1;
@@ -4094,8 +4095,9 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
     struct mbuf *m, int ipoff, int off, void *h, struct pf_pdesc *pd)
 {
 	struct pf_addr	*saddr = pd->src, *daddr = pd->dst;
-	u_int16_t	 icmpid, *icmpsum;
-	u_int8_t	 icmptype;
+	u_int16_t	 icmpid = 0;		/* make the compiler happy */
+	u_int16_t	*icmpsum = NULL;	/* make the compiler happy */
+	u_int8_t	 icmptype = 0;		/* make the compiler happy */
 	int		 state_icmp = 0, dirndx;
 
 	switch (pd->proto) {
@@ -4216,8 +4218,8 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 		struct ip6_hdr	h2_6;
 		int		terminal = 0;
 #endif /* INET6 */
-		int		ipoff2;
-		int		off2;
+		int		ipoff2 = 0;	/* make the compiler happy */
+		int		off2 = 0;	/* make the compiler happy */
 
 		pd2.af = pd->af;
 		switch (pd->af) {
@@ -4961,7 +4963,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 {
 	struct mbuf		*m0, *m1;
 	struct route		 iproute;
-	struct route		*ro;
+	struct route		*ro = NULL;	/* XXX: was uninitialized */
 	struct sockaddr_in	*dst;
 	struct ip		*ip;
 	struct ifnet		*ifp = NULL;
@@ -5589,7 +5591,7 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0)
 {
 	u_short		   action, reason = 0, log = 0;
 	struct mbuf	  *m = *m0;
-	struct ip	  *h;
+	struct ip	  *h = NULL;		/* XXX: was uninitialized */
 	struct pf_rule	  *a = NULL, *r = &pf_default_rule, *tr;
 	struct pf_state	  *s = NULL;
 	struct pf_ruleset *ruleset = NULL;
