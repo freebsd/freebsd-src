@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.25 1997/03/02 11:06:21 bde Exp $
+ * $Id: vfs_init.c,v 1.26 1997/08/02 14:31:44 bde Exp $
  */
 
 
@@ -70,13 +70,6 @@ extern struct linker_set vfs_set;
 
 extern struct vnodeop_desc *vfs_op_descs[];
 				/* and the operations they perform */
-/*
- * This code doesn't work if the defn is **vnodop_defns with cc.
- * The problem is because of the compiler sometimes putting in an
- * extra level of indirection for arrays.  It's an interesting
- * "feature" of C.
- */
-static int vfs_opv_numops;
 
 /*
  * A miscellaneous routine.
@@ -104,6 +97,12 @@ vn_default_error()
  * listing those new operations Ficus adds to NFS, all without modifying the
  * NFS code. (Of couse, the OTW NFS protocol still needs to be munged, but
  * that is a(whole)nother story.) This is a feature.
+ *
+ * Without an explicit reserve area, however, you must replace vnode_if.c
+ * and vnode_if.h when you do this, or you will be derefrencing of the
+ * end of vfs_op_descs[].  This is a flaw in the use of a structure
+ * pointer array rather than an agregate to define vfs_op_descs.  So
+ * it's not a very dynamic "feature".
  */
 void
 vfs_opv_init(struct vnodeopv_desc **them)
@@ -197,20 +196,24 @@ vfs_op_init()
 	int i;
 
 	DODEBUG(printf("Vnode_interface_init.\n"));
+	DODEBUG(printf ("vfs_opv_numops=%d\n", vfs_opv_numops));
 	/*
 	 * Set all vnode vectors to a well known value.
 	 */
 	for (i = 0; vfs_opv_descs[i]; i++)
 		*(vfs_opv_descs[i]->opv_desc_vector_p) = NULL;
 	/*
-	 * Figure out how many ops there are by counting the table,
-	 * and assign each its offset.
+	 * assign each op to its offset
+	 *
+	 * XXX This should not be needed, but is because the per
+	 * XXX FS ops tables are not sorted according to the
+	 * XXX vnodeop_desc's offset in vfs_op_descs.  This
+	 * XXX is the same reason we have to take the hit for
+	 * XXX the static inline function calls instead of using
+	 * XXX simple macro references.
 	 */
-	for (vfs_opv_numops = 0, i = 0; vfs_op_descs[i]; i++) {
-		vfs_op_descs[i]->vdesc_offset = vfs_opv_numops;
-		vfs_opv_numops++;
-	}
-	DODEBUG(printf ("vfs_opv_numops=%d\n", vfs_opv_numops));
+	for (i = 0; i < vfs_opv_numops; i++)
+		vfs_op_descs[i]->vdesc_offset = i;
 }
 
 /*
