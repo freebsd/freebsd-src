@@ -113,6 +113,7 @@ struct acpi_cmbat_softc {
 	int		cap;
 	int		min;
 	int		full_charge_time;
+	int		initializing;
 };
 
 static struct timespec	 acpi_cmbat_info_lastupdated;
@@ -129,7 +130,10 @@ static int		 acpi_cmbat_probe(device_t);
 static int		 acpi_cmbat_attach(device_t);
 static int		 acpi_cmbat_resume(device_t);
 static int		 acpi_cmbat_ioctl(u_long, caddr_t, void *);
+static int		 acpi_cmbat_is_bst_valid(struct acpi_bst*);
+static int		 acpi_cmbat_is_bif_valid(struct acpi_bif*);
 static int		 acpi_cmbat_get_total_battinfo(struct acpi_battinfo *);
+static void		 acpi_cmbat_init_battery(void *);
 
 static __inline int
 acpi_cmbat_info_expired(struct timespec *lastupdated)
@@ -350,8 +354,9 @@ acpi_cmbat_attach(device_t dev)
 
 	acpi_cmbat_units++;
 	timespecclear(&acpi_cmbat_info_lastupdated);
+	sc->initializing = 0;
 
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_init_battery, dev);
 	return (0);
 }
 
@@ -359,7 +364,7 @@ static int
 acpi_cmbat_resume(device_t dev)
 {
 
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
+	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_init_battery, dev);
 	return (0);
 }
 
@@ -435,6 +440,28 @@ acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
 	return (0);
 }
 
+static __inline int
+acpi_cmbat_is_bst_valid(struct acpi_bst *bst)
+{
+	if (bst->state >= ACPI_BATT_STAT_MAX ||
+	    bst->cap == 0xffffffff ||
+	    bst->volt == 0xffffffff) {
+		return (0);
+	}
+
+	return (1);
+}
+
+static __inline int
+acpi_cmbat_is_bif_valid(struct acpi_bif *bif)
+{
+	if (bif->lfcap == 0) {
+		return (0);
+	}
+
+	return (1);
+}
+
 static int
 acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 {
@@ -496,10 +523,8 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 		acpi_cmbat_get_bst(bat[i]->dev);
 
 		/* If battey not installed, we get strange values */
-		if (bat[i]->bst.state >= ACPI_BATT_STAT_MAX ||
-		    bat[i]->bst.cap == 0xffffffff ||
-		    bat[i]->bst.volt == 0xffffffff ||
-		    bat[i]->bif.lfcap == 0) {
+		if (!acpi_cmbat_is_bst_valid(&(bat[i]->bst)) ||
+		    !acpi_cmbat_is_bif_valid(&(bat[i]->bif))) {
 			bat[i]->present = 0;
 			continue;
 		}
@@ -578,6 +603,58 @@ out:
 	battinfo->state = batt_stat;
 
 	return (error);
+}
+
+static void
+acpi_cmbat_init_battery(void *arg)
+{
+	int		retry;
+	device_t	dev = (device_t)arg;
+	struct acpi_cmbat_softc *sc = device_get_softc(dev);
+#define ACPI_CMBAT_RETRY_MAX	6
+
+	if (sc->initializing) {
+		return;
+	}
+
+	sc->initializing = 1;
+
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "battery initialization start\n");
+
+	for (retry = 0; retry < ACPI_CMBAT_RETRY_MAX; retry++, AcpiOsSleep(10, 0)) {
+		sc->present = acpi_BatteryIsPresent(dev);
+		if (!sc->present) {
+			continue;
+		}
+
+		timespecclear(&sc->bst_lastupdated);
+		timespecclear(&sc->bif_lastupdated);
+
+		acpi_cmbat_get_bst(dev);
+
+		if (!acpi_cmbat_is_bst_valid(&sc->bst)) {
+			continue;
+		}
+
+		acpi_cmbat_get_bif(dev);
+
+		if (!acpi_cmbat_is_bif_valid(&sc->bif)) {
+			continue;
+		}
+
+		break;
+	}
+
+	if (retry == ACPI_CMBAT_RETRY_MAX)
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+			    "battery initialization failed, giving up\n");
+	else
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+			    "battery initialization done, tried %d times\n",
+			    retry+1);
+
+	sc->initializing = 0;
 }
 
 /*
