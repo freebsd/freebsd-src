@@ -35,7 +35,7 @@
         msdosfs
         ..
         perl
-            5.6.0
+            5.6.1
                 B
                 ..
                 CGI
