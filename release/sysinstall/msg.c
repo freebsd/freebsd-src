@@ -206,7 +206,6 @@ msgNotify(char *fmt, ...)
 {
     va_list args;
     char *errstr;
-    WINDOW *w = savescr();
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -217,8 +216,6 @@ msgNotify(char *fmt, ...)
     if (isDebug())
 	msgDebug("Notify: %s\n", errstr);
     dialog_msgbox(NULL, errstr, -1, -1, 0);
-    sleep(1);
-    restorescr(w);
 }
 
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
@@ -310,6 +307,7 @@ msgWeHaveOutput(char *fmt, ...)
     use_helpfile(NULL);
     msgDebug("Notify: %s\n", errstr);
     dialog_clear_norefresh();
+    sleep(2);
     dialog_msgbox(NULL, errstr, -1, -1, 0);
     restorescr(w);
 }

@@ -179,7 +179,7 @@ createFtpUser(void)
     fclose(fptr);
     msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
     vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 /* This is it - how to get the setup values */
@@ -311,5 +311,5 @@ configAnonFTP(dialogMenuItem *self)
     }
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("anon_ftp", "YES", 0);
-    return i;
+    return i | DITEM_RESTORE;
 }
