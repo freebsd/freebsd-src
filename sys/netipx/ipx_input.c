@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -143,8 +143,10 @@ ipxintr(struct mbuf *m)
 	 * If no IPX addresses have been set yet but the interfaces
 	 * are receiving, can't do anything with incoming packets yet.
 	 */
-	if (ipx_ifaddr == NULL)
-		goto bad;
+	if (ipx_ifaddr == NULL) {
+		m_freem(m);
+		return;
+	}
 
 	ipxstat.ipxs_total++;
 
@@ -173,7 +175,8 @@ ipxintr(struct mbuf *m)
 	 */
 	if (m->m_pkthdr.len < len) {
 		ipxstat.ipxs_tooshort++;
-		goto bad;
+		m_freem(m);
+		return;
 	}
 	if (m->m_pkthdr.len > len) {
 		if (m->m_len == m->m_pkthdr.len) {
@@ -185,7 +188,8 @@ ipxintr(struct mbuf *m)
 	if (ipxcksum && ipx->ipx_sum != 0xffff) {
 		if (ipx->ipx_sum != ipx_cksum(m, len)) {
 			ipxstat.ipxs_badsum++;
-			goto bad;
+			m_freem(m);
+			return;
 		}
 	}
 
@@ -197,8 +201,10 @@ ipxintr(struct mbuf *m)
 		if (ipxnetbios) {
 			ipx_output_type20(m);
 			return;
-		} else
-			goto bad;
+		} else {
+			m_freem(m);
+			return;
+		}
 	}
 
 	/*
@@ -267,12 +273,7 @@ ours:
 			}
 		ipx_input(m, ipxp);
 	} else
-		goto bad;
-
-	return;
-
-bad:
-	m_freem(m);
+		m_freem(m);
 }
 
 void
