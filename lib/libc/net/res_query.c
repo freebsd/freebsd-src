@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 1.3 1994/09/25 17:45:40 pst Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.4 1995/05/30 05:40:57 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -66,16 +66,10 @@ static char rcsid[] = "$Id: res_query.c,v 1.3 1994/09/25 17:45:40 pst Exp $";
 #include <resolv.h>
 #include <ctype.h>
 #include <errno.h>
-#if defined(BSD) && (BSD >= 199306)
-# include <stdlib.h>
-# include <string.h>
-#else
-# include "../conf/portability.h"
-#endif
+#include <stdlib.h>
+#include <string.h>
 
-#if defined(USE_OPTIONS_H)
-# include <../conf/options.h>
-#endif
+#include <res_config.h>
 
 #if PACKETSZ > 1024
 #define MAXPACKET	PACKETSZ
@@ -109,31 +103,41 @@ res_query(name, class, type, answer, anslen)
 
 	hp->rcode = NOERROR;	/* default */
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
 		return (-1);
+	}
+#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_query(%s, %d, %d)\n", name, class, type);
+#endif
 
 	n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
 			buf, sizeof(buf));
 	if (n <= 0) {
+#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; res_query: mkquery failed\n");
+#endif
 		h_errno = NO_RECOVERY;
 		return (n);
 	}
 	n = res_send(buf, n, answer, anslen);
 	if (n < 0) {
+#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; res_query: send error\n");
+#endif
 		h_errno = TRY_AGAIN;
 		return (n);
 	}
 
 	if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
+#ifdef DEBUG
 		if (_res.options & RES_DEBUG)
 			printf(";; rcode = %d, ancount=%d\n", hp->rcode,
 			    ntohs(hp->ancount));
+#endif
 		switch (hp->rcode) {
 			case NXDOMAIN:
 				h_errno = HOST_NOT_FOUND;
@@ -175,22 +179,23 @@ res_search(name, class, type, answer, anslen)
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
 		return (-1);
-
+	}
 	errno = 0;
 	h_errno = HOST_NOT_FOUND;	/* default, if we never query */
 	dots = 0;
 	for (cp = name;  *cp;  cp++)
 		dots += (*cp == '.');
 	trailing_dot = 0;
-	if ((cp > name) && (*--cp == '.'))
+	if (cp > name && *--cp == '.')
 		trailing_dot++;
 
 	/*
 	 * if there aren't any dots, it could be a user-level alias
 	 */
-	if ((!dots) && (cp = __hostalias(name)))
+	if (!dots && (cp = __hostalias(name)) != NULL)
 		return (res_query(cp, class, type, answer, anslen));
 
 	/*
@@ -212,9 +217,8 @@ res_search(name, class, type, answer, anslen)
 	 *	- there is at least one dot, there is no trailing dot,
 	 *	  and RES_DNSRCH is set.
 	 */
-	if (((!dots) && _res.options & RES_DEFNAMES) ||
-	    (dots && (!trailing_dot) && _res.options & RES_DNSRCH)
-	    ) {
+	if ((!dots && (_res.options & RES_DEFNAMES)) ||
+	    (dots && !trailing_dot && (_res.options & RES_DNSRCH))) {
 		int done = 0;
 
 		for (domain = (const char * const *)_res.dnsrch;
@@ -279,7 +283,6 @@ res_search(name, class, type, answer, anslen)
 		ret = res_querydomain(name, NULL, class, type, answer, anslen);
 		if (ret > 0)
 			return (ret);
-		saved_herrno = h_errno;
 	}
 
 	/* if we got here, we didn't satisfy the search.
@@ -313,9 +316,15 @@ res_querydomain(name, domain, class, type, answer, anslen)
 	const char *longname = nbuf;
 	int n;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (-1);
+	}
+#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_querydomain(%s, %s, %d, %d)\n",
 		       name, domain?domain:"<Nil>", class, type);
+#endif
 	if (domain == NULL) {
 		/*
 		 * Check for trailing '.';
@@ -327,10 +336,8 @@ res_querydomain(name, domain, class, type, answer, anslen)
 			nbuf[n] = '\0';
 		} else
 			longname = name;
-	} else {
-		sprintf(nbuf, "%.*s.%.*s",
-			MAXDNAME, name, MAXDNAME, domain);
-	}
+	} else
+		sprintf(nbuf, "%.*s.%.*s", MAXDNAME, name, MAXDNAME, domain);
 
 	return (res_query(longname, class, type, answer, anslen));
 }
@@ -345,22 +352,28 @@ __hostalias(name)
 	char buf[BUFSIZ];
 	static char abuf[MAXDNAME];
 
+	if (_res.options & RES_NOALIASES)
+		return (NULL);
 	file = getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "r")) == NULL)
 		return (NULL);
+	setbuf(fp, NULL);
 	buf[sizeof(buf) - 1] = '\0';
 	while (fgets(buf, sizeof(buf), fp)) {
-		for (cp1 = buf; *cp1 && !isspace(*cp1); ++cp1);
+		for (cp1 = buf; *cp1 && !isspace(*cp1); ++cp1)
+			;
 		if (!*cp1)
 			break;
 		*cp1 = '\0';
 		if (!strcasecmp(buf, name)) {
-			while (isspace(*++cp1));
+			while (isspace(*++cp1))
+				;
 			if (!*cp1)
 				break;
-			for (cp2 = cp1 + 1; *cp2 && !isspace(*cp2); ++cp2);
+			for (cp2 = cp1 + 1; *cp2 && !isspace(*cp2); ++cp2)
+				;
 			abuf[sizeof(abuf) - 1] = *cp2 = '\0';
-			(void)strncpy(abuf, cp1, sizeof(abuf) - 1);
+			strncpy(abuf, cp1, sizeof(abuf) - 1);
 			fclose(fp);
 			return (abuf);
 		}
