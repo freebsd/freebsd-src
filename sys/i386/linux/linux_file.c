@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.28 1999/08/12 19:53:32 marcel Exp $
+ *  $Id: linux_file.c,v 1.29 1999/08/13 09:27:54 marcel Exp $
  */
 
 #include "opt_compat.h"
@@ -848,4 +848,19 @@ linux_link(struct proc *p, struct linux_link_args *args)
     bsd.link = args->to;
 
     return link(p, &bsd);
+}
+
+int
+linux_getcwd(struct proc *p, struct linux_getcwd_args *args)
+{
+    struct __getcwd_args bsd;
+
+#ifdef DEBUG
+    printf("Linux-emul(%d): getcwd(%p, %ld)\n",
+	   p->p_pid, args->buf, args->bufsize);
+#endif
+
+    bsd.buf = args->buf;
+    bsd.buflen = args->bufsize;
+    return __getcwd(p, &bsd);
 }
