@@ -695,7 +695,7 @@ _fortran= gnu/usr.bin/cc/f771
 .endif
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && !defined(NO_KERBEROS)
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
 _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
@@ -782,7 +782,8 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
-.if !defined(NOCRYPT) && !defined(NO_KERBEROS)
+.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
+    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
