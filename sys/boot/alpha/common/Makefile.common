@@ -15,7 +15,7 @@ SRCS+=		dev_net.c
 
 .PATH: ${.CURDIR}/../libalpha
 
-.if !defined(NOFORTH)
+.if !defined(NO_FORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
