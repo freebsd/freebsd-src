@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.32 1998/01/29 11:17:44 obrien Exp $
+#	$Id: rc,v 1.104.2.33 1998/02/15 14:24:47 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -95,7 +95,7 @@ fi
 
 adjkerntz -i
 
-rm -f /var/run/*
+rm -rf /var/run/*
 
 # Keep a copy of the boot messages around
 dmesg > /var/run/dmesg.boot
