@@ -50,14 +50,12 @@
 #include <sys/vnode.h>
 #include <sys/proc.h>
 #include <sys/file.h>
-#include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
-#include <sys/pipe.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -65,7 +63,6 @@
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
-
 
 static	 d_open_t  fdopen;
 #define NUMFDESC 64
@@ -188,14 +185,6 @@ dup(p, uap)
 	int new, error;
 
 	old = uap->fd;
-
-#if 0
-	/*
-	 * XXX Compatibility
-	 */
-	if (old &~ 077) { uap->fd &= 077; return (dup2(p, uap, p->p_retval)); }
-#endif
-
 	fdp = p->p_fd;
 	if (old >= fdp->fd_nfiles || fdp->fd_ofiles[old] == NULL)
 		return (EBADF);
@@ -422,6 +411,7 @@ fsetown(pgid, sigiop)
 		proc = pfind(pgid);
 		if (proc == NULL)
 			return (ESRCH);
+
 		/*
 		 * Policy - Don't allow a process to FSETOWN a process
 		 * in another session.
@@ -430,13 +420,15 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		else if (proc->p_session != curproc->p_session)
+		if (proc->p_session != curproc->p_session)
 			return (EPERM);
+
 		pgrp = NULL;
 	} else /* if (pgid < 0) */ {
 		pgrp = pgfind(-pgid);
 		if (pgrp == NULL)
 			return (ESRCH);
+
 		/*
 		 * Policy - Don't allow a process to FSETOWN a process
 		 * in another session.
@@ -445,13 +437,13 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		else if (pgrp->pg_session != curproc->p_session)
+		if (pgrp->pg_session != curproc->p_session)
 			return (EPERM);
+
 		proc = NULL;
 	}
 	funsetown(*sigiop);
-	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO,
-	       M_WAITOK);
+	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	if (pgid > 0) {
 		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
 		sigio->sio_proc = proc;
@@ -867,11 +859,9 @@ fdcopy(p)
 	register struct file **fpp;
 	register int i;
 
-/*
- * Certain daemons might not have file descriptors
- */
+	/* Certain daemons might not have file descriptors. */
 	if (fdp == NULL)
-		return NULL;
+		return (NULL);
 
 	MALLOC(newfdp, struct filedesc *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK);
@@ -927,9 +917,7 @@ fdfree(p)
 	struct file **fpp;
 	register int i;
 
-/*
- * Certain daemons might not have file descriptors
- */
+	/* Certain daemons might not have file descriptors. */
 	if (fdp == NULL)
 		return;
 
@@ -943,7 +931,7 @@ fdfree(p)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	vrele(fdp->fd_cdir);
 	vrele(fdp->fd_rdir);
-	if(fdp->fd_jdir)
+	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
 	FREE(fdp, M_FILEDESC);
 }
@@ -960,9 +948,7 @@ fdcloseexec(p)
 	char *fdfp;
 	register int i;
 
-/*
- * Certain daemons might not have file descriptors
- */
+	/* Certain daemons might not have file descriptors. */
 	if (fdp == NULL)
 		return;
 
