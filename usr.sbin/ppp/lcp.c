@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.61 1998/06/27 23:48:47 brian Exp $
+ * $Id: lcp.c,v 1.62 1998/08/07 18:42:49 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -36,6 +36,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "ua.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -295,6 +296,7 @@ LcpSendConfigReq(struct fsm *fp)
   u_char buff[200];
   struct lcp_opt *o;
   struct mp *mp;
+  u_int16_t proto;
 
   if (!p) {
     log_Printf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
@@ -311,35 +313,38 @@ LcpSendConfigReq(struct fsm *fp)
       INC_LCP_OPT(TY_PROTOCOMP, 2, o);
 
     if (!REJECTED(lcp, TY_ACCMAP)) {
-      *(u_int32_t *)o->data = htonl(lcp->want_accmap);
+      ua_htonl(&lcp->want_accmap, o->data);
       INC_LCP_OPT(TY_ACCMAP, 6, o);
     }
   }
 
   if (!REJECTED(lcp, TY_MRU)) {
-    *(u_int16_t *)o->data = htons(lcp->want_mru);
+    ua_htons(&lcp->want_mru, o->data);
     INC_LCP_OPT(TY_MRU, 4, o);
   }
 
   if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM)) {
-    *(u_int32_t *)o->data = htonl(lcp->want_magic);
+    ua_htonl(&lcp->want_magic, o->data);
     INC_LCP_OPT(TY_MAGICNUM, 6, o);
   }
 
   if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
-    *(u_int16_t *)o->data = htons(PROTO_LQR);
-    *(u_int32_t *)(o->data + 2) = htonl(lcp->want_lqrperiod);
+    proto = PROTO_LQR;
+    ua_htons(&proto, o->data);
+    ua_htonl(&lcp->want_lqrperiod, o->data + 2);
     INC_LCP_OPT(TY_QUALPROTO, 8, o);
   }
 
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    *(u_int16_t *)o->data = htons(PROTO_PAP);
+    proto = PROTO_PAP;
+    ua_htons(&proto, o->data);
     INC_LCP_OPT(TY_AUTHPROTO, 4, o);
     break;
 
   case PROTO_CHAP:
-    *(u_int16_t *)o->data = htons(PROTO_CHAP);
+    proto = PROTO_CHAP;
+    ua_htons(&proto, o->data);
     o->data[2] = 0x05;
     INC_LCP_OPT(TY_AUTHPROTO, 5, o);
     break;
@@ -366,7 +371,7 @@ LcpSendConfigReq(struct fsm *fp)
   }
 
   if (lcp->want_mrru && !REJECTED(lcp, TY_MRRU)) {
-    *(u_int16_t *)o->data = htons(lcp->want_mrru);
+    ua_htons(&lcp->want_mrru, o->data);
     INC_LCP_OPT(TY_MRRU, 4, o);
 
     if (lcp->want_shortseq && !REJECTED(lcp, TY_SHORTSEQ))
@@ -479,7 +484,6 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   int type, length, sz, pos, op, callback_req;
   u_int32_t magic, accmap;
   u_short mtu, mru, proto;
-  u_int16_t *sp;
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
@@ -504,8 +508,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     switch (type) {
     case TY_MRRU:
       mp = &lcp->fsm.bundle->ncp.mp;
-      sp = (u_int16_t *)(cp + 2);
-      mru = htons(*sp);
+      ua_ntohs(cp + 2, &mru);
       log_Printf(LogLCP, "%s %u\n", request, mru);
 
       switch (mode_type) {
@@ -519,8 +522,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (mru < MIN_MRU || mru < mtu) {
             /* Push him up to MTU or MIN_MRU */
             lcp->his_mrru = mru < mtu ? mtu : MIN_MRU;
-	    *sp = htons((u_int16_t)lcp->his_mrru);
-	    memcpy(dec->nakend, cp, 4);
+	    memcpy(dec->nakend, cp, 2);
+            ua_htons(&lcp->his_mrru, dec->nakend + 2);
 	    dec->nakend += 4;
 	  } else {
             lcp->his_mrru = mtu ? mtu : mru;
@@ -554,8 +557,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_MRU:
-      sp = (u_int16_t *) (cp + 2);
-      mru = htons(*sp);
+      ua_ntohs(cp + 2, &mru);
       log_Printf(LogLCP, "%s %d\n", request, mru);
 
       switch (mode_type) {
@@ -564,8 +566,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         if (mru < MIN_MRU || (!lcp->want_mrru && mru < mtu)) {
           /* Push him up to MTU or MIN_MRU */
           lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
-          *sp = htons((u_int16_t)lcp->his_mru);
-          memcpy(dec->nakend, cp, 4);
+          memcpy(dec->nakend, cp, 2);
+          ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
         } else {
           lcp->his_mru = mtu ? mtu : mru;
@@ -588,7 +590,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_ACCMAP:
-      accmap = htonl(*(u_int32_t *)(cp + 2));
+      ua_ntohl(cp + 2, &accmap);
       log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
@@ -607,8 +609,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_AUTHPROTO:
-      sp = (u_int16_t *) (cp + 2);
-      proto = ntohs(*sp);
+      ua_ntohs(cp + 2, &proto);
       switch (proto) {
       case PROTO_PAP:
         log_Printf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
@@ -733,7 +734,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_MAGICNUM:
-      magic = ntohl(*(u_int32_t *)(cp + 2));
+      ua_ntohl(cp + 2, &magic);
       log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {
