@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.64 1996/11/04 02:12:49 jkh Exp $
+ * $Id: media.c,v 1.65 1996/11/07 14:17:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,7 +297,7 @@ mediaSetFTP(dialogMenuItem *self)
 	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE | what;
     }
-    strcpy(ftpDevice.name, cp);
+    SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
     if (RunningAsInit &&
@@ -409,7 +409,7 @@ mediaSetNFS(dialogMenuItem *self)
 		   "host:/full/pathname/to/FreeBSD/distdir");
 	return DITEM_FAILURE;
     }
-    strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
+    SAFE_STRCPY(nfsDevice.name, cp);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE;

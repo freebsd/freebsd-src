@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.12 1996/10/06 16:04:49 jkh Exp $
+ * $Id: uc_main.c,v 1.13 1996/10/12 20:23:17 erich Exp $
  */
 
 #include <sys/types.h>
@@ -39,9 +39,7 @@
 #include <fcntl.h>
 
 #include "uc_main.h"
-
-extern int	isDebug(void);
-extern void	msgDebug(char *fmt, ...);
+#include "sysinstall.h"
 
 static struct nlist _nl[] = {
     {"_isa_devtab_bio"},
@@ -76,9 +74,9 @@ uc_open(char *name){
 	incore = 0;
     
     if (incore || (strcmp(name,"-bootfile") == 0))
-	strncpy(kname, getbootfile(), 79);
+	SAFE_STRCPY(kname, getbootfile());
     else
-	strncpy(kname, name, 79);
+	SAFE_STRCPY(kname, name);
 
     if (isDebug())
 	msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);

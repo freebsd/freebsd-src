@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.51 1996/11/27 01:01:52 joerg Exp $
+ * $Id: devices.c,v 1.52 1996/12/08 12:27:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,7 +102,7 @@ new_device(char *name)
     dev = safe_malloc(sizeof(Device));
     bzero(dev, sizeof(Device));
     if (name)
-	strcpy(dev->name, name);
+	SAFE_STRCPY(dev->name, name);
     return dev;
 }
 

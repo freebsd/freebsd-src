@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.7 1996/06/11 05:06:31 jkh Exp $
+ * $Id: attr.c,v 1.8 1996/09/08 01:39:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -137,8 +137,8 @@ attr_parse(Attribs *attr, int fd)
 	    break;
 
 	case COMMIT:
-	    strcpy(attr[num_attribs].name, hold_n);
-	    strcpy(attr[num_attribs].value, hold_v);
+	    SAFE_STRCPY(attr[num_attribs].name, hold_n);
+	    SAFE_STRCPY(attr[num_attribs].value, hold_v);
 	    state = LOOK;
 	    v = n = 0;
 	    ++num_attribs;
