@@ -232,7 +232,7 @@ main(int argc, char *argv[])
 			err(1, "selected device name '%s' is "
 			    "too long (max chars: %d)", dname, IFNAMSIZ);
 		fprintf (outfp, "#define NDIS_DEVNAME \"%s\"\n", dname);
-		fprintf (outfp, "#define NDIS_MODNAME %s\n", dname);
+		fprintf (outfp, "#define NDIS_MODNAME %s\n\n", dname);
 	}
 
 	if (inffile == NULL) {
