@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999, 2000, 2002 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2000, 2002, 2005 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -138,6 +138,7 @@
 .Op device id
 .Op generic args
 .Op Fl q
+.Op Fl r
 .Op Fl w
 .Op Fl y
 .Nm
@@ -675,6 +676,11 @@ the questions, however.
 To disable questions, use the
 .Fl y
 argument, below.
+.It Fl r
+Run in 
+.Dq report only
+mode.
+This will report status on a format that is already running on the drive.
 .It Fl w
 Issue a non-immediate format command.
 By default,
