@@ -46,6 +46,7 @@
 #include <err.h>
 #else
 #include <sys/systm.h>
+#include <sys/devicestat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -144,7 +145,8 @@ g_new_consumer(struct g_geom *gp)
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
 	cp->protect = 0x020016602;
 	cp->geom = gp;
-	cp->stat = g_stat_new(cp);
+	cp->stat = devstat_new_entry(cp, -1, 0, DEVSTAT_ALL_SUPPORTED,
+	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->consumer, cp, consumer);
 	return(cp);
 }
@@ -161,7 +163,7 @@ g_destroy_consumer(struct g_consumer *cp)
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
 	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
 	LIST_REMOVE(cp, consumer);
-	g_stat_delete(cp->stat);
+	devstat_remove_entry(cp->stat);
 	g_free(cp);
 }
 
@@ -185,7 +187,8 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	LIST_INIT(&pp->consumers);
 	pp->error = ENXIO;
 	pp->geom = gp;
-	pp->stat = g_stat_new(pp);
+	pp->stat = devstat_new_entry(pp, -1, 0, DEVSTAT_ALL_SUPPORTED,
+	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
 	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
@@ -216,7 +219,7 @@ g_destroy_provider(struct g_provider *pp)
 	g_nproviders--;
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
-	g_stat_delete(pp->stat);
+	devstat_remove_entry(pp->stat);
 	g_free(pp);
 	if (!(gp->flags & G_GEOM_WITHER))
 		return;

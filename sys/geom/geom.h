@@ -151,7 +151,7 @@ struct g_consumer {
 	int			acr, acw, ace;
 	struct g_event		*event;
 	int			spoiled;
-	struct g_stat		*stat;
+	struct devstat		*stat;
 	u_int			nstart, nend;
 };
 
@@ -173,7 +173,7 @@ struct g_provider {
 	u_int			sectorsize;
 	u_int			stripesize;
 	u_int			stripeoffset;
-	struct g_stat		*stat;
+	struct devstat		*stat;
 	u_int			nstart, nend;
 	u_int			flags;
 #define G_PF_CANDELETE		0x1
