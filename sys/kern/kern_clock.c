@@ -61,14 +61,12 @@
 
 #include <machine/cpu.h>
 #include <machine/limits.h>
+#include <machine/smp.h>
 
 #ifdef GPROF
 #include <sys/gmon.h>
 #endif
 
-#if defined(SMP) && defined(BETTER_CLOCK)
-#include <machine/smp.h>
-#endif
 
 /*
  * Number of timecounters used to implement stable storage

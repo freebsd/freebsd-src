@@ -39,6 +39,7 @@
 
 #include <sys/signal.h>
 #include <sys/proc.h>
+#include <machine/smp.h>
 
 /*
  * Kernel signal definitions and data structures,
@@ -225,16 +226,24 @@ void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
  * Determine signal that should be delivered to process p, the current
  * process, 0 if none.  If there is a pending stop signal with default
  * action, the process stops in issignal().
+ *
+ * MP SAFE
  */
 extern __inline int __cursig(struct proc *p)
 {
 	sigset_t tmpset;
+	int r;
 
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
-	return ((SIGISEMPTY(p->p_siglist) ||
-		 (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset)))
-		? 0 : issignal(p));
+	if (SIGISEMPTY(p->p_siglist) ||
+	     (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset))) {
+		return(0);
+	}
+	get_mplock();
+	r = issignal(p);
+	rel_mplock();
+	return(r);
 }
 
 #endif	/* _KERNEL */

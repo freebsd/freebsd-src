@@ -64,7 +64,7 @@ ENTRY(vm86_bioscall)
 
 #ifdef SMP	
 	pushl	%edx
-	ALIGN_LOCK			/* Get global lock */
+	MP_LOCK				/* Get global lock */
 	popl	%edx
 #endif
 
@@ -136,17 +136,12 @@ ENTRY(vm86_bioscall)
 	 * Return via _doreti
 	 */
 #ifdef SMP
-	ECPL_LOCK
-#ifdef CPL_AND_CML
-#error Not ready for CPL_AND_CML
-#endif
 	pushl	_cpl			/* cpl to restore */
-	ECPL_UNLOCK
 #else
 	pushl	_cpl			/* cpl to restore */
 #endif
 	subl	$4,%esp			/* dummy unit */
-	MPLOCKED incb _intr_nesting_level
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 

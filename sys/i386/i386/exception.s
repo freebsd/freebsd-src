@@ -41,22 +41,10 @@
 #include <machine/psl.h>
 #include <machine/trap.h>
 #ifdef SMP
-#include <machine/smptests.h>		/** CPL_AND_CML, REAL_ */
+#include <machine/smptests.h>		/** various SMP options */
 #endif
 
 #include "assym.s"
-
-#ifndef SMP
-#define ECPL_LOCK			/* make these nops */
-#define ECPL_UNLOCK
-#define ICPL_LOCK
-#define ICPL_UNLOCK
-#define FAST_ICPL_UNLOCK
-#define AICPL_LOCK
-#define AICPL_UNLOCK
-#define AVCPL_LOCK
-#define AVCPL_UNLOCK
-#endif /* SMP */
 
 #ifdef SMP
 #define	MOVL_KPSEL_EAX	movl	$KPSEL,%eax
@@ -71,16 +59,45 @@
 /* Trap handling                                                             */
 /*****************************************************************************/
 /*
- * Trap and fault vector routines
+ * Trap and fault vector routines.
+ *
+ * Most traps are 'trap gates', SDT_SYS386TGT.  A trap gate pushes state on
+ * the stack that mostly looks like an interrupt, but does not disable 
+ * interrupts.  A few of the traps we are use are interrupt gates, 
+ * SDT_SYS386IGT, which are nearly the same thing except interrupts are
+ * disabled on entry.
+ *
+ * The cpu will push a certain amount of state onto the kernel stack for
+ * the current process.  The amount of state depends on the type of trap 
+ * and whether the trap crossed rings or not.  See i386/include/frame.h.  
+ * At the very least the current EFLAGS (status register, which includes 
+ * the interrupt disable state prior to the trap), the code segment register,
+ * and the return instruction pointer are pushed by the cpu.  The cpu 
+ * will also push an 'error' code for certain traps.  We push a dummy 
+ * error code for those traps where the cpu doesn't in order to maintain 
+ * a consistent frame.  We also push a contrived 'trap number'.
+ *
+ * The cpu does not push the general registers, we must do that, and we 
+ * must restore them prior to calling 'iret'.  The cpu adjusts the %cs and
+ * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
+ * must load them with appropriate values for supervisor mode operation.
+ *
+ * On entry to a trap or interrupt WE DO NOT OWN THE MP LOCK.  This means
+ * that we must be careful in regards to accessing global variables.  We
+ * save (push) the current cpl (our software interrupt disable mask), call
+ * the trap function, then call _doreti to restore the cpl and deal with
+ * ASTs (software interrupts).  _doreti will determine if the restoration
+ * of the cpl unmasked any pending interrupts and will issue those interrupts
+ * synchronously prior to doing the iret.
+ *
+ * At the moment we must own the MP lock to do any cpl manipulation, which
+ * means we must own it prior to  calling _doreti.  The syscall case attempts
+ * to avoid this by handling a reduced set of cases itself and iret'ing.
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(_X,name); \
 			.type __CONCAT(_X,name),@function; __CONCAT(_X,name):
 #define	TRAP(a)		pushl $(a) ; jmp _alltraps
 
-/*
- * XXX - debugger traps are now interrupt gates so at least bdb doesn't lose
- * control.  The sti's give the standard losing behaviour for ddb and kgdb.
- */
 #ifdef BDE_DEBUGGER
 #define	BDBTRAP(name) \
 	ss ; \
@@ -160,16 +177,9 @@ IDTVEC(fpu)
 
 #ifdef SMP
 	MPLOCKED incl _cnt+V_TRAP
-	FPU_LOCK
-	ECPL_LOCK
-#ifdef CPL_AND_CML
-	movl	_cml,%eax
-	pushl	%eax			/* save original cml */
-#else
+	MP_LOCK
 	movl	_cpl,%eax
 	pushl	%eax			/* save original cpl */
-#endif /* CPL_AND_CML */
-	ECPL_UNLOCK
 	pushl	$0			/* dummy unit to finish intr frame */
 #else /* SMP */
 	movl	_cpl,%eax
@@ -190,6 +200,16 @@ IDTVEC(fpu)
 IDTVEC(align)
 	TRAP(T_ALIGNFLT)
 
+	/*
+	 * _alltraps entry point.  Interrupts are enabled if this was a trap
+	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
+	 * Note that int0x80_syscall is a trap gate.  Only page faults
+	 * use an interrupt gate.
+	 *
+	 * Note that all calls to MP_LOCK must occur with interrupts enabled
+	 * in order to be able to take IPI's while waiting for the lock.
+	 */
+
 	SUPERALIGN_TEXT
 	.globl	_alltraps
 	.type	_alltraps,@function
@@ -208,14 +228,8 @@ alltraps_with_regs_pushed:
 calltrap:
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
 	MPLOCKED incl _cnt+V_TRAP
-	ALIGN_LOCK
-	ECPL_LOCK
-#ifdef CPL_AND_CML
-	movl	_cml,%ebx		/* keep orig. cml here during trap() */
-#else
+	MP_LOCK
 	movl	_cpl,%ebx		/* keep orig. cpl here during trap() */
-#endif
-	ECPL_UNLOCK
 	call	_trap
 
 	/*
@@ -224,22 +238,24 @@ calltrap:
 	 */
 	pushl	%ebx			/* cpl to restore */
 	subl	$4,%esp			/* dummy unit to finish intr frame */
-	MPLOCKED incb _intr_nesting_level
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
 /*
- * Call gate entry for syscall.
+ * SYSCALL CALL GATE (old entry point for a.out binaries)
+ *
  * The intersegment call has been set up to specify one dummy parameter.
+ *
  * This leaves a place to put eflags so that the call frame can be
  * converted to a trap frame. Note that the eflags is (semi-)bogusly
  * pushed into (what will be) tf_err and then copied later into the
  * final spot. It has to be done this way because esp can't be just
  * temporarily altered for the pushfl - an interrupt might come in
  * and clobber the saved cs/eip.
- */
-/*
- * THis first callgate is used for the old a.out binaries
+ *
+ * We do not obtain the MP lock, but the call to syscall2 might.  If it
+ * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
 IDTVEC(syscall)
@@ -259,20 +275,28 @@ IDTVEC(syscall)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
-	SYSCALL_LOCK
-	call	_syscall
-
-	/*
-	 * Return via _doreti to handle ASTs.
-	 */
-	pushl	$0			/* cpl to restore */
-	subl	$4,%esp			/* dummy unit to finish intr frame */
-	movb	$1,_intr_nesting_level
+	call	_syscall2
 	MEXITCOUNT
+	cli				/* atomic astpending access */
+	cmpl    $0,_astpending
+	je	doreti_syscall_ret
+#ifdef SMP
+	MP_LOCK
+#endif
+	pushl	$0			/* cpl to restore */
+	subl	$4,%esp			/* dummy unit for interrupt frame */
+	movb	$1,_intr_nesting_level
 	jmp	_doreti
 
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
+ *
+ * Even though the name says 'int0x80', this is actually a TGT (trap gate)
+ * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
+ * entry just as they are for a normal syscall.
+ *
+ * We do not obtain the MP lock, but the call to syscall2 might.  If it
+ * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
@@ -289,16 +313,17 @@ IDTVEC(int0x80_syscall)
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
-	ALTSYSCALL_LOCK
-	call	_syscall
-
-	/*
-	 * Return via _doreti to handle ASTs.
-	 */
-	pushl	$0			/* cpl to restore */
-	subl	$4,%esp			/* dummy unit to finish intr frame */
-	movb	$1,_intr_nesting_level
+	call	_syscall2
 	MEXITCOUNT
+	cli				/* atomic astpending access */
+	cmpl    $0,_astpending
+	je	doreti_syscall_ret
+#ifdef SMP
+	MP_LOCK
+#endif
+	pushl	$0			/* cpl to restore */
+	subl	$4,%esp			/* dummy unit for interrupt frame */
+	movb	$1,_intr_nesting_level
 	jmp	_doreti
 
 ENTRY(fork_trampoline)

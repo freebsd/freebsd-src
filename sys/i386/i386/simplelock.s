@@ -186,8 +186,11 @@ ENTRY(s_unlock)
 	movl	$0, (%eax)
 	ret
 
+#if 0
 
 /*
+ *	XXX CRUFTY SS_LOCK IMPLEMENTATION REMOVED XXX
+ *
  * These versions of simple_lock block interrupts,
  * making it suitable for regions accessed by both top and bottom levels.
  * This is done by saving the current value of the cpu flags in a per-cpu
@@ -278,6 +281,8 @@ ENTRY(ss_unlock)
 	sti
 ss_unlock2:	
 	ret
+
+#endif
 
 /* 
  * These versions of simple_lock does not contain calls to profiling code.

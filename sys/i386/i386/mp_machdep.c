@@ -1770,8 +1770,10 @@ init_locks(void)
 	 */
 	mp_lock = 0x00000001;
 
+#if 0
 	/* ISR uses its own "giant lock" */
 	isr_lock = FREE_LOCK;
+#endif
 
 #if defined(APIC_INTR_DIAGNOSTIC) && defined(APIC_INTR_DIAGNOSTIC_IRQ)
 	s_lock_init((struct simplelock*)&apic_itrace_debuglock);

@@ -4,8 +4,10 @@
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
 
-; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
+; Columns: number [MPSAFE] type nargs namespc name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
+;   MPSAFE	optional field, specifies that syscall does not want the
+;		BGL grabbed automatically (it is SMP safe).
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
 ;		NODEF, NOARGS, NOPROTO, NOIMPL
 ;	namespc one of POSIX, BSD, NOHIDE
@@ -67,8 +69,8 @@
 ; XXX `path' should have type `const char *' but we're not ready for that.
 22	STD	BSD	{ int unmount(char *path, int flags); }
 23	STD	POSIX	{ int setuid(uid_t uid); }
-24	STD	POSIX	{ uid_t getuid(void); }
-25	STD	POSIX	{ uid_t geteuid(void); }
+24	MPSAFE	STD	POSIX	{ uid_t getuid(void); }
+25	MPSAFE	STD	POSIX	{ uid_t geteuid(void); }
 26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
 			    int data); }
 27	STD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
@@ -95,8 +97,8 @@
 			    int pid); }
 46	COMPAT	POSIX	{ int sigaction(int signum, struct osigaction *nsa, \
 			    struct osigaction *osa); }
-47	STD	POSIX	{ gid_t getgid(void); }
-48	COMPAT	POSIX	{ int sigprocmask(int how, osigset_t mask); }
+47	MPSAFE	STD	POSIX	{ gid_t getgid(void); }
+48	MPSAFE	COMPAT	POSIX	{ int sigprocmask(int how, osigset_t mask); }
 ; XXX note nonstandard (bogus) calling convention - the libc stub passes
 ; us the mask, not a pointer to it, and we return the old mask as the
 ; (int) return value.
@@ -111,7 +113,7 @@
 57	STD	POSIX	{ int symlink(char *path, char *link); }
 58	STD	POSIX	{ int readlink(char *path, char *buf, int count); }
 59	STD	POSIX	{ int execve(char *fname, char **argv, char **envv); }
-60	STD	POSIX	{ int umask(int newmask); } umask umask_args int
+60	MPSAFE	STD	POSIX	{ int umask(int newmask); } umask umask_args int
 61	STD	BSD	{ int chroot(char *path); }
 62	COMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
 63	COMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
@@ -136,7 +138,7 @@
 			    char *vec); }
 79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
 80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
-81	STD	POSIX	{ int getpgrp(void); }
+81	MPSAFE	STD	POSIX	{ int getpgrp(void); }
 82	STD	POSIX	{ int setpgid(int pid, int pgid); }
 83	STD	BSD	{ int setitimer(u_int which, struct itimerval *itv, \
 			    struct itimerval *oitv); }
@@ -476,7 +478,7 @@
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
 338	STD	BSD	{ int jail(struct jail *jail); }
 339	UNIMPL	BSD	pioctl
-340	STD	POSIX	{ int sigprocmask(int how, const sigset_t *set, \
+340	MPSAFE	STD	POSIX	{ int sigprocmask(int how, const sigset_t *set, \
 			    sigset_t *oset); }
 341	STD	POSIX	{ int sigsuspend(const sigset_t *sigmask); }
 342	STD	POSIX	{ int sigaction(int sig, const struct sigaction *act, \

@@ -64,10 +64,9 @@
 #include <sys/malloc.h>
 
 
+#include <machine/ipl.h>
 #include <machine/cpu.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
@@ -441,10 +440,11 @@ execsigs(p)
 }
 
 /*
- * Manipulate signal mask.
- * Note that we receive new mask, not pointer,
- * and return old mask as return value;
- * the library stub does the rest.
+ * do_sigprocmask() - MP SAFE ONLY IF p == curproc
+ *
+ *	Manipulate signal mask.  This routine is MP SAFE *ONLY* if
+ *	p == curproc.  Also remember that in order to remain MP SAFE
+ *	no spl*() calls may be made.
  */
 static int
 do_sigprocmask(p, how, set, oset, old)
@@ -460,7 +460,6 @@ do_sigprocmask(p, how, set, oset, old)
 
 	error = 0;
 	if (set != NULL) {
-		(void) splhigh();
 		switch (how) {
 		case SIG_BLOCK:
 			SIG_CANTMASK(*set);
@@ -480,10 +479,13 @@ do_sigprocmask(p, how, set, oset, old)
 			error = EINVAL;
 			break;
 		}
-		(void) spl0();
 	}
 	return (error);
 }
+
+/*
+ * sigprocmask() - MP SAFE
+ */
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigprocmask_args {
@@ -514,6 +516,10 @@ sigprocmask(p, uap)
 	}
 	return (error);
 }
+
+/*
+ * osigprocmask() - MP SAFE
+ */
 
 #ifndef _SYS_SYSPROTO_H_
 struct osigprocmask_args {

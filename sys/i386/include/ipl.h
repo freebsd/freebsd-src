@@ -85,6 +85,12 @@
 #define	SWI_CLOCK_MASK	SWI_CLOCK_PENDING
 #define	SWI_MASK	(~HWI_MASK)
 
+/*
+ * astpending bits
+ */
+#define	AST_PENDING	0x00000001
+#define	AST_RESCHED	0x00000002
+
 #ifndef	LOCORE
 
 /*

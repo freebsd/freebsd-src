@@ -57,9 +57,8 @@
 #endif
 
 #include <machine/cpu.h>
-#ifdef SMP
+#include <machine/ipl.h>
 #include <machine/smp.h>
-#endif
 
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)

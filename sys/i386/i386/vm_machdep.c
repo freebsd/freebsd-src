@@ -578,13 +578,7 @@ vm_page_zero_idle()
 			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
 			m->queue = PQ_NONE;
 			splx(s);
-#if 0
-			rel_mplock();
-#endif
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-#if 0
-			get_mplock();
-#endif
 			(void)splvm();
 			vm_page_flag_set(m, PG_ZERO);
 			m->queue = PQ_FREE + m->pc;
@@ -606,6 +600,12 @@ vm_page_zero_idle()
 #ifdef SMP
 	}
 #endif
+	/*
+	 * We have to enable interrupts for a moment if the try_mplock fails
+	 * in order to potentially take an IPI.   XXX this should be in 
+	 * swtch.s
+	 */
+	__asm __volatile("sti; nop; cli" : : : "memory");
 	return (0);
 }
 

@@ -183,6 +183,23 @@ extern int			smp_started;
 extern volatile int		smp_idle_loops;
 
 #endif /* !LOCORE */
-#endif /* SMP || APIC_IO */
+#else	/* !SMP && !APIC_IO */
+
+/*
+ * Create dummy MP lock empties
+ */
+
+static __inline void
+get_mplock(void)
+{
+}
+
+static __inline void
+rel_mplock(void)
+{
+}
+
+#endif
+
 #endif /* _KERNEL */
 #endif /* _MACHINE_SMP_H_ */

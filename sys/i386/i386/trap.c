@@ -99,7 +99,7 @@ int (*pmath_emulate) __P((struct trapframe *));
 
 extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
-extern void syscall __P((struct trapframe frame));
+extern void syscall2 __P((struct trapframe frame));
 
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 static void trap_fatal __P((struct trapframe *, vm_offset_t));
@@ -140,38 +140,32 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 };
 
-static __inline void userret __P((struct proc *p, struct trapframe *frame,
-				  u_quad_t oticks));
+static __inline int userret __P((struct proc *p, struct trapframe *frame,
+				  u_quad_t oticks, int have_mplock));
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern int has_f00f_bug;
 #endif
 
-static __inline void
-userret(p, frame, oticks)
+static __inline int
+userret(p, frame, oticks, have_mplock)
 	struct proc *p;
 	struct trapframe *frame;
 	u_quad_t oticks;
+	int have_mplock;
 {
 	int sig, s;
 
-	while ((sig = CURSIG(p)) != 0)
+	while ((sig = CURSIG(p)) != 0) {
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
 		postsig(sig);
-
-#if 0
-	if (!want_resched &&
-		(p->p_priority <= p->p_usrpri) &&
-		(p->p_rtprio.type == RTP_PRIO_NORMAL)) {
-		 int newpriority;
-		 p->p_estcpu += 1;
-		 newpriority = PUSER + p->p_estcpu / 4 + 2 * p->p_nice;
-		 newpriority = min(newpriority, MAXPRI);
-		 p->p_usrpri = newpriority;
 	}
-#endif
-		
+
 	p->p_priority = p->p_usrpri;
-	if (want_resched) {
+	if (resched_wanted()) {
 		/*
 		 * Since we are curproc, clock will normally just change
 		 * our priority without moving us from one queue to another
@@ -180,6 +174,10 @@ userret(p, frame, oticks)
 		 * mi_switch()'ed, we might not be on the queue indicated by
 		 * our priority.
 		 */
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
 		s = splhigh();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
@@ -191,11 +189,16 @@ userret(p, frame, oticks)
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_flag & P_PROFIL)
+	if (p->p_flag & P_PROFIL) {
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
 		addupc_task(p, frame->tf_eip,
 			    (u_int)(p->p_sticks - oticks) * psratio);
-
+	}
 	curpriority = p->p_priority;
+	return(have_mplock);
 }
 
 /*
@@ -604,7 +607,7 @@ kernel_trap:
 #endif
 
 out:
-	userret(p, &frame, sticks);
+	userret(p, &frame, sticks, 1);
 }
 
 #ifdef notyet
@@ -999,11 +1002,18 @@ int trapwrite(addr)
 }
 
 /*
- * System call request from POSIX system call gate interface to kernel.
- * Like trap(), argument is call by reference.
+ *	syscall2 -	MP aware system call request C handler
+ *
+ *	A system call is essentially treated as a trap except that the
+ *	MP lock is not held on entry or return.  We are responsible for
+ *	obtaining the MP lock if necessary and for handling ASTs
+ *	(e.g. a task switch) prior to return.
+ *
+ *	In general, only simple access and manipulation of curproc and
+ *	the current stack is allowed without having to hold MP lock.
  */
 void
-syscall(frame)
+syscall2(frame)
 	struct trapframe frame;
 {
 	caddr_t params;
@@ -1012,22 +1022,42 @@ syscall(frame)
 	struct proc *p = curproc;
 	u_quad_t sticks;
 	int error;
+	int narg;
 	int args[8];
+	int have_mplock = 0;
 	u_int code;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(frame.tf_cs) != SEL_UPL)
+	if (ISPL(frame.tf_cs) != SEL_UPL) {
+		get_mplock();
 		panic("syscall");
+		/* NOT REACHED */
+	}
 #endif
-	sticks = p->p_sticks;
+
+	/*
+	 * handle atomicy by looping since interrupts are enabled and the 
+	 * MP lock is not held.
+	 */
+	sticks = ((volatile struct proc *)p)->p_sticks;	
+	while (sticks != ((volatile struct proc *)p)->p_sticks)
+		sticks = ((volatile struct proc *)p)->p_sticks;
+
 	p->p_md.md_regs = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
+
 	if (p->p_sysent->sv_prepsyscall) {
+		/*
+		 * The prep code is not MP aware.
+		 */
+		get_mplock();
 		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
+		rel_mplock();
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
+		 * fuword is MP aware.
 		 */
 		if (code == SYS_syscall) {
 			/*
@@ -1053,27 +1083,52 @@ syscall(frame)
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	if (params && (i = callp->sy_narg * sizeof(int)) &&
+	narg = callp->sy_narg & SYF_ARGMASK;
+
+	/*
+	 * copyin is MP aware, but the tracing code is not
+	 */
+	if (params && (i = narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
+		get_mplock();
+		have_mplock = 1;
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
-			ktrsyscall(p->p_tracep, code, callp->sy_narg, args);
+			ktrsyscall(p->p_tracep, code, narg, args);
 #endif
 		goto bad;
 	}
+
+	/*
+	 * Try to run the syscall without the MP lock if the syscall
+	 * is MP safe.  We have to obtain the MP lock no matter what if 
+	 * we are ktracing
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+		get_mplock();
+		have_mplock = 1;
+	}
+
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, args);
+	if (KTRPOINT(p, KTR_SYSCALL)) {
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
+		ktrsyscall(p->p_tracep, code, narg, args);
+	}
 #endif
 	p->p_retval[0] = 0;
 	p->p_retval[1] = frame.tf_edx;
 
-	STOPEVENT(p, S_SCE, callp->sy_narg);
+	STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
 	error = (*callp->sy_call)(p, args);
 
+	/*
+	 * MP SAFE (we may or may not have the MP lock at this point)
+	 */
 	switch (error) {
-
 	case 0:
 		/*
 		 * Reinitialize proc pointer `p' as it may be different
@@ -1109,17 +1164,31 @@ bad:
 		break;
 	}
 
+	/*
+	 * Traced syscall.  trapsignal() is not MP aware.
+	 */
 	if ((frame.tf_eflags & PSL_T) && !(frame.tf_eflags & PSL_VM)) {
-		/* Traced syscall. */
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
 		frame.tf_eflags &= ~PSL_T;
 		trapsignal(p, SIGTRAP, 0);
 	}
 
-	userret(p, &frame, sticks);
+	/*
+	 * Handle reschedule and other end-of-syscall issues
+	 */
+	have_mplock = userret(p, &frame, sticks, have_mplock);
 
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (have_mplock == 0) {
+			get_mplock();
+			have_mplock = 1;
+		}
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+	}
 #endif
 
 	/*
@@ -1129,11 +1198,17 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+	/*
+	 * Release the MP lock if we had to get it
+	 */
+	if (have_mplock)
+		rel_mplock();
 }
 
 /*
  * Simplified back end of syscall(), used when returning from fork()
- * directly into user mode.
+ * directly into user mode.  MP lock is held on entry and should be 
+ * held on return.
  */
 void
 fork_return(p, frame)
@@ -1144,7 +1219,7 @@ fork_return(p, frame)
 	frame.tf_eflags &= ~PSL_C;	/* success */
 	frame.tf_edx = 1;
 
-	userret(p, &frame, 0);
+	userret(p, &frame, 0, 1);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
