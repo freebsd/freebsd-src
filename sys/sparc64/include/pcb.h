@@ -37,7 +37,7 @@
 /* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
 struct pcb {
 	struct	fpstate	pcb_fpstate;
-	u_long	pcb_fp;
+	u_long	pcb_sp;
 	u_long	pcb_pc;
 	u_long	pcb_nsaved;
 	u_long	pcb_rwsp[MAXWIN];
