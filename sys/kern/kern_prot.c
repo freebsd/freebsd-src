@@ -1,8 +1,9 @@
 /*
  * Copyright (c) 1982, 1986, 1989, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2000, 2001 Robert N. M. Watson.  All rights reserved.
+ * Copyright (c) 2000-2001 Robert N. M. Watson.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
+ *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
@@ -1535,7 +1536,7 @@ SYSCTL_INT(_kern_security, OID_AUTO, unprivileged_procdebug_permitted,
 int
 p_candebug(struct proc *p1, struct proc *p2)
 {
-	int error;
+	int error, i, grpsubset, uidsubset, credentialchanged;
 
 	if (!kern_unprivileged_procdebug_permitted) {
 		error = suser_xxx(NULL, p1, PRISON_ROOT);
@@ -1550,13 +1551,40 @@ p_candebug(struct proc *p1, struct proc *p2)
 		return (error);
 
 	/*
-	 * Not owned by you, has done setuid (unless you're root).
-	 * XXX add a CAP_SYS_PTRACE here?
+	 * Is p2's group set a subset of p1's effective group set?  This
+	 * includes p2's egid, group access list, rgid, and svgid.
 	 */
-	if (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid ||
-	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid ||
-	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid ||
-	    p2->p_flag & P_SUGID) {
+	grpsubset = 1;
+	for (i = 0; i < p2->p_ucred->cr_ngroups; i++) {
+		if (!groupmember(p2->p_ucred->cr_groups[i], p1->p_ucred)) {
+			grpsubset = 0;
+			break;
+		}
+	}
+	grpsubset = grpsubset &&
+	    groupmember(p2->p_ucred->cr_rgid, p1->p_ucred) &&
+	    groupmember(p2->p_ucred->cr_svgid, p1->p_ucred);
+
+	/*
+	 * Are the uids present in p2's credential equal to p1's
+	 * effective uid?  This includes p2's euid, svuid, and ruid.
+	 */
+	uidsubset = (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid &&
+	    p1->p_ucred->cr_uid == p2->p_ucred->cr_svuid &&
+	    p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid);
+
+	/*
+	 * Has the credential of the process changed since the last exec()?
+	 */
+	credentialchanged = (p2->p_flag & P_SUGID);
+
+	/*
+	 * If p2's gids aren't a subset, or the uids aren't a subset,
+	 * or the credential has changed, require appropriate privilege
+	 * for p1 to debug p2.  For POSIX.1e capabilities, this will
+	 * require CAP_SYS_PTRACE.
+	 */
+	if (!grpsubset || !uidsubset || credentialchanged) {
 		error = suser_xxx(NULL, p1, PRISON_ROOT);
 		if (error)
 			return (error);
