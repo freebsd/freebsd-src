@@ -6,7 +6,7 @@
 HOST=		m68k-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_m68k\"
 CFLAGS+=	-DTARGET=\"m68k-unknown-freebsd\"
-_m68k_path=	\"/usr/lib\"
+_m68k_path=	\"${TOOLS_PREFIX}/usr/lib\"
 .else
 _m68k_path=	\"/usr/cross/m68k-freebsd/usr/lib\"
 .endif
