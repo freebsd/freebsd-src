@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.29 1999/05/31 22:13:36 roger Exp $
+ * $Id: pci_compat.c,v 1.30 1999/07/03 20:17:08 peter Exp $
  *
  */
 
@@ -108,20 +108,16 @@ pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	if (pci_map_mem(cfg, reg, va, pa)){
-#ifdef __alpha__
-		vm_offset_t dense;
+	int rid;
+	struct resource *res;
 
-		dense = pci_cvt_to_dense(*pa);
-		if (dense) {
-			*pa = dense;
-			*va = ALPHA_PHYS_TO_K0SEG(*pa);
-			return (1);
-		}
-#endif
-#ifdef __i386__
-		return(1);
-#endif
+	rid = reg;
+	res = bus_alloc_resource(cfg->dev, SYS_RES_DENSE, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (res) {
+		*pa = rman_get_start(res);
+		*va = (vm_offset_t) rman_get_virtual(res);
+		return (1);
 	}
 	return (0);
 }
@@ -129,20 +125,16 @@ pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	if (pci_map_mem(cfg, reg, va, pa)){
-#ifdef __alpha__
-		vm_offset_t bwx;
+	int rid;
+	struct resource *res;
 
-		bwx = pci_cvt_to_bwx(*pa);
-		if (bwx) {
-			*pa = bwx;
-			*va = ALPHA_PHYS_TO_K0SEG(*pa);
-			return (1);
-		}
-#endif
-#ifdef __i386__
-		return(1);
-#endif
+	rid = reg;
+	res = bus_alloc_resource(cfg->dev, SYS_RES_BWX, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (res) {
+		*pa = rman_get_start(res);
+		*va = (vm_offset_t) rman_get_virtual(res);
+		return (1);
 	}
 	return (0);
 }

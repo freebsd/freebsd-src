@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.15 1999/07/01 20:23:01 peter Exp $
+ * $Id: pcibus.c,v 1.16 1999/07/01 22:48:30 peter Exp $
  *
  */
 
@@ -119,7 +119,7 @@ vm_offset_t
 pci_cvt_to_dense(vm_offset_t sparse)
 {
 	if(chipset.cvt_to_dense)
-		return chipset.cvt_to_dense(sparse);
+		return ALPHA_PHYS_TO_K0SEG(chipset.cvt_to_dense(sparse));
 	else
 		return NULL;
 }
@@ -128,7 +128,7 @@ vm_offset_t
 pci_cvt_to_bwx(vm_offset_t sparse)
 {
 	if(chipset.cvt_to_bwx)
-		return chipset.cvt_to_bwx(sparse);
+		return ALPHA_PHYS_TO_K0SEG(chipset.cvt_to_bwx(sparse));
 	else
 		return NULL;
 }
@@ -207,6 +207,8 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &port_rman;
 		break;
 
+	case SYS_RES_DENSE:
+	case SYS_RES_BWX:
 	case SYS_RES_MEMORY:
 		rm = &mem_rman;
 		break;
@@ -219,13 +221,29 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
-	if (type == SYS_RES_MEMORY) {
+	switch (type) {
+	case SYS_RES_MEMORY:
 		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
 		rman_set_bushandle(rv, rv->r_start);
-		rman_set_virtual(rv, (void *) rv->r_start); /* XXX */
-	} else if (type == SYS_RES_IOPORT) {
+		rman_set_virtual(rv, (void *) rv->r_start); /* maybe NULL? */
+		break;
+
+	case SYS_RES_DENSE:
+		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
+		rman_set_bushandle(rv, rv->r_start);
+		rman_set_virtual(rv, pci_cvt_to_dense(rv->r_start));
+		break;
+
+	case SYS_RES_BWX:
+		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
+		rman_set_bushandle(rv, rv->r_start);
+		rman_set_virtual(rv, pci_cvt_to_bwx(rv->r_start));
+		break;
+
+	case SYS_RES_IOPORT:
 		rman_set_bustag(rv, ALPHA_BUS_SPACE_IO);
 		rman_set_bushandle(rv, rv->r_start);
+		break;
 	}
 
 	return rv;
