@@ -92,7 +92,7 @@ main() {
     (cd ../${TYPE}; make -f ../build/Makefile.conf )
     echo ""
 
-    ./stage1 2>&1 | tee stage1.out
+    ./stage1
     if [ "X$?" != "X0" ] ; then
 	echo ""
 	echo "-> ERROR in \"${i}\" script. Aborting the build process."
