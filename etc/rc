@@ -332,7 +332,6 @@ fi
 
 # Build ps databases
 #
-kvm_mkdb
 dev_mkdb
 
 # Check the password temp/lock file
