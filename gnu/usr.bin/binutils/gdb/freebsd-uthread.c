@@ -50,6 +50,9 @@ extern struct target_ops child_ops; /* target vector for inftarg.c */
 
 extern void _initialize_freebsd_uthread PARAMS ((void));
 
+/*  place to store core_ops before we overwrite it */
+static struct target_ops orig_core_ops;
+
 static int main_pid = -1;	/* Real process ID */
 
 /* Set to true while we are part-way through attaching */
@@ -66,10 +69,13 @@ static void restore_inferior_pid PARAMS ((int pid));
 static void freebsd_uthread_resume PARAMS ((int pid, int step,
 					enum target_signal signo));
 
+static void init_freebsd_core_ops PARAMS ((void));
 static void init_freebsd_uthread_ops PARAMS ((void));
 
 static struct target_ops freebsd_uthread_ops;
 static struct target_thread_vector freebsd_uthread_vec;
+
+static struct target_ops freebsd_core_ops;
 
 /*
 
@@ -435,7 +441,17 @@ freebsd_uthread_detach (args, from_tty)
      char *args;
      int from_tty;
 {
+  struct cleanup *old_chain;
+
+  old_chain = save_inferior_pid ();
+
+  inferior_pid = main_pid;
+
   child_ops.to_detach (args, from_tty);
+
+  cached_thread = 0;
+
+  do_cleanups (old_chain);
 }
 
 /* Resume execution of process PID.  If STEP is nozero, then
@@ -558,7 +574,10 @@ freebsd_uthread_fetch_registers (regno)
 
   if (freebsd_uthread_attaching)
     {
-      child_ops.to_fetch_registers (regno);
+      if (target_has_execution)
+        child_ops.to_fetch_registers (regno);
+      else
+	orig_core_ops.to_fetch_registers (regno);
       return;
     }
 
@@ -572,8 +591,10 @@ freebsd_uthread_fetch_registers (regno)
 
   if (active)
     {
-      child_ops.to_fetch_registers (regno);
-
+      if (target_has_execution)
+        child_ops.to_fetch_registers (regno);
+      else
+	orig_core_ops.to_fetch_registers (regno);
       do_cleanups (old_chain);
 
       return;
@@ -713,15 +734,23 @@ freebsd_uthread_xfer_memory (memaddr, myaddr, len, dowrite, target)
 
   if (freebsd_uthread_attaching)
     {
-      return child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite, target);
+      if (target_has_execution)
+        return child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite,
+					   target);
+      else
+        return orig_core_ops.to_xfer_memory (memaddr, myaddr, len, dowrite,
+					   target);
     }
 
   old_chain = save_inferior_pid ();
 
   inferior_pid = main_pid;
 
-  retval = child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite, target);
-
+  if (target_has_execution)
+    retval = child_ops.to_xfer_memory (memaddr, myaddr, len, dowrite, target);
+  else
+    retval = orig_core_ops.to_xfer_memory (memaddr, myaddr, len,
+					   dowrite, target);
   do_cleanups (old_chain);
 
   return retval;
@@ -1059,11 +1088,118 @@ init_freebsd_uthread_ops ()
   freebsd_uthread_vec.get_thread_info = freebsd_uthread_get_thread_info;
 }
 
+/* Core file support. */
+static void
+freebsd_core_open (filename, from_tty)
+     char *filename;
+     int from_tty;
+{
+  freebsd_uthread_attaching = 1;
+  orig_core_ops.to_open (filename, from_tty);
+  freebsd_uthread_attaching = 0;
+  if (inferior_pid && freebsd_uthread_active)
+    {
+      read_thread_offsets ();
+
+      main_pid = inferior_pid;
+
+      bind_target_thread_vector (&freebsd_uthread_vec);
+
+      inferior_pid = find_active_thread ();
+
+      init_thread_list ();
+      add_thread (inferior_pid);
+    }
+}
+
+static void
+freebsd_core_close (quitting)
+     int quitting;
+{
+  orig_core_ops.to_close (quitting);
+}
+
+static void
+freebsd_core_detach (args, from_tty)
+     char *args;
+     int from_tty;
+{
+  unpush_target (&core_ops);
+  orig_core_ops.to_detach (args, from_tty);
+}
+
+static void
+freebsd_core_files_info (t)
+     struct target_ops *t;
+{
+  orig_core_ops.to_files_info (t);
+}
+
+static int
+freebsd_core_ignore (addr, contents)
+     CORE_ADDR addr;
+     char *contents;
+{
+  return 0;
+}
+
+static void
+init_freebsd_core_ops()
+{
+  freebsd_core_ops.to_shortname  = "freebsd-core";
+  freebsd_core_ops.to_longname  = "FreeBSD core pthreads.";
+  freebsd_core_ops.to_doc  = "FreeBSD pthread support for core files.";
+  freebsd_core_ops.to_open  = freebsd_core_open;
+  freebsd_core_ops.to_close  = freebsd_core_close;
+  freebsd_core_ops.to_attach  = freebsd_uthread_attach;
+  freebsd_core_ops.to_post_attach  = freebsd_uthread_post_attach;
+  freebsd_core_ops.to_detach  = freebsd_core_detach;
+  /* freebsd_core_ops.to_resume  = 0; */
+  /* freebsd_core_ops.to_wait  = 0;  */
+  freebsd_core_ops.to_fetch_registers  = freebsd_uthread_fetch_registers;
+  /* freebsd_core_ops.to_store_registers  = 0; */
+  /* freebsd_core_ops.to_prepare_to_store  = 0; */
+  freebsd_core_ops.to_xfer_memory  = freebsd_uthread_xfer_memory;
+  freebsd_core_ops.to_files_info  = freebsd_core_files_info;
+  freebsd_core_ops.to_insert_breakpoint  = freebsd_core_ignore;
+  freebsd_core_ops.to_remove_breakpoint  = freebsd_core_ignore;
+  /* freebsd_core_ops.to_terminal_init  = 0; */
+  /* freebsd_core_ops.to_terminal_inferior  = 0; */
+  /* freebsd_core_ops.to_terminal_ours_for_output  = 0; */
+  /* freebsd_core_ops.to_terminal_ours  = 0; */
+  /* freebsd_core_ops.to_terminal_info  = 0; */
+  /* freebsd_core_ops.to_kill  = 0; */
+  /* freebsd_core_ops.to_load  = 0; */
+  /* freebsd_core_ops.to_lookup_symbol  = 0; */
+  freebsd_core_ops.to_create_inferior  = freebsd_uthread_create_inferior;
+  freebsd_core_ops.to_stratum  = core_stratum;
+  freebsd_core_ops.to_has_all_memory  = 0;
+  freebsd_core_ops.to_has_memory  = 1;
+  freebsd_core_ops.to_has_stack  = 1;
+  freebsd_core_ops.to_has_registers  = 1;
+  freebsd_core_ops.to_has_execution  = 0;
+  freebsd_core_ops.to_has_thread_control  = tc_none;
+  freebsd_core_ops.to_sections  = 0;
+  freebsd_core_ops.to_sections_end  = 0;
+  freebsd_core_ops.to_magic  = OPS_MAGIC;
+}
+
+/* we suppress the call to add_target of core_ops in corelow because
+   if there are two targets in the stratum core_stratum, find_core_target
+   won't know which one to return.  see corelow.c for an additonal
+   comment on coreops_suppress_target. */
+int coreops_suppress_target = 1;
+
 void
 _initialize_freebsd_uthread ()
 {
   init_freebsd_uthread_ops ();
+  init_freebsd_core_ops ();
   add_target (&freebsd_uthread_ops);
 
   child_suppress_run = 1;
+
+  memcpy(&orig_core_ops, &core_ops, sizeof (struct target_ops));
+  memcpy(&core_ops, &freebsd_core_ops, sizeof (struct target_ops));
+  add_target(&core_ops);
 }
