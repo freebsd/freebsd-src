@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.9 1994/10/14 05:57:49 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.10 1994/12/06 00:51:45 jkh Exp $";
 #endif
 
 /*
@@ -136,8 +136,8 @@ pkg_do(char *pkg)
     if (Flags & SHOW_INDEX) {
 	char fname[FILENAME_MAX];
 
-	sprintf(fname, "%s\t", pkg);
-	show_file(fname, COMMENT_FNAME);
+	sprintf(fname, "%-19s ", pkg);
+	show_index(fname, COMMENT_FNAME);
     }
     else {
 	/* Start showing the package contents */
