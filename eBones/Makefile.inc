@@ -1,9 +1,10 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.3 1994/09/24 14:04:08 g89r4222 Exp $
+#	$Id: Makefile.inc,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $
 
 BINDIR?=	/usr/sbin
 SHLIB_MAJOR?=	2
 SHLIB_MINOR?=	0
+DISTRIBUTION=	krb
 
 .if exists(${.CURDIR}/../des/obj)
 DESOBJDIR=	${.CURDIR}/../des/obj
