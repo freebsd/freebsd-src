@@ -1,4 +1,4 @@
-# $Id: ndcedit.awk,v 1.1.2.1 1996/11/05 20:16:00 phk Exp $
+# $Id: ndcedit.awk,v 1.1.2.2 1996/11/12 09:11:33 phk Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"
@@ -7,15 +7,15 @@ NR == 3 {
 	print ""
 
 	print "# If there is a global system configuration file, suck it in."
-	print "if [ -f /etc/sysconfig ]; then"
-	print "\t. /etc/sysconfig"
+	print "if [ -f /etc/rc.conf ]; then"
+	print "\t. /etc/rc.conf"
 	print "fi\n"
 }
 {
 	if ($1 == "named") {
-		printf "\t\t# $namedflags is imported from /etc/sysconfig\n"
-		printf "\t\tif [ \"X${namedflags}\" != \"XNO\" ]; then\n"
-		printf "\t\t\tnamed ${namedflags} && {\n"
+		printf "\t\t# $namedflags is imported from /etc/rc.conf\n"
+		printf "\t\tif [ \"X${named_flags}\" != X\"NO\" ]; then\n"
+		printf "\t\t\tnamed ${named_flags} && {\n"
 		getline
 		printf "\t%s\n", $0
 		getline
