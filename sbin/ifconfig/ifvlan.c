@@ -61,8 +61,8 @@ static const char rcsid[] =
 static int			__tag = 0;
 static int			__have_tag = 0;
 
-void
-vlan_status(int s, struct rt_addrinfo *info __unused)
+static void
+vlan_status(int s, const struct rt_addrinfo *info __unused)
 {
 	struct vlanreq		vreq;
 
@@ -79,7 +79,7 @@ vlan_status(int s, struct rt_addrinfo *info __unused)
 	return;
 }
 
-void
+static void
 setvlantag(const char *val, int d, int s, const struct afswtch	*afp)
 {
 	u_int16_t		tag;
@@ -102,7 +102,7 @@ setvlantag(const char *val, int d, int s, const struct afswtch	*afp)
 	return;
 }
 
-void
+static void
 setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 {
 	struct vlanreq		vreq;
@@ -125,7 +125,7 @@ setvlandev(const char *val, int d, int s, const struct afswtch	*afp)
 	return;
 }
 
-void
+static void
 unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct vlanreq		vreq;
@@ -143,4 +143,31 @@ unsetvlandev(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCSETVLAN");
 
 	return;
+}
+
+static struct cmd vlan_cmds[] = {
+	DEF_CMD_ARG("vlan",				setvlantag),
+	DEF_CMD_ARG("vlandev",				setvlandev),
+	DEF_CMD_ARG("-vlandev",				unsetvlandev),
+	DEF_CMD("vlanmtu",	IFCAP_VLAN_MTU,		setifcap),
+	DEF_CMD("-vlanmtu",	-IFCAP_VLAN_MTU,	setifcap),
+	DEF_CMD("vlanhwtag",	IFCAP_VLAN_HWTAGGING,	setifcap),
+	DEF_CMD("-vlanhwtag",	-IFCAP_VLAN_HWTAGGING,	setifcap),
+};
+static struct afswtch af_vlan = {
+	.af_name	= "af_vlan",
+	.af_af		= AF_UNSPEC,
+	.af_status	= vlan_status,
+};
+
+static __constructor void
+vlan_ctor(void)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	int i;
+
+	for (i = 0; i < N(vlan_cmds);  i++)
+		cmd_register(&vlan_cmds[i]);
+	af_register(&af_vlan);
+#undef N
 }

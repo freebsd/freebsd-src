@@ -102,8 +102,8 @@ static struct ifmedia_type_to_subtype *get_toptype_ttos(int);
 static struct ifmedia_description *get_subtype_desc(int,
     struct ifmedia_type_to_subtype *ttos);
 
-void
-media_status(int s, struct rt_addrinfo *info __unused)
+static void
+media_status(int s, const struct rt_addrinfo *info __unused)
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
@@ -190,7 +190,7 @@ media_status(int s, struct rt_addrinfo *info __unused)
 	free(media_list);
 }
 
-void
+static void
 setmedia(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifmediareq ifmr;
@@ -232,14 +232,14 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCSIFMEDIA (media)");
 }
 
-void
+static void
 setmediaopt(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	domediaopt(val, 0, s);
 }
 
-void
+static void
 unsetmediaopt(const char *val, int d, int s, const struct afswtch *afp)
 {
 
@@ -291,7 +291,7 @@ domediaopt(const char *val, int clear, int s)
 }
 
 
-void
+static void
 setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifmediareq ifmr;
@@ -777,3 +777,27 @@ print_media_word_ifconfig(int ifmw)
 /**********************************************************************
  * ...until here.
  **********************************************************************/
+
+static struct cmd media_cmds[] = {
+	DEF_CMD_ARG("media",	setmedia),
+	DEF_CMD_ARG("mode",	setmediamode),
+	DEF_CMD_ARG("mediaopt",	setmediaopt),
+	DEF_CMD_ARG("-mediaopt",unsetmediaopt),
+};
+static struct afswtch af_media = {
+	.af_name	= "af_media",
+	.af_af		= AF_UNSPEC,
+	.af_status	= media_status,
+};
+
+static __constructor void
+ifmedia_ctor(void)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	int i;
+
+	for (i = 0; i < N(media_cmds);  i++)
+		cmd_register(&media_cmds[i]);
+	af_register(&af_media);
+#undef N
+}
