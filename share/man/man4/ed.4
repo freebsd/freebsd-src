@@ -57,40 +57,40 @@ driver uses a unique multi-buffering mechanism to achieve high transmit performa
 When using 16bit ISA cards, as high as 97% of the theoretical maximum performance of
 the IEEE 802.3 CSMA ethernet is possible.
 .Pp
-In addition to the standard port and irq specifications, the
+In addition to the standard port and IRQ specifications, the
 .Nm
 driver also supports a number of
-.Em flags
+.Cd flags
 which can force 8/16bit mode, enable/disable multi-buffering, and select the default
 interface type (AUI/BNC, and for cards with twisted pair, AUI/10BaseT).
 .Pp
 The
-.Em flags
+.Cd flags
 are a bit field, and are summarized as follows:
-.Pp
-.Bl -hang -offset indent
-.It Em 0x01
-Disable tranceiver.
-On those cards which support it, this flag causes the tranceiver to
+.Bl -tag -width indent
+.It Li 0x01
+Disable transceiver.
+On those cards which support it, this flag causes the transceiver to
 be disabled and the AUI connection to be used by default.
-.It Em 0x02
+.It Li 0x02
 Force 8bit mode.
 This flag forces the card to 8bit mode regardless of how the
 card identifies itself.
 This may be needed for some clones which incorrectly
 identify themselves as 16bit, even though they only have an 8bit interface.
-.It Em 0x04
+.It Li 0x04
 Force 16bit mode.
 This flag forces the card to 16bit mode regardless of how the
 card identifies itself.
 This may be needed for some clones which incorrectly
 identify themselves as 8bit, even though they have a 16bit ISA interface.
-.It Em 0x08
+.It Li 0x08
 Disable transmitter multi-buffering.
 This flag disables the use of multiple
 transmit buffers and may be necessary in rare cases where packets are sent out
 faster than a machine on the other end can handle (as evidenced by severe packet
-lossage). Some
+lossage).
+Some
 .No ( non- Ns Fx
 :-)) machines have terrible ethernet performance
 and simply can't cope with 1100K+ data rates.
@@ -100,15 +100,15 @@ reduce receiver lossage.
 .El
 .Pp
 When using a 3c503 card, the AUI connection may be selected by specifying the
-.Em link2
+.Cm link2
 option to
 .Xr ifconfig 8
 (BNC is the default).
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ed%d: kernel configured irq %d doesn't match board configured irq %d."
-The irq number that was specified in the kernel config file (and then compiled
-into the kernel) differs from the irq that has been set on the interface card.
+The IRQ number that was specified in the kernel config file (and then compiled
+into the kernel) differs from the IRQ that has been set on the interface card.
 .It "ed%d: failed to clear shared memory at %x - check configuration."
 When the card was probed at system boot time, the
 .Nm
@@ -118,13 +118,13 @@ caused by a BIOS extension ROM being configured in the same address space as the
 ethernet card's shared memory.
 Either find the offending card and change its BIOS
 ROM to be at an address that doesn't conflict, or change the
-.Em iomem
+.Cd iomem
 option in the kernel config file so that the card's shared memory is mapped at a
 non-conflicting address.
 .It "ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503."
-The irq number that was specified in the kernel config file is not valid for
+The IRQ number that was specified in the kernel config file is not valid for
 the 3Com 3c503 card.
-The 3c503 can only be assigned to irqs 2 through 5.
+The 3c503 can only be assigned to IRQs 2 through 5.
 .It "ed%d: Cannot find start of RAM."
 .It "ed%d: Cannot find any RAM, start : %d, x = %d."
 The probe of a Gateway card was unsuccessful in configuring the card's packet memory.
@@ -159,8 +159,9 @@ They lock up whenever the receive
 ring-buffer overflows.
 They occasionally switch the byte order
 of the length field in the packet ring header (several different causes
-of this related to an off-by-one byte alignment) - resulting in "NIC
-memory corrupt - invalid packet length" messages.
+of this related to an off-by-one byte alignment) - resulting in
+.Qq Li "NIC memory corrupt - invalid packet length"
+messages.
 The card is reset
 whenever these problems occur, but otherwise there is no problem with
 recovering from these conditions.
@@ -174,11 +175,11 @@ dropped packets during heavy network traffic.
 16bit Compex cards identify themselves as being 8bit.
 While these cards will
 work in 8bit mode, much higher performance can be achieved by specifying
-.Em "flags 0x04"
+.Cd "flags 0x04"
 (force 16bit mode) in your kernel config file.
 In addition, you should also specify
-.Em "iosize 16384"
-to take advantage of the extra 8k of shared memory that 16bit mode provides.
+.Cd "iosiz 16384"
+to take advantage of the extra 8K of shared memory that 16bit mode provides.
 .Sh BUGS
 The
 .Nm
