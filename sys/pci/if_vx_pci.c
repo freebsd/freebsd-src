@@ -83,7 +83,7 @@ vx_pci_probe(
    if(device_id == 0x900010b7ul || device_id == 0x900110b7ul)
       return "3COM 3C900 Etherlink XL PCI";
    if(device_id == 0x905010b7ul || device_id == 0x905110b7ul)
-      return "3COM 3C595 Fast Etherlink XL PCI";
+      return "3COM 3C905 Fast Etherlink XL PCI";
    return NULL;
 }
 
