@@ -30,14 +30,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
-.\"     $Id$
+.\"     $Id: sleep.3,v 1.10 1998/01/13 04:32:00 alex Exp $
 .\"
-.Dd June 4, 1993
+.Dd Feb 13, 1998
 .Dt SLEEP 3
 .Os
 .Sh NAME
 .Nm sleep
-.Nd suspend process execution for interval of seconds
+.Nd suspend process execution for an interval measured in seconds
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft unsigned int
@@ -45,45 +45,38 @@
 .Sh DESCRIPTION
 The
 .Fn sleep
-function
-suspends execution of the calling process
-for
+function suspends execution of the calling process until either
 .Fa seconds
-of time.
-System activity or time spent in processing the
-call may lengthen the sleep by a second.
-.Pp
-If a timer is already running on the process its state is unaltered by
-this
-.Fn sleep
-implementation.
-If the value
-.Fa seconds
-is more than or equal to the remaining clock time for the running timer,
-the sleep time is set to
-the remaining clock time.
+seconds have elapsed or a signal is delivered to the process and its
+action is to invoke a signal-catching function or to terminate the
+process.
+System activity may lengthen the sleep by an indeterminate amount.
 .Pp
 This function is implemented using
 .Xr nanosleep 2
 by pausing for
 .Fa seconds
-of time or until any signal occurse.
+seconds or until a signal occurs.
+Consequently, in this implementation,
+sleeping has no effect on the state of process timers,
+and there is no special handling for SIGALRM.
 .Sh RETURN VALUES
-The
+If the
 .Fn sleep
-function returns the number of seconds remaining to complete the operation. If
-sleep is interrupted or cannot allocate a timer it may will return the value
-needed to be passed to a subsequent sleep to complete the necessary delay.
+function returns because the requested time has elapsed, the value
+returned will be zero.  If the
 .Fn sleep
-repeatedly until it returns zero may busy-wait until a timer
-is available.
+function returns due to the delivery of a signal, the value returned
+will be the unslept amount (the requested time minus the time actually
+slept) in seconds.
 .Sh SEE ALSO
 .Xr nanosleep 2 ,
-.Xr setitimer 2 ,
-.Xr alarm 3 ,
-.Xr signal 3 ,
-.Xr ualarm 3 ,
 .Xr usleep 3
+.Sh STANDARDS
+The
+.Fn sleep
+function conforms to
+.St -p1003.1-90 .
 .Sh HISTORY
 A
 .Fn sleep
