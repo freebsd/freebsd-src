@@ -372,7 +372,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * Put us on the list of threads blocked on this mutex.
 		 */
 		if (TAILQ_EMPTY(&m->mtx_blocked)) {
-			td1 = (struct thread *)(m->mtx_lock & MTX_FLAGMASK);
+			td1 = mtx_owner(m);
 			LIST_INSERT_HEAD(&td1->td_contested, m, mtx_contested);
 			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
 		} else {
