@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: linker.h,v 1.1 1997/05/07 16:05:45 dfr Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -106,16 +106,10 @@ struct linker_class {
 };
 
 /*
- * The file representing the currently running kernel.  This contains
- * the global symbol table.
- */
-linker_file_t	linker_kernel_file;
-
-/*
  * The file which is currently loading.  Used to register modules with
  * the files which contain them.
  */
-linker_file_t	linker_current_file;
+extern linker_file_t	linker_current_file;
 
 /*
  * Add a new file class to the linker.

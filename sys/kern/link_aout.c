@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.3 1997/10/24 05:29:07 jmg Exp $
+ *	$Id: link_aout.c,v 1.4 1997/11/07 08:52:59 phk Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,13 @@ static int		link_aout_load_file(const char*, linker_file_t*);
 static int		link_aout_lookup_symbol(linker_file_t, const char*,
 						caddr_t*, size_t*);
 static void		link_aout_unload(linker_file_t);
+
+/*
+ * The file representing the currently running kernel.  This contains
+ * the global symbol table.
+ */
+
+static linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_aout_class_ops = {
     link_aout_load_file,
