@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.12 1997/04/16 02:07:10 danny Exp $
+.\" $Id: pppd.8,v 1.7.2.1 1997/05/02 21:51:46 danny Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -196,7 +196,8 @@ Increase debugging level (same as the \fBdebug\fR option).
 .B -detach
 Don't fork to become a background process (otherwise
 .I pppd
-will do so if a serial device is specified).
+will do so if a serial device is specified and that serial device
+is not the controlling terminal).
 .TP
 .B -ip
 Disable IP address negotiation (with this option, the remote IP
