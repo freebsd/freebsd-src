@@ -250,7 +250,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 	case DIOCGMEDIASIZE:
 		error = g_io_getattr("GEOM::mediasize", cp, &i, data);
-		if (error == 0 && *(u_int *)data == 0)
+		if (error == 0 && *(off_t *)data == 0)
 			error = ENOENT;
 		break;
 	case DIOCGFWSECTORS:
