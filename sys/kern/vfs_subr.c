@@ -1963,6 +1963,8 @@ vrele(vp)
 {
 	struct thread *td = curthread;	/* XXX */
 
+	GIANT_REQUIRED;
+
 	KASSERT(vp != NULL, ("vrele: null vp"));
 
 	VI_LOCK(vp);
