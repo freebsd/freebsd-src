@@ -110,7 +110,7 @@ main(int argc, char **argv)
 	char *protoname, *cp, *oldoptarg, ch;
 	int eflag = 0, tflag = 0, pflag = 0;
 	char *fspath = NULL;
-	char buf[30];
+	char buf[MAXLOGNAME];
 
 	if (argc < 2)
 		usage();
