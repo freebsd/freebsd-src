@@ -474,7 +474,49 @@
     <sect3>
       <title>Gestionnaire de démarrage</title>
 
-      <para></para>
+      <para arch="i386">Un nouvel utilitaire <filename>cdboot</filename> 
+      pour les CDROMs donne une meilleur compatibilité avec certains BIOS 
+      qui ne respectait pas totalement l'implémentation standard des CDROM 
+      bootable El Torito . Le nouveau gestionnaire de démarrage supporte
+      le mode <quote>no emulation</quote> de démarrage qui permet d'éliminer
+      le besoin d'émulation d'une image mémoire d'une disquette pour un CDROM
+      bootable. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de démarrage i386 supporte maintenant un
+      nouveau type de console,<literal>nullconsole</literal>, permettant
+      d'utiliser un système sans carte vidéo et sans port série. &merged;</para>
+
+      <para arch="i386">Le programme &man.loader.8; dispose maintenant du support 
+      optionnel (activer a la compilation, désactivé par défaut) pour charger
+      des noyaux et des modules compressés en <application>bzip2</application>.
+       &merged;</para>
+
+      <para arch="i386">Le support Intel's Wired for Management 2.0 (PXE)
+      a été ajouté au gestionnaire de démarrage de &os;. Du a des différences
+      d'API, l'ancienne version de PXI n'est plus supportée. Cela permet de démarrer
+      en réseau en utilisant le DHCP.&merged;</para>
+
+      <!-- Above this line, order bootloader changes by keyword-->
+
+      <para arch="i386">Le gestionnaire de démarrage de &os; contient maintenant
+      un correctif permettant de supporte le démarrage sur uun CDROM sur certains
+      BIOS IBM qui s'attendaient a ce que le premier secteur de l'émulation
+      des disquette contiennt un BPB MS-DOS valide pour qu'ils puissent le 
+      modifier. &merged;</para>
+
+      <para arch="i386">Le gestionnaire de démarrage de &os; dispose maintenant
+      d'une option <option>-p</option> permettant de forcer le noyau a faire
+      une pause entre chaque ligne d'affichage au moment de la phase de 
+      détection. &merged;</para>
+
+      <para arch="alpha,i386">Le gestionnaire de démarrage de &os; est maintenant
+      capable de démarrer depuis des systèmes de fichier ayant des tailles de
+      block de plus de 8K.&merged;</para>
+
+      <para>Le noyau et les modules ont été déplacés dans le répertoire
+      <filename>/boot/kernel</filename>, pour permettre de les manipuler ensemble
+      de façon plus simple. Le gestionnaire de démarrage a été mise à jour pour 
+      refléter ce changement.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
