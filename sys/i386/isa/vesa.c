@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/isa.h>
 #endif
 
+#define	VESA_VIA_CLE266		"VIA CLE266\r\n"
+
 #ifndef VESA_DEBUG
 #define VESA_DEBUG	0
 #endif
@@ -607,6 +609,7 @@ vesa_bios_init(void)
 	struct vesa_mode vmode;
 	video_info_t *p;
 	u_char *vmbuf;
+	int is_via_cle266;
 	int modes;
 	int err;
 	int i;
@@ -649,6 +652,8 @@ vesa_bios_init(void)
 	/* fix string ptrs */
 	vesa_oemstr = (char *)vesa_fix_ptr(vesa_adp_info->v_oemstr,
 					   vmf.vmf_es, vmf.vmf_di, buf);
+	is_via_cle266 = strcmp(vesa_oemstr, VESA_VIA_CLE266) == 0;
+
 	if (vesa_adp_info->v_version >= 0x0200) {
 		vesa_venderstr = 
 		    (char *)vesa_fix_ptr(vesa_adp_info->v_venderstr,
@@ -712,6 +717,13 @@ vesa_bios_init(void)
 		    vmode.v_modeattr & V_MODEGRAPHICS ? "graphics" : "text",
 		    vmode.v_width, vmode.v_height, vmode.v_bpp);
 #endif
+		if (is_via_cle266) {
+		    if ((vmode.v_width & 0xff00) >> 8 == vmode.v_height - 1) {
+			vmode.v_width &= 0xff;
+			vmode.v_waseg = 0xb8000 >> 4;
+		    }
+		}
+
 		/* copy some fields */
 		bzero(&vesa_vmode[modes], sizeof(vesa_vmode[modes]));
 		vesa_vmode[modes].vi_mode = vesa_vmodetab[i];
