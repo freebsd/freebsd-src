@@ -1,0 +1,88 @@
+.\" Copyright (c) 2001 Jeroen Ruigrok van der Werven <asmodai@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 7, 2001
+.Dt STRFMON 3
+.Os
+.Sh NAME
+.Nm strfmon
+.Nd convert monetary value to string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.Fd #include <monetary.h>
+.Ft ssize_t
+.Fn strfmon "char *s" "size_t maxsize" "const char *format" "..."
+.Sh DESCRIPTION
+The
+.Fn strfmon
+function places characters into the array pointed to by
+.Fa s
+as controlled by the strong pointed to by
+.Fa format .
+No more than
+.Fa maxsize
+bytes are placed into the array.
+.Sh RETURN VALUES
+If the total number of resulting bytes including the terminating null
+byte is not more than
+.Fa maxsize ,
+.Nm
+returns the number of bytes placed into the array pointed to by
+.Fa s ,
+not including the terminating null byte.
+Otherwise, -1 is returned,
+the contents of the array are indeterminate,
+and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Nm
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er E2BIG
+Conversion stopped due to lack of space in the buffer.
+.El
+.Sh SEE ALSO
+.Xr localeconv 3
+.Sh STANDARDS
+The
+.Fn strfmon
+function
+conforms to
+.St -xpg4
+and
+.St -susv2
+.Sh AUTHORS
+The
+.Nm
+function was implemented by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org
+based on the standards' text.
