@@ -1543,6 +1543,7 @@ static int trapmap[] =
 	tEIP, tEFLAGS, tCS, tSS,
 	tDS, tES, tES, tES		/* lies: no fs or gs */
 };
+#if defined(FM_TRAP) || defined(EX_TRAPSTK)
 static int syscallmap[] = 
 {
 	sEAX, sECX, sEDX, sEBX,
@@ -1550,6 +1551,7 @@ static int syscallmap[] =
 	sEIP, sEFLAGS, sCS, sSS,
 	sCS, sCS, sCS, sCS		/* lies: no ds, es, fs or gs */
 };
+#endif
 static int *regmap;
 
 static void
