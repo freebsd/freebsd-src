@@ -269,6 +269,7 @@ int	NumAllowed = 0;		/* # of AllowedPeer entries */
 int	UniquePriority = 0;	/* Only log specified priority? */
 int	LogFacPri = 0;		/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
+int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
 
 int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *, char *));
@@ -311,7 +312,7 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "a:dl:f:m:p:nsuv")) != -1)
+	while ((ch = getopt(argc, argv, "a:df:kl:m:np:suv")) != -1)
 		switch (ch) {
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
@@ -322,6 +323,9 @@ main(argc, argv)
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
+			break;
+		case 'k':		/* keep remote kern fac */
+			KeepKernFac = 1;
 			break;
 		case 'l':
 			if (nfunix < MAXFUNIX)
@@ -580,7 +584,7 @@ printline(hname, msg)
 		pri = DEFUPRI;
 
 	/* don't allow users to log kernel messages */
-	if (LOG_FAC(pri) == LOG_KERN)
+	if (LOG_FAC(pri) == LOG_KERN && !KeepKernFac)
 		pri = LOG_MAKEPRI(LOG_USER, LOG_PRI(pri));
 
 	q = line;
