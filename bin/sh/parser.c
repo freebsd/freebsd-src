@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: parser.c,v 1.19 1997/02/22 13:58:42 peter Exp $
  */
 
 #ifndef lint
@@ -249,10 +249,16 @@ andor() {
 
 STATIC union node *
 pipeline() {
-	union node *n1, *pipenode;
+	union node *n1, *pipenode, *notnode;
 	struct nodelist *lp, *prev;
+	int negate = 0;
 
 	TRACE(("pipeline: entered\n"));
+	while (readtoken() == TNOT) {
+		TRACE(("pipeline: TNOT recognized\n"));
+		negate = !negate;
+	}
+	tokpushback++;
 	n1 = command();
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
@@ -271,6 +277,12 @@ pipeline() {
 		n1 = pipenode;
 	}
 	tokpushback++;
+	if (negate) {
+		notnode = (union node *)stalloc(sizeof(struct nnot));
+		notnode->type = NNOT;
+		notnode->nnot.com = n1;
+		n1 = notnode;
+	}
 	return n1;
 }
 
@@ -282,7 +294,7 @@ command() {
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t, negate = 0;
+	int t;
 
 	checkkwd = 2;
 	redir = NULL;
@@ -294,12 +306,6 @@ command() {
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
-	}
-	tokpushback++;
-
-	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
-		negate = !negate;
 	}
 	tokpushback++;
 
@@ -475,8 +481,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TWORD:
 	case TRP:
 		tokpushback++;
-		n1 = simplecmd(rpp, redir);
-		goto checkneg;
+		return simplecmd(rpp, redir);
 	default:
 		synexpect(-1);
 	}
@@ -498,16 +503,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		}
 		n1->nredir.redirect = redir;
 	}
-
-checkneg:
-	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
-		n2->type = NNOT;
-		n2->nnot.com = n1;
-		return n2;
-	}
-	else
-		return n1;
+	return n1;
 }
 
 
@@ -517,8 +513,7 @@ simplecmd(rpp, redir)
 	{
 	union node *args, **app;
 	union node **orig_rpp = rpp;
-	union node *n = NULL, *n2;
-	int negate = 0;
+	union node *n = NULL;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -533,12 +528,6 @@ simplecmd(rpp, redir)
 	 * the function name and the open parenthesis.
 	 */
 	orig_rpp = rpp;
-
-	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
-		negate = !negate;
-	}
-	tokpushback++;
 
 	for (;;) {
 		if (readtoken() == TWORD) {
@@ -563,7 +552,7 @@ simplecmd(rpp, redir)
 #endif
 			n->type = NDEFUN;
 			n->narg.next = command();
-			goto checkneg;
+			return n;
 		} else {
 			tokpushback++;
 			break;
@@ -576,16 +565,7 @@ simplecmd(rpp, redir)
 	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
 	n->ncmd.redirect = redir;
-
-checkneg:
-	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
-		n2->type = NNOT;
-		n2->nnot.com = n;
-		return n2;
-	}
-	else
-		return n;
+	return n;
 }
 
 STATIC union node *
@@ -727,7 +707,7 @@ readtoken() {
 		 */
 		if (t == TWORD && !quoteflag)
 		{
-			register char * const *pp;
+			char * const *pp;
 
 			for (pp = (char **)parsekwd; *pp; pp++) {
 				if (**pp == *wordtext && equal(*pp, wordtext))
@@ -745,7 +725,7 @@ readtoken() {
 			}
 		}
 out:
-		checkkwd = (t == TNOT) ? savecheckkwd : 0;
+		checkkwd = 0;
 	}
 #ifdef DEBUG
 	if (!alreadyseen)
@@ -779,7 +759,7 @@ out:
 
 STATIC int
 xxreadtoken() {
-	register c;
+	int c;
 
 	if (tokpushback) {
 		tokpushback = 0;
@@ -1078,7 +1058,7 @@ checkend: {
 		}
 		if (c == *eofmark) {
 			if (pfgets(line, sizeof line) != NULL) {
-				register char *p, *q;
+				char *p, *q;
 
 				p = line;
 				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
@@ -1297,8 +1277,8 @@ parsebackq: {
                 /* We must read until the closing backquote, giving special
                    treatment to some slashes, and then push the string and
                    reread it as input, interpreting it normally.  */
-                register char *out;
-                register c;
+                char *out;
+                int c;
                 int savelen;
                 char *str;
 
@@ -1449,8 +1429,8 @@ STATIC int
 noexpand(text)
 	char *text;
 	{
-	register char *p;
-	register char c;
+	char *p;
+	char c;
 
 	p = text;
 	while ((c = *p++) != '\0') {
@@ -1472,7 +1452,7 @@ int
 goodname(name)
 	char *name;
 	{
-	register char *p;
+	char *p;
 
 	p = name;
 	if (! is_name(*p))
