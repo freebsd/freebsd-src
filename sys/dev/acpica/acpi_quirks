@@ -101,6 +101,13 @@ oem:		FADT "PTLTD " "  FACP  "
 oem_rev:	FADT <= 0x06040000
 quirks:		ACPI_Q_BROKEN
 
+# Compaq R3000Z
+name:		Compaq_R3000Z
+oem:		FADT "NVIDIA" "CK8     "
+oem_rev:	FADT = 0x6040000
+creator:	FADT "PTL_"
+quirks:		ACPI_Q_MADT_IRQ0
+
 # Compaq Thunder 05/18/99
 # XXX Note creator rev should be "=", I think
 name:		Compaq_Thunder
