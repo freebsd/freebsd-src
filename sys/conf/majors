@@ -100,7 +100,6 @@
 91	*vinum		Volume manager
 92      *bktr		Bt848 video capture driver (hasty@star-gate.com)
 93	*coda		CODA filesystem.
-95	*md		Memory Disk
 96	altq		alternate queueing (including cbq, red, wfq)
 97	*prom		Alpha PROM console
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
