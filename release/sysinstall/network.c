@@ -125,31 +125,32 @@ mediaInitNetwork(Device *dev)
 
     snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, dev->name);
     cp = variable_get(ifconfig);
-    if (!cp) {
+    if (cp) {
+	if (strcmp(cp, "DHCP")) {
+	    msgDebug("ifconfig %s %s", dev->name, cp);
+	    i = vsystem("ifconfig %s %s", dev->name, cp);
+	    if (i) {
+		msgConfirm("Unable to configure the %s interface!\n"
+			   "This installation method cannot be used.",
+			   dev->name);
+		return FALSE;
+	    }
+	    rp = variable_get(VAR_GATEWAY);
+	    if (!rp || *rp == '0') {
+		msgConfirm("No gateway has been set. You may be unable to access hosts\n"
+			   "not on your local network");
+	    }
+	    else {
+		msgDebug("Adding default route to %s.", rp);
+		vsystem("route -n add default %s", rp);
+	    }
+	}
+    } else if ((cp = variable_get(VAR_IPV6ADDR)) == NULL || *cp == '\0') {
 	msgConfirm("The %s device is not configured.  You will need to do so\n"
 		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
-    else if (!strcmp(cp, "DHCP"))
-	goto bail;
-    msgDebug("ifconfig %s %s", dev->name, cp);
-    i = vsystem("ifconfig %s %s", dev->name, cp);
-    if (i) {
-	msgConfirm("Unable to configure the %s interface!\n"
-		   "This installation method cannot be used.", dev->name);
-	return FALSE;
-    }
 
-    rp = variable_get(VAR_GATEWAY);
-    if (!rp || *rp == '0') {
-	msgConfirm("No gateway has been set. You may be unable to access hosts\n"
-		   "not on your local network");
-    }
-    else {
-	msgDebug("Adding default route to %s.", rp);
-	vsystem("route -n add default %s", rp);
-    }
-bail:
     if (isDebug())
 	msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;

@@ -122,6 +122,8 @@
 #define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
+#define VAR_IPV6_ENABLE			"ipv6_enable"
+#define VAR_IPV6ADDR			"ipv6addr"
 #define VAR_KEYMAP			"keymap"
 #define VAR_KGET			"kget"
 #define VAR_LABEL			"label"
@@ -166,6 +168,7 @@
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
 #define VAR_TRY_DHCP			"tryDHCP"
+#define VAR_TRY_RTSOL			"tryRTSOL"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
@@ -326,6 +329,7 @@ typedef int (*commandFunc)(char *key, void *data);
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {
+    int use_rtsol;
     int use_dhcp;
     char ipaddr[IPADDR_FIELD_LEN];
     char netmask[IPADDR_FIELD_LEN];

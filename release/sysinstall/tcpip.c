@@ -39,6 +39,9 @@
 
 #include "sysinstall.h"
 #include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <netdb.h>
 
 /* The help file for the TCP/IP setup screen */
@@ -47,9 +50,10 @@
 /* These are nasty, but they make the layout structure a lot easier ... */
 
 static char	hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
-		gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
+		gateway[IPADDR_FIELD_LEN], nameserver[INET6_ADDRSTRLEN];
 static int	okbutton, cancelbutton;
 static char	ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
+static char	ipv6addr[INET6_ADDRSTRLEN];
 
 /* What the screen size is meant to be */
 #define TCP_DIALOG_Y		0
@@ -69,17 +73,17 @@ static Layout layout[] = {
       domainname, STRINGOBJ, NULL },
 #define LAYOUT_GATEWAY		2
     { 5, 2, 18, IPADDR_FIELD_LEN - 1,
-      "Gateway:",
-      "IP address of host forwarding packets to non-local destinations",
+      "IPv4 Gateway:",
+      "IPv4 address of host forwarding packets to non-local destinations",
       gateway, STRINGOBJ, NULL },
 #define LAYOUT_NAMESERVER	3
-    { 5, 35, 18, IPADDR_FIELD_LEN - 1,
-      "Name server:", "IP address of your local DNS server",
+    { 5, 35, 18, INET6_ADDRSTRLEN - 1,
+      "Name server:", "IPv4 or IPv6 address of your local DNS server",
       nameserver, STRINGOBJ, NULL },
 #define LAYOUT_IPADDR		4
     { 10, 10, 18, IPADDR_FIELD_LEN - 1,
-      "IP Address:",
-      "The IP address to be used for this interface",
+      "IPv4 Address:",
+      "The IPv4 address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
 #define LAYOUT_NETMASK		5
     { 10, 35, 18, IPADDR_FIELD_LEN - 1,
@@ -126,6 +130,22 @@ verifyIP(char *ip)
 	return 0;
 }
 
+static int
+verifyIP6(char *ip)
+{
+    struct addrinfo hints, *res;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+    if (getaddrinfo(ip, NULL, &hints, &res) == 0) {
+	freeaddrinfo(res);
+	return 1;
+    }
+    return 0;
+}
+
 /* Check for the settings on the screen - the per-interface stuff is
    moved to the main handling code now to do it on the fly - sigh */
 static int
@@ -134,13 +154,13 @@ verifySettings(void)
     if (!hostname[0])
 	feepout("Must specify a host name of some sort!");
     else if (gateway[0] && strcmp(gateway, "NO") && !verifyIP(gateway))
-	feepout("Invalid gateway IP address specified");
-    else if (nameserver[0] && !verifyIP(nameserver))
+	feepout("Invalid gateway IPv4 address specified");
+    else if (nameserver[0] && !verifyIP(nameserver) && !verifyIP6(nameserver))
 	feepout("Invalid name server IP address specified");
     else if (netmask[0] && (netmask[0] < '0' && netmask[0] > '3'))
 	feepout("Invalid netmask value");
     else if (ipaddr[0] && !verifyIP(ipaddr))
-	feepout("Invalid IP address");
+	feepout("Invalid IPv4 address");
     else
 	return 1;
     return 0;
@@ -169,7 +189,7 @@ dhcpGetInfo(Device *devp)
 		msgDebug("DHCP configured interface returns %s\n", data);
 	    /* XXX This is gross as it assumes a certain ordering to
 	       ifconfig's output! XXX */
-	    if ((cp = strstr(data, "inet")) != NULL) {
+	    if ((cp = strstr(data, "inet ")) != NULL) {
 		i = 0;
 		cp += 5;	/* move over keyword */
 		while (*cp != ' ')
@@ -193,6 +213,32 @@ dhcpGetInfo(Device *devp)
 	variable_set2(VAR_HOSTNAME, hostname, 0);
 }
 
+static void
+rtsolGetInfo(Device *devp)
+{
+    FILE *ifp;
+    char *cp, cmd[256], data[2048];
+    int i;
+
+    snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
+    if ((ifp = popen(cmd, "r")) == NULL)
+	return;
+    while (fgets(data, sizeof(data), ifp) != NULL) {
+	if (isDebug())
+	    msgDebug("RTSOL configured interface returns %s", data);
+	if ((cp = strstr(data, "inet6 ")) != NULL) {
+	    cp += 6;	/* move over keyword */
+	    if (strncmp(cp, "fe80:", 5)) {
+		i = 0;
+		while (*cp != ' ')
+		    ipv6addr[i++] = *(cp++);
+		ipv6addr[i] = '\0';
+	    }
+	}
+    }
+    fclose(ifp);
+}
+
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
@@ -202,6 +248,7 @@ tcpOpenDialog(Device *devp)
     int                 n = 0, filled = 0, cancel = FALSE;
     int			max, ret = DITEM_SUCCESS;
     int			use_dhcp = FALSE;
+    int			use_rtsol = FALSE;
     char                *tmp;
     char		title[80];
 
@@ -214,9 +261,29 @@ tcpOpenDialog(Device *devp)
 	SAFE_STRCPY(netmask, di->netmask);
 	SAFE_STRCPY(extras, di->extras);
 	use_dhcp = di->use_dhcp;
+	use_rtsol = di->use_rtsol;
     }
     else { /* See if there are any defaults */
 	char *cp;
+
+	/* Try a RTSOL scan if such behavior is desired */
+	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || !msgYesNo("Do you want to try IPv6 configuration of the interface?")) {
+	    int i;
+
+	    i = 0;
+	    sysctlbyname("net.inet6.ip6.forwarding", NULL, 0, &i, sizeof(i));
+	    i = 1;
+	    sysctlbyname("net.inet6.ip6.accept_rtadv", NULL, 0, &i, sizeof(i));
+	    vsystem("ifconfig %s up", devp->name);
+	    Mkdir("/var/run");
+	    msgNotify("Scanning for RA servers...");
+	    if (0 == vsystem("rtsol %s", devp->name)) {
+		sleep(3);
+		rtsolGetInfo(devp);
+		use_rtsol = TRUE;
+	    } else
+		use_rtsol = FALSE;
+	}
 
 	/* First try a DHCP scan if such behavior is desired */
 	if (!variable_cmp(VAR_TRY_DHCP, "YES") || !msgYesNo("Do you want to try DHCP configuration of the interface?")) {
@@ -298,7 +365,10 @@ tcpOpenDialog(Device *devp)
     dialog_clear_norefresh();
 
     /* We need a curses window */
-    if (!(ds_win = openLayoutDialog(TCP_HELPFILE, " Network Configuration ",
+    tmp = " Network Configuration ";
+    if (ipv6addr[0])
+	tmp = string_concat(tmp, "(IPv6 ready) ");
+    if (!(ds_win = openLayoutDialog(TCP_HELPFILE, tmp,
 				    TCP_DIALOG_X, TCP_DIALOG_Y, TCP_DIALOG_WIDTH, TCP_DIALOG_HEIGHT))) {
 	beep();
 	msgConfirm("Cannot open TCP/IP dialog window!!");
@@ -361,6 +431,7 @@ netconfig:
 	char temp[512], ifn[255];
 	char *ifaces;
 	char *pccard;
+	int ipv4_enable = FALSE;
 
 	if (hostname[0]) {
 	    variable_set2(VAR_HOSTNAME, hostname, 1);
@@ -374,6 +445,8 @@ netconfig:
 	    variable_set2(VAR_NAMESERVER, nameserver, 0);
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr, 0);
+	if (ipv6addr[0])
+	    variable_set2(VAR_IPV6ADDR, ipv6addr, 0);
 
 	if (!devp->private)
 	    devp->private = (DevInfo *)safe_malloc(sizeof(DevInfo));
@@ -382,15 +455,21 @@ netconfig:
 	SAFE_STRCPY(di->netmask, netmask);
 	SAFE_STRCPY(di->extras, extras);
 	di->use_dhcp = use_dhcp;
+	di->use_rtsol = use_rtsol;
 
-	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
-	if (use_dhcp)
-	    sprintf(temp, "DHCP");
-	else
-	    sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
-	variable_set2(ifn, temp, 1);
+	if (use_dhcp || ipaddr[0])
+	    ipv4_enable = TRUE;
+	if (ipv4_enable) {
+	    sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
+	    if (use_dhcp)
+		sprintf(temp, "DHCP");
+	    else
+		sprintf(temp, "inet %s %s netmask %s",
+			ipaddr, extras, netmask);
+	    variable_set2(ifn, temp, 1);
+	}
 	pccard = variable_get("_pccard_install");
-	if (pccard && strcmp(pccard, "YES") == 0) {
+	if (pccard && strcmp(pccard, "YES") == 0 && ipv4_enable) {
 	    variable_set2("pccard_ifconfig", temp, 1);
 	}
 	ifaces = variable_get(VAR_INTERFACES);
@@ -401,6 +480,8 @@ netconfig:
 	    sprintf(ifn, "%s %s", devp->name, ifaces);
 	    variable_set2(VAR_INTERFACES, ifn, 1);
 	}
+	if (use_rtsol)
+	    variable_set2(VAR_IPV6_ENABLE, "YES", 1);
 	if (!use_dhcp)
 	    configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
 	ret = DITEM_SUCCESS;
