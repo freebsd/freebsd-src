@@ -1,8 +1,8 @@
 /*
- * FreeBSD Connectix QuickCam parallel-port camera video capture driver.
+ * Connectix QuickCam parallel-port camera video capture driver.
  * Copyright (c) 1996, Paul Traina.
  *
- * This driver is based in part on the Linux QuickCam driver which is
+ * This driver is based in part on work
  * Copyright (c) 1996, Thomas Davis.
  *
  * QuickCam(TM) is a registered trademark of Connectix Inc.

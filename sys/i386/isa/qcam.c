@@ -1,11 +1,9 @@
 /*
- * FreeBSD Connectix QuickCam parallel-port camera video capture driver.
+ * Connectix QuickCam parallel-port camera video capture driver.
  * Copyright (c) 1996, Paul Traina.
  *
- * This driver is based in part on the Linux QuickCam driver which is
+ * This driver is based in part on work
  * Copyright (c) 1996, Thomas Davis.
- *
- * Additional ideas from code written by Michael Chinn.
  *
  * QuickCam(TM) is a registered trademark of Connectix Inc.
  * Use this driver at your own risk, it is not warranted by
@@ -59,6 +57,16 @@
 #include	<i386/isa/isa.h>
 #include	<i386/isa/isa_device.h>
 
+/* working off of nostrategy is very ugly, but we need to determine if we're
+   running in a kernel that has eliminated the cdevsw table (yea!) */
+
+#if defined(__FreeBSD__) && defined(nostrategy)
+#define	STATIC_CDEVSW	static
+#define	PRIVATE_CDEVSW
+#else
+#define	STATIC_CDEVSW
+#endif
+
 int	qcam_debug = 1;
 
 static struct qcam_softc qcam_softc[NQCAM];
@@ -87,20 +95,6 @@ static struct kern_devconf kdc_qcam_template = {
 };
 
 #define	UNIT(dev)		minor(dev)
-#define CDEV_MAJOR 73
-
-
-static	d_open_t	qcam_open;
-static	d_close_t	qcam_close;
-static	d_read_t	qcam_read;
-static	d_ioctl_t	qcam_ioctl;
-
-static struct cdevsw qcam_cdevsw = 
-	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
-	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		nostrategy,	"qcam",
-	  NULL,		-1  };
-
 
 static void
 qcam_registerdev (struct isa_device *id)
@@ -177,7 +171,7 @@ qcam_attach (struct isa_device *devp)
 	return 1;
 }
 
-static int
+STATIC_CDEVSW int
 qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
@@ -203,7 +197,7 @@ qcam_open (dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-static int
+STATIC_CDEVSW int
 qcam_close (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
@@ -219,7 +213,7 @@ qcam_close (dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-static int
+STATIC_CDEVSW int
 qcam_read (dev_t dev, struct uio *uio, int ioflag)
 {
 	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
@@ -243,7 +237,7 @@ qcam_read (dev_t dev, struct uio *uio, int ioflag)
 	return 0;		/* success */
 }
 
-static int
+STATIC_CDEVSW int
 qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct qcam_softc *qs = &qcam_softc[UNIT(dev)];
@@ -253,69 +247,32 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return(EINVAL);
 
 	switch (cmd) {
-
 	case QC_GET:
-		info->qc_version	= QC_IOCTL_VERSION;
-		info->qc_xsize		= qs->x_size;
-		info->qc_ysize		= qs->y_size;
-		info->qc_xorigin	= qs->x_origin;
-		info->qc_yorigin	= qs->y_origin;
-		info->qc_bpp		= qs->bpp;
-		info->qc_zoom		= qs->zoom;
-		info->qc_exposure	= qs->exposure;
-		info->qc_brightness	= qs->brightness;
-		info->qc_whitebalance	= qs->whitebalance;
-		info->qc_contrast	= qs->contrast;
-		break;
+		return qcam_ioctl_get(qs, info) ? 0 : EINVAL;
 
 	case QC_SET:
-		/*
-		 * sanity check parameters passed in by user
-		 * we're extra paranoid right now because the API
-		 * is in flux
-		 */
-		if (info->qc_xsize        > QC_MAX_XSIZE	||
-		    info->qc_ysize        > QC_MAX_YSIZE	||
-		    info->qc_xorigin      > QC_MAX_XSIZE	||
-		    info->qc_yorigin      > QC_MAX_YSIZE	||
-		    (info->qc_bpp != 4 && info->qc_bpp != 6)	||
-		    info->qc_zoom         > QC_ZOOM_200		||
-		    info->qc_brightness   > UCHAR_MAX		||
-		    info->qc_whitebalance > UCHAR_MAX		||
-		    info->qc_contrast     > UCHAR_MAX)
-			return EINVAL;
-
-		/* version check */
-		if (info->qc_version != QC_IOCTL_VERSION)
-			return EINVAL;
-
-		qs->x_size	  = info->qc_xsize;
-		qs->y_size	  = info->qc_ysize;
-		qs->x_origin	  = info->qc_xorigin;
-		qs->y_origin	  = info->qc_yorigin;
-		qs->bpp		  = info->qc_bpp;
-		qs->zoom	  = info->qc_zoom;
-		qs->exposure	  = info->qc_exposure;
-		qs->brightness	  = info->qc_brightness;
-		qs->whitebalance  = info->qc_whitebalance;
-		qs->contrast	  = info->qc_contrast;
-
-		/* request initialization before next scan pass */
-		qs->init_req = 1;
-		break;
+		return qcam_ioctl_set(qs, info) ? 0 : EINVAL;
 
 	default:
-		return ENOTTY;
+		return(ENOTTY);
 	}
 
 	return 0;
 }
 
 #ifdef	__FreeBSD__
-#ifdef	nostrategy		/* new configuration system? */
-
 struct isa_driver	qcamdriver =
 			{qcam_probe, qcam_attach, "qcam"};
+
+#ifdef	PRIVATE_CDEVSW		/* new configuration system? */
+
+#define CDEV_MAJOR 73
+
+static struct cdevsw qcam_cdevsw = 
+	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
+	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nommap,		nostrategy,	"qcam",
+	  NULL,		-1  };
 
 /*
  * Initialize the dynamic cdevsw hooks.
