@@ -74,9 +74,9 @@
 
 static u_char intr_no[] = { 1, 1, 0, 2, 4, 6, 1, 1, 1, 0, 8, 10, 12, 1, 1, 14 };
 
-#define ISAC_OFFS	0x420
-#define	HSCXA_OFFS	0xc20
-#define HSCXB_OFFS	0x820
+#define ISAC_OFFS	0x400
+#define	HSCXA_OFFS	0xc00
+#define HSCXB_OFFS	0x800
 
 /*---------------------------------------------------------------------------*
  *      Teles S0/16.3 read fifo routine
@@ -86,7 +86,7 @@ tels0163_read_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
-	bus_space_read_multi_1(t,h,0x3e,buf,size);
+	bus_space_read_multi_1(t,h,0x1e,buf,size);
 }
 
 /*---------------------------------------------------------------------------*
@@ -97,7 +97,7 @@ tels0163_write_fifo(struct l1_softc *sc, int what, void *buf, size_t size)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
-	bus_space_write_multi_1(t,h,0x3e,buf,size);
+	bus_space_write_multi_1(t,h,0x1e,buf,size);
 }
 
 /*---------------------------------------------------------------------------*
@@ -108,7 +108,7 @@ tels0163_write_reg(struct l1_softc *sc, int what, bus_size_t offs, u_int8_t data
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
-	bus_space_write_1(t,h,offs,data);
+	bus_space_write_1(t,h,offs - 0x20,data);
 }
 
 /*---------------------------------------------------------------------------*
@@ -119,7 +119,7 @@ tels0163_read_reg(struct l1_softc *sc, int what, bus_size_t offs)
 {
 	bus_space_tag_t    t = rman_get_bustag(sc->sc_resources.io_base[what+1]);
 	bus_space_handle_t h = rman_get_bushandle(sc->sc_resources.io_base[what+1]);
-	return bus_space_read_1(t,h,offs);
+	return bus_space_read_1(t,h,offs - 0x20);
 }
 
 /*---------------------------------------------------------------------------*
@@ -163,6 +163,9 @@ isic_probe_s0163(device_t dev)
 	/* set io base */
 
 	sc->sc_port = rman_get_start(sc->sc_resources.io_base[0]);
+	/* Release the resource -  re-allocate later with correct size	*/
+        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[0],
+			sc->sc_resources.io_base[0]);
 	
 	switch(sc->sc_port)
 	{
@@ -192,9 +195,22 @@ isic_probe_s0163(device_t dev)
 	
 	/* set io port resources */
 
+	sc->sc_resources.io_rid[0] = 0;	
+	bus_set_resource(dev, SYS_RES_IOPORT, 0, sc->sc_port, 0x20);
+	sc->sc_resources.io_base[0] =
+		bus_alloc_resource(dev, SYS_RES_IOPORT,
+				   &sc->sc_resources.io_rid[0],
+				   0ul, ~0ul, 1, RF_ACTIVE);
+	if(!sc->sc_resources.io_base[0])
+	{
+		printf("isic%d: Error allocating io at 0x%x for Teles S0/16.3!\n",
+			unit, sc->sc_port);
+		isic_detach_common(dev);
+		return ENXIO;
+	}
 	sc->sc_resources.io_rid[1] = 1;	
 	bus_set_resource(dev, SYS_RES_IOPORT, 1,
-		sc->sc_port-ISAC_OFFS, 0x40);
+		sc->sc_port-ISAC_OFFS, 0x20);
 	sc->sc_resources.io_base[1] =
 		bus_alloc_resource(dev, SYS_RES_IOPORT,
 				   &sc->sc_resources.io_rid[1],
@@ -209,7 +225,7 @@ isic_probe_s0163(device_t dev)
 	
 	sc->sc_resources.io_rid[2] = 2;
 	bus_set_resource(dev, SYS_RES_IOPORT, 2,
-		sc->sc_port-HSCXA_OFFS, 0x40);
+		sc->sc_port-HSCXA_OFFS, 0x20);
 	sc->sc_resources.io_base[2] =
 		bus_alloc_resource(dev, SYS_RES_IOPORT,
 				   &sc->sc_resources.io_rid[2],
@@ -224,7 +240,7 @@ isic_probe_s0163(device_t dev)
 
 	sc->sc_resources.io_rid[3] = 3;
 	bus_set_resource(dev, SYS_RES_IOPORT, 3,
-		sc->sc_port-HSCXB_OFFS, 0x40);
+		sc->sc_port-HSCXB_OFFS, 0x20);
 	sc->sc_resources.io_base[3] =
 		bus_alloc_resource(dev, SYS_RES_IOPORT,
 				   &sc->sc_resources.io_rid[3],
