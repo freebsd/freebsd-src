@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.59 1999/02/20 19:46:39 roberto Exp $
+ *	$Id: identcpu.c,v 1.60 1999/03/10 20:42:00 roberto Exp $
  */
 
 #include "opt_cpu.h"
@@ -78,10 +78,12 @@ static void do_cpuid(u_int ax, u_int *p);
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
+    machine, 0, "Machine class");
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
+    cpu_model, 0, "Machine model");
 
 static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */

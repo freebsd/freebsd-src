@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.34 1998/03/30 09:52:46 phk Exp $
+ *	$Id: in_rmx.c,v 1.35 1998/08/05 16:59:20 bde Exp $
  */
 
 /*
@@ -162,19 +162,20 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 
 static int rtq_reallyold = 60*60;
 	/* one hour is ``really old'' */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
-	CTLFLAG_RW, &rtq_reallyold , 0, "");
+SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW, 
+    &rtq_reallyold , 0, 
+    "Default expiration time on dynamically learned routes");
 				   
 static int rtq_minreallyold = 10;
 	/* never automatically crank down to less */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire,
-	CTLFLAG_RW, &rtq_minreallyold , 0, "");
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW, 
+    &rtq_minreallyold , 0, 
+    "Minimum time to attempt to hold onto dynamically learned routes");
 				   
 static int rtq_toomany = 128;
 	/* 128 cached routes is ``too many'' */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache,
-	CTLFLAG_RW, &rtq_toomany , 0, "");
-				   
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW, 
+    &rtq_toomany , 0, "Upper limit on dynamically learned routes");
 
 /*
  * On last reference drop, mark the route as belong to us so that it can be

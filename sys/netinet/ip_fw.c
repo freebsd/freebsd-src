@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.109 1999/04/24 13:23:48 dt Exp $
+ *	$Id: ip_fw.c,v 1.110 1999/04/26 14:57:24 luigi Exp $
  */
 
 /*
@@ -78,10 +78,15 @@ MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 #ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, &fw_one_pass, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, 
+    &fw_debug, 0, "Enable printing of debug ip_fw statements");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, 
+    &fw_one_pass, 0, 
+     "Only do a single pass through ipfw rules when using divert(4)");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, 
+    &fw_verbose, 0, "Log matches to ipfw rules");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, 
+    &fw_verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 #endif
 
 #define dprintf(a)	if (!fw_debug); else printf a

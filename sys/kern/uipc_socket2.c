@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.43 1998/12/07 21:58:29 archie Exp $
+ *	$Id: uipc_socket2.c,v 1.44 1999/01/25 16:58:53 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -946,9 +946,12 @@ SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
 static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 
-SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD, &maxsockets, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, 
+    &sb_max, 0, "Maximum socket buffer size");
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD, 
+    &maxsockets, 0, "Maximum number of sockets avaliable");
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
-	   &sb_efficiency, 0, "");
-SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, &nmbclusters, 0, "");
+    &sb_efficiency, 0, "");
+SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
+    &nmbclusters, 0, "Maximum number of mbuf clusters avaliable");
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.9 1999/02/10 00:03:47 ken Exp $
+ *	$Id: subr_devstat.c,v 1.10 1999/04/11 02:27:06 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -289,14 +289,14 @@ sysctl_devstat SYSCTL_HANDLER_ARGS
 SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, 0, "Device Statistics");
 
 SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
-	    0, 0, sysctl_devstat, "S,devstat", "All Devices");
+    0, 0, sysctl_devstat, "S,devstat", "All devices in the devstat list");
 /*
  * Export the number of devices in the system so that userland utilities
  * can determine how much memory to allocate to hold all the devices.
  */
-SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, &devstat_num_devs,
-	  0, "Number of devices in the devstat list");
+SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, 
+    &devstat_num_devs, 0, "Number of devices in the devstat list");
 SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
-	    &devstat_generation, "Devstat list generation");
-SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, &devstat_version,
-	  0, "Devstat list version number");
+    &devstat_generation, "Devstat list generation");
+SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
+    &devstat_version, 0, "Devstat list version number");

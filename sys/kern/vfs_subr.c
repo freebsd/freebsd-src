@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.188 1999/02/25 05:22:29 dillon Exp $
+ * $Id: vfs_subr.c,v 1.189 1999/03/12 02:24:56 julian Exp $
  */
 
 /*
@@ -134,7 +134,8 @@ LIST_HEAD(synclist, vnode);
 static struct synclist *syncer_workitem_pending;
 
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, &desiredvnodes, 0, "");
+SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
+    &desiredvnodes, 0, "Maximum number of vnodes");
 
 static void	vfs_free_addrlist __P((struct netexport *nep));
 static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
