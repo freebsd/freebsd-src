@@ -1,5 +1,5 @@
 .\"
-.\" FreeBSD install - a package for the installation and maintainance
+.\" FreeBSD install - a package for the installation and maintenance
 .\" of non-core utilities.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -17,7 +17,7 @@
 .\"     @(#)pkg_info.1
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1994
+.Dd February 8, 2001
 .Dt PKG_INFO 1
 .Os FreeBSD
 .Sh NAME
@@ -25,11 +25,11 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfgiIkLmopqrRsv
+.Op Fl cdDfgGiIkLmopqrRsvx
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
-.Ar pkg-name [pkg-name ...]
+.Op Ar pkg-name ...
 .Nm
 .Fl a
 .Op Ar flags
@@ -49,7 +49,7 @@ The following command line options are supported:
 .It Ar pkg-name ...
 The named packages are described.  A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
-URL to an ftp available package.
+URL to an FTP available package.
 .It Fl a
 Show all currently installed packages.
 .It Fl v
@@ -62,7 +62,7 @@ Be
 in emitting report headers and such, just dump the
 raw info (basically, assume a non-human reading).
 .It Fl c
-Show the comment (one liner) field for each package.
+Show the (one line) comment field for each package.
 .It Fl d
 Show the long description field for each package.
 .It Fl D
@@ -98,6 +98,22 @@ intended to give an idea as to where the underlying port, from which
 package was generated, is located in the
 .Fx
 .Em "Ports Collection" .
+.It Fl G
+Do not try to expand shell glob patterns in the
+.Ar pkg-name
+when selecting packages to be displayed (by default
+.Nm
+automatically expands shell glob patterns in the
+.Ar pkg-name ) .
+.It Fl x
+Treat the
+.Ar pkg-name
+as a regular expression and display information only for packages
+whose names match that regular expression.  Multiple regular
+expressions could be provided, in that case
+.Nm
+displays information about all packages that match at least one
+regular expression from the list.
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name
@@ -130,7 +146,7 @@ directory is limited.  Be sure to leave some number of `X' characters
 for
 .Xr mktemp 3
 to fill in with a unique ID.
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 Note:  This should really not be necessary with
 .Nm ,
 since very little information is extracted from each package
@@ -143,7 +159,7 @@ indeed to overflow it.
 Package info is either extracted from package files named on the
 command line, or from already installed package information
 in
-.Pa /var/db/pkg/<pkg-name> .
+.Pa /var/db/pkg/ Ns Aq Ar pkg-name .
 .Sh ENVIRONMENT
 .Ev PKG_TMPDIR
 points to the directory where
@@ -183,8 +199,7 @@ Default location of the installed package database.
 .Xr mtree 8
 .Sh AUTHORS
 .An Jordan Hubbard
-for most of the work.
-.An John Kohl
-for NetBSD refinements.
+.Sh CONTRIBUTORS
+.An John Kohl Aq jtk@rational.com
 .Sh BUGS
 Sure to be some.

@@ -75,7 +75,9 @@ if
 is a
 .Cm -
 (dash).
-.It Fl c Ar [-]desc
+.It Fl c Xo
+.Oo Fl Oc Ns Ar desc
+.Xc
 Fetch package
 .Dq one line description
 from file
@@ -85,7 +87,9 @@ or, if preceded by
 the argument itself.  This string should also
 give some idea of which version of the product (if any) the package
 represents.
-.It Fl d Ar [-]desc
+.It Fl d Xo
+.Oo Fl Oc Ns Ar desc
+.Xc
 Fetch long description for package from file
 .Ar desc
 or, if preceded by
@@ -116,7 +120,7 @@ package is later installed.
 It will be passed the package's name as the
 first argument.
 .Pp
-.Cm Note:
+.Sy Note :
 if the
 .Cm Fl I
 option is not given, this script will serve as both the pre-install and the
@@ -157,7 +161,7 @@ package is later (if ever) de-installed.
 It will be passed the package's
 name as the first argument.
 .Pp
-.Cm Note:
+.Sy Note :
 if the
 .Cm Fl K
 option is not given, this script will serve as both the de-install and the
@@ -493,9 +497,8 @@ command first appeared in
 .Fx .
 .Sh AUTHORS
 .An Jordan Hubbard
-for most of the work.
-.An John Kohl
-for NetBSD refinements.
+.Sh CONTRIBUTORS
+.An John Kohl Aq jtk@rational.com
 .Sh BUGS
 Hard links between files in a distribution must be bracketed by
 .Cm @cwd

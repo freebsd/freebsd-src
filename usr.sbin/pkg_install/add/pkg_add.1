@@ -28,7 +28,7 @@
 .Op Fl vInfrRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
-.Ar pkg-name [pkg-name ...]
+.Ar pkg-name Op Ar pkg-name ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,7 +67,7 @@ command to examine the package file.
 .Sh OPTIONS
 The following command line arguments are supported:
 .Bl -tag -width indent
-.It Ar pkg-name [... pkg-name]
+.It Ar pkg-name Op Ar pkg-name ...
 The named packages are installed.  A package name of - will cause
 .Nm
 to read from stdin.
@@ -242,7 +242,7 @@ If the package contains a
 file (see 
 .Xr pkg_create 1 ) ,
 then execute it with the following arguments:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Ar pkg-name
 .Ar INSTALL
 .Ed
@@ -257,7 +257,7 @@ If a
 .Ar pre-install
 script exists for the package, it is then executed with the following
 arguments:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar pkg-name
 .Ar PRE-INSTALL
@@ -269,7 +269,7 @@ is the name of the package in question and
 .Ar PRE-INSTALL
 is a keyword denoting this as the preinstallation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar PRE-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
@@ -292,7 +292,7 @@ If the package contains an
 file (see
 .Xr pkg_create 1 ) ,
 then mtree is invoked as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm mtree
 .Fl u 
 .Fl f 
@@ -315,7 +315,7 @@ directive within this package.
 If a
 .Ar post-install
 script exists for the package, it is then executed as 
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar pkg-name
 .Ar POST-INSTALL 
@@ -326,7 +326,7 @@ is the name of the package in question and
 .Ar POST-INSTALL
 is a keyword denoting this as the post-installation phase.
 .Pp
-.Cm Note:
+.Sy Note :
 The
 .Ar POST-INSTALL
 keyword will not appear if separate scripts for pre-install and post-install
@@ -379,7 +379,7 @@ flag to
 The value of the
 .Ev PKG_PATH
 is used if a given package can't be found.  The environment variable
-should be a series of entries seperated by colons.  Each entry
+should be a series of entries separated by colons.  Each entry
 consists of a directory name.
 The current directory may be indicated
 implicitly by an empty directory name, or explicitly by a single
@@ -411,13 +411,14 @@ The environment variable
 specifies an alternate location for 
 .Nm
 to fetch from.
-The the fetch URL is built using this environment variable and the automatic
+The fetch URL is built using this environment variable and the automatic
 directory logic that
 .Nm
 uses when the 
 .Fl r
 option is invoked.
-An example setting would be "ftp://ftp3.FreeBSD.org".
+An example setting would be
+.Qq Li ftp://ftp3.FreeBSD.org .
 .Pp
 The environment variable
 .Ev PACKAGESITE
@@ -462,9 +463,8 @@ Default location of the installed package database.
 .Xr mtree 8
 .Sh AUTHORS
 .An Jordan Hubbard
-for initial work and ongoing development.
-.An John Kohl
-for NetBSD refinements.
+.Sh CONTRIBUTORS
+.An John Kohl Aq jtk@rational.com
 .Sh BUGS
 Hard links between files in a distribution are only preserved if either
 (1) the staging area is on the same file system as the target directory of

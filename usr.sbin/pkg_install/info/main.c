@@ -28,10 +28,10 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fghiIkl:LmopqrRst:v";
+static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vx";
 
 int	Flags		= 0;
-Boolean AllInstalled	= FALSE;
+match_t	MatchType	= MATCH_GLOB;
 Boolean Quiet		= FALSE;
 char *InfoPrefix	= "";
 char PlayPen[FILENAME_MAX];
@@ -48,13 +48,13 @@ main(int argc, char **argv)
 
     pkgs = start = argv;
     if (argc == 1) {
-	AllInstalled = TRUE;
+	MatchType = MATCH_ALL;
 	Flags = SHOW_INDEX;
     }
     else while ((ch = getopt(argc, argv, Options)) != -1) {
 	switch(ch) {
 	case 'a':
-	    AllInstalled = TRUE;
+	    MatchType = MATCH_ALL;
 	    break;
 
 	case 'v':
@@ -92,6 +92,10 @@ main(int argc, char **argv)
 	    Flags |= SHOW_CKSUM;
 	    break;
 
+	case 'G':
+	    MatchType = MATCH_EXACT;
+	    break;
+
 	case 'i':
 	    Flags |= SHOW_INSTALL;
 	    break;
@@ -116,9 +120,9 @@ main(int argc, char **argv)
 	    Flags |= SHOW_MTREE;
 	    break;
 
-        case 's':
-            Flags |= SHOW_SIZE;
-            break;
+	case 's':
+	    Flags |= SHOW_SIZE;
+	    break;
 
 	case 'o':
 	    Flags |= SHOW_ORIGIN;
@@ -134,6 +138,10 @@ main(int argc, char **argv)
 
 	case 't':
 	    strcpy(PlayPen, optarg);
+	    break;
+
+	case 'x':
+	    MatchType = MATCH_REGEX;
 	    break;
 
 	case 'e':
@@ -157,23 +165,27 @@ main(int argc, char **argv)
 
     /* Get all the remaining package names, if any */
     while (*argv) {
-	while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
-	    *pkgs_split++ = '\0';
-	    /*
-	     * If character after the '/' is alphanumeric, then we've found the
-	     * package name.  Otherwise we've come across a trailing '/' and
-	     * need to continue our quest.
-	     */
-	    if (isalpha(*pkgs_split)) {
-		*argv = pkgs_split;
-		break;
+	/* Don't try to apply heuristics if arguments are regexs */
+	if (MatchType != MATCH_REGEX)
+	    while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
+		*pkgs_split++ = '\0';
+		/*
+		 * If character after the '/' is alphanumeric or shell
+		 * metachar, then we've found the package name.  Otherwise
+		 * we've come across a trailing '/' and need to continue our
+		 * quest.
+		 */
+		if (isalpha(*pkgs_split) || ((MatchType == MATCH_GLOB) && \
+		    strpbrk(pkgs_split, "*?[]") != NULL)) {
+		    *argv = pkgs_split;
+		    break;
+		}
 	    }
-	}
 	*pkgs++ = *argv++;
     }
 
     /* If no packages, yelp */
-    if (pkgs == start && !AllInstalled && !CheckPkg)
+    if (pkgs == start && MatchType != MATCH_ALL && !CheckPkg)
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
     return pkg_perform(start);
