@@ -11,11 +11,11 @@
 What will I not find in this file ?
 -----------------------------------
 Instructions on how to obtain FreeBSD via CTM.
-Contact <phk@freefall.cdrom.com> for that.
+Contact <CTM@FreeBSD.org> for that.
 
 What is CTM ?
 -------------
-CTM was originally "Cvs Through eMail", but has since changed scope to be
+CTM was originally "CVS Through eMail", but has since changed scope to be
 much more general.
 CTM is now meant to be the definitive way to make and apply a delta between
 two versions of a directory tree.
@@ -45,9 +45,12 @@ to upgrade your copy.
 
 How do I make a CTM-delta ?
 ---------------------------
-Don't.  Send me email before you even try.  This is yet not quite as trivial
-as I would like.  This is not to discourage you from using CTM, it is merely
-to warn you that it is slightly tedious and takes much diskspace.
+
+Read the source, and be prepared to have 2 copies of the tree; One is
+the reference ("From") tree, and the other is the delta ("To") tree.
+The mkCTM script will create the CTM diff of the differences between
+the reference tree and the delta tree. A lot of scratch space is
+required, and your machine will work hard.
 
 How do I apply a CTM-delta ?
 ----------------------------
@@ -74,24 +77,9 @@ Should I delete the delta when I have applied it ?
 --------------------------------------------------
 No.  You might want to selectively reconstruct a file latter on.
 
-What features are are planned ?
--------------------------------
-This list isn't exhaustive, and it isn't sorted in priority.
-	Reconstruct subset of tree.
-	Make tar-copy of things which will be affected.
-	Verify.
-	Internal editor instead of ed(1)
-	Support for mode
-	Support for uid/gid
-	Support for hardlinks
-	Support for symlinks
-
-Isn't this a bit thin yet ?
----------------------------
-Yes.
-
-Can I say something ?
----------------------
-Yes, email me: <phk@freefall.cdrom.com>
+Why is CTM not being maintained?
+--------------------------------
+Because CVSUP has improved on the concept quite a bit, and is now
+the method of choice.
 
 Poul-Henning
