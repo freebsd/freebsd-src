@@ -35,21 +35,28 @@
 #include <sys/mac.h>
 
 int
-mac_set_file(const char *path_p, mac_t label)
-{
-
-	return (__mac_set_file(path_p, label));
-}
-
-int
-mac_set_fd(int fd, mac_t label)
+mac_set_fd(int fd, struct mac *label)
 {
 
 	return (__mac_set_fd(fd, label));
 }
 
 int
-mac_set_proc(mac_t label)
+mac_set_file(const char *path, struct mac *label)
+{
+
+	return (__mac_set_file(path, label));
+}
+
+int
+mac_set_link(const char *path, struct mac *label)
+{
+
+	return (__mac_set_link(path, label));
+}
+
+int
+mac_set_proc(struct mac *label)
 {
 
 	return (__mac_set_proc(label));

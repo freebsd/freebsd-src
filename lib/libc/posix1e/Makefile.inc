@@ -19,11 +19,9 @@ SRCS+=	acl_calc_mask.c			\
 	acl_to_text.c			\
 	acl_valid.c			\
 	extattr.c			\
-	mac_free.c			\
-	mac_is_present_np.c		\
+	mac.c				\
 	mac_get.c			\
-	mac_set.c			\
-	mac_text.c
+	mac_set.c
 
 .if ${LIB} == "c"
 
