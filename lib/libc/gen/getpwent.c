@@ -1436,8 +1436,9 @@ compat_passwd(void *retval, void *mdata, va_list ap)
 	size_t			 bufsize;
 	uid_t			 uid;
 	uint32_t		 store;
-	int			 rv, stayopen, *errnop;
+	int			 rv, from_compat, stayopen, *errnop;
 
+	from_compat = 0;
 	name = NULL;
 	uid = (uid_t)-1;
 	how = (enum nss_lookup_type)mdata;
@@ -1516,8 +1517,10 @@ docompat:
 	default:
 		break;
 	}
-	if (rv & NS_TERMINATE)
+	if (rv & NS_TERMINATE) {
+		from_compat = 1;
 		goto fin;
+	}
 	key.data = keybuf;
 	rv = NS_NOTFOUND;
 	while (st->keynum >= 0) {
@@ -1626,8 +1629,14 @@ fin:
 		(void)st->db->close(st->db);
 		st->db = NULL;
 	}
-	if (rv == NS_SUCCESS && retval != NULL)
-		*(struct passwd **)retval = pwd;
+	if (rv == NS_SUCCESS) { 
+		if (!from_compat) {
+			pwd->pw_fields &= ~_PWF_SOURCE;
+			pwd->pw_fields |= _PWF_FILES;
+		}
+		if (retval != NULL)
+			*(struct passwd **)retval = pwd;
+	}
 	return (rv);
 }
 
