@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.4 1996/06/23 22:44:04 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.5 1996/10/22 14:58:10 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.4 1996/06/23 22:44:04 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.5 1996/10/22 14:58:10 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -262,13 +262,15 @@ name isn't set -- aborting");
 	load_securenets();
 
 	if (getrpcport("localhost", YPPROG, YPVERS, IPPROTO_UDP) <= 0) {
+		yp_error("no ypserv processes registered with local portmap");
 		yp_error("this host is not an NIS server -- aborting");
 		exit(1);
 	}
 
 	if ((mastername = ypxfr_get_master(yppasswd_domain, "passwd.byname",
 						"localhost",0)) == NULL) {
-		yp_error("can't get name of NIS master server");
+		yp_error("can't get name of NIS master server for domain %s",
+			 				yppasswd_domain);
 		exit(1);
 	}
 
@@ -278,7 +280,10 @@ name isn't set -- aborting");
 	}
 
 	if (strncmp(mastername, (char *)&myname, sizeof(myname))) {
-		yp_error("this host is not an NIS master server -- aborting");
+		yp_error("master of %s is %s, but we are %s",
+			"passwd.byname", mastername, myname);
+		yp_error("this host is not the NIS master server for \
+the %s domain -- aborting", yppasswd_domain);
 		exit(1);
 	}
 
