@@ -63,7 +63,7 @@
 #
 # c_fmt
 #
-%a %Ef %T %Y
+%a %b/%e %T %Y
 #
 # am
 #
