@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.32 1998/02/19 12:14:54 msmith Exp $
+$Id: majors.i386,v 1.33 1998/02/20 03:54:45 ahasty Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -134,3 +134,4 @@ chrdev	name		comments
 90	wst		ATAPI tape client of "ata"
 91	vinum		RAID fs
 92      bktr            Bt848 video capture driver (hasty@star-gate.com)
+93	coda		CODA filesystem.
