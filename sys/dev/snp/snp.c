@@ -52,7 +52,7 @@ static struct cdevsw snp_cdevsw = {
 };
 
 static struct linesw snpdisc = {
-	.l_open =	ttyopen,
+	.l_open =	tty_open,
 	.l_close =	snplclose,
 	.l_read =	ttread,
 	.l_write =	snplwrite,

@@ -230,7 +230,7 @@ SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
  * Initial open of tty, or (re)entry to standard tty line discipline.
  */
 int
-ttyopen(struct cdev *device, struct tty *tp)
+tty_open(struct cdev *device, struct tty *tp)
 {
 	int s;
 
@@ -256,12 +256,12 @@ ttyopen(struct cdev *device, struct tty *tp)
  * Handle close() on a tty line: flush and set to initial state,
  * bumping generation number so that pending read/write calls
  * can detect recycling of the tty.
- * XXX our caller should have done `spltty(); l_close(); ttyclose();'
+ * XXX our caller should have done `spltty(); l_close(); tty_close();'
  * and l_close() should have flushed, but we repeat the spltty() and
  * the flush in case there are buggy callers.
  */
 int
-ttyclose(struct tty *tp)
+tty_close(struct tty *tp)
 {
 	int s;
 
@@ -2761,7 +2761,7 @@ ttyrel(struct tty *tp)
 
 /*
  * Allocate a tty struct.  Clists in the struct will be allocated by
- * ttyopen().
+ * tty_open().
  */
 struct tty *
 ttymalloc(struct tty *tp)

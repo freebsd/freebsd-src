@@ -804,7 +804,7 @@ siclose(struct cdev *dev, int flag, int mode, struct thread *td)
 	}
 
 	sihardclose(pp);
-	ttyclose(tp);
+	tty_close(tp);
 	pp->sp_state &= ~SS_OPEN;
 
 out:

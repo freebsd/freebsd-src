@@ -73,7 +73,7 @@ static struct linesw nodisc = {
 };
 
 static struct linesw termios_disc = {
-	.l_open = 	ttyopen,
+	.l_open = 	tty_open,
 	.l_close =	ttylclose,
 	.l_read = 	ttread,
 	.l_write = 	ttwrite, 

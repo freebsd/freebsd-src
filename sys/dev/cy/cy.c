@@ -786,7 +786,7 @@ sioclose(dev, flag, mode, td)
 	ttyld_close(tp, flag);
 	disc_optim(tp, &tp->t_termios, com);
 	comhardclose(com);
-	ttyclose(tp);
+	tty_close(tp);
 	siosettimeout();
 	splx(s);
 #ifdef broken /* session holds a ref to the tty; can't deallocate */

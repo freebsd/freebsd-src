@@ -453,7 +453,7 @@ uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 			return (error);
 		goto loop;
 	}
-	error = ttyopen(dev, tp);
+	error = tty_open(dev, tp);
 	if (error)
 		return (error);
 	error = ttyld_open(tp, dev);
@@ -492,7 +492,7 @@ uart_tty_close(struct cdev *dev, int flags, int mode, struct thread *td)
 	sc->sc_pps.ppsparam.mode = 0;
 
 	ttyld_close(tp, flags);
-	ttyclose(tp);
+	tty_close(tp);
 	wakeup(sc);
 	wakeup(TSA_CARR_ON(tp));
 	KASSERT(!(tp->t_state & TS_ISOPEN), ("foo"));

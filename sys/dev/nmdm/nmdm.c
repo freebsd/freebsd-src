@@ -294,7 +294,7 @@ static int
 nmdmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
-	return (ttyclose(dev->si_tty));
+	return (tty_close(dev->si_tty));
 }
 
 static void
