@@ -1796,17 +1796,11 @@ hint.gusc.0.flags="0x13"
 # meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cy: Cyclades serial driver
-# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # digi: Digiboard driver
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
 # rp: Comtrol Rocketport(ISA/PCI) - single card
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
 # nmdm: nullmodem terminal driver (see nmdm(4))
-
-# Notes on the Digiboard PC/Xi and PC/Xe series driver
-#
-# The NDGBPORTS option specifies the number of ports controlled by the
-# dgb(4) driver.  The default value is 16 ports per device.
 
 # Notes on the Digiboard driver:
 #
@@ -1848,11 +1842,6 @@ hint.gusc.0.flags="0x13"
 device		joy			# PnP aware, hints for nonpnp only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
-device		dgb	1
-options 	NDGBPORTS=17
-hint.dgb.0.at="isa"
-hint.dgb.0.port="0x220"
-hint.dgb.0.maddr="0xfc000"
 device		digi
 hint.digi.0.at="isa"
 hint.digi.0.port="0x104"
