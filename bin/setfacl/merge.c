@@ -49,9 +49,9 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 	uid_t *id, *id_new;
 
 	if (acl_type == ACL_TYPE_ACCESS)
-		acl_new = acl_dup(prev_acl[0]);
+		acl_new = acl_dup(prev_acl[ACCESS_ACL]);
 	else
-		acl_new = acl_dup(prev_acl[1]);
+		acl_new = acl_dup(prev_acl[DEFAULT_ACL]);
 	if (acl_new == NULL)
 		err(1, "acl_dup() failed");
 
@@ -136,11 +136,11 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 
 
 	if (acl_type == ACL_TYPE_ACCESS) {
-		acl_free(prev_acl[0]);
-		prev_acl[0] = acl_new;
+		acl_free(prev_acl[ACCESS_ACL]);
+		prev_acl[ACCESS_ACL] = acl_new;
 	} else {
-		acl_free(prev_acl[1]);
-		prev_acl[1] = acl_new;
+		acl_free(prev_acl[DEFAULT_ACL]);
+		prev_acl[DEFAULT_ACL] = acl_new;
 	}
 
 

@@ -50,9 +50,9 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 	carried_error = 0;
 
 	if (acl_type == ACL_TYPE_ACCESS)
-		acl_new = acl_dup(prev_acl[0]);
+		acl_new = acl_dup(prev_acl[ACCESS_ACL]);
 	else
-		acl_new = acl_dup(prev_acl[1]);
+		acl_new = acl_dup(prev_acl[DEFAULT_ACL]);
 	if (acl_new == NULL)
 		err(1, "acl_dup() failed");
 
@@ -73,11 +73,11 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 	}
 
 	if (acl_type == ACL_TYPE_ACCESS) {
-		acl_free(prev_acl[0]);
-		prev_acl[0] = acl_new;
+		acl_free(prev_acl[ACCESS_ACL]);
+		prev_acl[ACCESS_ACL] = acl_new;
 	} else {
-		acl_free(prev_acl[1]);
-		prev_acl[1] = acl_new;
+		acl_free(prev_acl[DEFAULT_ACL]);
+		prev_acl[DEFAULT_ACL] = acl_new;
 	}
 
 	if (carried_error)
@@ -118,9 +118,9 @@ remove_ext(acl_t *prev_acl)
 	int entry_id, have_mask_entry;
 
 	if (acl_type == ACL_TYPE_ACCESS)
-		acl_old = acl_dup(prev_acl[0]);
+		acl_old = acl_dup(prev_acl[ACCESS_ACL]);
 	else
-		acl_old = acl_dup(prev_acl[1]);
+		acl_old = acl_dup(prev_acl[DEFAULT_ACL]);
 	if (acl_old == NULL)
 		err(1, "acl_dup() failed");
 
@@ -170,10 +170,10 @@ remove_ext(acl_t *prev_acl)
 	}
 
 	if (acl_type == ACL_TYPE_ACCESS) {
-		acl_free(prev_acl[0]);
-		prev_acl[0] = acl_new;
+		acl_free(prev_acl[ACCESS_ACL]);
+		prev_acl[ACCESS_ACL] = acl_new;
 	} else {
-		acl_free(prev_acl[1]);
-		prev_acl[1] = acl_new;
+		acl_free(prev_acl[DEFAULT_ACL]);
+		prev_acl[DEFAULT_ACL] = acl_new;
 	}
 }
