@@ -197,8 +197,10 @@ static int	null_getvobject(struct vop_getvobject_args *ap);
 static int	null_inactive(struct vop_inactive_args *ap);
 static int	null_lock(struct vop_lock_args *ap);
 static int	null_lookup(struct vop_lookup_args *ap);
+static int	null_open(struct vop_open_args *ap);
 static int	null_print(struct vop_print_args *ap);
 static int	null_reclaim(struct vop_reclaim_args *ap);
+static int	null_rename(struct vop_rename_args *ap);
 static int	null_setattr(struct vop_setattr_args *ap);
 static int	null_unlock(struct vop_unlock_args *ap);
 
@@ -465,6 +467,9 @@ null_getattr(ap)
 	return (0);
 }
 
+/*
+ * Handle to disallow write access if mounted read-only.
+ */
 static int
 null_access(ap)
 	struct vop_access_args /* {
@@ -494,6 +499,66 @@ null_access(ap)
 			break;
 		}
 	}
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
+/*
+ * We must handle open to be able to catch MNT_NODEV and friends.
+ */
+static int
+null_open(ap)
+	struct vop_open_args /* {
+		struct vnode *a_vp;
+		int  a_mode;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
+
+	if ((vp->v_mount->mnt_flag & MNT_NODEV) &&
+	    (lvp->v_type == VBLK || lvp->v_type == VCHR))
+		return ENXIO;
+
+	return (null_bypass((struct vop_generic_args *)ap));
+}
+
+/*
+ * We handle this to eliminate null FS to lower FS
+ * file moving. Don't know why we don't allow this,
+ * possibly we should.
+ */
+static int
+null_rename(ap)
+	struct vop_rename_args /* {
+		struct vnode *a_fdvp;
+		struct vnode *a_fvp;
+		struct componentname *a_fcnp;
+		struct vnode *a_tdvp;
+		struct vnode *a_tvp;
+		struct componentname *a_tcnp;
+	} */ *ap;
+{
+	struct vnode *tdvp = ap->a_tdvp;
+	struct vnode *fvp = ap->a_fvp;
+	struct vnode *fdvp = ap->a_fdvp;
+	struct vnode *tvp = ap->a_tvp;
+
+	/* Check for cross-device rename. */
+	if ((fvp->v_mount != tdvp->v_mount) ||
+	    (tvp && (fvp->v_mount != tvp->v_mount))) {
+		if (tdvp == tvp)
+			vrele(tdvp);
+		else
+			vput(tdvp);
+		if (tvp)
+			vput(tvp);
+		vrele(fdvp);
+		vrele(fvp);
+		return (EXDEV);
+	}
+	
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
@@ -670,8 +735,10 @@ static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_inactive_desc,		(vop_t *) null_inactive },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
 	{ &vop_lookup_desc,		(vop_t *) null_lookup },
+	{ &vop_open_desc,		(vop_t *) null_open },
 	{ &vop_print_desc,		(vop_t *) null_print },
 	{ &vop_reclaim_desc,		(vop_t *) null_reclaim },
+	{ &vop_rename_desc,		(vop_t *) null_rename },
 	{ &vop_setattr_desc,		(vop_t *) null_setattr },
 	{ &vop_unlock_desc,		(vop_t *) null_unlock },
 	{ NULL, NULL }
