@@ -402,12 +402,14 @@ ffs_reload(struct mount *mp, struct thread *td)
 	void *space;
 	struct buf *bp;
 	struct fs *fs, *newfs;
+	struct ufsmount *ump;
 	ufs2_daddr_t sblockloc;
 	int i, blks, size, error;
 	int32_t *lp;
 
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
+	ump = VFSTOUFS(mp);
 	/*
 	 * Step 1: invalidate all cached meta-data.
 	 */
@@ -449,6 +451,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	brelse(bp);
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	ffs_oldfscompat_read(fs, VFSTOUFS(mp), sblockloc);
+	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: reload pending error: blocks %jd files %d\n",
 		    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
@@ -456,6 +459,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
+	UFS_UNLOCK(ump);
 
 	/*
 	 * Step 3: re-read summary information from disk.
@@ -661,6 +665,7 @@ ffs_mountfs(devvp, mp, td)
 	ump->um_valloc = ffs_valloc;
 	ump->um_vfree = ffs_vfree;
 	ump->um_ifree = ffs_ifree;
+	mtx_init(UFS_MTX(ump), "FFS", "FFS Lock", MTX_DEF);
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBLOCKSIZE)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -779,6 +784,9 @@ ffs_mountfs(devvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
+#ifndef QUOTA
+	mp->mnt_kern_flag |= MNTK_MPSAFE;
+#endif
 	return (0);
 out:
 	if (bp)
@@ -792,6 +800,7 @@ out:
 		PICKUP_GIANT();
 	}
 	if (ump) {
+		mtx_destroy(UFS_MTX(ump));
 		free(ump->um_fs, M_UFSMNT);
 		free(ump, M_UFSMNT);
 		mp->mnt_data = (qaddr_t)0;
@@ -927,6 +936,7 @@ ffs_unmount(mp, mntflags, td)
 			return (error);
 	}
 	fs = ump->um_fs;
+	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: unmount pending error: blocks %jd files %d\n",
 		    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
@@ -934,6 +944,7 @@ ffs_unmount(mp, mntflags, td)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
+	UFS_UNLOCK(ump);
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT);
@@ -949,6 +960,7 @@ ffs_unmount(mp, mntflags, td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
+	mtx_destroy(UFS_MTX(ump));
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
@@ -1031,12 +1043,14 @@ ffs_statfs(mp, sbp, td)
 	sbp->f_bsize = fs->fs_fsize;
 	sbp->f_iosize = fs->fs_bsize;
 	sbp->f_blocks = fs->fs_dsize;
+	UFS_LOCK(ump);
 	sbp->f_bfree = fs->fs_cstotal.cs_nbfree * fs->fs_frag +
 	    fs->fs_cstotal.cs_nffree + dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_bavail = freespace(fs, fs->fs_minfree) +
 	    dbtofsb(fs, fs->fs_pendingblocks);
 	sbp->f_files =  fs->fs_ncg * fs->fs_ipg - ROOTINO;
 	sbp->f_ffree = fs->fs_cstotal.cs_nifree + fs->fs_pendinginodes;
+	UFS_UNLOCK(ump);
 	sbp->f_namemax = NAME_MAX;
 	return (0);
 }
@@ -1403,6 +1417,7 @@ ffs_sbupdate(mp, waitfor)
 	int waitfor;
 {
 	struct fs *fs = mp->um_fs;
+	struct buf *sbbp;
 	struct buf *bp;
 	int blks;
 	void *space;
@@ -1412,6 +1427,11 @@ ffs_sbupdate(mp, waitfor)
 	    (mp->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) != 
 	    (MNT_RDONLY | MNT_UPDATE))
 		panic("ffs_sbupdate: write read-only filesystem");
+	/*
+	 * We use the superblock's buf to serialize calls to ffs_sbupdate().
+	 */
+	sbbp = getblk(mp->um_devvp, btodb(fs->fs_sblockloc), (int)fs->fs_sbsize,
+	    0, 0, 0);
 	/*
 	 * First write back the summary information.
 	 */
@@ -1435,8 +1455,11 @@ ffs_sbupdate(mp, waitfor)
 	 * up to this point, then fail so that the superblock avoids
 	 * being written out as clean.
 	 */
-	if (allerror)
+	if (allerror) {
+		brelse(sbbp);
 		return (allerror);
+	}
+	bp = sbbp;
 	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_sblockloc != SBLOCK_UFS1 &&
 	    (fs->fs_flags & FS_FLAGS_UPDATED) == 0) {
 		printf("%s: correcting fs_sblockloc from %jd to %d\n",
@@ -1449,8 +1472,6 @@ ffs_sbupdate(mp, waitfor)
 		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
 		fs->fs_sblockloc = SBLOCK_UFS2;
 	}
-	bp = getblk(mp->um_devvp, btodb(fs->fs_sblockloc), (int)fs->fs_sbsize,
-	    0, 0, 0);
 	fs->fs_fmod = 0;
 	fs->fs_time = time_second;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
