@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35 1995/05/30 08:28:25 rgrimes Exp $
+ * $Id: devices.c,v 1.35.2.1 1995/05/31 10:17:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -192,9 +192,11 @@ deviceGetAll(void)
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == fat) {
 		    Device *dev;
+		    char devname[80];
 
 		    /* Got one! */
-		    dev = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
+		    sprintf(devname, "/dev/%s", c1->name);
+		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
 					 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);

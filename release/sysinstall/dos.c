@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.4 1995/05/29 11:01:11 jkh Exp $
+ * $Id: dos.c,v 1.5 1995/05/30 08:28:34 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,7 +74,7 @@ mediaInitDOS(Device *dev)
     args.uid = args.gid = 0;
 
     if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on /dos: %s (%u)\n", dev, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /dos: %s (%u)\n", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
     DOSMounted = TRUE;
