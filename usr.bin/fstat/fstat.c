@@ -236,6 +236,7 @@ main(argc, argv)
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == NULL)
 		errx(1, "%s", buf);
+	setgid(getgid());
 #ifdef notdef
 	if (kvm_nlist(kd, nl) != 0)
 		errx(1, "no namelist: %s", kvm_geterr(kd));

@@ -511,6 +511,8 @@ dump_ccd(argc, argv)
 		warnx("can't open kvm: %s", errbuf);
 		return (1);
 	}
+	setegid(getgid());
+	setgid(getgid());
 
 	if (kvm_nlist(kd, nl))
 		KVM_ABORT(kd, "ccd-related symbols not available");
