@@ -32,6 +32,7 @@
 #include "libofw.h"
 #include "bootstrap.h"
 
+struct ofw_devdesc	currdev;	/* our current device */
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 extern char end[];
@@ -49,54 +50,54 @@ struct ofw_reg
 void
 init_heap(void)
 {
-	phandle_t	chosen, memory;
 	ihandle_t	meminstance;
-        struct ofw_reg	available;
-        void *		aligned_end;
+	phandle_t	chosen, memory;
+	struct ofw_reg	available;
+	void *		aligned_end;
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
 	memory = OF_instance_to_package(meminstance);
 	OF_getprop(memory, "available", &available, sizeof(available));
-        printf("available.base = 0x%08x\n", available.base);
-        printf("available.size = 0x%08x\n", available.size);
+	printf("available.base = 0x%08x\n", available.base);
+	printf("available.size = 0x%08x\n", available.size);
 
-        if (OF_claim((void *)available.base, 0x00040000, 0) ==
+	if (OF_claim((void *)available.base, 0x00040000, 0) ==
 	    (void *) 0xffffffff) {
-        	printf("Heap memory claim failed!\n");
-        	OF_enter();
-        }
+		printf("Heap memory claim failed!\n");
+		OF_enter();
+	}
 
-        aligned_end = (void *)(((int)end + sizeof(int) - 1) &
+	aligned_end = (void *)(((int)end + sizeof(int) - 1) &
 	    ~(sizeof(int) - 1));
-        printf("end = 0x%08x, aligned_end = 0x%08x\n", (uint32_t)end,
+	printf("end = 0x%08x, aligned_end = 0x%08x\n", (uint32_t)end,
 	    (uint32_t)aligned_end);
-        setheap((void *)aligned_end, (void *)(available.base + available.size));
+	setheap((void *)aligned_end, (void *)(available.base + available.size));
 }
 
 uint32_t
 memsize(void)
 {
-	phandle_t	chosen, memory;
 	ihandle_t	meminstance;
-        struct ofw_reg	reg;
+	phandle_t	chosen, memory;
+	struct ofw_reg	reg;
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
 	memory = OF_instance_to_package(meminstance);
 
-        OF_getprop(memory, "reg", &reg, sizeof(reg));
+	OF_getprop(memory, "reg", &reg, sizeof(reg));
 
-        return(reg.size);
+	return (reg.size);
 }
 
 int
 main(int (*openfirm)(void *))
 {
-#if 0
-        void *	test;
-#endif
-	int	i;
+	int		i;
+	phandle_t	chosen;
+	char		bootpath[64];
+	char		*ch;
 
 	/*
 	 * Initalise the OpenFirmware routines by giving them the entry point.
@@ -108,35 +109,82 @@ main(int (*openfirm)(void *))
          */
 	cons_probe();
 
-	printf(">>> hello?\n");
+	/*
+	 * Initialise the heap as early as possible.  Once this is done,
+	 * alloc() is usable. The stack is buried inside us, so this is
+	 * safe.
+	 */
+	init_heap();
 
 	/*
-         * Initialise the heap as early as possible.  Once this is done,
-         * alloc() is usable. The stack is buried inside us, so this is
-         * safe.
-         */
- 	init_heap();
+	 * Initialise the block cache
+	 */
+	bcache_init(32, 512);		/* 16k XXX tune this */
 
-        /*
-         * Initialise the block cache
-         */
-        bcache_init(32, 512);		/* 16k XXX tune this */
+	/*
+	 * March through the device switch probing for things.
+	 */
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
 
-        /*
-         * March through the device switch probing for things.
-         */
-        for(i = 0; devsw[i] != NULL; i++)
-        	if(devsw[i]->dv_init != NULL)
-                	(devsw[i]->dv_init)();
+	printf("\n");
+	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
+	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
+	printf("Memory: %dKB\n", memsize() / 1024);
 
-        printf("\n");
-        printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
-        printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-        printf("Memory: %dKB\n", memsize() / 1024);
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "bootpath", bootpath, 64);
+	ch = index(bootpath, ':');
+	*ch = '\0';
+	printf("Booted from: %s\n", bootpath);
+
+	printf("\n");
+
+	switch (ofw_devicetype(bootpath)) {
+	case DEVT_DISK:
+		currdev.d_dev = &ofwdisk;
+		currdev.d_type = DEVT_DISK;
+		strncpy(currdev.d_kind.ofwdisk.path, bootpath, 64);
+		currdev.d_kind.ofwdisk.unit = ofwd_getunit(bootpath);
+
+		if (currdev.d_kind.ofwdisk.unit == -1) {
+			printf("Could not locate boot device.\n");
+			OF_exit();
+		}
+
+		break;
+
+	case DEVT_NET:
+		currdev.d_dev = &netdev;
+		currdev.d_type = DEVT_NET;
+		strncpy(currdev.d_kind.netif.path, bootpath, 64);
+		/* XXX Only works when we only look for one net device */
+		currdev.d_kind.netif.unit = 0;
+
+		break;
+
+	case DEVT_NONE:
+	default:
+		printf("\n");
+		printf("Could not establish type of boot device.\n");
+		OF_exit();
+		/* NOTREACHED */
+		break;
+	}
+
+	env_setenv("currdev", EV_VOLATILE, ofw_fmtdev(&currdev),
+	    ofw_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, ofw_fmtdev(&currdev), env_noset,
+	    env_nounset);
+	setenv("LINES", "24", 1);		/* optional */
 
 	archsw.arch_getdev = ofw_getdev;
+	archsw.arch_copyin = ofw_copyin;
+	archsw.arch_copyout = ofw_copyout;
+	archsw.arch_readin = ofw_readin;
 
-        interact();			/* doesn't return */
+	interact();				/* doesn't return */
 
 	OF_exit();
 
@@ -148,6 +196,7 @@ COMMAND_SET(halt, "halt", "halt the system", command_halt);
 static int
 command_halt(int argc, char *argv[])
 {
+
 	OF_exit();
-	return(CMD_OK);
+	return (CMD_OK);
 }

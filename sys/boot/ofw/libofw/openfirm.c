@@ -59,6 +59,8 @@
 
 #include <machine/stdarg.h>
 
+#include <stand.h>
+
 #include "openfirm.h"
 
 static int (*openfirmware)(void *);
@@ -319,7 +321,7 @@ OF_setprop(phandle_t package, char *propname, void *buf, int len)
 
 /* Convert a device specifier to a fully qualified pathname. */
 int
-OF_canon(char *device, char *buf, int len)
+OF_canon(const char *device, char *buf, int len)
 {
 	static struct {
 		char	*name;
@@ -335,7 +337,7 @@ OF_canon(char *device, char *buf, int len)
 		1,
 	};
 	
-	args.device = device;
+	args.device = (char *)(uintptr_t *)device;
 	args.buf = buf;
 	args.len = len;
 	if (openfirmware(&args) == -1)
@@ -345,7 +347,7 @@ OF_canon(char *device, char *buf, int len)
 
 /* Return a package handle for the specified device. */
 phandle_t
-OF_finddevice(char *device)
+OF_finddevice(const char *device)
 {
 	static struct {
 		char		*name;
@@ -359,7 +361,7 @@ OF_finddevice(char *device)
 		1,
 	};	
 	
-	args.device = device;
+	args.device = (char *)(uintptr_t *)device;
 	if (openfirmware(&args) == -1)
 		return -1;
 	return args.package;
@@ -523,8 +525,20 @@ OF_read(ihandle_t instance, void *addr, int len)
 	args.instance = instance;
 	args.addr = addr;
 	args.len = len;
+
+#if defined(OPENFIRM_DEBUG)
+	printf("OF_read: called with instance=%08x, addr=%p, len=%d\n",
+	    args.instance, args.addr, args.len);
+#endif
+
 	if (openfirmware(&args) == -1)
 		return -1;
+
+#if defined(OPENFIRM_DEBUG)
+	printf("OF_read: returning instance=%d, addr=%p, len=%d, actual=%d\n",
+	    args.instance, args.addr, args.len, args.actual);
+#endif
+
 	return args.actual;
 }
 
@@ -556,7 +570,7 @@ OF_write(ihandle_t instance, void *addr, int len)
 
 /* Seek to a position. */
 int
-OF_seek(ihandle_t instance, u_quad_t pos)
+OF_seek(ihandle_t instance, u_int64_t pos)
 {
 	static struct {
 		char		*name;
@@ -674,7 +688,7 @@ OF_enter()
 }
 
 /* Shut down and drop back to the OpenFirmware interface. */
-__dead void
+void
 OF_exit()
 {
 	static struct {

@@ -48,8 +48,7 @@ struct devsw *devsw[] = {
     &ofwdisk,
 #endif
 #if defined(LOADER_NET_SUPPORT)
-    &ofwnet,
-  &ofwnet,
+    &netdev,
 #endif
     NULL
 };
@@ -71,13 +70,11 @@ struct fs_ops *file_system[] = {
     NULL
 };
 
-extern struct netif_driver of_net;
-
 struct netif_driver *netif_drivers[] = {
 #ifdef LOADER_NET_SUPPORT
-    &of_net,
+	&ofwnet,
 #endif
-    NULL,
+	NULL,
 };
 
 /* Exported for PowerPC only */

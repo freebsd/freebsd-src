@@ -32,13 +32,14 @@ struct ofw_devdesc {
 	union {
 		struct {
 			int	unit;
+			char	path[64];
 			int	partition;
 			int	slice;
 			int	bsize;
-			void	*dmabuf;
 		} ofwdisk;
 		struct {
 			int	unit;
+			char	path[64];
 			void	*dmabuf;
 		} netif;
 	} d_kind;
@@ -64,12 +65,19 @@ extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*ofw_fmtdev(void *vdev);
 extern int	ofw_setcurrdev(struct env_var *ev, int flags, void *value);
 
-extern struct devsw	ofwdisk;
-extern struct devsw	ofwnet;
+extern struct devsw		ofwdisk;
+extern struct netif_driver	ofwnet;
+
+int	ofwd_getunit(const char *);
+int	ofwn_getunit(const char *);
 
 ssize_t	ofw_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t ofw_copyout(const vm_offset_t src, void *dest, const size_t len);
 ssize_t ofw_readin(const int fd, vm_offset_t dest, const size_t len);
+
+void	ofw_devsearch_init(void);
+int	ofw_devsearch(const char *, char *);
+int	ofw_devicetype(char *);
 
 extern int	ofw_boot(void);
 extern int	ofw_autoload(void);
