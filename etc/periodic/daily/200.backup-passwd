@@ -15,8 +15,8 @@ if [ -f /etc/master.passwd -o -f /etc/group ] ; then
 
     if cmp -s $bak/master.passwd.bak /etc/master.passwd; then :; else
 	echo "$host passwd diffs:"
-	diff -u $bak/master.passwd.bak /etc/master.passwd |\
-		sed 's/^\([^:]*\):[^:]*:/\1:(password):/'
+	diff $bak/master.passwd.bak /etc/master.passwd |\
+		sed 's/^\([<>] [^:]*\):[^:]*:/\1:(password):/'
 	mv $bak/master.passwd.bak $bak/master.passwd.bak2
 	cp -p /etc/master.passwd $bak/master.passwd.bak
     fi
@@ -28,7 +28,7 @@ if [ -f /etc/master.passwd -o -f /etc/group ] ; then
 
     if cmp -s $bak/group.bak /etc/group; then :; else
 	echo "$host group diffs:"
-	diff -u $bak/group.bak /etc/group
+	diff $bak/group.bak /etc/group
 	mv $bak/group.bak $bak/group.bak2
 	cp -p /etc/group $bak/group.bak
     fi
