@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -56,9 +56,10 @@ static char *thisline = NULL;
 #define YYDEBUG_LEXER_TEXT (lexeme)
 static int param_counter;
 static char *tokstart = NULL;
-static char *token = NULL;
+static char *tok = NULL;
 static char *tokend;
 
+#define HASHSIZE	1021	/* this constant only used here */
 NODE *variables[HASHSIZE];
 
 extern char *source;
@@ -116,6 +117,7 @@ extern NODE *end_block;
 %left LEX_GETLINE
 %nonassoc LEX_IN
 %left FUNC_CALL LEX_BUILTIN LEX_LENGTH
+%nonassoc ','
 %nonassoc MATCHOP
 %nonassoc RELOP '<' '>' '|' APPEND_OP
 %left CONCAT_OP
@@ -161,6 +163,7 @@ program
 		}
 	| error	{ $$ = NULL; }
 	| program error { $$ = NULL; }
+	| /* empty */ { $$ = NULL; }
 	;
 
 rule
@@ -276,7 +279,7 @@ function_body
 pattern
 	: exp
 		{ $$ = $1; }
-	| exp comma exp
+	| exp ',' exp
 		{ $$ = mkrangenode ( node($1, Node_cond_pair, $3) ); }
 	;
 
@@ -290,7 +293,7 @@ regexp
 	  REGEXP '/'
 		{
 		  NODE *n;
-		  int len;
+		  size_t len;
 
 		  getnode(n);
 		  n->type = Node_regex;
@@ -385,10 +388,19 @@ statement
 		  if ($2 && $2 == lookup("file")) {
 			if (do_lint)
 				warning("`next file' is a gawk extension");
-			else if (do_unix || do_posix)
-				yyerror("`next file' is a gawk extension");
-			 else if (! io_allowed)
-				yyerror("`next file' used in BEGIN or END action");
+			if (do_unix || do_posix) {
+				/*
+				 * can't use yyerror, since may have overshot
+				 * the source line
+				 */
+				errcount++;
+				msg("`next file' is a gawk extension");
+			}
+			if (! io_allowed) {
+				/* same thing */
+				errcount++;
+				msg("`next file' used in BEGIN or END action");
+			}
 			type = Node_K_nextfile;
 		  } else {
 			if (! io_allowed)
@@ -405,6 +417,20 @@ statement
 		{ $$ = node ($3, Node_K_return, (NODE *)NULL); }
 	| LEX_DELETE NAME '[' expression_list ']' statement_term
 		{ $$ = node (variable($2,1), Node_K_delete, $4); }
+	| LEX_DELETE NAME  statement_term
+		{
+		  if (do_lint)
+			warning("`delete array' is a gawk extension");
+		  if (do_unix || do_posix) {
+			/*
+			 * can't use yyerror, since may have overshot
+			 * the source line
+			 */
+			errcount++;
+			msg("`delete array' is a gawk extension");
+		  }
+		  $$ = node (variable($2,1), Node_K_delete, (NODE *) NULL);
+		}
 	| exp statement_term
 		{ $$ = $1; }
 	;
@@ -693,7 +719,11 @@ non_post_simp_exp
 			$$ = node ($2, Node_unary_minus, (NODE *)NULL);
 		}
 	| '+' simp_exp    %prec UNARY
-		{ $$ = $2; }
+		{
+		  /* was: $$ = $2 */
+		  /* POSIX semantics: force a conversion to numeric type */
+		  $$ = node (make_number(0.0), Node_plus, $2);
+		}
 	;
 
 opt_variable
@@ -745,7 +775,7 @@ comma	: ',' opt_nls	{ yyerrok; }
 %%
 
 struct token {
-	char *operator;		/* text to match */
+	const char *operator;		/* text to match */
 	NODETYPE value;		/* node type */
 	int class;		/* lexical class */
 	unsigned flags;		/* # of args. allowed and compatability */
@@ -819,14 +849,15 @@ yyerror(va_alist)
 va_dcl
 {
 	va_list args;
-	char *mesg = NULL;
+	const char *mesg = NULL;
 	register char *bp, *cp;
 	char *scan;
 	char buf[120];
+	static char end_of_file_line[] = "(END OF FILE)";
 
 	errcount++;
 	/* Find the current line in the input file */
-	if (lexptr) {
+	if (lexptr && lexeme) {
 		if (!thisline) {
 			cp = lexeme;
 			if (*cp == '\n') {
@@ -834,7 +865,7 @@ va_dcl
 				mesg = "unexpected newline";
 			}
 			for ( ; cp != lexptr_begin && *cp != '\n'; --cp)
-				;
+				continue;
 			if (*cp == '\n')
 				cp++;
 			thisline = cp;
@@ -844,8 +875,8 @@ va_dcl
 		while (bp < lexend && *bp && *bp != '\n')
 			bp++;
 	} else {
-		thisline = "(END OF FILE)";
-		bp = thisline + 13;
+		thisline = end_of_file_line;
+		bp = thisline + strlen(thisline);
 	}
 	msg("%.*s", (int) (bp - thisline), thisline);
 	bp = buf;
@@ -882,12 +913,22 @@ get_src_buf()
 	static int did_newline = 0;
 #	define	SLOP	128	/* enough space to hold most source lines */
 
+again:
 	if (nextfile > numfiles)
 		return NULL;
 
 	if (srcfiles[nextfile].stype == CMDLINE) {
 		if (len == 0) {
 			len = strlen(srcfiles[nextfile].val);
+			if (len == 0) {
+				/*
+				 * Yet Another Special case:
+				 *	gawk '' /path/name
+				 * Sigh.
+				 */
+				++nextfile;
+				goto again;
+			}
 			sourceline = 1;
 			lexptr = lexptr_begin = srcfiles[nextfile].val;
 			lexend = lexptr + len;
@@ -973,6 +1014,7 @@ get_src_buf()
 	if (n == 0) {
 		samefile = 0;
 		nextfile++;
+		*lexeme = '\0';
 		len = 0;
 		return get_src_buf();
 	}
@@ -981,7 +1023,7 @@ get_src_buf()
 	return buf;
 }
 
-#define	tokadd(x) (*token++ = (x), token == tokend ? tokexpand() : token)
+#define	tokadd(x) (*tok++ = (x), tok == tokend ? tokexpand() : tok)
 
 char *
 tokexpand()
@@ -989,15 +1031,15 @@ tokexpand()
 	static int toksize = 60;
 	int tokoffset;
 
-	tokoffset = token - tokstart;
+	tokoffset = tok - tokstart;
 	toksize *= 2;
 	if (tokstart)
 		erealloc(tokstart, char *, toksize, "tokexpand");
 	else
 		emalloc(tokstart, char *, toksize, "tokexpand");
 	tokend = tokstart + toksize;
-	token = tokstart + tokoffset;
-	return token;
+	tok = tokstart + tokoffset;
+	return tok;
 }
 
 #if DEBUG
@@ -1036,13 +1078,23 @@ yylex()
 	if (!nextc())
 		return 0;
 	pushback();
+#ifdef OS2
+	/*
+	 * added for OS/2's extproc feature of cmd.exe
+	 * (like #! in BSD sh)
+	 */
+	if (strncasecmp(lexptr, "extproc ", 8) == 0) {
+		while (*lexptr && *lexptr != '\n')
+			lexptr++;
+	}
+#endif
 	lexeme = lexptr;
 	thisline = NULL;
 	if (want_regexp) {
 		int in_brack = 0;
 
 		want_regexp = 0;
-		token = tokstart;
+		tok = tokstart;
 		while ((c = nextc()) != 0) {
 			switch (c) {
 			case '[':
@@ -1079,11 +1131,11 @@ yylex()
 	}
 retry:
 	while ((c = nextc()) == ' ' || c == '\t')
-		;
+		continue;
 
 	lexeme = lexptr ? lexptr - 1 : lexptr;
 	thisline = NULL;
-	token = tokstart;
+	tok = tokstart;
 	yylval.nodetypeval = Node_illegal;
 
 	switch (c) {
@@ -1104,18 +1156,28 @@ retry:
 
 	case '\\':
 #ifdef RELAXED_CONTINUATION
-		if (!do_unix) {	/* strip trailing white-space and/or comment */
-			while ((c = nextc()) == ' ' || c == '\t') continue;
+		/*
+		 * This code puports to allow comments and/or whitespace
+		 * after the `\' at the end of a line used for continuation.
+		 * Use it at your own risk. We think it's a bad idea, which
+		 * is why it's not on by default.
+		 */
+		if (!do_unix) {
+			/* strip trailing white-space and/or comment */
+			while ((c = nextc()) == ' ' || c == '\t')
+				continue;
 			if (c == '#')
-				while ((c = nextc()) != '\n') if (!c) break;
+				while ((c = nextc()) != '\n')
+					if (c == '\0')
+						break;
 			pushback();
 		}
-#endif /*RELAXED_CONTINUATION*/
+#endif /* RELAXED_CONTINUATION */
 		if (nextc() == '\n') {
 			sourceline++;
 			goto retry;
 		} else
-			yyerror("inappropriate use of backslash");
+			yyerror("backslash not last character on line");
 		break;
 
 	case '$':
@@ -1296,7 +1358,7 @@ retry:
 			tokadd(c);
 		}
 		yylval.nodeval = make_str_node(tokstart,
-					token - tokstart, esc_seen ? SCAN : 0);
+					tok - tokstart, esc_seen ? SCAN : 0);
 		yylval.nodeval->flags |= PERM;
 		return YSTRING;
 
@@ -1384,7 +1446,7 @@ retry:
 					break;
 				if (c == '#') {
 					while ((c = nextc()) != '\n' && c != '\0')
-						;
+						continue;
 					if (c == '\0')
 						break;
 				}
@@ -1410,7 +1472,7 @@ retry:
 					break;
 				if (c == '#') {
 					while ((c = nextc()) != '\n' && c != '\0')
-						;
+						continue;
 					if (c == '\0')
 						break;
 				}
@@ -1432,14 +1494,14 @@ retry:
 		yyerror("Invalid char '%c' in expression\n", c);
 
 	/* it's some type of name-type-thing.  Find its length */
-	token = tokstart;
+	tok = tokstart;
 	while (is_identchar(c)) {
 		tokadd(c);
 		c = nextc();
 	}
 	tokadd('\0');
-	emalloc(tokkey, char *, token - tokstart, "yylex");
-	memcpy(tokkey, tokstart, token - tokstart);
+	emalloc(tokkey, char *, tok - tokstart, "yylex");
+	memcpy(tokkey, tokstart, tok - tokstart);
 	pushback();
 
 	/* See if it is a special token.  */
@@ -1478,6 +1540,7 @@ retry:
 			else
 				yylval.nodetypeval = tokentab[mid].value;
 
+			free(tokkey);
 			return tokentab[mid].class;
 		}
 	}
@@ -1638,10 +1701,11 @@ char *name;
 NODE *value;
 {
 	register NODE *hp;
-	register int len, bucket;
+	register size_t len;
+	register int bucket;
 
 	len = strlen(name);
-	bucket = hash(name, len);
+	bucket = hash(name, len, (unsigned long) HASHSIZE);
 	getnode(hp);
 	hp->type = Node_hashnode;
 	hp->hnext = variables[bucket];
@@ -1656,13 +1720,13 @@ NODE *value;
 /* find the most recent hash node for name installed by install */
 NODE *
 lookup(name)
-char *name;
+const char *name;
 {
 	register NODE *bucket;
-	register int len;
+	register size_t len;
 
 	len = strlen(name);
-	bucket = variables[hash(name, len)];
+	bucket = variables[hash(name, len, (unsigned long) HASHSIZE)];
 	while (bucket) {
 		if (bucket->hlength == len && STREQN(bucket->hname, name, len))
 			return bucket->hvalue;
@@ -1721,12 +1785,12 @@ NODE *np;
 int freeit;
 {
 	register NODE *bucket, **save;
-	register int len;
+	register size_t len;
 	char *name;
 
 	name = np->param;
 	len = strlen(name);
-	save = &(variables[hash(name, len)]);
+	save = &(variables[hash(name, len, (unsigned long) HASHSIZE)]);
 	for (bucket = *save; bucket; bucket = bucket->hnext) {
 		if (len == bucket->hlength && STREQN(bucket->hname, name, len)) {
 			*save = bucket->hnext;

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -24,14 +24,18 @@
  */
 
 /* ------------------------------ Includes ------------------------------ */
+#include "config.h"
+
 #include <stdio.h>
+#ifndef LIMITS_H_MISSING
 #include <limits.h>
+#endif
 #include <ctype.h>
 #include <setjmp.h>
 #include <varargs.h>
 #include <time.h>
 #include <errno.h>
-#if !defined(errno) && !defined(MSDOS)
+#if !defined(errno) && !defined(MSDOS) && !defined(OS2)
 extern int errno;
 #endif
 #ifdef __GNU_LIBRARY__
@@ -41,6 +45,10 @@ extern int errno;
 #endif
 
 /* ----------------- System dependencies (with more includes) -----------*/
+
+#if defined(__FreeBSD__)
+# include <floatingpoint.h>
+#endif
 
 #if !defined(VMS) || (!defined(VAXC) && !defined(__DECC))
 #include <sys/types.h>
@@ -52,8 +60,6 @@ extern int errno;
 #endif
 
 #include <signal.h>
-
-#include "config.h"
 
 #ifdef __STDC__
 #define	P(s)	s
@@ -88,7 +94,7 @@ typedef unsigned int size_t;
 #if defined(atarist) || defined(VMS)
 #include <unixlib.h>
 #else	/* atarist || VMS */
-#ifndef MSDOS
+#if !defined(MSDOS) && !defined(_MSC_VER)
 #include <unistd.h>
 #endif	/* MSDOS */
 #endif	/* atarist || VMS */
@@ -111,7 +117,11 @@ extern char *alloca();
 #endif
 #else /* not sparc */
 #if !defined(alloca) && !defined(ALLOCA_PROTO)
+#if defined(_MSC_VER)
+#include <malloc.h>
+#else
 extern char *alloca();
+#endif /* _MSC_VER */
 #endif
 #endif /* sparc */
 #endif /* __GNUC__ */
@@ -150,7 +160,7 @@ extern FILE *popen P((const char *,const char *));
 extern int   pclose P((FILE *));
 extern void vms_arg_fixup P((int *,char ***));
 /* some things not in STDC_HEADERS */
-extern int gnu_strftime P((char *,size_t,const char *,const struct tm *));
+extern size_t gnu_strftime P((char *,size_t,const char *,const struct tm *));
 extern int unlink P((const char *));
 extern int getopt P((int,char **,char *));
 extern int isatty P((int));
@@ -158,13 +168,8 @@ extern int isatty P((int));
 extern int fileno P((FILE *));
 #endif
 extern int close(), dup(), dup2(), fstat(), read(), stat();
+extern int getpgrp P((void));
 #endif  /*VMS*/
-
-#ifdef MSDOS
-#include <io.h>
-extern FILE *popen P((char *, char *));
-extern int   pclose P((FILE *));
-#endif
 
 #define	GNU_REGEX
 #ifdef GNU_REGEX
@@ -173,7 +178,7 @@ extern int   pclose P((FILE *));
 typedef struct Regexp {
 	struct re_pattern_buffer pat;
 	struct re_registers regs;
-	struct regexp dfareg;
+	struct dfa dfareg;
 	int dfa;
 } Regexp;
 #define	RESTART(rp,s)	(rp)->regs.start[0]
@@ -184,6 +189,9 @@ typedef struct Regexp {
 #ifdef atarist
 #define read _text_read /* we do not want all these CR's to mess our input */
 extern int _text_read (int, char *, int);
+#ifndef __MINT__
+#undef NGROUPS_MAX
+#endif /* __MINT__ */
 #endif
 
 #ifndef DEFPATH
@@ -193,6 +201,8 @@ extern int _text_read (int, char *, int);
 #ifndef ENVSEP
 #define ENVSEP	':'
 #endif
+
+extern double double_to_int P((double d));
 
 /* ------------------ Constants, Structures, Typedefs  ------------------ */
 #define AWKNUM	double
@@ -331,6 +341,7 @@ typedef struct exp_node {
 			union {
 				struct exp_node *lptr;
 				char *param_name;
+				long ll;
 			} l;
 			union {
 				struct exp_node *rptr;
@@ -343,6 +354,7 @@ typedef struct exp_node {
 			union {
 				char *name;
 				struct exp_node *extra;
+				long xl;
 			} x;
 			short number;
 			unsigned char reflags;
@@ -362,7 +374,7 @@ typedef struct exp_node {
 		struct {
 			struct exp_node *next;
 			char *name;
-			int length;
+			size_t length;
 			struct exp_node *value;
 		} hash;
 #define	hnext	sub.hash.next
@@ -388,8 +400,8 @@ typedef struct exp_node {
 #			define	NUM	32	/* numeric value is current */
 #			define	NUMBER	64	/* assigned as number */
 #			define	MAYBE_NUM 128	/* user input:  if NUMERIC then
-						 * a NUMBER
-						 */
+						 * a NUMBER */
+#			define	ARRAYMAXED 256	/* array is at max size */
 	char *vname;	/* variable's name */
 } NODE;
 
@@ -422,6 +434,8 @@ typedef struct exp_node {
 
 #define var_value lnode
 #define var_array sub.nodep.r.av
+#define array_size sub.nodep.l.ll
+#define table_size sub.nodep.x.xl
 
 #define condpair lnode
 #define triggered sub.nodep.r.r_ent
@@ -429,8 +443,6 @@ typedef struct exp_node {
 #ifdef DONTDEF
 int primes[] = {31, 61, 127, 257, 509, 1021, 2053, 4099, 8191, 16381};
 #endif
-/* a quick profile suggests that the following is a good value */
-#define	HASHSIZE	127
 
 typedef struct for_loop_header {
 	NODE *init;
@@ -440,8 +452,8 @@ typedef struct for_loop_header {
 
 /* for "for(iggy in foo) {" */
 struct search {
-	NODE **arr_ptr;
-	NODE **arr_end;
+	NODE *sym;
+	size_t idx;
 	NODE *bucket;
 	NODE *retval;
 };
@@ -499,13 +511,25 @@ struct src {
 /* Return means return from a function call; leave value in ret_node */
 #define	TAG_RETURN 3
 
+#ifndef INT_MAX
+#define INT_MAX (~(1 << (sizeof (int) * 8 - 1)))
+#endif
+#ifndef LONG_MAX
+#define LONG_MAX (~(1 << (sizeof (long) * 8 - 1)))
+#endif
+#ifndef ULONG_MAX
+#define ULONG_MAX (~(unsigned long)0)
+#endif
+#ifndef LONG_MIN
+#define LONG_MIN (-LONG_MAX - 1)
+#endif
 #define HUGE    INT_MAX 
 
 /* -------------------------- External variables -------------------------- */
 /* gawk builtin variables */
-extern int NF;
-extern int NR;
-extern int FNR;
+extern long NF;
+extern long NR;
+extern long FNR;
 extern int IGNORECASE;
 extern char *RS;
 extern char *OFS;
@@ -558,17 +582,20 @@ extern int in_end_rule;
 
 #ifdef DEBUG
 #define	tree_eval(t)	r_tree_eval(t)
+#define	get_lhs(p, a)	r_get_lhs((p), (a))
+#undef freenode
 #else
-#define	tree_eval(t)	(_t = (t),(_t) == NULL ? Nnull_string : \
-			((_t)->type == Node_val ? (_t) : \
-			((_t)->type == Node_var ? (_t)->var_value : \
-			((_t)->type == Node_param_list ? \
-			(stack_ptr[(_t)->param_cnt])->var_value : \
-			r_tree_eval((_t))))))
+#define	get_lhs(p, a)	((p)->type == Node_var ? (&(p)->var_value) : \
+			r_get_lhs((p), (a)))
+#define	tree_eval(t)	(_t = (t),_t == NULL ? Nnull_string : \
+			(_t->type == Node_param_list ? r_tree_eval(_t) : \
+			(_t->type == Node_val ? _t : \
+			(_t->type == Node_var ? _t->var_value : \
+			r_tree_eval(_t)))))
 #endif
 
-#define	make_number(x)	mk_number((x), (MALLOC|NUM|NUMBER))
-#define	tmp_number(x)	mk_number((x), (MALLOC|TEMP|NUM|NUMBER))
+#define	make_number(x)	mk_number((x), (unsigned int)(MALLOC|NUM|NUMBER))
+#define	tmp_number(x)	mk_number((x), (unsigned int)(MALLOC|TEMP|NUM|NUMBER))
 
 #define	free_temp(n)	do {if ((n)->flags&TEMP) { unref(n); }} while (0)
 #define	make_string(s,l)	make_str_node((s), SZTC (l),0)
@@ -620,7 +647,7 @@ extern double _msc51bug;
 /* array.c */
 extern NODE *concat_exp P((NODE *tree));
 extern void assoc_clear P((NODE *symbol));
-extern unsigned int hash P((char *s, int len));
+extern unsigned int hash P((const char *s, size_t len, unsigned long hsize));
 extern int in_array P((NODE *symbol, NODE *subs));
 extern NODE **assoc_lookup P((NODE *symbol, NODE *subs));
 extern void do_delete P((NODE *symbol, NODE *tree));
@@ -631,7 +658,7 @@ extern char *tokexpand P((void));
 extern char nextc P((void));
 extern NODE *node P((NODE *left, NODETYPE op, NODE *right));
 extern NODE *install P((char *name, NODE *value));
-extern NODE *lookup P((char *name));
+extern NODE *lookup P((const char *name));
 extern NODE *variable P((char *name, int can_free));
 extern int yyparse P((void));
 /* builtin.c */
@@ -663,7 +690,7 @@ extern NODE *do_sub P((NODE *tree));
 extern int interpret P((NODE *volatile tree));
 extern NODE *r_tree_eval P((NODE *tree));
 extern int cmp_nodes P((NODE *t1, NODE *t2));
-extern NODE **get_lhs P((NODE *ptr, Func_ptr *assign));
+extern NODE **r_get_lhs P((NODE *ptr, Func_ptr *assign));
 extern void set_IGNORECASE P((void));
 void set_OFS P((void));
 void set_ORS P((void));
@@ -687,8 +714,8 @@ extern struct redirect *redirect P((NODE *tree, int *errflg));
 extern NODE *do_close P((NODE *tree));
 extern int flush_io P((void));
 extern int close_io P((void));
-extern int devopen P((char *name, char *mode));
-extern int pathopen P((char *file));
+extern int devopen P((const char *name, const char *mode));
+extern int pathopen P((const char *file));
 extern NODE *do_getline P((NODE *tree));
 extern void do_nextfile P((void));
 /* iop.c */
@@ -702,13 +729,12 @@ extern void load_environ P((void));
 extern char *arg_assign P((char *arg));
 extern SIGTYPE catchsig P((int sig, int code));
 /* msg.c */
-#ifdef MSDOS
-extern void err P((char *s, char *emsg, char *va_list, ...));
-extern void msg P((char *va_alist, ...));
-extern void warning P((char *va_alist, ...));
-extern void fatal P((char *va_alist, ...));
+extern void err P((const char *s, const char *emsg, va_list argp));
+#if _MSC_VER == 510
+extern void msg P((va_list va_alist, ...));
+extern void warning P((va_list va_alist, ...));
+extern void fatal P((va_list va_alist, ...));
 #else
-extern void err ();
 extern void msg ();
 extern void warning ();
 extern void fatal ();
@@ -727,8 +753,9 @@ extern void freenode P((NODE *it));
 extern void unref P((NODE *tmp));
 extern int parse_escape P((char **string_ptr));
 /* re.c */
-extern Regexp *make_regexp P((char *s, int len, int ignorecase, int dfa));
-extern int research P((Regexp *rp, char *str, int start, int len, int need_start));
+extern Regexp *make_regexp P((char *s, size_t len, int ignorecase, int dfa));
+extern int research P((Regexp *rp, char *str, int start,
+		       size_t len, int need_start));
 extern void refree P((Regexp *rp));
 extern void reg_error P((const char *s));
 extern Regexp *re_update P((NODE *t));

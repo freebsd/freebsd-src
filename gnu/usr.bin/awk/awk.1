@@ -1,7 +1,7 @@
 .ds PX \s-1POSIX\s+1
 .ds UX \s-1UNIX\s+1
 .ds AN \s-1ANSI\s+1
-.TH GAWK 1 "Apr 15 1993" "Free Software Foundation" "Utility Commands"
+.TH GAWK 1 "Apr 18 1994" "Free Software Foundation" "Utility Commands"
 .SH NAME
 gawk \- pattern scanning and processing language
 .SH SYNOPSIS
@@ -71,6 +71,11 @@ option.
 Each
 .B \-W
 option has a corresponding GNU style long option, as detailed below.
+Arguments to GNU style long options are either joined with the option
+by an
+.B =
+sign, with no intervening spaces, or they may be provided in the
+next command line argument.
 .PP
 .I Gawk
 accepts the following options.
@@ -114,6 +119,26 @@ Multiple
 (or
 .BR \-\^\-file )
 options may be used.
+.TP
+.PD 0
+.BI \-mf= NNN
+.TP
+.BI \-mr= NNN
+Set various memory limits to the value
+.IR NNN .
+The
+.B f
+flag sets the maximum number of fields, and the
+.B r
+flag sets the maximum record size.  These two flags and the
+.B \-m
+option are from the AT&T Bell Labs research version of \*(UX
+.IR awk .
+They are ignored by
+.IR gawk ,
+since
+.I gawk
+has no pre-defined limits.
 .TP \w'\fB\-\^\-copyright\fR'u+1n
 .PD 0
 .B "\-W compat"
@@ -158,6 +183,8 @@ the error output.
 .B \-\^\-usage
 Print a relatively short summary of the available options on
 the error output.
+Per the GNU Coding Standards, these options cause an immediate,
+successful exit.
 .TP
 .PD 0
 .B "\-W lint"
@@ -248,6 +275,8 @@ This is useful mainly for knowing if the current copy of
 on your system
 is up to date with respect to whatever the Free Software Foundation
 is distributing.
+Per the GNU Coding Standards, these options cause an immediate,
+successful exit.
 .TP
 .B \-\^\-
 Signal the end of options. This is useful to allow further arguments to the
@@ -255,7 +284,13 @@ AWK program itself to start with a ``\-''.
 This is mainly for consistency with the argument parsing convention used
 by most other \*(PX programs.
 .PP
-Any other options are flagged as illegal, but are otherwise ignored.
+In compatibility mode,
+any other options are flagged as illegal, but are otherwise ignored.
+In normal operation, as long as program text has been supplied, unknown
+options are passed on to the AWK program in the
+.B ARGV
+array for processing.  This is particularly useful for running AWK
+programs via the ``#!'' executable interpreter mechanism.
 .SH AWK PROGRAM EXECUTION
 .PP
 An AWK program consists of a sequence of pattern-action statements
@@ -270,23 +305,23 @@ and optional function definitions.
 .I Gawk
 first reads the program source from the
 .IR program-file (s)
-if specified, or from the first non-option argument on the command line.
+if specified,
+from arguments to
+.BR "\-W source=" ,
+or from the first non-option argument on the command line.
 The
 .B \-f
-option may be used multiple times on the command line.
+and
+.B "\-W source="
+options may be used multiple times on the command line.
 .I Gawk
 will read the program text as if all the
 .IR program-file s
+and command line source texts
 had been concatenated together.  This is useful for building libraries
 of AWK functions, without having to include them in each new AWK
-program that uses them.  To use a library function in a file from a
-program typed in on the command line, specify
-.B /dev/tty
-as one of the
-.IR program-file s,
-type your program, and end it with a
-.B ^D
-(control-d).
+program that uses them.  It also provides the ability to mix library
+functions with command line programs.
 .PP
 The environment variable
 .B AWKPATH
@@ -302,11 +337,13 @@ option contains a ``/'' character, no path search is performed.
 .I Gawk
 executes AWK programs in the following order.
 First,
+all variable assignments specified via the
+.B \-v
+option are performed.
+Next,
 .I gawk
 compiles the program into an internal form.
-Next, all variable assignments specified via the
-.B \-v
-option are performed.  Then,
+Then,
 .I gawk
 executes the code in the
 .B BEGIN
@@ -359,8 +396,8 @@ block(s) (if any).
 AWK variables are dynamic; they come into existence when they are
 first used. Their values are either floating-point numbers or strings,
 or both,
-depending upon how they are used. AWK also has one dimension
-arrays; multiply dimensioned arrays may be simulated.
+depending upon how they are used. AWK also has one dimensional
+arrays; arrays with multiple dimensions may be simulated.
 Several pre-defined variables are set as a program
 runs; these will be described as needed and summarized below.
 .SS Fields
@@ -435,6 +472,7 @@ cause the value of
 .B $0
 to be recomputed, with the fields being separated by the value of
 .BR OFS .
+References to negative numbered fields cause a fatal error.
 .SS Built-in Variables
 .PP
 AWK's built-in variables are:
@@ -482,7 +520,7 @@ If a system error occurs either doing a redirection for
 during a read for
 .BR getline ,
 or during a
-.BR close ,
+.BR close() ,
 then
 .B ERRNO
 will contain
@@ -505,6 +543,11 @@ The name of the current input file.
 If no files are specified on the command line, the value of
 .B FILENAME
 is ``\-''.
+However,
+.B FILENAME
+is undefined inside the
+.B BEGIN
+block.
 .TP
 .B FNR
 The input record number in the current input file.
@@ -644,6 +687,9 @@ loop to iterate over all the elements of an array.
 An element may be deleted from an array using the
 .B delete
 statement.
+The
+.B delete
+statement may also be used to delete the entire contents of an array.
 .SS Variable Typing And Conversion
 .PP
 Variables and fields
@@ -680,7 +726,7 @@ b = a ""
 .PP
 the variable
 .B b
-has a value of \fB"12"\fR and not \fB"12.00"\fR.
+has a string value of \fB"12"\fR and not \fB"12.00"\fR.
 .PP
 .I Gawk
 performs comparisons as follows:
@@ -809,7 +855,8 @@ the third. Only one of the second and third patterns is evaluated.
 .PP
 The 
 .IB pattern1 ", " pattern2
-form of an expression is called a range pattern.
+form of an expression is called a
+.IR "range pattern" .
 It matches all input records starting with a line that matches
 .IR pattern1 ,
 and continuing until a record that matches
@@ -982,6 +1029,7 @@ as follows:
 \fBbreak\fR
 \fBcontinue\fR
 \fBdelete \fIarray\^\fB[\^\fIindex\^\fB]\fR
+\fBdelete \fIarray\^\fR
 \fBexit\fR [ \fIexpression\fR ]
 \fB{ \fIstatements \fB}
 .fi
@@ -1046,10 +1094,20 @@ Prints the current record.
 .TP
 .BI print " expr-list"
 Prints expressions.
+Each expression is separated by the value of the
+.B OFS
+variable. The output record is terminated with the value of the
+.B ORS
+variable.
 .TP
 .BI print " expr-list" " >" file
 Prints expressions on
 .IR file .
+Each expression is separated by the value of the
+.B OFS
+variable. The output record is terminated with the value of the
+.B ORS
+variable.
 .TP
 .BI printf " fmt, expr-list"
 Format and print.
@@ -1078,8 +1136,9 @@ In a similar fashion,
 .IB command " | getline"
 pipes into
 .BR getline .
-.BR Getline
-will return 0 on end of file, and \-1 on an error.
+The
+.BR getline
+command will return 0 on end of file, and \-1 on an error.
 .SS The \fIprintf\fP\^ Statement
 .PP
 The AWK versions of the
@@ -1153,6 +1212,7 @@ The expression should be left-justified within its field.
 The field should be padded to this width. If the number has a leading
 zero, then the field will be padded with zeros.
 Otherwise it is padded with blanks.
+This applies even to the non-numeric output formats.
 .TP
 .BI . prec
 A number indicating the maximum width of strings or digits to the right
@@ -1229,7 +1289,7 @@ is the value of the
 system call.
 If there are any additional fields, they are the group IDs returned by
 .IR getgroups (2).
-(Multiple groups may not be supported on all systems.)
+Multiple groups may not be supported on all systems.
 .TP
 .B /dev/stdin
 The standard input.
@@ -1360,6 +1420,9 @@ and returns the number of fields. If
 is omitted,
 .B FS
 is used instead.
+The array
+.I a
+is cleared first.
 .TP
 .BI sprintf( fmt , " expr-list" )
 prints
@@ -1477,11 +1540,11 @@ the
 As in \*(AN C, all following hexadecimal digits are considered part of
 the escape sequence.
 (This feature should tell us something about language design by committee.)
-E.g., "\ex1B" is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
+E.g., \fB"\ex1B"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
 .TP
 .BI \e ddd
 The character represented by the 1-, 2-, or 3-digit sequence of octal
-digits. E.g. "\e033" is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
+digits. E.g. \fB"\e033"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
 .TP
 .BI \e c
 The literal character
@@ -1562,7 +1625,15 @@ Concatenate and line number (a variation on a theme):
 .ft R
 .fi
 .SH SEE ALSO
-.IR egrep (1)
+.IR egrep (1),
+.IR getpid (2),
+.IR getppid (2),
+.IR getpgrp (2),
+.IR getuid (2),
+.IR geteuid (2),
+.IR getgid (2),
+.IR getegid (2),
+.IR getgroups (2)
 .PP
 .IR "The AWK Programming Language" ,
 Alfred V. Aho, Brian W. Kernighan, Peter J. Weinberger,
@@ -1600,7 +1671,7 @@ block was run.  Applications came to depend on this ``feature.''
 When
 .I awk
 was changed to match its documentation, this option was added to
-accomodate applications that depended upon the old behavior.
+accommodate applications that depended upon the old behavior.
 (This feature was agreed upon by both the AT&T and GNU developers.)
 .PP
 The
@@ -1610,7 +1681,11 @@ option for implementation specific features is from the \*(PX standard.
 When processing arguments,
 .I gawk
 uses the special option ``\fB\-\^\-\fP'' to signal the end of
-arguments, and warns about, but otherwise ignores, undefined options.
+arguments.
+In compatibility mode, it will warn about, but otherwise ignore,
+undefined options.
+In normal operation, such arguments are passed on to the AWK program for
+it to process.
 .PP
 The AWK book does not define the return value of
 .BR srand() .
@@ -1706,6 +1781,11 @@ environment variable is not special.
 The use of
 .B "next file"
 to abandon processing of the current input file.
+.TP
+\(bu
+The use of
+.BI delete " array"
+to delete the entire contents of an array.
 .RE
 .PP
 The AWK book does not define the return value of the
@@ -1733,7 +1813,7 @@ option is ``t'', then
 will be set to the tab character.
 Since this is a rather ugly special case, it is not the default behavior.
 This behavior also does not occur if
-.B \-Wposix
+.B "\-W posix"
 has been specified.
 .ig
 .PP
@@ -1785,7 +1865,7 @@ a = length($0)
 This feature is marked as ``deprecated'' in the \*(PX standard, and
 .I gawk
 will issue a warning about its use if
-.B \-Wlint
+.B "\-W lint"
 is specified on the command line.
 .PP
 The other feature is the use of the
@@ -1801,8 +1881,21 @@ equivalent to the
 statement.
 .I Gawk
 will support this usage if
-.B \-Wposix
+.B "\-W posix"
 has not been specified.
+.SH ENVIRONMENT VARIABLES
+If
+.B POSIXLY_CORRECT
+exists in the environment, then
+.I gawk
+behaves exactly as if
+.B \-\-posix
+had been specified on the command line.
+If
+.B \-\-lint
+has been specified,
+.I gawk
+will issue a warning message to this effect.
 .SH BUGS
 The
 .B \-F
@@ -1844,6 +1937,7 @@ the
 and
 .B \-e
 options of the 2.11 version are no longer recognized.
+This fact will not even be documented in the manual page for version 2.16.
 .SH AUTHORS
 The original version of \*(UX
 .I awk
@@ -1867,6 +1961,8 @@ compatible with the new version of \*(UX
 The initial DOS port was done by Conrad Kwok and Scott Garfinkle.
 Scott Deifik is the current DOS maintainer.  Pat Rankin did the
 port to VMS, and Michal Jaegermann did the port to the Atari ST.
+The port to OS/2 was done by Kai Uwe Rommel, with contributions and
+help from Darrel Hankerson.
 .SH ACKNOWLEDGEMENTS
 Brian Kernighan of Bell Labs
 provided valuable assistance during testing and debugging.

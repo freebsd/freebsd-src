@@ -1,8 +1,7 @@
 README:
 
-This is GNU Awk 2.15. It should be upwardly compatible with the
-System V Release 4 awk.  It is almost completely compliant with draft 11.3
-of POSIX 1003.2.
+This is GNU Awk 2.15. It should be upwardly compatible with the System
+V Release 4 awk.  It is almost completely compliant with POSIX 1003.2.
 
 This release adds new features -- see NEWS for details.
 
@@ -10,7 +9,7 @@ See the installation instructions, below.
 
 Known problems are given in the PROBLEMS file.  Work to be done is
 described briefly in the FUTURES file.  Verified ports are listed in
-the PORTS file.  Changes in this version are summarized in the CHANGES file.
+the PORTS file.  Changes in this version are summarized in the NEWS file.
 Please read the LIMITATIONS and ACKNOWLEDGMENT files.
 
 Read the file POSIX for a discussion of how the standard says comparisons
@@ -27,6 +26,8 @@ The man page is up to date.
 INSTALLATION:
 
 Check whether there is a system-specific README file for your system.
+
+A quick overview of the installation process is in the file INSTALL.
 
 Makefile.in may need some tailoring.  The only changes necessary should
 be to change installation targets or to change compiler flags.
@@ -54,10 +55,12 @@ proceed.
 The next release will use the FSF autoconfig program, so we are no longer 
 soliciting new config files.
 
-If you have an MS-DOS system, use the stuff in the pc directory.
+If you have an MS-DOS or OS/2 system, use the stuff in the pc directory.
 For an Atari there is an atari directory and similarly one for VMS.
 
 Chapter 16 of The GAWK Manual discusses configuration in detail.
+(However, it does not discuss OS/2 configuration, see README.pc for
+the details. The manual is being massively revised for 2.16.)
 
 After successful compilation, do 'make test' to run a small test
 suite.  There should be no output from the 'cmp' invocations except in
@@ -67,7 +70,7 @@ problem.
 
 PRINTING THE MANUAL
 
-The 'support' directory contains texinfo.tex 2.65, which will be necessary
+The 'support' directory contains texinfo.tex 2.115, which will be necessary
 for printing the manual, and the texindex.c program from the texinfo
 distribution which is also necessary.  See the makefile for the steps needed
 to get a DVI file from the manual.
@@ -91,7 +94,7 @@ INTERNET:	david@cs.dal.ca
 
 Arnold Robbins
 1736 Reindeer Drive
-Atlanta, GA, 30329, USA
+Atlanta, GA, 30329-3528, USA
 
 INTERNET:	arnold@skeeve.atl.ga.us
 UUCP:		{ gatech, emory, emoryu1 }!skeeve!arnold
@@ -113,4 +116,10 @@ VMS:
 
 Atari ST:
 	Michal Jaegermann
-	NTOMCZAK@vm.ucs.UAlberta.CA  (e-mail only)
+	michal@gortel.phys.ualberta.ca (e-mail only)
+
+OS/2:
+	Kai Uwe Rommel
+	rommel@ars.muc.de (e-mail only)
+	Darrel Hankerson
+	hankedr@mail.auburn.edu (e-mail only)

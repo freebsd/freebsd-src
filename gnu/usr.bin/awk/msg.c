@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -31,8 +31,8 @@ char *source = NULL;
 /* VARARGS2 */
 void
 err(s, emsg, argp)
-char *s;
-char *emsg;
+const char *s;
+const char *emsg;
 va_list argp;
 {
 	char *file;
@@ -49,9 +49,10 @@ va_list argp;
 	}
 	if (FNR) {
 		file = FILENAME_node->var_value->stptr;
+		(void) putc('(', stderr);
 		if (file)
-			(void) fprintf(stderr, "(FILENAME=%s ", file);
-		(void) fprintf(stderr, "FNR=%d) ", FNR);
+			(void) fprintf(stderr, "FILENAME=%s ", file);
+		(void) fprintf(stderr, "FNR=%ld) ", FNR);
 	}
 	(void) fprintf(stderr, s);
 	vfprintf(stderr, emsg, argp);
