@@ -862,7 +862,7 @@ spec_getpages(ap)
 	cnt.v_vnodepgsin += pcount;
 
 	/* Do the input. */
-	VOP_STRATEGY(bp->b_vp, bp);
+	spec_xstrategy(bp->b_vp, bp);
 
 	s = splbio();
 
