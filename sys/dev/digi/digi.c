@@ -35,6 +35,8 @@
  *	Test with *LOTS* more cards - I only have a PCI8r and an ISA Xem.
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
