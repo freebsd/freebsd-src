@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.24 1998/07/20 13:39:45 bde Exp $
+ *	$Id: diskslice.h,v 1.25 1998/07/29 11:15:54 bde Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -73,6 +73,7 @@ struct diskslices {
 	struct cdevsw *dss_cdevsw;	/* for containing device */
 	int	dss_first_bsd_slice;	/* COMPATIBILITY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
+	u_int	dss_oflags;		/* copy of flags for "first" open */
 	int	dss_secmult;		/* block to sector multiplier */
 	int	dss_secshift;		/* block to sector shift (or -1) */
 	int	dss_secsize;		/* sector size */
@@ -81,6 +82,10 @@ struct diskslices {
 };
 
 #ifdef KERNEL
+
+/* Flags for dsopen(). */
+#define	DSO_NOLABELS	1
+#define	DSO_ONESLICE	2
 
 #define	dsgetbad(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_bad)
 #define	dsgetlabel(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_label)
@@ -102,10 +107,10 @@ int	dsisopen __P((struct diskslices *ssp));
 struct diskslices *dsmakeslicestruct __P((int nslices, struct disklabel *lp));
 char	*dsname __P((char *dname, int unit, int slice, int part,
 		     char *partname));
-int	dsopen __P((char *dname, dev_t dev, int mode, struct diskslices **sspp,
-		    struct disklabel *lp, void (*strat)(struct buf *bp),
-		    ds_setgeom_t *setgeom, struct cdevsw *bdevsw,
-		    struct cdevsw *cdevsw));
+int	dsopen __P((char *dname, dev_t dev, int mode, u_int flags,
+		    struct diskslices **sspp, struct disklabel *lp,
+		    void (*strat)(struct buf *bp), ds_setgeom_t *setgeom,
+		    struct cdevsw *bdevsw, struct cdevsw *cdevsw));
 int	dssize __P((dev_t dev, struct diskslices **sspp,
 		    int (*dopen)(dev_t dev, int oflags, int devtype,
 				  struct proc *p),

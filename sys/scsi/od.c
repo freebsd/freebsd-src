@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.43 1998/07/28 18:59:49 bde Exp $
+ *	$Id: od.c,v 1.44 1998/07/29 11:15:51 bde Exp $
  */
 
 /*
@@ -385,7 +385,7 @@ od_open(dev, mode, fmt, p, sc_link)
 	label.d_secperunit = od->params.disksize;
 
 	/* Initialize slice tables. */
-	errcode = dsopen("od", dev, fmt, &od->dk_slices, &label, odstrategy1,
+	errcode = dsopen("od", dev, fmt, 0, &od->dk_slices, &label, odstrategy1,
 			 (ds_setgeom_t *)NULL, &od_cdevsw, &od_cdevsw);
 	if (errcode != 0)
 		goto bad;
