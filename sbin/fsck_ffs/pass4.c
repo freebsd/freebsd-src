@@ -68,6 +68,11 @@ pass4(void)
 			    cg * 100 / sblock.fs_ncg);
 			got_siginfo = 0;
 		}
+		if (got_sigalarm) {
+			setproctitle("%s p4 %d%%", cdevname,
+			    cg * 100 / sblock.fs_ncg);
+			got_sigalarm = 0;
+		}
 		inumber = cg * sblock.fs_ipg;
 		for (i = 0; i < inostathead[cg].il_numalloced; i++, inumber++) {
 			if (inumber < ROOTINO)
