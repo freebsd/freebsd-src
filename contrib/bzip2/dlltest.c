@@ -19,7 +19,7 @@
 
 #ifdef _WIN32
 
-#define BZ2_LIBNAME "libbz2-1.0.0.DLL" 
+#define BZ2_LIBNAME "libbz2-1.0.2.DLL" 
 
 #include <windows.h>
 static int BZ2DLLLoaded = 0;
@@ -130,8 +130,8 @@ int main(int argc,char *argv[])
          }else{
             fp_w = stdout;
          }
-         if((BZ2fp_r == NULL && (BZ2fp_r = BZ2_bzdopen(fileno(stdin),"rb"))==NULL)
-            || (BZ2fp_r != NULL && (BZ2fp_r = BZ2_bzopen(fn_r,"rb"))==NULL)){
+         if((fn_r == NULL && (BZ2fp_r = BZ2_bzdopen(fileno(stdin),"rb"))==NULL)
+            || (fn_r != NULL && (BZ2fp_r = BZ2_bzopen(fn_r,"rb"))==NULL)){
             printf("can't bz2openstream\n");
             exit(1);
          }
