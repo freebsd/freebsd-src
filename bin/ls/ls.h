@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ls.h	8.1 (Berkeley) 5/31/93
- *	$Id: ls.h,v 1.8 1998/04/21 22:02:00 des Exp $
+ *	$Id: ls.h,v 1.9 1998/04/24 07:49:49 des Exp $
  */
 
 #define NO_PRINT	1
@@ -51,6 +51,7 @@ extern int f_octal_escape;	/* like f_octal but use C escapes if possible */
 extern int f_sectime;		/* print the real time for all files */
 extern int f_size;		/* list size in short listing */
 extern int f_statustime;	/* use time of last mode change */
+extern int f_notabs;		/* don't use tab-separated multi-col output */
 extern int f_type;		/* add type character for non-regular files */
 
 typedef struct {
