@@ -513,6 +513,8 @@ ata_pci_attach(device_t dev)
 	    device_printf(dev, "SiI 0680 could not set clock\n");
 	break;
 
+    case 0x06491095:
+    case 0x06481095:
     case 0x06461095: /* CMD 646 enable interrupts, set DMA read mode */
 	pci_write_config(dev, 0x71, 0x01, 1);
 	break;
