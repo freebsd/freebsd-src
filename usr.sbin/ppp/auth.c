@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.33 1998/08/26 17:39:36 brian Exp $
+ * $Id: auth.c,v 1.34 1998/12/17 00:28:12 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -244,7 +244,8 @@ AuthTimeout(void *vauthp)
   if (--authp->retry > 0) {
     timer_Start(&authp->authtimer);
     (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
-  }
+  } else if (authp->FailedFunc)
+    (*authp->FailedFunc)(authp->physical);
 }
 
 void
@@ -256,9 +257,11 @@ auth_Init(struct authinfo *authinfo)
 
 void
 auth_StartChallenge(struct authinfo *authp, struct physical *physical,
-                   void (*fn)(struct authinfo *, int, struct physical *))
+                   void (*chal)(struct authinfo *, int, struct physical *),
+                   void (*fail)(struct physical *))
 {
-  authp->ChallengeFunc = fn;
+  authp->ChallengeFunc = chal;
+  authp->FailedFunc = fail;
   authp->physical = physical;
   timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
