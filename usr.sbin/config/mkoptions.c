@@ -122,7 +122,7 @@ static void
 do_option(name)
 	char *name;
 {
-	char *file, *inw;
+	char *basefile, *file, *inw;
 	struct opt_list *ol;
 	struct opt *op, *op_head, *topp;
 	FILE *inf, *outf;
@@ -166,6 +166,12 @@ do_option(name)
 		(void) fclose(outf);
 		return;
 	}
+	basefile = "";
+	for (ol = otab; ol != 0; ol = ol->o_next)
+		if (eq(name, ol->o_name)) {
+			basefile = ol->o_file;
+			break;
+		}
 	oldvalue = NULL;
 	op_head = NULL;
 	seen = 0;
@@ -197,6 +203,10 @@ do_option(name)
 		if (!eq(inw, name) && !ol) {
 			printf("WARNING: unknown option `%s' removed from %s\n",
 				inw, file);
+			tidy++;
+		} else if (ol != NULL && !eq(basefile, ol->o_file)) {
+			printf("WARNING: option `%s' moved from %s to %s\n",
+				inw, basefile, ol->o_file);
 			tidy++;
 		} else {
 			op = (struct opt *) malloc(sizeof *op);
