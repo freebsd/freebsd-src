@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: server.c,v 1.6 1997/10/26 01:03:39 brian Exp $
  */
 
 #include <sys/param.h>
@@ -23,6 +23,7 @@
 #include "vars.h"
 #include "server.h"
 #include "log.h"
+#include "id.h"
 #include "defs.h"
 
 int server = -2;
@@ -54,7 +55,7 @@ ServerLocalOpen(const char *name, mode_t mask)
   ifsun.sun_family = AF_LOCAL;
   strcpy(ifsun.sun_path, name);
 
-  s = socket(PF_LOCAL, SOCK_STREAM, 0);
+  s = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "Local: socket: %s\n", strerror(errno));
     return 3;
@@ -67,14 +68,14 @@ ServerLocalOpen(const char *name, mode_t mask)
     if (errno == EADDRINUSE && VarTerm)
       fprintf(VarTerm, "Wait for a while, then try again.\n");
     close(s);
-    unlink(name);
+    ID0unlink(name);
     return 4;
   }
   umask(mask);
   if (listen(s, 5) != 0) {
     LogPrintf(LogERROR, "Local: Unable to listen to socket - OS overload?\n");
     close(s);
-    unlink(name);
+    ID0unlink(name);
     return 5;
   }
   ServerClose();
@@ -101,7 +102,7 @@ ServerTcpOpen(int port)
     return 6;
   }
 
-  s = socket(PF_INET, SOCK_STREAM, 0);
+  s = ID0socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
     return 7;
@@ -134,7 +135,7 @@ ServerClose()
   if (server >= 0) {
     close(server);
     if (rm) {
-      unlink(rm);
+      ID0unlink(rm);
       rm = 0;
     }
   }

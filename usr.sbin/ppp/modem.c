@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.61 1997/10/29 01:19:44 brian Exp $
+ * $Id: modem.c,v 1.62 1997/11/08 00:28:09 brian Exp $
  *
  *  TODO:
  */
@@ -38,16 +38,12 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
-#ifdef __OpenBSD__
-#include <util.h>
-#else
-#include <libutil.h>
-#endif
 #include <utmp.h>
 
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
+#include "id.h"
 #include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
@@ -59,6 +55,11 @@
 #include "vars.h"
 #include "main.h"
 #include "chat.h"
+#ifdef __OpenBSD__
+#include <util.h>
+#else
+#include <libutil.h>
+#endif
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -440,7 +441,7 @@ LockModem()
   if (*VarDevice != '/')
     return 0;
 
-  if (!(mode & MODE_DIRECT) && (res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
+  if (!(mode & MODE_DIRECT) && (res = ID0uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
     if (res == UU_LOCK_INUSE)
       LogPrintf(LogPHASE, "Modem %s is in use\n", VarDevice);
     else
@@ -450,9 +451,8 @@ LockModem()
   }
 
   snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
-  (void) unlink(fn);
-
-  if ((lockfile = fopen(fn, "w")) != NULL) {
+  lockfile = ID0fopen(fn, "w");
+  if (lockfile != NULL) {
     fprintf(lockfile, "tun%d\n", tunno);
     fclose(lockfile);
   } else
@@ -468,10 +468,10 @@ UnlockModem()
     return;
 
   snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, VarBaseDevice);
-  if (unlink(fn) == -1)
+  if (ID0unlink(fn) == -1)
     LogPrintf(LogALERT, "Warning: Can't remove %s: %s\n", fn, strerror(errno));
 
-  if (!(mode & MODE_DIRECT) && uu_unlock(VarBaseDevice) == -1)
+  if (!(mode & MODE_DIRECT) && ID0uu_unlock(VarBaseDevice) == -1)
     LogPrintf(LogALERT, "Warning: Can't uu_unlock %s\n", fn);
 }
 
@@ -517,7 +517,7 @@ OpenModem()
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if (LockModem() == -1)
         return (-1);
-      modem = open(VarDevice, O_RDWR | O_NONBLOCK);
+      modem = ID0open(VarDevice, O_RDWR | O_NONBLOCK);
       if (modem < 0) {
 	LogPrintf(LogERROR, "OpenModem failed: %s: %s\n", VarDevice,
 		  strerror(errno));

@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: loadalias.c,v 1.8 1997/10/26 01:03:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -16,6 +16,7 @@
 #include "systems.h"
 #include "mbuf.h"
 #include "log.h"
+#include "id.h"
 #include "loadalias.h"
 #include "vars.h"
 
@@ -53,7 +54,7 @@ loadAliasHandlers(struct aliasHandlers * h)
   path = _PATH_ALIAS;
   env = getenv("_PATH_ALIAS");
   if (env)
-    if (OrigUid() == 0)
+    if (ID0realuid() == 0)
       path = env;
     else
       LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)\n", env);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.90 1997/11/04 01:16:59 brian Exp $
+ * $Id: command.c,v 1.91 1997/11/08 00:28:06 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -273,19 +273,8 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
       (void) close(i);
 
-    /*
-     * We are running setuid, we should change to real user for avoiding
-     * security problems.
-     */
-    if (setgid(getgid()) < 0) {
-      LogPrintf(LogERROR, "setgid: %s\n", strerror(errno));
-      exit(1);
-    }
-    if (setuid(getuid()) < 0) {
-      LogPrintf(LogERROR, "setuid: %s\n", strerror(errno));
-      exit(1);
-    }
     TtyOldMode();
+    setuid(geteuid());
     if (argc > 0) {
       /* substitute pseudo args */
       for (i = 1; i < argc; i++)
