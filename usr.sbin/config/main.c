@@ -67,7 +67,7 @@ static const char rcsid[] =
 #define FALSE	(0)
 #endif
 
-#define	CDIR	"../../compile/"
+#define	CDIR	"../compile/"
 
 char *	PREFIX;
 char 	destdir[MAXPATHLEN];
@@ -158,8 +158,7 @@ main(int argc, char **argv)
 	{
 	char xxx[MAXPATHLEN];
 	if (*srcdir == '\0')
-		(void)snprintf(xxx, sizeof(xxx), "../../%s/include",
-		    machinename);
+		(void)snprintf(xxx, sizeof(xxx), "../../include");
 	else
 		(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
 		    srcdir, machinename);
