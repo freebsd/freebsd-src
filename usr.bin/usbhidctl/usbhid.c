@@ -47,7 +47,7 @@
 #include <err.h>
 #include <ctype.h>
 #include <errno.h>
-#include <libusb.h>
+#include <libusbhid.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
