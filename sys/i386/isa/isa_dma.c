@@ -61,22 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 
-/*
-**  Register definitions for DMA controller 1 (channels 0..3):
-*/
-#define	DMA1_CHN(c)	(IO_DMA1 + 1*(2*(c)))	/* addr reg for channel c */
-#define	DMA1_SMSK	(IO_DMA1 + 1*10)	/* single mask register */
-#define	DMA1_MODE	(IO_DMA1 + 1*11)	/* mode register */
-#define	DMA1_FFC	(IO_DMA1 + 1*12)	/* clear first/last FF */
-
-/*
-**  Register definitions for DMA controller 2 (channels 4..7):
-*/
-#define	DMA2_CHN(c)	(IO_DMA2 + 2*(2*(c)))	/* addr reg for channel c */
-#define	DMA2_SMSK	(IO_DMA2 + 2*10)	/* single mask register */
-#define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
-#define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
-
 static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 
 static caddr_t	dma_bouncebuf[8];
@@ -485,6 +469,19 @@ isa_dmastatus(int chan)
 	if (chan >= 4)			/* high channels move words */
 		cnt *= 2;
 	return(cnt);
+}
+
+/*
+ * Reached terminal count yet ?
+ */
+int
+isa_dmatc(int chan)
+{
+
+	if (chan < 4)
+		return(inb(DMA1_STATUS) & (1 << chan));
+	else
+		return(inb(DMA2_STATUS) & (1 << (chan & 3)));
 }
 
 /*
