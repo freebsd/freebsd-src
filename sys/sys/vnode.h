@@ -550,6 +550,7 @@ int	cache_lookup __P((struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp));
 void	cache_purge __P((struct vnode *vp));
 void	cache_purgevfs __P((struct mount *mp));
+int	cache_leaf_test __P((struct vnode *vp));
 void	cvtstat __P((struct stat *st, struct ostat *ost));
 void	cvtnstat __P((struct stat *sb, struct nstat *nsb));
 int 	getnewvnode __P((enum vtagtype tag,
