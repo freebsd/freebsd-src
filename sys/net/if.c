@@ -451,7 +451,7 @@ if_attach(struct ifnet *ifp)
 	ifp->if_snd.altq_tbr  = NULL;
 	ifp->if_snd.altq_ifp  = ifp;
 
-	if (domains)
+	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
@@ -471,7 +471,7 @@ if_attachdomain(void *dummy)
 		if_attachdomain1(ifp);
 	splx(s);
 }
-SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
+SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_SECOND,
     if_attachdomain, NULL);
 
 static void
@@ -490,14 +490,14 @@ if_attachdomain1(struct ifnet *ifp)
 		splx(s);
 		return;
 	}
-	if (ifp->if_afdata_initialized) {
+	if (ifp->if_afdata_initialized >= domain_init_status) {
 		IF_AFDATA_UNLOCK(ifp);
 		splx(s);
 		printf("if_attachdomain called more than once on %s\n",
 		    ifp->if_xname);
 		return;
 	}
-	ifp->if_afdata_initialized = 1;
+	ifp->if_afdata_initialized = domain_init_status;
 	IF_AFDATA_UNLOCK(ifp);
 
 	/* address family dependent data region */
