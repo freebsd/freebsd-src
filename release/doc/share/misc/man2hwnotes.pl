@@ -131,6 +131,9 @@ sub normalize (@) {
     foreach my $l (@lines) {
         $l =~ s/\\&//g;
         $l =~ s:([\x21-\x2f\x5b-\x60\x7b-\x7f]):sprintf("&\#\%d;", ord($1)):eg;
+        # Make sure ampersand is encoded as &amp; since jade seems to
+        # be confused when it is encoded as &#38; inside an entity.
+        $l =~ s/&#38;/&amp;/g;
     }
     return (wantarray) ? @lines : join "", @lines;
 }
