@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.19 1998/07/13 06:45:13 bde Exp $
+ * $Id: cdefs.h,v 1.20 1998/07/25 14:37:37 dfr Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -106,48 +106,43 @@
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*
- * GCC1 and some versions of GCC2 declare dead (non-returning) and
- * pure (no side effects) functions using "volatile" and "const";
- * unfortunately, these then cause warnings under "-ansi -pedantic".
- * GCC2.5 uses a new, peculiar __attribute__((attrs)) style.  All of
- * these work for GNU C++ (modulo a slight glitch in the C++ grammar
- * in the distribution version of 2.5.5).
+ * Compiler-dependent macros to help declare dead (non-returning) and
+ * pure (no side effects) functions, and unused variables.  They are
+ * null except for versions of gcc that are known to support the features
+ * properly (old versions of gcc-2 supported the dead and pure features
+ * in a different (wrong) way).
  */
-#if __GNUC__ < 2
-#define __dead
+#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
 #define __dead2
-#define __pure
-#define __pure2
-#define __unused
-#endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ < 5
-#define	__dead		__volatile
-#define __dead2
-#define	__pure		__const
 #define __pure2
 #define __unused
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
-#define __dead
 #define __dead2		__attribute__((__noreturn__))
-#define __pure
 #define __pure2		__attribute__((__const__))
 #define __unused
 #endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3
-#define __dead
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7
 #define __dead2		__attribute__((__noreturn__))
-#define __pure
 #define __pure2		__attribute__((__const__))
 #define __unused	__attribute__((__unused__))
 #endif
 
+/*
+ * Compiler-dependent macros to declare that functions take printf-like
+ * or scanf-like arguments.  They are null except for versions of gcc
+ * that are known to support the features properly (old versions of gcc-2
+ * didn't permit keeping the keywords out of the application namespace).
+ */
 #if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 7
 #define	__printflike(fmtarg, firstvararg)
+#define	__printf0like(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#define	__printf0like(fmtarg, firstvararg) \
+	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
 #endif
