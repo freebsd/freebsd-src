@@ -1,10 +1,9 @@
-/* ntp_request.c,v 3.1 1993/07/06 01:11:26 jbj Exp
+/*
  * ntp_request.c - respond to information requests
  */
 #include <sys/types.h>
 #include <stdio.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
 
 #include "ntpd.h"
@@ -17,7 +16,12 @@
 #include "ntp_stdlib.h"
 
 #ifdef KERNEL_PLL
+#ifdef HAVE_SYS_TIMEX_H
 #include <sys/timex.h>
+#else
+#include "sys/timex.h"
+#endif
+
 #ifndef NTP_SYSCALLS_LIBC
 #define ntp_gettime(t)	syscall(SYS_ntp_gettime, (t))
 #define ntp_adjtime(t)	syscall(SYS_ntp_adjtime, (t))
@@ -64,7 +68,7 @@ static	void	do_conf		P((struct sockaddr_in *, struct interface *, struct req_pkt
 static	void	do_unconf	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	set_sys_flag	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	clr_sys_flag	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
-static	void	setclr_flags	P((struct sockaddr_in *, struct interface *, struct req_pkt *, U_LONG));
+static	void	setclr_flags	P((struct sockaddr_in *, struct interface *, struct req_pkt *, u_long));
 static	void	do_monitor	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_nomonitor	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	list_restrict	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
@@ -72,7 +76,8 @@ static	void	do_resaddflags	P((struct sockaddr_in *, struct interface *, struct r
 static	void	do_ressubflags	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_unrestrict	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_restrict	P((struct sockaddr_in *, struct interface *, struct req_pkt *, int));
-static	void	mon_getlist	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
+static	void	mon_getlist_0	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
+static	void	mon_getlist_1	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	reset_stats	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	reset_peer	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
 static	void	do_key_reread	P((struct sockaddr_in *, struct interface *, struct req_pkt *));
@@ -127,23 +132,24 @@ static	struct req_proc xntp_codes[] = {
 	{ REQ_RESADDFLAGS, AUTH, sizeof(struct conf_restrict), do_resaddflags },
 	{ REQ_RESSUBFLAGS, AUTH, sizeof(struct conf_restrict), do_ressubflags },
 	{ REQ_UNRESTRICT,  AUTH, sizeof(struct conf_restrict), do_unrestrict },
-	{ REQ_MON_GETLIST,	NOAUTH,	0,	mon_getlist },
+	{ REQ_MON_GETLIST,	NOAUTH,	0,	mon_getlist_0 },
+	{ REQ_MON_GETLIST_1,	NOAUTH,	0,	mon_getlist_1 },
 	{ REQ_RESET_STATS, AUTH, sizeof(struct reset_flags), reset_stats },
 	{ REQ_RESET_PEER,  AUTH, sizeof(struct conf_unpeer), reset_peer },
 	{ REQ_REREAD_KEYS,	AUTH,	0,	do_key_reread },
 	{ REQ_DO_DIRTY_HACK,	AUTH,	0,	do_dirty_hack },
 	{ REQ_DONT_DIRTY_HACK,	AUTH,	0,	dont_dirty_hack },
-	{ REQ_TRUSTKEY,    AUTH, sizeof(U_LONG),	trust_key },
-	{ REQ_UNTRUSTKEY,  AUTH, sizeof(U_LONG),	untrust_key },
+	{ REQ_TRUSTKEY,    AUTH, sizeof(u_long),	trust_key },
+	{ REQ_UNTRUSTKEY,  AUTH, sizeof(u_long),	untrust_key },
 	{ REQ_AUTHINFO,		NOAUTH,	0,	get_auth_info },
 	{ REQ_TRAPS,		NOAUTH, 0,	req_get_traps },
 	{ REQ_ADD_TRAP,	   AUTH, sizeof(struct conf_trap), req_set_trap },
 	{ REQ_CLR_TRAP,	   AUTH, sizeof(struct conf_trap), req_clr_trap },
-	{ REQ_REQUEST_KEY, AUTH, sizeof(U_LONG),	set_request_keyid },
-	{ REQ_CONTROL_KEY, AUTH, sizeof(U_LONG),	set_control_keyid },
+	{ REQ_REQUEST_KEY, AUTH, sizeof(u_long),	set_request_keyid },
+	{ REQ_CONTROL_KEY, AUTH, sizeof(u_long),	set_control_keyid },
 	{ REQ_GET_CTLSTATS,	NOAUTH,	0,	get_ctl_stats },
 	{ REQ_GET_LEAPINFO,	NOAUTH,	0,	get_leap_info },
-	{ REQ_SET_PRECISION, AUTH, sizeof(LONG),	set_precision },
+	{ REQ_SET_PRECISION, AUTH, sizeof(long),	set_precision },
 #ifdef KERNEL_PLL
 	{ REQ_GET_KERNEL,	NOAUTH,	0,	get_kernel_info },
 #endif /* KERNEL_PLL */
@@ -160,16 +166,16 @@ static	struct req_proc xntp_codes[] = {
  * Authentication keyid used to authenticate requests.  Zero means we
  * don't allow writing anything.
  */
-U_LONG info_auth_keyid;
+u_long info_auth_keyid;
 
 
 /*
  * Statistic counters to keep track of requests and responses.
  */
-U_LONG numrequests;		/* number of requests we've received */
-U_LONG numresppkts;		/* number of resp packets sent with data */
+u_long numrequests;		/* number of requests we've received */
+u_long numresppkts;		/* number of resp packets sent with data */
 
-U_LONG errorcounter[INFO_ERR_AUTH+1];	/* lazy way to count errors, indexed */
+u_long errorcounter[INFO_ERR_AUTH+1];	/* lazy way to count errors, indexed */
 					/* by the error code */
 
 #if defined(KERNEL_PLL) && !defined(NTP_SYSCALLS_LIBC)
@@ -189,18 +195,33 @@ extern int debug;
 /*
  * Imported from the timer module
  */
-extern U_LONG current_time;
+extern u_long current_time;
 
 /*
  * Imported from ntp_loopfilter.c
  */
 extern int pll_control;
+extern int pll_enable;
+extern int pps_control;
+
+/*
+ * Imported from ntp_monitor.c
+ */
+extern int mon_enabled;
+
+/*
+ * Imported from ntp_util.c
+ */
+extern int stats_control;
+
+extern struct peer *peer_hash[];
+extern struct peer *sys_peer;
 
 /*
  * A hack.  To keep the authentication module clear of xntp-ism's, we
  * include a time reset variable for its stats here.
  */
-static U_LONG auth_timereset;
+static u_long auth_timereset;
 
 /*
  * Response packet used by these routines.  Also some state information
@@ -260,7 +281,7 @@ req_ack(srcadr, inter, inpkt, errcode)
 	/*
 	 * send packet and bump counters
 	 */
-	sendpkt(srcadr, inter, (struct pkt *)&rpkt, RESP_HEADER_SIZE);
+	sendpkt(srcadr, inter, -1, (struct pkt *)&rpkt, RESP_HEADER_SIZE);
 	errorcounter[errcode]++;
 }
 
@@ -324,7 +345,7 @@ more_pkt()
 		rpkt.rm_vn_mode = RM_VN_MODE(RESP_BIT, MORE_BIT);
 		rpkt.auth_seq = AUTH_SEQ(0, seqno);
 		rpkt.err_nitems = htons((u_short)nitems);
-		sendpkt(toaddr, frominter, (struct pkt *)&rpkt,
+		sendpkt(toaddr, frominter, -1, (struct pkt *)&rpkt,
 		    RESP_HEADER_SIZE+databytes);
 		numresppkts++;
 
@@ -390,7 +411,7 @@ flush_pkt()
 		rpkt.rm_vn_mode = RM_VN_MODE(RESP_BIT, 0);
 		rpkt.auth_seq = AUTH_SEQ(0, seqno);
 		rpkt.err_nitems = htons((u_short)nitems);
-		sendpkt(toaddr, frominter, (struct pkt *)&rpkt,
+		sendpkt(toaddr, frominter, -1, (struct pkt *)&rpkt,
 		    RESP_HEADER_SIZE+databytes);
 		numresppkts++;
 	}
@@ -483,20 +504,18 @@ process_private(rbufp, mod_okay)
 	 * time stamp.
 	 */
 	if (proc->needs_auth) {
-		register U_LONG tmp_ui;
-		register U_LONG tmp_uf;
+		l_fp ftmp;
 		
 		/*
 		 * If this guy is restricted from doing this, don't let him
 		 * If wrong key was used, or packet doesn't have mac, return.
 		 */
-		if (!INFO_IS_AUTH(inpkt->auth_seq)
-		    || info_auth_keyid == 0
+		if (!INFO_IS_AUTH(inpkt->auth_seq) || info_auth_keyid == 0
 		    || ntohl(inpkt->keyid) != info_auth_keyid) {
 #ifdef DEBUG
 			if (debug > 4)
 				printf(
-			"failed auth %d info_auth_keyid %u pkt keyid %u\n",
+			"failed auth %d info_auth_keyid %lu pkt keyid %u\n",
 				    INFO_IS_AUTH(inpkt->auth_seq),
 				    info_auth_keyid, ntohl(inpkt->keyid));
 #endif
@@ -506,8 +525,8 @@ process_private(rbufp, mod_okay)
 		if (rbufp->recv_length > REQ_LEN_MAC) {
 #ifdef DEBUG
 			if (debug > 4)
-			    printf("failed pkt length pkt %d req %d too long\n",
-				    rbufp->recv_length, REQ_LEN_MAC);
+			    printf("bad pkt length %d\n",
+				    rbufp->recv_length);
 #endif
 			req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 			return;
@@ -525,15 +544,12 @@ process_private(rbufp, mod_okay)
 		 * calculate absolute time difference between xmit time stamp
 		 * and receive time stamp.  If too large, too bad.
 		 */
-		tmp_ui = ntohl(inpkt->tstamp.l_ui);
-		tmp_uf = ntohl(inpkt->tstamp.l_uf);
-		M_SUB(tmp_ui, tmp_uf, rbufp->recv_time.l_ui,
-		    rbufp->recv_time.l_uf);
-		if (M_ISNEG(tmp_ui, tmp_uf))
-			M_NEG(tmp_ui, tmp_uf);
+		NTOHL_FP(&inpkt->tstamp, &ftmp);
+		L_SUB(&ftmp, &rbufp->recv_time);
+		if (L_ISNEG(&ftmp))
+			L_NEG(&ftmp);
 		
-		if (M_ISHIS(tmp_ui, tmp_uf,
-		    INFO_TS_MAXSKEW_UI, INFO_TS_MAXSKEW_UF)) {
+		if (ftmp.l_ui >= INFO_TS_MAXSKEW_UI) {
 			/*
 			 * He's a loser.  Tell him.
 			 */
@@ -590,8 +606,6 @@ peer_list(srcadr, inter, inpkt)
 	register struct info_peer_list *ip;
 	register struct peer *pp;
 	register int i;
-	extern struct peer *peer_hash[];
-	extern struct peer *sys_peer;
 
 	ip = (struct info_peer_list *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_peer_list));
@@ -630,8 +644,6 @@ peer_list_sum(srcadr, inter, inpkt)
 	register struct info_peer_summary *ips;
 	register struct peer *pp;
 	register int i;
-	extern struct peer *peer_hash[];
-	extern struct peer *sys_peer;
 
 #ifdef DEBUG
 	if (debug > 2)
@@ -647,10 +659,14 @@ peer_list_sum(srcadr, inter, inpkt)
 			if (debug > 3)
 				printf("sum: got one\n");
 #endif
-			if (pp->dstadr == any_interface)
-				ips->dstadr = 0;
-			else
-				ips->dstadr = pp->dstadr->sin.sin_addr.s_addr;
+			ips->dstadr = (pp->processed) ?
+				pp->cast_flags == MDF_BCAST ?
+					pp->dstadr->bcast.sin_addr.s_addr:
+				pp->cast_flags ?
+				pp->dstadr->sin.sin_addr.s_addr ?
+					pp->dstadr->sin.sin_addr.s_addr:
+					pp->dstadr->bcast.sin_addr.s_addr:
+					1 : 5;
 			ips->srcadr = pp->srcadr.sin_addr.s_addr;
 			ips->srcport = pp->srcadr.sin_port;
 			ips->stratum = pp->stratum;
@@ -714,7 +730,14 @@ peer_info (srcadr, inter, inpkt)
 		ipl++;
 		if ((pp = findexistingpeer(&addr, (struct peer *)0)) == 0)
 			continue;
-		ip->dstadr = NSRCADR(&pp->dstadr->sin);
+		ip->dstadr = (pp->processed) ?
+			pp->cast_flags == MDF_BCAST ?
+				pp->dstadr->bcast.sin_addr.s_addr:
+			pp->cast_flags ?
+			pp->dstadr->sin.sin_addr.s_addr ?
+				pp->dstadr->sin.sin_addr.s_addr:
+				pp->dstadr->bcast.sin_addr.s_addr:
+				2 : 6;
 		ip->srcadr = NSRCADR(&pp->srcadr);
 		ip->srcport = NSRCPORT(&pp->srcadr);
 		ip->flags = 0;
@@ -745,7 +768,7 @@ peer_info (srcadr, inter, inpkt)
 		ip->reach = pp->reach;
 		ip->unreach = pp->unreach;
 		ip->flash = pp->flash;
-		ip->estbdelay = htonl(pp->estbdelay);
+		ip->estbdelay = HTONS_FP(pp->estbdelay);
 		ip->ttl = pp->ttl;
 		ip->associd = htons(pp->associd);
 		ip->rootdelay = HTONS_FP(pp->rootdelay);
@@ -805,7 +828,14 @@ peer_stats (srcadr, inter, inpkt)
 		ipl++;
 		if ((pp = findexistingpeer(&addr, (struct peer *)0)) == 0)
 			continue;
-		ip->dstadr = NSRCADR(&pp->dstadr->sin);
+		ip->dstadr = (pp->processed) ?
+			pp->cast_flags == MDF_BCAST ?
+				pp->dstadr->bcast.sin_addr.s_addr:
+			pp->cast_flags ?
+			pp->dstadr->sin.sin_addr.s_addr ?
+				pp->dstadr->sin.sin_addr.s_addr:
+				pp->dstadr->bcast.sin_addr.s_addr:
+				3 : 7;
 		ip->srcadr = NSRCADR(&pp->srcadr);
 		ip->srcport = NSRCPORT(&pp->srcadr);
 		ip->flags = 0;
@@ -828,21 +858,13 @@ peer_stats (srcadr, inter, inpkt)
 		    = htonl(pp->event_timer.event_time - current_time);
 		ip->timereachable = htonl(current_time - pp->timereachable);
 		ip->sent = htonl(pp->sent);
-		ip->received = htonl(pp->received);
 		ip->processed = htonl(pp->processed);
-		ip->badlength = 0;
 		ip->badauth = htonl(pp->badauth);
 		ip->bogusorg = htonl(pp->bogusorg);
 		ip->oldpkt = htonl(pp->oldpkt);
-		ip->baddelay = 0;
-		ip->seldelay = 0;
 		ip->seldisp = htonl(pp->seldisptoolarge);
 		ip->selbroken = htonl(pp->selbroken);
-		ip->selold = htonl(pp->seltooold);
 		ip->candidate = pp->candidate;
-		ip->falseticker = 0;
-		ip->select = pp->select;
-		ip->select_total = 0;
 		ip = (struct info_peer_stats *)more_pkt();
 	}
 	flush_pkt();
@@ -868,14 +890,16 @@ sys_info(srcadr, inter, inpkt)
 	extern s_char sys_precision;
 	extern s_fp sys_rootdelay;
 	extern u_fp sys_rootdispersion;
-	extern U_LONG sys_refid;
+	extern u_long sys_refid;
 	extern l_fp sys_reftime;
 	extern u_char sys_poll;
 	extern struct peer *sys_peer;
 	extern int sys_bclient;
-	extern U_LONG sys_bdelay;
+	extern s_fp sys_bdelay;
 	extern int sys_authenticate;
-	extern U_LONG sys_authdelay;
+	extern u_long sys_authdelay;
+	extern u_fp clock_stability;
+	extern s_fp clock_frequency;
 
 	is = (struct info_sys *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_sys));
@@ -892,6 +916,8 @@ sys_info(srcadr, inter, inpkt)
 	is->precision = sys_precision;
 	is->rootdelay = htonl(sys_rootdelay);
 	is->rootdispersion = htonl(sys_rootdispersion);
+	is->frequency = htonl(clock_frequency);
+	is->stability = htonl(clock_stability);
 	is->refid = sys_refid;
 	HTONL_FP(&sys_reftime, &is->reftime);
 
@@ -901,9 +927,20 @@ sys_info(srcadr, inter, inpkt)
 	if (sys_bclient)
 		is->flags |= INFO_FLAG_BCLIENT;
 	if (sys_authenticate)
-		is->flags |= INFO_FLAG_AUTHENABLE;
-	HTONL_UF(sys_bdelay, &is->bdelay);
+		is->flags |= INFO_FLAG_AUTHENTICATE;
+	if (pll_enable)
+		is->flags |= INFO_FLAG_PLL;
+	if (pll_control)
+		is->flags |= INFO_FLAG_PLL_SYNC;
+	if (pps_control)
+		is->flags |= INFO_FLAG_PPS_SYNC;
+	if (mon_enabled != MON_OFF)
+		is->flags |= INFO_FLAG_MONITOR;
+	if (stats_control)
+		is->flags |= INFO_FLAG_FILEGEN;
+	is->bdelay = HTONS_FP(sys_bdelay);
 	HTONL_UF(sys_authdelay, &is->authdelay);
+
 	(void) more_pkt();
 	flush_pkt();
 }
@@ -923,15 +960,15 @@ sys_stats(srcadr, inter, inpkt)
 	/*
 	 * Importations from the protocol module
 	 */
-	extern U_LONG sys_stattime;
-	extern U_LONG sys_badstratum;
-	extern U_LONG sys_oldversionpkt;
-	extern U_LONG sys_newversionpkt;
-	extern U_LONG sys_unknownversion;
-	extern U_LONG sys_badlength;
-	extern U_LONG sys_processed;
-	extern U_LONG sys_badauth;
-	extern U_LONG sys_limitrejected;
+	extern u_long sys_stattime;
+	extern u_long sys_badstratum;
+	extern u_long sys_oldversionpkt;
+	extern u_long sys_newversionpkt;
+	extern u_long sys_unknownversion;
+	extern u_long sys_badlength;
+	extern u_long sys_processed;
+	extern u_long sys_badauth;
+	extern u_long sys_limitrejected;
 
 	ss = (struct info_sys_stats *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_sys_stats));
@@ -968,10 +1005,10 @@ mem_stats(srcadr, inter, inpkt)
 	 */
 	extern int peer_hash_count[HASH_SIZE];
 	extern int peer_free_count;
-	extern U_LONG peer_timereset;
-	extern U_LONG findpeer_calls;
-	extern U_LONG peer_allocations;
-	extern U_LONG peer_demobilizations;
+	extern u_long peer_timereset;
+	extern u_long findpeer_calls;
+	extern u_long peer_allocations;
+	extern u_long peer_demobilizations;
 	extern int total_peer_structs;
 
 	ms = (struct info_mem_stats *)prepare_pkt(srcadr, inter, inpkt,
@@ -1010,18 +1047,18 @@ io_stats(srcadr, inter, inpkt)
 	/*
 	 * Importations from the io module
 	 */
-	extern U_LONG io_timereset;
-	extern U_LONG full_recvbufs;
-	extern U_LONG free_recvbufs;
-	extern U_LONG total_recvbufs;
-	extern U_LONG lowater_additions;
-	extern U_LONG packets_dropped;
-	extern U_LONG packets_ignored;
-	extern U_LONG packets_received;
-	extern U_LONG packets_sent;
-	extern U_LONG packets_notsent;
-	extern U_LONG handler_calls;
-	extern U_LONG handler_pkts;
+	extern u_long io_timereset;
+	extern u_long full_recvbufs;
+	extern u_long free_recvbufs;
+	extern u_long total_recvbufs;
+	extern u_long lowater_additions;
+	extern u_long packets_dropped;
+	extern u_long packets_ignored;
+	extern u_long packets_received;
+	extern u_long packets_sent;
+	extern u_long packets_notsent;
+	extern u_long handler_calls;
+	extern u_long handler_pkts;
 
 	io = (struct info_io_stats *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_io_stats));
@@ -1058,10 +1095,10 @@ timer_stats(srcadr, inter, inpkt)
 	/*
 	 * Importations from the timer module
 	 */
-	extern U_LONG alarm_overflow;
-	extern U_LONG timer_timereset;
-	extern U_LONG timer_overflows;
-	extern U_LONG timer_xmtcalls;
+	extern u_long alarm_overflow;
+	extern u_long timer_timereset;
+	extern u_long timer_overflows;
+	extern u_long timer_xmtcalls;
 
 	ts = (struct info_timer_stats *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_timer_stats));
@@ -1093,8 +1130,8 @@ loop_info(srcadr, inter, inpkt)
 	 */
 	extern l_fp last_offset;
 	extern s_fp drift_comp;
-	extern int time_constant;
-	extern U_LONG watchdog_timer;
+	extern int tc_counter;
+	extern u_long last_time;
 
 	li = (struct info_loop *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_loop));
@@ -1102,8 +1139,8 @@ loop_info(srcadr, inter, inpkt)
 	HTONL_FP(&last_offset, &li->last_offset);
 	FPTOLFP(drift_comp, &tmp);
 	HTONL_FP(&tmp, &li->drift_comp);
-	li->compliance = htonl(time_constant);
-	li->watchdog_timer = htonl(watchdog_timer);
+	li->compliance = htonl(tc_counter);
+	li->watchdog_timer = htonl(current_time - last_time);
 
 	(void) more_pkt();
 	flush_pkt();
@@ -1141,7 +1178,7 @@ do_conf(srcadr, inter, inpkt)
 		    && cp->hmode != MODE_CLIENT
 		    && cp->hmode != MODE_BROADCAST)
 			fl = 1;
-		if (cp->flags & ~(CONF_FLAG_AUTHENABLE|CONF_FLAG_PREFER))
+		if (cp->flags & ~(CONF_FLAG_AUTHENABLE | CONF_FLAG_PREFER))
 			fl = 1;
 		cp++;
 	}
@@ -1267,7 +1304,7 @@ set_sys_flag(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	setclr_flags(srcadr, inter, inpkt, (U_LONG)1);
+	setclr_flags(srcadr, inter, inpkt, 1);
 }
 
 
@@ -1280,7 +1317,7 @@ clr_sys_flag(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	setclr_flags(srcadr, inter, inpkt, (U_LONG)0);
+	setclr_flags(srcadr, inter, inpkt, 0);
 }
 
 
@@ -1292,9 +1329,9 @@ setclr_flags(srcadr, inter, inpkt, set)
 	struct sockaddr_in *srcadr;
 	struct interface *inter;
 	struct req_pkt *inpkt;
-	U_LONG set;
+	u_long set;
 {
-	register U_LONG flags;
+	register u_long flags;
 
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
@@ -1303,21 +1340,23 @@ setclr_flags(srcadr, inter, inpkt, set)
 
 	flags = ((struct conf_sys_flags *)inpkt->data)->flags;
 
-	if (flags
-	    & ~(SYS_FLAG_BCLIENT | SYS_FLAG_MCLIENT | SYS_FLAG_AUTHENTICATE)) {
+	if (flags & ~(SYS_FLAG_BCLIENT | SYS_FLAG_AUTHENTICATE |
+	    SYS_FLAG_PLL | SYS_FLAG_MONITOR |
+	    SYS_FLAG_FILEGEN)) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_FMT);
 		return;
 	}
 
 	if (flags & SYS_FLAG_BCLIENT)
 		proto_config(PROTO_BROADCLIENT, set);
-	if (flags & SYS_FLAG_MCLIENT)
-		if (set)
-			proto_config(PROTO_MULTICAST_ADD, INADDR_NTP);
-		else
-			proto_config(PROTO_MULTICAST_DEL, INADDR_NTP);
 	if (flags & SYS_FLAG_AUTHENTICATE)
 		proto_config(PROTO_AUTHENTICATE, set);
+	if (flags & SYS_FLAG_PLL)
+		proto_config(PROTO_PLL, set);
+	if (flags & SYS_FLAG_MONITOR)
+		proto_config(PROTO_MONITOR, set);
+	if (flags & SYS_FLAG_FILEGEN)
+		proto_config(PROTO_FILEGEN, set);
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
 
@@ -1456,7 +1495,7 @@ do_restrict(srcadr, inter, inpkt, op)
 			bad = 1;
 		if (cr->flags & ~(RES_ALLFLAGS))
 			bad = 1;
-		if (cr->addr == INADDR_ANY && cr->mask != INADDR_ANY)
+		if (cr->addr == htonl(INADDR_ANY) && cr->mask != htonl(INADDR_ANY))
 			bad = 1;
 		cr++;
 	}
@@ -1492,7 +1531,7 @@ do_restrict(srcadr, inter, inpkt, op)
  * mon_getlist - return monitor data
  */
 static void
-mon_getlist(srcadr, inter, inpkt)
+mon_getlist_0(srcadr, inter, inpkt)
 	struct sockaddr_in *srcadr;
 	struct interface *inter;
 	struct req_pkt *inpkt;
@@ -1504,7 +1543,7 @@ mon_getlist(srcadr, inter, inpkt)
 
 #ifdef DEBUG
 	if (debug > 2)
-		printf("wants monitor list\n");
+		printf("wants monitor 0 list\n");
 #endif
 	if (!mon_enabled) {
 		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
@@ -1527,6 +1566,57 @@ mon_getlist(srcadr, inter, inpkt)
 		im->mode = md->mode;
 		im->version = md->version;
 		im = (struct info_monitor *)more_pkt();
+	}
+	flush_pkt();
+}
+
+/*
+ * mon_getlist - return monitor data
+ */
+static void
+mon_getlist_1(srcadr, inter, inpkt)
+	struct sockaddr_in *srcadr;
+	struct interface *inter;
+	struct req_pkt *inpkt;
+{
+	register struct info_monitor_1 *im;
+	register struct mon_data *md;
+	extern struct mon_data mon_mru_list;
+	extern int mon_enabled;
+
+#ifdef DEBUG
+	if (debug > 2)
+		printf("wants monitor 1 list\n");
+#endif
+	if (!mon_enabled) {
+		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
+		return;
+	}
+
+	im = (struct info_monitor_1 *)prepare_pkt(srcadr, inter, inpkt,
+	    sizeof(struct info_monitor_1));
+	for (md = mon_mru_list.mru_next; md != &mon_mru_list && im != 0;
+	    md = md->mru_next) {
+		im->lasttime = htonl(current_time - md->lasttime);
+		im->firsttime = htonl(current_time - md->firsttime);
+		if (md->lastdrop)
+			im->lastdrop = htonl(current_time - md->lastdrop);
+		else
+			im->lastdrop = 0;
+		im->count = htonl(md->count);
+		im->addr = md->rmtadr;
+		im->daddr =	md->cast_flags == MDF_BCAST ?
+					md->interface->bcast.sin_addr.s_addr :
+				md->cast_flags ?
+				md->interface->sin.sin_addr.s_addr ?
+					md->interface->sin.sin_addr.s_addr :
+					md->interface->bcast.sin_addr.s_addr :
+					4;
+		im->flags = md->cast_flags;
+		im->port = md->rmtport;
+		im->mode = md->mode;
+		im->version = md->version;
+		im = (struct info_monitor_1 *)more_pkt();
 	}
 	flush_pkt();
 }
@@ -1559,7 +1649,7 @@ reset_stats(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	U_LONG flags;
+	u_long flags;
 	struct reset_entry *rent;
 
 	if (INFO_NITEMS(inpkt->err_nitems) > 1) {
@@ -1716,11 +1806,11 @@ do_trustkey(srcadr, inter, inpkt, trust)
 	struct req_pkt *inpkt;
 	int trust;
 {
-	register U_LONG *kp;
+	register u_long *kp;
 	register int items;
 
 	items = INFO_NITEMS(inpkt->err_nitems);
-	kp = (U_LONG *)inpkt->data;
+	kp = (u_long *)inpkt->data;
 	while (items-- > 0) {
 		authtrust(*kp, trust);
 		kp++;
@@ -1744,14 +1834,13 @@ get_auth_info(srcadr, inter, inpkt)
 	/*
 	 * Importations from the authentication module
 	 */
-	extern U_LONG authnumkeys;
-	extern U_LONG authnumfreekeys;
-	extern U_LONG authkeylookups;
-	extern U_LONG authkeynotfound;
-	extern U_LONG authencryptions;
-	extern U_LONG authdecryptions;
-	extern U_LONG authdecryptok;
-	extern U_LONG authkeyuncached;
+	extern u_long authnumkeys;
+	extern u_long authnumfreekeys;
+	extern u_long authkeylookups;
+	extern u_long authkeynotfound;
+	extern u_long authencryptions;
+	extern u_long authdecryptions;
+	extern u_long authkeyuncached;
 
 	ia = (struct info_auth *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_auth));
@@ -1762,7 +1851,6 @@ get_auth_info(srcadr, inter, inpkt)
 	ia->keynotfound = htonl(authkeynotfound);
 	ia->encryptions = htonl(authencryptions);
 	ia->decryptions = htonl(authdecryptions);
-	ia->decryptok = htonl(authdecryptok);
 	ia->keyuncached = htonl(authkeyuncached);
 	ia->timereset = htonl(current_time - auth_timereset);
 	
@@ -1782,18 +1870,16 @@ reset_auth_stats()
 	/*
 	 * Importations from the authentication module
 	 */
-	extern U_LONG authkeylookups;
-	extern U_LONG authkeynotfound;
-	extern U_LONG authencryptions;
-	extern U_LONG authdecryptions;
-	extern U_LONG authdecryptok;
-	extern U_LONG authkeyuncached;
+	extern u_long authkeylookups;
+	extern u_long authkeynotfound;
+	extern u_long authencryptions;
+	extern u_long authdecryptions;
+	extern u_long authkeyuncached;
 
 	authkeylookups = 0;
 	authkeynotfound = 0;
 	authencryptions = 0;
 	authdecryptions = 0;
-	authdecryptok = 0;
 	authkeyuncached = 0;
 	auth_timereset = current_time;
 }
@@ -1839,7 +1925,7 @@ req_get_traps(srcadr, inter, inpkt)
 			it->settime = htonl(current_time - tr->tr_settime);
 			it->origtime = htonl(current_time - tr->tr_origtime);
 			it->resets = htonl(tr->tr_resets);
-			it->flags = htonl((U_LONG)tr->tr_flags);
+			it->flags = htonl((u_long)tr->tr_flags);
 			it = (struct info_trap *)more_pkt();
 		}
 	}
@@ -1953,7 +2039,7 @@ set_request_keyid(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	U_LONG keyid;
+	u_long keyid;
 
 	/*
 	 * Restrict ourselves to one item only.
@@ -1963,7 +2049,7 @@ set_request_keyid(srcadr, inter, inpkt)
 		return;
 	}
 
-	keyid = ntohl(*((U_LONG *)(inpkt->data)));
+	keyid = ntohl(*((u_long *)(inpkt->data)));
 	info_auth_keyid = keyid;
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
@@ -1979,8 +2065,8 @@ set_control_keyid(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	U_LONG keyid;
-	extern U_LONG ctl_auth_keyid;
+	u_long keyid;
+	extern u_long ctl_auth_keyid;
 
 	/*
 	 * Restrict ourselves to one item only.
@@ -1990,7 +2076,7 @@ set_control_keyid(srcadr, inter, inpkt)
 		return;
 	}
 
-	keyid = ntohl(*((U_LONG *)(inpkt->data)));
+	keyid = ntohl(*((u_long *)(inpkt->data)));
 	ctl_auth_keyid = keyid;
 	req_ack(srcadr, inter, inpkt, INFO_OKAY);
 }
@@ -2011,21 +2097,21 @@ get_ctl_stats(srcadr, inter, inpkt)
 	/*
 	 * Importations from the control module
 	 */
-	extern U_LONG ctltimereset;
-	extern U_LONG numctlreq;
-	extern U_LONG numctlbadpkts;
-	extern U_LONG numctlresponses;
-	extern U_LONG numctlfrags;
-	extern U_LONG numctlerrors;
-	extern U_LONG numctltooshort;
-	extern U_LONG numctlinputresp;
-	extern U_LONG numctlinputfrag;
-	extern U_LONG numctlinputerr;
-	extern U_LONG numctlbadoffset;
-	extern U_LONG numctlbadversion;
-	extern U_LONG numctldatatooshort;
-	extern U_LONG numctlbadop;
-	extern U_LONG numasyncmsgs;
+	extern u_long ctltimereset;
+	extern u_long numctlreq;
+	extern u_long numctlbadpkts;
+	extern u_long numctlresponses;
+	extern u_long numctlfrags;
+	extern u_long numctlerrors;
+	extern u_long numctltooshort;
+	extern u_long numctlinputresp;
+	extern u_long numctlinputfrag;
+	extern u_long numctlinputerr;
+	extern u_long numctlbadoffset;
+	extern u_long numctlbadversion;
+	extern u_long numctldatatooshort;
+	extern u_long numctlbadop;
+	extern u_long numasyncmsgs;
 
 	ic = (struct info_control *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_control));
@@ -2074,13 +2160,13 @@ get_leap_info(srcadr, inter, inpkt)
 	extern u_char leap_indicator;
 	extern u_char leap_warning;
 	extern u_char leapbits;
-	extern U_LONG leap_timer;
-	extern U_LONG leap_processcalls;
-	extern U_LONG leap_notclose;
-	extern U_LONG leap_monthofleap;
-	extern U_LONG leap_dayofleap;
-	extern U_LONG leap_hoursfromleap;
-	extern U_LONG leap_happened;
+	extern u_long leap_timer;
+	extern u_long leap_processcalls;
+	extern u_long leap_notclose;
+	extern u_long leap_monthofleap;
+	extern u_long leap_dayofleap;
+	extern u_long leap_hoursfromleap;
+	extern u_long leap_happened;
 
 	il = (struct info_leap *)prepare_pkt(srcadr, inter, inpkt,
 	    sizeof(struct info_leap));
@@ -2200,7 +2286,7 @@ get_clock_info(srcadr, inter, inpkt)
 		ic->noresponse = htonl(clock.noresponse);
 		ic->badformat = htonl(clock.badformat);
 		ic->baddata = htonl(clock.baddata);
-		ic->timestarted = clock.timereset;
+		ic->timestarted = htonl(clock.timereset);
 		HTONL_FP(&clock.fudgetime1, &ic->fudgetime1);
 		HTONL_FP(&clock.fudgetime2, &ic->fudgetime2);
 		ic->fudgeval1 = htonl(clock.fudgeval1);
@@ -2287,9 +2373,9 @@ set_precision(srcadr, inter, inpkt)
 	struct interface *inter;
 	struct req_pkt *inpkt;
 {
-	register LONG precision;
+	register long precision;
 
-	precision = ntohl(*(LONG *)(inpkt->data));
+	precision = ntohl(*(long *)(inpkt->data));
 
 	if (INFO_NITEMS(inpkt->err_nitems) > 1 ||
 	    precision > -1 || precision < -20) {
@@ -2355,10 +2441,9 @@ get_clkbug_info(srcadr, inter, inpkt)
 		if (i > NUMCBUGTIMES)
 			i = NUMCBUGTIMES;
 		ic->ntimes = (u_char)i;
-		ic->stimes = htonl((U_LONG)bug.stimes & ((1<<i)-1));
+		ic->stimes = htonl(bug.stimes);
 		while (--i >= 0) {
-			ic->times[i].l_ui = htonl(bug.times[i].l_ui);
-			ic->times[i].l_uf = htonl(bug.times[i].l_uf);
+			HTONL_FP(&bug.times[i], &ic->times[i]);
 		}
 
 		ic = (struct info_clkbug *)more_pkt();
