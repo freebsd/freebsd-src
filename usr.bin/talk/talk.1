@@ -90,10 +90,19 @@ of the message should reply by typing
 It doesn't matter from which machine the recipient replies, as
 long as his login-name is the same.  Once communication is established,
 the two parties may type simultaneously, with their output appearing
-in separate windows.  Typing control-L
+in separate windows.
+Typing control-L
 .Ql ^L
 will cause the screen to
-be reprinted, while your erase, kill, and word kill characters will
+be reprinted.
+Typing control-D
+.Ql ^D
+will clear both parts of your screen to be cleared, while
+the control-D character will be sent to the remote side
+(and just displayed by this
+.Nm
+client).
+Your erase, kill, and word kill characters will
 behave normally.  To exit, just type your interrupt character;
 .Nm
 then moves the cursor to the bottom of the screen and restores the
