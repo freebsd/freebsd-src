@@ -468,9 +468,9 @@ TclPrintByteCodeObj(interp, objPtr)
      * Print header lines describing the ByteCode.
      */
 
-    fprintf(stdout, "\nByteCode 0x%x, ref ct %u, epoch %u, interp 0x%x(epoch %u)\n",
-	    (unsigned int) codePtr, codePtr->refCount,
-	    codePtr->compileEpoch, (unsigned int) codePtr->iPtr,
+    fprintf(stdout, "\nByteCode %p, ref ct %u, epoch %u, interp %p(epoch %u)\n",
+	    (void *) codePtr, codePtr->refCount,
+	    codePtr->compileEpoch, (void *) codePtr->iPtr,
 	    codePtr->iPtr->compileEpoch);
     fprintf(stdout, "  Source ");
     TclPrintSource(stdout, codePtr->source,
@@ -496,8 +496,8 @@ TclPrintByteCodeObj(interp, objPtr)
 	Proc *procPtr = codePtr->procPtr;
 	int numCompiledLocals = procPtr->numCompiledLocals;
 	fprintf(stdout,
-	        "  Proc 0x%x, ref ct %d, args %d, compiled locals %d\n",
-		(unsigned int) procPtr, procPtr->refCount, procPtr->numArgs,
+	        "  Proc %p, ref ct %d, args %d, compiled locals %d\n",
+		(void *) procPtr, procPtr->refCount, procPtr->numArgs,
 		numCompiledLocals);
 	if (numCompiledLocals > 0) {
 	    CompiledLocal *localPtr = procPtr->firstLocalPtr;
@@ -6826,7 +6826,7 @@ TclObjIndexForString(string, length, allocStrRep, inHeap, envPtr)
     } else {
 	hPtr = Tcl_CreateHashEntry(&envPtr->objTable, string, &new);
 	if (!new) {		/* already in object table and array */
-	    objIndex = (int) Tcl_GetHashValue(hPtr);
+	    objIndex = (long) Tcl_GetHashValue(hPtr);
 	    if (inHeap) {
 		ckfree(string);
 	    }
