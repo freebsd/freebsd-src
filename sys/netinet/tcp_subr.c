@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.6 1995/02/09 23:13:25 wollman Exp $
+ * $Id: tcp_subr.c,v 1.7 1995/02/16 00:55:41 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,6 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
-#define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
