@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.10 1996/05/11 20:48:20 phk Exp $
+ * $Id: chat.c,v 1.11 1996/06/09 20:40:56 ache Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -377,7 +377,7 @@ char *command, *out;
     }
     cp--;
   }
-  sprintf(tmp, "%s %s", command, cp);
+  snprintf(tmp, sizeof tmp, "%s %s", command, cp);
   (void) MakeArgs(tmp, &vector);
 
   pipe(fids);

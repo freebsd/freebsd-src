@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9 1996/05/11 20:48:25 phk Exp $
+ * $Id: ip.c,v 1.9.2.1 1996/12/13 11:30:40 jkh Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -333,8 +333,8 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
   }
 
   if (mode & MODE_ALIAS) {
-    PacketAliasIn(tunbuff);
-    nb = ntohs(((struct ip *) tunbuff)->ip_len);
+    PacketAliasIn((struct ip *)tunbuff);
+    nb = ntohs(((struct ip *)tunbuff)->ip_len);
   }
 
   if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
