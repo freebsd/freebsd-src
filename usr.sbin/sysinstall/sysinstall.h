@@ -54,7 +54,7 @@
 
 /*** Defines ***/
 
-#if defined(__i386__) || defined(PC98)
+#if defined(PC98)
 #define PCCARD_ARCH 1		        /* Support PCCARD installations */
 #endif
 /* device limits */
