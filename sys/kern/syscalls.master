@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.12 1994/12/14 17:57:23 wollman Exp $
+	$Id: syscalls.master,v 1.13 1995/03/04 03:24:26 davidg Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -97,7 +97,7 @@
 62	COMPAT	2 POSIX	fstat
 63	COMPAT	4 BSD	getkerninfo
 64	COMPAT	0 BSD	getpagesize
-65	STD	2 BSD	msync
+65	STD	3 BSD	msync
 66	STD	0 BSD	vfork
 67	OBSOL	0 NOHIDE vread
 68	OBSOL	0 NOHIDE vwrite
