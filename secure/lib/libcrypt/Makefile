@@ -17,7 +17,7 @@ SONAME=		${LCRYPTSO}
 
 .PATH:		${.CURDIR}/../../../lib/libmd ${.CURDIR}/../../../lib/libcrypt
 SRCS=		crypt.c crypt-md5.c misc.c
-STATICSRCS=	md5c.c sha0c.c sha1c.c
+STATICSRCS=	md5c.c
 STATICOBJS=	${STATICSRCS:S/.c/.o/g}
 SRCS+=		crypt-des.c
 MAN3=		crypt.3
