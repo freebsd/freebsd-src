@@ -1,5 +1,5 @@
 /*
- *	monster.c		Larn is copyrighted 1986 by Noah Morgan. 
+ *	monster.c		Larn is copyrighted 1986 by Noah Morgan.
  *
  *	This file contains the following functions:
  *	----------------------------------------------------------------------------
@@ -324,7 +324,7 @@ speldamage(x)
 											 *p=OBOOK; iarg[i][j]=level;  *kn=0;
 											 }
 										break;
-	
+
 						  case OTHRONE: *pm=GNOMEKING;  *kn=0;  *p= OTHRONE2;
 										hitp[i][j]=monster[GNOMEKING].hitpoints; break;
 
@@ -409,12 +409,12 @@ speldamage(x)
 						for (i=0; i<MAXX; i++) /* save all items and monsters */
 							{
 							xl = item[i][j];
-							if (xl && xl!=OWALL && xl!=OANNIHILATION) 
+							if (xl && xl!=OWALL && xl!=OANNIHILATION)
 								{
 								save[sc].type=0;  save[sc].id=item[i][j];
 								save[sc++].arg=iarg[i][j];
 								}
-							if (mitem[i][j]) 
+							if (mitem[i][j])
 								{
 								save[sc].type=1;  save[sc].id=mitem[i][j];
 								save[sc++].arg=hitp[i][j];
@@ -505,7 +505,7 @@ fullhit(xx)
 	register int i;
 	if (xx<0 || xx>20) return(0);	/* fullhits are out of range */
 	if (c[LANCEDEATH]) return(10000);	/* lance of death */
-	i = xx * ((c[WCLASS]>>1)+c[STRENGTH]+c[STREXTRA]-c[HARDGAME]-12+c[MOREDAM]); 
+	i = xx * ((c[WCLASS]>>1)+c[STRENGTH]+c[STREXTRA]-c[HARDGAME]-12+c[MOREDAM]);
 	return( (i>=1) ? i : xx );
 	}
 
@@ -546,7 +546,7 @@ direct(spnum,dam,str,arg)
 			}
 		else
 			{
-			lastnum=278; 
+			lastnum=278;
 			lprintf(str,"spell caster (thats you)",(long)arg);
 			beep(); losehp(dam); return;
 			}
@@ -566,7 +566,7 @@ direct(spnum,dam,str,arg)
  *	Function to hit in a direction from a missile weapon and have it keep
  *	on going in that direction until its power is exhausted
  *	Enter with the spell number in spnum, the power of the weapon in hp,
- *	  lprintf format string in str, the # of milliseconds to delay between 
+ *	  lprintf format string in str, the # of milliseconds to delay between
  *	  locations in delay, and the character to represent the weapon in cshow.
  *	Returns no value.
  */
@@ -741,12 +741,12 @@ dirsub(x,y)
 		switch(getchar())
 			{
 			case 'b':	i++;
-			case 'n':	i++;	
-			case 'y':	i++;	
+			case 'n':	i++;
+			case 'y':	i++;
 			case 'u':	i++;
-			case 'h':	i++;	
+			case 'h':	i++;
 			case 'k':	i++;
-			case 'l':	i++;	
+			case 'l':	i++;
 			case 'j':	i++;		goto out;
 			};
 out:
@@ -820,7 +820,7 @@ hitmonster(x,y)
 	if ((rnd(20) < tmp-c[HARDGAME]) || (rnd(71) < 5)) /* need at least random chance to hit */
 		{
 		lprcat("\nYou hit");  flag=1;
-		damag = fullhit(1);  
+		damag = fullhit(1);
 		if (damag<9999) damag=rnd(damag)+1;
 		}
 	else
@@ -910,7 +910,7 @@ hitplayer(x,y)
 	hitflag = hit2flag = hit3flag = 1;
 	yrepcount=0;
 	cursors();	ifblind(x,y);
-	if (c[INVISIBILITY]) if (rnd(33)<20) 
+	if (c[INVISIBILITY]) if (rnd(33)<20)
 		{
 		lprintf("\nThe %s misses wildly",lastmonst);	return;
 		}
@@ -1002,7 +1002,7 @@ something(level)
  *	Enter with the cave level and a pointer to the items arg
  */
 static char nobjtab[] = { 0, OSCROLL,  OSCROLL,  OSCROLL,  OSCROLL, OPOTION,
-	OPOTION, OPOTION, OPOTION, OGOLDPILE, OGOLDPILE, OGOLDPILE, OGOLDPILE, 
+	OPOTION, OPOTION, OPOTION, OGOLDPILE, OGOLDPILE, OGOLDPILE, OGOLDPILE,
 	OBOOK, OBOOK, OBOOK, OBOOK, ODAGGER, ODAGGER, ODAGGER, OLEATHER, OLEATHER,
 	OLEATHER, OREGENRING, OPROTRING, OENERGYRING, ODEXRING, OSTRRING, OSPEAR,
 	OBELT, ORING, OSTUDLEATHER, OSHIELD, OFLAIL, OCHAIN, O2SWORD, OPLATE,
@@ -1013,7 +1013,7 @@ newobject(lev,i)
 	{
 	register int tmp=32,j;
 	if (level<0 || level>MAXLEVEL+MAXVLEVEL) return(0);	/* correct level? */
-	if (lev>6) tmp=37; else if (lev>4) tmp=35; 
+	if (lev>6) tmp=37; else if (lev>4) tmp=35;
 	j = nobjtab[tmp=rnd(tmp)];	/* the object type */
 	switch(tmp)
 		{
@@ -1032,7 +1032,7 @@ newobject(lev,i)
 		case 29: case 31: *i=rund(lev/2+1); if (*i==0) return(0); break;
 		case 34: *i=newchain();   	break;
 		case 36: *i=newplate();   	break;
-		case 37: *i=newsword();		break; 
+		case 37: *i=newsword();		break;
 		}
 	return(j);
 	}
@@ -1067,7 +1067,7 @@ newobject(lev,i)
  *
  *	char rustarm[ARMORTYPES][2];
  *	special array for maximum rust damage to armor from rustmonster
- *	format is: { armor type , minimum attribute 
+ *	format is: { armor type , minimum attribute
  */
 #define ARMORTYPES 6
 static char rustarm[ARMORTYPES][2] = { OSTUDLEATHER,-2,	ORING,-4, OCHAIN,-5,
@@ -1093,7 +1093,7 @@ spattack(x,xx,yy)
 					if (m == rustarm[i][0]) /* find his armor in table */
 						{
 						if (--ivenarg[k]< rustarm[i][1])
-							ivenarg[k]= rustarm[i][1]; else j=1; 
+							ivenarg[k]= rustarm[i][1]; else j=1;
 						break;
 						}
 				  }
@@ -1162,7 +1162,7 @@ spattack(x,xx,yy)
 						p="\nThe %s nearly misses"; break;
 						}
 					break;
-					}		
+					}
 				break;
 
 		case 10:   p="\nThe %s hit you with his barbed tail";
@@ -1326,7 +1326,7 @@ rmsphere(x,y)
 			{
 			item[x][y]=mitem[x][y]=0;  know[x][y]=1;
 			show1cell(x,y);	/* show the now missing sphere */
-			--c[SPHCAST];	
+			--c[SPHCAST];
 			if (sp==spheres) { sp2=sp; spheres=sp->p; free((char*)sp2); }
 			else
 				{ sp2->p = sp->p;  free((char*)sp); }

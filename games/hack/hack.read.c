@@ -295,7 +295,7 @@ doread() {
 			known = TRUE;
 			pline("You smell %s close nearby.",
 				confused ? "something" : "food");
-			
+
 		} else {
 			known = TRUE;
 			cls();

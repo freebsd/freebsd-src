@@ -17,12 +17,12 @@
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: freerecord(), writerecord(), descrstatus(), truncstring(), 
-/	time(), more(), wmove(), wclear(), strcmp(), printw(), strcpy(), 
-/	infloat(), waddstr(), cleanup(), findname(), userlist(), mvprintw(), 
+/ MODULES CALLED: freerecord(), writerecord(), descrstatus(), truncstring(),
+/	time(), more(), wmove(), wclear(), strcmp(), printw(), strcpy(),
+/	infloat(), waddstr(), cleanup(), findname(), userlist(), mvprintw(),
 /	localtime(), getanswer(), descrtype(), getstring()
 /
-/ GLOBAL INPUTS: LINES, *Login, Other, Wizard, Player, *stdscr, Databuf[], 
+/ GLOBAL INPUTS: LINES, *Login, Other, Wizard, Player, *stdscr, Databuf[],
 /	Fileloc
 /
 / GLOBAL OUTPUTS: Echo
@@ -226,7 +226,7 @@ short	*sptr;			/* pointer to short item to change */
 		    if (strcmp(Databuf, playerp->p_password) != 0)
 			continue;
 		    }
-		    
+
 		if (c == 'A')
 		    /* get new name */
 		    {
@@ -537,7 +537,7 @@ register int 	count = 0;		/* count in file */
 /
 / MODULES CALLED: fread(), fopen(), printf(), fclose()
 /
-/ GLOBAL INPUTS: 
+/ GLOBAL INPUTS:
 /
 / GLOBAL OUTPUTS: none
 /
@@ -660,7 +660,7 @@ long	loc = 0L;	/* location in file */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: fread(), fseek(), fopen(), error(), strcmp(), fclose(), 
+/ MODULES CALLED: fread(), fseek(), fopen(), error(), strcmp(), fclose(),
 /	strcpy(), fwrite(), descrtype()
 /
 / GLOBAL INPUTS: Player

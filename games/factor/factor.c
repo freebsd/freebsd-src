@@ -75,7 +75,7 @@ static char sccsid[] = "@(#)factor.c	8.3 (Berkeley) 3/30/94";
 /*
  * prime[i] is the (i-1)th prime.
  *
- * We are able to sieve 2^32-1 because this byte table yields all primes 
+ * We are able to sieve 2^32-1 because this byte table yields all primes
  * up to 65537 and 65537^2 > 2^32-1.
  */
 extern ubig prime[];

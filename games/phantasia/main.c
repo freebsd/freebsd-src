@@ -49,7 +49,7 @@
  */
 
 /*
- * All source files are set up for 'vi' with shiftwidth=4, tabstop=8. 
+ * All source files are set up for 'vi' with shiftwidth=4, tabstop=8.
  */
 
 /**/
@@ -73,16 +73,16 @@
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: monstlist(), checkenemy(), activelist(), 
-/	throneroom(), checkbattle(), readmessage(), changestats(), writerecord(), 
-/	tradingpost(), adjuststats(), recallplayer(), displaystats(), checktampered(), 
-/	fabs(), rollnewplayer(), time(), exit(), sqrt(), floor(), wmove(), 
-/	signal(), strcat(), purgeoldplayers(), getuid(), isatty(), wclear(), 
-/	strcpy(), system(), altercoordinates(), cleanup(), waddstr(), procmain(), 
-/	playinit(), leavegame(), localtime(), getanswer(), neatstuff(), initialstate(), 
+/ MODULES CALLED: monstlist(), checkenemy(), activelist(),
+/	throneroom(), checkbattle(), readmessage(), changestats(), writerecord(),
+/	tradingpost(), adjuststats(), recallplayer(), displaystats(), checktampered(),
+/	fabs(), rollnewplayer(), time(), exit(), sqrt(), floor(), wmove(),
+/	signal(), strcat(), purgeoldplayers(), getuid(), isatty(), wclear(),
+/	strcpy(), system(), altercoordinates(), cleanup(), waddstr(), procmain(),
+/	playinit(), leavegame(), localtime(), getanswer(), neatstuff(), initialstate(),
 /	scorelist(), titlelist()
 /
-/ GLOBAL INPUTS: *Login, Throne, Wizard, Player, *stdscr, Changed, Databuf[], 
+/ GLOBAL INPUTS: *Login, Throne, Wizard, Player, *stdscr, Changed, Databuf[],
 /	Fileloc, Stattable[]
 /
 / GLOBAL OUTPUTS: Wizard, Player, Changed, Fileloc, Timeout, *Statptr
@@ -320,13 +320,13 @@ double	dtemp;			/* for temporary calculations */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: time(), fopen(), srandom(), error(), getuid(), getlogin(), 
+/ MODULES CALLED: time(), fopen(), srandom(), error(), getuid(), getlogin(),
 /	getpwuid()
 /
-/ GLOBAL INPUTS: 
+/ GLOBAL INPUTS:
 /
-/ GLOBAL OUTPUTS: *Energyvoidfp, Echo, Marsh, *Login, Users, Beyond, 
-/	Throne, Wizard, Changed, Okcount, Timeout, Windows, *Monstfp, *Messagefp, 
+/ GLOBAL OUTPUTS: *Energyvoidfp, Echo, Marsh, *Login, Users, Beyond,
+/	Throne, Wizard, Changed, Okcount, Timeout, Windows, *Monstfp, *Messagefp,
 /	*Playersfp
 /
 / DESCRIPTION:
@@ -349,7 +349,7 @@ initialstate()
     /* setup login name */
     if ((Login = getlogin()) == NULL)
 	Login = getpwuid(getuid())->pw_name;
-    
+
     /* open some files */
     if ((Playersfp = fopen(_PATH_PEOPLE, "r+")) == NULL)
 	error(_PATH_PEOPLE);
@@ -382,8 +382,8 @@ initialstate()
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: initplayer(), allocrecord(), truncstring(), fabs(), wmove(), 
-/	wclear(), sscanf(), strcmp(), genchar(), waddstr(), findname(), mvprintw(), 
+/ MODULES CALLED: initplayer(), allocrecord(), truncstring(), fabs(), wmove(),
+/	wclear(), sscanf(), strcmp(), genchar(), waddstr(), findname(), mvprintw(),
 /	getanswer(), getstring()
 /
 / GLOBAL INPUTS: Other, Wizard, Player, *stdscr, Databuf[]
@@ -499,12 +499,12 @@ int	ch;		/* input */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: dotampered(), changestats(), inputoption(), allstatslist(), 
-/	fopen(), wmove(), drandom(), sscanf(), fclose(), altercoordinates(), 
-/	waddstr(), fprintf(), distance(), userlist(), leavegame(), encounter(), 
+/ MODULES CALLED: dotampered(), changestats(), inputoption(), allstatslist(),
+/	fopen(), wmove(), drandom(), sscanf(), fclose(), altercoordinates(),
+/	waddstr(), fprintf(), distance(), userlist(), leavegame(), encounter(),
 /	getstring(), wclrtobot()
 /
-/ GLOBAL INPUTS: Circle, Illcmd[], Throne, Wizard, Player, *stdscr, 
+/ GLOBAL INPUTS: Circle, Illcmd[], Throne, Wizard, Player, *stdscr,
 /	Databuf[], Illmove[]
 /
 / GLOBAL OUTPUTS: Player, Changed
@@ -650,7 +650,7 @@ bool	hasmoved = FALSE;	/* set if player has moved */
 	     */
 	    if (Player.p_level < MEL_TELEPORT || Player.p_magiclvl < ML_TELEPORT)
 		ILLCMD();
-	    else 
+	    else
 		for (loop = 3; loop; --loop)
 		    {
 		    mvaddstr(4, 0, "X Y Coordinates ? ");
@@ -735,7 +735,7 @@ bool	hasmoved = FALSE;	/* set if player has moved */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: fread(), fseek(), fopen(), fgets(), wmove(), strcpy(), 
+/ MODULES CALLED: fread(), fseek(), fopen(), fgets(), wmove(), strcpy(),
 /	fclose(), strlen(), waddstr(), sprintf(), wrefresh()
 /
 / GLOBAL INPUTS: Lines, Other, *stdscr, Databuf[], *Playersfp
@@ -867,8 +867,8 @@ char	hiname[21], nxtname[21];/* used for finding the two highest players */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), truncstring(), more(), death(), wmove(), 
-/	wclear(), strcmp(), printw(), cleanup(), waddstr(), findname(), mvprintw(), 
+/ MODULES CALLED: writerecord(), truncstring(), more(), death(), wmove(),
+/	wclear(), strcmp(), printw(), cleanup(), waddstr(), findname(), mvprintw(),
 /	getanswer(), getstring()
 /
 / GLOBAL INPUTS: Player, *stdscr, Databuf[]
@@ -954,7 +954,7 @@ int	ch;			/* input */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: collecttaxes(), floor(), wmove(), drandom(), infloat(), 
+/ MODULES CALLED: collecttaxes(), floor(), wmove(), drandom(), infloat(),
 /	waddstr(), mvprintw(), getanswer()
 /
 / GLOBAL INPUTS: Player, *stdscr, *Statptr
@@ -1112,7 +1112,7 @@ register struct charstats	*statptr;/* for pointing into Stattable */
 	if (subscript != C_SUPER || !Wizard)
 	    /* fighter is default */
 	    subscript = C_FIGHTER;
-    
+
     statptr = &Stattable[subscript];
 
     Player.p_quickness =
@@ -1148,7 +1148,7 @@ register struct charstats	*statptr;/* for pointing into Stattable */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: signal(), wclear(), noecho(), crmode(), initscr(), 
+/ MODULES CALLED: signal(), wclear(), noecho(), crmode(), initscr(),
 /	wrefresh()
 /
 / GLOBAL INPUTS: *stdscr, ill_sig()
@@ -1255,7 +1255,7 @@ playinit()
 /
 / MODULES CALLED: exit(), wmove(), fclose(), endwin(), nocrmode(), wrefresh()
 /
-/ GLOBAL INPUTS: *Energyvoidfp, LINES, *stdscr, Windows, *Monstfp, 
+/ GLOBAL INPUTS: *Energyvoidfp, LINES, *stdscr, Windows, *Monstfp,
 /	*Messagefp, *Playersfp
 /
 / GLOBAL OUTPUTS: none

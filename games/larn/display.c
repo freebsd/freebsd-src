@@ -100,7 +100,7 @@ bot_hpx()
 		{
 		recalc();	 bot_linex();
 		}
-	else botsub(makecode(HP,5,19),"%3d");	
+	else botsub(makecode(HP,5,19),"%3d");
 	}
 
 /*
@@ -203,7 +203,7 @@ drawscreen()
 		{
 		d_flag=1;  clear(); /* clear the screen */
 		}
-	else 
+	else
 		{
 		d_flag=0;  cursor(1,1);
 		}
@@ -229,7 +229,7 @@ drawscreen()
 			}
 		while (j <= m)
 			{
-			if (j <= m-3) 
+			if (j <= m-3)
 				{
 				for (k=j; k<=j+3; k++) if (screen[k][i] != ' ') k=1000;
 				if (k < 1000)
@@ -287,7 +287,7 @@ showcell(x,y)
 				else switch(k=item[i][j])
 					{
 					case OWALL:  case 0: case OIVTELETRAP:  case OTRAPARROWIV:
-					case OIVDARTRAP: case OIVTRAPDOOR:	
+					case OIVDARTRAP: case OIVTRAPDOOR:
 						lprc(objnamelist[k]);	break;
 
 					default: setbold(); lprc(objnamelist[k]); resetbold();
@@ -311,8 +311,8 @@ show1cell(x,y)
 	if ((k=mitem[x][y]) != 0)  lprc(monstnamelist[k]);
 		else switch(k=item[x][y])
 			{
-			case OWALL:  case 0:  case OIVTELETRAP:  case OTRAPARROWIV: 
-			case OIVDARTRAP: case OIVTRAPDOOR:	
+			case OWALL:  case 0:  case OIVTELETRAP:  case OTRAPARROWIV:
+			case OIVDARTRAP: case OIVTRAPDOOR:
 				lprc(objnamelist[k]);	break;
 
 			default: setbold(); lprc(objnamelist[k]); resetbold();

@@ -30,7 +30,7 @@ oaltar()
 		case 'p':	lprcat(" pray\nDo you (m) give money or (j) just pray? ");
 					while (1) switch(getchar())
 					  {
-					  case 'j':	if (rnd(100)<75) 
+					  case 'j':	if (rnd(100)<75)
 									lprcat("\nnothing happens");
 								else if (rnd(13)<4) ohear();
 								else if (rnd(43) == 10)
@@ -212,7 +212,7 @@ ochest()
 									lprcat("\nYou begin to lose hand to eye coordination!");
 									beep();
 									break;
-							
+
 							case 3:	c[HALFDAM]+= rnd(1600)+200;
 									beep();
 									lprcat("\nA sickness engulfs you!");	break;

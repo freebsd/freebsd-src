@@ -29,7 +29,7 @@ yylex()
 	if (hit2flag) { hit2flag=0;  yrepcount=0;  return(' '); }
 	if (yrepcount>0)	{ --yrepcount;  return(lastok);	} else yrepcount=0;
 	if (yrepcount==0) { bottomdo(); showplayer(); }	/*	show where the player is	*/
-	lflush();  
+	lflush();
 	while (1)
 		{
 		c[BYTESIN]++;
@@ -82,7 +82,7 @@ yylex()
 			setscroll();
 			return(lastok = 'L'-64);	/* redisplay screen */
 			}
-		
+
 		if ((cc <= '9') && (cc >= '0'))
 			{ yrepcount = yrepcount*10 + cc - '0'; }
 		else	{ if (yrepcount>0) --yrepcount;  return(lastok = cc); }
@@ -105,14 +105,14 @@ flushall()
 	}
 
 /*
-	function to set the desired hardness 
+	function to set the desired hardness
 	enter with hard= -1 for default hardness, else any desired hardness
  */
 sethard(hard)
 	int hard;
 	{
 	register int j,k,i;
-	j=c[HARDGAME]; hashewon(); 
+	j=c[HARDGAME]; hashewon();
 	if (restorflag==0)	/* don't set c[HARDGAME] if restoring game */
 		{
 		if (hard >= 0) c[HARDGAME]= hard;
@@ -132,7 +132,7 @@ sethard(hard)
 		monster[j].armorclass = (i< -127) ? -127 : i;
 		i = (7*monster[j].experience)/(7+k) + 1;
 		monster[j].experience = (i<=0) ? 1 : i;
-		}				
+		}
 	}
 
 /*
@@ -171,7 +171,7 @@ readopts()
 						{
 						if ((i=lgetw())==0) break;
 						if (strlen(i)>=MAXMNAME) i[MAXMNAME-1]=0;
-						strcpy(usermonster[usermpoint],i); 
+						strcpy(usermonster[usermpoint],i);
 						if (usermpoint >= MAXUM) break; /* defined all of em */
 						if (isalpha(j=usermonster[usermpoint][0]))
 							{
@@ -196,7 +196,7 @@ readopts()
 					else if (strcmp(i,"no-beep") == 0) nobeep=1;
 					break;
 
-		case 'p':	if (strcmp(i,"process-name:")== 0) 
+		case 'p':	if (strcmp(i,"process-name:")== 0)
 						{
 						if ((i=lgetw())==0) break;
 						if (strlen(i)>=PSNAMESIZE) i[PSNAMESIZE-1]=0;

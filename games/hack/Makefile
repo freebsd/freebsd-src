@@ -24,7 +24,7 @@ hack.onames.h: makedefs def.objects.h
 makedefs: makedefs.c
 	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${.PREFIX}.c
 
-beforeinstall: 
+beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \

@@ -43,7 +43,7 @@
  *	cursors()					position cursor at [1,24] (saves memory)
  *  cl_line(x,y)         		Clear line at [1,y] and leave cursor at [x,y]
  *  cl_up(x,y)    				Clear screen from [x,1] to current line.
- *  cl_dn(x,y) 					Clear screen from [1,y] to end of display. 
+ *  cl_dn(x,y) 					Clear screen from [1,y] to end of display.
  *  standout(str)	 			Print the string in standout mode.
  *  set_score_output() 			Called when output should be literally printed.
  ** putchar(ch)					Print one character in decoded output buffer.
@@ -99,7 +99,7 @@ static char lgetwbuf[LINBUFSIZE];	/* get line (word) buffer				*/
 /*
  *	setupvt100() 		Subroutine to set up terminal in correct mode for game
  *
- *	Attributes off, clear screen, set scrolling region, set tty mode 
+ *	Attributes off, clear screen, set scrolling region, set tty mode
  */
 setupvt100()
 	{
@@ -109,7 +109,7 @@ setupvt100()
 /*
  *	clearvt100() 	 	Subroutine to clean up terminal when the game is over
  *
- *	Attributes off, clear screen, unset scrolling region, restore tty mode 
+ *	Attributes off, clear screen, unset scrolling region, restore tty mode
  */
 clearvt100()
 	{
@@ -170,7 +170,7 @@ newgame()
  *		and any needed arguments following it
  *	Note: lprintf() only supports %s, %c and %d, with width modifier and left
  *		or right justification.
- *	No correct checking for output buffer overflow is done, but flushes 
+ *	No correct checking for output buffer overflow is done, but flushes
  *		are done beforehand if needed.
  *	Returns nothing of value.
  */
@@ -204,7 +204,7 @@ va_dcl
 
 	va_start(ap);	/* initialize the var args pointer */
 	fmt = va_arg(ap, char *);	/* pointer to format string */
-	if (lpnt >= lpend) lflush(); 
+	if (lpnt >= lpend) lflush();
 	outb = lpnt;
 	for ( ; ; )
 		{
@@ -229,7 +229,7 @@ va_dcl
 						cont=0;	break;
 
 			case 's':	tmpb = va_arg(ap, char *);
-						if (wide==0)  { while (*outb++ = *tmpb++);  --outb; } 
+						if (wide==0)  { while (*outb++ = *tmpb++);  --outb; }
 						else
 							{
 							n = wide - strlen(tmpb);
@@ -290,7 +290,7 @@ lprint(x)
  *	lwrite(buf,len)					write a buffer to the output buffer
  *		char *buf;
  *		int len;
- *	
+ *
  *	Enter with the address and number of bytes to write out
  *	Returns nothing of value
  */
@@ -313,7 +313,7 @@ lwrite(buf,len)
 		lflush();
 		write(lfd,buf,len);
 #endif VT100
-		} 
+		}
 	else while (len)
 		{
 		if (lpnt >= lpend) lflush();	/* if buffer is full flush it	*/
@@ -451,7 +451,7 @@ lcreat(str)
 	{
 	lpnt = lpbuf;	lpend = lpbuf+BUFBIG;
 	if (str==NULL) return(lfd=1);
-	if ((lfd=creat(str,0644)) < 0) 
+	if ((lfd=creat(str,0644)) < 0)
 		{
 		lfd=1; lprintf("error creating file <%s>\n",str); lflush(); return(-1);
 		}
@@ -525,7 +525,7 @@ lprcat(str)
     register char *str;
     {
 	register char *str2;
-	if (lpnt >= lpend) lflush(); 
+	if (lpnt >= lpend) lflush();
 	str2 = lpnt;
 	while (*str2++ = *str++);
 	lpnt = str2 - 1;
@@ -536,7 +536,7 @@ lprcat(str)
  *	cursor(x,y) 		Subroutine to set the cursor position
  *
  *	x and y are the cursor coordinates, and lpbuff is the output buffer where
- *	escape sequence will be placed. 
+ *	escape sequence will be placed.
  */
 static char *y_num[]= { "\33[","\33[","\33[2","\33[3","\33[4","\33[5","\33[6",
 	"\33[7","\33[8","\33[9","\33[10","\33[11","\33[12","\33[13","\33[14",
@@ -611,9 +611,9 @@ init_term()
 
 	switch (tgetent(termbuf, term = getenv("TERM")))
 		{
-		case -1: 
+		case -1:
 			write(2, "Cannot open termcap file.\n", 26); exit();
-		case 0: 
+		case 0:
 			write(2, "Cannot find entry of ", 21);
 			write(2, term, strlen (term));
 			write(2, " in termcap\n", 12);
@@ -870,9 +870,9 @@ flush_buf()
 /*
  *	char *tmcapcnv(sd,ss)  Routine to convert VT100 escapes to termcap format
  *
- *	Processes only the \33[#m sequence (converts . files for termcap use 
+ *	Processes only the \33[#m sequence (converts . files for termcap use
  */
-char *tmcapcnv(sd,ss)  
+char *tmcapcnv(sd,ss)
 	register char *sd,*ss;
 	{
 	register int tmstate=0;	/* 0=normal, 1=\33 2=[ 3=# */

@@ -64,19 +64,19 @@ int	goodmoves[MAXGMOV];
 int	probmoves[MAXGMOV];
 
 int	brown[] = {		/* brown position table */
-	0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 
-	0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0, 
+	0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+	0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0
 };
 
 int	white[] = {		/* white position table */
-	0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 
-	0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0, 
+	0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+	0, 0, 0, 0, 3, 0, 5, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0
 };
 
 int	probability[] = {
-	0, 11, 12, 13, 14, 15, 16, 
+	0, 11, 12, 13, 14, 15, 16,
 	06, 05, 04, 03, 02, 01
 };
 
@@ -688,7 +688,7 @@ prtbrd()
 		fprintf(stdout, "%4d",k);
 	fprintf(stdout, "    ");
 	for(k = 7; k <= 12; k++)
-		fprintf(stdout, "%4d",k); 
+		fprintf(stdout, "%4d",k);
 	putchar('\n');
 	numline(brown, white, 1, 6);
 	fprintf(stdout, "    ");

@@ -23,7 +23,7 @@ extern int score[],srcount,dropflag;
 extern int random;/*	the random number seed			*/
 extern short playerx,playery,lastnum;
 extern char cheat,level,monstnamelist[];
-extern char lastmonst[],*what[],*who[]; 
+extern char lastmonst[],*what[],*who[];
 extern char winner[];
 extern char logname[],monstlevel[];
 extern char sciv[SCORESIZE+1][26][2],*potionname[],*scrollname[];
@@ -208,7 +208,7 @@ losemspells(x)
 		int lev;
 
 	function to return monster number for a randomly selected monster
-		for the given cave level	
+		for the given cave level
  */
 makemonst(lev)
 	register int lev;
@@ -251,7 +251,7 @@ recalc()
 	{
 	register int i,j,k;
 	c[AC] = c[MOREDEFENSES];
-	if (c[WEAR] >= 0)  
+	if (c[WEAR] >= 0)
 		switch(iven[c[WEAR]])
 			{
 			case OSHIELD:		c[AC] += 2 + ivenarg[c[WEAR]]; break;
@@ -324,7 +324,7 @@ quit()
 		if ((i == 'n') || (i == '\33'))	{ lprcat(" no"); lflush(); return; }
 		lprcat("\n");  setbold();  lprcat("Yes");  resetbold();  lprcat(" or ");
 		setbold();  lprcat("No");  resetbold();  lprcat(" please?   Do you want to quit? ");
-		}	
+		}
 	}
 
 /*
@@ -387,7 +387,7 @@ drop_object(k)
 	item[playerx][playery] = itm;
 	iarg[playerx][playery] = ivenarg[k];
 	srcount=0; lprcat("\n  You drop:"); show3(k); /* show what item you dropped*/
-	know[playerx][playery] = 0;  iven[k]=0; 
+	know[playerx][playery] = 0;  iven[k]=0;
 	if (c[WIELD]==k) c[WIELD]= -1;		if (c[WEAR]==k)  c[WEAR] = -1;
 	if (c[SHIELD]==k) c[SHIELD]= -1;
 	adjustcvalues(itm,ivenarg[k]);
@@ -430,7 +430,7 @@ enchweapon()
  */
 pocketfull()
 	{
-	register int i,limit; 
+	register int i,limit;
 	if ((limit = 15+(c[LEVEL]>>1)) > 26)  limit=26;
 	for (i=0; i<limit; i++) if (iven[i]==0) return(0);
 	return(1);

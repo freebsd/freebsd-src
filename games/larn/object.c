@@ -67,7 +67,7 @@ switch(i)
 
 	case OTELEPORTER:	lprcat("\nZaaaappp!  You've been teleported!\n");
 						beep(); nap(3000); oteleport(0);
-						break; 
+						break;
 
 	case OSCHOOL:	if (nearbymonst()) return;
 				lprcat("\n\nYou have found the College of Larn.");
@@ -133,7 +133,7 @@ switch(i)
 							{
 							case 6: c[AGGRAVATE] += rnd(400);	break;
 
-							case 7:	lprcat("\nYou are jolted by an electric shock "); 
+							case 7:	lprcat("\nYou are jolted by an electric shock ");
 									lastnum=274; losehp(rnd(20));  bottomline();  break;
 
 							case 8:	loselevel();  break;
@@ -172,7 +172,7 @@ switch(i)
 					if (level!=0) { lprcat("\nThe shaft only extends 5 feet downward!"); return; }
 					if (packweight() > 45+3*(c[STRENGTH]+c[STREXTRA])) { lprcat("\nYou slip and fall down the shaft"); beep();
 											  lastnum=275;  losehp(30+rnd(20)); bottomhp(); }
-					
+
 					else lprcat("climb down");  nap(3000);  newcavelevel(MAXLEVEL);
 					for (i=0; i<MAXY; i++)  for (j=0; j<MAXX; j++) /* put player near volcano shaft */
 						if (item[j][i]==OVOLUP) { playerx=j; playery=i; j=MAXX; i=MAXY; positionplayer(); }
@@ -382,7 +382,7 @@ opotion(pot)
 					return;
 		};
 	}
-		
+
 /*
 	function to drink a potion
  */
@@ -423,7 +423,7 @@ quaffpotion(pot)
 		case 2:	lprcat("\nSuddenly, you feel much more skillful!");
 				raiselevel();  raisemhp(1); return;
 
-		case 3:	lprcat("\nYou feel strange for a moment"); 
+		case 3:	lprcat("\nYou feel strange for a moment");
 				c[rund(6)]++;  break;
 
 		case 4:	lprcat("\nYou feel more self confident!");
@@ -571,7 +571,7 @@ read_scroll(typ)
 
 	  case 6:	c[AGGRAVATE]+=800; return; /* aggravate monsters */
 
-	  case 7:	gtime += (i = rnd(1000) - 850); /* time warp */ 
+	  case 7:	gtime += (i = rnd(1000) - 850); /* time warp */
 				if (i>=0) lprintf("\nYou went forward in time by %d mobuls",(long)((i+99)/100));
 				else lprintf("\nYou went backward in time by %d mobuls",(long)(-(i+99)/100));
 				adjtime((long)i);	/* adjust time for time warping */

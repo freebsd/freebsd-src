@@ -211,7 +211,7 @@ dndstore()
 	lprcat("\n\nThe Larn Revenue Service has ordered us to not do business with tax evaders.\n"); beep();
 	lprintf("They have also told us that you owe %d gp in back taxes, and as we must\n",(long)outstanding_taxes);
 	lprcat("comply with the law, we cannot serve you at this time.  Soo Sorry.\n");
-	cursors();	
+	cursors();
 	lprcat("\nPress "); standout("escape"); lprcat(" to leave: "); lflush();
 	i=0;
 	while (i!='\33') i=getchar();
@@ -353,7 +353,7 @@ oschool()
 							cl_line(16,8);
 							c[STRENGTH] += 2;  c[CONSTITUTION] += 2;  break;
 
-				case 'c':	c[INTELLIGENCE] += 2; 
+				case 'c':	c[INTELLIGENCE] += 2;
 							lprcat("\nThe task before you now seems more attainable!");
 							cl_line(16,9);  break;
 
@@ -366,15 +366,15 @@ oschool()
 							cl_line(16,10);
 							c[INTELLIGENCE] += 2;  break;
 
-				case 'e':	c[CHARISMA] += 3;  
+				case 'e':	c[CHARISMA] += 3;
 							lprcat("\nYou now feel like a born leader!");
 							cl_line(16,11);  break;
 
-				case 'f':	c[WISDOM] += 2;  
+				case 'f':	c[WISDOM] += 2;
 							lprcat("\nYou now feel more confident that you can find the potion in time!");
 							cl_line(16,12);  break;
 
-				case 'g':	c[DEXTERITY] += 3;  
+				case 'g':	c[DEXTERITY] += 3;
 							lprcat("\nYou feel like dancing!");
 							cl_line(16,13);  break;
 
@@ -388,7 +388,7 @@ oschool()
 			  {
 			  gtime += time_used;
 			  course[i-'a']++;	/*	remember that he has taken that course	*/
-			  c[HP] = c[HPMAX];  c[SPELLS] = c[SPELLMAX]; /* he regenerated */ 
+			  c[HP] = c[HPMAX];  c[SPELLS] = c[SPELLMAX]; /* he regenerated */
 
 			  if (c[BLINDCOUNT])	c[BLINDCOUNT]=1;  /* cure blindness too!  */
 			  if (c[CONFUSE])		c[CONFUSE]=1;	/*	end confusion	*/
@@ -426,7 +426,7 @@ banktitle(str)
 		lprintf("levied taxes have been paid.  They have also told us that you owe %d gp in\n",(long)outstanding_taxes);
 		lprcat("taxes, and we must comply with them. We cannot serve you at this time.  Sorry.\n");
 		lprcat("We suggest you go to the LRS office and pay your taxes.\n");
-		cursors();	
+		cursors();
 		lprcat("\nPress "); standout("escape"); lprcat(" to leave: "); lflush();
 		i=0;
 		while (i!='\33') i=getchar();
@@ -465,7 +465,7 @@ obanksub()
 	for (k=i=0; i<26; i++)
 		switch(iven[i])
 			{
-			case OLARNEYE: case ODIAMOND: case OEMERALD: 
+			case OLARNEYE: case ODIAMOND: case OEMERALD:
 			case ORUBY: case OSAPPHIRE:
 
 					if (iven[i]==OLARNEYE)
@@ -505,7 +505,7 @@ obanksub()
 						if (amt<0) { lprcat("\nSorry, but we don't have any negative gold!");  nap(2000); amt=0; }
 						else if (amt > c[BANKACCOUNT])
 						  { lprcat("\nYou don't have that much in the bank!"); nap(2000); }
-						else { c[GOLD] += amt;  c[BANKACCOUNT] -= amt; }		
+						else { c[GOLD] += amt;  c[BANKACCOUNT] -= amt; }
 						break;
 
 			case 's':	lprcat("\nWhich stone would you like to sell? ");
@@ -513,7 +513,7 @@ obanksub()
 						if (i=='*')
 						  for (i=0; i<26; i++)
 							{
-							if (gemvalue[i]) 
+							if (gemvalue[i])
 								{
 								c[GOLD]+=gemvalue[i];  iven[i]=0;
 								gemvalue[i]=0;	k = gemorder[i];
@@ -523,7 +523,7 @@ obanksub()
 							}
 						else
 							{
-							if (gemvalue[i=i-'a']==0) 
+							if (gemvalue[i=i-'a']==0)
 								{
 								lprintf("\nItem %c is not a gemstone!",i+'a');
 								nap(2000); break;
@@ -567,7 +567,7 @@ appraise(gemstone)
 			lprcat("\nWould you like to sell it to us? ");  yrepcount=0;
 			if (getyn()=='y') { lprcat("yes\n"); c[GOLD]+=amt;  iven[j]=0; }
 			else lprcat("no thank you.\n");
-			if (gemstone==OLARNEYE) lprcat("It is, of course, your privilege to keep the stone\n"); 
+			if (gemstone==OLARNEYE) lprcat("It is, of course, your privilege to keep the stone\n");
 			}
 		else lprcat("no\nO. K.\n");
 		}

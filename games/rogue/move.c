@@ -297,7 +297,7 @@ register drow, dcol;
 	return(0);
 }
 
-can_move(row1, col1, row2, col2) 
+can_move(row1, col1, row2, col2)
 {
 	if (!is_passable(row2, col2)) {
 		return(0);

@@ -180,9 +180,9 @@ static char	*nametable[4][4] =   /* names of places */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), adjuststats(), fabs(), more(), sqrt(), 
-/	sleep(), floor(), wmove(), drandom(), wclear(), printw(), 
-/	altercoordinates(), infloat(), waddstr(), wrefresh(), mvprintw(), getanswer(), 
+/ MODULES CALLED: writerecord(), adjuststats(), fabs(), more(), sqrt(),
+/	sleep(), floor(), wmove(), drandom(), wclear(), printw(),
+/	altercoordinates(), infloat(), waddstr(), wrefresh(), mvprintw(), getanswer(),
 /	wclrtoeol(), wclrtobot()
 /
 / GLOBAL INPUTS: Menu[], Circle, Player, *stdscr, Fileloc, Nobetter[]
@@ -539,7 +539,7 @@ allstatslist()
 {
 static	char	*flags[] =	/* to print value of some bools */
 	    {
-	    "False", 
+	    "False",
 	    " True"
 	    };
 
@@ -560,8 +560,8 @@ static	char	*flags[] =	/* to print value of some bools */
     mvprintw(15, 40, "Sword     : %9.0f", Player.p_sword);
     mvprintw(16, 40, "Quickslver: %9.0f", Player.p_quksilver);
 
-    mvprintw(18,  0, "Blessing: %s   Ring: %s   Virgin: %s   Palantir: %s", 
-	flags[Player.p_blessing], flags[Player.p_ring.ring_type != R_NONE], 
+    mvprintw(18,  0, "Blessing: %s   Ring: %s   Virgin: %s   Palantir: %s",
+	flags[Player.p_blessing], flags[Player.p_ring.ring_type != R_NONE],
 	flags[Player.p_virgin], flags[Player.p_palantir]);
 }
 /**/
@@ -843,9 +843,9 @@ leavegame()
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: freerecord(), enterscore(), more(), exit(), fread(), 
-/	fseek(), execl(), fopen(), floor(), wmove(), drandom(), wclear(), strcmp(), 
-/	fwrite(), fflush(), printw(), strcpy(), fclose(), waddstr(), cleanup(), 
+/ MODULES CALLED: freerecord(), enterscore(), more(), exit(), fread(),
+/	fseek(), execl(), fopen(), floor(), wmove(), drandom(), wclear(), strcmp(),
+/	fwrite(), fflush(), printw(), strcpy(), fclose(), waddstr(), cleanup(),
 /	fprintf(), wrefresh(), getanswer(), descrtype()
 /
 / GLOBAL INPUTS: Curmonster, Wizard, Player, *stdscr, Fileloc, *Monstfp
@@ -1019,7 +1019,7 @@ long	place;
 /
 / GLOBAL OUTPUTS: none
 /
-/ DESCRIPTION: 
+/ DESCRIPTION:
 /	Experience level is a geometric progression.  This has been finely
 /	tuned over the years, and probably should not be changed.
 /
@@ -1043,7 +1043,7 @@ double	experience;
 /
 / AUTHOR: E. A. Estes, 12/4/85
 /
-/ ARGUMENTS: 
+/ ARGUMENTS:
 /	char *string - pointer to null terminated string
 /
 / RETURN VALUE: none
@@ -1054,7 +1054,7 @@ double	experience;
 /
 / GLOBAL OUTPUTS: none
 /
-/ DESCRIPTION: 
+/ DESCRIPTION:
 /	Put nul characters in place of spaces at the end of the string.
 /
 *************************************************************************/
@@ -1077,7 +1077,7 @@ register int	length;		/* length of string */
 /
 / AUTHOR: E. A. Estes, 12/16/85
 /
-/ ARGUMENTS: 
+/ ARGUMENTS:
 /	double xnew, ynew - new x, y coordinates
 /	int operation - operation to perform with coordinates
 /
@@ -1089,7 +1089,7 @@ register int	length;		/* length of string */
 /
 / GLOBAL OUTPUTS: Marsh, Circle, Beyond, Throne, Player, Changed
 /
-/ DESCRIPTION: 
+/ DESCRIPTION:
 /	This module is called whenever the player's coordinates are altered.
 /	If the player is beyond the point of no return, he/she is forced
 /	to stay there.
@@ -1130,7 +1130,7 @@ int	operation;
 	    ynew = Player.p_y + SGN(Player.p_y) * ROLL(50 * Circle, 250 * Circle);
 	    break;
 	}
-    
+
     /* now set location flags and adjust coordinates */
     Circle = CIRCLE(Player.p_x = floor(xnew), Player.p_y = floor(ynew));
 
@@ -1361,7 +1361,7 @@ register struct  player   *playerp;
     playerp->p_type = C_FIGHTER;		/* default */
     playerp->p_specialtype = SC_NONE;
     playerp->p_lives =
-    playerp->p_crowns = 
+    playerp->p_crowns =
     playerp->p_charms =
     playerp->p_amulets =
     playerp->p_holywater =
@@ -1463,7 +1463,7 @@ error(whichfile)
 /
 / AUTHOR: E. A. Estes, 12/4/85
 /
-/ ARGUMENTS: 
+/ ARGUMENTS:
 /	double x1, y1 - x, y coordinates of first point
 /	double x2, y2 - x, y coordinates of second point
 /

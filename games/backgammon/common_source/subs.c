@@ -136,7 +136,7 @@ register char	*l;
 
 	if (trace == NULL)
 		trace = fopen ("bgtrace","w");
-	
+
 	fprintf (trace,"writel: \"");
 	for (s = l; *s; s++) {
 		if (*s < ' ' || *s == '\177')

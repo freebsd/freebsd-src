@@ -93,7 +93,7 @@ monstone(mdef) register struct monst *mdef; {
 	}
 	mondead(mdef);
 }
-		
+
 
 fightm(mtmp) register struct monst *mtmp; {
 register struct monst *mon;

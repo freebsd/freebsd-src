@@ -157,7 +157,7 @@ torped()
 			{
 			  case EMPTY:
 				continue;
-	
+
 			  case HOLE:
 				printf("Torpedo disappears into a black hole\n");
 				break;
@@ -178,15 +178,15 @@ torped()
 					break;
 				}
 				break;
-	
+
 			  case STAR:
 				nova(ix, iy);
 				break;
-	
+
 			  case INHABIT:
 				kills(ix, iy, -1);
 				break;
-	
+
 			  case BASE:
 				killb(Ship.quadx, Ship.quady);
 				Game.killb += 1;

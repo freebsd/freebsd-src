@@ -42,7 +42,7 @@ extern xchar dlevel;
 #define ON 1
 #define OFF 0
 
-extern struct obj *invent, *uwep, *uarm, *uarm2, *uarmh, *uarms, *uarmg, 
+extern struct obj *invent, *uwep, *uarm, *uarm2, *uarmh, *uarms, *uarmg,
 	*uleft, *uright, *fcobj;
 extern struct obj *uchain;	/* defined iff PUNISHED */
 extern struct obj *uball;	/* defined if PUNISHED */

@@ -245,7 +245,7 @@ gotlock:
 			error("cannot close lock");
 		}
 	}
-}	
+}
 
 #ifdef MAIL
 
@@ -393,7 +393,7 @@ boolean away;
 				md->my = fy;
 			    }
 			    break;
-			} 
+			}
 		}
 		tmp_at(-1,-1);			/* close call */
 	}

@@ -195,7 +195,7 @@ mainloop()
 		if (c == '.') {
 			c = lastc;
 		}
-		if ((Klength > 0) && 
+		if ((Klength > 0) &&
 		    (c == *KL || c == *KR || c == *KU || c == *KD)) {
 			savec = c;
 			match = 0;
@@ -225,7 +225,7 @@ mainloop()
 					if (match == 0) {
 						ungetc(c,stdin);
 						ch = savec;
-		/* Oops! 
+		/* Oops!
 		 * This works if we figure it out on second character.
 		 */
 						break;
@@ -355,7 +355,7 @@ mainloop()
 
 			if (same(&you,&money))
 			{
-				char xp[20]; 
+				char xp[20];
 				struct point z;
 				loot += 25;
 				if(k < repeat)
@@ -524,11 +524,11 @@ flushi()
 {
 	stty(0, &new);
 }
-int mx [8] = { 
+int mx [8] = {
 	0, 1, 1, 1, 0,-1,-1,-1};
 int my [8] = {
 	-1,-1, 0, 1, 1, 1, 0,-1};
-float absv[8]= { 
+float absv[8]= {
 	1, 1.4, 1, 1.4, 1, 1.4, 1, 1.4
 };
 int oldw=0;
@@ -542,7 +542,7 @@ struct point *sp, *np;
 	double v1, v2, vp, max;
 	point(&d,you.col-sp->col,you.line-sp->line);
 	v1 = sqrt( (double) (d.col*d.col + d.line*d.line) );
-	w=0; 
+	w=0;
 	max=0;
 	for(i=0; i<8; i++)
 	{
@@ -584,7 +584,7 @@ struct point *sp, *np;
 		else
 			vp -= wt[i];
 	if (i==8) {
-		pr("failure\n"); 
+		pr("failure\n");
 		i=0;
 		while (wt[i]==0) i++;
 	}
@@ -803,7 +803,7 @@ pushsnake()
 	}
 	return(0);
 }
-	
+
 chk(sp)
 struct point *sp;
 {

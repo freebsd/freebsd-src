@@ -51,9 +51,9 @@ regen()
 	if (d[CANCELLATION])	if ((--d[CANCELLATION]) <= 0) flag=1;
 	if (d[WTW])				if ((--d[WTW]) <= 0) flag=1;
 	if (d[HASTESELF])		if ((--d[HASTESELF]) <= 0) flag=1;
-	if (d[AGGRAVATE])		--d[AGGRAVATE]; 
-	if (d[SCAREMONST])		if ((--d[SCAREMONST]) <= 0) flag=1; 
-	if (d[STEALTH])			if ((--d[STEALTH]) <= 0) flag=1; 
+	if (d[AGGRAVATE])		--d[AGGRAVATE];
+	if (d[SCAREMONST])		if ((--d[SCAREMONST]) <= 0) flag=1;
+	if (d[STEALTH])			if ((--d[STEALTH]) <= 0) flag=1;
 	if (d[AWARENESS])		--d[AWARENESS];
 	if (d[HOLDMONST])		if ((--d[HOLDMONST]) <= 0) flag=1;
 	if (d[HASTEMONST])		--d[HASTEMONST];
@@ -73,7 +73,7 @@ regen()
 				if (rnd(100)<50)
 					{
 					d[WEAR]=d[SHIELD]= -1; cursors();
-					lprcat("\nThe hysteria of itching forces you to remove your armor!"); 
+					lprcat("\nThe hysteria of itching forces you to remove your armor!");
 					beep(); recalc();  bottomline();
 					}
 		if (--d[ITCHING]<=0) { cursors();  lprcat("\nYou now feel the irritation subside!"); beep(); }

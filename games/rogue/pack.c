@@ -221,7 +221,7 @@ object *obj, *pack;
 	op = pack->next_object;
 
 	while (op) {
-		if ((op->what_is == obj->what_is) && 
+		if ((op->what_is == obj->what_is) &&
 			(op->which_kind == obj->which_kind)) {
 
 			if ((obj->what_is != WEAPON) ||

@@ -200,7 +200,7 @@ struct point *sp;
 		if (sp->col > cursor.col)right(sp);
 		else{
 			distance = (cursor.col -sp->col)*BSlength;
-			if (((TA) && 
+			if (((TA) &&
 			     (distance > tfield+((sp->col)&7)*NDlength)
 			    ) ||
 			    (((cursor.col)*NDlength) < distance)
@@ -232,7 +232,7 @@ struct point *sp;
 	}
 	if (((sp->line << 1) > cursor.line + LINES+1 + f) && (LL != 0)){
 		/* home,rlf quicker than lf
-		 * (LINES+1 - sp->line + f < sp->line - cursor.line) 
+		 * (LINES+1 - sp->line + f < sp->line - cursor.line)
 		 */
 		if (cursor.line > f + 1){
 		/* is home faster than wraparound lf?
@@ -271,7 +271,7 @@ struct point *sp;
 		if (BW && (CM == 0) &&
 		    ((sp->col << 1) - field > (COLUMNS - 8) << 1 )
 		   ){
-	 		if (cursor.line == 0){  
+	 		if (cursor.line == 0){
 	 			outch('\n');
 	 		}
 	 		outch('\r');
@@ -493,7 +493,7 @@ char ch;{
 	}
 }
 
-			
+
 outch(c)
 {
 	putchar(c);

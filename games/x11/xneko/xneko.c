@@ -146,7 +146,7 @@ static char sccsid[] = "@(#)xneko.c	8.1 (Berkeley) 5/31/93";
 
 #ifndef	lint
 static char
-	rcsid[] = "$Header: /afs/athena.mit.edu/user/j/jik/sipbsrc/src/xneko/RCS/xneko.c,v 1.2 90/09/01 23:40:01 jik Exp $";
+	rcsid[] = "$Header: /home/ncvs/src/games/x11/xneko/xneko.c,v 1.1.1.1 1994/09/04 04:02:16 jkh Exp $";
 static char	WriterMessage[] = "xneko: Programmed by Masayuki Koba, 1990";
 #endif
 
@@ -975,7 +975,7 @@ IsNekoMoveStart()
 #ifndef	DEBUG
     if ( ( PrevMouseX >= MouseX - IDLE_SPACE
 	 && PrevMouseX <= MouseX + IDLE_SPACE ) &&
-	 ( PrevMouseY >= MouseY - IDLE_SPACE 
+	 ( PrevMouseY >= MouseY - IDLE_SPACE
 	 && PrevMouseY <= MouseY + IDLE_SPACE ) ) {
 	return( False );
     } else {
