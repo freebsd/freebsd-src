@@ -1,0 +1,401 @@
+#!/usr/local/bin/perl -w
+
+# Generate a short man page from --help and --version output.
+# Copyright © 1997, 98, 99 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Written by Brendan O'Dea <bod@compusol.com.au>
+
+use 5.004;
+use strict;
+use Getopt::Long;
+use Text::Tabs qw(expand);
+use POSIX qw(strftime setlocale LC_TIME);
+
+my $this_program = 'help2man';
+my $this_version = '1.013';
+my $version_info = <<EOT;
+$this_program $this_version
+
+Copyright (C) 1997, 98, 99 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Brendan O'Dea <bod\@compusol.com.au>
+EOT
+
+my $help_info = <<EOT;
+`$this_program' generates a man page out of `--help' and `--version' output.
+
+Usage: $this_program [OPTION]... EXECUTABLE
+
+ -n, --name=STRING       use `STRING' as the description for the NAME paragraph
+ -s, --section=SECTION   use `SECTION' as the section for the man page
+ -i, --include=FILE      include material from `FILE'
+ -I, --opt-include=FILE  include material from `FILE' if it exists
+ -o, --output=FILE       send output to `FILE'
+ -N, --no-info           suppress pointer to Texinfo manual
+     --help              print this help, then exit
+     --version           print $this_program program version number, then exit
+
+EXECUTABLE should accept `--help' and `--version' options.
+EOT
+
+my $section = 1;
+my ($include, $opt_name, $opt_include, $opt_output, $opt_no_info);
+
+# Parse options.
+Getopt::Long::config('bundling');
+GetOptions (
+    'n|name=s'		=> \$opt_name,
+    's|section=s'	=> \$section,
+    'i|include=s'	=> \$include,
+    'I|opt-include=s'	=> \$opt_include,
+    'o|output=s'	=> \$opt_output,
+    'N|no-info'		=> \$opt_no_info,
+    help		=> sub { print $help_info; exit },
+    version		=> sub { print $version_info; exit },
+) or die $help_info;
+
+die $help_info unless @ARGV == 1;
+
+my %include = ();
+my @include = (); # to retain order
+
+# Process include file (if given).  Format is:
+#
+# [section name]
+# verbatim text
+
+if ($include or $opt_include)
+{
+    if (open INC, $include || $opt_include)
+    {
+	my $sect;
+
+	while (<INC>)
+	{
+	    if (/^\[([^]]+)\]/)
+	    {
+		$sect = uc $1;
+		$sect =~ s/^\s+//;
+		$sect =~ s/\s+$//;
+		next;
+	    }
+
+	    # Silently ignore anything before the first
+	    # section--allows for comments and revision info.
+	    next unless $sect;
+
+	    push @include, $sect unless $include{$sect};
+	    $include{$sect} ||= '';
+	    $include{$sect} .= $_;
+	}
+
+	close INC;
+
+	die "$this_program: no valid information found in `$include'\n"
+	    unless %include;
+
+	# Compress trailing blank lines.
+	for (keys %include)
+	{
+	    $include{$_} =~ s/\n+$//;
+	    $include{$_} .= "\n" unless /^NAME$/;
+	}
+    }
+    else
+    {
+	die "$this_program: can't open `$include' ($!)\n" if $include;
+    }
+}
+
+# Turn off localisation of executable's ouput.
+@ENV{qw(LANGUAGE LANG LC_ALL)} = ('C') x 3;
+
+# Turn off localisation of date (for strftime)
+setlocale LC_TIME, 'C';
+
+# Expand tabs, strip trailing spaces and break into paragraphs
+sub paragraphs { split /\n\n+/, join '', expand @_ }
+
+# Grab help and version paragraphs from executable
+my @help = paragraphs `$ARGV[0] --help 2>/dev/null`
+    or die "$this_program: can't get `--help' info from $ARGV[0]\n";
+
+my @version = paragraphs `$ARGV[0] --version 2>/dev/null`
+    or die "$this_program: can't get `--version' info from $ARGV[0]\n";
+
+my $date = strftime "%B %Y", localtime;
+(my $program = $ARGV[0]) =~ s!.*/!!;
+my $package = $program;
+my $version;
+
+if ($opt_output)
+{
+    unlink $opt_output
+	or die "$this_program: can't unlink $opt_output ($!)\n"
+	if -e $opt_output;
+
+    open STDOUT, ">$opt_output"
+	or die "$this_program: can't create $opt_output ($!)\n";
+}
+
+# The first line of the --version information is assumed to be in one
+# of the following formats:
+#
+#   <version>
+#   <program> <version>
+#   {GNU,Free} <program> <version>
+#   <program> ({GNU,Free} <package>) <version>
+#   <program> - {GNU,Free} <package> <version>
+#
+# and seperated from any copyright/author details by a blank line.
+
+$_ = shift @version;
+
+if (/^(\S+) +\(((?:GNU|Free) +[^)]+)\) +(.*)/ or
+    /^(\S+) +- *((?:GNU|Free) +\S+) +(.*)/)
+{
+    $program = $1;
+    $package = $2;
+    $version = $3;
+}
+elsif (/^((?:GNU|Free) +)?(\S+) +(.*)/)
+{
+    $program = $2;
+    $package = $1 ? "$1$2" : $2;
+    $version = $3;
+}
+else
+{
+    $version = $_;
+}
+
+$program =~ s!.*/!!;
+
+# no info for `info' itself
+$opt_no_info = 1 if $program eq 'info';
+
+# --name overrides --include contents
+$include{NAME} = "$program \\- $opt_name" if $opt_name;
+
+# Default (useless) NAME paragraph
+$include{NAME} ||= "$program \\- manual page for $program $version";
+
+# Man pages traditionally have the page title in caps.
+my $PROGRAM = uc $program;
+
+# Header.
+print <<EOT;
+.\\" DO NOT MODIFY THIS FILE!  It was generated by $this_program $this_version.
+.TH $PROGRAM "$section" "$date" "$package $version" FSF
+.SH NAME
+$include{NAME}
+EOT
+
+my $break;
+my $accumulate = 1;
+my @description = ();
+
+sub convert_option;
+
+# Output converted --help information.
+for (@help)
+{
+    chomp;
+
+    if (s/^Usage: +\S+ +(.*)\n?//)
+    {
+	# Turn the usage clause into a synopsis.
+	my $synopsis = '';
+
+	do {
+	    my $syn = $1;
+	    $syn =~ s/(([][]|\.\.+)+)/\\fR$1\\fI/g;
+	    $syn =~ s/^/\\fI/ unless $syn =~ s/^\\fR//;
+	    $syn .= '\fR';
+	    $syn =~ s/\\fI( *)\\fR/$1/g;
+
+	    $synopsis .= ".br\n" unless $accumulate;
+	    $synopsis .= ".B $program\n";
+	    $synopsis .= "$syn\n";
+	    $accumulate = 0;
+	} while s/^(?:Usage| *or): +\S+ +(.*)\n?//;
+
+	# Include file overrides SYNOPSIS.
+	print ".SH SYNOPSIS\n", $include{SYNOPSIS} || $synopsis;
+
+	# Dump any accumulated description text.
+	print ".SH DESCRIPTION\n";
+	print @description;
+
+	# Add additional description text from include file.
+	if ($include{DESCRIPTION})
+	{
+	    print ".PP\n" unless $include{DESCRIPTION} =~ /^\..P/;
+	    print $include{DESCRIPTION};
+	}
+
+	$break = 1;
+	next unless $_;
+    }
+
+    # Accumulate text if the synopsis has not been produced yet.
+    if ($accumulate)
+    {
+	push @description, ".PP\n" if @description;
+	push @description, "$_\n";
+	next;
+    }
+
+    # Convert some standard paragraph names
+    if (s/^(Options|Examples): *\n//)
+    {
+	print qq(.SH \U$1\n);
+	$break = '';
+	next unless length;
+    }
+
+    # Catch bug report text.
+    if (/^Report bugs |^Email bug reports to /)
+    {
+	print qq(.SH "REPORTING BUGS"\n$_\n);
+	$break = '';
+	next;
+    }
+
+    # Option subsections have second line indented.
+    if (s/^(\S.*)\n / /)
+    {
+	print qq(.SS "$1"\n);
+	$break = '';
+    }
+
+    my $output = '';
+    while (length)
+    {
+	my $indent = 0;
+
+	# Tagged paragraph
+	if (s/^( +(\S.*?)  +)(\S.*)\n?//)
+	{
+	    $indent = length $1;
+	    $output .= ".TP\n$2\n$3\n";
+	    $break = 1;
+	}
+
+	# Indented paragraph
+	elsif (s/^( +)(\S.*)\n?//)
+	{
+	    $indent = length $1;
+	    $output .= ".IP\n$2\n";
+	    $break = 1;
+	}
+
+	# Left justified paragraph
+	else
+	{
+	    s/(.*)\n?//;
+	    $output .= ".PP\n" if $break;
+	    $output .= "$1\n";
+	    $break = 1;
+	}
+
+	# Continuations
+	$output .= "$1\n" while s/^ {$indent}(\S.*)\n?//;
+    }
+
+    $_ = $output;
+
+    # Escape backslashes.
+    s/\\/\\e/g;
+
+    # Convert options.
+    s/(^| )(-[][\w=-]+)/$1 . convert_option $2/mge;
+    print;
+}
+
+# Print any include items other than the ones we have already dealt
+# with.
+for (@include)
+{
+    print qq(.SH "$_"\n$include{$_})
+	unless /^(NAME|SYNOPSIS|DESCRIPTION|SEE ALSO)$/;
+}
+
+# Refer to the real documentation.
+if ($include{'SEE ALSO'} or !$opt_no_info)
+{
+    print qq(.SH "SEE ALSO"\n);
+    print $include{'SEE ALSO'}, ".PP\n" if $include{'SEE ALSO'};
+
+    print <<EOT unless $opt_no_info;
+The full documentation for
+.B $program
+is maintained as a Texinfo manual.  If the
+.B info
+and
+.B $program
+programs are properly installed at your site, the command
+.IP
+.B info $program
+.PP
+should give you access to the complete manual.
+EOT
+}
+
+# Output converted --version information.
+for (@version)
+{
+    chomp;
+
+    # Join hyphenated lines.
+    s/([A-Za-z])-\n */$1/g;
+
+    # Convert copyright symbol or (c) to nroff character.
+    s/Copyright +(?:\xa9|\([Cc]\))/Copyright \\(co/g;
+
+    # Insert appropriate headings for copyright and author.
+    if    (/^Copyright \\/) { print ".SH COPYRIGHT\n" }
+    elsif (/^Written +by/)  { print ".SH AUTHOR\n" }
+    else		    { print ".PP\n"; }
+
+    # Insert line breaks before additional copyright messages and the
+    # disclaimer.
+    s/(.)\n(Copyright |This is free software)/$1\n.br\n$2/g;
+
+    print "$_\n";
+}
+
+exit;
+
+# Convert option dashes to \- to stop nroff from hyphenating 'em, and
+# embolden.  Option arguments get italicised.
+sub convert_option
+{
+    my $option = '\fB' . shift;
+
+    $option =~ s/-/\\-/g;
+    unless ($option =~ s/\[=(.*)\]$/\\fR[=\\fI$1\\fR]/)
+    {
+	$option =~ s/=(.)/\\fR=\\fI$1/;
+	$option =~ s/ (.)/ \\fI$1/;
+	$option .= '\fR';
+    }
+
+    $option;
+}

@@ -1,0 +1,25 @@
+
+PAM
+---
+
+The PAM module was written more out of curiosity that anything else. It
+has not been updated for quite a while, but it seems to mostly work on
+both Linux and Solaris.
+
+To use this module you should:
+
+   * Make sure `pam_krb4.so' is available in `/usr/athena/lib'. You
+     might actually want it on local disk, so `/lib/security' might be a
+     better place if `/usr/athena' is not local.
+
+   * Look at `pam.conf.add' for examples of what to add to
+     `/etc/pam.conf'.
+
+There is currently no support for changing kerberos passwords. Use
+kpasswd instead.
+
+See also Derrick J Brashear's `<shadow@dementia.org>' Kerberos PAM
+module at
+<ftp://ftp.dementia.org/pub/pam>. It has a lot more features, and it is
+also more in line with other PAM modules.
+
