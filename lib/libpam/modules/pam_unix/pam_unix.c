@@ -170,7 +170,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	time_t warntime;
 	int retval;
 	const char *rhost, *tty, *user;
-	char rhostip[MAXHOSTNAMELEN];
+	char rhostip[MAXHOSTNAMELEN] = "";
 
 	pam_std_option(&options, other_options, argc, argv);
 
