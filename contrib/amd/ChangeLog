@@ -1,3 +1,103 @@
+2004-05-12  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* m4/macros/check_map_funcs.m4: imported bug-fixed version from
+	6.1 branch.
+
+	* config.guess, config.sub, ltmain.sh: updates from the latest GNU
+	distributions.
+
+	* configure.in: don't check for dbm_open unless needed.
+
+	* m4/macros/header_templates.m4: template for NEW_DBM_H header
+	file.  This completes the migration of bison/flex and n/dbm fixes
+	from 6.1 to to 6.0.
+
+	* include/am_defs.h: Move ALLOCA logic here.
+	Add new db/ndbm/gdbm logic here.
+
+	* fsinfo/fsinfo.h, fsinfo/fsinfo.c, fsinfo/fsi_lex.l,
+	amd/conf_tok.l: Fixes to avoid problems with modern yacc/lex
+	implementations.
+
+	* amd/conf_parse.y: move ALLOCA checks out of yacc code.  Fixes to
+	avoid problems with modern yacc/lex implementations.
+
+	* configure.in: search for gdbm/ndbm.h.  Add logic to deal with
+	db/ndbm/gdbm mess.
+
+2004-01-20  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* amd/conf.c (gopt_nfs_allow_insecure_port): support function for
+	the new "nfs_allow_insecure_port" amd.conf directive
+
+	* amd/nfs_prot_svc.c (nfs_program_2): complain about the insecure
+	port and drop the request only if the "nfs_allow_insecure_port"
+	option is not set in amd.conf
+
+	* doc/am-utils.texi (Global Parameters): documented the new
+	amd.conf directive "nfs_allow_insecure_port"
+
+	* scripts/amd.conf.5 (nfs_allow_insecure_port): ditto
+
+	* scripts/amd.conf-sample (nfs_allow_insecure_port): added the
+	"nfs_allow_insecure_port" directive
+
+2004-01-20  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* doc/am-utils.texi: amd-workers is defunct.
+
+2004-01-19  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* cvs-server.txt: updated instructions
+
+2004-01-18  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new port: i386-unknown-freebsd5.2.
+
+	* hlfsd/hlfsd.c (hlfsd_init), amd/amq_subr.c
+	(amqproc_mnttree_1_svc, amqproc_stats_1_svc,
+	amqproc_getmntfs_1_svc, xdr_amq_mount_tree): force double casting
+	to avoid gcc-3.3 complaints on Solaris 9 about "dereferencing
+	type-punned pointer will break strict-aliasing rules".
+
+2004-01-06  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* minor new port: i386-unknown-freebsd4.9.
+
+	* include/am_defs.h: Don't include malloc.h if stdlib.h exists,
+	because modern systems (e.g., BSD) complain if you use malloc.h
+	instead of stdlib.h.  Let's hope there are no systems out
+	there that need both.
+
+2004-01-05  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* MIRRORS.{txt,html}: verify each mirror site, update to new
+	locations (if found), and remove stale mirrors URLs.
+
+	* updated copyright year to 2004 on all files.
+
+	* Makefile.am (install-snapshot): new directory to install
+	snapshots (now that am-utils home page is moved).
+
+	* INSTALL, README.autofs: remove forced text-mode.
+
+	* doc/am-utils.texi: fix Amd book URL.
+
+	* Makefile.am (EXTRA_DIST): include new mirror files in tarball.
+
+	* AUTHORS, BUGS, README, README.y2k, configure.in,
+	doc/am-utils.texi: revisions to use newer URLs for Web site, FTP,
+	and mailing lists.
+
+	* MIRRORS.{html,txt}: copied from 6.1 branch.
+
+	* doc/Makefile.am: install mirror lists officially.
+
+2003-10-21  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* buildall: added support for -i (make install), other fixes from
+	the trunk
+
 2003-08-27  Ion Badulescu  <ionut@buggy.badula.org>
 
 	* conf/nfs_prot/nfs_prot_freebsd3.h (na_uid): freebsd4.5 uses nfs
