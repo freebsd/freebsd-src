@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.3 1998/12/28 16:32:39 peter Exp $ */
+/* $Id: commands.c,v 1.5 1999/01/18 03:36:32 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -122,16 +122,21 @@ vinum_read(int argc, char *argv[], char *arg0[])
     int error;
     char buffer[BUFSIZE];				    /* read config file in here */
     struct _ioctl_reply *reply;
-    reply = (struct _ioctl_reply *) &buffer;
+    int i;
 
-    if (argc != 1) {					    /* wrong arg count */
-	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
+    reply = (struct _ioctl_reply *) &buffer;
+    if (argc < 1) {					    /* wrong arg count */
+	fprintf(stderr, "Usage: read drive [drive ...]\n");
 	return;
     }
     strcpy(buffer, "read ");
-    strcat(buffer, argv[0]);
+    for (i = 0; i < argc; i++) {			    /* each drive name */
+	strcat(buffer, argv[i]);
+	strcat(buffer, " ");
+    }
+
     if (ioctl(superdev, VINUM_STARTCONFIG, NULL)) {	    /* can't get config? */
-	printf("Can't configure: %s (%d)\n", strerror(errno), errno);
+	fprintf(stderr, "Can't configure: %s (%d)\n", strerror(errno), errno);
 	return;
     }
     ioctl(superdev, VINUM_CREATE, &buffer);
@@ -249,7 +254,7 @@ vinum_rm(int argc, char *argv[], char *arg0[])
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
     if (argc == 0)					    /* start everything */
-	fprintf(stderr, "what do you want to remove?\n");
+	fprintf(stderr, "Usage: rm object [object...]\n");
     else {						    /* start specified objects */
 	int index;
 	enum objecttype type;
@@ -301,10 +306,12 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 	    printf("\b Vinum configuration obliterated\n");
 	    system("rm -rf " VINUM_DIR "/" "*");	    /* remove the old /dev/vinum */
 	    syslog(LOG_NOTICE | LOG_KERN, "configuration obliterated");
+	    start_daemon();				    /* then restart the daemon */
 	}
     }
 }
 
+/* Initialize a plex */
 void 
 vinum_init(int argc, char *argv[], char *arg0[])
 {
@@ -341,89 +348,77 @@ vinum_init(int argc, char *argv[], char *arg0[])
 		    return;
 		}
 	    }
-	    message->index = plexno;			    /* pass object number */
-	    message->type = plex_object;		    /* and type of object */
-	    message->state = object_initializing;
-	    message->force = 1;				    /* insist */
-	    ioctl(superdev, VINUM_SETSTATE, message);
-	    if (reply.error) {
-		syslog(LOG_ERR | LOG_KERN,
-		    "can't initialize %s: %s",
-		    plex.name,
-		    reply.msg[0] ? reply.msg : strerror(reply.error));
-	    } else {
-		pid = fork();
-		if (pid == 0) {				    /* we're the child */
-		    int failed = 0;			    /* set if a child dies badly */
-		    int sdfh;				    /* and for subdisk */
-		    char zeros[PLEXINITSIZE];
-		    int count;				    /* write count */
-		    long long offset;			    /* offset in subdisk */
-		    long long sdsize;			    /* size of subdisk */
+	    pid = fork();
+	    if (pid == 0) {				    /* we're the child */
+		int failed = 0;				    /* set if a child dies badly */
+		int sdfh;				    /* and for subdisk */
+		char zeros[PLEXINITSIZE];
+		int count;				    /* write count */
+		long long offset;			    /* offset in subdisk */
+		long long sdsize;			    /* size of subdisk */
 
-		    bzero(zeros, sizeof(zeros));
-		    openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
-		    for (sdno = 0; sdno < plex.subdisks; sdno++) { /* initialize each subdisk */
+		bzero(zeros, sizeof(zeros));
+		openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
+		for (sdno = 0; sdno < plex.subdisks; sdno++) { /* initialize each subdisk */
 							    /* We already have the plex data in global
-			 * plex from the call to find_object */
-			pid = fork();			    /* into the background with you */
-			if (pid == 0) {			    /* I'm the child */
-			    get_plex_sd_info(&sd, plexno, sdno);
-			    sdsize = sd.sectors * DEV_BSIZE; /* size of subdisk in bytes */
-			    sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
-			    setproctitle("initializing %s", filename); /* show what we're doing */
-			    syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s\n", filename);
-			    if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	/* no go */
+		     * plex from the call to find_object */
+		    pid = fork();			    /* into the background with you */
+		    if (pid == 0) {			    /* I'm the child */
+			get_plex_sd_info(&sd, plexno, sdno);
+			sdsize = sd.sectors * DEV_BSIZE;    /* size of subdisk in bytes */
+			sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
+			setproctitle("initializing %s", filename); /* show what we're doing */
+			syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
+			if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) { /* no go */
+			    syslog(LOG_ERR | LOG_KERN,
+				"can't open subdisk %s: %s",
+				filename,
+				strerror(errno));
+			    exit(1);
+			}
+			for (offset = 0; offset < sdsize; offset += count) {
+			    count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
+			    if (count < 0) {
 				syslog(LOG_ERR | LOG_KERN,
-				    "can't open subdisk %s: %s\n",
+				    "can't write subdisk %s: %s",
 				    filename,
 				    strerror(errno));
 				exit(1);
 			    }
-			    for (offset = 0; offset < sdsize; offset += count) {
-				count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
-				if (count < 0) {
-				    syslog(LOG_ERR | LOG_KERN,
-					"can't write subdisk %s: %s\n",
-					filename,
-					strerror(errno));
-				    exit(1);
-				}
 							    /* XXX Grrrr why doesn't this thing recognize EOF? */
-				else if (count == 0)
-				    break;
-			    }
-			    syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized\n", filename);
-			    exit(0);
-			} else if (pid < 0)		    /* failure */
-			    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
-		    }
-							    /* Now wait for them to complete */
-		    for (sdno = 0; sdno < plex.subdisks; sdno++) {
-			int status;
-			pid = wait(&status);
-			if (WEXITSTATUS(status) != 0) {	    /* oh, oh */
-			    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
-			    failed++;
+			    else if (count == 0)
+				break;
 			}
+			syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized", filename);
+							    /* Bring the subdisk up */
+			message->index = sd.sdno;	    /* pass object number */
+			message->type = sd_object;	    /* and type of object */
+			message->state = object_up;
+			message->force = 1;		    /* insist */
+			ioctl(superdev, VINUM_SETSTATE, message);
+			exit(0);
+		    } else if (pid < 0)			    /* failure */
+			printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
+		}
+		/* Now wait for them to complete */
+		for (sdno = 0; sdno < plex.subdisks; sdno++) {
+		    int status;
+		    pid = wait(&status);
+		    if (WEXITSTATUS(status) != 0) {	    /* oh, oh */
+			printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
+			failed++;
 		    }
-		    if (failed == 0) {
-			for (sdno = 0; sdno < plex.subdisks; sdno++) { /* bring the subdisks up */
-			    get_plex_sd_info(&sd, plexno, sdno); /* get the SD info again */
-			    message->index = sd.sdno;	    /* pass object number */
-			    message->type = sd_object;	    /* and type of object */
-			    message->state = object_up;
-			    message->force = 1;		    /* insist */
-			    ioctl(superdev, VINUM_SETSTATE, message);
-			}
-			syslog(LOG_INFO | LOG_KERN, "plex %s initialized\n", plex.name);
-		    } else
-			syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died\n",
-			    plex.name,
-			    failed);
-		    exit(0);
+		}
+		if (failed == 0) {
+		    syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
 		} else
-		    close(plexfh);			    /* we don't need this any more */
+		    syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
+			plex.name,
+			failed);
+		exit(0);
+	    } else {
+		close(plexfh);				    /* we don't need this any more */
+		sleep(1);				    /* give them a chance to print */
 	    }
 	}
     }
@@ -450,10 +445,11 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		message->index = object;		    /* pass object number */
 		message->type = type;			    /* and type of object */
 		message->state = object_up;
+		message->force = 0;			    /* don't force it, use a larger hammer */
 		ioctl(superdev, VINUM_SETSTATE, message);
 		if (reply.error != 0) {
 		    if ((reply.error == EAGAIN)		    /* we're reviving */
-		    &&(type == plex_object))
+		    &&(type == sd_object))
 			continue_revive(object);
 		    else
 			fprintf(stderr,
@@ -678,7 +674,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
     const char *objname = argv[0];
     const char *supername = argv[1];
-    int sdno;
+    int sdno = -1;
     int plexno = -1;
     char newname[MAXNAME + 8];
     int rename = 0;					    /* set if we want to rename the object */
@@ -722,6 +718,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	    fprintf(stderr, "Can't attach subdisks to a %s plex\n", plex_org(plex.organization));
 	    return;
 	}
+	sdno = msg.index;				    /* note the subdisk number for later */
 	break;
 
     case plex_object:
@@ -729,7 +726,6 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 	    fprintf(stderr, "%s can only be attached to a volume\n", objname);
 	    return;
 	}
-	plexno = msg.index;				    /* note the plex number, we'll need it again */
 	break;
 
     case volume_object:
@@ -745,7 +741,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     ioctl(superdev, VINUM_ATTACH, &msg);
     if (reply->error != 0) {
 	if (reply->error == EAGAIN)			    /* reviving */
-	    continue_revive(plexno);			    /* continue the revive */
+	    continue_revive(sdno);			    /* continue the revive */
 	else
 	    fprintf(stderr,
 		"Can't attach %s to %s: %s (%d)\n",
@@ -978,4 +974,93 @@ void
 vinum_replace(int argc, char *argv[], char *argv0[])
 {
     fprintf(stderr, "replace function not implemented yet\n");
+}
+
+/* Primitive help function */
+void 
+vinum_help(int argc, char *argv[], char *argv0[])
+{
+    char commands[] =
+    {
+	"COMMANDS\n"
+	"     create description-file\n"
+	"               Create a volume as described in description-file\n"
+	"     attach plex volume [rename]\n"
+	"     attach subdisk plex [offset] [rename]\n"
+	"               Attach a plex to a volume, or a subdisk to a plex.\n"
+	"     debug\n"
+	"               Cause the volume manager to enter the kernel debugger.\n"
+	"     detach [plex | subdisk]\n"
+	"      Detach a plex or subdisk from the volume or plex to which it is at-\n"
+	"      tached.\n"
+	"     info [-v]\n"
+	"               List information about volume manager state.\n"
+	"     init [-v]\n"
+	"               Initialize a plex by writing zeroes to all its subdisks.\n"
+	"     label volume\n"
+	"               Create a volume label\n"
+	"     list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	"               List information about specified objects\n"
+	"     l [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	"               List information about specified objects (alternative to\n"
+	"               list command)\n"
+	"     ld [-r] [-s] [-v] [-V] [volume]\n"
+	"               List information about drives\n"
+	"     ls [-r] [-s] [-v] [-V] [subdisk]\n"
+	"               List information about subdisks\n"
+	"     lp [-r] [-s] [-v] [-V] [plex]\n"
+	"               List information about plexes\n"
+	"     lv [-r] [-s] [-v] [-V] [volume]\n"
+	"               List information about volumes\n"
+	"     makedev\n"
+	"               Remake the device nodes in /dev/vinum.\n"
+	"     read disk-partition\n"
+	"               Read the vinum configuration from the specified disk partition.\n"
+	"     rename [-r] [drive | subdisk | plex | volume] newname\n"
+	"               Change the name of the specified object.\n"
+	"     replace [subdisk | plex] newobject\n"
+	"               Replace the object with an identical other object.  XXX not im-\n"
+	"               plemented yet.\n"
+	"     resetconfig\n"
+	"               Reset the complete vinum configuration.\n"
+	"     resetstats [-r] [volume | plex | subdisk]\n"
+	"               Reset statistisc counters for the specified objects, or for all\n"
+	"               objects if none are specified.\n"
+	"     rm [-f] [-r] volume | plex | subdisk\n"
+	"               Remove an object\n"
+	"     setdaemon options\n"
+	"               set the daemon options\n"
+	"     start [volume | plex | subdisk]\n"
+	"               Allow the system to access the objects\n"
+	"     stop [-f] [volume | plex | subdisk]\n"
+	"               Terminate access the objects\n"
+    };
+    puts(commands);
+}
+
+/* Set daemon options.
+ * XXX quick and dirty: use a bitmap, which requires
+ * knowing which bit does what.  FIXME */
+void 
+vinum_setdaemon(int argc, char *argv[], char *argv0[])
+{
+    int options;
+
+    switch (argc) {
+    case 0:
+	if (ioctl(superdev, VINUM_GETDAEMON, &options) < 0)
+	    fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
+	else
+	    printf("Options mask: %d\n", options);
+	break;
+
+    case 1:
+	options = atoi(argv[0]);
+	if (ioctl(superdev, VINUM_SETDAEMON, &options) < 0)
+	    fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
+	break;
+
+    default:
+	fprintf(stderr, "Usage: \tsetdaemon [<bitmask>]\n");
+    }
 }
