@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.11 1997/02/22 09:43:21 peter Exp $
+#	$Id: Makefile.pc98,v 1.12 1997/03/22 18:54:10 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,9 +17,9 @@
 #	/sys/i386/conf/Makefile.i386
 # after which config should be rerun for all machines.
 #
-CC?=	cc
-CPP?=	cpp
-LD?=	/usr/bin/ld
+
+BINFORMAT?=	aout
+#BINFORMAT?=	elf
 
 .if exists(./@/.)
 S=	./@
@@ -57,18 +57,26 @@ DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
-SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
+SYSTEM_CFILES= ${I386}/i386/setdef0.c ioconf.c param.c vnode_if.c config.c \
+	${I386}/i386/setdef1.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+	setdef1.o
 SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
-SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
-SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
 .if ${CFLAGS:M-g} == ""
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
+SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
+.if ${BINFORMAT} == aout
+SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @echo rearranging symbols; \
 	symorder -m ${SYMORDER_EXCLUDE} symbols.sort $@; \
 	size $@; chmod 755 $@
+.endif
+.if ${BINFORMAT} == elf
+SYSTEM_LD= @${LD} -Bstatic -Ttext ${LOAD_ADDRESS} -e btext -o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL= @size $@; chmod 755 $@
+.endif
 
 %BEFORE_DEPEND
 
@@ -104,6 +112,12 @@ symbols.sort: ${I386}/i386/symbols.raw
 locore.o: ${I386}/i386/locore.s assym.s
 	${NORMAL_S}
 
+setdef0.o: ${I386}/i386/setdef0.c
+	${NORMAL_C}
+
+setdef1.o: ${I386}/i386/setdef1.c
+	${NORMAL_C}
+
 # everything potentially depends on the Makefile since everything potentially
 # depends on the options.  Some things are more dependent on the Makefile for
 # historical reasons.
@@ -138,7 +152,7 @@ depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
 	mkdep -a -f .newdep ${COPTS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
-	MKDEP_CPP="${CPP}" ; export MKDEP_CPP ; \
+	MKDEP_CPP="${CC} -E -x assembler-with-cpp" ; export MKDEP_CPP ; \
 	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
 	mv -f .newdep .depend
