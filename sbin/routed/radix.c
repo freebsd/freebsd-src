@@ -30,18 +30,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)radix.c	8.4 (Berkeley) 11/2/94
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)radix.c	8.4 (Berkeley) 11/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Routines to build and maintain radix trees for routing lookups.
  */
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
-static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
-#endif
-#ident "$Revision: 1.10 $"
 
 #include "defs.h"
 
@@ -442,7 +443,8 @@ rn_addmask(void *n_arg, int search, int skip)
 		x = 0;
 	if (x || search)
 		return (x);
-	R_Malloc(x, struct radix_node *, max_keylen + 2 * sizeof (*x));
+	x = (struct radix_node *)
+			rtmalloc(max_keylen + 2 * sizeof (*x), "rn_addmask");
 	if ((saved_x = x) == 0)
 		return (0);
 	Bzero(x, max_keylen + 2 * sizeof (*x));
@@ -850,7 +852,7 @@ rn_inithead(void **head, int off)
 	register struct radix_node *t, *tt, *ttt;
 	if (*head)
 		return (1);
-	R_Malloc(rnh, struct radix_node_head *, sizeof (*rnh));
+	rnh = (struct radix_node_head *)rtmalloc(sizeof (*rnh), "rn_inithead");
 	if (rnh == 0)
 		return (0);
 	Bzero(rnh, sizeof (*rnh));
@@ -881,7 +883,7 @@ rn_init(void)
 		printf("rn_init: radix functions require max_keylen be set\n");
 		return;
 	}
-	R_Malloc(rn_zeros, char *, 3 * max_keylen);
+	rn_zeros = (char *)rtmalloc(3 * max_keylen, "rn_init");
 	if (rn_zeros == NULL)
 		panic("rn_init");
 	Bzero(rn_zeros, 3 * max_keylen);

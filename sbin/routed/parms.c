@@ -31,17 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+#ifndef lint
+#if 0
 static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
-#elif defined(__NetBSD__)
-static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.2 $"
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "defs.h"
 #include "pathnames.h"
 #include <sys/stat.h>
-
 
 struct parm *parms;
 struct intnet *intnets;
@@ -311,7 +311,7 @@ gwkludge(void)
 			continue;
 		}
 
-		ifp = (struct interface *)malloc(sizeof(*ifp));
+		ifp = (struct interface *)rtmalloc(sizeof(*ifp), "gwkludge");
 		bzero(ifp, sizeof(*ifp));
 
 		ifp->int_state = state;
@@ -558,7 +558,8 @@ parse_parms(char *line,
 	/* "subnet=x.y.z.u/mask,metric" must be alone on the line */
 	if (!strncasecmp(line, "subnet=", sizeof("subnet=")-1)
 	    && *(val = &line[sizeof("subnet=")-1]) != '\0') {
-		intnetp = (struct intnet*)malloc(sizeof(*intnetp));
+		intnetp = (struct intnet*)
+				rtmalloc(sizeof(*intnetp), "parse_parms");
 		intnetp->intnet_metric = 1;
 		if ((p = strrchr(val,','))) {
 			*p++ = '\0';
@@ -715,7 +716,8 @@ parse_parms(char *line,
 		} else if (PARSEQ("trust_gateway")) {
 			if (!gethost(buf,&addr))
 				return tgt;
-			tg = (struct tgate *)malloc(sizeof(*tg));
+			tg = (struct tgate *)
+					rtmalloc(sizeof(*tg), "parse_parms");
 			tg->tgate_next = tgates;
 			tg->tgate_addr = addr;
 			tgates = tg;
@@ -802,7 +804,7 @@ check_parms(struct parm *new)
 	/* link new entry on the so that when the entries are scanned,
 	 * they affect the result in the order the operator specified.
 	 */
-	parmp = (struct parm*)malloc(sizeof(*parmp));
+	parmp = (struct parm*)rtmalloc(sizeof(*parmp), "check_parms");
 	bcopy(new, parmp, sizeof(*parmp));
 	*parmpp = parmp;
 
