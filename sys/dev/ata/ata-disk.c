@@ -792,10 +792,13 @@ ad_service(struct ad_softc *adp, int change)
 static void
 ad_free(struct ad_request *request)
 {
+    int s = splbio();
+
     if (request->dmatab)
 	free(request->dmatab, M_DEVBUF);
     request->softc->tags[request->tag] = NULL;
     free(request, M_AD);
+    splx(s);
 }
 
 static void
