@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.38 1995/03/28 15:25:13 ache Exp $
+ * $Id: tty.c,v 1.39 1995/03/29 18:55:20 ache Exp $
  */
 
 #include "snp.h"
@@ -282,7 +282,7 @@ ttyinput(c, tp)
 	err = (ISSET(c, TTY_ERRORMASK));
 	if (err) {
 		CLR(c, TTY_ERRORMASK);
-		if (ISSET(err, TTY_FE) && !c) {	/* Break. */
+		if (ISSET(err, TTY_BI) { /* Break. */
 			if (ISSET(iflag, IGNBRK))
 				return (0);
 			else if (ISSET(iflag, BRKINT) &&
