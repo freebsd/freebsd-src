@@ -36,7 +36,6 @@
 #ifndef _ADWVAR_H_
 #define _ADWVAR_H_
 
-#include "adw.h"
 #include <dev/advansys/adwlib.h>
 
 struct adw_softc *	adw_alloc(device_t dev, struct resource *regs,
