@@ -154,8 +154,8 @@ dumpfs(name)
 	    afs.fs_sbsize, afs.fs_cgsize, afs.fs_cgoffset, afs.fs_cgmask);
 	printf("csaddr\t%d\tcssize\t%d\tshift\t%d\tmask\t0x%08x\n",
 	    afs.fs_csaddr, afs.fs_cssize, afs.fs_csshift, afs.fs_csmask);
-	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\n",
-	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly);
+	printf("cgrotor\t%d\tfmod\t%d\tronly\t%d\tclean\t%d\n",
+	    afs.fs_cgrotor, afs.fs_fmod, afs.fs_ronly, afs.fs_clean);
 	if (afs.fs_cpc != 0)
 		printf("blocks available in each of %d rotational positions",
 		     afs.fs_nrpos);
