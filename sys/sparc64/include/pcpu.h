@@ -32,6 +32,7 @@
 
 #ifdef _KERNEL
 
+#include <machine/asmacros.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 
@@ -42,16 +43,18 @@
  * point at the globaldata structure.
  */
 #define	PCPU_MD_FIELDS							\
-	struct	intr_queue pc_iq;		/* interrupt queuq */	\
-	u_long	pc_alt_stack[ALT_STACK_SIZE];	/* alt global stack */	\
+	struct	intr_queue pc_iq;		/* interrupt queue */	\
+	u_int 	pc_mid;							\
 	u_int	pc_wp_insn;			/* watch point support */ \
 	u_long	pc_wp_pstate;						\
 	u_long	pc_wp_va;						\
 	int	pc_wp_mask
 
+struct pcb;
 struct pcpu;
 
-register struct pcpu *pcpup __asm__("%g7");
+register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
+register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
