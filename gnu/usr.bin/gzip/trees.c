@@ -59,7 +59,7 @@
 #include "gzip.h"
 
 #ifdef RCSID
-static char rcsid[] = "$Id: trees.c,v 1.3 1993/10/14 00:33:11 nate Exp $";
+static char rcsid[] = "$Id: trees.c,v 1.4 1995/05/30 05:00:40 rgrimes Exp $";
 #endif
 
 /* ===========================================================================
@@ -1070,6 +1070,6 @@ local void set_file_type()
     while (n < LITERALS) bin_freq += dyn_ltree[n++].Freq;
     *file_type = bin_freq > (ascii_freq >> 2) ? BINARY : ASCII;
     if (*file_type == BINARY && translate_eol) {
-        warn("-l used on binary file", "");
+        WARN((stderr, "-l used on binary file", ""));
     }
 }

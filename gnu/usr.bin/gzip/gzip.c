@@ -45,7 +45,7 @@ static char  *license_msg[] = {
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: gzip.c,v 1.4 1995/05/30 05:00:33 rgrimes Exp $";
+static char rcsid[] = "$Id: gzip.c,v 1.4.6.1 1997/12/29 23:29:12 wosch Exp $";
 #endif
 
 #include <ctype.h>
@@ -1580,7 +1580,6 @@ local int check_ofname()
 	    return ERROR;
 	}
     }
-    (void) chmod(ofname, 0777);
     if (unlink(ofname)) {
 	fprintf(stderr, "%s: ", progname);
 	perror(ofname);
@@ -1640,7 +1639,6 @@ local void copy_stat(ifstat)
 #endif
     remove_ofname = 0;
     /* It's now safe to remove the input file: */
-    (void) chmod(ifname, 0777);
     if (unlink(ifname)) {
 	WARN((stderr, "%s: ", progname));
 	if (!quiet) perror(ifname);

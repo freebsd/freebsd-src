@@ -5,7 +5,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: util.c,v 1.3 1993/10/14 00:33:26 nate Exp $";
+static char rcsid[] = "$Id: util.c,v 1.4 1995/05/30 05:00:43 rgrimes Exp $";
 #endif
 
 #include <ctype.h>
@@ -338,12 +338,6 @@ void error(m)
 {
     fprintf(stderr, "\n%s: %s: %s\n", progname, ifname, m);
     abort_gzip();
-}
-
-void warn(a, b)
-    char *a, *b;            /* message strings juxtaposed in output */
-{
-    WARN((stderr, "%s: %s: warning: %s%s\n", progname, ifname, a, b));
 }
 
 void read_error()
