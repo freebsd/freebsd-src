@@ -73,11 +73,20 @@ distribute:
 	cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
+.include <bsd.endian.mk>
+.if ${TARGET_ENDIANNESS} == "1234"
+CAP_MKDB_ENDIAN= -l
+.elif ${TARGET_ENDIANNESS} == "4321"
+CAP_MKDB_ENDIAN= -b
+.else
+CAP_MKDB_ENDIAN=
+.endif
+
 distribution:
 	cd ${.CURDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${BIN1} ${DESTDIR}/etc; \
-	    cap_mkdb ${DESTDIR}/etc/login.conf; \
+	    cap_mkdb ${CAP_MKDB_ENDIAN} ${DESTDIR}/etc/login.conf; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
