@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.99 1997/10/06 02:48:16 dyson Exp $
+ * $Id: vm_pageout.c,v 1.100 1997/10/25 02:41:56 dyson Exp $
  */
 
 /*
@@ -141,6 +141,8 @@ extern int vfs_update_wakeup;
 int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
 int vm_pageout_full_stats_interval = 0;
 int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
+int defer_swap_pageouts=0;
+int disable_swap_pageouts=0;
 #if defined(NO_SWAPPING)
 int vm_swapping_enabled=0;
 #else
@@ -169,6 +171,12 @@ SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swapping_enabled,
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swapping_enabled,
 	CTLFLAG_RW, &vm_swapping_enabled, 0, "");
 #endif
+
+SYSCTL_INT(_vm, OID_AUTO, defer_swap_pageouts,
+	CTLFLAG_RW, &defer_swap_pageouts, 0, "");
+
+SYSCTL_INT(_vm, OID_AUTO, disable_swap_pageouts,
+	CTLFLAG_RW, &disable_swap_pageouts, 0, "");
 
 #define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
 
@@ -716,6 +724,7 @@ rescan0:
 		 */
 		} else if (maxlaunder > 0) {
 			int written;
+			int swap_pageouts_ok;
 			struct vnode *vp = NULL;
 
 			object = m->object;
@@ -725,6 +734,22 @@ rescan0:
 			 * objects are in a "rundown" state.
 			 */
 			if (object->flags & OBJ_DEAD) {
+				s = splvm();
+				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
+				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+				splx(s);
+				continue;
+			}
+
+			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
+				swap_pageouts_ok = 1;
+			} else {
+				swap_pageouts_ok = !(defer_swap_pageouts || disable_swap_pageouts);
+				swap_pageouts_ok |= (!disable_swap_pageouts && defer_swap_pageouts &&
+					(cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min);
+										
+			}
+			if (!swap_pageouts_ok) {
 				s = splvm();
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
@@ -793,7 +818,6 @@ rescan0:
 			 * start the cleaning operation.
 			 */
 			written = vm_pageout_clean(m, 0);
-
 			if (vp)
 				vput(vp);
 
