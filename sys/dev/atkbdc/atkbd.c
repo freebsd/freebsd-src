@@ -1127,8 +1127,15 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	*type = KB_OTHER;
 	id = get_kbd_id(kbdc);
 	switch(id) {
-	case 0x41ab:
-	case 0x83ab:
+	case 0x41ab:	/* 101/102/... Enhanced */
+	case 0x83ab:	/* ditto */
+	case 0x54ab:	/* SpaceSaver */
+	case 0x84ab:	/* ditto */
+#if 0
+	case 0x90ab:	/* 'G' */
+	case 0x91ab:	/* 'P' */
+	case 0x92ab:	/* 'A' */
+#endif
 		*type = KB_101;
 		break;
 	case -1:	/* AT 84 keyboard doesn't return ID */
