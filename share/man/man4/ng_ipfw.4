@@ -35,7 +35,7 @@
 .Sh DESCRIPTION
 The
 .Nm ipfw
-node implements an interface between
+node implements interface between
 .Xr ipfw 4
 and
 .Xr netgraph 4
@@ -46,35 +46,40 @@ The
 node supports an arbitrary number of hooks,
 which must be named using only numeric characters.
 .Sh OPERATION
-Once
+Once the
 .Nm
 module is loaded into the kernel, a single node named
-.Qq ipfw
+.Va ipfw
 is automatically created.
 No more
 .Nm ipfw
 nodes can be created.
-Once destroyed, the only way to recreate node is reload
+Once destroyed, the only way to recreate the node is to reload the
 .Nm
 module.
 .Pp
-Packets can be injected into netgraph using either
+Packets can be injected into
+.Xr netgraph 4
+using either the
 .Cm netgraph
 or
 .Cm ngtee
-commands of
+commands of the
 .Xr ipfw 8
 utility.
-These commands require a numeric cookie to be supplied as argument.
-Packets are sent out of the hook, which name is equal cookie value.
+These commands require a numeric cookie to be supplied as an argument.
+Packets are sent out of the hook whose name equals the cookie value.
 If no hook matches, packets are discarded.
-Packets injected via
+Packets injected via the
 .Cm netgraph
 command are tagged with
 .Vt "struct ng_ipfw_tag" .
-The tag contains information, which helps node to reenter packet into
+This tag contains information that helps the packet to re-enter
 .Xr ipfw 4
-processing, if the packet will come back to node from netgraph.
+processing, should the packet come back from
+.Xr netgraph 4
+to
+.Xr ipfw 4 .
 .Bd -literal -offset 4n
 struct ng_ipfw_tag {
 	struct m_tag	mt;		/* tag header */
@@ -87,36 +92,35 @@ struct ng_ipfw_tag {
 };
 .Ed
 .Pp
-Packets received by node from netgraph must be tagged with
+Packets received by a node from
+.Xr netgraph 4
+must be tagged with
 .Vt "struct ng_ipfw_tag"
 tag.
-Packets reenter IP firewall processing at the next rule.
+Packets re-enter IP firewall processing at the next rule.
 If no tag is supplied, packets are discarded.
 .Sh CONTROL MESSAGES
-The
-.Nm ipfw
-node does not have any type specific control messages.
+This node type supports only the generic control messages.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message.
-Don't do this, since new
+Do not do this, since the new
 .Nm ipfw
-node can be created only reloading
+node can only be created by reloading the
 .Nm
 module.
 .Sh SEE ALSO
-.Xr netgraph 4 ,
 .Xr ipfw 4 ,
+.Xr netgraph 4 ,
 .Xr ipfw 8 ,
-.Xr mbuf_tags 8
+.Xr mbuf_tags 9
 .Sh HISTORY
 The
 .Nm ipfw
 node type was implemented in
 .Fx 6.0 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm ipfw
 node was written by
