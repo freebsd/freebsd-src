@@ -207,10 +207,10 @@ as described in RFC 1644.
 The default value used for the maximum segment size
 .Pq Dq MSS
 when no advice to the contrary is received from MSS negotiation.
-.It TCPCTL_SENDSPACE
+.It Dv TCPCTL_SENDSPACE
 .Pq tcp.sendspace
 Maximum TCP send window.
-.It TCPCTL_RECVSPACE
+.It Dv TCPCTL_RECVSPACE
 .Pq tcp.recvspace
 Maximum TCP receive window.
 .It tcp.log_in_vain
@@ -289,6 +289,20 @@ in the
 .It tcp.pcbcount
 Number of active process control blocks
 (read-only).
+.It tcp.strict_rfc1948
+Enable strict RFC 1948 (Defending Against Sequence Number Attacks)
+compliance.
+Setting this variable to a non-zero value will disable reseeding and
+will disable the use of randomized initial sequence numbers in favor
+of MD5-generated initial sequence numbers.
+.It tcp.isn_reseed_interval
+The interval (in seconds) specifying how often the secret data used in
+RFC 1948 initial sequence number calculations should be reseeded.
+By default, this variable is set to zero, indicating that
+no reseeding will occur.
+Reseeding should not be necessary, and will break
+.Dv TIME_WAIT
+recycling for a few minutes.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
