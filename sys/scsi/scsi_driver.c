@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.5 1995/03/15 14:22:06 dufault Exp $
+ * $Id: scsi_driver.c,v 1.6 1995/03/16 18:15:48 bde Exp $
  *
  */
 #include <sys/types.h>
@@ -45,6 +45,8 @@
 #include <sys/buf.h>
 #include <sys/devconf.h>
 #include <sys/malloc.h>
+
+#include <machine/cpu.h>	/* XXX For bootverbose (funny place) */
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -73,10 +75,14 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	dev_t dev;
 	struct scsi_device *device = sc_link->device;
 
+	if (bootverbose) {
+		sc_link->flags |= SDEV_BOOTVERBOSE;
+	}
+
 	SC_DEBUG(sc_link, SDEV_DB2,
 	("%s%dattach: ", device->name, sc_link->dev_unit));
 
-	sc_print_addr(sc_link);
+	sc_print_start(sc_link);
 	printf("%s ", device->desc);
 
 	dev = scsi_dev_lookup(device->open);
@@ -87,6 +93,7 @@ int scsi_device_attach(struct scsi_link *sc_link)
 
 	errcode = (device->attach) ? (*(device->attach))(sc_link) : 0;
 
+	sc_print_finish();
 	printf("\n");
 
 	if (errcode == 0)
