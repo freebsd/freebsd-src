@@ -280,9 +280,9 @@ Add the following lines into
 .Xr inetd.conf 5 .
 Syntax may vary depending upon your operating system.
 .Bd -literal -offset
-telnet  stream  faith/tcp6  nowait  root  faithd  telnetd
-ftp     stream  faith/tcp6  nowait  root  faithd  ftpd -l
-ssh     stream  faith/tcp6  nowait  root  faithd  /usr/pkg/bin/sshd -i
+telnet  stream  tcp6/faith  nowait  root  /usr/sbin/faithd  telnetd
+ftp     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  ftpd -l
+ssh     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  /usr/pkg/bin/sshd -i
 .Ed
 .Pp
 .Xr inetd 8
