@@ -71,7 +71,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+4.6-stable")))))
+              (else        (string-append u "&" "manpath=FreeBSD+4.7-stable")))))
       ]]>
 
       (define (toc-depth nd)
