@@ -3,6 +3,7 @@
 
 #include <sys/param.h>
 #include <sys/assym.h>
+#include <sys/systm.h>
 
 #include <compat/svr4/svr4_signal.h>
 #include <compat/svr4/svr4_ucontext.h>
