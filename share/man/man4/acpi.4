@@ -266,6 +266,11 @@ typically as a child of a PCI bus.
 .Pq Vt device
 Supports an ACPI laptop lid switch, which typically puts a
 system to sleep.
+.It Li quirks
+.Pq Vt feature
+Don't honor quirks.
+Quirks automatically disable ACPI functionality based on the XSDT table's
+OEM vendor name and revision date.
 .It Li pci
 .Pq Vt device
 Supports Host to PCI bridges.
