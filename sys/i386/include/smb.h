@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.h,v 1.1 1998/08/13 17:13:20 son Exp $
+ *	$Id: smb.h,v 1.1 1998/09/03 21:00:08 nsouch Exp $
  *
  */
 #ifndef __SMB_H
@@ -34,6 +34,7 @@
 struct smbcmd {
 	char cmd;
 	int count;
+	u_char slave;
 	union {
 		char byte;
 		short word;
@@ -48,8 +49,8 @@ struct smbcmd {
 	} data;
 };
 
-#define SMB_QUICK_WRITE	_IO('i', 1)
-#define SMB_QUICK_READ	_IO('i', 2)
+#define SMB_QUICK_WRITE	_IOW('i', 1, struct smbcmd)
+#define SMB_QUICK_READ	_IOW('i', 2, struct smbcmd)
 #define SMB_SENDB	_IOW('i', 3, struct smbcmd)
 #define SMB_RECVB	_IOW('i', 4, struct smbcmd)
 #define SMB_WRITEB	_IOW('i', 5, struct smbcmd)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iiconf.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -64,9 +64,6 @@ iicbus_alloc_bus(device_t parent)
 
 	/* add the bus to the parent */
 	child = device_add_child(parent, "iicbus", -1, NULL);
-
-	if (child)
-		device_set_desc(child, "Philips I2C bus");
 
 	return (child);
 }
@@ -164,6 +161,99 @@ iicbus_release_bus(device_t bus, device_t dev)
 }
 
 /*
+ * iicbus_started()
+ *
+ * Test if the iicbus is started by the controller
+ */
+int
+iicbus_started(device_t bus)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+
+	return (sc->started);
+}
+
+/*
+ * iicbus_start()
+ *
+ * Send start condition to the slave addressed by 'slave'
+ */
+int
+iicbus_start(device_t bus, u_char slave, int timeout)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+	int error = 0;
+
+	if (sc->started)
+		return (EINVAL);		/* bus already started */
+
+	if (!(error = IICBUS_START(device_get_parent(bus), slave, timeout)))
+		sc->started = slave;
+	else
+		sc->started = 0;
+
+	return (error);
+}
+
+/*
+ * iicbus_stop()
+ *
+ * Send stop condition to the bus
+ */
+int
+iicbus_stop(device_t bus)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+	int error = 0;
+
+	if (!sc->started)
+		return (EINVAL);		/* bus not started */
+
+	error = IICBUS_STOP(device_get_parent(bus));
+
+	/* refuse any further access */
+	sc->started = 0;
+
+	return (error);
+}
+
+/*
+ * iicbus_write()
+ *
+ * Write a block of data to the slave previously started by
+ * iicbus_start() call
+ */
+int
+iicbus_write(device_t bus, char *buf, int len, int *sent, int timeout)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+	
+	/* a slave must have been started with the appropriate address */
+	if (!sc->started || (sc->started & LSB))
+		return (EINVAL);
+
+	return (IICBUS_WRITE(device_get_parent(bus), buf, len, sent, timeout));
+}
+
+/*
+ * iicbus_read()
+ *
+ * Read a block of data from the slave previously started by
+ * iicbus_read() call
+ */
+int 
+iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
+{
+	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
+	
+	/* a slave must have been started with the appropriate address */
+	if (!sc->started || !(sc->started & LSB))
+		return (EINVAL);
+
+	return (IICBUS_READ(device_get_parent(bus), buf, len, read, last, delay));
+}
+
+/*
  * iicbus_block_write()
  *
  * Write a block of data to slave ; start/stop protocol managed
@@ -220,3 +310,4 @@ iicbus_get_addr(device_t dev)
 
 	return ((u_char)addr);
 }
+
