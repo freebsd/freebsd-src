@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)key.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: key.c,v 1.9 1997/08/24 00:26:12 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -289,7 +289,7 @@ f_speed(ip)
 	struct info *ip;
 {
 
-	(void)printf("%ld\n", cfgetospeed(&ip->t));
+	(void)printf("%lu\n", (u_long)cfgetospeed(&ip->t));
 }
 
 void
