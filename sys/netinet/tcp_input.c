@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.8 1994/09/15 10:36:54 davidg Exp $
+ * $Id: tcp_input.c,v 1.9 1994/10/02 17:48:43 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1033,16 +1033,14 @@ trimthenstep6:
 		 * If the window gives us less than ssthresh packets
 		 * in flight, open exponentially (maxseg per packet).
 		 * Otherwise open linearly: maxseg per window
-		 * (maxseg^2 / cwnd per packet), plus a constant
-		 * fraction of a packet (maxseg/8) to help larger windows
-		 * open quickly enough.
+		 * (maxseg^2 / cwnd per packet).
 		 */
 		{
 		register u_int cw = tp->snd_cwnd;
 		register u_int incr = tp->t_maxseg;
 
 		if (cw > tp->snd_ssthresh)
-			incr = incr * incr / cw + incr / 8;
+			incr = incr * incr / cw;
 		tp->snd_cwnd = min(cw + incr, TCP_MAXWIN<<tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
