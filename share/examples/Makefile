@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1994/09/13 02:21:03 wollman Exp $
+#	$Id: Makefile,v 1.7 1994/09/23 07:19:25 rgrimes Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -18,7 +18,7 @@ copies:
 	@${ECHO} installing ${DESTDIR}/usr/share/examples
 	@-for a in ${DIRS}; do \
 		rm -rf ${DESTDIR}/usr/share/examples/$$a; \
-		cp =rp $$a ${DESTDIR}/usr/share/examples; \
+		cp -rp $$a ${DESTDIR}/usr/share/examples; \
 	done
 
 symlinks:
