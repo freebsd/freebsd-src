@@ -1,6 +1,5 @@
-/*	$NetBSD: if_ieee80211.h,v 1.2 2000/03/10 05:44:23 onoe Exp $	*/
+/*	$NetBSD: if_ieee80211.h,v 1.5 2000/07/21 04:47:40 onoe Exp $	*/
 /* $FreeBSD$ */
-
 
 #ifndef _NET_IF_IEEE80211_H_
 #define _NET_IF_IEEE80211_H_
@@ -104,11 +103,34 @@ struct ieee80211_frame {
 #define	IEEE80211_STATUS_CHALLENGE		15
 #define	IEEE80211_STATUS_TIMEOUT		16
 
+#define	IEEE80211_WEP_KEYLEN			5	/* 40bit */
+#define	IEEE80211_WEP_IVLEN			3	/* 24bit */
+#define	IEEE80211_WEP_KIDLEN			1	/* 1 octet */
+#define	IEEE80211_WEP_CRCLEN			4	/* CRC-32 */
+#define	IEEE80211_WEP_NKID			4	/* number of key ids */
 
 #define	IEEE80211_NWID_LEN			32
 
-/* nwid is u_int8_t array of IEEE80211_NWID_LEN pointed at by ifr.ifr_data */
+/* nwid is pointed at by ifr.ifr_data */
+struct ieee80211_nwid {
+	u_int8_t	i_len;
+	u_int8_t	i_nwid[IEEE80211_NWID_LEN];
+};
+
 #define	SIOCS80211NWID		_IOWR('i', 230, struct ifreq)
 #define	SIOCG80211NWID		_IOWR('i', 231, struct ifreq)
+
+/* the first member must be matched with struct ifreq */
+struct ieee80211_nwkey {
+	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
+	int		i_wepon;		/* wep enabled flag */
+	int		i_defkid;		/* default encrypt key id */
+	struct {
+		int		i_keylen;
+		u_int8_t	*i_keydat;
+	}		i_key[IEEE80211_WEP_NKID];
+};
+#define	SIOCS80211NWKEY		 _IOW('i', 232, struct ieee80211_nwkey)
+#define	SIOCG80211NWKEY		_IOWR('i', 233, struct ieee80211_nwkey)
 
 #endif /* !_NET_IF_IEEE80211_H_ */
