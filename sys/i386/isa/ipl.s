@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.14 1997/09/21 21:41:16 gibbs Exp $
+ *	$Id: ipl.s,v 1.15 1997/09/28 19:34:46 fsmp Exp $
  */
 
 
@@ -257,7 +257,7 @@ ih_ok:
 	ALIGN_TEXT
 doreti_swi:
 #if 1
-	cmpl	$0100, _cil
+	cmpl	$0x0100, _cil
 	jne	1f
 	cmpl	$0, _inside_intr
 	jne	1f
