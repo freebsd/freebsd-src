@@ -804,7 +804,7 @@ musycc_intr0(void *arg)
 			case 0:
 				if (er == 13) {	/* SHT */
 					sc->chan[ch]->last_rxerr = time_second;
-					sc->chan[i]->short_error++;
+					sc->chan[ch]->short_error++;
 					break;
 				}
 			default:
