@@ -368,9 +368,8 @@ kse_release(struct thread * td, struct kse_release_args * uap)
 	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
 	td->td_flags = TDF_UPCALLING; /* BOUND */
-	if (!(td->td_kse->ke_flags & KEF_DOUPCALL) &&
+	if (!(td->td_kse->ke_flags & (KEF_DOUPCALL|KEF_ASTPENDING)) &&
 	    (kg->kg_completed == NULL)) {
-	/* XXXKSE also look for waiting signals etc. */
 		/*
 		 * The KSE will however be lendable.
 		 */

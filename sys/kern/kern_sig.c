@@ -1528,8 +1528,6 @@ psignal(p, sig)
 				else if (TD_IS_IDLE(td)) {
  					thread_suspend_one(td);
 				}
-			
-				
 			}
 			if (p->p_suspcount == p->p_numthreads) {
 				mtx_unlock_spin(&sched_lock);
@@ -1642,6 +1640,8 @@ tdsignal(struct thread *td, int sig, sig_t action)
 			cv_abort(td);
 		else
 			abortsleep(td);
+	} else if (TD_IS_IDLE(td)) {
+		TD_CLR_IDLE(td);
 	}
 #ifdef SMP
 	  else {
