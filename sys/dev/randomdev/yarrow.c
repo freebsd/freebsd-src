@@ -297,11 +297,15 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 	struct entropy *bucket;
 	struct source *source;
 	struct pool *pool;
+	intrmask_t mask;
 
 #ifdef DEBUG
 	printf("Random harvest\n");
 #endif
 	if (origin < ENTROPYSOURCE) {
+
+		/* The reseed task must not be jumped on */
+		mask = splsofttq();
 
 		which = random_state.which;
 		pool = &random_state.pool[which];
@@ -340,5 +344,6 @@ random_harvest_internal(struct timespec *nanotime, u_int64_t entropy,
 			random_state.which = !random_state.which;
 
 		}
+		splx(mask);
 	}
 }
