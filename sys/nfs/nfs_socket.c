@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.43 1998/08/01 09:04:02 peter Exp $
+ * $Id: nfs_socket.c,v 1.44 1998/08/23 03:07:16 wollman Exp $
  */
 
 /*
@@ -133,6 +133,7 @@ static int proct[NFS_NPROCS] = {
 static int nfs_backoff[8] = { 2, 4, 8, 16, 32, 64, 128, 256, };
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
+struct callout_handle	nfs_timer_handle;
 
 static int	nfs_msg __P((struct proc *,char *,char *));
 static int	nfs_rcvlock __P((struct nfsreq *));
@@ -1464,7 +1465,7 @@ nfs_timer(arg)
 	}
 #endif /* NFS_NOSERVER */
 	splx(s);
-	timeout(nfs_timer, (void *)0, nfs_ticks);
+	nfs_timer_handle = timeout(nfs_timer, (void *)0, nfs_ticks);
 }
 
 

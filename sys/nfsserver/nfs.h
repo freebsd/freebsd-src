@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.42 1998/06/30 11:19:22 jmg Exp $
+ * $Id: nfs.h,v 1.43 1998/08/23 03:07:16 wollman Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -314,6 +314,8 @@ MALLOC_DECLARE(M_NFSHASH);
 extern vm_zone_t nfsmount_zone;
 #endif
 
+extern struct callout_handle nfs_timer_handle;
+
 struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
 
 /*
@@ -584,6 +586,7 @@ extern int nfs_debug;
 
 u_quad_t nfs_curusec __P((void));
 int	nfs_init __P((struct vfsconf *vfsp));
+int	nfs_uninit __P((struct vfsconf *vfsp));
 int	nfs_reply __P((struct nfsreq *));
 int	nfs_getreq __P((struct nfsrv_descript *,struct nfsd *,int));
 int	nfs_send __P((struct socket *, struct sockaddr *, struct mbuf *, 
