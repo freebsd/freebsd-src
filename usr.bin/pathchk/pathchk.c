@@ -124,7 +124,8 @@ check(const char *path)
 		}
 
 		if (!pflag && stat(pathd, &sb) == -1 && errno != ENOENT) {
-			warn("%s", pathd);
+			warn("%s: %.*s", path, (int)(strlen(pathd) -
+			    complen - 1), pathd);
 			goto bad;
 		}
 
