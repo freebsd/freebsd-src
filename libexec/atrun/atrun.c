@@ -209,7 +209,8 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
-    snprintf(fmt, 49, "#!/bin/sh\n# atrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
+    snprintf(fmt, sizeof(fmt),
+	"#!/bin/sh\n# atrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
                           LOGNAMESIZE);
     if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4) {
 	syslog(LOG_ERR,"File %s is in wrong format - aborting", filename);
