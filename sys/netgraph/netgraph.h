@@ -244,6 +244,7 @@ int	ng_bypass(hook_p hook1, hook_p hook2);
 void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node,
 	     const char *name, node_p node2, const char *name2);
+meta_p	ng_copy_meta(meta_p meta);
 void	ng_destroy_hook(hook_p hook);
 hook_p	ng_findhook(node_p node, const char *name);
 node_p	ng_findname(node_p node, const char *name);
