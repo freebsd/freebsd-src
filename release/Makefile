@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1994/10/26 05:41:47 phk Exp $
+#	$Id: Makefile,v 1.5 1994/10/28 06:41:47 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -15,7 +15,7 @@ CPIO1+= rdump rrestore halt
 CPIO1+= ftp rsh sed telnet rlogin 
 
 # Somewhat on the rough side...
-CLEANFILES=	*.o *.c *.cache
+CLEANFILES=	*.o *.c *.cache *.mk
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
