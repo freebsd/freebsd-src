@@ -27,6 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "xcoffsolib.h"
 #include "inferior.h"
+#include "command.h"
+
+/* Hook to relocate symbols at runtime.  If gdb is build natively, this
+   hook is initialized in by rs6000-nat.c.  If not, it is currently left
+   NULL and never called. */
+
+void (*xcoff_relocate_symtab_hook) PARAMS ((unsigned int)) = NULL;
 
 #ifdef SOLIB_SYMBOLS_MANUAL
 
@@ -159,7 +166,8 @@ solib_info (args, from_tty)
   struct vmap *vp = vmap;
 
   /* Check for new shared libraries loaded with load ().  */
-  xcoff_relocate_symtab (inferior_pid);
+  if (xcoff_relocate_symtab_hook != NULL)
+    (*xcoff_relocate_symtab_hook) (inferior_pid);
 
   if (vp == NULL || vp->nxt == NULL)
     {
@@ -194,7 +202,8 @@ sharedlibrary_command (args, from_tty)
   dont_repeat ();
 
   /* Check for new shared libraries loaded with load ().  */
-  xcoff_relocate_symtab (inferior_pid);
+  if (xcoff_relocate_symtab_hook != NULL)
+    (*xcoff_relocate_symtab_hook) (inferior_pid);
 
 #ifdef SOLIB_SYMBOLS_MANUAL
   solib_add (args, from_tty, (struct target_ops *)0);

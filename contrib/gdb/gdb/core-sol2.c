@@ -26,10 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    and sparc-nat.c to be able to read both flavours.  */
 
 #include "defs.h"
-#undef gregset_t
-#undef fpregset_t
-
 #include <time.h>
+#include <sys/types.h>
 #include <sys/regset.h>
 #include <sys/procfs.h>
 #include <fcntl.h>
@@ -41,12 +39,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "command.h"
 #include "gdbcore.h"
 
+static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR));
+
 static void
 fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned int reg_addr;	/* Unused in this version */
+     CORE_ADDR reg_addr;	/* Unused in this version */
 {
   prgregset_t prgregset;
   prfpregset_t prfpregset;

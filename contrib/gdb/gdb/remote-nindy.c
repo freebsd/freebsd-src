@@ -128,7 +128,7 @@ extern char *mktemp();
 extern void generic_mourn_inferior ();
 
 extern struct target_ops nindy_ops;
-extern GDB_FILE *instream;
+extern FILE *instream;
 
 extern char ninStopWhy ();
 extern int ninMemGet ();
@@ -211,7 +211,13 @@ nindy_open (name, from_tty)
 
   savename = savestring (name, strlen (name));
   push_target (&nindy_ops);
+
   target_fetch_registers(-1);
+
+  init_thread_list ();
+  init_wait_for_inferior ();
+  clear_proceed_status ();
+  normal_stop ();
 }
 
 /* User-initiated quit of nindy operations.  */
@@ -437,8 +443,7 @@ nindy_fetch_registers(regno)
      int regno;
 {
   struct nindy_regs nindy_regs;
-  int regnum, inv;
-  double dub;
+  int regnum;
 
   immediate_quit++;
   ninRegsGet( (char *) &nindy_regs );
@@ -449,14 +454,7 @@ nindy_fetch_registers(regno)
   memcpy (&registers[REGISTER_BYTE (PCW_REGNUM)], nindy_regs.pcw_acw, 2*4);
   memcpy (&registers[REGISTER_BYTE (IP_REGNUM)], nindy_regs.ip, 1*4);
   memcpy (&registers[REGISTER_BYTE (TCW_REGNUM)], nindy_regs.tcw, 1*4);
-  for (regnum = FP0_REGNUM; regnum < FP0_REGNUM + 4; regnum++) {
-    dub = unpack_double (builtin_type_double,
-			 &nindy_regs.fp_as_double[8 * (regnum - FP0_REGNUM)],
-			 &inv);
-    /* dub now in host byte order */
-    floatformat_from_double (&floatformat_i960_ext, &dub,
-			     &registers[REGISTER_BYTE (regnum)]);
-  }
+  memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], nindy_regs.fp_as_double, 4 * 8);
 
   registers_fetched ();
 }
@@ -474,21 +472,13 @@ nindy_store_registers(regno)
 {
   struct nindy_regs nindy_regs;
   int regnum;
-  double dub;
 
   memcpy (nindy_regs.local_regs, &registers[REGISTER_BYTE (R0_REGNUM)], 16*4);
   memcpy (nindy_regs.global_regs, &registers[REGISTER_BYTE (G0_REGNUM)], 16*4);
   memcpy (nindy_regs.pcw_acw, &registers[REGISTER_BYTE (PCW_REGNUM)], 2*4);
   memcpy (nindy_regs.ip, &registers[REGISTER_BYTE (IP_REGNUM)], 1*4);
   memcpy (nindy_regs.tcw, &registers[REGISTER_BYTE (TCW_REGNUM)], 1*4);
-  for (regnum = FP0_REGNUM; regnum < FP0_REGNUM + 4; regnum++)
-    {
-      floatformat_to_double (&floatformat_i960_ext,
-			     &registers[REGISTER_BYTE (regnum)], &dub);
-      store_floating (&nindy_regs.fp_as_double[8 * (regnum - FP0_REGNUM)],
-		      REGISTER_VIRTUAL_SIZE (regnum),
-		      dub);
-    }
+  memcpy (nindy_regs.fp_as_double, &registers[REGISTER_BYTE (FP0_REGNUM)], 8*4);
 
   immediate_quit++;
   ninRegsPut( (char *) &nindy_regs );
@@ -525,11 +515,11 @@ nindy_store_word (addr, word)
    FIXME, rewrite this to not use the word-oriented routines.  */
 
 int
-nindy_xfer_inferior_memory(memaddr, myaddr, len, write, target)
+nindy_xfer_inferior_memory(memaddr, myaddr, len, should_write, target)
      CORE_ADDR memaddr;
      char *myaddr;
      int len;
-     int write;
+     int should_write;
      struct target_ops *target;			/* ignored */
 {
   register int i;
@@ -541,7 +531,7 @@ nindy_xfer_inferior_memory(memaddr, myaddr, len, write, target)
   /* Allocate buffer of that many longwords.  */
   register int *buffer = (int *) alloca (count * sizeof (int));
 
-  if (write)
+  if (should_write)
     {
       /* Fill start and end extra bytes of buffer with existing memory data.  */
 
@@ -601,7 +591,7 @@ nindy_create_inferior (execfile, args, env)
     error ("Can't pass arguments to remote NINDY process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error ("No exec file specified");
+    error ("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -776,42 +766,84 @@ nindy_before_main_loop ()
 
 /* Define the target subroutine names */
 
-struct target_ops nindy_ops = {
-	"nindy", "Remote serial target in i960 NINDY-specific protocol",
-	"Use a remote i960 system running NINDY connected by a serial line.\n\
+struct target_ops nindy_ops ;
+
+static void 
+init_nindy_ops(void)
+{
+  nindy_ops.to_shortname =   "nindy"; "Remote serial target in i960 NINDY-specific protocol",
+					nindy_ops.to_longname =   "Use a remote i960 system running NINDY connected by a serial line.\n\
 Specify the name of the device the serial line is connected to.\n\
 The speed (baud rate), whether to use the old NINDY protocol,\n\
 and whether to send a break on startup, are controlled by options\n\
-specified when you started GDB.",
-	nindy_open, nindy_close,
-	0,
-	nindy_detach,
-	nindy_resume,
-	nindy_wait,
-	nindy_fetch_registers, nindy_store_registers,
-	nindy_prepare_to_store,
-	nindy_xfer_inferior_memory, nindy_files_info,
-	memory_insert_breakpoint,
-	memory_remove_breakpoint,
-	0, 0, 0, 0, 0,	/* Terminal crud */
-	nindy_kill,
-	nindy_load,
-	0, /* lookup_symbol */
-	nindy_create_inferior,
-	nindy_mourn_inferior,
-	0,		/* can_run */
-	0, /* notice_signals */
-	0,			/* to_thread_alive */
-	0,			/* to_stop */
-	process_stratum, 0, /* next */
-	1, 1, 1, 1, 1,	/* all mem, mem, stack, regs, exec */
-	0, 0,			/* Section pointers */
-	OPS_MAGIC,		/* Always the last thing */
-};
+specified when you started GDB." ;
+  nindy_ops.to_doc =   "";
+  nindy_ops.to_open =   nindy_open;
+  nindy_ops.to_close =   nindy_close;
+  nindy_ops.to_attach =   0;
+  nindy_ops.to_post_attach = NULL;
+  nindy_ops.to_require_attach = NULL;
+  nindy_ops.to_detach =   nindy_detach;
+  nindy_ops.to_require_detach = NULL;
+  nindy_ops.to_resume =   nindy_resume;
+  nindy_ops.to_wait  =   nindy_wait;
+  nindy_ops.to_post_wait = NULL;
+  nindy_ops.to_fetch_registers  =   nindy_fetch_registers;
+  nindy_ops.to_store_registers  =   nindy_store_registers;
+  nindy_ops.to_prepare_to_store =   nindy_prepare_to_store;
+  nindy_ops.to_xfer_memory  =   nindy_xfer_inferior_memory;
+  nindy_ops.to_files_info  =   nindy_files_info;
+  nindy_ops.to_insert_breakpoint =   memory_insert_breakpoint;
+  nindy_ops.to_remove_breakpoint =   memory_remove_breakpoint;
+  nindy_ops.to_terminal_init  =   0;
+  nindy_ops.to_terminal_inferior =   0;
+  nindy_ops.to_terminal_ours_for_output =   0;
+  nindy_ops.to_terminal_ours  =   0;
+  nindy_ops.to_terminal_info  =   0;	/* Terminal crud */
+  nindy_ops.to_kill  =   nindy_kill;
+  nindy_ops.to_load  =   nindy_load;
+  nindy_ops.to_lookup_symbol =   0; /* lookup_symbol */
+  nindy_ops.to_create_inferior =   nindy_create_inferior;
+  nindy_ops.to_post_startup_inferior = NULL;
+  nindy_ops.to_acknowledge_created_inferior = NULL;
+  nindy_ops.to_clone_and_follow_inferior = NULL;
+  nindy_ops.to_post_follow_inferior_by_clone = NULL;
+  nindy_ops.to_insert_fork_catchpoint = NULL;
+  nindy_ops.to_remove_fork_catchpoint = NULL;
+  nindy_ops.to_insert_vfork_catchpoint = NULL;
+  nindy_ops.to_remove_vfork_catchpoint = NULL;
+  nindy_ops.to_has_forked = NULL;
+  nindy_ops.to_has_vforked = NULL;
+  nindy_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  nindy_ops.to_post_follow_vfork = NULL;
+  nindy_ops.to_insert_exec_catchpoint = NULL;
+  nindy_ops.to_remove_exec_catchpoint = NULL;
+  nindy_ops.to_has_execd = NULL;
+  nindy_ops.to_reported_exec_events_per_exec_call = NULL;
+  nindy_ops.to_has_exited = NULL;
+  nindy_ops.to_mourn_inferior =   nindy_mourn_inferior;
+  nindy_ops.to_can_run  =   0;		/* can_run */
+  nindy_ops.to_notice_signals =   0; /* notice_signals */
+  nindy_ops.to_thread_alive  =   0;			/* to_thread_alive */
+  nindy_ops.to_stop  =   0;			/* to_stop */
+  nindy_ops.to_pid_to_exec_file = NULL;
+  nindy_ops.to_core_file_to_sym_file = NULL;
+  nindy_ops.to_stratum =   process_stratum;
+  nindy_ops.DONT_USE =   0; /* next */
+  nindy_ops.to_has_all_memory =   1;
+  nindy_ops.to_has_memory =   1;
+  nindy_ops.to_has_stack =   1;
+  nindy_ops.to_has_registers =   1;
+  nindy_ops.to_has_execution =   1;	/* all mem, mem, stack, regs, exec */
+  nindy_ops.to_sections =   0;
+  nindy_ops.to_sections_end =   0;			/* Section pointers */
+  nindy_ops.to_magic =   OPS_MAGIC;		/* Always the last thing */
+}
 
 void
 _initialize_nindy ()
 {
+  init_nindy_ops() ;
   add_target (&nindy_ops);
   add_com ("reset", class_obscure, reset_command,
 	   "Send a 'break' to the remote target system.\n\

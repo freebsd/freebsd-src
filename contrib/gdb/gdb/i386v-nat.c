@@ -1,5 +1,5 @@
 /* Intel 386 native support for SYSV systems (pre-SVR4).
-   Copyright (C) 1988, 1989, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 91, 92, 94, 96, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -18,6 +18,15 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
+
+#ifdef HAVE_PTRACE_H
+# include <ptrace.h>
+#else
+# ifdef HAVE_SYS_PTRACE_H
+#  include <sys/ptrace.h>
+# endif
+#endif
+
 #include "frame.h"
 #include "inferior.h"
 #include "language.h"
@@ -34,14 +43,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
+
+/* FIXME: The following used to be just "#include <sys/debugreg.h>", but
+ * the the Linux 2.1.x kernel and glibc 2.0.x are not in sync; including
+ * <sys/debugreg.h> will result in an error.  With luck, these losers
+ * will get their act together and we can trash this hack in the near future.
+ * --jsm 1998-10-21
+ */
+
 #ifdef TARGET_HAS_HARDWARE_WATCHPOINTS
-#include <sys/debugreg.h>
+# ifdef HAVE_ASM_DEBUGREG_H
+#  include <asm/debugreg.h>
+# else
+#  include <sys/debugreg.h>
+# endif
 #endif
 
 #include <sys/file.h>
 #include "gdb_stat.h"
 
-#ifndef NO_SYS_REG_H
+#ifdef HAVE_SYS_REG_H
 #include <sys/reg.h>
 #endif
 
@@ -155,7 +176,7 @@ i386_insert_aligned_watchpoint (pid, waddr, addr, len, rw)
   if (i > DR_LASTADDR)
     return -1;
 
-  read_write_bits = ((rw & 1) ? DR_RW_READ : 0) | ((rw & 2) ? DR_RW_WRITE : 0);
+  read_write_bits = (rw & 1) ? DR_RW_READ : DR_RW_WRITE;
 
   if (len == 1)
     len_bits = DR_LEN_1;

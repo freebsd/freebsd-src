@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 #include "inferior.h"
 #include "target.h"
+#include "gdbcore.h"
 
 /* Return the PC of the caller from the call frame.  Assumes the subr prologue
    has already been executed, and the frame pointer setup.  If this is the

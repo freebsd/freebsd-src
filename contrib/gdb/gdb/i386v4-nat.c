@@ -1,5 +1,5 @@
 /* Native-dependent code for SVR4 Unix running on i386's, for GDB.
-   Copyright 1988, 1989, 1991, 1992, 1996 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991, 1992, 1996, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -18,6 +18,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
+#include "value.h"
+
+#ifdef HAVE_SYS_REG_H
+#include <sys/reg.h>
+#endif
+
 
 #ifdef HAVE_SYS_PROCFS_H
 
@@ -79,6 +85,16 @@ static int regmap[] =
   DS, ES, FS, GS,
 };
 
+/* Prototypes for local functions */
+
+void fill_gregset PARAMS ((gregset_t *, int));
+
+void supply_gregset PARAMS ((gregset_t *));
+
+void supply_fpregset PARAMS ((fpregset_t *));
+
+void fill_fpregset PARAMS ((fpregset_t *, int));
+
 
 /*  FIXME:  These routine absolutely depends upon (NUM_REGS - NUM_FREGS)
     being less than or equal to the number of registers that can be stored
@@ -135,8 +151,6 @@ void
 supply_fpregset (fpregsetp)
      fpregset_t *fpregsetp;
 {
-  register int regi;
-  
   /* FIXME: see m68k-tdep.c for an example, for the m68k. */
 }
 
@@ -150,11 +164,6 @@ fill_fpregset (fpregsetp, regno)
      fpregset_t *fpregsetp;
      int regno;
 {
-  int regi;
-  char *to;
-  char *from;
-  extern char registers[];
-
   /* FIXME: see m68k-tdep.c for an example, for the m68k. */
 }
 

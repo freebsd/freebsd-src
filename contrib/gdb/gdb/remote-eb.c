@@ -248,7 +248,7 @@ eb_create_inferior (execfile, args, env)
     error ("Can't pass arguments to remote EBMON process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error ("No exec file specified");
+    error ("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -974,36 +974,83 @@ eb_mourn_inferior ()
 }
 /* Define the target subroutine names */
 
-struct target_ops eb_ops = {
-	"amd-eb", "Remote serial AMD EBMON target",
-	"Use a remote computer running EBMON connected by a serial line.\n\
+struct target_ops eb_ops ;
+
+static void 
+init_eb_ops(void)
+{
+  eb_ops.to_shortname = 	"amd-eb";
+  eb_ops.to_longname = 	"Remote serial AMD EBMON target";
+  eb_ops.to_doc = 	"Use a remote computer running EBMON connected by a serial line.\n\
 Arguments are the name of the device for the serial line,\n\
 the speed to connect at in bits per second, and the filename of the\n\
 executable as it exists on the remote computer.  For example,\n\
-        target amd-eb /dev/ttya 9600 demo",
-	eb_open, eb_close, 
-	0, eb_detach, eb_resume, eb_wait,
-	eb_fetch_register, eb_store_register,
-	eb_prepare_to_store,
-	eb_xfer_inferior_memory, eb_files_info,
-	0, 0,	/* Breakpoints */
-	0, 0, 0, 0, 0,	/* Terminal handling */
-	eb_kill,
-	generic_load,	/* load */
-	0, /* lookup_symbol */
-	eb_create_inferior,
-	eb_mourn_inferior,
-  	0,	/* can_run */
-  	0, /* notice_signals */
-	0,			/* to_stop */
-	process_stratum, 0, /* next */
-	1, 1, 1, 1, 1,	/* all mem, mem, stack, regs, exec */
-	0, 0,			/* Section pointers */
-	OPS_MAGIC,		/* Always the last thing */
+target amd-eb /dev/ttya 9600 demo",
+    eb_ops.to_open = 	eb_open;
+  eb_ops.to_close = 	eb_close;
+  eb_ops.to_attach = 	0;
+  eb_ops.to_post_attach = NULL;
+  eb_ops.to_require_attach = NULL;
+  eb_ops.to_detach = 	eb_detach;
+  eb_ops.to_require_detach = NULL;
+  eb_ops.to_resume = 	eb_resume;
+  eb_ops.to_wait  = 	eb_wait;
+  eb_ops.to_post_wait = NULL;
+  eb_ops.to_fetch_registers  = 	eb_fetch_register;
+  eb_ops.to_store_registers  = 	eb_store_register;
+  eb_ops.to_prepare_to_store = 	eb_prepare_to_store;
+  eb_ops.to_xfer_memory  = 	eb_xfer_inferior_memory;
+  eb_ops.to_files_info  = 	eb_files_info;
+  eb_ops.to_insert_breakpoint = 	0;
+  eb_ops.to_remove_breakpoint = 	0;	/* Breakpoints */
+  eb_ops.to_terminal_init  = 	0;
+  eb_ops.to_terminal_inferior = 	0;
+  eb_ops.to_terminal_ours_for_output = 	0;
+  eb_ops.to_terminal_ours  = 	0;
+  eb_ops.to_terminal_info  = 	0;	/* Terminal handling */
+  eb_ops.to_kill  = 	eb_kill;
+  eb_ops.to_load  = 	generic_load;	/* load */
+  eb_ops.to_lookup_symbol = 	0; /* lookup_symbol */
+  eb_ops.to_create_inferior = 	eb_create_inferior;
+  eb_ops.to_post_startup_inferior = NULL;
+  eb_ops.to_acknowledge_created_inferior = NULL;
+  eb_ops.to_clone_and_follow_inferior = NULL;      
+  eb_ops.to_post_follow_inferior_by_clone = NULL;
+  eb_ops.to_insert_fork_catchpoint = NULL;
+  eb_ops.to_remove_fork_catchpoint = NULL;
+  eb_ops.to_insert_vfork_catchpoint = NULL;
+  eb_ops.to_remove_vfork_catchpoint = NULL;                  
+  eb_ops.to_has_forked = NULL;
+  eb_ops.to_has_vforked = NULL;            
+  eb_ops.to_can_follow_vfork_prior_to_exec = NULL;        
+  eb_ops.to_post_follow_vfork = NULL;
+  eb_ops.to_insert_exec_catchpoint = NULL;
+  eb_ops.to_remove_exec_catchpoint = NULL;
+  eb_ops.to_has_execd = NULL;
+  eb_ops.to_reported_exec_events_per_exec_call = NULL;
+  eb_ops.to_has_exited = NULL;
+  eb_ops.to_mourn_inferior = 	eb_mourn_inferior;
+  eb_ops.to_can_run  =   	0;	/* can_run */
+  eb_ops.to_notice_signals =   	0; /* notice_signals */
+  eb_ops.to_thread_alive  = 	0; /* thread-alive */
+  eb_ops.to_stop  = 	0;			/* to_stop */
+  eb_ops.to_pid_to_exec_file = NULL;
+  eb_ops.to_core_file_to_sym_file = NULL;
+  eb_ops.to_stratum = 	process_stratum;
+  eb_ops.DONT_USE = 	0; /* next */
+  eb_ops.to_has_all_memory = 	1;
+  eb_ops.to_has_memory = 	1;
+  eb_ops.to_has_stack = 	1;
+  eb_ops.to_has_registers = 	1;
+  eb_ops.to_has_execution = 	1;	/* all mem, mem, stack, regs, exec */
+  eb_ops.to_sections = 	0; /* sections */
+  eb_ops.to_sections_end = 	0; /* sections end */
+  eb_ops.to_magic = 	OPS_MAGIC;		/* Always the last thing */
 };
 
 void
 _initialize_remote_eb ()
 {
+  init_eb_ops() ;
   add_target (&eb_ops);
 }

@@ -3,7 +3,6 @@ Fri Dec 29 16:30:58 1995  Stan Shebs  <shebs@andros.cygnus.com>
 	* symfile.c (find_sym_fns): Add PowerMac to xcoff file recognition
 	kludge.
 
-
 Fri Dec 22 11:05:59 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 	* configure.in (gdb_host): Add support for DG/UX running on x86 as
@@ -108,7 +107,6 @@ Mon Dec 11 18:19:16 1995  Stan Shebs  <shebs@andros.cygnus.com>
 	* mac-gdb.r: Fix version resources to use symbolic version strings.
 	(cfrg): New resource, code fragment for PowerMac.
 
-
 Mon Dec 11 14:13:03 1995  Fred Fish  <fnf@amigalib.com>
 
 	* dbxread.c (process_one_symbol): When looking at the next
@@ -119,7 +117,7 @@ Mon Dec 11 15:56:55 1995  Per Bothner  <bothner@kalessin.cygnus.com>
 
 	* eval.c (evaluate_struct_tuple):  Fix thinko.
 
-Mon Dec 11 06:52:02 1995  Wilfried Moser (Alcatel)  <moser@rtl.cygnus.com>
+Mon Dec 11 06:52:02 1995  Wilfried Moser  <moser@rtl.cygnus.com>
 
 	* ch-typeprint.c (chill_type_print_base): Slightly change of printing
 	of variant structures.
@@ -843,7 +841,8 @@ Fri Oct 27 09:54:07 1995  Stu Grossman  (grossman@cygnus.com)
 	startup.  Eliminate sleeps.  Clear breakpoints (if using monitor
 	breakpoints).  Re-init frame.
 	* (mips_detach):  Close down target.
-	* (mips_wait):  Handle return status with registers, or breakpoint stuff.
+	* (mips_wait): Handle return status with registers, or breakpoint
+ 	* stuff.
 	* (mips_kill):  Add ^C handling.
 	* (mips_insert_breakpoint mips_remove_breakpoint):  Call new
 	breakpoint stuff if enabled.
@@ -855,7 +854,6 @@ Fri Oct 27 09:54:07 1995  Stu Grossman  (grossman@cygnus.com)
 	* top.c (dont_repeat_command):  New command for use in
 	user-defined commands to suppress auto-repeat (by hittin return key).
 	* valops.c:  Add start of auto function-call abandonment capability.
-
 
 Thu Oct 26 22:02:27 1995  Stan Shebs  <shebs@andros.cygnus.com>
 
@@ -1817,7 +1815,7 @@ Tue Aug  1 11:44:53 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
 	inflow.c, infptrace.c, infrun.c, irix5-nat.c, language.c,
 	m2-typeprint.c, main.c, mdebugread.c, minsyms.c, mipsread.c,
 	monitor.c, nlmread.c, objfiles.c, os9kread.c, osfsolib.c, parse.c,
-	printcmd.c, procfs.c, regex.c, remote-adapt.c, remote-arc.c,
+	printcmd.c, procfs.c, regex.c, remote-adapt.c,
 	remote-array.c, remote-bug.c, remote-e7000.c, remote-eb.c,
 	remote-es.c, remote-hms.c, remote-mm.c, remote-os9k.c,
 	remote-pa.c, remote-sim.c, remote-st.c, remote-udi.c,
@@ -2237,7 +2235,6 @@ Thu Jul 13 13:42:38 1995  Jeffrey A. Law  <law@rtl.cygnus.com>
 	* m3-nat.c (m3_ops): Likewise.
 	* monitor.c (monitor_ops): Likewise.
 	* procfs.c (procfs_ops): Likewise.
-	* remote-arc.c (arc_ops): Likewise.
 	* remote-array.c (array_ops): Likewise.
 	* remote-e7000.c (e7000_ops): Likewise.
 	* remote-es.c (es1800_ops, es1800_child_ops): Likewise.
@@ -2551,6 +2548,16 @@ Sat Jun  3 01:54:56 1995  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
 	* value.h (struct value):  Change `repetitions' field from
 	`short' to `int' type.
 
+Fri Jun  2 11:17:23 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc-tdep.c (arc_bfd_mach_type): New static global.
+	(codestream_fill): Handle byte order differences.
+	(setup_prologue_scan): Don't read stdarg function's "sub sp,sp,N".
+	(arc_get_frame_setup): Read it here.
+	(arc_frame_saved_pc): And here.
+	(arc_print_insn): New function.
+	(arc_set_cpu_type): Set arc_bfd_mach_type.  Don't set tm_print_insn.
+	(_initialize_arc_tdep): Set tm_print_insn to arc_print_insn.
 
 Wed May 31 12:04:01 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
 
@@ -2884,6 +2891,7 @@ Tue May  2 18:32:24 1995  Stan Shebs  <shebs@andros.cygnus.com>
 	* remote-nrom.c: New file, NetROM target support.
 	* config/a29k/a29k-udi.mt, config/i960/vxworks960.mt: Use
 	REMOTE_OBS instead of REMOTE_O.
+	* config/arc/arc.mt: Ditto.
 
 Fri Apr 28 23:30:00 1995  Stu Grossman  (grossman@cygnus.com)
 
@@ -3056,6 +3064,41 @@ Wed Apr 12 14:34:31 1995  Jim Kingdon  <kingdon@deneb.cygnus.com>
 	* xcoffread.c: Call complain() rather than error() or printing a
 	warning.
 
+Wed Apr 12 08:15:27 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* arc-tdep.c: #include "gdbcmd.h".
+	(codestream_seek): Pass CORE_ADDR.
+	(arc_cpu_type, tmp_arc_cpu_type, arc_cpu_type_table): New globals.
+	(debug_pipeline_p): Likewise.
+	(X_...): Instruction field access macros.
+	(BUILD_INSN): Define.
+	(codestream_tell): Allow for stream elements > 1 byte.
+	(codestream_fill): Likewise.
+	(setup_prologue_scan): New function.
+	(arc_get_frame_setup): Call it.  Update to current spec
+	regarding prologues.  Use BUILD_INSN.
+	(skip_prologue): New argument `frameless_p'.  Use BUILD_INSN.
+	(arc_frame_saved_pc): New function.
+	(frame_find_saved_regs): Use BUILD_INSN.
+	(get_insn_type, single_step): New functions.
+	(one_stepped): New global.
+	(arc_set_cpu_type_command, arc_show_cpu_type_command): New functions.
+	(arc_set_cpu_type): New function.
+	(_initialize_arc_tdep): Define new `set' commands `cpu',
+	`displaypipeline', and `debugpipeline'.
+	* arc/tm-arc.h (TARGET_BYTE_ORDER): Delete.
+	(TARGET_BYTE_ORDER_SELECTABLE): Define.
+	(DEFAULT_ARC_CPU_TYPE): Define.
+	(SKIP_PROLOGUE_FRAMELESS_P): Define.
+	(BREAKPOINT): Delete.
+	(BIG_BREAKPOINT, LITTLE_BREAKPOINT): Define.
+	(DECR_PC_AFTER_BREAK): Change to 8.
+	(NO_SINGLE_STEP): Define.
+	(ARC_PC_TO_REAL_ADDRESS): Define.
+	(SAVED_PC_AFTER_CALL): Use it.
+	(NUM_REGS, REGISTER_BYTES): Fix.
+	(FRAME_SAVED_PC): Call arc_frame_saved_pc.
+	(FRAME_LOCALS_ADDRESS): Fix.
 
 Tue Apr 11 16:42:37 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
@@ -3647,6 +3690,9 @@ Mon Mar 13 15:25:47 1995  Jim Kingdon  <kingdon@deneb.cygnus.com>
 	* alpha-tdep.c (find_proc_desc): If pdr.framereg field is -1, don't
 	use the PDR, just examine prologues instead.
 
+Fri Mar 10 16:13:18 1995  Kung Hsu  <kung@mexican.cygnus.com>
+
+	* config/arc/tm-arc.h: Change arc register names.
 
 Fri Mar 10 02:49:40 1995  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
 
@@ -3742,9 +3788,9 @@ Tue Mar  7 00:23:47 1995  Stu Grossman  (grossman@cygnus.com)
 	match the IDP monitor.  Also, set NUM_REGS to 18 cuz there's no
 	floating-point for this card.
 
-	* serial.h, ser-go32.c, ser-go32-para.c, ser-mac.c, ser-tcp.c,
-	ser-unix.c:  Add SERIAL_SETSTOPBITS to set the number of stopbits
-	(needed for IDP board?!?!?).
+	* serial.h, ser-go32.c, ser-mac.c, ser-tcp.c, ser-unix.c: Add
+ 	SERIAL_SETSTOPBITS to set the number of stopbits (needed for IDP
+ 	board?!?!?).
 
 	* defs.h, utils.c, remote-hms.c, remote-pa.c, remote.c:  Fix defs
 	and usage of fputc_unfiltered and putchar_unfiltered.  Eliminate
@@ -3901,7 +3947,8 @@ Tue Feb 28 14:38:39 1995  Kung Hsu  <kung@mexican.cygnus.com>
 
 	* defs.h (SWAP_TARGET_AND_HOST): check endianess at runtime not
 	compile time.
-
+	* arc-tdep.c (_initialize_arc_tdep): set tm_print_insn according to 
+	processor.
 
 	* vx-share/ptrace.h: merge in WRS new ptrace requests.
 
@@ -4147,6 +4194,7 @@ Mon Feb  6 18:50:59 1995  Stan Shebs  <shebs@andros.cygnus.com>
 
 	* i386-tdep.c (_initialize_i386_tdep): Put void decl on separate
         line, so init.c generation works correctly.
+	* arc-tdep.c (_initialize_arc_tdep): Ditto.
 
 Mon Feb  6 14:44:36 1995  Rob Savoye  <rob@darkstar.cygnus.com>
 
@@ -4159,10 +4207,6 @@ Mon Feb  6 14:44:36 1995  Rob Savoye  <rob@darkstar.cygnus.com>
 Sat Feb  4 13:29:52 1995  Stan Shebs  <shebs@andros.cygnus.com>
 
 	* config/m68k/est.mt (TDEPFILES): Remove m68k-pinsn.o.
-
-Fri Feb  3 16:47:31 1995  Kung Hsu  <kung@mexican.cygnus.com>
-
-	* ser-go32-para.c (dos_read): fix syntax errors.
 
 Fri Feb  3 11:19:20 1995  Stu Grossman  (grossman@cygnus.com)
 
@@ -4190,7 +4234,11 @@ Thu Feb  2 19:02:45 1995  Rob Savoye  <rob@darkstar.cygnus.com>
 
 Thu Feb  2 16:11:04 1995  Kung Hsu  <kung@mexican.cygnus.com>
 
-	* ser-go32-para.c: new file for go32 parallel port communication.
+	* config/arc/arc.mt: new target makefile for arc processor.
+	* config/arc/tm-arc.h: new target header for arc processor.
+	* config/arc/go32.mh: new go32 host makefile for arc processor.
+	* config/arc/xm-go32.h: new go32 host header for arc processor.
+	* arc-tdep.c: new target dependent codes for arc processor.
 
 Thu Feb  2 13:58:40 1995  Stan Shebs  <shebs@andros.cygnus.com>
 
@@ -4472,21 +4520,6 @@ Wed Jan 25 01:11:21 1995  Jeff Law  (law@snake.cs.utah.edu)
 
 	* hpread.c (hpread_process_one_debug_symbol): Fix lines garbled
 	by an ill-advised global search and replace.
-
-Tue Jan 24 12:10:28 1995  Stu Grossman  (grossman@cygnus.com)
-
-	* gdbtk.tcl (create_registers_window):  Work around a radiobutton
-	widget bug to make Options|Natural button work.
-
-	* gdbtk.c (gdb_disassemble):  Fix problem with source+assembly and
-	g++ caused by out-of-order pc's.
-	* gdbtk.tcl (files_command):  Remove duplicate file names.  Also,
-	add scrollbar.
-
-Mon Jan 23 17:21:09 1995  Stu Grossman  (grossman@cygnus.com)
-
-	* gdbtk.tcl:  Take .gdbtkinit if it exists.  Makes gdbtk match the
-	doc!
 
 Mon Jan 23 13:11:46 1995  Per Bothner  <bothner@kalessin.cygnus.com>
 

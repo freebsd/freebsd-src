@@ -848,6 +848,7 @@ static struct serial_ops dos_ops =
   dos_noflush_set_tty_state,
   dos_setbaudrate,
   dos_setstopbits,
+  dos_noop,			/* wait for output to drain */
 };
 
 

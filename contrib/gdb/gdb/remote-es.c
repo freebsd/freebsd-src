@@ -96,10 +96,10 @@ STP
 #include <sys/file.h>
 #include <errno.h>
 #include <ctype.h>
-#include "gdb_string.h"
 #include <setjmp.h>
 #include <fcntl.h>
 #include "defs.h"
+#include "gdb_string.h"
 #include "frame.h"
 #include "inferior.h"
 #include "target.h"
@@ -1468,7 +1468,7 @@ es1800_create_inferior (execfile, args, env)
 
   if (execfile == 0 || exec_bfd == 0)
     {
-      error ("No exec file specified");
+      error ("No executable file specified");
     }
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
@@ -2042,105 +2042,155 @@ es1800_child_detach (args, from_tty)
 
 /* Define the target subroutine names  */
 
-struct target_ops es1800_ops =
+struct target_ops es1800_ops ;
+
+static void 
+init_es1800_ops(void)
 {
-  "es1800",			/* to_shortname */
-				/* to_longname */
-  "Remote serial target in ES1800-emulator protocol",
-  				/* to_doc */
-  "Remote debugging on the es1800 emulator via a serial line.\n\
-Specify the serial device it is connected to (e.g. /dev/ttya).",
-  es1800_open,			/* to_open */
-  es1800_close,			/* to_close */
-  es1800_attach,		/* to_attach */
-  es1800_detach,		/* to_detach */
-  es1800_resume,		/* to_resume */
-  NULL,				/* to_wait */
-  NULL,				/* to_fetch_registers */
-  NULL,				/* to_store_registers */
-  es1800_prepare_to_store,	/* to_prepare_to_store */
-  es1800_xfer_inferior_memory,	/* to_xfer_memory */
-  es1800_files_info,		/* to_files_info */
-  es1800_insert_breakpoint,	/* to_insert_breakpoint */
-  es1800_remove_breakpoint,	/* to_remove_breakpoint */
-  NULL,				/* to_terminal_init */
-  NULL,				/* to_terminal_inferior */
-  NULL,				/* to_terminal_ours_for_output */
-  NULL,				/* to_terminal_ours */
-  NULL,				/* to_terminal_info */
-  NULL,				/* to_kill */
-  es1800_load,			/* to_load */
-  NULL,				/* to_lookup_symbol */
-  es1800_create_inferior,	/* to_create_inferior */
-  NULL,				/* to_mourn_inferior */
-  0,				/* to_can_run */
-  0,				/* to_notice_signals */
-  0,				/* to_thread_alive */
-  0,				/* to_stop */
-  core_stratum,			/* to_stratum */
-  0,				/* to_next */
-  0,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  0,				/* to_has_stack */
-  0,				/* to_has_registers */
-  0,				/* to_has_execution */
-  NULL,				/* to_sections */
-  NULL,				/* to_sections_end */
-  OPS_MAGIC			/* to_magic (always last) */
-};
+  es1800_ops.to_shortname =   "es1800";		
+  es1800_ops.to_longname =   "Remote serial target in ES1800-emulator protocol";
+  es1800_ops.to_doc =   "Remote debugging on the es1800 emulator via a serial line.\n\
+Specify the serial device it is connected to (e.g. /dev/ttya)." ;
+  es1800_ops.to_open =   es1800_open;		
+  es1800_ops.to_close =   es1800_close;		
+  es1800_ops.to_attach =   es1800_attach;
+  es1800_ops.to_post_attach = NULL;	
+  es1800_ops.to_require_attach = NULL;
+  es1800_ops.to_detach =   es1800_detach;	
+  es1800_ops.to_require_detach = NULL;
+  es1800_ops.to_resume =   es1800_resume;	
+  es1800_ops.to_wait  =   NULL;
+  es1800_ops.to_post_wait = NULL;	
+  es1800_ops.to_fetch_registers  =   NULL;	
+  es1800_ops.to_store_registers  =   NULL;	
+  es1800_ops.to_prepare_to_store =   es1800_prepare_to_store;
+  es1800_ops.to_xfer_memory  =   es1800_xfer_inferior_memory;
+  es1800_ops.to_files_info  =   es1800_files_info;		
+  es1800_ops.to_insert_breakpoint =   es1800_insert_breakpoint;	
+  es1800_ops.to_remove_breakpoint =   es1800_remove_breakpoint;	
+  es1800_ops.to_terminal_init  =   NULL;			
+  es1800_ops.to_terminal_inferior =   NULL;			
+  es1800_ops.to_terminal_ours_for_output =   NULL;		
+  es1800_ops.to_terminal_ours  =   NULL;			
+  es1800_ops.to_terminal_info  =   NULL;			
+  es1800_ops.to_kill  =   NULL;			
+  es1800_ops.to_load  =   es1800_load;		
+  es1800_ops.to_lookup_symbol =   NULL;		
+  es1800_ops.to_create_inferior =   es1800_create_inferior;
+  es1800_ops.to_post_startup_inferior = NULL;
+  es1800_ops.to_acknowledge_created_inferior = NULL;
+  es1800_ops.to_clone_and_follow_inferior = NULL;  
+  es1800_ops.to_post_follow_inferior_by_clone = NULL;
+  es1800_ops.to_insert_fork_catchpoint = NULL;
+  es1800_ops.to_remove_fork_catchpoint = NULL;
+  es1800_ops.to_insert_vfork_catchpoint = NULL;
+  es1800_ops.to_remove_vfork_catchpoint = NULL;              
+  es1800_ops.to_has_forked = NULL;
+  es1800_ops.to_has_vforked = NULL;            
+  es1800_ops.to_can_follow_vfork_prior_to_exec = NULL;    
+  es1800_ops.to_post_follow_vfork = NULL;
+  es1800_ops.to_insert_exec_catchpoint = NULL;
+  es1800_ops.to_remove_exec_catchpoint = NULL;
+  es1800_ops.to_has_execd = NULL;
+  es1800_ops.to_reported_exec_events_per_exec_call = NULL;
+  es1800_ops.to_has_exited = NULL;
+  es1800_ops.to_mourn_inferior =   NULL;			
+  es1800_ops.to_can_run  =   0;			
+  es1800_ops.to_notice_signals =   0;		
+  es1800_ops.to_thread_alive  =   0;		
+  es1800_ops.to_stop  =   0;
+  es1800_ops.to_pid_to_exec_file = NULL;
+  es1800_ops.to_core_file_to_sym_file = NULL;	
+  es1800_ops.to_stratum =   core_stratum;	
+  es1800_ops.DONT_USE =   0;			
+  es1800_ops.to_has_all_memory =   0;		
+  es1800_ops.to_has_memory =   1;		
+  es1800_ops.to_has_stack =   0;		
+  es1800_ops.to_has_registers =   0;		
+  es1800_ops.to_has_execution =   0;		
+  es1800_ops.to_sections =   NULL;		
+  es1800_ops.to_sections_end =   NULL;		
+  es1800_ops.to_magic =   OPS_MAGIC ;		
+}
 
 /* Define the target subroutine names  */
 
-struct target_ops es1800_child_ops =
+struct target_ops es1800_child_ops ;
+
+static void 
+init_es1800_child_ops(void)
 {
-  "es1800_process",		/* to_shortname */
-  				/* to_longname */
-  "Remote serial target in ES1800-emulator protocol",
-				/* to_doc */
-  "Remote debugging on the es1800 emulator via a serial line.\n\
-Specify the serial device it is connected to (e.g. /dev/ttya).",
-  es1800_child_open,		/* to_open */
-  NULL,				/* to_close */
-  es1800_attach,		/* to_attach */
-  es1800_child_detach,		/* to_detach */
-  es1800_resume,		/* to_resume */
-  es1800_wait,			/* to_wait */
-  es1800_fetch_register,	/* to_fetch_registers */
-  es1800_store_register,	/* to_store_registers */
-  es1800_prepare_to_store,	/* to_prepare_to_store */
-  es1800_xfer_inferior_memory,	/* to_xfer_memory */
-  es1800_files_info,		/* to_files_info */
-  es1800_insert_breakpoint,	/* to_insert_breakpoint */
-  es1800_remove_breakpoint,	/* to_remove_breakpoint */
-  NULL,				/* to_terminal_init */
-  NULL,				/* to_terminal_inferior */
-  NULL,				/* to_terminal_ours_for_output */
-  NULL,				/* to_terminal_ours */
-  NULL,				/* to_terminal_info */
-  es1800_kill,			/* to_kill */
-  es1800_load,			/* to_load */
-  NULL,				/* to_lookup_symbol */
-  es1800_create_inferior,	/* to_create_inferior */
-  es1800_mourn_inferior,	/* to_mourn_inferior */
-  0,				/* to_can_run */
-  0,				/* notice_signals */
-  0,				/* to_thread_alive */
-  0,				/* to_stop */
-  process_stratum,		/* to_stratum */
-  0,				/* to_next */
-  1,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  1,				/* to_has_stack */
-  1,				/* to_has_registers */
-  1,				/* to_has_execution */
-  NULL,				/* to_sections */
-  NULL,				/* to_sections_end */
-  OPS_MAGIC			/* to_magic (always last) */
-};
+  es1800_child_ops.to_shortname =   "es1800_process";	
+  es1800_child_ops.to_longname =   "Remote serial target in ES1800-emulator protocol";
+  es1800_child_ops.to_doc =   "Remote debugging on the es1800 emulator via a serial line.\n\
+Specify the serial device it is connected to (e.g. /dev/ttya).";
+  es1800_child_ops.to_open =   es1800_child_open;	
+  es1800_child_ops.to_close =   NULL;			
+  es1800_child_ops.to_attach =   es1800_attach;
+  es1800_child_ops.to_post_attach = NULL;
+  es1800_child_ops.to_require_attach = NULL;	
+  es1800_child_ops.to_detach =   es1800_child_detach;
+  es1800_child_ops.to_require_detach = NULL;	
+  es1800_child_ops.to_resume =   es1800_resume;	
+  es1800_child_ops.to_wait  =   es1800_wait;
+  es1800_child_ops.to_post_wait = NULL;	
+  es1800_child_ops.to_fetch_registers  =   es1800_fetch_register;
+  es1800_child_ops.to_store_registers  =   es1800_store_register;
+  es1800_child_ops.to_prepare_to_store =   es1800_prepare_to_store;
+  es1800_child_ops.to_xfer_memory  =   es1800_xfer_inferior_memory;
+  es1800_child_ops.to_files_info  =   es1800_files_info;		
+  es1800_child_ops.to_insert_breakpoint =   es1800_insert_breakpoint;	
+  es1800_child_ops.to_remove_breakpoint =   es1800_remove_breakpoint;	
+  es1800_child_ops.to_terminal_init  =   NULL;			
+  es1800_child_ops.to_terminal_inferior =   NULL;			
+  es1800_child_ops.to_terminal_ours_for_output =   NULL;		
+  es1800_child_ops.to_terminal_ours  =   NULL;			
+  es1800_child_ops.to_terminal_info  =   NULL;			
+  es1800_child_ops.to_kill  =   es1800_kill;			
+  es1800_child_ops.to_load  =   es1800_load;			
+  es1800_child_ops.to_lookup_symbol =   NULL;			
+  es1800_child_ops.to_create_inferior =   es1800_create_inferior;
+  es1800_child_ops.to_post_startup_inferior = NULL;
+  es1800_child_ops.to_acknowledge_created_inferior = NULL;
+  es1800_child_ops.to_clone_and_follow_inferior = NULL;
+  es1800_child_ops.to_post_follow_inferior_by_clone = NULL;
+  es1800_child_ops.to_insert_fork_catchpoint = NULL;
+  es1800_child_ops.to_remove_fork_catchpoint = NULL;
+  es1800_child_ops.to_insert_vfork_catchpoint = NULL;
+  es1800_child_ops.to_remove_vfork_catchpoint = NULL;        
+  es1800_child_ops.to_has_forked = NULL;
+  es1800_child_ops.to_has_vforked = NULL;          
+  es1800_child_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  es1800_child_ops.to_post_follow_vfork = NULL;
+  es1800_child_ops.to_insert_exec_catchpoint = NULL;
+  es1800_child_ops.to_remove_exec_catchpoint = NULL;
+  es1800_child_ops.to_has_execd = NULL;
+  es1800_child_ops.to_reported_exec_events_per_exec_call = NULL;
+  es1800_child_ops.to_has_exited = NULL;
+  es1800_child_ops.to_mourn_inferior =   es1800_mourn_inferior;	
+  es1800_child_ops.to_can_run  =   0;				
+  es1800_child_ops.to_notice_signals =   0;			
+  es1800_child_ops.to_thread_alive  =   0;			
+  es1800_child_ops.to_stop  =   0;
+  es1800_child_ops.to_pid_to_exec_file = NULL;
+  es1800_child_ops.to_core_file_to_sym_file = NULL;
+  es1800_child_ops.to_stratum =   process_stratum;		
+  es1800_child_ops.DONT_USE =   0;				
+  es1800_child_ops.to_has_all_memory =   1;			
+  es1800_child_ops.to_has_memory =   1;			
+  es1800_child_ops.to_has_stack =   1;			
+  es1800_child_ops.to_has_registers =   1;			
+  es1800_child_ops.to_has_execution =   1;			
+  es1800_child_ops.to_sections =   NULL;			
+  es1800_child_ops.to_sections_end =   NULL;			
+  es1800_child_ops.to_magic =   OPS_MAGIC;			
+}
 
 void
 _initialize_es1800 ()
 {
+  init_es1800_ops() ;
+  init_es1800_child_ops() ;
   add_target (&es1800_ops);
   add_target (&es1800_child_ops);
 #ifdef PROVIDE_TRANSPARENT

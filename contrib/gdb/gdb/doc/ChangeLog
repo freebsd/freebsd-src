@@ -1,3 +1,265 @@
+Thu Feb 11 18:00:59 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo: Update the credits.
+
+Mon Feb  8 17:33:57 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo: Fix mistakes noticed in printout of last
+	draft, add Alpha to discussion of heuristic fence post.
+
+Fri Feb  5 17:20:00 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo, remote.texi: Many changes; update to Seventh
+ 	Edition, merge some HP changes into mainline, describe some
+ 	previously undocumented features, describe more of the target
+ 	commands available, eliminate obsolete section on renamed
+ 	commands.
+	* all-cfg.texi, HPPA-cfg.texi: Remove some obsolete conditionals.
+
+Wed Jan 20 17:47:45 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo: Make many HPPA conditionals unconditional,
+	including catchpoint description, since now on for all configs.
+	* all-cfg.texi: @clear HPPA, since is mainly for very HP-specific
+	specializations.
+
+Thu Jan 14 17:10:12 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* Makefile.in (GDBvn.texi): Fix match expression to work with
+	current format of VERSION in gdb/Makefile.in.
+	* gdb.texinfo: Fix node ref to match new readline.
+
+Wed Jan 13 10:38:40 1999  Edith Epstein  <eepstein@sophia.cygnus.com>
+
+	* gdb.texinfo: Changes made as part of a project to merge in 
+	  changes made by HP. Documentation makes extensive use of 
+	  @ifclear HPPA and @ifset HPPA. The HP manual omits doumentation
+	  on remote debugging. There are differences in documentation
+ 	  (HP vs.  non-HP) on C++ support (aCC vs. gnu gcc++). Also,
+	  the HP manual discusses catchpoints, hardware watchpoints, and
+	  some HPUX specific limitations for shared library support.
+	  
+	  There are also a number of @node changes.
+
+1999-01-12  Jason Molenda  (jsm@bugshack.cygnus.com)
+
+	* gdbint.texinfo (Formatting): Disambiguate a sentence.
+	(C Usage): Same.
+
+Wed Jan  6 11:55:34 1999  David Taylor  <taylor@texas.cygnus.com>
+
+	The following changes were made by Edith Epstein
+ 	<eepstein@cygnus.com> as part of a project to merge in changes
+ 	made by HP.
+	
+	* HPPA-cfg.texi: new file.
+
+	* all-cfg.texi: set HPPA for HP PA-RISC targets.
+
+	* refcard.tex: change documentation about catch.
+	  removed info catch.
+
+Mon Jan  4 18:29:18 1999  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdbint.texinfo: Expand on GDB's coding standards,
+	specify the use of arg names with prototypes.
+
+1998-12-14  J.T. Conklin  <jtc@redbacknetworks.com>
+
+	* gdb.texinfo: Fix tipo.
+
+Sun Dec 13 10:27:59 1998  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbint.texinfo: Document TARGET_BYTE_ORDER_DEFAULT and
+ 	TARGET_BYTE_ORDER_SELECTABLE_P.
+
+Thu Dec 10 16:07:09 1998  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbint.texinfo (FRAME_FIND_SAVED_REGS): Document.
+
+1998-12-09  Jim Blandy  <jimb@zwingli.cygnus.com>
+
+	* agentexpr.texi: New file.
+
+Wed Dec  9 21:13:57 1998  Andrew Cagney  <cagney@chook>
+
+	* gdbint.texinfo (REGISTER_NAME): Replace REGISTER_NAMES.
+
+1998-12-03  J.T. Conklin  <jtc@redbacknetworks.com>
+
+	* remote.texi: Changed wording that implied that the GDB remote
+	protocol caches register values instead of GDB itself.
+
+Tue Dec  1 17:45:43 1998  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdbint.texinfo: Add some info about symbol readers.
+	(CHILL_PRODUCER, etc): Comment out descriptions, not useful.
+	(IN_SOLIB_CALL_TRAMPOLINE): Rename info from IN_SOLIB_TRAMPOLINE.
+	(IN_SOLIB_RETURN_TRAMPOLINE): Describe.
+	(KERNEL_DEBUGGING, MIPSEL): No info about these, remove.
+
+Mon Nov 30 11:32:21 1998  Andrew Cagney  <cagney@chook>
+
+	* gdbint.texinfo (FRAME_CHAIN_VALID_ALTERNATE): 
+
+Sat Nov 28 13:45:53 1998  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbint.texinfo (INNER_THAN): Update, now takes parameters.
+
+Fri Nov 27 12:39:45 1998  Andrew Cagney  <cagney@chook>
+
+	* gdbint.texinfo (NO_SINGLE_STEP): Replace with
+ 	SOFTWARE_SINGLE_STEP_P and SOFTWARE_SINGLE_STEP.
+
+Wed Oct 14 10:02:40 1998  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbint.texinfo: Fix minor typos.
+
+Wed Sep 30 18:03:19 1998  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdbint.texinfo: Complete overhaul.  Group descriptions more
+	logically, add more info on generic algorithms, remove much
+	obsolete and/or wrong material.
+
+Fri Jul 24 17:51:38 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* stabs.texinfo (Method Type Descriptor): Expand and correct.
+
+Mon May  4 10:37:12 1998  Brian Youmans (3diff@gnu.org)
+
+	* refcard.tex:  Copyright, address updates.
+
+Tue Apr 21 18:09:56 1998  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo (EDITION, DATE): Update and change to use ordinals
+	for the edition instead of confusing GDB-version-like numbers.
+
+Mon Apr 13 14:05:00 1998  Fred Fish  <fnf@cygnus.com>
+
+	* gdb.texinfo (hbreak, watch): Fix typo, "date" -> "data".
+
+Thu Apr  2 16:52:44 1998  Jason Molenda  (crash@bugshack.cygnus.com)
+
+        * LRS: Reformat a bit to keep text under 80 columns.
+
+Thu Apr  2 16:10:36 1998  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo: Add some credits, mention bug monitor.
+	* remote.texi: Mention mips monitor targets.
+	* gdbint.texinfo: Describe SP_REGNUM, STEP_SKIPS_DELAY.
+	
+Mon Feb  2 17:13:03 1998  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdbint.texinfo: Remove obsolete mentions of pinsn.c and opcode.h
+ 	files, finish sorting of host vs target vs native macros, describe
+ 	some more of them.
+
+Tue Jan 13 16:44:50 1998  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (Host Conditionals): Document change from
+	using NO_MMALLOC to it's inverse, USE_MMALLOC.
+
+Mon Nov 24 13:55:21 1997  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* gdbint.texinfo (Host Conditionals): Document
+ 	PRINTF_HAS_LONG_DOUBLE, SCANF_HAS_LONG_DOUBLE, HAVE_LONG_DOUBLE.
+
+Fri Jul  4 14:52:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gdbint.texinfo (Host Conditionals): Add CRLF_SOURCE_LINES.
+	Document LSEEK_NOT_LINEAR.
+
+Tue Mar 25 14:44:09 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* stabs.texinfo (Stab Section Basics): Make it clear that only
+	some versions of the GNU linker remove the leading N_UNDF symbol.
+
+Thu Feb 27 17:45:19 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* stabs.texinfo (String Field): Document type number pairs here,
+	instead of in the Sun specific section.
+	(Include Files): The GNU linker supports the N_BINCL
+	optimization.  Clarify the N_BINCL value, and what it is used
+	for.
+	(Procedures): Document N_FUN with an empty string to mark the end
+	of a function.
+	(Typedefs): Mention that Sun compilers may use N_GSYM for a type.
+	(Sun Differences): Remove this node, as the information is now
+	elsewhere in the main document.
+	(Stab Section Basics): Mention that the GNU linker may optimize
+	stabs and remove the leading N_UNDF symbol.
+
+Mon Dec  9 12:23:32 1996  Roland Pesch  <roland@wrs.com>
+
+	* gdb.texinfo, refcard.tex: Restore author credit
+
+Wed Oct  2 22:01:36 1996  Fred Fish  <fnf@fishfood.ninemoons.com>
+
+	* gdbint.texinfo (SIGTRAMP_START, SIGTRAMP_END): Update
+	documentation to account for START and END macros taking
+	one arg.
+
+Thu Aug 22 17:59:03 1996  Fred Fish  <fnf@cygnus.com>
+
+	From: Eberhard Mattes <mattes@azu.informatik.uni-stuttgart.de>
+	* gdb.texinfo (Frames): Fix typo.
+
+Tue Jul 23 10:06:20 1996  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (NO_SINGLE_STEP): Document that single_step takes
+	a target_signal as arg type, not a pid.
+
+Fri Jul 12 11:10:05 1996  Stu Grossman  (grossman@critters.cygnus.com)
+
+	* gdb.texinfo:  Document `set assembly-language'.
+
+Thu Jul 11 13:50:28 1996  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* remote.texi: Update list of stubs in the GDB distribution.
+
+Fri Jul  5 15:38:54 1996  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (NO_MMCHECK): Renamed from NO_MMALLOC_CHECK.
+  	Also document that some systems can use mmalloc but must define
+ 	this if their C runtime allocates memory that is later freed.
+	(MMCHECK_FORCE): Document new macro.
+	
+Fri Jun 28 22:17:10 1996  Dawn Perchik  <dawn@cygnus.com>
+
+	* remote.texi: Add documentation for target Sparclet.
+
+Mon Jun 24 18:12:22 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* Makefile.in (srcdir, VPATH, prefix, infodir, INSTALL, 
+	INSTALL_PROGRAM, INSTALL_DATA): Use autoconf set values.
+	* configure.in: Rewritten for autoconf.
+	* configure: New.
+
+Mon Jun 17 10:43:41 1996  Fred Fish  <fnf@cygnus.com>
+
+	* Makefile.in (DVIPS): New define, set to dvips.
+	(dvi): Add stabs.dvi.
+	(ps): New target.
+	(all-doc): Depend on info, dvi, and ps targets.
+	(STAGESTUFF): Add *.ps and *.dvi files.
+	(clean-info, clean-dvi): Remove.
+	(mostlyclean): Does not depend upon clean-info or clean-dvi,
+	rules completely rewritten.
+	(maintainer-clean): Remove clean-info and clean-dvi
+	dependencies and put their actions in the rules.
+	(gdb.ps): New target
+	(gdb.dvi, gdbgui.dvi, gdbint.dvi, stabs.dvi): Remove 
+	intermediate TeX files, whether they have 2 or 3 character
+	extensions.
+	(gdbint.ps): Add target and rules.
+	(gdb-internals): Delete unused target.
+	(Makefile): Depends upon config.status also.
+
+Sat Mar 30 15:46:58 1996  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (CC_HAS_LONG_LONG): Clarify when/how this is
+	set.
+
 Sat Mar 16 15:10:20 1996  Fred Fish  <fnf@cygnus.com>
 
 	From Peter Schauer <Peter.Schauer@Regent.E-Technik.TU-Muenchen.DE>
@@ -26,6 +288,11 @@ Fri Dec  8 21:08:44 1995  Fred Fish  <fnf@cygnus.com>
 
 	* gdbint.texinfo (Releases): Change gdb.tar.Z to gdb.tar.gz.
 	Fix typo.
+
+Fri Dec  1 11:07:50 1995  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (Releases): Make "gdb.tar.gz" rather than
+	"gdb.tar.Z".
 
 Wed Sep 20 13:14:10 1995  Ian Lance Taylor  <ian@cygnus.com>
 

@@ -1,4 +1,5 @@
-#Copyright 1989, 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+#Copyright 1989, 90, 91, 92, 93, 94, 95, 96, 1997
+#Free Software Foundation, Inc.
 
 # This file is part of GDB.
 
@@ -24,7 +25,7 @@ bindir = $(exec_prefix)/bin
 libdir = $(exec_prefix)/lib
 tooldir = $(libdir)/$(target_alias)
 
-datadir = $(prefix)/lib
+datadir = $(prefix)/share
 mandir = $(prefix)/man
 man1dir = $(mandir)/man1
 man2dir = $(mandir)/man2
@@ -37,15 +38,12 @@ man8dir = $(mandir)/man8
 man9dir = $(mandir)/man9
 infodir = $(prefix)/info
 includedir = $(prefix)/include
-docdir = $(datadir)/doc
 
 SHELL = /bin/sh
 
-INSTALL = `cd $(srcdir)/../..;pwd`/install.sh -c
+INSTALL = `cd $(srcdir)/../..;pwd`/install-sh -c
 INSTALL_PROGRAM = $(INSTALL)
 INSTALL_DATA = $(INSTALL)
-INSTALL_XFORM = $(INSTALL) -t='$(program_transform_name)'
-INSTALL_XFORM1 = $(INSTALL_XFORM) -b=.1
 
 AR = ar
 AR_FLAGS = qv
@@ -77,19 +75,6 @@ CC-LD=${CC}
 INCLUDE_DIR =  ${srcdir}/../../include
 INCLUDE_DEP = $$(INCLUDE_DIR)
 
-# Where is the source dir for the MMALLOC library? Traditionally ../mmalloc
-# or ./mmalloc  (When we want the binary library built from it, we use
-# ${MMALLOC_DIR}${subdir}.)
-# Note that mmalloc can still be used on systems without mmap().
-# To use your system malloc, comment out the following defines.
-MMALLOC_DIR = ${srcdir}/../../mmalloc
-MMALLOC_DEP = $$(MMALLOC_DIR)
-# To use your system malloc, uncomment MMALLOC_DISABLE.
-#MMALLOC_DISABLE = -DNO_MMALLOC
-# To use mmalloc but disable corruption checking, uncomment MMALLOC_CHECK
-#MMALLOC_CHECK = -DNO_MMALLOC_CHECK
-MMALLOC_CFLAGS = ${MMALLOC_CHECK} ${MMALLOC_DISABLE} -I${MMALLOC_DIR}
-
 # Where are the BFD library?
 BFD_DIR = ../../bfd
 BFD = $(BFD_DIR)/libbfd.a
@@ -117,7 +102,7 @@ GLOBAL_CFLAGS = ${MT_CFLAGS} ${MH_CFLAGS}
 CFLAGS = -g
 # INTERNAL_CFLAGS is the aggregate of all other *CFLAGS macros.
 INTERNAL_CFLAGS = ${CFLAGS} ${GLOBAL_CFLAGS} ${PROFILE_CFLAGS} \
-	${BFD_CFLAGS} ${MMALLOC_CFLAGS} ${INCLUDE_CFLAGS}
+	${BFD_CFLAGS} ${INCLUDE_CFLAGS}
 
 # LDFLAGS is specifically reserved for setting from the command line
 # when running make.
@@ -160,11 +145,15 @@ all: gdbserver gdbreplay
 # install-only is intended to address that need.
 install: all install-only
 install-only: 
-	$(INSTALL_XFORM) gdbserver $(bindir)/gdbserver
-	$(INSTALL_XFORM1) $(srcdir)/gdbserver.1 $(man1dir)/gdbserver.1
+	n=`echo gdbserver | sed '$(program_transform_name)'`; \
+	if [ x$$n = x ]; then n=gdbserver; else true; fi; \
+	$(INSTALL_PROGRAM) gdbserver $(bindir)/$$n; \
+	$(INSTALL_DATA) $(srcdir)/gdbserver.1 $(man1dir)/$$n.1
 
 uninstall: force
-	rm -f $(bindir)/gdbserver $(man1dir)/gdbserver.1
+	n=`echo gdbserver | sed '$(program_transform_name)'`; \
+	if [ x$$n = x ]; then n=gdbserver; else true; fi; \
+	rm -f $(bindir)/$$n $(man1dir)/$$n.1
 
 installcheck:
 check:
@@ -175,7 +164,12 @@ clean-info:
 gdbserver: $(OBS) ${ADD_DEPS} ${CDEPS}
 	rm -f gdbserver
 	${CC-LD} $(GLOBAL_CFLAGS) $(LDFLAGS) -o gdbserver $(OBS) \
-	  $(GDBSERVER_LIBS)
+	  $(GDBSERVER_LIBS) $(XM_CLIBS)
+
+gdbreplay: gdbreplay.o
+	rm -f gdbreplay
+	${CC-LD} $(GLOBAL_CFLAGS) $(LDFLAGS) -o gdbreplay gdbreplay.o \
+	  $(XM_CLIBS)
 
 config.status:
 	@echo "You must configure gdbserver.  Look at the README file for details."
@@ -236,7 +230,9 @@ unexport CHILLFLAGS CHILL_LIB CHILL_FOR_TARGET :
 
 server.o : ${srcdir}/server.c ${srcdir}/server.h
 remote-utils.o : ${srcdir}/remote-utils.c ${srcdir}/server.h
+low-linux.o : ${srcdir}/low-linux.c ${srcdir}/server.h
 low-lynx.o : ${srcdir}/low-lynx.c ${srcdir}/server.h
+low-sim.o : ${srcdir}/low-sim.c ${srcdir}/server.h
 low-sparc.o : $(srcdir)/low-sparc.c $(srcdir)/server.h
 low-sun3.o : $(srcdir)/low-sun3.c $(srcdir)/server.h
 low-hppabsd.o : $(srcdir)/low-hppabsd.c $(srcdir)/server.h

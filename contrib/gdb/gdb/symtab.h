@@ -1,5 +1,6 @@
 /* Symbol table definitions for GDB.
-   Copyright 1986, 1989, 1991, 1992, 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1986, 89, 91, 92, 93, 94, 95, 96, 1998
+             Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -85,6 +86,7 @@ struct general_symbol_info
   union
     {
       struct cplus_specific      /* For C++ */
+				/*  and Java */
 	{
 	  char *demangled_name;
 	} cplus_specific;
@@ -108,7 +110,13 @@ struct general_symbol_info
      also tries to set it correctly).  */
 
   short section;
+
+  /* The bfd section associated with this symbol. */
+
+  asection *bfd_section;
 };
+
+extern CORE_ADDR symbol_overlayed_address PARAMS((CORE_ADDR, asection *));
 
 #define SYMBOL_NAME(symbol)		(symbol)->ginfo.name
 #define SYMBOL_VALUE(symbol)		(symbol)->ginfo.value.ivalue
@@ -118,6 +126,7 @@ struct general_symbol_info
 #define SYMBOL_VALUE_CHAIN(symbol)	(symbol)->ginfo.value.chain
 #define SYMBOL_LANGUAGE(symbol)		(symbol)->ginfo.language
 #define SYMBOL_SECTION(symbol)		(symbol)->ginfo.section
+#define SYMBOL_BFD_SECTION(symbol)	(symbol)->ginfo.bfd_section
 
 #define SYMBOL_CPLUS_DEMANGLED_NAME(symbol)	\
   (symbol)->ginfo.language_specific.cplus_specific.demangled_name
@@ -128,7 +137,9 @@ struct general_symbol_info
 #define SYMBOL_INIT_LANGUAGE_SPECIFIC(symbol,language)			\
   do {									\
     SYMBOL_LANGUAGE (symbol) = language;				\
-    if (SYMBOL_LANGUAGE (symbol) == language_cplus)			\
+    if (SYMBOL_LANGUAGE (symbol) == language_cplus			\
+	|| SYMBOL_LANGUAGE (symbol) == language_java			\
+	)								\
       {									\
 	SYMBOL_CPLUS_DEMANGLED_NAME (symbol) = NULL;			\
       }									\
@@ -172,6 +183,23 @@ struct general_symbol_info
 	    SYMBOL_CPLUS_DEMANGLED_NAME (symbol) = NULL;		\
 	  }								\
       }									\
+    if (SYMBOL_LANGUAGE (symbol) == language_java)			\
+      {									\
+	demangled =							\
+	  cplus_demangle (SYMBOL_NAME (symbol),				\
+			  DMGL_PARAMS | DMGL_ANSI | DMGL_JAVA);		\
+	if (demangled != NULL)						\
+	  {								\
+	    SYMBOL_LANGUAGE (symbol) = language_java;			\
+	    SYMBOL_CPLUS_DEMANGLED_NAME (symbol) = 			\
+	      obsavestring (demangled, strlen (demangled), (obstack));	\
+	    free (demangled);						\
+	  }								\
+	else								\
+	  {								\
+	    SYMBOL_CPLUS_DEMANGLED_NAME (symbol) = NULL;		\
+	  }								\
+      }									\
     if (demangled == NULL						\
 	&& (SYMBOL_LANGUAGE (symbol) == language_chill			\
 	    || SYMBOL_LANGUAGE (symbol) == language_auto))		\
@@ -201,6 +229,7 @@ struct general_symbol_info
 
 #define SYMBOL_DEMANGLED_NAME(symbol)					\
   (SYMBOL_LANGUAGE (symbol) == language_cplus				\
+   || SYMBOL_LANGUAGE (symbol) == language_java				\
    ? SYMBOL_CPLUS_DEMANGLED_NAME (symbol)				\
    : (SYMBOL_LANGUAGE (symbol) == language_chill			\
       ? SYMBOL_CHILL_DEMANGLED_NAME (symbol)				\
@@ -274,14 +303,17 @@ struct minimal_symbol
 
   struct general_symbol_info ginfo;
 
-  /* The info field is available for caching machine-specific information that
-     The AMD 29000 tdep.c uses it to remember things it has decoded from the
-     instructions in the function header, so it doesn't have to rederive the
-     info constantly (over a serial line).  It is initialized to zero and
-     stays that way until target-dependent code sets it.  Storage for any data
-     pointed to by this field should be allocated on the symbol_obstack for
-     the associated objfile.  The type would be "void *" except for reasons
-     of compatibility with older compilers.  This field is optional. */
+  /* The info field is available for caching machine-specific information
+     so it doesn't have to rederive the info constantly (over a serial line).
+     It is initialized to zero and stays that way until target-dependent code
+     sets it.  Storage for any data pointed to by this field should be allo-
+     cated on the symbol_obstack for the associated objfile.  
+     The type would be "void *" except for reasons of compatibility with older
+     compilers.  This field is optional.
+
+     Currently, the AMD 29000 tdep.c uses it to remember things it has decoded
+     from the instructions in the function header, and the MIPS-16 code uses
+     it to identify 16-bit procedures.  */
 
   char *info;
 
@@ -320,7 +352,6 @@ struct minimal_symbol
       mst_file_data,		/* Static version of mst_data */
       mst_file_bss		/* Static version of mst_bss */
     } type BYTE_BITFIELD;
-
 };
 
 #define MSYMBOL_INFO(msymbol)		(msymbol)->info
@@ -456,7 +487,24 @@ typedef enum
   /* LABEL_NAMESPACE may be used for names of labels (for gotos);
      currently it is not used and labels are not recorded at all.  */
 
-  LABEL_NAMESPACE
+  LABEL_NAMESPACE,
+
+  /* Searching namespaces. These overlap with VAR_NAMESPACE, providing
+     some granularity with the search_symbols function. */
+
+  /* Everything in VAR_NAMESPACE minus FUNCTIONS_-, TYPES_-, and
+     METHODS_NAMESPACE */
+  VARIABLES_NAMESPACE,
+
+  /* All functions -- for some reason not methods, though. */
+  FUNCTIONS_NAMESPACE,
+
+  /* All defined types */
+  TYPES_NAMESPACE,
+
+  /* All class methods -- why is this separated out? */
+  METHODS_NAMESPACE
+
 } namespace_enum;
 
 /* An address-class says where to find the value of a symbol.  */
@@ -572,11 +620,43 @@ enum address_class
 
   LOC_UNRESOLVED,
 
+  /* Value is at a thread-specific location calculated by a
+     target-specific method. */
+     
+  LOC_THREAD_LOCAL_STATIC,
+     
   /* The variable does not actually exist in the program.
      The value is ignored.  */
 
-  LOC_OPTIMIZED_OUT
+  LOC_OPTIMIZED_OUT,
+
+  /* The variable is static, but actually lives at * (address).
+   * I.e. do an extra indirection to get to it.
+   * This is used on HP-UX to get at globals that are allocated
+   * in shared libraries, where references from images other
+   * than the one where the global was allocated are done
+   * with a level of indirection.
+   */
+
+  LOC_INDIRECT
+
 };
+
+/* Linked list of symbol's live ranges. */
+
+struct range_list		
+{
+  CORE_ADDR start;
+  CORE_ADDR end;
+  struct range_list *next;	
+};
+
+/* Linked list of aliases for a particular main/primary symbol.  */
+struct alias_list
+  {
+    struct symbol *sym;
+    struct alias_list *next;
+  };
 
 struct symbol
 {
@@ -591,6 +671,11 @@ struct symbol
 
   /* Name space code.  */
 
+#ifdef __MFC4__
+  /* FIXME: don't conflict with C++'s namespace */
+  /* would be safer to do a global change for all namespace identifiers. */
+  #define namespace _namespace
+#endif
   namespace_enum namespace BYTE_BITFIELD;
 
   /* Address class */
@@ -612,13 +697,25 @@ struct symbol
       short basereg;
     }
   aux_value;
+
+
+  /* Link to a list of aliases for this symbol.
+     Only a "primary/main symbol may have aliases.  */
+  struct alias_list *aliases;
+
+  /* List of ranges where this symbol is active.  This is only
+     used by alias symbols at the current time.  */
+  struct range_list *ranges;
 };
+
 
 #define SYMBOL_NAMESPACE(symbol)	(symbol)->namespace
 #define SYMBOL_CLASS(symbol)		(symbol)->aclass
 #define SYMBOL_TYPE(symbol)		(symbol)->type
 #define SYMBOL_LINE(symbol)		(symbol)->line
 #define SYMBOL_BASEREG(symbol)		(symbol)->aux_value.basereg
+#define SYMBOL_ALIASES(symbol)		(symbol)->aliases
+#define SYMBOL_RANGES(symbol)		(symbol)->ranges
 
 /* A partial_symbol records the name, namespace, and address class of
    symbols whose types we have not parsed yet.  For functions, it also
@@ -717,6 +814,13 @@ struct section_offsets
 
 #define	ANOFFSET(secoff, whichone)	(secoff->offsets[whichone])
 
+/* The maximum possible size of a section_offsets table.  */
+ 
+#define SIZEOF_SECTION_OFFSETS \
+  (sizeof (struct section_offsets) \
+   + sizeof (((struct section_offsets *) 0)->offsets) * (SECT_OFF_MAX-1))
+
+
 /* Each source file or header is represented by a struct symtab. 
    These objects are chained through the `next' field.  */
 
@@ -789,6 +893,13 @@ struct symtab
 
     enum language language;
 
+    /* String that identifies the format of the debugging information, such
+       as "stabs", "dwarf 1", "dwarf 2", "coff", etc.  This is mostly useful
+       for automated testing of gdb but may also be information that is
+       useful to the user. */
+
+    char *debugformat;
+
     /* String of version information.  May be zero.  */
 
     char *version;
@@ -801,14 +912,6 @@ struct symtab
     /* Object file from which this symbol information was read.  */
 
     struct objfile *objfile;
-
-    /* Anything extra for this symtab.  This is for target machines
-       with special debugging info of some sort (which cannot just
-       be represented in a normal symtab).  */
-
-#if defined (EXTRA_SYMTAB_INFO)
-    EXTRA_SYMTAB_INFO
-#endif
 
   };
 
@@ -974,16 +1077,26 @@ extern int currently_reading_symtab;
 extern int demangle;
 extern int asm_demangle;
 
+/* symtab.c lookup functions */
+
+/* lookup a symbol table by source file name */
+
 extern struct symtab *
 lookup_symtab PARAMS ((char *));
+
+/* lookup a symbol by name (optional block, optional symtab) */
 
 extern struct symbol *
 lookup_symbol PARAMS ((const char *, const struct block *,
 		       const namespace_enum, int *, struct symtab **));
 
+/* lookup a symbol by name, within a specified block */
+  
 extern struct symbol *
 lookup_block_symbol PARAMS ((const struct block *, const char *,
  			     const namespace_enum));
+
+/* lookup a [struct, union, enum] by name, within a specified block */
 
 extern struct type *
 lookup_struct PARAMS ((char *, struct block *));
@@ -994,29 +1107,72 @@ lookup_union PARAMS ((char *, struct block *));
 extern struct type *
 lookup_enum PARAMS ((char *, struct block *));
 
+/* lookup the function corresponding to the block */
+
 extern struct symbol *
 block_function PARAMS ((struct block *));
+
+/* from blockframe.c: */
+
+/* lookup the function symbol corresponding to the address */
 
 extern struct symbol *
 find_pc_function PARAMS ((CORE_ADDR));
 
-extern int find_pc_partial_function
-  PARAMS ((CORE_ADDR, char **, CORE_ADDR *, CORE_ADDR *));
+/* lookup the function corresponding to the address and section */
+
+extern struct symbol *
+find_pc_sect_function PARAMS ((CORE_ADDR, asection *));
+  
+/* lookup function from address, return name, start addr and end addr */
+
+extern int 
+find_pc_partial_function PARAMS ((CORE_ADDR, char **,
+					     CORE_ADDR *, CORE_ADDR *));
 
 extern void
 clear_pc_function_cache PARAMS ((void));
 
+extern int 
+find_pc_sect_partial_function PARAMS ((CORE_ADDR, asection *, 
+                                       char **, CORE_ADDR *, CORE_ADDR *));
+
+/* from symtab.c: */
+
+/* lookup partial symbol table by filename */
+
 extern struct partial_symtab *
 lookup_partial_symtab PARAMS ((char *));
+
+/* lookup partial symbol table by address */
 
 extern struct partial_symtab *
 find_pc_psymtab PARAMS ((CORE_ADDR));
 
+/* lookup partial symbol table by address and section */
+
+extern struct partial_symtab *
+find_pc_sect_psymtab PARAMS ((CORE_ADDR, asection *));
+
+/* lookup full symbol table by address */
+
 extern struct symtab *
 find_pc_symtab PARAMS ((CORE_ADDR));
 
+/* lookup full symbol table by address and section */
+
+extern struct symtab *
+find_pc_sect_symtab PARAMS ((CORE_ADDR, asection *));
+
+/* lookup partial symbol by address */
+
 extern struct partial_symbol *
 find_pc_psymbol PARAMS ((struct partial_symtab *, CORE_ADDR));
+
+/* lookup partial symbol by address and section */
+
+extern struct partial_symbol *
+find_pc_sect_psymbol PARAMS ((struct partial_symtab *, CORE_ADDR, asection *));
 
 extern int
 find_pc_line_pc_range PARAMS ((CORE_ADDR, CORE_ADDR *, CORE_ADDR *));
@@ -1026,6 +1182,10 @@ contained_in PARAMS ((struct block *, struct block *));
 
 extern void
 reread_symbols PARAMS ((void));
+
+extern struct type *
+lookup_transparent_type PARAMS ((const char *));
+
 
 /* Macro for name of symbol to indicate a file compiled with gcc. */
 #ifndef GCC_COMPILED_FLAG_SYMBOL
@@ -1048,6 +1208,7 @@ extern struct minimal_symbol *prim_record_minimal_symbol_and_info
   PARAMS ((const char *, CORE_ADDR,
 	   enum minimal_symbol_type,
 	   char *info, int section,
+	   asection *bfd_section,
 	   struct objfile *));
 
 #ifdef SOFUN_ADDRESS_MAYBE_MISSING
@@ -1071,6 +1232,9 @@ extern struct minimal_symbol *
 lookup_minimal_symbol_by_pc PARAMS ((CORE_ADDR));
 
 extern struct minimal_symbol *
+lookup_minimal_symbol_by_pc_section PARAMS ((CORE_ADDR, asection *));
+
+extern struct minimal_symbol *
 lookup_solib_trampoline_symbol_by_pc PARAMS ((CORE_ADDR));
 
 extern CORE_ADDR
@@ -1092,7 +1256,7 @@ extern void msymbols_sort PARAMS ((struct objfile *objfile));
 struct symtab_and_line
 {
   struct symtab *symtab;
-
+  asection      *section;
   /* Line number.  Line numbers start at 1 and proceed through symtab->nlines.
      0 is never a valid line number; it is used to indicate that line number
      information is not available.  */
@@ -1102,17 +1266,65 @@ struct symtab_and_line
   CORE_ADDR end;
 };
 
+#define INIT_SAL(sal) { \
+  (sal)->symtab  = 0;   \
+  (sal)->section = 0;   \
+  (sal)->line    = 0;   \
+  (sal)->pc      = 0;   \
+  (sal)->end     = 0;   \
+}
+
 struct symtabs_and_lines
 {
   struct symtab_and_line *sals;
   int nelts;
 };
 
+
+
+/* Some types and macros needed for exception catchpoints.
+   Can't put these in target.h because symtab_and_line isn't
+   known there. This file will be included by breakpoint.c,
+   hppa-tdep.c, etc. */
+
+/* Enums for exception-handling support */
+enum exception_event_kind {
+  EX_EVENT_THROW,
+  EX_EVENT_CATCH
+};
+
+/* Type for returning info about an exception */
+struct exception_event_record {
+  enum exception_event_kind   kind;
+  struct symtab_and_line      throw_sal;
+  struct symtab_and_line      catch_sal;
+  /* This may need to be extended in the future, if
+     some platforms allow reporting more information,
+     such as point of rethrow, type of exception object,
+     type expected by catch clause, etc. */ 
+};
+
+#define CURRENT_EXCEPTION_KIND       (current_exception_event->kind)
+#define CURRENT_EXCEPTION_CATCH_SAL  (current_exception_event->catch_sal)
+#define CURRENT_EXCEPTION_CATCH_LINE (current_exception_event->catch_sal.line)
+#define CURRENT_EXCEPTION_CATCH_FILE (current_exception_event->catch_sal.symtab->filename)
+#define CURRENT_EXCEPTION_CATCH_PC   (current_exception_event->catch_sal.pc)
+#define CURRENT_EXCEPTION_THROW_SAL  (current_exception_event->throw_sal)
+#define CURRENT_EXCEPTION_THROW_LINE (current_exception_event->throw_sal.line)
+#define CURRENT_EXCEPTION_THROW_FILE (current_exception_event->throw_sal.symtab->filename)
+#define CURRENT_EXCEPTION_THROW_PC   (current_exception_event->throw_sal.pc)
+
+
 /* Given a pc value, return line number it is in.  Second arg nonzero means
    if pc is on the boundary use the previous statement's line number.  */
 
 extern struct symtab_and_line
 find_pc_line PARAMS ((CORE_ADDR, int));
+
+/* Same function, but specify a section as well as an address */
+
+extern struct symtab_and_line
+find_pc_sect_line PARAMS ((CORE_ADDR, asection *, int));
 
 /* Given an address, return the nearest symbol at or below it in memory.
    Optionally return the symtab it's from through 2nd arg, and the
@@ -1123,8 +1335,8 @@ find_addr_symbol PARAMS ((CORE_ADDR, struct symtab **, CORE_ADDR *));
 
 /* Given a symtab and line number, return the pc there.  */
 
-extern CORE_ADDR
-find_line_pc PARAMS ((struct symtab *, int));
+extern int
+find_line_pc PARAMS ((struct symtab *, int, CORE_ADDR *));
 
 extern int 
 find_line_pc_range PARAMS ((struct symtab_and_line,
@@ -1145,9 +1357,9 @@ decode_line_spec_1 PARAMS ((char *, int));
 extern struct symtabs_and_lines
 decode_line_1 PARAMS ((char **, int, struct symtab *, int, char ***));
 
-/* Symmisc.c */
-
 #if MAINTENANCE_CMDS
+
+/* Symmisc.c */
 
 void
 maintenance_print_symbols PARAMS ((char *, int));
@@ -1164,6 +1376,11 @@ maintenance_print_objfiles PARAMS ((char *, int));
 void
 maintenance_check_symtabs PARAMS ((char *, int));
 
+/* maint.c */
+
+void
+maintenance_print_statistics PARAMS ((char *, int));
+
 #endif
 
 extern void
@@ -1178,7 +1395,7 @@ extern void
 clear_solib PARAMS ((void));
 
 extern struct objfile *
-symbol_file_add PARAMS ((char *, int, CORE_ADDR, int, int, int));
+symbol_file_add PARAMS ((char *, int, CORE_ADDR, int, int, int, int, int));
 
 /* source.c */
 
@@ -1196,6 +1413,9 @@ select_source_symtab PARAMS ((struct symtab *));
 
 extern char **make_symbol_completion_list PARAMS ((char *, char *));
 
+extern struct symbol **
+make_symbol_overload_list PARAMS ((struct symbol *));
+
 /* symtab.c */
 
 extern struct partial_symtab *
@@ -1205,6 +1425,10 @@ find_main_psymtab PARAMS ((void));
 
 extern struct blockvector *
 blockvector_for_pc PARAMS ((CORE_ADDR, int *));
+
+extern struct blockvector *
+blockvector_for_pc_sect PARAMS ((CORE_ADDR, asection *, int *, 
+				 struct symtab *));
 
 /* symfile.c */
 
@@ -1218,5 +1442,36 @@ deduce_language_from_filename PARAMS ((char *));
 
 extern int
 in_prologue PARAMS ((CORE_ADDR pc, CORE_ADDR func_start));
+
+extern struct symbol *
+fixup_symbol_section PARAMS ((struct symbol  *, struct objfile *));
+
+/* Symbol searching */
+
+/* When using search_symbols, a list of the following structs is returned.
+   Callers must free the search list using free_symbol_search! */
+struct symbol_search
+{
+  /* The block in which the match was found. Could be, for example,
+     STATIC_BLOCK or GLOBAL_BLOCK. */
+  int block;
+
+  /* Information describing what was found.
+
+     If symtab abd symbol are NOT NULL, then information was found
+     for this match. */
+  struct symtab *symtab;
+  struct symbol *symbol;
+
+  /* If msymbol is non-null, then a match was made on something for
+     which only minimal_symbols exist. */
+  struct minimal_symbol *msymbol;
+
+  /* A link to the next match, or NULL for the end. */
+  struct symbol_search *next;
+};
+
+extern void search_symbols PARAMS ((char *, namespace_enum, int, char **, struct symbol_search **));
+extern void free_search_symbols PARAMS ((struct symbol_search *));
 
 #endif /* !defined(SYMTAB_H) */

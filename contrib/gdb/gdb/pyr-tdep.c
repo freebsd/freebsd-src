@@ -31,10 +31,10 @@ pyr_print_registers(reg_buf, regnum)
 
   for (regno = 0; regno < 16; regno++) {
     printf_unfiltered/*_filtered*/ ("%6.6s: %8x  %6.6s: %8x  %6s: %8x  %6s: %8x\n",
-		     reg_names[regno], reg_buf[regno],
-		     reg_names[regno+16], reg_buf[regno+16],
-		     reg_names[regno+32], reg_buf[regno+32],
-		     reg_names[regno+48], reg_buf[regno+48]);
+		     REGISTER_NAME (regno), reg_buf[regno],
+		     REGISTER_NAME (regno+16), reg_buf[regno+16],
+		     REGISTER_NAME (regno+32), reg_buf[regno+32],
+		     REGISTER_NAME (regno+48), reg_buf[regno+48]);
   }
   usp = ptrace (3, inferior_pid,
 		(PTRACE_ARG3_TYPE) ((char *)&u.u_pcb.pcb_usp) -
@@ -43,8 +43,8 @@ pyr_print_registers(reg_buf, regnum)
 		(PTRACE_ARG3_TYPE) ((char *)&u.u_pcb.pcb_ksp) -
 		((char *)&u), 0);
   printf_unfiltered/*_filtered*/ ("\n%6.6s: %8x  %6.6s: %8x (%08x) %6.6s %8x\n",
-		   reg_names[CSP_REGNUM],reg_buf[CSP_REGNUM],
-		   reg_names[KSP_REGNUM], reg_buf[KSP_REGNUM], ksp,
+		   REGISTER_NAME (CSP_REGNUM),reg_buf[CSP_REGNUM],
+		   REGISTER_NAME (KSP_REGNUM), reg_buf[KSP_REGNUM], ksp,
 		   "usp", usp);
 }
 
@@ -70,9 +70,9 @@ pyr_do_registers_info (regnum, fpregs)
       if (i == regnum) {
 	long val = raw_regs[i];
 	
-	fputs_filtered (reg_names[i], stdout);
+	fputs_filtered (REGISTER_NAME (i), gdb_stdout);
 	printf_filtered(":");
-	print_spaces_filtered (6 - strlen (reg_names[i]), stdout);
+	print_spaces_filtered (6 - strlen (REGISTER_NAME (i)), gdb_stdout);
 	if (val == 0)
 	  printf_filtered ("0");
 	else
@@ -89,10 +89,10 @@ CORE_ADDR frame_locals_address (frame)
   register int addr = find_saved_register (frame,CFP_REGNUM);
   register int result = read_memory_integer (addr, 4);
 #ifdef PYRAMID_CONTROL_FRAME_DEBUGGING
-  fprintf_unfiltered (stderr,
+  fprintf_unfiltered (gdb_stderr,
 	   "\t[[..frame_locals:%8x, %s= %x @%x fcfp= %x foo= %x\n\t gr13=%x pr13=%x tr13=%x @%x]]\n",
 	   frame->frame,
-	   reg_names[CFP_REGNUM],
+	   REGISTER_NAME (CFP_REGNUM),
 	   result, addr,
 	   frame->frame_cfp, (CFP_REGNUM),
 
@@ -115,10 +115,10 @@ CORE_ADDR frame_args_addr (frame)
   register int result = read_memory_integer (addr, 4);
 
 #ifdef PYRAMID_CONTROL_FRAME_DEBUGGING
-  fprintf_unfiltered (stderr,
+  fprintf_unfiltered (gdb_stderr,
 	   "\t[[..frame_args:%8x, %s= %x @%x fcfp= %x r_r= %x\n\t gr13=%x pr13=%x tr13=%x @%x]]\n",
 	   frame->frame,
-	   reg_names[CFP_REGNUM],
+	   REGISTER_NAME (CFP_REGNUM),
 	   result, addr,
 	   frame->frame_cfp, read_register(CFP_REGNUM),
 
@@ -184,7 +184,7 @@ CORE_ADDR pyr_saved_pc(frame)
 int
 pyr_print_insn (memaddr, stream)
      CORE_ADDR memaddr;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   unsigned char buffer[MAXLEN];
   register int i, nargs, insn_size =4;
@@ -265,14 +265,14 @@ pyr_print_insn (memaddr, stream)
       switch (operand_mode) {
       case 0:
 	fprintf_unfiltered (stream, "%s,%s",
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno]);
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno));
 	break;
 	    
       case 1:
 	fprintf_unfiltered (stream, " 0x%0x,%s",
 		 op_1_regno,
-		 reg_names [op_2_regno]);
+		 REGISTER_NAME (op_2_regno));
 	break;
 	
       case 2:
@@ -281,12 +281,12 @@ pyr_print_insn (memaddr, stream)
 	extra_1 = * ((int *) buffer);
 	fprintf_unfiltered (stream, " $0x%0x,%s",
 		 extra_1,
-		 reg_names [op_2_regno]);
+		 REGISTER_NAME (op_2_regno));
 	break;
       case 3:
 	fprintf_unfiltered (stream, " (%s),%s",
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno]);
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno));
 	break;
 	
       case 4:
@@ -295,17 +295,17 @@ pyr_print_insn (memaddr, stream)
 	extra_1 = * ((int *) buffer);
 	fprintf_unfiltered (stream, " 0x%0x(%s),%s",
 		 extra_1,
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno]);
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno));
 	break;
 	
 	/* S1 destination mode */
       case 5:
 	fprintf_unfiltered (stream,
 		 ((index_reg_regno) ? "%s,(%s)[%s*%1d]" : "%s,(%s)"),
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
@@ -314,8 +314,8 @@ pyr_print_insn (memaddr, stream)
 		 ((index_reg_regno) ? " $%#0x,(%s)[%s*%1d]"
 		  : " $%#0x,(%s)"),
 		 op_1_regno,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
@@ -327,17 +327,17 @@ pyr_print_insn (memaddr, stream)
 		 ((index_reg_regno) ? " $%#0x,(%s)[%s*%1d]"
 		  : " $%#0x,(%s)"),
 		 extra_1,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
       case 8:
 	fprintf_unfiltered (stream,
 		 ((index_reg_regno) ? " (%s),(%s)[%s*%1d]" : " (%s),(%s)"),
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
@@ -350,9 +350,9 @@ pyr_print_insn (memaddr, stream)
 		  ? "%#0x(%s),(%s)[%s*%1d]"
 		  : "%#0x(%s),(%s)"),
 		 extra_1,
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
@@ -363,10 +363,10 @@ pyr_print_insn (memaddr, stream)
 	extra_1 = * ((int *) buffer);
 	fprintf_unfiltered (stream,
 		 ((index_reg_regno) ? "%s,%#0x(%s)[%s*%1d]" : "%s,%#0x(%s)"),
-		 reg_names [op_1_regno],
+		 REGISTER_NAME (op_1_regno),
 		 extra_1,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
       case 11:
@@ -378,8 +378,8 @@ pyr_print_insn (memaddr, stream)
 		  " $%#0x,%#0x(%s)[%s*%1d]" : " $%#0x,%#0x(%s)"),
 		 op_1_regno,
 		 extra_1,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
       case 12:
@@ -394,8 +394,8 @@ pyr_print_insn (memaddr, stream)
 		  " $%#0x,%#0x(%s)[%s*%1d]" : " $%#0x,%#0x(%s)"),
 		 extra_1,
 		 extra_2,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
@@ -407,10 +407,10 @@ pyr_print_insn (memaddr, stream)
 		 ((index_reg_regno)
 		  ? " (%s),%#0x(%s)[%s*%1d]" 
 		  : " (%s),%#0x(%s)"),
-		 reg_names [op_1_regno],
+		 REGISTER_NAME (op_1_regno),
 		 extra_1,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
       case 14:
@@ -424,19 +424,19 @@ pyr_print_insn (memaddr, stream)
 		 ((index_reg_regno) ? "%#0x(%s),%#0x(%s)[%s*%1d]"
 		  : "%#0x(%s),%#0x(%s) "),
 		 extra_1,
-		 reg_names [op_1_regno],
+		 REGISTER_NAME (op_1_regno),
 		 extra_2,
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	break;
 	
       default:
 	fprintf_unfiltered (stream,
 		 ((index_reg_regno) ? "%s,%s [%s*%1d]" : "%s,%s"),
-		 reg_names [op_1_regno],
-		 reg_names [op_2_regno],
-		 reg_names [index_reg_regno],
+		 REGISTER_NAME (op_1_regno),
+		 REGISTER_NAME (op_2_regno),
+		 REGISTER_NAME (index_reg_regno),
 		 index_multiplier);
 	fprintf_unfiltered (stream,
 		 "\t\t# unknown mode in %08x",

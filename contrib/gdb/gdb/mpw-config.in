@@ -41,7 +41,6 @@ Else If "{target_canonical}" =~ /mips-idt-ecoff/
 	forward-include "{srcdir}"config:mips:tm-mips.h 'mips/tm-mips.h'
 	Set tdepfiles '"{o}"mips-tdep.c.o "{o}"remote-mips.c.o'
 
-
 Else If "{target_canonical}" =~ /sh-hitachi-hms/
 	forward-include "{srcdir}"config:sh:tm-sh.h tm.h
 	Set tdepfiles '"{o}"sh-tdep.c.o'

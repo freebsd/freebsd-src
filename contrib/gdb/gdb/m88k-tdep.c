@@ -36,6 +36,21 @@ void frame_find_saved_regs ();
 
 int target_is_m88110 = 0;
 
+/* The m88k kernel aligns all instructions on 4-byte boundaries.  The
+   kernel also uses the least significant two bits for its own hocus
+   pocus.  When gdb receives an address from the kernel, it needs to
+   preserve those right-most two bits, but gdb also needs to be careful
+   to realize that those two bits are not really a part of the address
+   of an instruction.  Shrug.  */
+
+CORE_ADDR
+m88k_addr_bits_remove (addr)
+     CORE_ADDR addr;
+{
+  return ((addr) & ~3);
+}
+
+
 /* Given a GDB frame, determine the address of the calling function's frame.
    This will be used to create a new GDB frame struct, and then
    INIT_EXTRA_FRAME_INFO and INIT_FRAME_PC will be called for the new frame.
@@ -406,8 +421,8 @@ skip_prologue (ip)
    ways in the stack frame.  sp is even more special:
    the address we return for it IS the sp for the next frame.
 
-   We cache the result of doing this in the frame_cache_obstack, since
-   it is fairly expensive.  */
+   We cache the result of doing this in the frame_obstack, since it is
+   fairly expensive.  */
 
 void
 frame_find_saved_regs (fi, fsr)
@@ -415,7 +430,6 @@ frame_find_saved_regs (fi, fsr)
      struct frame_saved_regs *fsr;
 {
   register struct frame_saved_regs *cache_fsr;
-  extern struct obstack frame_cache_obstack;
   CORE_ADDR ip;
   struct symtab_and_line sal;
   CORE_ADDR limit;
@@ -423,8 +437,7 @@ frame_find_saved_regs (fi, fsr)
   if (!fi->fsr)
     {
       cache_fsr = (struct frame_saved_regs *)
-		  obstack_alloc (&frame_cache_obstack,
-				 sizeof (struct frame_saved_regs));
+	frame_obstack_alloc (sizeof (struct frame_saved_regs));
       memset (cache_fsr, '\0', sizeof (struct frame_saved_regs));
       fi->fsr = cache_fsr;
 
@@ -514,7 +527,7 @@ frame_saved_pc (frame)
 static void
 write_word (sp, word)
      CORE_ADDR sp;
-     unsigned LONGEST word;
+     ULONGEST word;
 {
   register int len = REGISTER_SIZE;
   char buffer[MAX_REGISTER_RAW_SIZE];

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #if MAINTENANCE_CMDS	/* Entire rest of file goes away if not including maint cmds */
 
+#include <ctype.h>
 #include <signal.h>
 #include "command.h"
 #include "gdbcmd.h"
@@ -34,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "symfile.h"
 #include "objfiles.h"
+#include "value.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -48,6 +50,14 @@ static void maintenance_demangle PARAMS ((char *, int));
 static void maintenance_time_display PARAMS ((char *, int));
 
 static void maintenance_space_display PARAMS ((char *, int));
+
+static void maintenance_info_command PARAMS ((char *, int));
+
+static void print_section_table PARAMS ((bfd *, asection *, PTR));
+
+static void maintenance_info_sections PARAMS ((char *, int));
+
+static void maintenance_print_command PARAMS ((char *, int));
 
 /* Set this to the maximum number of seconds to wait instead of waiting forever
    in target_wait().  If this timer times out, then it generates an error and
@@ -80,7 +90,7 @@ maintenance_command (args, from_tty)
   help_list (maintenancelist, "maintenance ", -1, gdb_stdout);
 }
 
-
+#ifndef _WIN32
 /* ARGSUSED */
 static void
 maintenance_dump_me (args, from_tty)
@@ -93,6 +103,7 @@ maintenance_dump_me (args, from_tty)
       kill (getpid (), SIGQUIT);
     }
 }
+#endif
 
 /*  Someday we should allow demangling for things other than just
     explicit strings.  For example, we might want to be able to
@@ -269,6 +280,68 @@ maintenance_print_command (arg, from_tty)
   help_list (maintenanceprintlist, "maintenance print ", -1, gdb_stdout);
 }
 
+/* The "maintenance translate-address" command converts a section and address
+   to a symbol.  This can be called in two ways:
+		maintenance translate-address <secname> <addr>
+	or	maintenance translate-address <addr>
+*/
+
+static void
+maintenance_translate_address (arg, from_tty)
+     char *arg;
+     int from_tty;
+{
+  CORE_ADDR address;
+  asection *sect;
+  char *p;
+  struct minimal_symbol *sym;
+  struct objfile *objfile;
+
+  if (arg == NULL || *arg == 0)
+    error ("requires argument (address or section + address)");
+
+  sect = NULL;
+  p = arg;
+
+  if (!isdigit (*p))
+    {				/* See if we have a valid section name */
+      while (*p && !isspace (*p)) /* Find end of section name */
+	p++;
+      if (*p == '\000')		/* End of command? */
+	error ("Need to specify <section-name> and <address>");
+      *p++ = '\000';
+      while (isspace (*p)) p++;	/* Skip whitespace */
+
+      ALL_OBJFILES (objfile)
+	{
+	  sect = bfd_get_section_by_name (objfile->obfd, arg);
+	  if (sect != NULL)
+	    break;
+	}
+
+      if (!sect)
+	error ("Unknown section %s.", arg);
+    }
+
+  address = parse_and_eval_address (p);
+
+  if (sect)
+    sym = lookup_minimal_symbol_by_pc_section (address, sect);
+  else
+    sym = lookup_minimal_symbol_by_pc (address);
+
+  if (sym)
+    printf_filtered ("%s+%u\n", 
+		     SYMBOL_SOURCE_NAME (sym), 
+		     address - SYMBOL_VALUE_ADDRESS (sym));
+  else if (sect)
+    printf_filtered ("no symbol at %s:0x%08x\n", sect->name, address);
+  else
+    printf_filtered ("no symbol at 0x%08x\n", address);
+
+  return;
+}
+
 #endif	/* MAINTENANCE_CMDS */
 
 void
@@ -299,11 +372,13 @@ to test internal functions such as the C++ demangler, etc.",
 		  &maintenanceprintlist, "maintenance print ", 0,
 		  &maintenancelist);
 
+#ifndef _WIN32
   add_cmd ("dump-me", class_maintenance, maintenance_dump_me,
 	   "Get fatal error; make debugger dump its core.\n\
 GDB sets it's handling of SIGQUIT back to SIG_DFL and then sends\n\
 itself a SIGQUIT signal.",
 	   &maintenancelist);
+#endif
 
   add_cmd ("demangle", class_maintenance, maintenance_demangle,
 	   "Demangle a C++ mangled name.\n\
@@ -357,6 +432,10 @@ If a SOURCE file is specified, dump only that file's partial symbols.",
 
   add_cmd ("check-symtabs", class_maintenance, maintenance_check_symtabs,
 	   "Check consistency of psymtabs and symtabs.",
+	   &maintenancelist);
+
+  add_cmd ("translate-address", class_maintenance, maintenance_translate_address,
+	   "Translate a section name and address to a symbol.",
 	   &maintenancelist);
 
   add_show_from_set (

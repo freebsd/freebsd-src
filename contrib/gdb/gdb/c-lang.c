@@ -25,17 +25,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "c-lang.h"
 
+static void c_emit_char PARAMS ((int c, GDB_FILE *stream, int quoter));
+
 /* Print the character C on STREAM as part of the contents of a literal
    string whose delimiter is QUOTER.  Note that that format for printing
    characters and strings is language specific. */
 
 static void
-emit_char (c, stream, quoter)
+c_emit_char (c, stream, quoter)
      register int c;
      GDB_FILE *stream;
      int quoter;
 {
-
   c &= 0xFF;			/* Avoid sign bit follies */
 
   if (PRINT_LITERAL_FORM (c))
@@ -83,21 +84,23 @@ c_printchar (c, stream)
      int c;
      GDB_FILE *stream;
 {
-  fputs_filtered ("'", stream);
-  emit_char (c, stream, '\'');
-  fputs_filtered ("'", stream);
+  fputc_filtered ('\'', stream);
+  LA_EMIT_CHAR (c, stream, '\'');
+  fputc_filtered ('\'', stream);
 }
 
 /* Print the character string STRING, printing at most LENGTH characters.
-   Printing stops early if the number hits print_max; repeat counts
-   are printed as appropriate.  Print ellipses at the end if we
-   had to stop before printing LENGTH characters, or if FORCE_ELLIPSES.  */
+   LENGTH is -1 if the string is nul terminated.  Each character is WIDTH bytes
+   long.  Printing stops early if the number hits print_max; repeat counts are
+   printed as appropriate.  Print ellipses at the end if we had to stop before
+   printing LENGTH characters, or if FORCE_ELLIPSES.  */
 
 void
-c_printstr (stream, string, length, force_ellipses)
+c_printstr (stream, string, length, width, force_ellipses)
      GDB_FILE *stream;
      char *string;
      unsigned int length;
+     int width;
      int force_ellipses;
 {
   register unsigned int i;
@@ -111,7 +114,9 @@ c_printstr (stream, string, length, force_ellipses)
   /* If the string was not truncated due to `set print elements', and
      the last byte of it is a null, we don't print that, in traditional C
      style.  */
-  if ((!force_ellipses) && length > 0 && string[length-1] == '\0')
+  if (!force_ellipses
+      && length > 0
+      && extract_unsigned_integer (string + (length - 1) * width, width) == '\0')
     length--;
 
   if (length == 0)
@@ -127,6 +132,7 @@ c_printstr (stream, string, length, force_ellipses)
       unsigned int rep1;
       /* Number of repetitions we have detected so far.  */
       unsigned int reps;
+      unsigned long current_char;
 
       QUIT;
 
@@ -136,9 +142,13 @@ c_printstr (stream, string, length, force_ellipses)
 	  need_comma = 0;
 	}
 
+      current_char = extract_unsigned_integer (string + i * width, width);
+
       rep1 = i + 1;
       reps = 1;
-      while (rep1 < length && string[rep1] == string[i])
+      while (rep1 < length
+	     && extract_unsigned_integer (string + rep1 * width, width)
+	        == current_char)
 	{
 	  ++rep1;
 	  ++reps;
@@ -154,7 +164,7 @@ c_printstr (stream, string, length, force_ellipses)
 		fputs_filtered ("\", ", stream);
 	      in_quotes = 0;
 	    }
-	  c_printchar (string[i], stream);
+	  LA_PRINT_CHAR (current_char, stream);
 	  fprintf_filtered (stream, " <repeats %u times>", reps);
 	  i = rep1 - 1;
 	  things_printed += repeat_count_threshold;
@@ -170,7 +180,7 @@ c_printstr (stream, string, length, force_ellipses)
 		fputs_filtered ("\"", stream);
 	      in_quotes = 1;
 	    }
-	  emit_char (string[i], stream, '"');
+	  LA_EMIT_CHAR (current_char, stream, '"');
 	  ++things_printed;
 	}
     }
@@ -235,10 +245,17 @@ c_create_fundamental_type (objfile, typeid)
 			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
 			  0, "void", objfile);
 	break;
+      case FT_BOOLEAN:
+        type = init_type (TYPE_CODE_BOOL,
+			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
+                          0, "bool", objfile);
+                          
+        break;
       case FT_CHAR:
 	type = init_type (TYPE_CODE_INT,
 			  TARGET_CHAR_BIT / TARGET_CHAR_BIT,
 			  0, "char", objfile);
+        TYPE_FLAGS (type) |= TYPE_FLAG_NOSIGN;
 	break;
       case FT_SIGNED_CHAR:
 	type = init_type (TYPE_CODE_INT,
@@ -324,6 +341,12 @@ c_create_fundamental_type (objfile, typeid)
 	type = init_type (TYPE_CODE_FLT,
 			  TARGET_LONG_DOUBLE_BIT / TARGET_CHAR_BIT,
 			  0, "long double", objfile);
+        break;
+      case FT_TEMPLATE_ARG:
+        type = init_type (TYPE_CODE_TEMPLATE_ARG,
+			  0,
+		          0, "<template arg>", objfile);
+
 	break;
       }
   return (type);
@@ -369,7 +392,7 @@ const struct op_print c_op_print_tab[] =
     {NULL, 0, 0, 0}
 };
 
-struct type ** const (c_builtin_types[]) = 
+struct type ** CONST_PTR (c_builtin_types[]) = 
 {
   &builtin_type_int,
   &builtin_type_long,
@@ -402,6 +425,7 @@ const struct language_defn c_language_defn = {
   evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
+  c_emit_char,			/* Print a single char */
   c_create_fundamental_type,	/* Create fundamental type in this language */
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
@@ -417,10 +441,33 @@ const struct language_defn c_language_defn = {
   LANG_MAGIC
 };
 
+struct type ** const (cplus_builtin_types[]) = 
+{
+  &builtin_type_int,
+  &builtin_type_long,
+  &builtin_type_short,
+  &builtin_type_char,
+  &builtin_type_float,
+  &builtin_type_double,
+  &builtin_type_void,
+  &builtin_type_long_long,
+  &builtin_type_signed_char,
+  &builtin_type_unsigned_char,
+  &builtin_type_unsigned_short,
+  &builtin_type_unsigned_int,
+  &builtin_type_unsigned_long,
+  &builtin_type_unsigned_long_long,
+  &builtin_type_long_double,
+  &builtin_type_complex,
+  &builtin_type_double_complex,
+  &builtin_type_bool,
+  0
+};
+
 const struct language_defn cplus_language_defn = {
   "c++",				/* Language name */
   language_cplus,
-  c_builtin_types,
+  cplus_builtin_types,
   range_check_off,
   type_check_off,
   c_parse,
@@ -428,6 +475,7 @@ const struct language_defn cplus_language_defn = {
   evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
+  c_emit_char,			/* Print a single char */
   c_create_fundamental_type,	/* Create fundamental type in this language */
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */
@@ -454,6 +502,7 @@ const struct language_defn asm_language_defn = {
   evaluate_subexp_standard,
   c_printchar,			/* Print a character constant */
   c_printstr,			/* Function to print string constant */
+  c_emit_char,			/* Print a single char */
   c_create_fundamental_type,	/* Create fundamental type in this language */
   c_print_type,			/* Print a type using appropriate syntax */
   c_val_print,			/* Print a value using appropriate syntax */

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/fpp.h>
 
 static unsigned long registers_addr PARAMS ((int pid));
+static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR);
 
 #define X(ENTRY)(offsetof(struct econtext, ENTRY))
 
@@ -655,13 +656,11 @@ child_wait (pid, ourstatus)
 
 	  if (realsig == SIGNEWTHREAD)
 	    {
-	      /* It's a new thread notification.  Nothing to do here since
-		 the machine independent code in wait_for_inferior will
-		 add the thread to the thread list and restart the thread
-		 when pid != inferior_pid and pid is not in the thread
-		 list.   We don't even want to much with realsig -- the
-		 code in wait_for_inferior expects SIGTRAP.  */
-	      ;
+	      /* It's a new thread notification.  We don't want to much with
+		 realsig -- the code in wait_for_inferior expects SIGTRAP. */
+	      ourstatus->kind = TARGET_WAITKIND_SPURIOUS;
+	      ourstatus->value.sig = TARGET_SIGNAL_0;
+	      return pid;
 	    }
 	  else
 	    error ("Signal for unknown thread was not SIGNEWTHREAD");
@@ -802,7 +801,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned reg_addr;
+     CORE_ADDR reg_addr;
 {
   struct st_entry s;
   unsigned int regno;

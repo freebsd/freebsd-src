@@ -1,5 +1,5 @@
 /* Handle OSF/1 shared libraries for GDB, the GNU Debugger.
-   Copyright 1993, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1993, 94, 95, 96, 98, 1999 Free Software Foundation, Inc.
    
 This file is part of GDB.
 
@@ -193,8 +193,8 @@ next_link_map_member PARAMS ((struct so_list *));
 static void
 xfer_link_map_member PARAMS ((struct so_list *, struct link_map *));
 
-static void
-solib_map_sections PARAMS ((struct so_list *));
+static int
+solib_map_sections PARAMS ((char *));
 
 /*
 
@@ -204,7 +204,7 @@ LOCAL FUNCTION
 
 SYNOPSIS
 
-	static void solib_map_sections (struct so_list *so)
+	static int solib_map_sections (struct so_list *so)
 
 DESCRIPTION
 
@@ -223,10 +223,11 @@ FIXMES
 	expansion stuff?).
  */
 
-static void
-solib_map_sections (so)
-     struct so_list *so;
+static int
+solib_map_sections (arg)
+     char *arg;
 {
+  struct so_list *so = (struct so_list *) arg;	/* catch_errors bogon */
   char *filename;
   char *scratch_pathname;
   int scratch_chan;
@@ -288,6 +289,8 @@ solib_map_sections (so)
 
   /* Free the file names, close the file now.  */
   do_cleanups (old_chain);
+
+  return (1);
 }
 
 /*
@@ -485,7 +488,9 @@ xfer_link_map_member (so_list_ptr, lm)
 	}
 #endif
 
-      solib_map_sections (so_list_ptr);
+      catch_errors (solib_map_sections, (char *) so_list_ptr,
+		    "Error while mapping shared library sections:\n",
+		    RETURN_MASK_ALL);
     }
 }
 
@@ -566,10 +571,28 @@ symbol_add_stub (arg)
      char *arg;
 {
   register struct so_list *so = (struct so_list *) arg;	/* catch_errs bogon */
+  CORE_ADDR text_addr = 0;
+
+  if (so -> textsection)
+    text_addr = so -> textsection -> addr;
+  else if (so -> abfd != NULL)
+    {
+      asection *lowest_sect;
+
+      /* If we didn't find a mapped non zero sized .text section, set up
+	 text_addr so that the relocation in symbol_file_add does no harm.  */
+
+      lowest_sect = bfd_get_section_by_name (so -> abfd, ".text");
+      if (lowest_sect == NULL)
+	bfd_map_over_sections (so -> abfd, find_lowest_section,
+			       (PTR) &lowest_sect);
+      if (lowest_sect)
+	text_addr = bfd_section_vma (so -> abfd, lowest_sect) + LM_OFFSET (so);
+    }
   
   so -> objfile = symbol_file_add (so -> so_name, so -> from_tty,
-				   so -> textsection -> addr,
-				   0, 0, 0);
+				   text_addr,
+				   0, 0, 0, 0, 1);
   return (1);
 }
 
@@ -812,6 +835,8 @@ clear_solib()
   struct so_list *next;
   char *bfd_filename;
   
+  disable_breakpoints_in_shlibs (1);
+
   while (so_list_head)
     {
       if (so_list_head -> sections)
@@ -828,7 +853,7 @@ clear_solib()
       else
 	/* This happens for the executable on SVR4.  */
 	bfd_filename = NULL;
-      
+
       next = so_list_head -> next;
       if (bfd_filename)
 	free ((PTR)bfd_filename);

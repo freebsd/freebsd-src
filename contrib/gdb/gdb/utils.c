@@ -1,5 +1,5 @@
 /* General utility routines for GDB, the GNU debugger.
-   Copyright 1986, 1989, 1990, 1991, 1992, 1995 Free Software Foundation, Inc.
+   Copyright 1986, 89, 90, 91, 92, 95, 96, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -18,20 +18,22 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
-#if !defined(__GO32__) && !defined(__WIN32__) && !defined(MPW)
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <pwd.h>
-#endif
-#ifdef ANSI_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <ctype.h>
 #include "gdb_string.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
+#ifdef HAVE_CURSES_H
+#include <curses.h>
+#endif
+#ifdef HAVE_TERM_H
+#include <term.h>
+#endif
+
+/* SunOS's curses.h has a '#define reg register' in it.  Thank you Sun. */
+#ifdef reg
+#undef reg
 #endif
 
 #include "signals.h"
@@ -44,20 +46,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "annotate.h"
 
-#include "readline.h"
+#include <readline/readline.h>
 
 /* readline defines this.  */
 #undef savestring
 
+void (*error_begin_hook) PARAMS ((void));
+
 /* Prototypes for local functions */
 
-#if defined (NO_MMALLOC) || defined (NO_MMALLOC_CHECK)
-#else
+static void vfprintf_maybe_filtered PARAMS ((GDB_FILE *, const char *,
+					     va_list, int));
 
-static void
-malloc_botch PARAMS ((void));
+static void fputs_maybe_filtered PARAMS ((const char *, GDB_FILE *, int));
 
-#endif /* NO_MMALLOC, etc */
+#if defined (USE_MMALLOC) && !defined (NO_MMCHECK)
+static void malloc_botch PARAMS ((void));
+#endif
 
 static void
 fatal_dump_core PARAMS((char *, ...));
@@ -68,16 +73,25 @@ prompt_for_continue PARAMS ((void));
 static void 
 set_width_command PARAMS ((char *, int, struct cmd_list_element *));
 
+static void
+set_width PARAMS ((void));
+
 /* If this definition isn't overridden by the header files, assume
    that isatty and fileno exist on this system.  */
 #ifndef ISATTY
 #define ISATTY(FP)	(isatty (fileno (FP)))
 #endif
 
+#ifndef GDB_FILE_ISATTY
+#define GDB_FILE_ISATTY(GDB_FILE_PTR)   (gdb_file_isatty(GDB_FILE_PTR))   
+#endif
+
 /* Chain of cleanup actions established with make_cleanup,
    to be executed if an error happens.  */
 
-static struct cleanup *cleanup_chain;
+static struct cleanup *cleanup_chain; /* cleaned up after a failed command */
+static struct cleanup *final_cleanup_chain; /* cleaned up when gdb exits */
+static struct cleanup *run_cleanup_chain; /* cleaned up on each 'run' */
 
 /* Nonzero if we have job control. */
 
@@ -128,6 +142,9 @@ char *quit_pre_print;
 /* String to be printed before warning messages, if any.  */
 
 char *warning_pre_print = "\nwarning: ";
+
+int pagination_enabled = 1;
+
 
 /* Add a new cleanup to the cleanup_chain,
    and return the previous chain pointer
@@ -139,14 +156,37 @@ make_cleanup (function, arg)
      void (*function) PARAMS ((PTR));
      PTR arg;
 {
+    return make_my_cleanup (&cleanup_chain, function, arg);
+}
+
+struct cleanup *
+make_final_cleanup (function, arg)
+     void (*function) PARAMS ((PTR));
+     PTR arg;
+{
+    return make_my_cleanup (&final_cleanup_chain, function, arg);
+}
+struct cleanup *
+make_run_cleanup (function, arg)
+     void (*function) PARAMS ((PTR));
+     PTR arg;
+{
+    return make_my_cleanup (&run_cleanup_chain, function, arg);
+}
+struct cleanup *
+make_my_cleanup (pmy_chain, function, arg)
+     struct cleanup **pmy_chain;
+     void (*function) PARAMS ((PTR));
+     PTR arg;
+{
   register struct cleanup *new
     = (struct cleanup *) xmalloc (sizeof (struct cleanup));
-  register struct cleanup *old_chain = cleanup_chain;
+  register struct cleanup *old_chain = *pmy_chain;
 
-  new->next = cleanup_chain;
+  new->next = *pmy_chain;
   new->function = function;
   new->arg = arg;
-  cleanup_chain = new;
+  *pmy_chain = new;
 
   return old_chain;
 }
@@ -158,10 +198,32 @@ void
 do_cleanups (old_chain)
      register struct cleanup *old_chain;
 {
+    do_my_cleanups (&cleanup_chain, old_chain);
+}
+
+void
+do_final_cleanups (old_chain)
+     register struct cleanup *old_chain;
+{
+    do_my_cleanups (&final_cleanup_chain, old_chain);
+}
+
+void
+do_run_cleanups (old_chain)
+     register struct cleanup *old_chain;
+{
+    do_my_cleanups (&run_cleanup_chain, old_chain);
+}
+
+void
+do_my_cleanups (pmy_chain, old_chain)
+     register struct cleanup **pmy_chain;
+     register struct cleanup *old_chain;
+{
   register struct cleanup *ptr;
-  while ((ptr = cleanup_chain) != old_chain)
+  while ((ptr = *pmy_chain) != old_chain)
     {
-      cleanup_chain = ptr->next;	/* Do this first incase recursion */
+      *pmy_chain = ptr->next;	/* Do this first incase recursion */
       (*ptr->function) (ptr->arg);
       free (ptr);
     }
@@ -174,10 +236,25 @@ void
 discard_cleanups (old_chain)
      register struct cleanup *old_chain;
 {
+    discard_my_cleanups (&cleanup_chain, old_chain);
+}
+
+void
+discard_final_cleanups (old_chain)
+     register struct cleanup *old_chain;
+{
+    discard_my_cleanups (&final_cleanup_chain, old_chain);
+}
+
+void
+discard_my_cleanups (pmy_chain, old_chain)
+     register struct cleanup **pmy_chain;
+     register struct cleanup *old_chain;
+{
   register struct cleanup *ptr;
-  while ((ptr = cleanup_chain) != old_chain)
+  while ((ptr = *pmy_chain) != old_chain)
     {
-      cleanup_chain = ptr->next;
+      *pmy_chain = ptr->next;
       free ((PTR)ptr);
     }
 }
@@ -186,9 +263,22 @@ discard_cleanups (old_chain)
 struct cleanup *
 save_cleanups ()
 {
-  struct cleanup *old_chain = cleanup_chain;
+    return save_my_cleanups (&cleanup_chain);
+}
 
-  cleanup_chain = 0;
+struct cleanup *
+save_final_cleanups ()
+{
+    return save_my_cleanups (&final_cleanup_chain);
+}
+
+struct cleanup *
+save_my_cleanups (pmy_chain)
+    struct cleanup **pmy_chain;
+{
+  struct cleanup *old_chain = *pmy_chain;
+
+  *pmy_chain = 0;
   return old_chain;
 }
 
@@ -197,7 +287,22 @@ void
 restore_cleanups (chain)
      struct cleanup *chain;
 {
-  cleanup_chain = chain;
+    restore_my_cleanups (&cleanup_chain, chain);
+}
+
+void
+restore_final_cleanups (chain)
+     struct cleanup *chain;
+{
+    restore_my_cleanups (&final_cleanup_chain, chain);
+}
+
+void
+restore_my_cleanups (pmy_chain, chain)
+     struct cleanup **pmy_chain;
+     struct cleanup *chain;
+{
+  *pmy_chain = chain;
 }
 
 /* This function is useful for cleanups.
@@ -225,7 +330,7 @@ free_current_contents (location)
 /* ARGSUSED */
 void
 null_cleanup (arg)
-    char **arg;
+    PTR arg;
 {
 }
 
@@ -258,7 +363,7 @@ warning_begin ()
 /* VARARGS */
 void
 #ifdef ANSI_PROTOTYPES
-warning (char *string, ...)
+warning (const char *string, ...)
 #else
 warning (va_alist)
      va_dcl
@@ -273,10 +378,15 @@ warning (va_alist)
   va_start (args);
   string = va_arg (args, char *);
 #endif
-  warning_begin ();
-  vfprintf_unfiltered (gdb_stderr, string, args);
-  fprintf_unfiltered (gdb_stderr, "\n");
-  va_end (args);
+  if (warning_hook)
+    (*warning_hook) (string, args);
+  else
+  {
+    warning_begin ();
+    vfprintf_unfiltered (gdb_stderr, string, args);
+    fprintf_unfiltered (gdb_stderr, "\n");
+    va_end (args);
+  }
 }
 
 /* Start the printing of an error message.  Way to use this is to call
@@ -289,6 +399,9 @@ warning (va_alist)
 void
 error_begin ()
 {
+  if (error_begin_hook)
+    error_begin_hook ();
+
   target_terminal_ours ();
   wrap_here ("");			/* Force out any buffered output */
   gdb_flush (gdb_stdout);
@@ -303,11 +416,11 @@ error_begin ()
    The first argument STRING is the error message, used as a fprintf string,
    and the remaining args are passed as arguments to it.  */
 
-#ifdef ANSI_PROTOTYPES
+/* VARARGS */
 NORETURN void
-error (char *string, ...)
+#ifdef ANSI_PROTOTYPES
+error (const char *string, ...)
 #else
-void
 error (va_alist)
      va_dcl
 #endif
@@ -448,7 +561,7 @@ safe_strsignal (signo)
    as the file name for which the error was encountered.
    Then return to command level.  */
 
-void
+NORETURN void
 perror_with_name (string)
      char *string;
 {
@@ -467,7 +580,7 @@ perror_with_name (string)
   bfd_set_error (bfd_error_no_error);
   errno = 0;
 
-  error ("%s.", combined);
+  error ("%s.", combined); 
 }
 
 /* Print the system error message for ERRCODE, and also mention STRING
@@ -515,7 +628,7 @@ quit ()
   gdb_flush (gdb_stderr);
 
   /* 3.  The system-level buffer.  */
-  SERIAL_FLUSH_OUTPUT (gdb_stdout_serial);
+  SERIAL_DRAIN_OUTPUT (gdb_stdout_serial);
   SERIAL_UN_FDOPEN (gdb_stdout_serial);
 
   annotate_error_begin ();
@@ -536,60 +649,65 @@ quit ()
 }
 
 
-#if defined(__GO32__)||defined(WINGDB)
+#if defined(__GO32__)
 
 /* In the absence of signals, poll keyboard for a quit.
    Called from #define QUIT pollquit() in xm-go32.h. */
 
 void
-pollquit()
+notice_quit()
 {
   if (kbhit ())
-    {
-      int k = getkey ();
-      if (k == 1) {
+    switch (getkey ())
+      {
+      case 1:
 	quit_flag = 1;
-	quit();
+	break;
+      case 2:
+	immediate_quit = 2;
+	break;
+      default:
+	/* We just ignore it */
+	/* FIXME!! Don't think this actually works! */
+	fprintf_unfiltered (gdb_stderr, "CTRL-A to quit, CTRL-B to quit harder\n");
+	break;
       }
-      else if (k == 2) {
-	immediate_quit = 1;
-	quit ();
-      }
-      else 
-	{
-	  /* We just ignore it */
-	  fprintf_unfiltered (gdb_stderr, "CTRL-A to quit, CTRL-B to quit harder\n");
-	}
-    }
 }
 
+#elif defined(_MSC_VER) /* should test for wingdb instead? */
 
-#endif
-#if defined(__GO32__)||defined(WINGDB)
+/*
+ * Windows translates all keyboard and mouse events 
+ * into a message which is appended to the message 
+ * queue for the process.
+ */
+
 void notice_quit()
 {
-  if (kbhit ())
-    {
-      int k = getkey ();
-      if (k == 1) {
-	quit_flag = 1;
-      }
-      else if (k == 2)
-	{
-	  immediate_quit = 1;
-	}
-      else 
-	{
-	  fprintf_unfiltered (gdb_stderr, "CTRL-A to quit, CTRL-B to quit harder\n");
-	}
-    }
+  int k = win32pollquit();
+  if (k == 1)
+    quit_flag = 1;
+  else if (k == 2)
+    immediate_quit = 1;
 }
-#else
+
+#else /* !defined(__GO32__) && !defined(_MSC_VER) */
+
 void notice_quit()
 {
   /* Done by signals */
 }
-#endif
+
+#endif /* !defined(__GO32__) && !defined(_MSC_VER) */
+
+void
+pollquit()
+{
+  notice_quit ();
+  if (quit_flag || immediate_quit)
+    quit ();
+}
+
 /* Control C comes here */
 
 void
@@ -602,7 +720,6 @@ request_quit (signo)
      about USG defines and stuff like that.  */
   signal (signo, request_quit);
 
-
 #ifdef REQUEST_QUIT
   REQUEST_QUIT;
 #else
@@ -614,19 +731,15 @@ request_quit (signo)
 
 /* Memory management stuff (malloc friends).  */
 
-#if defined (NO_MMALLOC)
-
 /* Make a substitute size_t for non-ANSI compilers. */
 
-#ifdef _AIX
-#include <stddef.h>
-#else /* Not AIX */
-#ifndef __STDC__
+#ifndef HAVE_STDDEF_H
 #ifndef size_t
 #define size_t unsigned int
 #endif
 #endif
-#endif /* Not AIX */
+
+#if !defined (USE_MMALLOC)
 
 PTR
 mmalloc (md, size)
@@ -656,9 +769,9 @@ mfree (md, ptr)
   free (ptr);
 }
 
-#endif	/* NO_MMALLOC */
+#endif	/* USE_MMALLOC */
 
-#if defined (NO_MMALLOC) || defined (NO_MMALLOC_CHECK)
+#if !defined (USE_MMALLOC) || defined (NO_MMCHECK)
 
 void
 init_malloc (md)
@@ -666,7 +779,7 @@ init_malloc (md)
 {
 }
 
-#else /* have mmalloc and want corruption checking  */
+#else /* Have mmalloc and want corruption checking */
 
 static void
 malloc_botch ()
@@ -678,7 +791,7 @@ malloc_botch ()
    by MD, to detect memory corruption.  Note that MD may be NULL to specify
    the default heap that grows via sbrk.
 
-   Note that for freshly created regions, we must call mmcheck prior to any
+   Note that for freshly created regions, we must call mmcheckf prior to any
    mallocs in the region.  Otherwise, any region which was allocated prior to
    installing the checking hooks, which is later reallocated or freed, will
    fail the checks!  The mmcheck function only allows initial hooks to be
@@ -688,13 +801,24 @@ malloc_botch ()
 
    Returns zero on failure, non-zero on success. */
 
+#ifndef MMCHECK_FORCE
+#define MMCHECK_FORCE 0
+#endif
+
 void
 init_malloc (md)
      PTR md;
 {
-  if (!mmcheck (md, malloc_botch))
+  if (!mmcheckf (md, malloc_botch, MMCHECK_FORCE))
     {
-      warning ("internal error: failed to install memory consistency checks");
+      /* Don't use warning(), which relies on current_target being set
+	 to something other than dummy_target, until after
+	 initialize_all_files(). */
+
+      fprintf_unfiltered
+	(gdb_stderr, "warning: failed to install memory consistency checks; ");
+      fprintf_unfiltered
+	(gdb_stderr, "configuration should define NO_MMCHECK or MMCHECK_FORCE\n");
     }
 
   mmtrace ();
@@ -772,7 +896,7 @@ xmrealloc (md, ptr, size)
 
 PTR
 xmalloc (size)
-     long size;
+     size_t size;
 {
   return (xmmalloc ((PTR) NULL, size));
 }
@@ -782,7 +906,7 @@ xmalloc (size)
 PTR
 xrealloc (ptr, size)
      PTR ptr;
-     long size;
+     size_t size;
 {
   return (xmrealloc ((PTR) NULL, ptr, size));
 }
@@ -861,10 +985,23 @@ mstrsave (md, ptr)
 void
 print_spaces (n, file)
      register int n;
-     register FILE *file;
+     register GDB_FILE *file;
 {
-  while (n-- > 0)
-    fputc (' ', file);
+  if (file->ts_streamtype == astring)
+    {
+      char *p;
+
+      gdb_file_adjust_strbuf (n, file);
+      p = file->ts_strbuf + strlen (file->ts_strbuf);
+
+      memset (p, ' ', n);
+      p[n] = '\000';
+    }
+  else
+    {
+      while (n-- > 0)
+	fputc (' ', file->ts_filestream);
+    }
 }
 
 /* Print a host address.  */
@@ -944,21 +1081,43 @@ query (va_alist)
 	fputs_unfiltered ("\n", gdb_stdout);
 #endif /* MPW */
 
+      wrap_here("");
       gdb_flush (gdb_stdout);
-      answer = fgetc (stdin);
+
+#if defined(TUI)
+      if (!tui_version || cmdWin == tuiWinWithFocus())
+#endif
+	answer = fgetc (stdin);
+#if defined(TUI)
+      else
+
+        answer = (unsigned char)tuiBufferGetc();
+
+#endif
       clearerr (stdin);		/* in case of C-d */
       if (answer == EOF)	/* C-d */
         {
 	  retval = 1;
 	  break;
 	}
-      if (answer != '\n')	/* Eat rest of input line, to EOF or newline */
+      /* Eat rest of input line, to EOF or newline */
+      if ((answer != '\n') || (tui_version && answer != '\r'))
 	do 
 	  {
-	    ans2 = fgetc (stdin);
+#if defined(TUI)
+	    if (!tui_version || cmdWin == tuiWinWithFocus())
+#endif
+	      ans2 = fgetc (stdin);
+#if defined(TUI)
+	    else
+
+              ans2 = (unsigned char)tuiBufferGetc(); 
+#endif
 	    clearerr (stdin);
 	  }
-        while (ans2 != EOF && ans2 != '\n');
+        while (ans2 != EOF && ans2 != '\n' && ans2 != '\r');
+      TUIDO(((TuiOpaqueFuncPtr)tui_vStartNewLines, 1));
+
       if (answer >= 'a')
 	answer -= 040;
       if (answer == 'Y')
@@ -1070,7 +1229,7 @@ parse_escape (string_ptr)
 void
 gdb_printchar (c, stream, quoter)
      register int c;
-     FILE *stream;
+     GDB_FILE *stream;
      int quoter;
 {
 
@@ -1112,6 +1271,37 @@ gdb_printchar (c, stream, quoter)
     fprintf_filtered (stream, "%c", c);
   }
 }
+
+
+
+
+static char * hexlate = "0123456789abcdef" ;
+int fmthex(inbuf,outbuff,length,linelength)
+     unsigned char * inbuf ;
+     unsigned char * outbuff;
+     int length;
+     int linelength;
+{
+  unsigned char byte , nib ;
+  int outlength = 0 ;
+
+  while (length)
+    {
+      if (outlength >= linelength) break ;
+      byte = *inbuf ;
+      inbuf++ ;
+      nib = byte >> 4 ;
+      *outbuff++ = hexlate[nib] ;
+      nib = byte &0x0f ;
+      *outbuff++ = hexlate[nib] ;
+      *outbuff++ = ' ' ;
+      length-- ;
+      outlength += 3 ;
+    }
+  *outbuff = '\0' ; /* null terminate our output line */
+  return outlength ;
+}
+
 
 /* Number of lines per page or UINT_MAX if paging is disabled.  */
 static unsigned int lines_per_page;
@@ -1144,13 +1334,88 @@ static char *wrap_indent;
    is not in effect.  */
 static int wrap_column;
 
-/* ARGSUSED */
-static void 
-set_width_command (args, from_tty, c)
-     char *args;
-     int from_tty;
-     struct cmd_list_element *c;
+
+/* Inialize the lines and chars per page */
+void
+init_page_info()
 {
+#if defined(TUI)
+  if (tui_version && m_winPtrNotNull(cmdWin))
+    {
+      lines_per_page = cmdWin->generic.height;
+      chars_per_line = cmdWin->generic.width;
+    }
+  else
+#endif
+    {
+      /* These defaults will be used if we are unable to get the correct
+         values from termcap.  */
+#if defined(__GO32__)
+      lines_per_page = ScreenRows();
+      chars_per_line = ScreenCols();
+#else  
+      lines_per_page = 24;
+      chars_per_line = 80;
+
+#if !defined (MPW) && !defined (_WIN32)
+      /* No termcap under MPW, although might be cool to do something
+         by looking at worksheet or console window sizes. */
+      /* Initialize the screen height and width from termcap.  */
+      {
+        char *termtype = getenv ("TERM");
+
+        /* Positive means success, nonpositive means failure.  */
+        int status;
+
+        /* 2048 is large enough for all known terminals, according to the
+           GNU termcap manual.  */
+        char term_buffer[2048];
+
+        if (termtype)
+          {
+	    status = tgetent (term_buffer, termtype);
+	    if (status > 0)
+	      {
+	        int val;
+		int running_in_emacs = getenv ("EMACS") != NULL;
+	    
+	        val = tgetnum ("li");
+	        if (val >= 0 && !running_in_emacs)
+	          lines_per_page = val;
+	        else
+	          /* The number of lines per page is not mentioned
+		     in the terminal description.  This probably means
+		     that paging is not useful (e.g. emacs shell window),
+		     so disable paging.  */
+	          lines_per_page = UINT_MAX;
+	    
+	        val = tgetnum ("co");
+	        if (val >= 0)
+	          chars_per_line = val;
+	      }
+          }
+      }
+#endif /* MPW */
+
+#if defined(SIGWINCH) && defined(SIGWINCH_HANDLER)
+
+      /* If there is a better way to determine the window size, use it. */
+      SIGWINCH_HANDLER (SIGWINCH);
+#endif
+#endif
+      /* If the output is not a terminal, don't paginate it.  */
+      if (!GDB_FILE_ISATTY (gdb_stdout))
+        lines_per_page = UINT_MAX;
+  } /* the command_line_version */
+  set_width();
+}
+
+static void
+set_width()
+{
+  if (chars_per_line == 0)
+    init_page_info();
+
   if (!wrap_buffer)
     {
       wrap_buffer = (char *) xmalloc (chars_per_line + 2);
@@ -1158,7 +1423,17 @@ set_width_command (args, from_tty, c)
     }
   else
     wrap_buffer = (char *) xrealloc (wrap_buffer, chars_per_line + 2);
-  wrap_pointer = wrap_buffer;	/* Start it at the beginning */
+  wrap_pointer = wrap_buffer;   /* Start it at the beginning */
+}
+
+/* ARGSUSED */
+static void 
+set_width_command (args, from_tty, c)
+     char *args;
+     int from_tty;
+     struct cmd_list_element *c;
+{
+  set_width ();
 }
 
 /* Wait, so the user can read what's on the screen.  Prompt the user
@@ -1297,26 +1572,121 @@ begin_line ()
     }
 }
 
+int 
+gdb_file_isatty (stream)
+    GDB_FILE *stream;
+{
+
+  if (stream->ts_streamtype == afile)
+     return (isatty(fileno(stream->ts_filestream)));
+  else return 0;
+}
+
+GDB_FILE *
+gdb_file_init_astring (n)
+    int n;
+{
+  GDB_FILE *tmpstream;
+
+  tmpstream = xmalloc (sizeof(GDB_FILE));
+  tmpstream->ts_streamtype = astring;
+  tmpstream->ts_filestream = NULL;
+  if (n > 0)
+    {
+      tmpstream->ts_strbuf = xmalloc ((n + 1)*sizeof(char));
+      tmpstream->ts_strbuf[0] = '\0';
+    }
+  else
+     tmpstream->ts_strbuf = NULL;
+  tmpstream->ts_buflen = n;
+
+  return tmpstream;
+}
+
+void
+gdb_file_deallocate (streamptr)
+    GDB_FILE **streamptr;
+{
+  GDB_FILE *tmpstream;
+
+  tmpstream = *streamptr;
+  if ((tmpstream->ts_streamtype == astring) &&
+      (tmpstream->ts_strbuf != NULL)) 
+    {
+      free (tmpstream->ts_strbuf);
+    }
+
+  free (tmpstream);
+  *streamptr = NULL;
+}
+ 
+char *
+gdb_file_get_strbuf (stream)
+     GDB_FILE *stream;
+{
+  return (stream->ts_strbuf);
+}
+
+/* adjust the length of the buffer by the amount necessary
+   to accomodate appending a string of length N to the buffer contents */
+void
+gdb_file_adjust_strbuf (n, stream)
+     int n;
+     GDB_FILE *stream;
+{
+  int non_null_chars;
+  
+  non_null_chars = strlen(stream->ts_strbuf);
+ 
+  if (n > (stream->ts_buflen - non_null_chars - 1)) 
+    {
+      stream->ts_buflen = n + non_null_chars + 1;
+      stream->ts_strbuf = xrealloc (stream->ts_strbuf, stream->ts_buflen);
+    }  
+} 
 
 GDB_FILE *
 gdb_fopen (name, mode)
      char * name;
      char * mode;
 {
-  return fopen (name, mode);
+  int       gdb_file_size;
+  GDB_FILE *tmp;
+
+  gdb_file_size = sizeof(GDB_FILE);
+  tmp = (GDB_FILE *) xmalloc (gdb_file_size);
+  tmp->ts_streamtype = afile;
+  tmp->ts_filestream = fopen (name, mode);
+  tmp->ts_strbuf = NULL;
+  tmp->ts_buflen = 0;
+  
+  return tmp;
 }
 
 void
 gdb_flush (stream)
-     FILE *stream;
+     GDB_FILE *stream;
 {
-  if (flush_hook)
+  if (flush_hook
+      && (stream == gdb_stdout
+	  || stream == gdb_stderr))
     {
       flush_hook (stream);
       return;
     }
 
-  fflush (stream);
+  fflush (stream->ts_filestream);
+}
+
+void
+gdb_fclose(streamptr)
+     GDB_FILE **streamptr;
+{
+  GDB_FILE *tmpstream;
+
+  tmpstream = *streamptr;
+  fclose (tmpstream->ts_filestream);
+  gdb_file_deallocate (streamptr);
 }
 
 /* Like fputs but if FILTER is true, pause after every screenful.
@@ -1335,7 +1705,7 @@ gdb_flush (stream)
 static void
 fputs_maybe_filtered (linebuffer, stream, filter)
      const char *linebuffer;
-     FILE *stream;
+     GDB_FILE *stream;
      int filter;
 {
   const char *lineptr;
@@ -1439,7 +1809,7 @@ fputs_maybe_filtered (linebuffer, stream, filter)
 void
 fputs_filtered (linebuffer, stream)
      const char *linebuffer;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   fputs_maybe_filtered (linebuffer, stream, 1);
 }
@@ -1459,7 +1829,7 @@ putchar_unfiltered (c)
 int
 fputc_unfiltered (c, stream)
      int c;
-     FILE * stream;
+     GDB_FILE * stream;
 {
   char buf[2];
 
@@ -1467,6 +1837,92 @@ fputc_unfiltered (c, stream)
   buf[1] = 0;
   fputs_unfiltered (buf, stream);
   return c;
+}
+
+int
+fputc_filtered (c, stream)
+     int c;
+     GDB_FILE * stream;
+{
+  char buf[2];
+
+  buf[0] = c;
+  buf[1] = 0;
+  fputs_filtered (buf, stream);
+  return c;
+}
+
+/* puts_debug is like fputs_unfiltered, except it prints special
+   characters in printable fashion.  */
+
+void
+puts_debug (prefix, string, suffix)
+     char *prefix;
+     char *string;
+     char *suffix;
+{
+  int ch;
+
+  /* Print prefix and suffix after each line.  */
+  static int new_line = 1;
+  static int return_p = 0;
+  static char *prev_prefix = "";
+  static char *prev_suffix = "";
+
+  if (*string == '\n')
+    return_p = 0;
+
+  /* If the prefix is changing, print the previous suffix, a new line,
+     and the new prefix.  */
+  if ((return_p || (strcmp(prev_prefix, prefix) != 0)) && !new_line)
+    {
+      fputs_unfiltered (prev_suffix, gdb_stderr);
+      fputs_unfiltered ("\n", gdb_stderr);
+      fputs_unfiltered (prefix, gdb_stderr);
+    }
+
+  /* Print prefix if we printed a newline during the previous call.  */
+  if (new_line)
+    {
+      new_line = 0;
+      fputs_unfiltered (prefix, gdb_stderr);
+    }
+
+  prev_prefix = prefix;
+  prev_suffix = suffix;
+
+  /* Output characters in a printable format.  */
+  while ((ch = *string++) != '\0')
+    {
+      switch (ch)
+        {
+	default:
+	  if (isprint (ch))
+	    fputc_unfiltered (ch, gdb_stderr);
+
+	  else
+	    fprintf_unfiltered (gdb_stderr, "\\x%02x", ch & 0xff);
+	  break;
+
+	case '\\': fputs_unfiltered ("\\\\",  gdb_stderr);	break;
+	case '\b': fputs_unfiltered ("\\b",   gdb_stderr);	break;
+	case '\f': fputs_unfiltered ("\\f",   gdb_stderr);	break;
+	case '\n': new_line = 1;
+		   fputs_unfiltered ("\\n",   gdb_stderr);	break;
+	case '\r': fputs_unfiltered ("\\r",   gdb_stderr);	break;
+	case '\t': fputs_unfiltered ("\\t",   gdb_stderr);	break;
+	case '\v': fputs_unfiltered ("\\v",   gdb_stderr);	break;
+        }
+
+      return_p = ch == '\r';
+    }
+
+  /* Print suffix if we printed a newline.  */
+  if (new_line)
+    {
+      fputs_unfiltered (suffix, gdb_stderr);
+      fputs_unfiltered ("\n", gdb_stderr);
+    }
 }
 
 
@@ -1486,8 +1942,8 @@ fputc_unfiltered (c, stream)
 
 static void
 vfprintf_maybe_filtered (stream, format, args, filter)
-     FILE *stream;
-     char *format;
+     GDB_FILE *stream;
+     const char *format;
      va_list args;
      int filter;
 {
@@ -1508,7 +1964,7 @@ vfprintf_maybe_filtered (stream, format, args, filter)
 
 void
 vfprintf_filtered (stream, format, args)
-     FILE *stream;
+     GDB_FILE *stream;
      const char *format;
      va_list args;
 {
@@ -1517,7 +1973,7 @@ vfprintf_filtered (stream, format, args)
 
 void
 vfprintf_unfiltered (stream, format, args)
-     FILE *stream;
+     GDB_FILE *stream;
      const char *format;
      va_list args;
 {
@@ -1554,7 +2010,7 @@ vprintf_unfiltered (format, args)
 /* VARARGS */
 void
 #ifdef ANSI_PROTOTYPES
-fprintf_filtered (FILE *stream, const char *format, ...)
+fprintf_filtered (GDB_FILE *stream, const char *format, ...)
 #else
 fprintf_filtered (va_alist)
      va_dcl
@@ -1564,11 +2020,11 @@ fprintf_filtered (va_alist)
 #ifdef ANSI_PROTOTYPES
   va_start (args, format);
 #else
-  FILE *stream;
+  GDB_FILE *stream;
   char *format;
 
   va_start (args);
-  stream = va_arg (args, FILE *);
+  stream = va_arg (args, GDB_FILE *);
   format = va_arg (args, char *);
 #endif
   vfprintf_filtered (stream, format, args);
@@ -1578,7 +2034,7 @@ fprintf_filtered (va_alist)
 /* VARARGS */
 void
 #ifdef ANSI_PROTOTYPES
-fprintf_unfiltered (FILE *stream, const char *format, ...)
+fprintf_unfiltered (GDB_FILE *stream, const char *format, ...)
 #else
 fprintf_unfiltered (va_alist)
      va_dcl
@@ -1588,11 +2044,11 @@ fprintf_unfiltered (va_alist)
 #ifdef ANSI_PROTOTYPES
   va_start (args, format);
 #else
-  FILE *stream;
+  GDB_FILE *stream;
   char *format;
 
   va_start (args);
-  stream = va_arg (args, FILE *);
+  stream = va_arg (args, GDB_FILE *);
   format = va_arg (args, char *);
 #endif
   vfprintf_unfiltered (stream, format, args);
@@ -1605,7 +2061,7 @@ fprintf_unfiltered (va_alist)
 /* VARARGS */
 void
 #ifdef ANSI_PROTOTYPES
-fprintfi_filtered (int spaces, FILE *stream, const char *format, ...)
+fprintfi_filtered (int spaces, GDB_FILE *stream, const char *format, ...)
 #else
 fprintfi_filtered (va_alist)
      va_dcl
@@ -1616,12 +2072,12 @@ fprintfi_filtered (va_alist)
   va_start (args, format);
 #else
   int spaces;
-  FILE *stream;
+  GDB_FILE *stream;
   char *format;
 
   va_start (args);
   spaces = va_arg (args, int);
-  stream = va_arg (args, FILE *);
+  stream = va_arg (args, GDB_FILE *);
   format = va_arg (args, char *);
 #endif
   print_spaces_filtered (spaces, stream);
@@ -1751,7 +2207,7 @@ n_spaces (n)
 void
 print_spaces_filtered (n, stream)
      int n;
-     FILE *stream;
+     GDB_FILE *stream;
 {
   fputs_filtered (n_spaces (n), stream);
 }
@@ -1765,7 +2221,7 @@ print_spaces_filtered (n, stream)
 
 void
 fprintf_symbol_filtered (stream, name, lang, arg_mode)
-     FILE *stream;
+     GDB_FILE *stream;
      char *name;
      enum language lang;
      int arg_mode;
@@ -1785,6 +2241,9 @@ fprintf_symbol_filtered (stream, name, lang, arg_mode)
 	    {
 	    case language_cplus:
 	      demangled = cplus_demangle (name, arg_mode);
+	      break;
+	    case language_java:
+	      demangled = cplus_demangle (name, arg_mode | DMGL_JAVA);
 	      break;
 	    case language_chill:
 	      demangled = chill_demangle (name);
@@ -1840,6 +2299,50 @@ strcmp_iw (string1, string2)
 }
 
 
+/*
+** subsetCompare()
+**    Answer whether stringToCompare is a full or partial match to
+**    templateString.  The partial match must be in sequence starting
+**    at index 0.
+*/
+int
+#ifdef _STDC__
+subsetCompare(
+    char *stringToCompare,
+    char *templateString)
+#else
+subsetCompare(stringToCompare, templateString)
+    char *stringToCompare;
+    char *templateString;
+#endif
+{
+    int    match = 0;
+
+    if (templateString != (char *)NULL && stringToCompare != (char *)NULL &&
+	strlen(stringToCompare) <= strlen(templateString))
+      match = (strncmp(templateString,
+		       stringToCompare,
+		       strlen(stringToCompare)) == 0);
+
+    return match;
+} /* subsetCompare */
+
+
+void pagination_on_command(arg, from_tty)
+  char *arg;
+  int from_tty;
+{
+  pagination_enabled = 1;
+}
+
+void pagination_off_command(arg, from_tty)
+  char *arg;
+  int from_tty;
+{
+  pagination_enabled = 0;
+}
+
+
 void
 initialize_utils ()
 {
@@ -1858,62 +2361,10 @@ initialize_utils ()
 		  "Set number of lines gdb thinks are in a page.", &setlist),
      &showlist);
   
-  /* These defaults will be used if we are unable to get the correct
-     values from termcap.  */
-#if defined(__GO32__) || defined(__WIN32__)
-  lines_per_page = ScreenRows();
-  chars_per_line = ScreenCols();
-#else  
-  lines_per_page = 24;
-  chars_per_line = 80;
+  init_page_info ();
 
-#ifndef MPW
-  /* No termcap under MPW, although might be cool to do something
-     by looking at worksheet or console window sizes. */
-  /* Initialize the screen height and width from termcap.  */
-  {
-    char *termtype = getenv ("TERM");
-
-    /* Positive means success, nonpositive means failure.  */
-    int status;
-
-    /* 2048 is large enough for all known terminals, according to the
-       GNU termcap manual.  */
-    char term_buffer[2048];
-
-    if (termtype)
-      {
-	status = tgetent (term_buffer, termtype);
-	if (status > 0)
-	  {
-	    int val;
-	    
-	    val = tgetnum ("li");
-	    if (val >= 0)
-	      lines_per_page = val;
-	    else
-	      /* The number of lines per page is not mentioned
-		 in the terminal description.  This probably means
-		 that paging is not useful (e.g. emacs shell window),
-		 so disable paging.  */
-	      lines_per_page = UINT_MAX;
-	    
-	    val = tgetnum ("co");
-	    if (val >= 0)
-	      chars_per_line = val;
-	  }
-      }
-  }
-#endif /* MPW */
-
-#if defined(SIGWINCH) && defined(SIGWINCH_HANDLER)
-
-  /* If there is a better way to determine the window size, use it. */
-  SIGWINCH_HANDLER ();
-#endif
-#endif
   /* If the output is not a terminal, don't paginate it.  */
-  if (!ISATTY (gdb_stdout))
+  if (!GDB_FILE_ISATTY (gdb_stdout))
     lines_per_page = UINT_MAX;
 
   set_width_command ((char *)NULL, 0, c);
@@ -1924,6 +2375,19 @@ initialize_utils ()
 		"Set demangling of encoded C++ names when displaying symbols.",
 		  &setprintlist),
      &showprintlist);
+
+  add_show_from_set
+    (add_set_cmd ("pagination", class_support,
+		  var_boolean, (char *)&pagination_enabled,
+		  "Set state of pagination.", &setlist),
+     &showlist);
+  if (xdb_commands)
+    {
+      add_com("am", class_support, pagination_on_command, 
+              "Enable pagination");
+      add_com("sm", class_support, pagination_off_command, 
+              "Disable pagination");
+    }
 
   add_show_from_set
     (add_set_cmd ("sevenbit-strings", class_support, var_boolean, 
@@ -1945,4 +2409,524 @@ initialize_utils ()
 #ifdef  SIGWINCH_HANDLER_BODY
         SIGWINCH_HANDLER_BODY
 #endif
+
+/* Support for converting target fp numbers into host DOUBLEST format.  */
 
+/* XXX - This code should really be in libiberty/floatformat.c, however
+   configuration issues with libiberty made this very difficult to do in the
+   available time.  */
+
+#include "floatformat.h"
+#include <math.h>		/* ldexp */
+
+/* The odds that CHAR_BIT will be anything but 8 are low enough that I'm not
+   going to bother with trying to muck around with whether it is defined in
+   a system header, what we do if not, etc.  */
+#define FLOATFORMAT_CHAR_BIT 8
+
+static unsigned long get_field PARAMS ((unsigned char *,
+					enum floatformat_byteorders,
+					unsigned int,
+					unsigned int,
+					unsigned int));
+
+/* Extract a field which starts at START and is LEN bytes long.  DATA and
+   TOTAL_LEN are the thing we are extracting it from, in byteorder ORDER.  */
+static unsigned long
+get_field (data, order, total_len, start, len)
+     unsigned char *data;
+     enum floatformat_byteorders order;
+     unsigned int total_len;
+     unsigned int start;
+     unsigned int len;
+{
+  unsigned long result;
+  unsigned int cur_byte;
+  int cur_bitshift;
+
+  /* Start at the least significant part of the field.  */
+  cur_byte = (start + len) / FLOATFORMAT_CHAR_BIT;
+  if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+    cur_byte = (total_len / FLOATFORMAT_CHAR_BIT) - cur_byte - 1;
+  cur_bitshift =
+    ((start + len) % FLOATFORMAT_CHAR_BIT) - FLOATFORMAT_CHAR_BIT;
+  result = *(data + cur_byte) >> (-cur_bitshift);
+  cur_bitshift += FLOATFORMAT_CHAR_BIT;
+  if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+    ++cur_byte;
+  else
+    --cur_byte;
+
+  /* Move towards the most significant part of the field.  */
+  while (cur_bitshift < len)
+    {
+      if (len - cur_bitshift < FLOATFORMAT_CHAR_BIT)
+	/* This is the last byte; zero out the bits which are not part of
+	   this field.  */
+	result |=
+	  (*(data + cur_byte) & ((1 << (len - cur_bitshift)) - 1))
+	    << cur_bitshift;
+      else
+	result |= *(data + cur_byte) << cur_bitshift;
+      cur_bitshift += FLOATFORMAT_CHAR_BIT;
+      if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+	++cur_byte;
+      else
+	--cur_byte;
+    }
+  return result;
+}
+  
+/* Convert from FMT to a DOUBLEST.
+   FROM is the address of the extended float.
+   Store the DOUBLEST in *TO.  */
+
+void
+floatformat_to_doublest (fmt, from, to)
+     const struct floatformat *fmt;
+     char *from;
+     DOUBLEST *to;
+{
+  unsigned char *ufrom = (unsigned char *)from;
+  DOUBLEST dto;
+  long exponent;
+  unsigned long mant;
+  unsigned int mant_bits, mant_off;
+  int mant_bits_left;
+  int special_exponent;		/* It's a NaN, denorm or zero */
+
+  /* If the mantissa bits are not contiguous from one end of the
+     mantissa to the other, we need to make a private copy of the
+     source bytes that is in the right order since the unpacking
+     algorithm assumes that the bits are contiguous.
+
+     Swap the bytes individually rather than accessing them through
+     "long *" since we have no guarantee that they start on a long
+     alignment, and also sizeof(long) for the host could be different
+     than sizeof(long) for the target.  FIXME: Assumes sizeof(long)
+     for the target is 4. */
+
+  if (fmt -> byteorder == floatformat_littlebyte_bigword)
+    {
+      static unsigned char *newfrom;
+      unsigned char *swapin, *swapout;
+      int longswaps;
+
+      longswaps = fmt -> totalsize / FLOATFORMAT_CHAR_BIT;
+      longswaps >>= 3;
+      
+      if (newfrom == NULL)
+	{
+	  newfrom = (unsigned char *) xmalloc (fmt -> totalsize);
+	}
+      swapout = newfrom;
+      swapin = ufrom;
+      ufrom = newfrom;
+      while (longswaps-- > 0)
+	{
+	  /* This is ugly, but efficient */
+	  *swapout++ = swapin[4];
+	  *swapout++ = swapin[5];
+	  *swapout++ = swapin[6];
+	  *swapout++ = swapin[7];
+	  *swapout++ = swapin[0];
+	  *swapout++ = swapin[1];
+	  *swapout++ = swapin[2];
+	  *swapout++ = swapin[3];
+	  swapin += 8;
+	}
+    }
+
+  exponent = get_field (ufrom, fmt->byteorder, fmt->totalsize,
+			fmt->exp_start, fmt->exp_len);
+  /* Note that if exponent indicates a NaN, we can't really do anything useful
+     (not knowing if the host has NaN's, or how to build one).  So it will
+     end up as an infinity or something close; that is OK.  */
+
+  mant_bits_left = fmt->man_len;
+  mant_off = fmt->man_start;
+  dto = 0.0;
+
+  special_exponent = exponent == 0 || exponent == fmt->exp_nan;
+
+/* Don't bias zero's, denorms or NaNs.  */
+  if (!special_exponent)
+    exponent -= fmt->exp_bias;
+
+  /* Build the result algebraically.  Might go infinite, underflow, etc;
+     who cares. */
+
+/* If this format uses a hidden bit, explicitly add it in now.  Otherwise,
+   increment the exponent by one to account for the integer bit.  */
+
+  if (!special_exponent)
+    if (fmt->intbit == floatformat_intbit_no)
+      dto = ldexp (1.0, exponent);
+    else
+      exponent++;
+
+  while (mant_bits_left > 0)
+    {
+      mant_bits = min (mant_bits_left, 32);
+
+      mant = get_field (ufrom, fmt->byteorder, fmt->totalsize,
+			 mant_off, mant_bits);
+
+      dto += ldexp ((double)mant, exponent - mant_bits);
+      exponent -= mant_bits;
+      mant_off += mant_bits;
+      mant_bits_left -= mant_bits;
+    }
+
+  /* Negate it if negative.  */
+  if (get_field (ufrom, fmt->byteorder, fmt->totalsize, fmt->sign_start, 1))
+    dto = -dto;
+  *to = dto;
+}
+
+static void put_field PARAMS ((unsigned char *, enum floatformat_byteorders,
+			       unsigned int,
+			       unsigned int,
+			       unsigned int,
+			       unsigned long));
+
+/* Set a field which starts at START and is LEN bytes long.  DATA and
+   TOTAL_LEN are the thing we are extracting it from, in byteorder ORDER.  */
+static void
+put_field (data, order, total_len, start, len, stuff_to_put)
+     unsigned char *data;
+     enum floatformat_byteorders order;
+     unsigned int total_len;
+     unsigned int start;
+     unsigned int len;
+     unsigned long stuff_to_put;
+{
+  unsigned int cur_byte;
+  int cur_bitshift;
+
+  /* Start at the least significant part of the field.  */
+  cur_byte = (start + len) / FLOATFORMAT_CHAR_BIT;
+  if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+    cur_byte = (total_len / FLOATFORMAT_CHAR_BIT) - cur_byte - 1;
+  cur_bitshift =
+    ((start + len) % FLOATFORMAT_CHAR_BIT) - FLOATFORMAT_CHAR_BIT;
+  *(data + cur_byte) &=
+    ~(((1 << ((start + len) % FLOATFORMAT_CHAR_BIT)) - 1) << (-cur_bitshift));
+  *(data + cur_byte) |=
+    (stuff_to_put & ((1 << FLOATFORMAT_CHAR_BIT) - 1)) << (-cur_bitshift);
+  cur_bitshift += FLOATFORMAT_CHAR_BIT;
+  if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+    ++cur_byte;
+  else
+    --cur_byte;
+
+  /* Move towards the most significant part of the field.  */
+  while (cur_bitshift < len)
+    {
+      if (len - cur_bitshift < FLOATFORMAT_CHAR_BIT)
+	{
+	  /* This is the last byte.  */
+	  *(data + cur_byte) &=
+	    ~((1 << (len - cur_bitshift)) - 1);
+	  *(data + cur_byte) |= (stuff_to_put >> cur_bitshift);
+	}
+      else
+	*(data + cur_byte) = ((stuff_to_put >> cur_bitshift)
+			      & ((1 << FLOATFORMAT_CHAR_BIT) - 1));
+      cur_bitshift += FLOATFORMAT_CHAR_BIT;
+      if (order == floatformat_little || order == floatformat_littlebyte_bigword)
+	++cur_byte;
+      else
+	--cur_byte;
+    }
+}
+
+#ifdef HAVE_LONG_DOUBLE
+/* Return the fractional part of VALUE, and put the exponent of VALUE in *EPTR.
+   The range of the returned value is >= 0.5 and < 1.0.  This is equivalent to
+   frexp, but operates on the long double data type.  */
+
+static long double ldfrexp PARAMS ((long double value, int *eptr));
+
+static long double
+ldfrexp (value, eptr)
+     long double value;
+     int *eptr;
+{
+  long double tmp;
+  int exp;
+
+  /* Unfortunately, there are no portable functions for extracting the exponent
+     of a long double, so we have to do it iteratively by multiplying or dividing
+     by two until the fraction is between 0.5 and 1.0.  */
+
+  if (value < 0.0l)
+    value = -value;
+
+  tmp = 1.0l;
+  exp = 0;
+
+  if (value >= tmp)		/* Value >= 1.0 */
+    while (value >= tmp)
+      {
+	tmp *= 2.0l;
+	exp++;
+      }
+  else if (value != 0.0l)	/* Value < 1.0  and > 0.0 */
+    {
+      while (value < tmp)
+	{
+	  tmp /= 2.0l;
+	  exp--;
+	}
+      tmp *= 2.0l;
+      exp++;
+    }
+
+  *eptr = exp;
+  return value/tmp;
+}
+#endif /* HAVE_LONG_DOUBLE */
+
+
+/* The converse: convert the DOUBLEST *FROM to an extended float
+   and store where TO points.  Neither FROM nor TO have any alignment
+   restrictions.  */
+
+void
+floatformat_from_doublest (fmt, from, to)
+     CONST struct floatformat *fmt;
+     DOUBLEST *from;
+     char *to;
+{
+  DOUBLEST dfrom;
+  int exponent;
+  DOUBLEST mant;
+  unsigned int mant_bits, mant_off;
+  int mant_bits_left;
+  unsigned char *uto = (unsigned char *)to;
+
+  memcpy (&dfrom, from, sizeof (dfrom));
+  memset (uto, 0, fmt->totalsize / FLOATFORMAT_CHAR_BIT);
+  if (dfrom == 0)
+    return;			/* Result is zero */
+  if (dfrom != dfrom)		/* Result is NaN */
+    {
+      /* From is NaN */
+      put_field (uto, fmt->byteorder, fmt->totalsize, fmt->exp_start,
+		 fmt->exp_len, fmt->exp_nan);
+      /* Be sure it's not infinity, but NaN value is irrel */
+      put_field (uto, fmt->byteorder, fmt->totalsize, fmt->man_start,
+		 32, 1);
+      return;
+    }
+
+  /* If negative, set the sign bit.  */
+  if (dfrom < 0)
+    {
+      put_field (uto, fmt->byteorder, fmt->totalsize, fmt->sign_start, 1, 1);
+      dfrom = -dfrom;
+    }
+
+  if (dfrom + dfrom == dfrom && dfrom != 0.0)	/* Result is Infinity */
+    {
+      /* Infinity exponent is same as NaN's.  */
+      put_field (uto, fmt->byteorder, fmt->totalsize, fmt->exp_start,
+		 fmt->exp_len, fmt->exp_nan);
+      /* Infinity mantissa is all zeroes.  */
+      put_field (uto, fmt->byteorder, fmt->totalsize, fmt->man_start,
+		 fmt->man_len, 0);
+      return;
+    }
+
+#ifdef HAVE_LONG_DOUBLE
+  mant = ldfrexp (dfrom, &exponent);
+#else
+  mant = frexp (dfrom, &exponent);
+#endif
+
+  put_field (uto, fmt->byteorder, fmt->totalsize, fmt->exp_start, fmt->exp_len,
+	     exponent + fmt->exp_bias - 1);
+
+  mant_bits_left = fmt->man_len;
+  mant_off = fmt->man_start;
+  while (mant_bits_left > 0)
+    {
+      unsigned long mant_long;
+      mant_bits = mant_bits_left < 32 ? mant_bits_left : 32;
+
+      mant *= 4294967296.0;
+      mant_long = (unsigned long)mant;
+      mant -= mant_long;
+
+      /* If the integer bit is implicit, then we need to discard it.
+	 If we are discarding a zero, we should be (but are not) creating
+	 a denormalized	number which means adjusting the exponent
+	 (I think).  */
+      if (mant_bits_left == fmt->man_len
+	  && fmt->intbit == floatformat_intbit_no)
+	{
+	  mant_long <<= 1;
+	  mant_bits -= 1;
+	}
+
+      if (mant_bits < 32)
+	{
+	  /* The bits we want are in the most significant MANT_BITS bits of
+	     mant_long.  Move them to the least significant.  */
+	  mant_long >>= 32 - mant_bits;
+	}
+
+      put_field (uto, fmt->byteorder, fmt->totalsize,
+		 mant_off, mant_bits, mant_long);
+      mant_off += mant_bits;
+      mant_bits_left -= mant_bits;
+    }
+  if (fmt -> byteorder == floatformat_littlebyte_bigword)
+    {
+      int count;
+      unsigned char *swaplow = uto;
+      unsigned char *swaphigh = uto + 4;
+      unsigned char tmp;
+
+      for (count = 0; count < 4; count++)
+	{
+	  tmp = *swaplow;
+	  *swaplow++ = *swaphigh;
+	  *swaphigh++ = tmp;
+	}
+    }
+}
+
+/* temporary storage using circular buffer */
+#define NUMCELLS 16
+#define CELLSIZE 32
+static char*
+get_cell()
+{
+  static char buf[NUMCELLS][CELLSIZE];
+  static int cell=0;
+  if (++cell>=NUMCELLS) cell=0;
+  return buf[cell];
+}
+
+/* print routines to handle variable size regs, etc.
+
+   FIXME: Note that t_addr is a bfd_vma, which is currently either an
+   unsigned long or unsigned long long, determined at configure time.
+   If t_addr is an unsigned long long and sizeof (unsigned long long)
+   is greater than sizeof (unsigned long), then I believe this code will
+   probably lose, at least for little endian machines.  I believe that
+   it would also be better to eliminate the switch on the absolute size
+   of t_addr and replace it with a sequence of if statements that compare
+   sizeof t_addr with sizeof the various types and do the right thing,
+   which includes knowing whether or not the host supports long long.
+   -fnf
+
+ */
+
+static int thirty_two = 32;	/* eliminate warning from compiler on 32-bit systems */
+
+char* 
+paddr(addr)
+  t_addr addr;
+{
+  char *paddr_str=get_cell();
+  switch (sizeof(t_addr))
+    {
+      case 8:
+        sprintf (paddr_str, "%08lx%08lx",
+		(unsigned long) (addr >> thirty_two), (unsigned long) (addr & 0xffffffff));
+	break;
+      case 4:
+        sprintf (paddr_str, "%08lx", (unsigned long) addr);
+	break;
+      case 2:
+        sprintf (paddr_str, "%04x", (unsigned short) (addr & 0xffff));
+	break;
+      default:
+        sprintf (paddr_str, "%lx", (unsigned long) addr);
+    }
+  return paddr_str;
+}
+
+char* 
+preg(reg)
+  t_reg reg;
+{
+  char *preg_str=get_cell();
+  switch (sizeof(t_reg))
+    {
+      case 8:
+        sprintf (preg_str, "%08lx%08lx",
+		(unsigned long) (reg >> thirty_two), (unsigned long) (reg & 0xffffffff));
+	break;
+      case 4:
+        sprintf (preg_str, "%08lx", (unsigned long) reg);
+	break;
+      case 2:
+        sprintf (preg_str, "%04x", (unsigned short) (reg & 0xffff));
+	break;
+      default:
+        sprintf (preg_str, "%lx", (unsigned long) reg);
+    }
+  return preg_str;
+}
+
+char*
+paddr_nz(addr)
+  t_addr addr;
+{
+  char *paddr_str=get_cell();
+  switch (sizeof(t_addr))
+    {
+      case 8:
+	{
+	  unsigned long high = (unsigned long) (addr >> thirty_two);
+	  if (high == 0)
+	    sprintf (paddr_str, "%lx", (unsigned long) (addr & 0xffffffff));
+	  else
+	    sprintf (paddr_str, "%lx%08lx",
+		    high, (unsigned long) (addr & 0xffffffff));
+	  break;
+	}
+      case 4:
+        sprintf (paddr_str, "%lx", (unsigned long) addr);
+	break;
+      case 2:
+        sprintf (paddr_str, "%x", (unsigned short) (addr & 0xffff));
+	break;
+      default:
+        sprintf (paddr_str,"%lx", (unsigned long) addr);
+    }
+  return paddr_str;
+}
+
+char*
+preg_nz(reg)
+  t_reg reg;
+{
+  char *preg_str=get_cell();
+  switch (sizeof(t_reg))
+    {
+      case 8:
+	{
+	  unsigned long high = (unsigned long) (reg >> thirty_two);
+	  if (high == 0)
+	    sprintf (preg_str, "%lx", (unsigned long) (reg & 0xffffffff));
+	  else
+	    sprintf (preg_str, "%lx%08lx",
+		    high, (unsigned long) (reg & 0xffffffff));
+	  break;
+	}
+      case 4:
+        sprintf (preg_str, "%lx", (unsigned long) reg);
+	break;
+      case 2:
+        sprintf (preg_str, "%x", (unsigned short) (reg & 0xffff));
+	break;
+      default:
+        sprintf (preg_str, "%lx", (unsigned long) reg);
+    }
+  return preg_str;
+}

@@ -49,6 +49,136 @@ coff_solib_add PARAMS ((char *, int, struct target_ops *));
 extern void
 coff_solib_create_inferior_hook PARAMS((void));	/* solib.c */
 
+/* Function to be called to remove the connection between debugger and
+   dynamic linker that was established by SOLIB_CREATE_INFERIOR_HOOK.
+   (This operation does not remove shared library information from
+   the debugger, as CLEAR_SOLIB does.)
+
+   This functionality is presently not implemented for this target.
+   */
+#define SOLIB_REMOVE_INFERIOR_HOOK(PID) (0)
+
+/* This function is called by the "catch load" command.  It allows
+   the debugger to be notified by the dynamic linker when a specified
+   library file (or any library file, if filename is NULL) is loaded.
+
+   Presently, this functionality is not implemented.
+   */
+#define SOLIB_CREATE_CATCH_LOAD_HOOK(pid,tempflag,filename,cond_string) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+
+/* This function is called by the "catch unload" command.  It allows
+   the debugger to be notified by the dynamic linker when a specified
+   library file (or any library file, if filename is NULL) is unloaded.
+
+   Presently, this functionality is not implemented.
+   */
+#define SOLIB_CREATE_CATCH_UNLOAD_HOOK(pid,tempflag,filename,cond_string) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+
+/* This function returns TRUE if the dynamic linker has just reported
+   a load of a library.
+
+   This function must be used only when the inferior has stopped in
+   the dynamic linker hook, or undefined results are guaranteed.
+
+   Presently, this functionality is not implemented.
+   */
+/*
+#define SOLIB_HAVE_LOAD_EVENT(pid) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+*/
+
+#define SOLIB_HAVE_LOAD_EVENT(pid) \
+(0)
+
+/* This function returns a pointer to the string representation of the
+   pathname of the dynamically-linked library that has just been loaded.
+
+   This function must be used only when SOLIB_HAVE_LOAD_EVENT is TRUE,
+   or undefined results are guaranteed.
+
+   This string's contents are only valid immediately after the inferior
+   has stopped in the dynamic linker hook, and becomes invalid as soon
+   as the inferior is continued.  Clients should make a copy of this
+   string if they wish to continue the inferior and then access the string.
+
+   Presently, this functionality is not implemented.
+   */
+
+/*
+#define SOLIB_LOADED_LIBRARY_PATHNAME(pid) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+*/
+
+#define SOLIB_LOADED_LIBRARY_PATHNAME(pid) \
+(0)
+
+/* This function returns TRUE if the dynamic linker has just reported
+   an unload of a library.
+
+   This function must be used only when the inferior has stopped in
+   the dynamic linker hook, or undefined results are guaranteed.
+
+   Presently, this functionality is not implemented.
+   */
+/*
+#define SOLIB_HAVE_UNLOAD_EVENT(pid) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+*/
+
+#define SOLIB_HAVE_UNLOAD_EVENT(pid) \
+(0)
+
+/* This function returns a pointer to the string representation of the
+   pathname of the dynamically-linked library that has just been unloaded.
+
+   This function must be used only when SOLIB_HAVE_UNLOAD_EVENT is TRUE,
+   or undefined results are guaranteed.
+
+   This string's contents are only valid immediately after the inferior
+   has stopped in the dynamic linker hook, and becomes invalid as soon
+   as the inferior is continued.  Clients should make a copy of this
+   string if they wish to continue the inferior and then access the string.
+
+   Presently, this functionality is not implemented.
+   */
+/*
+#define SOLIB_UNLOADED_LIBRARY_PATHNAME(pid) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+*/
+
+#define SOLIB_UNLOADED_LIBRARY_PATHNAME(pid) \
+(0)
+
+/* This function returns TRUE if pc is the address of an instruction that
+   lies within the dynamic linker (such as the event hook, or the dld
+   itself).
+
+   This function must be used only when a dynamic linker event has been
+   caught, and the inferior is being stepped out of the hook, or undefined
+   results are guaranteed.
+
+   Presently, this functionality is not implemented.
+   */
+
+/*
+#define SOLIB_IN_DYNAMIC_LINKER(pid,pc) \
+   error("catch of library loads/unloads not yet implemented on this platform")
+*/
+
+#define SOLIB_IN_DYNAMIC_LINKER(pid,pc) \
+(0)
+
+/* This function must be called when the inferior is killed, and the program
+   restarted.  This is not the same as CLEAR_SOLIB, in that it doesn't discard
+   any symbol tables.
+
+   Presently, this functionality is not implemented.
+   */
+#define SOLIB_RESTART() \
+  (0)
+
 /* If we can't set a breakpoint, and it's in a shared library, just
    disable it.  */
 

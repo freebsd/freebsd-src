@@ -1,29 +1,40 @@
 /* Remote serial interface using Hitachi E7000 PC ISA card in a PC
+   Copyright 1994, 1999 Free Software Foundation, Inc.
 
-   Copyright 1994 Free Software Foundation, Inc.
+This file is part of GDB.
 
-   This file is part of GDB.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
-#ifdef __GO32__
+#if defined __GO32__ || defined _WIN32
 #include "defs.h"
 #include "serial.h"
+#include "gdb_string.h"
+
+/* MSVC uses strnicmp instead of strncasecmp */
+#ifdef _MSC_VER
+#define strncasecmp strnicmp
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#ifdef __GO32__
 #include <sys/dos.h>
-
-
+#endif
 
 static int e7000pc_open PARAMS ((serial_t scb, const char *name));
 static void e7000pc_raw PARAMS ((serial_t scb));
@@ -33,13 +44,6 @@ static int e7000pc_write PARAMS ((serial_t scb, const char *str, int len));
 static void e7000pc_close PARAMS ((serial_t scb));
 static serial_ttystate e7000pc_get_tty_state PARAMS ((serial_t scb));
 static int e7000pc_set_tty_state PARAMS ((serial_t scb, serial_ttystate state));
-static char *aptr PARAMS ((short p));
-
-static int dos_async_init PARAMS ((int port));
-static void dos_async_tx PARAMS ((const char c));
-static int dos_async_rx PARAMS (());
-
-
 
 #define OFF_DPD 	0x0000
 #define OFF_DDP 	0x1000
@@ -78,14 +82,24 @@ static unsigned long pon;
 static unsigned long irqtop;
 static unsigned long board_at;
 
+#ifdef __GO32__
+
 #define SET_BYTE(x,y)   { char _buf = y;dosmemput(&_buf,1, x);}
 #define SET_WORD(x,y)   { short _buf = y;dosmemput(&_buf,2, x);}
 #define GET_BYTE(x)     ( dosmemget(x,1,&bb), bb)
 #define GET_WORD(x)     ( dosmemget(x,2,&sb), sb)
-
 static unsigned char bb;
 static unsigned short sb;
 
+#else /* win32 */
+
+#define SET_BYTE(x,y)   *(volatile unsigned char *)(x) = (y)
+#define SET_WORD(x,y)   *(volatile unsigned short *)(x) = (y)
+#define GET_BYTE(x)     (*(volatile unsigned char *)(x))
+#define GET_WORD(x)     (*(volatile unsigned short *)(x))
+#define dosmemget(FROM, LEN, TO) memcpy ((void *)(TO), (void *)(FROM), (LEN))
+#define dosmemput(FROM, LEN, TO) memcpy ((void *)(TO), (void *)(FROM), (LEN))
+#endif
 
 static struct sw 
 {
@@ -98,18 +112,51 @@ static struct sw
   {0x17, 0xdc000},
   0};
 
+#ifdef _MSC_VER
+/* Get the base of the data segment.  This is needed to calculate the offset
+   between data segment addresses and the base of linear memory, which is where
+   device registers reside.  Note that this is really only necessary for
+   Win32s, since Win95 and NT keep the data segment at linear 0.  */
+
+static unsigned long
+get_ds_base (void)
+{
+  unsigned short dsval;
+  LDT_ENTRY ldt;
+  unsigned long dsbase;
+
+  __asm
+    {
+      mov dsval,ds
+    }
+
+  dsbase = 0;
+
+  GetThreadSelectorEntry (GetCurrentThread(), dsval, &ldt);
+
+  dsbase = ldt.HighWord.Bits.BaseHi << 24 | ldt.HighWord.Bits.BaseMid << 16
+	     | ldt.BaseLow;
+
+  return dsbase;
+}
+#else /* !_MSC_VER */
+#define get_ds_base() 0
+#endif /* _MSC_VER */ 
+
 static int
 e7000pc_init ()
 {
+  int try;
+  unsigned long dsbase;
+  
+  dsbase = get_ds_base ();
+
   /* Look around in memory for the board's signature */
 
-  int try;
-  
   for (try = 0; sigs[try].sw; try++)
-
     {
       int val;
-      board_at = sigs[try].addr;
+      board_at = sigs[try].addr - dsbase;
       fa = board_at + OFF_FA;
       fb = board_at + OFF_FB;
       cpd = board_at + OFF_CPD;
@@ -123,12 +170,12 @@ e7000pc_init ()
 
       if (val == (0xaaa0  | sigs[try].sw))
 	{
-	  if (GET_BYTE (pon) & 0xf)
+	  if (GET_WORD (pon) & 0xf)
 	    {
-	      SET_BYTE(fa, 0);
-	      SET_BYTE (fb, 0);
+	      SET_WORD (fa, 0);
+	      SET_WORD (fb, 0);
 
-	      SET_BYTE (irqtop, 1); /* Disable interrupts from e7000 */
+	      SET_WORD (irqtop, 1); /* Disable interrupts from e7000 */
 	      SET_WORD (ready, 1);
 	      printf_filtered ("\nConnected to the E7000PC at address 0x%x\n", 
 			       sigs[try].addr);
@@ -151,26 +198,28 @@ its I/O space, remove other unneeded cards, etc etc\n");
 static int pbuf_size;
 static int pbuf_index;
 
-static 
-int 
-e7000_get ()
+/* Return next byte from cdp.  If no more, then return -1.  */
+
+static int 
+e7000_get (void)
 {
   static char pbuf[1000];
   char tmp[1000];
   int x;
+
   if (pbuf_index < pbuf_size) 
     {
       x = pbuf[pbuf_index++];
     }
-  else if ((GET_BYTE (fb)  & 1))
+  else if ((GET_WORD (fb) & 1))
     {
       int i;
-      pbuf_size = GET_WORD(cdp + 2);
+      pbuf_size = GET_WORD (cdp + 2);
 
       dosmemget (cdp + 8, pbuf_size + 1, tmp);
 
       /* Tell the E7000 we've eaten */
-      SET_BYTE(fb,0);	
+      SET_WORD (fb, 0);	
       /* Swap it around */
       for (i = 0; i < pbuf_size; i++) 
 	{
@@ -186,6 +235,9 @@ e7000_get ()
   return x;
 }
 
+/* Works just like read(), except that it takes a TIMEOUT in seconds.  Note
+   that TIMEOUT == 0 is a poll, and TIMEOUT == -1 means wait forever. */
+
 static int
 dosasync_read (fd, buf, len, timeout)
      int fd;
@@ -197,7 +249,6 @@ dosasync_read (fd, buf, len, timeout)
   long now;
   long then;
   int i = 0;
-  int p;
 
   /* Then look for some more if we're still hungry */
   time (&now);
@@ -241,7 +292,6 @@ dosasync_write (fd, buf, len)
 {
   int i;
   char dummy[1000];  
-
   
   /* Construct copy locally */
   ((short *)dummy)[0] = CMD_CI;
@@ -254,14 +304,13 @@ dosasync_write (fd, buf, len)
     }
 
   /* Wait for the card to get ready */
-  while ((GET_BYTE(fa) & 1) != 0)
-    ;
+  while (GET_WORD (fa) & 1) ;
 
   /* Blast onto the ISA card */
   dosmemput (dummy, 8 + len + 1,  cpd);
 
-  SET_BYTE(fa, 1);
-  SET_BYTE(irqtod, 1); /* Interrupt the E7000 */
+  SET_WORD (fa, 1);
+  SET_WORD (irqtod, 1); /* Interrupt the E7000 */
 
   return len;
 }
@@ -403,6 +452,7 @@ static struct serial_ops e7000pc_ops =
   e7000pc_print_tty_state,
   e7000pc_noflush_set_tty_state,
   e7000pc_setbaudrate,
+  e7000pc_noop,			/* wait for output to drain */
 };
 
 void

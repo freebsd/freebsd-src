@@ -34,20 +34,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #if !defined (HAVE_TERMIOS) && !defined(HAVE_TERMIO) && !defined(HAVE_SGTTY)
 #if defined(HAVE_TERMIOS_H)
 #define HAVE_TERMIOS
-#elif defined(HAVE_TERMIO_H)
+#else /* ! defined (HAVE_TERMIOS_H) */
+#if defined(HAVE_TERMIO_H)
 #define HAVE_TERMIO
-#elif defined(HAVE_SGTTY_H)
+#else /* ! defined (HAVE_TERMIO_H) */
+#if defined(HAVE_SGTTY_H)
 #define HAVE_SGTTY
-#endif
-#endif
-#endif
+#endif /* ! defined (HAVE_SGTTY_H) */
+#endif /* ! defined (HAVE_TERMIO_H) */
+#endif /* ! defined (HAVE_TERMIOS_H) */
+#endif /* !defined (HAVE_TERMIOS) && !defined(HAVE_TERMIO) && !defined(HAVE_SGTTY) */
+#endif /* ! defined (__GO32__) */
 
 #if defined(HAVE_TERMIOS)
 #include <termios.h>
 #endif
 
-
-#if !defined(__GO32__) && !defined(__WIN32__) && !defined (HAVE_TERMIOS)
+#if !defined(__GO32__) && !defined(_WIN32) && !defined (HAVE_TERMIOS)
 
 /* Define a common set of macros -- BSD based -- and redefine whatever
    the system offers to make it look like that.  FIXME: serial.h and

@@ -268,52 +268,80 @@ nrom_mourn()
 
 /* Define the target vector. */
 
-struct target_ops nrom_ops = {
-  "nrom",			/* to_shortname */
-  "Remote XDI `NetROM' target",	/* to_longname */
-  "Remote debug using a NetROM over Ethernet",  /* to_doc */
-  nrom_open,			/* to_open */
-  nrom_close,			/* to_close */
-  NULL,				/* to_attach */
-  NULL,				/* to_detach */
-  NULL,				/* to_resume */
-  NULL,				/* to_wait */
-  NULL,				/* to_fetch_registers */
-  NULL,				/* to_store_registers */
-  NULL,				/* to_prepare_to_store */
-  NULL,				/* to_xfer_memory */
-  NULL,				/* to_files_info */
-  NULL,				/* to_insert_breakpoint */
-  NULL,				/* to_remove_breakpoint */
-  NULL,				/* to_terminal_init */
-  NULL,				/* to_terminal_inferior */
-  NULL,				/* to_terminal_ours_for_output */
-  NULL,				/* to_terminal_ours */
-  NULL,				/* to_terminal_info */
-  nrom_kill,			/* to_kill */
-  nrom_load,			/* to_load */
-  NULL,				/* to_lookup_symbol */
-  NULL,				/* to_create_inferior */
-  nrom_mourn,			/* to_mourn_inferior */
-  NULL,				/* to_can_run */
-  0,				/* to_notice_signals */
-  0,				/* to_thread_alive */
-  0,				/* to_stop */
-  download_stratum,		/* to_stratum */
-  NULL,				/* to_next */
-  1,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  1,				/* to_has_stack */
-  1,				/* to_has_registers */
-  0,				/* to_has_execution */
-  NULL,				/* sections */
-  NULL,				/* sections_end */
-  OPS_MAGIC			/* to_magic */
+struct target_ops nrom_ops ;
+
+static void 
+init_nrom_ops(void)
+{
+  nrom_ops.to_shortname =   "nrom";	
+  nrom_ops.to_longname =   "Remote XDI `NetROM' target";
+  nrom_ops.to_doc =   "Remote debug using a NetROM over Ethernet"; 
+  nrom_ops.to_open =   nrom_open;		
+  nrom_ops.to_close =   nrom_close;		
+  nrom_ops.to_attach =   NULL;
+  nrom_ops.to_post_attach = NULL;
+  nrom_ops.to_require_attach = NULL;			
+  nrom_ops.to_detach =   NULL;
+  nrom_ops.to_require_detach = NULL;	
+  nrom_ops.to_resume =   NULL;			
+  nrom_ops.to_wait  =   NULL;
+  nrom_ops.to_post_wait = NULL;		
+  nrom_ops.to_fetch_registers  =   NULL;
+  nrom_ops.to_store_registers  =   NULL;
+  nrom_ops.to_prepare_to_store =   NULL;
+  nrom_ops.to_xfer_memory  =   NULL;	
+  nrom_ops.to_files_info  =   NULL;
+  nrom_ops.to_insert_breakpoint =   NULL;
+  nrom_ops.to_remove_breakpoint =   NULL;
+  nrom_ops.to_terminal_init  =   NULL;	
+  nrom_ops.to_terminal_inferior =   NULL;
+  nrom_ops.to_terminal_ours_for_output =   NULL;
+  nrom_ops.to_terminal_ours  =   NULL;	
+  nrom_ops.to_terminal_info  =   NULL;	
+  nrom_ops.to_kill  =   nrom_kill;
+  nrom_ops.to_load  =   nrom_load;
+  nrom_ops.to_lookup_symbol =   NULL;	
+  nrom_ops.to_create_inferior =   NULL;
+  nrom_ops.to_post_startup_inferior = NULL;
+  nrom_ops.to_acknowledge_created_inferior = NULL;
+  nrom_ops.to_clone_and_follow_inferior = NULL;
+  nrom_ops.to_post_follow_inferior_by_clone = NULL;
+  nrom_ops.to_insert_fork_catchpoint = NULL;
+  nrom_ops.to_remove_fork_catchpoint = NULL;
+  nrom_ops.to_insert_vfork_catchpoint = NULL;
+  nrom_ops.to_remove_vfork_catchpoint = NULL;
+  nrom_ops.to_has_forked = NULL;
+  nrom_ops.to_has_vforked = NULL;
+  nrom_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  nrom_ops.to_post_follow_vfork = NULL;	
+  nrom_ops.to_insert_exec_catchpoint = NULL;
+  nrom_ops.to_remove_exec_catchpoint = NULL;
+  nrom_ops.to_has_execd = NULL;
+  nrom_ops.to_reported_exec_events_per_exec_call = NULL;
+  nrom_ops.to_has_exited = NULL;
+  nrom_ops.to_mourn_inferior =   nrom_mourn;
+  nrom_ops.to_can_run  =   NULL;
+  nrom_ops.to_notice_signals =   0;
+  nrom_ops.to_thread_alive  =   0;
+  nrom_ops.to_stop  =   0;
+  nrom_ops.to_pid_to_exec_file = NULL;
+  nrom_ops.to_core_file_to_sym_file = NULL;
+  nrom_ops.to_stratum =   download_stratum;
+  nrom_ops.DONT_USE =   NULL;			
+  nrom_ops.to_has_all_memory =   1;		
+  nrom_ops.to_has_memory =   1;			
+  nrom_ops.to_has_stack =   1;			
+  nrom_ops.to_has_registers =   1;		
+  nrom_ops.to_has_execution =   0;		
+  nrom_ops.to_sections =   NULL;		
+  nrom_ops.to_sections_end =   NULL;		
+  nrom_ops.to_magic =   OPS_MAGIC ;		
 };
 
 void
 _initialize_remote_nrom ()
 {
+  init_nrom_ops() ;
   add_target (&nrom_ops);
 
   add_show_from_set (

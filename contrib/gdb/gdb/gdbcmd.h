@@ -40,6 +40,14 @@ extern struct cmd_list_element *disablelist;
 
 extern struct cmd_list_element *deletelist;
 
+/* Chain containing all defined toggle subcommands. */
+
+extern struct cmd_list_element *togglelist;
+
+/* Chain containing all defined stop subcommands. */
+
+extern struct cmd_list_element *stoplist;
+
 /* Chain containing all defined "enable breakpoint" subcommands. */
 
 extern struct cmd_list_element *enablebreaklist;

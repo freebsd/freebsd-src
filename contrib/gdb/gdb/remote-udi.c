@@ -453,13 +453,13 @@ udi_wait (pid, status)
 	       a whole bunch of output (more than SBUF_MAX, I would
 	       guess).  It doesn't seem to happen with the simulator.  */
 	    warning ("UDIGetStdout() failed in udi_wait");
-	  fwrite (sbuf, 1, CountDone, gdb_stdout);
+	  fwrite (sbuf, 1, CountDone, stdout);
 	  gdb_flush(gdb_stdout);
 	  continue;
 
 	case UDIStderrReady:
 	  UDIGetStderr (sbuf, (UDISizeT)SBUF_MAX, &CountDone);
-	  fwrite (sbuf, 1, CountDone, gdb_stderr);
+	  fwrite (sbuf, 1, CountDone, stderr);
 	  gdb_flush(gdb_stderr);
 	  continue;
 
@@ -1092,7 +1092,7 @@ download(load_arg_string, from_tty)
     error ("Must specify at least a file name with the load command");
 
   filename = tilde_expand (filename);
-  make_cleanup (free, filename);
+  make_cleanup ((make_cleanup_func) free, filename);
 
   while (token = strtok (NULL, " \t"))
     {
@@ -1146,7 +1146,7 @@ download(load_arg_string, from_tty)
   /* FIXME: should be checking for errors from bfd_close (for one thing,
      on error it does not free all the storage associated with the
      bfd).  */
-  make_cleanup (bfd_close, pbfd);
+  make_cleanup ((make_cleanup_func) bfd_close, pbfd);
 
   QUIT;
   immediate_quit++;
@@ -1299,7 +1299,7 @@ udi_load (args, from_tty)
   /* As a convenience, pick up any symbol info that is in the program
      being loaded.  Note that we assume that the program is the``mainline'';
      if this is not always true, then this code will need to be augmented.  */
-  symbol_file_add (strtok (args, " \t"), from_tty, 0, 1, 0, 0);
+  symbol_file_add (strtok (args, " \t"), from_tty, 0, 1, 0, 0, 0, 0);
 
   /* Getting new symbols may change our opinion about what is
      frameless.  */
@@ -1450,7 +1450,7 @@ fetch_register (regno)
   supply_register(regno, (char *) &To);
 
   if (remote_debug)
-    printf_unfiltered("Fetching register %s = 0x%x\n", reg_names[regno], To);
+    printf_unfiltered("Fetching register %s = 0x%x\n", REGISTER_NAME (regno), To);
 }
 /*****************************************************************************/ 
 /* Store a single register indicated by 'regno'. 
@@ -1471,7 +1471,7 @@ store_register (regno)
   From =  read_register (regno);	/* get data value */
 
   if (remote_debug)
-    printf_unfiltered("Storing register %s = 0x%x\n", reg_names[regno], From);
+    printf_unfiltered("Storing register %s = 0x%x\n", REGISTER_NAME (regno), From);
 
   if (regno == GR1_REGNUM)
     {
@@ -1621,18 +1621,22 @@ service_HIF(msg)
    The RS/6000 doesn't like "extern" followed by "static"; SunOS
    /bin/cc doesn't like "static" twice.  */
 
-struct target_ops udi_ops = {
-        "udi",
-	"Remote UDI connected TIP",
-	"Remote debug an AMD 29k using UDI socket connection to TIP process.\n\
+struct target_ops udi_ops;
+
+static void 
+init_udi_ops(void)
+{
+  udi_ops.to_shortname =         "udi";
+  udi_ops.to_longname = 	"Remote UDI connected TIP";
+  udi_ops.to_doc = 	"Remote debug an AMD 29k using UDI socket connection to TIP process.\n\
 Arguments are\n\
 `configuration-id AF_INET hostname port-number'\n\
-    To connect via the network, where hostname and port-number specify the\n\
-    host and port where you can connect via UDI.\n\
-    configuration-id is unused.\n\
+To connect via the network, where hostname and port-number specify the\n\
+host and port where you can connect via UDI.\n\
+configuration-id is unused.\n\
 \n\
 `configuration-id AF_UNIX socket-name tip-program'\n\
-    To connect using a local connection to the \"tip.exe\" program which is\n\
+To connect using a local connection to the \"tip.exe\" program which is\n\
     supplied by AMD.  If socket-name specifies an AF_UNIX socket then the\n\
     tip program must already be started; connect to it using that socket.\n\
     If not, start up tip-program, which should be the name of the tip\n\
@@ -1642,48 +1646,49 @@ Arguments are\n\
 `configuration-id'\n\
     Look up the configuration in ./udi_soc or /etc/udi_soc, which\n\
     are files containing lines in the above formats.  configuration-id is\n\
-    used to pick which line of the file to use.",
-        udi_open,
-	udi_close,
-        udi_attach,
-	udi_detach,
-	udi_resume,
-	udi_wait,
-        udi_fetch_registers,
-	udi_store_registers,
-        udi_prepare_to_store,
-        udi_xfer_inferior_memory,
-        udi_files_info,
-        udi_insert_breakpoint,
-	udi_remove_breakpoint,
-        0,			/* termial_init */
-	0,			/* terminal_inferior */
-	0,			/* terminal_ours_for_output */
-	0,			/* terminal_ours */
-	0,			/* terminal_info */
-        udi_kill,             	/* FIXME, kill */
-        udi_load,		/* to_load */
-        0,                      /* lookup_symbol */
-        udi_create_inferior,
-        udi_mourn,		/* mourn_inferior FIXME */
-	0,			/* can_run */
-	0,			/* notice_signals */
-	0,			/* to_thread_alive */
-        0,			/* to_stop */
-        process_stratum,
-	0,			/* next */
-        1,			/* has_all_memory */
-	1,			/* has_memory */
-	1,			/* has_stack */
-	1,			/* has_registers */
-	1,			/* has_execution */
-	0,			/* sections */
-	0,			/* sections_end */
-	OPS_MAGIC,		/* Always the last thing */
+    used to pick which line of the file to use." ;
+  udi_ops.to_open =         udi_open;
+  udi_ops.to_close = 	udi_close;
+  udi_ops.to_attach =         udi_attach;
+  udi_ops.to_detach = 	udi_detach;
+  udi_ops.to_resume = 	udi_resume;
+  udi_ops.to_wait  = 	udi_wait;
+  udi_ops.to_fetch_registers  =         udi_fetch_registers;
+  udi_ops.to_store_registers  = 	udi_store_registers;
+  udi_ops.to_prepare_to_store =         udi_prepare_to_store;
+  udi_ops.to_xfer_memory  =         udi_xfer_inferior_memory;
+  udi_ops.to_files_info  =         udi_files_info;
+  udi_ops.to_insert_breakpoint =         udi_insert_breakpoint;
+  udi_ops.to_remove_breakpoint = 	udi_remove_breakpoint;
+  udi_ops.to_terminal_init  =         0;		
+  udi_ops.to_terminal_inferior = 	0;		
+  udi_ops.to_terminal_ours_for_output = 	0;
+  udi_ops.to_terminal_ours  = 	0;	
+  udi_ops.to_terminal_info  = 	0;	
+  udi_ops.to_kill  =         udi_kill;  
+  udi_ops.to_load  =         udi_load;	
+  udi_ops.to_lookup_symbol =         0; 
+  udi_ops.to_create_inferior =         udi_create_inferior;
+  udi_ops.to_mourn_inferior =         udi_mourn;
+  udi_ops.to_can_run  = 	0;	
+  udi_ops.to_notice_signals = 	0;	
+  udi_ops.to_thread_alive  = 	0;	
+  udi_ops.to_stop  =         0;
+  udi_ops.to_stratum =         process_stratum;
+  udi_ops.DONT_USE = 	0;		
+  udi_ops.to_has_all_memory =         1;
+  udi_ops.to_has_memory = 	1;	
+  udi_ops.to_has_stack = 	1;	
+  udi_ops.to_has_registers = 	1;	
+  udi_ops.to_has_execution = 	1;	
+  udi_ops.to_sections = 	0;	
+  udi_ops.to_sections_end = 	0;	
+  udi_ops.to_magic = 	OPS_MAGIC;
 };
 
 void
 _initialize_remote_udi ()
 {
+  init_udi_ops() ;
   add_target (&udi_ops);
 }

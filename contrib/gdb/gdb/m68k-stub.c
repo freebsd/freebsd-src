@@ -116,8 +116,8 @@
 typedef void (*ExceptionHook)(int);   /* pointer to function with int parm */
 typedef void (*Function)();           /* pointer to a function */
 
-extern putDebugChar();   /* write a single character      */
-extern getDebugChar();   /* read and return a single char */
+extern void putDebugChar();	/* write a single character      */
+extern int getDebugChar();	/* read and return a single char */
 
 extern Function exceptionHandler();  /* assign an exception handler */
 extern ExceptionHook exceptionHook;  /* hook variable for errors/exceptions */
@@ -594,7 +594,7 @@ char * buffer;
   count    = 0;
   
   while (ch=buffer[count]) {
-    if (! putDebugChar(ch)) return;
+    putDebugChar(ch);
     checksum += ch;
     count += 1;
   }

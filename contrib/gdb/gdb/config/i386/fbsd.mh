@@ -1,5 +1,5 @@
 # Host: Intel 386 running FreeBSD
-XDEPFILES= 
+XDEPFILES= ser-tcp.o
 NATDEPFILES= fork-child.o infptrace.o inftarg.o corelow.o core-aout.o i386b-nat.o
 XM_FILE= xm-i386bsd.h
 NAT_FILE= nm-fbsd.h

@@ -32,8 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    the user area. Using constants here allows for cross debugging.
    These are tested for BSDI but should work on 386BSD.  */
 
-#define SIGTRAMP_START	0xfdbfdfc0
-#define SIGTRAMP_END	0xfdbfe000
+#define SIGTRAMP_START(pc)	0xfdbfdfc0
+#define SIGTRAMP_END(pc)	0xfdbfe000
 
 /* Saved Pc.  Get it from sigcontext if within sigtramp.  */
 

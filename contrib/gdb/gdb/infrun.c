@@ -1,5 +1,5 @@
 /* Target-struct-independent code to start (run) and stop an inferior process.
-   Copyright 1986, 1987, 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996
+   Copyright 1986, 87, 88, 89, 91, 92, 93, 94, 95, 96, 97, 1998
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -29,17 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbcore.h"
 #include "gdbcmd.h"
 #include "target.h"
-#include "thread.h"
+#include "gdbthread.h"
 #include "annotate.h"
+#include "symfile.h"		/* for overlay functions */
 
 #include <signal.h>
-
-/* unistd.h is needed to #define X_OK */
-#ifdef USG
-#include <unistd.h>
-#else
-#include <sys/file.h>
-#endif
 
 /* Prototypes for local functions */
 
@@ -53,7 +47,36 @@ static void sig_print_header PARAMS ((void));
 
 static void resume_cleanups PARAMS ((int));
 
-static int hook_stop_stub PARAMS ((char *));
+static int hook_stop_stub PARAMS ((PTR));
+
+static void delete_breakpoint_current_contents PARAMS ((PTR));
+
+int inferior_ignoring_startup_exec_events = 0;
+int inferior_ignoring_leading_exec_events = 0;
+
+#ifdef HPUXHPPA
+/* wait_for_inferior and normal_stop use this to notify the user
+   when the inferior stopped in a different thread than it had been
+   running in. */
+static int switched_from_inferior_pid;
+#endif
+
+/* resume and wait_for_inferior use this to ensure that when
+   stepping over a hit breakpoint in a threaded application
+   only the thread that hit the breakpoint is stepped and the
+   other threads don't continue.  This prevents having another
+   thread run past the breakpoint while it is temporarily
+   removed.
+
+   This is not thread-specific, so it isn't saved as part of
+   the infrun state.
+
+   Versions of gdb which don't use the "step == this thread steps
+   and others continue" model but instead use the "step == this
+   thread steps and others wait" shouldn't do this. */
+static int thread_step_needed = 0;
+
+void _initialize_infrun PARAMS ((void));
 
 /* GET_LONGJMP_TARGET returns the PC at which longjmp() will resume the
    program.  It needs to examine the jmp_buf argument and extract the PC
@@ -87,6 +110,15 @@ static int hook_stop_stub PARAMS ((char *));
 #define DYNAMIC_TRAMPOLINE_NEXTPC(pc) 0
 #endif
 
+/* On SVR4 based systems, determining the callee's address is exceedingly
+   difficult and depends on the implementation of the run time loader.
+   If we are stepping at the source level, we single step until we exit
+   the run time loader code and reach the callee's address.  */
+
+#ifndef IN_SOLIB_DYNSYM_RESOLVE_CODE
+#define IN_SOLIB_DYNSYM_RESOLVE_CODE(pc) 0
+#endif
+
 /* For SVR4 shared libraries, each call goes through a small piece of
    trampoline code in the ".plt" section.  IN_SOLIB_CALL_TRAMPOLINE evaluates
    to nonzero if we are current stopped in one of these. */
@@ -100,6 +132,26 @@ static int hook_stop_stub PARAMS ((char *));
 
 #ifndef IN_SOLIB_RETURN_TRAMPOLINE
 #define IN_SOLIB_RETURN_TRAMPOLINE(pc,name)	0
+#endif
+
+/* This function returns TRUE if pc is the address of an instruction
+   that lies within the dynamic linker (such as the event hook, or the
+   dld itself).
+
+   This function must be used only when a dynamic linker event has
+   been caught, and the inferior is being stepped out of the hook, or
+   undefined results are guaranteed.  */
+
+#ifndef SOLIB_IN_DYNAMIC_LINKER
+#define SOLIB_IN_DYNAMIC_LINKER(pid,pc) 0
+#endif
+
+/* On MIPS16, a function that returns a floating point value may call
+   a library helper function to copy the return value to a floating point
+   register.  The IGNORE_HELPER_CALL macro returns non-zero if we
+   should ignore (i.e. step over) this function call.  */
+#ifndef IGNORE_HELPER_CALL
+#define IGNORE_HELPER_CALL(pc)	0
 #endif
 
 /* On some systems, the PC may be left pointing at an instruction that  won't
@@ -151,9 +203,11 @@ static struct symbol *step_start_function;
 
 static int trap_expected;
 
+#ifdef SOLIB_ADD
 /* Nonzero if we want to give control to the user when we're notified
    of shared library events by the dynamic linker.  */
 static int stop_on_solib_events;
+#endif
 
 #ifdef HP_OS_BUG
 /* Nonzero if the next time we try to continue the inferior, it will
@@ -195,14 +249,363 @@ static int breakpoints_failed;
 
 static int stop_print_frame;
 
-#ifdef NO_SINGLE_STEP
-extern int one_stepped;		/* From machine dependent code */
-extern void single_step ();	/* Same. */
-#endif /* NO_SINGLE_STEP */
+static struct breakpoint *step_resume_breakpoint = NULL;
+static struct breakpoint *through_sigtramp_breakpoint = NULL;
 
-extern void write_pc_pid PARAMS ((CORE_ADDR, int));
+/* On some platforms (e.g., HP-UX), hardware watchpoints have bad
+   interactions with an inferior that is running a kernel function
+   (aka, a system call or "syscall").  wait_for_inferior therefore
+   may have a need to know when the inferior is in a syscall.  This
+   is a count of the number of inferior threads which are known to
+   currently be running in a syscall. */
+static int number_of_threads_in_syscalls;
 
+/* This is used to remember when a fork, vfork or exec event
+   was caught by a catchpoint, and thus the event is to be
+   followed at the next resume of the inferior, and not
+   immediately. */
+static struct
+  {
+    enum target_waitkind kind;
+    struct
+      {
+	int parent_pid;
+	int saw_parent_fork;
+	int child_pid;
+	int saw_child_fork;
+	int saw_child_exec;
+      }
+    fork_event;
+    char *execd_pathname;
+  }
+pending_follow;
+
+/* Some platforms don't allow us to do anything meaningful with a
+   vforked child until it has exec'd.  Vforked processes on such
+   platforms can only be followed after they've exec'd.
+
+   When this is set to 0, a vfork can be immediately followed,
+   and an exec can be followed merely as an exec.  When this is
+   set to 1, a vfork event has been seen, but cannot be followed
+   until the exec is seen.
+
+   (In the latter case, inferior_pid is still the parent of the
+   vfork, and pending_follow.fork_event.child_pid is the child.  The
+   appropriate process is followed, according to the setting of
+   follow-fork-mode.) */
+static int follow_vfork_when_exec;
+
+static char *follow_fork_mode_kind_names[] =
+{
+/* ??rehrauer:  The "both" option is broken, by what may be a 10.20
+   kernel problem.  It's also not terribly useful without a GUI to
+   help the user drive two debuggers.  So for now, I'm disabling
+   the "both" option.
+  "parent", "child", "both", "ask" };
+  */
+  "parent", "child", "ask"};
+
+static char *follow_fork_mode_string = NULL;
 
+
+#if defined(HPUXHPPA)
+static void
+follow_inferior_fork (parent_pid, child_pid, has_forked, has_vforked)
+     int parent_pid;
+     int child_pid;
+     int has_forked;
+     int has_vforked;
+{
+  int followed_parent = 0;
+  int followed_child = 0;
+  int ima_clone = 0;
+
+  /* Which process did the user want us to follow? */
+  char *follow_mode =
+  savestring (follow_fork_mode_string, strlen (follow_fork_mode_string));
+
+  /* Or, did the user not know, and want us to ask? */
+  if (STREQ (follow_fork_mode_string, "ask"))
+    {
+      char requested_mode[100];
+
+      free (follow_mode);
+      error ("\"ask\" mode NYI");
+      follow_mode = savestring (requested_mode, strlen (requested_mode));
+    }
+
+  /* If we're to be following the parent, then detach from child_pid.
+     We're already following the parent, so need do nothing explicit
+     for it. */
+  if (STREQ (follow_mode, "parent"))
+    {
+      followed_parent = 1;
+
+      /* We're already attached to the parent, by default. */
+
+      /* Before detaching from the child, remove all breakpoints from
+         it.  (This won't actually modify the breakpoint list, but will
+         physically remove the breakpoints from the child.) */
+      if (!has_vforked || !follow_vfork_when_exec)
+	{
+	  detach_breakpoints (child_pid);
+	  SOLIB_REMOVE_INFERIOR_HOOK (child_pid);
+	}
+
+      /* Detach from the child. */
+      dont_repeat ();
+
+      target_require_detach (child_pid, "", 1);
+    }
+
+  /* If we're to be following the child, then attach to it, detach
+     from inferior_pid, and set inferior_pid to child_pid. */
+  else if (STREQ (follow_mode, "child"))
+    {
+      char child_pid_spelling[100];	/* Arbitrary length. */
+
+      followed_child = 1;
+
+      /* Before detaching from the parent, detach all breakpoints from
+         the child.  But only if we're forking, or if we follow vforks
+         as soon as they happen.  (If we're following vforks only when
+         the child has exec'd, then it's very wrong to try to write
+         back the "shadow contents" of inserted breakpoints now -- they
+         belong to the child's pre-exec'd a.out.) */
+      if (!has_vforked || !follow_vfork_when_exec)
+	{
+	  detach_breakpoints (child_pid);
+	}
+
+      /* Before detaching from the parent, remove all breakpoints from it. */
+      remove_breakpoints ();
+
+      /* Also reset the solib inferior hook from the parent. */
+      SOLIB_REMOVE_INFERIOR_HOOK (inferior_pid);
+
+      /* Detach from the parent. */
+      dont_repeat ();
+      target_detach (NULL, 1);
+
+      /* Attach to the child. */
+      inferior_pid = child_pid;
+      sprintf (child_pid_spelling, "%d", child_pid);
+      dont_repeat ();
+
+      target_require_attach (child_pid_spelling, 1);
+
+      /* Was there a step_resume breakpoint?  (There was if the user
+         did a "next" at the fork() call.)  If so, explicitly reset its
+         thread number.
+
+         step_resumes are a form of bp that are made to be per-thread.
+         Since we created the step_resume bp when the parent process
+         was being debugged, and now are switching to the child process,
+         from the breakpoint package's viewpoint, that's a switch of
+         "threads".  We must update the bp's notion of which thread
+         it is for, or it'll be ignored when it triggers... */
+      if (step_resume_breakpoint &&
+	  (!has_vforked || !follow_vfork_when_exec))
+	breakpoint_re_set_thread (step_resume_breakpoint);
+
+      /* Reinsert all breakpoints in the child.  (The user may've set
+         breakpoints after catching the fork, in which case those
+         actually didn't get set in the child, but only in the parent.) */
+      if (!has_vforked || !follow_vfork_when_exec)
+	{
+	  breakpoint_re_set ();
+	  insert_breakpoints ();
+	}
+    }
+
+  /* If we're to be following both parent and child, then fork ourselves,
+     and attach the debugger clone to the child. */
+  else if (STREQ (follow_mode, "both"))
+    {
+      char pid_suffix[100];	/* Arbitrary length. */
+
+      /* Clone ourselves to follow the child.  This is the end of our
+       involvement with child_pid; our clone will take it from here... */
+      dont_repeat ();
+      target_clone_and_follow_inferior (child_pid, &followed_child);
+      followed_parent = !followed_child;
+
+      /* We continue to follow the parent.  To help distinguish the two
+         debuggers, though, both we and our clone will reset our prompts. */
+      sprintf (pid_suffix, "[%d] ", inferior_pid);
+      set_prompt (strcat (get_prompt (), pid_suffix));
+    }
+
+  /* The parent and child of a vfork share the same address space.
+     Also, on some targets the order in which vfork and exec events
+     are received for parent in child requires some delicate handling
+     of the events.
+
+     For instance, on ptrace-based HPUX we receive the child's vfork
+     event first, at which time the parent has been suspended by the
+     OS and is essentially untouchable until the child's exit or second
+     exec event arrives.  At that time, the parent's vfork event is
+     delivered to us, and that's when we see and decide how to follow
+     the vfork.  But to get to that point, we must continue the child
+     until it execs or exits.  To do that smoothly, all breakpoints
+     must be removed from the child, in case there are any set between
+     the vfork() and exec() calls.  But removing them from the child
+     also removes them from the parent, due to the shared-address-space
+     nature of a vfork'd parent and child.  On HPUX, therefore, we must
+     take care to restore the bp's to the parent before we continue it.
+     Else, it's likely that we may not stop in the expected place.  (The
+     worst scenario is when the user tries to step over a vfork() call;
+     the step-resume bp must be restored for the step to properly stop
+     in the parent after the call completes!)
+
+     Sequence of events, as reported to gdb from HPUX:
+
+           Parent        Child           Action for gdb to take
+         -------------------------------------------------------
+        1                VFORK               Continue child
+        2                EXEC
+        3                EXEC or EXIT
+        4  VFORK */
+  if (has_vforked)
+    {
+      target_post_follow_vfork (parent_pid,
+				followed_parent,
+				child_pid,
+				followed_child);
+    }
+
+  pending_follow.fork_event.saw_parent_fork = 0;
+  pending_follow.fork_event.saw_child_fork = 0;
+
+  free (follow_mode);
+}
+
+static void
+follow_fork (parent_pid, child_pid)
+     int parent_pid;
+     int child_pid;
+{
+  follow_inferior_fork (parent_pid, child_pid, 1, 0);
+}
+
+
+/* Forward declaration. */
+static void follow_exec PARAMS ((int, char *));
+
+static void
+follow_vfork (parent_pid, child_pid)
+     int parent_pid;
+     int child_pid;
+{
+  follow_inferior_fork (parent_pid, child_pid, 0, 1);
+
+  /* Did we follow the child?  Had it exec'd before we saw the parent vfork? */
+  if (pending_follow.fork_event.saw_child_exec && (inferior_pid == child_pid))
+    {
+      pending_follow.fork_event.saw_child_exec = 0;
+      pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
+      follow_exec (inferior_pid, pending_follow.execd_pathname);
+      free (pending_follow.execd_pathname);
+    }
+}
+#endif /* HPUXHPPA */
+
+static void
+follow_exec (pid, execd_pathname)
+     int pid;
+     char *execd_pathname;
+{
+#ifdef HPUXHPPA
+  int saved_pid = pid;
+  extern struct target_ops child_ops;
+
+  /* Did this exec() follow a vfork()?  If so, we must follow the
+     vfork now too.  Do it before following the exec. */
+  if (follow_vfork_when_exec &&
+      (pending_follow.kind == TARGET_WAITKIND_VFORKED))
+    {
+      pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
+      follow_vfork (inferior_pid, pending_follow.fork_event.child_pid);
+      follow_vfork_when_exec = 0;
+      saved_pid = inferior_pid;
+
+      /* Did we follow the parent?  If so, we're done.  If we followed
+         the child then we must also follow its exec(). */
+      if (inferior_pid == pending_follow.fork_event.parent_pid)
+	return;
+    }
+
+  /* This is an exec event that we actually wish to pay attention to.
+     Refresh our symbol table to the newly exec'd program, remove any
+     momentary bp's, etc.
+
+     If there are breakpoints, they aren't really inserted now,
+     since the exec() transformed our inferior into a fresh set
+     of instructions.
+
+     We want to preserve symbolic breakpoints on the list, since
+     we have hopes that they can be reset after the new a.out's
+     symbol table is read.
+
+     However, any "raw" breakpoints must be removed from the list
+     (e.g., the solib bp's), since their address is probably invalid
+     now.
+
+     And, we DON'T want to call delete_breakpoints() here, since
+     that may write the bp's "shadow contents" (the instruction
+     value that was overwritten witha TRAP instruction).  Since
+     we now have a new a.out, those shadow contents aren't valid. */
+  update_breakpoints_after_exec ();
+
+  /* If there was one, it's gone now.  We cannot truly step-to-next
+     statement through an exec(). */
+  step_resume_breakpoint = NULL;
+  step_range_start = 0;
+  step_range_end = 0;
+
+  /* If there was one, it's gone now. */
+  through_sigtramp_breakpoint = NULL;
+
+  /* What is this a.out's name? */
+  printf_unfiltered ("Executing new program: %s\n", execd_pathname);
+
+  /* We've followed the inferior through an exec.  Therefore, the
+     inferior has essentially been killed & reborn. */
+  gdb_flush (gdb_stdout);
+  target_mourn_inferior ();
+  inferior_pid = saved_pid;	/* Because mourn_inferior resets inferior_pid. */
+  push_target (&child_ops);
+
+  /* That a.out is now the one to use. */
+  exec_file_attach (execd_pathname, 0);
+
+  /* And also is where symbols can be found. */
+  symbol_file_command (execd_pathname, 0);
+
+  /* Reset the shared library package.  This ensures that we get
+     a shlib event when the child reaches "_start", at which point
+     the dld will have had a chance to initialize the child. */
+  SOLIB_RESTART ();
+  SOLIB_CREATE_INFERIOR_HOOK (inferior_pid);
+
+  /* Reinsert all breakpoints.  (Those which were symbolic have
+     been reset to the proper address in the new a.out, thanks
+     to symbol_file_command...) */
+  insert_breakpoints ();
+
+  /* The next resume of this inferior should bring it to the shlib
+     startup breakpoints.  (If the user had also set bp's on
+     "main" from the old (parent) process, then they'll auto-
+     matically get reset there in the new process.) */
+#endif
+}
+
+/* Non-zero if we just simulating a single-step.  This is needed
+   because we cannot remove the breakpoints in the inferior process
+   until after the `wait' in `wait_for_inferior'.  */
+static int singlestep_breakpoints_inserted_p = 0;
+
+
 /* Things to clean up if we QUIT out of resume ().  */
 /* ARGSUSED */
 static void
@@ -211,6 +614,29 @@ resume_cleanups (arg)
 {
   normal_stop ();
 }
+
+static char schedlock_off[] = "off";
+static char schedlock_on[] = "on";
+static char schedlock_step[] = "step";
+static char *scheduler_mode = schedlock_off;
+static char *scheduler_enums[] =
+{schedlock_off, schedlock_on, schedlock_step};
+
+static void
+set_schedlock_func (args, from_tty, c)
+     char *args;
+     int from_tty;
+     struct cmd_list_element *c;
+{
+  if (c->type == set_cmd)
+    if (!target_can_lock_scheduler)
+      {
+	scheduler_mode = schedlock_off;
+	error ("Target '%s' cannot support this command.",
+	       target_shortname);
+      }
+}
+
 
 /* Resume the inferior, but allow a QUIT.  This is useful if the user
    wants to interrupt some lengthy single-stepping operation
@@ -225,7 +651,9 @@ resume (step, sig)
      int step;
      enum target_signal sig;
 {
-  struct cleanup *old_cleanups = make_cleanup (resume_cleanups, 0);
+  int should_resume = 1;
+  struct cleanup *old_cleanups = make_cleanup ((make_cleanup_func)
+					       resume_cleanups, 0);
   QUIT;
 
 #ifdef CANNOT_STEP_BREAKPOINT
@@ -236,26 +664,111 @@ resume (step, sig)
     step = 0;
 #endif
 
-#ifdef NO_SINGLE_STEP
-  if (step) {
-    single_step(sig);	/* Do it the hard way, w/temp breakpoints */
-    step = 0;		/* ...and don't ask hardware to do it.  */
-  }
-#endif
+  if (SOFTWARE_SINGLE_STEP_P && step)
+    {
+      /* Do it the hard way, w/temp breakpoints */
+      SOFTWARE_SINGLE_STEP (sig, 1 /*insert-breakpoints*/ );
+      /* ...and don't ask hardware to do it.  */
+      step = 0;
+      /* and do not pull these breakpoints until after a `wait' in
+         `wait_for_inferior' */
+      singlestep_breakpoints_inserted_p = 1;
+    }
 
   /* Handle any optimized stores to the inferior NOW...  */
 #ifdef DO_DEFERRED_STORES
   DO_DEFERRED_STORES;
 #endif
 
+#ifdef HPUXHPPA
+  /* If there were any forks/vforks/execs that were caught and are
+     now to be followed, then do so. */
+  switch (pending_follow.kind)
+    {
+    case (TARGET_WAITKIND_FORKED):
+      pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
+      follow_fork (inferior_pid, pending_follow.fork_event.child_pid);
+      break;
+
+    case (TARGET_WAITKIND_VFORKED):
+      {
+	int saw_child_exec = pending_follow.fork_event.saw_child_exec;
+
+	pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
+	follow_vfork (inferior_pid, pending_follow.fork_event.child_pid);
+
+	/* Did we follow the child, but not yet see the child's exec event?
+             If so, then it actually ought to be waiting for us; we respond to
+             parent vfork events.  We don't actually want to resume the child
+             in this situation; we want to just get its exec event. */
+	if (!saw_child_exec &&
+	    (inferior_pid == pending_follow.fork_event.child_pid))
+	  should_resume = 0;
+      }
+      break;
+
+    case (TARGET_WAITKIND_EXECD):
+      /* If we saw a vfork event but couldn't follow it until we saw
+           an exec, then now might be the time! */
+      pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
+      /* follow_exec is called as soon as the exec event is seen. */
+      break;
+
+    default:
+      break;
+    }
+#endif /* HPUXHPPA */
+
   /* Install inferior's terminal modes.  */
   target_terminal_inferior ();
 
-  target_resume (-1, step, sig);
+  if (should_resume)
+    {
+#ifdef HPUXHPPA
+      if (thread_step_needed)
+	{
+	  /* We stopped on a BPT instruction;
+	     don't continue other threads and
+	     just step this thread. */
+	  thread_step_needed = 0;
+
+	  if (!breakpoint_here_p (read_pc ()))
+	    {
+	      /* Breakpoint deleted: ok to do regular resume
+		 where all the threads either step or continue. */
+	      target_resume (-1, step, sig);
+	    }
+	  else
+	    {
+	      if (!step)
+		{
+		  warning ("Internal error, changing continue to step.");
+		  remove_breakpoints ();
+		  breakpoints_inserted = 0;
+		  trap_expected = 1;
+		  step = 1;
+		}
+
+	      target_resume (inferior_pid, step, sig);
+	    }
+	}
+      else
+#endif /* HPUXHPPA */
+	{
+	  /* Vanilla resume. */
+
+	  if ((scheduler_mode == schedlock_on) ||
+	      (scheduler_mode == schedlock_step && step != 0))
+	    target_resume (inferior_pid, step, sig);
+	  else
+	    target_resume (-1, step, sig);
+	}
+    }
+
   discard_cleanups (old_cleanups);
 }
-
 
+
 /* Clear out all variables saying what to do when inferior is continued.
    First do this, then set the ones you want, then call `proceed'.  */
 
@@ -301,43 +814,61 @@ proceed (addr, siggnal, step)
   if (step < 0)
     stop_after_trap = 1;
 
-  if (addr == (CORE_ADDR)-1)
+  if (addr == (CORE_ADDR) - 1)
     {
       /* If there is a breakpoint at the address we will resume at,
 	 step one instruction before inserting breakpoints
-	 so that we do not stop right away.  */
+	 so that we do not stop right away (and report a second
+         hit at this breakpoint).  */
 
-      if (breakpoint_here_p (read_pc ()))
+      if (read_pc () == stop_pc && breakpoint_here_p (read_pc ()))
 	oneproc = 1;
 
-#ifdef STEP_SKIPS_DELAY
+#ifndef STEP_SKIPS_DELAY
+#define STEP_SKIPS_DELAY(pc) (0)
+#define STEP_SKIPS_DELAY_P (0)
+#endif
       /* Check breakpoint_here_p first, because breakpoint_here_p is fast
 	 (it just checks internal GDB data structures) and STEP_SKIPS_DELAY
 	 is slow (it needs to read memory from the target).  */
-      if (breakpoint_here_p (read_pc () + 4)
+      if (STEP_SKIPS_DELAY_P
+	  && breakpoint_here_p (read_pc () + 4)
 	  && STEP_SKIPS_DELAY (read_pc ()))
 	oneproc = 1;
-#endif /* STEP_SKIPS_DELAY */
     }
   else
-    write_pc (addr);
+    {
+      write_pc (addr);
+
+      /* New address; we don't need to single-step a thread
+	 over a breakpoint we just hit, 'cause we aren't
+	 continuing from there.
+
+	 It's not worth worrying about the case where a user
+	 asks for a "jump" at the current PC--if they get the
+	 hiccup of re-hiting a hit breakpoint, what else do
+	 they expect? */
+      thread_step_needed = 0;
+    }
 
 #ifdef PREPARE_TO_PROCEED
-  /* In a multi-threaded task we may select another thread and then continue.
-     
-     In this case the thread that stopped at a breakpoint will immediately
-     cause another stop, if it is not stepped over first. On the other hand,
-     if (ADDR != -1) we only want to single step over the breakpoint if we did
-     switch to another thread.
+  /* In a multi-threaded task we may select another thread
+     and then continue or step.
 
-     If we are single stepping, don't do any of the above.
-     (Note that in the current implementation single stepping another
-     thread after a breakpoint and then continuing will cause the original
-     breakpoint to be hit again, but you can always continue, so it's not
-     a big deal.)  */
+     But if the old thread was stopped at a breakpoint, it
+     will immediately cause another breakpoint stop without
+     any execution (i.e. it will report a breakpoint hit
+     incorrectly).  So we must step over it first.
 
-  if (! step && PREPARE_TO_PROCEED (1) && breakpoint_here_p (read_pc ()))
-    oneproc = 1;
+     PREPARE_TO_PROCEED checks the current thread against the thread
+     that reported the most recent event.  If a step-over is required
+     it returns TRUE and sets the current thread to the old thread. */
+  if (PREPARE_TO_PROCEED () && breakpoint_here_p (read_pc ()))
+    {
+      oneproc = 1;
+      thread_step_needed = 1;
+    }
+
 #endif /* PREPARE_TO_PROCEED */
 
 #ifdef HP_OS_BUG
@@ -365,6 +896,7 @@ proceed (addr, siggnal, step)
 	  error ("Cannot insert breakpoints.\n\
 The same program may be running in another process.");
 	}
+
       breakpoints_inserted = 1;
     }
 
@@ -398,8 +930,8 @@ The same program may be running in another process.");
 static CORE_ADDR prev_pc;
 static CORE_ADDR prev_func_start;
 static char *prev_func_name;
-
 
+
 /* Start remote-debugging of a machine over a serial link.  */
 
 void
@@ -407,7 +939,6 @@ start_remote ()
 {
   init_thread_list ();
   init_wait_for_inferior ();
-  clear_proceed_status ();
   stop_soon_quietly = 1;
   trap_expected = 0;
   wait_for_inferior ();
@@ -428,19 +959,33 @@ init_wait_for_inferior ()
   trap_expected_after_continue = 0;
 #endif
   breakpoints_inserted = 0;
-  breakpoint_init_inferior ();
+  breakpoint_init_inferior (inf_starting);
 
   /* Don't confuse first call to proceed(). */
   stop_signal = TARGET_SIGNAL_0;
+
+  /* The first resume is not following a fork/vfork/exec. */
+  pending_follow.kind = TARGET_WAITKIND_SPURIOUS;	/* I.e., none. */
+  pending_follow.fork_event.saw_parent_fork = 0;
+  pending_follow.fork_event.saw_child_fork = 0;
+  pending_follow.fork_event.saw_child_exec = 0;
+
+  /* See wait_for_inferior's handling of SYSCALL_ENTRY/RETURN events. */
+  number_of_threads_in_syscalls = 0;
+
+  clear_proceed_status ();
 }
 
 static void
 delete_breakpoint_current_contents (arg)
      PTR arg;
 {
-  struct breakpoint **breakpointp = (struct breakpoint **)arg;
+  struct breakpoint **breakpointp = (struct breakpoint **) arg;
   if (*breakpointp != NULL)
-    delete_breakpoint (*breakpointp);
+    {
+      delete_breakpoint (*breakpointp);
+      *breakpointp = NULL;
+    }
 }
 
 /* Wait for control to return from inferior to debugger.
@@ -455,7 +1000,7 @@ wait_for_inferior ()
   struct cleanup *old_cleanups;
   struct target_waitstatus w;
   int another_trap;
-  int random_signal;
+  int random_signal = 0;
   CORE_ADDR stop_func_start;
   CORE_ADDR stop_func_end;
   char *stop_func_name;
@@ -468,16 +1013,24 @@ wait_for_inferior ()
   int current_line;
   struct symtab *current_symtab;
   int handling_longjmp = 0;	/* FIXME */
-  struct breakpoint *step_resume_breakpoint = NULL;
-  struct breakpoint *through_sigtramp_breakpoint = NULL;
   int pid;
+  int saved_inferior_pid;
   int update_step_sp = 0;
+  int stepping_through_solib_after_catch = 0;
+  bpstat stepping_through_solib_catchpoints = NULL;
+  int enable_hw_watchpoints_after_wait = 0;
+  int stepping_through_sigtramp = 0;
+  int new_thread_event;
+
+#ifdef HAVE_NONSTEPPABLE_WATCHPOINT
+  int stepped_after_stopped_by_watchpoint;
+#endif
 
   old_cleanups = make_cleanup (delete_breakpoint_current_contents,
 			       &step_resume_breakpoint);
   make_cleanup (delete_breakpoint_current_contents,
 		&through_sigtramp_breakpoint);
-  sal = find_pc_line(prev_pc, 0);
+  sal = find_pc_line (prev_pc, 0);
   current_line = sal.line;
   current_symtab = sal.symtab;
 
@@ -487,10 +1040,22 @@ wait_for_inferior ()
     && !handling_longjmp \
     && ((step_range_end && step_resume_breakpoint == NULL) \
 	|| trap_expected)) \
+   || stepping_through_solib_after_catch \
    || bpstat_should_step ())
+  ;
+  thread_step_needed = 0;
+
+#ifdef HPUXHPPA
+  /* We'll update this if & when we switch to a new thread. */
+  switched_from_inferior_pid = inferior_pid;
+#endif
 
   while (1)
     {
+      extern int overlay_cache_invalid;	/* declared in symfile.h */
+
+      overlay_cache_invalid = 1;
+
       /* We have to invalidate the registers BEFORE calling target_wait because
 	 they can be loaded from the target while in target_wait.  This makes
 	 remote debugging a bit more efficient for those targets that provide
@@ -503,41 +1068,109 @@ wait_for_inferior ()
       else
 	pid = target_wait (-1, &w);
 
+      /* Since we've done a wait, we have a new event.  Don't carry
+         over any expectations about needing to step over a
+         breakpoint. */
+      thread_step_needed = 0;
+
+      /* See comments where a TARGET_WAITKIND_SYSCALL_RETURN event is
+         serviced in this loop, below. */
+      if (enable_hw_watchpoints_after_wait)
+	{
+	  TARGET_ENABLE_HW_WATCHPOINTS (inferior_pid);
+	  enable_hw_watchpoints_after_wait = 0;
+	}
+
+
 #ifdef HAVE_NONSTEPPABLE_WATCHPOINT
-    have_waited:
+      stepped_after_stopped_by_watchpoint = 0;
 #endif
+
+      /* Gross.
+
+       We goto this label from elsewhere in wait_for_inferior when we want
+       to continue the main loop without calling "wait" and trashing the
+       waitstatus contained in W.  */
+    have_waited:
 
       flush_cached_frames ();
 
       /* If it's a new process, add it to the thread database */
 
-      if (pid != inferior_pid
-	  && !in_thread_list (pid))
+      new_thread_event = ((pid != inferior_pid) && !in_thread_list (pid));
+
+      if (w.kind != TARGET_WAITKIND_EXITED
+	  && w.kind != TARGET_WAITKIND_SIGNALLED
+	  && new_thread_event)
 	{
-	  fprintf_unfiltered (gdb_stderr, "[New %s]\n", target_pid_to_str (pid));
 	  add_thread (pid);
 
-	  /* We may want to consider not doing a resume here in order to give
-	     the user a chance to play with the new thread.  It might be good
-	     to make that a user-settable option.  */
 
-	  /* At this point, all threads are stopped (happens automatically in
-	     either the OS or the native code).  Therefore we need to continue
-	     all threads in order to make progress.  */
+#ifdef HPUXHPPA
+	  fprintf_unfiltered (gdb_stderr, "[New %s]\n",
+			      target_pid_or_tid_to_str (pid));
+
+#else
+	  printf_filtered ("[New %s]\n", target_pid_to_str (pid));
+#endif
+
+#if 0
+	  /* NOTE: This block is ONLY meant to be invoked in case of a
+	     "thread creation event"!  If it is invoked for any other
+	     sort of event (such as a new thread landing on a breakpoint),
+	     the event will be discarded, which is almost certainly
+	     a bad thing!
+	
+	     To avoid this, the low-level module (eg. target_wait)
+	     should call in_thread_list and add_thread, so that the
+	     new thread is known by the time we get here.  */
+
+	  /* We may want to consider not doing a resume here in order
+	     to give the user a chance to play with the new thread.
+	     It might be good to make that a user-settable option.  */
+
+	  /* At this point, all threads are stopped (happens
+	     automatically in either the OS or the native code).
+	     Therefore we need to continue all threads in order to
+	     make progress.  */
 
 	  target_resume (-1, 0, TARGET_SIGNAL_0);
 	  continue;
+#endif
 	}
 
       switch (w.kind)
 	{
 	case TARGET_WAITKIND_LOADED:
-	  /* Ignore it gracefully.  */
-	  if (breakpoints_inserted)
+	  /* Ignore gracefully during startup of the inferior, as it
+	     might be the shell which has just loaded some objects,
+	     otherwise add the symbols for the newly loaded objects.  */
+#ifdef SOLIB_ADD
+	  if (!stop_soon_quietly)
 	    {
-	      mark_breakpoints_out ();
-	      insert_breakpoints ();
+	      extern int auto_solib_add;
+
+	      /* Remove breakpoints, SOLIB_ADD might adjust
+		 breakpoint addresses via breakpoint_re_set.  */
+	      if (breakpoints_inserted)
+		remove_breakpoints ();
+
+	      /* Check for any newly added shared libraries if we're
+		 supposed to be adding them automatically.  */
+	      if (auto_solib_add)
+		{
+		  /* Switch terminal for any messages produced by
+		     breakpoint_re_set.  */
+		  target_terminal_ours_for_output ();
+		  SOLIB_ADD (NULL, 0, NULL);
+		  target_terminal_inferior ();
+		}
+
+	      /* Reinsert breakpoints and continue.  */
+	      if (breakpoints_inserted)
+		insert_breakpoints ();
 	    }
+#endif
 	  resume (0, TARGET_SIGNAL_0);
 	  continue;
 
@@ -549,21 +1182,19 @@ wait_for_inferior ()
 	  target_terminal_ours ();	/* Must do this before mourn anyway */
 	  annotate_exited (w.value.integer);
 	  if (w.value.integer)
-	    printf_filtered ("\nProgram exited with code 0%o.\n", 
-			     (unsigned int)w.value.integer);
+	    printf_filtered ("\nProgram exited with code 0%o.\n",
+			     (unsigned int) w.value.integer);
 	  else
 	    printf_filtered ("\nProgram exited normally.\n");
 
 	  /* Record the exit code in the convenience variable $_exitcode, so
 	     that the user can inspect this again later.  */
 	  set_internalvar (lookup_internalvar ("_exitcode"),
-			   value_from_longest (builtin_type_int, 
+			   value_from_longest (builtin_type_int,
 					       (LONGEST) w.value.integer));
 	  gdb_flush (gdb_stdout);
 	  target_mourn_inferior ();
-#ifdef NO_SINGLE_STEP
-	  one_stepped = 0;
-#endif
+	  singlestep_breakpoints_inserted_p = 0;	/*SOFTWARE_SINGLE_STEP_P*/
 	  stop_print_frame = 0;
 	  goto stop_stepping;
 
@@ -578,7 +1209,7 @@ wait_for_inferior ()
 	     perhaps it means rms didn't understand unix waitstatuses?
 	     For the moment I'm just kludging around this in remote.c
 	     rather than trying to change it here --kingdon, 5 Dec 1994.  */
-	  target_kill ();		/* kill mourns as well */
+	  target_kill ();	/* kill mourns as well */
 
 	  printf_filtered ("\nProgram terminated with signal ");
 	  annotate_signal_name ();
@@ -592,18 +1223,242 @@ wait_for_inferior ()
 
 	  printf_filtered ("The program no longer exists.\n");
 	  gdb_flush (gdb_stdout);
-#ifdef NO_SINGLE_STEP
-	  one_stepped = 0;
-#endif
+	  singlestep_breakpoints_inserted_p = 0;	/*SOFTWARE_SINGLE_STEP_P*/
 	  goto stop_stepping;
 
+	  /* The following are the only cases in which we keep going;
+           the above cases end in a continue or goto. */
+	case TARGET_WAITKIND_FORKED:
+	  stop_signal = TARGET_SIGNAL_TRAP;
+	  pending_follow.kind = w.kind;
+
+	  /* Ignore fork events reported for the parent; we're only
+             interested in reacting to forks of the child.  Note that
+             we expect the child's fork event to be available if we
+             waited for it now. */
+	  if (inferior_pid == pid)
+	    {
+	      pending_follow.fork_event.saw_parent_fork = 1;
+	      pending_follow.fork_event.parent_pid = pid;
+	      pending_follow.fork_event.child_pid = w.value.related_pid;
+	      continue;
+	    }
+	  else
+	    {
+	      pending_follow.fork_event.saw_child_fork = 1;
+	      pending_follow.fork_event.child_pid = pid;
+	      pending_follow.fork_event.parent_pid = w.value.related_pid;
+	    }
+
+	  stop_pc = read_pc_pid (pid);
+	  saved_inferior_pid = inferior_pid;
+	  inferior_pid = pid;
+	  stop_bpstat = bpstat_stop_status
+	    (&stop_pc,
+#if DECR_PC_AFTER_BREAK
+	     (prev_pc != stop_pc - DECR_PC_AFTER_BREAK
+	      && CURRENTLY_STEPPING ())
+#else /* DECR_PC_AFTER_BREAK zero */
+	     0
+#endif /* DECR_PC_AFTER_BREAK zero */
+	    );
+	  random_signal = !bpstat_explains_signal (stop_bpstat);
+	  inferior_pid = saved_inferior_pid;
+	  goto process_event_stop_test;
+
+	  /* If this a platform which doesn't allow a debugger to touch a
+           vfork'd inferior until after it exec's, then we'd best keep
+           our fingers entirely off the inferior, other than continuing
+           it.  This has the unfortunate side-effect that catchpoints
+           of vforks will be ignored.  But since the platform doesn't
+           allow the inferior be touched at vfork time, there's really
+           little choice. */
+	case TARGET_WAITKIND_VFORKED:
+	  stop_signal = TARGET_SIGNAL_TRAP;
+	  pending_follow.kind = w.kind;
+
+	  /* Is this a vfork of the parent?  If so, then give any
+             vfork catchpoints a chance to trigger now.  (It's
+             dangerous to do so if the child canot be touched until
+             it execs, and the child has not yet exec'd.  We probably
+             should warn the user to that effect when the catchpoint
+             triggers...) */
+	  if (pid == inferior_pid)
+	    {
+	      pending_follow.fork_event.saw_parent_fork = 1;
+	      pending_follow.fork_event.parent_pid = pid;
+	      pending_follow.fork_event.child_pid = w.value.related_pid;
+	    }
+
+	  /* If we've seen the child's vfork event but cannot really touch
+             the child until it execs, then we must continue the child now.
+             Else, give any vfork catchpoints a chance to trigger now. */
+	  else
+	    {
+	      pending_follow.fork_event.saw_child_fork = 1;
+	      pending_follow.fork_event.child_pid = pid;
+	      pending_follow.fork_event.parent_pid = w.value.related_pid;
+	      target_post_startup_inferior (pending_follow.fork_event.child_pid);
+	      follow_vfork_when_exec = !target_can_follow_vfork_prior_to_exec ();
+	      if (follow_vfork_when_exec)
+		{
+		  target_resume (pid, 0, TARGET_SIGNAL_0);
+		  continue;
+		}
+	    }
+
+	  stop_pc = read_pc ();
+	  stop_bpstat = bpstat_stop_status
+	    (&stop_pc,
+#if DECR_PC_AFTER_BREAK
+	     (prev_pc != stop_pc - DECR_PC_AFTER_BREAK
+	      && CURRENTLY_STEPPING ())
+#else /* DECR_PC_AFTER_BREAK zero */
+	     0
+#endif /* DECR_PC_AFTER_BREAK zero */
+	    );
+	  random_signal = !bpstat_explains_signal (stop_bpstat);
+	  goto process_event_stop_test;
+
+	case TARGET_WAITKIND_EXECD:
+	  stop_signal = TARGET_SIGNAL_TRAP;
+
+	  /* Is this a target which reports multiple exec events per actual
+             call to exec()?  (HP-UX using ptrace does, for example.)  If so,
+             ignore all but the last one.  Just resume the exec'r, and wait
+             for the next exec event. */
+	  if (inferior_ignoring_leading_exec_events)
+	    {
+	      inferior_ignoring_leading_exec_events--;
+	      if (pending_follow.kind == TARGET_WAITKIND_VFORKED)
+		ENSURE_VFORKING_PARENT_REMAINS_STOPPED (pending_follow.fork_event.parent_pid);
+	      target_resume (pid, 0, TARGET_SIGNAL_0);
+	      continue;
+	    }
+	  inferior_ignoring_leading_exec_events =
+	    target_reported_exec_events_per_exec_call () - 1;
+
+	  pending_follow.execd_pathname = savestring (w.value.execd_pathname,
+					   strlen (w.value.execd_pathname));
+
+	  /* Did inferior_pid exec, or did a (possibly not-yet-followed)
+             child of a vfork exec?
+
+             ??rehrauer: This is unabashedly an HP-UX specific thing.  On
+             HP-UX, events associated with a vforking inferior come in
+             threes: a vfork event for the child (always first), followed
+             a vfork event for the parent and an exec event for the child.
+             The latter two can come in either order.
+
+             If we get the parent vfork event first, life's good: We follow
+             either the parent or child, and then the child's exec event is
+             a "don't care".
+
+             But if we get the child's exec event first, then we delay
+             responding to it until we handle the parent's vfork.  Because,
+             otherwise we can't satisfy a "catch vfork". */
+	  if (pending_follow.kind == TARGET_WAITKIND_VFORKED)
+	    {
+	      pending_follow.fork_event.saw_child_exec = 1;
+
+	      /* On some targets, the child must be resumed before
+                 the parent vfork event is delivered.  A single-step
+                 suffices. */
+	      if (RESUME_EXECD_VFORKING_CHILD_TO_GET_PARENT_VFORK ())
+		target_resume (pid, 1, TARGET_SIGNAL_0);
+	      /* We expect the parent vfork event to be available now. */
+	      continue;
+	    }
+
+	  /* This causes the eventpoints and symbol table to be reset.  Must
+             do this now, before trying to determine whether to stop. */
+	  follow_exec (inferior_pid, pending_follow.execd_pathname);
+	  free (pending_follow.execd_pathname);
+
+	  stop_pc = read_pc_pid (pid);
+	  saved_inferior_pid = inferior_pid;
+	  inferior_pid = pid;
+	  stop_bpstat = bpstat_stop_status
+	    (&stop_pc,
+#if DECR_PC_AFTER_BREAK
+	     (prev_pc != stop_pc - DECR_PC_AFTER_BREAK
+	      && CURRENTLY_STEPPING ())
+#else /* DECR_PC_AFTER_BREAK zero */
+	     0
+#endif /* DECR_PC_AFTER_BREAK zero */
+	    );
+	  random_signal = !bpstat_explains_signal (stop_bpstat);
+	  inferior_pid = saved_inferior_pid;
+	  goto process_event_stop_test;
+
+	  /* These syscall events are returned on HP-UX, as part of its
+           implementation of page-protection-based "hardware" watchpoints.
+           HP-UX has unfortunate interactions between page-protections and
+           some system calls.  Our solution is to disable hardware watches
+           when a system call is entered, and reenable them when the syscall
+           completes.  The downside of this is that we may miss the precise
+           point at which a watched piece of memory is modified.  "Oh well."
+
+           Note that we may have multiple threads running, which may each
+           enter syscalls at roughly the same time.  Since we don't have a
+           good notion currently of whether a watched piece of memory is
+           thread-private, we'd best not have any page-protections active
+           when any thread is in a syscall.  Thus, we only want to reenable
+           hardware watches when no threads are in a syscall.
+
+           Also, be careful not to try to gather much state about a thread
+           that's in a syscall.  It's frequently a losing proposition. */
+	case TARGET_WAITKIND_SYSCALL_ENTRY:
+	  number_of_threads_in_syscalls++;
+	  if (number_of_threads_in_syscalls == 1)
+	    {
+	      TARGET_DISABLE_HW_WATCHPOINTS (inferior_pid);
+	    }
+	  resume (0, TARGET_SIGNAL_0);
+	  continue;
+
+	  /* Before examining the threads further, step this thread to
+	   get it entirely out of the syscall.  (We get notice of the
+	   event when the thread is just on the verge of exiting a
+	   syscall.  Stepping one instruction seems to get it back
+	   into user code.)
+
+	   Note that although the logical place to reenable h/w watches
+	   is here, we cannot.  We cannot reenable them before stepping
+	   the thread (this causes the next wait on the thread to hang).
+
+	   Nor can we enable them after stepping until we've done a wait.
+	   Thus, we simply set the flag enable_hw_watchpoints_after_wait
+	   here, which will be serviced immediately after the target
+	   is waited on. */
+	case TARGET_WAITKIND_SYSCALL_RETURN:
+	  target_resume (pid, 1, TARGET_SIGNAL_0);
+
+	  if (number_of_threads_in_syscalls > 0)
+	    {
+	      number_of_threads_in_syscalls--;
+	      enable_hw_watchpoints_after_wait =
+		(number_of_threads_in_syscalls == 0);
+	    }
+	  continue;
+
 	case TARGET_WAITKIND_STOPPED:
-	  /* This is the only case in which we keep going; the above cases
-	     end in a continue or goto.  */
+	  stop_signal = w.value.sig;
 	  break;
 	}
 
-      stop_signal = w.value.sig;
+      /* We may want to consider not doing a resume here in order to give
+         the user a chance to play with the new thread.  It might be good
+         to make that a user-settable option.  */
+
+      /* At this point, all threads are stopped (happens automatically in
+         either the OS or the native code).  Therefore we need to continue
+         all threads in order to make progress.  */
+      if (new_thread_event)
+	{
+	  target_resume (-1, 0, TARGET_SIGNAL_0);
+	  continue;
+	}
 
       stop_pc = read_pc_pid (pid);
 
@@ -611,30 +1466,60 @@ wait_for_inferior ()
 	 another thread.  If so, then step that thread past the breakpoint,
 	 and continue it.  */
 
-      if (stop_signal == TARGET_SIGNAL_TRAP
-	  && breakpoints_inserted
-	  && breakpoint_here_p (stop_pc - DECR_PC_AFTER_BREAK))
+      if (stop_signal == TARGET_SIGNAL_TRAP)
 	{
-	  random_signal = 0;
-	  if (!breakpoint_thread_match (stop_pc - DECR_PC_AFTER_BREAK, pid))
+	  if (SOFTWARE_SINGLE_STEP_P && singlestep_breakpoints_inserted_p)
+	    random_signal = 0;
+	  else if (breakpoints_inserted
+		   && breakpoint_here_p (stop_pc - DECR_PC_AFTER_BREAK))
 	    {
-	      /* Saw a breakpoint, but it was hit by the wrong thread.  Just continue. */
-	      write_pc_pid (stop_pc - DECR_PC_AFTER_BREAK, pid);
+	      random_signal = 0;
+	      if (!breakpoint_thread_match (stop_pc - DECR_PC_AFTER_BREAK,
+					    pid))
+		{
+		  int remove_status;
 
-	      remove_breakpoints ();
-	      target_resume (pid, 1, TARGET_SIGNAL_0); /* Single step */
-	      /* FIXME: What if a signal arrives instead of the single-step
-		 happening?  */
+		  /* Saw a breakpoint, but it was hit by the wrong thread.
+		       Just continue. */
+		  write_pc_pid (stop_pc - DECR_PC_AFTER_BREAK, pid);
 
-	      if (target_wait_hook)
-		target_wait_hook (pid, &w);
+		  remove_status = remove_breakpoints ();
+		  /* Did we fail to remove breakpoints?  If so, try
+                       to set the PC past the bp.  (There's at least
+                       one situation in which we can fail to remove
+                       the bp's: On HP-UX's that use ttrace, we can't
+                       change the address space of a vforking child
+                       process until the child exits (well, okay, not
+                       then either :-) or execs. */
+		  if (remove_status != 0)
+		    {
+		      write_pc_pid (stop_pc - DECR_PC_AFTER_BREAK + 4, pid);
+		    }
+		  else
+		    {		/* Single step */
+		      target_resume (pid, 1, TARGET_SIGNAL_0);
+		      /* FIXME: What if a signal arrives instead of the
+			   single-step happening?  */
+
+		      if (target_wait_hook)
+			target_wait_hook (pid, &w);
+		      else
+			target_wait (pid, &w);
+		      insert_breakpoints ();
+		    }
+
+		  /* We need to restart all the threads now.  */
+		  target_resume (-1, 0, TARGET_SIGNAL_0);
+		  continue;
+		}
 	      else
-		target_wait (pid, &w);
-	      insert_breakpoints ();
-
-	      /* We need to restart all the threads now.  */
-	      target_resume (-1, 0, TARGET_SIGNAL_0);
-	      continue;
+		{
+		  /* This breakpoint matches--either it is the right
+		       thread or it's a generic breakpoint for all threads.
+		       Remember that we'll need to step just _this_ thread
+		       on any following user continuation! */
+		  thread_step_needed = 1;
+		}
 	    }
 	}
       else
@@ -642,24 +1527,39 @@ wait_for_inferior ()
 
       /* See if something interesting happened to the non-current thread.  If
          so, then switch to that thread, and eventually give control back to
-	 the user.  */
+	 the user.
 
-      if (pid != inferior_pid)
+         Note that if there's any kind of pending follow (i.e., of a fork,
+         vfork or exec), we don't want to do this now.  Rather, we'll let
+         the next resume handle it. */
+      if ((pid != inferior_pid) &&
+	  (pending_follow.kind == TARGET_WAITKIND_SPURIOUS))
 	{
 	  int printed = 0;
 
 	  /* If it's a random signal for a non-current thread, notify user
-	     if he's expressed an interest.  */
-
+	     if he's expressed an interest. */
 	  if (random_signal
 	      && signal_print[stop_signal])
 	    {
+/* ??rehrauer: I don't understand the rationale for this code.  If the
+   inferior will stop as a result of this signal, then the act of handling
+   the stop ought to print a message that's couches the stoppage in user
+   terms, e.g., "Stopped for breakpoint/watchpoint".  If the inferior
+   won't stop as a result of the signal -- i.e., if the signal is merely
+   a side-effect of something GDB's doing "under the covers" for the
+   user, such as stepping threads over a breakpoint they shouldn't stop
+   for -- then the message seems to be a serious annoyance at best.
+
+   For now, remove the message altogether. */
+#if 0
 	      printed = 1;
 	      target_terminal_ours_for_output ();
 	      printf_filtered ("\nProgram received signal %s, %s.\n",
 			       target_signal_to_name (stop_signal),
 			       target_signal_to_string (stop_signal));
 	      gdb_flush (gdb_stdout);
+#endif
 	    }
 
 	  /* If it's not SIGTRAP and not a signal we want to stop for, then
@@ -689,7 +1589,14 @@ wait_for_inferior ()
 			     through_sigtramp_breakpoint,
 			     step_range_start, step_range_end,
 			     step_frame_address, handling_longjmp,
-			     another_trap);
+			     another_trap,
+			     stepping_through_solib_after_catch,
+			     stepping_through_solib_catchpoints,
+			     stepping_through_sigtramp);
+
+#ifdef HPUXHPPA
+	  switched_from_inferior_pid = inferior_pid;
+#endif
 
 	  inferior_pid = pid;
 
@@ -700,30 +1607,57 @@ wait_for_inferior ()
 			     &through_sigtramp_breakpoint,
 			     &step_range_start, &step_range_end,
 			     &step_frame_address, &handling_longjmp,
-			     &another_trap);
-	  printf_filtered ("[Switching to %s]\n", target_pid_to_str (pid));
+			     &another_trap,
+			     &stepping_through_solib_after_catch,
+			     &stepping_through_solib_catchpoints,
+			     &stepping_through_sigtramp);
 
+	  if (context_hook)
+	    context_hook (pid_to_thread_id (pid));
+
+	  printf_filtered ("[Switching to %s]\n", target_pid_to_str (pid));
 	  flush_cached_frames ();
 	}
 
-#ifdef NO_SINGLE_STEP
-      if (one_stepped)
-	single_step (0);	/* This actually cleans up the ss */
-#endif /* NO_SINGLE_STEP */
-      
+      if (SOFTWARE_SINGLE_STEP_P && singlestep_breakpoints_inserted_p)
+	{
+	  /* Pull the single step breakpoints out of the target. */
+	  SOFTWARE_SINGLE_STEP (0, 0);
+	  singlestep_breakpoints_inserted_p = 0;
+	}
+
       /* If PC is pointing at a nullified instruction, then step beyond
 	 it so that the user won't be confused when GDB appears to be ready
 	 to execute it. */
 
+#if 0				/* XXX DEBUG */
+      printf ("infrun.c:1607: pc = 0x%x\n", read_pc ());
+#endif
+      /*      if (INSTRUCTION_NULLIFIED && CURRENTLY_STEPPING ()) */
       if (INSTRUCTION_NULLIFIED)
 	{
-	  resume (1, 0);
-	  continue;
+	  struct target_waitstatus tmpstatus;
+#if 0
+	  all_registers_info ((char *) 0, 0);
+#endif
+	  registers_changed ();
+	  target_resume (pid, 1, TARGET_SIGNAL_0);
+
+	  /* We may have received a signal that we want to pass to
+	     the inferior; therefore, we must not clobber the waitstatus
+	     in W.  So we call wait ourselves, then continue the loop
+	     at the "have_waited" label.  */
+	  if (target_wait_hook)
+	    target_wait_hook (pid, &tmpstatus);
+	  else
+	    target_wait (pid, &tmpstatus);
+
+	  goto have_waited;
 	}
 
 #ifdef HAVE_STEPPABLE_WATCHPOINT
       /* It may not be necessary to disable the watchpoint to stop over
-	 it.  For example, the PA can (with some kernel cooperation) 
+	 it.  For example, the PA can (with some kernel cooperation)
 	 single step over a watchpoint without disabling the watchpoint.  */
       if (STOPPED_BY_WATCHPOINT (w))
 	{
@@ -756,16 +1690,19 @@ wait_for_inferior ()
 	  write_pc (stop_pc - DECR_PC_AFTER_BREAK);
 
 	  remove_breakpoints ();
-	  target_resume (pid, 1, TARGET_SIGNAL_0); /* Single step */
+	  registers_changed ();
+	  target_resume (pid, 1, TARGET_SIGNAL_0);	/* Single step */
 
 	  if (target_wait_hook)
 	    target_wait_hook (pid, &w);
 	  else
 	    target_wait (pid, &w);
 	  insert_breakpoints ();
+
 	  /* FIXME-maybe: is this cleaner than setting a flag?  Does it
 	     handle things like signals arriving and other things happening
 	     in combination correctly?  */
+	  stepped_after_stopped_by_watchpoint = 1;
 	  goto have_waited;
 	}
 #endif
@@ -776,6 +1713,7 @@ wait_for_inferior ()
 #endif
 
       stop_func_start = 0;
+      stop_func_end = 0;
       stop_func_name = 0;
       /* Don't care about return value; stop_func_start and stop_func_name
 	 will both be 0 if it doesn't work.  */
@@ -790,7 +1728,7 @@ wait_for_inferior ()
       random_signal = 0;
       stopped_by_random_signal = 0;
       breakpoints_failed = 0;
-      
+
       /* Look at the cause of the stop, and decide what to do.
 	 The alternatives are:
 	 1) break; to really stop and return to the debugger,
@@ -798,19 +1736,19 @@ wait_for_inferior ()
 	 (set another_trap to 1 to single step once)
 	 3) set random_signal to 1, and the decision between 1 and 2
 	 will be made according to the signal handling tables.  */
-      
+
       /* First, distinguish signals caused by the debugger from signals
 	 that have to do with the program's own actions.
 	 Note that breakpoint insns may cause SIGTRAP or SIGILL
 	 or SIGEMT, depending on the operating system version.
 	 Here we detect when a SIGILL or SIGEMT is really a breakpoint
 	 and change it to SIGTRAP.  */
-      
+
       if (stop_signal == TARGET_SIGNAL_TRAP
 	  || (breakpoints_inserted &&
 	      (stop_signal == TARGET_SIGNAL_ILL
 	       || stop_signal == TARGET_SIGNAL_EMT
-            ))
+	      ))
 	  || stop_soon_quietly)
 	{
 	  if (stop_signal == TARGET_SIGNAL_TRAP && stop_after_trap)
@@ -836,19 +1774,23 @@ wait_for_inferior ()
 	      /* See if there is a breakpoint at the current PC.  */
 	      stop_bpstat = bpstat_stop_status
 		(&stop_pc,
-#if DECR_PC_AFTER_BREAK
-		 /* Notice the case of stepping through a jump
+		 (DECR_PC_AFTER_BREAK ?
+	      /* Notice the case of stepping through a jump
 		    that lands just after a breakpoint.
 		    Don't confuse that with hitting the breakpoint.
 		    What we check for is that 1) stepping is going on
 		    and 2) the pc before the last insn does not match
-		    the address of the breakpoint before the current pc.  */
-		 (prev_pc != stop_pc - DECR_PC_AFTER_BREAK
-		  && CURRENTLY_STEPPING ())
-#else /* DECR_PC_AFTER_BREAK zero */
-		 0
-#endif /* DECR_PC_AFTER_BREAK zero */
-		 );
+		    the address of the breakpoint before the current pc
+		    and 3) we didn't hit a breakpoint in a signal handler
+		    without an intervening stop in sigtramp, which is
+		    detected by a new stack pointer value below
+		    any usual function calling stack adjustments.  */
+		  (CURRENTLY_STEPPING ()
+		   && prev_pc != stop_pc - DECR_PC_AFTER_BREAK
+		   && !(step_range_end
+			&& INNER_THAN (read_sp (), (step_sp - 16)))) :
+		  0)
+		);
 	      /* Following in case break condition called a
 		 function.  */
 	      stop_print_frame = 1;
@@ -863,24 +1805,74 @@ wait_for_inferior ()
 				       FRAME_FP (get_current_frame ()))
 #endif /* No CALL_DUMMY_BREAKPOINT_OFFSET.  */
 		  || (step_range_end && step_resume_breakpoint == NULL));
+
 	  else
 	    {
 	      random_signal
 		= !(bpstat_explains_signal (stop_bpstat)
-		    /* End of a stack dummy.  Some systems (e.g. Sony
+	      /* End of a stack dummy.  Some systems (e.g. Sony
 		       news) give another signal besides SIGTRAP,
 		       so check here as well as above.  */
 #ifndef CALL_DUMMY_BREAKPOINT_OFFSET
 		    || PC_IN_CALL_DUMMY (stop_pc, read_sp (),
 					 FRAME_FP (get_current_frame ()))
 #endif /* No CALL_DUMMY_BREAKPOINT_OFFSET.  */
-		    );
+		);
 	      if (!random_signal)
 		stop_signal = TARGET_SIGNAL_TRAP;
 	    }
 	}
+
+      /* When we reach this point, we've pretty much decided
+         that the reason for stopping must've been a random
+         (unexpected) signal. */
+
       else
 	random_signal = 1;
+      /* If a fork, vfork or exec event was seen, then there are two
+         possible responses we can make:
+
+         1. If a catchpoint triggers for the event (random_signal == 0),
+            then we must stop now and issue a prompt.  We will resume
+            the inferior when the user tells us to.
+         2. If no catchpoint triggers for the event (random_signal == 1),
+            then we must resume the inferior now and keep checking.
+
+         In either case, we must take appropriate steps to "follow" the
+         the fork/vfork/exec when the inferior is resumed.  For example,
+         if follow-fork-mode is "child", then we must detach from the
+         parent inferior and follow the new child inferior.
+
+         In either case, setting pending_follow causes the next resume()
+         to take the appropriate following action. */
+    process_event_stop_test:
+      if (w.kind == TARGET_WAITKIND_FORKED)
+	{
+	  if (random_signal)	/* I.e., no catchpoint triggered for this. */
+	    {
+	      trap_expected = 1;
+	      stop_signal = TARGET_SIGNAL_0;
+	      goto keep_going;
+	    }
+	}
+      else if (w.kind == TARGET_WAITKIND_VFORKED)
+	{
+	  if (random_signal)	/* I.e., no catchpoint triggered for this. */
+	    {
+	      stop_signal = TARGET_SIGNAL_0;
+	      goto keep_going;
+	    }
+	}
+      else if (w.kind == TARGET_WAITKIND_EXECD)
+	{
+	  pending_follow.kind = w.kind;
+	  if (random_signal)	/* I.e., no catchpoint triggered for this. */
+	    {
+	      trap_expected = 1;
+	      stop_signal = TARGET_SIGNAL_0;
+	      goto keep_going;
+	    }
+	}
 
       /* For the program's own signals, act according to
 	 the signal handling tables.  */
@@ -889,9 +1881,9 @@ wait_for_inferior ()
 	{
 	  /* Signal not for debugging purposes.  */
 	  int printed = 0;
-	  
+
 	  stopped_by_random_signal = 1;
-	  
+
 	  if (signal_print[stop_signal])
 	    {
 	      printed = 1;
@@ -919,9 +1911,16 @@ wait_for_inferior ()
 	  if (signal_program[stop_signal] == 0)
 	    stop_signal = TARGET_SIGNAL_0;
 
-	  /* I'm not sure whether this needs to be check_sigtramp2 or
-	     whether it could/should be keep_going.  */
-	  goto check_sigtramp2;
+	  /* If we're in the middle of a "next" command, let the code for
+             stepping over a function handle this. pai/1997-09-10
+
+             A previous comment here suggested it was possible to change
+             this to jump to keep_going in all cases. */
+
+	  if (step_over_calls > 0)
+	    goto step_over_function;
+	  else
+	    goto check_sigtramp2;
 	}
 
       /* Handle cases caused by hitting a breakpoint.  */
@@ -945,10 +1944,11 @@ wait_for_inferior ()
 	    /* If we hit the breakpoint at longjmp, disable it for the
 	       duration of this command.  Then, install a temporary
 	       breakpoint at the target of the jmp_buf. */
-	    disable_longjmp_breakpoint();
+	    disable_longjmp_breakpoint ();
 	    remove_breakpoints ();
 	    breakpoints_inserted = 0;
-	    if (!GET_LONGJMP_TARGET(&jmp_buf_pc)) goto keep_going;
+	    if (!GET_LONGJMP_TARGET (&jmp_buf_pc))
+	      goto keep_going;
 
 	    /* Need to blow away step-resume breakpoint, as it
 	       interferes with us */
@@ -968,12 +1968,12 @@ wait_for_inferior ()
 #if 0
 	    /* FIXME - Need to implement nested temporary breakpoints */
 	    if (step_over_calls > 0)
-	      set_longjmp_resume_breakpoint(jmp_buf_pc,
-					    get_current_frame());
+	      set_longjmp_resume_breakpoint (jmp_buf_pc,
+					     get_current_frame ());
 	    else
-#endif				/* 0 */
-	      set_longjmp_resume_breakpoint(jmp_buf_pc, NULL);
-	    handling_longjmp = 1; /* FIXME */
+#endif /* 0 */
+	      set_longjmp_resume_breakpoint (jmp_buf_pc, NULL);
+	    handling_longjmp = 1;	/* FIXME */
 	    goto keep_going;
 
 	  case BPSTAT_WHAT_CLEAR_LONGJMP_RESUME:
@@ -983,22 +1983,25 @@ wait_for_inferior ()
 #if 0
 	    /* FIXME - Need to implement nested temporary breakpoints */
 	    if (step_over_calls
-		&& (FRAME_FP (get_current_frame ())
-		    INNER_THAN step_frame_address))
+		&& (INNER_THAN (FRAME_FP (get_current_frame ()),
+				step_frame_address)))
 	      {
 		another_trap = 1;
 		goto keep_going;
 	      }
-#endif				/* 0 */
-	    disable_longjmp_breakpoint();
-	    handling_longjmp = 0; /* FIXME */
+#endif /* 0 */
+	    disable_longjmp_breakpoint ();
+	    handling_longjmp = 0;	/* FIXME */
 	    if (what.main_action == BPSTAT_WHAT_CLEAR_LONGJMP_RESUME)
 	      break;
 	    /* else fallthrough */
 
 	  case BPSTAT_WHAT_SINGLE:
 	    if (breakpoints_inserted)
-	      remove_breakpoints ();
+	      {
+		thread_step_needed = 1;
+		remove_breakpoints ();
+	      }
 	    breakpoints_inserted = 0;
 	    another_trap = 1;
 	    /* Still need to check other stuff, at least the case
@@ -1024,6 +2027,23 @@ wait_for_inferior ()
 	    goto stop_stepping;
 
 	  case BPSTAT_WHAT_STEP_RESUME:
+	    /* This proably demands a more elegant solution, but, yeah
+               right...
+
+               This function's use of the simple variable
+               step_resume_breakpoint doesn't seem to accomodate
+               simultaneously active step-resume bp's, although the
+               breakpoint list certainly can.
+
+               If we reach here and step_resume_breakpoint is already
+               NULL, then apparently we have multiple active
+               step-resume bp's.  We'll just delete the breakpoint we
+               stopped at, and carry on.  */
+	    if (step_resume_breakpoint == NULL)
+	      {
+		step_resume_breakpoint =
+		  bpstat_find_step_resume_breakpoint (stop_bpstat);
+	      }
 	    delete_breakpoint (step_resume_breakpoint);
 	    step_resume_breakpoint = NULL;
 	    break;
@@ -1039,8 +2059,9 @@ wait_for_inferior ()
 	      another_trap = 1;
 	    break;
 
-#ifdef SOLIB_ADD
 	  case BPSTAT_WHAT_CHECK_SHLIBS:
+	  case BPSTAT_WHAT_CHECK_SHLIBS_RESUME_FROM_HOOK:
+#ifdef SOLIB_ADD
 	    {
 	      extern int auto_solib_add;
 
@@ -1057,11 +2078,14 @@ wait_for_inferior ()
 		{
 		  /* Switch terminal for any messages produced by
 		     breakpoint_re_set.  */
-	          target_terminal_ours_for_output ();
+		  target_terminal_ours_for_output ();
 		  SOLIB_ADD (NULL, 0, NULL);
-		  re_enable_breakpoints_in_shlibs ();
-	          target_terminal_inferior ();
+		  target_terminal_inferior ();
 		}
+
+	      /* Try to reenable shared library breakpoints, additional
+		 code segments in shared libraries might be mapped in now. */
+	      re_enable_breakpoints_in_shlibs ();
 
 	      /* If requested, stop when the dynamic linker notifies
 		 gdb of events.  This allows the user to get control
@@ -1072,6 +2096,40 @@ wait_for_inferior ()
 		  stop_print_frame = 0;
 		  goto stop_stepping;
 		}
+
+	      /* If we stopped due to an explicit catchpoint, then the
+                 (see above) call to SOLIB_ADD pulled in any symbols
+                 from a newly-loaded library, if appropriate.
+
+                 We do want the inferior to stop, but not where it is
+                 now, which is in the dynamic linker callback.  Rather,
+                 we would like it stop in the user's program, just after
+                 the call that caused this catchpoint to trigger.  That
+                 gives the user a more useful vantage from which to
+                 examine their program's state. */
+	      else if (what.main_action == BPSTAT_WHAT_CHECK_SHLIBS_RESUME_FROM_HOOK)
+		{
+		  /* ??rehrauer: If I could figure out how to get the
+                     right return PC from here, we could just set a temp
+                     breakpoint and resume.  I'm not sure we can without
+                     cracking open the dld's shared libraries and sniffing
+                     their unwind tables and text/data ranges, and that's
+                     not a terribly portable notion.
+
+                     Until that time, we must step the inferior out of the
+                     dld callback, and also out of the dld itself (and any
+                     code or stubs in libdld.sl, such as "shl_load" and
+                     friends) until we reach non-dld code.  At that point,
+                     we can stop stepping. */
+		  bpstat_get_triggered_catchpoints (stop_bpstat,
+				       &stepping_through_solib_catchpoints);
+		  stepping_through_solib_after_catch = 1;
+
+		  /* Be sure to lift all breakpoints, so the inferior does
+                     actually step past this point... */
+		  another_trap = 1;
+		  break;
+		}
 	      else
 		{
 		  /* We want to step over this breakpoint, then keep going.  */
@@ -1080,6 +2138,7 @@ wait_for_inferior ()
 		}
 	    }
 #endif
+	    break;
 
 	  case BPSTAT_WHAT_LAST:
 	    /* Not a real code, but listed here to shut up gcc -Wall.  */
@@ -1095,6 +2154,29 @@ wait_for_inferior ()
 	 test for stepping.  But, if not stepping,
 	 do not stop.  */
 
+      /* Are we stepping to get the inferior out of the dynamic
+         linker's hook (and possibly the dld itself) after catching
+         a shlib event? */
+      if (stepping_through_solib_after_catch)
+	{
+#if defined(SOLIB_ADD)
+	  /* Have we reached our destination?  If not, keep going. */
+	  if (SOLIB_IN_DYNAMIC_LINKER (pid, stop_pc))
+	    {
+	      another_trap = 1;
+	      goto keep_going;
+	    }
+#endif
+	  /* Else, stop and report the catchpoint(s) whose triggering
+             caused us to begin stepping. */
+	  stepping_through_solib_after_catch = 0;
+	  bpstat_clear (&stop_bpstat);
+	  stop_bpstat = bpstat_copy (stepping_through_solib_catchpoints);
+	  bpstat_clear (&stepping_through_solib_catchpoints);
+	  stop_print_frame = 1;
+	  goto stop_stepping;
+	}
+
 #ifndef CALL_DUMMY_BREAKPOINT_OFFSET
       /* This is the old way of detecting the end of the stack dummy.
 	 An architecture which defines CALL_DUMMY_BREAKPOINT_OFFSET gets
@@ -1105,7 +2187,8 @@ wait_for_inferior ()
 	 just stop silently, unless the user was doing an si/ni, in which
 	 case she'd better know what she's doing.  */
 
-      if (PC_IN_CALL_DUMMY (stop_pc, read_sp (), FRAME_FP (get_current_frame ()))
+      if (CALL_DUMMY_HAS_COMPLETED (stop_pc, read_sp (),
+				    FRAME_FP (get_current_frame ()))
 	  && !step_range_end)
 	{
 	  stop_print_frame = 0;
@@ -1131,23 +2214,27 @@ wait_for_inferior ()
 	   whether it could/should be keep_going.  */
 	goto check_sigtramp2;
 
-      /* If stepping through a line, keep going if still within it.  */
+      /* If stepping through a line, keep going if still within it.
+
+         Note that step_range_end is the address of the first instruction
+         beyond the step range, and NOT the address of the last instruction
+         within it! */
       if (stop_pc >= step_range_start
 	  && stop_pc < step_range_end
 #if 0
-/* I haven't a clue what might trigger this clause, and it seems wrong anyway,
-   so I've disabled it until someone complains.  -Stu 10/24/95 */
+/* I haven't a clue what might trigger this clause, and it seems wrong
+   anyway, so I've disabled it until someone complains.  -Stu 10/24/95 */
 
-	  /* The step range might include the start of the
+      /* The step range might include the start of the
 	     function, so if we are at the start of the
 	     step range and either the stack or frame pointers
 	     just changed, we've stepped outside */
 	  && !(stop_pc == step_range_start
 	       && FRAME_FP (get_current_frame ())
-	       && (read_sp () INNER_THAN step_sp
+	       && (INNER_THAN (read_sp (), step_sp)
 		   || FRAME_FP (get_current_frame ()) != step_frame_address))
 #endif
-)
+	)
 	{
 	  /* We might be doing a BPSTAT_WHAT_SINGLE and getting a signal.
 	     So definately need to check for sigtramp here.  */
@@ -1156,6 +2243,13 @@ wait_for_inferior ()
 
       /* We stepped out of the stepping range.  */
 
+      /* If we are stepping at the source level and entered the runtime
+         loader dynamic symbol resolution code, we keep on single stepping
+	 until we exit the run time loader code and reach the callee's
+	 address.  */
+      if (step_over_calls < 0 && IN_SOLIB_DYNSYM_RESOLVE_CODE (stop_pc))
+	goto keep_going;
+
       /* We can't update step_sp every time through the loop, because
 	 reading the stack pointer would slow down stepping too much.
 	 But we can update it every time we leave the step range.  */
@@ -1163,33 +2257,74 @@ wait_for_inferior ()
 
       /* Did we just take a signal?  */
       if (IN_SIGTRAMP (stop_pc, stop_func_name)
-	  && !IN_SIGTRAMP (prev_pc, prev_func_name))
+	  && !IN_SIGTRAMP (prev_pc, prev_func_name)
+	  && INNER_THAN (read_sp (), step_sp))
 	{
 	  /* We've just taken a signal; go until we are back to
 	     the point where we took it and one more.  */
 
-	  /* This code is needed at least in the following case:
-	     The user types "next" and then a signal arrives (before
-	     the "next" is done).  */
+	  /* Note: The test above succeeds not only when we stepped
+             into a signal handler, but also when we step past the last
+             statement of a signal handler and end up in the return stub
+             of the signal handler trampoline.  To distinguish between
+             these two cases, check that the frame is INNER_THAN the
+             previous one below. pai/1997-09-11 */
 
-	  /* Note that if we are stopped at a breakpoint, then we need
-	     the step_resume breakpoint to override any breakpoints at
-	     the same location, so that we will still step over the
-	     breakpoint even though the signal happened.  */
 
 	  {
-	    struct symtab_and_line sr_sal;
+	    CORE_ADDR current_frame = FRAME_FP (get_current_frame ());
 
-	    sr_sal.pc = prev_pc;
-	    sr_sal.symtab = NULL;
-	    sr_sal.line = 0;
-	    /* We could probably be setting the frame to
-	       step_frame_address; I don't think anyone thought to try it.  */
-	    step_resume_breakpoint =
-	      set_momentary_breakpoint (sr_sal, NULL, bp_step_resume);
-	    if (breakpoints_inserted)
-	      insert_breakpoints ();
+	    if (INNER_THAN (current_frame, step_frame_address))
+	      {
+		/* We have just taken a signal; go until we are back to
+                   the point where we took it and one more.  */
+
+		/* This code is needed at least in the following case:
+                   The user types "next" and then a signal arrives (before
+                   the "next" is done).  */
+
+		/* Note that if we are stopped at a breakpoint, then we need
+                   the step_resume breakpoint to override any breakpoints at
+                   the same location, so that we will still step over the
+                   breakpoint even though the signal happened.  */
+		struct symtab_and_line sr_sal;
+
+		INIT_SAL (&sr_sal);
+		sr_sal.symtab = NULL;
+		sr_sal.line = 0;
+		sr_sal.pc = prev_pc;
+		/* We could probably be setting the frame to
+                   step_frame_address; I don't think anyone thought to
+                   try it.  */
+		step_resume_breakpoint =
+		  set_momentary_breakpoint (sr_sal, NULL, bp_step_resume);
+		if (breakpoints_inserted)
+		  insert_breakpoints ();
+	      }
+	    else
+	      {
+		/* We just stepped out of a signal handler and into
+                   its calling trampoline.
+
+                   Normally, we'd jump to step_over_function from
+                   here, but for some reason GDB can't unwind the
+                   stack correctly to find the real PC for the point
+                   user code where the signal trampoline will return
+                   -- FRAME_SAVED_PC fails, at least on HP-UX 10.20.
+                   But signal trampolines are pretty small stubs of
+                   code, anyway, so it's OK instead to just
+                   single-step out.  Note: assuming such trampolines
+                   don't exhibit recursion on any platform... */
+		find_pc_partial_function (stop_pc, &stop_func_name,
+					  &stop_func_start,
+					  &stop_func_end);
+		/* Readjust stepping range */
+		step_range_start = stop_func_start;
+		step_range_end = stop_func_end;
+		stepping_through_sigtramp = 1;
+	      }
 	  }
+
 
 	  /* If this is stepi or nexti, make sure that the stepping range
 	     gets us past that instruction.  */
@@ -1204,11 +2339,12 @@ wait_for_inferior ()
 	}
 
 #if 0
-      /* I disabled this test because it was too complicated and slow.  The
-	 SKIP_PROLOGUE was especially slow, because it caused unnecessary
-	 prologue examination on various architectures.  The code in the #else
-	 clause has been tested on the Sparc, Mips, PA, and Power
-	 architectures, so it's pretty likely to be correct.  -Stu 10/24/95 */
+      /* I disabled this test because it was too complicated and slow.
+	 The SKIP_PROLOGUE was especially slow, because it caused
+	 unnecessary prologue examination on various architectures.
+	 The code in the #else clause has been tested on the Sparc,
+	 Mips, PA, and Power architectures, so it's pretty likely to
+	 be correct.  -Stu 10/24/95 */
 
       /* See if we left the step range due to a subroutine call that
 	 we should proceed to the end of.  */
@@ -1227,61 +2363,64 @@ wait_for_inferior ()
 	    SKIP_PROLOGUE (prologue_pc);
 	}
 
-      if ((/* Might be a non-recursive call.  If the symbols are missing
-	      enough that stop_func_start == prev_func_start even though
-	      they are really two functions, we will treat some calls as
-	      jumps.  */
-	   stop_func_start != prev_func_start
+      if (!(INNER_THAN (step_sp, read_sp ()))	/* don't mistake (sig)return
+						   as a call */
+	  && (			/* Might be a non-recursive call.  If the symbols are missing
+		 enough that stop_func_start == prev_func_start even though
+		 they are really two functions, we will treat some calls as
+		 jumps.  */
+	       stop_func_start != prev_func_start
 
-	   /* Might be a recursive call if either we have a prologue
-	      or the call instruction itself saves the PC on the stack.  */
-	   || prologue_pc != stop_func_start
-	   || read_sp () != step_sp)
-	  && (/* PC is completely out of bounds of any known objfiles.  Treat
+      /* Might be a recursive call if either we have a prologue
+		 or the call instruction itself saves the PC on the stack.  */
+	       || prologue_pc != stop_func_start
+	       || read_sp () != step_sp)
+	  && (			/* PC is completely out of bounds of any known objfiles.  Treat
 		 like a subroutine call. */
-	      ! stop_func_start
+	       !stop_func_start
 
-	      /* If we do a call, we will be at the start of a function...  */
-	      || stop_pc == stop_func_start
+      /* If we do a call, we will be at the start of a function...  */
+	       || stop_pc == stop_func_start
 
-	      /* ...except on the Alpha with -O (and also Irix 5 and
+      /* ...except on the Alpha with -O (and also Irix 5 and
 		 perhaps others), in which we might call the address
 		 after the load of gp.  Since prologues don't contain
 		 calls, we can't return to within one, and we don't
 		 jump back into them, so this check is OK.  */
 
-	      || stop_pc < prologue_pc
+	       || stop_pc < prologue_pc
 
-	      /* ...and if it is a leaf function, the prologue might
+      /* ...and if it is a leaf function, the prologue might
  		 consist of gp loading only, so the call transfers to
  		 the first instruction after the prologue.  */
- 	      || (stop_pc == prologue_pc
+	       || (stop_pc == prologue_pc
 
-		  /* Distinguish this from the case where we jump back
+      /* Distinguish this from the case where we jump back
 		     to the first instruction after the prologue,
 		     within a function.  */
 		   && stop_func_start != prev_func_start)
 
-	      /* If we end up in certain places, it means we did a subroutine
+      /* If we end up in certain places, it means we did a subroutine
 		 call.  I'm not completely sure this is necessary now that we
 		 have the above checks with stop_func_start (and now that
 		 find_pc_partial_function is pickier).  */
-	      || IN_SOLIB_CALL_TRAMPOLINE (stop_pc, stop_func_name)
+	       || IN_SOLIB_CALL_TRAMPOLINE (stop_pc, stop_func_name)
 
-	      /* If none of the above apply, it is a jump within a function,
+      /* If none of the above apply, it is a jump within a function,
 		 or a return from a subroutine.  The other case is longjmp,
 		 which can no longer happen here as long as the
 		 handling_longjmp stuff is working.  */
-	      ))
+	  ))
 #else
-	/* This test is a much more streamlined, (but hopefully correct)
+      /* This test is a much more streamlined, (but hopefully correct)
 	   replacement for the code above.  It's been tested on the Sparc,
 	   Mips, PA, and Power architectures with good results.  */
 
-	if (stop_pc == stop_func_start /* Quick test */
-	    || in_prologue (stop_pc, stop_func_start)
-	    || IN_SOLIB_CALL_TRAMPOLINE (stop_pc, stop_func_name)
-	    || stop_func_start == 0)
+      if (stop_pc == stop_func_start	/* Quick test */
+	  || (in_prologue (stop_pc, stop_func_start) &&
+	      !IN_SOLIB_RETURN_TRAMPOLINE (stop_pc, stop_func_name))
+	  || IN_SOLIB_CALL_TRAMPOLINE (stop_pc, stop_func_name)
+	  || stop_func_name == 0)
 #endif
 
 	{
@@ -1296,7 +2435,7 @@ wait_for_inferior ()
 	      break;
 	    }
 
-	  if (step_over_calls > 0)
+	  if (step_over_calls > 0 || IGNORE_HELPER_CALL (stop_pc))
 	    /* We're doing a "next".  */
 	    goto step_over_function;
 
@@ -1314,11 +2453,12 @@ wait_for_inferior ()
 	      if (tmp)
 		{
 		  struct symtab_and_line xxx;
-
+		  /* Why isn't this s_a_l called "sr_sal", like all of the
+		     other s_a_l's where this code is duplicated?  */
+		  INIT_SAL (&xxx);	/* initialize to zeroes */
 		  xxx.pc = tmp;
-		  xxx.symtab = NULL;
-		  xxx.line = 0;
-		  step_resume_breakpoint = 
+		  xxx.section = find_pc_overlay (xxx.pc);
+		  step_resume_breakpoint =
 		    set_momentary_breakpoint (xxx, NULL, bp_step_resume);
 		  insert_breakpoints ();
 		  goto keep_going;
@@ -1339,26 +2479,62 @@ wait_for_inferior ()
 	      goto step_into_function;
 	  }
 
-step_over_function:
+	step_over_function:
 	  /* A subroutine call has happened.  */
 	  {
 	    /* Set a special breakpoint after the return */
 	    struct symtab_and_line sr_sal;
-	    sr_sal.pc = 
-	      ADDR_BITS_REMOVE
-		(SAVED_PC_AFTER_CALL (get_current_frame ()));
+
+	    INIT_SAL (&sr_sal);
 	    sr_sal.symtab = NULL;
 	    sr_sal.line = 0;
+
+	    /* If we came here after encountering a signal in the middle of
+               a "next", use the stashed-away previous frame pc */
+	    sr_sal.pc
+	      = stopped_by_random_signal
+	      ? prev_pc
+	      : ADDR_BITS_REMOVE (SAVED_PC_AFTER_CALL (get_current_frame ()));
+
 	    step_resume_breakpoint =
-	      set_momentary_breakpoint (sr_sal, get_current_frame (),
+	      set_momentary_breakpoint (sr_sal,
+					stopped_by_random_signal ?
+					NULL : get_current_frame (),
 					bp_step_resume);
-	    step_resume_breakpoint->frame = step_frame_address;
+
+	    /* We've just entered a callee, and we wish to resume until
+               it returns to the caller.  Setting a step_resume bp on
+               the return PC will catch a return from the callee.
+
+               However, if the callee is recursing, we want to be
+               careful not to catch returns of those recursive calls,
+               but of THIS instance of the call.
+
+               To do this, we set the step_resume bp's frame to our
+               current caller's frame (step_frame_address, which is
+               set by the "next" or "until" command, before execution
+               begins).
+
+               But ... don't do it if we're single-stepping out of a
+               sigtramp, because the reason we're single-stepping is
+               precisely because unwinding is a problem (HP-UX 10.20,
+               e.g.) and the frame address is likely to be incorrect.
+               No danger of sigtramp recursion.  */
+
+	    if (stepping_through_sigtramp)
+	      {
+		step_resume_breakpoint->frame = (CORE_ADDR) NULL;
+		stepping_through_sigtramp = 0;
+	      }
+	    else if (!IN_SOLIB_DYNSYM_RESOLVE_CODE (sr_sal.pc))
+	      step_resume_breakpoint->frame = step_frame_address;
+
 	    if (breakpoints_inserted)
 	      insert_breakpoints ();
 	  }
 	  goto keep_going;
 
-step_into_function:
+	step_into_function:
 	  /* Subroutine call with source code we should not step over.
 	     Do step to the first line of code in it.  */
 	  {
@@ -1394,9 +2570,9 @@ step_into_function:
 	    {
 	      struct symtab_and_line sr_sal;
 
+	      INIT_SAL (&sr_sal);	/* initialize to zeroes */
 	      sr_sal.pc = stop_func_start;
-	      sr_sal.symtab = NULL;
-	      sr_sal.line = 0;
+	      sr_sal.section = find_pc_overlay (stop_func_start);
 	      /* Do not specify what the fp should be when we stop
 		 since on some machines the prologue
 		 is where the new fp value is established.  */
@@ -1413,7 +2589,7 @@ step_into_function:
 
       /* We've wandered out of the step range.  */
 
-      sal = find_pc_line(stop_pc, 0);
+      sal = find_pc_line (stop_pc, 0);
 
       if (step_range_end == 1)
 	{
@@ -1425,7 +2601,7 @@ step_into_function:
 
       /* If we're in the return path from a shared library trampoline,
 	 we want to proceed through the trampoline when stepping.  */
-      if (IN_SOLIB_RETURN_TRAMPOLINE(stop_pc, stop_func_name))
+      if (IN_SOLIB_RETURN_TRAMPOLINE (stop_pc, stop_func_name))
 	{
 	  CORE_ADDR tmp;
 
@@ -1438,9 +2614,9 @@ step_into_function:
 	      /* And put the step-breakpoint there and go until there. */
 	      struct symtab_and_line sr_sal;
 
+	      INIT_SAL (&sr_sal);	/* initialize to zeroes */
 	      sr_sal.pc = tmp;
-	      sr_sal.symtab = NULL;
-	      sr_sal.line = 0;
+	      sr_sal.section = find_pc_overlay (sr_sal.pc);
 	      /* Do not specify what the fp should be when we stop
 		 since on some machines the prologue
 		 is where the new fp value is established.  */
@@ -1454,7 +2630,7 @@ step_into_function:
 	      goto keep_going;
 	    }
 	}
-	 
+
       if (sal.line == 0)
 	{
 	  /* We have no line number information.  That means to stop
@@ -1465,7 +2641,7 @@ step_into_function:
 	  break;
 	}
 
-      if (stop_pc == sal.pc
+      if ((stop_pc == sal.pc)
 	  && (current_line != sal.line || current_symtab != sal.symtab))
 	{
 	  /* We are at the start of a different line.  So stop.  Note that
@@ -1480,7 +2656,7 @@ step_into_function:
 
 	 Optimize by setting the stepping range to the line.
 	 (We might not be in the original line, but if we entered a
-	 new line in mid-statement, we continue stepping.  This makes 
+	 new line in mid-statement, we continue stepping.  This makes
 	 things like for(;;) statements work better.)  */
 
       if (stop_func_end && sal.end >= stop_func_end)
@@ -1495,12 +2671,27 @@ step_into_function:
 	}
       step_range_start = sal.pc;
       step_range_end = sal.end;
+      step_frame_address = FRAME_FP (get_current_frame ());
+      current_line = sal.line;
+      current_symtab = sal.symtab;
+
+      /* In the case where we just stepped out of a function into the middle
+         of a line of the caller, continue stepping, but step_frame_address
+         must be modified to current frame */
+      {
+	CORE_ADDR current_frame = FRAME_FP (get_current_frame ());
+	if (!(INNER_THAN (current_frame, step_frame_address)))
+	  step_frame_address = current_frame;
+      }
+
+
       goto keep_going;
 
     check_sigtramp2:
       if (trap_expected
 	  && IN_SIGTRAMP (stop_pc, stop_func_name)
-	  && !IN_SIGTRAMP (prev_pc, prev_func_name))
+	  && !IN_SIGTRAMP (prev_pc, prev_func_name)
+	  && INNER_THAN (read_sp (), step_sp))
 	{
 	  /* What has happened here is that we have just stepped the inferior
 	     with a signal (because it is a signal which shouldn't make
@@ -1514,9 +2705,9 @@ step_into_function:
 	     it says "exceedingly difficult").  */
 	  struct symtab_and_line sr_sal;
 
+	  INIT_SAL (&sr_sal);	/* initialize to zeroes */
 	  sr_sal.pc = prev_pc;
-	  sr_sal.symtab = NULL;
-	  sr_sal.line = 0;
+	  sr_sal.section = find_pc_overlay (sr_sal.pc);
 	  /* We perhaps could set the frame if we kept track of what
 	     the frame corresponding to prev_pc was.  But we don't,
 	     so don't.  */
@@ -1534,9 +2725,20 @@ step_into_function:
 	 It's really much cleaner to do a goto than a maze of if-else
 	 conditions.  */
 
+      /* ??rehrauer: ttrace on HP-UX theoretically allows one to debug
+         a vforked child beetween its creation and subsequent exit or
+         call to exec().  However, I had big problems in this rather
+         creaky exec engine, getting that to work.  The fundamental
+         problem is that I'm trying to debug two processes via an
+         engine that only understands a single process with possibly
+         multiple threads.
+
+         Hence, this spot is known to have problems when
+         target_can_follow_vfork_prior_to_exec returns 1. */
+
       /* Save the pc before execution, to compare with pc after stop.  */
       prev_pc = read_pc ();	/* Might have been DECR_AFTER_BREAK */
-      prev_func_start = stop_func_start; /* Ok, since if DECR_PC_AFTER
+      prev_func_start = stop_func_start;	/* Ok, since if DECR_PC_AFTER
 					  BREAK is defined, the
 					  original pc would not have
 					  been at the start of a
@@ -1591,29 +2793,67 @@ step_into_function:
 
 	  trap_expected = another_trap;
 
-	  if (stop_signal == TARGET_SIGNAL_TRAP)
+          /* Do not deliver SIGNAL_TRAP (except when the user
+	     explicitly specifies that such a signal should be
+	     delivered to the target program).
+
+	     Typically, this would occure when a user is debugging a
+	     target monitor on a simulator: the target monitor sets a
+	     breakpoint; the simulator encounters this break-point and
+	     halts the simulation handing control to GDB; GDB, noteing
+	     that the break-point isn't valid, returns control back to
+	     the simulator; the simulator then delivers the hardware
+	     equivalent of a SIGNAL_TRAP to the program being
+	     debugged. */
+
+	  if (stop_signal == TARGET_SIGNAL_TRAP
+	      && !signal_program[stop_signal])
 	    stop_signal = TARGET_SIGNAL_0;
 
 #ifdef SHIFT_INST_REGS
-	  /* I'm not sure when this following segment applies.  I do know, now,
-	     that we shouldn't rewrite the regs when we were stopped by a
-	     random signal from the inferior process.  */
+	  /* I'm not sure when this following segment applies.  I do know,
+	     now, that we shouldn't rewrite the regs when we were stopped
+	     by a random signal from the inferior process.  */
 	  /* FIXME: Shouldn't this be based on the valid bit of the SXIP?
 	     (this is only used on the 88k).  */
 
-          if (!bpstat_explains_signal (stop_bpstat)
-	      && (stop_signal != TARGET_SIGNAL_CHLD) 
-              && !stopped_by_random_signal)
-            SHIFT_INST_REGS();
+	  if (!bpstat_explains_signal (stop_bpstat)
+	      && (stop_signal != TARGET_SIGNAL_CHLD)
+	      && !stopped_by_random_signal)
+	    SHIFT_INST_REGS ();
 #endif /* SHIFT_INST_REGS */
 
 	  resume (CURRENTLY_STEPPING (), stop_signal);
 	}
     }
 
- stop_stepping:
+stop_stepping:
   if (target_has_execution)
     {
+      /* Are we stopping for a vfork event?  We only stop when we see
+         the child's event.  However, we may not yet have seen the
+         parent's event.  And, inferior_pid is still set to the parent's
+         pid, until we resume again and follow either the parent or child.
+
+         To ensure that we can really touch inferior_pid (aka, the
+         parent process) -- which calls to functions like read_pc
+         implicitly do -- wait on the parent if necessary. */
+      if ((pending_follow.kind == TARGET_WAITKIND_VFORKED)
+	  && !pending_follow.fork_event.saw_parent_fork)
+	{
+	  int parent_pid;
+
+	  do
+	    {
+	      if (target_wait_hook)
+		parent_pid = target_wait_hook (-1, &w);
+	      else
+		parent_pid = target_wait (-1, &w);
+	    }
+	  while (parent_pid != inferior_pid);
+	}
+
+
       /* Assuming the inferior still exists, set these up for next
 	 time, just like we did above if we didn't break out of the
 	 loop.  */
@@ -1623,7 +2863,73 @@ step_into_function:
     }
   do_cleanups (old_cleanups);
 }
+
+/* This function returns TRUE if ep is an internal breakpoint
+   set to catch generic shared library (aka dynamically-linked
+   library) events.  (This is *NOT* the same as a catchpoint for a
+   shlib event.  The latter is something a user can set; this is
+   something gdb sets for its own use, and isn't ever shown to a
+   user.) */
+static int
+is_internal_shlib_eventpoint (ep)
+     struct breakpoint *ep;
+{
+  return
+    (ep->type == bp_shlib_event)
+    ;
+}
+
+/* This function returns TRUE if bs indicates that the inferior
+   stopped due to a shared library (aka dynamically-linked library)
+   event. */
+static int
+stopped_for_internal_shlib_event (bs)
+     bpstat bs;
+{
+  /* Note that multiple eventpoints may've caused the stop.  Any
+     that are associated with shlib events will be accepted. */
+  for (; bs != NULL; bs = bs->next)
+    {
+      if ((bs->breakpoint_at != NULL)
+	  && is_internal_shlib_eventpoint (bs->breakpoint_at))
+	return 1;
+    }
+
+  /* If we get here, then no candidate was found. */
+  return 0;
+}
+
+/* This function returns TRUE if bs indicates that the inferior
+   stopped due to a shared library (aka dynamically-linked library)
+   event caught by a catchpoint.
+
+   If TRUE, cp_p is set to point to the catchpoint.
+
+   Else, the value of cp_p is undefined. */
+static int
+stopped_for_shlib_catchpoint (bs, cp_p)
+     bpstat bs;
+     struct breakpoint **cp_p;
+{
+  /* Note that multiple eventpoints may've caused the stop.  Any
+     that are associated with shlib events will be accepted. */
+  *cp_p = NULL;
+
+  for (; bs != NULL; bs = bs->next)
+    {
+      if ((bs->breakpoint_at != NULL)
+	  && ep_is_shlib_catchpoint (bs->breakpoint_at))
+	{
+	  *cp_p = bs->breakpoint_at;
+	  return 1;
+	}
+    }
+
+  /* If we get here, then no candidate was found. */
+  return 0;
+}
 
+
 /* Here to return control to GDB when the inferior stops for real.
    Print appropriate messages, remove breakpoints, give terminal our modes.
 
@@ -1635,12 +2941,30 @@ step_into_function:
 void
 normal_stop ()
 {
+
+#ifdef HPUXHPPA
+  /* As with the notification of thread events, we want to delay
+     notifying the user that we've switched thread context until
+     the inferior actually stops.
+
+     (Note that there's no point in saying anything if the inferior
+     has exited!) */
+  if ((switched_from_inferior_pid != inferior_pid) &&
+      target_has_execution)
+    {
+      target_terminal_ours_for_output ();
+      printf_filtered ("[Switched to %s]\n",
+		       target_pid_or_tid_to_str (inferior_pid));
+      switched_from_inferior_pid = inferior_pid;
+    }
+#endif
+
   /* Make sure that the current_frame's pc is correct.  This
      is a correction for setting up the frame info before doing
      DECR_PC_AFTER_BREAK */
-  if (target_has_execution && get_current_frame())
+  if (target_has_execution && get_current_frame ())
     (get_current_frame ())->pc = read_pc ();
-  
+
   if (breakpoints_failed)
     {
       target_terminal_ours_for_output ();
@@ -1650,14 +2974,16 @@ The same program may be running in another process.\n");
     }
 
   if (target_has_execution && breakpoints_inserted)
-    if (remove_breakpoints ())
-      {
-	target_terminal_ours_for_output ();
-	printf_filtered ("Cannot remove breakpoints because program is no longer writable.\n\
-It might be running in another process.\n\
-Further execution is probably impossible.\n");
-      }
-
+    {
+      if (remove_breakpoints ())
+	{
+	  target_terminal_ours_for_output ();
+	  printf_filtered ("Cannot remove breakpoints because ");
+	  printf_filtered ("program is no longer writable.\n");
+	  printf_filtered ("It might be running in another process.\n");
+	  printf_filtered ("Further execution is probably impossible.\n");
+	}
+    }
   breakpoints_inserted = 0;
 
   /* Delete the breakpoint we stopped at, if it wants to be deleted.
@@ -1671,46 +2997,80 @@ Further execution is probably impossible.\n");
   if (stopped_by_random_signal)
     disable_current_display ();
 
+  /* Don't print a message if in the middle of doing a "step n"
+     operation for n > 1 */
   if (step_multi && stop_step)
     goto done;
 
   target_terminal_ours ();
 
-  if (stop_bpstat
-      && stop_bpstat->breakpoint_at
-      && stop_bpstat->breakpoint_at->type == bp_shlib_event)
-    printf_filtered ("Stopped due to shared library event\n");
+  /* Did we stop because the user set the stop_on_solib_events
+     variable?  (If so, we report this as a generic, "Stopped due
+     to shlib event" message.) */
+  if (stopped_for_internal_shlib_event (stop_bpstat))
+    {
+      printf_filtered ("Stopped due to shared library event\n");
+    }
 
   /* Look up the hook_stop and run it if it exists.  */
 
-  if (stop_command->hook)
+  if (stop_command && stop_command->hook)
     {
-      catch_errors (hook_stop_stub, (char *)stop_command->hook,
+      catch_errors (hook_stop_stub, stop_command->hook,
 		    "Error while running hook_stop:\n", RETURN_MASK_ALL);
     }
 
   if (!target_has_stack)
-    goto done;
+    {
 
-  /* Select innermost stack frame except on return from a stack dummy routine,
-     or if the program has exited.  Print it without a level number if
-     we have changed functions or hit a breakpoint.  Print source line
-     if we have one.  */
+      goto done;
+    }
+
+  /* Select innermost stack frame - i.e., current frame is frame 0,
+     and current location is based on that.
+     Don't do this on return from a stack dummy routine,
+     or if the program has exited. */
+
   if (!stop_stack_dummy)
     {
       select_frame (get_current_frame (), 0);
 
+      /* Print current location without a level number, if
+	 we have changed functions or hit a breakpoint.
+	 Print source line if we have one.
+	 bpstat_print() contains the logic deciding in detail
+	 what to print, based on the event(s) that just occurred. */
+
       if (stop_print_frame)
 	{
-	  int source_only;
+	  int bpstat_ret;
+	  int source_flag;
 
-	  source_only = bpstat_print (stop_bpstat);
-	  source_only = source_only ||
-	        (   stop_step
-		 && step_frame_address == FRAME_FP (get_current_frame ())
-		 && step_start_function == find_pc_function (stop_pc));
+	  bpstat_ret = bpstat_print (stop_bpstat);
+	  /* bpstat_print() returned one of:
+             -1: Didn't print anything
+              0: Printed preliminary "Breakpoint n, " message, desires
+                 location tacked on
+              1: Printed something, don't tack on location */
 
-          print_stack_frame (selected_frame, -1, source_only? -1: 1);
+	  if (bpstat_ret == -1)
+	    if (stop_step
+		&& step_frame_address == FRAME_FP (get_current_frame ())
+		&& step_start_function == find_pc_function (stop_pc))
+	      source_flag = -1;	/* finished step, just print source line */
+	    else
+	      source_flag = 1;	/* print location and source line */
+	  else if (bpstat_ret == 0)	/* hit bpt, desire location */
+	    source_flag = 1;	/* print location and source line */
+	  else			/* bpstat_ret == 1, hit bpt, do not desire location */
+	    source_flag = -1;	/* just print source line */
+
+	  /* The behavior of this routine with respect to the source
+	     flag is:
+	     -1: Print only source line
+	     0: Print only location
+	     1: Print location and source line */
+	  show_and_print_stack_frame (selected_frame, -1, source_flag);
 
 	  /* Display the auto-display expressions.  */
 	  do_displays ();
@@ -1728,37 +3088,44 @@ Further execution is probably impossible.\n");
          POP_FRAME ends with a setting of the current frame, so we
 	 can use that next. */
       POP_FRAME;
-      /* Set stop_pc to what it was before we called the function.  Can't rely
-	 on restore_inferior_status because that only gets called if we don't
-	 stop in the called function.  */
-      stop_pc = read_pc();
+      /* Set stop_pc to what it was before we called the function.
+	 Can't rely on restore_inferior_status because that only gets
+	 called if we don't stop in the called function.  */
+      stop_pc = read_pc ();
       select_frame (get_current_frame (), 0);
     }
- done:
+
+
+  TUIDO (((TuiOpaqueFuncPtr) tui_vCheckDataValues, selected_frame));
+
+done:
   annotate_stopped ();
 }
 
 static int
 hook_stop_stub (cmd)
-     char *cmd;
+     PTR cmd;
 {
-  execute_user_command ((struct cmd_list_element *)cmd, 0);
+  execute_user_command ((struct cmd_list_element *) cmd, 0);
   return (0);
 }
 
-int signal_stop_state (signo)
+int 
+signal_stop_state (signo)
      int signo;
 {
   return signal_stop[signo];
 }
 
-int signal_print_state (signo)
+int 
+signal_print_state (signo)
      int signo;
 {
   return signal_print[signo];
 }
 
-int signal_pass_state (signo)
+int 
+signal_pass_state (signo)
      int signo;
 {
   return signal_program[signo];
@@ -1776,8 +3143,12 @@ sig_print_info (oursig)
      enum target_signal oursig;
 {
   char *name = target_signal_to_name (oursig);
+  int name_padding = 13 - strlen (name);
+  if (name_padding <= 0)
+    name_padding = 0;
+
   printf_filtered ("%s", name);
-  printf_filtered ("%*.*s ", 13 - strlen (name), 13 - strlen (name),
+  printf_filtered ("%*.*s ", name_padding, name_padding,
 		   "                 ");
   printf_filtered ("%s\t", signal_stop[oursig] ? "Yes" : "No");
   printf_filtered ("%s\t", signal_print[oursig] ? "Yes" : "No");
@@ -1808,7 +3179,7 @@ handle_command (args, from_tty)
 
   /* Allocate and zero an array of flags for which signals to handle. */
 
-  nsigs = (int)TARGET_SIGNAL_LAST;
+  nsigs = (int) TARGET_SIGNAL_LAST;
   sigs = (unsigned char *) alloca (nsigs);
   memset (sigs, 0, nsigs);
 
@@ -1819,7 +3190,7 @@ handle_command (args, from_tty)
     {
       nomem (0);
     }
-  old_chain = make_cleanup (freeargv, (char *) argv);
+  old_chain = make_cleanup ((make_cleanup_func) freeargv, (char *) argv);
 
   /* Walk through the args, looking for signal oursigs, signal names, and
      actions.  Signal numbers and signal names may be interspersed with
@@ -1829,7 +3200,9 @@ handle_command (args, from_tty)
   while (*argv != NULL)
     {
       wordlen = strlen (*argv);
-      for (digits = 0; isdigit ((*argv)[digits]); digits++) {;}
+      for (digits = 0; isdigit ((*argv)[digits]); digits++)
+	{;
+	}
       allsigs = 0;
       sigfirst = siglast = -1;
 
@@ -1877,17 +3250,18 @@ handle_command (args, from_tty)
 	}
       else if (digits > 0)
 	{
-	  /* It is numeric.  The numeric signal refers to our own internal
-	     signal numbering from target.h, not to host/target signal number.
-	     This is a feature; users really should be using symbolic names
-	     anyway, and the common ones like SIGHUP, SIGINT, SIGALRM, etc.
-	     will work right anyway.  */
+	  /* It is numeric.  The numeric signal refers to our own
+	     internal signal numbering from target.h, not to host/target
+	     signal  number.  This is a feature; users really should be
+	     using symbolic names anyway, and the common ones like
+	     SIGHUP, SIGINT, SIGALRM, etc. will work right anyway.  */
 
-	  sigfirst = siglast = (int) target_signal_from_command (atoi (*argv));
+	  sigfirst = siglast = (int)
+	    target_signal_from_command (atoi (*argv));
 	  if ((*argv)[digits] == '-')
 	    {
-	      siglast =
-		(int) target_signal_from_command (atoi ((*argv) + digits + 1));
+	      siglast = (int)
+		target_signal_from_command (atoi ((*argv) + digits + 1));
 	    }
 	  if (sigfirst > siglast)
 	    {
@@ -1902,7 +3276,7 @@ handle_command (args, from_tty)
 	  oursig = target_signal_from_name (*argv);
 	  if (oursig != TARGET_SIGNAL_UNKNOWN)
 	    {
-	      sigfirst = siglast = (int)oursig;
+	      sigfirst = siglast = (int) oursig;
 	    }
 	  else
 	    {
@@ -1916,41 +3290,41 @@ handle_command (args, from_tty)
 
       for (signum = sigfirst; signum >= 0 && signum <= siglast; signum++)
 	{
-	  switch ((enum target_signal)signum)
+	  switch ((enum target_signal) signum)
 	    {
-	      case TARGET_SIGNAL_TRAP:
-	      case TARGET_SIGNAL_INT:
-	        if (!allsigs && !sigs[signum])
-		  {
-		    if (query ("%s is used by the debugger.\n\
+	    case TARGET_SIGNAL_TRAP:
+	    case TARGET_SIGNAL_INT:
+	      if (!allsigs && !sigs[signum])
+		{
+		  if (query ("%s is used by the debugger.\n\
 Are you sure you want to change it? ",
-			       target_signal_to_name
-			       ((enum target_signal)signum)))
-		      {
-			sigs[signum] = 1;
-		      }
-		    else
-		      {
-			printf_unfiltered ("Not confirmed, unchanged.\n");
-			gdb_flush (gdb_stdout);
-		      }
-		  }
-		break;
-	      case TARGET_SIGNAL_0:
-	      case TARGET_SIGNAL_DEFAULT:
-	      case TARGET_SIGNAL_UNKNOWN:
-		/* Make sure that "all" doesn't print these.  */
-		break;
-	      default:
-		sigs[signum] = 1;
-		break;
+			     target_signal_to_name
+			     ((enum target_signal) signum)))
+		    {
+		      sigs[signum] = 1;
+		    }
+		  else
+		    {
+		      printf_unfiltered ("Not confirmed, unchanged.\n");
+		      gdb_flush (gdb_stdout);
+		    }
+		}
+	      break;
+	    case TARGET_SIGNAL_0:
+	    case TARGET_SIGNAL_DEFAULT:
+	    case TARGET_SIGNAL_UNKNOWN:
+	      /* Make sure that "all" doesn't print these.  */
+	      break;
+	    default:
+	      sigs[signum] = 1;
+	      break;
 	    }
 	}
 
       argv++;
     }
 
-  target_notice_signals(inferior_pid);
+  target_notice_signals (inferior_pid);
 
   if (from_tty)
     {
@@ -1965,6 +3339,75 @@ Are you sure you want to change it? ",
 	}
     }
 
+  do_cleanups (old_chain);
+}
+
+static void
+xdb_handle_command (args, from_tty)
+     char *args;
+     int from_tty;
+{
+  char **argv;
+  struct cleanup *old_chain;
+
+  /* Break the command line up into args. */
+
+  argv = buildargv (args);
+  if (argv == NULL)
+    {
+      nomem (0);
+    }
+  old_chain = make_cleanup ((make_cleanup_func) freeargv, (char *) argv);
+  if (argv[1] != (char *) NULL)
+    {
+      char *argBuf;
+      int bufLen;
+
+      bufLen = strlen (argv[0]) + 20;
+      argBuf = (char *) xmalloc (bufLen);
+      if (argBuf)
+	{
+	  int validFlag = 1;
+	  enum target_signal oursig;
+
+	  oursig = target_signal_from_name (argv[0]);
+	  memset (argBuf, 0, bufLen);
+	  if (strcmp (argv[1], "Q") == 0)
+	    sprintf (argBuf, "%s %s", argv[0], "noprint");
+	  else
+	    {
+	      if (strcmp (argv[1], "s") == 0)
+		{
+		  if (!signal_stop[oursig])
+		    sprintf (argBuf, "%s %s", argv[0], "stop");
+		  else
+		    sprintf (argBuf, "%s %s", argv[0], "nostop");
+		}
+	      else if (strcmp (argv[1], "i") == 0)
+		{
+		  if (!signal_program[oursig])
+		    sprintf (argBuf, "%s %s", argv[0], "pass");
+		  else
+		    sprintf (argBuf, "%s %s", argv[0], "nopass");
+		}
+	      else if (strcmp (argv[1], "r") == 0)
+		{
+		  if (!signal_print[oursig])
+		    sprintf (argBuf, "%s %s", argv[0], "print");
+		  else
+		    sprintf (argBuf, "%s %s", argv[0], "noprint");
+		}
+	      else
+		validFlag = 0;
+	    }
+	  if (validFlag)
+	    handle_command (argBuf, from_tty);
+	  else
+	    printf_filtered ("Invalid signal handling flag.\n");
+	  if (argBuf)
+	    free (argBuf);
+	}
+    }
   do_cleanups (old_chain);
 }
 
@@ -1998,8 +3441,8 @@ signals_info (signum_exp, from_tty)
   printf_filtered ("\n");
   /* These ugly casts brought to you by the native VAX compiler.  */
   for (oursig = TARGET_SIGNAL_FIRST;
-       (int)oursig < (int)TARGET_SIGNAL_LAST;
-       oursig = (enum target_signal)((int)oursig + 1))
+       (int) oursig < (int) TARGET_SIGNAL_LAST;
+       oursig = (enum target_signal) ((int) oursig + 1))
     {
       QUIT;
 
@@ -2033,7 +3476,7 @@ save_inferior_status (inf_status, restore_stack_info)
   inf_status->step_over_calls = step_over_calls;
   inf_status->stop_after_trap = stop_after_trap;
   inf_status->stop_soon_quietly = stop_soon_quietly;
-  /* Save original bpstat chain here; replace it with copy of chain. 
+  /* Save original bpstat chain here; replace it with copy of chain.
      If caller's caller is walking the chain, they'll be happier if we
      hand them back the original chain when restore_i_s is called.  */
   inf_status->stop_bpstat = stop_bpstat;
@@ -2041,7 +3484,7 @@ save_inferior_status (inf_status, restore_stack_info)
   inf_status->breakpoint_proceeded = breakpoint_proceeded;
   inf_status->restore_stack_info = restore_stack_info;
   inf_status->proceed_to_finish = proceed_to_finish;
-  
+
   memcpy (inf_status->stop_registers, stop_registers, REGISTER_BYTES);
 
   read_register_bytes (0, inf_status->registers, REGISTER_BYTES);
@@ -2051,12 +3494,13 @@ save_inferior_status (inf_status, restore_stack_info)
   return;
 }
 
-struct restore_selected_frame_args {
+struct restore_selected_frame_args
+{
   CORE_ADDR frame_address;
   int level;
 };
 
-static int restore_selected_frame PARAMS ((char *));
+static int restore_selected_frame PARAMS ((PTR));
 
 /* Restore the selected frame.  args is really a struct
    restore_selected_frame_args * (declared as char * for catch_errors)
@@ -2065,10 +3509,10 @@ static int restore_selected_frame PARAMS ((char *));
 
 static int
 restore_selected_frame (args)
-     char *args;
+     PTR args;
 {
   struct restore_selected_frame_args *fr =
-    (struct restore_selected_frame_args *) args;
+  (struct restore_selected_frame_args *) args;
   struct frame_info *frame;
   int level = fr->level;
 
@@ -2077,14 +3521,22 @@ restore_selected_frame (args)
   /* If inf_status->selected_frame_address is NULL, there was no
      previously selected frame.  */
   if (frame == NULL ||
-      FRAME_FP (frame) != fr->frame_address ||
+  /*  FRAME_FP (frame) != fr->frame_address || */
+  /* elz: deleted this check as a quick fix to the problem that
+	 for function called by hand gdb creates no internal frame
+	 structure and the real stack and gdb's idea of stack are
+	 different if nested calls by hands are made.
+
+	 mvs: this worries me.  */
       level != 0)
     {
       warning ("Unable to restore previously selected frame.\n");
       return 0;
     }
+
   select_frame (frame, fr->level);
-  return(1);
+
+  return (1);
 }
 
 void
@@ -2138,16 +3590,40 @@ restore_inferior_status (inf_status)
 			RETURN_MASK_ERROR) == 0)
 	/* Error in restoring the selected frame.  Select the innermost
 	   frame.  */
+
+
 	select_frame (get_current_frame (), 0);
+
     }
 }
-
 
+
+
+void
+set_follow_fork_mode_command (arg, from_tty, c)
+     char *arg;
+     int from_tty;
+     struct cmd_list_element *c;
+{
+  if (!STREQ (arg, "parent") &&
+      !STREQ (arg, "child") &&
+      !STREQ (arg, "both") &&
+      !STREQ (arg, "ask"))
+    error ("follow-fork-mode must be one of \"parent\", \"child\", \"both\" or \"ask\".");
+
+  if (follow_fork_mode_string != NULL)
+    free (follow_fork_mode_string);
+  follow_fork_mode_string = savestring (arg, strlen (arg));
+}
+
+
+
 void
 _initialize_infrun ()
 {
   register int i;
   register int numsigs;
+  struct cmd_list_element *c;
 
   add_info ("signals", signals_info,
 	    "What debugger does when program gets various signals.\n\
@@ -2162,21 +3638,44 @@ from 1-15 are allowed for compatibility with old versions of GDB.\n\
 Numeric ranges may be specified with the form LOW-HIGH (e.g. 1-5).\n\
 The special arg \"all\" is recognized to mean all signals except those\n\
 used by the debugger, typically SIGTRAP and SIGINT.\n",
-"Recognized actions include \"stop\", \"nostop\", \"print\", \"noprint\",\n\
+		   "Recognized actions include \"stop\", \"nostop\", \"print\", \"noprint\",\n\
 \"pass\", \"nopass\", \"ignore\", or \"noignore\".\n\
 Stop means reenter debugger if this signal happens (implies print).\n\
 Print means print a message if this signal happens.\n\
 Pass means let program see this signal; otherwise program doesn't know.\n\
 Ignore is a synonym for nopass and noignore is a synonym for pass.\n\
 Pass and Stop may be combined.", NULL));
+  if (xdb_commands)
+    {
+      add_com ("lz", class_info, signals_info,
+	       "What debugger does when program gets various signals.\n\
+Specify a signal as argument to print info on that signal only.");
+      add_com ("z", class_run, xdb_handle_command,
+	       concat ("Specify how to handle a signal.\n\
+Args are signals and actions to apply to those signals.\n\
+Symbolic signals (e.g. SIGSEGV) are recommended but numeric signals\n\
+from 1-15 are allowed for compatibility with old versions of GDB.\n\
+Numeric ranges may be specified with the form LOW-HIGH (e.g. 1-5).\n\
+The special arg \"all\" is recognized to mean all signals except those\n\
+used by the debugger, typically SIGTRAP and SIGINT.\n",
+		       "Recognized actions include \"s\" (toggles between stop and nostop), \n\
+\"r\" (toggles between print and noprint), \"i\" (toggles between pass and \
+nopass), \"Q\" (noprint)\n\
+Stop means reenter debugger if this signal happens (implies print).\n\
+Print means print a message if this signal happens.\n\
+Pass means let program see this signal; otherwise program doesn't know.\n\
+Ignore is a synonym for nopass and noignore is a synonym for pass.\n\
+Pass and Stop may be combined.", NULL));
+    }
 
-  stop_command = add_cmd ("stop", class_obscure, not_just_help_class_command,
-	   "There is no `stop' command, but you can set a hook on `stop'.\n\
+  if (!dbx_commands)
+    stop_command = add_cmd ("stop", class_obscure, not_just_help_class_command,
+			    "There is no `stop' command, but you can set a hook on `stop'.\n\
 This allows you to set a list of commands to be run each time execution\n\
 of the program stops.", &cmdlist);
 
-  numsigs = (int)TARGET_SIGNAL_LAST;
-  signal_stop = (unsigned char *)    
+  numsigs = (int) TARGET_SIGNAL_LAST;
+  signal_stop = (unsigned char *)
     xmalloc (sizeof (signal_stop[0]) * numsigs);
   signal_print = (unsigned char *)
     xmalloc (sizeof (signal_print[0]) * numsigs);
@@ -2209,16 +3708,68 @@ of the program stops.", &cmdlist);
   signal_print[TARGET_SIGNAL_POLL] = 0;
   signal_stop[TARGET_SIGNAL_URG] = 0;
   signal_print[TARGET_SIGNAL_URG] = 0;
+  signal_stop[TARGET_SIGNAL_WINCH] = 0;
+  signal_print[TARGET_SIGNAL_WINCH] = 0;
 
 #ifdef SOLIB_ADD
   add_show_from_set
     (add_set_cmd ("stop-on-solib-events", class_support, var_zinteger,
-                  (char *) &stop_on_solib_events,
+		  (char *) &stop_on_solib_events,
 		  "Set stopping for shared library events.\n\
 If nonzero, gdb will give control to the user when the dynamic linker\n\
 notifies gdb of shared library events.  The most common event of interest\n\
 to the user would be loading/unloading of a new library.\n",
-                  &setlist),
+		  &setlist),
      &showlist);
 #endif
+
+  c = add_set_enum_cmd ("follow-fork-mode",
+			class_run,
+			follow_fork_mode_kind_names,
+			(char *) &follow_fork_mode_string,
+/* ??rehrauer:  The "both" option is broken, by what may be a 10.20
+   kernel problem.  It's also not terribly useful without a GUI to
+   help the user drive two debuggers.  So for now, I'm disabling
+   the "both" option.  */
+/*			"Set debugger response to a program call of fork \
+or vfork.\n\
+A fork or vfork creates a new process.  follow-fork-mode can be:\n\
+  parent  - the original process is debugged after a fork\n\
+  child   - the new process is debugged after a fork\n\
+  both    - both the parent and child are debugged after a fork\n\
+  ask     - the debugger will ask for one of the above choices\n\
+For \"both\", another copy of the debugger will be started to follow\n\
+the new child process.  The original debugger will continue to follow\n\
+the original parent process.  To distinguish their prompts, the\n\
+debugger copy's prompt will be changed.\n\
+For \"parent\" or \"child\", the unfollowed process will run free.\n\
+By default, the debugger will follow the parent process.",
+*/
+			"Set debugger response to a program call of fork \
+or vfork.\n\
+A fork or vfork creates a new process.  follow-fork-mode can be:\n\
+  parent  - the original process is debugged after a fork\n\
+  child   - the new process is debugged after a fork\n\
+  ask     - the debugger will ask for one of the above choices\n\
+For \"parent\" or \"child\", the unfollowed process will run free.\n\
+By default, the debugger will follow the parent process.",
+			&setlist);
+/*  c->function.sfunc = ;*/
+  add_show_from_set (c, &showlist);
+
+  set_follow_fork_mode_command ("parent", 0, NULL);
+
+  c = add_set_enum_cmd ("scheduler-locking", class_run,
+			scheduler_enums,	/* array of string names */
+			(char *) &scheduler_mode,	/* current mode  */
+			"Set mode for locking scheduler during execution.\n\
+off  == no locking (threads may preempt at any time)\n\
+on   == full locking (no thread except the current thread may run)\n\
+step == scheduler locked during every single-step operation.\n\
+	In this mode, no other thread may run during a step command.\n\
+	Other threads may run while stepping over a function call ('next').",
+			&setlist);
+
+  c->function.sfunc = set_schedlock_func;	/* traps on target vector */
+  add_show_from_set (c, &showlist);
 }

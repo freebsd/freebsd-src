@@ -18,8 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "server.h"
+#include "terminal.h"
 #include <stdio.h>
-#include <sgtty.h>
+#include <string.h>
+#include <sys/ioctl.h>
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -27,8 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <netinet/tcp.h>
 #include <sys/ioctl.h>
 #include <signal.h>
+#include <fcntl.h>
 
-static int kiodebug = 0;
+int remote_debug = 0;
+
 static int remote_desc;
 
 /* Open a connection to a remote debugger.
@@ -38,7 +42,7 @@ void
 remote_open (name)
      char *name;
 {
-  struct sgttyb sg;
+  int save_fcntl_flags;
 
   if (!strchr (name, ':'))
     {
@@ -46,9 +50,51 @@ remote_open (name)
       if (remote_desc < 0)
 	perror_with_name ("Could not open remote device");
 
-      ioctl (remote_desc, TIOCGETP, &sg);
-      sg.sg_flags = RAW;
-      ioctl (remote_desc, TIOCSETP, &sg);
+#ifdef HAVE_TERMIOS
+      {
+	struct termios termios;
+	tcgetattr(remote_desc, &termios);
+
+	termios.c_iflag = 0;
+	termios.c_oflag = 0;
+	termios.c_lflag = 0;
+	termios.c_cflag &= ~(CSIZE|PARENB);
+	termios.c_cflag |= CLOCAL | CS8;
+	termios.c_cc[VMIN] = 0;
+	termios.c_cc[VTIME] = 0;
+
+	tcsetattr(remote_desc, TCSANOW, &termios);
+      }
+#endif
+
+#ifdef HAVE_TERMIO
+      {
+	struct termio termio;
+	ioctl (remote_desc, TCGETA, &termio);
+
+	termio.c_iflag = 0;
+	termio.c_oflag = 0;
+	termio.c_lflag = 0;
+	termio.c_cflag &= ~(CSIZE|PARENB);
+	termio.c_cflag |= CLOCAL | CS8;
+	termio.c_cc[VMIN] = 0;
+	termio.c_cc[VTIME] = 0;
+
+	ioctl (remote_desc, TCSETA, &termio);
+      }
+#endif
+
+#ifdef HAVE_SGTTY
+      {
+	struct sgttyb sg;
+
+	ioctl (remote_desc, TIOCGETP, &sg);
+	sg.sg_flags = RAW;
+	ioctl (remote_desc, TIOCSETP, &sg);
+      }
+#endif
+
+
     }
   else
     {
@@ -105,8 +151,11 @@ remote_open (name)
 				    exits when the remote side dies.  */
     }
 
-  fcntl (remote_desc, F_SETFL, FASYNC);
-
+#if defined(F_SETFL) && defined (FASYNC)
+  save_fcntl_flags = fcntl (remote_desc, F_GETFL, 0);
+  fcntl (remote_desc, F_SETFL, save_fcntl_flags | FASYNC);
+  disable_async_io ();
+#endif /* FASYNC */
   fprintf (stderr, "Remote debugging using %s\n", name);
 }
 
@@ -171,6 +220,8 @@ putpkt (buf)
   *p++ = tohex ((csum >> 4) & 0xf);
   *p++ = tohex (csum & 0xf);
 
+  *p = '\0';
+
   /* Send it over and over until we get a positive ack.  */
 
   do
@@ -183,7 +234,11 @@ putpkt (buf)
 	  return -1;
 	}
 
+      if (remote_debug)
+	printf ("putpkt (\"%s\"); [looking for ack]\n", buf2);
       cc = read (remote_desc, buf3, 1);
+      if (remote_debug)
+	printf ("[received '%c' (0x%x)]\n", buf3[0], buf3[0]);
       if (cc <= 0)
 	{
 	  if (cc == 0)
@@ -282,6 +337,8 @@ getpkt (buf)
 	  c = readchar ();
 	  if (c == '$')
 	    break;
+	  if (remote_debug)
+	    printf ("[getpkt: discarding char '%c']\n", c);
 	  if (c < 0)
 	    return -1;
 	}
@@ -301,6 +358,7 @@ getpkt (buf)
 
       c1 = fromhex (readchar ());
       c2 = fromhex (readchar ());
+      
       if (csum == (c1 << 4) + c2)
 	break;
 
@@ -309,7 +367,13 @@ getpkt (buf)
       write (remote_desc, "-", 1);
     }
 
+  if (remote_debug)
+    printf ("getpkt (\"%s\");  [sending ack] \n", buf);
+
   write (remote_desc, "+", 1);
+
+  if (remote_debug)
+    printf ("[sent ack]\n");
   return bp - buf;
 }
 
@@ -371,25 +435,25 @@ outreg(regno, buf)
      char *buf;
 {
   extern char registers[];
+  int regsize = REGISTER_RAW_SIZE (regno);
 
   *buf++ = tohex (regno >> 4);
   *buf++ = tohex (regno & 0xf);
   *buf++ = ':';
-  convert_int_to_ascii (&registers[REGISTER_BYTE (regno)], buf, 4);
-  buf += 8;
+  convert_int_to_ascii (&registers[REGISTER_BYTE (regno)], buf, regsize);
+  buf += 2 * regsize;
   *buf++ = ';';
 
   return buf;
 }
 
 void
-prepare_resume_reply (buf, status, signal)
+prepare_resume_reply (buf, status, signo)
      char *buf;
      char status;
-     unsigned char signal;
+     unsigned char signo;
 {
   int nib;
-  char ch;
 
   *buf++ = status;
 
@@ -397,9 +461,9 @@ prepare_resume_reply (buf, status, signal)
      according to the signal numbering of the system we are running on)
      to the signal numbers used by the gdb protocol (see enum target_signal
      in gdb/target.h).  */
-  nib = ((signal & 0xf0) >> 4);
+  nib = ((signo & 0xf0) >> 4);
   *buf++ = tohex (nib);
-  nib = signal & 0x0f;
+  nib = signo & 0x0f;
   *buf++ = tohex (nib);
 
   if (status == 'T')
@@ -433,7 +497,8 @@ prepare_resume_reply (buf, status, signal)
 void
 decode_m_packet (from, mem_addr_ptr, len_ptr)
      char *from;
-     unsigned int *mem_addr_ptr, *len_ptr;
+     CORE_ADDR *mem_addr_ptr;
+     unsigned int *len_ptr;
 {
   int i = 0, j = 0;
   char ch;
@@ -457,9 +522,10 @@ decode_m_packet (from, mem_addr_ptr, len_ptr)
 void
 decode_M_packet (from, mem_addr_ptr, len_ptr, to)
      char *from, *to;
-     unsigned int *mem_addr_ptr, *len_ptr;
+     CORE_ADDR *mem_addr_ptr;
+     unsigned int *len_ptr;
 {
-  int i = 0, j = 0;
+  int i = 0;
   char ch;
   *mem_addr_ptr = *len_ptr = 0;
 
