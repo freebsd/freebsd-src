@@ -43,7 +43,18 @@
 
 #include <sys/types.h>
 
-struct link_map {
+/*
+ * Flags that describe the origin of the entries in Dl_serinfo.
+ * SunOS has these in <sys/link.h>, we follow the suit.
+ */
+#define	LA_SER_ORIG	0x01	/* original (needed) name */
+#define	LA_SER_LIBPATH	0x02	/* LD_LIBRARY_PATH entry prepended */
+#define	LA_SER_RUNPATH	0x04	/* runpath entry prepended */
+#define	LA_SER_CONFIG	0x08	/* configuration entry prepended */
+#define	LA_SER_DEFAULT	0x40	/* default path prepended */
+#define	LA_SER_SECURE	0x80	/* default (secure) path prepended */
+
+typedef struct link_map {
 	caddr_t		l_addr;			/* Base Address of library */
 #ifdef __mips__
 	caddr_t		l_offs;			/* Load Offset of library */
@@ -51,7 +62,7 @@ struct link_map {
 	const char	*l_name;		/* Absolute Path to Library */
 	const void	*l_ld;			/* Pointer to .dynamic in memory */
 	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
-};
+} Link_map;
 
 struct r_debug {
 	int		r_version;		/* not used */
