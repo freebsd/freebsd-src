@@ -1,0 +1,6 @@
+$FreeBSD$
+
+WARNING: Collating table can't be in the free form, but backward
+compatible with ASCII only, i.e. other symbols can be added to
+the existen ASCII order.
+
