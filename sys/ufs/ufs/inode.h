@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.2 1994/08/02 07:54:49 davidg Exp $
+ * $Id: inode.h,v 1.3 1994/08/21 07:16:15 paul Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
-#define _UFS_UFS_INODE_H_
+#define	_UFS_UFS_INODE_H_
 
 #include <ufs/ufs/dinode.h>
 
@@ -141,17 +141,25 @@ struct indir {
 #define VTOI(vp)	((struct inode *)(vp)->v_data)
 #define ITOV(ip)	((ip)->i_vnode)
 
+/*
+ * XXX this is too long to be a macro, and isn't used in any time-critical
+ * place; in fact it is only used in ufs_vnops.c so it shouldn't be in a
+ * header file.
+ */
 #define	ITIMES(ip, t1, t2) {						\
+	long tv_sec = time.tv_sec;					\
 	if ((ip)->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) {	\
 		(ip)->i_flag |= IN_MODIFIED;				\
 		if ((ip)->i_flag & IN_ACCESS)				\
-			(ip)->i_atime.ts_sec = (t1)->tv_sec;		\
+			(ip)->i_atime.ts_sec				\
+			= ((t1) == &time ? tv_sec : (t1)->tv_sec);	\
 		if ((ip)->i_flag & IN_UPDATE) {				\
-			(ip)->i_mtime.ts_sec = (t2)->tv_sec;		\
+			(ip)->i_mtime.ts_sec				\
+			= ((t2) == &time ? tv_sec : (t2)->tv_sec);	\
 			(ip)->i_modrev++;				\
 		}							\
 		if ((ip)->i_flag & IN_CHANGE)				\
-			(ip)->i_ctime.ts_sec = time.tv_sec;		\
+			(ip)->i_ctime.ts_sec = tv_sec;			\
 		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
 	}								\
 }
@@ -163,6 +171,6 @@ struct ufid {
 	ino_t	ufid_ino;	/* File number (ino). */
 	long	ufid_gen;	/* Generation number. */
 };
-
-#endif
 #endif /* KERNEL */
+
+#endif /* !_UFS_UFS_INODE_H_ */
