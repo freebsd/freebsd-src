@@ -46,6 +46,7 @@
 #include <sys/poll.h>
 
 #include <sys/bus.h>
+#include <sys/ctype.h>
 #include <machine/bus.h>
 
 #include <sys/ioccom.h>
@@ -82,7 +83,8 @@ struct cdevsw firewire_cdevsw =
 	.d_flags =	D_MEM
 #else
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
-	fw_poll, fw_mmap, nostrategy, "fw", CDEV_MAJOR, nodump, nopsize, D_MEM
+	fw_poll, fw_mmap, nostrategy, "fw", CDEV_MAJOR,
+	nodump, nopsize, D_MEM, -1
 #endif
 };
 
@@ -159,9 +161,6 @@ fwdev_freebuf(struct fw_xferq *q)
 static int
 fw_open (dev_t dev, int flags, int fmt, fw_proc *td)
 {
-	int unit = DEV2UNIT(dev);
-	int sub = DEV2SUB(dev);
-
 	int err = 0;
 
 	if (dev->si_drv1 != NULL)
@@ -171,11 +170,15 @@ fw_open (dev_t dev, int flags, int fmt, fw_proc *td)
 		return fwmem_open(dev, flags, fmt, td);
 
 #if __FreeBSD_version >= 500000
-	if ((dev->si_flags & SI_NAMED) == 0)
-#endif
+	if ((dev->si_flags & SI_NAMED) == 0) {
+		int unit = DEV2UNIT(dev);
+		int sub = DEV2SUB(dev);
+
 		make_dev(&firewire_cdevsw, minor(dev),
 			UID_ROOT, GID_OPERATOR, 0660,
 			"fw%d.%d", unit, sub);
+	}
+#endif
 
 	dev->si_drv1 = malloc(sizeof(struct fw_drv1), M_FW, M_WAITOK | M_ZERO);
 
@@ -718,7 +721,7 @@ fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
 fw_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 #endif
 {  
-	struct firewire_softc *fc;
+	struct firewire_softc *sc;
 	int unit = DEV2UNIT(dev);
 
 	if (DEV_FWMEM(dev))
@@ -728,7 +731,91 @@ fw_mmap (dev_t dev, vm_offset_t offset, vm_paddr_t *paddr, int nproto)
 		return fwmem_mmap(dev, offset, paddr, nproto);
 #endif
 
-	fc = devclass_get_softc(firewire_devclass, unit);
+	sc = devclass_get_softc(firewire_devclass, unit);
 
 	return EINVAL;
 }
+
+int
+fwdev_makedev(struct firewire_softc *sc)
+{
+	int err = 0;
+
+#if __FreeBSD_version >= 500000
+	dev_t d;
+	int unit;
+
+	unit = device_get_unit(sc->fc->bdev);
+	sc->dev = make_dev(&firewire_cdevsw, MAKEMINOR(0, unit, 0),
+			UID_ROOT, GID_OPERATOR, 0660,
+			"fw%d.%d", unit, 0);
+	d = make_dev(&firewire_cdevsw,
+			MAKEMINOR(FWMEM_FLAG, unit, 0),
+			UID_ROOT, GID_OPERATOR, 0660,
+			"fwmem%d.%d", unit, 0);
+	dev_depends(sc->dev, d);
+	make_dev_alias(sc->dev, "fw%d", unit);
+	make_dev_alias(d, "fwmem%d", unit);
+#else
+	cdevsw_add(&firewire_cdevsw);
+#endif
+
+	return (err);
+}
+
+int
+fwdev_destroydev(struct firewire_softc *sc)
+{
+	int err = 0;
+
+#if __FreeBSD_version >= 500000
+	destroy_dev(sc->dev);
+#else
+	cdevsw_remove(&firewire_cdevsw);
+#endif
+	return (err);
+}
+
+#if __FreeBSD_version >= 500000
+#define NDEVTYPE 2
+void
+fwdev_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	struct firewire_softc *sc;
+	char *devnames[NDEVTYPE] = {"fw", "fwmem"};
+	char *subp = NULL;
+	int devflag[NDEVTYPE] = {0, FWMEM_FLAG};
+	int i, unit = 0, sub = 0;
+
+	if (*dev != NODEV)
+		return;
+
+	for (i = 0; i < NDEVTYPE; i++)
+		if (dev_stdclone(name, &subp, devnames[i], &unit) != 1)
+			goto found;
+	/* not match */
+	return;
+found:
+
+	if (subp == NULL || *subp++ != '.')
+		return;
+
+	/* /dev/fwU.S */
+	while (isdigit(*subp)) {
+		sub *= 10;
+		sub += *subp++ - '0';
+	}
+	if (*subp != '\0')
+		return;
+
+	sc = devclass_get_softc(firewire_devclass, unit);
+	if (sc == NULL)
+		return;
+	*dev = make_dev(&firewire_cdevsw, MAKEMINOR(devflag[i], unit, sub),
+		       UID_ROOT, GID_OPERATOR, 0660,
+		       "%s%d.%d", devnames[i], unit, sub);
+	(*dev)->si_flags |= SI_CHEAPCLONE;
+	dev_depends(sc->dev, *dev);
+	return;
+}
+#endif
