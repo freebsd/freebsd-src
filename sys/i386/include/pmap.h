@@ -42,28 +42,36 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.36 1996/04/30 12:02:11 phk Exp $
+ * 	$Id: pmap.h,v 1.37 1996/05/02 14:20:04 phk Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
-#define	PG_V		0x00000001
-#define PG_RW		0x00000002
-#define PG_u		0x00000004
-#define	PG_PROT		0x00000006 /* all protection bits . */
-#define	PG_NC_PWT	0x00000008 /* page cache write through */
-#define	PG_NC_PCD	0x00000010 /* page cache disable */
-#define PG_N		0x00000018 /* Non-cacheable */
-#define PG_U		0x00000020 /* page was accessed */
-#define	PG_M		0x00000040 /* page was modified */
-#define	PG_PS		0x00000080 /* page is big size */
-#define	PG_G		0x00000100 /* page is global */
-#define PG_W		0x00000200 /* "Wired" pseudoflag */
-#define	PG_FRAME	0xfffff000
+/*
+ * Page-directory and page-table entires follow this format, with a few
+ * of the fields not present here and there, depending on a lot of things.
+ */
+				/* ---- Intel Nomenclature ---- */
+#define	PG_V		0x001	/* P	Valid			*/
+#define PG_RW		0x002	/* R/W	Read/Write		*/
+#define PG_U		0x004	/* U/S  User/Supervisor		*/
+#define	PG_NC_PWT	0x008	/* PWT	Write through		*/
+#define	PG_NC_PCD	0x010	/* PCD	Cache disable		*/
+#define PG_A		0x020	/* A	Accessed		*/
+#define	PG_M		0x040	/* D	Dirty			*/
+#define	PG_PS		0x080	/* PS	Page size (0=4k,1=4M)	*/
+#define	PG_G		0x100	/* G	Global			*/
+#define	PG_AVAIL1	0x200	/*    /	Available for system	*/
+#define	PG_AVAIL2	0x400	/*   <	programmers use		*/
+#define	PG_AVAIL3	0x800	/*    \				*/
 
-#define	PG_KR		0x00000000
-#define	PG_KW		0x00000002
+
+/* Our various interpretations of the above */
+#define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
+#define	PG_FRAME	(~PAGE_MASK)
+#define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
+#define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
 /*
  * Page Protection Exception bits
@@ -78,14 +86,6 @@
  */
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
-/*
- * NKPDE controls the virtual space of the kernel, what ever is left, minus
- * the alternate page table area is given to the user (NUPDE)
- */
-/*
- * NKPDE controls the virtual space of the kernel, what ever is left is
- * given to the user (NUPDE)
- */
 #ifndef NKPT
 #if 0
 #define	NKPT			26	/* actual number of kernel page tables */
@@ -108,6 +108,12 @@
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
 #define KSTKPTEOFF	(NPTEPG-UPAGES) /* pte entry for kernel stack */
+
+/*
+ * XXX doesn't really belong here I guess...
+ */
+#define ISA_HOLE_START    0xa0000
+#define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
 
 #ifndef LOCORE
 typedef unsigned int *pd_entry_t;
@@ -151,7 +157,7 @@ static __inline vm_offset_t
 pmap_kextract(vm_offset_t va)
 {
 	vm_offset_t pa = *(int *)vtopte(va);
-	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
+	pa = (pa & PG_FRAME) | (va & PAGE_MASK);
 	return pa;
 }
 #endif
