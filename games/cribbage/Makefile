@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	cribbage
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
@@ -10,7 +11,9 @@ HIDEGAME=hidegame
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	  ${.CURDIR}/cribbage.n  ${DESTDIR}${SHAREDIR}/games/cribbage.instr
+.if !exists(${DESTDIR}/var/games/criblog)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/criblog
+.endif
 
 .include <bsd.prog.mk>

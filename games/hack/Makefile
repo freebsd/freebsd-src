@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	hack
 SRCS=	alloc.c hack.Decl.c hack.apply.c hack.bones.c hack.c hack.cmd.c \
@@ -31,14 +32,16 @@ makedefs: makedefs.o
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
+.if !exists(${DESTDIR}/var/games/hackdir/record)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
+.endif
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
 	    ${DESTDIR}/var/games/hackdir
-	rm -f ${DESTDIR}/var/games/hackdir/bones* \
-	    ${DESTDIR}/var/games/hackdir/save/*
+#	rm -f ${DESTDIR}/var/games/hackdir/bones* \
+#	    ${DESTDIR}/var/games/hackdir/save/*
 
 .include <bsd.prog.mk>
