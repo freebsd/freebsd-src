@@ -224,6 +224,16 @@ Configures
 .Pa vn0c
 and enables swapping on it.
 .Pp
+.Dl vnconfig -c -v /dev/vn0 cdimage.iso
+.Dl mount -t cd9660 -o ro /dev/vn0 /mnt
+.Pp
+Mount an ISO9660 CD image file.
+.Pp
+.Dl umount /mnt
+.Dl vnconfig -u vn0c
+.Pp
+Unmount the CD image file.
+.Pp
 .Dl vnconfig -d vn0c myfilesystem mount=/mnt
 .Pp
 Unmounts (disables)
