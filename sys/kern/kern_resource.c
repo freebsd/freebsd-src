@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-static int donice(struct thread *td, struct proc *chgp, int n);
 
 static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
@@ -68,7 +67,8 @@ static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
-static struct uidinfo	*uilookup(uid_t uid);
+static int	donice(struct thread *td, struct proc *chgp, int n);
+static struct uidinfo *uilookup(uid_t uid);
 
 /*
  * Resource controls and accounting.
@@ -89,6 +89,7 @@ getpriority(td, uap)
 	register struct getpriority_args *uap;
 {
 	struct proc *p;
+	struct pgrp *pg;
 	int error, low;
 
 	error = 0;
@@ -102,16 +103,13 @@ getpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
-			if (p_cansee(td, p) == 0) {
+			if (p_cansee(td, p) == 0)
 				low = p->p_nice;
-			}
 			PROC_UNLOCK(p);
 		}
 		break;
 
-	case PRIO_PGRP: {
-		register struct pgrp *pg;
-
+	case PRIO_PGRP:
 		sx_slock(&proctree_lock);
 		if (uap->who == 0) {
 			pg = td->td_proc->p_pgrp;
@@ -134,7 +132,6 @@ getpriority(td, uap)
 		}
 		PGRP_UNLOCK(pg);
 		break;
-	}
 
 	case PRIO_USER:
 		if (uap->who == 0)
@@ -175,10 +172,10 @@ struct setpriority_args {
 int
 setpriority(td, uap)
 	struct thread *td;
-	register struct setpriority_args *uap;
+	struct setpriority_args *uap;
 {
-	struct proc *curp;
-	register struct proc *p;
+	struct proc *curp, *p;
+	struct pgrp *pg;
 	int found = 0, error = 0;
 
 	curp = td->td_proc;
@@ -199,9 +196,7 @@ setpriority(td, uap)
 		found++;
 		break;
 
-	case PRIO_PGRP: {
-		register struct pgrp *pg;
-
+	case PRIO_PGRP:
 		sx_slock(&proctree_lock);
 		if (uap->who == 0) {
 			pg = curp->p_pgrp;
@@ -224,7 +219,6 @@ setpriority(td, uap)
 		}
 		PGRP_UNLOCK(pg);
 		break;
-	}
 
 	case PRIO_USER:
 		if (uap->who == 0)
@@ -251,7 +245,7 @@ setpriority(td, uap)
 	return (error);
 }
 
-/* 
+/*
  * Set "nice" for a (whole) process.
  */
 static int
@@ -266,7 +260,7 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
- 	if (n <  p->p_nice && suser(td) != 0)
+ 	if (n < p->p_nice && suser(td) != 0)
 		return (EACCES);
 	mtx_lock_spin(&sched_lock);
 	sched_nice(p, n);
@@ -275,7 +269,7 @@ donice(struct thread *td, struct proc *p, int n)
 }
 
 /*
- * Set realtime priority
+ * Set realtime priority.
  *
  * MPSAFE
  */
@@ -322,9 +316,9 @@ rtprio(td, uap)
 		/*
 		 * Return OUR priority if no pid specified,
 		 * or if one is, report the highest priority
-		 * in the process. There isn't much more you can do as 
+		 * in the process.  There isn't much more you can do as 
 		 * there is only room to return a single priority.
-		 * XXXKSE  Maybe need a new interface to report 
+		 * XXXKSE: maybe need a new interface to report 
 		 * priorities of multiple system scope threads.
 		 * Note: specifying our own pid is not the same
 		 * as leaving it zero.
@@ -338,9 +332,9 @@ rtprio(td, uap)
 			rtp.prio = RTP_PRIO_MAX;
 			FOREACH_KSEGRP_IN_PROC(p, kg) {
 				pri_to_rtp(kg, &rtp2);
-				if ((rtp2.type <  rtp.type) ||
-				    ((rtp2.type == rtp.type) &&
-				     (rtp2.prio < rtp.prio))) {
+				if (rtp2.type <  rtp.type ||
+				    (rtp2.type == rtp.type &&
+				    rtp2.prio < rtp.prio)) {
 					rtp.type = rtp2.type;
 					rtp.prio = rtp2.prio;
 				}
@@ -352,7 +346,8 @@ rtprio(td, uap)
 	case RTP_SET:
 		if ((error = p_cansched(td, p)) || (error = cierror))
 			break;
-		/* disallow setting rtprio in most cases if not superuser */
+
+		/* Disallow setting rtprio in most cases if not superuser. */
 		if (suser(td) != 0) {
 			/* can't set someone else's */
 			if (uap->pid) {
@@ -362,26 +357,28 @@ rtprio(td, uap)
 			/* can't set realtime priority */
 /*
  * Realtime priority has to be restricted for reasons which should be
- * obvious. However, for idle priority, there is a potential for
+ * obvious.  However, for idle priority, there is a potential for
  * system deadlock if an idleprio process gains a lock on a resource
  * that other processes need (and the idleprio process can't run
- * due to a CPU-bound normal process). Fix me! XXX
+ * due to a CPU-bound normal process).  Fix me!  XXX
  */
 #if 0
- 			if (RTP_PRIO_IS_REALTIME(rtp.type))
-#endif
+ 			if (RTP_PRIO_IS_REALTIME(rtp.type)) {
+#else
 			if (rtp.type != RTP_PRIO_NORMAL) {
+#endif
 				error = EPERM;
 				break;
 			}
 		}
-		mtx_lock_spin(&sched_lock);
+
 		/*
 		 * If we are setting our own priority, set just our
 		 * KSEGRP but if we are doing another process,
 		 * do all the groups on that process. If we
 		 * specify our own pid we do the latter.
 		 */
+		mtx_lock_spin(&sched_lock);
 		if (uap->pid == 0) {
 			error = rtp_to_pri(&rtp, td->td_ksegrp);
 		} else {
@@ -577,7 +574,7 @@ kern_setrlimit(td, which, limp)
 			PROC_UNLOCK(p);
 			lim_free(newlim);
 			return (error);
-	}
+		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
 	lim_copy(newlim, oldlim);
@@ -648,13 +645,12 @@ kern_setrlimit(td, which, limp)
 			} else {
 				prot = VM_PROT_NONE;
 				size = oldssiz - limp->rlim_cur;
-				addr = p->p_sysent->sv_usrstack -
-				    oldssiz;
+				addr = p->p_sysent->sv_usrstack - oldssiz;
 			}
 			addr = trunc_page(addr);
 			size = round_page(size);
-			(void) vm_map_protect(&p->p_vmspace->vm_map,
-					      addr, addr+size, prot, FALSE);
+			(void)vm_map_protect(&p->p_vmspace->vm_map,
+			    addr, addr + size, prot, FALSE);
 			mtx_unlock(&Giant);
 		}
 	}
@@ -687,7 +683,7 @@ getrlimit(td, uap)
 	lim_rlimit(p, uap->which, &rlim);
 	PROC_UNLOCK(p);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
-	return(error);
+	return (error);
 }
 
 /*
@@ -873,8 +869,7 @@ lim_alloc()
 {
 	struct plimit *limp;
 
-	limp = (struct plimit *)malloc(sizeof(struct plimit), M_PLIMIT,
-	    M_WAITOK);
+	limp = malloc(sizeof(struct plimit), M_PLIMIT, M_WAITOK);
 	limp->pl_refcnt = 1;
 	limp->pl_mtx = mtx_pool_alloc(mtxpool_sleep);
 	return (limp);
@@ -1138,7 +1133,7 @@ chgsbsize(uip, hiwat, to, max)
 
 	UIDINFO_LOCK(uip);
 	new = uip->ui_sbsize + to - *hiwat;
-	/* Don't allow them to exceed max, but allow subtraction */
+	/* Don't allow them to exceed max, but allow subtraction. */
 	if (to > *hiwat && new > max) {
 		UIDINFO_UNLOCK(uip);
 		return (0);
