@@ -130,7 +130,11 @@ archive_write_set_format_shar(struct archive *a)
 int
 archive_write_set_format_shar_dump(struct archive *a)
 {
+	struct shar *shar;
+
 	archive_write_set_format_shar(a);
+	shar = a->format_data;
+	shar->dump = 1;
 	a->format_write_data = archive_write_shar_data_uuencode;
 	a->archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
 	a->archive_format_name = "shar dump";
