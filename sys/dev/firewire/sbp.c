@@ -43,6 +43,9 @@
 #include <machine/bus.h>
 #include <sys/malloc.h>
 
+#if __FreeBSD_version < 500106
+#include <sys/devicestat.h>	/* for struct devstat */
+#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
