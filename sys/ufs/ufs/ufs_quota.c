@@ -62,16 +62,16 @@ static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
  */
 static char *quotatypes[] = INITQFNAMES;
 
-static int chkdqchg __P((struct inode *, long, struct ucred *, int));
-static int chkiqchg __P((struct inode *, long, struct ucred *, int));
-static int dqget __P((struct vnode *,
-		u_long, struct ufsmount *, int, struct dquot **));
-static int dqsync __P((struct vnode *, struct dquot *));
-static void dqflush __P((struct vnode *));
+static int chkdqchg(struct inode *, long, struct ucred *, int);
+static int chkiqchg(struct inode *, long, struct ucred *, int);
+static int dqget(struct vnode *,
+		u_long, struct ufsmount *, int, struct dquot **);
+static int dqsync(struct vnode *, struct dquot *);
+static void dqflush(struct vnode *);
 
 #ifdef DIAGNOSTIC
-static void dqref __P((struct dquot *));
-static void chkdquot __P((struct inode *));
+static void dqref(struct dquot *);
+static void chkdquot(struct inode *);
 #endif
 
 /*

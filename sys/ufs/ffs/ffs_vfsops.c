@@ -66,10 +66,10 @@
 
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
-static int	ffs_sbupdate __P((struct ufsmount *, int));
-int	ffs_reload __P((struct mount *,struct ucred *,struct thread *));
-static int	ffs_oldfscompat __P((struct fs *));
-static int	ffs_init __P((struct vfsconf *));
+static int	ffs_sbupdate(struct ufsmount *, int);
+int	ffs_reload(struct mount *,struct ucred *,struct thread *);
+static int	ffs_oldfscompat(struct fs *);
+static int	ffs_init(struct vfsconf *);
 
 static struct vfsops ufs_vfsops = {
 	ffs_mount,

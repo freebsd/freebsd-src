@@ -79,19 +79,19 @@
 #include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 
-static int ext2_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
+static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 
-static int ext2_fsync __P((struct vop_fsync_args *));
-static int ext2_read __P((struct vop_read_args *));
-static int ext2_write __P((struct vop_write_args *));
-static int ext2_remove __P((struct vop_remove_args *));
-static int ext2_link __P((struct vop_link_args *));
-static int ext2_rename __P((struct vop_rename_args *));
-static int ext2_mkdir __P((struct vop_mkdir_args *));
-static int ext2_rmdir __P((struct vop_rmdir_args *));
-static int ext2_create __P((struct vop_create_args *));
-static int ext2_mknod __P((struct vop_mknod_args *));
-static int ext2_symlink __P((struct vop_symlink_args *));
+static int ext2_fsync(struct vop_fsync_args *);
+static int ext2_read(struct vop_read_args *);
+static int ext2_write(struct vop_write_args *);
+static int ext2_remove(struct vop_remove_args *);
+static int ext2_link(struct vop_link_args *);
+static int ext2_rename(struct vop_rename_args *);
+static int ext2_mkdir(struct vop_mkdir_args *);
+static int ext2_rmdir(struct vop_rmdir_args *);
+static int ext2_create(struct vop_create_args *);
+static int ext2_mknod(struct vop_mknod_args *);
+static int ext2_symlink(struct vop_symlink_args *);
 
 /* Global vfs data structures for ufs. */
 vop_t **ext2_vnodeop_p;
