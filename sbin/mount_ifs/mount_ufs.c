@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mount_ufs.c	8.2 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,6 +51,8 @@ static char sccsid[] = "@(#)mount_ufs.c	8.2 (Berkeley) 3/27/94";
 #include <string.h>
 #include <unistd.h>
 
+#include <ufs/ufs/ufsmount.h>
+
 #include "mntopts.h"
 
 void	ufs_usage __P((void));
@@ -61,8 +63,7 @@ static struct mntopt mopts[] = {
 	MOPT_SYNC,
 	MOPT_FORCE,
 	MOPT_UPDATE,
-	MOPT_UQUOTA,
-	MOPT_GQUOTA,
+	MOPT_FORCE,
 	{ NULL }
 };
 
@@ -75,7 +76,8 @@ mount_ufs(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags;
 	char *fs_name;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error = 0;
 
 	mntflags = 0;
 	optind = optreset = 1;		/* Reset for parse of new argv. */
@@ -104,21 +106,21 @@ mount_ufs(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	setvfsent(0);
-	if(!(vfc = getvfsbyname("ufs"))) {
-		if(vfsisloadable("ufs")) {
-			if(vfsload("ufs")) {
-				warn("vfsload(\"ufs\")");
-				return 1;
-			}
-			endvfsent(); /* flush old table */
-			vfc = getvfsbyname("ufs");
-		} else {
-			/*warnx("ufs: filesystem not found");*/
+	error = getvfsbyname("ufs", &vfc);
+	if (error && vfsisloadable("ufs")) {
+		if (vfsload("ufs")) {
+			warn("vfsload(ufs)");
+			return (1);
 		}
+		endvfsent(); /* flush old table */
+		error = getvfsbyname("ufs", &vfc);
+	}
+	if (error) {
+		warnx("ufs filesystem is not available");
+		return (1);
 	}
 
-	if (mount(vfc ? vfc->vfc_index : MOUNT_UFS, fs_name, mntflags, &args) < 0) {
+	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0) {
 		(void)fprintf(stderr, "%s on %s: ", args.fspec, fs_name);
 		switch (errno) {
 		case EMFILE:
