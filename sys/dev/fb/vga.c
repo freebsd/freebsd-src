@@ -748,16 +748,16 @@ fill_adapter_param(int code, video_adapter_t *adp)
     } dcc[] = {
 	{ DCC_MONO, 			DCC_EGA40 /* CGA monitor */ },
 	{ DCC_MONO, 			DCC_EGA80 /* CGA monitor */ },
-	{ DCC_MONO, 			DCC_EGA80 /* CGA emulation */ },	
+	{ DCC_MONO, 			DCC_EGA80 },
 	{ DCC_MONO, 			DCC_EGA80 },
 	{ DCC_CGA40, 			DCC_EGAMONO },
 	{ DCC_CGA80, 			DCC_EGAMONO },
 	{ DCC_EGA40 /* CGA monitor */, 	DCC_MONO},
 	{ DCC_EGA80 /* CGA monitor */, 	DCC_MONO},
-	{ DCC_EGA80 /* CGA emulation */,DCC_MONO },	
+	{ DCC_EGA80,			DCC_MONO },	
 	{ DCC_EGA80, 			DCC_MONO },
 	{ DCC_EGAMONO, 			DCC_CGA40 },
-	{ DCC_EGAMONO, 			DCC_CGA40 },
+	{ DCC_EGAMONO, 			DCC_CGA80 },
     };
 
     if ((code < 0) || (code >= sizeof(dcc)/sizeof(dcc[0]))) {
