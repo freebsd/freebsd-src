@@ -71,7 +71,7 @@
 #include <sys/_types.h>
 
 #ifndef NULL
-#define NULL	0
+#define	NULL	0
 #endif
 
 #ifndef _MBSTATE_T_DECLARED
@@ -162,8 +162,8 @@ int	wcwidth(wchar_t);
 __END_DECLS
 
 #define	getwc(fp)	fgetwc(fp)
-#define getwchar()	fgetwc(stdin)
-#define putwc(wc, fp)	fputwc((wc), (fp))
-#define putwchar(wc)	fputwc((wc), stdout)
+#define	getwchar()	fgetwc(stdin)
+#define	putwc(wc, fp)	fputwc((wc), (fp))
+#define	putwchar(wc)	fputwc((wc), stdout)
 
 #endif /* !_WCHAR_H_ */
