@@ -44,11 +44,11 @@ _SUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
 	@${_+_}for entry in ${SUBDIR}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
+			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:realinstall=install})"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
 			cd ${.CURDIR}/$${edir}; \
 		else \
-			${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+			${ECHODIR} "===> ${DIRPRFX}$$entry (${.TARGET:realinstall=install})"; \
 			edir=$${entry}; \
 			cd ${.CURDIR}/$${edir}; \
 		fi; \

@@ -675,7 +675,7 @@ update:
 #
 legacy:
 .for _tool in tools/build
-	${_+_}@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    ${MAKE} DIRPRFX=${_tool}/ obj; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
@@ -750,7 +750,7 @@ bootstrap-tools:
     ${_crunchgen} \
     ${_gensnmptree} \
     ${_kbdcontrol}
-	${_+_}@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -788,7 +788,7 @@ build-tools:
     usr.bin/awk \
     lib/libmagic \
     usr.sbin/sysinstall
-	${_+_}@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
@@ -796,7 +796,7 @@ build-tools:
 .for _tool in \
     gnu/usr.bin/cc/cc_tools \
     ${_kerberos5_tools}
-	${_+_}@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -840,7 +840,7 @@ cross-tools:
     ${_crunchide} \
     ${_elf2exe} \
     ${_kgzip}
-	${_+_}@${ECHODIR} "===> ${_tool}"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
@@ -933,7 +933,7 @@ _generic_libs+=	usr.sbin/pcvt/keycap
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
-	${_+_}@${ECHODIR} "===> ${_lib}"; \
+	${_+_}@${ECHODIR} "===> ${_lib} (depend,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
 		${MAKE} DIRPRFX=${_lib}/ all; \
@@ -945,7 +945,7 @@ ${_lib}__L: .PHONY
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
 lib/libpam__L: .PHONY
-	${_+_}@${ECHODIR} "===> lib/libpam"; \
+	${_+_}@${ECHODIR} "===> lib/libpam (depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam; \
 		${MAKE} DIRPRFX=lib/libpam/ depend; \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
@@ -959,11 +959,11 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
 	${_+_}@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
-		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH}"; \
+		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
 		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
 	else \
-		${ECHODIR} "===> ${DIRPRFX}${entry}"; \
+		${ECHODIR} "===> ${DIRPRFX}${entry} (${__target})"; \
 		edir=${entry}; \
 		cd ${.CURDIR}/$${edir}; \
 	fi; \
