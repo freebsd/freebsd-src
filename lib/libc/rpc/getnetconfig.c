@@ -684,11 +684,11 @@ struct netconfig	*ncp;
      */
     *p = *ncp;
     p->nc_netid = (char *)strcpy(tmp,ncp->nc_netid);
-    tmp = strchr(tmp, NULL) + 1;
+    tmp = strchr(tmp, '\0') + 1;
     p->nc_protofmly = (char *)strcpy(tmp,ncp->nc_protofmly);
-    tmp = strchr(tmp, NULL) + 1;
+    tmp = strchr(tmp, '\0') + 1;
     p->nc_proto = (char *)strcpy(tmp,ncp->nc_proto);
-    tmp = strchr(tmp, NULL) + 1;
+    tmp = strchr(tmp, '\0') + 1;
     p->nc_device = (char *)strcpy(tmp,ncp->nc_device);
     p->nc_lookups = (char **)malloc((size_t)(p->nc_nlookups+1) * sizeof(char *));
     if (p->nc_lookups == NULL) {
@@ -696,7 +696,7 @@ struct netconfig	*ncp;
 	return(NULL);
     }
     for (i=0; i < p->nc_nlookups; i++) {
-    	tmp = strchr(tmp, NULL) + 1;
+    	tmp = strchr(tmp, '\0') + 1;
     	p->nc_lookups[i] = (char *)strcpy(tmp,ncp->nc_lookups[i]);
     }
     return(p);

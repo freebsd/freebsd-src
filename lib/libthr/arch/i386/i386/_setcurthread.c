@@ -102,7 +102,7 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	if (thr != _thread_initial)
 		_SPINLOCK(&ldt_lock);
 
-	if (ldt_inited == NULL)
+	if (ldt_inited == 0)
 		ldt_init();
 
 	if (ldt_free == NULL) {

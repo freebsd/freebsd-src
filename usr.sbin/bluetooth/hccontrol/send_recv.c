@@ -50,7 +50,7 @@ hci_request(int s, int opcode, char const *cp, int cp_size, char *rp, int *rp_si
 	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) buffer;
 
 	assert(rp != NULL);
-	assert(*rp_size != NULL);
+	assert(rp_size != NULL);
 	assert(*rp_size > 0);
 
 	c->type = NG_HCI_CMD_PKT;
