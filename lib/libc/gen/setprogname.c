@@ -14,5 +14,5 @@ setprogname(const char *progname)
 	const char *p;
 
 	p = strrchr(progname, '/');
-	__progname = p ? p + 1 : progname;
+	__progname = p != NULL ? p + 1 : progname;
 }
