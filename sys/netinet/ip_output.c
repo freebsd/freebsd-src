@@ -1868,7 +1868,7 @@ ip_mloopback(ifp, m, dst, hlen)
 		copym->m_pkthdr.rcvif = ifp;
 		ip_input(copym);
 #else
-		if_simloop(ifp, copym, (struct sockaddr *)dst, 0);
+		if_simloop(ifp, copym, dst->sin_family, 0);
 #endif
 	}
 }

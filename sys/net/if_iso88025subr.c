@@ -285,10 +285,12 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct 
            (loop_copy != -1)) {
                 if ((m->m_flags & M_BCAST) || (loop_copy > 0)) { 
                         struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
-                        (void) if_simloop(ifp, n, dst, ISO88025_HDR_LEN);
+                        (void) if_simloop(ifp,
+			    n, dst->sa_family, ISO88025_HDR_LEN);
                 } else if (bcmp(th->iso88025_dhost,
                     th->iso88025_shost, ETHER_ADDR_LEN) == 0) {
-                        (void) if_simloop(ifp, m, dst, ISO88025_HDR_LEN);
+                        (void) if_simloop(ifp,
+			    m, dst->sa_family, ISO88025_HDR_LEN);
                         return(0);      /* XXX */
                 }       
         }      
