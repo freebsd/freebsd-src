@@ -765,7 +765,7 @@ tcp_connect(tp, nam, td)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
 	}
@@ -851,7 +851,7 @@ tcp6_connect(tp, nam, td)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
 	}
