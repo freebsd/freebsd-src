@@ -145,8 +145,11 @@ again:
 			}
 			if (!try) {
 				sv->renamed[fd] = i;
+				close(fd);
 			}
 			INTON;
+		} else {
+			close(fd);
 		}
 		if (fd == 0)
 			fd0_redirected++;
@@ -183,7 +186,6 @@ openredirect(redir, memory)
 			error("cannot open %s: %s", fname, errmsg(errno, E_OPEN));
 movefd:
 		if (f != fd) {
-			close(fd);
 			copyfd(f, fd);
 			close(f);
 		}
