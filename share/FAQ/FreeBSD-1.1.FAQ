@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD-1.1.FAQ,v 1.3 1994/10/03 04:28:03 gclarkii Exp $
+Revision: $Id: FreeBSD-1.1.FAQ,v 1.4 1994/10/10 10:46:14 gclarkii Exp $
 
 All entries are assumed to be relevant to both FreeBSD 1.1 and FreeBSD 1.1.5,
 unless otherwise noted.
@@ -629,6 +629,16 @@ The part you are concerned with are the major and minor device numbers.
 
 Please retrieve the file FAQ/FreeBSD.kdebug.FAQ.  This
 file covers the instructions for looking at system dumps.
+
+5.10: I've got a Buslogic BT-946c with an Intel motherboard and
+      right after the kernel probes, my system hangs.  How do I
+      fix it?
+
+Two things here.
+1. Some intel motherboards have fixed PCI INT pins and you will have
+   to match the BT-946c's INT to match the motherboards.
+2. FreeBSD 1.1.5.1 expects the INT on a non-standard pin and you
+   will have to also match this one.
 
 
 6 Kernel Configuration
