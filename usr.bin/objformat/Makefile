@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=		objformat
-NOMAN=		noman
 CFLAGS+=	-Wall
 
 LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
