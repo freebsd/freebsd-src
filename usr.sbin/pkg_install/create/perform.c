@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.9 1994/05/25 06:24:41 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.10 1994/08/29 16:31:37 adam Exp $";
 #endif
 
 /*
@@ -62,12 +62,14 @@ pkg_perform(char **pkgs)
     else
 	suffix = "tgz";
 
-    if (Prefix)
-	add_plist(&plist, PLIST_CWD, Prefix);
-
     /* Slurp in the packing list */
     read_plist(&plist, pkg_in);
 
+    /* Prefix should override the packing list */
+    if (Prefix) {
+	delete_plist(&plist, FALSE, PLIST_CWD, NULL);
+	add_plist_top(&plist, PLIST_CWD, Prefix);
+    }
     /*
      * Run down the list and see if we've named it, if not stick in a name
      * at the top.
@@ -76,7 +78,7 @@ pkg_perform(char **pkgs)
 	add_plist_top(&plist, PLIST_NAME, pkg);
 
     /* Make a directory to stomp around in */
-    home = make_playpen(PlayPen);
+    home = make_playpen(PlayPen, 1);
     signal(SIGINT, cleanup);
     signal(SIGHUP, cleanup);
 
