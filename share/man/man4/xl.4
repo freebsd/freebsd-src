@@ -126,6 +126,14 @@ Note that the 100baseTX media type is only available if supported
 by the adapter.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+Both the 3C656 family of CardBus cards and the 3C556 family of MiniPCI
+cards have a built-in proprietary modem.
+Neither the
+.Nm
+driver nor any other
+.Fx
+driver supports this modem.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "xl%d: couldn't map memory"
