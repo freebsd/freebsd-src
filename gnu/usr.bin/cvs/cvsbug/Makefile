@@ -15,7 +15,7 @@ CLEANFILES+=    cvsbug
 
 cvsbug: cvsbug.in
 	version=`sed < ${CVSDIR}/configure \
-	    -e '/^[ 	]*VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q`; \
+	    -e '/^[     ]*VERSION=/!d' -e 's/.*=["'\'']\{0,1\}\([^"'\'']*\)["'\'']\{0,1\}/\1/' -e q`; \
 	sed -e "s,@VERSION@,$${version}-FreeBSD,g" ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
