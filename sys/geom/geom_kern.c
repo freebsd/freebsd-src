@@ -172,10 +172,7 @@ sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_post_event(g_conftxt, sb, M_WAITOK, NULL);
-	do {
-		tsleep(sb, PZERO, "g_conftxt", hz);
-	} while(!sbuf_done(sb));
+	g_waitfor_event(g_conftxt, sb, M_WAITOK, NULL);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;
@@ -189,10 +186,7 @@ sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_post_event(g_confdot, sb, M_WAITOK, NULL);
-	do {
-		tsleep(sb, PZERO, "g_confdot", hz);
-	} while(!sbuf_done(sb));
+	g_waitfor_event(g_confdot, sb, M_WAITOK, NULL);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;
@@ -206,10 +200,7 @@ sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_post_event(g_confxml, sb, M_WAITOK, NULL);
-	do {
-		tsleep(sb, PZERO, "g_confxml", hz);
-	} while(!sbuf_done(sb));
+	g_waitfor_event(g_confxml, sb, M_WAITOK, NULL);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;

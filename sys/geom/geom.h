@@ -211,6 +211,7 @@ void g_trace(int level, const char *, ...);
 typedef void g_event_t(void *, int flag);
 #define EV_CANCEL	1
 int g_post_event(g_event_t *func, void *arg, int flag, ...);
+int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidle(void);
