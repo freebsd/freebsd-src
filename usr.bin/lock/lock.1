@@ -32,7 +32,7 @@
 .\"	@(#)lock.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd July 10, 2002
 .Dt LOCK 1
 .Os
 .Sh NAME
@@ -40,8 +40,7 @@
 .Nd reserve a terminal
 .Sh SYNOPSIS
 .Nm
-.Op Fl n
-.Op Fl p
+.Op Fl npv
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
 The
@@ -65,6 +64,15 @@ is used.
 The time limit (default 15 minutes) is changed to
 .Ar timeout
 minutes.
+.It Fl v
+Disable switching virtual terminals while this terminal is locked.
+This option is implemented in a way similar to the
+.Fl S
+option of
+.Xr vidcontrol 1 ,
+and is only available if the terminal in question is a
+.Xr syscons 4
+virtual terminal.
 .El
 .Sh HISTORY
 The

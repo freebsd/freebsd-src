@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/consio.h>
 #include <err.h>
 #include <ctype.h>
 #include <pwd.h>
@@ -83,6 +84,7 @@ struct timeval	zerotime;
 struct sgttyb	tty, ntty;
 long	nexttime;			/* keep the timeout time */
 int            no_timeout;                     /* lock terminal forever */
+int	vtyunlock;			/* Unlock flag and code. */
 
 /*ARGSUSED*/
 int
@@ -95,7 +97,7 @@ main(argc, argv)
 	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
-	int ch, failures, sectimeout, usemine;
+	int ch, failures, sectimeout, usemine, vtylock;
 	char *ap, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
@@ -105,7 +107,8 @@ main(argc, argv)
 	mypw = NULL;
 	usemine = 0;
 	no_timeout = 0;
-	while ((ch = getopt(argc, argv, "npt:")) != -1)
+	vtylock = 0;
+	while ((ch = getopt(argc, argv, "npt:v")) != -1)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0)
@@ -119,6 +122,9 @@ main(argc, argv)
 			break;
 		case 'n':
 			no_timeout = 1;
+			break;
+		case 'v':
+			vtylock = 1;
 			break;
 		case '?':
 		default:
@@ -177,15 +183,31 @@ main(argc, argv)
 	ntimer.it_value = timeout;
 	if (!no_timeout)
 		setitimer(ITIMER_REAL, &ntimer, &otimer);
+	if (vtylock) {
+		/*
+		 * If this failed, we want to err out; warn isn't good
+		 * enough, since we don't want the user to think that
+		 * everything is nice and locked because they got a
+		 * "Key:" prompt.
+		 */
+		if (ioctl(0, VT_LOCKSWITCH, &vtylock) == -1) {
+			(void)ioctl(0, TIOCSETP, &tty);
+			err(1, "locking vty");
+		}
+		vtyunlock = 0x2;
+	}
 
 	/* header info */
-	if (no_timeout) {
-(void)printf("lock: %s on %s. no timeout\ntime now is %.20s%s%s",
-	    ttynam, hostname, ap, tzn, ap + 19);
-	} else {
-(void)printf("lock: %s on %s. timeout in %d minutes\ntime now is %.20s%s%s",
-	    ttynam, hostname, sectimeout, ap, tzn, ap + 19);
-	}
+	(void)printf("lock: %s on %s.", ttynam, hostname);
+	if (no_timeout)
+		(void)printf(" no timeout.");
+	else
+		(void)printf(" timeout in %d minute%s.", sectimeout,
+		    sectimeout != 1 ? "s" : "");
+	if (vtylock)
+		(void)printf(" vty locked.");
+	(void)printf("\ntime now is %.20s%s%s", ap, tzn, ap + 19);
+
 	failures = 0;
 
 	for (;;) {
@@ -222,7 +244,7 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: lock [-n] [-p] [-t timeout]\n");
+	(void)fprintf(stderr, "usage: lock [-npv] [-t timeout]\n");
 	exit(1);
 }
 
@@ -248,6 +270,8 @@ quit(int signo __unused)
 {
 	(void)putchar('\n');
 	(void)ioctl(0, TIOCSETP, &tty);
+	if (vtyunlock)
+		(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
 	exit(0);
 }
 
@@ -256,6 +280,8 @@ bye(int signo __unused)
 {
 	if (!no_timeout) {
 		(void)ioctl(0, TIOCSETP, &tty);
+		if (vtyunlock)
+			(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
 		(void)printf("lock: timeout\n");
 		exit(1);
 	}
