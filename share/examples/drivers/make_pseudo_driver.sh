@@ -113,11 +113,11 @@ static sc_p sca[N${UPPER}];
 #define CHECKUNIT(RETVAL)						\
 do { /* the do-while is a safe way to do this grouping */		\
 	if (unit > N${UPPER}) {						\
-		printf(__FUNCTION__ ":bad unit %d\n", unit);		\
+		printf("%s: bad unit %d\n", __func__, unit);		\
 		return (RETVAL);					\
 	}								\
 	if (scp == NULL) { 						\
-		printf( __FUNCTION__ ": unit %d not attached\n", unit);	\
+		printf("%s: unit %d not attached\n", __func__, unit);	\
 		return (RETVAL);					\
 	}								\
 } while (0)
