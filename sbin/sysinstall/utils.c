@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.2 1994/10/20 05:00:00 phk Exp $
+ * $Id: utils.c,v 1.3 1994/10/20 06:48:40 phk Exp $
  *
  */
 
@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <dialog.h>
-#include <ncurses.h>
 #include <errno.h>
 
 #include <sys/stat.h>
@@ -51,6 +50,7 @@ Fatal(char *fmt, ...)
 	va_end(ap);
 	dialog_msgbox("Fatal", p, 12, 75, 1);
 	free(p);
+	end_dialog();
 	exit(7);
 }
 

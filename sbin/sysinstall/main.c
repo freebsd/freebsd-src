@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.3 1994/10/20 06:14:29 phk Exp $
+ * $Id: main.c,v 1.4 1994/10/20 06:48:39 phk Exp $
  *
  */
 
@@ -18,7 +18,6 @@
 #include <fcntl.h>
 
 #include <dialog.h>
-#include <ncurses.h>
 
 #include <sys/ioctl.h>
 
@@ -61,6 +60,8 @@ jmp_buf	jmp_restart;
  *		execl("/sbin/init");
  */
 
+extern int alloc_memory();
+
 int
 main(int argc, char **argv)
 {
@@ -85,6 +86,9 @@ main(int argc, char **argv)
 	init_dialog();
 	/* If we haven't crashed I guess dialog is running ! */
 	dialog_active = 1;
+
+	if (alloc_memory() < 0)
+		Fatal("No memory\n");
 
 	setjmp(jmp_restart);
 
@@ -112,7 +116,7 @@ main(int argc, char **argv)
 	} else if (getenv("STAGE3")) {
 		stage3();
 	} else {
-		fprintf(stderr,"Must setenv STAGE0 or STAGE3");
+		fprintf(stderr,"Must setenv STAGE0 or STAGE3\n");
 	}
 	return 0;
 }

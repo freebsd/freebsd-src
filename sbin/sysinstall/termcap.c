@@ -17,8 +17,6 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <fcntl.h>
-#include <dialog.h>
-#include <ncurses.h>
 #include <machine/console.h>
 
 #include "sysinstall.h"
