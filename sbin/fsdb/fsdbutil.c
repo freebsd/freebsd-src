@@ -34,6 +34,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
@@ -42,6 +43,7 @@ static const char rcsid[] =
 #include <time.h>
 
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include "fsdb.h"
 #include "fsck.h"
