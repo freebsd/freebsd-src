@@ -27,7 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	last edit-date: [Fri Jan 12 14:18:12 2001]
+ *	last edit-date: [Sat Aug 11 18:07:15 2001]
  *
  * $FreeBSD$
  *
@@ -143,6 +143,7 @@ static struct cdevsw i4btrc_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     0,
+        /* bmaj */      -1
 };
 
 /*---------------------------------------------------------------------------*

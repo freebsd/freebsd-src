@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Wed May 31 09:59:01 2000]
+ *	last edit-date: [Sat Aug 11 18:06:38 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -118,6 +118,7 @@ static struct cdevsw i4bctl_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
+	/* bmaj */      -1
 };
 #else
 static struct cdevsw i4bctl_cdevsw = 

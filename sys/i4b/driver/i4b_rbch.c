@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Jan 12 14:32:16 2001]
+ *	last edit-date: [Sat Aug 11 18:06:57 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -203,6 +203,7 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
+	/* bmaj */      -1	
 };
 
 static void i4brbchattach(void *);
