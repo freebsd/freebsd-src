@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.46.2.6 1999/07/22 14:49:38 sheldonh Exp $";
+	"$Id: inetd.c,v 1.46.2.7 1999/07/22 16:17:58 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -1143,6 +1143,8 @@ matchservent(name1, name2, proto)
 	char **alias;
 	struct servent *se;
 
+	if (strcmp(name1, name2) == 0)
+		return(1);
 	if ((se = getservbyname(name1, proto)) != NULL) {
 		if (strcmp(name2, se->s_name) == 0)
 			return(1);
@@ -1427,8 +1429,7 @@ more:
 		struct biltin *bi;
 
 		for (bi = biltins; bi->bi_service; bi++)
-			if ((bi->bi_socktype == sep->se_socktype &&
-			    strcmp(bi->bi_service, sep->se_service) == 0) ||
+			if (bi->bi_socktype == sep->se_socktype &&
 			    matchservent(bi->bi_service, sep->se_service,
 			    sep->se_proto))
 				break;
