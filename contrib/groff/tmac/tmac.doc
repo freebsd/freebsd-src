@@ -266,6 +266,7 @@
 ..
 .\" NS pB macro - test for end of vector (eol) (print b1 buffer or divert)
 .de pB
+.nh
 .ie \\n(dZ==1 \{\
 .	if \\n(oM==1 \{\&\\*(b1
 .		rm S0
@@ -360,7 +361,7 @@
 .\" NS jN local register
 .\"
 .de fR
-.hy 0
+.nh
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .	as b1 \&\fP\s0
@@ -398,7 +399,6 @@
 .\" NS jM local register
 .\" NS jN local register
 .de nR
-.hy 0
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .	as b1 \&\f\\n(cF\s\\n(cZ
@@ -2008,6 +2008,7 @@
 ..
 .\" NS lL macro - .It item of list-type inset
 .de lL
+.nh
 .lY
 .br
 \&\\*(b1
@@ -2016,9 +2017,11 @@
 .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS hL macro - .It item of list-type hanging label (as opposed to tagged)
 .de hL
+.nh
 .lX
 .nr bb \\n(w\\n(lCu+\\n(lSu
 .ti -\\n(bbu
@@ -2029,9 +2032,11 @@
 .nr tP 0
 .aY
 'fi
+.hy
 ..
 .\" NS oL macro - .It item of list-type overhanging label
 .de oL
+.nh
 .lY
 \&\\*(b1
 .br
@@ -2040,14 +2045,17 @@
 .nr tP 0
 .aY
 'fi
+.hy
 ..
 .\" NS iT macro - .It item of list-type [empty label]
 .de iT
+.nh
 .lY
 .br
 .\" .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS nU macro - Enumerated list
 .\" NS nU register count
@@ -2087,6 +2095,7 @@
 ..
 .\" NS mL macro - .It item of list-type diagnostic-message
 .de mL
+.nh
 .nr cF \\n(.f
 .nr cZ \\n(.s
 .ie \\n(mL==1 \{\
@@ -2104,9 +2113,11 @@
 .aY
 .ds b1
 'fi
+.hy
 ..
 .\" NS tL macro - .It item of list-type "tag"
 .de tL
+.nh
 .\" tm in tL here is b1==\\*(b1
 .if \\n(tW==0 .lW
 .lX
@@ -2125,6 +2136,7 @@
 .ds b1
 .aY
 'fi
+.hy
 ..
 .\" NS lW macro - resolve unknown label/tag width (if .Bl [inset | tag] only)
 .de lW
@@ -2710,7 +2722,7 @@
 .el .aZ
 ..
 .de Fo
-.hy 0
+.nh
 .if \\n(aC==0 \{\
 .	ie \\n(.$==0 .tm Usage: .Fo function_name
 .	el \{\
@@ -3283,7 +3295,7 @@
 .\" NS jM local register
 .\" NS jN local register
 .de rR
-.hy 0
+.nh
 .nr jM \\n(C\\n(aP
 .ie \\n(jM==1 \{\
 .\" .	as b1 \&\f\\n(cF\s\\n(cZ
