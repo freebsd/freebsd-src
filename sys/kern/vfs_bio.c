@@ -2026,7 +2026,7 @@ buf_daemon()
 			 * still have too many dirty buffers, we
 			 * have to sleep and try again.  (rare)
 			 */
-			tsleep(&bd_request, PVM, "qsleep", hz / 2);
+			tsleep(&bd_request, PVM, "qsleep", hz / 10);
 		}
 	}
 }
@@ -2038,59 +2038,77 @@ buf_daemon()
  *	free up B_INVAL buffers instead of write them, which NFS is 
  *	particularly sensitive to.
  */
-
+int flushwithdeps = 0;
+SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
+    0, "Number of buffers flushed with dependecies that require rollbacks");
 static int
 flushbufqueues(void)
 {
 	struct thread *td = curthread;
 	struct vnode *vp;
 	struct buf *bp;
-	int r = 0;
 
-	bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
-
-	while (bp) {
-		KASSERT((bp->b_flags & B_DELWRI), ("unexpected clean buffer %p", bp));
-		if ((bp->b_flags & B_DELWRI) != 0 &&
-		    (bp->b_xflags & BX_BKGRDINPROG) == 0) {
-			if (bp->b_flags & B_INVAL) {
-				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) != 0)
-					panic("flushbufqueues: locked buf");
-				bremfree(bp);
-				brelse(bp);
-				++r;
-				break;
-			}
-			if (LIST_FIRST(&bp->b_dep) != NULL &&
-			    (bp->b_flags & B_DEFERRED) == 0 &&
-			    buf_countdeps(bp, 0)) {
-				TAILQ_REMOVE(&bufqueues[QUEUE_DIRTY],
-				    bp, b_freelist);
-				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY],
-				    bp, b_freelist);
-				bp->b_flags |= B_DEFERRED;
-				bp = TAILQ_FIRST(&bufqueues[QUEUE_DIRTY]);
-				continue;
-			}
-			/*
-			 * We must hold the lock on a vnode before writing
-			 * one of its buffers. Otherwise we may confuse, or
-			 * in the case of a snapshot vnode, deadlock the
-			 * system. Rather than blocking waiting for the
-			 * vnode, we just push on to the next buffer.
-			 */
-			if ((vp = bp->b_vp) == NULL ||
-			    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
-				vfs_bio_awrite(bp);
-				++r;
-				if (vp != NULL)
-					VOP_UNLOCK(vp, 0, td);
-				break;
-			}
+	TAILQ_FOREACH(bp, &bufqueues[QUEUE_DIRTY], b_freelist) {
+		KASSERT((bp->b_flags & B_DELWRI),
+		    ("unexpected clean buffer %p", bp));
+		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
+			continue;
+		if (bp->b_flags & B_INVAL) {
+			if (BUF_LOCK(bp, LK_EXCLUSIVE) != 0)
+				panic("flushbufqueues: locked buf");
+			bremfree(bp);
+			brelse(bp);
+			return (1);
 		}
-		bp = TAILQ_NEXT(bp, b_freelist);
+		if (LIST_FIRST(&bp->b_dep) != NULL && buf_countdeps(bp, 0))
+			continue;
+		/*
+		 * We must hold the lock on a vnode before writing
+		 * one of its buffers. Otherwise we may confuse, or
+		 * in the case of a snapshot vnode, deadlock the
+		 * system.
+		 */
+		if ((vp = bp->b_vp) == NULL ||
+		    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
+			vfs_bio_awrite(bp);
+			if (vp != NULL)
+				VOP_UNLOCK(vp, 0, td);
+			return (1);
+		}
 	}
-	return (r);
+	/*
+	 * Could not find any buffers without rollback dependencies,
+	 * so just write the first one in the hopes of eventually
+	 * making progress.
+	 */
+	TAILQ_FOREACH(bp, &bufqueues[QUEUE_DIRTY], b_freelist) {
+		KASSERT((bp->b_flags & B_DELWRI),
+		    ("unexpected clean buffer %p", bp));
+		if ((bp->b_xflags & BX_BKGRDINPROG) != 0)
+			continue;
+		if (bp->b_flags & B_INVAL) {
+			if (BUF_LOCK(bp, LK_EXCLUSIVE) != 0)
+				panic("flushbufqueues: locked buf");
+			bremfree(bp);
+			brelse(bp);
+			return (1);
+		}
+		/*
+		 * We must hold the lock on a vnode before writing
+		 * one of its buffers. Otherwise we may confuse, or
+		 * in the case of a snapshot vnode, deadlock the
+		 * system.
+		 */
+		if ((vp = bp->b_vp) == NULL ||
+		    vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
+			vfs_bio_awrite(bp);
+			if (vp != NULL)
+				VOP_UNLOCK(vp, 0, td);
+			flushwithdeps += 1;
+			return (0);
+		}
+	}
+	return (0);
 }
 
 /*
