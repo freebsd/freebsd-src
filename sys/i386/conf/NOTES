@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.188 1995/07/16 10:31:08 joerg Exp $
+#	$Id: LINT,v 1.189 1995/07/17 23:32:53 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -596,7 +596,7 @@ device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # sbmidi: SoundBlaster 16 MIDI interface
 # pas: ProAudioSpectrum PCM and MIDI
 # gus: Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-# gusxvi: Gravis Ultrasound 16-bit PCM
+# gusxvi: Gravis Ultrasound 16-bit PCM	(do not use)
 # gusmax: Gravis Ultrasound MAX (currently broken)
 # mss: Microsoft Sound System
 # opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
@@ -612,6 +612,10 @@ device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # If you don't have a lpt0 device at IRQ 7, you can remove the
 # ``conflicts'' specification in the appropriate device entries below.
 #
+
+# Use this if you have a Gravis Ultrasound MAX card.
+options	GUSMAX
+
 # Controls all sound devices
 controller	snd0
 device sb0      at isa? port 0x220 irq 7 conflicts drq 1 vector sbintr
@@ -619,8 +623,10 @@ device sbxvi0   at isa? drq 5
 device sbmidi0  at isa? port 0x330
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
 device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
-device gusxvi0 at isa? port 0x530 irq 7 conflicts drq 3 vector adintr
-device gusmax0 at isa? port 0x32c
+# The following two apparently do not work and may never.  Use GUSMAX option
+# above, instead.
+#device gusxvi0 at isa? port 0x530 irq 7 conflicts drq 3 vector adintr
+#device gusmax0 at isa? port 0x32c
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
 device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
