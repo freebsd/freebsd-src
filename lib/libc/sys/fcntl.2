@@ -335,7 +335,13 @@ Note that
 .Xr flock 2
 and
 .Xr fcntl 2
-locks may be safely used concurrently.
+locks may be safely used concurrently but
+.Fn fcntl F_GETLK
+returns \-1 in
+.Fa l_pid
+if the process holding a blocking lock previously locked the
+file descriptor by
+.Xr flock 2 .
 .Pp
 All locks associated with a file for a given process are
 removed when the process terminates.
