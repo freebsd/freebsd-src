@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.2 1997/04/28 00:25:00 fsmp Exp $
+ * $Id: smp.h,v 1.3 1997/04/30 19:04:26 fsmp Exp $
  *
  */
 
@@ -85,6 +85,7 @@ extern volatile u_int*		io_apic_base;
 
 /* functions in mpapic.c */
 void	apic_initialize		__P((int));
+int	apic_ipi		__P((int, int, int));
 int	selected_apic_ipi	__P((u_int, int, int));
 int	io_apic_setup		__P((int));
 int	ext_int_setup		__P((int, int));
