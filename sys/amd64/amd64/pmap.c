@@ -3135,9 +3135,14 @@ pmap_mapdev(pa, size)
 {
 	vm_offset_t va, tmpva, offset;
 	unsigned *pte;
+	int hadvmlock;
 
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 
 	va = kmem_alloc_pageable(kernel_map, size);
 	if (!va)
@@ -3152,6 +3157,9 @@ pmap_mapdev(pa, size)
 		pa += PAGE_SIZE;
 	}
 	invltlb();
+
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 
 	return ((void *)(va + offset));
 }
