@@ -40,6 +40,7 @@
 static __inline void
 breakpoint(void)
 {
+
 	return;
 }
 
@@ -50,6 +51,7 @@ breakpoint(void)
 static __inline void
 mtmsr(unsigned int value)
 {
+
 	__asm __volatile ("mtmsr %0" :: "r"(value));
 }
 
@@ -66,6 +68,7 @@ mfmsr(void)
 static __inline void
 mtdec(unsigned int value)
 {
+
 	__asm __volatile ("mtdec %0" :: "r"(value));
 }
 
@@ -113,29 +116,33 @@ save_intr(void)
 static __inline critical_t
 critical_enter(void)
 {
+
 	return ((critical_t)save_intr());
 }
 
 static __inline void
 restore_intr(unsigned int msr)
 {
+
 	mtmsr(msr);
 }
 
 static __inline void
 critical_exit(critical_t msr)
 {
+
 	return (restore_intr((unsigned int)msr));
 }
 
 static __inline void
 powerpc_mb(void)
 {
+
 	__asm __volatile("eieio; sync" : : : "memory");
 }
 
-static __inline struct globaldata
-*powerpc_get_globalp(void)
+static __inline struct globaldata *
+powerpc_get_globalp(void)
 {
 	struct globaldata	*ret;
 
