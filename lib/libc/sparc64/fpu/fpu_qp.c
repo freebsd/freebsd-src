@@ -108,6 +108,20 @@ _Qp_f ## name(u_int *a, u_int *b) \
 	return (test(FSR_GET_FCC0(fe.fe_fsr))); \
 }
 
+void _Qp_sqrt(u_int *c, u_int *a);
+void
+_Qp_sqrt(u_int *c, u_int *a)
+{
+	struct fpemu fe;
+	struct fpn *r;
+	__asm __volatile("stx %%fsr, %0" : "=m" (fe.fe_fsr) :);
+	fe.fe_f1.fp_sign = a[0] >> 31;
+	fe.fe_f1.fp_sticky = 0;
+	fe.fe_f1.fp_class = __fpu_qtof(&fe.fe_f1, a[0], a[1], a[2], a[3]);
+	r = __fpu_sqrt(&fe);
+	c[0] = __fpu_ftoq(&fe, r, c);
+}
+
 _QP_OP(add)
 _QP_OP(div)
 _QP_OP(mul)
