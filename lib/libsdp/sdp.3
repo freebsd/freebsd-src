@@ -73,7 +73,7 @@
 .Ft void *
 .Fn sdp_open "bdaddr_t const *l" "bdaddr_t const *r"
 .Ft void *
-.Fn sdp_open_local "void"
+.Fn sdp_open_local "char const *control"
 .Ft int32_t
 .Fn sdp_close "void *xs"
 .Ft int32_t
@@ -134,7 +134,13 @@ Remote BD_ADDR can not be
 .Dv NG_HCI_BDADDR_ANY .
 The
 .Fn sdp_open_local
-function takes no arguments and opens a connection to a local SDP server.
+function takes path to the control socket and opens a connection to a local
+SDP server.
+If path to the control socket is
+.Dv NULL
+then default
+.Pa /var/run/sdp
+path will be used.
 .Pp
 The
 .Fn sdp_close

@@ -102,7 +102,7 @@ fail:
 }
 
 void *
-sdp_open_local(void)
+sdp_open_local(char const *control)
 {
 	sdp_session_p		ss = NULL;
 	struct sockaddr_un	sa;
@@ -116,9 +116,12 @@ sdp_open_local(void)
 		goto fail;
 	}
 
+	if (control == NULL)
+		control = SDP_LOCAL_PATH;
+
 	sa.sun_len = sizeof(sa);
 	sa.sun_family = AF_UNIX;
-	strlcpy(sa.sun_path, SDP_LOCAL_PATH, sizeof(sa.sun_path));
+	strlcpy(sa.sun_path, control, sizeof(sa.sun_path));
 
 	if (connect(ss->s, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
 		ss->error = errno;
