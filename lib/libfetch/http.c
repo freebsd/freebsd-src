@@ -522,7 +522,9 @@ fetchGetHTTP(struct url *URL, char *flags)
     if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)
 	&& (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
-	goto fouch;
+	free(c);
+	fclose(f);
+	return NULL;
     }
 
     /* browse through header */
@@ -633,7 +635,8 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
     e = _http_request(f, "HEAD", URL, flags);
     if (e != HTTP_OK && (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
-	goto ouch;
+	fclose(f);
+	return -1;
     }
 
     while (1) {
