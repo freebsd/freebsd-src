@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.6 1996/10/06 15:17:19 steve Exp $
+ *	$Id: eval.c,v 1.7 1996/10/22 03:02:07 steve Exp $
  */
 
 #ifndef lint
@@ -854,24 +854,7 @@ cmddone:
 parent:	/* parent process gets here (if we forked) */
 	if (mode == 0) {	/* argument to fork */
 		INTOFF;
-		if (minusc) {
-			struct sigaction iact, qact, oiact, oqact;
-
-			(void)sigaction(SIGINT, (struct sigaction *)NULL, &oiact);
-			(void)sigaction(SIGQUIT, (struct sigaction *)NULL, &oqact);
-
-			iact = oiact;
-			qact = oqact;
-
-			qact.sa_handler = iact.sa_handler = SIG_IGN;
-
-			(void)sigaction(SIGINT, &iact, (struct sigaction *)NULL);
-			(void)sigaction(SIGQUIT, &qact, (struct sigaction *)NULL);
-			exitstatus = waitforjob(jp);
-			(void)sigaction(SIGINT, &oiact, (struct sigaction *)NULL);
-			(void)sigaction(SIGQUIT, &oqact, (struct sigaction *)NULL);
-		} else
-			exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp);
 		INTON;
 	} else if (mode == 2) {
 		backcmd->fd = pip[0];
