@@ -490,3 +490,16 @@ retry:
 
 SYSCTL_OID(_security_jail, OID_AUTO, list, CTLTYPE_STRUCT | CTLFLAG_RD,
     NULL, 0, sysctl_jail_list, "S", "List of active jails");
+
+static int
+sysctl_jail_jailed(SYSCTL_HANDLER_ARGS)
+{
+	int error, injail;
+
+	injail = jailed(req->td->td_ucred);
+	error = SYSCTL_OUT(req, &injail, sizeof(injail));
+
+	return (error);
+}
+SYSCTL_PROC(_security_jail, OID_AUTO, jailed, CTLTYPE_INT | CTLFLAG_RD,
+    NULL, 0, sysctl_jail_jailed, "I", "Process in jail?");
