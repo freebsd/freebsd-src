@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for Alpha FreeBSD systems.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright (C) 1998-9 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -31,10 +31,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef EXTENDED_COFF
 #define OBJECT_FORMAT_ELF
 
-/* This is BSD, so it wants DBX format. */
-
-#define DBX_DEBUGGING_INFO
-
 /* This is the char to use for continuation (in case we need to turn
    continuation back on). */
 
@@ -55,7 +51,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES \
-  "-D__alpha__ -D__alpha -D__ELF__ -Acpu(alpha) -Amachine(alpha)"  \
+  "-D__alpha__ -D__ELF__ -Acpu(alpha) -Amachine(alpha)"  \
   CPP_FBSD_PREDEFINES
 
 #undef CPP_SPEC
@@ -478,9 +474,6 @@ dtors_section ()							\
  */
 #undef TARGET_GAS
 #define TARGET_GAS	1
-
-#undef PREFERRED_DEBUGGING_TYPE
-#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
 #undef LINK_SPEC
 #define LINK_SPEC "-m elf64alpha 				\
