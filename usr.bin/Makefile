@@ -58,6 +58,7 @@ SUBDIR=	apply \
 	getopt \
 	gprof \
 	head \
+	hesinfo \
 	hexdump \
 	id \
 	indent \
