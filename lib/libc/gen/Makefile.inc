@@ -32,7 +32,9 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	wait.c wait3.c waitpid.c
 
 # machine-dependent gen sources
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc)
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc"
+.endif
 
 .if ${LIB} == "c"
 MAN+=	alarm.3 arc4random.3 clock.3 \

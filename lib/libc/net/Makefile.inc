@@ -37,7 +37,9 @@ nslexer.c: nslexer.l nsparser.h
 		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
 
 # machine-dependent net sources
+.if exists(${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc)
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc"
+.endif
 
 .if ${LIB} == "c"
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
