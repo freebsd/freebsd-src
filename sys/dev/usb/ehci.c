@@ -341,6 +341,7 @@ ehci_init(ehci_softc_t *sc)
 	u_int i;
 	usbd_status err;
 	ehci_soft_qh_t *sqh;
+	u_int ncomp;
 
 	DPRINTF(("ehci_init: start\n"));
 #ifdef EHCI_DEBUG
@@ -356,11 +357,13 @@ ehci_init(ehci_softc_t *sc)
 	sparams = EREAD4(sc, EHCI_HCSPARAMS);
 	DPRINTF(("ehci_init: sparams=0x%x\n", sparams));
 	sc->sc_npcomp = EHCI_HCS_N_PCC(sparams);
-	if (EHCI_HCS_N_CC(sparams) != sc->sc_ncomp) {
+	ncomp = EHCI_HCS_N_CC(sparams);
+	if (ncomp != sc->sc_ncomp) {
 		printf("%s: wrong number of companions (%d != %d)\n",
 		       USBDEVNAME(sc->sc_bus.bdev),
-		       EHCI_HCS_N_CC(sparams), sc->sc_ncomp);
-		return (USBD_IOERROR);
+		       ncomp, sc->sc_ncomp);
+		if (ncomp < sc->sc_ncomp)
+			sc->sc_ncomp = ncomp;
 	}
 	if (sc->sc_ncomp > 0) {
 		printf("%s: companion controller%s, %d port%s each:",
