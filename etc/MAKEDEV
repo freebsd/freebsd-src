@@ -95,6 +95,7 @@
 #	tun*	Tunneling IP device
 #	snp*	tty snoop devices
 #	spigot	Video Spigot video acquisition card
+#	ctx*    Cortex-I video acquisition card
 #	meteor*	Matrox Meteor video acquisition card (pci)
 #	qcam*	Connectix QuickCam(tm) parallel port camera
 #	isdn*	ISDN devices
@@ -1067,6 +1068,13 @@ spigot)
 	rm -f spigot
 	mknod spigot c 11 0
 	chmod 444 spigot
+	;;
+
+ctx?)
+	unit=`expr $i : 'ctx\(.*\)'`
+	rm -f ctx$unit
+	mknod ctx$unit c 40 $unit
+	chmod 444 ctx$unit
 	;;
 
 qcam?)
