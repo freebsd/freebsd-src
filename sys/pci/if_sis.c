@@ -1146,7 +1146,7 @@ static int sis_list_tx_init(sc)
 	ld = &sc->sis_ldata;
 
 	for (i = 0; i < SIS_TX_LIST_CNT; i++) {
-		nexti = (i == (SIS_TX_LIST_CNT - 1)) ? 0 : i+1 ;
+		nexti = (i == (SIS_TX_LIST_CNT - 1)) ? 0 : i+1;
 			ld->sis_tx_list[i].sis_nextdesc =
 			    &ld->sis_tx_list[nexti];
 			bus_dmamap_load(sc->sis_ldata.sis_tx_tag,
@@ -1184,7 +1184,7 @@ static int sis_list_rx_init(sc)
 	for (i = 0; i < SIS_RX_LIST_CNT; i++) {
 		if (sis_newbuf(sc, &ld->sis_rx_list[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
-		nexti = (i == (SIS_RX_LIST_CNT - 1)) ? 0 : i+1 ;
+		nexti = (i == (SIS_RX_LIST_CNT - 1)) ? 0 : i+1;
 			ld->sis_rx_list[i].sis_nextdesc =
 			    &ld->sis_rx_list[nexti];
 			bus_dmamap_load(sc->sis_ldata.sis_rx_tag,
@@ -1217,11 +1217,16 @@ static int sis_newbuf(sc, c, m)
 
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			printf("sis%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->sis_unit);
 			return(ENOBUFS);
+		}
 
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
+			printf("sis%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->sis_unit);
 			m_freem(m_new);
 			return(ENOBUFS);
 		}
