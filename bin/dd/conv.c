@@ -59,7 +59,7 @@ def()
 	int cnt;
 	u_char *inp, *t;
 
-	if (t = ctab)
+	if ((t = ctab))
 		for (inp = in.dbp - (cnt = in.dbrcnt); cnt--; ++inp)
 			*inp = t[*inp];
 
@@ -103,6 +103,7 @@ block()
 	int ch, cnt, maxlen;
 	u_char *inp, *outp, *t;
 
+        ch = 0;
 	/*
 	 * Record truncation can cross block boundaries.  If currently in a
 	 * truncation state, keep tossing characters until reach a newline.
@@ -129,7 +130,7 @@ block()
 	 */
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
 		maxlen = MIN(cbsz, in.dbcnt);
-		if (t = ctab)
+		if ((t = ctab))
 			for (cnt = 0;
 			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
 				*outp++ = t[ch];
@@ -213,7 +214,7 @@ unblock()
 	u_char *inp, *t;
 
 	/* Translation and case conversion. */
-	if (t = ctab)
+	if ((t = ctab))
 		for (cnt = in.dbrcnt, inp = in.dbp; cnt--;)
 			*--inp = t[*inp];
 	/*
