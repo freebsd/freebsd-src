@@ -81,6 +81,8 @@ static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
+static void	free_mntarg(struct mntarg *ma);
+static void	vfs_mount_destroy(struct mount *, struct thread *);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -145,7 +147,7 @@ char		*rootdevnames[2] = {NULL, NULL};
 #ifndef ROOTDEVNAME
 #  define ROOTDEVNAME NULL
 #endif
-const char	*ctrootdevname = ROOTDEVNAME;
+static const char	*ctrootdevname = ROOTDEVNAME;
 
 /*
  * ---------------------------------------------------------------------
@@ -433,7 +435,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 /*
  * Destroy the mount struct previously allocated by vfs_mount_alloc().
  */
-void
+static void
 vfs_mount_destroy(struct mount *mp, struct thread *td)
 {
 
@@ -1642,7 +1644,7 @@ mount_arg(struct mntarg *ma, const char *name, const void *val, int len)
 /*
  * Free a mntarg structure
  */
-void
+static void
 free_mntarg(struct mntarg *ma)
 {
 	struct mntaarg *maa;
