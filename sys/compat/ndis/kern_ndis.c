@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-#define __stdcall __attribute__((__stdcall__))
 #define NDIS_DUMMY_PATH "\\\\some\\bogus\\path"
 
 __stdcall static void ndis_status_func(ndis_handle, ndis_status,

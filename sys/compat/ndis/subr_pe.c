@@ -575,12 +575,6 @@ pe_functbl_match(functbl, name)
  * Note that there are actually two copies of the jump table: one
  * copy is left alone. In a .SYS file, the jump tables are usually
  * merged into the INIT segment.
- *
- * Note: Windows uses the _stdcall calling convention. This means
- * that the callback functions provided in the function table must
- * be declared using __attribute__((__stdcall__)), otherwise the
- * Windows code will likely screw up the %esp register and cause
- * us to jump to an invalid address when it returns.
  */
 
 int
