@@ -284,7 +284,7 @@ mpt_state(u_int32_t mb)
 		default: 		  text = "Unknown"; break;
 	}
 	return text;
-};
+}
 
 void
 mpt_print_db(u_int32_t mb)
@@ -536,7 +536,7 @@ mpt_req_state(enum mpt_req_state state)
 	default: 	       text = "Unknown";      break;
 	}
 	return text;
-};
+}
 
 static void
 mpt_dump_sgl(SGE_IO_UNION *su)
