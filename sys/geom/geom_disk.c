@@ -142,14 +142,20 @@ g_disk_start(struct bio *bp)
 
 	dp = bp->bio_to->geom->softc;
 	dev = dp->d_dev;
-	error = 0;
+	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
+	case BIO_DELETE:
+		if (!(devsw(dev)->d_flags & D_CANFREE)) {
+			error = 0;
+			break;
+		}
+		/* fall-through */
 	case BIO_READ:
 	case BIO_WRITE:
 		bp2 = g_clone_bio(bp);
 		bp2->bio_done = g_disk_done;
 		bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
-		bp2->bio_pblkno = bp2->bio_blkno;
+		bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 		bp2->bio_bcount = bp2->bio_length;
 		bp2->bio_dev = dev;
 		mtx_lock(&Giant);
@@ -192,9 +198,8 @@ g_disk_start(struct bio *bp)
 		error = EOPNOTSUPP;
 		break;
 	}
-	if (error) {
+	if (error != EJUSTRETURN)
 		g_io_deliver(bp, error);
-	}
 	return;
 }
 
