@@ -1,4 +1,4 @@
-# @(#)europe	7.31
+# @(#)europe	7.32
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -1716,7 +1716,12 @@ Zone	Europe/Lisbon	-0:36:32 -	LMT	1884
 # From Rui Pedro Salgueiro <rps@inescca.inescc.pt> (November 12, 1992):
 # Portugal has recently (September, 27) changed timezone
 # (from WET to MET or CET) to harmonize with EEC.
-			1:00	EC	MET%s
+			 1:00	EC	MET%s	1996 Mar 31 1:00u
+# Martin Bruckmann <martin@ua.pt> (1996-02-29) reports via Peter Ilieve
+# that Portugal is reverting to 0:00 by not moving its clocks this spring.
+# The new Prime Minister was fed up with getting up in the dark in the winter.
+			 0:00	-     "WET DST"	1996 Oct 27 1:00u
+			 0:00	EC	WET%s
 # We don't know what happened to Madeira or the Azores,
 # so we'll just use Shanks for now.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
