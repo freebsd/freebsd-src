@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.14 1994/01/27 03:35:42 davidg Exp $
+ *	$Id: pmap.c,v 1.15 1994/01/31 04:18:37 davidg Exp $
  */
 
 /*
@@ -371,16 +371,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t va;
 	struct pte *pte;
 #endif
-	extern vm_offset_t maxmem, physmem;
-extern int IdlePTD;
+	extern int IdlePTD;
 
 	avail_start = firstaddr + DMAPAGES*NBPG;
-	avail_end = maxmem << PG_SHIFT;
 
-	/* XXX: allow for msgbuf */
-	avail_end -= i386_round_page(sizeof(struct msgbuf));
-
-	mem_size = physmem << PG_SHIFT;
 	virtual_avail = (vm_offset_t) KERNBASE + avail_start;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 	i386pagesperpage = PAGE_SIZE / NBPG;
