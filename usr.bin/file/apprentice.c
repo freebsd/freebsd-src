@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: apprentice.c,v 1.7 1998/01/28 07:36:21 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -50,6 +50,7 @@ static int parse	__P((char *, int *, int));
 static void eatsize	__P((char **));
 
 static int maxmagic = 0;
+static int alloc_incr = 256;
 
 static int apprentice_1	__P((char *, int));
 
@@ -180,9 +181,8 @@ int *ndx, check;
 	struct magic *m;
 	char *t, *s;
 
-#define ALLOC_INCR	20
 	if (nd+1 >= maxmagic){
-	    maxmagic += ALLOC_INCR;
+	    maxmagic += alloc_incr;
 	    if ((magic = (struct magic *) realloc(magic, 
 						  sizeof(struct magic) * 
 						  maxmagic)) == NULL) {
@@ -192,7 +192,8 @@ int *ndx, check;
 		else
 			exit(1);
 	    }
-	    memset(&magic[*ndx], 0, sizeof(struct magic) * ALLOC_INCR);
+	    memset(&magic[*ndx], 0, sizeof(struct magic) * alloc_incr);
+	    alloc_incr *= 2;
 	}
 	m = &magic[*ndx];
 	m->flag = 0;
