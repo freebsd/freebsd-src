@@ -43,7 +43,7 @@
  * 08 Apr 93	Bruce Evans		Several VM system fixes
  * 		Paul Kranenburg		Add counter for vmstat
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/trap.c,v 1.1.1.1 1993/06/12 14:58:05 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/trap.c,v 1.2 1993/07/27 10:52:20 davidg Exp $";
 
 /*
  * 386 Trap and System call handleing
@@ -210,8 +210,12 @@ copyfault:
 		/* if a transparent fault (due to context switch "late") */
 		if (npxdna()) return;
 #endif
+#ifdef	MATH_EMULATE
 		i = math_emulate(&frame);
 		if (i == 0) return;
+#else	/* MATH_EMULTATE */
+		panic("trap: math emulation necessary!");
+#endif	/* MATH_EMULTATE */
 		ucode = FPE_FPU_NP_TRAP;
 		break;
 
