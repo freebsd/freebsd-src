@@ -43,18 +43,20 @@ static char sccsid[] = "@(#)sleep.c	8.1 (Berkeley) 6/4/93";
 #include "pthread_private.h"
 #endif
 
-#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 #define	setvec(vec, a) \
 	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
 
+#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 static int ringring;
+#endif
 
 static void
 sleephandler()
 {
+#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
 	ringring = 1;
-}
 #endif
+}
 
 unsigned int
 sleep(seconds)
@@ -63,11 +65,16 @@ sleep(seconds)
 #if defined(_THREAD_SAFE) || defined(USE_NANOSLEEP)
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
+	struct sigvec vec, ovec;
 
 	if (seconds != 0) {
 		time_to_sleep.tv_sec = seconds;
 		time_to_sleep.tv_nsec = 0;
+		setvec(vec, sleephandler);
+		(void) sigvec(SIGALRM, &vec, &ovec);
+		/* XXX race here.. a SIGALRM right _now_ could be lost */
 		nanosleep(&time_to_sleep, &time_remaining);
+		(void) sigvec(SIGALRM, &ovec, (struct sigvec *)0);
 		seconds = time_remaining.tv_sec;
 		if (time_remaining.tv_nsec > 0)
 			seconds++;	/* round up */
