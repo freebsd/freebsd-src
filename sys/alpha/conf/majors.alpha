@@ -1,0 +1,141 @@
+$Id: majors.i386,v 1.37 1998/04/17 20:26:43 julian Exp $
+
+Hopefully, this list will one day be obsoleted by DEVFS, but for now
+this is the current allocation of device major numbers.
+
+For local use, you are encouraged to use the reserved numbers.
+
+If you intend the driver to be available, send email to the
+hackers@freebsd.org mailing list to see about having a number
+reserved for you.
+
+The most "complete" version of this will be the one in FreeBSD-current.
+(see http://www.freebsd.org/ or from ftp://ftp.cdrom.com/pub/FreeBSD/)
+
+blkdev	name		comments
+0	wd		ST506 disk controller (with IDE extensions)
+1	wfd		ATAPI Floppy client of "ata"
+2	fd		floppy disk
+3	wt		QIC-02/36 tape
+4	sd		SCSI "disk" type
+5	st		SCSI "tape" type
+6	cd		SCSI "cdrom" type
+7	mcd		Mitsumi CDROM interface
+8	lkm		assigned to Loadable Kernel modules
+9	lkm		assigned to Loadable Kernel modules
+10	lkm		assigned to Loadable Kernel modules
+11	lkm		assigned to Loadable Kernel modules
+12	lkm		assigned to Loadable Kernel modules
+13	lkm		assigned to Loadable Kernel modules
+14	??		reserved for local use
+15	vn		vnode disk device
+16	scd		Sony CDROM interface
+17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
+18	ata		"device independent" ATA/IDE driver
+19	wcdb		ATAPI CDROM client of "ata"
+20	od		SCSI "magneto-optical" disk
+21	ccd		concatenated disk
+22	gd		Geometry disk.
+23	worm		SCSI "worm type"
+24	wstb		ATAPI tape client of "ata"
+25	vinum		RAID fs
+26	sw		VM internal swap device
+chrdev	name		comments
+0	cn		console
+1	ctty		/dev/tty
+2	mm		/dev/mem,kmem,etc
+3	wd		ST506 disk controller (with IDE extensions)
+4	swap		/dev/drum
+5	pts		pseudo tty "tty" half
+6	ptc		pseudo tty "master" half
+7	log		system log
+8	bqu		B004 transputer board
+9	fd		floppy disk
+10	wt		QIC-02/36 tape
+11	spigot		Video capture?
+12	sc		syscons/pcvt virtual consoles
+13	sd		SCSI "disk type"
+14	st		SCSI "tape type"
+15	cd		SCSI "CDROM type"
+16	lpt		PC parallel printer port
+17	ch		SCSI changer
+18	su		SCSI universal type
+19	tw		X-10 power interface
+20	??		reserved for local use
+21	psm		PS/2 Mouse
+22	fd		(/dev/stdin etc)
+23	bpf		Berkeley Packet Filter
+24	pca		PC speaker (/dev/pcaudio)
+25	??		was vat
+26	spkr		PC speaker (/dev/spkr)
+27	mse		Microsoft bus-mouse
+28	sio		16450/16550 serial
+29	mcd		Mitsumi CDROM interface
+30	snd		sound driver system
+31	uk		SCSI "unknown device type"
+32	lkmc		Loadable Kernel Module Controller
+33	lkm		assigned to Loadable Kernel Modules
+34	lkm		assigned to Loadable Kernel Modules
+35	lkm		assigned to Loadable Kernel Modules
+36	lkm		assigned to Loadable Kernel Modules
+37	lkm		assigned to Loadable Kernel Modules
+38	lkm		assigned to Loadable Kernel Modules
+39	apm		Advanced Power Management
+40	ctx		Cortex
+41	??		was socksys
+42	cx		Cronyx
+43	vn		vnode "disk" device
+44	gp		GPIB
+45	scd		Sony CDROM interface
+46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
+47	gsc		Genius Scanner
+48	cy		Cyclades
+49	ssc		SCSI super device
+50	card		pcmcia cards
+51	joy		joystick
+52	tun		IP tunnel device
+53	snp		tty snoop
+54	OLDnic		ISDN system
+55	OLDisdn		ISDN system
+56	OLDity		ISDN system
+57	OLDitel		ISDN system
+58	dgb		Digiboard
+59	OLDispy		ISDN system
+60	OLDnnic		ISDN system
+61	pt		SCSI "processor type"
+62	worm		SCSI "worm type"
+63	rc		Riscom/8 driver
+64	??		Talisman
+65	sctarg		SCSI target
+66	labpc		National Instruments LabPC
+67	meteor		Matrox Meteor video capture
+68	si		Specialix SI/XIO (peter@freebsd.org)
+69	wcd		ATAPI CDROM client of "ata"
+70	od		SCSI "magneto-optical disk type"
+71	asc		AmiScan driver
+72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
+73	??		was qcam
+74	ccd		concatenated disk
+75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
+76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
+77	cyy		Cyclades Ye/PCI serial card
+78	pci		PCI bus
+79	ipl		IP Filter
+80	xdcp		Assigned to Chris Ficklin <chris@serengeti.com>
+81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
+82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
+83	can		CAN16-2 CAN-PC Interface
+84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
+85	vesa		VESA support device (j_mini@efn.org)
+86      alog            Industrial Computer Source AIO8-P driver
+87	wfd		ATAPI floppy client of "ata"
+88	dpt		DPT RAID Controller <shimon@i-connect.net>
+89	pps		Pulse-Per-Second timing interface
+90	wst		ATAPI tape client of "ata"
+91	vinum		RAID fs
+92      bktr            Bt848 video capture driver (hasty@star-gate.com)
+93	coda		CODA filesystem.
+94	loran		Loran-C Receiver
+95	gd		Geometry disk
+96	altq		alternate queueing (including cbq, red, wfq)
+97	zsc		TurboLaser console uart
