@@ -25,8 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
- *	from: i386/include console.h,v 1.38
+ *	$Id: console.h,v 1.39 1998/08/06 09:15:52 dfr Exp $
+ *	from: i386/include console.h,v 1.39
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -52,6 +52,7 @@
 #define KDGETLED	_IOR('K', 65, int)
 #define KDSETLED	_IO('K', 66 /*, int */)
 #define KDSETRAD	_IO('K', 67 /*, int */)
+#define KDRASTER	_IOW('K', 100, scr_size_t)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
@@ -85,6 +86,11 @@
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, int)
+#define CONS_CURRENTADP	_IOR('c', 100, int)
+#define CONS_ADPINFO	_IOWR('c', 101, video_adapter_t)
+#define CONS_MODEINFO	_IOWR('c', 102, video_info_t)
+#define CONS_FINDMODE	_IOWR('c', 103, video_info_t)
+#define CONS_SETWINORG	_IO('c', 104 /* u_int */) 
 
 /* CONS_SAVERMODE */
 #define CONS_LKM_SAVER	0
@@ -170,6 +176,7 @@ struct mouse_info {
 #define KD_TEXT0	0		/* ditto			*/
 #define KD_TEXT1	2		/* set text mode !restore fonts */
 #define KD_GRAPHICS	1		/* set graphics mode 		*/
+#define KD_PIXEL	3		/* set pixel mode		*/
 
 #define K_RAW		0		/* keyboard returns scancodes	*/
 #define K_XLATE		1		/* keyboard returns ascii 	*/
@@ -264,6 +271,55 @@ struct ssaver	{
 	long	time;
 };
 
+/* adapter infromation block */
+struct video_adapter {
+    int			va_index;
+    int			va_type;
+    int			va_flags;
+#define V_ADP_COLOR	(1<<0)
+#define V_ADP_MODECHANGE (1<<1)
+#define V_ADP_STATESAVE	(1<<2)
+#define V_ADP_STATELOAD	(1<<3)
+#define V_ADP_FONT	(1<<4)
+#define V_ADP_PALETTE	(1<<5)
+#define V_ADP_BORDER	(1<<6)
+#define V_ADP_VESA	(1<<7)
+    int			va_crtc_addr;
+    u_int		va_window;	/* virtual address */
+    size_t		va_window_size;
+    size_t		va_window_gran;
+    u_int		va_buffer;	/* virtual address */
+    size_t		va_buffer_size;
+    int			va_initial_mode;
+    int			va_initial_bios_mode;
+    int			va_mode;
+};
+
+#define V_ADP_PRIMARY		0
+#define V_ADP_SECONDARY		1
+
+/* video mode information block */
+struct video_info {
+    int			vi_mode;
+    int			vi_flags;
+#define V_INFO_COLOR	(1<<0)
+#define V_INFO_GRAPHICS	(1<<1)
+#define V_INFO_LENEAR	(1<<2)
+#define V_INFO_VESA	(1<<3)
+    int			vi_width;
+    int			vi_height;
+    int			vi_cwidth;
+    int			vi_cheight;
+    int			vi_depth;
+    int			vi_planes;
+    u_int		vi_window;	/* physical address */
+    size_t		vi_window_size;
+    size_t		vi_window_gran;
+    u_int		vi_buffer;	/* physical address */
+    size_t		vi_buffer_size;
+    /* XXX pixel format, memory model,... */
+};
+
 typedef struct accentmap accentmap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
@@ -274,6 +330,9 @@ typedef struct {char fnt8x8[8*256];} fnt8_t;
 typedef struct {char fnt8x14[14*256];} fnt14_t;
 typedef struct {char fnt8x16[16*256];} fnt16_t;
 typedef struct ssaver ssaver_t;
+typedef struct video_adapter video_adapter_t;
+typedef struct video_info video_info_t;
+typedef struct {int scr_size[3];} scr_size_t;
 
 /* defines for "special" keys (spcl bit set in keymap) */
 #define NOP		0x00		/* nothing (dead key)		*/
@@ -379,8 +438,6 @@ typedef struct ssaver ssaver_t;
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
 
-#define M_VESA_BASE	0x100	/* VESA mode number base */
-
 #define SW_PC98_80x25	_IO('S', M_PC98_80x25)
 #define SW_PC98_80x30	_IO('S', M_PC98_80x30)
 #define SW_B40x25 	_IO('S', M_B40x25)
@@ -422,4 +479,68 @@ typedef struct ssaver ssaver_t;
 #define SW_VGA_CG640	_IO('S', M_VGA_CG640)
 #define SW_VGA_MODEX	_IO('S', M_VGA_MODEX)
 
+#define M_VESA_BASE		0x100	/* VESA mode number base */
+
+#define M_VESA_CG640x400	0x100	/* 640x400, 256 color */
+#define M_VESA_CG640x480	0x101	/* 640x480, 256 color */
+#define M_VESA_800x600		0x102	/* 800x600, 16 color */
+#define M_VESA_CG800x600	0x103	/* 800x600, 256 color */
+#define M_VESA_1024x768		0x104	/* 1024x768, 16 color */
+#define M_VESA_CG1024x768	0x105	/* 1024x768, 256 color */
+#define M_VESA_1280x1024	0x106	/* 1280x1024, 16 color */
+#define M_VESA_CG1280x1024	0x107	/* 1280x1024, 256 color */
+#define M_VESA_C80x60		0x108	/* 8x8 font */
+#define M_VESA_C132x25		0x109	/* 8x16 font */
+#define M_VESA_C132x43		0x10a	/* 8x14 font */
+#define M_VESA_C132x50		0x10b	/* 8x8 font */
+#define M_VESA_C132x60		0x10c	/* 8x8 font */
+#define M_VESA_32K_320		0x10d	/* 320x200, 5:5:5 */
+#define M_VESA_64K_320		0x10e	/* 320x200, 5:6:5 */
+#define M_VESA_FULL_320		0x10f	/* 320x200, 8:8:8 */
+#define M_VESA_32K_640		0x110	/* 640x480, 5:5:5 */
+#define M_VESA_64K_640		0x111	/* 640x480, 5:6:5 */
+#define M_VESA_FULL_640		0x112	/* 640x480, 8:8:8 */
+#define M_VESA_32K_800		0x113	/* 800x600, 5:5:5 */
+#define M_VESA_64K_800		0x114	/* 800x600, 5:6:5 */
+#define M_VESA_FULL_800		0x115	/* 800x600, 8:8:8 */
+#define M_VESA_32K_1024		0x116	/* 1024x768, 5:5:5 */
+#define M_VESA_64K_1024		0x117	/* 1024x768, 5:6:5 */
+#define M_VESA_FULL_1024	0x118	/* 1024x768, 8:8:8 */
+#define M_VESA_32K_1280		0x119	/* 1280x1024, 5:5:5 */
+#define M_VESA_64K_1280		0x11a	/* 1280x1024, 5:6:5 */
+#define M_VESA_FULL_1280	0x11b	/* 1280x1024, 8:8:8 */
+#define M_VESA_MODE_MAX		0x1ff
+#define M_VESA_USER		0x1ff
+
+#define SW_VESA_CG640x400	_IO('V', M_VESA_CG640x400 - M_VESA_BASE)
+#define SW_VESA_CG640x480	_IO('V', M_VESA_CG640x480 - M_VESA_BASE)
+#define SW_VESA_800x600		_IO('V', M_VESA_800x600 - M_VESA_BASE)
+#define SW_VESA_CG800x600	_IO('V', M_VESA_CG800x600 - M_VESA_BASE)
+#define SW_VESA_1024x768	_IO('V', M_VESA_1024x768 - M_VESA_BASE)
+#define SW_VESA_CG1024x768	_IO('V', M_VESA_CG1024x768 - M_VESA_BASE)
+#define SW_VESA_1280x1024	_IO('V', M_VESA_1280x1024 - M_VESA_BASE)
+#define SW_VESA_CG1280x1024	_IO('V', M_VESA_CG1280x1024 - M_VESA_BASE)
+#define SW_VESA_C80x60		_IO('V', M_VESA_C80x60 - M_VESA_BASE)
+#define SW_VESA_C132x25		_IO('V', M_VESA_C132x25 - M_VESA_BASE)
+#define SW_VESA_C132x43		_IO('V', M_VESA_C132x43 - M_VESA_BASE)
+#define SW_VESA_C132x50		_IO('V', M_VESA_C132x50 - M_VESA_BASE)
+#define SW_VESA_C132x60		_IO('V', M_VESA_C132x60 - M_VESA_BASE)
+#define SW_VESA_32K_320		_IO('V', M_VESA_32K_320 - M_VESA_BASE)
+#define SW_VESA_64K_320		_IO('V', M_VESA_64K_320 - M_VESA_BASE)
+#define SW_VESA_FULL_320	_IO('V', M_VESA_FULL_320 - M_VESA_BASE)
+#define SW_VESA_32K_640		_IO('V', M_VESA_32K_640 - M_VESA_BASE)
+#define SW_VESA_64K_640		_IO('V', M_VESA_64K_640 - M_VESA_BASE)
+#define SW_VESA_FULL_640	_IO('V', M_VESA_FULL_640 - M_VESA_BASE)
+#define SW_VESA_32K_800		_IO('V', M_VESA_32K_800 - M_VESA_BASE)
+#define SW_VESA_64K_800		_IO('V', M_VESA_64K_800 - M_VESA_BASE)
+#define SW_VESA_FULL_800	_IO('V', M_VESA_FULL_800 - M_VESA_BASE)
+#define SW_VESA_32K_1024	_IO('V', M_VESA_32K_1024 - M_VESA_BASE)
+#define SW_VESA_64K_1024	_IO('V', M_VESA_64K_1024 - M_VESA_BASE)
+#define SW_VESA_FULL_1024	_IO('V', M_VESA_FULL_1024 - M_VESA_BASE)
+#define SW_VESA_32K_1280	_IO('V', M_VESA_32K_1280 - M_VESA_BASE)
+#define SW_VESA_64K_1280	_IO('V', M_VESA_64K_1280 - M_VESA_BASE)
+#define SW_VESA_FULL_1280	_IO('V', M_VESA_FULL_1280 - M_VESA_BASE)
+#define SW_VESA_USER		_IO('V', M_VESA_USER - M_VESA_BASE)
+
 #endif /* !_MACHINE_CONSOLE_H_ */
+
