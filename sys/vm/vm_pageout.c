@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.97 1997/07/27 04:49:19 dyson Exp $
+ * $Id: vm_pageout.c,v 1.98 1997/09/01 03:17:26 bde Exp $
  */
 
 /*
@@ -447,7 +447,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		rcount = object->resident_page_count;
 		p = TAILQ_FIRST(&object->memq);
 		while (p && (rcount-- > 0)) {
-			int refcount;
+			int actcount;
 			if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
 				return;
 			next = TAILQ_NEXT(p, listq);
@@ -461,17 +461,17 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				continue;
 			}
 
-			refcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
-			if (refcount) {
+			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
+			if (actcount) {
 				p->flags |= PG_REFERENCED;
 			} else if (p->flags & PG_REFERENCED) {
-				refcount = 1;
+				actcount = 1;
 			}
 
 			if ((p->queue != PQ_ACTIVE) &&
 				(p->flags & PG_REFERENCED)) {
 				vm_page_activate(p);
-				p->act_count += refcount;
+				p->act_count += actcount;
 				p->flags &= ~PG_REFERENCED;
 			} else if (p->queue == PQ_ACTIVE) {
 				if ((p->flags & PG_REFERENCED) == 0) {
@@ -586,6 +586,7 @@ vm_pageout_scan()
 	vm_offset_t size, bigsize;
 	vm_object_t object;
 	int force_wakeup = 0;
+	int actcount;
 	int vnodes_skipped = 0;
 	int s;
 
@@ -636,41 +637,87 @@ rescan0:
 			continue;
 		}
 
+		/*
+		 * If the object is not being used, we ignore previous references.
+		 */
 		if (m->object->ref_count == 0) {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+
+		/*
+		 * Otherwise, if the page has been referenced while in the inactive
+		 * queue, we bump the "activation count" upwards, making it less
+		 * likely that the page will be added back to the inactive queue
+		 * prematurely again.  Here we check the page tables (or emulated
+		 * bits, if any), given the upper level VM system not knowing anything
+		 * about existing references.
+		 */
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
-			pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
+			(actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m)))) {
 			vm_page_activate(m);
+			m->act_count += (actcount + ACT_ADVANCE);
 			continue;
 		}
 
+		/*
+		 * If the upper level VM system knows about any page references,
+		 * we activate the page.  We also set the "activation count" higher
+		 * than normal so that we will less likely place pages back onto the
+		 * inactive queue again.
+		 */
 		if ((m->flags & PG_REFERENCED) != 0) {
 			m->flags &= ~PG_REFERENCED;
+#if 0
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+#else
+			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+#endif
 			vm_page_activate(m);
+			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;
 		}
 
+		/*
+		 * If the upper level VM system doesn't know anything about the
+		 * page being dirty, we have to check for it again.  As far as the
+		 * VM code knows, any partially dirty pages are fully dirty.
+		 */
 		if (m->dirty == 0) {
 			vm_page_test_dirty(m);
 		} else if (m->dirty != 0) {
 			m->dirty = VM_PAGE_BITS_ALL;
 		}
 
+		/*
+		 * Invalid pages can be easily freed
+		 */
 		if (m->valid == 0) {
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
 			cnt.v_dfree++;
 			++pages_freed;
+
+		/*
+		 * Clean pages can be placed onto the cache queue.
+		 */
 		} else if (m->dirty == 0) {
 			vm_page_cache(m);
 			++pages_freed;
+
+		/*
+		 * Dirty pages need to be paged out.  Note that we clean
+		 * only a limited number of pages per pagedaemon pass.
+		 */
 		} else if (maxlaunder > 0) {
 			int written;
 			struct vnode *vp = NULL;
 
 			object = m->object;
+
+			/*
+			 * We don't bother paging objects that are "dead".  Those
+			 * objects are in a "rundown" state.
+			 */
 			if (object->flags & OBJ_DEAD) {
 				s = splvm();
 				TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
@@ -753,7 +800,6 @@ rescan0:
 	 * sure that we will move a minimal amount of pages from active to
 	 * inactive.
 	 */
-
 	page_shortage = (cnt.v_inactive_target + cnt.v_cache_min) -
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
 	if (page_shortage <= 0) {
@@ -763,6 +809,13 @@ rescan0:
 			page_shortage = 1;
 		}
 	}
+
+	/*
+	 * If the "inactive" loop finds that there is a shortage over and
+	 * above the page statistics variables, then we need to accomodate
+	 * that.  This avoids potential deadlocks due to pages being temporarily
+	 * busy for I/O or other types of temporary wiring.
+	 */
 	if (addl_page_shortage) {
 		if (page_shortage < 0)
 			page_shortage = 0;
@@ -772,8 +825,11 @@ rescan0:
 	pcount = cnt.v_active_count;
 	m = TAILQ_FIRST(&vm_page_queue_active);
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
-		int refcount;
 
+		/*
+		 * This is a consistancy check, and should likely be a panic
+		 * or warning.
+		 */
 		if (m->queue != PQ_ACTIVE) {
 			break;
 		}
@@ -799,22 +855,32 @@ rescan0:
 		 */
 		cnt.v_pdpages++;
 
-		refcount = 0;
+		/*
+		 * Check to see "how much" the page has been used.
+		 */
+		actcount = 0;
 		if (m->object->ref_count != 0) {
 			if (m->flags & PG_REFERENCED) {
-				refcount += 1;
+				actcount += 1;
 			}
-			refcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
-			if (refcount) {
-				m->act_count += ACT_ADVANCE + refcount;
+			actcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+			if (actcount) {
+				m->act_count += ACT_ADVANCE + actcount;
 				if (m->act_count > ACT_MAX)
 					m->act_count = ACT_MAX;
 			}
 		}
 
+		/*
+		 * Since we have "tested" this bit, we need to clear it now.
+		 */
 		m->flags &= ~PG_REFERENCED;
 
-		if (refcount && (m->object->ref_count != 0)) {
+		/*
+		 * Only if an object is currently being used, do we use the
+		 * page activation count stats.
+		 */
+		if (actcount && (m->object->ref_count != 0)) {
 			s = splvm();
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
@@ -954,7 +1020,7 @@ vm_pageout_page_stats()
 
 	m = TAILQ_FIRST(&vm_page_queue_active);
 	while ((m != NULL) && (pcount-- > 0)) {
-		int refcount;
+		int actcount;
 
 		if (m->queue != PQ_ACTIVE) {
 			break;
@@ -975,15 +1041,15 @@ vm_pageout_page_stats()
 			continue;
 		}
 
-		refcount = 0;
+		actcount = 0;
 		if (m->flags & PG_REFERENCED) {
 			m->flags &= ~PG_REFERENCED;
-			refcount += 1;
+			actcount += 1;
 		}
 
-		refcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
-		if (refcount) {
-			m->act_count += ACT_ADVANCE + refcount;
+		actcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+		if (actcount) {
+			m->act_count += ACT_ADVANCE + actcount;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
 			s = splvm();
@@ -992,6 +1058,13 @@ vm_pageout_page_stats()
 			splx(s);
 		} else {
 			if (m->act_count == 0) {
+				/*
+				 * We turn off page access, so that we have more accurate
+				 * RSS stats.  We don't do this in the normal page deactivation
+				 * when the system is loaded VM wise, because the cost of
+				 * the large number of page protect operations would be higher
+				 * than the value of doing the operation.
+				 */
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_deactivate(m);
 			} else {
