@@ -229,7 +229,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		 */
 		do {
 			rstart = (rstart + amask) & ~amask;
-			if (((rstart ^ (rstart + count)) & bmask) != 0)
+			if (((rstart ^ (rstart + count - 1)) & bmask) != 0)
 				rstart += bound - (rstart & ~bmask);
 		} while ((rstart & amask) != 0 && rstart < end &&
 		    rstart < s->r_end);
