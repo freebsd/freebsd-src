@@ -263,7 +263,7 @@ pcic_probe(device_t dev)
 	char *name;
 	int i;
 	int error;
-	struct resource *res;
+	struct resource *res = 0;
 	int rid;
 	static int maybe_vlsi = 0;
 
@@ -452,10 +452,14 @@ pcic_probe(device_t dev)
 		if (pcic_irq == 0) {
 			/* See if the user has requested a specific IRQ */
 			if (!getenv_int("machdep.pccard.pcic_irq", &pcic_irq))
-				pcic_irq = 0;
+				pcic_irq = -1;
 			rid = 0;
-			res = bus_alloc_resource(dev, SYS_RES_IRQ, 
-			    &rid, pcic_irq, ~0, 1, RF_ACTIVE);
+			if (pcic_irq) {
+				if (pcic_irq < 0)
+					pcic_irq = 0;
+				res = bus_alloc_resource(dev, SYS_RES_IRQ, 
+				    &rid, pcic_irq, ~0, 1, RF_ACTIVE);
+			}
 			if (res) {
 				error = bus_setup_intr(dev, res, 
 				    INTR_TYPE_MISC, pcicintr, NULL, &ih);
@@ -465,9 +469,14 @@ pcic_probe(device_t dev)
 					return error;
 				}
 				pcic_irq = rman_get_start(res);
+				printf("pcic: management irq %d\n", pcic_irq);
 			} else {
-				printf("pcic: polling, can't alloc %d\n",
-				    pcic_irq);
+				if (pcic_irq)
+					printf("pcic: polling mode, can't alloc %d\n",
+						pcic_irq);
+				else
+					printf("pcic: polling mode\n");
+				pcic_irq = 0;
 			}
 		}
 		/*
@@ -496,6 +505,8 @@ pcic_probe(device_t dev)
 		 */
 		if (pcic_irq > 0)
 			sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+		else if (pcic_irq == 0) 
+			sp->putb(sp, PCIC_STAT_INT, 0xF);
 	}
 	if (validslots && pcic_irq <= 0)
 		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
