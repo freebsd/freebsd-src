@@ -64,6 +64,7 @@ extern WINDOW *makenew(int, int, int, int);
 extern int timed_wait(int fd, int wait, int *timeleft);
 extern chtype _nc_background(WINDOW *);
 extern chtype _nc_render(WINDOW *, chtype);
+extern int _nc_keypad(bool);
 extern void _nc_scroll_window(WINDOW *, int, short const, short const, chtype);
 
 struct try {
