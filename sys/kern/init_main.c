@@ -503,7 +503,7 @@ start_init(void *dummy)
 	td = curthread;
 	p = td->td_proc;
 
-	vfs_mountroot(NULL);
+	vfs_mountroot();
 
 	/* Get the vnode for '/'.  Set p->p_fd->fd_cdir to reference it. */
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode))
