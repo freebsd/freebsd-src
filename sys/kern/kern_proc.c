@@ -53,7 +53,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -80,8 +80,8 @@ struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
 struct sx pgrpsess_lock;
-vm_zone_t proc_zone;
-vm_zone_t ithread_zone;
+uma_zone_t proc_zone;
+uma_zone_t ithread_zone;
 
 /*
  * Initialize global process hashing structures.
@@ -98,7 +98,8 @@ procinit()
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
-	proc_zone = zinit("PROC", sizeof (struct proc), 0, 0, 5);
+	proc_zone = uma_zcreate("PROC", sizeof (struct proc), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uihashinit();
 	/*
 	 * This should really be a compile time warning, but I do

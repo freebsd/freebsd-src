@@ -69,7 +69,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
@@ -188,8 +188,8 @@ static struct mtx spechash_mtx;
 struct nfs_public nfs_pub;
 
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
-static vm_zone_t vnode_zone;
-static vm_zone_t vnodepoll_zone;
+static uma_zone_t vnode_zone;
+static uma_zone_t vnodepoll_zone;
 
 /* Set to 1 to print out reclaim of active vnodes */
 int	prtactive;
@@ -257,7 +257,7 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
 void
 v_addpollinfo(struct vnode *vp)
 {
-	vp->v_pollinfo = zalloc(vnodepoll_zone);
+	vp->v_pollinfo = uma_zalloc(vnodepoll_zone, M_WAITOK);
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", MTX_DEF);
 }
 
@@ -276,8 +276,10 @@ vntblinit(void *dummy __unused)
 	mtx_init(&spechash_mtx, "spechash", MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", MTX_DEF);
-	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
-	vnodepoll_zone = zinit("VNODEPOLL", sizeof (struct vpollinfo), 0, 0, 5);
+	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
+	      NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	/*
 	 * Initialize the filesystem syncer.
 	 */     
@@ -796,7 +798,7 @@ getnewvnode(tag, mp, vops, vpp)
 #endif
 		if (vp->v_pollinfo) {
 			mtx_destroy(&vp->v_pollinfo->vpi_lock);
-			zfree(vnodepoll_zone, vp->v_pollinfo);
+			uma_zfree(vnodepoll_zone, vp->v_pollinfo);
 		}
 		vp->v_pollinfo = NULL;
 		vp->v_flag = 0;
@@ -807,7 +809,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 	} else {
 		mtx_unlock(&vnode_free_list_mtx);
-		vp = (struct vnode *) zalloc(vnode_zone);
+		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
 		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
 		vp->v_dd = vp;
@@ -3037,7 +3039,7 @@ NDFREE(ndp, flags)
 {
 	if (!(flags & NDF_NO_FREE_PNBUF) &&
 	    (ndp->ni_cnd.cn_flags & HASBUF)) {
-		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
+		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 		ndp->ni_cnd.cn_flags &= ~HASBUF;
 	}
 	if (!(flags & NDF_NO_DVP_UNLOCK) &&

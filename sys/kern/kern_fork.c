@@ -66,7 +66,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <sys/vmmeter.h>
 #include <sys/user.h>
@@ -325,7 +325,7 @@ fork1(td, flags, procp)
 	}
 
 	/* Allocate new proc. */
-	newproc = zalloc(proc_zone);
+	newproc = uma_zalloc(proc_zone, M_WAITOK);
 
 	/*
 	 * Setup linkage for kernel based threading
