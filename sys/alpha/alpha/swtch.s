@@ -87,6 +87,16 @@ Lsavectx1: LDGP(pv)
 IMPORT(Lev1map, 8)
 
 /*
+ * cpu_throw()
+ * Switch to a new task discarding our current state.
+ */
+LEAF(cpu_throw, 0)
+	LDGP(pv)
+	mov	zero, s0			/* ensure newproc != oldproc */
+	CALL(Lcs1)
+	END(cpu_throw)
+
+/*
  * cpu_switch()
  * Find the highest priority process and resume it.
  */
