@@ -262,8 +262,8 @@ struct acpi_parse_resource_set {
     void	(* set_memory)(device_t dev, void *context, u_int32_t base, u_int32_t length);
     void	(* set_memoryrange)(device_t dev, void *context, u_int32_t low, u_int32_t high, 
 				    u_int32_t length, u_int32_t align);
-    void	(* set_irq)(device_t dev, void *context, u_int32_t irq);
-    void	(* set_drq)(device_t dev, void *context, u_int32_t drq);
+    void	(* set_irq)(device_t dev, void *context, u_int32_t *irq, int cout);
+    void	(* set_drq)(device_t dev, void *context, u_int32_t *drq, int count);
     void	(* set_start_dependant)(device_t dev, void *context, int preference);
     void	(* set_end_dependant)(device_t dev, void *context);
 };
