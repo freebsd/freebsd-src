@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.107 1997/08/31 19:36:56 se Exp $
+**  $Id: ncr.c,v 1.108 1997/08/31 19:42:29 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1340,7 +1340,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.107 1997/08/31 19:36:56 se Exp $\n";
+	"\n$Id: ncr.c,v 1.108 1997/08/31 19:42:29 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5203,16 +5203,6 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char scntl3, u_char sxfer)
 		printf ("%d.%d MB/s (%d ns, offset %d)\n",
 			mb10 / 10, mb10 % 10, tp->period / 10, sxfer & 0x1f);
 	} else  printf ("asynchronous.\n");
-
-#if 1
-	/*
-	**	Convert tp->period in nano-seconds since ncrcontrol 
-	**	is expecting nano-seconds. It should be better to 
-	**	update ncrcontrol.
-	*/
-		if (tp->period != 0xffff)
-			tp->period = (tp->period + 9) / 10;
-#endif
 
 	/*
 	**	set actual value and sync_status
