@@ -37,7 +37,7 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.13 1997/02/10 02:13:30 dyson Exp $
+ *	$Id: null_vnops.c,v 1.14 1997/02/12 14:55:01 mpp Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
@@ -361,7 +361,7 @@ null_lookup(ap)
 	if ((flags & ISLASTCN) && (ap->a_dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
-	error = null_bypass(ap);
+	error = null_bypass((struct vop_generic_args *)ap);
 	if (error == EJUSTRETURN && (flags & ISLASTCN) &&
 	    (ap->a_dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME))
@@ -434,7 +434,7 @@ null_setattr(ap)
 				return (EROFS);
 		}
 	}
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 /*
@@ -451,7 +451,7 @@ null_getattr(ap)
 {
 	int error;
 
-	if (error = null_bypass(ap))
+	if (error = null_bypass((struct vop_generic_args *)ap))
 		return (error);
 	/* Requires that arguments be restored. */
 	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
@@ -485,7 +485,7 @@ null_access(ap)
 			break;
 		}
 	}
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 /*
@@ -506,7 +506,7 @@ null_lock(ap)
 	if ((ap->a_flags & LK_TYPE_MASK) == LK_DRAIN)
 		return (0);
 	ap->a_flags &= ~LK_INTERLOCK;
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 /*
@@ -526,7 +526,7 @@ null_unlock(ap)
 
 	vop_nounlock(ap);
 	ap->a_flags &= ~LK_INTERLOCK;
-	return (null_bypass(ap));
+	return (null_bypass((struct vop_generic_args *)ap));
 }
 
 static int
