@@ -1,12 +1,12 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.7 1995/09/14 19:52:28 gibbs Exp $
+#	$Id: Makefile,v 1.8 1995/09/15 06:20:23 gibbs Exp $
 
 LIB=	kadm
 
 SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
 CFLAGS+=	-I. -I${.CURDIR} -I${KRBOBJDIR} -DPOSIX
 
-beforeinstall:
+beforeinstall: kadm_err.c
 	-cd ${.CURDIR}; cmp -s kadm.h \
 	    ${DESTDIR}/usr/include/kerberosIV/kadm.h || \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 kadm.h \
