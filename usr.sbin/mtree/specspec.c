@@ -82,6 +82,8 @@ shownode(NODE *n, int f, char const *path)
 		printf(" sha1digest=%s", n->sha1digest);
 	if (f & F_RMD160)
 		printf(" rmd160digest=%s", n->rmd160digest);
+	if (f & F_SHA256)
+		printf(" sha256digest=%s", n->sha256digest);
 	if (f & F_FLAGS)
 		printf(" flags=%s", flags_to_string(n->st_flags));
 	printf("\n");
@@ -160,6 +162,8 @@ compare_nodes(NODE *n1, NODE *n2, char const *path)
 		differs |= F_SHA1;
 	if (FS(n1, n2, F_RMD160, rmd160digest))
 		differs |= F_RMD160;
+	if (FS(n1, n2, F_SHA256, sha256digest))
+		differs |= F_SHA256;
 	if (FF(n1, n2, F_FLAGS, st_flags))
 		differs |= F_FLAGS;
 	if (differs) {
@@ -213,19 +217,19 @@ walk_in_the_forest(NODE *t1, NODE *t2, char const *path)
 			asprintf(&np, "%s%s/", path, c2->name);
 			i = walk_in_the_forest(c1, c2, np);
 			free(np);
-			i = compare_nodes(c1, c2, path);
+			i += compare_nodes(c1, c2, path);
 		} else if (c2 == NULL && c1->type == F_DIR) {
 			asprintf(&np, "%s%s/", path, c1->name);
 			i = walk_in_the_forest(c1, c2, np);
 			free(np);
-			i = compare_nodes(c1, c2, path);
+			i += compare_nodes(c1, c2, path);
 		} else if (c1 == NULL || c2 == NULL) {
 			i = compare_nodes(c1, c2, path);
 		} else if (c1->type == F_DIR && c2->type == F_DIR) {
 			asprintf(&np, "%s%s/", path, c1->name);
 			i = walk_in_the_forest(c1, c2, np);
 			free(np);
-			i = compare_nodes(c1, c2, path);
+			i += compare_nodes(c1, c2, path);
 		} else {
 			i = compare_nodes(c1, c2, path);
 		}

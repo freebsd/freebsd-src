@@ -15,7 +15,7 @@ TMP=/tmp/mtree.$$
 rm -rf ${TMP}
 mkdir -p ${TMP}
 
-K=uid,uname,gid,gname,flags,md5digest,size,ripemd160digest,sha1digest,cksum
+K=uid,uname,gid,gname,flags,md5digest,size,ripemd160digest,sha1digest,sha256digest,cksum
 
 rm -rf _FOO
 mkdir _FOO
