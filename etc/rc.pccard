@@ -3,11 +3,11 @@
 # PC-card startup script
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
-#	$Id: rc.pccard,v 1.6.2.2 1999/03/17 17:41:35 nate Exp $
+#	$Id: rc.pccard,v 1.6.2.3 1999/03/17 20:58:33 nate Exp $
 #
 
 if [ "X$pccard_enable" = X"YES" ] ; then
-	builtin=`kldstat -v -n 1 | grep pcic | awk '{print $2}'`
+	builtin=`kldstat -v -i 1 | grep pcic | awk '{print $2}'`
 	if [ "$builtin" = "pcic" ] ; then
 		echo "PCIC module compiled in"
 	else
