@@ -190,6 +190,10 @@ SUBDIR+=boot0cfg
 SUBDIR+=boot98cfg
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+SUBDIR+=ofwdump
+.endif
+
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=keyserv
 .endif
