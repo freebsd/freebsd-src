@@ -160,8 +160,6 @@ typedef int dumper_t(
 	off_t offset,		/* Byte-offset to write at. */
 	size_t length);		/* Number of bytes to dump. */
 
-#define DEV_STRATEGY(bp) dev_strategy(bp)
-
 #endif /* _KERNEL */
 
 /*
