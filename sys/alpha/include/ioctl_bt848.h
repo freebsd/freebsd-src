@@ -149,6 +149,16 @@ struct eeProm {
  */
 #define BT848_I2CWR     _IOWR('x', 57, u_long)    /* i2c read-write */
 
+struct bktr_msp_control {
+	unsigned char function;
+	unsigned int  address;
+	unsigned int  data;
+};
+
+#define BT848_MSP_RESET _IO('x', 76)				/* MSP chip reset */
+#define BT848_MSP_READ  _IOWR('x', 77, struct bktr_msp_control)	/* MSP chip reset */
+#define BT848_MSP_WRITE _IOWR('x', 78, struct bktr_msp_control)	/* MSP chip reset */
+
 /* Support for radio tuner */
 #define RADIO_SETMODE	 _IOW('x', 58, unsigned int)  /* set radio modes */
 #define RADIO_GETMODE	 _IOR('x', 58, unsigned char)  /* get radio modes */
