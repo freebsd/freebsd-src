@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: user.c,v 1.1 1996/12/09 06:02:33 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -204,7 +204,8 @@ verifyGroupSettings(void)
 	    return 0;
 	}
 #ifndef notyet  /* XXX */
-	feepout("Sorry, this feature is currently not yet implemented.\n");
+	feepout("Sorry, the group member list feature\n"
+		"is currently not yet implemented.");
 	return 0;
 #endif
     }
