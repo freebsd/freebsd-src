@@ -68,6 +68,8 @@ struct pstats {
 	struct	timeval p_start;	/* starting time */
 };
 
+#ifdef _KERNEL
+
 /*
  * Kernel shareable process resource limits.  Because this structure
  * is moderately large but changes infrequently, it is normally
@@ -76,20 +78,12 @@ struct pstats {
 struct plimit {
 	struct	rlimit pl_rlimit[RLIM_NLIMITS];
 	int	pl_refcnt;		/* number of references */
-	struct	mtx pl_mtx;
+	struct	mtx *pl_mtx;
 };
 
-#ifdef _KERNEL
-
-/*
- * Lock order for operations involving the plimit lock:
- *      filedesc  <important to avoid deadlocks in the descriptor code>
- *      proc
- *      plimit
- */
-#define LIM_LOCK(lim)		mtx_lock(&(lim)->pl_mtx)
-#define LIM_UNLOCK(lim)		mtx_unlock(&(lim)->pl_mtx)
-#define LIM_LOCK_ASSERT(lim, f)	mtx_assert(&(lim)->pl_mtx, (f))
+#define	LIM_LOCK(lim)		mtx_lock((lim)->pl_mtx)
+#define	LIM_UNLOCK(lim)		mtx_unlock((lim)->pl_mtx)
+#define	LIM_LOCK_ASSERT(lim, f)	mtx_assert((lim)->pl_mtx, (f))
 
 /*
  * Per uid resource consumption
