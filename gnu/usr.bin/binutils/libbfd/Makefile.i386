@@ -6,10 +6,6 @@ SRCS+=	cpu-i386.c elf32-i386-fbsd.c elf32-i386.c elf32-target.h elf32.c elflink.
 VECS=	${DEFAULT_VECTOR} bfd_elf32_i386_vec
 .if ${TARGET_ARCH} == "i386"
 CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
-
-.if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
-SRCS+=	pe-i386.c pei-i386.c
-VECS+=	i386pe_vec i386pei_vec
 .endif
 
 CLEANFILES+=	elf32-target.h
