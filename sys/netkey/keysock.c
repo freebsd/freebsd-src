@@ -428,8 +428,10 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	key_cb.any_count++;
 	kp->kp_raw.rcb_laddr = &key_src;
 	kp->kp_raw.rcb_faddr = &key_dst;
-	soisconnected(so);
+	SIGIO_SLOCK();
+	soisconnected_locked(so);
 	so->so_options |= SO_USELOOPBACK;
+	SIGIO_SUNLOCK();
 
 	splx(s);
 	return 0;

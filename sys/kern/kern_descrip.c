@@ -113,6 +113,7 @@ struct filelist filehead;	/* head of list of open files */
 int nfiles;			/* actual number of open files */
 extern int cmask;	
 struct sx filelist_lock;	/* sx to protect filelist */
+struct sx sigio_lock;		/* sx to protect pointers to sigio */
 
 /*
  * System calls on descriptors.
@@ -2186,4 +2187,5 @@ filelistinit(dummy)
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	sx_init(&filelist_lock, "filelist lock");
+	sx_init(&sigio_lock, "sigio lock");
 }
