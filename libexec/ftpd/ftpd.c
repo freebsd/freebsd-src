@@ -794,12 +794,12 @@ inithosts()
 				if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
 					goto nextline;
 				hrp->hostname = NULL;
-				hrp->hostinfo = NULL;
 				insert = 1;
-			} else
+			} else {
+				if (hrp->hostinfo)
+					freeaddrinfo(hrp->hostinfo);
 				insert = 0; /* host already in the chain */
-			if (hrp->hostinfo)
-				freeaddrinfo(hrp->hostinfo);
+			}
 			hrp->hostinfo = res;
 
 			/*
@@ -819,9 +819,11 @@ inithosts()
 				break;
 			default:
 				/* should not reach here */
-				if (hrp->hostinfo != NULL)
-					freeaddrinfo(hrp->hostinfo);
-				free(hrp);
+				freeaddrinfo(hrp->hostinfo);
+				if (insert)
+					free(hrp); /*not in chain, can free*/
+				else
+					hrp->hostinfo = NULL; /*mark as blank*/
 				goto nextline;
 				/* NOTREACHED */
 			}
@@ -847,8 +849,13 @@ inithosts()
 				hrp->hostname = NULL;
 			}
 			if (hrp->hostname == NULL &&
-			    (hrp->hostname = strdup(vhost)) == NULL)
+			    (hrp->hostname = strdup(vhost)) == NULL) {
+				freeaddrinfo(hrp->hostinfo);
+				hrp->hostinfo = NULL; /* mark as blank */
+				if (hp)
+					freehostent(hp);
 				goto nextline;
+			}
 			hrp->anonuser = anonuser;
 			hrp->statfile = statfile;
 			hrp->welcome  = welcome;
