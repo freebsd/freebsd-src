@@ -45,17 +45,11 @@
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/signalvar.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/module.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
-#include <vm/vm_page.h>
-#include <vm/vm_extern.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <machine/cpu.h>

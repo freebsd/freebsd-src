@@ -80,19 +80,9 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/shm.h>
-#include <sys/msg.h>
-#include <sys/sem.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/time.h>
-#include <sys/malloc.h>
-#include <sys/mman.h>
-#include <sys/systm.h>
-#include <sys/stat.h>
 
-#include <sys/mount.h>
-#include <sys/sysproto.h>
 
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_signal.h>

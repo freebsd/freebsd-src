@@ -35,14 +35,10 @@
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/signal.h>
-#include <sys/unistd.h>
 #include <sys/filedesc.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/mount.h>
 #include <net/if.h>
 #include <sys/malloc.h>
 

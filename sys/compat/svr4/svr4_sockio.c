@@ -35,13 +35,9 @@
 #include <sys/filedesc.h>
 #include <sys/sockio.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
 #include <sys/socket.h>
-#include <sys/mount.h>
 #include <net/if.h>
-#include <sys/malloc.h>
 
-#include <sys/sysproto.h>
 
 #include <svr4/svr4.h>
 #include <svr4/svr4_types.h>

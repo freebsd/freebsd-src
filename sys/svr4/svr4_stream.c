@@ -44,10 +44,8 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
-#include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/select.h>
@@ -56,7 +54,6 @@
 #include <sys/un.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/signal.h>
@@ -64,7 +61,6 @@
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/stat.h>
 
 #include <sys/sysproto.h>
