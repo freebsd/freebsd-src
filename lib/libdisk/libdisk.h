@@ -103,6 +103,9 @@ struct chunk {
 #define CHUNK_AUTO_SIZE		0x0080
 #define CHUNK_NEWFS		0x0100
 
+#define DELCHUNK_NORMAL		0x0000
+#define DELCHUNK_RECOVER	0x0001
+
 
 extern const char *chunk_n[];
 
@@ -139,6 +142,12 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 void
 Sanitize_Bios_Geom(struct disk *disk);
 /* Set the bios geometry to something sane
+ */
+
+int
+Delete_Chunk2(struct disk *disk, struct chunk *, int flags);
+/* Free a chunk of disk_space modified by the passed
+ * flags.
  */
 
 int
