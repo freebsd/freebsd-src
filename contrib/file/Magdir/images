@@ -231,6 +231,10 @@
 >12	belong		x		%d
 #
 2048	string		PCD_IPI		Kodak Photo CD image pack file
+>0xe02	byte&0x03	0x00		, landscape mode
+>0xe02	byte&0x03	0x01		, portrait mode
+>0xe02	byte&0x03	0x02		, landscape mode
+>0xe02	byte&0x03	0x03		, portrait mode
 0	string		PCD_OPA		Kodak Photo CD overview pack file
 
 # FITS format.  Jeff Uphoff <juphoff@tarsier.cv.nrao.edu>
@@ -266,7 +270,7 @@
 #   As described in /usr/X11R6/include/X11/XWDFile.h
 #   used by the xwd program.
 #   Bradford Castalia, idaeim, 1/01
-4	belong	7			XWD X-Widows Dump image data
+4	belong	7			XWD X-Windows Dump image data
 >100	string	>\0			\b, "%s"
 >16	belong	x			\b, %dx
 >20	belong	x			\b%dx
@@ -282,8 +286,6 @@
 2	string	CCSD3Z			PDS (CCSD) image data
 0	string	PDS_			PDS image data
 0	string	LBLSIZE=		PDS (VICAR) image data
-
-0	string		GSTIm		GNU SmallTalk image file
 
 # pM8x: ATARI STAD compressed bitmap format
 #
@@ -301,20 +303,33 @@
 >5	byte	0x00		(white background)
 >5	byte	0xFF		(black background)
 
+# XXX:
+# This is bad magic 0x5249 == 'RI' conflicts with RIFF and other
+# magic.
 # SGI RICE image file <mpruett@sgi.com>
-0	beshort	0x5249		RICE image
->2	beshort	x		v%d
->4	beshort	x		(%d x
->6	beshort	x		%d)
->8	beshort	0		8 bit
->8	beshort	1		10 bit
->8	beshort	2		12 bit
->8	beshort	3		13 bit
->10	beshort	0		4:2:2
->10	beshort	1		4:2:2:4
->10	beshort	2		4:4:4
->10	beshort	3		4:4:4:4
->12	beshort	1		RGB
->12	beshort	2		CCIR601
->12	beshort	3		RP175
->12	beshort	4		YUV
+#0	beshort	0x5249		RICE image
+#>2	beshort	x		v%d
+#>4	beshort	x		(%d x
+#>6	beshort	x		%d)
+#>8	beshort	0		8 bit
+#>8	beshort	1		10 bit
+#>8	beshort	2		12 bit
+#>8	beshort	3		13 bit
+#>10	beshort	0		4:2:2
+#>10	beshort	1		4:2:2:4
+#>10	beshort	2		4:4:4
+#>10	beshort	3		4:4:4:4
+#>12	beshort	1		RGB
+#>12	beshort	2		CCIR601
+#>12	beshort	3		RP175
+#>12	beshort	4		YUV
+
+#------------------------------------------------------------------------------
+#
+# Marco Schmidt (marcoschmidt@users.sourceforge.net) -- an image  file format
+# for the EPOC operating system, which is used with PDAs like those from Psion
+#
+# see http://huizen.dds.nl/~frodol/psiconv/html/Index.html for a description
+# of various EPOC file formats
+
+0	string \x37\x00\x00\x10\x42\x00\x00\x10\x00\x00\x00\x00\x39\x64\x39\x47 EPOC MBM image file
