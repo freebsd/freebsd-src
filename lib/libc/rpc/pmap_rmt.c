@@ -189,7 +189,7 @@ getbroadcastnets(addrs, sock, buf)
 		ifr = (struct ifreq *)cp;
 		if (ifr->ifr_addr.sa_family != AF_INET)
 			continue;
-		ifreq = *ifr;
+		memcpy(&ifreq, ifr, sizeof(ifreq));
                 if (ioctl(sock, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
                         perror("broadcast: ioctl (get interface flags)");
                         continue;
