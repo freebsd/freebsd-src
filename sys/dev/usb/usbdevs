@@ -710,13 +710,17 @@ product MUSTEK 1200CU		0x0001	1200 CU scanner
 product MUSTEK 600CU		0x0002	600 CU scanner
 product MUSTEK 1200USB		0x0003	1200 USB scanner
 product MUSTEK 1200UB		0x0006	1200 UB scanner
+product MUSTEK 1200USBPLUS	0x0007	1200 USB Plus scanner
+product MUSTEK BEARPAW1200F	0x0010	BearPaw 1200F scanner
+product MUSTEK 600USB		0x0873	600 USB scanner
 product MUSTEK MDC800		0xa800	MDC-800 digital camera
 
 /* M-Systems products */
 product MSYSTEMS DISKONKEY	0x0010	DiskOnKey
 
 /* National Semiconductor */
-product NATIONAL BEARPAW	0x1000	BearPaw 1200
+product NATIONAL BEARPAW1200	0x1000	BearPaw 1200 scanner
+product NATIONAL BEARPAW2400	0x1001	BearPaw 2400 scanner
 
 /* NEC products */
 product NEC HUB			0x55aa	hub
