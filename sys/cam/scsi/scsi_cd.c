@@ -2518,6 +2518,16 @@ cdsize(dev_t dev, u_int32_t *size)
 
 	softc->params.disksize = scsi_4btoul(rcap_buf->addr) + 1;
 	softc->params.blksize  = scsi_4btoul(rcap_buf->length);
+	/*
+	 * SCSI-3 mandates that the reported blocksize shall be 2048.
+	 * Older drives sometimes report funny values, trim it down to
+	 * 2048, or other parts of the kernel will get confused.
+	 *
+	 * XXX we leave drives alone that might report 512 bytes, as
+	 * well as drives reporting more weird sizes like perhaps 4K.
+	 */
+	if (softc->params.blksize > 2048 && softc->params.blksize <= 2352)
+		softc->params.blksize = 2048;
 
 	free(rcap_buf, M_TEMP);
 	*size = softc->params.disksize;
