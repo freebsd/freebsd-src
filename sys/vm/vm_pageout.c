@@ -461,8 +461,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 	int map_remove_only;
 {
 	vm_page_t p, next;
-	int rcount;
-	int remove_mode;
+	int actcount, rcount, remove_mode;
 
 	GIANT_REQUIRED;
 	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
@@ -482,10 +481,12 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		 */
 		rcount = object->resident_page_count;
 		p = TAILQ_FIRST(&object->memq);
+		vm_page_lock_queues();
 		while (p && (rcount-- > 0)) {
-			int actcount;
-			if (pmap_resident_count(vm_map_pmap(map)) <= desired)
+			if (pmap_resident_count(map->pmap) <= desired) {
+				vm_page_unlock_queues();
 				return;
+			}
 			next = TAILQ_NEXT(p, listq);
 			cnt.v_pdpages++;
 			if (p->wire_count != 0 ||
@@ -496,14 +497,12 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				p = next;
 				continue;
 			}
-
 			actcount = pmap_ts_referenced(p);
 			if (actcount) {
 				vm_page_flag_set(p, PG_REFERENCED);
 			} else if (p->flags & PG_REFERENCED) {
 				actcount = 1;
 			}
-
 			if ((p->queue != PQ_ACTIVE) &&
 				(p->flags & PG_REFERENCED)) {
 				vm_page_activate(p);
@@ -530,9 +529,9 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 			}
 			p = next;
 		}
+		vm_page_unlock_queues();
 		object = object->backing_object;
 	}
-	return;
 }
 
 /*
