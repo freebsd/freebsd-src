@@ -1849,7 +1849,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap == NULL)
 		return;
 
-	va &= PG_FRAME;
+	va = trunc_page(va);
 #ifdef PMAP_DIAGNOSTIC
 	if (va > VM_MAX_KERNEL_ADDRESS)
 		panic("pmap_enter: toobig");
@@ -2780,7 +2780,7 @@ pmap_unmapdev(va, size)
 	/* If we gave a direct map region in pmap_mapdev, do nothing */
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
 		return;
-	base = va & PG_FRAME;
+	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE)
