@@ -8,7 +8,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${.OBJDIR}
 
 SRCS=		\
-		print_version.c
+		print_version.c	\
+		print_version.h
 
 install:
 

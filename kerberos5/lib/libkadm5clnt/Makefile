@@ -24,6 +24,7 @@ SRCS=	\
 	get_princs_c.c				\
 	init_c.c				\
 	kadm5_err.c				\
+	kadm5_err.h				\
 	kadm5_locl.h				\
 	marshall.c				\
 	modify_c.c				\
