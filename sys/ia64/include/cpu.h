@@ -63,8 +63,7 @@ struct clockframe {
 
 /* XXX */
 #define	TRAPF_PC(tf)		((tf)->tf_special.iip)
-#define	TRAPF_USERMODE(framep)						\
-	(((framep)->tf_special.psr & IA64_PSR_CPL) == IA64_PSR_CPL_USER)
+#define	TRAPF_USERMODE(tf)	((TRAPF_PC(tf) >> 61) < 5)
 
 /*
  * CTL_MACHDEP definitions.
