@@ -426,7 +426,7 @@ transmit_event(struct dn_pipe *pipe)
 	 */
 	switch (pkt->dn_dir) {
 	case DN_TO_IP_OUT:
-	    (void)ip_output((struct mbuf *)pkt, NULL, NULL, 0, NULL);
+	    (void)ip_output((struct mbuf *)pkt, NULL, NULL, 0, NULL, NULL);
 	    rt_unref (pkt->ro.ro_rt) ;
 	    break ;
 

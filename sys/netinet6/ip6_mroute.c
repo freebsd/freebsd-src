@@ -1446,7 +1446,7 @@ phyint_send(ip6, mifp, m)
 		im6o.im6o_multicast_hlim = ip6->ip6_hlim;
 		im6o.im6o_multicast_loop = 1;
 		error = ip6_output(mb_copy, NULL, &ro,
-				   IPV6_FORWARDING, &im6o, NULL);
+				   IPV6_FORWARDING, &im6o, NULL, NULL);
 
 #ifdef MRT6DEBUG
 		if (mrt6debug & DEBUG_XMIT)

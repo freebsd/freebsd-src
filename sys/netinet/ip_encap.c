@@ -489,38 +489,26 @@ encap_fillarg(m, ep)
 	struct mbuf *m;
 	const struct encaptab *ep;
 {
-#if 0
-	m->m_pkthdr.aux = ep->arg;
-#else
-	struct mbuf *n;
+	struct m_tag *tag;
 
-	n = m_aux_add(m, AF_INET, IPPROTO_IPV4);
-	if (n) {
-		*mtod(n, void **) = ep->arg;
-		n->m_len = sizeof(void *);
+	tag = m_tag_get(PACKET_TAG_ENCAP, sizeof (void*), M_NOWAIT);
+	if (tag) {
+		*(void**)(tag+1) = ep->arg;
+		m_tag_prepend(m, tag);
 	}
-#endif
 }
 
 void *
 encap_getarg(m)
 	struct mbuf *m;
 {
-	void *p;
-#if 0
-	p = m->m_pkthdr.aux;
-	m->m_pkthdr.aux = NULL;
-	return p;
-#else
-	struct mbuf *n;
+	void *p = NULL;
+	struct m_tag *tag;
 
-	p = NULL;
-	n = m_aux_find(m, AF_INET, IPPROTO_IPV4);
-	if (n) {
-		if (n->m_len == sizeof(void *))
-			p = *mtod(n, void **);
-		m_aux_delete(m, n);
+	tag = m_tag_find(m, PACKET_TAG_ENCAP, NULL);
+	if (tag) {
+		p = *(void**)(tag+1);
+		m_tag_delete(m, tag);
 	}
 	return p;
-#endif
 }

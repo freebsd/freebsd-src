@@ -70,6 +70,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -77,6 +78,8 @@
 #define M_SHAREDCLUSTER(m) \
 	(((m)->m_flags & M_EXT) != 0 && \
 	 ((m)->m_ext.ext_free || mclrefcnt[mtocl((m)->m_ext.ext_buf)] > 1))
+
+MALLOC_DEFINE(M_PACKET_TAGS, "tag", "packet-attached information");
 
 /* can't call it m_dup(), as freebsd[34] uses m_dup() with different arg */
 static struct mbuf *m_dup1 __P((struct mbuf *, int, int, int));
@@ -280,122 +283,162 @@ m_dup1(m, off, len, wait)
 	if (!n)
 		return NULL;
 
-	if (copyhdr)
-		M_COPY_PKTHDR(n, m);
+	if (copyhdr && !m_dup_pkthdr(n, m, wait)) {
+		m_free(n);
+		return NULL;
+	}
 	m_copydata(m, off, len, mtod(n, caddr_t));
 	return n;
 }
 
-/*
- * pkthdr.aux chain manipulation.
- * we don't allow clusters at this moment. 
- */
-struct mbuf *
-m_aux_add2(m, af, type, p)
-	struct mbuf *m;
-	int af, type;
-	void *p;
+/* Get a packet tag structure along with specified data following. */
+struct m_tag *
+m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 {
-	struct mbuf *n;
-	struct mauxtag *t;
+	struct m_tag *t;
 
-	if ((m->m_flags & M_PKTHDR) == 0)
+	if (len < 0)
 		return NULL;
-
-	n = m_aux_find(m, af, type);
-	if (n)
-		return n;
-
-	MGET(n, M_DONTWAIT, m->m_type);
-	if (n == NULL)
+	t = malloc(len + sizeof(struct m_tag), M_PACKET_TAGS, wait);
+	if (t == NULL)
 		return NULL;
-
-	t = mtod(n, struct mauxtag *);
-	bzero(t, sizeof(*t));
-	t->af = af;
-	t->type = type;
-	t->p = p;
-	n->m_data += sizeof(struct mauxtag);
-	n->m_len = 0;
-	n->m_next = m->m_pkthdr.aux;
-	m->m_pkthdr.aux = n;
-	return n;
+	t->m_tag_id = type;
+	t->m_tag_len = len;
+	t->m_tag_cookie = cookie;
+	return t;
 }
 
-struct mbuf *
-m_aux_find2(m, af, type, p)
-	struct mbuf *m;
-	int af, type;
-	void *p;
+
+/* Free a packet tag. */
+void
+m_tag_free(struct m_tag *t)
 {
-	struct mbuf *n;
-	struct mauxtag *t;
+	free(t, M_PACKET_TAGS);
+}
 
-	if ((m->m_flags & M_PKTHDR) == 0)
-		return NULL;
+/* Prepend a packet tag. */
+void
+m_tag_prepend(struct mbuf *m, struct m_tag *t)
+{
+	KASSERT(m && t, ("m_tag_prepend: null argument, m %p t %p", m, t));
+	SLIST_INSERT_HEAD(&m->m_pkthdr.tags, t, m_tag_link);
+}
 
-	for (n = m->m_pkthdr.aux; n; n = n->m_next) {
-		t = (struct mauxtag *)n->m_dat;
-		if (n->m_data != ((caddr_t)t) + sizeof(struct mauxtag)) {
-			printf("m_aux_find: invalid m_data for mbuf=%p (%p %p)\n", n, t, n->m_data);
-			continue;
-		}
-		if (t->af == af && t->type == type && t->p == p)
-			return n;
+/* Unlink a packet tag. */
+void
+m_tag_unlink(struct mbuf *m, struct m_tag *t)
+{
+	KASSERT(m && t, ("m_tag_unlink: null argument, m %p t %p", m, t));
+	SLIST_REMOVE(&m->m_pkthdr.tags, t, m_tag, m_tag_link);
+}
+
+/* Unlink and free a packet tag. */
+void
+m_tag_delete(struct mbuf *m, struct m_tag *t)
+{
+	KASSERT(m && t, ("m_tag_delete: null argument, m %p t %p", m, t));
+	m_tag_unlink(m, t);
+	m_tag_free(t);
+}
+
+/* Unlink and free a packet tag chain, starting from given tag. */
+void
+m_tag_delete_chain(struct mbuf *m, struct m_tag *t)
+{
+	struct m_tag *p, *q;
+
+	KASSERT(m, ("m_tag_delete_chain: null mbuf"));
+	if (t != NULL)
+		p = t;
+	else
+		p = SLIST_FIRST(&m->m_pkthdr.tags);
+	if (p == NULL)
+		return;
+	while ((q = SLIST_NEXT(p, m_tag_link)) != NULL)
+		m_tag_delete(m, q);
+	m_tag_delete(m, p);
+}
+
+/* Find a tag, starting from a given position. */
+struct m_tag *
+m_tag_locate(struct mbuf *m, u_int32_t cookie, int type, struct m_tag *t)
+{
+	struct m_tag *p;
+
+	KASSERT(m, ("m_tag_find: null mbuf"));
+	if (t == NULL)
+		p = SLIST_FIRST(&m->m_pkthdr.tags);
+	else
+		p = SLIST_NEXT(t, m_tag_link);
+	while (p != NULL) {
+		if (p->m_tag_cookie == cookie && p->m_tag_id == type)
+			return p;
+		p = SLIST_NEXT(p, m_tag_link);
 	}
 	return NULL;
 }
 
-struct mbuf *
-m_aux_find(m, af, type)
-	struct mbuf *m;
-	int af, type;
+/* Copy a single tag. */
+struct m_tag *
+m_tag_copy(struct m_tag *t, int how)
 {
+	struct m_tag *p;
 
-	return m_aux_find2(m, af, type, NULL);
+	KASSERT(t, ("m_tag_copy: null tag"));
+	p = m_tag_alloc(t->m_tag_cookie, t->m_tag_id, t->m_tag_len, how);
+	if (p == NULL)
+		return (NULL);
+	bcopy(t + 1, p + 1, t->m_tag_len); /* Copy the data */
+	return p;
 }
 
-struct mbuf *
-m_aux_add(m, af, type)
-	struct mbuf *m;
-	int af, type;
+/*
+ * Copy two tag chains. The destination mbuf (to) loses any attached
+ * tags even if the operation fails. This should not be a problem, as
+ * m_tag_copy_chain() is typically called with a newly-allocated
+ * destination mbuf.
+ */
+int
+m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
 {
+	struct m_tag *p, *t, *tprev = NULL;
 
-	return m_aux_add2(m, af, type, NULL);
-}
-
-void
-m_aux_delete(m, victim)
-	struct mbuf *m;
-	struct mbuf *victim;
-{
-	struct mbuf *n, *prev, *next;
-	struct mauxtag *t;
-
-	if ((m->m_flags & M_PKTHDR) == 0)
-		return;
-
-	prev = NULL;
-	n = m->m_pkthdr.aux;
-	while (n) {
-		t = (struct mauxtag *)n->m_dat;
-		next = n->m_next;
-		if (n->m_data != ((caddr_t)t) + sizeof(struct mauxtag)) {
-			printf("m_aux_delete: invalid m_data for mbuf=%p (%p %p)\n", n, t, n->m_data);
-			prev = n;
-			n = next;
-			continue;
+	KASSERT(to && from,
+		("m_tag_copy: null argument, to %p from %p", to, from));
+	m_tag_delete_chain(to, NULL);
+	SLIST_FOREACH(p, &from->m_pkthdr.tags, m_tag_link) {
+		t = m_tag_copy(p, how);
+		if (t == NULL) {
+			m_tag_delete_chain(to, NULL);
+			return 0;
 		}
-		if (n == victim) {
-			if (prev)
-				prev->m_next = n->m_next;
-			else
-				m->m_pkthdr.aux = n->m_next;
-			n->m_next = NULL;
-			m_free(n);
-			return;
-		} else
-			prev = n;
-		n = next;
+		if (tprev == NULL)
+			SLIST_INSERT_HEAD(&to->m_pkthdr.tags, t, m_tag_link);
+		else {
+			SLIST_INSERT_AFTER(tprev, t, m_tag_link);
+			tprev = t;
+		}
 	}
+	return 1;
+}
+
+/* Initialize tags on an mbuf. */
+void
+m_tag_init(struct mbuf *m)
+{
+	SLIST_INIT(&m->m_pkthdr.tags);
+}
+
+/* Get first tag in chain. */
+struct m_tag *
+m_tag_first(struct mbuf *m)
+{
+	return SLIST_FIRST(&m->m_pkthdr.tags);
+}
+
+/* Get next tag in chain. */
+struct m_tag *
+m_tag_next(struct mbuf *m, struct m_tag *t)
+{
+	return SLIST_NEXT(t, m_tag_link);
 }

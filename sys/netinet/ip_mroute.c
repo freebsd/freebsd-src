@@ -1597,7 +1597,7 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
     int s = splnet();
 
     if (vifp->v_flags & VIFF_TUNNEL)	/* If tunnel options */
-	ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, NULL);
+	ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, NULL, NULL);
     else {
 	struct ip_moptions imo;
 	int error;
@@ -1614,7 +1614,7 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
 	 * should get rejected because they appear to come from
 	 * the loopback interface, thus preventing looping.
 	 */
-	error = ip_output(m, NULL, &ro, IP_FORWARDING, &imo);
+	error = ip_output(m, NULL, &ro, IP_FORWARDING, &imo, NULL);
 
 	if (mrtdebug & DEBUG_XMIT)
 	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n",

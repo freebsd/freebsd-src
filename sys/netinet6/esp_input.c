@@ -830,8 +830,8 @@ noreplaycheck:
 			MGETHDR(n, M_DONTWAIT, MT_HEADER);
 			maxlen = MHLEN;
 			if (n)
-				M_COPY_PKTHDR(n, m);
-			if (n && m->m_pkthdr.len > maxlen) {
+				M_MOVE_PKTHDR(n, m);
+			if (n && n->m_pkthdr.len > maxlen) {
 				MCLGET(n, M_DONTWAIT);
 				maxlen = MCLBYTES;
 				if ((n->m_flags & M_EXT) == 0) {
@@ -844,19 +844,16 @@ noreplaycheck:
 				goto bad;
 			}
 
-			if (m->m_pkthdr.len <= maxlen) {
-				m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-				n->m_len = m->m_pkthdr.len;
-				n->m_pkthdr.len = m->m_pkthdr.len;
+			if (n->m_pkthdr.len <= maxlen) {
+				m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
+				n->m_len = n->m_pkthdr.len;
 				n->m_next = NULL;
 				m_freem(m);
 			} else {
 				m_copydata(m, 0, maxlen, mtod(n, caddr_t));
 				n->m_len = maxlen;
-				n->m_pkthdr.len = m->m_pkthdr.len;
 				n->m_next = m;
 				m_adj(m, maxlen);
-				m->m_flags &= ~M_PKTHDR;
 			}
 			m = n;
 		}

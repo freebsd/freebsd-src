@@ -676,10 +676,8 @@ failed:
 									\
 	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
 	mbtypes[_mm->m_type]--;						\
-	if ((_mm->m_flags & M_PKTHDR) != 0 && _mm->m_pkthdr.aux) {	\
-		m_freem(_mm->m_pkthdr.aux);				\
-		_mm->m_pkthdr.aux = NULL;				\
-	}								\
+	if ((_mm->m_flags & M_PKTHDR) != 0)				\
+		m_tag_delete_chain(_mm, NULL);				\
 	if (_mm->m_flags & M_EXT)					\
 		MEXTFREE1(m);						\
 	(n) = _mm->m_next;						\
@@ -719,10 +717,7 @@ m_freem(m)
         if (mcl_pool_now < mcl_pool_max && m && m->m_next == NULL &&
             (m->m_flags & (M_PKTHDR|M_EXT)) == (M_PKTHDR|M_EXT) &&
             m->m_type == MT_DATA && M_EXT_WRITABLE(m) ) {
-		if (m->m_pkthdr.aux) {
-			m_freem(m->m_pkthdr.aux);
-			m->m_pkthdr.aux = NULL;
-		}
+		m_tag_delete_chain(m, NULL);
                 m->m_nextpkt = mcl_pool;
                 mcl_pool = m;
                 mcl_pool_now++;
@@ -754,10 +749,8 @@ m_prepend(m, len, how)
 		m_freem(m);
 		return ((struct mbuf *)NULL);
 	}
-	if (m->m_flags & M_PKTHDR) {
-		M_COPY_PKTHDR(mn, m);
-		m->m_flags &= ~M_PKTHDR;
-	}
+	if (m->m_flags & M_PKTHDR)
+		M_MOVE_PKTHDR(mn, m);
 	mn->m_next = m;
 	m = mn;
 	if (len < MHLEN)
@@ -810,7 +803,8 @@ m_copym(m, off0, len, wait)
 		if (n == 0)
 			goto nospace;
 		if (copyhdr) {
-			M_COPY_PKTHDR(n, m);
+			if (!m_dup_pkthdr(n, m, wait))
+				goto nospace;
 			if (len == M_COPYALL)
 				n->m_pkthdr.len -= off0;
 			else
@@ -871,7 +865,8 @@ m_copypacket(m, how)
 	if (!n)
 		goto nospace;
 
-	M_COPY_PKTHDR(n, m);
+	if (!m_dup_pkthdr(n, m, how))
+		goto nospace;
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
@@ -991,7 +986,8 @@ m_dup(m, how)
 		if (n == NULL)
 			goto nospace;
 		if (top == NULL) {		/* first one, must be PKTHDR */
-			M_COPY_PKTHDR(n, m);
+			if (!m_dup_pkthdr(n, m, how))
+				goto nospace;
 			nsize = MHLEN;
 		} else				/* not the first one */
 			nsize = MLEN;
@@ -1173,10 +1169,8 @@ m_pullup(n, len)
 		if (m == 0)
 			goto bad;
 		m->m_len = 0;
-		if (n->m_flags & M_PKTHDR) {
-			M_COPY_PKTHDR(m, n);
-			n->m_flags &= ~M_PKTHDR;
-		}
+		if (n->m_flags & M_PKTHDR)
+			M_MOVE_PKTHDR(m, n);
 	}
 	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
 	do {
@@ -1419,4 +1413,37 @@ m_print(const struct mbuf *m)
 		m2 = m2->m_next;
 	}
 	return;
+}
+
+/*
+ * "Move" mbuf pkthdr from "from" to "to".
+ * "from" must have M_PKTHDR set, and "to" must be empty.
+ */
+void
+m_move_pkthdr(struct mbuf *to, struct mbuf *from)
+{
+	KASSERT((to->m_flags & M_EXT) == 0, ("m_move_pkthdr: to has cluster"));
+
+	to->m_flags = from->m_flags & M_COPYFLAGS;
+	to->m_data = to->m_pktdat;
+	to->m_pkthdr = from->m_pkthdr;		/* especially tags */
+	SLIST_INIT(&from->m_pkthdr.tags);	/* purge tags from src */
+	from->m_flags &= ~M_PKTHDR;
+}
+
+/*
+ * Duplicate "from"'s mbuf pkthdr in "to".
+ * "from" must have M_PKTHDR set, and "to" must be empty.
+ * In particular, this does a deep copy of the packet tags.
+ */
+int
+m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
+{
+	KASSERT((to->m_flags & M_EXT) == 0, ("m_dup_pkthdr: to has cluster"));
+
+	to->m_flags = from->m_flags & M_COPYFLAGS;
+	to->m_data = to->m_pktdat;
+	to->m_pkthdr = from->m_pkthdr;
+	SLIST_INIT(&to->m_pkthdr.tags);
+	return (m_tag_copy_chain(to, from, how));
 }
