@@ -1364,6 +1364,10 @@ do { \
 						break;
 					}
 					OPTSET(IN6P_IPV6_V6ONLY);
+					if (optval)
+						in6p->in6p_vflag &= ~INP_IPV4;
+					else
+						in6p->in6p_vflag |= INP_IPV4;
 					break;
 				}
 				break;
