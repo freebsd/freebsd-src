@@ -133,8 +133,6 @@ ENTRY(cpu_throw)
 	ldr	r0, .Lcurthread
 	mov	r5, r1
 
-	mov	r6, r2
-
 	/*
 	 * r4 = lwp
 	 * r5 = lwp0
@@ -347,7 +345,6 @@ ENTRY(cpu_switch)
 	ldr	r1, [r9, #(PCB_DACR)]		/* r1 = new DACR */
 
 	teq	r10, r11			/* Same L1? */
-	ldr	r5, [r5]
 	cmpeq	r0, r1				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
 	ldr	r3, .Lblock_userspace_access
