@@ -32,3 +32,4 @@ alias	tset	'set noglob histchars=""; eval `\tset -s \!*`; unset noglob histchars
 if ($?prompt) then
 	set prompt="`hostname -s`# "
 endif
+setenv BLOCKSIZE K
