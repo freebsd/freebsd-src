@@ -737,8 +737,9 @@ install_ap_tramp(void)
 {
 	int     x;
 	int     size = *(int *) ((u_long) & bootMP_size);
+	vm_offset_t va = boot_address + KERNBASE;
 	u_char *src = (u_char *) ((u_long) bootMP);
-	u_char *dst = (u_char *) boot_address + KERNBASE;
+	u_char *dst = (u_char *) va;
 	u_int   boot_base = (u_int) bootMP;
 	u_int8_t *dst8;
 	u_int16_t *dst16;
@@ -746,7 +747,10 @@ install_ap_tramp(void)
 
 	POSTCODE(INSTALL_AP_TRAMP_POST);
 
-	pmap_kenter(boot_address + KERNBASE, boot_address);
+	KASSERT (size <= PAGE_SIZE,
+	    ("'size' do not fit into PAGE_SIZE, as expected."));
+	pmap_kenter(va, boot_address);
+	pmap_invalidate_page (kernel_pmap, va);
 	for (x = 0; x < size; ++x)
 		*dst++ = *src++;
 
@@ -757,7 +761,7 @@ install_ap_tramp(void)
 	 */
 
 	/* boot code is located in KERNEL space */
-	dst = (u_char *) boot_address + KERNBASE;
+	dst = (u_char *) va;
 
 	/* modify the lgdt arg */
 	dst32 = (u_int32_t *) (dst + ((u_int) & mp_gdtbase - boot_base));
