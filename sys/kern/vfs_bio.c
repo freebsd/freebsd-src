@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.29 1995/02/22 09:16:07 davidg Exp $
+ * $Id: vfs_bio.c,v 1.30 1995/02/22 09:30:13 davidg Exp $
  */
 
 /*
@@ -607,7 +607,7 @@ trytofreespace:
 	    && (bp = bufqueues[QUEUE_VMIO].tqh_first)) {
 		if (bp->b_qindex != QUEUE_VMIO)
 			panic("getnewbuf: inconsistent VMIO queue");
-	} else if ((!doingvmio || (nlru > nbuf - minbuf)) &&
+	} else if ((nlru > nbuf - minbuf) &&
 	    (bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
