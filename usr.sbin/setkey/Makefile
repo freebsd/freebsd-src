@@ -29,7 +29,8 @@
 PROG=	setkey
 SRCS=	setkey.c parse.y token.l
 CFLAGS+=-g
-LDADD+=	-ll -ly
+DPADD=	${LIBL} ${LIBY}
+LDADD=	-ll -ly
 CLEANFILES+=	y.tab.c y.tab.h key_test.o keytest
 YFLAGS+=-d
 
@@ -44,6 +45,7 @@ all: ${PROG} scriptdump
 SRCS+=y.tab.h
 y.tab.h: parse.y
 CFLAGS+=-DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I${.OBJDIR}
+DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
 
