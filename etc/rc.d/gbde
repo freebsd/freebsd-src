@@ -17,6 +17,25 @@ stop_precmd="find_gbde_devices stop"
 start_cmd="gbde_start"
 stop_cmd="gbde_stop"
 
+# Change every ${_src} in ${_str} to ${_dst}.
+local_tr()
+{
+	_str=$1
+	_src=$2
+	_dst=$3
+	_out=""
+
+	IFS=${_src}
+	for _com in ${_str}; do
+		if [ -z "${_out}" ]; then
+			_out="${_com}"
+		else
+			_out="${_out}${_dst}${_com}"
+		fi
+	done
+	echo "${_out}"
+}
+
 find_gbde_devices()
 {
 	case "${gbde_devices-auto}" in
@@ -81,7 +100,8 @@ gbde_start()
 	for device in $gbde_devices; do
 		parent=${device%.bde}
 		parent=${parent#/dev/}
-		eval "lock=\${gbde_lock_${parent}-\"${gbde_lockdir}/${parent}.lock\"}"
+		parent_=`local_tr ${parent} '/' '_'`
+		eval "lock=\${gbde_lock_${parent_}-\"${gbde_lockdir}/${parent_}.lock\"}"
 		if [ -e "/dev/${parent}" -a ! -e "/dev/${parent}.bde" ]; then
 			echo "Configuring Disk Encryption for ${parent}."
 
