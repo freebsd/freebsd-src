@@ -674,7 +674,7 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 				       uaddr[n] & 0xf,
 				       (uaddr[n] >> 4) & 0xf));
 		}
-		strcpy(qp, "ip6.int");
+		strlcat(qbuf, "ip6.arpa", sizeof(qbuf));
 		break;
 	default:
 		abort();
@@ -684,6 +684,12 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 		return NS_NOTFOUND;
 	}
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf, sizeof buf->buf);
+	if (n < 0 && af == AF_INET6) {
+		*qp = '\0';
+		strlcat(qbuf, "ip6.int", sizeof(qbuf));
+		n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf,
+			      sizeof buf->buf);
+	}
 	if (n < 0) {
 		free(buf);
 		dprintf("res_query failed (%d)\n", n);
