@@ -761,19 +761,13 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
           m_freem(bp);
           return NULL;
         }
-        if ((ans = malloc(alen + 2)) == NULL) {
+        if ((ans = malloc(alen + 1)) == NULL) {
           log_Printf(LogERROR, "Chap Input: Out of memory !\n");
           m_freem(bp);
           return NULL;
         }
         *ans = chap->auth.id;
         bp = mbuf_Read(bp, ans + 1, alen);
-        if (p->link.lcp.want_authtype == 0x81 && ans[alen] != '\0') {
-          log_Printf(LogWARN, "%s: Compensating for corrupt (Win98/WinME?) "
-                     "CHAP81 RESPONSE\n", l->name);
-          ans[alen] = '\0';
-        }
-        ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
 #ifndef NODES
         lanman = p->link.lcp.want_authtype == 0x80 &&
@@ -847,8 +841,11 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         nlen = strlen(name);
 #ifndef NODES
         if (p->link.lcp.want_authtype == 0x81) {
-          chap->challenge.peer[0] = CHAP81_CHALLENGE_LEN;
-          memcpy(chap->challenge.peer + 1, ans + 1, CHAP81_CHALLENGE_LEN);
+          struct MSCHAPv2_resp *resp = (struct MSCHAPv2_resp *)(ans + 1);
+
+          chap->challenge.peer[0] = sizeof resp->PeerChallenge;
+          memcpy(chap->challenge.peer + 1, resp->PeerChallenge,
+                 sizeof resp->PeerChallenge);
         }
 #endif
 
@@ -857,16 +854,21 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
           if (!radius_Authenticate(&bundle->radius, &chap->auth,
                                    chap->auth.in.name, ans, alen + 1,
                                    chap->challenge.local + 1,
-                                   *chap->challenge.local,
-                                   chap->challenge.peer + 1,
-                                   *chap->challenge.peer))
+                                   *chap->challenge.local))
             chap_Failure(&chap->auth);
         } else
 #endif
         {
+          if (p->link.lcp.want_authtype == 0x81 && ans[alen] != '\0' &&
+              alen == sizeof(struct MSCHAPv2_resp)) {
+            struct MSCHAPv2_resp *resp = (struct MSCHAPv2_resp *)(ans + 1);
+
+            log_Printf(LogWARN, "%s: Compensating for corrupt (Win98/WinME?) "
+                       "CHAP81 RESPONSE\n", l->name);
+            resp->Flags = '\0';	/* rfc2759 says it *MUST* be zero */
+          }
           key = auth_GetSecret(bundle, name, nlen, p);
           if (key) {
-            char *myans;
 #ifndef NODES
             if (p->link.lcp.want_authtype == 0x80 &&
                 lanman && !IsEnabled(p->link.lcp.cfg.chap80lm)) {
@@ -887,8 +889,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
             } else
 #endif
             {
-              myans = chap_BuildAnswer(name, key, chap->auth.id,
-                                       chap->challenge.local,
+              char *myans = chap_BuildAnswer(name, key, chap->auth.id,
+                                             chap->challenge.local,
                                        p->link.lcp.want_authtype
 #ifndef NODES
                                        , chap->challenge.peer,
