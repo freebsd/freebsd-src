@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.keymaps,v 1.4 1996/04/14 17:22:43 wosch Exp $
+# $Id: INDEX.keymaps,v 1.5 1996/07/01 19:56:54 sos Exp $
 #
 # database for kbdmap(8) 
 #
@@ -21,7 +21,7 @@
 #
 # Language support: MENU, FONT
 #
-MENU:en:Choise your keyboard language
+MENU:en:Choose your keyboard language
 MENU:da:Vælg dit keyboard layout
 MENU:de:Wähle Deine Tastaturbelegung
 MENU:fr:Choisissez la nationalité de votre clavier

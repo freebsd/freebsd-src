@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.fonts,v 1.7 1995/04/03 21:10:19 w Exp $
+# $Id: INDEX.fonts,v 1.2 1995/04/05 08:02:24 jkh Exp $
 #
 # database for vidfont(8) 
 #
@@ -47,7 +47,7 @@
 ################################
 # Language support: MENU, FONT
 #
-MENU:en:Choise your keyboard font
+MENU:en:Choose your keyboard font
 MENU:de:Wähle Deine Schrift
 MENU:fr:Choisissez votre fonte écran
 #
