@@ -934,7 +934,7 @@ trap_fatal(frame, eva)
 #endif
 	printf("trap number		= %d\n", type);
 	if (type <= MAX_TRAP_MSG)
-		panic(trap_msg[type]);
+		panic("%s", trap_msg[type]);
 	else
 		panic("unknown/reserved trap");
 }

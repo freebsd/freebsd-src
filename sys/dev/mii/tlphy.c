@@ -215,7 +215,7 @@ static int tlphy_attach(dev)
 	PRINT("10base5/AUI");
 
 	if (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) {
-		printf(sep);
+		printf("%s", sep);
 		mii_add_media(mii, sc->sc_mii.mii_capabilities,
 		    sc->sc_mii.mii_inst);
 	}
