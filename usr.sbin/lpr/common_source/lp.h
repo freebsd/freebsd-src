@@ -259,6 +259,7 @@ __BEGIN_DECLS
 struct	 dirent;
 
 void	 blankfill(int _tocol);
+int	 calc_jobnum(const char *_cfname, const char **_hostpp);
 char	*checkremote(struct printer *_pp);
 int	 chk(char *_file);
 void	 closeallfds(int _start);
@@ -280,7 +281,6 @@ void	 init_printer(struct printer *_pp);
 void	 init_request(struct request *_rp);
 int	 inlist(char *_uname, char *_cfile);
 int	 iscf(struct dirent *_d);
-int	 isowner(char *_owner, char *_file);
 void	 ldump(const char *_nfile, const char *_datafile, int _copies);
 void	 lastprinter(void);
 int	 lockchk(struct printer *_pp, char *_slockf);
