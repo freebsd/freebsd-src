@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.222 1998/12/28 17:03:49 peter Exp $
+#	$Id: Makefile,v 1.223 1999/01/26 09:12:20 jkh Exp $
 #
 # The user-driven targets are:
 #
@@ -96,7 +96,7 @@ TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
 #
 ${TGTS} : upgrade_checks
 	@cd ${.CURDIR}; \
-		make -f Makefile.inc0 -m ${.CURDIR}/share/mk ${.TARGET}
+		${MAKE} -f Makefile.inc0 -m ${.CURDIR}/share/mk ${.TARGET}
 
 # Set a reasonable default
 .MAIN:	all
@@ -110,7 +110,7 @@ ${TGTS} : upgrade_checks
 # the system to current.
 #
 upgrade_checks :
-	@cd ${.CURDIR}; if `make -m ${.CURDIR}/share/mk test > /dev/null 2>&1`; then ok=1; else make -f Makefile.upgrade make; fi;
+	@cd ${.CURDIR}; if `make -m ${.CURDIR}/share/mk test > /dev/null 2>&1`; then ok=1; else ${MAKE} -f Makefile.upgrade make; fi;
 
 #
 # A simple test target used as part of the test to see if make supports
@@ -133,4 +133,4 @@ upgrade:	aout-to-elf
 
 ${UPGRADE} : upgrade_checks
 	@cd ${.CURDIR}; \
-		make -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
+		${MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
