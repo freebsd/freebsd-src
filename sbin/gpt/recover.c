@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
-int recoverable;
+static int recoverable;
 
 static void
 usage_recover(void)

@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "map.h"
 #include "gpt.h"
 
-int primary_only;
+static int primary_only;
 
 static void
 usage_create(void)
