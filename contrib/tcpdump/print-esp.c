@@ -50,6 +50,7 @@ static const char rcsid[] =
 #endif
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "ip.h"
 #include "esp.h"
