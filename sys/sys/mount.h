@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.69 1998/10/16 03:55:01 peter Exp $
+ *	$Id: mount.h,v 1.70 1998/11/06 16:36:31 peter Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -373,7 +373,7 @@ struct vfsops {
 			break; \
 		case MOD_UNLOAD: \
 			/* printf(#fsname " module unload\n"); */ \
-			error = vfs_register(vfc); \
+			error = vfs_unregister(vfc); \
 			if (error) \
 				printf(#fsname " register failed\n"); \
 			break; \
