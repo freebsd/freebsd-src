@@ -185,7 +185,7 @@ main(argc, argv)
 	newtab = (struct nlist *)malloc(n);
 	if (newtab == (struct nlist *)NULL)
 		error(NULL);
-	memset(newtab,0,n);
+	memset(newtab, 0, n);
 
 	i = n / sizeof(struct nlist);
 	reorder(symtab, newtab, i);
