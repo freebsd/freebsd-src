@@ -54,6 +54,8 @@ static struct buf_ops __g_vfs_bufops = {
 
 struct buf_ops *g_vfs_bufops = &__g_vfs_bufops;
 
+static g_orphan_t g_vfs_orphan;
+
 static struct g_class g_vfs_class = {
 	.name =		"VFS",
 	.version =	G_VERSION,
@@ -104,7 +106,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	g_io_request(bip, cp);
 }
 
-void
+static void
 g_vfs_orphan(struct g_consumer *cp)
 {
 
