@@ -93,7 +93,10 @@ ttyname_r(int fd, char *buf, size_t len)
 	if (len <= sizeof(_PATH_DEV))
 		return (rval);
 
-	return(devname_r(sb.st_rdev, S_IFCHR, buf, sizeof(buf)));
+	strcpy(buf, _PATH_DEV);
+	devname_r(sb.st_rdev, S_IFCHR,
+	    buf + strlen(buf), sizeof(buf) - strlen(buf));
+	return (buf);
 }
 
 static char *
@@ -140,5 +143,8 @@ ttyname_unthreaded(int fd)
 	if (_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
 		return (NULL);
 
-	return(devname_r(sb.st_rdev, S_IFCHR, buf, sizeof(buf)));
+	strcpy(buf, _PATH_DEV);
+	devname_r(sb.st_rdev, S_IFCHR,
+	    buf + strlen(buf), sizeof(buf) - strlen(buf));
+	return (buf);
 }
