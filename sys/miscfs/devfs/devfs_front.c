@@ -29,16 +29,16 @@
 * frontnodes on failure of a later parent frontnode			*
 *									*
 \***********************************************************************/
-int devfs_add_fronts(devb_p parent,devb_p child) /*proto*/
+int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 {
-	devf_p	newfp;
-	devf_p  falias;
+	devnm_p	newfp;
+	devnm_p  falias;
 
 	DBPRINT(("	devfs_add_fronts\n"));
 	/***********************************************\
 	* Find the frontnodes of the parent node	*
 	\***********************************************/
-	for (falias = parent->fronts; falias; falias = falias->next_front)
+	for (falias = parent->next_front; falias; falias = falias->next_front)
 	{
 		if(dev_findfront(falias->dnp,child->name))
 		{
@@ -63,7 +63,7 @@ int devfs_add_fronts(devb_p parent,devb_p child) /*proto*/
 \***************************************************************/
 dn_p dev_findfront(dn_p dir,char *name) /*proto*/
 {
-	devf_p newfp;
+	devnm_p newfp;
 	DBPRINT(("	dev_findfront(%s)\n",name));
 	if(dir->type != DEV_DIR) return 0;/*XXX*/ /* printf?*/
 
@@ -101,18 +101,19 @@ dn_p dev_findfront(dn_p dir,char *name) /*proto*/
 * Must teach this to handle where there is no back node		*
 * maybe split into two bits?					*
 \***************************************************************/
-int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dvm) /*proto*/
+int dev_mk_front(dn_p parent,devnm_p back,devnm_p *devnm_pp , struct devfsmount *dvm) /*proto*/
 {
-	devf_p	newfp;
+	devnm_p	newfp;
 	struct	devfsmount *dmt;
-	devb_p	newback;
-	devf_p	newfront;
+	devnm_p	newback;
+	devnm_p	newfront;
 	int	error;
+	dn_p	dnp;
 
 	DBPRINT(("	dev_mk_front\n"));
 	if(parent && (parent->type != DEV_DIR)) return EINVAL;
 		/*XXX*/ /* printf?*/
-	if(!(newfp = malloc(sizeof(*newfp),M_DEVFSFRONT,M_NOWAIT)))
+	if(!(newfp = malloc(sizeof(devnm_t),M_DEVFSFRONT,M_NOWAIT)))
 	{
 		return(ENOMEM);
 	}
@@ -124,7 +125,6 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 	* real object's file_node. (It must pre-exist)		*
  	* this means that aliases have no front nodes...	*
 	* In effect ALIAS back nodes are just place markers	*
-	* Check the removal code for this! XXX			*
 	\*******************************************************/
 	if(back->dnp->type == DEV_ALIAS)
 	{
@@ -143,9 +143,9 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 		newfp->dnp->links++; /* wherever it is.....*/
 		break;
 	case	DEV_DIR:
-		newfp->dnp = malloc(sizeof(devnode_t),
+		dnp = newfp->dnp = malloc(sizeof(devnode_t),
 					M_DEVFSNODE,M_NOWAIT);
-		if(!(newfp->dnp))
+		if(!(dnp))
 		{
 			free(newfp,M_DEVFSFRONT);
 			return ENOMEM;
@@ -155,16 +155,16 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 		 * or bzero and reset or copy some items...
 		 */
 		bcopy(back->dnp,newfp->dnp,sizeof(devnode_t));
-		newfp->dnp->links = 1;		/*  EXTRA from '.' */
-		newfp->dnp->links++; /* wherever it is.....*/
-		newfp->dnp->by.Dir.dirlast =
-				&newfp->dnp->by.Dir.dirlist;
-		newfp->dnp->by.Dir.dirlist = NULL;
-		newfp->dnp->by.Dir.entrycount = 0;
-		newfp->dnp->vn = NULL;
-		newfp->dnp->vn_id = 0;
+		dnp->links = 1;		/*  EXTRA from '.' */
+		dnp->links++; /* wherever it is.....*/
+		dnp->by.Dir.dirlast =
+				&dnp->by.Dir.dirlist;
+		dnp->by.Dir.dirlist = NULL;
+		dnp->by.Dir.entrycount = 0;
+		dnp->vn = NULL;
+		dnp->vn_id = 0;
 		break;
-	case	DEV_SLNK: /* should never happen */
+	case	DEV_SLNK: /* should never happen XXX (hmm might)*/
 	default:
 		printf("unknown DEV type\n");
 		return EINVAL;
@@ -191,10 +191,11 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 		/*
 		 * it's the root node, put in the dvm
 		 * and link it to itself...
+		 * we know it's a DIR
 		 */
-		newfp->dnp->by.Dir.parent = newfp->dnp;
-		newfp->dnp->links++;	/* extra for '..'*/
-		newfp->dnp->dvm = dvm;
+		dnp->by.Dir.parent = newfp->dnp;
+		dnp->links++;	/* extra for '..'*/
+		dnp->dvm = dvm;
 	}
 
 	/*
@@ -207,12 +208,12 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 	/*******************************************************\
 	* Put it in the appropriate back/front list too.	*
 	\*******************************************************/
-	newfp->next_front = *back->lastfront; 
-	newfp->prev_frontp = back->lastfront;
-	*back->lastfront = newfp;
-	back->lastfront = &(newfp->next_front);
+	newfp->next_front = *back->prev_frontp; 
+	newfp->prev_frontp = back->prev_frontp;
+	*back->prev_frontp = newfp;
+	back->prev_frontp = &(newfp->next_front);
 	back->frontcount++;
-	newfp->realthing = back;
+	newfp->as.front.realthing = back;
 
 	/*
 	 * If it is a directory, then recurse down all the other
@@ -220,7 +221,7 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 	 */
 	if ( newfp->dnp->type == DEV_DIR)
 	{
-		for(newback = back->dnp->by.BackDir.dirlist;
+		for(newback = back->dnp->by.Dir.dirlist;
 				newback; newback = newback->next)
 		{
 			if(error = dev_mk_front(newfp->dnp,
@@ -230,7 +231,7 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
 			}
 		}
 	}
-	*devf_pp = newfp;
+	*devnm_pp = newfp;
 	return(0);
 }
 
@@ -242,9 +243,9 @@ int dev_mk_front(dn_p parent,devb_p back,devf_p *devf_pp , struct devfsmount *dv
  */
 int devfs_make_plane(struct devfsmount *devfs_mp_p) /*proto*/
 {
-	devf_p	parent;
-	devf_p	new;
-	devb_p	realthing;
+	devnm_p	parent;
+	devnm_p	new;
+	devnm_p	realthing;
 	int	error;
 
 	DBPRINT(("	devfs_make_plane\n"));
@@ -260,7 +261,7 @@ int devfs_make_plane(struct devfsmount *devfs_mp_p) /*proto*/
 
 void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 {
-	devf_p devfp;
+	devnm_p devfp;
 
 	DBPRINT(("	devfs_free_plane\n"));
 	devfp = devfs_mp_p->plane_root;
@@ -270,20 +271,20 @@ void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/
 /*
  * Remove all the front nodes associated with a backing node
  */
-void devfs_remove_fronts(devb_p devbp) /*proto*/
+void devfs_remove_fronts(devnm_p devbp) /*proto*/
 {
-	while(devbp->fronts)
+	while(devbp->next_front)
 	{
-		dev_free_front(devbp->fronts);
+		dev_free_front(devbp->next_front);
 	}
 }
 /***************************************************************\
 * Free a front node (and any below it of it's a directory node)	*
 \***************************************************************/
-void dev_free_front(devf_p devfp) /*proto*/
+void dev_free_front(devnm_p devfp) /*proto*/
 {
 	dn_p	parent = devfp->parent;
-	devb_p	back;
+	devnm_p	back;
 
 	DBPRINT(("	dev_free_front\n"));
 	if(devfp->dnp->type == DEV_DIR)
@@ -321,7 +322,7 @@ void dev_free_front(devf_p devfp) /*proto*/
 	 * from that.. 
 	 * Remember that we may not HAVE a backing node.
 	 */
-	if (back = devfp->realthing) /* yes an assign */
+	if (back = devfp->as.front.realthing) /* yes an assign */
 	{
 		if( *devfp->prev_frontp = devfp->next_front)/* yes, assign */
 		{
@@ -329,7 +330,7 @@ void dev_free_front(devf_p devfp) /*proto*/
 		}
 		else
 		{
-			back->lastfront = devfp->prev_frontp;
+			back->prev_frontp = devfp->prev_frontp;
 		}
 		back->frontcount--;
 	}
@@ -371,24 +372,20 @@ DBPRINT(("	vntodn "));
 }
 
 /***************************************************************\
-*     Think about this: 					*
-* Though this routine uses a front node, it also uses a backing	*
-* node indirectly, via the 'realthing' link. This may prove bad	*
-* in the case of a user-added slink, where there migh not be a	*
-* backing node. (e.g. if a slink points out of the fs it CAN'T	*
-* have a backing node, unlike a hardlink which does..)		*
-* we are going to have to think very carefully about slinks..	*
+* given a dev_node, find the appropriate vnode if one is already*
+* associated, or get a new one an associate it with the dev_node*
+* need to check about vnode references.. should we increment it?*
 \***************************************************************/
-int devfs_dntovn(dn_p front, struct vnode **vn_pp) /*proto*/
+int devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/
 {
 	struct vnode *vn_p, *nvp;
 	int error = 0;
 
-	vn_p = front->vn;
+	vn_p = dnp->vn;
 DBPRINT(("dntovn "));
 	if( vn_p)
 	{
-		if(vn_p->v_id != front->vn_id)
+		if(vn_p->v_id != dnp->vn_id)
 		{
 			printf("bad-id ");
 			goto skip;
@@ -398,12 +395,12 @@ DBPRINT(("dntovn "));
 			printf("bad-tag ");
 			goto skip;
 		}
-		if(vn_p->v_op != *(front->ops))
+		if(vn_p->v_op != *(dnp->ops))
 		{
 			printf("bad-ops ");
 			goto skip;
 		}
-		if((dn_p)(vn_p->v_data) != front)
+		if((dn_p)(vn_p->v_data) != dnp)
 		{
 			printf("bad-rev_link ");
 			goto skip;
@@ -422,20 +419,20 @@ skip:
 		vn_p = (struct vnode *) 0;
 	}
 	if(!(error = getnewvnode(VT_DEVFS,
-			front->dvm->mount,
-			*(front->ops),
+			dnp->dvm->mount,
+			*(dnp->ops),
 			&vn_p)))
 	{
-		front->vn = vn_p;
-		front->vn_id = vn_p->v_id;
+		dnp->vn = vn_p;
+		dnp->vn_id = vn_p->v_id;
 		*vn_pp = vn_p;
 DBPRINT(("(New vnode)"));
-		switch(front->type)
+		switch(dnp->type)
 		{
 		case	DEV_SLNK:
 			break;
 		case	DEV_DIR:
-			if(front->by.Dir.parent == front)
+			if(dnp->by.Dir.parent == dnp)
 			{
 				vn_p->v_flag |= VROOT;
 			}
@@ -444,7 +441,7 @@ DBPRINT(("(New vnode)"));
 		case	DEV_BDEV:
 			vn_p->v_type = VBLK;
 			if (nvp = checkalias(vn_p,
-			   front->by.Bdev.dev,
+			   dnp->by.Bdev.dev,
 			  (struct mount *)0))
 			{
 				vput(vn_p);
@@ -454,7 +451,7 @@ DBPRINT(("(New vnode)"));
 		case	DEV_CDEV:
 			vn_p->v_type = VCHR;
 			if (nvp = checkalias(vn_p,
-			   front->by.Cdev.dev,
+			   dnp->by.Cdev.dev,
 			  (struct mount *)0))
 			{
 				vput(vn_p);
@@ -466,16 +463,13 @@ DBPRINT(("(New vnode)"));
 		}
 		if ( vn_p)
 		{
-			vn_p->v_mount  = front->dvm->mount;/* Duplicated */
+			vn_p->v_mount  = dnp->dvm->mount;/* XXX Duplicated */
 			*vn_pp = vn_p;
-			vn_p->v_data = (void *)front;
-/*XXX*/ /* maybe not.. I mean what if it's a dev... (vnode at back)*/
+			vn_p->v_data = (void *)dnp;
 		}
 		else
 		{
 			error = EINVAL;
 		}
 	}
-	return(error);
-}
-
+	return

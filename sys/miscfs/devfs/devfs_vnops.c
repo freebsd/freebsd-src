@@ -874,7 +874,7 @@ int devfs_readdir(ap)
 	struct ucred *cred = ap->a_cred;
 	struct dirent dirent;
 	dn_p dir_node;
-	devf_p	name_node;
+	devnm_p	name_node;
 	char	*name;
 	int error = 0;
 	int reclen;
