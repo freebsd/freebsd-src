@@ -332,10 +332,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg fpreg;
 		struct reg reg;
 	} r;
-	struct proc *p;
+	struct proc *curp, *p, *pp;
 	struct thread *td2;
 	int error, write;
 	int proctree_locked = 0;
+
+	curp = td->td_proc;
 
 	/*
 	 * Do copyin() early before getting locks and lock proctree before
@@ -421,6 +423,17 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			error = EBUSY;
 			goto fail;
 		}
+
+		/* Can't trace an ancestor if you're being traced. */
+		if (curp->p_flag & P_TRACED) {
+			for (pp = curp->p_pptr; pp != NULL; pp = pp->p_pptr) {
+				if (pp == p) {
+					error = EINVAL;
+					goto fail;
+				}
+			}
+		}
+
 
 		/* OK */
 		break;
