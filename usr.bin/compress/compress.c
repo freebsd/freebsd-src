@@ -64,12 +64,12 @@ static const char rcsid[] =
 
 #include "zopen.h"
 
-void	compress __P((char *, char *, int));
+void	compress __P((const char *, const char *, int));
 void	cwarn __P((const char *, ...)) __printflike(1, 2);
 void	cwarnx __P((const char *, ...)) __printflike(1, 2);
-void	decompress __P((char *, char *, int));
-int	permission __P((char *));
-void	setfile __P((char *, struct stat *));
+void	decompress __P((const char *, const char *, int));
+int	permission __P((const char *));
+void	setfile __P((const char *, struct stat *));
 void	usage __P((int));
 
 int eval, force, verbose;
@@ -196,10 +196,10 @@ main(argc, argv)
 
 void
 compress(in, out, bits)
-	char *in, *out;
+	const char *in, *out;
 	int bits;
 {
-	register int nr;
+	size_t nr;
 	struct stat isb, sb;
 	FILE *ifp, *ofp;
 	int exists, isreg, oreg;
@@ -286,10 +286,10 @@ err:	if (ofp) {
 
 void
 decompress(in, out, bits)
-	char *in, *out;
+	const char *in, *out;
 	int bits;
 {
-	register int nr;
+	size_t nr;
 	struct stat sb;
 	FILE *ifp, *ofp;
 	int exists, isreg, oreg;
@@ -353,8 +353,8 @@ err:	if (ofp) {
 
 void
 setfile(name, fs)
-	char *name;
-	register struct stat *fs;
+	const char *name;
+	struct stat *fs;
 {
 	static struct timeval tv[2];
 
@@ -385,7 +385,7 @@ setfile(name, fs)
 
 int
 permission(fname)
-	char *fname;
+	const char *fname;
 {
 	int ch, first;
 
