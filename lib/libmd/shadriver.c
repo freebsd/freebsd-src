@@ -29,8 +29,11 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <string.h>
 #include "sha.h"
+#include "sha256.h"
 #if SHA == 1
 #define SHA_Data SHA1_Data
+#elif SHA == 256
+#define SHA_Data SHA256_Data
 #endif
 
 /* Digests a string and prints the result.
@@ -38,7 +41,7 @@ __FBSDID("$FreeBSD$");
 static void SHAString (string)
 char *string;
 {
-  char buf[2*20+1];
+  char buf[2*32+1];
 
   printf ("SHA-%d (\"%s\") = %s\n", 
 	SHA, string, SHA_Data(string,strlen(string),buf));

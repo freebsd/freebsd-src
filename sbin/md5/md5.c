@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <md5.h>
 #include <ripemd.h>
 #include <sha.h>
+#include <sha256.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +51,7 @@ typedef char *(DIGEST_End)(void *, char *);
 
 extern const char *MD5TestOutput[MDTESTCOUNT];
 extern const char *SHA1_TestOutput[MDTESTCOUNT];
+extern const char *SHA256_TestOutput[MDTESTCOUNT];
 extern const char *RIPEMD160_TestOutput[MDTESTCOUNT];
 
 typedef struct Algorithm_t {
@@ -73,11 +75,13 @@ static void usage(Algorithm_t *);
 typedef union {
 	MD5_CTX md5;
 	SHA1_CTX sha1;
+	SHA256_CTX sha256;
 	RIPEMD160_CTX ripemd160;
 } DIGEST_CTX;
 
-/* max(MD5_DIGEST_LENGTH, SHA_DIGEST_LENGTH, RIPEMD160_DIGEST_LENGTH)*2+1 */
-#define HEX_DIGEST_LENGTH 41
+/* max(MD5_DIGEST_LENGTH, SHA_DIGEST_LENGTH, 
+	SHA256_DIGEST_LENGTH, RIPEMD160_DIGEST_LENGTH)*2+1 */
+#define HEX_DIGEST_LENGTH 65
 
 /* algorithm function table */
 
@@ -88,6 +92,9 @@ struct Algorithm_t Algorithm[] = {
 	{ "sha1", "SHA1", &SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
 		(DIGEST_Update*)&SHA1_Update, (DIGEST_End*)&SHA1_End,
 		&SHA1_Data, &SHA1_File },
+	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
+		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
+		&SHA256_Data, &SHA256_File },
 	{ "rmd160", "RMD160", &RIPEMD160_TestOutput,
 		(DIGEST_Init*)&RIPEMD160_Init, (DIGEST_Update*)&RIPEMD160_Update,
 		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_File }
@@ -277,6 +284,17 @@ const char *SHA1_TestOutput[MDTESTCOUNT] = {
 	"761c457bf73b14d27e9e9265c46f4b4dda11f940",
 	"50abf5706a150990a08b2c5ea40fa0e585554732",
 	"18eca4333979c4181199b7b4fab8786d16cf2846"
+};
+
+const char *SHA256_TestOutput[MDTESTCOUNT] = {
+	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+	"ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+	"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+	"f7846f55cf23e14eebeab5b4e1550cad5b509e3348fbc4efa3a1413d393cb650",
+	"71c480df93d6ae2f1efad1447c66c9525e316218cf51fc8d9ed832f2daf18b73",
+	"db4bfcbd4da0cd85a60c3c37d3fbd8805c77f15fc6b1fdfe614ee0a7c8fdb4c0",
+	"f371bc4a311f2b009eef952dd83ca80e2b60026c8e935592d0f9c308453c813e",
+	"e6eae09f10ad4122a0e2a4075761d185a272ebd9f5aa489e998ff2f09cbfdd9f"
 };
 
 const char *RIPEMD160_TestOutput[MDTESTCOUNT] = {
