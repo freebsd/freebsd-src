@@ -335,6 +335,9 @@ the TrustedBSD Project.  More details can be found in
 
 The CAM error recovery code has been updated.
 
+The directory layout preference algorithm for FFS has been changed to
+improve its speed on large filesystems.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -856,7 +859,7 @@ purposes. [MERGED]
 
 pkg_version(1) now has a version number comparison routine that
 corresponds to the Porters Handbook.  It also has a -t option for
-testing address comparisons.
+testing address comparisons. [MERGED]
 
 libc is now thread-safe by default; libc_r contains only thread functions.
 
@@ -997,6 +1000,11 @@ driver.
 libcrypt now has support for Blowfish password hashing.
 
 The functions from libposix1e have been integrated into libc.
+
+GNATS has been updated to 3.113. [MERGED]
+
+BSDPAN, a collection of modules that provides tighter integration of
+Perl into the FreeBSD Ports Collection, has been added.
 
 
 2. Supported Configurations
