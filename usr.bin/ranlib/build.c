@@ -127,7 +127,7 @@ rexec(rfd, wfd)
 	register RLIB *rp;
 	register long nsyms;
 	register int nr, symlen;
-	register char *strtab, *sym;
+	register char *strtab = 0, *sym;
 	struct exec ebuf;
 	struct nlist nl;
 	off_t r_off, w_off;
