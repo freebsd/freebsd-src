@@ -15,13 +15,8 @@ CFLAGS+= -DDEVRANDOM=\"/dev/urandom\"
 
 LOCALBASE?=	/usr/local
 
-.if !defined(USA_RESIDENT) || ${USA_RESIDENT} != NO
-.if !exists(${LOCALBASE}/lib/librsaref.a)
-CFLAGS+= -DNO_RSA -DNO_SSL2
-WITH_RSA= NO
-.else
+WITH_RSA?= YES
+.if (!defined(USA_RESIDENT) || ${USA_RESIDENT} != NO) && ${WITH_RSA} != NO
 CFLAGS+= -DRSAref
 RSAREF= YES
-WITH_RSA= YES
-.endif
 .endif
