@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.75 1995/12/07 12:47:02 davidg Exp $
+ * $Id: vfs_bio.c,v 1.76 1995/12/11 04:56:05 dyson Exp $
  */
 
 /*
@@ -570,7 +570,8 @@ gbincore(struct vnode * vp, daddr_t blkno)
 	/* Search hash chain */
 	while (bp != NULL) {
 		/* hit */
-		if (bp->b_vp == vp && bp->b_lblkno == blkno) {
+		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
+		    (bp->b_flags & B_INVAL) == 0) {
 			break;
 		}
 		bp = bp->b_hash.le_next;
@@ -887,7 +888,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	s = splbio();
 loop:
 	if ((bp = gbincore(vp, blkno))) {
-		if (bp->b_flags & (B_BUSY|B_INVAL)) {
+		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
 			if (bp->b_usecount < BUF_MAXUSE)
 				++bp->b_usecount;
@@ -1376,7 +1377,6 @@ biodone(register struct buf * bp)
 	if (bp->b_flags & B_ASYNC) {
 		brelse(bp);
 	} else {
-		bp->b_flags &= ~B_WANTED;
 		wakeup(bp);
 	}
 	splx(s);
