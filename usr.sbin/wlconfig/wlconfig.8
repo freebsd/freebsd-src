@@ -10,7 +10,7 @@
 .Op Ar param value ...
 .Sh DESCRIPTION
 The 
-.Nm wlconfig 
+.Nm
 command can be used to read and set parameters for the NCR/AT&T Wavelan 
 radio LAN card.  Various parameters stored in the nonvolatile Parameter
 Storage Area (PSA) on the card can be modified with this program, which
@@ -38,9 +38,9 @@ pairs may be supplied.
 .It Va param
 .Va value
 .It irq
-IRQ value (used at next reset), may be one of 3,4,5,6,10,11,12,15
+IRQ value (used at next reset), may be one of 3,4,5,6,10,11,12,15.
 .It mac
-Local MAC value (ethernet address)
+Local MAC value (ethernet address).
 .It macsel
 .Sq soft
 (as set by the 
@@ -83,7 +83,7 @@ which clears out the cache in case you want to store new samples.
 .Pp
 Note that if the IRQ on the Wavelan card is incorrect, the interface
 will be configured, but will not function.  The
-.Nm wlconfig
+.Nm
 program should then be used to reconfigure the card to a sensible
 value.
 .Sh EXAMPLES
@@ -126,6 +126,8 @@ Print a scaled version of the signal strength cache :
 .Xr sysctl 8 .
 .Sh HISTORY
 This implementation of the
-.Nm wlconfig
-command is completely new, written for Hilink Internet by Michael Smith, 
-and updated by Jim Binkley &c.
+.Nm
+command is completely new, written for Hilink Internet by
+.An Michael Smith , 
+and updated by
+.An Jim Binkley &c .
