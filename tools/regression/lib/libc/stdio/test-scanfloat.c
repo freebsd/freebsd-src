@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2003 David Schultz <das@FreeBSD.org>
+ * Copyright (C) 2003, 2005 David Schultz <das@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <fenv.h>
 #include <float.h>
-#include <ieeefp.h>
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
@@ -52,13 +52,16 @@ main(int argc, char *argv[])
 	double d = 0.0;
 	float f = 0.0;
 
-	printf("1..1\n");
+	printf("1..3\n");
 
 	buf[0] = '\0';
 	assert(setlocale(LC_NUMERIC, ""));
 
 	__scanfdebug = 1;
 
+	/*
+	 * Various tests for normalized numbers
+	 */
 	sscanf("3.141592", "%e", &f);
 	assert(eq(FLT, f, 3.141592));
 
@@ -142,9 +145,14 @@ main(int argc, char *argv[])
 
 	sscanf("1,23", "%le", &d);
 	assert(d == 1.23);
-	
+
 	assert(setlocale(LC_NUMERIC, ""));
 
+	printf("ok 1 - scanfloat\n");
+
+	/*
+	 * Infinity and NaN tests
+	 */
 	sscanf("-Inf", "%le", &d);
 	assert(d < 0.0 && isinf(d));
 
@@ -166,7 +174,91 @@ main(int argc, char *argv[])
 	sscanf("-nan", "%le", &d);
 	assert(isnan(d));
 
-	fpsetround(FP_RN);
+	/* Only quiet NaNs should be returned. */
+	sscanf("NaN", "%e", &f);
+	sscanf("nan", "%le", &d);
+	sscanf("nan", "%Le", &ld);
+	feclearexcept(FE_ALL_EXCEPT);
+	assert(f != f);
+	assert(d != d);
+	assert(ld != ld);
+	assert(fetestexcept(FE_INVALID) == 0);
+	sscanf("nan(1234)", "%e", &f);
+	sscanf("nan(1234)", "%le", &d);
+	sscanf("nan(1234)", "%Le", &ld);
+	feclearexcept(FE_ALL_EXCEPT);
+	assert(f != f);
+	assert(d != d);
+	assert(ld != ld);
+	assert(fetestexcept(FE_INVALID) == 0);
+
+	printf("ok 2 - scanfloat\n");
+
+	/*
+	 * Rounding tests
+	 */
+
+	fesetround(FE_DOWNWARD);
+
+	sscanf("1.999999999999999999999999999999999", "%le", &d);
+	assert(d < 2.0);
+	sscanf("0x1.ffffffffffffffp0", "%le", &d);
+	assert(d < 2.0);
+	sscanf("1.999999999999999999999999999999999", "%Le", &ld);
+	assert(ld < 2.0);
+
+	sscanf("1.0571892669084007", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc59p0);
+	sscanf("-1.0571892669084007", "%le", &d);
+	assert(d == -0x1.0ea3f4af0dc5ap0);
+	sscanf("1.0571892669084010", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc5ap0);
+
+	sscanf("0x1.23p-5000", "%le", &d);
+	assert(d == 0.0);
+
+	sscanf("0x1.2345678p-1050", "%le", &d);
+	assert(d == 0x1.234568p-1050);
+
+	fesetround(FE_UPWARD);
+
+	sscanf("1.0571892669084007", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc5ap0);
+	sscanf("-1.0571892669084007", "%le", &d);
+	assert(d == -0x1.0ea3f4af0dc59p0);
+	sscanf("1.0571892669084010", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc5bp0);
+
+	sscanf("0x1.23p-5000", "%le", &d);
+	assert(d == 0x1p-1074);
+
+	sscanf("0x1.2345678p-1050", "%le", &d);
+	assert(d == 0x1.234568p-1050);
+
+	fesetround(FE_TOWARDZERO);
+
+	sscanf("1.0571892669084007", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc59p0);
+	sscanf("-1.0571892669084007", "%le", &d);
+	assert(d == -0x1.0ea3f4af0dc59p0);
+	sscanf("1.0571892669084010", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc5ap0);
+
+	sscanf("0x1.23p-5000", "%le", &d);
+	assert(d == 0.0);
+
+	sscanf("0x1.2345678p-1050", "%le", &d);
+	assert(d == 0x1.234568p-1050);
+
+	fesetround(FE_TONEAREST);
+
+	/* 1.0571892669084007 is slightly closer to 0x1.0ea3f4af0dc59p0 */
+	sscanf("1.0571892669084007", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc59p0);
+	sscanf("-1.0571892669084007", "%le", &d);
+	assert(d == -0x1.0ea3f4af0dc59p0);
+	sscanf("1.0571892669084010", "%le", &d);
+	assert(d == 0x1.0ea3f4af0dc5bp0);
 
 	/* strtod() should round small numbers to 0. */
 	sscanf("0x1.23p-5000", "%le", &d);
@@ -176,7 +268,7 @@ main(int argc, char *argv[])
 	sscanf("0x1.2345678p-1050", "%le", &d);
 	assert(d == 0x1.234568p-1050);
 
-	printf("ok 1 - scanfloat\n");
+	printf("ok 3 - scanfloat\n");
 
 	return (0);
 }
