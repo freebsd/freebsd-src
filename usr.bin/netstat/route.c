@@ -851,15 +851,21 @@ routename6(struct sockaddr_in6 *sa6)
  * Print routing statistics
  */
 void
-rt_stats(u_long off)
+rt_stats(u_long rtsaddr, u_long rttaddr)
 {
 	struct rtstat rtstat;
+	int rttrash;
 
-	if (off == 0) {
+	if (rtsaddr == 0) {
 		printf("rtstat: symbol not in namelist\n");
 		return;
 	}
-	kread(off, (char *)&rtstat, sizeof (rtstat));
+	if (rttaddr == 0) {
+		printf("rttrash: symbol not in namelist\n");
+		return;
+	}
+	kread(rtsaddr, (char *)&rtstat, sizeof (rtstat));
+	kread(rttaddr, (char *)&rttrash, sizeof (rttrash));
 	printf("routing:\n");
 
 #define	p(f, m) if (rtstat.f || sflag <= 1) \
@@ -871,6 +877,10 @@ rt_stats(u_long off)
 	p(rts_unreach, "\t%u destination%s found unreachable\n");
 	p(rts_wildcard, "\t%u use%s of a wildcard route\n");
 #undef p
+
+	if (rttrash || sflag <= 1)
+		printf("\t%u route%s not in table but not freed\n",
+		    rttrash, plural(rttrash));
 }
 
 char *
