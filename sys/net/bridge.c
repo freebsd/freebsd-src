@@ -616,7 +616,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
 #ifdef IPFIREWALL
-    struct ip_fw_chain *rule = NULL ; /* did we match a firewall rule ? */
+    struct ip_fw *rule = NULL ; /* did we match a firewall rule ? */
 #endif
 
     /*
@@ -631,7 +631,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 #if defined(IPFIREWALL) && defined(DUMMYNET)
     if (m0->m_type == MT_DUMMYNET) {
 	/* extract info from dummynet header */
-	rule = (struct ip_fw_chain *)(m0->m_data) ;
+	rule = (struct ip_fw *)(m0->m_data) ;
 	m0 = m0->m_next ;
 	src = m0->m_pkthdr.rcvif;
 	shared = 0 ; /* For sure this is our own mbuf. */
