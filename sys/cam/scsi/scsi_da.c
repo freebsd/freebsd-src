@@ -376,6 +376,14 @@ static struct da_quirk_entry da_quirk_table[] =
  		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
  		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
  	},
+	{
+		/*
+		 * The CISS RAID driver drives dont like the cache to be
+		 * sync'd (esp since write cache is turned off).
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "COMPAQ", "RAID*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
