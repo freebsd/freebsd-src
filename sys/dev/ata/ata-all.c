@@ -460,11 +460,13 @@ ata_getparam(struct ata_softc *scp, int device, u_int8_t command)
     /* apparently some devices needs this repeated */
     do {
 	if (ata_command(scp, device, command, 0, 0, 0, 0, 0, ATA_WAIT_INTR)) {
-	    ata_printf(scp, device, "identify failed\n");
+	    ata_printf(scp, device, "%s identify failed\n",
+		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    return -1;
 	}
 	if (retry++ > 4) {
-	    ata_printf(scp, device, "identify retries exceeded\n");
+	    ata_printf(scp, device, "%s identify retries exceeded\n",
+		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
 	    return -1;
 	}
     } while (ata_wait(scp, device, 
@@ -711,6 +713,8 @@ ata_reset(struct ata_softc *scp)
 		   mask, ostat0, ostat1);
 
     /* reset channel */
+    ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+    DELAY(10);
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
     DELAY(10000); 
     ATA_OUTB(scp->r_altio, ATA_ALTSTAT, ATA_A_IDS);
@@ -1066,6 +1070,7 @@ ata_free_name(struct ata_softc *scp, int device)
 {
     if (scp->dev_name[ATA_DEV(device)])
 	free(scp->dev_name[ATA_DEV(device)], M_ATA);
+    scp->dev_name[ATA_DEV(device)] = NULL;
 }
     
 int
