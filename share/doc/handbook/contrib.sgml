@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.54 1996/03/13 19:17:33 peter Exp $ -->
+<!-- $Id: contrib.sgml,v 1.55 1996/03/22 10:59:56 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -194,6 +194,7 @@
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
+	  <item>John Hay - &lt;jhay@mikom.csir.co.za&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Julian Stacey &lt;stacey@guug.de&gt;
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
@@ -291,7 +292,6 @@
 	<item>J&ouml;rg Lohse &lt;lohse@tech7.informatik.uni-hamburg.de&gt;
 	<item>J&ouml;rg Wunsch &lt;joerg_wunsch@uriah.heep.sax.de&gt;
 	<item>John Dyson - &lt;formerly dyson@ref.tfs.com&gt;
-	<item>John Hay - &lt;jhay@mikom.csir.co.za&gt;
 	<item>John Polstra &lt;jdp@polstra.com&gt;
 	<item>John Woods &lt;jfw@eddie.mit.edu&gt;
 	<item>Jordan K. Hubbard &lt;jkh@whisker.hubbard.ie&gt;
