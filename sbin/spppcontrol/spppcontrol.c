@@ -177,6 +177,10 @@ main(int argc, char **argv)
 			spr.defs.enable_vj = 1;
 		else if (strcmp(argv[0], "disable-vj") == 0)
 			spr.defs.enable_vj = 0;
+		else if (strcmp(argv[0], "enable-ipv6") == 0)
+			spr.defs.enable_ipv6 = 1;
+		else if (strcmp(argv[0], "disable-ipv6") == 0)
+			spr.defs.enable_ipv6 = 0;
 		else
 			errx(EX_DATAERR, "bad parameter: \"%s\"", argv[0]);
 
@@ -221,6 +225,7 @@ print_vals(const char *ifname, struct spppreq *sp)
 	}
 	printf("\tlcp-timeout=%d ms\n", sp->defs.lcp.timeout);
 	printf("\t%sable-vj\n", sp->defs.enable_vj? "en": "dis");
+	printf("\t%sable-ipv6\n", sp->defs.enable_ipv6? "en": "dis");
 }
 
 const char *
