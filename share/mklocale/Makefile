@@ -27,7 +27,7 @@ LATIN1LINKS = \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
-LATIN2LINKS = cs_CZ hr_HR hu_HU pl_PL sl_SI
+LATIN2LINKS = cs_CZ hr_HR hu_HU pl_PL sl_SI sk_SK
 
 LATIN4LINKS = lt_LT
 
