@@ -335,7 +335,7 @@
 
       <para arch="i386,pc98,sparc64">The &man.harp.4; driver has been added.
         This is a pseudo physical interface driver for HARP, 
-        which attaches to all NetGraph ATM interface in the
+        which attaches to all NetGraph ATM interfaces in the
         system and presents a physical interface to the HARP stack
         for each of these interfaces.</para>
 
@@ -354,7 +354,7 @@
 
       <para>A new &man.utopia.4; driver supports 25MBit/sec,
 	155MBit/sec and 622MBit/sec ATM physical layer configuration,
-	status and statistics reporting for the most commonly use
+	status and statistics reporting for the most commonly used
 	ATM-PHY chips.</para>
 
       <para>The suspend/resume support for the &man.wi.4; driver
@@ -392,7 +392,7 @@
 	<literal>ip_input</literal> routines for processing.  This
 	feature can be enabled by setting the
 	<varname>net.inet.ip.fastforwarding</varname> sysctl variable
-	to <literal>1</literal>.
+	to <literal>1</literal>.</para>
 
       <para>The <literal>IP_ONESBCAST</literal> option has been added
 	to enable undirected &man.ip.4; broadcasts to be sent to
@@ -463,7 +463,7 @@
         </listitem>
 
         <listitem>
-          <para>The &man.ng.ubt.4; module, which cannot be build on
+          <para>The &man.ng.ubt.4; module, which cannot be built on
             &os; &release.prev;, has been fixed.</para>
         </listitem>
 
@@ -637,7 +637,7 @@
       environment via the <option>-u</option>, <option>-g</option>,
       and <option>-G</option> options respectively. &merged;</para>
 
-    <para>The <filename>compat4x.i386</filename> libraries have bee
+    <para>The <filename>compat4x.i386</filename> libraries have been
       updated to correspond to those available in &os;
       4.9-RELEASE.</para>
 
