@@ -285,8 +285,12 @@ main(int argc, char **argv)
 	if ((num_devices = getnumdevs()) < 0)
 		err(1, "can't get number of devices");
 
-	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	if ((cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo))) ==
+	     NULL)
+		err(1, "devinfo malloc failed");
+	if ((last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo))) ==
+	     NULL)
+		err(1, "devinfo malloc failed");
 	bzero(cur.dinfo, sizeof(struct devinfo));
 	bzero(last.dinfo, sizeof(struct devinfo));
 
@@ -305,7 +309,8 @@ main(int argc, char **argv)
 	 * If the user specified any devices on the command line, see if
 	 * they are in the list of devices we have now.
 	 */
-	specified_devices = (char **)malloc(sizeof(char *));
+	if ((specified_devices = (char **)malloc(sizeof(char *))) == NULL)
+		err(1, "specified_devices malloc failed");
 	for (num_devices_specified = 0; *argv; ++argv) {
 		if (isdigit(**argv))
 			break;
