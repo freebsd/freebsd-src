@@ -1169,6 +1169,7 @@ getline(char *s, int n, FILE *iop)
 {
 	int c;
 	register char *cs;
+	sigset_t sset, osset;
 
 	cs = s;
 /* tmpline may contain saved command from urgent mode interruption */
@@ -1184,6 +1185,10 @@ getline(char *s, int n, FILE *iop)
 		if (c == 0)
 			tmpline[0] = '\0';
 	}
+	/* SIGURG would interrupt stdio if not blocked during the read loop */
+	sigemptyset(&sset);
+	sigaddset(&sset, SIGURG);
+	sigprocmask(SIG_BLOCK, &sset, &osset);
 	while ((c = getc(iop)) != EOF) {
 		c &= 0377;
 		if (c == IAC) {
@@ -1216,6 +1221,7 @@ getline(char *s, int n, FILE *iop)
 			break;
 	}
 got_eof:
+	sigprocmask(SIG_SETMASK, &osset, NULL);
 	if (c == EOF && cs == s)
 		return (NULL);
 	*cs++ = '\0';
