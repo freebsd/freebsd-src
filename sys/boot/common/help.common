@@ -184,9 +184,18 @@
 	Selects the default device.  Syntax for devices is odd.
 
 ################################################################################
+# Tset Sinit_path DSet the list of init candidates
+
+	set init_path=<path>[;<path>...]
+
+	Sets the list of binaries which the kernel will try to run as initial
+	process.
+
+
+################################################################################
 # Tset Smodule_path DSet the module search path
 
-	set module_path=<path>[,<path>...]
+	set module_path=<path>[;<path>...]
 
 	Sets the list of directories which will be searched in for modules
 	named in a load command or implicitly required by a dependancy.
