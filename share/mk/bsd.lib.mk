@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.2 1994/08/04 21:09:23 wollman Exp $
+#	$Id: bsd.lib.mk,v 1.3 1994/08/08 15:45:55 wollman Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -206,22 +206,23 @@ beforeinstall:
 .endif
 
 realinstall: beforeinstall
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} lib${LIB}.a \
-	    ${DESTDIR}${LIBDIR}
+	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .if !defined(NOPROFILE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	    ${INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
 	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
 .if !defined(NOPIC)
 .if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} ${DESTDIR}${LIBDIR}
+	    ${INSTALLFLAGS} lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	    ${DESTDIR}${LIBDIR}
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	    ${INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
 	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
 .endif
 .endif
