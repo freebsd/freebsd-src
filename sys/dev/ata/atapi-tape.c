@@ -132,12 +132,12 @@ astattach(struct ata_device *atadev)
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0640, "ast%d", stp->lun);
     dev->si_drv1 = stp;
-    dev->si_iosize_max = 127 * DEV_BSIZE;
+    dev->si_iosize_max = 256 * DEV_BSIZE;
     stp->dev1 = dev;
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 1),
 		   UID_ROOT, GID_OPERATOR, 0640, "nast%d", stp->lun);
     dev->si_drv1 = stp;
-    dev->si_iosize_max = 127 * DEV_BSIZE;
+    dev->si_iosize_max = 256 * DEV_BSIZE;
     stp->dev2 = dev;
     stp->device->flags |= ATA_D_MEDIA_CHANGED;
     ast_describe(stp);
