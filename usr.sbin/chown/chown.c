@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
 #else
 static const char rcsid[] =
-	"$Id: chown.c,v 1.8 1997/09/04 11:55:45 charnier Exp $";
+	"$Id: chown.c,v 1.9 1997/09/21 09:13:57 wosch Exp $";
 #endif
 #endif /* not lint */
 
@@ -121,7 +121,7 @@ main(argc, argv)
 
 	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
-		if (hflag)
+		if (hflag && (Lflag || Hflag))
 			errx(1, "the -R and -h options may not be specified together");
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
