@@ -47,7 +47,20 @@ __FBSDID("$FreeBSD$");
 
 #define COM_FREQ	DEFAULT_RCLK
 
+int puc_config_win877(struct puc_softc *);
+
 const struct puc_device_description puc_devices[] = {
+
+	{   "Diva Serial [GSP] Multiport UART",
+	    NULL,
+	    {   0x103c, 0x1048, 0x103c, 0x1282 },
+	    {   0xffff, 0xffff, 0xffff, 0xffff },
+	    {
+		{   PUC_PORT_TYPE_UART, 0x10, 0x00, 0, PUC_FLAGS_MEMORY },
+		{   PUC_PORT_TYPE_UART, 0x10, 0x10, 0, PUC_FLAGS_MEMORY },
+		{   PUC_PORT_TYPE_UART, 0x10, 0x38, 0, PUC_FLAGS_MEMORY },
+	    },
+	},
 
 	{   "Comtrol RocketPort 550/4 RJ45",
 	    NULL,

@@ -105,7 +105,9 @@ __FBSDID("$FreeBSD$");
 
 struct puc_device {
 	struct resource_list resources;
-	u_int serialfreq;
+	u_int	serialfreq;
+	u_int	subtype;
+	int	regshft;
 };
 
 static void puc_intr(void *arg);
@@ -139,18 +141,18 @@ puc_probe_ilr(struct puc_softc *sc, struct resource *res)
 	u_char t1, t2;
 	int i;
 
-	switch (sc->sc_desc->ilr_type) {
+	switch (sc->sc_desc.ilr_type) {
 	case PUC_ILR_TYPE_DIGI:
 		sc->ilr_st = rman_get_bustag(res);
 		sc->ilr_sh = rman_get_bushandle(res);
-		for (i = 0; i < 2 && sc->sc_desc->ilr_offset[i] != 0; i++) {
+		for (i = 0; i < 2 && sc->sc_desc.ilr_offset[i] != 0; i++) {
 			t1 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc->ilr_offset[i]);
+			    sc->sc_desc.ilr_offset[i]);
 			t1 = ~t1;
 			bus_space_write_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc->ilr_offset[i], t1);
+			    sc->sc_desc.ilr_offset[i], t1);
 			t2 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
-			    sc->sc_desc->ilr_offset[i]);
+			    sc->sc_desc.ilr_offset[i]);
 			if (t2 == t1)
 				return (0);
 		}
@@ -166,22 +168,23 @@ int
 puc_attach(device_t dev, const struct puc_device_description *desc)
 {
 	char *typestr;
-	int bidx, childunit, i, irq_setup, rid, type;
+	int bidx, childunit, i, irq_setup, ressz, rid, type;
 	struct puc_softc *sc;
 	struct puc_device *pdev;
 	struct resource *res;
 	struct resource_list_entry *rle;
 
+	if (desc == NULL)
+		return (ENXIO);
+
 	sc = (struct puc_softc *)device_get_softc(dev);
 	bzero(sc, sizeof(*sc));
-	sc->sc_desc = desc;
-	if (sc->sc_desc == NULL)
-		return (ENXIO);
+	sc->sc_desc = *desc;
 
 #ifdef PUC_DEBUG
 	bootverbose = 1;
 
-	printf("puc: name: %s\n", sc->sc_desc->name);
+	printf("puc: name: %s\n", sc->sc_desc.name);
 #endif
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
@@ -208,27 +211,34 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 
 	rid = 0;
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		if (i > 0 && rid == sc->sc_desc->ports[i].bar)
+		if (i > 0 && rid == sc->sc_desc.ports[i].bar)
 			sc->barmuxed = 1;
-		rid = sc->sc_desc->ports[i].bar;
+		rid = sc->sc_desc.ports[i].bar;
 		bidx = puc_port_bar_index(sc, rid);
 
 		if (sc->sc_bar_mappings[bidx].res != NULL)
 			continue;
 
-		type = (sc->sc_desc->ports[i].flags & PUC_FLAGS_MEMORY)
+		type = (sc->sc_desc.ports[i].flags & PUC_FLAGS_MEMORY)
 		    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
 
 		res = bus_alloc_resource(dev, type, &rid, 0ul, ~0ul, 1,
 		    RF_ACTIVE);
+		if (res == NULL &&
+		    sc->sc_desc.ports[i].flags & PUC_FLAGS_ALTRES) {
+			type = (type == SYS_RES_IOPORT)
+			    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
+			res = bus_alloc_resource(dev, type, &rid, 0ul, ~0ul, 1,
+			    RF_ACTIVE);
+		}
 		if (res == NULL) {
-			printf("could not get resource\n");
+			device_printf(dev, "could not get resource\n");
 			continue;
 		}
 		sc->sc_bar_mappings[bidx].type = type;
 		sc->sc_bar_mappings[bidx].res = res;
 
-		if (sc->sc_desc->ilr_type != PUC_ILR_TYPE_NONE) {
+		if (sc->sc_desc.ilr_type != PUC_ILR_TYPE_NONE) {
 			sc->ilr_enabled = puc_probe_ilr(sc, res);
 			if (sc->ilr_enabled)
 				device_printf(dev, "ILR enabled\n");
@@ -236,10 +246,10 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 				device_printf(dev, "ILR disabled\n");
 		}
 #ifdef PUC_DEBUG
-		printf("%s rid %d bst %x, start %x, end %x\n",
+		printf("%s rid %d bst %lx, start %lx, end %lx\n",
 		    (type == SYS_RES_MEMORY) ? "memory" : "port", rid,
-		    (u_int)rman_get_bustag(res), (u_int)rman_get_start(res),
-		    (u_int)rman_get_end(res));
+		    (u_long)rman_get_bustag(res), (u_long)rman_get_start(res),
+		    (u_long)rman_get_end(res));
 #endif
 	}
 
@@ -250,20 +260,34 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 	}
 
 	for (i = 0; PUC_PORT_VALID(sc->sc_desc, i); i++) {
-		rid = sc->sc_desc->ports[i].bar;
+		rid = sc->sc_desc.ports[i].bar;
 		bidx = puc_port_bar_index(sc, rid);
 		if (sc->sc_bar_mappings[bidx].res == NULL)
 			continue;
 
-		switch (sc->sc_desc->ports[i].type) {
+		switch (sc->sc_desc.ports[i].type & ~PUC_PORT_SUBTYPE_MASK) {
 		case PUC_PORT_TYPE_COM:
 			typestr = "sio";
 			break;
 		case PUC_PORT_TYPE_LPT:
 			typestr = "ppc";
 			break;
+		case PUC_PORT_TYPE_UART:
+			typestr = "uart";
+			break;
 		default:
 			continue;
+		}
+		switch (sc->sc_desc.ports[i].type & PUC_PORT_SUBTYPE_MASK) {
+		case PUC_PORT_UART_SAB82532:
+			ressz = 64;
+			break;
+		case PUC_PORT_UART_Z8530:
+			ressz = 2;
+			break;
+		default:
+			ressz = 8;
+			break;
 		}
 		pdev = malloc(sizeof(struct puc_device), M_DEVBUF,
 		    M_NOWAIT | M_ZERO);
@@ -282,9 +306,9 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		res = sc->sc_bar_mappings[bidx].res;
 		type = sc->sc_bar_mappings[bidx].type;
 		resource_list_add(&pdev->resources, type, 0,
-		    rman_get_start(res) + sc->sc_desc->ports[i].offset,
-		    rman_get_start(res) + sc->sc_desc->ports[i].offset + 8 - 1,
-		    8);
+		    rman_get_start(res) + sc->sc_desc.ports[i].offset,
+		    rman_get_start(res) + sc->sc_desc.ports[i].offset
+		    + ressz - 1, ressz);
 		rle = resource_list_find(&pdev->resources, type, 0);
 
 		if (sc->barmuxed == 0) {
@@ -298,46 +322,51 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 			}
 
 			rle->res->r_start = rman_get_start(res) +
-			    sc->sc_desc->ports[i].offset;
-			rle->res->r_end = rle->res->r_start + 8 - 1;
+			    sc->sc_desc.ports[i].offset;
+			rle->res->r_end = rle->res->r_start + ressz - 1;
 			rle->res->r_bustag = rman_get_bustag(res);
 			bus_space_subregion(rle->res->r_bustag,
 			    rman_get_bushandle(res),
-			    sc->sc_desc->ports[i].offset, 8,
+			    sc->sc_desc.ports[i].offset, ressz,
 			    &rle->res->r_bushandle);
 		}
 
-		pdev->serialfreq = sc->sc_desc->ports[i].serialfreq;
+		pdev->serialfreq = sc->sc_desc.ports[i].serialfreq;
+		pdev->subtype = sc->sc_desc.ports[i].type &
+		    PUC_PORT_SUBTYPE_MASK;
+		pdev->regshft = sc->sc_desc.ports[i].regshft;
 
 		childunit = puc_find_free_unit(typestr);
-		sc->sc_ports[i].dev = device_add_child(dev, typestr, childunit);
+		if (childunit < 0 && strcmp(typestr, "uart") != 0) {
+			typestr = "uart";
+			childunit = puc_find_free_unit(typestr);
+		}
+		sc->sc_ports[i].dev = device_add_child(dev, typestr,
+		    childunit);
 		if (sc->sc_ports[i].dev == NULL) {
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
-				    rman_get_bushandle(rle->res), 8);
+				    rman_get_bushandle(rle->res), ressz);
 				free(rle->res, M_DEVBUF);
 				free(pdev, M_DEVBUF);
 			}
 			continue;
 		}
 		device_set_ivars(sc->sc_ports[i].dev, pdev);
-		device_set_desc(sc->sc_ports[i].dev, sc->sc_desc->name);
-		if (!bootverbose)
-			device_quiet(sc->sc_ports[i].dev);
+		device_set_desc(sc->sc_ports[i].dev, sc->sc_desc.name);
 #ifdef PUC_DEBUG
 		printf("puc: type %d, bar %x, offset %x\n",
-		    sc->sc_desc->ports[i].type,
-		    sc->sc_desc->ports[i].bar,
-		    sc->sc_desc->ports[i].offset);
+		    sc->sc_desc.ports[i].type,
+		    sc->sc_desc.ports[i].bar,
+		    sc->sc_desc.ports[i].offset);
 		puc_print_resource_list(&pdev->resources);
 #endif
 		device_set_flags(sc->sc_ports[i].dev,
-		    sc->sc_desc->ports[i].flags);
+		    sc->sc_desc.ports[i].flags);
 		if (device_probe_and_attach(sc->sc_ports[i].dev) != 0) {
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
-						rman_get_bushandle(rle->res),
-						8);
+				    rman_get_bushandle(rle->res), ressz);
 				free(rle->res, M_DEVBUF);
 				free(pdev, M_DEVBUF);
 			}
@@ -357,11 +386,11 @@ puc_ilr_read(struct puc_softc *sc)
 	int i;
 
 	mask = 0;
-	switch (sc->sc_desc->ilr_type) {
+	switch (sc->sc_desc.ilr_type) {
 	case PUC_ILR_TYPE_DIGI:
-		for (i = 1; i >= 0 && sc->sc_desc->ilr_offset[i] != 0; i--) {
+		for (i = 1; i >= 0 && sc->sc_desc.ilr_offset[i] != 0; i--) {
 			mask = (mask << 8) | (bus_space_read_1(sc->ilr_st,
-			    sc->ilr_sh, sc->sc_desc->ilr_offset[i]) & 0xff);
+			    sc->ilr_sh, sc->sc_desc.ilr_offset[i]) & 0xff);
 		}
 		break;
 
@@ -392,28 +421,6 @@ puc_intr(void *arg)
 		if (sc->sc_ports[i].ihand != NULL &&
 		    ((ilr_mask >> i) & 0x00000001))
 			(sc->sc_ports[i].ihand)(sc->sc_ports[i].ihandarg);
-}
-
-const struct puc_device_description *
-puc_find_description(uint32_t vend, uint32_t prod, uint32_t svend, 
-    uint32_t sprod)
-{
-	int i;
-
-#define checkreg(val, index) \
-    (((val) & puc_devices[i].rmask[(index)]) == puc_devices[i].rval[(index)])
-
-	for (i = 0; puc_devices[i].name != NULL; i++) {
-		if (checkreg(vend, PUC_REG_VEND) &&
-		    checkreg(prod, PUC_REG_PROD) &&
-		    checkreg(svend, PUC_REG_SVEND) &&
-		    checkreg(sprod, PUC_REG_SPROD))
-			return (&puc_devices[i]);
-	}
-
-#undef checkreg
-
-	return (NULL);
 }
 
 static int
@@ -448,7 +455,7 @@ puc_print_resource_list(struct resource_list *rl)
 
 	printf("print_resource_list: rl %p\n", rl);
 	SLIST_FOREACH(rle, rl, link)
-		printf("  type %x, rid %x start %x end %x count %x\n",
+		printf("  type %x, rid %x start %lx end %lx count %lx\n",
 		    rle->type, rle->rid, rle->start, rle->end, rle->count);
 	printf("print_resource_list: end.\n");
 #endif
@@ -482,11 +489,9 @@ puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	retval = NULL;
 	rle = resource_list_find(rl, type, *rid);
 	if (rle) {
-		start = rle->start;
-		end = rle->end;
-		count = rle->count;
 #ifdef PUC_DEBUG
-		printf("found rle, %lx, %lx, %lx\n", start, end, count);
+		printf("found rle, %lx, %lx, %lx\n", rle->start, rle->end,
+		    rle->count);
 #endif
 		retval = rle->res;
 	} 
@@ -592,6 +597,12 @@ puc_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	switch(index) {
 	case PUC_IVAR_FREQ:
 		*result = pdev->serialfreq;
+		break;
+	case PUC_IVAR_SUBTYPE:
+		*result = pdev->subtype;
+		break;
+	case PUC_IVAR_REGSHFT:
+		*result = pdev->regshft;
 		break;
 	default:
 		return (ENOENT);
