@@ -12,20 +12,21 @@
  *	ABP930		- Bus-Master PCI (16 CDB) *
  *	ABP930U		- Bus-Master PCI Ultra (16 CDB)
  *	ABP930UA	- Bus-Master PCI Ultra (16 CDB)
- *	ABP940UA/3940UA - Bus-Master PCI Ultra (240 CDB)
  *	ABP960		- Bus-Master PCI MAC/PC (16 CDB) **
- *	ABP960U		- Bus-Master PCI MAC/PC Ultra (16 CDB)
- *	ABP970U		- Bus-Master PCI MAC/PC Ultra (240 CDB)
- *	ABP3960UA	- Bus-Master PCI MAC/PC (240 CDB)
+ *	ABP960U		- Bus-Master PCI MAC/PC (16 CDB) **
  *
  *   Single Channel Products:
- *	ABP940 - Bus-Master PCI (240 CDB)
- *	ABP940U - Bus-Master PCI Ultra (240 CDB)
- *	ABP970 - Bus-Master PCI MAC/PC (240 CDB)
- *	ABP970U - Bus-Master PCI MAC/PC Ultra (240 CDB)
+ *	ABP940		- Bus-Master PCI (240 CDB)
+ *	ABP940U		- Bus-Master PCI Ultra (240 CDB)
+ *	ABP940UA/3940UA - Bus-Master PCI Ultra (240 CDB)
+ *	ABP3960UA	- Bus-Master PCI MAC/PC (240 CDB)
+ *	ABP970		- Bus-Master PCI MAC/PC (240 CDB)
+ *	ABP970U		- Bus-Master PCI MAC/PC Ultra (240 CDB)
  *
  *   Dual Channel Products:  
  *	ABP950 - Dual Channel Bus-Master PCI (240 CDB Per Channel)
+ *      ABP980 - Four Channel Bus-Master PCI (240 CDB Per Channel)
+ *      ABP980U - Four Channel Bus-Master PCI Ultra (240 CDB Per Channel)
  *	ABP980UA/3980UA - Four Channel Bus-Master PCI Ultra (16 CDB Per Chan.)
  *
  *   Footnotes:

@@ -78,6 +78,7 @@
 
 u_long adw_unit;
 
+static __inline cam_status	adwccbstatus(union ccb*);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
 					   struct acb *acb);
@@ -100,6 +101,12 @@ static void		adw_handle_device_reset(struct adw_softc *adw,
 						u_int target);
 static void		adw_handle_bus_reset(struct adw_softc *adw,
 					     int initiated);
+
+static __inline cam_status
+adwccbstatus(union ccb* ccb)
+{
+	return (ccb->ccb_h.status & CAM_STATUS_MASK);
+}
 
 static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
@@ -324,7 +331,7 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		splx(s);
 		return;
 	}
-		
+
 	acb->state |= ACB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&adw->pending_ccbs, &ccb->ccb_h, sim_links.le);
@@ -393,13 +400,16 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
 			switch (csio->tag_action) {
 			case MSG_SIMPLE_Q_TAG:
-				acb->queue.scsi_cntl = 0;
+				acb->queue.scsi_cntl = ADW_QSC_SIMPLE_Q_TAG;
 				break;
 			case MSG_HEAD_OF_Q_TAG:
 				acb->queue.scsi_cntl = ADW_QSC_HEAD_OF_Q_TAG;
 				break;
 			case MSG_ORDERED_Q_TAG:
 				acb->queue.scsi_cntl = ADW_QSC_ORDERED_Q_TAG;
+				break;
+			default:
+				acb->queue.scsi_cntl = ADW_QSC_NO_TAGMSG;
 				break;
 			}
 		} else
@@ -498,9 +508,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		adw_idle_cmd_status_t status;
 
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_DEVICE_RESET,
-				  ccb->ccb_h.target_id);
-		status = adw_idle_cmd_wait(adw);
+		status = adw_idle_cmd_send(adw, ADW_IDLE_CMD_DEVICE_RESET,
+					   ccb->ccb_h.target_id);
 		if (status == ADW_IDLE_CMD_SUCCESS) {
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			if (bootverbose) {
@@ -748,28 +757,17 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
 	{
-		adw_idle_cmd_status_t status;
+		int failure;
 
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
-				  /*param*/0);
-		status = adw_idle_cmd_wait(adw);
-		if (status != ADW_IDLE_CMD_SUCCESS) {
+		failure = adw_reset_bus(adw);
+		if (failure != 0) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
-			break;
-		}
-		DELAY(100);
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END, /*param*/0);
-		status = adw_idle_cmd_wait(adw);
-		if (status != ADW_IDLE_CMD_SUCCESS) {
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
-			break;
-		}
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		if (bootverbose) {
-			xpt_print_path(adw->path);
-			printf("Bus Reset Delivered\n");
+		} else {
+			if (bootverbose) {
+				xpt_print_path(adw->path);
+				printf("Bus Reset Delivered\n");
+			}
+			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
 		xpt_done(ccb);
 		break;
@@ -1385,8 +1383,16 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 		case QHSTA_M_UNEXPECTED_BUS_FREE:
 			ccb->ccb_h.status = CAM_UNEXP_BUSFREE;
 			break;
+		case QHSTA_M_SCSI_BUS_RESET:
+		case QHSTA_M_SCSI_BUS_RESET_UNSOL:
+			ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+			break;
+		case QHSTA_M_BUS_DEVICE_RESET:
+			ccb->ccb_h.status = CAM_BDR_SENT;
+			break;
 		case QHSTA_M_QUEUE_ABORTED:
 			/* BDR or Bus Reset */
+			printf("Saw Queue Aborted\n");
 			ccb->ccb_h.status = adw->last_reset;
 			break;
 		case QHSTA_M_SXFR_SDMA_ERR:
@@ -1397,23 +1403,10 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 		case QHSTA_M_WTM_TIMEOUT:
 		case QHSTA_M_SXFR_WD_TMO:
 		{
-			adw_idle_cmd_status_t status;
-
 			/* The SCSI bus hung in a phase */
-			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
-			adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
-					  /*param*/0);
-			status = adw_idle_cmd_wait(adw);
-			if (status != ADW_IDLE_CMD_SUCCESS)
-				panic("%s: Bus Reset during WD timeout failed",
-				      adw_name(adw));
-			DELAY(100);
-			adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END,
-					  /*param*/0);
-			status = adw_idle_cmd_wait(adw);
-			if (status != ADW_IDLE_CMD_SUCCESS)
-				panic("%s: Bus Reset during WD timeout failed",
-				      adw_name(adw));
+			xpt_print_path(adw->path);
+			printf("Watch Dog timer expired.  Reseting bus\n");
+			adw_reset_bus(adw);
 			break;
 		}
 		case QHSTA_M_SXFR_XFR_PH_ERR:
@@ -1445,6 +1438,11 @@ adwprocesserror(struct adw_softc *adw, struct acb *acb)
 			/* NOTREACHED */
 		}
 	}
+	if ((acb->state & ACB_RECOVERY_ACB) != 0) {
+		if (ccb->ccb_h.status == CAM_SCSI_BUS_RESET
+		 || ccb->ccb_h.status == CAM_BDR_SENT)
+		 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
+	}
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -1460,6 +1458,7 @@ adwtimeout(void *arg)
 	union  ccb	     *ccb;
 	struct adw_softc     *adw;
 	adw_idle_cmd_status_t status;
+	int		      target_id;
 	int		      s;
 
 	acb = (struct acb *)arg;
@@ -1478,29 +1477,21 @@ adwtimeout(void *arg)
 		return;
 	}
 
+	acb->state |= ACB_RECOVERY_ACB;
+	target_id = ccb->ccb_h.target_id;
+
 	/* Attempt a BDR first */
-	adw_idle_cmd_send(adw, ADW_IDLE_CMD_DEVICE_RESET,
-			  ccb->ccb_h.target_id);
+	status = adw_idle_cmd_send(adw, ADW_IDLE_CMD_DEVICE_RESET,
+				   ccb->ccb_h.target_id);
 	splx(s);
-	status = adw_idle_cmd_wait(adw);
 	if (status == ADW_IDLE_CMD_SUCCESS) {
 		printf("%s: BDR Delivered.  No longer in timeout\n",
 		       adw_name(adw));
-		adw_handle_device_reset(adw, ccb->ccb_h.target_id);
+		adw_handle_device_reset(adw, target_id);
 	} else {
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_START,
-				  /*param*/0);
-		status = adw_idle_cmd_wait(adw);
-		if (status != ADW_IDLE_CMD_SUCCESS)
-			panic("%s: Bus Reset during timeout failed",
-			      adw_name(adw));
-		DELAY(100);
-		adw_idle_cmd_send(adw, ADW_IDLE_CMD_SCSI_RESET_END,
-				  /*param*/0);
-		status = adw_idle_cmd_wait(adw);
-		if (status != ADW_IDLE_CMD_SUCCESS)
-			panic("%s: Bus Reset during timeout failed",
-			      adw_name(adw));
+		adw_reset_bus(adw);
+		xpt_print_path(adw->path);
+		printf("Bus Reset Delivered.  No longer in timeout\n");
 	}
 }
 
