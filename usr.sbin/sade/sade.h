@@ -526,8 +526,6 @@ extern int	configNTP(dialogMenuItem *self);
 extern int	configOSF1(dialogMenuItem *self);
 #endif
 extern int	configUsers(dialogMenuItem *self);
-extern int	configXSetup(dialogMenuItem *self);
-extern int	configXDesktop(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configInetd(dialogMenuItem *self);
