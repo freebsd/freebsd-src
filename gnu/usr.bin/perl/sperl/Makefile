@@ -19,9 +19,8 @@ DPADD= ${LIBM}
 LDADD+= -lcrypt
 DPADD+= ${LIBCRYPT}
 
-MANSRC= ${.CURDIR}/../perl
-MLINKS+=perl.1 suidperl.1
-
+MAN1=
+MLINKS+= perl.1 suidperl.1
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
