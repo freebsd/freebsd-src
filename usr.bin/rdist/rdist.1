@@ -38,14 +38,14 @@
 .Nm rdist
 .Nd remote file distribution program
 .Sh SYNOPSIS
-.Nm rdist
+.Nm
 .Op Fl nqbRhivwy
 .Op Fl P Ar rshcmd
 .Op Fl f Ar distfile
 .Op Fl d Ar var=value
 .Op Fl m Ar host
 .Op Ar name ...
-.Nm rdist
+.Nm
 .Op Fl nqbRhivwy
 .Op Fl P Ar rshcmd
 .Fl c
@@ -402,6 +402,21 @@ A complaint about mismatch of
 .Nm
 version numbers may really stem
 from some problem with starting your shell, e.g., you are in too many groups.
+.Pp
+.Nm Rdist
+relies on
+.Xr rcmd 3
+type remote services executing successfully and in silence.
+A common error is for non-interactive initialization scripts, like
+.Pa .cshrc ,
+to generate output (or to run other programs which generate output
+when not attached to a terminal -- the most frequent offender is
+.Xr stty 1 ) .
+This extra output will cause
+.Nm
+to fail with the error message:
+.Pp
+.Dl rdist: connection failed: version numbers don't match
 .Sh BUGS
 Source files must reside on the local host where
 .Nm
