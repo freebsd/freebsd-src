@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.21 1997/05/22 22:15:39 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.22 1997/05/23 20:40:15 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -835,7 +835,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 	struct cisco_packet *h;
 	struct ifaddr *ifa;
 
-	if (m->m_pkthdr.len != CISCO_PACKET_LEN) {
+	if (m->m_pkthdr.len < CISCO_PACKET_LEN) {
 		if (debug)
 			log(LOG_DEBUG,
 			    "%s%d: invalid cisco packet length: %d bytes\n",
