@@ -246,9 +246,6 @@ main(int argc, char *argv[])
 		else { register int flag;
 			for ( ; (flag = *token++) ; ) {
 				switch (flag) {
-				case '0':
-					partition = 0;
-					break;
 				case '1':
 					partition = 1;
 					break;
@@ -257,6 +254,9 @@ main(int argc, char *argv[])
 					break;
 				case '3':
 					partition = 3;
+					break;
+				case '4':
+					partition = 4;
 					break;
 				case 'a':
 					a_flag = 1;
@@ -376,7 +376,7 @@ main(int argc, char *argv[])
 	    printf("Warning: BIOS sector numbering starts with sector 1\n");
 	    printf("Information from DOS bootblock is:\n");
 	    if (partition == -1)
-		for (i = 0; i < NDOSPART; i++)
+		for (i = 1; i <= NDOSPART; i++)
 		    change_part(i);
 	    else
 		change_part(partition);
@@ -406,7 +406,7 @@ main(int argc, char *argv[])
 	exit(0);
 
 usage:
-	printf("fdisk {-a|-i|-u} [-f <config file> [-t] [-v]] [-{0,1,2,3}] [disk]\n");
+	printf("fdisk {-a|-i|-u} [-f <config file> [-t] [-v]] [-{1,2,3,4}] [disk]\n");
 	return(1);
 }
 
@@ -418,7 +418,7 @@ int	i;
 	print_params();
 	printf("Information from DOS bootblock is:\n");
 	if (which == -1)
-		for (i = 0; i < NDOSPART; i++)
+		for (i = 1; i <= NDOSPART; i++)
 			printf("%d: ", i), print_part(i);
 	else
 		print_part(which);
@@ -432,7 +432,7 @@ print_part(int i)
 	struct	  dos_partition *partp;
 	u_int64_t part_mb;
 
-	partp = ((struct dos_partition *) &mboot.parts) + i;
+	partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 
 	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
 		printf("<UNUSED>\n");
@@ -490,7 +490,7 @@ unsigned long size = disksecs - start;
 static void
 change_part(int i)
 {
-struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
+struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 
     printf("The data for partition %d is:\n", i);
     print_part(i);
@@ -500,9 +500,9 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i;
 
 	if (i_flag) {
 		bzero((char *)partp, sizeof (struct dos_partition));
-		if (i == 3) {
+		if (i == 4) {
 			init_sector0(1);
-			printf("\nThe static data for the DOS partition 3 has been reinitialized to:\n");
+			printf("\nThe static data for the DOS partition 4 has been reinitialized to:\n");
 			print_part(i);
 		}
 	}
@@ -563,7 +563,7 @@ static void
 change_active(int which)
 {
 int i;
-int active = 3, tmp;
+int active = 4, tmp;
 struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 
 	if (a_flag && which != -1)
@@ -575,8 +575,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts);
 	while (!ok("Are you happy with this choice"));
 	for (i = 0; i < NDOSPART; i++)
 		partp[i].dp_flag = 0;
-	if (active >= 0 && active < NDOSPART)
-		partp[active].dp_flag = ACTIVE;
+	if (active > 0 && active <= NDOSPART)
+		partp[active-1].dp_flag = ACTIVE;
 }
 
 void
@@ -1087,13 +1087,13 @@ process_partition(command)
 	    break;
 	}
 	partition = command->args[0].arg_val;
-	if (partition < 0 || partition > 3)
+	if (partition < 1 || partition > 4)
 	{
 	    fprintf(stderr, "%s: ERROR line %d: invalid partition number %d\n",
 		    name, current_line_number, partition);
 	    break;
 	}
-	partp = ((struct dos_partition *) &mboot.parts) + partition;
+	partp = ((struct dos_partition *) &mboot.parts) + partition - 1;
 	bzero((char *)partp, sizeof (struct dos_partition));
 	partp->dp_typ = command->args[1].arg_val;
 	partp->dp_start = command->args[2].arg_val;
@@ -1198,7 +1198,7 @@ process_active(command)
 	    break;
 	}
 	partition = command->args[0].arg_val;
-	if (partition < 0 || partition > 3)
+	if (partition < 1 || partition > 4)
 	{
 	    fprintf(stderr, "%s: ERROR line %d: invalid partition number %d\n",
 		    name, current_line_number, partition);
@@ -1210,7 +1210,7 @@ process_active(command)
 	partp = ((struct dos_partition *) &mboot.parts);
 	for (i = 0; i < NDOSPART; i++)
 	    partp[i].dp_flag = 0;
-	partp[partition].dp_flag = ACTIVE;
+	partp[partition-1].dp_flag = ACTIVE;
 
 	status = 1;
 	break;
