@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.124 1995/03/24 04:20:35 phk Exp $
+#	$Id: Makefile,v 1.125 1995/03/24 08:10:53 phk Exp $
 #
 # How to roll a release:
 #
@@ -211,6 +211,7 @@ release.5:
 				${RD}/trees/proflibs/usr/lib ; \
 		fi ; \
 	done
+	cd ${RD}/usr/share/misc && rm -f termcap.db vgrindefs.db
 	-cd ${RD}/trees ; \
 		find bin ${EXPORT_DISTS} -depth -type d -print | xargs rmdir
 
