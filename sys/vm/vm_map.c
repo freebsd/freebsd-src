@@ -1417,22 +1417,17 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		    cnt.v_free_count < cnt.v_free_reserved) {
 			break;
 		}
-		vm_page_lock_queues();
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
 		    (p->busy == 0) &&
 		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-			if ((p->queue - p->pc) == PQ_CACHE)
+			if ((p->queue - p->pc) == PQ_CACHE) {
+				vm_page_lock_queues();
 				vm_page_deactivate(p);
-			vm_page_busy(p);
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(object);
+				vm_page_unlock_queues();
+			}
 			mpte = pmap_enter_quick(map->pmap,
 				addr + ptoa(tmpidx), p, mpte);
-			VM_OBJECT_LOCK(object);
-			vm_page_lock_queues();
-			vm_page_wakeup(p);
 		}
-		vm_page_unlock_queues();
 	}
 unlock_return:
 	VM_OBJECT_UNLOCK(object);
