@@ -89,8 +89,8 @@ pccard_read_cis(struct pccard_softc *sc)
 	state.card->cis1_info[1] = NULL;
 	state.card->cis1_info[2] = NULL;
 	state.card->cis1_info[3] = NULL;
-	state.card->manufacturer = PCCARD_VENDOR_INVALID;
-	state.card->product = PCCARD_PRODUCT_INVALID;
+	state.card->manufacturer = PCMCIA_VENDOR_INVALID;
+	state.card->product = PCMCIA_PRODUCT_INVALID;
 	STAILQ_INIT(&state.card->pf_head);
 
 	state.pf = NULL;
