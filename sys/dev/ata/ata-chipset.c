@@ -446,7 +446,7 @@ ata_amd_ident(device_t dev)
     {{ ATA_AMD756,  0x00, AMDNVIDIA, 0x00,	      ATA_UDMA4, "AMD 756" },
      { ATA_AMD766,  0x00, AMDNVIDIA, AMDCABLE|AMDBUG, ATA_UDMA5, "AMD 766" },
      { ATA_AMD768,  0x00, AMDNVIDIA, AMDCABLE,	      ATA_UDMA5, "AMD 768" },
-     { ATA_AMD8111, 0x00, AMDNVIDIA, 0x00,	      ATA_UDMA6, "AMD 8111" },
+     { ATA_AMD8111, 0x00, AMDNVIDIA, AMDCABLE,	      ATA_UDMA6, "AMD 8111" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -1013,7 +1013,7 @@ ata_nvidia_ident(device_t dev)
     static struct ata_chip_id ids[] =
     {{ ATA_NFORCE1, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA5, "nVidia nForce" },
      { ATA_NFORCE2, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce2" },
-     { ATA_NFORCE3, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce3" },
+     { ATA_NFORCE3, 0, AMDNVIDIA, NVIDIA,        ATA_UDMA6, "nVidia nForce3" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -2182,9 +2182,10 @@ ata_via_family_setmode(struct ata_device *atadev, int mode)
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
     if (ctlr->chip->cfg2 & AMDCABLE) {
-	if (mode > ATA_UDMA2 && !pci_read_config(parent, 0x42, 1) & (1<<devno)){
-		ata_prtdev(atadev,
-		    "DMA limited to UDMA33, non-ATA66 cable or device\n");
+	if (mode > ATA_UDMA2 &&
+	    !(pci_read_config(parent, 0x42, 1) & (1 << devno))) {
+	    ata_prtdev(atadev,
+		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
 	    mode = ATA_UDMA2;
 	}
     }
