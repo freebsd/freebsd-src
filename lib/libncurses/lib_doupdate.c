@@ -176,7 +176,7 @@ int	lastNonBlank;
 	T(("ClrUpdate(%x) called", scr));
 	if (back_color_erase) {
 		T(("back_color_erase, turning attributes off"));
-		vidattr(A_NORMAL);
+		vidattr(curscr->_attrs = A_NORMAL);
 	}
 	ClearScreen();
 
@@ -306,7 +306,7 @@ int	attrchanged = 0;
 		if(clr_eol) {
 			if (back_color_erase) {
 				T(("back_color_erase, turning attributes off"));
-				vidattr(A_NORMAL);
+				vidattr(curscr->_attrs = A_NORMAL);
 			}
 			tputs(clr_eol, 1, _outc);		
 		}
@@ -376,7 +376,7 @@ int	attrchanged = 0;
 		GoTo(lineno, firstChar);
 		if (back_color_erase) {
 			T(("back_color_erase, turning attributes off"));
-			vidattr(A_NORMAL);
+			vidattr(curscr->_attrs = A_NORMAL);
 		}
 		tputs(clr_eol, 1, _outc);		
 		for( k = 0 ; k <= (columns-1) ; k++ )
@@ -401,7 +401,7 @@ int	attrchanged = 0;
 			GoTo(lineno, firstChar);
 			if (back_color_erase) {
 				T(("back_color_erase, turning attributes off"));
-				vidattr(A_NORMAL);
+				vidattr(curscr->_attrs = A_NORMAL);
 			}
 			tputs(clr_eol,1,_outc);
 			if(newLine[firstChar] != ' ' )
@@ -519,7 +519,7 @@ static void DelChar(int count)
 
 	if (back_color_erase) {
 		T(("back_color_erase, turning attributes off"));
-		vidattr(A_NORMAL);
+		vidattr(curscr->_attrs = A_NORMAL);
 	}
 	if (parm_dch) {
 		tputs(tparm(parm_dch, count), 1, _outc);
