@@ -82,13 +82,13 @@ struct ccp {
   struct {
     int algorithm;		/* Algorithm in use */
     void *state;		/* Returned by implementations Init() */
-    struct lcp_opt opt;		/* Set by implementations OptInit() */
+    struct lcp_opt opt;		/* Set by implementation's OptInit() */
   } in;
 
   struct {
     int algorithm;		/* Algorithm in use */
     void *state;		/* Returned by implementations Init() */
-    struct ccp_opt *opt;	/* Set by implementations OptInit() */
+    struct ccp_opt *opt;	/* Set by implementation's OptInit() */
   } out;
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
