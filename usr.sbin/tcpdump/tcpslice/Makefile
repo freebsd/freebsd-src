@@ -8,12 +8,12 @@ CLEANFILES+=	version.c version.h
 DPADD+=	${LIBPCAP}
 LDADD+= -lpcap
 
-DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
+TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 
-version.c version.h: $(DISTDIR}/VERSION
+version.c version.h: $(TCPDUMP_DISTDIR}/VERSION
 	rm -f version.c ; \
-	sed 's/.*/char version[] = "&";/' ${DISTDIR}/VERSION > version.c
-	set `sed 's/\([0-9]*\)\.\([0-9]*\).*/\1 \2/' ${DISTDIR}/VERSION` ; \
+	sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION > version.c
+	set `sed 's/\([0-9]*\)\.\([0-9]*\).*/\1 \2/' ${TCPDUMP_DISTDIR}/VERSION` ; \
 		{ echo '#define VERSION_MAJOR' $$1 ; \
 		  echo '#define VERSION_MINOR' $$2 ; } > version.h
 
