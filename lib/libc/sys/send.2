@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
-.\"	$Id: send.2,v 1.2 1995/02/15 22:53:02 wollman Exp $
+.\"	$Id: send.2,v 1.3 1996/08/22 23:29:18 mpp Exp $
 .\"
 .Dd February 15, 1995
 .Dt SEND 2
@@ -145,6 +145,10 @@ fail if:
 .Bl -tag -width [EMSGSIZE]
 .It Bq Er EBADF
 An invalid descriptor was specified.
+.It Bq Er EACCES
+The destination address is a broadcast address, and 
+.Dv SO_BROADCAST
+has not been set on the socket.
 .It Bq Er ENOTSOCK
 The argument
 .Fa s
@@ -164,6 +168,8 @@ The operation may succeed when buffers become available.
 The output queue for a network interface was full.
 This generally indicates that the interface has stopped sending,
 but may be caused by transient congestion.
+.It Bq Er EHOSTUNREACH
+The remote host was unreachable.
 .El
 .Sh SEE ALSO
 .Xr fcntl 2 ,
