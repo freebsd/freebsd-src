@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.47 1997/08/17 20:38:44 brian Exp $
+.\" $Id: ppp.8,v 1.48 1997/08/17 20:45:48 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1673,7 +1673,7 @@ may be used here too.
 .It set stopped seconds
 If this option is set,
 .Nm
-will time out after being the the stopped state for the given number of
+will time out after being in the stopped state for the given number of
 .Dq seconds .
 This option may be useful if you see ppp failing to respond in the
 stopped state.  Use
