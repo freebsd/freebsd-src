@@ -567,13 +567,6 @@ vop_setextattr {
 };
 
 #
-#% destroyvobject	vp	L L L
-#
-vop_destroyvobject {
-	IN struct vnode *vp;
-};
-
-#
 #% setlabel	vp	L L L
 #
 vop_setlabel {
