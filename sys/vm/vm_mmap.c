@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.9 1995/02/15 09:22:17 davidg Exp $
+ * $Id: vm_mmap.c,v 1.10 1995/02/21 01:22:46 davidg Exp $
  */
 
 /*
@@ -678,70 +678,69 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		}
 	}
 	/*
-	 * A COW regular file
+	 * mmap a COW regular file
 	 */
 	else {
 		vm_map_t tmap;
 		vm_offset_t off;
+		vm_map_entry_t entry;
 
-		/* locate and allocate the target address space */
-		rv = vm_map_find(map, NULL, 0, addr, size, fitit);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
-			goto out;
-		}
+		if (flags & MAP_COPY) {
+			/* locate and allocate the target address space */
+			rv = vm_map_find(map, NULL, 0, addr, size, fitit);
+			if (rv != KERN_SUCCESS) {
+				vm_object_deallocate(object);
+				goto out;
+			}
 
-		off = VM_MIN_ADDRESS;
-		tmap = vm_map_create(NULL, off, off + size, TRUE);
-		rv = vm_map_find(tmap, object, foff, &off, size, FALSE);
-		if (rv != KERN_SUCCESS) {
-			vm_object_deallocate(object);
+			off = VM_MIN_ADDRESS;
+			tmap = vm_map_create(NULL, off, off + size, TRUE);
+			rv = vm_map_find(tmap, object, foff, &off, size, FALSE);
+			if (rv != KERN_SUCCESS) {
+				vm_object_deallocate(object);
+				vm_map_deallocate(tmap);
+				goto out;
+			}
+
+			rv = vm_map_copy(map, tmap, *addr, size, off,
+		   	 FALSE, FALSE);
 			vm_map_deallocate(tmap);
-			goto out;
+			if (rv != KERN_SUCCESS)
+				goto out;
+
+		} else {
+			vm_object_t user_object;
+
+			user_object = vm_object_allocate( size);
+			user_object->shadow = object;
+			TAILQ_INSERT_TAIL(&object->reverse_shadow_head,
+				    user_object, reverse_shadow_list);
+
+			object->ref_count += 1;
+
+			rv = vm_map_find(map, user_object, foff, addr, size, fitit);
+			if( rv != KERN_SUCCESS) {
+				vm_object_deallocate(user_object);
+				vm_object_deallocate(object);
+				goto out;
+			}
+			
+			/*
+			 * this is a consistancy check, gets the map entry, and should
+			 * never fail
+			 */
+			if (!vm_map_lookup_entry(map, *addr, &entry)) {
+				panic("vm_mmap: missing map entry!!!\n");
+			}
+
+			entry->copy_on_write = TRUE;
 		}
 
 		/*
-		 * (XXX) MAP_PRIVATE implies that we see changes made
-		 * by others.  To ensure that we need to guarentee
-		 * that no copy object is created (otherwise original
-		 * pages would be pushed to the copy object and we
-		 * would never see changes made by others).  We
-		 * totally sleeze it right now by marking the object
-		 * internal temporarily.
-		 */
-		if ((flags & MAP_COPY) == 0)
-			object->flags |= OBJ_INTERNAL;
-		rv = vm_map_copy(map, tmap, *addr, size, off,
-		    FALSE, FALSE);
-		object->flags &= ~OBJ_INTERNAL;
-		/*
-		 * (XXX) My oh my, this only gets worse... Force
-		 * creation of a shadow object so that vm_map_fork
-		 * will do the right thing.
-		 */
-		if ((flags & MAP_COPY) == 0) {
-			vm_map_t tmap;
-			vm_map_entry_t tentry;
-			vm_object_t tobject;
-			vm_offset_t toffset;
-			vm_prot_t tprot;
-			boolean_t twired, tsu;
-
-			tmap = map;
-			vm_map_lookup(&tmap, *addr, VM_PROT_WRITE,
-			    &tentry, &tobject, &toffset,
-			    &tprot, &twired, &tsu);
-			vm_map_lookup_done(tmap, tentry);
-		}
-		/*
-		 * (XXX) Map copy code cannot detect sharing unless a
-		 * sharing map is involved.  So we cheat and write
-		 * protect everything ourselves.
+		 * set pages COW and protect for read access only
 		 */
 		vm_object_pmap_copy(object, foff, foff + size);
-		vm_map_deallocate(tmap);
-		if (rv != KERN_SUCCESS)
-			goto out;
+
 	}
 
 	/*
