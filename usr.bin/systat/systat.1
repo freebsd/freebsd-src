@@ -286,7 +286,12 @@ average number of processes (over the last refresh interval)
 that are runnable (`r'), in page wait (`p'),
 in disk wait other than paging (`d'),
 sleeping (`s'), and swapped out but desiring to run (`w').
-Below the queue length listing is a numerical listing and
+The row also shows the average number of context switches
+(`Csw'), traps (`Trp'; includes page faults), system calls (`Sys'),
+interrupts (`Int'), network software interrupts (`Sof'), and page
+faults (`Flt').
+.Pp
+Below the process queue length listing is a numerical listing and
 a bar graph showing the amount of
 system (shown as `='), interrupt (shown as `+'), user (shown as `>'),
 nice (shown as `-'), and idle time (shown as ` ').
@@ -323,41 +328,31 @@ number of disk transfers per second over the last refresh interval;
 the second row of the display shows the average
 number of pages transferred per second over the last refresh interval.
 .Pp
-Below the paging statistics is a line listing the average number of
-total reclaims ('Rec'),
-intransit blocking page faults (`It'),
-swap text pages found in free list (`F/S'),
-file system text pages found in free list (`F/F'),
-reclaims from free list
-pages freed by the clock daemon (`Fre'),
-and sequential process pages freed (`SFr')
+Below the paging statistics is a column of lines regarding the virtual
+memory system which list the average number of
+pages copied on write (`cow'),
+pages zero filled on demand (`zfod'),
+pages wired down (`wire'),
+active pages (`act'),
+inactive pages (`inact'),
+pages on the buffer cache queue (`cache'),
+number of free pages (`free'),
+pages freed by the page daemon (`daefr'),
+pages freed by exiting processes (`prcfr'),
+pages reactivated from the free list (`react'),
+times the page daemon was awakened (`pdwak'),
+pages analyzed by the page daemon (`pdpgs'),
+and
+intransit blocking page faults (`intrn')
 per second over the refresh interval.
 .Pp
-Below this line are statistics on the average number of
-zero filled pages (`zf') and demand filled text pages (`xf')
-per second over the refresh period.
-The first row indicates the number of requests that were
-resolved, the second row shows the number that were set up,
-and the last row shows the percentage of setup requests that were
-actually used.
-Note that this percentage is usually less than 100%,
-however it may exceed 100% if a large number of requests
-are actually used long after they were set up during a
-period when no new pages are being set up.
-Thus this figure is most interesting when observed over
-a long time period, such as from boot time
-(see below on getting such a display).
-.Pp
-Below the page fill statistics is a column that
-lists the average number of context switches (`Csw'),
-traps (`Trp'; includes page faults), system calls (`Sys'), interrupts (`Int'),
-characters output to DZ ports using
-.No pseudo Ns -DMA
-(`Pdm'),
-network software interrupts (`Sof'),
-page faults (`Flt'), pages scanned by the page daemon (`Scn'),
-and revolutions of the page daemon's hand (`Rev')
-per second over the refresh interval.
+At the bottom of this column are lines showing the
+amount of memory, in kilobytes, used for the buffer cache (`buf'),
+desired maximum size of vnode cache (`desiredvnodes') (mostly unused,
+except to size the name cache),
+number of vnodes actually allocated (`numvnodes'),
+and
+number of allocated vnodes that are free (`freevnodes').
 .Pp
 Running down the right hand side of the display is a breakdown
 of the interrupts being handled by the system.
