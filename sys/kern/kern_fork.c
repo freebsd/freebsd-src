@@ -737,6 +737,9 @@ fail:
 		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
 			uid);
 	sx_xunlock(&allproc_lock);
+#ifdef MAC
+	mac_destroy_proc(newproc);
+#endif
 	uma_zfree(proc_zone, newproc);
 	if (p1->p_flag & P_SA) {
 		PROC_LOCK(p1);
