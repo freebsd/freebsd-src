@@ -165,9 +165,11 @@ Supported formats include
 .Dq cpio ,
 .Dq pax ,
 .Dq shar ,
-.Dq shardump ,
 and
 .Dq ustar .
+Other formats may also be supported; see
+.Xr libarchive-formats 5
+for more information about currently-supported formats.
 .It Fl f Ar file
 Read the archive from or write the archive to the specified file.
 The filename can be
@@ -400,69 +402,6 @@ b, f, l, m, o, v, and w comply with SUSv2.
 .Pp
 On systems that support getopt_long(), additional long options
 are available to improve compatibility with other tar implementations.
-.Pp
-The
-.Nm
-program reads and writes a variety of streaming archive formats, including:
-.Bl -tag -width indent
-.It Cm cpio
-The octet-oriented cpio format standardized by POSIX.
-.It Cm gnutar
-.Nm
-has limited read support for GNU-format tar archives.
-.It Cm pax interchange
-The pax interchange format is a POSIX-standard tar format that removes
-essentially all of the historic limitations in a standard-conforming fashion.
-This format is supported by standard implementations of
-.Xr pax 1
-as well as by some
-.Nm tar
-programs, including
-.Nm star .
-.It Cm shar
-A
-.Dq shar
-format archive is a shell script that, when executed on a POSIX-compliant
-system, will recreate the specified files.
-Note that shar-format archives will be plain text files only if all of the
-files being archived are themselves plain text files.
-.It Cm shardump
-This format is similar to shar but encodes binary files so that the result
-will be a plain text file regardless of the file contents.
-It also includes additional shell commands that attempt to reproduce as
-many file attributes as possible, including owner, mode, and flags.
-.It Cm tar
-.Nm
-can read most older tar archives, including many that violate
-the POSIX standard.
-.It Cm ustar
-The format first standardized by POSIX.
-It has the following limitations:
-.Bl -bullet -compact
-.It
-Device major and minor numbers are limited to 21 bits.
-Nodes with larger numbers will not be added to the archive.
-.It
-Path names in the archive are limited to 255 bytes.
-(Shorter if there is no / character in exactly the right place.)
-.It
-Symbolic links and hard links are stored in the archive with
-the name of the referenced file.
-This name is limited to 100 bytes.
-.It
-Extended attributes, file flags, and other extended
-security information cannot be stored.
-.It
-Archive entries are limited to 2 gigabytes in size.
-.El
-Note that the pax interchange has none of these restrictions.
-.Nm
-also supports a variety of extensions to this format
-used by particular archivers.
-In particular, it supports base-256 values in certain numeric fields.
-This essentially removes the limitations on file size, modification time,
-and device numbers.
-.El
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr bzip2 1 ,
@@ -471,6 +410,7 @@ and device numbers.
 .Xr pax 1 ,
 .Xr shar 1 ,
 .Xr libarchive 3 ,
+.Xr libarchive-formats 5 ,
 .Xr tar 5 .
 .Sh STANDARDS
 There is no current POSIX standard for the tar command; it appeared
