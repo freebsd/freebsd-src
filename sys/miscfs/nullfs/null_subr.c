@@ -99,6 +99,7 @@ nullfs_uninit(vfsp)
 
 /*
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
+ * Lower vnode should be locked on entry and will be left locked on exit.
  */
 static struct vnode *
 null_node_find(mp, lowervp)
@@ -128,10 +129,15 @@ loop:
 			 * stuff, but we don't want to lock
 			 * the lower node.
 			 */
-			if (vget(vp, 0, p)) {
+			if (vget(vp, LK_EXCLUSIVE | LK_CANRECURSE, p)) {
 				printf ("null_node_find: vget failed.\n");
 				goto loop;
 			};
+			/*
+			 * Now we got both vnodes locked, so release the
+			 * lower one.
+			 */
+			VOP_UNLOCK(lowervp, 0, p);
 			return (vp);
 		}
 	}
@@ -184,14 +190,30 @@ null_node_alloc(mp, lowervp, vpp)
 	 */
 	othervp = null_node_find(mp, lowervp);
 	if (othervp) {
+		vp->v_data = NULL;
 		FREE(xp, M_NULLFSNODE);
 		vp->v_type = VBAD;	/* node is discarded */
-		vp->v_usecount = 0;	/* XXX */
+		vrele(vp);
 		*vpp = othervp;
 		return 0;
 	};
+
+	/*
+	 * From NetBSD:
+	 * Now lock the new node. We rely on the fact that we were passed
+	 * a locked vnode. If the lower node is exporting a struct lock
+	 * (v_vnlock != NULL) then we just set the upper v_vnlock to the
+	 * lower one, and both are now locked. If the lower node is exporting
+	 * NULL, then we copy that up and manually lock the new vnode.
+	 */
+
 	lockmgr(&null_hashlock, LK_EXCLUSIVE, NULL, p);
-	VREF(lowervp);   /* Extra VREF will be vrele'd in null_node_create */
+	vp->v_vnlock = lowervp->v_vnlock;
+	error = VOP_LOCK(vp, LK_EXCLUSIVE | LK_THISLAYER, p);
+	if (error)
+		panic("null_node_alloc: can't lock new vnode\n");
+
+	VREF(lowervp);
 	hd = NULL_NHASH(lowervp);
 	LIST_INSERT_HEAD(hd, xp, null_hash);
 	lockmgr(&null_hashlock, LK_RELEASE, NULL, p);
@@ -200,9 +222,9 @@ null_node_alloc(mp, lowervp, vpp)
 
 
 /*
- * Try to find an existing null_node vnode refering
- * to it, otherwise make a new null_node vnode which
- * contains a reference to the lower vnode.
+ * Try to find an existing null_node vnode refering to the given underlying
+ * vnode (which should be locked). If no vnode found, create a new null_node
+ * vnode which contains a reference to the lower vnode.
  */
 int
 null_node_create(mp, lowervp, newvpp)
@@ -218,10 +240,10 @@ null_node_create(mp, lowervp, newvpp)
 		 * null_node_find has taken another reference
 		 * to the alias vnode.
 		 */
+		 vrele(lowervp);
 #ifdef NULLFS_DEBUG
 		vprint("null_node_create: exists", aliasvp);
 #endif
-		/* VREF(aliasvp); --- done in null_node_find */
 	} else {
 		int error;
 
@@ -241,8 +263,6 @@ null_node_create(mp, lowervp, newvpp)
 		 * aliasvp is already VREF'd by getnewvnode()
 		 */
 	}
-
-	vrele(lowervp);
 
 #ifdef DIAGNOSTIC
 	if (lowervp->v_usecount < 1) {
