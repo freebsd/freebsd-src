@@ -147,7 +147,12 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |      |    |            |
  |   FreeBSD 4.4      |      | NetBSD 1.5.2    |
  |      |             |      |    |            |
- |      v             |      |    v            |
+ |      |             |      |    v        OpenBSD 3.0
+ |   FreeBSD 4.5      |      |                 |
+ |      |             |      |                 |
+ |   FreeBSD 4.6      |      |                 |
+ |      |             |      |                 |
+ |      v             |      |                 |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
  |                    |      |                 |
@@ -236,19 +241,21 @@ Tenth   Edition         1989-10-xx [QCU]
 				virtual memory, page replacement,
                         	demand paging
 4.0BSD                  1980-10-xx
-4.1BSD                  1981-06-xx
+4.1BSD                  1981-07-08 [DOC]
 4.1aBSD                 1982-04-xx
 				alpha release, 100 sites, networking [44B]
 4.1bBSD				internal release, fast filesystem [44B]
 4.1cBSD                 late 1982
 				beta release, IPC [44B]
 4.2BSD                  1983-09-xx [QCU]
+                        1983-08-03 [DOC]
 4.3BSD                  1986-06-xx [QCU]
-			1986-04-xx [KB]
-4.3BSD Tahoe            1988-06-xx [QCU]
+			1986-04-05 [KB], [DOC]
+4.3BSD Tahoe            1988-06-15 [QCU], [DOC]
 4.3BSD NET/1            1988-11-xx [QCU]
-4.3BSD Reno             1990-06-xx [QCU], [DOC]
-4.3BSD NET/2            1991-06-xx [QCU]
+                        1989-01-01 [DOC]
+4.3BSD Reno             1990-06-29 [QCU], [DOC]
+4.3BSD NET/2            1991-06-28 [QCU], [DOC]
 
 BSD/386 ALPHA		1991-12-xx [BSDI]
 				first code released to people outside BSDI
@@ -344,6 +351,9 @@ NetBSD 1.5.1		2001-07-11 [NBD] (patch release)
 NetBSD 1.5.2		2001-09-13 [NBD] (patch release)
 FreeBSD 4.4  		2001-09-18 [FBD]
 Mac OS X 10.1		2001-09-xx [APL]
+OpenBSD 3.0		2001-12-01 [OBD]
+FreeBSD 4.5  		2002-01-29 [FBD]
+FreeBSD 4.6  		2002-06-xx [FBD]
 
 
 Bibliography
