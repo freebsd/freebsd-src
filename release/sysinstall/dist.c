@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.15 1997/01/22 00:28:51 jkh Exp $
+ * $Id: dist.c,v 1.73.2.16 1997/01/24 21:05:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -440,15 +440,20 @@ distExtract(char *parent, Distribution *me)
 		continue;
 	}
 	else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
-	    msgConfirm("Unable to open %s: %s.\nReinitializing media.",
-		       buf, !intr ? "I/O error." : "User interrupt.");
-	    mediaDevice->shutdown(mediaDevice);
-	    if (!mediaDevice->init(mediaDevice)) {
+	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
+			  buf, !intr ? "I/O error." : "User interrupt.")) {
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getinfo;
+	    }
+	    else {
 		status = FALSE;
 		goto done;
 	    }
-	    else
-		goto getinfo;
 	}
 	else {
 	    /* Try to get the distribution as a single file */
