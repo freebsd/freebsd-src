@@ -3,7 +3,9 @@
 # $FreeBSD$
 
 all:
-	@echo "make linux_sysent.c only"
+	@echo "make sysent only"
+
+sysent:  linux_sysent.c linux_syscall.h linux_proto.h
 
 linux_sysent.c linux_syscall.h linux_proto.h: ../../kern/makesyscalls.sh \
 		syscalls.master syscalls.conf
