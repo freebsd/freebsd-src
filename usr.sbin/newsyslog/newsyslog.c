@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.16 1998/03/14 22:28:25 pst Exp $";
+	"$Id: newsyslog.c,v 1.17 1998/05/10 18:47:50 hoek Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -226,7 +226,7 @@ static void PRS(argc,argv)
 
 static void usage()
 {
-        fprintf(stderr, "usage: newsyslog [-nrvF] [-f config-file]\n");
+        fprintf(stderr, "usage: newsyslog [-Fnrv] [-f config-file]\n");
         exit(1);
 }
 
