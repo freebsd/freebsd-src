@@ -222,6 +222,7 @@ __elfN(exec)(struct preloaded_file *fp)
 {
 	struct file_metadata *fmp;
 	vm_offset_t mdp;
+	Elf_Addr entry;
 	Elf_Ehdr *e;
 	int error;
 
@@ -238,7 +239,12 @@ __elfN(exec)(struct preloaded_file *fp)
 	pmap_print_tlb('i');
 	pmap_print_tlb('d');
 #endif
-	((kernel_entry_t *)e->e_entry)(mdp, 0, 0, 0, openfirmware);
+
+	entry = e->e_entry;
+
+	OF_release(heapva, HEAPSZ);
+
+	((kernel_entry_t *)entry)(mdp, 0, 0, 0, openfirmware);
 
 	panic("exec returned");
 }
