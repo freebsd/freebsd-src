@@ -191,6 +191,7 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	stack = (uint64_t)ku->ku_stack.ss_sp;
 
 	bzero(&tf->tf_special, sizeof(tf->tf_special));
+	tf->tf_special.iip = fuword(&fd->func);
 	tf->tf_special.gp = fuword(&fd->gp);
 	tf->tf_special.sp = (stack + ku->ku_stack.ss_size - 16) & ~15;
 	tf->tf_special.rsc = 0xf;
@@ -200,12 +201,10 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	    IA64_PSR_CPL_USER;
 
 	if (tf->tf_flags & FRAME_SYSCALL) {
-		tf->tf_special.rp = fuword(&fd->func);
-		tf->tf_special.pfs = (3UL<<62) | (1UL<<7) | 1UL;
+		tf->tf_special.cfm = (3UL<<62) | (1UL<<7) | 1UL;
 		tf->tf_special.bspstore = stack + 8;
 		suword((caddr_t)stack, (uint64_t)ku->ku_mailbox);
 	} else {
-		tf->tf_special.iip = fuword(&fd->func);
 		tf->tf_special.cfm = (1UL<<63) | (1UL<<7) | 1UL;
 		tf->tf_special.bspstore = stack;
 		tf->tf_special.ndirty = 8;
