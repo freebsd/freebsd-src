@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.10 1997/03/28 15:24:35 imp Exp $
+ *	$Id: rmail.c,v 1.11 1997/06/06 06:46:27 charnier Exp $
  */
 
 #ifndef lint
@@ -80,9 +80,6 @@ static char const sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #include <sysexits.h>
 #include <unistd.h>
 
-#ifdef 0
-void err __P((int, const char *, ...));
-#endif
 void usage __P((void));
 
 int
@@ -352,33 +349,3 @@ usage()
 	exit(EX_USAGE);
 }
 
-#ifdef 0
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#ifdef __STDC__
-err(int eval, const char *fmt, ...)
-#else
-err(eval, fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "rmail: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(eval);
-}
-#endif
