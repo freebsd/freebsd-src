@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.236 (Berkeley) 6/5/97
+ *	@(#)sendmail.h	8.242 (Berkeley) 8/2/97
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.236		6/5/97";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.242		8/2/97";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -92,6 +92,25 @@ static char SmailSccsId[] =	"@(#)sendmail.h	8.236		6/5/97";
 # ifdef NOERROR
 #  undef NOERROR		/* avoid <sys/streams.h> conflict */
 # endif
+#endif
+
+/*
+**  Following are "sort of" configuration constants, but they should
+**  be pretty solid on most architectures today.  They have to be
+**  defined after <arpa/nameser.h> because some versions of that
+**  file also define them.  In all cases, we can't use sizeof because
+**  some systems (e.g., Crays) always treat everything as being at
+**  least 64 bits.
+*/
+
+#ifndef INADDRSZ
+# define INADDRSZ	4		/* size of an IPv4 address in bytes */
+#endif
+#ifndef INT16SZ
+# define INT16SZ	2		/* size of a 16 bit integer in bytes */
+#endif
+#ifndef INT32SZ
+# define INT32SZ	4		/* size of a 32 bit integer in bytes */
 #endif
 
 
@@ -426,7 +445,7 @@ extern void	addheader __P((char *, char *, HDR **));
 extern char	*hvalue __P((char *, HDR *));
 extern void	commaize __P((HDR *, char *, bool, MCI *, ENVELOPE *));
 extern void	put_vanilla_header __P((HDR *, char *, MCI *));
-extern void	eatheader __P((ENVELOPE *e, bool));
+extern void	eatheader __P((ENVELOPE *, bool));
 extern int	chompheader __P((char *, bool, HDR **, ENVELOPE *));
 /*
 **  Envelope structure.
@@ -1197,12 +1216,14 @@ EXTERN bool	DoQueueRun;	/* non-interrupt time queue run needed */
 #if _FFR_DSN_RRT_OPTION
 EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
 #endif
+EXTERN char	*DeadLetterDrop;	/* path to dead letter office */
 EXTERN bool	DontProbeInterfaces;	/* don't probe interfaces for names */
 EXTERN bool	ChownAlwaysSafe;	/* treat chown(2) as safe */
 EXTERN bool	IgnoreHostStatus;	/* ignore long term host status files */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
 EXTERN bool	UnsafeGroupWrites;	/* group-writable files are unsafe */
 EXTERN bool	SingleLineFromHeader;	/* force From: header to be one line */
+EXTERN bool	DontLockReadFiles;	/* don't read lock support files */
 EXTERN int	ConnRateThrottle;	/* throttle for SMTP connection rate */
 EXTERN int	MaxAliasRecursion;	/* maximum depth of alias recursion */
 EXTERN int	MaxMacroRecursion;	/* maximum depth of macro recursion */
@@ -1396,6 +1417,8 @@ extern int	prog_open __P((char **, int *, ENVELOPE *));
 extern bool	getcanonname __P((char *, int, bool));
 extern bool	path_is_dir __P((char *, bool));
 extern pid_t	dowork __P((char *, bool, bool, ENVELOPE *));
+extern int	drop_privileges __P((bool));
+extern void	fill_fd __P((int, char *));
 
 extern const char	*errstring __P((int));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
@@ -1419,7 +1442,7 @@ extern void		syserr(const char *, ...);
 extern void		usrerr(const char *, ...);
 extern void		message(const char *, ...);
 extern void		nmessage(const char *, ...);
-extern void		setproctitle(const char *fmt, ...);
+extern void		setproctitle(const char *, ...);
 extern void		sm_syslog(int, const char *, const char *, ...);
 #else
 extern void		auth_warning();
