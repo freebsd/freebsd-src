@@ -82,7 +82,7 @@ static struct cdevsw iir_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     0,
-        /* kq */        nokqfilter
+        /* bmaj */      -1
 };
 
 static int iir_devsw_installed = 0;
