@@ -45,6 +45,9 @@ int opiegenerator FUNCTION((buffer, secret, response), char *buffer AND char *se
   if ((sequence < 2) || (sequence > 9999))
     return 1;
 
+  if (!secret[0])
+    return 2;
+
   if (opiepasscheck(secret))
     return -2;
 
