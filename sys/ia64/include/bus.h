@@ -1010,6 +1010,8 @@ typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int,
 int bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct mbuf *mbuf, bus_dmamap_callback2_t *callback, void *callback_arg,
     int flags);
+int bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct mbuf *mbuf, bus_dma_segment_t *segs, int *nsegs, int flags);
 
 /*
  * Like bus_dmamap_load but for uios.  Note the use of the
