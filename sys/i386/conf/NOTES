@@ -238,17 +238,16 @@ options 	DEVICE_POLLING
 
 # The following options are used for debugging clock behavior only, and
 # should not be used for production systems.
-#
-# CLK_CALIBRATION_LOOP will run the clock calibration loop at startup
-# until the user presses a key.
 
+# CLK_CALIBRATION_LOOP causes clock calibration to be run in a loop at
+# startup until the user presses a key.  (The i8254 clock is always
+# calibrated relative to the RTC (mc146818a) and this option causes the
+# calibration to be repeated.)
 options 	CLK_CALIBRATION_LOOP
 
-# The following two options measure the frequency of the corresponding
-# clock relative to the RTC (onboard mc146818a).
-
+# CLK_USE_I8254_CALIBRATION causes the calibrated frequency of the i8254
+# clock to actually be used.
 options 	CLK_USE_I8254_CALIBRATION
-options 	CLK_USE_TSC_CALIBRATION
 
 
 #####################################################################
