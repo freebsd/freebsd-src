@@ -191,13 +191,13 @@ int main(int argc, char **argv)
 
 	/* upon INT log a timestamp and exit.  */
 	if ((int)signal(SIGINT,sigint_handler) < 0)
-		syslog(LOG_NOTICE,"cannot install SIGINT handler: %s: %m");
+		syslog(LOG_NOTICE,"cannot install SIGINT handler: %m");
 	/* upon TERM log a timestamp and exit.  */
 	if ((int)signal(SIGTERM,sigterm_handler) < 0)
-		syslog(LOG_NOTICE,"cannot install SIGTERM handler: %s: %m");
+		syslog(LOG_NOTICE,"cannot install SIGTERM handler: %m");
 	/* upon HUP redial and reconnect.  */
 	if ((int)signal(SIGHUP,sighup_handler) < 0)
-		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %s: %m");
+		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
 	if (redial_on_startup)
 		sighup_handler();
@@ -240,7 +240,7 @@ void acquire_line()
 		sleep (1);	/* Wait for parent to die. */
 
 	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
-		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %s: %m");
+		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
 	if ((fd = open(dev, O_RDWR | O_NONBLOCK, 0)) < 0) {
 		syslog(LOG_ERR, "open(%s) fd=%d: %m", dev, fd);
@@ -255,11 +255,11 @@ void acquire_line()
 
 	/* acquire the serial line as a controling terminal. */
 	if (ioctl(fd, TIOCSCTTY, 0) < 0)
-		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %s: %m");
+		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %m");
 	/* Make us the foreground process group associated with the
 	   slip line which is our controlling terminal. */
 	if (tcsetpgrp(fd, getpid()) < 0)
-		syslog(LOG_NOTICE,"tcsetpgrp failed: %s: %m");
+		syslog(LOG_NOTICE,"tcsetpgrp failed: %m");
 }
 
 /* Set the tty flags and set DTR. */
