@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.22 1996/04/25 17:31:20 jkh Exp $
+ * $Id: installUpgrade.c,v 1.23 1996/04/28 03:27:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -264,7 +264,10 @@ installUpgrade(dialogMenuItem *self)
     if (!rootExtract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		   "this problem and try again (the system will now reboot).");
-	reboot(0);
+	if (RunningAsInit)
+	    reboot(0);
+	else
+	    exit(1);
     }
 
     if (extractingBin) {
@@ -284,13 +287,16 @@ installUpgrade(dialogMenuItem *self)
 	    (void)vsystem("cp -pr /etc/* %s", saved_etc);
 	}
 	if (file_readable("/kernel")) {
-	    msgNotify("Moving old kernel to /kernel.205");
-	    if (system("chflags noschg /kernel && mv /kernel /kernel.205")) {
+	    msgNotify("Moving old kernel to /kernel.prev");
+	    if (system("chflags noschg /kernel && mv /kernel /kernel.prev")) {
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
 			      "treat this as a big problem and abort the upgrade?  Due to the\n"
 			      "way that this upgrade process works, you will have to reboot\n"
 			      "and start over from the beginning.  Select Yes to reboot now")) {
-		    reboot(0);
+		    if (RunningAsInit)
+			reboot(0);
+		    else
+			exit(1);
 		}
 	    }
 	}
@@ -303,7 +309,10 @@ installUpgrade(dialogMenuItem *self)
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
 	    dialog_clear();
-	    reboot(0);
+	    if (RunningAsInit)
+		reboot(0);
+	    else
+		exit(1);
 	}
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
 		   "of the essentials.  We'll treat this as a warning since it may have been\n"
@@ -359,9 +368,13 @@ installUpgrade(dialogMenuItem *self)
 	msgDebug("Unable to get the terminal attributes!\n");
     printf("Well, good luck!  When you're done, please type \"reboot\" or exit\n"
 	    "the shell to reboot the new system.\n");
-    execlp("sh", "-sh", 0);
+    if (!Fake)
+	execlp("sh", "-sh", 0);
+    else
+	exit(0);
     msgDebug("Was unable to execute sh for post-upgrade shell!\n");
-    reboot(0);
+    if (RunningAsInit)
+	reboot(0);
     /* NOTREACHED */
     return 0;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.26 1996/04/28 01:07:21 jkh Exp $
+ * $Id: config.c,v 1.27 1996/04/28 03:26:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -581,16 +581,16 @@ configNFSServer(dialogMenuItem *self)
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
 		   "Press [ENTER] now to invoke an editor on /etc/exports\n");
-	system("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
-	system("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
-	system("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
-	system("echo '#/usr                huey louie dewie' >> /etc/exports");
-	system("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
-	system("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
-	system("echo '#' >> /etc/exports");
-	system("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
-	system("echo >> /etc/exports");
-	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
+	vsystem("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
+	vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
+	vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
+	vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
+	vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
+	vsystem("echo '#' >> /etc/exports");
+	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
+	vsystem("echo >> /etc/exports");
+	vsprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
 	dialog_clear();
 	systemExecute(cmd);
 	restorescr(w);
