@@ -79,11 +79,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct servent *sp;
 	int ch, top, rval;
-	long port;
 	struct passwd *pw = NULL;
-	char *cp, *ep, homedir[MAXPATHLEN], *s;
+	char *cp, homedir[MAXPATHLEN], *s;
 	int dumbterm;
 	char *src_addr = NULL;
 
@@ -94,9 +92,9 @@ main(argc, argv)
 	gateport = NULL;
 	cp = getenv("FTPSERVERPORT");
 	if (cp != NULL)
-		gateport = cp;
+		asprintf(&gateport, "%s", cp);
 	if (!gateport)
-		gateport = "ftpgate";
+		asprintf(&gateport, "ftpgate");
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
@@ -234,7 +232,6 @@ main(argc, argv)
 	if (dobind) {
 		struct addrinfo hints;
 		struct addrinfo *res;
-		char *ftpdataport = "ftp-data";
 		int error;
 
 		memset(&hints, 0, sizeof(hints));
