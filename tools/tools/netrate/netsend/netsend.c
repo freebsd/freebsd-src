@@ -80,7 +80,7 @@ timespec_ge(struct timespec *a, struct timespec *b)
  * to the caller.  Optionally also increment a counter provided by the
  * caller each time we loop.
  */
-int
+static int
 wait_time(struct timespec ts, struct timespec *wakeup_ts, long long *waited)
 {
 	struct timespec curtime;
@@ -114,7 +114,7 @@ wait_time(struct timespec ts, struct timespec *wakeup_ts, long long *waited)
  * wait between our calculated interval and dropping the provided packet
  * into the socket.  If we hit our duration limit, bail.
  */
-int
+static int
 timing_loop(int s, struct timespec interval, long duration, u_char *packet,
     u_int packet_len)
 {
@@ -122,7 +122,7 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 	long long waited;
 	u_int32_t counter;
 	long finishtime;
-	int send_errors, send_calls;
+	long send_errors, send_calls;
 
 	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
 		perror("clock_getres");
@@ -188,11 +188,11 @@ done:
 	    starttime.tv_nsec);
 	printf("finish:            %d.%09lu\n", tmptime.tv_sec,
 	    tmptime.tv_nsec);
-	printf("send calls:        %d\n", send_calls);
-	printf("send errors:       %d\n", send_errors);
+	printf("send calls:        %ld\n", send_calls);
+	printf("send errors:       %ld\n", send_errors);
 	printf("approx send rate:  %ld\n", (send_calls - send_errors) /
 	    duration);
-	printf("approx error rate: %d\n", (send_errors / send_calls));
+	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
 	printf("approx waits/sec:  %lld\n", waited / duration);
 	printf("approx wait rate:  %lld\n", waited / send_calls);
