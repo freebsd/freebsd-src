@@ -181,6 +181,7 @@ pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP2, *CMAP3, *ptmmap;
 caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2, CADDR3;
+static struct mtx CMAPCADDR12_lock;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp = 0;
 
@@ -342,6 +343,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
+
+	mtx_init(&CMAPCADDR12_lock, "CMAPCADDR12", NULL, MTX_DEF);
 
 	/*
 	 * Crashdump maps.
@@ -2765,12 +2768,11 @@ pmap_zpi_switchin3(void)
 void
 pmap_zero_page(vm_page_t m)
 {
-	vm_offset_t phys;
 
-	phys = VM_PAGE_TO_PHYS(m);
+	mtx_lock(&CMAPCADDR12_lock);
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
-	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
+	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2789,6 +2791,7 @@ pmap_zero_page(vm_page_t m)
 	curthread->td_switchin = NULL;
 #endif
 	*CMAP2 = 0;
+	mtx_unlock(&CMAPCADDR12_lock);
 }
 
 /*
@@ -2800,12 +2803,11 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	vm_offset_t phys;
 
-	phys = VM_PAGE_TO_PHYS(m);
+	mtx_lock(&CMAPCADDR12_lock);
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
-	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
+	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2824,6 +2826,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	curthread->td_switchin = NULL;
 #endif
 	*CMAP2 = 0;
+	mtx_unlock(&CMAPCADDR12_lock);
 }
 
 /*
@@ -2835,12 +2838,10 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_zero_page_idle(vm_page_t m)
 {
-	vm_offset_t phys;
 
-	phys = VM_PAGE_TO_PHYS(m);
 	if (*CMAP3)
 		panic("pmap_zero_page: CMAP3 busy");
-	*CMAP3 = PG_V | PG_RW | phys | PG_A | PG_M;
+	*CMAP3 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
 #ifdef I386_CPU
 	invltlb();
 #else
@@ -2871,6 +2872,7 @@ void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
 
+	mtx_lock(&CMAPCADDR12_lock);
 	if (*CMAP1)
 		panic("pmap_copy_page: CMAP1 busy");
 	if (*CMAP2)
@@ -2892,6 +2894,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #endif
 	*CMAP1 = 0;
 	*CMAP2 = 0;
+	mtx_unlock(&CMAPCADDR12_lock);
 }
 
 /*
