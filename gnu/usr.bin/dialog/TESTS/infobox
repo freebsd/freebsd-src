@@ -8,7 +8,7 @@ not pause waiting for input after displaying
 the message. The pause here is only introduced
 by the sleep command, not by dialog.
 
-You have 10 seconds to read this..." 10 52
+You have 10 seconds to read this..." -1 -1
 
 stty -echo
 sleep 10
