@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.10 1999/04/19 14:27:32 semenu Exp $
+#	$Id: LINT,v 1.539.2.11 1999/04/19 20:11:31 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -27,6 +27,13 @@ ident		LINT
 # internal system tables by a complicated formula defined in param.c.
 #
 maxusers	10
+
+#
+# The `makeoptions' parameter allows variables to be passed to the
+# generated Makefile in the build area.  The following is equivalent 
+# to `config -g KERNELNAME'.
+#
+#makeoptions	DEBUG="-g"		#Build kernel with debug symbols.
 
 #
 # Certain applications can grow to be larger than the 128M limit
