@@ -131,7 +131,7 @@ int maxpacketsize  /* The maximum size this packet can grow to (including header
  * properly terminated with CRLF.
  */
     pflags = GetProtocolFlags(link);
-    if (dlen <= MAX_MESSAGE_SIZE && (pflags & WAIT_CRLF)) {
+    if (dlen <= MAX_MESSAGE_SIZE && !(pflags & WAIT_CRLF)) {
 	ftp_message_type = FTP_UNKNOWN_MESSAGE;
 
 	if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER) {
