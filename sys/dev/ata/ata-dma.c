@@ -287,13 +287,13 @@ ata_dmainit(struct ata_softc *scp, int device,
 
     case 0x522910b9:	/* AcerLabs Aladdin IV/V */
 	/* the older Aladdin doesn't support ATAPI DMA on both master & slave */
-	if (pci_get_revid(parent) < 0xC2 &&
+	if (pci_get_revid(parent) < 0xc2 &&
 	    scp->devices & ATA_ATAPI_MASTER && scp->devices & ATA_ATAPI_SLAVE) {
 	    ata_printf(scp, device,
 		       "Aladdin: two atapi devices on this channel, no DMA\n");
 	    break;
 	}
-	if (udmamode >= 5 && pci_get_revid(parent) >= 0xC4) {
+	if (udmamode >= 5 && pci_get_revid(parent) >= 0xc4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -314,7 +314,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 		return;
 	    }
 	}
-	if (udmamode >= 4 && pci_get_revid(parent) >= 0xC2) {
+	if (udmamode >= 4 && pci_get_revid(parent) >= 0xc2) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -524,11 +524,12 @@ via_82c586:
 	if (ata_find_dev(parent, 0x06301039, 0x30) || 	/* SiS 630 */
 	    ata_find_dev(parent, 0x06331039, 0x00) || 	/* SiS 633 */
 	    ata_find_dev(parent, 0x06351039, 0x00) || 	/* SiS 635 */
+	    ata_find_dev(parent, 0x06451039, 0x00) || 	/* SiS 635 */
 	    ata_find_dev(parent, 0x07301039, 0x00) || 	/* SiS 730 */
 	    ata_find_dev(parent, 0x07331039, 0x00) || 	/* SiS 733 */
 	    ata_find_dev(parent, 0x07351039, 0x00)) { 	/* SiS 735 */
 	    int8_t reg = 0x40 + (devno << 1);
-	    int16_t val = pci_read_config(parent, reg, 2) & 0x00ff;
+	    int16_t val = pci_read_config(parent, reg, 2) & 0x0fff;
 
 	    if (udmamode >= 5) {
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
@@ -538,7 +539,7 @@ via_82c586:
 			       "%s setting UDMA5 on SiS chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, reg, val | 0x8100, 2);
+		    pci_write_config(parent, reg, val | 0x8000, 2);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA5;
 		    return;
 		}
@@ -551,7 +552,7 @@ via_82c586:
 			       "%s setting UDMA4 on SiS chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, reg, val | 0x8200, 2);
+		    pci_write_config(parent, reg, val | 0x9000, 2);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		    return;
 		}
@@ -564,7 +565,7 @@ via_82c586:
 			       "%s setting UDMA2 on SiS chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, reg, val | 0x8500, 2);
+		    pci_write_config(parent, reg, val | 0xb000, 2);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		    return;
 		}
@@ -597,7 +598,7 @@ via_82c586:
 			       "%s setting UDMA2 on SiS chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, reg, val | 0xb000, 2);
+		    pci_write_config(parent, reg, val | 0xa000, 2);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		    return;
 		}
