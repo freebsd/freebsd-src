@@ -1,6 +1,3 @@
-/*	$OpenBSD: if_txvar.h,v 1.7 1999/11/17 05:21:19 jason Exp $	*/
-/* $FreeBSD$ */
-
 /*-
  * Copyright (c) 1997 Semen Ustimenko
  * All rights reserved.
@@ -25,14 +22,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
  * Configuration
  */
-/*#define	EPIC_DEBUG	1*/
+/*#define	EPIC_DIAG	1*/
 /*#define	EPIC_USEIOSPACE	1*/
-#define	EPIC_EARLY_RX	1
+/*#define	EPIC_EARLY_RX	1*/
 
 #ifndef ETHER_MAX_LEN
 #define ETHER_MAX_LEN		1518
@@ -69,10 +68,6 @@ struct epic_tx_buffer {
 /* Driver status structure */
 typedef struct {
 	struct arpcom		arpcom;
-#if defined(__OpenBSD__)
-	mii_data_t		sc_mii;
-	struct device		dev;
-#else /* __FreeBSD__ */
 	struct resource		*res;
 	struct resource		*irq;
 
@@ -81,7 +76,6 @@ typedef struct {
 	struct callout_handle	stat_ch;
 
 	u_int32_t		unit;
-#endif
 	void			*sc_ih;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
@@ -107,6 +101,7 @@ typedef struct {
 	struct mii_softc 	*physc;
 	u_int32_t		phyid;
 	int			serinst;
+	void 			*pool;
 } epic_softc_t;
 
 struct epic_type {
@@ -115,42 +110,26 @@ struct epic_type {
 	char		*name;
 };
 
-#if defined(EPIC_DEBUG)
-#define dprintf(a) printf a
-#else
-#define dprintf(a)
-#endif
-
-#if defined(__FreeBSD__)
-#define EPIC_FORMAT	"tx%d"
-#define EPIC_ARGS(sc)	(sc->unit)
-#define EPIC_BPFTAP_ARG(ifp)    ifp
-#else /* __OpenBSD__ */
-#define EPIC_FORMAT	"%s"
-#define EPIC_ARGS(sc)	(sc->sc_dev.dv_xname)
-#define EPIC_BPFTAP_ARG(ifp)	(ifp)->if_bpf
-#endif
-
 #define sc_if arpcom.ac_if
 #define sc_macaddr arpcom.ac_enaddr
 
-#define CSR_WRITE_4(sc,reg,val) 					\
-	bus_space_write_4( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_WRITE_2(sc,reg,val) 					\
-	bus_space_write_2( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_WRITE_1(sc,reg,val) 					\
-	bus_space_write_1( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_READ_4(sc,reg) 						\
-	bus_space_read_4( (sc)->sc_st, (sc)->sc_sh, (reg) )
-#define CSR_READ_2(sc,reg) 						\
-	bus_space_read_2( (sc)->sc_st, (sc)->sc_sh, (reg) )
-#define CSR_READ_1(sc,reg) 						\
-	bus_space_read_1( (sc)->sc_st, (sc)->sc_sh, (reg) )
+#define CSR_WRITE_4(sc, reg, val) 					\
+	bus_space_write_4((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+#define CSR_WRITE_2(sc, reg, val) 					\
+	bus_space_write_2((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+#define CSR_WRITE_1(sc, reg, val) 					\
+	bus_space_write_1((sc)->sc_st, (sc)->sc_sh, (reg), (val))
+#define CSR_READ_4(sc, reg) 						\
+	bus_space_read_4((sc)->sc_st, (sc)->sc_sh, (reg))
+#define CSR_READ_2(sc, reg) 						\
+	bus_space_read_2((sc)->sc_st, (sc)->sc_sh, (reg))
+#define CSR_READ_1(sc, reg) 						\
+	bus_space_read_1((sc)->sc_st, (sc)->sc_sh, (reg))
 
-#define	PHY_READ_2(sc,phy,reg)						\
-	epic_read_phy_reg((sc),(phy),(reg))
-#define	PHY_WRITE_2(sc,phy,reg,val)					\
-	epic_write_phy_reg((sc),(phy),(reg),(val))
+#define	PHY_READ_2(sc, phy, reg)					\
+	epic_read_phy_reg((sc), (phy), (reg))
+#define	PHY_WRITE_2(sc, phy, reg, val)					\
+	epic_write_phy_reg((sc), (phy), (reg), (val))
 
 /* Macro to get either mbuf cluster or nothing */
 #define EPIC_MGETCLUSTER(m)						\
