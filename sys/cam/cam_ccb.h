@@ -979,6 +979,8 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->init_id = init_id;
 }
 
+void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
+
 __END_DECLS
 
 #endif /* _CAM_CAM_CCB_H */
