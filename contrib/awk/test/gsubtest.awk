@@ -1,8 +1,8 @@
 BEGIN {
-	str = "abc"; gsub("b+", "FOO", str); print str
-	str = "abc"; gsub("x*", "X", str); print str
-	str = "abc"; gsub("b*", "X", str); print str
-	str = "abc"; gsub("c", "X", str); print str
-	str = "abc"; gsub("c+", "X", str); print str
-	str = "abc"; gsub("x*$", "X", str); print str
+	str = "abc"; print gsub("b+", "FOO", str), str
+	str = "abc"; print gsub("x*", "X", str), str
+	str = "abc"; print gsub("b*", "X", str), str
+	str = "abc"; print gsub("c", "X", str), str
+	str = "abc"; print gsub("c+", "X", str), str
+	str = "abc"; print gsub("x*$", "X", str), str
 }

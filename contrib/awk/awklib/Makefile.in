@@ -1,0 +1,99 @@
+# Makefile for GNU Awk support library.
+#
+# Copyright (C) 1995-1998 the Free Software Foundation, Inc.
+# 
+# This file is part of GAWK, the GNU implementation of the
+# AWK Programming Language.
+# 
+# GAWK is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# GAWK is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+binprefix =
+manprefix =
+
+bindir = @bindir@
+libdir = @libdir@
+mandir = @mandir@/man1
+manext = .1
+infodir = @infodir@
+datadir = @datadir@/awk
+libexecdir = @libexecdir@/awk
+
+AUXPROGS = pwcat grcat
+AUXAWK = passwd.awk group.awk
+
+all: stamp-eg $(AUXPROGS) igawk $(AUXAWK)
+
+stamp-eg: $(srcdir)/../doc/gawk.texi
+	rm -fr eg stamp-eg
+	../gawk -f $(srcdir)/extract.awk $(srcdir)/../doc/gawk.texi
+	@echo 'some makes are stupid and will not check a directory' > stamp-eg
+	@echo 'against a file, so this file is a place holder. gack.' >> stamp-eg
+
+pwcat: $(srcdir)/eg/lib/pwcat.c
+	$(CC) $(CFLAGS) $(srcdir)/eg/lib/pwcat.c $(LDFLAGS) -o $@
+
+grcat: $(srcdir)/eg/lib/grcat.c
+	$(CC) $(CFLAGS) $(srcdir)/eg/lib/grcat.c $(LDFLAGS) -o $@
+
+igawk: $(srcdir)/eg/prog/igawk.sh
+	cp $(srcdir)/eg/prog/igawk.sh $@ ; chmod 755 $@
+
+passwd.awk: $(srcdir)/eg/lib/passwdawk.in
+	(cd $(srcdir)/eg/lib ; \
+	sed 's;/usr/local/libexec/awk;$(libexecdir);' < passwdawk.in) > passwd.awk
+
+group.awk: $(srcdir)/eg/lib/groupawk.in
+	(cd $(srcdir)/eg/lib ; \
+	sed 's;/usr/local/libexec/awk;$(libexecdir);' < groupawk.in) > group.awk
+
+install: igawk $(AUXPROGS) $(AUXAWK)
+	$(INSTALL_PROGRAM) igawk $(bindir)/igawk
+	for i in $(AUXPROGS) ; do \
+		$(INSTALL_PROGRAM) $$i $(libexecdir)/$$i ; \
+	done
+	for i in $(AUXAWK) $(srcdir)/eg/lib/*.awk ; do \
+		progname=`echo $$i | sed 's;.*/;;'` ; \
+		$(INSTALL_DATA) $$i $(datadir)/$$progname ; \
+	done
+
+# libexecdir and datadir are removed in the top level Makefile's uninstall
+uninstall:
+	rm -fr $(libexecdir)/* $(datadir)/*
+	rm -f $(bindir)/igawk
+
+clean:
+	rm -f $(AUXPROGS) $(AUXAWK) igawk *~
+
+distclean: clean
+	rm -f Makefile
+
+maintainer-clean: distclean
+	@echo "This command is intended for maintainers to use; it"
+	@echo "deletes files that may require special tools to rebuild."
+	rm -fr eg stamp-eg
