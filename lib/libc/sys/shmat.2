@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: shmat.2,v 1.1 1995/10/03 19:17:20 joerg Exp $
 .\"
 .Dd August 2, 1995
 .Dt SHMAT 2
@@ -42,7 +42,7 @@
 .Fn "shmdt" "void *addr"
 .Sh DESCRIPTION
 .Fn Shmat
-attaches the shared memory segment identifed by
+attaches the shared memory segment identified by
 .Fa shmid
 to the calling process's address space.  The address where the segment
 is attached is determined as follows:
@@ -59,7 +59,7 @@ kernel.
 .It
 If 
 .Fa addr
-is nonzero and SHM_RND is not specifed in
+is nonzero and SHM_RND is not specified in
 .Fa flag ,
 the segment is attached the specified address.
 .It
