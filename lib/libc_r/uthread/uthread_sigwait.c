@@ -54,7 +54,7 @@ _sigwait(const sigset_t *set, int *sig)
 	 * Specify the thread kernel signal handler.
 	 */
 	act.sa_handler = (void (*) ()) _thread_sig_handler;
-	act.sa_flags = SA_RESTART | SA_SIGINFO;
+	act.sa_flags = SA_SIGINFO | SA_RESTART;
 	/* Ensure the signal handler cannot be interrupted by other signals: */
 	sigfillset(&act.sa_mask);
 
