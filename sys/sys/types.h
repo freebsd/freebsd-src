@@ -36,11 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: types.h,v 1.2 1994/08/02 07:53:59 davidg Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
+
+#include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
 #include <machine/endian.h>
@@ -78,7 +80,6 @@ typedef	unsigned long	uid_t;		/* user id */
  * version of lseek.
  */
 #ifndef KERNEL
-#include <sys/cdefs.h>
 __BEGIN_DECLS
 off_t	 lseek __P((int, off_t, int));
 __END_DECLS
