@@ -1400,5 +1400,4 @@ static driver_t pci_driver = {
 	pci_methods,
 	1,			/* no softc */
 };
-static devclass_t	pci_devclass;
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
