@@ -46,7 +46,6 @@
  * Disk description table, see disktab(5)
  */
 #define	_PATH_DISKTAB	"/etc/disktab"
-#define	DISKTAB		"/etc/disktab"		/* deprecated */
 
 /*
  * Each disk has a label which includes information about the hardware
@@ -93,7 +92,6 @@
 #define	RAW_PART	2		/* partition containing whole disk */
 #define	SWAP_PART	1		/* partition normally containing swap */
 
-#ifndef LOCORE
 struct disklabel {
 	u_int32_t d_magic;		/* the magic number */
 	u_int16_t d_type;		/* drive type */
@@ -201,18 +199,6 @@ dkcksum(lp)
 	return (sum);
 }
 
-#else /* LOCORE */
-	/*
-	 * offsets for asm boot files.
-	 */
-	.set	d_secsize,40
-	.set	d_nsectors,44
-	.set	d_ntracks,48
-	.set	d_ncylinders,52
-	.set	d_secpercyl,56
-	.set	d_secperunit,60
-	.set	d_end_,276		/* size of disk label */
-#endif /* LOCORE */
 
 /* d_type values: */
 #define	DTYPE_SMD		1		/* SMD, XSMD; VAX hp/up */
@@ -228,10 +214,6 @@ dkcksum(lp)
 #define	DTYPE_VINUM		12		/* vinum volume */
 #define	DTYPE_DOC2K		13		/* Msys DiskOnChip */
 #define	DTYPE_JFS2		16		/* IBM JFS 2 */
-
-#if defined(PC98) && !defined(PC98_ATCOMPAT)
-#define	DSTYPE_SEC256		0x80		/* physical sector size=256 */
-#endif
 
 #ifdef DKTYPENAMES
 static char *dktypenames[] = {
@@ -312,24 +294,11 @@ static char *fstypenames[] = {
 /*
  * flags shared by various drives:
  */
-#define		D_REMOVABLE	0x01		/* removable media */
-#define		D_ECC		0x02		/* supports ECC */
-#define		D_BADSECT	0x04		/* supports bad sector forw. */
-#define		D_RAMDISK	0x08		/* disk emulator */
-#define		D_CHAIN		0x10		/* can do back-back transfers */
-
-#ifndef LOCORE
-/*
- * Structure used to perform a format or other raw operation, returning
- * data and/or register values.  Register identification and format
- * are device- and driver-dependent.
- */
-struct format_op {
-	char	*df_buf;
-	int	 df_count;		/* value-result */
-	daddr_t	 df_startblk;
-	int	 df_reg[8];		/* result */
-};
+#define	D_REMOVABLE	0x01		/* removable media */
+#define	D_ECC		0x02		/* supports ECC */
+#define	D_BADSECT	0x04		/* supports bad sector forw. */
+#define	D_RAMDISK	0x08		/* disk emulator */
+#define	D_CHAIN		0x10		/* can do back-back transfers */
 
 #ifdef _KERNEL
 /*
@@ -346,17 +315,15 @@ struct partinfo {
 
 #if defined(PC98) && !defined(PC98_ATCOMPAT)
 #define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#define DOSLABELSECTOR	1	/* 0: 256b/s, 1: 512b/s */
 #define	DOSPARTOFF	0
-#define NDOSPART	16
+#define	NDOSPART	16
 #define	DOSPTYP_386BSD	0x94	/* 386BSD partition type */
-#define	MBR_PTYPE_FreeBSD 0x94	/* FreeBSD partition type */
 
 struct dos_partition {
     	unsigned char	dp_mid;
-#define DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
+#define	DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
 	unsigned char	dp_sid;
-#define DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
+#define	DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
 	unsigned char	dp_dum1;
 	unsigned char	dp_dum2;
 	unsigned char	dp_ipl_sct;
@@ -372,9 +339,9 @@ struct dos_partition {
 };
 
 #else /* IBMPC */
-#define DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#define DOSPARTOFF	446
-#define NDOSPART	4
+#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#define	DOSPARTOFF	446
+#define	NDOSPART	4
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
 #define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
 #define	DOSPTYP_LINUX	0x83	/* Linux partition */
@@ -394,8 +361,8 @@ struct dos_partition {
 };
 #endif
 
-#define DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
-#define DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
+#define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
+#define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
 
 /*
  * Disk-specific ioctls.
@@ -471,7 +438,6 @@ void	alpha_fix_srm_checksum(struct buf *bp);
 
 #endif /* _KERNEL */
 
-#endif /* LOCORE */
 
 #ifndef _KERNEL
 __BEGIN_DECLS
