@@ -126,6 +126,24 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
     &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 #endif
 
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+    "TCP Segment Reassembly Queue");
+
+int tcp_reass_maxseg = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RD,
+    &tcp_reass_maxseg, 0,
+    "Global maximum number of TCP Segments in Reassembly Queue");
+
+int tcp_reass_qsize = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
+    &tcp_reass_qsize, 0,
+    "Global number of TCP Segments currently in Reassembly Queue");
+
+static int tcp_reass_overflows = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
+    &tcp_reass_overflows, 0,
+    "Global number of TCP Segment Reassembly Queue Overflows");
+
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
@@ -183,6 +201,21 @@ tcp_reass(tp, th, tlenp, m)
 	if (th == 0)
 		goto present;
 
+	/*
+	 * Limit the number of segments in the reassembly queue to prevent
+	 * holding on to too many segments (and thus running out of mbufs).
+	 * Make sure to let the missing segment through which caused this
+	 * queue.  Always keep one global queue entry spare to be able to
+	 * process the missing segment.
+	 */
+	if (th->th_seq != tp->rcv_nxt &&
+	    tcp_reass_qsize + 1 >= tcp_reass_maxseg) {
+		tcp_reass_overflows++;
+		tcpstat.tcps_rcvmemdrop++;
+		m_freem(m);
+		return (0);
+	}
+
 	/* Allocate a new queue entry. If we can't, just drop the pkt. XXX */
 	MALLOC(te, struct tseg_qent *, sizeof (struct tseg_qent), M_TSEGQ,
 	       M_NOWAIT);
@@ -191,6 +224,7 @@ tcp_reass(tp, th, tlenp, m)
 		m_freem(m);
 		return (0);
 	}
+	tcp_reass_qsize++;
 
 	/*
 	 * Find a segment which begins after this one does.
@@ -216,6 +250,7 @@ tcp_reass(tp, th, tlenp, m)
 				tcpstat.tcps_rcvdupbyte += *tlenp;
 				m_freem(m);
 				free(te, M_TSEGQ);
+				tcp_reass_qsize--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -251,6 +286,7 @@ tcp_reass(tp, th, tlenp, m)
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
 		free(q, M_TSEGQ);
+		tcp_reass_qsize--;
 		q = nq;
 	}
 
@@ -285,6 +321,7 @@ present:
 		else
 			sbappend(&so->so_rcv, q->tqe_m);
 		free(q, M_TSEGQ);
+		tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
