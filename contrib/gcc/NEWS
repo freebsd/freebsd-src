@@ -1,3 +1,7 @@
+Noteworthy changes in GCC version 2.7.2.1:
+
+This release fixes some serious bugs discovered since the 2.7.2 release.
+
 Noteworthy changes in GCC version 2.7.2:
 
 A few bugs have been fixed (most notably the generation of an
