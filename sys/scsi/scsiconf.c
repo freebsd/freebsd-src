@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 2.6 93/10/24 12:43:51 julian Exp Locker: julian $
+ *      $Id: scsiconf.c,v 1.7 1993/11/18 05:02:58 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -485,7 +485,7 @@ scsi_probedev(sc_link, maybe_more)
 	 * is vendor specific and won't match in this switch.
 	 */
 
-	switch (qualifier) {
+	switch ((int)qualifier) {
 	case SID_QUAL_LU_OK:
 		qtype = "";
 		break;
@@ -517,7 +517,7 @@ scsi_probedev(sc_link, maybe_more)
 		break;
 	}
 	if (dtype == 0) {
-		switch (type) {
+		switch ((int)type) {
 		case T_DIRECT:
 			dtype = "direct";
 			break;

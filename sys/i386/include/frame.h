@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.4 1993/11/17 23:25:03 wollman Exp $
+ *	$Id: frame.h,v 1.5 1993/12/03 05:10:00 alm Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -71,6 +71,8 @@ struct trapframe {
 	int	tf_esp;
 	int	tf_ss;
 };
+
+extern int kdb_trap(int, int, struct trapframe *);
 
 /* Interrupt stack frame */
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.4 1993/10/16 16:47:20 rgrimes Exp $
+ *	$Id: db_output.c,v 1.5 1993/11/25 01:30:08 wollman Exp $
  */
 
 /*
@@ -37,8 +37,9 @@
 
 #include "param.h"
 #include "systm.h"
-#include <machine/stdarg.h>
+#include "machine/stdarg.h"
 #include "ddb/ddb.h"
+#include "machine/cons.h"
 
 /*
  *	Character output - tracks position in line.

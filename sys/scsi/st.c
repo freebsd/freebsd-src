@@ -21,13 +21,13 @@
  * 16 Feb 93    Julian Elischer         ADDED for SCSI system
  * 1.15 is the last version to support MACH and OSF/1
  */
-/* $Revision: 2.6 $ */
+/* $Revision: 1.13 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *      $Id: st.c,v 2.6 93/10/21 03:24:38 julian Exp Locker: julian $
+ *      $Id: st.c,v 1.13 1993/11/18 05:03:05 rgrimes Exp $
  */
 
 /*
@@ -736,7 +736,7 @@ st_decide_mode(unit, first_read)
 	 *
 	 * Our first shot at a method is, "The quirks made me do it!"
 	 */
-	switch (st->quirks & (ST_Q_FORCE_FIXED_MODE | ST_Q_FORCE_VAR_MODE)) {
+	switch ((int)(st->quirks & (ST_Q_FORCE_FIXED_MODE | ST_Q_FORCE_VAR_MODE))) {
 	case (ST_Q_FORCE_FIXED_MODE | ST_Q_FORCE_VAR_MODE):
 		printf("st%d: bad quirks\n", unit);
 		return (EINVAL);
@@ -772,7 +772,7 @@ st_decide_mode(unit, first_read)
 	 * If the tape density mandates (or even suggests) use of fixed
 	 * or variable-length blocks, comply.
 	 */
-	switch (st->density) {
+	switch ((int)st->density) {
 	case HALFINCH_800:
 	case HALFINCH_1600:
 	case HALFINCH_6250:
@@ -833,7 +833,7 @@ done:
 	 * first read.
 	 * (I think this should be a by-product of fixed/variable..julian)
 	 */
-	switch (st->density) {
+	switch ((int)st->density) {
 /*      case    8 mm:   What is the SCSI density code for 8 mm, anyway? */
 	case QIC_11:
 	case QIC_24:
@@ -1517,7 +1517,7 @@ st_space(unit, number, what, flags)
 	struct scsi_space scsi_cmd;
 	struct st_data *st = st_data[unit];
 
-	switch (what) {
+	switch ((int)what) {
 	case SP_BLKS:
 		if (st->flags & ST_PER_ACTION) {
 			if (number > 0) {
@@ -1597,7 +1597,7 @@ st_write_filemarks(unit, number, flags)
 	if (number < 0) {
 		return EINVAL;
 	}
-	switch (number) {
+	switch ((int)number) {
 	case 0:		/* really a command to sync the drive's buffers */
 		break;
 	case 1:
@@ -1643,7 +1643,7 @@ st_chkeod(unit, position, nmarks, flags)
 	errval  error;
 	struct st_data *st = st_data[unit];
 
-	switch (st->flags & (ST_WRITTEN | ST_FM_WRITTEN | ST_2FM_AT_EOD)) {
+	switch ((int)(st->flags & (ST_WRITTEN | ST_FM_WRITTEN | ST_2FM_AT_EOD))) {
 	default:
 		*nmarks = 0;
 		return (ESUCCESS);
@@ -1904,7 +1904,7 @@ st_touch_tape(unit)
 	}
 	st->blksiz = 1024;
 	do {
-		switch (st->blksiz) {
+		switch ((int)st->blksiz) {
 		case 512:
 		case 1024:
 			readsiz = st->blksiz;

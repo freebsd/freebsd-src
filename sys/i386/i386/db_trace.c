@@ -23,12 +23,13 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_trace.c,v 1.2 1993/10/16 14:14:56 rgrimes Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.2 1993/10/16 16:47:13 rgrimes Exp $
+ *	$Id: db_examine.c,v 1.3 1993/11/25 01:30:05 wollman Exp $
  */
 
 /*
@@ -36,10 +36,11 @@
 
 #include "ddb/ddb.h"
 
-#include <ddb/db_lex.h>
-#include <ddb/db_output.h>
-#include <ddb/db_command.h>
-#include <ddb/db_sym.h>
+#include "ddb/db_lex.h"
+#include "ddb/db_output.h"
+#include "ddb/db_command.h"
+#include "ddb/db_sym.h"
+#include "ddb/db_access.h"
 
 char	db_examine_format[TOK_STRING_SIZE] = "x";
 
@@ -302,7 +303,7 @@ db_search_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 	}
 
 	if (!db_expression(&mask))
-	    mask = 0xffffffff;
+	    mask = 0xffffffffUL;
 
 	t = db_read_token();
 	if (t == tCOMMA) {

@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.6 1993/10/15 10:34:29 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.7 1993/11/25 01:31:02 wollman Exp $
  */
 
 #include "npx.h"
@@ -95,7 +95,7 @@ cpu_fork(p1, p2)
         addr = trunc_page((u_int)vtopte(kstack));
 	vm_map_pageable(&p2->p_vmspace->vm_map, addr, addr+NBPG, FALSE);
 	for (i=0; i < UPAGES; i++)
-		pmap_enter(&p2->p_vmspace->vm_pmap, kstack+i*NBPG,
+		pmap_enter(&p2->p_vmspace->vm_pmap, (vm_offset_t)kstack+i*NBPG,
 			   pmap_extract(kernel_pmap, ((int)p2->p_addr)+i*NBPG),
 			   /*
 			    * The user area has to be mapped writable because
@@ -236,16 +236,16 @@ pagemove(from, to, size)
 /*
  * Convert kernel VA to physical address
  */
-int
+u_long
 kvtop(addr)
-	register caddr_t addr;
+	register void *addr;
 {
 	vm_offset_t va;
 
 	va = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 	if (va == 0)
 		panic("kvtop: zero page frame");
-	return((int)va);
+	return((u_long)va);
 }
 
 #ifdef notdef

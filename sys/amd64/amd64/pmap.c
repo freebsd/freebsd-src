@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.9 1993/11/25 01:31:00 wollman Exp $
+ *	$Id: pmap.c,v 1.10 1993/12/13 07:02:27 davidg Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 
 #include "param.h"
 #include "systm.h"
+#include "kernel.h"
 #include "proc.h"
 #include "malloc.h"
 #include "user.h"
@@ -92,7 +93,6 @@
 #include "i386/isa/isa.h"
 
 static void i386_protection_init(void);
-static void pmap_changebit(vm_offset_t, int, boolean_t);
 
 /*
  * Allocate various and sundry SYSMAPs used in the days of old VM
@@ -459,7 +459,8 @@ pmap_pinit(pmap)
 
 	/* install self-referential address mapping entry */
 	*(int *)(pmap->pm_pdir+PTDPTDI) =
-		(int)pmap_extract(kernel_pmap, pmap->pm_pdir) | PG_V | PG_KW;
+		(int)pmap_extract(kernel_pmap, (vm_offset_t)pmap->pm_pdir)
+		  | PG_V | PG_KW;
 
 	pmap->pm_count = 1;
 	simple_lock_init(&pmap->pm_lock);

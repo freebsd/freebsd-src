@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id$
+ * $Id: wt.c,v 1.4 1993/12/13 18:38:43 alm Exp $
  *
  */
 
@@ -54,6 +54,8 @@
 #if NWT > 0
 
 #include "sys/param.h"
+#include "systm.h"
+#include "kernel.h"
 #include "sys/buf.h"
 #include "sys/fcntl.h"
 #include "sys/malloc.h"
@@ -150,13 +152,11 @@ typedef struct {
 
 wtinfo_t wttab[NWT];                    /* tape info by unit number */
 
-extern int hz;                          /* number of ticks per second */
-
 static int wtwait (wtinfo_t *t, int catch, char *msg);
 static int wtcmd (wtinfo_t *t, int cmd);
 static int wtstart (wtinfo_t *t, unsigned mode, void *vaddr, unsigned len);
 static void wtdma (wtinfo_t *t);
-static void wtimer (wtinfo_t *t);
+static void wtimer (caddr_t, int);
 static void wtclock (wtinfo_t *t);
 static int wtreset (wtinfo_t *t);
 static int wtsense (wtinfo_t *t, int verb, int ignor);
@@ -166,16 +166,8 @@ static int wtreadfm (wtinfo_t *t);
 static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
 
+/* XXX */
 extern void DELAY (int usec);
-extern void bcopy (void *from, void *to, unsigned len);
-extern void isa_dmastart (int flags, void *addr, unsigned len, unsigned chan);
-extern void isa_dmadone (int flags, void *addr, unsigned len, int chan);
-extern void printf (char *str, ...);
-extern int splbio (void);
-extern int splx (int level);
-extern void timeout (void (*func) (), void *arg, int timo);
-extern int tsleep (void *chan, int priority, char *msg, int timo);
-extern void wakeup (void *chan);
 
 /*
  * Probe for the presence of the device.
@@ -569,7 +561,7 @@ void wtintr (int u)
 			"rewind busy?\n" : "rewind finished\n"));
 		t->flags &= ~TPREW;             /* Rewind finished. */
 		wtsense (t, 1, TP_WRP);
-		wakeup (t);
+		wakeup ((caddr_t)t);
 		return;
 	}
 
@@ -582,7 +574,7 @@ void wtintr (int u)
 		if (! (s & t->NOEXCEP))         /* operation failed */
 			wtsense (t, 1, (t->flags & TPRMARK) ? TP_WRP : 0);
 		t->flags &= ~(TPRMARK | TPWMARK); /* operation finished */
-		wakeup (t);
+		wakeup ((caddr_t)t);
 		return;
 	}
 
@@ -617,7 +609,7 @@ void wtintr (int u)
 			t->flags |= TPVOL;      /* end of file */
 		else
 			t->flags |= TPEXCEP;    /* i/o error */
-		wakeup (t);
+		wakeup ((caddr_t)t);
 		return;
 	}
 
@@ -629,7 +621,7 @@ void wtintr (int u)
 	}
 	if (t->dmacount > t->dmatotal)          /* short last block */
 		t->dmacount = t->dmatotal;
-	wakeup (t);                             /* wake up user level */
+	wakeup ((caddr_t)t);	/* wake up user level */
 	DEBUG (("i/o finished, %d\n", t->dmacount));
 }
 
@@ -670,7 +662,7 @@ static int wtreadfm (wtinfo_t *t)
 /* write marker to the tape */
 static int wtwritefm (wtinfo_t *t)
 {
-	tsleep (wtwritefm, WTPRI, "wtwfm", hz);         /* timeout: 1 second */
+	tsleep ((caddr_t)wtwritefm, WTPRI, "wtwfm", hz); /* timeout: 1 second */
 	t->flags &= ~(TPRO | TPWO);
 	if (! wtcmd (t, QIC_WRITEFM)) {
 		wtsense (t, 1, 0);
@@ -703,7 +695,7 @@ static int wtpoll (wtinfo_t *t, int mask, int bits)
 		s = inb (t->STATPORT);
 		if ((s & mask) != bits)
 			return (s);
-		tsleep (wtpoll, WTPRI, "wtpoll", 1);    /* timeout: 1 tick */
+		tsleep ((caddr_t)wtpoll, WTPRI, "wtpoll", 1); /* timeout: 1 tick */
 	}
 }
 
@@ -733,7 +725,7 @@ static int wtwait (wtinfo_t *t, int catch, char *msg)
 
 	DEBUG (("wtwait() `%s'\n", msg));
 	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK))
-		if (error = tsleep (t, WTPRI | catch, msg, 0))
+		if (error = tsleep ((caddr_t)t, WTPRI | catch, msg, 0))
 			return (error);
 	return (0);
 }
@@ -781,7 +773,7 @@ static void wtclock (wtinfo_t *t)
 		t->flags |= TPTIMER;
 		/* Some controllers seem to lose dma interrupts too often.
 		 * To make the tape stream we need 1 tick timeout. */
-		timeout (wtimer, t, (t->flags & TPACTIVE) ? 1 : hz);
+		timeout (wtimer, (caddr_t)t, (t->flags & TPACTIVE) ? 1 : hz);
 	}
 }
 
@@ -790,8 +782,9 @@ static void wtclock (wtinfo_t *t)
  * This is necessary in case interrupts get eaten due to
  * multiple devices on a single IRQ line.
  */
-static void wtimer (wtinfo_t *t)
+static void wtimer (caddr_t xt, int dummy)
 {
+	wtinfo_t *t = (wtinfo_t *)xt;
 	int s;
 
 	t->flags &= ~TPTIMER;

@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.5 1993/11/18 05:02:48 rgrimes Exp $
+ *      $Id: ch.c,v 1.6 1993/11/25 01:37:31 wollman Exp $
  */
 
 #include	<sys/types.h>
@@ -21,6 +21,8 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
+
+static errval ch_mode_sense(u_int32, u_int32);
 
 struct scsi_xfer ch_scsi_xfer[NCH];
 u_int32 ch_xfer_block_wait[NCH];
@@ -233,7 +235,7 @@ chioctl(dev, cmd, arg, mode)
 	unit = UNIT(dev);
 	sc_link = ch_data[unit].sc_link;
 
-	switch (cmd) {
+	switch ((int)cmd) {
 	case CHIOOP:{
 			struct chop *ch = (struct chop *) arg;
 			SC_DEBUG(sc_link, SDEV_DB2,
@@ -384,7 +386,7 @@ ch_position(unit, stat, chm, to, flags)
  * device and use the results to fill out the global 
  * parameter structure.
  */
-errval 
+static errval 
 ch_mode_sense(unit, flags)
 	u_int32 unit, flags;
 {
@@ -449,7 +451,7 @@ ch_mode_sense(unit, flags)
 		u_int32 pc = (*b++) & 0x3f;
 		u_int32 pl = *b++;
 		u_char *bb = b;
-		switch (pc) {
+		switch ((int)pc) {
 		case 0x1d:
 			ch_data[unit].chmo = p2copy(bb);
 			ch_data[unit].chms = p2copy(bb);
