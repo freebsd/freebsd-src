@@ -97,6 +97,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
+#include <sys/imgact.h>
 #include <sys/sysproto.h>
 #include <sys/ktr.h>
 #include <sys/signalvar.h>
@@ -131,7 +132,6 @@
 #include <sys/ucontext.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
 #include <machine/cpuconf.h>
@@ -1583,7 +1583,7 @@ cpu_halt(void)
  * Clear registers on exec
  */
 void
-setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
+exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 {
 	struct trapframe *tfp = td->td_frame;
 
