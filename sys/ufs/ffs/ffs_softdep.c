@@ -1842,6 +1842,7 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	struct allocindir *aip;
 	struct pagedep *pagedep;
 
+	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_page");
 	aip = newallocindir(ip, ptrno, newblkno, oldblkno);
 	ACQUIRE_LOCK(&lk);
 	/*
@@ -1871,6 +1872,7 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 {
 	struct allocindir *aip;
 
+	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_meta");
 	aip = newallocindir(ip, ptrno, newblkno, 0);
 	ACQUIRE_LOCK(&lk);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_list);
