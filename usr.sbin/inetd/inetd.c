@@ -784,9 +784,11 @@ main(argc, argv, envp)
  */
 
 void flag_signal(c)
-    char c;
+    int c;
 {
-	if (write(signalpipe[1], &c, 1) != 1) {
+	char ch = c;
+
+	if (write(signalpipe[1], &ch, 1) != 1) {
 		syslog(LOG_ERR, "write: %m");
 		_exit(EX_OSERR);
 	}
@@ -1350,7 +1352,8 @@ enter(cp)
 }
 
 void
-enable(struct servtab *sep)
+enable(sep)
+	struct servtab *sep;
 {
 	if (debug)
 		warnx(
@@ -1379,7 +1382,8 @@ enable(struct servtab *sep)
 }
 
 void
-disable(struct servtab *sep)
+disable(sep)
+	struct servtab *sep;
 {
 	if (debug)
 		warnx(

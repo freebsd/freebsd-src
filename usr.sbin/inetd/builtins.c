@@ -58,8 +58,6 @@ extern struct servtab *servtab;
 char ring[128];
 char *endring;
 
-int check_loop __P((struct sockaddr *, struct servtab *sep));
-void inetd_setproctitle __P((char *, int));
 
 struct biltin biltins[] = {
 	/* Echo received data */
