@@ -3,9 +3,12 @@
 ** 
 */
 
+/* $FreeBSD$ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -144,7 +147,7 @@ static void ficlLoad(FICL_VM *pVM)
         if (len <= 0)
             continue;
 
-        result = ficlExec(pVM, cp, len);
+        result = ficlExecC(pVM, cp, len);
         if (result != VM_QUIT && result != VM_USEREXIT && result != VM_OUTOFTEXT )
         {
             pVM->sourceID = id;
@@ -154,7 +157,7 @@ static void ficlLoad(FICL_VM *pVM)
         }
     }
     /*
-    ** Pass an empty line with SOURCE-ID == 0 to flush
+    ** Pass an empty line with SOURCE-ID == -1 to flush
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
@@ -221,14 +224,46 @@ static void ficlBreak(FICL_VM *pVM)
     return;
 }
 
+static void ficlClock(FICL_VM *pVM)
+{
+    clock_t now = clock();
+    stackPushUNS(pVM->pStack, (UNS32)now);
+    return;
+}
+
+static void clocksPerSec(FICL_VM *pVM)
+{
+    stackPushUNS(pVM->pStack, CLOCKS_PER_SEC);
+    return;
+}
+
+
+static void execxt(FICL_VM *pVM)
+{
+    FICL_WORD *pFW;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+
+    pFW = stackPopPtr(pVM->pStack);
+    ficlExecXT(pVM, pFW);
+
+    return;
+}
+
+
 void buildTestInterface(void)
 {
     ficlBuild("break",    ficlBreak,    FW_DEFAULT);
+    ficlBuild("clock",    ficlClock,    FW_DEFAULT);
     ficlBuild("cd",       ficlChDir,    FW_DEFAULT);
+    ficlBuild("execxt",   execxt,       FW_DEFAULT);
     ficlBuild("load",     ficlLoad,     FW_DEFAULT);
     ficlBuild("pwd",      ficlGetCWD,   FW_DEFAULT);
     ficlBuild("system",   ficlSystem,   FW_DEFAULT);
     ficlBuild("spewhash", spewHash,     FW_DEFAULT);
+    ficlBuild("clocks/sec", 
+                          clocksPerSec, FW_DEFAULT);
 
     return;
 }
@@ -236,7 +271,7 @@ void buildTestInterface(void)
 
 int main(int argc, char **argv)
 {
-    char in[256];
+    char in[nINBUF];
     FICL_VM *pVM;
 
     ficlInitSystem(10000);
