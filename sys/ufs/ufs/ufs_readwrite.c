@@ -278,6 +278,15 @@ READ(ap)
 		}
 
 		/*
+		 * If IO_DIRECT then set B_DIRECT for the buffer.  This
+		 * will cause us to attempt to release the buffer later on
+		 * and will cause the buffer cache to attempt to free the
+		 * underlying pages.
+		 */
+		if (ioflag & IO_DIRECT)
+			bp->b_flags |= B_DIRECT;
+
+		/*
 		 * We should only get non-zero b_resid when an I/O error
 		 * has occurred, which should cause us to break above.
 		 * However, if the short read did not cause an error,
@@ -319,12 +328,12 @@ READ(ap)
 		if (error)
 			break;
 
-		if ((ioflag & IO_VMIO) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) && 
+		    (LIST_FIRST(&bp->b_dep) == NULL)) {
 			/*
-			 * If there are no dependencies, and
-			 * it's VMIO, then we don't need the buf,
-			 * mark it available for freeing. The VM has the data.
+			 * If there are no dependencies, and it's VMIO,
+			 * then we don't need the buf, mark it available
+			 * for freeing. The VM has the data.
 			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
@@ -346,8 +355,8 @@ READ(ap)
 	 * so it must have come from a 'break' statement
 	 */
 	if (bp != NULL) {
-		if ((ioflag & IO_VMIO) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) && 
+		    (LIST_FIRST(&bp->b_dep) == NULL)) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -486,6 +495,8 @@ WRITE(ap)
 		    ap->a_cred, flags, &bp);
 		if (error != 0)
 			break;
+		if (ioflag & IO_DIRECT)
+			bp->b_flags |= B_DIRECT;
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
@@ -498,9 +509,18 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if ((ioflag & IO_VMIO) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL))
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) && 
+		    (LIST_FIRST(&bp->b_dep) == NULL)) {
 			bp->b_flags |= B_RELBUF;
+		}
+
+		/*
+		 * If IO_SYNC each buffer is written synchronously.  Otherwise
+		 * if we have a severe page deficiency write the buffer 
+		 * asynchronously.  Otherwise try to cluster, and if that
+		 * doesn't do it then either do an async write (if O_DIRECT),
+		 * or a delayed write (if not).
+		 */
 
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
@@ -516,6 +536,9 @@ WRITE(ap)
 			} else {
 				bawrite(bp);
 			}
+		} else if (ioflag & IO_DIRECT) {
+			bp->b_flags |= B_CLUSTEROK;
+			bawrite(bp);
 		} else {
 			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);

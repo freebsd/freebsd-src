@@ -334,6 +334,8 @@ vn_read(fp, uio, cred, flags, p)
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
+	if (fp->f_flag & O_DIRECT)
+		ioflag |= IO_DIRECT;
 	VOP_LEASE(vp, p, cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
 	if ((flags & FOF_OFFSET) == 0)
@@ -374,6 +376,8 @@ vn_write(fp, uio, cred, flags, p)
 		ioflag |= IO_APPEND;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
+	if (fp->f_flag & O_DIRECT)
+		ioflag |= IO_DIRECT;
 	if ((fp->f_flag & O_FSYNC) ||
 	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
 		ioflag |= IO_SYNC;

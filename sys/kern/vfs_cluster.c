@@ -490,6 +490,15 @@ cluster_callback(bp)
 		} else {
 			tbp->b_dirtyoff = tbp->b_dirtyend = 0;
 			tbp->b_flags &= ~(B_ERROR|B_INVAL);
+			/*
+			 * XXX the bdwrite()/bqrelse() issued during
+			 * cluster building clears B_RELBUF (see bqrelse()
+			 * comment).  If direct I/O was specified, we have
+			 * to restore it here to allow the buffer and VM
+			 * to be freed.
+			 */
+			if (tbp->b_flags & B_DIRECT)
+				tbp->b_flags |= B_RELBUF;
 		}
 		biodone(tbp);
 	}
