@@ -195,9 +195,9 @@ ip_fastforward(struct mbuf *m)
 	 * Is first mbuf large enough for ip header and is header present?
 	 */
 	if (m->m_len < sizeof (struct ip) &&
-	   (m = m_pullup(m, sizeof (struct ip))) == 0) {
+	   (m = m_pullup(m, sizeof (struct ip))) == NULL) {
 		ipstat.ips_toosmall++;
-		goto drop;
+		return 1;	/* mbuf already free'd */
 	}
 
 	ip = mtod(m, struct ip *);
@@ -221,7 +221,7 @@ ip_fastforward(struct mbuf *m)
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
 			ipstat.ips_badhlen++;
-			goto drop;
+			return 1;	/* mbuf already free'd */
 		}
 		ip = mtod(m, struct ip *);
 	}
