@@ -116,7 +116,7 @@ section entitled "GNU Free Documentation License".
 @end iftex
 @c FIXME: Talk about importance of *order* of args, cmds to linker!
 
-@ifinfo
+@ifnottex
 @node Top
 @top Using ld
 This file documents the @sc{gnu} linker ld version @value{VERSION}.
@@ -156,7 +156,7 @@ section entitled "GNU Free Documentation License".
 * GNU Free Documentation License::  GNU Free Documentation License
 * Index::                       Index
 @end menu
-@end ifinfo
+@end ifnottex
 
 @node Overview
 @chapter Overview

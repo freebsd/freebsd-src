@@ -1,3 +1,28 @@
+2002-03-18  David O'Brien  <obrien@FreeBSD.org>
+
+	* emultempl/elf32.em: Use lbasename vs. basename to fix problem where
+	the contents of the buffer returned from basename function will are
+	getting overwritten while still being used.
+
+Mon Mar 18 18:07:20 CET 2002  Jan Hubicka  <jh@suse.cz>
+			      Andreas Jaeger  <aj@suse.de>
+			      Andreas Schwab  <schwab@suse.de>
+
+	* cpu-i386.c (bfd_x86_64_arch): Rename to "i386:x86-64"
+
+	* configure.tgt (x86_64-*-linux-gnu*): Configure i386 as native.
+	
+	* elf_x86_64.sh (ARCH): Set to i386:x86-64
+	set libraries to default to lib64 paths.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld.texinfo: Wrap @menu in @ifnottex, not @ifinfo.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* NEWS: Mark version 2.12.
+
 2002-02-20  Andreas Schwab  <schwab@suse.de>
 
 	* emulparams/elf64_ia64.sh (OTHER_READONLY_SECTIONS): Don't fold

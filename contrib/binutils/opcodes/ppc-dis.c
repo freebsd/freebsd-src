@@ -1,5 +1,5 @@
 /* ppc-dis.c -- Disassemble PowerPC instructions
-   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -35,8 +35,8 @@ static int print_insn_powerpc PARAMS ((bfd_vma, struct disassemble_info *,
 static int powerpc_dialect PARAMS ((struct disassemble_info *));
 
 /* Determine which set of machines to disassemble for.  PPC403/601 or
-   Motorola BookE.  For convenience, also disassemble instructions
-   supported by the AltiVec vector unit.  */
+   BookE.  For convenience, also disassemble instructions supported
+   by the AltiVec vector unit.  */
 
 int
 powerpc_dialect(info)
@@ -54,6 +54,10 @@ powerpc_dialect(info)
     dialect |= PPC_OPCODE_BOOKE | PPC_OPCODE_BOOKE64;
   else 
     dialect |= PPC_OPCODE_403 | PPC_OPCODE_601;
+
+  if (info->disassembler_options
+      && strcmp (info->disassembler_options, "power4") == 0)
+    dialect |= PPC_OPCODE_POWER4;
 
   if (info->disassembler_options)
     {

@@ -4031,7 +4031,11 @@ s_alpha_text (i)
      int i;
 
 {
+#ifdef OBJ_ELF
+  obj_elf_text (i);
+#else
   s_text (i);
+#endif
   alpha_insn_label = NULL;
   alpha_auto_align_on = 1;
   alpha_current_align = 0;
@@ -4044,7 +4048,11 @@ static void
 s_alpha_data (i)
      int i;
 {
+#ifdef OBJ_ELF
+  obj_elf_data (i);
+#else
   s_data (i);
+#endif
   alpha_insn_label = NULL;
   alpha_auto_align_on = 1;
   alpha_current_align = 0;

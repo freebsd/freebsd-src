@@ -1,4 +1,7 @@
 -*- text -*-
+
+Changes in 2.12:
+
 * Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
 
 * Support for the OpenRISC 32-bit embedded processor by OpenCores.
@@ -12,6 +15,8 @@
   can use an one-entry symbol lookup cache.
 
 * Support for ELF SHF_MERGE section merging, by Jakub Jelinek.
+
+Changes in 2.11:
 
 * Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
 
