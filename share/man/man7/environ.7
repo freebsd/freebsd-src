@@ -62,6 +62,16 @@ in units of a kilobyte by specifying a number followed by ``K'' or
 or ``m'' and in units of a gigabyte by specifying a number followed
 by ``G'' or ``g''.
 Sizes less than 512 bytes or greater than a gigabyte are ignored.
+.It Ev COLUMNS
+The user's preferred width in column positions for the terminal.
+Utilities such as
+.Xr ls 1
+and
+.Xr who 1
+use this to format output into columns.
+If unset or empty, utilities will use an
+.Xr ioctl 2
+call to ask the terminal driver for the width.
 .It Ev EDITOR
 Default editor name.
 .It Ev EXINIT
