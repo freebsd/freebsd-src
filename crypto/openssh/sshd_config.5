@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.4 2002/06/22 16:45:29 stevesk Exp $
+.\" $OpenBSD: sshd_config.5,v 1.13 2002/09/16 20:12:11 stevesk Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
@@ -378,7 +378,7 @@ options must precede this option for non port qualified addresses.
 The server disconnects after this time if the user has not
 successfully logged in.
 If the value is 0, there is no time limit.
-The default is 120 (seconds).
+The default is 120 seconds.
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
 .Nm sshd .
@@ -464,6 +464,20 @@ for root.
 If this option is set to
 .Dq no
 root is not allowed to login.
+.It Cm PermitUserEnvironment
+Specifies whether
+.Pa ~/.ssh/environment
+and
+.Cm environment=
+options in
+.Pa ~/.ssh/authorized_keys
+are processed by
+.Nm sshd .
+The default is
+.Dq no .
+Enabling environment processing may enable users to bypass access
+restrictions in some configurations using mechanisms such as
+.Ev LD_PRELOAD .
 .It Cm PidFile
 Specifies the file that contains the process ID of the
 .Nm sshd
@@ -498,7 +512,7 @@ The default is
 .It Cm Protocol
 Specifies the protocol versions
 .Nm sshd
-should support.
+supports.
 The possible values are
 .Dq 1
 and
@@ -506,6 +520,13 @@ and
 Multiple versions must be comma-separated.
 The default is
 .Dq 2,1 .
+Note that the order of the protocol list does not indicate preference,
+because the client selects among multiple protocol versions offered
+by the server.
+Specifying
+.Dq 2,1
+is identical to
+.Dq 1,2 .
 .It Cm PubkeyAuthentication
 Specifies whether public key authentication is allowed.
 The default is
@@ -616,10 +637,35 @@ from interfering with real X11 servers.
 The default is 10.
 .It Cm X11Forwarding
 Specifies whether X11 forwarding is permitted.
+The argument must be
+.Dq yes
+or
+.Dq no .
 The default is
 .Dq no .
-Note that disabling X11 forwarding does not improve security in any
-way, as users can always install their own forwarders.
+.Pp
+When X11 forwarding is enabled, there may be additional exposure to
+the server and to client displays if the
+.Nm sshd
+proxy display is configured to listen on the wildcard address (see
+.Cm X11UseLocalhost
+below), however this is not the default.
+Additionally, the authentication spoofing and authentication data
+verification and substitution occur on the client side.
+The security risk of using X11 forwarding is that the client's X11
+display server may be exposed to attack when the ssh client requests
+forwarding (see the warnings for
+.Cm ForwardX11
+in
+.Xr ssh_config 5 ).
+A system administrator may have a stance in which they want to
+protect clients that may expose themselves to attack by unwittingly
+requesting X11 forwarding, which can warrant a
+.Dq no
+setting.
+.Pp
+Note that disabling X11 forwarding does not prevent users from
+forwarding X11 traffic, as users can always install their own forwarders.
 X11 forwarding is automatically disabled if
 .Cm UseLogin
 is enabled.
@@ -634,7 +680,7 @@ hostname part of the
 .Ev DISPLAY
 environment variable to
 .Dq localhost .
-This prevents remote hosts from connecting to the fake display.
+This prevents remote hosts from connecting to the proxy display.
 However, some older X11 clients may not function with this
 configuration.
 .Cm X11UseLocalhost
@@ -649,7 +695,7 @@ or
 The default is
 .Dq yes .
 .It Cm XAuthLocation
-Specifies the location of the
+Specifies the full pathname of the
 .Xr xauth 1
 program.
 The default is
@@ -661,7 +707,7 @@ The default is
 command-line arguments and configuration file options that specify time
 may be expressed using a sequence of the form:
 .Sm off
-.Ar time Oo Ar qualifier Oc ,
+.Ar time Op Ar qualifier ,
 .Sm on
 where
 .Ar time
