@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)hash.h	8.1 (Berkeley) 6/6/93
+ *	@(#)hash.h	8.2 (Berkeley) 4/28/95
  */
 
 /* hash.h --
@@ -105,12 +105,12 @@ typedef struct Hash_Search {
 
 #define	Hash_Size(n)	(((n) + sizeof (int) - 1) / sizeof (int))
 
-Hash_Entry	*Hash_CreateEntry __P((Hash_Table *, char *, Boolean *));
-void		 Hash_DeleteEntry __P((Hash_Table *, Hash_Entry *));
-void		 Hash_DeleteTable __P((Hash_Table *));
-Hash_Entry	*Hash_EnumFirst __P((Hash_Table *, Hash_Search *));
-Hash_Entry	*Hash_EnumNext __P((Hash_Search *));
-Hash_Entry	*Hash_FindEntry __P((Hash_Table *, char *));
-void		 Hash_InitTable __P((Hash_Table *, int));
+void Hash_InitTable __P((Hash_Table *, int));
+void Hash_DeleteTable __P((Hash_Table *));
+Hash_Entry *Hash_FindEntry __P((Hash_Table *, char *));
+Hash_Entry *Hash_CreateEntry __P((Hash_Table *, char *, Boolean *));
+void Hash_DeleteEntry __P((Hash_Table *, Hash_Entry *));
+Hash_Entry *Hash_EnumFirst __P((Hash_Table *, Hash_Search *));
+Hash_Entry *Hash_EnumNext __P((Hash_Search *));
 
 #endif /* _HASH */

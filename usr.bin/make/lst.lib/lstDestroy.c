@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lstDestroy.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)lstDestroy.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*-
@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)lstDestroy.c	8.1 (Berkeley) 6/6/93";
 void
 Lst_Destroy (l, freeProc)
     Lst	    	  	l;
-    register void	(*freeProc)();
+    register void	(*freeProc) __P((ClientData));
 {
     register ListNode	ln;
     register ListNode	tln = NilListNode;
@@ -76,21 +76,25 @@ Lst_Destroy (l, freeProc)
 	 */
 	return;
     }
-    
+
+    /* To ease scanning */
+    if (list->lastPtr != NilListNode)
+	list->lastPtr->nextPtr = NilListNode;
+    else {
+	free ((Address)l);
+	return;
+    }
+
     if (freeProc) {
-	for (ln = list->firstPtr;
-	     ln != NilListNode && tln != list->firstPtr;
-	     ln = tln) {
-		 tln = ln->nextPtr;
-		 (*freeProc) (ln->datum);
-		 free ((Address)ln);
+	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
+	     tln = ln->nextPtr;
+	     (*freeProc) (ln->datum);
+	     free ((Address)ln);
 	}
     } else {
-	for (ln = list->firstPtr;
-	     ln != NilListNode && tln != list->firstPtr;
-	     ln = tln) {
-		 tln = ln->nextPtr;
-		 free ((Address)ln);
+	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
+	     tln = ln->nextPtr;
+	     free ((Address)ln);
 	}
     }
     

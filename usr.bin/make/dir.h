@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dir.h	8.1 (Berkeley) 6/6/93
+ *	@(#)dir.h	8.2 (Berkeley) 4/28/95
  */
 
 /* dir.h --
@@ -52,19 +52,19 @@ typedef struct Path {
     Hash_Table    files;    	/* Hash table of files in directory */
 } Path;
 
-void	 Dir_AddDir __P((Lst, char *));
-void	 Dir_ClearPath __P((Lst));
-void	 Dir_Concat __P((Lst, Lst));
-ClientData
-	    Dir_CopyDir __P((Path *));
-void	 Dir_Destroy __P((Path *));
-void	 Dir_Expand __P((char *, Lst, Lst));
-char	*Dir_FindFile __P((char *, Lst));
-Boolean	 Dir_HasWildcards __P((char *));
-void	 Dir_Init __P((void));
-char	*Dir_MakeFlags __P((char *, Lst));
-int	 Dir_MTime __P((GNode *));
-void	 Dir_PrintDirectories __P((void));
-void	 Dir_PrintPath __P((Lst));
+void Dir_Init __P((void));
+void Dir_End __P((void));
+Boolean Dir_HasWildcards __P((char *));
+void Dir_Expand __P((char *, Lst, Lst));
+char *Dir_FindFile __P((char *, Lst));
+int Dir_MTime __P((GNode *));
+void Dir_AddDir __P((Lst, char *));
+char *Dir_MakeFlags __P((char *, Lst));
+void Dir_ClearPath __P((Lst));
+void Dir_Concat __P((Lst, Lst));
+void Dir_PrintDirectories __P((void));
+void Dir_PrintPath __P((Lst));
+void Dir_Destroy __P((ClientData));
+ClientData Dir_CopyDir __P((ClientData));
 
 #endif /* _DIR */

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)make.1	8.4 (Berkeley) 3/19/94
+.\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\"
-.Dd March 19, 1994
+.Dd June 13, 1995
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -74,7 +74,8 @@ and makefiles, please refer to
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl D Ar variable
-Define Ar variable
+Define
+.Ar variable
 to be 1, in the global context.
 .It Fl d Ar flags
 Turn on debugging, and specify which portions of
@@ -278,13 +279,13 @@ between the previous contents of the variable and the appended value.
 Variables are expanded by surrounding the variable name with either
 curly braces
 .Pq Ql {}
-or parenthesis
+or parentheses
 .Pq Ql ()
 and preceding it with
 a dollar sign
 .Pq Ql \&$ .
 If the variable name contains only a single letter, the surrounding
-braces or parenthesis are not required.
+braces or parentheses are not required.
 This shorter form is not recommended.
 .Pp
 Variable substitution occurs at two distinct times, depending on where
@@ -553,7 +554,7 @@ Test the value of a variable.
 .Oo \&! Oc Ns Ar target
 .Op Ar operator target ...
 .Xc
-Test the the target being built.
+Test the target being built.
 .It Xo
 .Ic .ifnmake
 .Oo \&! Oc Ar target
@@ -628,7 +629,7 @@ As in C,
 .Nm make
 will only evaluate a conditional as far as is necessary to determine
 its value.
-Parentheses may be used to change the order of evaluation.
+Parenthesis may be used to change the order of evaluation.
 The boolean operator
 .Ql Ic \&!
 may be used to logically negate an entire
@@ -759,6 +760,12 @@ If a target is marked with this attribute and
 .Nm make
 can't figure out how to create it, it will ignore this fact and assume
 the file isn't needed or already exists.
+.It Ic .PHONY
+If this special target is present in a Makefile, all sources for the
+target will considered to be `phony' targets. I.e. they don't refer
+to real files, and they will always be considered out-of-date. This
+is useful in case one wants to create a target called `install', in
+a directory where a file `install' already exists.
 .It Ic .PRECIOUS
 When
 .Nm make
