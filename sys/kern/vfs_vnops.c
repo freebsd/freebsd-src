@@ -232,7 +232,6 @@ restart:
 		}
 	}
 	if ((error = VOP_GETATTR(vp, vap, cred, td)) == 0) {
-		vp->v_cachedfs = vap->va_fsid;
 		vp->v_cachedid = vap->va_fileid;
 	}
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fdidx)) != 0)
@@ -668,7 +667,6 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	if (error)
 		return (error);
 
-	vp->v_cachedfs = vap->va_fsid;
 	vp->v_cachedid = vap->va_fileid;
 
 	/*
