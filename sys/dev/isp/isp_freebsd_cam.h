@@ -178,7 +178,8 @@ struct isposinfo {
  * Can we tag?
  */
 
-#define	XS_CANTAG(ccb)		((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID)
+#define	XS_CANTAG(ccb)		(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) \
+				  && (ccb)->tag_action != CAM_TAG_ACTION_NONE)
 /*
  * And our favorite tag is....
  */
