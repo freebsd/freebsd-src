@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
 
-     $Id: term.sgml,v 1.2 1996/08/28 00:44:00 asami Exp $
+     $Id: term.sgml,v 1.3 1996/10/04 22:54:17 wosch Exp $
 
      The FreeBSD Documentation Project
 
@@ -251,7 +251,7 @@
 	serial port to which the terminal is connected---and that you
 	have connected it.
 
-	In a nutshell, you need tell the <tt/init/ process, which is
+	In a nutshell, you need to tell the <tt/init/ process, which is
 	responsible for process control and initialization, to start a
 	<tt/getty/ process, which is responsible for reading a login
 	name and starting the <tt/login/ program.
