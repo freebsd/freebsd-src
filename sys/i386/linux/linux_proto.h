@@ -183,22 +183,22 @@ struct	linux_ustat_args {
 };
 struct	linux_sigaction_args {
 	int	sig;	char sig_[PAD_(int)];
-	struct linux_sigaction *	nsa;	char nsa_[PAD_(struct linux_sigaction *)];
-	struct linux_sigaction *	osa;	char osa_[PAD_(struct linux_sigaction *)];
+	linux_osigaction_t *	nsa;	char nsa_[PAD_(linux_osigaction_t *)];
+	linux_osigaction_t *	osa;	char osa_[PAD_(linux_osigaction_t *)];
 };
 struct	linux_siggetmask_args {
 	register_t dummy;
 };
 struct	linux_sigsetmask_args {
-	linux_sigset_t	mask;	char mask_[PAD_(linux_sigset_t)];
+	linux_osigset_t	mask;	char mask_[PAD_(linux_osigset_t)];
 };
 struct	linux_sigsuspend_args {
 	int	restart;	char restart_[PAD_(int)];
-	linux_sigset_t	oldmask;	char oldmask_[PAD_(linux_sigset_t)];
-	linux_sigset_t	mask;	char mask_[PAD_(linux_sigset_t)];
+	linux_osigset_t	oldmask;	char oldmask_[PAD_(linux_osigset_t)];
+	linux_osigset_t	mask;	char mask_[PAD_(linux_osigset_t)];
 };
 struct	linux_sigpending_args {
-	linux_sigset_t *	mask;	char mask_[PAD_(linux_sigset_t *)];
+	linux_osigset_t *	mask;	char mask_[PAD_(linux_osigset_t *)];
 };
 struct	linux_setrlimit_args {
 	u_int	resource;	char resource_[PAD_(u_int)];
@@ -338,8 +338,8 @@ struct	linux_adjtimex_args {
 };
 struct	linux_sigprocmask_args {
 	int	how;	char how_[PAD_(int)];
-	linux_sigset_t *	mask;	char mask_[PAD_(linux_sigset_t *)];
-	linux_sigset_t *	omask;	char omask_[PAD_(linux_sigset_t *)];
+	linux_osigset_t *	mask;	char mask_[PAD_(linux_osigset_t *)];
+	linux_osigset_t *	omask;	char omask_[PAD_(linux_osigset_t *)];
 };
 struct	linux_create_module_args {
 	register_t dummy;
@@ -459,14 +459,14 @@ struct	linux_rt_sigreturn_args {
 };
 struct	linux_rt_sigaction_args {
 	int	sig;	char sig_[PAD_(int)];
-	struct linux_new_sigaction *	act;	char act_[PAD_(struct linux_new_sigaction *)];
-	struct linux_new_sigaction *	oact;	char oact_[PAD_(struct linux_new_sigaction *)];
+	linux_sigaction_t *	act;	char act_[PAD_(linux_sigaction_t *)];
+	linux_sigaction_t *	oact;	char oact_[PAD_(linux_sigaction_t *)];
 	size_t	sigsetsize;	char sigsetsize_[PAD_(size_t)];
 };
 struct	linux_rt_sigprocmask_args {
 	int	how;	char how_[PAD_(int)];
-	struct linux_new_sigset *	mask;	char mask_[PAD_(struct linux_new_sigset *)];
-	struct linux_new_sigset *	omask;	char omask_[PAD_(struct linux_new_sigset *)];
+	linux_sigset_t *	mask;	char mask_[PAD_(linux_sigset_t *)];
+	linux_sigset_t *	omask;	char omask_[PAD_(linux_sigset_t *)];
 	size_t	sigsetsize;	char sigsetsize_[PAD_(size_t)];
 };
 struct	linux_rt_sigpending_args {
@@ -479,7 +479,8 @@ struct	linux_rt_sigqueueinfo_args {
 	register_t dummy;
 };
 struct	linux_rt_sigsuspend_args {
-	register_t dummy;
+	linux_sigset_t *	newset;	char newset_[PAD_(linux_sigset_t *)];
+	size_t	sigsetsize;	char sigsetsize_[PAD_(size_t)];
 };
 struct	linux_pread_args {
 	register_t dummy;

@@ -64,7 +64,7 @@ static int	elf_linux_fixup __P((long **stack_base,
 				     struct image_params *iparams));
 static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
 				       u_int *code, caddr_t *params));
-static void     linux_sendsig __P((sig_t catcher, int sig, int mask,
+static void     linux_sendsig __P((sig_t catcher, int sig, sigset_t *mask,
 				   u_long code));
 
 /*
@@ -82,22 +82,26 @@ static int bsd_to_linux_errno[ELAST + 1] = {
   	-6, -6, -43, -42, -75, -6, -84
 };
 
-int bsd_to_linux_signal[NSIG] = {
-	0, LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT,
-	LINUX_SIGILL, LINUX_SIGTRAP, LINUX_SIGABRT, 0,
-	LINUX_SIGFPE, LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, 
-	0, LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM,
-	LINUX_SIGURG, LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT,	
-	LINUX_SIGCHLD, LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, 
-	LINUX_SIGXCPU, LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, 
-	LINUX_SIGWINCH, 0, LINUX_SIGUSR1, LINUX_SIGUSR2
+int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
+	LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL,
+	LINUX_SIGTRAP, LINUX_SIGABRT, 0, LINUX_SIGFPE,
+	LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, 0,
+	LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM, LINUX_SIGURG,
+	LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT, LINUX_SIGCHLD,
+	LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, LINUX_SIGXCPU,
+	LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, LINUX_SIGWINCH,
+	0, LINUX_SIGUSR1, LINUX_SIGUSR2
 };
 
-int linux_to_bsd_signal[LINUX_NSIG] = {
-	0, SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGBUS,
-	SIGFPE, SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2, SIGPIPE, SIGALRM, SIGTERM, 
-	SIGBUS, SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU, SIGURG,
-	SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGIO, SIGURG, 0
+int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
+	SIGHUP, SIGINT, SIGQUIT, SIGILL,
+	SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
+	SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2,
+	SIGPIPE, SIGALRM, SIGTERM, SIGBUS,
+	SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP,
+	SIGTTIN, SIGTTOU, SIGURG, SIGXCPU,
+	SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH,
+	SIGIO, SIGURG, 0
 };
 
 /*
@@ -185,7 +189,7 @@ extern int _ucodesel, _udatasel;
  */
 
 static void
-linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
+linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
@@ -197,14 +201,14 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %d, %lu)\n",
-	    (long)p->p_pid, catcher, sig, mask, code);
+	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
+	    (long)p->p_pid, catcher, sig, (void*)mask, code);
 #endif
 	/*
 	 * Allocate space for the signal handler context.
 	 */
 	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
-	    (psp->ps_sigonstack & sigmask(sig))) {
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct linux_sigframe *)(psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - sizeof(struct linux_sigframe));
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
@@ -224,10 +228,9 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 		 * instruction to halt it in its tracks.
 		 */
 		SIGACTION(p, SIGILL) = SIG_DFL;
-		sig = sigmask(SIGILL);
-		p->p_sigignore &= ~sig;
-		p->p_sigcatch &= ~sig;
-		p->p_sigmask &= ~sig;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -235,12 +238,9 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * Build the argument list for the signal handler.
 	 */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig < p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[sig];
-		else
-			sig = p->p_sysent->sv_sigsize + 1;
-	}
+	if (p->p_sysent->sv_sigtbl)
+		if (sig <= p->p_sysent->sv_sigsize)
+			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
@@ -248,7 +248,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	frame.sf_sc.sc_mask   = mask;
+	frame.sf_sc.sc_mask   = mask->__bits[0];
 	frame.sf_sc.sc_gs     = rgs();
 	frame.sf_sc.sc_fs     = regs->tf_fs;
 	frame.sf_sc.sc_es     = regs->tf_es;
@@ -355,8 +355,12 @@ linux_sigreturn(p, args)
 	}
 
 	p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
-	p->p_sigmask = context.sc_mask &~
-		(sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
+	SIGEMPTYSET(p->p_sigmask);
+	p->p_sigmask.__bits[0] = context.sc_mask;
+	SIGDELSET(p->p_sigmask, SIGKILL);
+	SIGDELSET(p->p_sigmask, SIGCONT);
+	SIGDELSET(p->p_sigmask, SIGSTOP);
+
 	/*
 	 * Restore signal context.
 	 */
@@ -395,7 +399,7 @@ struct sysentvec linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
 	0xff,
-	NSIG,
+	LINUX_SIGTBLSZ,
 	bsd_to_linux_signal,
 	ELAST + 1, 
 	bsd_to_linux_errno,
@@ -410,19 +414,19 @@ struct sysentvec linux_sysvec = {
 };
 
 struct sysentvec elf_linux_sysvec = {
-        LINUX_SYS_MAXSYSCALL,
-        linux_sysent,
-        0xff,
-        NSIG,
-        bsd_to_linux_signal,
-        ELAST + 1,
-        bsd_to_linux_errno,
-        translate_traps,
-        elf_linux_fixup,
-        linux_sendsig,
-        linux_sigcode,
-        &linux_szsigcode,
-        linux_prepsyscall,
+	LINUX_SYS_MAXSYSCALL,
+	linux_sysent,
+	0xff,
+	LINUX_SIGTBLSZ,
+	bsd_to_linux_signal,
+	ELAST + 1,
+	bsd_to_linux_errno,
+	translate_traps,
+	elf_linux_fixup,
+	linux_sendsig,
+	linux_sigcode,
+	&linux_szsigcode,
+	linux_prepsyscall,
 	"Linux ELF",
 	elf_coredump
 };

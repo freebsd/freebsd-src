@@ -47,24 +47,19 @@
 #include <svr4/svr4_util.h>
 #include <svr4/svr4_ucontext.h>
 
-#define sigemptyset(s)		memset((s), 0, sizeof(*(s)))
-#define sigismember(s, n)	(*(s) & sigmask(n))
-#define sigaddset(s, n)		(*(s) |= sigmask(n))
-
 #define	svr4_sigmask(n)		(1 << (((n) - 1) & 31))
 #define	svr4_sigword(n)		(((n) - 1) >> 5)
 #define svr4_sigemptyset(s)	memset((s), 0, sizeof(*(s)))
+#define svr4_sigfillset(s)	memset((s), 0xffffffff, sizeof(*(s)))
 #define	svr4_sigismember(s, n)	((s)->bits[svr4_sigword(n)] & svr4_sigmask(n))
 #define	svr4_sigaddset(s, n)	((s)->bits[svr4_sigword(n)] |= svr4_sigmask(n))
 
-static __inline void svr4_sigfillset __P((svr4_sigset_t *));
 void svr4_to_bsd_sigaction __P((const struct svr4_sigaction *,
 				struct sigaction *));
 void bsd_to_svr4_sigaction __P((const struct sigaction *,
 				struct svr4_sigaction *));
 
-int bsd_to_svr4_sig[] = {
-	0,
+int bsd_to_svr4_sig[SVR4_SIGTBLSZ] = {
 	SVR4_SIGHUP,
 	SVR4_SIGINT,
 	SVR4_SIGQUIT,
@@ -98,8 +93,7 @@ int bsd_to_svr4_sig[] = {
 	SVR4_SIGUSR2,
 };
 
-int svr4_to_bsd_sig[] = {
-	0,
+int svr4_to_bsd_sig[SVR4_SIGTBLSZ] = {
 	SIGHUP,
 	SIGINT,
 	SIGQUIT,
@@ -133,17 +127,6 @@ int svr4_to_bsd_sig[] = {
 	SIGXFSZ,
 };
 
-static __inline void
-svr4_sigfillset(s)
-	svr4_sigset_t *s;
-{
-	int i;
-
-	svr4_sigemptyset(s);
-	for (i = 1; i < SVR4_NSIG; i++)
-		svr4_sigaddset(s, i);
-}
-
 void
 svr4_to_bsd_sigset(sss, bss)
 	const svr4_sigset_t *sss;
@@ -151,16 +134,19 @@ svr4_to_bsd_sigset(sss, bss)
 {
 	int i, newsig;
 
-	sigemptyset(bss);
-	for (i = 1; i < SVR4_NSIG; i++) {
+	SIGEMPTYSET(*bss);
+	bss->__bits[0] = sss->bits[0] & ~((1U << SVR4_SIGTBLSZ) - 1);
+	bss->__bits[1] = sss->bits[1];
+	bss->__bits[2] = sss->bits[2];
+	bss->__bits[3] = sss->bits[3];
+	for (i = 1; i <= SVR4_SIGTBLSZ; i++) {
 		if (svr4_sigismember(sss, i)) {
-			newsig = svr4_to_bsd_sig[i];
+			newsig = svr4_to_bsd_sig[_SIG_IDX(i)];
 			if (newsig)
-				sigaddset(bss, newsig);
+				SIGADDSET(*bss, newsig);
 		}
 	}
 }
-
 
 void
 bsd_to_svr4_sigset(bss, sss)
@@ -170,15 +156,18 @@ bsd_to_svr4_sigset(bss, sss)
 	int i, newsig;
 
 	svr4_sigemptyset(sss);
-	for (i = 1; i < NSIG; i++) {
-		if (sigismember(bss, i)) {
-			newsig = bsd_to_svr4_sig[i];
+	sss->bits[0] = bss->__bits[0] & ~((1U << SVR4_SIGTBLSZ) - 1);
+	sss->bits[1] = bss->__bits[1];
+	sss->bits[2] = bss->__bits[2];
+	sss->bits[3] = bss->__bits[3];
+	for (i = 1; i <= SVR4_SIGTBLSZ; i++) {
+		if (SIGISMEMBER(*bss, i)) {
+			newsig = bsd_to_svr4_sig[_SIG_IDX(i)];
 			if (newsig)
 				svr4_sigaddset(sss, newsig);
 		}
 	}
 }
-
 
 /*
  * XXX: Only a subset of the flags is currently implemented.
@@ -293,9 +282,9 @@ svr4_sys_sigaction(p, uap)
 	} else
 		nbsa = NULL;
 
-	SCARG(&sa, signum) = svr4_to_bsd_sig[SCARG(uap, signum)];
-	SCARG(&sa, nsa) = nbsa;
-	SCARG(&sa, osa) = obsa;
+	SCARG(&sa, sig) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
+	SCARG(&sa, act) = nbsa;
+	SCARG(&sa, oact) = obsa;
 
 	if ((error = sigaction(p, &sa)) != 0)
 		return error;
@@ -342,7 +331,7 @@ svr4_sys_sigaltstack(p, uap)
 	} else
 		nbss = NULL;
 
-	SCARG(&sa, nss) = nbss;
+	SCARG(&sa, ss) = nbss;
 	SCARG(&sa, oss) = obss;
 
 	if ((error = sigaltstack(p, &sa)) != 0)
@@ -367,12 +356,13 @@ svr4_sys_signal(p, uap)
 	register struct proc *p;
 	struct svr4_sys_signal_args *uap;
 {
-	int signum = svr4_to_bsd_sig[SVR4_SIGNO(SCARG(uap, signum))];
+	int signum;
 	int error, *retval;
 	caddr_t sg = stackgap_init();
 
+	signum = SVR4_SVR42BSD_SIG(SVR4_SIGNO(SCARG(uap, signum)));
 	retval = p->p_retval;
-	if (signum <= 0 || signum >= SVR4_NSIG) 
+	if (signum <= 0 || signum > SVR4_NSIG)
 		return (EINVAL);
 
 	switch (SVR4_SIGCALL(SCARG(uap, signum))) {
@@ -388,12 +378,12 @@ svr4_sys_signal(p, uap)
 
 			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, signum) = signum;
-			SCARG(&sa_args, nsa) = nbsa;
-			SCARG(&sa_args, osa) = obsa;
+			SCARG(&sa_args, sig) = signum;
+			SCARG(&sa_args, act) = nbsa;
+			SCARG(&sa_args, oact) = obsa;
 
 			sa.sa_handler = (sig_t) SCARG(uap, handler);
-			sigemptyset(&sa.sa_mask);
+			SIGEMPTYSET(sa.sa_mask);
 			sa.sa_flags = 0;
 
 			if (signum != SIGALRM)
@@ -417,18 +407,28 @@ svr4_sys_signal(p, uap)
 sighold:
 		{
 			struct sigprocmask_args sa;
+			sigset_t *set;
 
+			set = stackgap_alloc(&sg, sizeof(sigset_t));
+			SIGEMPTYSET(*set);
+			SIGADDSET(*set, signum);
 			SCARG(&sa, how) = SIG_BLOCK;
-			SCARG(&sa, mask) = sigmask(signum);
+			SCARG(&sa, set) = set;
+			SCARG(&sa, oset) = NULL;
 			return sigprocmask(p, &sa);
 		}
 
 	case SVR4_SIGRELSE_MASK:
 		{
 			struct sigprocmask_args sa;
+			sigset_t *set;
 
+			set = stackgap_alloc(&sg, sizeof(sigset_t));
+			SIGEMPTYSET(*set);
+			SIGADDSET(*set, signum);
 			SCARG(&sa, how) = SIG_UNBLOCK;
-			SCARG(&sa, mask) = sigmask(signum);
+			SCARG(&sa, set) = set;
+			SCARG(&sa, oset) = NULL;
 			return sigprocmask(p, &sa);
 		}
 
@@ -438,12 +438,12 @@ sighold:
 			struct sigaction *bsa, sa;
 
 			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			SCARG(&sa_args, signum) = signum;
-			SCARG(&sa_args, nsa) = bsa;
-			SCARG(&sa_args, osa) = NULL;
+			SCARG(&sa_args, sig) = signum;
+			SCARG(&sa_args, act) = bsa;
+			SCARG(&sa_args, oact) = NULL;
 
 			sa.sa_handler = SIG_IGN;
-			sigemptyset(&sa.sa_mask);
+			SIGEMPTYSET(sa.sa_mask);
 			sa.sa_flags = 0;
 			if ((error = copyout(&sa, bsa, sizeof(sa))) != 0)
 				return error;
@@ -457,8 +457,12 @@ sighold:
 	case SVR4_SIGPAUSE_MASK:
 		{
 			struct sigsuspend_args sa;
+			sigset_t *set;
 
-			SCARG(&sa, mask) = p->p_sigmask & ~sigmask(signum);
+			set = stackgap_alloc(&sg, sizeof(sigset_t));
+			*set = p->p_sigmask;
+			SIGDELSET(*set, signum);
+			SCARG(&sa, sigmask) = set;
 			return sigsuspend(p, &sa);
 		}
 
@@ -498,15 +502,17 @@ svr4_sys_sigprocmask(p, uap)
 
 	switch (SCARG(uap, how)) {
 	case SVR4_SIG_BLOCK:
-		p->p_sigmask |= bss & ~sigcantmask;
+		SIGSETOR(p->p_sigmask, bss);
+		SIG_CANTMASK(p->p_sigmask);
 		break;
 
 	case SVR4_SIG_UNBLOCK:
-		p->p_sigmask &= ~bss;
+		SIGSETNAND(p->p_sigmask, bss);
 		break;
 
 	case SVR4_SIG_SETMASK:
-		p->p_sigmask = bss & ~sigcantmask;
+		p->p_sigmask = bss;
+		SIG_CANTMASK(p->p_sigmask);
 		break;
 
 	default:
@@ -533,7 +539,8 @@ svr4_sys_sigpending(p, uap)
 	case 1:	/* sigpending */
 		if (SCARG(uap, mask) == NULL)
 			return 0;
-		bss = p->p_siglist & p->p_sigmask;
+		bss = p->p_siglist;
+		SIGSETAND(bss, p->p_sigmask);
 		bsd_to_svr4_sigset(&bss, &sss);
 		break;
 
@@ -554,16 +561,18 @@ svr4_sys_sigsuspend(p, uap)
 	struct svr4_sys_sigsuspend_args *uap;
 {
 	svr4_sigset_t sss;
-	sigset_t bss;
+	sigset_t *bss;
 	struct sigsuspend_args sa;
 	int error;
+	caddr_t sg = stackgap_init();
 
 	if ((error = copyin(SCARG(uap, ss), &sss, sizeof(sss))) != 0)
 		return error;
 
-	svr4_to_bsd_sigset(&sss, &bss);
+	bss = stackgap_alloc(&sg, sizeof(sigset_t));
+	svr4_to_bsd_sigset(&sss, bss);
 
-	SCARG(&sa, mask) = bss;
+	SCARG(&sa, sigmask) = bss;
 	return sigsuspend(p, &sa);
 }
 
@@ -576,7 +585,7 @@ svr4_sys_kill(p, uap)
 	struct kill_args ka;
 
 	SCARG(&ka, pid) = SCARG(uap, pid);
-	SCARG(&ka, signum) = svr4_to_bsd_sig[SCARG(uap, signum)];
+	SCARG(&ka, signum) = SVR4_SVR42BSD_SIG(SCARG(uap, signum));
 	return kill(p, &ka);
 }
 
@@ -592,7 +601,7 @@ svr4_sys_context(p, uap)
 	switch (uap->func) {
 	case 0:
 		DPRINTF(("getcontext(%p)\n", uap->uc));
-		svr4_getcontext(p, &uc, p->p_sigmask,
+		svr4_getcontext(p, &uc, &p->p_sigmask,
 		    p->p_sigacts->ps_sigstk.ss_flags & SS_ONSTACK);
 		return copyout(&uc, uap->uc, sizeof(uc));
 
@@ -620,6 +629,6 @@ svr4_sys_pause(p, uap)
 {
 	struct sigsuspend_args bsa;
 
-	SCARG(&bsa, mask) = p->p_sigmask;
+	SCARG(&bsa, sigmask) = &p->p_sigmask;
 	return sigsuspend(p, &bsa);
 }
