@@ -704,9 +704,17 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	    UGETW(dd->idProduct) == USB_PRODUCT_IODATA_IU_CD2) {
 		sc->proto =  UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
 	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_IODATA &&
+ 	    UGETW(dd->idProduct) == USB_PRODUCT_IODATA_DVR_UEH8) {
+		sc->proto =  UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+	}
 	/* Logitec DVD multi plus unit */
 	if (UGETW(dd->idVendor) == USB_VENDOR_LOGITEC &&
 	    UGETW(dd->idProduct) == USB_PRODUCT_LOGITEC_LDR_H443U2) {
+		sc->proto = UMASS_PROTO_SCSI;
+	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_LOGITEC &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_LOGITEC_LDR_H443SU2) {
 		sc->proto = UMASS_PROTO_SCSI;
 	}
 	if (UGETW(dd->idVendor) == USB_VENDOR_MELCO &&
