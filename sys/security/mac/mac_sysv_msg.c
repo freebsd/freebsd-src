@@ -101,7 +101,6 @@ mac_init_sysv_msgqueue(struct msqid_kernel *msqkptr)
 {
 
 	msqkptr->label = mac_sysv_msgqueue_label_alloc();
-	msqkptr->label = NULL;
 }
 
 static void
