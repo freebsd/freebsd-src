@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.23 1995/10/05 09:42:13 jkh Exp $
+#	$Id: Makefile,v 1.193.2.24 1995/10/05 09:55:01 jkh Exp $
 #
 # How to roll a release:
 #
@@ -450,7 +450,7 @@ release.10:
 	cpio -dump ${RD}/fixitfd/dev )
 	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit FDINODE=4000
 	touch release.10
 
 ftp.1:
