@@ -219,6 +219,9 @@ typedef int dumper_t(
  * Character device switch table
  */
 struct cdevsw {
+	int		d_maj;
+	u_int		d_flags;
+	const char	*d_name;
 	d_open_t	*d_open;
 	d_close_t	*d_close;
 	d_read_t	*d_read;
@@ -227,12 +230,7 @@ struct cdevsw {
 	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
-	const char	*d_name;	/* base device name, e.g. 'vn' */
-	int		d_maj;
 	dumper_t	*d_dump;
-	void		*__d_unused_was_psize;
-	u_int		d_flags;
-	/* additions below are not binary compatible with 4.2 and below */
 	d_kqfilter_t	*d_kqfilter;
 };
 
