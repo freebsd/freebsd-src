@@ -217,7 +217,7 @@ edit_disklabel(int disk)
 
 	keypad(window, TRUE);
     
-	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
+	draw_box(window, 0, 0, LINES, COLS, dialog_attr, border_attr);
 
 	/* Only one toggle to set up */
 	for (i=0; i < MAXPARTITIONS; i++)
