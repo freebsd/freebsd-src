@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.33 1995/07/31 08:25:36 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.34 1995/08/05 17:32:53 gibbs Exp $
  */
 /*
  * TODO:
@@ -2568,7 +2568,7 @@ ahc_scb_timeout(unit, ahc, scb)
 			outsb(SCBARRAY+iobase,scb,SCB_DOWN_SIZE);
 			outb(SCBCNT + iobase, 0);
 			ahc_add_waiting_scb(iobase, scb, list_second);
-			timeout(ahc_timeout, (caddr_t)active_scbp, 
+			timeout(ahc_timeout, (caddr_t)scb, 
 				(2 * hz) / 1000);
 #ifdef AHC_DEBUG
 			if(ahc_debug & AHC_SHOWABORTS) {
