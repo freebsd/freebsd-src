@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id: ufs_lookup.c,v 1.2 1994/08/02 07:54:58 davidg Exp $
+ * $Id: ufs_lookup.c,v 1.3 1994/10/08 06:57:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -145,6 +145,9 @@ ufs_lookup(ap)
 	error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc);
 	if (error)
 		return (error);
+	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
