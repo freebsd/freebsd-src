@@ -17,18 +17,20 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.24 1997/11/09 14:18:50 brian Exp $
+ * $Id: route.c,v 1.25 1997/11/11 22:58:13 brian Exp $
  *
  */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <net/if.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if_dl.h>
 
 #include <errno.h>
 #include <machine/endian.h>
@@ -141,57 +143,108 @@ OsSetRoute(int cmd,
 }
 
 static void
-p_sockaddr(struct sockaddr * sa, int width)
+p_sockaddr(struct sockaddr *phost, struct sockaddr *pmask, int width)
 {
-  if (VarTerm) {
-    register char *cp;
-    register struct sockaddr_in *sock_in = (struct sockaddr_in *) sa;
+  char buf[29], *cp;
+  struct sockaddr_in *ihost = (struct sockaddr_in *)phost;
+  struct sockaddr_in *mask = (struct sockaddr_in *)pmask;
+  struct sockaddr_dl *dl = (struct sockaddr_dl *)phost;
 
-    cp = (sock_in->sin_addr.s_addr == 0) ? "default" :
-      inet_ntoa(sock_in->sin_addr);
-    fprintf(VarTerm, "%-*.*s ", width, width, cp);
+  switch (phost->sa_family) {
+  case AF_INET:
+    if (!phost)
+      cp = "";
+    else if (ihost->sin_addr.s_addr == INADDR_ANY)
+      cp = "default";
+    else if (!mask) 
+      cp = inet_ntoa(ihost->sin_addr);
+    else {
+      u_int msk = ntohl(mask->sin_addr.s_addr);
+      u_int tst;
+      int bits;
+      int len;
+      struct sockaddr_in net;
+
+      for (tst = 1, bits=32; tst; tst <<= 1, bits--)
+        if (msk & tst)
+          break;
+
+      for (tst <<=1; tst; tst <<= 1)
+        if (!(msk & tst))
+          break;
+
+      net.sin_addr.s_addr = ihost->sin_addr.s_addr & mask->sin_addr.s_addr;
+      sprintf(buf, "%s", inet_ntoa(net.sin_addr));
+      for (len = strlen(buf); len > 3; buf[len-=2] = '\0')
+        if (strcmp(buf+len-2, ".0"))
+          break;
+
+      if (tst)    /* non-contiguous :-( */
+        sprintf(buf+strlen(buf),"&0x%08x", msk);
+      else
+        sprintf(buf+strlen(buf), "/%d", bits);
+      cp = buf;
+    }
+    break;
+
+  case AF_LINK:
+    if (!dl)
+      cp = "";
+    else if (dl->sdl_nlen == 0 && dl->sdl_alen == 0 && dl->sdl_slen == 0) {
+      sprintf(buf, "link#%d", dl->sdl_index);
+      cp = buf;
+    } else if (dl->sdl_type == IFT_ETHER && dl->sdl_alen &&
+               dl->sdl_alen < sizeof(buf)/3) {
+      int f;
+      u_char *MAC;
+
+      MAC = (u_char *)dl->sdl_data + dl->sdl_nlen;
+      for (f = 0; f < dl->sdl_alen; f++)
+        sprintf(buf+f*3, "%02x:", MAC[f]);
+      buf[f*3-1] = '\0';
+      cp = buf;
+    } else
+      cp = "???";
+    break;
+
+  default:
+    cp = "???";
+    break;
   }
+
+  fprintf(VarTerm, "%-*s ", width-1, cp);
 }
 
 struct bits {
-  short b_mask;
+  u_long b_mask;
   char b_val;
-}    bits[] = {
+} bits[] = {
 
-  {
-    RTF_UP, 'U'
-  },
-  {
-    RTF_GATEWAY, 'G'
-  },
-  {
-    RTF_HOST, 'H'
-  },
-  {
-    RTF_DYNAMIC, 'D'
-  },
-  {
-    RTF_MODIFIED, 'M'
-  },
-  {
-    RTF_CLONING, 'C'
-  },
-  {
-    RTF_XRESOLVE, 'X'
-  },
-  {
-    RTF_LLINFO, 'L'
-  },
-  {
-    RTF_REJECT, 'R'
-  },
-  {
-    0
-  }
+  { RTF_UP, 'U' },
+  { RTF_GATEWAY, 'G' },
+  { RTF_HOST, 'H' },
+  { RTF_REJECT, 'R' },
+  { RTF_DYNAMIC, 'D' },
+  { RTF_MODIFIED, 'M' },
+  { RTF_DONE, 'd' },
+  { RTF_CLONING, 'C' },
+  { RTF_XRESOLVE, 'X' },
+  { RTF_LLINFO, 'L' },
+  { RTF_STATIC, 'S' },
+  { RTF_PROTO1, '1' },
+  { RTF_PROTO2, '2' },
+  { RTF_BLACKHOLE, 'B' },
+#ifdef __FreeBSD__
+  { RTF_WASCLONED, 'W' },
+  { RTF_PRCLONING, 'c' },
+  { RTF_PROTO3, '3' },
+  { RTF_BROADCAST, 'b' },
+#endif
+  { 0, '\0' }
 };
 
 static void
-p_flags(int f, char *format)
+p_flags(u_long f, char *format)
 {
   if (VarTerm) {
     char name[33], *flags;
@@ -205,16 +258,79 @@ p_flags(int f, char *format)
   }
 }
 
+static char *
+Index2Nam(int idx)
+{
+  static char ifs[50][6];
+  static int nifs;
+
+  if (!nifs) {
+    int mib[6], needed, len;
+    char *buf, *ptr, *end;
+    struct if_msghdr *n;
+    struct sockaddr_dl *dl;
+    struct if_msghdr *ifm;
+
+    mib[0] = CTL_NET;
+    mib[1] = PF_ROUTE;
+    mib[2] = 0;
+    mib[3] = 0;
+    mib[4] = NET_RT_IFLIST;
+    mib[5] = 0;
+
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+      LogPrintf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
+      return "???";
+    }
+    if ((buf = malloc(needed)) == NULL)
+      return "???";
+    if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+      free(buf);
+      return "???";
+    }
+    end = buf + needed;
+
+    ptr = buf;
+    while (ptr < end) {
+      ifm = (struct if_msghdr *)ptr;
+
+      if (ifm->ifm_type != RTM_IFINFO) {
+        free(buf);
+        return "???";
+      }
+      dl = (struct sockaddr_dl *)(ifm + 1);
+      ptr += ifm->ifm_msglen;
+      while (ptr < end) {
+        n = (struct if_msghdr *)ptr;
+        if (n->ifm_type != RTM_NEWADDR)
+          break;
+        ptr += n->ifm_msglen;
+      }
+      if ((len = dl->sdl_nlen) > sizeof(ifs[0])-1)
+        len = sizeof(ifs[0])-1;
+      strncpy(ifs[nifs], dl->sdl_data, len);
+      ifs[nifs++][len] = '\0';
+      if (nifs == sizeof(ifs)/sizeof(ifs[0]))
+        break;
+    }
+    free(buf);
+  }
+
+#ifdef __FreeBSD__
+  idx--;	/* We start at 1, not 0 */
+#endif
+  if (idx < 0 || idx >= nifs)
+    return "???";
+  return ifs[idx];
+}
+
 int
 ShowRoute()
 {
   struct rt_msghdr *rtm;
-  struct sockaddr *sa;
-  char *sp, *ep, *cp;
-  u_char *wp;
-  int *lp;
-  int needed, nb;
-  u_long mask;
+  struct sockaddr *sa_dst, *sa_gw, *sa_mask;
+  char *sp, *ep, *cp, *wp;
+  int needed;
   int mib[6];
 
   if (!VarTerm)
@@ -242,35 +358,34 @@ ShowRoute()
   }
   ep = sp + needed;
 
+  fprintf(VarTerm, "%-20s%-20sFlags  Netif\n", "Destination", "Gateway");
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *) cp;
-    sa = (struct sockaddr *) (rtm + 1);
-    mask = 0xffffffff;
-    if (rtm->rtm_addrs == RTA_DST)
-      p_sockaddr(sa, 36);
-    else {
-      wp = (u_char *) cp + rtm->rtm_msglen;
-      p_sockaddr(sa, 16);
-      if (sa->sa_len == 0)
-	sa->sa_len = sizeof(long);
-      sa = (struct sockaddr *) (sa->sa_len + (char *) sa);
-      p_sockaddr(sa, 18);
-      lp = (int *) (sa->sa_len + (char *) sa);
-      if ((char *) lp < (char *) wp && *lp) {
-	LogPrintf(LogDEBUG, " flag = %x, rest = %d\n", rtm->rtm_flags, *lp);
-	wp = (u_char *) (lp + 1);
-	mask = 0;
-	for (nb = *(char *) lp; nb > 4; nb--) {
-	  mask <<= 8;
-	  mask |= *wp++;
-	}
-	for (nb = 8 - *(char *) lp; nb > 0; nb--)
-	  mask <<= 8;
-      }
-    }
-    fprintf(VarTerm, "0x%08lx  ", mask);
-    p_flags(rtm->rtm_flags & (RTF_UP | RTF_GATEWAY | RTF_HOST), "%-6.6s ");
-    fprintf(VarTerm, "(%d)\n", rtm->rtm_index);
+    wp = (char *)(rtm+1);
+
+    if (rtm->rtm_addrs & RTA_DST) {
+      sa_dst = (struct sockaddr *)wp;
+      wp += sa_dst->sa_len;
+    } else
+      sa_dst = NULL;
+
+    if (rtm->rtm_addrs & RTA_GATEWAY) {
+      sa_gw = (struct sockaddr *)wp;
+      wp += sa_gw->sa_len;
+    } else
+      sa_gw = NULL;
+
+    if (rtm->rtm_addrs & RTA_NETMASK) {
+      sa_mask = (struct sockaddr *)wp;
+      wp += sa_mask->sa_len;
+    } else
+      sa_mask = NULL;
+
+    p_sockaddr(sa_dst, sa_mask, 20);
+    p_sockaddr(sa_gw, NULL, 20);
+
+    p_flags(rtm->rtm_flags, "%-6.6s ");
+    fprintf(VarTerm, "%s\n", Index2Nam(rtm->rtm_index));
   }
   free(sp);
   return 0;
@@ -284,11 +399,9 @@ DeleteIfRoutes(int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
-  struct in_addr dstnet, gateway, maddr;
+  struct in_addr sa_dst, sa_gw, sa_mask;
   int needed;
   char *sp, *cp, *ep;
-  u_long mask;
-  int *lp, nb;
   u_char *wp;
   int mib[6];
 
@@ -323,111 +436,53 @@ DeleteIfRoutes(int all)
   for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
     rtm = (struct rt_msghdr *) cp;
     sa = (struct sockaddr *) (rtm + 1);
-    LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, index: %d, flags: %x,"
-	      " dstnet: %s\n",
-	      rtm->rtm_addrs, rtm->rtm_index, rtm->rtm_flags,
+    LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, Netif: %d (%s), flags: %x,"
+	      " dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
+              Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	      inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
-    if (rtm->rtm_addrs != RTA_DST &&
-	(rtm->rtm_index == IfIndex) &&
+    if (rtm->rtm_addrs & RTA_DST && rtm->rtm_addrs & RTA_GATEWAY &&
+	rtm->rtm_index == IfIndex &&
 	(all || (rtm->rtm_flags & RTF_GATEWAY))) {
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it\n");
-      dstnet = ((struct sockaddr_in *) sa)->sin_addr;
+      sa_dst.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
       wp = (u_char *) cp + rtm->rtm_msglen;
-      if (sa->sa_len == 0)
-	sa->sa_len = sizeof(long);
-      sa = (struct sockaddr *) (sa->sa_len + (char *) sa);
-      gateway = ((struct sockaddr_in *) sa)->sin_addr;
-      lp = (int *) (sa->sa_len + (char *) sa);
-      mask = 0;
-      if ((char *) lp < (char *) wp && *lp) {
-	LogPrintf(LogDEBUG, "DeleteIfRoutes: flag = %x, rest = %d\n",
-		  rtm->rtm_flags, *lp);
-	wp = (u_char *) (lp + 1);
-	for (nb = *lp; nb > 4; nb--) {
-	  mask <<= 8;
-	  mask |= *wp++;
-	}
-	for (nb = 8 - *lp; nb > 0; nb--)
-	  mask <<= 8;
-      }
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Dst: %s\n", inet_ntoa(dstnet));
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Gw: %s\n", inet_ntoa(gateway));
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Index: %d\n", rtm->rtm_index);
-      if (dstnet.s_addr == INADDR_ANY)
-	mask = INADDR_ANY;
-      maddr.s_addr = htonl(mask);
-      OsSetRoute(RTM_DELETE, dstnet, gateway, maddr);
+      sa = (struct sockaddr *)((char *)sa + sa->sa_len);
+      if (sa->sa_family == AF_INET) {
+        LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it\n");
+        sa_gw.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
+        sa = (struct sockaddr *)((char *)sa + sa->sa_len);
+        if (rtm->rtm_addrs & RTA_NETMASK)
+          sa_mask.s_addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
+        else
+          sa_mask.s_addr = 0xffffffff;
+        if (sa_dst.s_addr == INADDR_ANY)
+	  sa_mask.s_addr = INADDR_ANY;
+        LogPrintf(LogDEBUG, "DeleteIfRoutes: Dst: %s\n", inet_ntoa(sa_dst));
+        LogPrintf(LogDEBUG, "DeleteIfRoutes: Gw: %s\n", inet_ntoa(sa_gw));
+        LogPrintf(LogDEBUG, "DeleteIfRoutes: Index: %d\n", rtm->rtm_index);
+        OsSetRoute(RTM_DELETE, sa_dst, sa_gw, sa_mask);
+      } else
+        LogPrintf(LogDEBUG, "DeleteIfRoutes: Can't remove an AF_LINK !\n");
     }
   }
   free(sp);
 }
 
- /*
-  * 960603 - Modified to use dynamic buffer allocator as in ifconfig
-  */
-
 int
 GetIfIndex(char *name)
 {
-  char *buffer;
-  struct ifreq *ifrp;
-  int s, len, elen, newIfIndex;
-  struct ifconf ifconfs;
+  int idx;
+  char *got;
 
-  /* struct ifreq reqbuf[256]; -- obsoleted :) */
-  int oldbufsize, bufsize = sizeof(struct ifreq);
+#ifdef __FreeBSD__
+  idx = 1;	/* We start at 1, not 0 */
+#else
+  idx = 0;
+#endif
 
-  s = socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    LogPrintf(LogERROR, "GetIfIndex: socket(): %s\n", strerror(errno));
-    return (-1);
-  }
-  buffer = malloc(bufsize);	/* allocate first buffer */
-  ifconfs.ifc_len = bufsize;	/* Initial setting */
-
-  /*
-   * Iterate through here until we don't get many more data
-   */
-
-  do {
-    oldbufsize = ifconfs.ifc_len;
-    bufsize += 1 + sizeof(struct ifreq);
-    buffer = realloc((void *) buffer, bufsize);	/* Make it bigger */
-    LogPrintf(LogDEBUG, "GetIfIndex: Growing buffer to %d\n", bufsize);
-    ifconfs.ifc_len = bufsize;
-    ifconfs.ifc_buf = buffer;
-    if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
-      LogPrintf(LogERROR, "GetIfIndex: ioctl(SIOCGIFCONF): %s\n",
-		strerror(errno));
-      close(s);
-      free(buffer);
-      return (-1);
-    }
-  } while (ifconfs.ifc_len > oldbufsize);
-
-  ifrp = ifconfs.ifc_req;
-
-  newIfIndex = 1;
-  for (len = ifconfs.ifc_len; len > 0; len -= sizeof(struct ifreq)) {
-    elen = ifrp->ifr_addr.sa_len - sizeof(struct sockaddr);
-    if (ifrp->ifr_addr.sa_family == AF_LINK) {
-      LogPrintf(LogDEBUG, "GetIfIndex: %d: %-*.*s, %d, %d\n",
-		newIfIndex, IFNAMSIZ, IFNAMSIZ, ifrp->ifr_name,
-		ifrp->ifr_addr.sa_family, elen);
-      if (strcmp(ifrp->ifr_name, name) == 0) {
-	IfIndex = newIfIndex;
-	close(s);
-	free(buffer);
-	return (newIfIndex);
-      }
-      newIfIndex++;
-    }
-    len -= elen;
-    ifrp = (struct ifreq *) ((char *) ifrp + elen);
-    ifrp++;
-  }
-
-  close(s);
-  free(buffer);
-  return (-1);
+  while (strcmp(got = Index2Nam(idx), "???"))
+    if (!strcmp(got, name))
+      return IfIndex = idx;
+    else
+      idx++;
+  return -1;
 }
