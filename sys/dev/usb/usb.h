@@ -1,5 +1,5 @@
 /*	$NetBSD: usb.h,v 1.17 1999/01/03 01:09:18 augustss Exp $	*/
-/*	FreeBSD $Id: usb.h,v 1.6 1999/01/07 23:31:37 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -141,11 +141,17 @@ typedef struct {
 #define UR_SET_FEATURE		0x03
 #define UR_SET_ADDRESS		0x05
 #define UR_GET_DESCRIPTOR	0x06
-#define  UDESC_DEVICE		1
-#define  UDESC_CONFIG		2
-#define  UDESC_STRING		3
-#define  UDESC_INTERFACE	4
-#define  UDESC_ENDPOINT		5
+#define  UDESC_DEVICE		0x01		/* descriptor types */
+#define  UDESC_CONFIG		0x02
+#define  UDESC_STRING		0x03
+#define  UDESC_INTERFACE	0x04
+#define  UDESC_ENDPOINT		0x05
+#define  UDESC_CS_DEVICE	0x21		/* class specific */
+#define  UDESC_CS_CONFIG	0x22
+#define  UDESC_CS_STRING	0x23
+#define  UDESC_CS_INTERFACE	0x24
+#define  UDESC_CS_ENDPOINT	0x25
+#define  UDESC_HUB		0x29
 #define UR_SET_DESCRIPTOR	0x07
 #define UR_GET_CONFIG		0x08
 #define UR_SET_CONFIG		0x09
@@ -217,11 +223,13 @@ typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uByte		bEndpointAddress;
-#define UE_IN		0x80
-#define UE_OUT		0x00
+#define UE_DIR		0x80	/* mask */
+#define  UE_IN		0x80
+#define  UE_OUT		0x00
 #define UE_ADDR		0x0f
 #define UE_GET_ADDR(a)	((a) & UE_ADDR)
-#define UE_GET_IN(a)	(((a) >> 7) & 1)
+#define UE_GET_IN(a)	(((a) >> 7) & 1)	/* XXX should be removed */
+#define UE_GET_DIR(a)	((a) & UE_DIR)
 	uByte		bmAttributes;
 #define UE_XFERTYPE	0x03
 #define  UE_CONTROL	0x00
@@ -321,30 +329,54 @@ typedef struct {
 #define UPS_C_PORT_RESET		0x0010
 } usb_port_status_t;
 
-#define UDESC_CS_DEVICE		0x21
-#define UDESC_CS_CONFIG		0x22
-#define UDESC_CS_STRING		0x23
-#define UDESC_CS_INTERFACE	0x24
-#define UDESC_CS_ENDPOINT	0x25
-
-#define UDESC_HUB		0x29
-
-#define UCLASS_UNSPEC		0
-#define UCLASS_AUDIO		1
+#define UCLASS_UNSPEC		0	/* Unspecified */
+#define UCLASS_AUDIO		1	/* Audio */
 #define  USUBCLASS_AUDIOCONTROL	1
 #define  USUBCLASS_AUDIOSTREAM	2
-#define UCLASS_CDC		2 /* communication */
+#define UCLASS_CDC		2	/* Communication */
+#define  USUBCLASS_DIRECT_LINE_CONTROL_MODEL	1
 #define  USUBCLASS_ABSTRACT_CONTROL_MODEL	2
-#define   UPROTO_CDC_AT		1
-#define UCLASS_HID		3
+#define  USUBCLASS_TELEPHONE_CONTROL_MODEL	3
+#define  USUBCLASS_MULTICHANNEL_CONTROL_MODEL	/*TBD*/
+#define  USUBCLASS_CAPI_CONTROL_MODEL		/*TBD*/
+#define  USUBCLASS_ETHERNET_CONTROL_MODEL	/*TBD*/
+#define  USUBCLASS_ATM_CONTROL_MODEL		/*TBD*/
+#define   UPROTO_CDC_NONE	0	/* No class spec. protocol required */
+#define   UPROTO_CDC_AT		1	/* V25.ter (AT commands) */
+#define UCLASS_HID		3	/* Human Interface Device */
 #define  USUBCLASS_BOOT	 	1
-#define UCLASS_PRINTER		7
+#define UCLASS_PRINTER		7	/* Printer/Parallel Port */
 #define  USUBCLASS_PRINTER	1
-#define  UPROTO_PRINTER_UNI	1
-#define  UPROTO_PRINTER_BI	2
-#define UCLASS_HUB		9
+#define  UPROTO_PRINTER_UNI	1	/* Unidirectional */
+#define  UPROTO_PRINTER_BI	2	/* Bidirectional */
+#define UCLASS_MASS		8	/* Mass Storage */
+#define  USUBCLASS_RBC		1	/* Reduced Block comm. (e.g. Flash ) */
+#define  USUBCLASS_SFF8020I	2	/* (e.g. CD ROM) */
+#define  USUBCLASS_QIC157	3	/* (e.g. tape drives) */
+#define  USUBCLASS_UFI		4	/* (e.g. floppy drives) */
+#define  USUBCLASS_SFF8070I	5	/* (e.g. floppy drives) */
+#define  USUBCLASS_SCSI		6	/* SCSI transparent comman set */
+#define  UPROTO_MASS_CBI_I	0	/* CBI protocol with comm. compl. int */
+#define  UPROTO_MASS_CBI	1	/* CBI protocol */
+#define  UPROTO_MASS_BULK	/*TBD*/	/ * Bulk only transport * /
+#define UCLASS_HUB		9	/* Hub */
 #define  USUBCLASS_HUB		0
-#define UCLASS_DATA		10
+#define UCLASS_DATA		10	/* Data pipe for CDC */
+#define  USUBCLASS_DATA		0
+#define   UPROTO_DATA_NONE	0
+#define   UPROTO_DATA_ISDNBRI		0x30	/* Physical iface ISDN BRI */
+#define   UPROTO_DATA_HDLC		0x31	/* HDLC */
+#define   UPROTO_DATA_TRANSPARENT	0x32	/* Transparent */
+#define   UPROTO_DATA_Q921M		0x50	/* Management for Q921 */
+#define   UPROTO_DATA_Q921		0x51	/* Data for Q921 */
+#define   UPROTO_DATA_Q921TM		0x52	/* TEI multiplexer for Q921 */
+#define   UPROTO_DATA_V42BIS		0x90	/* Data compression */	
+#define   UPROTO_DATA_Q931		0x91	/* Euro-ISDN */
+#define   UPROTO_DATA_V120		0x92	/* V.24 rate adaption */
+#define   UPROTO_DATA_CAPI		0x93	/* CAPI 2.0 commands */
+#define   UPROTO_DATA_HOST_BASED	0xfd	/* Host based driver */
+#define   UPROTO_DATA_PUF		0xfe	/* see Prot. Unit Func. Desc. */
+#define   UPROTO_DATA_VENDOR		0xff	/* Vendor specific */
 
 #define USB_HUB_MAX_DEPTH 5
 
@@ -363,7 +395,7 @@ typedef struct {
 #define USB_SET_ADDRESS_SETTLE	2   /* ms */
 #else
 /* Allow for marginal (i.e. non-conforming) devices. */
-#define USB_PORT_RESET_DELAY	20  /* ms */
+#define USB_PORT_RESET_DELAY	50  /* ms */
 #define USB_PORT_RESET_RECOVERY	50  /* ms */
 #define USB_PORT_POWERUP_DELAY	200 /* ms */
 #define USB_SET_ADDRESS_SETTLE	10  /* ms */

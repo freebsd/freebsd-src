@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi.h,v 1.16 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi.h,v 1.4 1999/01/07 23:31:43 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -96,6 +96,7 @@ typedef enum {
 	USBD_INTERRUPTED,
 
 	USBD_XXX,
+#define	USBD_ERROR_MAX		21	/* used for usbd_error_strs */
 } usbd_status;
 
 typedef int usbd_lock_token;
@@ -177,13 +178,13 @@ usbd_status usbd_interface_count
 	__P((usbd_device_handle dev, u_int8_t *count));
 #if 0
 u_int8_t usbd_bus_count __P((void));
-#endif
 usbd_status usbd_get_bus_handle __P((u_int8_t index, usbd_bus_handle *bus));
 usbd_status usbd_get_root_hub 
 	__P((usbd_bus_handle bus, usbd_device_handle *dev));
 usbd_status usbd_port_count __P((usbd_device_handle hub, u_int8_t *nports));
 usbd_status usbd_hub2device_handle
 	__P((usbd_device_handle hub, u_int8_t port, usbd_device_handle *dev));
+#endif
 usbd_status usbd_request2pipe_handle
 	__P((usbd_request_handle reqh, usbd_pipe_handle *pipe));
 usbd_status usbd_pipe2interface_handle
@@ -217,11 +218,11 @@ usbd_status usbd_open_pipe_iso
 	     usbd_private_handle priv, u_int32_t bufsize, u_int32_t nbuf,
 	     usbd_callback));
 usbd_status usbd_do_request 
-	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
+	__P((usbd_device_handle dev, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_async
-	__P((usbd_device_handle pipe, usb_device_request_t *req, void *data));
+	__P((usbd_device_handle dev, usb_device_request_t *req, void *data));
 usbd_status usbd_do_request_flags
-	__P((usbd_device_handle pipe, usb_device_request_t *req, 
+	__P((usbd_device_handle dev, usb_device_request_t *req, 
 	     void *data, u_int16_t flags, int *));
 usb_interface_descriptor_t *usbd_get_interface_descriptor
 	__P((usbd_interface_handle iface));
@@ -242,6 +243,9 @@ usb_interface_descriptor_t *usbd_find_idesc
 usb_endpoint_descriptor_t *usbd_find_edesc
 	__P((usb_config_descriptor_t *cd, int ifaceidx, int altidx, 
 	     int endptidx));
+
+char * usbd_errstr(usbd_status err);
+
 
 void usbd_dopoll __P((usbd_interface_handle));
 void usbd_set_polling __P((usbd_interface_handle iface, int on));
@@ -332,7 +336,7 @@ usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
 #if defined(__FreeBSD__)
 int usbd_driver_load    __P((module_t mod, int what, void *arg));
 void usbd_device_set_desc __P((device_t device, char *devinfo));
-char *usbd_devname(bdevice *bdev);
+char *usbd_devname(bdevice bdev);
 bus_print_child_t usbd_print_child;
 #endif
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.16 1999/01/10 19:13:15 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -38,6 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * USB spec: http://www.usb.org/cgi-usb/mailmerge.cgi/home/usb/docs/developers/cgiform.tpl
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -56,11 +60,10 @@
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#ifdef UHUB_DEBUG
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int	usbdebug;
-extern char 	*usbd_error_strs[];
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -75,11 +78,11 @@ struct uhub_softc {
 };
 
 usbd_status uhub_init_port __P((struct usbd_port *));
-void uhub_disconnect __P((struct usbd_port *up));
+void uhub_disconnect_port __P((struct usbd_port *up));
 usbd_status uhub_explore __P((usbd_device_handle hub));
 void uhub_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 
-/*void uhub_disco __P((void *));*/
+/* void uhub_disco __P((void *)); */
 
 USB_DECLARE_DRIVER(uhub);
 
@@ -143,8 +146,8 @@ USB_ATTACH(uhub)
 
 	r = usbd_set_config_index(dev, 0, 1);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("%s: configuration failed, error=%d(%s)\n",
-			 USBDEVNAME(sc->sc_dev), r, usbd_error_strs[r]));
+		DPRINTF(("%s: configuration failed, %s\n",
+			 USBDEVNAME(sc->sc_dev), usbd_errstr(r)));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -168,8 +171,8 @@ USB_ATTACH(uhub)
 		r = usbd_do_request(dev, &req, &hubdesc);
 	}
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("%s: getting hub descriptor failed, error=%d(%s)\n",
-			 USBDEVNAME(sc->sc_dev), r, usbd_error_strs[r]));
+		DPRINTF(("%s: getting hub descriptor failed, %s\n",
+			 USBDEVNAME(sc->sc_dev), usbd_errstr(r)));
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -252,17 +255,8 @@ static int
 uhub_detach(device_t self)
 {
 	struct uhub_softc *sc = device_get_softc(self);
-	int nports = sc->sc_hub->hub->hubdesc.bNbrPorts;
-	int p;
-
-	for (p = 0; p < nports; p++) {
-		struct usbd_port *up = &sc->sc_hub->hub->ports[p];
-		if (up->device)
-			uhub_disconnect(up);
-	}
-
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	free(sc->sc_hub->hub, M_USB);
-
 	return 0;
 }
 #endif
@@ -336,9 +330,8 @@ uhub_explore(dev)
 		up = &dev->hub->ports[port-1];
 		r = usbd_get_port_status(dev, port, &up->status);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("uhub_explore: get port status failed, "
-				 "error=%d(%s)\n",
-				 r, usbd_error_strs[r]));
+			DPRINTF(("uhub_explore: get port %d status failed, %s\n",
+				 port, usbd_errstr(r)));
 			continue;
 		}
 		status = UGETW(up->status.wPortStatus);
@@ -348,18 +341,16 @@ uhub_explore(dev)
 		if (change & UPS_C_PORT_ENABLED) {
 			usbd_clear_port_feature(dev, port, UHF_C_PORT_ENABLE);
 			if (status & UPS_PORT_ENABLED) {
-				printf("%s: illegal enable change, port %d\n",
+				printf("%s: port %d illegal enable change\n",
 				       USBDEVNAME(sc->sc_dev), port);
 			} else {
 				/* Port error condition. */
 				if (up->restartcnt++ < USBD_RESTART_MAX) {
-					printf("%s: port error, restarting "
-					       "port %d\n",
+					printf("%s: port %d error, restarting\n",
 					       USBDEVNAME(sc->sc_dev), port);
 					goto disco;
 				} else {
-					printf("%s: port error, giving up "
-					       "port %d\n",
+					printf("%s: port %d error, giving up\n",
 					       USBDEVNAME(sc->sc_dev), port);
 				}
 			}
@@ -387,7 +378,7 @@ uhub_explore(dev)
 			DPRINTF(("uhub_explore: device %d disappeared "
 				 "on port %d\n", 
 				 up->device->address, port));
-			uhub_disconnect(up);
+			uhub_disconnect_port(up);
 			usbd_clear_port_feature(dev, port, 
 						UHF_C_PORT_CONNECTION);
 		}
@@ -411,8 +402,8 @@ uhub_explore(dev)
 				    port, up);
 		/* XXX retry a few times? */
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTFN(-1,("uhub_explore: usb_new_device failed, "
-				     "error=%d(%s)\n", r, usbd_error_strs[r]));
+			DPRINTFN(-1,("uhub_explore: usb_new_device failed, %s\n",
+				     usbd_errstr(r)));
 			/* Avoid addressing problems by disabling. */
 			/* usbd_reset_port(dev, port, &up->status); */
 /* XXX
@@ -424,7 +415,7 @@ uhub_explore(dev)
 			if (r == USBD_SET_ADDR_FAILED || 1) {/* XXX */
 				/* The unit refused to accept a new
 				 * address, and since we cannot leave
-				 * at 0 we have to disable the port
+				 * it at 0 we have to disable the port
 				 * instead. */
 				printf("%s: device problem, disabling "
 				       "port %d\n",
@@ -443,20 +434,29 @@ uhub_explore(dev)
 }
 
 void
-uhub_disconnect(up)
+uhub_disconnect_port(up)
 	struct usbd_port *up;
 {
 	usbd_device_handle dev = up->device;
 	usbd_pipe_handle p, n;
 	int i;
-	struct softc { bdevice sc_dev; }; /* all softc begin like this */
+	struct softc {		/* all softc begin like this */
+		bdevice sc_dev;
+	};
+	struct softc *sc;
+	struct softc *scp;
 
-	DPRINTFN(3,("uhub_disconnect: up=%p dev=%p port=%d\n", 
+	if (!dev) 		/* no device driver attached at port */
+		return;
+
+	sc = (struct softc *)dev->softc;
+	scp = (struct softc *)up->parent->softc;
+
+	DPRINTFN(3,("uhub_disconnect_port: up=%p dev=%p port=%d\n", 
 		    up, dev, up->portno));
 
 	printf("%s: at %s port %d (addr %d) disconnected\n",
-	       USBDEVNAME(((struct softc *)dev->softc)->sc_dev),
-	       USBDEVNAME(((struct uhub_softc *)up->parent->softc)->sc_dev),
+	       USBDEVNAME(sc->sc_dev), USBDEVNAME(scp->sc_dev),
 	       up->portno, dev->address);
 
 	if (!dev->cdesc) {
@@ -466,13 +466,12 @@ uhub_disconnect(up)
 		return;
 	}
 
+	/* Remove the device */
 	for (i = 0; i < dev->cdesc->bNumInterface; i++) {
 		for (p = LIST_FIRST(&dev->ifaces[i].pipes); p; p = n) {
 			n = LIST_NEXT(p, next);
 			if (p->disco)
 				p->disco(p->discoarg);
-			usbd_abort_pipe(p);
-			usbd_close_pipe(p);
 		}
 	}
 
@@ -486,18 +485,25 @@ uhub_disconnect(up)
 		for(p = 0; p < nports; p++) {
 			rup = &dev->hub->ports[p];
 			if (rup->device)
-				uhub_disconnect(rup);
+				uhub_disconnect_port(rup);
+		}
+	}
+#if defined(__FreeBSD__)
+	device_delete_child(scp->sc_dev, sc->sc_dev);
+#endif
+
+	/* clean up the kitchen */
+	for (i = 0; i < dev->cdesc->bNumInterface; i++) {
+		for (p = LIST_FIRST(&dev->ifaces[i].pipes); p; p = n) {
+			n = LIST_NEXT(p, next);
+			usbd_abort_pipe(p);
+			usbd_close_pipe(p);
 		}
 	}
 
 	dev->bus->devices[dev->address] = 0;
 	up->device = 0;
 	/* XXX free */
-#if defined(__FreeBSD__)
-	device_delete_child(
-		device_get_parent(((struct softc *)dev->softc)->sc_dev),
-		((struct softc *)dev->softc)->sc_dev);
-#endif
 }
 
 void

@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.10 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.11 1999/01/10 11:13:36 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -38,6 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Printer Class spec: http://www.usb.org/developers/data/usbprn10.pdf
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -67,9 +71,9 @@
 #define	LPTPRI		(PZERO+8)
 #define	ULPT_BSIZE	1024
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ulptdebug) printf x
-#define DPRINTFN(n,x)	if (ulptdebug>(n)) printf x
+#ifdef ULPT_DEBUG
+#define DPRINTF(x)	if (ulptdebug) logprintf x
+#define DPRINTFN(n,x)	if (ulptdebug>(n)) logprintf x
 int	ulptdebug = 1;
 #else
 #define DPRINTF(x)
@@ -191,7 +195,7 @@ USB_ATTACH(ulpt)
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed)
 		goto nobulk;
-	if ((ed->bEndpointAddress & UE_IN) != UE_OUT ||
+	if ((ed->bEndpointAddress & UE_DIR) != UE_OUT ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK) {
 		/* In case we are using a bidir protocol... */
 		ed = usbd_interface2endpoint_descriptor(iface, 1);
@@ -300,11 +304,11 @@ ulptopen(dev, flag, mode, p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
-#if USB_DEBUG && defined(__FreeBSD__)
+#if defined(ULPT_DEBUG) && defined(__FreeBSD__)
 	/* Ignoring these flags might not be a good idea */
-	if ((flags ^ ULPT_NOPRIME) != 0)
-		DPRINTF(("flags ignored: %b\n", flags,
-			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS"));
+	if ((flags & ~ULPT_NOPRIME) != 0)
+		printf("ulptopen: flags ignored: %b\n", flags,
+			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS");
 #endif
 	if ((flags & ULPT_NOPRIME) == 0)
 		ulpt_reset(sc);
@@ -369,7 +373,6 @@ ulptclose(dev, flag, mode, p)
 
 	sc->sc_state = 0;
 
-	DPRINTF(("ulptclose: closed\n"));
 	return (0);
 }
 
@@ -386,7 +389,6 @@ ulptwrite(dev, uio, flags)
 	usbd_status r;
 	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
-	DPRINTF(("ulptwrite\n"));
 	reqh = usbd_alloc_request();
 	if (reqh == 0)
 		return (ENOMEM);
@@ -405,7 +407,7 @@ ulptwrite(dev, uio, flags)
 		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
 		r = usbd_sync_transfer(reqh);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("ulptwrite: error=%d\n", r));
+			DPRINTFN(1, ("ulptwrite: error=%d\n", r));
 			usbd_clear_endpoint_stall(sc->sc_bulkpipe);
 			error = EIO;
 			break;
@@ -437,12 +439,8 @@ ulptioctl(dev, cmd, data, flag, p)
 static int
 ulpt_detach(device_t self)
 {       
-	char *devinfo = (char *) device_get_desc(self);
-
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
-	}
+	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
+	device_set_desc(self, NULL);
 	return 0;
 }
 

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi.c,v 1.20 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi.c,v 1.7 1999/01/07 23:31:42 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -62,8 +62,8 @@
 #endif
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int usbdebug;
 #else
 #define DPRINTF(x)
@@ -85,6 +85,33 @@ static SIMPLEQ_HEAD(, usbd_request) usbd_free_requests;
 
 extern struct cdevsw usb_cdevsw;
 #endif
+
+#ifdef USB_DEBUG
+char *usbd_error_strs[USBD_ERROR_MAX] = {
+	"NORMAL_COMPLETION",
+	"IN_PROGRESS",
+	"PENDING_REQUESTS",
+	"NOT_STARTED",
+	"INVAL",
+	"IS_IDLE",
+	"NOMEM",
+	"CANCELLED",
+	"BAD_ADDRESS",
+	"IN_USE",
+	"INTERFACE_NOT_ACTIVE",
+	"NO_ADDR",
+	"SET_ADDR_FAILED",
+	"NO_POWER",
+	"TOO_DEEP",
+	"IOERROR",
+	"NOT_CONFIGURED",
+	"TIMEOUT",
+	"SHORT_XFER",
+	"STALLED",
+	"XXX",
+};
+#endif
+
 
 usbd_status 
 usbd_open_pipe(iface, address, flags, pipe)
@@ -234,7 +261,11 @@ usbd_alloc_request()
 
 	reqh = SIMPLEQ_FIRST(&usbd_free_requests);
 	if (reqh)
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&usbd_free_requests, next);
+#endif
 	else
 		reqh = malloc(sizeof(*reqh), M_USB, M_NOWAIT);
 	if (!reqh)
@@ -265,15 +296,16 @@ usbd_setup_request(reqh, pipe, priv, buffer, length, flags, timeout, callback)
 			      usbd_status));
 {
 	reqh->pipe = pipe;
-	reqh->isreq = 0;
 	reqh->priv = priv;
 	reqh->buffer = buffer;
 	reqh->length = length;
 	reqh->actlen = 0;
 	reqh->flags = flags;
-	reqh->callback = callback;
+	reqh->timeout = timeout;
 	reqh->status = USBD_NOT_STARTED;
+	reqh->callback = callback;
 	reqh->retries = 1;
+	reqh->isreq = 0;
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -312,8 +344,8 @@ usbd_setup_default_request(reqh, dev, priv, timeout, req, buffer,
 	reqh->status = USBD_NOT_STARTED;
 	reqh->callback = callback;
 	reqh->request = *req;
-	reqh->isreq = 1;
 	reqh->retries = 1;
+	reqh->isreq = 1;
 	return (USBD_NORMAL_COMPLETION);
 }
 
@@ -418,14 +450,14 @@ usbd_abort_pipe(pipe)
 	usbd_pipe_handle pipe;
 {
 	usbd_status r;
-	int s, st;
+	int s, state;
 
 	if (pipe->iface->state != USBD_INTERFACE_ACTIVE)
 		return (USBD_INTERFACE_NOT_ACTIVE);
 	s = splusb();
-	st = pipe->state;
+	state = pipe->state;
 	r = usbd_ar_pipe(pipe);
-	pipe->state = st;
+	pipe->state = state;
 	splx(s);
 	return (r);
 }
@@ -664,9 +696,7 @@ usbd_bus_count()
 {
 	return (usb_bus_count());
 }
-#endif
 
-#if defined(__NetBSD__)
 usbd_status 
 usbd_get_bus_handle(index, bus)
 	u_int8_t index;
@@ -674,7 +704,6 @@ usbd_get_bus_handle(index, bus)
 {
 	return (usb_get_bus_handle(index, bus));
 }
-#endif
 
 usbd_status 
 usbd_get_root_hub(bus, dev)
@@ -708,6 +737,7 @@ usbd_hub2device_handle(dev, port, devp)
 	*devp = dev->hub->ports[port].device;
 	return (USBD_NORMAL_COMPLETION);
 }
+#endif
 
 usbd_status 
 usbd_request2pipe_handle(reqh, pipe)
@@ -892,7 +922,11 @@ usbd_ar_pipe(pipe)
 		reqh = SIMPLEQ_FIRST(&pipe->queue);
 		if (reqh == 0)
 			break;
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+#endif
 		reqh->status = USBD_CANCELLED;
 		if (reqh->callback)
 			reqh->callback(reqh, reqh->priv, reqh->status);
@@ -900,7 +934,11 @@ usbd_ar_pipe(pipe)
 #else
 	while ((reqh = SIMPLEQ_FIRST(&pipe->queue))) {
 		pipe->methods->abort(reqh);
+#if defined(__NetBSD__)
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
+#elif defined(__FreeBSD__)
+		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
+#endif
 	}
 #endif
 	return (USBD_NORMAL_COMPLETION);
@@ -1226,39 +1264,7 @@ usbd_print_child(device_t parent, device_t child)
 int
 usbd_driver_load(module_t mod, int what, void *arg)
 {
-	devclass_t usb_devclass = devclass_find("usb");
-	devclass_t ugen_devclass = devclass_find("ugen");
-	device_t *devlist;
-	int devcount;
-	int error;
-
-	switch (what) { 
-	case MOD_LOAD:
-	case MOD_UNLOAD:
-		if (!usb_devclass)
-			return 0;	/* just ignore call */
-
-		if (ugen_devclass) {
-			/* detach devices from generic driver if possible */
-			error = devclass_get_devices(ugen_devclass, &devlist,
-						     &devcount);
-			if (!error)
-				for (devcount--; devcount >= 0; devcount--)
-					(void)DEVICE_DETACH(devlist[devcount]);
-		}
-
-		error = devclass_get_devices(usb_devclass, &devlist, &devcount);
-		if (error)
-			return 0;	/* XXX maybe transient, or error? */
-
-		for (devcount--; devcount >= 0; devcount--)
-			USB_RECONFIGURE(devlist[devcount]);
-
-		free(devlist, M_TEMP);
-		return 0;
-	}
-
-	return 0;			/* nothing to do by us */
+	return 0;
 }
 
 /* Set the description of the device including a malloc and copy. */
@@ -1273,22 +1279,41 @@ usbd_device_set_desc(device_t device, char *devinfo)
 		desc = malloc(l+1, M_USB, M_NOWAIT);
 		if (desc)
 			memcpy(desc, devinfo, l+1);
-	} else
+	} else {
 		desc = NULL;
+	}
 
 	device_set_desc(device, desc);
 }
 
 char *
-usbd_devname(bdevice *bdev)
+usbd_devname(device_t bdev)
 {
-	static char buf[20];
-	/* XXX a static buffer is not exactly a good idea, but the only
-	 * thing that goes wrong is the string that is being printed
-	 */
+	static char nameunit[10];
 
-	sprintf(buf, "%s%d", device_get_name(*bdev), device_get_unit(*bdev));
-	return (buf);
+	nameunit[9] = '\0';	/* terminate string */
+
+	snprintf(nameunit, 9, "%s%d", 
+		device_get_name(bdev), device_get_unit(bdev));
+
+	return nameunit;
 }
-
 #endif
+
+char *
+usbd_errstr(usbd_status err)
+{
+	static char buffer[5];		/* XXX static buffer */
+
+#ifdef  USB_DEBUG
+	if ( err < USBD_ERROR_MAX ) {
+		return usbd_error_strs[err];
+	} else {
+		snprintf(buffer, 4, "%d", err);
+		return buffer;
+	}
+#else
+	snprintf(buffer, 4, "%d", err);
+	return buffer;
+#endif
+}

@@ -1,5 +1,5 @@
 /*	$NetBSD: ohcivar.h,v 1.4 1998/12/26 12:53:01 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -72,8 +72,8 @@ typedef struct ohci_softc {
 	/* XXX should keep track of all DMA memory */
 
 #elif defined(__FreeBSD__)
-        int             sc_iobase;
-	int             unit;
+	int	sc_iobase;
+	int	unit;
 #endif /* __FreeBSD__ */
 
 	usb_dma_t sc_hccadma;
@@ -105,11 +105,3 @@ int		ohci_intr __P((void *));
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
-#ifdef USB_DEBUG
-#define DPRINTF(x)	if (ohcidebug) printf x
-#define DPRINTFN(n,x)	if (ohcidebug>(n)) printf x
-extern int ohcidebug;
-#else
-#define DPRINTF(x)
-#define DPRINTFN(n,x)
-#endif

@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi_util.c,v 1.13 1999/01/08 11:58:26 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi_util.c,v 1.5 1999/01/07 23:31:43 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -54,8 +54,8 @@
 #include <dev/usb/usbdi_util.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int usbdebug;
 #else
 #define DPRINTF(x)
@@ -76,7 +76,7 @@ usbd_get_desc(dev, type, index, len, desc)
 	USETW2(req.wValue, type, index);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
-	return (usbd_do_request(dev, &req, desc));
+	return (usbd_do_request_flags(dev, &req, desc, USBD_SHORT_XFER_OK, NULL));
 }
 
 usbd_status

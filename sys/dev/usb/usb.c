@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.12 1999/01/10 19:13:16 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -68,6 +68,8 @@ MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
 
 #include "usb_if.h"
+#include "uhci.h"
+#include "ohci.h"
 #endif /* defined(__FreeBSD__) */
 
 #include <dev/usb/usbdi.h>
@@ -75,11 +77,16 @@ MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
 #include <dev/usb/usb_quirks.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 int	usbdebug = 1;
-int	uhcidebug = 1;
-int	ohcidebug = 1;
+
+#if NUHCI > 0
+extern int uhcidebug;
+#endif
+#if NOHCI > 0
+extern int ohcidebug;
+#endif
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -224,7 +231,13 @@ usbioctl(dev, cmd, data, flag, p)
 	switch (cmd) {
 #ifdef USB_DEBUG
 	case USB_SETDEBUG:
-		usbdebug = uhcidebug = ohcidebug = *(int *)data;
+		usbdebug = *(int *)data;
+#if NUHCI > 0
+		uhcidebug = *(int *)data;
+#endif
+#if NOHCI > 0
+		ohcidebug = *(int *)data;
+#endif
 		break;
 #endif
 	case USB_DISCOVER:
@@ -350,7 +363,7 @@ usb_bus_count()
 }
 #endif
 
-#if defined(__NetBSD__)
+#if 0
 usbd_status
 usb_get_bus_handle(n, h)
 	int n;
@@ -404,14 +417,9 @@ usb_needs_explore(bus)
 int
 usb_detach(device_t self)
 {
-	char *devinfo = (char *) device_get_desc(self);
+	DPRINTF(("%s: unload, prevented\n", USBDEVNAME(self)));
 
-	if (devinfo) {
-		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
-	}
-
-	return (0);
+	return (EINVAL);
 }
 
 DRIVER_MODULE(usb, root, usb_driver, usb_devclass, 0, 0);
