@@ -42,6 +42,7 @@
 
 #include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 #if __REALLY_HAVE_SG
 #include "ati_pcigart.h"

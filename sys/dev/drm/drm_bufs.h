@@ -65,6 +65,16 @@
 #endif
 #endif
 
+#if __REALLY_HAVE_AGP
+int DRM(addbufs_agp)( DRM_OS_IOCTL );
+#endif
+#if __HAVE_PCI_DMA
+int DRM(addbufs_pci)( DRM_OS_IOCTL );
+#endif
+#if __REALLY_HAVE_SG
+int DRM(addbufs_sg)( DRM_OS_IOCTL );
+#endif
+
 /*
  * Compute order.  Can be made faster.
  */
@@ -135,21 +145,6 @@ int DRM(addmap)( DRM_OS_IOCTL )
 	}
 	map->mtrr   = -1;
 	map->handle = 0;
-
-#ifdef __FreeBSD__
-	TAILQ_FOREACH(list, dev->maplist, link) {
-		drm_map_t *entry = list->map;
-		if (        (entry->offset >= map->offset
-			    && (entry->offset) < (map->offset + map->size) )
-			|| ((entry->offset + entry->size) >= map->offset
-			    && (entry->offset + entry->size) < (map->offset + map->size) ) 
-			|| ((entry->offset < map->offset)
-			    && (entry->offset + entry->size) >= (map->offset + map->size) ) )
-			DRM_DEBUG("map collission: add(0x%lx-0x%lx), current(0x%lx-0x%lx)\n", 
-				entry->offset, entry->offset + entry->size - 1,
-				map->offset, map->offset + map->size - 1);
-	}
-#endif /* __FreeBSD__ */
 
 	switch ( map->type ) {
 	case _DRM_REGISTERS:
@@ -973,31 +968,16 @@ int DRM(addbufs)( DRM_OS_IOCTL )
 
 #if __REALLY_HAVE_AGP
 	if ( request.flags & _DRM_AGP_BUFFER )
-#ifdef __linux__
-		return DRM(addbufs_agp)( inode, filp, cmd, data );
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-		return DRM(addbufs_agp)( kdev, cmd, data, flags, p );
-#endif /* __FreeBSD__ */
+		return DRM(addbufs_agp)( IOCTL_ARGS_PASS );
 	else
 #endif
 #if __REALLY_HAVE_SG
 	if ( request.flags & _DRM_SG_BUFFER )
-#ifdef __linux__
-		return DRM(addbufs_sg)( inode, filp, cmd, data );
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-		return DRM(addbufs_sg)( kdev, cmd, data, flags, p );
-#endif /* __FreeBSD__ */
+		return DRM(addbufs_sg)( IOCTL_ARGS_PASS );
 	else
 #endif
 #if __HAVE_PCI_DMA
-#ifdef __linux__
-		return DRM(addbufs_pci)( inode, filp, cmd, data );
-#endif /* __linux__ */
-#ifdef __FreeBSD__
-		return DRM(addbufs_pci)( kdev, cmd, data, flags, p );
-#endif /* __FreeBSD__ */
+		return DRM(addbufs_pci)( IOCTL_ARGS_PASS );
 #else
 		return DRM_OS_ERR(EINVAL);
 #endif
