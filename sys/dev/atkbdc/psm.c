@@ -2176,6 +2176,8 @@ psmsoftintr(void *arg)
 	MOUSE_BUTTON1DOWN,
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN
     };
+    static int touchpad_buttons = 0;
+    static int guest_buttons = 0;
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
     int w, x, y, z;
@@ -2519,20 +2521,42 @@ psmsoftintr(void *arg)
 		w = 4;
 	    }
 
+	    /* Handle packets from the guest device */
+	    if (w == 3 && sc->synhw.capPassthrough) {
+		x = ((pb->ipacket[1] & 0x10) ?
+		    pb->ipacket[4] - 256 : pb->ipacket[4]);
+		y = ((pb->ipacket[1] & 0x20) ?
+		    pb->ipacket[5] - 256 : pb->ipacket[5]);
+		z = 0;
+
+		guest_buttons = 0;
+		if (pb->ipacket[1] & 0x01)
+		    guest_buttons |= MOUSE_BUTTON1DOWN;
+		if (pb->ipacket[1] & 0x04)
+		    guest_buttons |= MOUSE_BUTTON2DOWN;
+		if (pb->ipacket[1] & 0x02)
+		    guest_buttons |= MOUSE_BUTTON3DOWN;
+
+		ms.button = touchpad_buttons | guest_buttons;
+		break;
+	    }
+
 	    /* Button presses */
-	    ms.button = 0;
+	    touchpad_buttons = 0;
 	    if (pb->ipacket[0] & 0x01)
-		ms.button |= MOUSE_BUTTON1DOWN;
+		  touchpad_buttons |= MOUSE_BUTTON1DOWN;
 	    if (pb->ipacket[0] & 0x02)
-		ms.button |= MOUSE_BUTTON3DOWN;
+		  touchpad_buttons |= MOUSE_BUTTON3DOWN;
 
 	    if (sc->synhw.capExtended && sc->synhw.capFourButtons) {
 		if ((pb->ipacket[3] & 0x01) && (pb->ipacket[0] & 0x01) == 0)
-		    ms.button |= MOUSE_BUTTON4DOWN;
+		    touchpad_buttons |= MOUSE_BUTTON4DOWN;
 		if ((pb->ipacket[3] & 0x02) && (pb->ipacket[0] & 0x02) == 0)
-		    ms.button |= MOUSE_BUTTON5DOWN;
+		    touchpad_buttons |= MOUSE_BUTTON5DOWN;
 	    }
 
+	    ms.button = touchpad_buttons | guest_buttons;
+		
 	    /* There is a finger on the pad. */
 	    if ((w >= 4 && w <= 7) && (z >= 16 && z < 200)) {
 		x0 = ((pb->ipacket[3] & 0x10) << 8) |
