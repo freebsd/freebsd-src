@@ -84,7 +84,7 @@ static VAR var[] = {
 	{"cpu", "CPU", NULL, 0, kvar, NULL, 3, KOFF(ki_estcpu), UINT, "d",
 		0},
 	{"cputime", "", "time", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
-	{"etime", "ELAPSED", NULL, USER, elapsed, NULL, 9, 0, CHAR, NULL, 0},
+	{"etime", "ELAPSED", NULL, USER, elapsed, NULL, 12, 0, CHAR, NULL, 0},
 	{"f", "F", NULL, 0, kvar, NULL, 7, KOFF(ki_flag), INT, "x", 0},
 	{"flags", "", "f", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"ignored", "", "sigignore", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
