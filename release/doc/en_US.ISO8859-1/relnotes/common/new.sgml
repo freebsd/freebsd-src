@@ -114,6 +114,16 @@
       module is not enabled in &os; by default.  For more information,
       see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
+
+    <para>A programming error in the
+      <application>sendmail</application> implementation of its
+      <quote>DNS maps</quote> feature has been fixed by the import of
+      a new version of <application>sendmail</application>.  More
+      information can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:11.sendmail.asc">FreeBSD-SA-03:11</ulink>.
+      Note that this feature is not used by the default configuration
+      files shipped with &os;.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -159,6 +169,9 @@
       <title>Network Interface Support</title>
 
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
+
+      <para>The &man.dc.4; driver once again transmits packets
+	correctly through Davicom DC9102 cards.</para>
 
       <para>The proatm driver has been added to support 
         ProSum's ProATM (IDT77252-based) interfaces.  This driver is
