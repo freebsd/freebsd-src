@@ -46,6 +46,9 @@
 
       <itemizedlist>
         <listitem>
+	  <para>Sun Ultra 1 workstations</para>
+	</listitem>
+        <listitem>
 	  <para>Sun Ultra 2 workstations</para>
 	</listitem>
         <listitem>
@@ -55,16 +58,31 @@
 	  <para>Sun Ultra 10 workstations</para>
 	</listitem>
 	<listitem>
+	  <para>Sun Ultra 30 workstations</para>
+	</listitem>
+	<listitem>
 	  <para>Sun Ultra 60 workstations</para>
 	</listitem>
 	<listitem>
 	  <para>Sun Blade 100 workstations</para>
 	</listitem>
+	<listitem>
+	  <para>Sun Netra t1 series servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 220R servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 250 servers</para>
+	</listitem>
+	<listitem>
+	  <para>Sun Enterprise 420R servers</para>
+	</listitem>
       </itemizedlist>
 
-    <para>Ultra 1, 30, 80 and Blade 1000 are expected to work, maybe
-      with minor modifications.  SMP is supported on Ultra 2 and Ultra
-      60 workstations.</para>
+    <para>Ultra 80 and Blade 1000 are expected to work, maybe
+      with minor modifications.  SMP is supported on Ultra 2 and 60
+      workstations and Enterprise 220R, 250 and 420R servers.</para>
   </sect2>
 
   <sect2>
@@ -78,9 +96,9 @@
     <sect3>
       <title>Ultra 1</title>
 
-      <para>UltraSPARC Ultra1-family systems have not been throroughly
+      <para>UltraSPARC Ultra1-family systems have not been thoroughly
 	tested with FreeBSD.  These systems are not very well
-	supported, but you <emphasis>may</emphasis> be able to install FreeBSD onto an
+	supported, but it is possible to install FreeBSD onto an
 	Ultra-1e with a <devicename>hme</devicename> Ethernet
 	interface.</para>
     </sect3>
