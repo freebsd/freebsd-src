@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* Process declarations and symbol lookup for C front end.
    Also constructs types; the standard scalar types at initialization,
    and structure, union, array and enum types when they are declared.  */
@@ -312,6 +314,10 @@ int flag_isoc94 = 0;
 
 int flag_isoc99 = 0;
 
+/* Nonzero means allow the BSD kernel printf enhancments.  */
+
+int flag_bsd_format = 0;
+
 /* Nonzero means that we have builtin functions, and main is an int */
 
 int flag_hosted = 1;
@@ -508,6 +514,7 @@ c_decode_option (argc, argv)
 	 -std=c99		same as -std=iso9899:1999
 	 -std=gnu89		default, iso9899:1990 + gnu extensions
 	 -std=gnu99		iso9899:1999 + gnu extensions
+	 -std=bsd		iso9899:1999 + BSD kernel printf extensions
       */
       const char *const argstart = &p[5];
 
@@ -523,6 +530,7 @@ c_decode_option (argc, argv)
 	  flag_no_nonansi_builtin = 1;
 	  flag_noniso_default_format_attributes = 0;
 	  flag_isoc99 = 0;
+	  flag_bsd_format = 0;
 	}
       else if (!strcmp (argstart, "iso9899:199409"))
 	{
@@ -541,6 +549,7 @@ c_decode_option (argc, argv)
 	  flag_noniso_default_format_attributes = 0;
 	  flag_isoc99 = 1;
 	  flag_isoc94 = 1;
+	  flag_bsd_format = 0;
 	}
       else if (!strcmp (argstart, "gnu89"))
 	{
@@ -551,6 +560,7 @@ c_decode_option (argc, argv)
 	  flag_noniso_default_format_attributes = 1;
 	  flag_isoc99 = 0;
 	  flag_isoc94 = 0;
+	  flag_bsd_format = 0;
 	}
       else if (!strcmp (argstart, "gnu9x") || !strcmp (argstart, "gnu99"))
 	{
@@ -561,6 +571,19 @@ c_decode_option (argc, argv)
 	  flag_noniso_default_format_attributes = 1;
 	  flag_isoc99 = 1;
 	  flag_isoc94 = 1;
+	  flag_bsd_format = 0;
+	}
+      else if (!strcmp (argstart, "bsd"))
+	{
+	  flag_traditional = 0;
+	  flag_writable_strings = 0;
+	  flag_no_asm = 0;
+	  flag_no_nonansi_builtin = 0;
+	  flag_noniso_default_format_attributes = 1;
+	  flag_isoc99 = 0;
+	  flag_isoc94 = 0;
+	  flag_isoc94 = 0;
+	  flag_bsd_format = 1;
 	}
       else
 	error ("unknown C standard `%s'", argstart);
