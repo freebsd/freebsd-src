@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.26 1998/05/13 07:49:08 peter Exp $
+ * $Id: nfs_node.c,v 1.27 1998/05/24 14:41:49 peter Exp $
  */
 
 
@@ -203,21 +203,27 @@ nfs_inactive(ap)
 		sp = (struct sillyrename *)0;
 	if (sp) {
 		/*
-		 * XXX We need a reference to keep the vnode from being
+		 * We need a reference to keep the vnode from being
 		 * recycled by getnewvnode while we do the I/O
-		 * associated with discarding the buffers.
+		 * associated with discarding the buffers unless we
+		 * are being forcibly unmounted in which case we already
+		 * have our own reference.
 		 */
-		if (vget(ap->a_vp, 0, p))
+		if (ap->a_vp->v_usecount > 0)
+			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
+		else if (vget(ap->a_vp, 0, p))
 			panic("nfs_inactive: lost vnode");
+		else {
+			(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
+			vrele(ap->a_vp);
+		}
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
-		(void) nfs_vinvalbuf(ap->a_vp, 0, sp->s_cred, p, 1);
 		nfs_removeit(sp);
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NFSREQ);
-		vrele(ap->a_vp);	/* XXX Undo above reference */
 	}
 	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
 		NQNFSNONCACHE | NQNFSWRITE);
