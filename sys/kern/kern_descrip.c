@@ -2063,6 +2063,7 @@ fputsock(struct socket *so)
 {
 
 	NET_ASSERT_GIANT();
+	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sorele(so);
 }
