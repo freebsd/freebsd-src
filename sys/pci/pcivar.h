@@ -339,6 +339,8 @@ static __inline void pcib_set_ ## A(device_t dev, T t)			 \
 
 PCIB_ACCESSOR(hose,		HOSE,		u_int32_t)
 
+device_t pci_find_bsf(u_int8_t, u_int8_t, u_int8_t);
+device_t pci_find_device(u_int16_t, u_int16_t);
 #endif
 
 /* for compatibility to FreeBSD-2.2 version of PCI code */
