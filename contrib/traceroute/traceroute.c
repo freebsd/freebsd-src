@@ -487,11 +487,11 @@ main(int argc, char **argv)
 		case 'P':
 			for (i = 0; protos[i].name != NULL; i++) {
 				if (strcasecmp(protos[i].name, optarg) == 0) {
-					proto = &protos[i];
 					break;
 				}
 			}
-			if (protos[i].name == NULL) {	/* generic handler */
+			proto = &protos[i];
+			if (proto->name == NULL) {	/* generic handler */
 				struct protoent *pe;
 				u_long pnum;
 				char *eptr;
@@ -1122,7 +1122,7 @@ gre_check(const u_char *data, int seq)
 void
 gen_prep(struct outdata *outdata)
 {
-	u_int16_t *const ptr;
+	u_int16_t *const ptr = (u_int16_t *) outprot;
 
 	ptr[0] = htons(ident);
 	ptr[1] = htons(port + outdata->seq);
