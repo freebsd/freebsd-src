@@ -184,58 +184,56 @@ link_elf_init(void* arg)
 #else
     dp = 0;
 #endif
-    if (1) {
-	modname = NULL;
-	modptr = preload_search_by_type("elf kernel");
-	if (modptr)
-	    modname = (char *)preload_search_info(modptr, MODINFO_NAME);
-	if (modname == NULL)
-	    modname = "kernel";
-	linker_kernel_file = linker_make_file(modname, &link_elf_class);
-	if (linker_kernel_file == NULL)
-	    panic("link_elf_init: Can't create linker structures for kernel");
-	
-	ef = (elf_file_t) linker_kernel_file;
-	ef->preloaded = 1;
-	ef->address = 0;
+    modname = NULL;
+    modptr = preload_search_by_type("elf kernel");
+    if (modptr)
+	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+    if (modname == NULL)
+	modname = "kernel";
+    linker_kernel_file = linker_make_file(modname, &link_elf_class);
+    if (linker_kernel_file == NULL)
+	panic("link_elf_init: Can't create linker structures for kernel");
+    
+    ef = (elf_file_t) linker_kernel_file;
+    ef->preloaded = 1;
+    ef->address = 0;
 #ifdef SPARSE_MAPPING
-	ef->object = 0;
+    ef->object = 0;
 #endif
-	ef->dynamic = dp;
+    ef->dynamic = dp;
 
-	if (dp)
-	    parse_dynamic(ef);
-	linker_kernel_file->address = (caddr_t) KERNBASE;
-	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
+    if (dp)
+	parse_dynamic(ef);
+    linker_kernel_file->address = (caddr_t) KERNBASE;
+    linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
 
-	if (modptr) {
-	    ef->modptr = modptr;
-	    baseptr = preload_search_info(modptr, MODINFO_ADDR);
-	    if (baseptr)
-		linker_kernel_file->address = *(caddr_t *)baseptr;
-	    sizeptr = preload_search_info(modptr, MODINFO_SIZE);
-	    if (sizeptr)
-		linker_kernel_file->size = *(size_t *)sizeptr;
-	}
-	(void)link_elf_preload_parse_symbols(ef);
+    if (modptr) {
+	ef->modptr = modptr;
+	baseptr = preload_search_info(modptr, MODINFO_ADDR);
+	if (baseptr)
+	    linker_kernel_file->address = *(caddr_t *)baseptr;
+	sizeptr = preload_search_info(modptr, MODINFO_SIZE);
+	if (sizeptr)
+	    linker_kernel_file->size = *(size_t *)sizeptr;
+    }
+    (void)link_elf_preload_parse_symbols(ef);
 
 #ifdef DDB
-	ef->gdb.l_addr = linker_kernel_file->address;
-	newfilename = malloc(strlen(modname) + 1, M_LINKER, M_WAITOK);
-	strcpy(newfilename, modname);
-	ef->gdb.l_name = newfilename;
-	ef->gdb.l_ld = dp;
-	ef->gdb.l_prev = 0;
-	ef->gdb.l_next = 0;
+    ef->gdb.l_addr = linker_kernel_file->address;
+    newfilename = malloc(strlen(modname) + 1, M_LINKER, M_WAITOK);
+    strcpy(newfilename, modname);
+    ef->gdb.l_name = newfilename;
+    ef->gdb.l_ld = dp;
+    ef->gdb.l_prev = 0;
+    ef->gdb.l_next = 0;
 
-	r_debug.r_map = &ef->gdb;
-	r_debug.r_brk = r_debug_state;
-	r_debug.r_state = RT_CONSISTENT;
+    r_debug.r_map = &ef->gdb;
+    r_debug.r_brk = r_debug_state;
+    r_debug.r_state = RT_CONSISTENT;
 
-	r_debug_state(NULL, NULL);	/* say hello to gdb! */
+    r_debug_state(NULL, NULL);	/* say hello to gdb! */
 #endif
 
-    }
 #endif
 }
 
