@@ -523,13 +523,11 @@ ich_pci_attach(device_t dev)
 	mixer_init(dev, ac97_getmixerclass(), sc->codec);
 
 	/* check and set VRA function */
-	extcaps = ac97_getcaps(sc->codec);
+	extcaps = ac97_getextcaps(sc->codec);
 	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
 	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
-	ac97_setextmode(sc->codec, 
-			extcaps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
-	if (ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL)
-		sc->hasmic = 1;
+	sc->hasmic = extcaps & AC97_CAP_MICCHANNEL;
+	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm | sc->hasmic);
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
