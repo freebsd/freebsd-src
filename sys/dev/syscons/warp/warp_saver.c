@@ -67,8 +67,8 @@ warp_update(void)
 		for (j = 0; j < n; j++, k++) {
 			vid[star[k]] = 0;
 			star[k] += i;
-			if (star[k] > SCRW*SCRH)
-				star[k] -= SCRW*SCRH;
+			if (star[k] > SCRW * SCRH)
+				star[k] -= SCRW * SCRH;
 			vid[star[k]] = i;
 		}
 	}
@@ -89,7 +89,7 @@ warp_saver(video_adapter_t *adp, int blank)
 			blanked++;
 			vid = (u_char *)adp->va_window;
 			splx(pl);
-			bzero(vid, SCRW*SCRH);
+			bzero(vid, SCRW * SCRH);
 		}
 		
 		/* update display */
@@ -116,7 +116,7 @@ warp_init(video_adapter_t *adp)
 	
 	/* randomize the star field */
 	for (i = 0; i < STARS; i++)
-		star[i] = random() % (SCRW*SCRH);
+		star[i] = random() % (SCRW * SCRH);
 	
 	return (0);
 }
