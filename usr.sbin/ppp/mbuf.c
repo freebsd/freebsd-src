@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.17 1998/06/16 19:40:20 brian Exp $
+ * $Id: mbuf.c,v 1.18 1998/06/27 23:48:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -154,8 +154,8 @@ mbuf_Show(struct cmdargs const *arg)
 {
   int i;
   static const char *mbuftype[] = { 
-    "async", "fsm", "hdlcout", "ipin", "echo", "lqr", "link", "vjcomp",
-    "ipq", "mp" };
+    "async", "fsm", "cbcp", "hdlcout", "ipin", "echo", "lqr", "link",
+    "vjcomp", "ipq", "mp" };
 
   for (i = 1; i < MB_MAX; i += 2)
     prompt_Printf(arg->prompt, "%10.10s: %04d\t%10.10s: %04d\n",
@@ -176,8 +176,8 @@ mbuf_Log()
 	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
   log_Printf(LogDEBUG, "mbuf_Log:  5: %d  6: %d   7: %d   8: %d\n",
 	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
-  log_Printf(LogDEBUG, "mbuf_Log:  9: %d 10: %d\n",
-	MemMap[9].count, MemMap[10].count);
+  log_Printf(LogDEBUG, "mbuf_Log:  9: %d 10: %d  11: %d\n",
+	MemMap[9].count, MemMap[10].count, MemMap[11].count);
 }
 
 struct mbuf *

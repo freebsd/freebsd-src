@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.10.2.9 1998/05/01 19:23:54 brian Exp $
+ * $Id: auth.h,v 1.11 1998/05/21 21:44:03 brian Exp $
  *
  *	TODO:
  */
@@ -45,4 +45,5 @@ extern int auth_Validate(struct bundle *, const char *, const char *,
                          struct physical *);
 extern char *auth_GetSecret(struct bundle *, const char *, int,
                             struct physical *);
-extern int auth_Select(struct bundle *, const char *, struct physical *);
+extern int auth_SetPhoneList(const char *, char *, int);
+extern int auth_Select(struct bundle *, const char *);

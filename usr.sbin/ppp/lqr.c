@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.28 1998/06/26 19:02:40 brian Exp $
+ * $Id: lqr.c,v 1.29 1998/06/27 23:48:49 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -52,6 +52,7 @@
 #include "auth.h"
 #include "chap.h"
 #include "command.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 struct echolqr {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.15 1998/06/30 23:04:14 brian Exp $
+ *	$Id: datalink.c,v 1.16 1998/07/03 17:24:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -67,6 +67,7 @@
 #include "pap.h"
 #include "chap.h"
 #include "command.h"
+#include "cbcp.h"
 #include "datalink.h"
 
 static void datalink_LoginDone(struct datalink *);
@@ -87,7 +88,7 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
 {
   timer_Stop(&dl->dial_timer);
  
-  if (Timeout) { 
+  if (Timeout) {
     if (Timeout > 0)
       dl->dial_timer.load = Timeout * SECTICKS;
     else
@@ -115,7 +116,26 @@ datalink_HangupDone(struct datalink *dl)
   modem_Close(dl->physical);
   dl->phone.chosen = "N/A";
 
-  if (dl->bundle->CleaningUp ||
+  if (dl->cbcp.required) {
+    log_Printf(LogPHASE, "Call peer back on %s\n", dl->cbcp.fsm.phone);
+    dl->cfg.callback.opmask = 0;
+    strncpy(dl->cfg.phone.list, dl->cbcp.fsm.phone,
+            sizeof dl->cfg.phone.list - 1);
+    dl->cfg.phone.list[sizeof dl->cfg.phone.list - 1] = '\0';
+    dl->phone.alt = dl->phone.next = NULL;
+    dl->reconnect_tries = dl->cfg.reconnect.max;
+    dl->dial_tries = dl->cfg.dial.max;
+    dl->script.run = 1;
+    dl->script.packetmode = 1;
+    if (!physical_SetMode(dl->physical, PHYS_BACKGROUND))
+      log_Printf(LogERROR, "Oops - can't change mode to BACKGROUND (gulp) !\n");
+    bundle_LinksRemoved(dl->bundle);
+    if (dl->cbcp.fsm.delay < dl->cfg.dial.timeout)
+      dl->cbcp.fsm.delay = dl->cfg.dial.timeout;
+    datalink_StartDialTimer(dl, dl->cbcp.fsm.delay);
+    cbcp_Down(&dl->cbcp);
+    datalink_NewState(dl, DATALINK_OPENING);
+  } else if (dl->bundle->CleaningUp ||
       (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
        !(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)))) {
@@ -301,6 +321,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
     case DATALINK_READY:
     case DATALINK_LCP:
     case DATALINK_AUTH:
+    case DATALINK_CBCP:
     case DATALINK_OPEN:
       result = descriptor_UpdateSet(&dl->physical->desc, r, w, e, n);
       break;
@@ -332,6 +353,7 @@ datalink_IsSet(struct descriptor *d, const fd_set *fdset)
     case DATALINK_READY:
     case DATALINK_LCP:
     case DATALINK_AUTH:
+    case DATALINK_CBCP:
     case DATALINK_OPEN:
       return descriptor_IsSet(&dl->physical->desc, fdset);
   }
@@ -357,6 +379,7 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     case DATALINK_READY:
     case DATALINK_LCP:
     case DATALINK_AUTH:
+    case DATALINK_CBCP:
     case DATALINK_OPEN:
       descriptor_Read(&dl->physical->desc, bundle, fdset);
       break;
@@ -383,6 +406,7 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     case DATALINK_READY:
     case DATALINK_LCP:
     case DATALINK_AUTH:
+    case DATALINK_CBCP:
     case DATALINK_OPEN:
       result = descriptor_Write(&dl->physical->desc, bundle, fdset);
       break;
@@ -460,7 +484,7 @@ datalink_GotAuthname(struct datalink *dl, const char *name, int len)
 }
 
 void
-datalink_AuthOk(struct datalink *dl)
+datalink_NCPUp(struct datalink *dl)
 {
   int ccpok = ccp_SetOpenMode(&dl->physical->link.ccp);
 
@@ -472,7 +496,7 @@ datalink_AuthOk(struct datalink *dl)
         return;
       case MP_UP:
         /* First link in the bundle */
-        auth_Select(dl->bundle, dl->peer.authname, dl->physical);
+        auth_Select(dl->bundle, dl->peer.authname);
         /* fall through */
       case MP_ADDED:
         /* We're in multilink mode ! */
@@ -490,7 +514,7 @@ datalink_AuthOk(struct datalink *dl)
   } else {
     dl->bundle->ncp.mp.peer = dl->peer;
     ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
-    auth_Select(dl->bundle, dl->peer.authname, dl->physical);
+    auth_Select(dl->bundle, dl->peer.authname);
   }
 
   if (ccpok) {
@@ -500,6 +524,80 @@ datalink_AuthOk(struct datalink *dl)
   datalink_NewState(dl, DATALINK_OPEN);
   bundle_NewPhase(dl->bundle, PHASE_NETWORK);
   (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
+}
+
+void
+datalink_CBCPComplete(struct datalink *dl)
+{
+  datalink_NewState(dl, DATALINK_LCP);
+  fsm_Close(&dl->physical->link.lcp.fsm);
+}
+
+void
+datalink_CBCPFailed(struct datalink *dl)
+{
+  cbcp_Down(&dl->cbcp);
+  datalink_CBCPComplete(dl);
+}
+
+void
+datalink_AuthOk(struct datalink *dl)
+{
+  if (dl->physical->link.lcp.his_callback.opmask ==
+      CALLBACK_BIT(CALLBACK_CBCP) ||
+      dl->physical->link.lcp.want_callback.opmask ==
+      CALLBACK_BIT(CALLBACK_CBCP)) {
+    datalink_NewState(dl, DATALINK_CBCP);
+    cbcp_Up(&dl->cbcp);
+  } else if (dl->physical->link.lcp.want_callback.opmask) {
+    log_Printf(LogPHASE, "%s: Shutdown and await peer callback\n", dl->name);
+    datalink_NewState(dl, DATALINK_LCP);
+    fsm_Close(&dl->physical->link.lcp.fsm);
+  } else
+    switch (dl->physical->link.lcp.his_callback.opmask) {
+      case 0:
+        datalink_NCPUp(dl);
+        break;
+
+      case CALLBACK_BIT(CALLBACK_AUTH):
+        auth_SetPhoneList(dl->peer.authname, dl->cbcp.fsm.phone,
+                          sizeof dl->cbcp.fsm.phone);
+        if (*dl->cbcp.fsm.phone == '\0' || !strcmp(dl->cbcp.fsm.phone, "*")) {
+          log_Printf(LogPHASE, "%s: %s cannot be called back\n", dl->name,
+                     dl->peer.authname);
+          *dl->cbcp.fsm.phone = '\0';
+        } else {
+          char *ptr = strchr(dl->cbcp.fsm.phone, ',');
+          if (ptr)
+            *ptr = '\0';	/* Call back on the first number */
+          log_Printf(LogPHASE, "%s: Calling peer back on %s\n", dl->name,
+                     dl->cbcp.fsm.phone);
+          dl->cbcp.required = 1;
+        }
+        dl->cbcp.fsm.delay = 0;
+        datalink_NewState(dl, DATALINK_LCP);
+        fsm_Close(&dl->physical->link.lcp.fsm);
+        break;
+
+      case CALLBACK_BIT(CALLBACK_E164):
+        strncpy(dl->cbcp.fsm.phone, dl->physical->link.lcp.his_callback.msg,
+                sizeof dl->cbcp.fsm.phone - 1);
+        dl->cbcp.fsm.phone[sizeof dl->cbcp.fsm.phone - 1] = '\0';
+        log_Printf(LogPHASE, "%s: Calling peer back on %s\n", dl->name,
+                   dl->cbcp.fsm.phone);
+        dl->cbcp.required = 1;
+        dl->cbcp.fsm.delay = 0;
+        datalink_NewState(dl, DATALINK_LCP);
+        fsm_Close(&dl->physical->link.lcp.fsm);
+        break;
+
+      default:
+        log_Printf(LogPHASE, "%s: Oops - Should have NAK'd peer callback !\n",
+                   dl->name);
+        datalink_NewState(dl, DATALINK_LCP);
+        fsm_Close(&dl->physical->link.lcp.fsm);
+        break;
+    }
 }
 
 void
@@ -522,7 +620,12 @@ datalink_LayerDown(void *v, struct fsm *fp)
         fsm2initial(&dl->physical->link.ccp.fsm);
         datalink_NewState(dl, DATALINK_LCP);  /* before parent TLD */
         (*dl->parent->LayerDown)(dl->parent->object, fp);
-        /* fall through */
+        /* fall through (just in case) */
+
+      case DATALINK_CBCP:
+        if (!dl->cbcp.required)
+          cbcp_Down(&dl->cbcp);
+        /* fall through (just in case) */
 
       case DATALINK_AUTH:
         timer_Stop(&dl->pap.authtimer);
@@ -590,6 +693,11 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   dl->cfg.reconnect.max = 0;
   dl->cfg.reconnect.timeout = RECONNECT_TIMEOUT;
 
+  dl->cfg.callback.opmask = 0;
+  dl->cfg.cbcp.delay = 0;
+  *dl->cfg.cbcp.phone = '\0';
+  dl->cfg.cbcp.fsmretry = DEF_FSMRETRY;
+
   dl->name = strdup(name);
   peerid_Init(&dl->peer);
   dl->parent = &bundle->fsm;
@@ -607,6 +715,7 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
     free(dl);
     return NULL;
   }
+  cbcp_Init(&dl->cbcp, dl->physical);
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
   log_Printf(LogPHASE, "%s: Created in %s state\n",
@@ -667,6 +776,7 @@ datalink_Clone(struct datalink *odl, const char *name)
   memcpy(&dl->physical->async.cfg, &odl->physical->async.cfg,
          sizeof dl->physical->async.cfg);
 
+  cbcp_Init(&dl->cbcp, dl->physical);
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
   log_Printf(LogPHASE, "%s: Cloned in %s state\n",
@@ -747,6 +857,7 @@ datalink_Close(struct datalink *dl, int how)
       fsm2initial(&dl->physical->link.ccp.fsm);
       /* fall through */
 
+    case DATALINK_CBCP:
     case DATALINK_AUTH:
     case DATALINK_LCP:
       fsm_Close(&dl->physical->link.lcp.fsm);
@@ -773,6 +884,7 @@ datalink_Down(struct datalink *dl, int how)
       fsm2initial(&dl->physical->link.ccp.fsm);
       /* fall through */
 
+    case DATALINK_CBCP:
     case DATALINK_AUTH:
     case DATALINK_LCP:
       fsm2initial(&dl->physical->link.lcp.fsm);
@@ -800,30 +912,30 @@ int
 datalink_Show(struct cmdargs const *arg)
 {
   prompt_Printf(arg->prompt, "Name: %s\n", arg->cx->name);
-  prompt_Printf(arg->prompt, " State:            %s\n",
+  prompt_Printf(arg->prompt, " State:              %s\n",
                 datalink_State(arg->cx));
-  prompt_Printf(arg->prompt, " CHAP Encryption:  %s\n",
+  prompt_Printf(arg->prompt, " CHAP Encryption:    %s\n",
                 arg->cx->chap.using_MSChap ? "MSChap" : "MD5" );
-  prompt_Printf(arg->prompt, " Peer name:        ");
+  prompt_Printf(arg->prompt, " Peer name:          ");
   if (*arg->cx->peer.authname)
     prompt_Printf(arg->prompt, "%s\n", arg->cx->peer.authname);
   else if (arg->cx->state == DATALINK_OPEN)
     prompt_Printf(arg->prompt, "None requested\n");
   else
     prompt_Printf(arg->prompt, "N/A\n");
-  prompt_Printf(arg->prompt, " Discriminator:    %s\n",
+  prompt_Printf(arg->prompt, " Discriminator:      %s\n",
                 mp_Enddisc(arg->cx->peer.enddisc.class,
                            arg->cx->peer.enddisc.address,
                            arg->cx->peer.enddisc.len));
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " Phone List:       %s\n",
+  prompt_Printf(arg->prompt, " Phone List:         %s\n",
                 arg->cx->cfg.phone.list);
   if (arg->cx->cfg.dial.max)
-    prompt_Printf(arg->prompt, " Dial tries:       %d, delay ",
+    prompt_Printf(arg->prompt, " Dial tries:         %d, delay ",
                   arg->cx->cfg.dial.max);
   else
-    prompt_Printf(arg->prompt, " Dial tries:       infinite, delay ");
+    prompt_Printf(arg->prompt, " Dial tries:         infinite, delay ");
   if (arg->cx->cfg.dial.next_timeout > 0)
     prompt_Printf(arg->prompt, "%ds/", arg->cx->cfg.dial.next_timeout);
   else
@@ -832,17 +944,50 @@ datalink_Show(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "%ds\n", arg->cx->cfg.dial.timeout);
   else
     prompt_Printf(arg->prompt, "random\n");
-  prompt_Printf(arg->prompt, " Reconnect tries:  %d, delay ",
+  prompt_Printf(arg->prompt, " Reconnect tries:    %d, delay ",
                 arg->cx->cfg.reconnect.max);
   if (arg->cx->cfg.reconnect.timeout > 0)
     prompt_Printf(arg->prompt, "%ds\n", arg->cx->cfg.reconnect.timeout);
   else
     prompt_Printf(arg->prompt, "random\n");
-  prompt_Printf(arg->prompt, " Dial Script:      %s\n",
+  prompt_Printf(arg->prompt, " Callback %s ", arg->cx->physical->type ==
+                PHYS_DIRECT ?  "accepted: " : "requested:");
+  if (!arg->cx->cfg.callback.opmask)
+    prompt_Printf(arg->prompt, "none\n");
+  else {
+    int comma = 0;
+
+    if (arg->cx->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_NONE)) {
+      prompt_Printf(arg->prompt, "none");
+      comma = 1;
+    }
+    if (arg->cx->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) {
+      prompt_Printf(arg->prompt, "%sauth", comma ? ", " : "");
+      comma = 1;
+    }
+    if (arg->cx->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_E164)) {
+      prompt_Printf(arg->prompt, "%sE.164", comma ? ", " : "");
+      if (arg->cx->physical->type != PHYS_DIRECT)
+        prompt_Printf(arg->prompt, " (%s)", arg->cx->cfg.callback.msg);
+      comma = 1;
+    }
+    if (arg->cx->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP)) {
+      prompt_Printf(arg->prompt, "%scbcp\n", comma ? ", " : "");
+      prompt_Printf(arg->prompt, " CBCP:               delay: %ds\n",
+                    arg->cx->cfg.cbcp.delay);
+      prompt_Printf(arg->prompt, "                     phone: %s\n",
+                    arg->cx->cfg.cbcp.phone);
+      prompt_Printf(arg->prompt, "                     timeout: %lds\n",
+                    arg->cx->cfg.cbcp.fsmretry);
+    } else
+      prompt_Printf(arg->prompt, "\n");
+  }
+
+  prompt_Printf(arg->prompt, " Dial Script:        %s\n",
                 arg->cx->cfg.script.dial);
-  prompt_Printf(arg->prompt, " Login Script:     %s\n",
+  prompt_Printf(arg->prompt, " Login Script:       %s\n",
                 arg->cx->cfg.script.login);
-  prompt_Printf(arg->prompt, " Hangup Script:    %s\n",
+  prompt_Printf(arg->prompt, " Hangup Script:      %s\n",
                 arg->cx->cfg.script.hangup);
   return 0;
 }
@@ -923,6 +1068,7 @@ static const char *states[] = {
   "ready",
   "lcp",
   "auth",
+  "cbcp",
   "open"
 };
 
@@ -1025,6 +1171,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     free(dl);
     dl = NULL;
   } else {
+    cbcp_Init(&dl->cbcp, dl->physical);
     chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
     log_Printf(LogPHASE, "%s: Transferred in %s state\n",
@@ -1043,6 +1190,8 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
 
   if (dl) {
     timer_Stop(&dl->dial_timer);
+    /* The following is purely for the sake of paranoia */
+    cbcp_Down(&dl->cbcp);
     timer_Stop(&dl->pap.authtimer);
     timer_Stop(&dl->chap.auth.authtimer);
   }

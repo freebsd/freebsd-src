@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.61 1998/06/27 16:24:52 brian Exp $
+ * $Id: ipcp.c,v 1.62 1998/06/27 23:48:45 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -548,7 +548,7 @@ IpcpInitRestartCounter(struct fsm * fp)
   struct ipcp *ipcp = fsm2ipcp(fp);
 
   fp->FsmTimer.load = ipcp->cfg.fsmretry * SECTICKS;
-  fp->restart = 5;
+  fp->restart = DEF_REQs;
 }
 
 static void

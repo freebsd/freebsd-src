@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.30 1998/06/15 19:06:35 brian Exp $
+ * $Id: auth.c,v 1.31 1998/07/19 21:07:24 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -87,7 +87,40 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
 }
 
 int
-auth_Select(struct bundle *bundle, const char *name, struct physical *physical)
+auth_SetPhoneList(const char *name, char *phone, int phonelen)
+{
+  FILE *fp;
+  int n;
+  char *vector[6];
+  char buff[LINE_LEN];
+
+  fp = OpenSecret(SECRETFILE);
+  if (fp != NULL) {
+    while (fgets(buff, sizeof buff, fp)) {
+      if (buff[0] == '#')
+        continue;
+      buff[strlen(buff) - 1] = '\0';
+      memset(vector, '\0', sizeof vector);
+      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if (n < 5)
+        continue;
+      if (strcmp(vector[0], name) == 0) {
+	CloseSecret(fp);
+	if (*vector[4] == '\0')
+          return 0;
+        strncpy(phone, vector[4], phonelen - 1);
+        phone[phonelen - 1] = '\0';
+	return 1;		/* Valid */
+      }
+    }
+    CloseSecret(fp);
+  }
+  *phone = '\0';
+  return 0;
+}
+
+int
+auth_Select(struct bundle *bundle, const char *name)
 {
   FILE *fp;
   int n;
@@ -111,10 +144,11 @@ auth_Select(struct bundle *bundle, const char *name, struct physical *physical)
         continue;
       if (strcmp(vector[0], name) == 0) {
 	CloseSecret(fp);
-	if (n > 2 && !ipcp_UseHisaddr(bundle, vector[2], 1))
+	if (n > 2 && *vector[2] && strcmp(vector[2], "*") &&
+            !ipcp_UseHisaddr(bundle, vector[2], 1))
 	  return 0;
 	ipcp_Setup(&bundle->ncp.ipcp);
-	if (n > 3)
+	if (n > 3 && *vector[3] && strcmp(vector[3], "*"))
 	  bundle_SetLabel(bundle, vector[3]);
 	return 1;		/* Valid */
       }

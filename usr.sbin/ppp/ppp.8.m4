@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.112 1998/07/29 18:21:17 brian Exp $
+.\" $Id: ppp.8,v 1.113 1998/07/31 19:50:24 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -74,6 +74,10 @@ command via its diagnostic socket.  A
 will force an LCP renegotiation, and a
 .Dv SIGTERM
 will force it to exit.
+.It Supports client callback.
+.Nm Ppp
+can use either the standard LCP callback protocol or the Microsoft
+CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
 .It Supports packet aliasing.
 Packet aliasing (a.k.a. IP masquerading) allows computers on a
 private, unregistered network to access the Internet.  The
@@ -161,7 +165,7 @@ is installed as user
 and group
 .Dv network ,
 with permissions
-.Dv 4550 .
+.Dv 4554 .
 By default, 
 .Nm
 will not run if the invoking user id is not zero.  This may be overridden
@@ -278,6 +282,15 @@ lines to the file
 Refer to the
 .Xr resolv.conf 5
 manual page for details.
+.Pp
+Alternatively, if the peer supports it,
+.Nm
+can be configured to ask the peer for the nameserver address(es) and to
+update
+.Pa /etc/resolv.conf
+automatically.  Refer to the
+.Dq enable dns
+command below for details.
 .El
 .Sh MANUAL DIALING
 In the following examples, we assume that your machine name is
@@ -477,10 +490,19 @@ portion of the prompt will change to
 # ppp MyISP
 ...
 ppp ON awfulhak> dial
-dial OK!
-login OK!
+Ppp ON awfulhak>
+PPp ON awfulhak>
 PPP ON awfulhak>
 .Ed
+.Pp
+The Ppp prompt indicates that
+.Nm
+has entered the authentication phase.  The PPp prompt indicates that
+.Nm
+has entered the network phase.  The PPP prompt indicates that
+.Nm
+has successfully negotiated a network layer protocol and is in
+a usable state.
 .Pp
 If the
 .Pa /etc/ppp/ppp.linkup
@@ -905,7 +927,9 @@ Instead of running
 over a serial link, it is possible to
 use a TCP connection instead by specifying a host and port as the
 device:
+.Pp
 .Dl set device ui-gate:6669
+.Pp
 Instead of opening a serial device,
 .Nm
 will open a TCP connection to the given machine on the given
@@ -918,13 +942,17 @@ connection on the receiving machine (ui-gate).  This is
 done by first updating
 .Pa /etc/services
 to name the service:
+.Pp
 .Dl ppp-in 6669/tcp # Incoming PPP connections over TCP
+.Pp
 and updating
 .Pa /etc/inetd.conf
 to tell
 .Xr inetd 8
 how to deal with incoming connections on that port:
+.Pp
 .Dl ppp-in stream tcp nowait root /usr/sbin/ppp ppp -direct ppp-in
+.Pp
 Don't forget to send a
 .Dv HUP
 signal to
@@ -986,7 +1014,9 @@ Again, if you're enabling PAP, you'll also need:
 We're assigning the address of 10.0.4.1 to ui-gate, and the address
 10.0.4.2 to awfulhak.
 To open the connection, just type
+.Pp
 .Dl awfulhak # ppp -background ui-gate
+.Pp
 The result will be an additional "route" on awfulhak to the
 10.0.2.0/24 network via the TCP connection, and an additional
 "route" on ui-gate to the 10.0.1.0/24 network.
@@ -1442,7 +1472,10 @@ logging) so that the actual password is not compromised
 .Ar chat
 logging is active rather than the actual password.
 .Pp
-Login scripts vary greatly between ISPs.
+Login scripts vary greatly between ISPs.  If you're setting one up
+for the first time,
+.Em ENABLE CHAT LOGGING
+so that you can see if your script is behaving as you expect.
 .It
 Use
 .Dq set line
@@ -1531,6 +1564,20 @@ set authkey MyPassword
 Both are accepted by default, so
 .Nm
 will provide whatever your ISP requires.
+.Pp
+It should be noted that a login script is rarely (if ever) required
+when PAP or CHAP are in use.
+.It
+Ask your ISP to authenticate your nameserver address(es) with the line
+.Bd -literal -offset indent
+enable dns
+.Ed
+Do
+.Em NOT
+do this if you are running an local DNS, as
+.Nm
+will simply circumvent its use by entering some nameserver lines in
+.Pa /etc/resolv.conf .
 .El
 .Pp
 Please refer to
@@ -1540,12 +1587,13 @@ and
 for some real examples.  The pmdemand label should be appropriate for most
 ISPs.
 .Sh LOGGING FACILITY
-.Nm
+.Nm Ppp
 is able to generate the following log info either via
 .Xr syslog 3
 or directly to the screen:
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
+.It Li CBCP 	Generate CBCP (CallBack Control Protocol) logs
 .It Li CCP	Generate a CCP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
@@ -2571,6 +2619,83 @@ If
 is zero, this timer is disabled.  Because both values default to zero,
 .Ar demand-dial
 links will stay active until the bundle idle timer expires.
+.It set callback [none|auth|cbcp|E.164 *|number[,number]...]...
+If no arguments are given, callback is disabled, otherwise,
+.Nm
+will request (or in
+.Ar direct
+mode, will accept) one of the given protocols.  If a request is NAK'd
+.Nm
+will request another, until no options remain at which point
+.Nm
+will terminate negotiations.
+The options are as follows (in this order of preference):
+.Pp
+.Bl -tag
+.It auth
+The callee is expected to decide the callback number based on
+authentication.  If
+.Nm
+is the callee, the number should be specified as the fifth field of
+the peers entry in
+.Pa /etc/ppp/ppp.secret .
+.It cbcp
+Microsofts callback control protocol is used.  See
+.Dq set cbcp
+below.
+.It E.164 *|number[,number]...
+The caller specifies the
+.Ar number .
+If
+.Nm
+is the callee,
+.Ar number
+should be either a comma seperated list of allowable numbers or a
+.Dq \&* ,
+meaning any number is permitted.  If
+.Nm
+is the caller, only a single number should be specified.
+.Pp
+Note, this option is very unsafe when used with a
+.Dq \&*
+as a malicious caller can tell
+.Nm
+to call any (possibly international) number without first authenticating
+themselves.
+.It none
+If the peer does not wish to do callback at all,
+.Nm
+will accept the fact and continue without callback rather than terminating
+the connection.
+.El
+.Pp
+.It set cbcp Op *|number[,number]... Op delay Op retry
+If no arguments are given, CBCP (Microsofts CallBack Control Protocol)
+is disabled - ie, configuring CBCP in the
+.Dq set callback
+command will result in
+.Nm
+requesting no callback in the CBCP phase.
+Otherwise,
+.Nm
+attempts to use the given phone
+.Ar number Ns No (s).
+.Pp
+In server mode
+.Pq Fl direct ,
+.Nm
+will insist that the client uses one of these numbers, unless
+.Dq \&*
+is used in which case the client is expected to specify the number.
+.Pp
+In client mode,
+.Nm
+will attempt to use one of the given numbers (whichever it finds to
+be agreeable with the peer), or if
+.Dq \&*
+is specified,
+.Nm
+will expect the peer to specify the number.
 .It set ctsrts|crtscts on|off
 This sets hardware flow control.  Hardware flow control is
 .Ar on
