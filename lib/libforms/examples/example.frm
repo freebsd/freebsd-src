@@ -46,9 +46,9 @@ Form example at 0,0 {
 	field4 at 11, 2
 	field6 at 15, 2
 
-	input1 {field3} at  7,45, next=input2
-	input2 {field5} at 11,45, next=menu1
-	menu1  {field7} at 15,45, next=quit
-	quit   {field8} at 20,20, up = menu1, right = cancel
-	cancel {field9} at 20,43, next=input1
+	input1 {field3} at  7,45, next=input2,down=input2,up=quit,right=input2
+	input2 {field5} at 11,45, next=menu1,down=menu1,up=input1,right=menu1
+	menu1  {field7} at 15,45, next=quit,down=quit,up=input2,right=quit
+	quit   {field8} at 20,20, next=cancel,down=input1,up=menu1,right=cancel
+	cancel {field9} at 20,43, next=input1,down=input1,up=menu1,right=input1
 }
