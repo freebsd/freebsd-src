@@ -55,7 +55,6 @@ static const char rcsid[] =
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <nlist.h>
@@ -122,7 +121,6 @@ int	clear, compress, force, verbose;	/* flags */
 void	 check_kmem __P((void));
 int	 check_space __P((void));
 void	 clear_dump __P((void));
-int	 Create __P((char *, int));
 void	 DumpRead __P((int fd, void *bp, int size, off_t off, int flag));
 void	 DumpWrite __P((int fd, void *bp, int size, off_t off, int flag));
 int	 dump_exists __P((void));
@@ -340,7 +338,7 @@ void
 save_core()
 {
 	register FILE *fp;
-	register int bounds, ifd, nr, nw, ofd;
+	register int bounds, ifd, nr, nw;
 	char path[MAXPATHLEN];
 	mode_t oumask;
 
@@ -370,14 +368,14 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
 	    savedir, bounds, compress ? ".Z" : "");
-	if (compress) {
-		if ((fp = zopen(path, "w", 0)) == NULL) {
-			syslog(LOG_ERR, "%s: %s", path, strerror(errno));
-			exit(1);
-		}
-		ofd = -1;	/* Not actually used. */
-	} else
-		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (compress)
+		fp = zopen(path, "w", 0);
+	else
+		fp = fopen(path, "w");
+	if (fp == NULL) {
+		syslog(LOG_ERR, "%s: %s", path, strerror(errno));
+		exit(1);
+	}
 	(void)umask(oumask);
 
 	/* Seek to the start of the core. */
@@ -398,10 +396,7 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
-		if (compress)
-			nw = fwrite(buf, 1, nr, fp);
-		else
-			nw = write(ofd, buf, nr);
+		nw = fwrite(buf, 1, nr, fp);
 		if (nw != nr) {
 			syslog(LOG_ERR, "%s: %s",
 			    path, strerror(nw == 0 ? EIO : errno));
@@ -412,29 +407,24 @@ err2:			syslog(LOG_WARNING,
 		}
 	}
 
-	if (compress)
-		(void)fclose(fp);
-	else
-		(void)close(ofd);
+	(void)fclose(fp);
 
 	/* Copy the kernel. */
 	ifd = Open(kernel ? kernel : getbootfile(), O_RDONLY);
 	(void)snprintf(path, sizeof(path), "%s/kernel.%d%s",
 	    savedir, bounds, compress ? ".Z" : "");
-	if (compress) {
-		if ((fp = zopen(path, "w", 0)) == NULL) {
-			syslog(LOG_ERR, "%s: %s", path, strerror(errno));
-			exit(1);
-		}
-	} else
-		ofd = Create(path, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (compress)
+		fp = zopen(path, "w", 0);
+	else
+		fp = fopen(path, "w");
+	if (fp == NULL) {
+		syslog(LOG_ERR, "%s: %s", path, strerror(errno));
+		exit(1);
+	}
 	syslog(LOG_NOTICE, "writing %skernel to %s",
 	    compress ? "compressed " : "", path);
 	while ((nr = read(ifd, buf, sizeof(buf))) > 0) {
-		if (compress)
-			nw = fwrite(buf, 1, nr, fp);
-		else
-			nw = write(ofd, buf, nr);
+		nw = fwrite(buf, 1, nr, fp);
 		if (nw != nr) {
 			syslog(LOG_ERR, "%s: %s",
 			    path, strerror(nw == 0 ? EIO : errno));
@@ -450,10 +440,7 @@ err2:			syslog(LOG_WARNING,
 		    "WARNING: kernel may be incomplete");
 		exit(1);
 	}
-	if (compress)
-		(void)fclose(fp);
-	else
-		(void)close(ofd);
+	(void)fclose(fp);
 	close(ifd);
 }
 
@@ -461,36 +448,15 @@ char *
 find_dev(dev)
 	register dev_t dev;
 {
-	register DIR *dfd;
-	struct dirent *dir;
-	struct stat sb;
-	char *dp, devname[MAXPATHLEN + 1];
+	char *dn;
 
-	if ((dfd = opendir(_PATH_DEV)) == NULL) {
-		syslog(LOG_ERR, "%s: %s", _PATH_DEV, strerror(errno));
-		exit(1);
+	if ((dn = devname(dev, S_IFCHR)) != NULL) {
+		if (asprintf(&dn, "/dev/%s", dn) != -1)
+			return dn;
+		syslog(LOG_ERR, "insufficient memory");
+	} else {
+		syslog(LOG_ERR, "can't find device %d/%d", major(dev), minor(dev));
 	}
-	(void)strcpy(devname, _PATH_DEV);
-	while ((dir = readdir(dfd))) {
-		(void)strcpy(devname + sizeof(_PATH_DEV) - 1, dir->d_name);
-		if (lstat(devname, &sb)) {
-			syslog(LOG_ERR, "%s: %s", devname, strerror(errno));
-			continue;
-		}
-		if ((sb.st_mode & S_IFMT) != S_IFCHR &&
-		    (sb.st_mode & S_IFMT) != S_IFBLK)
-			continue;
-		if (dev == sb.st_rdev) {
-			closedir(dfd);
-			if ((dp = strdup(devname)) == NULL) {
-				syslog(LOG_ERR, "%s", strerror(errno));
-				exit(1);
-			}
-			return (dp);
-		}
-	}
-	closedir(dfd);
-	syslog(LOG_ERR, "can't find device %d/%d", major(dev), minor(dev));
 	exit(1);
 }
 
@@ -682,21 +648,6 @@ DumpRead(fd, bp, size, off, flag)
 		q += i;
 		off += i;
 	}
-}
-
-int
-Create(file, mode)
-	char *file;
-	int mode;
-{
-	register int fd;
-
-	fd = creat(file, mode);
-	if (fd < 0) {
-		syslog(LOG_ERR, "%s: %m", file);
-		exit(1);
-	}
-	return (fd);
 }
 
 void
