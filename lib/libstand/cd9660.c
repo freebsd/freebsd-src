@@ -44,9 +44,22 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sys/dirent.h>
 #include <isofs/cd9660/iso.h>
+#include <isofs/cd9660/cd9660_rrip.h>
 
 #include "stand.h"
 
+#define	SUSP_CONTINUATION	"CE"
+#define	SUSP_PRESENT		"SP"
+#define	SUSP_STOP		"ST"
+#define	SUSP_EXTREF		"ER"
+#define	RRIP_NAME		"NM"
+
+typedef struct {
+	ISO_SUSP_HEADER		h;
+	u_char signature	[ISODCL (  5,    6)];
+	u_char len_skp		[ISODCL (  7,    7)]; /* 711 */
+} ISO_SUSP_PRESENT;
+	
 static int	buf_read_file(struct open_file *f, char **buf_p,
 		    size_t *size_p);
 static int	cd9660_open(const char *path, struct open_file *f);
@@ -58,7 +71,15 @@ static int	cd9660_write(struct open_file *f, void *buf, size_t size,
 static off_t	cd9660_seek(struct open_file *f, off_t offset, int where);
 static int	cd9660_stat(struct open_file *f, struct stat *sb);
 static int	cd9660_readdir(struct open_file *f, struct dirent *d);
-static int	dirmatch(const char *path, struct iso_directory_record *dp);
+static int	dirmatch(struct open_file *f, const char *path,
+		    struct iso_directory_record *dp, int use_rrip, int lenskip);
+static int	rrip_check(struct open_file *f, struct iso_directory_record *dp,
+		    int *lenskip);
+static char	*rrip_lookup_name(struct open_file *f,
+		    struct iso_directory_record *dp, int lenskip, size_t *len);
+static ISO_SUSP_HEADER *susp_lookup_record(struct open_file *f,
+		    const char *identifier, struct iso_directory_record *dp,
+		    int lenskip);
 
 struct fs_ops cd9660_fsops = {
 	"cd9660",
@@ -107,17 +128,132 @@ isonum_732(p)
 	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
 }
 
-static int
-dirmatch(const char *path, struct iso_directory_record *dp)
+static ISO_SUSP_HEADER *
+susp_lookup_record(struct open_file *f, const char *identifier,
+    struct iso_directory_record *dp, int lenskip)
 {
-	char *cp;
-	int i;
+	static char susp_buffer[ISO_DEFAULT_BLOCK_SIZE];
+	ISO_SUSP_HEADER *sh;
+	ISO_RRIP_CONT *shc;
+	char *p, *end;
+	int error;
+	size_t read;
 
-	cp = dp->name;
-	for (i = isonum_711(dp->name_len); --i >= 0; path++, cp++) {
+	p = dp->name + isonum_711(dp->name_len) + lenskip;
+	/* Names of even length have a padding byte after the name. */
+	if ((isonum_711(dp->name_len) & 1) == 0)
+		p++;
+	end = (char *)dp + isonum_711(dp->length);
+	while (p + 3 < end) {
+		sh = (ISO_SUSP_HEADER *)p;
+		if (bcmp(sh->type, identifier, 2) == 0)
+			return (sh);
+		if (bcmp(sh->type, SUSP_STOP, 2) == 0)
+			return (NULL);
+		if (bcmp(sh->type, SUSP_CONTINUATION, 2) == 0) {
+			shc = (ISO_RRIP_CONT *)sh;
+			error = f->f_dev->dv_strategy(f->f_devdata, F_READ,
+			    cdb2devb(isonum_733(shc->location)),
+			    ISO_DEFAULT_BLOCK_SIZE, susp_buffer, &read);
+
+			/* Bail if it fails. */
+			if (error != 0 || read != ISO_DEFAULT_BLOCK_SIZE)
+				return (NULL);
+			p = susp_buffer + isonum_733(shc->offset);
+			end = p + isonum_733(shc->length);
+		} else
+			/* Ignore this record and skip to the next. */
+			p += isonum_711(sh->length);
+	}
+	return (NULL);
+}
+
+static char *
+rrip_lookup_name(struct open_file *f, struct iso_directory_record *dp,
+    int lenskip, size_t *len)
+{
+	ISO_RRIP_ALTNAME *p;
+
+	if (len == NULL)
+		return (NULL);
+
+	p = (ISO_RRIP_ALTNAME *)susp_lookup_record(f, RRIP_NAME, dp, lenskip);
+	if (p == NULL)
+		return (NULL);
+	switch (*p->flags) {
+	case ISO_SUSP_CFLAG_CURRENT:
+		*len = 1;
+		return (".");
+	case ISO_SUSP_CFLAG_PARENT:
+		*len = 2;
+		return ("..");
+	case 0:
+		*len = isonum_711(p->h.length) - 5;
+		return ((char *)p + 5);
+	default:
+		/*
+		 * We don't handle hostnames or continued names as they are
+		 * too hard, so just bail and use the default name.
+		 */
+		return (NULL);
+	}
+}
+
+static int
+rrip_check(struct open_file *f, struct iso_directory_record *dp, int *lenskip)
+{
+	ISO_SUSP_PRESENT *sp;
+	ISO_RRIP_EXTREF *er;
+	char *p;
+
+	/* First, see if we can find a SP field. */
+	p = dp->name + isonum_711(dp->name_len);
+	if (p > (char *)dp + isonum_711(dp->length))
+		return (0);
+	sp = (ISO_SUSP_PRESENT *)p;
+	if (bcmp(sp->h.type, SUSP_PRESENT, 2) != 0)
+		return (0);
+	if (isonum_711(sp->h.length) != sizeof(ISO_SUSP_PRESENT))
+		return (0);
+	if (sp->signature[0] != 0xbe || sp->signature[1] != 0xef)
+		return (0);
+	*lenskip = isonum_711(sp->len_skp);
+
+	/*
+	 * Now look for an ER field.  If RRIP is present, then there must
+	 * be at least one of these.  It would be more pedantic to walk
+	 * through the list of fields looking for a Rock Ridge ER field.
+	 */
+	er = (ISO_RRIP_EXTREF *)susp_lookup_record(f, SUSP_EXTREF, dp, 0);
+	if (er == NULL)
+		return (0);
+	return (1);
+}
+
+static int
+dirmatch(struct open_file *f, const char *path, struct iso_directory_record *dp,
+    int use_rrip, int lenskip)
+{
+	size_t len;
+	char *cp;
+	int i, icase;
+
+	if (use_rrip)
+		cp = rrip_lookup_name(f, dp, lenskip, &len);
+	else
+		cp = NULL;
+	if (cp == NULL) {
+		len = isonum_711(dp->name_len);
+		cp = dp->name;
+		icase = 1;
+	} else
+		icase = 0;
+	for (i = len; --i >= 0; path++, cp++) {
 		if (!*path || *path == '/')
 			break;
-		if (toupper(*path) == *cp)
+		if (*path == *cp)
+			continue;
+		if (!icase && toupper(*path) == *cp)
 			continue;
 		return 0;
 	}
@@ -149,7 +285,7 @@ cd9660_open(const char *path, struct open_file *f)
 	daddr_t bno, boff;
 	struct iso_directory_record rec;
 	struct iso_directory_record *dp = 0;
-	int rc;
+	int rc, first, use_rrip, lenskip;
 
 	/* First find the volume descriptor */
 	buf = malloc(buf_size = ISO_DEFAULT_BLOCK_SIZE);
@@ -178,6 +314,8 @@ cd9660_open(const char *path, struct open_file *f)
 	rec = *(struct iso_directory_record *) vd->root_directory_record;
 	if (*path == '/') path++; /* eat leading '/' */
 
+	first = 1;
+	use_rrip = 0;
 	while (*path) {
 		bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
 		dsize = isonum_733(rec.size);
@@ -207,8 +345,16 @@ cd9660_open(const char *path, struct open_file *f)
 			    continue;
 			}
 
-			if (dirmatch(path, dp))
+			/* See if RRIP is in use. */
+			if (first)
+				use_rrip = rrip_check(f, dp, &lenskip);
+
+			if (dirmatch(f, path, dp, use_rrip,
+				first ? 0 : lenskip)) {
+				first = 0;
 				break;
+			} else
+				first = 0;
 
 			dp = (struct iso_directory_record *)
 				((char *) dp + isonum_711(dp->length));
