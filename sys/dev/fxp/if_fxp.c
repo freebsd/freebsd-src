@@ -460,13 +460,6 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       fxp_intr, sc, &sc->ih);
-	if (error) {
-		device_printf(dev, "could not setup irq\n");
-		goto fail;
-	}
-
 	/*
 	 * Reset to a stable state.
 	 */
@@ -771,11 +764,6 @@ fxp_attach(device_t dev)
 	}
 
 	/*
-	 * Attach the interface.
-	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-
-	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
@@ -786,6 +774,18 @@ fxp_attach(device_t dev)
 	 * TX descriptors.
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
+
+	/*
+	 * Attach the interface.
+	 */
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
+
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+	    fxp_intr, sc, &sc->ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
+		goto fail;
+	}
 
 	splx(s);
 	return (0);
