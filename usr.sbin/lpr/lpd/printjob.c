@@ -95,6 +95,7 @@ static dev_t	 fdev;		/* device of file pointed to by symlink */
 static ino_t	 fino;		/* inode of file pointed to by symlink */
 static FILE	*cfp;		/* control file */
 static int	 child;		/* id of any filters */
+static int	 job_dfcnt;	/* count of datafiles in current user job */
 static int	 lfd;		/* lock file descriptor */
 static int	 ofd;		/* output filter file descriptor */
 static int	 ofilter;	/* id of output filter, if any */
@@ -356,6 +357,9 @@ printit(pp, file)
 	sprintf(&width[2], "%ld", pp->page_width);
 	strcpy(indent+2, "0");
 
+	/* initialize job-specific count of datafiles processed */
+	job_dfcnt = 0;
+	
 	/*
 	 *      read the control file for work to do
 	 *
@@ -572,6 +576,10 @@ print(pp, format, file)
 	if ((stb.st_mode & S_IFMT) == S_IFLNK && fstat(fi, &stb) == 0 &&
 	    (stb.st_dev != fdev || stb.st_ino != fino))
 		return(ACCESS);
+
+	job_dfcnt++;		/* increment datafile counter for this job */
+
+	/* everything seems OK, start it up */
 	if (!pp->no_formfeed && !pp->tof) { /* start on a fresh page */
 		(void) write(ofd, pp->form_feed, strlen(pp->form_feed));
 		pp->tof = 1;
@@ -803,6 +811,10 @@ sendit(pp, file)
 	 */
 	if ((cfp = fopen(file, "r")) == NULL)
 		return(OK);
+
+	/* initialize job-specific count of datafiles processed */
+	job_dfcnt = 0;
+
 	/*
 	 *      read the control file for work to do
 	 *
@@ -913,6 +925,9 @@ sendfile(pp, type, file, format)
 	    (stb.st_dev != fdev || stb.st_ino != fino))
 		return(ACCESS);
 
+	job_dfcnt++;		/* increment datafile counter for this job */
+
+	/* everything seems OK, start it up */
 	sizerr = 0;
 	closedpr = 0;
 	if (type == '\3') {
@@ -1051,6 +1066,8 @@ sendfile(pp, type, file, format)
 	}
 	if (i)
 		pstatus(pp, "sending to %s", pp->remote_host);
+	if (type == '\3')
+		trstat_init(pp, file, job_dfcnt);
 	for (i = 0; i < stb.st_size; i += BUFSIZ) {
 		amt = BUFSIZ;
 		if (i + amt > stb.st_size)
@@ -1089,6 +1106,9 @@ sendfile(pp, type, file, format)
 	}
 	if (closedpr)
 		openpr(pp);
+	if (type == '\3')
+		trstat_write(pp, TR_SENDING, stb.st_size, logname,
+				 pp->remote_host, fromhost);
 	return(OK);
 }
 
