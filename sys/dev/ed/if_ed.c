@@ -84,7 +84,7 @@ static void	ed_watchdog	(struct ifnet *);
 static void	ed_tick		(void *);
 #endif
 
-static void	ds_getmcaf	(struct ed_softc *, u_int32_t *);
+static void	ds_getmcaf	(struct ed_softc *, uint32_t *);
 
 static void	ed_get_packet	(struct ed_softc *, char *, /* u_short */ int);
 
@@ -3074,10 +3074,10 @@ ed_hpp_readmem(sc, src, dst, amount)
 			  ED_HPP_OPTION_BOOT_ROM_ENB));
 
 		if (use_32bit_access && (amount > 3)) {
-			u_int32_t *dl = (u_int32_t *) dst;	
-			volatile u_int32_t *const sl = 
-				(u_int32_t *) sc->hpp_mem_start;
-			u_int32_t *const fence = dl + (amount >> 2);
+			uint32_t *dl = (uint32_t *) dst;	
+			volatile uint32_t *const sl = 
+				(uint32_t *) sc->hpp_mem_start;
+			uint32_t *const fence = dl + (amount >> 2);
 			
 			/* Copy out NIC data.  We could probably write this
 			   as a `movsl'. The currently generated code is lousy.
@@ -3242,10 +3242,10 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 				}
 				/* output contiguous words */
 				if ((len > 3) && (use_32bit_accesses)) {
-					volatile u_int32_t *const dl = 
-						(volatile u_int32_t *) d;
-					u_int32_t *sl = (u_int32_t *) data;
-					u_int32_t *fence = sl + (len >> 2);
+					volatile uint32_t *const dl = 
+						(volatile uint32_t *) d;
+					uint32_t *sl = (uint32_t *) data;
+					uint32_t *fence = sl + (len >> 2);
 
 					while (sl < fence)
 						*dl = *sl++;
@@ -3461,7 +3461,7 @@ ed_setrcr(sc)
 	} else {
 		/* set up multicast addresses and filter modes */
 		if (ifp->if_flags & IFF_MULTICAST) {
-			u_int32_t  mcaf[2];
+			uint32_t  mcaf[2];
 
 			if (ifp->if_flags & IFF_ALLMULTI) {
 				mcaf[0] = 0xffffffff;
@@ -3508,9 +3508,9 @@ ed_setrcr(sc)
 static void
 ds_getmcaf(sc, mcaf)
 	struct ed_softc *sc;
-	u_int32_t *mcaf;
+	uint32_t *mcaf;
 {
-	register u_int32_t index;
+	register uint32_t index;
 	register u_char *af = (u_char *) mcaf;
 	struct ifmultiaddr *ifma;
 
