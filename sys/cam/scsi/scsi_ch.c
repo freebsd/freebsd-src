@@ -1157,6 +1157,8 @@ chgetelemstatus(struct cam_periph *periph,
 	 * Fill in the user status array.
 	 */
 	st_hdr = (struct read_element_status_header *)data;
+	pg_hdr = (struct read_element_status_page_header *)((uintptr_t)st_hdr +
+		  sizeof(struct read_element_status_header));
 	avail = scsi_2btoul(st_hdr->count);
 
 	if (avail != cesr->cesr_element_count) {
