@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.c,v 1.1.1.1.2.1 1996/12/10 00:31:56 joerg Exp $
+ *	$Id: pw.c,v 1.1.1.1.2.2 1996/12/11 00:14:14 joerg Exp $
  */
 
 #include "pw.h"
@@ -60,7 +60,7 @@ main(int argc, char *argv[])
 		{ /* user */
 			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NP",
 			"C:qn:u:r",
-			"C:qn:u:c:d:e:p:g:G:mk:s:w:L:h:FNP",
+			"C:qn:u:c:d:e:l:p:g:G:mk:s:w:L:h:FNP",
 			"C:qn:u:FPa",
 			"C:q"
 		},
