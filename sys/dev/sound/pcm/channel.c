@@ -268,7 +268,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 		return EBUSY;
 	}
 	c->flags |= CHN_F_WRITING;
-	while (buf->uio_resid >= DMA_ALIGN_THRESHOLD) {
+	while (buf->uio_resid > 0) {
 		s = spltty();
 		chn_dmaupdate(c);
 		splx(s);
@@ -284,6 +284,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 		/* ensure we always have a whole number of samples */
 		l = min(b->fl, b->bufsize - b->fp) & DMA_ALIGN_MASK;
 		w = c->feeder->feed(c->feeder, b->buf + b->fp, l, buf);
+		if (w == 0) panic("no feed");
 		s = spltty();
 		b->rl += w;
 		b->fl -= w;
