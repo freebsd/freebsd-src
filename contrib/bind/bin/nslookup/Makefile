@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.24 1999/10/13 01:14:46 vixie Exp $
+# $Id: Makefile,v 8.25 2000/07/11 06:41:35 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -42,8 +42,9 @@ INSTALL_EXEC=
 INSTALL_LIB=-o bin -g bin
 
 LDFLAGS=
-DEFS=	-D_PATH_HELPFILE=\"${DESTHELP}/nslookup.help\"
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} ${DEFS}
+DEFS=	-D_PATH_HELPFILE=\"${DESTDIR}${DESTHELP}/nslookup.help\"
+CFLAGS=	${CDEBUG}
+CPPFLAGS=  -I${PORTINCL} -I${INCL} ${DEFS}
 
 PROG= nslookup
 CSRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c

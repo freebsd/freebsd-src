@@ -11,7 +11,7 @@
 
 <P>
 The Master File Format was initially defined in
-<A HREF=http://ds.internic.net/rfc/rfc1035.txt>RFC 1035</A>
+<A HREF=http://www.ietf.org/rfc/rfc1035.txt>RFC 1035</A>
 and has subsequently been extended. 
 <P>
 While the Master File Format is class independent all records in a 
@@ -46,7 +46,7 @@ point.  If origin is specified the file is processed with <CODE>$ORIGIN</CODE>
 set to that value otherwise the current <CODE>$ORIGIN</CODE> is used.
 <I>NOTE: The  behaviour when &lt;origin&gt; is specified differs from that
 described in 
-<A HREF=http://ds.internic.net/rfc/rfc1035.txt>RFC 1035</A>.</I>
+<A HREF=http://www.ietf.org/rfc/rfc1035.txt>RFC 1035</A>.</I>
 <P>
 The origin and current domain revert to the values they were prior to the
 <CODE>$INCLUDE</CODE> once the file has been read.
@@ -57,7 +57,7 @@ Set the default Time To Live (TTL) for subsequent records with undefined
 TTL's. Valid TTL's are of the range 0-2147483647.
 <P>
 <CODE>$TTL</CODE> is defined in
-<A HREF=http://ds.internic.net/rfc/rfc2308.txt>RFC 2308</A>.
+<A HREF=http://www.ietf.org/rfc/rfc2308.txt>RFC 2308</A>.
 <H3>BIND Master File Extentions</H3>
 <H4>$GENERATE</H4>
 Syntax: <CODE>$GENERATE &lt;range&gt; &lt;lhs&gt; &lt;type&gt; &lt;rhs&gt;
@@ -67,7 +67,7 @@ Syntax: <CODE>$GENERATE &lt;range&gt; &lt;lhs&gt; &lt;type&gt; &lt;rhs&gt;
 that only differ from each other by an iterator.  <CODE>$GENERATE</CODE>
 can be used to easily generate the sets of records required to support
 sub /24 reverse delegations described in 
-<A HREF=http://ds.internic.net/rfc/rfc2317.txt>RFC 2317: Classless IN-ADDR.ARPA delegation</A>.
+<A HREF=http://www.ietf.org/rfc/rfc2317.txt>RFC 2317: Classless IN-ADDR.ARPA delegation</A>.
 
 <PRE>
 $ORIGIN 0.0.192.IN-ADDR.ARPA.

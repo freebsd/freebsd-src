@@ -12,9 +12,9 @@
 <A NAME="Syntax"><H3>Syntax</H3></A>
 
 <PRE>
-<VAR>address_match_list</VAR>    = 1*<VAR>address_match_element</VAR>
+<VAR>address_match_list</VAR>    = <VAR>address_match_element</VAR> [ <VAR>address_match_element</VAR> ... ]
 
-<VAR>address_match_element</VAR> = [ "!" ] (<VAR><A HREF="docdef.html">address_match_list</A></VAR> / <VAR><A HREF="docdef.html">ip_address</A></VAR> / <VAR><A HREF="docdef.html">ip_prefix</A></VAR> / <VAR><A HREF="acl.html">acl_name</A></VAR> / <VAR><A HREF="docdef.html">"key" key_id</A></VAR>) ";"
+<VAR>address_match_element</VAR> = [ "!" ] ( <VAR><A HREF="docdef.html">ip_address</A></VAR> / <VAR><A HREF="docdef.html">ip_prefix</A></VAR> / <VAR><A HREF="acl.html">acl_name</A></VAR> / <VAR><A HREF="docdef.html">"key" key_id</A></VAR> / { <VAR>address_match_list</VAR> } ) ;
 </PRE>
 
 <HR>
@@ -94,7 +94,7 @@ fall through.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: address_list.html,v 1.8 1999/09/15 20:28:00 cyarnell Exp $
+Last Updated: $Id: address_list.html,v 1.9 1999/12/03 02:20:42 gson Exp $
 </ADDRESS>
 </BODY>
 </HTML>

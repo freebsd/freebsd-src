@@ -15,7 +15,7 @@
 # SOFTWARE.
 #
 
-# $Id: Makefile,v 8.19 2000/02/29 03:38:23 vixie Exp $
+# $Id: Makefile,v 8.20 2000/07/11 06:41:42 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -34,7 +34,8 @@ INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
 LIBBINDR = ../${TOP}/lib/libbind_r.${A}
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 LD_LIBFLAGS= -x -r
 AR= ar cru
 RANLIB= ranlib

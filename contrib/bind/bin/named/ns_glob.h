@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.54 2000/04/21 06:54:07 vixie Exp $
+ *	$Id: ns_glob.h,v 8.55 2000/07/20 22:50:38 vixie Exp $
  */
 
 /*
@@ -209,7 +209,6 @@ DECL	options			server_options		INIT(NULL);
 DECL	server_info		nameserver_info		INIT(NULL);
 DECL	key_info_list		secretkey_info		INIT(NULL);
 
-DECL	int			main_needs_exit		INIT(0);
 DECL	ip_match_list		bogus_nameservers	INIT(NULL);
 
 DECL	log_context 		log_ctx;

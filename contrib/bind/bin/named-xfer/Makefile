@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.29 1999/08/08 17:51:02 vixie Exp $
+# $Id: Makefile,v 8.30 2000/07/11 06:41:34 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -45,7 +45,8 @@ INSTALL_LIB=-o bin -g bin
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 
 NAMED_OBJS= \
 	../named/db_glue.${O} ../named/ns_glue.${O} ../named/tmp_version.${O}

@@ -1281,7 +1281,8 @@ may also be specified in the
 .Ic zone
 statement, in which case it overrides the
 .Ic options allow-query
-statement.  If not specified, the default is
+statement.  If not specified, the default is to allow queries
+from all hosts.
 
 .Bl -tag -width 1 
 .It Ic allow-recursion
@@ -1309,6 +1310,7 @@ is to allow transfers from all hosts.
 Specifies a list of addresses that the server will not accept queries from
 or use to resolve a query.  Queries from these addresses will not be
 responded to.
+.El
 .El
 
 .Ss Interfaces
@@ -1757,6 +1759,8 @@ zone \fIdomain_name\fR [ ( in | hs | hesiod | chaos ) ] {
   [ allow-update { \fIaddress_match_list\fR }; ]
   [ allow-query { \fIaddress_match_list\fR }; ]
   [ allow-transfer { \fIaddress_match_list\fR }; ]
+  [ forward ( only | first ); ]
+  [ forwarders { [ \fIip_addr\fR ; [ \fIip_addr\fR ; ... ] ] }; ]
   [ dialup \fIyes_or_no\fR; ]
   [ notify \fIyes_or_no\fR; ]
   [ also-notify { \fIip_addr\fR; [ \fIip_addr\fR; ... ] };
@@ -1771,6 +1775,8 @@ zone \fIdomain_name\fR [ ( in | hs | hesiod | chaos ) ] {
   [ allow-update { \fIaddress_match_list\fR }; ]
   [ allow-query { \fIaddress_match_list\fR }; ]
   [ allow-transfer { \fIaddress_match_list\fR }; ]
+  [ forward ( only | first ); ]
+  [ forwarders { [ \fIip_addr\fR ; [ \fIip_addr\fR ; ... ] ] }; ]
   [ transfer-source \fIip_addr\fR; ]
   [ max-transfer-time-in \fInumber\fR; ]
   [ notify \fIyes_or_no\fR; ]

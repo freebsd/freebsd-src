@@ -1,28 +1,27 @@
-Newsgroups: comp.protocols.tcp-ip.domains,comp.answers,news.answers
-Path: vixie!news1.digital.com!su-news-hub1.bbnplanet.com!news.bbnplanet.com!cam-news-hub1.bbnplanet.com!news.mathworks.com!news.kei.com!uhog.mit.edu!rutgers!njitgw.njit.edu!hertz.njit.edu!cdp2582
+Path: senator-bedfellow.mit.edu!bloom-beacon.mit.edu!news.kodak.com!news-nysernet-16.sprintlink.net!news-in-east1.sprintlink.net!news.sprintlink.net!newshub.northeast.verio.net!news.idt.net!newsin.iconnet.net!IConNet!not-for-mail
 From: cdp2582@hertz.njit.edu (Chris Peckham)
+Newsgroups: comp.protocols.tcp-ip.domains,comp.answers,news.answers,comp.protocols.dns.bind
 Subject: comp.protocols.tcp-ip.domains Frequently Asked Questions (FAQ) (Part 2 of 2)
-Message-ID: <cptd-faq-2-849940949@njit.edu>
+Supersedes: <cptd-faq-2-911181667@njit.edu>
 Followup-To: comp.protocols.tcp-ip.domains
-Originator: cdp2582@hertz.njit.edu
-Keywords: BIND,DOMAIN,DNS
-Sender: news@njit.edu
-Supersedes: <cptd-faq-2-847336183@njit.edu>
-Nntp-Posting-Host: hertz.njit.edu
-X-Posting-Frequency: posted during the first week of each month
-Reply-To: domain-faq@njit.edu (comp.protocols.tcp-ip.domains FAQ comments)
 Organization: NJIT.EDU - New Jersey Institute of Technology, Newark, NJ, USA
-References: <cptd-faq-1-849940949@njit.edu> 
-Date: Sat, 7 Dec 1996 06:42:49 GMT
+Lines: 2050
+Sender: cdp@chipmunk.iconnet.net
 Approved: news-answers-request@MIT.EDU
-Expires: Sat 11 Jan 97 02:42:29 EDT
-Lines: 1277
-Xref: vixie comp.protocols.tcp-ip.domains:12905 comp.answers:22441 news.answers:85683
+Distribution: world
+Expires: Wednesday, 20 Jan 99 11:47:26 EDT
+Message-ID: <cptd-faq-2-913826846@njit.edu>
+References: <cptd-faq-1-913826846@njit.edu>
+Reply-To: domain-faq@pfmc.net (comp.protocols.tcp-ip.domains FAQ comments)
+Keywords: BIND,DOMAIN,DNS
+X-Posting-Frequency: posted during the first week of each month
+Date: Wed, 16 Dec 1998 16:47:32 GMT
+NNTP-Posting-Host: chipmunk.iconnet.net
+NNTP-Posting-Date: Wed, 16 Dec 1998 11:47:32 EDT
+Xref: senator-bedfellow.mit.edu comp.protocols.tcp-ip.domains:22180 comp.answers:34269 news.answers:146737 comp.protocols.dns.bind:6040
 
-Posted-By: auto-faq 3.1.1.2
+Posted-By: auto-faq 3.3 beta (Perl 5.004)
 Archive-name: internet/tcp-ip/domains-faq/part2
-Revision: 1.13 1996/12/07 06:42:15
-
 
 (Continued from Part 1, where you'll find the introduction and 
 table of contents.)
@@ -32,27 +31,48 @@ table of contents.)
 
 Section 5.  CONFIGURATION
 
- Q5.1        Changing a Secondary server to a Primary server ?
- Q5.2        Moving a Primary server to another server
- Q5.3        How do I subnet a Class B Address ?
- Q5.4        Subnetted domain name service
- Q5.5        Recommended format/style of DNS files
- Q5.6        DNS on a system not connected to the Internet
- Q5.7        Multiple Domain configuration
- Q5.8        wildcard MX records
- Q5.9        How do you identify a wildcard MX record ?
- Q5.10       Why are fully qualified domain names recommended ?
- Q5.11       Distributing load using named
- Q5.12       Order of returned records
- Q5.13       resolv.conf
- Q5.14       How do I delegate authority for sub-domains ?
- Q5.15       DNS instead of NIS on a Sun OS 4.1.x system
- Q5.16       Patches to add functionality to BIND 
- Q5.17       How to serve multiple domains from one server
+ Q5.1        Upgrading from 4.9.x to 8.x 
+ Q5.2        Changing a Secondary server to a Primary server ?
+ Q5.3        Moving a Primary server to another server
+ Q5.4        How do I subnet a Class B Address ?
+ Q5.5        Subnetted domain name service
+ Q5.6        Recommended format/style of DNS files
+ Q5.7        DNS on a system not connected to the Internet
+ Q5.8        Multiple Domain configuration
+ Q5.9        wildcard MX records
+ Q5.10       How do you identify a wildcard MX record ?
+ Q5.11       Why are fully qualified domain names recommended ?
+ Q5.12       Distributing load using named
+ Q5.13       Round robin IS NOT load balancing
+ Q5.14       Order of returned records
+ Q5.15       resolv.conf
+ Q5.16       How do I delegate authority for sub-domains ?
+ Q5.17       DNS instead of NIS on a Sun OS 4.1.x system
+ Q5.18       Patches to add functionality to BIND 
+ Q5.19       How to serve multiple domains from one server
+ Q5.20       hostname and domain name the same
+ Q5.21       Restricting zone transfers
+ Q5.22       DNS in firewalled and private networks
+ Q5.23       Different DNS answers for same RR
 
 -----------------------------------------------------------------------------
 
-Question 5.1.  Changing a Secondary server to a Primary server ?
+Question 5.1.  Upgrading from 4.9.x to 8.x
+
+Date: Wed Jul  9 22:00:07 EDT 1997
+
+Q: Help !  How do I use the Completely new configuration syntax in BIND 8
+? I've attempted to upgrade bind from 4.9.5 to 8.1, but unfortunately it
+didn't seem to like the same config/zone files.. is this normal or should
+8.1 be able to read the same files as 4.9.5 did?
+
+A: If you then look in doc/html/config.html, you will find directions on
+how to convert a 4.9.x .boot file to 8.x .conf file, as well as directions
+on how to utilize all of the new features of the 8.x .conf file format.
+
+-----------------------------------------------------------------------------
+
+Question 5.2.  Changing a Secondary server to a Primary server ?
 
 Date: Fri Jul  5 23:54:35 EDT 1996
 
@@ -73,7 +93,7 @@ receive the request.
 
 -----------------------------------------------------------------------------
 
-Question 5.2.  Moving a Primary server to another server
+Question 5.3.  Moving a Primary server to another server
 
 Date: Fri Jul  5 23:54:35 EDT 1996
 
@@ -83,13 +103,13 @@ the root servers takes place after the request has been made to the
 InterNIC.
 
 If you are moving to a different ISP which will change your IP's, the
-recommened setting for the SOA that would minimize problems for your name
+recommend setting for the SOA that would minimize problems for your name
 servers using the old settings can be done as follows:
 
 Gradually lower the TTL value in your SOA (that's the last one of the five
 numbers) to always be equal to the time left until you change over.
 (assuming that none of your resource records have individual TTL's set, if
-so, do likewise witht them.)  So, the day before, lower  to 43200 seconds
+so, do likewise with them.)  So, the day before, lower  to 43200 seconds
 (12 hours).  Then lower every few hours to be the time  remaining until
 the change-over.  So, an hour before the change, you may  just want to
 lower it all the way to 60 seconds or so.  That way no one  can cache
@@ -111,9 +131,9 @@ Also see the answer to the "How can I change the IP address of our server
 
 -----------------------------------------------------------------------------
 
-Question 5.3.  How do I subnet a Class B Address ?
+Question 5.4.  How do I subnet a Class B Address ?
 
-Date: Fri Apr 28 13:34:52 EDT 1995
+Date: Mon Jun 15 23:21:39 EDT 1998
 
 That you need to subnet at all is something of a misconception.  You can
 also think of a class B network as giving you 65,534 individual hosts, and
@@ -146,25 +166,102 @@ anything from 255.0.0.0 to 255.255.255.252.  You'll probably be looking at
 1219 discusses the issue of subnetting very well  and leaves the network
 administrator with a large amount of flexibility for future growth.
 
+(The following section was contributed by Berislav Todorovic.)
+
+A user or an ISP, having a whole /16 sized IP block (former "Class B")
+network assigned/allocated, has the responsibility of maintaining the
+reverse domain for the whole network. That policy is currently applied by
+all regional Internet registries (RIPE NCC, ARIN, APNIC). In other words,
+if you're assigned a whole "B class" (say, 10.91/16), you're in charge for
+the whole 91.10.IN-ADDR.ARPA zone. This zone may be organized using two
+methods, according to the network topology being in use.
+
+The first, "brute force" method is to place all PTR records directly into
+a single zone file. Example:
+
+   $origin  91.10.in-addr.arpa
+   @        IN   SOA   (usual stuff)
+            IN   NS    ns1.mydomain.com.
+            IN   NS    ns2.mydomain.com.
+
+   1.1      IN   PTR   one-1.mydomain.com.       ; ---> 10.91.1.1
+   2.1      IN   PTR   one-2.mydomain.com.       ; ---> 10.91.1.2
+   ...
+   254.1    IN   PTR   one-254.mydomain.com.     ; ---> 10.91.1.254
+   1.2      IN   PTR   two-1.mydomain.com.       ; ---> 10.91.2.1
+
+While this approach may look simple in the networks with a central
+management authority (say, campus networks), maintaining such a zone file
+becomes more and more difficult in the more complex environment.  Thus,
+this becomes a bad method. Furthermore, if you're an ISP, it is more
+likely that a /16 network will be subnetted and its subnets be assigned to
+your customers.
+
+Therefore, another "smarter" approach is to delegate portions of the
+reverse domain 91.10.IN-ADDR.ARPA to the end users of the subnets of
+10.91/16. There would only be NS records in the zone file, while PTR
+record insertion would be the responsibility of the end users. For
+example, if you assign:
+
+   * 10.91.0.0/22  (10.91.0.0 - 10.91.3.255) to Customer-A.COM
+   * 10.91.4.0/23  (10.91.4.0 - 10.91.5.255) to Customer-B.COM
+   * 10.91.7.0/24  (10.91.7.0 - 10.91.7.255) to Customer-C.COM
+
+then each customer will maintain zone files for the reverse domains of
+their own networks (say, Customer C will maintain the zone
+7.91.10.IN-ADDR.ARPA, customer B their 2 zones, Customer A their own 4
+zones).  In this constellation, the zone file for reverse domain
+91.10.IN-ADDR.ARPA will look like this:
+
+   $origin  91.10.in-addr.arpa
+   @        IN   SOA   (usual stuff)
+            IN   NS    ns1.mydomain.com.
+            IN   NS    ns2.mydomain.com.
+
+   ; --- Customer-A.COM
+
+ 
+   0        IN   NS    ns.customer-A.com.
+            IN   NS    ns1.mydomain.com.
+   1        IN   NS    ns.customer-A.com.
+            IN   NS    ns1.mydomain.com.
+   2        IN   NS    ns.customer-A.com.
+            IN   NS    ns1.mydomain.com.
+   3        IN   NS    ns.customer-A.com.
+            IN   NS    ns1.mydomain.com.
+
+   ; --- Customer-B.COM
+
+   4        IN   NS    ns.customer-B.com.
+            IN   NS    ns1.mydomain.com.
+   5        IN   NS    ns.customer-B.com.
+            IN   NS    ns1.mydomain.com.
+
+   ; --- Customer-C.COM
+
+   7        IN   NS    ns.customer-C.com.
+            IN   NS    ns1.mydomain.com.
+
+The zone file of the Customer C reverse domain would look like this:
+
+   $origin  7.91.10.in-addr.arpa
+   @        IN   SOA   (usual stuff)
+            IN   NS    ns.customer-C.com.
+            IN   NS    ns1.mydomain.com.
+
+   1        IN   PTR   one.customer-C.com.
+   2        IN   PTR   two.customer-C.com.
+   3        IN   PTR   three.customer-C.com.
+   ...
+
 -----------------------------------------------------------------------------
 
-Question 5.4.  Subnetted domain name service
+Question 5.5.  Subnetted domain name service
 
-Date: Mon Aug  5 23:00:16 EDT 1996
+Date: Thu Jul 16 10:50:41 EDT 1998
 
 If you are looking for some examples of handling subnetted class C
-networks as separate DNS domains, see the Internet Draft
-
-draft-ietf-cidrd-classless-inaddr-02.txt
-
-for more information.   This file is available for anonymous ftp at
-
-ds.internic.net :
-/internet-drafts/draft-ietf-cidrd-classless-inaddr-02.txt
-
-or other IETF mirror sites (ftp.is.ca.za [Africa], nic.nordu.net [Europe],
-munnari.oz.au [Pacific Rim], ds.internic.net [US East Coast], or
-ftp.isi.edu [US West Coast]).
+networks as separate DNS domains, see RFC 2317 for more information.
 
 Details follow- You need to delegate down to the fourth octet, so you will
 have one domain per IP address !  Here is how you can subdelegate a
@@ -212,11 +309,11 @@ And similar for the two.1.1.192.in-addr.arpa delegated domain.
 There is additional documentation and a perl script that may be used for
 this purpose available for anonymous ftp from:
 
-ftp.vix.com : /pub/bind/contrib/gencidrzone
+ftp.is.co.za : /networking/ip/dns/gencidrzone/gencidrzone
 
 -----------------------------------------------------------------------------
 
-Question 5.5.  Recommended format/style of DNS files
+Question 5.6.  Recommended format/style of DNS files
 
 Date: Sun Nov 27 23:32:41 EST 1994
 
@@ -294,7 +391,7 @@ This answer is quoted from an article posted by Paul Vixie:
    This format will last us until 2147 A.D. at which point I expect a
    better solution will have been found :-).  (Note that it would last
    until 4294 A.D. except that there are some old BINDs out there that
-   use a signed quantity for representing serial number interally; I
+   use a signed quantity for representing serial number internally; I
    suppose that as long as none of these are still running after 2047
    A.D., that we can use the above serial number format until 4294
    A.D., at which point a better solution will HAVE to be found.)
@@ -346,7 +443,7 @@ $ORIGIN 1.16.in-addr.arpa.
 =============
 
    It is usually pretty hard to keep your forward and reverse zones in
-   synch.  You can avoid that whole problem by just using "h2n" (see
+   sync.  You can avoid that whole problem by just using "h2n" (see
    the ORA book, DNS and BIND, and its sample toolkit, included in the
    BIND distribution or on ftp.uu.net (use the QUOTE SITE EXEC INDEX
    command there to find this -- I never can remember where it's at).
@@ -382,7 +479,7 @@ pc.home         A       192.5.5.3
 
 -----------------------------------------------------------------------------
 
-Question 5.6.  DNS on a system not connected to the Internet
+Question 5.7.  DNS on a system not connected to the Internet
 
 Date: Sun Nov 27 23:32:41 EST 1994
 
@@ -406,7 +503,7 @@ and a resolver that did configurable /etc/hosts fallback.
 
 -----------------------------------------------------------------------------
 
-Question 5.7.  Multiple Domain configuration
+Question 5.8.  Multiple Domain configuration
 
 Date: Fri Dec  2 15:40:49 EST 1994
 
@@ -425,7 +522,7 @@ You can also do the same thing with multiple A records.
 
 -----------------------------------------------------------------------------
 
-Question 5.8.  wildcard MX records
+Question 5.9.  wildcard MX records
 
 Date: Sun Nov 27 23:32:41 EST 1994
 
@@ -456,7 +553,7 @@ It just doesn't work.
 
 -----------------------------------------------------------------------------
 
-Question 5.9.  How do you identify a wildcard MX record ?
+Question 5.10.  How do you identify a wildcard MX record ?
 
 Date: Thu Dec  1 11:10:39 EST 1994
 
@@ -477,7 +574,7 @@ RFC 974 explains this pretty well.
 
 -----------------------------------------------------------------------------
 
-Question 5.10.  Why are fully qualified domain names recommended ?
+Question 5.11.  Why are fully qualified domain names recommended ?
 
 Date: Sun Nov 27 23:32:41 EST 1994
 
@@ -494,6 +591,7 @@ Paul Vixie likes to do it :-)  He lists a few reasons -
   domain", etc) but why should it be a requirement ?
 * The real reason is that not doing it violates a very useful invariant:
     gethostbyname(gethostname) == gethostbyaddr(primary_interface_address)
+
 
   If you take an address and go "backwards" through the PTR's with it,
   you'll get a FQDN, and if you push that back through the A RR's, you get
@@ -523,9 +621,9 @@ Paul Vixie likes to do it :-)  He lists a few reasons -
 
 -----------------------------------------------------------------------------
 
-Question 5.11.  Distributing load using named
+Question 5.12.  Distributing load using named
 
-Date: Wed Mar  1 11:04:43 EST 1995
+Date: Thu Jul 16 10:42:05 EDT 1998
 
 When you attempt to distribute the load on a system using named, the first
 response be cached, and then later queries use the cached value (This
@@ -548,7 +646,7 @@ Not nice.
 Paul Vixie has an example of the ROUND_ROBIN code in action.  Here is
 something that he wrote regarding his example:
 
-     >I want users to be distributed evenly among those 3 hosts.
+     I want users to be distributed evenly among those 3 hosts.
 
      Believe it or not :-), BIND offers an ugly way to do this.  I offer
      for your collective amusement the following snippet from the
@@ -603,9 +701,34 @@ something that he wrote regarding his example:
       aliases: hydra.ugly.vix.com
       addresses: 10.3.0.3 10.3.0.1 10.3.0.2
 
+Please note that this is not a recommended practice and will not work with
+modern BIND unless you have the entry "multiple-cnames yes" in your
+named.conf file.
+
 -----------------------------------------------------------------------------
 
-Question 5.12.  Order of returned records
+Question 5.13.  Round robin IS NOT load balancing
+
+Date: Mon Mar  9 22:10:51 EST 1998
+
+Round robin != load balancing. It's a very crude attempt at load
+balancing, and a method that is possible without breaking DNS protocols.
+If a host  is down that is included in a round robin list, then
+connections to that  particular host will fail.  In addition, true load
+balancing should take  into consideration the actual LOAD on the system.
+
+Information on one such technique, implemented by Roland J. Schemers III
+at Stanford, may be found at
+http://www-leland.stanford.edu/~schemers/docs/lbnamed/lbnamed.html.
+
+Additional information may be found in RFC 1794.  MultiNet for OpenVMS
+also includes this feature.
+
+-----------------------------------------------------------------------------
+
+Question 5.14.  Order of returned records
+
+Date: Tue Apr  8 20:21:02 EDT 1997
 
 Sorting, is the *resolver's* responsibility.  RFC 1123:
 
@@ -629,11 +752,12 @@ Sorting, is the *resolver's* responsibility.  RFC 1123:
                  administrator.
 
 In BIND 4.9.x's resolver code, the "sortlist" directive in resolv.conf
-can be used to configure this.
+can be used to configure this.  The directive may also be used in the
+named.boot as well.
 
 -----------------------------------------------------------------------------
 
-Question 5.13.  resolv.conf
+Question 5.15.  resolv.conf
 
 Date: Fri Feb 10 15:46:17 EST 1995
 
@@ -680,9 +804,9 @@ send to the loopback address).
 
 -----------------------------------------------------------------------------
 
-Question 5.14.  How do I delegate authority for sub-domains ?
+Question 5.16.  How do I delegate authority for sub-domains ?
 
-Date: Sat Dec  7 02:04:17 EST 1996
+Date: Mon Nov 10 22:57:54 EST 1997
 
 When you start having a very big domain that can be broken into logical
 and separate entities that can look after their own DNS information, you
@@ -724,9 +848,23 @@ The second NS line is because mackerel will be acting as secondary name
 server for the ucc.gu domain.  Do not include this line if you are not
 authorative for the information included in the sub-domain.
 
+To delegate authority for PTR records, the same concepts apply.
+
+   stub 10.168.192.in-addr.arpa <subdomain server addr> db.192.168.10
+
+may be added to your primary server's named.boot in recent versions of
+bind.  In other versions (and recent ones :-) ), the following lines may
+be added  to the db.192.168.10 zone file to perform the same function:
+
+   xxx IN NS <server1>
+   xxx IN NS <server2>
+   xxx IN NS <server3>			; if needed
+...
+   xxx IN NS <serverN>			; if needed
+
 -----------------------------------------------------------------------------
 
-Question 5.15.  DNS instead of NIS on a Sun OS 4.1.x system
+Question 5.17.  DNS instead of NIS on a Sun OS 4.1.x system
 
 Date: Sat Dec  7 01:14:17 EST 1996
 
@@ -742,9 +880,9 @@ as well as from rtfm.mit.edu in the usual place, etc.
 
 -----------------------------------------------------------------------------
 
-Question 5.16.  Patches to add functionality to BIND
+Question 5.18.  Patches to add functionality to BIND
 
-Date: Tue Nov  5 23:53:47 EST 1996
+Date: Wed Jan 14 11:57:20 EST 1998
 
 There are others, but these are listed here:
 
@@ -756,9 +894,15 @@ There are others, but these are listed here:
 * Patches for 4.9.3-REL that will support the IPv6 AAAA record format may
   be  found at ftp.inria.fr : /network/ipv6/
 
+  This is built into more recent versions of BIND (after 4.9.5?)
+
 * A patch for 4.9.3-REL that will allow you to turn off forwarding of
   information from my server may be found at ftp.vix.com :
   /pub/bind/release/4.9.3/contrib/noforward.tar.gz
+
+  Also look at
+
+  ftp.is.co.za : /networking/ip/dns/bind/contrib/noforward.tar.gz
 
 * How do I tell a server to listen to a particular interface to listen and
   respond to DNS queries on ?
@@ -767,9 +911,14 @@ There are others, but these are listed here:
   particular interface and respond to DNS queries.  It may be found at an
   unofficial location: http://www.ultra.net/~jzp/andrews.patch.txt
 
+  This is built into BIND 8.1.1.
+
+* A patch to implement "selective forwarding" from Todd Aven at
+  http://www.dns.net/dnsrd/servers.html.
+
 -----------------------------------------------------------------------------
 
-Question 5.17.  How to serve multiple domains from one server
+Question 5.19.  How to serve multiple domains from one server
 
 Date: Tue Nov  5 23:44:02 EST 1996
 
@@ -803,6 +952,312 @@ multiple domains, see
 
 http://www.thesphere.com/%7Edlp/TwoServers/.
 
+-----------------------------------------------------------------------------
+
+Question 5.20.  hostname and domain name the same
+
+Date: Wed Jul  9 21:47:36 EDT 1997
+
+Q: I have a subdomain sub.foobar.com. I would like to name a host
+sub.foobar.com. It should also be the mail relay for all hosts in
+sub.foobar.com. How do I do this ?
+
+A: You would add an A record for sub.foobar.com, and multiple MX records
+pointing to this host (sub.foobar.com).  For example:
+
+sub.foobar.com.         IN      A       1.2.3.4 ; address of host
+;
+foo.sub.foobar.com.     IN      MX      10 sub.foobar.com.
+bar.sub.foobar.com.     IN      MX      10 sub.foobar.com.
+
+The host, sub.foobar.com, may also need to be to configured to understand
+that mail addressed to user@sub.foobar.com and possibly other sub.foobar.com 
+hosts should be treated as local.
+
+-----------------------------------------------------------------------------
+
+Question 5.21.  Restricting zone transfers
+
+Date: Wed Jan 14 12:16:35 EST 1998
+
+Q: How do I restrict my zone transfers to my secondaries or other trusted
+hosts?
+
+A: Use the 'xfrnets' directive within the named.boot file or  the
+'secure_zone' TXT RR within a zone file.  The BOG has more information on
+both of these options.
+
+As an example within an 4.9.x named.boot file:
+
+   xfernets 10.1.2.0&255.255.255.0 44.66.10.0&255.255.255.0 
+
+
+Only Nameservers on these networks will be able to do zone transfers from
+the server with this configuration.
+
+Please note that 'secure_zone' restricts all access to the containing
+zone, as well as restricting zone transfers :-) .
+
+BIND 8.x supports restricting zone transfers on a per-zone basis in  the
+named.conf file, whereas BIND 4.9.x only supports xfrnets as a global
+option.
+
+-----------------------------------------------------------------------------
+
+Question 5.22.  DNS in firewalled and private networks
+
+Date: Mon Sep 14 22:15:16 EDT 1998
+
+(The following section was contributed by Berislav Todorovic)
+
+When talking about private networks, we distinguish between two cases:
+
+* Networks consisting of firewall-separated private and public subnetworks
+
+  * Same domain name used in private and public part of the network
+  * Different domain names used in the public and private subnetwork
+
+* Closed networks, not connected the Internet at all
+
+* The first case of the  "Same domain name", we're talking about DNS
+  configuration, usually referred to as "split DNS". In this case, two
+  different DNS servers (or two separate DNS processes on the same
+  multi-homed machine) have to be configured. One of them ("private DNS")
+  will serve the internal network and will contain data about all hosts in
+  the private part of the network. The other one ("public DNS") will serve
+  Internet users and will contain only the most necessary RR's for
+  Internet users (like MX records for email exchange, A and CNAME records
+  for public Web servers, records for other publicly accessible hosts
+  etc.). Both of them will be configured as primary for the same corporate
+  domain (e.g.  DOMAIN.COM).  The public DNS will be delegated with the
+  appropriate NIC as authoritative for domain DOMAIN.COM.
+
+  Private DNS - resolves names from DOMAIN.COM for hosts inside the
+  private network. If asked for a name outside DOMAIN.COM, they should
+  forward the request to the public DNS (forwarders line should be used in
+  the boot file).  They should NEVER contact a root DNS on the Internet.
+  The boot file for the private DNS should, therefore, be:
+
+    primary            domain.com              ZONE.domain.com
+    primary            1.10.in-addr.arpa       REV.10.1
+    forwarders         172.16.12.10
+    slave
+  Public DNS - resolves names from DOMAIN.COM for hosts on the public part
+  of the network. If asked for a name outside DOMAIN.COM they should
+  contact root DNS servers or (optionally) forward the request to a
+  forwarder on the ISP network. Boot file for the public DNS should be of
+  the form:
+
+    primary            domain.com              ZONE.domain.com
+    primary            12.16.172.in-addr.arpa  REV.172.16.12
+    ... (other domains)
+  Zone files for domain DOMAIN.COM on the public and private DNS should
+  be:
+
+   ; --- Public DNS - zone file for DOMAIN.COM
+
+   domain.com.        IN   SOA   ns.domain.com. hostmaster.domain.com. ( ... )
+                      IN   NS    ns.domain.com.
+                      IN   NS    ns.provider.net.
+                      IN   MX    10     mail.provider.net.
+
+   ns                 IN   A     172.16.12.10
+   www                IN   A     172.16.12.12
+   ftp                IN   A     172.16.12.13
+   ...
+
+   ; --- Private DNS - zone file for DOMAIN.COM
+
+   domain.com.        IN   SOA   ns1.domain.com. hostmaster.domain.com. ( ... )
+                      IN   NS    ns1.domain.com.
+                      IN   NS    ns2.domain.com.
+   wks1-1             IN   A     10.1.1.1
+   wks1-2             IN   A     10.1.1.2
+   ...
+
+  The second case of the  "Same domain name", is simpler than the previous
+  case: in the internal network, a separate domain name might be used.
+  Recommended domain name syntax is "name.local" (e.g. DOMAIN.LOCAL).
+  Sample configuration:
+
+   ; --- Private DNS - named.boot
+
+   primary       domain.local           ZONE.domain.local
+   ...
+   forwarders    172.16.12.10
+   slave
+
+   ; --- Public DNS - named.boot
+   
+   primary       domain.com             ZONE.domain.com
+   ...
+  IMPLEMENTATION NOTES
+
+  Location of the DNS service in both cases is irrelevant. Usually, they
+  are located on two different physical servers, each of them connected to
+  the appropriate part of the network (private, public). Certain savings
+  may be done if public DNS service is hosted on the ISP network - in that
+  case, the user will need only one (private) DNS server.
+
+  Finally, both public and private DNS, in some cases, may be placed on
+  the servers in the private network, behind the firewall. With a Cisco
+  PIX, a statical public/private IP address mapping in this case would be
+  needed.  Two servers for the same domain could be even placed on the
+  same physical server, with two different DNS processes running on
+  different IP interfaces.  Note that BIND 8 is needed in the latter case.
+
+* If the network is not connected to the Internet at all, only private DNS
+  servers are needed. However, due to the lack of Internet connectivity,
+  internal servers will fail to contact the root DNS servers every time a
+  user types, by mistake, an address outside the corporate domain
+  DOMAIN.COM.  Some older servers won't even work if they can't reach root
+  servers. To overcome this, it is most proper to create a so-called "fake
+  root zone" on one or more DNS servers in the corporation. That would
+  make all DNS servers within the corporation think there is only one or
+  two DNS servers in the world, all located on the corporation network.
+  Only domain names used within the corporation (DOMAIN.COM, appropriate
+  inverse domains etc.) should be entered in the fake root zone file. Note
+  that no cache line in the boot file of the "root" DNS makes sense.
+  Sample configuration:
+
+   ; --- named.boot
+
+   primary     domain.com         ZONE.domain.com
+   primary     1.10.in-addr.arpa  REV.10.1
+   priamry     .                  ZONE.root
+   ... (other data; NOTE - do *NOT* place any "cache" line here !!!)
+
+   ; --- ZONE.root - fake root zone file, containing only corporation domains
+
+   .                   IN NS  ns.domain.com.  hostmaster.domain.com.  ( ... )
+                       IN NS  ns.domain.com.
+                       IN NS  ns2.domain.com.
+   
+   domain.com.         IN NS  ns.domain.com.
+   ns.domain.com.      IN  A  10.1.1.1
+   domain.com.         IN NS  ns2.domain.com.
+   ns2.domain.com.     IN  A  10.1.1.2
+   
+   1.10.in-addr.arpa.  IN NS  ns.domain.com.
+                       IN NS  ns2.domain.com.
+   
+  Other zone files follow standard configuration.
+
+-----------------------------------------------------------------------------
+
+Question 5.23.  Different DNS answers for same RR
+
+Date: Mon Sep 14 22:15:16 EDT 1998
+
+(The following section was contributed by Berislav Todorovic)
+
+Many times there is a need for a DNS server to send different answers for
+same RR's, depending on the IP address of the request sender. For example,
+many coprporations wish to make their customers to use the "geographically
+closest" Web server when accessing corporate Web pages. A corporation may
+impose the following policy: if someone asked for the IP address of
+WWW.DOMAIN.COM, they may want to:
+
+* Answer that the IP address is 172.16.2.3, if the request came from one
+  of the following IP networks: 172.1/16, 172.2/16 or 172.10/16.
+* Answer that the IP address is 172.16.1.1, if the request came from the
+  IP address 172.16/16 or 172.17.128/18.
+* By default, for all other requests send the answer that the IP address
+  is  172.16.2.3.
+
+The example above will need a DNS to send different A RR's, depending on
+the source of queries. A similar approach may be imposed for MX's, CNAME's
+etc. The question which arise here is: IS IT POSSIBLE?
+
+[Ed note: There are commercial products such as Cisco's Distributed
+Director that also will address this issue]
+
+The simple answer to the question is: NOT DIRECTLY.  This is true if
+standard DNS software (e.g. BIND) is used on the DNS servers.  However,
+there are two workarounds which may solve this problem:
+
+* Using two DNS servers on different UDP ports + UDP redirector
+* Using two DNS servers on different IP addresses + NAT on the router
+
+Solution 1: (tested on a Linux system and should work on other Unix boxes
+as well). Software needed is:
+
+* BIND 8
+* udprelay - a package which redirects traffic to other UDP port
+  (sunsite.unc.edu: /pub/Linux/system/network/misc/udprelay-0.2.tar.Z ).
+
+Build and install udprelay and bring up two DNS servers on different UDP
+ports, using different configuration files (i.e., bring one on 5300 and
+the other one on 5400):
+
+   // --- named.conf.5300
+   options {
+        directory "/var/named"
+        listen-on port 5300 { any; };
+        ... (other options)
+      };
+
+   zone "domain.com" {
+        type master;
+        file "domain.com.5300";
+      };
+
+   // --- named.conf.5400
+
+   options {
+        directory "/var/named"
+        listen-on port 5400 { any; };
+        ... (other options)
+      };
+
+   zone "domain.com" {
+        type master;
+        file "domain.com.5400";
+      };
+
+
+   ; domain.com.5300
+   ... (SOA and other stuff)
+
+   www          IN     A     172.16.2.3
+
+   ; --- domain.com.5400
+   ... (SOA and other stuff)
+
+   www          IN     A     172.16.1.1
+
+As can be seen, there will be two separate zone files for DOMAIN.COM,
+depending on which UDP port the server listens to.  Each zone file can
+contain different records.  Now, when configure udprelay to forward  UDP
+traffic from port 53 to 5300 or 5400, depending on the remote  IP address:
+
+   relay  172.1.0.0  mask 255.255.0.0 * 53   172.16.1.1 5300 53
+   relay  172.2.0.0  mask 255.255.0.0 * 53   172.16.1.1 5300 53
+   relay  172.10.0.0 mask 255.255.0.0 * 53   172.16.1.1 5300 53
+   relay  172.16.0.0 mask 255.255.0.0 * 53   172.16.1.1 5400 53
+   relay  172.17.0.0 mask 255.255.0.0 * 53   172.16.1.1 5400 53
+   relay  *                           * 53   172.16.1.1 5400 53
+After starting udprelay, all traffic coming to port 53 will be redirected
+to 5300 or 5400, depending on the source IP address.
+
+NOTE - This solution deals with the UDP part of DNS only. Zone xfers will
+be able to be done from one DNS server only, since this solution doesn't
+deal the TCP part of DNS. This is, thus, a partial solution but it works!
+
+Solution 2: Bring up two DNS servers on your network, using "private" IP
+addresses (RFC 1918), say ns1.domain.com (10.1.1.1) and ns2.domain.com
+(10.1.1.2). Both servers will have the same public address - 172.16.1.1,
+which will be used to access the servers.  Configure them to be both
+primary for domain DOMAIN.COM.  Let one of them (say, ns1) be the
+"default" DNS, which will be used in most of the cases. Establish NAT on
+the router, so it translates the public IP address 172.16.1.1 to 10.1.1.1
+and delegate your "default" DNS with the appropriate NIC, using its public
+address 172.16.1.1. Once you're assured everything works, setup your
+router to translate the public IP address 172.16.1.1 to either 10.1.1.1 or
+10.1.1.2, depending on the requestor IP address. After that, depending on
+the source IP address, the router will return one translation or the
+latter, thus forwarding the remote side to the appropriate DNS server.
+
 ===============================================================================
 
 Section 6.  PROBLEMS
@@ -817,14 +1272,30 @@ Section 6.  PROBLEMS
  Q6.8        General problems (core dumps !)
  Q6.9        malloc and DECstations
  Q6.10       Can't resolve names without a "."
- Q6.11       Err/TO errors being reported
- Q6.12       Why does swapping kill BIND ?
+ Q6.11       Why does swapping kill BIND ?
+ Q6.12       Resource limits warning in system
+ Q6.13       ERROR:ns_forw: query...learnt 
+ Q6.14       ERROR:zone has trailing dot
+ Q6.15       ERROR:Zone declared more then once
+ Q6.16       ERROR:response from unexpected source
+ Q6.17       ERROR:record too short from [zone name]
+ Q6.18       ERROR:sysquery: findns error (3)
+ Q6.19       ERROR:Err/TO getting serial# for XXX
+ Q6.20       ERROR:zonename IN NS points to a CNAME
+ Q6.21       ERROR:Masters for secondary zone [XX] unreachable
+ Q6.22       ERROR:secondary zone [XX] expired
+ Q6.23       ERROR:bad response to SOA query from [address]
+ Q6.24       ERROR:premature EOF, fetching [zone]
+ Q6.25       ERROR:Zone [XX] SOA serial# rcvd from [Y] is < ours
+ Q6.26       ERROR:connect(IP/address) for zone [XX] failed
+ Q6.27       ERROR:sysquery: no addrs found for NS
+ Q6.28       ERROR:zone [name] rejected due to errors
 
 -----------------------------------------------------------------------------
 
 Question 6.1.  No address for root server
 
-Date: Mon Jan  2 13:49:43 EST 1995
+Date: Wed Jan 14 12:15:54 EST 1998
 
 Q: I've been getting the following messages lately from bind-4.9.2..
         ns_req: no address for root server
@@ -835,6 +1306,7 @@ We are behind a firewall and have the following for our named.cache file -
         .               99999999    IN  NS  POBOX.FOOBAR.COM.
                         99999999    IN  NS  FOOHOST.FOOBAR.COM.
         foobar.com.     99999999    IN  NS  pobox.foobar.com.
+
 You can't do that.  Your nameserver contacts POBOX.FOOBAR.COM, gets the
 correct list of root servers from it, then tries again and fails because
 of your firewall.
@@ -842,6 +1314,23 @@ of your firewall.
 You will need a 'forwarder' definition, to ensure that all requests are
 forwarded to a host which can penetrate the firewall.  And it is unwise to
 put phony data into 'named.cache'.
+
+Q: We are getting logging information in the form:
+
+Apr  8 08:05:22 gute named[107]: sysquery: no addrs found for root NS
+                (A.ROOT-SERVERS.NET)
+Apr  8 08:05:22 gute named[107]: sysquery: no addrs found for root NS
+                (B.ROOT-SERVERS.NET)
+Apr  8 08:05:22 gute named[107]: sysquery: no addrs found for root NS
+                (C.ROOT-SERVERS.NET)  
+...
+
+We are running bind 4.9.5PL1 Our system IS NOT behind a firewall.  Any ideas ?
+
+This was discussed on the mailing list in November of 1996.  The short
+answer  was to ignore it as it was not a problem.  That being said,  you
+should  upgrade to a newer version at this time if you are running a
+non-current  version :-)
 
 -----------------------------------------------------------------------------
 
@@ -854,6 +1343,7 @@ Q: I've received errors before about "No root nameservers for class XX"
    I believe that Class 1 is Internet Class data.
    And I think I heard someone say that Class 4 is Hesiod??
    Does anyone know what the various Class numbers are?
+
 From RFC 1700:
 
        DOMAIN NAME SYSTEM PARAMETERS
@@ -875,6 +1365,7 @@ From RFC 1700:
           65535  Reserved                                           [PM1]
 
 DNS information for RFC 1700 was taken from
+
 ftp.isi.edu : /in-notes/iana/assignments/dns-parameters
 
 Hesiod is class 4, and there are no official root nameservers for class 4,
@@ -970,7 +1461,7 @@ Q: Given the example -
 
    Now, while reading the operating manual of bind it clearly states
    that this is *not* valid.  These two statements clearly contradict
-   each other.  Is there some later rfc than 974 that overrides what is
+   each other.  Is there some later RFC than 974 that overrides what is
    said in there with respect to MX and CNAMEs?  Anyone have the
    reference handy?
 
@@ -1115,6 +1606,7 @@ in the old resolvers, and you are timing out trying to resolve the
 address with one of these domains tacked on.
 
 When resolving internic.net the following will be tried in order.
+
         internic.net.langley.af.mil
         internic.net.af.mil
         internic.net.mil
@@ -1126,36 +1618,14 @@ RFC 1535 aware resolvers try qualified address first.
         internic.net.langley.af.mil
         internic.net.af.mil
         internic.net.mil
+
 RFC 1535 documents the problems associated with the old search
 algorithim,  including security issues, and how to alleviate some of the
 problems.
 
 -----------------------------------------------------------------------------
 
-Question 6.11.  Err/TO errors being reported
-
-Date: Sun May  5 23:46:32 EDT 1996
-
-Why are errors like
-
-     Apr  2 20:41:58 nameserver named[25846]: Err/TO getting serial# for 
-     "foobar.domain1.com"
-     Apr  2 20:41:59 nameserver named[25846]: Err/TO getting serial# for 
-     "foobar.domain2.com"
-
-reported ?  These generally indicate that there is one of the following
-problems:
-
-* A network problem between you and the primary,
-* A bad IP address in named.boot,
-* The primary is Lame for the zone.
-
-An external check to see if you can retrieve the SOA is the best way to
-work out which it is.
-
------------------------------------------------------------------------------
-
-Question 6.12.  Why does swapping kill BIND ?
+Question 6.11.  Why does swapping kill BIND ?
 
 Date: Thu Jul  4 23:20:20 EDT 1996
 
@@ -1201,6 +1671,292 @@ And the answer is:
    even if you're just hammering on some hot spots -- that's the part
    I'd like to fix.  Malloc isn't cooperating.)
 
+-----------------------------------------------------------------------------
+
+Question 6.12.  Resource limits warning in system
+
+Date: Sun Feb 15 22:04:43 EST 1998
+
+When bind-8.1.1 is started the following informational message appears in
+the syslog...
+
+   Feb 13 14:19:35 ns1named[1986]:
+       "cannot set resource limits on this system"
+
+What does this mean ?
+
+A: It means that BIND doesn't know how to implement the "coresize",
+"datasize", "stacksize", or "files" process limits on your OS.
+
+If you're not using these options, you may ignore the message.
+
+-----------------------------------------------------------------------------
+
+Question 6.13.  ERROR:ns_forw: query...learnt
+
+Date: Sun Feb 15 23:08:06 EST 1998
+
+The following message appears in syslog:
+
+   Jan 22 21:59:55 server1 named[21386]: ns_forw: query(testval) contains
+        our address (dns1.foobar.org:1.2.3.4) learnt (A=:NS=)
+
+what does it mean ?
+
+A: This means that when it was looking up the NS records for the domain
+containing "testval" (i.e. the root domain), it found an NS record
+pointing to dns1.foobar.org, and the A record for this is 1.2.3.4.
+This is server1's own IP address, but it's not authoritative for the
+root domain.  The (A-:NS=) part of the message means that it didn't
+learn these NS records from any other machine.
+
+You may have listed dns1.foobar.org in your root server cache
+file, even though it's not configured as a root server.  
+
+
+\question 09jul:linuxq ERROR:recvfrom: Connection refused
+
+Date: Wed Jul  9 21:57:40 EDT 1997
+
+DNS on my linux system is reporting the error 
+
+\verbatim
+Mar 26 12:11:20 idg named[45]: recvfrom: Connection refused 
+
+When I start or restart the named program I get no errors.  What could be
+causing this ?
+
+A: Are you running the BETA9 version of bind 4.9.3 ?   It is a bug that
+does no harm and the error reporting was corrected in later releases.  You
+should upgrade to a newer version of bind.
+
+-----------------------------------------------------------------------------
+
+Question 6.14.  ERROR:zone has trailing dot
+
+Date: Wed Jul  9 22:11:51 EDT 1997
+
+If syslog reports "zone has trailing dot", the zone information contains a
+trailing dot in the named.boot file where it does not belong.
+
+
+   example:
+   secondary  domain.com.         xxx.xxx.xxx.xxx    S-domain.com
+                        ^
+-----------------------------------------------------------------------------
+
+Question 6.15.  ERROR:Zone declared more then once
+
+Date: Wed Jul  9 22:12:45 EDT 1997
+
+If syslog reports "Zone declared more then once",
+
+A zone is specified multiple times in the named.boot file
+
+   example:
+   secondary  domain.com         198.247.225.251    S-domain.com
+   secondary  zone.com           198.247.225.251    S-zone.com
+   primary    domain.com         P-domain.com
+
+   domain.com is declared twice, once as primary, and once as secondary
+
+-----------------------------------------------------------------------------
+
+Question 6.16.  ERROR:response from unexpected source
+
+Date: Wed Jul  9 22:12:45 EDT 1997
+
+If syslog reports "response from unexpected source", BIND (pre 4.9.3) has
+a bug if implimented on a multi homed server.  This error indicates that
+the response to a query came from an address other then the one sent to.
+So, if ace gets a response from an unexpected source, ace will ignore the
+response.
+
+-----------------------------------------------------------------------------
+
+Question 6.17.  ERROR:record too short from [zone name]
+
+Date: Mon Jun 15 21:34:49 EDT 1998
+
+If syslog report "record too short from [zone name]", The secondary server
+is trying to pull a zone from the primary server.  For some reason, the
+primary sent an incomplete zone.  This usually is a problem at the primary
+server.
+
+   To troubleshoot, try this:
+
+   dig [zonename] axfr @[primary IP address]
+
+   Often, this is caused by a line broken in the middle.
+
+When the primary server's "named.boot" file contains "xfrnets" entries
+for other servers and the secondary is not listed, this error can occur.
+Creating an "xfrnets" entry for the secondary will solve the error.
+
+-----------------------------------------------------------------------------
+
+Question 6.18.  ERROR:sysquery: findns error (3)
+
+Date: Wed Jul  9 22:17:09 EDT 1997
+
+If syslog reports "sysquery: findns error (3)" or
+"qserial_query(zonename): sysquery FAILED", there is no ns record for  the
+zone.  or the NS record is not defined correctly.
+
+-----------------------------------------------------------------------------
+
+Question 6.19.  ERROR:Err/TO getting serial# for XXX
+
+Date: Wed Jul  9 22:18:41 EDT 1997
+
+If syslog reports "Err/TO getting serial# for XXX", there could be a
+number of possible errors:
+
+   - An incorrect IP address in named.boot,
+   - A network reachibility problem,
+   - The primary is lame for the zone.
+
+An external check to see if you can retrieve the SOA is the best way to
+work out which it is.
+
+-----------------------------------------------------------------------------
+
+Question 6.20.  ERROR:zonename IN NS points to a CNAME
+
+Date: Wed Jul  9 22:20:29 EDT 1997
+
+If syslog reports "zonename IN NS points to a CNAME" or  "zonename IN MX
+points to a CNAME", named is 'reminding' you that due to various RFCs, an
+NS or MX record cannot point to a CNAME.
+
+   EXAMPLE 1
+   ---------
+   domain.com    IN SOA      (...stuff...)
+                 IN NS       ns.domain.com.
+   ns            IN CNAME    machine.domain.com.
+   machine       IN A        1.2.3.4
+
+   The IN NS record points to ns, which is a CNAME for machine.  This
+   is what results in the above error
+
+   EXAMPLE 2
+   ---------
+   domain.com    IN SOA      (...stuff...)
+                 IN MX       mail.domain.com.
+   mail          IN CNAME    machine.domain.com.
+   machine       IN A        1.2.3.4
+
+   This would cause the MX variety of the error.
+
+   The fix is point MX and NS records to a machine that is defined explicitly
+   by an IN A record.
+
+-----------------------------------------------------------------------------
+
+Question 6.21.  ERROR:Masters for secondary zone [XX] unreachable
+
+Date: Wed Jul  9 22:24:27 EDT 1997
+
+If syslog reports "Masters for secondary zone [XX] unreachable", the
+initial attempts to load a zone failed, and the name server is still
+trying.  If this occurs multiple times, a problem exists, likely on the
+primary server.  This is a fairly generic error, and could indicate a vast
+number of problems.  It might be that named is not running on the primary
+server, or they do not have the correct zone file.  If this keeps up long
+enough a zone might expire.
+
+-----------------------------------------------------------------------------
+
+Question 6.22.  ERROR:secondary zone [XX] expired
+
+Date: Wed Jul  9 22:25:53 EDT 1997
+
+If syslog reports "secondary zone [XX] expired", there has been a
+expiration of a secondary zone on this server.
+
+An expired zone is one in which a transfer hasn't successfully been
+completed in the amount of time specified before a zone expires.
+
+This problem could be anything which prevents a zone transfer: The primary
+server is down, named isn't running on the primary, named.boot has the
+wrong IP address, etc.
+
+-----------------------------------------------------------------------------
+
+Question 6.23.  ERROR:bad response to SOA query from [address]
+
+Date: Wed Jan 14 12:15:11 EST 1998
+
+If syslog reports "bad response to SOA query from [address], zone [name]",
+a syntax error may exist in the SOA record of the zone your server is
+attempting to pull.
+
+It may also indicate that the primary server is lame, possibly due to a
+syntax error somewhere in the zone file.
+
+-----------------------------------------------------------------------------
+
+Question 6.24.  ERROR:premature EOF, fetching [zone]
+
+Date: Wed Jul  9 22:28:26 EDT 1997
+
+If syslog reports "premature EOF, fetching [zone]", a syntax error exists
+on the zone at the primary location, likely towards the End of File (EOF)
+location.
+
+-----------------------------------------------------------------------------
+
+Question 6.25.  ERROR:Zone [XX] SOA serial# rcvd from [Y] is < ours
+
+Date: Wed Jul  9 22:30:03 EDT 1997
+
+If syslog reports "Zone [name] SOA serial# rcvd from [address] is < ours",
+the zone transfer failed because the primary machine has a lower serial
+number in the SOA record than the one on file on this server.
+
+-----------------------------------------------------------------------------
+
+Question 6.26.  ERROR:connect(IP/address) for zone [XX] failed
+
+Date: Wed Jan 14 12:21:40 EST 1998
+
+If syslog reports "connect(address) for zone [name] failed: No route to
+host" or "connect(address) for zone [name] failed: Connection timed out",
+it could be that there is no route to the specified host or a slow primary
+system.  Try a traceroute to the address specified to isolate the problem.
+The problem may be a mistyped IP address in named.boot.
+
+A very slow primary machine or a connection may have been initialized,
+then connectivity lost for some reason, etc.  Try networking
+troubleshooting  tools like ping and traceroute, then try connecting to
+port 53 using  nslookup or dig.
+
+If syslog reports "connect(address) for zone [name] failed: Connection
+refused", the destination address is not allowing the connection.  Either
+the destination is not running DNS (port 53), or possibly filtering the
+connection from you.  It is also possible that the  named.boot is pointing
+to the wrong address.
+
+-----------------------------------------------------------------------------
+
+Question 6.27.  ERROR:sysquery: no addrs found for NS
+
+Date: Wed Jul  9 22:37:01 EDT 1997
+
+If syslog reports "sysquery: no addrs found for NS" , the IN NS record may
+be pointing to a host with no IN A record.
+
+-----------------------------------------------------------------------------
+
+Question 6.28.  ERROR:zone [name] rejected due to errors
+
+Date: Wed Jul  9 22:37:51 EDT 1997
+
+If syslog reports "primary zone [name] rejected due to errors", there will
+likely be another more descriptive error along with this, like  "zonefile:
+line 17: database format error".  That zone file should be investigated
+for errors.
+
 ===============================================================================
 
 Section 7.  ACKNOWLEDGEMENTS
@@ -1213,14 +1969,17 @@ Section 7.  ACKNOWLEDGEMENTS
 
 Question 7.1.  How is this FAQ generated ?
 
-Date: Fri Dec  6 16:51:31 EST 1996
+Date: Mon Jun 15 21:45:53 EDT 1998
 
 This FAQ is maintained in BFNN (Bizzarre Format with No Name).  This
 allows me to create ASCII, HTML, and GNU info (postscript coming soon)
 from one source file.
 
 The perl script "bfnnconv.pl" that is available with the linux FAQ is used
-to generate the various output files from the BFNN source.
+to generate the various output files from the BFNN source.  This script is
+available at
+
+txs-11.mit.edu : /pub/linux/docs/linux-faq/linux-faq.source.tar.gz
 
 -----------------------------------------------------------------------------
 
@@ -1230,26 +1989,28 @@ Date: Fri Dec  6 16:51:31 EST 1996
 
 You may obtain one of the following formats for this document:
 
-* ASCII: http://www.users.pfmc.net/~cdp/cptd-faq/cptd-faq.ascii
-* BFNN: http://www.users.pfmc.net/~cdp/cptd-faq/cptd-faq.bfnn
-* GNU info: http://www.users.pfmc.net/~cdp/cptd-faq/cptd-faq.info
-* HTML: http://www.users.pfmc.net/~cdp/cptd-faq/index.html
+* ASCII: http://www.intac.com/~cdp/cptd-faq/cptd-faq.ascii
+* BFNN: http://www.intac.com/~cdp/cptd-faq/cptd-faq.bfnn
+* GNU info: http://www.intac.com/~cdp/cptd-faq/cptd-faq.info
+* HTML: http://www.intac.com/~cdp/cptd-faq/index.html
 
 -----------------------------------------------------------------------------
 
 Question 7.3.  Contributors
 
-Date: Sat Dec  7 01:29:29 EST 1996
+Date: Thu Jul 16 10:45:57 EDT 1998
 
 Many people have helped put this list together.  Listed in e-mail address
 alphabetical order, the following people have contributed to this FAQ:
 
+* <BERI@etf.bg.ac.yu> (Berislav Todorovic)
 * <Benoit.Grange@inria.fr> (Benoit.Grange)
 * <D.T.Shield@csc.liv.ac.uk> (Dave Shield)
+* <Karl.Auer@anu.edu.au> (Karl Auer)
 * <Todd.Aven@BankersTrust.Com>
 * <adam@comptech.demon.co.uk> (Adam Goodfellow)
 * <andras@is.co.za> (Andras Salamon)
-* <barmar@nic.near.net> (Barry Margolin)
+* <barmar@bbnplanet.com> (Barry Margolin)
 * <barr@pop.psu.edu> (David Barr)
 * <bj@herbison.com> (B.J. Herbison)
 * <bje@cbr.fidonet.org> (Ben Elliston)
@@ -1258,6 +2019,8 @@ alphabetical order, the following people have contributed to this FAQ:
 * <cdp2582@hertz.njit.edu> (Chris Peckham)
 * <cricket@hp.com> (Cricket Liu)
 * <cudep@csv.warwick.ac.uk> (Ian 'Vato' Dickinson [ID17])
+* <dj@netscape.com> (David Jagoda)
+* <djk@cyber.com.au> (David Keegel)
 * <dillon@best.com> (Matthew Dillon)
 * <dparter@cs.wisc.edu> (David Parter)
 * <e07@nikhef.nl> (Eric Wassenaar)
@@ -1268,15 +2031,22 @@ alphabetical order, the following people have contributed to this FAQ:
 * <harvey@indyvax.iupui.edu> (James Harvey)
 * <hubert@cac.washington.edu> (Steve Hubert)
 * <ivanl@pacific.net.sg> (Ivan Leong)
+* <jpass@telxon.com> (Jim Pass)
 * <jhawk@panix.com> (John Hawkinson)
 * <jmalcolm@uunet.uu.net> (Joseph Malcolm)
 * <jprovo@augustus.ultra.net> (Joe Provo)
+* <jrs@foliage.com> (J. Richard Sladkey)
+* <jsd@gamespot.com> (Jon Drukman)
+* <jwells@pacificcoast.net> (John Wells)
+* <kop@meme.com> (Karl O. Pinc)
 * <kevin@cfc.com> (Kevin Darcy)
 * <lamont@abstractsoft.com> (Sean T. Lamont)
 * <lavondes@tidtest.total.fr> (Michel Lavondes)
 * <mark@ucsalf.ac.uk> (Mark Powell)
 * <marka@syd.dms.CSIRO.AU> (Mark Andrews)
 * <mathias@unicorn.swi.com.sg> (Mathias Koerber)
+* <mfuhr@dimensional.com> (Michael Fuhr)
+* <mike@westie.gi.net> (Michael Hawk)
 * <mjo@iao.ford.com> (Mike O'Connor)
 * <nick@flapjack.ieunet.ie> (Nick Hilliard)
 * <oppedahl@popserver.panix.com> (Carl Oppedahl)
@@ -1285,12 +2055,15 @@ alphabetical order, the following people have contributed to this FAQ:
 * <pb@fasterix.frmug.fr.net> (Pierre Beyssac)
 * <ph10@cus.cam.ac.uk> (Philip Hazel)
 * <phil@netpart.com> (Phil Trubey)
+* <raj@ceeri.ernet.in> (Raj Singh)
 * <rocky@panix.com> (R. Bernstein)
 * <rv@seins.Informatik.Uni-Dortmund.DE> (Ruediger Volk)
+* <sedwards@sedwards.com> (Steve Edwards)
 * <shields@tembel.org> (Michael Shields)
+* <spsprunk@pop.srv.paranet.com> (Stephen Sprunk)
 * <tanner@george.arc.nasa.gov> (Rob Tanner)
 * <vixie@vix.com> (Paul A Vixie)
-* <wag@swl.msd.ray.com> (William Gianopoulos {84718)
+* <wag@swl.msd.ray.com> (William Gianopoulos)
 * <whg@inel.gov> (Bill Gray)
 * <wolf@pasteur.fr> (Christophe Wolfhugel)
 

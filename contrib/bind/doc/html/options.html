@@ -33,7 +33,7 @@ options {
   [ rfc2308-type1 <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ use-id-pool <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ treat-cr-as-space <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
-  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR><A HREF="docdef.html">ip_addr</A></VAR>; ... ] };
+  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR><A HREF="docdef.html">ip_addr</A></VAR>; ... ] }; ]
   [ forward ( only | first ); ]
   [ forwarders { [ <VAR><A HREF="docdef.html">in_addr</A></VAR> ; [ <VAR><A HREF="docdef.html">in_addr</A></VAR> ; ... ] ] }; ]
   [ check-names ( master | slave | response ) ( warn | fail | ignore); ]
@@ -65,7 +65,7 @@ options {
   [ statistics-interval <VAR>number</VAR>; ]
   [ <A HREF="#topology">topology</A> { <VAR>address_match_list</VAR> }; ]
   [ <A HREF="#sortlist">sortlist</A> { <VAR>address_match_list</VAR> }; ]
-  [ rrset-order { <VAR>order_spec</VAR> ; [ <VAR>order_spec</VAR> ; ... ] ] }; 
+  [ rrset-order { <VAR>order_spec</VAR> ; [ <VAR>order_spec</VAR> ; ... ] }; ]
 };
 </PRE>
 <HR>
@@ -189,12 +189,10 @@ becoming corrupted (at the cost of requiring more work from the client).
 
 <DT><CODE>has-old-clients</CODE>
 <DD>
-Setting the option to <CODE>yes</CODE> is equivalent to setting the follow
-three options <CODE>auth-nxdomain yes;</CODE>, <CODE>maintain-ixfr-base
-yes;</CODE> and <CODE>rfc2308-type1 no;</CODE>.
-The use of <CODE>has-old-clients</CODE> with <CODE>auth-nxdomain</CODE>,
-<CODE>maintain-ixfr-base</CODE> and <CODE>rfc2308-type1</CODE> is order
-dependant.
+Setting the option to <CODE>yes</CODE> is equivalent to setting the following
+options: <CODE>auth-nxdomain yes;</CODE> and <CODE>rfc2308-type1 no;</CODE>.
+The use of <CODE>has-old-clients</CODE> with <CODE>auth-nxdomain</CODE>
+and <CODE>rfc2308-type1</CODE> is order dependent.
 
 <DT><CODE>host-statistics</CODE>
 <DD>
@@ -808,7 +806,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.36 1999/10/13 20:57:05 cyarnell Exp $
+Last Updated: $Id: options.html,v 1.40 2000/06/01 21:37:46 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

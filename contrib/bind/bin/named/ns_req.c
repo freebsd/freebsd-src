@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.113 2000/04/21 06:54:11 vixie Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.118 2000/07/17 07:57:56 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -208,6 +208,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		key = find_key(buf, NULL);
 		if (key == NULL) {
 			error = ns_r_badkey;
+			hp->rcode = ns_r_notauth;
 			ns_debug(ns_log_default, 1,
 				 "ns_req: TSIG verify failed - unknown key %s",
 				 buf);
@@ -361,6 +362,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		hp->ancount = htons(0);
 		hp->nscount = htons(0);
 		hp->arcount = htons(0);
+		cp = msg + HFIXEDSZ;
 	}
 
 	/*
@@ -466,6 +468,14 @@ req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 		return (Finish);
 	}
 
+	/* valid notify's are authoritative */
+	if (!hp->aa) {
+		ns_debug(ns_log_notify, 1,
+			 "FORMERR Notify request without AA");
+		hp->rcode = ns_r_formerr;
+		return (Finish);
+	}
+
 	n = dn_expand(msg, eom, *cpp, dnbuf, sizeof dnbuf);
 	if (n < 0) {
 		ns_debug(ns_log_notify, 1,
@@ -556,6 +566,7 @@ req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 	}
  noerror:
 	hp->rcode = ns_r_noerror;
+	hp->aa = 1;
 	return (Finish);
  refuse:
 	hp->rcode = ns_r_refused;
@@ -727,7 +738,7 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		nameserIncr(from.sin_addr, nssRcvdAXFR);
 		hp->rd = 0;		/* Recursion not possible. */
 	}
-	*buflenp -= *msglenp;
+	*buflenp -= (*msglenp - HFIXEDSZ);
 	count = 0;
 	founddata = 0;
 	dname = dnbuf;
@@ -1146,7 +1157,7 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		if (qsp == NULL)
 			return (Finish);
 		else {
-			if (!ixfr_found) {
+			if (!ixfr_found && type == ns_t_ixfr) {
 				qsp->flags |= STREAM_AXFRIXFR;
 				hp->qdcount = htons(1);
 			}
@@ -1409,13 +1420,13 @@ req_iquery(HEADER *hp, u_char **cpp, u_char *eom, int *buflenp,
 	GETSHORT(class, *cpp);
 	*cpp += INT32SZ;	/* ttl */
 	GETSHORT(dlen, *cpp);
-	*cpp += dlen;
-	if (*cpp != eom) {
+	if (*cpp + dlen != eom) {
 		ns_debug(ns_log_default, 1,
 			 "FORMERR IQuery message length off");
 		hp->rcode = ns_r_formerr;
 		return (Finish);
 	}
+	*cpp += dlen;
 
 	/*
 	 * not all inverse queries are handled.
@@ -1760,7 +1771,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 
 		/* Replacement */
 		ns_debug(ns_log_default, 1, "Replacement = %s", cp1);
-		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
+		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
 		ns_debug(ns_log_default, 1, "dn_comp's n = %u", n);
 		if (n < 0)
 			goto cleanup;
