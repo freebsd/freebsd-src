@@ -43,31 +43,63 @@
 
 /*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
+ *
+ * NOTE: DO NOT CHANGE THESE STRUCTURES.  The offsets of the fields are
+ * hardcoded in gdb.  Changing them and recompiling doesn't help, the
+ * constants in nm-fbsd.h must also be updated.
  */
+
+struct reg32 {
+	uint32_t r_global[8];
+	uint32_t r_out[8];
+	uint32_t r_npc;
+	uint32_t r_pc;
+	uint32_t r_psr;
+	uint32_t r_wim;
+	uint32_t r_pad[4];
+};
+
 struct reg {
-	u_long	r_tstate;
-	u_long	r_pc;
-	u_long	r_npc;
-	u_int	r_y;
-	u_long	r_global[8];
-	u_long	r_out[8];
-	u_long	r_local[8];
-	u_long	r_in[8];
+	uint64_t r_global[8];
+	uint64_t r_out[8];
+	uint64_t r_fprs;
+	uint64_t r_fsr;
+	uint64_t r_gsr;
+	uint64_t r_level;
+	uint64_t r_pil;
+	uint64_t r_sfar;
+	uint64_t r_sfsr;
+	uint64_t r_tar;
+	uint64_t r_tnpc;
+	uint64_t r_tpc;
+	uint64_t r_tstate;
+	uint64_t r_type;
+	uint64_t r_y;
+	uint64_t r_wstate;
+	uint64_t r_pad[2];
 };
 
 /*
  * Register set accessible via /proc/$pid/fpregs.
  */
+
+struct fpreg32 {
+	uint32_t fr_regs[32];
+	uint32_t fr_fsr;
+};
+
 struct fpreg {
-	u_int	fr_regs[64];	/* our view is 64 32-bit registers */
-	u_long	fr_fsr;		/* %fsr */
-	u_long	fr_fprs;
+	uint32_t fr_regs[64];	/* our view is 64 32-bit registers */
+	int64_t	fr_fsr;		/* %fsr */
+	int32_t	fr_gsr;		/* %gsr */
+	int32_t fr_pad[1];
 };
 
 /*
  * Register set accessible via /proc/$pid/dbregs.
  */
 struct dbreg {
+	int dummy;
 };
 
 #ifdef _KERNEL

@@ -158,6 +158,8 @@ const char *trap_msg[] = {
 	"kernel stack fault",
 };
 
+CTASSERT(sizeof(struct trapframe) == 256);
+
 int debugger_on_signal = 0;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");

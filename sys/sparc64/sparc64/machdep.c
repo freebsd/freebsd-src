@@ -140,6 +140,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 CTASSERT((1 << INT_SHIFT) == sizeof(int));
 CTASSERT((1 << PTR_SHIFT) == sizeof(char *));
 
+CTASSERT(sizeof(struct reg) == 256);
+CTASSERT(sizeof(struct fpreg) == 272);
+CTASSERT(sizeof(struct __mcontext) == 512);
+
 CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 
 static void
@@ -162,8 +166,6 @@ cpu_startup(void *arg)
 
 	bufinit();
 	vm_pager_bufferinit();
-
-	tick_start(clock, tick_hardclock);
 
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
@@ -394,22 +396,13 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_uc.uc_stack = p->p_sigstk;
 	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	bcopy(tf->tf_global, sf.sf_uc.uc_mcontext.mc_global,
-	    sizeof (tf->tf_global));
-	bcopy(tf->tf_out, sf.sf_uc.uc_mcontext.mc_out, sizeof (tf->tf_out));
-	sf.sf_uc.uc_mcontext.mc_tpc = tf->tf_tpc;
-	sf.sf_uc.uc_mcontext.mc_tnpc = tf->tf_tnpc;
-	sf.sf_uc.uc_mcontext.mc_tstate = tf->tf_tstate;
+	bcopy(tf, &sf.sf_uc.uc_mcontext, sizeof(*tf));
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct sigframe));
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-#endif
 	} else
 		sfp = (struct sigframe *)sp - 1;
 	PROC_UNLOCK(p);
@@ -422,25 +415,15 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* Build the argument list for the signal handler. */
 	tf->tf_out[0] = sig;
+	tf->tf_out[1] = (register_t)&sfp->sf_si;
 	tf->tf_out[2] = (register_t)&sfp->sf_uc;
-	tf->tf_out[3] = tf->tf_type;
 	tf->tf_out[4] = (register_t)catcher;
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
-		/* Signal handler installed with SA_SIGINFO. */
-		tf->tf_out[1] = (register_t)&sfp->sf_si;
-		
-		/* Fill siginfo structure. */
-		sf.sf_si.si_signo = sig;
-		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)tf->tf_sfar;
-		sf.sf_si.si_pid = p->p_pid;
-		sf.sf_si.si_uid = p->p_ucred->cr_uid;
-	} else {
-		/* Old FreeBSD-style arguments. */
-		tf->tf_out[1] = code;
-	}
-	PROC_UNLOCK(p);
+	/* Fill siginfo structure. */
+	sf.sf_si.si_signo = sig;
+	sf.sf_si.si_code = code;
+	sf.sf_si.si_addr = (void *)tf->tf_sfar;
+	sf.sf_si.si_pid = p->p_pid;
+	sf.sf_si.si_uid = td->td_ucred->cr_uid;
 
 	/* Copy the sigframe out to the user's stack. */
 	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
@@ -491,7 +474,6 @@ struct sigreturn_args {
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct trapframe *tf;
 	struct proc *p;
 	ucontext_t uc;
 
@@ -507,32 +489,19 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 		return (EFAULT);
 	}
 
-	if (((uc.uc_mcontext.mc_tpc | uc.uc_mcontext.mc_tnpc) & 3) != 0)
-		return (EINVAL);
 	if (!TSTATE_SECURE(uc.uc_mcontext.mc_tstate))
 		return (EINVAL);
+	bcopy(&uc.uc_mcontext, td->td_frame, sizeof(*td->td_frame));
 
-	tf = td->td_frame;
-	bcopy(uc.uc_mcontext.mc_global, tf->tf_global,
-	    sizeof(tf->tf_global));
-	bcopy(uc.uc_mcontext.mc_out, tf->tf_out, sizeof(tf->tf_out));
-	tf->tf_tpc = uc.uc_mcontext.mc_tpc;
-	tf->tf_tnpc = uc.uc_mcontext.mc_tnpc;
-	tf->tf_tstate = uc.uc_mcontext.mc_tstate;
 	PROC_LOCK(p);
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	if (uc.uc_mcontext.mc_onstack & 1)
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	else
-		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-#endif
-
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
 	signotify(p);
 	PROC_UNLOCK(p);
+
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
-	     td, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);
+	    td, td->td_frame->tf_tpc, td->td_frame->tf_sp,
+	    td->td_frame->tf_tstate);
 	return (EJUSTRETURN);
 }
 
@@ -656,37 +625,18 @@ Debugger(const char *msg)
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
-	struct trapframe *tf;
 
-	tf = td->td_frame;
-	regs->r_tstate = tf->tf_tstate;
-	regs->r_pc = tf->tf_tpc;
-	regs->r_npc = tf->tf_tnpc;
-	regs->r_y = tf->tf_y;
-	bcopy(tf->tf_global, regs->r_global, sizeof(tf->tf_global));
-	bcopy(tf->tf_out, regs->r_out, sizeof(tf->tf_out));
-	/* XXX - these are a pain to get at */
-	bzero(regs->r_in, sizeof(regs->r_in));
-	bzero(regs->r_local, sizeof(regs->r_local));
+	bcopy(td->td_frame, regs, sizeof(*regs));
 	return (0);
 }
 
 int
 set_regs(struct thread *td, struct reg *regs)
 {
-	struct trapframe *tf;
 
-	tf = td->td_frame;
-	if (((regs->r_pc | regs->r_npc) & 3) != 0)
-		return (EINVAL);
 	if (!TSTATE_SECURE(regs->r_tstate))
 		return (EINVAL);
-	tf->tf_tstate = regs->r_tstate;
-	tf->tf_tpc = regs->r_pc;
-	tf->tf_tnpc = regs->r_npc;
-	tf->tf_y = regs->r_y;
-	bcopy(regs->r_global, tf->tf_global, sizeof(regs->r_global));
-	bcopy(regs->r_out, tf->tf_out, sizeof(regs->r_out));
+	bcopy(regs, td->td_frame, sizeof(*regs));
 	return (0);
 }
 
@@ -714,8 +664,8 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	tf = td->td_frame;
 	bcopy(pcb->pcb_fpstate.fp_fb, fpregs->fr_regs,
 	    sizeof(pcb->pcb_fpstate.fp_fb));
-	fpregs->fr_fprs = tf->tf_fprs;
 	fpregs->fr_fsr = tf->tf_fsr;
+	fpregs->fr_gsr = tf->tf_gsr;
 	return (0);
 }
 
@@ -729,7 +679,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	tf = td->td_frame;
 	bcopy(fpregs->fr_regs, pcb->pcb_fpstate.fp_fb,
 	    sizeof(fpregs->fr_regs));
-	tf->tf_fprs = fpregs->fr_fprs;
 	tf->tf_fsr = fpregs->fr_fsr;
+	tf->tf_gsr = fpregs->fr_gsr;
 	return (0);
 }

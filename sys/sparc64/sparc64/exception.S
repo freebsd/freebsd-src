@@ -2163,20 +2163,23 @@ ENTRY(tl0_trap)
 
 	sub	PCB_REG, SPOFF + CCFSZ + TF_SIZEOF, %sp
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_LEVEL]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
-	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
+	stx	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
 
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
-	stw	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
-	stb	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
-	stb	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
+	stx	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
+	stx	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
 	wr	%g0, FPRS_FEF, %fprs
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
+	rd	%asr19, %l6
+	stx	%l6, [%sp + SPOFF + CCFSZ + TF_GSR]
 	wr	%g0, 0, %fprs
 
 	mov	PCB_REG, %l0
@@ -2255,19 +2258,21 @@ ENTRY(tl0_intr)
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
-	stw	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
-	stb	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
-	stb	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_Y]
+	stx	%l4, [%sp + SPOFF + CCFSZ + TF_FPRS]
+	stx	%l5, [%sp + SPOFF + CCFSZ + TF_WSTATE]
 
 	wr	%g0, FPRS_FEF, %fprs
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
+	rd	%asr19, %l6
+	stx	%l6, [%sp + SPOFF + CCFSZ + TF_GSR]
 	wr	%g0, 0, %fprs
 
 	mov	%o0, %l3
 	mov	T_INTERRUPT, %o1
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
-	stw	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	mov	PCB_REG, %l0
 	mov	PCPU_REG, %l1
@@ -2314,6 +2319,16 @@ ENTRY(tl0_intr)
 	 nop
 END(tl0_intr)
 
+/*
+ * Initiate return to usermode.
+ *
+ * Called with a trapframe on the stack.  The window that was setup in
+ * tl0_trap may have been used by "fast" trap handlers that pretend to be
+ * leaf functions, so all ins and locals may have been clobbered since
+ * then.
+ *
+ * This code is rather long and complicated.
+ */
 ENTRY(tl0_ret)
 	/*
 	 * Check for pending asts atomically with returning.  We must raise
@@ -2329,6 +2344,11 @@ ENTRY(tl0_ret)
 	and	%l2, KEF_ASTPENDING | KEF_NEEDRESCHED, %l2
 	brz,a,pt %l2, 1f
 	 nop
+
+	/*
+	 * We have an ast.  Re-enable interrupts and handle it, then restart
+	 * the return sequence.
+	 */
 	wrpr	%g0, 0, %pil
 	call	ast
 	 add	%sp, CCFSZ + SPOFF, %o0
@@ -2348,12 +2368,16 @@ ENTRY(tl0_ret)
 	 nop
 	wrpr	%g0, 0, %pil
 	mov	T_SPILL, %o0
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	call	trap
 	 add	%sp, SPOFF + CCFSZ, %o0
 	ba,a	%xcc, tl0_ret
 	 nop
 
+	/*
+	 * Restore the out registers from the trapframe.  These are ins
+	 * now, they will become the outs when we restore below.
+	 */
 2:	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
 	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
 	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
@@ -2363,13 +2387,24 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %i6
 	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
+	/*
+	 * Load everything we need to restore below before disabling
+	 * interrupts.
+	 */
+	ldx	[%sp + SPOFF + CCFSZ + TF_FPRS], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_GSR], %l1
 	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l3
-	ldub	[%sp + SPOFF + CCFSZ + TF_FPRS], %l4
-	ldub	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l5
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l4
+	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l5
+	ldx	[%sp + SPOFF + CCFSZ + TF_WSTATE], %l6
 
+	/*
+	 * Disable interrupts to restore the globals.  We need to restore
+	 * %g6 and %g7 which are used as global variables in the kernel.
+	 * They are not saved and restored for kernel traps, so an interrupt
+	 * at the wrong time would clobber them.
+	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
@@ -2380,34 +2415,109 @@ ENTRY(tl0_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
 
+	/*
+	 * Switch to alternate globals.  This frees up some registers we
+	 * can use after the restore changes our window.
+	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
+	/*
+	 * Drop %pil to zero.  It must have been zero at the time of the
+	 * trap, since we were in usermode, but it was raised above in
+	 * order to check for asts atomically.  We have interrupts disabled
+	 * so any interrupts will not be serviced until we complete the
+	 * return to usermode.
+	 */
 	wrpr	%g0, 0, %pil
-	wrpr	%l1, 0, %tpc
+
+	/*
+	 * Save %fprs in an alternate global so it can be restored after the
+	 * restore instruction below.  If we restore it before the restore,
+	 * and the restore traps we may run for a while with floating point
+	 * enabled in the kernel, which we want to avoid.
+	 */
+	mov	%l0, %g1
+
+	/*
+	 * Restore %fsr and %gsr.  These need floating point enabled in %fprs,
+	 * so we set it temporarily and then clear it.
+	 * XXX %asr19 should be %gsr but gas is invoked incorrectly.
+	 */
+	wr	%g0, FPRS_FEF, %fprs
+	ldx	[%sp + SPOFF + CCFSZ + TF_FSR], %fsr
+	wr	%l1, 0, %asr19
+	wr	%g0, 0, %fprs
+
+	/*
+	 * Restore program counters.  This could be done after the restore
+	 * but we're out of alternate globals to store them in...
+	 */
 	wrpr	%l2, 0, %tnpc
-	wr	%l3, 0, %y
+	wrpr	%l3, 0, %tpc
 
-	andn	%l0, TSTATE_CWP_MASK, %g1
-	mov	%l4, %g2
+	/*
+	 * Save %tstate in an alternate global and clear the %cwp field.  %cwp
+	 * will be affected by the restore below and we need to make sure it
+	 * points to the current window at that time, not the window that was
+	 * active at the time of the trap.
+	 */
+	andn	%l4, TSTATE_CWP_MASK, %g2
 
-	srlx	%l5, WSTATE_OTHER_SHIFT, %g3
+	/*
+	 * Restore %y.  Could also be below if we had more alternate globals.
+	 */
+	wr	%l5, 0, %y
+
+	/*
+	 * Setup %wstate for return.  We need to restore the user window state
+	 * which we saved in wstate.other when we trapped.  We also need to
+	 * set the transition bit so the restore will be handled specially
+	 * if it traps, use the xor feature of wrpr to do that.
+	 */
+	srlx	%l6, WSTATE_OTHER_SHIFT, %g3
 	wrpr	%g3, WSTATE_TRANSITION, %wstate
+
+	/*
+	 * Setup window management registers for return.  If not all user
+	 * windows were spilled in the kernel %otherwin will be non-zero,
+	 * so we need to transfer it to %canrestore to correctly restore
+	 * those windows.  Otherwise everything gets set to zero and the
+	 * restore below will fill a window directly from the user stack.
+	 */
 	rdpr	%otherwin, %o0
 	wrpr	%o0, 0, %canrestore
 	wrpr	%g0, 0, %otherwin
 	wrpr	%o0, 0, %cleanwin
 
 	/*
-	 * If this instruction causes a fill trap which fails to fill a window
-	 * from the user stack, we will resume at tl0_ret_fill_end and call
-	 * back into the kernel.
+	 * Now do the restore.  If this instruction causes a fill trap which
+	 * fails to fill a window from the user stack, we will resume at
+	 * tl0_ret_fill_end and call back into the kernel.
 	 */
 	restore
 tl0_ret_fill:
 
+	/*
+	 * We made it.  We're back in the window that was active at the time
+	 * of the trap, and ready to return to usermode.
+	 */
+
+	/*
+	 * Restore %frps.  This was saved in an alternate global above.
+	 */
+	wr	%g1, 0, %fprs
+
+	/*
+	 * Fixup %tstate so the saved %cwp points to the current window and
+	 * restore it.
+	 */
 	rdpr	%cwp, %g4
-	wrpr	%g1, %g4, %tstate
-	wr	%g2, 0, %fprs
+	wrpr	%g2, %g4, %tstate
+
+	/*
+	 * Restore the user window state.  The transition bit was set above
+	 * for special handling of the restore, this clears it.
+	 */
 	wrpr	%g3, 0, %wstate
 
 #if KTR_COMPILE & KTR_TRAP
@@ -2425,6 +2535,9 @@ tl0_ret_fill:
 9:
 #endif
 
+	/*
+	 * Return to usermode.
+	 */
 	retry
 tl0_ret_fill_end:
 
@@ -2439,10 +2552,28 @@ tl0_ret_fill_end:
 #endif
 
 	/*
-	 * The fill failed and magic has been performed.  Call trap again,
-	 * which will copyin the window on the user's behalf.
+	 * The restore above caused a fill trap and the fill handler was
+	 * unable to fill a window from the user stack.  The special fill
+	 * handler recognized this and punted, sending us here.  We need
+	 * to carefully undo any state that was restored before the restore
+	 * was executed and call trap again.  Trap will copyin a window
+	 * from the user stack which will fault in the page we need so the
+	 * restore above will succeed when we try again.  If this fails
+	 * the process has trashed its stack, so we kill it.
 	 */
-	wrpr	%l5, 0, %wstate
+
+	/*
+	 * Restore the kernel window state.  This was saved in %l6 above, and
+	 * since the restore failed we're back in the same window.
+	 */
+	wrpr	%l6, 0, %wstate
+
+	/*
+	 * Restore the normal globals which have predefined values in the
+	 * kernel.  We clobbered them above restoring the user's globals
+	 * so this is very important.
+	 * XXX PSTATE_ALT must already be set.
+	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 	mov	PCB_REG, %o0
 	mov	PCPU_REG, %o1
@@ -2450,8 +2581,16 @@ tl0_ret_fill_end:
 	mov	%o0, PCB_REG
 	mov	%o1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	/*
+	 * Simulate a fill trap and then start the whole return sequence over
+	 * again.  This is special because it only copies in 1 window, not 2
+	 * as we would for a normal failed fill.  This may be the first time
+	 * the process has been run, so there may not be 2 windows worth of
+	 * stack to copyin.
+	 */
 	mov	T_FILL_RET, %o0
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
 	call	trap
 	 add	%sp, SPOFF + CCFSZ, %o0
 	ba,a	%xcc, tl0_ret
@@ -2493,16 +2632,17 @@ ENTRY(tl1_trap)
 	and	%l5, WSTATE_OTHER_MASK, %l5
 	wrpr	%l5, WSTATE_KERNEL, %wstate
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_LEVEL]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
-	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
+	stx	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
 
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
-	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
-	stw	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
 
 	mov	PCB_REG, %l0
 	mov	PCPU_REG, %l1
@@ -2545,8 +2685,8 @@ ENTRY(tl1_ret)
 	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
 	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
 	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
-	ldub	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
-	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l4
+	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l3
+	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
@@ -2625,14 +2765,14 @@ ENTRY(tl1_intr)
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
-	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
-	stw	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
 
 	mov	%o0, %l7
 	mov	T_INTERRUPT | T_KERNEL, %o1
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
-	stw	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
@@ -2667,7 +2807,7 @@ ENTRY(tl1_intr)
 	call	critical_exit
 	 nop
 
-	lduw	[%sp + SPOFF + CCFSZ + TF_Y], %l4
+	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
