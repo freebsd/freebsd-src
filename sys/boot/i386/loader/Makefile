@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.28 1999/01/18 19:05:27 msmith Exp $
+# $Id: Makefile,v 1.29 1999/02/24 01:37:23 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -92,6 +92,12 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
 .endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
