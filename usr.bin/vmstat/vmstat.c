@@ -405,7 +405,8 @@ dovmstat(interval, reps)
 	time_t uptime, halfuptime;
 	struct devinfo *tmp_dinfo;
 	void needhdr();
-	int mib[2], size;
+	int mib[2];
+	size_t size;
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
