@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.57 1997/09/10 19:52:27 phk Exp $
+ * $Id: nfs_vnops.c,v 1.58 1997/09/10 20:22:32 phk Exp $
  */
 
 
@@ -827,8 +827,8 @@ nfs_setattrrpc(vp, vap, cred, procp)
 
 /*
  * nfs lookup call, one step at a time...
- * First look in cache
- * If not found, unlock the directory nfsnode and do the rpc
+ * Generic stuff already done by vfs_cache_lookup()
+ * Unlock the directory nfsnode and do the rpc
  */
 static int
 nfs_lookup(ap)
@@ -857,12 +857,7 @@ nfs_lookup(ap)
 	int v3 = NFS_ISV3(dvp);
 	struct proc *p = cnp->cn_proc;
 
-	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
-	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
-		return (EROFS);
 	*vpp = NULLVP;
-	if (dvp->v_type != VDIR)
-		return (ENOTDIR);
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
