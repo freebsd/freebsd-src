@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.278 1998/09/15 18:16:37 sos Exp $
+ *	$Id: syscons.c,v 1.279 1998/09/23 09:59:00 yokota Exp $
  */
 
 #include "sc.h"
@@ -211,8 +211,7 @@ static	int		extra_history_size =
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
 static void    		(*default_saver)(int blank) = none_saver;
-	int  		(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
-					 int flag, struct proc *p) = NULL;
+       d_ioctl_t  	*sc_user_ioctl;
 
 static int		sticky_splash = FALSE;
 
@@ -310,7 +309,6 @@ static	d_close_t	scclose;
 static	d_read_t	scread;
 static	d_write_t	scwrite;
 static	d_ioctl_t	scioctl;
-	d_devtotty_t	scdevtotty;
 static	d_mmap_t	scmmap;
 
 #define	CDEV_MAJOR	12

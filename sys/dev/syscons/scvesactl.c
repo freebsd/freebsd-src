@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.2 1998/09/23 09:59:00 yokota Exp $
+ * $Id: scvesactl.c,v 1.3 1998/09/25 11:55:46 yokota Exp $
  */
 
 #include "sc.h"
@@ -44,17 +44,10 @@
 #include <i386/isa/videoio.h>
 #include <i386/isa/syscons.h>
 
-static int (*prev_user_ioctl)(dev_t dev, int cmd, caddr_t data, int flag, 
-			      struct proc *p);
+static d_ioctl_t *prev_user_ioctl;
 
-/* external functions */
-struct tty *scdevtotty(dev_t dev);
-
-/* functions in this module */
-int vesa_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
-
-int
-vesa_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+static int
+vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	scr_stat *scp;
 	struct tty *tp;
