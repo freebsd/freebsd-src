@@ -472,6 +472,12 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	caddr_t data, memp;
 	int tmp;
 
+	if (uap->com > 0xffffffff) {
+		printf(
+		    "WARNING pid %d (%s): ioctl sign-extension ioctl %lx\n",
+		    td->td_proc->p_pid, td->td_proc->p_comm, uap->com);
+		uap->com &= 0xffffffff;
+	}
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
