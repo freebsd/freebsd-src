@@ -719,12 +719,14 @@ elf_link_add_object_symbols (abfd, info)
 		}
 
 	      sz = bfd_section_size (abfd, s);
-	      msg = (char *) bfd_alloc (abfd, sz);
+	      msg = (char *) bfd_alloc (abfd, sz+1);
 	      if (msg == NULL)
 		goto error_return;
 
 	      if (! bfd_get_section_contents (abfd, s, msg, (file_ptr) 0, sz))
 		goto error_return;
+
+	      msg[sz] = '\0';
 
 	      if (! (_bfd_generic_link_add_one_symbol
 		     (info, abfd, name, BSF_WARNING, s, (bfd_vma) 0, msg,
