@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.6 1993/12/19 00:50:05 wollman Exp $
+ *	$Id: math_emulate.c,v 1.7 1994/01/29 22:07:16 nate Exp $
  */
 
 /*
@@ -110,47 +110,47 @@ math_emulate(struct trapframe * info)
 		case 0x1d1: case 0x1d2: case 0x1d3:
 		case 0x1d4: case 0x1d5: case 0x1d6: case 0x1d7:
 			math_abort(info,SIGILL);
-		case 0x1e0:
+		case 0x1e0: /* fchs */
 			ST(0).exponent ^= 0x8000;
 			return(0);
-		case 0x1e1:
+		case 0x1e1: /* fabs */
 			ST(0).exponent &= 0x7fff;
 			return(0);
 		case 0x1e2: case 0x1e3:
 			math_abort(info,SIGILL);
-		case 0x1e4:
-			ftst(PST(0));
+		case 0x1e4: /* fxtract */
+			ftst(PST(0));   /* ?????? */
 			return(0);
-		case 0x1e5:
+		case 0x1e5: /* fxam */
 			printf("fxam not implemented\n\r");
 			math_abort(info,SIGILL);
 		case 0x1e6: case 0x1e7:
 			math_abort(info,SIGILL);
-		case 0x1e8:
+		case 0x1e8: /* fld1 */
 			fpush();
 			ST(0) = CONST1;
 			return(0);
-		case 0x1e9:
+		case 0x1e9: /* fld2t */
 			fpush();
 			ST(0) = CONSTL2T;
 			return(0);
-		case 0x1ea:
+		case 0x1ea: /* fld2e */
 			fpush();
 			ST(0) = CONSTL2E;
 			return(0);
-		case 0x1eb:
+		case 0x1eb: /* fldpi */
 			fpush();
 			ST(0) = CONSTPI;
 			return(0);
-		case 0x1ec:
+		case 0x1ec: /* fldlg2 */
 			fpush();
 			ST(0) = CONSTLG2;
 			return(0);
-		case 0x1ed:
+		case 0x1ed: /* fldln2 */
 			fpush();
 			ST(0) = CONSTLN2;
 			return(0);
-		case 0x1ee:
+		case 0x1ee: /* fldz */
 			fpush();
 			ST(0) = CONSTZ;
 			return(0);
@@ -164,186 +164,188 @@ math_emulate(struct trapframe * info)
 			 "math_emulate: instruction %04x not implemented\n",
 			  code + 0xd800);
 			math_abort(info,SIGILL);
-		case 0x1fd:
+		case 0x1fc: /* frndint */
+			frndint(PST(0),&tmp);
+			real_to_real(&tmp,&ST(0));
+			return(0);
+		case 0x1fd: /* fscale */
 			/* incomplete and totally inadequate -wfj */
 			Fscale(PST(0), PST(1), &tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);			/* 19 Sep 92*/
-		case 0x1fc:
-			frndint(PST(0),&tmp);
-			real_to_real(&tmp,&ST(0));
-			return(0);
-		case 0x2e9:
+		case 0x2e9: /* ????? */
+/* if this should be a fucomp ST(0),ST(1) , it must be a 0x3e9  ATS */
 			fucom(PST(1),PST(0));
 			fpop(); fpop();
 			return(0);
-		case 0x3d0: case 0x3d1:
+		case 0x3d0: case 0x3d1: /* fist ?? */
 			return(0);
-		case 0x3e2:
+		case 0x3e2: /* fclex */
 			I387.swd &= 0x7f00;
 			return(0);
-		case 0x3e3:
+		case 0x3e3: /* fninit */
 			I387.cwd = 0x037f;
 			I387.swd = 0x0000;
 			I387.twd = 0x0000;
 			return(0);
 		case 0x3e4:
 			return(0);
-		case 0x6d9:
+		case 0x6d9: /* fcompp */
 			fcom(PST(1),PST(0));
 			fpop(); fpop();
 			return(0);
-		case 0x7e0:
+		case 0x7e0: /* fstsw ax */
 			*(short *) &info->tf_eax = I387.swd;
 			return(0);
 	}
 	switch (code >> 3) {
-		case 0x18:
+		case 0x18: /* fadd */
 			fadd(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x19:
+		case 0x19: /* fmul */
 			fmul(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x1a:
+		case 0x1a: /* fcom */
 			fcom(PST(code & 7),PST(0));
 			return(0);
-		case 0x1b:
+		case 0x1b: /* fcomp */
 			fcom(PST(code & 7),PST(0));
 			fpop();
 			return(0);
-		case 0x1c:
+		case 0x1c: /* fsubr */
 			real_to_real(&ST(code & 7),&tmp);
 			tmp.exponent ^= 0x8000;
 			fadd(PST(0),&tmp,&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x1d:
+		case 0x1d: /* fsub */
 			ST(0).exponent ^= 0x8000;
 			fadd(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x1e:
+		case 0x1e: /* fdivr */
 			fdiv(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x1f:
+		case 0x1f: /* fdiv */
 			fdiv(PST(code & 7),PST(0),&tmp);
 			real_to_real(&tmp,&ST(0));
 			return(0);
-		case 0x38:
+		case 0x38: /* fld */
 			fpush();
-			ST(0) = ST((code & 7)+1);
+			ST(0) = ST((code & 7)+1);  /* why plus 1 ????? ATS */
 			return(0);
-		case 0x39:
+		case 0x39: /* fxch */
 			fxchg(&ST(0),&ST(code & 7));
 			return(0);
-		case 0x3b:
+		case 0x3b: /*  ??? ??? wrong ???? ATS */
 			ST(code & 7) = ST(0);
 			fpop();
 			return(0);
-		case 0x98:
+		case 0x98: /* fadd */
 			fadd(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0x99:
+		case 0x99: /* fmul */
 			fmul(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0x9a:
+		case 0x9a: /* ???? , my manual don't list a direction bit
+for fcom , ??? ATS */
 			fcom(PST(code & 7),PST(0));
 			return(0);
-		case 0x9b:
+		case 0x9b: /* same as above , ATS */
 			fcom(PST(code & 7),PST(0));
 			fpop();
 			return(0);			
-		case 0x9c:
+		case 0x9c: /* fsubr */
 			ST(code & 7).exponent ^= 0x8000;
 			fadd(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0x9d:
+		case 0x9d: /* fsub */
 			real_to_real(&ST(0),&tmp);
 			tmp.exponent ^= 0x8000;
 			fadd(PST(code & 7),&tmp,&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0x9e:
+		case 0x9e: /* fdivr */
 			fdiv(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0x9f:
+		case 0x9f: /* fdiv */
 			fdiv(PST(code & 7),PST(0),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
-		case 0xb8:
+		case 0xb8: /* ffree */
 			printf("ffree not implemented\n\r");
 			math_abort(info,SIGILL);
-		case 0xb9:
+		case 0xb9: /* fstp ???? where is the pop ? ATS */
 			fxchg(&ST(0),&ST(code & 7));
 			return(0);
-		case 0xba:
+		case 0xba: /* fst */
 			ST(code & 7) = ST(0);
 			return(0);
-		case 0xbb:
+		case 0xbb: /* ????? encoding of fstp to mem ? ATS */
 			ST(code & 7) = ST(0);
 			fpop();
 			return(0);
-		case 0xbc:
+		case 0xbc: /* fucom */
 			fucom(PST(code & 7),PST(0));
 			return(0);
-		case 0xbd:
+		case 0xbd: /* fucomp */
 			fucom(PST(code & 7),PST(0));
 			fpop();
 			return(0);
-		case 0xd8:
+		case 0xd8: /* faddp */
 			fadd(PST(code & 7),PST(0),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xd9:
+		case 0xd9: /* fmulp */
 			fmul(PST(code & 7),PST(0),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xda:
+		case 0xda: /* ??? encoding of ficom with 16 bit mem ? ATS */
 			fcom(PST(code & 7),PST(0));
 			fpop();
 			return(0);
-		case 0xdc:
+		case 0xdc: /* fsubrp */
 			ST(code & 7).exponent ^= 0x8000;
 			fadd(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xdd:
+		case 0xdd: /* fsubp */
 			real_to_real(&ST(0),&tmp);
 			tmp.exponent ^= 0x8000;
 			fadd(PST(code & 7),&tmp,&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xde:
+		case 0xde: /* fdivrp */
 			fdiv(PST(0),PST(code & 7),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xdf:
+		case 0xdf: /* fdivp */
 			fdiv(PST(code & 7),PST(0),&tmp);
 			real_to_real(&tmp,&ST(code & 7));
 			fpop();
 			return(0);
-		case 0xf8:
+		case 0xf8: /* fild 16-bit mem ???? ATS */
 			printf("ffree not implemented\n\r");
 			math_abort(info,SIGILL);
 			fpop();
 			return(0);
-		case 0xf9:
+		case 0xf9: /*  ????? ATS */
 			fxchg(&ST(0),&ST(code & 7));
 			return(0);
-		case 0xfa:
-		case 0xfb:
+		case 0xfa: /* fist 16-bit mem ? ATS */
+		case 0xfb: /* fistp 16-bit mem ? ATS */
 			ST(code & 7) = ST(0);
 			fpop();
 			return(0);
