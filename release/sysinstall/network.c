@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.4 1995/06/04 01:57:23 jkh Exp $
+ * $Id: network.c,v 1.6.2.5 1995/06/04 22:24:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,7 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
 
-    if (networkInitialized || (dev->flags & OPTS_LEAVE_NETWORK_UP))
+    if (networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return TRUE;
 
     configResolv();
@@ -119,7 +119,7 @@ mediaShutdownNetwork(Device *dev)
 {
     char *cp;
 
-    if (!networkInitialized || (dev->flags & OPTS_LEAVE_NETWORK_UP))
+    if (!networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return;
 
     /* If we're running PPP or SLIP, it's too much trouble to shut down so forget it */
