@@ -55,7 +55,7 @@
 
 /*
  *	@(#)res.h	5.10 (Berkeley) 6/1/90
- *	$Id: res.h,v 8.7 2000/12/23 08:14:47 vixie Exp $
+ *	$Id: res.h,v 8.10 2002/04/09 05:55:22 marka Exp $
  */
 
 /*
@@ -131,18 +131,22 @@ typedef int Boolean;
  * for use in system calls)."
  */
 
+typedef struct {
+	int     addrType;
+	int     addrLen;
+	char    *addr;
+} AddrInfo;
+
 typedef struct	{
 	char	*name;		/* official name of host */
 	char	**domains;	/* domains it serves */
-	char	**addrList;	/* list of addresses from name server */
+	AddrInfo **addrList;	/* list of addresses from name server */
 } ServerInfo;
 
 typedef struct	{
 	char	*name;		/* official name of host */
 	char	**aliases;	/* alias list */
-	char	**addrList;	/* list of addresses from name server */
-	int	addrType;	/* host address type */
-	int	addrLen;	/* length of address */
+	AddrInfo **addrList;	/* list of addresses from name server */
 	ServerInfo **servers;
 } HostInfo;
 
@@ -169,7 +173,6 @@ extern struct __res_state res;
  */
 
 /* XXX need prototypes */
-extern Boolean IsAddr();
 void Print_query(const u_char *msg, const u_char *eom, int printHeader);
 void Fprint_query(const u_char *msg, const u_char *eom, int printHeader,
 		  FILE *file);
@@ -186,18 +189,17 @@ extern char *Malloc();
 extern void NsError();
 extern void PrintServer();
 extern void PrintHostInfo();
-extern void ShowOptions();
 extern void FreeHostInfoPtr();
 extern FILE *OpenFile();
-extern char *res_skip();
 extern int pickString(const char *, char *, size_t);
-extern int GetHostInfoByName();
-extern int GetHostInfoByAddr();
-extern int GetHostDomain();
+extern int GetHostInfoByName(union res_sockaddr_union *, int, int,
+			     const char *, HostInfo *, Boolean, Boolean);
+extern int GetHostDomain(union res_sockaddr_union *, int, int,
+			 const char *, char *, HostInfo *, Boolean, Boolean);
 extern int matchString(const char *, const char *);
 extern int StringToType(char *, int, FILE *);
 extern int StringToClass(char *, int, FILE *);
-extern int SendRequest(struct in_addr *, const u_char *, int,
+extern int SendRequest(union res_sockaddr_union *, const u_char *, int,
 		       u_char *, u_int, int *);
 extern void SendRequest_close(void);
 extern int SetDefaultServer(char *, Boolean);
@@ -208,3 +210,18 @@ void ListHost_close(void);
 int SetOption(char *);
 int LookupHost(char *, Boolean);
 int LookupHostWithServer(char *, Boolean);
+const char * DecodeType(int);
+const char * DecodeError(int);
+FILE * OpenFile(char *, char *, size_t);
+void  PrintHostInfo(FILE *, const char *, HostInfo *);
+char * Calloc(int, int);
+char * Malloc(int);
+SIG_FN IntrHandler(int);
+int ListSubr(int, char *, char *);
+void FreeHostInfoPtr(HostInfo *);
+unsigned char * res_skip(unsigned char *, int, unsigned char *);
+extern Boolean IsAddr(const char *, union res_sockaddr_union *);
+void PrintHelp(void);
+int GetHostInfoByAddr(union res_sockaddr_union *, union res_sockaddr_union *,
+		      HostInfo *);
+

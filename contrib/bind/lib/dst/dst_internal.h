@@ -65,13 +65,14 @@ typedef struct dst_key {
 #ifdef REPORT_ERRORS
 #define EREPORT(str)		printf str
 #else
-#define EREPORT(str)
+#define EREPORT(str)		(void)0
 #endif
 
 /* use our own special macro to FRRE memory */
 
 #ifndef SAFE_FREE
-#define SAFE_FREE(a) if(a != NULL){memset(a,0, sizeof(*a)); free(a); a=NULL;}
+#define SAFE_FREE(a) \
+do{if(a != NULL){memset(a,0, sizeof(*a)); free(a); a=NULL;}} while (0)
 #define SAFE_FREE2(a,s) if (a != NULL && s > 0){memset(a,0, s);free(a); a=NULL;}
 #endif
 
@@ -98,22 +99,22 @@ typedef struct dst_func {
 } dst_func;
 
 extern dst_func *dst_t_func[DST_MAX_ALGS];
-extern char *key_file_fmt_str;
-extern char *dst_path;
+extern const char *key_file_fmt_str;
+extern const char *dst_path;
 
 #ifndef DST_HASH_SIZE
 #define DST_HASH_SIZE 20	/* RIPEMD160 and SHA-1 are 20 bytes MD5 is 16 */
 #endif
 
-int dst_bsafe_init();
+int dst_bsafe_init(void);
 
-int dst_rsaref_init();
+int dst_rsaref_init(void);
 
-int dst_hmac_md5_init();
+int dst_hmac_md5_init(void);
 
-int dst_cylink_init();
+int dst_cylink_init(void);
 
-int dst_eay_dss_init();
+int dst_eay_dss_init(void);
 
 /* support functions */
 /* base64 to bignum conversion routines */
@@ -158,6 +159,10 @@ void      dst_s_put_int32( u_int8_t *buf, const u_int32_t val);
 #else
 # define DUMP(a,b,c,d)
 #endif
+void
+dst_s_dump(const int mode, const u_char *data, const int size,
+            const char *msg);
+
 
 
 #endif /* DST_INTERNAL_H */

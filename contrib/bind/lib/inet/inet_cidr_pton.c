@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_cidr_pton.c,v 8.4 2000/12/23 08:14:53 vixie Exp $";
+static const char rcsid[] = "$Id: inet_cidr_pton.c,v 8.7 2001/09/28 04:21:28 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -24,6 +24,7 @@ static const char rcsid[] = "$Id: inet_cidr_pton.c,v 8.4 2000/12/23 08:14:53 vix
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/nameser.h>
 #include <arpa/inet.h>
 
 #include <isc/assertions.h>
@@ -42,7 +43,11 @@ static const char rcsid[] = "$Id: inet_cidr_pton.c,v 8.4 2000/12/23 08:14:53 vix
 #endif
 
 static int	inet_cidr_pton_ipv4 __P((const char *src, u_char *dst,
+					 int *bits, int ipv6));
+static int	inet_cidr_pton_ipv6 __P((const char *src, u_char *dst,
 					 int *bits));
+
+static int	getbits(const char *, int ipv6);
 
 /*
  * int
@@ -65,16 +70,19 @@ int
 inet_cidr_pton(int af, const char *src, void *dst, int *bits) {
 	switch (af) {
 	case AF_INET:
-		return (inet_cidr_pton_ipv4(src, dst, bits));
+		return (inet_cidr_pton_ipv4(src, dst, bits, 0));
+	case AF_INET6:
+		return (inet_cidr_pton_ipv6(src, dst, bits));
 	default:
 		errno = EAFNOSUPPORT;
 		return (-1);
 	}
 }
 
+static const char digits[] = "0123456789";
+
 static int
-inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits) {
-	static const char digits[] = "0123456789";
+inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits, int ipv6) {
 	const u_char *odst = dst;
 	int n, ch, tmp, bits;
 	size_t size = 4;
@@ -101,30 +109,17 @@ inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits) {
 
 	/* Get the prefix length if any. */
 	bits = -1;
-	if (ch == '/' && isascii(src[0]) && isdigit(src[0]) && dst > odst) {
-		/* CIDR width specifier.  Nothing can follow it. */
-		ch = *src++;	/* Skip over the /. */
-		bits = 0;
-		do {
-			n = strchr(digits, ch) - digits;
-			INSIST(n >= 0 && n <= 9);
-			bits *= 10;
-			bits += n;
-		} while ((ch = *src++) != '\0' && isascii(ch) && isdigit(ch));
-		if (ch != '\0')
+	if (ch == '/' && dst > odst) {
+		bits = getbits(src, ipv6);
+		if (bits == -2)
 			goto enoent;
-		if (bits > 32)
-			goto emsgsize;
-	}
-
-	/* Firey death and destruction unless we prefetched EOS. */
-	if (ch != '\0')
+	} else if (ch != '\0')
 		goto enoent;
 
 	/* Prefix length can default to /32 only if all four octets spec'd. */
 	if (bits == -1) {
 		if (dst - odst == 4)
-			bits = 32;
+			bits = ipv6 ? 128 : 32;
 		else
 			goto enoent;
 	}
@@ -134,7 +129,7 @@ inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits) {
 		goto enoent;
 
 	/* If prefix length overspecifies mantissa, life is bad. */
-	if ((bits / 8) > (dst - odst))
+	if (((bits - (ipv6 ? 96 : 0)) / 8) > (dst - odst))
 		goto enoent;
 
 	/* Extend address to four octets. */
@@ -151,4 +146,130 @@ inet_cidr_pton_ipv4(const char *src, u_char *dst, int *pbits) {
  emsgsize:
 	errno = EMSGSIZE;
 	return (-1);
+}
+
+static int
+inet_cidr_pton_ipv6(const char *src, u_char *dst, int *pbits) {
+	static const char xdigits_l[] = "0123456789abcdef",
+			  xdigits_u[] = "0123456789ABCDEF";
+	u_char tmp[NS_IN6ADDRSZ], *tp, *endp, *colonp;
+	const char *xdigits, *curtok;
+	int ch, saw_xdigit;
+	u_int val;
+	int bits;
+
+	memset((tp = tmp), '\0', NS_IN6ADDRSZ);
+	endp = tp + NS_IN6ADDRSZ;
+	colonp = NULL;
+	/* Leading :: requires some special handling. */
+	if (*src == ':')
+		if (*++src != ':')
+			return (0);
+	curtok = src;
+	saw_xdigit = 0;
+	val = 0;
+	bits = -1;
+	while ((ch = *src++) != '\0') {
+		const char *pch;
+
+		if ((pch = strchr((xdigits = xdigits_l), ch)) == NULL)
+			pch = strchr((xdigits = xdigits_u), ch);
+		if (pch != NULL) {
+			val <<= 4;
+			val |= (pch - xdigits);
+			if (val > 0xffff)
+				return (0);
+			saw_xdigit = 1;
+			continue;
+		}
+		if (ch == ':') {
+			curtok = src;
+			if (!saw_xdigit) {
+				if (colonp)
+					return (0);
+				colonp = tp;
+				continue;
+			} else if (*src == '\0') {
+				return (0);
+			}
+			if (tp + NS_INT16SZ > endp)
+				return (0);
+			*tp++ = (u_char) (val >> 8) & 0xff;
+			*tp++ = (u_char) val & 0xff;
+			saw_xdigit = 0;
+			val = 0;
+			continue;
+		}
+		if (ch == '.' && ((tp + NS_INADDRSZ) <= endp) &&
+		    inet_cidr_pton_ipv4(curtok, tp, &bits, 1) == 0) {
+			tp += NS_INADDRSZ;
+			saw_xdigit = 0;
+			break;	/* '\0' was seen by inet_pton4(). */
+		}
+		if (ch == '/') {
+			bits = getbits(src, 1);
+			if (bits == -2)
+				goto enoent;
+			break;
+		}
+		goto enoent;
+	}
+	if (saw_xdigit) {
+		if (tp + NS_INT16SZ > endp)
+			goto emsgsize;
+		*tp++ = (u_char) (val >> 8) & 0xff;
+		*tp++ = (u_char) val & 0xff;
+	}
+	if (colonp != NULL) {
+		/*
+		 * Since some memmove()'s erroneously fail to handle
+		 * overlapping regions, we'll do the shift by hand.
+		 */
+		const int n = tp - colonp;
+		int i;
+
+		if (tp == endp)
+			goto enoent;
+		for (i = 1; i <= n; i++) {
+			endp[- i] = colonp[n - i];
+			colonp[n - i] = 0;
+		}
+		tp = endp;
+	}
+
+	memcpy(dst, tmp, NS_IN6ADDRSZ);
+
+	*pbits = bits;
+	return (0);
+
+ enoent:
+	errno = ENOENT;
+	return (-1);
+
+ emsgsize:
+	errno = EMSGSIZE;
+	return (-1);
+}
+
+int
+getbits(const char *src, int ipv6) {
+	int bits = 0;
+	char *cp, ch;
+	
+	if (*src == '\0')			/* syntax */
+		return (-2);
+	do {
+		ch = *src++;
+		cp = strchr(digits, ch);
+		if (cp == NULL)			/* syntax */
+			return (-2);
+		bits *= 10;
+		bits += cp - digits;
+		if (bits == 0 && *src != '\0')	/* no leading zeros */
+			return (-2);
+		if (bits > (ipv6 ? 128 : 32))	/* range error */
+			return (-2);
+	} while (*src != '\0');
+
+	return (bits);
 }

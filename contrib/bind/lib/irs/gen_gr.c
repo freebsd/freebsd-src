@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_gr.c,v 1.22 2000/07/11 05:51:56 vixie Exp $";
+static const char rcsid[] = "$Id: gen_gr.c,v 1.25 2001/06/07 02:12:26 marka Exp $";
 #endif
 
 /* Imports */
@@ -324,8 +324,9 @@ gr_res_set(struct irs_gr *this, struct __res_state *res,
 static void
 grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	char *cp, **m, **p;
-	int n, ndst, nnew, memadj;
+	char *cp, **m, **p, *oldmembuf;
+	int n, ndst, nnew;
+	size_t used;
 
 	if (!preserve) {
 		pvt->group.gr_gid = src->gr_gid;
@@ -372,15 +373,25 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		/* No work to do. */
 		return;
 	}
-	cp = realloc(pvt->membuf, pvt->membufsize + n);
+	used = preserve ? pvt->membufsize : 0;
+	cp = malloc(used + n);
 	if (!cp) {
 		/* No harm done, no work done. */
 		return;
 	}
-	memadj = cp - pvt->membuf;
+	if (used != 0)
+		memcpy(cp, pvt->membuf, used);
+	oldmembuf = pvt->membuf;
 	pvt->membuf = cp;
-	cp += pvt->membufsize;
-	pvt->membufsize += n;
+	pvt->membufsize = used + n;
+	cp += used;
+
+	/*
+	 * Adjust group.gr_mem.
+	 */
+	if (pvt->membuf != oldmembuf)
+		for (m = pvt->group.gr_mem; *m; m++)
+			*m = pvt->membuf + (*m - oldmembuf);
 
 	/*
 	 * Add new elements.
@@ -393,8 +404,10 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 			cp += strlen(cp) + 1;
 		}
 	if (preserve) {
-		pvt->group.gr_name += memadj;
-		pvt->group.gr_passwd += memadj;
+		pvt->group.gr_name = pvt->membuf + 
+				     (pvt->group.gr_name - oldmembuf);
+		pvt->group.gr_passwd = pvt->membuf + 
+				       (pvt->group.gr_passwd - oldmembuf);
 	} else {
 		pvt->group.gr_name = cp;
 		strcpy(cp, src->gr_name);
@@ -403,6 +416,8 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		strcpy(cp, src->gr_passwd);
 		cp += strlen(src->gr_passwd) + 1;
 	}
+	if (oldmembuf != NULL)
+		free(oldmembuf);
 	INSIST(cp >= pvt->membuf && cp <= &pvt->membuf[pvt->membufsize]);
 }
 

@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: subr.c,v 8.14 2000/12/23 08:14:48 vixie Exp $";
+static const char rcsid[] = "$Id: subr.c,v 8.16 2002/04/09 05:55:24 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -120,7 +120,7 @@ static const char rcsid[] = "$Id: subr.c,v 8.14 2000/12/23 08:14:48 vixie Exp $"
  */
 
 SIG_FN
-IntrHandler()
+IntrHandler(int sig)
 {
     extern jmp_buf env;
 #if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD) && !defined(__osf__)
@@ -128,6 +128,8 @@ IntrHandler()
     extern void yyrestart();	/* routine to restart scanner after interrupt */
 #endif
     extern void ListHost_close(void);
+
+    UNUSED(sig);
 
     SendRequest_close();
     ListHost_close();
@@ -233,13 +235,15 @@ Calloc(num, size)
 void
 PrintHostInfo(file, title, hp)
 	FILE	*file;
-	char	*title;
+	const char	*title;
 	register HostInfo *hp;
 {
+	register AddrInfo	**ap;
 	register char		**cp;
 	register ServerInfo	**sp;
 	char			comma;
 	int			i;
+	char buf[80];
 
 	fprintf(file, "%-7s  %s", title, hp->name);
 
@@ -251,14 +255,18 @@ PrintHostInfo(file, title, hp)
 	    }
 	    comma = ' ';
 	    i = 0;
-	    for (cp = hp->addrList; cp && *cp; cp++) {
+	    for (ap = hp->addrList; ap && *ap; ap++) {
 		i++;
 		if (i > 4) {
 		    fprintf(file, "\n\t");
 		    comma = ' ';
 		    i = 0;
 		}
-		fprintf(file,"%c %s", comma, inet_ntoa(*(struct in_addr *)*cp));
+		if (inet_ntop((*ap)->addrType, (*ap)->addr,
+			      buf, sizeof(buf)) != NULL) {
+			fprintf(file,"%c %s", comma, buf);
+		} else
+			fprintf(file,"%c <UNKNOWN>", comma);
 		comma = ',';
 	    }
 	}
@@ -287,15 +295,18 @@ PrintHostInfo(file, title, hp)
 
 		comma = ' ';
 		i = 0;
-		for (cp = (*sp)->addrList; cp && *cp && **cp; cp++) {
+		for (ap = (*sp)->addrList; ap && *ap; ap++) {
 		    i++;
 		    if (i > 4) {
 			fprintf(file, "\n\t");
 			comma = ' ';
 			i = 0;
 		    }
-		    fprintf(file,
-			"%c %s", comma, inet_ntoa(*(struct in_addr *)*cp));
+		    if (inet_ntop((*ap)->addrType, (*ap)->addr,
+			      buf, sizeof(buf)) != NULL)
+			fprintf(file,"%c %s", comma, buf);
+		    else
+			fprintf(file,"%c <UNKNOWN>", comma);
 		    comma = ',';
 		}
 		fprintf(file, "\n\t");
@@ -387,21 +398,21 @@ OpenFile(string, file, size)
  */
 
 const struct res_sym error_syms[] = {
-	{ NOERROR,	"Success" },
-	{ FORMERR,	"Format error" },
-	{ SERVFAIL,	"Server failed" },
-	{ NXDOMAIN,	"Non-existent host/domain" },
-	{ NOTIMP,	"Not implemented" },
-	{ REFUSED,	"Query refused" },
+	{ NOERROR,	"Success", NULL },
+	{ FORMERR,	"Format error", NULL },
+	{ SERVFAIL,	"Server failed", NULL },
+	{ NXDOMAIN,	"Non-existent host/domain", NULL },
+	{ NOTIMP,	"Not implemented", NULL },
+	{ REFUSED,	"Query refused", NULL },
 #ifdef NOCHANGE
-	{ NOCHANGE,	"No change" },
+	{ NOCHANGE,	"No change", NULL },
 #endif
-	{ TIME_OUT,	"Timed out" },
-	{ NO_INFO,	"No information" },
-	{ ERROR,	"Unspecified error" },
-	{ NONAUTH,	"Non-authoritative answer" },
-	{ NO_RESPONSE,	"No response from server" },
-	{ 0,		NULL }
+	{ TIME_OUT,	"Timed out", NULL },
+	{ NO_INFO,	"No information", NULL },
+	{ ERROR,	"Unspecified error", NULL },
+	{ NONAUTH,	"Non-authoritative answer", NULL },
+	{ NO_RESPONSE,	"No response from server", NULL },
+	{ 0,		NULL, NULL }
 };
 
 const char *

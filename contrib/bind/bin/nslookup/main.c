@@ -78,7 +78,7 @@ char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: main.c,v 8.16 2000/12/23 08:14:47 vixie Exp $";
+static const char rcsid[] = "$Id: main.c,v 8.24 2002/05/26 03:12:20 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -109,7 +109,6 @@ static const char rcsid[] = "$Id: main.c,v 8.16 2000/12/23 08:14:47 vixie Exp $"
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -118,6 +117,8 @@ static const char rcsid[] = "$Id: main.c,v 8.16 2000/12/23 08:14:47 vixie Exp $"
 #include <unistd.h>
 
 #include "port_after.h"
+
+#include <resolv.h>
 
 #include "res.h"
 #include "pathnames.h"
@@ -155,7 +156,7 @@ int		curHostValid = FALSE;
 
 HostInfo	*defaultPtr = NULL;
 char		defaultServer[NAME_LEN];
-struct in_addr	defaultAddr;
+union res_sockaddr_union defaultAddr;
 
 
 /*
@@ -169,7 +170,7 @@ int		queryClass = C_IN;
  * Stuff for Interrupt (control-C) signal handler.
  */
 
-extern SIG_FN	IntrHandler();
+extern SIG_FN	IntrHandler(int);
 FILE		*filePtr;
 jmp_buf		env;
 
@@ -177,10 +178,10 @@ jmp_buf		env;
 /*
  * Browser command for help.
  */
-char		*pager;
+const char		*pager;
 
-static void CvtAddrToPtr();
-static void ReadRC();
+static void CvtAddrToPtr(char *name);
+static void ReadRC(void);
 
 /*
  * Forward declarations.
@@ -189,6 +190,32 @@ static void LocalServer(HostInfo *defaultPtr);
 static void res_re_init(void);
 static void res_dnsrch(char *cp);
 static void Usage(void);
+static void ShowOptions(void);
+
+static void
+UnionFromAddr(union res_sockaddr_union *u, int family, void *addr) {
+    memset(u, 0, sizeof *u);
+    switch (family) {
+    case AF_INET:
+	u->sin.sin_family = AF_INET;
+	u->sin.sin_port = htons(nsport);
+	memcpy(&u->sin.sin_addr, addr, 4);
+#ifdef HAVE_SA_LEN
+	u->sin.sin_len = sizeof(u->sin);
+#endif
+	break;
+    case AF_INET6:
+	u->sin6.sin6_family = AF_INET6;
+	u->sin6.sin6_port = htons(nsport);
+	memcpy(&u->sin6.sin6_addr, addr, 16);
+#ifdef HAVE_SA_LEN
+	u->sin6.sin6_len = sizeof(u->sin6);
+#endif
+	break;
+    default:
+	abort();
+    }
+}
 
 /*
  ******************************************************************************
@@ -208,7 +235,6 @@ main(int argc, char **argv) {
     Boolean	useLocalServer;
     int		result;
     int		i;
-    struct hostent	*hp;
 
     /*
      *  Initialize the resolver library routines.
@@ -264,30 +290,38 @@ main(int argc, char **argv) {
 
     useLocalServer = FALSE;
     if (argc == 2) {
-	struct in_addr addr;
+	int nscount = 0;
+	union res_sockaddr_union u[MAXNS];
+	struct addrinfo *answer = NULL;
+	struct addrinfo *cur = NULL;
+	struct addrinfo hint;
 
 	/*
 	 * Use an explicit name server. If the hostname lookup fails,
 	 * default to the server(s) in resolv.conf.
 	 */ 
 
-	if (inet_aton(*++argv, &addr)) {
-	    res.nscount = 1;
-	    res.nsaddr.sin_addr = addr;
-	} else {
-	    hp = gethostbyname(*argv);
-	    if (hp == NULL) {
-		fprintf(stderr, "*** Can't find server address for '%s': ", 
-			*argv);
-		herror((char *)NULL);
-		fputc('\n', stderr);
-	    } else {
-		for (i = 0; i < MAXNS && hp->h_addr_list[i] != NULL; i++) {
-		    memcpy(&res.nsaddr_list[i].sin_addr, hp->h_addr_list[i],
-			   hp->h_length);
+	memset(u, 0, sizeof(u));
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_socktype = SOCK_DGRAM;
+	if (!getaddrinfo(*++argv, NULL, &hint, &answer)) {
+	    for (cur = answer; cur != NULL; cur = cur->ai_next) {
+		if (nscount == MAXNS)
+		    break;
+		switch (cur->ai_addr->sa_family) {
+		case AF_INET6:
+		    u[nscount].sin6 = *(struct sockaddr_in6*)cur->ai_addr;
+		    u[nscount++].sin6.sin6_port = htons(nsport);
+		    break;
+		case AF_INET:
+		    u[nscount].sin = *(struct sockaddr_in*)cur->ai_addr;
+		    u[nscount++].sin.sin_port = htons(nsport);
+		    break;
 		}
-		res.nscount = i;
-	    } 
+	    }
+	    if (nscount != 0)
+		res_setservers(&res, u, nscount);
+	    freeaddrinfo(answer);;
 	}
     }
 
@@ -295,21 +329,35 @@ main(int argc, char **argv) {
     if (res.nscount == 0 || useLocalServer) {
 	LocalServer(defaultPtr);
     } else {
-	for (i = 0; i < res.nscount; i++) {
-	    if (res.nsaddr_list[i].sin_addr.s_addr == INADDR_ANY) {
+	int nscount = 0;
+	union res_sockaddr_union u[MAXNS];
+
+	nscount = res_getservers(&res, u, MAXNS);
+	for (i = 0; i < nscount; i++) {
+	    if (u[i].sin.sin_family == AF_INET &&
+		u[i].sin.sin_addr.s_addr == INADDR_ANY) {
 	        LocalServer(defaultPtr);
 		break;
 	    } else {
-		result = GetHostInfoByAddr(&(res.nsaddr_list[i].sin_addr), 
-					   &(res.nsaddr_list[i].sin_addr), 
-					   defaultPtr);
+		result = GetHostInfoByAddr(&u[i], &u[i], defaultPtr);
 		if (result != SUCCESS) {
+		    char t[80];
+		    switch (u[i].sin.sin_family) {
+		    case AF_INET:
+			inet_ntop(AF_INET, &u[i].sin.sin_addr, t, sizeof(t));
+			break;
+		    case AF_INET6:
+			inet_ntop(AF_INET6, &u[i].sin6.sin6_addr, t, sizeof(t));
+			break;
+		    default:
+			strcpy(t, "<UNKNOWN>");
+			break;
+		    }
 		    fprintf(stderr,
-		    "*** Can't find server name for address %s: %s\n", 
-		       inet_ntoa(res.nsaddr_list[i].sin_addr), 
-		       DecodeError(result));
+		            "*** Can't find server name for address %s: %s\n", 
+			    t, DecodeError(result));
 		} else {
-		    defaultAddr = res.nsaddr_list[i].sin_addr;
+		    defaultAddr = u[i];
 		    break;
 		}
 	    }
@@ -377,7 +425,7 @@ main(int argc, char **argv) {
 }
 
 
-void
+static void
 LocalServer(defaultPtr)
     HostInfo *defaultPtr;
 {
@@ -385,9 +433,15 @@ LocalServer(defaultPtr)
 
     (void) gethostname(hostName, sizeof(hostName));
 
-    defaultAddr.s_addr = htonl(INADDR_ANY);
+    memset(&defaultAddr, 0, sizeof(defaultAddr));
+    defaultAddr.sin.sin_addr.s_addr = htonl(INADDR_ANY);
+    defaultAddr.sin.sin_family = AF_INET;
+    defaultAddr.sin.sin_port = htons(nsport);
+#ifdef HAVE_SA_LEN
+    defaultAddr.sin.sin_len = sizeof(defaultAddr.sin);
+#endif
     (void) GetHostInfoByName(&defaultAddr, C_IN, T_A,
-			     "0.0.0.0", defaultPtr, 1);
+			     "0.0.0.0", defaultPtr, 1, 0);
     free(defaultPtr->name);
     defaultPtr->name = Calloc(1, sizeof(hostName)+1);
     strcpy(defaultPtr->name, hostName);
@@ -432,23 +486,25 @@ Usage(void) {
 
 Boolean
 IsAddr(host, addrPtr)
-    char *host;
-    struct in_addr *addrPtr;	/* If return TRUE, contains IP address */
+    const char *host;
+    union res_sockaddr_union *addrPtr;
+    /* If return TRUE, contains IP address */
 {
-    register char *cp;
-
-    if (isdigit(host[0])) {
-	    /* Make sure it has only digits and dots. */
-	    for (cp = host; *cp; ++cp) {
-		if (!isdigit(*cp) && *cp != '.') 
-		    return FALSE;
-	    }
-	    /* If it has a trailing dot, don't treat it as an address. */
-	    if (*--cp != '.') { 
-		return inet_aton(host, addrPtr);
-	    }
-    }
-    return FALSE;
+    if (inet_pton(AF_INET6, host, &addrPtr->sin6.sin6_addr) == 1) {
+	addrPtr->sin6.sin6_family = AF_INET6;
+	addrPtr->sin6.sin6_port = htons(nsport);
+#ifdef HAVE_SA_LEN
+	addrPtr->sin6.sin6_len = sizeof(addrPtr->sin6);
+#endif
+    } else if (inet_pton(AF_INET, host, &addrPtr->sin.sin_addr) == 1) {
+	addrPtr->sin.sin_family = AF_INET;
+	addrPtr->sin.sin_port = htons(nsport);
+#ifdef HAVE_SA_LEN
+	addrPtr->sin.sin_len = sizeof(addrPtr->sin);
+#endif
+    } else
+	return FALSE;
+    return TRUE;
 }
 
 
@@ -482,10 +538,11 @@ SetDefaultServer(string, local)
     Boolean	local;
 {
     register HostInfo	*newDefPtr;
-    struct in_addr	*servAddrPtr;
-    struct in_addr	addr;
+    union res_sockaddr_union servAddr;
+    union res_sockaddr_union addr;
     char		newServer[NAME_LEN];
     int			result;
+    int			tresult;
     int			i;
     int			j;
 
@@ -545,21 +602,28 @@ SetDefaultServer(string, local)
      */
 
     if (local) {
-	servAddrPtr = &defaultAddr;
+	servAddr = defaultAddr;
     } else if (defaultPtr->addrList != NULL) {
-	servAddrPtr = (struct in_addr *) defaultPtr->addrList[0];
+	UnionFromAddr(&servAddr, defaultPtr->addrList[0]->addrType,
+		      defaultPtr->addrList[0]->addr);
     } else {
-	servAddrPtr = (struct in_addr *) defaultPtr->servers[0]->addrList[0];
+	UnionFromAddr(&servAddr, defaultPtr->addrList[0]->addrType,
+		      defaultPtr->servers[0]->addrList[0]->addr);
     }
 
     result = ERROR;
     if (IsAddr(newServer, &addr)) {
-	result = GetHostInfoByAddr(servAddrPtr, &addr, newDefPtr);
+	result = GetHostInfoByAddr(&servAddr, &addr, newDefPtr);
 	/* If we can't get the name, fall through... */
     } 
     if (result != SUCCESS && result != NONAUTH) {
-	result = GetHostInfoByName(servAddrPtr, C_IN, T_A, 
-			newServer, newDefPtr, 1);
+	result = GetHostInfoByName(&servAddr, C_IN, T_A, 
+			newServer, newDefPtr, 1, 0);
+	if (result == SUCCESS || result == NONAUTH || result == NO_INFO)
+		tresult = GetHostInfoByName(&servAddr, C_IN, T_AAAA,
+			newServer, newDefPtr, 1, 1);
+	if (result == NO_INFO)
+		result = tresult;
     }
 
     /* If we ask for an A record and get none back, but get an NS
@@ -611,8 +675,8 @@ DoLookup(host, servPtr, serverName)
     char	*serverName;
 {
     int result;
-    struct in_addr *servAddrPtr;
-    struct in_addr addr; 
+    union res_sockaddr_union servAddr;
+    union res_sockaddr_union addr; 
 
     /* Skip escape character */
     if (host[0] == '\\')
@@ -629,23 +693,25 @@ DoLookup(host, servPtr, serverName)
      */
 
     if (servPtr->addrList != NULL) {
-	servAddrPtr = (struct in_addr *) servPtr->addrList[0];
+	UnionFromAddr(&servAddr, servPtr->addrList[0]->addrType,
+		      servPtr->addrList[0]->addr);
     } else {
-	servAddrPtr = (struct in_addr *) servPtr->servers[0]->addrList[0];
+	UnionFromAddr(&servAddr, servPtr->servers[0]->addrList[0]->addrType,
+		      servPtr->servers[0]->addrList[0]->addr);
     }
 
     /* 
      * RFC1123 says we "SHOULD check the string syntactically for a 
      * dotted-decimal number before looking it up [...]" (p. 13).
      */
-    if (queryType == T_A && IsAddr(host, &addr)) {
-	result = GetHostInfoByAddr(servAddrPtr, &addr, &curHostInfo);
+    if ((queryType == T_A || queryType == T_AAAA) && IsAddr(host, &addr)) {
+	result = GetHostInfoByAddr(&servAddr, &addr, &curHostInfo);
     } else {
 	if (queryType == T_PTR) {
 	    CvtAddrToPtr(host);
 	} 
-	result = GetHostInfoByName(servAddrPtr, queryClass, queryType, host, 
-			&curHostInfo, 0);
+	result = GetHostInfoByName(&servAddr, queryClass, queryType, host, 
+			&curHostInfo, 0, 0);
     }
 
     switch (result) {
@@ -656,7 +722,7 @@ DoLookup(host, servPtr, serverName)
 	     *  There's no need to print anything for other query types
 	     *  because the info has already been printed.
 	     */
-	    if (queryType == T_A) {
+	    if (queryType == T_A || queryType == T_AAAA) {
 		curHostValid = TRUE;
 		PrintHostInfo(filePtr, "Name:", &curHostInfo);
 	    }
@@ -787,6 +853,7 @@ LookupHostWithServer(char *string, Boolean putToFile) {
     static HostInfo serverInfo;
     int		i;
     int		j;
+    union res_sockaddr_union u;
 
     curHostValid = FALSE;
 
@@ -813,11 +880,16 @@ LookupHostWithServer(char *string, Boolean putToFile) {
 	fprintf(filePtr,"> %s\n", string);
     }
     
-    result = GetHostInfoByName(
-		defaultPtr->addrList ?
-		    (struct in_addr *) defaultPtr->addrList[0] :
-		    (struct in_addr *) defaultPtr->servers[0]->addrList[0], 
-		C_IN, T_A, server, &serverInfo, 1);
+    if (defaultPtr->addrList != NULL)
+	UnionFromAddr(&u, defaultPtr->addrList[0]->addrType,
+		      defaultPtr->addrList[0]->addr);
+    else
+	UnionFromAddr(&u, defaultPtr->servers[0]->addrList[0]->addrType,
+		      defaultPtr->servers[0]->addrList[0]->addr);
+    result = GetHostInfoByName(&u, C_IN, T_A, server, &serverInfo, 1, 0);
+    if (result == NO_INFO)
+	    result = GetHostInfoByName(&u, C_IN, T_AAAA, server,
+				       &serverInfo, 1, 1);
 
     if (result != SUCCESS) {
 	fprintf(stderr,"*** Can't find address for server %s: %s\n", server,
@@ -1024,7 +1096,7 @@ SetOption(option)
 /*
  * Fake a reinitialization when the domain is changed.
  */
-void
+static void
 res_re_init(void) {
     register char *cp, **pp;
     int n;
@@ -1046,7 +1118,7 @@ res_re_init(void) {
 
 #define SRCHLIST_SEP '/'
 
-void
+static void
 res_dnsrch(char *cp) {
     char **pp;
     int n;
@@ -1089,8 +1161,8 @@ res_dnsrch(char *cp) {
  ******************************************************************************
  */
 
-void
-ShowOptions()
+static void
+ShowOptions(void)
 {
     register char **cp;
 
@@ -1140,7 +1212,7 @@ ShowOptions()
  */
 
 void
-PrintHelp()
+PrintHelp(void)
 {
 	char cmd[PATH_MAX];
 
@@ -1167,13 +1239,54 @@ CvtAddrToPtr(name)
 {
     const char *p;
     int ip[4];
-    struct in_addr addr;
+    union res_sockaddr_union addr;
 
     if (IsAddr(name, &addr)) {
-	p = inet_ntoa(addr);
-	if (sscanf(p, "%d.%d.%d.%d", &ip[0], &ip[1], &ip[2], &ip[3]) == 4) {
-	    sprintf(name, "%d.%d.%d.%d.in-addr.arpa.", 
-		ip[3], ip[2], ip[1], ip[0]);
+	switch (addr.sin.sin_family) {
+	case AF_INET:
+	    p = inet_ntoa(addr.sin.sin_addr);
+	    if (sscanf(p, "%d.%d.%d.%d", &ip[0], &ip[1], &ip[2], &ip[3]) == 4)
+		sprintf(name, "%d.%d.%d.%d.in-addr.arpa.",
+			ip[3], ip[2], ip[1], ip[0]);
+	   break;
+	case AF_INET6:
+	   sprintf(name,
+		  "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		  "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x."
+		  "ip6.arpa",
+		  addr.sin6.sin6_addr.s6_addr[15] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[15] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[14] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[14] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[13] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[13] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[12] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[12] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[11] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[11] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[10] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[10] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[9] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[9] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[8] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[8] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[7] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[7] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[6] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[6] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[5] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[5] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[4] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[4] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[3] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[3] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[2] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[2] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[1] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[1] >> 4) & 0xf,
+		  addr.sin6.sin6_addr.s6_addr[0] & 0xf,
+		  (addr.sin6.sin6_addr.s6_addr[0] >> 4) & 0xf);
+	    break;
 	}
     }
 }
@@ -1189,7 +1302,7 @@ CvtAddrToPtr(name)
  */
 
 static void
-ReadRC()
+ReadRC(void)
 {
     register FILE *fp;
     register char *cp;

@@ -4,7 +4,11 @@ struct ctl_buf {
 };
 
 #define	MAX_LINELEN		990	/* Like SMTP. */
+#ifndef NO_SOCKADDR_UN
+#define MAX_NTOP			PATH_MAX
+#else
 #define	MAX_NTOP		(sizeof "[255.255.255.255].65535")
+#endif
 
 #define	allocated_p(Buf) ((Buf).text != NULL)
 #define	buffer_init(Buf) ((Buf).text = 0, (Buf.used) = 0)

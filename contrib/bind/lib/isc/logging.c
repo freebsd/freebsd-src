@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 8.28 2000/12/23 08:14:54 vixie Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.31 2001/06/18 14:44:03 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -57,8 +57,9 @@ static const int syslog_priority[] = { LOG_DEBUG, LOG_INFO, LOG_NOTICE,
 static const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 				"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-static char *level_text[] = { "info: ", "notice: ", "warning: ", "error: ",
-			      "critical: " };
+static const char *level_text[] = {
+	"info: ", "notice: ", "warning: ", "error: ", "critical: "
+};
 
 static void
 version_rename(log_channel chan) {
@@ -177,6 +178,19 @@ log_close_stream(log_channel chan) {
 	return (0);
 }
 
+void
+log_close_debug_channels(log_context lc) {
+	log_channel_list lcl;
+	int i;
+
+	for (i = 0; i < lc->num_categories; i++)
+		for (lcl = lc->categories[i]; lcl != NULL; lcl = lcl->next)
+			if (lcl->channel->type == log_file &&
+			    lcl->channel->out.file.stream != NULL &&
+			    lcl->channel->flags & LOG_REQUIRE_DEBUG)
+				(void)log_close_stream(lcl->channel);
+}
+
 FILE *
 log_get_stream(log_channel chan) {
 	if (chan == NULL || chan->type != log_file) {
@@ -268,8 +282,8 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 	log_channel chan;
 	struct timeval tv;
 	struct tm *local_tm;
-	char *category_name;
-	char *level_str;
+	const char *category_name;
+	const char *level_str;
 	char time_buf[256];
 	char level_buf[256];
 
@@ -582,7 +596,7 @@ log_new_syslog_channel(unsigned int flags, int level, int facility) {
 
 log_channel
 log_new_file_channel(unsigned int flags, int level,
-		     char *name, FILE *stream, unsigned int versions,
+		     const char *name, FILE *stream, unsigned int versions,
 		     unsigned long max_size) {
 	log_channel chan;
 

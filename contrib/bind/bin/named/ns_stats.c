@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static const char rcsid[] = "$Id: ns_stats.c,v 8.32.2.1 2001/08/09 14:04:49 marka Exp $";
+static const char rcsid[] = "$Id: ns_stats.c,v 8.34 2001/08/09 13:17:21 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -380,6 +380,11 @@ ns_logstats(evContext ctx, void *uap, struct timespec due,
 
 #ifdef HAVE_GETRUSAGE
 # define tv_float(tv) ((tv).tv_sec + ((tv).tv_usec / 1000000.0))
+
+	UNUSED(ctx);
+	UNUSED(uap);
+	UNUSED(due);
+	UNUSED(inter);
 
 	getrusage(RUSAGE_SELF, &usage);
 	getrusage(RUSAGE_CHILDREN, &childu);

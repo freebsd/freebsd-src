@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Id: tree.c,v 8.9 1999/01/08 19:25:47 vixie Exp $";
+static const char rcsid[] = "$Id: tree.c,v 8.10 2001/11/01 05:33:46 marka Exp $";
 #endif
 
 /*
@@ -101,7 +101,7 @@ tree_init(tree **ppr_tree) {
 }
 	
 tree_t
-tree_srch(tree **ppr_tree, int (*pfi_compare)(), tree_t	p_user) {
+tree_srch(tree **ppr_tree, int (*pfi_compare)(tree_t, tree_t), tree_t	p_user) {
 	ENTER("tree_srch")
 
 	if (*ppr_tree) {
@@ -128,7 +128,7 @@ tree_srch(tree **ppr_tree, int (*pfi_compare)(), tree_t	p_user) {
 }
 
 tree_t
-tree_add(tree **ppr_tree, int (*pfi_compare)(),
+tree_add(tree **ppr_tree, int (*pfi_compare)(tree_t, tree_t),
 	 tree_t p_user, void (*pfv_uar)())
 {
 	int i_balance = FALSE;
@@ -140,7 +140,7 @@ tree_add(tree **ppr_tree, int (*pfi_compare)(),
 }
 
 int
-tree_delete(tree **ppr_p, int (*pfi_compare)(),
+tree_delete(tree **ppr_p, int (*pfi_compare)(tree_t, tree_t),
 	    tree_t p_user, void	(*pfv_uar)())
 {
 	int i_balance = FALSE, i_uar_called = FALSE;
@@ -151,7 +151,7 @@ tree_delete(tree **ppr_p, int (*pfi_compare)(),
 }
 
 int
-tree_trav(tree **ppr_tree, int (*pfi_uar)()) {
+tree_trav(tree **ppr_tree, int (*pfi_uar)(tree_t)) {
 	ENTER("tree_trav")
 
 	if (!*ppr_tree)
@@ -167,7 +167,7 @@ tree_trav(tree **ppr_tree, int (*pfi_uar)()) {
 }
 
 void
-tree_mung(tree **ppr_tree, void	(*pfv_uar)()) {
+tree_mung(tree **ppr_tree, void	(*pfv_uar)(tree_t)) {
 	ENTER("tree_mung")
 	if (*ppr_tree) {
 		tree_mung(&(**ppr_tree).left, pfv_uar);
@@ -182,7 +182,7 @@ tree_mung(tree **ppr_tree, void	(*pfv_uar)()) {
 
 static tree *
 sprout(tree **ppr, tree_t p_data, int *pi_balance,
-       int (*pfi_compare)(), void (*pfv_delete)())
+       int (*pfi_compare)(tree_t, tree_t), void (*pfv_delete)(tree_t))
 {
 	tree *p1, *p2, *sub;
 	int cmp;
@@ -335,8 +335,8 @@ sprout(tree **ppr, tree_t p_data, int *pi_balance,
 }
 
 static int
-delete(tree **ppr_p, int (*pfi_compare)(), tree_t p_user,
-       void (*pfv_uar)(), int *pi_balance, int *pi_uar_called)
+delete(tree **ppr_p, int (*pfi_compare)(tree_t, tree_t), tree_t p_user,
+       void (*pfv_uar)(tree_t), int *pi_balance, int *pi_uar_called)
 {
 	tree *pr_q;
 	int i_comp, i_ret;
@@ -390,7 +390,7 @@ delete(tree **ppr_p, int (*pfi_compare)(), tree_t p_user,
 
 static void
 del(tree **ppr_r, int *pi_balance, tree **ppr_q,
-    void (*pfv_uar)(), int *pi_uar_called)
+    void (*pfv_uar)(tree_t), int *pi_uar_called)
 {
 	ENTER("del")
 

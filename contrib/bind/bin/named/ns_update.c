@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_update.c,v 8.91.2.2 2001/04/30 03:20:46 marka Exp $";
+static const char rcsid[] = "$Id: ns_update.c,v 8.104 2002/05/18 01:02:59 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -105,7 +105,7 @@ static struct map m_opcode[] = {
 #define M_CLASS_CNT m_class_cnt
 #define M_TYPE_CNT m_type_cnt
 
-static char *opcodes[] = {
+static const char *opcodes[] = {
 	"delete",
 	"add",
 	"",
@@ -734,53 +734,59 @@ prescan_nameok(ns_updrec *ur, int *rcodep, u_int16_t zclass,
 	u_int16_t type = ur->r_type;
 	char *cp = (char *)ur->r_dp->d_data;
 	enum context context;
+	enum transport transport;
 
 	/* We don't care about deletes */
 	if (ur->r_class != zclass)
 		return (1);
 
-	context = ns_ownercontext(type, primary_trans);
-	if (!ns_nameok(NULL, owner, class, zp, primary_trans, context, owner,
+	if (zp->z_type == Z_PRIMARY)
+		transport = primary_trans;
+	else
+		transport = secondary_trans;
+
+	context = ns_ownercontext(type, transport);
+	if (!ns_nameok(NULL, owner, class, zp, transport, context, owner,
 		       inaddr_any))
 		goto refused;
 
 	switch (type) {
 	case ns_t_soa:
 		context = hostname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		cp += strlen(cp) + 1;
 		context = mailname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_rp:
 		context = mailname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		cp += strlen(cp) + 1;
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_minfo:
 		context = mailname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		cp += strlen(cp) + 1;
 		context = mailname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_ns:
 		context = hostname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
@@ -789,13 +795,13 @@ prescan_nameok(ns_updrec *ur, int *rcodep, u_int16_t zclass,
 	case ns_t_mg:
 	case ns_t_mr:
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_ptr:
 		context = ns_ptrcontext(owner);
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
@@ -812,7 +818,7 @@ prescan_nameok(ns_updrec *ur, int *rcodep, u_int16_t zclass,
 		/* Pattern (txt) */
 		cp += (*cp&0xff) + 1;
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans,
+		if (!ns_nameok(NULL, cp, class, zp, transport,
 			       context, owner, inaddr_any))
 			goto refused;
 		break;
@@ -825,18 +831,18 @@ prescan_nameok(ns_updrec *ur, int *rcodep, u_int16_t zclass,
 	case ns_t_kx:
 		cp += 2;
 		context = hostname_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_px:
 		cp += 2;
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		cp += strlen(cp) + 1;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
@@ -852,13 +858,13 @@ prescan_nameok(ns_updrec *ur, int *rcodep, u_int16_t zclass,
 		 */
 		cp += 18;
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
 	case ns_t_nxt:
 		context = domain_ctx;
-		if (!ns_nameok(NULL, cp, class, zp, primary_trans, context, owner,
+		if (!ns_nameok(NULL, cp, class, zp, transport, context, owner,
 			       inaddr_any))
 			goto refused;
 		break;
@@ -977,7 +983,7 @@ process_updates(const ns_updque *updlist, int *rcodep,
 
 		ns_debug(ns_log_update, 3,
 "process_update: record section=%s, dname=%s, \
-class=%s, type=%s, ttl=%d, dp=0x%0x",
+class=%s, type=%s, ttl=%d, dp=%p",
 			 p_section(section, ns_o_update), dname,
 			 p_class(class), p_type(type), ttl, rdp);
 
@@ -1048,7 +1054,7 @@ class=%s, type=%s, ttl=%d, dp=0x%0x",
 					 n);
 			} else {
 				ns_debug(ns_log_update, 3,
-				      "process_updates: added databuf 0x%0x",
+				      "process_updates: added databuf %p",
 					 dp);
 				dp->d_mark = D_MARK_ADDED;
 				numupdated++;
@@ -1135,8 +1141,8 @@ class=%s, type=%s, ttl=%d, dp=0x%0x",
 
 static enum req_action
 req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg, 
-		   struct qstream *qsp, int dfd, struct sockaddr_in from,
-		   struct tsig_record *in_tsig, ns_updque *curupd)
+		   struct sockaddr_in from, struct tsig_record *in_tsig,
+		   ns_updque *curupd)
 {
 	char dnbuf[MAXDNAME], *dname;
 	u_int zocount, prcount, upcount, adcount, class, type, dlen;
@@ -1340,7 +1346,6 @@ req_update_private(HEADER *hp, u_char *cp, u_char *eom, u_char *msg,
 		dp->d_secure = DB_S_INSECURE; /* should be UNCHECKED */
 		dp->d_clev = nlabels(zp->z_origin);
 		/* XXX - also record in dp->d_ns, which host this came from */
-		DRCNTINC(dp);
 		rrecp->r_dp = dp;
 		/* Append the current record to the end of list of records. */
 		APPEND(*curupd, rrecp, r_link);
@@ -1380,7 +1385,8 @@ void
 free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 	ns_updrec *rrecp, *first_rrecp, *next_rrecp;
 	struct databuf *dp, *tmpdp;
-	char *dname, *msg;
+	char *dname;
+	const char *msg;
 
 	if (rcode == NOERROR) {
 		first_rrecp = HEAD(*updlist);
@@ -1389,7 +1395,7 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 		first_rrecp = TAIL(*updlist);
 		msg = "free_rrecp: update transaction aborted, rolling back";
 	}
-	ns_debug(ns_log_update, 1, msg);
+	ns_debug(ns_log_update, 1, "%s", msg);
 	for (rrecp = first_rrecp; rrecp != NULL; rrecp = next_rrecp) {
 		if (rcode == NOERROR)
 			next_rrecp = NEXT(rrecp, r_link);
@@ -1397,12 +1403,8 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 			next_rrecp = PREV(rrecp, r_link);
 		UNLINK(*updlist, rrecp, r_link);
 		if (rrecp->r_section != S_UPDATE) {
-			if (rrecp->r_dp) {
-				DRCNTDEC(rrecp->r_dp);
-				if (rrecp->r_dp->d_rcnt == 0)
-					db_freedata(rrecp->r_dp);
-				rrecp->r_dp = NULL;
-			}
+			if (rrecp->r_dp)
+				db_detach(&rrecp->r_dp);
 			INSIST(rrecp->r_deldp == NULL);
 			res_freeupdrec(rrecp);
 			continue;
@@ -1428,24 +1430,12 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 						 dname, p_type(dp->d_type));
 				} else {
 					ns_debug(ns_log_update, 3,
-				         "free_rrecp: deleted databuf 0x%0x",
+				         "free_rrecp: deleted databuf %p",
 						 dp);
-					/* 
-					 * XXXRTH 
-					 *
-					 * We used to db_freedata() here,
-					 * but I removed it because 'dp' was
-					 * part of a hashtab before we called
-					 * db_update(), and since our delete
-					 * has succeeded, it should have been
-					 * freed.
-					 */
 				}
 			}
 		}
-		DRCNTDEC(dp);
-		if (dp->d_rcnt == 0)
-			db_freedata(dp);
+		db_detach(&dp);
 
 		/* Process deleted databuf's. */
 		dp = rrecp->r_deldp;
@@ -1464,13 +1454,11 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 						 dname, p_type(tmpdp->d_type));
 				} else {
 					ns_debug(ns_log_update, 3,
-				      "free_rrecp: added back databuf 0x%0x",
+				      "free_rrecp: added back databuf %p",
 						 tmpdp);
 				}
 			}
-			DRCNTDEC(tmpdp);
-			if (tmpdp->d_rcnt == 0)
-				db_freedata(tmpdp);
+			db_detach(&tmpdp);
 		}
 		res_freeupdrec(rrecp);
 	}
@@ -1478,15 +1466,13 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 
 enum req_action
 req_update(HEADER *hp, u_char *cp, u_char *eom, u_char *msg, 
-	   struct qstream *qsp, int dfd, struct sockaddr_in from,
-	   struct tsig_record *in_tsig)
+	   struct sockaddr_in from, struct tsig_record *in_tsig)
 {
 	enum req_action ret;
 	ns_updque curupd;
 
 	INIT_LIST(curupd);
-	ret = req_update_private(hp, cp, eom, msg, qsp, dfd, from,
-				 in_tsig, &curupd);
+	ret = req_update_private(hp, cp, eom, msg, from, in_tsig, &curupd);
 	free_rrecp(&curupd, ret == Refuse ? ns_r_refused : hp->rcode, from);
 	if (ret == Finish) {
 		hp->qdcount = hp->ancount = hp->nscount = hp->arcount = 0;
@@ -1628,13 +1614,13 @@ rdata_expand(const u_char *msg, const u_char *eom, const u_char *cp,
 		cp += SIG_HDR_SIZE;
 		cp1 += SIG_HDR_SIZE;
 		n = dn_expand(msg, eom, cp, (char *)cp1, size);
-		if (n < 0 || n + SIG_HDR_SIZE > dlen)
+		if (n < 0 || n + SIG_HDR_SIZE > (int)dlen)
 			return (0);
 		cp += n;
 		n1 = dlen - n - SIG_HDR_SIZE;
 		n = strlen((char *)cp1) + 1;
 		cp1 += n;
-		if (size < n1)
+		if ((int)size < n1)
 			return (0);
 		memcpy(cp1, cp, n1);
 		cp1 += n1;
@@ -1665,14 +1651,16 @@ rdata_expand(const u_char *msg, const u_char *eom, const u_char *cp,
 			if (n1 < 4 || n1 > 16)
 				return (0);
 		}
-		if (n1 > size)
+		if (n1 > (int)size)
 			return (0);
 		memcpy(cp1, cp, n1);
 		cp1 += n1;
 		return (cp1 - cp1init);
 	default:
-		ns_debug(ns_log_update, 3, "unknown type %d", type);
-		return (0);
+		if (size < dlen)
+			return (0);
+		memcpy(cp1, cp, dlen);
+		return (dlen);
 	}
 }
 
@@ -1917,7 +1905,13 @@ rdata_dump(struct databuf *dp, FILE *fp) {
 		break;
 	}
 	default:
-		fprintf(fp, "\t;?d_type=%d?", dp->d_type);
+		fprintf(fp, "\\# %u", dp->d_size);
+		if (dp->d_size) {
+			fputs(" ( ", fp);
+			isc_puthexstring(fp, dp->d_data, dp->d_size,	
+					 28, 48, "\n\t\t\t\t");
+			fputs(" )", fp);
+		}
 	}
 }
 
@@ -1937,7 +1931,7 @@ findzone(const char *dname, int class, int depth, int *zonelist, int maxzones){
 	int escaped, found, done;
 
 	ns_debug(ns_log_update, 4, "findzone(dname=%s, class=%d, depth=%d, \
-zonelist=0x%x, maxzones=%d)",
+zonelist=%p, maxzones=%d)",
 		 dname, class, depth, zonelist, maxzones);
 #ifdef DEBUG
 	if (debug >= 5) {
@@ -2068,7 +2062,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 	u_int32_t serial, ttl, old_serial, new_serial;
 	char *dname, *cp, *cp1;
 	int type, class;
-	int i, c, section, opcode, matches, zonenum, err, multiline;
+	int i, c, section, opcode, matches, zonenum = 0, err, multiline;
 	int nonempty_lineno = -1, prev_pktdone = 0, cont = 0, inside_next = 0;
 	int id, rcode = NOERROR;
 	u_int32_t n;
@@ -2082,6 +2076,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 	int datasize;
 	unsigned long l;
 	ns_updque curupd;
+	unsigned long lutmp;
 
 	empty_from.sin_family = AF_INET;
 	empty_from.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -2151,6 +2146,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 	INIT_LIST(curupd);
 	for (;;) {
 		err = 0;
+		dname = NULL;
 		if (!getword(buf, sizeof buf, fp, 0)) {
 			if (lineno == (nonempty_lineno + 1) && !(feof(fp))) {
 				/*
@@ -2223,6 +2219,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 			if (!EMPTY(curupd)) {
 				n = process_updates(&curupd, &rcode,
 						    empty_from);
+				free_rrecp(&curupd, rcode, empty_from);
 				if (n > 0)
 					ns_info(ns_log_update,
 			   "successfully merged update id %d from log file %s",
@@ -2234,7 +2231,6 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 					fclose(fp);
 					return(-1);
 				}
-				free_rrecp(&curupd, rcode, empty_from);
 			}
 			prev_pktdone = 0;
 			if (feof(fp))
@@ -2270,7 +2266,8 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 			if (!cp)
 				*buf = '\0';
 			n = sscanf(cp, "origin %s class %s serial %lu",
-				   origin, sclass, &serial);
+				   origin, sclass, &lutmp);
+			serial = lutmp;
 			if (n != 3 || ns_samename(origin, zp->z_origin) != 1)
 				err++;
 			if (cp)
@@ -2288,8 +2285,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 
 				dname = origin;
 				type = T_SOA;
-				class = sym_ston(__p_class_syms, sclass,
-						 &success);
+				class = res_nametoclass(sclass, &success);
 				if (!success) {
 				        err++;
 					break;
@@ -2355,9 +2351,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 				int success;
 				int maybe_class;
 				
-				maybe_class = sym_ston(__p_class_syms,
-						       buf,
-						       &success);
+				maybe_class = res_nametoclass(buf, &success);
 				if (success) {
 					class = maybe_class;
 					(void) getword(buf,
@@ -2370,9 +2364,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 				int success;
 				int maybe_type;
 
-				maybe_type = sym_ston(__p_type_syms,
-						      buf,
-						      &success);
+				maybe_type = res_nametotype(buf, &success);
 
 				if (success) {
 					type = maybe_type;
@@ -2618,7 +2610,7 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 				case ns_t_nxt:
 				case ns_t_cert:
 				    {
-					char * errmsg = NULL;
+					const char * errmsg = NULL;
 					int s;
 
 					s = parse_sec_rdata(buf, sizeof(buf),
@@ -2637,7 +2629,40 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 					break;
 				    }
 				default:
-					err++;
+					if (strcmp(buf, "\\#") != 0) {
+						err++;
+						break;
+					}
+					if (!getword(buf, sizeof buf, fp, 0) ||
+					    !isdigit((unsigned char)buf[0])) {
+						err++;
+						break;
+					}
+					n = strtoul(buf, &cp, 10);
+					if (n > 0xffff || *cp != '\0') {
+						err++;
+						break;
+					}
+					multiline = 0;
+					i = isc_gethexstring((u_char *)data,
+							     sizeof(data),
+							     n, fp, &multiline);
+					if (i == -1) {
+						err++;
+						break;
+					}
+					if (multiline) {
+						c = getnonblank(fp,
+								zp->z_updatelog,
+								1);
+						if (c != ')') {
+							ungetc(c, fp);
+							err++;
+							break;
+						}
+						multiline = 0;
+					}
+					endline(fp);
 				}
 			if (section == S_PREREQ) {
 				ttl = 0;
@@ -2687,12 +2712,12 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 			err++;
 		}
 		if (err) {
-			inside_next = 0;
 			ns_debug(ns_log_update, 1, 
 		      "merge of update id %d failed due to error at line %d",
 				 id, lineno);
 			free_rrecp(&curupd, FORMERR, empty_from);
-			continue;
+			fclose(fp);
+			return(-1);
 		}
 		rrecp = res_mkupdrec(section, dname, class, type, ttl);
 		if (section != S_ZONE) {
@@ -2701,7 +2726,6 @@ merge_logs(struct zoneinfo *zp, char *logname) {
 			dp->d_cred = DB_C_ZONE;
 			dp->d_clev = nlabels(zp->z_origin);
 			dp->d_secure = DB_S_INSECURE; /* should be UNCHECKED */
-			DRCNTINC(dp);
 			rrecp->r_dp = dp;
 		} else {
 			rrecp->r_zone = zonenum;
@@ -2986,9 +3010,9 @@ incr_serial(struct zoneinfo *zp) {
 			return (-1);
 		dp = findzonesoa(zp);
 		if (dp) {
-			olddp = memget(DATASIZE(dp->d_size));
+			olddp = memget(BIND_DATASIZE(dp->d_size));
 			if (olddp != NULL) {
-				memcpy(olddp, dp, DATASIZE(dp->d_size));
+				memcpy(olddp, dp, BIND_DATASIZE(dp->d_size));
 				cp = findsoaserial(olddp->d_data);
 				PUTLONG(old_serial, cp);
 				fprintf(ifp, "update: {delete} %s. %u %s %s ",
@@ -2997,7 +3021,7 @@ incr_serial(struct zoneinfo *zp) {
 					p_type(dp->d_type));
 				(void) rdata_dump(olddp, ifp);
 				fprintf(ifp, "\n");
-				memput(olddp, DATASIZE(dp->d_size));
+				memput(olddp, BIND_DATASIZE(dp->d_size));
 			}
 			fprintf(ifp, "update: {add} %s. %u %s %s ",
 				zp->z_origin, dp->d_ttl,

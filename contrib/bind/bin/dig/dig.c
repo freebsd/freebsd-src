@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
+static const char rcsid[] = "$Id: dig.c,v 8.57 2002/06/18 02:26:49 marka Exp $";
 #endif
 
 /*
@@ -172,7 +172,6 @@ static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,6 +180,8 @@ static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
 
 #include "port_after.h"
 
+#include <resolv.h>
+
 #include "../nslookup/res.h"
 
 /* Global. */
@@ -188,9 +189,15 @@ static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
 #define VERSION 83
 #define VSTRING "8.3"
 
-#define PRF_DEF		0x2ff9
-#define PRF_MIN		0xA930
-#define PRF_ZONE        0x24f9
+#define PRF_DEF		(RES_PRF_STATS | RES_PRF_CMD | RES_PRF_QUES | \
+			 RES_PRF_ANS | RES_PRF_AUTH | RES_PRF_ADD | \
+			 RES_PRF_HEAD1 | RES_PRF_HEAD2 | RES_PRF_TTLID | \
+			 RES_PRF_HEADX | RES_PRF_REPLY | RES_PRF_TRUNC)
+#define PRF_MIN		(RES_PRF_QUES | RES_PRF_ANS | RES_PRF_HEAD1 | \
+			 RES_PRF_HEADX | RES_PRF_REPLY | RES_PRF_TRUNC)
+#define PRF_ZONE        (RES_PRF_STATS | RES_PRF_CMD | RES_PRF_QUES | \
+			 RES_PRF_ANS | RES_PRF_AUTH | RES_PRF_ADD | \
+			 RES_PRF_TTLID | RES_PRF_REPLY | RES_PRF_TRUNC)
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
@@ -203,9 +210,10 @@ static int		eecode = 0;
 static FILE *		qfp;
 static char		*defsrv, *srvmsg;
 static char		defbuf[40] = "default -- ";
-static char		srvbuf[60];
+static char		srvbuf[1024];
 static char		myhostname[MAXHOSTNAMELEN];
 static struct sockaddr_in myaddress;
+static struct sockaddr_in6 myaddress6;
 static u_int32_t	ixfr_serial;
 
 /* stuff for nslookup modules */
@@ -219,7 +227,7 @@ int		queryType, queryClass;
 extern int	StringToClass(), StringToType();	/* subr.c */
 #if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD)
 FILE		*yyin = NULL;
-void		yyrestart(FILE *f) { }
+void		yyrestart(FILE *f) { UNUSED(f); }
 #endif
 char		*pager = NULL;
 /* end of nslookup stuff */
@@ -237,13 +245,14 @@ static int		print_axfr(FILE *output, const u_char *msg,
 static struct timeval	difftv(struct timeval, struct timeval);
 static void		prnttime(struct timeval);
 static void		stackarg(char *, char **);
+static void		reverse6(char *, struct in6_addr *);
 
 /* Public. */
 
 int
 main(int argc, char **argv) {
-	struct hostent *hp;
 	short port = htons(NAMESERVER_PORT);
+	short lport;
 	/* Wierd stuff for SPARC alignment, hurts nothing else. */
 	union {
 		HEADER header_;
@@ -281,6 +290,8 @@ main(int argc, char **argv) {
 	int wait=0, delay;
 	int envset=0, envsave=0;
 	struct __res_state res_x, res_t;
+	int r;
+	struct in6_addr in6;
 
 	ns_tsig_key key;
 	char *keyfile = NULL, *keyname = NULL;
@@ -296,6 +307,14 @@ main(int argc, char **argv) {
 	myaddress.sin_family = AF_INET;
 	myaddress.sin_addr.s_addr = INADDR_ANY;
 	myaddress.sin_port = 0; /*INPORT_ANY*/;
+
+#ifdef HAVE_SA_LEN
+	myaddress6.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+	myaddress6.sin6_family = AF_INET6;
+	myaddress6.sin6_addr = in6addr_any;
+	myaddress6.sin6_port = 0; /*INPORT_ANY*/;
+
 	defsrv = strcat(defbuf, inet_ntoa(res.nsaddr.sin_addr));
 	res_x = res;
 
@@ -448,13 +467,21 @@ main(int argc, char **argv) {
 						printf("; no arg for -t?\n");
 					else if ((tmp = atoi(*argv))
 					    || *argv[0]=='0') {
-						queryType = tmp;
-						qtypeSet++;
+						if (ns_t_xfr_p(tmp)) {
+							xfr = tmp;
+						} else {
+							queryType = tmp;
+							qtypeSet++;
+						}
 					} else if ((tmp = StringToType(*argv,
 								      0, NULL)
 						   ) != 0) {
-						queryType = tmp;
-						qtypeSet++;
+						if (ns_t_xfr_p(tmp)) {
+							xfr = tmp;
+						} else {
+							queryType = tmp;
+							qtypeSet++;
+						}
 					} else {
 						printf(
 						   "; invalid type specified\n"
@@ -468,6 +495,11 @@ main(int argc, char **argv) {
 					}
 					if ((addrc = *++argv) == NULL) {
 						printf("; no arg for -x?\n");
+						break;
+					}
+					r = inet_pton(AF_INET6, addrc, &in6);
+					if (r > 0) {
+						reverse6(domain, &in6);
 						break;
 					}
 					addrend = addrc + strlen(addrc);
@@ -484,7 +516,7 @@ main(int argc, char **argv) {
 					break;
 				case 'p':
 					if (argv[0][2] != '\0')
-						port = ntohs(atoi(argv[0]+2));
+						port = htons(atoi(argv[0]+2));
 					else if (*++argv == NULL)
 						printf("; no arg for -p?\n");
 					else
@@ -516,14 +548,19 @@ main(int argc, char **argv) {
 						a = *argv;
 					if ((p = strchr(a, ':')) != NULL) {
 						*p++ = '\0';
-						myaddress.sin_port =
-							ntohs(atoi(p));
-					}
-					if (!inet_aton(a,&myaddress.sin_addr)){
+						lport = htons(atoi(p));
+					} else
+						lport = htons(0);
+					if (inet_pton(AF_INET6, a,
+					      &myaddress6.sin6_addr) == 1) {
+					      myaddress6.sin6_port = lport;
+					} else if (!inet_aton(a,
+						   &myaddress.sin_addr)) {
 						fprintf(stderr,
 							";; bad -b addr\n");
 						exit(1);
-					}
+					} else
+						myaddress.sin_port = lport;
 				    }
 				    break;
 				case 'k':
@@ -735,82 +772,113 @@ main(int argc, char **argv) {
 		srvbuf[0] = 0;
 		srvmsg = defsrv;
 		if (srv != NULL) {
-			struct in_addr addr;
+			int nscount = 0;
+			union res_sockaddr_union u[MAXNS];
+			struct addrinfo *answer = NULL;
+			struct addrinfo *cur = NULL;
+			struct addrinfo hint;
 
-			if (inet_aton(srv, &addr)) {
-				res.nscount = 1;
-				res.nsaddr.sin_addr = addr;
-				srvmsg = strcat(srvbuf, srv);
-			} else {
-				res_t = res;
-				res_ninit(&res);
-				res.pfcode = 0;
-				res.options = RES_DEFAULT;
-				hp = gethostbyname(srv);
+			memset(u, 0, sizeof(u));
+			res_t = res;
+			res_ninit(&res);
+			res.pfcode = 0;
+			res.options = RES_DEFAULT;
+			memset(&hint, 0, sizeof(hint));
+			hint.ai_socktype = SOCK_DGRAM;
+			if (!getaddrinfo(srv, NULL, &hint, &answer)) {
 				res = res_t;
-				if (hp == NULL
-				    || hp->h_addr_list == NULL
-				    || *hp->h_addr_list == NULL) {
-					fflush(stdout);
-					fprintf(stderr,
+				cur = answer;
+				for (cur = answer;
+				     cur != NULL;
+				     cur = cur->ai_next) {
+					if (nscount == MAXNS)
+						break;
+					switch (cur->ai_addr->sa_family) {
+					case AF_INET6:
+						u[nscount].sin6 =
+					  *(struct sockaddr_in6*)cur->ai_addr;
+						u[nscount++].sin6.sin6_port =
+							port;
+						break;
+					case AF_INET:
+						u[nscount].sin =
+					   *(struct sockaddr_in*)cur->ai_addr;
+						u[nscount++].sin6.sin6_port =
+							port;
+						break;
+					}
+				}
+				if (nscount != 0) {
+					char buf[80];
+					res_setservers(&res, u, nscount);
+					srvmsg = strcat(srvbuf, srv);
+					strcat(srvbuf, "  ");
+					buf[0] = '\0';
+					switch (u[0].sin.sin_family) {
+					case AF_INET:
+						inet_ntop(AF_INET,
+							  &u[0].sin.sin_addr,
+							  buf, sizeof(buf));
+						break;
+					case AF_INET6:
+						inet_ntop(AF_INET6,
+							  &u[0].sin6.sin6_addr,
+							  buf, sizeof(buf));
+						break;
+					}
+					strcat(srvbuf, buf);
+				}
+				freeaddrinfo(answer);
+			} else {
+				res = res_t;
+				fflush(stdout);
+				fprintf(stderr,
 		"; Bad server: %s -- using default server and timer opts\n",
 						srv);
-					fflush(stderr);
-					srvmsg = defsrv;
-					srv = NULL;
-				} else {
-					u_int32_t **addr;
-
-					res.nscount = 0;
-					for (addr = (u_int32_t**)hp->h_addr_list;
-					     *addr && (res.nscount < MAXNS);
-					     addr++) {
-						res.nsaddr_list[
-							res.nscount++
-						].sin_addr.s_addr = **addr;
-					}
-
-					srvmsg = strcat(srvbuf,srv);
-					strcat(srvbuf, "  ");
-					strcat(srvmsg,
-					       inet_ntoa(res.nsaddr.sin_addr));
-				}
+				fflush(stderr);
+				srvmsg = defsrv;
+				srv = NULL;
 			}
 			printf("; (%d server%s found)\n",
 			       res.nscount, (res.nscount==1)?"":"s");
 			res.id += res.retry;
 		}
 
-		{
-			int i;
-
-			for (i = 0;  i < res.nscount;  i++) {
-				res.nsaddr_list[i].sin_family = AF_INET;
-				res.nsaddr_list[i].sin_port = port;
-			}
-			res.id += res.retry;
-		}
-
 		if (ns_t_xfr_p(xfr)) {
 			int i;
-
+			int nscount;
+			union res_sockaddr_union u[MAXNS];
+			nscount = res_getservers(&res, u, MAXNS);
 			for (i = 0; i < res.nscount; i++) {
 				int x;
 
 				if (keyfile)
 					x = printZone(xfr, domain,
-						      &res.nsaddr_list[i],
+						      &u[i].sin,
 						      &key);
 				else
 					x = printZone(xfr, domain,
-						      &res.nsaddr_list[i],
+						      &u[i].sin,
 						      NULL);
 				if (res.pfcode & RES_PRF_STATS) {
+					char buf[80];
 					exectime = time(NULL);
+					buf[0] = '\0';
+					switch (u[i].sin.sin_family) {
+					case AF_INET:
+						inet_ntop(AF_INET,
+							  &u[i].sin.sin_addr,
+							  buf, sizeof(buf));
+						break;
+					case AF_INET6:
+						inet_ntop(AF_INET6,
+							  &u[i].sin6.sin6_addr,
+							  buf, sizeof(buf));
+						break;
+					}
 					printf(";; FROM: %s to SERVER: %s\n",
 					       myhostname,
-					       inet_ntoa(res.nsaddr_list[i]
-							 .sin_addr));
+					       buf);
 					printf(";; WHEN: %s", ctime(&exectime));
 				}
 				if (!x)
@@ -832,6 +900,7 @@ main(int argc, char **argv) {
 		if (n < 0) {
 			fflush(stderr);
 			printf(";; res_nmkquery: buffer too small\n\n");
+			fflush(stdout);
 			continue;
 		}
 		if (queryType == T_IXFR) {
@@ -856,6 +925,13 @@ main(int argc, char **argv) {
 			PUTLONG(0x1776, cpp); /* Min TTL */
 			bytes_out = n = cpp - packet;
 		};	
+
+#if defined(RES_USE_EDNS0) && defined(RES_USE_DNSSEC)
+		if (n > 0 &&
+		    (res.options & (RES_USE_EDNS0|RES_USE_DNSSEC)) != 0)
+			bytes_out = n = res_nopt(&res, n, packet,
+						 sizeof(packet), 4096);
+#endif
 
 		eecode = 0;
 		if (res.pfcode & RES_PRF_HEAD1)
@@ -954,14 +1030,15 @@ where:	server,\n\
 	d-opt	is of the form ``+keyword=value'' where keyword is one of:\n\
 		[no]debug [no]d2 [no]recurse retry=# time=# [no]ko [no]vc\n\
 		[no]defname [no]search domain=NAME [no]ignore [no]primary\n\
-		[no]aaonly [no]cmd [no]stats [no]Header [no]header\n\
+		[no]aaonly [no]cmd [no]stats [no]Header [no]header [no]trunc\n\
 		[no]ttlid [no]cl [no]qr [no]reply [no]ques [no]answer\n\
-		[no]author [no]addit pfdef pfmin pfset=# pfand=# pfor=#\n\
+		[no]author [no]addit [no]dnssec pfdef pfmin\n\
+		pfset=# pfand=# pfor=#\n\
 ", stderr);
 	fputs("\
 notes:	defname and search don't work; use fully-qualified names.\n\
 	this is DiG version " VSTRING "\n\
-	$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $\n\
+	$Id: dig.c,v 8.57 2002/06/18 02:26:49 marka Exp $\n\
 ", stderr);
 }
 
@@ -1000,6 +1077,10 @@ setopt(const char *string) {
 		res.options |= RES_DEFNAMES;
 	} else if (strncmp(option, "nodef", 5) == 0) {
 		res.options &= ~RES_DEFNAMES;
+	} else if (strncmp(option, "dn", 2) == 0) {	/* dnssec */
+		res.options |= RES_USE_DNSSEC;
+	} else if (strncmp(option, "nodn", 4) == 0) {
+		res.options &= ~RES_USE_DNSSEC;
 	} else if (strncmp(option, "sea", 3) == 0) {	/* search list */
 		res.options |= RES_DNSRCH;
 	} else if (strncmp(option, "nosea", 5) == 0) {
@@ -1075,6 +1156,10 @@ setopt(const char *string) {
 		res.pfcode |= RES_PRF_TTLID;
 	} else if (strncmp(option, "nott", 4) == 0) {  
 		res.pfcode &= ~RES_PRF_TTLID;
+	} else if (strncmp(option, "tr", 2) == 0) {  /* TTL & ID */
+		res.pfcode |= RES_PRF_TRUNC;
+	} else if (strncmp(option, "notr", 4) == 0) {  
+		res.pfcode &= ~RES_PRF_TRUNC;
 	} else if (strncmp(option, "he", 2) == 0) {  /* head flags stats */
 		res.pfcode |= RES_PRF_HEAD2;
 	} else if (strncmp(option, "nohe", 4) == 0) {  
@@ -1191,14 +1276,14 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 	static int answerLen = 0;
 
 	querybuf buf;
-	int msglen, amtToRead, numRead, result = 0, sockFD, len;
+	int msglen, amtToRead, numRead, result, sockFD, len;
 	int count, type, class, rlen, done, n;
-	int numAnswers = 0, numRecords = 0, soacnt = 0;
+	int numAnswers, numRecords, soacnt;
 	u_char *cp, tmp[NS_INT16SZ];
 	char dname[2][NS_MAXDNAME];
 	enum { NO_ERRORS, ERR_READING_LEN, ERR_READING_MSG, ERR_PRINTING }
-		error = NO_ERRORS;
-	pid_t zpid;
+		error;
+	pid_t zpid = -1;
 	u_char *newmsg;
 	int newmsglen;
 	ns_tcp_tsig_state tsig_state;
@@ -1291,24 +1376,56 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		perror(";; socket");
 		return (e);
 	}
-	if (bind(sockFD, (struct sockaddr *)&myaddress, sizeof myaddress) < 0){
-		int e = errno;
+	
+	switch (sin->sin_family) {
+	case AF_INET:
+		if (bind(sockFD, (struct sockaddr *)&myaddress,
+			 sizeof myaddress) < 0){
+			int e = errno;
 
-		fprintf(stderr, ";; bind(%s:%u): %s\n",
-			inet_ntoa(myaddress.sin_addr),
-			ntohs(myaddress.sin_port),
-			strerror(e));
-		(void) close(sockFD);
-		sockFD = -1;
-		return (e);
-	}
-	if (connect(sockFD, (struct sockaddr *)sin, sizeof *sin) < 0) {
-		int e = errno;
+			fprintf(stderr, ";; bind(%s:%u): %s\n",
+				inet_ntoa(myaddress.sin_addr),
+				ntohs(myaddress.sin_port),
+				strerror(e));
+			(void) close(sockFD);
+			sockFD = -1;
+			return (e);
+		}
+		if (connect(sockFD, (const struct sockaddr *)sin,
+			    sizeof *sin) < 0) {
+			int e = errno;
 
-		perror(";; connect");
-		(void) close(sockFD);
-		sockFD = -1;
-		return (e);
+			perror(";; connect");
+			(void) close(sockFD);
+			sockFD = -1;
+			return (e);
+		}
+		break;
+	case AF_INET6:
+		if (bind(sockFD, (struct sockaddr *)&myaddress6,
+			 sizeof myaddress6) < 0){
+			int e = errno;
+			char buf[80];
+
+			fprintf(stderr, ";; bind(%s:%u): %s\n",
+				inet_ntop(AF_INET6, &myaddress6.sin6_addr,
+					  buf, sizeof(buf)),
+				ntohs(myaddress6.sin6_port),
+				strerror(e));
+			(void) close(sockFD);
+			sockFD = -1;
+			return (e);
+		}
+		if (connect(sockFD, (const struct sockaddr *)sin,
+			    sizeof(struct sockaddr_in6)) < 0) {
+			int e = errno;
+
+			perror(";; connect");
+			(void) close(sockFD);
+			sockFD = -1;
+			return (e);
+		}
+		break;
 	}
 
 	/*
@@ -1325,7 +1442,8 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		(void) close(sockFD);
 		sockFD = -1;
 		return (e);
-	}
+	} else if (key)
+		free (newmsg);
 
 	/*
 	 * If we're compressing, push a gzip into the pipeline.
@@ -1336,8 +1454,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 
 		if (pipe(z) < 0) {
 			int e = errno;
-			if (key)
-				free (newmsg);
 
 			perror(";; pipe");
 			(void) close(sockFD);
@@ -1347,8 +1463,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		zpid = vfork();
 		if (zpid < 0) {
 			int e = errno;
-			if (key)
-				free (newmsg);
 
 			perror(";; fork");
 			(void) close(sockFD);
@@ -1370,6 +1484,11 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		(void) dup2(z[rd], sockFD);
 		(void) close(z[rd]);
 	}
+	result = 0;
+	numAnswers = 0;
+	numRecords = 0;
+	soacnt = 0;
+	error = NO_ERRORS;
 
 	dname[0][0] = '\0';
 	for (done = 0; !done; (void)NULL) {
@@ -1538,10 +1657,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 		       WCOREDUMP(status) ? 't' : 'f');
 	}
 
-	/* XXX This should probably happen sooner than here */
-	if (key)
-		free (newmsg);
-
 	switch (error) {
 	case NO_ERRORS:
 		return (0);
@@ -1604,9 +1719,12 @@ print_axfr(FILE *file, const u_char *msg, size_t msglen) {
 			fprintf(file, "$ORIGIN %s.\n", origin);
 			if (strcmp(name, ".") == 0)
 				strcpy(origin, name);
-			strcpy(name_ctx, "@");
+			if (res.pfcode & RES_PRF_TRUNC)
+				strcpy(name_ctx, "@");
 		}
-		if (ns_sprintrr(&handle, &rr, name_ctx, origin,
+		if (ns_sprintrr(&handle, &rr,
+				(res.pfcode & RES_PRF_TRUNC) ? name_ctx : NULL,
+				(res.pfcode & RES_PRF_TRUNC) ? origin : NULL,
 				buf, sizeof buf) < 0) {
 			fprintf(file, ";; ns_sprintrr: %s\n", strerror(errno));
 			return (FORMERR);
@@ -1664,4 +1782,25 @@ stackarg(char *l, char **y) {
 			*y = NULL;
 		}
 	}
+}
+
+static void
+reverse6(char *domain, struct in6_addr *in6) {
+	sprintf(domain, "%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.%x.ip6.arpa",
+		in6->s6_addr[15] & 0x0f, (in6->s6_addr[15] >> 4) & 0x0f,
+		in6->s6_addr[14] & 0x0f, (in6->s6_addr[14] >> 4) & 0x0f,
+		in6->s6_addr[13] & 0x0f, (in6->s6_addr[13] >> 4) & 0x0f,
+		in6->s6_addr[12] & 0x0f, (in6->s6_addr[12] >> 4) & 0x0f,
+		in6->s6_addr[11] & 0x0f, (in6->s6_addr[11] >> 4) & 0x0f,
+		in6->s6_addr[10] & 0x0f, (in6->s6_addr[10] >> 4) & 0x0f,
+		in6->s6_addr[9] & 0x0f, (in6->s6_addr[9] >> 4) & 0x0f,
+		in6->s6_addr[8] & 0x0f, (in6->s6_addr[8] >> 4) & 0x0f,
+		in6->s6_addr[7] & 0x0f, (in6->s6_addr[7] >> 4) & 0x0f,
+		in6->s6_addr[6] & 0x0f, (in6->s6_addr[6] >> 4) & 0x0f,
+		in6->s6_addr[5] & 0x0f, (in6->s6_addr[5] >> 4) & 0x0f,
+		in6->s6_addr[4] & 0x0f, (in6->s6_addr[4] >> 4) & 0x0f,
+		in6->s6_addr[6] & 0x0f, (in6->s6_addr[3] >> 4) & 0x0f,
+		in6->s6_addr[2] & 0x0f, (in6->s6_addr[2] >> 4) & 0x0f,
+		in6->s6_addr[1] & 0x0f, (in6->s6_addr[1] >> 4) & 0x0f,
+		in6->s6_addr[0] & 0x0f, (in6->s6_addr[0] >> 4) & 0x0f);
 }

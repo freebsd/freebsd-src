@@ -13,26 +13,26 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.\" $Id: dnskeygen.1,v 8.5 1999/02/23 05:20:18 vixie Exp $
+.\" $Id: dnskeygen.1,v 8.8 2002/04/22 04:27:19 marka Exp $
 .\"
 .Dd December 2, 1998
 .Dt DNSKEYGEN @CMD_EXT_U@
 .Os BSD 4
 .Sh NAME
 .Nm dnskeygen 
-.Nd generate public, private, and shared secret keys for DNS Security
+.Nd "generate public, private, and shared secret keys for DNS Security"
 .Sh SYNOPSIS
 .Nm dnskeygen
-.Oo Fl
-.Op Cm DHR
+.Oo
+.Fl Op Cm DHR
 .Ar size
 .Oc
 .Op Fl F
-.Fl Op Cm zhu
-.Op Cm Fl a
-.Op Cm Fl c
-.Op Cm Fl p Ar num
-.Op Cm Fl s Ar num
+.Op Fl Cm zhu
+.Op Fl Cm a
+.Op Fl Cm c
+.Op Fl Cm p Ar num
+.Op Fl Cm s Ar num
 .Fl n Ar name
 .Sh DESCRIPTION
 .Ic Dnskeygen
@@ -61,7 +61,7 @@ key.
 .Dq size
 must be between 512 and 4096.
 .It Fl F
-.Ic (RSA only)
+.Ic ( RSA only )
 Use a large exponent for key generation.
 .It Fl z Fl h Fl u
 These flags define the type of key being generated: Zone (DNS validation) key,
@@ -77,8 +77,8 @@ Indicates that the key
 be used for encryption.
 .It Fl p Ar num
 Sets the key's protocol field to
-.Ar num
-; the default is
+.Ar num ;
+the default is
 .Ic 3
 (DNSSEC) if
 .Dq Fl z
@@ -95,12 +95,12 @@ is specified and
 (ANY).
 .It Fl s Ar num
 Sets the key's strength field to
-.Ar num;
+.Ar num ;
 the default is
-.Sy 0.
+.Sy 0 .
 .It Fl n Ar name
 Sets the key's name to
-.Ar name.
+.Ar name .
 .El
 .Ss DETAILS
 .Ic Dnskeygen

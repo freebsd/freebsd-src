@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_glue.c,v 8.20 2001/02/16 04:46:14 marka Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.24 2002/01/07 02:54:37 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -179,8 +179,8 @@ ns_panic(int category, int dump_core, const char *format, ...) {
 }
 
 void
-ns_assertion_failed(char *file, int line, assertion_type type, char *cond,
-		    int print_errno)
+ns_assertion_failed(const char *file, int line, assertion_type type,
+		    const char *cond, int print_errno)
 {
 	ns_panic(ns_log_insist, 1, "%s:%d: %s(%s)%s%s failed.",
 		file, line, assertion_type_to_text(type), cond,
@@ -277,7 +277,11 @@ my_close(int fd) {
 		s = close(fd);
 	} while (s < 0 && errno == EINTR);
 
-	if (s < 0 && errno != EBADF)
+	/*
+	 * Tru64 UNIX V5.1 can return a spurious EINVAL after connect()
+	 * failures.
+	 */
+	if (s < 0 && errno != EBADF && errno != EINVAL)
 		ns_info(ns_log_default, "close(%d) failed: %s", fd,
 		       strerror(errno));
 	else
@@ -328,9 +332,10 @@ __savestr(const char *str, int needpanic) {
 	return (__savestr_record(str, needpanic, __FILE__, __LINE__));
 }
 
-void
+void *
 __freestr(char *str) {
 	__freestr_record(str, __FILE__, __LINE__);
+	return (NULL);
 }
 
 #ifdef DEBUG_STRINGS
@@ -364,7 +369,7 @@ debug_freestr(char *str, const char *file, int line) {
 	len += 3;	/* 2 length bytes + NUL. */
 	printf("%s:%d: freestr %d %s\n", file, line, len, str);
 	__freestr_record(str, file, line);
-	return;
+	return (NULL);
 }
 #endif /* DEBUG_STRINGS */
 
@@ -372,7 +377,7 @@ debug_freestr(char *str, const char *file, int line) {
  * Return a counted string buffer big enough for a string of length 'len'.
  */
 char *
-__newstr_record(size_t len, int needpanic, char *file, int line) {
+__newstr_record(size_t len, int needpanic, const char *file, int line) {
 	u_char *buf, *bp;
 
 	REQUIRE(len <= 65536);
@@ -393,7 +398,7 @@ __newstr_record(size_t len, int needpanic, char *file, int line) {
  * Save a NUL terminated string and return a pointer to it.
  */
 char *
-__savestr_record(const char *str, int needpanic, char *file, int line) {
+__savestr_record(const char *str, int needpanic, const char *file, int line) {
 	char *buf;
 	size_t len;
 
@@ -410,8 +415,8 @@ __savestr_record(const char *str, int needpanic, char *file, int line) {
 	return (buf);
 }
 
-void
-__freestr_record(char *str, char *file, int line) {
+void *
+__freestr_record(char *str, const char *file, int line) {
 	u_char *buf, *bp;
 	size_t len;
 
@@ -419,11 +424,12 @@ __freestr_record(char *str, char *file, int line) {
 	bp = buf;
 	NS_GET16(len, bp);
 	__memput_record(buf, 2/*Len*/ + len + 1/*Nul*/, file, line);
+	return (NULL);
 }
 
-char *
+const char *
 checked_ctime(const time_t *t) {
-	char *ctime_result;
+	const char *ctime_result;
 
 	ctime_result = ctime(t);
 	if (ctime_result == NULL) {
@@ -438,7 +444,7 @@ checked_ctime(const time_t *t) {
  * Since the fields in a "struct timeval" are longs, and the argument to ctime
  * is a pointer to a time_t (which might not be a long), here's a bridge.
  */
-char *
+const char *
 ctimel(long l) {
 	time_t t = (time_t)l;
 

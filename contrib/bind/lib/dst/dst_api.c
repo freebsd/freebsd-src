@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/dst_api.c,v 1.17.2.2 2001/07/26 01:58:06 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/dst_api.c,v 1.20 2001/07/26 01:20:08 marka Exp $";
 #endif
 
 /*
@@ -62,8 +62,8 @@ static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/dst_api.c,
 /* static variables */
 static int done_init = 0;
 dst_func *dst_t_func[DST_MAX_ALGS];
-char *key_file_fmt_str = "Private-key-format: v%s\nAlgorithm: %d (%s)\n";
-char *dst_path = "";
+const char *key_file_fmt_str = "Private-key-format: v%s\nAlgorithm: %d (%s)\n";
+const char *dst_path = "";
 
 /* internal I/O functions */
 static DST_KEY *dst_s_read_public_key(const char *in_name, 
@@ -109,12 +109,14 @@ dst_init()
 		} else if (stat(s, &statbuf) != 0 || !S_ISDIR(statbuf.st_mode)) {
 			EREPORT(("%s is not a valid directory\n", s));
 		} else {
-			dst_path = (char *) malloc(len + 2);
-			memcpy(dst_path, s, len + 1);
-			if (dst_path[strlen(dst_path) - 1] != '/') {
-				dst_path[strlen(dst_path) + 1] = 0;
-				dst_path[strlen(dst_path)] = '/';
+			char *tmp;
+			tmp = (char *) malloc(len + 2);
+			memcpy(tmp, s, len + 1);
+			if (tmp[strlen(tmp) - 1] != '/') {
+				tmp[strlen(tmp) + 1] = 0;
+				tmp[strlen(tmp)] = '/';
 			}
+			dst_path = tmp;
 		}
 	}
 	memset(dst_t_func, 0, sizeof(dst_t_func));
@@ -555,7 +557,7 @@ dst_s_read_public_key(const char *in_name, const u_int16_t in_id, int in_alg)
 	enckey[--len] = '\0';
 
 	/* remove leading spaces */
-	for (notspace = (char *) enckey; isspace(*notspace); len--)
+	for (notspace = (char *) enckey; isspace((*notspace)&0xff); len--)
 		notspace++;
 
 	dlen = b64_pton(notspace, deckey, sizeof(deckey));
@@ -589,6 +591,7 @@ dst_s_write_public_key(const DST_KEY *key)
 	u_char out_key[RAW_KEY_SIZE];
 	char enc_key[RAW_KEY_SIZE];
 	int len = 0;
+	int mode;
 
 	memset(out_key, 0, sizeof(out_key));
 	if (key == NULL) {
@@ -604,8 +607,10 @@ dst_s_write_public_key(const DST_KEY *key)
 			 key->dk_key_name, key->dk_id, PUBLIC_KEY));
 		return (0);
 	}
+	/* XXX in general this should be a check for symmetric keys */
+	mode = (key->dk_alg == KEY_HMAC_MD5) ? 0600 : 0644;
 	/* create public key file */
-	if ((fp = dst_s_fopen(filename, "w+", 0644)) == NULL) {
+	if ((fp = dst_s_fopen(filename, "w+", mode)) == NULL) {
 		EREPORT(("DST_write_public_key: open of file:%s failed (errno=%d)\n",
 			 filename, errno));
 		return (0);

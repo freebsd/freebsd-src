@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ctl.c,v 8.39 2000/12/19 23:31:38 marka Exp $";
+static const char rcsid[] = "$Id: ns_ctl.c,v 8.47 2002/06/24 07:11:07 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -91,55 +91,61 @@ static void		propagate_changes(const control, control);
 static void		install(control);
 static void		install_inet(control);
 static void		install_unix(control);
-static void		logger(enum ctl_severity, const char *fmt, ...);
+static void		logger(enum ctl_severity, const char *fmt, ...)
+			ISC_FORMAT_PRINTF(2,3);
 static void		verb_connect(struct ctl_sctx *, struct ctl_sess *,
 				     const struct ctl_verb *,
-				     const char *, u_int, void *, void *);
+				     const char *, u_int, const void *, void *);
 static void		verb_getpid(struct ctl_sctx *, struct ctl_sess *,
 				    const struct ctl_verb *,
-				    const char *, u_int, void *, void *);
+				    const char *, u_int, const void *, void *);
 static void		getpid_closure(struct ctl_sctx *, struct ctl_sess *,
 				       void *);
 static void		verb_status(struct ctl_sctx *, struct ctl_sess *,
 				    const struct ctl_verb *,
-				    const char *, u_int, void *, void *);
+				    const char *, u_int, const void *, void *);
 static void		status_closure(struct ctl_sctx *, struct ctl_sess *,
 				       void *);
 static void		verb_stop(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
-				  const char *, u_int, void *, void *);
+				  const char *, u_int, const void *, void *);
 static void		verb_exec(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
-				  const char *, u_int, void *, void *);
+				  const char *, u_int, const void *, void *);
+static void		exec_closure(struct ctl_sctx *, struct ctl_sess *,
+				     void *);
 static void		verb_reload(struct ctl_sctx *, struct ctl_sess *,
 				    const struct ctl_verb *,
-				    const char *, u_int, void *, void *);
+				    const char *, u_int, const void *, void *);
 static void		verb_reconfig(struct ctl_sctx *, struct ctl_sess *,
 				      const struct ctl_verb *,
-				      const char *, u_int, void *, void *);
+				      const char *, u_int, const void *, void *);
 static void		verb_dumpdb(struct ctl_sctx *, struct ctl_sess *,
 				    const struct ctl_verb *,
-				    const char *, u_int, void *, void *);
+				    const char *, u_int, const void *, void *);
 static void		verb_stats(struct ctl_sctx *, struct ctl_sess *,
 				   const struct ctl_verb *,
-				   const char *, u_int, void *, void *);
+				   const char *, u_int, const void *, void *);
 static void		verb_trace(struct ctl_sctx *, struct ctl_sess *,
 				   const struct ctl_verb *,
-				   const char *, u_int, void *, void *);
+				   const char *, u_int, const void *, void *);
 static void		trace_closure(struct ctl_sctx *, struct ctl_sess *,
 				       void *);
 static void		verb_notrace(struct ctl_sctx *, struct ctl_sess *,
 				     const struct ctl_verb *,
-				     const char *, u_int, void *, void *);
+				     const char *, u_int, const void *, void *);
 static void		verb_querylog(struct ctl_sctx *, struct ctl_sess *,
 				      const struct ctl_verb *,
-				      const char *, u_int, void *, void *);
+				      const char *, u_int, const void *, void *);
 static void		verb_help(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
-				  const char *, u_int, void *, void *);
+				  const char *, u_int, const void *, void *);
 static void		verb_quit(struct ctl_sctx *, struct ctl_sess *,
 				  const struct ctl_verb *,
-				  const char *, u_int, void *, void *);
+				  const char *, u_int, const void *, void *);
+static void		verb_args(struct ctl_sctx *, struct ctl_sess *,
+				  const struct ctl_verb *,
+				  const char *, u_int, const void *, void *);
 
 /* Private data. */
 
@@ -161,6 +167,7 @@ static struct ctl_verb verbs[] = {
 	{ "qrylog",	verb_querylog,	"qrylog"},
 	{ "help",	verb_help,	"help"},
 	{ "quit",	verb_quit,	"quit"},
+	{ "args",	verb_args,	"args"},
 	{ NULL,		NULL,		NULL}
 };
 
@@ -226,7 +233,7 @@ ns_ctl_new_inet(struct in_addr saddr, u_int sport, ip_match_list allow) {
 
 #ifndef NO_SOCKADDR_UN
 control
-ns_ctl_new_unix(char *path, mode_t mode, uid_t owner, gid_t group) {
+ns_ctl_new_unix(const char *path, mode_t mode, uid_t owner, gid_t group) {
 	control new = new_control();
 
 	INIT_LINK(new, link);
@@ -525,11 +532,11 @@ install_unix(control ctl) {
 		if (slash != path)
 			*slash = '\0';
 		else {
-			freestr(path);
+			(void)freestr(path);
 			path = savestr("/", 1);
 		}
 	} else {
-		freestr(path);
+		(void)freestr(path);
 		path = savestr(".", 1);
 	}
 	if (mkdir(path, ctl->var.v_unix.mode) < 0) {
@@ -567,7 +574,7 @@ install_unix(control ctl) {
 		}
 	}
 #ifdef NEED_SECURE_DIRECTORY
-	freestr(path);
+	(void)freestr(path);
 #endif
 }
 #endif
@@ -581,7 +588,8 @@ logger(enum ctl_severity ctlsev, const char *format, ...) {
 	case ctl_debug:		logsev = log_debug(5);	break;
 	case ctl_warning:	logsev = log_warning;	break;
 	case ctl_error:		logsev = log_error;	break;
-	default:		panic("invalid ctlsev in logger", NULL);
+	default:		logsev = 0;
+				panic("invalid ctlsev in logger", NULL);
 	}
 	if (!log_ctx_valid)
 		return;
@@ -593,13 +601,18 @@ logger(enum ctl_severity ctlsev, const char *format, ...) {
 static void
 verb_connect(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	     const struct ctl_verb *verb, const char *rest,
-	     u_int respflags, void *respctx, void *uctx)
+	     u_int respflags, const void *respctx, void *uctx)
 {
-	const struct sockaddr *sa = (struct sockaddr *)respctx;
+	const struct sockaddr *sa = (const struct sockaddr *)respctx;
 	control nsctl = (control)uctx;
 
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+
 	if (sa->sa_family == AF_INET) {
-		const struct sockaddr_in *in = (struct sockaddr_in *)sa;
+		const struct sockaddr_in *in = (const struct sockaddr_in *)sa;
 		const ip_match_list acl = nsctl->var.v_inet.allow;
 
 		if (!ip_address_allowed(acl, in->sin_addr)) {
@@ -615,9 +628,16 @@ verb_connect(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_getpid(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	    const struct ctl_verb *verb, const char *rest,
-	    u_int respflags, void *respctx, void *uctx)
+	    u_int respflags, const void *respctx, void *uctx)
 {
 	char *msg = memget(MAX_STR_LEN);
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	if (msg == NULL) {
 		ctl_response(sess, 503, "(out of memory)", 0,
@@ -631,6 +651,9 @@ verb_getpid(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 getpid_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
 	char *msg = uap;
+
+	UNUSED(sctx);
+	UNUSED(sess);
 
 	memput(msg, MAX_STR_LEN);
 }
@@ -656,9 +679,16 @@ struct pvt_status {
 static void
 verb_status(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	    const struct ctl_verb *verb, const char *rest,
-	    u_int respflags, void *respctx, void *uctx)
+	    u_int respflags, const void *respctx, void *uctx)
 {
 	struct pvt_status *pvt = ctl_getcsctx(sess);
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	if (pvt == NULL) {
 		pvt = memget(sizeof *pvt);
@@ -717,6 +747,9 @@ static void
 status_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
 	struct pvt_status *pvt = ctl_getcsctx(sess);
 
+	UNUSED(sctx);
+	UNUSED(uap);
+
 	memput(pvt, sizeof *pvt);
 	ctl_setcsctx(sess, NULL);
 }
@@ -724,8 +757,15 @@ status_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
 static void
 verb_stop(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ns_need(main_need_exit);
 	ctl_response(sess, 250, "Shutdown initiated.", 0, NULL, NULL, NULL,
 		     NULL, 0);
@@ -734,9 +774,15 @@ verb_stop(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_exec(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
 	struct stat sb;
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	if (rest != NULL && *rest != '\0') {
 		if (stat(rest, &sb) < 0) {
@@ -754,23 +800,42 @@ verb_exec(struct ctl_sctx *ctl, struct ctl_sess *sess,
 			   saved_argv[0], save);
 		ctl_response(sess, 502, save, 0, NULL, NULL, NULL,
 			     NULL, 0);
+	} else if (user_name != NULL || group_name != NULL) {
+		ctl_response(sess, 502,
+			     "can't exec as user or group was specified",
+			     0, NULL, NULL, NULL, NULL, 0);
 	} else {
-		ns_need(main_need_restart);
 		ctl_response(sess, 250, "Restart initiated.", 0, NULL,
-			     NULL, NULL, NULL, 0);
+			     exec_closure, NULL, NULL, 0);
 	}
+}
+
+static void
+exec_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
+
+	UNUSED(sctx);
+	UNUSED(sess);
+	UNUSED(uap);
+	ns_need(main_need_restart);
 }
 
 static void
 verb_reload(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	    const struct ctl_verb *verb, const char *rest,
-	    u_int respflags, void *respctx, void *uctx)
+	    u_int respflags, const void *respctx, void *uctx)
 {
 	static const char spaces[] = " \t";
 	struct zoneinfo *zp;
 	char *tmp = NULL, *x;
+	const char *cl;
 	const char *msg;
 	int class, code, success;
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	/* If there are no args, this is a classic reload of the config. */
 	if (rest == NULL || *rest == '\0') {
@@ -787,9 +852,8 @@ verb_reload(struct ctl_sctx *ctl, struct ctl_sess *sess,
 		*x++ = '\0';
 		x += strspn(x, spaces);
 	}
-	if (x == NULL || *x == '\0')
-		x = "in";
-	class = sym_ston(__p_class_syms, x, &success);
+	cl = (x == NULL || *x == '\0') ? "in" : x;
+	class = res_nametoclass(cl, &success);
 	if (!success) {
 		code = 507;
 		msg = "unrecognized class";
@@ -833,14 +897,20 @@ verb_reload(struct ctl_sctx *ctl, struct ctl_sess *sess,
  respond:
 	ctl_response(sess, code, msg, 0, NULL, NULL, NULL, NULL, 0);
 	if (tmp != NULL)
-		freestr(tmp);
+		(void)freestr(tmp);
 }
 
 static void
 verb_reconfig(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	if (strcmp(rest, "-noexpired") != 0)
 		ns_need(main_need_reconfig);
 	else
@@ -852,8 +922,15 @@ verb_reconfig(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_dumpdb(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	    const struct ctl_verb *verb, const char *rest,
-	    u_int respflags, void *respctx, void *uctx)
+	    u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ns_need(main_need_dump);
 	ctl_response(sess, 250, "Database dump initiated.", 0, NULL,
 		     NULL, NULL, NULL, 0);
@@ -862,8 +939,14 @@ verb_dumpdb(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_stats(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	   const struct ctl_verb *verb, const char *rest,
-	   u_int respflags, void *respctx, void *uctx)
+	   u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	if (rest != NULL && strcmp(rest, "clear") == 0) {
 		ns_need(main_need_statsdumpandclear);
 		ctl_response(sess, 250, "Statistics dump and clear initiated.",
@@ -878,22 +961,31 @@ verb_stats(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_trace(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	   const struct ctl_verb *verb, const char *rest,
-	   u_int respflags, void *respctx, void *uctx)
+	   u_int respflags, const void *respctx, void *uctx)
 {
 	int i = atoi(rest);
 	char *msg = memget(MAX_STR_LEN);
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	if (msg == NULL) {
 		ctl_response(sess, 503, "(out of memory)", 0,
 			     NULL, NULL, NULL, NULL, 0);
 		return;
 	}
-	if (i > 0) 
+	if (isdigit(*(const unsigned char *)rest) && i >= 0) 
 		desired_debug = i;
 	else
 		desired_debug++;
 	ns_need(main_need_debug);
-	sprintf(msg, "Debug level: %d", desired_debug);
+	if (desired_debug == 0)
+		sprintf(msg, "Debugging turned off.");
+	else
+		sprintf(msg, "Debug level: %d", desired_debug);
 	ctl_response(sess, 250, msg, 0, NULL, trace_closure, msg, NULL, 0);
 }
 
@@ -901,14 +993,24 @@ static void
 trace_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
 	char *msg = uap;
 
+	UNUSED(sctx);
+	UNUSED(sess);
+
 	memput(msg, MAX_STR_LEN);
 }
 
 static void
 verb_notrace(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	     const struct ctl_verb *verb, const char *rest,
-	     u_int respflags, void *respctx, void *uctx)
+	     u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	desired_debug = 0;
 	ns_need(main_need_debug);
 	ctl_response(sess, 250, "Debugging turned off.",
@@ -918,10 +1020,17 @@ verb_notrace(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_querylog(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	      const struct ctl_verb *verb, const char *rest,
-	      u_int respflags, void *respctx, void *uctx)
+	      u_int respflags, const void *respctx, void *uctx)
 {
 	static const char	on[] = "Query logging is now on.",
 				off[] = "Query logging is now off.";
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
 
 	toggle_qrylog();
 	ctl_response(sess, 250, qrylog ? on : off,
@@ -931,16 +1040,108 @@ verb_querylog(struct ctl_sctx *ctl, struct ctl_sess *sess,
 static void
 verb_help(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ctl_sendhelp(sess, 214);
 }
 
 static void
 verb_quit(struct ctl_sctx *ctl, struct ctl_sess *sess,
 	  const struct ctl_verb *verb, const char *rest,
-	  u_int respflags, void *respctx, void *uctx)
+	  u_int respflags, const void *respctx, void *uctx)
 {
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
 	ctl_response(sess, 221, "End of control session.", CTL_EXIT, NULL,
 		     NULL, NULL, NULL, 0);
+}
+
+static char hex[] = "0123456789abcdef";
+
+struct pvt_args {
+	int	argc;
+	char            text[MAX_STR_LEN];
+};
+
+static void
+args_closure(struct ctl_sctx *sctx, struct ctl_sess *sess, void *uap) {
+	struct pvt_args *pvt = ctl_getcsctx(sess);
+
+	UNUSED(sctx);
+	UNUSED(uap);
+
+	memput(pvt, sizeof *pvt);
+	ctl_setcsctx(sess, NULL);
+}
+
+static void
+verb_args(struct ctl_sctx *ctl, struct ctl_sess *sess,
+	  const struct ctl_verb *verb, const char *rest,
+	  u_int respflags, const void *respctx, void *uctx)
+{
+	struct pvt_args *pvt = ctl_getcsctx(sess);
+	char *cp, *tp;
+
+	UNUSED(ctl);
+	UNUSED(verb);
+	UNUSED(rest);
+	UNUSED(respflags);
+	UNUSED(respctx);
+	UNUSED(uctx);
+
+	if (pvt == NULL) {
+		unsigned int i = 0;
+		pvt = memget(sizeof *pvt);
+		if (pvt == NULL) {
+			ctl_response(sess, 505, "(out of memory)",
+				     0, NULL, NULL, NULL, NULL, 0);
+			return;
+		}
+		pvt->argc = 0;
+		ctl_setcsctx(sess, pvt);
+
+		/* Send the arguement count. */
+		while (saved_argv[i] != NULL)
+			i++;
+		sprintf(pvt->text, "%u", i);
+		ctl_response(sess, 250, pvt->text, CTL_MORE,
+			     NULL, args_closure, NULL, NULL, 0);
+		return;
+	}
+
+	/*
+	 * Percent escape arguement.
+	 */
+	cp = saved_argv[pvt->argc++];
+	tp = pvt->text;
+	while (cp && *cp != NULL)
+		if (*cp == '%' || *cp == ' ' ||
+		    !isprint((unsigned char)*cp)) {
+			if (tp >= pvt->text + sizeof(pvt->text) - 4)
+				break;
+			*tp++ = '%';
+			*tp++ = hex[(*cp>>4)&0xf];
+			*tp++ = hex[(*cp++)&0xf];
+		} else {
+			if (tp >= pvt->text + sizeof(pvt->text) - 2)
+				break;
+			*tp++ = *cp++;
+		}
+	*tp = '\0';
+	
+	ctl_response(sess, 250, pvt->text, 
+		     saved_argv[pvt->argc] == NULL ? 0 : CTL_MORE,
+		     NULL, args_closure, NULL, NULL, 0);
 }

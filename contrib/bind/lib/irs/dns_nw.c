@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_nw.c,v 1.19 1999/10/15 19:49:10 vixie Exp $";
+static const char rcsid[] = "$Id: dns_nw.c,v 1.23 2002/06/26 07:42:06 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -56,11 +56,7 @@ static const char rcsid[] = "$Id: dns_nw.c,v 1.19 1999/10/15 19:49:10 vixie Exp 
 
 #define	MAXALIASES	35
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define	MAXPACKET	(64*1024)
 
 struct pvt {
 	struct nwent	net;
@@ -108,6 +104,8 @@ struct irs_nw *
 irs_dns_nw(struct irs_acc *this) {
 	struct irs_nw *nw;
 	struct pvt *pvt;
+
+	UNUSED(this);
 
 	if (!(pvt = memget(sizeof *pvt))) {
 		errno = ENOMEM;
@@ -185,11 +183,15 @@ nw_byaddr(struct irs_nw *this, void *net, int len, int af) {
 
 static struct nwent *
 nw_next(struct irs_nw *this) {
+
+	UNUSED(this);
+
 	return (NULL);
 }
 
 static void
 nw_rewind(struct irs_nw *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -238,22 +240,33 @@ nw_res_set(struct irs_nw *this, struct __res_state *res,
 static struct nwent *
 get1101byname(struct irs_nw *this, const char *name) {
 	struct pvt *pvt = (struct pvt *)this->private;
-	u_char ansbuf[MAXPACKET];
+	u_char *ansbuf;
 	int anslen;
+	struct nwent *result;
 
-	anslen = res_nsearch(pvt->res, name, C_IN, T_PTR,
-			     ansbuf, sizeof ansbuf);
-	if (anslen < 0)
+	ansbuf = memget(MAXPACKET);
+	if (ansbuf == NULL) {
+		errno = ENOMEM;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		return (NULL);
-	return (get1101mask(this, get1101answer(this, ansbuf, anslen, by_name,
-						AF_INET, name, NULL, 0)));
+	}
+	anslen = res_nsearch(pvt->res, name, C_IN, T_PTR, ansbuf, MAXPACKET);
+	if (anslen < 0) {
+		memput(ansbuf, MAXPACKET);
+		return (NULL);
+	}
+	result = get1101mask(this, get1101answer(this, ansbuf, anslen, by_name,
+						 AF_INET, name, NULL, 0));
+	memput(ansbuf, MAXPACKET);
+	return (result);
 }
 
 static struct nwent *
 get1101byaddr(struct irs_nw *this, u_char *net, int len) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	char qbuf[sizeof "255.255.255.255.in-addr.arpa"];
-	u_char ansbuf[MAXPACKET];
+	struct nwent *result;
+	u_char *ansbuf;
 	int anslen;
 
 	if (len < 1 || len > 32) {
@@ -263,12 +276,21 @@ get1101byaddr(struct irs_nw *this, u_char *net, int len) {
 	}
 	if (make1101inaddr(net, len, qbuf, sizeof qbuf) < 0)
 		return (NULL);
-	anslen = res_nquery(pvt->res, qbuf, C_IN, T_PTR,
-			    ansbuf, sizeof ansbuf);
-	if (anslen < 0)
+	ansbuf = memget(MAXPACKET);
+	if (ansbuf == NULL) {
+		errno = ENOMEM;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		return (NULL);
-	return (get1101mask(this, get1101answer(this, ansbuf, anslen, by_addr,
-						AF_INET, NULL, net, len)));
+	}
+	anslen = res_nquery(pvt->res, qbuf, C_IN, T_PTR, ansbuf, MAXPACKET);
+	if (anslen < 0) {
+		memput(ansbuf, MAXPACKET);
+		return (NULL);
+	}
+	result = get1101mask(this, get1101answer(this, ansbuf, anslen, by_addr,
+						 AF_INET, NULL, net, len));
+	memput(ansbuf, MAXPACKET);
+	return (result);
 }
 
 static struct nwent *
@@ -277,8 +299,8 @@ get1101answer(struct irs_nw *this,
 	      int af, const char *name, const u_char *addr, int addrlen)
 {
 	struct pvt *pvt = (struct pvt *)this->private;
-	int type, class, buflen, ancount, qdcount, haveanswer;
-	char *bp, **ap;
+	int type, class, ancount, qdcount, haveanswer;
+	char *bp, *ep, **ap;
 	u_char *cp, *eom;
 	HEADER *hp;
 
@@ -310,7 +332,7 @@ get1101answer(struct irs_nw *this,
 
 	/* Prepare a return structure. */
 	bp = pvt->buf;
-	buflen = sizeof pvt->buf;
+	ep = pvt->buf + sizeof(pvt->buf);
 	pvt->net.n_name = NULL;
 	pvt->net.n_aliases = pvt->ali;
 	pvt->net.n_addrtype = af;
@@ -323,20 +345,19 @@ get1101answer(struct irs_nw *this,
 		if (name != NULL) {
 			int n = strlen(name) + 1;
 
-			if (n > buflen) {
+			if (n > (ep - bp)) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
 			pvt->net.n_name = strcpy(bp, name);
 			bp += n;
-			buflen -= n;
 		}
 		break;
 	case by_addr:
 		if (addr != NULL && addrlen != 0) {
 			int n = addrlen / 8 + ((addrlen % 8) != 0);
 
-			if (INADDRSZ > buflen) {
+			if (INADDRSZ > (ep - bp)) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
 			}
@@ -344,7 +365,6 @@ get1101answer(struct irs_nw *this,
 			memcpy(bp, addr, n);
 			pvt->net.n_addr = bp;
 			bp += INADDRSZ;
-			buflen -= INADDRSZ;
 		}
 		break;
 	default:
@@ -355,7 +375,7 @@ get1101answer(struct irs_nw *this,
 	ap = pvt->ali;
 	haveanswer = 0;
 	while (--ancount >= 0 && cp < eom) {
-		int n = dn_expand(ansbuf, eom, cp, bp, buflen);
+		int n = dn_expand(ansbuf, eom, cp, bp, ep - bp);
 
 		cp += n;		/* Owner */
 		if (n < 0 || !maybe_dnok(pvt->res, bp) ||
@@ -370,7 +390,7 @@ get1101answer(struct irs_nw *this,
 		if (class == C_IN && type == T_PTR) {
 			int nn;
 
-			nn = dn_expand(ansbuf, eom, cp, bp, buflen);
+			nn = dn_expand(ansbuf, eom, cp, bp, ep - bp);
 			if (nn < 0 || !maybe_hnok(pvt->res, bp) || nn != n) {
 				RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 				return (NULL);
@@ -386,7 +406,6 @@ get1101answer(struct irs_nw *this,
 					*ap++ = bp;
 				nn = strlen(bp) + 1;
 				bp += nn;
-				buflen -= nn;
 				haveanswer++;
 				break;
 			    }
@@ -397,7 +416,7 @@ get1101answer(struct irs_nw *this,
 				    sscanf(bp, "%u.%u.%u.%u.in-addr.arpa",
 					   &b1, &b2, &b3, &b4) != 4)
 					break;
-				if (buflen < INADDRSZ) {
+				if ((ep - bp) < INADDRSZ) {
 					RES_SET_H_ERRNO(pvt->res, NO_RECOVERY);
 					return (NULL);
 				}
@@ -406,7 +425,6 @@ get1101answer(struct irs_nw *this,
 				*bp++ = b3;
 				*bp++ = b2;
 				*bp++ = b1;
-				buflen -= INADDRSZ;
 				pvt->net.n_length = INADDRSZ * 8;
 				haveanswer++;
 			    }
@@ -428,7 +446,7 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	char qbuf[sizeof "255.255.255.255.in-addr.arpa"], owner[MAXDNAME];
 	int anslen, type, class, ancount, qdcount;
-	u_char ansbuf[MAXPACKET], *cp, *eom;
+	u_char *ansbuf, *cp, *eom;
 	HEADER *hp;
 
 	if (!nwent)
@@ -439,10 +457,18 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 		return (nwent);
 	}
 
+	ansbuf = memget(MAXPACKET);
+	if (ansbuf == NULL) {
+		errno = ENOMEM;
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
+		return (NULL);
+	}
 	/* Query for the A RR that would hold this network's mask. */
-	anslen = res_nquery(pvt->res, qbuf, C_IN, T_A, ansbuf, sizeof ansbuf);
-	if (anslen < HFIXEDSZ)
+	anslen = res_nquery(pvt->res, qbuf, C_IN, T_A, ansbuf, MAXPACKET);
+	if (anslen < HFIXEDSZ) {
+		memput(ansbuf, MAXPACKET);
 		return (nwent);
+	}
 
 	/* Initialize, and parse header. */
 	hp = (HEADER *)ansbuf;
@@ -452,8 +478,10 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 	while (qdcount-- > 0) {
 		int n = dn_skipname(cp, eom);
 		cp += n + QFIXEDSZ;
-		if (n < 0 || cp > eom)
+		if (n < 0 || cp > eom) {
+			memput(ansbuf, MAXPACKET);
 			return (nwent);
+		}
 	}
 	ancount = ntohs(hp->ancount);
 
@@ -487,6 +515,7 @@ get1101mask(struct irs_nw *this, struct nwent *nwent) {
 		}
 		cp += n;		/* RDATA */
 	}
+	memput(ansbuf, MAXPACKET);
 	return (nwent);
 }
 
@@ -539,7 +568,7 @@ normalize_name(char *name) {
 
 	/* Make lower case. */
 	for (t = name; *t; t++)
-		if (isascii(*t) && isupper(*t))
+		if (isascii((unsigned char)*t) && isupper((unsigned char)*t))
 			*t = tolower(*t);
 
 	/* Remove trailing dots. */

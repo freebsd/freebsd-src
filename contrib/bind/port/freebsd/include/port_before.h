@@ -1,5 +1,7 @@
+/* $FreeBSD$ */
 #define WANT_IRS_NIS
 #define WANT_IRS_PW
+#define HAVE_PW_CLASS
 #define WANT_IRS_GR
 #define SIG_FN void
 #define HAS_PTHREADS
@@ -14,6 +16,7 @@
 #define SETPWENT_VOID
 #endif
 
+#include <sys/param.h>
 #include <sys/types.h>
 
 #define GROUP_R_RETURN struct group *
@@ -22,9 +25,16 @@
 #define GROUP_R_END_RETURN void
 #define GROUP_R_END_RESULT(x) /*empty*/
 #define GROUP_R_ARGS char *buf, int buflen
-#undef GROUP_R_ENT_ARGS /*empty*/
+#define GROUP_R_ENT_ARGS void
 #define GROUP_R_OK gptr
 #define GROUP_R_BAD NULL
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500030
+#define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, \
+			  int *ngroups
+#else
+#define GETGROUPLIST_ARGS const char *name, int basegid, int *groups, \
+			  int *ngroups
+#endif
 
 #define HOST_R_RETURN struct hostent *
 #define HOST_R_SET_RETURN void
@@ -55,7 +65,7 @@
 #define NGR_R_SET_RETURN void
 #undef NGR_R_SET_RESULT /*empty*/
 #define NGR_R_END_RETURN void
-#undef NGR_R_END_RESULT  /*empty*/
+#define NGR_R_END_RESULT(x) return
 #define NGR_R_ARGS char *buf, int buflen
 #undef NGR_R_ENT_ARGS /*empty*/
 #define NGR_R_COPY buf, buflen
@@ -100,3 +110,10 @@
 #define SERV_R_BAD NULL
 
 #define IRS_LCL_SV_DB
+#define ISC_SOCKLEN_T int
+#ifdef __GNUC__
+#define ISC_FORMAT_PRINTF(fmt, args) \
+	__attribute__((__format__(__printf__, fmt, args)))
+#else
+#define ISC_FORMAT_PRINTF(fmt, args)
+#endif
