@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.54 2001/11/16 01:57:47 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.55 2001/11/16 02:21:54 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -439,8 +439,8 @@ uhub_explore(usbd_device_handle dev)
 
 		/* Reset port, which implies enabling it. */
 		if (usbd_reset_port(dev, port, &up->status)) {
-			printf("uhub_explore: port=%d reset failed\n",
-				 port);
+			printf("%s: port %d reset failed\n",
+			       USBDEVNAME(sc->sc_dev), port);
 			continue;
 		}
 		/* Get port status again, it might have changed during reset */
