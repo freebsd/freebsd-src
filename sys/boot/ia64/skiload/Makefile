@@ -11,6 +11,7 @@ SRCS+=		main.c conf.c
 
 # Enable BootForth
 BOOT_FORTH=	yes
+CFLAGS+=	-ffreestanding
 CFLAGS+=	-g
 CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/ia64
 .if BOOT_FORTH

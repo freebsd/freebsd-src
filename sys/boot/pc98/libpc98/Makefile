@@ -13,6 +13,7 @@ SRCS=	aout_freebsd.c biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	time.c vidconsole.c
 
+CFLAGS+=	-ffreestanding
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../i386/libi386 \
 		-I${.CURDIR}/../../../contrib/dev/acpica \

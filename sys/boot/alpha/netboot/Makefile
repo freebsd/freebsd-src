@@ -7,7 +7,7 @@ NOMAN=
 NEWVERSWHAT=	"SRM net boot" alpha
 LOAD_ADDRESS=	${PRIMARY_LOAD_ADDRESS}
 
-CFLAGS+=	-DLOADER_NET_SUPPORT
+CFLAGS+=	-ffreestanding -DLOADER_NET_SUPPORT
 
 .include	<${.CURDIR}/../common/Makefile.common>
 

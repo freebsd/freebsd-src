@@ -14,7 +14,7 @@ SRCS+=		main.c conf.c
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	<${.CURDIR}/../../common/Makefile.inc>
-CFLAGS+=	-mno-fp-regs
+CFLAGS+=	-ffreestanding -mno-fp-regs
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CFLAGS+=	-DLOADER

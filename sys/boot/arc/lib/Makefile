@@ -5,6 +5,7 @@ NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 
+CFLAGS+=	-ffreestanding
 .PATH:		${.CURDIR}/arch/${MACHINE_ARCH}
 # XXX hack to pick up stand.h
 LIBSTANDDIR=	${.CURDIR}/../../../../lib/libstand
