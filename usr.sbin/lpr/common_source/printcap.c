@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)printcap.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)printcap.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -50,6 +50,87 @@ static char sccsid[] = "@(#)printcap.c	8.1 (Berkeley) 6/6/93";
 #define	BUFSIZ	1024
 #endif
 #define MAXHOP	32	/* max number of tc= indirections */
+
+/*
+ * getcap-style interface for the old printcap routines.
+ *
+ * !!!USE THIS INTERFACE ONLY IF YOU DON'T HAVE THE REAL GETCAP!!!
+ */
+
+static char *pbp;		/* pointer into pbuf for pgetstr() */
+static char pbuf[BUFSIZ];	/* buffer for capability strings */
+extern char line[];		/* buffer for printcap entries */
+
+int
+cgetnext(bp, db_array)
+        register char **bp;
+	char **db_array;
+{
+	int ret;
+	char *strdup();
+
+	pbp = pbuf;
+	ret = getprent(line);
+	*bp = strdup(line);
+	return (ret);
+}
+
+int
+cgetent(bp, db_array, name)
+	char **bp, **db_array, *name;
+{
+	int i;
+
+	*bp = line;
+	pbp = pbuf;
+	i = pgetent(*bp, name);
+	if (i < 0)
+		return (-2);
+	else if (i == 0)
+		return (-1);
+	else
+		return (0);
+}
+
+char *
+cgetcap(buf, cap, type)
+	char *buf, *cap;
+	int type;
+{
+	return ((char *) pgetflag(cap));
+}
+
+int
+cgetstr(buf, cap, str)
+	char *buf, *cap;
+	char **str;
+{
+	char *pgetstr __P((char *, char **));
+
+	if (pbp >= pbuf+BUFSIZ) {
+		write(2, "Capability string buffer overflow\n", 34);
+		return (-1);
+	}
+	return ((*str = pgetstr(cap, &pbp)) == NULL ? -1 : 0);
+}
+
+int
+cgetnum(buf, cap, num)
+	char *buf, *cap;
+	long *num;
+{
+	return ((*num = pgetnum(cap)) < 0 ? -1 : 0);
+}
+
+int
+cgetclose()
+{
+	void endprent __P((void));
+
+	endprent();
+	return (0);
+}
+
 
 /*
  * termcap - routines for dealing with the terminal capability data base
@@ -83,9 +164,10 @@ static char sccsid[] = "@(#)printcap.c	8.1 (Berkeley) 6/6/93";
 static	FILE *pfp = NULL;	/* printcap data base file pointer */
 static	char *tbuf;
 static	int hopcount;		/* detect infinite loops in termcap, init 0 */
+static	int tf;
 
+char *tgetstr __P((char *, char **));
 static char *tskip __P((char *));
-static char *tskip __P((char *bp));
 static char *tdecode __P((char *, char **));
 
 /*
@@ -137,8 +219,18 @@ getprent(bp)
 void
 endprent()
 {
-	if (pfp != NULL)
-		fclose(pfp);
+	if (pfp != NULL) {
+		/*
+		 * Can't use fclose here because on POSIX-compliant
+		 * systems, fclose() causes the file pointer of the
+		 * underlying file descriptor (which is possibly shared
+		 * with a parent process) to be adjusted, and this
+		 * reeks havoc in the parent because it doesn't know
+		 * the file pointer has changed.
+		 */
+		(void) close(fileno(pfp));
+		pfp = NULL;
+	}
 }
 
 /*
@@ -154,10 +246,8 @@ tgetent(bp, name)
 	register int c;
 	register int i = 0, cnt = 0;
 	char ibuf[BUFSIZ];
-	int tf;
 
 	tbuf = bp;
-	tf = 0;
 #ifndef V6
 	cp = getenv("TERMCAP");
 	/*
@@ -179,11 +269,9 @@ tgetent(bp, name)
 		} else
 			tf = open(cp, 0);
 	}
+#endif
 	if (tf==0)
 		tf = open(_PATH_PRINTCAP, 0);
-#else
-	tf = open(_PATH_PRINTCAP, 0);
-#endif
 	if (tf < 0)
 		return (-1);
 	for (;;) {
@@ -193,6 +281,7 @@ tgetent(bp, name)
 				cnt = read(tf, ibuf, BUFSIZ);
 				if (cnt <= 0) {
 					close(tf);
+					tf = 0;
 					return (0);
 				}
 				i = 0;
@@ -217,8 +306,13 @@ tgetent(bp, name)
 		 * The real work for the match.
 		 */
 		if (tnamatch(name)) {
-			close(tf);
-			return(tnchktc());
+			lseek(tf, 0L, 0);
+			i = tnchktc();
+			if (tf) {
+				close(tf);
+				tf = 0;
+			}
+			return(i);
 		}
 	}
 }
@@ -455,4 +549,3 @@ nextc:
 	*area = cp;
 	return (str);
 }
-
