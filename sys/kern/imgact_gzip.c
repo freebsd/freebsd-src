@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.34 1998/07/15 05:00:26 bde Exp $
+ * $Id: imgact_gzip.c,v 1.35 1998/10/16 03:55:00 peter Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -47,6 +47,7 @@ struct imgact_gzip {
 	struct image_params *ip;
 	struct exec     a_out;
 	int             error;
+	int		gotheader;
 	int             where;
 	u_char         *inbuf;
 	u_long          offset;
@@ -114,6 +115,13 @@ exec_gzip_imgact(imgp)
 	igz.len = imgp->attr->va_size;
 
 	error = inflate(&infl);
+
+	/*
+	 * The unzipped file may not even have been long enough to contain
+	 * a header giving Flush() a chance to return error.  Check for this.
+	 */
+	if (!igz.gotheader)
+		return ENOEXEC;
 
 	if ( !error ) {
 		vmspace = imgp->proc->p_vmspace;
@@ -329,6 +337,7 @@ Flush(void *vp, u_char * ptr, u_long siz)
 		p += i;
 		siz -= i;
 		if (gz->output == sizeof gz->a_out) {
+			gz->gotheader = 1;
 			i = do_aout_hdr(gz);
 			if (i == -1) {
 				if (!gz->where)
