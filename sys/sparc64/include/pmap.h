@@ -72,10 +72,10 @@ struct pmap {
 
 void	pmap_bootstrap(vm_offset_t ekva);
 void	pmap_context_rollover(void);
-vm_offset_t pmap_kextract(vm_offset_t va);
-void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
+void	pmap_kenter(vm_offset_t va, vm_page_t m);
 void	pmap_kremove(vm_offset_t);
-void	pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags);
+void	pmap_kenter_flags(vm_offset_t va, vm_paddr_t pa, u_long flags);
 void	pmap_kremove_flags(vm_offset_t va);
 
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
@@ -92,15 +92,15 @@ void	pmap_clear_write(vm_page_t m);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
 
-extern	vm_offset_t avail_start;
-extern	vm_offset_t avail_end;
+extern	vm_paddr_t avail_start;
+extern	vm_paddr_t avail_end;
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
-extern	vm_offset_t phys_avail[];
+extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 
-extern	vm_offset_t msgbuf_phys;
+extern	vm_paddr_t msgbuf_phys;
 
 static __inline int
 pmap_track_modified(pmap_t pm, vm_offset_t va)

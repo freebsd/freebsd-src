@@ -402,7 +402,7 @@ iommu_reset(struct iommu_state *is)
  * Here are the iommu control routines.
  */
 void
-iommu_enter(struct iommu_state *is, vm_offset_t va, vm_offset_t pa, int flags)
+iommu_enter(struct iommu_state *is, vm_offset_t va, vm_paddr_t pa, int flags)
 {
 	int64_t tte;
 
@@ -784,9 +784,10 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
     bus_dmamap_t map, bus_dma_segment_t sgs[], void *buf,
     bus_size_t buflen, struct thread *td, int flags, int *segp, int align)
 {
-	bus_size_t sgsize;
-	vm_offset_t curaddr, vaddr, voffs;
 	bus_addr_t amask, dvmaddr;
+	bus_size_t sgsize;
+	vm_offset_t vaddr, voffs;
+	vm_paddr_t curaddr;
 	int error, sgcnt, firstpg;
 	pmap_t pmap = NULL;
 

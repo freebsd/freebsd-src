@@ -127,9 +127,9 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 	vm_offset_t eva;
 	vm_offset_t off;
 	vm_offset_t ova;
-	vm_offset_t pa;
 	vm_offset_t va;
 	vm_prot_t prot;
+	vm_paddr_t pa;
 	vm_size_t cnt;
 	vm_page_t m;
 	int color;

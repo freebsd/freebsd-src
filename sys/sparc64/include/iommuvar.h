@@ -47,7 +47,7 @@ struct iommu_state {
 	u_int64_t		is_dvmabase;
 	int64_t			is_cr;		/* IOMMU control register value */
 
-	vm_offset_t		is_flushpa[2];
+	vm_paddr_t		is_flushpa[2];
 	volatile int64_t	*is_flushva[2];
 	/*
 	 * When a flush is completed, 64 bytes will be stored at the given
@@ -77,7 +77,7 @@ struct iommu_state {
 /* interfaces for PCI/SBUS code */
 void iommu_init(char *, struct iommu_state *, int, u_int32_t, int);
 void iommu_reset(struct iommu_state *);
-void iommu_enter(struct iommu_state *, vm_offset_t, vm_offset_t, int);
+void iommu_enter(struct iommu_state *, vm_offset_t, vm_paddr_t, int);
 void iommu_remove(struct iommu_state *, vm_offset_t, size_t);
 void iommu_decode_fault(struct iommu_state *, vm_offset_t);
 

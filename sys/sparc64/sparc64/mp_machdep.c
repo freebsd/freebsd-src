@@ -284,8 +284,8 @@ cpu_mp_unleash(void *v)
 {
 	volatile struct cpu_start_args *csa;
 	struct pcpu *pc;
-	vm_offset_t pa;
 	vm_offset_t va;
+	vm_paddr_t pa;
 	u_int ctx_min;
 	u_int ctx_inc;
 	u_long s;

@@ -53,7 +53,7 @@ PMAP_STATS_VAR(spitfire_icache_npage_inval_match);
  * Flush a physical page from the data cache.
  */
 void
-spitfire_dcache_page_inval(vm_offset_t pa)
+spitfire_dcache_page_inval(vm_paddr_t pa)
 {
 	u_long target;
 	void *cookie;
@@ -82,7 +82,7 @@ spitfire_dcache_page_inval(vm_offset_t pa)
  * Flush a physical page from the instruction cache.
  */
 void
-spitfire_icache_page_inval(vm_offset_t pa)
+spitfire_icache_page_inval(vm_paddr_t pa)
 {
 	register u_long tag __asm("%g1");
 	u_long target;

@@ -27,9 +27,9 @@
 #ifndef	_MACHINE_WATCH_H_
 #define	_MACHINE_WATCH_H_
 
-int	watch_phys_set_mask(vm_offset_t pa, u_long mask);
-int	watch_phys_set(vm_offset_t pa, int sz);
-vm_offset_t	watch_phys_get(int *bm);
+int	watch_phys_set_mask(vm_paddr_t pa, u_long mask);
+int	watch_phys_set(vm_paddr_t pa, int sz);
+vm_paddr_t	watch_phys_get(int *bm);
 void	watch_phys_clear(void);
 int	watch_phys_active(void);
 int	watch_virt_set_mask(vm_offset_t va, u_long mask);
