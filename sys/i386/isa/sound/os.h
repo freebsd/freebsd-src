@@ -37,7 +37,7 @@
  * before making the changes. It's possible that I have already made the
  * change. 
  *
- * $Id$
+ * $Id: os.h,v 1.11 1994/08/02 07:40:16 davidg Exp $
  */
 
 /*
@@ -218,7 +218,6 @@ struct snd_wait {
  */
 
 #ifndef HZ
-extern int hz;
 #define HZ	hz
 #endif
 

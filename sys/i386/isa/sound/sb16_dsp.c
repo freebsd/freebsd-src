@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sb16_dsp.c,v 1.6 1994/08/02 07:40:36 davidg Exp $
  */
 
 #define DEB(x)
@@ -70,7 +70,6 @@ static void     sb16_dsp_halt (int dev);
 static int      dsp_set_speed (int);
 static int      dsp_set_stereo (int);
 static void     dsp_cleanup (void);
-int             sb_reset_dsp (void);
 
 static struct audio_operations sb16_dsp_operations =
 {

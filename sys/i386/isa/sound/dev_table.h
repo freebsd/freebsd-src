@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: dev_table.h,v 1.6 1994/08/02 07:39:47 davidg Exp $
  */
 
 #ifndef _DEV_TABLE_H_
@@ -237,7 +237,6 @@ struct generic_midi_operations {
 
 long sndtable_init(long mem_start);
 int sndtable_get_cardcount (void);
-long CMIDI_init(long mem_start); /* */
 struct address_info *sound_getconf(int card_type);
 void sound_chconf(int card_type, int ioaddr, int irq, int dma);
 #endif
