@@ -165,7 +165,7 @@ lookup_found:					# Found a loader file
 #
 		mov DIR_SIZE(%bx),%eax		# Read file length
 		add $SECTOR_SIZE-1,%eax		# Convert length to sectors
-		shr $11,%eax
+		shr $SECTOR_SHIFT,%eax
 		cmp $BUFFER_LEN,%eax
 		jbe load_sizeok
 		mov $msg_load2big,%si		# Error message
@@ -400,6 +400,7 @@ ff.match:	add $2,%sp			# Discard saved %si
 # Trashes: EAX
 #
 read:		push %si			# Save
+		push %cx			# Save since some BIOSs trash
 		mov %eax,edd_lba		# LBA to read from
 		mov %ebx,%eax			# Convert address
 		shr $4,%eax			#  to segment
@@ -413,7 +414,8 @@ read.retry:	call twiddle			# Entertain the user
 		int $0x13			# Call BIOS
 		pop %dx				# Restore
 		jc read.fail			# Worked?
-		pop %si				# Restore
+		pop %cx				# Restore
+		pop %si
 		ret				# Return
 read.fail:	cmp $ERROR_TIMEOUT,%ah		# Timeout?
 		je read.retry			# Yes, Retry.
@@ -460,6 +462,7 @@ twiddle:	push %ax			# Save
 		mov twiddle_chars,%bx		# Address table
 		inc %al				# Next
 		and $3,%al			#  char
+		mov %al,twiddle_index		# Save index for next call
 		xlat				# Get char
 		call putc			# Output it
 		mov $8,%al			# Backspace
