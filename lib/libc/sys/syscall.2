@@ -42,9 +42,9 @@
 .Fd #include <sys/syscall.h>
 .Fd #include <unistd.h>
 .Ft int
-.Fn syscall "int number" "..."
-.Ft int
-.Fn __syscall "quad_t number" "..."
+.Fn syscall "int number" ...
+.Ft off_t
+.Fn __syscall "quad_t number" ...
 .Sh DESCRIPTION
 .Fn Syscall
 performs the system call whose assembly language
