@@ -1,3 +1,4 @@
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,8 +16,8 @@
 int
 keycrunch(result,seed,passwd)
 char *result;   /* 8-byte result */
-char *seed;     /* Seed, any length */
-char *passwd;   /* Password, any length */
+const char *seed;     /* Seed, any length */
+const char *passwd;   /* Password, any length */
 {
 	char *buf;
 	MDX_CTX md;
@@ -76,7 +77,7 @@ static void interrupt(sig)
 int sig;
 {
 	tcsetattr(0, TCSANOW, &saved_ttymode);
-	exit(1);
+	err(1, "interrupted by signal %s", sys_siglist[sig]);
 }
 
 char *
