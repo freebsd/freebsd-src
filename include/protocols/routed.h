@@ -38,7 +38,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ident "$Revision: 1.7 $"
+#ident "$Revision: 1.8 $"
 
 /*
  * Routing Information Protocol
@@ -152,18 +152,6 @@ char *ripcmds[RIPCMD_MAX] = {
 #define STALE_TIME		90	/* switch to a new gateway */
 #define	EXPIRE_TIME		180	/* time to mark entry invalid */
 #define	GARBAGE_TIME		240	/* time to garbage collect */
-
-/* It is good to continue advertising bad routes this long so other
- * routers notice.  This is fairly cheap, so it can be long.  It
- * should be long to combat bogus holddowns implemented by major
- * router vendors.
- */
-#define POISON_TIME		120
-
-/* Do not switch to a new route for this long after a route has gone
- * bad, to ensure that the new route is not a remanent of the old route.
- */
-#define HOLD_TIME		(MAX_WAITTIME*2)
 
 #ifdef __cplusplus
 }
