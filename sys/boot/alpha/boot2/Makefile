@@ -1,0 +1,69 @@
+#	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
+
+BASE= 		boot2
+PROG= 		${BASE}
+NOMAN=
+NEWVERSWHAT=	"SRM disk boot"
+
+.PATH:		${.CURDIR}/../common
+
+# i386-specific bootstrap sources
+SRCS+=		main.c conf.c
+
+# Always add MI sources 
+.PATH:		${.CURDIR}/../../common
+.include	<${.CURDIR}/../../common/Makefile.inc>
+CFLAGS+=	-mno-fp-regs
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
+# Verbose ls causes extra heap usage
+CFLAGS+=	-DVERBOSE_LS
+
+CLEANFILES+=	vers.c vers.o gensetdefs.o gensetdefs setdef0.o setdef1.o \
+		setdefs.h start.o
+CLEANFILES+=	${BASE} ${BASE}.sym ${BASE}.list
+
+CFLAGS+=	-Wall
+
+# XXX fix to use "standard" versions
+LIBSTANDDIR=	/home/dfr/FreeBSD/alpha/src/lib/libstand
+LIBSTAND=	${LIBSTANDDIR}/obj/libstand.a
+CFLAGS+=	-I${LIBSTANDDIR}
+LIBALPHA=	${.CURDIR}/../libalpha/obj/libalpha.a
+CFLAGS+=	-I${.CURDIR}/..
+CRT=		start.o
+STRIP=
+
+all: ${BASE}
+
+vers.o: ${.CURDIR}/newvers.sh ${.CURDIR}/Makefile
+	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+	${CC} -c vers.c
+
+${BASE}: ${BASE}.sym
+	objcopy -O binary ${BASE}.sym ${BASE}
+
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
+	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${SECONDARY_LOAD_ADDRESS} \
+	${CRT} setdef0.o ${OBJS} setdef1.o \
+	vers.o ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} >${.OBJDIR}/${BASE}.list
+
+# Other fragments still to be brought in from ../Makfile.booters?
+start.o:	${.CURDIR}/../libalpha/start.S
+	${CC} -c $<
+
+setdef0.o: setdefs.h
+
+setdef1.o: setdefs.h
+
+.include <bsd.prog.mk>
+
+setdefs.h: gensetdefs ${OBJS}
+	@echo Generating linker sets
+	@./gensetdefs ${OBJS} >setdefs.h
+
+gensetdefs: gensetdefs.o
+	${CC} -static gensetdefs.o -o $@
+
+gensetdefs.o: gensetdefs.c
+	${CC} -c $<
+
