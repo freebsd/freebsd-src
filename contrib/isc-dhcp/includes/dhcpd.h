@@ -1864,7 +1864,7 @@ void send_decline PROTO ((void *));
 
 void state_reboot PROTO ((void *));
 #ifdef ENABLE_POLLING_MODE
-void state_link PROTO (());
+void state_polling PROTO (());
 void state_background PROTO ((void *));
 #endif
 void state_init PROTO ((void *));
