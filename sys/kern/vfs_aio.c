@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.1 1997/06/16 00:27:26 dyson Exp $
+ * $Id: vfs_aio.c,v 1.2 1997/07/06 02:40:43 dyson Exp $
  */
 
 /*
@@ -57,6 +57,9 @@
 #include <vm/vm_map.h>
 #include <sys/sysctl.h>
 #include <sys/aio.h>
+#include <sys/shm.h>
+
+#include <machine/cpu.h>
 
 #define AIOCBLIST_CANCELLED	0x1
 #define AIOCBLIST_RUNDOWN	0x4
@@ -127,8 +130,7 @@ int max_queue_count = MAX_AIO_QUEUE;
 int num_queue_count = 0;
 
 void aio_init_aioinfo(struct proc *p) ;
-void aio_onceonly(void) ;
-void aio_proc_rundown(struct proc *p) ;
+void aio_onceonly(void *) ;
 int aio_free_entry(struct aiocblist *aiocbe);
 void aio_cancel_internal(struct aiocblist *aiocbe);
 void aio_process(struct aiocblist *aiocbe);
@@ -143,7 +145,7 @@ SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
  * Startup initialization
  */
 void
-aio_onceonly() {
+aio_onceonly(void *na) {
 	TAILQ_INIT(&aio_freeproc);
 	TAILQ_INIT(&aio_activeproc);
 	TAILQ_INIT(&aio_jobs);
