@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.1.2.1 1996/12/10 00:32:02 joerg Exp $
+ *	$Id: pw_user.c,v 1.1.1.1.2.2 1996/12/11 00:14:17 joerg Exp $
  */
 
 #include <unistd.h>
@@ -857,14 +857,17 @@ static char    *
 pw_checkname(char *name, int gecos)
 {
 	int             l = 0;
-	char const     *notch = gecos ? ":" : " :+-&#%$^()!@~*?<>=|\\/\"";
+	char const     *notch = gecos ? ":" : " ,\t:+-&#%$^()!@~*?<>=|\\/\"";
 
 	while (name[l]) {
-		if (strchr(notch, name[l]) != NULL || name[l] < ' ')
-			cmderr(EX_DATAERR, "invalid character `%c' in field\n", name[l]);
+		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] > 126)
+			cmderr(EX_DATAERR, (name[l]<' ' || (unsigned char)name[l] > 126)
+					    ? "invalid character `%c' in field\n"
+					    : "invalid character 0x$02x in field\n",
+					    name[l]);
 		++l;
 	}
-	if (!gecos && l > 8)
+	if (!gecos && l > MAXLOGNAME)
 		cmderr(EX_DATAERR, "name too long `%s'\n", name);
 	return name;
 }
