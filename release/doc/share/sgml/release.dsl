@@ -89,6 +89,12 @@
       (define %footnote-ulinks% #t)
     ]]>
 
+    <![ %output.html; [
+      (define %callout-graphics%
+	;; Use graphics in callouts?
+	#f)
+    ]]>
+
     </style-specification-body>
   </style-specification>
 
