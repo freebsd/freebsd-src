@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: register.c,v 1.2 1997/03/11 00:07:59 jkh Exp $
+ * $Id: register.c,v 1.2.2.1 1997/03/14 05:41:33 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,7 @@
 
 #define FIRSTNAME_FIELD_LEN	25
 #define LASTNAME_FIELD_LEN	30
-#define EMAIL_FIELD_LEN		30
+#define EMAIL_FIELD_LEN		61
 #define ADDRESS_FIELD_LEN	160
 #define CITY_FIELD_LEN		20
 #define STATE_FIELD_LEN		15

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.78 1997/02/18 01:39:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.79 1997/03/11 09:29:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -643,6 +643,9 @@ extern int	optionsEditor(dialogMenuItem *self);
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
+
+/* register.c */
+extern int	registerOpenDialog(void);
 
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
