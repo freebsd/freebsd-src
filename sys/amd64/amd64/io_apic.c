@@ -59,10 +59,10 @@ __FBSDID("$FreeBSD$");
 #define	IOAPIC_REDTBL_LO(i)	(IOAPIC_REDTBL + (i) * 2)
 #define	IOAPIC_REDTBL_HI(i)	(IOAPIC_REDTBL_LO(i) + 1)
 
-#define	VECTOR_EXTINT		-1
-#define	VECTOR_NMI		-2
-#define	VECTOR_SMI		-3
-#define	VECTOR_DISABLED		-4
+#define	VECTOR_EXTINT		252
+#define	VECTOR_NMI		253
+#define	VECTOR_SMI		254
+#define	VECTOR_DISABLED		255
 
 #define	DEST_NONE		-1
 #define	DEST_EXTINT		-2
@@ -97,11 +97,11 @@ MALLOC_DEFINE(M_IOAPIC, "I/O APIC", "I/O APIC structures");
 
 struct ioapic_intsrc {
 	struct intsrc io_intsrc;
-	int io_intpin:8;
-	int io_vector:8;
-	int io_activehi:1;
-	int io_edgetrigger:1;
-	int io_masked:1;
+	u_int io_intpin:8;
+	u_int io_vector:8;
+	u_int io_activehi:1;
+	u_int io_edgetrigger:1;
+	u_int io_masked:1;
 	int io_dest:5;
 };
 
@@ -358,7 +358,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		printf("ioapic%u: WARNING: intbase %d != expected base %d\n",
 		    io->io_id, intbase, next_ioapic_base);
 	io->io_intbase = intbase;
-	next_ioapic_base += numintr;
+	next_ioapic_base = intbase + numintr;
 	io->io_numintr = numintr;
 	io->io_addr = apic;
 
@@ -406,7 +406,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 			if (intpin->io_vector == VECTOR_EXTINT)
 				printf("ExtINT\n");
 			else
-				printf("irq %d\n", intpin->io_vector);
+				printf("irq %u\n", intpin->io_vector);
 		}
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
@@ -451,7 +451,7 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || vector < 0)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_vector = vector;
 	if (bootverbose)
@@ -468,7 +468,7 @@ ioapic_set_nmi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_vector = VECTOR_NMI;
 	io->io_pins[pin].io_masked = 0;
@@ -488,7 +488,7 @@ ioapic_set_smi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_vector = VECTOR_SMI;
 	io->io_pins[pin].io_masked = 0;
@@ -508,7 +508,7 @@ ioapic_set_extint(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_vector = VECTOR_EXTINT;
 	io->io_pins[pin].io_masked = 0;
@@ -528,7 +528,7 @@ ioapic_set_polarity(void *cookie, u_int pin, char activehi)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_activehi = activehi;
 	if (bootverbose)
@@ -545,7 +545,7 @@ ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
-	if (io->io_pins[pin].io_vector < 0)
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
 	io->io_pins[pin].io_edgetrigger = edgetrigger;
 	if (bootverbose)
@@ -626,7 +626,7 @@ ioapic_register(void *cookie)
 		flags |= PCPU_GET(apic_id) << APIC_ID_SHIFT;
 		ioapic_write(apic, IOAPIC_REDTBL_HI(i), flags);
 		mtx_unlock_spin(&icu_lock);
-		if (pin->io_vector >= 0) {
+		if (pin->io_vector < NUM_IO_INTS) {
 #ifdef MIXED_MODE
 			/* Route IRQ0 via the 8259A using mixed mode. */
 			if (pin->io_vector == 0)
