@@ -50,6 +50,10 @@ static char rcsid[] = "$FreeBSD$";
 int __mlocale_changed = 1;
 int __nlocale_changed = 1;
 
+/* XXX: FIXME! */
+/* Numbers separated by ";" must be parsed into byte array. */
+static char nogrouping[] = { CHAR_MAX, '\0' };
+
 static char
 cnv(char *str) {
 	int i = strtol(str, NULL, 10);
@@ -78,7 +82,9 @@ localeconv()
 	M_ASSIGN_STR(currency_symbol);
 	M_ASSIGN_STR(mon_decimal_point);
 	M_ASSIGN_STR(mon_thousands_sep);
-	M_ASSIGN_STR(mon_grouping);
+	/* XXX: FIXME! */
+	/* Numbers separated by ";" must be parsed into byte array. */
+	ret.mon_grouping = nogrouping;
 	M_ASSIGN_STR(positive_sign);
 	M_ASSIGN_STR(negative_sign);
 	M_ASSIGN_CHAR(int_frac_digits);
@@ -101,7 +107,9 @@ localeconv()
 	nptr = __get_current_numeric_locale();
 	N_ASSIGN_STR(decimal_point);
 	N_ASSIGN_STR(thousands_sep);
-	N_ASSIGN_STR(grouping);
+	/* XXX: FIXME! */
+	/* Numbers separated by ";" must be parsed into byte array. */
+	ret.grouping = nogrouping;
 	__nlocale_changed = 0;
     }
 
