@@ -1927,7 +1927,11 @@ vput(vp)
 
 	if (vp->v_usecount == 1) {
 		v_incr_usecount(vp, -1);
-		vinactive(vp, td);
+		if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE &&
+		    VOP_LOCK(vp, LK_EXCLUPGRADE, td) != 0)
+			vp->v_iflag |= VI_OWEINACT;
+		else
+			vinactive(vp, td);
 		VOP_UNLOCK(vp, 0, td);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
@@ -2003,7 +2007,7 @@ vinactive(struct vnode *vp, struct thread *td)
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 	    ("vinactive: lost VI_DOINGINACT"));
-	vp->v_iflag &= ~VI_DOINGINACT;
+	vp->v_iflag &= ~(VI_DOINGINACT|VI_OWEINACT);
 }
 
 /*
@@ -2248,6 +2252,11 @@ vgonel(struct vnode *vp, struct thread *td)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_DOINGINACT) == 0)
+			vinactive(vp, td);
+		VI_UNLOCK(vp);
+	} else {
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_OWEINACT)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 	}
@@ -2742,7 +2751,7 @@ vbusy(struct vnode *vp)
 	freevnodes--;
 	mtx_unlock(&vnode_free_list_mtx);
 
-	vp->v_iflag &= ~(VI_FREE|VI_AGE);
+	vp->v_iflag &= ~(VI_FREE|VI_AGE|VI_OWEINACT);
 }
 
 /*
