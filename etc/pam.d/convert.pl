@@ -57,10 +57,10 @@ MAIN:{
     }
 
     foreach $service (keys(%SERVICES)) {
-	$version = '$FreeBSD$';
+	$version = '$' . 'FreeBSD' . '$';
 	if (sysopen(FILE, $service, O_RDONLY)) {
 		while (<FILE>) {
-			next unless (m/(\$FreeBSD$]+\$)/);
+			next unless (m/(\$[F]reeBSD.*?\$)/);
 			$version = $1;
 			last;
 		}
