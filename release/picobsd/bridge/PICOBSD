@@ -3,8 +3,8 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	2200	init	8192		32768
-options MD_ROOT_SIZE=2200      # same as def_sz
+#PicoBSD	2400	init	8192		32768
+options MD_ROOT_SIZE=2400      # same as def_sz
 
 # next to each option there is the approx. space used in the
 # picobsd image.
@@ -85,7 +85,7 @@ device	miibus
 #device de0              # DEC/Intel DC21x4x (``Tulip'')
 device	fxp0             # Intel, 4KB
 device	xl0		# 3Com
-device	ep0
+#device	ep0
 device rl0		# Realtek 8139, 4KB
 device dc0		# New Dec/Intel DC21x4x, 8KB
 device	lnc0
@@ -105,3 +105,4 @@ pseudo-device	bpf 4	# 4KB, for tcpdump
 #options	NFS			#Network Filesystem
 #options	NFS_NOSERVER		#Network Filesystem
 options		DDB
+options		DEVICE_POLLING
