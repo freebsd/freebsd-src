@@ -71,6 +71,8 @@ __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
+static Elf_Brandinfo *__elfN(get_brandinfo)(const Elf_Ehdr *hdr,
+    const char *interp);
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry, size_t pagesize);
 static int __elfN(load_section)(struct proc *p,
@@ -87,6 +89,7 @@ SYSCTL_INT(_debug, OID_AUTO, elf64_trace, CTLFLAG_RW, &elf_trace, 0, "");
 #endif
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
+extern int fallback_elf_brand;
 
 int
 __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
@@ -136,6 +139,50 @@ __elfN(brand_inuse)(Elf_Brandinfo *entry)
 	sx_sunlock(&allproc_lock);
 
 	return (rval);
+}
+
+static Elf_Brandinfo *
+__elfN(get_brandinfo)(const Elf_Ehdr *hdr, const char *interp)
+{
+	Elf_Brandinfo *bi;
+	int i;
+
+	/*
+	 * We support three types of branding -- (1) the ELF EI_OSABI field
+	 * that SCO added to the ELF spec, (2) FreeBSD 3.x's traditional string
+	 * branding w/in the ELF header, and (3) path of the `interp_path'
+	 * field.  We should also look for an ".note.ABI-tag" ELF section now
+	 * in all Linux ELF binaries, FreeBSD 4.1+, and some NetBSD ones.
+	 */
+
+	/* If the executable has a brand, search for it in the brand list. */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi != NULL && hdr->e_machine == bi->machine &&
+		    (hdr->e_ident[EI_OSABI] == bi->brand ||
+		    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
+		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0))
+			return (bi);
+	}
+
+	/* Lacking a known brand, search for a recognized interpreter. */
+	if (interp != NULL) {
+		for (i = 0; i < MAX_BRANDS; i++) {
+			bi = elf_brand_list[i];
+			if (bi != NULL && hdr->e_machine == bi->machine &&
+			    strcmp(interp, bi->interp_path) == 0)
+				return (bi);
+		}
+	}
+
+	/* Lacking a recognized interpreter, try the default brand */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi != NULL && hdr->e_machine == bi->machine &&
+		    fallback_elf_brand == bi->brand)
+			return (bi);
+	}
+	return (NULL);
 }
 
 static int
@@ -578,8 +625,6 @@ fail:
 	return (error);
 }
 
-extern int fallback_elf_brand;
-
 static int
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
@@ -592,12 +637,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	u_long text_addr = 0, data_addr = 0;
 	u_long seg_size, seg_addr;
 	u_long addr, entry = 0, proghdr = 0;
-	vm_offset_t maxuser, usrstack, pagesize;
 	int error, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
 	char *path;
 	struct thread *td = curthread;
+	struct sysentvec *sv;
 
 	GIANT_REQUIRED;
 
@@ -625,41 +670,35 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	VOP_UNLOCK(imgp->vp, 0, td);
 
-	if ((error = exec_extract_strings(imgp)) != 0)
-		goto fail;
-
-	/*
-	 * Tentatively identify the brand based on the machine so that
-	 * we can figure out VM ranges and page sizes.
-	 */
-	brand_info = NULL;
-	for (i = 0; i < MAX_BRANDS; i++) {
-		Elf_Brandinfo *bi = elf_brand_list[i];
-
-		if (bi != NULL &&
-		    hdr->e_machine == bi->machine &&
-		    (hdr->e_ident[EI_OSABI] == bi->brand
-		     || 0 ==
-		     strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
-		     bi->compat_3_brand, strlen(bi->compat_3_brand)))) {
-			brand_info = bi;
+	for (i = 0; i < hdr->e_phnum; i++) {
+		switch (phdr[i].p_type) {
+	  	case PT_INTERP:	/* Path to interpreter */
+			if (phdr[i].p_filesz > MAXPATHLEN ||
+			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE) {
+				error = ENOEXEC;
+				goto fail;
+			}
+			interp = imgp->image_header + phdr[i].p_offset;
+			break;
+		default:
 			break;
 		}
 	}
 
-	pagesize = PAGE_SIZE;
-	maxuser = VM_MAXUSER_ADDRESS;
-	usrstack = USRSTACK;
-	if (brand_info) {
-		if (brand_info->sysvec->sv_pagesize)
-			pagesize = brand_info->sysvec->sv_pagesize;
-		if (brand_info->sysvec->sv_maxuser)
-			maxuser = brand_info->sysvec->sv_maxuser;
-		if (brand_info->sysvec->sv_usrstack)
-			usrstack = brand_info->sysvec->sv_usrstack;
+	brand_info = __elfN(get_brandinfo)(hdr, interp);
+	if (brand_info == NULL) {
+		uprintf("ELF binary type \"%u\" not known.\n",
+		    hdr->e_ident[EI_OSABI]);
+		error = ENOEXEC;
+		goto fail;
 	}
+	sv = brand_info->sysvec;
 
-	exec_new_vmspace(imgp, VM_MIN_ADDRESS, maxuser, usrstack);
+	if ((error = exec_extract_strings(imgp)) != 0)
+		goto fail;
+
+	exec_new_vmspace(imgp, sv->sv_minuser, sv->sv_maxuser,
+	    sv->sv_usrstack);
 
 	vmspace = imgp->proc->p_vmspace;
 
@@ -687,7 +726,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			    imgp->vp, imgp->object, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
-			    pagesize)) != 0)
+			    sv->sv_pagesize)) != 0)
   				goto fail;
 
 			seg_addr = trunc_page(phdr[i].p_vaddr);
@@ -730,14 +769,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 				entry = (u_long)hdr->e_entry;
 			}
 			break;
-	  	case PT_INTERP:	/* Path to interpreter */
-			if (phdr[i].p_filesz > MAXPATHLEN ||
-			    phdr[i].p_offset + phdr[i].p_filesz > PAGE_SIZE) {
-				error = ENOEXEC;
-				goto fail;
-			}
-			interp = imgp->image_header + phdr[i].p_offset;
-			break;
 		case PT_PHDR: 	/* Program header table info */
 			proghdr = phdr[i].p_vaddr;
 			break;
@@ -755,76 +786,15 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	imgp->entry_addr = entry;
 
-	brand_info = NULL;
-
-	/* We support three types of branding -- (1) the ELF EI_OSABI field
-	 * that SCO added to the ELF spec, (2) FreeBSD 3.x's traditional string
-	 * branding w/in the ELF header, and (3) path of the `interp_path'
-	 * field.  We should also look for an ".note.ABI-tag" ELF section now
-	 * in all Linux ELF binaries, FreeBSD 4.1+, and some NetBSD ones.
-	 */
-
-	/* If the executable has a brand, search for it in the brand list. */
-	if (brand_info == NULL) {
-		for (i = 0; i < MAX_BRANDS; i++) {
-			Elf_Brandinfo *bi = elf_brand_list[i];
-
-			if (bi != NULL &&
-			    hdr->e_machine == bi->machine &&
-			    (hdr->e_ident[EI_OSABI] == bi->brand
-			    || 0 ==
-			    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
-			    bi->compat_3_brand, strlen(bi->compat_3_brand)))) {
-				brand_info = bi;
-				break;
-			}
-		}
-	}
-
-	/* Lacking a known brand, search for a recognized interpreter. */
-	if (brand_info == NULL && interp != NULL) {
-		for (i = 0; i < MAX_BRANDS; i++) {
-			Elf_Brandinfo *bi = elf_brand_list[i];
-
-			if (bi != NULL &&
-			    hdr->e_machine == bi->machine &&
-			    strcmp(interp, bi->interp_path) == 0) {
-				brand_info = bi;
-				break;
-			}
-		}
-	}
-
-	/* Lacking a recognized interpreter, try the default brand */
-	if (brand_info == NULL) {
-		for (i = 0; i < MAX_BRANDS; i++) {
-			Elf_Brandinfo *bi = elf_brand_list[i];
-
-			if (bi != NULL &&
-			    hdr->e_machine == bi->machine &&
-			    fallback_elf_brand == bi->brand) {
-				brand_info = bi;
-				break;
-			}
-		}
-	}
-
-	if (brand_info == NULL) {
-		uprintf("ELF binary type \"%u\" not known.\n",
-		    hdr->e_ident[EI_OSABI]);
-		error = ENOEXEC;
-		goto fail;
-	}
-
-	imgp->proc->p_sysent = brand_info->sysvec;
+	imgp->proc->p_sysent = sv;
 	if (interp != NULL) {
 		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
 		    interp);
 		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
-		    &imgp->entry_addr, pagesize)) != 0) {
+		    &imgp->entry_addr, sv->sv_pagesize)) != 0) {
 			if ((error = __elfN(load_file)(imgp->proc, interp,
-			    &addr, &imgp->entry_addr, pagesize)) != 0) {
+			    &addr, &imgp->entry_addr, sv->sv_pagesize)) != 0) {
 				uprintf("ELF interpreter %s not found\n",
 				    path);
 				free(path, M_TEMP);
