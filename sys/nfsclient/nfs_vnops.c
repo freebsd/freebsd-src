@@ -2820,10 +2820,6 @@ loop:
 	s = splbio();
 	VI_LOCK(vp);
 	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
-		if (nfs_sigintr(nmp, NULL, td)) {
- 			error = EINTR;
- 			goto done;
- 		}
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2836,6 +2832,10 @@ loop:
 				panic("nfs_fsync: inconsistent lock");
 			if (error == ENOLCK)
 				goto loop;
+			if (nfs_sigintr(nmp, NULL, td)) {
+				error = EINTR;
+				goto done;
+			}
 			if (slpflag == PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
@@ -2856,6 +2856,10 @@ loop:
 		    bp->b_flags |= B_ASYNC;
 		splx(s);
 		bwrite(bp);
+		if (nfs_sigintr(nmp, NULL, td)) {
+			error = EINTR;
+			goto done;
+		}
 		goto loop;
 	}
 	splx(s);
