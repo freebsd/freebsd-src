@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-NOMAN=YES
-CLEANFILES+= ${LOCALES:S/$/.out/g}
-
 LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \
 		be_BY.CP1251 \
@@ -45,194 +42,85 @@ LOCALES=	af_ZA.ISO8859-1 \
 		uk_UA.KOI8-U \
 		zh_CN.eucCN
 
-LOCALEDIR=	${DESTDIR}/usr/share/locale
-
-ASCIILINKS=	en_US
-LATIN15LINKS=   af_ZA ca_ES da_DK de_DE en_US es_ES eu_ES fi_FI fr_BE fr_FR \
-		is_IS \
-		it_CH it_IT nl_NL no_NO pt_PT sv_SE
-
-UTF8_LATIN1LINKS=	af_ZA ca_ES da_DK de_DE en_US es_ES eu_ES fi_FI fr_BE \
-			fr_FR \
-			is_IS it_IT nl_NL no_NO pt_BR pt_PT sv_SE
-UTF8_LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL ro_RO sk_SK sl_SI
-UTF8_LATIN5LINKS=	sr_YU uk_UA
-UTF8_LATIN7LINKS=	el_GR
-UTF8_LATIN9LINKS=	tr_TR
-UTF8_LATIN13LINKS=	lt_LT
-UTF8_LATIN15LINKS=	et_EE
-UTF8_ARMSCII8LINKS=	hy_AM
-
-US_LINKS=	en_CA en_GB
-GB_LINKS=	en_AU en_NZ
-FR_LINKS=	fr_CA fr_CH
-DE_LINKS=	de_AT de_CH
-IT_LINKS=	it_CH
-BE_LINKS=	nl_BE
-RU_LINKS=       ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
-UA_LINKS=       uk_UA.ISO8859-5
-BY_LINKS=	be_BY.CP1131 be_BY.ISO8859-5
-CN_LINKS=       zh_CN.GB18030 zh_CN.GB2312 zh_CN.GBK zh_HK.Big5HKSCS zh_TW.Big5
+LOCALEDIR=	/usr/share/locale
 
 .SUFFIXES: .src .out
 
 .src.out:
 	grep -v '^#' < ${.IMPSRC} > ${.TARGET}
 
-all: ${LOCALES:S/$/.out/g}
+FILES=		${LOCALES:S/$/.out/}
+FILESNAME=	LC_NUMERIC
 
-afterinstall:
-.for lang in ${LOCALES}
-	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
-			   ${LOCALEDIR}/${lang}/LC_NUMERIC
+.for locale in ${LOCALES}
+FILESDIR_${locale}.out= ${LOCALEDIR}/${locale}
 .endfor
-.for link in ${LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+
+CLEANFILES=	${FILES}
+
+ENCODINGS=	ARMSCII-8 Big5 Big5HKSCS \
+		CP1131 CP1251 CP866 CP949 \
+		eucCN eucJP eucKR GB18030 GB2312 GBK \
+		ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-5 ISO8859-7 ISO8859-9 \
+		ISO8859-13 ISO8859-15 \
+		KOI8-R KOI8-U PT154 SJIS US-ASCII UTF-8
+
+BE_LINKS=	fr_BE:nl_BE
+DE_LINKS=	de_DE:de_AT de_DE:de_CH
+FR_LINKS=	fr_FR:fr_CA fr_FR:fr_CH
+GB_LINKS=	en_GB:en_AU en_GB:en_NZ
+IT_LINKS=	it_IT:it_CH
+US_LINKS=	en_US:en_CA en_US:en_GB
+
+ARMSCII-8_UTF-8= hy_AM
+Big5_UTF-8=	zh_TW:zh_HK zh_TW
+CP1251_CP1131=	be_BY
+CP1251_ISO8859-5= be_BY
+CP1251_UTF-8=	be_BY bg_BG
+CP866_UTF-8=	ru_RU
+eucCN_Big5=	zh_CN:zh_TW
+eucCN_Big5HKSCS= zh_CN:zh_HK
+eucCN_GB18030=	zh_CN
+eucCN_GB2312=	zh_CN
+eucCN_GBK=	zh_CN
+eucCN_UTF-8=	zh_CN
+eucJP_SJIS=	ja_JP
+eucJP_UTF-8=	ja_JP
+eucKR_CP949=	ko_KR
+eucKR_UTF-8=	ko_KR
+ISO8859-1_ISO8859-15= af_ZA ca_ES da_DK de_DE en_US es_ES eu_ES fi_FI \
+		fr_BE fr_FR is_IS it_CH it_IT nl_NL no_NO pt_PT sv_SE \
+		${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
+		${IT_LINKS} ${US_LINKS}
+ISO8859-1_ISO8859-1= ${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} \
+		${IT_LINKS} ${US_LINKS}
+ISO8859-1_US-ASCII= en_US ${GB_LINKS} ${US_LINKS}
+ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_DE en_US es_ES eu_ES fi_FI fr_BE \
+		fr_FR is_IS it_IT nl_NL no_NO pt_BR pt_PT sv_SE
+ISO8859-2_UTF-8= cs_CZ hr_HR hu_HU pl_PL ro_RO sk_SK sl_SI
+ISO8859-5_UTF-8= sr_YU uk_UA
+ISO8859-7_UTF-8= el_GR
+ISO8859-9_UTF-8= tr_TR
+ISO8859-13_ISO8859-4= lt_LT
+ISO8859-13_UTF-8= lt_LT
+ISO8859-15_UTF-8= et_EE
+KOI8-R_CP1251=	ru_RU
+KOI8-R_CP866=	ru_RU
+KOI8-R_ISO8859-5= ru_RU
+KOI8-U_ISO8859-5= uk_UA
+PT154_UTF-8=	kk_KZ
+US-ASCII_UTF-8=	en_US:he_IL
+UTF-8_UTF-8=	${BE_LINKS} ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} en_GB:en_IE \
+		${IT_LINKS} ${US_LINKS}
+
+SYMLINKS=
+.for enc1 in ${ENCODINGS}
+.for enc2 in ${ENCODINGS}
+.for lang_terr in ${${enc1}_${enc2}}
+SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
+		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}
 .endfor
-.for link in ${US_LINKS}
-	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-	ln -sf ../en_US.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
-.for link in ${GB_LINKS}
-	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-	ln -sf ../en_GB.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
 .endfor
-.for link in ${FR_LINKS}
-	ln -sf ../fr_FR.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../fr_FR.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-.endfor
-.for link in ${DE_LINKS}
-	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-.endfor
-.for link in ${IT_LINKS}
-	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-.endfor
-.for link in ${BE_LINKS}
-	ln -sf ../fr_BE.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
-	ln -sf ../fr_BE.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
-.endfor
-.for link in ${RU_LINKS}
-	ln -sf ../ru_RU.KOI8-R/LC_NUMERIC \
-		${LOCALEDIR}/${link}/LC_NUMERIC
-.endfor
-.for link in ${BY_LINKS}
-	ln -sf ../be_BY.CP1251/LC_NUMERIC \
-		${LOCALEDIR}/${link}/LC_NUMERIC
-.endfor
-.for link in ${UA_LINKS}
-	ln -sf ../uk_UA.KOI8-U/LC_NUMERIC \
-		${LOCALEDIR}/${link}/LC_NUMERIC
-.endfor
-.for link in ${CN_LINKS}
-	ln -sf ../zh_CN.eucCN/LC_NUMERIC \
-		${LOCALEDIR}/${link}/LC_NUMERIC
-.endfor
-.for link in ${ASCIILINKS}
-	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
-		${LOCALEDIR}/${link}.US-ASCII/LC_NUMERIC
-.endfor
-	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
-		${LOCALEDIR}/ja_JP.SJIS/LC_NUMERIC
-	ln -sf ../ko_KR.eucKR/LC_NUMERIC \
-		${LOCALEDIR}/ko_KR.CP949/LC_NUMERIC
-.for link in ${UTF8_LATIN1LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN2LINKS}
-	ln -sf ../${link}.ISO8859-2/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN5LINKS}
-	ln -sf ../${link}.ISO8859-5/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN7LINKS}
-	ln -sf ../${link}.ISO8859-7/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN9LINKS}
-	ln -sf ../${link}.ISO8859-9/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN13LINKS}
-	ln -sf ../${link}.ISO8859-13/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-15/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${UTF8_ARMSCII8LINKS}
-	ln -sf ../${link}.ARMSCII-8/LC_NUMERIC \
-	       ${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${US_LINKS}
-	ln -sf ../en_US.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${GB_LINKS}
-	ln -sf ../en_GB.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-	ln -sf ../en_GB.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/en_IE.UTF-8/LC_NUMERIC
-.for link in ${FR_LINKS}
-	ln -sf ../fr_FR.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${DE_LINKS}
-	ln -sf ../de_DE.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${IT_LINKS}
-	ln -sf ../it_IT.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-.for link in ${BE_LINKS}
-	ln -sf ../fr_BE.UTF-8/LC_NUMERIC \
-		${LOCALEDIR}/${link}.UTF-8/LC_NUMERIC
-.endfor
-	ln -sf ../be_BY.CP1251/LC_NUMERIC \
-	       ${LOCALEDIR}/be_BY.UTF-8/LC_NUMERIC
-	ln -sf ../bg_BG.CP1251/LC_NUMERIC \
-	       ${LOCALEDIR}/bg_BG.UTF-8/LC_NUMERIC
-	ln -sf ../en_US.US-ASCII/LC_NUMERIC \
-	       ${LOCALEDIR}/he_IL.UTF-8/LC_NUMERIC
-	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
-	       ${LOCALEDIR}/ja_JP.UTF-8/LC_NUMERIC
-	ln -sf ../kk_KZ.PT154/LC_NUMERIC \
-	       ${LOCALEDIR}/kk_KZ.UTF-8/LC_NUMERIC
-	ln -sf ../ko_KR.eucKR/LC_NUMERIC \
-	       ${LOCALEDIR}/ko_KR.UTF-8/LC_NUMERIC
-	ln -sf ../ru_RU.CP866/LC_NUMERIC \
-	       ${LOCALEDIR}/ru_RU.UTF-8/LC_NUMERIC
-	ln -sf ../zh_CN.eucCN/LC_NUMERIC \
-	       ${LOCALEDIR}/zh_CN.UTF-8/LC_NUMERIC
-	ln -sf ../zh_TW.Big5/LC_NUMERIC \
-	       ${LOCALEDIR}/zh_HK.UTF-8/LC_NUMERIC
-	ln -sf ../zh_TW.Big5/LC_NUMERIC \
-	       ${LOCALEDIR}/zh_TW.UTF-8/LC_NUMERIC
-	ln -sf ../lt_LT.ISO8859-13/LC_NUMERIC \
-		${LOCALEDIR}/lt_LT.ISO8859-4/LC_NUMERIC
 
 .include <bsd.prog.mk>
