@@ -135,10 +135,13 @@ struct wi_softc	{
 	int			wi_nextitem;
 #endif
 	struct callout_handle	wi_stat_ch;
-	int			wi_prism2;	/* set to 1 if it uses a Prism II chip */
+	int			wi_prism2;
+	int			wi_prism2_ver;
+	int			wi_bus_type;	/* Bus attachment type */
 };
 
-#define WI_TIMEOUT	65536
+#define WI_DELAY	5
+#define WI_TIMEOUT	(500000/WI_DELAY)	/* 500 ms */
 
 #define WI_PORT0	0
 #define WI_PORT1	1
@@ -147,6 +150,7 @@ struct wi_softc	{
 #define WI_PORT4	4
 #define WI_PORT5	5
 
+#define WI_PCI_LMEMRES	0x10	/* PCI Memory (native PCI implementations) */
 #define WI_PCI_LOCALRES	0x14	/* The PLX chip's local registers */
 #define WI_PCI_MEMRES	0x18	/* The PCCard's attribute memory */
 #define WI_PCI_IORES	0x1C	/* The PCCard's I/O space */
@@ -155,6 +159,7 @@ struct wi_softc	{
 #define WI_LOCAL_INTEN			0x40 /* poke this into INTCSR */
 #define WI_HFA384X_SWSUPPORT0_OFF	0x28
 #define WI_PRISM2STA_MAGIC		0x4A2D
+#define WI_HFA384X_PCICOR_OFF		0x26
 
 /* Default port: 0 (only 0 exists on stations) */
 #define WI_DEFAULT_PORT	(WI_PORT0 << 8)
@@ -183,29 +188,38 @@ struct wi_softc	{
 
 #define WI_DEFAULT_CHAN		3
 
+#define WI_BUS_PCCARD		0	/* pccard device */
+#define WI_BUS_PCI_PLX		1	/* PCI card w/ PLX PCI/PCMICA bridge */
+#define WI_BUS_PCI_NATIVE	2	/* native PCI device (Prism 2.5) */
+
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->wi_btag, sc->wi_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->wi_btag, sc->wi_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->wi_btag, sc->wi_bhandle, reg, val)
+#define CSR_WRITE_4(sc, reg, val)				\
+	bus_space_write_4((sc)->wi_btag, (sc)->wi_bhandle, 	\
+	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg), val)
+#define CSR_WRITE_2(sc, reg, val)				\
+	bus_space_write_2((sc)->wi_btag, (sc)->wi_bhandle,	\
+ 	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg), val)
+#define CSR_WRITE_1(sc, reg, val)				\
+	bus_space_write_1((sc)->wi_btag, (sc)->wi_bhandle,	\
+ 	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg), val)
 
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->wi_btag, sc->wi_bhandle, reg)
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->wi_btag, sc->wi_bhandle, reg)
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->wi_btag, sc->wi_bhandle, reg)
+#define CSR_READ_4(sc, reg)					\
+	bus_space_read_4((sc)->wi_btag, (sc)->wi_bhandle,	\
+ 	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg))
+#define CSR_READ_2(sc, reg)					\
+	bus_space_read_2((sc)->wi_btag, (sc)->wi_bhandle,	\
+ 	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg))
+#define CSR_READ_1(sc, reg)					\
+	bus_space_read_1((sc)->wi_btag, (sc)->wi_bhandle,	\
+ 	    (sc)->wi_bus_type == WI_BUS_PCI_NATIVE ? (reg)*2 : (reg))
 
 #define CSM_WRITE_1(sc, off, val)	\
-	bus_space_write_1(sc->wi_bmemtag, sc->wi_bmemhandle, off, val)
+	bus_space_write_1((sc)->wi_bmemtag, (sc)->wi_bmemhandle, off, val)
 
 #define CSM_READ_1(sc, off)		\
-	bus_space_read_1(sc->wi_bmemtag, sc->wi_bmemhandle, off)
-
+	bus_space_read_1((sc)->wi_bmemtag, (sc)->wi_bmemhandle, off)
 
 /*
  * The WaveLAN/IEEE cards contain an 802.11 MAC controller which Lucent
@@ -438,6 +452,26 @@ struct wi_ltv_memsz {
 	u_int16_t		wi_type;
 	u_int16_t		wi_mem_ram;
 	u_int16_t		wi_mem_nvram;
+};
+
+/*
+ * NIC Identification (0xFD0B)
+ */
+#define WI_RID_CARDID		0xFD0B
+#define WI_RID_IDENT		0xFD20
+struct wi_ltv_ver {
+	u_int16_t		wi_len;
+	u_int16_t		wi_type;
+	u_int16_t		wi_ver[4];
+#define WI_NIC_EVB2	0x8000
+#define WI_NIC_HWB3763	0x8001
+#define WI_NIC_HWB3163	0x8002
+#define WI_NIC_HWB3163B	0x8003
+#define WI_NIC_EVB3	0x8004
+#define WI_NIC_HWB1153	0x8007
+#define WI_NIC_P2_SST	0x8008	/* Prism2 with SST flush */
+#define WI_NIC_PRISM2_5	0x800C
+#define WI_NIC_3874A	0x8013	/* Prism2.5 Mini-PCI */
 };
 
 /*

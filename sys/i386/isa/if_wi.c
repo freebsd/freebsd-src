@@ -123,6 +123,13 @@ static const char rcsid[] =
 static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
+/*
+ * The following is for compatibility with NetBSD, but should really be
+ * brought in from NetBSD en toto.
+ */
+#define le16toh(a)	(a)
+#define LE16TOH(a)
+
 static void wi_intr		__P((void *));
 static void wi_reset		__P((struct wi_softc *));
 static int wi_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -168,6 +175,7 @@ static int wi_alloc		__P((device_t, int));
 static void wi_free		__P((device_t));
 
 static int wi_get_cur_ssid	__P((struct wi_softc *, char *, int *));
+static void wi_get_id		__P((struct wi_softc *, device_t));
 static int wi_media_change	__P((struct ifnet *));
 static void wi_media_status	__P((struct ifnet *, struct ifmediareq *));
 
@@ -208,13 +216,15 @@ static driver_t wi_pci_driver = {
 
 static struct {
 	unsigned int vendor,device;
+	int bus_type;
 	char *desc;
 } pci_ids[] = {
-	{0x1638, 0x1100,	"PRISM2STA PCI WaveLAN/IEEE 802.11"},
-	{0x1385, 0x4100,	"Netgear MA301 PCI IEEE 802.11b"},
-	{0x16ab, 0x1101,	"GLPRISM2 PCI WaveLAN/IEEE 802.11"},
-	{0x16ab, 0x1102,	"Linksys WDT11 PCI IEEE 802.11b"},
-	{0,	 0,	NULL}
+	{0x1638, 0x1100, WI_BUS_PCI_PLX, "PRISM2STA PCI WaveLAN/IEEE 802.11"},
+	{0x1385, 0x4100, WI_BUS_PCI_PLX, "Netgear MA301 PCI IEEE 802.11b"},
+	{0x16ab, 0x1101, WI_BUS_PCI_PLX, "GLPRISM2 PCI WaveLAN/IEEE 802.11"},
+	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11 PCI IEEE 802.11b"},
+	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Linksys WMP11 PCI Prism2.5"},
+	{0, 0, 0, NULL}
 };
 #endif
 
@@ -236,6 +246,7 @@ wi_pccard_probe(dev)
 
 	sc = device_get_softc(dev);
 	sc->wi_gone = 0;
+	sc->wi_bus_type = WI_BUS_PCCARD;
 
 	error = wi_alloc(dev, 0);
 	if (error)
@@ -264,6 +275,7 @@ wi_pci_probe(dev)
 		if ((pci_get_vendor(dev) == pci_ids[i].vendor) &&
 			(pci_get_device(dev) == pci_ids[i].device)) {
 			sc->wi_prism2 = 1;
+			sc->wi_bus_type = pci_ids[i].bus_type;
 			device_set_desc(dev, pci_ids[i].desc);
 			return (0);
 		}
@@ -310,32 +322,8 @@ wi_pccard_attach(device_t dev)
 {
 	struct wi_softc		*sc;
 	int			error;
-	u_int32_t		flags;
 
 	sc = device_get_softc(dev);
-
-	/*
-	 *	XXX: quick hack to support Prism II chip.
-	 *	Currently, we need to set a flags in pccard.conf to specify
-	 *	which type chip is used.
-	 *
-	 *	We need to replace this code in a future.
-	 *	It is better to use CIS than using a flag.
-	 */
-	flags = device_get_flags(dev);
-#define	WI_FLAGS_PRISM2	0x10000
-	if (flags & WI_FLAGS_PRISM2) {
-		sc->wi_prism2 = 1;
-		if (bootverbose) {
-			device_printf(dev, "found PrismII chip\n");
-		}
-	}
-	else {
-		sc->wi_prism2 = 0;
-		if (bootverbose) {
-			device_printf(dev, "found Lucent chip\n");
-		}
-	}
 
 	error = wi_alloc(dev, 0);
 	if (error) {
@@ -353,6 +341,7 @@ wi_pci_attach(device_t dev)
 	u_int32_t		command, wanted;
 	u_int16_t		reg;
 	int			error;
+	int			timeout;
 
 	sc = device_get_softc(dev);
 
@@ -366,53 +355,76 @@ wi_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = wi_alloc(dev, WI_PCI_IORES);
-	if (error)
-		return (error);
+	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
+		error = wi_alloc(dev, WI_PCI_IORES);
+		if (error)
+			return (error);
 
-	/* Make sure interrupts are disabled. */
-	CSR_WRITE_2(sc, WI_INT_EN, 0);
-	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
+		/* Make sure interrupts are disabled. */
+		CSR_WRITE_2(sc, WI_INT_EN, 0);
+		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
-	/* We have to do a magic PLX poke to enable interrupts */
-	sc->local_rid = WI_PCI_LOCALRES;
-	sc->local = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->local_rid,
-				0, ~0, 1, RF_ACTIVE);
-	sc->wi_localtag = rman_get_bustag(sc->local);
-	sc->wi_localhandle = rman_get_bushandle(sc->local);
-	command = bus_space_read_4(sc->wi_localtag, sc->wi_localhandle,
-		WI_LOCAL_INTCSR);
-	command |= WI_LOCAL_INTEN;
-	bus_space_write_4(sc->wi_localtag, sc->wi_localhandle,
-		WI_LOCAL_INTCSR, command);
-	bus_release_resource(dev, SYS_RES_IOPORT, sc->local_rid, sc->local);
-	sc->local = NULL;
-	
-	sc->mem_rid = WI_PCI_MEMRES;
-	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
-				0, ~0, 1, RF_ACTIVE);
-	if (sc->mem == NULL) {
-		device_printf(dev, "couldn't allocate memory\n");
-		wi_free(dev);
-		return (ENXIO);
-	}
-	sc->wi_bmemtag = rman_get_bustag(sc->mem);
-	sc->wi_bmemhandle = rman_get_bushandle(sc->mem);
+		/* We have to do a magic PLX poke to enable interrupts */
+		sc->local_rid = WI_PCI_LOCALRES;
+		sc->local = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &sc->local_rid, 0, ~0, 1, RF_ACTIVE);
+		sc->wi_localtag = rman_get_bustag(sc->local);
+		sc->wi_localhandle = rman_get_bushandle(sc->local);
+		command = bus_space_read_4(sc->wi_localtag, sc->wi_localhandle,
+		    WI_LOCAL_INTCSR);
+		command |= WI_LOCAL_INTEN;
+		bus_space_write_4(sc->wi_localtag, sc->wi_localhandle,
+		    WI_LOCAL_INTCSR, command);
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->local_rid,
+		    sc->local);
+		sc->local = NULL;
 
-	/*
-	 * From Linux driver:
-	 * Write COR to enable PC card
-	 * This is a subset of the protocol that the pccard bus code
-	 * would do.
-	 */
-	CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE); 
-	reg = CSM_READ_1(sc, WI_COR_OFFSET);
-	if (reg != WI_COR_VALUE) {
-		device_printf(dev,
-		    "CSM_READ_1(WI_COR_OFFSET) "
-		    "wanted %d, got %d\n", WI_COR_VALUE, reg);
-		wi_free(dev);
-		return (ENXIO);
+		sc->mem_rid = WI_PCI_MEMRES;
+		sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
+					0, ~0, 1, RF_ACTIVE);
+		if (sc->mem == NULL) {
+			device_printf(dev, "couldn't allocate memory\n");
+			wi_free(dev);
+			return (ENXIO);
+		}
+		sc->wi_bmemtag = rman_get_bustag(sc->mem);
+		sc->wi_bmemhandle = rman_get_bushandle(sc->mem);
+
+		/*
+		 * From Linux driver:
+		 * Write COR to enable PC card
+		 * This is a subset of the protocol that the pccard bus code
+		 * would do.
+		 */
+		CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE);
+		reg = CSM_READ_1(sc, WI_COR_OFFSET);
+		if (reg != WI_COR_VALUE) {
+			device_printf(dev, "CSM_READ_1(WI_COR_OFFSET) "
+			    "wanted %d, got %d\n", WI_COR_VALUE, reg);
+			wi_free(dev);
+			return (ENXIO);
+		}
+	} else {
+		error = wi_alloc(dev, WI_PCI_LMEMRES);
+		if (error)
+			return (error);
+
+		CSR_WRITE_2(sc, WI_HFA384X_PCICOR_OFF, 0x0080);
+		DELAY(250000);
+
+		CSR_WRITE_2(sc, WI_HFA384X_PCICOR_OFF, 0x0000);
+		DELAY(500000);
+
+		timeout=2000000;
+		while ((--timeout > 0) &&
+		    (CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY))
+			DELAY(10);
+
+		if (timeout == 0) {
+			device_printf(dev, "couldn't reset prism2.5 core.\n");
+			wi_free(dev);
+			return(ENXIO);
+		}
 	}
 
 	CSR_WRITE_2(sc, WI_HFA384X_SWSUPPORT0_OFF, WI_PRISM2STA_MAGIC);
@@ -474,8 +486,9 @@ wi_generic_attach(device_t dev)
 	bcopy((char *)&mac.wi_mac_addr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	device_printf(dev, "Ethernet address: %6D\n",
-	    sc->arpcom.ac_enaddr, ":");
+	device_printf(dev, "802.11 address: %6D\n", sc->arpcom.ac_enaddr, ":");
+
+	wi_get_id(sc, dev);
 
 	ifp->if_softc = sc;
 	ifp->if_unit = sc->wi_unit;
@@ -533,8 +546,8 @@ wi_generic_attach(device_t dev)
 
 	if (bootverbose) {
 		device_printf(sc->dev,
-				__FUNCTION__ ":wi_has_wep = %d\n",
-				sc->wi_has_wep);
+				"%s:wi_has_wep = %d\n",
+				__func__, sc->wi_has_wep);
 	}
 
 	bzero((char *)&sc->wi_stats, sizeof(sc->wi_stats));
@@ -572,6 +585,80 @@ wi_generic_attach(device_t dev)
 	callout_handle_init(&sc->wi_stat_ch);
 
 	return(0);
+}
+
+static void
+wi_get_id(sc, dev)
+	struct wi_softc *sc;
+	device_t dev;
+{
+	struct wi_ltv_ver       ver;
+
+	/* getting chip identity */
+	memset(&ver, 0, sizeof(ver));
+	ver.wi_type = WI_RID_CARDID;
+	ver.wi_len = 5;
+	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+	device_printf(dev, "using ");
+	switch (le16toh(ver.wi_ver[0])) {
+	case WI_NIC_EVB2:
+		printf("RF:PRISM2 MAC:HFA3841");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3763:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3163:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3163B:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_EVB3:
+		printf("RF:PRISM2 MAC:HFA3842");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB1153:
+		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_P2_SST:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_PRISM2_5:
+		printf("RF:PRISM2.5 MAC:ISL3873");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_3874A:
+		printf("RF:PRISM2.5 MAC:ISL3874A(PCI)");
+		sc->wi_prism2 = 1;
+		break;
+	default:
+		printf("Lucent chip or unknown chip\n");
+		sc->wi_prism2 = 0;
+		break;
+	}
+
+	if (sc->wi_prism2) {
+		/* try to get prism2 firm version */
+		memset(&ver, 0, sizeof(ver));
+		ver.wi_type = WI_RID_IDENT;
+		ver.wi_len = 5;
+		wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+		LE16TOH(ver.wi_ver[1]);
+		LE16TOH(ver.wi_ver[2]);
+		LE16TOH(ver.wi_ver[3]);
+		printf(", Firmware: %d.%d variant %d\n", ver.wi_ver[2],
+		       ver.wi_ver[3], ver.wi_ver[1]);
+		sc->wi_prism2_ver = ver.wi_ver[2] * 100 +
+				    ver.wi_ver[3] *  10 + ver.wi_ver[1];
+	}
+
+	return;
 }
 
 static void
@@ -848,6 +935,7 @@ wi_cmd(sc, cmd, val)
 		DELAY(10*1000);	/* 10 m sec */
 	}
 	if (i == 0) {
+		device_printf(sc->dev, "wi_cmd: busy bit won't clear.\n" );
 		return(ETIMEDOUT);
 	}
 
@@ -861,8 +949,8 @@ wi_cmd(sc, cmd, val)
 		 * Wait for 'command complete' bit to be
 		 * set in the event status register.
 		 */
-		s = CSR_READ_2(sc, WI_EVENT_STAT) & WI_EV_CMD;
-		if (s) {
+		s = CSR_READ_2(sc, WI_EVENT_STAT);
+		if (s & WI_EV_CMD) {
 			/* Ack the event and read result code. */
 			s = CSR_READ_2(sc, WI_STATUS);
 			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_CMD);
@@ -874,9 +962,12 @@ wi_cmd(sc, cmd, val)
 				return(EIO);
 			break;
 		}
+		DELAY(WI_DELAY);
 	}
 
 	if (i == WI_TIMEOUT) {
+		device_printf(sc->dev,
+		    "timeout in wi_cmd %x; event status %x\n", cmd, s);
 		return(ETIMEDOUT);
 	}
 
@@ -893,7 +984,7 @@ wi_reset(sc)
 	for (i = 0; i < WI_INIT_TRIES; i++) {
 		if (wi_cmd(sc, WI_CMD_INI, 0) == 0)
 			break;
-		DELAY(50 * 1000);	/* 50ms */
+		DELAY(WI_DELAY * 1000);
 	}
 	if (i == WI_INIT_TRIES)
 		device_printf(sc->dev, "init failed\n");
@@ -1042,16 +1133,19 @@ wi_write_record(sc, ltv)
 		case WI_RID_DEFLT_CRYPT_KEYS:
 		    {
 			int error;
+			int keylen;
 			struct wi_ltv_str	ws;
 			struct wi_ltv_keys	*wk =
 			    (struct wi_ltv_keys *)ltv;
 
+			keylen = wk->wi_keys[sc->wi_tx_key].wi_keylen;
+
 			for (i = 0; i < 4; i++) {
-				ws.wi_len = 4;
+				bzero(&ws, sizeof(ws));
+				ws.wi_len = (keylen > 5) ? 8 : 4;
 				ws.wi_type = WI_RID_P2_CRYPT_KEY0 + i;
 				memcpy(ws.wi_str,
-				    &wk->wi_keys[i].wi_keydat, 5);
-				ws.wi_str[5] = '\0';
+				    &wk->wi_keys[i].wi_keydat, keylen);
 				error = wi_write_record(sc,
 				    (struct wi_ltv_gen *)&ws);
 				if (error)
@@ -1108,6 +1202,7 @@ wi_seek(sc, id, off, chan)
 		status = CSR_READ_2(sc, offreg);
 		if (!(status & (WI_OFF_BUSY|WI_OFF_ERR)))
 			break;
+		DELAY(WI_DELAY);
 	}
 
 	if (i == WI_TIMEOUT) {
@@ -1214,6 +1309,7 @@ wi_alloc_nicmem(sc, len, id)
 	for (i = 0; i < WI_TIMEOUT; i++) {
 		if (CSR_READ_2(sc, WI_EVENT_STAT) & WI_EV_ALLOC)
 			break;
+		DELAY(WI_DELAY);
 	}
 
 	if (i == WI_TIMEOUT) {
@@ -1962,23 +2058,45 @@ wi_watchdog(ifp)
 }
 
 static int
-wi_alloc(dev, io_rid)
+wi_alloc(dev, rid)
 	device_t		dev;
-	int				io_rid;
+	int			rid;
 {
 	struct wi_softc		*sc = device_get_softc(dev);
 
-	sc->iobase_rid = io_rid;
-	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->iobase_rid,
-					0, ~0, 1, RF_ACTIVE);
-	if (!sc->iobase) {
-		device_printf(dev, "No I/O space?!\n");
-		return (ENXIO);
+	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
+		sc->iobase_rid = rid;
+		sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &sc->iobase_rid, 0, ~0, (1 << 6),
+		    rman_make_alignment_flags(1 << 6) | RF_ACTIVE);
+		if (!sc->iobase) {
+			device_printf(dev, "No I/O space?!\n");
+			return (ENXIO);
+		}
+
+		sc->wi_io_addr = rman_get_start(sc->iobase);
+		sc->wi_btag = rman_get_bustag(sc->iobase);
+		sc->wi_bhandle = rman_get_bushandle(sc->iobase);
+	} else {
+		sc->mem_rid = rid;
+		sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY,
+		    &sc->mem_rid, 0, ~0, 1, RF_ACTIVE);
+
+		if (!sc->mem) {
+			device_printf(dev, "No Mem space on prism2.5?\n");
+			return (ENXIO);
+		}
+
+		sc->wi_btag = rman_get_bustag(sc->mem);
+		sc->wi_bhandle = rman_get_bushandle(sc->mem);
 	}
+
 
 	sc->irq_rid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
-				     0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE |
+	    ((sc->wi_bus_type == WI_BUS_PCCARD) ? 0 : RF_SHAREABLE));
+
 	if (!sc->irq) {
 		wi_free(dev);
 		device_printf(dev, "No irq?!\n");
@@ -1987,9 +2105,6 @@ wi_alloc(dev, io_rid)
 
 	sc->dev = dev;
 	sc->wi_unit = device_get_unit(dev);
-	sc->wi_io_addr = rman_get_start(sc->iobase);
-	sc->wi_btag = rman_get_bustag(sc->iobase);
-	sc->wi_bhandle = rman_get_bushandle(sc->iobase);
 
 	return (0);
 }
