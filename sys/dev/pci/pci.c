@@ -825,6 +825,14 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	if (base == 0)
 		return 1;
 
+#ifdef __sparc64__
+	/* Sun EBus bridges contain the ranges for the devices beyond them */
+	if ((pci_get_class(dev) == PCIC_BRIDGE) &&
+	    (pci_get_vendor(dev) == 0x108e) &&
+	    (pci_get_device(dev) == 0x1000 || pci_get_device(dev) == 0x1100))
+		return 1;
+#endif
+
 	start = base;
 	end = base + (1 << ln2size) - 1;
 	count = 1 << ln2size;
