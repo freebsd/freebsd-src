@@ -1334,11 +1334,10 @@ void *vpACB;
 
 	if (scsi_intstatus & (INT_BUSSERVICE | INT_CMDDONE)) {
 		pDCB = pACB->pActiveDCB;
+		KASSERT(pDCB != NULL, ("no active DCB"));
 		pSRB = pDCB->pActiveSRB;
-		if (pDCB) {
-			if (pDCB->DCBFlag & ABORT_DEV_)
+		if (pDCB->DCBFlag & ABORT_DEV_)
 				trm_EnableMsgOutAbort1(pACB, pSRB);
-		}
 		phase = (u_int16_t) pSRB->ScsiPhase;  /* phase: */
 		stateV = (void *) trm_SCSI_phase0[phase];
 		stateV(pACB, pSRB, &scsi_status);
