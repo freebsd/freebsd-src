@@ -37,6 +37,7 @@ The following commands are available:
 
   help		show help information
   diag		show/modify ATM hardware interfaces
+  natm		simple IP over ATM management (see natmip(4))
 
 ^0 diag
 This command shows information about the ATM hardware interfaces in the
