@@ -11,20 +11,11 @@ SRCS=	aout_freebsd.c biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	time.c vidconsole.c
 
 CFLAGS+=	-ffreestanding
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
-		-I${.CURDIR}/../../i386/libi386 \
-		-I${.CURDIR}/../../../contrib/dev/acpica \
-		-I${.CURDIR}/../../.. -I.
-CFLAGS+=	-DPC98
-
 BOOT_COMCONSOLE_PORT?= 0x238
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 
 BOOT_COMCONSOLE_SPEED?= 9600
 CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
-
-# the location of libstand
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 .ifdef(BOOT_BIOSDISK_DEBUG)
 # Make the disk code more talkative
@@ -33,6 +24,14 @@ CFLAGS+= -DDISK_DEBUG
 
 # Include simple terminal emulation (cons25-compatible)
 CFLAGS+= -DTERM_EMU
+
+CFLAGS+=	-DPC98
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
+		-I${.CURDIR}/../../i386/libi386 \
+		-I${.CURDIR}/../../../contrib/dev/acpica \
+		-I${.CURDIR}/../../.. -I.
+# the location of libstand
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # Make "machine" required for all objects
 # (based on the more complete case in sys/i386/boot/Makefile.inc)
