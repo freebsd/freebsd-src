@@ -321,7 +321,12 @@ Try setting this to 0 if this causes problems for you.
 Some systems' ASL may have problems because they look for names
 of Microsoft operating systems.
 This tunable overrides the default value of
-.Qq Li FreeBSD .
+.Qq Li FreeBSD
+for all objects named
+.Qq Li \e_OS ,
+.Qq Li \e_OS_ ,
+and
+.Qq Li \e_OSI .
 .It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
 .It Va hw.acpi.verbose
