@@ -1311,9 +1311,7 @@
   <sect2 id="firewire">
     <title>IEEE 1394 (Firewire) Devices</title>
 
-    <para arch="i386,sparc64,amd64">Host Controllers (&man.fwohci.4;
-      driver)
-      </para>
+    &hwlist.fwohci;
 
     <para arch="i386,sparc64,amd64">Serial Bus Protocol 2 (SBP-2)
       storage devices (&man.sbp.4; driver)</para>
@@ -1356,22 +1354,11 @@
   <sect2 id="crypto-accel">
     <title>Cryptographic Accelerators</title>
 
-    <para arch="i386,pc98,amd64">Accelerators based on
-      the Hifn 7751, 7811, or 7951 chipsets (&man.hifn.4; driver)
-     </para>
+    &hwlist.hifn;
 
-    <para arch="i386,pc98,amd64">Accelerators based on the SafeNet
-      1141 or 1741 cryptographic accelerator chipsets (&man.safe.4;
-      driver)</para>
+    &hwlist.safe;
 
-    <para arch="i386,pc98,amd64">Accelerators based on
-      the Bluesteel 5501 or 5601 chipsets (&man.ubsec.4;
-      driver)</para>
-
-    <para arch="i386,pc98,amd64">Accelerators based on
-      the Broadcom BCM5801, BCM5802, BCM5805, BCM5820, BCM 5821,
-      BCM5822 chipsets (&man.ubsec.4; driver)</para>
-
+    &hwlist.ubsec;
   </sect2>
 
   <sect2 id="misc">
