@@ -454,7 +454,7 @@ hint.rdp.0.at="isa"
 hint.rdp.0.port="0x378"
 hint.rdp.0.irq="7"
 hint.rdp.0.flags="2"
-device		sbni	1
+device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"

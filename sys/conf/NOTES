@@ -1557,7 +1557,7 @@ device		miibus
 
 # Order for ISA/EISA devices is important here
 
-device		ar	1
+device		ar
 hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
 hint.ar.0.irq="10"
@@ -1578,16 +1578,16 @@ hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
 device		ep
 device		ex
-device		fe	1
+device		fe
 hint.fe.0.at="isa"
 hint.fe.0.port="0x300"
 device		fea
-device		lnc	1
+device		lnc
 hint.lnc.0.at="isa"
 hint.lnc.0.port="0x280"
 hint.lnc.0.irq="10"
 hint.lnc.0.drq="0"
-device		sr	1
+device		sr
 hint.sr.0.at="isa"
 hint.sr.0.port="0x300"
 hint.sr.0.irq="5"
@@ -1602,7 +1602,7 @@ device		cnw
 device		wi
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
-device		wl	1
+device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
 device		xe
@@ -1635,7 +1635,7 @@ device		lge
 device		nge
 device		sk
 device		ti
-device		fpa	1
+device		fpa
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
 # This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
@@ -1915,7 +1915,7 @@ device		meteor	1
 # The iic and smb devices are only needed if you want to control other
 # I2C slaves connected to the external connector of some cards.
 #
-device		bktr	1
+device		bktr
 
 #
 # PC Card/PCMCIA
