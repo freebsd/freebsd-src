@@ -241,7 +241,10 @@ USB_ATTACH(umct)
 
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT) {
 			ucom->sc_bulkout_no = ed->bEndpointAddress;
-			ucom->sc_obufsize = UGETW(ed->wMaxPacketSize);
+			if (uaa->product == USB_PRODUCT_MCT_SITECOM_USB232)
+				ucom->sc_obufsize = 16; /* device is broken */
+			else
+				ucom->sc_obufsize = UGETW(ed->wMaxPacketSize);
 			continue;
 		}
 
