@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.6 1995/11/19 19:52:59 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.7 1995/11/21 10:18:18 asami Exp $
 
 Obtaining FreeBSD
    
@@ -150,17 +150,11 @@ Obtaining FreeBSD
 
    USA
 
-          + ftp://ftp.cybernetics.net/pub/FreeBSD
-            Contact: michael@Cybernetics.NET.
-
           + ftp://ftp.neosoft.com/systems/FreeBSD
             Contact: smace@NeoSoft.COM.
 
           + ftp://kryten.atinc.com/pub/FreeBSD
             Contact: jmb@kryten.atinc.com.
-
-          + ftp://ftp.dataplex.net/pub/FreeBSD
-            Contact: rkw@dataplex.net.
 
           + ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org
             Contact: ftpadmin@cps.cmich.edu.
