@@ -63,7 +63,9 @@ description of the input syntax is included in this document.
 The following command line options are supported:
 .Bl -tag -width indent
 .It Fl f Ar packinglist
-Fetch ``packing list'' for package from the file
+Fetch
+.Dq packing list
+for package from the file
 .Ar packinglist
 or
 .Cm stdin
@@ -73,7 +75,9 @@ is a
 .Cm -
 (dash).
 .It Fl c Ar [-]desc
-Fetch package ``one line description'' from file
+Fetch package
+.Dq one line description
+from file
 .Ar desc
 or, if preceded by
 .Cm - ,
@@ -136,7 +140,9 @@ directives in the packing list (see PACKING LIST DETAILS section below).
 .It Fl p Ar prefix
 Set
 .Ar prefix
-as the initial directory ``base'' to start from in selecting files for
+as the initial directory
+.Dq base
+to start from in selecting files for
 the package.
 .It Fl k Ar dscript
 Set
@@ -167,7 +173,9 @@ the first argument.
 .It Fl r Ar rscript
 Set
 .Ar rscript
-to be the ``requirements'' procedure for the package.  This can be any
+to be the
+.Dq requirements
+procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
@@ -230,7 +238,9 @@ directive.
 .El
 .Pp
 .Sh PACKING LIST DETAILS
-The ``packing list'' format (see
+The
+.Dq packing list
+format (see
 .Fl f )
 is fairly simple, being
 nothing more than a single column of filenames to include in the
@@ -276,12 +286,16 @@ Expand to the current directory prefix, as set with
 in the example case
 .Pa /usr/local .
 .It Cm "%B"
-Expand to the ``basename'' of the fully qualified filename, that
+Expand to the
+.Dq basename
+of the fully qualified filename, that
 is the current directory prefix, plus the last filespec, minus
 the trailing filename.  In the example case, that would be
 .Pa /usr/local/bin .
 .It Cm "%f"
-Expand to the ``filename'' part of the fully qualified name, or
+Expand to the
+filename
+part of the fully qualified name, or
 the converse of
 .Cm %B ,
 being in the example case,
@@ -302,8 +316,9 @@ as a result of adding the package, but not directly known to
 the package's table of contents (and hence not automatically
 removable).  The advantage of using
 .Cm @unexec
-over a deinstallation script is that you can use the ``special
-sequence expansion'' to get at files regardless of where they've
+over a deinstallation script is that you can use the
+.Dq special sequence expansion
+to get at files regardless of where they've
 been potentially redirected (see
 .Fl p ) .
 .It Cm @mode Ar mode
