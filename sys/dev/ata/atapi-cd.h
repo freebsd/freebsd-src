@@ -318,8 +318,8 @@ struct acd_softc {
     struct acd_softc		**driver;	/* softc's of changer slots */
     int				slot;		/* this instance slot number */
     time_t			timestamp;	/* this instance timestamp */
-    int				disk_size;	/* size of current media */
-    int				block_size;	/* blocksize currently used */
+    u_int			disk_size;	/* size of current media */
+    u_int			block_size;	/* blocksize currently used */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev;		/* device place holders */
 #ifndef BURN_BRIDGES
