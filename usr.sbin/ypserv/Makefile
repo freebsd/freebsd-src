@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.12 1997/11/10 22:17:09 wpaul Exp $
+# $Id: Makefile,v 1.13 1998/02/11 19:15:31 wpaul Exp $
 
 PROG=	ypserv
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
-	ypxfr_clnt.c yp_main.c yp_error.c yp_access.c yp_svc_udp.c
+	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
 
 MAN8=	ypserv.8 ypinit.8
 
