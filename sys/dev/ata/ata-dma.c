@@ -749,6 +749,49 @@ via_82c586:
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
+    case 0x02121166:	/* ServerWorks CSB5 ATA66/100 controller */
+	if (udmamode >= 5 && pci_get_revid(parent) >= 0x92) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting UDMA5 on ServerWorks chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg56;
+
+		pci_write_config(parent, 0x54, 
+				 pci_read_config(parent, 0x54, 1) |
+				 (0x01 << devno), 1);
+		reg56 = pci_read_config(parent, 0x56, 2);
+		reg56 &= ~(0xf << (devno * 4));
+		reg56 |= (0x5 << (devno * 4));
+		pci_write_config(parent, 0x56, reg56, 2);
+		atadev->mode = ATA_UDMA5;
+		return;
+	    }
+	}
+	if (udmamode >= 4) {
+	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_prtdev(atadev, "%s setting UDMA4 on ServerWorks chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		u_int16_t reg56;
+
+		pci_write_config(parent, 0x54, 
+				 pci_read_config(parent, 0x54, 1) |
+				 (0x01 << devno), 1);
+		reg56 = pci_read_config(parent, 0x56, 2);
+		reg56 &= ~(0xf << (devno * 4));
+		reg56 |= (0x4 << (devno * 4));
+		pci_write_config(parent, 0x56, reg56, 2);
+		atadev->mode = ATA_UDMA4;
+		return;
+	    }
+	}
+	/* FALLTHROUGH */
+
     case 0x02111166:	/* ServerWorks ROSB4 ATA33 controller */
 	if (udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,

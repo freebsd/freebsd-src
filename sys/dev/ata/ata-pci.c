@@ -231,6 +231,12 @@ ata_pci_match(device_t dev)
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
 
+    case 0x02121166:
+	if (pci_get_revid(dev) >= 0x92)
+	    return "ServerWorks CSB5 ATA100 controller";
+	else
+	    return "ServerWorks CSB5 ATA66 controller";
+
     case 0x4d33105a:
 	return "Promise ATA33 controller";
 
@@ -459,6 +465,22 @@ ata_pci_attach(device_t dev)
 	/* set sector size */
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
+	break;
+
+    case 0x02111166: /* ServerWorks ROSB4 enable UDMA33 */
+	pci_write_config(dev, 0x64,   
+			 (pci_read_config(dev, 0x64, 4) & ~0x00002000) |
+			 0x00004000, 4);
+	break;
+	
+    case 0x02121166: /* ServerWorks CSB5 enable UDMA66/100 depending on rev */
+	pci_write_config(dev, 0x5a,   
+			 (pci_read_config(dev, 0x5a, 1) & ~0x40) |
+			 (pci_get_revid(dev) >= 0x92) ? 0x03 : 0x02, 1);
+	break;
+
+    case 0x06461095: /* CMD 646 enable interrupts, set DMA read mode */
+	pci_write_config(dev, 0x71, 0x01, 1);
 	break;
 
     case 0x10001042:   /* RZ 100? known bad, no DMA */
