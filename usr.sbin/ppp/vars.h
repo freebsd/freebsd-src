@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.10 1997/02/22 16:11:02 peter Exp $
+ * $Id: vars.h,v 1.11 1997/04/14 23:48:20 brian Exp $
  *
  *	TODO:
  */
@@ -62,6 +62,8 @@ struct pppvars {
   int    idle_timeout;		/* Idle timeout value */
   int	 lqr_timeout;		/* LQR timeout value */
   int    retry_timeout;		/* Retry timeout value */
+  int    reconnect_timer;	/* Timeout before reconnect on carrier loss */
+  int    reconnect_tries;	/* Attempt reconnect on carrier loss */
   int    redial_timeout;	/* Redial timeout value */
   int    redial_next_timeout;	/* Redial next timeout value */
   int    dial_tries;		/* Dial attempts before giving up, 0 == forever */
@@ -101,6 +103,8 @@ struct pppvars {
 #define VarPhoneCopy    pppVars.phone_copy
 #define VarNextPhone    pppVars.next_phone
 #define	VarShortHost	pppVars.shostname
+#define VarReconnectTimer pppVars.reconnect_timer
+#define VarReconnectTries pppVars.reconnect_tries
 #define VarRedialTimeout pppVars.redial_timeout
 #define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
@@ -111,4 +115,5 @@ extern struct pppvars pppVars;
 
 int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
+int lostCarrier;
 #endif

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.32 1997/03/31 22:51:00 brian Exp $
+ * $Id: modem.c,v 1.33 1997/04/13 00:54:44 brian Exp $
  *
  *  TODO:
  */
@@ -218,6 +218,7 @@ DownConnection()
     CloseModem();
     LcpDown();
   }
+  lostCarrier++;
   connect_time = 0;
 }
 
