@@ -226,7 +226,7 @@ decode2(void)
 			}
 			q = memcpy(p - n, pw->pw_dir, n);
 		}
-	} else {
+	} else if (strcmp(q, "/dev/stdout") != 0) {
 		/* strip down to leaf name */
 		p = strrchr(q, '/');
 		if (p != NULL)
@@ -235,7 +235,8 @@ decode2(void)
 	if (!oflag)
 		outfile = q;
 
-	if (pflag)
+	/* POSIX says "/dev/stdout" is a 'magic cookie' not a special file. */
+	if (pflag || strcmp(outfile, "/dev/stdout") == 0)
 		outfp = stdout;
 	else {
 		flags = O_WRONLY|O_CREAT|O_EXCL;
