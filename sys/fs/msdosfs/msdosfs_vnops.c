@@ -50,6 +50,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lockf.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
@@ -63,7 +64,6 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/signalvar.h>
-#include <sys/lockf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -82,6 +82,7 @@
 /*
  * Prototypes for MSDOSFS vnode operations
  */
+static int msdosfs_advlock(struct vop_advlock_args *);
 static int msdosfs_create(struct vop_create_args *);
 static int msdosfs_mknod(struct vop_mknod_args *);
 static int msdosfs_close(struct vop_close_args *);
@@ -102,7 +103,6 @@ static int msdosfs_bmap(struct vop_bmap_args *);
 static int msdosfs_strategy(struct vop_strategy_args *);
 static int msdosfs_print(struct vop_print_args *);
 static int msdosfs_pathconf(struct vop_pathconf_args *ap);
-static int msdosfs_advlock(struct vop_advlock_args *);
 
 /*
  * Some general notes:
@@ -1838,22 +1838,19 @@ msdosfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
-/*
- * Advisory record locking support
- */
 static int
 msdosfs_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
-		u_char  a_id;
-		int  a_op;
+		u_char a_id;
+		int a_op;
 		struct flock *a_fl;
-		int  a_flags;
+		int a_flags;
 	} */ *ap;
 {
-	struct denode *ip = VTODE(ap->a_vp);
+	struct denode *dep = VTODE(ap->a_vp);
 
-	return (lf_advlock(ap, &(ip->de_lockf), ip->de_FileSize));
+	return (lf_advlock(ap, &dep->de_lockf, dep->de_FileSize));
 }
 
 /* Global vfs data structures for msdosfs */
@@ -1861,6 +1858,7 @@ vop_t **msdosfs_vnodeop_p;
 static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) msdosfs_access },
+	{ &vop_advlock_desc,            (vop_t *) msdosfs_advlock },
 	{ &vop_bmap_desc,		(vop_t *) msdosfs_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) msdosfs_lookup },
 	{ &vop_close_desc,		(vop_t *) msdosfs_close },
@@ -1884,7 +1882,6 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
-	{ &vop_advlock_desc,            (vop_t *) msdosfs_advlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc msdosfs_vnodeop_opv_desc =
