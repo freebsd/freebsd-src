@@ -339,7 +339,6 @@ extern int slk_touch(void);
 #define setsyx(y,x)		(stdscr->_cury = y, stdscr->_curx = x)
 
 #define wbkgdset(win,ch)        ((win)->_bkgd = ch)
-#define getbkgd(win)            ((win)->_bkgd)
 
 /* It seems older SYSV curses define these */
 #define getattrs(win)		(win->_attrs)
@@ -438,6 +437,16 @@ extern int slk_touch(void);
 #define mvwinsnstr(w, y, x, s, n)	(wmove(w,y,x) == ERR ? ERR : winsnstr(w,s,n))
 #define mvinsstr(y,x,s)			mvwinsstr(stdscr,y,x,s)
 #define mvinsnstr(y,x,s,n)		mvwinsnstr(stdscr,y,x,s,n)
+
+/*
+ * XSI curses macros for XPG4 conformance.
+ */
+
+#define attr_get()			wattr_get(stdscr)
+#define getbkgd(win)			((win)->_bkgd)
+
+#define vid_attr(a)			vidattr(a)
+#define wattr_get(win)			((win)->_attrs)
 
 /* Funny "characters" enabled for various special function keys for input */
 /* Whether such a key exists depend if its definition is in the terminfo entry */
