@@ -1821,6 +1821,15 @@ getdatasock(char *mode)
 	data_source.su_port = htons(dataport);
 	(void) seteuid((uid_t)0);
 	for (tries = 1; ; tries++) {
+		/*
+		 * We should loop here since it's possible that
+		 * another ftpd instance has passed this point and is
+		 * trying to open a data connection in active mode now.
+		 * Until the other connection is opened, we'll be getting
+		 * EADDRINUSE because no SOCK_STREAM sockets in the system
+		 * can share both local and remote addresses, localIP:20
+		 * and *:* in this case.
+		 */
 		if (bind(s, (struct sockaddr *)&data_source,
 		    data_source.su_len) >= 0)
 			break;
