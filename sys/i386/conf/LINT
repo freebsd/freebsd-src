@@ -1564,6 +1564,21 @@ device		loran0	at isa? port ? irq 5
 device		xrpu0
 
 #
+# MCA devices:
+#
+# The MCA bus device is mca0.  It provides auto-detection and
+# configuration support for all devices on the MCA bus.
+#
+# The 'aha' device provides support for the Adaptec 1640
+#
+# The 'bt' device provides support for various Buslogic/Bustek
+# and Storage Dimensions SCSI adapters.
+#
+# The 'ep' device provides support for the 3Com 3C529 ethernet card.
+#
+controller mca0
+
+#
 # EISA devices:
 #
 # The EISA bus device is eisa0.  It provides auto-detection and
