@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsext.h,v 1.18 1998/04/20 03:57:38 julian Exp $
+ * $Id: devfsext.h,v 1.19 1998/04/20 04:55:17 julian Exp $
  */
 
 #ifndef _SYS_DEVFSEXT_H_
@@ -78,6 +78,7 @@ dev_t devfs_vntodev __P((struct vnode *vn)); /* extract dev_t from devfs vn */
 #define	GID_KMEM	2
 #define	GID_OPERATOR	5
 #define	GID_BIN		7
+#define	GID_GAMES	13
 #define	GID_DIALER	68
 
 #endif /* !_SYS_DEVFSEXT_H_ */
