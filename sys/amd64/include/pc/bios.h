@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.h,v 1.2 1997/08/04 03:31:23 msmith Exp $
+ *      $Id: bios.h,v 1.3 1999/07/29 01:49:19 msmith Exp $
  */
 
 /* 
@@ -92,11 +92,32 @@ struct SMBIOS_table
 
 
 /* 
+ * PnP BIOS presence structure
+ */
+struct PnPBIOS_table 
+{
+    u_int8_t	sig[4];			/* "$PnP */
+    u_int8_t	version;		/* should be 0x10 */
+    u_int8_t	len;    		/* total structure length */
+    u_int16_t	control;		/* BIOS feature flags */
+    u_int8_t	cksum;			/* checksum */
+    u_int32_t	evflagaddr;		/* address of event notificaton flag */
+    u_int16_t	rmentryoffset;		/* real-mode entry offset */
+    u_int16_t	rmentryseg;		/*                 segment */
+    u_int16_t	pmentryoffset;		/* protected-mode entry offset */
+    u_int32_t	pmentrybase;		/*                segment base */
+    u_int32_t	oemdevid;		/* motherboard EISA ID */
+    u_int16_t	rmbiosseg;		/* real-mode BIOS segment */
+    u_int32_t	pmdataseg;		/* protected-mode data segment */
+} __attribute__ ((packed));
+
+
+/* 
  * Exported lookup results 
  */
 extern struct bios32_SDentry	PCIbios;
-extern struct SMBIOS_table	*SMBIOS_table;
-extern struct DMI_table		*DMI_table;
+extern struct SMBIOS_table	*SMBIOStable;
+extern struct PnPBIOS_table	*PnPBIOStable;
 
 struct segment_info {
 	u_int	base;
@@ -133,6 +154,43 @@ struct bios_args {
 };
 
 /*
+ * PnP BIOS return codes
+ */
+#define PNP_SUCCESS				0x00
+#define PNP_NOT_SET_STATICALLY			0x7f
+#define PNP_UNKNOWN_FUNCTION			0x81
+#define PNP_FUNTION_NOT_SUPPORTED		0x82
+#define PNP_INVALID_HANDLE			0x83
+#define PNP_BAD_PARAMETER			0x84
+#define PNP_SET_FAILED				0x85
+#define PNP_EVENTS_NOT_PENDING			0x86
+#define PNP_SYSTEM_NOT_DOCKED			0x87
+#define PNP_NO_ISA_PNP_CARDS			0x88
+#define PNP_UNABLE_TO_DETERMINE_DOCK_CAPABILITIES 0x89
+#define PNP_CONFIG_CHANGE_FAILED_NO_BATTERY	0x8a
+#define PNP_CONFIG_CHANGE_FAILED_RESOURCE_CONFLICT 0x8b
+#define PNP_BUFFER_TOO_SMALL			0x8c
+#define PNP_USE_ESCD_SUPPORT			0x8d
+#define PNP_MESSAGE_NOT_SUPPORTED		0x8e
+#define PNP_HARDWARE_ERROR			0x8f
+
+/*
+ * DMI return codes
+ */
+#define DMI_SUCCESS				0x00
+#define DMI_UNKNOWN_FUNCTION			0x81
+#define DMI_FUNCTION_NOT_SUPPORTED		0x82
+#define DMI_INVALID_HANDLE			0x83
+#define DMI_BAD_PARAMETER			0x84
+#define DMI_INVALID_SUBFUNCTION			0x85
+#define DMI_NO_CHANGE				0x86
+#define DMI_ADD_STRUCTURE_FAILED		0x87
+#define DMI_READ_ONLY				0x8d
+#define DMI_LOCK_NOT_SUPPORTED			0x90
+#define DMI_CURRENTLY_LOCKED			0x91
+#define DMI_INVALID_LOCK			0x92
+
+/*
  * format specifiers and defines for bios16()
  *     s	= short (16 bits)
  *     i	= int (32 bits)
@@ -158,7 +216,13 @@ struct bios_args {
 #define PNP_WRITE_ESCD		"spUD",		0x43
 
 #define PNP_GET_DMI_INFO	"spppppD",	0x50
-#define PNP_GET_DMI		"sppUD",	0x51
+#define PNP_GET_DMI_STRUCTURE	"sppUD",	0x51
+#define PNP_SET_DMI_STRUCTURE	"sppsUD"	0x52
+#define PNP_GET_DMI_CHANGE	"spUD"		0x53
+#define PNP_DMI_CONTROL		"sspsUD"	0x54
+#define PNP_GET_GPNV_INFO	"sppppD"	0x55
+#define PNP_READ_GPNV_DATA	"ssppUD"	0x56
+#define PNP_WRITE_GPNV_DATA	"sspsUD"	0x57
 
 #define PNP_BOOT_CHECK		"sp",		0x60
 #define PNP_COUNT_IPL		"sppp",		0x61
