@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.1 1994/10/12 02:23:14 se Exp $
+**  $Id: ncrcontrol.c,v 1.1.1.1 1994/10/12 12:02:52 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -103,7 +103,7 @@ struct nlist nl[] = {
 };
 
 
-char	*vmunix = _PATH_UNIX;
+const char *vmunix = NULL;
 char	*kmemf  = NULL;
 
 int	kvm_isopen;
@@ -180,6 +180,12 @@ void open_kvm(int flags)
 
 	if (kvm_isopen) return;
 
+#if (__FreeBSD >= 2)
+	vmunix = getbootfile();
+#endif
+	if (vmunix == NULL) {
+		vmunix = _PATH_UNIX;
+	}
 #if defined(__NetBSD__) || (__FreeBSD__ >= 2)
 	kvm = kvm_openfiles(vmunix, kmemf, NULL, flags, errbuf);
 	if (kvm == NULL) {
@@ -476,18 +482,6 @@ do_info(void)
 		printf ("\n");
 	};
 	printf ("\n");
-#ifndef __NetBSD__
-	if (ncr.imask) {
-		u_short v;
-		printf ("Interrupt vector is");
-		if (ncr.imask & (ncr.imask-1))
-			printf (" one of the following:");
-		for (v=15;v>0;v--)
-			if ((ncr.imask>>v)&1)
-				printf (" %d",v);
-		printf (".\n\n");
-	};
-#endif
 }
 
 /*================================================================
@@ -1375,9 +1369,6 @@ static void dump_ncr (void)
 	printf ("       ticks: %d ms\n", ncr.ticks * 10);
 	printf ("   heartbeat: %s", ctime ((time_t*)&ncr.heartbeat));
 	printf ("    lasttime: %s", ctime ((time_t*)&ncr.lasttime));
-#ifndef __NetBSD__
-	printf ("imask/mcount: %x / %d\n", ncr.imask, ncr.mcount);
-#endif
 	printf ("\n");
 
 	if (strchr (debug_opt, 'd') && ncr.regtime.tv_sec) {
