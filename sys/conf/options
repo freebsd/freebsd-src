@@ -387,12 +387,18 @@ OVERRIDE_TUNER			opt_bktr.h
 OVERRIDE_DBX			opt_bktr.h
 OVERRIDE_MSP			opt_bktr.h
 BROOKTREE_SYSTEM_DEFAULT	opt_bktr.h
+BROOKTREE_ALLOC_PAGES		opt_bktr.h
+BKTR_OVERRIDE_CARD		opt_bktr.h
+BKTR_OVERRIDE_TUNER		opt_bktr.h
+BKTR_OVERRIDE_DBX		opt_bktr.h
+BKTR_OVERRIDE_MSP		opt_bktr.h
+BKTR_SYSTEM_DEFAULT		opt_bktr.h
+BKTR_ALLOC_PAGES		opt_bktr.h
 BKTR_USE_PLL			opt_bktr.h	
 BKTR_GPIO_ACCESS		opt_bktr.h
 BKTR_NO_MSP_RESET		opt_bktr.h
 BKTR_430_FX_MODE		opt_bktr.h
 BKTR_SIS_VIA_MODE		opt_bktr.h
-
 
 # meteor opt_meteor.h
 METEOR_ALLOC_PAGES	opt_meteor.h
