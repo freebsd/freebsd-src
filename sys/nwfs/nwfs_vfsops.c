@@ -352,7 +352,7 @@ nwfs_root(struct mount *mp, struct vnode **vpp) {
 			NCPFATAL("Can't obtain volume info\n");
 			return ENOENT;
 		}
-		fattr.nameLen = strlen(strcpy(fattr.entryName, NWFS_ROOTVOL));
+		fattr.nameLen = strlen(strcpy(fattr.entryName, "#.ROOT"));
 		nmp->n_rootent.f_parent = nmp->n_rootent.f_id;
 	}
 	error = nwfs_nget(mp, nmp->n_rootent, &fattr, NULL, &vp);
