@@ -67,7 +67,7 @@ svc_run()
 		readfds = svc_fdset;
 		cleanfds = svc_fdset;
 		rwlock_unlock(&svc_fd_lock);
-		switch (select(svc_maxfd+1, &readfds, NULL, NULL, &timeout)) {
+		switch (_select(svc_maxfd+1, &readfds, NULL, NULL, &timeout)) {
 		case -1:
 			FD_ZERO(&readfds);
 			if (errno == EINTR) {
