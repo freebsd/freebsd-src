@@ -1,13 +1,8 @@
 # $FreeBSD$
 
+SCRIPTS=	krb5-config
 MAN=		krb5-config.1
 CLEANFILES=	krb5-config
-
-all:		krb5-config
-
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    krb5-config ${DESTDIR}${BINDIR}/krb5-config
 
 krb5-config: krb5-config.in
 	sed	-e "s,@PACKAGE\@,FreeBSD heimdal,g" \
