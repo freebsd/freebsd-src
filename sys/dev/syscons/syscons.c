@@ -287,7 +287,7 @@ int pcprobe(struct isa_device *dev)
 		}
 	}
 	kbd_wait();
-	return 1;
+	return (IO_KBDSIZE);
 }
 
 
