@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,35 +29,44 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: sched.h,v 1.1 1998/03/08 02:17:26 jb Exp $
+ *
+ * POSIX 1003.1c scheduling definitions.
+ *
  */
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
 
-int
-sched_yield(void)
-{
-	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+#ifndef _SCHED_H_
+#define _SCHED_H_
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <time.h>
 
-	/* Schedule the next thread: */
-	_thread_kern_sched(NULL);
+/*
+ * Scheduling policies (unimplemented)
+ */
+#define	SCHED_FIFO	0	/* First in-first out scheduling policy.  */
+#define	SCHED_RR	1	/* Round robin scheduling policy.         */
+#define	SCHED_OTHER	2	/* Another scheduling policy.             */
 
-	/* Always return no error. */
-	return(0);
-}
+/*
+ * POSIX 1003.1 scheduling parameter structure.
+ */
+struct sched_param {
+	int	sched_priority;	/* Process execution scheduling priority. */
+};
 
-/* Draft 4 yield */
-void
-pthread_yield(void)
-{
-	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+/*
+ * Scheduling function prototype definitions.
+ */
+__BEGIN_DECLS
+int	sched_getparam __P((pid_t, const struct sched_param *));
+int	sched_getscheduler __P((pid_t));
+int	sched_get_priority_max __P((int));
+int	sched_get_priority_min __P((int));
+int	sched_rr_get_interval __P((pid_t, struct timespec *));
+int	sched_setparam __P((pid_t, const struct sched_param *));
+int	sched_setscheduler __P((pid_t, int, const struct sched_param *));
+int	sched_yield __P((void));
+__END_DECLS
 
-	/* Schedule the next thread: */
-	_thread_kern_sched(NULL);
-
-	/* Nothing to return. */
-	return;
-}
-#endif
+#endif /* _SCHED_H_ */
