@@ -284,6 +284,10 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_lookup)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dlabel,
 		    struct componentname *cnp);
+	vm_prot_t	(*mpo_check_vnode_mmap_perms)(struct ucred *cred,
+		    struct vnode *vp, struct label *label, int newmapping);
+	int	(*mpo_check_vnode_op)(struct ucred *cred, struct vnode *vp,
+		    struct label *label, int op);
 	int	(*mpo_check_vnode_open)(struct ucred *cred, struct vnode *vp,
 		    struct label *label, mode_t acc_mode);
 	int	(*mpo_check_vnode_readdir)(struct ucred *cred,
@@ -320,10 +324,6 @@ struct mac_policy_ops {
 		    struct timespec atime, struct timespec mtime);
 	int	(*mpo_check_vnode_stat)(struct ucred *cred, struct vnode *vp,
 		    struct label *label);
-	vm_prot_t	(*mpo_check_vnode_mmap_perms)(struct ucred *cred,
-		    struct vnode *vp, struct label *label, int newmapping);
-	int	(*mpo_check_vnode_op)(struct ucred *cred, struct vnode *vp,
-		    struct label *label, int op);
 };
 
 typedef const void *macop_t;
@@ -425,6 +425,8 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_GETACL,
 	MAC_CHECK_VNODE_GETEXTATTR,
 	MAC_CHECK_VNODE_LOOKUP,
+	MAC_CHECK_VNODE_MMAP_PERMS,
+	MAC_CHECK_VNODE_OP,
 	MAC_CHECK_VNODE_OPEN,
 	MAC_CHECK_VNODE_READDIR,
 	MAC_CHECK_VNODE_READLINK,
@@ -439,8 +441,6 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_SETOWNER,
 	MAC_CHECK_VNODE_SETUTIMES,
 	MAC_CHECK_VNODE_STAT,
-	MAC_CHECK_VNODE_MMAP_PERMS,
-	MAC_CHECK_VNODE_OP,
 };
 
 struct mac_policy_op_entry {
