@@ -69,11 +69,13 @@ is set as defined by
 .It
 The parent process-ID of all of the calling process's existing child
 processes are set to 1; the initialization process
-(see the
+inherits each of these processes
+(see
+.Xr init 8
+and the
 .Sx DEFINITIONS
 section of
-.Xr intro 2 )
-inherits each of these processes.
+.Xr intro 2 ).
 .It
 If the termination of the process causes any process group
 to become orphaned (usually because the parents of all members
@@ -111,7 +113,8 @@ can never return.
 .Xr fork 2 ,
 .Xr sigaction 2 ,
 .Xr wait 2 ,
-.Xr exit 3
+.Xr exit 3 ,
+.Xr init 8
 .Sh STANDARDS
 The
 .Fn _exit
