@@ -48,6 +48,12 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   unsigned char search_term[MAX_LEN+1], *tempptr, *found;
   WINDOW *dialog, *text;
 
+  if (height < 0 || width < 0) {
+    endwin();
+    fprintf(stderr, "\nAutosizing is impossible in dialog_textbox().\n");
+    exit(-1);
+  }
+
   search_term[0] = '\0';    /* no search term entered yet */
 
   /* Open input file for reading */
