@@ -1,18 +1,22 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.8 1994/11/10 03:22:27 phk Exp $
+# $Id: extract.sh,v 1.9 1994/11/11 23:27:05 jkh Exp $
 
 DDIR=/
 
 if [ -f bin_tgz.aa ] ; then
 	# Temporary kludge for pathological bindist.
-	cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
+	if [ -f $DDIR/etc/myname ]; then
+		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
+	fi
 	echo; echo "Extracting bindist, please wait.  Ignore any messages from"
 	echo "cpio saying \"No such file or directory\".  It doesn't know what"
 	echo "it's talking about.."; echo
 	cat bin_tgz.?? | zcat | ( cd $DDIR ; cpio -H tar -idumV )
-	# Add back what the bindist nuked.
-	cp $DDIR/stand/etc/myname $DDIR/etc
-	cat $DDIR/stand/etc/hosts >> $DDIR/etc/hosts
+	if [ -f $DDIR/stand/etc/myname ]; then
+		# Add back what the bindist nuked.
+		cp $DDIR/stand/etc/myname $DDIR/etc
+		cat $DDIR/stand/etc/hosts >> $DDIR/etc/hosts
+	fi
 fi
 
 for i in *.aa
