@@ -1553,7 +1553,9 @@ seq_midiinput(sc_p scp, mididev_info *md)
 
 	if ((md->flags & MIDI_F_READING) != 0 && md->intrarg == sd) {
 		/* Read the input data. */
+		mtx_unlock(&scp->devinfo->flagqueue_mtx);
 		while (md->synth.readraw(md, &event[1], sizeof(event[1]), &lenr, 1) == 0) {
+			mtx_lock(&scp->devinfo->flagqueue_mtx);
 			tstamp = seq_gettime() - scp->seq_time;
 			if (tstamp != scp->prev_input_time) {
 				/* Insert a wait between events. */
@@ -1566,7 +1568,9 @@ seq_midiinput(sc_p scp, mididev_info *md)
 			event[2] = midiunit;
 			event[3] = 0;
 			seq_copytoinput(scp, event, sizeof(event));
+			mtx_unlock(&scp->devinfo->flagqueue_mtx);
 		}
+		mtx_lock(&scp->devinfo->flagqueue_mtx);
 	}
 }
 
@@ -2193,7 +2197,7 @@ seq_panic(sc_p scp)
 static int
 seq_reset(sc_p scp)
 {
-	int unit, chn, lenw;
+	int unit, chn, lenw, ret;
 	seqdev_info *sd;
 	mididev_info *md;
 	u_char c[3];
@@ -2222,15 +2226,20 @@ seq_reset(sc_p scp)
 	if (scp->seq_mode == SND_DEV_MUSIC) {
 		for (chn = 0 ; chn < 16 ; chn++) {
 			TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
+				mtx_unlock(&sd->flagqueue_mtx);
+				ret = 0;
 				if (md->synth.controller(md, chn, 123, 0) == EAGAIN /* All notes off. */
 				    || md->synth.controller(md, chn, 121, 0) == EAGAIN /* Reset all controllers. */
 				    || md->synth.bender(md, chn, 1 << 13) == EAGAIN) /* Reset pitch bend. */
-					return (EAGAIN);
+					ret = EAGAIN;
+				mtx_lock(&sd->flagqueue_mtx);
+				return (ret);
 			}
 		}
 	} else {
 		TAILQ_FOREACH(md, &scp->midi_open, md_linkseq) {
 			for (chn = 0 ; chn < 16 ; chn++) {
+				mtx_unlock(&sd->flagqueue_mtx);
 				c[0] = 0xb0 | (chn & 0x0f);
 				c[1] = (u_char)0x78; /* All sound off */
 				c[2] = (u_char)0;
@@ -2239,6 +2248,7 @@ seq_reset(sc_p scp)
 				md->synth.writeraw(md, c, 3, &lenw, 0);
 				c[1] = (u_char)0x79; /* Reset all controller */
 				md->synth.writeraw(md, c, 3, &lenw, 0);
+				mtx_lock(&sd->flagqueue_mtx);
 			}
 		}
 		seq_sync(scp);
