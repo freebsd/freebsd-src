@@ -64,69 +64,9 @@
 #define	IO_NPX		0x0F0		/* Numeric Coprocessor */
 
 		/* Cards */
-					/* 0x100 - 0x16F Open */
-
-#define	IO_WD2		0x170		/* Secondary Fixed Disk Controller */
-
-#define	IO_PMP2		0x178		/* 82347 Power Management Peripheral */
-
-					/* 0x17A - 0x1EF Open */
-
-#define	IO_WD1		0x1F0		/* Primary Fixed Disk Controller */
-#define	IO_GAME		0x201		/* Game Controller */
-
-					/* 0x202 - 0x22A Open */
-
-#define	IO_ASC2		0x22B		/* AmiScan addr.grp. 2 */
-
-					/* 0x230 - 0x26A Open */
-
-#define	IO_ASC3		0x26B		/* AmiScan addr.grp. 3 */
-#define	IO_GSC1		0x270 /* -- 0x27B! GeniScan GS-4500 addr.grp. 1 */
-#define	IO_LPT2		0x278		/* Parallel Port #2 */
-
-					/* 0x280 - 0x2AA Open */
-
-#define	IO_ASC4		0x2AB		/* AmiScan addr.grp. 4 */
-
-					/* 0x2B0 - 0x2DF Open */
-
-#define	IO_GSC2		0x2E0		/* GeniScan GS-4500 addr.grp. 2 */
-#define	IO_COM4		0x2E8		/* COM4 i/o address */
-#define	IO_ASC5		0x2EB		/* AmiScan addr.grp. 5 */
-
-					/* 0x2F0 - 0x2F7 Open */
-
-#define	IO_COM2		0x2F8		/* COM2 i/o address */
-
-					/* 0x300 - 0x32A Open */
-
-#define	IO_ASC6		0x32B		/* AmiScan addr.grp. 6 */
-#define	IO_AHA0		0x330		/* adaptec 1542 default addr. */
-#define	IO_BT0		0x330		/* bustek 742a default addr. */
-#define	IO_UHA0		0x330		/* ultrastore 14f default addr. */
-#define	IO_AHA1		0x334		/* adaptec 1542 default addr. */
-#define	IO_BT1		0x334		/* bustek 742a default addr. */
-
-					/* 0x340 - 0x36A Open */
-
-#define	IO_ASC7		0x36B		/* AmiScan addr.grp. 7 */
-#define	IO_GSC3		0x370		/* GeniScan GS-4500 addr.grp. 3 */
-#define	IO_FD2		0x370		/* secondary base i/o address */
-#define	IO_LPT1		0x378		/* Parallel Port #1 */
-
-					/* 0x380 - 0x3AA Open */
-
-#define	IO_ASC8		0x3AB		/* AmiScan addr.grp. 8 */
-#define	IO_MDA		0x3B0		/* Monochome Adapter */
-#define	IO_LPT3		0x3BC		/* Monochome Adapter Printer Port */
 #define	IO_VGA		0x3C0		/* E/VGA Ports */
 #define	IO_CGA		0x3D0		/* CGA Ports */
-#define	IO_GSC4		0x3E0		/* GeniScan GS-4500 addr.grp. 4 */
-#define	IO_COM3		0x3E8		/* COM3 i/o address */
-#define	IO_ASC1		0x3EB		/* AmiScan addr.grp. 1 */
-#define	IO_FD1		0x3F0		/* primary base i/o address */
-#define	IO_COM1		0x3F8		/* COM1 i/o address */
+#define	IO_MDA		0x3B0		/* Monochome Adapter */
 
 #define	IO_ISAEND	0x3FF		/* End (actually Max) of I/O Regs */
 #endif /* !IO_ISABEGIN */
@@ -138,25 +78,10 @@
 #ifndef	IO_ISASIZES
 #define	IO_ISASIZES
 
-#define	IO_ASCSIZE	5		/* AmiScan GI1904-based hand scanner */
 #define	IO_CGASIZE	12		/* CGA controllers */
-#define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
-#define	IO_DMASIZE	16		/* 8237 DMA controllers */
-#define	IO_DPGSIZE	32		/* 74LS612 DMA page registers */
-#define	IO_FDCSIZE	8		/* Nec765 floppy controllers */
-#define	IO_GAMSIZE	16		/* AT compatible game controllers */
-#define	IO_GSCSIZE	8		/* GeniScan GS-4500G hand scanner */
-#define	IO_ICUSIZE	16		/* 8259A interrupt controllers */
-#define	IO_KBDSIZE	16		/* 8042 Keyboard controllers */
-#define	IO_LPTSIZE	8		/* LPT controllers, some use only 4 */
 #define	IO_MDASIZE	12		/* Monochrome display controllers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
-#define	IO_PMPSIZE	2		/* 82347 power management peripheral */
-#define	IO_PSMSIZE	5		/* 8042 Keyboard controllers */
-#define	IO_RTCSIZE	16		/* CMOS real time clock, NMI control */
-#define	IO_TMRSIZE	16		/* 8253 programmable timers */
 #define	IO_VGASIZE	16		/* VGA controllers */
-#define	IO_WDCSIZE	8		/* WD compatible disk controllers */
 
 #endif /* !IO_ISASIZES */
 
