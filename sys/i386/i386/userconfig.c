@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.75 1996/12/15 10:06:07 kato Exp $
+ **      $Id: userconfig.c,v 1.76 1996/12/15 16:24:07 se Exp $
  **/
 
 /**
@@ -1671,8 +1671,8 @@ editparams(DEV_LIST *dev)
     ep_iobase:
 	if (dev->iobase > 0)
 	{
-	    puthelp("  IO Port address (Hexadecimal, 0x1-0x2000)");
-	    ret = editval(18,18,5,1,0x1,0x2000,&(dev->iobase),(dev->attrib & FLG_FIXIOBASE));
+	    puthelp("  IO Port address (Hexadecimal, 0x1-0xffff)");
+	    ret = editval(18,18,5,1,0x1,0xffff,&(dev->iobase),(dev->attrib & FLG_FIXIOBASE));
 	    switch(ret)
 	    {
 	    case KEY_EXIT:
@@ -2220,7 +2220,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.75 1996/12/15 10:06:07 kato Exp $
+ *      $Id: userconfig.c,v 1.76 1996/12/15 16:24:07 se Exp $
  */
 
 #include "scbus.h"
