@@ -44,8 +44,8 @@
 /*
  * Part of this code was heavily inspired by the linux driver from
  * Thomas Sailer (sailer@ife.ee.ethz.ch)
- * Just about everything has been touched and reworked in some way but 
- * the all the underlying sequences/timing/register values are from 
+ * Just about everything has been touched and reworked in some way but
+ * the all the underlying sequences/timing/register values are from
  * Thomas' code.
  *
 */
@@ -78,7 +78,7 @@ typedef struct es_chinfo {
 	struct es_info *parent;
 	pcm_channel *channel;
 	snd_dbuf *buffer;
-	int dir;
+	int dir, num;
 	u_int32_t fmt;
 } es_chinfo_t;
 
@@ -87,6 +87,7 @@ typedef struct es_info {
 	bus_space_handle_t sh;
 	bus_dma_tag_t	parent_dmat;
 
+	int num;
 	/* Contents of board's registers */
 	u_long		ctrl;
 	u_long		sctrl;
@@ -94,30 +95,30 @@ typedef struct es_info {
 } es_info_t;
 
 /* -------------------------------------------------------------------- */
-/* prototypes */
 
+/* prototypes */
+static void     es_intr(void *);
+
+static void	es1371_wrcodec(void *, int, u_int32_t);
+static u_int32_t es1371_rdcodec(void *, int);
 static u_int	es1371_wait_src_ready(es_info_t *);
 static void	es1371_src_write(es_info_t *, u_short, unsigned short);
-static u_int	es1371_adc_rate (es_info_t *, u_int, int);
-static u_int	es1371_dac1_rate(es_info_t *, u_int, int);
-static u_int	es1371_dac2_rate(es_info_t *, u_int, int);
-static void	es1371_wrcodec(void *, int,   u_int32_t);
-static u_int32_t	es1371_rdcodec(void *, u_int32_t);
+static u_int	es1371_adc_rate(es_info_t *, u_int, int);
+static u_int	es1371_dac_rate(es_info_t *, u_int, int);
 static int	es1371_init(es_info_t *es);
 static int	eschan1371_setspeed(void *data, u_int32_t speed);
 
-static int      es_init(struct es_info *);
-static void     es_intr(void *);
-static int      write_codec(struct es_info *, u_char, u_char);
+static int      es1370_init(struct es_info *);
+static int      es1370_wrcodec(struct es_info *, u_char, u_char);
 
 /* channel interface */
 static void *eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int	eschan_setdir(void *data, int dir);
-static int	eschan_setformat(void *data, u_int32_t format);
-static int	eschan_setspeed(void *data, u_int32_t speed);
-static int	eschan_setblocksize(void *data, u_int32_t blocksize);
-static int	eschan_trigger(void *data, int go);
-static int	eschan_getptr(void *data);
+static int   eschan_setdir(void *data, int dir);
+static int   eschan_setformat(void *data, u_int32_t format);
+static int   eschan1370_setspeed(void *data, u_int32_t speed);
+static int   eschan_setblocksize(void *data, u_int32_t blocksize);
+static int   eschan_trigger(void *data, int go);
+static int   eschan_getptr(void *data);
 static pcmchan_caps *eschan_getcaps(void *data);
 
 static pcmchan_caps es_playcaps = {
@@ -132,11 +133,22 @@ static pcmchan_caps es_reccaps = {
 	AFMT_STEREO | AFMT_S16_LE
 };
 
-static pcm_channel es_chantemplate = {
+static pcm_channel es1370_chantemplate = {
 	eschan_init,
 	eschan_setdir,
 	eschan_setformat,
-	eschan_setspeed,
+	eschan1370_setspeed,
+	eschan_setblocksize,
+	eschan_trigger,
+	eschan_getptr,
+	eschan_getcaps,
+};
+
+static pcm_channel es1371_chantemplate = {
+	eschan_init,
+	eschan_setdir,
+	eschan_setformat,
+	eschan1371_setspeed,
 	eschan_setblocksize,
 	eschan_trigger,
 	eschan_getptr,
@@ -145,17 +157,17 @@ static pcm_channel es_chantemplate = {
 
 /* -------------------------------------------------------------------- */
 
-/* The mixer interface */
+/* The es1370 mixer interface */
 
-static int es_mixinit(snd_mixer *m);
-static int es_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int es_mixsetrecsrc(snd_mixer *m, u_int32_t src);
+static int es1370_mixinit(snd_mixer *m);
+static int es1370_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
+static int es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src);
 
-static snd_mixer es_mixer = {
-	"Ensoniq AudioPCI 1370 mixer",
-	es_mixinit,
-	es_mixset,
-	es_mixsetrecsrc,
+static snd_mixer es1370_mixer = {
+	"AudioPCI 1370 mixer",
+	es1370_mixinit,
+	es1370_mixset,
+	es1370_mixsetrecsrc,
 };
 
 static const struct {
@@ -175,10 +187,11 @@ static const struct {
 	[SOUND_MIXER_LINE2]	= { 6, 0xc, 0x0, 0, 0x0100, 1 },
 	[SOUND_MIXER_LINE3]	= { 7, 0xd, 0x0, 0, 0x0200, 1 },
 	[SOUND_MIXER_MIC]	= { 8, 0xe, 0x0, 0, 0x0001, 1 },
-	[SOUND_MIXER_OGAIN]	= { 9, 0xf, 0x0, 0, 0x0000, 1 } };
+	[SOUND_MIXER_OGAIN]	= { 9, 0xf, 0x0, 0, 0x0000, 1 }
+};
 
 static int
-es_mixinit(snd_mixer *m)
+es1370_mixinit(snd_mixer *m)
 {
 	int i;
 	u_int32_t v;
@@ -195,7 +208,7 @@ es_mixinit(snd_mixer *m)
 }
 
 static int
-es_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+es1370_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	int l, r, rl, rr;
 
@@ -209,14 +222,14 @@ es_mixset(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	}
 	if (mixtable[dev].stereo) {
 		rr = (r < 10)? 0x80 : 15 - (r - 10) / 6;
-		write_codec(mix_getdevinfo(m), mixtable[dev].right, rr);
+		es1370_wrcodec(mix_getdevinfo(m), mixtable[dev].right, rr);
 	}
-	write_codec(mix_getdevinfo(m), mixtable[dev].left, rl);
+	es1370_wrcodec(mix_getdevinfo(m), mixtable[dev].left, rl);
 	return l | (r << 8);
 }
 
 static int
-es_mixsetrecsrc(snd_mixer *m, u_int32_t src)
+es1370_mixsetrecsrc(snd_mixer *m, u_int32_t src)
 {
 	int i, j = 0;
 
@@ -225,17 +238,17 @@ es_mixsetrecsrc(snd_mixer *m, u_int32_t src)
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((src & (1 << i)) != 0) j |= mixtable[i].recmask;
 
-	write_codec(mix_getdevinfo(m), CODEC_LIMIX1, j & 0x55);
-	write_codec(mix_getdevinfo(m), CODEC_RIMIX1, j & 0xaa);
-	write_codec(mix_getdevinfo(m), CODEC_LIMIX2, (j >> 8) & 0x17);
-	write_codec(mix_getdevinfo(m), CODEC_RIMIX2, (j >> 8) & 0x0f);
-	write_codec(mix_getdevinfo(m), CODEC_OMIX1, 0x7f);
-	write_codec(mix_getdevinfo(m), CODEC_OMIX2, 0x3f);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_LIMIX1, j & 0x55);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_RIMIX1, j & 0xaa);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_LIMIX2, (j >> 8) & 0x17);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_RIMIX2, (j >> 8) & 0x0f);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_OMIX1, 0x7f);
+	es1370_wrcodec(mix_getdevinfo(m), CODEC_OMIX2, 0x3f);
 	return src;
 }
 
 static int
-write_codec(struct es_info *es, u_char i, u_char data)
+es1370_wrcodec(struct es_info *es, u_char i, u_char data)
 {
 	int		wait = 100;	/* 100 msec timeout */
 
@@ -248,7 +261,7 @@ write_codec(struct es_info *es, u_char i, u_char data)
 		}
 		DELAY(1000);
 	} while (--wait);
-	printf("pcm: write_codec timed out\n");
+	printf("pcm: es1370_wrcodec timed out\n");
 	return -1;
 }
 
@@ -265,6 +278,7 @@ eschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->channel = c;
 	ch->buffer = b;
 	ch->buffer->bufsize = ES_BUFFSIZE;
+	ch->num = ch->parent->num++;
 	if (chn_allocbuf(ch->buffer, es->parent_dmat) == -1) return NULL;
 	return ch;
 }
@@ -315,7 +329,7 @@ eschan_setformat(void *data, u_int32_t format)
 }
 
 static int
-eschan_setspeed(void *data, u_int32_t speed)
+eschan1370_setspeed(void *data, u_int32_t speed)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
@@ -324,11 +338,20 @@ eschan_setspeed(void *data, u_int32_t speed)
 	es->ctrl |= DAC2_SRTODIV(speed) << CTRL_SH_PCLKDIV;
 	bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
 	/* rec/play speeds locked together - should indicate in flags */
-#if 0
-	if (ch->direction == PCMDIR_PLAY) d->rec[0].speed = speed;
-	else d->play[0].speed = speed;
-#endif
 	return speed; /* XXX calc real speed */
+}
+
+int
+eschan1371_setspeed(void *data, u_int32_t speed)
+{
+  	struct es_chinfo *ch = data;
+  	struct es_info *es = ch->parent;
+
+	if (ch->dir == PCMDIR_PLAY) {
+  		return es1371_dac_rate(es, speed, 3 - ch->num); /* play */
+	} else {
+  		return es1371_adc_rate(es, speed, 1); /* record */
+	}
 }
 
 static int
@@ -396,7 +419,7 @@ eschan_getcaps(void *data)
 
 /* The interrupt handler */
 static void
-es_intr (void *p)
+es_intr(void *p)
 {
 	struct es_info *es = p;
 	unsigned	intsrc, sctrl;
@@ -412,70 +435,41 @@ es_intr (void *p)
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, sctrl);
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 
-	if (intsrc & STAT_DAC2)	chn_intr(es->pch.channel);
 	if (intsrc & STAT_ADC) chn_intr(es->rch.channel);
+	if (intsrc & STAT_DAC1);
+	if (intsrc & STAT_DAC2)	chn_intr(es->pch.channel);
 }
 
+/* ES1370 specific */
+static int
+es1370_init(struct es_info *es)
+{
+	es->ctrl = CTRL_CDC_EN | CTRL_SERR_DIS |
+		(DAC2_SRTODIV(DSP_DEFAULT_SPEED) << CTRL_SH_PCLKDIV);
+	bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
 
-/* ES1371 specific code */
+	es->sctrl = 0;
+	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 
-#define CODEC_ID_SESHIFT	10
-#define CODEC_ID_SEMASK		0x1f
+	es1370_wrcodec(es, CODEC_RES_PD, 3);/* No RST, PD */
+	es1370_wrcodec(es, CODEC_CSEL, 0);	/* CODEC ADC and CODEC DAC use
+					         * {LR,B}CLK2 and run off the LRCLK2
+					         * PLL; program DAC_SYNC=0!  */
+	es1370_wrcodec(es, CODEC_ADSEL, 0);/* Recording source is mixer */
+	es1370_wrcodec(es, CODEC_MGAIN, 0);/* MIC amp is 0db */
 
-#define CODEC_PIRD		0x00800000  /* 0 = write AC97 register */
-#define CODEC_PIADD_MASK	0x007f0000
-#define CODEC_PIADD_SHIFT	16
-#define CODEC_PIDAT_MASK	0x0000ffff
-#define CODEC_PIDAT_SHIFT	0
+	return 0;
+}
 
-#define CODEC_PORD		0x00800000  /* 0 = write AC97 register */
-#define CODEC_POADD_MASK	0x007f0000
-#define CODEC_POADD_SHIFT	16
-#define CODEC_PODAT_MASK	0x0000ffff
-#define CODEC_PODAT_SHIFT	0
-
-#define CODEC_RDY		0x80000000  /* AC97 read data valid */
-#define CODEC_WIP		0x40000000  /* AC97 write in progress */
-
-#define ES1370_REG_CONTROL	0x00
-#define ES1370_REG_SERIAL_CONTROL	0x20
-#define ES1371_REG_CODEC	0x14
-#define ES1371_REG_LEGACY	0x18	     /* W/R: Legacy control/status register */
-#define ES1371_REG_SMPRATE	0x10	     /* W/R: Codec rate converter interface register */
-
-#define ES1371_SYNC_RES		(1<<14)	 /* Warm AC97 reset */
-#define ES1371_DIS_R1		(1<<19)	 /* record channel accumulator update disable */
-#define ES1371_DIS_P2		(1<<20)	 /* playback channel 2 accumulator update disable */
-#define ES1371_DIS_P1		(1<<21)	 /* playback channel 1 accumulator update disable */
-#define ES1371_DIS_SRC		(1<<22)	 /* sample rate converter disable */
-#define ES1371_SRC_RAM_BUSY	(1<<23)	 /* R/O: sample rate memory is busy */
-#define ES1371_SRC_RAM_WE	(1<<24)	 /* R/W: read/write control for sample rate converter */
-#define ES1371_SRC_RAM_ADDRO(o) (((o)&0x7f)<<25)	/* address of the sample rate converter */
-#define ES1371_SRC_RAM_DATAO(o) (((o)&0xffff)<<0)	/* current value of the sample rate converter */
-#define ES1371_SRC_RAM_DATAI(i) (((i)>>0)&0xffff)	/* current value of the sample rate converter */
-
-/*
- *  Sample rate converter addresses
- */
-
-#define ES_SMPREG_DAC1		0x70
-#define ES_SMPREG_DAC2		0x74
-#define ES_SMPREG_ADC		0x78
-#define ES_SMPREG_TRUNC_N	0x00
-#define ES_SMPREG_INT_REGS	0x01
-#define ES_SMPREG_VFREQ_FRAC	0x03
-#define ES_SMPREG_VOL_ADC	0x6c
-#define ES_SMPREG_VOL_DAC1	0x7c
-#define ES_SMPREG_VOL_DAC2	0x7e
-
-
+/* ES1371 specific */
 int
 es1371_init(struct es_info *es)
 {
 	int idx;
 
-	if(debug > 0) printf("es_init\n");
-	  
+	if (debug > 0) printf("es_init\n");
+
+	es->num = 0;
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
@@ -489,7 +483,7 @@ es1371_init(struct es_info *es)
 	/* Init the sample rate converter */
 	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, ES1371_DIS_SRC);
 	for (idx = 0; idx < 0x80; idx++)
-	  es1371_src_write(es, idx, 0);
+		es1371_src_write(es, idx, 0);
 	es1371_src_write(es, ES_SMPREG_DAC1 + ES_SMPREG_TRUNC_N,  16 << 4);
 	es1371_src_write(es, ES_SMPREG_DAC1 + ES_SMPREG_INT_REGS, 16 << 10);
 	es1371_src_write(es, ES_SMPREG_DAC2 + ES_SMPREG_TRUNC_N,  16 << 4);
@@ -501,8 +495,8 @@ es1371_init(struct es_info *es)
 	es1371_src_write(es, ES_SMPREG_VOL_DAC2,                  1 << 12);
 	es1371_src_write(es, ES_SMPREG_VOL_DAC2 + 1,              1 << 12);
 	es1371_adc_rate (es, 22050,                               1);
-	es1371_dac1_rate(es, 22050,                               1);
-	es1371_dac2_rate(es, 22050,                               1);
+	es1371_dac_rate (es, 22050,                               1);
+	es1371_dac_rate (es, 22050,                               2);
 	/* WARNING:
 	 * enabling the sample rate converter without properly programming
 	 * its parameters causes the chip to lock up (the SRC busy bit will
@@ -514,104 +508,98 @@ es1371_init(struct es_info *es)
 	return (0);
 }
 
-void 
+static void
 es1371_wrcodec(void *s, int addr, u_int32_t data)
 {
-  /*	unsigned long flags; */
-    int sl;
-    unsigned t, x;
+    	int sl;
+    	unsigned t, x;
 	struct es_info *es = (struct es_info*)s;
 
-	if(debug > 0) printf("wrcodec addr 0x%x data 0x%x\n",addr,data);
+	if (debug > 0) printf("wrcodec addr 0x%x data 0x%x\n", addr, data);
 
 	for (t = 0; t < 0x1000; t++)
-	  if(!(bus_space_read_4(es->st, es->sh,(ES1371_REG_CODEC & CODEC_WIP))))
+	  	if (!(bus_space_read_4(es->st, es->sh,(ES1371_REG_CODEC & CODEC_WIP))))
 			break;
 	sl = spltty();
 	/* save the current state for later */
- 	x =  bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE);
+ 	x = bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE);
 	/* enable SRC state data in SRC mux */
 	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE,
-	  (es1371_wait_src_ready(s) & 
-	   (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1)));
+	  	(es1371_wait_src_ready(s) &
+	   	(ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1)));
 	/* wait for a SAFE time to write addr/data and then do it, dammit */
 	for (t = 0; t < 0x1000; t++)
-	  if (( bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE) & 0x00070000) == 0x00010000) 
-		break;
-	
-	if(debug > 2) printf("one b_s_w: 0x%x 0x%x 0x%x\n",es->sh,ES1371_REG_CODEC,
+	  	if ((bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE) & 0x00070000) == 0x00010000)
+			break;
+
+	if (debug > 2) printf("one b_s_w: 0x%x 0x%x 0x%x\n", es->sh, ES1371_REG_CODEC,
 			 ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) |
 			 ((data << CODEC_PODAT_SHIFT) & CODEC_PODAT_MASK));
-	
+
 	bus_space_write_4(es->st, es->sh,ES1371_REG_CODEC,
 			  ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) |
 			  ((data << CODEC_PODAT_SHIFT) & CODEC_PODAT_MASK));
 	/* restore SRC reg */
 	es1371_wait_src_ready(s);
-	if(debug > 2) printf("two b_s_w: 0x%x 0x%x 0x%x\n",es->sh,ES1371_REG_SMPRATE,x);
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,x);
+	if (debug > 2) printf("two b_s_w: 0x%x 0x%x 0x%x\n", es->sh, ES1371_REG_SMPRATE, x);
+	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, x);
 	splx(sl);
 }
 
-u_int32_t
-es1371_rdcodec(void *s, u_int32_t addr)
+static u_int32_t
+es1371_rdcodec(void *s, int addr)
 {
-  /*  unsigned long flags; */
-  int sl;
-  unsigned t, x;
+  	int sl;
+  	unsigned t, x;
+  	struct es_info *es = (struct es_info *)s;
 
-  struct es_info *es = (struct es_info *)s;
+  	if (debug > 0) printf("rdcodec addr 0x%x ... ", addr);
 
-  if(debug > 0) printf("rdcodec addr 0x%x ... ",addr); 
-  
-  for (t = 0; t < 0x1000; t++)
-	if (!(x = bus_space_read_4(es->st,es->sh,ES1371_REG_CODEC) & CODEC_WIP))
-	  break;
-   if(debug >0) printf("loop 1 t 0x%x x 0x%x ",t,x);
+  	for (t = 0; t < 0x1000; t++)
+		if (!(x = bus_space_read_4(es->st, es->sh, ES1371_REG_CODEC) & CODEC_WIP))
+	  		break;
+   	if (debug > 0) printf("loop 1 t 0x%x x 0x%x ", t, x);
 
-  sl = spltty();
+  	sl = spltty();
 
-  /* save the current state for later */
-  x =  bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE);
-  /* enable SRC state data in SRC mux */
-  bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE,
-					(es1371_wait_src_ready(s) & 
-					 (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1)));
-  /* wait for a SAFE time to write addr/data and then do it, dammit */
-  for (t = 0; t < 0x5000; t++)
-	if (( x = bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE) & 0x00070000) == 0x00010000) 
-	  break;
-  if(debug >0) printf("loop 2 t 0x%x x 0x%x ",t,x);
-  bus_space_write_4(es->st, es->sh,ES1371_REG_CODEC,
-					((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) | CODEC_PORD);
+  	/* save the current state for later */
+  	x = bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE);
+  	/* enable SRC state data in SRC mux */
+  	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE,
+			  (es1371_wait_src_ready(s) &
+			  (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1)));
+  	/* wait for a SAFE time to write addr/data and then do it, dammit */
+  	for (t = 0; t < 0x5000; t++)
+		if ((x = bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE) & 0x00070000) == 0x00010000)
+	  		break;
+  	if (debug > 0) printf("loop 2 t 0x%x x 0x%x ", t, x);
+  	bus_space_write_4(es->st, es->sh, ES1371_REG_CODEC,
+			  ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) | CODEC_PORD);
 
-  /* restore SRC reg */
-  es1371_wait_src_ready(s);
-  bus_space_write_4(es->st,es->sh,ES1371_REG_SMPRATE,x);
+  	/* restore SRC reg */
+  	es1371_wait_src_ready(s);
+  	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, x);
 
-  splx(sl);
+  	splx(sl);
 
-  /* now wait for the stinkin' data (RDY) */
-  for (t = 0; t < 0x1000; t++)
-	if ((x = bus_space_read_4(es->st,es->sh,ES1371_REG_CODEC)) & CODEC_RDY)
-	  break;
-  if(debug > 0) printf("loop 3 t 0x%x 0x%x ret 0x%x\n",t,x,((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT));
-  return ((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT);
+  	/* now wait for the stinkin' data (RDY) */
+  	for (t = 0; t < 0x1000; t++)
+		if ((x = bus_space_read_4(es->st, es->sh, ES1371_REG_CODEC)) & CODEC_RDY)
+	  		break;
+  	if (debug > 0) printf("loop 3 t 0x%x 0x%x ret 0x%x\n", t, x, ((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT));
+  	return ((x & CODEC_PIDAT_MASK) >> CODEC_PIDAT_SHIFT);
 }
 
-
-
-
 static u_int
-es1371_src_read(es_info_t *es, u_short reg){
+es1371_src_read(es_info_t *es, u_short reg)
+{
+  	unsigned int r;
 
-  unsigned int r;
-  
-  r = es1371_wait_src_ready(es) &
-	(ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1);
-  r |= ES1371_SRC_RAM_ADDRO(reg);
-  bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r);
-  return ES1371_SRC_RAM_DATAI(es1371_wait_src_ready(es));
+  	r = es1371_wait_src_ready(es) &
+		(ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1);
+  	r |= ES1371_SRC_RAM_ADDRO(reg);
+  	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE,r);
+  	return ES1371_SRC_RAM_DATAI(es1371_wait_src_ready(es));
 }
 
 static void
@@ -619,153 +607,88 @@ es1371_src_write(es_info_t *es, u_short reg, u_short data){
 	u_int r;
 
 	r = es1371_wait_src_ready(es) &
-	    (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1);
+		(ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1);
 	r |= ES1371_SRC_RAM_ADDRO(reg) |  ES1371_SRC_RAM_DATAO(data);
 	/*	printf("es1371_src_write 0x%x 0x%x\n",ES1371_REG_SMPRATE,r | ES1371_SRC_RAM_WE); */
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r | ES1371_SRC_RAM_WE);
+	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, r | ES1371_SRC_RAM_WE);
 }
 
-static u_int 
-es1371_adc_rate(es_info_t *es, u_int rate, int set){
-  u_int n, truncm, freq, result;
-  
-  if (rate > 48000)
-	rate = 48000;
-  if (rate < 4000)
-	rate = 4000;
-  n = rate / 3000;
-  if ((1 << n) & ((1 << 15) | (1 << 13) | (1 << 11) | (1 << 9)))
-	n--;
-  truncm = (21 * n - 1) | 1;
-  freq = ((48000UL << 15) / rate) * n;
-  result = (48000UL << 15) / (freq / n);
-  if (set) {
-	if (rate >= 24000) {
-	  if (truncm > 239)
-		truncm = 239;
-	  es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_TRUNC_N,
-				   (((239 - truncm) >> 1) << 9) | (n << 4));
-	} else {
-	  if (truncm > 119)
-		truncm = 119;
-	  es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_TRUNC_N,
-			   0x8000 | (((119 - truncm) >> 1) << 9) | (n << 4));
-	}
-	es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_INT_REGS,
-		 (es1371_src_read(es, ES_SMPREG_ADC + ES_SMPREG_INT_REGS) &
-		  0x00ff) | ((freq >> 5) & 0xfc00));
-	es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_VFREQ_FRAC, freq & 0x7fff);
-	es1371_src_write(es, ES_SMPREG_VOL_ADC, n << 8);
-	es1371_src_write(es, ES_SMPREG_VOL_ADC + 1, n << 8);
+static u_int
+es1371_adc_rate(es_info_t *es, u_int rate, int set)
+{
+  	u_int n, truncm, freq, result;
+
+  	if (rate > 48000) rate = 48000;
+  	if (rate < 4000) rate = 4000;
+  	n = rate / 3000;
+  	if ((1 << n) & ((1 << 15) | (1 << 13) | (1 << 11) | (1 << 9)))
+		n--;
+  	truncm = (21 * n - 1) | 1;
+  	freq = ((48000UL << 15) / rate) * n;
+  	result = (48000UL << 15) / (freq / n);
+  	if (set) {
+		if (rate >= 24000) {
+	  		if (truncm > 239) truncm = 239;
+	  		es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_TRUNC_N,
+				(((239 - truncm) >> 1) << 9) | (n << 4));
+		} else {
+	  		if (truncm > 119) truncm = 119;
+	  		es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_TRUNC_N,
+				0x8000 | (((119 - truncm) >> 1) << 9) | (n << 4));
+		}
+		es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_INT_REGS,
+		 	(es1371_src_read(es, ES_SMPREG_ADC + ES_SMPREG_INT_REGS) &
+		  	0x00ff) | ((freq >> 5) & 0xfc00));
+		es1371_src_write(es, ES_SMPREG_ADC + ES_SMPREG_VFREQ_FRAC, freq & 0x7fff);
+		es1371_src_write(es, ES_SMPREG_VOL_ADC, n << 8);
+		es1371_src_write(es, ES_SMPREG_VOL_ADC + 1, n << 8);
 	}
 	return result;
 }
 
 static u_int
-es1371_dac1_rate(es_info_t *es, u_int rate, int set){
-  u_int freq, r, result;
-  
-  if (rate > 48000)
-	rate = 48000;
-  if (rate < 4000)
-	rate = 4000;
-  freq = (rate << 15) / 3000;
-  result = (freq * 3000) >> 15;
-  if (set) {
-	r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1));
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r);
-	es1371_src_write(es, ES_SMPREG_DAC1 + 
-			 ES_SMPREG_INT_REGS,
-			 (es1371_src_read(es, 
-			  ES_SMPREG_DAC1 + ES_SMPREG_INT_REGS) & 0x00ff) | ((freq >> 5) & 0xfc00));
-	es1371_src_write(es, ES_SMPREG_DAC1 + ES_SMPREG_VFREQ_FRAC, freq & 0x7fff);
-	r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | ES1371_DIS_P2 | ES1371_DIS_R1));
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r);
-  }
-  return result;
-}
-
-static u_int
-es1371_dac2_rate(es_info_t *es, u_int rate, int set){
-  u_int freq, r, result;
-  
-  if (rate > 48000)
-	rate = 48000;
-  if (rate < 4000)
-	rate = 4000;
-  freq = (rate << 15) / 3000;
-  result = (freq * 3000) >> 15;
-  if (set) {
-	r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1));
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r);
-	/*	if(debug > 0) printf("dac2_rate 0x%x\n",bus_space_read_4(es->st, es->sh,ES1371_REG_SMPRATE)); */
-	es1371_src_write(es, ES_SMPREG_DAC2 + ES_SMPREG_INT_REGS,
-				 (es1371_src_read(es, ES_SMPREG_DAC2 + ES_SMPREG_INT_REGS) & 
-				  0x00ff) | ((freq >> 5) & 0xfc00));
-	es1371_src_write(es, ES_SMPREG_DAC2 + ES_SMPREG_VFREQ_FRAC, freq & 0x7fff);
-	r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_R1));
-	bus_space_write_4(es->st, es->sh,ES1371_REG_SMPRATE,r);
-	/*	if(debug > 0) printf("dac2_rate 0x%x\n",bus_space_read_4(es->st, es->sh,ES1371_REG_SMPRATE)); */
-  }
-  return result;
-}
-
-
-static u_int
-es1371_wait_src_ready(es_info_t *es){
-  u_int t, r;
-  
-  for (t = 0; t < 500; t++) {
-	if (!((r = bus_space_read_4(es->st, es->sh,ES1371_REG_SMPRATE)) & ES1371_SRC_RAM_BUSY)){
-	  return r;
-	}
-	DELAY(1000);
-  }
-  printf("es1371: wait source ready timeout 0x%x [0x%x]\n", ES1371_REG_SMPRATE, r);
-  return 0;
-}
-
-
-int
-eschan1371_setspeed(void *data, u_int32_t speed)
+es1371_dac_rate(es_info_t *es, u_int rate, int set)
 {
-  struct es_chinfo *ch = data;
-  struct es_info *es = ch->parent;
-  
-  /* rec/play speeds locked together - should indicate in flags */
-  es1371_dac2_rate(es, speed, 1); /* play */
-  es1371_adc_rate (es, speed, 1); /* record */
-  
-  return speed; /* XXX calc real speed */
+  	u_int freq, r, result, dac, dis;
+
+  	if (rate > 48000) rate = 48000;
+  	if (rate < 4000) rate = 4000;
+  	freq = (rate << 15) / 3000;
+  	result = (freq * 3000) >> 15;
+  	if (set) {
+		dac = (set == 1)? ES_SMPREG_DAC1 : ES_SMPREG_DAC2;
+		dis = (set == 1)? ES1371_DIS_P2 : ES1371_DIS_P1;
+
+		r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | ES1371_DIS_P1 | ES1371_DIS_P2 | ES1371_DIS_R1));
+		bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, r);
+		es1371_src_write(es, dac + ES_SMPREG_INT_REGS,
+			 	(es1371_src_read(es, dac + ES_SMPREG_INT_REGS) & 0x00ff) | ((freq >> 5) & 0xfc00));
+		es1371_src_write(es, dac + ES_SMPREG_VFREQ_FRAC, freq & 0x7fff);
+		r = (es1371_wait_src_ready(es) & (ES1371_DIS_SRC | dis | ES1371_DIS_R1));
+		bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, r);
+  	}
+  	return result;
 }
 
+static u_int
+es1371_wait_src_ready(es_info_t *es)
+{
+  	u_int t, r;
 
+  	for (t = 0; t < 500; t++) {
+		if (!((r = bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE)) & ES1371_SRC_RAM_BUSY))
+	  		return r;
+		DELAY(1000);
+  	}
+  	printf("es1371: wait src ready timeout 0x%x [0x%x]\n", ES1371_REG_SMPRATE, r);
+  	return 0;
+}
 
 /* -------------------------------------------------------------------- */
 
 /*
  * Probe and attach the card
  */
-
-static int
-es_init(struct es_info *es)
-{
-	es->ctrl = CTRL_CDC_EN | CTRL_SERR_DIS |
-		(DAC2_SRTODIV(DSP_DEFAULT_SPEED) << CTRL_SH_PCLKDIV);
-	bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
-
-	es->sctrl = 0;
-	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
-
-	write_codec(es, CODEC_RES_PD, 3);/* No RST, PD */
-	write_codec(es, CODEC_CSEL, 0);	/* CODEC ADC and CODEC DAC use
-					 * {LR,B}CLK2 and run off the LRCLK2
-					 * PLL; program DAC_SYNC=0!  */
-	write_codec(es, CODEC_ADSEL, 0);/* Recording source is mixer */
-	write_codec(es, CODEC_MGAIN, 0);/* MIC amp is 0db */
-
-	return 0;
-}
 
 static int
 es_pci_probe(device_t dev)
@@ -795,6 +718,7 @@ es_pci_attach(device_t dev)
 	void		*ih = 0;
 	char		status[SND_STATUSLEN];
 	struct ac97_info *codec;
+	pcm_channel     *ct = NULL;
 
 	d = device_get_softc(dev);
 	if ((es = malloc(sizeof *es, M_DEVBUF, M_NOWAIT)) == NULL) {
@@ -831,28 +755,27 @@ es_pci_attach(device_t dev)
 		device_printf(dev, "unable to map register space\n");
 		goto bad;
 	}
-	
+
 	if (pci_get_devid(dev) == ES1371_PCI_ID) {
-	  if(-1 == es1371_init(es)){
-		device_printf(dev, "unable to initialize the card\n");
-		goto bad; 
-	  }
-	  codec = ac97_create(es,(ac97_read *)es1371_rdcodec,(ac97_write *)es1371_wrcodec);
-	  if (codec == NULL) goto bad;
-	  /* our init routine does everything for us */
-	  /* set to NULL; flag mixer_init not to run the ac97_init */
-	  /*	  ac97_mixer.init = NULL;  */
-	  mixer_init(d, &ac97_mixer, codec);
-	  /* change the routine for setting speed */
-	  es_chantemplate.setspeed = eschan1371_setspeed;
-	} else  if (pci_get_devid(dev) == ES1370_PCI_ID) {
-	  if (-1 == es_init(es)){
-		device_printf(dev, "unable to initialize the card\n");
-		goto bad;
-	  }
-	  mixer_init(d, &es_mixer, es);
-	}
-   
+		if(-1 == es1371_init(es)) {
+			device_printf(dev, "unable to initialize the card\n");
+			goto bad;
+		}
+	  	codec = ac97_create(es, es1371_rdcodec, es1371_wrcodec);
+	  	if (codec == NULL) goto bad;
+	  	/* our init routine does everything for us */
+	  	/* set to NULL; flag mixer_init not to run the ac97_init */
+	  	/*	  ac97_mixer.init = NULL;  */
+	  	mixer_init(d, &ac97_mixer, codec);
+		ct = &es1371_chantemplate;
+	} else if (pci_get_devid(dev) == ES1370_PCI_ID) {
+	  	if (-1 == es1370_init(es)) {
+			device_printf(dev, "unable to initialize the card\n");
+			goto bad;
+	  	}
+	  	mixer_init(d, &es1370_mixer, es);
+		ct = &es1370_chantemplate;
+	} else goto bad;
 
 	irqid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
@@ -878,8 +801,8 @@ es_pci_attach(device_t dev)
 		 rman_get_start(reg), rman_get_start(irq));
 
 	if (pcm_register(dev, es, 1, 1)) goto bad;
-	pcm_addchan(dev, PCMDIR_REC, &es_chantemplate, es);
-	pcm_addchan(dev, PCMDIR_PLAY, &es_chantemplate, es);
+	pcm_addchan(dev, PCMDIR_REC, ct, es);
+	pcm_addchan(dev, PCMDIR_PLAY, ct, es);
 	pcm_setstatus(dev, status);
 
 	return 0;
