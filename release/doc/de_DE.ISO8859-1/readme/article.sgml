@@ -109,6 +109,37 @@
     <sect2>
       <title>Zielgruppe</title>
 
+<![ %release.type.current; [
+      <para>Dieser &release.type; ist prim&auml;r f&uuml;r Bastler und
+        andere Benutzer gedacht, die sich an der laufenden Entwicklung
+        von &os; beteiligen wollen.  Das Entwicklerteam von &os;
+        bem&uuml;ht sich zwar, da&szlig; jeder &release.type; so
+        funktioniert wie versprochen, aber &release.branch; ist nun
+        einmal der Entwicklungszweig.</para>
+
+      <para>Wenn Sie einen &release.type; benutzen wollen, m&uuml;ssen
+	Sie sich mit der Technik von &os; und den aktuellen
+	Vorg&auml;ngen bei der Entwicklung von &os;  &release.branch;
+	(wie sie in der Mailingliste &a.current; diskutiert werden)
+	auskennen.</para>
+
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste
+	&a.current; wird Englisch gesprochen und die meisten Dokumente
+	sind ebenfalls in dieser Sprache verfa&szlig;t worden.  Ohne
+	gute Englischkenntnisse kommt man also nicht weit.  Allerdings
+	ist die Beteiligung an der Entwicklung der FreeBSD eine der
+	interessanteren Varianten, die eigenen Englisch-Kenntnisse zu
+	erweitern.]</para>
+
+      <para>Wenn Sie mehr an einem st&ouml;rungsfreien Betrieb von
+        &os; als an den neuesten Features von &os; interessiert sind,
+        ist eine offizielle Release (wie z.B. &release.prev.stable;) die
+        deutliche bessere Wahl.  Releases werden ausf&uuml;hrlich
+        getestet und auf Qualit&auml;t gepr&uuml;ft, um
+        Zuverl&auml;ssigkeit und Betriebssicherheit garantieren zu
+        k&ouml;nnen.</para>
+]]>
+
 <![ %release.type.snapshot; [
       <para>Dieser &release.type; ist prim&auml;r f&uuml;r Bastler und
         andere Benutzer gedacht, die sich an der laufenden Entwicklung
