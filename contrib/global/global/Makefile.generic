@@ -1,0 +1,13 @@
+#	@(#)Makefile	29-Dec-96
+
+PROG   = global
+BINDIR = /usr/bin
+MANDIR = /usr/share/man
+
+all:
+install:
+	cp $(PROG).pl $(BINDIR)/$(PROG)
+	chmod 755 $(BINDIR)/$(PROG)
+	cp $(PROG).1 $(MANDIR)/man1
+	chmod 644 $(MANDIR)/man1/$(PROG).1
+clean:

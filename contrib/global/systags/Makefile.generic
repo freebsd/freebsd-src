@@ -1,0 +1,10 @@
+#	@(#)Makefile	29-Dec-96
+
+PROG   = systags
+BINDIR = /usr/bin
+
+all:
+install:
+	cp $(PROG).sh $(BINDIR)/$(PROG)
+	chmod 755 $(BINDIR)/$(PROG)
+clean:
