@@ -1,4 +1,4 @@
-<!-- $Id: kerberos.sgml,v 1.4 1995/07/10 20:14:08 markm Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.5 1995/09/27 00:46:21 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
@@ -226,7 +226,7 @@ grunt# mv grunt-new-srvtab srvtab
 
  <p>If the file is for a client system, and the network is not
     deemed safe, then copy the <tt>&lt;client&gt;-new-srvtab</tt> to
-    removeable media and transport it by secure physical means. Be
+    removable media and transport it by secure physical means. Be
     sure to rename it to <tt>srvtab</tt> in the client's
     <tt>/etc/kerberosIV</tt> directory, and make sure it is mode 600:
 
@@ -325,7 +325,7 @@ Apr 30 11:23:22  Apr 30 19:23:22  krbtgt.GRONDAR.ZA@GRONDAR.ZA
 </verb></tscreen>
 
  <p>Now try changing the password using <tt>passwd</tt> to check if the
-    kpasswd daemon can get authorisation to the Kerberos database:
+    kpasswd daemon can get authorization to the Kerberos database:
 
 <tscreen><verb>
 grunt$ passwd
@@ -342,7 +342,7 @@ Password changed.
 
  <p>Kerberos allows us to give <it>each</it> user who needs root
     privileges their own <it>separate</it> <tt>su</tt>password. We
-    could now add an id which is authorised to <tt>su</tt> to <it>root</it>.
+    could now add an id which is authorized to <tt>su</tt> to <it>root</it>.
     This is controlled by having an instance of <it>root</it> associated
     with a principal.  Using <tt>kdb_edit</tt> we can create the entry
     <it>jane.root</it> in the Kerberos database:

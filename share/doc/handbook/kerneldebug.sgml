@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.2 1995/06/30 17:37:41 jfieber Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.4 1995/09/27 00:46:22 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -44,7 +44,7 @@
   programs will drastically increase, and since
   the whole kernel is loaded entirely at boot time and cannot be
   swapped out later, several megabytes of
-  physical RAM willl be wasted.
+  physical RAM will be wasted.
 
   If you are testing a new kernel, for example by typing the new
   kernel's name at the boot prompt, but need to boot a different
@@ -218,7 +218,7 @@
   the Makefile, there will be some other object files rebuild,
   for example <tt>trap.o</tt>.  With a bit of luck, the added
   <tt>-g</tt> option won't change anything for the generated
-  code, so you'll finally get a new kernel with similiar code to
+  code, so you'll finally get a new kernel with similar code to
   the faulting one but some debugging symbols.  You should at
   least verify the old and new sizes with the <tt>size(1)</tt> command. If
   there is a mismatch, you probably need to give up here.
@@ -243,7 +243,7 @@
   If you need to do low-level debugging on your kernel, there's
   an on- line debugger available called DDB.  It allows to
   setting breakpoints, single-steping kernel functions, examining
-  and changeing kernel variables, etc.  However, it cannot not
+  and changing kernel variables, etc.  However, it cannot not
   access kernel source files, and only has access to the global
   and static symbols, not to the full debug information like
   <tt>kgdb</tt>.
@@ -354,7 +354,7 @@
   w/w 0xf0010030 0 0
 </verb></tscreen>
   The command modifier (<tt>b</tt>/<tt>h</tt>/<tt>w</tt>)
-  specifies the size of the data to be writtten, the first
+  specifies the size of the data to be written, the first
   following expression is the address to write to, the remainder
   is interpreted as data to write to successive memory locations.
 

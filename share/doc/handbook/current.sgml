@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.3 1995/06/30 17:37:33 jfieber Exp $ -->
+<!-- $Id: current.sgml,v 1.5 1995/09/27 00:46:16 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1995/06/30 17:37:33 $
+Last updated: $Date: 1995/09/27 00:46:16 $
 
 This document attempts to explain the rationale behind FreeBSD-current,
 what you should expect should you decide to run it, and states some
@@ -67,7 +67,7 @@ too much time to do this as a general task.
     <item>  In any way ``officially supported'' by us.
 
         We do our best to help people genuinely in one of the 3
-        ``legitimate'' FreeBSD-current catagories, but we simply <em>do not
+        ``legitimate'' FreeBSD-current categories, but we simply <em>do not
         have the time</em> to help every person who jumps into FreeBSD-current
         with more enthusiasm than knowledge of how to deal with
         experimental system software.  This is not because we're mean and
@@ -81,9 +81,9 @@ too much time to do this as a general task.
 
 <sect><heading>Using FreeBSD-current</heading>
 
-<p><enum> <item> Join the freebsd-hackers and freebsd-commit
+<p><enum> <item> Join the freebsd-current and cvs-all
     mailing lists.  This is not just a good idea, it's
-    <em>essential</em>.  If you aren't on freebsd-hackers, you
+    <em>essential</em>.  If you aren't on freebsd-current, you
     won't read the comments that people are making about the
     current state of the system and thus will end up stumbling
     over a lot of problems that others have already found and
@@ -92,26 +92,26 @@ too much time to do this as a general task.
     Before you rebuild <tt>/usr/src</tt>, you <em>must</em>
     rebuild the kernel or your system will crash horribly!").
 
-    The freebsd-commit list will allow you to see the commit log
-    entry for each change as its made.  This can also contain
+    The cvs-all mailing list will allow you to see the commit log
+    entry for each change as it's made.  This can also contain
     important information, and will let you know what parts of
     the system are being actively changed.
 
         To join these lists, send mail to `majordomo@FreeBSD.ORG'
         and say:
 <verb>
-            subscribe freebsd-hackers
-            subscribe freebsd-commit
+            subscribe current
+            subscribe cvs-all
 </verb>
         In the body of your message.  Optionally, you can also say `help'
-        and MajorDomo will send you full help on how to subscribe and
+        and Majordomo will send you full help on how to subscribe and
         unsubscribe to the various other mailing lists we support.
 
     <item>  Grab the sources from ftp.FreeBSD.ORG.  You can do this in
         three ways:
 
     <enum>
-	<item> Using the CTM facility desribed below.  Unless you 
+	<item> Using the CTM facility described below.  Unless you 
             have a good TCP/IP connection at a flat rate, this is 
             the way to do it.
 
@@ -173,7 +173,3 @@ commercial organizations won't even consider it) and I want to make
 sure that people at least come into this with their eyes open, and
 don't make the leap unless they're good at working without a net!
 -->
-
-
-
-

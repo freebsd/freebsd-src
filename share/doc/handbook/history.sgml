@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.6 1995/09/14 21:57:08 jfieber Exp $ -->
+<!-- $Id: history.sgml,v 1.7 1995/09/27 00:46:19 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -36,7 +36,7 @@ FreeBSD's distribution channels to those many unfortunates without
 easy access to the Internet.  Walnut Creek CDROM not only supported
 the idea of distributing FreeBSD on CD but went so far as to provide
 the project with a machine to work on and a fast Internet connection.
-Without Walnut Creek CDROM's almost unprecidented degree of faith in
+Without Walnut Creek CDROM's almost unprecedented degree of faith in
 what was, at the time, a completely unknown project, it is in fact
 very unlikely that FreeBSD would have gotten as far, as fast, as it
 has today.
@@ -52,7 +52,7 @@ Around this time, some rather unexpected storm clouds formed on our
 horizon as Novell and U.C. Berkeley settled their long-running lawsuit
 over the legal status of the Berkeley Net/2 tape.  A condition of that
 settlement was U.C. Berkeley's concession that large parts of Net/2
-was "encumbered" code and property of Novell, who had in turn aquired
+was "encumbered" code and property of Novell, who had in turn acquired
 it from AT&amp;T some time previously.  What Berkeley got in return was
 Novell's "blessing" that the 4.4 Lite release, when it was finally
 released, would be declared unencumbered and all existing Net/2 users

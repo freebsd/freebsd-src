@@ -1,10 +1,10 @@
-<!-- $Id: bibliography.sgml,v 1.3 1995/06/30 18:41:08 jfieber Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.4 1995/09/27 00:46:14 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
       <heading>Bibliography<label id="bibliography"></heading>
 
-      <p>While the manual pages provide the definative reference
+      <p>While the manual pages provide the definitive reference
 	for individual pieces of the FreeBSD operating system,
 	they are notorious for not illustrating how to put the
 	pieces together to make the whole operating system run
@@ -119,12 +119,12 @@
 	<p><itemize>
 
 	    <item>Stanley, Tom. <em>ISA System
-		Architechure</em>.  3rd ed. Reading, Mass. :
+		Architecture</em>.  3rd ed. Reading, Mass. :
 		Addison-Wesley, 1995.
 		<newline>ISBN 0201409968</item>
 
 	    <item>Stanley, Tom. <em>PCI System
-		Architechure</em>.  3rd ed. Reading, Mass. :
+		Architecture</em>.  3rd ed. Reading, Mass. :
 		Addison-Wesley, 1995. <newline>ISBN
 		0201409933</item>
 

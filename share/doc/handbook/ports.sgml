@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.6 1995/07/12 15:01:38 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.7 1995/09/27 00:46:26 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -85,12 +85,12 @@ FTP site as defined in the relevant Makefile (in the MASTER_SITES
 line), or some FreeBSD mirror site also carrying a set of distfiles,
 as does the master FTP site on ftp.FreeBSD.org (aka ftp.cdrom.com) in
 the directory <tt>/pub/FreeBSD/distfiles</tt>.  Note that the files in
-that directory are not guarenteed to be kept up to date - this is a
+that directory are not guaranteed to be kept up to date - this is a
 volunteer project!  We can't make any guarantees about the mirror
-sites either - they are obviously under independant control and don't
+sites either - they are obviously under independent control and don't
 even have to mirror the distfiles directory.
 
-    If you have a non-permanant link, you can fetch all the distfiles by
+    If you have a non-permanent link, you can fetch all the distfiles by
 going to the top of the tree and typing ``make fetch''.
 
 
@@ -180,7 +180,7 @@ minute.  The most up-to-date copy can be found in:
     If you find that you still need to go in there and alter things,
 by all means do so, and then send the diffs to ports@FreeBSD.org if
 you'd like them to be a part of the default distribution.  Please also
-remember that any changes must respect backwards-compatability with
+remember that any changes must respect backwards-compatibility with
 any and all older Makefiles, unless you want a real nightmare of
 /usr/ports munging ahead of you!  Large scale changes will generally
 not be warmly welcomed unless all the existing makefiles work without
@@ -208,7 +208,7 @@ This will print a summary of all ports in the tree.
 
 <p>    For various reasons, when using FTP over the Internet to obtain the
 source code, you may not always end up with the same copy of the code
-that the origional porter worked from, and this can lead to problems.
+that the original porter worked from, and this can lead to problems.
 So a simple checksumming system has been employed to try and highlight
 problems in this area.
 
@@ -225,7 +225,7 @@ checksum routine. The same technique can be applied to a single port.
 for that port. Not all ports currently have checksums, but this should be
 cured soon.
 
-    Some older versions of the system don't recognise the ``checksum''
+    Some older versions of the system don't recognize the ``checksum''
 target. In that case, try the command
 <verb>
 	make check-md5

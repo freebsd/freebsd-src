@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.5 1995/08/29 01:42:30 jfieber Exp $
+     $Id: booting.sgml,v 1.7 1995/10/07 04:31:15 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -22,7 +22,7 @@
     <toc>
 -->
 
-    <chapt><heading>The FreeBSD Booting Process<label id="booting"></heading>
+    <sect><heading>The FreeBSD Booting Process<label id="booting"></heading>
 
        <p><em>Contributed by &a.phk;. v1.1, April 26th.</em>
     
@@ -30,7 +30,7 @@
         determine the root filesystem and initialize user-land things. This
         leads to some interesting possibilities shown below.
 
-    <sect><heading>Loading a kernel</heading>
+    <sect1><heading>Loading a kernel</heading>
       <p>
         We presently have three basic mechanisms for loading the
 	kernel as described below:
@@ -67,7 +67,7 @@
 </descrip>
 
 
-    <sect><heading>Determine the root filesystem</heading>
+    <sect1><heading>Determine the root filesystem</heading>
       <p>
         Once the kernel is loaded and the boot-code jumps to it, the kernel
         will initialize itself, trying to determine what hardware is
@@ -104,7 +104,7 @@
 </descrip>
 
 
-    <sect><heading>Initialize user-land things</heading>
+    <sect1><heading>Initialize user-land things</heading>
       <p>
         To get the user-land going, when the kernel has finished
         initialization, it will create a with ``<tt/pid == 1/'' and execute
@@ -119,7 +119,7 @@
         1/''.
 
 
-    <sect><heading>Interesting combinations</heading>
+    <sect1><heading>Interesting combinations</heading>
       <p>
         Boot a kernel with a MFS in it with a special <tt>/sbin/init</tt>
         which...
@@ -133,7 +133,7 @@
                 <tt>/rootfs/bin -&gt; /bin</tt><newline>
                 <tt>/rootfs/etc -&gt; /etc</tt><newline>
                 <tt>/rootfs/sbin -&gt; /sbin</tt><newline>
-                ...<newline>
+                (etc...)<newline>
             </itemize>
             
             Now you run FreeBSD without repartitioning your hard disk...

@@ -1,4 +1,4 @@
-<!-- $Id: slipc.sgml,v 1.3 1995/08/09 03:43:48 jfieber Exp $ -->
+<!-- $Id: slipc.sgml,v 1.4 1995/10/07 04:31:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up a SLIP client<label id="slipc"></heading>
@@ -17,10 +17,10 @@ mileage may vary.
 -->
 
 First, determine which serial port your modem is connected to.  I have
-a symbolic link /dev/modem -> cuaa1, and only use the modem name in my
+a symbolic link <tt>/dev/modem -&gt; cuaa1</tt>, and only use the modem name in my
 configuration files.  It can become quite cumbersome when you need to
-fix a bunch of files in /etc and .kermrc's all over the system!  (Note
-that /dev/cuaa0 is COM1, cuaa1 is COM2, etc.)
+fix a bunch of files in <tt>/etc</tt> and <tt>.kermrc</tt>'s all over the system!  (Note
+that <tt>/dev/cuaa0</tt> is COM1, <tt>cuaa1</tt> is COM2, etc.)
 
 Make sure you have
 <verb>
