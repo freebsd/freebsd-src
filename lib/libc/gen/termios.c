@@ -163,8 +163,8 @@ cfmakeraw(t)
 	struct termios *t;
 {
 
-	t->c_iflag &= ~(IMAXBEL|IXOFF|INPCK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON);
-	t->c_iflag |= (IGNBRK|IGNPAR);
+	t->c_iflag &= ~(IMAXBEL|IXOFF|INPCK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IGNPAR);
+	t->c_iflag |= IGNBRK;
 	t->c_oflag &= ~OPOST;
 	t->c_lflag &= ~(ECHO|ECHOE|ECHOK|ECHONL|ICANON|ISIG|IEXTEN|NOFLSH|TOSTOP|PENDIN);
 	t->c_cflag &= ~(CSIZE|PARENB);
