@@ -1929,10 +1929,16 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	/*
 	 * If we don't have media loaded, check for it.  If still don't
 	 * have media loaded, we can only do a load or eject.
+	 *
+	 * We only care whether media is loaded if this is a cd-specific ioctl
+	 * (thus the IOCGROUP check below).  Note that this will break if
+	 * anyone adds any ioctls into the switch statement below that don't
+	 * have their ioctl group set to 'c'.
 	 */
 	if (((softc->flags & CD_FLAG_VALID_MEDIA) == 0)
 	 && ((cmd != CDIOCCLOSE)
-	  && (cmd != CDIOCEJECT))) {
+	  && (cmd != CDIOCEJECT))
+	 && (IOCGROUP(cmd) == 'c')) {
 		error = cdcheckmedia(periph);
 		if (error != 0) {
 			cam_periph_unlock(periph);
