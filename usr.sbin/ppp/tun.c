@@ -27,7 +27,7 @@
  */
 
 #include <sys/param.h>
-#ifdef __OpenBSD__
+#ifndef __FreeBSD__
 #include <sys/socket.h>		/* For IFF_ defines */
 #include <net/if.h>		/* For IFF_ defines */
 #endif
