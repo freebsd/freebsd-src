@@ -30,9 +30,11 @@
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include <netinet/tcp.h>
 #include "ip_compat.h"
 #include "ip_fil.h"
 #include "ipf.h"
+#include "ip_proxy.h"
 #include "ip_nat.h"
 #include "ip_frag.h"
 #include "ip_state.h"
@@ -43,7 +45,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: fils.c,v 2.0.2.7 1997/04/02 12:23:16 darrenr Exp $";
+static	char	rcsid[] = "$Id: fils.c,v 2.0.2.9 1997/05/08 10:11:31 darrenr Exp $";
 #endif
 #ifdef	_PATH_UNIX
 #define	VMUNIX	_PATH_UNIX
@@ -95,7 +97,7 @@ char *argv[];
 	(void)setuid(getuid());
 	(void)setgid(getgid());
 
-	while ((c = getopt(argc, argv, "afhIiosvd:")) != -1)
+	while ((c = getopt(argc, argv, "afhIinosvd:")) != -1)
 	{
 		switch (c)
 		{
@@ -148,9 +150,18 @@ char *argv[];
 		perror("ioctl(SIOCGETFS)");
 		exit(-1);
 	}
-	if ((opts & OPT_IPSTATES) && (ioctl(fd, SIOCGIPST, &ipsst) == -1)) {
-		perror("ioctl(SIOCGIPST)");
-		exit(-1);
+	if ((opts & OPT_IPSTATES)) {
+		int	sfd = open(IPL_STATE, O_RDONLY);
+
+		if (sfd == -1) {
+			perror("open");
+			exit(-1);
+		}
+		if ((ioctl(sfd, SIOCGIPST, &ipsst) == -1)) {
+			perror("ioctl(SIOCGIPST)");
+			exit(-1);
+		}
+		close(sfd);
 	}
 	if ((opts & OPT_FRSTATES) && (ioctl(fd, SIOCGFRST, &ifrst) == -1)) {
 		perror("ioctl(SIOCGFRST)");

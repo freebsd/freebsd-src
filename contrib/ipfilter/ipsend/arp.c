@@ -25,11 +25,6 @@ static	char	sccsid[] = "@(#)arp.c	1.4 1/11/96 (C)1995 Darren Reed";
 #include <netinet/tcp.h>
 #include "ipsend.h"
 
-#if defined(__SVR4) || defined(__svr4__)
-#define	bcopy(a,b,c)	memmove(b,a,c)
-#define	bzero(a,c)	memset(a,0,c)
-#define	bcmp(a,b,c)	memcmp(a,b,c)
-#endif
 
 /*
  * lookup host and return

@@ -9,7 +9,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.3 1997/03/27 13:45:13 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.8 1997/05/24 07:42:56 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -18,6 +18,7 @@ static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.3 1997/03/27 13:45:13 darrenr Exp 
 #include <sys/cpuvar.h>
 #include <sys/open.h>
 #include <sys/ioctl.h>
+#include <sys/filio.h>
 #include <sys/systm.h>
 #include <sys/cred.h>
 #include <sys/ddi.h>
@@ -43,8 +44,8 @@ static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.3 1997/03/27 13:45:13 darrenr Exp 
 #include "ip_compat.h"
 #include "ip_fil.h"
 #include "ip_state.h"
-#include "ip_frag.h"
 #include "ip_nat.h"
+#include "ip_frag.h"
 #include <inet/ip_ire.h>
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
@@ -63,11 +64,11 @@ int	ipllog __P((u_int, int, ip_t *, fr_info_t *, mblk_t *));
 static	void	frflush __P((caddr_t));
 char	iplbuf[3][IPLLOGSIZE];
 caddr_t	iplh[3], iplt[3];
-static	int	iplused[3] = {0, 0, 0};
+int	iplused[3] = {0, 0, 0};
 #endif /* IPFILTER_LOG */
 static	int	frrequest __P((int, caddr_t, int));
 kmutex_t	ipl_mutex, ipf_mutex, ipfs_mutex;
-kmutex_t	ipf_frag, ipf_state, ipf_nat;
+kmutex_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag;
 kcondvar_t	iplwait;
 
 
@@ -86,6 +87,7 @@ int ipldetach()
 	mutex_destroy(&ipfs_mutex);
 	mutex_destroy(&ipf_frag);
 	mutex_destroy(&ipf_state);
+	mutex_destroy(&ipf_natfrag);
 	mutex_destroy(&ipf_nat);
 	return 0;
 }
@@ -107,8 +109,9 @@ int iplattach __P((void))
 	mutex_init(&ipf_frag, "ipf fragment mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_state, "ipf IP state mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_nat, "ipf IP NAT mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipf_natfrag, "ipf IP NAT-Frag mutex", MUTEX_DRIVER, NULL);
 	cv_init(&iplwait, "ipl condvar", CV_DRIVER, NULL);
-	ipfr_timer_id = timeout(ipfr_slowtimer, NULL, HZ/2);
+	ipfr_timer_id = timeout(ipfr_slowtimer, NULL, drv_usectohz(500000));
 	return 0;
 }
 
@@ -190,6 +193,17 @@ int *rp;
 	int error = 0, unit;
 
 	unit = getminor(dev);
+        if ((2 < unit) || (unit < 0))
+                return ENXIO;
+
+	if (unit == IPL_LOGNAT) {
+		error = nat_ioctl((caddr_t)data, cmd, mode);
+		return error;
+	}
+	if (unit == IPL_LOGSTATE) {
+		error = fr_state_ioctl((caddr_t)data, cmd, mode);
+		return error;
+	}
 
 	switch (cmd) {
 	case SIOCFRENB :
@@ -304,6 +318,11 @@ int *rp;
 		IWCOPY((caddr_t)fr_statetstats(), (caddr_t)data,
 		       sizeof(ips_stat_t));
 		break;
+	case FIONREAD :
+#ifdef	IPFILTER_LOG
+		*(int *)data = iplused[IPL_LOGIPF];
+#endif
+		break;
 	default :
 		error = EINVAL;
 		break;
@@ -365,7 +384,11 @@ caddr_t data;
 		if (!ill)
 			ire = (ire_t *)-1;
 		else if ((ipif = ill->ill_ipif)) {
+#if SOLARIS2 > 5
+			ire = ipif_to_ire(ipif);
+#else
 			ire = ire_lookup_myaddr(ipif->ipif_local_addr);
+#endif
 			if (!ire)
 				ire = (ire_t *)-1;
 			else
@@ -380,7 +403,11 @@ caddr_t data;
 		if (!ill)
 			ire = (ire_t *)-1;
 		else if ((ipif = ill->ill_ipif)) {
+#if SOLARIS2 > 5
+			ire = ipif_to_ire(ipif);
+#else
 			ire = ire_lookup_myaddr(ipif->ipif_local_addr);
+#endif
 			if (!ire)
 				ire = (ire_t *)-1;
 		}
@@ -628,27 +655,6 @@ mblk_t *m;
 }
 #endif /* IPFILTER_LOG */
 
-
-u_short	ipf_cksum(addr, len)
-register u_short *addr;
-register int len;
-{
-	register u_long sum = 0;
-
-	for (sum = 0; len > 1; len -= 2)
-		sum += *addr++;
-
-	/* mop up an odd byte, if necessary */
-	if (len == 1)
-		sum += *(u_char *)addr;
-
-	/*
-	 * add back carry outs from top 16 bits to low 16 bits
-	 */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	return (u_short)(~sum);
-}
 
 /*
  * send_reset - this could conceivably be a call to tcp_respond(), but that

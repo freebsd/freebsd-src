@@ -1,5 +1,5 @@
-*** ip_output.c.orig	Wed Apr  2 19:41:48 1997
---- /sys/netinet/ip_output.c	Wed Apr  2 19:38:19 1997
+*** /sys/netinet/ip_output.c.orig	Sat May 24 14:07:24 1997
+--- /sys/netinet/ip_output.c	Sat May 24 15:00:29 1997
 ***************
 *** 67,72 ****
 --- 67,76 ----
@@ -31,7 +31,7 @@
   static int	ip_setmoptions
   	__P((int, struct ip_moptions **, struct mbuf *));
 ***************
-*** 338,344 ****
+*** 338,343 ****
 --- 342,358 ----
   	 * - Wrap: fake packet's addr/port <unimpl.>
   	 * - Encapsulate: put it in another IP and send out. <unimp.>
@@ -39,17 +39,17 @@
 + #if defined(IPFILTER_LKM) || defined(IPFILTER)
 + 	if (fr_checkp) {
 + 		struct mbuf *m1 = m;
-  
++ 
 + 		if ((*fr_checkp)(ip, hlen, ifp, 1, &m1))
 + 			error = EHOSTUNREACH;
-+ 		if (error || !m1)
++ 		if (error || !m1) 
 + 			goto done;
 + 		ip = mtod(m = m1, struct ip *);
-+         }
++ 	}
 + #endif
+  
   #ifdef COMPAT_IPFW
           if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, ifp, IP_NAT_OUT)) {
-  		error = EACCES; 
 ***************
 *** 559,565 ****
    * Copy options from ip to jp,
@@ -59,7 +59,7 @@
   ip_optcopy(ip, jp)
   	struct ip *ip, *jp;
   {
---- 573,579 ----
+--- 574,580 ----
    * Copy options from ip to jp,
    * omitting those not copied during fragmentation.
    */

@@ -1,7 +1,7 @@
 
 To build a kernel for use with the loadable kernel module, follow these
 steps:
-	1. do "make bsd"
+	1. do "make netbsd"
 
 	2. do "make install-bsd"
 	   (probably has to be done as root)
@@ -27,7 +27,7 @@ There is no need to use mknod to create the device in /dev;
 
 To build a kernel with the IP filter, follow these steps:
 
-	1. do "make bsd"
+	1. do "make netbsd"
 
 	2. do "make install-bsd"
 	   (probably has to be done as root)

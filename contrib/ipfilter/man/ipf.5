@@ -277,7 +277,10 @@ packets from both protocols are compared. This is equivalent to "proto
 tcp/udp".  When composing \fBport\fP comparisons, either the service
 name or an integer port number may be used. Port comparisons may be
 done in a number of forms, with a number of comparison operators, or
-port ranges may be specified. See the examples for more information.
+port ranges may be specified. When the port appears as part of the
+\fBfrom\fP object, it matches the source port number, when it appears
+as part of the \fBto\fP object, it matches the destination port number.
+See the examples for more information.
 .PP
 The \fBall\fP keyword is essentially a synonym for "from any to any"
 with no other match parameters.
@@ -430,4 +433,4 @@ would be needed before the first block.
 .br
 /etc/hosts
 .SH SEE ALSO
-ipf(1), ipftest(1)
+ipf(1), ipftest(1), mkfilters(1)

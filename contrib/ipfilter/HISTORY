@@ -5,6 +5,59 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+3.2alpha7	25/5/97 - Released
+
+add strlen for pre-2.2 kernels - Doug Kite <dkite@websgi.icomnet.com>
+
+setup bits and pieces for compiling into a FreeBSD-2.2 kernel.
+
+split up "bsd" targets.  Now a separate netbsd/freebsd/bsd target.
+mln_ipl.c has been split up into itself and mlf_ipl.c (for freebsd).
+
+fix (negative) host matching in filtering.
+
+add sysctl interface for some variables when compiled into FreeBSD-2.2 kernels
+or later.
+
+make all the candidates for kernel compiling include "netinet/..." and build
+a subdirectory "netinet" when compiling and symlink all .h files into this.
+
+add install make target to Makefile.ipsend
+
+3.2alpha6	8/5/97 - Released
+
+Add "!" (not) to hostname/ip matching.
+
+Automatically add packet info to the fragment cache if it is a fragment
+and we're translating addreses for.
+
+Automatically add packet info to the fragment cache if it is a fragment
+and we're "keeping state" for the packet.
+
+Solaris2 patches - Anthony Baxter (arb@connect.com.au)
+
+change install procedure for FreeBSD 2.2 to allow building to a kernel
+which is different to the running kernel.
+
+add FIONREAD for Solaris2!
+
+when expiring NAT table entries, if we would set a time to fr_tcpclosed
+(which is 1), make it fr_tcplaskack(20) so that the state tables have a
+chance to clear up.
+
+3.2alpha5
+
+add proxying skeleton support and sample ftp transparent proxy code.
+
+add printfs at startup to tell user what is happening.
+
+add packets & bytes for EXPIRE NAT log records.
+
+fix the "install-bsd" target in the root Makefile. Chris Williams
+<psion@mv.mv.com>
+
+Fixes for FreeBSD 2.2 (and later revs) to prevent panics.  Julian Assange.
+
 3.2alpha4	2/4/97 - Released
 
 Some compiler warnings cleaned up.
@@ -656,4 +709,3 @@ added code for ouput filtering as well as input filtering and added support for 
 
 1.0	22/04/93	- Released
 First release cut.
-
