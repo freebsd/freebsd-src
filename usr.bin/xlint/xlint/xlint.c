@@ -344,6 +344,7 @@ main(int argc, char *argv[])
 	appcstrg(&cflags, "-U__GNUC__");
 	appcstrg(&cflags, "-undef");
 #endif
+	appcstrg(&cflags, "-Wp,-fno-dollars-in-identifiers");
 	appcstrg(&cflags, "-Wp,-C");
 	appcstrg(&cflags, "-Wcomment");
 	appcstrg(&cflags, "-D__LINT__");
