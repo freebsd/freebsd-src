@@ -277,7 +277,6 @@ const struct cpu_classtab cpu_classes[] = {
  * The remaining fields in the cpu structure are filled in appropriately.
  */
 
-#if 0
 static const char * const wtnames[] = {
 	"write-through",
 	"write-back",
@@ -296,7 +295,6 @@ static const char * const wtnames[] = {
 	"**unknown 14**",
 	"**unknown 15**",
 };
-#endif
 
 extern int ctrl;
 void
@@ -365,6 +363,24 @@ identify_arm_cpu(void)
 	if (ctrl & CPU_CONTROL_BPRD_ENABLE)
 		printf(" branch prediction enabled");
 
+	/* Print cache info. */
+	if (arm_picache_line_size == 0 && arm_pdcache_line_size == 0)
+		return;
+	
+	if (arm_pcache_unified) {
+ 		printf("%dKB/%dB %d-way %s unified cache\n",
+		    arm_pdcache_size / 1024,
+		    arm_pdcache_line_size, arm_pdcache_ways,
+		    wtnames[arm_pcache_type]);
+	} else {
+		printf("%dKB/%dB %d-way Instruction cache\n",
+		    arm_picache_size / 1024,
+		    arm_picache_line_size, arm_picache_ways);
+		printf("%dKB/%dB %d-way %s Data cache\n",
+		    arm_pdcache_size / 1024,
+		    arm_pdcache_line_size, arm_pdcache_ways,
+		    wtnames[arm_pcache_type]);                
+	}
 	printf("\n");
 }
 
