@@ -32,26 +32,25 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)umount.c	8.8 (Berkeley) 5/8/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <netdb.h>
 #include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
-#include <rpc/pmap_prot.h>
 #include <nfs/rpcv2.h>
 
 #include <err.h>
@@ -109,7 +108,7 @@ main(argc, argv)
 			break;
 		case 't':
 			if (typelist != NULL)
-				errx(1, "only one -t option may be specified.");
+				errx(1, "only one -t option may be specified");
 			typelist = makevfslist(optarg);
 			break;
 		case 'v':
@@ -122,7 +121,7 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc == 0 && !all || argc != 0 && all)
+	if ((argc == 0 && !all) || (argc != 0 && all))
 		usage();
 
 	/* -h implies "-t nfs" if no -t flag. */
@@ -162,7 +161,7 @@ umountall(typelist)
 	char **typelist;
 {
 	struct fstab *fs;
-	int rval, type;
+	int rval;
 	char *cp;
 	struct vfsconf vfc;
 
@@ -192,7 +191,7 @@ umountall(typelist)
 		 * in some allocated memory, and then call recursively.
 		 */
 		if ((cp = malloc((size_t)strlen(fs->fs_file) + 1)) == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		(void)strcpy(cp, fs->fs_file);
 		rval = umountall(typelist);
 		return (umountfs(cp, typelist) || rval);
