@@ -68,6 +68,7 @@ display(void)
 	off_t saveaddress;
 	u_char savech, *savebp;
 
+	savech = 0;
 	while ((bp = get()))
 	    for (fs = fshead, savebp = bp, saveaddress = address; fs;
 		fs = fs->nextfs, bp = savebp, address = saveaddress)
@@ -318,7 +319,7 @@ peek(u_char *buf, size_t nbytes)
 	size_t n, nread;
 	int c;
 
-	if (length != -1 && nbytes > length)
+	if (length != -1 && nbytes > (unsigned int)length)
 		nbytes = length;
 	nread = 0;
 	while (nread < nbytes && (c = getchar()) != EOF) {
