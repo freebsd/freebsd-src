@@ -1815,7 +1815,6 @@ hint.gusc.0.irq="5"
 hint.gusc.0.drq="1"
 hint.gusc.0.flags="0x13"
 
-# Not controlled by `snd'
 device		pca
 hint.pca.0.at="isa"
 hint.pca.0.port="0x040"
