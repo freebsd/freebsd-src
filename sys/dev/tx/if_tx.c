@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.17 1998/11/09 09:34:00 peter Exp $ */
+/*	$Id: if_tx.c,v 1.18 1998/12/07 21:58:46 archie Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -152,7 +152,7 @@
 static int epic_ifioctl __P((register struct ifnet *, EPIC_IFIOCTL_CMD_TYPE, caddr_t));
 static EPIC_INTR_RET_TYPE epic_intr __P((void *));
 static int epic_common_attach __P((epic_softc_t *));
-static void epic_ifstart __P((struct ifnet *));
+static void epic_ifstart __P((struct ifnet * const));
 static void epic_ifwatchdog __P((struct ifnet *));
 static int epic_init __P((epic_softc_t *));
 static void epic_stop __P((epic_softc_t *));
