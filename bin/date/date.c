@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.4 1995/04/03 20:08:33 joerg Exp $
+ *	$Id: date.c,v 1.5 1995/08/05 23:08:17 ache Exp $
  */
 
 #ifndef lint
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)date.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <locale.h>
 
 #include "extern.h"
 
@@ -79,6 +80,7 @@ main(argc, argv)
 	char *endptr;
 	int set_timezone;
 
+	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	set_timezone = 0;
