@@ -280,6 +280,9 @@ ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		break;
     	}
 
+    	left = ((AD1816_MUTE - left) * 100) / AD1816_MUTE;
+    	right = ((AD1816_MUTE - right) * 100) / AD1816_MUTE;
+
     	return left | (right << 8);
 }
 
