@@ -1693,7 +1693,9 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	vm_object_pip_add(object, 1);
 	m = vm_page_grab(object, pindex + idx, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
+		VM_OBJECT_LOCK(object);
 		vm_object_pip_subtract(object, 1);
+		VM_OBJECT_UNLOCK(object);
 		vm_page_lock_queues();
 		vm_page_activate(m);
 		vm_page_dirty(m);
@@ -1706,7 +1708,9 @@ swp_pager_force_pagein(struct swblock *swap, int idx)
 	if (swap_pager_getpages(object, &m, 1, 0) !=
 	    VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
+	VM_OBJECT_LOCK(object);
 	vm_object_pip_subtract(object, 1);
+	VM_OBJECT_UNLOCK(object);
 
 	vm_page_lock_queues();
 	vm_page_dirty(m);
