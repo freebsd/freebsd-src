@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.31 1998/02/05 18:37:02 guido Exp $";
+	"$Id: login.c,v 1.32 1998/02/13 21:02:53 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -157,7 +157,7 @@ main(argc, argv)
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	int changepass;
 	time_t warntime;
-	uid_t uid;
+	uid_t uid, eiud;
 	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
@@ -199,6 +199,7 @@ main(argc, argv)
 
 	fflag = hflag = pflag = 0;
 	uid = getuid();
+	euid = geteuid();
 	while ((ch = getopt(argc, argv, "fh:p")) != -1)
 		switch (ch) {
 		case 'f':
@@ -336,7 +337,10 @@ main(argc, argv)
 		 * within the next block. pwd can be NULL since it
 		 * falls back to the "default" class if it is.
 		 */
+		if (pwd != NULL)
+			(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 		lc = login_getpwclass(pwd);
+		seteuid(euid);
 #endif /* LOGIN_CAP */
 
 		/*
@@ -541,6 +545,7 @@ main(argc, argv)
 #else
 	quietlog = 0;
 #endif
+	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
 #ifdef LOGIN_CAP
 		if (login_getcapbool(lc, "requirehome", 0))
@@ -552,6 +557,7 @@ main(argc, argv)
 		if (!quietlog || *pwd->pw_dir)
 			printf("No home directory.\nLogging in with home = \"/\".\n");
 	}
+	(void)seteuid(euid);
 	if (!quietlog)
 		quietlog = access(_PATH_HUSHLOGIN, F_OK) == 0;
 
