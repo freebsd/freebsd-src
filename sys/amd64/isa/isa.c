@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.71 1996/06/25 20:30:36 bde Exp $
+ *	$Id: isa.c,v 1.72 1996/09/06 23:07:45 phk Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 #include <sys/buf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>

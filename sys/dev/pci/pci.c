@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.53 1996/09/05 21:28:51 se Exp $
+**  $Id: pci.c,v 1.54 1996/09/06 23:08:58 phk Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -51,7 +51,6 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/proc.h> /* declaration of wakeup(), used by vm.h */
 
 #include <vm/vm.h>
@@ -74,10 +73,6 @@
 **
 **========================================================
 */
-
-struct pci_devconf {
-	struct pci_info     pdc_pi;
-};
 
 struct pcicb {
 	struct pcicb   *pcicb_next;
@@ -433,8 +428,6 @@ pci_bus_config (void)
 
 	struct	pci_device *dvp;
 
-	struct	pci_devconf *pdcp;
-
 	/*
 	**	first initialize the bridge (bus controller chip)
 	*/
@@ -642,22 +635,6 @@ pci_bus_config (void)
 				printf ("\tmapreg[%02x] type=%d addr=%08x size=%04x.\n",
 					reg, map&7, addr, size);
 		};
-
-		/*
-		**	Allocate a devconf structure
-		**	We should, and eventually will, set the
-		**	parent pointer to a pci bus devconf structure,
-		**	and arrange to set the state field dynamically.
-		*/
-
-		pdcp = (struct pci_devconf *)
-			malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
-		bzero(pdcp, sizeof(struct pci_devconf));
-
-		pdcp -> pdc_pi.pi_bus    = bus_no;
-		pdcp -> pdc_pi.pi_device = device;
-		pdcp -> pdc_pi.pi_func   = func;
-		pdcp -> pdc_pi.pi_unit   = unit;
 
 		/*
 		**	attach device
