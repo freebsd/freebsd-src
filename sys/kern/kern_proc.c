@@ -737,65 +737,67 @@ fill_kinfo_proc(p, kp)
 		kp->ki_childtime.tv_usec = p->p_stats->p_cru.ru_utime.tv_usec +
 		    p->p_stats->p_cru.ru_stime.tv_usec;
 	}
-	td = FIRST_THREAD_IN_PROC(p);
-	if (!(p->p_flag & P_KSES)) {
-		if (td->td_wmesg != NULL) {
-			strncpy(kp->ki_wmesg, td->td_wmesg,
-			    sizeof(kp->ki_wmesg) - 1);
+	if (p->p_state != PRS_ZOMBIE) {
+		td = FIRST_THREAD_IN_PROC(p);
+		if (!(p->p_flag & P_KSES)) {
+			if (td->td_wmesg != NULL) {
+				strncpy(kp->ki_wmesg, td->td_wmesg,
+				    sizeof(kp->ki_wmesg) - 1);
+			}
+			if (td->td_state == TDS_MTX) {
+				kp->ki_kiflag |= KI_MTXBLOCK;
+				strncpy(kp->ki_mtxname, td->td_mtxname,
+				    sizeof(kp->ki_mtxname) - 1);
+			}
 		}
-		if (td->td_state == TDS_MTX) {
-			kp->ki_kiflag |= KI_MTXBLOCK;
-			strncpy(kp->ki_mtxname, td->td_mtxname,
-			    sizeof(kp->ki_mtxname) - 1);
-		}
-	}
 
-	if (p->p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
-		if ((td->td_state == TDS_RUNQ) ||
-		    (td->td_state == TDS_RUNNING)) {
-			kp->ki_stat = SRUN;
-		} else if (td->td_state == TDS_SLP) {
-			kp->ki_stat = SSLEEP;
-		} else if (P_SHOULDSTOP(p)) {
-			kp->ki_stat = SSTOP;
-		} else if (td->td_state == TDS_MTX) {
-			kp->ki_stat = SMTX;
+		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very aproximate */
+			if ((td->td_state == TDS_RUNQ) ||
+			    (td->td_state == TDS_RUNNING)) {
+				kp->ki_stat = SRUN;
+			} else if (td->td_state == TDS_SLP) {
+				kp->ki_stat = SSLEEP;
+			} else if (P_SHOULDSTOP(p)) {
+				kp->ki_stat = SSTOP;
+			} else if (td->td_state == TDS_MTX) {
+				kp->ki_stat = SMTX;
+			} else {
+				kp->ki_stat = SWAIT;
+			}
 		} else {
-			kp->ki_stat = SWAIT;
+			kp->ki_stat = SIDL;
 		}
-	} else if (p->p_state == PRS_ZOMBIE) {
-		kp->ki_stat = SZOMB;
-	} else {
-		kp->ki_stat = SIDL;
-	}
 
-	kp->ki_sflag = p->p_sflag;
-	kp->ki_swtime = p->p_swtime;
-	kp->ki_pid = p->p_pid;
-	/* vvv XXXKSE */
-	if (!(p->p_flag & P_KSES)) {
-		bintime2timeval(&p->p_runtime, &tv);
-		kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
-		kp->ki_pctcpu = p->p_kse.ke_pctcpu;
-		kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
-		kp->ki_slptime = p->p_ksegrp.kg_slptime;
-		kp->ki_wchan = td->td_wchan;
-		kp->ki_pri.pri_level = td->td_priority;
-		kp->ki_pri.pri_user = p->p_ksegrp.kg_user_pri;
-		kp->ki_pri.pri_class = p->p_ksegrp.kg_pri_class;
-		kp->ki_pri.pri_native = td->td_base_pri;
-		kp->ki_nice = p->p_ksegrp.kg_nice;
-		kp->ki_rqindex = p->p_kse.ke_rqindex;
-		kp->ki_oncpu = p->p_kse.ke_oncpu;
-		kp->ki_lastcpu = td->td_lastcpu;
-		kp->ki_tdflags = td->td_flags;
-		kp->ki_pcb = td->td_pcb;
-		kp->ki_kstack = (void *)td->td_kstack;
+		kp->ki_sflag = p->p_sflag;
+		kp->ki_swtime = p->p_swtime;
+		kp->ki_pid = p->p_pid;
+		/* vvv XXXKSE */
+		if (!(p->p_flag & P_KSES)) {
+			bintime2timeval(&p->p_runtime, &tv);
+			kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+			kp->ki_pctcpu = p->p_kse.ke_pctcpu;
+			kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
+			kp->ki_slptime = p->p_ksegrp.kg_slptime;
+			kp->ki_wchan = td->td_wchan;
+			kp->ki_pri.pri_level = td->td_priority;
+			kp->ki_pri.pri_user = p->p_ksegrp.kg_user_pri;
+			kp->ki_pri.pri_class = p->p_ksegrp.kg_pri_class;
+			kp->ki_pri.pri_native = td->td_base_pri;
+			kp->ki_nice = p->p_ksegrp.kg_nice;
+			kp->ki_rqindex = p->p_kse.ke_rqindex;
+			kp->ki_oncpu = p->p_kse.ke_oncpu;
+			kp->ki_lastcpu = td->td_lastcpu;
+			kp->ki_tdflags = td->td_flags;
+			kp->ki_pcb = td->td_pcb;
+			kp->ki_kstack = (void *)td->td_kstack;
+		} else {
+			kp->ki_oncpu = -1;
+			kp->ki_lastcpu = -1;
+			kp->ki_tdflags = -1;
+			/* All the reast are 0 */
+		}
 	} else {
-		kp->ki_oncpu = -1;
-		kp->ki_lastcpu = -1;
-		kp->ki_tdflags = -1;
-		/* All the reast are 0 */
+		kp->ki_stat = SZOMB;
 	}
 	/* ^^^ XXXKSE */
 	mtx_unlock_spin(&sched_lock);
