@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.44.2.3 1999/02/08 18:58:36 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.44.2.4 1999/07/15 13:01:54 marcel Exp $
  */
 
 #include "opt_rlimit.h"
@@ -699,8 +699,8 @@ elf_coredump(p)
 	if (name == NULL)
 		return (EFAULT);	/* XXX -- not the best error */
 	
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
+	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
 	if (error)
 		return (error);
