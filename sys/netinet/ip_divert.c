@@ -37,6 +37,7 @@
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #ifndef INET
 #error "IPDIVERT requires INET."
@@ -46,6 +47,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
@@ -263,6 +265,10 @@ div_output(struct socket *so, struct mbuf *m,
 	divert_tag.mh_next = m;
 	divert_tag.mh_data = 0;		/* the matching rule # */
 	m->m_pkthdr.rcvif = NULL;	/* XXX is it necessary ? */
+
+#ifdef MAC
+	mac_create_mbuf_from_socket(so, m);
+#endif
 
 	if (control)
 		m_freem(control);		/* XXX */
