@@ -25,8 +25,3 @@ LDADD+= ${MINUSLPAM}
 .endif
 
 .include <bsd.prog.mk>
-
-.if defined(NOSHARED) && !defined(NOPAM)
-DPADD+= ${LIBCRYPTO}
-LDADD+= -L${.OBJDIR}/../../secure/lib/libssh/ -lssh -lcrypto
-.endif
