@@ -391,6 +391,9 @@
 	network protocol stack and improving the locking
 	strategies.</para>
 
+      <para>A new &man.ng.netflow.4; NetGraph node allows a router
+	running &os; to do NetFlow version 5 exports. &merged;</para>
+
       <para>The &man.sppp.4; driver now includes Frame Relay
 	support. &merged;</para>
 
@@ -585,6 +588,8 @@
     <para>The rune(3) non-standard multibyte and wide character support
       interface has been removed.</para>
 
+    <para>The &man.syslog.3; function is now thread-safe. &merged;</para>
+
     <para>The &man.syslogd.8; utility now opens an additional domain
       socket <filename>/var/run/logpriv</filename> by default,
       with <literal>0600</literal> permissions to be used
@@ -685,14 +690,71 @@ moused_ums0_port="/dev/ums0"</programlisting>
     <title>Ports/Packages Collection Infrastructure</title>
 
     <para>The &man.pkg.version.1; utility now supports a
-      <option>-q</option> flag to suppress the output of <literal>&lt;</literal>,
-      <literal>=</literal>, <literal>&gt;</literal>.</para>
+      <option>-q</option> flag to suppress the output of the port
+      version comparison characters <literal>&lt;</literal>,
+      <literal>=</literal>, and <literal>&gt;</literal>.</para>
+
+    <para>The
+      <filename>ports/INDEX<replaceable>*</replaceable></filename>
+      files, which kept an index of all of the entries in the ports
+      collection, have been removed from the CVS repository. &merged;
+      These files were generated only infrequently, and therefore were
+      usually out-of-date and inaccurate.  Users requiring an index
+      file (such as for use by programs such as &man.portupgrade.1;)
+      have two alternatives for obtaining a copy:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>Build an index file based on the current ports tree by
+	  running <command>make index</command> from the top of the
+	  <filename>ports/</filename> tree.</para>
+      </listitem>
+
+      <listitem>
+	<para>Fetch an index file over the network by running
+	  <command>make fetchindex</command> from the top of the
+	  <filename>ports/</filename> tree.  This index file will
+	  (typically) be accurate to within a day.</para>
+      </listitem>
+    </itemizedlist>
+
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>The supported version of the
+      <application>GNOME</application> desktop environment has been
+      updated from 2.6.2 to 2.8.3. &merged;
+
+      <note>
+	<para>Users of older versions of the
+	  <application>GNOME</application> desktop
+	  (<filename role="package">x11/gnome2</filename>)
+	  must take particular care in upgrading.  Simply upgrading it
+	  from the &os; Ports Collection with &man.portupgrade.1;
+	  (<filename role="package">sysutils/portupgrade</filename>)
+	  will cause serious problems.
+	  <application>GNOME</application> desktop users should read
+	  the instructions carefully at
+	  <ulink url="&url.base;/gnome/docs/faq28.html"></ulink>
+	  and use the
+	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
+	  script to properly upgrade to
+	  <application>GNOME</application> 2.8.3.</para>
+
+	<para>For casual users of the various
+	  <application>GNOME</application> libraries,
+	  &man.portupgrade.1; should be sufficient.</para> </note>
+      </para>
+
+    <para>The supported version of the <application>KDE</application>
+      desktop environment has been updated from 3.3.0 to
+      3.3.2. &merged;</para>
+
+    <para>The supported version of <application>Xorg</application> has
+      been updated from 6.7.0 to 6.8.1. &merged;</para>
+
   </sect2>
 
   <sect2 id="doc">
