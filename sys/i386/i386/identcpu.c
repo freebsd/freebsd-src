@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.35 1997/12/04 14:35:38 jkh Exp $
+ *	$Id: identcpu.c,v 1.36 1997/12/26 20:41:32 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -181,7 +181,8 @@ printcpuinfo(void)
 	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
 		/*
 		 * Values taken from AMD Processor Recognition
-		 * http://www.amd.com/html/products/pcd/techdocs/appnotes/20734c.pdf
+		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
+		 * (also describes ``Features'' encodings.
 		 */
 		strcpy(cpu_model, "AMD ");
 		switch (cpu_id & 0xFF0) {
