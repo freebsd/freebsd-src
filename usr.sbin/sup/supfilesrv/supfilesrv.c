@@ -42,6 +42,9 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.2  1995/12/26 05:03:11  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:48  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -843,6 +846,8 @@ setup ()
 #endif
 	if (release == NULL)
 		release = salloc (DEFRELEASE);
+	setproctitle("supfilesrv: serving %s/%s to %s",
+		     collname, release, remotehost());
 	if (basedir == NULL || *basedir == '\0') {
 		basedir = NULL;
 		(void) sprintf (buf,FILEDIRS,DEFDIR);
