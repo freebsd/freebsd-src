@@ -282,7 +282,7 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 }
 
 int
-thread_wakeup(struct thread *td, struct  thread_wakeup_args *uap)
+kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
 
 	return(ENOSYS);
@@ -296,7 +296,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 }
 
 int
-kse_yield(struct thread *td, struct kse_yield_args *uap)
+kse_release(struct thread *td, struct kse_release_args *uap)
 {
 	struct thread *td2;
 
@@ -306,7 +306,7 @@ kse_yield(struct thread *td, struct kse_yield_args *uap)
 
 	/* Don't discard the last thread. */
 	td2 = FIRST_THREAD_IN_PROC(td->td_proc);
-	KASSERT(td2 != NULL, ("kse_yield: no threads in our proc"));
+	KASSERT(td2 != NULL, ("kse_release: no threads in our proc"));
 	if (TAILQ_NEXT(td, td_plist) == NULL)
 		return (EINVAL);
 
@@ -318,7 +318,8 @@ kse_yield(struct thread *td, struct kse_yield_args *uap)
 	return (0);
 }
 
-int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
+int
+kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 {
 
 	return(ENOSYS);
@@ -328,12 +329,12 @@ int kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
  * No new KSEG: first call: use current KSE, don't schedule an upcall
  * All other situations, do allocate a new KSE and schedule an upcall on it.
  */
-/* struct kse_new_args {
+/* struct kse_create_args {
 	struct kse_mailbox *mbx;
-	int	new_grp_flag;
+	int newgroup;
 }; */
 int
-kse_new(struct thread *td, struct kse_new_args *uap)
+kse_create(struct thread *td, struct kse_create_args *uap)
 {
 	struct kse *newke;
 	struct ksegrp *newkg;
@@ -358,7 +359,7 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 		 * If newgroup then create the new group.
 		 * Check we have the resources for this.
 		 */
-		if (uap->new_grp_flag) {
+		if (uap->newgroup) {
 			newkg = ksegrp_alloc();
 			bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
 			      kg_startzero, kg_endzero)); 
@@ -401,7 +402,7 @@ kse_new(struct thread *td, struct kse_new_args *uap)
 	PROC_LOCK(p);
 	if (td->td_proc->p_flag & P_KSES) {
 		mtx_lock_spin(&sched_lock);
-		if (uap->new_grp_flag)
+		if (uap->newgroup)
 			ksegrp_link(newkg, p);
 		kse_link(newke, newkg);
 		if (SIGPENDING(p))

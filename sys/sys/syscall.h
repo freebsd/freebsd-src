@@ -294,9 +294,9 @@
 #define	SYS_nmount	378
 #define	SYS_kse_exit	379
 #define	SYS_kse_wakeup	380
-#define	SYS_kse_new	381
-#define	SYS_thread_wakeup	382
-#define	SYS_kse_yield	383
+#define	SYS_kse_create	381
+#define	SYS_kse_thr_interrupt	382
+#define	SYS_kse_release	383
 #define	SYS___mac_get_proc	384
 #define	SYS___mac_set_proc	385
 #define	SYS___mac_get_fd	386

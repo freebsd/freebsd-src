@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_KSE_H
-#define SYS_KSE_H
+#ifndef _SYS_KSE_H_
+#define _SYS_KSE_H_
 
 #include <machine/kse.h>
 #include <sys/ucontext.h>
@@ -42,17 +42,18 @@
  * The only programs that should see this file are the UTS and the kernel.
  */
 struct kse_mailbox;
-typedef void kse_fn_t(struct kse_mailbox *mbx);
+
+typedef void	kse_func_t(struct kse_mailbox *);
 
 /*
  * Thread mailbox.
  *
  * This describes a user thread to the kernel scheduler.
  */
-struct thread_mailbox {
+struct kse_thr_mailbox {
 	ucontext_t		tm_context;	/* User and machine context */
 	unsigned int		tm_flags;	/* Thread flags */
-	struct thread_mailbox	*tm_next;	/* Next thread in list */
+	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
 	void			*tm_udata;	/* For use by the UTS */
 	int			tm_spare[8];
 };
@@ -64,21 +65,22 @@ struct thread_mailbox {
  * a single KSE.
  */
 struct kse_mailbox {
-	struct thread_mailbox	*km_curthread;	/* Currently running thread */
-	struct thread_mailbox	*km_completed;	/* Threads back from kernel */
+	struct kse_thr_mailbox	*km_curthread;	/* Currently running thread */
+	struct kse_thr_mailbox	*km_completed;	/* Threads back from kernel */
 	sigset_t		km_sigscaught;	/* Caught signals */
 	unsigned int		km_flags;	/* KSE flags */
-	void			*km_func;	/* UTS function */
+	kse_func_t		*km_func;	/* UTS function */
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
 	int			tm_spare[8];
 };
 
 #ifndef _KERNEL
+int	kse_create(struct kse_mailbox *, int);
 int	kse_exit(void);
+int	kse_release(void);
+int	kse_thr_interrupt(struct kse_thr_mailbox *);
 int	kse_wakeup(void);
-int	kse_new(struct kse_mailbox *, int);
-int	kse_yield(void);
-#endif
+#endif	/* !_KERNEL */
 
-#endif
+#endif	/* !_SYS_KSE_H_ */

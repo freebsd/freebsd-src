@@ -1064,14 +1064,14 @@ struct kse_exit_args {
 struct kse_wakeup_args {
 	register_t dummy;
 };
-struct kse_new_args {
+struct kse_create_args {
 	char mbx_l_[PADL_(struct kse_mailbox *)]; struct kse_mailbox * mbx; char mbx_r_[PADR_(struct kse_mailbox *)];
-	char new_grp_flag_l_[PADL_(int)]; int new_grp_flag; char new_grp_flag_r_[PADR_(int)];
+	char newgroup_l_[PADL_(int)]; int newgroup; char newgroup_r_[PADR_(int)];
 };
-struct thread_wakeup_args {
-	char tmbx_l_[PADL_(struct thread_mailbox *)]; struct thread_mailbox * tmbx; char tmbx_r_[PADR_(struct thread_mailbox *)];
+struct kse_thr_interrupt_args {
+	char tmbx_l_[PADL_(struct kse_thr_mailbox *)]; struct kse_thr_mailbox * tmbx; char tmbx_r_[PADR_(struct kse_thr_mailbox *)];
 };
-struct kse_yield_args {
+struct kse_release_args {
 	register_t dummy;
 };
 struct __mac_get_proc_args {
@@ -1396,9 +1396,9 @@ int	eaccess(struct thread *, struct eaccess_args *);
 int	nmount(struct thread *, struct nmount_args *);
 int	kse_exit(struct thread *, struct kse_exit_args *);
 int	kse_wakeup(struct thread *, struct kse_wakeup_args *);
-int	kse_new(struct thread *, struct kse_new_args *);
-int	thread_wakeup(struct thread *, struct thread_wakeup_args *);
-int	kse_yield(struct thread *, struct kse_yield_args *);
+int	kse_create(struct thread *, struct kse_create_args *);
+int	kse_thr_interrupt(struct thread *, struct kse_thr_interrupt_args *);
+int	kse_release(struct thread *, struct kse_release_args *);
 int	__mac_get_proc(struct thread *, struct __mac_get_proc_args *);
 int	__mac_set_proc(struct thread *, struct __mac_set_proc_args *);
 int	__mac_get_fd(struct thread *, struct __mac_get_fd_args *);

@@ -549,10 +549,10 @@
 			    int flags); }
 379	STD	BSD	{ int kse_exit(void); }
 380	STD	BSD	{ int kse_wakeup(void); }
-381	STD	BSD	{ int kse_new(struct kse_mailbox * mbx, \
-			int new_grp_flag); }
-382	STD	BSD	{ int thread_wakeup(struct thread_mailbox *tmbx); }
-383	MSTD	BSD	{ int kse_yield(void); }
+381	STD	BSD	{ int kse_create(struct kse_mailbox *mbx, \
+			    int newgroup); }
+382	STD	BSD	{ int kse_thr_interrupt(struct kse_thr_mailbox *tmbx); }
+383	MSTD	BSD	{ int kse_release(void); }
 384	MSTD	BSD	{ int __mac_get_proc(struct mac *mac_p); }
 385	MSTD	BSD	{ int __mac_set_proc(struct mac *mac_p); }
 386	MSTD	BSD	{ int __mac_get_fd(int fd, struct mac *mac_p); }
