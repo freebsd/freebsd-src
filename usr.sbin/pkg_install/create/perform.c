@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.42 1998/07/28 11:55:39 jkh Exp $";
+	"$Id: perform.c,v 1.43 1998/09/08 03:15:41 jkh Exp $";
 #endif
 
 /*
@@ -44,7 +44,6 @@ pkg_perform(char **pkgs)
     char *cp;
     FILE *pkg_in, *fp;
     Package plist;
-    char *suffix;  /* What we tack on to the end of the finished package */
     int len;
 
     /* Preliminary setup */
