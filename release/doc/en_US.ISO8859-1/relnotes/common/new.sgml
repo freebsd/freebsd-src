@@ -2336,7 +2336,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/usr/libexec/cpp</filename>.</para>
 
     <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
-      daemon enables locking on NFS filesystems.</para>
+      daemon provides support for servicing client NFS locks.</para>
 
     <para>The performance of the ELF dynamic linker &man.rtld.1; has
       been improved. &merged;</para>
