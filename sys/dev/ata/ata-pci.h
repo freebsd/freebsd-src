@@ -52,7 +52,7 @@ struct ata_pci_controller {
     struct ata_chip_id  *chip;
     int                 channels;
     int                 (*chipinit)(device_t);
-    int                 (*allocate)(device_t, struct ata_channel *);
+    int                 (*allocate)(device_t);
     int                 (*locking)(struct ata_channel *, int);
     void                (*reset)(struct ata_channel *);
     void                (*dmainit)(struct ata_channel *);
@@ -91,6 +91,9 @@ struct ata_connect_task {
 
 #define ATA_ACER_LABS_ID        0x10b9
 #define ATA_ALI_5229            0x522910b9
+#define ATA_ALI_5281		0x528110b9
+#define ATA_ALI_5287		0x528710b9
+#define ATA_ALI_5289		0x528910b9
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -285,6 +288,7 @@ struct ata_connect_task {
 
 #define ALIOLD          0x01
 #define ALINEW          0x02
+#define ALISATA         0x04
 
 #define HPT366          0
 #define HPT370          1

@@ -60,7 +60,7 @@ static MALLOC_DEFINE(M_ATAPCI, "ATA PCI", "ATA driver PCI");
 #define IOMASK                  0xfffffffc
 
 /* prototypes */
-static int ata_pci_allocate(device_t dev, struct ata_channel *ch);
+static int ata_pci_allocate(device_t dev);
 static void ata_pci_dmainit(struct ata_channel *);
 
 int
@@ -275,25 +275,24 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				     start, end, count, flags);
 	    break;
 	}
-	return res;
     }
 
     if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
 	if (ata_legacy(dev)) {
 #ifdef __alpha__
-	    return alpha_platform_alloc_ide_intr(unit);
+	    res = alpha_platform_alloc_ide_intr(unit);
 #else
 	    int irq = (unit == 0 ? 14 : 15);
 	    
-	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-				      SYS_RES_IRQ, rid, irq, irq, 1, flags);
+	    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+				     SYS_RES_IRQ, rid, irq, irq, 1, flags);
 #endif
 	}
-	else {
-	    return controller->r_irq;
-	}
+	else
+	    res = controller->r_irq;
     }
-    return 0;
+
+    return res;
 }
 
 int
@@ -384,9 +383,10 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 }
     
 static int
-ata_pci_allocate(device_t dev, struct ata_channel *ch)
+ata_pci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
     struct resource *io = NULL, *altio = NULL;
     int i, rid;
 
@@ -528,7 +528,7 @@ ata_pcichannel_attach(device_t dev)
     if (ch->dma)
 	ch->dma->alloc(ch);
 
-    if ((error = ctlr->allocate(dev, ch)))
+    if ((error = ctlr->allocate(dev)))
 	return error;
 
     return ata_attach(dev);
@@ -545,6 +545,8 @@ ata_pcichannel_detach(device_t dev)
 
     if (ch->dma)
 	ch->dma->free(ch);
+
+    /* free resources for io and altio XXX SOS */
 
     return 0;
 }
