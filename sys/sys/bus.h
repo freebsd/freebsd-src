@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.19 1999/05/30 10:27:02 dfr Exp $
+ *	$Id: bus.h,v 1.20 1999/07/04 14:58:55 phk Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -237,8 +237,8 @@ int	device_get_unit(device_t dev);
 int	device_is_alive(device_t dev); /* did probe succeed? */
 int	device_is_enabled(device_t dev);
 int	device_is_quiet(device_t dev);
-void	device_print_prettyname(device_t dev);
-void	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
+int	device_print_prettyname(device_t dev);
+int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe_and_attach(device_t dev);
 void	device_quiet(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.56 1999/07/10 15:27:05 peter Exp $
+ * $Id: subr_prf.c,v 1.57 1999/07/14 17:37:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -102,20 +102,22 @@ tablefull(tab)
  * It may block if the tty queue is overfull.  No message is printed if
  * the queue does not clear in a reasonable time.
  */
-void
+int
 uprintf(const char *fmt, ...)
 {
 	struct proc *p = curproc;
 	va_list ap;
 	struct putchar_arg pca;
+	int retval = 0;
 
 	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
 		va_start(ap, fmt);
 		pca.tty = p->p_session->s_ttyp;
 		pca.flags = TOTTY;
-		kvprintf(fmt, putchar, &pca, 10, ap);
+		retval = kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
+	return retval;
 }
 
 tpr_t
@@ -143,7 +145,7 @@ tprintf_close(sess)
  * tprintf prints on the controlling terminal associated
  * with the given session.
  */
-void
+int
 tprintf(tpr_t tpr, const char *fmt, ...)
 {
 	register struct session *sess = (struct session *)tpr;
@@ -151,6 +153,7 @@ tprintf(tpr_t tpr, const char *fmt, ...)
 	int flags = TOLOG;
 	va_list ap;
 	struct putchar_arg pca;
+	int retval;
 
 	logpri(LOG_INFO);
 	if (sess && sess->s_ttyvp && ttycheckoutq(sess->s_ttyp, 0)) {
@@ -160,9 +163,10 @@ tprintf(tpr_t tpr, const char *fmt, ...)
 	va_start(ap, fmt);
 	pca.tty = tp;
 	pca.flags = flags;
-	kvprintf(fmt, putchar, &pca, 10, ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	logwakeup();
+	return retval;
 }
 
 /*
@@ -170,16 +174,19 @@ tprintf(tpr_t tpr, const char *fmt, ...)
  * the tty driver, or anything that knows the underlying tty will not
  * be revoke(2)'d away.  Other callers should use tprintf.
  */
-void
+int
 ttyprintf(struct tty *tp, const char *fmt, ...)
 {
 	va_list ap;
 	struct putchar_arg pca;
+	int retval;
+
 	va_start(ap, fmt);
 	pca.tty = tp;
 	pca.flags = TOTTY;
-	kvprintf(fmt, putchar, &pca, 10, ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
+	return retval;
 }
 
 extern	int log_open;
@@ -189,17 +196,18 @@ extern	int log_open;
  * called by interrupt routines).  If there is no process reading the
  * log yet, it writes to the console also.
  */
-void
+int
 log(int level, const char *fmt, ...)
 {
 	register int s;
 	va_list ap;
+	int retval;
 
 	s = splhigh();
 	logpri(level);
 	va_start(ap, fmt);
 
-	kvprintf(fmt, msglogchar, NULL, 10, ap);
+	retval = kvprintf(fmt, msglogchar, NULL, 10, ap);
 	va_end(ap);
 
 	splx(s);
@@ -208,10 +216,11 @@ log(int level, const char *fmt, ...)
 		va_start(ap, fmt);
 		pca.tty = NULL;
 		pca.flags = TOCONS;
-		kvprintf(fmt, putchar, &pca, 10, ap);
+		retval += kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
 	logwakeup();
+	return retval;
 }
 
 static void
@@ -244,7 +253,7 @@ addlog(const char *fmt, ...)
 		va_start(ap, fmt);
 		pca.tty = NULL;
 		pca.flags = TOCONS;
-		kvprintf(fmt, putchar, &pca, 10, ap);
+		retval += kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
 	logwakeup();
@@ -272,20 +281,22 @@ printf(const char *fmt, ...)
 	return retval;
 }
 
-void
+int
 vprintf(const char *fmt, va_list ap)
 {
 	register int savintr;
 	struct putchar_arg pca;
+	int retval;
 
 	savintr = consintr;		/* disable interrupts */
 	consintr = 0;
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
-	kvprintf(fmt, putchar, &pca, 10, ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	if (!panicstr)
 		logwakeup();
 	consintr = savintr;		/* reenable interrupts */
+	return retval;
 }
 
 /*
