@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.12 1999/05/08 21:58:37 dfr Exp $
+ *	$Id: isa.c,v 1.13 1999/05/14 11:22:18 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -176,28 +176,28 @@ isa_print_child(device_t bus, device_t dev)
 {
 	struct	isa_device *id = DEVTOISA(dev);
 
-	if (id->id_port[0] > 0 || id->id_port[1] 
-	    || id->id_maddr[0] > 0 || id->id_maddr[1]
+	if (id->id_port[0] > 0 || id->id_port[1] > 0
+	    || id->id_maddr[0] > 0 || id->id_maddr[1] > 0
 	    || id->id_irq[0] >= 0 || id->id_irq[1] >= 0
 	    || id->id_drq[0] >= 0 || id->id_drq[1] >= 0)
 		printf(" at");
-	if (id->id_port[0] && id->id_port[1]) {
+	if (id->id_port[0] > 0 && id->id_port[1] > 0) {
 		printf(" ports %#x", (u_int)id->id_port[0]);
-		if (id->id_portsize[0])
+		if (id->id_portsize[0] > 1)
 			printf("-%#x", (u_int)(id->id_port[0] 
 					       + id->id_portsize[0] - 1));
 		printf(" and %#x", (u_int)id->id_port[1]);
-		if (id->id_portsize[1])
+		if (id->id_portsize[1] > 1)
 			printf("-%#x", (u_int)(id->id_port[1] 
 					       + id->id_portsize[1] - 1));
-	} else if (id->id_port[0]) {
+	} else if (id->id_port[0] > 0) {
 		printf(" port %#x", (u_int)id->id_port[0]);
-		if (id->id_portsize[0])
+		if (id->id_portsize[0] > 1)
 			printf("-%#x", (u_int)(id->id_port[0]
 					       + id->id_portsize[0] - 1));
-	} else if (id->id_port[1]) {
+	} else if (id->id_port[1] > 0) {
 		printf(" port %#x", (u_int)id->id_port[1]);
-		if (id->id_portsize[1])
+		if (id->id_portsize[1] > 1)
 			printf("-%#x", (u_int)(id->id_port[1]
 					       + id->id_portsize[1] - 1));
 	}
