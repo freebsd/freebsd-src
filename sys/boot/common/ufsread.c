@@ -28,6 +28,8 @@
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#undef cgbase
+#define cgbase(fs, c)   ((ufs2_daddr_t)((fs)->fs_fpg * (c)))
 
 /*
  * We use 4k `virtual' blocks for filesystem data, whatever the actual
