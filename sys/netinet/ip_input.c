@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.89 1998/06/06 21:49:16 julian Exp $
+ * $Id: ip_input.c,v 1.90 1998/06/12 03:48:16 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -358,7 +358,8 @@ tooshort:
 		u_short port;
 
 		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, &ip_divert_cookie, &m);
-		if (port) {			/* Divert packet */
+		if (port) {
+			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
 		}
