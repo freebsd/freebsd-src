@@ -180,6 +180,11 @@ is before the end-of-file, and
 .Fa offset
 is greater than or equal to the offset maximum established
 for this file system.
+.It Bq Er EINVAL
+The value
+.Fa nbytes
+is greater than
+.Dv INT_MAX .
 .El
 .Pp
 In addition,

@@ -192,6 +192,11 @@ Use
 .Xr disklabel 8
 .Fl W
 to enable writing on the disk label area.
+.It Bq Er EINVAL
+The value
+.Fa nbytes
+is greater than
+.Dv INT_MAX .
 .El
 .Pp
 In addition,
