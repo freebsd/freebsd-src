@@ -340,7 +340,7 @@ sndstat_prepare(struct sbuf *s)
 static int
 sndstat_init(void)
 {
-	mtx_init(&sndstat_lock, "sndstat", NULL, 0);
+	mtx_init(&sndstat_lock, "sndstat", NULL, MTX_DEF);
 	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS, UID_ROOT, GID_WHEEL, 0444, "sndstat");
 
 	return (sndstat_dev != 0)? 0 : ENXIO;
