@@ -250,7 +250,7 @@ interpret:
 	/*
 	 * For security and other reasons, signal handlers cannot
 	 * be shared after an exec. The new proces gets a copy of the old
-	 * handlers. In execsigs(), the new process wll have its signals
+	 * handlers. In execsigs(), the new process will have its signals
 	 * reset.
 	 */
 	if (p->p_procsig->ps_refcnt > 1) {
@@ -263,7 +263,7 @@ interpret:
 		p->p_procsig = newprocsig;
 		p->p_procsig->ps_refcnt = 1;
 		if (p->p_sigacts == &p->p_addr->u_sigacts)
-			panic("shared procsig but private sigacts?\n");
+			panic("shared procsig but private sigacts?");
 
 		p->p_addr->u_sigacts = *p->p_sigacts;
 		p->p_sigacts = &p->p_addr->u_sigacts;
