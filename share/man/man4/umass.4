@@ -138,6 +138,23 @@ entry), creates the file system and mounts the new file system on /mnt.
 .Dl "newfs_msdos /dev/da0"
 .Pp
 Create a new FAT type file system.
+Care should be taken not to run
+.Xr newfs 8
+on devices that already contain data, as this will result in the
+information being lost.
+.Pp
+Many consumer devices such as digital cameras automatically create
+.Tn MS-DOS
+based file systems when storing information such as images and
+videos.
+These file systems can be accessed by specifying the file system
+type as
+.Nm msdos
+when using
+.Xr mount 8 .
+.Pp
+.D1 mount -t msdos /dev/da0c /mnt
+.Pp
 .Sh SEE ALSO
 .Xr ohci 4 ,
 .Xr uhci 4 ,
