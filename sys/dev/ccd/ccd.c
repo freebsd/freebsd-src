@@ -1505,15 +1505,6 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		*(struct disklabel *)data = cs->sc_label;
 		break;
 
-	case DIOCGPART:
-		if (!IS_INITED(cs))
-			return (ENXIO);
-
-		((struct partinfo *)data)->disklab = &cs->sc_label;
-		((struct partinfo *)data)->part =
-		    &cs->sc_label.d_partitions[ccdpart(dev)];
-		break;
-
 	case DIOCWDINFO:
 	case DIOCSDINFO:
 		if (!IS_INITED(cs))

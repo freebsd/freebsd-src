@@ -388,17 +388,6 @@ vinumioctl(dev_t dev,
 	    break;
 
 	    /*
-	     * Care!  DIOCGPART returns *pointers* to
-	     * the caller, so we need to store this crap
-	     * as well.  And yes, we need it.
-	     */
-	case DIOCGPART:					    /* get partition information */
-	    get_volume_label(vol->name, vol->plexes, vol->size, &vol->label);
-	    ((struct partinfo *) data)->disklab = &vol->label;
-	    ((struct partinfo *) data)->part = &vol->label.d_partitions[0];
-	    break;
-
-	    /*
 	     * We don't have this stuff on hardware,
 	     * so just pretend to do it so that
 	     * utilities don't get upset.
