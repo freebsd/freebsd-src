@@ -137,7 +137,6 @@ static Distribution SrcDistTable[] = {
     { NULL },
 };
 
-#ifdef X_AS_PKG
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
     DTE_SUBDIST("XFree86", &XF86Dists, XF86_FONTS,	XF86FontDistTable),
@@ -170,91 +169,6 @@ static Distribution XF86FontDistTable[] = {
     { NULL },
 };
 
-#else /* !X_AS_PKG */
-
-/* The XFree86 distribution */
-static Distribution XF86DistTable[] = {
-    DTE_SUBDIST("XF86336", &XF86Dists, XF86_FONTS,	 XF86FontDistTable),
-#if defined(__i386__) && defined(PC98)
-    DTE_SUBDIST("XF86336/PC98-Servers", &XF86Dists, XF86_SERVER, XF86ServerDistTable),
-#else
-    DTE_SUBDIST("XF86336/Servers", &XF86Dists, XF86_SERVER, XF86ServerDistTable),
-#endif
-    DTE_TARBALL("Xbin",	   &XF86Dists, XF86_BIN,	"/usr/X11R6"),
-    DTE_TARBALL("Xcfg",	   &XF86Dists, XF86_CFG,	"/usr/X11R6"),
-    DTE_TARBALL("Xdoc",	   &XF86Dists, XF86_DOC,	"/usr/X11R6"),
-    DTE_TARBALL("Xhtml",   &XF86Dists, XF86_HTML,	"/usr/X11R6"),
-    DTE_TARBALL("Xlib",	   &XF86Dists, XF86_LIB,	"/usr/X11R6"),
-#if defined(__i386__) && defined(PC98)
-    DTE_TARBALL("Xlk98",   &XF86Dists, XF86_LKIT98,	"/usr/X11R6"),
-#endif
-    DTE_TARBALL("Xlkit",   &XF86Dists, XF86_LKIT,	"/usr/X11R6"),
-    DTE_TARBALL("Xman",	   &XF86Dists, XF86_MAN,	"/usr/X11R6"),
-    DTE_TARBALL("Xprog",   &XF86Dists, XF86_PROG,	"/usr/X11R6"),
-    DTE_TARBALL("Xps",	   &XF86Dists, XF86_PS,		"/usr/X11R6"),
-    DTE_TARBALL("Xset",	   &XF86Dists, XF86_SET,	"/usr/X11R6"),
-#if defined(__i386__) && defined(PC98)
-    DTE_TARBALL("X9set",   &XF86Dists, XF86_9SET,	"/usr/X11R6"),
-#endif
-    { NULL },
-};
-
-/* The XFree86 server distribution */
-static Distribution XF86ServerDistTable[] = {
-#if defined(__i386__) && defined(PC98)
-    DTE_TARBALL("X9480", &XF86ServerDists, XF86_SERVER_9480,   "/usr/X11R6"),
-    DTE_TARBALL("X9EGC", &XF86ServerDists, XF86_SERVER_9EGC,   "/usr/X11R6"),
-    DTE_TARBALL("X9GA9", &XF86ServerDists, XF86_SERVER_9GA9,   "/usr/X11R6"),
-    DTE_TARBALL("X9GAN", &XF86ServerDists, XF86_SERVER_9GAN,   "/usr/X11R6"),
-    DTE_TARBALL("X9LPW", &XF86ServerDists, XF86_SERVER_9LPW,   "/usr/X11R6"),
-    DTE_TARBALL("X9MGA", &XF86ServerDists, XF86_SERVER_9MGA,   "/usr/X11R6"),
-    DTE_TARBALL("X9NKV", &XF86ServerDists, XF86_SERVER_9NKV,   "/usr/X11R6"),
-    DTE_TARBALL("X9NS3", &XF86ServerDists, XF86_SERVER_9NS3,   "/usr/X11R6"),
-    DTE_TARBALL("X9SPW", &XF86ServerDists, XF86_SERVER_9SPW,   "/usr/X11R6"),
-    DTE_TARBALL("X9SVG", &XF86ServerDists, XF86_SERVER_9SVG,   "/usr/X11R6"),
-    DTE_TARBALL("X9TGU", &XF86ServerDists, XF86_SERVER_9TGU,   "/usr/X11R6"),
-    DTE_TARBALL("X9WEP", &XF86ServerDists, XF86_SERVER_9WEP,   "/usr/X11R6"),
-    DTE_TARBALL("X9WS",	 &XF86ServerDists, XF86_SERVER_9WS,    "/usr/X11R6"),
-    DTE_TARBALL("X9WSN", &XF86ServerDists, XF86_SERVER_9WSN,   "/usr/X11R6"),
-#endif
-    DTE_TARBALL("X3DL",	 &XF86ServerDists, XF86_SERVER_3DL,    "/usr/X11R6"),
-#ifdef __i386__
-    DTE_TARBALL("X8514", &XF86ServerDists, XF86_SERVER_8514,   "/usr/X11R6"),
-    DTE_TARBALL("XAGX",	 &XF86ServerDists, XF86_SERVER_AGX,    "/usr/X11R6"),
-#endif
-    DTE_TARBALL("XI128", &XF86ServerDists, XF86_SERVER_I128,   "/usr/X11R6"),
-#if defined(__i386__) || defined(__amd64__)
-    DTE_TARBALL("XMa8",	 &XF86ServerDists, XF86_SERVER_MACH8,  "/usr/X11R6"),
-    DTE_TARBALL("XMa32", &XF86ServerDists, XF86_SERVER_MACH32, "/usr/X11R6"),
-#endif
-    DTE_TARBALL("XMa64", &XF86ServerDists, XF86_SERVER_MACH64, "/usr/X11R6"),
-    DTE_TARBALL("XMono", &XF86ServerDists, XF86_SERVER_MONO,   "/usr/X11R6"),
-    DTE_TARBALL("XP9K",	 &XF86ServerDists, XF86_SERVER_P9000,  "/usr/X11R6"),
-    DTE_TARBALL("XS3",	 &XF86ServerDists, XF86_SERVER_S3,     "/usr/X11R6"),
-    DTE_TARBALL("XS3V",	 &XF86ServerDists, XF86_SERVER_S3V,    "/usr/X11R6"),
-    DTE_TARBALL("XSVGA", &XF86ServerDists, XF86_SERVER_SVGA,   "/usr/X11R6"),
-#if defined(__i386__) || defined(__amd64__)
-    DTE_TARBALL("XVG16", &XF86ServerDists, XF86_SERVER_VGA16,  "/usr/X11R6"),
-    DTE_TARBALL("XW32",	 &XF86ServerDists, XF86_SERVER_W32,    "/usr/X11R6"),
-#endif
-#ifdef __alpha__
-    DTE_TARBALL("XTGA",	 &XF86ServerDists, XF86_SERVER_TGA,    "/usr/X11R6"),
-#endif
-    { NULL },
-};
-
-/* The XFree86 font distribution */
-static Distribution XF86FontDistTable[] = {
-    DTE_TARBALL("Xfnts", &XF86FontDists, XF86_FONTS_MISC,   "/usr/X11R6"),
-    DTE_TARBALL("Xf100", &XF86FontDists, XF86_FONTS_100,    "/usr/X11R6"),
-    DTE_TARBALL("Xfcyr", &XF86FontDists, XF86_FONTS_CYR,    "/usr/X11R6"),
-    DTE_TARBALL("Xfscl", &XF86FontDists, XF86_FONTS_SCALE,  "/usr/X11R6"),
-    DTE_TARBALL("Xfnon", &XF86FontDists, XF86_FONTS_NON,    "/usr/X11R6"),
-    DTE_TARBALL("Xfsrv", &XF86FontDists, XF86_FONTS_SERVER, "/usr/X11R6"),
-    { NULL },
-};
-#endif /* !X_AS_PKG */
-
 static int	distMaybeSetPorts(dialogMenuItem *self);
 
 static void
@@ -266,11 +180,6 @@ distVerifyFlags(void)
 	Dists |= DIST_CRYPTO;
     else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
 	CRYPTODists |= DIST_CRYPTO_ALL;
-#ifndef X_AS_PKG
-    /* XXX : realy only for X 3.3.6 */
-    if (XF86Dists & DIST_XF86_SET)
-	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
-#endif
     if (XF86ServerDists)
 	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
@@ -329,15 +238,9 @@ static int
 distSetX(void)
 {
     Dists |= DIST_XF86;
-#ifdef X_AS_PKG
     XF86Dists = DIST_XF86_CLIENTS | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
     XF86ServerDists = DIST_XF86_SERVER_FB;
     XF86FontDists = DIST_XF86_FONTS_BITMAPS | DIST_XF86_FONTS_75;
-#else
-    XF86Dists = DIST_XF86_BIN | DIST_XF86_SET | DIST_XF86_CFG | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN | DIST_XF86_DOC | DIST_XF86_SERVER | DIST_XF86_FONTS;
-    XF86ServerDists = DIST_XF86_SERVER_SVGA | DIST_XF86_SERVER_VGA16;
-    XF86FontDists = DIST_XF86_FONTS_MISC;
-#endif
     return distSetXF86(NULL);
 }
 
@@ -971,10 +874,6 @@ distExtractAll(dialogMenuItem *self)
     /* Only do base fixup if base dist was successfully extracted */
     if ((old_dists & DIST_BASE) && !(Dists & DIST_BASE))
 	status |= installFixupBase(self);
-#ifndef X_AS_PKG
-    if (old_dists & DIST_XF86)
-	status |= installFixupXFree(self);
-#endif
 
     /* Clear any local dist flags now */
     Dists &= ~DIST_LOCAL;
