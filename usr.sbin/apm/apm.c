@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: apm.c,v 1.10 1997/09/02 06:36:39 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -81,7 +81,7 @@ print_all_info(apm_info_t aip)
 	if (aip->ai_batt_life == 255)
 		printf("unknown");
 	else if (aip->ai_batt_life <= 100)
-			printf("%d%%", aip->ai_batt_life);
+		printf("%d%%", aip->ai_batt_life);
 	else
 		printf("invalid value (0x%x)", aip->ai_batt_life);
 	printf("\n");
@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 finish_option:
 	fd = open(APMDEV, O_RDWR);
 	if (fd == -1) {
-		warnx("can't open %s", APMDEV);
+		warn("can't open %s", APMDEV);
 		return 1;
 	}
 	if (sleep)
