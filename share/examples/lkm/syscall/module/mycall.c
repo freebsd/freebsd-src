@@ -36,7 +36,6 @@
  *
  */
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/systm.h>
 
 /* XXX this should be in a header. */
