@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.218 1998/09/15 05:10:17 jkh Exp $
+#	$Id: Makefile,v 1.219 1998/09/28 20:39:23 jb Exp $
 #
 # The user-driven targets are:
 #
@@ -92,9 +92,9 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-TGTS =	afterdistribute all buildworld clean cleandepend cleanobj depend \
-	distribute everything hierarchy includes installmost install \
-	installworld most obj rerelease update world
+TGTS =	afterdistribute all buildworld clean cleandepend cleandir cleanobj \
+	depend distribute everything hierarchy includes installmost install \
+	installworld mk most obj rerelease update world
 
 #
 # Handle the user-driven targets, using the source relative mk files.
