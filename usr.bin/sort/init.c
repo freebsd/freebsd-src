@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 static void insertcol __P((struct field *));
 static const char *setcolumn __P((const char *, struct field *, int));
 int setfield __P((const char *, struct field *, int));
+static int findgap __P((u_char *, int, int));
+static void shift_at_REC_D __P((u_char *, int));
 
 extern struct coldesc clist[(ND+1)*2];
 extern int ncols;
@@ -287,6 +289,110 @@ fixit(argc, argv)
 	}
 }
 
+static int
+findgap (u_char *table, int old, int new)
+{
+	u_char gap[NBINS];
+	int i, fto, rto, ret, lim;
+
+	(void)memset (gap, 0, sizeof(gap));
+	for (i = 0; i < NBINS; i++)
+		gap[table[i]]++;
+
+	fto = -1;
+	lim = NBINS;
+	if (new > old)
+		lim = new;
+	for (i = old + 1; i < lim; i++) {
+		if (gap[i] == 0) {
+			fto = i;
+			break;
+		}
+	}
+
+	rto = -1;
+	lim = -1;
+	if (new < old)
+		lim = new;
+	for (i = old - 1; i > lim; i--) {
+		if (gap[i] == 0) {
+			rto = i;
+			break;
+		}
+	}
+
+	if (fto >= 0 && rto >= 0) {
+		ret = fto;
+		if (fto - old > old - rto)
+			ret = rto;
+	} else if (fto >= 0)
+		ret = fto;
+	else if (rto >= 0)
+		ret = rto;
+	else
+		errx(2, "can't find gap");
+
+	return ret;
+}
+
+static void
+shift_at_REC_D (u_char *table, int new)
+{
+	int i, old, conflict, to, oldn;
+
+	old = table[REC_D];
+	conflict = 0;
+	if (old > new) {
+		for (i = 0; i < NBINS; i++) {
+			if (table[i] == old) {
+				if (i != REC_D)
+					conflict = 1;
+				table[i] = new;
+			} else if (table[i] >= new && table[i] < old)
+				table[i]++;
+		}
+	} else if (old < new) {
+		for (i = 0; i < NBINS; i++) {
+			if (table[i] == old) {
+				if (i != REC_D)
+					conflict = 1;
+				table[i] = new;
+			} else if (table[i] > old && table[i] <= new)
+				table[i]--;
+		}
+	} else {
+		for (i = 0; i < NBINS; i++) {
+			if (table[i] == old) {
+				if (i != REC_D) {
+					conflict = 1;
+					break;
+				}
+			}
+		}
+	}
+
+	if (conflict) {
+		to = findgap(table, old, new);
+		if (to > old) {
+			oldn = old + (old >= new);
+			for (i = 0; i < NBINS; i++) {
+				if (table[i] == new && i != REC_D)
+					table[i] = oldn;
+				else if (table[i] >= oldn && table[i] < to)
+					table[i]++;
+			}
+		} else {
+			oldn = old - (old <= new);
+			for (i = 0; i < NBINS; i++) {
+				if (table[i] == new && i != REC_D)
+					table[i] = oldn;
+				else if (table[i] <= oldn && table[i] > to)
+					table[i]--;
+			}
+		}
+	}
+}
+
 /*
  * ascii, Rascii, Ftable, and RFtable map
  * REC_D -> REC_D;  {not REC_D} -> {not REC_D}.
@@ -294,30 +400,18 @@ fixit(argc, argv)
  * Note: when sorting in forward order, to encode character zero in a key,
  * use \001\001; character 1 becomes \001\002.  In this case, character 0
  * is reserved for the field delimiter.  Analagously for -r (fld_d = 255).
- * Note: this is only good for ASCII sorting.  For different LC 's,
- * all bets are off.  See also num_init in number.c
+ * See also num_init() in fields.c
  */
 void
 settables(gflags)
 	int gflags;
 {
 	u_char *wts;
-	int i, incr;
-	for (i=0; i < 256; i++) {
-		ascii[i] = i;
-		if (i > REC_D && i < 255 - REC_D+1)
-			Rascii[i] = 255 - i + 1;
-		else
-			Rascii[i] = 255 - i;
-		if (islower(i))
-			;
-		else if (REC_D >= 'A' && REC_D <= 'Z' && i < 'a' && i > REC_D) {
-			Ftable[i] = i + 1;
-			RFtable[i] = Rascii[i] - 1;
-		} else {
-			Ftable[i] = i;
-			RFtable[i] = Rascii[i];
-		}
+	int i, j, n;
+
+	for (i = 0; i < NBINS; i++) {
+		Ftable[i] = ascii[i] = i;
+		RFtable[i] = Rascii[i] = NBINS - 1 - i;
 		alltable[i] = 1;
 
 		if (i == '\n' || isprint(i))
@@ -335,15 +429,17 @@ settables(gflags)
 			dtable[i] = 0;
 	}
 	for (i = 0; i < NBINS; i++) {
-		if (islower(i)) {
-			Ftable[i] = Ftable[toupper(i)];
-			RFtable[i] = RFtable[toupper(i)];
+		if ((n = toupper(i)) != i) {
+			Ftable[i] = Ftable[n];
+			RFtable[i] = RFtable[n];
 		}
 	}
 
-	Rascii[REC_D] = RFtable[REC_D] = REC_D;
-	if (isupper(REC_D))
-		Ftable[tolower(REC_D)]++;
+	/* Skip ascii[], REC_D is already inplace */
+	/* shift_at_REC_D (ascii, REC_D); */
+	shift_at_REC_D (Rascii, REC_D);
+	shift_at_REC_D (Ftable, REC_D);
+	shift_at_REC_D (RFtable, REC_D);
 
 	if ((gflags & R) && !((gflags & F) && SINGL_FLD))
 		wts = Rascii;
@@ -354,16 +450,19 @@ settables(gflags)
 	else
 		wts = Ftable;
 
-	memmove(gweights, wts, sizeof(gweights));
-	incr = (gflags & R) ? -1 : 1;
-	for (i = 0; i < REC_D; i++)
-		gweights[i] += incr;
-	gweights[REC_D] = ((gflags & R) ? 255 : 0);
+	(void)memcpy (gweights, wts, sizeof(gweights));
+	if (!(gflags & R))
+		shift_at_REC_D (gweights, 0);
+	else
+		shift_at_REC_D (gweights, NBINS - 1);
+
 	if (SINGL_FLD && (gflags & F)) {
-		for (i = 0; i < REC_D; i++) {
-			ascii[i] += incr;
-			Rascii[i] += incr;
+		if (!(gflags & R)) {
+			shift_at_REC_D (ascii, 0);
+			shift_at_REC_D (Rascii, 0);
+		} else {
+			shift_at_REC_D (ascii, NBINS - 1);
+			shift_at_REC_D (Rascii, NBINS - 1);
 		}
-		ascii[REC_D] = Rascii[REC_D] = gweights[REC_D];
 	}
 }
