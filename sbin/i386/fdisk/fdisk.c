@@ -45,6 +45,8 @@ int iotest;
 #define LBUF 100
 static char lbuf[LBUF];
 
+#define MBRSIGOFF	510
+
 /*
  *
  * Ported to 386bsd by Julian Elischer  Thu Oct 15 20:26:46 PDT 1992
@@ -77,13 +79,11 @@ int cyls, sectors, heads, cylsecs, disksecs;
 struct mboot
 {
 	unsigned char padding[2]; /* force the longs to be long aligned */
-	unsigned char bootinst[DOSPARTOFF];
+  	unsigned char *bootinst;  /* boot code */
+  	off_t bootinst_size;
 	struct	dos_partition parts[4];
-	unsigned short int	signature;
-	/* room to read in MBRs that are bigger then DEV_BSIZE */
-	unsigned char large_sector_overflow[MAX_SEC_SIZE-MIN_SEC_SIZE];
 };
-struct mboot mboot;
+struct mboot mboot = {{0}, NULL, 0};
 
 #define ACTIVE 0x80
 #define BOOT_MAGIC 0xAA55
@@ -297,6 +297,14 @@ main(int argc, char *argv[])
 		if(rv < 0)
 			err(1, "cannot open any disk");
 	}
+
+	/* (abu)use mboot.bootinst to probe for the sector size */
+	if ((mboot.bootinst = malloc(MAX_SEC_SIZE)) == NULL)
+		err(1, "cannot allocate buffer to determine disk sector size");
+	read_disk(0, mboot.bootinst);
+	free(mboot.bootinst);
+	mboot.bootinst = NULL;
+
 	if (s_flag)
 	{
 		int i;
@@ -331,7 +339,8 @@ main(int argc, char *argv[])
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
-		partp->dp_size = disksecs - dos_sectors;
+		partp->dp_size = ((disksecs - dos_sectors) / dos_cylsecs) *
+			dos_cylsecs;
 
 		dos(partp->dp_start, partp->dp_size, 
 		    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
@@ -477,14 +486,24 @@ static void
 init_boot(void)
 {
 	const char *fname;
-	int fd;
+	int fd, n;
+	struct stat sb;
 
 	fname = b_flag ? b_flag : "/boot/mbr";
 	if ((fd = open(fname, O_RDONLY)) == -1 ||
-	    read(fd, mboot.bootinst, DOSPARTOFF) == -1 ||
+	    fstat(fd, &sb) == -1)
+		err(1, "%s", fname);
+	if ((mboot.bootinst_size = sb.st_size) % secsize != 0)
+		errx(1, "%s: length must be a multiple of sector size", fname);
+	if (mboot.bootinst != NULL)
+		free(mboot.bootinst);
+	if ((mboot.bootinst = malloc(mboot.bootinst_size = sb.st_size)) == NULL)
+		errx(1, "%s: unable to allocate read buffer", fname);
+	if ((n = read(fd, mboot.bootinst, mboot.bootinst_size)) == -1 ||
 	    close(fd))
 		err(1, "%s", fname);
-	mboot.signature = BOOT_MAGIC;
+	if (n != mboot.bootinst_size)
+		errx(1, "%s: short read", fname);
 }
 
 
@@ -492,12 +511,17 @@ static void
 init_sector0(unsigned long start)
 {
 struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
-unsigned long size = disksecs - start;
+unsigned long size;
 
 	init_boot();
 
 	partp->dp_typ = DOSPTYP_386BSD;
 	partp->dp_flag = ACTIVE;
+	/* ensure cylinder boundaries */
+	start = (start / dos_sectors) * dos_sectors;
+	if(start == 0)
+		start = dos_sectors;
+	size = ((disksecs - start) / dos_cylsecs) * dos_cylsecs;
 	partp->dp_start = start;
 	partp->dp_size = size;
 
@@ -555,6 +579,20 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
 		} else {
+			if(partp->dp_start % dos_sectors != 0) {
+				printf("Adjusting partition to start at a "
+				   "cylinder boundary\n");
+				partp->dp_start =
+				    (partp->dp_start / dos_sectors) *
+				    dos_sectors;
+			}
+			if(partp->dp_size % dos_cylsecs != 0) {
+				printf("Adjusting partition to end at a "
+				    "cylinder boundary\n");
+				partp->dp_size =
+				    (partp->dp_size / dos_cylsecs) *
+				    dos_cylsecs;
+			}
 			dos(partp->dp_start, partp->dp_size,
 			    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
 			dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
@@ -611,7 +649,6 @@ change_code()
 {
 	if (ok("Do you want to change the boot code?"))
 		init_boot();
-
 }
 
 void
@@ -745,15 +782,24 @@ get_params()
 static int
 read_s0()
 {
-	if (read_disk(0, (char *) mboot.bootinst) == -1) {
+	mboot.bootinst_size = secsize;
+	if (mboot.bootinst != NULL)
+		free(mboot.bootinst);
+	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL) {
+		warnx("unable to allocate buffer to read fdisk "
+		      "partition table");
+		return -1;
+	}
+	if (read_disk(0, mboot.bootinst) == -1) {
 		warnx("can't read fdisk partition table");
 		return -1;
 	}
-	if (mboot.signature != BOOT_MAGIC) {
+	if (*(int *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
 		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
 	}
+	memcpy(mboot.parts, &mboot.bootinst[DOSPARTOFF], sizeof(mboot.parts));
 	return 0;
 }
 
@@ -763,10 +809,13 @@ write_s0()
 #ifdef NOT_NOW
 	int	flag;
 #endif
+	int	sector;
+
 	if (iotest) {
 		print_s0(-1);
 		return 0;
 	}
+	memcpy(&mboot.bootinst[DOSPARTOFF], mboot.parts, sizeof(mboot.parts));
 	/*
 	 * write enable label sector before write (if necessary),
 	 * disable after writing.
@@ -778,14 +827,20 @@ write_s0()
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
 		warn("ioctl DIOCWLABEL");
 #endif
-	if (write_disk(0, (char *) mboot.bootinst) == -1) {
-		warn("can't write fdisk partition table");
-		return -1;
+	for(sector = 0; sector < mboot.bootinst_size / secsize; sector++) 
+		if (write_disk(sector,
+			       &mboot.bootinst[sector * secsize]) == -1) {
+			warn("can't write fdisk partition table");
+			return -1;
+#ifdef NOT_NOW
+			flag = 0;
+			(void) ioctl(fd, DIOCWLABEL, &flag);
+#endif
+		}
 #ifdef NOT_NOW
 	flag = 0;
 	(void) ioctl(fd, DIOCWLABEL, &flag);
 #endif
-	}
 	return(0);
 }
 
