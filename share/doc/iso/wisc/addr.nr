@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .NC "NSAP Addresses & Routing"
 .sh 1 "OSI Address Formats"
 .pp
@@ -149,7 +151,7 @@ A table, \fIsnpa_cache\fR is kept in the kernel which contains the
 translation between NSAP-addresses and SNPA-addresses. 
 This table is used by \fIiso_snparesolve()\fR whenever a 
 datagram must be dispatched.
-The table is maintained by the the ISO ES-IS protocol entity.
+The table is maintained by the ISO ES-IS protocol entity.
 Entries can be added and deleted
 by the user program \fIclnlutil(8)\fR and
 by the CONS entity.

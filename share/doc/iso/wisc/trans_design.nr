@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .NC "The Design of the ARGO Transport Entity"
 .sh 1 "Protocol Hooks"
 .pp
@@ -1457,7 +1459,7 @@ and lacking
 a method to measure
 the round trip time in the other direction,
 ARGO TP uses the measured average round trip time
-to adjust the the sendack timer.
+to adjust the sendack timer.
 .pp
 The choice of strategies is made with the
 \fIsetsockopt()\fR system call.

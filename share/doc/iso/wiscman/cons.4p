@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .TH CONS 4P "9 December 1988"
 .ds ]W Wisconsin ARGO 1.0
 .UC 4
@@ -112,7 +114,7 @@ The actual error value returned in
 \fIerrno\fR
 is the X.25 diagnostic code in the lower 10 bits
 logically "or"ed with the hexadecimal value 0x8400 (bits
-10 and 15 set, counting from zero at the the least significant bit).
+10 and 15 set, counting from zero at the least significant bit).
 The error values can be found in 
 the file
 .nf

@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: kernel.ms,v 1.1 1996/04/13 08:30:16 phk Exp $
 .\"
 .ds RH The kernel and memory
 .NH
@@ -30,7 +30,7 @@ for the data and bss section combined and one for the stack.
 On some systems the text shared a segment with the data and bss, and was
 consequently just as writable as them.
 .PP
-In this setup all the the brk(2) system call have to do is to find the
+In this setup all the brk(2) system call have to do is to find the
 right amount of free storage, possibly moving things around in physical
 memory, maybe even swapping out a segment or two to make space,
 and change the upper limit on the data segment according to the address given.

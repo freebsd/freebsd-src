@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tests.ms	6.2 (Berkeley) 4/16/91
+.\"	$Id$
 .\"
 .ds RH Tests
 .NH
@@ -39,7 +40,7 @@ Our battery of tests consists of four programs,
 read_8192, write_8192, write_4096
 and rewrite_8192 originally written by [McKusick83]
 to evaluate the performance of the new file system in 4.2BSD.
-These programs all follow the the same model and are typified by
+These programs all follow the same model and are typified by
 read_8192 shown here.
 .DS
 #define	BUFSIZ 8192

@@ -103,7 +103,7 @@ In summary, our development model is organized as a loose set of
 concentric circles.  The centralized model is designed for the
 convenience of the <em>users</em> of FreeBSD, who are thereby provided
 with an easy way of tracking one central code base, not to keep
-potential contributors out!  Our desire is to to present a stable
+potential contributors out!  Our desire is to present a stable
 operating system with a large set of coherent <ref id="ports"
 name="application programs"> that the users can easily install and
 use, and this model works very well in accomplishing that.
