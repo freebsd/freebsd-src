@@ -812,6 +812,10 @@
       keyword in the <option>-o</option> option.  It displays
       &man.jail.2; ID of each process.</para>
 
+    <para>The &man.pstat.8; now supports a <option>-h</option> option
+      to print swap sizes with SI prefixes such as K, M, and G,
+      which are used to form binary multiples.</para>
+
     <para>The &man.rescue.8; utilities in the <filename>/rescue</filename>
       directory now include &man.bsdtar.1; instead of GNU tar.</para>
 
