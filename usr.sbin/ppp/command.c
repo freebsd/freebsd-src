@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.106 1997/11/23 20:05:18 brian Exp $
+ * $Id: command.c,v 1.107 1997/12/07 04:09:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -353,7 +353,7 @@ static struct cmdtab const Commands[] = {
   {"close", NULL, CloseCommand, LOCAL_AUTH,
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
-  "delete route", "delete ALL | dest [gateway [mask]]"},
+  "delete route", "delete dest"},
   {"deny", NULL, DenyCommand, LOCAL_AUTH,
   "Deny option request", "deny option .."},
   {"dial", "call", DialCommand, LOCAL_AUTH,
