@@ -4,12 +4,13 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.72 1994/08/19 00:00:41 phk Exp $
+#	$Id: LINT,v 1.73 1994/08/27 16:23:03 davidg Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
+cpu		"I586_CPU"
 ident		LINT
 timezone	8 dst
 maxusers	10
@@ -69,6 +70,20 @@ options		MROUTING		# Multicast routing
 #
 # options that are in sys/conf/files
 #
+
+options		"CD9660"		#ISO 9660 filesystem
+options		FDESC			#File descriptor filesystem
+options		FFS			#Fast filesystem
+options		KERNFS			#Kernel filesystem
+options		LFS			#Log filesystem
+options		MFS			#Memory File System
+options		NFS			#Network File System
+options		NULLFS			#NULL filesystem
+options		PORTAL			#Portal filesystem
+options		PROCFS			#Process filesystem
+options		UMAPFS			#UID map filesystem
+options		UNION			#Union filesystem
+
 pseudo-device	bpfilter	4	#berkeley packet filter
 options		CCITT
 device		cd0	#Only need one of these, the code dynamically grows
@@ -80,11 +95,8 @@ options		FIFO
 #pseudo-device	imp
 options		INET			#Internet communications protocols
 options		ISO
-options		ISOFS			#ISO 9660 File System
 options		LKM			#Loadable kernel modules
 pseudo-device	loop			#Network loop back device
-options		MFS			#Memory File System
-options		NFS			#Network File System
 options		NS			#Xerox NS communications protocols
 options		NSIP			#XNS over IP
 pseudo-device	ppp	2		#Point-to-point protocol
