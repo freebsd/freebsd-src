@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #define	RDIR	-3
 #define	TRACE	-4
 #define	MMAP	-5
+#define	JDIR	-6
 
 DEVS *devs;
 
@@ -309,6 +310,9 @@ int	Pid;
 	case MMAP: \
 		printf(" mmap"); \
 		break; \
+	case JDIR: \
+		printf(" jail"); \
+		break; \
 	default: \
 		printf(" %4d", i); \
 		break; \
@@ -345,6 +349,11 @@ dofiles(struct kinfo_proc *kp)
 	 */
 	vtrans(filed.fd_cdir, CDIR, FREAD);
 	/*
+	 * jail root, if any.
+	 */
+	if (filed.fd_jdir)
+		vtrans(filed.fd_jdir, JDIR, FREAD);
+	/*
 	 * ktrace vnode, if one
 	 */
 	if (kp->ki_tracep)
@@ -358,6 +367,12 @@ dofiles(struct kinfo_proc *kp)
 	 * open files
 	 */
 #define FPSIZE	(sizeof (struct file *))
+#define MAX_LASTFILE	(0x1000000)
+
+	/* Sanity check on filed.fd_lastfile */
+	if (filed.fd_lastfile <= -1 || filed.fd_lastfile > MAX_LASTFILE)
+		return;
+
 	ALLOC_OFILES(filed.fd_lastfile+1);
 	if (!KVM_READ(filed.fd_ofiles, ofiles,
 	    (filed.fd_lastfile+1) * FPSIZE)) {
