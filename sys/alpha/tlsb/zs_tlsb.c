@@ -228,6 +228,7 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
 	zs_console_addr = (caddr_t) ALPHA_PHYS_TO_K0SEG(base + offset);
 
 	sprintf(zs_consdev.cn_name, "zs0");
+	zs_consdev.cn_unit = 0;
 	zs_consdev.cn_pri = CN_NORMAL;
 	make_dev(&zs_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "zs0");
 	cnadd(&zs_consdev);
@@ -238,7 +239,7 @@ int
 zs_cngetc(struct consdev *cp)
 {
 	int s = spltty();
-	int c = zs_getc(zs_console_addr, minor(cp->cn_dev));
+	int c = zs_getc(zs_console_addr, cp->cn_unit);
 	splx(s);
 	return c;
 }
@@ -247,7 +248,7 @@ int
 zs_cncheckc(struct consdev *cp)
 {
 	int s = spltty();
-	int c = zs_maygetc(zs_console_addr, minor(cp->cn_dev));
+	int c = zs_maygetc(zs_console_addr, cp->cn_unit);
 	splx(s);
 	return c;
 }
@@ -256,7 +257,7 @@ void
 zs_cnputc(struct consdev *cp, int c)
 {
 	int s = spltty();
-	zs_putc(zs_console_addr, minor(cp->cn_dev), c);
+	zs_putc(zs_console_addr, cp->cn_unit, c);
 	splx(s);
 }
 

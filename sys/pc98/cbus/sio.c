@@ -3963,6 +3963,18 @@ struct siocnstate {
 	u_char	mcr;
 };
 
+/*
+ * This is a function in order to not replicate "ttyd%d" more
+ * places than absolutely necessary.
+ */
+static void
+siocnset(struct consdev *cd, int unit)
+{
+
+	cd->cn_unit = unit;
+	sprintf(cd->cn_name, "ttyd%d", unit);
+}
+
 #ifndef __alpha__
 static speed_t siocngetspeed(Port_t, u_long rclk);
 #endif
@@ -4185,7 +4197,7 @@ siocnprobe(cp)
 
 			splx(s);
 			if (COM_CONSOLE(flags) && !COM_LLCONSOLE(flags)) {
-				cp->cn_dev = makedev(CDEV_MAJOR, unit);
+				siocnset(cp, unit);
 				cp->cn_pri = COM_FORCECONSOLE(flags)
 					     || boothowto & RB_SERIAL
 					     ? CN_REMOTE : CN_NORMAL;
@@ -4197,7 +4209,7 @@ siocnprobe(cp)
 				siogdbiobase = iobase;
 				siogdbunit = unit;
 #if DDB > 0
-				gdbconsdev.cn_dev = makedev(CDEV_MAJOR, unit);
+				siocnset(&gdbconsdev, unit);
 				gdb_arg = &gdbconsdev;
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
@@ -4219,7 +4231,7 @@ siocnprobe(cp)
 		printf("configuration file (currently sio only).\n");
 		siogdbiobase = siocniobase;
 		siogdbunit = siocnunit;
-		gdbconsdev.cn_dev = makedev(CDEV_MAJOR, siocnunit);
+		siocnset(&gdbconsdev, siocnunit);
 		gdb_arg = &gdbconsdev;
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
@@ -4232,7 +4244,7 @@ static void
 siocninit(cp)
 	struct consdev	*cp;
 {
-	comconsole = DEV_TO_UNIT(cp->cn_dev);
+	comconsole = cp->cn_unit;
 }
 
 static void
@@ -4263,7 +4275,7 @@ siocnattach(port, speed)
 	siocnunit = unit;
 	comdefaultrate = speed;
 	sio_consdev.cn_pri = CN_NORMAL;
-	sio_consdev.cn_dev = makedev(CDEV_MAJOR, unit);
+	siocnset(&sio_consdev, unit);
 
 	s = spltty();
 
@@ -4307,7 +4319,7 @@ siogdbattach(port, speed)
 	printf("sio%d: gdb debugging port\n", unit);
 	siogdbunit = unit;
 #if DDB > 0
-	gdbconsdev.cn_dev = makedev(CDEV_MAJOR, unit);
+	siocnset(&gdbconsdev, unit);
 	gdb_arg = &gdbconsdev;
 	gdb_getc = siocngetc;
 	gdb_putc = siocnputc;
@@ -4343,14 +4355,12 @@ static int
 siocncheckc(struct consdev *cd)
 {
 	int	c;
-	dev_t	dev;
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
 	speed_t	speed;
 
-	dev = cd->cn_dev;
-	if (minor(dev) == siocnunit) {
+	if (cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
@@ -4368,19 +4378,16 @@ siocncheckc(struct consdev *cd)
 	return (c);
 }
 
-
 static int
 siocngetc(struct consdev *cd)
 {
 	int	c;
-	dev_t	dev;
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
 	speed_t	speed;
 
-	dev = cd->cn_dev;
-	if (minor(dev) == siocnunit) {
+	if (cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
@@ -4402,13 +4409,11 @@ siocnputc(struct consdev *cd, int c)
 {
 	int	need_unlock;
 	int	s;
-	dev_t 	dev;
 	struct siocnstate	sp;
 	Port_t	iobase;
 	speed_t	speed;
 
-	dev = cd->cn_dev;
-	if (minor(dev) == siocnunit) {
+	if (cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
