@@ -1,80 +1,243 @@
-.Dd March 2, 1995
-.Dt PT 4
+.\" 
+.\" Copyright (C) 1996
+.\"   interface business GmbH
+.\"   Tolkewitzer Strasse 49
+.\"   D-01277 Dresden
+.\"   F.R. Germany
+.\"
+.\" All rights reserved.
+.\"
+.\" Written by Joerg Wunsch <joerg_wunsch@interface-business.de>
+.\"
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $Id: worm.4,v 1.4 1996/04/08 04:18:08 mpp Exp $
+.\"
+.Dd January 27, 1996
+.Dt WORM 4
 .Os FreeBSD
 .Sh NAME
 .Nm worm
-.Nd scsi Write-Once driver
+.Nd write-once (CD-R) disk driver
 .Sh SYNOPSIS
-.Nm device worm0 at scbus?
+.Cd disk worm0
+.Cd disk worm0 target 5 lun 0
 .Sh DESCRIPTION
 The
-.Xr worm
-driver provides preliminary support for a 
-SCSI Write-Once type device.
+.Nm worm
+driver provides support for a 
+.Em SCSI
+write-once device, in particular for a CD-R recording device.  The
+driver attempts to abstract the dirty hardware work to a common API as
+good as possible.  Due to the very special nature of CD-R devices and
+their handling requirements, this API applies some more constraints to
+the user than those of other disk-like devices.
 .Pp
-It is unlikely that this driver works yet.  Jordan will test
-it for us.
+A CD is usually structured into sessions and tracks.  Each track can
+hold a different type of data, basically either audio information, or
+CD-ROM data.  In order to record a CD-R, the device must be told which
+kind of data is to be recorded, at which speed, etc.  Once all tracks
+of a session have been written, the medium must finally be
+.Em fixated
+which basically means that the table of contents will be written, and
+the session is marked as usable.  Optionally, a new session can be
+enabled at this time, or the disk can be entirely closed to prevent
+further writing.
 .Pp
-A scsi adapter must be separately configured into the system
-before this driver can be used.
+One particular feature of all existing CD-R recorders is that they
+require a constant data stream while the write channel is open.  This
+usually requires some precautions like using a multiple-buffering
+filter to read the data from the disk, and/or running at real-time
+priority.
 .Pp
-This device only supports
-.Xr read 2
-and
-.Xr write 2 ,
-and the general scsi ioctl calls.  There are no partitions yet; the entire
-drive is treated as a single raw device.  There are no block devices yet
-so you can't mount a file system with this.  That will have to wait for
-the partition code to be cleaned up.
-.Sh IOCTLS
-The 
+There is no official standard for CD-R devices, so every vendor seems
+to implement his own set of controlling commands.  Some vendors use
+rather similar command sets, while other devices behave entirely
+different.  The driver has builtin knowledge about the odds and ends
+of some devices, which must then be selected first at run-time in
+order to make the driver operational at all.  This builtin knowledge
+will be replaced by a loadable module scenario in the future.
+.Pp
+Due to the requirement of adjusting several parameters before actually
+being able to write some data to the CD-R, and due to the tight timing
+requirements when writing data, the driver distinguishes two different
+operation modes.  When opening a file descriptor for a device belonging
+to the
 .Nm
-driver has no ioctls of it's own but rather acts as a medium for the
-generic 
+driver without write access, the driver does not enforce the tight
+timing that is needed to write data to the CD-R, but it allows for
+sending
+.Xr ioctl 2
+commands to adjust parameters.  Any number of ioctls can be performed
+on the device as long as the required sequence of actions is being
+maintained.  The first thing that must be done is to select a set of
+quirks for the actual device.  Then, the per-session parameters must
+be specified.  Each track requires a set of per-track parameters
+finally.
+.Pp
+Once all preparations have been done, the device can be opened with
+write intent, at which point the driver starts to activate the
+time-critical handling, and is expecting any number of
+.Xr write 2
+system calls that is required in order to transfer all the data to the
+device.  Failure in providing these data in a timely fashion will render
+the current medium unusable.  The device-specific sequence for telling
+that the current track is finally complete will be issued to the device
+when calling
+.Xr close 2
+on the file descriptor that has been used to write the data.
+.Pp
+After this happened, things are no longer time-critical.  Any number of
+further tracks can be written to the device.  Finally, the session must
+be fixated by another ioctl.
+.Sh IOCTLS
+The following 
+.Xr ioctl 2
+calls apply to CD-R devices.  Their declaration can be found in the
+header file
+.Pa <sys/wormio.h> .
+.Bl -tag -width WORMIOCQUIRKSELECT
+.It Dv WORMIOCQUIRKSELECT
+Select the set of quirk functions to use for this device.  This is the
+only allowed action on a virgin device after booting.  The argument
+structure takes a vendor and a model string, which are matched against
+the vendor and model strings of all quirk records that have been
+registered with the driver.  Currently, the only known quirks must
+have been statically compiled into the driver.
+.Pp
+If the driver fails to match the vendor and model string against any
+known quirk record, the system call returns with an error, and the
+variable
+.Va errno
+will be set to
+.Er EINVAL .
+The system call argument is a pointer to a
+.Dv struct wormio_quirk_select .
+.It Dv WORMIOCPREPDISK
+This command selects several session-wide parameters in the driver.
+The argument structure,
+.Dv struct wormio_prepare_disk
+takes two integer values,
+.Dv dummy ,
+and
+.Dv speed .
+By setting
+.Dv dummy
+to 1, the drive will be told to simulate all actions, without actually
+turning on the laser.  It is mainly used to test the environment
+whether it could cope with the timing constraints, without risking a
+damaged medium.  The parameter
+.Dv speed
+is device-dependent, where a speed value of one generally applies to
+audio disks, and a speed value of 2 (or more) is used for recording
+data.
+.It Dv WORMIOCPREPTRACK
+The two parameters
+.Dv audio
+and
+.Dv preemp
+are being passed as arguments in a
+.Dv struct wormio_prepare_track .
+Both are Boolean, i.e. can be either 0 or 1.  If
+.Dv audio
+is set to 1, the next track will be recorded in audio format, with
+2352 bytes per block.  If
+.Dv preemp
+is also set to 1, the audio data are assumed to be recorded with
+preemphasis.  If
+.Dv audio
+is 0, CD-ROM data with a block length of 2048 bytes are about to be
+written next.
+.It Dv WORMIOCFIXATION
+This closes the current session.  The argument is a pointer to
+.Dv struct wormio_fixation ,
+with the elements
+.Dv toc_type ,
+an integer between 0 and 4, describing the table-of-contents type.  See
+.Xr wormcontrol 8
+for a list of useful values.  Optionally, setting the field
+.Dv onp
+to 1 will cause the next session being opened, so further recording
+can be performed into the remaining space.  If
+.Dv onp
+is 0, the disk will be closed once and for all.
+.El
+Specifying wrong argument values to the above ioctl command will cause
+the driver to return an error condition with
+.Va errno
+set to
+.Er EINVAL .
+Any attempt to perform something else then selecting a quirks record
+on a device where this has not been done yet will return an error of
+.Er ENXIO .
+.Pp
+In addition, the 
 .Xr scsi 4
-ioctls. These are described in
-.Em sys/scsiio.h.
+general ioctls may be used with the 
+.Nm
+driver, but only against the control device.
+.Sh BUGS
+The driver is still in a very preliminary state.  Expect all kind of
+surprises when using it.  It is highly recommendable to be used to
+the command
+.Xr scsi 8
+in order to provide First Medical Aid in case of an emergency.
+.Pp
+Preparing the driver for a CD-R from another vendor will require you
+to understand the source code, be used to the SCSI-2 specification,
+hold a copy of the vendor's SCSI reference manual on your desk, and
+have a lot of patience and CD-R's.
+.Pp
+The driver should learn the entire set of CD-ROM commands, too, since
+all CD-R devices implement it.
 .Sh FILES
-.Bl -tag -width /dev/worm -compact
-.It Pa /dev/worm[0-255]
-worm{x} is the  'xth' Write-Once device.
+.Bl -tag -width /dev/rworm[0-9].ctl -compact
+.It Pa /dev/rworm[0-9]
+device for ioctl's and to write a CD-R
+.It Pa /dev/rworm[0-9].ctl
+the control device, as being used by
+.Xr scsi 8
 .El
 .Sh DIAGNOSTICS
-.Pp
-It is unlikely that this driver actually works.
-.Pp
-There will be no partition code until Bruce finishes his slice work.
-.Pp
-There will be no block devices until the partition code is done.
-.Pp
-There will be no kernel "devconf" code until that is treated cleanly
-across the SCSI system.
-.Pp
-The
-.Em "at scbus?"
-is required in the config file for the configuration
-system to know this is a SCSI device and generate the appropriate
-tables.
-.Pp
-The 0 in 
-.Em worm0
-in the configuration is required.
-This is a bug in 
-.Xr config 8 .
-.Pp
-All
-.Xr scsi 4
-debug ioctls work on 
-.Nm
-devices.
+See above.
 .Sh SEE ALSO
-.Xr sd 4
-.Xr st 4
-.Xr cd 4
-.Xr ch 4
-.Xr su 4
-.Xr scsi 4
+.Xr scsi 4 ,
+.Xr scsi 8 ,
+.Xr wormcontrol 8 ,
+.Xr open 2 ,
+.Xr ioctl 2 ,
+.Xr write 2 ,
+.Xr close 2 .
+.Sh AUTHORS
+The first skeleton for a
+.Nm
+driver has been written by Peter Dufault in May, 1995.  The driver has
+then been improved and made actually usable at all by
+.if n Joerg Wunsch
+.if t J\(:org Wunsch
+in January, 1996.
 .Sh HISTORY
 The
 .Nm
-driver appeared in FreeBSD 2.1
+driver appeared in FreeBSD 2.1.
