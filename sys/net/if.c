@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.32 1996/06/12 19:23:59 gpalmer Exp $
+ * $Id: if.c,v 1.33 1996/07/11 16:32:26 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -236,7 +236,8 @@ ifa_ifwithnet(addr)
 			if (ifa->ifa_addr->sa_family != af)
 				next: continue;
 			if (ifp->if_flags & IFF_POINTOPOINT) {
-				if (equal(addr, ifa->ifa_dstaddr))
+				if (ifa->ifa_dstaddr != 0
+				    && equal(addr, ifa->ifa_dstaddr))
  					return (ifa);
 			} else {
 				if (ifa->ifa_netmask == 0)
