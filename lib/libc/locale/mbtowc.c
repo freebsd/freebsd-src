@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <rune.h>
@@ -53,8 +54,10 @@ mbtowc(pwc, s, n)
 	if (s == 0 || *s == 0)
 		return (0);	/* No support for state dependent encodings. */
 
-	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE)
+	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE) {
+		errno = EILSEQ;
 		return (s - e);
+	}
 	if (pwc)
 		*pwc = r;
 	return (e - s);

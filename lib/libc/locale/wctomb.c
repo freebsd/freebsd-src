@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stddef.h>
@@ -58,5 +59,9 @@ wctomb(s, wchar)
 	}
 
 	sputrune(wchar, s, MB_CUR_MAX, &e);
-	return (e ? e - s : -1);
+	if (e == NULL) {
+		errno = EILSEQ;
+		return (-1);
+	}
+	return (e - s);
 }
