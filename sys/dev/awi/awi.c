@@ -145,8 +145,6 @@
 #ifdef __NetBSD__
 #include <machine/intr.h>
 #endif
-#ifdef __FreeBSD__
-#endif
 
 #ifdef __NetBSD__
 #include <dev/ic/am79c930reg.h>

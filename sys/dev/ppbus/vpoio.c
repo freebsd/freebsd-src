@@ -39,9 +39,6 @@
 
 #endif
 
-#ifdef	_KERNEL
-#endif
-
 #include "opt_vpo.h"
 
 #include <dev/ppbus/ppbio.h>
