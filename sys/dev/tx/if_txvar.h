@@ -67,6 +67,10 @@
 #define	PCI_CFIT	0x3c	/* Configuration Interrupt */
 #define	PCI_CFDA	0x40	/* Configuration Driver Area */
 
+#define	PCI_CFCS_IOEN	0x0001	/* IO Sapce Enable */
+#define	PCI_CFCS_MAEN	0x0002	/* Memory Space Enable */
+#define	PCI_CFCS_BMEN	0x0004	/* Bus Master Enable */
+
 #define	PCI_CONF_WRITE(r, v)	pci_conf_write(config_id, (r), (v))
 #define	PCI_CONF_READ(r)	pci_conf_read(config_id, (r))
 

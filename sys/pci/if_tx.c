@@ -36,8 +36,6 @@
  * Thanks are going to Steve Bauer and Jason Wright.
  *
  * todo:
- *	Deal with bus mastering, i.e. i realy don't know what to do with
- *	    it and how it can improve performance.
  *	Implement FULL IFF_MULTICAST support.
  *	Test, test and test again:-(
  *	
@@ -425,6 +423,7 @@ epic_freebsd_attach(
 #else
 	caddr_t	pmembase;
 #endif
+	u_int32_t command;
 	int i,s,tmp;
 
 	printf("tx%d",unit);
@@ -453,12 +452,34 @@ epic_freebsd_attach(
 
 	/* Get iobase or membase */
 #if defined(EPIC_USEIOSPACE)
+	command = PCI_CONF_READ(PCI_CFCS);
+	command |= PCI_CFCS_IOEN;
+	PCI_CONF_WRITE(PCI_CFCS, command);
+	command = PCI_CONF_READ(PCI_CFCS);
+
+	if (!(command & PCI_CFCS_IOEN)) {
+		printf(": failed to enable memory mapping!\n");
+		free(sc, M_DEVBUF);
+		return;
+	}
+
 	if (!pci_map_port(config_id, PCI_CBIO,(u_short *) &(sc->iobase))) {
 		printf(": cannot map port\n");
 		free(sc, M_DEVBUF);
 		return;
 	}
 #else
+	command = PCI_CONF_READ(PCI_CFCS);
+	command |= PCI_CFCS_MAEN;
+	PCI_CONF_WRITE(PCI_CFCS, command);
+	command = PCI_CONF_READ(PCI_CFCS);
+
+	if (!(command & PCI_CFCS_MAEN)) {
+		printf(": failed to enable memory mapping!\n");
+		free(sc, M_DEVBUF);
+		return;
+	}
+
 	if (!pci_map_mem(config_id, PCI_CBMA,(vm_offset_t *) &(sc->csr),(vm_offset_t *) &pmembase)) {
 		printf(": cannot map memory\n"); 
 		free(sc, M_DEVBUF);
@@ -466,7 +487,13 @@ epic_freebsd_attach(
 	}
 #endif
 
+	/* Do OS independent part, including chip wakeup and reset */
 	if( epic_common_attach(sc) ) return;
+
+	/* Enable BusMaster'ing */
+	command = PCI_CONF_READ(PCI_CFCS);
+	command |= PCI_CFCS_BMEN;
+	PCI_CONF_WRITE(PCI_CFCS, command);
 
 	/* Display ethernet address ,... */
 	printf(": address %02x:%02x:%02x:%02x:%02x:%02x,",
@@ -734,8 +761,8 @@ epic_common_attach(
 	pool += sizeof(struct epic_rx_desc)*RX_RING_SIZE;
 	sc->tx_desc = (void *)pool;
 
-	/* Bring the chip out of low-power mode. */
-	CSR_WRITE_4( sc, GENCTL, 0x0000 );
+	/* Bring the chip out of low-power mode and reset it. */
+	CSR_WRITE_4( sc, GENCTL, GENCTL_SOFT_RESET );
 
 	/* Workaround for Application Note 7-15 */
 	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
