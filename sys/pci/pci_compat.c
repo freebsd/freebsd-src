@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.9 1998/08/07 08:20:36 dfr Exp $
+ * $Id: pci_compat.c,v 1.10 1998/09/06 22:41:42 tegge Exp $
  *
  */
 
@@ -348,10 +348,12 @@ pci_drvmessage(pcicfgregs *cfg, char *name, int unit)
 
 
 void
-pci_drvattach(pcicfgregs *cfg)
+pci_drvattach(struct pci_devinfo *dinfo)
 {
 	struct pci_device *dvp;
+	pcicfgregs *cfg;
 
+	cfg = &dinfo->cfg;
 	dvp = pci_finddrv(cfg);
 	if (dvp != NULL) {
 		int unit;
@@ -364,6 +366,23 @@ pci_drvattach(pcicfgregs *cfg)
 		pci_drvmessage(cfg, dvp->pd_name, unit);
 		if (dvp->pd_attach)
 			dvp->pd_attach(cfg, unit);
+
+		dinfo->device = dvp;
+
+		/*
+		 * XXX KDM for some devices, dvp->pd_name winds up NULL.
+		 * I haven't investigated enough to figure out why this
+		 * would happen.
+		 */
+		if (dvp->pd_name != NULL)
+			strncpy(dinfo->conf.pd_name, dvp->pd_name,
+				sizeof(dinfo->conf.pd_name));
+		else
+			strncpy(dinfo->conf.pd_name, "????",
+				sizeof(dinfo->conf.pd_name));
+
+		dinfo->conf.pd_unit = unit;
+
 	}
 }
 
