@@ -84,6 +84,40 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+static int
+vm_contig_launder(int queue)
+{
+	vm_object_t object;
+	vm_page_t m, m_tmp, next;
+
+	for (m = TAILQ_FIRST(&vm_page_queues[queue].pl); m != NULL; m = next) {
+		next = TAILQ_NEXT(m, pageq);
+		KASSERT(m->queue == queue,
+		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
+		if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
+			return (TRUE);
+		vm_page_test_dirty(m);
+		if (m->dirty) {
+			object = m->object;
+			if (object->type == OBJT_VNODE) {
+				vn_lock(object->handle,
+				    LK_EXCLUSIVE | LK_RETRY, curthread);
+				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
+				VOP_UNLOCK(object->handle, 0, curthread);
+				return (TRUE);
+			} else if (object->type == OBJT_SWAP ||
+				   object->type == OBJT_DEFAULT) {
+				m_tmp = m;
+				vm_pageout_flush(&m_tmp, 1, 0);
+				return (TRUE);
+			}
+		}
+		if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
+			vm_page_cache(m);
+	}
+	return (FALSE);
+}
+
 /*
  * This interface is for merging with malloc() someday.
  * Even if we never implement compaction so that contiguous allocation
@@ -138,63 +172,11 @@ again:
 		 */
 		if ((i == cnt.v_page_count) ||
 			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
-			vm_page_t m, next;
-
 again1:
-			for (m = TAILQ_FIRST(&vm_page_queues[PQ_INACTIVE].pl);
-				m != NULL;
-				m = next) {
-
-				KASSERT(m->queue == PQ_INACTIVE,
-					("contigmalloc1: page %p is not PQ_INACTIVE", m));
-
-				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
-					goto again1;
-				vm_page_test_dirty(m);
-				if (m->dirty) {
-					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
-						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curthread);
-						goto again1;
-					} else if (m->object->type == OBJT_SWAP ||
-								m->object->type == OBJT_DEFAULT) {
-						vm_pageout_flush(&m, 1, 0);
-						goto again1;
-					}
-				}
-				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
-					vm_page_cache(m);
-			}
-
-			for (m = TAILQ_FIRST(&vm_page_queues[PQ_ACTIVE].pl);
-				m != NULL;
-				m = next) {
-
-				KASSERT(m->queue == PQ_ACTIVE,
-					("contigmalloc1: page %p is not PQ_ACTIVE", m));
-
-				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep_busy(m, TRUE, "vpctw1"))
-					goto again1;
-				vm_page_test_dirty(m);
-				if (m->dirty) {
-					if (m->object->type == OBJT_VNODE) {
-						vn_lock(m->object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
-						vm_object_page_clean(m->object, 0, 0, OBJPC_SYNC);
-						VOP_UNLOCK(m->object->handle, 0, curthread);
-						goto again1;
-					} else if (m->object->type == OBJT_SWAP ||
-								m->object->type == OBJT_DEFAULT) {
-						vm_pageout_flush(&m, 1, 0);
-						goto again1;
-					}
-				}
-				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
-					vm_page_cache(m);
-			}
-
+			if (vm_contig_launder(PQ_INACTIVE))
+				goto again1;
+			if (vm_contig_launder(PQ_ACTIVE))
+				goto again1;
 			splx(s);
 			continue;
 		}
