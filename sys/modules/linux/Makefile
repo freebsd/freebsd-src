@@ -15,7 +15,6 @@ OBJS=	linux_locore.o
 SRCS+=	imgact_linux.c
 .endif
 
-EXPORT_SYMS=	_linux_mod
 CLEANFILES=	linux_assym.h linux_genassym.o
 
 linux_assym.h: linux_genassym.o
