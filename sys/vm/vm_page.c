@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.56 1996/06/12 06:52:06 dyson Exp $
+ *	$Id: vm_page.c,v 1.57 1996/06/16 20:37:31 dyson Exp $
  */
 
 /*
@@ -802,12 +802,13 @@ vm_page_free_wakeup()
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if ((cnt.v_free_count + cnt.v_cache_count) == cnt.v_free_min) {
+	if (vm_pages_needed &&
+		((cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)) {
 		wakeup(&cnt.v_free_count);
+		vm_pages_needed = 0;
 	}
 }
 
-	
 /*
  *	vm_page_free:
  *
