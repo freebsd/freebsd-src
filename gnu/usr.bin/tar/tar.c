@@ -197,7 +197,7 @@ struct option long_options[] =
 /*
  * Main routine for tar.
  */
-void
+int
 main (argc, argv)
      int argc;
      char **argv;
