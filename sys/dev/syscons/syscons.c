@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.312 1999/07/01 20:43:03 peter Exp $
+ *	$Id: syscons.c,v 1.313 1999/07/07 13:48:49 yokota Exp $
  */
 
 #include "sc.h"
@@ -246,7 +246,10 @@ sc_probe_unit(int unit, int flags)
 	return ENXIO;
     }
 
-    return ((sckbdprobe(unit, flags, FALSE)) ? 0 : ENXIO);
+    /* syscons will be attached even when there is no keyboard */
+    sckbdprobe(unit, flags, FALSE);
+
+    return 0;
 }
 
 /* probe video adapters, return TRUE if found */ 
@@ -641,6 +644,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	break;
     case KBDIO_UNLOADING:
 	sc->kbd = NULL;
+	sc->keyboard = -1;
 	kbd_release(thiskbd, (void *)&sc->keyboard);
 	return 0;
     default:
@@ -1469,6 +1473,7 @@ sccnputc(dev_t dev, int c)
     u_char buf[1];
     scr_stat *scp = sc_console;
     term_stat save = scp->term;
+    struct tty *tp;
     int s;
 
     /* assert(sc_console != NULL) */
@@ -1484,7 +1489,9 @@ sccnputc(dev_t dev, int c)
 	    scp->status |= CURSOR_ENABLED;
 	    draw_cursor_image(scp);
 	}
-	scstart(VIRTUAL_TTY(scp->sc, scp->index));
+	tp = VIRTUAL_TTY(scp->sc, scp->index);
+	if (tp->t_state & TS_ISOPEN)
+	    scstart(tp);
     }
 #endif /* !SC_NO_HISTORY */
 
@@ -3308,13 +3315,10 @@ scinit(int unit, int flags)
 	    sc->fonts_loaded = FONT_16 | FONT_14 | FONT_8;
 	    if (scp->font_size < 14) {
 		copy_font(scp, LOAD, 8, sc->font_8);
-		sc->fonts_loaded = FONT_8;
 	    } else if (scp->font_size >= 16) {
 		copy_font(scp, LOAD, 16, sc->font_16);
-		sc->fonts_loaded = FONT_16;
 	    } else {
 		copy_font(scp, LOAD, 14, sc->font_14);
-		sc->fonts_loaded = FONT_14;
 	    }
 #else /* !SC_DFLT_FONT */
 	    if (scp->font_size < 14) {
@@ -3594,6 +3598,7 @@ static u_int
 scgetc(sc_softc_t *sc, u_int flags)
 {
     scr_stat *scp;
+    struct tty *tp;
     u_int c;
     int this_scr;
     int f;
@@ -3724,8 +3729,10 @@ next_code:
 			    scp->status |= CURSOR_ENABLED;
 			    draw_cursor_image(scp);
 			}
+			tp = VIRTUAL_TTY(sc, scp->index);
+			if (tp->t_state & TS_ISOPEN)
+			    scstart(tp);
 #endif
-			scstart(VIRTUAL_TTY(sc, scp->index));
 		    }
 		}
 		break;
@@ -4085,11 +4092,14 @@ static void
 blink_screen(void *arg)
 {
     scr_stat *scp = arg;
+    struct tty *tp;
 
     if (ISGRAPHSC(scp) || (scp->sc->blink_in_progress <= 1)) {
 	scp->sc->blink_in_progress = 0;
     	mark_all(scp);
-	scstart(VIRTUAL_TTY(scp->sc, scp->index));
+	tp = VIRTUAL_TTY(scp->sc, scp->index);
+	if (tp->t_state & TS_ISOPEN)
+	    scstart(tp);
 	if (scp->sc->delayed_next_scr)
 	    switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
     }
