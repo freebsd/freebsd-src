@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.50 1999/01/28 00:57:54 dillon Exp $
+ * $Id: kernel.h,v 1.51 1999/01/28 17:30:51 dillon Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -180,27 +180,32 @@ typedef enum sysinit_elem_type {
  * want two which is why this code is if'd out, but we definitely want
  * to discern SYSINIT's which take non-constant data pointers and
  * SYSINIT's which take constant data pointers,
+ *
+ * The C_* macros take functions expecting const void * arguments 
+ * while the non-C_* macros take functions expecting just void * arguments.
+ *
+ * With -Wcast-qual on, the compiler issues warnings:
+ *	- if we pass non-const data or functions taking non-const data
+ *	  to a C_* macro.
+ *
+ *	- if we pass const data to the normal macros
+ *
+ * However, no warning is issued if we pass a function taking const data
+ * through a normal non-const macro.  This is ok because the function is
+ * saying it won't modify the data so we don't care whether the data is
+ * modifiable or not.
  */
+
+typedef void (*sysinit_nfunc_t) __P((void *));
+typedef void (*sysinit_cfunc_t) __P((const void *));
+
 struct sysinit {
 	unsigned int	subsystem;		/* subsystem identifier*/
 	unsigned int	order;			/* init order within subsystem*/
-	void		(*func) __P((void *));	/* function		*/
-	void		*udata;			/* multiplexer/argument */
-	si_elem_t	type;			/* sysinit_elem_type*/
-};
-
-#if 0
-
-struct c_sysinit {
-	unsigned int	subsystem;		/* subsystem identifier*/
-	unsigned int	order;			/* init order within subsystem*/
-	void		(*func) __P((const void *)); /* function 	*/
+	sysinit_cfunc_t func;			/* function		*/
 	const void	*udata;			/* multiplexer/argument */
 	si_elem_t	type;			/* sysinit_elem_type*/
 };
-
-#endif
-
 
 /*
  * Default: no special processing
@@ -210,8 +215,11 @@ struct c_sysinit {
  * At the moment it is no different from SYSINIT and thus
  * still results in warnings.
  *
+ * The casts are necessary to have the compiler produce the
+ * correct warnings when -Wcast-qual is used.
+ *
  */
-#define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
+#define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_init = {	\
 		subsystem,					\
 		order,						\
@@ -221,13 +229,13 @@ struct c_sysinit {
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
-#define	C_SYSINIT(uniquifier, subsystem, order, func, ident)	\
-	SYSINIT(uniquifier, subsystem, order, func, ident)
+#define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
+	C_SYSINIT(uniquifier, subsystem, order, (sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
 /*
  * Called on module unload: no special processing
  */
-#define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
+#define	C_SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
 	static struct sysinit uniquifier ## _sys_uninit = {	\
 		subsystem,					\
 		order,						\
@@ -237,8 +245,8 @@ struct c_sysinit {
 	};							\
 	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
 
-#define	C_SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
-	SYSUNINIT(uniquifier, subsystem, order, func, ident)
+#define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
+	C_SYSUNINIT(uniquifier, subsystem, order, (sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
 /*
  * Call 'fork()' before calling '(*func)(ident)';
