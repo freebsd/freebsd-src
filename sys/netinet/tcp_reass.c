@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.20 1995/04/10 17:16:10 davidg Exp $
+ *	$Id: tcp_input.c,v 1.21 1995/04/10 17:37:46 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -337,7 +337,18 @@ tcp_input(m, iphlen)
 	 * Locate pcb for segment.
 	 */
 findpcb:
-	inp = in_pcblookuphash(&tcbinfo, ti->ti_src, ti->ti_sport, ti->ti_dst, ti->ti_dport);
+	/*
+	 * First look for an exact match.
+	 */
+	inp = in_pcblookuphash(&tcbinfo, ti->ti_src, ti->ti_sport,
+	    ti->ti_dst, ti->ti_dport);
+	/*
+	 * ...and if that fails, do a wildcard search.
+	 */
+	if (inp == NULL) {
+		inp = in_pcblookup(&tcb, ti->ti_src, ti->ti_sport,
+		    ti->ti_dst, ti->ti_dport, INPLOOKUP_WILDCARD);
+	}
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then
@@ -345,7 +356,7 @@ findpcb:
 	 * If the TCB exists but is in CLOSED state, it is embryonic,
 	 * but should either do a listen or a connect soon.
 	 */
-	if (inp == 0)
+	if (inp == NULL)
 		goto dropwithreset;
 	tp = intotcpcb(inp);
 	if (tp == 0)
