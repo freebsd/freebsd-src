@@ -175,36 +175,6 @@ static void sis_dma_map_ring		(void *, bus_dma_segment_t *, int, int);
 #define SIS_RID			SIS_PCI_LOMEM
 #endif
 
-static device_method_t sis_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sis_probe),
-	DEVMETHOD(device_attach,	sis_attach),
-	DEVMETHOD(device_detach,	sis_detach),
-	DEVMETHOD(device_shutdown,	sis_shutdown),
-
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	/* MII interface */
-	DEVMETHOD(miibus_readreg,	sis_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	sis_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	sis_miibus_statchg),
-
-	{ 0, 0 }
-};
-
-static driver_t sis_driver = {
-	"sis",
-	sis_methods,
-	sizeof(struct sis_softc)
-};
-
-static devclass_t sis_devclass;
-
-DRIVER_MODULE(sis, pci, sis_driver, sis_devclass, 0, 0);
-DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
-
 #define SIS_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
 		CSR_READ_4(sc, reg) | (x))
@@ -2341,3 +2311,33 @@ sis_shutdown(device_t dev)
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
 }
+
+static device_method_t sis_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sis_probe),
+	DEVMETHOD(device_attach,	sis_attach),
+	DEVMETHOD(device_detach,	sis_detach),
+	DEVMETHOD(device_shutdown,	sis_shutdown),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	sis_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	sis_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	sis_miibus_statchg),
+
+	{ 0, 0 }
+};
+
+static driver_t sis_driver = {
+	"sis",
+	sis_methods,
+	sizeof(struct sis_softc)
+};
+
+static devclass_t sis_devclass;
+
+DRIVER_MODULE(sis, pci, sis_driver, sis_devclass, 0, 0);
+DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
