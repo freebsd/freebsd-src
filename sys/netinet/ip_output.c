@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.4 1994/08/02 07:48:45 davidg Exp $
+ * $Id: ip_output.c,v 1.5 1994/08/18 22:35:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -225,9 +225,16 @@ ip_output(m0, opt, ro, flags, imo)
 			 * above, will be forwarded by the ip_input() routine,
 			 * if necessary.
 			 */
-			extern struct socket *ip_mrouter;
 			if (ip_mrouter && (flags & IP_FORWARDING) == 0) {
-				if (ip_mforward(m, ifp) != 0) {
+				/*
+				 * Check if rsvp daemon is running. If not, don't
+				 * set ip_moptions. This ensures that the packet
+				 * is multicast and not just sent down one link
+				 * as prescribed by rsvpd.
+				 */
+				if (ip_rsvpd == NULL)
+				  imo = NULL;
+				if (ip_mforward(ip, ifp, m, imo) != 0) {
 					m_freem(m);
 					goto done;
 				}
@@ -557,6 +564,7 @@ ip_ctloutput(op, so, level, optname, mp)
 #undef OPTSET
 
 		case IP_MULTICAST_IF:
+		case IP_MULTICAST_VIF:
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
 		case IP_ADD_MEMBERSHIP:
@@ -620,6 +628,7 @@ ip_ctloutput(op, so, level, optname, mp)
 			break;
 
 		case IP_MULTICAST_IF:
+		case IP_MULTICAST_VIF:
 		case IP_MULTICAST_TTL:
 		case IP_MULTICAST_LOOP:
 		case IP_ADD_MEMBERSHIP:
@@ -774,12 +783,27 @@ ip_setmoptions(optname, imop, m)
 			return (ENOBUFS);
 		*imop = imo;
 		imo->imo_multicast_ifp = NULL;
+		imo->imo_multicast_vif = 0;
 		imo->imo_multicast_ttl = IP_DEFAULT_MULTICAST_TTL;
 		imo->imo_multicast_loop = IP_DEFAULT_MULTICAST_LOOP;
 		imo->imo_num_memberships = 0;
 	}
 
 	switch (optname) {
+
+	/* store an index number for the vif you wanna use in the send */
+	case IP_MULTICAST_VIF:
+		if (m == NULL || m->m_len != sizeof(int)) {
+			error = EINVAL;
+			break;
+		}
+		i = *(mtod(m, int *));
+		if (!legal_vif_num(i)) {
+			error = EINVAL;
+			break;
+		}
+		imo->imo_multicast_vif = i;
+		break;
 
 	case IP_MULTICAST_IF:
 		/*
@@ -972,6 +996,7 @@ ip_setmoptions(optname, imop, m)
 	 * If all options have default values, no need to keep the mbuf.
 	 */
 	if (imo->imo_multicast_ifp == NULL &&
+	    imo->imo_multicast_vif == 0 &&
 	    imo->imo_multicast_ttl == IP_DEFAULT_MULTICAST_TTL &&
 	    imo->imo_multicast_loop == IP_DEFAULT_MULTICAST_LOOP &&
 	    imo->imo_num_memberships == 0) {
@@ -999,6 +1024,14 @@ ip_getmoptions(optname, imo, mp)
 	*mp = m_get(M_WAIT, MT_SOOPTS);
 
 	switch (optname) {
+
+	case IP_MULTICAST_VIF: 
+		if (imo != NULL)
+			*(mtod(*mp, int *)) = imo->imo_multicast_vif;
+		else
+			*(mtod(*mp, int *)) = 7890;
+		(*mp)->m_len = sizeof(int);
+		return(0);
 
 	case IP_MULTICAST_IF:
 		addr = mtod(*mp, struct in_addr *);

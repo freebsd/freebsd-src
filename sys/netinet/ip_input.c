@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.3 1994/08/02 07:48:38 davidg Exp $
+ * $Id: ip_input.c,v 1.4 1994/08/18 22:35:30 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,9 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
+
+#include <sys/socketvar.h>
+struct socket *ip_rsvpd;
 
 #ifndef	IPFORWARDING
 #ifdef GATEWAY
@@ -237,6 +240,15 @@ next:
 	if (hlen > sizeof (struct ip) && ip_dooptions(m))
 		goto next;
 
+        /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
+         * matter if it is destined to another node, or whether it is 
+         * a multicast one, RSVP wants it! and prevents it from being forwarded
+         * anywhere else. Also checks if the rsvp daemon is running before
+	 * grabbing the packet.
+         */
+	if (ip_rsvpd != NULL && ip->ip_p==IPPROTO_RSVP) 
+		goto ours;
+
 	/*
 	 * Check our list of addresses, to see if the packet is for us.
 	 */
@@ -271,8 +283,6 @@ next:
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
 #ifdef MROUTING
-		extern struct socket *ip_mrouter;
-
 		if (ip_mrouter) {
 			/*
 			 * If we are acting as a multicast router, all
@@ -287,7 +297,7 @@ next:
 			 * ip_output().)
 			 */
 			ip->ip_id = htons(ip->ip_id);
-			if (ip_mforward(m, m->m_pkthdr.rcvif) != 0) {
+			if (ip_mforward(ip, m->m_pkthdr.rcvif, m, 0) != 0) {
 				ipstat.ips_cantforward++;
 				m_freem(m);
 				goto next;
@@ -1167,4 +1177,26 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 		return (EOPNOTSUPP);
 	}
 	/* NOTREACHED */
+}
+
+int
+ip_rsvp_init(struct socket *so)
+{
+	if (so->so_type != SOCK_RAW ||
+	    so->so_proto->pr_protocol != IPPROTO_RSVP)
+	  return EOPNOTSUPP;
+
+	if (ip_rsvpd != NULL)
+	  return EADDRINUSE;
+
+	ip_rsvpd = so;
+
+	return 0;
+}
+
+int
+ip_rsvp_done(void)
+{
+	ip_rsvpd = NULL;
+	return 0;
 }
