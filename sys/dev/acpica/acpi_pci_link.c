@@ -1013,8 +1013,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 
 	/* manual configuration. */
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-		UINT8			irq;
-		char			*irqstr, *op;
+		int			irq;
 		char			prthint[32];
 
 		if (entry->busno != busno) {
@@ -1026,15 +1025,8 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		    (int)((entry->prt.Address & 0xffff0000) >> 16),
 		    (int)entry->prt.Pin);
 
-		irqstr = getenv(prthint);
-		if (irqstr == NULL) {
+		if (getenv_int(prthint, &irq) == 0)
 			continue;
-		}
-
-		irq = strtoul(irqstr, &op, 0);
-		if (*op != '\0') {
-			continue;
-		}
 
 		if (acpi_pci_link_is_valid_irq(entry->pci_link, irq)) {
 			error = acpi_pci_link_set_irq(entry->pci_link, irq);
