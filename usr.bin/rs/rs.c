@@ -499,11 +499,11 @@ getlist(short **list, char *p)
 	char *t;
 
 	for (t = p + 1; *t; t++) {
-		if (!isdigit(*t))
+		if (!isdigit((unsigned char)*t))
 			errx(1,
 	"option %.1s requires a list of unsigned numbers separated by commas", t);
 		count++;
-		while (*t && isdigit(*t))
+		while (*t && isdigit((unsigned char)*t))
 			t++;
 		if (*t != ',')
 			break;
@@ -515,7 +515,7 @@ getlist(short **list, char *p)
 		(*list)[count++] = atoi(t);
 		printf("++ %d ", (*list)[count-1]);
 		fflush(stdout);
-		while (*t && isdigit(*t))
+		while (*t && isdigit((unsigned char)*t))
 			t++;
 		if (*t != ',')
 			break;
@@ -533,7 +533,7 @@ getnum(int *num, char *p, int strict)
 {
 	char *t = p;
 
-	if (!isdigit(*++t)) {
+	if (!isdigit((unsigned char)*++t)) {
 		if (strict || *t == '-' || *t == '+')
 			errx(1, "option %.1s requires an unsigned integer", p);
 		*num = 0;
@@ -541,7 +541,7 @@ getnum(int *num, char *p, int strict)
 	}
 	*num = atoi(t);
 	while (*++t)
-		if (!isdigit(*t))
+		if (!isdigit((unsigned char)*t))
 			break;
 	return(--t);
 }
