@@ -160,17 +160,25 @@ bundle_LayerStart(void *v, struct fsm *fp)
 }
 
 
-static void
+void
 bundle_Notify(struct bundle *bundle, char c)
 {
   if (bundle->notify.fd != -1) {
-    if (write(bundle->notify.fd, &c, 1) == 1)
-      log_Printf(LogPHASE, "Parent notified of %s\n",
-                 c == EX_NORMAL ? "success" : "failure");
+    int ret;
+
+    ret = write(bundle->notify.fd, &c, 1);
+    if (c != EX_REDIAL && c != EX_RECONNECT) {
+      if (ret == 1)
+        log_Printf(LogCHAT, "Parent notified of %s\n",
+                   c == EX_NORMAL ? "success" : "failure");
+      else
+        log_Printf(LogERROR, "Failed to notify parent of success\n");
+      close(bundle->notify.fd);
+      bundle->notify.fd = -1;
+    } else if (ret == 1)
+      log_Printf(LogCHAT, "Parent notified of %s\n", ex_desc(c));
     else
-      log_Printf(LogPHASE, "Failed to notify parent of success.\n");
-    close(bundle->notify.fd);
-    bundle->notify.fd = -1;
+      log_Printf(LogERROR, "Failed to notify parent of %s\n", ex_desc(c));
   }
 }
 
@@ -1220,7 +1228,7 @@ bundle_IdleTimeout(void *v)
 {
   struct bundle *bundle = (struct bundle *)v;
 
-  log_Printf(LogPHASE, "Idle timer expired.\n");
+  log_Printf(LogPHASE, "Idle timer expired\n");
   bundle_StopIdleTimer(bundle);
   bundle_Close(bundle, NULL, CLOSE_STAYDOWN);
 }
@@ -1643,7 +1651,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
         log_Printf(LogDEBUG, "Received confirmation from pid %d\n",
                    (int)newpid);
         if (lock && (res = ID0uu_lock_txfr(lock, newpid)) != UU_LOCK_OK)
-            log_Printf(LogPHASE, "uu_lock_txfr: %s\n", uu_lockerr(res));
+            log_Printf(LogERROR, "uu_lock_txfr: %s\n", uu_lockerr(res));
 
         log_Printf(LogDEBUG, "Transmitting link (%d bytes)\n", expect);
         if ((got = writev(reply[0], iov + 1, niov - 1)) != expect) {
@@ -1781,7 +1789,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           close(fds[0]);
           setsid();
           bundle_ChangedPID(bundle);
-          log_Printf(LogPHASE, "%d -> %d: %s session control\n",
+          log_Printf(LogDEBUG, "%d -> %d: %s session control\n",
                      (int)orig, (int)getpid(),
                      holdsession ? "Passed" : "Dropped");
           timer_InitService(0);		/* Start the Timer Service */
