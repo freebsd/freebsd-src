@@ -54,7 +54,7 @@
  * streams module described in the ppsclock directory.
  */
 #define	REFCLOCKMAXDISPERSE (FP_SECOND/4) /* max sample dispersion */
-#define MAXUNIT		4	/* max units */
+#define MAXUNIT		44	/* max units */
 #ifndef CLKLDISC
 #define CLKLDISC	10	/* XXX temp tty_clk line discipline */
 #endif

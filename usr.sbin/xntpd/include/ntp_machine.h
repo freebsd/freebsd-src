@@ -381,6 +381,9 @@ in this file.
 #endif
 #define MCAST
 #ifdef SYS_FREEBSD
+#ifdef HAVE_SIGNALED_IO
+#undef HAVE_SIGNALED_IO
+#endif
 #define HAVE_TERMIOS
 #define HAVE_UNAME
 #define HAVE_SYS_TIMEX_H
