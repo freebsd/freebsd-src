@@ -741,10 +741,10 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	    NULL);
 	if (error)
 		return (error);
-	error = copyinstr(args->specialfile, mntfromname, MFSNAMELEN - 1, NULL);
+	error = copyinstr(args->specialfile, mntfromname, MNAMELEN - 1, NULL);
 	if (error)
 		return (error);
-	error = copyinstr(args->dir, mntonname, MFSNAMELEN - 1, NULL);
+	error = copyinstr(args->dir, mntonname, MNAMELEN - 1, NULL);
 	if (error)
 		return (error);
 
