@@ -20,6 +20,7 @@
  * $FreeBSD$
  */
 
+#ifdef _KERNEL
 int	siattach(device_t dev);
 void	si_intr(void *);
 
@@ -57,6 +58,8 @@ struct si_softc {
 	int		sc_mem_rid;
 	int		sc_memsize;
 };
+
+#endif /* _KERNEL */
 
 #ifdef SI_DEBUG
 /*
