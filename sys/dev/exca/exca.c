@@ -187,7 +187,7 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	    (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
 	exca_putb(sc, map->sysmem_start_msb,
 	    ((mem->addr >> (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
-	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK) | 0x80);
+	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK));
 
 	exca_putb(sc, map->sysmem_stop_lsb,
 	    ((mem->addr + mem->realsize - 1) >>
@@ -195,22 +195,27 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	exca_putb(sc, map->sysmem_stop_msb,
 	    (((mem->addr + mem->realsize - 1) >>
 	    (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
-	    EXCA_SYSMEM_ADDRX_STOP_MSB_ADDR_MASK) |
-	    EXCA_SYSMEM_ADDRX_STOP_MSB_WAIT2);
+	    EXCA_SYSMEM_ADDRX_STOP_MSB_ADDR_MASK));
 
 	exca_putb(sc, map->sysmem_win,
 	    (mem->addr >> EXCA_MEMREG_WIN_SHIFT) & 0xff);
 
 	exca_putb(sc, map->cardmem_lsb,
-	    (mem->offset >> EXCA_CARDMEM_ADDRX_SHIFT) & 0xff);
+	    (mem->cardaddr >> EXCA_CARDMEM_ADDRX_SHIFT) & 0xff);
 	exca_putb(sc, map->cardmem_msb,
-	    ((mem->offset >> (EXCA_CARDMEM_ADDRX_SHIFT + 8)) &
+	    ((mem->cardaddr >> (EXCA_CARDMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) |
 	    ((mem->kind == PCCARD_MEM_ATTR) ?
 	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0));
 
-	exca_setb(sc, EXCA_ADDRWIN_ENABLE, EXCA_ADDRWIN_ENABLE_MEMCS16 |
-	    map->memenable);
+	exca_setb(sc, EXCA_ADDRWIN_ENABLE, map->memenable);
+#ifdef EXCA_DEBUG
+	if (mem->kind == PCCARD_MEM_ATTR)
+		printf("attribtue memory\n");
+	else
+		printf("common memory\n");
+#endif
+	exca_setb(sc, EXCA_ADDRWIN_ENABLE, EXCA_ADDRWIN_ENABLE_MEMCS16);
 
 	DELAY(100);
 #ifdef EXCA_DEBUG
@@ -224,10 +229,10 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 		r6 = exca_getb(sc, map->cardmem_lsb);
 		r7 = exca_getb(sc, map->sysmem_win);
 		printf("exca_do_mem_map window %d: %02x%02x %02x%02x "
-		    "%02x%02x %02x (%08x+%08x.%08x*%08lx)\n",
+		    "%02x%02x %02x (%08x+%08x.%08x*%08x)\n",
 		    win, r1, r2, r3, r4, r5, r6, r7,
 		    mem->addr, mem->size, mem->realsize,
-		    mem->offset);
+		    mem->cardaddr);
 	}
 #endif
 }
@@ -267,11 +272,9 @@ exca_mem_map(struct exca_softc *sc, int kind, struct resource *res)
 	sc->mem[win].realsize = sc->mem[win].size + EXCA_MEM_PAGESIZE - 1;
 	sc->mem[win].realsize = sc->mem[win].realsize -
 	    (sc->mem[win].realsize % EXCA_MEM_PAGESIZE);
-	sc->mem[win].offset = (long)(sc->mem[win].addr);
 	sc->mem[win].kind = kind;
-	DPRINTF("exca_mem_map window %d bus %x+%x+%lx card addr %x\n",
-	    win, sc->mem[win].addr, sc->mem[win].size,
-	    sc->mem[win].offset, sc->mem[win].cardaddr);
+	DPRINTF("exca_mem_map window %d bus %x+%x card addr %x\n",
+	    win, sc->mem[win].addr, sc->mem[win].size, sc->mem[win].cardaddr);
 	exca_do_mem_map(sc, win);
 
 	return (0);
@@ -362,12 +365,7 @@ exca_mem_unmap_res(struct exca_softc *sc, struct resource *res)
  * Set the offset of the memory.  We use this for reading the CIS and
  * frobbing the pccard's pccard registers (POR, etc).  Some drivers
  * need to access this functionality as well, since they have receive
- * buffers defined in the attribute memory.  Thankfully, these cards
- * are few and fare between.  Some cards also have common memory that
- * is large and only map a small portion of it at a time (but these cards
- * are rare, the more common case being to have just a small amount
- * of common memory that the driver needs to bcopy data from in order to
- * get at it.
+ * buffers defined in the attribute memory.
  */
 int
 exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
@@ -382,16 +380,14 @@ exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
 		    "set_memory_offset: specified resource not active\n");
 		return (ENOENT);
 	}
-	sc->mem[win].cardaddr = cardaddr;
+	sc->mem[win].cardaddr = cardaddr & ~(EXCA_MEM_PAGESIZE - 1);
 	delta = cardaddr % EXCA_MEM_PAGESIZE;
 	if (deltap)
 		*deltap = delta;
-	cardaddr -= delta;
 	sc->mem[win].realsize = sc->mem[win].size + delta +
 	    EXCA_MEM_PAGESIZE - 1;
 	sc->mem[win].realsize = sc->mem[win].realsize -
 	    (sc->mem[win].realsize % EXCA_MEM_PAGESIZE);
-	sc->mem[win].offset = cardaddr - sc->mem[win].addr;
 	exca_do_mem_map(sc, win);
 	return (0);
 }
