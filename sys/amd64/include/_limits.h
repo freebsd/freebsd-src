@@ -39,8 +39,6 @@
 #ifndef	_MACHINE__LIMITS_H_
 #define	_MACHINE__LIMITS_H_
 
-#define	__CHAR_BIT	8		/* number of bits in a char */
-
 /*
  * According to ANSI (section 2.2.4.2), the values below must be usable by
  * #if preprocessing directives.  Additionally, the expression must have the
@@ -51,6 +49,8 @@
  * These numbers are for the default configuration of gcc.  They work for
  * some other compilers as well, but this should not be depended on.
  */
+
+#define	__CHAR_BIT	8		/* number of bits in a char */
 
 #define	__SCHAR_MAX	0x7f		/* max value for a signed char */
 #define	__SCHAR_MIN	(-0x7f-1)	/* min value for a signed char */
