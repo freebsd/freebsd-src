@@ -166,7 +166,7 @@
     <para><application>OpenSSL</application> に、特定の条件下で、
       クライアントとサーバ間で交換されるネットワークメッセージを
       横取り・置き換えできるような強い影響力を持つ攻撃者が
-      タイミングベースの攻撃を行ない平文データを得ることができる
+      タイミングベースの攻撃を行ない平文を得ることができる
       ぜい弱性がありました。
       この問題は、&os; &release.current; では
       <application>OpenSSL</application> 0.9.7 に更新して、
@@ -176,9 +176,9 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
       をご覧ください。</para>
 
-    <para><quote>syncookies</quote> 実装を悪用して、
-      共有秘密鍵を故意に復元できる可能性があります。
-      これにより、TCP SYN flood によるサービス妨害攻撃への耐性が低下してしまいます。
+    <para><quote>syncookies</quote> 機能の実装を悪用することで、
+      この機能で使われている共有秘密鍵を復元することができる可能性があります。
+      これは TCP SYN flood を用いたサービス妨害攻撃への耐性を低下させます。
       回避方法と解決方法は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
       をご覧ください。</para>
@@ -188,13 +188,13 @@
       sendmail を起動したユーザ (通常 <username>root</username>) の権限で
       任意のコードを実行させるような
       特殊な細工を施したメッセージを作成することができます。
-      パッチへのポインタを含む詳細はセキュリティ勧告 <ulink
+      修正パッチの場所を含む詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
       をご覧ください。</para>
 
-    <para>XDR エンコーダ / デコーダの実装に
-      不正な境界チェックを行なうコードが含まれおり、
-      リモートの攻撃者がサービス妨害攻撃をおこすことのできる弱点がありました。
+    <para>XDR エンコーダ / デコーダの実装に、
+      リモートからサービス妨害攻撃が可能になるような
+      不正な境界チェックを行なうコードが含まれていました。
       バグ修正を含む詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>
       をご覧ください。</para>

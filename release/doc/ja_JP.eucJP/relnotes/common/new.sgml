@@ -296,8 +296,8 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
       をご覧ください。</para>
 
-    <para><quote>syncookies</quote> 実装のセキュリティと性能が、
-      攻撃者に TCP 接続を詐称する機会を減らすことでさらに向上しました。
+    <para>攻撃者からの詐称された TCP 接続を防止できるよう、
+      <quote>syncookies</quote> 機能のセキュリティと性能が改良されました。
       詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>
       をご覧ください。</para>
