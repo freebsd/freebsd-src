@@ -40,11 +40,12 @@
  *	code is modeled after Linux i4l driver written by Karsten
  *	Keil.
  *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:06:30 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

@@ -26,12 +26,12 @@
  *
  *	i4b_isic.c - global isic stuff
  *	==============================
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:29:42 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

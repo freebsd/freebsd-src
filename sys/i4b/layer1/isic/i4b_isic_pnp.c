@@ -36,12 +36,12 @@
  *
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Fri Jan 26 14:01:04 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

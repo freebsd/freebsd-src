@@ -26,12 +26,12 @@
  *
  *	Eicon Diehl DIVA 2.0 or 2.02 (ISA PnP) support for isic driver
  *	--------------------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Fri Jan 26 13:57:10 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

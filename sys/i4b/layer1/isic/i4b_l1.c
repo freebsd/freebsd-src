@@ -26,12 +26,12 @@
  *
  *	i4b_l1.c - isdn4bsd layer 1 handler
  *	-----------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:12:03 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

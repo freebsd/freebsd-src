@@ -43,12 +43,12 @@
  *
  *	isic - I4B Siemens ISDN Chipset Driver for SWS cards
  *	====================================================
- *
- * $FreeBSD$
- *
  *	last edit-date: [Wed Jan 24 08:58:57 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

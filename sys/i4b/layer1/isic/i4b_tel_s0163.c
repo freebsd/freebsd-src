@@ -1,8 +1,6 @@
 /*
  *   Copyright (c) 1996 Arne Helme. All rights reserved.
- *
  *   Copyright (c) 1996 Gary Jennejohn. All rights reserved. 
- *
  *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -36,12 +34,12 @@
  *
  *	isic - I4B Siemens ISDN Chipset Driver for Teles S0/16.3
  *	========================================================
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 24 09:27:40 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

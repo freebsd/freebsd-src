@@ -26,12 +26,12 @@
  *
  *	i4b_itjc_l1.c - NetJet-S layer 1 handler
  *	---------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Wed Jan 10 17:16:19 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
