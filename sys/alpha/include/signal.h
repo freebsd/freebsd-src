@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: signal.h,v 1.1 1998/01/10 10:13:16 jb Exp $ */
 /* From: NetBSD: signal.h,v 1.3 1997/04/06 08:47:43 cgd Exp */
 
 /*
@@ -56,7 +56,11 @@ struct  sigcontext {
 	unsigned long sc_fpcr;		/* FP control register (see above) */
 	unsigned long sc_fp_control;	/* FP software control word */
 	long	sc_reserved[2];		/* XXX */
-	long	sc_xxx[8];		/* XXX */
+	long	sc_xxx1[2];		/* sc_ssize, sc_sbase on DUX */
+	unsigned long sc_traparg_a0;	/* a0 argument to trap at exception */
+	unsigned long sc_traparg_a1;	/* a1 argument to trap at exception */
+	unsigned long sc_traparg_a2;	/* a2 argument to trap at exception */
+	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
 };
 
 #endif /* !_ANSI_SOURCE */

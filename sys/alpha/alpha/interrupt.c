@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.5 1998/08/10 07:53:58 dfr Exp $ */
+/* $Id: interrupt.c,v 1.6 1998/11/15 18:25:15 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -74,6 +74,9 @@ interrupt(a0, a1, a2, framep)
 			panic("possible stack overflow\n");
 	}
 
+	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
+	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
+	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
 	switch (a0) {
 	case ALPHA_INTR_XPROC:	/* interprocessor interrupt */
 		printf("interprocessor interrupt!\n");
