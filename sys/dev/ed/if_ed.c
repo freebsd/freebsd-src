@@ -835,6 +835,7 @@ ed_probe_3Com(dev)
 
 	switch (irq) {
 	case 2:
+	case 9:
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ2);
 		break;
 	case 3:
