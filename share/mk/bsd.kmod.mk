@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.10 1995/02/25 20:51:11 phk Exp $
+#	$Id: bsd.kmod.mk,v 1.11 1995/03/20 19:18:51 wollman Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -58,7 +58,7 @@ _PROGSUBDIR: .USE
 .endif
 
 .MAIN: all
-all: ${PROG} _PROGSUBDIR
+all: ${PROG} all-man _PROGSUBDIR
 
 .if !target(clean)
 clean: _PROGSUBDIR
@@ -139,6 +139,7 @@ tags: ${SRCS} _PROGSUBDIR
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
+all-man:
 .endif
 
 .if !target(load)
