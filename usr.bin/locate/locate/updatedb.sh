@@ -60,7 +60,7 @@ ERRS="$TMPDIR/locate.errs.$$"
 
 # search locally or everything
 # find ${SRCHPATHS} -print | \
-find ${SRCHPATHS} ! -fstype local -prune -or -print | \
+find ${SRCHPATHS} ! -fstype ufs -prune -or -print | \
 	tr '/' '\001' | \
 	(sort -T $TMPDIR -f; echo $? > $ERRS) | tr '\001' '/' > $FILELIST
 
