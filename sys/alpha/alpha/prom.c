@@ -50,7 +50,7 @@
 #include <machine/cons.h>
 
 /* XXX this is to fake out the console routines, while booting. */
-struct consdev promcons = { NULL, NULL, promcngetc, NULL, promcnputc,
+struct consdev promcons = { NULL, NULL, promcngetc, promcncheckc, promcnputc,
 			    NULL, makedev(97,0), CN_NORMAL };
 
 struct rpb	*hwrpb;
@@ -231,14 +231,13 @@ promcngetc(dev)
 }
 
 /*
- * promcnlookc:
+ * promcncheckc
  *
- * See if prom has a real char and pass it back.
+ * If a char is ready, return it, otherwise return -1.
  */
 int
-promcnlookc(dev, cp)
+promcncheckc(dev)
 	dev_t dev;
-	char *cp;
 {
         prom_return_t ret;
 	int s;
@@ -246,11 +245,10 @@ promcnlookc(dev, cp)
 	s = enter_prom();
 	ret.bits = prom_getc(alpha_console);
 	leave_prom(s);
-	if (ret.u.status == 0 || ret.u.status == 1) {
-		*cp = ret.u.retval;
-		return 1;
-	} else
-		return 0;
+	if (ret.u.status == 0 || ret.u.status == 1)
+		return (ret.u.retval);
+	else
+		return (-1);
 }
 
 int

@@ -95,7 +95,7 @@ int	prom_getenv __P((int, char *, int));
 #ifdef KERNEL
 void	promcnputc __P((dev_t, int));
 int	promcngetc __P((dev_t));
-int	promcnlookc __P((dev_t, char *));
+int	promcncheckc __P((dev_t));
 
 u_int64_t	prom_dispatch __P((u_int64_t, u_int64_t, u_int64_t, u_int64_t,
 		    u_int64_t));
