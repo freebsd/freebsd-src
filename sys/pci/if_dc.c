@@ -3490,8 +3490,10 @@ static void dc_stop(sc)
 	 */
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
 		if (sc->dc_cdata.dc_tx_chain[i] != NULL) {
-			if (sc->dc_ldata->dc_tx_list[i].dc_ctl &
-			    DC_TXCTL_SETUP) {
+			if ((sc->dc_ldata->dc_tx_list[i].dc_ctl &
+			    DC_TXCTL_SETUP) ||
+			    !(sc->dc_ldata->dc_tx_list[i].dc_ctl & 
+			    DC_TXCTL_LASTFRAG)) {
 				sc->dc_cdata.dc_tx_chain[i] = NULL;
 				continue;
 			}
