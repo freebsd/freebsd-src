@@ -145,6 +145,14 @@ static struct nlist nl[] = {
 	{ "_mif6table" },
 #define N_PFKEYSTAT	37
 	{ "_pfkeystat" },
+#define N_MBSTAT	38
+	{ "_mbstat" },
+#define N_MBTYPES	39
+	{ "_mbtypes" },
+#define N_NMBCLUSTERS	40
+	{ "_nmbclusters" },
+#define N_NMBUFS	41
+	{ "_nmbufs" },
 	{ "" },
 };
 
@@ -467,7 +475,14 @@ main(argc, argv)
 		setgid(getgid());
 
 	if (mflag) {
-		mbpr();
+		if (memf != NULL) {
+			if (kread(0, 0, 0) == 0)
+				mbpr(nl[N_MBSTAT].n_value,
+				    nl[N_MBTYPES].n_value,
+				    nl[N_NMBCLUSTERS].n_value,
+				    nl[N_NMBUFS].n_value);
+		} else
+			mbpr(0, 0, 0, 0);
 		exit(0);
 	}
 	if (pflag) {
@@ -723,10 +738,11 @@ name2protox(name)
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
-"       netstat [-abdgilmnrs] [-f address_family] [-M core] [-N system]",
+"       netstat [-abdgilnrs] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
+"       netstat -m [-M core] [-N system]",
 "       netstat [-M core] [-N system] [-p protocol]");
 	exit(1);
 }
