@@ -834,16 +834,13 @@ ata_probe(device_t dev)
 	mask |= 0x01;
     if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5)
 	mask |= 0x02;
-    /*if (bootverbose)*/
+    if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   mask, status0, status1);
     if (!mask)
 	goto failure;
 
     ata_reset(scp, &mask);
-
-    if (bootverbose)
-	ata_printf(scp, -1, "devices = 0x%x\n", scp->devices);
 
     if (!mask)
 	goto failure;
@@ -1252,7 +1249,7 @@ ata_reset(struct ata_softc *scp, int *mask)
     if (scp->flags & ATA_NO_SLAVE)
 	*mask &= ~0x02;
 
-    /*if (bootverbose)*/
+    if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
 		   *mask, ostat0, ostat1);
 
@@ -1274,7 +1271,9 @@ ata_reset(struct ata_softc *scp, int *mask)
                 /* check for ATAPI signature while its still there */
 		a = inb(scp->ioaddr + ATA_CYL_LSB);
 		b = inb(scp->ioaddr + ATA_CYL_MSB);
-ata_printf(scp, ATA_MASTER, "ATAPI probe a=%02x b=%02x\n", a, b);
+		if (bootverbose)
+		    ata_printf(scp, ATA_MASTER,
+			       "ATAPI probe a=%02x b=%02x\n", a, b);
 		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
                     scp->devices |= ATA_ATAPI_MASTER;
             }
@@ -1287,7 +1286,9 @@ ata_printf(scp, ATA_MASTER, "ATAPI probe a=%02x b=%02x\n", a, b);
                 /* check for ATAPI signature while its still there */
 		a = inb(scp->ioaddr + ATA_CYL_LSB);
 		b = inb(scp->ioaddr + ATA_CYL_MSB);
-ata_printf(scp, ATA_SLAVE, "ATAPI probe a=%02x b=%02x\n", a, b);
+		if (bootverbose)
+		    ata_printf(scp, ATA_SLAVE,
+			       "ATAPI probe a=%02x b=%02x\n", a, b);
 		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
                     scp->devices |= ATA_ATAPI_SLAVE;
             }
@@ -1310,7 +1311,7 @@ ata_printf(scp, ATA_SLAVE, "ATAPI probe a=%02x b=%02x\n", a, b);
 	*mask &= ~0x01;
     if (status1 & ATA_S_BUSY)
 	*mask &= ~0x02;
-    /*if (bootverbose)*/
+    if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
     if (!mask)
@@ -1323,7 +1324,8 @@ ata_printf(scp, ATA_SLAVE, "ATAPI probe a=%02x b=%02x\n", a, b);
 	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
 	a = inb(scp->ioaddr + ATA_ERROR);
 	b = inb(scp->ioaddr + ATA_CYL_LSB);
-ata_printf(scp, ATA_MASTER, "ATA probe a=%02x b=%02x\n", a, b);
+	if (bootverbose)
+	    ata_printf(scp, ATA_MASTER, "ATA probe a=%02x b=%02x\n", a, b);
         if (a != 0x58 && b == 0xa5)
             scp->devices |= ATA_ATA_MASTER;
     }
@@ -1334,11 +1336,13 @@ ata_printf(scp, ATA_MASTER, "ATA probe a=%02x b=%02x\n", a, b);
 	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
 	a = inb(scp->ioaddr + ATA_ERROR);
 	b = inb(scp->ioaddr + ATA_CYL_LSB);
-ata_printf(scp, ATA_SLAVE, "ATA probe a=%02x b=%02x\n", a, b);
+	if (bootverbose)
+	    ata_printf(scp, ATA_SLAVE, "ATA probe a=%02x b=%02x\n", a, b);
         if (a != 0x58 && b == 0xa5)
             scp->devices |= ATA_ATA_SLAVE;
     }
-ata_printf(scp, -1, "devices=%02x\n", scp->devices);
+    if (bootverbose)
+	ata_printf(scp, -1, "devices=%02x\n", scp->devices);
 }
 
 int
