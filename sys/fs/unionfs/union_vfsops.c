@@ -58,8 +58,8 @@
 static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
 extern int	union_init(struct vfsconf *);
-static int	union_mount(struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct thread *td);
+static int	union_mount(struct mount *mp, struct nameidata *ndp,
+				  struct thread *td);
 static int	union_root(struct mount *mp, struct vnode **vpp);
 static int	union_statfs(struct mount *mp, struct statfs *sbp,
 				  struct thread *td);
@@ -70,25 +70,25 @@ static int	union_unmount(struct mount *mp, int mntflags,
  * Mount union filesystem
  */
 static int
-union_mount(mp, path, data, ndp, td)
+union_mount(mp, ndp, td)
 	struct mount *mp;
-	char *path;
-	caddr_t data;
 	struct nameidata *ndp;
 	struct thread *td;
 {
 	int error = 0;
-	struct union_args args;
+	struct vfsoptlist *opts;
 	struct vnode *lowerrootvp = NULLVP;
 	struct vnode *upperrootvp = NULLVP;
 	struct union_mount *um = 0;
 	struct ucred *cred = 0;
-	char *cp = 0;
+	char *cp = 0, *target;
+	int *flags;
 	int len;
 	u_int size;
 
 	UDEBUG(("union_mount(mp = %p)\n", (void *)mp));
 
+	opts = mp->mnt_optnew;
 	/*
 	 * Disable clustered write, otherwise system becomes unstable.
 	 */
@@ -97,22 +97,24 @@ union_mount(mp, path, data, ndp, td)
 	/*
 	 * Update is a no-op
 	 */
-	if (mp->mnt_flag & MNT_UPDATE) {
+	if (mp->mnt_flag & MNT_UPDATE)
 		/*
 		 * Need to provide.
 		 * 1. a way to convert between rdonly and rdwr mounts.
 		 * 2. support for nfs exports.
 		 */
-		error = EOPNOTSUPP;
-		goto bad;
-	}
+		return (EOPNOTSUPP);
 
 	/*
-	 * Get argument
+	 * Get arguments.
 	 */
-	error = copyin(data, (caddr_t)&args, sizeof(struct union_args));
-	if (error)
-		goto bad;
+	error = vfs_getopt(opts, "target", (void **)&target, &len);
+	if (error || target[len - 1] != '\0')
+		return (EINVAL);
+
+	error = vfs_getopt(opts, "unionflags", (void **)&flags, &len);
+	if (error || len != sizeof(int))
+		return (EINVAL);
 
 	/*
 	 * Obtain lower vnode.  Vnode is stored in mp->mnt_vnodecovered.
@@ -134,8 +136,7 @@ union_mount(mp, path, data, ndp, td)
 	 * Obtain upper vnode by calling namei() on the path.  The
 	 * upperrootvp will be turned referenced but not locked.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT,
-	       UIO_USERSPACE, args.target, td);
+	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT, UIO_SYSSPACE, target, td);
 
 	error = namei(ndp);
 
@@ -183,7 +184,7 @@ union_mount(mp, path, data, ndp, td)
 	um = (struct union_mount *) malloc(sizeof(struct union_mount),
 				M_UNIONFSMNT, M_WAITOK | M_ZERO);
 
-	um->um_op = args.mntflags & UNMNT_OPMASK;
+	um->um_op = *flags & UNMNT_OPMASK;
 
 	switch (um->um_op) {
 	case UNMNT_ABOVE:
@@ -273,7 +274,7 @@ union_mount(mp, path, data, ndp, td)
 	cp = mp->mnt_stat.f_mntfromname + len;
 	len = MNAMELEN - len;
 
-	(void) copyinstr(args.target, cp, len - 1, &size);
+	(void) copystr(target, cp, len - 1, &size);
 	bzero(cp + size, len - size);
 
 	(void)union_statfs(mp, &mp->mnt_stat, td);
@@ -471,7 +472,7 @@ union_statfs(mp, sbp, td)
 }
 
 static struct vfsops union_vfsops = {
-	union_mount,
+	NULL,
 	vfs_stdstart,	/* underlying start already done */
 	union_unmount,
 	union_root,
@@ -485,6 +486,7 @@ static struct vfsops union_vfsops = {
 	union_init,
 	vfs_stduninit,
 	vfs_stdextattrctl,
+	union_mount,
 };
 
 VFS_SET(union_vfsops, unionfs, VFCF_LOOPBACK);
