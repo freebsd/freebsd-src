@@ -233,6 +233,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "clk", &lock_class_mtx_spin },
 	{ "mutex profiling lock", &lock_class_mtx_spin },
 	{ "zombie_thread_lock", &lock_class_mtx_spin },
+	{ "ALD Queue", &lock_class_mtx_spin },
 	{ NULL, NULL },
 	{ NULL, NULL }
 };
