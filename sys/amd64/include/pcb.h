@@ -59,7 +59,6 @@ struct pcb {
 	register_t	pcb_rflags;
 	register_t	pcb_fsbase;
 	register_t	pcb_gsbase;
-	register_t	pcb_kgsbase;
 	u_int32_t	pcb_ds;
 	u_int32_t	pcb_es;
 	u_int32_t	pcb_fs;

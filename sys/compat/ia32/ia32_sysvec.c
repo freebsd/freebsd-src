@@ -241,22 +241,15 @@ ia32_setregs(td, entry, stack, ps_strings)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
-	u_int64_t pc;
-	register_t s;
 	
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	pcb->pcb_kgsbase = rdmsr(MSR_GSBASE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_udatasel);
-	s = intr_disable();
-	pc = rdmsr(MSR_GSBASE);
-	load_gs(_udatasel);	/* Clobbers kernel %GS.base */
-	wrmsr(MSR_GSBASE, pc);
-	intr_restore(s);
+	load_gs(_udatasel);
 	pcb->pcb_ds = _udatasel;
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
