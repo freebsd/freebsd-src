@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.35 1997/08/09 00:02:31 dyson Exp $
+ *	$Id: exception.s,v 1.8 1997/08/10 20:51:52 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -42,27 +42,8 @@
 
 #ifdef SMP
 
-#include <machine/apic.h>			/* for apic_vector.s */
-#include <machine/smptests.h>			/** PEND_INTS */
-
-#ifndef PEND_INTS
-/* generic giant-lock calls */
-#define GET_MPLOCK		call _get_mplock
-#define REL_MPLOCK		call _rel_mplock
-#endif /* PEND_INTS */
-
-/* ISR specific giant-lock calls */
-#define GET_ISRLOCK(N)		call _get_isrlock
-#define TRY_ISRLOCK(N)					\
-				pushl	$_mp_lock ;	\
-				call	_MPtrylock ; 	\
-				add $4,	%esp
-#define REL_ISRLOCK(N)					\
-				pushl	$_mp_lock ;	\
-				call	_MPrellock ;	\
-				add	$4, %esp
-
-#define	MP_INSTR_LOCK		lock
+#define	MP_INSTR_LOCK							\
+	lock					/* MP-safe */
 
 /* protects the IO APIC and apic_imen as a critical region */
 #define IMASK_LOCK							\
@@ -77,13 +58,9 @@
 
 #else
 
-#define GET_MPLOCK		/* NOP get Kernel Mutex */
-#define REL_MPLOCK		/* NOP release mutex */
-#define GET_ISRLOCK(N)		/* NOP get Kernel Mutex */
-#define REL_ISRLOCK(N)		/* NOP release mutex */
-#define	MP_INSTR_LOCK		/* NOP instruction lock */
-#define IMASK_LOCK		/* NOP IO APIC & apic_imen lock */
-#define IMASK_UNLOCK		/* NOP IO APIC & apic_imen lock */
+#define	MP_INSTR_LOCK				/* NOP */
+#define IMASK_LOCK				/* NOP */
+#define IMASK_UNLOCK				/* NOP */
 
 #endif  /* SMP */
 
@@ -171,19 +148,19 @@ IDTVEC(fpu)
 	 * interrupts, but now it is fairly easy - mask nested ones the
 	 * same as SWI_AST's.
 	 */
-	pushl	$0				/* dummy error code */
-	pushl	$0				/* dummy trap type */
+	pushl	$0			/* dummy error code */
+	pushl	$0			/* dummy trap type */
 	pushal
 	pushl	%ds
-	pushl	%es				/* now the stack frame is a trap frame */
+	pushl	%es			/* now stack frame is a trap frame */
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 	movl	_cpl,%eax
 	pushl	%eax
-	pushl	$0				/* dummy unit to finish building intr frame */
-	GET_ISRLOCK(-1)
+	pushl	$0			/* dummy unit to finish intr frame */
+	call	_get_fpu_lock
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
@@ -209,8 +186,8 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
-	GET_ISRLOCK(-1)
-	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
+	call	_get_align_lock
+	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
 	call	_trap
@@ -251,26 +228,26 @@ calltrap:
  */
 	SUPERALIGN_TEXT
 IDTVEC(syscall)
-	pushfl					/* save eflags in tf_err for now */
-	subl	$4,%esp				/* skip over tf_trapno */
+	pushfl				/* save eflags in tf_err for now */
+	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
 	pushl	%ds
 	pushl	%es
-	movl	$KDSEL,%eax			/* switch to kernel segments */
+	movl	$KDSEL,%eax		/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
-	movl	TF_ERR(%esp),%eax		/* copy saved eflags to final spot */
+	movl	TF_ERR(%esp),%eax	/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
-	movl	$7,TF_ERR(%esp) 		/* sizeof "lcall 7,0" */
+	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
-	GET_ISRLOCK(-1)
+	call	_get_syscall_lock
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	pushl	$0				/* cpl to restore */
+	pushl	$0			/* cpl to restore */
 	subl	$4,%esp
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
@@ -281,23 +258,23 @@ IDTVEC(syscall)
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
-	subl	$8,%esp				/* skip over tf_trapno and tf_err */
+	subl	$8,%esp			/* skip over tf_trapno and tf_err */
 	pushal
 	pushl	%ds
 	pushl	%es
-	movl	$KDSEL,%eax			/* switch to kernel segments */
+	movl	$KDSEL,%eax		/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
-	movl	$2,TF_ERR(%esp)			/* sizeof "int 0x80" */
+	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
-	GET_ISRLOCK(-1)
+	call	_get_int0x80_syscall_lock
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	pushl	$0				/* cpl to restore */
+	pushl	$0			/* cpl to restore */
 	subl	$4,%esp
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
@@ -314,14 +291,14 @@ ENTRY(fork_trampoline)
 	 * have this call a non-return function to stay in kernel mode.
 	 * initproc has it's own fork handler, but it does return.
 	 */
-	pushl	%ebx				/* arg1 */
-	call	%esi				/* function */
+	pushl	%ebx			/* arg1 */
+	call	%esi			/* function */
 	addl	$4,%esp
 	/* cut from syscall */
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	pushl	$0				/* cpl to restore */
+	pushl	$0			/* cpl to restore */
 	subl	$4,%esp
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT

@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.5 1997/07/31 05:42:06 fsmp Exp $
+ *	$Id: ipl.s,v 1.5 1997/08/10 20:47:53 smp Exp smp $
  */
 
 
@@ -137,11 +137,12 @@ doreti_stop:
 	nop
 1:
 #endif /* VM86 */
-#if 0
-	REL_MPLOCK
-#else
-	REL_ISRLOCK(-1)
-#endif
+
+	/* release the kernel lock */
+	pushl	$_mp_lock		/* GIANT_LOCK */
+	call	_MPrellock
+	add	$4, %esp
+
 	.globl	doreti_popl_es
 doreti_popl_es:
 	popl	%es
@@ -356,4 +357,4 @@ swi_tty:
 #include "i386/isa/apic_ipl.s"
 #else
 #include "i386/isa/icu_ipl.s"
-#endif  /* APIC_IO */
+#endif /* APIC_IO */
