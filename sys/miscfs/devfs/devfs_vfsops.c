@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.14 1996/09/10 08:27:35 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.15 1996/11/21 07:18:58 julian Exp $
  *
  *
  */
@@ -25,13 +25,13 @@ static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
 static int mountdevfs( struct mount *mp, struct proc *p);
 
 static int
-devfs_init(void)
+devfs_init(struct vfsconf *vfsp)
 {
 	/*
 	 * fill in the missing members on the "hidden" mount
 	 */
-	dev_root->dnp->dvm->mount->mnt_op  = vfssw[MOUNT_DEVFS]; 
-	dev_root->dnp->dvm->mount->mnt_vfc = vfsconf[MOUNT_DEVFS];
+	dev_root->dnp->dvm->mount->mnt_op  = vfsp->vfc_vfsops; 
+	dev_root->dnp->dvm->mount->mnt_vfc = vfsp;
 
 	/* Mark a reference for the "invisible" blueprint mount */
 	dev_root->dnp->dvm->mount->mnt_vfc->vfc_refcount++;
@@ -248,7 +248,7 @@ loop:
 		if ( vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
 		if (vp->v_type == VBLK) {
-			if (vget(vp, 1))
+			if (vget(vp, LK_EXCLUSIVE, p))
 				goto loop;
 			error = VOP_FSYNC(vp, cred, waitfor, p);
 printf("syncing device\n");
