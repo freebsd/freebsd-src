@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.56 1996/01/05 20:12:51 wollman Exp $
+ * $Id: st.c,v 1.57 1996/01/08 12:25:06 joerg Exp $
  */
 
 /*
@@ -1751,7 +1751,7 @@ st_load(unit, type, flags)
 		0,
 		0,
 		ST_RETRIES,
-		300000,		/* 5 min */
+		900000,		/* 15 min */
 		NULL,
 		flags));
 }
