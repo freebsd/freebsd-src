@@ -730,7 +730,8 @@ getinfo(s, st)
 	enum state st;
 {
 	struct devinfo *tmp_dinfo;
-	int mib[2], size;
+	size_t size;
+	int mib[2];
 
 	NREAD(X_CPTIME, s->time, sizeof s->time);
 	NREAD(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
