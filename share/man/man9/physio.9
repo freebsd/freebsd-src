@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 1996
+.Dd July 8, 2004
 .Dt PHYSIO 9
 .Os
 .Sh NAME
@@ -60,15 +60,22 @@ routines to start I/O on a user process buffer.
 The maximum amount of data to transfer with each call
 is determined by
 .Fa dev->si_iosize_max .
+The 
+.Fn physio
+call converts the I/O request into a
+.Fn strategy
+request and passes the new request to the driver's
+.Fn strategy
+routine for processing.
 .Pp
 Since
 .Fa uio
 normally describes user space addresses,
 .Fn physio
-needs to lock the process into memory.
-This is done by setting the
-.Dv P_PHYSIO
-flag on the process.
+needs to lock the those pages into memory.
+This is done by calling
+.Fn vmapbuf
+for the appropriate pages.
 .Fn physio
 always awaits the completion of the entire requested transfer before
 returning, unless an error condition is detected earlier.
@@ -86,6 +93,13 @@ structure with the
 set to anything other than
 .Dv UIO_USERSPACE
 are undefined.
+.It Fa ioflag
+The ioflag argument from the
+.Fn read
+or
+.Fn write
+function calling
+.Fn physio .
 .El
 .Sh RETURN VALUES
 If successful
