@@ -35,7 +35,7 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-static void resume_common(struct pthread *);
+static struct kse_mailbox *resume_common(struct pthread *);
 
 __weak_reference(_pthread_resume_np, pthread_resume_np);
 __weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
@@ -46,15 +46,18 @@ int
 _pthread_resume_np(pthread_t thread)
 {
 	struct pthread *curthread = _get_curthread();
+	struct kse_mailbox *kmbx;
 	int ret;
 
 	/* Add a reference to the thread: */
 	if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0)) == 0) {
 		/* Lock the threads scheduling queue: */
 		THR_SCHED_LOCK(curthread, thread);
-		resume_common(thread);
+		kmbx = resume_common(thread);
 		THR_SCHED_UNLOCK(curthread, thread);
 		_thr_ref_delete(curthread, thread);
+		if (kmbx != NULL)
+			kse_wakeup(kmbx);
 	}
 	return (ret);
 }
@@ -64,6 +67,7 @@ _pthread_resume_all_np(void)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *thread;
+	struct kse_mailbox *kmbx;
 	kse_critical_t crit;
 
 	/* Take the thread list lock: */
@@ -73,8 +77,10 @@ _pthread_resume_all_np(void)
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
 		if (thread != curthread) {
 			THR_SCHED_LOCK(curthread, thread);
-			resume_common(thread);
+			kmbx = resume_common(thread);
 			THR_SCHED_UNLOCK(curthread, thread);
+			if (kmbx != NULL)
+				kse_wakeup(kmbx);
 		}
 	}
 
@@ -83,7 +89,7 @@ _pthread_resume_all_np(void)
 	_kse_critical_leave(crit);
 }
 
-static void
+static struct kse_mailbox *
 resume_common(struct pthread *thread)
 {
 	/* Clear the suspend flag: */
@@ -95,5 +101,7 @@ resume_common(struct pthread *thread)
 	 * state to running and insert it into the run queue.
 	 */
 	if (thread->state == PS_SUSPENDED)
-		_thr_setrunnable_unlocked(thread);
+		return (_thr_setrunnable_unlocked(thread));
+	else
+		return (NULL);
 }
