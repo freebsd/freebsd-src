@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.37 1996/09/06 09:21:48 rgrimes Exp $
+**  $Id: pcisupport.c,v 1.38 1996/09/06 23:09:01 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -112,7 +112,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	char		*descr;
 
 	switch (type) {
-#if defined (I486_CPU)
 	case 0x04868086:
 		return ("Intel 82425EX PCI system controller");
 	case 0x04848086:
@@ -126,8 +125,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82375EB PCI-EISA bridge");
 	case 0x04961039:
 		return ("SiS 85c496");
-#endif /* defined (I486_CPU) */
-#if defined (I586_CPU)
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -147,21 +144,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
-#endif /* defined (I586_CPU) */
-#if defined (I586_CPU) || defined (I686_CPU)
 	case 0x70008086:
 		return ("Intel 82371SB PCI-ISA bridge");
 	case 0x70108086:
 		return ("Intel 82371SB IDE interface");
-#endif /* defined (I586_CPU) || defined (I686_CPU) */
-#if defined (I686_CPU)
 	case 0x12378086:
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
 		return ("Intel 82450KX (Orion) PCI memory controller");
 	case 0x84c58086:
 		return ("Intel 82454GX (Orion) host to PCI bridge");
-#endif /* defined (I686_CPU) */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
@@ -183,7 +175,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 #define M_EN 4	/* mask and print "enabled" if true, "disabled" if false */
 #define M_NN 5	/* opposite sense of M_EN */
 
-#if defined (I486_CPU)
 static const struct condmsg conf82425ex[] =
 {
     { 0x00, 0x00, 0x00, M_TR, "\tClock " },
@@ -316,9 +307,7 @@ static const struct condmsg conf82424zx[] =
 /* end marker */
     { 0 }
 };
-#endif /* defined (I486_CPU) */
 
-#if defined (I586_CPU)
 static const struct condmsg conf82434lx[] =
 {
     { 0x00, 0x00, 0x00, M_TR, "\tCPU: " },
@@ -568,7 +557,6 @@ static const struct condmsg conf82371fb2[] =
     { 0 }
 };
 #endif
-#endif /* defined (I586_CPU) */
 
 static char confread (pcici_t config_id, int port)
 {
@@ -651,15 +639,12 @@ chipset_attach (pcici_t config_id, int unit)
 		return;
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
-#ifdef I486_CPU
 	case 0x04868086:
 		writeconfig (config_id, conf82425ex);
 		break;
 	case 0x04838086:
 		writeconfig (config_id, conf82424zx);
 		break;
-#endif /* I486_CPU */
-#ifdef I586_CPU
 	case 0x04a38086:
 		writeconfig (config_id, conf82434lx);
 		break;
@@ -677,9 +662,6 @@ chipset_attach (pcici_t config_id, int unit)
 		writeconfig (config_id, conf82371fb2);
 		break;
 #endif
-#endif /* 586_CPU */
-#if defined (I586_CPU) || defined (I686_CPU)
-#endif /* defined (I586_CPU) || defined (I686_CPU) */
 #if 0
 	case 0x00011011: /* DEC 21050 */
 	case 0x00221014: /* IBM xxx */
