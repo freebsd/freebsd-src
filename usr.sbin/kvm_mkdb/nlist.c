@@ -37,6 +37,9 @@ static char sccsid[] = "@(#)nlist.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+
 #include <a.out.h>
 #include <db.h>
 #include <err.h>
