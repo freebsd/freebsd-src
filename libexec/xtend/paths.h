@@ -2,7 +2,7 @@
  * Pathnames for files used by xtend
  */
 
-#define X10DIR		"/var/spool/xten/"
+#define X10DIR		"/var/spool/xten"
 #define X10LOGNAME	"Log"
 #define X10STATNAME	"Status"
 #define X10DUMPNAME	"status.out"
