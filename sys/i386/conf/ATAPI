@@ -1,14 +1,14 @@
 #
 # ATAPI -- GENERIC kernel with ATAPI (IDE) CDROM support added.
 #
-#	$Id: GENERIC,v 1.46.2.5 1995/09/23 00:50:05 jkh Exp $
+#	$Id: ATAPI,v 1.1 1995/10/04 08:25:24 jkh Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
 cpu		"I586_CPU"
-ident		ATAPI
+ident		ATAPIKERN
 maxusers	10
 
 options		MATH_EMULATE		#Support for x87 emulation
