@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2004
+.Dd March 15, 2004
 .Dt TINDERBOX 1
 .Os
 .Sh NAME
@@ -285,6 +285,12 @@ if a patch was specified.
 .It NOPORTS
 .Va YES
 .El
+.Pp
+Except for
+.Va CFLAGS
+and
+.Va COPTFLAGS ,
+none of these variables may be overridden by command-line arguments.
 .Sh SEE ALSO
 .Xr cvs 1 ,
 .Xr make 1 ,
