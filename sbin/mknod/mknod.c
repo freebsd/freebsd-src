@@ -54,7 +54,8 @@ main(argc, argv)
 {
 	extern int errno;
 	u_short mode;
-	char *strerror();
+	u_int32_t major, minor;
+	char *endp;
 
 	if (argc != 5) {
 		(void)fprintf(stderr,
@@ -73,7 +74,20 @@ main(argc, argv)
 		exit(1);
 	}
 
-	if (mknod(argv[1], mode, makedev(atoi(argv[3]), atoi(argv[4]))) < 0) {
+	major = strtoul(argv[3], &endp, 0);
+	if (*endp != '\0' || major >= 256) {
+		(void)fprintf(stderr,
+		    "mknod: bad major number.\n");
+		exit(1);
+	}
+	minor = strtoul(argv[4], &endp, 0);
+	if (*endp != '\0') {
+		(void)fprintf(stderr,
+		    "mknod: bad minor number.\n");
+		exit(1);
+	}
+
+	if (mknod(argv[1], mode, makedev(major, minor)) < 0) {
 		(void)fprintf(stderr,
 		    "mknod: %s: %s\n", argv[1], strerror(errno));
 		exit(1);
