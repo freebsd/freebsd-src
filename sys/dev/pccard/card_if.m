@@ -62,6 +62,13 @@ METHOD int set_memory_offset {
         u_int32_t offset;
 }
 
+METHOD int get_memory_offset {
+	device_t  dev;
+	device_t  child;
+        int	  rid;
+        u_int32_t *offset;
+}
+
 METHOD int attach_card {
 	device_t  dev;
 }
