@@ -309,7 +309,7 @@ afd_start(struct atapi_softc *atp)
     /* should reject all queued entries if media have changed. */
     if (fdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
@@ -364,7 +364,7 @@ afd_partial_done(struct atapi_request *request)
 
     if (request->error) {
 	bp->b_error = request->error;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
     }
     bp->b_resid += request->bytecount;
     return 0;
@@ -376,9 +376,9 @@ afd_done(struct atapi_request *request)
     struct buf *bp = request->driver;
     struct afd_softc *fdp = request->device->driver;
 
-    if (request->error || (bp->b_flags & B_ERROR)) {
+    if (request->error || (bp->b_ioflags & BIO_ERROR)) {
 	bp->b_error = request->error;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
     }
     else
 	bp->b_resid += (bp->b_bcount - request->donecount);

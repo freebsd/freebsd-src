@@ -445,7 +445,7 @@ bremfree(struct buf * bp)
 
 /*
  * Get a buffer with the specified data.  Look in the cache first.  We
- * must clear B_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
+ * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
  * is set, the buffer is valid and we do not have to do anything ( see
  * getblk() ).
  */
@@ -464,7 +464,8 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 			curproc->p_stats->p_ru.ru_inblock++;
 		KASSERT(!(bp->b_flags & B_ASYNC), ("bread: illegal async bp %p", bp));
 		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~(B_ERROR | B_INVAL);
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
 				crhold(cred);
@@ -479,7 +480,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 
 /*
  * Operates like bread, but also starts asynchronous I/O on
- * read-ahead blocks.  We must clear B_ERROR and B_INVAL prior
+ * read-ahead blocks.  We must clear BIO_ERROR and B_INVAL prior
  * to initiating I/O . If B_CACHE is set, the buffer is valid 
  * and we do not have to do anything.
  */
@@ -499,7 +500,8 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		if (curproc != NULL)
 			curproc->p_stats->p_ru.ru_inblock++;
 		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~(B_ERROR | B_INVAL);
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
 				crhold(cred);
@@ -519,7 +521,8 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			if (curproc != NULL)
 				curproc->p_stats->p_ru.ru_inblock++;
 			rabp->b_flags |= B_ASYNC;
-			rabp->b_flags &= ~(B_ERROR | B_INVAL);
+			rabp->b_flags &= ~B_INVAL;
+			rabp->b_ioflags &= ~BIO_ERROR;
 			rabp->b_iocmd = BIO_READ;
 			if (rabp->b_rcred == NOCRED) {
 				if (cred != NOCRED)
@@ -629,7 +632,8 @@ bwrite(struct buf * bp)
 		bp = newbp;
 	}
 
-	bp->b_flags &= ~(B_DONE | B_ERROR);
+	bp->b_flags &= ~B_DONE;
+	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_flags |= B_WRITEINPROG | B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
@@ -862,7 +866,8 @@ bawrite(struct buf * bp)
 int
 bowrite(struct buf * bp)
 {
-	bp->b_flags |= B_ORDERED | B_ASYNC;
+	bp->b_ioflags |= BIO_ORDERED;
+	bp->b_flags |= B_ASYNC;
 	return (BUF_WRITE(bp));
 }
 
@@ -911,20 +916,22 @@ brelse(struct buf * bp)
 	s = splbio();
 
 	if (bp->b_flags & B_LOCKED)
-		bp->b_flags &= ~B_ERROR;
+		bp->b_ioflags &= ~BIO_ERROR;
 
 	if (bp->b_iocmd == BIO_WRITE &&
-	    (bp->b_flags & (B_ERROR | B_INVAL)) == B_ERROR) {
+	    (bp->b_ioflags & BIO_ERROR) &&
+	    !(bp->b_flags & B_INVAL)) {
 		/*
-		 * Failed write, redirty.  Must clear B_ERROR to prevent
+		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
 		 * pages from being scrapped.  If B_INVAL is set then
 		 * this case is not run and the next case is run to 
 		 * destroy the buffer.  B_INVAL can occur if the buffer
 		 * is outside the range supported by the underlying device.
 		 */
-		bp->b_flags &= ~B_ERROR;
+		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
-	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR)) ||
+	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL)) ||
+	    (bp->b_ioflags & BIO_ERROR) ||
 	    bp->b_iocmd == BIO_DELETE || (bp->b_bufsize <= 0)) {
 		/*
 		 * Either a failed I/O or we were asked to free or not
@@ -965,8 +972,8 @@ brelse(struct buf * bp)
 	 * B_INVAL, the struct buf is invalidated but the VM object is kept
 	 * around ( i.e. so it is trivial to reconstitute the buffer later ).
 	 *
-	 * If B_ERROR or B_NOCACHE is set, pages in the VM object will be
-	 * invalidated.  B_ERROR cannot be set for a failed write unless the
+	 * If BIO_ERROR or B_NOCACHE is set, pages in the VM object will be
+	 * invalidated.  BIO_ERROR cannot be set for a failed write unless the
 	 * buffer is also B_INVAL because it hits the re-dirtying code above.
 	 *
 	 * Normally we can do this whether a buffer is B_DELWRI or not.  If
@@ -1034,7 +1041,7 @@ brelse(struct buf * bp)
 					pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 				}
 			}
-			if (bp->b_flags & (B_NOCACHE|B_ERROR)) {
+			if ((bp->b_flags & B_NOCACHE) || (bp->b_ioflags & BIO_ERROR)) {
 				int poffset = foff & PAGE_MASK;
 				int presid = resid > (PAGE_SIZE - poffset) ?
 					(PAGE_SIZE - poffset) : resid;
@@ -1086,7 +1093,7 @@ brelse(struct buf * bp)
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 	/* buffers with junk contents */
-	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
+	} else if (bp->b_flags & (B_INVAL | B_NOCACHE | B_RELBUF) || (bp->b_ioflags & BIO_ERROR)) {
 		bp->b_flags |= B_INVAL;
 		bp->b_xflags &= ~BX_BKGRDWRITE;
 		if (bp->b_xflags & BX_BKGRDINPROG)
@@ -1155,7 +1162,8 @@ brelse(struct buf * bp)
 
 	/* unlock */
 	BUF_UNLOCK(bp);
-	bp->b_flags &= ~(B_ORDERED | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_ioflags &= ~BIO_ORDERED;
 	splx(s);
 }
 
@@ -1187,7 +1195,7 @@ bqrelse(struct buf * bp)
 		return;
 	}
 	if (bp->b_flags & B_LOCKED) {
-		bp->b_flags &= ~B_ERROR;
+		bp->b_ioflags &= ~BIO_ERROR;
 		bp->b_qindex = QUEUE_LOCKED;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
 		/* buffers with stale but valid contents */
@@ -1214,7 +1222,8 @@ bqrelse(struct buf * bp)
 
 	/* unlock */
 	BUF_UNLOCK(bp);
-	bp->b_flags &= ~(B_ORDERED | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_ioflags &= ~BIO_ORDERED;
 	splx(s);
 }
 
@@ -1571,6 +1580,7 @@ restart:
 			allocbuf(bp, 0);
 
 		bp->b_flags = 0;
+		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
 		bp->b_dev = NODEV;
 		bp->b_vp = NULL;
@@ -2037,7 +2047,7 @@ vfs_setdirty(struct buf *bp)
  *	the caller should set B_CACHE ( as an optimization ), else the caller
  *	should issue the I/O and biodone() will set B_CACHE if the I/O was
  *	a write attempt or if it was a successfull read.  If the caller 
- *	intends to issue a READ, the caller must clear B_INVAL and B_ERROR
+ *	intends to issue a READ, the caller must clear B_INVAL and BIO_ERROR
  *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
 struct buf *
@@ -2590,7 +2600,7 @@ biowait(register struct buf * bp)
 		bp->b_flags &= ~B_EINTR;
 		return (EINTR);
 	}
-	if (bp->b_flags & B_ERROR) {
+	if (bp->b_ioflags & BIO_ERROR) {
 		return (bp->b_error ? bp->b_error : EIO);
 	} else {
 		return (0);
@@ -2695,7 +2705,8 @@ biodone(register struct buf * bp)
 		 */
 		iosize = bp->b_bcount - bp->b_resid;
 		if (bp->b_iocmd == BIO_READ &&
-		    !(bp->b_flags & (B_INVAL|B_NOCACHE|B_ERROR))) {
+		    !(bp->b_flags & (B_INVAL|B_NOCACHE)) &&
+		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
 
@@ -2776,7 +2787,7 @@ biodone(register struct buf * bp)
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
-		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_RELBUF)) || (bp->b_ioflags & BIO_ERROR))
 			brelse(bp);
 		else
 			bqrelse(bp);
@@ -2865,7 +2876,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
  * inconsistant.
  *
  * Since I/O has not been initiated yet, certain buffer flags
- * such as B_ERROR or B_INVAL may be in an inconsistant state
+ * such as BIO_ERROR or B_INVAL may be in an inconsistant state
  * and should be ignored.
  */
 void
@@ -3006,7 +3017,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
  *	vfs_bio_clrbuf:
  *
  *	clear a buffer.  This routine essentially fakes an I/O, so we need
- *	to clear B_ERROR and B_INVAL.
+ *	to clear BIO_ERROR and B_INVAL.
  *
  *	Note that while we only theoretically need to clear through b_bcount,
  *	we go ahead and clear through b_bufsize.
@@ -3017,7 +3028,8 @@ vfs_bio_clrbuf(struct buf *bp) {
 	int i, mask = 0;
 	caddr_t sa, ea;
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
-		bp->b_flags &= ~(B_INVAL|B_ERROR);
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;

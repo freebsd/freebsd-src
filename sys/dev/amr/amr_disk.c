@@ -202,7 +202,7 @@ amrd_strategy(struct buf *bp)
     return;
 
  bad:
-    bp->b_flags |= B_ERROR;
+    bp->b_ioflags |= BIO_ERROR;
 
  done:
     /*
@@ -221,7 +221,7 @@ amrd_intr(void *data)
 
     debug("called");
 
-    if (bp->b_flags & B_ERROR) {
+    if (bp->b_ioflags & BIO_ERROR) {
 	bp->b_error = EIO;
 	debug("i/o error\n");
     } else {

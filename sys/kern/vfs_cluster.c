@@ -247,7 +247,8 @@ single_block_read:
 #endif
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
-		bp->b_flags &= ~(B_ERROR|B_INVAL);
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
 		if ((bp->b_flags & B_ASYNC) || bp->b_iodone != NULL)
 			BUF_KERNPROC(bp);
 		error = VOP_STRATEGY(vp, bp);
@@ -282,7 +283,8 @@ single_block_read:
 
 			if ((rbp->b_flags & B_CLUSTER) == 0)
 				vfs_busy_pages(rbp, 0);
-			rbp->b_flags &= ~(B_ERROR|B_INVAL);
+			rbp->b_flags &= ~B_INVAL;
+			rbp->b_ioflags &= ~BIO_ERROR;
 			if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
 				BUF_KERNPROC(rbp);
 			(void) VOP_STRATEGY(vp, rbp);
@@ -468,7 +470,7 @@ cluster_callback(bp)
 	/*
 	 * Must propogate errors to all the components.
 	 */
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;
 
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
@@ -480,11 +482,12 @@ cluster_callback(bp)
 		tbp; tbp = nbp) {
 		nbp = TAILQ_NEXT(&tbp->b_cluster, cluster_entry);
 		if (error) {
-			tbp->b_flags |= B_ERROR;
+			tbp->b_ioflags |= BIO_ERROR;
 			tbp->b_error = error;
 		} else {
 			tbp->b_dirtyoff = tbp->b_dirtyend = 0;
-			tbp->b_flags &= ~(B_ERROR|B_INVAL);
+			tbp->b_flags &= ~B_INVAL;
+			tbp->b_ioflags &= ~BIO_ERROR;
 		}
 		biodone(tbp);
 	}
@@ -837,7 +840,8 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 			s = splbio();
 			bundirty(tbp);
-			tbp->b_flags &= ~(B_DONE | B_ERROR);
+			tbp->b_flags &= ~B_DONE;
+			tbp->b_ioflags &= ~BIO_ERROR;
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */

@@ -575,7 +575,7 @@ wtstrategy (struct buf *bp)
 
 	if (t->flags & TPEXCEP) {
 errxit:		bp->b_error = EIO;
-err2xit:	bp->b_flags |= B_ERROR;
+err2xit:	bp->b_ioflags |= BIO_ERROR;
 	}
 xit:    biodone (bp);
 	return;

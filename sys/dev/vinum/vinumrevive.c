@@ -176,13 +176,13 @@ revive_block(int sdno)
 	biowait(bp);
     }
 
-    if (bp->b_flags & B_ERROR)
+    if (bp->b_ioflags & BIO_ERROR)
 	error = bp->b_error;
     else
 	/* Now write to the subdisk */
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
-	bp->b_flags = B_ORDERED;	 		    /* and make this an ordered write */
+	bp->b_ioflags = BIO_ORDERED;	 		    /* and make this an ordered write */
 	bp->b_iocmd = BIO_WRITE;				    /* and make this an ordered write */
 	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
@@ -190,7 +190,7 @@ revive_block(int sdno)
 	bp->b_blkno = sd->revived;			    /* write it to here */
 	sdio(bp);					    /* perform the I/O */
 	biowait(bp);
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 	    error = bp->b_error;
 	else {
 	    sd->revived += bp->b_bcount >> DEV_BSHIFT;	    /* moved this much further down */
@@ -225,7 +225,7 @@ revive_block(int sdno)
     }
     if (bp->b_qindex == 0) {				    /* not on a queue, */
 	bp->b_flags |= B_INVAL;
-	bp->b_flags &= ~B_ERROR;
+	bp->b_ioflags &= ~BIO_ERROR;
 	brelse(bp);					    /* is this kosher? */
     }
     return error;
@@ -294,7 +294,7 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
      * the parity buffer header, which we have kept.
      * Decide what to do with it.
      */
-    if ((pbp->b_flags & B_ERROR) == 0) {		    /* no error */
+    if ((pbp->b_ioflags & BIO_ERROR) == 0) {		    /* no error */
 	if (op == checkparity) {
 	    int *parity_buf;
 	    int isize;
@@ -326,10 +326,10 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
 		reply->error = 0;
 	    }
 	}
-	if (pbp->b_flags & B_ERROR)
+	if (pbp->b_ioflags & BIO_ERROR)
 	    reply->error = pbp->b_error;
 	pbp->b_flags |= B_INVAL;
-	pbp->b_flags &= ~B_ERROR;
+	pbp->b_ioflags &= ~BIO_ERROR;
 	brelse(pbp);
 
     }
@@ -445,7 +445,7 @@ parityrebuild(struct plex *plex,
     for (sdno = 0; sdno < plex->subdisks; sdno++) {	    /* for each subdisk */
 	if ((sdno != psd) || check) {
 	    biowait(bpp[sdno]);
-	    if (bpp[sdno]->b_flags & B_ERROR)		    /* can't read, */
+	    if (bpp[sdno]->b_ioflags & BIO_ERROR)		    /* can't read, */
 		error = bpp[sdno]->b_error;
 	}
     }
@@ -475,7 +475,7 @@ parityrebuild(struct plex *plex,
     /* release our resources */
     Free(bpp);
     if (error) {
-	pbp->b_flags |= B_ERROR;
+	pbp->b_ioflags |= BIO_ERROR;
 	pbp->b_error = error;
     }
     return pbp;
@@ -541,11 +541,11 @@ initsd(int sdno, int verify)
 	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	sdio(bp);					    /* perform the I/O */
 	biowait(bp);
-	if (bp->b_flags & B_ERROR)
+	if (bp->b_ioflags & BIO_ERROR)
 	    error = bp->b_error;
 	if (bp->b_qindex == 0) {			    /* not on a queue, */
 	    bp->b_flags |= B_INVAL;
-	    bp->b_flags &= ~B_ERROR;
+	    bp->b_ioflags &= ~BIO_ERROR;
 	    brelse(bp);					    /* is this kosher? */
 	}
 	if ((error == 0) && verify) {			    /* check that it got there */
@@ -569,7 +569,7 @@ initsd(int sdno, int verify)
 		 * XXX Bug fix code.  This is hopefully no
 		 * longer needed (21 February 2000).
 		 */
-		if (bp->b_flags & B_ERROR)
+		if (bp->b_ioflags & BIO_ERROR)
 		    error = bp->b_error;
 		else if ((*bp->b_data != 0)		    /* first word spammed */
 		||(bcmp(bp->b_data, &bp->b_data[1], bp->b_bcount - 1))) { /* or one of the others */
@@ -581,7 +581,7 @@ initsd(int sdno, int verify)
 		    verified = 1;
 		if (bp->b_qindex == 0) {		    /* not on a queue, */
 		    bp->b_flags |= B_INVAL;
-		    bp->b_flags &= ~B_ERROR;
+		    bp->b_ioflags &= ~BIO_ERROR;
 		    brelse(bp);				    /* is this kosher? */
 		}
 	    }

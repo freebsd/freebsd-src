@@ -534,7 +534,7 @@ dastrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
@@ -806,7 +806,7 @@ daoninvalidate(struct cam_periph *periph)
 		bufq_remove(&softc->buf_queue, q_bp);
 		q_bp->b_resid = q_bp->b_bcount;
 		q_bp->b_error = ENXIO;
-		q_bp->b_flags |= B_ERROR;
+		q_bp->b_ioflags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 	splx(s);
@@ -1044,7 +1044,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			devstat_start_transaction(&softc->device_stats);
 
-			if ((bp->b_flags & B_ORDERED) != 0
+			if ((bp->b_ioflags & BIO_ORDERED) != 0
 			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
@@ -1188,19 +1188,19 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					bufq_remove(&softc->buf_queue, q_bp);
 					q_bp->b_resid = q_bp->b_bcount;
 					q_bp->b_error = EIO;
-					q_bp->b_flags |= B_ERROR;
+					q_bp->b_ioflags |= BIO_ERROR;
 					biodone(q_bp);
 				}
 				splx(s);
 				bp->b_error = error;
 				bp->b_resid = bp->b_bcount;
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 			} else {
 				bp->b_resid = csio->resid;
 				bp->b_error = 0;
 				if (bp->b_resid != 0) {
 					/* Short transfer ??? */
-					bp->b_flags |= B_ERROR;
+					bp->b_ioflags |= BIO_ERROR;
 				}
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1212,7 +1212,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			bp->b_resid = csio->resid;
 			if (csio->resid > 0)
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 		}
 
 		/*

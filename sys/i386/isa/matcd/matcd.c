@@ -905,7 +905,7 @@ void matcdstrategy(struct buf *bp)
 	splx(s);			/*Return priorities to normal*/
 	return;				/*All done*/
 
-bad:	bp->b_flags |= B_ERROR;		/*Request bad in some way*/
+bad:	bp->b_ioflags |= BIO_ERROR;		/*Request bad in some way*/
 done:	bp->b_resid = bp->b_bcount;	/*Show amount of data un read*/
 	biodone(bp);			/*Signal we have done all we plan to*/
 	return;
@@ -2035,7 +2035,7 @@ nextblock:
 <14>	has been removed by the user.  In both cases there is no retry
 <14>	for this call.  We will invalidate the label in both cases.
 */
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_resid = bp->b_bcount;
 			biodone(bp);
 			unlockbus(ldrive>>2, ldrive);

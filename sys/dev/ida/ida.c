@@ -519,7 +519,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 			wakeup(qcb);
 	} else {
 		if (error)
-			qcb->buf->b_flags |= B_ERROR;
+			qcb->buf->b_ioflags |= BIO_ERROR;
 		id_intr(qcb->buf);
 	}
 

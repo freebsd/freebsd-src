@@ -397,7 +397,7 @@ wststrategy(struct buf *bp)
     if (bp->b_bcount % t->blksize) {
         printf("wst%d: bad request, must be multiple of %d\n", lun, t->blksize);
         bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
         biodone(bp);
         return;
     }
@@ -477,7 +477,7 @@ wst_done(struct wst *t, struct buf *bp, int resid,
 	printf("wst_done: ");
         wst_error(t, result);
         bp->b_error = EIO;
-        bp->b_flags |= B_ERROR;
+        bp->b_ioflags |= BIO_ERROR;
     }
     else
 	bp->b_resid = resid;

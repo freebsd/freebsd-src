@@ -539,7 +539,7 @@ oops:
     /* finish up transfer */
     if (request->flags & ADR_F_ERROR) {
 	request->bp->b_error = EIO;
-	request->bp->b_flags |= B_ERROR;
+	request->bp->b_ioflags |= BIO_ERROR;
     } 
     else {
 	request->bytecount -= request->currentsize;
@@ -599,7 +599,7 @@ ad_timeout(struct ad_request *request)
     else {
 	/* retries all used up, return error */
 	request->bp->b_error = EIO;
-	request->bp->b_flags |= B_ERROR;
+	request->bp->b_ioflags |= BIO_ERROR;
 	devstat_end_transaction_buf(&adp->stats, request->bp);
 	biodone(request->bp);
 	free(request, M_AD);

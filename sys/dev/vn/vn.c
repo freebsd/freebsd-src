@@ -294,7 +294,7 @@ vnstrategy(struct buf *bp)
 
 	if ((vn->sc_flags & VNF_INITED) == 0) {
 		bp->b_error = ENXIO;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		biodone(bp);
 		return;
 	}
@@ -303,6 +303,7 @@ vnstrategy(struct buf *bp)
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
+			/* XXX: Normal B_ERROR processing, instead ? */
 			bp->b_flags |= B_INVAL;
 			biodone(bp);
 			return;
@@ -318,7 +319,8 @@ vnstrategy(struct buf *bp)
 		if (bp->b_bcount % vn->sc_secsize != 0 ||
 		    bp->b_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
 			bp->b_error = EINVAL;
-			bp->b_flags |= B_ERROR | B_INVAL;
+			bp->b_flags |= B_INVAL;
+			bp->b_ioflags |= BIO_ERROR;
 			biodone(bp);
 			return;
 		}
@@ -333,7 +335,8 @@ vnstrategy(struct buf *bp)
 		if (pbn < 0 || pbn >= vn->sc_size) {
 			if (pbn != vn->sc_size) {
 				bp->b_error = EINVAL;
-				bp->b_flags |= B_ERROR | B_INVAL;
+				bp->b_flags |= B_INVAL;
+				bp->b_ioflags |= BIO_ERROR;
 			}
 			biodone(bp);
 			return;
@@ -358,7 +361,7 @@ vnstrategy(struct buf *bp)
 		/*
 		 * VNODE I/O
 		 *
-		 * If an error occurs, we set B_ERROR but we do not set 
+		 * If an error occurs, we set BIO_ERROR but we do not set 
 		 * B_INVAL because (for a write anyway), the buffer is 
 		 * still valid.
 		 */
@@ -390,7 +393,7 @@ vnstrategy(struct buf *bp)
 
 		if (error) {
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 		}
 		biodone(bp);
 	} else if (vn->sc_object) {
@@ -410,7 +413,7 @@ vnstrategy(struct buf *bp)
 			vm_pager_strategy(vn->sc_object, bp);
 		}
 	} else {
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = EINVAL;
 		biodone(bp);
 	}
