@@ -236,6 +236,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Sony Memory Stick adapter for the CLIE series
+		 * of PalmOS PDA's
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "CLIE*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
