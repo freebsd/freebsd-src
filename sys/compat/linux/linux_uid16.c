@@ -26,18 +26,18 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
+#include <sys/systm.h>
 
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+
 #include <compat/linux/linux_util.h>
 
 DUMMY(setfsuid16);
