@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.95 1998/03/08 09:57:21 julian Exp $
+ * $Id: vfs_syscalls.c,v 1.96 1998/03/29 18:23:44 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -265,9 +265,11 @@ update:
 		mp->mnt_kern_flag |= MNTK_WANTRDWR;
 	mp->mnt_flag &=~ (MNT_NOSUID | MNT_NOEXEC | MNT_NODEV |
 	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
+	    MNT_NOSYMFOLLOW |
 	    MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
 	mp->mnt_flag |= SCARG(uap, flags) & (MNT_NOSUID | MNT_NOEXEC |
 	    MNT_NODEV | MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_FORCE |
+	    MNT_NOSYMFOLLOW |
 	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
 	/*
 	 * Mount the filesystem.
@@ -1503,8 +1505,6 @@ olstat(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	error = vn_stat(vp, &sb, p);
-	if (vp->v_type == VLNK)
-		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
 	vput(vp);
 	if (error)
 		return (error);
@@ -1606,8 +1606,6 @@ lstat(p, uap)
 		return (error);
 	vp = nd.ni_vp;
 	error = vn_stat(vp, &sb, p);
-	if (vp->v_type == VLNK)
-		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
 	vput(vp);
 	if (error)
 		return (error);

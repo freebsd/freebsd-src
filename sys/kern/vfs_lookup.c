@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.25 1998/02/06 12:13:30 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.26 1998/02/15 04:17:07 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -502,6 +502,10 @@ unionlookup:
 	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
 	     *ndp->ni_next == '/')) {
 		cnp->cn_flags |= ISSYMLINK;
+		if (dp->v_mount->mnt_flag & MNT_NOSYMFOLLOW) {
+			error = EACCES;
+			goto bad2;
+		}
 		return (0);
 	}
 

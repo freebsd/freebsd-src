@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.53 1998/04/06 18:43:28 peter Exp $
+ * $Id: vfs_vnops.c,v 1.54 1998/04/06 19:32:37 peter Exp $
  */
 
 #include <sys/param.h>
@@ -394,6 +394,11 @@ vn_stat(vp, sb, p)
 		break;
 	case VLNK:
 		mode |= S_IFLNK;
+		/* This is a cosmetic change, symlinks does not have a mode. */
+		if (vp->v_mount->mnt_flag & MNT_NOSYMFOLLOW)
+			sb->st_mode &= ~ACCESSPERMS;	/* 0000 */
+		else
+			sb->st_mode |= ACCESSPERMS;	/* 0777 */
 		break;
 	case VSOCK:
 		mode |= S_IFSOCK;
