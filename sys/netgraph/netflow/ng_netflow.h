@@ -39,6 +39,7 @@
 /* Hook names */
 
 #define	NG_NETFLOW_HOOK_DATA	"iface"
+#define	NG_NETFLOW_HOOK_OUT	"out"
 #define NG_NETFLOW_HOOK_EXPORT	"export"
 
 /* Netgraph commands understood by netflow node */
@@ -205,6 +206,7 @@ struct flow_entry {
 /* Private hook data */
 struct ng_netflow_iface {
 	hook_p		hook;		/* NULL when disconnected */
+	hook_p		out;		/* NULL when no bypass hook */
 	struct ng_netflow_ifinfo	info;
 };
 

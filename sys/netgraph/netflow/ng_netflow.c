@@ -235,6 +235,31 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		 */
 		iface->info.ifinfo_dlt = DLT_EN10MB;
 
+	} else if (strncmp(name, NG_NETFLOW_HOOK_OUT,
+	    strlen(NG_NETFLOW_HOOK_OUT)) == 0) {
+		iface_p iface;
+		int ifnum = -1;
+		const char *cp;
+		char *eptr;
+
+		cp = name + strlen(NG_NETFLOW_HOOK_OUT);
+		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
+			return (EINVAL);
+
+		ifnum = (int)strtoul(cp, &eptr, 10);
+		if (*eptr != '\0' || ifnum < 0 || ifnum >= NG_NETFLOW_MAXIFACES)
+			return (EINVAL);
+
+		/* See if hook is already connected */
+		if (priv->ifaces[ifnum].out != NULL)
+			return (EISCONN);
+
+		iface = &priv->ifaces[ifnum];
+
+		/* Link private info and hook together */
+		NG_HOOK_SET_PRIVATE(hook, iface);
+		iface->out = hook;
+
 	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT) == 0) {
 
 		if (priv->export != NULL)
@@ -411,12 +436,11 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	const iface_p iface = NG_HOOK_PRIVATE(hook);
-	struct mbuf *m;
+	struct mbuf *m = NULL;
 	struct ip *ip;
 	int pullup_len = 0;
 	int error = 0;
 
-	NGI_GET_M(item, m);
 	if (hook == priv->export) {
 		/*
 		 * Data arrived on export hook.
@@ -425,6 +449,19 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		log(LOG_ERR, "ng_netflow: incoming data on export hook!\n");
 		ERROUT(EINVAL);
 	};
+
+	if (hook == iface->out) {
+		/*
+		 * Data arrived on out hook. Bypass it.
+		 */
+		if (iface->hook == NULL)
+			ERROUT(ENOTCONN);
+
+		NG_FWD_ITEM_HOOK(error, item, iface->hook);
+		return (error);
+	}
+
+	NGI_GET_M(item, m);
 
 	/* Increase counters. */
 	iface->info.ifinfo_packets++;
@@ -444,7 +481,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	pullup_len += length;					\
 	if ((m)->m_pkthdr.len < (pullup_len)) {			\
 		error = EINVAL;					\
-		goto done;					\
+		goto bypass;					\
 	} 							\
 	if ((m)->m_len < (pullup_len) &&			\
 	   (((m) = m_pullup((m),(pullup_len))) == NULL)) {	\
@@ -471,7 +508,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			ip = (struct ip *)(eh + 1);
 			break;
 		default:
-			goto done;	/* pass this frame */
+			goto bypass;	/* pass this frame */
 		}
 		break;
 	    }
@@ -480,7 +517,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		ip = mtod(m, struct ip *);
 		break;
 	default:
-		goto done;
+		goto bypass;
 		break;
 	}
 
@@ -519,6 +556,12 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 
 	error = ng_netflow_flow_add(priv, ip, iface, m->m_pkthdr.rcvif);
 
+bypass:
+	if (iface->out != NULL) {
+		/* XXX: error gets overwritten here */
+		NG_FWD_NEW_DATA(error, item, iface->out, m);
+		return (error);
+	}
 done:
 	if (item)
 		NG_FREE_ITEM(item);
