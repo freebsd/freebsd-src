@@ -106,7 +106,7 @@ Get a file or set of files from the specified
 can be in one of two forms:
 a filename on the remote host, if the host has already been specified,
 or a string of the form
-.Ar hosts:filename
+.Ar hosts Ns : Ns Ar filename
 to specify both a host and filename at the same time.
 If the latter form is used,
 the last hostname specified becomes the default for future transfers.
@@ -130,7 +130,7 @@ The destination
 can be in one of two forms:
 a filename on the remote host, if the host has already been specified,
 or a string of the form
-.Ar hosts:filename
+.Ar hosts Ns : Ns Ar filename
 to specify both a host and filename at the same time.
 If the latter form is used,
 the hostname specified becomes the default for future transfers.
@@ -138,10 +138,10 @@ If the remote-directory form is used, the remote host is
 assumed to be a
 .Tn UNIX
 machine.
-If you need to specify IPv6 numeric address to
+To specify IPv6 numeric addresses with
 .Ar hosts ,
-wrap them using square bracket like
-.Ar [hosts]:filename
+wrap them using square brackets like
+.Bo Ar hosts Bc Ns : Ns Ar filename ,
 to disambiguate the colon.
 .Pp
 .It Cm quit
