@@ -333,7 +333,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			printf("Some %s sockets may have been created.\n",
 			       name);
 		} else {
-			printf("Some %s sockets may have been created or deleted",
+			printf("Some %s sockets may have been created or deleted.\n",
 			       name);
 		}
 	}
