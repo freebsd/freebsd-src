@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: rmjob.c,v 1.4.2.3 1997/09/25 06:32:22 charnier Exp $";
+	"$Id: rmjob.c,v 1.4.2.4 1997/10/15 09:55:54 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -332,13 +332,13 @@ rmremote()
 	fflush(stdout);
 
 	(void)snprintf(buf, sizeof(buf), "\5%s %s", RP, all ? "-all" : person);
-	cp = buf;
-	for (i = 0; i < users && cp-buf+1+strlen(user[i]) < sizeof(buf); i++) {
+	cp = buf + strlen(buf);
+	for (i = 0; i < users && cp-buf+1+strlen(user[i]) < sizeof(buf) - 2; i++) {
 		cp += strlen(cp);
 		*cp++ = ' ';
 		strcpy(cp, user[i]);
 	}
-	for (i = 0; i < requests && cp-buf+10 < sizeof(buf) - 1; i++) {
+	for (i = 0; i < requests && cp-buf+10 < sizeof(buf) - 2; i++) {
 		cp += strlen(cp);
 		(void) sprintf(cp, " %d", requ[i]);
 	}
