@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.104 1998/02/18 09:40:54 msmith Exp $
+ *      $Id: scsiconf.c,v 1.105 1998/03/08 06:52:45 jkh Exp $
  */
 
 #include "opt_scsi.h"
@@ -919,8 +919,8 @@ scsi_alloc_unit(struct scsi_link *sc_link)
 	{
 		sd = malloc(dsw->sizeof_scsi_data, M_DEVBUF, M_NOWAIT);
 		if (!sd) {
-			printf("%s%ld: malloc failed for scsi_data\n",
-				sc_link->device->name, unit);
+			printf("%s%lu: malloc failed for scsi_data\n",
+			    sc_link->device->name, (u_long)unit);
 			return 0;
 		}
 		bzero(sd, dsw->sizeof_scsi_data);
@@ -931,8 +931,8 @@ scsi_alloc_unit(struct scsi_link *sc_link)
 	sc_link->sd = sd;
 
 	if (extend_set(dsw->links, unit, (void *)sc_link) == 0) {
-		printf("%s%ld: Can't store link pointer.\n",
-		sc_link->device->name, unit);
+		printf("%s%lu: Can't store link pointer.\n",
+		    sc_link->device->name, (u_long)unit);
 		free(sd, M_DEVBUF);
 		return 0;
 	}
@@ -1292,14 +1292,12 @@ void scsi_print_info(sc_link)
 	printf("%s%d: ", sc_link->device->name,
 			 sc_link->dev_unit);
 	printf("<%s %s %s> ", manu, model, version );
-	printf("type %ld %sSCSI %d"
-	    ,type
-	    ,remov ? "removable " : "fixed "
-	    ,inqbuf->version & SID_ANSII
-	    );
+	printf("type %lu %sSCSI %d",
+	    (u_long)type, remov ? "removable " : "fixed ",
+	    inqbuf->version & SID_ANSII);
 	if (qtype[0]) {
 		sc_print_addr(sc_link);
-		printf(" qualifier %ld: %s" ,qualifier ,qtype);
+		printf(" qualifier %lu: %s", (u_long)qualifier, qtype);
 	}
 
 	printf("\n");

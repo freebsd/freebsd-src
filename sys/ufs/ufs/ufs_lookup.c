@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.23 1998/03/30 09:56:23 phk Exp $
+ * $Id: ufs_lookup.c,v 1.24 1998/04/15 12:27:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -560,8 +560,8 @@ ufs_dirbad(ip, offset, how)
 	struct mount *mp;
 
 	mp = ITOV(ip)->v_mount;
-	(void)printf("%s: bad dir ino %ld at offset %ld: %s\n",
-	    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
+	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
+	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 	if ((mp->mnt_stat.f_flags & MNT_RDONLY) == 0)
 		panic("ufs_dirbad: bad dir");
 }

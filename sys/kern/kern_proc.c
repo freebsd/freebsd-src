@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.35 1998/02/09 06:09:23 eivind Exp $
+ * $Id: kern_proc.c,v 1.36 1998/02/20 13:52:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -375,14 +375,17 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 		if (pgrp = pgrphashtbl[i].lh_first) {
 			printf("\tindx %d\n", i);
 			for (; pgrp != 0; pgrp = pgrp->pg_hash.le_next) {
-				printf("\tpgrp %x, pgid %d, sess %x, sesscnt %d, mem %x\n",
-				    pgrp, pgrp->pg_id, pgrp->pg_session,
+				printf(
+			"\tpgrp %p, pgid %ld, sess %p, sesscnt %d, mem %p\n",
+				    (void *)pgrp, (long)pgrp->pg_id,
+				    (void *)pgrp->pg_session,
 				    pgrp->pg_session->s_count,
-				    pgrp->pg_members.lh_first);
+				    (void *)pgrp->pg_members.lh_first);
 				for (p = pgrp->pg_members.lh_first; p != 0;
 				    p = p->p_pglist.le_next) {
-					printf("\t\tpid %d addr %x pgrp %x\n", 
-					    p->p_pid, p, p->p_pgrp);
+					printf("\t\tpid %ld addr %p pgrp %p\n", 
+					    (long)p->p_pid, (void *)p,
+					    (void *)p->p_pgrp);
 				}
 			}
 		}

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.95 1998/05/04 03:01:42 dyson Exp $
+ * $Id: swap_pager.c,v 1.96 1998/07/04 20:45:41 julian Exp $
  */
 
 /*
@@ -1070,14 +1070,17 @@ swap_pager_getpages(object, m, count, reqpage)
 	s = splvm();
 	while ((bp->b_flags & B_DONE) == 0) {
 		if (tsleep(bp, PVM, "swread", hz*20)) {
-			printf("swap_pager: indefinite wait buffer: device: %#x, blkno: %d, size: %d\n",
-				bp->b_dev, bp->b_blkno, bp->b_bcount);
+			printf(
+"swap_pager: indefinite wait buffer: device: %#lx, blkno: %ld, size: %ld\n",
+			    (u_long)bp->b_dev, (long)bp->b_blkno,
+			    (long)bp->b_bcount);
 		}
 	}
 
 	if (bp->b_flags & B_ERROR) {
-		printf("swap_pager: I/O error - pagein failed; blkno %d, size %d, error %d\n",
-		    bp->b_blkno, bp->b_bcount, bp->b_error);
+		printf(
+"swap_pager: I/O error - pagein failed; blkno %ld, size %ld, error %d\n",
+		    (long)bp->b_blkno, (long)bp->b_bcount, bp->b_error);
 		rv = VM_PAGER_ERROR;
 	} else {
 		rv = VM_PAGER_OK;
@@ -1486,8 +1489,9 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	}
 
 	if (bp->b_flags & B_ERROR) {
-		printf("swap_pager: I/O error - pageout failed; blkno %d, size %d, error %d\n",
-		    bp->b_blkno, bp->b_bcount, bp->b_error);
+		printf(
+"swap_pager: I/O error - pageout failed; blkno %ld, size %ld, error %d\n",
+		    (long)bp->b_blkno, (long)bp->b_bcount, bp->b_error);
 		rv = VM_PAGER_ERROR;
 	} else {
 		rv = VM_PAGER_OK;

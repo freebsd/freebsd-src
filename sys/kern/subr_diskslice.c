@@ -46,7 +46,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.46 1998/06/06 03:06:55 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.47 1998/07/04 22:30:22 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -146,8 +146,8 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 
 			newblkno = transbad144(sp->ds_bad, blkno);
 			if (newblkno != blkno)
-				printf("should map bad block %lu -> %lu\n",
-				       blkno, newblkno);
+				printf("should map bad block %ld -> %ld\n",
+				       (long)blkno, (long)newblkno);
 		}
 	}
 
@@ -958,7 +958,8 @@ partition_info(sname, part, pp)
 	struct partition *pp;
 {
 	printf("%s%c: start %lu, end %lu, size %lu\n", sname, 'a' + part,
-	       pp->p_offset, pp->p_offset + pp->p_size - 1, pp->p_size);
+	       (u_long)pp->p_offset, (u_long)(pp->p_offset + pp->p_size - 1),
+	       (u_long)pp->p_size);
 }
 
 static void

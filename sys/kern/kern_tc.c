@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.75 1998/07/04 19:12:21 phk Exp $
+ * $Id: kern_clock.c,v 1.76 1998/07/04 19:29:15 phk Exp $
  */
 
 #include <sys/param.h>
@@ -692,7 +692,7 @@ init_timecounter(struct timecounter *tc)
 	tc->tc_cost >>= 8;
 	if (print_tci && strcmp(tc->tc_name, "dummy"))
 		printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
-		    tc->tc_name, tc->tc_frequency, tc->tc_cost);
+		    tc->tc_name, (u_long)tc->tc_frequency, tc->tc_cost);
 
 	/* XXX: For now always start using the counter. */
 	tc->tc_offset_count = tc->tc_get_timecount(tc);

@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_status.c,v 1.9 1997/03/24 11:24:42 bde Exp $
+ *	$Id: procfs_status.c,v 1.10 1997/08/02 14:32:17 bde Exp $
  */
 
 #include <sys/param.h>
@@ -124,16 +124,16 @@ procfs_dostatus(curp, p, pfs, uio)
 
 	cr = p->p_ucred;
 
-	ps += sprintf(ps, " %ld %ld %ld", 
-		      cr->cr_uid,               /* euid */
-		      p->p_cred->p_ruid,        /* ruid */
-		      p->p_cred->p_rgid);       /* rgid */
+	ps += sprintf(ps, " %lu %lu %lu", 
+		(u_long)cr->cr_uid,
+		(u_long)p->p_cred->p_ruid,
+		(u_long)p->p_cred->p_rgid);
 
 	/* egid (p->p_cred->p_svgid) is equal to cr_ngroups[0] 
 	   see also getegid(2) in /sys/kern/kern_prot.c */
 
 	for (i = 0; i < cr->cr_ngroups; i++)
-		ps += sprintf(ps, ",%ld", cr->cr_groups[i]);
+		ps += sprintf(ps, ",%lu", (u_long)cr->cr_groups[i]);
 	ps += sprintf(ps, "\n");
 
 	xlen = ps - psbuf;

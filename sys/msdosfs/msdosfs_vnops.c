@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.73 1998/06/10 13:46:46 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.74 1998/07/04 20:45:36 julian Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1864,7 +1864,7 @@ msdosfs_print(ap)
 	struct denode *dep = VTODE(ap->a_vp);
 
 	printf(
-	    "tag VT_MSDOSFS, startcluster %d, dircluster %ld, diroffset %ld ",
+	    "tag VT_MSDOSFS, startcluster %lu, dircluster %lu, diroffset %lu ",
 	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
 	printf(" dev %d, %d", major(dep->de_dev), minor(dep->de_dev));
 	lockmgr_printinfo(&dep->de_lock);
