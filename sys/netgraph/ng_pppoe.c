@@ -65,31 +65,31 @@
  * sample node. These methods define the netgraph 'type'.
  */
 
-static int	ng_PPPoE_constructor(node_p *node);
-static int	ng_PPPoE_rcvmsg(node_p node, struct ng_mesg *msg,
+static int	ng_pppoe_constructor(node_p *node);
+static int	ng_pppoe_rcvmsg(node_p node, struct ng_mesg *msg,
 		  const char *retaddr, struct ng_mesg **resp);
-static int	ng_PPPoE_rmnode(node_p node);
-static int	ng_PPPoE_newhook(node_p node, hook_p hook, const char *name);
-static int	ng_PPPoE_connect(hook_p hook);
-static int	ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static int	ng_PPPoE_disconnect(hook_p hook);
+static int	ng_pppoe_rmnode(node_p node);
+static int	ng_pppoe_newhook(node_p node, hook_p hook, const char *name);
+static int	ng_pppoe_connect(hook_p hook);
+static int	ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
+static int	ng_pppoe_disconnect(hook_p hook);
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
 	NG_VERSION,
 	NG_PPPOE_NODE_TYPE,
 	NULL,
-	ng_PPPoE_constructor,
-	ng_PPPoE_rcvmsg,
-	ng_PPPoE_rmnode,
-	ng_PPPoE_newhook,
+	ng_pppoe_constructor,
+	ng_pppoe_rcvmsg,
+	ng_pppoe_rmnode,
+	ng_pppoe_newhook,
 	NULL,
-	ng_PPPoE_connect,
-	ng_PPPoE_rcvdata,
-	ng_PPPoE_rcvdata,
-	ng_PPPoE_disconnect
+	ng_pppoe_connect,
+	ng_pppoe_rcvdata,
+	ng_pppoe_rcvdata,
+	ng_pppoe_disconnect
 };
-NETGRAPH_INIT(PPPoE, &typestruct);
+NETGRAPH_INIT(pppoe, &typestruct);
 
 /*
  * States for the session state machine.
@@ -463,7 +463,7 @@ AAA
  * to creatednodes that depend on hardware (unless you can add the hardware :)
  */
 static int
-ng_PPPoE_constructor(node_p *nodep)
+ng_pppoe_constructor(node_p *nodep)
 {
 	priv_p privdata;
 	int error;
@@ -496,7 +496,7 @@ AAA
  *  debug:	copies of data sent out here  (when I write the code).
  */
 static int
-ng_PPPoE_newhook(node_p node, hook_p hook, const char *name)
+ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p privp = node->private;
 	sessp sp;
@@ -533,11 +533,11 @@ AAA
  * Always free the message.
  */
 static int
-ng_PPPoE_rcvmsg(node_p node,
+ng_pppoe_rcvmsg(node_p node,
 	   struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr)
 {
 	priv_p privp = node->private;
-	struct ngPPPoE_init_data *ourmsg = NULL;
+	struct ngpppoe_init_data *ourmsg = NULL;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	hook_p hook = NULL;
@@ -552,11 +552,11 @@ AAA
 		case NGM_PPPOE_CONNECT:
 		case NGM_PPPOE_LISTEN: 
 		case NGM_PPPOE_OFFER: 
-			ourmsg = (struct ngPPPoE_init_data *)msg->data;
+			ourmsg = (struct ngpppoe_init_data *)msg->data;
 			if (( sizeof(*ourmsg) > msg->header.arglen)
 			|| ((sizeof(*ourmsg) + ourmsg->data_len)
 			    > msg->header.arglen)) {
-				printf("PPPoE_rcvmsg: bad arg size");
+				printf("pppoe_rcvmsg: bad arg size");
 				LEAVE(EMSGSIZE);
 			}
 			if (ourmsg->data_len > PPPOE_SERVICE_NAME_SIZE) {
@@ -626,13 +626,13 @@ AAA
 		switch (msg->header.cmd) {
 		case NGM_PPPOE_GET_STATUS:
 		    {
-			struct ngPPPoEstat *stats;
+			struct ngpppoestat *stats;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stats), M_NOWAIT);
 			if (!resp) {
 				LEAVE(ENOMEM);
 			}
-			stats = (struct ngPPPoEstat *) resp->data;
+			stats = (struct ngpppoestat *) resp->data;
 			stats->packets_in = privp->packets_in;
 			stats->packets_out = privp->packets_out;
 			break;
@@ -758,7 +758,7 @@ AAA
  * if we use up this data or abort we must free BOTH of these.
  */
 static int
-ng_PPPoE_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	node_p			node = hook->node;
 	const priv_p		privp = node->private;
@@ -1216,7 +1216,7 @@ quit:
  * we'd only remove our links and reset ourself.
  */
 static int
-ng_PPPoE_rmnode(node_p node)
+ng_pppoe_rmnode(node_p node)
 {
 	const priv_p privdata = node->private;
 
@@ -1235,7 +1235,7 @@ AAA
  * It gives us a chance to balk at the last minute.
  */
 static int
-ng_PPPoE_connect(hook_p hook)
+ng_pppoe_connect(hook_p hook)
 {
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
@@ -1248,7 +1248,7 @@ ng_PPPoE_connect(hook_p hook)
  * For this type, removal of the last link destroys the node
  */
 static int
-ng_PPPoE_disconnect(hook_p hook)
+ng_pppoe_disconnect(hook_p hook)
 {
 	node_p node = hook->node;
 	priv_p privp = node->private;
@@ -1460,12 +1460,12 @@ pppoe_send_event(sessp sp, enum cmd cmdid)
 {
 	int error;
 	struct ng_mesg *msg;
-	struct ngPPPoE_sts *sts;
+	struct ngpppoe_sts *sts;
 
 AAA
 	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
-			sizeof(struct ngPPPoE_sts), M_NOWAIT);
-	sts = (struct ngPPPoE_sts *)msg->data;
+			sizeof(struct ngpppoe_sts), M_NOWAIT);
+	sts = (struct ngpppoe_sts *)msg->data;
 	strncpy(sts->hook, sp->hook->name, NG_HOOKLEN + 1);
 	error = ng_send_msg(sp->hook->node, msg, sp->creator, NULL);
 	return (error);
