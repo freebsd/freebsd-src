@@ -28,11 +28,13 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: xdryp.c,v 1.3 1995/04/02 19:58:29 wpaul Exp $";
+static char *rcsid = "$Id: xdryp.c,v 1.5 1996/02/04 05:05:43 wpaul Exp $";
 #endif
 
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
+#include <stdlib.h>
+#include <string.h>
 
 extern int (*ypresp_allfn)();
 extern void *ypresp_data;
