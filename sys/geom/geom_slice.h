@@ -82,6 +82,8 @@ int g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, i
 #define G_SLICE_HOT_START	4
 #define G_SLICE_HOT_CALL	8
 
+int g_slice_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
+
 void g_slice_finish_hot(struct bio *bp);
 
 #endif /* _GEOM_GEOM_SLICE_H_ */
