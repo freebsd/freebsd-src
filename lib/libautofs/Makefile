@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 2004/08/31 16:26:24 bright Exp $
+# $Id: Makefile,v 1.5 2004/09/08 08:12:21 bright Exp $
 # $FreeBSD$
 
 LIB=	autofs

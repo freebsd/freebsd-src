@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * $Id: libautofs.c,v 1.3 2004/08/31 08:49:56 bright Exp $
+ * $Id: libautofs.c,v 1.5 2004/09/08 08:44:12 bright Exp $
  */
 #include <err.h>
 #include <ctype.h>
@@ -43,7 +43,11 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
+#ifdef AUTOFSSTANDALONE
+#include "../autofs/autofs.h"
+#else
 #include <fs/autofs/autofs.h>
+#endif
 
 #include "libautofs.h"
 
