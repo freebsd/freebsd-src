@@ -31,6 +31,7 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
+#include <stddef.h>
 #include <sys/kse.h>
 #include <ucontext.h>
 
@@ -38,6 +39,7 @@ extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int _thr_getcontext(mcontext_t *);
 
 #define	KSE_STACKSIZE		16384
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 #define	THR_GETCONTEXT(ucp)	_thr_getcontext(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	_thr_setcontext(&(ucp)->uc_mcontext, 0, NULL)

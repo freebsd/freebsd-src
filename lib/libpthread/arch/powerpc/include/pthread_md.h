@@ -42,6 +42,7 @@ extern int  _ppc32_setcontext(mcontext_t *, intptr_t, intptr_t *);
 extern int  _ppc32_getcontext(mcontext_t *);
 
 #define	KSE_STACKSIZE		16384
+#define	DTV_OFFSET		offsetof(struct tcb, tcb.tcb_tp.tp_dtv)
 
 #define	THR_GETCONTEXT(ucp)	_ppc32_getcontext(&(ucp)->uc_mcontext)
 #define	THR_SETCONTEXT(ucp)	_ppc32_setcontext(&(ucp)->uc_mcontext, 0, NULL)

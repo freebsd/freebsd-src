@@ -32,12 +32,14 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
+#include <stddef.h>
 #include <sys/types.h>
 #include <sys/kse.h>
 #include <machine/sysarch.h>
 #include <ucontext.h>
 
 #define	KSE_STACKSIZE		16384
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 #define	THR_GETCONTEXT(ucp)	\
 	(void)_amd64_save_context(&(ucp)->uc_mcontext)
