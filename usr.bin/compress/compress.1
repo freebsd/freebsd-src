@@ -52,8 +52,9 @@
 .Op Fl cfv
 .Op Ar
 .Sh DESCRIPTION
-.Nm Compress
-reduces the size of the named files using adaptive Lempel-Ziv coding.
+The
+.Nm
+utility reduces the size of the named files using adaptive Lempel-Ziv coding.
 Each
 .Ar file
 is renamed to the same name plus the extension
@@ -65,8 +66,9 @@ If compression would not reduce the size of a
 .Ar file ,
 the file is ignored.
 .Pp
-.Nm Uncompress
-restores the compressed files to their original form, renaming the
+The
+.Nm uncompress
+utility restores the compressed files to their original form, renaming the
 files by deleting the
 .Dq .Z
 extension.
@@ -101,8 +103,9 @@ Additionally, files are overwritten without prompting for confirmation.
 Print the percentage reduction of each file.
 .El
 .Pp
-.Nm Compress
-uses a modified Lempel-Ziv algorithm.
+The
+.Nm
+utility uses a modified Lempel-Ziv algorithm.
 Common substrings in the file are first replaced by 9-bit codes 257 and up.
 When code 512 is reached, the algorithm switches to 10-bit codes and
 continues to use more bits until the

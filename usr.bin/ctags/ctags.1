@@ -209,16 +209,18 @@ for Fortran and Pascal is done in a very simpleminded way.
 No attempt
 is made to deal with block structure; if you have two Pascal procedures
 in different blocks with the same name you lose.
+The
 .Nm
-does not
+utility does not
 understand about Pascal types.
 .Pp
 The method of deciding whether to look for C, Pascal or
 Fortran
 functions is a hack.
 .Pp
+The
 .Nm
-relies on the input being well formed, and any syntactical
+utility relies on the input being well formed, and any syntactical
 errors will completely confuse it.
 It also finds some legal syntax
 confusing; for example, since it does not understand
