@@ -17,6 +17,7 @@ MODULES		+= pam_opieaccess
 #MODULES		+= pam_passwdqc
 MODULES		+= pam_permit
 MODULES		+= pam_radius
+MODULES		+= pam_rhosts
 MODULES		+= pam_rootok
 MODULES		+= pam_securetty
 MODULES		+= pam_self
