@@ -106,7 +106,9 @@ asn1_compile:					\
 	strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
-.if defined(BOOTSTRAPPING)
+.if defined(BOOTSTRAPPING) && \
+    ( ${BOOTSTRAPPING} < 440001 || \
+    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500023 ))
 asn1_compile: getprogname.c setprogname.c
 .endif
 
