@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.17 1996/05/30 01:21:50 davidg Exp $
+ * $Id: kern_prot.c,v 1.18 1996/09/01 22:15:54 ache Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include <sys/timeb.h>
 #include <sys/times.h>
 #include <sys/malloc.h>
+#include <sys/unistd.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
