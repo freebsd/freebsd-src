@@ -14,8 +14,8 @@ LIBACU=${.CURDIR}/../libacu/libacu.a
 .endif
 
 PROG=	tip
-DPADD=	$(LIBACU)
-LDADD=	$(LIBACU) -lutil
+DPADD=	${LIBACU} ${LIBUTIL}
+LDADD=	${LIBACU} -lutil
 LINKS=	${BINDIR}/tip
 MAN1=	tip.1
 MAN5=	modems.5
