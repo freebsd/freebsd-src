@@ -1489,23 +1489,16 @@ trapsignal(struct thread *td, int sig, u_long code)
 		if (td->td_mailbox == NULL)
 			thread_user_enter(p, td);
 		PROC_LOCK(p);
-		if (td->td_mailbox) {
-			SIGDELSET(td->td_sigmask, sig);
-			mtx_lock_spin(&sched_lock);
-			/*
-			 * Force scheduling an upcall, so UTS has chance to
-			 * process the signal before thread runs again in
-			 * userland.
-			 */
-			if (td->td_upcall)
-				td->td_upcall->ku_flags |= KUF_DOUPCALL;
-			mtx_unlock_spin(&sched_lock);
-		} else {
-			/* UTS caused a sync signal */
-			p->p_code = code;	/* XXX for core dump/debugger */
-			p->p_sig = sig;		/* XXX to verify code */
-			sigexit(td, sig);
-		}
+		SIGDELSET(td->td_sigmask, sig);
+		mtx_lock_spin(&sched_lock);
+		/*
+		 * Force scheduling an upcall, so UTS has chance to
+		 * process the signal before thread runs again in
+		 * userland.
+		 */
+		if (td->td_upcall)
+			td->td_upcall->ku_flags |= KUF_DOUPCALL;
+		mtx_unlock_spin(&sched_lock);
 	} else {
 		PROC_LOCK(p);
 	}
@@ -1523,17 +1516,23 @@ trapsignal(struct thread *td, int sig, u_long code)
 			(*p->p_sysent->sv_sendsig)(
 				ps->ps_sigact[_SIG_IDX(sig)], sig,
 				&td->td_sigmask, code);
-		else {
+		else if (td->td_mailbox == NULL) {
+			mtx_unlock(&ps->ps_mtx);
+			/* UTS caused a sync signal */
+			p->p_code = code;	/* XXX for core dump/debugger */
+			p->p_sig = sig;		/* XXX to verify code */
+			sigexit(td, sig);
+		} else {
 			cpu_thread_siginfo(sig, code, &siginfo);
 			mtx_unlock(&ps->ps_mtx);
+			SIGADDSET(td->td_sigmask, sig);
 			PROC_UNLOCK(p);
 			error = copyout(&siginfo, &td->td_mailbox->tm_syncsig,
 			    sizeof(siginfo));
 			PROC_LOCK(p);
 			/* UTS memory corrupted */
 			if (error)
-				sigexit(td, SIGILL);
-			SIGADDSET(td->td_sigmask, sig);
+				sigexit(td, SIGSEGV);
 			mtx_lock(&ps->ps_mtx);
 		}
 		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
@@ -1882,7 +1881,7 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
-			p->p_xlwpid = td->td_tid;
+			p->p_xthread = td;
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0) {
 				if (TD_IS_SLEEPING(td0) &&
@@ -2002,28 +2001,63 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 	}
 }
 
-void
+int
 ptracestop(struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
+	struct thread *td0;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.mtx_object, "Stopping for traced signal");
 
-	p->p_xstat = sig;
-	p->p_xlwpid = td->td_tid;
-	PROC_LOCK(p->p_pptr);
-	psignal(p->p_pptr, SIGCHLD);
-	PROC_UNLOCK(p->p_pptr);
-	stop(p);
 	mtx_lock_spin(&sched_lock);
-	thread_suspend_one(td);
-	PROC_UNLOCK(p);
-	DROP_GIANT();
-	mi_switch(SW_INVOL, NULL);
+	td->td_flags |= TDF_XSIG;
 	mtx_unlock_spin(&sched_lock);
-	PICKUP_GIANT();
+	td->td_xsig = sig;
+	while ((p->p_flag & P_TRACED) && (td->td_flags & TDF_XSIG)) {
+		if (p->p_flag & P_SINGLE_EXIT) {
+			mtx_lock_spin(&sched_lock);
+			td->td_flags &= ~TDF_XSIG;
+			mtx_unlock_spin(&sched_lock);
+			return (sig);
+		}
+		/*
+		 * Just make wait() to work, the last stopped thread
+		 * will win.
+		 */
+		p->p_xstat = sig;
+		p->p_xthread = td;
+		p->p_flag |= (P_STOPPED_SIG|P_STOPPED_TRACE);
+		mtx_lock_spin(&sched_lock);
+		FOREACH_THREAD_IN_PROC(p, td0) {
+			if (TD_IS_SLEEPING(td0) &&
+			    (td0->td_flags & TDF_SINTR) &&
+			    !TD_IS_SUSPENDED(td0)) {
+				thread_suspend_one(td0);
+			} else if (td != td0) {
+				td0->td_flags |= TDF_ASTPENDING;
+			}
+		}
+stopme:
+		thread_stopped(p);
+		thread_suspend_one(td);
+		PROC_UNLOCK(p);
+		DROP_GIANT();
+		mi_switch(SW_VOL, NULL);
+		mtx_unlock_spin(&sched_lock);
+		PICKUP_GIANT();
+		PROC_LOCK(p);
+		if (!(p->p_flag & P_TRACED))
+			break;
+		if (td->td_flags & TDF_DBSUSPEND) {
+			if (p->p_flag & P_SINGLE_EXIT)
+				break;
+			mtx_lock_spin(&sched_lock);
+			goto stopme;
+		}
+	}
+	return (td->td_xsig);
 }
 
 /*
@@ -2045,7 +2079,7 @@ issignal(td)
 	struct proc *p;
 	struct sigacts *ps;
 	sigset_t sigpending;
-	int sig, prop;
+	int sig, prop, newsig;
 	struct thread *td0;
 
 	p = td->td_proc;
@@ -2076,6 +2110,8 @@ issignal(td)
 		 */
 		if (SIGISMEMBER(ps->ps_sigignore, sig) && (traced == 0)) {
 			SIGDELSET(td->td_siglist, sig);
+			if (td->td_pflags & TDP_SA)
+				SIGADDSET(td->td_sigmask, sig);
 			continue;
 		}
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
@@ -2083,8 +2119,7 @@ issignal(td)
 			 * If traced, always stop.
 			 */
 			mtx_unlock(&ps->ps_mtx);
-			ptracestop(td, sig);
-			PROC_LOCK(p);
+			newsig = ptracestop(td, sig);
 			mtx_lock(&ps->ps_mtx);
 
 			/*
@@ -2093,10 +2128,11 @@ issignal(td)
 			 * otherwise we just look for signals again.
 			 */
 			SIGDELSET(td->td_siglist, sig);	/* clear old signal */
-			sig = p->p_xstat;
-			if (sig == 0)
+			if (td->td_pflags & TDP_SA)
+				SIGADDSET(td->td_sigmask, sig);
+			if (newsig == 0)
 				continue;
-
+			sig = newsig;
 			/*
 			 * If the traced bit got turned off, go back up
 			 * to the top to rescan signals.  This ensures
@@ -2110,6 +2146,8 @@ issignal(td)
 			 * signal is being masked, look for other signals.
 			 */
 			SIGADDSET(td->td_siglist, sig);
+			if (td->td_pflags & TDP_SA)
+				SIGDELSET(td->td_sigmask, sig);
 			if (SIGISMEMBER(td->td_sigmask, sig))
 				continue;
 			signotify(td);
@@ -2156,7 +2194,7 @@ issignal(td)
 				    &p->p_mtx.mtx_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
-				p->p_xlwpid = td->td_tid;
+				p->p_xthread = td;
 				mtx_lock_spin(&sched_lock);
 				FOREACH_THREAD_IN_PROC(p, td0) {
 					if (TD_IS_SLEEPING(td0) &&
@@ -2289,8 +2327,7 @@ postsig(sig)
 		mtx_lock(&ps->ps_mtx);
 	}
 
-	if (!(td->td_pflags & TDP_SA && td->td_mailbox) &&
-	    action == SIG_DFL) {
+	if (!(td->td_pflags & TDP_SA) && action == SIG_DFL) {
 		/*
 		 * Default action, where the default is to kill
 		 * the process.  (Other cases were ignored above.)
@@ -2299,7 +2336,7 @@ postsig(sig)
 		sigexit(td, sig);
 		/* NOTREACHED */
 	} else {
-		if (td->td_pflags & TDP_SA && td->td_mailbox) {
+		if (td->td_pflags & TDP_SA) {
 			if (sig == SIGKILL) {
 				mtx_unlock(&ps->ps_mtx);
 				sigexit(td, sig);
@@ -2348,7 +2385,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
-		if (td->td_pflags & TDP_SA && td->td_mailbox)
+		if (td->td_pflags & TDP_SA)
 			thread_signal_add(curthread, sig);
 		else
 			(*p->p_sysent->sv_sendsig)(action, sig,
