@@ -578,11 +578,8 @@ _lkm_vfs(lkmtp, cmd)
 			}
 		}
 
-		if (args->lkm_offset != vfc->vfc_index)
-			return EINVAL;
-
-		i = args->lkm_offset;
-		if (!args->lkm_offset) {
+		i = args->lkm_offset = vfc->vfc_index;
+		if (i < 0) {
 			for (i = MOUNT_MAXTYPE - 1; i >= 0; i--) {
 				if(vfsconf[i] == &void_vfsconf)
 					break;
@@ -592,6 +589,7 @@ _lkm_vfs(lkmtp, cmd)
 			return EINVAL;
 		}
 		args->lkm_offset = vfc->vfc_index = i;
+
 		vfsconf[i] = vfc;
 		vfssw[i] = vfc->vfc_vfsops;
 
@@ -609,7 +607,6 @@ _lkm_vfs(lkmtp, cmd)
 	 	(*(vfssw[vfc->vfc_index]->vfs_init))();
 
 		/* done! */
-		args->lkm_offset = i;	/* slot in vfssw[] */
 		break;
 
 	case LKM_E_UNLOAD:
