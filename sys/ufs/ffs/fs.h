@@ -166,6 +166,28 @@
 #define BLK_SNAP ((ufs_daddr_t)(2))
 
 /*
+ * Sysctl values for the fast filesystem.
+ */
+#define	FFS_ADJ_REFCNT		 1	/* adjust inode reference count */
+#define	FFS_ADJ_BLKCNT		 2	/* adjust inode used block count */
+#define	FFS_BLK_FREE		 3	/* free range of blocks in map */
+#define	FFS_DIR_FREE		 4	/* free specified dir inodes in map */
+#define	FFS_FILE_FREE		 5	/* free specified file inodes in map */
+#define	FFS_SET_FLAGS		 6	/* set filesystem flags */
+#define	FFS_MAXID		 7	/* number of valid ffs ids */
+
+/*
+ * Command structure passed in to the filesystem to adjust filesystem values.
+ */
+#define	FFS_CMD_VERSION		0x05181979	/* version ID */
+struct fsck_cmd {
+	int	version;	/* version of command structure */
+	int	handle;		/* reference to filesystem to be changed */
+	off_t	value;		/* inode or block number to be affected */
+	long	size;		/* amount or range to be adjusted */
+};
+
+/*
  * Per cylinder group information; summarized in blocks allocated
  * from first cylinder group data blocks.  These blocks have to be
  * read in from fs_csaddr (size fs_cssize) in addition to the

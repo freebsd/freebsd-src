@@ -223,7 +223,8 @@ ffs_mount(mp, path, data, ndp, p)
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
-				if (mp->mnt_flag & MNT_FORCE) {
+				if ((mp->mnt_flag & MNT_FORCE) ||
+				    (fs->fs_flags & FS_DOSOFTDEP)) {
 					printf("WARNING: %s was not %s\n",
 					   fs->fs_fsmnt, "properly dismounted");
 				} else {
@@ -584,7 +585,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
-		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
+		if (ronly || (mp->mnt_flag & MNT_FORCE) ||
+		    (fs->fs_flags & FS_DOSOFTDEP)) {
 			printf(
 "WARNING: %s was not properly dismounted\n",
 			    fs->fs_fsmnt);

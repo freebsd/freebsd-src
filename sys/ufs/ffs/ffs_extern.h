@@ -37,21 +37,6 @@
 #ifndef _UFS_FFS_EXTERN_H
 #define	_UFS_FFS_EXTERN_H
 
-/*
- * Sysctl values for the fast filesystem.
- */
-#define FFS_REALLOCBLKS		3	/* block reallocation enabled */
-#define FFS_ASYNCFREE		4	/* asynchronous block freeing enabled */
-#define	FFS_MAXID		5	/* number of valid ffs ids */
-
-#define FFS_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "doreallocblks", CTLTYPE_INT }, \
-	{ "doasyncfree", CTLTYPE_INT }, \
-}
-
 struct buf;
 struct fid;
 struct fs;
@@ -80,7 +65,7 @@ void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct vnode **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
-int	ffs_freefile __P(( struct vnode *, ino_t, int ));
+int	ffs_freefile __P((struct inode *, ino_t, int ));
 int	ffs_isblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_isfreeblock __P((struct fs *, unsigned char *, ufs_daddr_t));
 int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *,
