@@ -91,7 +91,7 @@ struct	inpcb *
 				struct in6_addr *, u_int, struct in6_addr *,
 				u_int, int, struct ifnet *));
 void	in6_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
-			   u_int, const struct sockaddr *, u_int, int,
+			   u_int, const struct sockaddr *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int)));
 struct inpcb *
 	in6_rtchange __P((struct inpcb *, int));

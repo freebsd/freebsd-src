@@ -1307,6 +1307,45 @@ ip6_savecontrol(in6p, m, mp)
 #undef IS2292
 }
 
+void
+ip6_notify_pmtu(in6p, dst, mtu)
+	struct inpcb *in6p;
+	struct sockaddr_in6 *dst;
+	u_int32_t *mtu;
+{
+	struct socket *so;
+	struct mbuf *m_mtu;
+	struct ip6_mtuinfo mtuctl;
+
+	so =  in6p->inp_socket;
+
+	if (mtu == NULL)
+		return;
+
+#ifdef DIAGNOSTIC
+	if (so == NULL)		/* I believe this is impossible */
+		panic("ip6_notify_pmtu: socket is NULL");
+#endif
+
+	bzero(&mtuctl, sizeof(mtuctl));	/* zero-clear for safety */
+	mtuctl.ip6m_mtu = *mtu;
+	mtuctl.ip6m_addr = *dst;
+	in6_recoverscope(&mtuctl.ip6m_addr, &mtuctl.ip6m_addr.sin6_addr, NULL);
+
+	if ((m_mtu = sbcreatecontrol((caddr_t)&mtuctl, sizeof(mtuctl),
+	    IPV6_PATHMTU, IPPROTO_IPV6)) == NULL)
+		return;
+
+	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)dst, NULL, m_mtu)
+	    == 0) {
+		m_freem(m_mtu);
+		/* XXX: should count statistics */
+	} else
+		sorwakeup(so);
+
+	return;
+}
+
 #ifdef PULLDOWN_TEST
 /*
  * pull single extension header from mbuf chain.  returns single mbuf that

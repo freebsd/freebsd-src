@@ -610,12 +610,13 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * Must be called at splnet.
  */
 void
-in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
+in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
 	struct inpcbhead *head;
 	struct sockaddr *dst;
 	const struct sockaddr *src;
 	u_int fport_arg, lport_arg;
 	int cmd;
+	void *cmdarg;
 	struct inpcb *(*notify) __P((struct inpcb *, int));
 {
 	struct inpcb *inp, *ninp;
@@ -660,6 +661,22 @@ in6_pcbnotify(head, dst, fport_arg, src, lport_arg, cmd, notify)
 
  		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
+
+		/*
+		 * If the error designates a new path MTU for a destination
+		 * and the application (associated with this socket) wanted to
+		 * know the value, notify. Note that we notify for all
+		 * disconnected sockets if the corresponding application
+		 * wanted. This is because some UDP applications keep sending
+		 * sockets disconnected.
+		 * XXX: should we avoid to notify the value to TCP sockets?
+		 */
+		if (cmd == PRC_MSGSIZE && (inp->inp_flags & IN6P_MTU) != 0 &&
+		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
+		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &sa6_dst->sin6_addr))) {
+			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
+					(u_int32_t *)cmdarg);
+		}
 
 		/*
 		 * Detect if we should notify the error. If no source and
