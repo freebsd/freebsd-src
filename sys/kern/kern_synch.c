@@ -434,6 +434,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 	mtx_enter(&sched_lock, MTX_SPIN);
 
 	if (mtx != NULL) {
+		KASSERT(mtx->mtx_recurse == 0,
+		    ("sleeping on recursed mutex %s", mtx->mtx_description));
 		WITNESS_SAVE(mtx, mtx);
 		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
 		if (priority & PDROP)
