@@ -187,7 +187,7 @@ gv_update_sd_state(struct gv_sd *s)
 	else
 		s->state = GV_SD_UP;
 	
-	printf("FOO: sd %s is %s\n", s->name, gv_sdstate(s->state));
+	printf("GEOM_VINUM: subdisk %s is %s\n", s->name, gv_sdstate(s->state));
 	/* Update the plex, if we have one. */
 	if (s->plex_sc != NULL)
 		gv_update_plex_state(s->plex_sc);
@@ -225,7 +225,7 @@ gv_update_plex_state(struct gv_plex *p)
 	} else
 		p->state = GV_PLEX_DOWN;
 
-	printf("FOO: plex %s is %s\n", p->name, gv_plexstate(p->state));
+	printf("GEOM_VINUM: plex %s is %s\n", p->name, gv_plexstate(p->state));
 	/* Update our volume, if we have one. */
 	if (p->vol_sc != NULL)
 		gv_update_vol_state(p->vol_sc);
