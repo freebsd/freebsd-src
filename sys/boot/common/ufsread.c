@@ -122,104 +122,28 @@ lookup(const char *path)
 	return dt == DT_REG ? ino : 0;
 }
 
-#ifdef UFS1_ONLY
-
-static ssize_t
-fsread(ino_t inode, void *buf, size_t nbyte)
-{
-	static struct ufs1_dinode dp1;
-	static ino_t inomap;
-	char *blkbuf;
-	caddr_t indbuf;
-	struct fs *fs;
-	char *s;
-	size_t n, nb, size, off, vboff;
-	long lbn;
-	ufs1_daddr_t addr, vbaddr;
-	static ufs1_daddr_t blkmap, indmap;
-
-	blkbuf = dmadat->blkbuf;
-	indbuf = dmadat->indbuf;
-	fs = (struct fs *)dmadat->sbbuf;
-	if (!dsk_meta) {
-		inomap = 0;
-		if (dskread(fs, SBLOCK_UFS1 / DEV_BSIZE, SBLOCKSIZE / DEV_BSIZE))
-			return -1;
-		if (fs->fs_magic != FS_UFS1_MAGIC) {
-			printf("Not ufs\n");
-			return -1;
-		}
-		dsk_meta++;
-	}
-	if (!inode)
-		return 0;
-	if (inomap != inode) {
-		n = IPERVBLK(fs);
-		if (dskread(blkbuf, INO_TO_VBA(fs, n, inode), DBPERVBLK))
-			return -1;
-		dp1 = ((struct ufs1_dinode *)blkbuf)[INO_TO_VBO(n, inode)];
-		inomap = inode;
-		fs_off = 0;
-		blkmap = indmap = 0;
-	}
-	s = buf;
-	size = dp1.di_size;
-	n = size - fs_off;
-	if (nbyte > n)
-		nbyte = n;
-	nb = nbyte;
-	while (nb) {
-		lbn = lblkno(fs, fs_off);
-		off = blkoff(fs, fs_off);
-		if (lbn < NDADDR) {
-			addr = dp1.di_db[lbn];
-		} else {
-			n = INDIRPERVBLK(fs);
-			addr = dp1.di_ib[0];
-			vbaddr = fsbtodb(fs, addr) +
-			    (lbn - NDADDR) / (n * DBPERVBLK);
-			if (indmap != vbaddr) {
-				if (dskread(indbuf, vbaddr, DBPERVBLK))
-					return -1;
-				indmap = vbaddr;
-			}
-			addr = ((ufs1_daddr_t *)indbuf)[(lbn - NDADDR) % n];
-		}
-		vbaddr = fsbtodb(fs, addr) + (off >> VBLKSHIFT) * DBPERVBLK;
-		vboff = off & VBLKMASK;
-		n = sblksize(fs, size, lbn) - (off & ~VBLKMASK);
-		if (n > VBLKSIZE)
-			n = VBLKSIZE;
-		if (blkmap != vbaddr) {
-			if (dskread(blkbuf, vbaddr, n >> DEV_BSHIFT))
-				return -1;
-			blkmap = vbaddr;
-		}
-		n -= vboff;
-		if (n > nb)
-			n = nb;
-		memcpy(s, blkbuf + vboff, n);
-		s += n;
-		fs_off += n;
-		nb -= n;
-	}
-	return nbyte;
-}
-
-#else /* UFS1_AND_UFS2 */
-
 /*
  * Possible superblock locations ordered from most to least likely.
  */
 static int sblock_try[] = SBLOCKSEARCH;
 
+#if defined(UFS2_ONLY)
+#define DIP(field) dp2.field
+#elif defined(UFS1_ONLY)
+#define DIP(field) dp1.field
+#else
 #define DIP(field) fs->fs_magic == FS_UFS1_MAGIC ? dp1.field : dp2.field
+#endif
 
 static ssize_t
 fsread(ino_t inode, void *buf, size_t nbyte)
 {
+#ifndef UFS2_ONLY
 	static struct ufs1_dinode dp1;
+#endif
+#ifndef UFS1_ONLY
 	static struct ufs2_dinode dp2;
+#endif
 	static ino_t inomap;
 	char *blkbuf;
 	void *indbuf;
@@ -241,9 +165,18 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			if (dskread(fs, sblock_try[n] / DEV_BSIZE,
 			    SBLOCKSIZE / DEV_BSIZE))
 				return -1;
-			if ((fs->fs_magic == FS_UFS1_MAGIC ||
+			if ((
+#if defined(UFS1_ONLY)
+			     fs->fs_magic == FS_UFS1_MAGIC
+#elif defined(UFS2_ONLY)
 			    (fs->fs_magic == FS_UFS2_MAGIC &&
-			    fs->fs_sblockloc == sblock_try[n])) &&
+			    fs->fs_sblockloc == sblock_try[n])
+#else
+			     fs->fs_magic == FS_UFS1_MAGIC ||
+			    (fs->fs_magic == FS_UFS2_MAGIC &&
+			    fs->fs_sblockloc == sblock_try[n])
+#endif
+			    ) &&
 			    fs->fs_bsize <= MAXBSIZE &&
 			    fs->fs_bsize >= sizeof(struct fs))
 				break;
@@ -261,10 +194,16 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		if (dskread(blkbuf, INO_TO_VBA(fs, n, inode), DBPERVBLK))
 			return -1;
 		n = INO_TO_VBO(n, inode);
+#if defined(UFS1_ONLY)
+		dp1 = ((struct ufs1_dinode *)blkbuf)[n];
+#elif defined(UFS2_ONLY)
+		dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+#else
 		if (fs->fs_magic == FS_UFS1_MAGIC)
 			dp1 = ((struct ufs1_dinode *)blkbuf)[n];
 		else
 			dp2 = ((struct ufs2_dinode *)blkbuf)[n];
+#endif
 		inomap = inode;
 		fs_off = 0;
 		blkmap = indmap = 0;
@@ -291,12 +230,17 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 				indmap = vbaddr;
 			}
 			n = (lbn - NDADDR) & (n - 1);
+#if defined(UFS1_ONLY)
+			addr = ((ufs1_daddr_t *)indbuf)[n];
+#elif defined(UFS2_ONLY)
+			addr = ((ufs2_daddr_t *)indbuf)[n];
+#else
 			if (fs->fs_magic == FS_UFS1_MAGIC)
 				addr = ((ufs1_daddr_t *)indbuf)[n];
 			else
 				addr = ((ufs2_daddr_t *)indbuf)[n];
+#endif
 		} else {
-			printf("file too big\n");
 			return -1;
 		}
 		vbaddr = fsbtodb(fs, addr) + (off >> VBLKSHIFT) * DBPERVBLK;
@@ -319,5 +263,3 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	}
 	return nbyte;
 }
-
-#endif /* UFS1_AND_UFS2 */
