@@ -412,27 +412,30 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		mwp->used = max(mwp->used, strlen("Used"));
 		mwp->avail = max(mwp->avail, strlen("Avail"));
 
-		(void)printf("%-*s %-*s %*s %*s Capacity", mwp->mntfrom,
-		    "Filesystem", mwp->total, header, mwp->used, "Used",
-		    mwp->avail, "Avail");
+		(void)printf("%-*s %-*s %*s %*s Capacity",
+		    (u_int)mwp->mntfrom, "Filesystem",
+		    (u_int)mwp->total, header,
+		    (u_int)mwp->used, "Used",
+		    (u_int)mwp->avail, "Avail");
 		if (iflag) {
 			mwp->iused = max(mwp->iused, strlen("  iused"));
 			mwp->ifree = max(mwp->ifree, strlen("ifree"));
-			(void)printf(" %*s %*s %%iused", mwp->iused - 2,
-			    "iused", mwp->ifree, "ifree");
+			(void)printf(" %*s %*s %%iused",
+			    (u_int)mwp->iused - 2, "iused",
+			    (u_int)mwp->ifree, "ifree");
 		}
 		(void)printf("  Mounted on\n");
 	}
-	(void)printf("%-*s", mwp->mntfrom, sfsp->f_mntfromname);
+	(void)printf("%-*s", (u_int)mwp->mntfrom, sfsp->f_mntfromname);
 	used = sfsp->f_blocks - sfsp->f_bfree;
 	availblks = sfsp->f_bavail + used;
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
-		(void)printf(" %*ld %*ld %*ld", mwp->total,
-	            fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
-		    mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
-	            mwp->avail, fsbtoblk(sfsp->f_bavail, sfsp->f_bsize,
+		(void)printf(" %*ld %*ld %*ld",
+		    (u_int)mwp->total, fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
+		    (u_int)mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
+	            (u_int)mwp->avail, fsbtoblk(sfsp->f_bavail, sfsp->f_bsize,
 		    blocksize));
 	}
 	(void)printf(" %5.0f%%",
@@ -440,9 +443,10 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*ld %*ld %4.0f%% ", mwp->iused, used,
-		    mwp->ifree, sfsp->f_ffree, inodes == 0 ? 100.0 :
-		    (double)used / (double)inodes * 100.0);
+		(void)printf(" %*ld %*ld %4.0f%% ",
+		    (u_int)mwp->iused, used,
+		    (u_int)mwp->ifree, sfsp->f_ffree,
+		    inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
 	} else
 		(void)printf("  ");
 	(void)printf("  %s\n", sfsp->f_mntonname);
