@@ -71,6 +71,9 @@ extern int	union_init(void);
 #define UNION_HASH(u, l) \
 	(((((uintptr_t) (u)) + ((uintptr_t) l)) >> 8) & (NHASH-1))
 
+static MALLOC_DEFINE(M_UNPATH, "unpath", "UNION path component");
+static MALLOC_DEFINE(M_UNDCACHE, "undcac", "UNION directory cache");
+
 static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
 
@@ -189,7 +192,7 @@ union_updatevp(un, uppervp, lowervp)
 		if (un->un_lowervp) {
 			vrele(un->un_lowervp);
 			if (un->un_path) {
-				free(un->un_path, M_TEMP);
+				free(un->un_path, M_UNPATH);
 				un->un_path = 0;
 			}
 		}
@@ -509,7 +512,7 @@ loop:
 			union_newlower(un, lowervp);
 			if (cnp && (lowervp != NULLVP)) {
 				un->un_path = malloc(cnp->cn_namelen+1,
-						M_TEMP, M_WAITOK);
+						M_UNPATH, M_WAITOK);
 				bcopy(cnp->cn_nameptr, un->un_path,
 						cnp->cn_namelen);
 				un->un_path[cnp->cn_namelen] = '\0';
@@ -587,15 +590,15 @@ loop:
 	un->un_pvp = dvp;		/* only parent dir in new allocation */
 	if (dvp != NULLVP)
 		VREF(dvp);
-	un->un_dircache = 0;
+	un->un_dircache = NULL;
 	un->un_openl = 0;
 
 	if (cnp && (lowervp != NULLVP)) {
-		un->un_path = malloc(cnp->cn_namelen+1, M_TEMP, M_WAITOK);
+		un->un_path = malloc(cnp->cn_namelen+1, M_UNPATH, M_WAITOK);
 		bcopy(cnp->cn_nameptr, un->un_path, cnp->cn_namelen);
 		un->un_path[cnp->cn_namelen] = '\0';
 	} else {
-		un->un_path = 0;
+		un->un_path = NULL;
 		un->un_dirvp = NULL;
 	}
 
@@ -639,7 +642,7 @@ union_freevp(vp)
 		un->un_dirvp = NULL;
 	}
 	if (un->un_path) {
-		free(un->un_path, M_TEMP);
+		free(un->un_path, M_UNPATH);
 		un->un_path = NULL;
 	}
 
@@ -1256,7 +1259,7 @@ union_dircache_get(vp, td)
 		union_dircache_r(vp, 0, &cnt);
 		cnt++;
 		newdircache = dircache = malloc(cnt * sizeof(struct vnode *),
-						M_TEMP, M_WAITOK);
+						M_UNDCACHE, M_WAITOK);
 		vpp = dircache;
 		union_dircache_r(vp, &vpp, &cnt);
 		*vpp = NULLVP;
@@ -1292,7 +1295,7 @@ out:
 	if (newdircache) {
 		for (vpp = newdircache; *vpp != NULLVP; vpp++)
 			vrele(*vpp);
-		free(newdircache, M_TEMP);
+		free(newdircache, M_UNDCACHE);
 	}
 
 	VOP_UNLOCK(vp, 0, td);
@@ -1306,7 +1309,7 @@ union_dircache_free(struct union_node *un)
 
 	for (vpp = un->un_dircache; *vpp != NULLVP; vpp++)
 		vrele(*vpp);
-	free(un->un_dircache, M_TEMP);
+	free(un->un_dircache, M_UNDCACHE);
 	un->un_dircache = NULL;
 }
 
@@ -1332,7 +1335,7 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 			error = VOP_GETATTR(*vp, &va, fp->f_cred, td);
 			if (va.va_flags & OPAQUE) {
 				vput(lvp);
-				lvp = NULL;
+				lvp = NULLVP;
 			}
 		}
 
