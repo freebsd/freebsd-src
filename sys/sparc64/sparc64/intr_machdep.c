@@ -79,7 +79,10 @@
 
 #define	MAX_STRAY_LOG	5
 
-struct	intr_handler intr_handlers[NPIL];
+ASSERT_EQUAL(sizeof(struct intr_vector), 1 << IV_SHIFT);
+ASSERT_EQUAL(sizeof(struct iqe), 1 << IQE_SHIFT);
+
+ih_func_t *intr_handlers[NPIL];
 struct	intr_vector intr_vectors[NIV];
 
 u_long	intr_stray_count[NIV];
@@ -132,7 +135,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 		intr_vectors[vec].iv_pri = pri;
 		intr_vectors[vec].iv_vec = vec;
 	}
-	intr_handlers[pri].ih_func = ihf;
+	intr_handlers[pri] = ihf;
 	wrpr(pstate, ps, 0);
 }
 
