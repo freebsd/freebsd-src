@@ -1286,7 +1286,13 @@ also builtins
   begin
     parse-; 2>r
     2over 2r>
-    r@ clip_args 1 load
+    r@ clip_args
+    s" DEBUG" getenv? if
+      s" echo Module_path: ${module_path}" evaluate
+      ." Kernel     : " >r 2dup type r> cr
+      dup 2 = if ." Flags      : " >r 2over type r> cr then
+    then
+    1 load
   while
     dup 0=
   until
@@ -1595,7 +1601,7 @@ also builtins
   drop ( empty string )
 ;
 
-: load_conf  ( args -- flag )
+: load_kernel_and_modules  ( args -- flag )
   set-tempoptions
   argc >r
   s" temp_options" getenv dup -1 <> if
