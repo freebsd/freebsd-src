@@ -59,7 +59,7 @@ int log_severity = PORTMAP_LOG_FACILITY|PORTMAP_LOG_SEVERITY;
 extern int verboselog;
 
 int 
-check_access(SVCXPRT *xprt, rpcproc_t proc, void *args, int rpcbvers)
+check_access(SVCXPRT *xprt, rpcproc_t proc, void *args, unsigned int rpcbvers)
 {
 	struct netbuf *caller = svc_getrpccaller(xprt);
 	struct sockaddr *addr = (struct sockaddr *)caller->buf;
@@ -226,7 +226,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 }
 
 int
-check_callit(SVCXPRT *xprt, struct r_rmtcall_args *args, int versnum)
+check_callit(SVCXPRT *xprt, struct r_rmtcall_args *args, int versnum __unused)
 {
 	struct sockaddr *sa = (struct sockaddr *)svc_getrpccaller(xprt)->buf;
 

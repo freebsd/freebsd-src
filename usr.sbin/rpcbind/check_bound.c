@@ -109,7 +109,7 @@ check_bound(struct fdlist *fdl, char *uaddr)
 }
 
 int
-add_bndlist(struct netconfig *nconf, struct netbuf *baddr)
+add_bndlist(struct netconfig *nconf, struct netbuf *baddr __unused)
 {
 	struct fdlist *fdl;
 	struct netconfig *newnconf;
