@@ -79,7 +79,7 @@ repated as often as required.
 Further details on the syntax and meaning of each statement, and their
 substatements is explained below.
 .Pp
-Comments may appear anywhere that whitespace may appear in a BIND
+Comments may appear anywhere that whitespace may appear in a
 configuration file.  To appeal to programmers of all kinds, they can
 be written in C, C++, or shell/perl constructs.
 .Pp
@@ -114,14 +114,6 @@ pair.  For example:
 // is a new comment, even though it is logically
 // part of the previous comment.
 .Ed
-.Pp
-.Em WARNING :
-you cannot use the
-.Li ;
-(semicolon) character to start a comment such as you would in a zone
-file.  The semicolon indicates the end of a configuration statement,
-so whatever follows it will be interpreted as the start of the next
-statement.
 .Sh FILES
 .Bl -tag -width /etc/devd.conf -compact
 .It Pa /etc/devd.conf

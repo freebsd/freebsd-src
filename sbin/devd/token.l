@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -38,6 +39,14 @@
 int lineno = 1;
 #define YY_NO_UNPUT
 
+static void
+update_lineno(const char *cp)
+{
+	while (*cp)	
+		if (*cp++ == '\n')
+			lineno++;
+}
+
 %}
 
 %%
@@ -45,17 +54,30 @@ int lineno = 1;
 [ \t]+			;
 \n			lineno++;
 ;			{ return SEMICOLON; }
+#.*$			;
 \/\/.*$			;
-\/\*(.|\n)*\*\/		;
+\/\*(.|\n)*\*\/		{ update_lineno(yytext); }
 \{			{ return BEGINBLOCK; }
 \}			{ return ENDBLOCK; }
 [0-9]+			{ yylval.i = atoi(yytext); return NUMBER; }
 \"[^"]+\"		{
+				update_lineno(yytext);
 				int len = strlen(yytext) - 2;
+				char *walker;
+				int i;
 				if ((yylval.str = (char *) malloc(len + 1)) == NULL)
 					goto out;
-				memcpy(yylval.str, yytext + 1, len);
-				yylval.str[len] = '\0';
+				walker = yylval.str;
+				for (i = 1; i <= len; i++) {
+					if (yytext[i] == '\\' && 
+					    yytext[i + 1] == '\n') {
+						i += 2;
+						while(isspace(yytext[i]))
+							i++;
+					}
+					*walker++ = yytext[i];
+				}
+				*walker++ = '\0';
 			out:;
 				return STRING;
 			}
@@ -72,12 +94,7 @@ action			{ return ACTION; }
 match			{ return MATCH; }
 nomatch			{ return NOMATCH; }
 [A-Za-z][A-Za-z0-9-]*	{
-				int len = strlen(yytext);
-				if ((yylval.str = (char *) malloc(len + 1)) == NULL)
-					goto out2;
-				memcpy(yylval.str, yytext + 1, len);
-				yylval.str[len] = '\0';
-			out2:;
+				yylval.str = strdup(yytext);
 				return ID;
 			}
 %%
