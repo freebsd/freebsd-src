@@ -73,11 +73,9 @@ static	d_ioctl_t	zsioctl;
 static struct cdevsw zs_cdevsw = {
 	.d_open =	zsopen,
 	.d_close =	zsclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	zsioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"zs",
+	.d_flags =	D_TTY,
 };
 
 static void	zsstart(struct tty *);

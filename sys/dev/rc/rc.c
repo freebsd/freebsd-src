@@ -149,13 +149,9 @@ static	d_ioctl_t	rcioctl;
 static struct cdevsw rc_cdevsw = {
 	.d_open =	rcopen,
 	.d_close =	rcclose,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	rcioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"rc",
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static devclass_t rc_devclass;

@@ -388,13 +388,10 @@ static	d_ioctl_t	sioioctl;
 static struct cdevsw sio_cdevsw = {
 	.d_open =	sioopen,
 	.d_close =	sioclose,
-	.d_read =	ttyread,
 	.d_write =	siowrite,
 	.d_ioctl =	sioioctl,
-	.d_poll =	ttypoll,
 	.d_name =	driver_name,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static	int	comconsole = -1;

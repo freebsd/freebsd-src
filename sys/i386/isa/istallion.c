@@ -648,10 +648,8 @@ static struct cdevsw stli_cdevsw = {
 	.d_read =	stliread,
 	.d_write =	stliwrite,
 	.d_ioctl =	stliioctl,
-	.d_poll =	ttypoll,
 	.d_name =	stli_drvname,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 #endif

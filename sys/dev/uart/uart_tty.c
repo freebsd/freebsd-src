@@ -69,13 +69,9 @@ static d_ioctl_t uart_tty_ioctl;
 static struct cdevsw uart_cdevsw = {
 	.d_open =	uart_tty_open,
 	.d_close =	uart_tty_close,
-	.d_read =	ttyread,
-	.d_write =	ttywrite,
 	.d_ioctl =	uart_tty_ioctl,
-	.d_poll =	ttypoll,
 	.d_name =	uart_driver_name,
 	.d_flags =	D_TTY,
-	.d_kqfilter =	ttykqfilter,
 };
 
 static struct uart_devinfo uart_console;

@@ -133,13 +133,11 @@ static struct cdevsw ucom_cdevsw = {
 	.d_read =	ucomread,
 	.d_write =	ucomwrite,
 	.d_ioctl =	ucomioctl,
-	.d_poll =	ttypoll,
 	.d_name =	"ucom",
 	.d_flags =	D_TTY,
 #if __FreeBSD_version < 500014
 	.d_bmaj =	-1,
 #endif
-	.d_kqfilter =	ttykqfilter,
 };
 
 Static void ucom_cleanup(struct ucom_softc *);
