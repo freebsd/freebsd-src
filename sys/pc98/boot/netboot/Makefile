@@ -79,16 +79,18 @@ nb3c509.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	${.OBJDIR}/makerom ${.TARGET}
 
 nb8390.com:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
-	${LD} ${LDFLAGS} -o netboot.com ${OBJS} ns8390.o
-	strip netboot.com
-	size netboot.com
-	dd ibs=32 skip=1 if=netboot.com of=${.TARGET}
+	${LD} ${LDFLAGS} -o ${.TARGET}.tmp ${OBJS} ns8390.o
+	strip ${.TARGET}.tmp
+	size ${.TARGET}.tmp
+	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
+	rm -f ${.TARGET}.tmp
 
 nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
-	${LD} ${LDFLAGS} -o netboot.com ${OBJS} 3c509.o
-	strip netboot.com
-	size netboot.com
-	dd ibs=32 skip=1 if=netboot.com of=${.TARGET}
+	${LD} ${LDFLAGS} -o ${.TARGET}.tmp ${OBJS} 3c509.o
+	strip ${.TARGET}.tmp
+	size ${.TARGET}.tmp
+	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
+	rm -f ${.TARGET}.tmp
 
 
 .include <bsd.prog.mk>
