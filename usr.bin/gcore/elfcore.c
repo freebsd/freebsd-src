@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/procfs.h>
@@ -140,7 +141,7 @@ elf_coredump(int fd, pid_t pid)
 				err(1, "read from %s", memname);
 			if (ngot < nwant)
 				errx(1, "short read from %s:"
-				    " wanted %d, got %d\n", memname,
+				    " wanted %d, got %d", memname,
 				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
@@ -307,7 +308,7 @@ elf_puthdr(vm_map_entry_t map, void *dst, size_t *off, const prstatus_t *status,
 		 */
 		phdr = (Elf_Phdr *)((char *)dst + phoff);
 
-		/* The note segement. */
+		/* The note segment. */
 		phdr->p_type = PT_NOTE;
 		phdr->p_offset = noteoff;
 		phdr->p_vaddr = 0;
@@ -448,7 +449,7 @@ readmap(pid_t pid)
 
 	/*
 	 * Procfs requires (for consistency) that the entire memory map
-	 * be read with a single read() call.  Start with a reasonbly sized
+	 * be read with a single read() call.  Start with a reasonably sized
 	 * buffer, and double it until it is big enough.
 	 */
 	bufsize = 8 * 1024;
