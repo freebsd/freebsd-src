@@ -1072,6 +1072,7 @@ dofork(action)
 	int action;
 {
 	register int i, pid;
+	struct passwd *pwd;
 
 	for (i = 0; i < 20; i++) {
 		if ((pid = fork()) < 0) {
@@ -1081,8 +1082,15 @@ dofork(action)
 		/*
 		 * Child should run as daemon instead of root
 		 */
-		if (pid == 0)
+		if (pid == 0) {
+			if ((pwd = getpwuid(DU)) == NULL) {
+				syslog(LOG_ERR, "Can't lookup default uid in password file");
+				break;
+			}
+			initgroups(pwd->pw_name, pwd->pw_gid);
+			setgid(pwd->pw_gid);
 			setuid(DU);
+		}
 		return(pid);
 	}
 	syslog(LOG_ERR, "can't fork");
