@@ -21,8 +21,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ./LINT configuration file. If you are
-# in doubt as to the purpose or necessity of a line, check first in LINT.
+# device lines is also present in the NOTES configuration file. If you are
+# in doubt as to the purpose or necessity of a line, check first in NOTES.
 #
 # $FreeBSD$
 
@@ -43,6 +43,7 @@ options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
+options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
 options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
@@ -63,13 +64,14 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	RANDOMDEV		#entropy device
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 # Optionally these may need tweaked, (defaults shown):
 #options 	NCPU=2			# number of CPUs
-#options 	NBUS=4			# number of busses
+#options 	NBUS=8			# number of busses
 #options 	NAPIC=1			# number of IO APICs
 #options 	NINTR=24		# number of INTs
 
@@ -78,8 +80,8 @@ device		eisa
 device		pci
 device		pccard
 #device		cardbus
-options 	COMPAT_OLDISA		# Old ISA driver shims
-options 	COMPAT_OLDPCI		# Old PCI driver shims
+options 	COMPAT_OLDISA		# compatability shims for lnc, fe, le
+options 	COMPAT_OLDPCI		# compatability shims for lnc, vx
 
 # Floppy drives
 device		fdc
@@ -96,13 +98,13 @@ options 	ATA_STATIC_ID		#Static device numbering
 # SCSI Controllers
 device		ahb		# EISA AHA1742 family
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-#device		amd		# AMD 53C974 (Teckram DC-390(T))
-#device		dpt		# DPT Smartcache - See LINT for options!
+device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		dpt		# DPT Smartcache - See NOTES for options!
 device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets)
+device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
-#device		adv
+device		adv
 device		adw
 device		bt
 device		aha	1
@@ -143,7 +145,7 @@ device		sc	1
 # Floating point support - do not disable.
 device		npx
 
-# Power management support (see LINT for more options)
+# Power management support (see NOTES for more options)
 device		apm
 
 # PCCARD (PCMCIA) support
@@ -165,8 +167,8 @@ device		ppi		# Parallel port interface device
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-#device		tx		# SMC 9432TX (83c170 ``EPIC'')
-#device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		tx		# SMC 9432TX (83c170 ``EPIC'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -185,6 +187,8 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		ed
 device		ex
 device		ep
+device		cs
+device		sn
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed
 # and resources will always be dynamically assigned by the pccard code.
@@ -196,16 +200,14 @@ device		wi
 # those paremeters here.
 device		an
 # BayStack 660 and others
-#device		awi
+device		awi
+# Xircom pccard ethernet
+device		xe
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 #device		ie
 #device		fe
 #device		le
 #device		lnc
-#device		cs
-device		sn
-# Disabled because it is currently broken.
-#device		xe
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		loop		# Network loopback
