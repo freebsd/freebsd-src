@@ -260,8 +260,8 @@ out:
 #include <stdio.h>
 
 #include "interface.h"
-void
-fr_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+u_int
+fr_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	error("not configured for ppp");
 	/* NOTREACHED */

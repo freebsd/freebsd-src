@@ -32,26 +32,21 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.64 2001/09/09 02:04:19 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.89.2.3 2004/03/24 03:32:43 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
+#include <tcpdump-stdinc.h>
 
 #ifdef __bsdi__
 #include <net/slcompress.h>
 #include <net/if_ppp.h>
 #endif
 
-#include <netinet/in.h>
-
-#include <ctype.h>
-#include <netdb.h>
 #include <pcap.h>
 #include <stdio.h>
 
@@ -68,7 +63,47 @@ static const char rcsid[] =
  * for the up-to-date information.
  */
 
-/* Control Protocols (LCP/IPCP/CCP etc.) Codes */
+/* Protocol Codes defined in ppp.h */
+
+struct tok ppptype2str[] = {
+        { PPP_IP,	  "IP" },
+        { PPP_OSI,	  "OSI" },
+        { PPP_NS,	  "NS" },
+        { PPP_DECNET,	  "DECNET" },
+        { PPP_APPLE,	  "APPLE" },
+	{ PPP_IPX,	  "IPX" },
+	{ PPP_VJC,	  "VJC" },
+	{ PPP_VJNC,	  "VJNC" },
+	{ PPP_BRPDU,	  "BRPDU" },
+	{ PPP_STII,	  "STII" },
+	{ PPP_VINES,	  "VINES" },
+	{ PPP_MPLS_UCAST, "MPLS" },
+	{ PPP_MPLS_MCAST, "MPLS" },
+
+	{ PPP_HELLO,	  "HELLO" },
+	{ PPP_LUXCOM,	  "LUXCOM" },
+	{ PPP_SNS,	  "SNS" },
+	{ PPP_IPCP,	  "IPCP" },
+	{ PPP_OSICP,	  "OSICP" },
+	{ PPP_NSCP,	  "NSCP" },
+	{ PPP_DECNETCP,   "DECNETCP" },
+	{ PPP_APPLECP,	  "APPLECP" },
+	{ PPP_IPXCP,	  "IPXCP" },
+	{ PPP_STIICP,	  "STIICP" },
+	{ PPP_VINESCP,	  "VINESCP" },
+	{ PPP_MPLSCP,	  "MPLSCP" },
+
+	{ PPP_LCP,	  "LCP" },
+	{ PPP_PAP,	  "PAP" },
+	{ PPP_LQM,	  "LQM" },
+	{ PPP_CHAP,	  "CHAP" },
+	{ PPP_BACP,	  "BACP" },
+	{ PPP_BAP,	  "BAP" },
+	{ PPP_MP,	  "ML" },
+	{ 0,		  NULL }
+};
+
+/* Control Protocols (LCP/IPCP/CCP etc.) Codes defined in RFC 1661 */
 
 #define CPCODES_VEXT		0	/* Vendor-Specific (RFC2153) */
 #define CPCODES_CONF_REQ	1	/* Configure-Request */
@@ -82,34 +117,29 @@ static const char rcsid[] =
 #define CPCODES_ECHO_REQ	9	/* Echo-Request (LCP only) */
 #define CPCODES_ECHO_RPL	10	/* Echo-Reply (LCP only) */
 #define CPCODES_DISC_REQ	11	/* Discard-Request (LCP only) */
-#define CPCODES_ID		12	/* Identification (LCP only) */
-#define CPCODES_TIME_REM	13	/* Time-Remaining (LCP only) */
-#define CPCODES_RESET_REQ	14	/* Reset-Request (CCP only) */
+#define CPCODES_ID		12	/* Identification (LCP only) RFC1570 */
+#define CPCODES_TIME_REM	13	/* Time-Remaining (LCP only) RFC1570 */
+#define CPCODES_RESET_REQ	14	/* Reset-Request (CCP only) RFC1962 */
 #define CPCODES_RESET_REP	15	/* Reset-Reply (CCP only) */
 
-#define CPCODES_MIN	CPCODES_VEXT
-#define CPCODES_MAX	CPCODES_RESET_REP
-
-static const char *cpcodes[] = {
-	/*
-	 * Control Protocol code values (RFC1661)
-	 */
-	"Vend-Ext",	/* (0) RFC2153 */
-	"Conf-Req",	/* (1) */
-	"Conf-Ack",	/* (2) */
-	"Conf-Nak",	/* (3) */
-	"Conf-Rej",	/* (4) */
-	"Term-Req",	/* (5) */
-	"Term-Ack",	/* (6) */
- 	"Code-Rej",	/* (7) */
-	"Prot-Rej",	/* (8) */
-	"Echo-Req",	/* (9) */
-	"Echo-Rep",	/* (10) */
-	"Disc-Req",	/* (11) */
-	"Ident",	/* (12) RFC1570 */
-	"Time-Rem",	/* (13) RFC1570 */
-	"Reset-Req",	/* (14) RFC1962 */
-	"Reset-Ack",	/* (15) RFC1962 */
+struct tok cpcodes[] = {
+	{CPCODES_VEXT,      "Vendor-Extension"}, /* RFC2153 */
+	{CPCODES_CONF_REQ,  "Conf-Request"},
+        {CPCODES_CONF_ACK,  "Conf-Ack"},
+	{CPCODES_CONF_NAK,  "Conf-Nack"},
+	{CPCODES_CONF_REJ,  "Conf-Reject"},
+	{CPCODES_TERM_REQ,  "Term-Request"},
+	{CPCODES_TERM_ACK,  "Term-Ack"},
+	{CPCODES_CODE_REJ,  "Code-Reject"},
+	{CPCODES_PROT_REJ,  "Prot-Reject"},
+	{CPCODES_ECHO_REQ,  "Echo-Request"},
+	{CPCODES_ECHO_RPL,  "Echo-Reply"},
+	{CPCODES_DISC_REQ,  "Disc-Req"},
+	{CPCODES_ID,        "Ident"},            /* RFC1570 */
+	{CPCODES_TIME_REM,  "Time-Rem"},         /* RFC1570 */
+	{CPCODES_RESET_REQ, "Reset-Req"},        /* RFC1962 */
+	{CPCODES_RESET_REP, "Reset-Ack"},        /* RFC1962 */
+        {0,                 NULL}
 };
 
 /* LCP Config Options */
@@ -263,6 +293,7 @@ static const char *ccpconfopts[] = {
 /* BVCP - to be supported */
 /* BCP - to be supported */
 /* IPXCP - to be supported */
+/* MPLSCP - to be supported */
 
 /* Auth Algorithms */
 
@@ -331,7 +362,6 @@ static const char *papcode[] = {
 #define BAP_CSIND	7
 #define BAP_CSRES	8
 
-static const char *ppp_protoname (u_int proto);
 static void handle_ctrl_proto (u_int proto,const u_char *p, int length);
 static void handle_chap (const u_char *p, int length);
 static void handle_pap (const u_char *p, int length);
@@ -342,71 +372,35 @@ static int print_ccp_config_options (const u_char *p, int);
 static int print_bacp_config_options (const u_char *p, int);
 static void handle_ppp (u_int proto, const u_char *p, int length);
 
-static const char *
-ppp_protoname(u_int proto)
-{
-	static char buf[20];
-
-	switch (proto) {
-	case PPP_IP:	return "IP";
-	case PPP_IPV6:	return "IPv6";
-#ifdef PPP_XNS
-	case PPP_XNS:	return "XNS";
-#endif
-	case PPP_IPX:	return "IPX";
-	case PPP_OSI:   return "OSI";
-	case PPP_VJC:	return "VJC";
-	case PPP_VJNC:	return "VJNC";
-	case PPP_COMP:	return "COMP";
-	case PPP_IPCP:	return "IPCP";
-	case PPP_IPV6CP: return "IPv6CP";
-	case PPP_IPXCP:	return "IPXCP";
-	case PPP_OSICP: return "OSICP";
-	case PPP_CCP:	return "CCP";
-	case PPP_LCP:	return "LCP";
-	case PPP_PAP:	return "PAP";
-#ifdef PPP_LQR
-	case PPP_LQR:	return "LQR";
-#endif
-	case PPP_CHAP:	return "CHAP";
-	case PPP_BACP:	return "BACP";
-	case PPP_BAP:	return "BAP";
-	default:
-		snprintf(buf, sizeof(buf), "unknown-0x%04x", proto);
-		return buf;
-	}
-}
-
 /* generic Control Protocol (e.g. LCP, IPCP, CCP, etc.) handler */
 static void
-handle_ctrl_proto(u_int proto, const u_char *p, int length)
+handle_ctrl_proto(u_int proto, const u_char *pptr, int length)
 {
+	const char *typestr;
 	u_int code, len;
 	int (*pfunc)(const u_char *, int);
 	int x, j;
+        const u_char *tptr;
 
-	if (length < 1) {
-		printf("[|%s]", ppp_protoname(proto));
-		return;
-	} else if (length < 4) {
-		printf("[|%s 0x%02x]", ppp_protoname(proto), *p);
-		return;
-	}
+        tptr=pptr;
 
-	code = *p;
-	if ((code >= CPCODES_MIN) && (code <= CPCODES_MAX))
-		printf("%s", cpcodes[code]);
-	else {
-		printf("0x%02x", code);
-		return;
-	}
-	p++;
+        typestr = tok2str(ppptype2str, "unknown", proto);
+        printf("%s, ",typestr);
 
-	printf("(%u)", *p);		/* ID */
-	p++;
+	if (length < 4) /* FIXME weak boundary checking */
+		goto trunc;
+	TCHECK2(*tptr, 2);
 
-	len = EXTRACT_16BITS(p);
-	p += 2;
+	code = *tptr++;
+	
+        printf("%s (0x%02x), id %u",
+               tok2str(cpcodes, "Unknown Opcode",code),
+	       code,
+               *tptr++); /* ID */
+
+	TCHECK2(*tptr, 2);
+	len = EXTRACT_16BITS(tptr);
+	tptr += 2;
 
 	if (length <= 4)
 		return;		/* there may be a NULL confreq etc. */
@@ -415,9 +409,11 @@ handle_ctrl_proto(u_int proto, const u_char *p, int length)
 	case CPCODES_VEXT:
 		if (length < 11)
 			break;
-		printf(", Magic-Num=%08x", EXTRACT_32BITS(p));
-		p += 4;
-		printf(" OUI=%02x%02x%02x", p[0], p[1], p[2]);
+		TCHECK2(*tptr, 4);
+		printf(", Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
+		tptr += 4;
+		TCHECK2(*tptr, 3);
+		printf(" OUI 0x%06x", EXTRACT_24BITS(tptr));
 		/* XXX: need to decode Kind and Value(s)? */
 		break;
 	case CPCODES_CONF_REQ:
@@ -448,10 +444,10 @@ handle_ctrl_proto(u_int proto, const u_char *p, int length)
 				pfunc = NULL;
 				break;
 			}
-			if ((j = (*pfunc)(p, len)) == 0)
+			if ((j = (*pfunc)(tptr, len)) == 0)
 				break;
 			x -= j;
-			p += j;
+			tptr += j;
 		} while (x > 0);
 		break;
 
@@ -465,7 +461,10 @@ handle_ctrl_proto(u_int proto, const u_char *p, int length)
 	case CPCODES_PROT_REJ:
 		if (length < 6)
 			break;
-		printf(", Rejected-Protocol=%04x", EXTRACT_16BITS(p));
+		TCHECK2(*tptr, 2);
+		printf(", Rejected %s Protocol (0x%04x)",
+		       tok2str(ppptype2str,"unknown", EXTRACT_16BITS(tptr)),
+		       EXTRACT_16BITS(tptr));
 		/* XXX: need to decode Rejected-Information? */
 		break;
 	case CPCODES_ECHO_REQ:
@@ -474,20 +473,35 @@ handle_ctrl_proto(u_int proto, const u_char *p, int length)
 	case CPCODES_ID:
 		if (length < 8)
 			break;
-		printf(", Magic-Num=%08x", EXTRACT_32BITS(p));
+		TCHECK2(*tptr, 4);
+		printf(", Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
 		/* XXX: need to decode Data? */
 		break;
 	case CPCODES_TIME_REM:
 		if (length < 12)
 			break;
-		printf(", Magic-Num=%08x", EXTRACT_32BITS(p));
-		printf(" Seconds-Remaining=%u", EXTRACT_32BITS(p + 4));
+		TCHECK2(*tptr, 4);
+		printf(", Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
+		TCHECK2(*(tptr + 4), 4);
+		printf(", Seconds-Remaining %us", EXTRACT_32BITS(tptr + 4));
 		/* XXX: need to decode Message? */
 		break;
 	default:
-		printf(", unknown-Codes-0x%02x", code);
+            /* XXX this is dirty but we do not get the
+             * original pointer passed to the begin
+             * the PPP packet */
+                if (vflag <= 1)
+                    print_unknown_data(pptr-2,"\n\t",length+2);
 		break;
 	}
+	printf(", length %u", length);
+
+        if (vflag >1)
+            print_unknown_data(pptr-2,"\n\t",length+2);
+	return;
+
+trunc:
+	printf("[|%s]", typestr);
 }
 
 /* LCP config options */
@@ -498,92 +512,114 @@ print_lcp_config_options(const u_char *p, int length)
 
 	if (length < 2)
 		return 0;
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
 		return 0;
 	if ((opt >= LCPOPT_MIN) && (opt <= LCPOPT_MAX))
-		printf(", %s", lcpconfopts[opt]);
+		printf(", %s ", lcpconfopts[opt]);
 	else {
-		printf(", unknwhown-%d", opt);
+		printf(", unknown LCP option 0x%02x", opt);
 		return len;
 	}
 
 	switch (opt) {
 	case LCPOPT_VEXT:
 		if (len >= 6) {
-			printf(" OUI=%02x%02x%02x", p[2], p[3], p[4]);
+			TCHECK2(*(p + 2), 3);
+			printf(" OUI 0x%06x", EXTRACT_24BITS(p+2));
 #if 0
-			printf(" kind=%02x", p[5]);
-			printf(" val=")
+			TCHECK(p[5]);
+			printf(" kind 0x%02x", p[5]);
+			printf(" val 0x")
 			for (i = 0; i < len - 6; i++) {
+				TCHECK(p[6 + i]);
 				printf("%02x", p[6 + i]);
 			}
 #endif
 		}
 		break;
 	case LCPOPT_MRU:
-		if (len == 4)
-			printf("=%u", EXTRACT_16BITS(p + 2));
+		if (len == 4) {
+			TCHECK2(*(p + 2), 2);
+			printf(" %u", EXTRACT_16BITS(p + 2));
+		}
 		break;
 	case LCPOPT_ACCM:
-		if (len == 6)
-			printf("=%08x", EXTRACT_32BITS(p + 2));
+		if (len == 6) {
+			TCHECK2(*(p + 2), 4);
+			printf(" %08x", EXTRACT_32BITS(p + 2));
+		}
 		break;
 	case LCPOPT_AP:
 		if (len >= 4) {
-			if (p[2] == 0xc0 && p[3] == 0x23)
-				printf(" PAP");
-			else if (p[2] == 0xc2 && p[3] == 0x23) {
-				printf(" CHAP/");
-				switch (p[4]) {
-				default:
-					printf("unknown-algorithm-%u", p[4]);
-					break;
-				case AUTHALG_CHAPMD5:
-					printf("MD5");
-					break;
-				case AUTHALG_MSCHAP1:
-					printf("MSCHAPv1");
-					break;
-				case AUTHALG_MSCHAP2:
-					printf("MSCHAPv2");
-					break;
-				}
+		    TCHECK2(*(p + 2), 2);
+		    switch (EXTRACT_16BITS(p+2)) {
+		    case PPP_PAP:
+		        printf(" PAP");
+			break;
+		    case PPP_CHAP:
+		        printf(" CHAP");
+		        TCHECK(p[4]);
+			switch (p[4]) {
+			default:
+			    printf(", unknown-algorithm-%u", p[4]);
+			    break;
+			case AUTHALG_CHAPMD5:
+			    printf(", MD5");
+			    break;
+			case AUTHALG_MSCHAP1:
+			    printf(", MSCHAPv1");
+			    break;
+			case AUTHALG_MSCHAP2:
+			    printf(", MSCHAPv2");
+			    break;
 			}
-			else if (p[2] == 0xc2 && p[3] == 0x27)
-				printf(" EAP");
-			else if (p[2] == 0xc0 && p[3] == 0x27)
-				printf(" SPAP");
-			else if (p[2] == 0xc1 && p[3] == 0x23)
-				printf(" Old-SPAP");
-			else
-				printf("unknown");
+			break;
+		    case PPP_EAP:
+		        printf(" EAP");
+			break;
+		    case PPP_SPAP:
+			printf(" SPAP");
+			break;
+		    case PPP_SPAP_OLD:
+			printf(" Old-SPAP");
+			break;
+		    default:
+		      printf("unknown");
+		    }
 		}
 		break;
 	case LCPOPT_QP:
 		if (len >= 4) {
-			if (p[2] == 0xc0 && p[3] == 0x25)
+			TCHECK2(*(p + 2), 2);
+		        if (EXTRACT_16BITS(p+2) == PPP_LQM)
 				printf(" LQR");
 			else
 				printf(" unknown");
 		}
 		break;
 	case LCPOPT_MN:
-		if (len == 6)
-			printf("=%08x", EXTRACT_32BITS(p + 2));
+		if (len == 6) {
+			TCHECK2(*(p + 2), 4);
+			printf(" 0x%08x", EXTRACT_32BITS(p + 2));
+		}
 		break;
 	case LCPOPT_PFC:
 		break;
 	case LCPOPT_ACFC:
 		break;
 	case LCPOPT_LD:
-		if (len == 4)
-			printf("=%04x", EXTRACT_16BITS(p + 2));
+		if (len == 4) {
+			TCHECK2(*(p + 2), 2);
+			printf(" 0x%04x", EXTRACT_16BITS(p + 2));
+		}
 		break;
 	case LCPOPT_CBACK:
 		if (len < 3)
 			break;
+		TCHECK(p[2]);
 		switch (p[2]) {		/* Operation */
 		case CALLBACK_AUTH:
 			printf(" UserAuth");
@@ -609,12 +645,15 @@ print_lcp_config_options(const u_char *p, int length)
 		}
 		break;
 	case LCPOPT_MLMRRU:
-		if (len == 4)
-			printf("=%u", EXTRACT_16BITS(p + 2));
+		if (len == 4) {
+			TCHECK2(*(p + 2), 2);
+			printf(" %u", EXTRACT_16BITS(p + 2));
+		}
 		break;
 	case LCPOPT_MLED:
 		if (len < 3)
 			break;
+		TCHECK(p[2]);
 		switch (p[2]) {		/* class */
 		case MEDCLASS_NULL:
 			printf(" Null");
@@ -625,12 +664,14 @@ print_lcp_config_options(const u_char *p, int length)
 		case MEDCLASS_IPV4:
 			if (len != 7)
 				break;
-			printf(" IPv4=%s", ipaddr_string(p + 3));
+			TCHECK2(*(p + 3), 4);
+			printf(" IPv4 %s", ipaddr_string(p + 3));
 			break;
 		case MEDCLASS_MAC:
 			if (len != 9)
 				break;
-			printf(" MAC=%02x:%02x:%02x:%02x:%02x:%02x",
+			TCHECK(p[8]);
+			printf(" MAC %02x:%02x:%02x:%02x:%02x:%02x",
 			       p[3], p[4], p[5], p[6], p[7], p[8]);
 			break;
 		case MEDCLASS_MNB:
@@ -667,6 +708,10 @@ print_lcp_config_options(const u_char *p, int length)
 #endif
 	}
 	return len;
+
+trunc:
+	printf("[|lcp]");
+	return 0;
 }
 
 /* CHAP */
@@ -683,10 +728,12 @@ handle_chap(const u_char *p, int length)
 		printf("[|chap]");
 		return;
 	} else if (length < 4) {
+		TCHECK(*p);
 		printf("[|chap 0x%02x]", *p);
 		return;
 	}
 
+	TCHECK(*p);
 	code = *p;
 	if ((code >= CHAP_CODEMIN) && (code <= CHAP_CODEMAX))
 		printf("%s", chapcode[code - 1]);
@@ -696,9 +743,11 @@ handle_chap(const u_char *p, int length)
 	}
 	p++;
 
+	TCHECK(*p);
 	printf("(%u)", *p);		/* ID */
 	p++;
 
+	TCHECK2(*p, 2);
 	len = EXTRACT_16BITS(p);
 	p += 2;
 
@@ -714,26 +763,37 @@ handle_chap(const u_char *p, int length)
 	case CHAP_RESP:
 		if (length - (p - p0) < 1)
 			return;
+		TCHECK(*p);
 		val_size = *p;		/* value size */
 		p++;
 		if (length - (p - p0) < val_size)
 			return;
-		printf(", Value=");
-		for (i = 0; i < val_size; i++)
+		printf(", Value ");
+		for (i = 0; i < val_size; i++) {
+			TCHECK(*p);
 			printf("%02x", *p++);
+		}
 		name_size = len - (p - p0);
-		printf(", Name=");
-		for (i = 0; i < name_size; i++)
+		printf(", Name ");
+		for (i = 0; i < name_size; i++) {
+			TCHECK(*p);
 			safeputchar(*p++);
+		}
 		break;
 	case CHAP_SUCC:
 	case CHAP_FAIL:
 		msg_size = len - (p - p0);
-		printf(", Msg=");
-		for (i = 0; i< msg_size; i++)
+		printf(", Msg ");
+		for (i = 0; i< msg_size; i++) {
+			TCHECK(*p);
 			safeputchar(*p++);
+		}
 		break;
 	}
+	return;
+
+trunc:
+	printf("[|chap]");
 }
 
 /* PAP (see RFC 1334) */
@@ -750,10 +810,12 @@ handle_pap(const u_char *p, int length)
 		printf("[|pap]");
 		return;
 	} else if (length < 4) {
+		TCHECK(*p);
 		printf("[|pap 0x%02x]", *p);
 		return;
 	}
 
+	TCHECK(*p);
 	code = *p;
 	if ((code >= PAP_CODEMIN) && (code <= PAP_CODEMAX))
 		printf("%s", papcode[code - 1]);
@@ -763,9 +825,11 @@ handle_pap(const u_char *p, int length)
 	}
 	p++;
 
+	TCHECK(*p);
 	printf("(%u)", *p);		/* ID */
 	p++;
 
+	TCHECK2(*p, 2);
 	len = EXTRACT_16BITS(p);
 	p += 2;
 
@@ -773,43 +837,55 @@ handle_pap(const u_char *p, int length)
 	case PAP_AREQ:
 		if (length - (p - p0) < 1)
 			return;
+		TCHECK(*p);
 		peerid_len = *p;	/* Peer-ID Length */
 		p++;
 		if (length - (p - p0) < peerid_len)
 			return;
-		printf(", Peer=");
-		for (i = 0; i < peerid_len; i++)
+		printf(", Peer ");
+		for (i = 0; i < peerid_len; i++) {
+			TCHECK(*p);
 			safeputchar(*p++);
+		}
 
 		if (length - (p - p0) < 1)
 			return;
+		TCHECK(*p);
 		passwd_len = *p;	/* Password Length */
 		p++;
 		if (length - (p - p0) < passwd_len)
 			return;
-		printf(", Name=");
-		for (i = 0; i < passwd_len; i++)
+		printf(", Name ");
+		for (i = 0; i < passwd_len; i++) {
+			TCHECK(*p);
 			safeputchar(*p++);
+		}
 		break;
 	case PAP_AACK:
 	case PAP_ANAK:
 		if (length - (p - p0) < 1)
 			return;
+		TCHECK(*p);
 		msg_len = *p;		/* Msg-Length */
 		p++;
 		if (length - (p - p0) < msg_len)
 			return;
-		printf(", Msg=");
-		for (i = 0; i< msg_len; i++)
+		printf(", Msg ");
+		for (i = 0; i< msg_len; i++) {
+			TCHECK(*p);
 			safeputchar(*p++);
+		}
 		break;
 	}
 	return;
+
+trunc:
+	printf("[|pap]");
 }
 
 /* BAP */
 static void
-handle_bap(const u_char *p, int length)
+handle_bap(const u_char *p _U_, int length _U_)
 {
 	/* XXX: to be supported!! */
 }
@@ -823,6 +899,7 @@ print_ipcp_config_options(const u_char *p, int length)
 
 	if (length < 2)
 		return 0;
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -831,7 +908,8 @@ print_ipcp_config_options(const u_char *p, int length)
 	case IPCPOPT_2ADDR:		/* deprecated */
 		if (len != 10)
 			goto invlen;
-		printf(", IP-Addrs src=%s dst=%s",
+		TCHECK2(*(p + 6), 4);
+		printf(", IP-Addrs src %s, dst %s",
 		       ipaddr_string(p + 2),
 		       ipaddr_string(p + 6));
 		break;
@@ -839,6 +917,7 @@ print_ipcp_config_options(const u_char *p, int length)
 		if (len < 4)
 			goto invlen;
 		printf(", IP-Comp");
+		TCHECK2(*(p + 2), 2);
 		if (EXTRACT_16BITS(p + 2) == PPP_VJC) {
 			printf(" VJ-Comp");
 			/* XXX: VJ-Comp parameters should be decoded */
@@ -848,32 +927,38 @@ print_ipcp_config_options(const u_char *p, int length)
 	case IPCPOPT_ADDR:
 		if (len != 6)
 			goto invlen;
-		printf(", IP-Addr=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", IP-Addr %s", ipaddr_string(p + 2));
 		break;
 	case IPCPOPT_MOBILE4:
 		if (len != 6)
 			goto invlen;
-		printf(", Home-Addr=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", Home-Addr %s", ipaddr_string(p + 2));
 		break;
 	case IPCPOPT_PRIDNS:
 		if (len != 6)
 			goto invlen;
-		printf(", Pri-DNS=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", Pri-DNS %s", ipaddr_string(p + 2));
 		break;
 	case IPCPOPT_PRINBNS:
 		if (len != 6)
 			goto invlen;
-		printf(", Pri-NBNS=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", Pri-NBNS %s", ipaddr_string(p + 2));
 		break;
 	case IPCPOPT_SECDNS:
 		if (len != 6)
 			goto invlen;
-		printf(", Sec-DNS=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", Sec-DNS %s", ipaddr_string(p + 2));
 		break;
 	case IPCPOPT_SECNBNS:
 		if (len != 6)
 			goto invlen;
-		printf(", Sec-NBNS=%s", ipaddr_string(p + 2));
+		TCHECK2(*(p + 2), 4);
+		printf(", Sec-NBNS %s", ipaddr_string(p + 2));
 		break;
 	default:
 		printf(", unknown-%d", opt);
@@ -883,6 +968,10 @@ print_ipcp_config_options(const u_char *p, int length)
 
 invlen:
 	printf(", invalid-length-%d", opt);
+	return 0;
+
+trunc:
+	printf("[|ipcp]");
 	return 0;
 }
 
@@ -894,6 +983,7 @@ print_ccp_config_options(const u_char *p, int length)
 
 	if (length < 2)
 		return 0;
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -925,6 +1015,10 @@ print_ccp_config_options(const u_char *p, int length)
 	}
 #endif
 	return len;
+
+trunc:
+	printf("[|ccp]");
+	return 0;
 }
 
 /* BACP config options */
@@ -935,17 +1029,23 @@ print_bacp_config_options(const u_char *p, int length)
 
 	if (length < 2)
 		return 0;
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
 		return 0;
 	if (opt == BACPOPT_FPEER) {
+		TCHECK2(*(p + 2), 4);
 		printf(", Favored-Peer");
-		printf(" Magic-Num=%08x", EXTRACT_32BITS(p + 2));
+		printf(", Magic-Num 0x%08x", EXTRACT_32BITS(p + 2));
 	} else {
 		printf(", unknown-option-%d", opt);
 	}
 	return len;
+
+trunc:
+	printf("[|bacp]");
+	return 0;
 }
 
 
@@ -956,6 +1056,9 @@ handle_ppp(u_int proto, const u_char *p, int length)
 	switch (proto) {
 	case PPP_LCP:
 	case PPP_IPCP:
+	case PPP_OSICP:
+	case PPP_MPLSCP:
+	case PPP_IPV6CP:
 	case PPP_CCP:
 	case PPP_BACP:
 		handle_ctrl_proto(proto, p, length);
@@ -984,19 +1087,26 @@ handle_ppp(u_int proto, const u_char *p, int length)
 		ipx_print(p, length);
 		break;
 	case PPP_OSI:
-	        isoclns_print(p, length, length, NULL, NULL);
+	        isoclns_print(p, length, length);
 	        break;
-	default:
+	case PPP_MPLS_UCAST:
+	case PPP_MPLS_MCAST:
+		mpls_print(p, length);
 		break;
+	default:
+                printf("unknown PPP protocol (0x%04x)", proto);
+                print_unknown_data(p,"\n\t",length);
+                break;
 	}
 }
 
 /* Standard PPP printer */
-void
+u_int
 ppp_print(register const u_char *p, u_int length)
 {
 	u_int proto;
-	u_int full_length = length;
+        u_int olen = length; /* _o_riginal length */
+	u_int hdr_len = 0;
 
 	/*
 	 * Here, we assume that p points to the Address and Control
@@ -1004,56 +1114,54 @@ ppp_print(register const u_char *p, u_int length)
 	 */
 	if (length < 2)
 		goto trunc;
+	TCHECK2(*p, 2);
 	if (*p == PPP_ADDRESS && *(p + 1) == PPP_CONTROL) {
 		p += 2;			/* ACFC not used */
 		length -= 2;
+		hdr_len += 2;
 	}
 
 	if (length < 2)
 		goto trunc;
+	TCHECK(*p);
 	if (*p % 2) {
 		proto = *p;		/* PFC is used */
 		p++;
 		length--;
+		hdr_len++;
 	} else {
+		TCHECK2(*p, 2);
 		proto = EXTRACT_16BITS(p);
 		p += 2;
 		length -= 2;
+		hdr_len += 2;
 	}
 
-	if (eflag)
-		printf("%s %d: ", ppp_protoname(proto), full_length);
+        if (eflag)
+            printf("PPP-%s (0x%04x), length %u: ",
+                   tok2str(ppptype2str, "unknown", proto),
+                   proto,
+                   olen);
 
 	handle_ppp(proto, p, length);
-	return;
+	return (hdr_len);
 trunc:
 	printf("[|ppp]");
+	return (0);
 }
 
 
 /* PPP I/F printer */
-void
-ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
-	     register const u_char *p)
+u_int
+ppp_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 
-	++infodelay;
-	ts_print(&h->ts);
-
 	if (caplen < PPP_HDRLEN) {
 		printf("[|ppp]");
-		goto out;
+		return (caplen);
 	}
-
-	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.  */
-
-	packetp = p;
-	snapend = p + caplen;
 
 #if 0
 	/*
@@ -1098,13 +1206,7 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 
 	ppp_print(p, length);
 
-	if (xflag)
-		default_print(p, caplen);
-out:
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
+	return (0);
 }
 
 /*
@@ -1116,62 +1218,52 @@ out:
  *
  * This handles, for example, DLT_PPP_SERIAL in NetBSD.
  */
-void
-ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
-	     register const u_char *p)
+u_int
+ppp_hdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 	u_int proto;
-
-	++infodelay;
-	ts_print(&h->ts);
+	u_int hdrlen = 0;
 
 	if (caplen < 2) {
 		printf("[|ppp]");
-		goto out;
+		return (caplen);
 	}
-
-	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	packetp = p;
-	snapend = p + caplen;
 
 	switch (p[0]) {
 
 	case PPP_ADDRESS:
 		if (caplen < 4) {
 			printf("[|ppp]");
-			goto out;
+			return (caplen);
 		}
 
 		if (eflag)
 			printf("%02x %02x %d ", p[0], p[1], length);
 		p += 2;
 		length -= 2;
+		hdrlen += 2;
 
 		proto = EXTRACT_16BITS(p);
 		p += 2;
 		length -= 2;
-		if (eflag)
-			printf("%s: ", ppp_protoname(proto));
+		hdrlen += 2;
+		printf("%s: ", tok2str(ppptype2str, "unknown PPP protocol (0x%04x)", proto));
 
 		handle_ppp(proto, p, length);
 		break;
 
 	case CHDLC_UNICAST:
 	case CHDLC_BCAST:
-		chdlc_print(p, length, caplen);
-		goto out;
+		return (chdlc_if_print(h, p));
 
 	default:
 		if (eflag)
 			printf("%02x %02x %d ", p[0], p[1], length);
 		p += 2;
 		length -= 2;
+		hdrlen += 2;
 
 		/*
 		 * XXX - NetBSD's "ppp_netbsd_serial_if_print()" treats
@@ -1182,82 +1274,28 @@ ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 		break;
 	}
 
-	if (xflag)
-		default_print(p, caplen);
-out:
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
+	return (hdrlen);
 }
-
-
-
-struct tok ppptype2str[] = {
-	{ PPP_IP,	"IP" },
-	{ PPP_OSI,	"OSI" },
-	{ PPP_NS,	"NS" },
-	{ PPP_DECNET,	"DECNET" },
-	{ PPP_APPLE,	"APPLE" },
-	{ PPP_IPX,	"IPX" },
-	{ PPP_VJC,	"VJC" },
-	{ PPP_VJNC,	"VJNC" },
-	{ PPP_BRPDU,	"BRPDU" },
-	{ PPP_STII,	"STII" },
-	{ PPP_VINES,	"VINES" },
-
-	{ PPP_HELLO,	"HELLO" },
-	{ PPP_LUXCOM,	"LUXCOM" },
-	{ PPP_SNS,	"SNS" },
-	{ PPP_IPCP,	"IPCP" },
-	{ PPP_OSICP,	"OSICP" },
-	{ PPP_NSCP,	"NSCP" },
-	{ PPP_DECNETCP, "DECNETCP" },
-	{ PPP_APPLECP,	"APPLECP" },
-	{ PPP_IPXCP,	"IPXCP" },
-	{ PPP_STIICP,	"STIICP" },
-	{ PPP_VINESCP,	"VINESCP" },
-
-	{ PPP_LCP,	"LCP" },
-	{ PPP_PAP,	"PAP" },
-	{ PPP_LQM,	"LQM" },
-	{ PPP_CHAP,	"CHAP" },
-	{ PPP_BACP,	"BACP" },
-	{ PPP_BAP,	"BAP" },
-	{ PPP_MP,	"MP" },
-	{ 0,		NULL }
-};
 
 #define PPP_BSDI_HDRLEN 24
 
 /* BSD/OS specific PPP printer */
-void
-ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
-	     register const u_char *p)
+u_int
+ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_)
 {
+	register int hdrlength;
 #ifdef __bsdi__
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
-	register int hdrlength;
 	u_int16_t ptype;
 	const u_char *q;
 	int i;
 
-	++infodelay;
-	ts_print(&h->ts);
-
 	if (caplen < PPP_BSDI_HDRLEN) {
 		printf("[|ppp]");
-		goto out;
+		return (caplen)
 	}
 
-	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	packetp = p;
-	snapend = p + caplen;
 	hdrlength = 0;
 
 #if 0
@@ -1321,7 +1359,7 @@ ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
 
 		switch (ptype) {
 		case PPP_VJC:
-			ptype = vjc_print(q, length - (q - p), ptype);
+			ptype = vjc_print(q, ptype);
 			hdrlength = PPP_BSDI_HDRLEN;
 			p += hdrlength;
 			switch (ptype) {
@@ -1333,10 +1371,14 @@ ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
 				ip6_print(p, length);
 				break;
 #endif
+			case PPP_MPLS_UCAST:
+			case PPP_MPLS_MCAST:
+				mpls_print(p, length);
+				break;
 			}
 			goto printx;
 		case PPP_VJNC:
-			ptype = vjc_print(q, length - (q - p), ptype);
+			ptype = vjc_print(q, ptype);
 			hdrlength = PPP_BSDI_HDRLEN;
 			p += hdrlength;
 			switch (ptype) {
@@ -1348,6 +1390,10 @@ ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
 				ip6_print(p, length);
 				break;
 #endif
+			case PPP_MPLS_UCAST:
+			case PPP_MPLS_MCAST:
+				mpls_print(p, length);
+				break;
 			}
 			goto printx;
 		default:
@@ -1376,17 +1422,17 @@ ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
 		ip6_print(p, length);
 		break;
 #endif
+        case PPP_MPLS_UCAST:
+        case PPP_MPLS_MCAST:
+                mpls_print(p, length);
+                break;
 	default:
-		printf("%s ", tok2str(ppptype2str, "proto-#%d", ptype));
+		printf("%s ", tok2str(ppptype2str, "unknown PPP protocol (0x%04x)", ptype));
 	}
 
 printx:
-	if (xflag)
-		default_print((const u_char *)p, caplen - hdrlength);
-out:
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
+#else /* __bsdi */
+	hdrlength = 0;
 #endif /* __bsdi__ */
+	return (hdrlength);
 }

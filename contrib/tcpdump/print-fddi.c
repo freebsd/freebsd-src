@@ -22,22 +22,16 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.53.2.1 2002/06/01 23:51:13 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.61.2.2 2003/11/16 08:51:20 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
+#include <tcpdump-stdinc.h>
 
-#include <netinet/in.h>
-
-#include <ctype.h>
-#include <netdb.h>
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -219,7 +213,7 @@ extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
  * Print the FDDI MAC header
  */
 static inline void
-fddi_print(register const struct fddi_header *fddip, register u_int length,
+fddi_hdr_print(register const struct fddi_header *fddip, register u_int length,
 	   register const u_char *fsrc, register const u_char *fdst)
 {
 	const char *srcname, *dstname;
@@ -241,54 +235,30 @@ fddi_print(register const struct fddi_header *fddip, register u_int length,
 }
 
 static inline void
-fddi_smt_print(const u_char *p, u_int length)
+fddi_smt_print(const u_char *p _U_, u_int length _U_)
 {
 	printf("<SMT printer not yet implemented>");
 }
 
-/*
- * This is the top level routine of the printer.  'sp' is the points
- * to the FDDI header of the packet, 'tvp' is the timestamp,
- * 'length' is the length of the packet off the wire, and 'caplen'
- * is the number of bytes actually captured.
- */
 void
-fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
-	      register const u_char *p)
+fddi_print(const u_char *p, u_int length, u_int caplen)
 {
-	u_int caplen = h->caplen;
-	u_int length = h->len;
 	const struct fddi_header *fddip = (const struct fddi_header *)p;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;
 
-	++infodelay;
-	ts_print(&h->ts);
-
 	if (caplen < FDDI_HDRLEN) {
 		printf("[|fddi]");
-		goto out;
+		return;
 	}
+
 	/*
 	 * Get the FDDI addresses into a canonical form
 	 */
 	extract_fddi_addrs(fddip, (char *)ESRC(&ehdr), (char *)EDST(&ehdr));
-	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	snapend = p + caplen;
-	/*
-	 * Actually, the only printers that use packetp are print-arp.c
-	 * and print-bootp.c, and they assume that packetp points to an
-	 * Ethernet header.  The right thing to do is to fix them to know
-	 * which link type is in use when they excavate. XXX
-	 */
-	packetp = (u_char *)&ehdr;
 
 	if (eflag)
-		fddi_print(fddip, length, ESRC(&ehdr), EDST(&ehdr));
+		fddi_hdr_print(fddip, length, ESRC(&ehdr), EDST(&ehdr));
 
 	/* Skip over FDDI MAC header */
 	length -= FDDI_HDRLEN;
@@ -306,7 +276,7 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 			 * handle intelligently
 			 */
 			if (!eflag)
-				fddi_print(fddip, length + FDDI_HDRLEN,
+				fddi_hdr_print(fddip, length + FDDI_HDRLEN,
 				    ESRC(&ehdr), EDST(&ehdr));
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
@@ -320,16 +290,23 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	else {
 		/* Some kinds of FDDI packet we cannot handle intelligently */
 		if (!eflag)
-			fddi_print(fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
+			fddi_hdr_print(fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
 			    EDST(&ehdr));
 		if (!xflag && !qflag)
 			default_print(p, caplen);
 	}
-	if (xflag)
-		default_print(p, caplen);
-out:
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
+}
+
+/*
+ * This is the top level routine of the printer.  'p' points
+ * to the FDDI header of the packet, 'h->ts' is the timestamp,
+ * 'h->length' is the length of the packet off the wire, and 'h->caplen'
+ * is the number of bytes actually captured.
+ */
+u_int
+fddi_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+	fddi_print(p, h->len, h->caplen);
+
+	return (FDDI_HDRLEN);
 }

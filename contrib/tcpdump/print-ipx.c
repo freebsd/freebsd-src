@@ -25,19 +25,15 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.32 2001/10/08 21:25:20 fenner Exp $";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.34.2.2 2003/11/16 08:51:28 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
+#include <tcpdump-stdinc.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -63,11 +59,11 @@ ipx_print(const u_char *p, u_int length)
 	const struct ipxHdr *ipx = (const struct ipxHdr *)p;
 
 	TCHECK(ipx->srcSkt);
-	(void)printf("%s.%x > ",
+	(void)printf("%s.%04x > ",
 		     ipxaddr_string(EXTRACT_32BITS(ipx->srcNet), ipx->srcNode),
 		     EXTRACT_16BITS(&ipx->srcSkt));
 
-	(void)printf("%s.%x:",
+	(void)printf("%s.%04x:",
 		     ipxaddr_string(EXTRACT_32BITS(ipx->dstNet), ipx->dstNode),
 		     EXTRACT_16BITS(&ipx->dstSkt));
 
@@ -86,7 +82,7 @@ ipxaddr_string(u_int32_t net, const u_char *node)
 {
     static char line[256];
 
-    snprintf(line, sizeof(line), "%x.%02x:%02x:%02x:%02x:%02x:%02x",
+    snprintf(line, sizeof(line), "%08x.%02x:%02x:%02x:%02x:%02x:%02x",
 	    net, node[0], node[1], node[2], node[3], node[4], node[5]);
 
     return line;
@@ -151,7 +147,7 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	    (void)printf("ipx-sap-nearest-req");
 
 	TCHECK(ipx[0]);
-	(void)printf(" %x", EXTRACT_16BITS(&ipx[0]));
+	(void)printf(" %s", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
 	break;
 
       case 2:
@@ -163,7 +159,7 @@ ipx_sap_print(const u_short *ipx, u_int length)
 
 	for (i = 0; i < 8 && length > 0; i++) {
 	    TCHECK2(ipx[25], 10);
-	    (void)printf(" %x '", EXTRACT_16BITS(&ipx[0]));
+	    (void)printf(" %s '", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
 	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
 	    printf("' addr %s",
 		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (u_char *)&ipx[27]));
@@ -218,4 +214,3 @@ ipx_rip_print(const u_short *ipx, u_int length)
 trunc:
     printf("[|ipx %d]", length);
 }
-
