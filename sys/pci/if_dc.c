@@ -109,7 +109,6 @@
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/mutex.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
