@@ -33,7 +33,7 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-VERSIONID(`@(#)freefall.mc	$Revision: 1.1 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.2 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -54,3 +54,4 @@ define(`confTO_DATAFINAL', `10m')dnl
 define(`confTO_COMMAND', `10m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
+define(`confTRUSTED_USERS', `majordom')
