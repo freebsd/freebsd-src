@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.7 1997/09/21 11:41:12 peter Exp $
+ * $Id: vm_zone.h,v 1.8 1997/12/05 19:55:52 bde Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -68,6 +68,7 @@ void *		_zget __P((vm_zone_t z));
 #define ZONE_ERROR_NOTFREE 1
 #define ZONE_ERROR_ALREADYFREE 2
 
+#define ZONE_ROUNDING	32
 
 #define ZENTRY_FREE	0x12342378
 /*
