@@ -84,7 +84,7 @@
 #include <dev/awi/am79c930var.h>
 
 #undef	_KERNEL		/* XXX */
-#include <i386/include/if_wavelan_ieee.h>	/* XXX */
+#include <dev/wi/if_wavelan_ieee.h>	/* XXX */
 #define	_KERNEL		/* XXX */
 #include <dev/awi/awireg.h>
 #include <dev/awi/awivar.h>
