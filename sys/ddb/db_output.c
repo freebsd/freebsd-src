@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.17 1996/01/23 21:17:59 phk Exp $
+ *	$Id: db_output.c,v 1.18 1996/05/08 04:28:35 gpalmer Exp $
  */
 
 /*
@@ -61,7 +61,7 @@ static int	db_last_non_space = 0;		/* last non-space character */
 int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 #define	NEXT_TAB(i) \
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
-int	db_max_width = 80;		/* output line width */
+int	db_max_width = 79;		/* output line width */
 
 static void db_putchar __P((int c, void *arg));
 
@@ -154,6 +154,24 @@ void
 db_printf(const char *fmt, ...)
 {
 	va_list	listp;
+
+	va_start(listp, fmt);
+	kvprintf (fmt, db_putchar, NULL, db_radix, listp);
+	va_end(listp);
+}
+
+int db_indent;
+
+void
+db_iprintf(const char *fmt,...)
+{
+	register int i;
+	va_list listp;
+
+	for (i = db_indent; i >= 8; i -= 8)
+		db_printf("\t");
+	while (--i >= 0)
+		db_printf(" ");
 	va_start(listp, fmt);
 	kvprintf (fmt, db_putchar, NULL, db_radix, listp);
 	va_end(listp);
@@ -168,4 +186,3 @@ db_end_line()
 	if (db_output_position >= db_max_width)
 	    db_printf("\n");
 }
-
