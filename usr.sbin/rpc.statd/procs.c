@@ -315,7 +315,7 @@ struct sm_stat *sm_unmon_all_1_svc(my_id *arg, struct svc_req *req __unused)
 		and inform all hosts on the monitor list.
 */
 
-void *sm_simu_crash_1_svc(void *v, struct svc_req *req __unused)
+void *sm_simu_crash_1_svc(void *v __unused, struct svc_req *req __unused)
 {
   static char dummy;
   int work_to_do;
