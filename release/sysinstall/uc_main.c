@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.2 1996/10/03 07:50:09 jkh Exp $
+ * $Id: uc_main.c,v 1.3 1996/10/04 13:33:45 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -71,6 +71,7 @@ uc_open(char *name){
   struct kernel *kern;
   struct stat sb;
   char kname[80];
+  int i;
 
   if (strcmp(name, "-incore")==0){
     incore=1;
@@ -94,7 +95,7 @@ uc_open(char *name){
       i = 0;
   }
   else
-      i = nlist(kname, nl);
+      i = nlist(kname, kern_nl);
 #else
   i = nlist(kname, nl);
 #endif
@@ -103,9 +104,15 @@ uc_open(char *name){
       kern = (struct kernel *)-5;
       return kern;
   }
+#ifdef KERN_NO_SYMBOLS
+  if (!incore) {
+	kern->nl=(struct nlist *)malloc(sizeof(kern_nl));
+	bcopy(kern_nl, kern->nl, sizeof(kern_nl));
+  }
+#else
   kern->nl=(struct nlist *)malloc(sizeof(nl));
   bcopy(nl, kern->nl, sizeof(nl));
-
+#endif
   if(incore){
     if((kd=open("/dev/kmem", O_RDONLY))<0){
       free(kern);
