@@ -22,14 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: aio_write.2,v 1.1 1999/07/01 19:58:12 wes Exp $
 .\"
 .Dd June 2, 1999
 .Dt AIO_WRITE 2
 .Os
 .Sh NAME
 .Nm aio_write
-.Nd asynchronus write to a file (REALTIME)
+.Nd asynchronous write to a file (REALTIME)
 .Sh SYNOPSIS
 .Fd #include <aio.h>
 .Ft int
@@ -131,7 +131,7 @@ appropriately; otherwise the
 .Fn aio_return
 function must be called, and will return -1, and
 .Fn aio_error
-must be called to determine the actual calue that would have been
+must be called to determine the actual value that would have been
 returned in
 .Ar errno .
 .Pp
@@ -149,7 +149,7 @@ is not a valid priority, or the number of bytes specified by
 is not valid.
 .El
 .Pp
-If the request is successfully enqueued, but subsequently cancelled
+If the request is successfully enqueued, but subsequently canceled
 or an error occurs, the value returned by the
 .Fn aio_return
 function is per the
@@ -164,7 +164,7 @@ call, or one of:
 .Ar iocb->aio_fildes
 is invalid for writing.
 .It Bq Er ECANCELED
-The request was explicitly cancelled via a call to
+The request was explicitly canceled via a call to
 .Fn aio_cancel .
 .It Bq Er EINVAL
 The offset
@@ -185,7 +185,7 @@ Function first appeared in
 This manual page was written by
 .An Wes Peters Aq wes@softweyr.com .
 .Sh BUGS
-Asynchronous I/O operations cannot be cancelled in this implementation.
+Asynchronous I/O operations cannot be canceled in this implementation.
 Invalid information in
 .Ar iocb->_aiocb_private
 may confuse the kernel.
