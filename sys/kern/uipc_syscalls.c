@@ -116,7 +116,7 @@ socket(td, uap)
 	error = falloc(td, &fp, &fd);
 	if (error)
 		goto done2;
-	fhold(fp);
+	/* An extra reference on `fp' has been held for us by falloc(). */
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	FILEDESC_LOCK(fdp);
@@ -315,7 +315,7 @@ accept1(td, uap, compat)
 		splx(s);
 		goto done;
 	}
-	fhold(nfp);
+	/* An extra reference on `nfp' has been held for us by falloc(). */
 	td->td_retval[0] = fd;
 
 	/* connection has been removed from the listen queue */
@@ -542,16 +542,15 @@ socketpair(td, uap)
 	    td->td_ucred, td);
 	if (error)
 		goto free1;
+	/* On success extra reference to `fp1' and 'fp2' is set by falloc. */
 	error = falloc(td, &fp1, &fd);
 	if (error)
 		goto free2;
-	fhold(fp1);
 	sv[0] = fd;
 	fp1->f_data = so1;	/* so1 already has ref count */
 	error = falloc(td, &fp2, &fd);
 	if (error)
 		goto free3;
-	fhold(fp2);
 	fp2->f_data = so2;	/* so2 already has ref count */
 	sv[1] = fd;
 	error = soconnect2(so1, so2);

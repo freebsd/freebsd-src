@@ -751,7 +751,7 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			FREE(fcr, M_XDATA);
 			return (error);
 		}
-		fhold(f);
+		/* falloc automatically provides an extra reference to 'f'. */
 		f->f_flag = FREAD | FWRITE;
 		f->f_type = DTYPE_CRYPTO;
 		f->f_ops = &cryptofops;
