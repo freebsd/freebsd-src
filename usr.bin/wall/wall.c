@@ -182,7 +182,9 @@ makemsg(fname)
 		errx(1, "can't read %s", fname);
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
-			if (cnt == 79 || ch == '\n') {
+			if (ch == '\r') {
+				cnt = 0;
+			} else if (cnt == 79 || ch == '\n') {
 				for (; cnt < 79; ++cnt)
 					putc(' ', fp);
 				putc('\r', fp);
@@ -217,6 +219,7 @@ makemsg(fname)
 						cnt = 0;
 					}
 				}
+				putc(ch, fp);
 			} else {
 				putc(ch, fp);
 			}
