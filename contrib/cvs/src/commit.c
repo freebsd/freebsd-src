@@ -1948,6 +1948,8 @@ internal error: `%s' didn't move out of the attic",
 	    char *head;
 	    char *magicrev;
 
+	    fixbranch(rcsfile, sbranch);
+
 	    head = RCS_getversion (rcsfile, NULL, NULL, 0, (int *) NULL);
 	    magicrev = RCS_magicrev (rcsfile, head);
 
