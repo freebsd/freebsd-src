@@ -306,8 +306,6 @@ ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 		    struct resource *res, ACPI_RESOURCE *acpi_res);
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
-extern struct	rman acpi_rman_io, acpi_rman_mem;
-struct resource_list_entry *acpi_sysres_find(int type, u_long addr);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);
