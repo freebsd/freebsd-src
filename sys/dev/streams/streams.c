@@ -29,8 +29,9 @@
  * Stolen from NetBSD /sys/compat/svr4/svr4_net.c.  Pseudo-device driver
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
+ *
+ * $Id$
  */
-
 
 #include "streams.h"		/* generated file.. defines NSTREAMS */
 #include "opt_devfs.h"
@@ -390,7 +391,6 @@ streams_drvinit(void *unused)
 	int	unit;
 	sc_p scp  = sca[unit];
 
-	cdevsw_add(&streams_cdevsw);
 	for (unit = 0; unit < NSTREAMS; unit++) {
 		/* 
 		 * Allocate storage for this instance .
