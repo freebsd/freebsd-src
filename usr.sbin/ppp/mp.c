@@ -189,7 +189,7 @@ mp_UpDown(void *v)
   struct mp *mp = (struct mp *)v;
   int percent;
 
-  percent = mp->link.throughput.OctetsPerSecond * 800 / mp->bundle->bandwidth;
+  percent = mp->link.stats.total.OctetsPerSecond * 800 / mp->bundle->bandwidth;
   if (percent >= mp->cfg.autoload.max) {
     log_Printf(LogDEBUG, "%d%% saturation - bring a link up ?\n", percent);
     bundle_AutoAdjust(mp->bundle, percent, AUTO_UP);
@@ -202,20 +202,20 @@ mp_UpDown(void *v)
 void
 mp_StopAutoloadTimer(struct mp *mp)
 {
-  throughput_stop(&mp->link.throughput);
+  throughput_stop(&mp->link.stats.total);
 }
 
 void
 mp_CheckAutoloadTimer(struct mp *mp)
 {
-  if (mp->link.throughput.SamplePeriod != mp->cfg.autoload.period) {
-    throughput_destroy(&mp->link.throughput);
-    throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
-    throughput_callback(&mp->link.throughput, mp_UpDown, mp);
+  if (mp->link.stats.total.SamplePeriod != mp->cfg.autoload.period) {
+    throughput_destroy(&mp->link.stats.total);
+    throughput_init(&mp->link.stats.total, mp->cfg.autoload.period);
+    throughput_callback(&mp->link.stats.total, mp_UpDown, mp);
   }
 
   if (bundle_WantAutoloadTimer(mp->bundle))
-    throughput_start(&mp->link.throughput, "MP throughput", 1);
+    throughput_start(&mp->link.stats.total, "MP throughput", 1);
   else
     mp_StopAutoloadTimer(mp);
 }
@@ -223,10 +223,10 @@ mp_CheckAutoloadTimer(struct mp *mp)
 void
 mp_RestartAutoloadTimer(struct mp *mp)
 {
-  if (mp->link.throughput.SamplePeriod != mp->cfg.autoload.period)
+  if (mp->link.stats.total.SamplePeriod != mp->cfg.autoload.period)
     mp_CheckAutoloadTimer(mp);
   else
-    throughput_clear(&mp->link.throughput, THROUGHPUT_OVERALL, NULL);
+    throughput_clear(&mp->link.stats.total, THROUGHPUT_OVERALL, NULL);
 }
 
 void
@@ -250,8 +250,10 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 
   mp->cfg.autoload.period = SAMPLE_PERIOD;
   mp->cfg.autoload.min = mp->cfg.autoload.max = 0;
-  throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
-  throughput_callback(&mp->link.throughput, mp_UpDown, mp);
+  throughput_init(&mp->link.stats.total, mp->cfg.autoload.period);
+  throughput_callback(&mp->link.stats.total, mp_UpDown, mp);
+  mp->link.stats.parent = NULL;
+  mp->link.stats.gather = 0;	/* Let the physical links gather stats */
   memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
   memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
   memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
@@ -318,12 +320,15 @@ mp_Up(struct mp *mp, struct datalink *dl)
     mp->peer_is12bit = lcp->his_shortseq;
     mp->peer = dl->peer;
 
-    throughput_destroy(&mp->link.throughput);
-    throughput_init(&mp->link.throughput, mp->cfg.autoload.period);
-    throughput_callback(&mp->link.throughput, mp_UpDown, mp);
+    throughput_destroy(&mp->link.stats.total);
+    throughput_init(&mp->link.stats.total, mp->cfg.autoload.period);
+    throughput_callback(&mp->link.stats.total, mp_UpDown, mp);
     memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
     memset(mp->link.proto_in, '\0', sizeof mp->link.proto_in);
     memset(mp->link.proto_out, '\0', sizeof mp->link.proto_out);
+
+    /* Tell the link who it belongs to */
+    dl->physical->link.stats.parent = &mp->link.stats.total;
 
     mp->out.seq = 0;
     mp->out.link = 0;
