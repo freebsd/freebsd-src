@@ -1,4 +1,4 @@
-# $Id$
+# $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aicasm/Makefile#1 $
 #
 # $FreeBSD$
 
@@ -22,7 +22,7 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -nostdinc -I${.CURDIR}/../../../dev/aic7xxx/aicasm -I/usr/include -I.
+CFLAGS+= -nostdinc -I/usr/include -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif
