@@ -23,6 +23,7 @@ MKDEPCMD=	CC="${CC}" MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
 BEGINSRC=	crtbegin.asm
 ENDSRC=		crtend.asm
 CFLAGS+=	-x assembler-with-cpp	# Ugly hack
+CFLAGS+=	-include osreldate.h
 .undef SRCS				# hack for 'make depend'
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
