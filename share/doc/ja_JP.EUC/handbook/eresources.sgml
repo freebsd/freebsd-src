@@ -1,0 +1,373 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.28 -->
+
+<chapt>
+  <heading>インターネット上のリソース<label id="eresources"></heading>
+
+  <p><em>原作: &a.jkh;.</em>
+
+  <p><em>訳: &a.yuki;.<newline>28 August 1996</em>
+
+  <p>FreeBSDの進歩が急速であるため, 最新の開発をフォローするためには, 
+    印刷したメディアは実用的でなくなっています. 
+    大抵の場合, 最新情報を入手する方法としては, 電子的なリソースが
+    ベストです. FreeBSDはボランティアの努力によって, 
+    ユーザコミュニティ自体が, 一種の「テクニカルサポート部門」としての
+    役割も通常果たしており, 電子メールやUsenetのニュースがこれらのコミュ
+    ニティにたどり着く最も効果的な方法になっています. 
+
+    以下に, FreeBSD ユーザコミュニティに連絡を取る場合の最も重要な点についての
+    概略を示します. もしここに書かれていない他のリソースに気がついた場合は, 
+    それらを &a.doc に送って頂ければ, それらをここに含めるかもしれません. 
+
+      <sect>
+        <heading>メーリングリスト<label id="eresources:mail"></heading>
+<p>多くのFreeBSDの開発メンバはUSENETを読むことができますが, 
+もし, comp.unix.bsd.freebsd.*のグループの一つに質問を投稿したとしても
+タイムリにその質問を受け取るということは保証できません. 
+質問を適切なメーリングリストに投稿すれば, 私たちかFreeBSDの関係者から, 
+よりよい (そして少なくともより早い) 反応がいつでも得られることでしょう. 
+
+<P>さまざまなメーリングリストの憲章をこのドキュメントの最後に記載します. 
+私たちは, メーリングリストの質, 特に技術面に関する質を高く保つために
+努力しているので, 
+メーリングリストに参加する前にその憲章を読んでください. 
+
+メーリングリストはいずれもアーカイブされており, それらは
+<url url="http://www.FreeBSD.ORG/search.html"
+name="FreeBSD World Wide Web server"> で検索することができます. 
+キーワード検索可能なアーカイブの提供は, 
+良くある質問に対する回答を見つけるすぐれた方法ですから, 
+質問を投稿する前に調べてみるべきでしょう. 
+
+<sect1><heading>メーリングリストの概説</heading>
+
+<p><bf>一般的なメーリングリスト:</bf> 以下のものは誰でも自由に参加できる
+一般的なものです:
+<verb>
+リスト                   目的
+----------------------------------------------------------------------
+freebsd-announce         重要なイベントやプロジェクトのマイルストン
+freebsd-bugs             バグレポート
+freebsd-chat             FreeBSDコミュニティに関連する技術的ではない話題
+freebsd-current          FreeBSD-currentの使用に関連する議論
+freebsd-stable           FreeBSD-stableの使用に関連する議論
+freebsd-isp              FreeBSDを用いているインターネットサービスプロバイダの話題
+freebsd-questions        ユーザからの質問
+</verb>
+
+<bf>技術的なメーリングリスト:</bf> 以下のメーリングリストは, 
+技術的な議論のためのものです. 
+これらのメーリングリストに入る前には憲章を注意深く読むべきであり, 
+メーリングリストに投稿するメッセージがガイドラインの範囲に収まるようにしてください. 
+<verb>
+リスト                   目的
+----------------------------------------------------------------------
+freebsd-doc              FreeBSDのドキュメンテーションプロジェクト
+freebsd-emulation        Linux/DOS/Windowsのような他のシステムのエミュレーション
+freebsd-fs               ファイルシステム
+freebsd-hackers          一般的な技術の議論
+freebsd-hardware         FreeBSDの走るハードウェアの一般的な議論
+freebsd-mobile           モーバイルコンピューティングについての議論
+freebsd-multimedia       マルチメディアの議論
+freebsd-platforms        Intel以外のアーキテクチャのプラットフォームへの移植
+freebsd-ports            portsコレクションに関する議論
+freebsd-security         セキュリティに関する話題
+freebsd-scsi             SCSIサブシステム
+freebsd-smp              対称/非対称のマルチプロセッシングの設計に関する議論
+</verb>
+
+<bf>制限されているメーリングリスト:</bf> 以下のメーリングリストは参加するには認可が必要ですが, 
+提案やコメントは誰でも自由に投稿することができます. 
+これらの制限されているメーリングリストへの参加の伺いの前に, 
+技術的なメーリングリストで存在を確立するのがよい考えです. 
+<verb>
+メーリングリスト         目的
+----------------------------------------------------------------------
+freebsd-admin            管理に関する話題
+freebsd-arch             アーキテクチャや設計の議論
+freebsd-core             FreeBSDコアチーム
+freebsd-hubs             ミラーサイトを運営している人達 (基盤のサポート)
+freebsd-install          インストール関係の開発
+freebsd-user-groups      ユーザグループの調整
+</verb>
+
+<bf>CVSメーリングリスト:</bf> 以下のメーリングリストはソースツリーの
+さまざまな場所の変更のログメッセージを見ることに興味のある人向けです. 
+<verb>
+メーリングリスト ソースの範囲         (ソースの) 範囲の説明
+----------------------------------------------------------------------
+cvs-CVSROOT      /usr/src/[A-Z]*      /usr/src/ 以下のトップレベルのファイルの変更
+cvs-all          /usr/src             ツリーのすべての変更 (スーパーセット)
+cvs-bin          /usr/src/bin         システムバイナリ
+cvs-etc          /usr/src/etc         システムファイル
+cvs-games        /usr/src/games       ゲーム
+cvs-gnu          /usr/src/gnu         GPLにしたがったユーティリティ
+cvs-include      /usr/src/include     インクルードファイル
+cvs-kerberosIV   /usr/src/kerberosIV  Kerberos暗号化コード
+cvs-lib          /usr/src/lib         システムライブラリ
+cvs-libexec      /usr/src/libexec     システムバイナリ
+cvs-ports        /usr/ports           移植済みソフトウェア
+cvs-sbin         /usr/src/sbin        システムバイナリ
+cvs-share        /usr/src/share       システム共有ファイル
+cvs-sys          /usr/src/sys         カーネル
+cvs-usrbin       /usr/src/usr.bin     ユーザバイナリ
+cvs-usrsbin      /usr/src/usr.sbin    システムバイナリ
+</verb>
+
+<sect1><heading>参加方法</heading>
+
+<p>どのメーリングリストも<tt>FreeBSD.ORG</tt>にあるので, 
+メーリングリストにメールを送るには, ただ 
+<em>listname</em><tt>@FreeBSD.ORG</tt> にメールを送るだけです. 
+すると, メーリングリストに登録されている世界中のメンバに再配布されます. 
+
+メーリングリストに参加するには, 
+<tscreen><verb>
+subscribe <listname> [<optional address>]
+</verb></tscreen>
+という内容をメッセージの本文に含むメールを &a.majordomo に送ります. 
+例えば, freebsd-announce に参加したい場合は次のようにします:
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+subscribe freebsd-announce
+^D
+</verb></tscreen>
+もし, あなたが, 自分自身を違う名前 (メールアドレス) で登録したい場合, 
+あるいは, ローカルなメーリングリスト (注意:もしあなたのサイトに, 
+興味を持った仲間がいるなら, これはより有効ですし, 
+私たちにとっても非常に嬉しいことです.)
+を登録する申し込みをおこないたいのであれば, 次のようにします: 
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+subscribe freebsd-announce local-announce@somesite.com
+^D
+</verb></tscreen>
+最後に, majordomoに対して
+他のタイプのコントロールメッセージを送ることで
+メーリングリストから脱退したり, メーリングリストの他のメンバのリストを
+得たり, 再びメーリングリストのリストを見たりすることも可能です. 
+利用できるコマンドの完全なリストを入手するには, 次のようにします: 
+<tscreen><verb>
+% mail majordomo@FreeBSD.ORG
+help
+^D
+</verb></tscreen>
+再度言いますが, 私たちは技術的なメーリングリストでは技術的な議論を保つよう
+要求します. もし, 「高いレベル」にのみ興味があるなら, freebsd-announce 
+に参加するように勧めます. これは少ないトラフィックの予定です. 
+<!--
+Again, we would like to request that you keep discussion in the technical mailing
+lists on a technical track.  If you are only interested in the "high points"
+then it is suggested that you join freebsd-announce, which is intended only
+for infrequent traffic.
+-->
+<sect1><heading>メーリングリストの憲章</heading>
+
+<p>
+<descrip>
+<tag/FREEBSD-ADMIN/ <em>管理上の話題</em><newline>
+<!-- XXX -->
+
+<tag/FREEBSD-ANNOUNCE/ <em>重要なイベント/マイルストン</em><newline>
+これは, 単にたまに発表される重要なfreebsdのイベントに関心がある人のための
+メーリングリストです. これは, スナップショットやその他のリリースについての
+アナウンスを含みます. そのアナウンスは新しいFreeBSDの機能のアナウンスを含んでいます. 
+ボランティア等の呼びかけがあるかもしれません. 
+これは流通量の少ないメーリングリストです. 
+
+<tag/FREEBSD-ARCH/ <em>アーキテクチャと設計の議論</em><newline>
+これは, FreeBSDの設計に関する議論をする人向けのメーリングリストです. 
+これは, クローズドなリストで, 一般的には参加できません. 
+
+<tag/FREEBSD-BUGS/ <em>バグレポート</em><newline>
+これは, FreeBSDのバグレポートのためのメーリングリストです. 
+可能である場合はいつでも, バグは ``send-pr'' を使って送られる必要があります. 
+
+<tag/FREEBSD-CHAT/ <em>コミュニティに関する技術的ではない話題</em><newline>
+このメーリングリストは技術的ではなく, 社会的な情報について, 
+他のメーリングリストでは取り扱わない話題を含みます. 
+これは, Jordanがシロイタチに似ているかどうか, 
+大文字で打つかどうか, 誰がたくさんコーヒーを飲むか, 
+どこのビールが一番うまいか, 誰が地下室でビールを作っているか, 
+などについての議論を含みます. 時々重要なイベント (将来開催されるパーティーや, 
+結婚式, 誕生日, 新しい仕事など) のお知らせが, 技術的なメーリングリストから
+でてきます. しかし, フォローは直接 -chatメーリングリストにするべきです. 
+
+<tag/FREEBSD-CORE/ <em>FreeBSDコアチーム</em><newline>
+これは, コアメンバが使う内部メーリングリストです. 
+
+<tag/FREEBSD-CURRENT/ <em>FreeBSD-currentの使用に関する議論
+</em><newline>これは freebsd-current のユーザのためのメーリングリストです. 
+メーリングリストでの話題は, -current で登場した新しい機能について, 
+その新機能によってユーザに影響することについての注意, および -current 
+のままでいるために必要な手順についての説明を含みます. 
+"current" を走らせている人はこのメーリングリストに登録しなくてはなりません. 
+
+<tag/FREEBSD-CURRENT-DIGEST/ <em>FreeBSD-currentの使用に関する議論
+</em><newline> freebsd-currentメーリングリストのダイジェスト版です. 
+このダイジェストはfreebsd-currentに送られたすべてのメッセージをまとめたものを, 
+1つのメールにして送り出します. 平均のサイズは約40kbyteです. 
+
+<tag/FREEBSD-STABLE/ <em>FreeBSD-stableの使用に関する議論
+</em><newline>これは freebsd-stable のユーザ用のメーリングリストです. 
+メーリングリストでの話題は, -stable で登場した新しい機能について, そ
+の新機能によってユーザに影響することについての注意, および -stable 
+のままでいるために必要な手順についての説明を含みます. 
+"stable" を走らせている人はこのメーリングリストに登録すべきです. 
+
+<tag/FREEBSD-DOC/ <em>ドキュメンテーションプロジェクト</em><newline>
+このメーリングリストはFreeBSD Doc Projectに属し, 
+ドキュメンテーションに関連する問題やプロジェクトの議論のためのものです. 
+
+<tag/FREEBSD-FS/ <em>ファイルシステム</em><newline>
+FreeBSDのファイルシステムに関する議論
+
+<tag/FREEBSD-HACKERS/ <em>技術的な議論</em><newline>
+これはFreeBSDに関する技術的な議論のためのフォーラムです. 
+これは最もテクニカルなメーリングリストです. 
+このメーリングリストは, FreeBSD 上でアクティブに活動をしている人のためのもので, 
+問題を持ち出したり, 代わりの解決法を議論します. 
+技術的な議論をフォローするのに興味がある人も歓迎します. 
+
+<tag/FREEBSD-HACKERS-DIGEST/ <em>技術的な議論</em><newline>
+freebsd-hackersメーリングリストのダイジェスト版です. 
+このダイジェストはfreebsd-hackersに送られたすべてのメッセージをまとめたものを, 
+1つのメールにして送り出します. 平均のサイズは約40kbyteです. 
+
+<tag/FREEBSD-HARDWARE/ <em>FreeBSDのハードウェアの一般的な議論
+</em><newline> FreeBSDが走っているハードウェアのタイプや, 
+何を買ったり避けたりするかに関する様々な問題や, 提案に関する議論. 
+
+<tag/FREEBSD-INSTALL/ <em>インストールに関する議論</em><newline>
+このメーリングリストは将来のリリースのインストールに関する開発の
+議論のためのものです. 
+
+<tag/FREEBSD-ISP/ <em>インターネットサービスプロバイダのについての話題
+</em><newline>このメーリングリストは, FreeBSDを用いたインターネット
+サービスプロバイダ (ISP) に関する話題の議論のためのものです. 
+
+<tag/FREEBSD-MULTIMEDIA/ <em>マルチメディアについての議論</em><newline>
+このメーリングリストはFreeBSD上を用いたマルチメディアアプリケーションについてのフォーラムです. 
+マルチメディアアプリケーションをとりまく議論の中心は, それらのインストール, 
+開発, そしてFreeBSDにおけるサポートについてです. 
+
+<tag/FREEBSD-PLATFORMS/ <em>Intel以外のプラットフォームへの移植
+</em><newline>クロスプラットフォームのFreeBSDの問題. 
+Intel以外のプラットフォームへのFreeBSDの移植についての一般的な議論や提案. 
+
+<tag/FREEBSD-PORTS/ <em>``ports'' の議論</em><newline>
+FreeBSD の ``ports コレクション'' (/usr/ports) や, 移植の提案, 
+ports コレクションの基盤の変更, 一般的な整合化活動についての議論.
+
+<tag/FREEBSD-QUESTIONS/ <em>ユーザからの質問</em><newline>
+FreeBSDに関する質問のためののメーリングリストです. 
+その質問がかなり技術的だと思わないのであれば, 
+「どのようにして」という質問を技術的なメーリングリストに送るべきではありません. 
+
+<tag/FREEBSD-QUESTIONS-DIGEST/ <em>ユーザからの質問</em><newline>
+freebsd-questionsメーリングリストのダイジェスト版です. 
+このダイジェストはfreebsd-questionsに送られたすべてのメッセージをまとめたものを, 
+1つのメールにして送り出します. 平均のサイズは約40kbyteです. 
+
+<tag/FREEBSD-SCSI/ <em>SCSIサブシステム</em><newline>
+これはFreeBSDのためのscsiサブシステムについて作業している人向けです. 
+
+<tag/FREEBSD-SECURITY/ <em>セキュリティの関連の話題</em><newline>
+FreeBSDコンピュータのセキュリティの話題 (DES, Kerberos, よく知られている
+セキュリティホールや, それらのふさぎ方など)
+
+<tag/FREEBSD-USER-GROUPS/ <em>ユーザグループの調整のメーリングリスト</em><newline>
+これは, ローカルなユーザグループがお互いに, または, 
+コアチームが指定した個人と問題を議論する, 
+それぞれのローカルエリアのユーザグループからの調整人向けの
+メーリングリストです. 
+このメーリングリストはユーザグループ間の
+ミーティングの概要やプロジェクトの調整に制限されるべきです. 
+
+</descrip>
+
+      <sect>
+        <heading>Usenet ニュースグループ<label id="eresources:news"></heading>
+
+        <p>2つのFreeBSD用のニュースグループがあります. ここでは
+          FreeBSDの議論をするたくさんの様々な人がおり, 
+          他にもFreeBSD関連するユーザがいます. 
+          これらのいくつかのニュースグループは Warren Toomey
+          <tt>&lt;wkt@cs.adfa.oz.au&gt;</tt> によって <url
+          url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews&lowbar;search.html"
+          name="Keyword searchable archives"> で, 
+          検索できるようになっています. 
+
+        <sect1>
+          <heading>BSD用のニュースグループ</heading>
+
+          <p><itemize>
+              <item><url url="news:comp.unix.bsd.freebsd.announce"
+		    name="comp.unix.bsd.freebsd.announce"></item>
+              <item><url url="news:comp.unix.bsd.freebsd.misc"
+		    name="comp.unix.bsd.freebsd.misc"></item>
+            </itemize>
+
+        <sect1>
+          <heading>関連する他のUnixのニュースグループ</heading>
+
+          <p><itemize>
+              <item><url url="news:comp.unix" name="comp.unix"></item>
+              <item><url url="news:comp.unix.questions" name="comp.unix.questions"></item>
+              <item><url url="news:comp.unix.admin" name="comp.unix.admin"></item>
+              <item><url url="news:comp.unix.programmer" name="comp.unix.programmer"></item>
+              <item><url url="news:comp.unix.shell" name="comp.unix.shell"></item>
+              <item><url url="news:comp.unix.user-friendly" name="comp.unix.user-friendly"></item>
+              <item><url url="news:comp.security.unix" name="comp.security.unix"></item>
+              <item><url url="news:comp.sources.unix" name="comp.sources.unix"></item>
+              <item><url url="news:comp.unix.advocacy" name="comp.unix.advocacy"></item>
+              <item><url url="news:comp.unix.misc" name="comp.unix.misc"></item>
+              <item><url url="news:comp.os.386bsd.announc" name="comp.os.386bsd.announc"></item>
+              <item><url url="news:comp.os.386bsd.app" name="comp.os.386bsd.app"></item>
+              <item><url url="news:comp.os.386bsd.bugs" name="comp.os.386bsd.bugs"></item>
+              <item><url url="news:comp.os.386bsd.development" name="comp.os.386bsd.development"></item>
+              <item><url url="news:comp.os.386bsd.misc" name="comp.os.386bsd.misc"></item>
+              <item><url url="news:comp.os.386bsd.questions" name="comp.os.386bsd.questions"></item>
+              <item><url url="news:comp.bugs.4bsd" name="comp.bugs.4bsd"></item>
+              <item><url url="news:comp.bugs.4bsd.ucb-fixes" name="comp.bugs.4bsd.ucb-fixes"></item>
+              <item><url url="news:comp.unix.bsd" name="comp.unix.bsd"></item>
+            </itemize>
+
+        <sect1>
+          <heading>X Window システム</heading>
+
+          <p><itemize>
+              <item><url url="news:comp.windows.x.i386unix" name="comp.windows.x.i386unix"></item>
+              <item><url url="news:comp.windows.x" name="comp.windows.x"></item>
+              <item><url url="news:comp.windows.x.apps" name="comp.windows.x.apps"></item>
+              <item><url url="news:comp.windows.x.announce" name="comp.windows.x.announce"></item>
+              <item><url url="news:comp.windows.x.intrinsics" name="comp.windows.x.intrinsics"></item>
+              <item><url url="news:comp.windows.x.motif" name="comp.windows.x.motif"></item>
+              <item><url url="news:comp.windows.x.pex" name="comp.windows.x.pex"></item>
+              <item><url url="news:comp.emulators.ms-windows.wine" name="comp.emulators.ms-windows.wine"></item>
+            </itemize>
+
+      <sect>
+        <heading>World Wide Web サイト<label id="eresources:web"></heading>
+
+        <p><itemize> 
+            <item><url url="http://www.FreeBSD.ORG/">                    <bf>- 本家のサーバ</bf>.</item>
+	    <item><url url="http://www.au.freebsd.org/FreeBSD/">         <bf>- オーストラリア</bf>.</item>
+	    <item><url url="http://www.br.freebsd.org/">                 <bf>- ブラジル</bf>.</item>
+	    <item><url url="http://www.ca.freebsd.org/">                 <bf>- カナダ</bf>.</item>
+	    <item><url url="http://sunsite.mff.cuni.cz/www.freebsd.org/"><bf>- チェコ</bf>.</item>
+	    <item><url url="http://sunsite.auc.dk/www.freebsd.org/">     <bf>- デンマーク</bf>.</item>
+	    <item><url url="http://www.ee.freebsd.org/">                 <bf>- エストニア</bf>.</item>
+	    <item><url url="http://www.fi.freebsd.org/">                 <bf>- フィンランド</bf>.</item>
+	    <item><url url="http://www.de.freebsd.org/">                 <bf>- ドイツ</bf>.</item>
+	    <item><url url="http://www.ie.freebsd.org/">                 <bf>- アイルランド</bf>.</item>
+	    <item><url url="http://www.jp.freebsd.org/">                 <bf>- 日本</bf>.</item>
+	    <item><url url="http://www.kr.freebsd.org/">                 <bf>- 韓国</bf>.</item>
+	    <item><url url="http://www.nl.freebsd.org/">                 <bf>- ニュージーランド</bf>.</item>
+	    <item><url url="http://www.pt.freebsd.org/">                 <bf>- ポルトガル</bf>.</item>
+	    <item><url url="http://www.se.freebsd.org/www.freebsd.org/"> <bf>- スウェーデン</bf>.</item>
+	    <item><url url="http://www.tw.freebsd.org/freebsd.html">     <bf>- 台湾</bf>.</item>
+          </itemize>
+    </sect>

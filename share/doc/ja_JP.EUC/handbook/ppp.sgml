@@ -1,0 +1,429 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.8 -->
+
+<sect><heading>カーネル PPP の設定<label id="ppp"></heading>
+
+<p><em>原作: &a.gena;.</em>
+<p><em>訳: &a.graphite;.<newline>6 September 1996.</em>
+
+PPP の設定を始める前に, pppd が /usr/sbin にあり, また /etc/ppp という
+ディレクトリが存在することを確認してください.
+
+pppd はふたつのモードで動作します.
+<enum>
+<item> 「クライアント」モード. シリアル接続やモデムを利用して, そのマシンを
+外部のネットワークに PPP 接続したい場合に用います.
+
+<item> 「サーバ」モード. そのマシンがネットワーク上にあるときに, PPP を使って
+ほかのコンピュータを接続する際に用います.
+</enum>
+どちらの場合でも, オプションファイルを設定する必要があります
+ (<tt>/etc/ppp/options</tt> または, そのマシン上で PPP を使用する人が
+複数いる場合には <tt>~/.ppprc</tt>).
+
+また, ダイヤルとリモートホストへの接続をおこなうために, シリアル接続やモデムを
+操作する, なんらかのソフトウェアが必要です (kermit が適しているでしょう).
+
+<sect1><heading>PPP クライアントとしての動作</heading>
+
+<p>私は, CISCO ターミナルサーバの PPP 回線に接続するために, 下記のような
+ <tt>/etc/ppp/options</tt> を使用しています.
+<verb>
+crtscts		# enable hardware flow control
+modem		# modem control line
+noipdefault	# remote PPP server must supply your IP address.
+		# if the remote host doesn't send your IP during IPCP
+		# negotiation , remove this option
+passive		# wait for LCP packets
+domain ppp.foo.com	# put your domain name here
+
+:<remote_ip>	# put the IP of remote PPP host here
+		# it will be used to route packets via PPP link
+		# if you didn't specified the noipdefault option
+		# change this line to <local_ip>:<remote_ip>
+
+defaultroute	# put this if you want that PPP server will be your
+		# default router
+</verb>
+
+接続方法:
+<enum>
+<item> kermit (またはその他のモデム操作プログラム) を使ってリモートホストに
+ダイヤルし, 接続してください. そして, あなたのユーザ名とパスワード (必要
+であれば, その他にもリモートホストで PPP を有効にするための操作) を入力
+します.
+
+<item> kermit を抜けてください. (回線を切断せずに)
+
+<item> 下記のように入力します: 
+<verb>
+/usr/src/usr.sbin/pppd.new/pppd /dev/tty01 19200
+</verb>
+(通信速度とデバイス名には, あなたの環境に適したものを入れてください)
+</enum>
+
+これでこのコンピュータは PPP で接続されました. もし, なんらかの理由で
+接続に失敗したならば, <tt>/etc/ppp/options</tt> ファイルに "debug" 
+オプションを追加して, 問題点を突き止めるために, コンソールに表示される
+メッセージを調べてください.
+
+下記の <tt>/etc/ppp/pppup</tt> スクリプトは, 上記の作業を
+すべて自動的におこないます:
+<verb>
+#!/bin/sh 
+ps ax |grep pppd |grep -v grep
+pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing pppd, PID=' ${pid}
+        kill ${pid}
+fi
+ps ax |grep kermit |grep -v grep
+pid=`ps ax |grep kermit |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing kermit, PID=' ${pid}
+        kill -9 ${pid}
+fi
+
+ifconfig ppp0 down
+ifconfig ppp0 delete
+
+kermit -y /etc/ppp/kermit.dial
+pppd /dev/tty01 19200
+</verb>
+
+<tt>/etc/ppp/kermit.dial</tt> は kermit 用のスクリプトで, ダイヤルして, 
+リモートホストでの認証に必要なすべての処理をおこないます.
+(そのようなスクリプトの例はこの文書の終わりに添付してあります)
+
+PPP 接続を切断するには, 下記のような <tt>/etc/ppp/pppdown</tt> スクリプトを
+使用します:
+<verb>
+#!/bin/sh
+pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
+if [ X${pid} != "X" ] ; then
+        echo 'killing pppd, PID=' ${pid}
+        kill -TERM ${pid}
+fi
+
+ps ax |grep kermit |grep -v grep
+pid=`ps ax |grep kermit |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing kermit, PID=' ${pid}
+        kill -9 ${pid}
+fi
+
+/sbin/ifconfig ppp0 down
+/sbin/ifconfig ppp0 delete
+kermit -y /etc/ppp/kermit.hup 
+/etc/ppp/ppptest
+</verb>
+
+PPP が動作中かどうかを調べます (<tt>/usr/etc/ppp/ppptest</tt>):
+<verb>
+#!/bin/sh
+pid=`ps ax| grep pppd |grep -v grep|awk '{print $1;}'`
+if [ X${pid} != "X" ] ; then
+        echo 'pppd running: PID=' ${pid-NONE}
+else
+        echo 'No pppd running.'
+fi
+set -x
+netstat -n -I ppp0
+ifconfig ppp0
+</verb>
+
+モデム回線を切断します (<tt>/etc/ppp/kermit.hup</tt>):
+<verb>
+set line /dev/tty01	; put your modem device here
+set speed 19200
+set file type binary
+set file names literal
+set win 8
+set rec pack 1024
+set send pack 1024
+set block 3
+set term bytesize 8
+set command bytesize 8
+set flow none
+
+pau 1
+out +++
+inp 5 OK
+out ATH0\13
+echo \13
+exit
+</verb>
+
+
+<p>次は <tt>kermit</tt> の代わりに <tt>chat</tt> を使う方法です.
+
+<em>原作: &a.rhuff;.</em>
+
+<p>pppd 接続を確立するためには, 次の二つのファイルの設定だけで十分です.
+
+<p><tt>/etc/ppp/options</tt>:
+<verb>
+ /dev/cuaa1 115200
+
+crtscts		# enable hardware flow control
+modem		# modem control line
+connect "/usr/bin/chat -f /etc/ppp/login.chat.script"
+noipdefault	# remote PPP server must supply your IP address.
+		# if the remote host doesn't send your IP during
+		# IPCP negotiation, remove this option
+passive		# wait for LCP packets
+domain <your.domain>	# put your domain name here
+
+:		# put the IP of remote PPP host here
+		# it will be used to route packets via PPP link
+		# if you didn't specified the noipdefault option
+		# change this line to <local_ip>:<remote_ip>
+
+defaultroute	# put this if you want that PPP server will be
+		# your default router
+</verb>
+
+
+<p><tt>/etc/ppp/login.chat.script</tt>:
+
+(実際には一行になります.)
+
+<verb>
+ABORT BUSY ABORT 'NO CARRIER' "" AT OK ATDT<phone.number>
+ CONNECT "" TIMEOUT 10 ogin:-\\r-ogin: <login-id>
+ TIMEOUT 5 sword: <password>
+</verb>
+
+
+正しくインストールし編集した後は, 必要な事はこれだけです
+
+<p><tt>pppd</tt>.
+
+
+<em> このサンプルは主に Trev Roydhouse &lt;Trev.Roydhouse@f401.n711.z3.fidonet.org&gt;
+から寄せられた情報に基づいており, 承諾を得て使用しています.</em>
+
+
+<sect1><heading>PPP サーバとしての動作</heading>
+
+<p><tt>/etc/ppp/options</tt>:
+<verb>
+crtscts				# Hardware flow control
+netmask 255.255.255.0		# netmask ( not required )
+192.114.208.20:192.114.208.165  # ip's of local and remote hosts
+				# local ip must be different from one
+				# you assigned to the ethernet ( or other )
+				# interface on your machine.
+				# remote IP is ip address that will be 
+				# assigned to the remote machine
+domain ppp.foo.com		# your domain
+passive				# wait for LCP
+modem				# modem line
+</verb>
+
+下記のような <tt>/etc/ppp/pppserv</tt> スクリプトで, そのマシンを
+PPP サーバにすることができます.
+<verb>
+#!/bin/sh 
+ps ax |grep pppd |grep -v grep
+pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing pppd, PID=' ${pid}
+        kill ${pid}
+fi
+ps ax |grep kermit |grep -v grep
+pid=`ps ax |grep kermit |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing kermit, PID=' ${pid}
+        kill -9 ${pid}
+fi
+
+# reset ppp interface
+ifconfig ppp0 down
+ifconfig ppp0 delete
+
+# enable autoanswer mode
+kermit -y /etc/ppp/kermit.ans
+
+# run ppp
+pppd /dev/tty01 19200
+</verb>
+
+PPP サーバを終了するには, この <tt>/etc/ppp/pppservdown</tt> スクリプト
+を使用します:
+<verb>
+#!/bin/sh 
+ps ax |grep pppd |grep -v grep
+pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing pppd, PID=' ${pid}
+        kill ${pid}
+fi
+ps ax |grep kermit |grep -v grep
+pid=`ps ax |grep kermit |grep -v grep|awk '{print $1;}'`
+if [ "X${pid}" != "X" ] ; then
+        echo 'killing kermit, PID=' ${pid}
+        kill -9 ${pid}
+fi
+ifconfig ppp0 down
+ifconfig ppp0 delete
+
+kermit -y /etc/ppp/kermit.noans
+</verb>
+
+下記の kermit スクリプトは, モデムの自動応答機能を有効, または無効にします
+(<tt>/etc/ppp/kermit.ans</tt>):
+<verb>
+set line /dev/tty01
+set speed 19200
+set file type binary
+set file names literal
+set win 8
+set rec pack 1024
+set send pack 1024
+set block 3
+set term bytesize 8
+set command bytesize 8
+set flow none
+
+pau 1
+out +++
+inp 5 OK
+out ATH0\13
+inp 5 OK
+echo \13
+out ATS0=1\13	; change this to out ATS0=0\13 if you want to disable
+		; autoanswer mode
+inp 5 OK
+echo \13
+exit
+</verb>
+
+この <tt>/etc/ppp/kermit.dial</tt> スクリプトは, リモートホストに
+ダイヤルし, 認証手続きをするのに使用します. あなたは必要に応じて, これを
+変更しないといけないでしょう. あなたのユーザ名とパスワードをこの
+スクリプトに書かなければいけませんし, モデムやリモートホストからの
+応答によっては, 入力待ちの文を変更する必要もあります.
+<verb>
+;
+; put the com line attached to the modem here:
+;
+set line /dev/tty01
+;
+; put the modem speed here:
+;
+set speed 19200
+set file type binary		; full 8 bit file xfer
+set file names literal
+set win 8
+set rec pack 1024
+set send pack 1024
+set block 3
+set term bytesize 8
+set command bytesize 8
+set flow none
+set modem hayes
+set dial hangup off
+set carrier auto		; Then SET CARRIER if necessary,
+set dial display on		; Then SET DIAL if necessary,
+set input echo on
+set input timeout proceed
+set input case ignore
+def \%x 0			; login prompt counter
+goto slhup
+
+:slcmd				; put the modem in command mode
+echo Put the modem in command mode.
+clear				; Clear unread characters from input buffer
+pause 1
+output +++			; hayes escape sequence
+input 1 OK\13\10		; wait for OK
+if success goto slhup
+output \13
+pause 1
+output at\13
+input 1 OK\13\10
+if fail goto slcmd		; if modem doesn't answer OK, try again
+
+:slhup				; hang up the phone
+clear				; Clear unread characters from input buffer
+pause 1
+echo Hanging up the phone.
+output ath0\13			; hayes command for on hook
+input 2 OK\13\10
+if fail goto slcmd		; if no OK answer, put modem in command mode
+
+:sldial				; dial the number
+pause 1
+echo Dialing.
+output atdt9,550311\13\10		; put phone number here
+assign \%x 0			; zero the time counter
+
+:look
+clear				; Clear unread characters from input buffer
+increment \%x			; Count the seconds
+input 1 {CONNECT }
+if success goto sllogin
+reinput 1 {NO CARRIER\13\10}
+if success goto sldial
+reinput 1 {NO DIALTONE\13\10}
+if success goto slnodial
+reinput 1 {\255}
+if success goto slhup
+reinput 1 {\127}
+if success goto slhup
+if < \%x 60 goto look
+else goto slhup
+
+:sllogin			; login
+assign \%x 0			; zero the time counter
+pause 1
+echo Looking for login prompt.
+
+:slloop
+increment \%x			; Count the seconds
+clear				; Clear unread characters from input buffer
+output \13
+;
+; put your expected login prompt here:
+;
+input 1 {Username: }
+if success goto sluid
+reinput 1 {\255}
+if success goto slhup
+reinput 1 {\127}
+if success goto slhup
+if < \%x 10 goto slloop		; try 10 times to get a login prompt
+else goto slhup			; hang up and start again if 10 failures
+
+:sluid
+;
+; put your userid here:
+;
+output ppp-login\13
+input 1 {Password: }
+;
+; put your password here:
+;
+output ppp-password\13
+input 1 {Entering SLIP mode.}
+echo
+quit
+
+:slnodial
+echo \7No dialtone.  Check the telephone line!\7
+exit 1
+
+; local variables:
+; mode: csh
+; comment-start: "; "
+; comment-start-skip: "; "
+; end:
+</verb>
+
+<!--
+###################################################################
+Gennady B. Sorokopud ( gena@NetVision.net.il ) 24/10/94 12:00
+-->
+

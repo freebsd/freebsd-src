@@ -1,0 +1,177 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.58 -->
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
+
+<!-- Conditional flags for this version of the document -->
+<!ENTITY % boothelp.only "IGNORE">
+<!ENTITY % handbook.only "INCLUDE">
+
+<!-- Entity shorthand for authors' names and email addresses -->
+<!ENTITY % authors SYSTEM "authors.sgml">
+%authors;
+
+<!-- Entity shorthand for translator's names and email addresses -->
+<!ENTITY % jmembers SYSTEM "jmembers.sgml">
+%jmembers;
+
+<!-- Entity shorthand for mailing list email addresses -->
+<!ENTITY % lists SYSTEM "lists.sgml">
+%lists;
+
+<!-- Entity definitions for all the parts -->
+<!ENTITY % sections SYSTEM "sections.sgml">
+%sections;
+
+<!-- The currently released version of FreeBSD -->
+<!ENTITY rel.current CDATA "2.1.5">
+
+]>
+
+<linuxdoc>
+  <book>
+
+      <title>FreeBSD ハンドブック</title>
+      <author>
+	<name>FreeBSD ドキュメンテーションプロジェクト</name>
+      </author>
+      <date>1996年7月</date>
+
+<abstract> FreeBSD へようこそ! このハンドブックは <bf>FreeBSD Release
+&rel.current;</bf> のインストールおよび日常での使い方について記述したものです. 
+本書は<bf>現在進行中の作業</bf> であって, 多くの個人の手からなる仕事です. 
+多くのセクションはまだ存在しませんし, いま存在するセクションのいくつかは
+アップデートされる必要があります. 
+この FreeBSD ドキュメンテーションプロジェクトを手伝うことに興味があるならば, 
+&a.doc; まで電子メールを送ってください.  
+このドキュメントの最新バージョンは 
+<url url="http://www.FreeBSD.ORG/" name="FreeBSD World Wide Web サーバ">
+からいつでも入手できます. 
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/docs "name="FreeBSD FTP サーバ"> 
+か, または数多くある<ref id="mirrors" name="ミラーサイト">のうちの一つ
+から ascii, LaTeX, postscript, HTML などのファイル形式の中からダウンロード
+してください. </abstract>
+      <toc>
+
+<!-- ************************************************************ -->			
+
+<part><heading>基礎</heading>
+
+    <chapt><heading>はじめに</heading>
+
+<p> FreeBSD は, Intel アーキテクチャ (x86) ベースの PC のための 
+4.4BSD-Lite をベースとしたオペレーティングシステムです. 
+FreeBSD の概要については, 
+<ref id="nutshell" name="FreeBSD とは">をご覧ください. 
+このプロジェクトの歴史については, <ref id="history" name="FreeBSD 小史">
+を読んでください. 最新のリリースについての記述は, 
+<ref id="relnotes" name="現在のリリースについて">をご覧ください.
+FreeBSD プロジェクトへの何らかの貢献 (ソースコード, 機器, 資金の提供など) 
+について, 興味があれば, <ref id="submitters" name="FreeBSD への貢献">
+の章をご覧ください.
+
+      &nutshell;
+      &history;
+      &goals;
+      &development;
+      &relnotes;
+
+    &install;
+    &basics;
+
+<chapt><heading>アプリケーションのインストール</heading>
+      <sect><heading>* パッケージのインストール</heading>
+        &ports;
+
+
+<!-- ************************************************************ -->	      
+
+       <part><heading>システム管理</heading>
+
+&kernelconfig;
+    <chapt><heading>ユーザ, グループ, セキュリティ</heading>
+      &crypt;
+      &skey;
+      &kerberos;
+      &firewalls;
+
+    &printing;
+
+    &quotas;
+    <chapt><heading>X ウィンドウシステム</heading>
+<p> この節の完成は保留されています. 
+    そのかわりに <url url="http://www.xfree86.org/"
+         name="The XFree86 Project, Inc">
+    のドキュメントを参考にしてください. 
+
+    &hw;
+
+<!-- ************************************************************ -->	      
+
+    <part><heading>ネットワーク通信</heading>
+
+    <chapt><heading>ネットワークの基礎</heading>
+      <sect><heading>* イーサネットの基礎</heading>
+      <sect><heading>* シリアル接続の基礎</heading>
+      &term;
+      &dialup;
+
+    <chapt><heading> PPPとSLIP </heading>
+
+<p> もしあなたがモデムを使ってインターネットに接続したり, 
+FreeBSD を使って, 他の人々にインターネットへのダイヤルアップ接続を
+提供しようとしているのでしたら, PPP または SLIP 接続を選ぶことができます. 
+PPP 接続には, 2 種類の方法が提供されています. 
+<em>ユーザ</em> PPP (iijpppとも呼ばれます) と <em>カーネル</em> PPP です. 
+両方の PPP の設定手順と, SLIP の設定方法については以下の章に書かれています.
+
+      &userppp;
+      &ppp;
+      &slipc; 
+      &slips;
+
+    <chapt><heading> 高度なネットワーク </heading>
+      &routing;
+      &nfs;
+      &diskless;
+      <sect><heading>* イエローページ/NIS </heading>
+      &isdn;	
+
+    <chapt><heading>* 電子メール </heading>
+
+
+
+<!-- ************************************************************ -->	      
+
+    <part><heading> さらに進んだ話題 </heading>
+    &current;
+    &stable;
+    &synching; 
+    &submitters;
+    &troubleshooting;
+    &kerneldebug;
+    &linuxemu;
+    <chapt><heading> FreeBSD の内部</heading>
+      &booting;
+      &memoryuse;
+      &dma;
+
+
+<!-- ************************************************************ -->	      
+
+    <part><heading>付録</heading>
+
+    &mirrors;
+    &bibliography;
+    &eresources;
+    &contrib;
+    &policies;
+    &pgpkeys;
+    &jcontrib;
+
+<!--    &glossary; -->
+   
+  </book>
+</linuxdoc>
+

@@ -1,0 +1,571 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.15 -->
+
+<!--
+<!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
+<linuxdoc><book><chapt>foo
+-->
+      <sect><heading>現在のリリースについて<label id="relnotes"></heading>
+
+	<p>FreeBSD は自由に利用でき Intel i386/i486/Pentium(とその互換 CPU)
+	  の PCで動作する, 4.4BSD-Lite ベースの全ソースつきのリリース
+	  です. これはもともとにカリフォルニア大学バークレイ校 CSRGグループの
+	  ソフトウェアがベースとなっており, NetBSD, 386BSD, そして Free
+	  Software Foundation のソフトウェアなどにより拡張されています. 
+
+	  1年前の FreeBSD 2.0 のリリースからみると, FreeBSD は性能, 機能,
+	  安定性の面で劇的に改善されました. もっとも大きな変化は VM システムに
+	  おける改良で, 統合化された VM/file バッファキャッシュを用いる
+	  ことで性能を向上させながらも FreeBSD のメモリの使用量を減らすことが
+	  できたことです. おかげで, 最低 5MB メモリという制約上でも動作する
+	  ようになりました. その他の拡張としては NIS のクライアントとサーバの
+	  完全サポート, トランザクション TCP のサポート, ダイヤルオンデマンド
+	  PPP, 改良 SCSI サブシステム, ISDN の初期サポート,
+	  FDDI や Fast Ethernet(100Mbps)などのサポート,
+	  Adaptech 2940 (WIDE と narrow)のサポートの改良と数百件のバグの修正,
+	  などがあります. 
+
+	  私たちはたくさんのユーザからのコメントや提案をまじめに受け取り,
+	  私たちが正しいと考え, かつ導入の手順が分かりやすいものを提供しようと
+	  努力しています. この(継続的に進化する)プロセスに対するあなたの意見を
+	  心からお待ちしています. 
+
+	  FreeBSD では基本配布セットに加え, 移植されたソフトウェア集
+	  として 350 を越える人気の高いプログラムを提供しています.
+	  ports (移植ソフトウェア) には http(WWW)サーバから, ゲーム, 言語,
+	  エディタまでありとあらゆるものが含まれています. portsはオリジナル
+	  ソースに対する「差分」という形で表現されており, すべての portsを
+	  集めても 10MB程度にしかなりません. こうすることで ports の更新を
+	  容易にし, portsに必要なディスクスペースを小さくすることができます.
+	  portsをコンパイルするには, インストールしたいと思っているプログラムの
+	  ディレクトリに移動し, make と叩くだけで, あとはすべてシステムがやって
+	  くれます. どの portsもオリジナルの配布セットを動的に CDROM または
+	  近くの FTP サーバから取ってくるので, ディスクは構築したいと思って
+	  いる portsの分だけを準備しておけば十分です. ほとんどの portsは,
+	  すでにコンパイルされた状態で ``package'' として提供されており,
+	  ソースコードからコンパイルしたくない場合, これを使うと (pkg_add と
+	  いうコマンドで) 簡単にインストールできます. 
+
+	  FreeBSD 2.1 以降のマシンであれば, <bf>/usr/share/doc</bf>
+	  ディレクトリにインストールの手順や FreeBSD を利用する上で有用な
+	  ドキュメントがたくさんあります.
+	  これらのドキュメントは, HTML ブラウザを使って, 以下の URL から
+	  参照することができます. 
+
+	  <descrip>
+	    <tag>FreeBSD ハンドブック (英文オリジナル)</tag>
+	      <htmlurl url="file:/usr/share/doc/handbook/handbook.html">
+
+	    <tag>FreeBSD に関する FAQ</tag>
+          <htmlurl url="file:/usr/share/doc/FAQ/FAQ.html">
+	  </descrip>
+
+	  また, <htmlurl
+	    url="http://www.freebsd.org"
+	    name="http://www.freebsd.org"> にはマスタ
+	  (かなり頻繁に更新されます)がありますので, こちらも参照してください. 
+
+	  合衆国の輸出規制のため, FreeBSD のコア配布セットには DES のコードは
+	  含まれていません. 合衆国国内に限り, DES を使うプログラムなどが,
+	  コア配布セットに加えるパッケージとして提供されています. 
+	  誰でも使えるパッケージは, 別途, 合衆国国外で提供されています. 
+	  合衆国国外からも自由に取得可能な DES の配布セットに関する
+	  詳細は, <htmlurl
+      url="../FAQ/FAQ.html" name="FreeBSD FAQ"> にあります.
+
+	  FreeBSD 上で必要とされるセキュリティがパスワードだけであり, Sun や
+	  DEC などの別のホストから暗号化されたパスワードをコピーする必要が
+	  ないのであれば, FreeBSD の MD5 ベースのセキュリティで十分です.
+	  この標準のセキュリティモデルは DES よりも適していると私たちは思って
+	  いますし, また, やっかいな輸出規制にもひっかかることはありません. 
+	  あなたが合衆国国外にいるなら(あるいは国内にいても)一度試してみて
+	  ください!
+
+<![ IGNORE [
+	<p>Since our first release of FreeBSD 1.0 nearly two
+	  years ago, FreeBSD has changed dramatically.  Since
+	  release 2.0, FreeBSD has been based on the Berkeley
+	  4.4BSD-Lite code rather than the Net2 code used for
+	  previous versions.  In addition to clearing the legal
+	  issues that surrounded the Net2 code, the port to 4.4
+	  has also brought in numerous new features, filesystems
+	  and enhanced driver support.
+
+          Since our release of FreeBSD 2.0 in November of 1994,
+	  the performance, feature set, and stability of FreeBSD
+	  has improved dramatically.  The largest change is a
+	  revamped Virtual Memory (VM) system with a merged
+	  virtual memory and file buffer cache.  This increases
+	  performance while reducing FreeBSD's memory footprint,
+	  making a system with 4 megabytes of RAM a more
+	  acceptable minimum.  Other enhancements include full
+	  NIS client and server support, transaction TCP support,
+	  dial on demand PPP, an improved SCSI subsystem, early
+	  support for ISDN, support for FDDI and 100Mbit Fast
+	  Ethernet adapters, improved support for the Adaptec
+	  2940 and hundreds of bug fixes.
+
+	  We have also taken the comments and suggestions of many
+	  of our users to heart and have attempted to provide
+	  what we hope is a more sane and easily understood
+	  installation process.  Your feedback on this constantly
+	  evolving process is especially welcome!
+
+	  In addition to the base distributions, FreeBSD offers a
+	  new ported software collection with some 270 commonly
+	  sought-after programs.  The list of ports ranges from
+	  World Wide Web (http) servers, to games, languages,
+	  editors and almost everything in between.  The entire
+	  ports collection requires only 10MB of storage because
+	  each port contains only the changes required for the
+	  source code to compile on FreeBSD and the information
+	  necessary to automatically retrieve the original
+	  sources.  The original distribution for each port you
+	  build is automatically retrieved off of CD-ROM or a via
+	  anonymous ftp, so you need only enough disk space to
+	  build the ports you want.  Each port is also provided
+	  as a pre-compiled package which can be installed with
+	  the <tt>pkg_add(1)</tt> command for those who do not
+	  wish to compile their own ports from source.  See <ref
+	  id="ports" name="The Ports Collection"> for a more
+	  complete description.
+
+<!-- XXX make xref 
+	  For a list of contributors and a general project
+	  description, please see the file "CONTRIB.FreeBSD"
+	  which should be bundled with your binary distribution.
+
+	  Also see the "REGISTER.FreeBSD" file for information on
+	  registering with the "Free BSD user counter".  This
+	  counter is for ALL freely available variants of BSD,
+	  not just FreeBSD, and we urge you to register yourself
+	  with it.
+-->
+
+	  The core of FreeBSD does not contain DES code which
+	  would inhibit its being exported outside the United
+	  States.  An add-on package, for use only in the United
+	  States, contains the programs that normally use DES.
+	  The auxiliary packages provided separately can be used
+	  by anyone.  A freely exportable European distribution
+	  of DES for our non-U.S. users also exists and is
+	  described in the <url
+	  url="http://www.freebsd.org/FAQ" name="FreeBSD
+	  FAQ">.  If password security for FreeBSD is all you
+	  need, and you have no requirement for copying encrypted
+	  passwords from other hosts using DES into FreeBSD
+	  password entries, then FreeBSD's MD5 based security may
+	  be all you require.  We feel that our default security
+	  model is more than a match for DES, and without any
+	  messy export issues to deal with.
+
+	  FreeBSD 2.0.5 represents the culmination of 2 years of
+	  work and many thousands of man hours put in by an
+	  international development team.  We hope you enjoy it!
+
+	<sect1><heading>New feature highlights</heading>
+
+	  <p>The following features were added or substantially
+	    improved between the release of 2.0 and this 2.0.5
+	    release.  In order to facilitate better
+	    communication, the person, or persons, responsible
+	    for each enhancement is noted.  Any questions
+	    regarding the new functionality should be directed to
+	    them first.
+
+	  <sect2><heading>Kernel</heading>
+
+	    <p>
+	      <descrip>
+
+		<tag>Merged VM-File Buffer Cache</tag> A merged
+		  VM/buffer cache design greatly enhances overall
+		  system performance and makes it possible to do
+		  a number of more optimal memory allocation
+		  strategies that were not possible before.
+
+		  Owner: &a.davidg; and &a.dyson;
+
+		<tag>Network PCB hash optimization</tag> For
+		  systems with a great number of active TCP
+		  connections (WEB and ftp servers, for example),
+		  this greatly speeds up the lookup time required
+		  to match an incoming packet up to its
+		  associated connection.
+
+		  Owner: &a.davidg;
+
+		<tag>Name cache optimization</tag> The name-cache
+		  would cache all files of the same name to the
+		  same bucket, which would put for instance all
+		  ".." entries in the same bucket.  We added the
+		  parent directory version to frustrate the hash,
+		  and improved the management of the cache in
+		  various other ways while we were at it.
+
+	          Owner: &a.phk; and &a.davidg;
+
+		<tag>Less restrictive swap-spaces</tag> The need
+		  to compile the names of the swap devices into
+		  the kernel has been removed.  Now
+		  <tt>swapon(8)</tt> will accept any block
+		  devices, up to the maximum number of swap
+		  devices configured in the kernel.
+
+		  Owner: &a.phk; and &a.davidg;
+
+		<tag>Hard Wired SCSI Devices</tag> Prior to
+		  2.0.5, FreeBSD performed dynamic assignment of
+		  unit numbers to SCSI devices as they were
+		  probed, allowing a SCSI device failure to
+		  possibly change unit number assignment.  This
+		  could cause filesystems other disks in the
+		  system to be incorrectly mounted, or not
+		  mounted at all.  Hard wiring allows static
+		  allocation of unit numbers (and hence device
+		  names) to scsi devices based on SCSI ID and
+		  bus.  SCSI configuration occurs in the kernel
+		  config file.  Samples of the configuration
+		  syntax can be found in the <tt>scsi(4)</tt> man
+		  page or the LINT kernel config file.
+
+		  Owner: &a.dufault;
+
+                  Sources involved: <tt>sys/scsi/*</tt>
+	          <tt>usr.sbin/config/*</tt>
+
+		<tag>Slice Support</tag> FreeBSD now supports a
+		  <em>slice</em> abstraction which enhances
+		  FreeBSD's ability to share disks with other
+		  operating systems.  This support will allow
+		  FreeBSD to inhabit DOS extended partitions.
+
+		  Owner: &a.bde;
+
+		  Sources involved: <tt>sys/disklabel.h</tt>
+		  <tt>sys/diskslice.h</tt> <tt>sys/dkbad.h</tt>
+		  <tt>kern/subr_diskslice.c</tt> <tt>kern/subr_dkbad.c</tt>
+		  <tt>i386/isa/diskslice_machdep.c</tt> <tt>i386/isa/wd.c</tt>
+		  <tt>scsi/sd.c</tt> <tt>dev/vn/vn.c</tt>
+
+		<tag>Support for Ontrack Disk Manager Version 6.0</tag>
+                  Support has been added for disks
+		  which use Ontrack Disk Manager.  The fdisk
+		  program does <em>not</em> know about it
+		  however, so make all changes using the install
+		  program on the boot.flp or the Ontrack Disk
+		  Manager tool under MS-DOS.
+
+		  Owner: &a.phk;
+
+		<tag>Bad144 is back and working</tag> Bad144
+		  works again, though the semantics are slightly
+		  different than before in that the bad-spots are
+		  kept relative to the slice rather than absolute
+		  on the disk.
+
+		  Owner: &a.bde; and &a.phk;
+
+	      </descrip>
+
+      <sect2><heading>New device support</heading>
+
+	<sect3><heading>SCSI and CDROM devices</heading>
+
+	  <p><descrip>
+
+	      <tag>Matsushita/Panasonic (Creative) CD-ROM driver</tag> 
+                The Matsushita/Panasonic CR-562 and
+		CR-563 drives are now supported when connected to
+		a Sound Blaster or 100% compatible host adapter.
+		Up to four host adapters are supported for a
+		total of 16 CD-ROM drives.  The audio functions
+		are supported with the Karoke variable speed
+		playback.
+
+		Owner: &a.uhclem;
+
+		Sources involved: <tt>isa/matcd</tt>
+
+	      <tag>Adaptec 2742/2842/2940 SCSI driver</tag> The
+		original 274x/284x driver has evolved
+		considerably since the 2.0 release of FreeBSD.
+		We now offer full support for the 2940 series as
+		well as the Wide models of these cards.  The
+		arbitration bug that caused problems with fast
+		devices has been corrected and
+		<em>experimental</em> tagged queuing support has
+		been added (kernel option
+		<tt>AHC_TAGENABLE</tt>).  John Aycock has also
+		released the sequencer code under a Berkeley
+		style copyright making the driver entirely clean
+		of the GPL.
+
+		Owner: &a.gibbs;
+
+		Sources involved: <tt>isa/aic7770.c</tt> <tt>pci/aic7870.c</tt>
+		<tt>i386/scsi/*</tt> <tt>sys/dev/aic7xxx/*</tt>
+
+	      <tag>NCR5380/NCR53400 SCSI (ProAudio Spectrum) driver</tag>
+                Owner: &a.core;
+
+		Submitted by: Serge Vakulenko (vak@cronyx.ru)
+
+		Sources involved: <tt>isa/ncr5380.c</tt>
+
+	      <tag>Sony CDROM driver</tag> Owner: &a.core;
+
+		Submitted by: Mikael Hybsch (micke@dynas.se)
+
+		Sources involved: <tt>isa/scd.c</tt>
+
+	    </descrip>
+
+	<sect3><heading>Serial devices</heading>
+
+	  <p><descrip>
+
+	      <tag>SDL Communications Riscom/8 Serial Board Driver</tag> 
+	        Owner: &a.ache;
+
+		Sources involved: <tt>isa/rc.c</tt> <tt>isa/rcreg.h</tt>
+
+	      <tag>Cyclades Cyclom-y Serial Board Driver</tag>
+		Owner: &a.bde;
+
+		Submitted by: Andrew Werple
+		(andrew@werple.apana.org.au) and Heikki Suonsivu
+		(hsu@cs.hut.fi)
+
+		Obtained from: NetBSD
+
+		Sources involved: <tt>isa/cy.c</tt>
+
+	      <tag>Cronyx/Sigma sync/async serial driver</tag>
+		Owner: &a.core;
+
+		Submitted by: Serge Vakulenko
+
+		Sources involved: <tt>isa/cronyx.c</tt>
+
+	    </descrip>
+
+      <sect2><heading>Networking</heading>
+
+	<p><descrip>
+
+	    <tag>Diskless booting</tag> Diskless booting in 2.0.5
+	      is much improved over previous releases.  The boot
+	      program is in <tt>src/sys/i386/boot/netboot</tt>,
+	      and can be run from an MS-DOS system or burned into
+	      an EPROM.  WD, SMC, 3COM and Novell ethernet cards
+	      are currently supported. Local swapping is also
+	      supported.
+
+	    <tag>DEC DC21140 Fast Ethernet driver</tag> This
+	      driver supports any of the numerous NICs using the
+	      DC21140 chipset including the 100Mb DEC DE-500-XA
+	      and SMC 9332.
+
+	      Owner: &a.core;
+
+	      Submitted by: Matt Thomas (thomas@lkg.dec.com)
+
+	      Sources involved: <tt>pci/if_de.c</tt> <tt>pci/dc21040.h</tt>
+
+
+	    <tag>DEC FDDI (DEFPA/DEFEA) driver</tag> Owner: &a.core;
+
+	      Submitted by: Matt Thomas (thomas@lkg.dec.com)
+
+	      Sources involved: <tt>pci/if_pdq.c</tt> <tt>pci/pdq.c</tt>
+	      <tt>pci/pdq_os.h</tt> <tt>pci/pdqreg.h</tt>
+
+
+	    <tag>3Com 3c505 (Etherlink/+) NIC driver</tag> Owner:
+	      &a.core;
+
+	      Submitted by: Dean Huxley (dean@fsa.ca)
+
+	      Obtained from: NetBSD
+
+	      Sources involved: <tt>isa/if_eg.c</tt>
+
+
+	    <tag>Fujitsu MB86960A family of NICs driver</tag>
+	      Owner: &a.core;
+
+	      Submitted by: M.S. (seki@sysrap.cs.fujitsu.co.jp)
+
+	      Sources involved: <tt>isa/if_fe.c</tt>
+
+
+	    <tag>Intel EtherExpress driver</tag> Owner: Rodney
+	      W. Grimes (rgrimes@FreeBSD.org)
+
+	      Sources involved: <tt>isa/if_ix.c</tt> <tt>isa/if_ixreg.h</tt>
+
+
+	    <tag>3Com 3c589 driver</tag> Owner: &a.core;
+
+	      Submitted by: "HOSOKAWA Tatsumi"
+	      (hosokawa@mt.cs.keio.ac.jp), Seiji Murata
+	      (seiji@mt.cs.keio.ac.jp) and Noriyuki Takahashi
+	      (hor@aecl.ntt.jp)
+
+	      Sources involved: <tt>isa/if_zp.c</tt>
+
+
+	    <tag>IBM Credit Card Adapter driver</tag> Owner: &a.core;
+
+	      Submitted by: "HOSOKAWA Tatsumi"
+	      (hosokawa@mt.cs.keio.ac.jp), 
+
+	      Sources involved: <tt>isa/pcic.c</tt> <tt>isa/pcic.h</tt>
+
+
+	    <tag>EDSS1 and 1TR6 ISDN interface driver</tag>
+	      Owner: &a.core;
+
+	      Submitted by: Dietmar Friede
+	      (dfriede@drnhh.neuhaus.de) and Juergen Krause
+	      (jkr@saarlink.de)
+
+	      Sources involved: <tt>gnu/isdn/*</tt>
+
+	  </descrip>
+
+      <sect2><heading>Miscellaneous drivers</heading>
+
+	<p><descrip>
+
+	    <tag>Joystick driver</tag> Owner: &a.jmz;
+
+	      Sources involved: <tt>isa/joy.c</tt>
+	      
+	    <tag>National Instruments ``LabPC'' driver</tag> Owner:
+	      &a.dufault;
+
+	      Sources involved: <tt>isa/labpc.c</tt>
+	      
+	    <tag>WD7000 driver</tag> Owner: Olof Johansson
+	      (offe@ludd.luth.se)
+	      
+	    <tag>Pcvt Console driver</tag> Owner: &a.joerg;
+
+	      Submitted by: &a.hm;
+
+	      Sources involved: <tt>isa/pcvt/*</tt>
+
+	    <tag>BSD-audio emulator for VAT driver</tag> Owner:
+	      Amancio Hasty (ahasty@FreeBSD.org) and
+	      &a.pst;
+
+	      Sources involved: <tt>isa/sound/vat_audio.c</tt>
+	      <tt>isa/sound/vat_audioio.h</tt>
+
+	    <tag>National Instruments AT-GPIB and AT-GPIB/TNT GPIB driver</tag>
+              Owner: &a.core;
+
+	      Submitted by: Fred Cawthorne
+	      (fcawth@delphi.umd.edu)
+
+	      Sources involved: <tt>isa/gpib.c</tt> <tt>isa/gpib.h</tt>
+	      <tt>isa/gpibreg.h</tt>
+
+	    <tag>Genius GS-4500 hand scanner driver</tag> Owner:
+	      &a.core;
+
+	      Submitted by: Gunther Schadow
+	      (gusw@fub46.zedat.fu-berlin.de)
+
+	      Sources involved: <tt>isa/gsc.c</tt> <tt>isa/gscreg.h</tt>
+
+	    <tag>CORTEX-I Frame Grabber</tag> Owner: &a.core;
+
+	      Submitted by: Paul S. LaFollette, Jr. (
+
+	      Sources involved: <tt>isa/ctx.c</tt> <tt>isa/ctxreg.h</tt>
+
+
+	    <tag>Video Spigot video capture card</tag> Owner: Jim
+	      Lowe
+	      
+	  </descrip>
+
+    <sect1><heading>Experimental features</heading>
+
+      <p><descrip> 
+
+	  <tag>UNIONFS and LFS</tag> The unionfs and LFS file
+	    systems are known to be severely broken in FreeBSD
+	    2.0.5.  This is in part due to old bugs that we
+	    have not had time to resolve yet and the need to
+	    update these file systems to deal with the new VM
+	    system.  We hope to address these issues in a later
+	    release of FreeBSD.
+
+	  <tag>iBCS2 Support</tag> FreeBSD now supports running
+	    iBCS2 compatible binaries.  Currently SCO UNIX 3.2.2
+	    and 3.2.4, and ISC 2.2 COFF are supported.  The iBCS2
+	    emulator is in its early stages and has not been
+	    extensively tested, but it is functional.  Most of
+	    SCO's 3.2.2 binaries work, as does an old
+	    INFORMIX-2.10 for SCO. Further testing is necessary
+	    to complete this project. There is also work under
+	    way for ELF and XOUT loaders, and most of the svr4
+	    syscall wrappers are written.
+
+	    Owner: &a.sos; and &a.sef;
+
+	    Sources involved: <tt>sys/i386/ibcs2/*</tt> and misc
+	    kernel changes.
+
+	</descrip>
+<!--
+    <sect1><heading>Reporting problems, making suggestions, submitting code</heading>
+
+      <p>Your suggestions, bug reports and contributions of code
+	are always valued - please do not hesitate to report any
+	problems you may find (preferably with a fix attached if
+	you can!).
+
+	The preferred method to submit bug reports from a machine
+	with Internet mail connectivity is to use the send-pr
+	command.  Bug reports will be dutifully filed by our
+	faithful bug-filer program and you can be sure that we will
+	do our best to respond to all reported bugs as soon as
+	possible.
+
+	If, for some reason, you are unable to use the send-pr
+	command to submit a bug report, you can try to send it
+	to: <tscreen>bugs@FreeBSD.org</tscreen> Otherwise, for
+	any questions or suggestions, please send mail to:
+	<tscreen>questions@FreeBSD.org</tscreen>
+
+	Additionally, being a volunteer effort, we are always
+	happy to have extra hands willing to help - there are
+	already far more enhancements to be done than we can ever
+	manage to do by ourselves!  To contact us on technical
+	matters, or with offers of help, you may send mail to:
+	<tscreen>hackers@FreeBSD.org</tscreen>
+
+	Since these mailing lists can experience significant
+	amounts of traffic, if you have slow or expensive mail
+	access and you are only interested in keeping up with
+	significant FreeBSD events, you may find it preferable to
+	subscribe to: <tscreen>announce@FreeBSD.org</tscreen>
+
+	All but the freebsd-bugs groups can be freely joined by
+	anyone wishing to do so.  Send mail to &a.majordomo
+	and include the keyword `help' on a
+	line by itself somewhere in the body of the message.
+	This will give you more information on joining the
+	various lists, accessing archives, etc.  There are a
+	number of mailing lists targeted at special interest
+	groups not mentioned here, so send mail to majordomo and
+	ask about them!
+
+-->
+]]>
