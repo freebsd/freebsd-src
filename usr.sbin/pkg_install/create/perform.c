@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.16 1995/04/10 08:01:52 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.17 1995/04/22 00:03:09 jkh Exp $";
 #endif
 
 /*
@@ -64,7 +64,7 @@ pkg_perform(char **pkgs)
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
-	if (Verbose)
+	if (Verbose && !PlistOnly)
 	    printf("Registering depends:");
 	while (Pkgdeps) {
 	    cp = strsep(&Pkgdeps, " \t\n");
@@ -74,7 +74,7 @@ pkg_perform(char **pkgs)
 		    printf(" %s", cp);
 	    }
 	}
-	if (Verbose)
+	if (Verbose && !PlistOnly)
 	    printf(".\n");
     }
     /* Slurp in the packing list */
