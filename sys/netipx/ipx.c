@@ -122,7 +122,7 @@ ipx_control(so, cmd, data, ifp, p)
 				  ifra->ifra_addr.sipx_addr))
 			    break;
 		    }
-		if (ia == NULL)
+		if (cmd == SIOCDIFADDR && ia == NULL)
 			return (EADDRNOTAVAIL);
 		/* FALLTHROUGH */
 
