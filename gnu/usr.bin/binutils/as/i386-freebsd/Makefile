@@ -5,8 +5,8 @@
 .include "${.CURDIR}/../Makefile.inc0"
 
 PROG=		as
-.if	${TARGET_ARCH} != "i386"
 NOMAN=		1
+.if	${TARGET_ARCH} != "i386"
 BINDIR=		/usr/libexec/cross/i386-freebsd
 .endif
 SRCS+=		obj-elf.c tc-i386.c
