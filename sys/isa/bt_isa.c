@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.11 1999/05/08 21:59:23 dfr Exp $
+ *	$Id: bt_isa.c,v 1.12 1999/05/22 15:45:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -125,6 +125,10 @@ bt_isa_probe(device_t dev)
 	 */
 	int	port_index;
         int	max_port_index;
+
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
 
 	port_index = 0;
 	max_port_index = BT_NUM_ISAPORTS - 1;
