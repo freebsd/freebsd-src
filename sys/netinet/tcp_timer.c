@@ -32,6 +32,7 @@
 
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
+#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -217,6 +218,7 @@ tcp_timer_2msl(xtp)
 		return;
 	}
 	INP_LOCK(inp);
+	tcp_free_sackholes(tp);
 	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
 		INP_UNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&tcbinfo);
@@ -497,6 +499,7 @@ tcp_timer_rexmt(xtp)
 		return;
 	}
 	callout_deactivate(tp->tt_rexmt);
+	tcp_free_sackholes(tp);
 	/*
 	 * Retransmission timer went off.  Message has not
 	 * been acked within retransmit interval.  Back off
