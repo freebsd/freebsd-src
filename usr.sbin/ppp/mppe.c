@@ -233,7 +233,7 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
   log_Printf(LogCCP, "MPPE: InitOptsOutput\n");
 
   if (!MPPE_MasterKeyValid) {
-    log_Printf(LogWARN, "MPPE: MasterKey is invalid,"
+    log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
                " MPPE is capable only with CHAP81 authentication\n");
     *(u_int32_t *)o->data = htonl(0x0);
     return;
