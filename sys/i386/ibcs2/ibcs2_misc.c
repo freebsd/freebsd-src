@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.19 1997/04/06 14:10:50 dfr Exp $
+ * $Id: ibcs2_misc.c,v 1.20 1997/05/07 20:05:44 peter Exp $
  */
 
 /*
@@ -653,10 +653,14 @@ ibcs2_getgroups(p, uap, retval)
 	if (SCARG(uap, gidsetsize)) {
 		SCARG(&sa, gidset) = stackgap_alloc(&sg, NGROUPS_MAX *
 						    sizeof(gid_t *));
+		iset = stackgap_alloc(&sg, SCARG(uap, gidsetsize) *
+				      sizeof(ibcs2_gid_t));
 	}
-	iset = stackgap_alloc(&sg, SCARG(uap, gidsetsize)*sizeof(ibcs2_gid_t));
 	if (error = getgroups(p, &sa, retval))
 		return error;
+	if (SCARG(uap, gidsetsize) == 0)
+		return 0;
+
 	for (i = 0, gp = SCARG(&sa, gidset); i < retval[0]; i++)
 		iset[i] = (ibcs2_gid_t)*gp++;
 	if (retval[0] && (error = copyout((caddr_t)iset,
