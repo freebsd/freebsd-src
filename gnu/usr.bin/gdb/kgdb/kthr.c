@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <defs.h>
+
 #include "kgdb.h"
 
 static uintptr_t dumppcb;
@@ -102,24 +104,59 @@ kgdb_thr_init(void)
 			    (uintptr_t)td.td_pcb;
 			kt->kstack = td.td_kstack;
 			kt->tid = td.td_tid;
+			kt->pid = p.p_pid;
+			kt->paddr = paddr;
 			first = kt;
 			addr = (uintptr_t)TAILQ_NEXT(&td, td_plist);
 		}
 		paddr = (uintptr_t)LIST_NEXT(&p, p_list);
 	}
-	curkthr = kgdb_thr_lookup(dumptid);
+	curkthr = kgdb_thr_lookup_tid(dumptid);
 	if (curkthr == NULL)
 		curkthr = first;
 	return (first);
 }
 
 struct kthr *
-kgdb_thr_lookup(int tid)
+kgdb_thr_lookup_tid(int tid)
 {
 	struct kthr *kt;
 
 	kt = first;
 	while (kt != NULL && kt->tid != tid)
+		kt = kt->next;
+	return (kt);
+}
+
+struct kthr *
+kgdb_thr_lookup_taddr(uintptr_t taddr)
+{
+	struct kthr *kt;
+
+	kt = first;
+	while (kt != NULL && kt->kaddr != taddr)
+		kt = kt->next;
+	return (kt);
+}
+
+struct kthr *
+kgdb_thr_lookup_pid(int pid)
+{
+	struct kthr *kt;
+
+	kt = first;
+	while (kt != NULL && kt->pid != pid)
+		kt = kt->next;
+	return (kt);
+}
+
+struct kthr *
+kgdb_thr_lookup_paddr(uintptr_t paddr)
+{
+	struct kthr *kt;
+
+	kt = first;
+	while (kt != NULL && kt->paddr != paddr)
 		kt = kt->next;
 	return (kt);
 }
@@ -138,4 +175,22 @@ kgdb_thr_select(struct kthr *kt)
 	pcur = curkthr;
 	curkthr = kt;
 	return (pcur);
+}
+
+char *
+kgdb_thr_extra_thread_info(int tid)
+{
+	struct kthr *kt;
+	struct proc *p;
+	static char comm[MAXCOMLEN + 1];
+
+	kt = kgdb_thr_lookup_tid(tid);
+	if (kt == NULL)
+		return (NULL);
+	p = (struct proc *)kt->paddr;
+	if (kvm_read(kvm, (uintptr_t)&p->p_comm[0], &comm, sizeof(comm)) !=
+	    sizeof(comm))
+		return (NULL);
+
+	return (comm);
 }
