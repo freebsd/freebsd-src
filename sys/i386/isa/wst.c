@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.16 1999/04/13 19:38:11 peter Exp $
+ *	$Id: wst.c,v 1.17 1999/04/28 10:53:06 dt Exp $
  */
 
 #include "wdc.h"
@@ -423,7 +423,7 @@ wststrategy(struct buf *bp)
     }
 
     if (bp->b_bcount > t->blksize*t->cap.ctl) {  
-	if (t->flags & WST_CTL_WARN == 0) {
+	if ((t->flags & WST_CTL_WARN) == 0) {
             printf("wst%d: WARNING: CTL exceeded %ld>%d\n", 
 		    lun, bp->b_bcount, t->blksize*t->cap.ctl);
 	    t->flags |= WST_CTL_WARN;
