@@ -568,8 +568,7 @@ dosetrlimit(td, which, limp)
 		if (limp->rlim_cur > RLIM_INFINITY / (rlim_t)1000000)
 			p->p_limit->p_cpulimit = RLIM_INFINITY;
 		else
-			p->p_limit->p_cpulimit = 
-			    (rlim_t)1000000 * limp->rlim_cur;
+			p->p_limit->p_cpulimit = limp->rlim_cur;
 		break;
 	case RLIMIT_DATA:
 		if (limp->rlim_cur > maxdsiz)
