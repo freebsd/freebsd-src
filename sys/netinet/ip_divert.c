@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.14 1997/09/13 15:40:55 peter Exp $
+ *	$Id: ip_divert.c,v 1.15 1997/09/14 03:10:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -269,7 +269,7 @@ static int
 div_attach(struct socket *so, int proto, struct proc *p)
 {
 	struct inpcb *inp;
-	int error;
+	int error, s;
 
 	inp  = sotoinpcb(so);
 	if (inp)
@@ -277,8 +277,13 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	if (p && (error = suser(p->p_ucred, &p->p_acflag)) != 0)
 		return error;
 
-	if ((error = soreserve(so, div_sendspace, div_recvspace)) ||
-	    (error = in_pcballoc(so, &divcbinfo, p)))
+	s = splnet();
+	error = in_pcballoc(so, &divcbinfo, p);
+	splx(s);
+	if (error)
+		return error;
+	error = soreserve(so, div_sendspace, div_recvspace);
+	if (error)
 		return error;
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_ip_p = proto;
