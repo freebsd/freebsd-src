@@ -8,10 +8,10 @@ all nologin clean cleandir depend lint tags:
 beforeinstall:
 .if ${MACHINE} == "sparc"
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/cpp.notraditional.sh ${DESTDIR}/usr/bin/cpp
+	    ${.CURDIR}/cpp.notraditional.sh ${DESTDIR}${BINDIR}/cpp
 .else
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/cpp.sh ${DESTDIR}/usr/bin/cpp
+	    ${.CURDIR}/cpp.sh ${DESTDIR}${BINDIR}/cpp
 .endif
 
 .include <bsd.prog.mk>
