@@ -609,8 +609,8 @@ typeletter(type)
 	case N_DATA:
 		return(IS_EXTERNAL(type) ? 'D' : 'd');
 	case N_FN:
-		/* This one is overloaded. EXT = Warn, INT = filename */
-		return(IS_EXTERNAL(type) ? 'W' : 'f');
+		/* This one is overloaded. EXT = Filename, INT = warn refs */
+		return(IS_EXTERNAL(type) ? 'F' : 'w');
 	case N_INDR:
 		return(IS_EXTERNAL(type) ? 'I' : 'i');
 	case N_TEXT:
