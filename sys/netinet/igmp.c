@@ -148,9 +148,9 @@ find_rti(ifp)
 }
 
 void
-igmp_input(m, off, proto)
+igmp_input(m, off)
 	register struct mbuf *m;
-	int off, proto;
+	int off;
 {
 	register int iphlen = off;
 	register struct igmp *igmp;

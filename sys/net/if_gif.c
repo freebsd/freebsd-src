@@ -62,7 +62,6 @@
 #include <netinet/in_var.h>
 #include <netinet/in_gif.h>
 #include <netinet/ip_var.h>
-#include <netinet/ipprotosw.h>
 #endif	/* INET */
 
 #ifdef INET6
@@ -101,7 +100,7 @@ static int gif_encapcheck __P((const struct mbuf *, int, int, void *));
 
 #ifdef INET
 extern  struct domain inetdomain;
-struct ipprotosw in_gif_protosw =
+struct protosw in_gif_protosw =
 { SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
   in_gif_input,	rip_output,	0,		rip_ctloutput,
   0,

@@ -384,7 +384,7 @@ void	 tcp_fasttimo __P((void));
 struct rmxp_tao *
 	 tcp_gettaocache __P((struct inpcb *));
 void	 tcp_init __P((void));
-void	 tcp_input __P((struct mbuf *, int, int));
+void	 tcp_input __P((struct mbuf *, int));
 void	 tcp_mss __P((struct tcpcb *, int));
 int	 tcp_mssopt __P((struct tcpcb *));
 void	 tcp_drop_syn_sent __P((struct inpcb *, int));

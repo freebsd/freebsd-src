@@ -128,7 +128,7 @@ div_init(void)
  * with that protocol number to enter the system from the outside.
  */
 void
-div_input(struct mbuf *m, int off, int proto)
+div_input(struct mbuf *m, int off)
 {
 	ipstat.ips_noproto++;
 	m_freem(m);

@@ -202,17 +202,18 @@ in_gif_output(ifp, family, m, rt)
 }
 
 void
-in_gif_input(m, off, proto)
+in_gif_input(m, off)
 	struct mbuf *m;
 	int off;
-	int proto;
 {
 	struct ifnet *gifp = NULL;
 	struct ip *ip;
 	int af;
 	u_int8_t otos;
+	int proto;
 
 	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
 
 	gifp = (struct ifnet *)encap_getarg(m);
 
