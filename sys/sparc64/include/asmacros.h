@@ -31,22 +31,49 @@
 
 #ifdef _KERNEL
 
-	.register %g2,#ignore
-	.register %g3,#ignore
-	.register %g6,#ignore
-	.register %g7,#ignore
+/*
+ * Normal and alternate %g7 point to per-cpu data.
+ */
+#define	PCPU_REG	%g7
+
+/*
+ * Alternate %g5 points to a per-cpu stack for temporarily saving alternate
+ * globals, alternate %g6 points to the pcb of the current process.
+ */
+#define	ASP_REG		%g5
+#define	PCB_REG		%g6
+
+/*
+ * Interrupt %g6 points to a per-cpu interrupt queue, %g7 points to the
+ * interrupt vector table.
+ */
+#define	IQ_REG		%g6
+#define	IV_REG		%g7
+
+/*
+ * MMU %g7 points to the user tsb.
+ */
+#define	TSB_REG		%g7
 
 #define	PCPU(member)	%g7 + PC_ ## member
 #define	PCPU_ADDR(member, reg) add %g7, PC_ ## member, reg
 
 #define	DEBUGGER()	ta %xcc, 1
 
-#define	PANIC(msg, reg) \
+#define	PANIC(msg, r1) \
 	.sect	.rodata ; \
 9:	.asciz	msg ; \
 	.previous ; \
-	setx	9b, reg, %o0 ; \
+	SET(9b, r1, %o0) ; \
 	call	panic ; \
+	 nop
+
+#define	PUTS(msg, r1) \
+	.sect	.rodata ; \
+9:	.asciz	msg ; \
+	.previous ; \
+	SET(9b, r1, %o0) ; \
+	call	printf ; \
 	 nop
 
 #endif
