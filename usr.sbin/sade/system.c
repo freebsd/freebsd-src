@@ -4,15 +4,16 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.17 1995/05/18 17:49:09 jkh Exp $
+ * $Id: system.c,v 1.18 1995/05/19 04:17:38 jkh Exp $
  *
  * Jordan Hubbard
  *
  * My contributions are in the public domain.
  *
  * Parts of this file are also blatently stolen from Poul-Henning Kamp's
- * previous version of sysinstall, and as such fall under his "BEERWARE"
- * license, so buy him a beer if you like it!  Buy him a beer for me, too!
+ * previous version of sysinstall, and as such fall under his "BEERWARE license"
+ * so buy him a beer if you like it!  Buy him a beer for me, too!
+ * Heck, get him completely drunk and send me pictures! :-)
  */
 
 #include "sysinstall.h"
@@ -46,6 +47,8 @@ systemWelcome(void)
 void
 systemInitialize(int argc, char **argv)
 {
+    int i;
+
     signal(SIGINT, SIG_IGN);
     globalsInit();
 
@@ -74,6 +77,9 @@ systemInitialize(int argc, char **argv)
 	setbuf(stdout, 0);
 	setbuf(stderr, 0);
     }
+
+    for(i = 0; i < 256; i++)
+	default_scrnmap[i] = i;
 
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
@@ -236,6 +242,8 @@ void
 systemChangeTerminal(char *color, const u_char c_term[],
 		     char *mono, const u_char m_term[])
 {
+    extern void init_acs(void);
+
     if (OnVTY) {
 	if (ColorDisplay) {
 	    setenv("TERM", color, 1);
@@ -255,6 +263,16 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    cbreak(); noecho();
 	    dialog_clear();
 	}
+    }
+}
+
+void
+systemChangeScreenmap(const u_char newmap[])
+{
+    if (OnVTY) {
+	if (ioctl(0, PIO_SCRNMAP, newmap) < 0)
+	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
+		       getenv("LANG"));
     }
 }
 
