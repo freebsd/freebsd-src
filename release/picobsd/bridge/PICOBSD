@@ -3,7 +3,7 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	2200	init	4096		32768
+#PicoBSD	2200	init	8192		32768
 options MD_ROOT_SIZE=2200      # same as def_sz
 
 # next to each option there is the approx. space used in the
@@ -34,7 +34,7 @@ options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
-#options	IPDIVERT # divert (for natd, 4KB)
+options		IPDIVERT # divert (for natd, 4KB)
 #options	DEVFS
 options		PCI_QUIET
 # Support for bridging and bandwidth limiting
@@ -83,10 +83,11 @@ device		sio1	at isa? port IO_COM2 irq 3
 #
 device	miibus 
 #device de0              # DEC/Intel DC21x4x (``Tulip'')
-device fxp0             # Intel, 4KB
-device xl0		# 3Com
-#device rl0		# Realtek 8139, 4KB
-#device dc0		# New Dec/Intel DC21x4x, 8KB
+device	fxp0             # Intel, 4KB
+device	xl0		# 3Com
+device	ep0
+device rl0		# Realtek 8139, 4KB
+device dc0		# New Dec/Intel DC21x4x, 8KB
 
 device ed0 at isa? port 0x280 irq 5 iomem 0xd8000
 device ed1 at isa? port 0x300 irq 5 iomem 0xd0000
@@ -99,6 +100,7 @@ pseudo-device	pty	16
 pseudo-device	md		# memory disk
 
 #options	MATH_EMULATE		#Support for x87 emulation, 4KB
-#pseudo-device bpf 4	# 4KB, for tcpdump
+pseudo-device	bpf 4	# 4KB, for tcpdump
 #options	NFS			#Network Filesystem
 #options	NFS_NOSERVER		#Network Filesystem
+options		DDB
