@@ -364,38 +364,33 @@ nd6_ra_input(m, off, icmp6len)
 	 * MTU
 	 */
 	if (ndopts.nd_opts_mtu && ndopts.nd_opts_mtu->nd_opt_mtu_len == 1) {
-		u_int32_t mtu;
+		u_long mtu;
+		u_long maxmtu;
 
-		mtu = ntohl(ndopts.nd_opts_mtu->nd_opt_mtu_mtu);
+		mtu = (u_long)ntohl(ndopts.nd_opts_mtu->nd_opt_mtu_mtu);
 
 		/* lower bound */
 		if (mtu < IPV6_MMTU) {
 			nd6log((LOG_INFO, "nd6_ra_input: bogus mtu option "
-			    "mtu=%d sent from %s, ignoring\n",
+			    "mtu=%lu sent from %s, ignoring\n",
 			    mtu, ip6_sprintf(&ip6->ip6_src)));
 			goto skip;
 		}
 
 		/* upper bound */
-		if (ndi->maxmtu) {
-			if (mtu <= ndi->maxmtu) {
-				int change = (ndi->linkmtu != mtu);
+		maxmtu = (ndi->maxmtu && ndi->maxmtu < ifp->if_mtu)
+		    ? ndi->maxmtu : ifp->if_mtu;
+		if (mtu <= maxmtu) {
+			int change = (ndi->linkmtu != mtu);
 
-				ndi->linkmtu = mtu;
-				if (change) /* in6_maxmtu may change */
-					in6_setmaxmtu();
-			} else {
-				nd6log((LOG_INFO, "nd6_ra_input: bogus mtu "
-				    "mtu=%d sent from %s; "
-				    "exceeds maxmtu %d, ignoring\n",
-				    mtu, ip6_sprintf(&ip6->ip6_src),
-				    ndi->maxmtu));
-			}
+			ndi->linkmtu = mtu;
+			if (change) /* in6_maxmtu may change */
+				in6_setmaxmtu();
 		} else {
-			nd6log((LOG_INFO, "nd6_ra_input: mtu option "
-			    "mtu=%d sent from %s; maxmtu unknown, "
-			    "ignoring\n",
-			    mtu, ip6_sprintf(&ip6->ip6_src)));
+			nd6log((LOG_INFO, "nd6_ra_input: bogus mtu "
+			    "mtu=%lu sent from %s; "
+			    "exceeds maxmtu %lu, ignoring\n",
+			    mtu, ip6_sprintf(&ip6->ip6_src), maxmtu));
 		}
 	}
 

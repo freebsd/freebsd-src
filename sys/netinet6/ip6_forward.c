@@ -383,7 +383,7 @@ ip6_forward(m, srcrt)
 		return;
 	}
 
-	if (m->m_pkthdr.len > rt->rt_ifp->if_mtu) {
+	if (m->m_pkthdr.len > IN6_LINKMTU(rt->rt_ifp)) {
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
 		if (mcopy) {
 			u_long mtu;
@@ -393,7 +393,7 @@ ip6_forward(m, srcrt)
 			size_t ipsechdrsiz;
 #endif
 
-			mtu = rt->rt_ifp->if_mtu;
+			mtu = IN6_LINKMTU(rt->rt_ifp);
 #ifdef IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play

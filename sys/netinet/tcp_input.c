@@ -2711,12 +2711,16 @@ tcp_mss(tp, offer)
 	if (rt->rt_rmx.rmx_mtu)
 		mss = rt->rt_rmx.rmx_mtu - min_protoh;
 	else {
+#ifdef INET6
+		mss = (isipv6 ? IN6_LINKMTU(rt->rt_ifp) : ifp->if_mtu)
+			- min_protoh;
+#else
+		mss = ifp->if_mtu - min_protoh;
+#endif
 		if (isipv6) {
-			mss = ND_IFINFO(rt->rt_ifp)->linkmtu - min_protoh;
 			if (!in6_localaddr(&inp->in6p_faddr))
 				mss = min(mss, tcp_v6mssdflt);
 		} else {
-			mss = ifp->if_mtu - min_protoh;
 			if (!in_localaddr(inp->inp_faddr))
 				mss = min(mss, tcp_mssdflt);
 		}
@@ -2834,7 +2838,12 @@ tcp_mssopt(tp)
 	if (rt == NULL)
 		return (isipv6 ? tcp_v6mssdflt : tcp_mssdflt);
 
+#ifdef INET6
+	return (isipv6 ? IN6_LINKMTU(rt->rt_ifp) :
+		rt->rt_ifp->if_mtu - min_protoh);
+#else
 	return (rt->rt_ifp->if_mtu - min_protoh);
+#endif
 }
 
 

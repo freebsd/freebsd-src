@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_arc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
@@ -149,12 +150,10 @@ nd6_ifattach(ifp)
 
 	nd->initialized = 1;
 
-	nd->linkmtu = ifnet_byindex(ifp->if_index)->if_mtu;
 	nd->chlim = IPV6_DEFHLIM;
 	nd->basereachable = REACHABLE_TIME;
 	nd->reachable = ND_COMPUTE_RTIME(nd->basereachable);
 	nd->retrans = RETRANS_TIMER;
-	nd->receivedra = 0;
 	/*
 	 * Note that the default value of ip6_accept_rtadv is 0, which means
 	 * we won't accept RAs by default even if we set ND6_IFF_ACCEPT_RTADV
@@ -194,21 +193,19 @@ nd6_setmtu0(ifp, ndi)
 	struct ifnet *ifp;
 	struct nd_ifinfo *ndi;
 {
-	u_long oldmaxmtu;
-	u_long oldlinkmtu;
+	u_int32_t omaxmtu;
 
-	oldmaxmtu = ndi->maxmtu;
-	oldlinkmtu = ndi->linkmtu;
+	omaxmtu = ndi->maxmtu;
 
 	switch (ifp->if_type) {
-	case IFT_ARCNET:	/* XXX MTU handling needs more work */
-		ndi->maxmtu = MIN(60480, ifp->if_mtu);
+	case IFT_ARCNET:
+		ndi->maxmtu = MIN(ARC_PHDS_MAXMTU, ifp->if_mtu); /* RFC2497 */
 		break;
 	case IFT_ETHER:
 		ndi->maxmtu = MIN(ETHERMTU, ifp->if_mtu);
 		break;
 	case IFT_FDDI:
-		ndi->maxmtu = MIN(FDDIIPMTU, ifp->if_mtu);
+		ndi->maxmtu = MIN(FDDIIPMTU, ifp->if_mtu); /* RFC2467 */
 		break;
 	case IFT_ATM:
 		ndi->maxmtu = MIN(ATMMTU, ifp->if_mtu);
@@ -229,29 +226,21 @@ nd6_setmtu0(ifp, ndi)
 		break;
 	}
 
-	if (oldmaxmtu != ndi->maxmtu) {
-		/*
-		 * If the ND level MTU is not set yet, or if the maxmtu
-		 * is reset to a smaller value than the ND level MTU,
-		 * also reset the ND level MTU.
-		 */
-		if (ndi->linkmtu == 0 ||
-		    ndi->maxmtu < ndi->linkmtu) {
-			ndi->linkmtu = ndi->maxmtu;
-			/* also adjust in6_maxmtu if necessary. */
-			if (oldlinkmtu == 0) {
-				/*
-				 * XXX: the case analysis is grotty, but
-				 * it is not efficient to call in6_setmaxmtu()
-				 * here when we are during the initialization
-				 * procedure.
-				 */
-				if (in6_maxmtu < ndi->linkmtu)
-					in6_maxmtu = ndi->linkmtu;
-			} else
-				in6_setmaxmtu();
-		}
+	/*
+	 * Decreasing the interface MTU under IPV6 minimum MTU may cause
+	 * undesirable situation.  We thus notify the operator of the change
+	 * explicitly.  The check for omaxmtu is necessary to restrict the
+	 * log to the case of changing the MTU, not initializing it.
+	 */
+	if (omaxmtu >= IPV6_MMTU && ndi->maxmtu < IPV6_MMTU) {
+		log(LOG_NOTICE, "nd6_setmtu0: "
+		    "new link MTU on %s (%lu) is too small for IPv6\n",
+		    if_name(ifp), (unsigned long)ndi->maxmtu);
 	}
+
+	if (ndi->maxmtu > in6_maxmtu)
+		in6_setmaxmtu(); /* check all interfaces just in case */
+
 #undef MIN
 }
 
@@ -1449,7 +1438,7 @@ nd6_ioctl(cmd, data, ifp)
 	case OSIOCGIFINFO_IN6:
 		/* XXX: old ndp(8) assumes a positive value for linkmtu. */
 		bzero(&ndi->ndi, sizeof(ndi->ndi));
-		ndi->ndi.linkmtu = ND_IFINFO(ifp)->linkmtu;
+		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
 		ndi->ndi.maxmtu = ND_IFINFO(ifp)->maxmtu;
 		ndi->ndi.basereachable = ND_IFINFO(ifp)->basereachable;
 		ndi->ndi.reachable = ND_IFINFO(ifp)->reachable;
@@ -1457,10 +1446,10 @@ nd6_ioctl(cmd, data, ifp)
 		ndi->ndi.flags = ND_IFINFO(ifp)->flags;
 		ndi->ndi.recalctm = ND_IFINFO(ifp)->recalctm;
 		ndi->ndi.chlim = ND_IFINFO(ifp)->chlim;
-		ndi->ndi.receivedra = ND_IFINFO(ifp)->receivedra;
 		break;
 	case SIOCGIFINFO_IN6:
 		ndi->ndi = *ND_IFINFO(ifp);
+		ndi->ndi.linkmtu = IN6_LINKMTU(ifp);
 		break;
 	case SIOCSIFINFO_FLAGS:
 		ND_IFINFO(ifp)->flags = ndi->ndi.flags;
