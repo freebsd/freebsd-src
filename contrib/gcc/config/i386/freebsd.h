@@ -128,10 +128,12 @@ Boston, MA 02111-1307, USA.  */
    compiler get the contents of <float.h> and std::numeric_limits correct.  */
 #define SUBTARGET_OVERRIDE_OPTIONS			\
   do {							\
-    real_format_for_mode[XFmode - QFmode]		\
-      = &ieee_extended_intel_96_round_53_format;	\
-    real_format_for_mode[TFmode - QFmode]		\
-      = &ieee_extended_intel_96_round_53_format;	\
+    if (!TARGET_64BIT) {				\
+      real_format_for_mode[XFmode - QFmode]		\
+	= &ieee_extended_intel_96_round_53_format;	\
+      real_format_for_mode[TFmode - QFmode]		\
+	= &ieee_extended_intel_96_round_53_format;	\
+    }							\
   } while (0)
 
 /* Tell final.c that we don't need a label passed to mcount.  */
