@@ -984,7 +984,7 @@ mptable_pass2(void)
 					logical_cpus_mask |= (1 << cpu);
 					cpu++;
 				}
-			} else {
+			} else if (logical_cpus != 0) {
 				u_int id = ((proc_entry_ptr)position)->apic_id;
 
 				/*
