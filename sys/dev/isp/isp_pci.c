@@ -1021,8 +1021,10 @@ typedef struct {
  * mapped and a pointer to a partially filled in already allocated request
  * queue entry. We finish the job.
  */
-static void tdma_mk __P((void *, bus_dma_segment_t *, int, int));
-static void tdma_mkfc __P((void *, bus_dma_segment_t *, int, int));
+static void tdma_mk(void *, bus_dma_segment_t *, int, int);
+static void tdma_mkfc(void *, bus_dma_segment_t *, int, int);
+
+#define	STATUS_WITH_DATA	1
 
 static void
 tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
@@ -1037,6 +1039,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	u_int32_t totxfr, sflags;
 	int nctios, send_status;
 	int32_t resid;
+	int i, j;
 
 	mp = (mush_t *) arg;
 	if (error) {
@@ -1053,12 +1056,12 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	if (nseg == 0) {
 		cto->ct_header.rqs_seqno = 1;
-		ISP_TDQE(mp->isp, "tdma_mk[no data]", *mp->iptrp, cto);
 		isp_prt(mp->isp, ISP_LOGTDEBUG1,
-		    "CTIO[%x] lun%d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
+		    "CTIO[%x] lun%d iid%d tag %x flgs %x sts %x ssts %x res %d",
 		    cto->ct_fwhandle, csio->ccb_h.target_lun, cto->ct_iid,
-		    cto->ct_flags, cto->ct_status, cto->ct_scsi_status,
-		    cto->ct_resid);
+		    cto->ct_tag_val, cto->ct_flags, cto->ct_status,
+		    cto->ct_scsi_status, cto->ct_resid);
+		ISP_TDQE(mp->isp, "tdma_mk[no data]", *mp->iptrp, cto);
 		ISP_SWIZ_CTIO(mp->isp, cto, cto);
 		return;
 	}
@@ -1066,6 +1069,19 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	nctios = nseg / ISP_RQDSEG;
 	if (nseg % ISP_RQDSEG) {
 		nctios++;
+	}
+
+	/*
+	 * Check to see that we don't overflow.
+	 */
+	for (i = 0, j = *mp->iptrp; i < nctios; i++) {
+		j = ISP_NXT_QENTRY(j, RQUEST_QUEUE_LEN(isp));
+		if (j == mp->optr) {
+			isp_prt(mp->isp, ISP_LOGWARN,
+			    "Request Queue Overflow [tdma_mk]");
+			mp->error = MUSHERR_NOQENTRIES;
+			return;
+		}
 	}
 
 	/*
@@ -1090,8 +1106,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		 */
 		scsi_status = cto->ct_scsi_status;
 
-#if	0
-		sflags |= CT_NODATA;
+#ifndef	STATUS_WITH_DATA
+		sflags |= CT_NO_DATA;
 		/*
 		 * We can't do a status at the same time as a data CTIO, so
 		 * we need to synthesize an extra CTIO at this level.
@@ -1165,7 +1181,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * this CTIO and save the handle to the CCB such that
 			 * when this CTIO completes we can free dma resources
 			 * and do whatever else we need to do to finish the
-			 * rest of the command.
+			 * rest of the command. We *don't* give this to the
+			 * firmware to work on- the caller will do that.
 			 */
 			cto->ct_syshandle = handle;
 			cto->ct_header.rqs_seqno = 1;
@@ -1177,16 +1194,17 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 			if (send_status) {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO[%x] lun%d for ID %d ct_flags 0x%x "
+				    "CTIO[%x] lun%d iid %d tag %x ct_flags %x "
 				    "scsi status %x resid %d",
 				    cto->ct_fwhandle, csio->ccb_h.target_lun,
-				    cto->ct_iid, cto->ct_flags,
+				    cto->ct_iid, cto->ct_tag_val, cto->ct_flags,
 				    cto->ct_scsi_status, cto->ct_resid);
 			} else {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO[%x] lun%d for ID%d ct_flags 0x%x",
+				    "CTIO[%x] lun%d iid%d tag %x ct_flags 0x%x",
 				    cto->ct_fwhandle, csio->ccb_h.target_lun,
-				    cto->ct_iid, cto->ct_flags);
+				    cto->ct_iid, cto->ct_tag_val,
+				    cto->ct_flags);
 			}
 			ISP_TDQE(mp->isp, "last tdma_mk", *mp->iptrp, cto);
 			ISP_SWIZ_CTIO(mp->isp, cto, cto);
@@ -1210,6 +1228,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 */
 			cto = (ct_entry_t *)
 			    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
+			j = *mp->iptrp;
 			*mp->iptrp = 
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
@@ -1240,10 +1259,12 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_seg_count = 0;
 			MEMZERO(cto->ct_dataseg, sizeof(cto->ct_dataseg));
 			/*
-			 * Now swizzle the old one for the consumption of the
-			 * chip.
+			 * Now swizzle the old one for the consumption
+			 * of the chip and give it to the firmware to
+			 * work on while we do the next.
 			 */
 			ISP_SWIZ_CTIO(mp->isp, octo, octo);
+			ISP_ADD_REQUEST(mp->isp, j);
 		}
 	}
 }
@@ -1685,11 +1706,10 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 		}
 		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE ||
 		    (csio->dxfer_len == 0)) {
-			rq->req_seg_count = 1;
 			mp = &mush;
 			mp->isp = isp;
 			mp->cmd_token = csio;
-			mp->rq = rq;
+			mp->rq = rq;	/* really a ct_entry_t or ct2_entry_t */
 			mp->iptrp = iptrp;
 			mp->optr = optr;
 			mp->error = 0;
