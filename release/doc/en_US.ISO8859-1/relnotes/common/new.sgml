@@ -976,9 +976,6 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>IPFilter</application> has been updated to
-      3.4.20. &merged;</para>
-
       <para>The Forth Inspired Command Language
       (<application>FICL</application>) used in the boot loader has
       been updated to 2.05.</para>
@@ -990,6 +987,17 @@
       Architecture</application> project, updated to the ACPI CA
       20011018 snapshot.  Some backward compatability for
       applications using the older APM standard has been provided.</para>
+
+      <sect4>
+        <title>IPFilter</title>
+
+	<para><application>IPFilter</application> has been updated to
+	3.4.20. &merged;</para>
+
+	<para><application>IPFilter</application> now supports
+	IPv6. &merged;</para>
+
+      </sect4>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -2189,6 +2197,11 @@
 
       <para><application>Heimdal</application> has been updated to
       0.3f.</para>
+
+      <para>The version of <application>IPFilter</application>
+      provided with &os; now includes the &man.ipfs.8; program, which
+      allows state information created for NAT entries and stateful
+      rules to be saved to disk and restored after a reboot. &merged;</para>
 
       <para>The <application>ISC DHCP</application> client has been
       updated to 2.0pl5. &merged;</para>
