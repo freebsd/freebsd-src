@@ -33,10 +33,10 @@
 #ifdef _KERNEL
 
 #define	PCPU_MD_FIELDS							\
-	u_int64_t	pc_pending_ipis;	/* pending IPIs */	\
+	struct pcb	*pc_pcb;		/* Used by IPI_STOP */	\
 	struct pmap	*pc_current_pmap;	/* active pmap */	\
-	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\
-	u_int32_t	pc_current_asngen	/* ASN rollover check */
+	u_int64_t	pc_lid;			/* local CPU ID */	\
+	u_int32_t	pc_awake:1;		/* CPU is awake? */
 
 struct pcpu;
 
