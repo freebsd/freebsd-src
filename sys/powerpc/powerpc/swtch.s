@@ -106,17 +106,29 @@ ENTRY(cpu_switch)
 
 	mfsprg	%r4,0			/* Get the pcpu pointer */
 	stw	%r16,PC_CURTHREAD(%r4)	/* Store new current thread */
-	lwz	%r4,TD_PCB(%r16)	/* Grab the new PCB */
+	lwz	%r15,TD_PROC(%r16)	/* Grab the current thread's proc */
+	lwz	%r15,P_VMSPACE(%r15)	/* Grab the current proc's vmspace */
+	lwz	%r15,VM_PMAP(%r15)	/* ... pmap */
+	mr	%r3,%r15
+	bl	pmap_kextract
+	cmpwi	cr4,%r3,0
+	bne	cr4,.L2
+	mr	%r3,%r15
+.L2:
+	stw	%r3,PC_CURPMAP(%r4)	/* Store it */
+	lwz	%r16,TD_PCB(%r16)	/* Grab the new PCB */
+	stw	%r16,PC_CURPCB(%r4)
+	mr	%r4,%r16
 
 #if 0
 	lwz	%r29, PCB_FLAGS(%r4)	/* Restore FPU regs if needed */
 	andi.	%r9, %r29, 1
-	beq	.L2
+	beq	.L3
 	mr	%r3, %r4
 	bl	enable_fpu
 #endif
 
-.L2:
+.L3:
 	lmw	%r14,PCB_CONTEXT(%r4)	/* Load the non-volatile GP regs */
 	lwz	%r5,PCB_CR(%r4)		/* Load the condition register */
 	mtcr	%r5
@@ -140,8 +152,9 @@ ENTRY(savectx)
  * Set up the return from cpu_fork()
  */
 ENTRY(fork_trampoline)
-	lwz	%r3,CF_FUNC(1)
-	lwz	%r4,CF_ARG0(1)
-	lwz	%r5,CF_ARG1(1)
+	lwz	%r3,CF_FUNC(%r1)
+	lwz	%r4,CF_ARG0(%r1)
+	lwz	%r5,CF_ARG1(%r1)
 	bl	fork_exit
-	rfi
+	addi	%r1,%r1,4
+	b	trapexit
