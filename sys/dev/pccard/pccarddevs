@@ -1,6 +1,6 @@
 $FreeBSD$
 /* $NetBSD: pcmciadevs,v 1.163 2002/03/04 16:41:50 martin Exp $ */
-/* $OpenBSD: pcmciadevs,v 1.85 2002/03/29 18:54:07 millert Exp $ */
+/* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -43,6 +43,7 @@ $FreeBSD$
  */
 
 vendor FUJITSU			0x0004  Fujitsu Corporation
+vendor NETGEAR2			0x000b	Netgear
 vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
 vendor SANDISK			0x0045	Sandisk Corporation
 vendor NEWMEDIA			0x0057	New Media Corporation
@@ -69,6 +70,7 @@ vendor NETGEAR			0x0149	Netgear
 vendor SIMPLETECH		0x014d	Simple Technology
 vendor SYMBOL2			0x014d	Symbol
 vendor LUCENT			0x0156	Lucent Technologies
+vendor GEMPLUS			0x0157	Gemplus
 vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor ERICSSON			0x016b	Ericsson
 vendor PSION			0x016c	Psion
@@ -193,6 +195,7 @@ product EDIMAX	EP4000A		0x0100 Edimax EP4000A
 product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
 product ELSA XI300_IEEE		0x0002 XI300 Wireless LAN
 product ELSA XI800_IEEE		0x0004 XI800 CF Wireless LAN
+product ELSA XI325_IEEE		0x0005 XI325 Wireless LAN
 
 /* EMTAC */
 product EMTAC WLAN		0x0002	EMTAC A2424i 11Mbps WLAN Card
@@ -207,6 +210,9 @@ product FARALLON SKYLINE	0x0a01 SkyLINE Wireless
 product FUJITSU SCSI600		0x0401 Fujitsu SCSI 600 Interface
 product FUJITSU LA10S		0x1003 Fujitsu Compact Flash Ethernet
 product FUJITSU LA501		0x2000 Fujitsu Towa LA501 Ethernet
+
+/* Gemplus */
+product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
 
 /* Home Wireless Networks */
 product HWN AIRWAY80211		0x0002 HWN Airway Wireless PCMCIA Card
@@ -283,11 +289,13 @@ product NEWMEDIA2 BUSTOASTER	0x0001 NewMedia BusToaster
 /* Netgear */
 product NETGEAR FA410TXC	0x4530 Netgear FA410TXC
 product NETGEAR FA411		0x0411 Netgear FA411
+product NETGEAR2 MA401RA	0x7300 Netgear MA401RA
 
 /* National Instruments */
 product NI PCMCIA_GPIB	 	0x4882 National Instruments PCMCIA-GPIB
 
 /* Nokia Products */
+product NOKIA C110_WLAN		0x1110 Nokia C110/C111
 product NOKIA C020_WLAN		0x20c0 Nokia C020 WLAN Card
 
 /* No Wires Needed */
