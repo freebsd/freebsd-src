@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.34 1995/07/25 15:53:11 bde Exp $
+ *      $Id: ultra14f.c,v 1.35 1995/08/23 23:02:32 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -1348,7 +1348,7 @@ uha_timeout(arg1)
 	if ((uha_abort(unit, mscp) != 1) || (mscp->flags = MSCP_ABORTED)) {
 		printf("AGAIN");
 		mscp->xs->retries = 0;	/* I MEAN IT ! */
-		uha_done(unit, mscp, FAIL);
+		uha_done(unit, mscp);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
 		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
