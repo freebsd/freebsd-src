@@ -479,6 +479,9 @@ random packet drop or
 .Xr dummynet 4 )
 to simulate the effect of multiple paths leading to out-of-order
 packet delivery.
+.Pp
+Note: this condition is checked before any other condition, including
+ones such as keep-state or check-state which might have side effects.
 .It Cm log Op Cm logamount Ar number
 When a packet matches a rule with the
 .Cm log
@@ -508,6 +511,9 @@ clearing the logging counter or the packet counter for that entry, see the
 .Cm resetlog
 command.
 .Pp
+Note: logging is done after all other packet matching conditions
+have been successfully verified, and before performing the final
+action (accept, deny, etc.) on the packet.
 .El
 .Ss RULE ACTIONS
 A rule can be associated with one of the following actions, which
@@ -705,7 +711,7 @@ The
 or
 .Cm all
 keywords mean any protocol will match.
-.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Ar ports
+.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Oo Cm not Oc Ar ports
 A single
 .Ar ip-address
 , or an
@@ -774,7 +780,7 @@ masks, and resort to the
 format for contiguous masks, which is more compact and less
 error-prone.
 .El
-.It Ar ports : Oo Cm not Oc Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ...
+.It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ports
 For protocols which support port numbers (such as TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
@@ -825,10 +831,10 @@ The following match patterns can be used (listed in alphabetical order):
 .Bl -tag -width indent
 .It Cm bridged
 Matches only bridged packets.
-.It Cm dst-ip Ar ip address
+.It Cm dst-ip Ar ip-address
 Matches IP packets whose destination IP is one of the address(es)
 specified as argument.
-.It Cm dst-port Ar source ports
+.It Cm dst-port Ar ports
 Matches IP packets whose destination port is one of the port(s)
 specified as argument.
 .It Cm established
@@ -1504,7 +1510,7 @@ version of
 is probably not as straightforward as you would think.
 I recommend the following command line:
 .Bd -literal -offset indent
-kldload /modules/ipfw.ko && \e
+kldload ipfw && \e
 ipfw add 32000 allow ip from any to any
 .Ed
 .Pp
@@ -1620,10 +1626,6 @@ When set, the packet exiting from the
 pipe is not passed though the firewall again.
 Otherwise, after a pipe action, the packet is
 reinjected into the firewall at the next rule.
-.Pp
-Note: bridged and layer 2 packets coming out of a pipe
-are never reinjected in the firewall irrespective of the
-value of this variable.
 .It Em net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
 .It Em net.inet.ip.fw.verbose_limit : No 0
@@ -1748,15 +1750,14 @@ The sysctl variable
 .Em net.link.ether.ipfw
 has no effect there.
 .It Options
-The following options are not supported in
-.Nm ipfw1
+The following options are not implemented by
+.Nm ipfw1 :
 .Pp
 .Cm dst-ip, dst-port, layer2, mac, mac-type, src-ip, src-port.
 .Pp
-Additionally, the following options are not supported in
+Additionally, the RELENG_4 version of
 .Nm ipfw1
-(RELENG_4)
-rules:
+does not implement the following options:
 .Pp
 .Cm ipid, iplen, ipprecedence, iptos, ipttl,
 .Cm ipversion, tcpack, tcpseq, tcpwin .
