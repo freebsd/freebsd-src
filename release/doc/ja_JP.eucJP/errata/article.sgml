@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.126
+    Original revision: 1.1.2.127
 -->
 
 <!-- 
@@ -74,16 +74,6 @@
       関連文書の更新情報も含まれています。
       このバージョンの &os; をインストールする前には必ず、
       最新の errata を参照するようにしてください。</para>
-
-    <para>この errata 文書は &os; 
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current; 
-]]>
-      用です。
-      &os; &release.next; のリリースまでの期間、保守されます。</para>
   </abstract>
 
   <sect1>
