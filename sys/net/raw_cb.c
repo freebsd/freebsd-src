@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: raw_cb.c,v 1.2 1994/08/02 07:46:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -79,7 +79,8 @@ raw_attach(so, proto)
 	 */
 	if (rp == 0)
 		return (ENOBUFS);
-	if (error = soreserve(so, raw_sendspace, raw_recvspace))
+	error = soreserve(so, raw_sendspace, raw_recvspace);
+	if (error)
 		return (error);
 	rp->rcb_socket = so;
 	rp->rcb_proto.sp_family = so->so_proto->pr_domain->dom_family;
