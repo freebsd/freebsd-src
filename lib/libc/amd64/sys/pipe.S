@@ -43,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 SYSCALL(pipe)
-	movl	4(%esp),%ecx
-	movl	%eax,(%ecx)
-	movl	%edx,4(%ecx)
-	movl	$0,%eax
+	movl	%eax,(%rdi)	/* %rdi is preserved by syscall */
+	movl	%edx,4(%rdi)
+	movq	$0,%rax
 	ret
