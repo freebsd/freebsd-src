@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.21 1999/01/18 21:27:03 julian Exp $
+ * $Id: if_sr.c,v 1.22 1999/03/30 13:28:23 phk Exp $
  */
 
 /*
@@ -1250,7 +1250,6 @@ static int
 srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int s, error, was_up, should_be_up;
-	struct sppp *sp = (struct sppp *)ifp;
 	struct sr_softc *sc = ifp->if_softc;
 
 #if BUGGY > 0
