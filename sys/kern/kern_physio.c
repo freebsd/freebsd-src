@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.19 1997/02/22 09:39:08 peter Exp $
+ * $Id: kern_physio.c,v 1.20 1997/08/09 10:13:17 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,8 @@ doerror:
 }
 
 u_int
-minphys(struct buf *bp)
+minphys(bp)
+	struct buf *bp;
 {
 	u_int maxphys = MAXPHYS;
 
@@ -181,14 +182,20 @@ minphys(struct buf *bp)
 }
 
 int
-rawread(dev_t dev, struct uio *uio, int ioflag)
+rawread(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
 {
 	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
 	    dev, 1, minphys, uio));
 }
 
 int
-rawwrite(dev_t dev, struct uio *uio, int ioflag)
+rawwrite(dev, uio, ioflag)
+	dev_t dev;
+	struct uio *uio;
+	int ioflag;
 {
 	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
 	    dev, 0, minphys, uio));
