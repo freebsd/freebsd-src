@@ -347,6 +347,17 @@ ieee80211_next_scan(struct ieee80211com *ic)
 	return 0;
 }
 
+static __inline void
+copy_bss(struct ieee80211_node *nbss, const struct ieee80211_node *obss)
+{
+	/* propagate useful state */
+	nbss->ni_authmode = obss->ni_authmode;
+	nbss->ni_txpower = obss->ni_txpower;
+	nbss->ni_vlan = obss->ni_vlan;
+	nbss->ni_rsn = obss->ni_rsn;
+	/* XXX statistics? */
+}
+
 void
 ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 {
@@ -381,6 +392,7 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_myaddr);
 	ni->ni_esslen = ic->ic_des_esslen;
 	memcpy(ni->ni_essid, ic->ic_des_essid, ni->ni_esslen);
+	copy_bss(ni, ic->ic_bss);
 	ni->ni_intval = ic->ic_lintval;
 	if (ic->ic_flags & IEEE80211_F_PRIVACY)
 		ni->ni_capinfo |= IEEE80211_CAPINFO_PRIVACY;
@@ -428,8 +440,11 @@ ieee80211_reset_bss(struct ieee80211com *ic)
 	KASSERT(ni != NULL, ("unable to setup inital BSS node"));
 	obss = ic->ic_bss;
 	ic->ic_bss = ieee80211_ref_node(ni);
-	if (obss != NULL)
+	if (obss != NULL) {
+		copy_bss(ni, obss);
+		ni->ni_intval = ic->ic_lintval;
 		ieee80211_free_node(obss);
+	}
 }
 
 static int
