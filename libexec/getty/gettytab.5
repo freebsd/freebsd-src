@@ -1,5 +1,5 @@
-.\" Copyright (c) 1983, 1991 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gettytab.5	6.7 (Berkeley) 5/10/91
-.\"
-.Dd May 10, 1991
+.\"     from: @(#)gettytab.5	8.4 (Berkeley) 4/19/94
+.\"	$Id: gettytab.5,v 1.1.1.3 1996/04/13 15:33:07 joerg Exp $
+.\" "
+.Dd April 19, 1994
 .Dt GETTYTAB 5
 .Os BSD 4.2
 .Sh NAME
@@ -76,13 +77,13 @@ table.
 .Bl -column Namexx /usr/bin/login Default
 .It Sy Name	Type	Default	Description
 .It "ap	bool	false	terminal uses any parity"
-.It "bd	num	0	backspace delay"
 .It "bk	str	0377	alternate end of line character (input break)"
-.It "cb	bool	false	use crt backspace mode"
-.It "cd	num	0	carriage-return delay"
+.It "c0	num	unused	tty control flags to write messages"
+.It "c1	num	unused	tty control flags to read login name"
+.It "c2	num	unused	tty control flags to leave terminal as"
 .It "ce	bool	false	use crt erase algorithm"
 .It "ck	bool	false	use crt kill algorithm"
-.It "cl	str" Ta Dv NULL	Ta
+.It "cl	str" Ta Dv NULL Ta
 .No "screen clear sequence"
 .It "co	bool	false	console - add"
 .Ql \en
@@ -100,21 +101,23 @@ after login prompt
 .No "end of text"
 .Pq Dv EOF
 character
-.It "ev	str" Ta Dv NULL	Ta
+.It "ev	str" Ta Dv NULL Ta
 .No "initial environment"
 .It "f0	num	unused	tty mode flags to write messages"
 .It "f1	num	unused	tty mode flags to read login name"
 .It "f2	num	unused	tty mode flags to leave terminal as"
-.It "fd	num	0	form-feed (vertical motion) delay"
 .It "fl	str" Ta So Li ^O Sc Ta
 .No "output flush character"
 .It "hc	bool	false	do"
 .Tn NOT
 hangup line on last close
-.It "he	str" Ta Dv NULL	Ta
+.It "he	str" Ta Dv NULL Ta
 .No "hostname editing string"
 .It "hn	str	hostname	hostname"
 .It "ht	bool	false	terminal has real tabs"
+.It "i0	num	unused	tty input flags to write messages"
+.It "i1	num	unused	tty input flags to read login name"
+.It "i2	num	unused	tty input flags to leave terminal as"
 .It "ig	bool	false	ignore garbage characters in login name"
 .It "im	str" Ta Dv NULL Ta
 .No "initial (banner) message"
@@ -123,16 +126,21 @@ hangup line on last close
 .It "is	num	unused	input speed"
 .It "kl	str" Ta So Li ^U Sc Ta
 .No "kill character"
-.It "lc	bool	false	terminal has lower case"
+.It "l0	num	unused	tty local flags to write messages"
+.It "l1	num	unused	tty local flags to read login name"
+.It "l2	num	unused	tty local flags to leave terminal as"
 .It "lm	str	login:	login prompt"
 .It "ln	str" Ta So Li ^V Sc Ta
 .No "``literal next'' character"
 .It "lo	str" Ta Pa /usr/bin/login Ta
 .No "program to exec when name obtained"
-.It "nd	num	0	newline (line-feed) delay"
+.It "mb	bool	false	do flow control based on carrier"
 .It "nl	bool	false	terminal has (or might have) a newline character"
-.It "np	bool	false	terminal uses no parity (8bit chars)"
+.It "np	bool	false	terminal uses no parity (i.e. 8-bit characters)"
 .It "nx	str	default	next table (for auto speed selection)"
+.It "o0	num	unused	tty output flags to write messages"
+.It "o1	num	unused	tty output flags to read login name"
+.It "o2	num	unused	tty output flags to leave terminal as"
 .It "op	bool	false	terminal uses odd parity"
 .It "os	num	unused	output speed"
 .It "pc	str" Ta So Li \e0 Sc Ta
@@ -158,10 +166,9 @@ use raw for input, use cbreak
 .It "tt	str" Ta Dv NULL Ta
 .No "terminal type (for environment)"
 .It "ub	bool	false	do unbuffered output (of prompts etc)"
-.It "uc	bool	false	terminal is known upper case only"
 .It "we	str" Ta So Li ^W Sc Ta
 .No "word erase character"
-.It "xc	bool	false	do
+.It xc	bool	false	do
 .Tn NOT
 echo control chars as
 .Ql ^X
@@ -169,6 +176,18 @@ echo control chars as
 (stop output) character
 .It "xn	str" Ta So Li ^Q Sc Ta Dv XON
 (start output) character
+.It "Lo	str	C	the locale name used for \&%d in the banner message"
+.El
+.Pp
+The following capabilities are no longer supported by getty(8):
+.Bl -column Namexx /usr/bin/login Default
+.It "bd	num	0	backspace delay"
+.It "cb	bool	false	use crt backspace mode"
+.It "cd	num	0	carriage-return delay"
+.It "fd	num	0	form-feed (vertical motion) delay"
+.It "lc	bool	false	terminal has lower case"
+.It "nd	num	0	newline (line-feed) delay"
+.It "uc	bool	false	terminal is known upper case only"
 .El
 .Pp
 If no line speed is specified, speed will not be altered
@@ -183,18 +202,43 @@ are derived from the boolean flags specified.
 If the derivation should prove inadequate,
 any (or all) of these three may be overridden
 with one of the
-.Em \&f0 ,
-.Em \&f1 ,
+.Em \&c0 ,
+.Em \&c1 ,
+.Em \&c2 ,
+.Em \&i0 ,
+.Em \&i1 ,
+.Em \&i2 ,
+.Em \&l0 ,
+.Em \&l1 ,
+.Em \&l2 ,
+.Em \&o0 ,
+.Em \&o1 ,
 or
-.Em \&f2
+.Em \&o2
 numeric specifications, which can be used to specify
 (usually in octal, with a leading '0')
 the exact values of the flags.
-Local (new tty) flags are set in the top 16 bits
-of this (32 bit) value.
+These flags correspond to the termios
+.Em c_cflag ,
+.Em c_iflag ,
+.Em c_lflag ,
+and
+.Em c_oflag
+fields, respectively. Each these sets must be completely specified to be
+effective.
+The
+.Em \&f0 ,
+.Em \&f1 ,
+and
+.Em \&f2
+are excepted for backwards compatibility with a previous incarnation of
+the TTY sub-system. In these flags the bottom 16 bits of the (32 bits)
+value contain the sgttyb
+.Em sg_flags
+field, while the top 16 bits represent the local mode word.
 .Pp
 Should
-.Xr getty
+.Xr getty 8
 receive a null character
 (presumed to indicate a line break)
 it will restart using the table indicated by the
@@ -218,33 +262,51 @@ The initial message, and login message,
 .Em \&im
 and
 .Em \&lm
-may include the character sequence
-.Em \&%h
-or
-.Em \&%t
-to obtain
-the hostname or tty name respectively.
-.Pf ( Em %%
-obtains a single '%' character.)
-The hostname is normally obtained from the system,
-but may be set by the
+may include any of the following character sequences, which expand to
+information about the environment in which
+.Xr getty 8
+is running.
+.Pp
+.Bl -tag -width \&%xxx -compact
+.It \&%d
+The current date and time in the locale's representation as of the
+.Em \&Lo
+string
+(the \&%+ format of
+.Xr strftime 3 ).
+.It \&%h
+The hostname of the machine, which is normally obtained from the
+system using
+.Xr gethostname 2 ,
+but may also be overridden by the
 .Em \&hn
 table entry.
-In either case it may be edited with
-.Em \&he .
-The
+In either case it may be edited with the
 .Em \&he
-string is a sequence of characters, each character that
-is neither '@' nor '#' is copied into the final hostname.
+string.
 A '@' in the
 .Em \&he
-string, causes one character from the real hostname to
+string causes one character from the real hostname to
 be copied to the final hostname.
 A '#' in the
 .Em \&he
-string, causes the next character of the real hostname
+string causes the next character of the real hostname
 to be skipped.
+Each character that
+is neither '@' nor '#' is copied into the final hostname.
 Surplus '@' and '#' characters are ignored.
+.It \&%t
+The tty name.
+.It "\&%m, \&%r, \&%s, \&%v"
+The type of machine, release of the operating system, name of the
+operating system, and version of the kernel, respectively, as
+returned by
+.Xr uname 2 .
+.It \&%%
+A
+.Dq %
+character.
+.El
 .Pp
 When getty execs the login process, given
 in the
@@ -270,14 +332,16 @@ then getty will exit within the indicated
 number of seconds, either having
 received a login name and passed control
 to
-.Xr login ,
+.Xr login 1 ,
 or having received an alarm signal, and exited.
 This may be useful to hangup dial in lines.
 .Pp
 Output from
-.Xr getty
+.Xr getty 8
 is even parity unless
 .Em \&op
+or
+.Em \&np
 is specified.
 The
 .Em \&op
@@ -288,12 +352,14 @@ to allow any parity on input, but generate odd parity output.
 Note: this only applies while getty is being run,
 terminal driver limitations prevent a more complete
 implementation.
-.Xr Getty
+.Xr Getty 8
 does not check parity of input characters in
 .Dv RAW
 mode.
 .Sh SEE ALSO
 .Xr login 1 ,
+.Xr gethostname 2 ,
+.Xr uname 2 ,
 .Xr termcap 5 ,
 .Xr getty 8 .
 .Sh BUGS
