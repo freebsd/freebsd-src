@@ -248,7 +248,7 @@ list_cmd() {
 		if (EOF == ch)
 			break;
 		if ('#' != ch) {
-			putc(ch, NewCrontab);
+			putchar(ch);
 			break;
 		}
 		while (EOF != (ch = get_char(f)))
