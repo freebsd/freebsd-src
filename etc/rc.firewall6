@@ -86,7 +86,6 @@ ${fw6cmd} add 100 pass all from any to any via lo0
 # ND
 #
 # DAD
-${fw6cmd} add pass ipv6-icmp from ff02::/16 to ::
 ${fw6cmd} add pass ipv6-icmp from :: to ff02::/16
 # RS, RA, NS, NA, redirect...
 ${fw6cmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
