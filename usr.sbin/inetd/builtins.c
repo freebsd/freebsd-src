@@ -348,7 +348,8 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	fd_set fdset;
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
 	char *fallback = NULL;
-	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
+	size_t len;
+	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
 	int gflag = 0, Rflag = 0, getcredfail = 0;
 	u_short lport, fport;
 
