@@ -211,7 +211,7 @@
 
 	<note>
 	  <para>Modules designed for use with &os; 4.X are likely to
-	    panic and should be used with extreme caution).</para>
+	    panic and should be used with extreme caution.</para>
 	</note>
       </para>
 
@@ -265,7 +265,7 @@
 	high-bandwidth, large propagation-delay connections.  It is
 	off by default but can be enabled with the
 	<varname>net.inet.tcp.rfc3390</varname> sysctl variable.  More
-	information can by found in &man.tcp.4;.</para>
+	information can be found in &man.tcp.4;.</para>
 
       <para>The IP fragment reassembly code behaves more gracefully
 	when receiving a large number of packet fragments (it is
