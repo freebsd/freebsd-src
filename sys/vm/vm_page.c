@@ -1918,7 +1918,8 @@ again1:
 			m->valid = VM_PAGE_BITS_ALL;
 			if (m->flags & PG_ZERO)
 				vm_page_zero_count--;
-			m->flags = 0;
+			/* Don't clear the PG_ZERO flag, we'll need it later. */
+			m->flags &= PG_ZERO;
 			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
@@ -1952,6 +1953,9 @@ again1:
 			vm_page_t m = &pga[i];
 			vm_page_insert(m, kernel_object,
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
+			if ((flags & M_ZERO) && !(m->flags & PG_ZERO))
+				pmap_zero_page(VM_PAGE_TO_PHYS(m));
+			m->flags = 0;
 			tmp_addr += PAGE_SIZE;
 		}
 		vm_map_pageable(map, addr, addr + size, FALSE);
