@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.26 1996/09/03 14:21:51 bde Exp $
+ * $Id: kern_fork.c,v 1.27 1996/10/27 13:29:22 wosch Exp $
  */
 
 #include "opt_ktrace.h"
@@ -343,6 +343,7 @@ again:
 		 * Child process.  Set start time and get to work.
 		 */
 		microtime(&runtime);
+		(void) spl0();
 		p2->p_stats->p_start = runtime;
 		p2->p_acflag = AFORK;
 		return (0);

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.85 1996/09/08 20:44:48 dyson Exp $
+ * $Id: vm_pageout.c,v 1.86 1996/09/28 03:33:40 dyson Exp $
  */
 
 /*
@@ -953,8 +953,6 @@ int add;
 static void
 vm_pageout()
 {
-	(void) spl0();
-
 	/*
 	 * Initialize some paging parameters.
 	 */
@@ -1032,8 +1030,6 @@ vm_daemon()
 {
 	vm_object_t object;
 	struct proc *p;
-
-	(void) spl0();
 
 	while (TRUE) {
 		tsleep(&vm_daemon_needed, PUSER, "psleep", 0);
