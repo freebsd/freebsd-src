@@ -429,7 +429,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  simultaneous BPF clients programs runnable.
 #  The `disc' pseudo-device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
-#  included for testing purposes.
+#  included for testing purposes.  This shows up as the 'ds' interface.
 #  The `tun' pseudo-device implements (user-)ppp and nos-tun
 #  The `gif' pseudo-device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
@@ -451,7 +451,7 @@ pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
 pseudo-device	bpf			#Berkeley packet filter
-pseudo-device	disc			#Discard device
+pseudo-device	disc			#Discard device (ds0, ds1, etc)
 pseudo-device	tun			#Tunnel driver (ppp(8), nos-tun(8))
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
