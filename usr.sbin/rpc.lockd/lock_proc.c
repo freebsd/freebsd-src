@@ -634,10 +634,13 @@ nlm_granted_1_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm_granted", rqstp);
 
+	res.stat.stat = lock_answer(arg->alock.svid, &arg->cookie,
+		nlm_granted, NULL, NLM_VERS) == 0 ?
+		nlm_granted : nlm_denied;
+
 	/* copy cookie from arg to result.  See comment in nlm_test_1() */
 	res.cookie = arg->cookie;
 
-	res.stat.stat = nlm_granted;
 	return (&res);
 }
 
@@ -670,6 +673,8 @@ nlm_test_res_1_svc(arg, rqstp)
 {
 	if (debug_level)
 		log_from_addr("nlm_test_res", rqstp);
+	(void)lock_answer(-1, &arg->cookie, arg->stat.stat, 
+		&arg->stat.nlm_testrply_u.holder.svid, NLM_VERS);
 	return (NULL);
 }
 
@@ -685,6 +690,8 @@ nlm_lock_res_1_svc(arg, rqstp)
 {
 	if (debug_level)
 		log_from_addr("nlm_lock_res", rqstp);
+
+	(void)lock_answer(-1, &arg->cookie, arg->stat.stat, NULL, NLM_VERS);
 
 	return (NULL);
 }
@@ -716,6 +723,9 @@ nlm_unlock_res_1_svc(arg, rqstp)
 {
 	if (debug_level)
 		log_from_addr("nlm_unlock_res", rqstp);
+
+	lock_answer(&arg->cookie, arg->stat.stat, NLM_VERS);
+
 	return (NULL);
 }
 
@@ -1077,10 +1087,13 @@ nlm4_granted_4_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm4_granted", rqstp);
 
+	res.stat.stat = lock_answer(arg->alock.svid, &arg->cookie,
+		nlm4_granted, NULL, NLM_VERS4) == 0 ?
+		nlm4_granted : nlm4_denied;
+
 	/* copy cookie from arg to result.  See comment in nlm_test_1() */
 	res.cookie = arg->cookie;
 
-	res.stat.stat = nlm4_granted;
 	return (&res);
 }
 
@@ -1113,6 +1126,10 @@ nlm4_test_res_4_svc(arg, rqstp)
 {
 	if (debug_level)
 		log_from_addr("nlm4_test_res", rqstp);
+
+	(void)lock_answer(-1, &arg->cookie, arg->stat.stat,
+		(int *)&arg->stat.nlm4_testrply_u.holder.svid,
+		NLM_VERS4);
 	return (NULL);
 }
 
@@ -1128,6 +1145,8 @@ nlm4_lock_res_4_svc(arg, rqstp)
 {
 	if (debug_level)
 		log_from_addr("nlm4_lock_res", rqstp);
+
+	(void)lock_answer(-1, &arg->cookie, arg->stat.stat, NULL, NLM_VERS4);
 
 	return (NULL);
 }
@@ -1268,7 +1287,7 @@ nlm4_nm_lock_4_svc(arg, rqstp)
  */
 void *
 nlm4_free_all_4_svc(arg, rqstp)
-	nlm_notify *arg;
+	struct nlm4_notify *arg;
 	struct svc_req *rqstp;
 {
 	static char dummy;

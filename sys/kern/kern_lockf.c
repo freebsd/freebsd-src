@@ -69,7 +69,7 @@ static int	lockf_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, lockf_debug, CTLFLAG_RW, &lockf_debug, 0, "");
 #endif
 
-static MALLOC_DEFINE(M_LOCKF, "lockf", "Byte-range locking structures");
+MALLOC_DEFINE(M_LOCKF, "lockf", "Byte-range locking structures");
 
 #define NOLOCKF (struct lockf *)0
 #define SELF	0x1
