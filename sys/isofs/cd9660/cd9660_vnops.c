@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.18 1995/10/31 12:13:47 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.19 1995/11/09 08:13:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -183,6 +183,22 @@ cd9660_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	/*
+	 * Disallow write attempts on read-only file systems;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the file system.
+	 */
+	if (ap->a_mode & VWRITE) {
+		switch (ap->a_vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
+	}
+
 	return (0);
 }
 
