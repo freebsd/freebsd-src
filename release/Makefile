@@ -518,7 +518,7 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
 	touch ${.TARGET}
 
-# Build and install crypto distributions.
+# Build and install non-crypto versions of some tools.
 release.3:
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
