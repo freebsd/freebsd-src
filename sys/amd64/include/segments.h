@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.6 1994/11/14 14:18:15 bde Exp $
+ *	$Id: segments.h,v 1.7 1994/11/15 14:12:40 bde Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -194,7 +194,7 @@ struct region_descriptor {
  * Size of IDT table
  */
 
-#define	NIDT	48		/* 32 reserved, 16 h/w, 0 s/w */
+#define	NIDT	129		/* 32 reserved, 16 h/w, 0 s/w, linux's 0x80 */
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
 
 /*

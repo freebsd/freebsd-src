@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.46 1995/02/10 06:25:14 davidg Exp $
+ *	$Id: trap.c,v 1.47 1995/02/10 06:43:47 davidg Exp $
  */
 
 /*
@@ -747,3 +747,118 @@ syscall(frame)
 		ktrsysret(p->p_tracep, code, error, rval[0]);
 #endif
 }
+
+#ifdef COMPAT_LINUX
+/*
+ * linux_syscall(frame):
+ */
+/*ARGSUSED*/
+void
+linux_syscall(frame)
+	struct trapframe frame;
+{
+	caddr_t params;
+	int i;
+	struct proc *p = curproc;
+	struct sysent *callp;
+	u_quad_t sticks;
+	int error, opc;
+	int rval[2];
+	int code;
+	struct linux_syscall_args {
+		int ebx;
+		int ecx;
+		int edx;
+		int esi;
+		int edi;
+		int ebp;
+		int eax;
+	} args;
+
+	args.ebx = frame.tf_ebx;
+	args.ecx = frame.tf_ecx;
+	args.edx = frame.tf_edx;
+	args.esi = frame.tf_esi;
+	args.edi = frame.tf_edi;
+	args.ebp = frame.tf_ebp;
+	args.eax = frame.tf_eax;
+
+	sticks = p->p_sticks;
+	if (ISPL(frame.tf_cs) != SEL_UPL)
+		panic("linux syscall");
+
+	code = frame.tf_eax;
+	p->p_md.md_regs = (int *)&frame;
+	params = (caddr_t)frame.tf_esp + sizeof (int) ;
+
+	/*
+	 * Reconstruct pc, assuming lcall $X,y is 7 bytes, as it is always.
+	 * THIS IS WRONG FOR LINUX  XXX SOS
+	 * SIZE OF INT 0x80 (2??) NEEDED HERE !!!
+	 */
+	opc = frame.tf_eip - 2; /* was 7 */
+	if (code == 0) {
+		code = fuword(params);
+		params += sizeof (int);
+	}
+	if (p->p_sysent->sv_mask)
+		code = code & p->p_sysent->sv_mask;
+
+	if (code < 0 || code >= p->p_sysent->sv_size)
+		callp = &p->p_sysent->sv_table[0];
+	else
+		callp = &p->p_sysent->sv_table[code];
+
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSCALL))
+		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+#endif
+
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSCALL))
+		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+#endif
+	rval[0] = 0;
+	rval[1] = frame.tf_edx;
+
+	error = (*callp->sy_call)(p, &args, rval);
+
+	switch (error) {
+
+	case 0:
+		/*
+		 * Reinitialize proc pointer `p' as it may be different
+		 * if this is a child returning from fork syscall.
+		 */
+		p = curproc;
+		frame.tf_eax = rval[0];
+		frame.tf_eflags &= ~PSL_C;	/* carry bit */
+		break;
+
+	case ERESTART:
+		frame.tf_eip = opc;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+	bad:
+ 		if (p->p_sysent->sv_errsize)
+ 			if (error >= p->p_sysent->sv_errsize)
+  				error = -1;	/* XXX */
+   			else 
+  				error = p->p_sysent->sv_errtbl[error];
+		frame.tf_eax = -error;
+		frame.tf_eflags |= PSL_C;	/* carry bit */
+		break;
+	}
+
+	userret(p, &frame, sticks);
+
+#ifdef KTRACE
+	if (KTRPOINT(p, KTR_SYSRET))
+		ktrsysret(p->p_tracep, code, error, rval[0]);
+#endif
+}
+#endif /* COMPAT_LINUX */
