@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.8 1995/03/15 16:25:08 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.9 1995/03/25 12:07:31 bde Exp $
  */
 
 #include <stddef.h>
@@ -43,6 +43,7 @@
 #include <sys/buf.h>
 #include <sys/disklabel.h>
 #define	DOSPTYP_EXTENDED	5
+#define	DOSPTYP_ONTRACK		84
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
@@ -60,19 +61,22 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 };
 
 static int check_part __P((char *sname, struct dos_partition *dp,
-			   u_long offset, int nsectors, int ntracks));
+			   u_long offset, int nsectors, int ntracks,
+			   u_long mbr_offset));
 static void extended __P((char *dname, dev_t dev, d_strategy_t *strat,
 			  struct disklabel *lp, struct diskslices *ssp,
 			  u_long ext_offset, u_long ext_size,
-			  u_long base_ext_offset, int nsectors, int ntracks));
+			  u_long base_ext_offset, int nsectors, int ntracks,
+			  u_long mbr_offset));
 
 static int
-check_part(sname, dp, offset, nsectors, ntracks)
+check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	char	*sname;
 	struct dos_partition *dp;
 	u_long	offset;
 	int	nsectors;
 	int	ntracks;
+	u_long	mbr_offset;
 {
 	int	chs_ecyl;
 	int	chs_esect;
@@ -88,7 +92,8 @@ check_part(sname, dp, offset, nsectors, ntracks)
 	secpercyl = (u_long)nsectors * ntracks;
 	chs_scyl = DPCYL(dp->dp_scyl, dp->dp_ssect);
 	chs_ssect = DPSECT(dp->dp_ssect);
-	ssector = chs_ssect - 1 + dp->dp_shd * nsectors + chs_scyl * secpercyl;
+	ssector = chs_ssect - 1 + dp->dp_shd * nsectors + 
+		chs_scyl * secpercyl + mbr_offset;
 	ssector1 = offset + dp->dp_start;
 
 	/*
@@ -107,7 +112,8 @@ check_part(sname, dp, offset, nsectors, ntracks)
 
 	chs_ecyl = DPCYL(dp->dp_ecyl, dp->dp_esect);
 	chs_esect = DPSECT(dp->dp_esect);
-	esector = chs_esect - 1 + dp->dp_ehd * nsectors + chs_ecyl * secpercyl;
+	esector = chs_esect - 1 + dp->dp_ehd * nsectors + 
+		chs_ecyl * secpercyl + mbr_offset;
 	esector1 = ssector1 + dp->dp_size - 1;
 
 	/* Allow certain bogus C/H/S values for esector, as above. */
@@ -121,8 +127,9 @@ check_part(sname, dp, offset, nsectors, ntracks)
 	}
 
 	error = (ssector == ssector1 && esector == esector1) ? 0 : EINVAL;
-	printf("%s: start %lu, end = %lu, size %lu%s\n",
-	       sname, ssector1, esector1, dp->dp_size, error ? "" : ": OK");
+	printf("%s: type 0x%x, start %lu, end = %lu, size %lu %s\n",
+	        sname, dp->dp_typ, ssector1, esector1, dp->dp_size,
+		error ? "" : ": OK");
 	if (ssector != ssector1)
 		printf("%s: C/H/S start %d/%d/%d (%lu) != start %lu: invalid\n",
 		       sname, chs_scyl, dp->dp_shd, chs_ssect,
@@ -157,6 +164,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
+	u_long mbr_offset = DOSBBSECTOR;
 
 	/*
 	 * Allocate a dummy slices "struct" and initialize it to contain
@@ -173,10 +181,11 @@ dsinit(dname, dev, strat, lp, sspp)
 	bzero(sp, BASE_SLICE * sizeof *sp);
 	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
 
+    reread_mbr:
 	/* Read master boot record. */
 	bp = geteblk((int)lp->d_secsize);
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
-	bp->b_blkno = DOSBBSECTOR;
+	bp->b_blkno = mbr_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags = B_BUSY | B_READ;
 	(*strat)(bp);
@@ -199,6 +208,19 @@ dsinit(dname, dev, strat, lp, sspp)
 		goto done;
 	}
 	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
+
+	/* Check for "OnTrack Diskmanager" */
+	for (dospart = 0; dospart < NDOSPART; dospart++, sp++) {
+		if ((dp0+dospart)->dp_typ == DOSPTYP_ONTRACK) {
+			printf("%s: Detected \"Ontrack Disk Manager\"\n",
+				sname);
+			bp->b_flags = B_INVAL | B_AGE;
+			brelse(bp);
+			mbr_offset = 63;  /* XXX This might be nsect instead */
+			goto reread_mbr;
+		}	
+	}	
+
 	if (bcmp(dp0, historical_bogus_partition_table,
 		 sizeof historical_bogus_partition_table) == 0) {
 		TRACE(("%s: invalid primary partition table: historical\n",
@@ -244,7 +266,8 @@ dsinit(dname, dev, strat, lp, sspp)
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		sname = dsname(dname, dkunit(dev), BASE_SLICE + dospart,
+		sname = dsname(dname, dkunit(dev), 
+				BASE_SLICE + dospart + (mbr_offset ? 1 : 0),
 			       RAW_PART, partname);
 
 		/*
@@ -254,7 +277,8 @@ dsinit(dname, dev, strat, lp, sspp)
 		 * accept the table if the magic is right but not let
 		 * bad entries affect the geometry.
 		 */
-		check_part(sname, dp, (u_long)0, max_nsectors, max_ntracks);
+		check_part(sname, dp, mbr_offset, max_nsectors, max_ntracks,
+			mbr_offset);
 	}
 	if (error != 0)
 		goto done;
@@ -291,8 +315,21 @@ dsinit(dname, dev, strat, lp, sspp)
 
 	/* Initialize normal slices. */
 	sp += BASE_SLICE;
-	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++, sp++) {
-		sp->ds_offset = dp->dp_start;
+	ssp->dss_nslices = BASE_SLICE;
+
+	/* Even if we're running OnTrack, we still want to account for it */
+	if (mbr_offset) {
+		sp->ds_offset = 0;
+		sp->ds_size = mbr_offset;
+		sp->ds_type = DOSPTYP_ONTRACK;
+		sp++;
+		ssp->dss_nslices++;
+	}
+
+	for (dospart = 0, dp = dp0; 
+		dospart < NDOSPART; 
+		dospart++, dp++, sp++, ssp->dss_nslices++) {
+		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
 		sp->ds_type = dp->dp_typ;
 #if 0
@@ -300,7 +337,6 @@ dsinit(dname, dev, strat, lp, sspp)
 				 | DSTYPE_INDOSPART;
 #endif
 	}
-	ssp->dss_nslices = BASE_SLICE + NDOSPART;
 
 	/* Handle extended partitions. */
 	sp -= NDOSPART;
@@ -308,7 +344,7 @@ dsinit(dname, dev, strat, lp, sspp)
 		if (sp->ds_type == DOSPTYP_EXTENDED)
 			extended(dname, bp->b_dev, strat, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
-				 max_nsectors, max_ntracks);
+				 max_nsectors, max_ntracks, mbr_offset);
 
 done:
 	bp->b_flags = B_INVAL | B_AGE;
@@ -320,7 +356,7 @@ done:
 
 void
 extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
-	 nsectors, ntracks)
+	 nsectors, ntracks, mbr_offset)
 	char	*dname;
 	dev_t	dev;
 	struct disklabel *lp;
@@ -331,6 +367,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	u_long	base_ext_offset;
 	int	nsectors;
 	int	ntracks;
+	u_long	mbr_offset;
 {
 	struct buf *bp;
 	u_char	*cp;
@@ -385,13 +422,14 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			if (strlen(buf) < sizeof buf - 11)
 				strcat(buf, "<extended>");
 			check_part(buf, dp, base_ext_offset, nsectors,
-				   ntracks);
+				   ntracks, mbr_offset);
 			ext_offsets[dospart] = base_ext_offset + dp->dp_start;
 			ext_sizes[dospart] = dp->dp_size;
 		} else {
 			sname = dsname(dname, dkunit(dev), slice, RAW_PART,
 				       partname);
-			check_part(sname, dp, ext_offset, nsectors, ntracks);
+			check_part(sname, dp, ext_offset, nsectors, ntracks,
+				mbr_offset);
 			if (slice >= MAX_SLICES) {
 				printf("%s: too many slices\n", sname);
 				slice++;
@@ -411,7 +449,8 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 		if (ext_sizes[dospart] != 0)
 			extended(dname, dev, strat, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
-				 base_ext_offset, nsectors, ntracks);
+				 base_ext_offset, nsectors, ntracks, 
+				 mbr_offset);
 
 done:
 	bp->b_flags = B_INVAL | B_AGE;
