@@ -141,17 +141,17 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |      |    v            |             |
  |      |             |      |                 |             |
  |      |           10.0  NetBSD 1.5           |             |
- |   FreeBSD 4.3      |      |    |            |             v
- |      |             |      |    |        OpenBSD 2.9
- |      |             |      | NetBSD 1.5.1    |
- |      |             |      |    |            |
- |   FreeBSD 4.4      |      | NetBSD 1.5.2    |
- |      |             |      |    |            |
- |      |             |      |    |        OpenBSD 3.0
- |   FreeBSD 4.5      |      |    |            |
- |      |             |      |    |            |
- |   FreeBSD 4.6      |      |    |        OpenBSD 3.1
- |      |             |      | NetBSD 1.5.3    |
+ |   FreeBSD 4.3      |      |    |            |             |
+ |      |             |      |    |        OpenBSD 2.9       |
+ |      |             |      | NetBSD 1.5.1    |             |
+ |      |             |      |    |            |             |
+ |   FreeBSD 4.4      |      | NetBSD 1.5.2    |             |
+ |      |             |      |    |            |             |
+ |      |             |      |    |        OpenBSD 3.0       |
+ |   FreeBSD 4.5      |      |    |            |             |
+ |      |             |      |    |            |           BSD/OS 4.3
+ |   FreeBSD 4.6      |      |    |        OpenBSD 3.1       |
+ |      |             |      | NetBSD 1.5.3    |             v
  |   FreeBSD 4.7      |      |    |            |
  |      |             |      |    |            |
  |      v             |      |    v            |
@@ -188,6 +188,7 @@ was the announcement in Usenet or if it was available as tape.
 [OBD] OpenBSD Project, The.
 [dmr] Dennis Ritchie, via E-Mail
 [BSDI] Berkeley Software Design, Inc.
+[WRS] Wind River Systems, Inc.
 
 Multics                 1965
 UNIX                    Summer 1969
@@ -354,6 +355,7 @@ FreeBSD 4.4  		2001-09-18 [FBD]
 Mac OS X 10.1		2001-09-xx [APL]
 OpenBSD 3.0		2001-12-01 [OBD]
 FreeBSD 4.5  		2002-01-29 [FBD]
+BSD/OS 4.3		2002-03-14 [WRS]
 OpenBSD 3.1		2002-05-19 [OBD]
 FreeBSD 4.6  		2002-06-15 [FBD]
 NetBSD 1.5.3            2002-07-22 [NBD] (patch release)
