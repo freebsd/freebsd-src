@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1980, 1987, 1988, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -763,8 +770,9 @@ auth_pam()
 		    pam_strerror(pamh, e));
 		return -1;
 	}
-	if (hostname != NULL &&
-	    (e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
+	if (hostname == NULL)
+		gethostname(full_hostname, sizeof full_hostname);
+	if ((e = pam_set_item(pamh, PAM_RHOST, full_hostname)) != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
 		    pam_strerror(pamh, e));
 		return -1;
