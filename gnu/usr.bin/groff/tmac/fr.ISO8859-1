@@ -62,6 +62,7 @@
 .\" .Sh localization
 .ds doc-section-name        NOM
 .ds doc-section-synopsis    SYNOPSIS
+.ds doc-section-library     BIBLIOTHÈQUE
 .ds doc-section-description DESCRIPTION
 .ds doc-section-see-also    VOIR
 .ds doc-section-files       FICHIERS
