@@ -37,9 +37,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -715,6 +716,28 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/pid/environ
+ */
+static int
+linprocfs_doprocenviron(PFS_FILL_ARGS)
+{
+	sbuf_printf(sb, "doprocenviron\n%c", '\0');
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/pid/maps
+ */
+static int
+linprocfs_doprocmaps(PFS_FILL_ARGS)
+{
+	sbuf_printf(sb, "doprocmaps\n%c", '\0');
+
+	return (0);
+}
+
+/*
  * Filler function for proc/net/dev
  */
 static int
@@ -831,8 +854,16 @@ linprocfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
 	    NULL, NULL, PFS_RD);
+
+	pfs_create_file(dir, "environ", &linprocfs_doprocenviron,
+	    NULL, NULL, PFS_RD);
+
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
 	    NULL, &procfs_notsystem, 0);
+
+	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
+	    NULL, NULL, PFS_RD);
+
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
 	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
