@@ -158,7 +158,7 @@ extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern int bundle_ShowStatus(struct cmdargs const *);
-extern void bundle_StartIdleTimer(struct bundle *);
+extern void bundle_StartIdleTimer(struct bundle *, unsigned secs);
 extern void bundle_SetIdleTimer(struct bundle *, int, int);
 extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);

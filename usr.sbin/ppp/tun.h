@@ -27,7 +27,10 @@
  */
 
 struct tun_data {
-  u_int32_t family;
+  union {
+    u_int32_t family;
+    u_int32_t timeout;
+  } header;
   u_char data[MAX_MRU];
 };
 
