@@ -49,7 +49,7 @@
 #include <sys/tty.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
-#include <sys/bus.h>
+#include <sys/serial.h>
 #include <sys/bus.h>
 #include <machine/resource.h>
 
@@ -79,7 +79,8 @@ static d_write_t	digiwrite;
 static d_ioctl_t	digiioctl;
 
 static void	digistop(struct tty *tp, int rw);
-static int	digimctl(struct digi_p *port, int bits, int how);
+static int	digibreak(struct tty *tp, int brk);
+static int	digimodem(struct tty *tp, int sigon, int sigoff);
 static void	digi_poll(void *ptr);
 static void	digi_freemoduledata(struct digi_softc *);
 static void	fepcmd(struct digi_p *port, int cmd, int op, int ncmds);
@@ -647,49 +648,51 @@ digi_init(struct digi_softc *sc)
 }
 
 static int
-digimctl(struct digi_p *port, int bits, int how)
+digimodem(struct tty *tp, int sigon, int sigoff)
 {
-	int mstat;
+	struct digi_softc *sc;
+	struct digi_p *port;
+	int mynor, unit, pnum;
+	int bitand, bitor, mstat;
 
-	if (how == DMGET) {
+	mynor = minor(tp->t_dev);
+	unit = MINOR_TO_UNIT(mynor);
+	pnum = MINOR_TO_PORT(mynor);
+
+	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
+	port = &sc->ports[pnum];
+
+	if (sigon == 0 && sigoff == 0) {
 		port->sc->setwin(port->sc, 0);
 		mstat = port->bc->mstat;
 		port->sc->hidewin(port->sc);
-		bits = TIOCM_LE;
 		if (mstat & port->sc->csigs->rts)
-			bits |= TIOCM_RTS;
+			sigon |= SER_RTS;
 		if (mstat & port->cd)
-			bits |= TIOCM_CD;
+			sigon |= SER_DCD;
 		if (mstat & port->dsr)
-			bits |= TIOCM_DSR;
+			sigon |= SER_DSR;
 		if (mstat & port->sc->csigs->cts)
-			bits |= TIOCM_CTS;
+			sigon |= SER_CTS;
 		if (mstat & port->sc->csigs->ri)
-			bits |= TIOCM_RI;
+			sigon |= SER_RI;
 		if (mstat & port->sc->csigs->dtr)
-			bits |= TIOCM_DTR;
-		return (bits);
+			sigon |= SER_DTR;
+		return (sigon);
 	}
 
-	/* Only DTR and RTS may be set */
-	mstat = 0;
-	if (bits & TIOCM_DTR)
-		mstat |= port->sc->csigs->dtr;
-	if (bits & TIOCM_RTS)
-		mstat |= port->sc->csigs->rts;
+	bitand = 0;
+	bitor = 0;
 
-	switch (how) {
-	case DMSET:
-		fepcmd_b(port, SETMODEM, mstat, ~mstat, 0);
-		break;
-	case DMBIS:
-		fepcmd_b(port, SETMODEM, mstat, 0, 0);
-		break;
-	case DMBIC:
-		fepcmd_b(port, SETMODEM, 0, mstat, 0);
-		break;
-	}
-
+	if (sigoff & SER_DTR)
+		bitand |= port->sc->csigs->dtr;
+	if (sigoff & SER_RTS)
+		bitand |= port->sc->csigs->rts;
+	if (sigon & SER_DTR)
+		bitor |= port->sc->csigs->dtr;
+	if (sigon & SER_RTS)
+		bitor |= port->sc->csigs->rts;
+	fepcmd_b(port, SETMODEM, bitor, ~bitand, 0);
 	return (0);
 }
 
@@ -785,6 +788,8 @@ open_top:
 		 */
 		tp->t_oproc = digistart;
 		tp->t_param = digiparam;
+		tp->t_modem = digimodem;
+		tp->t_break = digibreak;
 		tp->t_stop = digistop;
 		tp->t_dev = dev;
 		tp->t_termios = (mynor & CALLOUT_MASK) ?
@@ -923,7 +928,7 @@ digihardclose(struct digi_p *port)
 	    (!port->active_out && !(bc->mstat & port->cd) &&
 	    !(port->it_in.c_cflag & CLOCAL)) ||
 	    !(port->tp->t_state & TS_ISOPEN)) {
-		digimctl(port, TIOCM_DTR | TIOCM_RTS, DMBIC);
+		digimodem(port->tp, 0, SER_DTR | SER_RTS);
 		if (port->dtr_wait != 0) {
 			/* Schedule a wakeup of any callin devices */
 			port->wopeners++;
@@ -1277,34 +1282,6 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	case DIGIIO_RING:
 		port->send_ring = *(u_char *)data;
 		break;
-	case TIOCSBRK:
-		/*
-		 * now it sends 400 millisecond break because I don't know
-		 * how to send an infinite break
-		 */
-		fepcmd_w(port, SENDBREAK, 400, 10);
-		break;
-	case TIOCCBRK:
-		/* now it's empty */
-		break;
-	case TIOCSDTR:
-		digimctl(port, TIOCM_DTR, DMBIS);
-		break;
-	case TIOCCDTR:
-		digimctl(port, TIOCM_DTR, DMBIC);
-		break;
-	case TIOCMSET:
-		digimctl(port, *(int *)data, DMSET);
-		break;
-	case TIOCMBIS:
-		digimctl(port, *(int *)data, DMBIS);
-		break;
-	case TIOCMBIC:
-		digimctl(port, *(int *)data, DMBIC);
-		break;
-	case TIOCMGET:
-		*(int *)data = digimctl(port, 0, DMGET);
-		break;
 	case TIOCMSDTRWAIT:
 		error = suser(td);
 		if (error != 0) {
@@ -1328,6 +1305,33 @@ digiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		return (ENOTTY);
 	}
 	splx(s);
+	return (0);
+}
+
+static int
+digibreak(struct tty *tp, int brk)
+{
+	int mynor;
+	int unit;
+	int pnum;
+	struct digi_softc *sc;
+	struct digi_p *port;
+
+	mynor = minor(tp->t_dev);
+	unit = MINOR_TO_UNIT(mynor);
+	pnum = MINOR_TO_PORT(mynor);
+
+	sc = (struct digi_softc *)devclass_get_softc(digi_devclass, unit);
+	KASSERT(sc, ("digi%d: softc not allocated in digiparam\n", unit));
+
+	port = &sc->ports[pnum];
+
+	/*
+	 * now it sends 400 millisecond break because I don't know
+	 * how to send an infinite break
+	 */
+	if (brk)
+		fepcmd_w(port, SENDBREAK, 400, 10);
 	return (0);
 }
 
@@ -1371,9 +1375,9 @@ digiparam(struct tty *tp, struct termios *t)
 
 	if (cflag == 0) {				/* hangup */
 		DLOG(DIGIDB_SET, (sc->dev, "port%d: hangup\n", pnum));
-		digimctl(port, TIOCM_DTR | TIOCM_RTS, DMBIC);
+		digimodem(port->tp, 0, SER_DTR | SER_RTS);
 	} else {
-		digimctl(port, TIOCM_DTR | TIOCM_RTS, DMBIS);
+		digimodem(port->tp, SER_DTR | SER_RTS, 0);
 
 		DLOG(DIGIDB_SET, (sc->dev, "port%d: CBAUD = %d\n", pnum,
 		    cflag));
