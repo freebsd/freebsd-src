@@ -11,14 +11,14 @@ MAINTAINER=	peter@FreeBSD.org
 PROG=	cvs
 MAN=	cvs.1 cvs.5
 
-SRCS=	add.c admin.c buffer.c checkin.c checkout.c classify.c client.c \
+SRCS=	add.c admin.c annotate.c buffer.c checkin.c checkout.c classify.c client.c \
 	commit.c create_adm.c cvsrc.c diff.c edit.c entries.c error.c \
 	expand_path.c fileattr.c filesubr.c find_names.c \
 	hardlink.c hash.c history.c \
 	ignore.c import.c lock.c log.c login.c logmsg.c main.c mkmodules.c \
 	modules.c myndbm.c no_diff.c parseinfo.c patch.c prepend_args.c \
 	rcs.c rcscmds.c \
-	recurse.c release.c remove.c repos.c root.c rtag.c run.c scramble.c \
+	recurse.c release.c remove.c repos.c root.c run.c scramble.c \
 	server.c status.c subr.c tag.c update.c vers_ts.c version.c watch.c \
 	wrapper.c zlib.c
 
