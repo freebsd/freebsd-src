@@ -592,7 +592,7 @@ configXDesktop(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     if (!strcmp(desk, "kde")) {
-	ret = package_add("kde");
+	ret = package_add("kdebase");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("startkde"))
 	    write_root_xprofile("exec startkde\n");
     }
