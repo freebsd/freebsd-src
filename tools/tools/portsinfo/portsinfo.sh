@@ -3,19 +3,19 @@
 #
 # portsinfo - Generate list of new ports for last two weeks.
 #
-# $Id$
+# $Id: portsinfo,v 1.3 1997/05/28 19:51:20 wosch Exp wosch $
+
+PATH=/bin:/usr/bin:/usr/local/bin:$PATH; export PATH
 
 url=http://www.de.freebsd.org/de/cgi/ports.cgi
 time='?type=new&time=2+week+ago&sektion=all'
 
-lynx -nolist -dump "$url$time" | grep -v "Description _:_" |
-perl -ne 's/_$//; s/:_ /: /; s/^(\s+)_/$1/; print if (/Main/ .. /____/)' |
+lynx -nolist -dump -reload -nostatus -underscore "$url$time" | 
+    grep -v "Description :" |
+perl -ne 'print if (/Main/ .. /XX%MXX/)' |
 perl -ne 'if (/Main Category/) { 
 		print; for(1..50) {print "="}; print "\n";
           } else { print}'
 
-echo "This information was produced at `date -u +'%Y/%m/%d %H:%M UTC'` by"
-echo "$url"
-
-
-
+echo ""
+echo "This information was produced by $url"
