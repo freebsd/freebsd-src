@@ -74,21 +74,17 @@ PUBLIC "-//FreeBSD//DTD transpec//EN"
 
 -- Docbook --
 
-DTDDECL "-//Davenport//DTD DocBook V2.4.1//EN"
-"docbook/docbook.dcl"
-
-PUBLIC "-//Davenport//DTD DocBook V2.4.1//EN"
+PUBLIC "-//Davenport//DTD DocBook V3.0//EN"
 "docbook/docbook.dtd"
 
-PUBLIC "-//Davenport//ELEMENTS CALS-Based DocBook Table Model V2.4.1//EN"
-"docbook/calstbl.mod"
-
-PUBLIC "-//Davenport//ELEMENTS DocBook Information Pool V2.4.1//EN"
+PUBLIC "-//Davenport//ELEMENTS DocBook Information Pool V3.0//EN"
 "docbook/dbpool.mod"
 
-PUBLIC "-//Davenport//ELEMENTS DocBook Document Hierarchy V2.4.1//EN"
+PUBLIC "-//Davenport//ELEMENTS DocBook Document Hierarchy V3.0//EN"
 "docbook/dbhier.mod"
 
-PUBLIC "-//Davenport//ELEMENTS DocBook Additional General Entities//EN"
+PUBLIC "-//Davenport//ENTITIES DocBook Additional General Entities V3.0//EN"
 "docbook/dbgenent.mod"
 
+PUBLIC "-//USA-DOD//DTD Table Model 951010//EN"
+"docbook/cals-tbl.dtd"
