@@ -15,9 +15,15 @@ BINMODE=4554
 BINOWN=	root
 .endif
 BINGRP=	network
+M4FLAGS=
 
 LDADD= -lcrypt -lmd -lutil -lz
 DPADD=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
+
+.SUFFIXES: .8 .8.m4
+
+.8.m4.8:
+	m4 ${M4FLAGS} ${.IMPSRC} >${.TARGET}
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
