@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcport.c 1.3 87/08/11 SMI";*/
 /*static char *sccsid = "from: @(#)getrpcport.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: getrpcport.c,v 1.2 1995/05/30 05:41:22 rgrimes Exp $";
+static char *rcsid = "$Id: getrpcport.c,v 1.3 1995/10/22 14:51:26 phk Exp $";
 #endif
 
 /*
@@ -43,8 +43,11 @@ static char *rcsid = "$Id: getrpcport.c,v 1.2 1995/05/30 05:41:22 rgrimes Exp $"
 #include <netdb.h>
 #include <sys/socket.h>
 
-getrpcport(host, prognum, versnum, proto)
+u_short pmap_getport(struct sockaddr_in *, u_long, u_long, u_int);
+
+int getrpcport(host, prognum, versnum, proto)
 	char *host;
+	int prognum, versnum, proto;
 {
 	struct sockaddr_in addr;
 	struct hostent *hp;

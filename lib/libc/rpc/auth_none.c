@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_none.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_none.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_none.c,v 1.2 1995/05/30 05:41:11 rgrimes Exp $";
+static char *rcsid = "$Id: auth_none.c,v 1.3 1995/10/22 14:51:06 phk Exp $";
 #endif
 
 /*
@@ -46,6 +46,8 @@ static char *rcsid = "$Id: auth_none.c,v 1.2 1995/05/30 05:41:11 rgrimes Exp $";
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
 #define MAX_MARSHEL_SIZE 20
+
+bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
 
 /*
  * Authenticator operations routines
