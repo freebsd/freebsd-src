@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.74 1998/05/11 01:06:06 dyson Exp $
+ *	$Id: mp_machdep.c,v 1.75 1998/05/17 18:53:17 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -311,6 +311,8 @@ extern pt_entry_t SMP_prvpt[];
 
 /* Private page pointer to curcpu's PTD, used during BSP init */
 extern pd_entry_t *my_idlePTD;
+
+struct pcb stoppcbs[NCPU];
 
 static int smp_started;		/* has the system started? */
 
@@ -2009,13 +2011,10 @@ stop_cpus(u_int map)
 	if (!smp_started)
 		return 0;
 
-	/* send IPI to all CPUs in map */
-	stopped_cpus = 0;
-
 	/* send the Xcpustop IPI to all CPUs in map */
 	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
-
-	while (stopped_cpus != map)
+	
+	while ((stopped_cpus & map) != map)
 		/* spin */ ;
 
 	return 1;
@@ -2043,9 +2042,8 @@ restart_cpus(u_int map)
 
 	started_cpus = map;		/* signal other cpus to restart */
 
-	while (started_cpus)		/* wait for each to clear its bit */
+	while ((stopped_cpus & map) != 0) /* wait for each to clear its bit */
 		/* spin */ ;
-	stopped_cpus = 0;
 
 	return 1;
 }
@@ -2074,6 +2072,11 @@ SYSCTL_INT(_machdep, OID_AUTO, forward_irq_enabled, CTLFLAG_RW,
 int forward_signal_enabled = 1;
 SYSCTL_INT(_machdep, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
 	   &forward_signal_enabled, 0, "");
+
+/* Enable forwarding of roundrobin to all other cpus */
+int forward_roundrobin_enabled = 1;
+SYSCTL_INT(_machdep, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
+	   &forward_roundrobin_enabled, 0, "");
 
 /*
  * This is called once the rest of the system is up and running and we're
@@ -2296,9 +2299,11 @@ forward_statclock(int pscnt)
 	while (checkstate_probed_cpus != map) {
 		/* spin */
 		i++;
-		if (i == 1000000) {
+		if (i == 100000) {
+#ifdef BETTER_CLOCK_DIAGNOSTIC
 			printf("forward_statclock: checkstate %x\n",
 			       checkstate_probed_cpus);
+#endif
 			break;
 		}
 	}
@@ -2369,9 +2374,11 @@ forward_hardclock(int pscnt)
 	while (checkstate_probed_cpus != map) {
 		/* spin */
 		i++;
-		if (i == 1000000) {
+		if (i == 100000) {
+#ifdef BETTER_CLOCK_DIAGNOSTIC
 			printf("forward_hardclock: checkstate %x\n",
 			       checkstate_probed_cpus);
+#endif
 			break;
 		}
 	}
@@ -2472,6 +2479,37 @@ forward_signal(struct proc *p)
 		}
 		if (id == (u_char) p->p_oncpu)
 			return;
+	}
+}
+
+void
+forward_roundrobin(void)
+{
+	u_int map;
+	int i;
+
+	if (!smp_started || !invltlb_ok || cold || panicstr)
+		return;
+	if (!forward_roundrobin_enabled)
+		return;
+	resched_cpus |= other_cpus;
+	map = other_cpus & ~stopped_cpus ;
+#if 1
+	selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+#else
+	(void) all_but_self_ipi(XCPUAST_OFFSET);
+#endif
+	i = 0;
+	while ((checkstate_need_ast & map) != 0) {
+		/* spin */
+		i++;
+		if (i > 100000) {
+#if 0
+			printf("forward_roundrobin: dropped ast 0x%x\n",
+			       checkstate_need_ast & map);
+#endif
+			break;
+		}
 	}
 }
 

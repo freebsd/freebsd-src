@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.54 1998/04/04 13:25:20 phk Exp $
+ * $Id: kern_synch.c,v 1.55 1998/05/17 11:52:45 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -57,6 +57,10 @@
 #endif
 
 #include <machine/cpu.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
+#include <machine/ipl.h>
 #include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
 static void rqinit __P((void *));
@@ -130,8 +134,13 @@ roundrobin(arg)
 {
  	struct proc *p = curproc; /* XXX */
  
+#ifdef SMP
+	need_resched();
+	forward_roundrobin();
+#else 
  	if (p == 0 || RTP_PRIO_NEED_RR(p->p_rtprio.type))
  		need_resched();
+#endif
 
  	timeout(roundrobin, NULL, ROUNDROBIN_INTERVAL);
 }

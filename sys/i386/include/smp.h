@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.41 1998/04/01 20:38:28 tegge Exp $
+ * $Id: smp.h,v 1.42 1998/04/01 21:07:36 tegge Exp $
  *
  */
 
@@ -80,6 +80,8 @@ extern volatile u_int		started_cpus;
 
 extern volatile u_int		checkstate_probed_cpus;
 extern volatile u_int		checkstate_need_ast;
+extern volatile u_int		resched_cpus;
+extern void (*cpustop_restartfunc) __P((void));
 
 /* functions in apic_ipl.s */
 void	apic_eoi		__P((void));
@@ -103,6 +105,7 @@ extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
 extern u_int			all_cpus;
 extern u_char			SMP_ioapic[];
+extern struct pcb		stoppcbs[];
 
 /* functions in mp_machdep.c */
 u_int	mp_bootaddress		__P((u_int));
@@ -131,6 +134,7 @@ void	forward_statclock	__P((int pscnt));
 void	forward_hardclock	__P((int pscnt));
 #endif /* BETTER_CLOCK */
 void	forward_signal		__P((struct proc *));
+void	forward_roundrobin	__P((void));
 #ifdef	APIC_INTR_REORDER
 void	set_lapic_isrloc	__P((int, int));
 #endif /* APIC_INTR_REORDER */
