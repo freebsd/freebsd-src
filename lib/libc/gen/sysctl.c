@@ -66,16 +66,20 @@ sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 
 	switch (name[1]) {
 	case USER_CS_PATH:
-		if (oldp && *oldlenp < sizeof(_PATH_STDPATH))
-			return (ENOMEM);
+		if (oldp && *oldlenp < sizeof(_PATH_STDPATH)) {
+			errno = ENOMEM;
+			return -1;
+		}
 		*oldlenp = sizeof(_PATH_STDPATH);
 		if (oldp != NULL)
 			memmove(oldp, _PATH_STDPATH, sizeof(_PATH_STDPATH));
 		return (0);
 	}
 
-	if (oldp && *oldlenp < sizeof(int))
-		return (ENOMEM);
+	if (oldp && *oldlenp < sizeof(int)) {
+		errno = ENOMEM;
+		return (-1);
+	}
 	*oldlenp = sizeof(int);
 	if (oldp == NULL)
 		return (0);
