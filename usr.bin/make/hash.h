@@ -56,7 +56,7 @@ typedef struct Hash_Entry {
     struct Hash_Entry *next;		/* Used to link together all the
     					 * entries associated with the same
 					 * bucket. */
-    ClientData	      clientData;	/* Arbitrary piece of data associated
+    void *	      clientData;	/* Arbitrary piece of data associated
     					 * with key. */
     unsigned	      namehash;		/* hash value of key */
     char	      name[1];		/* key string */
@@ -86,7 +86,7 @@ typedef struct Hash_Search {
  */
 
 /*
- * ClientData Hash_GetValue(h)
+ * void * Hash_GetValue(h)
  *     Hash_Entry *h;
  */
 
@@ -98,7 +98,7 @@ typedef struct Hash_Search {
  *     char *val;
  */
 
-#define Hash_SetValue(h, val) ((h)->clientData = (ClientData) (val))
+#define Hash_SetValue(h, val) ((h)->clientData = (void *) (val))
 
 /*
  * Hash_Size(n) returns the number of words in an object of n bytes

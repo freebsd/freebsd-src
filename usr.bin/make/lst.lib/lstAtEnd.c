@@ -64,7 +64,7 @@ __RCSID("$FreeBSD$");
 ReturnStatus
 Lst_AtEnd (l, d)
     Lst		l;	/* List to which to add the datum */
-    ClientData	d;	/* Datum to add */
+    void *	d;	/* Datum to add */
 {
     register LstNode	end;
 

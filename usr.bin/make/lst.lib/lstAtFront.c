@@ -65,7 +65,7 @@ __RCSID("$FreeBSD$");
 ReturnStatus
 Lst_AtFront (l, d)
     Lst		l;
-    ClientData	d;
+    void *	d;
 {
     register LstNode	front;
 

@@ -73,7 +73,7 @@ str_end()
     if (argv) {
 	if (argv[0])
 	    free(argv[0]);
-	free((Address) argv);
+	free(argv);
     }
     if (buffer)
 	free(buffer);

@@ -67,7 +67,7 @@ ReturnStatus
 Lst_Insert (l, ln, d)
     Lst	    	  	l;	/* list to manipulate */
     LstNode	  	ln;	/* node before which to insert d */
-    ClientData	  	d;	/* datum to be inserted */
+    void *	  	d;	/* datum to be inserted */
 {
     register ListNode	nLNode;	/* new lnode for d */
     register ListNode	lNode = (ListNode)ln;
