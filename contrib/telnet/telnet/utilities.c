@@ -47,9 +47,8 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <unistd.h>
-
 #include <ctype.h>
+#include <unistd.h>
 
 #include "general.h"
 
