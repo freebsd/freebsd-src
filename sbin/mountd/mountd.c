@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.33 1998/08/02 16:06:34 bde Exp $";
+	"$Id: mountd.c,v 1.34 1998/12/29 09:38:49 dfr Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -2160,7 +2160,7 @@ check_options(dp)
 	    return (1);
 	}
 	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
-	    syslog(LOG_ERR, "-alldir has multiple directories");
+	    syslog(LOG_ERR, "-alldirs has multiple directories");
 	    return (1);
 	}
 	return (0);
