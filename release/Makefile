@@ -91,9 +91,9 @@ NOPORTREADMES?=	YES
 #NODOC=  YES
 #NOPORTS=  YES
 
-# Uncomment and modify this definition if you want the release notes 
+# Modify this definition if you want the release notes 
 # and other release documentation in a language other than English.
-#RELNOTES_LANG=	en_US.ISO8859-1
+RELNOTES_LANG?=	en_US.ISO8859-1
 
 # As an alternative to installing the entire ports collection (which
 # can take a huge amount of time, in particular on slower disks),
@@ -111,10 +111,11 @@ NOPORTSATALL=	YES
 .endif
 .endif
 
-# Set ALLLANG=no if you want the documentation (e.g. Handbook, FAQ) to be
-# in English only.  The language for the release notes is controlled
-# by the RELNOTES_LANG variable above.
-ALLLANG?=	yes
+# By default, documentation (Handbook, FAQ, etc.) is built for all
+# the languages.  To speed up building, set the DOC_LANG to just
+# the languages you need.  (The language for the release notes is
+# controlled by the RELNOTES_LANG variable above.)
+#DOC_LANG=	en_US.ISO8859-1
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
@@ -356,75 +357,37 @@ rerelease release:
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
-	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
-	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
-	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
-	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
 	echo "export MODULES_WITH_WORLD=YES"	>> ${CHROOTDIR}/mk
-.if defined(RELEASETAG)
-	echo "export RELEASETAG=\"${RELEASETAG}\""	>> ${CHROOTDIR}/mk
+.for var in \
+	AUTO_KEYBOARD_DETECT \
+	BOOT_CONFIG \
+	BUILDNAME \
+	CD_EXTRA_BITS \
+	DISTRIBUTIONS \
+	DOC_LANG \
+	DOMINIMALDOCPORTS \
+	EXTRA_SRC \
+	FIXCRYPTO \
+	KERNELS \
+	KERNEL_FLAGS \
+	MAKE_ISOS \
+	NODOC \
+	NOKERBEROS \
+	NOPORTS \
+	NOSHARED \
+	NOSRC \
+	NO_SENDMAIL \
+	OBJFORMAT \
+	RELEASETAG \
+	RELNOTES_LANG \
+	TARGET \
+	TARGET_ARCH \
+	VNDEVICE \
+	WORLD_FLAGS
+.if defined(${var})
+	echo "export ${var}=\"${${var}}\""	>> ${CHROOTDIR}/mk
 .endif
-.if defined(NOPORTS)
-	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(MAKE_ISOS)
-	echo "export MAKE_ISOS=${MAKE_ISOS}"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(DOMINIMALDOCPORTS)
-	echo "export DOMINIMALDOCPORTS=${DOMINIMALDOCPORTS}" >> ${CHROOTDIR}/mk
-.endif
-.if defined(NODOC)
-	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
-.endif
-.if defined(ALLLANG) && ${ALLLANG} != "NO" && ${ALLLANG} != "no"
-	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
-.else
-	echo "export DOC_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(AUTO_KEYBOARD_DETECT)
-	echo "export AUTO_KEYBOARD_DETECT=\"${AUTO_KEYBOARD_DETECT}\"" 	>> ${CHROOTDIR}/mk
-.endif
-.if defined(NOSRC)
-	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
-.endif
-.if defined(RELNOTES_LANG)
-	echo "export RELNOTES_LANG=${RELNOTES_LANG}"	>> ${CHROOTDIR}/mk
-.else
-	echo "export RELNOTES_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(NOSHARED)
-	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
-.endif
-.if defined(BOOT_CONFIG)
-	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
-.endif
-.if defined(WORLD_FLAGS)
-	echo "export WORLD_FLAGS=\"${WORLD_FLAGS}\""	>> ${CHROOTDIR}/mk
-.endif
-.if defined(KERNEL_FLAGS)
-	echo "export KERNEL_FLAGS=\"${KERNEL_FLAGS}\"" >> ${CHROOTDIR}/mk
-.endif
-.if defined(TARGET)
-	echo "export TARGET=\"${TARGET}\"" >> ${CHROOTDIR}/mk
-.endif
-.if defined(TARGET_ARCH)
-	echo "export TARGET_ARCH=\"${TARGET_ARCH}\"" >> ${CHROOTDIR}/mk
-.endif
-.if defined(EXTRA_SRC)
-	echo "export EXTRA_SRC=\"${EXTRA_SRC}\""	>> ${CHROOTDIR}/mk
-.endif
-.if defined(FIXCRYPTO)
-	echo "export FIXCRYPTO=\"${FIXCRYPTO}\""	>> ${CHROOTDIR}/mk
-.endif
-.if defined(KERNELS)
-	echo "export KERNELS=\"${KERNELS}\""		>> ${CHROOTDIR}/mk
-.endif
-.if defined(NOKERBEROS)
-	echo "export NOKERBEROS=\"${NOKERBEROS}\""	>> ${CHROOTDIR}/mk
-.endif
-.if defined(NO_SENDMAIL)
-	echo "export NO_SENDMAIL=\"${NO_SENDMAIL}\""	>> ${CHROOTDIR}/mk
-.endif
+.endfor
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
