@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.18 1996/09/01 22:15:54 ache Exp $
+ * $Id: kern_prot.c,v 1.19 1996/09/03 12:52:58 bde Exp $
  */
 
 /*
@@ -275,6 +275,8 @@ setpgid(curp, uap, retval)
 	register struct proc *targp;		/* target process */
 	register struct pgrp *pgrp;		/* target pgrp */
 
+	if (uap->pgid < 0)
+		return (EINVAL);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == 0 || !inferior(targp))
 			return (ESRCH);
