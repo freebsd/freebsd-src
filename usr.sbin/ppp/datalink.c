@@ -144,7 +144,8 @@ datalink_HangupDone(struct datalink *dl)
     datalink_StartDialTimer(dl, dl->cbcp.fsm.delay);
     cbcp_Down(&dl->cbcp);
     datalink_NewState(dl, DATALINK_OPENING);
-    if (bundle_Phase(dl->bundle) != PHASE_TERMINATE)
+    if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
+        bundle_Phase(dl->bundle) == PHASE_TERMINATE)
       bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
   } else if (dl->bundle->CleaningUp ||
       (dl->physical->type == PHYS_DIRECT) ||
@@ -159,7 +160,8 @@ datalink_HangupDone(struct datalink *dl)
       datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
   } else {
     datalink_NewState(dl, DATALINK_OPENING);
-    if (bundle_Phase(dl->bundle) != PHASE_TERMINATE)
+    if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
+        bundle_Phase(dl->bundle) == PHASE_TERMINATE)
       bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
     if (dl->dial.tries < 0) {
       datalink_StartDialTimer(dl, dl->cfg.reconnect.timeout);
