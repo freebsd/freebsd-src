@@ -49,13 +49,10 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Tfknst
-.Op Fl M Ar core
-.Op Fl N Ar system
-.Pp
+.Op Fl M Ar core Op Fl N Ar system
 .Nm swapinfo
 .Op Fl k
-.Op Fl M Ar core
-.Op Fl N Ar system
+.Op Fl M Ar core Op Fl N Ar system
 .Sh DESCRIPTION
 The
 .Nm
@@ -70,11 +67,9 @@ option is implied, and only the
 .Fl k
 option is legal.
 .Pp
-If neither the
-.Fl N
-nor the
+If the
 .Fl M
-option is specified, information is obtained from
+option is not specified, information is obtained from
 the currently running kernel via the
 .Xr sysctl 3
 interface.
@@ -244,7 +239,10 @@ PPPDISC.
 .It Fl M
 Extract values associated with the name list from the specified core.
 .It Fl N
-Extract the name list from the specified system instead of the default,
+If
+.Fl M
+is also specified,
+extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
 .El
 .Sh SEE ALSO
