@@ -104,7 +104,7 @@ struct uhci_soft_td {
  * NOTE: Minimum size is 32 bytes.
  */
 #define UHCI_STD_SIZE ((sizeof (struct uhci_soft_td) + UHCI_TD_ALIGN - 1) / UHCI_TD_ALIGN * UHCI_TD_ALIGN)
-#define UHCI_STD_CHUNK 128 /*(PAGE_SIZE / UHCI_TD_SIZE)*/
+#define UHCI_STD_CHUNK (PAGE_SIZE / UHCI_STD_SIZE)
 
 /*
  * Extra information that we need for a QH.
@@ -118,7 +118,7 @@ struct uhci_soft_qh {
 };
 /* See comment about UHCI_STD_SIZE. */
 #define UHCI_SQH_SIZE ((sizeof (struct uhci_soft_qh) + UHCI_QH_ALIGN - 1) / UHCI_QH_ALIGN * UHCI_QH_ALIGN)
-#define UHCI_SQH_CHUNK 128 /*(PAGE_SIZE / UHCI_QH_SIZE)*/
+#define UHCI_SQH_CHUNK (PAGE_SIZE / UHCI_SQH_SIZE)
 
 /*
  * Information about an entry in the virtual frame list.
