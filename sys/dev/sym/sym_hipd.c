@@ -66,25 +66,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 /*
- *  Only use the BUS stuff for PCI under FreeBSD 4 and later versions.
- *  Note that the old BUS stuff also works for FreeBSD 4 and spares 
- *  about 1 KB for the driver object file.
- */
-#if 	__FreeBSD_version >= 400000
-#define	FreeBSD_Bus_Dma_Abstraction
-#define	FreeBSD_Bus_Io_Abstraction
-#define	FreeBSD_Bus_Space_Abstraction
-#endif
-
-/*
  *  Driver configuration options.
  */
 #include "opt_sym.h"
 #include <dev/sym/sym_conf.h>
 
-#ifndef FreeBSD_Bus_Io_Abstraction
-#include "ncr.h"	/* To know if the ncr has been configured */
-#endif
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -92,17 +78,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#ifdef FreeBSD_Bus_Io_Abstraction
 #include <sys/module.h>
 #include <sys/bus.h>
-#endif
 
 #include <sys/proc.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#ifdef	FreeBSD_Bus_Space_Abstraction
 #include <machine/bus_memio.h>
 /*
  *  Only include bus_pio if needed.
@@ -112,13 +95,10 @@ __FBSDID("$FreeBSD$");
 #ifdef	SYM_CONF_IOMAPPED
 #include <machine/bus_pio.h>
 #endif
-#endif
 #include <machine/bus.h>
 
-#ifdef FreeBSD_Bus_Io_Abstraction
 #include <machine/resource.h>
 #include <sys/rman.h>
-#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -469,7 +449,6 @@ typedef struct m_link {		/* Link between free memory chunks */
 	struct m_link *next;
 } m_link_s;
 
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 typedef struct m_vtob {		/* Virtual to Bus address translation */
 	struct m_vtob	*next;
 	bus_dmamap_t	dmamap;	/* Map for this chunk */
@@ -482,10 +461,8 @@ typedef struct m_vtob {		/* Virtual to Bus address translation */
 #define VTOB_HASH_MASK		(VTOB_HASH_SIZE-1)
 #define VTOB_HASH_CODE(m)	\
 	((((m_addr_t) (m)) >> MEMO_CLUSTER_SHIFT) & VTOB_HASH_MASK)
-#endif
 
 typedef struct m_pool {		/* Memory pool of a given kind */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	bus_dma_tag_t	 dev_dmat;	/* Identifies the pool */
 	bus_dma_tag_t	 dmat;		/* Tag for our fixed allocations */
 	m_addr_t (*getp)(struct m_pool *);
@@ -497,10 +474,6 @@ typedef struct m_pool {		/* Memory pool of a given kind */
 	int nump;
 	m_vtob_s *(vtob[VTOB_HASH_SIZE]);
 	struct m_pool *next;
-#else
-#define M_GETP()		get_pages()
-#define M_FREEP(p)		free_pages(p)
-#endif	/* FreeBSD_Bus_Dma_Abstraction */
 	struct m_link h[MEMO_CLUSTER_SHIFT - MEMO_SHIFT + 1];
 } m_pool_s;
 
@@ -624,14 +597,6 @@ static void __sym_mfree(m_pool_s *mp, void *ptr, int size, char *name)
 /*
  * Default memory pool we donnot need to involve in DMA.
  */
-#ifndef	FreeBSD_Bus_Dma_Abstraction
-/*
- * Without the `bus dma abstraction', all the memory is assumed 
- * DMAable and a single pool is all what we need.
- */
-static m_pool_s mp0;
-
-#else
 /*
  * With the `bus dma abstraction', we use a separate pool for 
  * memory we donnot need to involve in DMA.
@@ -658,7 +623,6 @@ static m_pool_s mp0 = {0, 0, ___mp0_getp, ___mp0_freep};
 static m_pool_s mp0 = {0, 0, ___mp0_getp};
 #endif
 
-#endif	/* FreeBSD_Bus_Dma_Abstraction */
 
 /*
  * Actual memory allocation routine for non-DMAed memory.
@@ -685,20 +649,6 @@ static void sym_mfree(void *ptr, int size, char *name)
 /*
  * DMAable pools.
  */
-#ifndef	FreeBSD_Bus_Dma_Abstraction
-/*
- * Without `bus dma abstraction', all the memory is DMAable, and 
- * only a single pool is needed (vtophys() is our friend).
- */
-#define __sym_calloc_dma(b, s, n)	sym_calloc(s, n)
-#define __sym_mfree_dma(b, p, s, n)	sym_mfree(p, s, n)
-#ifdef	__alpha__
-#define	__vtobus(b, p)	alpha_XXX_dmamap((vm_offset_t)(p))
-#else /*__i386__, __sparc64__*/
-#define __vtobus(b, p)	vtophys(p)
-#endif
-
-#else
 /*
  * With `bus dma abstraction', we use a separate pool per parent 
  * BUS handle. A reverse table (hashed) is maintained for virtual 
@@ -873,7 +823,6 @@ static m_addr_t __vtobus(bus_dma_tag_t dev_dmat, void *m)
 	return vp ? vp->baddr + (((m_addr_t) m) - a) : 0;
 }
 
-#endif	/* FreeBSD_Bus_Dma_Abstraction */
 
 /*
  * Verbs for DMAable memory handling.
@@ -987,7 +936,6 @@ struct sym_nvram {
  *  later kernel versions.
  */
 
-#ifdef	FreeBSD_Bus_Space_Abstraction
 
 #if defined(SYM_CONF_IOMAPPED)
 
@@ -1014,79 +962,6 @@ struct sym_nvram {
 #define OUTRAM_OFF(o, a, l)	\
 	bus_space_write_region_1(np->ram_tag, np->ram_bsh, o, (a), (l))
 
-#else	/* not defined FreeBSD_Bus_Space_Abstraction */
-
-#if	BYTE_ORDER == BIG_ENDIAN
-#error	"BIG ENDIAN support requires bus space kernel interface"
-#endif
-
-/*
- *  Access to the chip IO registers and on-chip RAM.
- *  We use legacy MMIO and IO interface for FreeBSD 3.X versions.
- */
-
-/*
- *  Define some understable verbs for IO and MMIO.
- */
-#define io_read8(p)	 scr_to_cpu(inb((p)))
-#define	io_read16(p)	 scr_to_cpu(inw((p)))
-#define io_read32(p)	 scr_to_cpu(inl((p)))
-#define	io_write8(p, v)	 outb((p), cpu_to_scr(v))
-#define io_write16(p, v) outw((p), cpu_to_scr(v))
-#define io_write32(p, v) outl((p), cpu_to_scr(v))
-
-#ifdef	__alpha__
-
-#define mmio_read8(a)	     readb(a)
-#define mmio_read16(a)	     readw(a)
-#define mmio_read32(a)	     readl(a)
-#define mmio_write8(a, b)    writeb(a, b)
-#define mmio_write16(a, b)   writew(a, b)
-#define mmio_write32(a, b)   writel(a, b)
-#define memcpy_to_pci(d, s, n)	memcpy_toio((u32)(d), (void *)(s), (n))
-
-#else /*__i386__, __sparc64__*/
-
-#define mmio_read8(a)	     scr_to_cpu((*(volatile unsigned char *) (a)))
-#define mmio_read16(a)	     scr_to_cpu((*(volatile unsigned short *) (a)))
-#define mmio_read32(a)	     scr_to_cpu((*(volatile unsigned int *) (a)))
-#define mmio_write8(a, b)   (*(volatile unsigned char *) (a)) = cpu_to_scr(b)
-#define mmio_write16(a, b)  (*(volatile unsigned short *) (a)) = cpu_to_scr(b)
-#define mmio_write32(a, b)  (*(volatile unsigned int *) (a)) = cpu_to_scr(b)
-#define memcpy_to_pci(d, s, n)	bcopy((s), (void *)(d), (n))
-
-#endif
-
-/*
- *  Normal IO
- */
-#if defined(SYM_CONF_IOMAPPED)
-
-#define	INB_OFF(o)	io_read8(np->io_port + sym_offb(o))
-#define	OUTB_OFF(o, v)	io_write8(np->io_port + sym_offb(o), (v))
-
-#define	INW_OFF(o)	io_read16(np->io_port + sym_offw(o))
-#define	OUTW_OFF(o, v)	io_write16(np->io_port + sym_offw(o), (v))
-
-#define	INL_OFF(o)	io_read32(np->io_port + (o))
-#define	OUTL_OFF(o, v)	io_write32(np->io_port + (o), (v))
-
-#else	/* Memory mapped IO */
-
-#define	INB_OFF(o)	mmio_read8(np->mmio_va + sym_offb(o))
-#define	OUTB_OFF(o, v)	mmio_write8(np->mmio_va + sym_offb(o), (v))
-
-#define	INW_OFF(o)	mmio_read16(np->mmio_va + sym_offw(o))
-#define	OUTW_OFF(o, v)	mmio_write16(np->mmio_va + sym_offw(o), (v))
-
-#define	INL_OFF(o)	mmio_read32(np->mmio_va + (o))
-#define	OUTL_OFF(o, v)	mmio_write32(np->mmio_va + (o), (v))
-
-#endif
-
-#define OUTRAM_OFF(o, a, l) memcpy_to_pci(np->ram_va + (o), (a), (l))
-
-#endif	/* FreeBSD_Bus_Space_Abstraction */
 
 /*
  *  Common definitions for both bus space and legacy IO methods.
@@ -1623,14 +1498,12 @@ struct sym_ccb {
 	/*
 	 *  Map for the DMA of user data.
 	 */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	void		*arg;	/* Argument for some callback	*/
 	bus_dmamap_t	dmamap;	/* DMA map for user data	*/
 	u_char		dmamapped;
 #define SYM_DMA_NONE	0
 #define SYM_DMA_READ	1
 #define SYM_DMA_WRITE	2
-#endif
 	/*
 	 *  Other fields.
 	 */
@@ -1694,11 +1567,7 @@ struct sym_hcb {
 	/*
 	 *  Chip and controller indentification.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	device_t device;
-#else
-	pcici_t	pci_tag;
-#endif
 	int	unit;
 	char	inst_name[8];
 
@@ -1740,14 +1609,12 @@ struct sym_hcb {
 	/*
 	 *  Allocated hardware resources.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	struct resource	*irq_res;
 	struct resource	*io_res;
 	struct resource	*mmio_res;
 	struct resource	*ram_res;
 	int		ram_id;
 	void *intr;
-#endif
 
 	/*
 	 *  Bus stuff.
@@ -1760,22 +1627,18 @@ struct sym_hcb {
 	 *  deals with part of the BUS stuff complexity only to fit O/S 
 	 *  requirements.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	bus_space_handle_t	io_bsh;
 	bus_space_tag_t		io_tag;
 	bus_space_handle_t	mmio_bsh;
 	bus_space_tag_t		mmio_tag;
 	bus_space_handle_t	ram_bsh;
 	bus_space_tag_t		ram_tag;
-#endif
 
 	/*
 	 *  DMA stuff.
 	 */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	bus_dma_tag_t	bus_dmat;	/* DMA tag from parent BUS	*/
 	bus_dma_tag_t	data_dmat;	/* DMA tag for user data	*/
-#endif
 	/*
 	 *  Virtual and physical bus addresses of the chip.
 	 */
@@ -2471,17 +2334,8 @@ static void sym_action1 (struct cam_sim *sim, union ccb *ccb);
 static int  sym_setup_cdb (hcb_p np, struct ccb_scsiio *csio, ccb_p cp);
 static void sym_setup_data_and_start (hcb_p np, struct ccb_scsiio *csio,
 				      ccb_p cp);
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 static int sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp, 
 					bus_dma_segment_t *psegs, int nsegs);
-#else
-static int  sym_scatter_virtual (hcb_p np, ccb_p cp, vm_offset_t vaddr,
-				 vm_size_t len);
-static int  sym_scatter_sg_virtual (hcb_p np, ccb_p cp, 
-				    bus_dma_segment_t *psegs, int nsegs);
-static int  sym_scatter_physical (hcb_p np, ccb_p cp, vm_offset_t paddr,
-				  vm_size_t len);
-#endif
 static int sym_scatter_sg_physical (hcb_p np, ccb_p cp, 
 				    bus_dma_segment_t *psegs, int nsegs);
 static void sym_action2 (struct cam_sim *sim, union ccb *ccb);
@@ -2490,16 +2344,9 @@ static void sym_update_trans (hcb_p np, tcb_p tp, struct sym_trans *tip,
 static void sym_update_dflags(hcb_p np, u_char *flags,
 			      struct ccb_trans_settings *cts);
 
-#ifdef FreeBSD_Bus_Io_Abstraction
 static struct sym_pci_chip *sym_find_pci_chip (device_t dev);
 static int  sym_pci_probe (device_t dev);
 static int  sym_pci_attach (device_t dev);
-#else
-static struct sym_pci_chip *sym_find_pci_chip (pcici_t tag);
-static const char *sym_pci_probe (pcici_t tag, pcidi_t type);
-static void sym_pci_attach (pcici_t tag, int unit);
-static int sym_pci_attach2 (pcici_t tag, int unit);
-#endif
 
 static void sym_pci_free (hcb_p np);
 static int  sym_cam_attach (hcb_p np);
@@ -3988,17 +3835,9 @@ static void sym_log_hard_error(hcb_p np, u_short sist, u_char dstat)
 	 */
 	if (dstat & (MDPE|BF)) {
 		u_short pci_sts;
-#ifdef FreeBSD_Bus_Io_Abstraction
 		pci_sts = pci_read_config(np->device, PCIR_STATUS, 2);
-#else
-		pci_sts = pci_cfgread(np->pci_tag, PCIR_STATUS, 2);
-#endif
 		if (pci_sts & 0xf900) {
-#ifdef FreeBSD_Bus_Io_Abstraction
 			pci_write_config(np->device, PCIR_STATUS, pci_sts, 2);
-#else
-			pci_cfgwrite(np->pci_tag, PCIR_STATUS, pci_sts, 2);
-#endif
 			printf("%s: PCI STATUS = 0x%04x\n",
 				sym_name(np), pci_sts & 0xf900);
 		}
@@ -6713,7 +6552,6 @@ static void sym_free_ccb (hcb_p np, ccb_p cp)
 		np->last_cp = 0;
 #endif
 
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	/*
 	 *  Unmap user data from DMA map if needed.
 	 */
@@ -6721,7 +6559,6 @@ static void sym_free_ccb (hcb_p np, ccb_p cp)
 		bus_dmamap_unload(np->data_dmat, cp->dmamap);
 		cp->dmamapped = 0;
 	}
-#endif
 
 	/*
 	 *  Make this CCB available.
@@ -6764,10 +6601,8 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	/*
 	 *  Allocate a map for the DMA of user data.
 	 */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	if (bus_dmamap_create(np->data_dmat, 0, &cp->dmamap))
 		goto out_free;
-#endif
 	/*
 	 *  Count it.
 	 */
@@ -7494,7 +7329,6 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 	 */
 	OUTL_DSP (SCRIPTA_BA (np, start));
 
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	/*
 	 *  Synchronize DMA map if needed.
 	 */
@@ -7503,7 +7337,6 @@ static void sym_complete_error (hcb_p np, ccb_p cp)
 			(cp->dmamapped == SYM_DMA_READ ? 
 				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
 	}
-#endif
 	/*
 	 *  Add this one to the COMP queue.
 	 *  Complete all those commands with either error 
@@ -7566,7 +7399,6 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	if (!SYM_CONF_RESIDUAL_SUPPORT)
 		csio->resid  = 0;
 
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	/*
 	 *  Synchronize DMA map if needed.
 	 */
@@ -7575,7 +7407,6 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 			(cp->dmamapped == SYM_DMA_READ ? 
 				BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE));
 	}
-#endif
 	/*
 	 *  Set status and complete the command.
 	 */
@@ -7992,7 +7823,6 @@ sym_setup_data_pointers(hcb_p np, ccb_p cp, int dir)
 }
 
 
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 /*
  *  Call back routine for the DMA map service.
  *  If bounce buffers are used (why ?), we may sleep and then 
@@ -8211,165 +8041,6 @@ sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 	return 0;
 }
 
-#else	/* FreeBSD_Bus_Dma_Abstraction */
-
-/*
- *  How complex it gets to deal with the data in CAM.
- *  Variant without the Bus Dma Abstraction option.
- */
-static void 
-sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
-{
-	struct ccb_hdr *ccb_h;
-	int dir, retv;
-	
-	ccb_h = &csio->ccb_h;
-
-	/*
-	 *  Now deal with the data.
-	 */
-	cp->data_len = 0;
-	cp->segments = 0;
-
-	/*
-	 *  No direction means no data.
-	 */
-	dir = (ccb_h->flags & CAM_DIR_MASK);
-	if (dir == CAM_DIR_NONE)
-		goto end_scatter;
-
-	if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-		/* Single buffer */
-		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-			/* Buffer is virtual */
-			retv = sym_scatter_virtual(np, cp,
-						(vm_offset_t) csio->data_ptr, 
-						(vm_size_t) csio->dxfer_len);
-		} else {
-			/* Buffer is physical */
-			retv = sym_scatter_physical(np, cp,
-						(vm_offset_t) csio->data_ptr, 
-						(vm_size_t) csio->dxfer_len);
-		}
-	} else {
-		/* Scatter/gather list */
-		int nsegs;
-		struct bus_dma_segment *segs;
-		segs  = (struct bus_dma_segment *)csio->data_ptr;
-		nsegs = csio->sglist_cnt;
-
-		if ((ccb_h->flags & CAM_SG_LIST_PHYS) != 0) {
-			/* The SG list pointer is physical */
-			sym_set_cam_status(cp->cam_ccb, CAM_REQ_INVALID);
-			goto out_abort;
-		}
-		if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-			/* SG buffer pointers are virtual */
-			retv = sym_scatter_sg_virtual(np, cp, segs, nsegs); 
-		} else {
-			/* SG buffer pointers are physical */
-			retv = sym_scatter_sg_physical(np, cp, segs, nsegs);
-		}
-	}
-	if (retv < 0) {
-		sym_set_cam_status(cp->cam_ccb, CAM_REQ_TOO_BIG);
-		goto out_abort;
-	}
-
-end_scatter:
-	/*
-	 *  Set data pointers.
-	 */
-	sym_setup_data_pointers(np, cp, dir);
-
-	/*
-	 *  Enqueue this IO in our pending queue.
-	 */
-	sym_enqueue_cam_ccb(np, (union ccb *) csio);
-
-	/*
-	 *  Activate this job.
-	 */
-	sym_put_start_queue(np, cp);
-
-	/*
-	 *  Command is successfully queued.
-	 */
-	return;
-out_abort:
-	sym_free_ccb(np, cp);
-	sym_xpt_done(np, (union ccb *) csio);
-}
-
-/*
- *  Scatter a virtual buffer into bus addressable chunks.
- */
-static int
-sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
-{
-	u_long	pe, pn;
-	u_long	n, k; 
-	int s;
-
-	cp->data_len += len;
-
-	pe = vaddr + len;
-	n  = len;
-	s  = SYM_CONF_MAX_SG - 1 - cp->segments;
-
-	while (n && s >= 0) {
-		pn = (pe - 1) & ~PAGE_MASK;
-		k = pe - pn;
-		if (k > n) {
-			k  = n;
-			pn = pe - n;
-		}
-		if (DEBUG_FLAGS & DEBUG_SCATTER) {
-			printf ("%s scatter: va=%lx pa=%lx siz=%ld\n",
-				sym_name(np), pn, (u_long) vtobus(pn), k);
-		}
-		cp->phys.data[s].addr = cpu_to_scr(vtobus(pn));
-		cp->phys.data[s].size = cpu_to_scr(k);
-		pe = pn;
-		n -= k;
-		--s;
-	}
-	cp->segments = SYM_CONF_MAX_SG - 1 - s;
-
-	return n ? -1 : 0;
-}
-
-/*
- *  Scatter a SG list with virtual addresses into bus addressable chunks.
- */
-static int
-sym_scatter_sg_virtual(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
-{
-	int i, retv = 0;
-
-	for (i = nsegs - 1 ;  i >= 0 ; --i) {
-		retv = sym_scatter_virtual(np, cp,
-					   psegs[i].ds_addr, psegs[i].ds_len);
-		if (retv < 0)
-			break;
-	}
-	return retv;
-}
-
-/*
- *  Scatter a physical buffer into bus addressable chunks.
- */
-static int
-sym_scatter_physical(hcb_p np, ccb_p cp, vm_offset_t paddr, vm_size_t len)
-{
-	struct bus_dma_segment seg;
-
-	seg.ds_addr = paddr;
-	seg.ds_len  = len;
-	return sym_scatter_sg_physical(np, cp, &seg, 1);
-}
-
-#endif	/* FreeBSD_Bus_Dma_Abstraction */
 
 /*
  *  Scatter a SG list with physical addresses into bus addressable chunks.
@@ -8384,11 +8055,7 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 	u_long	k; 
 	int s, t;
 
-#ifndef	FreeBSD_Bus_Dma_Abstraction
-	s  = SYM_CONF_MAX_SG - 1 - cp->segments;
-#else
 	s  = SYM_CONF_MAX_SG - 1;
-#endif
 	t  = nsegs - 1;
 	ps = psegs[t].ds_addr;
 	pe = ps + psegs[t].ds_len;
@@ -8404,9 +8071,6 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 		}
 		cp->phys.data[s].addr = cpu_to_scr(pn);
 		cp->phys.data[s].size = cpu_to_scr(k);
-#ifndef	FreeBSD_Bus_Dma_Abstraction
-		cp->data_len += k;
-#endif
 		--s;
 		if (pn == ps) {
 			if (--t < 0)
@@ -8821,7 +8485,6 @@ sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 
 /*============= DRIVER INITIALISATION ==================*/
 
-#ifdef FreeBSD_Bus_Io_Abstraction
 
 static device_method_t sym_pci_methods[] = {
 	DEVMETHOD(device_probe,	 sym_pci_probe),
@@ -8839,25 +8502,6 @@ static devclass_t sym_devclass;
 
 DRIVER_MODULE(sym, pci, sym_pci_driver, sym_devclass, 0, 0);
 
-#else	/* Pre-FreeBSD_Bus_Io_Abstraction */
-
-static u_long sym_unit;
-
-static struct	pci_device sym_pci_driver = {
-	"sym",
-	sym_pci_probe,
-	sym_pci_attach,
-	&sym_unit,
-	NULL
-}; 
-
-#if 	__FreeBSD_version >= 400000
-COMPAT_PCI_DRIVER (sym, sym_pci_driver);
-#else
-DATA_SET (pcidevice_set, sym_pci_driver);
-#endif
-
-#endif /* FreeBSD_Bus_Io_Abstraction */
 
 static struct sym_pci_chip sym_pci_dev_table[] = {
  {PCI_ID_SYM53C810, 0x0f, "810", 4, 8, 4, 64,
@@ -8949,30 +8593,18 @@ static struct sym_pci_chip sym_pci_dev_table[] = {
  *  zero otherwise.
  */
 static struct sym_pci_chip *
-#ifdef FreeBSD_Bus_Io_Abstraction
 sym_find_pci_chip(device_t dev)
-#else
-sym_find_pci_chip(pcici_t pci_tag)
-#endif
 {
 	struct	sym_pci_chip *chip;
 	int	i;
 	u_short	device_id;
 	u_char	revision;
 
-#ifdef FreeBSD_Bus_Io_Abstraction
 	if (pci_get_vendor(dev) != PCI_VENDOR_NCR)
 		return 0;
 
 	device_id = pci_get_device(dev);
 	revision  = pci_get_revid(dev);
-#else
-	if (pci_cfgread(pci_tag, PCIR_VENDOR, 2) != PCI_VENDOR_NCR)
-		return 0;
-
-	device_id = pci_cfgread(pci_tag, PCIR_DEVICE, 2);
-	revision  = pci_cfgread(pci_tag, PCIR_REVID,  1);
-#endif
 
 	for (i = 0; i < sym_pci_num_devs; i++) {
 		chip = &sym_pci_dev_table[i];
@@ -8989,7 +8621,6 @@ sym_find_pci_chip(pcici_t pci_tag)
 /*
  *  Tell upper layer if the chip is supported.
  */
-#ifdef FreeBSD_Bus_Io_Abstraction
 static int
 sym_pci_probe(device_t dev)
 {
@@ -9002,43 +8633,12 @@ sym_pci_probe(device_t dev)
 	}
 	return ENXIO;
 }
-#else /* Pre-FreeBSD_Bus_Io_Abstraction */
-static const char *
-sym_pci_probe(pcici_t pci_tag, pcidi_t type)
-{
-	struct	sym_pci_chip *chip;
-
-	chip = sym_find_pci_chip(pci_tag);
-	if (chip && sym_find_firmware(chip)) {
-#if NNCR > 0
-	/* Only claim chips we are allowed to take precedence over the ncr */
-	if (!(chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP))
-#else
-	if (1)
-#endif
-		return chip->name;
-	}
-	return 0;
-}
-#endif
 
 /*
  *  Attach a sym53c8xx device.
  */
-#ifdef FreeBSD_Bus_Io_Abstraction
 static int
 sym_pci_attach(device_t dev)
-#else
-static void
-sym_pci_attach(pcici_t pci_tag, int unit)
-{
-	int err = sym_pci_attach2(pci_tag, unit);
-	if (err)
-		printf("sym: failed to attach unit %d - err=%d.\n", unit, err);
-}
-static int
-sym_pci_attach2(pcici_t pci_tag, int unit)
-#endif
 {
 	struct	sym_pci_chip *chip;
 	u_short	command;
@@ -9047,7 +8647,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	struct	sym_nvram nvram;
 	struct	sym_fw *fw = 0;
 	int 	i;
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	bus_dma_tag_t	bus_dmat;
 
 	/*
@@ -9055,17 +8654,12 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  DMA tag, but didn't find any.
 	 */
 	bus_dmat = NULL;
-#endif
 
 	/*
 	 *  Only probed devices should be attached.
 	 *  We just enjoy being paranoid. :)
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	chip = sym_find_pci_chip(dev);
-#else
-	chip = sym_find_pci_chip(pci_tag);
-#endif
 	if (chip == NULL || (fw = sym_find_firmware(chip)) == NULL)
 		return (ENXIO);
 
@@ -9075,34 +8669,21 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  We keep track in the HCB of all the resources that 
 	 *  are to be released on error.
 	 */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	np = __sym_calloc_dma(bus_dmat, sizeof(*np), "HCB");
 	if (np)
 		np->bus_dmat = bus_dmat;
 	else
 		goto attach_failed;
-#else
-	np = sym_calloc_dma(sizeof(*np), "HCB");
-	if (!np)
-		goto attach_failed;
-#endif
 
 	/*
 	 *  Copy some useful infos to the HCB.
 	 */
 	np->hcb_ba	 = vtobus(np);
 	np->verbose	 = bootverbose;
-#ifdef FreeBSD_Bus_Io_Abstraction
 	np->device	 = dev;
 	np->unit	 = device_get_unit(dev);
 	np->device_id	 = pci_get_device(dev);
 	np->revision_id  = pci_get_revid(dev);
-#else
-	np->pci_tag	 = pci_tag;
-	np->unit	 = unit;
-	np->device_id	 = pci_cfgread(pci_tag, PCIR_DEVICE, 2);
-	np->revision_id  = pci_cfgread(pci_tag, PCIR_REVID,  1);
-#endif
 	np->features	 = chip->features;
 	np->clock_divn	 = chip->nr_divisor;
 	np->maxoffs	 = chip->offset_max;
@@ -9129,7 +8710,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	/*
 	 *  Allocate a tag for the DMA of user data.
 	 */
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	if (bus_dma_tag_create(np->bus_dmat, 1, (1<<24),
 				BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 				NULL, NULL,
@@ -9139,7 +8719,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
 	}
-#endif
 	/*
 	 *  Read and apply some fix-ups to the PCI COMMAND 
 	 *  register. We want the chip to be enabled for:
@@ -9147,42 +8726,25 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  - PCI parity checking (reporting would also be fine)
 	 *  - Write And Invalidate.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	command = pci_read_config(dev, PCIR_COMMAND, 2);
-#else
-	command = pci_cfgread(pci_tag, PCIR_COMMAND, 2);
-#endif
 	command |= PCIM_CMD_BUSMASTEREN;
 	command |= PCIM_CMD_PERRESPEN;
 	command |= /* PCIM_CMD_MWIEN */ 0x0010;
-#ifdef FreeBSD_Bus_Io_Abstraction
 	pci_write_config(dev, PCIR_COMMAND, command, 2);
-#else
-	pci_cfgwrite(pci_tag, PCIR_COMMAND, command, 2);
-#endif
 
 	/*
 	 *  Let the device know about the cache line size, 
 	 *  if it doesn't yet.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-#else
-	cachelnsz = pci_cfgread(pci_tag, PCIR_CACHELNSZ, 1);
-#endif
 	if (!cachelnsz) {
 		cachelnsz = 8;
-#ifdef FreeBSD_Bus_Io_Abstraction
 		pci_write_config(dev, PCIR_CACHELNSZ, cachelnsz, 1);
-#else
-		pci_cfgwrite(pci_tag, PCIR_CACHELNSZ, cachelnsz, 1);
-#endif
 	}
 
 	/*
 	 *  Alloc/get/map/retrieve everything that deals with MMIO.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	if ((command & PCIM_CMD_MEMEN) != 0) {
 		int regs_id = SYM_PCI_MMIO;
 		np->mmio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &regs_id,
@@ -9197,23 +8759,10 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	np->mmio_pa  = rman_get_start(np->mmio_res);
 	np->mmio_va  = (vm_offset_t) rman_get_virtual(np->mmio_res);
 	np->mmio_ba  = np->mmio_pa;
-#else
-	if ((command & PCIM_CMD_MEMEN) != 0) {
-		vm_offset_t vaddr, paddr;
-		if (!pci_map_mem(pci_tag, SYM_PCI_MMIO, &vaddr, &paddr)) {
-			printf("%s: failed to map MMIO window\n", sym_name(np));
-			goto attach_failed;
-		}
-		np->mmio_va = vaddr;
-		np->mmio_pa = paddr;
-		np->mmio_ba = paddr;
-	}
-#endif
 
 	/*
 	 *  Allocate the IRQ.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	i = 0;
 	np->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &i,
 					 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
@@ -9221,14 +8770,12 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 		device_printf(dev, "failed to allocate IRQ resource\n");
 		goto attach_failed;
 	}
-#endif
 
 #ifdef	SYM_CONF_IOMAPPED
 	/*
 	 *  User want us to use normal IO with PCI.
 	 *  Alloc/get/map/retrieve everything that deals with IO.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
 		int regs_id = SYM_PCI_IO;
 		np->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &regs_id,
@@ -9241,16 +8788,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	np->io_bsh  = rman_get_bushandle(np->io_res);
 	np->io_tag  = rman_get_bustag(np->io_res);
 	np->io_port = rman_get_start(np->io_res);
-#else
-	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
-		pci_port_t io_port;
-		if (!pci_map_port (pci_tag, SYM_PCI_IO, &io_port)) {
-			printf("%s: failed to map IO window\n", sym_name(np));
-			goto attach_failed;
-		}
-		np->io_port = io_port;
-	}
-#endif
 
 #endif /* SYM_CONF_IOMAPPED */
 
@@ -9260,7 +8797,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 */
 	if ((np->features & (FE_RAM|FE_RAM8K)) &&
 	    (command & PCIM_CMD_MEMEN) != 0) {
-#ifdef FreeBSD_Bus_Io_Abstraction
 		int regs_id = SYM_PCI_RAM;
 		if (np->features & FE_64BIT)
 			regs_id = SYM_PCI_RAM64;
@@ -9276,19 +8812,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 		np->ram_pa  = rman_get_start(np->ram_res);
 		np->ram_va  = (vm_offset_t) rman_get_virtual(np->ram_res);
 		np->ram_ba  = np->ram_pa;
-#else
-		vm_offset_t vaddr, paddr;
-		int regs_id = SYM_PCI_RAM;
-		if (np->features & FE_64BIT)
-			regs_id = SYM_PCI_RAM64;
-		if (!pci_map_mem(pci_tag, regs_id, &vaddr, &paddr)) {
-			printf("%s: failed to map RAM window\n", sym_name(np));
-			goto attach_failed;
-		}
-		np->ram_va = vaddr;
-		np->ram_pa = paddr;
-		np->ram_ba = paddr;
-#endif
 	}
 
 	/*
@@ -9322,12 +8845,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 */
 	i = sym_getpciclock(np);
 	if (i > 37000)
-#ifdef FreeBSD_Bus_Io_Abstraction
 		device_printf(dev, "PCI BUS clock seems too high: %u KHz.\n",i);
-#else
-		printf("%s: PCI BUS clock seems too high: %u KHz.\n",
-			sym_name(np), i);
-#endif
 
 	/*
 	 *  Allocate the start queue.
@@ -9471,11 +8989,7 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	 *  Now check the cache handling of the pci chipset.
 	 */
 	if (sym_snooptest (np)) {
-#ifdef FreeBSD_Bus_Io_Abstraction
 		device_printf(dev, "CACHE INCORRECTLY CONFIGURED.\n");
-#else
-		printf("%s: CACHE INCORRECTLY CONFIGURED.\n", sym_name(np));
-#endif
 		goto attach_failed;
 	};
 
@@ -9526,7 +9040,6 @@ static void sym_pci_free(hcb_p np)
 	 *  Now every should be quiet for us to 
 	 *  free other resources.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	if (np->ram_res)
 		bus_release_resource(np->device, SYS_RES_MEMORY, 
 				     np->ram_id, np->ram_res);
@@ -9539,12 +9052,6 @@ static void sym_pci_free(hcb_p np)
 	if (np->irq_res)
 		bus_release_resource(np->device, SYS_RES_IRQ, 
 				     0, np->irq_res);
-#else
-	/*
-	 *  YEAH!!!
-	 *  It seems there is no means to free MMIO resources.
-	 */
-#endif
 
 	if (np->scriptb0)
 		sym_mfree_dma(np->scriptb0, np->scriptb_sz, "SCRIPTB0");
@@ -9557,9 +9064,7 @@ static void sym_pci_free(hcb_p np)
 
 	while ((qp = sym_remque_head(&np->free_ccbq)) != 0) {
 		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 		bus_dmamap_destroy(np->data_dmat, cp->dmamap);
-#endif
 		sym_mfree_dma(cp->sns_bbuf, SYM_SNS_BBUF_LEN, "SNS_BBUF");
 		sym_mfree_dma(cp, sizeof(*cp), "CCB");
 	}
@@ -9589,10 +9094,8 @@ static void sym_pci_free(hcb_p np)
 	}
 	if (np->targtbl)
 		sym_mfree_dma(np->targtbl, 256, "TARGTBL");
-#ifdef	FreeBSD_Bus_Dma_Abstraction
 	if (np->data_dmat)
 		bus_dma_tag_destroy(np->data_dmat);
-#endif
 	sym_mfree_dma(np, sizeof(*np), "HCB");
 }
 
@@ -9612,7 +9115,6 @@ static int sym_cam_attach(hcb_p np)
 	/*
 	 *  Establish our interrupt handler.
 	 */
-#ifdef FreeBSD_Bus_Io_Abstraction
 	err = bus_setup_intr(np->device, np->irq_res,
 			     INTR_TYPE_CAM | INTR_ENTROPY, sym_intr, np,
 			     &np->intr);
@@ -9621,13 +9123,6 @@ static int sym_cam_attach(hcb_p np)
 			      err);
 		goto fail;
 	}
-#else
-	err = 0;
-	if (!pci_map_int (np->pci_tag, sym_intr, np, &cam_imask)) {
-		printf("%s: failed to map interrupt\n", sym_name(np));
-		goto fail;
-	}
-#endif
 
 	/*
 	 *  Create the device queue for our sym SIM.
@@ -9656,21 +9151,6 @@ static int sym_cam_attach(hcb_p np)
 		goto fail;
 	}
 	np->path = path;
-
-	/*
-	 *  Hmmm... This should be useful, but I donnot want to 
-	 *  know about.
-	 */
-#if 	__FreeBSD_version < 400000
-#ifdef	__alpha__
-#ifdef	FreeBSD_Bus_Io_Abstraction
-	alpha_register_pci_scsi(pci_get_bus(np->device),
-				pci_get_slot(np->device), np->sim);
-#else
-	alpha_register_pci_scsi(pci_tag->bus, pci_tag->slot, np->sim);
-#endif
-#endif
-#endif
 
 	/*
 	 *  Establish our async notification handler.
@@ -9709,12 +9189,8 @@ fail:
  */
 static void sym_cam_free(hcb_p np)
 {
-#ifdef FreeBSD_Bus_Io_Abstraction
 	if (np->intr)
 		bus_teardown_intr(np->device, np->irq_res, np->intr);
-#else
-	/* pci_unmap_int(np->pci_tag); */	/* Does nothing */
-#endif
 	
 	if (np->sim) {
 		xpt_bus_deregister(cam_sim_path(np->sim));
