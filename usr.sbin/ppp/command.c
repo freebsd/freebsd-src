@@ -2641,9 +2641,9 @@ RunListCommand(struct cmdargs const *arg)
   if (arg->cmd->args == NatCommands &&
       tolower(*arg->argv[arg->argn - 1]) == 'a') {
     if (arg->prompt)
-      prompt_Printf(arg->prompt, "The alias command is depricated\n");
+      prompt_Printf(arg->prompt, "The alias command is deprecated\n");
     else
-      log_Printf(LogWARN, "The alias command is depricated\n");
+      log_Printf(LogWARN, "The alias command is deprecated\n");
   }
 #endif
 

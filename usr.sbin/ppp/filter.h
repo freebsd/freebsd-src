@@ -32,6 +32,8 @@
 #ifdef IPPROTO_GRE
 #define P_GRE   6
 #endif
+#define P_ESP   7
+#define P_AH    8
 
 /* Operations - f_srcop, f_dstop */
 #define	OP_NONE	0
