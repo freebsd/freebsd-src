@@ -49,8 +49,6 @@ _populate_var()
 
 	/usr/sbin/newsyslog -CC
 
-	/usr/bin/touch /var/log/lastlog
-
 	# XXX: should create spool dirs for lpd
 }
 
@@ -82,15 +80,25 @@ case "${populate_var}" in
 	_populate_var
 	;;
 [Nn][Oo])
+	exit 0
 	;;
 *)
 	if [ -d /var/run -a -d /var/db -a -d /var/empty ] ; then
 		true
-	elif [ ! -x /usr/sbin/mtree -o ! -x /usr/sbin/newsyslog -o \
-	    ! -x /usr/bin/touch ] ; then
+	elif [ ! -x /usr/sbin/mtree -o ! -x /usr/sbin/newsyslog ] ; then
 		false
 	else
 		_populate_var
 	fi
 	;;
 esac
+
+# Make sure we have /var/log/lastlog and /var/log/wtmp files
+if [ ! -f /var/log/lastlog ]; then
+	cp /dev/null /var/log/lastlog
+	chmod 644 /var/log/lastlog
+fi
+if [ ! -f /var/log/wtmp ]; then
+	cp /dev/null /var/log/wtmp
+	chmod 644 /var/log/wtmp
+fi
