@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkinit.c,v 1.3 1994/11/06 06:27:04 pst Exp $
+ *	$Id: mkinit.c,v 1.4 1995/05/30 00:07:19 rgrimes Exp $
  */
 
 #ifndef lint
@@ -198,7 +198,7 @@ readfile(fname)
 	char *fname;
 	{
 	FILE *fp;
-	char line[1024];
+	char line[1024], line2[1024];
 	struct event *ep;
 
 	fp = ckfopen(fname, "r");
@@ -217,8 +217,20 @@ readfile(fname)
 			doinclude(line);
 		if (line[0] == 'M' && match("MKINIT", line))
 			dodecl(line, fp);
-		if (line[0] == '#' && gooddefine(line))
+		if (line[0] == '#' && gooddefine(line)) {
+			char *cp;
+
+			strcpy(line2, line);
+			memcpy(line2, "#undef ", strlen("#undef "));
+			cp = line2 + strlen("#undef ");
+			while(*cp && (*cp == ' ' || *cp == '\t'))
+				cp++;
+			while(*cp && *cp != ' ' && *cp != '\t' && *cp != '\n')
+				cp++;
+			*cp++ = '\n'; *cp = '\0';
+			addstr(line2, &defines);
 			addstr(line, &defines);
+		}
 	}
 	fclose(fp);
 }
