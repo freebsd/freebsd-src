@@ -65,7 +65,7 @@
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 
-#include <machine/mouse.h>
+#include <sys/mouse.h>
 
 #ifdef UMS_DEBUG
 #define DPRINTF(x)	if (umsdebug) logprintf x
