@@ -13,18 +13,14 @@
 #include <stdlib.h>
 #include "curses.priv.h"
 
-extern char _ncurses_copyright[];
-
 WINDOW *initscr()
 {
-	char *use_it;
 #ifdef TRACE
 	_init_trace();
 
 	if (_tracing)
 	    _tracef("initscr() called");
 #endif
-	use_it = _ncurses_copyright;
   	if (newterm(getenv("TERM"), stdout, stdin) == NULL)
 		return NULL;
 	else {
