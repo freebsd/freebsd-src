@@ -435,7 +435,6 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin;
 	struct sockaddr_dl *sdl;
-	extern int h_errno;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -471,7 +470,6 @@ print_entry(struct sockaddr_dl *sdl,
 	struct sockaddr_inarp *sin, struct rt_msghdr *rtm)
 {
 	char *host;
-	extern int h_errno;
 	struct hostent *hp;
 	int seg;
 
