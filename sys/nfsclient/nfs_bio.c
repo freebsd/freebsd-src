@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.7 1994/10/17 17:47:32 phk Exp $
+ * $Id: nfs_bio.c,v 1.8 1995/01/09 16:05:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -220,6 +220,8 @@ nfs_bioread(vp, uio, ioflag, cred)
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				}
+			    } else {
+				brelse(rabp);
 			    }
 			}
 		    }
@@ -339,6 +341,8 @@ again:
 				    rabp->b_flags |= B_INVAL|B_ERROR;
 				    brelse(rabp);
 				}
+			    } else {
+				brelse(rabp);
 			    }
 			}
 		}
