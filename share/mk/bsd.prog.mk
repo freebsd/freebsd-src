@@ -75,7 +75,7 @@ MAN1=	${MAN}
 
 all: objwarn ${PROG} ${SCRIPTS} ${FILES}
 .if !defined(NOMAN)
-all: all-man 
+all: _manpages
 .endif
 
 CLEANFILES+= ${PROG} ${OBJS}
@@ -201,7 +201,7 @@ _FILESINS_${file:T}: ${file}
 .endif
 
 .if !defined(NOMAN)
-realinstall: maninstall
+realinstall: _maninstall
 .endif
 
 install: afterinstall
