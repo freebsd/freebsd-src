@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -27,6 +28,7 @@ extern int top_scroll;
 extern int quiet;
 extern int sc_width, sc_height;
 extern int quit_at_eof;
+extern int more_mode;
 extern int plusoption;
 extern int forw_scroll;
 extern int back_scroll;
@@ -142,9 +144,12 @@ forw(n, pos, force, only_last, nblank)
 			pos_clear();
 			add_forw_pos(pos);
 			force = 1;
-			if (top_scroll == OPT_ONPLUS || first_time)
-				clear();
-			home();
+			if (more_mode == 0)
+			{
+				if (top_scroll == OPT_ONPLUS || first_time)
+					clear();
+				home();
+			}
 		} else
 		{
 			clear_bot();
