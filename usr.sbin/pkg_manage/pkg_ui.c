@@ -211,22 +211,15 @@ install_batch(void)
     use_helpfile(DS_INSTALL_HLP);
     quit = FALSE;
     while (!quit) {
-	if (StartDir) {
-	use_helpline("Select directory where the pkg's reside");
-	if (dialog_dselect(".", "*.tgz")) {
-	    quit = TRUE;
-	} else {
+	if (StartDir)
 	    install_pkgs_indir();
-	}
 	else {
-		use_helpline("Select directory where the pkg's reside");
-		if (dialog_dselect(".", "*.tgz")) {
-	    		quit = TRUE;
-		} else {
-	    		install_pkgs_indir();
-		}
+	    use_helpline("Select directory where the pkg's reside");
+	    if (dialog_dselect(".", "*.tgz"))
+		quit = TRUE;
+	    else
+		install_pkgs_indir();
     	}
-
     }
     return;
 } /* install_batch() */
