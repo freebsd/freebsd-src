@@ -73,7 +73,7 @@ enum _pdq_type_t {
 #include <vm/vm_kern.h>
 
 #define	PDQ_USE_MBUFS
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 #define	PDQ_OS_PREFIX			"%s: "
 #define	PDQ_OS_PREFIX_ARGS		pdq->pdq_os_name
 #else

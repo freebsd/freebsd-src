@@ -70,7 +70,7 @@ struct vx_softc {
 	bus_space_read_1(sc->bst, sc->bsh, reg)
 
 extern void vxfree(struct vx_softc *);
-extern int vxattach(struct vx_softc *);
+extern int vxattach(device_t);
 extern void vxstop(struct vx_softc *);
 extern void vxintr(void *);
 extern int vxbusyeeprom(struct vx_softc *);

@@ -216,18 +216,30 @@ are as follows:
 .Pq Vt "void *"
 A pointer to the driver's private state block.
 (Initialized by driver.)
-.It Va if_name
-.Pq Vt "char *"
-The name of the interface, not including the unit number
-(e.g.,
-.Dq Li de
-or
-.Dq Li lo ) .
-(Initialized by driver.)
 .It Va if_link
 .Pq Fn TAILQ_ENTRY ifnet
 .Xr queue 3
 macro glue.
+.It Va if_xname
+.Pq Vt "char *"
+The name of the interface,
+(e.g.,
+.Dq Li fxp0
+or
+.Dq Li lo0) .
+(Initialized by driver.)
+.It Va if_dname
+.Pq Vt "const char *"
+The name of the driver.
+(Initialized by driver.)
+.It Va if_dunit
+.Pq Vt int
+A unique number assigned to each interface managed by a particular
+driver.
+Drivers may choose to set this to
+.Dv IF_DUNIT_NONE
+if a unit number is not associated with the device.
+(Initialized by driver.)
 .It Va if_addrhead
 .Pq Vt "struct ifaddrhead"
 The head of the
@@ -255,14 +267,6 @@ This number can be used in a
 to refer to a particular interface by index
 (see
 .Xr link_addr 3 ) .
-.It Va if_unit
-.Pq Vt short
-A unique number assigned to each interface managed by a particular
-driver, usually related to the unit number of a physical device in the
-kernel configuration file
-(see
-.Xr config 8 ) .
-(Initialized by driver.)
 .It Va if_timer
 .Pq Vt short
 Number of seconds until the watchdog timer

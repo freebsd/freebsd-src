@@ -1827,9 +1827,8 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 	m = NULL;	/* assume "JK" trash DMA */
 	if (EN_DQ_LEN(drq) != 0) {
 		_IF_DEQUEUE(&slot->indma, m);
-		KASSERT(m != NULL, ("drqsync: %s%d: lost mbuf in slot %zu!",
-		    sc->ifatm.ifnet.if_name, sc->ifatm.ifnet.if_unit,
-		    slot - sc->rxslot));
+		KASSERT(m != NULL, ("drqsync: %s: lost mbuf in slot %zu!",
+		    sc->ifatm.ifnet.if_xname, slot - sc->rxslot));
 		uma_zfree(sc->map_zone, (struct en_map *)m->m_pkthdr.rcvif);
 	}
 	if ((vc = slot->vcc) == NULL) {

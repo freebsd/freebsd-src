@@ -394,8 +394,7 @@ oltr_pci_attach(device_t dev)
 	 * Do the ifnet initialization
 	 */
 	ifp->if_softc	= sc;
-	ifp->if_unit	= device_get_unit(dev);
-	ifp->if_name	= "oltr";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_init	= oltr_init;
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;

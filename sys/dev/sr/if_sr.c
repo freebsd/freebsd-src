@@ -419,8 +419,8 @@ sr_attach(device_t device)
 #ifndef NETGRAPH
 		ifp = &sc->ifsppp.pp_if;
 		ifp->if_softc = sc;
-		ifp->if_unit = sc->unit;
-		ifp->if_name = "sr";
+		if_initname(ifp, device_get_name(device),
+		    device_get_unit(device));
 		ifp->if_mtu = PP_MTU;
 		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 		ifp->if_ioctl = srioctl;

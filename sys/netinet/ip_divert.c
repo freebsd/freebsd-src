@@ -214,9 +214,8 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 		 * this iface name will come along for the ride.
 		 * (see div_output for the other half of this.)
 		 */ 
-		snprintf(divsrc.sin_zero, sizeof(divsrc.sin_zero),
-			"%s%d", m->m_pkthdr.rcvif->if_name,
-			m->m_pkthdr.rcvif->if_unit);
+		strlcpy(divsrc.sin_zero, m->m_pkthdr.rcvif->if_xname,
+		    sizeof(divsrc.sin_zero));
 	}
 
 	/* Put packet on socket queue, if any */

@@ -575,16 +575,16 @@ void cs_release_resources(device_t dev)
  * Install the interface into kernel networking data structures
  */
 int
-cs_attach(struct cs_softc *sc, int unit, int flags)
+cs_attach(device_t dev)
 {
         int media=0;
+	struct cs_softc *sc = device_get_softc(dev);;
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
 
 	cs_stop( sc );
 
 	ifp->if_softc=sc;
-	ifp->if_unit=unit;
-	ifp->if_name="cs";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_output=ether_output;
 	ifp->if_start=cs_start;
 	ifp->if_ioctl=cs_ioctl;
@@ -607,8 +607,8 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 
 	sc->recv_ring=malloc(CS_DMA_BUFFER_SIZE<<1, M_DEVBUF, M_NOWAIT);
 	if (sc->recv_ring == NULL) {
-		log(LOG_ERR,CS_NAME
-		"%d: Couldn't allocate memory for NIC\n", unit);
+		log(LOG_ERR,
+		"%s: Couldn't allocate memory for NIC\n", ifp->if_xname);
 		return(0);
 	}
 	if ((sc->recv_ring-(sc->recv_ring & 0x1FFFF))
@@ -1137,7 +1137,7 @@ cs_watchdog(struct ifnet *ifp)
 	struct cs_softc *sc = ifp->if_softc;
 
 	ifp->if_oerrors++;
-	log(LOG_ERR, CS_NAME"%d: device timeout\n", ifp->if_unit);
+	log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 
 	/* Reset the interface */
 	if (ifp->if_flags & IFF_UP)

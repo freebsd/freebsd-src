@@ -793,8 +793,7 @@ fxp_attach(device_t dev)
 	}
 
 	ifp = &sc->arpcom.ac_if;
-	ifp->if_unit = device_get_unit(dev);
-	ifp->if_name = "fxp";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_output = ether_output;
 	ifp->if_baudrate = 100000000;
 	ifp->if_init = fxp_init;

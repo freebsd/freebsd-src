@@ -666,27 +666,27 @@ match:
 		/* the following is not an error when doing bridging */
 		if (!BRIDGE_TEST && rt->rt_ifp != ifp) {
 			if (log_arp_wrong_iface)
-				log(LOG_ERR, "arp: %s is on %s%d but got reply from %*D on %s%d\n",
+				log(LOG_ERR, "arp: %s is on %s but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
-				    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
+				    rt->rt_ifp->if_xname,
 				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    ifp->if_name, ifp->if_unit);
+				    ifp->if_xname);
 			goto reply;
 		}
 		if (sdl->sdl_alen &&
 		    bcmp(ar_sha(ah), LLADDR(sdl), sdl->sdl_alen)) {
 			if (rt->rt_expire) {
 			    if (log_arp_movements)
-			        log(LOG_INFO, "arp: %s moved from %*D to %*D on %s%d\n",
+			        log(LOG_INFO, "arp: %s moved from %*D to %*D on %s\n",
 				    inet_ntoa(isaddr),
 				    ifp->if_addrlen, (u_char *)LLADDR(sdl), ":",
 				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				    ifp->if_name, ifp->if_unit);
+				    ifp->if_xname);
 			} else {
 			    log(LOG_ERR,
-				"arp: %*D attempts to modify permanent entry for %s on %s%d\n",
+				"arp: %*D attempts to modify permanent entry for %s on %s\n",
 				ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				inet_ntoa(isaddr), ifp->if_name, ifp->if_unit);
+				inet_ntoa(isaddr), ifp->if_xname);
 			    goto reply;
 			}
 		}
@@ -813,10 +813,9 @@ reply:
 			}
 			if (rt->rt_ifp != ifp) {
 				log(LOG_INFO, "arp_proxy: ignoring request"
-				    " from %s via %s%d, expecting %s%d\n",
-				    inet_ntoa(isaddr), ifp->if_name,
-				    ifp->if_unit, rt->rt_ifp->if_name,
-				    rt->rt_ifp->if_unit);
+				    " from %s via %s, expecting %s\n",
+				    inet_ntoa(isaddr), ifp->if_xname,
+				    rt->rt_ifp->if_xname);
 				rtfree(rt);
 				m_freem(m);
 				return;

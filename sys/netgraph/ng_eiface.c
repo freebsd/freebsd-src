@@ -121,8 +121,6 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-static char     ng_eiface_ifname[] = NG_EIFACE_EIFACE_NAME;
-
 /* We keep a bitmap indicating which unit numbers are free.
    One means the unit number is free, zero means it's taken. */
 static int	*ng_eiface_units = NULL;
@@ -393,8 +391,8 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data){
 	default:
 		str = "IO??";
 	}
-	log(LOG_DEBUG, "%s%d: %s('%c', %d, char[%d])\n",
-			ifp->if_name, ifp->if_unit,
+	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n",
+			ifp->if_xname,
 			str,
 			IOCGROUP(command),
 			command & 0xff,
@@ -440,8 +438,7 @@ ng_eiface_constructor(node_p node)
 	priv->node = node;
 
 	/* Initialize interface structure */
-	ifp->if_name = ng_eiface_ifname;
-	ifp->if_unit = priv->unit;
+	if_initname(ifp, NG_EIFACE_EIFACE_NAME, priv->unit);
 	ifp->if_init = ng_eiface_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = ng_eiface_start;
@@ -452,7 +449,7 @@ ng_eiface_constructor(node_p node)
 
 	/*
 	 * Give this node name * bzero(ifname, sizeof(ifname));
-	 * sprintf(ifname, "if%s%d", ifp->if_name, ifp->if_unit); (void)
+	 * sprintf(ifname, "if%s", ifp->if_xname); (void)
 	 * ng_name_node(node, ifname);
 	 */
 
@@ -539,8 +536,8 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ng_eiface_ifname *)resp->data;
-			sprintf(arg->ngif_name,
-				"%s%d", ifp->if_name, ifp->if_unit);
+			strlcpy(arg->ngif_name, ifp->if_xname,
+			    sizeof(arg->ngif_name));
 			break;
 		}
 
@@ -567,8 +564,8 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				const int       len = SA_SIZE(ifa->ifa_addr);
 
 				if (buflen < len) {
-					log(LOG_ERR, "%s%d: len changed?\n",
-					ifp->if_name, ifp->if_unit);
+					log(LOG_ERR, "%s: len changed?\n",
+					ifp->if_xname);
 					break;
 				}
 				bcopy(ifa->ifa_addr, ptr, len);

@@ -151,7 +151,7 @@ vx_pci_attach(
 	vxintr, sc, &sc->vx_intrhand))
 	goto bad;
 
-    if (vxattach(sc) == 0) {
+    if (vxattach(dev) == 0) {
 	goto bad;
     }
 

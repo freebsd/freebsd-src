@@ -158,8 +158,8 @@ typedef struct _pdq_os_ctx_t {
 
 #if defined(PDQ_HWSUPPORT)
 
-#define	PDQ_OS_PREFIX			"%s%d: "
-#define	PDQ_OS_PREFIX_ARGS		pdq->pdq_os_name, pdq->pdq_unit
+#define	PDQ_OS_PREFIX			"%s: "
+#define	PDQ_OS_PREFIX_ARGS		pdq->pdq_os_name
 
 #define	PDQ_OS_PTR_FMT	"%p"
 #define	PDQ_OS_CSR_FMT	"0x%x"

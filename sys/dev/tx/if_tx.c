@@ -242,8 +242,7 @@ epic_attach(dev)
 
 	/* Fill ifnet structure. */
 	ifp = &sc->sc_if;
-	ifp->if_unit = unit;
-	ifp->if_name = "tx";
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 	ifp->if_ioctl = epic_ifioctl;

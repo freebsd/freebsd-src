@@ -2075,7 +2075,8 @@ ip_t *ip;
 	int fd;
 
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603))
+	(defined(OpenBSD) && (OpenBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	sprintf(fname, "%s", ifp->if_xname);
 # else
 	sprintf(fname, "%s%d", ifp->if_name, ifp->if_unit);
@@ -2095,7 +2096,8 @@ char *get_ifname(ifp)
 struct ifnet *ifp;
 {
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-     (defined(OpenBSD) && (OpenBSD >= 199603))
+     (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	return ifp->if_xname;
 # else
 	static char fullifname[LIFNAMSIZ];
@@ -2114,7 +2116,8 @@ int v;
 
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-     (defined(OpenBSD) && (OpenBSD >= 199603))
+     (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 		if (!strncmp(ifname, ifp->if_xname, sizeof(ifp->if_xname)))
 # else
 		char fullname[LIFNAMSIZ];
@@ -2156,7 +2159,8 @@ int v;
 	ifp = ifneta[nifs - 1];
 
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-     (defined(OpenBSD) && (OpenBSD >= 199603))
+     (defined(OpenBSD) && (OpenBSD >= 199603)) || \
+     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	strncpy(ifp->if_xname, ifname, sizeof(ifp->if_xname));
 # else
 	ifp->if_name = strdup(ifname);
@@ -2183,7 +2187,8 @@ void init_ifp()
 	int fd;
 
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603))
+	(defined(OpenBSD) && (OpenBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
 		ifp->if_output = write_output;
 		sprintf(fname, "/tmp/%s", ifp->if_xname);

@@ -181,7 +181,8 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			break;
 			
 		default:
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 501113) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
 			printf("%s: can't handle af%d\n", ifp->if_xname, 
 			    dst->sa_family);
 #elif defined(__FreeBSD__) || defined(__bsdi__)
@@ -301,7 +302,8 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 				return; /* failed */
 			alc = mtod(m, struct atmllc *);
 			if (bcmp(alc, ATMLLC_HDR, 6)) {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__FreeBSD__) && __FreeBSD_version >= 501113) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
 				printf("%s: recv'd invalid LLC/SNAP frame "
 				    "[vp=%d,vc=%d]\n", ifp->if_xname,
 				    ATM_PH_VPI(ah), ATM_PH_VCI(ah));

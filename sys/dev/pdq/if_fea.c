@@ -223,12 +223,11 @@ pdq_eisa_attach (dev)
 		goto bad;
 	}
 
-	ifp->if_name = "fea";
-	ifp->if_unit = device_get_unit(dev);
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	pdq_eisa_devinit(sc);
 	sc->sc_pdq = pdq_initialize(sc->mem_bst, sc->mem_bsh,
-				    ifp->if_name, ifp->if_unit,
+				    ifp->if_xname, -1,
 				    (void *)sc, PDQ_DEFEA);
 	if (sc->sc_pdq == NULL) {
 		device_printf(dev, "Initialization failed.\n");

@@ -124,7 +124,7 @@ nfs_setup_diskless(void)
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:
-	sprintf(nd->myif.ifra_name, "%s%d", ifp->if_name, ifp->if_unit);
+	strlcpy(nd->myif.ifra_name, ifp->if_xname, sizeof(nd->myif.ifra_name));
 	
 	/* set up gateway */
 	inaddr_to_sockaddr("boot.netif.gateway", &nd->mygateway);

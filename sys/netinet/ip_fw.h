@@ -223,7 +223,7 @@ typedef struct	_ipfw_insn_if {
 	ipfw_insn o;
 	union {
 		struct in_addr ip;
-		int32_t unit;
+		int glob;
 	} p;
 	char name[IFNAMSIZ];
 } ipfw_insn_if;

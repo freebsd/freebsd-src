@@ -141,8 +141,7 @@ gif_clone_create(ifc, unit)
 	bzero(sc, sizeof(struct gif_softc));
 
 	sc->gif_if.if_softc = sc;
-	sc->gif_if.if_name = GIFNAME;
-	sc->gif_if.if_unit = unit;
+	if_initname(&sc->gif_if, ifc->ifc_name, unit);
 
 	gifattach0(sc);
 

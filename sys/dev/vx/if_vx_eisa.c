@@ -155,7 +155,7 @@ vx_eisa_attach(device_t dev)
 
     /* Now the registers are availible through the lower ioport */
 
-    vxattach(sc);
+    vxattach(dev);
 
     if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih)) {
 	goto bad;

@@ -339,7 +339,7 @@ bootpboot_p_rtentry(struct rtentry *rt)
 	printf(" ");
 	printf("flags %x", (unsigned short) rt->rt_flags);
 	printf(" %d", (int) rt->rt_rmx.rmx_expire);
-	printf(" %s%d\n", rt->rt_ifp->if_name, rt->rt_ifp->if_unit);
+	printf(" %s\n", rt->rt_ifp->if_xname);
 }
 
 void
@@ -375,10 +375,8 @@ void
 bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 {
 
-	printf("%s%d flags %x, addr ",
-	       ifp->if_name,
-	       ifp->if_unit,
-	       ifp->if_flags);
+	printf("%s flags %x, addr ",
+	       ifp->if_xname, ifp->if_flags);
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_addr);
 	printf(", broadcast ");
 	print_sin_addr((struct sockaddr_in *) ifa->ifa_dstaddr);
@@ -1667,8 +1665,8 @@ bootpc_init(void)
 	for (ifp = TAILQ_FIRST(&ifnet), ifctx = gctx->interfaces;
 	     ifp != NULL && ifctx != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
-		snprintf(ifctx->ireq.ifr_name, sizeof(ifctx->ireq.ifr_name),
-			 "%s%d", ifp->if_name, ifp->if_unit);
+		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,
+		    sizeof(ifctx->ireq.ifr_name));
 #ifdef BOOTP_WIRED_TO
 		if (strcmp(ifctx->ireq.ifr_name,
 			   __XSTRING(BOOTP_WIRED_TO)) != 0)

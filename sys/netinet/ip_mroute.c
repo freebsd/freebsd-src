@@ -935,8 +935,7 @@ add_vif(struct vifctl *vifcp)
 		    return EIO;	/* XXX */
 		}
 		for (i = 0; i < MAXVIFS; ++i) {
-		    multicast_decap_if[i].if_name = "mdecap";
-		    multicast_decap_if[i].if_unit = i;
+		    if_initname(&multicast_decap_if[i], "mdecap", i);    
 		}
 	    }
 	    /*
@@ -959,8 +958,7 @@ add_vif(struct vifctl *vifcp)
 	    log(LOG_DEBUG, "Adding a register vif, ifp: %p\n",
 		    (void *)&multicast_register_if);
 	if (reg_vif_num == VIFI_INVALID) {
-	    multicast_register_if.if_name = "register_vif";
-	    multicast_register_if.if_unit = 0;
+	    if_initname(&multicast_register_if, "register_vif", 0);
 	    multicast_register_if.if_flags = IFF_LOOPBACK;
 	    bzero(&vifp->v_route, sizeof(vifp->v_route));
 	    reg_vif_num = vifcp->vifc_vifi;
@@ -1355,11 +1353,11 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	    struct vif *vifp = viftable + vifi;
 
-	    printf("Sending IPPROTO_RSVP from %lx to %lx on vif %d (%s%s%d)\n",
+	    printf("Sending IPPROTO_RSVP from %lx to %lx on vif %d (%s%s)\n",
 		(long)ntohl(ip->ip_src.s_addr), (long)ntohl(ip->ip_dst.s_addr),
 		vifi,
 		(vifp->v_flags & VIFF_TUNNEL) ? "tunnel on " : "",
-		vifp->v_ifp->if_name, vifp->v_ifp->if_unit);
+		vifp->v_ifp->if_xname);
 	}
 	error = ip_mdq(m, ifp, NULL, vifi);
 	MFC_UNLOCK();

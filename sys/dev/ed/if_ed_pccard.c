@@ -246,7 +246,6 @@ static int
 ed_pccard_attach(device_t dev)
 {
 	int error;
-	int	flags = device_get_flags(dev);
 	int i;
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
@@ -274,7 +273,7 @@ ed_pccard_attach(device_t dev)
 			bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 	}
 
-	error = ed_attach(sc, device_get_unit(dev), flags);
+	error = ed_attach(dev);
 #ifndef ED_NO_MIIBUS
 	if (error == 0 && sc->vendor == ED_VENDOR_LINKSYS) {
 		/* Probe for an MII bus, but ignore errors. */

@@ -196,6 +196,7 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
+    int le_unit;			/* Unit number */
     void (*if_init)(void *);/* Interface init routine */
     void (*if_reset)(le_softc_t *);/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
@@ -319,8 +320,7 @@ le_probe(
     sc->le_iobase = dvp->id_iobase;
     sc->le_membase = (u_char *) dvp->id_maddr;
     sc->le_irq = dvp->id_irq;
-    sc->le_if.if_name = (char *)(uintptr_t)(const void *)ledriver.name;
-    sc->le_if.if_unit = dvp->id_unit;
+    sc->le_unit = dvp->id_unit;
 
     /*
      * Find and Initialize board..
@@ -346,7 +346,7 @@ le_attach(
 
     dvp->id_ointr = le_intr;
     ifp->if_softc = sc;
-    ifp->if_unit = dvp->id_unit;
+    if_initname(ifp, ledriver.name, dvp->id_unit);
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_ioctl = le_ioctl;
     ifp->if_init = sc->if_init;
@@ -704,7 +704,7 @@ lemac_probe(
     sc->le_mcmask = (1 << LEMAC_MCTBL_BITS) - 1;
     sc->lemac_txmax = lemac_deftxmax;
     *msize = 2048;
-    le_intrvec[sc->le_if.if_unit] = lemac_intr;
+    le_intrvec[sc->le_unit] = lemac_intr;
 
     return LEMAC_IOSPACE;
 }
@@ -1346,7 +1346,7 @@ depca_probe(
      */
     DEPCA_WRNICSR(sc, DEPCA_RDNICSR(sc) | DEPCA_NICSR_SHE);
 
-    le_intrvec[sc->le_if.if_unit] = depca_intr;
+    le_intrvec[sc->le_unit] = depca_intr;
     if (!lance_init_adapmem(sc))
 	return 0;
 

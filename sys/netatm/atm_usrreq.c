@@ -390,7 +390,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 			 */
 			IFNET_RLOCK();
 			TAILQ_FOREACH(ifp2, &ifnet, if_link) {
-				if (!strcmp(ifp2->if_name, asp->asr_nif_pref)) {
+				if (!strcmp(ifp2->if_dname, asp->asr_nif_pref)) {
 					/*
 					 * If this is for the interface we're
 					 * (re-)defining, let it through

@@ -96,7 +96,7 @@ cm_isa_attach(dev)
 		return (error);
 	}
 
-	return cm_attach(sc, device_get_unit(dev));
+	return cm_attach(dev);
 }
 
 static int

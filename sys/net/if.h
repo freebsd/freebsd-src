@@ -62,7 +62,7 @@ struct ifnet;
 #define		IF_NAMESIZE	16
 #if __BSD_VISIBLE
 #define		IFNAMSIZ	IF_NAMESIZE
-#define		IF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
+#define		IF_MAXUNIT	0x7fff	/* historical value */
 #endif
 
 #ifdef _KERNEL

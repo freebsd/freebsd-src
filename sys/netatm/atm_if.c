@@ -96,7 +96,7 @@ static int	(*atm_ifouttbl[AF_MAX+1])
 int
 atm_physif_register(cup, name, sdp)
 	Cmn_unit		*cup;
-	char			*name;
+	const char		*name;
 	struct stack_defn	*sdp;
 {
 	struct atm_pif	*pip;
@@ -341,7 +341,7 @@ atm_physif_ioctl(code, data, arg)
 			"%s%d", pip->pif_name, pip->pif_unit );
 		if ( pip->pif_nif )
 		{
-			strcpy(apr.anp_nif_pref, pip->pif_nif->nif_if.if_name);
+			strcpy(apr.anp_nif_pref, pip->pif_nif->nif_if.if_dname);
 
 			nip = pip->pif_nif;
 			while ( nip ) {
@@ -392,7 +392,7 @@ atm_physif_ioctl(code, data, arg)
 		 */
 		bzero((caddr_t)&anr, sizeof(anr));
 		(void) snprintf(anr.anp_intf, sizeof(anr.anp_intf),
-		    "%s%d", ifp->if_name, ifp->if_unit);
+		    "%s%d", ifp->if_dname, ifp->if_dunit);
 		IFP_TO_IA(ifp, ia);
 		if (ia) {
 			anr.anp_proto_addr = *ia->ia_ifa.ifa_addr;
@@ -508,8 +508,7 @@ atm_physif_ioctl(code, data, arg)
 			strcpy ( nip->nif_name, asr->asr_nif_pref );
 			nip->nif_sel = count;
 
-			ifp->if_name = nip->nif_name;
-			ifp->if_unit = count;
+			if_initname(ifp, nip->nif_name, count);
 			ifp->if_mtu = ATM_NIF_MTU;
 			ifp->if_flags = IFF_UP | IFF_BROADCAST | IFF_RUNNING;
 			ifp->if_output = atm_ifoutput;
@@ -1128,8 +1127,8 @@ atm_nifname(name)
 		 */
 		for (nip = pip->pif_nif; nip; nip = nip->nif_pnext) {
 			struct ifnet	*ifp = (struct ifnet *)nip;
-			if ((ifp->if_unit == unit) && 
-			    (strcmp(ifp->if_name, n) == 0))
+			if ((ifp->if_dunit == unit) && 
+			    (strcmp(ifp->if_dname, n) == 0))
 				return (nip);
 		}
 	}

@@ -69,6 +69,7 @@ struct fe_softc {
 
 	/* Used by "common" codes.  */
 	struct arpcom arpcom;	/* Ethernet common */
+	int			sc_unit;
 
 	/* Used by config codes.  */
 	int			type;
@@ -118,7 +119,7 @@ struct fe_softc {
 };
 
 #define sc_if		arpcom.ac_if
-#define sc_unit		arpcom.ac_if.if_unit
+#define sc_xname	arpcom.ac_if.if_xname
 #define sc_enaddr	arpcom.ac_enaddr
 
 
