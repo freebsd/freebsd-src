@@ -123,7 +123,6 @@
 
 
 #include <i386/isa/isa_device.h>
-#include "pnp.h"
 
 #undef NPNP
 #define NPNP 0
