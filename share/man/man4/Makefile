@@ -68,6 +68,7 @@ MAN4=	adv.4 \
 	md.4 \
 	mem.4 \
 	mlx.4 \
+	mly.4 \
 	mouse.4 \
 	mtio.4 \
 	natm.4 \
