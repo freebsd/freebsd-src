@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.41 1995/10/29 05:57:48 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.42 1995/10/31 18:41:49 phk Exp $
  */
 /*
  * TODO:
@@ -1051,8 +1051,8 @@ void ahc_add_waiting_scb (iobase, scb, where)
 /*
  * Catch an interrupt from the adaptor
  */
-int
-ahcintr(unit)
+static int
+ahc_intr(unit)
 	int	unit;
 {
 	int     intstat;
@@ -1694,6 +1694,19 @@ cmdcomplete:
 	return 1;
 }
 
+void
+ahcintr(unit)
+	int unit;
+{
+	ahc_intr(unit);
+}
+
+int
+ahc_pci_intr(vunit)
+	void *vunit;
+{
+	return (ahc_intr((int)vunit));
+}
 
 static int
 enable_seeprom(u_long   offset,
