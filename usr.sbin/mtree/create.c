@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: create.c,v 1.11 1998/08/02 14:41:34 bde Exp $";
+	"$Id: create.c,v 1.12 1999/01/12 02:58:23 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -144,7 +144,7 @@ statf(indent, p)
 	escaped_name = calloc(1, p->fts_namelen * 4  +  1);
 	if (escaped_name == NULL)
 		errx(1, "statf(): calloc() failed");
-	strvis(escaped_name, p->fts_name, VIS_WHITE);
+	strvis(escaped_name, p->fts_name, VIS_WHITE | VIS_OCTAL);
 
 	if (iflag || S_ISDIR(p->fts_statp->st_mode))
 		offset = printf("%*s%s", indent, "", escaped_name);
