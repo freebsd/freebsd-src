@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.32 1995/05/26 11:21:53 jkh Exp $
+ * $Id: menus.c,v 1.33 1995/05/26 19:28:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -554,6 +554,8 @@ When you're done setting options, select Cancel",
 	DMENU_SET_VARIABLE,	"debug=yes", 0, 0		},
       { "No Debugging", "Turn the extra debugging flag off",
 	DMENU_SET_VARIABLE,	"debug=no", 0, 0		},
+      { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
+	DMENU_SET_VARIABLE,	"noConfirmation=Yes", 0, 0	},
       { NULL } },
 };
 
