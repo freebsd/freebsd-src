@@ -205,12 +205,10 @@ i386/isa/elink.c		optional	ie
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
-i386/isa/istallion.c		optional	stli nowerror
 i386/isa/npx.c			optional	npx
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/spkr.c			optional	speaker
-i386/isa/stallion.c		optional	stl nowerror
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		\
