@@ -125,6 +125,7 @@ struct sbp_status{
 /*   6: Maximum payload too small */
 /*   7: Reserved for future standardization */
 /*   8: Resource unavailabe */
+#define STATUS_RES_UNAVAIL	8
 /*   9: Function Rejected */
 /*  10: Login ID not recognized */
 /*  11: Dummy ORB completed */
