@@ -613,6 +613,14 @@
 #define SF_MACCFG1_SOFTRESET	0x00008000
 
 /*
+ * There are the recommended IPG nibble counter settings
+ * specified in the Adaptec manual for full duplex and
+ * half duplex operation.
+ */
+#define SF_IPGT_FDX		0x15
+#define SF_IPGT_HDX		0x11
+
+/*
  * RX filter registers 0x6000 to 0x6FFF
  */
 #define SF_RXFILT_PERFECT_BASE	0x6000
@@ -1033,6 +1041,8 @@ struct sf_softc {
 	u_int8_t		sf_unit;	/* interface number */
 	struct sf_list_data	*sf_ldata;
 	int			sf_tx_cnt;
+	u_int8_t		sf_link;
+	int			sf_if_flags;
 	struct callout_handle	sf_stat_ch;
 };
 
