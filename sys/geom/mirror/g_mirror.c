@@ -214,10 +214,18 @@ g_mirror_event_get(struct g_mirror_softc *sc)
 
 	mtx_lock(&sc->sc_events_mtx);
 	ep = TAILQ_FIRST(&sc->sc_events);
-	if (ep != NULL)
-		TAILQ_REMOVE(&sc->sc_events, ep, e_next);
 	mtx_unlock(&sc->sc_events_mtx);
 	return (ep);
+}
+
+
+static void
+g_mirror_event_remove(struct g_mirror_softc *sc, struct g_mirror_event *ep)
+{
+
+	mtx_lock(&sc->sc_events_mtx);
+	TAILQ_REMOVE(&sc->sc_events, ep, e_next);
+	mtx_unlock(&sc->sc_events_mtx);
 }
 
 static void
@@ -500,6 +508,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		g_mirror_destroy_disk(disk);
 	}
 	while ((ep = g_mirror_event_get(sc)) != NULL) {
+		g_mirror_event_remove(sc, ep);
 		if ((ep->e_flags & G_MIRROR_EVENT_DONTWAIT) != 0)
 			g_mirror_event_free(ep);
 		else {
@@ -1461,8 +1470,8 @@ g_mirror_worker(void *arg)
 		 * This is important to handle events before any I/O requests.
 		 */
 		ep = g_mirror_event_get(sc);
-		if (ep != NULL) {
-			g_topology_lock();
+		if (ep != NULL && g_topology_try_lock()) {
+			g_mirror_event_remove(sc, ep);
 			if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0) {
 				/* Update only device status. */
 				G_MIRROR_DEBUG(3,
@@ -1507,6 +1516,14 @@ g_mirror_worker(void *arg)
 		mtx_lock(&sc->sc_queue_mtx);
 		bp = bioq_first(&sc->sc_queue);
 		if (bp == NULL) {
+			if (ep != NULL) {
+				/*
+				 * No I/O requests and topology lock was
+				 * already held? Try again.
+				 */
+				mtx_unlock(&sc->sc_queue_mtx);
+				continue;
+			}
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 				mtx_unlock(&sc->sc_queue_mtx);
@@ -1586,10 +1603,17 @@ sleep:
 				G_MIRROR_DEBUG(5, "%s: I'm here 6.", __func__);
 				continue;
 			}
+			if (ep != NULL) {
+				/*
+				 * We have some pending events, don't sleep now.
+				 */
+				G_MIRROR_DEBUG(5, "%s: I'm here 7.", __func__);
+				continue;
+			}
 			mtx_lock(&sc->sc_queue_mtx);
 			if (bioq_first(&sc->sc_queue) != NULL) {
 				mtx_unlock(&sc->sc_queue_mtx);
-				G_MIRROR_DEBUG(5, "%s: I'm here 7.", __func__);
+				G_MIRROR_DEBUG(5, "%s: I'm here 8.", __func__);
 				continue;
 			}
 			timeout = hz / sps;
@@ -1600,7 +1624,7 @@ sleep:
 		} else {
 			g_mirror_register_request(bp);
 		}
-		G_MIRROR_DEBUG(5, "%s: I'm here 8.", __func__);
+		G_MIRROR_DEBUG(5, "%s: I'm here 9.", __func__);
 	}
 }
 
