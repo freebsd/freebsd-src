@@ -43,8 +43,29 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mman.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pageout.h>
+#include <vm/uma.h>
+
+#include <machine/md_var.h>
+#include <machine/pal.h>
 
 /*
  *	Manages physical address maps.
@@ -92,38 +113,6 @@
  * Region 7
  *	Kernel physically mapped cacheable
  */
-
-#include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mman.h>
-#include <sys/msgbuf.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/sx.h>
-#include <sys/systm.h>
-#include <sys/vmmeter.h>
-#include <sys/smp.h>
-#include <sys/sysctl.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_pager.h>
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-
-#include <sys/user.h>
-
-#include <machine/cpu.h>
-#include <machine/pal.h>
-#include <machine/md_var.h>
 
 /* XXX move to a header. */
 extern u_int64_t ia64_gateway_page[];
@@ -504,50 +493,6 @@ pmap_bootstrap()
 	pmap_invalidate_all(kernel_pmap);
 
 	map_gateway_page();
-}
-
-void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	static vm_pindex_t color;
-	vm_page_t m;
-	int pflags;
-	void *va;
-
-	*flags = UMA_SLAB_PRIV;
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT;
-	else
-		pflags = VM_ALLOC_SYSTEM;
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
-
-	for (;;) {
-		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			else
-				VM_WAIT;
-		} else
-			break;
-	}
-
-	va = (void *)IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
-	return (va);
-}
-
-void
-uma_small_free(void *mem, int size, u_int8_t flags)
-{
-	vm_page_t m;
-
-	m = PHYS_TO_VM_PAGE(IA64_RR_MASK((u_int64_t)mem));
-	vm_page_lock_queues();
-	vm_page_free(m);
-	vm_page_unlock_queues();
 }
 
 /*
