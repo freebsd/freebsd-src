@@ -1705,7 +1705,6 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 		if ((devvp->v_vflag & VV_COPYONWRITE) &&
 		    ffs_snapblkfree(fs, devvp, bno, size, inum))
 			return;
-		VOP_FREEBLKS(devvp, fsbtodb(fs, bno), size);
 	}
 #ifdef DIAGNOSTIC
 	if (dev->si_mountpoint &&
