@@ -124,8 +124,6 @@ static char	varNoError[] = "";
 GNode          *VAR_GLOBAL;   /* variables from the makefile */
 GNode          *VAR_CMD;      /* variables defined on the command-line */
 
-static Lst	*allVars;      /* List of all variables */
-
 #define	FIND_CMD	0x1   /* look in VAR_CMD when searching */
 #define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
 #define	FIND_ENV  	0x4   /* look in the environment also */
@@ -336,7 +334,6 @@ VarAdd(char *name, char *val, GNode *ctxt)
     v->flags = 0;
 
     Lst_AtFront(ctxt->context, v);
-    Lst_AtEnd(allVars, v);
     DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
 }
 
@@ -383,13 +380,8 @@ Var_Delete(char *name, GNode *ctxt)
     DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
     ln = Lst_Find(ctxt->context, name, VarCmp);
     if (ln != NULL) {
-	Var 	  *v;
-
-	v = Lst_Datum(ln);
+	VarDelete(Lst_Datum(ln));
 	Lst_Remove(ctxt->context, ln);
-	ln = Lst_Member(allVars, v);
-	Lst_Remove(allVars, ln);
-	VarDelete(v);
     }
 }
 
@@ -1928,15 +1920,12 @@ Var_Init(void)
 
     VAR_GLOBAL = Targ_NewGN("Global");
     VAR_CMD = Targ_NewGN("Command");
-    allVars = Lst_Init();
 
 }
 
 void
 Var_End(void)
 {
-
-    Lst_Destroy(allVars, VarDelete);
 }
 
 
