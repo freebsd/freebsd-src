@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+TARGET_TUPLE=	alpha-unknown-freebsd
+
 .if ${TARGET_ARCH} == "alpha"
-HOST=	alpha-unknown-freebsd
+HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf64alpha\"
-CFLAGS+= -DTARGET=\"alpha-unknown-freebsd\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _alpha_path=	\"/usr/lib\"
 .else
 _alpha_path=	\"/usr/cross/alpha-freebsd/usr/lib\"
@@ -18,11 +20,11 @@ CLEANFILES+=	eelf64alpha.c ealpha.c
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
-	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
-	    elf64alpha ""  elf64alpha alpha-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf64alpha ""  elf64alpha ${TARGET_TUPLE}
 
 ealpha.c: emulparams/elf64alpha.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_alpha_path} \
-	    ${HOST} alpha-unknown-freebsd alpha-unknown-freebsd \
-	    elf64alpha ""  alpha alpha-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf64alpha ""  alpha ${TARGET_TUPLE}

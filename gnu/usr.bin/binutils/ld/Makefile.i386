@@ -1,9 +1,11 @@
 # $FreeBSD$
 
+TARGET_TUPLE=	i386-unknown-freebsd
+
 .if ${TARGET_ARCH} == "i386"
-HOST=	i386-unknown-freebsd
+HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"elf_i386\"
-CFLAGS+= -DTARGET=\"i386-unknown-freebsd\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 _i386_path=	\"/usr/lib\"
 .else
 _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
@@ -17,8 +19,8 @@ CLEANFILES+=	eelf_i386.c
 eelf_i386.c: emulparams/elf_i386.sh emultempl/elf32.em scripttempl/elf.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_i386_path} \
-	    ${HOST} i386-unknown-freebsd i386-unknown-freebsd \
-	    elf_i386 "" elf_i386 i386-unknown-freebsd
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf_i386 "" elf_i386 ${TARGET_TUPLE}
 
 .if defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
 EMS+=		ld_i386pe_emulation
@@ -33,7 +35,7 @@ CLEANFILES+=	ei386pe.c
 ei386pe.c: emulparams/i386pe.sh emultempl/pe.em scripttempl/pe.sc \
     genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    /usr/cross/winnt/lib ${HOST} i386-unknown-freebsdwinnt \
-	    i386-unknown-freebsdwinnt i386pe "" i386pe \
-	    i386-unknown-freebsdwinnt
+	    /usr/cross/winnt/lib ${HOST} ${TARGET_TUPLE}winnt \
+	    ${TARGET_TUPLE}winnt i386pe "" i386pe \
+	    ${TARGET_TUPLE}winnt
 .endif
