@@ -247,7 +247,7 @@ acpi_isa_identify_child(ACPI_HANDLE handle, UINT32 level, void *context, void **
     if (!device_get_desc(child))
 	device_set_desc_copy(child, devinfo.HardwareId);
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("added ISA PnP info for %s\n", acpi_name(handle)));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "added ISA PnP info for %s\n", acpi_name(handle)));
 
     /*
      * XXX Parse configuration data and _CID list to find compatible IDs
