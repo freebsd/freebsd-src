@@ -176,8 +176,20 @@
       at the cost of possibly missing filesystem updates that occur
       between passes.</para>
 
+    <para>&man.dumpfs.8; now supports a <option>-m</option> flag to
+      print file system parameters in the form of a &man.newfs.8;
+      command.</para>
+
     <para>elfdump, a utility to display information about &man.elf.5;
       format executable files, has been added.</para>
+
+    <para>&man.fetch.1; uses the <filename>.netrc</filename> support
+      in &man.fetch.3; and also supports a <option>-N</option> to
+      specify an alternate <filename>.netrc</filename> file.</para>
+
+    <para>&man.fetch.3; now has support for
+      <filename>.netrc</filename> files (see &man.ftp.1; for more
+      details).</para>
 
     <para>&man.ftpd.8; now supports a <option>-P</option> option to
       specify a port on which to listen in daemon mode.  The default
