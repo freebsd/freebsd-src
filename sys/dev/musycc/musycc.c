@@ -36,6 +36,7 @@
 static MALLOC_DEFINE(M_MUSYCC, "musycc", "MUSYCC related");
 
 static void init_8370(u_int32_t *p);
+static	u_int32_t parse_ts(const char *s, int *nbit);
 
 /*
  * Device driver initialization stuff
@@ -113,13 +114,65 @@ struct mdesc {
 
 #define NHDLC	32
 
-#define NMD	10
-
 #define NIQD	32
 
+struct softc;
+
+struct schan {
+	enum {DOWN, UP} state;
+	struct softc	*sc;
+	int		chan;
+	u_int32_t	ts;
+	char		hookname[8];
+
+	hook_p		hook;
+
+	u_long		rx_drop;	/* mbuf allocation failures */
+	u_long		tx_limit;
+	int		rx_last_md;	/* index to next MD */
+	int		nmd;		/* count of MD's. */
+#if 0
+
+	time_t		last_recv;
+	time_t		last_rxerr;
+	time_t		last_xmit;
+
+	u_long		rx_error;
+
+	u_long		short_error;
+	u_long		crc_error;
+	u_long		dribble_error;
+	u_long		long_error;
+	u_long		abort_error;
+	u_long		overflow_error;
+
+	int		last_error;
+	int		prev_error;
+
+	u_long		tx_pending;
+#endif
+};
+
+
 struct softc {
+	enum {WHOKNOWS, E1, T1}	framing;
+	u_int32_t last;
+	struct csoftc *csc;
+	u_int32_t *ds8370;
+	void	*ds847x;
+	struct globalr *reg;
+	struct groupr *ram;
+	struct mycg *mycg;
+	struct mdesc *mdt[NHDLC];
+	struct mdesc *mdr[NHDLC];
+	node_p node;			/* NG node */
+	char nodename[NG_NODELEN + 1];	/* NG nodename */
+	struct schan *chan[NHDLC];
+};
+
+struct csoftc {
 	int	unit, bus, slot;
-	LIST_ENTRY(softc) list;
+	LIST_ENTRY(csoftc) list;
 
 	device_t f[2];
 	struct resource *irq[2];
@@ -128,21 +181,8 @@ struct softc {
 	u_char *virbase[2];
 
 	int nchan;
+	struct softc serial[NPORT];
 
-	struct serial_if {
-		enum {WHOKNOWS, E1, T1}	framing;
-		u_int32_t last;
-		struct softc *sc;
-		u_int32_t *ds8370;
-		void	*ds847x;
-		struct globalr *reg;
-		struct groupr *ram;
-		struct mycg *mycg;
-		struct mdesc *mdt[NHDLC];
-		struct mdesc *mdr[NHDLC];
-		node_p node;			/* NG node */
-		char nodename[NG_NODELEN + 1];	/* NG nodename */
-	} serial[NPORT];
 	struct globalr *reg;
 	struct globalr *ram;
 	u_int32_t iqd[NIQD];
@@ -182,15 +222,56 @@ static struct ng_type ngtypestruct = {
  *
  */
 
+static u_int32_t
+parse_ts(const char *s, int *nbit)
+{
+	unsigned r;
+	int i, j;
+	char *p;
 
-static LIST_HEAD(, softc) sc_list = LIST_HEAD_INITIALIZER(&sc_list);
+	r = 0;
+	j = 0;
+	*nbit = 0;
+	while(*s) {
+		i = strtol(s, &p, 0);
+		if (i < 1 || i > 31)
+			return (0);
+		while (j && j < i) {
+			r |= 1 << j++;
+			(*nbit)++;
+		}
+		j = 0;
+		r |= 1 << i;
+		(*nbit)++;
+		if (*p == ',') {
+			s = p + 1;
+			continue;
+		} else if (*p == '-') {
+			j = i;
+			s = p + 1;
+			continue;
+		} else if (!*p) {
+			break;
+		} else {
+			return (0);
+		}
+	}
+	return (r);
+}
+
+/*
+ *
+ */
+
+
+static LIST_HEAD(, csoftc) sc_list = LIST_HEAD_INITIALIZER(&sc_list);
 
 static void
 poke_847x(void *dummy)
 {
 	static int count;
 	int i;
-	struct softc *sc;
+	struct csoftc *sc;
 
 	timeout(poke_847x, NULL, 5*hz);
 	LIST_FOREACH(sc, &sc_list, list)  {
@@ -206,9 +287,9 @@ poke_847x(void *dummy)
 }
 
 static void
-init_847x(struct softc *sc)
+init_847x(struct csoftc *sc)
 {
-	struct serial_if *sif;
+	struct softc *sif;
 
 	printf("init_847x(%p)\n", sc);
 	sif = &sc->serial[0];
@@ -224,12 +305,11 @@ init_847x(struct softc *sc)
 }
 
 static void
-init_chan(struct serial_if *sif)
+init_ctrl(struct softc *sif)
 {
-	int i, j;
-	struct mbuf *m;
+	int i;
 
-	printf("init_chan(%p) [%s] [%08x]\n", sif, sif->nodename, sif->sc->reg->glcd);
+	printf("init_ctrl(%p) [%s] [%08x]\n", sif, sif->nodename, sif->csc->reg->glcd);
 	init_8370(sif->ds8370);
 	tsleep(sif, PZERO | PCATCH, "ds8370", hz);
 	sif->reg->gbp = vtophys(sif->ram);
@@ -256,39 +336,10 @@ init_chan(struct serial_if *sif)
 	sif->ram->mld |= (1600 << 16);
 
 	for (i = 0; i < NHDLC; i++) {
-		sif->ram->ttsm[i] = i + (4 << 5);
-		sif->ram->rtsm[i] = i + (4 << 5);
-		sif->ram->tcct[i] = 0x2000; /* HDLC-FCS16 */
-		sif->ram->rcct[i] = 0x2000; /* HDLC-FCS16 */
-		sif->ram->tcct[i] |= 0x00000; /* BUFFLEN */
-		sif->ram->rcct[i] |= 0x00000; /* BUFFLEN */
-		sif->ram->tcct[i] |= ((i + i) << 24); /* BUFFLOC */
-		sif->ram->rcct[i] |= ((i + i) << 24); /* BUFFLOC */
-		MALLOC(sif->mdt[i], struct mdesc *, 
-		    sizeof(struct mdesc) * NMD, M_MUSYCC, M_WAITOK);
-		MALLOC(sif->mdr[i], struct mdesc *, 
-		    sizeof(struct mdesc) * NMD, M_MUSYCC, M_WAITOK);
-		for (j = 0; j < NMD; j ++) {
-			sif->mdt[i][j].next = vtophys(&sif->mdt[i][j+1]);
-			sif->mdt[i][j].status = 0;
-
-			sif->mdr[i][j].next = vtophys(&sif->mdr[i][j+1]);
-			MGETHDR(m, M_WAIT, MT_DATA);
-			MCLGET(m, M_WAIT);
-			sif->mdr[i][j].m = m;
-			sif->mdr[i][j].data = vtophys(m->m_data);
-			sif->mdr[i][j].status = 1600;
-		}
-		/* Close the loop */
-		sif->mdt[i][NMD-1].next = vtophys(&sif->mdt[i][0]);
-		sif->mdr[i][NMD-1].next = vtophys(&sif->mdr[i][0]);
-		sif->ram->thp[i] = vtophys(&sif->mdt[i][0]);
-		sif->ram->tmp[i] = vtophys(&sif->mdt[i][0]);
-		sif->ram->rhp[i] = vtophys(&sif->mdr[i][0]);
-		sif->ram->rmp[i] = vtophys(&sif->mdr[i][0]);
+		sif->ram->ttsm[i] = 0;
+		sif->ram->rtsm[i] = 0;
 	}
-	sif->last = 0x500;
-	sif->reg->srd = sif->last;
+	sif->reg->srd = sif->last = 0x500;
 }
 
 /*
@@ -355,82 +406,149 @@ init_8370(u_int32_t *p)
 }
 
 /*
- * Interrupt
+ * Interrupts
  */
+
+/*
+ * Receive interrupt on controller *sc, channel ch
+ *
+ * We perambulate the Rx descriptor ring until we hit
+ * a mdesc which isn't ours to take.
+ */
+
+static void
+musycc_intr0_rx_eom(struct softc *sc, int ch)
+{
+	u_int32_t status, error;
+	struct schan *sch;
+	struct mbuf *m, *m2;
+	struct mdesc *md;
+
+	sch = sc->chan[ch];
+	if (sch == NULL || sch->state != UP) {
+		/* XXX: this should not happen once the driver is done */
+		printf("Received packet on uninitialized channel %d\n", ch);
+		return;
+	}
+	if (sc->mdr[ch] == NULL)
+		return; 	/* XXX: can this happen ? */
+	for (;;) {
+		md = &sc->mdr[ch][sch->rx_last_md];
+		status = md->status;
+		if (!(status & 0x80000000))
+			break;		/* Not our mdesc, done */
+		m = md->m;
+		m->m_len = m->m_pkthdr.len = status & 0x3fff;
+		error = (status >> 16) & 0xf;
+		if (error == 0) {
+			MGETHDR(m2, M_DONTWAIT, MT_DATA);
+			if (m2 != NULL) {
+				MCLGET(m2, M_DONTWAIT);
+				if((m2->m_flags & M_EXT) != 0) {
+					/* Substitute the mbuf+cluster. */
+					md->m = m2;
+					md->data = vtophys(m2->m_data);
+					/* Pass the received mbuf upwards. */
+					ng_queue_data(sch->hook, m, NULL);
+				} else {
+					/*
+				         * We didn't get a mbuf cluster,
+					 * drop received packet, free the
+					 * mbuf we cannot use and recycle
+				         * the mbuf+cluster we already had.
+					 */
+					m_freem(m2);
+					sch->rx_drop++;
+				}
+			} else {
+				/*
+				 * We didn't get a mbuf, drop received packet
+				 * and recycle the "old" mbuf+cluster.
+				 */
+				sch->rx_drop++;
+			}
+		} else {
+			/* Receive error, print some useful info */
+			printf("%s %s: RX 0x%08x ", sch->sc->nodename, 
+			    sch->hookname, status);
+			/* Don't print a lot, just the begining will do */
+			if (m->m_len > 16)
+				m->m_len = m->m_pkthdr.len = 16;
+			m_print(m);
+		}
+		md->status = 1600;	/* XXX: MTU */
+		/* Check next mdesc in the ring */
+		if (++sch->rx_last_md >= sch->nmd)
+			sch->rx_last_md = 0;
+	}
+}
 
 static void
 musycc_intr0(void *arg)
 {
-	int i, j, g, k, ch, ev;
+	int i, j, g, ch, ev;
+	struct csoftc *csc;
+	u_int32_t u, n, c;
 	struct softc *sc;
-	u_int32_t u,n,c, s;
-	struct serial_if *sif;
 
-	sc = arg;
+	csc = arg;
 
-	u = sc->serial[0].reg->isd;
+	u = csc->serial[0].reg->isd;
 	c = u & 0x7fff;
 	if (c == 0)
 		return;
 	n = u >> 16;
 	for (i = n; i < n + c; i++) {
 		j = i % NIQD;
-		g = (sc->iqd[j] >> 29) & 0x3;
-		g |= (sc->iqd[j] >> (14-2)) & 0x4;
-		ch = (sc->iqd[j] >> 24) & 0x1f;
-		ev = (sc->iqd[j] >> 20) & 0xf;
-		sif = &sc->serial[g];
-		if (ev == 1) {
-			if (sif->last) {
-				printf("%08x %d", sc->iqd[j], g);
-				printf("/%s", sc->iqd[j] & 0x80000000 ? "T" : "R");
-				printf(" cmd %08x\n", sif->last);
+		g = (csc->iqd[j] >> 29) & 0x3;
+		g |= (csc->iqd[j] >> (14-2)) & 0x4;
+		ch = (csc->iqd[j] >> 24) & 0x1f;
+		ev = (csc->iqd[j] >> 20) & 0xf;
+		sc = &csc->serial[g];
+		switch (ev) {
+		case 1: /* SACK		Service Request Acknowledge	    */
+			if (sc->last) {
+				printf("%08x %d", csc->iqd[j], g);
+				printf("/%s", csc->iqd[j] & 0x80000000 ? "T" : "R");
+				printf(" cmd %08x\n", sc->last);
 			}
-			if (sif->last == 0x500) {
-				sif->last = 0x520;
-				sif->reg->srd = sif->last;
-			} else if (sif->last == 0x520) {
-				sif->last = 0x800;
-				sif->reg->srd = sif->last;
-			} else if ((sif->last & ~0x1f) == 0x800) {
-				sif->last++;
-				if (sif->last == 0x820)
-					sif->last = 0xffffffff;
-				sif->reg->srd = sif->last;
+			if (sc->last == 0x500) {
+				sc->last = 0x520;
+				sc->reg->srd = sc->last;
 			} else {
-				sif->last = 0xffffffff;
+				sc->last = 0xffffffff;
+				wakeup(&sc->last);
 			}
-		} else {
-			printf("%08x %d", sc->iqd[j], g);
-			printf("/%s", sc->iqd[j] & 0x80000000 ? "T" : "R");
+			break;
+		case 5: /* CHABT	Change To Abort Code (0x7e -> 0xff) */
+		case 6: /* CHIC		Change To Idle Code (0xff -> 0x7e)  */
+			break;
+		case 3: /* EOM		End Of Message			    */
+			if (csc->iqd[j] & 0x80000000)
+				; /* tx */
+			else
+				musycc_intr0_rx_eom(sc, ch);
+			break;
+		default:
+			printf("%08x %d", csc->iqd[j], g);
+			printf("/%s", csc->iqd[j] & 0x80000000 ? "T" : "R");
 			printf("/%02d", ch);
 			printf(" %02d", ev);
-			printf(":%02d", (sc->iqd[j] >> 16) & 0xf);
-			if (sif->mdr[ch] != NULL)
-				for (k = 0; k < NMD; k++) {
-					s = sif->mdr[ch][k].status;
-					if (s & 0x80000000) {
-						printf(" >> %08x ", sif->mdr[ch][k].status);
-						sif->mdr[ch][k].m->m_len = 
-						    sif->mdr[ch][k].m->m_pkthdr.len = s & 0x001f;
-						m_print(sif->mdr[ch][k].m);
-					} 
-					sif->mdr[ch][k].status = 1600;
-				}
+			printf(":%02d", (csc->iqd[j] >> 16) & 0xf);
 			printf("\n");
 		}
-		sc->iqd[i] = 0xffffffff;
+		csc->iqd[i] = 0xffffffff;
 	}
 	n += c;
 	n %= NIQD;
-	sc->serial[0].reg->isd = n << 16;
+	csc->serial[0].reg->isd = n << 16;
 }
 
 static void
 musycc_intr1(void *arg)
 {
 	int i, j;
-	struct softc *sc;
+	struct csoftc *sc;
 	u_int32_t *u;
 	u_int8_t irr;
 	
@@ -453,17 +571,17 @@ musycc_intr1(void *arg)
  */
 
 static void
-set_chan_e1(struct serial_if *sif, char *ret)
+set_chan_e1(struct softc *sif, char *ret)
 {
 	if (sif->framing == E1)
 		return;
-	init_chan(sif);
+	init_ctrl(sif);
 	sif->framing = E1;
 	return;
 }
 
 static void
-set_chan_t1(struct serial_if *sif, char *ret)
+set_chan_t1(struct softc *sif, char *ret)
 {
 	if (sif->framing == T1)
 		return;
@@ -492,7 +610,7 @@ ng_shutdown(node_p nodep)
 static void
 ng_config(node_p node, char *set, char *ret)
 {
-	struct serial_if *sif;
+	struct softc *sif;
 	sif = node->private;
 
 	printf("%s: CONFIG %p %p\n", sif->nodename, set, ret);
@@ -522,7 +640,7 @@ barf:
 static int
 ng_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp, hook_p lasthook)
 {
-	struct serial_if *sif;
+	struct softc *sif;
 	char *s, *r;
 
 	sif = node->private;
@@ -575,8 +693,39 @@ out:
 static int
 ng_newhook(node_p node, hook_p hook, const char *name)
 {
+	struct softc *sc;
+	struct csoftc *csc;
+	struct schan *sch;
+	u_int32_t ts, chan;
+	int nbit;
 
-	return(EINVAL);
+	sc = node->private;
+	csc = sc->csc;
+
+	printf("Newhook(\"%s\",\"%s\")\n", sc->nodename, name);
+	if (name[0] != 't' || name[1] != 's')
+		return (EINVAL);
+	ts = parse_ts(name + 2, &nbit);
+	if (ts == 0)
+		return (EINVAL);
+	chan = ffs(ts) - 1;
+	if (sc->chan[chan] == NULL) {
+		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_WAITOK);
+		bzero(sch, sizeof(*sch));
+		sch->sc = sc;
+		sch->state = DOWN;
+		sch->chan = chan;
+		sprintf(sch->hookname, name);	/* XXX overflow ? */
+		sc->chan[chan] = sch;
+	} else if (sc->chan[chan]->state == UP) {
+		return (EBUSY);
+	}
+	sch = sc->chan[chan];
+	sch->ts = ts;
+	sch->hook = hook;
+	sch->tx_limit = nbit * 8;
+	hook->private = sch;
+	return(0);
 }
 
 static int
@@ -590,6 +739,118 @@ ng_rcvdata(hook_p hook, struct mbuf *m, meta_p meta, struct mbuf **ret_m, meta_p
 static int
 ng_connect(hook_p hook)
 {
+	struct softc *sc;
+	struct csoftc *csc;
+	struct schan *sch;
+	int nts, nbuf, i, nmd, ch;
+	struct mbuf *m;
+
+	sch = hook->private;
+	sc = sch->sc;
+	csc = sc->csc;
+	ch = sch->chan;
+
+	if (sch->state == UP)
+		return (0);
+	sch->state = UP;
+
+	/* Setup the Time Slot Map */
+	nts = 0;
+	for (i = ch; i < 32; i++) {
+		if (sch->ts & (1 << i)) {
+			sc->ram->rtsm[i] = ch | (4 << 5);
+			sc->ram->ttsm[i] = ch | (4 << 5);
+			nts++;		
+		}
+	}
+
+	/* 
+	 * Find the length of the first run of timeslots.
+	 * XXX: find the longest instead.
+	 */
+	nbuf = 0;
+	for (i = ch; i < 32; i++) {
+		if (sch->ts & (1 << i))
+			nbuf++;
+		else
+			break;
+	}
+		
+	printf("Connect ch= %d ts= %08x nts= %d nbuf = %d\n", 
+	    ch, sch->ts, nts, nbuf);
+
+	/* Reread the Time Slot Map */
+	sc->reg->srd = sc->last = 0x1800;
+	tsleep(&sc->last, PZERO + PCATCH, "con1", hz);
+	sc->reg->srd = sc->last = 0x1820;
+	tsleep(&sc->last, PZERO + PCATCH, "con2", hz);
+
+	/* Set the channel mode */
+	sc->ram->tcct[ch] = 0x2000; /* HDLC-FCS16 */
+	sc->ram->rcct[ch] = 0x2000; /* HDLC-FCS16 */
+
+	/*
+	 * Allocate the FIFO space
+	 * We don't do subchanneling so we can use 128 dwords [4-13]
+	 */
+	sc->ram->tcct[ch] |= (1 + 2 * (nbuf - 1)) << 16; /* BUFFLEN */
+	sc->ram->rcct[ch] |= (1 + 2 * (nbuf - 1)) << 16; /* BUFFLEN */
+	sc->ram->tcct[ch] |= ((ch * 2) << 24);	 /* BUFFLOC */
+	sc->ram->rcct[ch] |= ((ch * 2) << 24);	 /* BUFFLOC */
+
+	/* Reread the Channel Configuration Descriptor for this channel */
+	sc->reg->srd = sc->last = 0x0b00 + ch;
+	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
+#if 0
+	/* XXX: not yet xmit */
+	sc->reg->srd = sc->last = 0x0b20 + ch;
+	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
+#endif
+
+	/*
+	 * Figure out how many receive buffers we want:  10 + nts * 2
+	 *  1 timeslot,  50 bytes packets -> 68msec
+	 * 31 timeslots, 50 bytes packets -> 14msec
+	 */
+	sch->nmd = nmd = 10 + nts * 2;
+	sch->rx_last_md = 0;
+	MALLOC(sc->mdt[ch], struct mdesc *, 
+	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
+	MALLOC(sc->mdr[ch], struct mdesc *, 
+	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
+	for (i = 0; i < nmd; i++) {
+		if (i == nmd - 1) {
+			sc->mdt[ch][i].next = vtophys(&sc->mdt[ch][0]);
+			sc->mdr[ch][i].next = vtophys(&sc->mdr[ch][0]);
+		} else {
+			sc->mdt[ch][i].next = vtophys(&sc->mdt[ch][i + 1]);
+			sc->mdr[ch][i].next = vtophys(&sc->mdr[ch][i + 1]);
+		}
+		sc->mdt[ch][i].status = 0x8000000;
+		sc->mdt[ch][i].m = NULL;
+		sc->mdt[ch][i].data = 0;
+
+		MGETHDR(m, M_WAIT, MT_DATA);
+		MCLGET(m, M_WAIT);
+		sc->mdr[ch][i].m = m;
+		sc->mdr[ch][i].data = vtophys(m->m_data);
+		sc->mdr[ch][i].status = 1600; /* MTU */
+	}
+
+	/* Configure it into the chip */
+	sc->ram->thp[ch] = vtophys(&sc->mdt[ch][0]);
+	sc->ram->tmp[ch] = vtophys(&sc->mdt[ch][0]);
+	sc->ram->rhp[ch] = vtophys(&sc->mdr[ch][0]);
+	sc->ram->rmp[ch] = vtophys(&sc->mdr[ch][0]);
+
+	/* Activate the Channel */
+	sc->reg->srd = sc->last = 0x0800 + ch;
+	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
+#if 0
+	/* XXX: not yet xmit */
+	sc->reg->srd = sc->last = 0x0820 + ch;
+	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
+#endif
 
 	return (0);
 }
@@ -597,6 +858,57 @@ ng_connect(hook_p hook)
 static int
 ng_disconnect(hook_p hook)
 {
+	struct softc *sc;
+	struct csoftc *csc;
+	struct schan *sch;
+	int i, ch;
+
+	sch = hook->private;
+	sc = sch->sc;
+	csc = sc->csc;
+	ch = sch->chan;
+
+	if (sch->state == DOWN)
+		return (0);
+	sch->state = DOWN;
+
+	sc->ram->thp[ch] = 0;
+	sc->ram->tmp[ch] = 0;
+	sc->ram->rhp[ch] = 0;
+	sc->ram->rmp[ch] = 0;
+	for (i = 0; i < sch->nmd; i++) {
+		if (sc->mdt[ch][i].m != NULL)
+			m_freem(sc->mdt[ch][i].m);
+		if (sc->mdr[ch][i].m != NULL)
+			m_freem(sc->mdr[ch][i].m);
+	}
+	FREE(sc->mdt[ch], M_MUSYCC);
+	sc->mdt[ch] = NULL;
+	FREE(sc->mdr[ch], M_MUSYCC);
+	sc->mdr[ch] = NULL;
+
+	/* Deactivate the channel */
+	sc->reg->srd = sc->last = 0x0900 + sch->chan;
+	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
+#if 0
+	/* XXX: not yet xmit */
+	sc->reg->srd = sc->last = 0x0920 + sch->chan;
+	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
+#endif
+
+	for (i = 0; i < 32; i++) {
+		if (sch->ts & (1 << i)) {
+			sc->ram->rtsm[i] = 0;
+			sc->ram->ttsm[i] = 0;
+		}
+	}
+#if 0
+	/* We don't really need to reread the Time Slot Map */
+	sc->reg->srd = sc->last = 0x1800;
+	tsleep(&sc->last, PZERO + PCATCH, "con1", hz);
+	sc->reg->srd = sc->last = 0x1820;
+	tsleep(&sc->last, PZERO + PCATCH, "con2", hz);
+#endif
 
 	return (0);
 }
@@ -653,9 +965,9 @@ musycc_probe(device_t self)
 static int
 musycc_attach(device_t self)
 {
-	struct softc *sc;
+	struct csoftc *sc;
 	struct resource *res;
-	struct serial_if *sif;
+	struct softc *sif;
 	int rid, i, error;
 	int f;
 	u_int32_t	*u32p;
@@ -670,9 +982,9 @@ musycc_attach(device_t self)
 	printf("We have %d pad bytes in mycg\n", 2048 - sizeof(struct mycg));
 
 	f = pci_get_function(self);
-	/* For function zero allocate a softc */
+	/* For function zero allocate a csoftc */
 	if (f == 0) {
-		MALLOC(sc, struct softc *, sizeof(*sc), M_MUSYCC, M_WAITOK);
+		MALLOC(sc, struct csoftc *, sizeof(*sc), M_MUSYCC, M_WAITOK);
 		bzero(sc, sizeof(*sc));
 		sc->bus = pci_get_bus(self);
 		sc->slot = pci_get_slot(self);
@@ -737,7 +1049,7 @@ musycc_attach(device_t self)
 	u32p[0x1000] = 0xfe;	/* XXX: control-register */
 	for (i = 0; i < sc->nchan; i++) {
 		sif = &sc->serial[i];
-		sif->sc = sc;
+		sif->csc = sc;
 		sif->last = 0xffffffff;
 		sif->ds8370 = (u_int32_t *)
 		    (sc->virbase[1] + i * 0x800);
@@ -761,9 +1073,6 @@ musycc_attach(device_t self)
 			sc->slot,
 			i);
 		error = ng_name_node(sif->node, sif->nodename);
-#if 0
-		init_chan(&sc->serial[i]);
-#endif
 	}
 	sc->ram = (struct globalr *)&sc->serial[0].mycg->cg;
 	init_847x(sc);
