@@ -436,60 +436,15 @@ abortit:
 	}
 
 	/*
-	 * Check if just deleting a link name or if we've lost a race.
-	 * If another process completes the same rename after we've looked
-	 * up the source and have blocked looking up the target, then the
-	 * source and target inodes may be identical now although the
-	 * names were never linked.
+	 * Renaming a file to itself has no effect.  The upper layers should
+	 * not call us in that case.  Temporarily just warn if they do.
 	 */
 	if (fvp == tvp) {
-		if (fvp->v_type == VDIR) {
-			/*
-			 * Linked directories are impossible, so we must
-			 * have lost the race.  Pretend that the rename
-			 * completed before the lookup.
-			 */
-#ifdef UFS_RENAME_DEBUG
-			printf("ufs_rename: fvp == tvp for directories\n");
-#endif
-			error = ENOENT;
-			goto abortit;
-		}
-
-		/* Release destination completely. */
-		vput(tdvp);
-		vput(tvp);
-
-		/*
-		 * Delete source.  There is another race now that everything
-		 * is unlocked, but this doesn't cause any new complications.
-		 * Relookup() may find a file that is unrelated to the
-		 * original one, or it may fail.  Too bad.
-		 */
-		vrele(fdvp);
-		vrele(fvp);
-		fcnp->cn_flags &= ~MODMASK;
-		fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
-		fcnp->cn_nameiop = DELETE;
-		VREF(fdvp);
-		error = relookup(fdvp, &fvp, fcnp);
-		if (error == 0)
-			vrele(fdvp);
-		if (fvp == NULL) {
-#ifdef UFS_RENAME_DEBUG
-			printf("ufs_rename: from name disappeared\n");
-#endif
-			return (ENOENT);
-		}
-		error = VOP_REMOVE(fdvp, fvp, fcnp);
-		if (fdvp == fvp)
-			vrele(fdvp);
-		else
-			vput(fdvp);
-		if (fvp != NULLVP)
-			vput(fvp);
-		return (error);
+		printf("ext2_rename: fvp == tvp (can't happen)\n");
+		error = 0;
+		goto abortit;
 	}
+
 	if ((error = vn_lock(fvp, LK_EXCLUSIVE, p)) != 0)
 		goto abortit;
 	dp = VTOI(fdvp);
