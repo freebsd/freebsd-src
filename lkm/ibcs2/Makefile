@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1994/10/14 22:56:40 sos Exp $
+#	$Id: Makefile,v 1.4 1994/10/27 23:36:57 wollman Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_mod
@@ -11,6 +11,6 @@ CLEANFILES+= vnode_if.h vnode_if.c
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	${.CURDIR}/ibcs2 /usr/bin
+	${.CURDIR}/ibcs2 ${DESTDIR}/usr/bin
 
 .include <bsd.kmod.mk>
