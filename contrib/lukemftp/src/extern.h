@@ -1,7 +1,7 @@
-/*	$NetBSD: extern.h,v 1.62 2003/08/07 11:13:54 agc Exp $	*/
+/*	$NetBSD: extern.h,v 1.64 2005/02/09 23:17:27 christos Exp $	*/
 
 /*-
- * Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2005 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -129,13 +129,11 @@ void	delete(int, char **);
 void	disconnect(int, char **);
 void	do_chmod(int, char **);
 void	do_umask(int, char **);
-char   *docase(char *);
 void	domacro(int, char **);
-char   *domap(char *);
 void	doproxy(int, char **);
-char   *dotrans(char *);
 void	feat(int, char **);
 void	fget(int, char **);
+int	fileindir(const char *, const char *);
 int	foregroundproc(void);
 void	formatbuf(char *, size_t, const char *);
 void	ftpvis(char *, size_t, const char *, size_t);
@@ -246,7 +244,8 @@ int	strsuftoi(const char *);
 void	syst(int, char **);
 int	togglevar(int, char **, int *, const char *);
 void	unsetoption(int, char **);
-void	updateremotepwd(void);
+void	updatelocalcwd(void);
+void	updateremotecwd(void);
 void	usage(void);
 void	user(int, char **);
 int	xconnect(int, const struct sockaddr *, int);
