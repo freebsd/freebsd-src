@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i686_mem.c,v 1.2 1999/04/30 22:09:38 msmith Exp $
+ *	$Id: i686_mem.c,v 1.3 1999/06/18 19:24:40 green Exp $
  */
 
 #include "opt_smp.h"
@@ -37,6 +37,10 @@
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
+#ifdef SMP
+#include "machine/smp.h"
+#endif
 
 /*
  * i686 memory range operations
@@ -81,8 +85,8 @@ static struct mem_range_desc	*mem_range_match(struct mem_range_softc *sc,
 						 struct mem_range_desc *mrd);
 static void			i686_mrfetch(struct mem_range_softc *sc);
 static int			i686_mtrrtype(int flags);
-static int			i686_mrstore(struct mem_range_softc *sc);
-static int			i686_mrstoreone(struct mem_range_softc *sc);
+static void			i686_mrstore(struct mem_range_softc *sc);
+static void			i686_mrstoreone(void *arg);
 static struct mem_range_desc	*i686_mtrrfixsearch(struct mem_range_softc *sc,
 						    u_int64_t addr);
 static int			i686_mrsetlow(struct mem_range_softc *sc,
@@ -103,15 +107,21 @@ static int i686_mtrrtomrt[] = {
     MDF_WRITEBACK
 };
 
-/* MTRR type to text conversion */
-static char *i686_mtrrtotext[] = {
-    "uncacheable",
-    "write-combine",
-    "invalid",
-    "invalid",
-    "write-through"
-    "write-protect",
-    "write-back"
+/* 
+ * i686 MTRR conflict matrix for overlapping ranges 
+ *
+ * Specifically, this matrix allows writeback and uncached ranges
+ * to overlap (the overlapped region is uncached).  The array index
+ * is the translated i686 code for the flags (because they map well).
+ */
+static int i686_mtrrconflict[] = {
+    MDF_WRITECOMBINE | MDF_WRITETHROUGH | MDF_WRITEPROTECT,
+    MDF_ATTRMASK,
+    0,
+    0,
+    MDF_ATTRMASK,
+    MDF_ATTRMASK,
+    MDF_WRITECOMBINE | MDF_WRITETHROUGH | MDF_WRITEPROTECT
 };
 
 /*
@@ -230,10 +240,9 @@ i686_mtrrtype(int flags)
  *
  * XXX Must be called with interrupts enabled.
  */
-static int
+static void
 i686_mrstore(struct mem_range_softc *sc)
 {
-
 #ifdef SMP
     /*
      * We should use all_but_self_ipi() to call other CPUs into a 
@@ -241,36 +250,36 @@ i686_mrstore(struct mem_range_softc *sc)
      * The "proper" solution involves a generalised locking gate
      * implementation, not ready yet.
      */
-    return(EOPNOTSUPP);
-#endif
-
+    smp_rendezvous(NULL, i686_mrstoreone, NULL, (void *)sc);
+#else
     disable_intr();				/* disable interrupts */
-    return(i686_mrstoreone(sc));
+    i686_mrstoreone((void *)&sc);
     enable_intr();
+#endif
 }
 
 /*
  * Update the current CPU's MTRRs with those represented in the
- * descriptor list.
+ * descriptor list.  Note that we do this wholesale rather than
+ * just stuffing one entry; this is simpler (but slower, of course).
  */
-static int
-i686_mrstoreone(struct mem_range_softc *sc)
+static void
+i686_mrstoreone(void *arg)
 {
+    struct mem_range_softc 	*sc = (struct mem_range_softc *)arg;
     struct mem_range_desc	*mrd;
     u_int64_t			msrv;
     int				i, j, msr;
     u_int			cr4save;
 
+    mrd = sc->mr_desc;
 
     cr4save = rcr4();				/* save cr4 */
     if (cr4save & CR4_PGE)
 	load_cr4(cr4save & ~CR4_PGE);
     load_cr0((rcr0() & ~CR0_NW) | CR0_CD);	/* disable caches (CD = 1, NW = 0) */
-    wbinvd();					/* flush caches */
-    invltlb();					/* flush TLBs */
+    wbinvd();					/* flush caches, TLBs */
     wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~0x800);	/* disable MTRRs (E = 0) */
-
-    mrd = sc->mr_desc;
 
     /* Set fixed-range MTRRs */
     if (sc->mr_cap & MR686_FIXMTRR) {
@@ -326,13 +335,10 @@ i686_mrstoreone(struct mem_range_softc *sc)
 	}
 	wrmsr(msr + 1, msrv);
     }
-
-    wbinvd();							/* flush caches */
-    invltlb();							/* flush TLB */
+    wbinvd();							/* flush caches, TLBs */
     wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | 0x800);	/* restore MTRR state */
     load_cr0(rcr0() & ~(CR0_CD | CR0_NW));  			/* enable caches CD = 0 and NW = 0 */
     load_cr4(cr4save);						/* restore cr4 */
-    return(0);
 }
 
 /*
@@ -413,9 +419,13 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *
 		free_md = curr_md;
 		break;
 	    }
-	    /* non-exact overlap? */
-	    if (mroverlap(curr_md, mrd))
-		return(EINVAL);
+	    /* non-exact overlap ? */
+	    if (mroverlap(curr_md, mrd)) {
+		/* between conflicting region types? */
+		if ((i686_mtrrconflict[i686_mtrrtype(curr_md->mr_flags)] & mrd->mr_flags) ||
+		    (i686_mtrrconflict[i686_mtrrtype(mrd->mr_flags)] & curr_md->mr_flags))
+		    return(EINVAL);
+	    }
 	} else if (free_md == NULL) {
 	    free_md = curr_md;
 	}
@@ -435,9 +445,6 @@ i686_mrsetvariable(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *
 /*
  * Handle requests to set memory range attributes by manipulating MTRRs.
  *
- * Note that we're not too smart here; we'll split a range to insert a
- * region inside, and coalesce regions to make smaller ones, but nothing
- * really fancy.
  */
 static int
 i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
@@ -482,10 +489,9 @@ i686_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
     }
 
     /* update the hardware */
-    if (i686_mrstore(sc))
-	error = EIO;
+    i686_mrstore(sc);
     i686_mrfetch(sc);	/* refetch to see where we're at */
-    return(error);
+    return(0);
 }
 
 /*
@@ -509,12 +515,7 @@ i686_mrinit(struct mem_range_softc *sc)
 	return;
     }
     nmdesc = mtrrcap & 0xff;
-    printf("Pentium Pro MTRR support enabled, default memory type is ");
-    if ((mtrrdef & 0xff) < (sizeof(i686_mtrrtotext) / sizeof(i686_mtrrtotext[0]))) {
-	printf("%s\n", i686_mtrrtotext[mtrrdef & 0xff]);
-    } else {
-	printf("unknown (0x%x)\n", (int)(mtrrdef & 0xff));
-    }
+    printf("Pentium Pro MTRR support enabled\n");
 
     /* If fixed MTRRs supported and enabled */
     if ((mtrrcap & 0x100) && (mtrrdef & 0x400)) {
@@ -567,7 +568,7 @@ i686_mrinit(struct mem_range_softc *sc)
 static void
 i686_mrAPinit(struct mem_range_softc *sc)
 {
-    i686_mrstoreone(sc);		/* set MTRRs to match BSP */
+    i686_mrstoreone((void *)sc);	/* set MTRRs to match BSP */
     wrmsr(MSR_MTRRdefType, mtrrdef);	/* set MTRR behaviour to match BSP */
 }
 
