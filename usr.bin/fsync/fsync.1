@@ -32,15 +32,18 @@
 .Nd synchronize a file's in-core state with that on disk
 .Sh SYNOPSIS
 .Nm fsync
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
-.Nm Fsync
-causes all modified data and meta-data of
-a file to be written to a permanent storage device.
+The
+.Nm
+utility causes all the modified data and meta-data of
+all the files named on the command line
+to be written to a permanent storage device.
 .Pp
-.Nm Fync
-utilizes the
-.Xr fync 2
+The
+.Nm
+utility uses the
+.Xr fsync 2
 function call.
 .Sh SEE ALSO
 .Xr fsync 2 ,
