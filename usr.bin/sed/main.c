@@ -130,7 +130,7 @@ main(argc, argv)
 			break;
 		case 'e':
 			eflag = 1;
-			temp_arg=xmalloc(strlen(optarg) + 2);
+			temp_arg = xmalloc(strlen(optarg) + 2);
 			strcpy(temp_arg, optarg);
 			strcat(temp_arg, "\n");
 			add_compunit(CU_STRING, temp_arg);
