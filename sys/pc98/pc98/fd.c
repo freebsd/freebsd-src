@@ -181,6 +181,10 @@ static struct fd_type fd_types[NUMTYPES] =
 };
 
 #ifdef PC98
+static bus_addr_t fdc_iat[] = {0, 2, 4};
+#endif
+
+#ifdef PC98
 #define DRVS_PER_CTLR 4		/* 4 floppies */
 #else
 #define DRVS_PER_CTLR 2		/* 2 floppies */
@@ -272,13 +276,8 @@ static inline u_short
 nrd_info(addr)
 	nrd_t	addr;
 {
-	u_short	tmp;
-
 	nrd_addr(addr);
-	outb(0x43f, 0x42);
-	tmp = (short)inw(P_NRD_DATA);
-	outb(0x43f, 0x40);
-	return ((u_short)tmp);
+	return (epson_inw(P_NRD_DATA));
 }
 #endif /* EPSON_NRDISK */
 
@@ -342,11 +341,13 @@ static int volatile fd_debug = 0;
 #define TRACE1(arg1, arg2)
 #endif /* FDC_DEBUG */
 
+#ifndef PC98
 static void
 fdout_wr(fdc_p fdc, u_int8_t v)
 {
 	bus_space_write_1(fdc->portt, fdc->porth, FDOUT+fdc->port_off, v);
 }
+#endif
 
 static u_int8_t
 fdsts_rd(fdc_p fdc)
@@ -365,6 +366,14 @@ fddata_rd(fdc_p fdc)
 {
 	return bus_space_read_1(fdc->portt, fdc->porth, FDDATA+fdc->port_off);
 }
+
+#ifdef PC98
+static void
+fdctl_wr(fdc_p fdc, u_int8_t v)
+{
+	bus_space_write_1(fdc->portt, fdc->porth, FDCTL, v);
+}
+#endif
 
 #ifndef PC98
 static void
@@ -635,9 +644,10 @@ static int pc98_trans_prev = 0;
 static void set_density(fdc_p fdc)
 {
 	/* always motor on */
-	outb(IO_FDPORT, (pc98_trans != 1 ? FDP_FDDEXC : 0) | FDP_PORTEXC);
+	bus_space_write_1(fdc->sc_fdsiot, fdc->sc_fdsioh, 0,
+			  (pc98_trans != 1 ? FDP_FDDEXC : 0) | FDP_PORTEXC);
 	DELAY(100);
-	fdout_wr(fdc, FDO_RST | FDO_DMAE);
+	fdctl_wr(fdc, FDC_RST | FDC_DMAE);
 	/* in the case of note W, always inhibit 100ms timer */
 }
 
@@ -661,7 +671,7 @@ static int pc98_fd_check_ready(fdu_t fdu)
 		DELAY(100);
 		fd_in(fdc, &status);
 		if ((status & NE7_ST3_RD)) {
-			fdout_wr(fdc, FDO_DMAE | FDO_MTON);
+			fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
 			DELAY(10);
 			return 0;
 		}
@@ -675,7 +685,9 @@ fdc_alloc_resources(struct fdc_data *fdc)
 {
 	device_t dev;
 	int ispnp, ispcmcia;
-
+#ifdef PC98
+	int rid;
+#endif
 	dev = fdc->fdc_dev;
 	ispnp = (fdc->flags & FDC_ISPNP) != 0;
 	ispcmcia = (fdc->flags & FDC_ISPCMCIA) != 0;
@@ -683,10 +695,9 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
 #ifdef PC98
-	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-					     &fdc->rid_ioport, 0ul, ~0ul, 
-					     ispnp ? 1 : IO_FDCSIZE,
-					     RF_ACTIVE);
+	fdc->res_ioport = isa_alloc_resourcev(dev, SYS_RES_IOPORT,
+					      &fdc->rid_ioport, fdc_iat,
+					      3, RF_ACTIVE);
 #else
 	/*
 	 * On standard ISA, we don't just use an 8 port range
@@ -708,8 +719,31 @@ fdc_alloc_resources(struct fdc_data *fdc)
 		device_printf(dev, "cannot reserve I/O port range\n");
 		return ENXIO;
 	}
+#ifdef PC98
+	isa_load_resourcev(fdc->res_ioport, fdc_iat, 3);
+#endif
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+
+#ifdef PC98
+	rid = 3;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, IO_FDPORT, 1);
+	fdc->res_fdsio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					    1, RF_ACTIVE);
+	if (fdc->res_fdsio == 0)
+		return ENXIO;
+	fdc->sc_fdsiot = rman_get_bustag(fdc->res_fdsio);
+	fdc->sc_fdsioh = rman_get_bushandle(fdc->res_fdsio);
+
+	rid = 4;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x4be, 1);
+	fdc->res_fdemsio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
+					      1, RF_ACTIVE);
+	if (fdc->res_fdemsio == 0)
+		return ENXIO;
+	fdc->sc_fdemsiot = rman_get_bustag(fdc->res_fdemsio);
+	fdc->sc_fdemsioh = rman_get_bushandle(fdc->res_fdemsio);
+#endif
 
 #ifndef PC98
 	if (!ispcmcia) {
@@ -802,6 +836,18 @@ fdc_release_resources(struct fdc_data *fdc)
 					fdc->res_ctl);
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
 				     fdc->res_ctl);
+	}
+#endif
+#ifdef PC98
+	if (fdc->res_fdsio != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, 3,
+					fdc->res_fdsio);
+		bus_release_resource(dev, SYS_RES_IOPORT, 3, fdc->res_fdsio);
+	}
+	if (fdc->res_fdemsio != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, 4,
+					fdc->res_fdemsio);
+		bus_release_resource(dev, SYS_RES_IOPORT, 4, fdc->res_fdemsio);
 	}
 #endif
 	if (fdc->res_ioport != 0) {
@@ -1371,8 +1417,10 @@ fd_probe(device_t dev)
 	case FDT_144M:
 		/* Check 3mode I/F */
 		fd->pc98_trans = 0;
-		outb(0x4be, (fd->fdu << 5) | 0x10);
-		if (!(inb(0x4be) & 0x01)) {
+		bus_space_write_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0,
+				  (fd->fdu << 5) | 0x10);
+		if (!(bus_space_read_1(fdc->sc_fdemsiot, fdc->sc_fdemsioh, 0) &
+		      0x01)) {
 			device_set_desc(dev, "1.44M FDD");
 			fd->type = FD_1440;
 			break;
@@ -1493,14 +1541,15 @@ DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
 static void
 set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 {
+#ifdef PC98
+	bus_space_write_1(fdc->sc_fdsiot, fdc->sc_fdsioh, 0,
+			  (pc98_trans != 1 ? FDP_FDDEXC : 0) | FDP_PORTEXC);
+	DELAY(10);
+	fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
+#else
 	int fdout = fdc->fdout;
 	int needspecify = 0;
 
-#ifdef PC98
-	outb(IO_FDPORT, (pc98_trans != 1 ? FDP_FDDEXC : 0)|FDP_PORTEXC);
-	DELAY(10);
-	fdout = FDO_DMAE|FDO_MTON;
-#else
 	if(turnon) {
 		fdout &= ~FDO_FDSEL;
 		fdout |= (FDO_MOEN0 << fdsu) + fdsu;
@@ -1517,7 +1566,6 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 			needspecify = 1;
 		fdout |= (FDO_FRST|FDO_FDMAEN);
 	}
-#endif
 
 	fdout_wr(fdc, fdout);
 	fdc->fdout = fdout;
@@ -1544,6 +1592,7 @@ set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 		if (fdc->flags & FDC_HAS_FIFO)
 			(void) enable_fifo(fdc);
 	}
+#endif
 }
 
 static void
@@ -1607,11 +1656,11 @@ fdc_reset(fdc_p fdc)
 #ifdef PC98
 	set_density(fdc);
 	if (pc98_machine_type & M_EPSON_PC98)
-		fdout_wr(fdc, 0xe8);
+		fdctl_wr(fdc, FDC_RST | FDC_RDY | FDC_DD | FDC_MTON);
 	else
-		fdout_wr(fdc, 0xd8);
+		fdctl_wr(fdc, FDC_RST | FDC_RDY | FDC_DMAE | FDC_MTON);
 	DELAY(200);
-	fdout_wr(fdc, 0x18);
+	fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
 	DELAY(10);
 #else
 	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
@@ -2074,7 +2123,11 @@ fdstate(fdc_p fdc)
 		}
 		if (pc98_trans != fd->pc98_trans) {
 			if (fd->type == FD_1440) {
-				outb(0x4be, (fdu << 5) | 0x10 | (pc98_trans >> 1));
+				bus_space_write_1(fdc->sc_fdemsiot,
+						  fdc->sc_fdemsioh,
+						  0,
+						  (fdu << 5) | 0x10 |
+						  (pc98_trans >> 1));
 				outb(0x5f, 0);
 				outb(0x5f, 0);
 			}
