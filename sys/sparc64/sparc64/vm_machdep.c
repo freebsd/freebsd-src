@@ -63,30 +63,9 @@
 #include <machine/md_var.h>
 #include <machine/tstate.h>
 
-/* XXX: it seems that all that is in here should really be MI... */
 void
 cpu_exit(struct proc *p)
 {
-
-	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
-	while (mtx_owned(&Giant))
-		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
-
-	/*
-	 * We have to wait until after releasing all locks before
-	 * changing p_stat.  If we block on a mutex then we will be
-	 * back at SRUN when we resume and our parent will never
-	 * harvest us.
-	 */
-	p->p_stat = SZOMB;
-
-	wakeup(p->p_pptr);
-	PROC_UNLOCK_NOSWITCH(p);
-
-	cnt.v_swtch++;
-	cpu_throw();
-	panic("cpu_exit");
 }
 
 /*
@@ -178,13 +157,6 @@ cpu_set_fork_handler(struct proc *p, void (*func)(void *), void *arg)
 void
 cpu_wait(struct proc *p)
 {
-	GIANT_REQUIRED;
-
-	/* drop per-process resources */
-	pmap_dispose_proc(p);
-
-	/* and clean-out the vmspace */
-	vmspace_free(p->p_vmspace);
 }
 
 void

@@ -209,7 +209,7 @@ vsunlock(addr, len)
  * to user mode to avoid stack copying and relocation problems.
  */
 void
-vm_fork(p1, p2, flags)
+vm_forkproc(p1, p2, flags)
 	struct proc *p1, *p2;
 	int flags;
 {
@@ -283,6 +283,22 @@ vm_fork(p1, p2, flags)
 	 * and make the child ready to run.
 	 */
 	cpu_fork(p1, p2, flags);
+}
+
+/*
+ * Called after process has been wait(2)'ed apon and is being reaped.
+ * The idea is to reclaim resources that we could not reclaim while
+ * the process was still executing.
+ */
+void
+vm_waitproc(p)
+	struct proc *p;
+{
+
+	GIANT_REQUIRED;
+	cpu_wait(p);
+	pmap_dispose_proc(p);		/* drop per-process resources */
+	vmspace_free(p->p_vmspace);	/* and clean-out the vmspace */
 }
 
 /*
