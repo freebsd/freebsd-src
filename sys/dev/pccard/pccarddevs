@@ -462,8 +462,8 @@ product XIRCOM CT2		0x1101 Xircom CreditCard Token Ring II
 product XIRCOM CEM		0x110a Xircom CreditCard Ethernet + Modem
 product XIRCOM REM56		0x110a Xircom RealPort Ethernet 10/100 + Modem 56
 product XIRCOM CEM28		0x110b Xircom CreditCard Ethernet + Modem 28
-product XIRCOM CEM33		0x110b Xircom CreditCard Ethernet + Modem 33
 product XIRCOM CEM56		0x110b Xircom CreditCard Ethernet + Modem 56
+product XIRCOM CEM33		0x110d Xircom CreditCard Ethernet + Modem 33
 
 /* ZONET */
 product ZONET ZEN		0x0100	Zonet Zen 10/10
