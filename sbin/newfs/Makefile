@@ -9,6 +9,6 @@ CFLAGS+=-DMFS -I${MOUNT}
 .PATH:	${MOUNT} ${.CURDIR}/../disklabel
 
 LINKS=	${BINDIR}/newfs ${BINDIR}/mount_mfs
-MLINKS=	newfs.8 mount_mfs.8 newfs.8 mfs.8
+MLINKS=	newfs.8 mount_mfs.8 newfs.8 mfs.8 newfs.8 tmpfs.8
 
 .include <bsd.prog.mk>
