@@ -230,6 +230,8 @@ init_nsm(void)
 	enum clnt_stat ret;
 	my_id id;
 	sm_stat stat;
+	char name[] = "NFS NLM";
+	char localhost[] = "localhost";
 
 	/*
 	 * !!!
@@ -237,7 +239,7 @@ init_nsm(void)
 	 * as I know.  Leave it empty for now.
 	 */
 	memset(&id, 0, sizeof(id));
-	id.my_name = "NFS NLM";
+	id.my_name = name;
 
 	/*
 	 * !!!
@@ -261,7 +263,7 @@ init_nsm(void)
 	nsm_state = stat.state;
 
 	/* setup constant data for SM_MON calls */
-	mon_host.mon_id.my_id.my_name = "localhost";
+	mon_host.mon_id.my_id.my_name = localhost;
 	mon_host.mon_id.my_id.my_prog = NLM_PROG;
 	mon_host.mon_id.my_id.my_vers = NLM_SM;
 	mon_host.mon_id.my_id.my_proc = NLM_SM_NOTIFY;  /* bsdi addition */
