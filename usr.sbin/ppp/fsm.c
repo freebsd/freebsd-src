@@ -68,6 +68,7 @@
 #include "async.h"
 #include "physical.h"
 #include "proto.h"
+#include "probe.h"
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);
@@ -896,7 +897,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     break;
 #ifndef NOINET6
   case PROTO_IPV6CP:
-    if (fp->proto == PROTO_LCP) {
+    if (probe.ipv6_available && fp->proto == PROTO_LCP) {
       log_Printf(LogPHASE, "%s: IPV6CP protocol reject closes IPV6CP !\n",
                 fp->link->name);
       fsm_Close(&fp->bundle->ncp.ipv6cp.fsm);
