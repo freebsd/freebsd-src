@@ -229,9 +229,9 @@ int	lastNonBlank;
 			}
 
 		for (j = 0; j <= lastNonBlank; j++) {
-			int inspace = 0;
-
 			if (parm_right_cursor) {
+				static int inspace = 0;
+
 				if ((scr->_line[i][j]) == BLANK) {
 					inspace++;
 					continue;
@@ -243,8 +243,8 @@ int	lastNonBlank;
 						T(("trying to use parm_right_cursor"));
 						putp(tparm(parm_right_cursor, inspace));
 						SP->_curscol += inspace;
+						inspace = 0;
 					}
-					inspace = 0;
 				}
 			}
 			PutChar(scr->_line[i][j]);
