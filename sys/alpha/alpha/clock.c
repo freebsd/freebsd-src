@@ -737,13 +737,13 @@ sysbeep(int pitch, int period)
 
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
+	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
 		if (pitch) outb(IO_PPI, inb(IO_PPI) | 3);
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
-	mtx_unlock_spin(&clock_lock);
 	return (0);
 }
 
