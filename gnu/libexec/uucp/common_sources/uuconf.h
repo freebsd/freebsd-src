@@ -563,7 +563,7 @@ struct uuconf_dialer
 #define UUCONF_GRADE_LOW ('z')
 
 /* Whether a character is a legal grade (requires <ctype.h>).  */
-#define UUCONF_GRADE_LEGAL(b) (isascii (BUCHAR (b)) && isalnum (BUCHAR (b)))
+#define UUCONF_GRADE_LEGAL(b) (isalnum (BUCHAR (b)))
 
 /* Return < 0 if the first grade should be done before the second
    grade, == 0 if they are the same, or > 0 if the first grade should
