@@ -520,6 +520,14 @@ the document URL will be used as referrer URL.
 Specifies the User-Agent string to use for HTTP requests.
 This can be useful when working with HTTP origin or proxy servers that
 differentiate between user agents.
+.It Ev NETRC
+Specifies a file to use instead of
+.Pa ~/.netrc
+to look up login names and passwords for FTP sites.
+See
+.Xr ftp 1
+for a description of the file format.
+This feature is experimental.
 .El
 .Sh SEE ALSO
 .Xr fetch 1 ,
