@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.10 1995/12/02 20:40:12 phk Exp $
+ *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
+ * $Id: malloc.h,v 1.12 1996/02/24 06:24:41 hsu Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -108,13 +108,16 @@
 #define	M_MRTABLE	56	/* multicast routing tables */
 #define M_ISOFSMNT	57	/* ISOFS mount structure */
 #define M_ISOFSNODE	58	/* ISOFS vnode private part */
-#define M_MSDOSFSMNT	59	/* MSDOSFS mount structure */
-#define M_MSDOSFSNODE	60	/* MSDOSFS vnode private part */
-#define M_MSDOSFSFAT	61	/* MSDOSFS file allocation table */
-#define M_DEVFSMNT	62	/* DEVFS mount structure */
-#define M_DEVFSBACK	63	/* DEVFS Back node */
-#define M_DEVFSFRONT	64	/* DEVFS Front node */
-#define M_DEVFSNODE	65	/* DEVFS node */
+#define M_NFSRVDESC	59	/* NFS server socket descriptor */
+#define M_NFSDIROFF	60	/* NFS directory offset data */
+#define M_NFSBIGFH	61	/* NFS version 3 file handle */
+#define M_MSDOSFSMNT	67	/* MSDOSFS mount structure */
+#define M_MSDOSFSNODE	68	/* MSDOSFS vnode private part */
+#define M_MSDOSFSFAT	69	/* MSDOSFS file allocation table */
+#define M_DEVFSMNT	70	/* DEVFS mount structure */
+#define M_DEVFSBACK	71	/* DEVFS Back node */
+#define M_DEVFSFRONT	72	/* DEVFS Front node */
+#define M_DEVFSNODE	73	/* DEVFS node */
 #define	M_TEMP		74	/* misc temporary data buffers */
 #define M_TTYS		75	/* tty data structures */
 #define M_GZIP		76	/* Gzip trees */
@@ -184,16 +187,18 @@
 	"mrt",		/* 56 M_MRTABLE */ \
 	"ISOFS mount",	/* 57 M_ISOFSMNT */ \
 	"ISOFS node",	/* 58 M_ISOFSNODE */ \
-	"MSDOSFS mount",/* 59 M_MSDOSFSMNT */ \
-	"MSDOSFS node",	/* 60 M_MSDOSFSNODE */ \
-	"MSDOSFS FAT",  /* 61 M_MSDOSFSFAR */ \
-	"DEVFS mount",	/* 62 M_DEVFSMNT */ \
-	"DEVFS back",	/* 63 M_DEVFSBACK */ \
-	"DEVFS front",	/* 64 M_DEVFSFRONT */ \
-	"DEVFS node",	/* 65 M_DEVFSNODE */ \
+	"NFSV3 srvdesc",/* 59 M_NFSRVDESC */ \
+	"NFSV3 diroff",	/* 60 M_NFSDIROFF */ \
+	"NFSV3 bigfh",	/* 61 M_NFSBIGFH */ \
 	NULL, \
-	NULL, NULL, NULL, NULL, NULL, \
-	NULL, NULL, \
+	NULL, NULL, NULL, NULL, \
+	"MSDOSFS mount",/* 67 M_MSDOSFSMNT */ \
+	"MSDOSFS node",	/* 68 M_MSDOSFSNODE */ \
+	"MSDOSFS FAT",  /* 69 M_MSDOSFSFAR */ \
+	"DEVFS mount",	/* 70 M_DEVFSMNT */ \
+	"DEVFS back",	/* 71 M_DEVFSBACK */ \
+	"DEVFS front",	/* 72 M_DEVFSFRONT */ \
+	"DEVFS node",	/* 73 M_DEVFSNODE */ \
 	"temp",		/* 74 M_TEMP */ \
 	"ttys",		/* 75 M_TTYS */ \
 	"Gzip trees",	/* 76 M_GZIP */ \
@@ -245,7 +250,7 @@ struct kmembuckets {
 #ifdef KERNEL
 #define	MINALLOCSIZE	(1 << MINBUCKET)
 #define BUCKETINDX(size) \
-	(size) <= (MINALLOCSIZE * 128) \
+	((size) <= (MINALLOCSIZE * 128) \
 		? (size) <= (MINALLOCSIZE * 8) \
 			? (size) <= (MINALLOCSIZE * 2) \
 				? (size) <= (MINALLOCSIZE * 1) \
@@ -275,7 +280,7 @@ struct kmembuckets {
 					: (MINBUCKET + 13) \
 				: (size) <= (MINALLOCSIZE * 16384) \
 					? (MINBUCKET + 14) \
-					: (MINBUCKET + 15)
+					: (MINBUCKET + 15))
 
 /*
  * Turn virtual addresses into kmem map indices
