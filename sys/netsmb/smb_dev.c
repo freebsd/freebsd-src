@@ -109,6 +109,7 @@ nsmb_dev_clone(void *arg, char *name, int namelen, struct cdev **dev)
 		return;
 	*dev = make_dev(&nsmb_cdevsw, unit2minor(u), 0, 0, 0600,
 	    NSMB_NAME"%d", u);
+	dev_ref(*dev);
 }
 
 static int

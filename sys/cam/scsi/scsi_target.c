@@ -1035,6 +1035,7 @@ targclone(void *arg, char *name, int namelen, struct cdev **dev)
 		return;
 	*dev = make_dev(&targ_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL,
 			0600, "targ%d", u);
+	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
 }
 

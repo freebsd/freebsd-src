@@ -710,6 +710,7 @@ pty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 		return;
 	*dev = make_dev(&ptc_cdevsw, u,
 	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
+	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
 	return;
 }

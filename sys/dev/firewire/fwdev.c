@@ -875,6 +875,7 @@ found:
 	*dev = make_dev(&firewire_cdevsw, MAKEMINOR(devflag[i], unit, sub),
 		       UID_ROOT, GID_OPERATOR, 0660,
 		       "%s%d.%d", devnames[i], unit, sub);
+	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
 	dev_depends(sc->dev, *dev);
 	return;

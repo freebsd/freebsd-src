@@ -1605,6 +1605,7 @@ bpf_clone(arg, name, namelen, dev)
 		return;
 	*dev = make_dev(&bpf_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
 	    "bpf%d", u);
+	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
 	return;
 }
