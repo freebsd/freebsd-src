@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttydefaults.h	8.4 (Berkeley) 1/21/94
- * $Id: ttydefaults.h,v 1.6 1994/10/11 00:16:28 wollman Exp $
+ * $Id: ttydefaults.h,v 1.7 1995/03/06 02:50:49 nate Exp $
  */
 
 /*
@@ -59,10 +59,10 @@
  */
 #define CTRL(x)	(x&037)
 #define	CEOF		CTRL('d')
-#define	CEOL		((unsigned char)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CEOL		0xff		/* XXX avoid _POSIX_VDISABLE */
 #define	CERASE		0177
 #define	CINTR		CTRL('c')
-#define	CSTATUS		((unsigned char)'\377')	/* XXX avoid _POSIX_VDISABLE */
+#define	CSTATUS		0xff		/* XXX avoid _POSIX_VDISABLE */
 #define	CKILL		CTRL('u')
 #define	CMIN		1
 #define	CQUIT		034		/* FS, ^\ */
