@@ -116,7 +116,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <sys/user.h>
 
@@ -225,20 +225,17 @@ struct mtx pmap_ridmutex;
 /*
  * Data for the pv entry allocation mechanism
  */
-static vm_zone_t pvzone;
+static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
-#if 0
-static struct pv_entry *pvinit;
-#endif
 static struct pv_entry *pvbootentries;
 static int pvbootnext, pvbootmax;
 
 /*
  * Data for allocating PTEs for user processes.
  */
-static vm_zone_t ptezone;
+static uma_zone_t ptezone;
 static struct vm_object ptezone_obj;
 #if 0
 static struct ia64_lpte *pteinit;
@@ -528,24 +525,13 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
-#if 0
-	pvzone = &pvzone_store;
-	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
-		initial_pvs * sizeof (struct pv_entry));
-	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
-		  vm_page_array_size);
-
-	ptezone = &ptezone_store;
-	pteinit = (struct ia64_lpte *) kmem_alloc(kernel_map,
-		initial_pvs * sizeof (struct ia64_lpte));
-	zbootinit(ptezone, "PT ENTRY", sizeof (struct ia64_lpte), pteinit,
-		  vm_page_array_size);
-#endif
-	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
-	ptezone = zinit("PT ENTRY", sizeof (struct ia64_lpte), 0, 0, 0);
+	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(ptezone, pmap_allocf);
 	uma_prealloc(ptezone, initial_pvs);
 
@@ -573,10 +559,6 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-#if 0
-	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
-	zinitna(ptezone, &ptezone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
-#endif
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 	uma_zone_set_obj(ptezone, &ptezone_obj, pv_entry_max);
 }
@@ -985,7 +967,7 @@ static PMAP_INLINE void
 free_pv_entry(pv_entry_t pv)
 {
 	pv_entry_count--;
-	zfree(pvzone, pv);
+	uma_zfree(pvzone, pv);
 }
 
 /*
@@ -1004,7 +986,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return zalloc(pvzone);
+	return uma_zalloc(pvzone, M_WAITOK);
 }
 
 /*
@@ -1248,7 +1230,7 @@ pmap_find_pte(vm_offset_t va)
 
 	pte = pmap_find_vhpt(va);
 	if (!pte) {
-		pte = zalloc(ptezone);
+		pte = uma_zalloc(ptezone, M_WAITOK);
 		pte->pte_p = 0;
 	}
 	return pte;
@@ -1263,7 +1245,7 @@ static void
 pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va)
 {
 	if (va < VM_MAXUSER_ADDRESS)
-		zfree(ptezone, pte);
+		uma_zfree(ptezone, pte);
 	else
 		pte->pte_p = 0;
 }
