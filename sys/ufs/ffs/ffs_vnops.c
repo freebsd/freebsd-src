@@ -398,15 +398,14 @@ ffs_read(ap)
 	    uio->uio_offset >= fs->fs_maxfilesize)
 		return (EOVERFLOW);
 
-	object = vp->v_object;
-
 	bytesinfile = ip->i_size - uio->uio_offset;
 	if (bytesinfile <= 0) {
 		if ((vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 			ip->i_flag |= IN_ACCESS;
-		return 0;
+		return (0);
 	}
 
+	object = vp->v_object;
 	if (object) {
 		vm_object_reference(object);
 	}
@@ -601,7 +600,7 @@ ffs_write(ap)
 #ifdef notyet
 		return (ffs_extwrite(vp, uio, ioflag, ap->a_cred));
 #else
-		panic("ffs_read+IO_EXT");
+		panic("ffs_write+IO_EXT");
 #endif
 
 	GIANT_REQUIRED;
@@ -617,7 +616,7 @@ ffs_write(ap)
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
-		panic("ffswrite: mode");
+		panic("ffs_write: mode");
 #endif
 
 	switch (vp->v_type) {
@@ -635,10 +634,10 @@ ffs_write(ap)
 	case VLNK:
 		break;
 	case VDIR:
-		panic("ffswrite: dir write");
+		panic("ffs_write: dir write");
 		break;
 	default:
-		panic("ffswrite: type %p %d (%d,%d)", vp, (int)vp->v_type,
+		panic("ffs_write: type %p %d (%d,%d)", vp, (int)vp->v_type,
 			(int)uio->uio_offset,
 			(int)uio->uio_resid
 		);
@@ -1136,14 +1135,16 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE || fs->fs_magic != FS_UFS2_MAGIC)
-		panic("ext_write: mode");
+		panic("ffs_extwrite: mode");
 #endif
 
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = dp->di_extsize;
-
-	if (uio->uio_offset < 0 ||
-	    (u_int64_t)uio->uio_offset + uio->uio_resid > NXADDR * fs->fs_bsize)
+	/*
+	 * The caller is supposed to check if
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 */
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > NXADDR * fs->fs_bsize)
 		return (EFBIG);
 
 	resid = uio->uio_resid;
