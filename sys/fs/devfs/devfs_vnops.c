@@ -710,38 +710,6 @@ devfs_open(ap)
 	if (dev->si_iosize_max == 0)
 		dev->si_iosize_max = DFLTPHYS;
 
-	/*
-	 * XXX: Disks get special billing here, but it is mostly wrong.
-	 * XXX: Disk partitions can overlap and the real checks should
-	 * XXX: take this into account, and consequently they need to
-	 * XXX: live in the disk slice code.  Some checks do.
-	 */
-	if (vn_isdisk(vp, NULL) && ap->a_cred != FSCRED &&
-	    (ap->a_mode & FWRITE)) {
-		/*
-		 * Never allow opens for write if the disk is mounted R/W.
-		 */
-		if (vp->v_rdev->si_mountpoint != NULL &&
-		    !(vp->v_rdev->si_mountpoint->mnt_flag & MNT_RDONLY))
-			return (EBUSY);
-
-		/*
-		 * When running in secure mode, do not allow opens
-		 * for writing if the disk is mounted.
-		 */
-		error = securelevel_ge(td->td_ucred, 1);
-		if (error && vfs_mountedon(vp))
-			return (error);
-
-		/*
-		 * When running in very secure mode, do not allow
-		 * opens for writing of any disks.
-		 */
-		error = securelevel_ge(td->td_ucred, 2);
-		if (error)
-			return (error);
-	}
-
 	dsw = dev_refthread(dev);
 	if (dsw == NULL)
 		return (ENXIO);
@@ -771,11 +739,6 @@ devfs_open(ap)
 	if (error)
 		return (error);
 
-	if (vn_isdisk(vp, NULL)) {
-		if (!dev->si_bsize_phys)
-			dev->si_bsize_phys = DEV_BSIZE;
-		vp->v_bufobj.bo_bsize = dev->si_bsize_phys;
-	}
 	return (error);
 }
 
