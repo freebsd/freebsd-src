@@ -106,6 +106,6 @@ ENTRY(_thread_switch)
 	movl	%ebx,(%ecx)
 	popl	%ecx			/* %ecx off stack */
 	popl	%ebx			/* %ebx off stack */
-	popf				/* flags off stack */
+	popfl				/* flags off stack */
 5:	ret				/* %eip off stack */
 
