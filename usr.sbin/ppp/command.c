@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.36 1997/09/09 23:17:28 brian Exp $
+ * $Id: command.c,v 1.24.2.37 1997/09/09 23:27:06 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -148,8 +148,6 @@ DialCommand(struct cmdtab const * cmdlist, int argc, char **argv)
       fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
     return 0;
   }
-  if (!IsInteractive())
-    return (1);
 
   if (argc > 0) {
     if (SelectSystem(*argv, CONFFILE) < 0) {
