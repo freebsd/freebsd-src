@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.24 1995/07/02 09:01:02 joerg Exp $
+ * $Id: if_sl.c,v 1.25 1995/07/06 11:55:18 davidg Exp $
  */
 
 /*
@@ -908,7 +908,20 @@ slioctl(ifp, cmd, data)
 
 	switch (cmd) {
 
+	case SIOCSIFFLAGS:
+		/*
+		 * if.c will set the interface up even if we
+		 * don't want it to.
+		 */
+		if (sl_softc[ifp->if_unit].sc_ttyp == NULL) {
+			ifp->if_flags &= ~IFF_UP;
+		}
+		break;
 	case SIOCSIFADDR:
+		/*
+		 * This is "historical" - set the interface up when
+		 * setting the address.
+		 */
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			if (sl_softc[ifp->if_unit].sc_ttyp != NULL)
 				if_up(ifp);
