@@ -514,7 +514,7 @@ process_worklist_item(matchmnt, flags)
 			break;
 		wk->wk_state |= INPROGRESS;
 		FREE_LOCK(&lk);
-		VFS_VGET(WK_DIRREM(wk)->dm_mnt, WK_DIRREM(wk)->dm_oldinum,
+		ffs_vget(WK_DIRREM(wk)->dm_mnt, WK_DIRREM(wk)->dm_oldinum,
 		    LK_NOWAIT | LK_EXCLUSIVE, &vp);
 		ACQUIRE_LOCK(&lk);
 		wk->wk_state &= ~INPROGRESS;
@@ -2322,7 +2322,7 @@ handle_workitem_freeblocks(freeblks, flags)
 	 */
 	if (freeblks->fb_chkcnt != blocksreleased &&
 	    (fs->fs_flags & FS_UNCLEAN) != 0 &&
-	    VFS_VGET(freeblks->fb_mnt, freeblks->fb_previousinum,
+	    ffs_vget(freeblks->fb_mnt, freeblks->fb_previousinum,
 	    (flags & LK_NOWAIT) | LK_EXCLUSIVE, &vp) == 0) {
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + \
@@ -3106,7 +3106,7 @@ handle_workitem_remove(dirrem, xp)
 	int error;
 
 	if ((vp = xp) == NULL &&
-	    (error = VFS_VGET(dirrem->dm_mnt, dirrem->dm_oldinum, LK_EXCLUSIVE,
+	    (error = ffs_vget(dirrem->dm_mnt, dirrem->dm_oldinum, LK_EXCLUSIVE,
 	     &vp)) != 0) {
 		softdep_error("handle_workitem_remove: vget", error);
 		return;
@@ -4602,9 +4602,9 @@ softdep_fsync(vp)
 		 * for details on possible races.
 		 */
 		FREE_LOCK(&lk);
-		if (VFS_VGET(mnt, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp)) {
+		if (ffs_vget(mnt, parentino, LK_NOWAIT | LK_EXCLUSIVE, &pvp)) {
 			VOP_UNLOCK(vp, 0, td);
-			error = VFS_VGET(mnt, parentino, LK_EXCLUSIVE, &pvp);
+			error = ffs_vget(mnt, parentino, LK_EXCLUSIVE, &pvp);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 			if (error != 0)
 				return (error);
@@ -4612,13 +4612,13 @@ softdep_fsync(vp)
 		/*
 		 * All MKDIR_PARENT dependencies and all the NEWBLOCK pagedeps
 		 * that are contained in direct blocks will be resolved by 
-		 * doing a UFS_UPDATE. Pagedeps contained in indirect blocks
+		 * doing a ffs_update. Pagedeps contained in indirect blocks
 		 * may require a complete sync'ing of the directory. So, we
-		 * try the cheap and fast UFS_UPDATE first, and if that fails,
+		 * try the cheap and fast ffs_update first, and if that fails,
 		 * then we do the slower ffs_syncvnode of the directory.
 		 */
 		if (flushparent) {
-			if ((error = UFS_UPDATE(pvp, 1)) != 0) {
+			if ((error = ffs_update(pvp, 1)) != 0) {
 				vput(pvp);
 				return (error);
 			}
@@ -5060,7 +5060,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
 			FREE_LOCK(&lk);
-			if ((error = UFS_UPDATE(pvp, 1)) != 0)
+			if ((error = ffs_update(pvp, 1)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -5086,7 +5086,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		inum = dap->da_newinum;
 		if (dap->da_state & MKDIR_BODY) {
 			FREE_LOCK(&lk);
-			if ((error = VFS_VGET(mp, inum, LK_EXCLUSIVE, &vp)))
+			if ((error = ffs_vget(mp, inum, LK_EXCLUSIVE, &vp)))
 				break;
 			if ((error=ffs_syncvnode(vp, MNT_NOWAIT)) ||
 			    (error=ffs_syncvnode(vp, MNT_NOWAIT))) {
@@ -5217,7 +5217,7 @@ softdep_request_cleanup(fs, vp)
 	 */
 	if (!(curthread->td_pflags & TDP_COWINPROGRESS)) {
 		UFS_UNLOCK(ump);
-		error = UFS_UPDATE(vp, 1);
+		error = ffs_update(vp, 1);
 		UFS_LOCK(ump);
 		if (error != 0)
 			return (0);
@@ -5365,7 +5365,7 @@ clear_remove(td)
 			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 				continue;
 			FREE_LOCK(&lk);
-			if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp))) {
+			if ((error = ffs_vget(mp, ino, LK_EXCLUSIVE, &vp))) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
 				ACQUIRE_LOCK(&lk);
@@ -5441,7 +5441,7 @@ clear_inodedeps(td)
 		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 			continue;
 		FREE_LOCK(&lk);
-		if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
+		if ((error = ffs_vget(mp, ino, LK_EXCLUSIVE, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);
 			ACQUIRE_LOCK(&lk);

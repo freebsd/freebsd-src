@@ -699,7 +699,7 @@ out:
 	UFS_UNLOCK(ump);
 	mp->mnt_flag = flag;
 	if (error)
-		(void) UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
+		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
 	(void) ffs_syncvnode(vp, MNT_WAIT);
 	if (error)
 		vput(vp);
@@ -852,7 +852,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 		blkno = VTOI(snapvp)->i_din1->di_db[lbn];
 	} else {
 		td->td_pflags |= TDP_COWINPROGRESS;
-		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -865,7 +865,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype)
 		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
 			return (error);
 	} else {
-		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs1(snapvp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &bp);
 		if (error)
 			return (error);
@@ -1036,7 +1036,7 @@ snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			blkp = &ip->i_din1->di_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
-			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = ffs_balloc_ufs1(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
@@ -1132,7 +1132,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 		blkno = VTOI(snapvp)->i_din2->di_db[lbn];
 	} else {
 		td->td_pflags |= TDP_COWINPROGRESS;
-		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
 		   fs->fs_bsize, KERNCRED, BA_METAONLY, &bp);
 		td->td_pflags &= ~TDP_COWINPROGRESS;
 		if (error)
@@ -1145,7 +1145,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype)
 		if ((error = bread(snapvp, lbn, fs->fs_bsize, KERNCRED, &bp)))
 			return (error);
 	} else {
-		error = UFS_BALLOC(snapvp, lblktosize(fs, (off_t)lbn),
+		error = ffs_balloc_ufs2(snapvp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &bp);
 		if (error)
 			return (error);
@@ -1316,7 +1316,7 @@ snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 			blkp = &ip->i_din2->di_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
-			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = ffs_balloc_ufs2(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, BA_METAONLY, &ibp);
 			if (error)
 				return (error);
@@ -1788,7 +1788,7 @@ ffs_snapshot_mount(mp)
 	int error, snaploc, loc;
 
 	/*
-	 * XXX The following needs to be set before UFS_TRUNCATE or
+	 * XXX The following needs to be set before ffs_truncate or
 	 * VOP_READ can be called.
 	 */
 	mp->mnt_stat.f_iosize = fs->fs_bsize;
@@ -1800,7 +1800,7 @@ ffs_snapshot_mount(mp)
 	for (snaploc = 0; snaploc < FSMAXSNAP; snaploc++) {
 		if (fs->fs_snapinum[snaploc] == 0)
 			break;
-		if ((error = VFS_VGET(mp, fs->fs_snapinum[snaploc],
+		if ((error = ffs_vget(mp, fs->fs_snapinum[snaploc],
 		    LK_EXCLUSIVE, &vp)) != 0){
 			printf("ffs_snapshot_mount: vget failed %d\n", error);
 			continue;
@@ -1812,7 +1812,7 @@ ffs_snapshot_mount(mp)
 				reason = "non-snapshot";
 			} else {
 				reason = "old format snapshot";
-				(void)UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, td);
+				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
 				(void)ffs_syncvnode(vp, MNT_WAIT);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
