@@ -605,7 +605,7 @@ p_rtentry(rt)
 		   WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
 #ifdef INET6
-		   kgetsa(rt->rt_gateway)->sa_family == AF_INET6 ? WID_GW6 :
+		   addr.u_sa.sa_family == AF_INET6 ? WID_GW6 :
 #endif
 		   WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
@@ -763,16 +763,17 @@ netname6(sa6, mask)
 	u_char *p = (u_char *)mask;
 	u_char *lim;
 	int masklen, illegal = 0;
-#ifdef notyet
 	int flag = NI_WITHSCOPEID;
-#endif
 
 	if (mask) {
 		for (masklen = 0, lim = p + 16; p < lim; p++) {
+			if (*p == 0xff)
+				masklen += 8;
+			else
+				break;
+		}
+		if (p < lim) {
 			switch (*p) {
-			 case 0xff:
-				 masklen += 8;
-				 break;
 			 case 0xfe:
 				 masklen += 7;
 				 break;
@@ -810,14 +811,10 @@ netname6(sa6, mask)
 	if (masklen == 0 && IN6_IS_ADDR_UNSPECIFIED(&sa6->sin6_addr))
 		return("default");
 
-#ifdef notyet
 	if (nflag)
 		flag |= NI_NUMERICHOST;
 	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line, sizeof(line),
 		    NULL, 0, flag);
-#else
-	inet_ntop(AF_INET6, (void *)&sa6->sin6_addr, line, sizeof(line));
-#endif
 
 	if (nflag)
 		sprintf(&line[strlen(line)], "/%d", masklen);
@@ -829,37 +826,14 @@ char *
 routename6(sa6)
 	struct sockaddr_in6 *sa6;
 {
-#ifdef notyet
+	static char line[MAXHOSTNAMELEN + 1];
 	int flag = NI_WITHSCOPEID;
 
 	if (nflag)
 		flag |= NI_NUMERICHOST;
-#else
-	register char *cp;
-#endif
-	static char line[MAXHOSTNAMELEN + 1];
-	struct hostent *hp;
 
-#ifdef notyet
 	getnameinfo((struct sockaddr *)sa6, sa6->sin6_len, line, sizeof(line),
 		    NULL, 0, flag);
-#else
-	cp = 0;
-	if (!nflag) {
-		hp = gethostbyaddr((char *)&sa6->sin6_addr,
-				   sizeof(sa6->sin6_addr), AF_INET6);
-		if (hp) {
-			cp = hp->h_name;
-			trimdomain(cp);
-		}
-	}
-	if (cp) {
-		strncpy(line, cp, sizeof(line) - 1);
-		line[sizeof(line) - 1] = '\0';
-	} else
-		inet_ntop(AF_INET6, (void *)&sa6->sin6_addr, line,
-			  sizeof(line));
-#endif
 
 	return line;
 }

@@ -112,6 +112,9 @@ struct __res_state _res
 # endif
 	;
 
+#ifdef INET6
+struct __res_state_ext _res_ext;
+#endif /* INET6 */
 
 /*
  * Set up default settings.  If the configuration file exist, the values
@@ -314,6 +317,9 @@ res_init()
 #ifdef RESOLVSORT
 		if (MATCH(buf, "sortlist")) {
 		    struct in_addr a;
+#ifdef INET6
+		    struct in6_addr a6;
+#endif /* INET6 */
 
 		    cp = buf + sizeof("sortlist") - 1;
 		    while (nsort < MAXRESOLVSORT) {
@@ -347,8 +353,61 @@ res_init()
 				_res.sort_list[nsort].mask = 
 				    net_mask(_res.sort_list[nsort].addr);
 			    }
+#ifdef INET6
+			    _res_ext.sort_list[nsort].af = AF_INET;
+			    _res_ext.sort_list[nsort].addr.ina =
+				_res.sort_list[nsort].addr;
+			    _res_ext.sort_list[nsort].mask.ina.s_addr =
+				_res.sort_list[nsort].mask;
+#endif /* INET6 */
 			    nsort++;
 			}
+#ifdef INET6
+			else if (inet_pton(AF_INET6, net, &a6) == 1) {
+			    int m, i;
+			    u_char *u;
+
+			    _res_ext.sort_list[nsort].af = AF_INET6;
+			    _res_ext.sort_list[nsort].addr.in6a = a6;
+			    u = (u_char *)&_res_ext.sort_list[nsort].mask.in6a;
+			    *cp++ = n;
+			    net = cp;
+			    while (*cp && *cp != ';' &&
+				    isascii(*cp) && !isspace(*cp))
+				cp++;
+			    m = n;
+			    n = *cp;
+			    *cp = 0;
+			    switch (m) {
+			    case '/':
+				m = atoi(net);
+				break;
+			    case '&':
+				if (inet_pton(AF_INET6, net, u) == 1) {
+				    m = -1;
+				    break;
+				}
+				/*FALLTHROUGH*/
+			    default:
+				m = sizeof(struct in6_addr) * NBBY;
+				break;
+			    }
+			    if (m >= 0) {
+				for (i = 0; i < sizeof(struct in6_addr); i++) {
+				    if (m <= 0) {
+					*u = 0;
+				    } else {
+					m -= NBBY;
+					*u = (u_char)~0;
+					if (m < 0)
+					    *u <<= -m;
+				    }
+				    u++;
+				}
+			    }
+			    nsort++;
+			}
+#endif /* INET6 */
 			*cp = n;
 		    }
 		    continue;
