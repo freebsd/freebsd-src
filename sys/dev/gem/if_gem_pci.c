@@ -199,6 +199,7 @@ gem_pci_attach(dev)
 	if (bus_setup_intr(dev, gsc->gsc_ires, INTR_TYPE_NET, gem_intr, sc,
 	    &gsc->gsc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
+		gem_detach(sc);
 		goto fail_ires;
 	}
 	return (0);
