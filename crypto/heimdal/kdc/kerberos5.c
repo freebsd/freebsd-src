@@ -355,10 +355,13 @@ get_pa_etype_info(METHOD_DATA *md, hdb_entry *client,
     
     if(n != pa.len) {
 	char *name;
-	krb5_unparse_name(context, client->principal, &name);
+	ret = krb5_unparse_name(context, client->principal, &name);
+	if (ret)
+	    name = "<unparse_name failed>";
 	kdc_log(0, "internal error in get_pa_etype_info(%s): %d != %d", 
 		name, n, pa.len);
-	free(name);
+	if (ret == 0)
+	    free(name);
 	pa.len = n;
     }
 
@@ -496,8 +499,8 @@ as_rep(KDC_REQ *req,
     krb5_enctype cetype, setype;
     EncTicketPart et;
     EncKDCRepPart ek;
-    krb5_principal client_princ, server_princ;
-    char *client_name, *server_name;
+    krb5_principal client_princ = NULL, server_princ = NULL;
+    char *client_name = NULL, *server_name = NULL;
     krb5_error_code ret = 0;
     const char *e_text = NULL;
     krb5_crypto crypto;
@@ -506,27 +509,31 @@ as_rep(KDC_REQ *req,
     memset(&rep, 0, sizeof(rep));
 
     if(b->sname == NULL){
-	server_name = "<unknown server>";
 	ret = KRB5KRB_ERR_GENERIC;
 	e_text = "No server in request";
     } else{
 	principalname2krb5_principal (&server_princ, *(b->sname), b->realm);
-	krb5_unparse_name(context, server_princ, &server_name);
+	ret = krb5_unparse_name(context, server_princ, &server_name);
+    }
+    if (ret) {
+	kdc_log(0, "AS-REQ malformed server name from %s", from);
+	goto out;
     }
     
     if(b->cname == NULL){
-	client_name = "<unknown client>";
 	ret = KRB5KRB_ERR_GENERIC;
 	e_text = "No client in request";
     } else {
 	principalname2krb5_principal (&client_princ, *(b->cname), b->realm);
-	krb5_unparse_name(context, client_princ, &client_name);
+	ret = krb5_unparse_name(context, client_princ, &client_name);
     }
+    if (ret) {
+	kdc_log(0, "AS-REQ malformed client name from %s", from);
+	goto out;
+    }
+
     kdc_log(0, "AS-REQ %s from %s for %s", 
 	    client_name, from, server_name);
-
-    if(ret)
-	goto out;
 
     ret = db_fetch(client_princ, &client);
     if(ret){
@@ -559,7 +566,6 @@ as_rep(KDC_REQ *req,
 	while((pa = find_padata(req, &i, KRB5_PADATA_ENC_TIMESTAMP))){
 	    krb5_data ts_data;
 	    PA_ENC_TS_ENC p;
-	    time_t patime;
 	    size_t len;
 	    EncryptedData enc_data;
 	    Key *pa_key;
@@ -635,7 +641,6 @@ as_rep(KDC_REQ *req,
 			 client_name);
 		continue;
 	    }
-	    patime = p.patimestamp;
 	    free_PA_ENC_TS_ENC(&p);
 	    if (abs(kdc_time - p.patimestamp) > context->max_skew) {
 		ret = KRB5KDC_ERR_PREAUTH_FAILED;
@@ -716,9 +721,10 @@ as_rep(KDC_REQ *req,
 	    if (ret == 0) {
 		kdc_log(5, "Using %s/%s", cet, set);
 		free(set);
-	    } else
-		free(cet);
-	} else
+	    }
+	    free(cet);
+	}
+	if (ret != 0)
 	    kdc_log(5, "Using e-types %d/%d", cetype, setype);
     }
     
@@ -841,13 +847,8 @@ as_rep(KDC_REQ *req,
 	copy_HostAddresses(b->addresses, et.caddr);
     }
     
-    {
-	krb5_data empty_string;
-      
-	krb5_data_zero(&empty_string); 
-	et.transited.tr_type = DOMAIN_X500_COMPRESS;
-	et.transited.contents = empty_string;
-    }
+    et.transited.tr_type = DOMAIN_X500_COMPRESS;
+    krb5_data_zero(&et.transited.contents); 
      
     copy_EncryptionKey(&et.key, &ek.key);
 
@@ -914,8 +915,8 @@ as_rep(KDC_REQ *req,
 		       client->kvno, &ckey->key, &e_text, reply);
     free_EncTicketPart(&et);
     free_EncKDCRepPart(&ek);
-    free_AS_REP(&rep);
   out:
+    free_AS_REP(&rep);
     if(ret){
 	krb5_mk_error(context,
 		      ret,
@@ -929,9 +930,11 @@ as_rep(KDC_REQ *req,
 	ret = 0;
     }
   out2:
-    krb5_free_principal(context, client_princ);
+    if (client_princ)
+	krb5_free_principal(context, client_princ);
     free(client_name);
-    krb5_free_principal(context, server_princ);
+    if (server_princ)
+	krb5_free_principal(context, server_princ);
     free(server_name);
     if(client)
 	free_ent(client);
@@ -1054,33 +1057,35 @@ check_tgs_flags(KDC_REQ_BODY *b, EncTicketPart *tgt, EncTicketPart *et)
 }
 
 static krb5_error_code
-fix_transited_encoding(TransitedEncoding *tr, 
+fix_transited_encoding(krb5_boolean check_policy,
+		       TransitedEncoding *tr, 
+		       EncTicketPart *et, 
 		       const char *client_realm, 
 		       const char *server_realm, 
 		       const char *tgt_realm)
 {
     krb5_error_code ret = 0;
-    if(strcmp(client_realm, tgt_realm) && strcmp(server_realm, tgt_realm)){
-	char **realms = NULL, **tmp;
-	int num_realms = 0;
-	int i;
-	if(tr->tr_type && tr->contents.length != 0) {
-	    if(tr->tr_type != DOMAIN_X500_COMPRESS){
-		kdc_log(0, "Unknown transited type: %u", 
-			tr->tr_type);
-		return KRB5KDC_ERR_TRTYPE_NOSUPP;
-	    }
-	    ret = krb5_domain_x500_decode(context, 
-					  tr->contents,
-					  &realms, 
-					  &num_realms,
-					  client_realm,
-					  server_realm);
-	    if(ret){
-		krb5_warn(context, ret, "Decoding transited encoding");
-		return ret;
-	    }
-	}
+    char **realms, **tmp;
+    int num_realms;
+    int i;
+
+    if(tr->tr_type != DOMAIN_X500_COMPRESS) {
+	kdc_log(0, "Unknown transited type: %u", tr->tr_type);
+	return KRB5KDC_ERR_TRTYPE_NOSUPP;
+    }
+
+    ret = krb5_domain_x500_decode(context, 
+				  tr->contents,
+				  &realms, 
+				  &num_realms,
+				  client_realm,
+				  server_realm);
+    if(ret){
+	krb5_warn(context, ret, "Decoding transited encoding");
+	return ret;
+    }
+    if(strcmp(client_realm, tgt_realm) && strcmp(server_realm, tgt_realm)) {
+	/* not us, so add the previous realm to transited set */
 	if (num_realms < 0 || num_realms + 1 > UINT_MAX/sizeof(*realms)) {
 	    ret = ERANGE;
 	    goto free_realms;
@@ -1097,16 +1102,46 @@ fix_transited_encoding(TransitedEncoding *tr,
 	    goto free_realms;
 	}
 	num_realms++;
-	free_TransitedEncoding(tr);
-	tr->tr_type = DOMAIN_X500_COMPRESS;
-	ret = krb5_domain_x500_encode(realms, num_realms, &tr->contents);
-	if(ret)
-	    krb5_warn(context, ret, "Encoding transited encoding");
-    free_realms:
-	for(i = 0; i < num_realms; i++)
-	    free(realms[i]);
-	free(realms);
     }
+    if(num_realms == 0) {
+	if(strcmp(client_realm, server_realm)) 
+	    kdc_log(0, "cross-realm %s -> %s", client_realm, server_realm);
+    } else {
+	size_t l = 0;
+	char *rs;
+	for(i = 0; i < num_realms; i++)
+	    l += strlen(realms[i]) + 2;
+	rs = malloc(l);
+	if(rs != NULL) {
+	    *rs = '\0';
+	    for(i = 0; i < num_realms; i++) {
+		if(i > 0)
+		    strlcat(rs, ", ", l);
+		strlcat(rs, realms[i], l);
+	    }
+	    kdc_log(0, "cross-realm %s -> %s via [%s]", client_realm, server_realm, rs);
+	    free(rs);
+	}
+    }
+    if(check_policy) {
+	ret = krb5_check_transited(context, client_realm, 
+				   server_realm, 
+				   realms, num_realms, NULL);
+	if(ret) {
+	    krb5_warn(context, ret, "cross-realm %s -> %s", 
+		      client_realm, server_realm);
+	    goto free_realms;
+	}
+	et->flags.transited_policy_checked = 1;
+    }
+    et->transited.tr_type = DOMAIN_X500_COMPRESS;
+    ret = krb5_domain_x500_encode(realms, num_realms, &et->transited.contents);
+    if(ret)
+	krb5_warn(context, ret, "Encoding transited encoding");
+  free_realms:
+    for(i = 0; i < num_realms; i++)
+	free(realms[i]);
+    free(realms);
     return ret;
 }
 
@@ -1172,18 +1207,35 @@ tgs_make_reply(KDC_REQ_BODY *b,
     
     ret = check_tgs_flags(b, tgt, &et);
     if(ret)
-	return ret;
+	goto out;
 
-    copy_TransitedEncoding(&tgt->transited, &et.transited);
-    ret = fix_transited_encoding(&et.transited,
+    /* We should check the transited encoding if:
+       1) the request doesn't ask not to be checked
+       2) globally enforcing a check
+       3) principal requires checking
+       4) we allow non-check per-principal, but principal isn't marked as allowing this
+       5) we don't globally allow this
+    */
+
+#define GLOBAL_FORCE_TRANSITED_CHECK		(trpolicy == TRPOLICY_ALWAYS_CHECK)
+#define GLOBAL_ALLOW_PER_PRINCIPAL		(trpolicy == TRPOLICY_ALLOW_PER_PRINCIPAL)
+#define GLOBAL_ALLOW_DISABLE_TRANSITED_CHECK	(trpolicy == TRPOLICY_ALWAYS_HONOUR_REQUEST)
+/* these will consult the database in future release */
+#define PRINCIPAL_FORCE_TRANSITED_CHECK(P)		0
+#define PRINCIPAL_ALLOW_DISABLE_TRANSITED_CHECK(P)	0
+
+    ret = fix_transited_encoding(!f.disable_transited_check ||
+				 GLOBAL_FORCE_TRANSITED_CHECK ||
+				 PRINCIPAL_FORCE_TRANSITED_CHECK(server) ||
+				 !((GLOBAL_ALLOW_PER_PRINCIPAL && 
+				    PRINCIPAL_ALLOW_DISABLE_TRANSITED_CHECK(server)) ||
+				   GLOBAL_ALLOW_DISABLE_TRANSITED_CHECK),
+				 &tgt->transited, &et,
 				 *krb5_princ_realm(context, client_principal),
 				 *krb5_princ_realm(context, server->principal),
 				 *krb5_princ_realm(context, krbtgt->principal));
-    if(ret){
-	free_TransitedEncoding(&et.transited);
-	return ret;
-    }
-
+    if(ret)
+	goto out;
 
     copy_Realm(krb5_princ_realm(context, server->principal), 
 	       &rep.ticket.realm);
@@ -1278,7 +1330,7 @@ tgs_make_reply(KDC_REQ_BODY *b,
        DES3? */
     ret = encode_reply(&rep, &et, &ek, etype, adtkt ? 0 : server->kvno, ekey,
 		       0, &tgt->key, e_text, reply);
-out:
+  out:
     free_TGS_REP(&rep);
     free_TransitedEncoding(&et.transited);
     if(et.starttime)
@@ -1380,13 +1432,13 @@ get_krbtgt_realm(const PrincipalName *p)
 }
 
 static Realm
-find_rpath(Realm r)
+find_rpath(Realm crealm, Realm srealm)
 {
     const char *new_realm = krb5_config_get_string(context,
 						   NULL,
-						   "libdefaults", 
-						   "capath", 
-						   r, 
+						   "capaths", 
+						   crealm,
+						   srealm,
 						   NULL);
     return (Realm)new_realm;
 }
@@ -1456,10 +1508,14 @@ tgs_rep2(KDC_REQ_BODY *b,
 
     if(ret) {
 	char *p;
-	krb5_unparse_name(context, princ, &p);
+	ret = krb5_unparse_name(context, princ, &p);
+	if (ret != 0)
+	    p = "<unparse_name failed>";
+	krb5_free_principal(context, princ);
 	kdc_log(0, "Ticket-granting ticket not found in database: %s: %s",
 		p, krb5_get_err_text(context, ret));
-	free(p);
+	if (ret == 0)
+	    free(p);
 	ret = KRB5KRB_AP_ERR_NOT_US;
 	goto out2;
     }
@@ -1468,12 +1524,16 @@ tgs_rep2(KDC_REQ_BODY *b,
        *ap_req.ticket.enc_part.kvno != krbtgt->kvno){
 	char *p;
 
-	krb5_unparse_name (context, princ, &p);
+	ret = krb5_unparse_name (context, princ, &p);
+	krb5_free_principal(context, princ);
+	if (ret != 0)
+	    p = "<unparse_name failed>";
 	kdc_log(0, "Ticket kvno = %d, DB kvno = %d (%s)", 
 		*ap_req.ticket.enc_part.kvno,
 		krbtgt->kvno,
 		p);
-	free (p);
+	if (ret == 0)
+	    free (p);
 	ret = KRB5KRB_AP_ERR_BADKEYVER;
 	goto out2;
     }
@@ -1657,9 +1717,13 @@ tgs_rep2(KDC_REQ_BODY *b,
 	}
 
 	principalname2krb5_principal(&sp, *s, r);
-	krb5_unparse_name(context, sp, &spn);	
+	ret = krb5_unparse_name(context, sp, &spn);	
+	if (ret)
+	    goto out;
 	principalname2krb5_principal(&cp, tgt->cname, tgt->crealm);
-	krb5_unparse_name(context, cp, &cpn);
+	ret = krb5_unparse_name(context, cp, &cpn);
+	if (ret)
+	    goto out;
 	unparse_flags (KDCOptions2int(b->kdc_options), KDCOptions_units,
 		       opt_str, sizeof(opt_str));
 	if(*opt_str)
@@ -1676,7 +1740,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 
 	    if ((req_rlm = get_krbtgt_realm(&sp->name)) != NULL) {
 		if(loop++ < 2) {
-		    new_rlm = find_rpath(req_rlm);
+		    new_rlm = find_rpath(tgt->crealm, req_rlm);
 		    if(new_rlm) {
 			kdc_log(5, "krbtgt for realm %s not found, trying %s", 
 				req_rlm, new_rlm);
@@ -1684,7 +1748,9 @@ tgs_rep2(KDC_REQ_BODY *b,
 			free(spn);
 			krb5_make_principal(context, &sp, r, 
 					    KRB5_TGS_NAME, new_rlm, NULL);
-			krb5_unparse_name(context, sp, &spn);	
+			ret = krb5_unparse_name(context, sp, &spn);	
+			if (ret)
+			    goto out;
 			goto server_lookup;
 		    }
 		}
@@ -1697,7 +1763,9 @@ tgs_rep2(KDC_REQ_BODY *b,
 		    free(spn);
 		    krb5_make_principal(context, &sp, r, KRB5_TGS_NAME,
 					realms[0], NULL);
-		    krb5_unparse_name(context, sp, &spn);
+		    ret = krb5_unparse_name(context, sp, &spn);
+		    if (ret)
+			goto out;
 		    krb5_free_host_realm(context, realms);
 		    goto server_lookup;
 		}
@@ -1724,6 +1792,18 @@ tgs_rep2(KDC_REQ_BODY *b,
 	    goto out;
 	}
 #endif
+
+	if(strcmp(krb5_principal_get_realm(context, sp),
+		  krb5_principal_get_comp_string(context, krbtgt->principal, 1)) != 0) {
+	    char *tpn;
+	    ret = krb5_unparse_name(context, krbtgt->principal, &tpn);
+	    kdc_log(0, "Request with wrong krbtgt: %s", (ret == 0) ? tpn : "<unknown>");
+	    if(ret == 0)
+		free(tpn);
+	    ret = KRB5KRB_AP_ERR_NOT_US;
+	    goto out;
+	    
+	}
 
 	ret = check_flags(client, cpn, server, spn, FALSE);
 	if(ret)
