@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: main.c,v 1.1 1997/08/17 21:09:34 sos Exp $
+ *  $Id: main.c,v 1.2 1997/10/01 20:53:39 sos Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,19 @@ struct vt_mode smode;
   outb(0x3c4, 0x02);
   outb(0x3c5, 0x0f);
   bzero(VGLMem, 64*1024);
-  ioctl(0, _IO('S', VGLOldMode), 0);
+  if (VGLOldMode >= M_VESA_BASE) {
+    /* ugly, but necessary */
+    ioctl(0, _IO('V', VGLOldMode - M_VESA_BASE), 0);
+    if (VGLOldMode == M_VESA_800x600) {
+      int size[3];
+      size[0] = 80;
+      size[1] = 25;
+      size[2] = 16;
+      ioctl(0, KDRASTER, size);
+    }
+  } else {
+    ioctl(0, _IO('S', VGLOldMode), 0);
+  }
   ioctl(0, KDDISABIO, 0);
   ioctl(0, KDSETMODE, KD_TEXT);
   smode.mode = VT_AUTO;
