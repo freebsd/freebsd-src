@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.8 1997/10/18 01:37:52 peter Exp $
+#       $Id: Makefile,v 1.9 1997/12/16 18:28:07 eivind Exp $
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod
@@ -27,7 +27,7 @@ ppp.h:
 opt_ipx.h:
 	touch opt_ipx.h
 .if ${PPP_IPX} > 0
-	echo "#define IPX ${PPP_BSDCOMP}" > opt_ipx.h
+	echo "#define IPX ${PPP_IPX}" > opt_ipx.h
 .endif
 
 opt_ppp.h:
