@@ -666,7 +666,7 @@ ahc_pci_attach(device_t dev)
 					  &regs_id, 0, ~0, 1, RF_ACTIVE);
 	}
 #endif
-	if (regs == NULL && (command & PCI_COMMAND_IO_ENABLE) != 0) {
+	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHC_PCI_IOADDR;
 		regs = bus_alloc_resource(dev, regs_type,
