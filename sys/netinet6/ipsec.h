@@ -139,6 +139,7 @@ struct secspacq {
 #define	IPSEC_MODE_ANY		0	/* i.e. wildcard. */
 #define	IPSEC_MODE_TRANSPORT	1
 #define	IPSEC_MODE_TUNNEL	2
+#define	IPSEC_MODE_TCPMD5	3	/* TCP MD5 mode */
 
 /*
  * Direction of security policy.
@@ -162,6 +163,7 @@ struct secspacq {
 #define IPSEC_POLICY_IPSEC	2	/* do IPsec */
 #define IPSEC_POLICY_ENTRUST	3	/* consulting SPD if present. */
 #define IPSEC_POLICY_BYPASS	4	/* only for privileged socket. */
+#define IPSEC_POLICY_TCP	5	/* TCP MD5 policy */
 
 /* Security protocol level */
 #define	IPSEC_LEVEL_DEFAULT	0	/* reference to system default */

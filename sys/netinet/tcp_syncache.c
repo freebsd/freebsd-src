@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -705,6 +706,10 @@ syncache_socket(sc, lso)
 		tp->cc_send = sc->sc_cc_send;
 		tp->cc_recv = sc->sc_cc_recv;
 	}
+#ifdef TCP_SIGNATURE
+	if (sc->sc_flags & SCF_SIGNATURE)
+		tp->t_flags |= TF_SIGNATURE;
+#endif
 
 	tcp_mss(tp, sc->sc_peer_mss);
 
@@ -968,6 +973,17 @@ syncache_add(inc, to, th, sop, m)
 	}
 	if (tp->t_flags & TF_NOOPT)
 		sc->sc_flags = SCF_NOOPT;
+#ifdef TCP_SIGNATURE
+	/*
+	 * If listening socket requested TCP digests, and received SYN
+	 * contains the option, flag this in the syncache so that
+	 * syncache_respond() will do the right thing with the SYN+ACK.
+	 * XXX Currently we always record the option by default and will
+	 * attempt to use it in syncache_respond().
+	 */
+	if (to->to_flags & TOF_SIGNATURE)
+		sc->sc_flags = SCF_SIGNATURE;
+#endif
 
 	/*
 	 * XXX
@@ -1073,6 +1089,10 @@ syncache_respond(sc, m)
 		    ((sc->sc_flags & SCF_WINSCALE) ? 4 : 0) +
 		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0) +
 		    ((sc->sc_flags & SCF_CC) ? TCPOLEN_CC_APPA * 2 : 0);
+#ifdef TCP_SIGNATURE
+		optlen += ((sc->sc_flags & SCF_SIGNATURE) ?
+		    (TCPOLEN_SIGNATURE + 2) : 0);
+#endif
 	}
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
 
@@ -1188,6 +1208,25 @@ syncache_respond(sc, m)
 		*lp   = htonl(sc->sc_cc_recv);
 		optp += TCPOLEN_CC_APPA * 2;
 	}
+#ifdef TCP_SIGNATURE
+	/*
+	 * Handle TCP-MD5 passive opener response.
+	 */
+	if (sc->sc_flags & SCF_SIGNATURE) {
+		u_int8_t *bp = optp;
+		int i;
+
+		*bp++ = TCPOPT_SIGNATURE;
+		*bp++ = TCPOLEN_SIGNATURE;
+		for (i = 0; i < TCP_SIGLEN; i++)
+			*bp++ = 0;
+		tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
+			optp + 2, IPSEC_DIR_OUTBOUND);
+		*bp++ = TCPOPT_NOP;
+		*bp++ = TCPOPT_EOL;
+		optp += TCPOLEN_SIGNATURE + 2;
+	}
+#endif /* TCP_SIGNATURE */
 no_options:
 
 #ifdef INET6

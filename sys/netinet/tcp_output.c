@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
@@ -112,6 +113,9 @@ tcp_output(tp)
 	register struct socket *so = tp->t_inpcb->inp_socket;
 	register long len, win;
 	int off, flags, error;
+#ifdef TCP_SIGNATURE
+	int sigoff = 0;
+#endif
 	register struct mbuf *m;
 	struct ip *ip = NULL;
 	register struct ipovly *ipov = NULL;
@@ -536,6 +540,32 @@ send:
 		}
  	}
 
+#ifdef TCP_SIGNATURE
+#ifdef INET6
+	if (!isipv6)
+#endif
+	if (tp->t_flags & TF_SIGNATURE) {
+		int i;
+		u_char *bp;
+		/*
+		 * Initialize TCP-MD5 option (RFC2385)
+		 */
+		bp = (u_char *)opt + optlen;
+		*bp++ = TCPOPT_SIGNATURE;
+		*bp++ = TCPOLEN_SIGNATURE;
+		sigoff = optlen + 2;
+		for (i = 0; i < TCP_SIGLEN; i++)
+			*bp++ = 0;
+		optlen += TCPOLEN_SIGNATURE;
+		/*
+		 * Terminate options list and maintain 32-bit alignment.
+		 */
+		*bp++ = TCPOPT_NOP;
+		*bp++ = TCPOPT_EOL;
+		optlen += 2;
+	}
+#endif /* TCP_SIGNATURE */
+
  	hdrlen += optlen;
 
 #ifdef INET6
@@ -753,6 +783,15 @@ send:
 		 * number wraparound.
 		 */
 		tp->snd_up = tp->snd_una;		/* drag it along */
+
+#ifdef TCP_SIGNATURE
+#ifdef INET6
+	if (!isipv6)
+#endif
+	if (tp->t_flags & TF_SIGNATURE)
+		tcp_signature_compute(m, sizeof(struct ip), len, optlen,
+		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
+#endif
 
 	/*
 	 * Put TCP length in extended header, and then

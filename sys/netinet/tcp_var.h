@@ -102,6 +102,7 @@ struct tcpcb {
 #define	TF_LQ_OVERFLOW	0x20000		/* listen queue overflow */
 #define	TF_LASTIDLE	0x40000		/* connection was previously idle */
 #define TF_RXWIN0SENT	0x80000		/* sent a receiver win 0 in response */
+#define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
@@ -178,6 +179,21 @@ struct tcpcb {
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
 };
 
+#ifdef TCP_SIGNATURE
+/*
+ * Defines which are needed by the xform_tcp module and tcp_[in|out]put
+ * for SADB verification and lookup.
+ */
+#define	TCP_SIGLEN	16	/* length of computed digest in bytes */
+#define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
+#define	TCP_KEYLEN_MAX	80	/* maximum length of TCP-MD5 key */
+/*
+ * Only a single SA per host may be specified at this time. An SPI is
+ * needed in order for the KEY_ALLOCSA() lookup to work.
+ */
+#define	TCP_SIG_SPI	0x1000
+#endif /* TCP_SIGNATURE */
+
 /*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
@@ -192,6 +208,8 @@ struct tcpopt {
 #define	TOF_CCECHO	0x0008
 #define	TOF_MSS		0x0010
 #define	TOF_SCALE	0x0020
+#define	TOF_SIGNATURE	0x0040		/* signature option present */
+#define	TOF_SIGLEN	0x0080		/* sigature length valid (RFC2385) */
 	u_int32_t	to_tsval;
 	u_int32_t	to_tsecr;
 	tcp_cc		to_cc;		/* holds CC or CCnew */
@@ -226,6 +244,7 @@ struct syncache {
 #define SCF_CC		0x08			/* negotiated CC */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_KEEPROUTE	0x20			/* keep cloned route */
+#define SCF_SIGNATURE	0x40			/* send MD5 digests */
 	TAILQ_ENTRY(syncache)	sc_hash;
 	TAILQ_ENTRY(syncache)	sc_timerq;
 };
@@ -469,6 +488,9 @@ void	 tcp_respond __P((struct tcpcb *, void *,
 struct rtentry *
 	 tcp_rtlookup __P((struct in_conninfo *));
 void	 tcp_setpersist __P((struct tcpcb *));
+#ifdef TCP_SIGNATURE
+int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
+#endif
 void	 tcp_slowtimo __P((void));
 struct tcptemp *
 	 tcp_maketemplate __P((struct tcpcb *));

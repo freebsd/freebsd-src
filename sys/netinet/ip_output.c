@@ -493,6 +493,7 @@ sendit:
 
 	case IPSEC_POLICY_BYPASS:
 	case IPSEC_POLICY_NONE:
+	case IPSEC_POLICY_TCP:
 		/* no need to do IPsec. */
 		goto skip_ipsec;
 	

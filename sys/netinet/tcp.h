@@ -98,6 +98,8 @@ struct tcphdr {
 #define	   TCPOLEN_CC_APPA		(TCPOLEN_CC+2)
 #define	   TCPOPT_CC_HDR(ccopt)		\
     (TCPOPT_NOP<<24|TCPOPT_NOP<<16|(ccopt)<<8|TCPOLEN_CC)
+#define	TCPOPT_SIGNATURE		19	/* Keyed MD5: RFC 2385 */
+#define	   TCPOLEN_SIGNATURE		18
 
 /*
  * Default maximum segment size for TCP.
@@ -133,5 +135,6 @@ struct tcphdr {
 #define	TCP_MAXSEG	0x02	/* set maximum segment size */
 #define TCP_NOPUSH	0x04	/* don't push last block of write */
 #define TCP_NOOPT	0x08	/* don't use TCP options */
+#define TCP_SIGNATURE_ENABLE	0x10	/* use MD5 digests (RFC2385) */
 
 #endif

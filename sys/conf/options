@@ -303,6 +303,7 @@ PPP_FILTER		opt_ppp.h
 RANDOM_IP_ID
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+TCP_SIGNATURE		opt_inet.h
 TCP_DROP_SYNFIN		opt_tcp_input.h
 XBONEHACK
 MBUF_STRESS_TEST	opt_mbuf_stress_test.h

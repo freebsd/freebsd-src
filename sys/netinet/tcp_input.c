@@ -35,6 +35,7 @@
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
@@ -2334,6 +2335,19 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			    (char *)&to->to_ccecho, sizeof(to->to_ccecho));
 			to->to_ccecho = ntohl(to->to_ccecho);
 			break;
+#ifdef TCP_SIGNATURE
+		/*
+		 * XXX In order to reply to a host which has set the
+		 * TCP_SIGNATURE option in its initial SYN, we have to
+		 * record the fact that the option was observed here
+		 * for the syncache code to perform the correct response.
+		 */
+		case TCPOPT_SIGNATURE:
+			if (optlen != TCPOLEN_SIGNATURE)
+				continue;
+			to->to_flags |= (TOF_SIGNATURE | TOF_SIGLEN);
+			break;
+#endif
 		default:
 			continue;
 		}
