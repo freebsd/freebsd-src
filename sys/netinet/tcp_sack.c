@@ -96,7 +96,6 @@
  * official policies, either expressed or implied, of the US Naval
  * Research Laboratory (NRL).
  */
-#include "opt_ipfw.h"		/* for ipfw_fwd		*/
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

@@ -373,27 +373,6 @@ cantsend:
 	return error;
 }
 
-/*
- * Return a copy of the specified packet, but without
- * the divert tag.  This is used when packets are ``tee'd''
- * and we want the cloned copy to not have divert processing.
- */
-struct mbuf *
-divert_clone(struct mbuf *m)
-{
-	struct mbuf *clone;
-	struct m_tag *mtag;
-
-	clone = m_dup(m, M_DONTWAIT);
-	if (clone != NULL) {
-		/* strip divert tag from copy */
-		mtag = m_tag_find(clone, PACKET_TAG_DIVERT, NULL);
-		if (mtag != NULL)
-			m_tag_delete(clone, mtag);
-	}
-	return clone;
-}
-
 static int
 div_attach(struct socket *so, int proto, struct thread *td)
 {
