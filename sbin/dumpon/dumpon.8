@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: dumpon.8,v 1.2 1996/02/12 01:20:09 mpp Exp $
+.\"	$Id: dumpon.8,v 1.3 1996/08/23 00:55:54 mpp Exp $
 .\"
 .Dd May 12, 1995
 .Dt DUMPON 8
@@ -41,18 +41,26 @@
 .Sh SYNOPSIS
 .Nm dumpon
 .Op Fl v
-.Ar special_file
+.Ar swap_device
 .Sh DESCRIPTION
 .Nm Dumpon
 is used to specify a device where the kernel can save a crash dump in
 the case of a panic.
-The system begins with no dump area configured for safety, unless a
+.Pp
+The system begins with no dump area configured for safety.  If a 
 .Dq dumps on
-clause was specified in the input to
-.Xr config 8 .
+clause is specified in the kernel configuration file 
+or if the variable
+.Dq Li dumpdev
+in the boot time configuration file 
+.Pa /etc/rc.conf
+names a dump device, future panics will cause the kernel 
+to save a crash dump on the specified dump device.
 The dump device must be one of the swap areas
-specified in the configuration file, and it must be at least the size
-of physical memory.
+specified in the filesystem configuration file
+.Pa /etc/fstab , 
+and it must be at least the size of physical memory.
+.Pp
 Calls to
 .Nm dumpon
 normally occur in the system multi-user initialization file
@@ -65,6 +73,13 @@ The
 flag can be specified to cause the
 .Nm
 program to be verbose about its activity.
+.Sh NOTES
+.Pp
+Hardcoding the dump device using the kernel configuration file 
+is only useful if a kernel crashes before reaching multi-user mode. 
+Otherwise, the use of
+.Nm
+to specify the dump device is recommended.
 .Pp
 The 
 .Nm
@@ -82,13 +97,22 @@ is the text string
 .Dq Li off .
 .Sh SEE ALSO
 .Xr sysctl 3 ,
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
 .Xr init 8 ,
+.Xr config 8 ,
 .Xr rc 8 ,
-.Xr savecore 8
+.Xr savecore 8 ,
+.Xr swapon 8 ,
+.Xr panic 9
 .Sh FILES
 .Bl -tag -width /dev/[ws]d?b -compact
 .It Pa /dev/[ws]d?b
-standard paging devices
+standard swap areas
+.It Pa /etc/fstab
+static filesystem and swap information
+.It Pa /etc/rc.conf
+boot-time system configuration
 .El
 .Sh BUGS
 Because the filesystem layer is already dead by the time a crash dump
