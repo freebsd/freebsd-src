@@ -201,7 +201,6 @@ dumpdata(int f, report_desc_t rd, int loop)
 	static int one = 1;
 	u_int32_t colls[100];
 	int sp = 0;
-	int report_id;
 	char namebuf[10000], *namep;
 
 	hids = 0;
@@ -245,7 +244,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 			if (all || gotname(namebuf)) {
 				if (!noname)
 					printf("%s=", namebuf);
-				prdata(dbuf + (report_id != 0), n);
+				prdata(dbuf + (reportid != 0), n);
 				printf("\n");
 			}
 		}
