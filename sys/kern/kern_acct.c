@@ -187,7 +187,7 @@ acct(td, uap)
 		acctp = savacctp = NULLVP;
 		crfree(acctcred != NOCRED ? acctcred : savacctcred);
 		acctcred = savacctcred = NOCRED;
-		log(LOG_NOTICE, "Process accounting disabled.\n");
+		log(LOG_NOTICE, "Accounting disabled\n");
 	}
 	if (uap->path == NULL) {
 		mtx_unlock(&acct_mtx);
@@ -203,7 +203,7 @@ acct(td, uap)
 	acctflags = flags;
 	callout_init(&acctwatch_callout, 0);
 	mtx_unlock(&acct_mtx);
-	log(LOG_NOTICE, "Process accounting enabled.\n");
+	log(LOG_NOTICE, "Accounting enabled\n");
 	acctwatch(NULL);
 done2:
 	mtx_unlock(&Giant);
