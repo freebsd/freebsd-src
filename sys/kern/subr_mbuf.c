@@ -198,6 +198,7 @@ struct mb_lstmngr {
 };
 static struct mb_lstmngr mb_list_mbuf, mb_list_clust;
 static struct mtx mbuf_gen, mbuf_pcpu[NCPU];
+u_int *cl_refcntmap;
 
 /*
  * Local macros for internal allocator structure manipulations.
@@ -337,9 +338,11 @@ mbuf_init(void *dummy)
 
 	/*
 	 * Set up all the submaps, for each type of object that we deal
-	 * with in this allocator.
+	 * with in this allocator.  We also allocate space for the cluster
+	 * ref. counts in the mbuf map (and not the cluster map) in order to
+	 * give clusters a nice contiguous address space without any holes.
 	 */
-	mb_map_size = (vm_size_t)(nmbufs * MSIZE);
+	mb_map_size = (vm_size_t)(nmbufs * MSIZE + nmbclusters * sizeof(u_int));
 	mb_map_size = rounddown(mb_map_size, PAGE_SIZE);
 	mb_list_mbuf.ml_btable = malloc((unsigned long)mb_map_size / PAGE_SIZE *
 	    sizeof(struct mb_bucket *), M_MBUF, M_NOWAIT);
@@ -407,6 +410,15 @@ mbuf_init(void *dummy)
 	mb_list_clust.ml_genlist->mb_cont.mc_types = NULL;
 	SLIST_INIT(&(mb_list_mbuf.ml_genlist->mb_cont.mc_bhead));
 	SLIST_INIT(&(mb_list_clust.ml_genlist->mb_cont.mc_bhead));
+
+	/*
+	 * Allocate all the required counters for clusters.  This makes
+	 * cluster allocations/deallocations much faster.
+	 */
+	cl_refcntmap = (u_int *)kmem_malloc(mb_list_clust.ml_map,
+	    roundup(nmbclusters * sizeof(u_int), MSIZE), M_NOWAIT);
+	if (cl_refcntmap == NULL)
+		goto bad;
 
 	/*
 	 * Initialize general mbuf statistics.
@@ -1034,13 +1046,19 @@ mb_reclaim(void)
 	(m)->m_ext.ext_type = EXT_CLUSTER;				\
 } while (0)
 
-#define	_mext_init_ref(m) do {						\
-	(m)->m_ext.ref_cnt = malloc(sizeof(u_int), M_MBUF, M_NOWAIT);	\
+#define	_mext_init_ref(m, ref) do {					\
+	if ((ref) == NULL)						\
+		malloc(sizeof(u_int), M_MBUF, M_NOWAIT);		\
+	else								\
+		(m)->m_ext.ref_cnt = (u_int *)(ref);			\
 	if ((m)->m_ext.ref_cnt != NULL) {				\
 		*((m)->m_ext.ref_cnt) = 0;				\
 		MEXT_ADD_REF((m));					\
 	}								\
 } while (0)
+
+#define	cl2ref(cl)							\
+    (((uintptr_t)(cl) - (uintptr_t)cl_refcntmap) >> MCLSHIFT)
 
 #define	_mext_dealloc_ref(m)						\
 	free((m)->m_ext.ref_cnt, M_MBUF)
@@ -1056,36 +1074,25 @@ mb_reclaim(void)
  * - _mext_free(): frees associated storage when the ref. count is
  *   exactly one and we're freeing.
  *
- * - _mclfree(): wraps an mb_free() of a cluster to avoid inlining the
- *   mb_free() in some exported routines.
- *
  * - _mgetm_internal(): common "persistent-lock" routine that allocates
  *   an mbuf and a cluster in one shot, but where the lock is already
  *   held coming in (which is what makes it different from the exported
  *   m_getcl()).  The lock is dropped when done.  This is used by m_getm()
  *   and, therefore, is very m_getm()-specific.
  */
-static void _mclfree(struct mbuf *);
 static struct mbuf *_mgetm_internal(int, short, short, int);
 
 void
 _mext_free(struct mbuf *mb)
 {
 
-	if (mb->m_ext.ext_type == EXT_CLUSTER)
+	if (mb->m_ext.ext_type == EXT_CLUSTER) {
 		mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF,
 		    0, NULL);
-	else
+	} else {
 		(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf, mb->m_ext.ext_args);
-	_mext_dealloc_ref(mb);
-}
-
-static void
-_mclfree(struct mbuf *mb)
-{
-
-	mb_free(&mb_list_clust, (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF, 0,NULL);
-	mb->m_ext.ext_buf = NULL;
+		_mext_dealloc_ref(mb);
+	}
 }
 
 static struct mbuf *
@@ -1105,13 +1112,8 @@ _mgetm_internal(int how, short type, short persist, int cchnum)
 			(void)m_free(mb);
 			mb = NULL;
 		}
-		_mext_init_ref(mb);
-		if (mb->m_ext.ref_cnt == NULL) {
-			_mclfree(mb);
-			(void)m_free(mb);
-			return NULL;
-		} else
-			_mcl_setup(mb);
+		_mcl_setup(mb);
+		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
 	return (mb);
 }
@@ -1197,15 +1199,8 @@ m_getm(struct mbuf *m, int len, int how, short type)
 			(void)m_free(mb);
 			goto failed;
 		}
-		_mext_init_ref(mb);
-		if (mb->m_ext.ref_cnt == NULL) {
-			/* XXX: PROBLEM! lock may be held here! */
-			panic("m_getm(): FATAL ERROR! Sorry!");
-			_mclfree(mb);
-			(void)m_free(mb);
-			goto failed;
-		}
 		_mcl_setup(mb);
+		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 		persist = MBP_PERSISTENT;
 
 		if (cur == NULL)
@@ -1334,7 +1329,6 @@ m_free(struct mbuf *mb)
 	if ((mb->m_flags & M_EXT) != 0) {
 		MEXT_REM_REF(mb);
 		if (atomic_cmpset_int(mb->m_ext.ref_cnt, 0, 1)) {
-			_mext_dealloc_ref(mb);
 			if (mb->m_ext.ext_type == EXT_CLUSTER) {
 				mb_free(&mb_list_clust,
 				    (caddr_t)mb->m_ext.ext_buf, MT_NOTMBUF,
@@ -1343,6 +1337,7 @@ m_free(struct mbuf *mb)
 			} else {
 				(*(mb->m_ext.ext_free))(mb->m_ext.ext_buf,
 				    mb->m_ext.ext_args);
+				_mext_dealloc_ref(mb);
 				persist = 0;
 			}
 		}
@@ -1382,7 +1377,6 @@ m_freem(struct mbuf *mb)
 		if ((m->m_flags & M_EXT) != 0) {
 			MEXT_REM_REF(m);
 			if (atomic_cmpset_int(m->m_ext.ref_cnt, 0, 1)) {
-				_mext_dealloc_ref(m);
 				if (m->m_ext.ext_type == EXT_CLUSTER) {
 					mb_free(&mb_list_clust,
 					    (caddr_t)m->m_ext.ext_buf,
@@ -1391,6 +1385,7 @@ m_freem(struct mbuf *mb)
 				} else {
 					(*(m->m_ext.ext_free))(m->m_ext.ext_buf,
 					    m->m_ext.ext_args);
+					_mext_dealloc_ref(m);
 					persist = 0;
 				}
 			}
@@ -1439,13 +1434,8 @@ m_getcl(int how, short type, int flags)
 		(void)m_free(mb);
 		mb = NULL;
 	} else {
-		_mext_init_ref(mb);
-		if (mb->m_ext.ref_cnt == NULL) {
-			_mclfree(mb);
-			(void)m_free(mb);
-			mb = NULL;
-		} else
-			_mcl_setup(mb);
+		_mcl_setup(mb);
+		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
 	return (mb);
 }
@@ -1468,11 +1458,8 @@ m_clget(struct mbuf *mb, int how)
 	mb->m_ext.ext_buf= (caddr_t)mb_alloc(&mb_list_clust,how,MT_NOTMBUF,
 	    0, NULL);
 	if (mb->m_ext.ext_buf != NULL) {
-		_mext_init_ref(mb);
-		if (mb->m_ext.ref_cnt == NULL)
-			_mclfree(mb);
-		else
-			_mcl_setup(mb);
+		_mcl_setup(mb);
+		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
 }
 
@@ -1498,7 +1485,8 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
     void (*freef)(void *, void *), void *args, short flags, int type)
 {
 
-	_mext_init_ref(mb);
+	_mext_init_ref(mb, ((type != EXT_CLUSTER) ?
+	    NULL : &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]));
 	if (mb->m_ext.ref_cnt != NULL) {
 		mb->m_flags |= (M_EXT | flags);
 		mb->m_ext.ext_buf = buf;
