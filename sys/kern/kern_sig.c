@@ -1012,7 +1012,7 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td->td_proc, p, sig) == 0) {
+			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1046,7 +1046,7 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td->td_proc, p, sig) == 0) {
+			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1084,8 +1084,7 @@ kill(td, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
-		} else if ((error = p_cansignal(td->td_proc, p, uap->signum))
-		    != 0) {
+		} else if ((error = p_cansignal(td, p, uap->signum)) != 0) {
 			PROC_UNLOCK(p);
 		} else {
 			if (uap->signum)

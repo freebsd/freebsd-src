@@ -101,7 +101,7 @@ getpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
-			if (p_cansee(td->td_proc, p) == 0)
+			if (p_cansee(td, p) == 0)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 			PROC_UNLOCK(p);
 		}
@@ -124,7 +124,7 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(td->td_proc, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
+			if (!p_cansee(td, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 			PROC_UNLOCK(p);
 		}
@@ -138,7 +138,7 @@ getpriority(td, uap)
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
-			if (!p_cansee(td->td_proc, p) &&
+			if (!p_cansee(td, p) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_ksegrp.kg_nice /* XXXKSE */  < low)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
@@ -190,7 +190,7 @@ setpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == 0)
 				break;
-			if (p_cansee(td->td_proc, p) == 0)
+			if (p_cansee(td, p) == 0)
 				error = donice(td, p, uap->prio);
 			PROC_UNLOCK(p);
 		}
@@ -214,7 +214,7 @@ setpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(td->td_proc, p)) {
+			if (!p_cansee(td, p)) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -231,7 +231,7 @@ setpriority(td, uap)
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_ucred->cr_uid == uap->who &&
-			    !p_cansee(td->td_proc, p)) {
+			    !p_cansee(td, p)) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -259,7 +259,7 @@ donice(td, chgp, n)
 	int	error;
 
 	PROC_LOCK_ASSERT(chgp, MA_OWNED);
-	if ((error = p_cansched(td->td_proc, chgp)))
+	if ((error = p_cansched(td, chgp)))
 		return (error);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
@@ -314,7 +314,7 @@ rtprio(td, uap)
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
-		if ((error = p_cansee(td->td_proc, p)))
+		if ((error = p_cansee(td, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
 		pri_to_rtp(&p->p_ksegrp /* XXXKSE */ , &rtp);
@@ -322,7 +322,7 @@ rtprio(td, uap)
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
-		if ((error = p_cansched(td->td_proc, p)) || (error = cierror))
+		if ((error = p_cansched(td, p)) || (error = cierror))
 			break;
 		/* disallow setting rtprio in most cases if not superuser */
 		if (suser(td) != 0) {
