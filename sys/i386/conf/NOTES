@@ -1091,7 +1091,6 @@ device		pci
 # PCI options
 #
 #options 	PCI_QUIET	#quiets PCI code on chipset settings
-options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
 
 
 #####################################################################
