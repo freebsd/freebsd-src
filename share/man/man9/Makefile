@@ -30,7 +30,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	devclass_get_device.9 devclass_get_devices.9 devclass_get_maxunit.9 \
 	devclass_get_name.9 devclass_get_softc.9 \
 	DEVICE_ATTACH.9 DEVICE_DETACH.9 DEVICE_PROBE.9 DEVICE_SHUTDOWN.9 \
-	BUS_PRINT_CHILD.9 BUS_SETUP_INTR.9 \
+	DRIVER_MODULE.9 BUS_PRINT_CHILD.9 BUS_SETUP_INTR.9 \
 	BUS_READ_IVAR.9 \
 	bus_generic_attach.9 bus_generic_detach.9 bus_generic_map_intr.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
