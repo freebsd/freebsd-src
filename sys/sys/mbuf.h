@@ -307,11 +307,15 @@ struct mbstat {
 
 #define	MEXT_ADD_REF(m)	atomic_add_int((m)->m_ext.ref_cnt, 1)
 
+#ifdef WITNESS
 #define MBUF_CHECKSLEEP(how) do {					\
 	if (how == M_WAITOK)						\
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,		\
 		    "Sleeping in \"%s\"", __func__);			\
 } while(0)
+#else
+#define MBUF_CHECKSLEEP(how)
+#endif
 
 /*
  * Network buffer allocation API
