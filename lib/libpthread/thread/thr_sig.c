@@ -242,8 +242,13 @@ _thread_signal(pthread_t pthread, int sig)
 	 */
 	sigaddset(&pthread->sigpend,sig);
 
+	/* Check if the thread is waiting on a child process: */
+	if (sig == SIGCHLD && pthread->state == PS_WAIT_WAIT) {
+		/* Change the state of the thread to run: */
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
 	/* Check if system calls are not restarted: */
-	if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0) {
+	} else if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0) {
 		/*
 		 * Process according to thread state:
 		 */
