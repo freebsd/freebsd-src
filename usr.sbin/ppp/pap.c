@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.15 1997/09/22 23:59:15 brian Exp $
+ * $Id: pap.c,v 1.16 1997/09/27 19:11:41 brian Exp $
  *
  *	TODO:
  */
@@ -61,7 +61,10 @@ SendPapChallenge(int papid)
   plen = namelen + keylen + 2;
   LogPrintf(LogDEBUG, "SendPapChallenge: namelen = %d, keylen = %d\n",
 	    namelen, keylen);
-  LogPrintf(LogPHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
+  if (LogIsKept(LogDEBUG))
+    LogPrintf(LogPHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
+  else
+    LogPrintf(LogPHASE, "PAP: %s\n", VarAuthName);
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
