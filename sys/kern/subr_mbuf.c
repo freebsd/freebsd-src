@@ -132,7 +132,7 @@ struct mb_pcpu_list {
  * allocatable by the sfbuf allocator (found in uipc_syscalls.c)
  */
 #ifndef NMBCLUSTERS
-#define	NMBCLUSTERS	(1024 + MAXUSERS * 16)
+#define	NMBCLUSTERS	(1024 + MAXUSERS * 64)
 #endif
 #ifndef	NMBUFS
 #define	NMBUFS		(NMBCLUSTERS * 2)
