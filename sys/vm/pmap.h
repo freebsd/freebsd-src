@@ -122,6 +122,7 @@ void		 pmap_qenter(vm_offset_t, vm_page_t *, int);
 void		 pmap_qremove(vm_offset_t, int);
 void		 pmap_release(pmap_t);
 void		 pmap_remove(pmap_t, vm_offset_t, vm_offset_t);
+void		 pmap_remove_all(vm_page_t m);
 void		 pmap_remove_pages(pmap_t, vm_offset_t, vm_offset_t);
 void		 pmap_zero_page(vm_page_t);
 void		 pmap_zero_page_area(vm_page_t, int off, int size);

@@ -203,7 +203,6 @@ static pv_entry_t get_pv_entry(void);
 static void	i386_protection_init(void);
 static __inline void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
-static void	pmap_remove_all(vm_page_t m);
 static vm_page_t pmap_enter_quick(pmap_t pmap, vm_offset_t va,
 				      vm_page_t m, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva);
@@ -1893,7 +1892,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *		pmap_remove (slow...)
  */
 
-static void
+void
 pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
@@ -3067,7 +3066,8 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	register pt_entry_t *pte;
 	int s;
 
-	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
+	    (!setem && bit == PG_RW && (m->flags & PG_WRITEABLE) == 0))
 		return;
 
 	s = splvm();
@@ -3112,6 +3112,8 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 			}
 		}
 	}
+	if (!setem && bit == PG_RW)
+		vm_page_flag_clear(m, PG_WRITEABLE);
 	splx(s);
 }
 
