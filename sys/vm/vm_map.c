@@ -1976,10 +1976,12 @@ vm_map_clean(
 			vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, curthread);
 			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
 			flags |= invalidate ? OBJPC_INVAL : 0;
+			VM_OBJECT_LOCK(object);
 			vm_object_page_clean(object,
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
 			    flags);
+			VM_OBJECT_UNLOCK(object);
 			VOP_UNLOCK(object->handle, 0, curthread);
 			vm_object_deallocate(object);
 		}
