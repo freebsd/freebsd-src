@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.29 1995/12/26 13:58:11 bde Exp $
+ *	$Id: support.s,v 1.30 1995/12/27 18:54:51 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -40,6 +40,13 @@
 
 #define KDSEL		0x10			/* kernel data selector */
 #define IDXSHIFT	10
+
+
+	.data
+	.globl	_bzero
+_bzero:	.long	_generic_bzero
+
+	.text
 
 /*
  * Support for reading real time clock registers
@@ -55,22 +62,10 @@ ENTRY(rtcin)					/* rtcin(val) */
 
 /*
  * bcopy family
- */
-
-/*
  * void bzero(void *base, u_int cnt)
- * Special code for I486 because stosl uses lots
- * of clocks.  Makes little or no difference on DX2 type
- * machines, but stosl is about 1/2 as fast as
- * memory moves on a standard DX !!!!!
  */
-ALTENTRY(blkclr)
-ENTRY(bzero)
-#if defined(I486_CPU)
-	cmpl	$CPUCLASS_486,_cpu_class
-	jz	1f
-#endif
 
+ENTRY(generic_bzero)
 	pushl	%edi
 	movl	8(%esp),%edi
 	movl	12(%esp),%ecx
@@ -87,8 +82,7 @@ ENTRY(bzero)
 	ret
 
 #if defined(I486_CPU)
-	SUPERALIGN_TEXT
-1:
+ENTRY(i486_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
 	xorl	%eax,%eax
@@ -185,7 +179,66 @@ do1:
 	SUPERALIGN_TEXT
 do0:
 	ret
-#endif /* I486_CPU */
+#endif
+
+#if defined(I586_CPU) || defined(I686_CPU)
+ALTENTRY(i586_bzero)
+ENTRY(i686_bzero)
+	pushl	%edi
+	movl	8(%esp),%edi	/* destination pointer */
+	movl	12(%esp),%edx	/* size (in 8-bit words) */
+
+	xorl	%eax,%eax	/* store data */
+	cld
+
+/* If less than 100 bytes to write, skip tricky code.  */
+	cmpl	$100,%edx
+	movl	%edx,%ecx	/* needed when branch is taken! */
+	jl	2f
+
+/* First write 0-3 bytes to make the pointer 32-bit aligned.  */
+	movl	%edi,%ecx	/* Copy ptr to ecx... */
+	negl	%ecx		/* ...and negate that and... */
+	andl	$3,%ecx		/* ...mask to get byte count.  */
+	subl	%ecx,%edx	/* adjust global byte count */
+	rep
+	stosb
+
+	subl	$32,%edx	/* offset count for unrolled loop */
+	movl	(%edi),%ecx	/* Fetch destination cache line */
+
+	.align	2,0x90		/* supply 0x90 for broken assemblers */
+1:
+	movl	28(%edi),%ecx	/* allocate cache line for destination */
+	subl	$32,%edx	/* decr loop count */
+	movl	%eax,0(%edi)	/* store words pairwise */
+	movl	%eax,4(%edi)
+	movl	%eax,8(%edi)
+	movl	%eax,12(%edi)
+	movl	%eax,16(%edi)
+	movl	%eax,20(%edi)
+	movl	%eax,24(%edi)
+	movl	%eax,28(%edi)
+
+	leal	32(%edi),%edi	/* update destination pointer */
+	jge	1b
+	leal	32(%edx),%ecx
+
+/* Write last 0-7 full 32-bit words (up to 8 words if loop was skipped).  */
+2:
+	shrl	$2,%ecx
+	rep
+	stosl
+
+/* Finally write the last 0-3 bytes.  */
+	movl	%edx,%ecx
+	andl	$3,%ecx
+	rep
+	stosb
+
+	popl	%edi
+	ret
+#endif
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
