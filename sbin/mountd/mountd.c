@@ -2506,7 +2506,7 @@ int sig;
 {
 	close(mountdlockfd);
 	unlink(MOUNTDLOCK);
-	pmap_unset(RPCPROG_MNT, 1);
-	pmap_unset(RPCPROG_MNT, 3);
+	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
+	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
 	exit (0);
 }
