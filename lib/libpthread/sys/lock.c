@@ -65,6 +65,7 @@ _lock_init(struct lock *lck, enum lock_type ltype,
 		lck->l_head->lr_watcher = NULL;
 		lck->l_head->lr_owner = NULL;
 		lck->l_head->lr_waiting = 0;
+		lck->l_head->lr_handshake = 0;
 		lck->l_tail = lck->l_head;
 	}
 	return (0);
@@ -84,6 +85,7 @@ _lockuser_init(struct lockuser *lu, void *priv)
 		lu->lu_myreq->lr_watcher = NULL;
 		lu->lu_myreq->lr_owner = lu;
 		lu->lu_myreq->lr_waiting = 0;
+		lu->lu_myreq->lr_handshake = 0;
 		lu->lu_watchreq = NULL;
 		lu->lu_priority = 0;
 		lu->lu_private = priv;
@@ -169,6 +171,12 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 			while (lu->lu_watchreq->lr_locked != 0)
 				lck->l_wait(lck, lu);
 			atomic_store_rel_long(&lu->lu_watchreq->lr_waiting, 0);
+			/*
+			 * Wait for original owner to stop accessing the
+			 * lockreq object.
+			 */
+			while (lu->lu_watchreq->lr_handshake)
+				;
 		}
 	}
 }
@@ -232,19 +240,24 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 			}
 		}
 		if (lu_h != NULL) {
+			lu_h->lu_watchreq->lr_handshake = 1;
 			/* Give the lock to the highest priority user. */
 			atomic_store_rel_long(&lu_h->lu_watchreq->lr_locked, 0);
 			if ((lu_h->lu_watchreq->lr_waiting != 0) &&
 			    (lck->l_wakeup != NULL))
 				/* Notify the sleeper */
 				lck->l_wakeup(lck, lu_h->lu_myreq->lr_watcher);
+			atomic_store_rel_long(&lu_h->lu_watchreq->lr_handshake,
+				 0);
 		} else {
+			myreq->lr_handshake = 1;
 			/* Give the lock to the previous request. */
 			atomic_store_rel_long(&myreq->lr_locked, 0);
 			if ((myreq->lr_waiting != 0) &&
 			    (lck->l_wakeup != NULL))
 				/* Notify the sleeper */
 				lck->l_wakeup(lck, myreq->lr_watcher);
+			atomic_store_rel_long(&myreq->lr_handshake, 0);
 		}
 	} else {
 		/*
@@ -257,12 +270,19 @@ _lock_release(struct lock *lck, struct lockuser *lu)
 		lu->lu_watchreq = NULL;
 		lu->lu_myreq->lr_locked = 1;
 		lu->lu_myreq->lr_waiting = 0;
-		/* Give the lock to the previous request. */
-		atomic_store_rel_long(&myreq->lr_locked, 0);
-		if ((myreq->lr_waiting != 0) &&
-		    (lck->l_wakeup != NULL))
-			/* Notify the sleeper */
-			lck->l_wakeup(lck, myreq->lr_watcher);
-
+		if (lck->l_wakeup) {
+			/* Start wakeup */
+			myreq->lr_handshake = 1;
+			/* Give the lock to the previous request. */
+			atomic_store_rel_long(&myreq->lr_locked, 0);
+			if (myreq->lr_waiting != 0) {
+				/* Notify the sleeper */
+				lck->l_wakeup(lck, myreq->lr_watcher);
+			}
+			/* Stop wakeup */
+			atomic_store_rel_long(&myreq->lr_handshake, 0);
+		} else {
+			atomic_store_rel_long(&myreq->lr_locked, 0);
+		}
 	}
 }

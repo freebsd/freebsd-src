@@ -55,6 +55,7 @@ struct lockreq {
 	struct lockuser	*lr_watcher;	/* only used for priority locks */
 	struct lockuser	*lr_owner;	/* only used for priority locks */
 	long		lr_waiting;	/* non-zero when wakeup needed */
+	volatile long	lr_handshake;	/* non-zero when wakeup in progress */
 };
 
 struct lockuser {
