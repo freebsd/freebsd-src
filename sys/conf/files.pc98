@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.54 1998/02/19 08:42:57 kato Exp $
+#	$Id: files.pc98,v 1.55 1998/02/21 15:49:03 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -140,6 +140,7 @@ i386/isa/joy.c			optional        joy     device-driver
 i386/isa/kbdio.c		optional        psm     device-driver
 i386/isa/kbdio.c		optional        sc      device-driver
 i386/isa/kbdio.c		optional        vt      device-driver
+i386/isa/loran.c		optional	loran	device-driver
 pc98/pc98/lpt.c			optional	lpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
