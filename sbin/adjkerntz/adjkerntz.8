@@ -53,18 +53,24 @@ initialization call from
 .Pa /etc/rc
 (before any daemons are started).
 .Nm Adjkerntz
-makes the first adjustment and the initial time zone offset is stored into
+makes the adjustment of kernel clock (CMOS clock not touched)
+and the initial time zone offset is stored into
 .Pa adjkerntz
 kernel variable
 for following subsequent
-.Nm adjkerntz
-calls.
+.Nm "'adjkerntz -a'"
+calls. Then it goes to background pause which ends with SIGTERM.
+After receiving SIGTERM it acts like
+.Nm "'adjkerntz -a'"
+to be shure to have proper CMOS clock before reboot.
 .It Cm Fl a
 This form is needed, when time zone changes occur.
 .Nm Adjkerntz
 uses the previously stored
 time zone offset and the changed time zone rule to
-produce the new time zone offset, fix the RTC clock and store the new
+produce the new time zone offset, fix the CMOS clock
+(kernel clock not touched)
+and store the new
 offset into
 .Pa adjkerntz
 kernel variable
@@ -73,6 +79,7 @@ It is recommended to use this form in root's
 .Xr crontab 5
 every half of a hour from 0am to 4am
 since this times matches most modern time zone changes.
+.El
 .Pp
 .Nm Adjkerntz
 clears the kernel timezone structure and makes kernel always run at UTC
