@@ -1383,8 +1383,17 @@ kill(td, uap)
 
 	if (uap->pid > 0) {
 		/* kill single process */
-		if ((p = pfind(uap->pid)) == NULL)
+		if ((p = pfind(uap->pid)) == NULL) {
+			if ((p = zpfind(uap->pid)) != NULL) {
+				/*
+				 * IEEE Std 1003.1-2001: return success
+				 * when killing a zombie.
+				 */
+				PROC_UNLOCK(p);
+				return (0);
+			}
 			return (ESRCH);
+		}
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
