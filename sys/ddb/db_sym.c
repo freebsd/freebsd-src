@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.4 1994/01/03 07:54:10 davidg Exp $
+ *	$Id: db_sym.c,v 1.5 1994/08/13 03:49:23 wollman Exp $
  */
 
 /*
@@ -315,10 +315,10 @@ db_printsym(off, strategy)
 
 boolean_t
 db_line_at_pc( sym, filename, linenum, pc)
-	int sym;
-	int filename;
-	int linenum;
-	int pc;
+	db_sym_t	sym;
+	char		**filename;
+	int		*linenum;
+	db_expr_t	pc;
 {
 	return X_db_line_at_pc( db_last_symtab, sym, filename, linenum, pc);
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id$
+ * $Id: lfs_bio.c,v 1.3 1994/08/02 07:54:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -167,7 +167,6 @@ lfs_check(vp, blkno)
 	struct vnode *vp;
 	daddr_t blkno;
 {
-	extern int lfs_allclean_wakeup;
 	int error;
 
 	error = 0;

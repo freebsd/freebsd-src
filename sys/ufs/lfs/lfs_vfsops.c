@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id$
+ * $Id: lfs_vfsops.c,v 1.3 1994/08/02 07:54:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -193,7 +193,6 @@ lfs_mountfs(devvp, mp, p)
 	struct mount *mp;
 	struct proc *p;
 {
-	extern struct vnode *rootvp;
 	register struct lfs *fs;
 	register struct ufsmount *ump;
 	struct vnode *vp;

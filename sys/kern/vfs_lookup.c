@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.2 1994/08/02 07:43:25 davidg Exp $
+ * $Id: vfs_lookup.c,v 1.3 1994/08/18 22:35:08 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -106,10 +106,10 @@ namei(ndp)
 		MALLOC(cnp->cn_pnbuf, caddr_t, MAXPATHLEN, M_NAMEI, M_WAITOK);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf,
-			    MAXPATHLEN, &ndp->ni_pathlen);
+			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
 	else
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
-			    MAXPATHLEN, &ndp->ni_pathlen);
+			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
 	if (error) {
 		free(cnp->cn_pnbuf, M_NAMEI);
 		ndp->ni_vp = NULL;
