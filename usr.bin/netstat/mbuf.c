@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.7 1997/07/29 06:51:40 charnier Exp $";
+	"$Id: mbuf.c,v 1.8 1997/08/17 09:12:43 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -144,7 +144,7 @@ mbpr(mbaddr)
 	totfree = mbstat.m_clfree * MCLBYTES + 
 		MSIZE * (mbstat.m_mbufs - totmbufs);
 	printf("%u Kbytes allocated to network (%d%% in use)\n",
-		totmem / 1024, (totmem - totfree) * 100 / totmem);
+		totmem / 1024, (unsigned) (totmem - totfree) * 100 / totmem);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
 	printf("%lu requests for memory delayed\n", mbstat.m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
