@@ -32,7 +32,9 @@
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -51,6 +53,25 @@
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/atapi-all.h>
 
+/* device structures */
+static  d_ioctl_t       ataioctl;
+static struct cdevsw ata_cdevsw = {  
+	/* open */	nullopen,
+	/* close */	nullclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	ataioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"ata",
+	/* maj */	159,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* bmaj */	-1
+};
+
 /* prototypes */
 static void ata_boot_attach(void);
 static void ata_intr(void *);
@@ -60,13 +81,13 @@ static char *active2str(int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
+static void ata_change_mode(struct ata_softc *, int, int);
 
 /* global vars */
 devclass_t ata_devclass;
 
 /* local vars */
 static struct intr_config_hook *ata_delayed_attach = NULL;
-static char ata_conf[256];
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 /* misc defines */
@@ -243,6 +264,10 @@ ata_detach(device_t dev)
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_BMADDR_RID, scp->r_bmio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, scp->r_altio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, scp->r_io);
+    scp->r_io = NULL;
+    scp->r_altio = NULL;
+    scp->r_bmio = NULL;
+    scp->r_irq = NULL;
     scp->active = ATA_IDLE;
     return 0;
 }
@@ -254,6 +279,124 @@ ata_resume(device_t dev)
 
     ata_reinit(scp);
     return 0;
+}
+
+static int
+ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
+{
+    int error = 0;
+
+    switch (cmd) {
+	case ATAATTACH: {
+	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
+	    /* should enable channel HW on controller that can SOS XXX */   
+	    if (!device)
+		error = ENXIO;
+	    if (!error)
+		error = ata_probe(device);
+	    if (!error)
+		error = ata_attach(device);
+	    break;
+	}
+
+	case ATADETACH: {
+	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
+	    if (!device)
+		error = ENXIO;
+	    if (!error)
+		error = ata_detach(device);
+	    /* should disable channel HW on controller that can SOS XXX */   
+	    break;
+	}
+
+	case ATAREINIT: {
+	    device_t device = devclass_get_device(ata_devclass, *(int *)addr);
+	    struct ata_softc *scp;
+	    int s;
+
+	    if (!device)
+		return ENXIO;
+	    scp = device_get_softc(device);
+	    if (!scp)
+		return ENXIO;
+
+	    /* make sure channel is not busy SOS XXX */
+	    s = splbio();
+	    while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
+        	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
+	    splx(s);
+	    error = ata_reinit(scp);
+	    break;
+	}
+
+	case ATAGMODE: {
+	    struct ata_modes *mode = (struct ata_modes *)addr;
+	    device_t device = devclass_get_device(ata_devclass, mode->channel);
+	    struct ata_softc *scp;
+
+	    if (!device)
+		return ENXIO;
+	    scp = device_get_softc(device);
+	    if (!scp)
+		return ENXIO;
+	    mode->mode[MASTER] = scp->mode[MASTER];
+	    mode->mode[SLAVE] = scp->mode[SLAVE];
+	    break;
+	}
+
+	case ATASMODE: {
+	    struct ata_modes *mode = (struct ata_modes *)addr;
+	    device_t device = devclass_get_device(ata_devclass, mode->channel);
+	    struct ata_softc *scp;
+
+	    if (!device)
+		return ENXIO;
+	    scp = device_get_softc(device);
+	    if (!scp)
+		return ENXIO;
+	    if (mode->mode[MASTER] >= 0)
+		ata_change_mode(scp, ATA_MASTER, mode->mode[MASTER]);
+	    if (mode->mode[SLAVE] >= 0)
+		ata_change_mode(scp, ATA_SLAVE, mode->mode[SLAVE]);
+	    mode->mode[MASTER] = scp->mode[MASTER];
+	    mode->mode[SLAVE] = scp->mode[SLAVE];
+	    break;
+	}
+
+	case ATAGPARM: {
+	    struct ata_param *parm = (struct ata_param *)addr;
+	    device_t device = devclass_get_device(ata_devclass, parm->channel);
+	    struct ata_softc *scp;
+
+	    if (!device)
+		return ENXIO;
+	    scp = device_get_softc(device);
+	    if (!scp)
+		return ENXIO;
+
+	    parm->type[MASTER] = 
+		scp->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
+	    parm->type[SLAVE] =
+		scp->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
+
+	    if (scp->dev_name[MASTER])
+		strcpy(parm->name[MASTER], scp->dev_name[MASTER]);
+	    if (scp->dev_name[SLAVE])
+		strcpy(parm->name[SLAVE], scp->dev_name[SLAVE]);
+
+	    if (scp->dev_param[MASTER])
+		bcopy(scp->dev_param[MASTER], &parm->params[MASTER],
+		      sizeof(struct ata_params));
+	    if (scp->dev_param[SLAVE])
+		bcopy(scp->dev_param[SLAVE], &parm->params[SLAVE],
+		      sizeof(struct ata_params));
+	    break;
+	}
+
+	default:
+	    error = ENOTTY;
+    }
+    return error;
 }
 
 static int
@@ -612,6 +755,8 @@ ata_reinit(struct ata_softc *scp)
 {
     int devices, misdev, newdev;
 
+    if (!scp->r_io || !scp->r_altio || !scp->r_irq)
+	return ENXIO;
     scp->active = ATA_REINITING;
     scp->running = NULL;
     devices = scp->devices;
@@ -619,6 +764,8 @@ ata_reinit(struct ata_softc *scp)
     ata_reset(scp);
 
     if ((misdev = devices & ~scp->devices)) {
+	if (misdev)
+	    printf("\n");
 #ifdef DEV_ATADISK
 	if (misdev & ATA_ATA_MASTER && scp->dev_softc[MASTER])
 	    ad_detach(scp->dev_softc[MASTER], 0);
@@ -653,10 +800,10 @@ ata_reinit(struct ata_softc *scp)
 	if (newdev & ATA_ATAPI_SLAVE)
 	    if (ata_getparam(scp, ATA_SLAVE, ATA_C_ATAPI_IDENTIFY))
 		newdev &= ~ATA_ATAPI_SLAVE;
-	if (newdev)
-	    printf("\n");
     }
     scp->active = ATA_IDLE;
+    if (!misdev && newdev)
+	printf("\n");
 #ifdef DEV_ATADISK
     if (newdev & ATA_ATA_MASTER && !scp->dev_softc[MASTER])
 	ad_attach(scp, ATA_MASTER);
@@ -834,6 +981,21 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
     return error;
 }
 
+void
+ata_set_name(struct ata_softc *scp, int device, char *name)
+{
+    scp->dev_name[ATA_DEV(device)] = malloc(strlen(name) + 1, M_ATA, M_NOWAIT);
+    if (scp->dev_name[ATA_DEV(device)])
+	strcpy(scp->dev_name[ATA_DEV(device)], name);
+}
+
+void
+ata_free_name(struct ata_softc *scp, int device)
+{
+    if (scp->dev_name[ATA_DEV(device)])
+	free(scp->dev_name[ATA_DEV(device)], M_ATA);
+}
+    
 int
 ata_get_lun(u_int32_t *map)
 {
@@ -863,9 +1025,13 @@ ata_printf(struct ata_softc *scp, int device, const char * fmt, ...)
 
     if (device == -1)
 	ret = printf("ata%d: ", device_get_unit(scp->dev));
-    else
-	ret = printf("ata%d-%s: ", device_get_unit(scp->dev),
-		     (device == ATA_MASTER) ? "master" : "slave");
+    else {
+	if (scp->dev_name[ATA_DEV(device)])
+	    ret = printf("%s: ", scp->dev_name[ATA_DEV(device)]);
+	else
+	    ret = printf("ata%d-%s: ", device_get_unit(scp->dev),
+			 (device == ATA_MASTER) ? "master" : "slave");
+    }
     va_start(ap, fmt);
     ret += vprintf(fmt, ap);
     va_end(ap);
@@ -1029,72 +1195,45 @@ bpack(int8_t *src, int8_t *dst, int len)
 static void
 ata_change_mode(struct ata_softc *scp, int device, int mode)
 {
+    int umode, wmode, pmode;
     int s = splbio();
 
     while (!atomic_cmpset_int(&scp->active, ATA_IDLE, ATA_ACTIVE))
 	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
 
-    ata_dmainit(scp, device, ata_pmode(ATA_PARAM(scp, device)),
-		mode < ATA_DMA ?  -1 : ata_wmode(ATA_PARAM(scp, device)),
-		mode < ATA_DMA ?  -1 : ata_umode(ATA_PARAM(scp, device)));
+    umode = ata_umode(ATA_PARAM(scp, device));
+    wmode = ata_wmode(ATA_PARAM(scp, device));
+    pmode = ata_pmode(ATA_PARAM(scp, device));
+    
+    switch (mode & ATA_DMA_MASK) {
+    case ATA_UDMA:
+	if ((mode & ATA_MODE_MASK) < umode)
+	    umode = mode & ATA_MODE_MASK;
+	break;
+    case ATA_WDMA:
+	if ((mode & ATA_MODE_MASK) < wmode)
+	    wmode = mode & ATA_MODE_MASK;
+	umode = -1;
+	break;
+    default:
+	if (((mode & ATA_MODE_MASK) - ATA_PIO0) < pmode)
+	    pmode = (mode & ATA_MODE_MASK) - ATA_PIO0;
+	umode = -1;
+	wmode = -1;
+    }
+    ata_dmainit(scp, device, pmode, wmode, umode);
+
     scp->active = ATA_IDLE;
     ata_start(scp);
     splx(s);
 }
 
-static int
-sysctl_hw_ata(SYSCTL_HANDLER_ARGS)
-{
-    struct ata_softc *scp;
-    int ctlr, error, i;
-
-    /* readout internal state */
-    bzero(ata_conf, sizeof(ata_conf));
-    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
-	if (!(scp = devclass_get_softc(ata_devclass, ctlr)))
-	    continue;
-	for (i = 0; i < 2; i++) {
-	    if (!scp->dev_softc[i])
-		strcat(ata_conf, "---,");
-	    else if (scp->mode[i] >= ATA_DMA)
-		strcat(ata_conf, "dma,");
-	    else
-		strcat(ata_conf, "pio,");
-	}
-    }
-    error = sysctl_handle_string(oidp, ata_conf, sizeof(ata_conf), req);   
-    if (error == 0 && req->newptr != NULL) {
-	char *ptr = ata_conf;
-
-        /* update internal state */
-	i = 0;
-        while (*ptr) {
-	    if (!strncmp(ptr, "pio", 3) || !strncmp(ptr, "PIO", 3)) {
-		if ((scp = devclass_get_softc(ata_devclass, i >> 1)) &&
-		    scp->dev_softc[i & 1] && scp->mode[i & 1] >= ATA_DMA)
-		    ata_change_mode(scp, (i & 1)?ATA_SLAVE:ATA_MASTER, ATA_PIO);
-	    }
-	    else if (!strncmp(ptr, "dma", 3) || !strncmp(ptr, "DMA", 3)) {
-		if ((scp = devclass_get_softc(ata_devclass, i >> 1)) &&
-		    scp->dev_softc[i & 1] && scp->mode[i & 1] < ATA_DMA)
-		    ata_change_mode(scp, (i & 1)?ATA_SLAVE:ATA_MASTER, ATA_DMA);
-	    }
-	    else if (strncmp(ptr, "---", 3))
-		break;
-	    ptr+=3;
-	    if (*ptr++ != ',' ||
-		++i > (devclass_get_maxunit(ata_devclass) << 1))
-		break; 
-        }
-    }
-    return error;
-}
-SYSCTL_PROC(_hw, OID_AUTO, atamodes, CTLTYPE_STRING | CTLFLAG_RW,
-            0, sizeof(ata_conf), sysctl_hw_ata, "A", "");
-
 static void
 ata_init(void)
 {
+    /* register controlling device */
+    make_dev(&ata_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0666, "ata");
+
     /* register boot attach to be run when interrupts are enabled */
     if (!(ata_delayed_attach = (struct intr_config_hook *)
 			       malloc(sizeof(struct intr_config_hook),

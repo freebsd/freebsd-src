@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
@@ -90,6 +91,7 @@ astattach(struct atapi_softc *atp)
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
+    char name[16];
     static int ast_cdev_done = 0;
 
     if (!ast_cdev_done) {
@@ -98,7 +100,7 @@ astattach(struct atapi_softc *atp)
     }
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
-	printf("ast: out of memory\n");
+	ata_printf(atp->controller, atp->unit, "out of memory\n");
 	return -1;
     }
     bioq_init(&stp->queue);
@@ -141,8 +143,8 @@ astattach(struct atapi_softc *atp)
     stp->dev2 = dev;
     stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     stp->atp->driver = stp;
-    if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
-        sprintf(stp->atp->devname, "ast%d", stp->lun);
+    sprintf(name, "ast%d", stp->lun);
+    ata_set_name(atp->controller, atp->unit, name);
     ast_describe(stp);
     return 0;
 }
@@ -161,7 +163,7 @@ astdetach(struct atapi_softc *atp)
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
     devstat_remove_entry(&stp->stats);
-    free(stp->atp->devname, M_AST);
+    ata_free_name(atp->controller, atp->unit);
     ata_free_lun(&ast_lun_map, stp->lun);
     free(stp, M_AST);
 }
@@ -198,19 +200,20 @@ static void
 ast_describe(struct ast_softc *stp)
 {
     if (bootverbose) {
-	printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
-               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-               ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
-	       device_get_unit(stp->atp->controller->dev),
-	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave");
-	printf("ast%d: ", stp->lun);
-	printf("%dKB/s, ", stp->cap.max_speed);
+	ata_printf(stp->atp->controller, stp->atp->unit,
+		   "<%.40s/%.8s> tape drive at ata%d as %s\n",
+		   ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+		   ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
+		   device_get_unit(stp->atp->controller->dev),
+		   (stp->atp->unit == ATA_MASTER) ? "master" : "slave");
+	ata_printf(stp->atp->controller, stp->atp->unit, "%dKB/s, ",
+		   stp->cap.max_speed);
 	printf("transfer limit %d blk%s, ",
 	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
 	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
 	printf("%s\n", ata_mode2str(stp->atp->controller->mode[
                                      ATA_DEV(stp->atp->unit)]));
-	printf("ast%d: ", stp->lun);
+	ata_printf(stp->atp->controller, stp->atp->unit, "");
 	switch (stp->cap.medium_type) {
 	    case 0x00:
 		printf("Drive empty"); break;
@@ -240,12 +243,13 @@ ast_describe(struct ast_softc *stp)
 	printf("\n");
     }
     else {
-	printf("ast%d: TAPE <%.40s> at ata%d-%s %s\n",
-               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-	       device_get_unit(stp->atp->controller->dev),
-	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
-	       ata_mode2str(stp->atp->controller->mode[ATA_DEV(stp->atp->unit)])
-	       );
+	ata_printf(stp->atp->controller, stp->atp->unit,
+		   "TAPE <%.40s> at ata%d-%s %s\n",
+		   ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
+		   device_get_unit(stp->atp->controller->dev),
+		   (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
+		   ata_mode2str(stp->atp->controller->
+				mode[ATA_DEV(stp->atp->unit)]));
     }
 }
 
@@ -266,7 +270,8 @@ astopen(dev_t dev, int flags, int fmt, struct proc *p)
 	ast_prevent_allow(stp, 1);
 
     if (ast_sense(stp))
-	printf("ast%d: sense media type failed\n", stp->lun);
+	ata_printf(stp->atp->controller, stp->atp->unit,
+		   "sense media type failed\n");
 
     stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
@@ -297,7 +302,8 @@ astclose(dev_t dev, int flags, int fmt, struct proc *p)
 
     stp->flags &= F_CTL_WARN;
 #ifdef AST_DEBUG
-    printf("ast%d: %llu total bytes transferred\n", stp->lun, ast_total);
+    ata_printf(stp->atp->controller, stp->atp->unit,
+	       "%llu total bytes transferred\n", ast_total);
 #endif
     return 0;
 }
@@ -442,8 +448,8 @@ aststrategy(struct bio *bp)
 	
     /* check for != blocksize requests */
     if (bp->bio_bcount % stp->blksize) {
-	printf("ast%d: bad request, must be multiple of %d\n",
-	       stp->lun, stp->blksize);
+	ata_printf(stp->atp->controller, stp->atp->unit,
+		   "bad request, must be multiple of %d\n", stp->blksize);
 	bp->bio_error = EIO;
 	bp->bio_flags |= BIO_ERROR;
 	biodone(bp);
@@ -453,8 +459,9 @@ aststrategy(struct bio *bp)
     /* warn about transfers bigger than the device suggests */
     if (bp->bio_bcount > stp->blksize * stp->cap.ctl) {  
 	if ((stp->flags & F_CTL_WARN) == 0) {
-	    printf("ast%d: WARNING: CTL exceeded %ld>%d\n", 
-		    stp->lun, bp->bio_bcount, stp->blksize * stp->cap.ctl);
+	    ata_printf(stp->atp->controller, stp->atp->unit,
+		       "WARNING: CTL exceeded %ld>%d\n",
+		       bp->bio_bcount, stp->blksize * stp->cap.ctl);
 	    stp->flags |= F_CTL_WARN;
 	}
     }
@@ -541,8 +548,9 @@ ast_mode_select(struct ast_softc *stp, void *pagebuf, int pagesize)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
      
 #ifdef AST_DEBUG
-    printf("ast: modeselect pagesize=%d\n", pagesize);
-    atapi_dump("ast: mode select ", pagebuf, pagesize);
+    ata_printf(stp->atp->controller, stp->atp->unit, 
+	       "modeselect pagesize=%d\n", pagesize);
+    atapi_dump("mode select ", pagebuf, pagesize);
 #endif
     return atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, 0, 10,
 			   NULL, NULL);

@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -107,6 +108,7 @@ acdattach(struct atapi_softc *atp)
     struct acd_softc *cdp;
     struct changer *chp;
     int count, error = 0;
+    char name[16];
     static int acd_cdev_done = 0;
 
     if (!acd_cdev_done) {
@@ -116,7 +118,7 @@ acdattach(struct atapi_softc *atp)
     }
 
     if ((cdp = acd_init_lun(atp, NULL)) == NULL) {
-	printf("acd: out of memory\n");
+	ata_printf(atp->controller, atp->unit, "acd: out of memory\n");
 	return -1;
     }
 
@@ -146,7 +148,7 @@ acdattach(struct atapi_softc *atp)
 
 	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT | M_ZERO);
 	if (chp == NULL) {
-	    printf("acd: out of memory\n");
+	    ata_printf(atp->controller, atp->unit, "out of memory\n");
 	    free(cdp, M_ACD);
 	    return -1;
 	}
@@ -158,12 +160,11 @@ acdattach(struct atapi_softc *atp)
 	    struct acd_softc *tmpcdp = cdp;
 	    struct acd_softc **cdparr;
 	    int count;
-	    char string[16];
 
 	    chp->table_length = htons(chp->table_length);
 	    if (!(cdparr = malloc(sizeof(struct acd_softc) * chp->slots,
 				 M_ACD, M_NOWAIT))) {
-		printf("acd: out of memory\n");
+		ata_printf(atp->controller, atp->unit, "out of memory\n");
 		free(chp, M_ACD);
 		free(cdp, M_ACD);
 		return -1;
@@ -172,7 +173,7 @@ acdattach(struct atapi_softc *atp)
 		if (count > 0) {
 		    tmpcdp = acd_init_lun(atp, cdp->stats);
 		    if (!tmpcdp) {
-			printf("acd: out of memory\n");
+			ata_printf(atp->controller,atp->unit,"out of memory\n");
 			break;
 		    }
 		}
@@ -180,20 +181,14 @@ acdattach(struct atapi_softc *atp)
 		tmpcdp->driver = cdparr;
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
-		if (bootverbose)
-		    printf("acd%d: changer slot %d %s\n", tmpcdp->lun, count,
-			   (chp->slot[count].present ? "CD present" : "empty"));
 	        acd_make_dev(tmpcdp);
 	    }
-	    sprintf(string, "acd%d-%d", cdp->lun, 
+	    sprintf(name, "acd%d-%d", cdp->lun, 
 		    cdp->lun + cdp->changer_info->slots - 1);
-	    devstat_add_entry(cdp->stats, string, tmpcdp->lun, DEV_BSIZE,
+	    devstat_add_entry(cdp->stats, name, tmpcdp->lun, DEV_BSIZE,
 			      DEVSTAT_NO_ORDERED_TAGS,
 			      DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			      DEVSTAT_PRIORITY_CD);
-    	    if ((cdp->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
-       		sprintf(cdp->atp->devname, "acd%d-%d", cdp->lun, 
-			cdp->lun + cdp->changer_info->slots - 1);
 	}
     }
     else {
@@ -202,8 +197,8 @@ acdattach(struct atapi_softc *atp)
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
-    	if ((cdp->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
-       	    sprintf(cdp->atp->devname, "acd%d", cdp->lun);
+       	sprintf(name, "acd%d", cdp->lun);
+	ata_set_name(atp->controller, atp->unit, name);
     }
     cdp->atp->driver = cdp;
     acd_describe(cdp);
@@ -230,7 +225,6 @@ acddetach(struct atapi_softc *atp)
 	    destroy_dev(cdp->dev2);
 	    devstat_remove_entry(cdp->stats);
 	    free(cdp->stats, M_ACD);
-	    free(cdp->atp->devname, M_ACD);
 	    ata_free_lun(&acd_lun_map, cdp->lun);
 	    free(cdp, M_ACD);
 	}
@@ -246,7 +240,7 @@ acddetach(struct atapi_softc *atp)
     destroy_dev(cdp->dev2);
     devstat_remove_entry(cdp->stats);
     free(cdp->stats, M_ACD);
-    free(cdp->atp->devname, M_ACD);
+    ata_free_name(atp->controller, atp->unit);
     ata_free_lun(&acd_lun_map, cdp->lun);
     free(cdp, M_ACD);
 }
@@ -322,20 +316,21 @@ acd_describe(struct acd_softc *cdp)
     char *mechanism;
 
     if (bootverbose) {
-	printf("acd%d: <%.40s/%.8s> %s drive at ata%d as %s\n",
-	       cdp->lun, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
-	       ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->revision,
-	       (cdp->cap.write_dvdr) ? "DVD-R" : 
-		(cdp->cap.write_dvdram) ? "DVD-RAM" : 
-		 (cdp->cap.write_cdrw) ? "CD-RW" :
-		  (cdp->cap.write_cdr) ? "CD-R" : 
-		   (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
-	       device_get_unit(cdp->atp->controller->dev),
-	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave");
+	ata_printf(cdp->atp->controller, cdp->atp->unit,
+		   "<%.40s/%.8s> %s drive at ata%d as %s\n",
+		   ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
+		   ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->revision,
+		   (cdp->cap.write_dvdr) ? "DVD-R" : 
+		    (cdp->cap.write_dvdram) ? "DVD-RAM" : 
+		     (cdp->cap.write_cdrw) ? "CD-RW" :
+		      (cdp->cap.write_cdr) ? "CD-R" : 
+		       (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
+		   device_get_unit(cdp->atp->controller->dev),
+		   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave");
 
-	printf("acd%d:", cdp->lun);
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "");
 	if (cdp->cap.cur_read_speed) {
-	    printf(" read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
+	    printf("read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
 	    if (cdp->cap.max_read_speed) 
 		printf(" (%dKB/s)", cdp->cap.max_read_speed * 1000 / 1024);
 	    if ((cdp->cap.cur_write_speed) &&
@@ -355,7 +350,7 @@ acd_describe(struct acd_softc *cdp)
 	       comma ? "," : "", ata_mode2str(
 		cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)]));
 
-	printf("acd%d: Reads:", cdp->lun);
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "Reads:");
 	comma = 0;
 	if (cdp->cap.read_cdr) {
 	    printf(" CD-R"); comma = 1;
@@ -382,9 +377,10 @@ acd_describe(struct acd_softc *cdp)
 	if (cdp->cap.read_packet)
 	    printf("%s packet", comma ? "," : "");
 
+	printf("\n");
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "Writes:");
 	if (cdp->cap.write_cdr || cdp->cap.write_cdrw || 
 	    cdp->cap.write_dvdr || cdp->cap.write_dvdram) {
-	    printf("\nacd%d: Writes:", cdp->lun);
 	    comma = 0;
 	    if (cdp->cap.write_cdr) {
 		printf(" CD-R" ); comma = 1;
@@ -404,14 +400,16 @@ acd_describe(struct acd_softc *cdp)
 	    if (cdp->cap.burnproof)
 		printf("%s burnproof", comma ? "," : "");
 	}
+	printf("\n");
 	if (cdp->cap.audio_play) {
-	    printf("\nacd%d: Audio: ", cdp->lun);
+	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Audio:");
 	    if (cdp->cap.audio_play)
 		printf("play");
 	    if (cdp->cap.max_vol_levels)
 		printf(", %d volume levels", cdp->cap.max_vol_levels);
 	}
-	printf("\nacd%d: Mechanism: ", cdp->lun);
+	printf("\n");
+	ata_printf(cdp->atp->controller, cdp->atp->unit, "Mechanism:");
 	switch (cdp->cap.mech) {
 	case MST_MECH_CADDY:
 	    mechanism = "caddy"; break;
@@ -432,7 +430,7 @@ acd_describe(struct acd_softc *cdp)
 	    printf("ejectable");
 
 	if (cdp->cap.mech != MST_MECH_CHANGER) {
-	    printf("\nacd%d: Medium: ", cdp->lun);
+	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Medium:");
 	    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
 	    case MST_CDROM:
 		printf("CD-ROM "); break;
@@ -486,28 +484,24 @@ acd_describe(struct acd_softc *cdp)
 	printf("\n");
     }
     else {
-	char changer[32];
-	char devnum[8];
+	char chg[32];
 
-	bzero(changer, sizeof(changer));
-	if (cdp->changer_info) {
-	    sprintf(devnum, "%d-%d",
-		    cdp->lun, cdp->lun + cdp->changer_info->slots - 1);
-	    sprintf(changer, " with %d CD changer", cdp->changer_info->slots);
-	}
-	else
-	    sprintf(devnum, "%d", cdp->lun);
+	bzero(chg, sizeof(chg));
+	if (cdp->changer_info)
+	    sprintf(chg, " with %d CD changer", cdp->changer_info->slots);
 
-	printf("acd%s: %s%s <%.40s> at ata%d-%s %s\n",
-	       devnum, (cdp->cap.write_dvdr) ? "DVD-R" : 
-			(cdp->cap.write_dvdram) ? "DVD-RAM" : 
-			 (cdp->cap.write_cdrw) ? "CD-RW" :
-			  (cdp->cap.write_cdr) ? "CD-R" : 
-			   (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
-	       changer, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
-	       device_get_unit(cdp->atp->controller->dev),
-	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
-	       ata_mode2str(cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)])
+	ata_printf(cdp->atp->controller, cdp->atp->unit,
+		   "%s%s <%.40s> at ata%d-%s %s\n",
+		   (cdp->cap.write_dvdr) ? "DVD-R" : 
+		    (cdp->cap.write_dvdram) ? "DVD-RAM" : 
+		     (cdp->cap.write_cdrw) ? "CD-RW" :
+		      (cdp->cap.write_cdr) ? "CD-R" : 
+		       (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
+		   chg, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
+		   device_get_unit(cdp->atp->controller->dev),
+		   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
+		   ata_mode2str(cdp->atp->controller->
+				mode[ATA_DEV(cdp->atp->unit)])
 	       );
     }
 }
@@ -1316,8 +1310,9 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(&cdp->disklabel, sizeof(struct disklabel));
     strncpy(cdp->disklabel.d_typename, "               ", 
     	    sizeof(cdp->disklabel.d_typename));
-    strncpy(cdp->disklabel.d_typename, cdp->atp->devname, 
-    	    min(strlen(cdp->atp->devname),
+    strncpy(cdp->disklabel.d_typename,
+	    cdp->atp->controller->dev_name[ATA_DEV(cdp->atp->unit)], 
+    	    min(strlen(cdp->atp->controller->dev_name[ATA_DEV(cdp->atp->unit)]),
 		sizeof(cdp->disklabel.d_typename) - 1));
     strncpy(cdp->disklabel.d_packname, "unknown        ", 
     	    sizeof(cdp->disklabel.d_packname));
@@ -1340,15 +1335,15 @@ acd_read_toc(struct acd_softc *cdp)
 
 #ifdef ACD_DEBUG
     if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
-	printf("acd%d: ", cdp->lun);
+	ata_printf(cdp->atp->controller, cdp->atp->unit,
+		   "(%d sectors (%d bytes)), %d tracks ", 
+		   cdp->info.volsize, cdp->info.blksize,
+		   cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
 	if (cdp->toc.tab[0].control & 4)
-	    printf("%dMB ", cdp->info.volsize / 512);
+	    printf("%dMB\n", cdp->info.volsize / 512);
 	else
-	    printf("%d:%d audio ", cdp->info.volsize / 75 / 60,
+	    printf("%d:%d audio\n", cdp->info.volsize / 75 / 60,
 		cdp->info.volsize / 75 % 60);
-	printf("(%d sectors (%d bytes)), %d tracks\n", 
-	    cdp->info.volsize, cdp->info.blksize,
-	    cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
     }
 #endif
 }
@@ -1895,8 +1890,9 @@ acd_mode_select(struct acd_softc *cdp, caddr_t pagebuf, int pagesize)
 		     pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
 
 #ifdef ACD_DEBUG
-    printf("acd: modeselect pagesize=%d\n", pagesize);
-    atapi_dump("acd: mode select ", pagebuf, pagesize);
+    ata_printf(cdp->atp->controller, cdp->atp->unit,
+	       "modeselect pagesize=%d\n", pagesize);
+    atapi_dump("mode select ", pagebuf, pagesize);
 #endif
     return atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, 0, 30, NULL, NULL);
 }
