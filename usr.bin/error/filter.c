@@ -32,16 +32,20 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)filter.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <pwd.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <pwd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "error.h"
 #include "pathnames.h"
 
@@ -52,12 +56,14 @@ char	*lint_libs[] = {
 	IG_FILE4,
 	0
 };
-extern	char*	processname;
+
 int	lexsort();
+
 /*
  *	Read the file ERRORNAME of the names of functions in lint
  *	to ignore complaints about.
  */
+void
 getignored(auxname)
 	char	*auxname;
 {
@@ -91,8 +97,7 @@ getignored(auxname)
 #endif
 	if ( (fyle = fopen(filename, "r")) == NULL){
 #ifdef FULLDEBUG
-		fprintf(stderr, "%s: Can't open file \"%s\"\n",
-			processname, filename);
+		warnx("can't open file \"%s\"", filename);
 #endif
 		return;
 	}
@@ -105,8 +110,7 @@ getignored(auxname)
 	fclose(fyle);
 	if (freopen(filename, "r", fyle) == NULL){
 #ifdef FULLDEBUG
-		fprintf(stderr, "%s: Failure to open \"%s\" for second read.\n",
-			processname, filename);
+		warnx("failure to open \"%s\" for second read", filename);
 #endif
 		nignored = 0;
 		return;
