@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.11 2000/05/10 22:32:51 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.12 2000/11/24 03:41:42 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -90,14 +90,31 @@ complete_rqe(struct buf *bp)
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
 	SD[rqe->sdno].lasterror = rq->error;
 	if (bp->b_flags & B_READ) {
-	    log(LOG_ERR, "%s: fatal read I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR,
+		"%s: fatal read I/O error, block %d for %ld bytes\n",
+		SD[rqe->sdno].name,
+		bp->b_blkno,
+		bp->b_bcount);
 	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
-	    log(LOG_ERR, "%s: fatal write I/O error\n", SD[rqe->sdno].name);
+	    log(LOG_ERR,
+		"%s: fatal write I/O error, block %d for %ld bytes\n",
+		SD[rqe->sdno].name,
+		bp->b_blkno,
+		bp->b_bcount);
 	    set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
 	}
+	log(LOG_ERR,
+	    "%s: user buffer block %d for %ld bytes\n",
+	    SD[rqe->sdno].name,
+	    ubp->b_blkno,
+	    ubp->b_bcount);
 	if (rq->error == ENXIO) {			    /* the drive's down too */
-	    log(LOG_ERR, "%s: fatal drive I/O error\n", DRIVE[rqe->driveno].label.name);
+	    log(LOG_ERR,
+		"%s: fatal drive I/O error, block %d for %ld bytes\n",
+		DRIVE[rqe->driveno].label.name,
+		bp->b_blkno,
+		bp->b_bcount);
 	    DRIVE[rqe->driveno].lasterror = rq->error;
 	    set_drive_state(rqe->driveno,		    /* take the drive down */
 		drive_down,
@@ -209,10 +226,15 @@ freerq(struct request *rq)
     for (rqg = rq->rqg; rqg != NULL; rqg = nrqg) {	    /* through the whole request chain */
 	if (rqg->lock)					    /* got a lock? */
 	    unlockrange(rqg->plexno, rqg->lock);	    /* yes, free it */
-	for (rqno = 0; rqno < rqg->count; rqno++)
+	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    if ((rqg->rqe[rqno].flags & XFR_MALLOCED)	    /* data buffer was malloced, */
 	    &&rqg->rqe[rqno].b.b_data)			    /* and the allocation succeeded */
 		Free(rqg->rqe[rqno].b.b_data);		    /* free it */
+	    if (rqg->rqe[rqno].flags & XFR_BUFLOCKED) {	    /* locked this buffer, */
+		BUF_UNLOCK(&rqg->rqe[rqno].b);		    /* unlock it again */
+		BUF_LOCKFREE(&rqg->rqe[rqno].b);
+	    }
+	}
 	nrqg = rqg->next;				    /* note the next one */
 	Free(rqg);					    /* and free this one */
     }
@@ -248,6 +270,8 @@ sdio_done(struct buf *bp)
 	SD[sbp->sdno].bytes_written += sbp->b.b_bcount;
     }
     biodone(sbp->bp);					    /* complete the caller's I/O */
+    BUF_UNLOCK(&sbp->b);
+    BUF_LOCKFREE(&sbp->b);
     Free(sbp);
 }
 

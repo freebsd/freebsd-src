@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.12 2000/03/01 03:03:53 grog Exp grog $
+ * $Id: commands.c,v 1.14 2000/11/14 20:01:23 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -44,7 +44,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <libutil.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <stdio.h>
@@ -543,7 +542,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
+	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
@@ -598,7 +597,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 			 * here.
 			 */
 			message->index = plex.plexno;	    /* pass object number */
-			message->type = plex_object;	    /* it's a subdisk */
+			message->type = plex_object;	    /* it's a plex */
 			message->state = object_up;
 			message->force = 0;		    /* don't force it */
 			ioctl(superdev, VINUM_SETSTATE, message);
@@ -924,6 +923,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     const char *supername = argv[1];
     int sdno = -1;
     int plexno = -1;
+    char oldname[MAXNAME + 8];
     char newname[MAXNAME + 8];
     int rename = 0;					    /* set if we want to rename the object */
 
@@ -1017,7 +1017,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 		    break;
 	    }
 	    sprintf(newname, "%s.s%d", plex.name, sdno);
-	    vinum_rename_2(sd.name, newname);
+	    sprintf(oldname, "%s", sd.name);
+	    vinum_rename_2(oldname, newname);
 	    break;
 
 	case plex_object:
@@ -1028,7 +1029,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 		    break;
 	    }
 	    sprintf(newname, "%s.p%d", vol.name, plexno);
-	    vinum_rename_2(plex.name, newname);		    /* this may recurse */
+	    sprintf(oldname, "%s", plex.name);
+	    vinum_rename_2(oldname, newname);		    /* this may recurse */
 	    break;
 
 	default:					    /* can't get here */

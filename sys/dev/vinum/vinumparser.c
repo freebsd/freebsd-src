@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.20 2000/04/22 05:32:50 grog Exp grog $
+ * $Id: vinumparser.c,v 1.21 2000/12/20 03:44:13 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -58,30 +58,25 @@
  */
 
 #include <sys/param.h>
+#include <dev/vinum/vinumkw.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
-#else
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#endif
+#include <sys/conf.h>
 #include <machine/setjmp.h>
 /* All this mess for a single struct definition */
 #include <sys/uio.h>
 #include <sys/namei.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
-#include <sys/conf.h>
 
 #include <dev/vinum/vinumvar.h>
-#include <dev/vinum/vinumkw.h>
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumext.h>
-
-#ifdef _KERNEL
 #define iswhite(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
-#else /* get it from the headers */
+#else /* userland */
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #define iswhite isspace					    /* use the ctype macro */
 #endif
 

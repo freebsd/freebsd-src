@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.23 2000/03/01 02:38:55 grog Exp grog $
+ * $Id: list.c,v 1.25 2000/12/20 03:38:43 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -86,13 +86,13 @@ roughlength(int64_t bytes, int lj)
     static char description[16];
 
     if (bytes > (int64_t) MEGABYTE * 10000)		    /* gigabytes */
-	sprintf(description, lj ? "%d GB" : "%10d GB", bytes / GIGABYTE);
+	sprintf(description, lj ? "%lld GB" : "%10d GB", bytes / GIGABYTE);
     else if (bytes > KILOBYTE * 10000)			    /* megabytes */
-	sprintf(description, lj ? "%d MB" : "%10d MB", bytes / MEGABYTE);
+	sprintf(description, lj ? "%lld MB" : "%10d MB", bytes / MEGABYTE);
     else if (bytes > 10000)				    /* kilobytes */
-	sprintf(description, lj ? "%d kB" : "%10d kB", bytes / KILOBYTE);
+	sprintf(description, lj ? "%lld kB" : "%10d kB", bytes / KILOBYTE);
     else						    /* bytes */
-	sprintf(description, lj ? "%d  B" : "%10d  B", bytes);
+	sprintf(description, lj ? "%lld  B" : "%10d  B", bytes);
     return description;
 }
 
@@ -999,26 +999,23 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_lockwait:
-		printf("%s Lockwait  %p\t%d\t  0x%x\n",
+		printf("%s Lockwait  %p\t  0x%x\n",
 		    timetext(&rq.timestamp),
 		    rq.bp,
-		    rq.info.lockinfo.plexno,
 		    rq.info.lockinfo.stripe);
 		break;
 
 	    case loginfo_lock:
-		printf("%s Lock      %p\t%d\t  0x%x\n",
+		printf("%s Lock      %p\t  0x%x\n",
 		    timetext(&rq.timestamp),
 		    rq.bp,
-		    rq.info.lockinfo.plexno,
 		    rq.info.lockinfo.stripe);
 		break;
 
 	    case loginfo_unlock:
-		printf("%s Unlock\t  %p\t%d\t  0x%x\n",
+		printf("%s Unlock\t  %p\t  0x%x\n",
 		    timetext(&rq.timestamp),
 		    rq.bp,
-		    rq.info.lockinfo.plexno,
 		    rq.info.lockinfo.stripe);
 		break;
 	    }
@@ -1250,7 +1247,7 @@ vinum_dumpconfig(int argc, char *argv[], char *argv0[])
 	    struct devstat *stat = &statinfo.dinfo->devices[i];
 
 	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
-&&((stat->device_type & DEVSTAT_TYPE_PASS) == 0)	    /* and not passthrough */
+	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
 	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
 		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
 		token[tokens] = enamelist;		    /* point to it */
@@ -1306,7 +1303,7 @@ dumpconfig(char *part)
 	}
 	for (partition = 'a'; partition < 'i'; partition++) {
 	    if ((partition != 'c')			    /* it's not the c partition */
-&&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
+	    &&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
 	    ||Verbose)) {				    /* or we're just plain curious */
 		sprintf(partid, "s%d%c", slice, partition);
 		found = check_drive(partname);		    /* try to open it */
@@ -1337,7 +1334,7 @@ dumpconfig(char *part)
 	}
 	for (partition = 'a'; partition < 'i'; partition++) { /* try the compatibility partition */
 	    if ((partition != 'c')			    /* it's not the c partition */
-&&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
+	    &&((label.d_partitions[partition - 'a'].p_fstype == FS_VINUM) /* and it's a Vinum partition */
 	    ||Verbose)) {				    /* or we're just plain curious */
 		sprintf(partid, "%c", partition);
 		found = check_drive(partname);		    /* try to open it */

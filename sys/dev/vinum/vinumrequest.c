@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.26 1999/12/30 07:38:33 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.30 2001/01/09 04:20:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -252,8 +252,7 @@ vinumstart(struct buf *bp, int reviveok)
 		diskaddr + (bp->b_bcount / DEV_BSIZE));
 	}
 
-	if ((status > REQUEST_RECOVERED)		    /* can't satisfy it */
-	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
+	if (status > REQUEST_RECOVERED) {		    /* can't satisfy it */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_flags |= B_ERROR;
@@ -280,14 +279,12 @@ vinumstart(struct buf *bp, int reviveok)
 		&diskstart,
 		bp->b_blkno + (bp->b_bcount / DEV_BSIZE));  /* build requests for the plex */
 	}
-	if ((status > REQUEST_RECOVERED)		    /* can't satisfy it */
-	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
+	if (status > REQUEST_RECOVERED) {		    /* can't satisfy it */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_flags |= B_ERROR;
 	    }
-	    if ((bp->b_flags & B_DONE) == 0)
-		biodone(bp);
+	    biodone(bp);
 	    freerq(rq);
 	    return -1;
 	}
@@ -493,7 +490,6 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_error = ENOMEM;
 		    bp->b_flags |= B_ERROR;
-		    biodone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -532,7 +528,6 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_error = ENOMEM;
 		    bp->b_flags |= B_ERROR;
-		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 	    }
@@ -577,7 +572,6 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_error = ENOMEM;
 		    bp->b_flags |= B_ERROR;
-		    biodone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -642,7 +636,6 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_error = ENOMEM;
 		    bp->b_flags |= B_ERROR;
-		    biodone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 		*diskaddr += rqe->datalen;		    /* look at the remainder */
@@ -804,8 +797,14 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     /* copy these flags from user bp */
     bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_READ | B_ASYNC);
     bp->b_flags |= B_CALL;				    /* inform us when it's done */
+#ifdef VINUMDEBUG
+    if (rqe->flags & XFR_BUFLOCKED)			    /* paranoia */
+	panic("build_rq_buffer: rqe already locked");	    /* XXX remove this when we're sure */
+#endif
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
+    BUF_KERNPROC(bp);
+    rqe->flags |= XFR_BUFLOCKED;
     bp->b_iodone = complete_rqe;
     /*
      * You'd think that we wouldn't need to even
@@ -865,7 +864,6 @@ abortrequest(struct request *rq, int error)
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
     bp->b_flags |= B_ERROR;
-    biodone(bp);
     return error;					    /* and give up */
 }
 
@@ -939,6 +937,7 @@ sdio(struct buf *bp)
     sbp->b.b_iodone = sdio_done;			    /* come here on completion */
     BUF_LOCKINIT(&sbp->b);				    /* get a lock for the buffer */
     BUF_LOCK(&sbp->b, LK_EXCLUSIVE);			    /* and lock it */
+    BUF_KERNPROC(&sbp->b);
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
@@ -948,6 +947,8 @@ sdio(struct buf *bp)
 	if (sbp->b.b_bcount <= 0) {			    /* nothing to transfer */
 	    bp->b_resid = bp->b_bcount;			    /* nothing transferred */
 	    biodone(bp);
+	    BUF_UNLOCK(&sbp->b);
+	    BUF_LOCKFREE(&sbp->b);
 	    Free(sbp);
 	    return;
 	}
@@ -1001,7 +1002,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-&&((bp->b_flags & B_READ) == 0)				    /* and it's a write */
+	&&((bp->b_flags & B_READ) == 0)			    /* and it's a write */
 	&&(!vol->flags & (VF_WLABEL | VF_LABELLING))) {	    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_flags |= B_ERROR;

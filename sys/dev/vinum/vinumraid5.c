@@ -38,7 +38,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumraid5.c,v 1.20 2000/05/10 22:31:38 grog Exp grog $
+ * $Id: vinumraid5.c,v 1.21 2001/01/09 04:21:27 grog Exp grog $
  * $FreeBSD$
  */
 #include <dev/vinum/vinumhdr.h>
@@ -469,7 +469,6 @@ bre5(struct request *rq,
 	if (rqg == NULL) {				    /* malloc failed */
 	    bp->b_error = ENOMEM;
 	    bp->b_flags |= B_ERROR;
-	    biodone(bp);
 	    return REQUEST_ENOMEM;
 	}
 	rqg->plexno = plexno;

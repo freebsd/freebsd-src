@@ -20,7 +20,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by Nan Yang Computer
- *      Services Limited.
+ *	Services Limited.
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -37,12 +37,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.25 2000/05/11 05:28:47 grog Exp grog $
+ * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
  * $FreeBSD$
  */
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
+
 /*
  * Some configuration maxima.  They're an enum because
  * we can't define global constants.  Sorry about that.
@@ -97,48 +98,48 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-/*
- * Define a minor device number.
- * This is not used directly; instead, it's
- * called by the other macros.
- */
+    /*
+     * Define a minor device number.
+     * This is not used directly; instead, it's
+     * called by the other macros.
+     */
 #define VINUMMINOR(v,p,s,t)  ( (v << VINUM_VOL_SHIFT)		\
 			      | (p << VINUM_PLEX_SHIFT)		\
-			      | (s << VINUM_SD_SHIFT) 		\
+			      | (s << VINUM_SD_SHIFT)		\
 			      | (t << VINUM_TYPE_SHIFT) )
 
-/* Create device minor numbers */
+    /* Create device minor numbers */
 #define VINUMDEV(v,p,s,t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
 #define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR,				\
-					 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
-					 | (p & 0xff)				\
-					 | ((p & ~0xff) << 8) )
+				 (VINUM_RAWPLEX_TYPE << VINUM_TYPE_SHIFT) \
+				 | (p & 0xff)				\
+				 | ((p & ~0xff) << 8) )
 
 #define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR,				\
-					 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
-					 | (s & 0xff)				\
-					 | ((s & ~0xff) << 8) )
+				 (VINUM_RAWSD_TYPE << VINUM_TYPE_SHIFT) \
+				 | (s & 0xff)				\
+				 | ((s & ~0xff) << 8) )
 
-/* Create a bit mask for x bits */
-#define MASK(x)  ((1 << (x)) - 1)
+    /* Create a bit mask for x bits */
+#define MASK(x)	 ((1 << (x)) - 1)
 
-/* Create a raw block device minor number */
+    /* Create a raw block device minor number */
 #define VINUMRMINOR(d,t) ( ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
 			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
-			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
+			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
 			  | (t << VINUM_TYPE_SHIFT) )
 
 #define VINUMRBDEV(d,t)	makedev (VINUM_BDEV_MAJOR, VINUMRMINOR (d, t))
 
-/* extract device type */
+    /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
 
-/*
- * This mess is used to catch people who compile
- * a debug vinum(8) and non-debug kernel module,
- * or the other way round.
- */
+    /*
+     * This mess is used to catch people who compile
+     * a debug vinum(8) and non-debug kernel module,
+     * or the other way round.
+     */
 
 #ifdef VINUMDEBUG
 #define	VINUM_SUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
@@ -166,7 +167,7 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 256,				    /* number of locks to allocate to a plex */
+    PLEX_LOCKS = 256,					    /* number of locks to allocate to a plex */
     MAX_REVIVE_BLOCKSIZE = MAXPHYS,			    /* maximum revive block size */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
@@ -378,6 +379,7 @@ enum drive_label_info {
  */
 
 struct drive {
+    char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
     enum drivestate state;				    /* current state */
     int flags;						    /* flags */
     int subdisks_allocated;				    /* number of entries in sd */
@@ -393,19 +395,18 @@ struct drive {
     u_int64_t writes;					    /* number of writes on this drive */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
-    char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
-    dev_t dev;						    /* device information */
     struct vinum_label label;				    /* and the label information */
-    struct partinfo partinfo;				    /* partition information */
+#define DRIVE_MAXACTIVE  30000				    /* maximum number of active requests */
+    int active;						    /* current number of requests outstanding */
+    int maxactive;					    /* maximum number of requests ever outstanding */
     int freelist_size;					    /* number of entries alloced in free list */
     int freelist_entries;				    /* number of entries used in free list */
     struct drive_freelist {				    /* sorted list of free space on drive */
 	u_int64_t offset;				    /* offset of entry */
 	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
-#define DRIVE_MAXACTIVE  30000				    /* maximum number of active requests */
-    int active;						    /* current number of requests outstanding */
-    int maxactive;					    /* maximum number of requests ever outstanding */
+    struct partinfo partinfo;				    /* partition information */
+    dev_t dev;						    /* device information */
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
     int lockline;					    /* and the line number */
@@ -415,6 +416,7 @@ struct drive {
 /*** Subdisk definitions ***/
 
 struct sd {
+    char name[MAXSDNAME];				    /* name of subdisk */
     enum sdstate state;					    /* state */
     int flags;
     int lasterror;					    /* last error occurred */
@@ -443,12 +445,11 @@ struct sd {
     int revive_blocksize;				    /* revive block size (bytes) */
     int revive_interval;				    /* and time to wait between transfers */
     pid_t reviver;					    /* PID of reviving process */
-    struct request *waitlist;				    /* list of requests waiting on revive op */
     /* init parameters */
     u_int64_t initialized;				    /* block number of current init request */
     int init_blocksize;					    /* init block size (bytes) */
     int init_interval;					    /* and time to wait between transfers */
-    char name[MAXSDNAME];				    /* name of subdisk */
+    struct request *waitlist;				    /* list of requests waiting on revive op */
 };
 
 /*** Plex definitions ***/
@@ -467,6 +468,7 @@ enum plexorg {
 #define isparity(p) (p->organization >= plex_raid4)	    /* RAID 4 or 5 */
 
 struct plex {
+    char name[MAXPLEXNAME];				    /* name of plex */
     enum plexorg organization;				    /* Plex organization */
     enum plexstate state;				    /* and current state */
     u_int64_t length;					    /* total length of plex (sectors) */
@@ -478,12 +480,6 @@ struct plex {
     int plexno;						    /* index of plex in vinum_conf */
     int volno;						    /* index of volume */
     int volplexno;					    /* number of plex in volume */
-    /* Lock information */
-    int alloclocks;					    /* number of locks allocated */
-    int usedlocks;					    /* number currently in use */
-    int lockwaits;					    /* and number of waits for locks */
-    struct rangelock *lock;				    /* ranges of locked addresses */
-    off_t checkblock;					    /* block number for parity op */
     /* Statistics */
     u_int64_t reads;					    /* number of reads on this plex */
     u_int64_t writes;					    /* number of writes on this plex */
@@ -495,7 +491,11 @@ struct plex {
     u_int64_t multiblock;				    /* requests that needed more than one block */
     u_int64_t multistripe;				    /* requests that needed more than one stripe */
     int sddowncount;					    /* number of subdisks down */
-    char name[MAXPLEXNAME];				    /* name of plex */
+    /* Lock information */
+    int usedlocks;					    /* number currently in use */
+    int lockwaits;					    /* and number of waits for locks */
+    off_t checkblock;					    /* block number for parity op */
+    struct rangelock *lock;				    /* ranges of locked addresses */
 };
 
 /*** Volume definitions ***/
@@ -504,10 +504,10 @@ struct plex {
 struct rangelock {
     daddr_t stripe;					    /* address + 1 of the range being locked  */
     struct buf *bp;					    /* user's buffer pointer */
-    int plexno;						    /* and number of plex it affects */
 };
 
 struct volume {
+    char name[MAXVOLNAME];				    /* name of volume */
     enum volumestate state;				    /* current state */
     int plexes;						    /* number of plexes */
     int preferred_plex;					    /* plex to read from, -1 for round-robin */
@@ -534,7 +534,6 @@ struct volume {
      * plex pointers is static.
      */
     int plex[MAXPLEX];					    /* index of plexes */
-    char name[MAXVOLNAME];				    /* name of volume */
     struct disklabel label;				    /* for DIOCGPART */
 };
 

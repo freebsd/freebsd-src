@@ -36,7 +36,7 @@
 
 /* Header files used by all modules */
 /*
- * $Id: vinumhdr.h,v 1.15 1999/10/12 09:40:35 grog Exp grog $
+ * $Id: vinumhdr.h,v 1.18 2001/01/04 00:14:14 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -45,22 +45,22 @@
 #include "opt_vinum.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#endif
 #include <sys/proc.h>
+#include <sys/conf.h>
+#include <sys/mount.h>
+#include <sys/vnode.h>
+#endif
 #include <sys/errno.h>
 #include <sys/dkstat.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
-#include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h>
-#include <sys/mount.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
-#include <sys/vnode.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
 #include <machine/setjmp.h>
@@ -75,22 +75,3 @@
 #include <dev/vinum/vinumkw.h>
 #include <dev/vinum/vinumext.h>
 #include <machine/cpu.h>
-
-#undef Free						    /* defined in some funny net stuff */
-#ifdef _KERNEL
-#ifdef VINUMDEBUG
-#define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
-#define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
-caddr_t MMalloc (int size, char *, int);
-void FFree (void *mem, char *, int);
-#define LOCKDRIVE(d) lockdrive (d, __FILE__, __LINE__)
-#else
-#define Malloc(x)  malloc((x), M_DEVBUF, intr_nesting_level == 0)
-#define Free(x)    free((x), M_DEVBUF)
-#define LOCKDRIVE(d) lockdrive (d)
-#endif
-#else
-#define Malloc(x)  malloc ((x))				    /* just the size */
-#define Free(x)	   free ((x))				    /* just the address */
-#endif
-
