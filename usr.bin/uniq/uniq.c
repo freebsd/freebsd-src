@@ -62,12 +62,12 @@ static const char rcsid[] =
 int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
-FILE	*file __P((char *, char *));
-void	 show __P((FILE *, char *));
-char	*skip __P((char *));
-void	 obsolete __P((char *[]));
-static void	 usage __P((void));
-int      stricoll __P((char *, char*));
+FILE	*file(const char *, const char *);
+void	 show(FILE *, char *);
+char	*skip(char *);
+void	 obsolete(char *[]);
+static void	 usage(void);
+int      stricoll(char *, char*);
 
 int
 main (argc, argv)
@@ -83,11 +83,8 @@ main (argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
+	while ((ch = getopt(argc, argv, "cdif:s:u")) != -1)
 		switch (ch) {
-		case '-':
-			--optind;
-			goto done;
 		case 'c':
 			cflag = 1;
 			break;
@@ -115,7 +112,7 @@ main (argc, argv)
 			usage();
 	}
 
-done:	argc -= optind;
+	argc -= optind;
 	argv +=optind;
 
 	/* If no flags are set, default is -d -u. */
@@ -125,22 +122,15 @@ done:	argc -= optind;
 	} else if (!dflag && !uflag)
 		dflag = uflag = 1;
 
-	switch(argc) {
-	case 0:
-		ifp = stdin;
-		ofp = stdout;
-		break;
-	case 1:
-		ifp = file(argv[0], "r");
-		ofp = stdout;
-		break;
-	case 2:
-		ifp = file(argv[0], "r");
-		ofp = file(argv[1], "w");
-		break;
-	default:
+	if (argc > 2)
 		usage();
-	}
+
+	ifp = stdin;
+	ofp = stdout;
+	if (argc > 0 && strcmp(argv[0], "-") != 0)
+		ifp = file(argv[0], "r");
+	if (argc > 1)
+		ofp = file(argv[1], "w");
 
 	prevline = malloc(MAXLINELEN);
 	thisline = malloc(MAXLINELEN);
@@ -203,7 +193,7 @@ skip(str)
 	register int infield, nchars, nfields;
 
 	for (nfields = numfields, infield = 0; nfields && *str; ++str)
-		if (isspace((unsigned char)*str)) {
+		if (isblank((unsigned char)*str)) {
 			if (infield) {
 				infield = 0;
 				--nfields;
@@ -216,7 +206,7 @@ skip(str)
 
 FILE *
 file(name, mode)
-	char *name, *mode;
+	const char *name, *mode;
 {
 	FILE *fp;
 
@@ -259,7 +249,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: uniq [-c | -du | -i] [-f fields] [-s chars] [input [output]]\n");
+"usage: uniq [-c | -d | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }
 
