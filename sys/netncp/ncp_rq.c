@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000, 2001 Boris Popov
+ * Copyright (c) 1999-2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -421,7 +421,7 @@ ncp_restore_login(struct ncp_conn *conn)
 	conn->flags |= NCPFL_RESTORING;
 	error = ncp_conn_reconnect(conn);
 	if (!error && (conn->flags & NCPFL_WASLOGGED))
-		error = ncp_login_object(conn, conn->li.user, conn->li.objtype, conn->li.password,conn->procp,conn->ucred);
+		error = ncp_conn_login(conn, conn->procp, conn->ucred);
 	if (error)
 		ncp_ncp_disconnect(conn);
 	conn->flags &= ~NCPFL_RESTORING;
