@@ -1203,10 +1203,9 @@ linker_preload(void *arg)
 		lf = NULL;
 		TAILQ_FOREACH(lc, &classes, link) {
 			error = LINKER_LINK_PRELOAD(lc, modname, &lf);
-			if (error) {
-				lf = NULL;
+			if (!error)
 				break;
-			}
+			lf = NULL;
 		}
 		if (lf)
 			TAILQ_INSERT_TAIL(&loaded_files, lf, loaded);
