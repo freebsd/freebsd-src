@@ -1256,6 +1256,9 @@ re_attach(dev)
 	ifp->if_start = re_start;
 	ifp->if_hwassist = RE_CSUM_FEATURES;
 	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 	ifp->if_watchdog = re_watchdog;
 	ifp->if_init = re_init;
 	if (sc->rl_type == RL_8169)
@@ -1766,6 +1769,10 @@ re_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct rl_softc *sc = ifp->if_softc;
 
 	RL_LOCK(sc);
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
 		CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
 		goto done;
@@ -1826,7 +1833,8 @@ re_intr(arg)
 #ifdef DEVICE_POLLING
 	if  (ifp->if_flags & IFF_POLLING)
 		goto done;
-	if (ether_poll_register(re_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(re_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_2(sc, RL_IMR, 0x0000);
 		re_poll(ifp, 0, 1);
 		goto done;
