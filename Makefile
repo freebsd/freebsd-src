@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.107 1996/10/14 12:58:47 peter Exp $
+#	$Id: Makefile,v 1.108 1996/10/25 14:22:50 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -15,6 +15,7 @@
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
+#	-DNOSHARE do not go into share subdir
 
 #
 # The intended user-driven targets are:
@@ -59,7 +60,7 @@ SUBDIR+= libexec
 .if exists(sbin)
 SUBDIR+= sbin
 .endif
-.if exists(share)
+.if exists(share) && !defined(NOSHARE)
 SUBDIR+= share
 .endif
 .if exists(sys)
