@@ -276,8 +276,8 @@ MAN=	aac.4 \
 	uart.4 \
 	uaudio.4 \
 	ubsa.4 \
-	ubser.4 \
 	ubsec.4 \
+	ubser.4 \
 	ubtbcmfw.4 \
 	ucom.4 \
 	udav.4 \
