@@ -3,7 +3,7 @@
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"
-.\"	$Id$
+.\"	$Id: tar.1,v 1.8 1997/02/22 15:48:17 peter Exp $
 .\"
 .Dd 6 August 1994
 .Os FreeBSD
@@ -321,7 +321,7 @@ the archive, of course).
 .Pp
 To move file hierarchies, use a command line like this:
 .Bd -literal
-tar tar -cf - -C srcdir . | tar xpf - -C destdir
+tar -cf - -C srcdir . | tar xpf - -C destdir
 .Ed
 .Pp
 To create a compressed archive on diskette, using gzip, use a command-line like
