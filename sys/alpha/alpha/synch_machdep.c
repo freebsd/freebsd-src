@@ -38,13 +38,14 @@
 #include <sys/ktr.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <ddb/ddb.h>
 #include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/mutex.h>
 
-/* All mutii in system (used for debug/panic) */
-mtx_t all_mtx = { MTX_UNOWNED, 0, 0, "All muti queue head",
+/* All mutexes in system (used for debug/panic) */
+mtx_t all_mtx = { MTX_UNOWNED, 0, 0, "All mutexes queue head",
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }, &all_mtx, &all_mtx
 #ifdef SMP_DEBUG
@@ -100,7 +101,7 @@ propagate_priority(struct proc *p)
 			/*
 			 * This really isn't quite right. Really
 			 * ought to bump priority of process that
-			 * next axcquires the mutex.
+			 * next acquires the mutex.
 			 */
 			MPASS(m->mtx_lock == MTX_CONTESTED);
 			return;
@@ -109,22 +110,38 @@ propagate_priority(struct proc *p)
 		if (p->p_priority <= pri)
 			return;
 		/*
-		 * If lock holder is actually running  just bump priority.
+		 * If lock holder is actually running, just bump priority.
 		 */
 		if (TAILQ_NEXT(p, p_procq) == NULL) {
+			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
 			SET_PRIO(p, pri);
 			return;
 		}
 		/*
 		 * If on run queue move to new run queue, and
-		 * quit. Otherwise pick up mutex p is blocked on
+		 * quit.
 		 */
-		if ((m = p->p_blocked) == NULL) {
+		if (p->p_stat == SRUN) {
+			MPASS(p->p_blocked == NULL);
 			remrunqueue(p);
 			SET_PRIO(p, pri);
 			setrunqueue(p);
 			return;
 		}
+
+		/*
+		 * If we aren't blocked on a mutex, give up and quit.
+		 */
+		if (p->p_stat != SMTX) {
+			return;
+		}
+
+		/*
+		 * Pick up the mutex that p is blocked on.
+		 */
+		m = p->p_blocked;
+		MPASS(m != NULL);
+
 		/*
 		 * Check if the proc needs to be moved up on
 		 * the blocked chain
@@ -147,7 +164,7 @@ propagate_priority(struct proc *p)
 		else
 			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
 		CTR4(KTR_LOCK,
-		    "propagate priority: p %p moved before %p on [%p] %s",
+		    "propagate priority: p 0x%p moved before 0x%p on [0x%p] %s",
 		    p, p1, m, m->mtx_description);
 	}
 }
@@ -157,20 +174,21 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 {
 	struct proc *p = CURPROC;
 
+	KASSERT(p != NULL, ("curproc is NULL in mutex"));
+
 	switch (type) {
 	case MTX_DEF:
 		if ((m->mtx_lock & MTX_FLAGMASK) == (u_int64_t)p) {
 			m->mtx_recurse++;
 			atomic_set_64(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_enter: %p recurse", m);
+			CTR1(KTR_LOCK, "mtx_enter: 0x%p recurse", m);
 			return;
 		}
-		CTR3(KTR_LOCK, "mtx_enter: %p contested (lock=%lx) [0x%lx]",
+		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%lx) [0x%lx]",
 		    m, m->mtx_lock, RETIP(m));
 		while (!atomic_cmpset_64(&m->mtx_lock, MTX_UNOWNED,
 					 (u_int64_t)p)) {
 			int v;
-			struct timeval tv;
 			struct proc *p1;
 
 			mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
@@ -188,6 +206,8 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 			 */
 			if (v == MTX_CONTESTED) {
 				p1 = TAILQ_FIRST(&m->mtx_blocked);
+				KASSERT(p1 != NULL, ("contested mutex has no contesters"));
+				KASSERT(p != NULL, ("curproc is NULL for contested mutex"));
 				m->mtx_lock = (u_int64_t)p | MTX_CONTESTED;
 				if (p1->p_priority < p->p_priority) {
 					SET_PRIO(p, p1->p_priority);
@@ -210,8 +230,6 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 
 			/* We definitely have to sleep for this lock */
 			mtx_assert(m, MA_NOTOWNED);
-
-			printf("m->mtx_lock=%lx\n", m->mtx_lock);
 
 #ifdef notyet
 			/*
@@ -249,28 +267,15 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 			}
 
 			p->p_blocked = m;	/* Who we're blocked on */
-#ifdef notyet
+			p->p_stat = SMTX;
+#if 0
 			propagate_priority(p);
 #endif
-			CTR3(KTR_LOCK, "mtx_enter: p %p blocked on [%p] %s",
+			CTR3(KTR_LOCK, "mtx_enter: p 0x%p blocked on [0x%p] %s",
 			    p, m, m->mtx_description);
-			/*
-			 * cloaned from mi_switch
-			 */
-			microtime(&tv);
-			p->p_runtime += (tv.tv_usec -
-					 PCPU_GET(switchtime.tv_usec)) +
-					(tv.tv_sec -
-					 PCPU_GET(switchtime.tv_sec)) *
-					(int64_t)1000000;
-			PCPU_SET(switchtime.tv_usec, tv.tv_usec);
-			PCPU_SET(switchtime.tv_sec, tv.tv_sec);
-			cpu_switch();
-			if (PCPU_GET(switchtime.tv_sec) == 0)
-				microtime(&GLOBALP->gd_switchtime);
-			PCPU_SET(switchticks, ticks);
+			mi_switch();
 			CTR3(KTR_LOCK,
-			    "mtx_enter: p %p free from blocked on [%p] %s",
+			    "mtx_enter: p 0x%p free from blocked on [0x%p] %s",
 			    p, m, m->mtx_description);
 			mtx_exit(&sched_lock, MTX_SPIN);
 		}
@@ -298,8 +303,14 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 					continue;
 				if (i++ < 6000000)
 					DELAY (1);
+#ifdef DDB
+				else if (!db_active)
+#else
 				else
-					panic("spin lock > 5 seconds");
+#endif
+					panic(
+				"spin lock %s held by 0x%lx for > 5 seconds",
+					    m->mtx_description, m->mtx_lock);
 			}
 		}
 			
@@ -309,7 +320,7 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 		else
 #endif
 			m->mtx_saveipl = ipl;
-		CTR1(KTR_LOCK, "mtx_enter: %p spin done", m);
+		CTR1(KTR_LOCK, "mtx_enter: 0x%p spin done", m);
 		return;
 	    }
 	}
@@ -328,11 +339,11 @@ mtx_exit_hard(mtx_t *m, int type)
 		if (m->mtx_recurse != 0) {
 			if (--(m->mtx_recurse) == 0)
 				atomic_clear_64(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_exit: %p unrecurse", m);
+			CTR1(KTR_LOCK, "mtx_exit: 0x%p unrecurse", m);
 			return;
 		}
 		mtx_enter(&sched_lock, MTX_SPIN);
-		CTR1(KTR_LOCK, "mtx_exit: %p contested", m);
+		CTR1(KTR_LOCK, "mtx_exit: 0x%p contested", m);
 		p = CURPROC;
 		p1 = TAILQ_FIRST(&m->mtx_blocked);
 		MPASS(p->p_magic == P_MAGIC);
@@ -342,7 +353,7 @@ mtx_exit_hard(mtx_t *m, int type)
 			LIST_REMOVE(m, mtx_contested);
 			atomic_cmpset_64(&m->mtx_lock, m->mtx_lock,
 					  MTX_UNOWNED);
-			CTR1(KTR_LOCK, "mtx_exit: %p not held", m);
+			CTR1(KTR_LOCK, "mtx_exit: 0x%p not held", m);
 		} else
 			m->mtx_lock = MTX_CONTESTED;
 		pri = MAXPRI;
@@ -354,9 +365,10 @@ mtx_exit_hard(mtx_t *m, int type)
 		if (pri > p->p_nativepri)
 			pri = p->p_nativepri;
 		SET_PRIO(p, pri);
-		CTR2(KTR_LOCK, "mtx_exit: %p contested setrunqueue %p",
+		CTR2(KTR_LOCK, "mtx_exit: 0x%p contested setrunqueue 0x%p",
 		    m, p1);
 		p1->p_blocked = NULL;
+		p1->p_stat = SRUN;
 		setrunqueue(p1);
 		if ((type & MTX_NOSWITCH) == 0 && p1->p_priority < pri) {
 #ifdef notyet
@@ -372,10 +384,10 @@ mtx_exit_hard(mtx_t *m, int type)
 			}
 #endif
 			setrunqueue(p);
-			CTR2(KTR_LOCK, "mtx_exit: %p switching out lock=0x%lx",
+			CTR2(KTR_LOCK, "mtx_exit: 0x%p switching out lock=0x%lx",
 			    m, m->mtx_lock);
-			cpu_switch();
-			CTR2(KTR_LOCK, "mtx_exit: %p resuming lock=0x%lx",
+			mi_switch();
+			CTR2(KTR_LOCK, "mtx_exit: 0x%p resuming lock=0x%lx",
 			    m, m->mtx_lock);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
@@ -388,8 +400,12 @@ mtx_exit_hard(mtx_t *m, int type)
 		}
 		alpha_mb();
 		if (atomic_cmpset_64(&m->mtx_lock, CURTHD, MTX_UNOWNED)) {
-			MPASS(m->mtx_saveipl != 0xbeefface);
-			alpha_pal_swpipl(m->mtx_saveipl);
+			if (type & MTX_FIRST)
+				enable_intr();	/* XXX is this kosher? */
+			else {
+				MPASS(m->mtx_saveipl != 0xbeefface);
+				alpha_pal_swpipl(m->mtx_saveipl);
+			}
 			return;
 		}
 		panic("unsucuessful release of spin lock");
@@ -473,7 +489,7 @@ void
 mtx_init(mtx_t *m, char *t, int flag)
 {
 
-	CTR2(KTR_LOCK, "mtx_init %p (%s)", m, t);
+	CTR2(KTR_LOCK, "mtx_init 0x%p (%s)", m, t);
 #ifdef SMP_DEBUG
 	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
 		return;
@@ -498,7 +514,7 @@ void
 mtx_destroy(mtx_t *m)
 {
 
-	CTR2(KTR_LOCK, "mtx_destroy %p (%s)", m, m->mtx_description);
+	CTR2(KTR_LOCK, "mtx_destroy 0x%p (%s)", m, m->mtx_description);
 #ifdef SMP_DEBUG
 	if (m->mtx_next == NULL)
 		panic("mtx_destroy: %p (%s) already destroyed",
