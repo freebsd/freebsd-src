@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
- *	$Id$
+ *	$Id: stdio.h,v 1.10 1997/02/23 09:17:15 peter Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -270,7 +270,7 @@ __END_DECLS
  */
 #ifndef _ANSI_SOURCE
 /* size for cuserid(3); UT_NAMESIZE + 1, see <utmp.h> */
-#define	L_cuserid	9
+#define	L_cuserid	17
 
 #define	L_ctermid	1024	/* size for ctermid(3); PATH_MAX */
 
