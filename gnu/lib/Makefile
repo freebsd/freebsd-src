@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "sparc64"
-SUBDIR= libdialog libregex libreadline
-.else
 SUBDIR= csu libdialog libgcc libregex libreadline
-.endif
 
 .if ${OBJFORMAT} == aout
 .if !defined(NOLIBC_R)
