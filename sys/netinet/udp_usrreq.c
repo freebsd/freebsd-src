@@ -458,7 +458,7 @@ udp_append(last, ip, n, off)
 			}
 			savedflags = last->inp_flags;
 			last->inp_flags &= ~INP_UNMAPPABLEOPTS;
-			ip6_savecontrol(last, &opts, &udp_ip6.uip6_ip6, n);
+			ip6_savecontrol(last, n, &opts);
 			last->inp_flags = savedflags;
 		} else
 #endif

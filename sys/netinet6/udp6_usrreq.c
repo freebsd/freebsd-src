@@ -284,8 +284,7 @@ udp6_input(mp, offp, proto)
 					 */
 					if (last->in6p_flags & IN6P_CONTROLOPTS
 					    || last->in6p_socket->so_options & SO_TIMESTAMP)
-						ip6_savecontrol(last, &opts,
-								ip6, n);
+						ip6_savecontrol(last, n, &opts);
 
 					m_adj(n, off + sizeof(struct udphdr));
 					if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -343,7 +342,7 @@ udp6_input(mp, offp, proto)
 #endif /* FAST_IPSEC */
 		if (last->in6p_flags & IN6P_CONTROLOPTS
 		    || last->in6p_socket->so_options & SO_TIMESTAMP)
-			ip6_savecontrol(last, &opts, ip6, m);
+			ip6_savecontrol(last, m, &opts);
 
 		m_adj(m, off + sizeof(struct udphdr));
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
@@ -406,7 +405,7 @@ udp6_input(mp, offp, proto)
 	udp_in6.sin6_port = uh->uh_sport;
 	if (in6p->in6p_flags & IN6P_CONTROLOPTS
 	    || in6p->in6p_socket->so_options & SO_TIMESTAMP)
-		ip6_savecontrol(in6p, &opts, ip6, m);
+		ip6_savecontrol(in6p, m, &opts);
 	m_adj(m, off + sizeof(struct udphdr));
 	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
 			(struct sockaddr *)&udp_in6,
