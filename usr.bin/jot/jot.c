@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define	REPS_DEF	100
 #define	BEGIN_DEF	1
@@ -95,9 +96,9 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		srandom((int) s);
+		srandom((unsigned) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = (double) random() / INT_MAX;
+			*y = (double) random() / LONG_MAX;
 			putdata(*y * *x + begin, reps - *i);
 		}
 	}
@@ -249,7 +250,7 @@ getargs(ac, av)
 			mask = 015;
 			break;
 		case 012:
-			s = (randomize ? time(0) : STEP_DEF);
+			s = (randomize ? time(NULL) ^ getpid() : STEP_DEF);
 			mask = 013;
 			break;
 		case 013:
@@ -261,7 +262,7 @@ getargs(ac, av)
 			mask = 0;
 			break;
 		case 014:
-			s = (randomize ? time(0) : STEP_DEF);
+			s = (randomize ? time(NULL) ^ getpid() : STEP_DEF);
 			mask = 015;
 			break;
 		case 015:
@@ -273,7 +274,7 @@ getargs(ac, av)
 			break;
 		case 016:
 			if (randomize)
-				s = time(0);
+				s = time(NULL) ^ getpid();
 			else if (reps == 0)
 				error("Infinite sequences cannot be bounded",
 				    "");
