@@ -1,0 +1,158 @@
+.\" Copyright (c) 2001 Networks Associates Technologies, Inc.
+.\" All rights reserved.
+.\" 
+.\" This software was developed for the FreeBSD Project by Chris
+.\" Costello at Safeport Network Services and NAI Labs, the Security
+.\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
+.\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+.\" research program.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.Dd December 26, 2001
+.Dt UFS 4
+.Sh NAME
+.Nm ufs
+.Nd UNIX file system
+.Sh SYNOPSIS
+.Cd options ENABLE_VFS_IOOPT
+.Cd options FFS
+.Cd options QUOTA
+.Cd options SUIDDIR
+.Cd options UFS_ACL
+.Cd options UFS_DIRHASH
+.Cd options UFS_EXTATTR
+.Cd options UFS_EXTATTR_AUTOSTART
+.Sh DESCRIPTION
+The UFS file system,
+based on the Berkeley fast file system
+(see
+.Xr ffs 4 ) ,
+is the default file system in the
+.Fx
+operating system.
+UFS is an advanced file system
+capable of managing large and numerous files,
+and providing support for features which
+provide added reliability as well as added features,
+such as Soft Updates, and Extended Attributes, respectively.
+The following is a more complete list of the
+optional features offered by UFS,
+and how to enable and use them.
+.Ss VFS I/O optimization
+.Bl -tag -width 2n
+.It Cd options ENABLE_VFS_IOOPT
+This option enables the IO optimization through the VM system,
+using VM operations instead of copying operations when possible.
+This option adds a sysctl MIB,
+.Em vfs.ioopt .
+The following are values and effects for
+.Em vfs.ioopt :
+.Pp
+.Bl -tag -width "Value" -offset indent -compact
+.It Em Value
+.Em Effect
+.It Li 0
+No optimization
+.It Li 1
+VM operations if a request fits
+.It Li 2
+Aggresive optimization (VM used as much as possible)
+.El
+.El
+.Ss Quotas
+.Bl -tag -width 2n
+.It Cd options QUOTA
+This option allows system administrators
+to set limits on disk usage
+on a per-user basis.
+Quotas can be used only on file systems
+mounted with the
+.Sq quota
+option;
+see
+.Xr quota 1
+and
+.Xr edquota 8 .
+.El
+.Ss File Ownership Inheritance
+.Bl -tag -width 2n
+.It Cd options SUIDDIR
+For use in file sharing environments
+on networks including Microsoft Windows
+and Apple Macintosh computers,
+this option allows files on file systems
+mounted with the
+.Sq suiddir
+option
+to inherit the ownership of its directory,
+i.e.
+.Dq "If it's my directory, it must be my file."
+.El
+.Ss Access Control Lists
+.Bl -tag -width 2n
+.It Cd options UFS_ACL
+Access control lists allow the association of
+fine-grained descretionary access control information
+with files and directories.
+This option requires the presence of the
+.Dv UFS_EXTATTR
+option, and it is recommended that
+.Dv UFS_EXTATTR_AUTOSTART
+is included as well,
+so that ACLs are enabled atomically upon mounting the file system.
+.El
+.Ss Directory Hashing
+.Bl -tag -width 2n
+.It Cd options UFS_DIRHASH
+Implements a hash-based lookup scheme for UFS directories
+in order to speed up accesses to very large directories.
+.El
+.Ss Extended Attributes
+.Bl -tag -width 2n
+.It Cd options UFS_EXTATTR
+Extended attributes allow the association of
+additional arbitrary metadata with files and directories,
+which can be assigned and retrieved from userland
+as well as from within the kernel; see
+.Xr extattrctl 8 .
+.It Cd options UFS_EXTATTR_AUTOSTART
+If this option is defined,
+.Nm UFS
+will search for a
+.Dq Pa .attribute
+subdirectory of the file system root during the mount operation.
+If found, extended attribute support will be
+automatically started for that file system.
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr acl 3 ,
+.Xr extattr 3 ,
+.Xr ffs 4 ,
+.Xr edquota 8 ,
+.Xr extattrctl 8 ,
+.Xr sysctl 8
