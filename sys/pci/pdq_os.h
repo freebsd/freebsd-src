@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
+ * $Id: pdq_os.h,v 1.2 1995/03/25 22:40:49 bde Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.2  1995/03/25  22:40:49  bde
+ * Remove wrong redeclarations of printf() and bzero().  Include the correct
+ * header to declare DELAY().
+ *
  * Revision 1.1  1995/03/14  09:16:07  davidg
  * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
  *
@@ -63,6 +67,7 @@
 #elif defined(__FreeBSD__) || defined(__bsdi__)
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #ifndef M_MCAST
 #include <sys/mbuf.h>
 #endif
