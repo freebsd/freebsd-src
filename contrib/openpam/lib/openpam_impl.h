@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#28 $
+ * $P4: //depot/projects/openpam/lib/openpam_impl.h#29 $
  */
 
 #ifndef _OPENPAM_IMPL_H_INCLUDED
@@ -137,45 +137,52 @@ pam_module_t	*openpam_dynamic(const char *);
 #ifdef DEBUG
 #define ENTER() openpam_log(PAM_LOG_DEBUG, "entering")
 #define ENTERI(i) do { \
-	if ((i) > 0 && (i) < PAM_NUM_ITEMS) \
-		openpam_log(PAM_LOG_DEBUG, "entering: %s", _pam_item_name[i]); \
+	int _i = (i); \
+	if (_i > 0 && _i < PAM_NUM_ITEMS) \
+		openpam_log(PAM_LOG_DEBUG, "entering: %s", _pam_item_name[_i]); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "entering: %d", (i)); \
+		openpam_log(PAM_LOG_DEBUG, "entering: %d", _i); \
 } while (0)
 #define ENTERN(n) do { \
-	openpam_log(PAM_LOG_DEBUG, "entering: %d", (n)); \
+	int _n = (n); \
+	openpam_log(PAM_LOG_DEBUG, "entering: %d", _n); \
 } while (0)
 #define ENTERS(s) do { \
-	if ((s) == NULL) \
+	const char *_s = (s); \
+	if (_s == NULL) \
 		openpam_log(PAM_LOG_DEBUG, "entering: NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "entering: '%s'", (s)); \
+		openpam_log(PAM_LOG_DEBUG, "entering: '%s'", _s); \
 } while (0)
 #define	RETURNV() openpam_log(PAM_LOG_DEBUG, "returning")
 #define RETURNC(c) do { \
-	if ((c) >= 0 && (c) < PAM_NUM_ERRORS) \
-		openpam_log(PAM_LOG_DEBUG, "returning %s", _pam_err_name[c]); \
+	int _c = (c); \
+	if (_c >= 0 && _c < PAM_NUM_ERRORS) \
+		openpam_log(PAM_LOG_DEBUG, "returning %s", _pam_err_name[_c]); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning %d!", (c)); \
-	return (c); \
+		openpam_log(PAM_LOG_DEBUG, "returning %d!", _c); \
+	return (_c); \
 } while (0)
 #define	RETURNN(n) do { \
-	openpam_log(PAM_LOG_DEBUG, "returning %d", (n)); \
-	return (n); \
+	int _n = (n); \
+	openpam_log(PAM_LOG_DEBUG, "returning %d", _n); \
+	return (_n); \
 } while (0)
 #define	RETURNP(p) do { \
-	if ((p) == NULL) \
+	const void *_p = (p); \
+	if (_p == NULL) \
 		openpam_log(PAM_LOG_DEBUG, "returning NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning %p", (p)); \
+		openpam_log(PAM_LOG_DEBUG, "returning %p", _p); \
 	return (p); \
 } while (0)
 #define	RETURNS(s) do { \
-	if ((s) == NULL) \
+	const char *_s = (s); \
+	if (_s == NULL) \
 		openpam_log(PAM_LOG_DEBUG, "returning NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning '%s'", (s)); \
-	return (s); \
+		openpam_log(PAM_LOG_DEBUG, "returning '%s'", _s); \
+	return (_s); \
 } while (0)
 #else
 #define ENTER()
