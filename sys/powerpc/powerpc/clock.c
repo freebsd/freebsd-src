@@ -28,7 +28,31 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: clock.c,v 1.9 2000/01/19 02:52:19 msaitoh Exp $	*/
+ *	$NetBSD: clock.c,v 1.9 2000/01/19 02:52:19 msaitoh Exp $
+ */
+/*
+ * Copyright (C) 2001 Benno Rice.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Benno Rice ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL TOOLS GMBH BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef lint
@@ -38,17 +62,17 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/bus.h>
 #include <sys/timetc.h>
 #include <sys/interrupt.h>
-
-#include <vm/vm.h>
 
 #include <dev/ofw/openfirm.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 
 #if 0 /* XXX */
 #include "adb.h"
@@ -59,6 +83,7 @@ static const char rcsid[] =
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
+static u_long ticks_per_sec = 12500000;
 static u_long		ns_per_tick = 80;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
@@ -72,6 +97,19 @@ extern int adb_set_date_time __P((int));
 #endif
 
 static int		clockinitted = 0;
+
+static timecounter_get_t	powerpc_get_timecount;
+
+static struct timecounter	powerpc_timecounter = {
+	powerpc_get_timecount,	/* get_timecount */
+	0,			/* no poll_pps */
+	~0u,			/* counter_mask */
+	0,			/* frequency */
+	"powerpc"		/* name */
+};
+
+SYSCTL_OPAQUE(_debug, OID_AUTO, powerpc_timecounter, CTLFLAG_RD, 
+	&powerpc_timecounter, sizeof(powerpc_timecounter), "S,timecounter", "");
 
 void
 inittodr(time_t base)
@@ -153,46 +191,79 @@ decr_intr(struct clockframe *frame)
 	 */
 	lasttb = tb + tick - ticks_per_intr;
 
-#if 0 /* XXX */
+	/*
+	 * This probably needs some kind of locking.
+	 */
+
 	intrcnt[CNT_CLOCK]++;
 	{
-		int pri;
 		int msr;
 
-		pri = splclock();
-		if (pri & (1 << SPL_CLOCK)) {
-			tickspending += nticks;
-		}
-		else {
-			nticks += tickspending;
-			tickspending = 0;
+		nticks += tickspending;
+		tickspending = 0;
 
-			/*
-			 * Reenable interrupts
-			 */
-			__asm __volatile ("mfmsr %0; ori %0, %0, %1; mtmsr %0"
-				          : "=r"(msr) : "K"(PSL_EE));
+#if 0
+		/*
+		 * Reenable interrupts
+		 */
+		msr = mfmsr();
+		mtmsr(msr | PSL_EE);
+#endif
 		
-			/*
-			 * Do standard timer interrupt stuff.
-			 * Do softclock stuff only on the last iteration.
-			 */
-			frame->pri = pri | (1 << SIR_CLOCK);
-			while (--nticks > 0)
-				hardclock(frame);
-			frame->pri = pri;
+		/*
+		 * Do standard timer interrupt stuff.
+		 * Do softclock stuff only on the last iteration.
+		 */
+		while (--nticks > 0) {
 			hardclock(frame);
 		}
-		splx(pri);
+		hardclock(frame);
 	}
-#endif
 }
 
 void
 cpu_initclocks(void)
 {
+	int qhandle, phandle;
+	char name[32];
+	unsigned int msr;
+	
+	/*
+	 * Get this info during autoconf?				XXX
+	 */
+	for (qhandle = OF_peer(0); qhandle; qhandle = phandle) {
+		if (OF_getprop(qhandle, "device_type", name, sizeof name) >= 0
+		    && !strcmp(name, "cpu")
+		    && OF_getprop(qhandle, "timebase-frequency",
+				  &ticks_per_sec, sizeof ticks_per_sec) >= 0) {
+			/*
+			 * Should check for correct CPU here?		XXX
+			 */
+			msr = mfmsr();
+			mtmsr(msr & ~PSL_EE);
 
-	/* Do nothing */
+			powerpc_timecounter.tc_frequency = ticks_per_sec;
+			tc_init(&powerpc_timecounter);
+
+			ns_per_tick = 1000000000 / ticks_per_sec;
+			ticks_per_intr = ticks_per_sec / hz;
+			__asm __volatile ("mftb %0" : "=r"(lasttb));
+			mtdec(ticks_per_intr);
+
+			mtmsr(msr);
+
+			break;
+		}
+		if ((phandle = OF_child(qhandle)))
+			continue;
+		while (qhandle) {
+			if ((phandle = OF_peer(qhandle)))
+				break;
+			qhandle = OF_parent(qhandle);
+		}
+	}
+	if (!phandle)
+		panic("no cpu node");
 }
 
 static __inline u_quad_t
@@ -204,6 +275,12 @@ mftb(void)
 	__asm ("1: mftbu %0; mftb %0+1; mftbu %1; cmpw 0,%0,%1; bne 1b"
 	      : "=r"(tb), "=r"(scratch));
 	return tb;
+}
+
+static unsigned
+powerpc_get_timecount(struct timecounter *tc)
+{
+	return mftb();
 }
 
 /*

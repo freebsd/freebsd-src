@@ -49,6 +49,7 @@ static const char rcsid[] =
 
 #include <machine/md_var.h>
 #include <machine/bootinfo.h>
+#include <machine/trap.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -71,8 +72,12 @@ dev_t	dumpdev = NODEV;
 static void
 configure(void *dummy)
 {
+	unsigned int	msr;
 
-#if 0 /* XXX */
 	cold = 0;
-#endif
+
+	msr = mfmsr();
+	msr = PSL_EE|PSL_FP|PSL_ME|PSL_IR|PSL_DR|PSL_RI;
+	mtmsr(msr);
+	msr = mfmsr();
 }
