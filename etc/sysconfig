@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id$
+#	$Id: sysconfig,v 1.1 1995/03/21 15:20:48 jkh Exp $
 
 # Set to screen saver desired:  blank, green, snake, star (or NO for none)
 saver=NO
@@ -55,8 +55,10 @@ nis_serverflags="NO"
 # Typical flags might be "-m /var/yp/master.passwd -s -f"
 yppasswddflags="NO"
 
-# Set to YES if you wish to run a name server
-name_server=NO
+# Set to appropriate flags for named, if you have a full-time
+# connection to the Internet.
+# For most hosts, flags should be "-b /etc/namedb/named.boot"
+namedflags="NO"
 
 # Set to YES if you want to run the X-10 power controller daemon
 xtend=NO
