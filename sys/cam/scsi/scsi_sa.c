@@ -100,13 +100,21 @@ typedef enum {
 	SA_STATE_NORMAL, SA_STATE_ABNORMAL
 } sa_state;
 
-typedef enum {
-	SA_CCB_BUFFER_IO,
-	SA_CCB_WAITING
-} sa_ccb_types;
+#define ccb_pflags	ppriv_field0
+#define ccb_bp	 	ppriv_ptr1
 
-#define ccb_type ppriv_field0
-#define ccb_bp	 ppriv_ptr1
+#define	SA_CCB_BUFFER_IO	0x0
+#define	SA_CCB_WAITING		0x1
+#define	SA_CCB_TYPEMASK		0x1
+#define	SA_POSITION_UPDATED	0x2
+
+#define	Set_CCB_Type(x, type)				\
+	x->ccb_h.ccb_pflags &= ~SA_CCB_TYPEMASK;	\
+	x->ccb_h.ccb_pflags |= type
+
+#define	CCB_Type(x)	(x->ccb_h.ccb_pflags & SA_CCB_TYPEMASK)
+
+
 
 typedef enum {
 	SA_FLAG_OPEN		= 0x0001,
@@ -153,7 +161,8 @@ typedef enum {
 	SA_QUIRK_2FM		= 0x08,	/* Needs Two File Marks at EOD */
 	SA_QUIRK_1FM		= 0x10,	/* No more than 1 File Mark at EOD */
 	SA_QUIRK_NODREAD	= 0x20,	/* Don't try and dummy read density */
-	SA_QUIRK_NO_MODESEL	= 0x40	/* Don't do mode select at all */
+	SA_QUIRK_NO_MODESEL	= 0x40,	/* Don't do mode select at all */
+	SA_QUIRK_NO_CPAGE	= 0x80	/* Don't use DEVICE COMPRESSION page */
 } sa_quirks;
 
 /* units are bits 4-7, 16-21 (1024 units) */
@@ -276,6 +285,12 @@ static struct sa_quirk_entry sa_quirk_table[] =
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
 		  "VIPER 2525*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 1024
 	},
+#if	0
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
+		  "C15*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_NO_CPAGE, 0,
+	},
+#endif
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "HP",
 		  "T20*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
@@ -1470,6 +1485,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct sa_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("sastart"));
+
 	
 	switch (softc->state) {
 	case SA_STATE_NORMAL:
@@ -1486,7 +1502,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 		if (periph->immediate_priority <= periph->pinfo.priority) {
 			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_type = SA_CCB_WAITING;
+			Set_CCB_Type(start_ccb, SA_CCB_WAITING);
 			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
 					  periph_links.sle);
 			periph->immediate_priority = CAM_PRIORITY_NONE;
@@ -1540,8 +1556,8 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 					length =
 					    bp->bio_bcount >> softc->blk_shift;
 				} else if (softc->media_blksize != 0) {
-					length =
-					    bp->bio_bcount / softc->media_blksize;
+					length = bp->bio_bcount /
+					    softc->media_blksize;
 				} else {
 					bp->bio_error = EIO;
 					xpt_print_path(periph->path);
@@ -1586,7 +1602,8 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
 			    length, bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
 			    120 * 60 * 1000);
-			start_ccb->ccb_h.ccb_type = SA_CCB_BUFFER_IO;
+			start_ccb->ccb_h.ccb_pflags &= ~SA_POSITION_UPDATED;
+			Set_CCB_Type(start_ccb, SA_CCB_BUFFER_IO);
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bioq_first(&softc->bio_queue);
 			splx(s);
@@ -1615,7 +1632,7 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct sa_softc *)periph->softc;
 	csio = &done_ccb->csio;
-	switch (csio->ccb_h.ccb_type) {
+	switch (CCB_Type(csio)) {
 	case SA_CCB_BUFFER_IO:
 	{
 		struct bio *bp;
@@ -1676,7 +1693,8 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 				softc->flags |= SA_FLAG_TAPE_WRITTEN;
 				softc->filemarks = 0;
 			}
-			if (softc->blkno != (daddr_t) -1) {
+			if (!(csio->ccb_h.ccb_pflags & SA_POSITION_UPDATED) &&
+			    (softc->blkno != (daddr_t) -1)) {
 				if ((softc->flags & SA_FLAG_FIXED) != 0) {
 					u_int32_t l;
 					if (softc->blk_shift != 0) {
@@ -2256,7 +2274,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 					info /= softc->media_blksize;
 			}
 		}
-		if (csio->ccb_h.ccb_type == SA_CCB_BUFFER_IO) {
+		if (CCB_Type(csio) == SA_CCB_BUFFER_IO) {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_io_sense,
 			    sizeof (struct scsi_sense_data));
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_io_cdb,
@@ -2269,8 +2287,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			    (int) csio->cdb_len);
 			softc->last_ctl_resid = resid;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ
-		    0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ "
+		    "0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
 		    asc, ascq, sense->flags & ~SSD_KEY_RESERVED, resid,
 		    csio->dxfer_len));
 	} else {
@@ -2283,7 +2301,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 * command, let the common code deal with it the error setting.
 	 */
 	if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
-	    (csio->ccb_h.ccb_type == SA_CCB_WAITING)) {
+	    (CCB_Type(csio) == SA_CCB_WAITING)) {
 		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
 	}
 
@@ -2311,6 +2329,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if (softc->fileno != (daddr_t) -1) {
 				softc->fileno++;
 				softc->blkno = 0;
+				csio->ccb_h.ccb_pflags |= SA_POSITION_UPDATED;
 			}
 		}
 		if (sense->flags & SSD_EOM) {
@@ -2345,6 +2364,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if (softc->fileno != (daddr_t) -1) {
 				softc->fileno++;
 				softc->blkno = 0;
+				csio->ccb_h.ccb_pflags |= SA_POSITION_UPDATED;
 			}
 		}
 	}
@@ -2372,6 +2392,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if ((sense->flags & SSD_FILEMARK) == 0) {
 				if (softc->blkno != (daddr_t) -1) {
 					softc->blkno++;
+					csio->ccb_h.ccb_pflags |=
+					   SA_POSITION_UPDATED;
 				}
 			}
 		}
@@ -2404,7 +2426,10 @@ sagetparams(struct cam_periph *periph, sa_params params_to_get,
 
 	softc = (struct sa_softc *)periph->softc;
 	ccb = cam_periph_getccb(periph, 1);
-	cpage = SA_DATA_COMPRESSION_PAGE;
+	if (softc->quirks & SA_QUIRK_NO_CPAGE)
+		cpage = SA_DEVICE_CONFIGURATION_PAGE;
+	else
+		cpage = SA_DATA_COMPRESSION_PAGE;
 
 retry:
 	mode_buffer_len = sizeof(*mode_hdr) + sizeof(*mode_blk);
@@ -3044,15 +3069,16 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 	int error;
 
 	/*
-	 * We have to try and flush any buffered writes here if we were writing.
+	 * We try and flush any buffered writes here if we were writing
+	 * and we're trying to get hardware block position. It eats
+	 * up performance substantially, but I'm wary of drive firmware.
 	 *
-	 * The SCSI specification is vague enough about situations like
-	 * different sized blocks in a tape drive buffer as to make one
-	 * wary about trying to figure out the actual block location value
-	 * if data is in the tape drive buffer.
+	 * I think that *logical* block position is probably okay-
+	 * but hardware block position might have to wait for data
+	 * to hit media to be valid. Caveat Emptor.
 	 */
 
-	if (softc->flags & SA_FLAG_TAPE_WRITTEN) {
+	if (hard && (softc->flags & SA_FLAG_TAPE_WRITTEN)) {
 		error = sawritefilemarks(periph, 0, 0);
 		if (error && error != EACCES)
 			return (error);
@@ -3071,23 +3097,7 @@ sardpos(struct cam_periph *periph, int hard, u_int32_t *blkptr)
 		if (loc.flags & SA_RPOS_UNCERTAIN) {
 			error = EINVAL;		/* nothing is certain */
 		} else {
-#if	0
-			u_int32_t firstblk, lastblk, nbufblk, nbufbyte;
-
-			firstblk = scsi_4btoul(loc.firstblk);
-			lastblk = scsi_4btoul(loc.lastblk);
-			nbufblk = scsi_4btoul(loc.nbufblk);
-			nbufbyte = scsi_4btoul(loc.nbufbyte);
-			if (lastblk || nbufblk || nbufbyte) {
-				xpt_print_path(periph->path);
-				printf("rdpos firstblk 0x%x lastblk 0x%x bufblk"
-				    " 0x%x bufbyte 0x%x\n", firstblk, lastblk,
-				    nbufblk, nbufbyte);
-			}
-			*blkptr = firstblk;
-#else
 			*blkptr = scsi_4btoul(loc.firstblk);
-#endif
 		}
 	}
 
