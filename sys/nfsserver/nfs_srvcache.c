@@ -150,8 +150,7 @@ nfsrv_initcache(void)
  * Update/add new request at end of lru list
  */
 int
-nfsrv_getcache(struct nfsrv_descript *nd, struct nfssvc_sock *slp,
-    struct mbuf **repp)
+nfsrv_getcache(struct nfsrv_descript *nd, struct mbuf **repp)
 {
 	struct nfsrvcache *rp;
 	struct mbuf *mb;
@@ -188,8 +187,8 @@ loop:
 				ret = RC_DROPIT;
 			} else if (rp->rc_flag & RC_REPSTATUS) {
 				nfsrvstats.srvcache_nonidemdonehits++;
-				nfs_rephead(0, nd, slp, rp->rc_status,
-				   repp, &mb, &bpos);
+				*repp = nfs_rephead(0, nd, rp->rc_status,
+				    &mb, &bpos);
 				ret = RC_REPLY;
 			} else if (rp->rc_flag & RC_REPMBUF) {
 				nfsrvstats.srvcache_nonidemdonehits++;

@@ -376,7 +376,7 @@ nfssvc_nfsd(struct nfsd_srvargs *nsd, caddr_t argp, struct thread *td)
 		    /*
 		     * Check to see if authorization is needed.
 		     */
-		    cacherep = nfsrv_getcache(nd, slp, &mreq);
+		    cacherep = nfsrv_getcache(nd, &mreq);
 
 		    if (nfs_privport) {
 			/* Check if source port is privileged */

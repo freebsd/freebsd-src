@@ -1055,7 +1055,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			adjust = dpos - mtod(mp, caddr_t);
 			mp->m_len -= adjust;
 			if (mp->m_len > 0 && adjust > 0)
-				NFSMADV(mp, adjust);
+				mp->m_data += adjust;
 		}
 		if (zeroing)
 			mp->m_len = 0;
@@ -1273,7 +1273,7 @@ nfsrv_writegather(struct nfsrv_descript **ndp, struct nfssvc_sock *slp,
 		    adjust = dpos - mtod(mp, caddr_t);
 		    mp->m_len -= adjust;
 		    if (mp->m_len > 0 && adjust > 0)
-			NFSMADV(mp, adjust);
+			mp->m_data += adjust;
 		}
 		if (zeroing)
 		    mp->m_len = 0;

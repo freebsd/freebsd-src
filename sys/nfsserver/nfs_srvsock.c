@@ -136,9 +136,9 @@ int (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
  * Generate the rpc reply header
  * siz arg. is used to decide if adding a cluster is worthwhile
  */
-void
-nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
-    int err, struct mbuf **mrq, struct mbuf **mbp, caddr_t *bposp)
+struct mbuf *
+nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
+    struct mbuf **mbp, caddr_t *bposp)
 {
 	u_int32_t *tl;
 	struct mbuf *mreq;
@@ -148,7 +148,6 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
 	nd->nd_repstat = err;
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
-
 	MGETHDR(mreq, M_TRYWAIT, MT_DATA);
 	mb = mreq;
 	/*
@@ -179,7 +178,6 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
 		}
 	} else {
 		*tl++ = rpc_msgaccepted;
-
 		/*
 		 * Send a RPCAUTH_NULL verifier - no Kerberos.
 		 */
@@ -211,15 +209,13 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, struct nfssvc_sock *slp,
 				    *tl = 0;
 			}
 			break;
-		};
+		}
 	}
-
-	if (mrq != NULL)
-		*mrq = mreq;
 	*mbp = mb;
 	*bposp = bpos;
 	if (err != 0 && err != NFSERR_RETVOID)
 		nfsrvstats.srvrpc_errs++;
+	return mreq;
 }
 
 

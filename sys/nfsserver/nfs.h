@@ -346,8 +346,8 @@ extern int nfs_debug;
 
 int	nfs_getreq(struct nfsrv_descript *, struct nfsd *, int);
 int	nfsrv_send(struct socket *, struct sockaddr *, struct mbuf *);
-void	nfs_rephead(int, struct nfsrv_descript *, struct nfssvc_sock *,
-	    int, struct mbuf **, struct mbuf **, caddr_t *);
+struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
+	    caddr_t *);
 int	nfs_slplock(struct nfssvc_sock *, int);
 void	nfs_slpunlock(struct nfssvc_sock *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,
@@ -363,11 +363,10 @@ int	nfs_namei(struct nameidata *, fhandle_t *, int,
 void	nfsm_adj(struct mbuf *, int, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfsrv_initcache(void);
-void	nfsrv_timer(void*);
+void	nfsrv_timer(void *);
 int	nfsrv_dorec(struct nfssvc_sock *, struct nfsd *,
 	    struct nfsrv_descript **);
-int	nfsrv_getcache(struct nfsrv_descript *, struct nfssvc_sock *,
-	    struct mbuf **);
+int	nfsrv_getcache(struct nfsrv_descript *, struct mbuf **);
 void	nfsrv_updatecache(struct nfsrv_descript *, int, struct mbuf *);
 void	nfsrv_cleancache(void);
 void	nfsrv_init(int);

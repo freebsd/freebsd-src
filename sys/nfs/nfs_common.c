@@ -209,7 +209,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left)
 			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
 			if (xfer > 0) {
 				bcopy(mtod(mp2, caddr_t), ptr, xfer);
-				NFSMADV(mp2, xfer);
+				mp2->m_data += xfer;
 				mp2->m_len -= xfer;
 				ptr += xfer;
 				siz2 -= xfer;
