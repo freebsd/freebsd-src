@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $NetBSD: securelevel,v 1.1 2000/08/21 23:31:24 lukem Exp $
+#
+
+# PROVIDE: securelevel
+# REQUIRE: aftermountlkm ipnat mountd
+
+. /etc/rc.subr
+
+name="securelevel"
+start_cmd="securelevel_start"
+stop_cmd=":"
+
+securelevel_start()
+{
+	#	if $securelevel is set, change it here, else if it is 0,
+	#	change it to 1 here, before we start daemons or login services.
+	#
+	if [ -n "$securelevel" ]; then
+		echo -n "Setting securelevel: "
+		sysctl -w kern.securelevel=$securelevel
+	else
+		securelevel=`sysctl -n kern.securelevel`
+		if [ x"$securelevel" = x0 ]; then
+			echo -n "Setting securelevel: "
+			sysctl -w kern.securelevel=1
+		fi
+ 	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

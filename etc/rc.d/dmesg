@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# $NetBSD: dmesg,v 1.4 2000/07/26 00:11:49 lukem Exp $
+#
+
+# PROVIDE: dmesg
+# REQUIRE: mountcritremote
+
+. /etc/rc.subr
+
+name="dmesg"
+rcvar=$name
+start_cmd="do_dmesg"
+stop_cmd=":"
+
+do_dmesg()
+{
+	rm -f /var/run/dmesg.boot
+	dmesg $dmesg_flags > /var/run/dmesg.boot
+}
+
+load_rc_config $name
+run_rc_command "$1"

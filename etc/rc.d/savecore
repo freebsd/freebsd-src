@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# $NetBSD: savecore,v 1.2 2000/05/13 08:45:09 lukem Exp $
+#
+
+# PROVIDE: savecore
+# REQUIRE: syslogd
+
+. /etc/rc.subr
+
+name="savecore"
+rcvar=$name
+start_cmd="savecore_start"
+stop_cmd=":"
+
+savecore_start()
+{
+	#	/var/crash should be a directory or a symbolic link
+	#	to the crash directory if core dumps are to be saved.
+	#
+	if [ -d /var/crash/. ]; then
+		echo "Checking for core dump..."
+		savecore $savecore_flags /var/crash
+	else
+		warn "No /var/crash directory; savecore not run."
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

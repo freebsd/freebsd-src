@@ -1,0 +1,79 @@
+#!/bin/sh
+#
+# $NetBSD: ipfilter,v 1.8 2000/10/01 05:58:06 lukem Exp $
+#
+
+# PROVIDE: ipfilter
+# REQUIRE: root beforenetlkm mountcritlocal tty
+
+. /etc/rc.subr
+
+name="ipfilter"
+rcvar=$name
+start_precmd="ipfilter_prestart"
+start_cmd="ipfilter_start"
+stop_precmd="test -f /etc/ipf.conf -o -f /etc/ipf6.conf"
+stop_cmd="ipfilter_stop"
+reload_precmd="$stop_precmd"
+reload_cmd="ipfilter_reload"
+status_precmd="$stop_precmd"
+status_cmd="ipfilter_status"
+extra_commands="reload status"
+
+ipfilter_prestart()
+{
+	if [ ! -f /etc/ipf.conf ] && [ ! -f /etc/ipf6.conf ]; then
+		warn "/etc/ipf*.conf not readable; ipfilter start aborted."
+			#
+			# If booting directly to multiuser, send SIGTERM to
+			# the parent (/etc/rc) to abort the boot
+			#
+		if [ "$autoboot" = yes ]; then
+			echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
+			kill -TERM $$
+			exit 1
+		fi
+		return 1
+	fi
+	return 0
+}
+
+ipfilter_start()
+{
+	echo "Enabling ipfilter."
+	/sbin/ipf -E -Fa
+	if [ -f /etc/ipf.conf ]; then
+		/sbin/ipf -f /etc/ipf.conf
+	fi
+	if [ -f /etc/ipf6.conf ]; then
+		/sbin/ipf -6 -f /etc/ipf6.conf
+	fi
+}
+
+ipfilter_stop()
+{
+	echo "Disabling ipfilter."
+	/sbin/ipf -D
+}
+
+ipfilter_reload()
+{
+	echo "Reloading ipfilter rules."
+
+	/sbin/ipf -I -Fa
+	if [ -f /etc/ipf.conf ] && ! /sbin/ipf -I -f /etc/ipf.conf; then
+		err 1 "reload of ipf.conf failed; not swapping to new ruleset."
+	fi
+	if [ -f /etc/ipf6.conf ] && ! /sbin/ipf -I -6 -f /etc/ipf6.conf; then
+		err 1 "reload of ipf6.conf failed; not swapping to new ruleset."
+	fi
+	/sbin/ipf -s
+}
+
+ipfilter_status()
+{
+	/sbin/ipf -V
+}
+
+load_rc_config $name
+run_rc_command "$1"

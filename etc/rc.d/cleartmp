@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# $NetBSD: cleartmp,v 1.2 2000/05/13 08:45:06 lukem Exp $
+#
+
+# PROVIDE: cleartmp
+# REQUIRE: mountall
+
+. /etc/rc.subr
+
+name="cleartmp"
+rcvar="clear_tmp"
+start_cmd="cleartmp_start"
+stop_cmd=":"
+
+cleartmp_start()
+{
+	echo "Clearing /tmp."
+	#
+	#	Prune quickly with one rm, then use find to clean up
+	#	/tmp/[lq]* (this is not needed with mfs /tmp, but
+	#	doesn't hurt anything).
+	#
+	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
+	    find -x . ! -name . ! -name lost+found ! -name quota.user \
+		! -name quota.group -exec rm -rf -- {} \; -type d -prune)
+}
+
+load_rc_config $name
+run_rc_command "$1"
