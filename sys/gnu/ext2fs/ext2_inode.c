@@ -528,10 +528,7 @@ ext2_reclaim(ap)
 		ip->i_flag |= IN_MODIFIED;
 		ext2_update(vp, 0);
 	}
-	/*
-	 * Remove the inode from its hash chain.
-	 */
-	ext2_ihashrem(ip);
+	vfs_hash_remove(vp);
 	/*
 	 * Purge old data structures associated with the inode.
 	 */

@@ -1003,7 +1003,6 @@ gnu/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_bmap.c		optional ext2fs
-gnu/ext2fs/ext2_ihash.c		optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
 gnu/ext2fs/ext2_inode_cnv.c	optional ext2fs
 gnu/ext2fs/ext2_linux_balloc.c	optional ext2fs
