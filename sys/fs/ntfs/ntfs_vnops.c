@@ -257,6 +257,7 @@ ntfs_reclaim(ap)
 	ntfs_frele(fp);
 	ntfs_ntput(ip);
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 
 	return (0);
 }

@@ -330,6 +330,7 @@ smbfs_reclaim(ap)
 		smp->sm_root = NULL;
 	}
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 	smbfs_hash_unlock(smp, td);
 	if (np->n_name)
 		smbfs_name_free(np->n_name);

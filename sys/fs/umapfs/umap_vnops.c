@@ -430,6 +430,7 @@ umap_reclaim(ap)
 	LIST_REMOVE(xp, umap_hash);
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
+	vp->v_object = NULL;
 	vrele(lowervp);
 	return (0);
 }

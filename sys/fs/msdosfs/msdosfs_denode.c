@@ -648,6 +648,7 @@ msdosfs_reclaim(ap)
 #endif
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
+	vnode_destroy_vobject(vp);
 
 	return (0);
 }

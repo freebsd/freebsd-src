@@ -1634,6 +1634,7 @@ coda_reclaim(struct vop_reclaim_args *ap)
     lockdestroy(&(VTOC(vp)->c_lock));
     coda_free(VTOC(vp));
     vp->v_data = NULL;
+    vnode_destroy_vobject(vp);
     return (0);
 }
 
