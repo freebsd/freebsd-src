@@ -21,7 +21,7 @@
 /* This thing should be set up to do byteordering correctly.  But... */
 
 #ifndef lint
-static char rcsid[] = "$Id: write.c,v 1.2 1993/11/03 00:52:28 paul Exp $";
+static char rcsid[] = "$Id: write.c,v 1.3 1993/11/30 20:55:47 jkh Exp $";
 #endif
 
 #include "as.h"
@@ -1007,11 +1007,6 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 				
 				add_symbolP = NULL;
 				fixP->fx_addsy = NULL;
-#ifdef PIC
-				add_symbolP = fixP->fx_addsy = fixP->fx_gotsy;
-				if (add_symbolP)
-					add_symbol_segment = S_GET_SEGMENT(add_symbolP);
-#endif
 			} else {
 				/* Different segments in subtraction. */
 				know(!(S_IS_EXTERNAL(sub_symbolP) && (S_GET_SEGMENT(sub_symbolP) == SEG_ABSOLUTE)));
@@ -1026,6 +1021,20 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 			}
 		} /* if sub_symbolP */
 		
+#ifdef PIC
+		/*
+		 * Bring _GLOBAL_OFFSET_TABLE_ forward, now we've had the
+		 * chance to collapse any accompanying symbols into a number.
+		 * This is the sequel of the hack in expr.c to parse operands
+		 * of the form `_GLOBAL_OFFSET_TABLE_+(L1-L2)'. Note that
+		 * _GLOBAL_OFFSET_TABLE_ can only be an "add symbol".
+		 */ 
+		if (add_symbolP == NULL && fixP->fx_gotsy != NULL) {
+			add_symbolP = fixP->fx_addsy = fixP->fx_gotsy;
+			add_symbol_segment = S_GET_SEGMENT(add_symbolP);
+		}
+#endif
+
 		if (add_symbolP) {
 			if (add_symbol_segment == this_segment_type && pcrel) {
 				/*
@@ -1065,8 +1074,11 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 					 */
 					if (!flagseen['k'] ||
 					   (fixP->fx_r_type != RELOC_GLOB_DAT &&
+#ifdef TC_I386
+/* XXX - This must be rationalized */
 					    fixP->fx_r_type != RELOC_GOT &&
 					    fixP->fx_r_type != RELOC_GOTOFF &&
+#endif
 						(fixP->fx_r_type != RELOC_32 ||
 						!S_IS_EXTERNAL(add_symbolP))))
 #endif
