@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.47 1996/09/13 18:47:03 pst Exp $
+ *	$Id: tcp_input.c,v 1.48 1996/09/13 23:51:41 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -410,11 +410,24 @@ findpcb:
 #endif
 		if (so->so_options & SO_ACCEPTCONN) {
 			register struct tcpcb *tp0 = tp;
-			so = sonewconn(so, 0);
-			if (so == 0) {
-				tcpstat.tcps_listendrop++;
-				goto drop;
+			struct socket *so2;
+			/*
+			 * If the attempt to get onto the socket queue failed,
+			 * drop the oldest queue entry and try again.
+			 */
+			so2 = sonewconn(so, 0);
+			if (!so2) {
+				so2 = TAILQ_FIRST(&so->so_incom);
+				if (so2) {
+					tcp_drop(sototcpcb(so2), ETIMEDOUT);
+					so2 = sonewconn(so, 0);
+				}
+				if (!so2) {
+					tcpstat.tcps_listendrop++;
+					goto drop;
+				}
 			}
+			so = so2;
 			/*
 			 * This is ugly, but ....
 			 *
