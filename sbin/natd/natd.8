@@ -129,12 +129,12 @@ If remotePORT is specified, it must match the size of targetPORT, or be 0
 (all ports).
 For example, the argument
 
-.Ar tcp inside1:telnet 6666
+.Dl Ar tcp inside1:telnet 6666
 
-means that tcp packets destined for port 6666 on this machine will
+means that incoming tcp packets destined for port 6666 on this machine will
 be sent to the telnet port on the inside1 machine.
 
-.Ar tcp inside2:2300-2399 3300-3399
+.Dl Ar tcp inside2:2300-2399 3300-3399
 
 will redirect incoming connections on ports 3300-3399 to host
 inside2, ports 2300-2399.
@@ -270,7 +270,11 @@ in the configuration file.  For example, the line
 
 is synonomous with
 .Fl log .
-Empty lines and lines beginning with '#' are ignored.
+.Pp
+Trailing spaces and empty lines are ignored.
+A
+.Ql \&#
+sign will mark the remaining of the line as a comment.
 
 .It Fl reverse
 Reverse operation of natd. This can be useful in some 
@@ -389,10 +393,13 @@ and assumes that you've updated
 with the natd entry as above.  If you specify real firewall rules, it's
 best to specify line 2 at the start of the script so that
 .Nm
-sees all packets before they are dropped by the firewall.  The firewall
-rules will be run again on each packet after translation by
+sees all packets before they are dropped by the firewall.
+.Pp
+After translation by
 .Nm natd ,
-minus any divert rules.
+packets re-enter the firewall at the rule number following the rule number
+that caused the diversion (not the next rule if there are several at the
+same number).
 
 .It
 Enable your firewall by setting
