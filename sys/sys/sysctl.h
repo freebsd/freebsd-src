@@ -356,7 +356,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "nisdomainname", CTLTYPE_STRING }, \
 	{ "update", CTLTYPE_INT }, \
 	{ "osreldate", CTLTYPE_INT }, \
-        { "ntp_pll", CTLTYPE_NODE }, \
+	{ "ntp_pll", CTLTYPE_NODE }, \
 	{ "bootfile", CTLTYPE_STRING }, \
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
