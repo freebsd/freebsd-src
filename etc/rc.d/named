@@ -66,11 +66,13 @@ named_precmd()
 		rc_flags="$rc_flags -t $named_chrootdir"
 		confgen_chroot="-t${named_chrootdir}"
 		checkyesno named_chroot_autoupdate && chroot_autoupdate
+	else
+		named_symlink_enable=NO
 	fi
 
 	# Create an rndc.key file for the user if none exists
 	if [ ! -f "${named_chrootdir}/etc/namedb/rndc.key" ]; then
-		rndc-confgen -a -b256 "${confgen_chroot}"
+		rndc-confgen -a -b256 ${confgen_chroot}
 	fi
 }
 
