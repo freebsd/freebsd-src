@@ -169,7 +169,7 @@ _start:
 }
 {		.mib
 		mov		gp=GP
-		mov		out2=r8
+		mov		out0=r8
 		br.call.sptk	b0=exit
 		;;
 }
