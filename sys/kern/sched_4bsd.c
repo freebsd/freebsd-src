@@ -74,12 +74,9 @@ __FBSDID("$FreeBSD$");
  * for the group.
  */
 struct kse {
-	TAILQ_ENTRY(kse) ke_kglist;	/* (*) Queue of KSEs in ke_ksegrp. */
-	TAILQ_ENTRY(kse) ke_kgrlist;	/* (*) Queue of KSEs in this state. */
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_THREAD = 0x0,	/* slaved to thread state */
@@ -112,12 +109,10 @@ struct kg_sched {
 					   /* the system scheduler. */
 	int	skg_avail_opennings;	/* (j) Num KSEs requested in group. */
 	int	skg_concurrency;	/* (j) Num KSEs requested in group. */
-	int	skg_runq_kses;		/* (j) Num KSEs on runq. */
 };
 #define kg_last_assigned	kg_sched->skg_last_assigned
 #define kg_avail_opennings	kg_sched->skg_avail_opennings
 #define kg_concurrency		kg_sched->skg_concurrency
-#define kg_runq_kses		kg_sched->skg_runq_kses
 
 #define SLOT_RELEASE(kg)						\
 do {									\
@@ -615,7 +610,6 @@ schedinit(void)
 	ksegrp0.kg_sched = &kg_sched0;
 	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
-	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
 	kse0.ke_state = KES_THREAD;
 	kg_sched0.skg_concurrency = 1;
 	kg_sched0.skg_avail_opennings = 0; /* we are already running */
@@ -1059,7 +1053,6 @@ sched_add(struct thread *td, int flags)
 		sched_tdcnt++;
 	SLOT_USE(td->td_ksegrp);
 	runq_add(ke->ke_runq, ke, flags);
-	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
 }
@@ -1082,7 +1075,6 @@ sched_rem(struct thread *td)
 	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
-	td->td_ksegrp->kg_runq_kses--;
 }
 
 /*
@@ -1121,7 +1113,6 @@ sched_choose(void)
 	if (ke != NULL) {
 		runq_remove(rq, ke);
 		ke->ke_state = KES_THREAD;
-		ke->ke_ksegrp->kg_runq_kses--;
 
 		KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 		    ("sched_choose: process swapped out"));
