@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.17 1996/05/11 20:48:22 phk Exp $
+ * $Id: command.c,v 1.18 1996/06/09 20:40:58 ache Exp $
  *
  */
 #include <sys/types.h>
@@ -182,8 +182,9 @@ char **argv;
 #endif /* HAVE_SHELL_CMD_WITH_ANY_MODE */
 
   if((shpid = fork()) == 0) {
-     int i;
-     for(i = 3; i < getdtablesize(); i++)
+     int dtablesize, i ;
+
+     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
 	(void)close(i);
 
      /*
