@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.284 1998/10/01 21:04:52 ache Exp $
+ *	$Id: syscons.c,v 1.285 1998/10/22 05:58:40 bde Exp $
  */
 
 #include "sc.h"
@@ -978,10 +978,12 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * are affected. Update the cursor in the current console...
 	 */
 	if (!ISGRAPHSC(cur_console)) {
+	    s = spltty();
             remove_cursor_image(cur_console);
 	    if (sc_flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
 	    draw_cursor_image(cur_console);
+	    splx(s);
 	}
 	return 0;
 
@@ -2820,10 +2822,12 @@ scan_esc(scr_stat *scp, u_char c)
 	     * are affected. Update the cursor in the current console...
 	     */
 	    if (!ISGRAPHSC(cur_console)) {
+		i = spltty();
 		remove_cursor_image(cur_console);
 		if (sc_flags & CHAR_CURSOR)
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
+		splx(i);
 	    }
 	    break;
 
