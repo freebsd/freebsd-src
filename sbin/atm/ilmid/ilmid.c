@@ -71,6 +71,7 @@
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #ifndef	lint
 __RCSID("@(#) $FreeBSD$");
@@ -276,6 +277,10 @@ Objid	Objids[] = {
 #define	DEVTYPE_USER	1
 #define	DEVTYPE_NODE	2
 
+/* For print_pdu() */
+#define	PDU_SEND	1
+#define	PDU_RECV	2
+
 /*
  * ILMI protocol states
  */
@@ -367,6 +372,8 @@ void	Decrement_DL( int );
 static char	*Months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 			     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
+static void hexdump (FILE *, u_int8_t *, int, char *);
+
 /*
  * Write a syslog() style timestamp
  *
@@ -403,56 +410,56 @@ write_timestamp()
  * Utility to pretty print buffer as hex dumps
  * 
  * Arguments:
- *	bp	- buffer pointer
+ *	out	- file handle
+ *	ptr	- buffer pointer
  *	len	- length to pretty print
+ *	desc	- output header
  *
  * Returns:
  *	none
  *
  */
-void
-hexdump ( bp, len )
-	u_char	*bp;
-	int	len;
+static void
+hexdump (out, ptr, len, desc)
+	FILE *		out;
+	u_int8_t *	ptr;
+	int		len;
+	char *		desc;
 {
-	int	i, j;
+	char 			line[17];
+	int			i, j;
 
-	/*
-	 * Print as 4 groups of four bytes. Each byte is separated
-	 * by a space, each block of four is separated, and two blocks
-	 * of eight are also separated.
-	 */
-	for ( i = 0; i < len; i += 16 ) {
-		if ( Log )
-			write_timestamp();
-		for ( j = 0; j < 4 && j + i < len; j++ )
-		    if ( Log )
-			fprintf ( Log, "%.2x ", *bp++ );
-		if ( Log )
-		    fprintf ( Log, " " );
-		for ( ; j < 8 && j + i < len; j++ )
-		    if ( Log )
-			fprintf ( Log, "%.2x ", *bp++ );
-		if ( Log ) {
-		    fprintf ( Log, "  " );
-		    fflush ( Log );
-		}
-		for ( ; j < 12 && j + i < len; j++ )
-		    if ( Log )
-			fprintf ( Log, "%.2x ", *bp++ );
-		if ( Log )
-		    fprintf ( Log, " " );
-		for ( ; j < 16 && j + i < len; j++ )
-		    if ( Log )
-			fprintf ( Log, "%.2x ", *bp++ );
-		if ( Log ) {
-		    fprintf ( Log, "\n" );
-		    fflush ( Log );
-		}
+	if (out == NULL)
+		out = stdout;
+
+	if (desc != NULL)
+		fprintf(out, "[ %s (%d bytes)]\n", desc, len);
+
+	bzero(line, sizeof(line));
+
+	for (i = 0, j = 0; i < len; i++) {
+
+		if (j == 0) fprintf(out, "%04x: ", i);
+		if (j == 8) fprintf(out, "| ");
+
+		fprintf(out, "%02x ", ptr[i]);
+		line[j] = isalnum(ptr[i]) ? ptr[i] : '.' ;
+		if (j == 15) {
+			fprintf(out, "  |%16s|\n", line);
+			bzero(line, sizeof(line));
+			j = 0;
+		} else 
+			j++;
 	}
 
-	return;
+	if (j != 0) {
+		if (j <= 8) fprintf(out, "  ");
+		for (; j < 16; j++) fprintf(out, "   ");
+		fprintf(out, "  |%-16s|\n", line);
+	}
+	fflush(out);
 
+	return;
 }
 
 /*
@@ -799,27 +806,39 @@ print_header ( Hdr )
 	Variable	*var;
 
 	if ( Log ) {
-	    write_timestamp();
-	    fprintf ( Log,
-		"Pdu len: %d Version: %d Community: \"%s\" Pdu Type: 0x%x %s\n",
-		    Hdr->pdulen, Hdr->version + 1, Hdr->community,
-			Hdr->pdutype, PDU_Types[Hdr->pdutype - PDU_TYPE_GET] );
-	    write_timestamp();
-	    if ( Hdr->pdutype != PDU_TYPE_TRAP && Log )
-	        fprintf ( Log, "\tReq Id: 0x%x Error: %d Error Index: %d\n",
-		    Hdr->reqid, Hdr->error, Hdr->erridx );
+		write_timestamp();
+		fprintf(Log,
+			"     PDU Type: 0x%x (%s)\n"
+			"      PDU len: %d\n"
+			"      Version: %d\n"
+			"    Community: \"%s\"\n",
+			Hdr->pdutype, PDU_Types[Hdr->pdutype & 7],
+			Hdr->pdulen,
+			Hdr->version + 1,
+			Hdr->community);
+
+		if (Hdr->pdutype != PDU_TYPE_TRAP) {
+			write_timestamp();
+			fprintf(Log,
+				"       Req Id: 0x%x\n"
+				"        Error: %d\n"
+				"  Error Index: %d\n",
+				Hdr->reqid,
+				Hdr->error,
+				Hdr->erridx);
+		}
 	}
 
 	var = Hdr->head;
 	while ( var ) {
 		if ( Log ) {
 			write_timestamp();
-			fprintf ( Log, "    Variable Type: %d", var->type );
+			fprintf ( Log, "Variable Type: %d", var->type );
 			if ( Var_Types[var->type] )
-				fprintf ( Log, " %s", Var_Types[var->type] );
-			fprintf ( Log, "\n\tObject: " );
+				fprintf ( Log, " (%s)", Var_Types[var->type] );
+			fprintf ( Log, "\n       Object: ");
 			print_objid ( &var->oid );
-			fprintf ( Log, "\tValue: " );
+			fprintf ( Log, "        Value: ");
 			switch ( var->type ) {
 			case ASN_INTEGER:
 				fprintf ( Log, "%d (0x%x)\n", var->var.ival, var->var.ival );
@@ -1030,9 +1049,6 @@ asn_get_header ( bufp )
 	}
 
 	*bufp = bp;
-
-	if ( Log && Debug_Level )
-		print_header ( h );
 
 	return ( h );
 
@@ -1426,6 +1442,58 @@ Snmp_Header *hdr;
 	free ( hdr );				/* Free fixed portion */
 }
 
+static void
+print_pdu(dir, intf, Hdr, len, buf)
+	int		dir;
+	int		intf;
+	Snmp_Header *	Hdr;
+	int		len;
+	u_char *	buf;
+{
+	char *		pdu_dir;
+	char *		pdu_type;
+	int		pdu_num;
+
+	write_timestamp();
+
+	switch (dir) {
+	case PDU_SEND:
+		pdu_dir = "SEND";
+		break;
+	case PDU_RECV:
+		pdu_dir = "RECV";
+		break;
+	default:
+		pdu_dir = "undefined";
+		break;
+	}
+
+	if (Hdr == NULL) {
+		pdu_type = "unknown";
+		pdu_num = 0;
+	} else {
+		pdu_type = PDU_Types[Hdr->pdutype & 7];
+		pdu_num = Hdr->pdutype;
+	}
+
+	fprintf(Log,
+		"%s: %s(%d), ILMI %s(%d), PDU Type %s(0x%x) %d/%d bytes.\n",
+		pdu_dir,
+		Intf[intf].anp_intf, ilmi_fd[intf],
+		ILMI_State[intf], ilmi_state[intf],
+		pdu_type, pdu_num,
+		len, buf[0]);
+
+	if (Hdr == NULL)
+		fprintf(Log, "Header seems to be invalid.\n");
+	else
+		print_header(Hdr);
+
+	hexdump(Log, (u_char *)&buf[1], len, NULL);
+
+	return;
+}
+
 /*
  * Set Request ID in PDU
  *
@@ -1481,11 +1549,7 @@ send_resp ( intf, Hdr, resp )
 	if ( ilmi_fd[intf] > 0 ) {
 	    n = write ( ilmi_fd[intf], (caddr_t)&resp[1], resp[0] );
 	    if ( Log && Debug_Level > 1 ) {
-		write_timestamp();
-		fprintf ( Log, "===== Sent %d of %d bytes (%d) =====\n", n, resp[0], ilmi_fd[intf] );
-		print_header ( Hdr );
-		if ( Debug_Level > 2 )
-			hexdump ( (u_char *)&resp[1], resp[0] );
+		print_pdu(PDU_SEND, intf, Hdr, n, resp);
 	    }
 	}
 
@@ -2485,15 +2549,14 @@ ilmi_do_state ()
 			close ( ilmi_fd[intf] );
 			ilmi_fd[intf] = -1;
 		    } else {
-		        if ( Log && Debug_Level > 1 ) fprintf ( Log, "***** state %d ***** read %d bytes from %d (%d) ***** %s *****\n",
-		            ilmi_state[intf], n, intf, ilmi_fd[intf], PDU_Types[buf[14] - 0xA0] ); {
-			        if ( Debug_Level > 2 )
-				    hexdump ( (caddr_t)&buf[1], n );
-		        }
-		        bpp = (caddr_t)&buf[1];
-		        if ( ( Hdr = asn_get_header ( &bpp ) ) == NULL )
+			bpp = (caddr_t)&buf[1];
+			Hdr = asn_get_header(&bpp);
+
+			print_pdu(PDU_RECV, intf, Hdr, n, buf);
+
+			if (Hdr == NULL)
 			    continue;
-	
+
 		        /* What we do with this messages depends upon the state we're in */
 		        switch ( ilmi_state[intf] ) {
 		        case ILMI_COLDSTART:
