@@ -89,6 +89,7 @@ extern const struct ngcmd show_cmd;
 extern const struct ngcmd shutdown_cmd;
 extern const struct ngcmd status_cmd;
 extern const struct ngcmd types_cmd;
+extern const struct ngcmd write_cmd;
 extern const struct ngcmd quit_cmd;
 
 /* Data and control sockets */
