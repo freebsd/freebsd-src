@@ -1,11 +1,13 @@
 /*
  * Musik
  *
- * $Id: calendar.musik,v 1.1 1996/01/29 00:34:17 wosch Exp $
+ * $Id: calendar.musik,v 1.2 1996/02/02 06:05:18 wosch Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_musik_
 #define _de_DE_ISO_8859_1_musik_
+
+LANG=de_DE.ISO_8859-1
 
 /* Klassik */
 02/23   Händel geboren, 1685

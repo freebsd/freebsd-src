@@ -1,11 +1,13 @@
 /*
  * Literatur
  *
- * $Id: calendar.literatur,v 1.1 1996/01/29 00:34:16 wosch Exp $
+ * $Id: calendar.literatur,v 1.2 1996/02/02 06:05:17 wosch Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_literatur_
 #define _de_DE_ISO_8859_1_literatur_
+
+LANG=de_DE.ISO_8859-1
 
 /* Schriftsteller 
 

@@ -1,11 +1,13 @@
 /*
  * Wissenschaft
  *
- * $Id: calendar.wissenschaft,v 1.1 1996/01/29 00:34:18 wosch Exp $
+ * $Id: calendar.wissenschaft,v 1.2 1996/02/02 06:05:20 wosch Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_wissenschaft_
 #define _de_DE_ISO_8859_1_wissenschaft_
+
+LANG=de_DE.ISO_8859-1
 
 04/12   erster Mann im All, Juri Gagarin, 1961
 04/18   Einstein gestorben, 1955
