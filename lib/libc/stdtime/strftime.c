@@ -42,6 +42,7 @@ static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 #include <fcntl.h>
 #include <locale.h>
 #include <sys/stat.h>
+#include "setlocale.h"
 
 struct lc_time_T {
 	const char *	mon[12];
@@ -461,8 +462,6 @@ _add(str, pt, ptlim)
 	return pt;
 }
 
-extern char *_PathLocale;
-
 int
 __time_load_locale(const char *name)
 {
@@ -509,7 +508,7 @@ __time_load_locale(const char *name)
 
 	if (!_PathLocale)
 		goto no_locale;
-	/* Range checking not needed, name has fixed size */
+	/* Range checking not needed, 'name' size is limited */
 	strcpy(filename, _PathLocale);
 	strcat(filename, "/");
 	strcat(filename, name);
