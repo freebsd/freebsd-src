@@ -471,11 +471,7 @@ fail:
 static int
 bktr_detach( device_t dev )
 {
-	unsigned int	unit;
-
 	struct bktr_softc *bktr = device_get_softc(dev);
-
-	unit = device_get_unit(dev);
 
 	/* Disable the brooktree device */
 	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
@@ -483,7 +479,8 @@ bktr_detach( device_t dev )
 
 #if defined(BKTR_USE_FREEBSD_SMBUS)
 	if (bt848_i2c_detach(dev))
-		printf("bktr%d: i2c_attach: can't attach\n", unit);
+		printf("bktr%d: i2c_attach: can't attach\n",
+		     device_get_unit(dev));
 #endif
 
 	/* Note: We do not free memory for RISC programs, grab buffer, vbi buffers */
