@@ -2477,13 +2477,8 @@ pr_addr(addr, addrlen)
 	int addrlen;
 {
 	static char buf[NI_MAXHOST];
-	int flag;
+	int flag = 0;
 
-#ifdef NI_WITHSCOPEID
-	flag = NI_WITHSCOPEID;
-#else
-	flag = 0;
-#endif
 	if ((options & F_HOSTNAME) == 0)
 		flag |= NI_NUMERICHOST;
 
