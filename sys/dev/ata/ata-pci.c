@@ -177,25 +177,9 @@ ata_pci_attach(device_t dev)
     ctlr->locking = ata_pci_locknoop;
 
     progif = pci_read_config(dev, PCIR_PROGIF, 1);
-    if ((progif & 0x85) == 0x80)
+    if ((progif & 0x80))
 	prisec = 1;
 
-    /* if this device supports PCI native addressing use it */
-#if 0
-    if ((progif & 0x8a) == 0x8a) {
-	if (pci_read_config(dev, PCIR_BAR(0), 4) &&
- 	    pci_read_config(dev, PCIR_BAR(2), 4)) {
-	    device_printf(dev, "setting native PCI addressing mode ");
-	    pci_write_config(dev, PCIR_PROGIF, progif | 0x05, 1);
-	    if ((pci_read_config(dev, PCIR_PROGIF, 1) & 0x05) != 0x05) {
-	        pci_write_config(dev, PCIR_PROGIF, progif & ~0x05, 1);
-		printf("failed, using compat method\n");
-	    }
-	    else
-		printf("succeded\n");
-	}
-    }
-#endif
     /* if needed try to enable busmastering */
     cmd = pci_read_config(dev, PCIR_COMMAND, 2);
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
