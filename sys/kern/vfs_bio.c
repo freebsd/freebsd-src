@@ -589,8 +589,6 @@ int
 bwrite(struct buf * bp)
 {
 	int oldflags, s;
-	struct vnode *vp;
-	struct mount *mp;
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -617,24 +615,6 @@ bwrite(struct buf * bp)
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	VOP_STRATEGY(bp->b_vp, bp);
-
-	/*
-	 * Collect statistics on synchronous and asynchronous writes.
-	 * Writes to block devices are charged to their associated
-	 * filesystem (if any).
-	 */
-	if ((vp = bp->b_vp) != NULL) {
-		if (vn_isdisk(vp))
-			mp = vp->v_specmountpoint;
-		else
-			mp = vp->v_mount;
-		if (mp != NULL) {
-			if ((oldflags & B_ASYNC) == 0)
-				mp->mnt_stat.f_syncwrites++;
-			else
-				mp->mnt_stat.f_asyncwrites++;
-		}
-	}
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);

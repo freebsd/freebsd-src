@@ -406,11 +406,32 @@ spec_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp;
+	struct vnode *vp;
+	struct mount *mp;
 
 	bp = ap->a_bp;
 	if (((bp->b_flags & B_READ) == 0) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
+
+	/*
+	 * Collect statistics on synchronous and asynchronous read
+	 * and write counts for disks that have associated filesystems.
+	 */
+	vp = ap->a_vp;
+	if (vn_isdisk(vp) && (mp = vp->v_specmountpoint) != NULL) {
+		if ((bp->b_flags & B_READ) == 0) {
+			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
+				mp->mnt_stat.f_asyncwrites++;
+			else
+				mp->mnt_stat.f_syncwrites++;
+		} else {
+			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
+				mp->mnt_stat.f_asyncreads++;
+			else
+				mp->mnt_stat.f_syncreads++;
+		}
+	}
 	KASSERT(devsw(bp->b_dev) != NULL, 
 	   ("No devsw on dev %s responsible for buffer %p\n", 
 	   devtoname(bp->b_dev), bp));
