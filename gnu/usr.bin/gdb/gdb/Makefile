@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.32 1998/04/30 08:03:49 dfr Exp $
+#	$Id: Makefile,v 1.33 1998/05/01 14:44:00 bde Exp $
 
 PROG = gdb
 
@@ -32,7 +32,7 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	typeprint.c utils.c valarith.c valops.c \
 	valprint.c values.c version.c \
 	serial.c ser-unix.c ser-tcp.c mdebugread.c \
-	c-exp.c f-exp.c m2-exp.c i387-tdep.c \
+	c-exp.y f-exp.y m2-exp.y i387-tdep.c \
 	kvm-fbsd.c bcache.c \
 	corefile.c ch-exp.c f-lang.c scm-exp.c scm-lang.c \
 	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
@@ -45,8 +45,9 @@ CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I${BFDDIR}
 CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
+YFLAGS=
 
-CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
+CLEANFILES=	init.c init.c-tmp
 
 .if ${BINFORMAT} == elf
 
@@ -82,8 +83,6 @@ DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
 LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
 DPADD+=	${LIBIBERTY}
 LDADD+=	${LIBIBERTY}
-
-.ORDER:	c-exp.c f-exp.c m2-exp.c
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
