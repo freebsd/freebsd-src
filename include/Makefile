@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.50 1997/02/23 09:17:12 peter Exp $
+#	$Id: Makefile,v 1.51 1997/03/02 14:06:24 bde Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -85,13 +85,8 @@ copies:
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LNOHEADERDIRS} ${LSUBDIRS} machine
-	if [ ! -d ${DESTDIR}/usr/include/$i ]; then \
-		mkdir ${DESTDIR}/usr/include/$i; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$i; \
-		chmod 755 ${DESTDIR}/usr/include/$i; \
-	fi
-.endfor
+	mtree -deU -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
+		-p ${DESTDIR}/usr/include
 .for i in ${LDIRS} ${LSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
