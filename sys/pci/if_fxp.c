@@ -56,7 +56,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <sys/proc.h>
 #include <machine/mutex.h>
 
 #include <net/ethernet.h>

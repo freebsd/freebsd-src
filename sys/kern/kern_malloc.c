@@ -43,7 +43,7 @@
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
+
 #include <machine/mutex.h>
 
 #include <vm/vm.h>
