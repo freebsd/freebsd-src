@@ -149,7 +149,10 @@ typedef enum {
 	CAM_RELEASE_SIMQ = 0x100,/* SIM ready to take more commands */
 	CAM_SIM_QUEUED   = 0x200,/* SIM has this command in it's queue */
 
-	CAM_STATUS_MASK = 0x3F	/* Mask bits for just the status # */
+	CAM_STATUS_MASK = 0x3F,	/* Mask bits for just the status # */
+
+				/* Target Specific Adjunct Status */
+	CAM_SENT_SENSE = 0x40000000	/* sent sense with status */
 } cam_status;
 
 __BEGIN_DECLS
