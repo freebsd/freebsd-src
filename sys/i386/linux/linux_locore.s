@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #include "linux_assym.h"			/* system definitions */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 
@@ -6,12 +8,11 @@
 NON_GPROF_ENTRY(linux_sigcode)
 	call	LINUX_SIGF_HANDLER(%esp)
 	leal	LINUX_SIGF_SC(%esp),%ebx	/* linux scp */
-	movl	LINUX_SC_GS(%ebx),%edx
-	movl	%dx,%gs
+	movl	LINUX_SC_GS(%ebx),%gs
 	push	%eax				/* fake ret addr */
 	movl	$LINUX_SYS_linux_sigreturn,%eax	/* linux_sigreturn() */
-	int	$0x80				/* enter kernel with args on stack */
-	hlt					/* never gets here */
+	int	$0x80				/* enter kernel with args */
+0:	jmp	0b
 	ALIGN_TEXT
 _linux_esigcode:
 

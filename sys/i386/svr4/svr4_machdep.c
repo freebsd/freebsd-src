@@ -112,7 +112,7 @@ svr4_getcontext(p, uc, mask, oonstack)
 	struct svr4_sigaltstack *s = &uc->uc_stack;
 #ifdef DONE_MORE_SIGALTSTACK_WORK
 	struct sigacts *psp = p->p_sigacts;
-	struct sigaltstack *sf = &psp->ps_sigstk;
+	struct sigaltstack *sf = &p->p_sigstk;
 #endif
 
 	memset(uc, 0, sizeof(struct svr4_ucontext));
@@ -199,7 +199,7 @@ svr4_setcontext(p, uc)
 	register struct trapframe *tf;
 	svr4_greg_t *r = uc->uc_mcontext.greg;
 	struct svr4_sigaltstack *s = &uc->uc_stack;
-	struct sigaltstack *sf = &psp->ps_sigstk;
+	struct sigaltstack *sf = &p->p_sigstk;
 	sigset_t mask;
 
 	/*
@@ -276,8 +276,8 @@ svr4_setcontext(p, uc)
 	 */
 	if (uc->uc_flags & SVR4_UC_SIGMASK) {
 		svr4_to_bsd_sigset(&uc->uc_sigmask, &mask);
+		SIG_CANTMASK(mask);
 		p->p_sigmask = mask;
-		SIG_CANTMASK(p->p_sigmask);
 	}
 
 	return 0; /*EJUSTRETURN;*/
@@ -401,16 +401,16 @@ svr4_sendsig(catcher, sig, mask, code)
 	int oonstack;
 
 	tf = p->p_md.md_regs;
-	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct svr4_sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - sizeof(struct svr4_sigframe));
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		fp = (struct svr4_sigframe *)((caddr_t)p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct svr4_sigframe));
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
 		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
 	}
@@ -466,6 +466,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	tf->tf_ds = _udatasel;
 	tf->tf_es = _udatasel;
 	tf->tf_fs = _udatasel;
+	load_gs(_udatasel);
 	tf->tf_ss = _udatasel;
 #endif
 }

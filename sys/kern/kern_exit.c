@@ -307,11 +307,11 @@ exit1(p, rv)
 	switchticks = ticks;
 
 	/*
-	 * Notify parent that we're gone.  If parent has the P_NOCLDWAIT
+	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
 	 * flag set, notify process 1 instead (and hope it will handle
 	 * this situation).
 	 */
-	if (p->p_pptr->p_procsig->ps_flag & P_NOCLDWAIT) {
+	if (p->p_pptr->p_procsig->ps_flag & PS_NOCLDWAIT) {
 		struct proc *pp = p->p_pptr;
 		proc_reparent(p, initproc);
 		/*

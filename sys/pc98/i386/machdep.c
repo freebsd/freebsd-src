@@ -496,14 +496,14 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack;
 
 	regs = p->p_md.md_regs;
-	oonstack = (psp->ps_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 
 	/* Allocate and validate space for the signal handler context. */
-	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct osigframe *)(psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - sizeof(struct osigframe));
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		fp = (struct osigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct osigframe));
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	}
 	else
 		fp = (struct osigframe *)regs->tf_esp - 1;
@@ -546,10 +546,9 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = code;
+		sf.sf_addr = (char *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
-
-	sf.sf_addr = (char *) regs->tf_err;
 
 	/* save scratch registers */
 	sf.sf_siginfo.si_sc.sc_eax = regs->tf_eax;
@@ -608,7 +607,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eip = PS_STRINGS - oszsigcode;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -624,37 +623,34 @@ sendsig(catcher, sig, mask, code)
 	sigset_t *mask;
 	u_long code;
 {
-	struct proc *p;
+	struct proc *p = curproc;
 	struct trapframe *regs;
-	struct sigacts *psp;
+	struct sigacts *psp = p->p_sigacts;
 	struct sigframe sf, *sfp;
-	int onstack;
+	int oonstack;
 
-	p = curproc;
-
-	if ((p->p_flag & P_NEWSIGSET) == 0) {
+	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
 
 	regs = p->p_md.md_regs;
-	psp = p->p_sigacts;
-	onstack = (psp->ps_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = psp->ps_sigstk;
-	sf.sf_uc.uc_mcontext.mc_onstack = onstack;
+	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_mcontext.mc_onstack = oonstack;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(struct trapframe));
 
 	/* Allocate and validate space for the signal handler context. */
-        if ((psp->ps_flags & SAS_ALTSTACK) != 0 && !onstack &&
+        if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)(psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - sizeof(struct sigframe));
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct sigframe));
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	}
 	else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
@@ -703,6 +699,7 @@ sendsig(catcher, sig, mask, code)
 	else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
+		sf.sf_addr = (char *)regs->tf_err;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 
@@ -783,9 +780,6 @@ osigreturn(p, uap)
 	register struct trapframe *regs = p->p_md.md_regs;
 	int eflags;
 
-	if ((p->p_flag & P_NEWSIGSET) != 0)
-		return sigreturn(p, (struct sigreturn_args *)uap);
-
 	scp = uap->sigcntxp;
 
 	if (useracc((caddr_t)scp, sizeof (struct osigcontext), B_WRITE) == 0)
@@ -854,10 +848,6 @@ osigreturn(p, uap)
 		regs->tf_ds = scp->sc_ds;
 		regs->tf_es = scp->sc_es;
 		regs->tf_fs = scp->sc_fs;
-		if (load_gs_param(scp->sc_gs)) {
-			trapsignal(p, SIGBUS, T_SEGNPFLT);
-			return (EFAULT);
-		}
 	}
 
 	/* restore scratch registers */
@@ -872,11 +862,11 @@ osigreturn(p, uap)
 	regs->tf_isp = scp->sc_isp;
 
 	if (scp->sc_onstack & 01)
-		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 
-	OSIG2SIG(scp->sc_mask, p->p_sigmask);
+	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 	regs->tf_ebp = scp->sc_fp;
 	regs->tf_esp = scp->sc_sp;
@@ -896,7 +886,8 @@ sigreturn(p, uap)
 	ucontext_t *ucp;
 	int cs, eflags;
 
-	p->p_flag |= P_NEWSIGSET;
+	if (((struct osigcontext *)uap->sigcntxp)->sc_trapno == 0x01d516)
+		return osigreturn(p, (struct osigreturn_args *)uap);
 
 	regs = p->p_md.md_regs;
 	ucp = uap->sigcntxp;
@@ -969,16 +960,12 @@ sigreturn(p, uap)
 			return(EINVAL);
 		}
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(struct trapframe));
-		if (load_gs_param(ucp->uc_mcontext.mc_gs)) {
-			trapsignal(p, SIGBUS, T_SEGNPFLT);
-			return (EFAULT);
-		}
 	}
 
 	if (ucp->uc_mcontext.mc_onstack & 1)
-		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
