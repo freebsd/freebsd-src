@@ -164,8 +164,8 @@ The following example shows how to configure four disks for automatic
 concatenation, create a file system on it, and mount it:
 .Bd -literal -offset indent
 gconcat label -v data /dev/da0 /dev/da1 /dev/da2 /dev/da3
-newfs /dev/data.concat
-mount /dev/data.concat /mnt
+newfs /dev/concat/data
+mount /dev/concat/data /mnt
 [...]
 umount /mnt
 gconcat stop data

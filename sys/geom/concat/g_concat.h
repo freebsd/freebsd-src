@@ -71,12 +71,12 @@ struct g_concat_softc {
 	u_int		 sc_type;	/* provider type */
 	struct g_geom	*sc_geom;
 	struct g_provider *sc_provider;
-	char		 sc_name[16];	/* concat name */
 	uint32_t	 sc_id;		/* concat unique ID */
 
 	struct g_concat_disk *sc_disks;
 	uint16_t	 sc_ndisks;
 };
+#define	sc_name	sc_geom->name
 #endif	/* _KERNEL */
 
 struct g_concat_metadata {
