@@ -170,10 +170,27 @@ The following environment variable is utilized by
 Determines the user's terminal type.
 .El
 .Sh SEE ALSO
+.Xr login ,
 .Xr rsh 1 ,
+.Xr telnet 1 ,
+.Xr setsockopt 2 ,
 .Xr kerberos 3 ,
 .Xr krb_sendauth 3 ,
-.Xr krb_realmofhost 3
+.Xr krb_realmofhost 3 ,
+.Xr ruserok 3 ,
+.Xr tty 4 ,
+.Xr hosts 5 ,
+.Xr rshd 8 ,
+.Xr rlogind 8 .
+
+.Sh FILES
+.Bl -tag -width /etc/hosts -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa $HOME/.rhosts
+.It Pa $HOME/.klogin
+.El
+
 .Sh HISTORY
 The
 .Nm rlogin
