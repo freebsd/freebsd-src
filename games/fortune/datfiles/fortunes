@@ -16588,3 +16588,10 @@ Zymurgy's Law of Volunteer Labor:
 Never be afraid to try something new. Remember, amateurs built the ark.
 Professionals built the Titanic.
 %
+Excerpt from a DEC field service document:
+
+....
+- none of these should have made it to customers.  BUT you could loosen the
+screws and lift system board at fan end while powering on to see if OCP
+comes up - this is not recommended unless you have three hands. 
+%
