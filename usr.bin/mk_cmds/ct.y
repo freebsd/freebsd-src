@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include "copyright.h"
 
-char *str_concat3(), *ds(), *generate_rqte(), *malloc(), *realloc(), *quote();
+char *str_concat3(), *ds(), *generate_rqte(), *quote();
 long flag_value();
 char *last_token = (char *)NULL;
 FILE *output_file;
