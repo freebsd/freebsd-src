@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: boot.c,v 1.2 1998/08/31 21:10:42 msmith Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ command_boot(int argc, char *argv[])
     if (mod_findmodule(NULL, NULL) == NULL) {
 	for (try = 0; (cp = getbootfile(try)) != NULL; try++) {
 	    if (mod_load(cp, argc - 1, argv + 1) != 0) {
-		printf("can't load '%s'\n", argv[0]);
+		printf("can't load '%s'\n", cp);
 	    } else {
 		/* we have consumed all arguments */
 		argc = 1;
