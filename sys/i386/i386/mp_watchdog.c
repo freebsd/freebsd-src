@@ -49,11 +49,11 @@
 #include <machine/mp_watchdog.h>
 
 /*
- * mp_swatchdog hijacks the idle thread on a specified CPU, prevents new work
+ * mp_watchdog hijacks the idle thread on a specified CPU, prevents new work
  * from being scheduled there, and uses it as a "watchdog" to detect kernel
  * failure on other CPUs.  This is made reasonable by inclusion of logical
  * processors in Xeon hardware.  The watchdog is configured by setting the
- * debug.watchdog_cpu sysctl to the CPU of interest.  A callout will then
+ * debug.watchdog sysctl/tunable to the CPU of interest.  A callout will then
  * begin executing reseting a timer that is gradually lowered by the watching
  * thread.  If the timer reaches 0, the watchdog fires by ether dropping
  * directly to the debugger, or by sending an NMI IPI to the boot processor.
@@ -68,10 +68,13 @@ static int	watchdog_dontfire = 1;
 static int	watchdog_timer = -1;
 static int	watchdog_nmi = 1;
 
+TUNABLE_INT("debug.watchdog", &watchdog_cpu);
 SYSCTL_INT(_debug, OID_AUTO, watchdog_nmi, CTLFLAG_RW, &watchdog_nmi, 0,
     "IPI the boot processor with an NMI to enter the debugger");
 
 static struct callout	watchdog_callout;
+
+static void watchdog_change(int wdcpu);
 
 /*
  * Number of seconds before the watchdog will fire if the callout fails to
@@ -84,6 +87,8 @@ watchdog_init(void *arg)
 {
 
 	callout_init(&watchdog_callout, CALLOUT_MPSAFE);
+	if (watchdog_cpu != -1)
+		watchdog_change(watchdog_cpu);
 }
 
 /*
@@ -108,6 +113,27 @@ watchdog_function(void *arg)
 }
 SYSINIT(watchdog_init, SI_SUB_DRIVERS, SI_ORDER_ANY, watchdog_init, NULL);
 
+static void
+watchdog_change(int wdcpu)
+{
+
+	if (wdcpu == -1 || wdcpu == 0xffffffff) {
+		/*
+		 * Disable the watcdog.
+		 */
+		watchdog_cpu = -1;
+		watchdog_dontfire = 1;
+		callout_stop(&watchdog_callout);
+		printf("watchdog stopped\n");
+	} else {
+		watchdog_timer = WATCHDOG_THRESHOLD;
+		watchdog_dontfire = 0;
+		watchdog_cpu = wdcpu;
+		callout_reset(&watchdog_callout, 1 * hz, watchdog_function,
+		    NULL);
+	}
+}
+
 /*
  * This sysctl sets which CPU is the watchdog CPU.  Set to -1 or 0xffffffff
  * to disable the watchdog.
@@ -122,27 +148,12 @@ sysctl_watchdog(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	if (req->newptr != NULL) {
-		if (temp == -1 || temp == 0xffffffff) {
-			/*
-			 * Disable the watcdog.
-			 */
-			watchdog_cpu = -1;
-			watchdog_dontfire = 1;
-			callout_stop(&watchdog_callout);
-			printf("watchdog stopped\n");
-		} else {
-			watchdog_timer = WATCHDOG_THRESHOLD;
-			watchdog_dontfire = 0;
-			watchdog_cpu = temp;
-			callout_reset(&watchdog_callout, 1 * hz,
-			    watchdog_function, NULL);
-		}
-	}
+	if (req->newptr != NULL)
+		watchdog_change(temp);
 	return (0);
 }
 SYSCTL_PROC(_debug, OID_AUTO, watchdog, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
-    sysctl_watchdog, "IU", "");
+    sysctl_watchdog, "I", "");
 
 /*
  * A badly behaved sysctl that leaks the sched lock when written to.  Then
