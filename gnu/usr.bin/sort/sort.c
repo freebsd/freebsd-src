@@ -19,6 +19,8 @@
    The author may be reached (Email) at the address mike@gnu.ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation. */
 
+/* $FreeBSD$ */
+
 #include <config.h>
 
 /* Get isblank from GNU libc.  */
@@ -1860,6 +1862,7 @@ main (int argc, char **argv)
 		      insertkey (key);
 		    key = (struct keyfield *)
 		      xmalloc (sizeof (struct keyfield));
+		    memset (key, 0, sizeof (struct keyfield));
 		    key->eword = -1;
 		    key->ignore = NULL;
 		    key->translate = NULL;
