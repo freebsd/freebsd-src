@@ -550,6 +550,7 @@ UKBD_DFLT_KEYMAP	opt_ukbd.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
+VINUM_AUTOSTART		opt_vinum.h
 
 # Embedded system options
 INIT_PATH		opt_init_path.h

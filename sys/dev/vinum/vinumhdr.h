@@ -49,6 +49,7 @@
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/sysctl.h>
 #endif
 #include <sys/errno.h>
 #include <sys/dkstat.h>
