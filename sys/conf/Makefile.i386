@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.99 1997/05/31 17:59:56 peter Exp $
+#	$Id: Makefile.i386,v 1.100 1997/06/29 16:39:09 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -19,6 +19,8 @@
 BINFORMAT?=	aout
 #BINFORMAT?=	aoutkld
 #BINFORMAT?=	elf
+
+STD8X16FONT?=	iso
 
 .if exists(./@/.)
 S=	./@
