@@ -17,7 +17,7 @@ to be divided up into a set of pseudo devices called
 .Em partitions.
 In an attempt to look like regular disks the 
 .Nm
-driver synthesises a partition table, with one partition covering the entire
+driver synthesizes a partition table, with one partition covering the entire
 cdrom. A user might (for some amazing reason) add another partition to the
 cdrom by using disklabel, but it will last only until the cdrom is unmounted.
 A Partition can have both a 
@@ -144,7 +144,7 @@ In addition the general
 .Xr scsi 4
 ioctls may be used with the 
 .Nm
-driver, if used against the fourth (raw/whole disk) partiton. (e.g. rcd0d)
+driver, if used against the fourth (raw/whole disk) partition. (e.g. rcd0d)
 .Sh NOTES
 When a cdrom is changed in a drive controlled by the
 .Nm

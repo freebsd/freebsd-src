@@ -159,12 +159,12 @@ in the header file
 
 .It Dv DIOCSBAD
 Usually used to set up a bad-block mapping system on the disk. Scsi
-drive incorporate their own bad-block mapping so this is not implimented,
+drive incorporate their own bad-block mapping so this is not implemented,
 however it MAY be implimented in the future as a 'kludged' interface to the
 scsi bad-block mapping.
 .It Dv DIOCGDINFO
 Read, from the kernel, the in-core copy of the disklabel for the
-drive. This may be a ficticious disklabel if the drive has never
+drive. This may be a fictitious disklabel if the drive has never
 been initialised, in which case it will contain information read
 from the scsi inquiry commands, and should be the same as
 the information printed at boot.

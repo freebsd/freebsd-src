@@ -18,7 +18,7 @@
 The
 .Em scsi
 system provides a uniform and modular system for the implementation
-of drivers to control various scsi devices, and to utilise different
+of drivers to control various scsi devices, and to utilize different
 scsi host adapters through host adapter drivers. When the system probes the 
 .Em SCSI
 busses, it attaches any devices it finds to the appropriate
@@ -53,9 +53,9 @@ a config line similar to
 .Em "controller scbus0 at ahc0"
 which assigns scsi bus 0 to the first unit using the ahc driver.
 For controllers supporting more than one bus,
-the particualar bus can be specified as in
+the particular bus can be specified as in
 .Em "controller scbus3 at ahc1 bus 1"
-which assigns scbus 1 to the second bus probled on the ahc1 device.
+which assigns scbus 1 to the second bus probed on the ahc1 device.
 .Pp
 When you have a mixture of wired down and counted devices then the
 counting begins with the first non-wired down unit for a particular
@@ -97,7 +97,7 @@ be related to the device on which the ioctl was performed.
 .It Dv SCIOCIDENTIFY
 Ask the driver what it's bus, target and lun are.
 .It Dv SCIOCDECONFIG
-Ask the device to dissappear. This may not happen if the device is in use.
+Ask the device to disappear. This may not happen if the device is in use.
 .El
 .Sh NOTES
 the generic scsi part of the system is still being mapped out.
@@ -119,7 +119,7 @@ many can transfer larger amounts.
 Some adapters support 
 .Em Target mode
 in which the system is capable of operating as a device, responding to
-operations initioated by another system. Target mode will be supported for
+operations initiated by another system. Target mode will be supported for
 some adapters, but is not yet complete for this version of the scsi system.
 .Sh FILES
 see other scsi device entries.

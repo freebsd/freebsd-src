@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: link.5,v 1.1 1994/12/23 22:41:46 nate Exp $
+.\"	$Id: link.5,v 1.2 1995/04/16 12:35:13 ats Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -52,7 +52,7 @@ to other objects that are required to complete the link-editing process and
 indirection tables to facilitate
 .Em Position Independent Code
 (PIC for short) to improve sharing of code pages among different processes.
-The collection of data structures described here will be refered to as the
+The collection of data structures described here will be referred to as the
 .Em Run-time Relocation Section (RRS)
 and is embedded in the standard text and data segments of the dynamically
 linked program or shared object image as the existing
@@ -67,7 +67,7 @@ can be build by
 The compiler also includes size information of any initialized data items
 through the .size assembler directive. PIC code differs from conventional code
 in that it accesses data variables through an indirection table, the
-Global Offset Table, by convention accessable by the reserved name
+Global Offset Table, by convention accessible by the reserved name
 .Em _GLOBAL_OFFSET_TABLE_.
 The exact mechanism used for this is machine dependent, usually a machine
 register is reserved for the purpose. The rational behind this construct
@@ -166,7 +166,7 @@ The start of a (linked) list of shared object descriptors needed by
 .Em this
 object.
 .It Fa sdt_filler1
-Depricated (used by SunOS to specify library search rules).
+Deprecated (used by SunOS to specify library search rules).
 .It Fa sdt_got
 The location of the Global Offset Table within this image.
 .It Fa sdt_plt
@@ -203,7 +203,7 @@ The size of the Procedure Linkage Table.
 .Pp
 A
 .Fa sod
-structure descibes a shared object that is needed
+structure describes a shared object that is needed
 to complete the link edit process of the object containing it.
 A list of such objects
 .Po

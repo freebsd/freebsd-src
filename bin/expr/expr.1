@@ -15,7 +15,7 @@
 .\"    must display the following acknowledgement:
 .\"      This product includes software developed by Winning Strategies, Inc.
 .\" 4. The name of the author may not be used to endorse or promote products
-.\"    derived from this software withough specific prior written permission
+.\"    derived from this software without specific prior written permission
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: expr.1,v 1.2 1993/10/04 22:07:27 jtc Exp $
+.\"	$Id: expr.1,v 1.3 1994/04/24 01:18:46 jkh Exp $
 .\"
 .Dd July 3, 1993
 .Dt EXPR 1
@@ -51,8 +51,8 @@ All operators are separate arguments to the
 utility.
 Characters special to the command interpreter must be escaped.
 .Pp
-Operators are listed below in order of increasing precidence.
-Operators with equal precidence are grouped within { } symbols.
+Operators are listed below in order of increasing precedence.
+Operators with equal precedence are grouped within { } symbols.
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
 Returns the evaluation of 
@@ -66,7 +66,7 @@ Returns the evaluation of
 if neither expression evaluates to an empty string or zero;
 otherwise, returns zero.
 .It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
-Returns the results of integer comparision if both arguments are integers; 
+Returns the results of integer comparison if both arguments are integers; 
 otherwise, returns the results of string comparison using the locale-specific
 collation sequence.
 The result of each comparison is 1 if the specified relation is true,

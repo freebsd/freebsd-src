@@ -38,7 +38,7 @@ and a
 .Em Scsi Adapter driver
 e.g. 
 .Xr AHA1542 .
-A scsi adapter must also be separatly configured into the system
+A scsi adapter must also be separately configured into the system
 before a scsi tape can be configured.
 .Pp
 As the scsi adapter is probed during boot, the 
@@ -163,12 +163,12 @@ process to read will immediately read the filemark and return EOF.
 (assuming you were in non-rewind mode).
 .It Pa fixed Blocksize
 Data written by the user is passed to the tape as a succession of
-fixed size blocks. It may be contiguouse in ram and read in a single
+fixed size blocks. It may be contiguous in ram and read in a single
 DMA pass, however it is considered to be a series of independent
 blocks. You may never write an amount of data that is not an exact
 multiple of the blocksize.  You may read and write the same data
 as a different set of records, In other words, blocks that were
-written together may be read separatly, and visa versa.
+written together may be read separately, and visa versa.
 .Pp
 If you ask for more blocks than there are left in the file, then
 the drive will encounter the filemark. Because there is some data
@@ -193,7 +193,7 @@ types of tape do not actually write two filemarks to tape,
 but when read, report a 'phantom' filemark when the last file is read.
 These devices include the QIC family of devices. It might be that this
 set of devices is the same set as that of fixed block devices. This has not
-been detirmined yet, and they are treated as separate behaviors by the
+been determined yet, and they are treated as separate behaviors by the
 driver at this time.
 .Pp
 .SH KERNEL CONFIGURATION
@@ -205,15 +205,15 @@ Most storage for them is allocated only when found so a large number
 of configured devices is cheap. (once the first has included the driver).
 .Pp
 Because different tape drives behave differently, there is a mechanism 
-within the source to st, to quickly and conveniently recognise and deal
+within the source to st, to quickly and conveniently recognize and deal
 with brands and models of drive that have special requirements.
 .Pp
-There is a table (called the rogues gallery) in which the indentification
+There is a table (called the rogues gallery) in which the identification
 strings of known errant drives can be stored. Along with each is
 a set of flags that allows the setting of densities and blocksizes for each 
 of the 4 modes, along with a set of 'QUIRK' flags that can be
 used to enable or disable sections of code within the driver if a particular
-drive is recognised.
+drive is recognized.
 .Pp
 .Sh IOCTLS
 The following 
