@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.6 1998/09/28 20:52:58 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.7 1998/10/25 17:44:41 phk Exp $
  * 
  */
 
@@ -48,6 +48,10 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.7  1998/10/25 17:44:41  phk
+ * Nitpicking and dusting performed on a train.  Removes trivial warnings
+ * about unused variables, labels and other lint.
+ *
  * Revision 1.6  1998/09/28 20:52:58  rvb
  * Cleanup and fix THE bug
  *
@@ -527,7 +531,12 @@ coda_close(v)
 	    printf("coda_close: destroying container ref %d, ufs vp %p of vp %p/cp %p\n",
 		    vp->v_usecount, cp->c_ovp, vp, cp);
 #endif
+#ifdef	hmm
 	    vgone(cp->c_ovp);
+#else
+	    VOP_CLOSE(cp->c_ovp, flag, cred, p); /* Do errors matter here? */
+	    vrele(cp->c_ovp);
+#endif
 	} else {
 #ifdef	CODA_VERBOSE
 	    printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
