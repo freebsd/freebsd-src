@@ -129,7 +129,7 @@ db_examine(addr, fmt, count)
 			    case 'z':	/* signed hex */
 				value = db_get_value(addr, size, TRUE);
 				addr += size;
-				db_printf("%-*lz", width, (long)value);
+				db_printf("%-*ly", width, (long)value);
 				break;
 			    case 'd':	/* signed decimal */
 				value = db_get_value(addr, size, TRUE);
@@ -213,7 +213,7 @@ db_print_cmd(addr, have_addr, count, modif)
 		db_printf("%8lx", (unsigned long)addr);
 		break;
 	    case 'z':
-		db_printf("%8lz", (long)addr);
+		db_printf("%8ly", (long)addr);
 		break;
 	    case 'd':
 		db_printf("%11ld", (long)addr);
