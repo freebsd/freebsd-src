@@ -1302,8 +1302,6 @@ m3_pci_resume(device_t dev)
 	
 	reset_state = m3_assp_halt(sc);
 
-	m3_codec_reset(sc);
-
 	/* Restore the ASSP state */
 	for (i = REV_B_CODE_MEMORY_BEGIN; i <= REV_B_CODE_MEMORY_END; i++)
 		m3_wr_assp_code(sc, i, sc->savemem[index++]);
