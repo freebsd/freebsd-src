@@ -95,7 +95,7 @@ enum {
 	dev_unix_ord_stream	= 40
 };
 
-dev_t dt_ptm, dt_arp, dt_icmp, dt_ip, dt_tcp, dt_udp, dt_rawip,
+static dev_t dt_ptm, dt_arp, dt_icmp, dt_ip, dt_tcp, dt_udp, dt_rawip,
 	dt_unix_dgram, dt_unix_stream, dt_unix_ord_stream;
 
 static struct fileops svr4_netops = {
