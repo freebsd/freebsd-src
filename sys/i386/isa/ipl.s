@@ -72,9 +72,8 @@ doreti_ast:
 	add	$4, %esp
 
 	/*
-	 * doreti_exit:	release MP lock, pop registers, iret.
+	 * doreti_exit:	pop registers, iret.
 	 *
-	 *	Note that the syscall trap shortcuts to doreti_syscall_ret.
 	 *	The segment register pop is a special case, since it may
 	 *	fault if (for example) a sigreturn specifies bad segment
 	 *	registers.  The fault is handled in trap.c.
@@ -83,7 +82,6 @@ doreti_exit:
 	MEXITCOUNT
 
 	.globl	doreti_popl_fs
-	.globl	doreti_syscall_ret
 doreti_popl_fs:
 	popl	%fs
 	.globl	doreti_popl_es
