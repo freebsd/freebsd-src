@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 #include "finger.h"
+#include "pathnames.h"
 
 static void	 find_idle_and_ttywrite __P((WHERE *));
 static void	 userinfo __P((PERSON *, struct passwd *));
@@ -416,7 +417,7 @@ hide(pw)
 	if (!pw->pw_dir)
 		return 0;
 
-	snprintf(buf, sizeof(buf), "%s/.nofinger", pw->pw_dir);
+	snprintf(buf, sizeof(buf), "%s/%s", pw->pw_dir, _PATH_NOFINGER);
 
 	if (access(buf, F_OK) == 0)
 		return 1;
