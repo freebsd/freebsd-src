@@ -44,22 +44,25 @@
 
 #include <regex.h>
 
-#include "buf.h"
 #include "config.h"
 
 struct GNode;
+struct Buffer;
 
 typedef struct Var {
-    char          *name;	/* the variable's name */
-    Buffer	  val;	    	/* its value */
-    int	    	  flags;    	/* miscellaneous status flags */
-#define	VAR_IN_USE	1   	    /* Variable's value currently being used.
-				     * Used to avoid recursion */
-#define	VAR_FROM_ENV	2   	    /* Variable comes from the environment */
-#define	VAR_JUNK  	4   	    /* Variable is a junk variable that
-				     * should be destroyed when done with
-				     * it. Used by Var_Parse for undefined,
-				     * modified variables */
+    char		*name;	/* the variable's name */
+    struct Buffer	*val;	/* its value */
+    int			flags;	/* miscellaneous status flags */
+
+#define	VAR_IN_USE	1	/* Variable's value currently being used.
+				 * Used to avoid recursion */
+
+#define	VAR_FROM_ENV	2	/* Variable comes from the environment */
+
+#define	VAR_JUNK	4	/* Variable is a junk variable that
+				 * should be destroyed when done with
+				 * it. Used by Var_Parse for undefined,
+				 * modified variables */
 } Var;
 
 /* Var*Pattern flags */
@@ -71,19 +74,19 @@ typedef struct Var {
 #define	VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
 
 typedef struct {
-    char    	  *lhs;	    /* String to match */
-    size_t    	  leftLen;  /* Length of string */
-    char    	  *rhs;	    /* Replacement string (w/ &'s removed) */
-    size_t    	  rightLen; /* Length of replacement */
-    int	    	  flags;
+    char	*lhs;		/* String to match */
+    size_t	leftLen;	/* Length of string */
+    char	*rhs;		/* Replacement string (w/ &'s removed) */
+    size_t	rightLen;	/* Length of replacement */
+    int		flags;
 } VarPattern;
 
 typedef struct {
-    regex_t	   re;
-    int		   nsub;
-    regmatch_t	  *matches;
-    char	  *replace;
-    int		   flags;
+    regex_t	re;
+    int		nsub;
+    regmatch_t	*matches;
+    char	*replace;
+    int		flags;
 } VarREPattern;
 
 /*
@@ -94,17 +97,17 @@ void VarREError(int, regex_t *, const char *);
 /*
  * var_modify.c
  */
-Boolean VarHead(const char *, Boolean, Buffer, void *);
-Boolean VarTail(const char *, Boolean, Buffer, void *);
-Boolean VarSuffix(const char *, Boolean, Buffer, void *);
-Boolean VarRoot(const char *, Boolean, Buffer, void *);
-Boolean VarMatch(const char *, Boolean, Buffer, void *);
+Boolean VarHead(const char *, Boolean, struct Buffer *, void *);
+Boolean VarTail(const char *, Boolean, struct Buffer *, void *);
+Boolean VarSuffix(const char *, Boolean, struct Buffer *, void *);
+Boolean VarRoot(const char *, Boolean, struct Buffer *, void *);
+Boolean VarMatch(const char *, Boolean, struct Buffer *, void *);
 #ifdef SYSVVARSUB
-Boolean VarSYSVMatch(const char *, Boolean, Buffer, void *);
+Boolean VarSYSVMatch(const char *, Boolean, struct Buffer *, void *);
 #endif
-Boolean VarNoMatch(const char *, Boolean, Buffer, void *);
-Boolean VarRESubstitute(const char *, Boolean, Buffer, void *);
-Boolean VarSubstitute(const char *, Boolean, Buffer, void *);
+Boolean VarNoMatch(const char *, Boolean, struct Buffer *, void *);
+Boolean VarRESubstitute(const char *, Boolean, struct Buffer *, void *);
+Boolean VarSubstitute(const char *, Boolean, struct Buffer *, void *);
 
 void Var_Delete(char *, struct GNode *);
 void Var_Set(char *, char *, struct GNode *);
