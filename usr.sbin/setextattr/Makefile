@@ -1,7 +1,9 @@
 # $FreeBSD$
+
 PROG=	setextattr
 MAN=	setextattr.8
-LDADD=	${LIBUTIL}
-CFLAGS+=	-Wall
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+CFLAGS+=-Wall
 
 .include <bsd.prog.mk>
