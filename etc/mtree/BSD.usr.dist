@@ -551,7 +551,11 @@
             cat4
                 alpha
                 ..
+                amd64
+                ..
                 i386
+                ..
+                sparc64
                 ..
             ..
             cat5
@@ -563,7 +567,11 @@
             cat8
                 alpha
                 ..
+                amd64
+                ..
                 i386
+                ..
+                sparc64
                 ..
             ..
             cat9
@@ -580,7 +588,11 @@
                 cat4
                     alpha
                     ..
+                    amd64
+                    ..
                     i386
+                    ..
+                    sparc64
                     ..
                 ..
                 cat5
@@ -592,7 +604,11 @@
                 cat8
                     alpha
                     ..
+                    amd64
+                    ..
                     i386
+                    ..
+                    sparc64
                     ..
                 ..
                 cat9
@@ -648,7 +664,11 @@
             man4
                 alpha
                 ..
+                amd64
+                ..
                 i386
+                ..
+                sparc64
                 ..
             ..
             man5
@@ -660,7 +680,11 @@
             man8
                 alpha
                 ..
+                amd64
+                ..
                 i386
+                ..
+                sparc64
                 ..
             ..
             man9
