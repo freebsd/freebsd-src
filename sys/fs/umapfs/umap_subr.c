@@ -362,6 +362,8 @@ umap_mapids(v_mount, credp)
 	if (credp == NOCRED)
 		return;
 
+	KASSERT(!crshared(credp), ("remapping a shared cred"));
+
 	/* Find uid entry in map */
 
 	uid = (uid_t) umap_findid(credp->cr_uid,
