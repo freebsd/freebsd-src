@@ -74,24 +74,32 @@
 
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
 static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB controller";
-#define PCI_OHCI_DEVICEID_AMD756	0x740c1022
-static const char *ohci_device_amd756	 = "AMD-756 USB Controller";
-#define PCI_OHCI_DEVICEID_AMD766	0x74141022
-static const char *ohci_device_amd766	 = "AMD-766 USB Controller";
-#define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
-static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB controller";
-#define PCI_OHCI_DEVICEID_NEC		0x00351033
-static const char *ohci_device_nec	 = "NEC uPD 9210 USB controller";
-#define PCI_OHCI_DEVICEID_USB0670	0x06701095
-static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB controller";
-#define PCI_OHCI_DEVICEID_USB0673	0x06731095
-static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB controller";
-#define PCI_OHCI_DEVICEID_SIS5571	0x70011039
-static const char *ohci_device_sis5571	 = "SiS 5571 USB controller";
-#define PCI_OHCI_DEVICEID_KEYLARGO	0x0019106b
-static const char *ohci_device_keylargo	 = "Apple KeyLargo USB controller";
 
-static const char *ohci_device_generic   = "OHCI (generic) USB controller";
+#define PCI_OHCI_DEVICEID_AMD756	0x740c1022
+static const char *ohci_device_amd756 = "AMD-756 USB Controller";
+
+#define PCI_OHCI_DEVICEID_AMD766	0x74141022
+static const char *ohci_device_amd766 = "AMD-766 USB Controller";
+
+#define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
+static const char *ohci_device_firelink = "OPTi 82C861 (FireLink) USB controller";
+
+#define PCI_OHCI_DEVICEID_NEC		0x00351033
+static const char *ohci_device_nec = "NEC uPD 9210 USB controller";
+
+#define PCI_OHCI_DEVICEID_USB0670	0x06701095
+static const char *ohci_device_usb0670 = "CMD Tech 670 (USB0670) USB controller";
+
+#define PCI_OHCI_DEVICEID_USB0673	0x06731095
+static const char *ohci_device_usb0673 = "CMD Tech 673 (USB0673) USB controller";
+
+#define PCI_OHCI_DEVICEID_SIS5571	0x70011039
+static const char *ohci_device_sis5571 = "SiS 5571 USB controller";
+
+#define PCI_OHCI_DEVICEID_KEYLARGO	0x0019106b
+static const char *ohci_device_keylargo = "Apple KeyLargo USB controller";
+
+static const char *ohci_device_generic = "OHCI (generic) USB controller";
 
 #define PCI_OHCI_BASE_REG	0x10
 
@@ -104,7 +112,7 @@ ohci_pci_match(device_t self)
 {
 	u_int32_t device_id = pci_get_devid(self);
 
-	switch(device_id) {
+	switch (device_id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		return (ohci_device_aladdin_v);
 	case PCI_OHCI_DEVICEID_AMD756:
@@ -124,20 +132,21 @@ ohci_pci_match(device_t self)
 	case PCI_OHCI_DEVICEID_KEYLARGO:
 		return (ohci_device_keylargo);
 	default:
-		if (   pci_get_class(self)    == PCIC_SERIALBUS
+		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
-		    && pci_get_progif(self)   == PCI_INTERFACE_OHCI) {
+		    && pci_get_progif(self) == PCI_INTERFACE_OHCI) {
 			return (ohci_device_generic);
 		}
 	}
 
-	return NULL;	/* dunno */
+	return NULL;		/* dunno */
 }
 
 static int
 ohci_pci_probe(device_t self)
 {
 	const char *desc = ohci_pci_match(self);
+
 	if (desc) {
 		device_set_desc(self, desc);
 		return 0;
@@ -158,24 +167,22 @@ ohci_pci_attach(device_t self)
 
 	rid = PCI_CBMEM;
 	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-					0, ~0, 1, RF_ACTIVE);
+	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
-        }
-
+	}
 	sc->iot = rman_get_bustag(sc->io_res);
 	sc->ioh = rman_get_bushandle(sc->io_res);
 
 	rid = 0;
 	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				     RF_SHAREABLE | RF_ACTIVE);
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		ohci_pci_detach(self);
 		return ENXIO;
 	}
-
 	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
 	if (!sc->sc_bus.bdev) {
 		device_printf(self, "Could not add USB device\n");
@@ -224,20 +231,19 @@ ohci_pci_attach(device_t self)
 	default:
 		if (bootverbose)
 			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
-				      pci_get_devid(self));
+			    pci_get_devid(self));
 		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
-			     (driver_intr_t *) ohci_intr, sc, &sc->ih);
+	    (driver_intr_t *) ohci_intr, sc, &sc->ih);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		sc->ih = NULL;
 		ohci_pci_detach(self);
 		return ENXIO;
 	}
-
 	err = ohci_init(sc);
 	if (!err)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
@@ -247,7 +253,6 @@ ohci_pci_attach(device_t self)
 		ohci_pci_detach(self);
 		return EIO;
 	}
-
 	return 0;
 }
 
@@ -256,56 +261,54 @@ ohci_pci_detach(device_t self)
 {
 	ohci_softc_t *sc = device_get_softc(self);
 
-	/* XXX this code is not yet fit to be used as detach for
-	 * the OHCI controller
+	/*
+	 * XXX this code is not yet fit to be used as detach for the OHCI
+	 * controller
 	 */
 
-	/* disable interrupts that might have been switched on
-	 * in ohci_init
+	/*
+	 * disable interrupts that might have been switched on in ohci_init
 	 */
 	if (sc->iot && sc->ioh)
 		bus_space_write_4(sc->iot, sc->ioh,
-				  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+		    OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
+
 		if (err)
 			/* XXX or should we panic? */
 			device_printf(self, "Could not tear down irq, %d\n",
-				      err);
+			    err);
 		sc->ih = NULL;
 	}
-
 	if (sc->sc_bus.bdev) {
 		device_delete_child(self, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
 	}
-
 	if (sc->irq_res) {
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
 		sc->irq_res = NULL;
 	}
-
 	if (sc->io_res) {
-		bus_release_resource(self, SYS_RES_MEMORY,PCI_CBMEM,sc->io_res);
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_CBMEM, sc->io_res);
 		sc->io_res = NULL;
 		sc->iot = 0;
 		sc->ioh = 0;
 	}
-
 	return 0;
 }
 
 static device_method_t ohci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ohci_pci_probe),
-	DEVMETHOD(device_attach,	ohci_pci_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_probe, ohci_pci_probe),
+	DEVMETHOD(device_attach, ohci_pci_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_print_child, bus_generic_print_child),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t ohci_driver = {
