@@ -184,7 +184,8 @@ If the link number is
 the frame will be delivered over the multi-link bundle; or, if multi-link
 is disabled, over the (single) PPP link.
 .Pp
-Typically when the controlling entity receives a packet on the bypass
+Typically when the controlling entity receives an unexpected packet on the
+.Dv bypass
 hook it responds either by dropping the frame (if it's not ready for
 the protocol) or with an LCP protocol reject (if it doesn't recognize
 or expect the protocol).
