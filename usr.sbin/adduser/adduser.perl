@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.37 1997/09/20 19:59:54 wosch Exp $
+# $Id: adduser.perl,v 1.19.2.8 1997/10/14 17:34:01 wosch Exp $
 
 
 # read variables
@@ -1371,7 +1371,7 @@ defaultgroup = $defaultgroup
 defaultclass = "$defaultclass"
 
 # new users get this uid (1000)
-uid_start = 1000
+uid_start = "$uid_start"
 
 $do_not_delete
 ## your own variables, see /etc/adduser.message
