@@ -46,7 +46,7 @@
 .Sh DESCRIPTION
 The
 .Fn getcwd
-function copies an absolute pathname of the current working directory
+function copies the absolute pathname of the current working directory
 into the memory referenced by
 .Fa buf
 and returns a pointer to
@@ -89,12 +89,6 @@ open the current directory
 and use the
 .Xr fchdir 2
 function to return.
-.Pp
-These routines examine the the environment variable PWD,
-if it is an absolute path for the current directory,
-that path will be returned.
-Consequently, if the ``canonical'' name of the current directory is
-needed, unset the PWD environment variable before calling these routines.
 .Sh RETURN VALUES
 Upon successful completion, a pointer to the pathname is returned.
 Otherwise a
