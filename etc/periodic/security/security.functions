@@ -52,7 +52,7 @@ check_diff() {
   msg="$1"; shift
 
   if [ "${tmpf}" = "-" ]; then
-    tmpf=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
+    tmpf=`mktemp -t security`
     cat > ${tmpf}
   fi
 

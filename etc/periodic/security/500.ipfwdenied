@@ -41,7 +41,7 @@ rc=0
 
 case "$daily_status_security_ipfwdenied_enable" in
     [Yy][Ee][Ss])
-	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
+	TMP=`mktemp -t security`
 	if ipfw -a l 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
 	  check_diff new_only ipfw ${TMP} "${host} ipfw denied packets:"
 	fi
