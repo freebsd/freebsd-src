@@ -62,3 +62,4 @@ _SYSENTRY(pipe)
 1:	stw	%o1, [%o2 + 4]
 	retl
 	 clr	%o0
+_SYSEND(pipe)
