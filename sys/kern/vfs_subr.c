@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.18 1995/02/27 10:15:38 davidg Exp $
+ * $Id: vfs_subr.c,v 1.19 1995/03/07 18:59:45 davidg Exp $
  */
 
 /*
@@ -84,6 +84,8 @@ int vttoif_tab[9] = {
 }
 
 TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
+u_long freevnodes	= 0;
+
 struct mntlist mountlist;	/* mounted filesystem list */
 
 int desiredvnodes;
@@ -312,7 +314,6 @@ vattr_null(vap)
  */
 extern int (**dead_vnodeop_p) ();
 extern void vclean();
-long numvnodes;
 
 /*
  * Return the next vnode from the free list.
@@ -326,22 +327,31 @@ getnewvnode(tag, mp, vops, vpp)
 {
 	register struct vnode *vp;
 
-	if (vnode_free_list.tqh_first == NULL ||
-	    numvnodes < desiredvnodes) {
+	vp = vnode_free_list.tqh_first;
+	/*
+	 * we allocate a new vnode if
+	 * 	1. we don't have any free
+	 *		Pretty obvious, we actually used to panic, but that
+	 *		is a silly thing to do.
+	 *	2. we havn't filled our pool yet
+	 *		We don't want to trash the incore (VM-)vnodecache.
+	 *	3. if less that 1/16th of our vnodes are free.
+	 *		We don't want to trash the namei cache either.
+	 */
+	if (vp == NULL ||
+	    numvnodes < desiredvnodes ||
+	    freevnodes < (numvnodes >> 4)) {
 		vp = (struct vnode *) malloc((u_long) sizeof *vp,
 		    M_VNODE, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
 		numvnodes++;
 	} else {
-		if ((vp = vnode_free_list.tqh_first) == NULL) {
-			tablefull("vnode");
-			*vpp = 0;
-			return (ENFILE);
-		}
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		freevnodes--;
+
 		if (vp->v_usecount)
 			panic("free vnode isn't");
 
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		/* see comment on why 0xdeadb is set at end of vgone (below) */
 		vp->v_freelist.tqe_prev = (struct vnode **) 0xdeadb;
 		vp->v_lease = NULL;
@@ -771,8 +781,10 @@ vget(vp, lockflag)
 		(void) tsleep((caddr_t) vp, PINOD, "vget", 0);
 		return (1);
 	}
-	if (vp->v_usecount == 0)
+	if (vp->v_usecount == 0) {
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		freevnodes--;
+	}
 	vp->v_usecount++;
 	if (lockflag)
 		VOP_LOCK(vp);
@@ -832,6 +844,7 @@ vrele(vp)
 	} else {
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
+	freevnodes++;
 
 	VOP_INACTIVE(vp);
 }
