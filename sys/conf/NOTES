@@ -1703,7 +1703,7 @@ options 	COM_MULTIPORT		#code for some cards with shared IRQs
 # PCI Universal Communications driver
 # Supports various single and multi port PCI serial cards. Maybe later
 # also the parallel ports on combination serial/parallel cards. New cards
-# can be added in srs/sys/dev/pucdata.c.
+# can be added in src/sys/dev/puc/pucdata.c.
 #
 # If the PUC_FASTINTR option is used the driver will try to use fast
 # interrupts. The card must then be the only user of that interrupt.
