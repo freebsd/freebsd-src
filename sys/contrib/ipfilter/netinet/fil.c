@@ -97,7 +97,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.59 2002/03/25 11:07:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.60 2002/04/26 10:20:34 darrenr Exp $";
 #endif
 
 #ifndef	_KERNEL
@@ -1454,7 +1454,13 @@ nodata:
 #  endif /*  defined(BSD) || defined(sun) */
 # endif /* SOLARIS */
 #else /* KERNEL */
-	sum2 = 0;
+	for (; slen > 1; slen -= 2)
+		sum += *sp++;
+	if (slen)
+		sum += ntohs(*(u_char *)sp << 8);
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum2 = (u_short)(~sum & 0xffff);
 #endif /* KERNEL */
 	tcp->th_sum = ts;
 	return sum2;
@@ -1495,7 +1501,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.59 2002/03/25 11:07:37 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.60 2002/04/26 10:20:34 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -2159,4 +2165,16 @@ int	icmptoicmp6unreach[ICMP_MAX_UNREACH] = {
 	-1,				/* 12: ICMP_UNREACH_TOSHOST */
 	ICMP6_DST_UNREACH_ADMIN,	/* 13: ICMP_UNREACH_ADMIN_PROHIBIT */
 };
+#endif
+
+
+#ifndef	_KERNEL
+int mbuflen(buf)
+mb_t *buf;
+{
+	ip_t *ip;
+
+	ip = (ip_t *)buf;
+	return ip->ip_len;
+}
 #endif

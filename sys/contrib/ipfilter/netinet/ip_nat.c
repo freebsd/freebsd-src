@@ -109,7 +109,7 @@ extern struct ifnet vpnif;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.66 2002/04/23 14:58:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.37.2.67 2002/04/27 15:23:39 darrenr Exp $";
 #endif
 
 nat_t	**nat_table[2] = { NULL, NULL },
@@ -1768,7 +1768,6 @@ int dir;
 			sumd2 = sumd;
 		}
 
-#if 1
 		/*
 		 * Fix TCP pseudo header checksum to compensate for the 
 		 * IP address change. Before we can do the change, we
@@ -1788,7 +1787,6 @@ int dir;
 			CALC_SUMD(sum1, sum2, sumd);
 			sumd2 = sumd;
 		}
-#endif
 	} else {
 
 		/*
@@ -1837,7 +1835,6 @@ int dir;
 			sumd2 = sumd;
 		}
 		
-#if 1
 		/* 
 		 * Fix TCP pseudo header checksum to compensate for the 
 		 * IP address change. Before we can do the change, we
@@ -1856,9 +1853,7 @@ int dir;
 			 */
 			CALC_SUMD(sum1, sum2, sumd);
 			sumd2 = sumd;
-		};
-#endif
-		
+		}
 #endif
 	}
 
