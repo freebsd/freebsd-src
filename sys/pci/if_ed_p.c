@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.4 1996/08/28 18:54:26 bde Exp $
+ *	$Id: if_ed_p.c,v 1.5 1996/10/15 19:22:40 bde Exp $
  */
 
 #include "pci.h"
@@ -32,7 +32,9 @@
 
 #include "ed.h"
 
-#define PCI_DEVICE_ID_NE2000	0x802910ec
+#define PCI_DEVICE_ID_RealTek_8029	0x802910ec
+#define PCI_DEVICE_ID_ProLAN_NE2000	0x09401050
+#define PCI_DEVICE_ID_Compex_NE2000	0x140111f6
 
 extern void *ed_attach_NE2000_pci __P((int, int));
 
@@ -55,11 +57,12 @@ static char*
 ed_pci_probe (pcici_t tag, pcidi_t type)
 {
 	switch(type) {
-	case PCI_DEVICE_ID_NE2000:
-		return ("NE2000 compatible PCI Ethernet adapter");
-		break;
-	default:
-		break;
+	case PCI_DEVICE_ID_RealTek_8029:
+		return ("NE2000 PCI Ethernet (RealTek 8029)");
+	case PCI_DEVICE_ID_ProLAN_NE2000:
+		return ("NE2000 PCI Ethernet (ProLAN)");
+	case PCI_DEVICE_ID_Compex_NE2000:
+		return ("NE2000 PCI Ethernet (Compex)");
 	}
 	return (0);
 }
@@ -71,7 +74,7 @@ ed_pci_attach(config_id, unit)
 	pcici_t config_id;
 	int	unit;
 {
-	u_long io_port;
+	int io_port;
 	void *ed; /* device specific data ... */
 
 	io_port = pci_conf_read(config_id, PCI_MAP_REG_START) & ~PCI_MAP_IO;
