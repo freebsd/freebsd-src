@@ -532,6 +532,18 @@ Set to not build
 .Nm libc_r
 (reentrant version of
 .Nm libc ) .
+.It Va NOLIBPTHREAD
+.Pq Vt bool
+Set to not build the
+.Nm libpthread
+(M:N threading)
+library.
+.It Va NOLIBTHR
+.Pq Vt bool
+Set to not build the
+.Nm libthr
+(1:1 threading)
+library.
 .It Va NOMANCOMPRESS
 .Pq Vt bool
 Set to install man pages uncompressed.
