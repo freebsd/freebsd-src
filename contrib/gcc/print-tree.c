@@ -1,5 +1,5 @@
 /* Prints out tree in human readable form - GNU C-compiler
-   Copyright (C) 1990, 1991, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91, 93, 94, 95, 96, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,10 +20,8 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
+#include "system.h"
 #include "tree.h"
-#include <stdio.h>
-
-extern char **tree_code_name;
 
 extern char *mode_name[];
 
@@ -82,7 +80,7 @@ print_node_brief (file, prefix, node, indent)
   if (indent > 0)
     fprintf (file, " ");
   fprintf (file, "%s <%s ", prefix, tree_code_name[(int) TREE_CODE (node)]);
-  fprintf (file, HOST_PTR_PRINTF, (void *) node);
+  fprintf (file, HOST_PTR_PRINTF, (char *) node);
 
   if (class == 'd')
     {
@@ -109,38 +107,18 @@ print_node_brief (file, prefix, node, indent)
       if (TREE_CONSTANT_OVERFLOW (node))
 	fprintf (file, " overflow");
 
+      fprintf (file, " ");
       if (TREE_INT_CST_HIGH (node) == 0)
-	fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-		 " %1u",
-#else
-		 " %1lu",
-#endif
-		 TREE_INT_CST_LOW (node));
+	fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED, TREE_INT_CST_LOW (node));
       else if (TREE_INT_CST_HIGH (node) == -1
 	       && TREE_INT_CST_LOW (node) != 0)
-	fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-		 " -%1u",
-#else
-		 " -%1lu",
-#endif
+	{
+	  fprintf (file, "-");
+	  fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
 		 -TREE_INT_CST_LOW (node));
+	}
       else
-	fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == 64
-#if HOST_BITS_PER_WIDE_INT != HOST_BITS_PER_INT
-		 " 0x%lx%016lx",
-#else
-		 " 0x%x%016x",
-#endif
-#else
-#if HOST_BITS_PER_WIDE_INT != HOST_BITS_PER_INT
-		 " 0x%lx%08lx",
-#else
-		 " 0x%x%08x",
-#endif
-#endif
+	fprintf (file, HOST_WIDE_INT_PRINT_DOUBLE_HEX,
 		 TREE_INT_CST_HIGH (node), TREE_INT_CST_LOW (node));
     }
   if (TREE_CODE (node) == REAL_CST)
@@ -231,14 +209,14 @@ print_node (file, prefix, node, indent)
       return;
     }
 
-  /* It is unsafe to look at any other filds of an ERROR_MARK node. */
+  /* It is unsafe to look at any other filds of an ERROR_MARK node.  */
   if (TREE_CODE (node) == ERROR_MARK)
     {
       print_node_brief (file, prefix, node, indent);
       return;
     }
 
-  hash = ((unsigned HOST_WIDE_INT) node) % HASH_SIZE;
+  hash = ((unsigned long) node) % HASH_SIZE;
 
   /* If node is in the table, just mention its address.  */
   for (b = table[hash]; b; b = b->next)
@@ -259,7 +237,7 @@ print_node (file, prefix, node, indent)
 
   /* Print the slot this node is in, and its code, and address.  */
   fprintf (file, "%s <%s ", prefix, tree_code_name[(int) TREE_CODE (node)]);
-  fprintf (file, HOST_PTR_PRINTF, (void *) node);
+  fprintf (file, HOST_PTR_PRINTF, (char *) node);
 
   /* Print the name, if any.  */
   if (class == 'd')
@@ -417,7 +395,6 @@ print_node (file, prefix, node, indent)
 	       DECL_SOURCE_FILE (node), DECL_SOURCE_LINE (node));
 
       print_node (file, "size", DECL_SIZE (node), indent + 4);
-      print_node (file, "attributes", TYPE_ATTRIBUTES (node), indent + 4);
       indent_to (file, indent + 3);
       if (TREE_CODE (node) != FUNCTION_DECL)
 	fprintf (file, " align %d", DECL_ALIGN (node));
@@ -456,7 +433,7 @@ print_node (file, prefix, node, indent)
 	    {
 	      fprintf (file, "saved-insns ");
 	      fprintf (file, HOST_PTR_PRINTF,
-		       (void *) DECL_SAVED_INSNS (node));
+ 		       (char *) DECL_SAVED_INSNS (node));
 	    }
 	}
 
@@ -502,6 +479,7 @@ print_node (file, prefix, node, indent)
 
       fprintf (file, " align %d", TYPE_ALIGN (node));
       fprintf (file, " symtab %d", TYPE_SYMTAB_ADDRESS (node));
+      fprintf (file, " alias set %d", TYPE_ALIAS_SET (node));
 
       print_node (file, "attributes", TYPE_ATTRIBUTES (node), indent + 4);
 
@@ -562,36 +540,18 @@ print_node (file, prefix, node, indent)
     case '2':
     case 'r':
     case 's':
-      switch (TREE_CODE (node))
+      if (TREE_CODE (node) == BIND_EXPR)
 	{
-	case BIND_EXPR:
 	  print_node (file, "vars", TREE_OPERAND (node, 0), indent + 4);
 	  print_node (file, "body", TREE_OPERAND (node, 1), indent + 4);
 	  print_node (file, "block", TREE_OPERAND (node, 2), indent + 4);
 	  return;
 	}
 
-      first_rtl = len = tree_code_length[(int) TREE_CODE (node)];
-      /* These kinds of nodes contain rtx's, not trees,
+      len = tree_code_length[(int) TREE_CODE (node)];
+      /* Some nodes contain rtx's, not trees,
 	 after a certain point.  Print the rtx's as rtx's.  */
-      switch (TREE_CODE (node))
-	{
-	case SAVE_EXPR:
-	  first_rtl = 2;
-	  break;
-	case CALL_EXPR:
-	  first_rtl = 2;
-	  break;
-	case METHOD_CALL_EXPR:
-	  first_rtl = 3;
-	  break;
-	case WITH_CLEANUP_EXPR:
-	  /* Should be defined to be 2.  */
-	  first_rtl = 1;
-	  break;
-	case RTL_EXPR:
-	  first_rtl = 0;
-	}
+      first_rtl = first_rtl_op (TREE_CODE (node));
       for (i = 0; i < len; i++)
 	{
 	  if (i >= first_rtl)
@@ -612,6 +572,15 @@ print_node (file, prefix, node, indent)
 	      print_node (file, temp, TREE_OPERAND (node, i), indent + 4);
 	    }
 	}
+
+      if (TREE_CODE (node) == EXPR_WITH_FILE_LOCATION)
+	{
+	  indent_to (file, indent+4);
+          fprintf (file, "%s:%d:%d", 
+		   (EXPR_WFL_FILENAME_NODE (node ) ?
+		    EXPR_WFL_FILENAME (node) : "(no file info)"),
+		   EXPR_WFL_LINENO (node), EXPR_WFL_COLNO (node));
+	}
       break;
 
     case 'c':
@@ -622,38 +591,19 @@ print_node (file, prefix, node, indent)
 	  if (TREE_CONSTANT_OVERFLOW (node))
 	    fprintf (file, " overflow");
 
+	  fprintf (file, " ");
 	  if (TREE_INT_CST_HIGH (node) == 0)
-	    fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-		     " %1u",
-#else
-		     " %1lu",
-#endif
+	    fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
 		     TREE_INT_CST_LOW (node));
 	  else if (TREE_INT_CST_HIGH (node) == -1
 		   && TREE_INT_CST_LOW (node) != 0)
-	    fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-		     " -%1u",
-#else
-		     " -%1lu",
-#endif
-		     -TREE_INT_CST_LOW (node));
+	    {
+	      fprintf (file, "-");
+	      fprintf (file, HOST_WIDE_INT_PRINT_UNSIGNED,
+		       -TREE_INT_CST_LOW (node));
+	    }
 	  else
-	    fprintf (file,
-#if HOST_BITS_PER_WIDE_INT == 64
-#if HOST_BITS_PER_WIDE_INT != HOST_BITS_PER_INT
-		     " 0x%lx%016lx",
-#else
-		     " 0x%x%016x",
-#endif
-#else
-#if HOST_BITS_PER_WIDE_INT != HOST_BITS_PER_INT
-		     " 0x%lx%08lx",
-#else
-		     " 0x%x%08x",
-#endif
-#endif
+	    fprintf (file, HOST_WIDE_INT_PRINT_DOUBLE_HEX,
 		     TREE_INT_CST_HIGH (node), TREE_INT_CST_LOW (node));
 	  break;
 
@@ -729,6 +679,12 @@ print_node (file, prefix, node, indent)
 	case OP_IDENTIFIER:
 	  print_node (file, "op1", TREE_PURPOSE (node), indent + 4);
 	  print_node (file, "op2", TREE_VALUE (node), indent + 4);
+	  break;
+
+	default:
+	  if (TREE_CODE_CLASS (TREE_CODE (node)) == 'x')
+	    lang_print_xnode (file, node, indent);
+	  break;
 	}
 
       break;
