@@ -30,8 +30,9 @@ if [ -f picobsd.bin ]; then
     mv -f picobsd.bin picobsd.bin.${old}
 fi
 
-rm -f kernel kernel.gz fs.PICOBSD *.o *core *.db \
-	.build.reply stage1.out build.status .image.list
+rm -fr kernel kernel.gz fs.PICOBSD *.o *core *.db \
+	.build.reply stage1.out build.status .image.list \
+	floppy.tree loader
 cd ..
 rm -rf help/tmp_hlp
 echo "===================== $0 tools started ===================="
