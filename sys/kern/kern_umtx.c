@@ -178,7 +178,7 @@ umtxq_unbusy(struct umtx_key *key)
 	int chain = umtxq_hash(key);
 
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
-	KASSERT(umtxq_chains[chain].uc_flags & UCF_BUSY, "not busy");
+	KASSERT(umtxq_chains[chain].uc_flags & UCF_BUSY, ("not busy"));
 	umtxq_chains[chain].uc_flags &= ~UCF_BUSY;
 	if (umtxq_chains[chain].uc_flags & UCF_WANT) {
 		umtxq_chains[chain].uc_flags &= ~UCF_WANT;
@@ -545,13 +545,15 @@ do_lock(struct thread *td, struct umtx *umtx, long id,
 			}
 			timo = tvtohz(&tv);
 			error = _do_lock(td, umtx, id, timo);
-			if (error != EWOULDBLOCK) {
-				if (error == ERESTART)
-					error = EINTR;
+			if (error != EWOULDBLOCK)
 				break;
-			}
 		}
 	}
+	/*
+	 * This lets userland back off critical region if needed.
+	 */
+	if (error == ERESTART)
+		error = EINTR;
 	return (error);
 }
 
@@ -704,7 +706,9 @@ do_wake(struct thread *td, void *uaddr, int n_wake)
 	
 	if ((ret = umtx_key_get(td, uaddr, &key)) != 0)
 		return (ret);
+	umtxq_lock(&key);
 	ret = umtxq_signal(&key, n_wake);
+	umtxq_unlock(&key);
 	umtx_key_release(&key);
 	td->td_retval[0] = ret;
 	return (0);
