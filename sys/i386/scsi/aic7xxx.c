@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.23 1997/04/14 02:31:44 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.24 1997/04/18 16:38:36 gibbs Exp $
  */
 /*
  * TODO:
@@ -960,8 +960,9 @@ ahc_handle_seqint(ahc, intstat)
 	{
 		u_int8_t rejbyte = ahc_inb(ahc, REJBYTE);
 		printf("%s:%c:%d: Warning - unknown message received from "
-		       "target (0x%x).  Rejecting\n", 
-		       ahc_name(ahc), channel, target, rejbyte);
+		       "target (0x%x).  SEQ_FLAGS == 0x%x.  Rejecting\n", 
+		       ahc_name(ahc), channel, target, rejbyte,
+		       ahc_inb(ahc, SEQ_FLAGS));
 		break; 
 	}
 	case NO_IDENT: 
@@ -1282,7 +1283,12 @@ ahc_handle_seqint(ahc, intstat)
 				sg->addr = vtophys(&xs->sense);
 				sg->len = sizeof(struct scsi_sense_data);
 
-				hscb->control &= DISCENB;
+				/* XXX should allow disconnection, but
+				 * can't as it might allow overlapped
+				 * tagged commands.
+				 */
+				/* hscb->control &= DISCENB; */
+				hscb->control = 0;
 				hscb->status = 0;
 				hscb->SG_segment_count = 1;
 				hscb->SG_list_pointer = vtophys(sg);
