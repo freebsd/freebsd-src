@@ -1213,7 +1213,7 @@ newcalc:
 
 /*
  * Find an inode header.
- * Complain if had to skip, and complain is set.
+ * Complain if had to skip.
  */
 static void
 findinode(header)
