@@ -339,14 +339,10 @@ sound_mem_init (void)
 	  if (sound_buffsizes[dev] > 65536)	/* Larger is not possible (yet) */
 	    sound_buffsizes[dev] = 65536;
 
-#if 0
 	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
 	    dma_pagesize = 65536;
-#else
-	  dma_pagesize = 4096;          /* use bounce buffer */
-#endif
 
 
 	  /* More sanity checks */
@@ -373,24 +369,16 @@ sound_mem_init (void)
 	       * 
 	       * This really needs some kind of finetuning.
 	       */
-	      char           *tmpbuf = malloc (2*sound_buffsizes[dev], M_DEVBUF, M_NOWAIT);
-	      unsigned long   addr, rounded;
+	      char           *tmpbuf = contigmalloc (sound_buffsizes[dev], M_DEVBUF, M_NOWAIT, 0xFFFFFFul, 0ul, 0xFFFFul);
 
 	      if (tmpbuf == NULL)
 		{
 		  printk ("snd: Unable to allocate %d bytes of buffer\n",
-			  2 * sound_buffsizes[dev]);
+			  sound_buffsizes[dev]);
 		  return;
 		}
 
-	      addr = kvtop (tmpbuf);
-	      /*
-	       * Align the start address
-	       */
-	      rounded = (addr & ~(dma_pagesize - 1)) + dma_pagesize;
-
-	      snd_raw_buf[dev][snd_raw_count[dev]] =
-		&tmpbuf[rounded - addr];	/* Compute offset */
+	      snd_raw_buf[dev][snd_raw_count[dev]] = tmpbuf;
 	      /*
 	       * Use virtual address as the physical address, since
 	       * isa_dmastart performs the phys address computation.
