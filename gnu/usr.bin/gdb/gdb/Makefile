@@ -1,12 +1,21 @@
-#	$Id: Makefile,v 1.30 1998/03/07 08:54:42 bde Exp $
+#	$Id: Makefile,v 1.31 1998/03/19 15:21:19 bde Exp $
 
 PROG = gdb
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
+.if ${BINFORMAT} == elf
+BFDDIR= ${.CURDIR}/../../binutils/libbfd/${MACHINE_ARCH}
+.else
+BFDDIR= ${.CURDIR}/../bfd
+.endif
 .PATH:	${GDBDIR}/gdb
 .PATH:	${GDBDIR}/opcodes
 
-BINDIR= /usr/bin
+.if ${BINFORMAT} == elf
+CFLAGS+=	-DFREEBSD_ELF
+.endif
+
+BINDIR?= /usr/bin
 XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
 	ch-valprint.c coffread.c command.c complaints.c copying.c \
@@ -32,13 +41,29 @@ XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 XSRCS+= i386-dis.c dis-buf.c disassemble.c
 SRCS=	init.c ${XSRCS}
 
-CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
+CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I${BFDDIR}
 # use phkmalloc
 CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
 #CFLAGS+= -g
 
 CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
+
+.if ${BINFORMAT} == elf
+
+.if exists(${.OBJDIR}/../../binutils/libbfd)
+LIBBFD=	${.OBJDIR}/../../binutils/libbfd/libbfd.a
+.else
+LIBBFD=	${.CURDIR}/../../binutils/libbfd/libbfd.a
+.endif
+
+.if exists(${.OBJDIR}/../../binutils/libiberty)
+LIBIBERTY=	${.OBJDIR}/../../binutils/libiberty/libiberty.a
+.else
+LIBIBERTY=	${.CURDIR}/../../binutils/libiberty/libiberty.a
+.endif
+
+.else
 
 .if exists(${.OBJDIR}/../bfd)
 LIBBFD=	${.OBJDIR}/../bfd/libbfd.a
@@ -51,6 +76,8 @@ LIBIBERTY= ${.OBJDIR}/../libiberty/libiberty.a
 .else
 LIBIBERTY= ${.CURDIR}/../libiberty/libiberty.a
 .endif
+
+.endif # BINFORMAT
 
 DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
 LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
