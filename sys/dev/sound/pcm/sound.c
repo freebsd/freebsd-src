@@ -567,13 +567,27 @@ unsigned int
 pcm_getbuffersize(device_t dev, unsigned int min, unsigned int deflt, unsigned int max)
 {
     	struct snddev_info *d = device_get_softc(dev);
-	int sz;
+	int sz, x;
 
 	sz = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "buffersize", &sz) == 0)
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "buffersize", &sz) == 0) {
+		x = sz;
 		RANGE(sz, min, max);
-	else
+		if (x != sz)
+			device_printf(dev, "'buffersize=%d' hint is out of range (%d-%d), using %d\n", x, min, max, sz);
+		x = min;
+		while (x < sz)
+			x <<= 1;
+		if (x > sz)
+			x >>= 1;
+		if (x != sz) {
+			device_printf(dev, "'buffersize=%d' hint is not a power of 2, using %d\n", sz, x);
+			sz = x;
+		}
+	} else {
 		sz = deflt;
+	}
+
 	d->bufsz = sz;
 
 	return sz;
