@@ -295,7 +295,7 @@ db_utrace(struct thread *td, struct trapframe *tf)
 		}
 		if (!found) {
 			rsp = sp + SPOFF;
-			sp = NULL;
+			sp = 0;
 			if (copyin((void *)(rsp + offsetof(struct frame, fr_fp)),
 			    &sp, sizeof(sp)) != 0 ||
 			    copyin((void *)(rsp + offsetof(struct frame, fr_pc)),
