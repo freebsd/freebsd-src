@@ -299,7 +299,7 @@ devfs_lookupx(ap)
 	struct devfs_dirent *de, *dd;
 	struct devfs_mount *dmp;
 	dev_t cdev, *cpdev;
-	int error, cloned, flags, nameiop;
+	int error, flags, nameiop;
 	char specname[SPECNAMELEN + 1], *pname;
 
 	cnp = ap->a_cnp;
@@ -310,7 +310,6 @@ devfs_lookupx(ap)
 	flags = cnp->cn_flags;
 	nameiop = cnp->cn_nameiop;
 	dmp = VFSTODEVFS(dvp->v_mount);
-	cloned = 0;
 	dd = dvp->v_data;
 
 	*vpp = NULLVP;
@@ -466,7 +465,6 @@ struct vop_mknod_args {
 	struct thread *td;
 	struct devfs_dirent *dd, *de;
 	struct devfs_mount *dmp;
-	int cloned, flags, nameiop;
 	int error;
 
 	dvp = ap->a_dvp;
@@ -476,9 +474,6 @@ struct vop_mknod_args {
 	cnp = ap->a_cnp;
 	vpp = ap->a_vpp;
 	td = cnp->cn_thread;
-	flags = cnp->cn_flags;
-	nameiop = cnp->cn_nameiop;
-	cloned = 0;
 	dd = dvp->v_data;
 
 	error = ENOENT;
