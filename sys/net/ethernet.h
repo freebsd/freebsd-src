@@ -1,7 +1,7 @@
 /*
  * Fundamental constants relating to ethernet.
  *
- * $Id: ethernet.h,v 1.4 1996/12/19 15:42:52 wollman Exp $
+ * $Id: ethernet.h,v 1.5 1996/12/19 18:12:06 bde Exp $
  *
  */
 
@@ -59,6 +59,24 @@ struct	ether_header {
 struct	ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 };
+
+#define	ETHERTYPE_PUP		0x0200	/* PUP protocol */
+#define	ETHERTYPE_IP		0x0800	/* IP protocol */
+#define ETHERTYPE_ARP		0x0806	/* Addr. resolution protocol */
+#define ETHERTYPE_REVARP	0x8035	/* reverse Addr. resolution protocol */
+#define	ETHERTYPE_LOOPBACK	0x9000	/* used to test interfaces */
+/* XXX - add more useful types here */
+
+/*
+ * The ETHERTYPE_NTRAILER packet types starting at ETHERTYPE_TRAIL have
+ * (type-ETHERTYPE_TRAIL)*512 bytes of data followed
+ * by an ETHER type (as given above) and then the (variable-length) header.
+ */
+#define	ETHERTYPE_TRAIL		0x1000		/* Trailer packet */
+#define	ETHERTYPE_NTRAILER	16
+
+#define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
+#define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
