@@ -622,6 +622,18 @@ static void displayCell(FICL_VM *pVM)
     return;
 }
 
+static void displayCellNoPad(FICL_VM *pVM)
+{
+    CELL c;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+    c = stackPop(pVM->pStack);
+    ltoa((c).i, pVM->pad, pVM->base);
+    vmTextOut(pVM, pVM->pad, 0);
+    return;
+}
+
 static void uDot(FICL_VM *pVM)
 {
     UNS32 u;
@@ -4158,6 +4170,7 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, ",",         comma,          FW_DEFAULT);
     dictAppendWord(dp, "-",         sub,            FW_DEFAULT);
     dictAppendWord(dp, ".",         displayCell,    FW_DEFAULT);
+    dictAppendWord(dp, ".#",        displayCellNoPad,    FW_DEFAULT);
     dictAppendWord(dp, ".\"",       dotQuoteCoIm,   FW_COMPIMMED);
     dictAppendWord(dp, "/",         ficlDiv,        FW_DEFAULT);
     dictAppendWord(dp, "/mod",      slashMod,       FW_DEFAULT);
