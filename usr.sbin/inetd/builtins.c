@@ -464,7 +464,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	size = 0;
 	bufsiz = sizeof(buf) - 1;
 	FD_ZERO(&fdset);
- 	while (bufsiz > 0 && (size == 0 || buf[size - 1] != '\n')) {
+ 	while (bufsiz > 0) {
 		gettimeofday(&tv, NULL);
 		tv.tv_sec = to.tv_sec - tv.tv_sec;
 		tv.tv_usec = to.tv_usec - tv.tv_usec;
@@ -488,6 +488,8 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			break;
 		bufsiz -= ssize;
 		size += ssize;
+		if (memchr(&buf[size - ssize], '\n', ssize) != NULL)
+			break;
  	}
 	buf[size] = '\0';
 	/* Read two characters, and check for a delimiting character */
