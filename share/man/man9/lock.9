@@ -56,7 +56,7 @@
 The
 .Fn lockinit
 function is used to initialize a lock.
-It must be called prior to any operation could be performed on a lock.
+It must be called before any operation can be performed on a lock.
 Its arguments are:
 .Bl -tag -width ".Fa wmesg"
 .It Fa lkp
@@ -133,14 +133,14 @@ If an exclusive lock has been recursed, all references will be downgraded.
 Upgrade a shared lock to an exclusive lock.
 Fails with
 .Er EBUSY
-if there is someone ahead of use waiting for an upgrade.
+if there is someone ahead of you in line waiting for an upgrade.
 If this call fails, the shared lock is lost.
-Attempt to upgrade an exclusive lock will cause a
+Attempts to upgrade an exclusive lock will cause a
 .Xr panic 9 .
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
 If this call fails, the shared lock is lost.
-Attempt to upgrade an exclusive lock will cause a
+Attempts to upgrade an exclusive lock will cause a
 .Xr panic 9 .
 .It Dv LK_RELEASE
 Release the lock.
