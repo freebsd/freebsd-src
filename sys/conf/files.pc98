@@ -60,8 +60,8 @@ contrib/dev/oltr/trlldmac.c	optional	oltr
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ata/ata-all.c		optional	ata 
-dev/ata/ata-dma.c		optional	ata 
 dev/ata/ata-disk.c		optional	atadisk
+dev/ata/ata-dma.c		optional	ata 
 dev/ata/atapi-all.c		optional	atapicd 
 dev/ata/atapi-all.c		optional	atapifd 
 dev/ata/atapi-all.c		optional	atapist
@@ -76,6 +76,12 @@ dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scterm.c		optional	sc
+dev/syscons/scterm-dumb.c	optional	sc
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/sysmouse.c		optional	sc
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -132,7 +138,6 @@ i386/i386/k6_mem.c		standard
 # locore.s needs to be handled in Makefile to put it first.  Otherwise it's
 # now normal.
 # i386/i386/locore.s		standard
-pc98/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
 i386/i386/mp_clock.c		optional	smp
@@ -150,7 +155,6 @@ i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
-pc98/i386/userconfig.c		optional	userconfig
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
 i386/ibcs2/ibcs2_errno.c	optional	ibcs2
@@ -172,27 +176,21 @@ i386/ibcs2/ibcs2_util.c		optional	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
-pc98/pc98/pc98_machdep.c	standard
 i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
 i386/isa/asc.c			optional	asc
-pc98/pc98/atapi.c		optional	wdc
-pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
 i386/isa/cx.c			optional	cx
 i386/isa/cy.c			optional	cy
-pc98/pc98/diskslice_machdep.c	standard
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
-pc98/pc98/fd.c			optional	fd
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			optional	gsc
 i386/isa/if_ar.c		optional	ar
 i386/isa/if_cx.c		optional	cx
-pc98/pc98/if_ed.c		optional	ed
 i386/isa/if_el.c		optional	el
 i386/isa/if_fe.c		optional	fe
 i386/isa/if_le.c		optional	le
@@ -206,19 +204,12 @@ i386/isa/ipl_funcs.c		standard				   \
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa \
 	warning "Old ISA driver compatability shims present."
-pc98/pc98/isa_dma.c		optional	isa
 i386/isa/istallion.c		optional	stli
 i386/isa/labpc.c		optional	labpc
 i386/isa/loran.c		optional	loran
 i386/isa/matcd/matcd.c		optional	matcd
 i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			optional	mcd
-pc98/pc98/mse.c			optional	mse
-pc98/pc98/npx.c			mandatory	npx
-pc98/pc98/olpt.c		optional	olpt
-pc98/pc98/pc98gdc.c		optional	gdc
-pc98/pc98/pc98kbd.c		optional	pckbd
-pc98/pc98/pcaudio.c		optional	pca
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcibus.c		optional	pci
 i386/isa/pcvt/pcvt_drv.c	optional	vt
@@ -227,19 +218,17 @@ i386/isa/pcvt/pcvt_kbd.c	optional	vt
 i386/isa/pcvt/pcvt_out.c	optional	vt
 i386/isa/pcvt/pcvt_sup.c	optional	vt
 i386/isa/pcvt/pcvt_vtf.c	optional	vt
-pc98/pc98/ppc.c			optional	ppc
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/rc.c			optional	rc
 i386/isa/rp.c			optional	rp
 i386/isa/scd.c			optional	scd
-pc98/pc98/sio.c			optional	sio
 i386/isa/sound/ad1848.c		optional	css
 i386/isa/sound/ad1848.c		optional	gus
 i386/isa/sound/ad1848.c		optional	gusxvi
 i386/isa/sound/ad1848.c		optional	mss
 i386/isa/sound/ad1848.c		optional	sscape
-i386/isa/sound/ad1848.c		optional	trix
 i386/isa/sound/ad1848.c		optional	sscape_mss
+i386/isa/sound/ad1848.c		optional	trix
 i386/isa/sound/adlib_card.c	optional	opl
 i386/isa/sound/adlib_card.c	optional	trix
 i386/isa/sound/audio.c		optional	snd
@@ -298,25 +287,8 @@ i386/isa/sound/sys_timer.c	optional	snd
 i386/isa/sound/trix.c		optional	trix
 i386/isa/sound/uart6850.c	optional	uart
 i386/isa/spigot.c		optional	spigot
-pc98/pc98/spkr.c		optional	speaker
 i386/isa/stallion.c		optional	stl
-pc98/pc98/syscons.c		optional	sc
-pc98/pc98/syscons_pc98.c	optional	sc
-dev/syscons/schistory.c		optional	sc
-dev/syscons/scmouse.c		optional	sc
-pc98/pc98/scgdcrndr.c		optional	sc gdc
-dev/syscons/scterm.c		optional	sc
-dev/syscons/scterm-dumb.c	optional	sc
-pc98/pc98/scterm-sck.c		optional	sc
-dev/syscons/scvidctl.c		optional	sc
-pc98/pc98/scvtbpc98.c		optional	sc
-dev/syscons/sysmouse.c		optional	sc
 i386/isa/tw.c			optional	tw
-pc98/pc98/wd.c			optional	wdc
-pc98/pc98/wd.c			optional	wd
-pc98/pc98/wd_cd.c		optional	wcd wdc
-pc98/pc98/wfd.c			optional	wfd wdc
-pc98/pc98/wst.c			optional	wst wdc
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
@@ -333,23 +305,6 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-svr4/imgact_svr4.c		optional	compat_svr4
-svr4/svr4_fcntl.c		optional	compat_svr4
-svr4/svr4_filio.c		optional	compat_svr4
-svr4/svr4_ioctl.c		optional	compat_svr4
-svr4/svr4_ipc.c			optional	compat_svr4
-svr4/svr4_misc.c		optional	compat_svr4
-svr4/svr4_resource.c		optional	compat_svr4
-svr4/svr4_signal.c		optional	compat_svr4
-svr4/svr4_socket.c		optional	compat_svr4
-svr4/svr4_sockio.c		optional	compat_svr4
-svr4/svr4_stat.c		optional	compat_svr4
-svr4/svr4_stream.c		optional	compat_svr4
-svr4/svr4_syscallnames.c	optional	compat_svr4
-svr4/svr4_sysent.c		optional	compat_svr4
-svr4/svr4_sysvec.c		optional	compat_svr4
-svr4/svr4_termios.c		optional	compat_svr4
-svr4/svr4_ttold.c		optional	compat_svr4
 i386/svr4/svr4_locore.s		optional	compat_svr4		   \
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
@@ -362,9 +317,9 @@ i4b/layer1/i4b_bchan.c		optional	isic
 i4b/layer1/i4b_ctx_s0P.c	optional	isic
 i4b/layer1/i4b_drn_ngo.c	optional	isic
 #i4b/layer1/i4b_dynalink.c	optional	isic
+i4b/layer1/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/i4b_elsa_qs1i.c	optional	isic
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic
-i4b/layer1/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/i4b_hscx.c		optional	isic
 i4b/layer1/i4b_isac.c		optional	isic
 i4b/layer1/i4b_isic.c		optional	isic
@@ -387,4 +342,49 @@ libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+pc98/i386/machdep.c		standard
+pc98/i386/userconfig.c		optional	userconfig
+pc98/pc98/atapi.c		optional	wdc
+pc98/pc98/clock.c		standard
+pc98/pc98/diskslice_machdep.c	standard
+pc98/pc98/fd.c			optional	fd
+pc98/pc98/if_ed.c		optional	ed
+pc98/pc98/isa_dma.c		optional	isa
+pc98/pc98/mse.c			optional	mse
+pc98/pc98/npx.c			mandatory	npx
+pc98/pc98/olpt.c		optional	olpt
+pc98/pc98/pc98gdc.c		optional	gdc
+pc98/pc98/pc98kbd.c		optional	pckbd
+pc98/pc98/pc98_machdep.c	standard
+pc98/pc98/pcaudio.c		optional	pca
+pc98/pc98/ppc.c			optional	ppc
+pc98/pc98/scgdcrndr.c		optional	sc gdc
+pc98/pc98/scterm-sck.c		optional	sc
+pc98/pc98/scvtbpc98.c		optional	sc
+pc98/pc98/sio.c			optional	sio
+pc98/pc98/spkr.c		optional	speaker
+pc98/pc98/syscons.c		optional	sc
+pc98/pc98/syscons_pc98.c	optional	sc
+pc98/pc98/wd.c			optional	wdc
+pc98/pc98/wd.c			optional	wd
+pc98/pc98/wd_cd.c		optional	wcd wdc
+pc98/pc98/wfd.c			optional	wfd wdc
+pc98/pc98/wst.c			optional	wst wdc
+svr4/imgact_svr4.c		optional	compat_svr4
+svr4/svr4_fcntl.c		optional	compat_svr4
+svr4/svr4_filio.c		optional	compat_svr4
+svr4/svr4_ioctl.c		optional	compat_svr4
+svr4/svr4_ipc.c			optional	compat_svr4
+svr4/svr4_misc.c		optional	compat_svr4
+svr4/svr4_resource.c		optional	compat_svr4
+svr4/svr4_signal.c		optional	compat_svr4
+svr4/svr4_socket.c		optional	compat_svr4
+svr4/svr4_sockio.c		optional	compat_svr4
+svr4/svr4_stat.c		optional	compat_svr4
+svr4/svr4_stream.c		optional	compat_svr4
+svr4/svr4_syscallnames.c	optional	compat_svr4
+svr4/svr4_sysent.c		optional	compat_svr4
+svr4/svr4_sysvec.c		optional	compat_svr4
+svr4/svr4_termios.c		optional	compat_svr4
+svr4/svr4_ttold.c		optional	compat_svr4
 #pci/ide_pci.c			optional	wd
