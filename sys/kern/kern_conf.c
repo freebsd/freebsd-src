@@ -259,7 +259,6 @@ dev2udev(dev_t x)
 dev_t
 udev2dev(udev_t x, int b)
 {
-	static int whine;
 
 	if (x == NOUDEV)
 		return (NODEV);
@@ -267,10 +266,6 @@ udev2dev(udev_t x, int b)
 		case 0:
 			return makedev(umajor(x), uminor(x));
 		case 1:
-			if (!whine) {
-				printf("WARNING: run /dev/MAKEDEV before 2000-06-01 to get rid of block devices\n");
-				whine++;
-			}
 			return makebdev(umajor(x), uminor(x));
 		default:
 			Debugger("udev2dev(...,X)");

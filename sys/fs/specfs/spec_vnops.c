@@ -146,6 +146,15 @@ spec_open(ap)
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
+	if (vp->v_type == VBLK && !(dev->si_flags & SI_WHINED)) {
+		if (*dev->si_name != '\0') 
+			printf("Device \"%s\" ", dev->si_name);
+		else
+			printf("Device char-major=%d minor=%d ", 
+			    major(dev), minor(dev));
+		printf("opened in block mode, convert to char mode with /dev/MAKEDEV before 2000-07-01\n");
+		dev->si_flags |= SI_WHINED;
+	}
 	dsw = devsw(dev);
 	if ( (dsw == NULL) || (dsw->d_open == NULL))
 		return ENXIO;

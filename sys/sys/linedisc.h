@@ -53,6 +53,7 @@ struct vnode;
 struct specinfo {
 	u_int		si_flags;
 #define SI_STASHED	0x0001	/* created in stashed storage */
+#define SI_WHINED	0x0002	/* whined about already */
 	udev_t		si_udev;
 	LIST_ENTRY(specinfo)	si_hash;
 	SLIST_HEAD(, vnode) si_hlist;
