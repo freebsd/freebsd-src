@@ -146,7 +146,7 @@ procfs_open(ap)
 			return (EBUSY);
 
 		p1 = ap->a_p;
-		if (!CHECKIO(p1, p2) &&
+		if (p_trespass(p1, p2) &&
 		    !procfs_kmemaccess(p1))
 			return (EPERM);
 
@@ -238,7 +238,7 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if (!CHECKIO(p, procp))
+	if (p_trespass(p, procp))
 		return EPERM;
 
 	switch (ap->a_command) {
