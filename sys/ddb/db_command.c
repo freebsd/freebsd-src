@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.8 1994/08/27 16:14:08 davidg Exp $
+ *	$Id: db_command.c,v 1.9 1995/02/05 21:09:04 phk Exp $
  */
 
 /*
@@ -343,6 +343,7 @@ void		db_fncall();
 
 struct command db_command_table[] = {
 	{ "print",	db_print_cmd,		0,	0 },
+	{ "p",		db_print_cmd,		0,	0 },
 	{ "examine",	db_examine_cmd,		CS_SET_DOT, 0 },
 	{ "x",		db_examine_cmd,		CS_SET_DOT, 0 },
 	{ "search",	db_search_cmd,		CS_OWN|CS_SET_DOT, 0 },
