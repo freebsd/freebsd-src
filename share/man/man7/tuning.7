@@ -470,17 +470,20 @@ to a value larger than 65536 in order to obtain good performance out of
 certain types of network links; specifically, gigabit WAN links and
 high-latency satellite links.
 .Pp
-We recommend that you turn on (set to 1) and leave on the
+The
 .Va net.inet.tcp.always_keepalive
-control.
-The default is usually off.
-This introduces a small amount of
-additional network bandwidth but guarantees that dead TCP connections
-will eventually be recognized and cleared.
-Dead TCP connections are a
-particular problem on systems accessed by users operating over dialups,
-because users often disconnect their modems without properly closing active
-connections.
+sysctl determines whether or not the TCP implementation should attempt
+to detect dead TCP connections by intermittently delivering "keepalives"
+on the connection.
+By default, this is only enabled when an application requests it.
+For servers with many network clients and simultaneous connections, we
+recommend that this setting be turned on (set to 1).
+This may be particularly relevent on systems accessed by users
+operating over dialups, as users often disconnect their modems without
+closing active connections.
+However, in some environments, temporary network outages may be
+incorrectly identified as dead sessions, resulting unexpectedly
+terminated TCP connections.
 .Pp
 The
 .Va kern.ipc.somaxconn
