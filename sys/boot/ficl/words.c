@@ -4833,8 +4833,10 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "copyin",    ficlCopyin,	    FW_DEFAULT);
     dictAppendWord(dp, "copyout",   ficlCopyout,    FW_DEFAULT);
     dictAppendWord(dp, "findfile",  ficlFindfile,   FW_DEFAULT);
+#ifdef HAVE_PNP
     dictAppendWord(dp, "pnpdevices",ficlPnpdevices, FW_DEFAULT);
     dictAppendWord(dp, "pnphandlers",ficlPnphandlers, FW_DEFAULT);
+#endif
     dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
 #endif
 

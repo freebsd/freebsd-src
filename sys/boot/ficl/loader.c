@@ -242,6 +242,8 @@ ficlFindfile(FICL_VM *pVM)
 	return;
 }
 
+#ifdef HAVE_PNP
+
 void
 ficlPnpdevices(FICL_VM *pVM)
 {
@@ -271,6 +273,8 @@ ficlPnphandlers(FICL_VM *pVM)
 
 	return;
 }
+
+#endif
 
 void
 ficlCcall(FICL_VM *pVM)
