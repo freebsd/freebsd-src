@@ -42,8 +42,10 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <i386/isa/if_epreg.h>
 #include <i386/eisa/eisaconf.h>
+
+#include <dev/ep/if_epreg.h>
+#include <dev/ep/if_epvar.h>
 
 #define EISA_DEVICE_ID_3COM_3C509_TP	0x506d5090
 #define EISA_DEVICE_ID_3COM_3C509_BNC	0x506d5091
