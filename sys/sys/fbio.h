@@ -73,9 +73,9 @@
 #define	FBTYPE_SUNFB_VIDEO	14	/* Simple video mixing */
 #define	FBTYPE_RESERVED5	15	/* reserved, do not use */
 #define	FBTYPE_RESERVED4	16	/* reserved, do not use */
-#define	FBTYPE_RESERVED3	17	/* reserved, do not use */
-#define	FBTYPE_RESERVED2	18	/* reserved, do not use */
-#define	FBTYPE_RESERVED1	19	/* reserved, do not use */
+#define	FBTYPE_SUNGP3		17
+#define	FBTYPE_SUNGT		18
+#define	FBTYPE_SUNLEO		19	/* zx Leo */
 
 #define	FBTYPE_MDA		20
 #define	FBTYPE_HERCULES		21
@@ -86,7 +86,11 @@
 #define	FBTYPE_TGA		26
 #define	FBTYPE_TGA2		27
 
-#define	FBTYPE_LASTPLUSONE	28	/* max number of fbs (change as add) */
+#define	FBTYPE_MDICOLOR		28	/* cg14 */
+#define	FBTYPE_TCXCOLOR		29	/* SUNW,tcx */
+#define	FBTYPE_CREATOR		30
+
+#define	FBTYPE_LASTPLUSONE	31	/* max number of fbs (change as add) */
 
 /*
  * Frame buffer descriptor as returned by FBIOGTYPE.
