@@ -1,0 +1,83 @@
+.\"
+.\" Copyright (c) 1997 David E. O'Brien
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 19, 1997
+.Dt IX 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm ix
+.Nd
+EtherExpress ethernet device driver
+.Sh SYNOPSIS
+.Cd "device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the 16-bit Intel EtherExpress Ethernet
+card based on the Intel i82586 chip.
+.Pp
+If the IRQ is autodetected if the kernel configuration file has "irq?" or
+doesn't specify an IRQ at all.
+.Pp
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ix%d: WARNING: board is configured for IRQ %d, using %d"
+The IRQ probed from the EEPROM does not match that specified in the kernel
+configuration file.  The IRQ specified in the kernel configuration file will
+be used in this case.
+.It "ix%d: invalid irq (%d)"
+An invalid IRQ was specified.  This is a fatal error.
+.It "ix%d: ixstart: Packet length=%d > MTU=%d"
+The length of the Ethernet packet read was larger than the maxium transfer
+unit allowed.  This message suggests an error in the driver.  It probably
+should be concidered fatal and the driver shut down.  Currently this does
+not happen though.
+.It "ix%d: device timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).  Make sure the network connection in use
+is the same one the probe read from the EEPROM.
+.El
+.Pp
+.Sh CAVEATS
+The driver will use the IRQ specified in the kernel configuration file
+if it does not match the board setting.
+The type of network connector used (AUI, BNC, TPE) is probed from the EEPROM.
+If this does not match the interface actually in use, timeout errors will
+occur.
+.Pp
+.Sh BUGS
+Currently the driver does not support multicast.
+.Pp
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+The
+.Nm
+device driver was written by Rodney W. Grimes.
+This manual page was written by David E. O'Brien.
