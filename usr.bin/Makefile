@@ -203,8 +203,9 @@ SUBDIR=	apply \
 SUBDIR+=telnet
 .endif
 
-.if !defined(NO_BIND) && 0
+.if !defined(NO_BIND)
 SUBDIR+=dig \
+	dnskeygen \
 	dnsquery \
 	host
 .endif
