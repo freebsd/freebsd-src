@@ -2235,15 +2235,9 @@ ufs_vinit(mntp, fifoops, vpp)
 
 	vp = *vpp;
 	ip = VTOI(vp);
-	switch(vp->v_type = IFTOVT(ip->i_mode)) {
-		break;
-	case VFIFO:
+	vp->v_type = IFTOVT(ip->i_mode);
+	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
-		break;
-	default:
-		break;
-
-	}
 	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
