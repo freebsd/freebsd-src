@@ -734,6 +734,11 @@ If set to
 the system will attempt to run
 .Xr fsck 8
 in the background where possible.
+.It Va background_fsck_delay
+.Pq Vt int
+The amount of time in seconds to sleep before starting a background fsck.
+It defaults to sixty seconds to allow large applications such as
+the X server to start before disk I/O bandwidth is monopolized by fsck.
 .It Va extra_netfs_types
 .Pq Vt str
 If set to something other than
