@@ -387,7 +387,7 @@ pcic_attach(device_t dev)
 		sp->slt->irq = sc->irq;
 
 		/* Check for changes */
-		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
+		pcic_setb(sp, PCIC_POWER, PCIC_DISRST);
 		sp->slt->laststate = sp->slt->state = empty;
 		if (pcic_boot_deactivated) {
 			if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD) {
