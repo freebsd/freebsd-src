@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.16 1996/02/26 01:01:41 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.17 1996/03/10 07:04:27 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,7 +38,6 @@ struct eisa_device_node{
 };
 
 extern struct kern_devconf kdc_cpu0;
-extern int bootverbose;
  
 struct kern_devconf kdc_eisa0 = {
 	0, 0, 0,                /* filled in by dev_attach */ 
