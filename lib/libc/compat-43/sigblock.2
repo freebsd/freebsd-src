@@ -34,23 +34,23 @@
 .\"
 .Dd June 2, 1993
 .Dt SIGBLOCK 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm sigblock
 .Nd block signals
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <signal.h>
+.In signal.h
 .Ft int
 .Fn sigblock "int mask"
 .Ft int
 .Fn sigmask signum
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is made obsolete by:
-.Ef
+This interface is made obsolete by
 .Xr sigprocmask 2 .
+.Ef
 .Pp
 .Fn Sigblock
 adds the signals specified in
@@ -58,7 +58,7 @@ adds the signals specified in
 to the set of signals currently
 being blocked from delivery.
 Signals are blocked if the
-corresponding bit in 
+corresponding bit in
 .Fa mask
 is a 1; the macro
 .Fn sigmask

@@ -39,7 +39,7 @@
 .\"
 .Dd July 8, 1993
 .Dt VNCONFIG 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm vnconfig
 .Nd configure and enable vnode disks
@@ -54,7 +54,7 @@
 .Ar special_file Op Ar regular_file
 .Op Ar feature
 .Nm
-.Fl a 
+.Fl a
 .Op Fl cdeguv
 .Op Fl s Ar option
 .Op Fl r Ar option
@@ -63,7 +63,7 @@
 The
 .Nm
 command configures and enables vnode pseudo disk devices.
-The first form of the command will associate the special file 
+The first form of the command will associate the special file
 .Ar special_file
 with the regular file
 .Ar regular_file
@@ -100,36 +100,36 @@ Use
 .Ar config_file
 as an alternate config file.
 .It Fl g
-Fiddle global options. 
+Fiddle global options.
 .It Fl r Ar flag
 Reset
 .Ar flag .
 The list of allowed flags and their meanings are:
 .Bl -tag -width "follow"
-.It Ar labels 
+.It Ar labels
 use disk/slice labels.
-.It Ar reserve 
+.It Ar reserve
 Pre-reserve the blocks underlying the file or swap backing store.  Currently only
-works for swap backing store.  This option also disables on-the-fly freeing of 
-the underlying backing store (for example, when you remove a large file). 
+works for swap backing store.  This option also disables on-the-fly freeing of
+the underlying backing store (for example, when you remove a large file).
 Use this option if you wish to avoid long-term fragmentation of the backing
 store.  Also note that when this option is used, the initial contents of the
 backing store may contain garbage rather then zeros.  It may even be possible to
 recover the prior contents of a swap-backed VN across a reboot if the VN device
 is configured before any swap is allocated by the system.
-.It Ar follow 
-debug flow in the 
+.It Ar follow
+debug flow in the
 .Xr vn 4
 driver.
-.It Ar debug 
+.It Ar debug
 debug data in the
 .Xr vn 4
 driver.
-.It Ar io 
+.It Ar io
 debug I/O in the
 .Xr vn 4
 driver.
-.It Ar all 
+.It Ar all
 turn on all flags.
 .It Ar none
 turn off all flags.
@@ -238,12 +238,12 @@ Configures and enables all devices specified in
 .Dl disklabel -r -w vn0 auto
 .Dl disklabel -e vn0
 .Pp
-Is an example of how to configure a file-backed VN disk with a disk label 
+Is an example of how to configure a file-backed VN disk with a disk label
 and to initialize and then edit the label.  Once you create the label, you
 can partition your VN disk and, for example, create a filesystem on one of
 the partitions.  If you are using a file as backing store, it may be possible
 to recover your VN disk after a crash by vnconfig'ing the same file again
-and using the VN configuration already stored in the file rather then 
+and using the VN configuration already stored in the file rather then
 relabeling and recreating the filesystem.  It is even possible to fsck the
 VN partitions that previously contained filesystems.
 .Pp
@@ -257,7 +257,7 @@ that you have at least 400 megabytes of swap free (and hopefully much more).
 The swap space is pre-reserved in order to maintain maximum performance.
 We then label the disk, newfs it, and mount it as /usr/obj.  Swap-backed VN
 devices are recoverable after a crash if you (A) use the reserve flag, and if
-(B) the same swap is reserved as was the last time, meaning that such 
+(B) the same swap is reserved as was the last time, meaning that such
 vnconfig's would have to be run in your rc.local.  In general, though, you
 only use swap-backed VN devices to hold information you don't mind losing
 on every reboot.

@@ -34,7 +34,7 @@
 .\"
 .Dd March 17, 1994
 .Dt RDIST 1
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm rdist
 .Nd remote file distribution program
@@ -51,7 +51,9 @@
 .Op Fl P Ar rshcmd
 .Fl c
 .Ar name ...\&
-.Oo login@ Oc Ns Ar host Ns Op :dest
+.Oo Ar login Ns @ Oc Ns Xo
+.Ar host Ns Op : Ns Ar dest
+.Xc
 .Sh DESCRIPTION
 .Nm Rdist
 is a program to maintain identical copies of files over multiple hosts.
@@ -107,12 +109,12 @@ to interpret the remaining arguments as a small
 .Pp
 The equivalent distfile is as follows.
 .Pp
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Pq Ar name ...\&
 .Li ->
-.Op Ar login@
+.Op Ar login Ns @
 .Ar host
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Li install
 .Op Ar dest ;
 .Ed
@@ -441,8 +443,8 @@ Source files must reside on the local host where
 .Nm
 is executed.
 .Pp
-There is no easy way to have a 
-.Ic special 
+There is no easy way to have a
+.Ic special
 command executed after all files
 in a directory have been updated.
 .Pp

@@ -26,7 +26,7 @@
 .\"
 .Dd August 27, 1998
 .Dt WST 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm wst
 .Nd ATAPI Tape drive
@@ -90,12 +90,7 @@ Parameters that are required to last across the unmounting of a tape
 should be set on the control device.  This is sub-mode 3 (see below) and is
 reached through a file with a name of the form
 .Sm off
-.No Xo
-.Pa /dev/wst
-.Ar Y
-.Pa ctl.
-.Ar X
-.Xc ,
+.Pa /dev/wst Ar Y Pa ctl. Ar X ,
 .Sm on
 where
 .Ar Y
