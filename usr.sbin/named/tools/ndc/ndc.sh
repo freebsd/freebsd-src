@@ -9,17 +9,19 @@ USAGE='echo \
 PATH=%DESTSBIN%:/bin:/usr/bin:/usr/ucb:$PATH
 PIDFILE=%PIDDIR%/named.pid
 
-[ -f $PIDFILE ] || {
-	echo "$0: $PIDFILE does not exist"
-	exit 1
-}
-PID=`cat $PIDFILE`
-PS=`%PS% $PID | tail -1 | grep $PID`
-RUNNING=1
-[ `echo $PS | wc -w` -ne 0 ] || {
-	PS="named (pid $PID?) not running"
+if [ -f $PIDFILE ]
+then
+	PID=`cat $PIDFILE`
+	PS=`%PS% $PID | tail -1 | grep $PID`
+	RUNNING=1
+	[ `echo $PS | wc -w` -ne 0 ] || {
+		PS="named (pid $PID?) not running"
+		RUNNING=0
+	}
+else
+	PS="named (no pid file) not running"
 	RUNNING=0
-}
+fi
 
 for ARG
 do
@@ -50,9 +52,13 @@ do
 		if [ -f /etc/sysconfig ]; then
 			. /etc/sysconfig
 		fi
+		rm -f $PIDFILE
 		# $namedflags is imported from /etc/sysconfig
 		if [ "X${namedflags}" != "XNO" ]; then 
-			%INDOT%named ${namedflags} && echo Name Server Started
+			%INDOT%named ${namedflags} && {
+				sleep 5
+				echo Name Server Started
+			}
 		fi
 		;;
 	stop)
@@ -62,6 +68,7 @@ do
 		}
 		kill $PID && {
 			sleep 5
+			rm -f $PIDFILE
 			echo Name Server Stopped
 		}
 		;;
@@ -73,9 +80,13 @@ do
 		if [ -f /etc/sysconfig ]; then
 			. /etc/sysconfig
 		fi
+		rm -f $PIDFILE
 		# $namedflags is imported from /etc/sysconfig
 		if [ "X${namedflags}" != "XNO" ]; then 
-			%INDOT%named ${namedflags} && echo Name Server Restarted
+			%INDOT%named ${namedflags} && {
+				sleep 5
+				echo Name Server Restarted
+			}
 		fi
 		;;
 	*)	eval "$USAGE";;

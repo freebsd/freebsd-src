@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 1.3 1995/05/30 03:48:39 rgrimes Exp $";
+static char rcsid[] = "$Id: db_load.c,v 1.4 1995/08/20 21:18:22 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -73,6 +73,7 @@ static char rcsid[] = "$Id: db_load.c,v 1.3 1995/05/30 03:48:39 rgrimes Exp $";
 #include <ctype.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <errno.h>
 
 #include "named.h"
 
@@ -169,7 +170,7 @@ db_load(filename, in_origin, zp, def_domain)
 	struct zoneinfo *zp;
 	const char *def_domain;
 {
-	static int read_soa, read_ns;
+	static int read_soa, read_ns, rrcount;
 	register char *cp;
 	register struct map *mp;
 	char domain[MAXDNAME];
@@ -178,23 +179,25 @@ db_load(filename, in_origin, zp, def_domain)
 	char buf[MAXDATA];
 	char data[MAXDATA];
 	const char *cp1, *op;
-	int c, class, type, ttl, dbflags, dataflags, multiline;
+	int c, class, type, dbflags, dataflags, multiline;
+	u_int32_t ttl;
 	struct databuf *dp;
 	struct iso_addr *isoa;
 	FILE *fp;
-	int slineno, i, errs, didinclude, rrcount;
+	int slineno, i, errs, didinclude;
 	register u_int32_t n;
 	struct stat sb;
 	struct in_addr ina;
+	int escape;
 #ifdef DO_WARN_SERIAL
 	u_int32_t serial;
 #endif
 
 	errs = 0;
 	didinclude = 0;
-	rrcount = 0;
 	if (!def_domain) {
 		/* This is not the result of a $INCLUDE. */
+		rrcount = 0;
 		read_soa = 0;
 		read_ns = 0;
 		clev = db_getclev(in_origin);
@@ -206,7 +209,7 @@ db_load(filename, in_origin, zp, def_domain)
 
 	(void) strcpy(origin, in_origin);
 	if ((fp = fopen(filename, "r")) == NULL) {
-		syslog(LOG_NOTICE, "%s: %m", filename);
+		syslog(LOG_WARNING, "%s: %m", filename);
 		dprintf(1, (ddt, "db_load: error opening file %s\n",
 			    filename));
 		return (-1);
@@ -225,7 +228,7 @@ db_load(filename, in_origin, zp, def_domain)
 	}
 	gettime(&tt);
 	if (fstat(fileno(fp), &sb) < 0) {
-		syslog(LOG_NOTICE, "%s: %m", filename);
+		syslog(LOG_WARNING, "%s: %m", filename);
 		sb.st_mtime = (int)tt.tv_sec;
 	}
 	slineno = lineno;
@@ -239,10 +242,10 @@ db_load(filename, in_origin, zp, def_domain)
  	while ((c = gettoken(fp, filename)) != EOF) {
 		switch (c) {
 		case INCLUDE:
-			if (!getword((char *)buf, sizeof(buf), fp))
+			if (!getword((char *)buf, sizeof(buf), fp, 0))
 				/* file name*/
 				break;
-			if (!getword(tmporigin, sizeof(tmporigin), fp))
+			if (!getword(tmporigin, sizeof(tmporigin), fp, 1))
 				strcpy(tmporigin, origin);
 			else {
 				makename(tmporigin, origin);
@@ -254,7 +257,7 @@ db_load(filename, in_origin, zp, def_domain)
 
 		case ORIGIN:
 			(void) strcpy((char *)buf, origin);
-			if (!getword(origin, sizeof(origin), fp))
+			if (!getword(origin, sizeof(origin), fp, 1))
 				break;
 			dprintf(3, (ddt, "db_load: origin %s, buf %s\n",
 				    origin, buf));
@@ -263,7 +266,7 @@ db_load(filename, in_origin, zp, def_domain)
 			continue;
 
 		case DNAME:
-			if (!getword(domain, sizeof(domain), fp))
+			if (!getword(domain, sizeof(domain), fp, 1))
 				break;
 			n = strlen(domain) - 1;
 			if (domain[n] == '.')
@@ -283,13 +286,13 @@ db_load(filename, in_origin, zp, def_domain)
 			/* FALLTHROUGH */
 		case CURRENT:
 		gotdomain:
-			if (!getword((char *)buf, sizeof(buf), fp)) {
+			if (!getword((char *)buf, sizeof(buf), fp, 0)) {
 				if (c == CURRENT)
 					continue;
 				break;
 			}
 			cp = buf;
-			ttl = 0;
+			ttl = USE_MINIMUM;
 			if (isdigit(*cp)) {
 				n = 0;
 				do {
@@ -311,14 +314,14 @@ db_load(filename, in_origin, zp, def_domain)
 				    n += sb.st_mtime;
 				}
 				ttl = n;
-				if (!getword((char *)buf, sizeof(buf), fp))
+				if (!getword((char *)buf, sizeof(buf), fp, 0))
 					break;
 			}
 			for (mp = m_class; mp < m_class+M_CLASS_CNT; mp++)
 				if (!strcasecmp((char *)buf, mp->token)) {
 					class = mp->val;
 					(void) getword((char *)buf,
-						       sizeof(buf), fp);
+						       sizeof(buf), fp, 0);
 					break;
 				}
 			for (mp = m_type; mp < m_type+M_TYPE_CNT; mp++)
@@ -339,7 +342,22 @@ db_load(filename, in_origin, zp, def_domain)
 			 */
                         if (type != T_UNSPEC) {
 #endif
-			    if (!getword((char *)buf, sizeof(buf), fp))
+			switch (type) {
+			case T_SOA:
+			case T_MINFO:
+			case T_RP:
+			case T_NS:
+			case T_CNAME:
+			case T_MB:
+			case T_MG:
+			case T_MR:
+			case T_PTR:
+				escape = 1;
+				break;
+			default:
+				escape = 0;
+			}
+			    if (!getword((char *)buf, sizeof(buf), fp, escape))
 				break;
 			    dprintf(3,
 				    (ddt,
@@ -377,7 +395,7 @@ db_load(filename, in_origin, zp, def_domain)
 				if (n == 0)
 					goto err;
 				n++;
-				if (!getword((char *)buf, sizeof(buf), fp))
+				if (!getword((char *)buf, sizeof(buf), fp, 0))
 					i = 0;
 				else {
 					endline(fp);
@@ -418,7 +436,8 @@ db_load(filename, in_origin, zp, def_domain)
 				makename(data, origin);
 				cp = data + strlen((char *)data) + 1;
 				if (!getword((char *)cp,
-					     (sizeof data) - (cp - data), fp))
+					     (sizeof data) - (cp - data),
+					     fp, 1))
 					goto err;
 				makename(cp, origin);
 				cp += strlen((char *)cp) + 1;
@@ -593,7 +612,7 @@ db_load(filename, in_origin, zp, def_domain)
 				cp = data;
 				PUTSHORT((u_int16_t)n, cp);
 
-				if (!getword((char *)buf, sizeof(buf), fp))
+				if (!getword((char *)buf, sizeof(buf), fp, 1))
 					goto err;
 				(void) strcpy((char *)cp, (char *)buf);
 				makename(cp, origin);
@@ -616,13 +635,13 @@ db_load(filename, in_origin, zp, def_domain)
 				cp = data;
 				PUTSHORT((u_int16_t)n, cp);
 
-				if (!getword((char *)buf, sizeof(buf), fp))
+				if (!getword((char *)buf, sizeof(buf), fp, 0))
 					goto err;
 				(void) strcpy((char *)cp, (char *)buf);
 				makename(cp, origin);
 				/* advance pointer to next field */
 				cp += strlen((char *)cp) +1;
-				if (!getword((char *)buf, sizeof(buf), fp))
+				if (!getword((char *)buf, sizeof(buf), fp, 0))
 					goto err;
 				(void) strcpy((char *)cp, (char *)buf);
 				makename(cp, origin);
@@ -678,10 +697,10 @@ db_load(filename, in_origin, zp, def_domain)
 				while ((i = getc(fp), *cp = i, i != EOF)
                                        && *cp != '\n'
                                        && (n < MAXDATA)) {
-                                  cp++; n++;
+					cp++; n++;
                                 }
                                 if (*cp == '\n') /* leave \n for getword */
-                                    ungetc(*cp, fp);
+					ungetc(*cp, fp);
                                 *cp = '\0';
 				/* now process the whole line */
 				n = loc_aton(buf, (u_char *)data);
@@ -790,7 +809,8 @@ db_load(filename, in_origin, zp, def_domain)
 				msg = "no relevant RRs found";
 			if (msg != NULL) {
 				errs++;
-				syslog(LOG_NOTICE, "Zone \"%s\" (file %s): %s",
+				syslog(LOG_WARNING,
+				       "Zone \"%s\" (file %s): %s",
 				       zp->z_origin, filename, msg);
 			}
 		}
@@ -834,7 +854,7 @@ gettoken(fp, src)
 			return (EOF);
 
 		case '$':
-			if (getword(op, sizeof(op), fp)) {
+			if (getword(op, sizeof(op), fp, 0)) {
 				if (!strcasecmp("include", op))
 					return (INCLUDE);
 				if (!strcasecmp("origin", op))
@@ -872,52 +892,59 @@ gettoken(fp, src)
 }
 
 /* int
- * getword(buf, size, fp)
+ * getword(buf, size, fp, preserve)
  *	get next word, skipping blanks & comments.
+ *	'\' '\n' outside of "quotes" is considered a blank.
  * parameters:
  *	buf - destination
  *	size - of destination
  *	fp - file to read from
+ *	preserve - should we preserve \ before \\ and \.?
  * return value:
  *	0 = no word; perhaps EOL or EOF
  *	1 = word was read
  */
 int
-getword(buf, size, fp)
+getword(buf, size, fp, preserve)
 	char *buf;
 	int size;
 	FILE *fp;
+	int preserve;
 {
-	register char *cp;
+	register char *cp = buf;
 	register int c;
 
-	empty_token = 0;
-	for (cp = buf; (c = getc(fp)) != EOF; ) {
+	empty_token = 0;	/* XXX global side effect. */
+	while ((c = getc(fp)) != EOF) {
 		if (c == ';') {
+			/* Comment.  Skip to end of line. */
 			while ((c = getc(fp)) != EOF && c != '\n')
-				;
+				NULL;
 			c = '\n';
 		}
 		if (c == '\n') {
+			/*
+			 * Unescaped newline.  It's a terminator unless we're
+			 * already midway into a token.
+			 */
 			if (cp != buf)
 				ungetc(c, fp);
 			else
 				lineno++;
 			break;
 		}
-		if (isspace(c)) {
-			while (isspace(c = getc(fp)) && c != '\n')
-				;
-			ungetc(c, fp);
-			if (cp != buf)		/* Trailing whitespace */
-				break;
-			continue;		/* Leading whitespace */
-		}
 		if (c == '"') {
-			while ((c = getc(fp)) != EOF && c != '"' && c != '\n') {
+			/* "Quoted string."  Gather the whole string here. */
+			while ((c = getc(fp)) != EOF && c!='"' && c!='\n') {
 				if (c == '\\') {
 					if ((c = getc(fp)) == EOF)
 						c = '\\';
+					if (preserve &&
+					    (c == '\\' || c == '.')) {
+						if (cp >= buf+size-1)
+							break;
+						*cp++ = '\\';
+					}
 					if (c == '\n')
 						lineno++;
 				}
@@ -925,24 +952,42 @@ getword(buf, size, fp)
 					break;
 				*cp++ = c;
 			}
+			/*
+			 * Newline string terminators are
+			 * not token terminators.
+			 */
 			if (c == '\n') {
 				lineno++;
 				break;
 			}
+			/* Sample following character, check for terminator. */
 			if ((c = getc(fp)) != EOF)
 				ungetc(c, fp);
-			if (c == EOF || isspace(c) || c == '\n') {
+			if (c == EOF || isspace(c)) {
 				*cp = '\0';
 				return (1);
 			}
-			else
-				continue;
+			continue;
 		}
 		if (c == '\\') {
+			/* Do escape processing. */
 			if ((c = getc(fp)) == EOF)
 				c = '\\';
-			if (c == '\n')
-				lineno++;
+			if (preserve && (c == '\\' || c == '.')) {
+				if (cp >= buf+size-1)
+					break;
+				*cp++ = '\\';
+			}
+		}
+		if (isspace(c)) {
+			/* Blank of some kind.  Skip run. */
+			while (isspace(c = getc(fp)) && c != '\n')
+				NULL;
+			ungetc(c, fp);
+			/* Blank means terminator if the token is nonempty. */
+			if (cp != buf)		/* Trailing whitespace */
+				break;
+			continue;		/* Leading whitespace */
 		}
 		if (cp >= buf+size-1)
 			break;
@@ -1166,8 +1211,8 @@ getprotocol(fp, src)
 	int  k;
 	char b[MAXLEN];
 
-	(void) getword(b, sizeof(b), fp);
-
+	(void) getword(b, sizeof(b), fp, 0);
+		
 	k = protocolnumber(b);
 	if (k == -1)
 		syslog(LOG_INFO, "%s: line %d: unknown protocol: %s.",
@@ -1193,7 +1238,7 @@ getservices(n, data, fp, src)
 		bm[j] = 0;
 	maxl = 0;
 	bracket = 0;
-	while (getword(b, sizeof(b), fp) || bracket) {
+	while (getword(b, sizeof(b), fp, 0) || bracket) {
 		if (feof(fp) || ferror(fp))
 			break;
 		if (strlen(b) == 0)
@@ -1260,14 +1305,16 @@ get_netlist(fp, netlistp, allow, print_tag)
 		;
 	ntp = NULL;
 	dprintf(1, (ddt, "get_netlist(%s)", print_tag));
-	while (getword(buf, sizeof(buf), fp)) {
+	while (getword(buf, sizeof(buf), fp, 0)) {
 		if (strlen(buf) == 0)
 			break;
 		if ((maskp = strchr(buf, '&')) != NULL)
 			*maskp++ = '\0';
 		dprintf(1, (ddt," %s", buf));
-		if (ntp == NULL) {
+		if (!ntp) {
 			ntp = (struct netinfo *)malloc(sizeof(struct netinfo));
+			if (!ntp)
+				panic(errno, "malloc(netinfo)");
 		}
 		if (!inet_aton(buf, &ntp->my_addr)) {
 			syslog(LOG_INFO, "%s contains bogus element (%s)",

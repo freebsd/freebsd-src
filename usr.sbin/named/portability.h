@@ -1,7 +1,7 @@
 /* portability.h - include or define things that aren't present on all systems
  * vixie@decwrl 26dec92 [new]
  *
- * $Id: portability.h,v 8.8 1995/06/29 09:25:56 vixie Exp $
+ * $Id: portability.h,v 1.3 1995/08/20 21:19:11 peter Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 /* XXX:	this file has become a hopeless morass, and will be redone someday. */
 
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #ifndef TIME_H_INCLUDED
@@ -122,6 +123,7 @@
 #ifdef NeXT
 # define NEED_PUTENV
 # define NEED_SETENV
+# define inet_addr(a) __inet_addr(a)
 #endif
 
 #if defined(__sgi)
@@ -131,6 +133,11 @@
 
 #if defined(SUNOS4)
 # define BSD 43
+#endif
+
+#if defined(__osf__) && defined(__alpha)
+# undef BSD
+# define BSD 199103
 #endif
 
 #if defined(_AUX_SOURCE)
@@ -319,7 +326,8 @@ extern int	close(), setitimer(), recv(), sendto(), sigsetmask(),
 
 #if !defined(bcopy)	/* some machines have their own macros for this */
 # if defined(USE_POSIX) || \
-	 (defined(__STDC__) && !defined(sun) && !defined(sequent))
+	 (defined(__STDC__) && !defined(sun) && !defined(sequent) \
+	  && !defined(M_UNIX))
 /* use ANSI C3.159-1989 (``ANSI C'') functions if possible;
  * ideally we would change the code to use them and then
  * define them in terms of bcopy et al if !defined(__STDC__)
@@ -387,6 +395,14 @@ extern int bcmp();
 # else /*BSD*/
 #  define SIG_FN void		/* signal-catching functions return void */
 # endif /*BSD*/
+#endif
+
+#if !defined(SIGUSR1) && !defined(SIGUSR2)
+# define SIGUSR1 SIGEMT
+# define SIGUSR2 SIGFPE
+#endif
+#if !defined(SIGCHLD)
+# define SIGCHLD SIGCLD
 #endif
 
 #if !defined(ntohl) && !defined(htonl) && defined(BSD) && (BSD <= 43)
@@ -544,4 +560,8 @@ extern int putenv __P((char *));
 
 #ifdef NEED_GETTIMEOFDAY
 extern int gettimeofday __P((struct timeval *, struct _TIMEZONE *));
+#endif
+
+#if defined(SVR4) && defined(sun)
+extern int gethostname __P((char *, size_t));
 #endif

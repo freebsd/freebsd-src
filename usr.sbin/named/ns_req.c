@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_req.c,v 1.3 1995/08/20 21:18:54 peter Exp $";
+static char rcsid[] = "$Id: ns_req.c,v 1.4 1995/10/23 11:11:50 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -133,6 +133,9 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 {
 	register HEADER *hp = (HEADER *) msg;
 	u_char *cp, *eom;
+#ifdef DEBUG
+	const char *sortmsgtxt;
+#endif
 	enum req_action action;
 	int n;
 
@@ -227,10 +230,10 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 		dprintf(1, (ddt, "ns_req: Opcode %d not implemented\n",
 			    hp->opcode));
 		/* XXX - should syslog, limited by haveComplained */
-		hp->qdcount = 0;
-		hp->ancount = 0;
-		hp->nscount = 0;
-		hp->arcount = 0;
+		hp->qdcount = htons(0);
+		hp->ancount = htons(0);
+		hp->nscount = htons(0);
+		hp->arcount = htons(0);
 		hp->rcode = NOTIMP;
 		action = Finish;
 	}
@@ -257,20 +260,23 @@ ns_req(msg, msglen, buflen, qsp, from, dfd)
 	 */
 	hp->qr = 1;		/* set Response flag */
 	hp->ra = (NoRecurse == 0);
-	hp->ancount = htons(hp->ancount);
 
 	n = doaddinfo(hp, cp, buflen);
 	cp += n;
 	buflen -= n;
 
-	dprintf(1, (ddt, "ns_req: answer -> %s fd=%d id=%d size=%d %s\n",
-		    sin_ntoa(from),
-		    (qsp == QSTREAM_NULL) ?dfd :qsp->s_rfd,
-		    ntohs(hp->id), cp - msg, local(from) == NULL ? "Remote" : "Local"));
 #ifdef DEBUG
+#ifdef SORT_RESPONSE
+	sortmsgtxt = local(from) == NULL ? "Remote" : "Local";
+#else /*SORT*/
+	sortmsgtxt = "(not sorting)";
+#endif /*SORT*/
+	dprintf(1, (ddt, "ns_req: answer -> %s fd=%d id=%d size=%d %s\n",
+		    sin_ntoa(from), (qsp == QSTREAM_NULL) ? dfd : qsp->s_rfd,
+		    ntohs(hp->id), cp - msg, sortmsgtxt));
 	if (debug >= 10)
 		fp_nquery(msg, cp - msg, ddt);
-#endif
+#endif /*DEBUG*/
 	if (qsp == QSTREAM_NULL) {
 		if (sendto(dfd, (char*)msg, cp - msg, 0,
 			   (struct sockaddr *)from,
@@ -328,14 +334,14 @@ req_notify(hp, cpp, eom, msg, from)
 
 	/* valid notify's have one question and zero answers */
 	if ((ntohs(hp->qdcount) != 1)
-	    || hp->ancount
-	    || hp->nscount
-	    || hp->arcount) {
+	    || ntohs(hp->ancount) != 0
+	    || ntohs(hp->nscount) != 0
+	    || ntohs(hp->arcount) != 0) {
 		dprintf(1, (ddt, "FORMERR Notify header counts wrong\n"));
-		hp->qdcount = 0;
-		hp->ancount = 0;
-		hp->nscount = 0;
-		hp->arcount = 0;
+		hp->qdcount = htons(0);
+		hp->ancount = htons(0);
+		hp->nscount = htons(0);
+		hp->arcount = htons(0);
 		hp->rcode = FORMERR;
 		return (Finish);
 	}
@@ -460,14 +466,14 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 
 	/* valid queries have one question and zero answers */
 	if ((ntohs(hp->qdcount) != 1)
-	    || hp->ancount
-	    || hp->nscount
-	    || hp->arcount) {
+	    || ntohs(hp->ancount) != 0
+	    || ntohs(hp->nscount) != 0
+	    || ntohs(hp->arcount) != 0) {
 		dprintf(1, (ddt, "FORMERR Query header counts wrong\n"));
-		hp->qdcount = 0;
-		hp->ancount = 0;
-		hp->nscount = 0;
-		hp->arcount = 0;
+		hp->qdcount = htons(0);
+		hp->ancount = htons(0);
+		hp->nscount = htons(0);
+		hp->arcount = htons(0);
 		hp->rcode = FORMERR;
 		return (Finish);
 	}
@@ -550,7 +556,7 @@ req_query(hp, cpp, eom, qsp, buflenp, msglenp, msg, dfd, from)
 
 try_again:
 	dprintf(1, (ddt, "req: nlookup(%s) id %d type=%d class=%d\n",
-		    dname, hp->id, type, class));
+		    dname, ntohs(hp->id), type, class));
 	htp = hashtab;		/* lookup relative to root */
 	if ((anp = np = nlookup(dname, &htp, &fname, 0)) == NULL)
 		fname = "";
@@ -637,21 +643,21 @@ try_again:
 	 */
 	for (dp = np->n_data; dp ; dp = dp->d_next) {
 		if (!stale(dp) && (dp->d_rcode == NXDOMAIN) &&
-			(dp->d_class == class)) {
+		    (dp->d_class == class)) {
 #ifdef RETURNSOA
-			    n = finddata(np, class, T_SOA, hp, &dname,
+			n = finddata(np, class, T_SOA, hp, &dname,
 				     buflenp, &count);
-			    if (n != 0 ) {
+			if (n != 0 ) {
 				if (hp->rcode == NOERROR_NODATA) {
-				    /* this should not occur */
-				    hp->rcode = NOERROR;
-				    return (Finish);
+					/* this should not occur */
+					hp->rcode = NOERROR;
+					return (Finish);
 				}
 				*cpp += n;
 				*buflenp -= n;
 				*msglenp += n;
 				hp->nscount = htons((u_int16_t)count);
-			    }
+			}
 #endif
 			hp->rcode = NXDOMAIN;
 			hp->aa = 1;
@@ -688,7 +694,7 @@ try_again:
 	*cpp += n;
 	*buflenp -= n;
 	*msglenp += n;
-	hp->ancount += count;
+	hp->ancount = htons(ntohs(hp->ancount) + (u_int16_t)count);
 	if (fname != dname && type != T_CNAME && type != T_ANY) {
 		if (cname++ >= MAXCNAMES) {
 			dprintf(3, (ddt,
@@ -703,8 +709,10 @@ try_again:
 		    "req: foundname=%d, count=%d, founddata=%d, cname=%d\n",
 		    foundname, count, founddata, cname));
 
-	if ((lp = local(from)) != NULL)
+#ifdef SORT_RESPONSE
+	if ((lp = local(from)) != NULL) 
 		sort_response(answers, count, lp, *cpp);
+#endif
 #ifdef BIND_NOTIFY
 	if (type == T_SOA &&
 	    from->sin_port == ns_port &&
@@ -729,7 +737,6 @@ try_again:
 	}
 #endif /*BIND_NOTIFY*/
 	if (type == T_AXFR) {
-		hp->ancount = htons(hp->ancount);
 		startxfr(qsp, np, msg, *cpp - msg, class, dname);
 		sqrm(qsp);
 		return (Return);
@@ -737,14 +744,19 @@ try_again:
 
 #ifdef notdef
 	/*
-	 * If we found an authoritative answer,
-	 * we're done.
+	 * If we found an authoritative answer, we're done.
 	 */
 	if (hp->aa)
 		return (Finish);
 #endif
 
 fetchns:
+	/*
+	 * If we're already out of room in the response, we're done.
+	 */
+	if (hp->tc)
+		return (Finish);
+
 	/*
  	 * Look for name servers to refer to and fill in the authority
  	 * section or record the address for forwarding the query
@@ -758,9 +770,8 @@ fetchns:
 	switch (findns(&np, class, nsp, &count, 0)) {
 	case NXDOMAIN:
 		/* We are authoritative for this np. */
-		if (!foundname) {
+		if (!foundname)
 			hp->rcode = NXDOMAIN;
-		}
 		dprintf(3, (ddt, "req: leaving (%s, rcode %d)\n",
 			    dname, hp->rcode));
 		if (class != C_ANY) {
@@ -774,7 +785,7 @@ fetchns:
 				*cpp += n;
 				*buflenp -= n;
 #ifdef ADDAUTH
-			} else if (hp->ancount) {
+			} else if (ntohs(hp->ancount) != 0) {
 				/* don't add NS records for NOERROR NODATA
 				   as some servers can get confused */
 #ifdef DATUMREFCNT
@@ -789,7 +800,7 @@ fetchns:
 					    (type != T_NS || np != anp)
 					    ) {
 						n = add_data(np, nsp, *cpp,
-							     *buflenp);
+							     *buflenp, &count);
 						if (n < 0) {
 							hp->tc = 1;
 							n = (-n);
@@ -826,14 +837,15 @@ fetchns:
 	 *  never recursing, then add the nameserver references
 	 *  ("authority section") here and we're done.
 	 */
-	if (founddata || (!hp->rd) || NoRecurse) {
-		/* If the qtype was NS, and the np of the authority is
+	if (founddata || !hp->rd || NoRecurse) {
+		/*
+		 * If the qtype was NS, and the np of the authority is
 		 * the same as the np of the data, we don't need to add
 		 * another copy of the answer here in the authority
 		 * section.
 		 */
 		if (!founddata || type != T_NS || anp != np) {
-			n = add_data(np, nsp, *cpp, *buflenp);
+			n = add_data(np, nsp, *cpp, *buflenp, &count);
 			if (n < 0) {
 				hp->tc = 1;
 				n = (-n);
@@ -867,7 +879,6 @@ fetchns:
 			return (Finish);
 		}
 		id = hp->id;
-		hp->ancount = htons(hp->ancount);
 		omsglen = *msglenp;
 		bcopy(msg, omsg, omsglen);
 		n = res_mkquery(QUERY, dname, class, type,
@@ -973,16 +984,15 @@ req_iquery(hp, cpp, eom, buflenp, msg, from)
 
 	nameserIncr(from->sin_addr, nssRcvdIQ);
 
-	hp->ancount = htons(hp->ancount);
-	if ((hp->ancount != 1)
-	    || hp->qdcount
-	    || hp->nscount
-	    || hp->arcount) {
+	if (ntohs(hp->ancount) != 1
+	    || ntohs(hp->qdcount) != 0
+	    || ntohs(hp->nscount) != 0
+	    || ntohs(hp->arcount) != 0) {
 		dprintf(1, (ddt, "FORMERR IQuery header counts wrong\n"));
-		hp->qdcount = 0;
-		hp->ancount = 0;
-		hp->nscount = 0;
-		hp->arcount = 0;
+		hp->qdcount = htons(0);
+		hp->ancount = htons(0);
+		hp->nscount = htons(0);
+		hp->arcount = htons(0);
 		hp->rcode = FORMERR;
 		return (Finish);
 	}
@@ -1187,8 +1197,8 @@ stale(dp)
 	case Z_CACHE:
 		if (dp->d_flags & DB_F_HINT || dp->d_ttl >= tt.tv_sec)
 			return (0);
-		dprintf(3, (ddt, "stale: ttl %d %d (x%lx)\n",
-			    dp->d_ttl, dp->d_ttl - tt.tv_sec,
+		dprintf(3, (ddt, "stale: ttl %d %ld (x%lx)\n",
+			    dp->d_ttl, (long)(dp->d_ttl - tt.tv_sec),
 			    (u_long)dp->d_flags));
 		return (1);
 
@@ -1215,10 +1225,10 @@ make_rr(name, dp, buf, buflen, doadd)
 	u_char *cp1, *sp;
 	struct zoneinfo *zp;
 	register int32_t n;
-	register int32_t ttl;
+	register u_int32_t ttl;
 	u_char **edp = dnptrs + sizeof dnptrs / sizeof dnptrs[0];
 
-	dprintf(5, (ddt, "make_rr(%s, %lx, %lx, %d, %d) %d zone %d ttl %d\n",
+	dprintf(5, (ddt, "make_rr(%s, %lx, %lx, %d, %d) %d zone %d ttl %lu\n",
 		    name, (u_long)dp, (u_long)buf,
 		    buflen, doadd, dp->d_size, dp->d_zone, dp->d_ttl));
 
@@ -1242,7 +1252,7 @@ make_rr(name, dp, buf, buflen, doadd)
 			ttl = 0;
 		}
 	} else {
-		if (dp->d_ttl)
+		if (dp->d_ttl != USE_MINIMUM)
 			ttl = dp->d_ttl;
 		else
 			ttl = zp->z_minimum;		/* really default */
@@ -1529,11 +1539,7 @@ doaddinfo(hp, msg, msglen)
 			/* Cache invalidate the address RR's */
 			delete_all(np, (int)ap->a_class, T_A);
 		}
-		if (
-#if 0 /*XXX*/
-		    !NoRecurse &&
-#endif
-		    !foundcname && (foundstale || !foundany)) {
+		if (!NoFetchGlue && !foundcname && (foundstale || !foundany)) {
 			/* ask a real server for this info */
 			(void) sysquery(ap->a_dname, (int)ap->a_class, T_A,
 					NULL, 0, QUERY);
@@ -1582,7 +1588,7 @@ doaddauth(hp, cp, buflen, np, dp)
 		}
 		return (0);
 	}
-	hp->nscount = htons((u_int16_t)1);
+	hp->nscount = htons(ntohs(hp->nscount) + 1);
 	return (n);
 }
 
