@@ -116,35 +116,31 @@ static int
 acquire(struct lock **lkpp, int extflags, int wanted)
 {
 	struct lock *lkp = *lkpp;
-	int s, error;
+	int error;
 	CTR3(KTR_LOCK,
 	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x",
 	    lkp, extflags, wanted);
 
-	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
+	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted))
 		return EBUSY;
-	}
-
-	s = splhigh();
+	error = 0;
 	while ((lkp->lk_flags & wanted) != 0) {
+		CTR2(KTR_LOCK,
+		    "acquire(): lkp == %p, lk_flags == 0x%x sleeping",
+		    lkp, lkp->lk_flags);
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
 		error = msleep(lkp, lkp->lk_interlock, lkp->lk_prio,
 		    lkp->lk_wmesg, 
 		    ((extflags & LK_TIMELOCK) ? lkp->lk_timo : 0));
-		if (lkp->lk_waitcount == 1) {
+		lkp->lk_waitcount--;
+		if (lkp->lk_waitcount == 0)
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
-			lkp->lk_waitcount = 0;
-		} else {
-			lkp->lk_waitcount--;
-		}
-		if (error) {
-			splx(s);
-			return error;
-		}
+		if (error)
+			break;
 		if (extflags & LK_SLEEPFAIL) {
-			splx(s);
-			return ENOLCK;
+			error = ENOLCK;
+			break;
 		}
 		if (lkp->lk_newlock != NULL) {
 			mtx_lock(lkp->lk_newlock->lk_interlock);
@@ -154,8 +150,8 @@ acquire(struct lock **lkpp, int extflags, int wanted)
 			*lkpp = lkp = lkp->lk_newlock;
 		}
 	}
-	splx(s);
-	return 0;
+	mtx_assert(lkp->lk_interlock, MA_OWNED);
+	return (error);
 }
 
 /*
