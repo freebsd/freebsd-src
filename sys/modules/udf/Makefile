@@ -9,5 +9,4 @@ SRCS+=	vnode_if.h
 EXPORT_SYMS=	udf_iconv
 NOMAN=
 
-CLEANFILES=  .depend
 .include <bsd.kmod.mk>
