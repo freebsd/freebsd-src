@@ -78,7 +78,6 @@
 #include "stli.h"
 #include "loran.h"
 #include "pcf.h"
-#include "isic.h"
 #include "tina.h"
 #include "ppc.h"
 #include "fla.h"
@@ -140,7 +139,6 @@ extern struct isa_driver stldriver;
 extern struct isa_driver stlidriver;
 extern struct isa_driver lorandriver;
 extern struct isa_driver pcfdriver;
-extern struct isa_driver isicdriver;
 extern struct isa_driver tinadriver;
 extern struct isa_driver ppcdriver;
 
@@ -267,9 +265,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NPCF > 0
 	{ INTR_TYPE_NET, &pcfdriver },
-#endif
-#if NISIC > 0
-	{ INTR_TYPE_NET, &isicdriver },
 #endif
 #if NTINA > 0
 	{ INTR_TYPE_NET, &tinadriver },
