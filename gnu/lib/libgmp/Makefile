@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1997/08/17 21:24:06 andreas Exp $
+# $Id: Makefile,v 1.13 1997/08/21 15:51:51 bde Exp $
 #
 
 LIB=	gmp
@@ -9,8 +9,7 @@ SUBDIR=	doc
 GMPDIR=	${.CURDIR}/../../../contrib/libgmp
 .PATH:	${GMPDIR} ${GMPDIR}/mpn ${GMPDIR}/mpn/x86 ${GMPDIR}/mpn/generic
 
-CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86 \
-		-DBROKEN_ALIGN
+CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic -I${GMPDIR}/mpn/x86
 
 MPN_SRC_C=	inlines.c cmp.c divmod_1.c divrem.c divrem_1.c dump.c \
 		mod_1.c mul.c mul_n.c random2.c sqrtrem.c get_str.c set_str.c \
@@ -66,12 +65,26 @@ SRCS=	memory.c mp_set_fns.c mp_clz_tab.c version.c stack-alloc.c mp_bpl.c \
 	extract-double.c insert-double.c \
 	${MPN_SRCS} ${MPZ_SRCS} ${MPF_SRCS} ${MPQ_SRCS}
 
+.if defined(BINFORMAT) && ${BINFORMAT} == elf
+
+sysdep.h: ${GMPDIR}/mpn/sysv.h
+	cp ${GMPDIR}/mpn/sysv.h sysdep.h
+
+asm-syntax.h:
+	(echo "#define ELF_SYNTAX" ; \
+		echo "#include \"syntax.h\"") > asm-syntax.h
+.else
+
 sysdep.h: ${GMPDIR}/mpn/bsd.h
 	cp ${GMPDIR}/mpn/bsd.h sysdep.h
 
 asm-syntax.h:
 	(echo "#define BSD_SYNTAX" ; \
 		echo "#include \"syntax.h\"") > asm-syntax.h
+
+CFLAGS+=	-DBROKEN_ALIGN
+
+.endif
 
 beforedepend all: mpz mpf mpq sysdep.h asm-syntax.h
 
