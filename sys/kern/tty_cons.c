@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.46 1996/05/01 03:32:46 bde Exp $
+ *	$Id: cons.c,v 1.47 1996/09/14 04:25:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
@@ -88,6 +89,8 @@ struct	tty *constty = 0;	/* virtual console output device */
 static dev_t	cn_dev_t;
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	&cn_dev_t, sizeof cn_dev_t, "T,dev_t", "");
+static int cn_mute;
+SYSCTL_INT(_kern, KERN_CONSMUTE, consmute, CTLFLAG_RW, &cn_mute, 0, "");
 
 int	cons_unavail = 0;	/* XXX:
 				 * physical console not available for
@@ -120,6 +123,18 @@ cninit()
 			best_cp = cp;
 	}
 
+	/*
+	 * Check if we should mute the console (for security reasons perhaps)
+	 * It can be changes dynamically using sysctl kern.consmute
+	 * once we are up and going.
+	 * 
+	 */
+        cn_mute = ((boothowto & (RB_MUTE
+			|RB_SINGLE
+			|RB_VERBOSE
+			|RB_ASKNAME
+			|RB_CONFIG)) == RB_MUTE);
+	
 	/*
 	 * If no console, give up.
 	 */
@@ -220,7 +235,7 @@ cnread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (0);
 	dev = cn_tab->cn_dev;
 	return ((*cdevsw[major(dev)]->d_read)(dev, uio, flag));
@@ -232,7 +247,7 @@ cnwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (0);
 	if (constty)
 		dev = constty->t_dev;
@@ -251,7 +266,7 @@ cnioctl(dev, cmd, data, flag, p)
 {
 	int error;
 
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (0);
 	/*
 	 * Superuser can always use this to wrest control of console
@@ -274,7 +289,7 @@ cnselect(dev, rw, p)
 	int rw;
 	struct proc *p;
 {
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (1);
 
 	dev = cn_tab->cn_dev;
@@ -286,7 +301,7 @@ int
 cngetc()
 {
 	int c;
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (0);
 	c = (*cn_tab->cn_getc)(cn_tab->cn_dev);
 	if (c == '\r') c = '\n'; /* console input is always ICRNL */
@@ -296,7 +311,7 @@ cngetc()
 int
 cncheckc()
 {
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return (-1);
 	return ((*cn_tab->cn_checkc)(cn_tab->cn_dev));
 }
@@ -305,7 +320,7 @@ void
 cnputc(c)
 	register int c;
 {
-	if (cn_tab == NULL)
+	if ((cn_tab == NULL) || cn_mute)
 		return;
 	if (c) {
 		if (c == '\n')
