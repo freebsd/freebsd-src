@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.9 1995/03/23 18:14:41 wollman Exp $
+ *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
+ *	$Id: in_var.h,v 1.10 1995/05/30 08:09:32 rgrimes Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -222,7 +222,8 @@ int	in_ifinit __P((struct ifnet *,
 struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 void	in_delmulti __P((struct in_multi *));
 void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
-int	in_control __P((struct socket *, int, caddr_t, struct ifnet *));
+int	in_control __P((struct socket *, u_long, caddr_t, struct ifnet *));
 
-#endif
-#endif
+#endif /* KERNEL */
+
+#endif /* _NETINET_IN_VAR_H_ */
