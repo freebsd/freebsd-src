@@ -1,5 +1,4 @@
 .\" $FreeBSD$
-.\"
 .\" MAN PAGE COMMENTS to
 .\"
 .\"	Chet Ramey
@@ -7,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Mon Mar  5 09:58:38 EST 2001
+.\"	Last Change: Tue Jan 22 09:18:25 EST 2002
 .\"
-.TH READLINE 3 "2001 Mar 5" "GNU Readline 4.2"
+.TH READLINE 3 "2002 January 22" "GNU Readline 4.3"
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -35,8 +34,8 @@ readline \- get a line from a user with editing
 \fBreadline\fP (\fIconst char *prompt\fP);
 .fi
 .SH COPYRIGHT
-.if n Readline is Copyright (C) 1989\-2001 by the Free Software Foundation, Inc.
-.if t Readline is Copyright \(co 1989\-2001 by the Free Software Foundation, Inc.
+.if n Readline is Copyright (C) 1989\-2002 by the Free Software Foundation, Inc.
+.if t Readline is Copyright \(co 1989\-2002 by the Free Software Foundation, Inc.
 .SH DESCRIPTION
 .LP
 .B readline
@@ -283,12 +282,12 @@ horizontal tab
 vertical tab
 .TP
 .B \e\fInnn\fP
-the character whose ASCII code is the octal value \fInnn\fP
+the eight-bit character whose value is the octal value \fInnn\fP
 (one to three digits)
 .TP
-.B \ex\fInnn\fP
-the character whose ASCII code is the hexadecimal value \fInnn\fP
-(one to three digits)
+.B \ex\fIHH\fP
+the eight-bit character whose value is the hexadecimal value \fIHH\fP
+(one or two hex digits)
 .RE
 .PD
 .PP
@@ -392,6 +391,11 @@ arrow keys.
 If set to \fBon\fP, tilde expansion is performed when readline
 attempts word completion.
 .TP
+.B history-preserve-point     
+If set to \fBon\fP, the history code attempts to place point at the 
+same location on each history line retrived with \fBprevious-history\fP 
+or \fBnext-history\fP.
+.TP
 .B horizontal\-scroll\-mode (Off)
 When set to \fBOn\fP, makes readline use a single line for display,
 scrolling the input horizontally on a single screen line when it
@@ -430,10 +434,25 @@ appended.
 If set to \fBOn\fP, history lines that have been modified are displayed
 with a preceding asterisk (\fB*\fP).
 .TP
+.B mark\-symlinked\-directories (Off)
+If set to \fBOn\fP, completed names which are symbolic links to directories
+have a slash appended (subject to the value of
+\fBmark\-directories\fP).
+.TP
+.B match\-hidden\-files (On)
+This variable, when set to \fBOn\fP, causes readline to match files whose 
+names begin with a `.' (hidden files) when performing filename     
+completion, unless the leading `.' is     
+supplied by the user in the filename to be completed.
+.TP
 .B output\-meta (Off)
 If set to \fBOn\fP, readline will display characters with the
 eighth bit set directly rather than as a meta-prefixed escape
 sequence.
+.TP
+.B page\-completions (On)
+If set to \fBOn\fP, readline uses an internal \fImore\fP-like pager
+to display a screenful of possible completions at a time.
 .TP
 .B print\-completions\-horizontally (Off)
 If set to \fBOn\fP, readline will display completions with matches
@@ -711,6 +730,8 @@ Negative arguments have no effect.
 .B transpose\-words (M\-t)
 Drag the word before point past the word after point,
 moving point over that word as well.
+If point is at the end of the line, this transposes
+the last two words on the line.
 .TP
 .B upcase\-word (M\-u)
 Uppercase the current (or following) word.  With a negative argument,
@@ -723,6 +744,17 @@ lowercase the previous word, but do not move point.
 .B capitalize\-word (M\-c)
 Capitalize the current (or following) word.  With a negative argument,
 capitalize the previous word, but do not move point.
+.TP
+.B overwrite\-mode
+Toggle overwrite mode.  With an explicit positive numeric argument,
+switches to overwrite mode.  With an explicit non-positive numeric
+argument, switches to insert mode.  This command affects only
+\fBemacs\fP mode; \fBvi\fP mode does overwrite differently.
+Each call to \fIreadline()\fP starts in insert mode.
+In overwrite mode, characters bound to \fBself\-insert\fP replace   
+the text at point rather than pushing the text to the right.
+Characters bound to \fBbackward\-delete\-char\fP replace the character
+before point with a space.  By default, this command is unbound.
 .PD
 .SS Killing and Yanking
 .PP
@@ -918,12 +950,20 @@ A character is read and point is moved to the previous occurrence of that
 character.  A negative count searches for subsequent occurrences.
 .TP
 .B insert\-comment (M\-#)
-The value of the readline
+Without a numeric argument, the value of the readline
 .B comment\-begin
-variable is inserted at the beginning of the current line, and the line
-is accepted as if a newline had been typed.  The default value of
+variable is inserted at the beginning of the current line.
+If a numeric argument is supplied, this command acts as a toggle:  if
+the characters at the beginning of the line do not match the value   
+of \fBcomment\-begin\fP, the value is inserted, otherwise             
+the characters in \fBcomment-begin\fP are deleted from the beginning of
+the line.
+In either case, the line is accepted as if a newline had been typed.
+The default value of
 .B comment\-begin
 makes the current line a shell comment.
+If a numeric argument causes the comment character to be removed, the line
+will be executed by the shell.
 .TP
 .B dump\-functions
 Print all of the functions and their key bindings to the
@@ -946,7 +986,7 @@ of an \fIinputrc\fP file.
 .B emacs\-editing\-mode (C\-e)
 When in
 .B vi
-editing mode, this causes a switch to
+command mode, this causes a switch to
 .B emacs
 editing mode.
 .TP
