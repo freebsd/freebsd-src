@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.74 1998/06/05 18:38:54 dt Exp $
+#	$Id: bsd.lib.mk,v 1.75 1998/08/08 07:02:07 peter Exp $
 #
 
 .if !target(__initialized__)
@@ -53,78 +53,96 @@ STRIP?=	-s
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.po:
 	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.so:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.so .C.so .cpp.so .cxx.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.o:
 	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.so:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.o:
 	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.so:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.o:
 	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.po:
 	${CC} -x assembler-with-cpp -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .s.so:
 	${CC} -x assembler-with-cpp -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.o:
 	${CC} ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.so:
 	${CC} -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
 .if !defined(NOPROFILE) && !defined(INTERNALLIB)
