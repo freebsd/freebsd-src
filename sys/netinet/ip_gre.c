@@ -100,9 +100,9 @@ __RCSID("@(#) $FreeBSD$");
 void gre_inet_ntoa(struct in_addr in); 	/* XXX */
 #endif
 
-struct gre_softc *gre_lookup __P((struct mbuf *, u_int8_t));
+static struct gre_softc *gre_lookup __P((struct mbuf *, u_int8_t));
 
-int	gre_input2 __P((struct mbuf *, int, u_char));
+static int	gre_input2 __P((struct mbuf *, int, u_char));
 
 /*
  * De-encapsulate a packet and feed it back through ip input (this
@@ -146,7 +146,7 @@ gre_input(m, va_alist)
  * routine.
  */
 
-int
+static int
 gre_input2(struct mbuf *m ,int hlen, u_char proto)
 {
 	struct greip *gip = mtod(m, struct greip *);
@@ -339,7 +339,7 @@ gre_mobile_input(m, va_alist)
 /*
  * Find the gre interface associated with our src/dst/proto set.
  */
-struct gre_softc *
+static struct gre_softc *
 gre_lookup(m, proto)
 	struct mbuf *m;
 	u_int8_t proto;

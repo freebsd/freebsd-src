@@ -115,17 +115,19 @@ __RCSID("@(#) $FreeBSD$");
 static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
 
 struct gre_softc_head gre_softc_list;
-int ip_gre_ttl = GRE_TTL;
 
-int	gre_clone_create __P((struct if_clone *, int));
-void	gre_clone_destroy __P((struct ifnet *));
+static int	gre_clone_create __P((struct if_clone *, int));
+static void	gre_clone_destroy __P((struct ifnet *));
+static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
+static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct rtentry *rt);
 
-struct if_clone gre_cloner =
+static struct if_clone gre_cloner =
     IF_CLONE_INITIALIZER("gre", gre_clone_create, gre_clone_destroy, 0, IF_MAXUNIT);
 
-int gre_compute_route(struct gre_softc *sc);
+static int gre_compute_route(struct gre_softc *sc);
 
-void	greattach __P((void));
+static void	greattach __P((void));
 
 #ifdef INET
 extern struct domain inetdomain;
@@ -164,7 +166,7 @@ SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW,
     &max_gre_nesting, 0, "Max nested tunnels");
 
 /* ARGSUSED */
-void
+static void
 greattach(void)
 {
 
@@ -172,7 +174,7 @@ greattach(void)
 	if_clone_attach(&gre_cloner);
 }
 
-int
+static int
 gre_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;
@@ -206,7 +208,7 @@ gre_clone_create(ifc, unit)
 	return (0);
 }
 
-void
+static void
 gre_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -228,7 +230,7 @@ gre_clone_destroy(ifp)
  * The output routine. Takes a packet and encapsulates it in the protocol
  * given by sc->g_proto. See also RFC 1701 and RFC 2004
  */
-int
+static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	   struct rtentry *rt)
 {
@@ -400,7 +402,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		gh->gi_src = sc->g_src;
 		gh->gi_dst = sc->g_dst;
 		((struct ip*)gh)->ip_hl = (sizeof(struct ip)) >> 2;
-		((struct ip*)gh)->ip_ttl = ip_gre_ttl;
+		((struct ip*)gh)->ip_ttl = GRE_TTL;
 		((struct ip*)gh)->ip_tos = ip->ip_tos;
 		((struct ip*)gh)->ip_id = ip->ip_id;
 		gh->gi_len = m->m_pkthdr.len;
@@ -417,7 +419,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	return (error);
 }
 
-int
+static int
 gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -658,7 +660,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  * a-->b. We know that this one exists as in normal operation we have
  * at least a default route which matches.
  */
-int
+static int
 gre_compute_route(struct gre_softc *sc)
 {
 	struct route *ro;
