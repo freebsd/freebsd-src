@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.144 2001/11/20 13:48:32 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.146 2001/11/20 21:12:46 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1150,6 +1150,9 @@ int
 uhci_intr(void *arg)
 {
 	uhci_softc_t *sc = arg;
+
+	if (sc->sc_dying)
+		return (0);
 
 	DPRINTFN(15,("uhci_intr: real interrupt\n"));
 	if (sc->sc_bus.use_polling) {
