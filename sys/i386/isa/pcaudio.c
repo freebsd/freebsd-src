@@ -28,12 +28,12 @@
  * $FreeBSD$
  */
 
-#include "pca.h"
-#if NPCA > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/filio.h>
 #include <sys/poll.h>
 #include <sys/vnode.h>
@@ -41,8 +41,8 @@
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
+#include <isa/isareg.h>
+#include <isa/isavar.h>
 #include <i386/isa/timerreg.h>
 
 #define BUF_SIZE 	8192
@@ -147,12 +147,6 @@ static int pca_sleep = 0;
 static int pca_initialized = 0;
 
 static void pcaintr(struct clockframe *frame);
-static int pcaprobe(struct isa_device *dvp);
-static int pcaattach(struct isa_device *dvp);
-
-struct	isa_driver pcadriver = {
-	pcaprobe, pcaattach, "pca",
-};
 
 static	d_open_t	pcaopen;
 static	d_close_t	pcaclose;
@@ -214,7 +208,6 @@ pca_volume(int volume)
 static void
 pca_init(void)
 {
-	cdevsw_add(&pca_cdevsw);
 	pca_status.open = 0;
 	pca_status.queries = 0;
 	pca_status.timer_on = 0;
@@ -327,23 +320,48 @@ pca_wait(void)
 }
 
 
+static struct isa_pnp_id pca_ids[] = {
+	{0x0008d041, "AT-style speaker sound"},	/* PNP0800 */
+	{0}
+};
+
 static int
-pcaprobe(struct isa_device *dvp)
+pcaprobe(device_t dev)
 {
-	return(-1);
+	int error;
+
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pca_ids);
+	if (error == ENXIO)
+		return ENXIO;
+	return 0;
 }
 
 
 static int
-pcaattach(struct isa_device *dvp)
+pcaattach(device_t dev)
 {
-	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
 	make_dev(&pca_cdevsw, 0, 0, 0, 0600, "pcaudio");
 	make_dev(&pca_cdevsw, 128, 0, 0, 0600, "pcaudioctl");
-
-	return 1;
+	return 0;
 }
+
+static device_method_t pca_methods[] = {
+	DEVMETHOD(device_probe,		pcaprobe),
+	DEVMETHOD(device_attach,	pcaattach),
+	{ 0, 0 }
+};
+
+static driver_t pca_driver = {
+	"pca",
+	pca_methods,
+	1
+};
+
+static devclass_t pca_devclass;
+
+DRIVER_MODULE(pca, isa, pca_driver, pca_devclass, 0, 0);
 
 
 static int
@@ -570,5 +588,3 @@ pcapoll(dev_t dev, int events, struct proc *p)
 	splx(s);
 	return (revents);
 }
-
-#endif
