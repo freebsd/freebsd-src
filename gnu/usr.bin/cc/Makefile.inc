@@ -20,7 +20,8 @@ target=		${TARGET_ARCH}-unknown-freebsd
 USE_EGCS_HAIFA=	1
 .endif
 
-version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
+version!=	grep version_string ${GCCDIR}/version.c \
+		    | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
