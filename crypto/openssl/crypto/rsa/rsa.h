@@ -55,6 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* $FreeBSD$ */
 
 #ifndef HEADER_RSA_H
 #define HEADER_RSA_H
@@ -169,6 +170,12 @@ struct rsa_st
 /* This flag in the RSA_METHOD enables the new rsa_sign, rsa_verify functions.
  */
 #define RSA_FLAG_SIGN_VER		0x40
+
+#define RSA_FLAG_NO_BLINDING		0x80 /* new with 0.9.6j and 0.9.7b; the built-in
+                                              * RSA implementation now uses blinding by
+                                              * default (ignoring RSA_FLAG_BLINDING),
+                                              * but other engines might not need it
+                                              */
 
 #define RSA_PKCS1_PADDING	1
 #define RSA_SSLV23_PADDING	2
