@@ -352,6 +352,7 @@ X-send-pr-version: $VERSION
 	$FIX_C
 
 __EOF__
+
     done
   fi
 
