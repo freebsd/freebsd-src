@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.1 1998/09/15 07:24:58 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.2 1998/10/09 17:42:28 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -252,12 +252,15 @@ aic7770_attach(struct eisa_device *e_dev)
 		u_int biosctrl;
 		u_int scsiconf;
 		u_int scsiconf1;
+#if DEBUG
+		int i;
+#endif
 
 		biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
 		scsiconf = ahc_inb(ahc, SCSICONF);
 		scsiconf1 = ahc_inb(ahc, SCSICONF + 1);
 
-#if 0
+#if DEBUG
 		for (i = TARG_SCSIRATE; i <= HA_274_BIOSCTRL; i+=8) {
 			printf("0x%x, 0x%x, 0x%x, 0x%x, "
 			       "0x%x, 0x%x, 0x%x, 0x%x\n",
@@ -273,7 +276,8 @@ aic7770_attach(struct eisa_device *e_dev)
 #endif
 
 		/* Get the primary channel information */
-		ahc->flags |= (biosctrl & CHANNEL_B_PRIMARY);
+		if ((biosctrl & CHANNEL_B_PRIMARY) != 0)
+			ahc->flags |= AHC_CHANNEL_B_PRIMARY;
 
 		if ((biosctrl & BIOSMODE) == BIOSDISABLED) {
 			ahc->flags |= AHC_USEDEFAULTS;
@@ -291,6 +295,11 @@ aic7770_attach(struct eisa_device *e_dev)
 					ahc->flags |= AHC_TERM_ENB_B;
 			}
 		}
+		/*
+		 * We have no way to tell, so assume extended
+		 * translation is enabled.
+		 */
+		ahc->flags |= AHC_EXTENDED_TRANS_A|AHC_EXTENDED_TRANS_B;
 		break;
 	}
 	case AHC_VL:
