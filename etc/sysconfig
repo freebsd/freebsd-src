@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.31 1996/01/06 20:49:18 jkh Exp $
+#	$Id: sysconfig,v 1.32 1996/01/28 08:08:37 gpalmer Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -111,6 +111,10 @@ router=routed
 
 # These are the flags you'd like to start the routing daemon with
 routerflags=-q
+
+# mrouted flags, or NO if you don't want to start mrouted. Needs kernel
+# options enabled before it will work.
+mrouted=NO
 
 # timed flags, or NO if you don't want to start the time daemon
 timedflags=NO

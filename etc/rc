@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.81 1996/01/16 08:04:06 graichen Exp $
+#	$Id: rc,v 1.82 1996/01/28 08:08:36 gpalmer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -232,6 +232,11 @@ if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
 	echo -n ' kadmind'; \
 		(sleep 20; kadmind -n >/dev/null 2>&1 &) &
+fi
+
+# IP multicast routing daemon
+if [ "X${mrouted}" != X"NO" -a -x /usr/sbin/mrouted ]; then
+	echo -n ' mrouted'; mrouted ${mrouted}
 fi
 
 echo -n ' inetd';		inetd
