@@ -78,12 +78,12 @@ static bus_addr_t aicport_100[AIC_ISA_PORTSIZE] = {
 	0x20, 0x22, 0x24, 0x26, 0x28, 0x2a, 0x2c, 0x2e,
 	0x30, 0x32, 0x34, 0x36, 0x38, 0x3a, 0x3c, 0x3e,
 };
+#endif
 
 static struct isa_pnp_id aic_ids[] = {
-        { 0xa180a3b8,   "NEC PC9801-100"},
-        {0}
+	{ 0xa180a3b8, "NEC PC9801-100" },
+ 	{ 0 }
 };
-#endif
 
 static int
 aic_isa_alloc_resources(device_t dev)
@@ -169,11 +169,7 @@ aic_isa_probe(device_t dev)
 	u_int port, *ports;
 	u_int8_t porta;
 
-#ifdef PC98
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, aic_ids) == ENXIO)
-#else
-	if (isa_get_vendorid(dev))
-#endif
 		return (ENXIO);
 
 	port = isa_get_port(dev);
