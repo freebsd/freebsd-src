@@ -383,9 +383,10 @@ pccard_deactivate_function(device_t bus, device_t child)
 	return (0);
 }
 
-const struct pccard_product *
-pccard_product_lookup(device_t dev, const struct pccard_product *tab,
-    size_t ent_size, pccard_product_match_fn matchfn)
+static const struct pccard_product *
+pccard_do_product_lookup(device_t bus, device_t dev,
+		      const struct pccard_product *tab,
+		      size_t ent_size, pccard_product_match_fn matchfn)
 {
 	return (NULL);
 }
@@ -424,6 +425,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
+	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 #endif
 	{ 0, 0 }
 };
