@@ -154,8 +154,6 @@ int             setfault(faultbuf);             /* defined in locore.S */
 
 long		Maxmem = 0;
 
-static int	chosen;
-
 struct pmap	ofw_pmap;
 extern int	ofmsr;
 
