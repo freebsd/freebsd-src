@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.16 1996/01/24 18:41:06 peter Exp $
+ *	$Id: procfs_mem.c,v 1.17 1996/01/25 06:05:38 peter Exp $
  */
 
 /*
@@ -73,6 +73,17 @@ procfs_rwmem(p, uio)
 {
 	int error;
 	int writing;
+	struct vmspace *vm;
+
+	/*
+	 * if the vmspace is in the midst of being deallocated or the
+	 * process is exiting, don't try to grab anything.  The page table
+	 * usage in that process can be messed up.
+	 */
+	vm = p->p_vmspace;
+	if ((p->p_flag & P_WEXIT) || (vm->vm_refcnt < 1))
+		return EFAULT;
+	++vm->vm_refcnt;
 
 	writing = uio->uio_rw == UIO_WRITE;
 
@@ -144,7 +155,7 @@ procfs_rwmem(p, uio)
 		/*
 		 * The map we want...
 		 */
-		map = &p->p_vmspace->vm_map;
+		map = &vm->vm_map;
 
 		/*
 		 * Check the permissions for the area we're interested
@@ -230,6 +241,7 @@ procfs_rwmem(p, uio)
 					VM_PROT_READ|VM_PROT_EXECUTE, 0);
 	} while (error == 0 && uio->uio_resid > 0);
 
+	vmspace_free(vm);
 	return (error);
 }
 
