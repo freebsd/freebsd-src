@@ -48,7 +48,7 @@ _rtld-elf=	rtld-elf
 
 .if !defined(NO_RCMDS)
 _rexecd=	rexecd
-_logind=	rlogind
+_rlogind=	rlogind
 _rshd=		rshd
 .endif
 
