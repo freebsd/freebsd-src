@@ -58,7 +58,7 @@ directly to him.  See end of file for further details.
 	readline-4.0.  At that time the shared library major version
 	number was bumped from "3" to "4".  It has been deemed that
 	the interface change between readline-2.2 and readline-4.0 was
-	not suffient to warrant the version number bump.
+	not sufficient to warrant the version number bump.
 
 	Thus I have reverted it back to "3".  You will need to perform
 	the below immediately before your next ``make world'':
