@@ -622,9 +622,11 @@ vn_statfile(fp, sb, active_cred, td)
 	struct vnode *vp = fp->f_vnode;
 	int error;
 
+	mtx_lock(&Giant);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0, td);
+	mtx_unlock(&Giant);
 
 	return (error);
 }

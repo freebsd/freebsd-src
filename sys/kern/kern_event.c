@@ -889,6 +889,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 {
 	struct kqueue *kq;
 
+	/* Unlocked read. */
 	kq = fp->f_data;
 	bzero((void *)st, sizeof(*st));
 	st->st_size = kq->kq_count;

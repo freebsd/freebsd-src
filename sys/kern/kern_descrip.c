@@ -1005,9 +1005,7 @@ ofstat(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
-	mtx_unlock(&Giant);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
 		error = copyout(&oub, uap->sb, sizeof(oub));
@@ -1042,9 +1040,7 @@ fstat(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
-	mtx_unlock(&Giant);
 	if (error == 0)
 		error = copyout(&ub, uap->sb, sizeof(ub));
 	fdrop(fp, td);
@@ -1077,9 +1073,7 @@ nfstat(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
-	mtx_unlock(&Giant);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout(&nub, uap->sb, sizeof(nub));
