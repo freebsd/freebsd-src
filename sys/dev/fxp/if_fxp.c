@@ -1907,7 +1907,7 @@ fxp_mc_setup(sc)
 
 	nmcasts = 0;
 	if (!sc->all_mcasts) {
-		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			if (nmcasts >= MAXMCADDR) {

@@ -517,8 +517,7 @@ struct	in6_multistep {
 /* struct in6_multi *in6m; */					\
 do { \
 	register struct ifmultiaddr *ifma; \
-	for (ifma = (ifp)->if_multiaddrs.lh_first; ifma; \
-	     ifma = ifma->ifma_link.le_next) { \
+	TAILQ_FOREACH(ifma, &(ifp)->if_multiaddrs, ifma_link) { \
 		if (ifma->ifma_addr->sa_family == AF_INET6 \
 		    && IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)ifma->ifma_addr)->sin6_addr, \
 					  &(addr))) \

@@ -538,7 +538,7 @@ Static void aue_setmulti(sc)
 		csr_write_1(sc, AUE_MAR0 + i, 0);
 
 	/* now program new ones */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = aue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));

@@ -382,7 +382,7 @@ Static void cue_setmulti(sc)
 		sc->cue_mctab[i] = 0;
 
 	/* now program new ones */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = cue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
