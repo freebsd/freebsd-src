@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.44 1996/10/25 06:34:56 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.45 1996/10/28 06:01:07 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -354,8 +354,8 @@ p_dataout:
  * STCNT may have been cleared, so restore it from the residual field.
  */
 data_phase_reinit:
-	mov	DINDEX, STCNT0
-	mov	SCB_RESID_DCNT0	call bcopy_3
+	mvi	DINDEX, STCNT0
+	mvi	SCB_RESID_DCNT0	call bcopy_3
 	jmp	data_phase_loop
 
 p_datain:
