@@ -318,10 +318,11 @@ vendor AIWA		0x0677	Aiwa
 vendor ACARD		0x0678	ACARD Technology
 vendor PROLIFIC		0x067b	Prolific Technology
 vendor SIEMENS		0x067c	Siemens
-vendor ADVANCELOGIC	0x0680	Avance Logic
+vendor AVANCELOGIC	0x0680	Avance Logic
+vendor CHPRODUCTS	0x068e	CH Products
+vendor MINOLTA		0x0686	Minolta
 vendor CHPRODUCTS	0x068e	CH Products
 vendor HAGIWARA		0x0693	Hagiwara Sys-Com
-vendor MINOLTA		0x0686	Minolta
 vendor CTX		0x0698	Chuntex
 vendor ASKEY		0x069a	Askey Computer
 vendor SAITEK		0x06a3	Saitek
@@ -381,9 +382,9 @@ vendor STSN		0x07ef	STSN
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor BROADLOGIC	0x0827	BroadLogic
 vendor HANDSPRING	0x082d	Handspring
-vendor ACTIONSTAR	0x0835	Action Star Enterprise
 vendor PALM		0x0830	Palm Computing
 vendor SOURCENEXT	0x0833	SOURCENEXT
+vendor ACTIONSTAR	0x0835	Action Star Enterprise
 vendor SAMSUNG_TECHWIN	0x0839	Samsung Techwin
 vendor ACCTON		0x083a	Accton Technology
 vendor DIAMOND		0x0841	Diamond
@@ -391,7 +392,7 @@ vendor NETGEAR		0x0846	BayNETGEAR
 vendor ACTIVEWIRE	0x0854	ActiveWire
 vendor BBELECTRONICS	0x0856	B&B Electronics
 vendor PORTGEAR		0x085a	PortGear
-vendor SYSTEMTALKS	0x086e	System TALKS, Inc.
+vendor SYSTEMTALKS	0x086e	System Talks
 vendor METRICOM		0x0870	Metricom
 vendor ADESSOKBTEK	0x087c	ADESSO/Kbtek America
 vendor JATON		0x087d	Jaton
