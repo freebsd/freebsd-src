@@ -1,4 +1,6 @@
+# $FreeBSD$
+
 PROG = fdcontrol
-MAN8 = fdcontrol.8
+MAN = fdcontrol.8
 
 .include <bsd.prog.mk>

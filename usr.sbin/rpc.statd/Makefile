@@ -2,7 +2,7 @@
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c sm_inter.h statd.c procs.c
-MAN8 =	rpc.statd.8
+MAN =	rpc.statd.8
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc

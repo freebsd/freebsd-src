@@ -6,7 +6,7 @@ MAINTAINER= wosch
 
 SCRIPT=	${.CURDIR}/kbdmap.pl
 LINKS=	${BINDIR}/kbdmap ${BINDIR}/vidfont
-MAN1=   kbdmap.1
+MAN=   kbdmap.1
 MLINKS= kbdmap.1 vidfont.1
 
 all:

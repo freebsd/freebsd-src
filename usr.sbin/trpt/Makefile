@@ -2,7 +2,7 @@
 #	$FreeBSD$
 
 PROG=	trpt
-MAN8=	trpt.8
+MAN=	trpt.8
 BINGRP=	kmem
 BINMODE=2555
 CFLAGS+=-DINET6

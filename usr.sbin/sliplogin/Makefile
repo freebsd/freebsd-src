@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
+# $FreeBSD$
 
 PROG=	sliplogin
-MAN8=	sliplogin.8
+MAN=	sliplogin.8
 BINGRP=	network
 BINMODE=4550
 INSTALLFLAGS=-fschg

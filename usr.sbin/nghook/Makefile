@@ -3,7 +3,7 @@
 
 PROG=		nghook
 SRCS=		main.c
-MAN8=		nghook.8
+MAN=		nghook.8
 DPADD=		${LIBNETGRAPH}
 LDADD=		-lnetgraph
 COPTS+=		-Wall

@@ -3,7 +3,7 @@
 MAINTAINER= wosch
 
 SCRIPTS= adduser.perl rmuser.perl
-MAN8=	 adduser.8    rmuser.8
+MAN=	 adduser.8    rmuser.8
 
 beforeinstall:
 .for script in ${SCRIPTS}

@@ -4,7 +4,6 @@
 	${.CURDIR}/../../contrib/ipfilter
 
 PROG=	iptest
-MAN1=	iptest.1
 SRCS=	iptest.c iptests.c ip.c sbpf.c 44arp.c sock.c
 
 CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN1=		pkg_update.1
+MAN=		pkg_update.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -2,10 +2,9 @@
 # $FreeBSD$
 
 PROG=	dpt_led
-SRCS=	dpt_led.c
+MAN=	dpt_led.8
 
 CFLAGS+=-Wall -I${.CURDIR}/../../../sys
 BINMODE=500
-MAN8=	dpt_led.8
 
 .include <bsd.prog.mk>

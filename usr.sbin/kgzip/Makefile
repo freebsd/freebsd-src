@@ -2,7 +2,7 @@
 
 PROG=	kgzip
 SRCS=	kgzip.c elfhdr.c kgzcmp.c kgzld.c xio.c
-MAN8=	kgzip.8
+MAN=	kgzip.8
 CFLAGS+=-pedantic \
 	-W -Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \

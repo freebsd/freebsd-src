@@ -1,9 +1,7 @@
 # $FreeBSD$
 PROG=	wicontrol
-SRCS=	wicontrol.c
+MAN=	wicontrol.8
 
 CFLAGS+= -Wall -DWICACHE
-
-MAN8=	wicontrol.8
 
 .include <bsd.prog.mk>

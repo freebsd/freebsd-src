@@ -1,4 +1,6 @@
+# $FreeBSD$
+
 PROG=	ispcvt
-MAN8=	ispcvt.${MAN8EXT}
+MAN=	ispcvt.8
 
 .include <bsd.prog.mk>

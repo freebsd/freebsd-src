@@ -3,7 +3,7 @@
 
 SRCS=	ypbind.c yp_ping.c
 PROG=	ypbind
-MAN8=	ypbind.8
+MAN=	ypbind.8
 CFLAGS+=-DDAEMON
 
 .include <bsd.prog.mk>

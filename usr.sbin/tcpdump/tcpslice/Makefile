@@ -1,8 +1,8 @@
 #	@(#)Makefile	0.1 (RWGrimes) 3/24/93
+# $FreeBSD$
 
 PROG=	tcpslice
 CFLAGS+=-Wall -I.
-MAN1=	tcpslice.1
 SRCS=	gwtm2secs.c search.c tcpslice.c util.c version.c version.h
 CLEANFILES+=	version.c version.h
 DPADD+=	${LIBPCAP}

@@ -1,13 +1,4 @@
-.if !exists(${.CURDIR}/../Makefile.inc)
-error:
-	@echo
-	@echo "                      You MUST link/copy"
-	@echo
-	@echo "       ../Makefile.inc.NetBSD    or   ../Makefile.inc.FreeBSD"
-	@echo
-	@echo "             to ../Makefile.inc before you can proceed !"
-	@echo
-.else
+# $FreeBSD$
 
 LIB	=	keycap
 CAPDIR	=	/usr/share/misc
@@ -15,12 +6,12 @@ CAPPATH	=	$(CAPDIR)/keycap.pcvt
 KEYCAPSRC=	keycap.src
 CFLAGS	+=	-DKEYCAP_PATH=\"$(CAPPATH)\"
 SRCS	=	keycap.c
-MAN3	=	keycap.${MAN3EXT}
-MLINKS+=	keycap.${MAN3EXT} kgetent.${MAN3EXT} \
-		keycap.${MAN3EXT} kgetnum.${MAN3EXT} \
-		keycap.${MAN3EXT} kgetflag.${MAN3EXT} \
-		keycap.${MAN3EXT} kgetstr.${MAN3EXT}
-MAN5	=	man5/keycap.${MAN5EXT}
+MAN	=	keycap.3
+MLINKS+=	keycap.3 kgetent.3 \
+		keycap.3 kgetnum.3 \
+		keycap.3 kgetflag.3 \
+		keycap.3 kgetstr.3
+MAN	+=	man5/keycap.5
 #CLEANFILES+=	keycap.0 man5/keycap.0
 
 beforeinstall:
@@ -28,5 +19,3 @@ beforeinstall:
 	    ${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
 
 .include <bsd.lib.mk>
-
-.endif

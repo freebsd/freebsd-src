@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 
-MAN8=	periodic.8
+MAN=	periodic.8
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

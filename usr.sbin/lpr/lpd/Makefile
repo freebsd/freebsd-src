@@ -3,7 +3,7 @@
 
 PROG=	lpd
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
-MAN8=	lpd.8
+MAN=	lpd.8
 SRCS=	lpd.c printjob.c recvjob.c lpdchar.c modes.c
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}

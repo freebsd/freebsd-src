@@ -11,8 +11,6 @@
 BINDIR=		/usr/bin
 
 PROG=		pawd
-MAN1=		pawd.1
-
 SRCS=		pawd.c amq_clnt.c amq_xdr.c
 
 CFLAGS+=	-I${.CURDIR}/../../../contrib/amd/amq

@@ -2,8 +2,7 @@
 
 PROG=	kbdcontrol
 SRCS=	kbdcontrol.c lex.l
-MAN1=	kbdcontrol.1
-MAN5=	kbdmap.5
+MAN=	kbdcontrol.1 kbdmap.5
 MLINKS= kbdmap.5 keymap.5
 DPADD=	${LIBL}
 LDADD=	-ll

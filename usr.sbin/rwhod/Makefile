@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	rwhod
-MAN8=	rwhod.8
+MAN=	rwhod.8
 
 .include <bsd.prog.mk>
