@@ -700,11 +700,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	pte = vtopte(va);
 	opte = *pte;
 	*pte = npte;
-#ifdef SMP
-	invlpg(va);
-#else
 	invltlb_1pg(va);
-#endif
 }
 
 /*
@@ -717,11 +713,7 @@ pmap_kremove(vm_offset_t va)
 
 	pte = vtopte(va);
 	*pte = 0;
-#ifdef SMP
-	invlpg(va);
-#else
 	invltlb_1pg(va);
-#endif
 }
 
 /*
