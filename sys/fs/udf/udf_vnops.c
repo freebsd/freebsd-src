@@ -95,13 +95,17 @@ int
 udf_hashlookup(struct udf_mnt *udfmp, ino_t id, int flags, struct vnode **vpp)
 {
 	struct udf_node *node;
+	struct udf_hash_lh *lh;
 	int error;
 
 	*vpp = NULL;
 
 loop:
 	mtx_lock(&udfmp->hash_mtx);
-	TAILQ_FOREACH(node, &udfmp->udf_tqh, tq) {
+	lh = &udfmp->hashtbl[id % udfmp->hashsz];
+	if (lh == NULL)
+		return (ENOENT);
+	LIST_FOREACH(node, lh, le) {
 		if (node->hash_id == id) {
 			VI_LOCK(node->i_vnode);
 			mtx_unlock(&udfmp->hash_mtx);
@@ -124,12 +128,16 @@ int
 udf_hashins(struct udf_node *node)
 {
 	struct udf_mnt *udfmp;
+	struct udf_hash_lh *lh;
 
 	udfmp = node->udfmp;
 
 	vn_lock(node->i_vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 	mtx_lock(&udfmp->hash_mtx);
-	TAILQ_INSERT_TAIL(&udfmp->udf_tqh, node, tq);
+	lh = &udfmp->hashtbl[node->hash_id % udfmp->hashsz];
+	if (lh == NULL)
+		LIST_INIT(lh);
+	LIST_INSERT_HEAD(lh, node, le);
 	mtx_unlock(&udfmp->hash_mtx);
 
 	return (0);
@@ -139,11 +147,15 @@ int
 udf_hashrem(struct udf_node *node)
 {
 	struct udf_mnt *udfmp;
+	struct udf_hash_lh *lh;
 
 	udfmp = node->udfmp;
 
 	mtx_lock(&udfmp->hash_mtx);
-	TAILQ_REMOVE(&udfmp->udf_tqh, node, tq);
+	lh = &udfmp->hashtbl[node->hash_id % udfmp->hashsz];
+	if (lh == NULL)
+		panic("hash entry is NULL, node->hash_id= %d\n", node->hash_id);
+	LIST_REMOVE(node, le);
 	mtx_unlock(&udfmp->hash_mtx);
 
 	return (0);
