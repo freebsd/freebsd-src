@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.42 1996/11/23 19:02:25 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.43 1996/11/24 08:39:11 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -933,17 +933,17 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  does not say `not stripped', it is stripped.
 
 	<p>To automagically compress the manpages, use the MAN[1-9LN]
-	   variables.  They will check the variable <tt>NOMANCOMPRESS</tt>
-	   that the user can set in <tt>/etc/make.conf</tt> to disable man
-	   page compression.
-	   Place them last in the section below the MAINTAINER variable.
-	   Here is an example:
+	   variables.  They will check the variable
+	   <tt>NOMANCOMPRESS</tt> that the user can set in
+	   <tt>/etc/make.conf</tt> to disable man page compression.
+	   Place them last in the section below the
+	   <tt>MAINTAINER</tt> variable.  Here is an example:
 <tscreen><verb>
 MAN1=      foo.1 bar.1
 MAN5=      foo.conf.5
 MAN8=      baz.8
 </verb></tscreen>
-	<p>Note that this is not usually nessicary with ports that are X
+	<p>Note that this is not usually necessary with ports that are X
 	   applications and use Imake to build.
 
       <sect3>
