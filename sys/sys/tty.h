@@ -271,8 +271,7 @@ int	 ttyopen(dev_t device, struct tty *tp);
 int	 ttypoll(dev_t dev, int events, struct thread *td);
 int	 ttyread(dev_t dev, struct uio *uio, int flag);
 void	 ttyregister(struct tty *tp);
-int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg,
-	    int timeout);
+int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
 int	 ttywrite(dev_t dev, struct uio *uio, int flag);
 int	 unputc(struct clist *q);
