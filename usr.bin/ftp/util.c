@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $	*/
 
 /*

@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Pager: Routines to create a "more" running out of a particular file
  * descriptor.
@@ -9,7 +7,10 @@
  * For copyright information, see copyright.h.
  */
 
-/* $FreeBSD$ */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include "ss_internal.h"
 #include "copyright.h"

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Native-dependent definitions for Intel 386 running BSD Unix, for GDB.
    Copyright 1986, 1987, 1989, 1992, 1996 Free Software Foundation, Inc.
 

@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: complete.c,v 1.11 1997/09/13 09:05:53 lukem Exp $	*/
 
 /*-

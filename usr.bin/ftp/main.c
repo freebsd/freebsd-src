@@ -1,4 +1,3 @@
-/* $FreeBSD$	*/
 /*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
