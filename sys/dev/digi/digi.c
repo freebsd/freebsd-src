@@ -157,26 +157,6 @@ static struct cdevsw digi_sw = {
 	ttykqfilter		/* bmaj */
 };
 
-int
-digi_modhandler(module_t mod, int event, void *arg)
-{
-	static int ref = 0;
-
-	switch (event) {
-	case MOD_LOAD:
-		if (ref++ == 0)
-			cdevsw_add(&digi_sw);
-		break;
-
-	case MOD_UNLOAD:
-		if (--ref == 0)
-			cdevsw_remove(&digi_sw);
-		break;
-	}
-
-	return (0);
-}
-
 static void
 digi_poll(void *ptr)
 {

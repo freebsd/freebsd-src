@@ -211,7 +211,6 @@ extern const struct digi_control_signals digi_xixe_signals;
 extern const struct digi_control_signals digi_normal_signals;
 
 const char	*digi_errortxt(int _id);
-int		 digi_modhandler(module_t _mod, int _event, void *_arg);
 int		 digi_attach(struct digi_softc *);
 int		 digi_detach(device_t _dev);
 int		 digi_shutdown(device_t _dev);
