@@ -110,7 +110,7 @@ vop_read(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	    xfersize = uio->uio_resid;
 	if (bytesinfile < xfersize)
 	    xfersize = bytesinfile;
-	
+
 	error = bread(vp, lbn, size, NOCRED, &bp);
 	if (error) {
 	    brelse(bp);
@@ -131,7 +131,7 @@ vop_read(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		break;
 	    xfersize = size;
 	}
-	
+
 	error = uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 	if (error)
 	    break;
@@ -170,7 +170,7 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	xfersize = size - blkoffset;
 	if (uio->uio_resid < xfersize)
 	    xfersize = uio->uio_resid;
-	
+
 	if (uio->uio_offset + xfersize > size of file)
 	    vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 

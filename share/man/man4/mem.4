@@ -121,7 +121,7 @@ We believe the region to be invalid or otherwise erroneous.
 .It MDF_FIXACTIVE
 The region cannot be disabled.
 .It MDF_BUSY
-The region is currently owned by another process and may not be 
+The region is currently owned by another process and may not be
 altered.
 .El
 .Pp
@@ -143,13 +143,13 @@ descriptors.  If greater than 0, the array at
 will be filled with a corresponding number of descriptor structures,
 or the maximum, whichever is less.
 .Pp
-The 
+The
 .Fa MEMRANGE_SET
 ioctl is used to add, alter and remove memory range attributes.  A range
 with the MDF_FIXACTIVE flag may not be removed; a range with the MDF_BUSY
 flag may not be removed or updated.
 .Pp
-.Fa mo_arg[0] 
+.Fa mo_arg[0]
 should be set to MEMRANGE_SET_UPDATE to update an existing
 or establish a new range, or to MEMRANGE_SET_REMOVE to remove a range.
 .Sh RETURN VALUES

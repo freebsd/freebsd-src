@@ -59,8 +59,8 @@ All network protocols are associated with a specific
 .Em protocol family .
 A protocol family provides basic services to the protocol
 implementation to allow it to function within a specific
-network environment.  These services may include 
-packet fragmentation and reassembly, routing, addressing, and 
+network environment.  These services may include
+packet fragmentation and reassembly, routing, addressing, and
 basic transport.  A protocol family may support multiple
 methods of addressing, though the current protocol implementations
 do not.  A protocol family is normally comprised of a number
@@ -68,7 +68,7 @@ of protocols, one per
 .Xr socket 2
 type.  It is not required that a protocol family support
 all socket types.  A protocol family may contain multiple
-protocols supporting the same socket abstraction. 
+protocols supporting the same socket abstraction.
 .Pp
 A protocol supports one of the socket abstractions detailed in
 .Xr socket 2 .
@@ -177,7 +177,7 @@ certain interfaces such as the loopback interface,
 .Xr lo 4 ,
 do not.
 .Pp
-The following 
+The following
 .Xr ioctl 2
 calls may be used to manipulate network interfaces.
 The
@@ -185,7 +185,7 @@ The
 is made on a socket (typically of type
 .Dv SOCK_DGRAM )
 in the desired domain.
-Most of the requests supported in earlier releases 
+Most of the requests supported in earlier releases
 take an
 .Vt ifreq
 structure as its parameter.  This structure has the form
@@ -295,10 +295,10 @@ the address family in which the original socket was opened.
 .It Dv SIOCGIFCONF
 Get interface configuration list.  This request takes an
 .Vt ifconf
-structure (see below) as a value-result parameter.  The 
+structure (see below) as a value-result parameter.  The
 .Va ifc_len
 field should be initially set to the size of the buffer
-pointed to by 
+pointed to by
 .Va ifc_buf .
 On return it will contain the length, in bytes, of the
 configuration list.

@@ -39,7 +39,7 @@
 .Nd "kernel buffer I/O scheme used in FreeBSD VM system"
 .Sh DESCRIPTION
 The kernel implements a KVM abstraction of the buffer cache which allows it
-to map potentially disparate vm_page's into contiguous KVM for use by 
+to map potentially disparate vm_page's into contiguous KVM for use by
 (mainly filesystem) devices and device I/O.  This abstraction supports
 block sizes from DEV_BSIZE (usually 512) to upwards of several pages or more.
 It also supports a relatively primitive byte-granular valid range and dirty
@@ -65,18 +65,18 @@ size is 4096).
 .Pp
 VM buffers also keep track of a byte-granular dirty range and valid range.
 This feature is normally only used by the NFS subsystem.  I'm not sure why it
-is used at all, actually, since we have DEV_BSIZE valid/dirty granularity 
+is used at all, actually, since we have DEV_BSIZE valid/dirty granularity
 within the VM buffer.  If a buffer dirty operation creates a 'hole',
 the dirty range will extend to cover the hole.  If a buffer validation
 operation creates a 'hole' the byte-granular valid range is left alone and
 will not take into account the new extension.  Thus the whole byte-granular
-abstraction is considered a bad hack and it would be nice if we could get rid 
+abstraction is considered a bad hack and it would be nice if we could get rid
 of it completely.
 .Pp
 A VM buffer is capable of mapping the underlying VM cache pages into KVM in
 order to allow the kernel to directly manipulate the data associated with
 the (vnode,b_offset,b_size).  The kernel typically unmaps VM buffers the moment
-they are no longer needed but often keeps the 'struct buf' structure 
+they are no longer needed but often keeps the 'struct buf' structure
 instantiated and even bp->b_pages array instantiated despite having unmapped
 them from KVM.  If a page making up a VM buffer is about to undergo I/O, the
 system typically unmaps it from KVM and replaces the page in the b_pages[]
@@ -100,14 +100,14 @@ device no longer needs a buffer it typically flags it as B_RELBUF.  Due to
 the underlying pages being marked clean, the B_DELWRI|B_RELBUF combination must
 be interpreted to mean that the buffer is still actually dirty and must be
 written to its backing store before it can actually be released.  In the case
-where B_DELWRI is not set, the underlying dirty pages are still properly 
+where B_DELWRI is not set, the underlying dirty pages are still properly
 marked as dirty and the buffer can be completely freed without losing that
 clean/dirty state information.  ( XXX do we have to check other flags in
 regards to this situation ??? ).
 .Pp
 The kernel reserves a portion of its KVM space to hold VM Buffer's data
-maps.  Even though this is virtual space (since the buffers are mapped 
-from the buffer cache), we cannot make it arbitrarily large because 
+maps.  Even though this is virtual space (since the buffers are mapped
+from the buffer cache), we cannot make it arbitrarily large because
 instantiated VM Buffers (struct buf's) prevent their underlying pages in the
 buffer cache from being freed.  This can complicate the life of the paging
 system.

@@ -53,9 +53,9 @@ before a
 .Tn SCSI
 sequential access device can be configured.
 .Sh MOUNT SESSIONS
-The 
+The
 .Nm
-driver is based around the concept of a 
+driver is based around the concept of a
 .Dq Em mount session ,
 which is defined as the period between the time that a tape is
 mounted, and the time when it is unmounted.  Any parameters set during
@@ -67,7 +67,7 @@ close in several ways.  These include:
 .It
 Closing a `rewind device',
 referred to as sub-mode 00 below.
-An example is 
+An example is
 .Pa /dev/sa0 .
 .It
 Using the MTOFFL
@@ -88,7 +88,7 @@ Bits 0 and 1 of the minor number are interpreted as
 The sub-modes differ in the action taken when the device is closed:
 .Bl -tag -width XXXX
 .It 00
-A close will rewind the device; if the tape has been 
+A close will rewind the device; if the tape has been
 written, then a file mark will be written before the rewind is requested.
 The device is unmounted.
 .It 01
@@ -99,18 +99,18 @@ Any further reads or writes will occur directly after the
 last read, or the written file mark.
 .It 10
 A close will rewind the device.
-If the tape has been 
+If the tape has been
 written, then a file mark will be written before the rewind is requested.
 On completion of the rewind an unload command will be issued.
 The device is unmounted.
 .El
 .Sh BLOCKING MODES
 .Tn SCSI
-tapes may run in either 
+tapes may run in either
 .Sq Em variable
 or
 .Sq Em fixed
-block-size modes.  Most 
+block-size modes.  Most
 .Tn QIC Ns -type
 devices run in fixed block-size mode, where most nine-track tapes and
 many new cartridge formats allow variable block-size.  The difference
@@ -118,7 +118,7 @@ between the two is as follows:
 .Bl -inset
 .It Variable block-size:
 Each write made to the device results in a single logical record
-written to the tape.  One can never read or write 
+written to the tape.  One can never read or write
 .Em part
 of a record from tape (though you may request a larger block and read
 a smaller record); nor can one read multiple blocks.  Data from a
@@ -192,7 +192,7 @@ Many older
 .Tn SCSI-1
 devices may not work properly with this driver yet.
 .Pp
-Additionally, certain 
+Additionally, certain
 tapes (QIC tapes mostly) that were written under
 .Fx
 2.X

@@ -70,8 +70,8 @@ The parallel port bus is allocated by lpt when the printer device is opened
 and released only when the transfer is completed: either when the device
 is closed or when the entire buffer is sent in interrupt driven mode.
 .Pp
-The driver can be configured to be either interrupt-driven, or 
-to poll the printer.  Ports that are configured to be 
+The driver can be configured to be either interrupt-driven, or
+to poll the printer.  Ports that are configured to be
 interrupt-driven can be switched to polled mode by using the
 .Xr lptcontrol 8
 command.
@@ -102,8 +102,8 @@ first parallel port driver
 There are lots of them, especially in cheap parallel port implementations.
 .Pp
 It is only possible to open a lpt port when a printer is connected and
-on-line, making it impossible to run 
-.Xr lptcontrol 8 
+on-line, making it impossible to run
+.Xr lptcontrol 8
 when there is no printer connected.
 .Pp
 This driver could still stand a rewrite.

@@ -215,7 +215,7 @@ struct scsi_tape_errors {
 		u_int64_t nbytes;	/* total # bytes processed */
 	} wterr, rderr;
 };
-	
+
 union mterrstat {
 	struct scsi_tape_errors scsi_errstat;
 	char _reserved_padding[256];

@@ -45,11 +45,11 @@ Constructing a firewall may appear to be trivial, but most people
 get them wrong.  The most common mistake is to create an exclusive
 firewall rather then an inclusive firewall.  An exclusive firewall
 allows all packets through except for those matching a set of rules.
-An inclusive firewall allows only packets matching the rulset 
+An inclusive firewall allows only packets matching the rulset
 through.  Inclusive firewalls are much, much safer then exclusive
 firewalls but a tad more difficult to build properly.  The
 second most common mistake is to blackhole everything except the
-particular port you want to let through.  TCP/IP needs to be able 
+particular port you want to let through.  TCP/IP needs to be able
 to get certain types of ICMP errors to function properly - for
 example, to implement MTU discovery.  Also, a number of common
 system daemons make reverse connections to the
@@ -85,13 +85,13 @@ dangerous option to set because it means your firewall is disabled
 during booting.  You should use this option while getting up to
 speed with
 .Fx
-firewalling, but get rid of it once you understand how it all works 
+firewalling, but get rid of it once you understand how it all works
 to close the loophole.  There is a third option called
 .Sy IPDIVERT
 which allows you to use the firewall to divert packets to a user program
 and is necessary if you wish to use
 .Xr natd 8
-to give private internal networks access to the outside world. 
+to give private internal networks access to the outside world.
 If you want to be able to limit the bandwidth used by certain types of
 traffic, the
 .Sy DUMMYNET
@@ -104,20 +104,20 @@ interface cards.  fxp0 is connected to the 'exposed' LAN.  Machines
 on this LAN are dual-homed with both internal 10. IP addresses and
 internet-routed IP addresses.  In our example, 192.100.5.x represents
 the internet-routed IP block while 10.x.x.x represents the internal
-networks.  While it isn't relevant to the example, 10.0.1.x is 
+networks.  While it isn't relevant to the example, 10.0.1.x is
 assigned as the internal address block for the LAN on fxp0, 10.0.2.x
 for the LAN on fxp1, and 10.0.3.x for the LAN on fxp2.
 .Pp
 In this example we want to isolate all three LANs from the internet
-as well as isolate them from each other, and we want to give all 
+as well as isolate them from each other, and we want to give all
 internal addresses access to the internet through a NAT gateway running
 on this machine.  To make the NAT gateway work, the firewall machine
 is given two internet-exposed addresses on fxp0 in addition to an
-internal 10. address on fxp0: one exposed address (not shown) 
+internal 10. address on fxp0: one exposed address (not shown)
 represents the machine's official address, and the second exposed
 address (192.100.5.5 in our example) represents the NAT gateway
 rendezvous IP.  We make the example more complex by giving the machines
-on the exposed LAN internal 10.0.0.x addresses as well as exposed 
+on the exposed LAN internal 10.0.0.x addresses as well as exposed
 addresses.  The idea here is that you can bind internal services
 to internal addresses even on exposed machines and still protect
 those services from the internet.  The only services you run on
@@ -126,7 +126,7 @@ internet.
 .Pp
 It is important to note that the 10.0.0.x network in our example
 is not protected by our firewall.  You must make sure that your
-internet router protects this network from outside spoofing.  
+internet router protects this network from outside spoofing.
 Also, in our example, we pretty much give the exposed hosts free
 reign on our internal network when operating services through
 internal IP addresses (10.0.0.x).   This is somewhat of security
@@ -146,7 +146,7 @@ firewall_type="/etc/ipfw.conf"
 
 # temporary port binding range let
 # through the firewall.
-# 
+#
 # NOTE: heavily loaded services running through the firewall may require
 # a larger port range for local-size binding.  4000-10000 or 4000-30000
 # might be a better choice.
@@ -160,7 +160,7 @@ ip_portrange_last=5000
 #
 # FIREWALL: the firewall machine / nat gateway
 # LAN0	    10.0.0.X and 192.100.5.X (dual homed)
-# LAN1	    10.0.1.X 
+# LAN1	    10.0.1.X
 # LAN2	    10.0.2.X
 # sw:	    ethernet switch (unmanaged)
 #
@@ -187,7 +187,7 @@ ip_portrange_last=5000
 # NOT SHOWN:  The INTERNET ROUTER must contain rules to disallow
 # all packets with source IP addresses in the 10. block in order
 # to protect the dual-homed 10.0.0.x block.  Exposed hosts are
-# not otherwise protected in this example - they should only bind 
+# not otherwise protected in this example - they should only bind
 # exposed services to exposed IPs but can safely bind internal
 # services to internal IPs.
 #
@@ -241,7 +241,7 @@ add 01501 deny all from 10.0.2.0/24 in via fxp0
 # In this example rule set there are no restrictions between
 # internal hosts, even those on the exposed LAN (as long as
 # they use an internal IP address).  This represents a
-# potential security hole (what if an exposed host is 
+# potential security hole (what if an exposed host is
 # compromised?).  If you want full restrictions to apply
 # between the three LANs, firewalling them off from each
 # other for added security, remove these two rules.
@@ -327,12 +327,12 @@ add 05000 deny log ip from any to any frag
 add 06000 deny all from any to any
 .Ed
 .Sh PORT BINDING INTERNAL AND EXTERNAL SERVICES
-We've mentioned multi-homing hosts and binding services to internal or 
-external addresses but we haven't really explained it.  When you have a 
-host with multiple IP addresses assigned to it, you can bind services run 
+We've mentioned multi-homing hosts and binding services to internal or
+external addresses but we haven't really explained it.  When you have a
+host with multiple IP addresses assigned to it, you can bind services run
 on that host to specific IPs or interfaces rather then all IPs.  Take
 the firewall machine for example:  With three interfaces
-and two exposed IP addresses 
+and two exposed IP addresses
 on one of those interfaces, the firewall machine is known by 5 different
 IP addresses (10.0.0.1, 10.0.1.1, 10.0.2.1, 192.100.5.5, and say
 192.100.5.1).  If the firewall is providing file sharing services to the
@@ -366,7 +366,7 @@ The
 .Nm
 manual page was originally written by
 .An Matthew Dillon
-and first appeared 
+and first appeared
 in
 .Fx 4.3 ,
 May 2001.

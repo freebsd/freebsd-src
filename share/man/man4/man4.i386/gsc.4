@@ -71,7 +71,7 @@ I had neither enough
 documentation nor experience in writing interrupt driven device
 drivers.
 .Pp
-The device can operate at four different 
+The device can operate at four different
 .Em resolutions :
 100, 200,
 300 and 400dpi.
@@ -86,24 +86,24 @@ Thus the scans can easily processed by any graphic package around
 .Xr xpaint 1 ,
 .Xr xv 1 ,
 .Xr xli 1
-only to name some of them ...).  In 
+only to name some of them ...).  In
 .Em raw
 mode a
 bit which is set means a black pixel because the scanner detects black
 points on white paper.
 On the other hand, because pnm format describes
-intensities of electron beams in video screens a set bit in 
+intensities of electron beams in video screens a set bit in
 .Em pbm
 mode means a white pixel.
 .Pp
-The 
+The
 .Em width
 of the output bitmap is fixed as given by the
 resolution value.
-However, the 
+However, the
 .Em height
 of the bitmap must be
-supplied in 
+supplied in
 .Em pnm
 mode since the driver must know at what time the
 .Sq end-of-file
@@ -113,11 +113,11 @@ directly copy the scanner output into a pbm file with
 .Xr cat .
 Of course you can obtain a similar effect by using
 .Xr dd 1
-with the driver in 
+with the driver in
 .Em raw
 mode.
 .Pp
-The 
+The
 .Em graymap
 output mode is not yet implemented into the driver.
 It is even questionable if external programs would not do this job
@@ -150,7 +150,7 @@ open though untouched state otherwise the request will fail and
 is set to
 .Er EBUSY .
 .It GSC_SWIDTH int
-Set the 
+Set the
 .Em width
 of the bitmap.
 Actually, this is an alternative
@@ -177,7 +177,7 @@ width
 .El
 .Pp
 Values which are not reported in the above table will cause the ioctl
-call to fail with 
+call to fail with
 .Xr errno 2
 set to
 .Er EINVAL .
@@ -194,9 +194,9 @@ the right part that is exceeding the standard line.
 .It GSC_GWIDTH int
 Get current width of the bitmap in pixels.
 .It GSC_SHEIGHT int
-Set the 
+Set the
 .Em height
-of the bitmap in 
+of the bitmap in
 .Em pnm
 mode.
 This is actually
@@ -217,7 +217,7 @@ This upper limit is
 checked before it overwrites the current value and pases an
 .Er ENOMEM
 in the
-.Xr errno 2 
+.Xr errno 2
 variable.
 However, since the bitmap width can change
 after a buffer length was selected a read request may fail with
@@ -269,37 +269,37 @@ starts scanning.  It can then be set to a short amount to react
 Note that the user should be
 left time to at least fill one buffer without having to haste.
 .Pp
-Note that the 
+Note that the
 .Em pbm
-versus 
+versus
 .Em raw
 mode selection is done by the
 minor number not by ioctl requests.
-In 
+In
 .Em raw
 mode the selected
 height of the bitmap will have no effect.
 .Sh FILES
 .Bl -tag -width /dev/gsc0pd
 .It Pa /dev/gsc0
-device node for 
+device node for
 .Em raw
 output, has minor number 0.
 .It Pa /dev/gsc0d
-device node for 
+device node for
 .Em raw
-output emitting 
+output emitting
 .Em debug
 messages if the
 GSCDEBUG option was given at compile time, has minor number 32.
 .It Pa /dev/gsc0p
-device node for output in 
+device node for output in
 .Em pbm
 file format, has minor number 8.
 .It Pa /dev/gsc0pd
-device node for 
+device node for
 .Em pbm
-and 
+and
 .Em debug
 mode, has minor number 40.
 .El

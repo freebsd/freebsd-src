@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 FreeBSD inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty, use and
 .\" redistribution of this software, in source or object code forms, with or
 .\" without modifications are expressly permitted by FreeBSD Inc.;
@@ -11,7 +11,7 @@
 .\"    Inc., Inc. trademarks, including the mark "FREEBSD
 .\"    INC." on advertising, endorsements, or otherwise except as
 .\"    such appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY FREEBSD INC. "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, FreeBSD Inc. MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF FreeBSD Inc. IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
-.\" 
+.\"
 .\" Author: Julian Elischer <julian@FreeBSD.org>
 .\"
 .\" $FreeBSD$
@@ -45,7 +45,7 @@
 .Sh DESCRIPTION
 The
 .Nm split
-node type is used to split a bidirectional stream of packets into 
+node type is used to split a bidirectional stream of packets into
 two separate unidirectional streams of packets.
 .Sh HOOKS
 This node type supports the following three hooks:
@@ -53,10 +53,10 @@ This node type supports the following three hooks:
 .It Dv in
 Packets received on
 .Em in
-are forwarded to 
+are forwarded to
 .Em mixed .
 .It Dv out
-Packets received on 
+Packets received on
 .Em out
 will be discarded as illegal.
 .It Dv mixed
@@ -78,10 +78,10 @@ control message, or when all hooks have been disconnected.
 The
 .Nm
 node type was implemented in
-.Fx 3.5 
+.Fx 3.5
 but incorprated into
 .Fx
-in 
+in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org

@@ -39,38 +39,38 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for a 
+driver provides support for a
 .Tn SCSI
 .Tn CD-ROM
 (Compact Disc-Read Only Memory) drive.
-In an attempt to look like a regular disk, the 
+In an attempt to look like a regular disk, the
 .Nm
 driver synthesizes a partition table, with one partition covering the entire
 .Tn CD-ROM .
 It is possible to modify this partition table using
 .Xr disklabel 8 ,
-but it will only last until the 
+but it will only last until the
 .Tn CD-ROM
 is unmounted.
-In general the interfaces are similar to those described by 
-.Xr ad 4 
+In general the interfaces are similar to those described by
+.Xr ad 4
 and
 .Xr da 4 .
 .Pp
 As the
 .Tn SCSI
-adapter is probed during boot, the 
+adapter is probed during boot, the
 .Tn SCSI
 bus is scanned for devices.
 Any devices found which answer as CDROM
-(type 5) or WORM (type 4) type devices will be `attached' to the 
+(type 5) or WORM (type 4) type devices will be `attached' to the
 .Nm
 driver.
 Prior to
 .Fx 2.1 ,
 the first device found will be attached as
 .Li cd0
-the next, 
+the next,
 .Li cd1 ,
 etc.
 Beginning in
@@ -84,7 +84,7 @@ The system utility
 .Xr disklabel 8
 may be used to read the synthesized
 disk label
-structure, which will contain correct figures for the size of the 
+structure, which will contain correct figures for the size of the
 .Tn CD-ROM
 should that information be required.
 .Sh KERNEL CONFIGURATION
@@ -93,7 +93,7 @@ Any number of
 devices may be attached to the system regardless of system
 configuration as all resources are dynamically allocated.
 .Sh IOCTLS
-The following 
+The following
 .Xr ioctl 2
 calls which apply to
 .Tn SCSI
@@ -215,7 +215,7 @@ struct ioc_play_msf
 	u_char	end_f;
 };
 .Ed
-.It Dv CDIOCREADSUBCHANNEL 
+.It Dv CDIOCREADSUBCHANNEL
 .Pq Li "struct ioc_read_subchannel"
 Read information from the subchannel at the location specified by this
 structure:
@@ -236,7 +236,7 @@ struct ioc_read_subchannel {
 .Ed
 .It Dv CDIOREADTOCHEADER
 .Pq Li "struct ioc_toc_header"
-Return summary information about the table of contents for the mounted 
+Return summary information about the table of contents for the mounted
 .Tn CD-ROM .
 The information is returned into the following structure:
 .Bd -literal -offset indent
@@ -246,7 +246,7 @@ struct ioc_toc_header {
 	u_char  ending_track;
 };
 .Ed
-.It Dv CDIOREADTOCENTRYS 
+.It Dv CDIOREADTOCENTRYS
 .Pq Li "struct ioc_read_toc_entry"
 Return information from the table of contents entries mentioned.  (Yes, this
 command name is misspelled.)  The argument structure is defined as follows:
@@ -308,11 +308,11 @@ Tell the drive to spin-up (-down) the
 .Tn CD-ROM .
 .It Dv CDIOCALLOW
 .It Dv CDIOCPREVENT
-Tell the drive to allow (prevent) manual ejection of the 
+Tell the drive to allow (prevent) manual ejection of the
 .Tn CD-ROM
 disc.  Not all drives support this feature.
 .It Dv CDIOCEJECT
-Eject the 
+Eject the
 .Tn CD-ROM .
 .It Dv CDIOCCLOSE
 Tell the drive to close its door and load the media.  Not all drives
@@ -334,7 +334,7 @@ struct	ioc_pitch
 .Ed
 .El
 .Sh NOTES
-When a 
+When a
 .Tn CD-ROM
 is changed in a drive controlled by the
 .Nm
@@ -351,13 +351,13 @@ The audio code in the
 driver only support
 .Tn SCSI-2
 standard audio commands.
-Because many 
+Because many
 .Tn CD-ROM
 manufacturers have not followed the standard, there are many
 .Tn CD-ROM
 drives for which audio will not work.
 Some work is planned to support
-some of the more common `broken' 
+some of the more common `broken'
 .Tn CD-ROM
 drives; however, this is not yet under way.
 .Sh CHANGER OPERATION

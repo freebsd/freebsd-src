@@ -101,7 +101,7 @@ Otherwise,
 may call sleep to wait for resources to be released by other processes.
 If this flag is set,
 .Fn malloc
-will return 
+will return
 .Dv NULL
 rather then block.  Note that
 .Dv M_WAITOK
@@ -109,7 +109,7 @@ is defined to be 0, meaning that blocking operation is the default.
 .It Dv M_ASLEEP
 Causes
 .Fn malloc
-to call 
+to call
 .Fn asleep
 if the request cannot be immediately fulfilled due to a resource shortage.
 M_ASLEEP is not useful alone and should always be or'd with M_NOWAIT to allow
@@ -129,16 +129,16 @@ queued.
 Indicates that it is Ok to wait for resources.  It is unconveniently
 defined as 0 so care should be taken never to compare against this value
 directly or try to AND it as a flag.  The default operation is to block
-until the memory allocation succeeds. 
+until the memory allocation succeeds.
 .Fn malloc
 can only return
 .Dv NULL
-if 
-.Dv M_NOWAIT 
+if
+.Dv M_NOWAIT
 is specified.
 .It Dv M_USE_RESERVE
 Indicates that the system can dig into its reserve in order to obtain the
-requested memory.  This option used to be called M_KERNEL but has been 
+requested memory.  This option used to be called M_KERNEL but has been
 renamed to something more obvious.  This option has been depreciated and is
 slowly being removed from the kernel, and so should not be used with any new
 programming.
@@ -180,9 +180,9 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 returns a kernel virtual address that is suitably aligned for storage of
 any type of object, or
 .Dv NULL
-if the request could not be satisfied and 
-.Dv M_NOWAIT 
-was set.  If 
+if the request could not be satisfied and
+.Dv M_NOWAIT
+was set.  If
 .Dv M_ASLEEP
 was set and
 .Fn malloc

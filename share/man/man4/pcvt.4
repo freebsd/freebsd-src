@@ -1,9 +1,9 @@
-.\" 
+.\"
 .\"  Copyright (c) 1992, 2000 Hellmuth Michaelis, Brian Dunford-Shore,
 .\"                           Joerg Wunsch and Holger Veit.
-.\" 
+.\"
 .\"  All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -43,7 +43,7 @@
 .Sh NAME
 .Nm pcvt ,
 .Nm vt
-.Nd VT220 virtual screen system console 
+.Nd VT220 virtual screen system console
 .Sh SYNOPSIS
 .Cd "device vt0 at isa?"
 .Sh DESCRIPTION
@@ -81,7 +81,7 @@ Completely independent virtual terminals for MDA/HGC/CGA/EGA and VGA
 .It
 Fully remappable keyboard to support national keyboards
 .It
-All VT220 character sets plus ISO Latin-1 and DEC technical supported 
+All VT220 character sets plus ISO Latin-1 and DEC technical supported
 .It
 VT220 downloadable character set supported when run on EGA/VGA
 .It
@@ -96,7 +96,7 @@ Support for MDA, CGA, EGA and VGA display adaptors
 .It
 Support for 132 column operation on some VGA chipsets
 .It
-X Window Support for XFree86 
+X Window Support for XFree86
 .Po
 requires
 .Em XSERVER
@@ -127,7 +127,7 @@ support
 .Ss Scrollback
 Each virtual
 .Nm
-virtual terminal has 8 pages of memory attached which are used as a 
+virtual terminal has 8 pages of memory attached which are used as a
 scrollback buffer.
 By using
 .Em SHIFT-PageUp
@@ -375,7 +375,7 @@ caps shift - swaps case of letter,
 ASCII code generating key,
 .It KBD_SCROLL
 stop output,
-.It KBD_FUNC    
+.It KBD_FUNC
 function key,
 .It KBD_KP
 keypad keys,
@@ -527,7 +527,7 @@ struct screeninfo {
     int pure_vt_mode;   /* flag, pure VT mode or HP/VT mode    */
                         /* on write, if -1, no change          */
     int screen_size;    /* screen size                         */
-                        /* on write, if -1, no change          */    
+                        /* on write, if -1, no change          */
     int force_24lines;  /* force 24 lines if 25 lines VT mode  */
                         /* or 28 lines HP mode to get pure     */
                         /* VT220 screen size                   */
@@ -557,7 +557,7 @@ sets the number of columns for the current screen,
 .Pp
 its parameter is a pointer to an integer containing either a value of 80,
 or a value of 132.
-Note that setting the number of columns to 132 is only supported on 
+Note that setting the number of columns to 132 is only supported on
 some VGA adaptors.
 Any unsupported numbers cause the ioctl to fail with
 .Va errno
@@ -609,7 +609,7 @@ struct pcvtid {
 	int rmajor;			/* revision number, major	*/
 #define PCVTIDMAJOR   3
 	int rminor;			/* revision number, minor	*/
-#define PCVTIDMINOR   00	
+#define PCVTIDMINOR   00
 };
 .Ed
 .Pp
@@ -669,7 +669,7 @@ option
 supports a subset of the USL-style commands used to control
 the virtual terminal interface.
 This feature is mainly intended to allow
-.Em XFree86 
+.Em XFree86
 to switch between virtual screens even when
 running an X server.
 They are ugly with respect to the implied semantics
@@ -724,14 +724,14 @@ with much help from
 and
 .An J\(:org Wunsch Aq joerg@FreeBSD.org .
 .Pp
-This driver is based on several people's previous work, notably 
-the historic 
+This driver is based on several people's previous work, notably
+the historic
 .Xr pccons 4
 implementation by
 .An William Jolitz Aq ljolitz@cardio.ucsf.edu
 and
 .An Don Ahn ,
-and the keyboard mapping code from 
+and the keyboard mapping code from
 .An Holger Veit Aq veit@first.gmd.de .
 .Sh SEE ALSO
 .Xr cursor 1 ,

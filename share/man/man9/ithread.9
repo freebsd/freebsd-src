@@ -223,7 +223,7 @@ and
 .Fn ithread_add_handler .
 .Bd -literal -offset indent
 int
-swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler, 
+swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
 	struct proc *p;

@@ -44,29 +44,29 @@ perl -e 'open(JOY,"/dev/joy0")||die;while(1)
 Several ioctl() calls are also available.
 They take an argument of
 type int *
-.Bl -tag -width JOY_SET_X_OFFSET 
+.Bl -tag -width JOY_SET_X_OFFSET
 .It Dv JOY_SETTIMEOUT Fa int *limit
 Set the time limit (in microseconds) for reading the joystick
 status.
 Setting a value
 too small may prevent to get correct values for the positions (which
 are then set to -2147483648), however this can be useful if one is
-only interested by the buttons status. 
+only interested by the buttons status.
 .It Dv JOY_GETTIMEOUT Fa int *limit
 Get the time limit (in microseconds) used for reading the joystick
-status. 
+status.
 .It Dv JOY_SET_X_OFFSET Fa int *offset
 Set the value to be added to the X position  when reading the joystick
-status. 
+status.
 .It Dv JOY_SET_Y_OFFSET Fa int *offset
 Set the value to be added to the Y position  when reading the joystick
-status. 
+status.
 .It Dv JOY_GET_X_OFFSET Fa int *offset
 Get the value which is added to the X position  when reading the joystick
-status. 
+status.
 .It Dv JOY_GET_Y_OFFSET Fa int *offset
 Get the value which is added to the Y position  when reading the joystick
-status. 
+status.
 .El
 .Sh TECHNICAL SPECIFICATIONS
 The pinout of the DB-15 connector is as follow:

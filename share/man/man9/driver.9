@@ -76,7 +76,7 @@ Each driver in the kernel is described by a
 structure.  The structure contains the name of the device, a pointer
 to a list of methods, an indication of the kind of device which the
 driver implements and the size of the private data which the driver
-needs to associate with a device instance.  Each driver will implement 
+needs to associate with a device instance.  Each driver will implement
 one or more sets of methods (called interfaces).  The example driver
 implements the standard "driver" interface and the fictitious "bogo"
 interface.
@@ -89,7 +89,7 @@ it is added to the list of drivers contained in the devclass
 of its parent bus type.  For instance all PCI drivers would be
 contained in the devclass named "pci" and all ISA drivers would be
 in the devclass named "isa".
-The reason the drivers are not held in the device object of the parent 
+The reason the drivers are not held in the device object of the parent
 bus is to handle multiple instances of a given type of bus.
 The
 .Dv DRIVER_MODULE

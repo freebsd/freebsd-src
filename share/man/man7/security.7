@@ -20,12 +20,12 @@ maintaining additional security mechanisms to keep those users
 is probably
 one of the single largest undertakings of the sysadmin.  Machines are
 only as secure as you make them, and security concerns are ever competing
-with the human necessity for convenience.  
+with the human necessity for convenience.
 .Ux
 systems,
 in general, are capable of running a huge number of simultaneous processes
 and many of these processes operate as servers - meaning that external entities
-can connect and talk to them.  As yesterday's mini-computers and mainframes 
+can connect and talk to them.  As yesterday's mini-computers and mainframes
 become today's desktops, and as computers become networked and internetworked,
 security becomes an ever bigger issue.
 .Pp
@@ -33,9 +33,9 @@ Security is best implemented through a layered onion approach.  In a nutshell,
 what you want to do is to create as many layers of security as are convenient
 and then carefully monitor the system for intrusions.  You do not want to
 overbuild your security or you will interefere with the detection side, and
-detection is one of the single most important aspects of any security 
+detection is one of the single most important aspects of any security
 mechanism.  For example, it makes little sense to set the
-.Pa schg 
+.Pa schg
 flags
 .Po
 see
@@ -70,8 +70,8 @@ network stack.  Some D.O.S. attacks try to take advantages of bugs in the
 networking stack to crash a machine with a single packet.  The latter can
 only be fixed by applying a bug fix to the kernel.  Attacks on servers can
 often be fixed by properly specifying options to limit the load the servers
-incur on the system under adverse conditions.  Brute-force network 
-attacks are harder to deal with.  A spoofed-packet attack, for example, is 
+incur on the system under adverse conditions.  Brute-force network
+attacks are harder to deal with.  A spoofed-packet attack, for example, is
 nearly impossible to stop short of cutting your system off from the internet.
 It may not be able to take your machine down, but it can fill up internet
 pipe.
@@ -98,12 +98,12 @@ able to do nothing more then mess with the user's files or crash the machine.
 User account compromises are very common because users tend not to take the
 precautions that sysads take.
 .Pp
-System administrators must keep in mind that there are potentially many ways 
-to break root on a machine.  The attacker may know the root password, 
+System administrators must keep in mind that there are potentially many ways
+to break root on a machine.  The attacker may know the root password,
 the attacker
 may find a bug in a root-run server and be able to break root over a network
 connection to that server, or the attacker may know of a bug in an suid-root
-program that allows the attacker to break root once he has broken into a 
+program that allows the attacker to break root once he has broken into a
 user's account.  If an attacker has found a way to break root on a machine,
 the attacker may not have a need to install a backdoor.
 Many of the root holes found and closed to date involve a considerable amount
@@ -124,7 +124,7 @@ Securing root - root-run servers and suid/sgid binaries
 .It
 Securing user accounts
 .It
-Securing the password file 
+Securing the password file
 .It
 Securing the kernel core, raw devices, and filesystems
 .It
@@ -144,7 +144,7 @@ outside of the console or possibly even with a
 .Xr su 1
 command.
 For example, make sure that your pty's are specified as being unsecure
-in the 
+in the
 .Sq Pa /etc/ttys
 file
 so that direct root logins via telnet or rlogin are disallowed.  If using
@@ -159,11 +159,11 @@ verification to operate.  One way to make root accessible is to add appropriate
 staff accounts to the wheel group
 .Pq in Pa /etc/group .
 The staff members placed
-in the wheel group are allowed to 
+in the wheel group are allowed to
 .Sq su
 to root.  You should never give staff
-members native wheel access by putting the min the wheel group in their 
-password entry.  Staff accounts should be placed in a 
+members native wheel access by putting the min the wheel group in their
+password entry.  Staff accounts should be placed in a
 .Sq staff
 group, and then added to the wheel group via the
 .Sq Pa /etc/group
@@ -174,9 +174,9 @@ authentication method such as kerberos, to use kerberos's
 file in the root account to allow a
 .Xr ksu 1
 to root without having to place anyone at all in the wheel group.  This
-may be the better solution since the wheel mechanism still allows an 
+may be the better solution since the wheel mechanism still allows an
 intruder to break root if the intruder has gotten hold of your password
-file and can break into a staff account.  While having the wheel mechanism 
+file and can break into a staff account.  While having the wheel mechanism
 is better then having nothing at all, it isn't necessarily the safest
 option.
 .Pp
@@ -185,7 +185,7 @@ by using an alternative login access method and *'ing out the crypted password
 for the staff accounts.  This way an intruder may be able to steal the password
 file but will not be able to break into any staff accounts (or, indirectly,
 root, even if root has a crypted password associated with it).  Staff members
-get into their staff accounts through a secure login mechanism such as 
+get into their staff accounts through a secure login mechanism such as
 .Xr kerberos 1
 or
 .Xr ssh 1
@@ -196,7 +196,7 @@ When you use a public/private key pair with ssh, you must generally secure
 the machine you are logging in FROM
 .Pq typically your workstation ,
 but you can
-also add an additional layer of protection to the key pair by password 
+also add an additional layer of protection to the key pair by password
 protecting the keypair when you create it with
 .Xr ssh-keygen 1 .
 Being able
@@ -209,8 +209,8 @@ of sniffing the network from an unrelated, less secure machine.
 The more indirect security mechanisms also assume that you are logging in
 from a more restrictive server to a less restrictive server.  For example,
 if your main box is running all sorts of servers, your workstation shouldn't
-be running any.  In order for your workstation to be reasonably secure 
-you should run as few servers as possible, up to and including no servers 
+be running any.  In order for your workstation to be reasonably secure
+you should run as few servers as possible, up to and including no servers
 at all, and you should run a password-protected screen blanker.
 Of course, given physical access to
 a workstation an attacker can break any sort of security you put on it.
@@ -222,9 +222,9 @@ servers.
 Using something like kerberos also gives you the ability to disable or
 change the password for a staff account in one place and have it immediately
 effect all the machine the staff member may have an account on.  If a staff
-member's account gets compromised, the ability to instantly change his 
+member's account gets compromised, the ability to instantly change his
 password on all machines should not be underrated.  With discrete passwords,
-changing a password on N machines can be a mess.  You can also impose 
+changing a password on N machines can be a mess.  You can also impose
 re-passwording restrictions with kerberos:  not only can a kerberos ticket
 be made to timeout after a while, but the kerberos system can require that
 the user choose a new password after a certain period of time
@@ -283,7 +283,7 @@ It is better to be safe then sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
 access, and get rid of
 .Pq chmod 000
-any suid binaries that nobody uses.  A 
+any suid binaries that nobody uses.  A
 server with no display generally does not need an xterm binary.  Sgid binaries
 can be almost as dangerous.  If an intruder can break an sgid-kmem binary the
 intruder might be able to read
@@ -292,10 +292,10 @@ and thus read the crypted password
 file, potentially compromising any passworded account.  Alternatively an
 intruder who breaks group kmem can monitor keystrokes sent through pty's,
 including pty's used by users who login through secure methods.  An intruder
-that breaks the tty group can write to almost any user's tty.  If a user 
+that breaks the tty group can write to almost any user's tty.  If a user
 is running a terminal
-program or emulator with a keyboard-simulation feature, the intruder can 
-potentially 
+program or emulator with a keyboard-simulation feature, the intruder can
+potentially
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
 .Sh SECURING USER ACCOUNTS
@@ -305,22 +305,22 @@ may not be able to do so with any general user accounts you might have.  If
 you do have sufficient control then you may win out and be able to secure the
 user accounts properly.  If not, you simply have to be more vigilant in your
 monitoring of those accounts.  Use of ssh and kerberos for user accounts is
-more problematic due to the extra administration and technical support 
+more problematic due to the extra administration and technical support
 required, but still a very good solution compared to a crypted password
 file.
 .Sh SECURING THE PASSWORD FILE
-The only sure fire way is to *-out as many passwords as you can and 
-use ssh or kerberos for access to those accounts.  Even though the 
+The only sure fire way is to *-out as many passwords as you can and
+use ssh or kerberos for access to those accounts.  Even though the
 crypted password file
 .Pq Pa /etc/spwd.db
 can only be read by root, it may
-be possible for an intruder to obtain read access to that file even if the 
+be possible for an intruder to obtain read access to that file even if the
 attacker cannot obtain root-write access.
 .Pp
-Your security scripts should always check for and report changes to 
+Your security scripts should always check for and report changes to
 the password file
 .Po
-see 
+see
 .Sq Checking file integrity
 below
 .Pc .
@@ -333,7 +333,7 @@ it is called
 the
 .Sq bpf
 device.  An intruder will commonly attempt to run a packet sniffer
-on a compromised machine.  You do not need to give the intruder the 
+on a compromised machine.  You do not need to give the intruder the
 capability and most systems should not have the bpf device compiled in.
 .Pp
 But even if you turn off the bpf device,
@@ -345,7 +345,7 @@ to worry about.  For that matter,
 the intruder can still write to raw disk devices.
 Also, there is another kernel feature called the module loader,
 .Xr kldload 8 .
-An enterprising intruder can use a KLD module to install 
+An enterprising intruder can use a KLD module to install
 his own bpf device or other sniffing device on a running kernel.
 To avoid these problems you have to run
 the kernel at a higher secure level, at least securelevel 1.  The securelevel
@@ -382,7 +382,7 @@ The best way to detect an incursion is to look for modified, missing, or
 unexpected files.  The best
 way to look for modified files is from another (often centralized)
 limited-access system.
-Writing your security scripts on the extra-secure limited-access system 
+Writing your security scripts on the extra-secure limited-access system
 makes them mostly invisible to potential hackers, and this is important.
 In order to take maximum advantage you generally have to give the
 limited-access box significant access to the other machines in the business,
@@ -398,13 +398,13 @@ of routing, the NFS method may be too insecure (network-wise) and using ssh
 may be the better choice even with the audit-trail tracks that ssh lays.
 .Pp
 Once you give a limit-access box at least read access to the client systems
-it is supposed to monitor, you must write scripts to do the actual 
+it is supposed to monitor, you must write scripts to do the actual
 monitoring.  Given an NFS mount, you can write scripts out of simple system
 utilities such as
 .Xr find 1
 and
 .Xr md5 1
-It is best to physically md5 the client-box files boxes at least once a 
+It is best to physically md5 the client-box files boxes at least once a
 day, and to test control files such as those found in
 .Pa /etc
 and
@@ -431,7 +431,7 @@ A good security script will also check for changes to user and staff members
 access configuration files:
 .Pa .rhosts ,
 .Pa .shosts ,
-.Pa .ssh/authorized_keys 
+.Pa .ssh/authorized_keys
 and so forth... files that might fall outside the purview of the MD5 check.
 .Pp
 If you have a huge amount of user disk space it may take too long to run
@@ -446,7 +446,7 @@ options
 see
 .Xr mount 8
 .Pc
-are what you want to look into.  I would scan them anyway at least once a 
+are what you want to look into.  I would scan them anyway at least once a
 week, since the object of this layer is to detect a break-in whether or
 not the breakin is effective.
 .Pp
@@ -457,20 +457,20 @@ see
 .Pc
 is a relatively low-overhead feature of
 the operating system which I recommend using as a post-break-in evaluation
-mechanism.  It is especially useful in tracking down how an intruder has 
+mechanism.  It is especially useful in tracking down how an intruder has
 actually broken into a system, assuming the file is still intact after
 the break-in occurs.
 .Pp
 Finally, security scripts should process the log files and the logs themselves
 should be generated in as secure a manner as possible - remote syslog can be
 very useful.  An intruder tries to cover his tracks, and log files are critical
-to the sysadmin trying to track down the time and method of the initial 
+to the sysadmin trying to track down the time and method of the initial
 break-in.  One way to keep a permanent record of the log files is to run
 the system console to a serial port and collect the information on a
 continuing basis through a secure machine monitoring the consoles.
 .Sh PARANOIA
 A little paranoia never hurts.  As a rule, a sysadmin can add any number
-of security features as long as they do not effect convenience, and 
+of security features as long as they do not effect convenience, and
 can add security features that do effect convenience with some added
 thought.  Even more importantly, a security administrator should mix it up
 a bit - if you use recommendations such as those given by this manual
@@ -480,7 +480,7 @@ hacker who also has access to this manual page.
 This section covers Denial of Service attacks.  A DOS attack is typically
 a packet attack.  While there isn't much you can do about modern spoofed
 packet attacks that saturate your network, you can generally limit the damage
-by ensuring that the attacks cannot take down your servers.  
+by ensuring that the attacks cannot take down your servers.
 .Bl -enum -offset indent
 .It
 Limiting server forks
@@ -499,7 +499,7 @@ see
 .Pc
 has several options to limit this sort of attack.
 It should be noted that while it is possible to prevent a machine from going
-down it is not generally possible to prevent a service from being disrupted 
+down it is not generally possible to prevent a service from being disrupted
 by the attack.  Read the inetd manual page carefully and pay specific attention
 to the
 .Fl c ,
@@ -510,9 +510,9 @@ options.  Note that spoofed-IP attacks will circumvent
 the
 .Fl C
 option to inetd, so typically a combination of options must be used.
-Some standalone servers have self-fork-limitation parameters.  
+Some standalone servers have self-fork-limitation parameters.
 .Pp
-Sendmail has its 
+Sendmail has its
 .Fl OMaxDaemonChildren
 option which tends to work much
 better than trying to use sendmail's load limiting options due to the
@@ -520,10 +520,10 @@ load lag.  You should specify a
 .Cm MaxDaemonChildren
 parameter when you start
 sendmail high enough to handle your expected load but no so high that the
-computer cannot handle that number of sendmails without falling on its face. 
-It is also prudent to run sendmail in queued mode 
+computer cannot handle that number of sendmails without falling on its face.
+It is also prudent to run sendmail in queued mode
 .Pq Fl ODeliveryMode=queued
-and to run the daemon 
+and to run the daemon
 .Pq Cm sendmail -bd
 separate from the queue-runs
 .Pq Cm sendmail -q15m .
@@ -535,20 +535,20 @@ but be sure to specify a reasonable
 option for that sendmail to prevent cascade failures.
 .Pp
 Syslogd can be attacked directly and it is strongly recommended that you use
-the 
+the
 .Fl s
 option whenever possible, and the
 .Fl a
 option otherwise.
 .Pp
 You should also be fairly careful
-with connect-back services such as tcpwrapper's reverse-identd, which can 
+with connect-back services such as tcpwrapper's reverse-identd, which can
 be attacked directly.  You generally do not want to use the reverse-ident
 feature of tcpwrappers for this reason.
 .Pp
 It is a very good idea to protect internal services from external access
 by firewalling them off at your border routers.  The idea here is to prevent
-saturation attacks from outside your LAN, not so much to protect internal 
+saturation attacks from outside your LAN, not so much to protect internal
 services from network-based root compromise.  Always configure an exclusive
 firewall, i.e.
 .So
@@ -556,16 +556,16 @@ firewall everything *except* ports A, B, C, D, and M-Z
 .Sc .
 This
 way you can firewall off all of your low ports except for certain specific
-services such as named 
+services such as named
 .Pq if you are primary for a zone ,
 ntalkd, sendmail,
 and other internet-accessible services.
 If you try to configure the firewall the other
 way - as an inclusive or permissive firewall, there is a good chance that you
-will forget to 
+will forget to
 .Sq close
 a couple of services or that you will add a new internal
-service and forget to update the firewall.  You can still open up the 
+service and forget to update the firewall.  You can still open up the
 high-numbered port range on the firewall to allow permissive-like operation
 without compromising your low ports.  Also take note that
 .Fx
@@ -594,16 +594,16 @@ victim, especially when the attacker uses the same trick on several dozen
 broadcast addresses over several dozen different networks at once.  Broadcast
 attacks of over a hundred and twenty megabits have been measured.  A second
 common springboard attack is against the ICMP error reporting system.  By
-constructing packets that generate ICMP error responses, an attacker can 
-saturate a server's incoming network and cause the server to saturate its 
+constructing packets that generate ICMP error responses, an attacker can
+saturate a server's incoming network and cause the server to saturate its
 outgoing network with ICMP responses.  This type of attack can also crash the
 server by running it out of mbuf's, especially if the server cannot drain the
 ICMP responses it generates fast enough.  The
 .Fx
 kernel has a new kernel
-compile option called ICMP_BANDLIM which limits the effectiveness of these 
+compile option called ICMP_BANDLIM which limits the effectiveness of these
 sorts of attacks.  The last major class of springboard attacks is related to
-certain internal inetd services such as the udp echo service.  An attacker 
+certain internal inetd services such as the udp echo service.  An attacker
 simply spoofs a UDP packet with the source address being server A's echo port,
 and the destination address being server B's echo port, where server A and B
 are both on your LAN.  The two servers then bounce this one packet back and
@@ -613,7 +613,7 @@ exist with the internal chargen port.  A competent sysadmin will turn off all
 of these inetd-internal test services.
 .Pp
 Spoofed packet attacks may also be used to overload the kernel route cache.
-Refer to the net.inet.ip.rtexpire, rtminexpire, and rtmaxcache sysctl 
+Refer to the net.inet.ip.rtexpire, rtminexpire, and rtmaxcache sysctl
 parameters.  A spoofed packet attack that uses a random source IP will cause
 the kernel to generate a temporary cached route in the route table, viewable
 with
@@ -624,7 +624,7 @@ too big it will dynamically reduce the rtexpire but will never decrease it to
 less then rtminexpire.  There are two problems:  (1) The kernel does not react
 quickly enough when a lightly loaded server is suddenly attacked, and (2) The
 rtminexpire is not low enough for the kernel to survive a sustained attack.
-If your servers are connected to the internet via a T3 or better it may be 
+If your servers are connected to the internet via a T3 or better it may be
 prudent to manually override both rtexpire and rtminexpire via
 .Xr sysctl 8 .
 Never set either parameter to zero
@@ -635,32 +635,32 @@ table from attack.
 There are a few issues with both kerberos and ssh that need to be addressed
 if you intend to use them.  Kerberos V is an excellent authentication
 protocol but the kerberized telnet and rlogin suck rocks.  There are bugs that
-make them unsuitable for dealing with binary streams.  Also, by default 
-kerberos does not encrypt a session unless you use the 
+make them unsuitable for dealing with binary streams.  Also, by default
+kerberos does not encrypt a session unless you use the
 .Fl x
 option.  Ssh encrypts everything by default.
 .Pp
 Ssh works quite well in every respect except when it is set up to
 forward encryption keys.
-What this means is that if you have a secure workstation holding 
+What this means is that if you have a secure workstation holding
 keys that give you access to the rest of the system, and you ssh to an
 unsecure machine, your keys becomes exposed.  The actual keys themselves are
-not exposed, but ssh installs a forwarding port for the duration of your 
+not exposed, but ssh installs a forwarding port for the duration of your
 login and if a hacker has broken root on the unsecure machine he can utilize
 that port to use your keys to gain access to any other machine that your
 keys unlock.
 .Pp
 We recommend that you use ssh in combination with kerberos whenever possible
-for staff logins.  Ssh can be compiled with kerberos support.  This reduces 
+for staff logins.  Ssh can be compiled with kerberos support.  This reduces
 your reliance on potentially exposable ssh keys while at the same time
-protecting passwords via kerberos.  Ssh keys 
-should only be used for automated tasks from secure machines (something 
+protecting passwords via kerberos.  Ssh keys
+should only be used for automated tasks from secure machines (something
 that kerberos is unsuited to).  We also recommend that you either turn off
 key-forwarding in the ssh configuration, or that you make use of the
 .Pa "from=IP/DOMAIN"
 option that ssh allows in its
 .Pa authorized_keys
-file to make the key only useable to entities logging in from specific 
+file to make the key only useable to entities logging in from specific
 machines.
 .Sh SEE ALSO
 .Xr chflags 1 ,
@@ -684,7 +684,7 @@ The
 .Nm
 manual page was originally written by
 .An Matthew Dillon
-and first appeared 
+and first appeared
 in
 .Fx 3.1 ,
 December 1998.

@@ -16,7 +16,7 @@
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
-.Nm blackhole 
+.Nm blackhole
 .Nd a
 .Xr sysctl 8
 MIB for manipulating behaviour in respect of refused TCP or UDP connection
@@ -38,7 +38,7 @@ Normal behaviour, when a TCP SYN segment is received on a port where
 there is no socket accepting connections, is for the system to return
 a RST segment, and drop the connection.  The connecting system will
 see this as a "Connection reset by peer".  By turning the TCP black
-hole MIB on to a numeric value of one, the incoming SYN segment 
+hole MIB on to a numeric value of one, the incoming SYN segment
 is merely dropped, and no RST is sent, making the system appear
 as a blackhole.  By setting the MIB value to two, any segment arriving
 on a closed port is dropped without returning a RST.  This provides
@@ -76,7 +76,7 @@ but should be used together with other security mechanisms.
 .An Geoffrey M. Rehmet
 .Sh HISTORY
 The TCP and UDP
-.Nm 
+.Nm
 MIBs
 first appeared in
 .Fx 4.0 .

@@ -39,19 +39,19 @@
 .Fn KASSERT expression "const char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with "options INVARIANTS",
-the 
+the
 .Fn KASSERT
-macro tests the given 
+macro tests the given
 .Ar expression
 and if it is false,
-calls the 
+calls the
 .Fn panic
 syscall, terminating the running system.
 .Pp
 In a kernel that does not have "options INVARIANTS",
-the 
+the
 .Fn KASSERT
-macro is defined to be a no-op.  
+macro is defined to be a no-op.
 .Sh EXAMPLES
 The kernel function
 .Fn vput

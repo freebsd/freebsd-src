@@ -47,7 +47,7 @@ The
 .Nm
 files are the local source of password information.
 They can be used in conjunction with the Hesiod domains
-.Sq passwd 
+.Sq passwd
 and
 .Sq uid ,
 and the
@@ -56,7 +56,7 @@ maps
 .Sq passwd.byname ,
 .Sq passwd.byuid ,
 .Sq master.passwd.byname ,
-and 
+and
 .Sq master.passwd.byuid ,
 as controlled by
 .Xr nsswitch.conf 5 .
@@ -93,8 +93,8 @@ User's login shell.
 .El
 .Pp
 The
-.Nm 
-file is generated from the 
+.Nm
+file is generated from the
 .Nm master.password
 file by
 .Xr pwd_mkdb 8 ,
@@ -140,7 +140,7 @@ The
 field is a key for a user's login class. Login classes
 are defined in
 .Xr login.conf 5 ,
-which is a 
+which is a
 .Xr termcap 5
 style database of user attributes, accounting, resource,
 and environment settings.
@@ -223,7 +223,7 @@ lookups occur from the
 .Sq passwd.byname ,
 .Sq passwd.byuid ,
 .Sq master.passwd.byname ,
-and 
+and
 .Sq master.passwd.byuid
 .Tn NIS
 maps.
@@ -342,7 +342,7 @@ file format first appeared in SunOS.
 .Pp
 The Hesiod support first appeared in
 .Fx 4.1 .
-It was imported from the 
+It was imported from the
 .Nx
 Project, where it first appeared in
 .Nx 1.4 .
