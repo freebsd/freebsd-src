@@ -150,7 +150,7 @@ atapi_detach(struct atapi_softc *atp)
 int32_t	  
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
 		int32_t count, int32_t flags, int32_t timeout,
-		atapi_callback_t callback, void *unused, struct buf *bp)
+		atapi_callback_t callback, struct buf *bp)
 {
     struct atapi_request *request;
     int32_t error, s;
@@ -463,7 +463,7 @@ atapi_test_ready(struct atapi_softc *atp)
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	
-    return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
+    return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 	
 int32_t

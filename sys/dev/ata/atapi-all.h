@@ -182,7 +182,7 @@ void atapi_detach(struct atapi_softc *);
 void atapi_start(struct atapi_softc *);
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
-int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, void *, struct buf *);
+int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, struct buf *);
 void atapi_reinit(struct atapi_softc *);
 int32_t atapi_test_ready(struct atapi_softc *);
 int32_t atapi_wait_ready(struct atapi_softc *, int32_t);
