@@ -242,99 +242,46 @@ _thread_signal(pthread_t pthread, int sig)
 	 */
 	sigaddset(&pthread->sigpend,sig);
 
-	/* Check if system calls are not restarted: */
-	if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) != 0) {
-		/*
-		 * System calls are flagged for restart.
-		 *
-		 * Process according to thread state:
-		 */
-		switch (pthread->state) {
-		/*
-		 * States which do not change when a signal is trapped:
-		 */
-		case PS_COND_WAIT:
-		case PS_DEAD:
-		case PS_FDLR_WAIT:
-		case PS_FDLW_WAIT:
-		case PS_FILE_WAIT:
-		case PS_JOIN:
-		case PS_MUTEX_WAIT:
-		case PS_RUNNING:
-		case PS_STATE_MAX:
-		case PS_SIGTHREAD:
-		case PS_SUSPENDED:
-			/* Nothing to do here. */
-			break;
+	/*
+	 * Process according to thread state:
+	 */
+	switch (pthread->state) {
+	/*
+	 * States which do not change when a signal is trapped:
+	 */
+	case PS_COND_WAIT:
+	case PS_DEAD:
+	case PS_FDLR_WAIT:
+	case PS_FDLW_WAIT:
+	case PS_FILE_WAIT:
+	case PS_JOIN:
+	case PS_MUTEX_WAIT:
+	case PS_RUNNING:
+	case PS_STATE_MAX:
+	case PS_SIGTHREAD:
+	case PS_SUSPENDED:
+		/* Nothing to do here. */
+		break;
 
-		/*
-		 * System calls that are restarted when interrupted by
-		 * a signal:
-		 */
-		case PS_FDR_WAIT:
-		case PS_FDW_WAIT:
-		case PS_SELECT_WAIT:
-			break;
+	/*
+	 * States that are interrupted by the occurrence of a signal
+	 * other than the scheduling alarm: 
+	 */
+	case PS_FDR_WAIT:
+	case PS_FDW_WAIT:
+	case PS_SLEEP_WAIT:
+	case PS_SIGWAIT:
+	case PS_WAIT_WAIT:
+	case PS_SELECT_WAIT:
+		/* Flag the operation as interrupted: */
+		pthread->interrupted = 1;
 
-		/*
-		 * States that are interrupted by the occurrence of a signal
-		 * other than the scheduling alarm: 
-		 */
-		case PS_SLEEP_WAIT:
-		case PS_SIGWAIT:
-		case PS_WAIT_WAIT:
-			/* Flag the operation as interrupted: */
-			pthread->interrupted = 1;
+		/* Change the state of the thread to run: */
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
-			/* Change the state of the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-			/* Return the signal number: */
-			pthread->signo = sig;
-			break;
-		}
-	} else {
-		/*
-		 * Process according to thread state:
-		 */
-		switch (pthread->state) {
-		/*
-		 * States which do not change when a signal is trapped:
-		 */
-		case PS_COND_WAIT:
-		case PS_DEAD:
-		case PS_FDLR_WAIT:
-		case PS_FDLW_WAIT:
-		case PS_FILE_WAIT:
-		case PS_JOIN:
-		case PS_MUTEX_WAIT:
-		case PS_RUNNING:
-		case PS_STATE_MAX:
-		case PS_SIGTHREAD:
-		case PS_SUSPENDED:
-			/* Nothing to do here. */
-			break;
-
-		/*
-		 * States that are interrupted by the occurrence of a signal
-		 * other than the scheduling alarm: 
-		 */
-		case PS_FDR_WAIT:
-		case PS_FDW_WAIT:
-		case PS_SLEEP_WAIT:
-		case PS_SIGWAIT:
-		case PS_WAIT_WAIT:
-		case PS_SELECT_WAIT:
-			/* Flag the operation as interrupted: */
-			pthread->interrupted = 1;
-
-			/* Change the state of the thread to run: */
-			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-			/* Return the signal number: */
-			pthread->signo = sig;
-			break;
-		}
+		/* Return the signal number: */
+		pthread->signo = sig;
+		break;
 	}
 }
 
