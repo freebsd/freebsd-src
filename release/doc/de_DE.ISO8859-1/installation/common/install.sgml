@@ -1,7 +1,7 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.13 2002/11/16 12:10:13 ue Exp $
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.14 2002/12/07 20:14:02 ue Exp $
 basiert auf: 1.16
 
 install.sgml
@@ -18,9 +18,9 @@ from {alpha,i386}/INSTALL.TXT.
     Der Schwerpunkt liegt dabei auf dem Bezug der &os;
     &release.current; Distribution und dem Start der Installation.  Im
     Kapitel <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/install.html"><quote>Installing
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/install.html"><quote>Installing
     FreeBSD</quote></ulink> des <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
     Handbuch</ulink> finden Sie genauere Informationen &uuml;ber das
     Installationsprogramm, einschlie&szlig;lich einer
     ausf&uuml;hrlichen, bebilderten Installationsleitung.</para>
@@ -44,9 +44,9 @@ from {alpha,i386}/INSTALL.TXT.
       Verf&uuml;gung.</para>
 
     <para>Die elektronischen Versionen des &os; <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
+      url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/">FAQ</ulink>
       und des <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbuchs</ulink>
+      url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">Handbuchs</ulink>
       sind auch auf der <ulink url="http://www.FreeBSD.org/">FreeBSD
       Project Web site</ulink> erh&auml;ltlich, wenn Sie einen
       Internet-Zugang haben.</para>
@@ -176,7 +176,7 @@ from {alpha,i386}/INSTALL.TXT.
       von <ulink url="&release.url;"></ulink> oder einem der vielen
       Mirrors beziehen.  Eine Liste aller Mirrors finden Sie im
       Kapitel <ulink
-      url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+      url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
       Sites</ulink> des Handbuchs oder auf dem Server <ulink
       url="http://www.freebsdmirrors.org/"></ulink>.</para>
 

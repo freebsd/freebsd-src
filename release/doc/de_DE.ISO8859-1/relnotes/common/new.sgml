@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.159 2002/12/01 16:08:27 ue Exp $
-  basiert auf: 1.461
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.165 2002/12/07 22:08:11 ue Exp $
+  basiert auf: 1.466
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -76,9 +76,9 @@
     Weitere Informationen, wie Sie diese (oder andere) &release.type;
     Distributionen von &os; erhalten k&ouml;nnen, finden Sie im Anhang
     <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
     FreeBSD</quote></ulink> des <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
     Handbuchs</ulink>.</para>
 
 ]]>
@@ -139,7 +139,7 @@
     <para arch="i386,alpha,ia64" role="historic">Der Treiber &man.agp.4; f&uuml;r AGP-Karten wurde
       hinzugef&uuml;gt. &merged;</para>
 
-    <para arch="i386">Bluetooth-Ger&auml;te werden jetzt
+    <para arch="i386,pc98">Bluetooth-Ger&auml;te werden jetzt
       unterst&uuml;tzt, dazu dient eine Reihe von Netgraph-Modulen
       (siehe &man.ng.bluetooth.4;).  Zwei Module stellen Treiber
       f&uuml;r Bluetooth-Adapter bereit:  Der Treiber &man.ng.bt3c.4;
@@ -1092,7 +1092,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	Sysctl-Variable <varname>kern.polling.user_frac</varname> wird
 	der f&uuml;r Benutzerprozesse zur Verf&uuml;gung stehende
 	Anteil der CPU-Zeit eingestellt.  Die ersten Ger&auml;te, die
-	Polling unterst&uuml;tzen, sind &man.dc.4;, &man.fxp.4;,
+	Polling unterst&uuml;tzen, sind &man.dc.4;, &man.fxp.4;, &man.nge.4;,
 	&man.rl.4; und &man.sis.4;.  Weitere Informationen finden Sie
 	in der Onlinehilfe zu &man.polling.4;. &merged;</para>
 
@@ -1167,7 +1167,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>Der neue Treiber &man.gre.4; unterst&uuml;tzt die
         Encapsulation von IP Paketen mt GRE (RFC 1701) und die
         minimale IP Encapsulation f&uuml;r Mobile IP (RFC
-        2004).</para>
+        2004).  &merged;</para>
 
       <para>Die Erzeugung von ICMP ECHO und TSTAMP Antworten kann
         jetzt beschr&auml;nkt werden.  Die den Beschr&auml;nkungen
@@ -1477,6 +1477,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para>Der Treiber &man.ata.4; unterst&uuml;tzt jetzt die Sil
         0680 und VIA 8233/8235 Controller.  &merged;</para>
 
+      <para>Der Treiber &man.ata.4; unterst&uuml;tzt jetzt auch die
+        Acard ATP850, ATP860 und ATP865 Controller.</para>
+
+      <para arch="pc98">Der Treiber &man.ata.4; ist jetzt auch auf
+        PC98-Systemen verf&uuml;gbar.</para>
+
       <para role="historic">Der Treiber &man.cd.4; unterst&uuml;tzt jetzt
         Schreibzugriffe.  Damit ist es m&ouml;glich, DVD-RAM, PD und
         &auml;hnliche Laufwerke, die als CDROM erkannt werden, zu
@@ -1776,7 +1782,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	gemountet werden.</para>
 
       <para>Eine erste Version des UFS2 Dateisystems steht jetzt zur
-        Verf&uuml;gung.  Einige der Neuerungen sind:</para>
+        Verf&uuml;gung.  Einige der Neuerungen in UFS2 sind:</para>
 
       <itemizedlist>
         <listitem>
@@ -1802,6 +1808,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
             werden.</para>
         </listitem>
       </itemizedlist>
+
+      <para>UFS1 bleibt das Standardformat, es ist allerdings
+	m&ouml;glich, bei &man.newfs.8; und im Bildschirm
+	<quote>Partitioning</quote> von &man.sysinstall.8; UFS2 als
+	Option anzugeben.  Alle 64-Bit Plattformen k&ouml;nnen auch
+	von UFS2 Dateisystemen booten.</para>
     </sect3>
 
     <sect3>
@@ -2502,6 +2514,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       im Format &man.a.out.5; wurde aus dem Compiler und den
       zugeh&ouml;rigen Programmen entfernt.</para>
 
+    <para>&man.adduser.8; und &man.rmuser.8; sind jetzt &man.sh.1;
+      Skripte und nicht mehr Perl Skripte.</para>
+
     <para role="historic">Wenn der erste Parameter von &man.ancontrol.8; und
       &man.wicontrol.8; nicht mit <literal>-</literal> einem beginnt,
       wird er als Namen eines Interfaces behandelt.  &merged;</para>
@@ -2749,6 +2764,14 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para role="historic">Bei &man.dump.8; wird das Attribut <literal>nodump</literal>
       jetzt vererbt und schlie&szlig;t einen ganzen Verzeichnisbaum
       aus. &merged;</para>
+
+    <para>&man.dump.8; unterst&uuml;tzt jetzt die Option
+      <option>-L</option>, um aktive UFS und UFS2 Dateisysteme
+      zuverl&auml;ssiger bearbeiten zu k&ouml;nnen.  Um ein
+      konsistenten dump-file zu erhalten, wird zun&auml;chst ein
+      Filesystem Snapshot erzeugt, auf dem &man.dump.8; dann arbeitet.
+      Wenn der Dump vollst&auml;ndig ist, wird der Snapshot wieder
+      gel&ouml;scht.</para>
 
     <para role="historic">Der Option <option>-T</option> von &man.dump.8; verbraucht
       keinen zus&auml;tzlichen Parameter mehr.  &merged;</para>
@@ -4331,7 +4354,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         8.3.3 aktualisiert.  &merged;</para>
 
       <para><application>Binutils</application> wurden auf eine
-        Vorversion von 2.13.1 mit Stand 11. Oktober 2002
+        Vorversion von 2.13.2 mit Stand 27. Oktober 2002
 	aktualisiert.</para>
 
       <para role="historic"><application>bzip2</application> 1.0.2 wurde importiert,
@@ -4345,9 +4368,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <para><application>file</application> wurde auf Version 3.39
         aktualisiert.</para>
 
-      <para><application>gcc</application> wurde auf einen
-	Zwischenversion von <application>gcc</application> 3.2.1
-	mit Stand 9. Oktober 2002 aktualisiert.</para>
+      <para><application>gcc</application> steht jetzt in der
+        Version 3.2.1 zur Verf&uuml;gung.</para>
 
       <warning>
         <para>Das C++ ABI von <application>gcc</application>
@@ -4380,7 +4402,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         aktualisiert.</para>
 
       <para><application>Heimdal Kerberos</application> wurde auf
-	Version 0.5.1 aktualisiert.</para>
+	Version 0.5.1 aktualisiert.  &merged;</para>
 
       <para role="historic">Die von &os; genutzte Version von
         <application>IPFilter</application> enth&auml;lt jetzt auch
@@ -4455,9 +4477,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para><application>Perl</application> wurde aus dem &os;
 	Basissystem entfernt.  Es ist weiterhin m&ouml;glich, die
-	Version aus der &os; Ports Collection oder das bin&auml;re
-	Package zu installieren.  Durch diesen Schritt wird es in
-	Zukunft deutlich einfacher sein, neue Perl-Versionen zu
+	Version aus der &os; Ports Collection, das bin&auml;re Package
+	oder &uuml;ber den Punkt <guimenuitem>Perl
+	distribution</guimenuitem> im Men&uuml; Distributionen von
+	&man.sysinstall.8; zu installieren.  Durch diesen Schritt wird
+	es in Zukunft deutlich einfacher sein, neue Perl-Versionen zu
 	importieren und Verbesserungen einzubringen.  Um das
 	Basisystems von Perl-Abh&auml;ngigkeiten zu befreien, wurden
 	viele in Perl geschriebene Utilities durch C-Programme und
@@ -4465,8 +4489,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	existiert ein eigener Eintrag in den Release Notes).</para>
 
       <note>
-	<para>Die Arbeiten zur Entfernung von Perl und Integration des
-	  Packages sind noch nicht abgeschlossen.</para>
+	<para>Die Arbeiten zur Entfernung aller Perl-Skripte sind noch
+	  nicht abgeschlossen.</para>
+      </note>
+
+      <note>
+	<para>Die meisten der in &man.sysinstall.8;  verf&uuml;gbaren
+	  Distributionen enthalten die neue Perl Distribution.  Diese
+	  &Auml;nderung wird daher f&uuml;r die meisten User
+	  transparent sein, sie m&uuml;ssen lediglich Perl separat
+	  aktualisieren.</para>
       </note>
 
       <para><application>GNU ptx</application> wurde aus dem
@@ -4539,8 +4571,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       <sect4>
         <title>CVS</title>
 
-        <para><application>cvs</application> wurde auf Version
-          1.11.2 aktualisiert.  &merged;</para>
+	<para><application>cvs</application> ist jetzt in der
+	  Zwischenversion 1.11.2.1 mit Stand 1. Dezember 2002
+	  verf&uuml;gbar.</para>
 
         <para role="historic">Der Standardwert der von &man.cvs.1; genutzten Variable
           <envar>CVS_RSH</envar> ist jetzt <literal>ssh</literal> und
@@ -5010,12 +5043,22 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	7.1.  &merged;</para>
 
       <para>Die von der Ports Collection erzeugten bzw. die auf den
-        FTP-Servern l bereitliegenden Pakete werden jetzt mit
+        FTP-Servern bereitliegenden Pakete werden jetzt mit
         &man.bzip2.1; statt &man.gzip.1; gepackt.  Aus diesem Grund
         enden die Dateinamen jetzt mit <filename>.tbz</filename> statt
         <filename>.tgz</filename>.  Die diversen Tools f&uuml;r die
         Arbeit mit Packages wurden f&uuml;r das neue Format
         aktualisiert.</para>
+
+      <para>Die Ports Collection verwendet jetzt eine separate
+	&Uuml;bersicht (<filename>/usr/ports/INDEX-5</filename>), die
+	von &os;  &release.branch; genutzt wird.  Der Hauptgrund
+	f&uuml;r die &Auml;nderung war das Problem, da&szlig; Pakete
+	in &os;  &release.branch; Abh&auml;ngigkeiten haben, die sie
+	in &os; 4-STABLE nicht haben (wie z.B.  <filename
+	role="package">lang/perl5</filename>).  Die jeweils aktuelle
+	Indexdatei hei&szlig;t allerdings weiterhin
+	<filename>INDEX</filename>.</para>
     </sect3>
   </sect2>
 
