@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pas2_mixer.c,v 1.6 1994/08/02 07:40:24 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -36,11 +36,18 @@
 
 #include "pas.h"
 
-#define TRACE(what)		/* (what) */
+#define TRACE(what)		/*
+				   * * * (what)   */
 
 extern int      translat_code;
 
-static int      rec_devices = (SOUND_MASK_MIC);	/* Default recording source */
+static int      rec_devices = (SOUND_MASK_MIC);	/*
+
+
+							 * *  * * Default *
+							 * recording * source
+							 *
+							 * *  */
 static int      mode_control = 0;
 
 #define POSSIBLE_RECORDING_DEVICES	(SOUND_MASK_SYNTH | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | SOUND_MASK_MIC | \
@@ -53,34 +60,65 @@ static int      mode_control = 0;
 
 static unsigned short levels[SOUND_MIXER_NRDEVICES] =
 {
-  0x3232,			/* Master Volume */
-  0x3232,			/* Bass */
-  0x3232,			/* Treble */
-  0x5050,			/* FM */
-  0x4b4b,			/* PCM */
-  0x3232,			/* PC Speaker */
-  0x4b4b,			/* Ext Line */
-  0x4b4b,			/* Mic */
-  0x4b4b,			/* CD */
-  0x6464,			/* Recording monitor */
-  0x4b4b,			/* SB PCM */
-  0x6464};			/* Recording level */
+  0x3232,			/*
+				 * Master Volume
+				 */
+  0x3232,			/*
+				 * Bass
+				 */
+  0x3232,			/*
+				 * Treble
+				 */
+  0x5050,			/*
+				 * FM
+				 */
+  0x4b4b,			/*
+				 * PCM
+				 */
+  0x3232,			/*
+				 * PC Speaker
+				 */
+  0x4b4b,			/*
+				 * Ext Line
+				 */
+  0x4b4b,			/*
+				 * Mic
+				 */
+  0x4b4b,			/*
+				 * CD
+				 */
+  0x6464,			/*
+				 * Recording monitor
+				 */
+  0x4b4b,			/*
+				 * SB PCM
+				 */
+  0x6464};			/*
+
+
+				 * *  * * Recording level   */
 
 static int
 mixer_output (int right_vol, int left_vol, int div, int bits,
-	      int mixer /* Input or output mixer */ )
+	      int mixer		/*
+				 * Input or output mixer
+     	      	      	      	      	      				 */ )
 {
   int             left = left_vol * div / 100;
   int             right = right_vol * div / 100;
 
   if (bits & P_M_MV508_MIXER)
-    {				/* Select input or output mixer */
+    {				/*
+				 * Select input or output mixer
+				 */
       left |= mixer;
       right |= mixer;
     }
 
   if (bits == P_M_MV508_BASS || bits == P_M_MV508_TREBLE)
-    {				/* Bass and trebble are mono devices     */
+    {				/*
+				 * Bass and trebble are mono devices
+				 */
       mix_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
       mix_write (left, PARALLEL_MIXER);
       right_vol = left_vol;
@@ -123,7 +161,9 @@ pas_mixer_set (int whichDev, unsigned int level)
 
   switch (whichDev)
     {
-    case SOUND_MIXER_VOLUME:	/* Master volume (0-63) */
+    case SOUND_MIXER_VOLUME:	/*
+				 * Master volume (0-63)
+				 */
       levels[whichDev] = mixer_output (right, left, 63, P_M_MV508_MASTER_A, 0);
       break;
 
@@ -131,40 +171,62 @@ pas_mixer_set (int whichDev, unsigned int level)
        * Note! Bass and Treble are mono devices. Will use just the left
        * channel.
        */
-    case SOUND_MIXER_BASS:	/* Bass (0-12) */
+    case SOUND_MIXER_BASS:	/*
+				 * Bass (0-12)
+				 */
       levels[whichDev] = mixer_output (right, left, 12, P_M_MV508_BASS, 0);
       break;
-    case SOUND_MIXER_TREBLE:	/* Treble (0-12) */
+    case SOUND_MIXER_TREBLE:	/*
+				 * Treble (0-12)
+				 */
       levels[whichDev] = mixer_output (right, left, 12, P_M_MV508_TREBLE, 0);
       break;
 
-    case SOUND_MIXER_SYNTH:	/* Internal synthesizer (0-31) */
+    case SOUND_MIXER_SYNTH:	/*
+				 * Internal synthesizer (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_FM, mixer);
       break;
-    case SOUND_MIXER_PCM:	/* PAS PCM (0-31) */
+    case SOUND_MIXER_PCM:	/*
+				 * PAS PCM (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_PCM, mixer);
       break;
-    case SOUND_MIXER_ALTPCM:	/* SB PCM (0-31) */
+    case SOUND_MIXER_ALTPCM:	/*
+				 * SB PCM (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_SB, mixer);
       break;
-    case SOUND_MIXER_SPEAKER:	/* PC speaker (0-31) */
+    case SOUND_MIXER_SPEAKER:	/*
+				 * PC speaker (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_SPEAKER, mixer);
       break;
-    case SOUND_MIXER_LINE:	/* External line (0-31) */
+    case SOUND_MIXER_LINE:	/*
+				 * External line (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_LINE, mixer);
       break;
-    case SOUND_MIXER_CD:	/* CD (0-31) */
+    case SOUND_MIXER_CD:	/*
+				 * CD (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_CDROM, mixer);
       break;
-    case SOUND_MIXER_MIC:	/* External microphone (0-31) */
+    case SOUND_MIXER_MIC:	/*
+				 * External microphone (0-31)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_MIC, mixer);
       break;
-    case SOUND_MIXER_IMIX:	/* Recording monitor (0-31) (Only available
-				 * on the Output Mixer) */
+    case SOUND_MIXER_IMIX:	/*
+				 * Recording monitor (0-31) (Only available *
+				 * on the Output Mixer)
+				 */
       levels[whichDev] = mixer_output (right, left, 31, P_M_MV508_MIXER | P_M_MV508_IMIXER,
 				       P_M_MV508_OUTPUTMIX);
       break;
-    case SOUND_MIXER_RECLEV:	/* Recording level (0-15) */
+    case SOUND_MIXER_RECLEV:	/*
+				 * Recording level (0-15)
+				 */
       levels[whichDev] = mixer_output (right, left, 15, P_M_MV508_MASTER_B, 0);
       break;
 
@@ -192,7 +254,9 @@ pas_mixer_set (int whichDev, unsigned int level)
       if (level)
 	mode_control |= P_M_MV508_LOUDNESS;
       set_mode (mode_control);
-      return !!level;		/* 0 or 1 */
+      return !!level;		/*
+				 * 0 or 1
+				 */
       break;
 
     case SOUND_MIXER_RECSRC:
@@ -219,91 +283,6 @@ pas_mixer_set (int whichDev, unsigned int level)
 /*****/
 
 static int
-mixer_set_levels (struct sb_mixer_levels *user_l)
-{
-#define cmix(v) ((((v.r*100+7)/15)<<8)| ((v.l*100+7)/15))
-
-  struct sb_mixer_levels l;
-
-  IOCTL_FROM_USER ((char *) &l, (char *) user_l, 0, sizeof (l));
-
-  if (l.master.l & ~0xF || l.master.r & ~0xF
-      || l.line.l & ~0xF || l.line.r & ~0xF
-      || l.voc.l & ~0xF || l.voc.r & ~0xF
-      || l.fm.l & ~0xF || l.fm.r & ~0xF
-      || l.cd.l & ~0xF || l.cd.r & ~0xF
-      || l.mic & ~0x7)
-    return (RET_ERROR (EINVAL));
-
-  pas_mixer_set (SOUND_MIXER_VOLUME, cmix (l.master));
-  pas_mixer_set (SOUND_MIXER_LINE, cmix (l.line));
-  pas_mixer_set (SOUND_MIXER_PCM, cmix (l.voc));
-  pas_mixer_set (SOUND_MIXER_ALTPCM, cmix (l.voc));
-  pas_mixer_set (SOUND_MIXER_SYNTH, cmix (l.fm));
-  pas_mixer_set (SOUND_MIXER_CD, cmix (l.cd));
-  pas_mixer_set (SOUND_MIXER_MIC, ((l.mic * 100 + 3) / 7) | (((l.mic * 100 + 3) / 7) << 8));
-  return (0);
-}
-
-/*
- * This sets aspects of the Mixer that are not volume levels. (Recording
- * source, filter level, I/O filtering, and stereo.)
- */
-static int
-mixer_set_params (struct sb_mixer_params *user_p)
-{
-  struct sb_mixer_params p;
-  S_BYTE          val;
-  int             src;
-  unsigned long   flags;
-
-  IOCTL_FROM_USER ((char *) &p, (char *) user_p, 0, sizeof (p));
-
-  if (p.record_source != SRC_MIC
-      && p.record_source != SRC_CD
-      && p.record_source != SRC_LINE)
-    return (RET_ERROR (EINVAL));
-
-  /*
-   * I'm not sure if this is The Right Thing.  Should stereo be entirely
-   * under control of DSP?  I like being able to toggle it while a sound is
-   * playing, so I do this... because I can.
-   */
-
-  DISABLE_INTR (flags);
-
-  val = (pas_read (PCM_CONTROL) & ~P_C_MIXER_CROSS_FIELD) | P_C_MIXER_CROSS_R_TO_R | P_C_MIXER_CROSS_L_TO_L;
-  if (!p.dsp_stereo)
-    val |= (P_C_MIXER_CROSS_R_TO_L | P_C_MIXER_CROSS_L_TO_R);	/* Mono */
-  pas_write (val, PCM_CONTROL);
-
-  RESTORE_INTR (flags);
-
-  switch (p.record_source)
-    {
-    case SRC_CD:
-      src = SOUND_MASK_CD;
-      break;
-
-    case SRC_LINE:
-      src = SOUND_MASK_LINE;
-      break;
-
-    default:
-      src = SOUND_MASK_MIC;
-      break;
-    }
-
-  pas_mixer_set (SOUND_MIXER_RECSRC, src);
-
-  /*
-   * setmixer (OUT_FILTER, ((dsp_stereo ? STEREO_DAC : MONO_DAC) |
-   * (p.filter_output ? FILT_ON : FILT_OFF)));
-   */
-  return (0);
-}
-
-static int
 getmixer (int dev, int chn)
 {
   if (chn == P_M_MV508_RIGHT)
@@ -315,73 +294,6 @@ getmixer (int dev, int chn)
       return levels[dev] & 0x7f;
     }
 }
-
-/* Read the current mixer level settings into the user's struct. */
-static int
-mixer_get_levels (struct sb_mixer_levels *user_l)
-{
-
-  struct sb_mixer_levels l;
-
-  l.master.r = ((((levels[SOUND_MIXER_VOLUME] >> 8) & 0x7f) * 15) + 50) / 100;	/* Master */
-  l.master.l = (((levels[SOUND_MIXER_VOLUME] & 0x7f) * 15) + 50) / 100;	/* Master */
-
-  l.line.r = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* Line */
-  l.line.l = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_LEFT) * 15) + 50) / 100;
-
-  l.voc.r = ((getmixer (SOUND_MIXER_PCM, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* DAC */
-  l.voc.l = ((getmixer (SOUND_MIXER_PCM, P_M_MV508_LEFT) * 15) + 50) / 100;
-
-  l.fm.r = ((getmixer (SOUND_MIXER_SYNTH, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* FM */
-  l.fm.l = ((getmixer (SOUND_MIXER_SYNTH, P_M_MV508_LEFT) * 15) + 50) / 100;
-
-  l.cd.r = ((getmixer (SOUND_MIXER_CD, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* CD */
-  l.cd.l = ((getmixer (SOUND_MIXER_CD, P_M_MV508_LEFT) * 15) + 50) / 100;
-
-  l.mic = ((getmixer (SOUND_MIXER_MIC, P_M_MV508_LEFT) * 7) + 50) / 100;	/* Microphone */
-
-  IOCTL_TO_USER ((char *) user_l, 0, (char *) &l, sizeof (l));
-  return (0);
-}
-
-/* Read the current mixer parameters into the user's struct. */
-static int
-mixer_get_params (struct sb_mixer_params *user_params)
-{
-  S_BYTE          val;
-  struct sb_mixer_params params;
-
-  switch (rec_devices)
-    {
-    case SOUND_MASK_CD:
-      params.record_source = SRC_CD;
-      break;
-
-    case SOUND_MASK_LINE:
-      params.record_source = SRC_LINE;
-      break;
-
-    case SOUND_MASK_MIC:
-      params.record_source = SRC_MIC;
-      break;
-
-    default:
-      params.record_source = SRC_MIC;
-      pas_mixer_set (SOUND_MIXER_RECSRC, SOUND_MASK_MIC);	/* Adjust */
-    }
-
-  params.hifreq_filter = OFF;
-  params.filter_input = OFF;
-  params.filter_output = OFF;
-
-  val = INB (PCM_CONTROL);
-  params.dsp_stereo = ((val & P_C_MIXER_CROSS_FIELD) == (P_C_MIXER_CROSS_L_TO_L | P_C_MIXER_CROSS_R_TO_R));
-
-  IOCTL_TO_USER ((char *) user_params, 0, (char *) &params, sizeof (params));
-  return (0);
-}
-
-/*****/
 
 static void
 pas_mixer_reset (void)
@@ -406,7 +318,9 @@ pas_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
       if (cmd & IOC_IN)
 	return IOCTL_OUT (arg, pas_mixer_set (cmd & 0xff, IOCTL_IN (arg)));
       else
-	{			/* Read parameters */
+	{			/*
+				 * Read parameters
+				 */
 
 	  switch (cmd & 0xff)
 	    {
@@ -428,11 +342,15 @@ pas_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 	      break;
 
 	    case SOUND_MIXER_CAPS:
-	      return IOCTL_OUT (arg, 0);	/* No special capabilities */
+	      return IOCTL_OUT (arg, 0);	/*
+						 * No special capabilities
+						 */
 	      break;
 
 	    case SOUND_MIXER_MUTE:
-	      return IOCTL_OUT (arg, 0);	/* No mute yet */
+	      return IOCTL_OUT (arg, 0);	/*
+						 * No mute yet
+						 */
 	      break;
 
 	    case SOUND_MIXER_ENHANCE:
@@ -452,27 +370,6 @@ pas_mixer_ioctl (int dev, unsigned int cmd, unsigned int arg)
 	    }
 	}
     }
-  else
-    {
-      switch (cmd)
-	{
-	case MIXER_IOCTL_SET_LEVELS:
-	  mixer_set_levels ((struct sb_mixer_levels *) arg);
-	  return mixer_get_levels ((struct sb_mixer_levels *) arg);
-	case MIXER_IOCTL_SET_PARAMS:
-	  mixer_set_params ((struct sb_mixer_params *) arg);
-	  return mixer_get_params ((struct sb_mixer_params *) arg);
-	case MIXER_IOCTL_READ_LEVELS:
-	  return mixer_get_levels ((struct sb_mixer_levels *) arg);
-	case MIXER_IOCTL_READ_PARAMS:
-	  return mixer_get_params ((struct sb_mixer_params *) arg);
-	case MIXER_IOCTL_RESET:
-	  pas_mixer_reset ();
-	  return (0);
-	default:
-	  return RET_ERROR (EINVAL);
-	}
-    }
   return RET_ERROR (EINVAL);
 }
 
@@ -486,7 +383,8 @@ pas_init_mixer (void)
 {
   pas_mixer_reset ();
 
-  mixer_devs[num_mixers++] = &pas_mixer_operations;
+  if (num_mixers < MAX_MIXER_DEV)
+    mixer_devs[num_mixers++] = &pas_mixer_operations;
   return 1;
 }
 

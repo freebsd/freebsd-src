@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_card.c,v 1.7 1994/08/02 07:39:52 davidg Exp $
+ * $Id: gus_card.c,v 1.8 1994/09/27 17:58:17 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -35,6 +35,9 @@
 #include "gus_hw.h"
 
 int             gus_base, gus_irq, gus_dma;
+extern int      gus_wave_volume;
+extern int      gus_pcm_volume;
+extern int      have_gus_max;
 
 long
 attach_gus_card (long mem_start, struct address_info *hw_config)
@@ -43,11 +46,16 @@ attach_gus_card (long mem_start, struct address_info *hw_config)
 
   snd_set_irq_handler (hw_config->irq, gusintr);
 
-  if (gus_wave_detect (hw_config->io_base))	/* Try first the default */
+  if (gus_wave_detect (hw_config->io_base))	/*
+						 * Try first the default
+						 */
     {
       mem_start = gus_wave_init (mem_start, hw_config->irq, hw_config->dma);
 #ifndef EXCLUDE_MIDI
       mem_start = gus_midi_init (mem_start);
+#endif
+#ifndef EXCLUDE_SEQUENCER
+      sound_timer_init (hw_config->io_base + 8);
 #endif
       return mem_start;
     }
@@ -59,7 +67,9 @@ attach_gus_card (long mem_start, struct address_info *hw_config)
    */
 
   for (io_addr = 0x210; io_addr <= 0x260; io_addr += 0x10)
-    if (io_addr != hw_config->io_base)	/* Already tested */
+    if (io_addr != hw_config->io_base)	/*
+					 * Already tested
+					 */
       if (gus_wave_detect (io_addr))
 	{
 	  printk (" WARNING! GUS found at %x, config was %x ", io_addr, hw_config->io_base);
@@ -67,12 +77,17 @@ attach_gus_card (long mem_start, struct address_info *hw_config)
 #ifndef EXCLUDE_MIDI
 	  mem_start = gus_midi_init (mem_start);
 #endif
+#ifndef EXCLUDE_SEQUENCER
+	  sound_timer_init (io_addr + 8);
+#endif
 	  return mem_start;
 	}
 
 #endif
 
-  return mem_start;		/* Not detected */
+  return mem_start;		/*
+				 * Not detected
+				 */
 }
 
 int
@@ -90,7 +105,9 @@ probe_gus (struct address_info *hw_config)
    */
 
   for (io_addr = 0x210; io_addr <= 0x260; io_addr += 0x10)
-    if (io_addr != hw_config->io_base)	/* Already tested */
+    if (io_addr != hw_config->io_base)	/*
+					 * Already tested
+					 */
       if (gus_wave_detect (io_addr))
 	return 1;
 
@@ -100,12 +117,17 @@ probe_gus (struct address_info *hw_config)
 }
 
 void
-gusintr (int unit)
+gusintr (int irq)
 {
   unsigned char   src;
 
 #ifdef linux
   sti ();
+#endif
+
+#ifndef EXCLUDE_GUSMAX
+  if (have_gus_max)
+    ad1848_interrupt (irq);
 #endif
 
   while (1)
@@ -127,8 +149,11 @@ gusintr (int unit)
 
       if (src & (GF1_TIMER1_IRQ | GF1_TIMER2_IRQ))
 	{
-	  printk ("T");
-	  gus_write8 (0x45, 0);	/* Timer control */
+#ifndef EXCLUDE_SEQUENCER
+	  sound_timer_interrupt ();
+#else
+	  gus_write8 (0x45, 0);	/* Stop timers */
+#endif
 	}
 
       if (src & (WAVETABLE_IRQ | ENVELOPE_IRQ))
@@ -136,6 +161,32 @@ gusintr (int unit)
 	  gus_voice_irq ();
 	}
     }
+}
+
+#endif
+
+/*
+ * Some extra code for the 16 bit sampling option
+ */
+#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS16)
+
+int
+probe_gus_db16 (struct address_info *hw_config)
+{
+  return ad1848_detect (hw_config->io_base);
+}
+
+long
+attach_gus_db16 (long mem_start, struct address_info *hw_config)
+{
+  gus_pcm_volume = 100;
+  gus_wave_volume = 90;
+
+  ad1848_init ("GUS 16 bit sampling", hw_config->io_base,
+	       hw_config->irq,
+	       hw_config->dma,
+	       hw_config->dma);
+  return mem_start;
 }
 
 #endif
