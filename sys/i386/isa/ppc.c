@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.4 1998/08/03 19:14:32 msmith Exp $
+ *	$Id: ppc.c,v 1.5 1998/08/24 02:28:16 bde Exp $
  *
  */
 #include "ppc.h"
@@ -126,8 +126,26 @@ static void ppc_ecp_sync(int);
 
 static int ppc_exec_microseq(int, struct ppb_microseq *, int *);
 static int ppc_generic_setmode(int, int);
+static int ppc_smclike_setmode(int, int);
 
-static struct ppb_adapter ppc_adapter = {
+static struct ppb_adapter ppc_smclike_adapter = {
+
+	0,	/* no intr handler, filled by chipset dependent code */
+
+	ppc_reset_epp_timeout, ppc_ecp_sync,
+
+	ppc_exec_microseq,
+
+	ppc_smclike_setmode,
+
+	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
+	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
+
+	ppc_rdtr, ppc_rstr, ppc_rctr, ppc_repp, ppc_recr, ppc_rfifo,
+	ppc_wdtr, ppc_wstr, ppc_wctr, ppc_wepp, ppc_wecr, ppc_wfifo
+};
+
+static struct ppb_adapter ppc_generic_adapter = {
 
 	0,	/* no intr handler, filled by chipset dependent code */
 
@@ -175,23 +193,6 @@ ppcintr(int unit)
 {
 	/* call directly upper code */
 	ppb_intr(&ppcdata[unit]->ppc_link);
-
-	return;
-}
-
-static void
-ppc_ecp_config(struct ppc_data *ppc, int chipset_mode)
-{
-	/* XXX disable DMA, enable interrupts */
-	if (chipset_mode & PPB_EPP)
-		/* select EPP mode */
-		w_ecr(ppc, 0x80);
-	else if (chipset_mode & PPB_PS2)
-			/* select PS2 mode with ECP */
-			w_ecr(ppc, 0x20);
-		else
-			/* keep ECP mode alone, default for NIBBLE */
-			w_ecr(ppc, 0x70);
 
 	return;
 }
@@ -464,6 +465,9 @@ config:
 		/* 666GT is ~certainly~ hardwired to an extended ECP+EPP mode */
 		if (type == SMC_37C666GT) {
 			ppc->ppc_avm |= PPB_ECP | PPB_EPP | PPB_SPP;
+			if (bootverbose)
+				printf(" configuration hardwired, supposing " \
+					"ECP+EPP SPP");
 
 		} else
 		   if ((inb(cio) & SMC_CR1_MODE) == 0) {
@@ -474,23 +478,33 @@ config:
 			switch (r) {
 			case SMC_SPP:
 				ppc->ppc_avm |= PPB_SPP;
+				if (bootverbose)
+					printf(" SPP");
 				break;
 
 			case SMC_EPPSPP:
 				ppc->ppc_avm |= PPB_EPP | PPB_SPP;
+				if (bootverbose)
+					printf(" EPP SPP");
 				break;
 
 			case SMC_ECP:
 				ppc->ppc_avm |= PPB_ECP | PPB_SPP;
+				if (bootverbose)
+					printf(" ECP SPP");
 				break;
 
 			case SMC_ECPEPP:
 				ppc->ppc_avm |= PPB_ECP | PPB_EPP | PPB_SPP;
+				if (bootverbose)
+					printf(" ECP+EPP SPP");
 				break;
 			}
 		   } else {
 			/* not an extended port mode */
 			ppc->ppc_avm |= PPB_SPP;
+			if (bootverbose)
+				printf(" SPP");
 		   }
 
 	} else {
@@ -504,6 +518,8 @@ config:
 		if ((chipset_mode & (PPB_ECP | PPB_EPP)) == 0) {
 			/* do not use ECP when the mode is not forced to */
 			outb(cio, r | SMC_CR1_MODE);
+			if (bootverbose)
+				printf(" SPP");
 		} else {
 			/* an extended mode is selected */
 			outb(cio, r & ~SMC_CR1_MODE);
@@ -515,12 +531,18 @@ config:
 			if (chipset_mode & PPB_ECP) {
 				if (chipset_mode & PPB_EPP) {
 					outb(cio, r | SMC_ECPEPP);
+					if (bootverbose)
+						printf(" ECP+EPP");
 				} else {
 					outb(cio, r | SMC_ECP);
+					if (bootverbose)
+						printf(" ECP");
 				}
 			} else {
 				/* PPB_EPP is set */
 				outb(cio, r | SMC_EPPSPP);
+				if (bootverbose)
+					printf(" EPP SPP");
 			}
 		}
 		ppc->ppc_avm = chipset_mode;
@@ -549,8 +571,8 @@ end_detect:
 	/* end config mode */
 	outb(csr, 0xaa);
 
-	if (ppc->ppc_avm & PPB_ECP)
-		ppc_ecp_config(ppc, chipset_mode);
+	ppc->ppc_link.adapter = &ppc_smclike_adapter;
+	ppc_smclike_setmode(ppc->ppc_unit, chipset_mode);
 
 	return (chipset_mode);
 }
@@ -644,7 +666,10 @@ found:
 			printf("0x%x ", inb(efdr));
 		}
 		printf("\n");
+		printf("ppc%d:", ppc->ppc_unit);
 	}
+
+	ppc->ppc_link.adapter = &ppc_generic_adapter;
 
 	if (!chipset_mode) {
 		/* autodetect mode */
@@ -669,20 +694,27 @@ found:
 		case WINB_EXT2FDD:
 		case WINB_JOYSTICK:
 			if (bootverbose)
-				printf("ppc%d: not in parallel port mode\n",
-					ppc->ppc_unit);
+				printf(" not in parallel port mode\n");
 			return (-1);
 
 		case (WINB_PARALLEL | WINB_EPP_SPP):
 			ppc->ppc_avm |= PPB_EPP | PPB_SPP;
+			if (bootverbose)
+				printf(" EPP SPP");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP):
 			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
+			if (bootverbose)
+				printf(" ECP SPP");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP_EPP):
 			ppc->ppc_avm |= PPB_ECP | PPB_EPP | PPB_SPP;
+			ppc->ppc_link.adapter = &ppc_smclike_adapter;
+
+			if (bootverbose)
+				printf(" ECP+EPP SPP");
 			break;
 		default:
 			printf("%s: unknown case (0x%x)!\n", __FUNCTION__, r);
@@ -700,22 +732,34 @@ found:
 		outb(efdr, inb(efdr) & ~(WINB_PRTMODS0 | WINB_PRTMODS1));
 
 		if (chipset_mode & PPB_ECP) {
-			if (chipset_mode & PPB_EPP)
+			if (chipset_mode & PPB_EPP) {
 				outb(efdr, inb(efdr) | WINB_ECP_EPP);
-			else
+				if (bootverbose)
+					printf(" ECP+EPP");
+
+				ppc->ppc_link.adapter = &ppc_smclike_adapter;
+
+			} else {
 				outb(efdr, inb(efdr) | WINB_ECP);
+				if (bootverbose)
+					printf(" ECP");
+			}
 		} else {
 			/* select EPP_SPP otherwise */
 			outb(efdr, inb(efdr) | WINB_EPP_SPP);
+			if (bootverbose)
+				printf(" EPP SPP");
 		}
 		ppc->ppc_avm = chipset_mode;
 	}
+
+	if (bootverbose)
+		printf("\n");
 	
 	/* exit configuration mode */
 	outb(efer, 0xaa);
 
-	if (ppc->ppc_avm & PPB_ECP)
-		ppc_ecp_config(ppc, chipset_mode);
+	ppc->ppc_link.adapter->setmode(ppc->ppc_unit, chipset_mode);
 
 	return (chipset_mode);
 }
@@ -728,11 +772,19 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 {
 	char save_control;
 
+	/* default to generic */
+	ppc->ppc_link.adapter = &ppc_generic_adapter;
+
+	if (bootverbose)
+		printf("ppc%d:", ppc->ppc_unit);
+
 	if (!chipset_mode) {
 		/* first, check for ECP */
 		w_ecr(ppc, 0x20);
 		if ((r_ecr(ppc) & 0xe0) == 0x20) {
 			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
+			if (bootverbose)
+				printf(" ECP SPP");
 
 			/* search for SMC style ECP+EPP mode */
 			w_ecr(ppc, 0x80);
@@ -742,19 +794,36 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 		if (ppc_check_epp_timeout(ppc)) {
 			ppc->ppc_avm |= PPB_EPP;
 
-			if (ppc->ppc_avm & PPB_ECP)
+			if (ppc->ppc_avm & PPB_ECP) {
 				/* SMC like chipset found */
 				ppc->ppc_type = SMC_LIKE;
+				ppc->ppc_link.adapter = &ppc_smclike_adapter;
+
+				if (bootverbose)
+					printf(" ECP+EPP");
+			} else {
+				if (bootverbose)
+					printf(" EPP");
+			}
+		} else {
+			/* restore to standard mode */
+			w_ecr(ppc, 0x0);
 		}
 
-		/* XXX try to detect NIBBLE mode */
+		/* XXX try to detect NIBBLE and PS2 modes */
 		ppc->ppc_avm |= PPB_NIBBLE;
 
-	} else
-		ppc->ppc_avm = chipset_mode;
+		if (bootverbose)
+			printf(" SPP");
 
-	if (ppc->ppc_avm & PPB_ECP)
-		ppc_ecp_config(ppc, chipset_mode);
+	} else {
+		ppc->ppc_avm = chipset_mode;
+	}
+
+	if (bootverbose)
+		printf("\n");
+
+	ppc->ppc_link.adapter->setmode(ppc->ppc_unit, chipset_mode);
 
 	return (chipset_mode);
 }
@@ -1013,10 +1082,62 @@ ppc_generic_setmode(int unit, int mode)
 		return (EOPNOTSUPP);
 
 	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP)
-		ppc_ecp_config(ppc, mode);
+	if (ppc->ppc_avm & PPB_ECP) {
+
+		/* XXX disable DMA, enable interrupts */
+		if (mode & PPB_EPP)
+			return (EOPNOTSUPP);
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			w_ecr(ppc, 0x20);
+		else if (mode & PPB_ECP)
+			/* select ECP mode */
+			w_ecr(ppc, 0x60);
+		else
+			/* select standard parallel port mode */
+			w_ecr(ppc, 0x00);
+	}
 
 	ppc->ppc_mode = mode;
+
+	return (0);
+}
+
+int
+ppc_smclike_setmode(int unit, int mode)
+{
+	struct ppc_data *ppc = ppcdata[unit];
+
+	/* back to compatible mode, XXX don't know yet what to do here */
+	if (mode == 0) {
+		ppc->ppc_mode = PPB_COMPATIBLE;
+		return (0);
+	}
+
+	/* check if mode is available */
+	if (!(ppc->ppc_avm & mode))
+		return (EOPNOTSUPP);
+
+	/* if ECP mode, configure ecr register */
+	if (ppc->ppc_avm & PPB_ECP) {
+
+		/* XXX disable DMA, enable interrupts */
+		if (mode & PPB_EPP)
+			/* select EPP mode */
+			w_ecr(ppc, 0x80);
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			w_ecr(ppc, 0x20);
+		else if (mode & PPB_ECP)
+			/* select ECP mode */
+			w_ecr(ppc, 0x60);
+		else
+			/* select standard parallel port mode */
+			w_ecr(ppc, 0x00);
+	}
+
+	ppc->ppc_mode = mode;
+
 
 	return (0);
 }
@@ -1082,14 +1203,20 @@ ppcprobe(struct isa_device *dvp)
 	ppc->ppc_epp = (dvp->id_flags & 0x10) >> 4;
 
 	/*
-	 * XXX
-	 * Try and detect if interrupts are working.
+	 * XXX Try and detect if interrupts are working
 	 */
 	if (!(dvp->id_flags & 0x20))
 		ppc->ppc_irq = (dvp->id_irq);
 
 	ppcdata[ppc->ppc_unit] = ppc;
 	nppc ++;
+
+	/*
+	 * Link the Parallel Port Chipset (adapter) to
+	 * the future ppbus. Default to a generic chipset
+	 */
+	ppc->ppc_link.adapter_unit = ppc->ppc_unit;
+	ppc->ppc_link.adapter = &ppc_generic_adapter;
 
 	/*
 	 * Try to detect the chipset and its mode.
@@ -1111,13 +1238,6 @@ ppcattach(struct isa_device *isdp)
 	struct ppc_data *ppc = ppcdata[isdp->id_unit];
 	struct ppb_data *ppbus;
 	char * mode;
-
-	/*
-	 * Link the Parallel Port Chipset (adapter) to
-	 * the future ppbus.
-	 */
-	ppc->ppc_link.adapter_unit = ppc->ppc_unit;
-	ppc->ppc_link.adapter = &ppc_adapter;
 
 	printf("ppc%d: %s chipset (%s) in %s mode%s\n", ppc->ppc_unit,
 		ppc_types[ppc->ppc_type], ppc_avms[ppc->ppc_avm],
