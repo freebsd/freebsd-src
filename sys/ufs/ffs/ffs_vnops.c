@@ -343,7 +343,17 @@ ffs_lock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) &&
+	/*
+	 * v_data could be NULL if a thread attempts to lock a
+	 * vnode that is being recycled.  Just hit the normal
+	 * vnode lock in this case.  Grab the interlock so we may
+	 * safely inspect the vnode.
+	 */
+	if ((ap->a_flags & LK_INTERLOCK) == 0) {
+		VI_LOCK(vp);
+		ap->a_flags |= LK_INTERLOCK;
+	}
+	if (vp->v_data && (VTOI(vp)->i_flags & SF_SNAPSHOT) &&
 	    ((ap->a_flags & LK_TYPE_MASK) == LK_SHARED)) {
 		ap->a_flags &= ~LK_TYPE_MASK;
 		ap->a_flags |= LK_EXCLUSIVE;
