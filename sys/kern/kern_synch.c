@@ -953,7 +953,8 @@ loadav(void *arg)
 	struct proc *p;
 
 	avg = &averunnable;
-	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	nrun = 0;
+	LIST_FOREACH(p, &allproc, p_list) {
 		switch (p->p_stat) {
 		case SRUN:
 		case SIDL:
