@@ -529,6 +529,7 @@ sb16_dsp_detect (struct address_info *hw_config)
   if (sbc_major < 4)		/* Set by the plain SB driver */
     return 0;			/* Not a SB16 */
 
+  hw_config->io_base = sb_config->io_base;
 #ifdef PC98
   hw_config->dma = sb_config->dma;
 #else
