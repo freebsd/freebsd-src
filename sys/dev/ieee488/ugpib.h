@@ -111,7 +111,7 @@ int ibdev(int boardID, int pad, int sad, int tmo, int eot, int eos);
 int ibdiag(int handle, void *buffer, long cnt);
 int ibdma(int handle, int v);
 int ibeos(int handle, int eos);
-int ibeot(int handle, int v);
+int ibeot(int handle, int eot);
 int ibevent(int handle, short *event);
 int ibfind(char *bdname);
 int ibgts(int handle, int v);
