@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.19 1994/11/17 20:20:53 gibbs Exp $
+#	$Id: GENERIC,v 1.20 1994/11/18 19:10:25 jkh Exp $
 #
 
 machine		"i386"
@@ -56,12 +56,8 @@ controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 controller	scbus0
 
 device		sd0
-device		sd1
-device		sd2
-device		sd3
 
 device		st0
-device		st1
 
 device		cd0	#Only need one of these, the code dynamically grows
 
