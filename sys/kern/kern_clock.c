@@ -172,15 +172,11 @@ hardclock_process(p, user)
 	pstats = p->p_stats;
 	if (user &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-		p->p_sflag |= PS_ALRMPEND;
-		aston(p);
-	}
+	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
+		p->p_sflag |= PS_ALRMPEND | PS_ASTPENDING;
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-		p->p_sflag |= PS_PROFPEND;
-		aston(p);
-	}
+	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
+		p->p_sflag |= PS_PROFPEND | PS_ASTPENDING;
 }
 
 /*

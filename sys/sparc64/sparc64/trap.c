@@ -134,7 +134,7 @@ const char *trap_msg[] = {
 void
 trap(struct trapframe *tf)
 {
-	u_quad_t sticks;
+	u_int sticks;
 	struct proc *p;
 	int error;
 	int ucode;
@@ -148,11 +148,8 @@ trap(struct trapframe *tf)
 	type = T_TYPE(tf->tf_type);
 	ucode = type;	/* XXX */
 
-	if ((type & T_KERNEL) == 0) {
-		mtx_lock_spin(&sched_lock);
+	if ((type & T_KERNEL) == 0)
 		sticks = p->p_sticks;
-		mtx_unlock_spin(&sched_lock);
-	}
 
 	switch (type) {
 	case T_FP_DISABLED:

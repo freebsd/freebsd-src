@@ -41,16 +41,6 @@
 #define	cpu_setstack(p, sp)	((p)->p_frame->tf_sp = (sp))
 
 /*
- * Arrange to handle pending profiling ticks before returning to user mode.
- */
-#define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);					\
-	(p)->p_sflag |= PS_OWEUPC;					\
-	aston(p);							\
-	mtx_unlock_spin(&sched_lock);					\
-} while (0)
-
-/*
  * CTL_MACHDEP definitions.
  */
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */

@@ -56,8 +56,6 @@ extern void delay __P((unsigned));
 extern int want_resched;
 extern int astpending;
 
-#define	need_proftick(p)	((p)->p_flag |= PS_OWEUPC, astpending = 1)
-
 extern char bootpath[];
 
 #if defined(_KERNEL) || defined(_STANDALONE)
