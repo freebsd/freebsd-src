@@ -131,16 +131,13 @@ char *outfile;  /* to output the data using checksum to start random #s */
 		sum = crc(p->address, p->width);
 	srandom((int) sum);
 
-	setegid(egid);
 	if ((out = fopen(outfile, "wb")) == NULL)
 	{
 	    fprintf(stderr,
 		"Hmm.  The name \"%s\" appears to be magically blocked.\n",
 		outfile);
-		setegid(getgid());
 	    return 1;
 	}
-	setegid(getgid());
 
 	fwrite(&sum, sizeof(sum), 1, out);      /* Here's the random() key */
 	for (p = save_array; p->address != NULL; p++)
@@ -162,16 +159,13 @@ char *infile;
 	long sum, cksum;
 	int i;
 
-	setegid(egid);
 	if ((in = fopen(infile, "rb")) == NULL)
 	{
 	    fprintf(stderr,
 		"Hmm.  The file \"%s\" appears to be magically blocked.\n",
 		infile);
-		setegid(getgid());
 	    return 1;
 	}
-	setegid(getgid());
 
 	fread(&sum, sizeof(sum), 1, in);        /* Get the seed */
 	srandom((int) sum);
