@@ -71,7 +71,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
-			warn("Weird parititon letter %c",c2->name[strlen(new->name) + 2]);
+			warn("weird partition letter %c",c2->name[strlen(new->name) + 2]);
 #endif
 			continue;
 		}
