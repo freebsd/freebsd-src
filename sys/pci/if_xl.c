@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.69 1999/03/31 15:36:30 wpaul Exp $
+ *	$Id: if_xl.c,v 1.74 1999/04/11 17:37:48 wpaul Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  * 3Com 3c905-T4	10/100Mbps/RJ-45
  * 3Com 3c900B-TPO	10Mbps/RJ-45
  * 3Com 3c900B-COMBO	10Mbps/RJ-45,AUI,BNC
+ * 3Com 3c905B-COMBO	10/100Mbps/RJ-45,AUI,BNC
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
  * 3Com 3c980-TX	10/100Mbps server adapter
@@ -150,7 +151,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.69 1999/03/31 15:36:30 wpaul Exp $";
+	"$Id: if_xl.c,v 1.74 1999/04/11 17:37:48 wpaul Exp $";
 #endif
 
 /*
@@ -175,6 +176,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905B-T4 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100FX,
 		"3Com 3c905B-FX/SC Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100_COMBO,
+		"3Com 3c905B-COMBO Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
 	{ 0, 0, NULL }
@@ -264,10 +267,8 @@ static void xl_wait(sc)
 			break;
 	}
 
-#ifdef DIAGNOSTIC
 	if (i == XL_TIMEOUT)
 		printf("xl%d: command never completed!\n", sc->xl_unit);
-#endif
 
 	return;
 }
@@ -1177,9 +1178,19 @@ static void xl_setmode(sc, media)
 static void xl_reset(sc)
 	struct xl_softc		*sc;
 {
+	register int		i;
+
 	XL_SEL_WIN(0);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RESET);
-	xl_wait(sc);
+
+	for (i = 0; i < XL_TIMEOUT; i++) {
+		DELAY(10);
+		if (!(CSR_READ_2(sc, XL_STATUS) & XL_STAT_CMDBUSY))
+			break;
+	}
+
+	if (i == XL_TIMEOUT)
+		printf("xl%d: reset didn't complete\n", sc->xl_unit);
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -1288,6 +1299,7 @@ static void xl_mediacheck(sc)
 		printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_CYCLONE_10_100BT:	/* 3c905B-TX */
+	case TC_DEVICEID_CYCLONE_10_100_COMBO:	/* 3c905B-COMBO */
 	case TC_DEVICEID_CYCLONE_10_100BT_SERV:	/* 3c980-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
@@ -1331,7 +1343,7 @@ xl_attach(config_id, unit)
 	sc = malloc(sizeof(struct xl_softc), M_DEVBUF, M_NOWAIT);
 	if (sc == NULL) {
 		printf("xl%d: no memory for softc struct!\n", unit);
-		return;
+		goto fail;
 	}
 	bzero(sc, sizeof(struct xl_softc));
 
@@ -1396,7 +1408,12 @@ xl_attach(config_id, unit)
 	if (!pci_map_port(config_id, XL_PCI_LOIO,
 				(u_short *)&(sc->xl_bhandle))) {
 		printf ("xl%d: couldn't map port\n", unit);
-		goto fail;
+		printf ("xl%d: WARNING: this shouldn't happen! "
+		    "Possible PCI support code bug!", unit);
+		printf ("xl%d: attempting to map iobase manually", unit);
+		sc->xl_bhandle =
+		    pci_conf_read(config_id, XL_PCI_LOIO) & 0xFFFFFFE0;
+		/*goto fail;*/
 	}
 
 #ifdef __i386__
@@ -1456,7 +1473,7 @@ xl_attach(config_id, unit)
 	if (sc->xl_ldata_ptr == NULL) {
 		free(sc, M_DEVBUF);
 		printf("xl%d: no memory for list buffers!\n", unit);
-		return;
+		goto fail;
 	}
 
 	sc->xl_ldata = (struct xl_list_data *)sc->xl_ldata_ptr;
