@@ -51,7 +51,9 @@ __FBSDID("$FreeBSD$");
 StringList *
 sl_init()
 {
-	StringList *sl = malloc(sizeof(StringList));
+	StringList *sl;
+
+	sl = malloc(sizeof(StringList));
 	if (sl == NULL)
 		_err(1, "stringlist: %m");
 
@@ -67,7 +69,7 @@ sl_init()
 /*
  * sl_add(): Add an item to the string list
  */
-void
+int
 sl_add(sl, name)
 	StringList *sl;
 	char *name;
@@ -76,9 +78,10 @@ sl_add(sl, name)
 		sl->sl_max += _SL_CHUNKSIZE;
 		sl->sl_str = reallocf(sl->sl_str, sl->sl_max * sizeof(char *));
 		if (sl->sl_str == NULL)
-			_err(1, "stringlist: %m");
+			return (-1);
 	}
 	sl->sl_str[sl->sl_cur++] = name;
+	return (0);
 }
 
 

@@ -49,7 +49,7 @@ typedef struct _stringlist {
 
 __BEGIN_DECLS
 StringList *sl_init(void);
-void	 sl_add(StringList *, char *);
+int	 sl_add(StringList *, char *);
 void	 sl_free(StringList *, int);
 char	*sl_find(StringList *, char *);
 __END_DECLS
