@@ -38,9 +38,9 @@
 #define _NET_IF_GIF_H_
 
 
-#if defined(_KERNEL) && !defined(_LKM)
+#ifdef _KERNEL
 #include "opt_inet.h"
-#endif
+#include "opt_inet6.h"
 
 #include <netinet/in.h>
 /* xxx sigh, why route have struct route instead of pointer? */
@@ -61,7 +61,7 @@ struct gif_softc {
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
 	struct resource *r_unit;	/* resource allocated for this unit */
-	TAILQ_ENTRY(gif_softc) gif_link; /* all gif's are linked */
+	LIST_ENTRY(gif_softc) gif_link; /* all gif's are linked */
 };
 
 #define gif_ro gifsc_gifscr.gifscr_ro
@@ -78,5 +78,7 @@ void gif_input __P((struct mbuf *, int, struct ifnet *));
 int gif_output __P((struct ifnet *, struct mbuf *,
 		    struct sockaddr *, struct rtentry *));
 int gif_ioctl __P((struct ifnet *, u_long, caddr_t));
+
+#endif /* _KERNEL */
 
 #endif /* _NET_IF_GIF_H_ */
