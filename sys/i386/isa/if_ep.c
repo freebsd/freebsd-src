@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.60 1997/09/02 01:18:13 bde Exp $
+ *  $Id: if_ep.c,v 1.61 1997/10/14 06:56:08 itojun Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -142,9 +142,9 @@ struct isa_driver epdriver = {
     0
 };
 
-#include "crd.h"
+#include "card.h"
 
-#if NCRD > 0
+#if NCARD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
 #include <pccard/driver.h>
@@ -153,42 +153,31 @@ struct isa_driver epdriver = {
 /*
  * PC-Card (PCMCIA) specific code.
  */
-static int card_intr __P((struct pccard_dev *));
-static void ep_unload __P((struct pccard_dev *));
-static void ep_suspend __P((struct pccard_dev *));
-static int ep_pccard_init __P((struct pccard_dev *, int));
-static int ep_pccard_attach  __P((struct pccard_dev *));
+static int ep_pccard_init __P((struct pccard_devinfo *, int));
+static int ep_pccard_attach  __P((struct pccard_devinfo *));
+static void ep_unload __P((struct pccard_devinfo *));
+static int card_intr __P((struct pccard_devinfo *));
+static void ep_suspend __P((struct pccard_devinfo *));
 
-static struct pccard_drv ep_info = {
+static struct pccard_device ep_info = {
     "ep",
-    card_intr,
-    ep_unload,
-    ep_suspend,
     ep_pccard_init,
+    ep_unload,
+    card_intr,
+    ep_suspend,
     0,                      /* Attributes - presently unused */
     &net_imask
 };
 
-/* Resume is done by executing ep_pccard_init(dp, 0). */
-static void
-ep_suspend(dp)
-    struct pccard_dev *dp;
-{
-    struct ep_softc *sc = ep_softc[dp->isahd.id_unit];
-
-    printf("ep%d: suspending\n", dp->isahd.id_unit);
-    sc->gone = 1;
-}
-
 /*
- * 
+ * Initialize the device - called from Slot manager.
  */
 static int
-ep_pccard_init(dp, first)
-    struct pccard_dev *dp;
+ep_pccard_init(devi, first)
+    struct pccard_devinfo *devi;
     int first;
 {
-    struct isa_device *is = &dp->isahd;
+    struct isa_device *is = &devi->isahd;
     struct ep_softc *sc = ep_softc[is->id_unit];
     struct ep_board *epb;
     int i;
@@ -210,41 +199,36 @@ ep_pccard_init(dp, first)
     epb->epb_used = 1;
     epb->prod_id = get_e(sc, EEPROM_PROD_ID);
 
-    if (epb->prod_id != 0x9058) {	/* 3C589's product id */
-	if (first) {
+    /* 3C589's product id? */
+    if (epb->prod_id != 0x9058) {
+	if (first)
 	    printf("ep%d: failed to come ready.\n", is->id_unit);
-	} else {
+	else
 	    printf("ep%d: failed to resume.\n", is->id_unit);
-	}
 	return (ENXIO);
     }
 
     epb->res_cfg = get_e(sc, EEPROM_RESOURCE_CFG);
-    for (i = 0; i < 3; i++) {
-        sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
-    }
+    for (i = 0; i < 3; i++)
+	sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
 
     if (first) {
-	if (ep_pccard_attach(dp) == 0) {
+	if (ep_pccard_attach(devi) == 0)
 	    return (ENXIO);
-	}
 	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
-    }
-
-    if (!first) {
+    } else {
 	sc->gone = 0;
 	printf("ep%d: resumed.\n", is->id_unit);
 	epinit(sc);
     }
-
     return (0);
 }
 
 static int
-ep_pccard_attach(dp)
-    struct pccard_dev *dp;
+ep_pccard_attach(devi)
+    struct pccard_devinfo *devi;
 {
-    struct isa_device *is = &dp->isahd;
+    struct isa_device *is = &devi->isahd;
     struct ep_softc *sc = ep_softc[is->id_unit];
     u_short config;
 
@@ -275,18 +259,18 @@ ep_pccard_attach(dp)
 }
 
 static void
-ep_unload(dp)
-    struct pccard_dev *dp;
+ep_unload(devi)
+    struct pccard_devinfo *devi;
 {
-    struct ep_softc *sc = ep_softc[dp->isahd.id_unit];
+    struct ep_softc *sc = ep_softc[devi->isahd.id_unit];
 
     if (sc->gone) {
-        printf("ep%d: already unloaded\n", dp->isahd.id_unit);
+        printf("ep%d: already unloaded\n", devi->isahd.id_unit);
 	return;
     }
     sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
     sc->gone = 1;
-    printf("ep%d: unload\n", dp->isahd.id_unit);
+    printf("ep%d: unload\n", devi->isahd.id_unit);
 }
 
 /*
@@ -294,14 +278,24 @@ ep_unload(dp)
  * front end of PC-Card handler.
  */
 static int
-card_intr(dp)
-    struct pccard_dev *dp;
+card_intr(devi)
+    struct pccard_devinfo *devi;
 {
-    epintr(dp->isahd.id_unit);
+    epintr(devi->isahd.id_unit);
     return(1);
 }
 
-#endif /* NCRD > 0 */
+/* Resume is done by executing ep_pccard_init(devi, 0). */
+static void
+ep_suspend(devi)
+    struct pccard_devinfo *devi;
+{
+    struct ep_softc *sc = ep_softc[devi->isahd.id_unit];
+
+    printf("ep%d: suspending\n", devi->isahd.id_unit);
+    sc->gone = 1;
+}
+#endif /* NCARD > 0 */
 
 static int
 eeprom_rdy(sc)
@@ -309,7 +303,8 @@ eeprom_rdy(sc)
 {
     int i;
 
-    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++);
+    for (i = 0; is_eeprom_busy(BASE) && i < MAX_EEPROMBUSY; i++)
+	continue;
     if (i >= MAX_EEPROMBUSY) {
 	printf("ep%d: eeprom failed to come ready.\n", sc->unit);
 	return (0);
@@ -500,9 +495,9 @@ ep_isa_probe(is)
     struct ep_board *epb;
     u_short k;
 
-#if NCRD > 0
+#if NCARD > 0
     pccard_add_driver(&ep_info);
-#endif /* NCRD > 0 */
+#endif
 
     if ((epb = ep_look_for_board_at(is)) == 0)
 	return (0);
