@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54.2.6 1997/11/20 21:45:34 wollman Exp $
+ *	$Id: tcp_input.c,v 1.54.2.7 1998/01/30 19:13:55 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -705,7 +705,9 @@ findpcb:
 		 * - otherwise do a normal 3-way handshake.
 		 */
 		if ((to.to_flag & TOF_CC) != 0) {
-		    if (taop->tao_cc != 0 && CC_GT(to.to_cc, taop->tao_cc)) {
+		    if (tp->t_state & TF_NOPUSH &&
+			taop->tao_cc != 0 && CC_GT(to.to_cc, taop->tao_cc)) {
+
 			taop->tao_cc = to.to_cc;
 			tp->t_state = TCPS_ESTABLISHED;
 
