@@ -214,13 +214,13 @@ amd64_mrfetch(struct mem_range_softc *sc)
 	msrv = rdmsr(msr);
 	mrd->mr_flags = (mrd->mr_flags & ~MDF_ATTRMASK) |
 	    amd64_mtrr2mrt(msrv & 0xff);
-	mrd->mr_base = msrv & 0x000ffffffffff000L;
+	mrd->mr_base = msrv & 0x000000fffffff000L;
 	msrv = rdmsr(msr + 1);
 	mrd->mr_flags = (msrv & 0x800) ? 
 	    (mrd->mr_flags | MDF_ACTIVE) :
 	    (mrd->mr_flags & ~MDF_ACTIVE);
 	/* Compute the range from the mask. Ick. */
-	mrd->mr_len = (~(msrv & 0x000ffffffffff000L) & 0x000fffffffffffffL) + 1;
+	mrd->mr_len = (~(msrv & 0x000000fffffff000L) & 0x000000ffffffffffL) + 1;
 	if (!mrvalid(mrd->mr_base, mrd->mr_len))
 	    mrd->mr_flags |= MDF_BOGUS;
 	/* If unclaimed and active, must be the BIOS */
@@ -348,7 +348,7 @@ amd64_mrstoreone(void *arg)
 	/* base/type register */
 	omsrv = rdmsr(msr);
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = mrd->mr_base & 0x000ffffffffff000L;
+	    msrv = mrd->mr_base & 0x000000fffffff000L;
 	    msrv |= amd64_mrt2mtrr(mrd->mr_flags, omsrv);
 	} else {
 	    msrv = 0;
@@ -357,7 +357,7 @@ amd64_mrstoreone(void *arg)
 	    
 	/* mask/active register */
 	if (mrd->mr_flags & MDF_ACTIVE) {
-	    msrv = 0x800 | (~(mrd->mr_len - 1) & 0x000ffffffffff000L);
+	    msrv = 0x800 | (~(mrd->mr_len - 1) & 0x000000fffffff000L);
 	} else {
 	    msrv = 0;
 	}
@@ -553,7 +553,6 @@ amd64_mrinit(struct mem_range_softc *sc)
 	return;
     }
     nmdesc = mtrrcap & 0xff;
-    printf("Pentium Pro MTRR support enabled\n");
 
     /* If fixed MTRRs supported and enabled */
     if ((mtrrcap & 0x100) && (mtrrdef & 0x400)) {
