@@ -550,6 +550,8 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 /* Following not confirmed with http://members.hyperlink.net.au/~chart,
    so not added to NetBSD's pcidevs */
 #define PCI_VENDOR_LEADTEK_ALT	0x6606
+#define PCI_VENDOR_LEADTEK_ALT_2	0x6607
+#define PCI_VENDOR_LEADTEK_ALT_3	0x107d
 #define PCI_VENDOR_FLYVIDEO	0x1851
 #define PCI_VENDOR_FLYVIDEO_2	0x1852
 #define PCI_VENDOR_PINNACLE_ALT	0xBD11
@@ -675,7 +677,9 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
                     goto checkTuner;
                 }
 
-                if (subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT) {
+                if ((subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT)
+		 || (subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT_2)
+		 || (subsystem_vendor_id == PCI_VENDOR_LEADTEK_ALT_3)) {
                     bktr->card = cards[ (card = CARD_LEADTEK) ];
 		    bktr->card.eepromAddr = eeprom_i2c_address;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
