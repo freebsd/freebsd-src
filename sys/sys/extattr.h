@@ -68,6 +68,12 @@ ssize_t	extattr_get_file(const char *_path, int _attrnamespace,
 	    const char *_attrname, void *_data, size_t _nbytes);
 ssize_t	extattr_get_link(const char *_path, int _attrnamespace,
 	    const char *_attrname, void *_data, size_t _nbytes);
+ssize_t	extattr_list_fd(int _fd, int _attrnamespace, void *_data,
+	    size_t _nbytes);
+ssize_t	extattr_list_file(const char *_path, int _attrnamespace, void *_data,
+	    size_t _nbytes);
+ssize_t	extattr_list_link(const char *_path, int _attrnamespace, void *_data,
+	    size_t _nbytes);
 int	extattr_set_fd(int _fd, int _attrnamespace, const char *_attrname,
 	    const void *_data, size_t _nbytes);
 int	extattr_set_file(const char *_path, int _attrnamespace,
