@@ -44,7 +44,7 @@ eller någon annat "expertläge".
 
 När systemet är färdiginstallerat och igång kommer du att kunna byta
 mellan flera "virtuella skärmar". På så sätt kan du ha flera sessioner
-öppna samtidigt. Använd ALT-F<n> för att byta mellan skärmarna.
-Från början finns det fyra skärmar att byta mellan. När systemet till
+öppna samtidigt. Använd ALT-F<n> för att byta mellan dem.
+Från början finns det fyra sessioner att byta mellan. När systemet till
 slut är uppe kan du ändra det genom att editera filen /etc/ttys.
 Maximalt antal virtuella skärmar är 12.
