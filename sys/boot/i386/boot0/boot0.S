@@ -94,15 +94,11 @@ start:		cld				# String ops inc
 main:
 #ifdef SIO
 /*
- * Initialize the serial port.
- * Must save DX (contains drive number)
+ * Initialize the serial port.  bioscom preserves the driver number in DX.
  */
-		pushw %dx			# Save
-		xorw %dx,%dx			# Port: COM1
 		movb COMSPEED,%al		# defined by Makefile
 		movb $0x00,%ah			# BIOS: Set COM Port
-		int $0x14			#  Parameters
-		popw %dx			# Restore
+		call bioscom
 #endif /* SIO */
 /*
  * Check what flags were loaded with us, specifically, Use a predefined Drive.
@@ -199,23 +195,21 @@ main.6:		addb $'0'|0x80,%al		# Save next
 		callw putx			#  item
 /*
  * Now that we've printed the drive (if we needed to), display a prompt.
- * Get ready for the input by noting the time.
  */
 main.7:		movw $prompt,%si		# Display
 		callw putstr			#  prompt
 		movb _OPT(%bp),%dl		# Display
 		decw %si			#  default
 		callw putkey			#  key
-main.7_1:
+/*
+ * Start of input loop.  Beep and take note of time
+ */
+main.10:	movb $ASCII_BEL,%al		# Signal
+		callw putchr			#  beep!
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
-#ifndef SIO
 		movw %dx,%di			# Ticks when
-		addw _TICKS(%bp),%di	 	#  timeout
-#else /* SIO */
-		movw %dx,%si			# Ticks when
-		addw _TICKS(%bp),%si		#  timeout
-#endif /* SIO */
+		addw _TICKS(%bp),%di		#  timeout
 /*
  * Busy loop, looking for keystrokes but
  * keeping one eye on the time.
@@ -226,37 +220,20 @@ main.8:
 		int $0x16			#  for keypress
 		jnz main.11			# Have one
 #else /* SIO */
-		xorw %dx,%dx			# Use COM1
 		movb $0x03,%ah			# BIOS: Read COM
-		int $0x14			#  Status
+		call bioscom
 		testb $0x01,%ah			# Check line status
 		jnz main.11 			# (bit 1 indicates input)
 #endif /* SIO */
 		xorb %ah,%ah			# BIOS: Get
 		int $0x1a			#  system time
-#ifndef SIO
 		cmpw %di,%dx			# Timeout?
-#else /* SIO */
-		cmpw %si,%dx			# Timeout?
-#endif /* SIO */
 		jb main.8			# No
 /*
  * If timed out or defaulting, come here.
  */
 main.9:		movb _OPT(%bp),%al		# Load default
 		jmp main.12			# Join common code
-/*
- * User's last try was bad, beep in displeasure.
- * Since nothing was printed, just continue on as if the user
- * hadn't done anything. This gives the effect of the user getting a beep
- * for all bad keystrokes but no action until either the timeout
- * occurs or the user hits a good key.
- */
-main.10:	movb $ASCII_BEL,%al		# Signal
-		callw putchr			#  error
-#ifdef SIO
-		jmp main.7_1			# Go back
-#endif /* SIO */
 /*
  * Get the keystroke.
  */
@@ -267,7 +244,7 @@ main.11:
 		movb %ah,%al			# Scan code
 #else /* SIO */
 		movb $0x02,%ah			# BIOS: Receive
-		int $0x14			#  COM Byte
+		call bioscom
 #endif /* SIO */
 /*
  * If it's CR act as if timed out.
@@ -384,22 +361,25 @@ putstr.1:	callw putchr			# Display char
 		jmp putstr			# Continue
 putstr.2:	andb $~0x80,%al 		# Clear MSB
 
-putchr:
 #ifndef SIO
+putchr:
 		pushw %bx			# Save
 		movw $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
 		popw %bx			# Restore
+		retw				# To caller
 #else /* SIO */
+putchr:
+		movb $0x01,%ah			# BIOS: Send
+		xorw %cx,%cx 			# No timeout
+bioscom:
 		pushw %dx			# Save
 		xorw %dx,%dx 			# Use COM1
-		xorw %cx,%cx 			# No timeout
-		movb $0x01,%ah			# BIOS: Send
 		int $0x14			#  Character
 		popw %dx			# Restore
-#endif /* SIO */
 		retw				# To caller
+#endif /* SIO */
 
 /* One-sector disk I/O routine */
 
@@ -426,13 +406,8 @@ intx13.1:	int $0x13			# BIOS: Disk I/O
 
 /* Menu strings */
 
-#ifndef SIO
 item:		.ascii "  ";	     .byte ' '|0x80
 prompt:		.ascii "\nDefault:"; .byte ' '|0x80
-#else /* SIO */
-item:		.ascii " ";	     .byte ' '|0x80
-prompt:		.ascii "\nDef:";     .byte ' '|0x80
-#endif /* SIO */
 crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 /* Partition type tables */
