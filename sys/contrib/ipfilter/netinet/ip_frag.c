@@ -584,9 +584,9 @@ void ipfr_slowtimer()
 
 	if (fr_running <= 0) 
 		return;
+	READ_ENTER(&ipf_solaris);
 #endif
 
-	READ_ENTER(&ipf_solaris);
 #if defined(__sgi) && defined(_KERNEL)
 	ipfilter_sgi_intfsync();
 #endif
