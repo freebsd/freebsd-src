@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.50 1998/06/27 12:03:49 brian Exp $
+ * $Id: route.c,v 1.51 1998/06/27 23:48:53 brian Exp $
  *
  */
 
@@ -410,7 +410,7 @@ route_IfDelete(struct bundle *bundle, int all)
           if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
               (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
             log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n", pass);
-            bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0);
+            bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0, 0);
           } else
             log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
         } else
@@ -448,19 +448,19 @@ route_Change(struct bundle *bundle, struct sticky_route *r,
   for (; r; r = r->next) {
     if ((r->type & ROUTE_DSTMYADDR) && r->dst.s_addr != me.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = me;
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_DSTHISADDR) && r->dst.s_addr != peer.s_addr) {
       del.s_addr = r->dst.s_addr & r->mask.s_addr;
-      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+      bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
       r->dst = peer;
       if (r->type & ROUTE_GWHISADDR)
         r->gw = peer;
     } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
       r->gw = peer;
-    bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1);
+    bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1, 0);
   }
 }
 
@@ -472,7 +472,7 @@ route_Clean(struct bundle *bundle, struct sticky_route *r)
   none.s_addr = INADDR_ANY;
   for (; r; r = r->next) {
     del.s_addr = r->dst.s_addr & r->mask.s_addr;
-    bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1);
+    bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
   }
 }
 
