@@ -1403,7 +1403,6 @@ noport:
 #define	UC(b)	(((int)b)&0xff)
 
 		switch (daddr->su_family) {
-		case AF_INET:
 #ifdef INET6
 		case AF_INET6:
 #endif
