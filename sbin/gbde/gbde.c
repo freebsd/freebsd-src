@@ -362,6 +362,7 @@ cmd_nuke(struct g_bde_key *gl, int dfd , int key)
 	if (offset2 != offset)
 		err(1, "lseek");
 	i = write(dfd, sbuf, gl->sectorsize);
+	free(sbuf);
 	if (i != (int)gl->sectorsize)
 		err(1, "write");
 	printf("Nuked key %d\n", key);
@@ -444,6 +445,7 @@ cmd_write(struct g_bde_key *gl, struct g_bde_softc *sc, int dfd , int key, const
 	if (i != (int)gl->sectorsize)
 		err(1, "write");
 	printf("Wrote key %d at %jd\n", key, (intmax_t)offset);
+	free(sbuf);
 #if 0
 	printf("s0 = %jd\n", (intmax_t)gl->sector0);
 	printf("sN = %jd\n", (intmax_t)gl->sectorN);
@@ -518,8 +520,10 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 			if (p == NULL)
 				p = "vi";
 			if (snprintf(cbuf, sizeof(cbuf), "%s %s\n", p, q) >=
-			    (ssize_t)sizeof(cbuf))
+			    (ssize_t)sizeof(cbuf)) {
+				unlink(q);
 				errx(1, "EDITOR is too long");
+			}
 			system(cbuf);
 		}
 		i = open(q, O_RDONLY);
@@ -528,6 +532,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 		params = properties_read(i);
 		close (i);
 		unlink(q);
+		free(q);
 	}
 
 	/* <sector_size> */
