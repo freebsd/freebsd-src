@@ -38,7 +38,7 @@
 #
 
 SENDMAIL_MC?=		freebsd.mc
-SENDMAIL_MC_CF=		${SENDMAIL_MC:R}.cf
+INSTALL_CF=		${SENDMAIL_MC:R}.cf
 
 SENDMAIL_ALIASES?=	/etc/mail/aliases
 
@@ -112,8 +112,6 @@ M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 	${M4} -D_CF_DIR_=${SENDMAIL_CF_DIR}/ ${SENDMAIL_CF_DIR}/m4/cf.m4 \
 		${@:R}.mc > ${.TARGET}
 
-${SENDMAIL_MC_CF}:	${M4FILES}
-
 #
 # Aliases are handled separately since they normally reside in /etc
 # and can be rebuild without the help of makemap.
@@ -131,14 +129,14 @@ clean:
 
 depend:
 
-cf:		${SENDMAIL_MC_CF}
+cf:		${INSTALL_CF}
 
 maps:		${SENDMAIL_MAP_OBJ}
 
 aliases:	${SENDMAIL_ALIASES}.db
 
-install:	${SENDMAIL_MC_CF}
-	${INSTALL} -c -m ${SHAREMODE} ${SENDMAIL_MC_CF} /etc/mail/sendmail.cf
+install:	${INSTALL_CF}
+	${INSTALL} -c -m ${SHAREMODE} ${INSTALL_CF} /etc/mail/sendmail.cf
 
 start:
 	(. /etc/defaults/rc.conf; \
