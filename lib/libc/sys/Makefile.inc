@@ -29,7 +29,7 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	setgroups.o setitimer.o setpgid.o setpriority.o setrlimit.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
-	swapon.o symlink.o sync.o umask.o unlink.o unmount.o \
+	swapon.o symlink.o sync.o sysarch.o umask.o unlink.o unmount.o \
 	utimes.o vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
 
 PSEUDO=	_exit.o _getlogin.o
