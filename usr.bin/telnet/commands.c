@@ -2005,6 +2005,7 @@ tn(int argc, char *argv[])
 		    hostp);
 		goto fail;
 	}
+	hostname = hostp;
 	memset(&su, 0, sizeof su);
 	su.sun_family = AF_UNIX;
 	strncpy(su.sun_path, hostp, sizeof su.sun_path);
@@ -2207,6 +2208,7 @@ tn(int argc, char *argv[])
         freeaddrinfo(src_res0);
     cmdrc(hostp, hostname);
  af_unix:    
+    connected = 1;
     if (autologin && user == NULL) {
 	struct passwd *pw;
 
