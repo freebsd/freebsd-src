@@ -981,7 +981,7 @@ bdwrite(struct buf * bp)
 	 */
 	vp = bp->b_vp;
 	VI_LOCK(vp);
-	if (td->td_proc->p_flag & P_COWINPROGRESS) {
+	if (td->td_pflags & TDP_COWINPROGRESS) {
 		recursiveflushes++;
 	} else if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh + 10) {
 		VI_UNLOCK(vp);
