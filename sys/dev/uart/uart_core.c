@@ -321,14 +321,16 @@ uart_bus_attach(device_t dev)
 	 */
 	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
 	    0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
-	if (sc->sc_rres == NULL)
+	if (sc->sc_rres == NULL) {
+		mtx_destroy(&sc->sc_hwmtx);
 		return (ENXIO);
+	}
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 
 	sc->sc_irid = 0;
 	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {
 		error = BUS_SETUP_INTR(device_get_parent(dev), dev,
 		    sc->sc_ires, INTR_TYPE_TTY | INTR_FAST, uart_intr,
@@ -438,6 +440,8 @@ uart_bus_attach(device_t dev)
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
 
+	mtx_destroy(&sc->sc_hwmtx);
+
 	return (error);
 }
 
@@ -466,6 +470,8 @@ uart_bus_detach(device_t dev)
 		    sc->sc_ires);
 	}
 	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
+
+	mtx_destroy(&sc->sc_hwmtx);
 
 	if (sc->sc_class->size > sizeof(*sc)) {
 		device_set_softc(dev, NULL);
