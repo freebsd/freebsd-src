@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -109,7 +111,7 @@ setptr(ibuf)
 			this.m_size = 0;
 			this.m_lines = 0;
 			this.m_block = blockof(offset);
-			this.m_offset = offsetof(offset);
+			this.m_offset = boffsetof(offset);
 			inhead = 1;
 		} else if (linebuf[0] == 0) {
 			inhead = 0;
