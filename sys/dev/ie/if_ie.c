@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.59 1999/01/28 01:59:53 dillon Exp $
+ *	$Id: if_ie.c,v 1.60 1999/05/13 12:21:41 bde Exp $
  */
 
 /*
@@ -125,7 +125,7 @@ iomem and and with 0xffff.
 #include <net/if_types.h>
 #include <net/if_dl.h>
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #ifdef INET
 #include <netinet/in.h>
@@ -153,7 +153,7 @@ iomem and and with 0xffff.
 #include <i386/isa/if_iee16.h>
 #include <i386/isa/elink.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -842,7 +842,7 @@ ieattach(struct isa_device *dvp)
 	if (ie->hard_type == IE_EE16)
 		at_shutdown(ee16_shutdown, ie, SHUTDOWN_POST_SYNC);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -1101,7 +1101,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Receiving all multicasts, but no unicasts except those
 		 * destined for us.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		/* BPF gets this packet if anybody cares */
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
@@ -1117,14 +1117,14 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Receiving all packets.  These need to be passed on to
 		 * BPF.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
 		/* If for us, accept and hand up to BPF */
 		if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
 			return (1);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (*to_bpf)
 			*to_bpf = 2;	/* we don't need to see it */
 #endif
@@ -1142,7 +1142,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		for (i = 0; i < ie->mcast_count; i++) {
 			if (ether_equal(eh->ether_dhost,
 			    (u_char *)&ie->mcast_addrs[i])) {
-#if NBPFILTER > 0
+#if NBPF > 0
 				if (*to_bpf)
 					*to_bpf = 1;
 #endif
@@ -1156,7 +1156,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Acting as a multicast router, and BPF running at the same
 		 * time. Whew!	(Hope this is a fast machine...)
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
 		/* We want to see multicasts. */
@@ -1168,7 +1168,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 			return (1);
 
 		/* Anything else goes to BPF but nothing else. */
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (*to_bpf)
 			*to_bpf = 2;
 #endif
@@ -1183,7 +1183,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * for the multicast filter), but it will do in this case,
 		 * and we want to get out of here as quickly as possible.
 		 */
-#if NBPFILTER > 0
+#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
 		return (1);
@@ -1420,7 +1420,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	struct mbuf *m = 0;
 	struct ether_header eh;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	int	bpf_gets_it = 0;
 
 #endif
@@ -1439,7 +1439,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	ie->rfhead = (ie->rfhead + 1) % ie->nframes;
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ieget(unit, ie, &m, &eh, &bpf_gets_it)) {
 #else
 		if (ieget(unit, ie, &m, &eh, (int *)0)) {
@@ -1466,7 +1466,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 		m_freem(last_not_for_us);
 		last_not_for_us = 0;
 	}
-#if NBPFILTER > 0
+#if NBPF > 0
 	/*
 	 * Check for a BPF filter; if so, hand it up. Note that we have to
 	 * stick an extra mbuf up front, because bpf_mtap expects to have
@@ -1494,7 +1494,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 		last_not_for_us = m;
 		return;
 	}
-#endif				/* NBPFILTER > 0 */
+#endif				/* NBPF > 0 */
 	/*
 	 * In here there used to be code to check destination addresses upon
 	 * receipt of a packet.	 We have deleted that code, and replaced it
@@ -1578,7 +1578,7 @@ iestart(struct ifnet *ifp)
 		m_freem(m0);
 		len = max(len, ETHER_MIN_LEN);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		/*
 		 * See if bpf is listening on this interface, let it see the
 		 * packet before we commit it to the wire.

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.22 1999/03/30 13:28:23 phk Exp $
+ * $Id: if_sr.c,v 1.23 1999/05/06 22:14:46 peter Exp $
  */
 
 /*
@@ -53,7 +53,7 @@
 #else
 #define NFR	0
 #endif
-#include "bpfilter.h"
+#include "bpf.h"
 
 #include "sppp.h"
 #if NSPPP <= 0
@@ -71,7 +71,7 @@
 #include <net/if.h>
 #include <net/if_sppp.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -848,7 +848,7 @@ srattach(struct sr_hardc *hc)
 
 		if_attach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 #endif
 	}
@@ -1119,7 +1119,7 @@ top_srstart:
 			   sc->unit, mtx, len);
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, mtx);
 #endif
@@ -2462,7 +2462,7 @@ sr_get_packets(struct sr_softc *sc)
 			 */
 			sr_copy_rxbuf(m, sc, len);	/* copy from DPRAM */
 
-#if NBPFILTER > 0
+#if NBPF > 0
 			if (ifp->if_bpf)
 				bpf_mtap(ifp, m);
 #endif

@@ -12,7 +12,7 @@ sed	-e '/pty/d' \
 	-e 's/GENERIC/BOOTMFS/g'
 
 # So dhclient will work (just on boot floppy).
-echo "pseudo-device bpfilter 4"
+echo "pseudo-device bpf 4"
 
 echo "options  NFS_NOSERVER" 
 echo "options  SCSI_NO_OP_STRINGS" 

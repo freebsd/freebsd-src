@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.20 1999/01/12 00:36:31 eivind Exp $ */
+/* $Id: if_wl.c,v 1.21 1999/04/27 11:15:02 phk Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -190,7 +190,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "wl.h"
 #include "opt_wavelan.h"
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -214,7 +214,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -510,7 +510,7 @@ wlattach(struct isa_device *id)
     if_attach(ifp);
     ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -895,7 +895,7 @@ wlstart(struct ifnet *ifp)
     ifp = &(sc->wl_if);
     IF_DEQUEUE(&ifp->if_snd, m);
     if (m != (struct mbuf *)0) {
-#if NBPFILTER > 0
+#if NBPF > 0
 	/* let BPF see it before we commit it */
 	if (ifp->if_bpf) {
 	    bpf_mtap(ifp, m);
@@ -1080,7 +1080,7 @@ wlread(int unit, u_short fd_p)
 
     m->m_pkthdr.len = clen;
 
-#if NBPFILTER > 0
+#if NBPF > 0
     /*
      * Check if there's a BPF listener on this interface. If so, hand off
      * the raw packet to bpf.

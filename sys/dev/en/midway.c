@@ -169,8 +169,8 @@
 
 #endif	/* __FreeBSD__ */
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #ifdef __FreeBSD__
 #define BPFATTACH(ifp, dlt, hlen)	bpfattach((ifp), (dlt), (hlen))
@@ -179,7 +179,7 @@
 #define BPFATTACH(ifp, dlt, hlen)	bpfattach(&(ifp)->if_bpf, (ifp), (dlt), (hlen))
 #define BPF_MTAP(ifp, m)		bpf_mtap((ifp)->if_bpf, (m))
 #endif
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 /*
  * params
@@ -820,7 +820,7 @@ done_probe:
   if_attach(ifp);
   atm_ifattach(ifp); 
 
-#if NBPFILTER > 0 
+#if NBPF > 0 
   BPFATTACH(ifp, DLT_ATM_RFC1483, sizeof(struct atmllc));
 #endif
 }
@@ -2120,7 +2120,7 @@ again:
 
   en_txlaunch(sc, chan, &launch);
 
-#if NBPFILTER > 0
+#if NBPF > 0
   if (ifp->if_bpf) {
       /*
        * adjust the top of the mbuf to skip the pseudo atm header
@@ -2139,7 +2139,7 @@ again:
       launch.t->m_data -= size;
       launch.t->m_len += size;
   }
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
   /*
    * do some housekeeping and get the next packet
    */
@@ -2709,7 +2709,7 @@ void *arg;
 	  ifp = &sc->enif;
 	  ifp->if_ipackets++;
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	  if (ifp->if_bpf)
 	    BPF_MTAP(ifp, m);
 #endif

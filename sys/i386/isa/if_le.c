@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.49 1998/12/30 00:37:42 hoek Exp $
+ * $Id: if_le.c,v 1.50 1999/05/11 19:54:12 phk Exp $
  */
 
 /*
@@ -52,7 +52,7 @@
 #include <net/if_types.h>
 #include <net/if_dl.h>
 
-#include "bpfilter.h"
+#include "bpf.h"
 
 #ifdef INET
 #include <netinet/in.h>
@@ -77,7 +77,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -370,7 +370,7 @@ le_attach(
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
 
-#if NBPFILTER > 0
+#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
@@ -412,7 +412,7 @@ le_input(
     }
     MEMCPY(&eh, seg1, sizeof(eh));
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (sc->le_if.if_bpf != NULL && seg2 == NULL) {
 	bpf_tap(&sc->le_if, seg1, total_len);
 	/*
@@ -469,7 +469,7 @@ le_input(
     MEMCPY(mtod(m, caddr_t), seg1, len1);
     if (seg2 != NULL)
 	MEMCPY(mtod(m, caddr_t) + len1, seg2, total_len - len1);
-#if NBPFILTER > 0
+#if NBPF > 0
     if (sc->le_if.if_bpf != NULL && seg2 != NULL) {
 	bpf_mtap(&sc->le_if, m);
 	/*
@@ -1142,7 +1142,7 @@ lemac_start(
 
 	LE_OUTB(sc, LEMAC_REG_TQ, tx_pg);	/* tell chip to transmit this packet */
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (sc->le_if.if_bpf)
 		bpf_mtap(&sc->le_if, m);
 #endif

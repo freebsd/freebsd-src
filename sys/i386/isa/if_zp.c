@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.50 1999/03/08 21:21:43 steve Exp $
+ *	$Id: if_zp.c,v 1.51 1999/04/19 06:56:24 imp Exp $
  */
 /*-
  * TODO:
@@ -114,7 +114,7 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 
 #include "zp.h"
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -145,7 +145,7 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -568,7 +568,7 @@ zpattach(isa_dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 #if NAPM > 0
@@ -761,7 +761,7 @@ startagain:
 	while (pad--)
 		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (sc->arpcom.ac_if.if_bpf) {
 		bpf_mtap(&sc->arpcom.ac_if, top);
 	}
@@ -975,7 +975,7 @@ zpread(sc)
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 	++sc->arpcom.ac_if.if_ipackets;
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (sc->arpcom.ac_if.if_bpf) {
 		bpf_mtap(&sc->arpcom.ac_if, top);
 

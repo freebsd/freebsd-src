@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.78 1999/01/19 00:21:39 peter Exp $
+ *  $Id: if_ep.c,v 1.79 1999/01/31 22:41:51 dufault Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -59,7 +59,7 @@
 #include "ep.h"
 #if NEP > 0
 
-#include "bpfilter.h"
+#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -93,7 +93,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -635,7 +635,7 @@ ep_attach(sc)
     ep_fset(F_RX_FIRST);
     sc->top = sc->mcur = 0;
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (!attached) {
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
     }
@@ -871,7 +871,7 @@ startagain:
     while (pad--)
 	outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (ifp->if_bpf) {
 	bpf_mtap(ifp, top);
     }
@@ -1137,7 +1137,7 @@ read_again:
     top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
     top->m_pkthdr.len = sc->cur_len;
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (ifp->if_bpf) {
 	bpf_mtap(ifp, top);
 

@@ -30,14 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_oltr.c,v 1.4 1999/04/24 20:24:02 peter Exp $
+ * $Id: if_oltr.c,v 1.5 1999/05/09 17:07:24 peter Exp $
  */
 
 
 #include "pci.h"
 #include "oltr.h"
 #include "opt_inet.h"
-#include "bpfilter.h"
+#include "bpf.h"
 
 #if (NOLTR + NPCI) > 0
 
@@ -90,7 +90,7 @@ char *AdapterName[] = {
 #include <net/iso88025.h>
 #include <net/if_media.h>
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
  
@@ -632,7 +632,7 @@ oltr_attach_common(sc)
     if_attach(ifp);
     iso88025_ifattach(ifp);
 
-#if NBPFILTER > 0
+#if NBPF > 0
     bpfattach(ifp, DLT_IEEE802, sizeof(struct iso88025_header));
 #endif
 
@@ -949,7 +949,7 @@ restart:
         goto bad;
     }
 
-#if NBPFILTER > 0
+#if NBPF > 0
     if (ifp->if_bpf)
         bpf_mtap(ifp, m0);
 #endif
@@ -1351,7 +1351,7 @@ DriverReceiveFrameCompleted(DriverHandle, ByteCount, FragmentCount, FragmentHand
             }
             ifp->if_ipackets++;
         
-#if NBPFILTER > 0
+#if NBPF > 0
             if (ifp->if_bpf)
                 bpf_mtap(ifp, m0);
 #endif

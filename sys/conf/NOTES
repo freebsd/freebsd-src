@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.614 1999/07/01 18:39:23 jkh Exp $
+#	$Id: LINT,v 1.615 1999/07/03 21:31:00 jdp Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -381,7 +381,7 @@ options 	NETATALK		#Appletalk communications protocols
 #  of synchronous PPP links (like `cx', `ar').
 #  The `sl' pseudo-device implements the Serial Line IP (SLIP) service.
 #  The `ppp' pseudo-device implements the Point-to-Point Protocol.
-#  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
+#  The `bpf' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
@@ -394,7 +394,7 @@ options 	NETATALK		#Appletalk communications protocols
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
 # PPP_FILTER enables code for filtering the ppp data stream and selecting
-# events for resetting the demand dial activity timer - requires bpfilter.
+# events for resetting the demand dial activity timer - requires bpf.
 # See pppd(8) for more details.
 #
 pseudo-device	ether			#Generic Ethernet
@@ -402,7 +402,7 @@ pseudo-device	token			#Generic TokenRing
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
-pseudo-device	bpfilter 4		#Berkeley packet filter
+pseudo-device	bpf	4		#Berkeley packet filter
 pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver (ppp(8), nos-tun(8))
 pseudo-device	sl	2		#Serial Line IP
@@ -410,7 +410,7 @@ pseudo-device	ppp	2		#Point-to-point protocol
 pseudo-device	streams
 options PPP_BSDCOMP			#PPP BSD-compress support
 options PPP_DEFLATE			#PPP zlib/deflate/gzip support
-options PPP_FILTER			#enable bpf filtering (needs bpfilter)
+options PPP_FILTER			#enable bpf filtering (needs bpf)
 
 #
 # Internet family options:

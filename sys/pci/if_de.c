@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
-/*	$Id: if_de.c,v 1.106 1999/05/10 14:12:26 peter Exp $ */
+/*	$Id: if_de.c,v 1.107 1999/07/03 20:17:02 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -93,8 +93,8 @@
 #include <dev/mii/miivar.h>
 #endif
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 
@@ -3536,7 +3536,7 @@ tulip_rx_intr(
 #endif /* TULIP_BUS_DMA */
 
 	    eh = *mtod(ms, struct ether_header *);
-#if NBPFILTER > 0
+#if NBPF > 0
 	    if (sc->tulip_bpf != NULL) {
 		if (me == ms)
 		    TULIP_BPF_TAP(sc, mtod(ms, caddr_t), total_len);
@@ -3807,7 +3807,7 @@ tulip_tx_intr(
 		    TULIP_TXMAP_POSTSYNC(sc, map);
 		    sc->tulip_txmaps[sc->tulip_txmaps_free++] = map;
 #endif /* TULIP_BUS_DMA */
-#if NBPFILTER > 0
+#if NBPF > 0
 		    if (sc->tulip_bpf != NULL)
 			TULIP_BPF_MTAP(sc, m);
 #endif
@@ -5112,7 +5112,7 @@ tulip_attach(
 #endif
 #endif /* __bsdi__ */
 
-#if NBPFILTER > 0
+#if NBPF > 0
     TULIP_BPF_ATTACH(sc);
 #endif
 

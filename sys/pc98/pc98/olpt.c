@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id$
+ *	$Id: olpt.c,v 1.1 1999/06/18 14:48:26 kato Exp $
  */
 
 /*
@@ -145,8 +145,8 @@
 #include <net/netisr.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <net/bpf.h>
 #endif
 #endif /* INET */
@@ -958,7 +958,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	if_attach(ifp);
 	printf("lp%d: TCP/IP capable interface\n", unit);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
 #endif
 }
@@ -1232,7 +1232,7 @@ lpintr (int unit)
 		IF_DROP(&ipintrq);
 		goto done;
 	    }
-#if NBPFILTER > 0
+#if NBPF > 0
 	    if (sc->sc_if.if_bpf) {
 		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
 	    }
@@ -1424,7 +1424,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-#if NBPFILTER > 0
+#if NBPF > 0
 	if (ifp->if_bpf) {
 	    /*
 	     * We need to prepend the packet type as

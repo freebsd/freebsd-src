@@ -1,17 +1,17 @@
-#       $Id: Makefile,v 1.6 1998/10/16 04:30:44 peter Exp $
+#       $Id: Makefile,v 1.7 1999/04/28 01:17:58 msmith Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_disc
-SRCS=   if_disc.c bpfilter.h	opt_inet.h
+SRCS=   if_disc.c bpf.h	opt_inet.h
 NOMAN=
 
-NBPFILTER?=	1
+NBPF?=	1
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	bpfilter.h	opt_inet.h
+CLEANFILES+=	bpf.h	opt_inet.h
 
-bpfilter.h:
-	echo "#define NBPFILTER ${NBPFILTER}" > bpfilter.h
+bpf.h:
+	echo "#define NBPF ${NBPF}" > bpf.h
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h

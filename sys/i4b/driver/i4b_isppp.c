@@ -34,7 +34,7 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- *	$Id: i4b_isppp.c,v 1.27 1999/05/03 08:48:25 hm Exp $
+ *	$Id: i4b_isppp.c,v 1.3 1999/05/20 10:09:01 hm Exp $
  *
  *	last edit-date: [Sun May  2 10:52:57 1999]
  *
@@ -74,8 +74,8 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 
-#include "bpfilter.h"
-#if NBPFILTER > 0
+#include "bpf.h"
+#if NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
@@ -290,7 +290,7 @@ i4bispppattach(void)
 		sppp_attach(&sc->sc_if);
 		if_attach(&sc->sc_if);
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #ifdef __FreeBSD__
 		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 		CALLOUT_INIT(&sc->sc_ch);
@@ -361,7 +361,7 @@ i4bisppp_start(struct ifnet *ifp)
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
 	{
 
-#if NBPFILTER > 0
+#if NBPF > 0
 #ifdef __FreeBSD__
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
@@ -371,7 +371,7 @@ i4bisppp_start(struct ifnet *ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp->if_bpf, m);
 #endif
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 		microtime(&ifp->if_lastchange);
 
@@ -654,7 +654,7 @@ i4bisppp_rx_data_rdy(int unit)
 	printf("i4bisppp_rx_data_ready: received packet!\n");
 #endif
 
-#if NBPFILTER > 0
+#if NBPF > 0
 
 #ifdef __FreeBSD__	
 	if(sc->sc_if.if_bpf)
@@ -666,7 +666,7 @@ i4bisppp_rx_data_rdy(int unit)
 		bpf_mtap(sc->sc_if.if_bpf, m);
 #endif
 
-#endif /* NBPFILTER > 0 */
+#endif /* NBPF > 0 */
 
 	s = splimp();
 

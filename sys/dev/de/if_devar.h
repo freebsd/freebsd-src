@@ -1,5 +1,5 @@
 /*	$NetBSD: if_devar.h,v 1.31 1998/09/29 22:40:52 matt Exp $	*/
-/*	$Id: if_devar.h,v 1.12 1998/11/06 02:13:14 peter Exp $ */
+/*	$Id: if_devar.h,v 1.13 1999/05/26 23:05:23 gallatin Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -961,7 +961,7 @@ static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
 #endif
 #if BSD >= 199506
 #define TULIP_IFP_TO_SOFTC(ifp) ((tulip_softc_t *)((ifp)->if_softc))
-#if NBPFILTER > 0
+#if NBPF > 0
 #define	TULIP_BPF_MTAP(sc, m)	bpf_mtap(&(sc)->tulip_if, m)
 #define	TULIP_BPF_TAP(sc, p, l)	bpf_tap(&(sc)->tulip_if, p, l)
 #define	TULIP_BPF_ATTACH(sc)	bpfattach(&(sc)->tulip_if, DLT_EN10MB, sizeof(struct ether_header))
@@ -1115,7 +1115,7 @@ extern struct cfdriver de_cd;
  * While I think FreeBSD's 2.2 change to the bpf is a nice simplification,
  * it does add yet more conditional code to this driver.  Sigh.
  */
-#if !defined(TULIP_BPF_MTAP) && NBPFILTER > 0
+#if !defined(TULIP_BPF_MTAP) && NBPF > 0
 #define	TULIP_BPF_MTAP(sc, m)	bpf_mtap((sc)->tulip_bpf, m)
 #define	TULIP_BPF_TAP(sc, p, l)	bpf_tap((sc)->tulip_bpf, p, l)
 #define	TULIP_BPF_ATTACH(sc)	bpfattach(&(sc)->tulip_bpf, &(sc)->tulip_if, DLT_EN10MB, sizeof(struct ether_header))
