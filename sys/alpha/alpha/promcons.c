@@ -71,7 +71,6 @@ static struct cdevsw prom_cdevsw = {
 };
 
 
-static struct tty *prom_tp = NULL;
 static int polltime;
 static struct callout_handle promtimeouthandle
 	= CALLOUT_HANDLE_INITIALIZER(&promtimeouthandle);
@@ -99,7 +98,7 @@ promopen(dev, flag, mode, td)
 		return ENXIO;
 
 
-	tp = prom_tp = dev->si_tty = ttymalloc(prom_tp);
+	tp = dev->si_tty = ttyalloc();
 
 	s = spltty();
 	tp->t_oproc = promstart;
@@ -142,7 +141,7 @@ promclose(dev, flag, mode, td)
 	struct thread *td;
 {
 	int unit = minor(dev);
-	struct tty *tp = prom_tp;
+	struct tty *tp = dev->si_tty;
 
 	if (unit != 0)
 		return ENXIO;
