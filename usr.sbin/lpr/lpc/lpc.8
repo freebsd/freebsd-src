@@ -119,9 +119,11 @@ in the printer status file.
 The message doesn't need to be quoted, the
 remaining arguments are treated like
 .Xr echo 1 .
-This is normally used to take a printer down and let others know why
+This is normally used to take a printer down, and let other users
+find out why it is down (the
 .Xr lpq 1
-will indicate the printer is down and print the status message).
+utility will indicate that the printer is down and will print the
+status message).
 .Pp
 .It Ic enable Brq Cm all | Ar printer
 Enable spooling on the local queue for the listed printers.
