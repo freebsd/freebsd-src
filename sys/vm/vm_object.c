@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.154 1999/05/16 05:07:34 alc Exp $
+ * $Id: vm_object.c,v 1.155 1999/05/28 03:39:44 alc Exp $
  */
 
 /*
@@ -871,7 +871,8 @@ vm_object_shadow(object, offset, length)
 	 * Don't create the new object if the old object isn't shared.
 	 */
 
-	if (source->ref_count == 1 &&
+	if (source != NULL &&
+	    source->ref_count == 1 &&
 	    source->handle == NULL &&
 	    (source->type == OBJT_DEFAULT ||
 	     source->type == OBJT_SWAP))
