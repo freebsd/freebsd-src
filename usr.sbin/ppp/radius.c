@@ -496,7 +496,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
 
   radius_Destroy(r);
 
-  if ((r->cx.rad = rad_auth_open()) == NULL) {
+  if ((r->cx.rad = rad_acct_open()) == NULL) {
     log_Printf(LogERROR, "rad_auth_open: %s\n", strerror(errno));
     return;
   }
