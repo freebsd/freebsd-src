@@ -676,17 +676,6 @@ ether_ifattach(ifp)
 		(*ng_ether_attach_p)(ifp);
 }
 
-/*
- * Perform common duties while detaching an Ethernet interface
- */
-void
-ether_ifdetach(ifp)
-	struct ifnet *ifp;
-{
-	if (ng_ether_detach_p != NULL)
-		(*ng_ether_detach_p)(ifp);
-}
-
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 
