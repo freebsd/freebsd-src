@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.2 1995/01/12 22:09:39 hsu Exp $
+/* $Header: /usr/cvs/src/gnu/usr.bin/patch/inp.c,v 1.3 1995/05/30 05:02:31 rgrimes Exp $
  *
  * $Log: inp.c,v $
+ * Revision 1.3  1995/05/30 05:02:31  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1995/01/12  22:09:39  hsu
  * Fix bug that created new files even when running in -C check mode.
  * Reviewed by: phk
@@ -240,7 +243,7 @@ char *filename;
 "this file doesn't appear to be the %s version--aborting.\n", revision);
 	    }
 	    else {
-		ask2(
+		(void) ask2(
 "This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 	    if (*buf != 'y')
@@ -289,7 +292,7 @@ char *filename;
 "this file doesn't appear to be the %s version--aborting.\n", revision);
 	    }
 	    else {
-		ask2(
+		(void) ask2(
 "This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 		if (*buf != 'y')
