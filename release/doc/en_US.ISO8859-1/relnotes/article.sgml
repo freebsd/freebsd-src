@@ -823,7 +823,7 @@
       CS4281 sound chip has been added.  A driver for the S3
       SonicVibes chipset has been added. &merged;</para>
 
-      <para arch="i386">A driver for the Advance Logic ALS4000 has
+      <para arch="i386">A driver for the Avance Logic ALS4000 has
       been added. &merged;</para>
 
       <para arch="i386">A driver for the
