@@ -78,9 +78,9 @@ LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD}
+		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBYPCLNT}
 MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lcrypt \
-		-lutil -lopie -lmd
+		-lutil -lopie -lmd -lypclnt
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
 LIBPAM+=	${LIBSSH} ${LIBCRYPTO}
 MINUSLPAM+=	-lssh -lcrypto
