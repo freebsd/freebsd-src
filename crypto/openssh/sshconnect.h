@@ -38,4 +38,6 @@ ssh_userauth(const char* local_user, const char* server_user, char *host,
 void	ssh_kex2(char *host, struct sockaddr *hostaddr);
 void	ssh_userauth2(const char *server_user, char *host);
 
+void	ssh_put_password(char *password);
+
 #endif

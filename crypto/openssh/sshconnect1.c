@@ -640,7 +640,7 @@ try_skey_authentication()
 			error("Permission denied, please try again.");
 		response = read_passphrase("Response: ", 0);
 		packet_start(SSH_CMSG_AUTH_TIS_RESPONSE);
-		packet_put_string(response, strlen(response));
+		ssh_put_password(response);
 		memset(response, 0, strlen(response));
 		xfree(response);
 		packet_send();
@@ -673,7 +673,7 @@ try_password_authentication(char *prompt)
 			error("Permission denied, please try again.");
 		password = read_passphrase(prompt, 0);
 		packet_start(SSH_CMSG_AUTH_PASSWORD);
-		packet_put_string(password, strlen(password));
+		ssh_put_password(password);
 		memset(password, 0, strlen(password));
 		xfree(password);
 		packet_send();
