@@ -37,7 +37,7 @@
 #	@(#)mkbuiltins	8.2 (Berkeley) 5/4/95
 # $FreeBSD$
 
-temp=/tmp/ka$$
+temp=`/usr/bin/mktemp -t ka`
 havejobs=0
 if grep '^#define JOBS[	 ]*1' shell.h > /dev/null
 then	havejobs=1
