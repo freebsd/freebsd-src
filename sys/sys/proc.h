@@ -960,7 +960,7 @@ void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 int	thread_upcall_check(struct thread *td);
-void	thread_user_enter(struct proc *p, struct thread *td);
+void	thread_user_enter(struct thread *td);
 void	thread_wait(struct proc *p);
 int	thread_statclock(int user);
 struct kse_upcall *upcall_alloc(void);

@@ -1121,7 +1121,7 @@ thread_switchout(struct thread *td)
  * Setup done on the thread when it enters the kernel.
  */
 void
-thread_user_enter(struct proc *p, struct thread *td)
+thread_user_enter(struct thread *td)
 {
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
@@ -1176,7 +1176,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 		} else {
 			td->td_mailbox = tmbx;
 			td->td_pflags |= TDP_CAN_UNBIND;
-			if (__predict_false(p->p_flag & P_TRACED)) {
+			if (__predict_false(td->td_proc->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
 				if (flags & TMDF_SUSPEND) {
 					mtx_lock_spin(&sched_lock);
