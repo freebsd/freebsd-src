@@ -4,15 +4,11 @@
 .PATH:	${.CURDIR}/../lint1
 
 PROG=	xlint
+PROGNAME=lint
 SRCS=	xlint.c mem.c
 MAN=	lint.1
 
 CFLAGS+=-I${.CURDIR}/../lint1
-
-realinstall:
-	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${PROG} ${DESTDIR}${BINDIR}/lint
-
 
 .include "${.CURDIR}/../../Makefile.inc"
 .include <bsd.prog.mk>
