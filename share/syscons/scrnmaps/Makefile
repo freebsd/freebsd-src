@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SCRMAPS = iso-8859-1_to_cp437.scm iso-8859-4_to_cp437.scm \
-	  iso-8859-7_to_cp437.scm \
+SCRMAPS = iso-8859-1_to_cp437.scm iso-8859-7_to_cp437.scm \
 	  koi8-r2cp866.scm koi8-u2cp866u.scm
 
 SCRMAPS_MK = ${SCRMAPS:R:S/$/.mk/g}
