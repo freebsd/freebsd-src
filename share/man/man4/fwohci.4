@@ -32,7 +32,7 @@
 .\" $FreeBSD$
 .\"
 .\"
-.Dd April 10, 2000
+.Dd September 12, 2004
 .Dt FWOHCI 4
 .Os
 .Sh NAME
@@ -44,23 +44,69 @@
 or
 .Pp
 .Cd "device firewire"
-.Sh DESCRIPTION
+.Sh HARDWARE
 The
 .Nm
 driver provides support for PCI/CardBus firewire interface cards.
-The driver supports the following IEEE 1394 OHCI chipsets.
+The driver supports the following IEEE 1394 OHCI chipsets:
 .Pp
-.Bl -item
+.Bl -bullet -compact
+.It
+Adaptec AHA-894x/AIC-5800
+.It
+Apple Pangea
+.It
+Apple UniNorth
+.It
+Intel 82372FB
+.It
+Lucent FW322/323
 .It
 NEC uPD72861
 .It
-Texas Instruments TSB12LV{22,23,26}, TSB43{AA22,AB22/A}, PCI44{10A,50}
+NEC uPD72870
+.It
+NEC uPD72871/2
+.It
+NEC uPD72873
+.It
+NEC uPD72874
+.It
+National Semiconductor CS4210
+.It
+Ricoh R5C551
+.It
+Ricoh R5C552
 .It
 Sony CX3022
 .It
-VIA VT6306
+Sony i.LINK (CXD1947)
 .It
-Ricoh R5C552
+Sony i.LINK (CXD3222)
+.It
+Texas Instruments PCI4410A
+.It
+Texas Instruments PCI4450
+.It
+Texas Instruments PCI4451
+.It
+Texas Instruments TSB12LV22
+.It
+Texas Instruments TSB12LV23
+.It
+Texas Instruments TSB12LV26
+.It
+Texas Instruments TSB43AA22
+.It
+Texas Instruments TSB43AB21/A/AI/A-EP
+.It
+Texas Instruments TSB43AB22/A
+.It
+Texas Instruments TSB43AB23
+.It
+Texas Instruments TSB82AA2
+.It
+VIA Fire II (VT6306)
 .El
 .Sh SEE ALSO
 .Xr firewire 4 ,
