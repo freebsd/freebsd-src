@@ -74,6 +74,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 			while (size-- > 0)
 				*dst++ = *data++;
 	}
+	__syncicache((void *)addr, size);
+
 	(void)kdb_jmpbuf(prev_jb);
 	return (ret);
 }
