@@ -63,18 +63,17 @@ typedef struct ohci_soft_td {
 
 typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
-#if defined(__NetBSD__)
-	void *sc_ih;			/* interrupt vectoring */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+#if defined(__NetBSD__)
+	void *sc_ih;			/* interrupt vectoring */
 
 	bus_dma_tag_t sc_dmatag;	/* DMA tag */
 	/* XXX should keep track of all DMA memory */
+#endif /* __FreeBSD__ */
 
-#elif defined(__FreeBSD__)
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
-#endif /* __FreeBSD__ */
 
 	usb_dma_t sc_hccadma;
 	struct ohci_hcca *sc_hcca;
