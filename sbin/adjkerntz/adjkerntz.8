@@ -1,4 +1,4 @@
-.\" Copyright (C) 1993 by Andrew A. Chernov, Moscow, Russia.
+.\" Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,69 +22,110 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 15, 1993
+.Dd April 4, 1996
 .Dt ADJKERNTZ 8
 .Os FreeBSD
 .Sh NAME
 .Nm adjkerntz
-.Nd "adjusts the kernel time if the machine runs wall CMOS clock"
+.Nd "adjust local time CMOS clock to reflect time zone changes and keep current timezone offset for the kernel"
 .Sh SYNOPSIS
 .Nm adjkerntz
 .Fl i
 .Nm adjkerntz
-.Fl a
+.Fl a Op Fl s
 .Sh DESCRIPTION
 .Nm Adjkerntz
-fixes kernel time (makes it UTC) using the current wall CMOS clock value,
-the current time zone rule and the kernel timezone value. The adjustment is
-enabled only if the file
+maintains the proper relationship between the kernel clock, which
+is always set to UTC, and the CMOS clock, which may be set to local
+time.
+.Nm Adjkerntz
+also informs the kernel about machine timezone shift to
+maintain proper timestamps for local time file systems like MS-DOS one.
+If the file
 .Pa /etc/wall_cmos_clock
-exists, in other cases it is assumed that the machine runs UTC CMOS clock and
-.Nm adjkerntz
-does nothing.
+exists, it means that CMOS clock keep local time (MS-DOS and MS-Windows
+compatible mode),
+if that file does not exist it means that CMOS clock keep UTC time.
 .Pp
-The adjustment is needed at boot stage and when a time zone
-change occurs, so
+Adjustments may be needed at system startup and shutdown, and
+whenever a time zone change occurs.
+To handle these different situations,
 .Nm adjkerntz
-can be called in two forms:
+is invoked in two ways:
 .Bl -tag -width 4n
 .It Cm Fl i
-initialization call from
+This form handles system startups and shutdowns.
+.Nm Adjkerntz
+is invoked with this option from
 .Pa /etc/rc
-(before any daemons are started).
+before any other daemons have been started.
 .Nm Adjkerntz
-makes the adjustment of kernel clock (CMOS clock not touched)
-and the initial time zone offset is stored into
-.Pa adjkerntz
-kernel variable
-for following subsequent
-.Nm "'adjkerntz -a'"
-calls. Then it goes to background pause which ends with SIGTERM.
-After receiving SIGTERM it acts like
-.Nm "'adjkerntz -a'"
-to insure that the CMOS clock reflects the current local time zone.
-.It Cm Fl a
-This form is needed, when time zone changes occur.
+puts itself into the background.
+Then for wall CMOS clock
+.Nm adjkerntz
+reads the local time from the it
+and sets the kernel clock to the corresponding UTC time.
 .Nm Adjkerntz
-uses the previously stored
-time zone offset and the changed time zone rule to
-produce the new time zone offset, fix the CMOS clock
-(kernel clock not touched)
-and store the new
-offset into
-.Pa adjkerntz
-kernel variable
-too.
-It is recommended to use this form in root's
+also stores the local time zone offset into the
+.Pa machdep.adjkerntz
+kernel variable, for use by subsequent invocations of
+.Nm "'adjkerntz -a'"
+and local time file systems.
+.Pp
+For wall CMOS clock
+.Nm "'adjkerntz -i'"
+pauses, and remains inactive as a background daemon until it
+receives a SIGTERM.
+The SIGTERM will normally be sent by
+.Xr init 8
+when the system leaves multi-user mode (usually, because the system
+is being shut down).
+After receiving the SIGTERM,
+.Nm adjkerntz
+reads the UTC kernel clock and updates the CMOS clock, if necessary,
+to ensure that it reflects the current local time zone.
+Then
+.Nm adjkerntz
+exits.
+.It Cm Fl a Op Fl s
+This form is used to update the wall CMOS clock and kernel
+.Pa machdep.adjkerntz
+variable when time zone changes occur,
+e.g., when entering or leaving daylight savings time.
+.Nm Adjkerntz
+uses the kernel clock's UTC time,
+the previously stored
+time zone offset, and the changed time zone rule to
+calculate a new time zone offset.
+It stores the new offset into the
+.Pa machdep.adjkerntz
+kernel variable, and updates the wall CMOS clock to the new local time.
+If
+.Nm "'adjkerntz -a'"
+starts at nonexisten time (inside timezone change), it exits
+with warning diagnostic unless
+.Fl s
+option is used, in this case
+.Nm adjkerntz
+sleep 30 minutes and tries again.
+.Pp
+This form should be invoked from root's
 .Xr crontab 5
-every half of a hour from 0am to 4am
-since this times matches most modern time zone changes.
+every half hour between midnight and 4am, when most modern time
+zone changes occur.
+Warning: don't use
+.Fl s
+option in
+.Xr crontab 5
+command line or multiply
+.Nm "'adjkerntz -a'"
+copies can conflict with each other.
 .El
 .Pp
 .Nm Adjkerntz
-clears the kernel timezone structure and makes kernel always run at UTC
-time zone.
-Super-user privilege is required for all operations.
+clears the kernel timezone structure and makes the kernel clock run
+in the UTC time zone.
+Super-user privileges are required for all operations.
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It Ev TZ
@@ -104,26 +145,26 @@ and
 .Xr zic 8 .
 .It Pa /etc/wall_cmos_clock
 Empty file.
-Presence of it indicates that the machine runs wall CMOS clock,
-absence indicates UTC CMOS clock.
+Its presence indicates that the machine's CMOS clock is set to local
+time, while its absence indicates a UTC CMOS clock.
 .Sh SEE ALSO
 .Xr tzset 3 ,
 .Xr zic 8 ,
 .Xr rc 8 ,
 .Xr crontab 5 ,
 .Xr sysctl 8 ,
-.Xr /usr/sbin/tzsetup
+.Xr tzsetup 8 .
 .Sh DIAGNOSTICS
 No diagnostics.
-If any error occurs, an error message printed via
-.Xr syslog 3
-and
+If an error occurs,
 .Nm adjkerntz
-exits with return code greater than zero.
+logs an error message via
+.Xr syslog 3
+and exits with a nonzero return code.
 .Sh AUTHOR
-Andrew A. Chernov <ache@astral.msk.su>
+Andrey A. Chernov <ache@astral.msk.su>
 .Sh HISTORY
 The
 .Nm adjkerntz
-command appeared in FreeBSD 1.0.1
+command appeared in FreeBSD 1.0.1.
 
