@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#10 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#12 $
  *
  * $FreeBSD$
  */
@@ -1350,6 +1350,14 @@ scratch_ram {
 	 * not in use.  Used for SCB paging.
 	 */
 	FREE_SCBH {
+		size		1
+	}
+	/*
+	 * head of list of SCBs that have
+	 * completed but have not been
+	 * put into the qoutfifo.
+	 */
+	COMPLETE_SCBH {
 		size		1
 	}
 	/*
