@@ -34,6 +34,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
 		ja_JP.eucJP \
+		kk_KZ.PT154 \
 		ko_KR.eucKR \
 		lt_LT.ISO8859-13 \
 		nl_BE.ISO8859-1 \
