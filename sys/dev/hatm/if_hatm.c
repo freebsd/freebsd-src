@@ -2230,6 +2230,9 @@ hatm_initialize(struct hatm_softc *sc)
 	sc->ifatm.ifnet.if_baudrate = 53 * 8 * sc->ifatm.mib.pcr;
 
 	sc->utopia.flags &= ~UTP_FL_POLL_CARRIER;
+
+	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	    sc->utopia.carrier == UTP_CARR_OK);
 }
 
 /*
@@ -2249,6 +2252,9 @@ hatm_stop(struct hatm_softc *sc)
 	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING))
 		return;
 	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+
+	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
+	    sc->utopia.carrier == UTP_CARR_OK);
 
 	sc->utopia.flags |= UTP_FL_POLL_CARRIER;
 
