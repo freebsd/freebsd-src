@@ -922,7 +922,7 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	prfpregset_t *fpregset;
 	prpsinfo_t *psinfo;
 
-	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO);
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO | M_WAITOK);
 	status = &tempdata->status;
 	fpregset = &tempdata->fpregset;
 	psinfo = &tempdata->psinfo;
