@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.75 1995/01/27 07:49:00 phk Exp $
+#	$Id: files.i386,v 1.76 1995/01/28 04:20:55 jkh Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -57,7 +57,6 @@ aic7xxx_seq.h			optional	ahc	device-driver	   \
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
 	dependancy	"aic7xxx_seq.h"
 i386/isa/aic7770.c		optional	ahc	device-driver
-i386/pci/aic7870.c		optional	ahc	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
@@ -142,12 +141,7 @@ i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-i386/pci/if_de.c		optional	de	device-driver
-i386/pci/ncr.c			optional	ncr	device-driver
-i386/pci/pci.c			optional	pci	device-driver
-i386/pci/pcibios.c		optional	pci
-i386/pci/pci_config.c		optional	pci
-i386/pci/pcisupport.c		optional	pci
+i386/isa/pcibus.c		optional	pci	device-driver
 gnu/i386/scd.c			optional	scd	device-driver
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
