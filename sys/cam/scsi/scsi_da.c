@@ -464,11 +464,11 @@ daopen(struct disk *dp)
 
 	s = splsoftcam();
 	periph = (struct cam_periph *)dp->d_drv1;
-	unit = periph->unit_number;
 	if (periph == NULL) {
 		splx(s);
 		return (ENXIO);	
 	}
+	unit = periph->unit_number;
 
 	softc = (struct da_softc *)periph->softc;
 
