@@ -65,7 +65,7 @@ nl_langinfo(nl_item item) {
 		ret = (char *) __get_current_time_locale()->X_fmt;
 		break;
 	case T_FMT_AMPM:
-		ret = "%r";
+		ret = (char *) __get_current_time_locale()->ampm_fmt;
 		break;
 	case AM_STR:
 		ret = (char *) __get_current_time_locale()->am;
