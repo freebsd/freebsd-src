@@ -74,18 +74,6 @@ void _nc_scroll_window(WINDOW *win, int n, short const top, short const bottom, 
 int physical = FALSE;
 int i;
 
-	if (top == bottom) {
-		int sy, sx;
-
-		getyx(win, sy, sx);
-		win->_curx = 0;
-		win->_cury = top;
-		wclrtoeol(win);
-		win->_curx = sx;
-		win->_cury = sy;
-		return;
-	}
-
 	if (n > lines)
 		n = lines;
 	else if (-n > lines)
@@ -94,7 +82,8 @@ int i;
 	/* as an optimization, if the scrolling region is the entire screen
 	   scroll the physical screen */
 
-	if (   win->_begx == 0 && win->_maxx == columns - 1
+	if (   top != bottom
+	    && win->_begx == 0 && win->_maxx == columns - 1
 	    && !memory_above && !memory_below
 	    && ((((win->_begy+top == 0 && win->_begy+bottom == lines - 1)
 		  || change_scroll_region)
