@@ -857,7 +857,8 @@ my_attach(device_t dev)
 
 	}
 	bzero(sc, sizeof(struct my_softc));
-	mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	MY_LOCK(sc);
 
 	/*
