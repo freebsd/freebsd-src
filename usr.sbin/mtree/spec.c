@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)spec.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: spec.c,v 1.7 1997/10/01 06:30:02 charnier Exp $";
+	"$Id: spec.c,v 1.8 1998/12/16 04:54:08 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <vis.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -143,10 +144,14 @@ noparent:		errx(1, "line %d: no parent node", lineno);
 		if ((centry = calloc(1, sizeof(NODE) + strlen(p))) == NULL)
 			errx(1, "calloc");
 		*centry = ginfo;
-		(void)strcpy(centry->name, p);
 #define	MAGIC	"?*["
 		if (strpbrk(p, MAGIC))
 			centry->flags |= F_MAGIC;
+		if (strunvis(centry->name, p) == -1) {
+			warnx("filename %s is ill-encoded and literally used",
+			    p);
+			strcpy(centry->name, p);
+		}
 		set(NULL, centry);
 
 		if (!root) {
