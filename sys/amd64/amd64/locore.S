@@ -795,7 +795,7 @@ map_read_write:
 /* Map ISA hole */
 	movl	$ISA_HOLE_START, %eax
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
-	fillkptphys($PG_RW|PG_N)
+	fillkptphys($PG_RW)
 
 /* Map proc0s UPAGES in the special page table for this purpose ... */
 	movl	R(p0upa), %eax
