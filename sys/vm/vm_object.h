@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_object.h,v 1.2 1994/08/02 07:55:31 davidg Exp $
  */
 
 /*
@@ -98,6 +98,8 @@ struct vm_object {
 	struct vm_object	*shadow;	/* My shadow */
 	vm_offset_t		shadow_offset;	/* Offset in shadow */
 	TAILQ_ENTRY(vm_object)	cached_list;	/* for persistence */
+	TAILQ_ENTRY(vm_object)	reverse_shadow_list; /* chain of objects that are shadowed */
+	TAILQ_HEAD(rslist, vm_object) reverse_shadow_head;	/* objects that this is a shadow for */
 };
 /*
  * Flags
