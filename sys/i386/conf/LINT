@@ -1185,7 +1185,7 @@ device		wst
 
 
 #
-# Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
+# Standard floppy disk controllers: `fdc' and `fd'
 #
 device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 #
@@ -1193,11 +1193,6 @@ device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 # gotta turn it actually on by setting the variable fd_debug with DDB,
 # however.
 options 	FDC_DEBUG
-#
-# Activate this line instead of the fdc0 line above if you happen to
-# have an Insight floppy tape.  Probing them proved to be dangerous
-# for people with floppy disks only, so it's "hidden" behind a flag:
-#device fdc0 at isa? port IO_FD1 flags 1 irq 6 drq 2
 
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
