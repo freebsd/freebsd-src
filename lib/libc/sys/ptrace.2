@@ -1,4 +1,4 @@
-.\"	$Id: ptrace.2,v 1.4 1996/08/29 21:24:15 wosch Exp $
+.\"	$Id: ptrace.2,v 1.5 1996/09/23 22:22:40 wosch Exp $
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
@@ -201,15 +201,18 @@ it loads the traced process' floating-point registers from the
 pointed to by
 .Fa addr .
 .El
-.Sh ERRORS
+.Sh RETURN VALUES
 Some requests can cause
 .Fn ptrace
 to return
 .Li -1
 as a non-error value; to disambiguate,
 .Va errno
-can be set to 0 before the call and checked afterwards.  The possible
-errors are:
+can be set to 0 before the call and checked afterwards.
+.Sh ERRORS
+The
+.Fn ptrace
+function may fail if:
 .Bl -tag -width 4n
 .It Bq Er ESRCH
 .Bl -bullet -compact
