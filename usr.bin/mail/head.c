@@ -204,11 +204,11 @@ cmatch(cp, tp)
 	while (*cp != '\0' && *tp != '\0')
 		switch (*tp++) {
 		case 'a':
-			if (!islower(*cp++))
+			if (!islower((unsigned char)*cp++))
 				return (0);
 			break;
 		case 'A':
-			if (!isupper(*cp++))
+			if (!isupper((unsigned char)*cp++))
 				return (0);
 			break;
 		case ' ':
@@ -216,20 +216,20 @@ cmatch(cp, tp)
 				return (0);
 			break;
 		case '0':
-			if (!isdigit(*cp++))
+			if (!isdigit((unsigned char)*cp++))
 				return (0);
 			break;
 		case 'O':
-			if (*cp != ' ' && !isdigit(*cp))
+			if (*cp != ' ' && !isdigit((unsigned char)*cp))
 				return (0);
 			cp++;
 			break;
 		case 'p':
-			if (!ispunct(*cp++))
+			if (!ispunct((unsigned char)*cp++))
 				return (0);
 			break;
 		case 'P':
-			if (*cp != ' ' && !ispunct(*cp))
+			if (*cp != ' ' && !ispunct((unsigned char)*cp))
 				return (0);
 			cp++;
 			break;
