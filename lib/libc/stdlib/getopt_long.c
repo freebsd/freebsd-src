@@ -313,7 +313,11 @@ getopt_internal(int nargc, char * const *nargv, const char *options,
 		posixly_correct = (getenv("POSIXLY_CORRECT") != NULL);
 	if (posixly_correct || *options == '+')
 		flags &= ~FLAG_PERMUTE;
-	else if (*options == '-')
+	/*
+	 * Code "else if (*options == '-')" was here.
+	 * Try to be more GNU compatible, configure's use us!
+	 */
+	if (*options == '-')
 		flags |= FLAG_ALLARGS;
 	if (*options == '+' || *options == '-')
 		options++;
