@@ -1,5 +1,5 @@
 .\" from: krb_sendauth.3,v 4.1 89/01/23 11:10:58 jtkohl Exp $
-.\" $Id: krb_sendauth.3,v 1.1.1.1 1994/09/30 14:50:07 csgr Exp $
+.\" $Id: krb_sendauth.3,v 1.3 1995/07/18 16:41:03 mark Exp $
 .\" Copyright 1988 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -14,7 +14,7 @@ Kerberos routines for sending authentication via network stream sockets
 .nj
 .ft B
 #include <kerberosIV/krb.h>
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <netinet/in.h>
 .PP
 .fi
@@ -52,7 +52,7 @@ struct sockaddr_in *faddr, *laddr;
 AUTH_DAT *auth_data;
 char *filename;
 Key_schedule schedule;
-char *version;			
+char *version;
 .PP
 .ft B
 int krb_net_write(fd, buf, len)
@@ -113,7 +113,7 @@ version string that the server program can then match against
 its own version string.
 The
 .I version
-string can be up to KSEND_VNO_LEN (see 
+string can be up to KSEND_VNO_LEN (see
 .IR <krb.h> )
 characters in length.
 
@@ -187,7 +187,7 @@ function to retrieve the ticket from the Kerberos server.
 The
 .I ktext
 argument must point to an existing ticket and authenticator (such as
-would be created by 
+would be created by
 .IR krb_mk_req ),
 and the
 .IR service,
@@ -200,7 +200,7 @@ If called with
 .I options
 set as KOPT_DONT_CANON,
 .I krb_sendauth
-will not convert the service's instance to canonical form using 
+will not convert the service's instance to canonical form using
 .IR krb_get_phost (3).
 
 If you want to call
@@ -253,7 +253,7 @@ argument may be set to "*" if the caller wishes
 .I krb_mk_req
 to fill in the instance used (note that there must be space in the
 .I inst
-argument to hold a full instance name, see 
+argument to hold a full instance name, see
 .IR krb_mk_req (3)).
 
 The
