@@ -112,12 +112,8 @@ static int psycho_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void psycho_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static void psycho_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, int);
-static int psycho_dmamem_alloc_size(bus_dma_tag_t, bus_dma_tag_t, void **, int,
-    bus_dmamap_t *, bus_size_t size);
 static int psycho_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *);
-static void psycho_dmamem_free_size(bus_dma_tag_t, bus_dma_tag_t, void *,
-    bus_dmamap_t, bus_size_t size);
 static void psycho_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
     bus_dmamap_t);
 
@@ -501,9 +497,7 @@ psycho_attach(device_t dev)
 	sc->sc_dmat->dt_dmamap_load_uio = psycho_dmamap_load_uio;
 	sc->sc_dmat->dt_dmamap_unload = psycho_dmamap_unload;
 	sc->sc_dmat->dt_dmamap_sync = psycho_dmamap_sync;
-	sc->sc_dmat->dt_dmamem_alloc_size = psycho_dmamem_alloc_size;
 	sc->sc_dmat->dt_dmamem_alloc = psycho_dmamem_alloc;
-	sc->sc_dmat->dt_dmamem_free_size = psycho_dmamem_free_size;
 	sc->sc_dmat->dt_dmamem_free = psycho_dmamem_free;
 	/* XXX: register as root dma tag (kluge). */
 	sparc64_root_dma_tag = sc->sc_dmat;
@@ -1320,17 +1314,6 @@ psycho_alloc_bus_tag(struct psycho_softc *sc, int type)
  * hooks into the iommu dvma calls.
  */
 static int
-psycho_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
-    int flags, bus_dmamap_t *mapp, bus_size_t size)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	return (iommu_dvmamem_alloc_size(pdmat, ddmat, sc->sc_is, vaddr, flags,
-	    mapp, size));
-}
-
-static int
 psycho_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
     int flags, bus_dmamap_t *mapp)
 {
@@ -1339,16 +1322,6 @@ psycho_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 	sc = (struct psycho_softc *)pdmat->dt_cookie;
 	return (iommu_dvmamem_alloc(pdmat, ddmat, sc->sc_is, vaddr, flags,
 	    mapp));
-}
-
-static void
-psycho_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
-    bus_dmamap_t map, bus_size_t size)
-{
-	struct psycho_softc *sc;
-
-	sc = (struct psycho_softc *)pdmat->dt_cookie;
-	iommu_dvmamem_free_size(pdmat, ddmat, sc->sc_is, vaddr, map, size);
 }
 
 static void

@@ -243,12 +243,8 @@ static int sbus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     struct uio *, bus_dmamap_callback2_t *, void *, int);
 static void sbus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static void sbus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t, int);
-static int sbus_dmamem_alloc_size(bus_dma_tag_t, bus_dma_tag_t, void **, int,
-    bus_dmamap_t *, bus_size_t size);
 static int sbus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *);
-static void sbus_dmamem_free_size(bus_dma_tag_t, bus_dma_tag_t, void *,
-    bus_dmamap_t, bus_size_t);
 static void sbus_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
     bus_dmamap_t);
 
@@ -352,9 +348,7 @@ sbus_probe(device_t dev)
 	sc->sc_cdmatag->dt_dmamap_load_uio = sbus_dmamap_load_uio;
 	sc->sc_cdmatag->dt_dmamap_unload = sbus_dmamap_unload;
 	sc->sc_cdmatag->dt_dmamap_sync = sbus_dmamap_sync;
-	sc->sc_cdmatag->dt_dmamem_alloc_size = sbus_dmamem_alloc_size;
 	sc->sc_cdmatag->dt_dmamem_alloc = sbus_dmamem_alloc;
-	sc->sc_cdmatag->dt_dmamem_free_size = sbus_dmamem_free_size;
 	sc->sc_cdmatag->dt_dmamem_free = sbus_dmamem_free;
 	/* XXX: register as root dma tag (kluge). */
 	sparc64_root_dma_tag = sc->sc_cdmatag;
@@ -993,16 +987,6 @@ sbus_dmamap_sync(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 }
 
 static int
-sbus_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
-    int flags, bus_dmamap_t *mapp, bus_size_t size)
-{
-	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
-
-	return (iommu_dvmamem_alloc_size(pdmat, ddmat, &sc->sc_is, vaddr, flags,
-		    mapp, size));
-}
-
-static int
 sbus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
     int flags, bus_dmamap_t *mapp)
 {
@@ -1010,15 +994,6 @@ sbus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 
 	return (iommu_dvmamem_alloc(pdmat, ddmat, &sc->sc_is, vaddr, flags,
 		    mapp));
-}
-
-static void
-sbus_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
-    bus_dmamap_t map, bus_size_t size)
-{
-	struct sbus_softc *sc = (struct sbus_softc *)pdmat->dt_cookie;
-
-	iommu_dvmamem_free_size(pdmat, ddmat, &sc->sc_is, vaddr, map, size);
 }
 
 static void
