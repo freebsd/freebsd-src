@@ -124,7 +124,7 @@ g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len)
 CTASSERT(NLOCK_FIELDS <= 16);
 
 static void
-g_bde_shuffle_lock(struct g_bde_softc *sc, int *buf)
+g_bde_shuffle_lock(u_char *sha2, int *buf)
 {
 	int j, k, l;
 	u_int u;
@@ -134,9 +134,9 @@ g_bde_shuffle_lock(struct g_bde_softc *sc, int *buf)
 		buf[u] = u;
 
 	/* Then mix it all up */
-	for(u = 48; u < sizeof(sc->sha2); u++) {
-		j = sc->sha2[u] % NLOCK_FIELDS;
-		k = (sc->sha2[u] / NLOCK_FIELDS) % NLOCK_FIELDS;
+	for(u = 48; u < SHA512_DIGEST_LENGTH; u++) {
+		j = sha2[u] % NLOCK_FIELDS;
+		k = (sha2[u] / NLOCK_FIELDS) % NLOCK_FIELDS;
 		l = buf[j];
 		buf[j] = buf[k];
 		buf[k] = l;
@@ -144,7 +144,7 @@ g_bde_shuffle_lock(struct g_bde_softc *sc, int *buf)
 }
 
 int
-g_bde_encode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
+g_bde_encode_lock(u_char *sha2, struct g_bde_key *gl, u_char *ptr)
 {
 	int shuffle[NLOCK_FIELDS];
 	u_char *hash, *p;
@@ -153,7 +153,7 @@ g_bde_encode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 
 	p = ptr;
 	hash = NULL;
-	g_bde_shuffle_lock(sc, shuffle);
+	g_bde_shuffle_lock(sha2, shuffle);
 	for (i = 0; i < NLOCK_FIELDS; i++) {
 		switch(shuffle[i]) {
 		case 0:
@@ -223,7 +223,7 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 	int i;
 
 	p = ptr;
-	g_bde_shuffle_lock(sc, shuffle);
+	g_bde_shuffle_lock(sc->sha2, shuffle);
 	for (i = 0; i < NLOCK_FIELDS; i++) {
 		switch(shuffle[i]) {
 		case 0:
@@ -303,16 +303,16 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
  */
 
 int
-g_bde_keyloc_encrypt(struct g_bde_softc *sc, uint64_t *input, void *output)
+g_bde_keyloc_encrypt(u_char *sha2, uint64_t v0, uint64_t v1, void *output)
 {
 	u_char buf[16];
 	keyInstance ki;
 	cipherInstance ci;
 
-	le64enc(buf, input[0]);
-	le64enc(buf + 8, input[1]);
+	le64enc(buf, v0);
+	le64enc(buf + 8, v1);
 	AES_init(&ci);
-	AES_makekey(&ki, DIR_ENCRYPT, G_BDE_KKEYBITS, sc->sha2 + 0);
+	AES_makekey(&ki, DIR_ENCRYPT, G_BDE_KKEYBITS, sha2 + 0);
 	AES_encrypt(&ci, &ki, buf, output, sizeof buf);
 	bzero(buf, sizeof buf);
 	bzero(&ci, sizeof ci);
@@ -321,21 +321,20 @@ g_bde_keyloc_encrypt(struct g_bde_softc *sc, uint64_t *input, void *output)
 }
 
 int
-g_bde_keyloc_decrypt(struct g_bde_softc *sc, void *input, uint64_t *output)
+g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output)
 {
 	keyInstance ki;
 	cipherInstance ci;
 	u_char buf[16];
 
 	AES_init(&ci);
-	AES_makekey(&ki, DIR_DECRYPT, G_BDE_KKEYBITS, sc->sha2 + 0);
+	AES_makekey(&ki, DIR_DECRYPT, G_BDE_KKEYBITS, sha2 + 0);
 	AES_decrypt(&ci, &ki, input, buf, sizeof buf);
-	output[0] = le64dec(buf);
-	output[1] = le64dec(buf + 8);
+	*output = le64dec(buf);
 	bzero(buf, sizeof buf);
 	bzero(&ci, sizeof ci);
 	bzero(&ki, sizeof ki);
-	return (0);
+	return(0);
 }
 
 /*
@@ -356,7 +355,7 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 {
 	u_char *buf, *q;
 	struct g_bde_key *gl;
-	uint64_t off[2];
+	uint64_t off, q1;
 	int error, m, i;
 	keyInstance ki;
 	cipherInstance ci;
@@ -364,42 +363,40 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	gl = &sc->key;
 
 	/* Try to decrypt the metadata */
-	error = g_bde_keyloc_decrypt(sc, meta, off);
+	error = g_bde_keyloc_decrypt(sc->sha2, meta, &off);
 	if (error)
-		return(error);
-
-	/* loose the random part */
-	off[1] = 0;
+		return (error);
 
 	/* If it points ito thin blue air, forget it */
-	if (off[0] + G_BDE_LOCKSIZE > (uint64_t)mediasize) {
-		off[0] = 0;
+	if (off + G_BDE_LOCKSIZE > (uint64_t)mediasize) {
+		off = 0;
 		return (EINVAL);
 	}
 
 	/* The lock data may span two physical sectors. */
 
 	m = 1;
-	if (off[0] % sectorsize > sectorsize - G_BDE_LOCKSIZE)
+	if (off % sectorsize > sectorsize - G_BDE_LOCKSIZE)
 		m++;
 
 	/* Read the suspected sector(s) */
 	buf = g_read_data(sc->consumer,
-		off[0] - (off[0] % sectorsize),
+		off - (off % sectorsize),
 		m * sectorsize, &error);
 	if (buf == NULL) {
-		off[0] = 0;
+		off = 0;
 		return(error);
 	}
 
 	/* Find the byte-offset of the stored byte sequence */
-	q = buf + off[0] % sectorsize;
+	q = buf + off % sectorsize;
 
 	/* If it is all zero, somebody nuked our lock sector */
+	q1 = 0;
 	for (i = 0; i < G_BDE_LOCKSIZE; i++)
-		off[1] += q[i];
-	if (off[1] == 0) {
-		off[0] = 0;
+		q1 += q[i];
+	if (q1 == 0) {
+		off = 0;
 		g_free(buf);
 		return (ESRCH);
 	}
@@ -413,10 +410,10 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	i = g_bde_decode_lock(sc, gl, q);
 	q = NULL;
 	if (i < 0) {
-		off[0] = 0;
+		off = 0;
 		return (EDOOFUS);	/* Programming error */
 	} else if (i > 0) {
-		off[0] = 0;
+		off = 0;
 		return (ENOTDIR);	/* Hash didn't match */
 	}
 
@@ -424,10 +421,10 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	g_free(buf);
 
 	/* If the masterkey is all zeros, user destroyed it */
-	off[1] = 0;
+	q1 = 0;
 	for (i = 0; i < (int)sizeof(gl->mkey); i++)
-		off[1] += gl->mkey[i];
-	if (off[1] == 0)
+		q1 += gl->mkey[i];
+	if (q1 == 0)
 		return (ENOENT);
 
 	/* If we have an unsorted lock-sequence, refuse */
@@ -438,9 +435,9 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 
 	/* Finally, find out which key was used by matching the byte offset */
 	for (i = 0; i < G_BDE_MAXKEYS; i++)
-		if (nkey != NULL && off[0] == gl->lsector[i])
+		if (nkey != NULL && off == gl->lsector[i])
 			*nkey = i;
-	off[0] = 0;
+	off = 0;
 	return (0);
 }
 
