@@ -353,6 +353,12 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	if (bp == 0)
 		return tbp;
 
+	/*
+	 * We are synthesizing a buffer out of vm_page_t's, but
+	 * if the block size is not page aligned then the starting
+	 * address may not be either.  Inherit the b_data offset
+	 * from the original buffer.
+	 */
 	bp->b_data = (char *)((vm_offset_t)bp->b_data |
 	    ((vm_offset_t)tbp->b_data & PAGE_MASK));
 	bp->b_flags = B_ASYNC | B_CLUSTER | B_VMIO;
@@ -374,17 +380,24 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
 			if ((bp->b_npages * PAGE_SIZE) +
-				round_page(size) > vp->v_mount->mnt_iosize_max)
+			    round_page(size) > vp->v_mount->mnt_iosize_max) {
 				break;
+			}
 
+			/*
+			 * Shortcut some checks and try to avoid buffers that
+			 * would block in the lock.  The same checks have to
+			 * be made again after we officially get the buffer.
+			 */
 			if ((tbp = incore(vp, lbn + i)) != NULL) {
 				if (BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT))
 					break;
 				BUF_UNLOCK(tbp);
 
-				for (j = 0; j < tbp->b_npages; j++)
+				for (j = 0; j < tbp->b_npages; j++) {
 					if (tbp->b_pages[j]->valid)
 						break;
+				}
 				
 				if (j != tbp->b_npages)
 					break;
@@ -396,10 +409,11 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 
 			/*
-			 * If the buffer is already fully valid or locked
-			 * (which could also mean that a background write is
-			 * in progress), or the buffer is not backed by VMIO,
-			 * stop.
+			 * Stop scanning if the buffer is fully valid
+			 * (marked B_CACHE), or locked (may be doing a
+			 * background write), or if the buffer is not
+			 * VMIO backed.  The clustering code can only deal
+			 * with VMIO-backed buffers.
 			 */
 			if ((tbp->b_flags & (B_CACHE|B_LOCKED)) ||
 				(tbp->b_flags & B_VMIO) == 0) {
@@ -407,18 +421,33 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 
+			/*
+			 * The buffer must be completely invalid in order to
+			 * take part in the cluster.  If it is partially valid
+			 * then we stop.
+			 */
 			for (j = 0;j < tbp->b_npages; j++) {
 				if (tbp->b_pages[j]->valid)
 					break;
 			}
-
 			if (j != tbp->b_npages) {
 				bqrelse(tbp);
 				break;
 			}
 
+			/*
+			 * Set a read-ahead mark as appropriate
+			 */
 			if ((fbp && (i == 1)) || (i == (run - 1)))
 				tbp->b_flags |= B_RAM;
+
+			/*
+			 * Set the buffer up for an async read (XXX should
+			 * we do this only if we do not wind up brelse()ing?).
+			 * Set the block number if it isn't set, otherwise
+			 * if it is make sure it matches the block number we
+			 * expect.
+			 */
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_READ;
 			if (tbp->b_blkno == tbp->b_lblkno) {
@@ -452,10 +481,15 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		bp->b_bufsize += tbp->b_bufsize;
 	}
 
-	for(j=0;j<bp->b_npages;j++) {
+	/*
+	 * Fully valid pages in the cluster are already good and do not need
+	 * to be re-read from disk.  Replace the page with bogus_page
+	 */
+	for (j = 0; j < bp->b_npages; j++) {
 		if ((bp->b_pages[j]->valid & VM_PAGE_BITS_ALL) ==
-			VM_PAGE_BITS_ALL)
+		    VM_PAGE_BITS_ALL) {
 			bp->b_pages[j] = bogus_page;
+		}
 	}
 	if (bp->b_bufsize > bp->b_kvasize)
 		panic("cluster_rbuild: b_bufsize(%ld) > b_kvasize(%d)\n",
@@ -780,6 +814,13 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_blkno = tbp->b_blkno;
 		bp->b_lblkno = tbp->b_lblkno;
 		bp->b_offset = tbp->b_offset;
+
+		/*
+		 * We are synthesizing a buffer out of vm_page_t's, but
+		 * if the block size is not page aligned then the starting
+		 * address may not be either.  Inherit the b_data offset
+		 * from the original buffer.
+		 */
 		bp->b_data = (char *)((vm_offset_t)bp->b_data |
 		    ((vm_offset_t)tbp->b_data & PAGE_MASK));
 		bp->b_flags |= B_CLUSTER |
@@ -849,7 +890,11 @@ cluster_wbuild(vp, size, start_lbn, len)
 				buf_start(tbp);
 			/*
 			 * If the IO is via the VM then we do some
-			 * special VM hackery. (yuck)
+			 * special VM hackery (yuck).  Since the buffer's
+			 * block size may not be page-aligned it is possible
+			 * for a page to be shared between two buffers.  We
+			 * have to get rid of the duplication when building
+			 * the cluster.
 			 */
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
