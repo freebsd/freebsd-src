@@ -101,6 +101,8 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
 
@@ -1995,6 +1997,11 @@ static int dc_attach(dev)
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->dc_stat_ch);
 
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
 #ifdef SRM_MEDIA
         sc->dc_srm_media = 0;
 
@@ -2375,19 +2382,25 @@ static void dc_rxeof(sc)
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
 		 * it should simply get re-used next time this descriptor
-	 	 * comes up in the ring.
+		 * comes up in the ring.  However, don't report long
+		 * frames as errors since they could be vlans
 		 */
-		if (rxstat & DC_RXSTAT_RXERR) {
-			ifp->if_ierrors++;
-			if (rxstat & DC_RXSTAT_COLLSEEN)
-				ifp->if_collisions++;
-			dc_newbuf(sc, i, m);
-			if (rxstat & DC_RXSTAT_CRCERR) {
-				DC_INC(i, DC_RX_LIST_CNT);
-				continue;
-			} else {
-				dc_init(sc);
-				return;
+		if ((rxstat & DC_RXSTAT_RXERR)){ 
+			if (!(rxstat & DC_RXSTAT_GIANT) ||
+			    (rxstat & (DC_RXSTAT_CRCERR | DC_RXSTAT_DRIBBLE |
+				       DC_RXSTAT_MIIERE | DC_RXSTAT_COLLSEEN |
+				       DC_RXSTAT_RUNT   | DC_RXSTAT_DE))) {
+				ifp->if_ierrors++;
+				if (rxstat & DC_RXSTAT_COLLSEEN)
+					ifp->if_collisions++;
+				dc_newbuf(sc, i, m);
+				if (rxstat & DC_RXSTAT_CRCERR) {
+					DC_INC(i, DC_RX_LIST_CNT);
+					continue;
+				} else {
+					dc_init(sc);
+					return;
+				}
 			}
 		}
 
