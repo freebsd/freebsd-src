@@ -35,9 +35,9 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.4 1999/02/14 09:44:59 hm Exp $
+ *	$Id: i4b_isic_pcmcia.c,v 1.4 1999/03/07 16:08:16 hm Exp $
  *
- *      last edit-date: [Sun Feb 14 10:27:42 1999]
+ *      last edit-date: [Tue Mar 16 10:36:56 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -50,10 +50,8 @@
 #if (NISIC > 0) && (NCARD > 0)
  
 #include "apm.h"
+#include <sys/types.h>
 #include <sys/select.h>
-#include <pccard/card.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
 #include <sys/param.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
@@ -70,6 +68,10 @@
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
 
+#include <pccard/cardinfo.h>
+#include <pccard/driver.h>
+#include <pccard/slot.h>
+
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
@@ -81,6 +83,14 @@
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
+
+#ifdef __FreeBSD__
+
+#if !(defined(__FreeBSD_version)) || (defined(__FreeBSD_version) && __FreeBSD_version >= 300006)
+void isicintr ( int unit );
+#endif
+
+#endif
  
 /*  
  * PC-Card (PCMCIA) specific code.
@@ -110,7 +120,6 @@ static int isic_pccard_init(devi)
 struct pccard_devinfo *devi;
 {   
     	struct isa_device *is = &devi->isahd;
-	struct isic_softc *sc = &isic_sc[is->id_unit];
 
 	if ((1 << is->id_unit) & opened)
 		return(EBUSY);
@@ -132,7 +141,9 @@ struct pccard_devinfo *devi;
 	/*
 	 * try to attach the PCMCIA card as a normal A1 card
 	 */
-	isicattach(is);
+
+	isic_realattach(is, 0);
+
 	return(0);
 }
 
