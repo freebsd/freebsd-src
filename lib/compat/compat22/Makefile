@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1999/05/08 17:53:43 obrien Exp $
+# $Id: Makefile,v 1.3 1999/05/21 18:37:33 obrien Exp $
 
 DISTRIBUTION=	compat22
 
@@ -12,16 +12,18 @@ LIBS=	libalias.so.2.4 libc.so.3.1 libc_r.so.3.0 libcalendar.so.2.0 \
 	libtelnet.so.2.0 libtermcap.so.2.1 libutil.so.2.2 libvgl.so.1.0 \
 	libxpg4.so.2.0 libz.so.2.0
 
-CLEANFILES+=	${LIBS}
+CLEANFILES+=	${LIBS} ld.so
 
-all:	${LIBS}
+all:	${LIBS} ld.so
 
-.for lib in ${LIBS}
+.for lib in ${LIBS} ld.so
 ${lib}:	${lib}.gz.uu
 	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
 .endfor
 
 beforeinstall:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
+		${DESTDIR}/usr/libexec
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}/aout
 	@${ECHO} "libcrypt.so.2.0 -> libscrypt.so.2.0" ; \
