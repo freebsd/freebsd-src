@@ -242,6 +242,57 @@ _pq_first(pq_queue_t *pq)
 	return (pthread);
 }
 
+/*
+ * Select a thread which is allowed to run by debugger, we probably
+ * should merge the function into _pq_first if that function is only
+ * used by scheduler to select a thread.
+ */
+pthread_t
+_pq_first_debug(pq_queue_t *pq)
+{
+	pq_list_t *pql, *pqlnext = NULL;
+	pthread_t pthread = NULL;
+
+	/*
+	 * Make some assertions when debugging is enabled:
+	 */
+	PQ_ASSERT_INACTIVE(pq, "_pq_first: pq_active");
+	PQ_SET_ACTIVE(pq);
+
+	for (pql = TAILQ_FIRST(&pq->pq_queue);
+	     pql != NULL && pthread == NULL; pql = pqlnext) {
+		if ((pthread = TAILQ_FIRST(&pql->pl_head)) == NULL) {
+			/*
+			 * The priority list is empty; remove the list
+			 * from the queue.
+			 */
+			pqlnext = TAILQ_NEXT(pql, pl_link);
+			TAILQ_REMOVE(&pq->pq_queue, pql, pl_link);
+
+			/* Mark the list as not being in the queue: */
+			pql->pl_queued = 0;
+		} else {
+			/*
+			 * note there may be a suspension event during this
+			 * test, If TMDF_DONOTRUNUSER is set after we tested it,
+			 * we will run the thread, this seems be a problem,
+			 * fortunatly, when we are being debugged, all context
+			 * switch will be done by kse_switchin, that is a
+			 * syscall, kse_switchin will check the flag again,
+			 * the thread will be returned via upcall, so next
+			 * time, UTS won't run the thread.
+			 */ 
+			while (pthread != NULL && !DBG_CAN_RUN(pthread)) {
+				pthread = TAILQ_NEXT(pthread, pqe);
+			}
+			if (pthread == NULL)
+				pqlnext = TAILQ_NEXT(pql, pl_link);
+		}
+	}
+
+	PQ_CLEAR_ACTIVE(pq);
+	return (pthread);
+}
 
 static void
 pq_insert_prio_list(pq_queue_t *pq, int prio)
