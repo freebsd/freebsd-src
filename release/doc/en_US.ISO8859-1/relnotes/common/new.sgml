@@ -2420,7 +2420,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       3.5.1-RELEASE. &merged;</para>
 
     <para>A <filename>compat4x</filename> distribution has been added
-      for compatibility with &os; 4-STABLE.</para>
+      for compatibility with &os; 4-STABLE.  It includes a subset of
+      the libraries distributed with &os; 4.7-RELEASE.</para>
 
     <para role="historic">&man.config.8; is now better about converting various
       warnings that should have been errors into actual fatal errors
@@ -2665,6 +2666,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.ftpd.8; now supports the <option>-W</option> option
       to disable logging FTP sessions to &man.wtmp.5;. &merged;</para>
+
+    <para>The &man.fwcontrol.8; utility has been added to help users
+      access and control the FireWire subsystem. &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.gdb.1; now supports hardware
       watchpoints (using the kernel's debug register + support that
@@ -3841,7 +3845,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>am-utils</application> has been updated to
 	6.0.7.</para>
 
-      <para>A 10 February 2002 snapshot of <application>awk</application> from Bell Labs (variously
+      <para>A 29 November 2002 snapshot of <application>awk</application> from Bell Labs (variously
 	known as <quote>BWK awk</quote> or <quote>The One True
 	AWK</quote>) has been imported.  It is available as
 	<command>awk</command> or
@@ -4066,7 +4070,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>CVS</title>
 
 	<para><application>cvs</application> has been updated to
-	  a snapshot of 1.11.2.1, as of 1 December 2002.</para>
+	  a snapshot of 1.11.2.1, as of 1 December 2002. &merged;</para>
 
 	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
