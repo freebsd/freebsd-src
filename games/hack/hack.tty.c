@@ -135,7 +135,7 @@ gettty(){
 settty(s) char *s; {
 	clear_screen();
 	end_screen();
-	if(s) printf(s);
+	if(s) printf("%s", s);
 	(void) fflush(stdout);
 	if(STTY(&inittyb) < 0)
 		perror("Hack (settty)");

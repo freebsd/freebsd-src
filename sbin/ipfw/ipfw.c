@@ -635,7 +635,7 @@ list(ac, av)
 		if (rulenum != 0 && rulenum != p->pipe_nr)
 			continue;
 		if (p->if_name[0] != '\0')
-		    sprintf(buf, p->if_name);
+		    sprintf(buf, "%s", p->if_name);
 		else if (b == 0)
 		    sprintf(buf, "unlimited");
 		else if (b >= 1000000)

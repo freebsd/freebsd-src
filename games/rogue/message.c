@@ -205,7 +205,7 @@ rgetchar()
 			break;
 #ifdef UNIX_BSD4_2
 		case '\032':
-			printf(CL);
+			printf("%s", CL);
 			fflush(stdout);
 			tstp();
 			break;
