@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.90 1996/06/05 05:23:59 wpaul Exp $
+#	$Id: Makefile,v 1.91 1996/06/17 19:49:17 wollman Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
@@ -17,13 +17,13 @@ SUBDIR+=IPXrouted
 
 .if   make(clean) || make(cleandir)
 SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol iostat \
-	kbdcontrol kbdmap lptcontrol mixer ncrcontrol qcamcontrol \
+	kbdcontrol kbdmap lptcontrol mixer moused ncrcontrol qcamcontrol \
 	rtprio sgsc sicontrol spkrtest stallion vidcontrol
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat
 .elif ${MACHINE} == "i386"
 SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol iostat \
-	kbdcontrol kbdmap lptcontrol mixer ncrcontrol qcamcontrol \
+	kbdcontrol kbdmap lptcontrol mixer moused ncrcontrol qcamcontrol \
 	rtprio sgsc sicontrol spkrtest stallion vidcontrol
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat
