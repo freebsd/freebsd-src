@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: apm
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="apm"
+rcvar=`set_rcvar`
+start_precmd="apm_precmd"
+command="/usr/sbin/${name}"
+command_args="-e enable"
+
+apm_precmd()
+{
+	case `${SYSCTL_N} hw.machine_arch` in
+	i386)
+		return 0
+		;;
+	esac
+	return 1
+}
+
+load_rc_config $name
+run_rc_command "$1"
