@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.9 1995/05/30 07:59:20 rgrimes Exp $
+ *	$Id: db_disasm.c,v 1.10 1995/10/29 15:29:48 phk Exp $
  */
 
 /*
@@ -88,7 +88,7 @@
 #define	X	33			/* extended FP op */
 #define	XA	34			/* for 'fstcw %ax' */
 
-static struct inst {
+struct inst {
 	char *	i_name;			/* name */
 	short	i_has_modrm;		/* has regmodrm byte */
 	short	i_size;			/* operand size */
@@ -100,7 +100,7 @@ static struct inst {
 #define	op2(x,y)	((x)|((y)<<8))
 #define	op3(x,y,z)	((x)|((y)<<8)|((z)<<16))
 
-static struct finst {
+struct finst {
 	char *	f_name;			/* name for memory instruction */
 	int	f_size;			/* size for memory instruction */
 	int	f_rrmode;		/* mode for rr instruction */
@@ -805,7 +805,7 @@ static struct inst	db_bad_inst =
 #define	sib_index(byte)	(((byte)>>3)&0x7)
 #define	sib_base(byte)	((byte)&0x7)
 
-static struct i_addr {
+struct i_addr {
 	int		is_reg;	/* if reg, reg number is in 'disp' */
 	int		disp;
 	char *		base;
@@ -850,6 +850,15 @@ static int db_lengths[] = {
 #define	get_value_inc(result, loc, size, is_signed) \
 	result = db_get_value((loc), (size), (is_signed)); \
 	(loc) += (size);
+
+static db_addr_t
+		db_disasm_esc __P((db_addr_t loc, int inst, int short_addr,
+				   int size, char *seg));
+static void	db_print_address __P((char *seg, int size,
+				      struct i_addr *addrp));
+static db_addr_t
+		db_read_address __P((db_addr_t loc, int short_addr,
+				     int regmodrm, struct i_addr *addrp));
 
 /*
  * Read address at location and return updated location.
