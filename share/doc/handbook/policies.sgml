@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.12 1997/03/30 09:55:11 obrien Exp $ -->
+<!-- $Id: policies.sgml,v 1.13 1997/04/03 01:07:38 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -127,7 +127,7 @@ is done, be sure to check in such utilities (as necessary) in the
 src/tools directory along with the port itself so that it is available
 to future maintainers.
 
-<p>In the src/contrib/tcl level directory, a file called README.FreeBSD
+<p>In the src/contrib/tcl level directory, a file called FREEBSD-upgrade
 should be added and it should states things like:
 
 <itemize>
@@ -138,8 +138,8 @@ should be added and it should states things like:
  <item> Perhaps an overview of the FreeBSD-specific changes that have been made.
 </itemize>
 
-<p>However, please do not import README.FreeBSD with the contributed source.  
-Rather you should ``cvs add README.FreeBSD ; cvs ci'' after the
+<p>However, please do not import FREEBSD-upgrade with the contributed source.  
+Rather you should ``cvs add FREEBSD-upgrade ; cvs ci'' after the
 initial import.  Example wording from ``src/contrib/cpio'' is below:
 
 <verb>This directory contains virgin sources of the original distribution files
