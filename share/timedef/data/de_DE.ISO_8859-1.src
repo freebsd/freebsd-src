@@ -1,4 +1,4 @@
-# $Id: de_DE.ISO_8859-1.src,v 1.2 1996/02/17 14:29:12 ache Exp $
+# $Id: de_DE.ISO_8859-1.src,v 1.3 1996/11/17 01:42:29 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -35,13 +35,13 @@ Dezember
 #
 # Short weekdays names
 # (padded with a space to conform with other languages)
- So
- Mo
- Di
- Mi
- Do
- Fr
- Sa
+So 
+Mo 
+Di 
+Mi 
+Do 
+Fr 
+Sa 
 #
 # Long weekdays names
 #
