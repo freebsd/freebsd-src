@@ -35,11 +35,21 @@ static const char rcsid[] =
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/stat.h>
 #define EXTERN
 #include "cardd.h"
 
 char   *config_file = "/etc/defaults/pccard.conf";
 static char *pid_file = "/var/run/pccardd.pid";
+
+/*
+ * pathname of UNIX-domain socket
+ */
+static char	*socket_name = "/var/tmp/.pccardd";
+static char	*sock = 0;
+static int	server_sock;
 
 /* SIGHUP signal handler */
 static void
@@ -49,6 +59,7 @@ restart(void)
 	bitstr_t bit_decl(mem_inuse, MEMBLKS);
 	int	irq_inuse[16];
 	int	i;
+	struct sockaddr_un sun;
 
 	bit_nclear(io_inuse, 0, IOPORTS-1);
 	bit_nclear(mem_inuse, 0, MEMBLKS-1);
@@ -98,6 +109,22 @@ restart(void)
 			pool_irq[i] = 0;
 		}
 	}
+	close(server_sock);
+	if ((server_sock = socket(PF_LOCAL, SOCK_DGRAM, 0)) < 0)
+		die("socket failed");
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	if (sock) {
+		socket_name = sock;
+	}
+	strcpy(sun.sun_path, socket_name);
+	slen = SUN_LEN(&sun);
+	(void)unlink(socket_name);
+	if (bind(server_sock, (struct sockaddr *) & sun, slen) < 0)
+		die("bind failed");
+	chown(socket_name, 0, 5);	/* XXX - root.operator */
+	chmod(socket_name, 0660);
+	set_socket(server_sock);
 }
 
 /* SIGTERM/SIGINT signal handler */
@@ -127,18 +154,20 @@ int doverbose = 0;
 int
 main(int argc, char *argv[])
 {
-	struct slot *slots, *sp;
+	struct slot *sp;
 	int count, dodebug = 0;
 	int delay = 0;
 	int irq_arg[16];
 	int irq_specified = 0;
 	int i;
+	struct sockaddr_un sun;
+#define	COM_OPTS	":dvf:s:i:z"
 
 	bzero(irq_arg, sizeof(irq_arg));
 	debug_level = 0;
 	pccard_init_sleep = 5000000;
 	cards = last_card = 0;
-	while ((count = getopt(argc, argv, ":dvf:i:z")) != -1) {
+	while ((count = getopt(argc, argv, COM_OPTS)) != -1) {
 		switch (count) {
 		case 'd':
 			setbuf(stdout, 0);
@@ -159,6 +188,9 @@ main(int argc, char *argv[])
 			}
 			irq_arg[i] = 1;
 			irq_specified = 1;
+			break;
+		case 's':
+			sock = optarg;
 			break;
 		case 'z':
 			delay = 1;
@@ -200,23 +232,44 @@ main(int argc, char *argv[])
 	logmsg("pccardd started", NULL);
 	write_pid();
 
+	if ((server_sock = socket(PF_LOCAL, SOCK_DGRAM, 0)) < 0)
+		die("socket failed");
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	if (sock) {
+		socket_name = sock;
+	}
+	strcpy(sun.sun_path, socket_name);
+	slen = SUN_LEN(&sun);
+	(void)unlink(socket_name);
+	if (bind(server_sock, (struct sockaddr *) & sun, slen) < 0)
+		die("bind failed");
+	chown(socket_name, 0, 5);	/* XXX - root.operator */
+	chmod(socket_name, 0660);
+	set_socket(server_sock);
+
 	(void)signal(SIGINT, dodebug ? term : SIG_IGN);
 	(void)signal(SIGTERM, term);
 	(void)signal(SIGHUP, (void (*)(int))restart);
 
 	for (;;) {
-		fd_set  mask;
-		FD_ZERO(&mask);
+		fd_set  rmask, emask;
+		FD_ZERO(&emask);
+		FD_ZERO(&rmask);
 		for (sp = slots; sp; sp = sp->next)
-			FD_SET(sp->fd, &mask);
-		count = select(32, 0, 0, &mask, 0);
+			FD_SET(sp->fd, &emask);
+		FD_SET(server_sock, &rmask);
+		count = select(32, &rmask, 0, &emask, 0);
 		if (count == -1) {
 			logerr("select");
 			continue;
 		}
-		if (count)
+		if (count) {
 			for (sp = slots; sp; sp = sp->next)
-				if (FD_ISSET(sp->fd, &mask))
+				if (FD_ISSET(sp->fd, &emask))
 					slot_change(sp);
+			if (FD_ISSET(server_sock, &rmask))
+				process_client();
+		}
 	}
 }
