@@ -57,14 +57,19 @@ static struct {
 	{ "noarch",		SF_ARCHIVED,	0 },
 	{ "noarchived",		SF_ARCHIVED,	0 },
 	{ "noschg",		SF_IMMUTABLE,	0 },
-	{ "nosimmutable",	SF_IMMUTABLE,	0 },
 	{ "noschange",		SF_IMMUTABLE,	0 },
+	{ "nosimmutable",	SF_IMMUTABLE,	0 },
+	{ "nosunlnk",		SF_NOUNLINK,	0 },
+	{ "nosunlink",		SF_NOUNLINK,	0 },
 	{ "nouappnd",		UF_APPEND,	0 },
 	{ "nouappend",		UF_APPEND,	0 },
 	{ "nouchg",		UF_IMMUTABLE,	0 },
 	{ "nouchange",		UF_IMMUTABLE,	0 },
 	{ "nouimmutable",	UF_IMMUTABLE,	0 },
-	{ "nodump",		UF_NODUMP,	1 }
+	{ "nodump",		UF_NODUMP,	1 },
+	{ "noopaque",		UF_OPAQUE,	0 },
+	{ "nouunlnk",		UF_NOUNLINK,	0 },
+	{ "nouunlink",		UF_NOUNLINK,	0 }
 };
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
