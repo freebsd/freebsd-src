@@ -31,9 +31,15 @@ AN	+1211-06900	America/Curacao
 AO	-0848+01314	Africa/Luanda
 AQ	-7750+16636	Antarctica/McMurdo	McMurdo Station, Ross Island
 AQ	-9000+00000	Antarctica/South_Pole	Amundsen-Scott Station, South Pole
-AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
+AQ	-6448-06406	Antarctica/Palmer	Palmer Station, Anvers Island
 AQ	-6736+06253	Antarctica/Mawson	Mawson Station, Holme Bay
-AR	-3436-05827	America/Buenos_Aires
+AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
+AR	-3436-05827	America/Buenos_Aires	E Argentina (BA, DF, SC, TF)
+AR	-3257-06040	America/Rosario	NE Argentina (SF, ER, CN, MN, CC, FM, LP, CH)
+AR	-3124-06411	America/Cordoba	W Argentina (CB, SA, TM, LR, SJ, SL, NQ, RN)
+AR	-2411-06518	America/Jujuy	Jujuy (JY)
+AR	-2828-06547	America/Catamarca	Catamarca (CT)
+AR	-3253-06849	America/Mendoza	Mendoza (MZ)
 AS	-1416-17042	Pacific/Pago_Pago
 AT	+4813+01620	Europe/Vienna
 AU	-3133+15905	Australia/Lord_Howe	Lord Howe Island
@@ -41,7 +47,8 @@ AU	-4253+14719	Australia/Hobart	Tasmania
 AU	-3749+14458	Australia/Melbourne	Victoria
 AU	-3352+15113	Australia/Sydney	New South Wales - most locations
 AU	-3157+14127	Australia/Broken_Hill	New South Wales - Broken Hill
-AU	-2728+15302	Australia/Brisbane	Queensland
+AU	-2728+15302	Australia/Brisbane	Queensland - most locations
+AU	-2016+14900	Australia/Lindeman	Queensland - Holiday Islands
 AU	-3455+13835	Australia/Adelaide	South Australia
 AU	-1228+13050	Australia/Darwin	Northern Territory
 AU	-3157+11551	Australia/Perth	Western Australia
@@ -59,9 +66,12 @@ BJ	+0629+00237	Africa/Porto-Novo
 BM	+3217-06446	Atlantic/Bermuda
 BN	+0456+11455	Asia/Brunei
 BO	-1630-06809	America/La_Paz
-BR	-0351-03225	America/Noronha	Atlantic islands
-BR	-2332-04637	America/Sao_Paulo	east Brazil
-BR	-0308-06001	America/Manaus	west Brazil
+BR	-0351-03225	America/Noronha	Fernando de Noronha
+BR	-0343-03830	America/Fortaleza	NE Brazil (AP, east PA, MA, PI, CE, RN, PR, PE)
+BR	-0940-03543	America/Maceio	ENE Brazil (AL, SE, TO)
+BR	-2332-04637	America/Sao_Paulo	S & SE Brazil (BA, GO, DF, MG, ES, RJ, SP, PR, SC, RS)
+BR	-1535-05605	America/Cuiaba	SW Brazil (MT, MS)
+BR	-0308-06001	America/Manaus	NW Brazil (RR, west PA, AM, RO)
 BR	-0934-06731	America/Porto_Acre	Acre
 BS	+2505-07721	America/Nassau
 BT	+2728+08939	Asia/Thimbu
@@ -69,8 +79,9 @@ BW	-2545+02555	Africa/Gaborone
 BY	+5354+02734	Europe/Minsk
 BZ	+1730-08812	America/Belize
 CA	+4734-05243	America/St_Johns	Newfoundland Island
-CA	+4439-06336	America/Halifax	Atlantic Time - Nova Scotia (most locations), New Brunswick, Labrador & PEI
+CA	+4439-06336	America/Halifax	Atlantic Time - Nova Scotia (most places), NB, W Labrador, E Quebec & PEI
 CA	+4612-05957	America/Glace_Bay	Atlantic Time - Nova Scotia - places that did not observe DST 1966-1971
+CA	+5320-06025	America/Goose_Bay	Atlantic Time - E Labrador
 CA	+6608-06544	America/Pangnirtung	Atlantic Time - Northwest Territories
 CA	+4531-07334	America/Montreal	Eastern Time - Ontario & Quebec - most locations
 CA	+4901-08816	America/Nipigon	Eastern Time - Ontario & Quebec - places that did not observe DST 1967-1973
@@ -189,7 +200,8 @@ KR	+3733+12658	Asia/Seoul
 KW	+2920+04759	Asia/Kuwait
 KY	+1918-08123	America/Cayman
 KZ	+4315+07657	Asia/Alma-Ata	east Kazakhstan
-KZ	+5016+07302	Asia/Aktau	west Kazakhstan
+KZ	+5017+05710	Asia/Aqtobe	central Kazakhstan
+KZ	+4431+05016	Asia/Aqtau	west Kazakhstan
 LA	+1758+10236	Asia/Vientiane
 LB	+3353+03530	Asia/Beirut
 LC	+1401-06100	America/St_Lucia
@@ -262,15 +274,16 @@ PY	-2516-05740	America/Asuncion
 QA	+2517+05132	Asia/Qatar
 RE	-2052+05528	Indian/Reunion
 RO	+4426+02606	Europe/Bucharest
+RU	+5443+02030	Europe/Kaliningrad	Moscow-01 - Kaliningrad
 RU	+5545+03735	Europe/Moscow	Moscow+00 - west Russia
-RU	+5312+05009	Europe/Kuybyshev	Moscow+01 - Caspian Sea
+RU	+5312+05009	Europe/Samara	Moscow+01 - Caspian Sea
 RU	+5651+06036	Asia/Yekaterinburg	Moscow+02 - Urals
 RU	+5500+07324	Asia/Omsk	Moscow+03 - west Siberia
 RU	+5502+08255	Asia/Novosibirsk	Moscow+03 - Novosibirsk
 RU	+5601+09250	Asia/Krasnoyarsk	Moscow+04 - Yenisei River
-RU	+5216+10420	Asia/Irkutsk	Moscow+05 - Irkutsk
+RU	+5216+10420	Asia/Irkutsk	Moscow+05 - Lake Baikal
 RU	+6200+12940	Asia/Yakutsk	Moscow+06 - Lena River
-RU	+4310+13156	Asia/Vladivostok	Moscow+07 - Vladivostok
+RU	+4310+13156	Asia/Vladivostok	Moscow+07 - Amur River
 RU	+5934+15048	Asia/Magadan	Moscow+08 - Magadan & Sakhalin
 RU	+5301+15839	Asia/Kamchatka	Moscow+09 - Kamchatka
 RU	+6445+17729	Asia/Anadyr	Moscow+10 - Bering Sea
