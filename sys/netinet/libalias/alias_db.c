@@ -437,7 +437,7 @@ ShowAliasStats(void)
 {
 /* Used for debugging */
 
-   if (packetAliasMode & PKT_ALIAS_LOG)
+   if (monitorFile)
    {
       fprintf(monitorFile, "icmp=%d, udp=%d, tcp=%d, frag_id=%d frag_ptr=%d",
               icmpLinkCount,
@@ -1837,8 +1837,10 @@ InitPacketAliasLog(void)
 static void
 UninitPacketAliasLog(void)
 {
-    if( monitorFile )
+    if (monitorFile) {
         fclose(monitorFile);
+        monitorFile = NULL;
+    }
     packetAliasMode &= ~PKT_ALIAS_LOG;
 }
 
