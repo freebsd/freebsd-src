@@ -45,53 +45,16 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
-Added driver support for fast ethernet adapters based on the
-RealTek 8129/8139 and Accton MPX 5030/5038 chips, including the
-SMC EZ Card 10/100 PCI 1211-TX.
-
-Added driver support for Lite-On PNIC-based fast ethernet cards
-including the LinkSys LNE100TX, NetGear FA310TX Rev. D1 and
-Matrox FastNIC 10/100.
-
-Added driver support for fast ethernet adapters based on the 
-Macronix 98713, 98713A, 98715, 98715A and 98725 chips.
-
-Added driver support for fast ethernet adapters based on the
-Winbond W89C840F chip.
-
-Added driver support for fast ethernet adapters based on the
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" chips.
-
-Added driver support for pocket ethernet adapters based on the
-RealTek RTL 8002 chip.
-
-Added driver support for fast ethernet adapters based on the
-ASIX Electronics AX88140A chip.
-
 Added driver support for PCI gigabit ethernet adapters based on
 the Alteon Networks Tigon 1 and Tigon 2 chipsets, including the
 Alteon AceNIC, 3Com 3c985 and Netgear GA620.
 
-Integrated isdn4bsd from the isdn4bsd project group into the
-regular system.
-
-System console driver (sc0) now broken into individual stand-alone
-modules, partly in preparation for USB keyboards, mice, etc.
-
-Phillips I2C/SMBUS support.
-
-Initial support for USB devices (some keyboards, mice).
-
-The lpt driver is now deprecated. Please use ppbus with the ppc driver
-instead (see the ppc(4) and ppbus(4) man pages for details). If you are
-using the 'nlpt' driver in your kernel configuration file, you need to
-rename 'nlpt' to 'lpt'.
+Support for USB devices further improved.
 
 Support has been added for direct access to NTFS filesystems.
 
 Support has been added for Joliet extensions on ISO 9660 filesystems.
 Only iso8859-1 characters (latin-1) are supported at this time, though.
-
 
 There have been a couple of kernel changes that will break the binary
 interface for clients of the CAM passthrough interface or the devstat(9)
@@ -103,33 +66,15 @@ require that programs that use those two interfaces be recompiled.  Ports
 that use the CAM interface include xmcd, tosha, SANE, cdrecord and cdda2wav.
 Ports that use the devstat interface include xsysinfo and xperfmon.
 
-
 1.2. SECURITY FIXES
 -------------------
-See ftp://ftp.freebsd.org/pub/FreeBSD/CERT/ for details:
-  CERT Advisory CA-98-13-tcp-denial-of-service closed.
-  FreeBSD-SA-98:08 (IP fragmentation denial of service) closed.
-
-KerberosIV more fully supported.
-
 
 1.3. USERLAND CHANGES
 ---------------------
-When using ipfw(8) with the syntax of the first synopsis line from the
-man page (i. e., with a rules file), it can now optionally be run through
-a preprocessor (m4, cpp) so it's possible to use symbolic names and other
-constructs that make maintenance easier.
-
-Support for PAM (Pluggable Authentication Modules) including
-modules for radius, TACACS, S/Key, Kerberos, Unix (passwd) and
-other authentication methods.
-
 The Internet Software Consortium's DHCP client has been added to the 
 base system.
  
 Sendmail upgraded to version 8.9.3.
-
-AMD, texinfo, global and many other various utilities updated.
 
 Tar now supports compressing via bzip2 with the new
 -y/--bzip2/--bunzip2 flags.
@@ -153,6 +98,9 @@ controllers.
 
 Systat, vmstat, and iostat now print out statistics in a more "interesting"
 order based on "importance" of the device vs. the probe order.
+
+And quite a number of bugs, both in the user and kernel, fixed as
+a result of user feedback for 3.1-RELEASE.
 
 
 2. Supported Configurations
