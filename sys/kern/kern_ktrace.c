@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.24 1998/11/10 09:16:29 peter Exp $
+ * $Id: kern_ktrace.c,v 1.25 1998/12/10 01:47:41 rvb Exp $
  */
 
 #include "opt_ktrace.h"
@@ -515,6 +515,8 @@ ktrcanset(callp, targetp)
 	register struct pcred *caller = callp->p_cred;
 	register struct pcred *target = targetp->p_cred;
 
+	if (!PRISON_CHECK(callp, targetp))
+		return (0);
 	if ((caller->pc_ucred->cr_uid == target->p_ruid &&
 	     target->p_ruid == target->p_svuid &&
 	     caller->p_rgid == target->p_rgid &&	/* XXX */

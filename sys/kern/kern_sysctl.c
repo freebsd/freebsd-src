@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.86 1999/03/30 09:00:45 phk Exp $
+ * $Id: kern_sysctl.c,v 1.87 1999/04/27 11:16:05 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -764,7 +764,8 @@ found:
 	/* Most likely only root can write */
 	if (!(oid->oid_kind & CTLFLAG_ANYBODY) &&
 	    req->newptr && req->p &&
-	    (i = suser(req->p)))
+	    (i = suser_xxx(0, req->p, 
+	    (oid->oid_kind & CTLFLAG_PRISON) ? PRISON_ROOT : 0)))
 		return (i);
 
 	if (!oid->oid_handler)

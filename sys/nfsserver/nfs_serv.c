@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.73 1999/02/16 10:49:53 dfr Exp $
+ * $Id: nfs_serv.c,v 1.74 1999/04/27 11:17:49 phk Exp $
  */
 
 /*
@@ -1445,7 +1445,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 			if (vap->va_type == VCHR && rdev == 0xffffffff)
 				vap->va_type = VFIFO;
 			if (vap->va_type != VFIFO &&
-			    (error = suser_xxx(cred, (u_short *)0))) {
+			    (error = suser_xxx(cred, 0, 0))) {
 				vrele(nd.ni_startdir);
 				zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
 				VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
@@ -1642,7 +1642,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		if (!error)
 			zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
 	} else {
-		if (vtyp != VFIFO && (error = suser_xxx(cred, (u_short *)0))) {
+		if (vtyp != VFIFO && (error = suser_xxx(cred, 0, 0))) {
 			vrele(nd.ni_startdir);
 			zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
 			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.46 1999/04/27 11:16:02 phk Exp $
+ * $Id: kern_resource.c,v 1.47 1999/04/27 12:21:07 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -387,7 +387,7 @@ dosetrlimit(p, which, limp)
 
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
-		if ((error = suser(p)))
+		if ((error = suser_xxx(0, p, PRISON_ROOT)))
 			return (error);
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
