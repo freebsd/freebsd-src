@@ -62,14 +62,14 @@ from a file descriptor.
 is a non-portable form of
 .Fn acl_get_fd
 that allows the retrieval of any type of ACL from a file descriptor.
-
+.Pp
 This function may cause memory to be allocated.  The caller should free
 any releasable memory, when the new ACL is no longer required, by calling
 .Xr acl_free 3
 with the
 .Va (void *)acl_t
 as an argument.
-
+.Pp
 The ACL in the working storage is an independent copy of the ACL associated
 with the object referred to by
 .Va fd .

@@ -94,7 +94,7 @@ An atom followed by
 .Ql \&+
 matches a sequence of 1 or more matches of the atom.
 An atom followed by
-.Ql \&?
+.Ql ?\&
 matches a sequence of 0 or 1 matches of the atom.
 .Pp
 A
@@ -146,7 +146,7 @@ an empty set of
 a
 .Em bracket expression
 (see below),
-.Ql \&.
+.Ql .\&
 (matching any single character),
 .Ql \&^
 (matching the null string at the beginning of a line),
@@ -210,9 +210,9 @@ To use a literal
 .Ql \&-
 as the first endpoint of a range,
 enclose it in
-.Ql [.
+.Ql [.\&
 and
-.Ql .]
+.Ql .]\&
 to make it a collating element (see below).
 With the exception of these and some combinations using
 .Ql \&[
@@ -224,9 +224,9 @@ Within a bracket expression, a collating element (a character,
 a multi-character sequence that collates as if it were a single character,
 or a collating-sequence name for either)
 enclosed in
-.Ql [.
+.Ql [.\&
 and
-.Ql .]
+.Ql .]\&
 stands for the
 sequence of characters of that collating element.
 The sequence is a single element of the bracket expression's list.
@@ -249,7 +249,7 @@ is an equivalence class, standing for the sequences of characters
 of all collating elements equivalent to that one, including itself.
 (If there are no other equivalent collating elements,
 the treatment is as if the enclosing delimiters were
-.Ql [.
+.Ql [.\&
 and
 .Ql .] . )
 For example, if
@@ -277,10 +277,10 @@ class.
 Standard character class names are:
 .Pp
 .Bl -column "alnum" "digit" "xdigit" -offset indent
-.It Em alnum	digit	punct
-.It Em alpha	graph	space
-.It Em blank	lower	upper
-.It Em cntrl	print	xdigit
+.It Em "alnum	digit	punct"
+.It Em "alpha	graph	space"
+.It Em "blank	lower	upper"
+.It Em "cntrl	print	xdigit"
 .El
 .Pp
 These stand for the character classes defined in
@@ -330,7 +330,7 @@ matches the three middle characters of
 matches all ten characters of
 .Ql weeknights ,
 when
-.Ql (.*).*
+.Ql (.*).*\&
 is matched against
 .Ql abc
 the parenthesized subexpression
@@ -375,7 +375,7 @@ is an ordinary character and there is no equivalent
 for its functionality.
 .Ql \&+
 and
-.Ql \&?
+.Ql ?\&
 are ordinary characters, and their functionality
 can be expressed using bounds
 .No ( Ql {1,}

@@ -49,7 +49,7 @@ implementation shall be cleared.
 This function may cause memory to be allocated.
 The caller should free any releasable memory, when the capability state in
 working storage is no longer required, by calling
-.Vn cap_free
+.Fn cap_free
 with the cap_t as an argument.
 .Sh IMPLEMENTATION NOTES
 FreeBSD's support for POSIX.1e interfaces and features is still under

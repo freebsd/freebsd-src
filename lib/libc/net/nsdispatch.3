@@ -154,7 +154,7 @@ exists which contains a single default entry for
 for use by callers which don't require complicated default rules.
 .Ed
 .Pp
-.Va Sq ...
+.Va Sq ...\&
 are optional extra arguments, which
 are passed to the appropriate callback function as a variable argument
 list of the type
@@ -163,11 +163,11 @@ list of the type
 Whilst there is support for arbitrary sources, the following
 #defines for commonly implementated sources are available:
 .Bl -column NS_COMPAT COMPAT -offset indent
-.Sy #define	value
-.It NSSRC_FILES	"files"
-.It NSSRC_DNS	"dns"
-.It NSSRC_NIS	"nis"
-.It NSSRC_COMPAT	"compat"
+.It Sy "#define	value"
+.It "NSSRC_FILES	""files"""
+.It "NSSRC_DNS	""dns"""
+.It "NSSRC_NIS	""nis"""
+.It "NSSRC_COMPAT	""compat"""
 .El
 .Pp
 Refer to
@@ -178,11 +178,11 @@ for a complete description of what each source type is.
 The callback functions should return one of the following values
 depending upon status of the lookup:
 .Bl -column NS_NOTFOUND -offset indent
-.Sy "Return value"	Status code
-.It NS_SUCCESS	success
-.It NS_NOTFOUND	notfound
-.It NS_UNAVAIL	unavail
-.It NS_TRYAGAIN	tryagain
+.It Sy "Return value	Status code"
+.It "NS_SUCCESS	success"
+.It "NS_NOTFOUND	notfound"
+.It "NS_UNAVAIL	unavail"
+.It "NS_TRYAGAIN	tryagain"
 .El
 .Pp
 Refer to

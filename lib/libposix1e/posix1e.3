@@ -44,7 +44,7 @@ it describes are now widely used despite inherent limitations.  Currently,
 only a few of the interfaces and features are implemented in
 .Fx ,
 although efforts are underway to complete the integration at this time.
-
+.Pp
 POSIX.1e describes five security extensions to the base POSIX.1 API:
 Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
 Control, and Information Flow Labels.  Of these, the ACL interfaces are
@@ -53,7 +53,7 @@ currently included with
 Auditing, Capabilities, and Mandatory
 Access Control are in the wings, and Information Flow Labels are not on
 the calendar.
-
+.Pp
 POSIX.1e defines both syntax and semantics for these features, but fairly
 substantial changes are required to implement these features in the 
 operating system.  As shipped,
@@ -64,18 +64,17 @@ access to and manipulation of these ACLs, but support for ACLs is not
 provided by any file systems shipped in the base operating system.
 Available API calls relating to ACLs are described in detail in
 .Xr acl 3 .
-
+.Pp
 .Fx
 currently provides documentation and APIs for fine-grained capability
 support, but implementation is currently not included in the base
 system.  Documentation of these API calls is provided in
 .Xr cap 3 .
-
+.Pp
 Additional patches supporting POSIX.1e features are provided by the
 TrustedBSD project:
-
+.Pp
 http://www.trustedbsd.org
-
 .Sh IMPLEMENTATION NOTES
 .Fx Ns 's
 support for POSIX.1e interfaces and features is still under

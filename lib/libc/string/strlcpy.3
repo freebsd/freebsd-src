@@ -105,7 +105,7 @@ The following code fragment illustrates the simple case:
 .Bd -literal -offset indent
 char *s, *p, buf[BUFSIZ];
 
-.Li ...
+\&...
 
 (void)strlcpy(buf, s, sizeof(buf));
 (void)strlcat(buf, p, sizeof(buf));
@@ -116,7 +116,7 @@ like the following might be used:
 .Bd -literal -offset indent
 char *dir, *file, pname[MAXPATHLEN];
 
-.Li ...
+\&...
 
 if (strlcpy(pname, dir, sizeof(pname)) >= sizeof(pname))
 	goto toolong;
@@ -130,7 +130,7 @@ speed things up a bit by using a copy instead on an append:
 char *dir, *file, pname[MAXPATHNAMELEN];
 size_t n;
 
-.Li ...
+\&...
 
 n = strlcpy(pname, dir, sizeof(pname));
 if (n >= sizeof(pname))

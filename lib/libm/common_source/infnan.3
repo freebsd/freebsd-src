@@ -127,22 +127,15 @@ revised
 .Fn infnan
 to return.  And a C program to
 implement that suggestion follows. 
-.sp 0.5
-.Bd -filled -offset indent
-.Bl -column "IEEE Signal" "IEEE Default" XXERANGE ERANGEXXorXXEDOM XXXXXX
-.It IEEE Signal	IEEE Default Ta
-.Fa iarg Ta
-.Va errno Ta
-.Fn infnan
-.It Invalid	\*(Na Ta
-.Er EDOM	EDOM	0
-.It Overflow	\(+-\*(If Ta
-.Er ERANGE	ERANGE Ta
-.Dv HUGE
-.It Div\-by\-0	\(+-Infinity Ta
-.Er \(+-ERANGE	ERANGE or EDOM	\(+-HUGE
-.It 	( Ns Dv HUGE No "= 1.7e38 ... nearly  2.0**127)"
+.Bl -column "IEEE Signal" "IEEE Default" XXERANGE ERANGEXXorXXEDOM
+.It "IEEE Signal	IEEE Default	" Fa iarg Ta Va errno Ta Fn infnan
+.It "Invalid	\*(Na	" Er "EDOM	EDOM	0"
+.It "Overflow	\(+-\*(If	" Er "ERANGE	ERANGE" Ta Dv HUGE
+.It "Div\-by\-0	\(+-Infinity	" Er "\(+-ERANGE	ERANGE or EDOM" Ta Dv \(+-HUGE
 .El
+.Bd -ragged -offset center -compact
+.Dv ( HUGE
+= 1.7e38 ... nearly 2.0**127)
 .Ed
 .Pp
 ALTERNATIVE
