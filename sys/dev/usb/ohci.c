@@ -1592,7 +1592,7 @@ ohci_dump_ed(sed)
 		 (int)LE(sed->ed.ed_flags),
 		 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
 		 (u_long)LE(sed->ed.ed_tailp),
-		 (u_long)LE(sed->ed.ed_headp),
+		 (int)(uintptr_t)LE(sed->ed.ed_headp),
 		 "\20\1HALT\2CARRY",
 		 (u_long)LE(sed->ed.ed_nexted)));
 }
