@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.21 1999/05/28 08:03:24 brian Exp $
+ *	$Id: mp.c,v 1.22 1999/06/02 15:59:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -696,6 +696,7 @@ mp_ShowStatus(struct cmdargs const *arg)
     struct mbuf *m, *lm;
     int bufs = 0;
 
+    lm = NULL;
     prompt_Printf(arg->prompt, "Socket:         %s\n",
                   mp->server.socket.sun_path);
     for (m = mp->inbufs; m; m = m->pnext) {
