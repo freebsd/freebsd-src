@@ -286,6 +286,9 @@ reinstall.debug: modules-reinstall.debug
 .endif
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+.if defined(MODULES_OVERRIDE)
+MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
