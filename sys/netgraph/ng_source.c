@@ -33,9 +33,10 @@
  * DAMAGE.
  *
  * Author: Dave Chapeskie <dchapeskie@sandvine.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This node is used for high speed packet geneneration.  It queues
@@ -95,17 +96,6 @@ typedef struct privdata *sc_p;
 /* Node flags */
 #define NG_SOURCE_ACTIVE	(NGF_TYPE1)
 
-/* XXX */
-#if 1
-#undef KASSERT
-#define KASSERT(expr,msg) do {			\
-		if (!(expr)) {			\
-			printf msg ;		\
-			panic("Assertion");	\
-		}				\
-	} while(0)
-#endif
-
 /* Netgraph methods */
 static ng_constructor_t	ng_source_constructor;
 static ng_rcvmsg_t	ng_source_rcvmsg;
@@ -126,8 +116,7 @@ static int		ng_source_store_output_ifp(sc_p sc,
 
 
 /* Parse type for timeval */
-static const struct ng_parse_struct_field ng_source_timeval_type_fields[] =
-{
+static const struct ng_parse_struct_field ng_source_timeval_type_fields[] = {
 	{ "tv_sec",		&ng_parse_int32_type	},
 	{ "tv_usec",		&ng_parse_int32_type	},
 	{ NULL }
@@ -209,7 +198,7 @@ static struct ng_type ng_source_typestruct = {
 	ng_source_rmnode,
 	ng_source_newhook,
 	NULL,					/* findhook */
-	NULL,
+	NULL,					/* connect */
 	ng_source_rcvdata,			/* rcvdata */
 	ng_source_disconnect,
 	ng_source_cmds
@@ -247,7 +236,7 @@ ng_source_newhook(node_p node, hook_p hook, const char *name)
 	sc_p sc;
 
 	sc = NG_NODE_PRIVATE(node);
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
 	if (strcmp(name, NG_SOURCE_HOOK_INPUT) == 0) {
 		sc->input.hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &sc->input);
@@ -274,7 +263,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	sc = NG_NODE_PRIVATE(node);
 	NGI_GET_MSG(item, msg);
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
 	switch (msg->header.typecookie) {
 	case NGM_SOURCE_COOKIE:
 		if (msg->header.flags & NGF_RESP) {
@@ -315,7 +304,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			u_int64_t packets = *(u_int64_t *)msg->data;
 			if (sc->output.hook == NULL) {
 				printf("%s: start on node with no output hook\n"
-				    , __FUNCTION__);
+				    , __func__);
 				error = EINVAL;
 				break;
 			}
@@ -329,7 +318,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			u_int64_t packets = *(u_int64_t *)msg->data;
 			if (sc->output.hook == NULL) {
 				printf("%s: start on node with no output hook\n"
-				    , __FUNCTION__);
+				    , __func__);
 				error = EINVAL;
 				break;
 			}
@@ -410,8 +399,8 @@ ng_source_rcvdata(hook_p hook, item_p item)
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
 	hinfo = NG_HOOK_PRIVATE(hook);
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
-	KASSERT(hinfo != NULL, ("%s: null hook info", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
+	KASSERT(hinfo != NULL, ("%s: null hook info", __func__));
 
 	/* Which hook? */
 	if (hinfo == &sc->output) {
@@ -419,10 +408,10 @@ ng_source_rcvdata(hook_p hook, item_p item)
 		NG_FREE_M(m);
 		return (error);
 	}
-	KASSERT(hinfo == &sc->input, ("%s: no hook!", __FUNCTION__));
+	KASSERT(hinfo == &sc->input, ("%s: no hook!", __func__));
 
 	if ((m->m_flags & M_PKTHDR) == 0) {
-		printf("%s: mbuf without PKTHDR\n", __FUNCTION__);
+		printf("%s: mbuf without PKTHDR\n", __func__);
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
@@ -444,13 +433,13 @@ ng_source_rmnode(node_p node)
 	sc_p sc;
 
 	sc = NG_NODE_PRIVATE(node);
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
 	node->nd_flags |= NG_INVALID;
 	ng_source_stop(sc);
 	ng_source_clr_data(sc);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
-	FREE(sc, M_NETGRAPH);
+	free(sc, M_NETGRAPH);
 	return (0);
 }
 
@@ -465,7 +454,7 @@ ng_source_disconnect(hook_p hook)
 
 	hinfo = NG_HOOK_PRIVATE(hook);
 	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
 	hinfo->hook = NULL;
 	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0 || hinfo == &sc->output)
 		ng_rmnode_self(NG_HOOK_NODE(hook));
@@ -521,7 +510,7 @@ ng_source_store_output_ifp(sc_p sc, struct ng_mesg *msg)
 	IFNET_RUNLOCK();
 
 	if (ifp == NULL) {
-		printf("%s: can't find interface %d\n", __FUNCTION__, if_index);
+		printf("%s: can't find interface %d\n", __func__, if_index);
 		return (EINVAL);
 	}
 	sc->output_ifp = ifp;
@@ -533,8 +522,7 @@ ng_source_store_output_ifp(sc_p sc, struct ng_mesg *msg)
 	 * XXX we should restore the original value at stop or disconnect
 	 */
 	s = splimp();		/* XXX is this required? */
-	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN)
-	{
+	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN) {
 		printf("ng_source: changing ifq_maxlen from %d to %d\n",
 		    ifp->if_snd.ifq_maxlen, NG_SOURCE_DRIVER_IFQ_MAXLEN);
 		ifp->if_snd.ifq_maxlen = NG_SOURCE_DRIVER_IFQ_MAXLEN;
@@ -554,7 +542,7 @@ ng_source_set_autosrc(sc_p sc, u_int32_t flag)
 	int error = 0;
 
 	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_SET_AUTOSRC,
-			sizeof (u_int32_t), M_NOWAIT);
+	    sizeof (u_int32_t), M_NOWAIT);
 	if (msg == NULL)
 		return(ENOBUFS);
 
@@ -587,7 +575,7 @@ static void
 ng_source_start (sc_p sc)
 {
 	KASSERT(sc->output.hook != NULL,
-			("%s: output hook unconnected", __FUNCTION__));
+			("%s: output hook unconnected", __func__));
 	if (((sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) &&
 	    (sc->output_ifp == NULL))
 		ng_source_request_output_ifp(sc);
@@ -622,7 +610,7 @@ ng_source_intr (void *arg)
 	struct ifqueue *ifq;
 	int packets;
 
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
 
 	callout_handle_init(&sc->intr_ch);
 	if (sc->packets == 0 || sc->output.hook == NULL
@@ -658,10 +646,10 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 	int error = 0;
 	int s, s2;
 
-	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
-	KASSERT(tosend >= 0, ("%s: negative tosend param", __FUNCTION__));
+	KASSERT(sc != NULL, ("%s: null node private", __func__));
+	KASSERT(tosend >= 0, ("%s: negative tosend param", __func__));
 	KASSERT(sc->node->nd_flags & NG_SOURCE_ACTIVE,
-			("%s: inactive node", __FUNCTION__));
+	    ("%s: inactive node", __func__));
 
 	if ((u_int64_t)tosend > sc->packets)
 		tosend = sc->packets;
