@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.8 1996/02/05 05:50:34 dyson Exp $
+ * $Id: sys_pipe.c,v 1.9 1996/02/07 06:41:56 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -591,7 +591,7 @@ retry:
 			wpipe->pipe_state &= ~PIPE_WANTR;
 			wakeup(wpipe);
 		}
-			
+		wpipe->pipe_state |= PIPE_WANTW;
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdww", 0);
 		if (error || (wpipe->pipe_state & PIPE_EOF))
@@ -604,6 +604,7 @@ retry:
 			wakeup(wpipe);
 		}
 			
+		wpipe->pipe_state |= PIPE_WANTW;
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdwc", 0);
 		if (error || (wpipe->pipe_state & PIPE_EOF)) {
@@ -636,6 +637,10 @@ retry:
 			pipeunlock(wpipe);
 			wakeup(wpipe);
 			return EPIPE;
+		}
+		if (wpipe->pipe_state & PIPE_WANTR) {
+			wpipe->pipe_state &= ~PIPE_WANTR;
+			wakeup(wpipe);
 		}
 		error = tsleep(wpipe, PRIBIO|PCATCH, "pipdwt", 0);
 	}
@@ -708,6 +713,10 @@ pipewrite(wpipe, uio, nbio)
 		 */
 	retrywrite:
 		while (wpipe->pipe_state & PIPE_DIRECTW) {
+			if (wpipe->pipe_state & PIPE_WANTR) {
+				wpipe->pipe_state &= ~PIPE_WANTR;
+				wakeup(wpipe);
+			}
 			error = tsleep(wpipe,
 					PRIBIO|PCATCH, "pipbww", 0);
 			if (error)
