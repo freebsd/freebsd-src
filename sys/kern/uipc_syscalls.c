@@ -1472,7 +1472,8 @@ sf_buf_alloc()
 		if (error)
 			break;
 	}
-	SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
+	if (sf != NULL)
+		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
 }
