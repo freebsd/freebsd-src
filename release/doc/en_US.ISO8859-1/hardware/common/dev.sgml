@@ -1084,7 +1084,13 @@
     </para>
 
     <para arch="i386,alpha">Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast
-    Ethernet NICs (&man.sis.4; driver)</para>
+    Ethernet NICs (&man.sis.4; driver)
+      <itemizedlist>
+	<listitem>
+	  <para>SiS 635 and 735 motherboard chipsets</para>
+	</listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386,alpha">National Semiconductor DP83815 Fast Ethernet NICs
     (&man.sis.4; driver)
