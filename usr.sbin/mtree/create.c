@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -164,7 +160,7 @@ statf(int indent, FTSENT *p)
 		offset = printf("%*s%s", indent, "", escaped_name);
 	else
 		offset = printf("%*s    %s", indent, "", escaped_name);
-	
+
 	free(escaped_name);
 
 	if (offset > (INDENTNAMELEN + indent))
@@ -342,7 +338,7 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode, u_long *p
 	 */
 	if ((((keys & F_UNAME) | (keys & F_UID)) && (*puid != saveuid)) ||
 	    (((keys & F_GNAME) | (keys & F_GID)) && (*pgid != savegid)) ||
-	    ((keys & F_MODE) && (*pmode != savemode)) || 
+	    ((keys & F_MODE) && (*pmode != savemode)) ||
 	    ((keys & F_FLAGS) && (*pflags != saveflags)) ||
 	    (first)) {
 		first = 0;
