@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.7 1996/08/13 16:28:59 fenner Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.8 1996/08/17 10:37:28 peter Exp $ (LBL)";
 #endif
 
 /*
@@ -564,16 +564,6 @@ main(int argc, char **argv)
 			send_probe(++seq, ttl, &t1);
 			while ((cc = wait_for_reply(s, &from, &t1)) != 0) {
 				(void) gettimeofday(&t2, &tz);
-				/*
-				 * Since we'll be receiving all ICMP
-				 * messages to this host above, we may
-				 * never end up with cc=0, so we need
-				 * an additional termination check.
-				 */
-				if (t2.tv_sec - t1.tv_sec > waittime) {
-					cc = 0;
-					break;
-				}
 				if ((i = packet_ok(packet, cc, &from, seq))) {
 					double T;
 					int precis;
