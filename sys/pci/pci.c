@@ -1201,17 +1201,25 @@ pci_probe_nomatch(device_t dev, device_t child)
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;
 	const char *desc;
+	int unknown;
 
+	unknown = 0;
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 	desc = pci_ata_match(child);
 	if (!desc) desc = pci_usb_match(child);
 	if (!desc) desc = pci_vga_match(child);
-	if (!desc) desc = "unknown card";
-	device_printf(dev, desc);
-	printf(" (vendor=0x%04x, dev=0x%04x) at %d.%d",
-		cfg->vendor,
-		cfg->device,
+	if (!desc) {
+		desc = "unknown card";
+		unknown++;
+	}
+	device_printf(dev, "<%s>", desc);
+	if (bootverbose || unknown) {
+		printf(" (vendor=0x%04x, dev=0x%04x)",
+			cfg->vendor,
+			cfg->device);
+	}
+	printf(" at %d.%d",
 		pci_get_slot(child),
 		pci_get_function(child));
 	if (cfg->intpin > 0 && cfg->intline != 255) {
