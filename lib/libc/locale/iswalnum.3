@@ -38,7 +38,7 @@
 .\"     @(#)isalnum.3	5.2 (Berkeley) 6/29/91
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2000
+.Dd October 3, 2002
 .Dt ISWALNUM 3
 .Os
 .Sh NAME
@@ -107,14 +107,12 @@
 .Sh DESCRIPTION
 The above functions are character classification utility functions,
 for use with wide characters
-.Po
-.Fa wchar_t
+.Vt ( wchar_t
 or
-.Fa wint_t
-.Pc .
+.Vt wint_t ) .
 See the description for the similarly-named single byte classification
 functions (like
-.Xr isalnum 3 ),
+.Xr isalnum 3 ) ,
 for details.
 .Sh RETURN VALUES
 The functions return zero if the character tests false and
@@ -157,6 +155,8 @@ which are
 extensions.
 .Sh CAVEATS
 The result of these functions is undefined unless
-the argument is WEOF or a valid
+the argument is
+.Dv WEOF
+or a valid
 .Vt wchar_t
 value for the current locale.

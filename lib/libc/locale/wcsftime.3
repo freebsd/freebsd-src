@@ -35,7 +35,10 @@
 .Sh SYNOPSIS
 .In wchar.h
 .Ft size_t
-.Fn wcsftime "wchar_t * restrict wcs" "size_t maxsize" "const wchar_t * restrict format" "const struct tm * restrict timeptr"
+.Fo wcsftime
+.Fa "wchar_t * restrict wcs" "size_t maxsize"
+.Fa "const wchar_t * restrict format" "const struct tm * restrict timeptr"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn wcsftime
@@ -48,7 +51,9 @@ for a detailed description.
 .Sh COMPATIBILITY
 Some early implementations of
 .Fn wcsftime
-had a format argument with type
+had a
+.Fa format
+argument with type
 .Vt "const char *"
 instead of
 .Vt "const wchar_t *" .

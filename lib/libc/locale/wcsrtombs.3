@@ -1,4 +1,4 @@
-.\" Copyright (c) [year] [your name]
+.\" Copyright (c) 2002 Tim J. Robbins
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd August 16, 2002
 .Dt WCSRTOMBS 3
 .Os
@@ -34,7 +35,10 @@
 .Sh SYNOPSIS
 .In wchar.h
 .Ft size_t
-.Fn wcsrtombs "char * restrict dst" "const wchar_t ** restrict src" "size_t len" "mbstate_t * restrict ps"
+.Fo wcsrtombs
+.Fa "char * restrict dst" "const wchar_t ** restrict src"
+.Fa "size_t len" "mbstate_t * restrict ps"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn wcsrtombs
@@ -62,12 +66,12 @@ the pointer pointed to by
 .Fa src
 is updated to point to the character after the one that conversion stopped at.
 If conversion stops because a null character is encountered,
-.No * Ns Fa src
+.Fa *src
 is set to
 .Dv NULL .
 .Pp
 The
-.Ft mbstate_t
+.Vt mbstate_t
 argument,
 .Fa ps ,
 is used to keep track of the shift state.
@@ -75,7 +79,7 @@ If it is
 .Dv NULL ,
 .Fn wcsrtombs
 uses an internal, static
-.Ft mbstate_t
+.Vt mbstate_t
 object.
 .Sh RETURN VALUES
 The
@@ -84,9 +88,7 @@ function returns the number of bytes stored in
 the array pointed to by
 .Fa dst
 (not including any terminating null), if successful, otherwise it returns
-.No ( Ns
-.Ft size_t Ns
-.No ) Ns -1 .
+.Po Vt size_t Pc Ns \-1 .
 .Sh ERRORS
 The
 .Fn wcsrtombs
@@ -97,8 +99,8 @@ An invalid wide character was encountered.
 .El
 .Sh SEE ALSO
 .Xr mbsrtowcs 3 ,
-.Xr wcstombs 3 ,
-.Xr wcrtomb 3
+.Xr wcrtomb 3 ,
+.Xr wcstombs 3
 .Sh STANDARDS
 The
 .Fn wcsrtombs

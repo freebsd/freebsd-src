@@ -23,6 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd October 3, 2002
 .Dt WCWIDTH 3
 .Os
@@ -47,7 +48,7 @@ The
 function returns 0 if the
 .Fa wc
 argument is a null wide character (L'\e0'),
--1 if
+\-1 if
 .Fa wc
 is not printable,
 otherwise it returns the number of column positions the
@@ -67,11 +68,11 @@ while ((ch = getwchar()) != WEOF) {
 	if ((w = wcwidth(ch)) > 0)
 		column += w;
 	if (column >= 20) {
-		putwchar(L'\n');
+		putwchar(L'\en');
 		column = 0;
 	}
 	putwchar(ch);
-	if (ch == L'\n')
+	if (ch == L'\en')
 		column = 0;
 }
 .Ed

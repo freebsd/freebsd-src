@@ -54,8 +54,8 @@ It is backwards compatible with
 so 0x00-0x7f refer to the
 .Tn ASCII
 character set.
-The multibyte encoding of non-
-.Tn ASCII
+The multibyte encoding of
+.No non- Ns Tn ASCII
 characters
 consist entirely of bytes whose high order bit is set.
 The actual
@@ -94,7 +94,9 @@ whereas
 is limited to a 16-bit character set,
 and that
 .Xr utf2 4
-accepts redundant, non-"shortest form" representations of characters.
+accepts redundant,
+.No non- Ns Dq "shortest form"
+representations of characters.
 .Sh SEE ALSO
 .Xr euc 4 ,
 .Xr utf2 4
