@@ -80,7 +80,7 @@ The first time that
 is called,
 .Fa str
 should be specified; subsequent calls, wishing to obtain further tokens
-from the same string, should pass a null pointer instead.
+from the same string, should pass the NULL pointer instead.
 The separator string,
 .Fa sep ,
 must be supplied each time, and may change between calls.
@@ -105,7 +105,7 @@ return a pointer to the beginning of each subsequent token in the string,
 after replacing the token itself with a
 .Dv NUL
 character.
-When no more tokens remain, a null pointer is returned.
+When no more tokens remain, the NULL pointer is returned.
 .Sh EXAMPLE
 The following uses
 .Fn strtok_r 
