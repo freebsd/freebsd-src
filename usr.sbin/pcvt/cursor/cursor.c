@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1992,1993,1994 Hellmuth Michaelis and Brian Dunford-Shore
+ * Copyright (c) 1992, 1995 Hellmuth Michaelis
+ *
+ * Copyright (c) 1992, 1994 Brian Dunford-Shore
  *
  * All rights reserved.
  *
@@ -32,7 +34,7 @@
  */
 
 static char *id =
-	"@(#)cursor.c, 3.20, Last Edit-Date: [Thu Feb 23 16:02:33 1995]";
+	"@(#)cursor.c, 3.20, Last Edit-Date: [Tue Apr  4 12:27:54 1995]";
 
 /*---------------------------------------------------------------------------*
  *

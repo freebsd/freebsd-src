@@ -1,4 +1,4 @@
-Random Notes and Hints                Last Edit-Date: [Wed Mar 29 21:38:17 1995]
+Random Notes and Hints                Last Edit-Date: [Sun Apr  2 18:28:09 1995]
 --------------------------------------------------------------------------------
 
 
@@ -68,6 +68,8 @@ recalculated in case of a switch to another line size.
 
 I don't have access to a 386BSD 0.1 machine anymore so the 386BSD pcvt is
 considered unsupported and will disappear in the future.
+
+386BSD support was dropped with release 3.20.
 
 
 Keyboard hangs after first update of keyboard LED's

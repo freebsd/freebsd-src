@@ -1,8 +1,43 @@
-ChangeLog                             last edit-date: [Thu Mar 30 19:57:09 1995]
+ChangeLog                             last edit-date: [Thu Apr  6 10:52:50 1995]
 ================================================================================
 
-Changes 3.10 -> 3.20                                                  March 1995
+Changes 3.10 -> 3.20                                                  April 1995
 --------------------------------------------------------------------------------
+
+- bugfix from Thomas Eberhardt: the force 24 lines enable function key
+	label was not updated when changing force 24 lines mode with 
+	'scon -f on|off', this is now fixed.
+
+- bugfix from John Kohl fixing divide by zero problem in pcvt_ext.c when
+	ringing the bell and pitch is 0: this avoids an integer divide
+	trap in supervisor mode.
+
+- changed the default behaviour of keyboard controller delay from using
+	delay()/DELAY() to using dummy reads to port 0x84 because i got
+	keyboard hangs in X.
+
+- bugfix: in pcvt_ext.c, MDA state restore when leaving X was lost, should
+	function now again.
+
+- renamed PCVT_XSERVER to XSERVER in ispcvt.c
+
+- bugfix in pcvt_vtf.c: renamed PCVT_USL_COMPAT to PCVT_USL_VT_COMPAT
+
+- added '-d <device>' option to ispcvt and loadfont
+
+- removed PCVT_NEEDPG
+
+- almost completely removed support for 386BSD 0.1 with patchkit 0.2.4
+
+- applied a patch from Joerg providing missing FreeBSD 2.1 functionality and
+        a some minor bugfixes and checks.
+
+- provide a single place PCVT_KBD_DELAY in pcvt_hdr.h. made it configurable
+	via PCVT_PORTIO_DELAY to use either 6 dummy reads from port 0x84
+	or the delay/DELAY function of the operating system. Changed ispcvt
+	to report status of compile time switch.
+
+- release beta 23 --------------------------------------------------------------
 
 - removed some files for 386BSD as there is virtually noone outside
 	using it anymore
