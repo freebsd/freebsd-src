@@ -247,7 +247,8 @@ typedef struct {
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
-    UINT32		ec_gpebit;
+    UINT8		ec_gpebit;
+    UINT8		ec_csrvalue;
     
     int			ec_data_rid;
     struct resource	*ec_data_res;
@@ -262,7 +263,7 @@ struct acpi_ec_softc {
     int			ec_glk;
     int			ec_glkhandle;
     struct mtx		ec_mtx;
-    UINT32		ec_polldelay;
+    int			ec_polldelay;
 };
 
 /*
@@ -321,7 +322,6 @@ static ACPI_STATUS	EcSpaceHandler(UINT32 Function,
 				UINT32 width, ACPI_INTEGER *Value,
 				void *Context, void *RegionContext);
 static ACPI_STATUS	EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event);
-static ACPI_STATUS	EcQuery(struct acpi_ec_softc *sc, UINT8 *Data);
 static ACPI_STATUS	EcCommand(struct acpi_ec_softc *sc, EC_COMMAND cmd);
 static ACPI_STATUS	EcRead(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
@@ -590,29 +590,6 @@ acpi_ec_attach(device_t dev)
     return (errval);
 }
 
-static ACPI_STATUS
-EcQuery(struct acpi_ec_softc *sc, UINT8 *Data)
-{
-    ACPI_STATUS	Status;
-
-    Status = EcLock(sc);
-    if (ACPI_FAILURE(Status))
-	return (Status);
-
-    /*
-     * Send a query command to the EC to find out which _Qxx call it
-     * wants to make.  This command clears the SCI bit and also the
-     * interrupt source since we are edge-triggered.
-     */
-    Status = EcCommand(sc, EC_COMMAND_QUERY);
-    if (ACPI_SUCCESS(Status))
-	*Data = EC_GET_DATA(sc);
-
-    EcUnlock(sc);
-
-    return (Status);
-}    
-
 static void
 EcGpeQueryHandler(void *Context)
 {
@@ -625,32 +602,39 @@ EcGpeQueryHandler(void *Context)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     KASSERT(Context != NULL, ("EcGpeQueryHandler called with NULL"));
 
+    Status = EcLock(sc);
+    if (ACPI_FAILURE(Status)) {
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+		    "GpeQuery lock error: %s\n", AcpiFormatException(Status));
+	return;
+    }
+
     /*
-     * Check status for EC_SCI.
-     * 
-     * Bail out if the EC_SCI bit of the status register is not set.
-     * Note that this function should only be called when
-     * this bit is set (polling is used to detect IBE/OBF events).
-     *
-     * We don't acquire the global lock here but do protect against other
-     * running commands (read/write/query) by grabbing ec_mtx.
+     * If the EC_SCI bit of the status register is not set, then pass
+     * it along to any potential waiters as it may be an IBE/OBF event.
      */
-    mtx_lock(&sc->ec_mtx);
     EcStatus = EC_GET_CSR(sc);
-    mtx_unlock(&sc->ec_mtx);
     if ((EcStatus & EC_EVENT_SCI) == 0) {
-	/* If it's not an SCI, wakeup the EcWaitEvent sleep. */
-	wakeup(&sc->ec_polldelay);
+	sc->ec_csrvalue = EcStatus;
+	wakeup(&sc->ec_csrvalue);
+	EcUnlock(sc);
 	goto re_enable;
     }
 
-    /* Find out why the EC is signaling us. */
-    Status = EcQuery(sc, &Data);
+    /*
+     * Send a query command to the EC to find out which _Qxx call it
+     * wants to make.  This command clears the SCI bit and also the
+     * interrupt source since we are edge-triggered.
+     */
+    Status = EcCommand(sc, EC_COMMAND_QUERY);
     if (ACPI_FAILURE(Status)) {
+	EcUnlock(sc);
 	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
 		    "GPE query failed - %s\n", AcpiFormatException(Status));
 	goto re_enable;
     }
+    Data = EC_GET_DATA(sc);
+    EcUnlock(sc);
 
     /* Ignore the value for "no outstanding event". (13.3.5) */
     if (Data == 0)
@@ -770,7 +754,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
 {
     EC_STATUS	EcStatus;
     ACPI_STATUS	Status;
-    UINT32	i, period;
+    int		i, period, retval;
 
     mtx_assert(&sc->ec_mtx, MA_OWNED);
     Status = AE_NO_HARDWARE_RESPONSE;
@@ -812,13 +796,18 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
      * for completion, sleeping for chunks of 10 ms.
      */
     if (Status != AE_OK) {
+	retval = -1;
 	for (i = 0; i < EC_POLL_TIMEOUT / 10; i++) {
-	    EcStatus = EC_GET_CSR(sc);
+	    if (retval != 0)
+		EcStatus = EC_GET_CSR(sc);
+	    else
+		EcStatus = sc->ec_csrvalue;
 	    if (EVENT_READY(Event, EcStatus)) {
 		Status = AE_OK;
 		break;
 	    }
-	    msleep(&sc->ec_polldelay, &sc->ec_mtx, PZERO, "ecpoll", 10/*ms*/);
+	    retval = msleep(&sc->ec_csrvalue, &sc->ec_mtx, PZERO, "ecpoll",
+			    10/*ms*/);
 	}
     }
 
