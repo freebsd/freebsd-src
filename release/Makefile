@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.486 1999/05/15 19:05:40 phk Exp $
+#	$Id: Makefile,v 1.487 1999/05/16 08:07:34 phk Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -402,10 +402,12 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
+.if exists(${RD}/dists/des)
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
 		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; )
+.endif
 	@echo "src distribution is finished."
 .endif
 	touch release.7
