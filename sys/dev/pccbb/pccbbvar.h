@@ -62,7 +62,8 @@ struct pccbb_softc {
 	bus_space_handle_t bsh;
 	u_int8_t	secbus;
 	u_int8_t	subbus;
-	struct		mtx mtx;
+	struct mtx	mtx;
+	struct cv	cv;
 	u_int32_t	flags;
 #define	PCCBB_16BIT_CARD	0x02000000
 #define	PCCBB_KTHREAD_RUNNING	0x04000000

@@ -75,6 +75,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -558,6 +560,7 @@ pccbb_attach(device_t brdev)
 	uint32_t sockbase;
 
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "pccbb", MTX_DEF);
+	cv_init(&sc->cv, "pccbb cv");
 	sc->chipset = pccbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;
@@ -599,6 +602,7 @@ pccbb_attach(device_t brdev)
 				device_printf(brdev,
 				    "Could not grab register memory\n");
 				mtx_destroy(&sc->mtx);
+				cv_destroy(&sc->cv);
 				return (ENOMEM);
 			}
 			pci_write_config(brdev, CBBR_SOCKBASE,
@@ -608,6 +612,7 @@ pccbb_attach(device_t brdev)
 		} else {
 			device_printf(brdev, "Could not map register memory\n");
 			mtx_destroy(&sc->mtx);
+			cv_destroy(&sc->cv);
 			return (ENOMEM);
 		}
 	}
@@ -644,6 +649,7 @@ pccbb_attach(device_t brdev)
 		bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
 		    sc->base_res);
 		mtx_destroy(&sc->mtx);
+		cv_destroy(&sc->cv);
 		return (ENOMEM);
 	}
 
@@ -654,6 +660,7 @@ pccbb_attach(device_t brdev)
 		bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
 		    sc->base_res);
 		mtx_destroy(&sc->mtx);
+		cv_destroy(&sc->cv);
 		return (ENOMEM);
 	}
 
@@ -715,6 +722,7 @@ pccbb_detach(device_t brdev)
 	bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
 	    sc->base_res);
 	mtx_destroy(&sc->mtx);
+	cv_destroy(&sc->cv);
 	return (0);
 }
 
@@ -888,7 +896,6 @@ pccbb_event_thread(void *arg)
 		 * if there's a card already inserted, we do the
 		 * right thing.
 		 */
-		mtx_lock(&sc->mtx);
 		if (sc->flags & PCCBB_KTHREAD_DONE)
 			break;
 
@@ -897,19 +904,19 @@ pccbb_event_thread(void *arg)
 			pccbb_insert(sc);
 		else
 			pccbb_removal(sc);
-		mtx_unlock(&sc->mtx);
 		/*
 		 * Wait until it has been 1s since the last time we
 		 * get an interrupt.  We handle the rest of the interrupt
 		 * at the top of the loop.
 		 */
-		tsleep (sc, PWAIT, "pccbbev", 0);
+		mtx_lock(&sc->mtx);
+		cv_wait(&sc->cv, &sc->mtx);
 		do {
-			err = tsleep (sc, PWAIT, "pccbbev", 1 * hz);
+			err = cv_timedwait(&sc->cv, &sc->mtx, 1 * hz);
 		} while (err != EWOULDBLOCK &&
 		    (sc->flags & PCCBB_KTHREAD_DONE) == 0);
+		mtx_unlock(&sc->mtx);
 	}
-	mtx_unlock(&sc->mtx);
 	sc->flags &= ~PCCBB_KTHREAD_RUNNING;
 	/*
 	 * XXX I think there's a race here.  If we wakeup in the other
@@ -1008,7 +1015,7 @@ pccbb_intr(void *arg)
 
 		if (sockevent & CBB_SOCKET_EVENT_CD) {
 			mtx_lock(&sc->mtx);
-			wakeup(sc);
+			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
 		}
 		if (sockevent & CBB_SOCKET_EVENT_CSTS) {
