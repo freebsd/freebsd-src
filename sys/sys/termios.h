@@ -230,7 +230,7 @@ struct termios {
 #define EXTB	38400
 #endif  /* !_POSIX_SOURCE */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #define	TCIFLUSH	1
 #define	TCOFLUSH	2
@@ -260,7 +260,7 @@ int	cfsetspeed __P((struct termios *, speed_t));
 #endif /* !_POSIX_SOURCE */
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #ifndef _POSIX_SOURCE
 

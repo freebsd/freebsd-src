@@ -89,7 +89,7 @@ struct	ns_errstat {
 					   since we might not know all */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct	ns_errstat ns_errstat;
 #endif
 

@@ -13,7 +13,7 @@
 #ifndef _MACHINE_SMP_H_
 #define _MACHINE_SMP_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #if defined(SMP) && !defined(APIC_IO)
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
@@ -182,5 +182,5 @@ extern volatile int		smp_idle_loops;
 
 #endif /* !LOCORE */
 #endif /* SMP || APIC_IO */
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _MACHINE_SMP_H_ */

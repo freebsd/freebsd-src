@@ -36,7 +36,7 @@
 #ifndef _NETINET6_IPSEC6_H_
 #define _NETINET6_IPSEC6_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet6_ipsec6);
@@ -77,5 +77,5 @@ extern int	ipsec6_output_tunnel __P((struct ipsec_output_state *,
 extern int	ipsec6_tunnel_validate __P((struct ip6_hdr *, u_int,
 					    struct secasvar *));
 
-#endif /*KERNEL*/
+#endif /*_KERNEL*/
 #endif /* _NETINET6_IPSEC6_H_ */

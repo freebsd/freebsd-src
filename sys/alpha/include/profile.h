@@ -207,7 +207,7 @@ LX98:	ldgp	$29,0($27);	\
 				\
 	.end	_mcount");
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * The following two macros do splhigh and splx respectively.
  * _alpha_pal_swpipl is a special version of alpha_pal_swpipl which
@@ -232,6 +232,6 @@ void	stopguprof __P((struct gmonparam *p));
 #define stopguprof(p)
 #endif /* GUPROF */
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 typedef u_long	uintfptr_t;
 #endif

@@ -65,7 +65,7 @@ struct malloc_type {
 	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
 	struct malloc_type type[1] = { \
 		{ NULL, 0, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, 0, 0 } \
@@ -82,7 +82,7 @@ MALLOC_DECLARE(M_TEMP);
 
 MALLOC_DECLARE(M_IP6OPT); /* for INET6 */
 MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Array of descriptors that describe the contents of each page
@@ -111,7 +111,7 @@ struct kmembuckets {
 	long	kb_couldfree;	/* over high water mark and could free */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	MINALLOCSIZE	(1 << MINBUCKET)
 #define BUCKETINDX(size) \
 	((size) <= (MINALLOCSIZE * 128) \
@@ -214,6 +214,6 @@ void	free __P((void *addr, struct malloc_type *type));
 void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));
 void	malloc_init __P((void *));
 void	malloc_uninit __P((void *));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */

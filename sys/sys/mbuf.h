@@ -497,7 +497,7 @@ union mcluster {
 /* compatibility with 4.3 */
 #define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern	u_int		 m_clalloc_wid;	/* mbuf cluster wait count */
 extern	u_int		 m_mballoc_wid;	/* mbuf wait count */
 extern	int		 max_linkhdr;	/* largest link-level header */
@@ -538,6 +538,6 @@ struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
 struct	mbuf *m_split __P((struct mbuf *,int,int));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */

@@ -62,7 +62,7 @@
 
 #define BCMP(p1, p2, n) bcmp((char *)(p1), (char *)(p2), (int)(n))
 #define BCOPY(p1, p2, n) bcopy((char *)(p1), (char *)(p2), (int)(n))
-#ifndef KERNEL
+#ifndef _KERNEL
 #define ovbcopy bcopy
 #endif
 

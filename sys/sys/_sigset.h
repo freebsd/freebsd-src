@@ -124,7 +124,7 @@ typedef void __sighandler_t __P((int));
 #define	SIG_IGN		((__sighandler_t *)1)
 #define	SIG_ERR		((__sighandler_t *)-1)
 
-#if defined(_P1003_1B_VISIBLE) || defined(KERNEL)
+#if defined(_P1003_1B_VISIBLE) || defined(_KERNEL)
 union sigval {
 	/* Members as suggested by Annex C of POSIX 1003.1b. */
 	int	sigval_int;

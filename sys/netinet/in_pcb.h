@@ -265,7 +265,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 
 #define	INP_CHECK_SOCKAF(so, af) 	(INP_SOCKAF(so) == af)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int	ipport_lowfirstauto;
 extern int	ipport_lowlastauto;
 extern int	ipport_firstauto;
@@ -296,6 +296,6 @@ int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));
 void	in_pcbremlists __P((struct inpcb *inp));
 int	prison_xinpcb __P((struct proc *p, struct inpcb *inp));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

@@ -81,7 +81,7 @@
 #endif
 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct ncp_nlstables;
 /* 
  * Structure to prepare ncp request and receive reply 
@@ -154,7 +154,7 @@ static int __inline ncp_rq_usermem(struct ncp_rq *rqp, caddr_t source, int size)
 }
 void ncp_sign_init(const char *logindata, char *sign_root);
 
-#else /* ifdef KERNEL */
+#else /* ifdef _KERNEL */
 
 #define	DECLARE_RQ	struct ncp_buf conn1, *conn=&conn1
 
@@ -189,6 +189,6 @@ ConvertToNWfromDWORD(u_int32_t sfd, ncp_fh *fh) {
 
 __END_DECLS
 
-#endif /* ifdef KERNEL */
+#endif /* ifdef _KERNEL */
 
 #endif	/* !_NETNCP_NCP_RQ_H_ */

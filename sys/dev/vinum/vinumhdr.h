@@ -41,7 +41,7 @@
  */
 
 #include <sys/param.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include "opt_vinum.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -62,7 +62,7 @@
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/queue.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <machine/setjmp.h>
 #include <machine/stdarg.h>
 #else
@@ -77,7 +77,7 @@
 #include <machine/cpu.h>
 
 #undef Free						    /* defined in some funny net stuff */
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifdef VINUMDEBUG
 #define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
 #define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */

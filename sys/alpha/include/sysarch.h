@@ -43,7 +43,7 @@
 #define ALPHA_GET_FPMASK	1
 #define ALPHA_SET_FPMASK	2
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 union descriptor;
@@ -51,6 +51,6 @@ union descriptor;
 __BEGIN_DECLS
 int		alpha_sethae __P((u_int64_t));
 __END_DECLS
-#endif /* !KERNEL */
+#endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */

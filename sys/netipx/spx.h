@@ -167,7 +167,7 @@ struct spxpcb {
 #define	ipxtospxpcb(np)	((struct spxpcb *)(np)->ipxp_pcb)
 #define	sotospxpcb(so)	(ipxtospxpcb(sotoipxpcb(so)))
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern struct pr_usrreqs spx_usrreqs;
 extern struct pr_usrreqs spx_usrreq_sps;
@@ -179,6 +179,6 @@ void	spx_init __P((void));
 void	spx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
 void	spx_slowtimo __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETIPX_SPX_H_ */

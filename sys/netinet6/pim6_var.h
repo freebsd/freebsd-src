@@ -51,11 +51,11 @@ struct pim6stat {
 	u_int	pim6s_snd_registers;	/* sent registers		*/
 };
 
-#if (defined(KERNEL)) || (defined(_KERNEL))
+#ifdef _KERNEL
 extern struct	pim6stat pim6stat;
 
 int	pim6_input __P((struct mbuf **, int*, int));
-#endif /* KERNEL */
+#endif
 
 /*
  * Names for PIM sysctl objects

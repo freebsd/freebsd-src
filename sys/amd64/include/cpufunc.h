@@ -240,7 +240,7 @@ invd(void)
 	__asm __volatile("invd");
 }
 
-#if defined(SMP) && defined(KERNEL)
+#if defined(SMP) && defined(_KERNEL)
 
 /*
  * When using APIC IPI's, invlpg() is not simply the invlpg instruction
@@ -271,7 +271,7 @@ cpu_invltlb(void)
 #endif
 }
 
-#else /* !(SMP && KERNEL) */
+#else /* !(SMP && _KERNEL) */
 
 static __inline void
 invlpg(u_int addr)
@@ -294,7 +294,7 @@ invltlb(void)
 #endif
 }
 
-#endif /* SMP && KERNEL */
+#endif /* SMP && _KERNEL */
 
 static __inline u_short
 inw(u_int port)

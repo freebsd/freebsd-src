@@ -204,5 +204,5 @@ __BEGIN_DECLS
 int	quotactl __P((const char *, int, int, void *));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _QUOTA_ */

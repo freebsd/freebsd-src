@@ -63,7 +63,7 @@ struct shmid_ds {
 	void           *shm_internal;   /* sysv stupidity */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * System 5 style catch-all structure for shared memory constants that
@@ -83,7 +83,7 @@ struct proc;
 
 void	shmexit __P((struct proc *));
 void	shmfork __P((struct proc *, struct proc *));
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -95,6 +95,6 @@ int shmctl __P((int, int, struct shmid_ds *));
 int shmdt  __P((void *));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SYS_SHM_H_ */

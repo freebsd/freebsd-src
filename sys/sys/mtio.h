@@ -37,7 +37,7 @@
 #ifndef	_SYS_MTIO_H_
 #define	_SYS_MTIO_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
@@ -224,11 +224,11 @@ union mterrstat {
 /* Get current EOT model */
 #define	MTIOCGETEOTMODEL	_IOR('m', 8, u_int32_t)
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #define	DEFTAPE	"/dev/nrsa0"
 #endif
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 /*
  * minor device number
  */

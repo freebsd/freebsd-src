@@ -53,7 +53,7 @@
 #endif /* _KERNEL */
 
 #elif defined(__FreeBSD__)
-#if defined(KERNEL)
+#if defined(_KERNEL)
 #include <sys/malloc.h>
 
 MALLOC_DECLARE(M_USB);
@@ -61,7 +61,7 @@ MALLOC_DECLARE(M_USBDEV);
 MALLOC_DECLARE(M_USBHC);
 
 #include <dev/usb/usb_port.h>
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* __FreeBSD__ */
 
 

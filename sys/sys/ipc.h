@@ -76,7 +76,7 @@ struct ipc_perm {
 #define	IPC_SET		1	/* set options */
 #define	IPC_STAT	2	/* get options */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /* Macros to convert between ipc ids and array indices or sequence ids */
 #define	IPCID_TO_IX(id)		((id) & 0xffff)
 #define	IPCID_TO_SEQ(id)	(((id) >> 16) & 0xffff)
@@ -85,7 +85,7 @@ struct ipc_perm {
 struct proc;
 
 int	ipcperm __P((struct proc *, struct ipc_perm *, int));
-#else /* ! KERNEL */
+#else /* ! _KERNEL */
 
 /* XXX doesn't really belong here, but has been historical practice in SysV. */
 
@@ -95,6 +95,6 @@ __BEGIN_DECLS
 key_t	ftok __P((const char *, int));
 __END_DECLS
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_IPC_H_ */

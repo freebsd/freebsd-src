@@ -47,7 +47,7 @@ struct selinfo {
 };
 #define	SI_COLL	0x0001		/* collision occurred */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct proc;
 
 void	selrecord __P((struct proc *selector, struct selinfo *));

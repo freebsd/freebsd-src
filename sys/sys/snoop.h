@@ -11,17 +11,19 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  * Snoop stuff.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SYS_SNOOP_H_
 #define	_SYS_SNOOP_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
 						 * 4K tested to be the minimum
 						 * for which on normal tty
@@ -58,7 +60,7 @@ struct snoop {
 int	snpdown __P((struct snoop *snp));
 int	snpin __P((struct snoop *snp, char *buf, int n));
 int	snpinc __P((struct snoop *snp, char c));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Theese are snoop io controls

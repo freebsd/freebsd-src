@@ -12,6 +12,7 @@
  * all derivative works or modified versions.
  *
  * Version 1.9, Thu Oct 12 15:53:50 MSK 1995
+ * $FreeBSD$
  */
 
 /*
@@ -261,7 +262,7 @@ struct atapi {                          /* ATAPI controller data */
 	struct atapicmd  cmdrq[16];     /* pool of command requests */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct atapi;
 
 extern struct atapidrv atapi_drvtab[4]; /* delayed attach info */

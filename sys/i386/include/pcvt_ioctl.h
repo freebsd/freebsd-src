@@ -45,7 +45,7 @@
  *
  *
  * @(#)ioctl_pcvt.h, 3.20, Last Edit-Date: [Fri Apr  7 10:17:13 1995]
- *
+ * $FreeBSD$
  */
 
 /*---------------------------------------------------------------------------
@@ -70,7 +70,7 @@
 #define PCVTIDMAJOR   3			/* driver id - major release	*/
 #define PCVTIDMINOR   20		/* driver id - minor release	*/
 
-#if !defined(KERNEL) && !defined(_KERNEL)
+#if !defined(_KERNEL)
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

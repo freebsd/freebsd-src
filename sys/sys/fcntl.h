@@ -48,7 +48,7 @@
  * related kernel definitions.
  */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 
@@ -70,7 +70,7 @@
  * independently testable: 1 greater than the above.
  *
  * XXX
- * FREAD and FWRITE are excluded from the #ifdef KERNEL so that TIOCFLUSH,
+ * FREAD and FWRITE are excluded from the #ifdef _KERNEL so that TIOCFLUSH,
  * which was documented to use FREAD/FWRITE, continues to work.
  */
 #ifndef _POSIX_SOURCE
@@ -89,7 +89,7 @@
 #define	O_CREAT		0x0200		/* create if nonexistent */
 #define	O_TRUNC		0x0400		/* truncate to zero length */
 #define	O_EXCL		0x0800		/* error if already exists */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	FMARK		0x1000		/* mark during gc() */
 #define	FDEFER		0x2000		/* defer for next gc pass */
 #define	FHASLOCK	0x4000		/* descriptor holds advisory lock */
@@ -98,7 +98,7 @@
 /* Defined by POSIX 1003.1; BSD default, but must be distinct from O_RDONLY. */
 #define	O_NOCTTY	0x8000		/* don't assign controlling terminal */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) + 1)
 #define	OFLAGS(fflags)	((fflags) - 1)
@@ -148,7 +148,7 @@
 #define	F_RDLCK		1		/* shared or read lock */
 #define	F_UNLCK		2		/* unlock */
 #define	F_WRLCK		3		/* exclusive or write lock */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	F_WAIT		0x010		/* Wait until lock is granted */
 #define	F_FLOCK		0x020	 	/* Use flock(2) semantics for lock */
 #define	F_POSIX		0x040	 	/* Use POSIX semantics for lock */
@@ -176,7 +176,7 @@ struct flock {
 #endif
 
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS

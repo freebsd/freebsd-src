@@ -27,6 +27,8 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  *	ioctl constants for Matrox Meteor Capture card.
@@ -35,7 +37,7 @@
 #ifndef	_MACHINE_IOCTL_METEOR_H_
 #define	_MACHINE_IOCTL_METEOR_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

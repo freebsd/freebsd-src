@@ -37,7 +37,7 @@
 #ifndef	_MACHINE_PERFMON_H_
 #define	_MACHINE_PERFMON_H_
  
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
@@ -93,7 +93,7 @@ struct pmc_tstamp {
 	quad_t pmct_value;
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #define	_PATH_PERFMON	"/dev/perfmon"
 
@@ -112,7 +112,7 @@ int	perfmon_stop  __P((int));
 int	perfmon_read  __P((int, quad_t *));
 int	perfmon_reset __P((int));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Pentium Pro performance counters, from Appendix B.

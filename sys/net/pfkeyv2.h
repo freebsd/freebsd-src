@@ -362,7 +362,7 @@ struct sadb_x_ipsecrequest {
 #define	PFKEY_UNUNIT64(a)	((a) << 3)
 #define	PFKEY_UNIT64(a)		((a) >> 3)
 
-#ifndef KERNEL
+#ifndef _KERNEL
 extern void	pfkey_sadump(struct sadb_msg *m);
 extern void	pfkey_spdump(struct sadb_msg *m);
 
@@ -413,7 +413,7 @@ int	pfkey_send __P((int so, struct sadb_msg *msg, int len));
 int	pfkey_align __P((struct sadb_msg *msg, caddr_t *mhp));
 int	pfkey_check __P((caddr_t *mhp));
 
-#endif /*!KERNEL*/
+#endif /*!_KERNEL*/
 
 #endif /* __PFKEY_V2_H */
 

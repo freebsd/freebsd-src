@@ -1087,7 +1087,7 @@ typedef struct copr_msg {
  */
 #define LOCL_STARTAUDIO		1
 
-#if (!defined(__KERNEL__) && !defined(KERNEL) && !defined(INKERNEL) && !defined(_KERNEL)) || defined(USE_SEQ_MACROS) 
+#if (!defined(_KERNEL) && !defined(INKERNEL)) || defined(USE_SEQ_MACROS) 
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface

@@ -51,12 +51,12 @@ extern int debug;					    /* debug flags */
     printf (msg); \
     longjmp (command_fail, -1); \
     }
-#ifndef KERNEL
+#ifndef _KERNEL
 struct vnode;
 struct proc;
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int vinum_inactive(int);
 void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);

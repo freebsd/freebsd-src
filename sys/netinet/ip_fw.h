@@ -210,7 +210,7 @@ struct ip_fw_chain {
 /*
  * Main firewall chains definitions and global var's definitions.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define IP_FW_PORT_DYNT_FLAG	0x10000
 #define IP_FW_PORT_TEE_FLAG	0x20000
@@ -229,6 +229,6 @@ typedef	int ip_fw_ctl_t __P((struct sockopt *));
 extern	ip_fw_chk_t *ip_fw_chk_ptr;
 extern	ip_fw_ctl_t *ip_fw_ctl_ptr;
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _IP_FW_H */

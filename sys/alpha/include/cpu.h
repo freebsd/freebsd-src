@@ -90,7 +90,7 @@ struct clockframe {
 
 #define	aston()		(astpending = 1)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 u_int32_t astpending;		/* need to trap before returning to user mode */
 u_int32_t intr_nesting_level;	/* bookeeping only; counts software intr */
 u_int32_t want_resched;		/* resched() was called */
@@ -124,7 +124,7 @@ u_int32_t want_resched;		/* resched() was called */
 	{ "wall_cmos_clock", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct pcb;
 struct proc;
@@ -176,6 +176,6 @@ void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _ALPHA_CPU_H_ */

@@ -109,7 +109,7 @@ struct sockaddr_inarp {
 #define	RTF_USETRAILERS	RTF_PROTO1	/* use trailers */
 #define RTF_ANNOUNCE	RTF_PROTO2	/* announce new arp entry */
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 extern u_char	ether_ipmulticast_min[ETHER_ADDR_LEN];
 extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 extern struct	ifqueue arpintrq;

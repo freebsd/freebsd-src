@@ -40,7 +40,7 @@
  * Low level interrupt code.
  */ 
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #if defined(SMP) || defined(APIC_IO)
 /*
@@ -208,6 +208,6 @@ int inthand_remove(struct intrec *idesc);
 
 #endif /* LOCORE */
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_I386_ISA_INTR_MACHDEP_H_ */

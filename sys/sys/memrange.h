@@ -1,5 +1,7 @@
 /*
  * Memory range attribute operations, peformed on /dev/mem
+ *
+ * $FreeBSD$
  */
 
 /* Memory range attributes */
@@ -38,7 +40,7 @@ struct mem_range_op
 #define MEMRANGE_GET	_IOWR('m', 50, struct mem_range_op)
 #define MEMRANGE_SET	_IOW('m', 51, struct mem_range_op)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 MALLOC_DECLARE(M_MEMDESC);
 

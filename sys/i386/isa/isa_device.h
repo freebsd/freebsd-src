@@ -37,7 +37,7 @@
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef _ISA_ISAVAR_H_
 #include <i386/isa/isa_dma.h>
 #endif
@@ -98,12 +98,12 @@ struct isa_driver {
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 int	haveseen_iobase __P((struct isa_device *dvp, int iosize));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	isa_compat_nextid __P((void));
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !_I386_ISA_ISA_DEVICE_H_ */

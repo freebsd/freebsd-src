@@ -238,7 +238,7 @@ struct buf {
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Buffer locking
  */
@@ -342,7 +342,7 @@ BUF_REFCNT(struct buf *bp)
 	return ret;
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 struct buf_queue_head {
 	TAILQ_HEAD(buf_queue, buf) queue;
@@ -365,7 +365,7 @@ struct cluster_save {
 	struct buf **bs_children;	/* List of associated buffers. */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static __inline void bufq_init __P((struct buf_queue_head *head));
 
 static __inline void bufq_insert_tail __P((struct buf_queue_head *head,
@@ -417,7 +417,7 @@ bufq_first(struct buf_queue_head *head)
 	return (TAILQ_FIRST(&head->queue));
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Definitions for the buffer free lists.
@@ -443,7 +443,7 @@ bufq_first(struct buf_queue_head *head)
 #define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
 #define B_SYNC		0x02	/* Do all allocations synchronously. */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
 extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
@@ -507,6 +507,6 @@ void	reassignbuf __P((struct buf *, struct vnode *));
 void	pbreassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((int *));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_BUF_H_ */

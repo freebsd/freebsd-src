@@ -36,7 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
@@ -49,7 +49,7 @@
 #include <sys/devicestat.h>
 #include <machine/limits.h>
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
 #endif
@@ -65,7 +65,7 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_sa.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <opt_sa.h>
 
@@ -3210,7 +3210,7 @@ saerase(struct cam_periph *periph, int longerase)
 	return (error);
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Read tape block limits command.

@@ -37,7 +37,7 @@
 #ifndef _NETINET_ICMP_VAR_H_
 #define _NETINET_ICMP_VAR_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include "opt_icmp_bandlim.h"		/* for ICMP_BANDLIM     */
 #endif
 
@@ -77,7 +77,7 @@ struct	icmpstat {
 	{ "icmplim", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
 #ifdef ICMP_BANDLIM
 extern int badport_bandlim __P((int));

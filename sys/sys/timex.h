@@ -39,6 +39,8 @@
  *
  * 17 Sep 93    David L. Mills
  *      Created file
+ *
+ * $FreeBSD$
  */
 /*
  * This header file defines the Network Time Protocol (NTP) interfaces
@@ -211,17 +213,17 @@ struct timex {
 
 #ifdef __FreeBSD__
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct timecounter;
 void	ntp_update_second __P((struct timecounter *tc));
-#else /* !KERNEL */
+#else /* !_KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int	ntp_adjtime __P((struct timex *));
 int	ntp_gettime __P((struct ntptimeval *));
 __END_DECLS
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* __FreeBSD__ */
 

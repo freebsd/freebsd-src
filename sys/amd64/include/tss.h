@@ -82,7 +82,7 @@ struct i386tss {
 				/* XXX unimplemented .. i/o permission bitmap */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef common_tss
 extern struct i386tss common_tss;
 #endif

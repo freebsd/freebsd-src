@@ -47,10 +47,10 @@
 
 #define FIX_SSTEP(p)	ptrace_clear_single_step(p)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int	ptrace_clear_single_step __P((struct proc *p));
 int	ptrace_read_u_check __P((struct proc *p, vm_offset_t off, size_t len));
-#endif /* !KERNEL */
+#endif
 
 #endif
 

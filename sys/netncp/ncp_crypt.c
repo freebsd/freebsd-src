@@ -134,7 +134,7 @@ nw_encrypt(const u_char *fra, const u_char *buf, u_char *target) {
 		*target++ = k[s] ^ k[15 - s];
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * MD4 routine taken from libmd sources
  */
@@ -271,4 +271,4 @@ unsigned int len;
       (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

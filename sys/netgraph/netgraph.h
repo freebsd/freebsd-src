@@ -47,7 +47,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #error "This file should not be included in user level programs"
 #endif
 

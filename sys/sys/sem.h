@@ -70,7 +70,7 @@ union semun {
 #define SEM_A		0200	/* alter permission */
 #define SEM_R		0400	/* read permission */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Kernel implementation stuff
  */
@@ -171,9 +171,9 @@ typedef enum {
 	SEM_CONFIG_FREEZE,	/* Freeze the semaphore facility. */
 	SEM_CONFIG_THAW		/* Thaw the semaphore facility. */
 } semconfig_ctl_t;
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
@@ -182,6 +182,6 @@ int semctl __P((int, int, int, ...));
 int semget __P((key_t, int, int));
 int semop __P((int, struct sembuf *,unsigned));
 __END_DECLS
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_SEM_H_ */

@@ -24,7 +24,7 @@
 #define NO_ZCFUNCS
 #define MY_ZCALLOC
 
-#if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
+#if defined(__FreeBSD__) && defined(_KERNEL)
 #define inflate	inflate_ppp	/* FreeBSD already has an inflate :-( */
 #endif
 
@@ -45,13 +45,13 @@
 #ifndef _Z_UTIL_H
 #define _Z_UTIL_H
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <net/zlib.h>
 #else
 #include "zlib.h"
 #endif
 
-#if defined(KERNEL) || defined(_KERNEL)
+#ifdef _KERNEL
 /* Assume this is a *BSD or SVR4 kernel */
 #include <sys/types.h>
 #include <sys/time.h>
@@ -80,7 +80,7 @@
 #  include <stdlib.h>
 #endif
 #endif /* __KERNEL__ */
-#endif /* _KERNEL || KERNEL */
+#endif /* _KERNEL */
 
 #ifndef local
 #  define local static

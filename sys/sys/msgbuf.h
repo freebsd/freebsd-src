@@ -46,7 +46,7 @@ struct	msgbuf {
 	char * 		msg_ptr;		/* pointer to buffer */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int	msgbufmapped;
 extern struct	msgbuf *msgbufp;
 void	msgbufinit	__P((void *ptr, size_t size));

@@ -89,7 +89,7 @@ typedef struct aiocb {
 	struct	__aiocb_private	_aiocb_private;
 } aiocb_t;
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 __BEGIN_DECLS
 /*

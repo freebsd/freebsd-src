@@ -83,7 +83,7 @@ struct plimit {
 	rlim_t	p_cpulimit;		/* current cpu limit in usec */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct proc;
 
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));

@@ -37,12 +37,12 @@
 #ifndef _SYS_FILE_H_
 #define	_SYS_FILE_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/queue.h>
 
 struct stat;
@@ -211,6 +211,6 @@ fo_close(fp, p)
 	return ((*fp->f_ops->fo_close)(fp, p));
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !SYS_FILE_H */

@@ -79,7 +79,7 @@ struct ipxpcb {
 #define	IPXSNDQ		16384
 #define	IPXRCVQ		40960
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct ipxpcb ipxpcb;			/* head of list */
 
 int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head,
@@ -96,6 +96,6 @@ void	ipx_pcbnotify __P((struct ipx_addr *dst, int errno,
 			   void (*notify)(struct ipxpcb *), long param));
 void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct sockaddr **nam));
 void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct sockaddr **nam));
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_NETIPX_IPX_PCB_H_ */
