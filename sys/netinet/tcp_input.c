@@ -2364,6 +2364,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 	struct tcpopt *to;
 	u_char *cp;
 	int cnt;
+	int is_syn;
 {
 	int opt, optlen;
 

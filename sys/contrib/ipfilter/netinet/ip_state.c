@@ -1141,6 +1141,7 @@ static int fr_matchicmpqueryreply(v, is, icmp, rev)
 int v;
 ipstate_t *is;
 icmphdr_t *icmp;
+int rev;
 {
 	if (v == 4) {
 		/*
