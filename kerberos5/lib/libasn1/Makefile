@@ -104,13 +104,7 @@ asn1_compile:					\
 	print_version.o				\
 	get_window_size.c			\
 	strupr.c
-	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
-
-.if defined(BOOTSTRAPPING) && \
-    ( ${BOOTSTRAPPING} < 440001 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500023 ))
-asn1_compile: getprogname.c setprogname.c
-.endif
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
 
 parse.o:	parse.c roken.h
 
