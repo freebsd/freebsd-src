@@ -1,4 +1,4 @@
-/*	$Id: cmds.c,v 1.7 1997/06/25 08:56:34 msmith Exp $ */
+/*	$Id: cmds.c,v 1.8 1997/06/27 09:30:01 ache Exp $ */
 /*	$NetBSD: cmds.c,v 1.24 1997/05/17 19:44:36 pk Exp $	*/
 
 /*
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id: cmds.c,v 1.7 1997/06/25 08:56:34 msmith Exp $";
+static char rcsid[] = "$Id: cmds.c,v 1.8 1997/06/27 09:30:01 ache Exp $";
 #endif
 #endif /* not lint */
 
@@ -341,9 +341,8 @@ mput(argc, argv)
 						tp = cp;
 						tp2 = tmpbuf;
 						while ((*tp2 = *tp) != '\0') {
-						     if (isupper((unsigned char)*tp2)) {
-						        *tp2 = 'a' + *tp2 - 'A';
-						     }
+						     if (isupper((unsigned char)*tp2))
+							*tp2 = tolower((unsigned char)*tp2);
 						     tp++;
 						     tp2++;
 						}
@@ -484,9 +483,8 @@ usage:
 			tp = argv[2];
 			tp2 = tmpbuf;
 			while ((*tp2 = *tp) != '\0') {
-				if (isupper((unsigned char)*tp2)) {
-					*tp2 = 'a' + *tp2 - 'A';
-				}
+				if (isupper((unsigned char)*tp2))
+					*tp2 = tolower((unsigned char)*tp2);
 				tp++;
 				tp2++;
 			}
