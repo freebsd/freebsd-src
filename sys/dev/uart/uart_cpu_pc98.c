@@ -40,7 +40,7 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
+	return ((b1->iobase == b2->iobase && b1->bst == b2->bst) ? 1 : 0);
 }
 
 int
