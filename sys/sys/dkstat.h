@@ -42,4 +42,6 @@
 #ifndef _SYS_DKSTAT_H_
 #define _SYS_DKSTAT_H_ 1
 
+#warning "<sys/dkstat.h> is deprecated and should not be #include'd"
+
 #endif /* _SYS_DKSTAT_H_ */
