@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.2 1995/03/03 21:38:43 dufault Exp $
+ * $Id: scsi_driver.c,v 1.3 1995/03/04 20:50:51 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -119,8 +119,8 @@ struct scsi_device *device)
 		sc_link->flags |= SDEV_OPEN;
 	}
 
-	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%x (unit %d of %d) result %d\n",
-		device->name, dev, unit, device->size, errcode));
+	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%x (unit %d) result %d\n",
+		device->name, dev, unit, errcode));
 
 	return errcode;
 }
@@ -171,7 +171,8 @@ scsi_minphys(struct buf *bp, struct scsi_device *device)
 void
 scsi_strategy(struct buf *bp, struct scsi_device *device)
 {
-	struct scsi_link *sc_link = SCSI_LINK(device, GETUNIT(device, bp->b_dev));
+	u_int32 unit = GETUNIT(device, bp->b_dev);
+	struct scsi_link *sc_link = SCSI_LINK(device, unit);
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("\n%sstrategy ", device->name));
 	SC_DEBUG(sc_link, SDEV_DB1, ("%s%ld: %d bytes @ blk%d\n",
