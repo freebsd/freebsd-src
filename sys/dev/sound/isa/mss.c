@@ -734,7 +734,7 @@ ad_read(struct mss_info *mss, int reg)
     	int             x;
 
     	flags = spltty();
-    	ad_wait_init(mss, 201);
+    	ad_wait_init(mss, 201000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	x = io_rd(mss, MSS_IDATA);
@@ -751,7 +751,7 @@ ad_write(struct mss_info *mss, int reg, u_char data)
     	int x;
 	/* printf("ad_write %d, %x\n", reg, data); */
     	flags = spltty();
-    	ad_wait_init(mss, 1002);
+    	ad_wait_init(mss, 1002000);
     	x = io_rd(mss, MSS_INDEX) & ~MSS_IDXMASK;
     	io_wr(mss, MSS_INDEX, (u_char)(reg & MSS_IDXMASK) | x);
     	io_wr(mss, MSS_IDATA, data);
@@ -778,7 +778,7 @@ wait_for_calibration(struct mss_info *mss)
      	 * 3) Wait until the ACI bit of I11 gets off
      	 */
 
-    	t = ad_wait_init(mss, 1000);
+    	t = ad_wait_init(mss, 1000000);
     	if (t & MSS_IDXBUSY) printf("mss: Auto calibration timed out(1).\n");
 
 	/*
@@ -810,7 +810,7 @@ ad_enter_MCE(struct mss_info *mss)
     	int prev;
 
     	mss->bd_flags |= BD_F_MCE_BIT;
-    	ad_wait_init(mss, 203);
+    	ad_wait_init(mss, 203000);
     	prev = io_rd(mss, MSS_INDEX);
     	prev &= ~MSS_TRD;
     	io_wr(mss, MSS_INDEX, prev | MSS_MCE);
@@ -827,7 +827,7 @@ ad_leave_MCE(struct mss_info *mss)
 		return;
     	}
 
-    	ad_wait_init(mss, 1000);
+    	ad_wait_init(mss, 1000000);
 
     	flags = spltty();
     	mss->bd_flags &= ~BD_F_MCE_BIT;
