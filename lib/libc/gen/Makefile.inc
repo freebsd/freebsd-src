@@ -119,6 +119,8 @@ MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 	rand48.3 mrand48.3 rand48.3 nrand48.3 rand48.3 seed48.3 \
 	rand48.3 srand48.3
 MLINKS+=scandir.3 alphasort.3
+MLINKS+=sem_open.3 sem_close.3 sem_open.3 sem_unlink.3
+MLINKS+=sem_wait.3 sem_trywait.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
 	setjmp.3 siglongjmp.3 setjmp.3 sigsetjmp.3
@@ -127,9 +129,6 @@ MLINKS+=shm_open.3 shm_unlink.3
 MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 	sigsetops.3 sigismember.3
-MLINKS+=sem_open.3 sem_close.3 \
-	sem_open.3 sem_unlink.3
-MLINKS+=sem_wait.3 sem_trywait.3
 MLINKS+=statvfs.3 fstatvfs.3
 MLINKS+=stringlist.3 sl_add.3 stringlist.3 sl_find.3 \
 	stringlist.3 sl_free.3 stringlist.3 sl_init.3
