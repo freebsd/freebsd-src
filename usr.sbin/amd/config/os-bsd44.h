@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.2 (Berkeley) 5/10/95
  *
- * $Id: os-bsd44.h,v 5.2.2.1 1992/02/09 15:10:11 jsp beta $
+ * $Id: os-bsd44.h,v 1.8 1997/03/11 15:51:36 peter Exp $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -65,9 +65,10 @@
  * This is the implementation release number, not
  * the protocol revision number.
  */
-#define	NFS_44
+#define	NFS_4
 #define HAS_TCP_NFS
 #define NFSv3
+#define M_NEWTYPE 0
 
 /*
  * Does this OS have NDBM support?
@@ -108,6 +109,7 @@
 #undef NFS_SA_DREF
 #if BSD >= 199506
 #define	NFS_SA_DREF(dst, src) { \
+		(dst).version = NFS_ARGSVERSION; \
 		(dst).addr = (struct sockaddr *) (src); \
 		(dst).addrlen = sizeof(*src); \
 		(dst).sotype = SOCK_DGRAM; \
