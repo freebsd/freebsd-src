@@ -244,9 +244,14 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
 #define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
 #ifndef INET6
-#define INP_LOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_OWNED)
+#define INP_LOCK_ASSERT(inp)	do {					\
+	mtx_assert(&(inp)->inp_mtx, MA_OWNED);				\
+	NET_ASSERT_GIANT();						\
+} while (0)
 #else
-#define INP_LOCK_ASSERT(inp)
+#define INP_LOCK_ASSERT(inp)	do {					\
+	NET_ASSERT_GIANT();						\
+} while (0)
 #endif
 
 #define INP_INFO_LOCK_INIT(ipi, d) \
@@ -256,11 +261,21 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define INP_INFO_RUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
 #ifndef INET6
-#define INP_INFO_RLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
-#define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
+#define INP_INFO_RLOCK_ASSERT(ipi)	do {				\
+	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED);				\
+	NET_ASSERT_GIANT();						\
+} while (0)
+#define INP_INFO_WLOCK_ASSERT(ipi)	do {				\
+	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED);				\
+	NET_ASSERT_GIANT();						\
+} while (0)
 #else
-#define INP_INFO_RLOCK_ASSERT(ipi)
-#define INP_INFO_WLOCK_ASSERT(ipi)
+#define INP_INFO_RLOCK_ASSERT(ipi)	do {				\
+	NET_ASSERT_GIANT();						\
+} while (0)
+#define INP_INFO_WLOCK_ASSERT(ipi)	do {				\
+	NET_ASSERT_GIANT();						\
+} while (0)
 #endif
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
