@@ -54,14 +54,14 @@ static int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,
 	&umap_bug_bypass, 0, "");
 
-static int	umap_bypass(struct vop_generic_args *ap);
-static int	umap_getattr(struct vop_getattr_args *ap);
-static int	umap_inactive(struct vop_inactive_args *ap);
-static int	umap_lock(struct vop_lock_args *ap);
-static int	umap_print(struct vop_print_args *ap);
-static int	umap_reclaim(struct vop_reclaim_args *ap);
-static int	umap_rename(struct vop_rename_args *ap);
-static int	umap_unlock(struct vop_unlock_args *ap);
+static vop_generic_t	umap_bypass;
+static vop_getattr_t	umap_getattr;
+static vop_inactive_t	umap_inactive;
+static vop_lock_t	umap_lock;
+static vop_print_t	umap_print;
+static vop_reclaim_t	umap_reclaim;
+static vop_rename_t	umap_rename;
+static vop_unlock_t	umap_unlock;
 
 /*
  * This is the 10-Apr-92 bypass routine.

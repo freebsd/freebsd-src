@@ -58,25 +58,25 @@
 
 static int	hpfs_de_uiomove(struct hpfsmount *, struct hpfsdirent *,
 				     struct uio *);
-static int	hpfs_ioctl(struct vop_ioctl_args *ap);
-static int	hpfs_read(struct vop_read_args *);
-static int	hpfs_write(struct vop_write_args *ap);
-static int	hpfs_getattr(struct vop_getattr_args *ap);
-static int	hpfs_setattr(struct vop_setattr_args *ap);
-static int	hpfs_inactive(struct vop_inactive_args *ap);
-static int	hpfs_print(struct vop_print_args *ap);
-static int	hpfs_reclaim(struct vop_reclaim_args *ap);
-static int	hpfs_strategy(struct vop_strategy_args *ap);
-static int	hpfs_access(struct vop_access_args *ap);
-static int	hpfs_open(struct vop_open_args *ap);
-static int	hpfs_close(struct vop_close_args *ap);
-static int	hpfs_readdir(struct vop_readdir_args *ap);
-static int	hpfs_lookup(struct vop_lookup_args *ap);
-static int	hpfs_create(struct vop_create_args *);
-static int	hpfs_remove(struct vop_remove_args *);
-static int	hpfs_bmap(struct vop_bmap_args *ap);
-static int	hpfs_fsync(struct vop_fsync_args *ap);
-static int	hpfs_pathconf(struct vop_pathconf_args *ap);
+static vop_ioctl_t	hpfs_ioctl;
+static vop_read_t	hpfs_read;
+static vop_write_t	hpfs_write;
+static vop_getattr_t	hpfs_getattr;
+static vop_setattr_t	hpfs_setattr;
+static vop_inactive_t	hpfs_inactive;
+static vop_print_t	hpfs_print;
+static vop_reclaim_t	hpfs_reclaim;
+static vop_strategy_t	hpfs_strategy;
+static vop_access_t	hpfs_access;
+static vop_open_t	hpfs_open;
+static vop_close_t	hpfs_close;
+static vop_readdir_t	hpfs_readdir;
+static vop_lookup_t	hpfs_lookup;
+static vop_create_t	hpfs_create;
+static vop_remove_t	hpfs_remove;
+static vop_bmap_t	hpfs_bmap;
+static vop_fsync_t	hpfs_fsync;
+static vop_pathconf_t	hpfs_pathconf;
 
 static int
 hpfs_fsync(ap)

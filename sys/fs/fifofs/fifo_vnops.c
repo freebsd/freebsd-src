@@ -82,13 +82,13 @@ struct fifoinfo {
 	long		fi_writers;
 };
 
-static int	fifo_print(struct vop_print_args *);
-static int	fifo_open(struct vop_open_args *);
-static int	fifo_close(struct vop_close_args *);
-static int	fifo_ioctl(struct vop_ioctl_args *);
-static int	fifo_kqfilter(struct vop_kqfilter_args *);
-static int	fifo_pathconf(struct vop_pathconf_args *);
-static int	fifo_advlock(struct vop_advlock_args *);
+static vop_print_t	fifo_print;
+static vop_open_t	fifo_open;
+static vop_close_t	fifo_close;
+static vop_ioctl_t	fifo_ioctl;
+static vop_kqfilter_t	fifo_kqfilter;
+static vop_pathconf_t	fifo_pathconf;
+static vop_advlock_t	fifo_advlock;
 
 static void	filt_fifordetach(struct knote *kn);
 static int	filt_fiforead(struct knote *kn, long hint);

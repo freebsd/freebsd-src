@@ -192,20 +192,20 @@ static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
 	&null_bug_bypass, 0, "");
 
-static int	null_access(struct vop_access_args *ap);
-static int	null_createvobject(struct vop_createvobject_args *ap);
-static int	null_destroyvobject(struct vop_destroyvobject_args *ap);
-static int	null_getattr(struct vop_getattr_args *ap);
-static int	null_getvobject(struct vop_getvobject_args *ap);
-static int	null_inactive(struct vop_inactive_args *ap);
-static int	null_islocked(struct vop_islocked_args *ap);
-static int	null_lock(struct vop_lock_args *ap);
-static int	null_lookup(struct vop_lookup_args *ap);
-static int	null_print(struct vop_print_args *ap);
-static int	null_reclaim(struct vop_reclaim_args *ap);
-static int	null_rename(struct vop_rename_args *ap);
-static int	null_setattr(struct vop_setattr_args *ap);
-static int	null_unlock(struct vop_unlock_args *ap);
+static vop_access_t	null_access;
+static vop_createvobject_t	null_createvobject;
+static vop_destroyvobject_t	null_destroyvobject;
+static vop_getattr_t	null_getattr;
+static vop_getvobject_t	null_getvobject;
+static vop_inactive_t	null_inactive;
+static vop_islocked_t	null_islocked;
+static vop_lock_t	null_lock;
+static vop_lookup_t	null_lookup;
+static vop_print_t	null_print;
+static vop_reclaim_t	null_reclaim;
+static vop_rename_t	null_rename;
+static vop_setattr_t	null_setattr;
+static vop_unlock_t	null_unlock;
 
 /*
  * This is the 10-Apr-92 bypass routine.

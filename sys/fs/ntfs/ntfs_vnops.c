@@ -66,19 +66,19 @@
 
 #include <sys/unistd.h> /* for pathconf(2) constants */
 
-static int	ntfs_read(struct vop_read_args *);
-static int	ntfs_write(struct vop_write_args *ap);
-static int	ntfs_getattr(struct vop_getattr_args *ap);
-static int	ntfs_inactive(struct vop_inactive_args *ap);
-static int	ntfs_reclaim(struct vop_reclaim_args *ap);
-static int	ntfs_bmap(struct vop_bmap_args *ap);
-static int	ntfs_strategy(struct vop_strategy_args *ap);
-static int	ntfs_access(struct vop_access_args *ap);
-static int	ntfs_open(struct vop_open_args *ap);
-static int	ntfs_close(struct vop_close_args *ap);
-static int	ntfs_readdir(struct vop_readdir_args *ap);
-static int	ntfs_lookup(struct vop_lookup_args *ap);
-static int	ntfs_fsync(struct vop_fsync_args *ap);
+static vop_read_t	ntfs_read;
+static vop_write_t	ntfs_write;
+static vop_getattr_t	ntfs_getattr;
+static vop_inactive_t	ntfs_inactive;
+static vop_reclaim_t	ntfs_reclaim;
+static vop_bmap_t	ntfs_bmap;
+static vop_strategy_t	ntfs_strategy;
+static vop_access_t	ntfs_access;
+static vop_open_t	ntfs_open;
+static vop_close_t	ntfs_close;
+static vop_readdir_t	ntfs_readdir;
+static vop_lookup_t	ntfs_lookup;
+static vop_fsync_t	ntfs_fsync;
 static int	ntfs_pathconf(void *);
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
