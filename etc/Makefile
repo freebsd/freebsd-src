@@ -1,7 +1,9 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
 # $FreeBSD$
 
+.if !defined(NO_SENDMAIL)
 SUBDIR=	sendmail
+.endif
 
 BIN1=   amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
