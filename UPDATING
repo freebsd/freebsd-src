@@ -260,6 +260,10 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	DEVFS is now opt out, not opt in.  Barring major problems, this
 	will be the only way to go starting July 1.
 
+20010504:
+	OpenSSH has been updated to 2.9.  Some defaults are different,
+	including RhostsRSAAuthentication, which changes from yes to no.
+
 20010502:
 	Perl breakage in 20010501 was corrected at 14:18:33 PDT.
 
@@ -679,7 +683,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	Mark Murray just committed the first parts of a cleanup of
 	/dev/zero, et al.  This is also cleaning up /dev/random.
 	The entropy is disconnected, so DO NOT USE VERSIONS OF FREEBSD
-	-CURRENT FROM THIS POINT FORWARD for cryptographic services
+	-CURRENT FROM THIS POINT to 2000710 for cryptographic services
 	until Mark can merge in the fixes to this work in progress.
 	openssh and openssl should not be used to generate keys from this
 	date to the completion of the work.
