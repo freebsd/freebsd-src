@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.40 1998/07/29 05:34:59 kjc Exp $
+ * $Id: bpf.c,v 1.41 1998/08/18 10:13:11 ache Exp $
  */
 
 #include "bpfilter.h"
@@ -777,15 +777,10 @@ bpfioctl(dev, cmd, addr, flags, p)
 	case BIOCSRTIMEOUT:
 		{
 			struct timeval *tv = (struct timeval *)addr;
-			u_long msec;
 
-			/* Compute number of milliseconds. */
-			msec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
-			/* Scale milliseconds to ticks.  Assume hard
-			   clock has millisecond or greater resolution
-			   (i.e. tick >= 1000).  For 10ms hardclock,
-			   tick/1000 = 10, so rtout<-msec/10. */
-			d->bd_rtout = msec / (tick / 1000);
+			d->bd_rtout = tv->tv_sec * hz + tv->tv_usec / tick;
+			if (d->bd_rtout == 0 && tv->tv_usec != 0)
+				d->bd_rtout = 1;
 			break;
 		}
 
