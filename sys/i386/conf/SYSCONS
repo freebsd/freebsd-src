@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.3 1993/08/26 17:55:59 rgrimes Exp $
+#	$Id: SYSCONS,v 1.4 1993/08/28 13:21:47 rgrimes Exp $
 #
 
 machine		"i386"
@@ -67,7 +67,7 @@ device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		lpa0	at isa? port "IO_LPT1" tty
 device		lpa1	at isa? port "IO_LPT2" tty
 
-device ed0 at isa? port 0x280 net irq 9 iomem 0xd0000 vector edintr
+device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 #device ec0 at isa? port 0x250 net irq 9 iomem 0xd8000 iosiz 8192 vector ecintr
 device ne0 at isa? port 0x300 net irq 9 vector neintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
