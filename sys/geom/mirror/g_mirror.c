@@ -584,7 +584,7 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	/*
 	 * Open consumer if it wasn't opened and remember to close it.
 	 */
-	if ((disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
+	if (cp->acw == 0) {
 		error = g_access(cp, 0, 1, 1);
 		G_MIRROR_DEBUG(2, "Access %s r%dw%de%d = %d",
 		    cp->provider->name, 0, 1, 1, error);
