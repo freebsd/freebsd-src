@@ -22,7 +22,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20040817:
-	IPFW has been converted to use PFIL_HOOKS.  This is change is
+	IPFW has been converted to use PFIL_HOOKS.  This change is
 	transparent to userland and preserves the ipfw ABI.  The ipfw
 	core packet inspection and filtering functions have not been
 	changed, only how ipfw is invoked is different.  Note that
