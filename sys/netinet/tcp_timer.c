@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.8 1995/07/29 18:48:43 davidg Exp $
+ *	$Id: tcp_timer.c,v 1.9 1995/10/03 16:54:17 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -227,10 +227,6 @@ tcp_timers(tp, timer)
 			tp->t_srtt = 0;
 		}
 		tp->snd_nxt = tp->snd_una;
-		/*
-		 * Force a segment to be sent.
-		 */
-		tp->t_flags |= TF_ACKNOW;
 		/*
 		 * If timing a segment in this window, stop the timer.
 		 */
