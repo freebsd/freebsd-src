@@ -507,7 +507,6 @@ extern	int ss_fltsz_local;
 
 extern	int tcp_do_sack;	/* SACK enabled/disabled */
 
-void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
