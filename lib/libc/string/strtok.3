@@ -111,10 +111,10 @@ The following uses
 to parse two strings using separate contexts:
 .Bd -literal
 char test[80], blah[80];
-char *sep = "\\/:;=-";
+char *sep = "\e\e/:;=-";
 char *word, *phrase, *brkt, *brkb;
 
-strcpy(test, "This;is.a:test:of=the/string\\tokenizer-function.");
+strcpy(test, "This;is.a:test:of=the/string\e\etokenizer-function.");
 
 for (word = strtok_r(test, sep, &brkt);
      word;
@@ -126,7 +126,7 @@ for (word = strtok_r(test, sep, &brkt);
          phrase;
          phrase = strtok_r(NULL, sep, &brkb))
     {
-        printf("So far we're at %s:%s\n", word, phrase);
+        printf("So far we're at %s:%s\en", word, phrase);
     }
 }
 .Ed
