@@ -202,8 +202,7 @@ beforeinstall:
 afterinstall:
 .endif
 
-INSTALLFLAGS+= -fschg
-_INSTALLFLAGS:=	${INSTALLFLAGS}
+_INSTALLFLAGS:=	-fschg ${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
