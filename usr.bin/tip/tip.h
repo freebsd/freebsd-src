@@ -276,3 +276,5 @@ extern	int disc;			/* current tty discpline */
 extern	char *ctrl();
 extern	char *vinterp();
 extern	char *connect();
+
+int	tipabort	__P((char *));
