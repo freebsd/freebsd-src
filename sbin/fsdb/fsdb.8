@@ -26,7 +26,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: fsdb.8,v 1.6 1997/02/22 14:32:25 peter Exp $
+.\"	$Id: fsdb.8,v 1.3.2.1 1997/03/03 07:01:25 mpp Exp $
 .\"
 .Dd September 14, 1995
 .Dt FSDB 8
@@ -40,7 +40,7 @@
 .Op Fl f 
 .Ar fsname
 .Sh DESCRIPTION
-.Nm
+.Nm Fsdb
 opens 
 .Ar fsname
 (usually a raw disk partition) and runs a command loop
@@ -151,7 +151,7 @@ entry if the name will fit into the existing directory slot.
 .It Cm chtype Ar type
 Change the type of the current inode to
 .Ar type .
-.Ar type
+.Ar Type
 may be one of:
 .Em file ,
 .Em dir ,
@@ -222,14 +222,19 @@ The
 .Xr libedit 3
 reference page is not yet written.
 .Sh HISTORY
-.Nm
+.Nm Fsdb
 uses the source code for
 .Xr fsck 8
 to implement most of the file system manipulation code.  The remainder of
 .Nm
-first appeared in NetBSD, written by John T. Kohl.
+first appeared in
+.Bx Net ,
+written by
+.An John T. Kohl .
 .br
-Peter Wemm ported it to FreeBSD.
+.An Peter Wemm
+ported it to
+.Bx Free .
 .Sh WARNING
 Use this tool with extreme caution--you can damage an FFS file system
 beyond what
