@@ -215,11 +215,27 @@ LX98:	ldgp	$29,0($27);	\
  *
  * XXX These macros should probably use inline assembly.
  */
-#define MCOUNT_ENTER(s) \
-	s = _alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH)
-#define MCOUNT_EXIT(s) \
-	(void)_alpha_pal_swpipl(s);
-#define	MCOUNT_DECL(s)	u_long s;
+u_long _alpha_pal_swpipl(u_long);
+
+#define	MCOUNT_ENTER(s)		s = _alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH)
+#define	MCOUNT_EXIT(s)		(void)_alpha_pal_swpipl(s)
+#define	MCOUNT_DECL(s)		u_long s;
+
+void bintr(void);
+void btrap(void);
+void eintr(void);
+void user(void);
+
+#define	MCOUNT_FROMPC_USER(pc)					\
+	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? (uintfptr_t)user : pc)
+
+#define	MCOUNT_FROMPC_INTR(pc)					\
+	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
+	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
+		(uintfptr_t)btrap) : ~0UL)
+
+_MCOUNT_DECL(uintfptr_t, uintfptr_t);
+
 #else /* !_KERNEL */
 typedef u_long	uintfptr_t;
 #endif

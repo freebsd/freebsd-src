@@ -87,6 +87,19 @@ extern int	mcount_lock;
 #endif
 #endif /* GUPROF */
 
+void bintr(void);
+void btrap(void);
+void eintr(void);
+void user(void);
+
+#define	MCOUNT_FROMPC_USER(pc)					\
+	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? (uintfptr_t)user : pc)
+
+#define	MCOUNT_FROMPC_INTR(pc)					\
+	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
+	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
+		(uintfptr_t)btrap) : ~0UL)
+
 #else /* !_KERNEL */
 
 #define	FUNCTION_ALIGNMENT	4

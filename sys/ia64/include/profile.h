@@ -1,109 +1,65 @@
-/* $FreeBSD$ */
-/* From: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp */
-
 /*
- * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
+ * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
- * Author: Chris G. Demetriou
- * 
- * Permission to use, copy, modify and distribute this software and
- * its documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
- * software, derivative works or modified versions, and any portions
- * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
- * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
- * Carnegie Mellon requests users of this software to return to
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
- *  School of Computer Science
- *  Carnegie Mellon University
- *  Pittsburgh PA 15213-3890
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * any improvements or extensions that they make and grant Carnegie the
- * rights to redistribute these changes.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#define	_MCOUNT_DECL	void mcount
+#ifndef _MACHINE_PROFILE_H_
+#define	_MACHINE_PROFILE_H_
 
-#define FUNCTION_ALIGNMENT 32
+#define	_MCOUNT_DECL	void __mcount
+#define	MCOUNT
 
-typedef u_long	fptrdiff_t;
+#define	FUNCTION_ALIGNMENT	32
 
-#define MCOUNT __asm ("							\n\
-	.globl	_mcount							\n\
-	.proc	_mcount							\n\
-_mcount:								\n\
-	alloc	loc0=ar.pfs,8,7,2,0	// space to save r8-r11,rp,b7	\n\
-	add	sp=-8*16,sp		// space to save f8-f15		\n\
-	mov	loc1=rp			// caller's return address	\n\
-	mov	loc2=b7			// our return back to caller	\n\
-	;;								\n\
-	add	r17=16,sp		// leave 16 bytes for mcount	\n\
-	add	r18=32,sp						\n\
-	;;								\n\
-	mov	loc3=r8			// structure return address	\n\
-	mov	loc4=r9			// language specific		\n\
-	mov	loc5=r10		// language specific		\n\
-	mov	loc6=r11		// language specific		\n\
-	;;								\n\
-	stf.spill [r17]=f8,32		// save float arguments		\n\
-	stf.spill [r18]=f9,32						\n\
-	mov	out0=rp			// frompc			\n\
-	;;								\n\
-	stf.spill [r17]=f10,32						\n\
-	stf.spill [r18]=f11,32						\n\
-	mov	out1=b7			// selfpc			\n\
-	;;								\n\
-	stf.spill [r17]=f12,32						\n\
-	stf.spill [r18]=f13,32						\n\
-	;;								\n\
-	stf.spill [r17]=f14,32						\n\
-	stf.spill [r18]=f15,32						\n\
-	;;								\n\
-	br.call.sptk.many rp=mcount					\n\
-	;;								\n\
-	add	r17=16,sp						\n\
-	add	r18=32,sp						\n\
-	;;								\n\
-	ldf.fill f8=[r17],32						\n\
-	ldf.fill f9=[r18],32						\n\
-	mov	r8=loc3			// restore structure pointer	\n\
-	;;								\n\
-	ldf.fill f10=[r17],32		// restore float arguments	\n\
-	ldf.fill f11=[r18],32						\n\
-	mov	r9=loc4							\n\
-	;;								\n\
-	ldf.fill f12=[r17],32		// etc.				\n\
-	ldf.fill f13=[r18],32						\n\
-	mov	r10=loc5						\n\
-	;;								\n\
-	ldf.fill f14=[r17],32						\n\
-	ldf.fill f15=[r18],32						\n\
-	mov	r11=loc6						\n\
-	;;								\n\
-	mov	b7=loc2			// clean up			\n\
-	mov	rp=loc1							\n\
-	mov	ar.pfs=loc0						\n\
-	;;								\n\
-	alloc	r14=ar.pfs,0,0,8,0	// drop our register frame	\n\
-	br.sptk.many b7			// back to caller		\n\
-									\n\
-	.end	_mcount");
+typedef unsigned long	fptrdiff_t;
 
 #ifdef _KERNEL
 /*
  * The following two macros do splhigh and splx respectively.
  */
-#define MCOUNT_ENTER(s) \n\
-	_c = intr_disable()
-#define MCOUNT_EXIT(s) \n\
-	intr_restore(_c)
-#define	MCOUNT_DECL(s)	register_t c;
+#define	MCOUNT_ENTER(s)	s = intr_disable()
+#define	MCOUNT_EXIT(s)	intr_restore(s)
+#define	MCOUNT_DECL(s)	register_t s;
+
+void bintr(void);
+void btrap(void);
+void eintr(void);
+void user(void);
+
+#define	MCOUNT_FROMPC_USER(pc)		\
+	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? ~0UL : pc)
+
+#define	MCOUNT_FROMPC_INTR(pc)		(~0UL)
+
+_MCOUNT_DECL(uintfptr_t, uintfptr_t);
+
 #else /* !_KERNEL */
-typedef u_long	uintfptr_t;
+
+typedef unsigned long	uintfptr_t;
+
 #endif
+
+#endif /* _MACHINE_PROFILE_H_ */
