@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm.c,v 1.17 1998/08/06 16:57:47 johnc Exp $
+ *	@(#) $Id: atm.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm.c,v 1.17 1998/08/06 16:57:47 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
@@ -59,8 +50,18 @@ static char *RCSid = "@(#) $Id: atm.c,v 1.17 1998/08/06 16:57:47 johnc Exp $";
 #include <netatm/atm_sigmgr.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "atm.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atm.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 /*
@@ -217,6 +218,7 @@ char	*prog;
 char	prefix[128] = "";
 
 
+int
 main(argc, argv)
 	int	argc;
 	char	**argv;
@@ -226,7 +228,7 @@ main(argc, argv)
 	/*
 	 * Save program name, ignoring any path components
 	 */
-	if (prog = (char *)strrchr(argv[0], '/'))
+	if ((prog = (char *)strrchr(argv[0], '/')) != NULL)
 		prog++;
 	else
 		prog = argv[0];
@@ -240,7 +242,7 @@ main(argc, argv)
 	/*
 	 * Validate and process command
 	 */
-	if (error = do_cmd(cmds, argc, argv))
+	if ((error = do_cmd(cmds, argc, argv)) != 0)
 		usage(cmds, "");
 
 	exit(error);
@@ -724,7 +726,7 @@ arp_add(argc, argv, cmdp)
 	char		**argv;
 	struct cmd	*cmdp;
 {
-	int			len, rc, s;
+	int			len, s;
 	struct atmaddreq	apr;
 	Atm_addr		host_atm;
 	struct sockaddr_in	*sin;

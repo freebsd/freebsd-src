@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_subr.c,v 1.6 1998/08/13 20:11:11 johnc Exp $
+ *	@(#) $Id: atmarp_subr.c,v 1.1 1998/09/15 08:23:14 phk Exp $
  *
  */
 
@@ -36,23 +36,13 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_subr.c,v 1.6 1998/08/13 20:11:11 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -64,11 +54,22 @@ static char *RCSid = "@(#) $Id: atmarp_subr.c,v 1.6 1998/08/13 20:11:11 johnc Ex
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/uniip_var.h>
  
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
 #include "../scspd/scsp_var.h"
 #include "atmarp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atmarp_subr.c,v 1.1 1998/09/15 08:23:14 phk Exp $");
+#endif
 
 
 /*
@@ -716,7 +717,7 @@ print_scsp_id(df, ip)
 {
 	int	i;
 
-	fprintf(df, "\t  next:            0x%0x\n", (u_long)ip->next);
+	fprintf(df, "\t  next:            %p\n", ip->next);
 	fprintf(df, "\t  id_len:          %d\n", ip->id_len);
 	fprintf(df, "\t  id:              0x");
 	for (i = 0; i < ip->id_len; i++) {
@@ -774,10 +775,8 @@ print_atmarp_intf(df, aip)
 		return;
 	}
 
-	fprintf(df, "ATMARP network interface entry at 0x%0x\n",
-			(u_long)aip);
-	fprintf(df, "\tai_next:           0x%0x\n",
-			(u_long)aip->ai_next);
+	fprintf(df, "ATMARP network interface entry at %p\n", aip);
+	fprintf(df, "\tai_next:           %p\n", aip->ai_next);
 	fprintf(df, "\tai_intf:           %s\n", aip->ai_intf);
 	fprintf(df, "\tai_ip_addr:        %s\n",
 			format_ip_addr(&aip->ai_ip_addr));
@@ -816,8 +815,8 @@ print_atmarp_cache(df, aap)
 		return;
 	}
 
-	fprintf(df, "ATMARP entry at 0x%0x\n", (u_long)aap);
-	fprintf(df, "\taa_next:      0x%0x\n", (u_long)aap->aa_next);
+	fprintf(df, "ATMARP entry at %p\n", aap);
+	fprintf(df, "\taa_next:      %p\n", aap->aa_next);
 	fprintf(df, "\taa_dstip:     %s\n", inet_ntoa(aap->aa_dstip));
 	fprintf(df, "\taa_dstatm:    %s\n",
 			format_atm_addr(&aap->aa_dstatm));
@@ -827,9 +826,9 @@ print_atmarp_cache(df, aap)
 	print_scsp_cache_key(df, &aap->aa_key);
 	fprintf(df, "\taa_oid:\n");
 	print_scsp_id(df, &aap->aa_oid);
-	fprintf(df, "\taa_seq:       %d (0x%x)\n", aap->aa_seq,
+	fprintf(df, "\taa_seq:       %ld (0x%lx)\n", aap->aa_seq,
 			aap->aa_seq);
-	fprintf(df, "\taa_intf:      0x%0x\n", (u_long)aap->aa_intf);
+	fprintf(df, "\taa_intf:      %p\n", aap->aa_intf);
 	fprintf(df, "\taa_flags:     ");
 	if (aap->aa_flags & AAF_PERM)
 		fprintf(df, "Permanent ");

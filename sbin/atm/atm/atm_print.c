@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_print.c,v 1.12 1998/07/30 22:38:56 mks Exp $
+ *	@(#) $Id: atm_print.c,v 1.1 1998/09/15 08:22:45 phk Exp $
  *
  */
 
@@ -35,19 +35,12 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atm_print.c,v 1.12 1998/07/30 22:38:56 mks Exp $";
-#endif
-
 #include <sys/types.h>  
 #include <sys/param.h>  
-                
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h> 
 #include <net/if.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netatm/port.h>
 #include <netatm/atm.h>
 #include <netatm/atm_if.h> 
@@ -56,15 +49,23 @@ static char *RCSid = "@(#) $Id: atm_print.c,v 1.12 1998/07/30 22:38:56 mks Exp $
 #include <netatm/atm_sys.h>
 #include <netatm/atm_vc.h>
 #include <netatm/atm_ioctl.h>
-
-#include <libatm.h>
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/sigpvc/sigpvc_var.h>
 #include <netatm/spans/spans_var.h>
 #include <netatm/uni/uniip_var.h>
 #include <netatm/uni/unisig_var.h>
+
+#include <errno.h>
+#include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "atm.h"
 
+#ifndef lint
+__RCSID("@(#) $Id: atm_print.c,v 1.1 1998/09/15 08:22:45 phk Exp $");
+#endif
 
 
 #define ARP_HDR \
@@ -349,7 +350,6 @@ print_asrv_info(si)
 {
 	int		i;
 	char		*atm_addr, *state;
-	char		print_lis[32];
 	struct in_addr	*addr;
 
 	/*
@@ -395,7 +395,7 @@ print_asrv_info(si)
 		for (i = 0; i < si->asp_nprefix; i++) {
 			printf("%s", inet_ntoa(*addr));
 			addr++;
-			printf("/0x%0x", ntohl(addr->s_addr));
+			printf("/0x%0lx", ntohl(addr->s_addr));
 			addr++;
 			if (i < si->asp_nprefix -1)
 				printf(", ");
@@ -444,7 +444,7 @@ print_cfg_info(si)
 	/*
 	 * Print the ARP server information
 	 */
-	printf("%-8s  %-8s  %-8s  %-14s  %-4s  %d\n",
+	printf("%-8s  %-8s  %-8s  %-14s  %-4s  %ld\n",
 			si->acp_intf,
 			vendor,
 			adapter,
@@ -474,9 +474,8 @@ print_intf_info(ni)
 {
 	int	i;
 	char	nif_names[(IFNAMSIZ *2)+4];
-	char	*atm_addr, *ip_addr;
+	char	*atm_addr;
 	char	*sigmgr = "-", *state_name = "-";
-	struct sockaddr_in	*sin;
 	struct state		*s_t;
 
 	/*
@@ -681,8 +680,6 @@ void
 print_intf_stats(pi)
 	struct air_phy_stat_rsp	*pi;
 {
-	int	i;
-
 	/*
 	 * Print a header if it hasn't already been done
 	 */
@@ -694,7 +691,7 @@ print_intf_stats(pi)
 	/*
 	 * Print the interface statistics
 	 */
-	printf("%-9s  %7d %8d  %5d %7d %8d  %5d  %5d\n",
+	printf("%-9s  %7ld %8ld  %5ld %7ld %8ld  %5ld  %5ld\n",
 			pi->app_intf,
 			pi->app_ipdus,
 			pi->app_ibytes,
@@ -737,7 +734,7 @@ print_vcc_stats(vi)
 			vi->avp_vpi,
 			vi->avp_vci);
 	if ( vi->avp_type & VCC_IN )
-		printf ( "  %7d %8d  %5d",
+		printf ( "  %7ld %8ld  %5ld",
 			vi->avp_ipdus,
 			vi->avp_ibytes,
 			vi->avp_ierrors);
@@ -745,7 +742,7 @@ print_vcc_stats(vi)
 		printf ( "        -        -      -" );
 
 	if ( vi->avp_type & VCC_OUT )
-		printf ( " %7d %8d  %5d\n",
+		printf ( " %7ld %8ld  %5ld\n",
 			vi->avp_opdus,
 			vi->avp_obytes,
 			vi->avp_oerrors);
@@ -770,7 +767,7 @@ print_vcc_info(vi)
 {
 	int	i;
 	char	*aal_name = "-" , *encaps_name = "-", *owner_name = "-";
-	char	*proto_name = "-", *state_name = "-", *type_name = "-";
+	char	*state_name = "-", *type_name = "-";
 	char	dir_name[10];
 	struct state	*s_t;
 

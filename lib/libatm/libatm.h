@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: libatm.h,v 1.5 1998/08/06 16:56:27 johnc Exp $
+ *	@(#) $Id: libatm.h,v 1.1 1998/09/15 08:22:34 phk Exp $
  *
  */
 
@@ -96,8 +96,9 @@ extern int		get_subnet_mask __P((char *,
 				struct sockaddr_in *));
 extern int		get_mtu __P((char *));
 extern int		verify_nif_name __P((char *));
-extern int		get_cfg_info __P((char *,
-				struct air_cfg_rsp **));
+extern int		get_cfg_info __P((char *, struct air_cfg_rsp **));
+extern int		get_intf_info __P((char *, struct air_int_rsp **));
+extern int		get_netif_info __P((char *, struct air_netif_rsp **));
 
 /* ip_addr.c */
 extern struct sockaddr_in	*get_ip_addr __P((char *));

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_socket.c,v 1.6 1998/08/21 18:08:24 johnc Exp $
+ *	@(#) $Id: scsp_socket.c,v 1.1 1998/09/15 08:23:17 phk Exp $
  *
  */
 
@@ -36,20 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_socket.c,v 1.6 1998/08/21 18:08:24 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -61,10 +49,22 @@ static char *RCSid = "@(#) $Id: scsp_socket.c,v 1.6 1998/08/21 18:08:24 johnc Ex
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
   
+#include <errno.h>
+#include <fcntl.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_socket.c,v 1.1 1998/09/15 08:23:17 phk Exp $");
+#endif
 
 
 /*
@@ -143,7 +143,7 @@ scsp_find_dcs(sd)
 	int	sd;
 {
 	Scsp_server	*ssp;
-	Scsp_dcs	*dcsp;
+	Scsp_dcs	*dcsp = NULL;
 
 	/*
 	 * Loop through the list of servers
@@ -314,6 +314,8 @@ scsp_dcs_connect(dcsp)
 	case MEDIA_OC12C:
 		traffic.forward.PCR_all_traffic = ATM_PCR_OC12C;
 		traffic.backward.PCR_all_traffic = ATM_PCR_OC12C;
+		break;
+	case MEDIA_UNKNOWN:
 		break;
 	}
 
@@ -499,6 +501,8 @@ scsp_dcs_listen(ssp)
 	case MEDIA_OC12C:
 		traffic.forward.PCR_all_traffic = ATM_PCR_OC12C;
 		traffic.backward.PCR_all_traffic = ATM_PCR_OC12C;
+		break;
+	case MEDIA_UNKNOWN:
 		break;
 	}
 
@@ -715,7 +719,6 @@ scsp_dcs_read(dcsp)
 	char			*buff = (char *)0;
 	Scsp_server		*ssp = dcsp->sd_server;
 	Scsp_msg		*msg;
-	struct scsp_nhdr	msg_hdr, *mhp;
 
 	/*
 	 * Get a buffer to hold the entire message
@@ -962,7 +965,7 @@ scsp_if_sock_read(sd)
 	int	sd;
 
 {
-	int		len, rc;
+	int		len;
 	char		*buff = (char *)0;
 	Scsp_if_msg	*msg;
 	Scsp_if_msg_hdr	msg_hdr;
@@ -1230,7 +1233,6 @@ scsp_pending_read(psp)
 {
 	int		rc;
 	Scsp_server	*ssp;
-	Scsp_dcs	*dcsp;
 	Scsp_if_msg	*msg;
 
 	/*

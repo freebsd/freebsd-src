@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_cafsm.c,v 1.7 1998/08/21 18:08:23 johnc Exp $
+ *	@(#) $Id: scsp_cafsm.c,v 1.1 1998/09/15 08:23:15 phk Exp $
  *
  */
 
@@ -36,18 +36,8 @@
  *
  */
 
-
-#ifndef lint
-static char *RCSid = "@(#) $Id: scsp_cafsm.c,v 1.7 1998/08/21 18:08:23 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -59,10 +49,20 @@ static char *RCSid = "@(#) $Id: scsp_cafsm.c,v 1.7 1998/08/21 18:08:23 johnc Exp
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
 
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
 #include "scsp_msg.h"
 #include "scsp_if.h"
 #include "scsp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: scsp_cafsm.c,v 1.1 1998/09/15 08:23:15 phk Exp $");
+#endif
 
 
 /*
@@ -741,7 +741,6 @@ scsp_ca_act_08(dcsp, p)
 {
 	int		rc;
 	Scsp_msg	*msg = (Scsp_msg *)p;
-	Scsp_csu_msg	*csusp;
 	Scsp_csa	*csap;
 
 	/*
@@ -1406,7 +1405,6 @@ scsp_ca_act_19(dcsp, p)
 	Scsp_dcs	*dcsp;
 	void		*p;
 {
-	int		found, rc = 0;
 	Scsp_if_msg	*cmsg = (Scsp_if_msg *)p;
 	Scsp_csa	*csap;
 

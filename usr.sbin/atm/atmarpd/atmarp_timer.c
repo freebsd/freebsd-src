@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_timer.c,v 1.2 1998/08/13 20:11:12 johnc Exp $
+ *	@(#) $Id: atmarp_timer.c,v 1.1 1998/09/15 08:23:15 phk Exp $
  *
  */
 
@@ -35,17 +35,8 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_timer.c,v 1.2 1998/08/13 20:11:12 johnc Exp $";
-#endif
-
 #include <sys/types.h>
 #include <sys/param.h>
-
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <syslog.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -57,11 +48,21 @@ static char *RCSid = "@(#) $Id: atmarp_timer.c,v 1.2 1998/08/13 20:11:12 johnc E
 #include <netatm/atm_sys.h>
 #include <netatm/atm_ioctl.h>
  
+#include <errno.h>
 #include <libatm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+
 #include "../scspd/scsp_msg.h"
 #include "../scspd/scsp_if.h"
 #include "../scspd/scsp_var.h"
 #include "atmarp_var.h"
+
+#ifndef lint
+__RCSID("@(#) $Id: atmarp_timer.c,v 1.1 1998/09/15 08:23:15 phk Exp $");
+#endif
 
 
 /*
