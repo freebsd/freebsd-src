@@ -32,6 +32,8 @@
 #include <sys/reboot.h>
 #include <sys/linker.h>
 
+#include <machine/metadata.h>
+
 #include "bootstrap.h"
 #include "libofw.h"
 
