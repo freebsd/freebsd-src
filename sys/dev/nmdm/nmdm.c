@@ -483,69 +483,6 @@ nmdmstop(tp, flush)
 	wakeup_other(tp, flag);
 }
 
-#if 0
-static int
-nmdmpoll(dev_t dev, int events, struct proc *p)
-{
-	register struct tty *tp = dev->si_tty;
-	register struct tty *tp2;
-	int revents = 0;
-	int s;
-	struct softpart *ourpart, *otherpart;
-
-	GETPARTS(tp, ourpart, otherpart);
-	tp2 = &otherpart->nm_tty;
-
-	if ((tp->t_state & TS_CONNECTED) == 0)
-		return (seltrue(dev, events, p) | POLLHUP);
-
-	/*
-	 * Need to block timeouts (ttrstart).
-	 */
-	s = spltty();
-
-	/*
-	 * First check if there is something to report immediatly.
-	 */
-	if ((events & (POLLIN | POLLRDNORM))) {
-		if (tp->t_iflag & ICANON)  {
-			if (tp->t_canq.c_cc)
-				revents |= events & (POLLIN | POLLRDNORM);
-		} else {
-			if (tp->t_rawq.c_cc + tp->t_canq.c_cc)
-				revents |= events & (POLLIN | POLLRDNORM);
-		}
-	}
-
-	/*
-	 * check if there is room in the other tty's input buffers.
-	 */
-	if ((events & (POLLOUT | POLLWRNORM)) 
-	&& ((tp2->t_rawq.c_cc + tp2->t_canq.c_cc < TTYHOG - 2)
-	   || (tp2->t_canq.c_cc == 0 && (tp2->t_iflag & ICANON)))) {
-			revents |= events & (POLLOUT | POLLWRNORM);
-	}
-
-	if (events & POLLHUP)
-		if ((tp->t_state & TS_CARR_ON) == 0)
-			revents |= POLLHUP;
-
-	/*
-	 * If nothing immediate, set us to return when something IS found.
-	 */
-	if (revents == 0) {
-		if (events & (POLLIN | POLLRDNORM))
-			selrecord(p, &tp->t_rsel);
-
-		if (events & (POLLOUT | POLLWRNORM)) 
-			selrecord(p, &tp->t_wsel);
-	}
-	splx(s);
-
-	return (revents);
-}
-#endif	/* 0 */
-
 /*ARGSUSED*/
 static	int
 nmdmioctl(dev, cmd, data, flag, p)
