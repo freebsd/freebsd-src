@@ -59,7 +59,8 @@ int trace = 0;
 FILE *fd = 0;
 int	margc;
 int	fromatty;
-char	*margv[20];
+#define	MAX_MARGV	20
+char	*margv[MAX_MARGV];
 char	cmdline[200];
 jmp_buf	toplevel;
 static struct cmd *getcmd __P((char *));
@@ -183,7 +184,7 @@ makeargv()
 	register char **argp = margv;
 
 	margc = 0;
-	for (cp = cmdline; *cp;) {
+	for (cp = cmdline; margc < MAX_MARGV - 1 && *cp; ) {
 		while (isspace(*cp))
 			cp++;
 		if (*cp == '\0')
