@@ -1,4 +1,4 @@
-dnl $Id: Makefile.m4,v 8.91.2.1 2002/06/21 21:58:47 ca Exp $
+dnl $Id: Makefile.m4,v 8.91.2.3 2002/07/29 22:08:09 gshapiro Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 define(`confREQUIRE_LIBSM', `true')
@@ -20,8 +20,12 @@ define(`bldTARGET_LINKS', ifdef(`confLINKS', `confLINKS',
 # location of sendmail statistics file (usually /etc/mail/ or /var/log)
 STDIR= ifdef(`confSTDIR', `confSTDIR', `/etc/mail')
 
+# statistics file name
+STFILE=	ifdef(`confSTFILE', `confSTFILE', `statistics')
+MSPSTFILE=ifdef(`confMSP_STFILE', `confMSP_STFILE', `sm-client.st')
+
 # full path to installed statistics file (usually ${STDIR}/statistics)
-STFILE= ${STDIR}/ifdef(`confSTFILE', `confSTFILE', `statistics')
+STPATH= ${STDIR}/${STFILE}
 
 # location of sendmail helpfile file (usually /etc/mail)
 HFDIR= ifdef(`confHFDIR', `confHFDIR', `/etc/mail')
@@ -66,7 +70,7 @@ install-set-user-id: bldCURRENT_PRODUCT ifdef(`confNO_HELPFILE_INSTALL',, `insta
 	${INSTALL} -c -o ${S`'BINOWN} -g ${S`'BINGRP} -m ${S`'BINMODE} bldCURRENT_PRODUCT ${DESTDIR}${M`'BINDIR}
 	for i in ${sendmailTARGET_LINKS}; do \
 		rm -f $$i; \
-		ln -s ${M`'BINDIR}/sendmail $$i; \
+		${LN} ${LNOPTS} ${M`'BINDIR}/sendmail $$i; \
 	done
 
 define(`confMTA_LINKS', `${DESTDIR}${UBINDIR}/newaliases ${DESTDIR}${UBINDIR}/mailq ${DESTDIR}${UBINDIR}/hoststat ${DESTDIR}${UBINDIR}/purgestat')
@@ -74,7 +78,7 @@ install-sm-mta: bldCURRENT_PRODUCT
 	${INSTALL} -c -o ${M`'BINOWN} -g ${M`'BINGRP} -m ${M`'BINMODE} bldCURRENT_PRODUCT ${DESTDIR}${M`'BINDIR}/sm-mta
 	for i in confMTA_LINKS; do \
 		rm -f $$i; \
-		ln -s ${M`'BINDIR}/sm-mta $$i; \
+		${LN} ${LNOPTS} ${M`'BINDIR}/sm-mta $$i; \
 	done
 
 install-hf:
@@ -83,7 +87,11 @@ install-hf:
 
 install-st: statistics
 	if [ ! -d ${DESTDIR}${STDIR} ]; then mkdir -p ${DESTDIR}${STDIR}; else :; fi
-	${INSTALL} -c -o ${SBINOWN} -g ${UBINGRP} -m ifdef(`confSTMODE', `confSTMODE', `0600') statistics ${DESTDIR}${STFILE}
+	${INSTALL} -c -o ${SBINOWN} -g ${UBINGRP} -m ifdef(`confSTMODE', `confSTMODE', `0600') statistics ${DESTDIR}${STPATH}
+
+install-submit-st: statistics ${DESTDIR}${MSPQ}
+	${INSTALL} -c -o ${MSPQOWN} -g ${GBINGRP} -m ifdef(`confSTMODE', `confSTMODE', `0600') statistics ${DESTDIR}${MSPQ}/${MSPSTFILE}
+
 divert(0)
 bldPRODUCT_END
 
