@@ -586,7 +586,8 @@ release.1:
 # Install the system into the various distributions.
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
-	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
+	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
+	    DISTDIR=${RD}/trees
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
