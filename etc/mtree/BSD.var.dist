@@ -53,6 +53,8 @@
     preserve
     ..
     run
+        ppp             gname=network mode=0770
+        ..
     ..
     rwho            gname=daemon mode=0775
     ..
