@@ -47,11 +47,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #include "opt_isa.h"
+#include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
