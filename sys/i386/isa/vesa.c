@@ -1278,7 +1278,7 @@ vesa_blank_display(video_adapter_t *adp, int mode)
 }
 
 static int
-vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
+vesa_mmap(video_adapter_t *adp, vm_offset_t offset, vm_paddr_t *paddr,
 	  int prot)
 {
 #if VESA_DEBUG > 0
