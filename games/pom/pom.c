@@ -79,10 +79,6 @@ main()
 	double days, today, tomorrow;
 	int cnt;
 
-	/* revoke */
-	setegid(getgid());
-	setgid(getgid());
-
 	(void) time(&tt);
 	GMT = gmtime(&tt);
 	days = (GMT->tm_yday + 1) + ((GMT->tm_hour +
