@@ -25,7 +25,9 @@ winsdelln(WINDOW *win, int n)
 
 	if (n == 0)
 		return OK;
-	if (n < 0 && win->_cury - n >= win->_maxy)
+	if (n == -1 && win->_cury == win->_maxy)
+		return wclrtoeol(win);
+	if (n < 0 && win->_cury - n > win->_maxy)
 		/* request to delete too many lines */
 		/* should we truncate to an appropriate number? */
 		return ERR;
