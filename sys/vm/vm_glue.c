@@ -69,7 +69,6 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/buf.h>
 #include <sys/shm.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>

@@ -49,7 +49,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/buf.h>
 #include <miscfs/umapfs/umap.h>
 #include <miscfs/nullfs/null.h>
 

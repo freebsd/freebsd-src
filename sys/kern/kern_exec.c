@@ -47,7 +47,6 @@
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
-#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

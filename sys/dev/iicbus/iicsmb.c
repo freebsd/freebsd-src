@@ -51,7 +51,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 

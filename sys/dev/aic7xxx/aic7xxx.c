@@ -93,7 +93,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
-#include <sys/buf.h>
 #include <sys/proc.h>
 
 #include <cam/cam.h>

@@ -39,7 +39,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/vnode.h>
-#include <sys/buf.h>
 #include <sys/poll.h>
 
 static int	chkvnlock __P((struct vnode *));
