@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.26 1997/09/02 20:06:15 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.27 1997/10/11 18:31:30 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -66,7 +66,7 @@
 #include <msdosfs/denode.h>
 #include <msdosfs/fat.h>
 
-MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
+static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
 
 struct denode **dehashtbl;
 u_long dehash;			/* size of hash table - 1 */

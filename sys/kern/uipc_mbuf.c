@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.29 1997/02/24 20:30:55 wollman Exp $
+ *	$Id: uipc_mbuf.c,v 1.30 1997/08/02 14:31:41 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#define MBTYPES
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>

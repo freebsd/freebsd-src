@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.74 1997/09/27 13:39:06 kato Exp $
+ * $Id: vfs_syscalls.c,v 1.75 1997/09/28 06:37:02 phk Exp $
  */
 
 /*
@@ -60,9 +60,9 @@
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/dirent.h>
 
 #ifdef UNION

@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.9 1997/08/02 14:31:25 bde Exp $
+ * $Id: inflate.c,v 1.10 1997/10/11 18:31:20 phk Exp $
  *
  *
  */
@@ -19,7 +19,7 @@
 #endif
 #include <sys/malloc.h>
 
-MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
+static MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
 
 /* needed to make inflate() work */
 #define	uch u_char

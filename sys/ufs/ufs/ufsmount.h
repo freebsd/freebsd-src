@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $Id: ufsmount.h,v 1.8 1997/09/22 21:24:03 joerg Exp $
+ * $Id: ufsmount.h,v 1.9 1997/10/10 18:18:13 phk Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -56,6 +56,11 @@ struct mfs_args {
 };
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_UFSMNT);
+#endif
+
 struct buf;
 struct inode;
 struct nameidata;

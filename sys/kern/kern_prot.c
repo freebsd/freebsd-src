@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.33 1997/08/02 14:31:34 bde Exp $
+ * $Id: kern_prot.c,v 1.34 1997/08/19 06:00:27 peter Exp $
  */
 
 /*
@@ -50,6 +50,8 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
+
+static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {

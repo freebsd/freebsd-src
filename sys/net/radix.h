@@ -31,11 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id: radix.h,v 1.11 1997/02/22 09:41:12 peter Exp $
+ *	$Id: radix.h,v 1.12 1997/09/07 08:49:04 bde Exp $
  */
 
 #ifndef _RADIX_H_
 #define	_RADIX_H_
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_RTABLE);
+#endif
 
 /*
  * Radix search tree node layout.

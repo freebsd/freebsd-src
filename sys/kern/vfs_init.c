@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.27 1997/09/10 20:11:01 phk Exp $
+ * $Id: vfs_init.c,v 1.28 1997/09/21 04:22:59 dyson Exp $
  */
 
 
@@ -52,6 +52,8 @@ static void	vfs_op_init __P((void));
 
 static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
+
+MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
 /*
  * Sigh, such primitive tools are these...

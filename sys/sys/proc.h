@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.43 1997/09/13 19:42:27 joerg Exp $
+ * $Id: proc.h,v 1.44 1997/09/21 22:09:18 gibbs Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -249,6 +249,13 @@ struct	pcred {
 };
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_SESSION);
+MALLOC_DECLARE(M_PROC);
+MALLOC_DECLARE(M_SUBPROC);
+#endif
+
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
  * as it is used to represent "no process group".

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.26 1997/09/02 20:05:59 bde Exp $
+ *	$Id: uipc_usrreq.c,v 1.27 1997/09/14 02:52:18 peter Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,8 @@
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <sys/vnode.h>
+
+MALLOC_DEFINE(M_FILE, "file", "Open file structure");
 
 /*
  * Unix communications domain.

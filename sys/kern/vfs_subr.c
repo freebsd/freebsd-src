@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.108 1997/10/11 07:34:27 phk Exp $
+ * $Id: vfs_subr.c,v 1.109 1997/10/11 18:31:26 phk Exp $
  */
 
 /*
@@ -49,11 +49,11 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
-#include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/domain.h>
 #include <sys/dirent.h>
@@ -68,7 +68,7 @@
 
 #include <miscfs/specfs/specdev.h>
 
-MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
+static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
 #ifdef DDB
 extern void	printlockedvnodes __P((void));

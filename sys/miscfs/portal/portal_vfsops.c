@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.16 1997/08/02 14:32:07 bde Exp $
+ * $Id: portal_vfsops.c,v 1.17 1997/08/16 19:15:17 wollman Exp $
  */
 
 /*
@@ -56,6 +56,8 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <miscfs/portal/portal.h>
+
+static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
 static int	portal_init __P((struct vfsconf *));
 static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
@@ -116,11 +118,11 @@ portal_mount(mp, path, data, ndp, p)
 		M_TEMP, M_WAITOK);
 
 	MALLOC(fmp, struct portalmount *, sizeof(struct portalmount),
-		M_UFSMNT, M_WAITOK);	/* XXX */
+		M_PORTALFSMNT, M_WAITOK);	/* XXX */
 
 	error = getnewvnode(VT_PORTAL, mp, portal_vnodeop_p, &rvp); /* XXX */
 	if (error) {
-		FREE(fmp, M_UFSMNT);
+		FREE(fmp, M_PORTALFSMNT);
 		FREE(pn, M_TEMP);
 		return (error);
 	}
@@ -213,7 +215,7 @@ portal_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the portalmount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_PORTALFSMNT);	/* XXX */
 	mp->mnt_data = 0;
 	return (0);
 }

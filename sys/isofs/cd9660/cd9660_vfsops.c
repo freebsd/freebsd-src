@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.28 1997/09/07 16:20:42 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.29 1997/09/27 13:38:48 kato Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,8 @@
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/cd9660_mount.h>
 
+MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
+MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
 static int cd9660_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));

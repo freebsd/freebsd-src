@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.34 1997/10/10 18:17:42 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.35 1997/10/11 18:31:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@
 # include <i386/i386/cons.h>	/* console IO */
 #endif
 
-MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
+static MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
 
 static int	mfs_imageload __P((dev_t dev, caddr_t addr, int size));
 extern int	mfs_initminiroot __P((caddr_t base));

@@ -86,7 +86,7 @@ static int ext2_unmount __P((struct mount *, int, struct proc *));
 static int ext2_vget __P((struct mount *, ino_t, struct vnode **));
 static int ext2_vptofh __P((struct vnode *, struct fid *));
 
-MALLOC_DEFINE(M_EXT2NODE, "EXT2 nodes", "EXT2 Filsystem inodes");
+static MALLOC_DEFINE(M_EXT2NODE, "EXT2 nodes", "EXT2 Filsystem inodes");
 
 static struct vfsops ext2fs_vfsops = {
 	ext2_mount,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.56 1997/09/21 22:00:10 gibbs Exp $
+ * $Id: kern_exit.c,v 1.57 1997/10/11 18:31:22 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -44,11 +44,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/wait.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
@@ -70,7 +70,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
+static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
 static int wait1 __P((struct proc *, struct wait_args *, int [], int));
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.95 1997/09/02 20:05:54 bde Exp $
+ * $Id: tty.c,v 1.96 1997/09/14 02:40:44 peter Exp $
  */
 
 /*-
@@ -97,6 +97,8 @@
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
+MALLOC_DEFINE(M_TTYS, "ttys", "tty data structures");
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
 static int	ttnread __P((struct tty *tp));

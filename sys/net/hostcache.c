@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hostcache.c,v 1.1 1997/06/18 01:24:21 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,8 @@
 
 #include <net/hostcache.h>
 #include <net/route.h>
+
+MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "per-host cache structure");
 
 static	struct hctable hctable[AF_MAX];
 static	int hc_timeout_interval = 120;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.19 1997/09/21 04:23:45 dyson Exp $
+ * $Id: nfs_node.c,v 1.20 1997/10/11 18:31:34 phk Exp $
  */
 
 
@@ -51,7 +51,7 @@
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
 
-MALLOC_DEFINE(M_NFSNODE, "NFS node", "NFS vnode private part");
+static MALLOC_DEFINE(M_NFSNODE, "NFS node", "NFS vnode private part");
 
 LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 u_long nfsnodehash;

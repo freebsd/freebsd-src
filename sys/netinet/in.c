@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.35 1997/08/02 14:32:49 bde Exp $
+ *	$Id: in.c,v 1.36 1997/10/11 18:31:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 
 #include <netinet/igmp_var.h>
 
-MALLOC_DEFINE(M_IPMADDR, "in_multi", "internet multicast address");
+static MALLOC_DEFINE(M_IPMADDR, "in_multi", "internet multicast address");
 
 static void	in_socktrim __P((struct sockaddr_in *));
 static int	in_ifinit __P((struct ifnet *,
