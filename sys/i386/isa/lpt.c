@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.16 1994/08/23 07:52:20 paul Exp $
+ *	$Id: lpt.c,v 1.17 1994/09/03 22:47:02 csgr Exp $
  */
 
 /*
@@ -800,7 +800,7 @@ lpattach(struct	lpt_softc *sc,int unit)
 	ifp->if_name = "lp";
 	ifp->if_unit = unit;
 	ifp->if_mtu = LPMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
+	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
 	ifp->if_type = IFT_SLIP;
@@ -868,7 +868,6 @@ lpioctl(struct ifnet *ifp, int cmd, caddr_t data)
 	case SIOCSIFDSTADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
 		    error = EAFNOSUPPORT;
-		ifp->if_flags = IFF_POINTOPOINT;
 		break;
 
         case SIOCSIFMTU:
@@ -1001,10 +1000,13 @@ lpoutput(struct ifnet *ifp, struct mbuf *m,
 {
     register int port = lpt_sc[ifp->if_unit].sc_port+1;
     int s,i;
-    u_char *cp;
+    u_char *cp = "\0\0";
     struct mbuf *mm=m;
 
     s=splimp();
+
+    /* We need a sensible value if we abort */	
+    cp++;
 
     /* Suspend (on laptops) or receive-errors might have taken us offline */
     outb(port+1, 0x10);
