@@ -167,7 +167,9 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	if ((tp->tte_data & TD_V) != 0) {
 		TSB_STATS_INC(tsb_nrepl);
 		ova = TTE_GET_VA(tp);
+		vm_page_lock_queues();
 		pmap_remove_tte(pm, NULL, tp, ova);
+		vm_page_unlock_queues();
 		tlb_page_demap(pm, ova);
 	}
 
