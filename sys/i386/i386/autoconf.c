@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.113 1999/04/16 21:22:11 peter Exp $
+ *	$Id: autoconf.c,v 1.114 1999/04/18 15:50:34 peter Exp $
  */
 
 /*
@@ -76,18 +76,13 @@
 
 #include "isa.h"
 #if NISA > 0
-#ifdef OLD_BUS_ARCH
-#include <i386/isa/isa_device.h>
-#else
 device_t isa_bus_device = 0;
-#endif /* OLD_BUS_ARCH */
 #endif
 
 #include "pnp.h"
 #if NPNP > 0
-#ifdef OLD_BUS_ARCH
+#include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
-#endif
 #endif
 
 #include "eisa.h"
