@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.11.2.2 2000/07/18 13:58:10 darrenr Exp $
+# $Id: Makefile,v 2.11.2.3 2000/08/05 14:50:00 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -15,6 +15,7 @@ CC=gcc -Wstrict-prototypes -Wmissing-prototypes
 #CC=gcc
 #CC=cc -Dconst=
 DEBUG=-g
+TOP=../..
 CFLAGS=-I$$(TOP) -g
 CPU=`uname -m`
 CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
@@ -63,7 +64,8 @@ MFLAGS1='CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2) $(INET6)' \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
 	"CPUDIR=$(CPUDIR)" 'STATETOP_CFLAGS=$(STATETOP_CFLAGS)' \
-        'STATETOP_INC=$(STATETOP_INC)' 'STATETOP_LIB=$(STATETOP_LIB)'
+        'STATETOP_INC=$(STATETOP_INC)' 'STATETOP_LIB=$(STATETOP_LIB)' \
+	"BITS=$(BITS)" "OBJ=$(OBJ)"
 DEST="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)"
 MFLAGS=$(MFLAGS1) "IPFLKM=$(IPFLKM)"
 #
@@ -105,7 +107,7 @@ include:
 	fi
 
 sunos solaris: include
-	./buildsunos
+	./buildsunos $(MFLAGS)
 
 freebsd22: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
@@ -132,7 +134,7 @@ freebsd4: include
 		echo "#define INET6" > opt_inet6.h; \
 	fi
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
-	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlfk_ipl.c" "MLD=mlfk_ipl.c" "LKM=ipf.ko" "DLKM=-DKLD_MODULE"; cd ..)
+	(cd BSD/$(CPUDIR); make build TOP=../.. $(MFLAGS) "ML=mlfk_ipl.c" "MLD=mlfk_ipl.c" "LKM=ipf.ko" "DLKM=-DKLD_MODULE -I/sys"; cd ..)
 	(cd BSD/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(MFLAGS1); cd ..)
 
 freebsd3 freebsd30: include
@@ -186,7 +188,8 @@ setup:
 
 clean: clean-include
 	${RM} -f core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl \
-	vnode_if.h $(LKM) *~ opt_inet6.h
+	vnode_if.h $(LKM) *~
+	${RM} -rf sparcv7 sparcv9
 	(cd SunOS4; make clean)
 	(cd SunOS5; make clean)
 	(cd BSD; make clean)
