@@ -9,7 +9,7 @@
 # Note - as the driver requires contiguous memory, loading the driver once
 # memory has filled or become fragmented may fail.
 
-#	$Id$
+#	$Id: Makefile,v 1.1 1999/06/12 15:00:19 roger Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:  $S/pci
@@ -25,7 +25,7 @@ pci.h:
 	echo "#define NPCI 1" > pci.h
 
 smbus.h:
-	# Do not use SMBUS/IICBUS. Use the old i2c code self contained in
+	# Does not use SMBUS/IICBUS. Uses the old i2c code self contained in
 	# the bt848 driver.
 	echo "#define NSMBUS 0" > smbus.h
 
@@ -36,12 +36,12 @@ opt_bktr.h:
 	touch opt_bktr.h
 
 device_if.h: $S/kern/makedevops.pl $S/kern/device_if.m
-	perl5 $S/kern/makedevops.pl -h $S/kern/device_if.m
+	perl $S/kern/makedevops.pl -h $S/kern/device_if.m
 
 bus_if.h: $S/kern/makedevops.pl $S/kern/bus_if.m
-	perl5 $S/kern/makedevops.pl -h $S/kern/bus_if.m
+	perl $S/kern/makedevops.pl -h $S/kern/bus_if.m
 
 pci_if.h: $S/kern/makedevops.pl $S/pci/pci_if.m
-	perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m
+	perl $S/kern/makedevops.pl -h $S/pci/pci_if.m
 
 .include <bsd.kmod.mk>
