@@ -336,6 +336,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	default:
 		addr = uap->addr;
+		break;
 	}
 	if (error)
 		return (error);
@@ -449,21 +450,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* OK */
 		break;
 
-	case PT_READ_I:
-	case PT_READ_D:
-	case PT_WRITE_I:
-	case PT_WRITE_D:
-	case PT_IO:
-	case PT_CONTINUE:
-	case PT_KILL:
-	case PT_STEP:
-	case PT_DETACH:
-	case PT_GETREGS:
-	case PT_SETREGS:
-	case PT_GETFPREGS:
-	case PT_SETFPREGS:
-	case PT_GETDBREGS:
-	case PT_SETDBREGS:
+	default:
 		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0) {
 			error = EPERM;
@@ -484,10 +471,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		/* OK */
 		break;
-
-	default:
-		error = EINVAL;
-		goto fail;
 	}
 
 	td2 = FIRST_THREAD_IN_PROC(p);
@@ -702,12 +685,20 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		return (error);
 
 	default:
-		KASSERT(0, ("unreachable code\n"));
+#ifdef __HAVE_PTRACE_MACHDEP
+		if (req >= PT_FIRSTMACH) {
+			_PHOLD(p);
+			error = cpu_ptrace(td2, req, addr, data);
+			_PRELE(p);
+			PROC_UNLOCK(p);
+			return (error);
+		}
+#endif
 		break;
 	}
 
-	KASSERT(0, ("unreachable code\n"));
-	return (0);
+	/* Unknown request. */
+	error = EINVAL;
 
 fail:
 	PROC_UNLOCK(p);
