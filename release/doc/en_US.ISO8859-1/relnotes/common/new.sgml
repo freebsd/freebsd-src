@@ -141,6 +141,11 @@
       security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>. &merged;</para>
 
+    <para>A buffer overflow in <application>sendmail</application> has
+      been fixed.  More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -569,10 +574,10 @@
       architectures.</para>
 
     <para>The supported release of <application>GNOME</application> has
-      been updated from 2.2.1 to 2.2.2. &merged;</para>
+      been updated from 2.2.1 to 2.4. &merged;</para>
 
     <para>The supported release of <application>KDE</application> has
-      been updated from 3.1.2 to 3.1.3. &merged;</para>
+      been updated from 3.1.2 to 3.1.4. &merged;</para>
 
   </sect2>
 
