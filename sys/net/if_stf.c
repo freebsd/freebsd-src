@@ -120,7 +120,12 @@
 #define STFNAME		"stf"
 
 #define IN6_IS_ADDR_6TO4(x)	(ntohs((x)->s6_addr16[0]) == 0x2002)
-#define GET_V4(x)	((struct in_addr *)(&(x)->s6_addr16[1]))
+
+/*
+ * XXX: Return a pointer with 16-bit aligned.  Don't cast it to
+ * struct in_addr *; use bcopy() instead.
+ */
+#define GET_V4(x)	((caddr_t)(&(x)->s6_addr16[1]))
 
 struct stf_softc {
 	struct ifnet	sc_if;	   /* common area */
@@ -352,7 +357,8 @@ stf_output(ifp, m, dst, rt)
 {
 	struct stf_softc *sc;
 	struct sockaddr_in6 *dst6;
-	struct in_addr *in4;
+	struct in_addr in4;
+	caddr_t ptr;
 	struct sockaddr_in *dst4;
 	u_int8_t tos;
 	struct ip *ip;
@@ -404,15 +410,17 @@ stf_output(ifp, m, dst, rt)
 	 * Pickup the right outer dst addr from the list of candidates.
 	 * ip6_dst has priority as it may be able to give us shorter IPv4 hops.
 	 */
+	ptr = NULL;
 	if (IN6_IS_ADDR_6TO4(&ip6->ip6_dst))
-		in4 = GET_V4(&ip6->ip6_dst);
+		ptr = GET_V4(&ip6->ip6_dst);
 	else if (IN6_IS_ADDR_6TO4(&dst6->sin6_addr))
-		in4 = GET_V4(&dst6->sin6_addr);
+		ptr = GET_V4(&dst6->sin6_addr);
 	else {
 		m_freem(m);
 		ifp->if_oerrors++;
 		return ENETUNREACH;
 	}
+	bcopy(ptr, &in4, sizeof(in4));
 
 #if NBPFILTER > 0
 	if (ifp->if_bpf) {
@@ -451,7 +459,7 @@ stf_output(ifp, m, dst, rt)
 
 	bcopy(GET_V4(&((struct sockaddr_in6 *)&ia6->ia_addr)->sin6_addr),
 	    &ip->ip_src, sizeof(ip->ip_src));
-	bcopy(in4, &ip->ip_dst, sizeof(ip->ip_dst));
+	bcopy(&in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_stf_ttl;
 	ip->ip_len = m->m_pkthdr.len;	/*host order*/
@@ -488,17 +496,15 @@ stf_output(ifp, m, dst, rt)
 
 static int
 isrfc1918addr(in)
-	struct in_addr *in;	/* 16-bit aligned */
+	struct in_addr *in;
 {
-	u_char *a = (u_char *)in;
-
 	/*
 	 * returns 1 if private address range:
 	 * 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 	 */
-	if (a[0] == 10 ||
-	    (a[0] == 172 && (a[1] & 0xf0) == 16) ||
-	    (a[0] == 192 && a[1] == 168))
+	if ((ntohl(in->s_addr) & 0xff000000) >> 24 == 10 ||
+	    (ntohl(in->s_addr) & 0xfff00000) >> 16 == 172 * 256 + 16 ||
+	    (ntohl(in->s_addr) & 0xffff0000) >> 16 == 192 * 256 + 168)
 		return 1;
 
 	return 0;
@@ -507,20 +513,21 @@ isrfc1918addr(in)
 static int
 stf_checkaddr4(sc, in, inifp)
 	struct stf_softc *sc;
-	struct in_addr *in;	/* 16-bit aligned */
+	struct in_addr *in;
 	struct ifnet *inifp;	/* incoming interface */
 {
 	struct in_ifaddr *ia4;
-	u_char *a = (u_char *)in;
 
 	/*
 	 * reject packets with the following address:
 	 * 224.0.0.0/4 0.0.0.0/8 127.0.0.0/8 255.0.0.0/8
 	 */
-	if ((a[0] & 0xf0) == 0xe0)
+	if (IN_MULTICAST(ntohl(in->s_addr)))
 		return -1;
-	if (a[0] == 0 || a[0] == 127 || a[0] == 255)
+	switch ((ntohl(in->s_addr) & 0xff000000) >> 24) {
+	case 0: case 127: case 255:
 		return -1;
+	}
 
 	/*
 	 * reject packets with private address range.
@@ -538,7 +545,7 @@ stf_checkaddr4(sc, in, inifp)
 	{
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (bcmp(in, &ia4->ia_broadaddr.sin_addr, sizeof(*in)) == 0)
+		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
 			return -1;
 	}
 
@@ -552,7 +559,7 @@ stf_checkaddr4(sc, in, inifp)
 		bzero(&sin, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(struct sockaddr_in);
-		bcopy(in, &sin.sin_addr, sizeof(*in));
+		sin.sin_addr = *in;
 		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
 		if (!rt || rt->rt_ifp != inifp) {
 #if 0
@@ -579,8 +586,11 @@ stf_checkaddr6(sc, in6, inifp)
 	/*
 	 * check 6to4 addresses
 	 */
-	if (IN6_IS_ADDR_6TO4(in6))
-		return stf_checkaddr4(sc, GET_V4(in6), inifp);
+	if (IN6_IS_ADDR_6TO4(in6)) {
+		struct in_addr in4;
+		bcopy(GET_V4(in6), &in4, sizeof(in4));
+		return stf_checkaddr4(sc, &in4, inifp);
+	}
 
 	/*
 	 * reject anything that look suspicious.  the test is implemented
@@ -730,6 +740,7 @@ stf_ioctl(ifp, cmd, data)
 	struct ifaddr *ifa;
 	struct ifreq *ifr;
 	struct sockaddr_in6 *sin6;
+	struct in_addr addr;
 	int error;
 
 	error = 0;
@@ -741,12 +752,18 @@ stf_ioctl(ifp, cmd, data)
 			break;
 		}
 		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-		if (IN6_IS_ADDR_6TO4(&sin6->sin6_addr) &&
-		    !isrfc1918addr(GET_V4(&sin6->sin6_addr))) {
-			ifa->ifa_rtrequest = stf_rtrequest;
-			ifp->if_flags |= IFF_UP;
-		} else
+		if (!IN6_IS_ADDR_6TO4(&sin6->sin6_addr)) {
 			error = EINVAL;
+			break;
+		}
+		bcopy(GET_V4(&sin6->sin6_addr), &addr, sizeof(addr));
+		if (isrfc1918addr(&addr)) {
+			error = EINVAL;
+			break;
+		}
+
+		ifa->ifa_rtrequest = stf_rtrequest;
+		ifp->if_flags |= IFF_UP;
 		break;
 
 	case SIOCADDMULTI:
