@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:12 markm Exp $
+#	$Id$
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
@@ -28,9 +28,10 @@ kprog:
 	cd ${SDIR}/sbin/restore; ${CODAI}
 
 bootstrap:
-	  ${MAKE} ${MFLAGS} cleandir; \
-	  ${MAKE} ${MFLAGS} obj; \
-	  ${MAKE} ${MFLAGS} depend all install kprog
+	cd ${.CURDIR} ; \
+	${MAKE} ${MFLAGS} cleandir ; \
+	${MAKE} ${MFLAGS} obj ; \
+	${MAKE} ${MFLAGS} depend all install kprog
 
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
