@@ -36,6 +36,7 @@ blkdev	name		comments
 20	od		SCSI "magneto-optical" disk
 21	ccd		concatenated disk
 22	gd		Geometry disk.
+23	worm		SCSI "worm type"
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
