@@ -54,8 +54,13 @@ function tests for any character for which
 or
 .Xr islower 3
 is true.
-For 8-bit wide locales the value of the argument is
-representable as an unsigned char or the value of EOF.
+For single C
+.Va char Ns s
+locales the value of the argument is
+representable as an
+.Va unsigned char
+or the value of
+.Dv EOF .
 In the ASCII character set, this includes the following characters
 (with their numeric values shown in octal):
 .Pp
@@ -81,6 +86,7 @@ returns non-zero if the character tests true.
 .Xr ctype 3 ,
 .Xr islower 3 ,
 .Xr isupper 3 ,
+.Xr multibyte 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
