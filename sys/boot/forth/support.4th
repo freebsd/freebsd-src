@@ -55,6 +55,7 @@
 \ Exported global variables;
 \
 \ string conf_files		configuration files to be loaded
+\ string password		password
 \ cell modules_options		pointer to first module information
 \ value verbose?		indicates if user wants a verbose loading
 \ value any_conf_read?		indicates if a conf file was succesfully read
@@ -112,6 +113,7 @@ structure: module
 \ Global variables
 
 string conf_files
+string password
 create module_options sizeof module.next allot
 create last_module_option sizeof module.next allot
 0 value verbose?
@@ -136,6 +138,10 @@ create last_module_option sizeof module.next allot
   then
 ; immediate
 
+\ How come ficl doesn't have again?
+
+: again false postpone literal postpone until ; immediate
+
 \ Private definitions
 
 vocabulary support-functions
@@ -143,8 +149,11 @@ only forth also support-functions definitions
 
 \ Some control characters constants
 
+7 constant bell
+8 constant backspace
 9 constant tab
 10 constant lf
+13 constant <cr>
 
 \ Read buffer size
 
@@ -505,6 +514,10 @@ variable fd
   s" exec" assignment_type?
 ;
 
+: password?
+  s" password" assignment_type?
+;
+
 : module_load?
   load_module_suffix suffix_type?
 ;
@@ -703,9 +716,21 @@ variable fd
 : execute_command
   value_buffer .addr @ value_buffer .len @
   over c@ [char] " = if
-    2 chars - swap char+ swap
+    2 - swap char+ swap
   then
   ['] evaluate catch if exec_error throw then
+;
+
+: set_password
+  password .addr @ ?dup if free if free_error throw then then
+  value_buffer .addr @ c@ [char] " = if
+    value_buffer .addr @ char+ value_buffer .len @ 2 - strdup
+    value_buffer .addr @ free if free_error throw then
+  else
+    value_buffer .addr @ value_buffer .len @
+  then
+  password .len ! password .addr !
+  0 value_buffer .addr !
 ;
 
 : process_assignment
@@ -713,6 +738,7 @@ variable fd
   loader_conf_files?	if set_conf_files exit then
   verbose_flag?		if set_verbose exit then
   execute?		if execute_command exit then
+  password?		if set_password exit then
   module_load?		if set_module_flag exit then
   module_loadname?	if set_module_loadname exit then
   module_type?		if set_module_type exit then
@@ -722,6 +748,12 @@ variable fd
   module_loaderror?	if set_module_loaderror exit then
   set_environment_variable
 ;
+
+\ free_buffer  ( -- )
+\
+\ Free some pointers if needed. The code then tests for errors
+\ in freeing, and throws an exception if needed. If a pointer is
+\ not allocated, it's value (0) is used as flag.
 
 : free_buffers
   line_buffer .addr @ dup if free then
@@ -778,6 +810,7 @@ variable fd
 : initialize_support
   0 read_buffer .addr !
   0 conf_files .addr !
+  0 password .addr !
   0 module_options !
   0 last_module_option !
   0 to verbose?
@@ -851,31 +884,31 @@ variable current_conf_files
   current_conf_files @ conf_files .addr @ <>
 ;
 
-: skip_leading_spaces  { addr len ptr -- addr len ptr' }
+: skip_leading_spaces  { addr len pos -- addr len pos' }
   begin
-    ptr len = if addr len ptr exit then
-    addr ptr + c@ bl =
+    pos len = if addr len pos exit then
+    addr pos + c@ bl =
   while
-    ptr char+ to ptr
+    pos char+ to pos
   repeat
-  addr len ptr
+  addr len pos
 ;
 
-: get_file_name  { addr len ptr -- addr len ptr' addr' len' || 0 }
-  ptr len = if 
+: get_file_name  { addr len pos -- addr len pos' addr' len' || 0 }
+  pos len = if 
     addr free abort" Fatal error freeing memory"
     0 exit
   then
-  ptr >r
+  pos >r
   begin
-    addr ptr + c@ bl <>
+    addr pos + c@ bl <>
   while
-    ptr char+ to ptr
-    ptr len = if
-      addr len ptr addr r@ + ptr r> - exit
+    pos char+ to pos
+    pos len = if
+      addr len pos addr r@ + pos r> - exit
     then
   repeat
-  addr len ptr addr r@ + ptr r> -
+  addr len pos addr r@ + pos r> -
 ;
 
 : get_next_file  ( addr len ptr -- addr len ptr' addr' len' | 0 )
@@ -1063,6 +1096,33 @@ variable current_conf_files
 : load_kernel  ( -- ) ( throws: abort )
   s" load ${kernel} ${kernel_options}" ['] evaluate catch
   if s" echo Unable to load kernel: ${kernel_name}" evaluate abort then
+;
+
+: read-password { size | buf len -- }
+  size allocate if out_of_memory throw then
+  to buf
+  0 to len
+  begin
+    key
+    dup backspace = if
+      drop
+      len if
+        backspace emit bl emit backspace emit
+        len 1 - to len
+      else
+        bell emit
+      then
+    else
+      dup <cr> = if cr drop buf len exit then
+      [char] * emit
+      len size < if
+        buf len chars + c!
+      else
+        drop
+      then
+      len 1+ to len
+    then
+  again
 ;
 
 \ Go back to straight forth vocabulary

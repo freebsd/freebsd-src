@@ -38,6 +38,30 @@ only forth definitions also support-functions
   0 autoboot
 ;
 
+\ ***** check-password
+\
+\	If a password was defined, execute autoboot and ask for
+\	password if autoboot returns.
+
+: check-password
+  password .addr @ if
+    0 autoboot
+    false >r
+    begin
+      bell emit bell emit
+      ." Password: "
+      password .len @ read-password
+      dup password .len @ = if
+        2dup password .addr @ password .len @
+        compare 0= if r> drop true >r then
+      then
+      drop free drop
+      r@
+    until
+    r> drop
+  then
+;
+
 \ ***** start
 \
 \       Initializes support.4th global variables, sets loader_conf_files,
