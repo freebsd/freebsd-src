@@ -155,7 +155,7 @@ void ldisc_deregister __P((int));
  * Swap device table
  */
 struct swdevt {
-	udev_t	sw_dev;
+	dev_t	sw_dev;
 	int	sw_flags;
 	int	sw_nblks;
 	struct	vnode *sw_vp;
