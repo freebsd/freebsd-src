@@ -387,7 +387,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 
 	first = TRUE;
 	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	while (count-- && !quit) {
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);

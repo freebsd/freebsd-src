@@ -150,7 +150,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 	stackframe = fp;
 
 	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	while (!quit) {
 		if (stackframe < PAGE_SIZE)
 			break;

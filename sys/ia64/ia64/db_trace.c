@@ -60,7 +60,7 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 	int args, error, i, quit;
 
 	quit = 0;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	error = unw_create_from_pcb(&rs, pcb);
 	while (!error && count-- && !quit) {
 		error = unw_get_cfm(&rs, &cfm);
