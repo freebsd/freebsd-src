@@ -1124,13 +1124,13 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	DPRINTF(("usbd_new_device: new dev (addr %d), dev=%p, parent=%p\n",
 		 addr, dev, parent));
 
-	usbd_add_dev_event(USB_EVENT_DEVICE_ATTACH, dev);
-
 	err = usbd_probe_and_attach(parent, dev, port, addr);
 	if (err) {
 		usbd_remove_device(dev, up);
 		return (err);
   	}
+
+	usbd_add_dev_event(USB_EVENT_DEVICE_ATTACH, dev);
 
   	return (USBD_NORMAL_COMPLETION);
 }
