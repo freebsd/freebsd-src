@@ -73,7 +73,6 @@ void	gv_kill_plex_thread(struct gv_plex *);
 void	gv_kill_vol_thread(struct gv_volume *);
 int	gv_object_type(struct gv_softc *, char *);
 void	gv_parse_config(struct gv_softc *, u_char *, int);
-const char	*gv_roughlength(off_t, int);
 int	gv_sd_to_drive(struct gv_softc *, struct gv_drive *, struct gv_sd *,
 	    char *, int);
 int	gv_sd_to_plex(struct gv_plex *, struct gv_sd *, int);
