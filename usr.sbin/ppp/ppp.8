@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.96 1998/01/20 22:47:46 brian Exp $
+.\" $Id: ppp.8,v 1.97 1998/01/27 23:14:53 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -839,7 +839,7 @@ ui-gate:
  set escape 0xff
  set device ui-gate:ppp-in
  set dial
- set timeout 30 5 4 
+ set timeout 30 15 5
  set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.2.0 255.255.255.0 10.0.4.1
@@ -961,7 +961,7 @@ See
 To check/set idle timer, use the
 .Dq show timeout
 and
-.Dq set timeout [lqrtimer [retrytimer]]
+.Dq set timeout idle [LQR [FSM-resend]]
 commands:
 .Bd -literal -offset indent
 ppp ON awfulhak> set timeout 600
@@ -2384,9 +2384,11 @@ can also be used, but link encryption may be implemented in the future, so
 should not be relied upon.
 .It set speed value
 This sets the speed of the serial device.
-.It set timeout Idle [ lqr [ retry ] ]
+.Dq set timeout idle [LQR [FSM-resend]]
 This command allows the setting of the idle timer, the LQR timer (if
-enabled) and the retry timer.
+enabled) and the finite state machine
+.Pq FSM
+retry timer.
 .It set vj slots nslots
 This command sets the initial number of
 .Ar slots
