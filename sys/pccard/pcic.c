@@ -92,7 +92,27 @@ int pcic_boot_deactivated = 0;
 TUNABLE_INT("hw.pcic.boot_deactivated", &pcic_boot_deactivated);
 SYSCTL_INT(_hw_pcic, OID_AUTO, boot_deactivated, CTLFLAG_RD,
     &pcic_boot_deactivated, 0,
-    "Override the automatic powering up of pccards at boot.");
+    "Override the automatic powering up of pccards at boot.  This works\n\
+around what turns out to be an old bug in the code that has since been\n\
+corrected.  It is now deprecated and will be removed completely before\n\
+FreeBSD 4.8.");
+
+/*
+ * CL-PD6722's VSENSE method
+ *     0: NO VSENSE (assume a 5.0V card)
+ *     1: 6710's method (default)
+ *     2: 6729's method
+ */
+int pcic_pd6722_vsense = 1;
+TUNABLE_INT("hw.pcic.pd6722_vsense", &pcic_pd6722_vsense);
+SYSCTL_INT(_hw_pcic, OID_AUTO, pd6722_vsense, CTLFLAG_RD,
+    &pcic_pd6722_vsense, 1,
+    "Select CL-PD6722's VSENSE method.  VSENSE is used to determine the\n\
+volatage of inserted cards.  The CL-PD6722 has two methods to determine the\n\
+voltage of the card.  0 means assume a 5.0V card and do not check.  1 means\n\
+use the same method that the CL-PD6710 uses (default).  2 means use the\n\
+same method as the CL-PD6729.  2 is documented in the datasheet as being\n\
+the correct way, but 1 seems to give better results on more laptops.");
 
 /*
  * Read a register from the PCIC.
@@ -388,8 +408,8 @@ pcic_attach(device_t dev)
 
 		/* Check for changes */
 		sp->slt->laststate = sp->slt->state = empty;
-		sp->putb(sp, PCIC_POWER, 0);
 		if (pcic_boot_deactivated) {
+			sp->putb(sp, PCIC_POWER, 0);
 			if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD) {
 				sp->slt->state = inactive;
 				pccard_event(sp->slt, card_deactivated);
@@ -639,7 +659,8 @@ pcic_power(struct slot *slt)
 	struct pcic_slot *sp2;
 	struct pcic_softc *sc = sp->sc;
 	int dodefault = 0;
-
+	char controller;
+	
 	/*
 	 * Cardbus power registers are completely different.
 	 */
@@ -668,26 +689,39 @@ pcic_power(struct slot *slt)
 		if (sc->flags & PCIC_PD_POWER) {
 			/*
 			 * The 6710 does it one way, and the '22 and '29 do it
-			 * another.  And it appears that the '32 and '33 yet
-			 * another way (which I don't know).  The '22 can also
-			 * do it the same way as a '10 does it, despite what
-			 * the datasheets say.  Some laptops with '22 don't
-			 * seem to have the signals wired right for the '29
-			 * method to work, so we always use the '10 method for
-			 * the '22.  The laptops that don't work hang solid
-			 * when the pccard memory is accessed.  The '32 and
-			 * '33 cases are taken care of in cardbus code, so
-			 * it doesn't matter that I have no clue.
+			 * another.  The '22 can also do it the same way as a
+			 * '10 does it, despite what the datasheets say.  Some
+			 * laptops with '22 don't seem to have the signals
+			 * wired right for the '29 method to work.  The
+			 * laptops that don't work hang solid when the pccard
+			 * memory is accessed.
+			 *
+			 * To allow for both types of laptops,
+			 * hw.pcic.pd6722_vsense will select which one to use.
+			 * 0 - none, 1 - the '10 way and 2 - the '29 way.
 			 */
-			switch (sp->controller) {
+			controller = sp->controller;
+			if (controller == PCIC_PD6722) {
+				switch (pcic_pd6722_vsense) {
+				case 1:
+					controller = PCIC_PD6710;
+					break;
+				case 2:
+					controller = PCIC_PD6729;
+					break;
+				}
+			}
+
+			switch (controller) {
 			case PCIC_PD6710:
-			case PCIC_PD6722:
 				c = sp->getb(sp, PCIC_MISC1);
 				if ((c & PCIC_MISC1_5V_DETECT) == 0)
 					slt->pwr.vcc = 33;
 				else
 					slt->pwr.vcc = 50;
 				break;
+			case PCIC_PD6722:	/* see above for why we do */
+ 				break;		/* none here */
 			case PCIC_PD6729:
 				/*
 				 * VS[12] signals are in slot1's
