@@ -66,7 +66,6 @@ struct msdosfs_fileno;
  */
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */
-	struct cdev *pm_dev;		/* block special device mounted */
 	struct g_consumer *pm_cp;
 	struct bufobj *pm_bo;
 	uid_t pm_uid;		/* uid to set as owner of the files */

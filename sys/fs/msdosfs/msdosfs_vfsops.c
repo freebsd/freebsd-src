@@ -676,7 +676,6 @@ mountmsdosfs(devvp, mp, td)
 	/*
 	 * fillinusemap() needs pm_devvp.
 	 */
-	pmp->pm_dev = dev;
 	pmp->pm_devvp = devvp;
 
 	/*
