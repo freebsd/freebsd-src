@@ -33,8 +33,7 @@ LINKS=	/usr/sbin/sendmail /usr/bin/newaliases \
 	/usr/sbin/sendmail /usr/bin/mailq
 BINDIR=	/usr/sbin
 BINOWN=	root
-BINGRP=	kmem
-BINMODE=6555
+BINMODE=4555
 
 beforeinstall:
 #	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
