@@ -97,7 +97,8 @@ main(argc, argv)
 		errx(1, "%s: non-numeric minor number", argv[4]);
 	range_error |= errno;
 	dev = makedev(mymajor, myminor);
-	if (range_error || major(dev) != mymajor || minor(dev) != myminor)
+	if (range_error || major(dev) != (u_int) mymajor ||
+	    minor(dev) != (u_int) myminor)
 		errx(1, "major or minor number too large");
 
 	if (mknod(argv[1], mode, dev) != 0)
