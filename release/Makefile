@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.116 1995/03/16 05:40:02 phk Exp $
+#	$Id: Makefile,v 1.117 1995/03/16 05:58:28 phk Exp $
 #
 # How to roll a release:
 #
@@ -119,6 +119,7 @@ release.1:
 release.2:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/.. ; make distribute DISTDIR=${RD}/trees
+	chflags -R noschg ${RD}/trees
 	touch release.2
 
 # Make and install a couple of kernels we need.
@@ -305,8 +306,22 @@ release.10:
 ftp.1:
 	rm -rf ${FD}
 	mkdir ${FD}
-	cd ${RD} && find floppies dists -print | cpio -dumplv ${FD}
+	cd ${RD} && find floppies dists -print | cpio -dumpl ${FD}
 	cd ${RD}/trees/bin/usr/share/FAQ && ln -f ${FAQS} ${FD}
+
+cdrom.1:
+	rm -rf ${CD}
+	mkdir ${CD}
+	mkdir ${CD}/filesys
+	cd ${RD} && find floppies dists bootfd -print | cpio -dumpl ${FD}
+	cd ${FD} && mv bootfd bootcd
+	for i in ${DISTRIBUTIONS} ; \
+	do \
+		if [ -d ${RD}/trees/$${i} ] ; then \
+			( cd ${RD}/trees/$${i}; \
+			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
+		fi \
+	done
 
 # Various "subroutine" and other supporting targets.
 
