@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.8 1995/01/20 03:13:48 wollman Exp $
+#	$Id: Makefile,v 1.9 1995/01/20 22:16:47 wollman Exp $
 
 SUBDIR=	include des acl kdb krb libkadm
 
 SUBDIR+= ext_srvtab kdb_destroy kdb_edit \
 	 kdb_init kdb_util kdestroy kerberos kinit klist ksrvtgt \
-	 kstash kadmin kadmind passwd man
+	 kstash kadmin kadmind passwd ksrvutil man
 #
 # MISSING AND PROBABLY BOGUS: register registerd make_keypair
 #
