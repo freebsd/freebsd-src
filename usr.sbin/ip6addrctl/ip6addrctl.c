@@ -1,4 +1,4 @@
-/*	$KAME: ip6addrctl.c,v 1.1 2001/12/27 12:45:24 jinmei Exp $	*/
+/*	$KAME: ip6addrctl.c,v 1.3 2003/12/16 08:14:28 suz Exp $	*/
 
 /*
  * Copyright (C) 2001 WIDE Project.
@@ -117,6 +117,10 @@ get_policy()
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
 		err(1, "sysctl(IPV6CTL_ADDRCTLPOLICY)");
 		/* NOTREACHED */
+	}
+	if (l == 0) {
+		printf("no source-address-selection policy is installed\n");
+		return;
 	}
 	if ((buf = malloc(l)) == NULL) {
 		errx(1, "malloc failed");
