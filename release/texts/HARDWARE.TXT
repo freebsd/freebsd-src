@@ -86,7 +86,7 @@ twe0	dyn	dyn	n/a	n/a	3ware Escalade RAID controllers
 asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and 
 					Adaptec SCSI RAID
 mly0	dyn	dyn	dyn	dyn	Mylex AcceleRAID/eXtremeRAID
-
+aac	dyn	dyn	dyn	dyn	Adaptec FSA family PCI SCSI RAID
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
 psm0    60      12      n/a     n/a     PS/2 Mouse
