@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.15 (Berkeley) 7/28/94
+# $FreeBSD$
 
 PROG=	dbtest
 OBJS=	dbtest.o strerror.o
@@ -9,7 +10,7 @@ OBJS=	dbtest.o strerror.o
 INC=	-I${PORTDIR}/include -I${PORTDIR}
 OORG=	-g
 #STAT=	-DSTATISTICS
-CFLAGS=	-D__DBINTERFACE_PRIVATE -DDEBUG ${STAT} ${OORG} ${INC}
+CFLAGS+=-D__DBINTERFACE_PRIVATE -DDEBUG ${STAT} ${OORG} ${INC}
 
 dbtest: ${OBJS} ${PORTDIR}/libdb.a
 	${CC} -o ${.TARGET} ${OBJS} ${PORTDIR}/libdb.a
