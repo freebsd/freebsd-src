@@ -214,20 +214,28 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	wrch = i_dev->si_drv2;
 
 	if ((dsp_get_flags(i_dev) & SD_F_SIMPLEX) && (rdch || wrch)) {
-		/* simplex device, already open, exit */
+		/* we're a simplex device and already open, no go */
 		pcm_unlock(d);
 		splx(s);
 		return EBUSY;
 	}
 
 	if (((flags & FREAD) && rdch) || ((flags & FWRITE) && wrch)) {
-		/* device already open in one or both directions */
+		/*
+		 * device already open in one or both directions that
+		 * the opener wants; we can't handle this.
+		 */
 		pcm_unlock(d);
 		splx(s);
 		return EBUSY;
 	}
 
-	/*  if we get here, the open request is valid */
+	/*
+	 * if we get here, the open request is valid- either:
+	 *   * we were previously not open
+	 *   * we were open for play xor record and the opener wants
+	 *     the non-open direction
+	 */
 	if (flags & FREAD) {
 		/* open for read */
 		if (devtype == SND_DEV_DSPREC)
