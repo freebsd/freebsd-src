@@ -777,12 +777,19 @@ fork_exit(callout, arg, frame)
 
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	/*
-	 * Setup the sched_lock state so that we can release it.
+	 * Setup the sched_lock state so that we can release it.  If
+	 * MACHINE_CRITICAL_ENTER is set by the MD architecture, the
+	 * trampoline returns with the critical section pre-set.
+	 * XXX note: all architectures should do this, because this code
+	 * improperly assumes that a critical section == hard interrupt
+	 * disablement on entry, which is not necessarily true.
 	 */
 	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
+#ifndef MACHINE_CRITICAL_ENTER
 	td->td_critnest = 1;
 	td->td_savecrit = CRITICAL_FORK;
+#endif
 	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.sec) == 0)
