@@ -357,7 +357,6 @@ i4b/layer1/i4b_tel_s08.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
-isa/fd.c			optional	fd
 isa/fd.c			optional	fdc
 isa/ppc.c			optional	ppc
 isa/psm.c			optional	psm

@@ -55,13 +55,13 @@ device		cd
 # revision 1.20 of this file.
 #device de
 
-pseudo-device	loop
-pseudo-device	ether
-pseudo-device	sl
-pseudo-device	ppp	1
-pseudo-device	tun
-pseudo-device	pty
-pseudo-device	gzip		# Exec gzipped a.out's
+device		loop
+device		ether
+device		sl
+device		ppp	1
+device		tun
+device		pty
+device		gzip		# Exec gzipped a.out's
 
 # KTRACE enables the system-call tracing facility ktrace(2).
 # This adds 4 KB bloat to your kernel, and slightly increases

@@ -76,18 +76,16 @@ static int no_config_clobber = TRUE;
 int	debugging;
 int	profiling;
 
-static void configfile __P((void));
-static void get_srcdir __P((void));
-static void usage __P((void));
+static void configfile(void);
+static void get_srcdir(void);
+static void usage(void);
 
 /*
  * Config builds a set of files for building a UNIX
  * system given a description of the desired system.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 
 	struct stat buf;
@@ -170,7 +168,6 @@ main(argc, argv)
 	case MACHINE_I386:
 	case MACHINE_PC98:
 	case MACHINE_ALPHA:
-		newbus_ioconf();	/* Print ioconf.c */
 		break;
 
 	default:
@@ -206,7 +203,7 @@ main(argc, argv)
  *	and save that in srcdir.
  */
 static void
-get_srcdir()
+get_srcdir(void)
 {
 	int i;
 	char *p;
@@ -225,7 +222,7 @@ get_srcdir()
 }
 
 static void
-usage()
+usage(void)
 {
 		fprintf(stderr, "usage: config [-gpr] [-d destdir] sysname\n");
 		exit(1);
@@ -238,12 +235,11 @@ usage()
  *	pointer to the word otherwise
  */
 char *
-get_word(fp)
-	register FILE *fp;
+get_word(FILE *fp)
 {
 	static char line[80];
-	register int ch;
-	register char *cp;
+	int ch;
+	char *cp;
 	int escaped_nl = 0;
 
 begin:
@@ -284,12 +280,11 @@ begin:
  *	(to allow embedded spaces).
  */
 char *
-get_quoted_word(fp)
-	register FILE *fp;
+get_quoted_word(FILE *fp)
 {
 	static char line[256];
-	register int ch;
-	register char *cp;
+	int ch;
+	char *cp;
 	int escaped_nl = 0;
 
 begin:
@@ -312,7 +307,7 @@ begin:
 	}
 	cp = line;
 	if (ch == '"' || ch == '\'') {
-		register int quote = ch;
+		int quote = ch;
 
 		while ((ch = getc(fp)) != EOF) {
 			if (ch == quote)
@@ -345,10 +340,9 @@ begin:
  * prepend the path to a filename
  */
 char *
-path(file)
-	char *file;
+path(char *file)
 {
-	register char *cp;
+	char *cp;
 
 	cp = malloc((size_t)(strlen(destdir) + (file ? strlen(file) : 0) + 2));
 	(void) strcpy(cp, destdir);
@@ -360,7 +354,7 @@ path(file)
 }
 
 static void
-configfile()
+configfile(void)
 {
 	FILE *fi, *fo;
 	char *p;

@@ -76,25 +76,10 @@ struct file_list {
 
 struct device {
 	int	d_type;			/* DEVICE, bus adaptor */
-	char	*d_conn;		/* what it is connected to */
-	int	d_connunit;		/* unit of connection */
 	char	*d_name;		/* name of device (e.g. rk11) */
-	int	d_unit;			/* unit number */
-	int	d_drive;		/* drive number */
-	int	d_target;		/* target number */
-	int	d_lun;			/* unit number */
-	int	d_bus;			/* controller bus number */
-	int	d_count;		/* pseudo-device count */
+	int	d_count;		/* device count */
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
-	int	d_flags;		/* flags for device init */
-	int	d_disabled;		/* nonzero to skip probe/attach */
-	char	*d_port;		/* io port base manifest constant */
-	int	d_portn;	/* io port base (if number not manifest) */
-	int	d_maddr;		/* io memory base */
-	int	d_msize;		/* io memory size */
-	int	d_drq;			/* DMA request  */
-	int	d_irq;			/* interrupt request  */
 	struct	device *d_next;		/* Next one in list */
 };
 
@@ -144,20 +129,20 @@ struct opt_list {
 } *otab;
 
 extern char	*ident;
+extern char	*hints;
 extern int	do_trace;
 
-char	*get_word __P((FILE *));
-char	*get_quoted_word __P((FILE *));
-char	*path __P((char *));
-char	*raisestr __P((char *));
-void	moveifchanged __P((const char *, const char *));
-void	init_dev __P((struct device *));       
-void	newbus_ioconf __P((void));
-int	yyparse __P((void));
-int	yylex __P((void));
-void	options __P((void));
-void	makefile __P((void));
-void	headers __P((void));
+char	*get_word(FILE *);
+char	*get_quoted_word(FILE *);
+char	*path(char *);
+char	*raisestr(char *);
+void	moveifchanged(const char *, const char *);
+void	newbus_ioconf(void);
+int	yyparse(void);
+int	yylex(void);
+void	options(void);
+void	makefile(void);
+void	headers(void);
 
 extern struct	device *dtab;
 

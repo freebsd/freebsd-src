@@ -62,13 +62,13 @@ static	struct users {
 };
 #define	NUSERS	(sizeof (users) / sizeof (users[0]))
 
-static char *lower __P((char *));
-static void read_options __P((void));
-static void do_option __P((char *));
-static char *tooption __P((char *));
+static char *lower(char *);
+static void read_options(void);
+static void do_option(char *);
+static char *tooption(char *);
 
 void
-options()
+options(void)
 {
 	char buf[40];
 	struct cputype *cp;
@@ -126,8 +126,7 @@ options()
  */
 
 static void
-do_option(name)
-	char *name;
+do_option(char *name)
 {
 	char *basefile, *file, *inw;
 	struct opt_list *ol;
@@ -272,8 +271,7 @@ do_option(name)
  * Find the filename to store the option spec into.
  */
 static char *
-tooption(name)
-	char *name;
+tooption(char *name)
 {
 	static char hbuf[80];
 	char nbuf[80];
@@ -297,7 +295,7 @@ tooption(name)
  * read the options and options.<machine> files
  */
 static void
-read_options()
+read_options(void)
 {
 	FILE *fp;
 	char fname[80];
@@ -378,10 +376,9 @@ next:
 }
 
 static char *
-lower(str)
-	register char *str;
+lower(char *str)
 {
-	register char *cp = str;
+	char *cp = str;
 
 	while (*str) {
 		if (isupper(*str))
@@ -390,4 +387,3 @@ lower(str)
 	}
 	return (cp);
 }
-

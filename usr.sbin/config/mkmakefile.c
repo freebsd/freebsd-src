@@ -54,14 +54,14 @@ static const char rcsid[] =
 #include "configvers.h"
 
 #define next_word(fp, wd) \
-	{ register char *word = get_word(fp); \
+	{ char *word = get_word(fp); \
 	  if (word == (char *)EOF) \
 		return; \
 	  else \
 		wd = word; \
 	}
 #define next_quoted_word(fp, wd) \
-	{ register char *word = get_quoted_word(fp); \
+	{ char *word = get_quoted_word(fp); \
 	  if (word == (char *)EOF) \
 		return; \
 	  else \
@@ -70,25 +70,24 @@ static const char rcsid[] =
 
 static struct file_list *fcur;
 
-static char *tail __P((char *));
-static void do_clean __P((FILE *));
-static void do_rules __P((FILE *));
-static void do_sfiles __P((FILE *));
-static void do_mfiles __P((FILE *));
-static void do_cfiles __P((FILE *));
-static void do_objs __P((FILE *));
-static void do_before_depend __P((FILE *));
-static int opteq __P((char *, char *));
-static void read_files __P((void));
+static char *tail(char *);
+static void do_clean(FILE *);
+static void do_rules(FILE *);
+static void do_sfiles(FILE *);
+static void do_mfiles(FILE *);
+static void do_cfiles(FILE *);
+static void do_objs(FILE *);
+static void do_before_depend(FILE *);
+static int opteq(char *, char *);
+static void read_files(void);
 
 /*
  * Lookup a file, by name.
  */
 static struct file_list *
-fl_lookup(file)
-	register char *file;
+fl_lookup(char *file)
 {
-	register struct file_list *fp;
+	struct file_list *fp;
 
 	for (fp = ftab ; fp != 0; fp = fp->f_next) {
 		if (eq(fp->f_fn, file))
@@ -101,10 +100,9 @@ fl_lookup(file)
  * Lookup a file, by final component name.
  */
 static struct file_list *
-fltail_lookup(file)
-	register char *file;
+fltail_lookup(char *file)
 {
-	register struct file_list *fp;
+	struct file_list *fp;
 
 	for (fp = ftab ; fp != 0; fp = fp->f_next) {
 		if (eq(tail(fp->f_fn), tail(file)))
@@ -117,9 +115,9 @@ fltail_lookup(file)
  * Make a new file list entry
  */
 static struct file_list *
-new_fent()
+new_fent(void)
 {
-	register struct file_list *fp;
+	struct file_list *fp;
 
 	fp = (struct file_list *) malloc(sizeof *fp);
 	bzero(fp, sizeof *fp);
@@ -135,12 +133,13 @@ new_fent()
  * Build the makefile from the skeleton
  */
 void
-makefile()
+makefile(void)
 {
 	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	struct opt *op;
 	int versreq;
+	char *s;
 
 	read_files();
 	snprintf(line, sizeof(line), "../../conf/Makefile.%s", machinename);
@@ -216,6 +215,54 @@ makefile()
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
 
+	if (hints) {
+		ifp = fopen(hints, "r");
+		if (ifp == NULL)
+			err(1, "%s", hints);
+	} else {
+		ifp = NULL;
+	}
+	ofp = fopen(path("hints.c.new"), "w");
+	if (ofp == NULL)
+		err(1, "%s", path("hints.c.new"));
+	fprintf(ofp, "char static_hints[] = {\n");
+	if (ifp) {
+		while (fgets(line, BUFSIZ, ifp) != 0) {
+			/* zap trailing CR and/or LF */
+			while ((s = rindex(line, '\n')) != NULL)
+				*s = '\0';
+			while ((s = rindex(line, '\r')) != NULL)
+				*s = '\0';
+			/* remove # comments */
+			s = index(line, '#');
+			if (s)
+				*s = '\0';
+			/* remove any whitespace and " characters */
+			s = line;
+			while (*s) {
+				if (*s == ' ' || *s == '\t' || *s == '"') {
+					while (*s) {
+						s[0] = s[1];
+						s++;
+					}
+					/* start over */
+					s = line;
+					continue;
+				}
+				s++;
+			}
+			/* anything left? */
+			if (*line == '\0')
+				break;
+			fprintf(ofp, "\"%s\\0\"\n", line);
+		}
+	}
+	fprintf(ofp, "\"\\0\"\n};\n");
+	if (ifp)
+		fclose(ifp);
+	fclose(ofp);
+	moveifchanged(path("hints.c.new"), path("hints.c"));
+	
 	printf("Don't forget to do a ``make depend''\n");
 }
 
@@ -224,13 +271,13 @@ makefile()
  * Store it in the ftab linked list.
  */
 static void
-read_files()
+read_files(void)
 {
 	FILE *fp;
-	register struct file_list *tp, *pf;
-	register struct device *dp;
+	struct file_list *tp, *pf;
+	struct device *dp;
 	struct device *save_dp;
-	register struct opt *op;
+	struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean, *warn;
 	char fname[80];
 	int ddwarned = 0;
@@ -250,7 +297,7 @@ openit:
 		err(1, "%s", fname);
 next:
 	/*
-	 * filename    [ standard | mandatory | optional | count]
+	 * filename    [ standard | mandatory | optional | count ]
 	 *	[ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
@@ -428,7 +475,7 @@ nextparam:
 		goto invis;
 	for (dp = dtab; dp != 0; save_dp = dp, dp = dp->d_next)
 		if (eq(dp->d_name, wd)) {
-			if (std && dp->d_type == PSEUDO_DEVICE &&
+			if (std && dp->d_type == DEVICE &&
 			    dp->d_count <= 0)
 				dp->d_count = 1;
 			goto nextparam;
@@ -441,9 +488,8 @@ nextparam:
 	if (std) {
 		dp = (struct device *) malloc(sizeof *dp);
 		bzero(dp, sizeof *dp);
-		init_dev(dp);
+		dp->d_type = DEVICE;
 		dp->d_name = ns(wd);
-		dp->d_type = PSEUDO_DEVICE;
 		dp->d_count = 1;
 		save_dp->d_next = dp;
 		goto nextparam;
@@ -517,8 +563,7 @@ doneparam:
 }
 
 static int
-opteq(cp, dp)
-	char *cp, *dp;
+opteq(char *cp, char *dp)
 {
 	char c, d;
 
@@ -535,11 +580,10 @@ opteq(cp, dp)
 }
 
 static void
-do_before_depend(fp)
-	FILE *fp;
+do_before_depend(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
+	struct file_list *tp;
+	int lpos, len;
 
 	fputs("BEFORE_DEPEND=", fp);
 	lpos = 15;
@@ -561,12 +605,11 @@ do_before_depend(fp)
 }
 
 static void
-do_objs(fp)
-	FILE *fp;
+do_objs(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
-	register char *cp, och, *sp;
+	struct file_list *tp;
+	int lpos, len;
+	char *cp, och, *sp;
 
 	fprintf(fp, "OBJS=");
 	lpos = 6;
@@ -590,11 +633,10 @@ do_objs(fp)
 }
 
 static void
-do_cfiles(fp)
-	FILE *fp;
+do_cfiles(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
+	struct file_list *tp;
+	int lpos, len;
 
 	fputs("CFILES=", fp);
 	lpos = 8;
@@ -619,11 +661,10 @@ do_cfiles(fp)
 }
 
 static void
-do_mfiles(fp)
-	FILE *fp;
+do_mfiles(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
+	struct file_list *tp;
+	int lpos, len;
 
 	fputs("MFILES=", fp);
 	lpos = 8;
@@ -644,11 +685,10 @@ do_mfiles(fp)
 }
 
 static void
-do_sfiles(fp)
-	FILE *fp;
+do_sfiles(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
+	struct file_list *tp;
+	int lpos, len;
 
 	fputs("SFILES=", fp);
 	lpos = 8;
@@ -668,12 +708,10 @@ do_sfiles(fp)
 		putc('\n', fp);
 }
 
-
 static char *
-tail(fn)
-	char *fn;
+tail(char *fn)
 {
-	register char *cp;
+	char *cp;
 
 	cp = rindex(fn, '/');
 	if (cp == 0)
@@ -689,11 +727,10 @@ tail(fn)
  * (e.g. for the VAX); assembler files are processed by as.
  */
 static void
-do_rules(f)
-	FILE *f;
+do_rules(FILE *f)
 {
-	register char *cp, *np, och, *tp;
-	register struct file_list *ftp;
+	char *cp, *np, och, *tp;
+	struct file_list *ftp;
 	char *special;
 
 	for (ftp = ftab; ftp != 0; ftp = ftp->f_next) {
@@ -755,11 +792,10 @@ do_rules(f)
 }
 
 static void
-do_clean(fp)
-	FILE *fp;
+do_clean(FILE *fp)
 {
-	register struct file_list *tp;
-	register int lpos, len;
+	struct file_list *tp;
+	int lpos, len;
 
 	fputs("CLEAN=", fp);
 	lpos = 7;
@@ -778,10 +814,9 @@ do_clean(fp)
 }
 
 char *
-raisestr(str)
-	register char *str;
+raisestr(char *str)
 {
-	register char *cp = str;
+	char *cp = str;
 
 	while (*str) {
 		if (islower(*str))

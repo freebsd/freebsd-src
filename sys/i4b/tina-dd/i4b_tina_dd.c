@@ -36,8 +36,6 @@
 
 #include "tina.h"
 
-#if NTINA > 0
-
 #include <sys/param.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
@@ -339,5 +337,3 @@ writeblock(unsigned short iobase, unsigned char *src,
 	while(len--)			/* pc mem -> tina-dd mem */
 		outb((iobase + DATA_LOW_INC), *src++);
 }
-
-#endif /* NTINA > 0 */

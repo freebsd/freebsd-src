@@ -4,7 +4,7 @@
 PROG=	config
 CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-Wall -Wunused -Wmissing-prototypes -Wredundant-decls
-SRCS=	config.y main.c lang.l mkioconf.c mkmakefile.c mkheaders.c \
+SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
 	mkoptions.c y.tab.h
 MAN8=	config.8
 DPADD=	${LIBL}
