@@ -14,7 +14,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 5, 1991
+.Dd January 5, 1991
 .Dt MAN 1
 .Os
 .Sh NAME
