@@ -63,7 +63,7 @@ HIDEGAME=hidegame
 
 beforeinstall:
 	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m 444 larnmaze larnopts larn.help \
-	    ${DESTDIR}/usr/share/games/larn)
+	    -m ${NOBINMODE} larnmaze larnopts larn.help \
+	    ${DESTDIR}${SHAREDIR}/games/larn)
 
 .include <bsd.prog.mk>
