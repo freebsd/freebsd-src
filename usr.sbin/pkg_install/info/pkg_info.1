@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDfgiIkLmopqrRsv
+.Op Fl cdDfgGiIkLmopqrRsvx
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -98,6 +98,23 @@ intended to give an idea as to where the underlying port, from which
 package was generated, is located in the
 .Fx
 .Em "Ports Collection" .
+.It Fl G
+Do not try to expand shell glob patterns in the
+.Ar pkg-name
+when selecting packages to be displayed (by default
+.Nm
+automatically expands shell glob patterns in the
+.Ar pkg-name
+).
+.It Fl x
+Treat the
+.Ar pkg-name
+as a regular expression and display information only for packages
+whose names match that regular expression.  Multiple regular
+expressions could be provided, in that case
+.Nm
+displays information about all packages that match at least one
+regular expression from the list.
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name

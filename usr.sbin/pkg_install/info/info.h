@@ -47,12 +47,18 @@
 #define SHOW_ORIGIN	0x2000
 #define SHOW_CKSUM	0x4000
 
+enum _match_t {
+    MATCH_ALL, MATCH_EXACT, MATCH_GLOB, MATCH_REGEX
+};
+
+typedef enum _match_t match_t;
+
 extern int Flags;
-extern Boolean AllInstalled;
 extern Boolean Quiet;
 extern char *InfoPrefix;
 extern char PlayPen[];
 extern char *CheckPkg;
+extern match_t MatchType;
 
 extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);
