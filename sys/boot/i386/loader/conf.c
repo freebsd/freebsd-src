@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.4 1998/09/18 02:03:30 msmith Exp $
+ *	$Id: conf.c,v 1.5 1998/09/28 22:01:20 peter Exp $
  */
 
 #include <stand.h>
@@ -63,8 +63,10 @@ struct fs_ops *file_system[] = {
  * rather than reading the file go first.
  */
 extern struct module_format	i386_aout;
+extern struct module_format	i386_elf;
 
 struct module_format *module_formats[] = {
+    &i386_elf,
     &i386_aout,
     NULL
 };
