@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: _posix.h,v 1.2 1998/03/28 11:50:31 dufault Exp $
+ *	$Id: _posix.h,v 1.3 1998/10/16 03:55:01 peter Exp $
  */
 
 /*
@@ -41,7 +41,7 @@
 
 #ifdef KERNEL
 
-#if !defined(ACTUALLY_LKM_NOT_KERNEL) && !defined(KLD_MODULE)
+#if !defined(KLD_MODULE)
 #include "opt_posix.h"
 #endif
 

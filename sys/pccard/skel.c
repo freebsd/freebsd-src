@@ -35,7 +35,6 @@
 #include <sys/mount.h>
 #include <sys/sysent.h>
 #include <sys/exec.h>
-#include <sys/lkm.h>
 
 #include <i386/isa/isa_device.h>
 

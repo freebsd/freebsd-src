@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.21 1999/04/11 02:46:20 eivind Exp $
+ * $Id: pci_compat.c,v 1.22 1999/04/16 21:22:52 peter Exp $
  *
  */
 
@@ -340,23 +340,13 @@ pci_probedrv(pcicfgregs *cfg, struct pci_device *dvp)
 	return (NULL);
 }
 
-static struct pci_lkm *pci_lkm_head;
-
 static struct pci_device*
 pci_finddrv(pcicfgregs *cfg)
 {
 	struct pci_device **dvpp;
 	struct pci_device *dvp = NULL;
-	struct pci_lkm *lkm;
 
 	drvname = NULL;
-	lkm = pci_lkm_head;
-	while (drvname == NULL && lkm != NULL) {
-		dvp = lkm->dvp;
-		drvname = pci_probedrv(cfg, dvp);
-		lkm = lkm->next;
-	}
-
 	dvpp = (struct pci_device **)pcidevice_set.ls_items;
 	while (drvname == NULL && (dvp = *dvpp++) != NULL)
 		drvname = pci_probedrv(cfg, dvp);
@@ -413,43 +403,6 @@ pci_drvattach(struct pci_devinfo *dinfo)
 		dinfo->conf.pd_unit = unit;
 
 	}
-}
-
-/* ------------------------------------------------------------------------- */
-
-static void
-pci_rescan(void)
-{
-	/* XXX do nothing, currently, soon to come ... */
-}
-
-int pci_register_lkm (struct pci_device *dvp, int if_revision)
-{
-	struct pci_lkm *lkm;
-
-	if (if_revision != 0) {
-		return (-1);
-	}
-	if (dvp == NULL || dvp->pd_probe == NULL || dvp->pd_attach == NULL) {
-		return (-1);
-	}
-	lkm = malloc (sizeof (*lkm), M_DEVBUF, M_NOWAIT);
-	if (lkm == NULL) {
-		return (-1);
-	}
-	bzero(lkm, sizeof (*lkm));
-
-	lkm->dvp = dvp;
-	lkm->next = pci_lkm_head;
-	pci_lkm_head = lkm;
-	pci_rescan();
-	return (0);
-}
-
-void
-pci_configure(void)
-{
-	pci_probe(NULL);
 }
 
 /* ------------------------------------------------------------------------- */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.76 1999/03/02 00:28:08 julian Exp $
+ * $Id: kern_exit.c,v 1.77 1999/03/11 21:53:12 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -164,7 +164,7 @@ exit1(p, rv)
 	STOPEVENT(p, S_EXIT, rv);
 
 	/* 
-	 * Check if any LKMs need anything done at process exit.
+	 * Check if any loadable modules need anything done at process exit.
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
