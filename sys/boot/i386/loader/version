@@ -1,8 +1,9 @@
-$Id: version,v 1.3 1999/02/08 04:14:31 dcs Exp $
+$Id: version,v 1.2.2.1 1999/02/08 04:20:00 dcs Exp $
 
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+0.6:	Increased dictionary size -- supports loader.4th
 0.5:	First release version
 0.2:	Initial integration with BTX
 0.1:	Initial i386 version, inspiration and some structure from the
