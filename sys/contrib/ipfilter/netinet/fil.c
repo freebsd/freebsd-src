@@ -1209,7 +1209,7 @@ logit:
 		mc = dupmsg(m);
 # else
 #  if defined(__OpenBSD__) && (OpenBSD >= 199905)
-		mc = m_copym2(m, 0, M_COPYALL, M_NOWAIT);
+		mc = m_copym2(m, 0, M_COPYALL, M_DONTWAIT);
 #  else
 		mc = m_copy(m, 0, M_COPYALL);
 #  endif
@@ -1608,7 +1608,7 @@ m_copyback(m0, off, len, cp)
 		off -= mlen;
 		totlen += mlen;
 		if (m->m_next == 0) {
-			n = m_getclr(M_NOWAIT, m->m_type);
+			n = m_getclr(M_DONTWAIT, m->m_type);
 			if (n == 0)
 				goto out;
 			n->m_len = min(MLEN, len + off);
@@ -1627,7 +1627,7 @@ m_copyback(m0, off, len, cp)
 		if (len == 0)
 			break;
 		if (m->m_next == 0) {
-			n = m_get(M_NOWAIT, m->m_type);
+			n = m_get(M_DONTWAIT, m->m_type);
 			if (n == 0)
 				break;
 			n->m_len = min(MLEN, len);

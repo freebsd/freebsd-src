@@ -107,7 +107,7 @@ kmupetext(uintfptr_t nhighpc)
 		np.tolimit = MAXARCS;
 	np.tossize = np.tolimit * sizeof(struct tostruct);
 	cp = malloc(np.kcountsize + np.fromssize + np.tossize,
-	    M_GPROF, 0);
+	    M_GPROF, M_WAITOK);
 	/*
 	 * Check for something else extending highpc while we slept.
 	 */
@@ -176,7 +176,7 @@ kmstartup(dummy)
 		p->tolimit = MAXARCS;
 	p->tossize = p->tolimit * sizeof(struct tostruct);
 	cp = (char *)malloc(p->kcountsize + p->fromssize + p->tossize,
-	    M_GPROF, M_ZERO);
+	    M_GPROF, M_WAITOK | M_ZERO);
 	p->tos = (struct tostruct *)cp;
 	cp += p->tossize;
 	p->kcount = (HISTCOUNTER *)cp;

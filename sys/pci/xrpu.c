@@ -164,7 +164,7 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 		/* Name SHALL be zero terminated */
 		xt->xt_name[sizeof xt->xt_name - 1] = '\0';
 		i = strlen(xt->xt_name);
-		sc->tc.tc_name = (char *)malloc(i + 1, M_XRPU, 0);
+		sc->tc.tc_name = (char *)malloc(i + 1, M_XRPU, M_WAITOK);
 		strcpy(sc->tc.tc_name, xt->xt_name);
 		sc->tc.tc_frequency = xt->xt_frequency;
 		sc->tc.tc_get_timecount = xrpu_get_timecount;

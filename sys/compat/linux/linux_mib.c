@@ -139,7 +139,7 @@ linux_get_prison(struct proc *p)
 	if (pr->pr_linux == NULL) {
 		mtx_unlock(&pr->pr_mtx);
 		MALLOC(lpr, struct linux_prison *, sizeof *lpr,
-		    M_PRISON, M_ZERO);
+		    M_PRISON, M_WAITOK|M_ZERO);
 		mtx_lock(&pr->pr_mtx);
 		if (pr->pr_linux == NULL) {
 			pr->pr_linux = lpr;

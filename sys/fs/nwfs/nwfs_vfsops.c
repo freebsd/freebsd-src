@@ -125,7 +125,7 @@ nwfs_initnls(struct nwmount *nmp) {
 		nmp->m.nls.u2n = ncp_defnls.u2n;
 		return 0;
 	}
-	MALLOC(pe, char *, 256 * 4, M_NWFSDATA, 0);
+	MALLOC(pe, char *, 256 * 4, M_NWFSDATA, M_WAITOK);
 	pc = pe;
 	do {
 		COPY_TABLE(nmp->m.nls.to_lower, ncp_defnls.to_lower);

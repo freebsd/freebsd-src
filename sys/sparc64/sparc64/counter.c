@@ -83,8 +83,8 @@ sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
 	bus_space_write_8(tag, handle, offset + CTR_CT1 + CTR_LIMIT,
 	    COUNTER_MASK);
 	/* Register as a time counter. */
-	tc = malloc(sizeof(*tc), M_DEVBUF, 0);
-	sc = malloc(sizeof(*sc), M_DEVBUF, 0);
+	tc = malloc(sizeof(*tc), M_DEVBUF, M_WAITOK);
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK);
 	sc->sc_tag = tag;
 	sc->sc_handle = handle;
 	sc->sc_offset = offset + CTR_CT0;

@@ -452,7 +452,7 @@ vop_lock_post(void *ap, int rc)
 void
 v_addpollinfo(struct vnode *vp)
 {
-	vp->v_pollinfo = uma_zalloc(vnodepoll_zone, 0);
+	vp->v_pollinfo = uma_zalloc(vnodepoll_zone, M_WAITOK);
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 }
 
@@ -996,7 +996,7 @@ getnewvnode(tag, mp, vops, vpp)
 		numvnodes++;
 		mtx_unlock(&vnode_free_list_mtx);
 
-		vp = (struct vnode *) uma_zalloc(vnode_zone, M_ZERO);
+		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
 		VI_LOCK(vp);
 		vp->v_dd = vp;
@@ -2938,7 +2938,7 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 	cnt = 0;
 	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
 		cnt++;
-	xvfsp = malloc(sizeof(struct xvfsconf) * cnt, M_TEMP, 0);
+	xvfsp = malloc(sizeof(struct xvfsconf) * cnt, M_TEMP, M_WAITOK);
 	/*
 	 * Handle the race that we will have here when struct vfsconf
 	 * will be locked down by using both cnt and checking vfc_next
@@ -3051,7 +3051,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		return (SYSCTL_OUT(req, 0, len));
 
 	sysctl_wire_old_buffer(req, 0);
-	xvn = malloc(len, M_TEMP, M_ZERO | 0);
+	xvn = malloc(len, M_TEMP, M_ZERO | M_WAITOK);
 	n = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {

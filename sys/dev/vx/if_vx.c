@@ -761,7 +761,7 @@ vxget(sc, totlen)
     m = sc->mb[sc->next_mb];
     sc->mb[sc->next_mb] = 0;
     if (m == 0) {
-        MGETHDR(m, M_NOWAIT, MT_DATA);
+        MGETHDR(m, M_DONTWAIT, MT_DATA);
         if (m == 0)
             return 0;
     } else {
@@ -800,7 +800,7 @@ vxget(sc, totlen)
             m = sc->mb[sc->next_mb];
             sc->mb[sc->next_mb] = 0;
             if (m == 0) {
-                MGET(m, M_NOWAIT, MT_DATA);
+                MGET(m, M_DONTWAIT, MT_DATA);
                 if (m == 0) {
                     splx(sh);
                     m_freem(top);
@@ -812,7 +812,7 @@ vxget(sc, totlen)
             len = MLEN;
         }
         if (totlen >= MINCLSIZE) {
-	    MCLGET(m, M_NOWAIT);
+	    MCLGET(m, M_DONTWAIT);
 	    if (m->m_flags & M_EXT)
 		len = MCLBYTES;
         }
@@ -993,7 +993,7 @@ vxmbuffill(sp)
     i = sc->last_mb;
     do {
 	if (sc->mb[i] == NULL)
-	    MGET(sc->mb[i], M_NOWAIT, MT_DATA);
+	    MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
 	if (sc->mb[i] == NULL)
 	    break;
 	i = (i + 1) % MAX_MBS;

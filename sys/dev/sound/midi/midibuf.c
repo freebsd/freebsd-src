@@ -55,7 +55,7 @@ int
 midibuf_init(midi_dbuf *dbuf)
 {
 	if (dbuf->buf == NULL) {
-		dbuf->buf = malloc(MIDI_BUFFSIZE, M_DEVBUF, M_ZERO);
+		dbuf->buf = malloc(MIDI_BUFFSIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 		cv_init(&dbuf->cv_in, "midi queue in");
 		cv_init(&dbuf->cv_out, "midi queue out");
 	}

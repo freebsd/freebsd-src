@@ -206,7 +206,7 @@ pipe(td, uap)
 	
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 
-	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_ZERO);
+	pmtx = malloc(sizeof(*pmtx), M_TEMP, M_WAITOK | M_ZERO);
 	
 	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
@@ -346,7 +346,7 @@ pipe_create(cpipep)
 	struct pipe *cpipe;
 	int error;
 
-	*cpipep = uma_zalloc(pipe_zone, 0);
+	*cpipep = uma_zalloc(pipe_zone, M_WAITOK);
 	if (*cpipep == NULL)
 		return (ENOMEM);
 

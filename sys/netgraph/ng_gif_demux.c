@@ -346,7 +346,7 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 		 * Add address family header and set the output hook.
 		 */
 		iffam = get_iffam_from_hook(priv, hook);
-		M_PREPEND(m, sizeof (iffam->family), M_NOWAIT);
+		M_PREPEND(m, sizeof (iffam->family), M_DONTWAIT);
 		if (m == NULL) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);

@@ -142,9 +142,9 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 {
 	struct mbuf *mb;
 
-	MGET(mb, 0, MT_DATA);
+	MGET(mb, M_TRYWAIT, MT_DATA);
 	if (hsiz >= MINCLSIZE)
-		MCLGET(mb, 0);
+		MCLGET(mb, M_TRYWAIT);
 	mb->m_len = 0;
 	return (mb);
 }
@@ -168,9 +168,9 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 	int grpsiz, authsiz;
 
 	authsiz = nfsm_rndup(auth_len);
-	MGETHDR(mb, 0, MT_DATA);
+	MGETHDR(mb, M_TRYWAIT, MT_DATA);
 	if ((authsiz + 10 * NFSX_UNSIGNED) >= MINCLSIZE) {
-		MCLGET(mb, 0);
+		MCLGET(mb, M_TRYWAIT);
 	} else if ((authsiz + 10 * NFSX_UNSIGNED) < MHLEN) {
 		MH_ALIGN(mb, authsiz + 10 * NFSX_UNSIGNED);
 	} else {
@@ -271,9 +271,9 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, 0, MT_DATA);
+				MGET(mp, M_TRYWAIT, MT_DATA);
 				if (clflg)
-					MCLGET(mp, 0);
+					MCLGET(mp, M_TRYWAIT);
 				mp->m_len = 0;
 				mp2->m_next = mp;
 				mp2 = mp;
@@ -304,7 +304,7 @@ nfsm_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos)
 	}
 	if (rem > 0) {
 		if (rem > M_TRAILINGSPACE(mp)) {
-			MGET(mp, 0, MT_DATA);
+			MGET(mp, M_TRYWAIT, MT_DATA);
 			mp->m_len = 0;
 			mp2->m_next = mp;
 		}
@@ -349,9 +349,9 @@ nfsm_strtmbuf(struct mbuf **mb, char **bpos, const char *cp, long siz)
 	}
 	/* Loop around adding mbufs */
 	while (siz > 0) {
-		MGET(m1, 0, MT_DATA);
+		MGET(m1, M_TRYWAIT, MT_DATA);
 		if (siz > MLEN)
-			MCLGET(m1, 0);
+			MCLGET(m1, M_TRYWAIT);
 		m1->m_len = NFSMSIZ(m1);
 		m2->m_next = m1;
 		m2 = m1;
@@ -716,7 +716,7 @@ nfs_getcookie(struct nfsnode *np, off_t off, int add)
 	if (!dp) {
 		if (add) {
 			MALLOC(dp, struct nfsdmap *, sizeof (struct nfsdmap),
-				M_NFSDIROFF, 0);
+				M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
 		} else
@@ -731,7 +731,7 @@ nfs_getcookie(struct nfsnode *np, off_t off, int add)
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
 			MALLOC(dp2, struct nfsdmap *, sizeof (struct nfsdmap),
-				M_NFSDIROFF, 0);
+				M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);
 			dp = dp2;

@@ -525,7 +525,7 @@ tryagain:
 			goto tryagain;
 		}
 		while (rep->r_flags & R_MUSTRESEND) {
-			m = m_copym(rep->r_mreq, 0, M_COPYALL, 0);
+			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_TRYWAIT);
 			nfsstats.rpcretries++;
 			error = nfs_send(so, rep->r_nmp->nm_nam, m, rep);
 			if (error) {
@@ -864,7 +864,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
-	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, 0);
+	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
 	rep->r_td = td;
@@ -887,7 +887,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	 * For stream protocols, insert a Sun RPC Record Mark.
 	 */
 	if (nmp->nm_sotype == SOCK_STREAM) {
-		M_PREPEND(m, NFSX_UNSIGNED, 0);
+		M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 		*mtod(m, u_int32_t *) = htonl(0x80000000 |
 			 (m->m_pkthdr.len - NFSX_UNSIGNED));
 	}
@@ -928,7 +928,7 @@ tryagain:
 		if (nmp->nm_soflags & PR_CONNREQUIRED)
 			error = nfs_sndlock(rep);
 		if (!error) {
-			m2 = m_copym(m, 0, M_COPYALL, 0);
+			m2 = m_copym(m, 0, M_COPYALL, M_TRYWAIT);
 			error = nfs_send(nmp->nm_so, nmp->nm_nam, m2, rep);
 			if (nmp->nm_soflags & PR_CONNREQUIRED)
 				nfs_sndunlock(rep);
@@ -1127,7 +1127,7 @@ nfs_timer(void *arg)
 		   ((nmp->nm_flag & NFSMNT_DUMBTIMR) ||
 		    (rep->r_flags & R_SENT) ||
 		    nmp->nm_sent < nmp->nm_cwnd) &&
-		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_NOWAIT))){
+		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 			    error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, td);
@@ -1378,9 +1378,9 @@ nfs_realign(struct mbuf **pm, int hsiz)
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, 0, MT_DATA);
+			MGET(n, M_TRYWAIT, MT_DATA);
 			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, 0);
+				MCLGET(n, M_TRYWAIT);
 			}
 			n->m_len = 0;
 			break;

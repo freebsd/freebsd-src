@@ -1305,7 +1305,7 @@ vt_coldmalloc(void)
 	for(nscr = 0; nscr < PCVT_NSCREENS; nscr++)
 	{
 		if((vs[nscr].Memory = (u_short *)malloc(screen_max_size * 2,
-			 M_DEVBUF, 0)) == NULL)
+			 M_DEVBUF, M_WAITOK)) == NULL)
 		{
 			printf("pcvt: screen memory malloc failed, "
 			       "NSCREEN=%d, nscr=%d\n",

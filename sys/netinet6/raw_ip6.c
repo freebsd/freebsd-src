@@ -372,7 +372,7 @@ rip6_output(m, va_alist)
 		code = icmp6->icmp6_code;
 	}
 
-	M_PREPEND(m, sizeof(*ip6), 0);
+	M_PREPEND(m, sizeof(*ip6), M_TRYWAIT);
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/*

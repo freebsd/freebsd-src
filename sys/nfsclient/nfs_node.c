@@ -224,7 +224,7 @@ loop:
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if zalloc should block.
 	 */
-	np = uma_zalloc(nfsnode_zone, 0);
+	np = uma_zalloc(nfsnode_zone, M_WAITOK);
 
 	error = getnewvnode("nfs", mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
@@ -255,7 +255,7 @@ loop:
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	if (fhsize > NFS_SMALLFH) {
-		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, 0);
+		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
 	} else
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);

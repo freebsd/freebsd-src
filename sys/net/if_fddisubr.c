@@ -203,7 +203,7 @@ fddi_output(ifp, m, dst, rt0)
 	    if (aa->aa_flags & AFA_PHASE2) {
 		struct llc llc;
 
-		M_PREPEND(m, LLC_SNAPFRAMELEN, 0);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_TRYWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
@@ -290,7 +290,7 @@ fddi_output(ifp, m, dst, rt0)
 	 */
 	if (type != 0) {
 		struct llc *l;
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -305,7 +305,7 @@ fddi_output(ifp, m, dst, rt0)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, FDDI_HDR_LEN, M_NOWAIT);
+	M_PREPEND(m, FDDI_HDR_LEN, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);
@@ -706,7 +706,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return (EADDRNOTAVAIL);
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       0);
+		       M_WAITOK);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;
@@ -735,7 +735,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return (EADDRNOTAVAIL);
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
-		       0);
+		       M_WAITOK);
 		sdl->sdl_len = sizeof *sdl;
 		sdl->sdl_family = AF_LINK;
 		sdl->sdl_index = ifp->if_index;

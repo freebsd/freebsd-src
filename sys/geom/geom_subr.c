@@ -100,9 +100,9 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
-	gp = g_malloc(sizeof *gp, M_ZERO);
+	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
 	gp->protect = 0x020016601;
-	gp->name = g_malloc(sbuf_len(sb) + 1, M_ZERO);
+	gp->name = g_malloc(sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
@@ -143,7 +143,7 @@ g_new_consumer(struct g_geom *gp)
 	    ("g_new_consumer on geom(%s) (class %s) without orphan",
 	    gp->name, gp->class->name));
 
-	cp = g_malloc(sizeof *cp, M_ZERO);
+	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
 	cp->protect = 0x020016602;
 	cp->geom = gp;
 	cp->stat = g_stat_new(cp);
@@ -179,7 +179,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
-	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_ZERO);
+	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	pp->protect = 0x020016603;
 	pp->name = (char *)(pp + 1);
 	strcpy(pp->name, sbuf_data(sb));
@@ -684,7 +684,7 @@ g_idclass(struct geomidorname *p)
 				return (mp);
 		return (NULL);
 	}
-	n = g_malloc(p->len + 1, 0);
+	n = g_malloc(p->len + 1, M_WAITOK);
 	if (copyin(p->u.name, n, p->len) == 0) {
 		n[p->len] = '\0';
 		LIST_FOREACH(mp, &g_classes, class)
@@ -711,7 +711,7 @@ g_idgeom(struct geomidorname *p)
 					return (gp);
 		return (NULL);
 	}
-	n = g_malloc(p->len + 1, 0);
+	n = g_malloc(p->len + 1, M_WAITOK);
 	if (copyin(p->u.name, n, p->len) == 0) {
 		n[p->len] = '\0';
 		LIST_FOREACH(mp, &g_classes, class)
@@ -741,7 +741,7 @@ g_idprovider(struct geomidorname *p)
 						return (pp);
 		return (NULL);
 	}
-	n = g_malloc(p->len + 1, 0);
+	n = g_malloc(p->len + 1, M_WAITOK);
 	if (copyin(p->u.name, n, p->len) == 0) {
 		n[p->len] = '\0';
 		LIST_FOREACH(mp, &g_classes, class)

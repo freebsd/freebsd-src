@@ -719,12 +719,12 @@ bge_newbuf_std(sc, i, m)
 	struct bge_rx_bd	*r;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			return(ENOBUFS);
 		}
 
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			return(ENOBUFS);
@@ -765,7 +765,7 @@ bge_newbuf_jumbo(sc, i, m)
 		caddr_t			*buf = NULL;
 
 		/* Allocate the mbuf. */
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			return(ENOBUFS);
 		}

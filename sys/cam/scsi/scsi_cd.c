@@ -1784,7 +1784,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 			struct cd_mode_data *data;
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP, 
-				      0);
+				      M_WAITOK);
 
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
 				  ("trying to do CDIOCPLAYTRACKS\n"));
@@ -1818,7 +1818,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 			struct cd_mode_data *data;
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
 				  ("trying to do CDIOCPLAYMSF\n"));
@@ -1853,7 +1853,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCPLAYBLOCKS\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
@@ -1880,7 +1880,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCREADSUBCHANNEL\n"));
 
 			data = malloc(sizeof(struct cd_sub_channel_info), 
-				      M_TEMP, 0);
+				      M_TEMP, M_WAITOK);
 
 			if ((len > sizeof(struct cd_sub_channel_info)) ||
 			    (len < sizeof(struct cd_sub_channel_header))) {
@@ -1924,7 +1924,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOREADTOCHEADER\n"));
 
 			th = malloc(sizeof(struct ioc_toc_header), M_TEMP,
-				    0);
+				    M_WAITOK);
 			error = cdreadtoc(periph, 0, 0, 
 					  (struct cd_toc_entry *)th, 
 				          sizeof (*th));
@@ -1967,8 +1967,8 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
 				  ("trying to do CDIOREADTOCENTRYS\n"));
 
-			data = malloc(sizeof(data_t), M_TEMP, 0);
-			lead = malloc(sizeof(lead_t), M_TEMP, 0);
+			data = malloc(sizeof(data_t), M_TEMP, M_WAITOK);
+			lead = malloc(sizeof(lead_t), M_TEMP, M_WAITOK);
 
 			if (te->data_len < sizeof(struct cd_toc_entry)
 			 || (te->data_len % sizeof(struct cd_toc_entry)) != 0
@@ -2094,7 +2094,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE, 
 				  ("trying to do CDIOREADTOCENTRY\n"));
 
-			data = malloc(sizeof(data_t), M_TEMP, 0);
+			data = malloc(sizeof(data_t), M_TEMP, M_WAITOK);
 
 			if (te->address_format != CD_MSF_FORMAT
 			    && te->address_format != CD_LBA_FORMAT) {
@@ -2160,7 +2160,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETPATCH\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP, 
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2185,7 +2185,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCGETVOL\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP, 
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2209,7 +2209,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETVOL\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP, 
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2235,7 +2235,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETMONO\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), 
-				      M_TEMP, 0);
+				      M_TEMP, M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2259,7 +2259,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETSTEREO\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2283,7 +2283,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETMUTE\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2305,7 +2305,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETLEFT\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2329,7 +2329,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 				  ("trying to do CDIOCSETRIGHT\n"));
 
 			data = malloc(sizeof(struct cd_mode_data), M_TEMP,
-				      0);
+				      M_WAITOK);
 			error = cdgetmode(periph, data, AUDIO_PAGE);
 			if (error) {
 				free(data, M_TEMP);
@@ -2481,7 +2481,7 @@ cdsize(dev_t dev, u_int32_t *size)
 	ccb = cdgetccb(periph, /* priority */ 1);
 
 	rcap_buf = malloc(sizeof(struct scsi_read_capacity_data), 
-			  M_TEMP, 0);
+			  M_TEMP, M_WAITOK);
 
 	scsi_read_capacity(&ccb->csio, 
 			   /*retries*/ 1,
@@ -3050,7 +3050,7 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	}
 
 	if (length != 0) {
-		databuf = malloc(length, M_DEVBUF, M_ZERO);
+		databuf = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 	} else
 		databuf = NULL;
 
@@ -3183,7 +3183,7 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*challenge_data);
 
-		challenge_data = malloc(length, M_DEVBUF, M_ZERO);
+		challenge_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)challenge_data;
 
@@ -3200,7 +3200,7 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*key2_data);
 
-		key2_data = malloc(length, M_DEVBUF, M_ZERO);
+		key2_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)key2_data;
 
@@ -3217,7 +3217,7 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*rpc_data);
 
-		rpc_data = malloc(length, M_DEVBUF, M_ZERO);
+		rpc_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)rpc_data;
 
@@ -3359,7 +3359,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 	}
 
 	if (length != 0) {
-		databuf = malloc(length, M_DEVBUF, M_ZERO);
+		databuf = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 	} else
 		databuf = NULL;
 

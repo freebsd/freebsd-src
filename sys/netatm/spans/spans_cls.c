@@ -348,7 +348,7 @@ spanscls_attach(spp)
 	/*
 	 * Get a new cls control block
 	 */
-	clp = uma_zalloc(spanscls_zone, 0);
+	clp = uma_zalloc(spanscls_zone, M_WAITOK);
 	if (clp == NULL)
 		return (ENOMEM);
 

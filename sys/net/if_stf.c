@@ -179,7 +179,7 @@ stf_clone_create(ifc, unit)
 {
 	struct stf_softc *sc;
 
-	sc = malloc(sizeof(struct stf_softc), M_STF, M_ZERO);
+	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
 	sc->sc_if.if_name = STFNAME;
 	sc->sc_if.if_unit = unit;
 
@@ -446,7 +446,7 @@ stf_output(ifp, m, dst, rt)
 	}
 #endif /*NBPFILTER > 0*/
 
-	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
+	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {

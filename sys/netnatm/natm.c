@@ -109,7 +109,7 @@ natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
           goto out;
     }
 
-    so->so_pcb = (caddr_t) (npcb = npcb_alloc(0));
+    so->so_pcb = (caddr_t) (npcb = npcb_alloc(M_WAITOK));
     npcb->npcb_socket = so;
  out:
     splx(s);
@@ -300,7 +300,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
      * send the data.   we must put an atm_pseudohdr on first
      */
 
-    M_PREPEND(m, sizeof(*aph), 0);
+    M_PREPEND(m, sizeof(*aph), M_TRYWAIT);
     if (m == NULL) {
         error = ENOBUFS;
 	goto out;
@@ -469,7 +469,7 @@ struct proc *p;
           break;
       }
 
-      so->so_pcb = (caddr_t) (npcb = npcb_alloc(0));
+      so->so_pcb = (caddr_t) (npcb = npcb_alloc(M_WAITOK));
       npcb->npcb_socket = so;
 
       break;
@@ -599,7 +599,7 @@ struct proc *p;
        * send the data.   we must put an atm_pseudohdr on first
        */
 
-      M_PREPEND(m, sizeof(*aph), 0);
+      M_PREPEND(m, sizeof(*aph), M_TRYWAIT);
       if (m == NULL) {
         error = ENOBUFS;
 	break;

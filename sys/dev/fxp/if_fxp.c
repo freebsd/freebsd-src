@@ -1069,13 +1069,13 @@ tbdinit:
 			 * mbuf chain first. Bail out if we can't get the
 			 * new buffers.
 			 */
-			MGETHDR(mn, M_NOWAIT, MT_DATA);
+			MGETHDR(mn, M_DONTWAIT, MT_DATA);
 			if (mn == NULL) {
 				m_freem(mb_head);
 				break;
 			}
 			if (mb_head->m_pkthdr.len > MHLEN) {
-				MCLGET(mn, M_NOWAIT);
+				MCLGET(mn, M_DONTWAIT);
 				if ((mn->m_flags & M_EXT) == 0) {
 					m_freem(mn);
 					m_freem(mb_head);
@@ -1873,7 +1873,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 	struct mbuf *m;
 	struct fxp_rfa *rfa, *p_rfa;
 
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) { /* try to recycle the old mbuf instead */
 		if (oldm == NULL)
 			return 1;

@@ -516,7 +516,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	if (curthread->td_proc != p)
 		panic("elf_load_file - thread");	/* XXXKSE DIAGNOSTIC */
 
-	tempdata = malloc(sizeof(*tempdata), M_TEMP, 0);
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
 	nd = &tempdata->nd;
 	attr = &tempdata->attr;
 	imgp = &tempdata->image_params;
@@ -812,7 +812,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	imgp->proc->p_sysent = sv;
 	if (interp != NULL) {
-		path = malloc(MAXPATHLEN, M_TEMP, 0);
+		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
 		    interp);
 		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
@@ -831,7 +831,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	/*
 	 * Construct auxargs table (used by the fixup routine)
 	 */
-	elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, 0);
+	elf_auxargs = malloc(sizeof(Elf_Auxargs), M_TEMP, M_WAITOK);
 	elf_auxargs->execfd = -1;
 	elf_auxargs->phdr = proghdr;
 	elf_auxargs->phent = hdr->e_phentsize;
@@ -951,7 +951,7 @@ __elfN(coredump)(td, vp, limit)
 	 * Allocate memory for building the header, fill it up,
 	 * and write it out.
 	 */
-	hdr = malloc(hdrsize, M_TEMP, 0);
+	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
 	if (hdr == NULL) {
 		return (EINVAL);
 	}
@@ -1113,7 +1113,7 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	prfpregset_t *fpregset;
 	prpsinfo_t *psinfo;
 
-	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO | 0);
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO | M_WAITOK);
 	status = &tempdata->status;
 	fpregset = &tempdata->fpregset;
 	psinfo = &tempdata->psinfo;

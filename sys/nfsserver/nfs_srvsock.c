@@ -148,7 +148,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	nd->nd_repstat = err;
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
-	MGETHDR(mreq, 0, MT_DATA);
+	MGETHDR(mreq, M_TRYWAIT, MT_DATA);
 	mb = mreq;
 	/*
 	 * If this is a big reply, use a cluster else
@@ -157,7 +157,7 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	mreq->m_len = 6 * NFSX_UNSIGNED;
 	siz += RPC_REPLYSIZ;
 	if ((max_hdr + siz) >= MINCLSIZE) {
-		MCLGET(mreq, 0);
+		MCLGET(mreq, M_TRYWAIT);
 	} else
 		mreq->m_data += min(max_hdr, M_TRAILINGSPACE(mreq));
 	tl = mtod(mreq, u_int32_t *);
@@ -244,9 +244,9 @@ nfs_realign(struct mbuf **pm, int hsiz)	/* XXX COMMON */
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			MGET(n, 0, MT_DATA);
+			MGET(n, M_TRYWAIT, MT_DATA);
 			if (m->m_len >= MINCLSIZE) {
-				MCLGET(n, 0);
+				MCLGET(n, M_TRYWAIT);
 			}
 			n->m_len = 0;
 			break;
@@ -403,7 +403,7 @@ nfsmout:
  * Socket upcall routine for the nfsd sockets.
  * The caddr_t arg is a pointer to the "struct nfssvc_sock".
  * Essentially do as much as possible non-blocking, else punt and it will
- * be called without M_NOWAIT from an nfsd.
+ * be called with M_TRYWAIT from an nfsd.
  */
 void
 nfsrv_rcv(struct socket *so, void *arg, int waitflag)
@@ -421,7 +421,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 	/*
 	 * Define this to test for nfsds handling this under heavy load.
 	 */
-	if (waitflag == M_NOWAIT) {
+	if (waitflag == M_DONTWAIT) {
 		slp->ns_flag |= SLP_NEEDQ;
 		goto dorecs;
 	}
@@ -433,7 +433,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 		 * to an nfsd so that there is feedback to the TCP layer that
 		 * the nfs servers are heavily loaded.
 		 */
-		if (STAILQ_FIRST(&slp->ns_rec) && waitflag == M_NOWAIT) {
+		if (STAILQ_FIRST(&slp->ns_rec) && waitflag == M_DONTWAIT) {
 			slp->ns_flag |= SLP_NEEDQ;
 			goto dorecs;
 		}
@@ -509,7 +509,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 	 * Now try and process the request records, non-blocking.
 	 */
 dorecs:
-	if (waitflag == M_NOWAIT &&
+	if (waitflag == M_DONTWAIT &&
 		(STAILQ_FIRST(&slp->ns_rec)
 		 || (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
 		nfsrv_wakenfsd(slp);
@@ -667,7 +667,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	m = rec->nr_packet;
 	free(rec, M_NFSRVDESC);
 	MALLOC(nd, struct nfsrv_descript *, sizeof (struct nfsrv_descript),
-		M_NFSRVDESC, 0);
+		M_NFSRVDESC, M_WAITOK);
 	nd->nd_md = nd->nd_mrep = m;
 	nd->nd_nam2 = nam;
 	nd->nd_dpos = mtod(m, caddr_t);

@@ -110,10 +110,10 @@ hpfs_bminit(
 	dprintf(("0x%lx data bands, ", hpmp->hpm_dbnum));
 
 	MALLOC(hpmp->hpm_bmind, lsn_t *, hpmp->hpm_dbnum * sizeof(lsn_t),
-		M_HPFSMNT, 0);
+		M_HPFSMNT, M_WAITOK);
 
 	MALLOC(hpmp->hpm_bitmap, u_int8_t *, hpmp->hpm_dbnum * BMSIZE,
-		M_HPFSMNT, 0);
+		M_HPFSMNT, M_WAITOK);
 
 	error = bread(hpmp->hpm_devvp, hpmp->hpm_su.su_bitmap.lsn1,
 		((hpmp->hpm_dbnum + 0x7F) & ~(0x7F)) << 2, NOCRED, &bp);
@@ -273,7 +273,7 @@ hpfs_cpinit (
 	cpicnt = hpmp->hpm_sp.sp_cpinum;
 
 	MALLOC(hpmp->hpm_cpdblk, struct cpdblk *,	
-		cpicnt * sizeof(struct cpdblk), M_HPFSMNT, 0);
+		cpicnt * sizeof(struct cpdblk), M_HPFSMNT, M_WAITOK);
 
 	cpdbp = hpmp->hpm_cpdblk;
 	lsn = hpmp->hpm_sp.sp_cpi;

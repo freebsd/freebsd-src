@@ -203,7 +203,7 @@ ngt_open(dev_t dev, struct tty *tp)
 	}
 
 	/* Initialize private struct */
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_ZERO);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 	if (sc == NULL) {
 		error = ENOMEM;
 		goto done;
@@ -368,7 +368,7 @@ ngt_input(int c, struct tty *tp)
 
 	/* Get a new header mbuf if we need one */
 	if (!(m = sc->m)) {
-		MGETHDR(m, M_NOWAIT, MT_DATA);
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (!m) {
 			if (sc->flags & FLG_DEBUG)
 				log(LOG_ERR,

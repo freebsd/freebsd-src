@@ -834,7 +834,7 @@ found:
 
 		/* Clone packet if we're doing a 'tee' */
 		if ((divert_info & IP_FW_PORT_TEE_FLAG) != 0)
-			clone = m_dup(m, M_NOWAIT);
+			clone = m_dup(m, M_DONTWAIT);
 
 		/* Restore packet header fields to original values */
 		ip->ip_len += hlen;
@@ -985,7 +985,7 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
 	if (fp == 0) {
-		if ((t = m_get(M_NOWAIT, MT_FTABLE)) == NULL)
+		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
 #ifdef MAC
@@ -1587,7 +1587,7 @@ ip_srcroute()
 
 	if (ip_nhops == 0)
 		return ((struct mbuf *)0);
-	m = m_get(M_NOWAIT, MT_HEADER);
+	m = m_get(M_DONTWAIT, MT_HEADER);
 	if (m == 0)
 		return ((struct mbuf *)0);
 
@@ -1762,8 +1762,8 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	 * assume exclusive access to the IP header in `m', so any
 	 * data in a cluster may change before we reach icmp_error().
 	 */
-	MGET(mcopy, M_NOWAIT, m->m_type);
-	if (mcopy != NULL && !m_dup_pkthdr(mcopy, m, M_NOWAIT)) {
+	MGET(mcopy, M_DONTWAIT, m->m_type);
+	if (mcopy != NULL && !m_dup_pkthdr(mcopy, m, M_DONTWAIT)) {
 		/*
 		 * It's probably ok if the pkthdr dup fails (because
 		 * the deep copy of the tag chain failed), but for now

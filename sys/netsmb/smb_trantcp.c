@@ -514,7 +514,7 @@ smb_nbst_create(struct smb_vc *vcp, struct thread *td)
 {
 	struct nbpcb *nbp;
 
-	MALLOC(nbp, struct nbpcb *, sizeof *nbp, M_NBDATA, 0);
+	MALLOC(nbp, struct nbpcb *, sizeof *nbp, M_NBDATA, M_WAITOK);
 	bzero(nbp, sizeof *nbp);
 	nbp->nbp_timo.tv_sec = 15;	/* XXX: sysctl ? */
 	nbp->nbp_state = NBST_CLOSED;
@@ -648,7 +648,7 @@ smb_nbst_send(struct smb_vc *vcp, struct mbuf *m0, struct thread *td)
 		error = ENOTCONN;
 		goto abort;
 	}
-	M_PREPEND(m0, 4, 0);
+	M_PREPEND(m0, 4, M_TRYWAIT);
 	if (m0 == NULL)
 		return ENOBUFS;
 	nb_sethdr(m0, NB_SSN_MESSAGE, m_fixhdr(m0) - 4);

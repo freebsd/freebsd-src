@@ -233,7 +233,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct proc *p, struct ucred *cred,
 	} else
 		owner = crhold(cred);
 	MALLOC(ncp, struct ncp_conn *, sizeof(struct ncp_conn), 
-	    M_NCPDATA, M_ZERO);
+	    M_NCPDATA, M_WAITOK | M_ZERO);
 	error = 0;
 	lockinit(&ncp->nc_lock, PZERO, "ncplck", 0, 0);
 	ncp_conn_cnt++;
@@ -522,7 +522,7 @@ ncp_conn_gethandle(struct ncp_conn *conn, struct proc *p, struct ncp_handle **ha
 		return 0;
 	}
 	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,
-	    M_ZERO);
+	    M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&lhlist,refp,nh_next);
 	refp->nh_ref++;
 	refp->nh_proc = p;

@@ -1409,7 +1409,7 @@ loadchar(int fontset, int character, int char_scanlines, u_char *char_table)
 
 	if(saved_charsets[fontset] == 0)
 		saved_charsets[fontset] =
-			(u_char *)malloc(32 * 256, M_DEVBUF, 0);
+			(u_char *)malloc(32 * 256, M_DEVBUF, M_WAITOK);
 
 	if((bak = saved_charsets[fontset]))
 	{

@@ -396,7 +396,7 @@ pppwrite(tp, uio, flag)
 
     s = spltty();
     for (mp = &m0; uio->uio_resid; mp = &m->m_next) {
-	MGET(m, 0, MT_DATA);
+	MGET(m, M_TRYWAIT, MT_DATA);
 	if ((*mp = m) == NULL) {
 	    m_freem(m0);
 	    splx(s);
@@ -404,7 +404,7 @@ pppwrite(tp, uio, flag)
 	}
 	m->m_len = 0;
 	if (uio->uio_resid >= MCLBYTES / 2)
-	    MCLGET(m, M_NOWAIT);
+	    MCLGET(m, M_DONTWAIT);
 	len = M_TRAILINGSPACE(m);
 	if (len > uio->uio_resid)
 	    len = uio->uio_resid;
@@ -808,11 +808,11 @@ pppgetm(sc)
     mp = &sc->sc_m;
     for (len = sc->sc_mru + PPP_HDRLEN + PPP_FCSLEN; len > 0; ){
 	if ((m = *mp) == NULL) {
-	    MGETHDR(m, M_NOWAIT, MT_DATA);
+	    MGETHDR(m, M_DONTWAIT, MT_DATA);
 	    if (m == NULL)
 		break;
 	    *mp = m;
-	    MCLGET(m, M_NOWAIT);
+	    MCLGET(m, M_DONTWAIT);
 	}
 	len -= M_DATASIZE(m);
 	mp = &m->m_next;

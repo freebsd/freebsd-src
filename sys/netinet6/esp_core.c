@@ -760,10 +760,10 @@ esp_cbc_decrypt(m, off, sav, algo, ivlen)
 		if (!d || dn + blocklen > d->m_len) {
 			if (d)
 				dp = d;
-			MGET(d, M_NOWAIT, MT_DATA);
+			MGET(d, M_DONTWAIT, MT_DATA);
 			i = m->m_pkthdr.len - (soff + sn);
 			if (d && i > MLEN) {
-				MCLGET(d, M_NOWAIT);
+				MCLGET(d, M_DONTWAIT);
 				if ((d->m_flags & M_EXT) == 0) {
 					m_free(d);
 					d = NULL;
@@ -970,10 +970,10 @@ esp_cbc_encrypt(m, off, plen, sav, algo, ivlen)
 		if (!d || dn + blocklen > d->m_len) {
 			if (d)
 				dp = d;
-			MGET(d, M_NOWAIT, MT_DATA);
+			MGET(d, M_DONTWAIT, MT_DATA);
 			i = m->m_pkthdr.len - (soff + sn);
 			if (d && i > MLEN) {
-				MCLGET(d, M_NOWAIT);
+				MCLGET(d, M_DONTWAIT);
 				if ((d->m_flags & M_EXT) == 0) {
 					m_free(d);
 					d = NULL;

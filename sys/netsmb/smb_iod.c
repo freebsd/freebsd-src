@@ -248,7 +248,7 @@ smb_iod_sendrq(struct smbiod *iod, struct smb_rq *rqp)
 	}
 	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x\n", rqp->sr_mid, 0, 0, 0);
 	m_dumpm(rqp->sr_rq.mb_top);
-	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, 0);
+	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, M_TRYWAIT);
 	error = rqp->sr_lerror = m ? SMB_TRAN_SEND(vcp, m, td) : ENOBUFS;
 	if (error == 0) {
 		getnanotime(&rqp->sr_timesent);
@@ -371,7 +371,7 @@ smb_iod_request(struct smbiod *iod, int event, void *ident)
 	int error;
 
 	SMBIODEBUG("\n");
-	evp = smb_zmalloc(sizeof(*evp), M_SMBIOD, 0);
+	evp = smb_zmalloc(sizeof(*evp), M_SMBIOD, M_WAITOK);
 	evp->ev_type = event;
 	evp->ev_ident = ident;
 	SMB_IOD_EVLOCK(iod);
@@ -663,7 +663,7 @@ smb_iod_create(struct smb_vc *vcp)
 	struct smbiod *iod;
 	int error;
 
-	iod = smb_zmalloc(sizeof(*iod), M_SMBIOD, 0);
+	iod = smb_zmalloc(sizeof(*iod), M_SMBIOD, M_WAITOK);
 	iod->iod_id = smb_iod_next++;
 	iod->iod_state = SMBIOD_ST_NOTCONN;
 	iod->iod_vc = vcp;

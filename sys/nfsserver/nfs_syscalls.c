@@ -262,7 +262,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 
 	slp = (struct nfssvc_sock *)
 		malloc(sizeof (struct nfssvc_sock), M_NFSSVC,
-		M_ZERO);
+		M_WAITOK | M_ZERO);
 	STAILQ_INIT(&slp->ns_rec);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
 
@@ -301,7 +301,7 @@ nfssvc_nfsd(struct thread *td)
 	writes_todo = 0;
 #endif
 	nfsd = (struct nfsd *)
-		malloc(sizeof (struct nfsd), M_NFSD, M_ZERO);
+		malloc(sizeof (struct nfsd), M_NFSD, M_WAITOK | M_ZERO);
 	s = splnet();
 	nfsd->nfsd_td = td;
 	TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
@@ -345,7 +345,7 @@ nfssvc_nfsd(struct thread *td)
 					slp->ns_flag &= ~SLP_NEEDQ;
 					(void) nfs_slplock(slp, 1);
 					nfsrv_rcv(slp->ns_so, (caddr_t)slp,
-						0);
+						M_TRYWAIT);
 					nfs_slpunlock(slp);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
@@ -471,7 +471,7 @@ nfssvc_nfsd(struct thread *td)
 			 * Record Mark.
 			 */
 			if (sotype == SOCK_STREAM) {
-				M_PREPEND(m, NFSX_UNSIGNED, 0);
+				M_PREPEND(m, NFSX_UNSIGNED, M_TRYWAIT);
 				*mtod(m, u_int32_t *) = htonl(0x80000000 | siz);
 			}
 			if (slp->ns_so->so_proto->pr_flags & PR_CONNREQUIRED)
@@ -671,12 +671,12 @@ nfsrv_init(int terminating)
 
 #if 0
 	nfs_udpsock = (struct nfssvc_sock *)
-	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_ZERO);
+	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&nfs_udpsock->ns_rec);
 	TAILQ_INSERT_HEAD(&nfssvc_sockhead, nfs_udpsock, ns_chain);
 
 	nfs_cltpsock = (struct nfssvc_sock *)
-	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_ZERO);
+	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&nfs_cltpsock->ns_rec);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);
 #endif

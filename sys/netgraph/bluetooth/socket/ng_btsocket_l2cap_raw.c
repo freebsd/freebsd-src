@@ -571,7 +571,7 @@ ng_btsocket_l2cap_raw_attach(struct socket *so, int proto, struct thread *td)
 
 	/* Allocate the PCB */
         MALLOC(pcb, ng_btsocket_l2cap_raw_pcb_p, sizeof(*pcb),
-		M_NETGRAPH_BTSOCKET_L2CAP_RAW, M_ZERO);
+		M_NETGRAPH_BTSOCKET_L2CAP_RAW, M_WAITOK | M_ZERO);
         if (pcb == NULL)
                 return (ENOMEM);
 
@@ -758,7 +758,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_FLAGS,
-			0, 0);
+			0, M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -799,7 +799,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_DEBUG,
-			0, 0);
+			0, M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -837,7 +837,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 			(struct ng_btsocket_l2cap_raw_node_debug *) data;
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_SET_DEBUG,
-			sizeof(ng_l2cap_node_debug_ep), 0);
+			sizeof(ng_l2cap_node_debug_ep), M_WAITOK);
 		if (msg == NULL) {
 			error = ENOMEM;
 			break;
@@ -865,7 +865,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_CON_LIST,
-			0, 0);
+			0, M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -923,7 +923,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE,
-			NGM_L2CAP_NODE_GET_CHAN_LIST, 0, 0);
+			NGM_L2CAP_NODE_GET_CHAN_LIST, 0, M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -987,7 +987,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE,
 			NGM_L2CAP_L2CA_PING, sizeof(*ip) + p->echo_size,
-			0);
+			M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;
@@ -1056,7 +1056,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE,
 			NGM_L2CAP_L2CA_GET_INFO, sizeof(*ip) + p->info_size,
-			0);
+			M_WAITOK);
 		if (msg == NULL) {
 			pcb->token = 0;
 			error = ENOMEM;

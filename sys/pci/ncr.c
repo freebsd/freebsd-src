@@ -3602,7 +3602,7 @@ ncr_attach (device_t dev)
 			 0, 0xffffffff, PAGE_SIZE);
 	} else {
 		np->script  = (struct script *)
-			malloc (sizeof (struct script), M_DEVBUF, 0);
+			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
 	}
 
 	/* XXX JGibbs - Use contigmalloc */
@@ -3613,7 +3613,7 @@ ncr_attach (device_t dev)
 	} else 
 		{
 		np->scripth = (struct scripth *)
-			malloc (sizeof (struct scripth), M_DEVBUF, 0);
+			malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
 	}
 
 #ifdef SCSI_NCR_PCI_CONFIG_FIXUP

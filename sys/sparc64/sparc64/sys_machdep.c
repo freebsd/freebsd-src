@@ -117,7 +117,7 @@ sparc_utrap_install(struct thread *td, char *args)
 		if (ua.type != UTH_NOCHANGE) {
 			if (ut == NULL) {
 				ut = malloc(sizeof *ut, M_SUBPROC,
-				    M_ZERO);
+				    M_WAITOK | M_ZERO);
 				ut->ut_refcnt = 1;
 				td->td_proc->p_md.md_utrap = ut;
 			}

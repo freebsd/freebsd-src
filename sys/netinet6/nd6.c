@@ -164,7 +164,7 @@ nd6_ifattach(ifp)
 
 		/* grow nd_ifinfo */
 		n = nd_ifinfo_indexlim * sizeof(struct nd_ifinfo);
-		q = (caddr_t)malloc(n, M_IP6NDP, 0);
+		q = (caddr_t)malloc(n, M_IP6NDP, M_WAITOK);
 		bzero(q, n);
 		if (nd_ifinfo) {
 			bcopy((caddr_t)nd_ifinfo, q, n/2);

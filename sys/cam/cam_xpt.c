@@ -4804,7 +4804,7 @@ xpt_alloc_ccb()
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_DEVBUF, 0);
+	new_ccb = malloc(sizeof(*new_ccb), M_DEVBUF, M_WAITOK);
 	return (new_ccb);
 }
 
@@ -5169,7 +5169,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		/* Save some state for use while we probe for devices */
 		scan_info = (xpt_scan_bus_info *)
-		    malloc(sizeof(xpt_scan_bus_info), M_TEMP, 0);
+		    malloc(sizeof(xpt_scan_bus_info), M_TEMP, M_WAITOK);
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
 

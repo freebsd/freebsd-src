@@ -137,7 +137,7 @@ gif_clone_create(ifc, unit)
 {
 	struct gif_softc *sc;
 
-	sc = malloc (sizeof(struct gif_softc), M_GIF, 0);
+	sc = malloc (sizeof(struct gif_softc), M_GIF, M_WAITOK);
 	bzero(sc, sizeof(struct gif_softc));
 
 	sc->gif_if.if_softc = sc;
@@ -777,12 +777,12 @@ gif_set_tunnel(ifp, src, dst)
 		}
 
 	osrc = sc->gif_psrc;
-	sa = (struct sockaddr *)malloc(src->sa_len, M_IFADDR, 0);
+	sa = (struct sockaddr *)malloc(src->sa_len, M_IFADDR, M_WAITOK);
 	bcopy((caddr_t)src, (caddr_t)sa, src->sa_len);
 	sc->gif_psrc = sa;
 
 	odst = sc->gif_pdst;
-	sa = (struct sockaddr *)malloc(dst->sa_len, M_IFADDR, 0);
+	sa = (struct sockaddr *)malloc(dst->sa_len, M_IFADDR, M_WAITOK);
 	bcopy((caddr_t)dst, (caddr_t)sa, dst->sa_len);
 	sc->gif_pdst = sa;
 

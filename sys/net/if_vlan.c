@@ -168,7 +168,7 @@ vlan_setmulti(struct ifnet *ifp)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, 0);
+		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_WAITOK);
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
@@ -232,7 +232,7 @@ vlan_clone_create(struct if_clone *ifc, int unit)
 	struct ifnet *ifp;
 	int s;
 
-	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_ZERO);
+	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
 	ifp = &ifv->ifv_if;
 	SLIST_INIT(&ifv->vlan_mc_listhead);
 
@@ -323,7 +323,7 @@ vlan_start(struct ifnet *ifp)
 			struct m_tag *mtag = m_tag_alloc(MTAG_VLAN,
 							 MTAG_VLAN_TAG,
 							 sizeof (u_int),
-							 M_NOWAIT);
+							 M_DONTWAIT);
 			if (mtag == NULL) {
 				ifp->if_oerrors++;
 				m_freem(m);
@@ -332,7 +332,7 @@ vlan_start(struct ifnet *ifp)
 			*(u_int*)(mtag+1) = ifv->ifv_tag;
 			m_tag_prepend(m, mtag);
 		} else {
-			M_PREPEND(m, ifv->ifv_encaplen, M_NOWAIT);
+			M_PREPEND(m, ifv->ifv_encaplen, M_DONTWAIT);
 			if (m == NULL) {
 				if_printf(ifp, "unable to prepend VLAN header");
 				ifp->if_ierrors++;

@@ -65,7 +65,7 @@ static struct cdevsw fladisk_cdevsw;
 void *
 doc2k_malloc(int bytes) 
 {
-	return malloc(bytes, M_FLA, 0);
+	return malloc(bytes, M_FLA, M_WAITOK);
 }
 
 void

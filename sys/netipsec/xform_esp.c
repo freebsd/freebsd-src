@@ -190,7 +190,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	 *      compromise is to force it to zero here.
 	 */
 	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
-	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, 0);
+	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
 	if (sav->iv == NULL) {
 		DPRINTF(("esp_init: no memory for IV\n"));
 		return EINVAL;

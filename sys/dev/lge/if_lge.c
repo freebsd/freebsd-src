@@ -784,7 +784,7 @@ lge_newbuf(sc, c, m)
 	caddr_t			*buf = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("lge%d: no memory for rx list "
 			    "-- packet dropped!\n", sc->lge_unit);

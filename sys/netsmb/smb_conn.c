@@ -393,7 +393,7 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	if (gid != SMBM_ANY_GROUP && !groupmember(gid, cred) && !isroot)
 		return EPERM;
 
-	vcp = smb_zmalloc(sizeof(*vcp), M_SMBCONN, 0);
+	vcp = smb_zmalloc(sizeof(*vcp), M_SMBCONN, M_WAITOK);
 	smb_co_init(VCTOCP(vcp), SMBL_VC, "smb_vc", td);
 	vcp->obj.co_free = smb_vc_free;
 	vcp->obj.co_gone = smb_vc_gone;
@@ -690,7 +690,7 @@ smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
 		uid = realuid;
 	if (gid == SMBM_ANY_GROUP)
 		gid = cred->cr_groups[0];
-	ssp = smb_zmalloc(sizeof(*ssp), M_SMBCONN, 0);
+	ssp = smb_zmalloc(sizeof(*ssp), M_SMBCONN, M_WAITOK);
 	smb_co_init(SSTOCP(ssp), SMBL_SHARE, "smbss", td);
 	ssp->obj.co_free = smb_share_free;
 	ssp->obj.co_gone = smb_share_gone;

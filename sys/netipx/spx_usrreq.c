@@ -579,7 +579,7 @@ present:
 				spx_newchecks[4]++;
 				if (dt != cb->s_rhdr.spx_dt) {
 					struct mbuf *mm =
-					   m_getclr(M_NOWAIT, MT_CONTROL);
+					   m_getclr(M_DONTWAIT, MT_CONTROL);
 					spx_newchecks[0]++;
 					if (mm != NULL) {
 						u_short *s =
@@ -755,7 +755,7 @@ spx_output(cb, m0)
 					 * from usrreq(), so it is OK to
 					 * block.
 					 */
-					m = m_copym(m0, 0, mtu, 0);
+					m = m_copym(m0, 0, mtu, M_TRYWAIT);
 					if (cb->s_flags & SF_NEWCALL) {
 					    struct mbuf *mm = m;
 					    spx_newchecks[7]++;
@@ -785,7 +785,7 @@ spx_output(cb, m0)
 			if (M_TRAILINGSPACE(m) >= 1)
 				m->m_len++;
 			else {
-				struct mbuf *m1 = m_get(M_NOWAIT, MT_DATA);
+				struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
 
 				if (m1 == NULL) {
 					m_freem(m0);
@@ -796,7 +796,7 @@ spx_output(cb, m0)
 				m->m_next = m1;
 			}
 		}
-		m = m_gethdr(M_NOWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL) {
 			m_freem(m0);
 			return (ENOBUFS);
@@ -1009,7 +1009,7 @@ send:
 			spxstat.spxs_sndprobe++;
 		if (cb->s_flags & SF_ACKNOW)
 			spxstat.spxs_sndacks++;
-		m = m_gethdr(M_NOWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL)
 			return (ENOBUFS);
 		/*
@@ -1342,7 +1342,7 @@ spx_attach(so, proto, td)
 	}
 	sb = &so->so_snd;
 
-	mm = m_getclr(M_NOWAIT, MT_HEADER);
+	mm = m_getclr(M_DONTWAIT, MT_HEADER);
 	if (mm == NULL) {
 		FREE(cb, M_PCB);
 		error = ENOBUFS;

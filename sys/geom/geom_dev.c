@@ -305,7 +305,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 
 	default:
-		gio = g_malloc(sizeof *gio, M_ZERO);
+		gio = g_malloc(sizeof *gio, M_WAITOK | M_ZERO);
 		gio->cmd = cmd;
 		gio->data = data;
 		gio->fflag = fflag;

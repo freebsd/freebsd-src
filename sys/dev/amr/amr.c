@@ -433,7 +433,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 	debug(1, "AMR_IO_COMMAND  0x%x", au->au_cmd[0]);
 	/* handle inbound data buffer */
 	if (au->au_length != 0) {
-	    if ((dp = malloc(au->au_length, M_DEVBUF, 0)) == NULL) {
+	    if ((dp = malloc(au->au_length, M_DEVBUF, M_WAITOK)) == NULL) {
 		error = ENOMEM;
 		break;
 	    }
@@ -449,7 +449,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 
 	/* handle SCSI passthrough command */
 	if (au->au_cmd[0] == AMR_CMD_PASS) {
-	    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_ZERO)) == NULL) {
+	    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		error = ENOMEM;
 		break;
 	    }

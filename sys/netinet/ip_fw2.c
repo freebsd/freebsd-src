@@ -1057,7 +1057,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 	struct tcphdr *tcp;
 	struct route sro;	/* fake route */
 
-	MGETHDR(m, M_NOWAIT, MT_HEADER);
+	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 	if (m == 0)
 		return;
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
@@ -2498,7 +2498,7 @@ ipfw_ctl(struct sockopt *sopt)
 		 * how much room is needed, do not bother filling up the
 		 * buffer, just jump to the sooptcopyout.
 		 */
-		buf = malloc(size, M_TEMP, 0);
+		buf = malloc(size, M_TEMP, M_WAITOK);
 		if (buf == 0) {
 			splx(s);
 			error = ENOBUFS;

@@ -504,7 +504,7 @@ con_compl(ng_hci_unit_p unit, struct mbuf *event)
 			} __attribute__ ((packed))			*lp;
 			struct mbuf					*m;
 
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m != NULL) {
 				m->m_pkthdr.len = m->m_len = sizeof(*lp);
 				lp = mtod(m, struct __link_policy *);
