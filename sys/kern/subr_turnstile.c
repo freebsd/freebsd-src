@@ -598,7 +598,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 /*
  * The backing function for the INVARIANTS-enabled mtx_assert()
  */
-#ifdef INVARIANTS_SUPPORT
+#ifdef INVARIANT_SUPPORT
 void
 _mtx_assert(struct mtx *m, int what, const char *file, int line)
 {
