@@ -175,25 +175,6 @@ SRCS+=	v3_akey.c v3_alt.c v3_bcons.c v3_bitst.c v3_conf.c v3_cpols.c \
 	v3_lib.c v3_pku.c v3_prn.c v3_purp.c v3_skey.c v3_sxnet.c v3_utl.c \
 	v3err.c
 
-HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
-	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
-	des/des.h dh/dh.h dsa/dsa.h ../e_os.h ../e_os2.h ebcdic.h \
-	err/err.h hmac/hmac.h lhash/lhash.h md2/md2.h \
-	md5/md5.h mdc2/mdc2.h objects/objects.h opensslv.h pem/pem.h \
-	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
-	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
-	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
-	x509/x509_vfy.h x509v3/x509v3.h
-
-.if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
-HDRS+=	idea/idea.h
-.endif
-
-
-.for h in ${HDRS}
-CRYPTO_HDRS+= ${LCRYPTO_SRC}/${h}
-.endfor
-
 POD1+=	apps/CA.pl.pod apps/asn1parse.pod apps/ca.pod apps/ciphers.pod \
 	apps/config.pod apps/crl.pod apps/crl2pkcs7.pod apps/dgst.pod \
 	apps/dhparam.pod apps/dsa.pod apps/dsaparam.pod apps/enc.pod \
@@ -268,17 +249,10 @@ MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_enc_read.3 des_crypt.3 des_enc_write.3 \
 	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
 
-beforeinstall:  openssl/opensslconf.h openssl/_evp.h
+beforeinstall:  openssl/opensslconf.h openssl/evp.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CRYPTO_HDRS} openssl/opensslconf.h \
+	    ${CRYPTO_HDRS} openssl/evp.h openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
-.if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    openssl/_evp.h ${DESTDIR}/usr/include/openssl/evp.h
-.else
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${LCRYPTO_SRC}/evp/evp.h ${DESTDIR}/usr/include/openssl/evp.h
-.endif
 
 .include <bsd.lib.mk>
 
