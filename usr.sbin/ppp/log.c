@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.36 1999/03/07 11:54:41 brian Exp $
+ *	$Id: log.c,v 1.35.2.4 1999/05/02 08:59:46 brian Exp $
  */
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +56,8 @@ static const char *LogNames[] = {
   "LCP",
   "LQM",
   "Phase",
+  "Physical",
+  "Sync",
   "TCP/IP",
   "Timer",
   "Tun",
@@ -333,8 +336,8 @@ void
 log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
 {
   if (log_IsKept(lev)) {
-    char buf[50];
-    char *b;
+    char buf[68];
+    char *b, *c;
     const u_char *ptr;
     int f;
 
@@ -342,42 +345,52 @@ log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
       log_Printf(lev, "%s\n", hdr);
 
     b = buf;
+    c = b + 50;
     do {
       f = bp->cnt;
       ptr = CONST_MBUF_CTOP(bp);
       while (f--) {
-	sprintf(b, " %02x", (int) *ptr++);
+	sprintf(b, " %02x", (int) *ptr);
+        *c++ = isprint(*ptr) ? *ptr : '.';
+        ptr++;
         b += 3;
-        if (b == buf + sizeof buf - 2) {
-          strcpy(b, "\n");
-          log_Printf(lev, buf);
+        if (b == buf + 48) {
+          memset(b, ' ', 2);
+          *c = '\0';
+          log_Printf(lev, "%s\n", buf);
           b = buf;
+          c = b + 50;
         }
       }
     } while ((bp = bp->next) != NULL);
 
     if (b > buf) {
-      strcpy(b, "\n");
-      log_Printf(lev, buf);
+      memset(b, ' ', 50 - (b - buf));
+      *c = '\0';
+      log_Printf(lev, "%s\n", buf);
     }
   }
 }
 
 void
-log_DumpBuff(int lev, const char *hdr, const u_char * ptr, int n)
+log_DumpBuff(int lev, const char *hdr, const u_char *ptr, int n)
 {
   if (log_IsKept(lev)) {
-    char buf[50];
-    char *b;
+    char buf[68];
+    char *b, *c;
 
     if (hdr && *hdr)
       log_Printf(lev, "%s\n", hdr);
     while (n > 0) {
       b = buf;
-      for (b = buf; b != buf + sizeof buf - 2 && n--; b += 3)
-	sprintf(b, " %02x", (int) *ptr++);
-      strcpy(b, "\n");
-      log_Printf(lev, buf);
+      c = b + 50;
+      for (b = buf; b != buf + 48 && n--; b += 3, ptr++) {
+	sprintf(b, " %02x", (int) *ptr);
+        *c++ = isprint(*ptr) ? *ptr : '.';
+      }
+      memset(b, ' ', 50 - (b - buf));
+      *c = '\0';
+      log_Printf(lev, "%s\n", buf);
     }
   }
 }

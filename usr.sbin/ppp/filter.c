@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.27 1999/01/28 01:56:31 brian Exp $
+ * $Id: filter.c,v 1.26.2.3 1999/05/02 08:59:41 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -35,6 +35,7 @@
 #include <strings.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -109,14 +110,14 @@ ParseAddr(struct ipcp *ipcp, const char *data,
     s[len] = '\0';
     if (inet_aton(s, paddr) == 0) {
       log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
-      return (0);
+      return 0;
     }
   }
   if (cp && *++cp) {
     bits = strtol(cp, &wp, 0);
     if (cp == wp || bits < 0 || bits > 32) {
       log_Printf(LogWARN, "ParseAddr: bad mask width.\n");
-      return (0);
+      return 0;
     }
   } else if (paddr->s_addr == INADDR_ANY)
     /* An IP of 0.0.0.0 without a width is anything */
@@ -135,7 +136,7 @@ ParseAddr(struct ipcp *ipcp, const char *data,
       *pmask = bits2mask(bits);
   }
 
-  return (1);
+  return 1;
 }
 
 static int
@@ -159,15 +160,15 @@ ParsePort(const char *service, int proto)
 
   servent = getservbyname(service, protocol_name);
   if (servent != 0)
-    return (ntohs(servent->s_port));
+    return ntohs(servent->s_port);
 
   port = strtol(service, &cp, 0);
   if (cp == service) {
     log_Printf(LogWARN, "ParsePort: %s is not a port name or number.\n",
 	      service);
-    return (0);
+    return 0;
   }
-  return (port);
+  return port;
 }
 
 /*
@@ -182,7 +183,7 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
   switch (argc) {
   case 0:
     /* permit/deny all ICMP types */
-    tgt->opt.srcop = OP_NONE;
+    tgt->f_srcop = OP_NONE;
     break;
 
   case 3:
@@ -190,18 +191,18 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
       type = strtol(argv[2], &cp, 0);
       if (cp == argv[2]) {
 	log_Printf(LogWARN, "ParseIcmp: type is expected.\n");
-	return (0);
+	return 0;
       }
-      tgt->opt.srcop = OP_EQ;
-      tgt->opt.srcport = type;
+      tgt->f_srcop = OP_EQ;
+      tgt->f_srcport = type;
     }
     break;
 
   default:
     log_Printf(LogWARN, "ParseIcmp: bad icmp syntax.\n");
-    return (0);
+    return 0;
   }
-  return (1);
+  return 1;
 }
 
 /*
@@ -211,31 +212,31 @@ static int
 ParseUdpOrTcp(int argc, char const *const *argv, int proto,
               struct filterent *tgt)
 {
-  tgt->opt.srcop = tgt->opt.dstop = OP_NONE;
-  tgt->opt.estab = tgt->opt.syn = tgt->opt.finrst = 0;
+  tgt->f_srcop = tgt->f_dstop = OP_NONE;
+  tgt->f_estab = tgt->f_syn = tgt->f_finrst = 0;
 
   if (argc >= 3 && !strcmp(*argv, "src")) {
-    tgt->opt.srcop = filter_Nam2Op(argv[1]);
-    if (tgt->opt.srcop == OP_NONE) {
+    tgt->f_srcop = filter_Nam2Op(argv[1]);
+    if (tgt->f_srcop == OP_NONE) {
       log_Printf(LogWARN, "ParseUdpOrTcp: bad operation\n");
-      return (0);
+      return 0;
     }
-    tgt->opt.srcport = ParsePort(argv[2], proto);
-    if (tgt->opt.srcport == 0)
-      return (0);
+    tgt->f_srcport = ParsePort(argv[2], proto);
+    if (tgt->f_srcport == 0)
+      return 0;
     argc -= 3;
     argv += 3;
   }
 
   if (argc >= 3 && !strcmp(argv[0], "dst")) {
-    tgt->opt.dstop = filter_Nam2Op(argv[1]);
-    if (tgt->opt.dstop == OP_NONE) {
+    tgt->f_dstop = filter_Nam2Op(argv[1]);
+    if (tgt->f_dstop == OP_NONE) {
       log_Printf(LogWARN, "ParseUdpOrTcp: bad operation\n");
-      return (0);
+      return 0;
     }
-    tgt->opt.dstport = ParsePort(argv[2], proto);
-    if (tgt->opt.dstport == 0)
-      return (0);
+    tgt->f_dstport = ParsePort(argv[2], proto);
+    if (tgt->f_dstport == 0)
+      return 0;
     argc -= 3;
     argv += 3;
   }
@@ -243,11 +244,11 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   if (proto == P_TCP) {
     for (; argc > 0; argc--, argv++)
       if (!strcmp(*argv, "estab"))
-        tgt->opt.estab = 1;
+        tgt->f_estab = 1;
       else if (!strcmp(*argv, "syn"))
-        tgt->opt.syn = 1;
+        tgt->f_syn = 1;
       else if (!strcmp(*argv, "finrst"))
-        tgt->opt.finrst = 1;
+        tgt->f_finrst = 1;
       else
         break;
   }
@@ -261,87 +262,167 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
 }
 
 static int
+ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
+{
+  /*
+   * Filter currently is a catch-all. Requests are either permitted or
+   * dropped.
+   */
+  if (argc != 0) {
+    log_Printf(LogWARN, "ParseIgmp: Too many parameters\n");
+    return 0;
+  } else
+    tgt->f_srcop = OP_NONE;
+
+  return 1;
+}
+
+#ifdef P_OSPF
+static int
+ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
+{
+  /*
+   * Filter currently is a catch-all. Requests are either permitted or
+   * dropped.
+   */
+  if (argc != 0) {
+    log_Printf(LogWARN, "ParseOspf: Too many parameters\n");
+    return 0;
+  } else
+    tgt->f_srcop = OP_NONE;
+
+  return 1;
+}
+#endif
+
+static unsigned
+addrtype(const char *addr)
+{
+  if (!strncasecmp(addr, "MYADDR", 6) && (addr[6] == '\0' || addr[6] == '/'))
+    return T_MYADDR;
+  if (!strncasecmp(addr, "HISADDR", 7) && (addr[7] == '\0' || addr[7] == '/'))
+    return T_HISADDR;
+
+  return T_ADDR;
+}
+
+static const char *
+addrstr(struct in_addr addr, unsigned type)
+{
+  switch (type) {
+    case T_MYADDR:
+      return "MYADDR";
+    case T_HISADDR:
+      return "HISADDR";
+  }
+  return inet_ntoa(addr);
+}
+
+static const char *
+maskstr(int bits)
+{
+  static char str[4];
+
+  if (bits == 32)
+    *str = '\0';
+  else
+    snprintf(str, sizeof str, "/%d", bits);
+
+  return str;
+}
+
+static int
 Parse(struct ipcp *ipcp, int argc, char const *const *argv,
       struct filterent *ofp)
 {
   int action, proto;
-  int val;
+  int val, ruleno;
   char *wp;
   struct filterent filterdata;
 
-  val = strtol(*argv, &wp, 0);
-  if (*argv == wp || val > MAXFILTERS) {
+  ruleno = strtol(*argv, &wp, 0);
+  if (*argv == wp || ruleno >= MAXFILTERS) {
     log_Printf(LogWARN, "Parse: invalid filter number.\n");
-    return (0);
+    return 0;
   }
-  if (val < 0) {
-    for (val = 0; val < MAXFILTERS; val++) {
-      ofp->action = A_NONE;
+  if (ruleno < 0) {
+    for (ruleno = 0; ruleno < MAXFILTERS; ruleno++) {
+      ofp->f_action = A_NONE;
       ofp++;
     }
     log_Printf(LogWARN, "Parse: filter cleared.\n");
-    return (1);
+    return 1;
   }
-  ofp += val;
+  ofp += ruleno;
 
   if (--argc == 0) {
     log_Printf(LogWARN, "Parse: missing action.\n");
-    return (0);
+    return 0;
   }
   argv++;
 
   proto = P_NONE;
   memset(&filterdata, '\0', sizeof filterdata);
 
-  if (!strcmp(*argv, "permit")) {
+  val = strtol(*argv, &wp, 0);
+  if (!*wp && val >= 0 && val < MAXFILTERS) {
+    if (val <= ruleno) {
+      log_Printf(LogWARN, "Parse: Can only jump forward from rule %d\n",
+                 ruleno);
+      return 0;
+    }
+    action = val;
+  } else if (!strcmp(*argv, "permit")) {
     action = A_PERMIT;
   } else if (!strcmp(*argv, "deny")) {
     action = A_DENY;
   } else if (!strcmp(*argv, "clear")) {
-    ofp->action = A_NONE;
-    return (1);
+    ofp->f_action = A_NONE;
+    return 1;
   } else {
     log_Printf(LogWARN, "Parse: bad action: %s\n", *argv);
-    return (0);
+    return 0;
   }
-  filterdata.action = action;
+  filterdata.f_action = action;
 
   argc--;
   argv++;
 
-  if (argc && filterdata.action == A_DENY) {
-    if (!strcmp(*argv, "host")) {
-      filterdata.action |= A_UHOST;
-      argc--;
-      argv++;
-    } else if (!strcmp(*argv, "port")) {
-      filterdata.action |= A_UPORT;
-      argc--;
-      argv++;
-    }
+  if (argc && argv[0][0] == '!' && !argv[0][1]) {
+    filterdata.f_invert = 1;
+    argc--;
+    argv++;
   }
 
   proto = filter_Nam2Proto(argc, argv);
   if (proto == P_NONE) {
     if (!argc)
       log_Printf(LogWARN, "Parse: address/mask is expected.\n");
-    else if (ParseAddr(ipcp, *argv, &filterdata.saddr, &filterdata.smask,
-                       &filterdata.swidth)) {
+    else if (ParseAddr(ipcp, *argv, &filterdata.f_src.ipaddr,
+                       &filterdata.f_src.mask, &filterdata.f_src.width)) {
+      filterdata.f_srctype = addrtype(*argv);
       argc--;
       argv++;
       proto = filter_Nam2Proto(argc, argv);
       if (!argc)
         log_Printf(LogWARN, "Parse: address/mask is expected.\n");
       else if (proto == P_NONE) {
-	if (ParseAddr(ipcp, *argv, &filterdata.daddr, &filterdata.dmask,
-                      &filterdata.dwidth)) {
+	if (ParseAddr(ipcp, *argv, &filterdata.f_dst.ipaddr,
+		      &filterdata.f_dst.mask, &filterdata.f_dst.width)) {
+          filterdata.f_dsttype = addrtype(*argv);
 	  argc--;
 	  argv++;
-	}
-	proto = filter_Nam2Proto(argc, argv);
-	if (argc && proto != P_NONE) {
-	  argc--;
-	  argv++;
+	} else
+          filterdata.f_dsttype = T_ADDR;
+        if (argc) {
+	  proto = filter_Nam2Proto(argc, argv);
+	  if (proto == P_NONE) {
+            log_Printf(LogWARN, "Parse: %s: Invalid protocol\n", *argv);
+            return 0;
+          } else {
+	    argc--;
+	    argv++;
+	  }
 	}
       } else {
 	argc--;
@@ -349,7 +430,7 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
       }
     } else {
       log_Printf(LogWARN, "Parse: Address/protocol expected.\n");
-      return (0);
+      return 0;
     }
   } else {
     argc--;
@@ -357,7 +438,7 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   }
 
   val = 1;
-  filterdata.proto = proto;
+  filterdata.f_proto = proto;
 
   switch (proto) {
   case P_TCP:
@@ -369,25 +450,34 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   case P_ICMP:
     val = ParseIcmp(argc, argv, &filterdata);
     break;
+  case P_IGMP:
+    val = ParseIgmp(argc, argv, &filterdata);
+    break;
+#ifdef P_OSPF
+  case P_OSPF:
+    val = ParseOspf(argc, argv, &filterdata);
+    break;
+#endif
   }
 
-  log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.saddr));
-  log_Printf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(filterdata.smask));
-  log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.daddr));
-  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.dmask));
+  log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
+  log_Printf(LogDEBUG, "Parse: Src mask: %s\n", inet_ntoa(filterdata.f_src.mask));
+  log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.f_dst.ipaddr));
+  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n", inet_ntoa(filterdata.f_dst.mask));
   log_Printf(LogDEBUG, "Parse: Proto = %d\n", proto);
 
   log_Printf(LogDEBUG, "Parse: src:  %s (%d)\n",
-            filter_Op2Nam(filterdata.opt.srcop), filterdata.opt.srcport);
+            filter_Op2Nam(filterdata.f_srcop), filterdata.f_srcport);
   log_Printf(LogDEBUG, "Parse: dst:  %s (%d)\n",
-            filter_Op2Nam(filterdata.opt.dstop), filterdata.opt.dstport);
-  log_Printf(LogDEBUG, "Parse: estab: %u\n", filterdata.opt.estab);
-  log_Printf(LogDEBUG, "Parse: syn: %u\n", filterdata.opt.syn);
-  log_Printf(LogDEBUG, "Parse: finrst: %u\n", filterdata.opt.finrst);
+            filter_Op2Nam(filterdata.f_dstop), filterdata.f_dstport);
+  log_Printf(LogDEBUG, "Parse: estab: %u\n", filterdata.f_estab);
+  log_Printf(LogDEBUG, "Parse: syn: %u\n", filterdata.f_syn);
+  log_Printf(LogDEBUG, "Parse: finrst: %u\n", filterdata.f_finrst);
 
   if (val)
     *ofp = filterdata;
-  return (val);
+
+  return val;
 }
 
 int
@@ -420,8 +510,16 @@ filter_Set(struct cmdargs const *arg)
 const char *
 filter_Action2Nam(int act)
 {
-  static const char *actname[] = { "none   ", "permit ", "deny   " };
-  return actname[act & (A_PERMIT|A_DENY)];
+  static const char *actname[] = { "  none ", "permit ", "  deny " };
+  static char	buf[8];
+
+  if (act >= 0 && act < MAXFILTERS) {
+    snprintf(buf, sizeof buf, "%6d ", act);
+    return buf;
+  } else if (act >= A_NONE && act < A_NONE + sizeof(actname)/sizeof(char *))
+    return actname[act - A_NONE];
+  else
+    return "?????? ";
 }
 
 static void
@@ -430,30 +528,27 @@ doShowFilter(struct filterent *fp, struct prompt *prompt)
   int n;
 
   for (n = 0; n < MAXFILTERS; n++, fp++) {
-    if (fp->action != A_NONE) {
-      prompt_Printf(prompt, "  %2d %s", n, filter_Action2Nam(fp->action));
-      if (fp->action & A_UHOST)
-        prompt_Printf(prompt, "host ");
-      else if (fp->action & A_UPORT)
-        prompt_Printf(prompt, "port ");
-      else
-        prompt_Printf(prompt, "     ");
-      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->saddr), fp->swidth);
-      prompt_Printf(prompt, "%s/%d ", inet_ntoa(fp->daddr), fp->dwidth);
-      if (fp->proto) {
-	prompt_Printf(prompt, "%s", filter_Proto2Nam(fp->proto));
+    if (fp->f_action != A_NONE) {
+      prompt_Printf(prompt, "  %2d %s", n, filter_Action2Nam(fp->f_action));
+      prompt_Printf(prompt, "%c ", fp->f_invert ? '!' : ' ');
+      prompt_Printf(prompt, "%s%s ", addrstr(fp->f_src.ipaddr, fp->f_srctype),
+                    maskstr(fp->f_src.width));
+      prompt_Printf(prompt, "%s%s ", addrstr(fp->f_dst.ipaddr, fp->f_dsttype),
+                    maskstr(fp->f_dst.width));
+      if (fp->f_proto) {
+	prompt_Printf(prompt, "%s", filter_Proto2Nam(fp->f_proto));
 
-	if (fp->opt.srcop)
-	  prompt_Printf(prompt, " src %s %d", filter_Op2Nam(fp->opt.srcop),
-		  fp->opt.srcport);
-	if (fp->opt.dstop)
-	  prompt_Printf(prompt, " dst %s %d", filter_Op2Nam(fp->opt.dstop),
-		  fp->opt.dstport);
-	if (fp->opt.estab)
+	if (fp->f_srcop)
+	  prompt_Printf(prompt, " src %s %d", filter_Op2Nam(fp->f_srcop),
+		  fp->f_srcport);
+	if (fp->f_dstop)
+	  prompt_Printf(prompt, " dst %s %d", filter_Op2Nam(fp->f_dstop),
+		  fp->f_dstport);
+	if (fp->f_estab)
 	  prompt_Printf(prompt, " estab");
-	if (fp->opt.syn)
+	if (fp->f_syn)
 	  prompt_Printf(prompt, " syn");
-	if (fp->opt.finrst)
+	if (fp->f_finrst)
 	  prompt_Printf(prompt, " finrst");
       }
       prompt_Printf(prompt, "\n");
@@ -500,7 +595,9 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = { "none", "tcp", "udp", "icmp" };
+static const char *protoname[] = {
+  "none", "tcp", "udp", "icmp", "ospf", "igmp"
+};
 
 const char *
 filter_Proto2Nam(int proto)
@@ -546,4 +643,28 @@ filter_Nam2Op(const char *cp)
       break;
 
   return op;
+}
+
+void
+filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
+                  struct in_addr *peer_ip)
+{
+  struct filterent *fp;
+  int n;
+
+  for (fp = filter->rule, n = 0; n < MAXFILTERS; fp++, n++)
+    if (fp->f_action != A_NONE) {
+      if (my_ip) {
+        if (fp->f_srctype == T_MYADDR)
+          fp->f_src.ipaddr = *my_ip;
+        if (fp->f_dsttype == T_MYADDR)
+          fp->f_dst.ipaddr = *my_ip;
+      }
+      if (peer_ip) {
+        if (fp->f_srctype == T_HISADDR)
+          fp->f_src.ipaddr = *peer_ip;
+        if (fp->f_dsttype == T_HISADDR)
+          fp->f_dst.ipaddr = *peer_ip;
+      }
+    }
 }

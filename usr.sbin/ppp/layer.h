@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: layer.h,v 1.1 1999/05/08 11:06:50 brian Exp $
+ *	$Id: layer.h,v 1.2 1999/08/19 18:15:50 brian Exp $
  */
 
 #define	LAYER_ASYNC	2

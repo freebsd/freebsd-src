@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.23 1999/04/26 08:54:32 brian Exp $
+ *	$Id: alias_cmd.c,v 1.18.2.3 1999/05/02 08:59:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -24,6 +24,8 @@
 #else
 #include "alias.h"
 #endif
+#include "layer.h"
+#include "proto.h"
 #include "defs.h"
 #include "command.h"
 #include "log.h"
@@ -55,25 +57,35 @@ static int StrToPortRange(const char *, u_short *, u_short *, const char *);
 static int StrToAddrAndPort(const char *, struct in_addr *, u_short *,
                             u_short *, const char *);
 
+static void
+lowhigh(u_short *a, u_short *b)
+{
+  if (a > b) {
+    u_short c;
+
+    c = *b;
+    *b = *a;
+    *a = c;
+  }
+}
 
 int
-alias_RedirectPort(struct cmdargs const *arg)
+nat_RedirectPort(struct cmdargs const *arg)
 {
-  if (!arg->bundle->AliasEnabled) {
+  if (!arg->bundle->NatEnabled) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
-  } else if (arg->argc == arg->argn + 3) {
+  } else if (arg->argc == arg->argn + 3 || arg->argc == arg->argn + 4) {
     char proto_constant;
     const char *proto;
-    u_short hlocalport;
-    u_short llocalport;
-    u_short haliasport;
-    u_short laliasport;
-    u_short port;
-    int error;
-    struct in_addr local_addr;
-    struct in_addr null_addr;
+    struct in_addr localaddr;
+    u_short hlocalport, llocalport;
+    struct in_addr aliasaddr;
+    u_short haliasport, laliasport;
+    struct in_addr remoteaddr;
+    u_short hremoteport, lremoteport;
     struct alias_link *link;
+    int error;
 
     proto = arg->argv[arg->argn];
     if (strcmp(proto, "tcp") == 0) {
@@ -86,84 +98,102 @@ alias_RedirectPort(struct cmdargs const *arg)
       return -1;
     }
 
-    error = StrToAddrAndPort(arg->argv[arg->argn+1], &local_addr, &llocalport,
+    error = StrToAddrAndPort(arg->argv[arg->argn+1], &localaddr, &llocalport,
                              &hlocalport, proto);
     if (error) {
-      prompt_Printf(arg->prompt, "alias port: error reading localaddr:port\n");
+      prompt_Printf(arg->prompt, "nat port: error reading localaddr:port\n");
       return -1;
     }
+
     error = StrToPortRange(arg->argv[arg->argn+2], &laliasport, &haliasport,
                            proto);
     if (error) {
-      prompt_Printf(arg->prompt, "alias port: error reading alias port\n");
+      prompt_Printf(arg->prompt, "nat port: error reading alias port\n");
       return -1;
     }
-    null_addr.s_addr = INADDR_ANY;
+    aliasaddr.s_addr = INADDR_ANY;
 
-    if (llocalport > hlocalport) {
-      port = llocalport;
-      llocalport = hlocalport;
-      hlocalport = port;
+    if (arg->argc == arg->argn + 4) {
+      error = StrToAddrAndPort(arg->argv[arg->argn+3], &remoteaddr,
+                               &lremoteport, &hremoteport, proto);
+      if (error) {
+        prompt_Printf(arg->prompt, "nat port: error reading "
+                      "remoteaddr:port\n");
+        return -1;
+      }
+    } else {
+      remoteaddr.s_addr = INADDR_ANY;
+      lremoteport = hremoteport = 0;
     }
 
-    if (laliasport > haliasport) {
-      port = laliasport;
-      laliasport = haliasport;
-      haliasport = port;
-    }
+    lowhigh(&llocalport, &hlocalport);
+    lowhigh(&laliasport, &haliasport);
+    lowhigh(&lremoteport, &hremoteport);
 
     if (haliasport - laliasport != hlocalport - llocalport) {
-      prompt_Printf(arg->prompt, "alias port: Port ranges must be equal\n");
+      prompt_Printf(arg->prompt, "nat port: local & alias port ranges "
+                    "are not equal\n");
       return -1;
     }
 
-    for (port = laliasport; port <= haliasport; port++) {
-      link = PacketAliasRedirectPort(local_addr,
-                                     htons(llocalport + (port - laliasport)),
-				     null_addr, 0, null_addr, htons(port),
+    if (hremoteport && hremoteport - lremoteport != hlocalport - llocalport) {
+      prompt_Printf(arg->prompt, "nat port: local & remote port ranges "
+                    "are not equal\n");
+      return -1;
+    }
+
+    while (laliasport <= haliasport) {
+      link = PacketAliasRedirectPort(localaddr, htons(llocalport),
+				     remoteaddr, htons(lremoteport),
+                                     aliasaddr, htons(laliasport),
 				     proto_constant);
 
       if (link == NULL) {
-        prompt_Printf(arg->prompt, "alias port: %d: error %d\n", port, error);
+        prompt_Printf(arg->prompt, "nat port: %d: error %d\n", laliasport,
+                      error);
         return 1;
       }
+      llocalport++;
+      laliasport++;
+      if (hremoteport)
+        lremoteport++;
     }
-  } else
-    return -1;
 
-  return 0;
+    return 0;
+  }
+
+  return -1;
 }
 
 
 int
-alias_RedirectAddr(struct cmdargs const *arg)
+nat_RedirectAddr(struct cmdargs const *arg)
 {
-  if (!arg->bundle->AliasEnabled) {
-    prompt_Printf(arg->prompt, "alias not enabled\n");
+  if (!arg->bundle->NatEnabled) {
+    prompt_Printf(arg->prompt, "nat not enabled\n");
     return 1;
   } else if (arg->argc == arg->argn+2) {
     int error;
-    struct in_addr local_addr;
-    struct in_addr alias_addr;
+    struct in_addr localaddr, aliasaddr;
     struct alias_link *link;
 
-    error = StrToAddr(arg->argv[arg->argn], &local_addr);
+    error = StrToAddr(arg->argv[arg->argn], &localaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid local address\n");
       return 1;
     }
-    error = StrToAddr(arg->argv[arg->argn+1], &alias_addr);
+    error = StrToAddr(arg->argv[arg->argn+1], &aliasaddr);
     if (error) {
       prompt_Printf(arg->prompt, "address redirect: invalid alias address\n");
-      prompt_Printf(arg->prompt, "Usage: alias %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
       return 1;
     }
-    link = PacketAliasRedirectAddr(local_addr, alias_addr);
+    link = PacketAliasRedirectAddr(localaddr, aliasaddr);
     if (link == NULL) {
       prompt_Printf(arg->prompt, "address redirect: packet aliasing"
                     " engine error\n");
-      prompt_Printf(arg->prompt, "Usage: alias %s %s\n", arg->cmd->name,
+      prompt_Printf(arg->prompt, "Usage: nat %s %s\n", arg->cmd->name,
                     arg->cmd->syntax);
     }
   } else
@@ -259,7 +289,7 @@ StrToAddrAndPort(const char *str, struct in_addr *addr, u_short *low,
 }
 
 int
-alias_ProxyRule(struct cmdargs const *arg)
+nat_ProxyRule(struct cmdargs const *arg)
 {
   char cmd[LINE_LEN];
   int f, pos;
@@ -282,7 +312,7 @@ alias_ProxyRule(struct cmdargs const *arg)
 }
 
 int
-alias_Pptp(struct cmdargs const *arg)
+nat_Pptp(struct cmdargs const *arg)
 {
   struct in_addr addr;
 
@@ -304,3 +334,100 @@ alias_Pptp(struct cmdargs const *arg)
   PacketAliasPptp(addr);
   return 0;
 }
+
+static struct mbuf *
+nat_PadMbuf(struct mbuf *bp, int type)
+{
+  struct mbuf **last;
+  int len;
+
+  mbuf_SetType(bp, type);
+  for (last = &bp, len = 0; *last != NULL; last = &(*last)->next)
+    len += (*last)->cnt;
+
+  len = MAX_MRU - len;
+  *last = mbuf_Alloc(len, type);
+
+  return bp;
+}
+
+static struct mbuf *
+nat_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
+                int pri, u_short *proto)
+{
+  if (!bundle->NatEnabled || *proto != PROTO_IP)
+    return bp;
+
+  log_Printf(LogDEBUG, "nat_LayerPush: PROTO_IP -> PROTO_IP\n");
+  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATOUT));
+  PacketAliasOut(MBUF_CTOP(bp), bp->cnt);
+  bp->cnt = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
+
+  return bp;
+}
+
+static struct mbuf *
+nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
+                u_short *proto)
+{
+  struct ip *pip, *piip;
+  int ret, len;
+  struct mbuf **last;
+  char *fptr;
+
+  if (!bundle->NatEnabled || *proto != PROTO_IP)
+    return bp;
+
+  log_Printf(LogDEBUG, "nat_LayerPull: PROTO_IP -> PROTO_IP\n");
+  bp = mbuf_Contiguous(nat_PadMbuf(bp, MB_NATIN));
+  pip = (struct ip *)MBUF_CTOP(bp);
+  piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
+
+  if (pip->ip_p == IPPROTO_IGMP ||
+      (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
+    return bp;
+
+  ret = PacketAliasIn(MBUF_CTOP(bp), bp->cnt);
+
+  bp->cnt = ntohs(pip->ip_len);
+  if (bp->cnt > MAX_MRU) {
+    log_Printf(LogWARN, "nat_LayerPull: Problem with IP header length\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  switch (ret) {
+    case PKT_ALIAS_OK:
+      break;
+
+    case PKT_ALIAS_UNRESOLVED_FRAGMENT:
+      /* Save the data for later */
+      fptr = malloc(bp->cnt);
+      bp = mbuf_Read(bp, fptr, bp->cnt);
+      PacketAliasSaveFragment(fptr);
+      break;
+
+    case PKT_ALIAS_FOUND_HEADER_FRAGMENT:
+      /* Fetch all the saved fragments and chain them on the end of `bp' */
+      last = &bp->pnext;
+      while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
+	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
+        len = ntohs(((struct ip *)fptr)->ip_len);
+        *last = mbuf_Alloc(len, MB_NATIN);
+        memcpy(MBUF_CTOP(*last), fptr, len);
+        free(fptr);
+        last = &(*last)->pnext;
+      }
+      break;
+
+    default:
+      mbuf_Free(bp);
+      bp = NULL;
+      break;
+  }
+
+  return bp;
+}
+
+struct layer natlayer =
+  { LAYER_NAT, "nat", nat_LayerPush, nat_LayerPull };

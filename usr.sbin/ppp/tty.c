@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.10 1999/08/06 20:04:07 brian Exp $
+ *	$Id: tty.c,v 1.12 1999/08/09 23:49:59 brian Exp $
  */
 
 #include <sys/param.h>

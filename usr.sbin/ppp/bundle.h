@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.21 1999/01/28 01:56:30 brian Exp $
+ *	$Id: bundle.h,v 1.20.2.3 1999/05/02 08:59:35 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -35,17 +35,22 @@
 /* cfg.opt bit settings */
 #define OPT_IDCHECK	0x0001
 #define OPT_IFACEALIAS	0x0002
-#define OPT_LOOPBACK	0x0004
-#define OPT_PASSWDAUTH	0x0008
-#define OPT_PROXY	0x0010
-#define OPT_PROXYALL	0x0020
-#define OPT_SROUTES	0x0040
-#define OPT_THROUGHPUT	0x0080
-#define OPT_UTMP	0x0100
+#define OPT_KEEPSESSION	0x0004
+#define OPT_LOOPBACK	0x0008
+#define OPT_PASSWDAUTH	0x0010
+#define OPT_PROXY	0x0020
+#define OPT_PROXYALL	0x0040
+#define OPT_SROUTES	0x0080
+#define OPT_THROUGHPUT	0x0100
+#define OPT_UTMP	0x0200
 
 #define MAX_ENDDISC_CLASS 5
 
 #define Enabled(b, o) ((b)->cfg.opt & (o))
+
+/* AutoAdjust() values */
+#define AUTO_UP		1
+#define AUTO_DOWN	2
 
 struct sockaddr_un;
 struct datalink;
@@ -67,7 +72,7 @@ struct bundle {
     int fd;                   /* The /dev/XXXX descriptor */
   } dev;
 
-  u_long ifSpeed;             /* struct tuninfo speed */
+  u_long bandwidth;           /* struct tuninfo speed */
   struct iface *iface;        /* Interface information */
 
   int routing_seq;            /* The current routing sequence number */
@@ -79,13 +84,18 @@ struct bundle {
   } phys_type;
 
   unsigned CleaningUp : 1;    /* Going to exit.... */
-  unsigned AliasEnabled : 1;  /* Are we using libalias ? */
+  unsigned NatEnabled : 1;    /* Are we using libalias ? */
 
   struct fsm_parent fsm;      /* Our callback functions */
   struct datalink *links;     /* Our data links */
 
+  time_t upat;                /* When the link came up */
+
   struct {
-    int idle_timeout;         /* NCP Idle timeout value */
+    struct {
+      int timeout;              /* NCP Idle timeout value */
+      int min_timeout;          /* Don't idle out before this */
+    } idle;
     struct {
       char name[AUTHLEN];     /* PAP/CHAP system name */
       char key[AUTHLEN];      /* PAP/CHAP key */
@@ -93,13 +103,6 @@ struct bundle {
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
     u_short mtu;              /* Interface mtu */
-
-    struct {                  /* We need/don't need another link when  */
-      struct {                /* more/less than                        */
-        int packets;          /* this number of packets are queued for */
-        int timeout;          /* this number of seconds                */
-      } max, min;
-    } autoload;
 
     struct {
       int timeout;            /* How long to leave the output queue choked */
@@ -126,13 +129,6 @@ struct bundle {
   struct {
     int fd;                   /* write status here */
   } notify;
-
-  struct {
-    struct pppTimer timer;
-    time_t done;
-    unsigned running : 1;
-    unsigned comingup : 1;
-  } autoload;
 
   struct {
     struct pppTimer timer;    /* choked output queue timer */
@@ -164,7 +160,7 @@ extern int bundle_FillQueues(struct bundle *);
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern int bundle_ShowStatus(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *);
-extern void bundle_SetIdleTimer(struct bundle *, int);
+extern void bundle_SetIdleTimer(struct bundle *, int, int);
 extern void bundle_StopIdleTimer(struct bundle *);
 extern int bundle_IsDead(struct bundle *);
 extern struct datalink *bundle2datalink(struct bundle *, const char *);
@@ -189,3 +185,8 @@ extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
 extern int bundle_HighestState(struct bundle *);
 extern int bundle_Exception(struct bundle *, int);
+extern void bundle_AdjustFilters(struct bundle *, struct in_addr *,
+                                 struct in_addr *);
+extern void bundle_CalculateBandwidth(struct bundle *);
+extern void bundle_AutoAdjust(struct bundle *, int, int);
+extern int bundle_WantAutoloadTimer(struct bundle *);

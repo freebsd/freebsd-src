@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.191 1999/04/26 08:54:33 brian Exp $
+ * $Id: command.c,v 1.177.2.4 1999/05/02 08:59:38 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -41,13 +41,14 @@
 #include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
+#ifndef NONAT
 #ifdef __FreeBSD__
 #include <alias.h>
 #else
 #include "alias.h"
 #endif
 #endif
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -61,8 +62,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "ipcp.h"
-#include "modem.h"
-#ifndef NOALIAS
+#ifndef NONAT
 #include "alias_cmd.h"
 #endif
 #include "systems.h"
@@ -120,6 +120,8 @@
 #define	VAR_RECVPIPE	28
 #define	VAR_RADIUS	29
 #define	VAR_CD		30
+#define	VAR_PARITY	31
+#define VAR_CRTSCTS	32
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -131,17 +133,18 @@
 #define NEG_CHAP80	42
 #define NEG_CHAP80LM	43
 #define NEG_DEFLATE	44
-#define NEG_LQR		45
-#define NEG_PAP		46
-#define NEG_PPPDDEFLATE	47
-#define NEG_PRED1	48
-#define NEG_PROTOCOMP	49
-#define NEG_SHORTSEQ	50
-#define NEG_VJCOMP	51
-#define NEG_DNS		52
+#define NEG_DNS		45
+#define NEG_ENDDISC	46
+#define NEG_LQR		47
+#define NEG_PAP		48
+#define NEG_PPPDDEFLATE	49
+#define NEG_PRED1	50
+#define NEG_PROTOCOMP	51
+#define NEG_SHORTSEQ	52
+#define NEG_VJCOMP	53
 
-const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/04/26 08:54:33 $";
+const char Version[] = "2.23";
+const char VersionDate[] = "$Date: 1999/08/19 18:15:49 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -160,7 +163,7 @@ static int IfaceAddCommand(struct cmdargs const *);
 static int IfaceDeleteCommand(struct cmdargs const *);
 static int IfaceClearCommand(struct cmdargs const *);
 static int SetProcTitle(struct cmdargs const *);
-#ifndef NOALIAS
+#ifndef NONAT
 static int AliasEnable(struct cmdargs const *);
 static int AliasOption(struct cmdargs const *);
 #endif
@@ -351,10 +354,12 @@ strstrword(char *big, const char *little)
   len = strlen(little);
 
   while ((pos = strstr(pos, little)) != NULL)
-    if ((pos == big || !isinword(pos[-1])) && !isinword(pos[len]))
-      break;
-    else
+    if ((pos != big && isinword(pos[-1])) || isinword(pos[len]))
       pos++;
+    else if (pos != big && pos[-1] == '\\')
+      memmove(pos - 1, pos, strlen(pos) + 1);
+    else
+      break;
 
   return pos;
 }
@@ -393,10 +398,10 @@ subst(char *tgt, const char *oldstr, const char *newstr)
 
 void
 command_Expand(char **nargv, int argc, char const *const *oargv,
-               struct bundle *bundle, int inc0)
+               struct bundle *bundle, int inc0, pid_t pid)
 {
   int arg;
-  char pid[12];
+  char pidstr[12];
 
   if (inc0)
     arg = 0;		/* Start at arg 0 */
@@ -404,7 +409,7 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[0] = strdup(oargv[0]);
     arg = 1;
   }
-  snprintf(pid, sizeof pid, "%d", getpid());
+  snprintf(pidstr, sizeof pidstr, "%d", (int)pid);
   for (; arg < argc; arg++) {
     nargv[arg] = strdup(oargv[arg]);
     nargv[arg] = subst(nargv[arg], "HISADDR",
@@ -421,7 +426,7 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                        mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
                                   bundle->ncp.mp.cfg.enddisc.address,
                                   bundle->ncp.mp.cfg.enddisc.len));
-    nargv[arg] = subst(nargv[arg], "PROCESSID", pid);
+    nargv[arg] = subst(nargv[arg], "PROCESSID", pidstr);
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
   }
   nargv[arg] = NULL;
@@ -431,7 +436,7 @@ static int
 ShellCommand(struct cmdargs const *arg, int bg)
 {
   const char *shell;
-  pid_t shpid;
+  pid_t shpid, pid;
 
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
@@ -457,6 +462,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
   }
 
+  pid = getpid();
   if ((shpid = fork()) == 0) {
     int i, fd;
 
@@ -472,10 +478,11 @@ ShellCommand(struct cmdargs const *arg, int bg)
                 _PATH_DEVNULL, strerror(errno));
       exit(1);
     }
-    for (i = 0; i < 3; i++)
-      dup2(fd, i);
-
-    fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+    for (i = getdtablesize(); i > STDERR_FILENO; i--)
+      fcntl(i, F_SETFD, 1);
 
     setuid(geteuid());
     if (arg->argc > arg->argn) {
@@ -487,7 +494,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
         argc = sizeof argv / sizeof argv[0] - 1;
         log_Printf(LogWARN, "Truncating shell command to %d args\n", argc);
       }
-      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0);
+      command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 0, pid);
       if (bg) {
 	pid_t p;
 
@@ -509,7 +516,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     log_Printf(LogWARN, "exec() of %s failed: %s\n",
               arg->argc > arg->argn ? arg->argv[arg->argn] : shell,
               strerror(errno));
-    exit(255);
+    _exit(255);
   }
 
   if (shpid == (pid_t) - 1)
@@ -539,37 +546,37 @@ FgShellCommand(struct cmdargs const *arg)
   return ShellCommand(arg, 0);
 }
 
-#ifndef NOALIAS
+#ifndef NONAT
 static struct cmdtab const AliasCommands[] =
 {
-  {"addr", NULL, alias_RedirectAddr, LOCAL_AUTH,
-   "static address translation", "alias addr [addr_local addr_alias]"},
+  {"addr", NULL, nat_RedirectAddr, LOCAL_AUTH,
+   "static address translation", "nat addr [addr_local addr_alias]"},
   {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
-   "stop incoming connections", "alias deny_incoming [yes|no]",
+   "stop incoming connections", "nat deny_incoming yes|no",
    (const void *) PKT_ALIAS_DENY_INCOMING},
   {"enable", NULL, AliasEnable, LOCAL_AUTH,
-   "enable IP aliasing", "alias enable [yes|no]"},
+   "enable NAT", "nat enable yes|no"},
   {"log", NULL, AliasOption, LOCAL_AUTH,
-   "log aliasing link creation", "alias log [yes|no]",
+   "log NAT link creation", "nat log yes|no",
    (const void *) PKT_ALIAS_LOG},
-  {"port", NULL, alias_RedirectPort, LOCAL_AUTH, "port redirection",
-   "alias port proto localaddr:port[-port] aliasport[-aliasport]"},
-  {"pptp", NULL, alias_Pptp, LOCAL_AUTH,
-   "Set the PPTP address", "alias pptp IP"},
-  {"proxy", NULL, alias_ProxyRule, LOCAL_AUTH,
-   "proxy control", "alias proxy server host[:port] ..."},
+  {"port", NULL, nat_RedirectPort, LOCAL_AUTH, "port redirection",
+   "nat port proto localaddr:port[-port] aliasport[-aliasport]"},
+  {"pptp", NULL, nat_Pptp, LOCAL_AUTH,
+   "Set the PPTP address", "nat pptp IP"},
+  {"proxy", NULL, nat_ProxyRule, LOCAL_AUTH,
+   "proxy control", "nat proxy server host[:port] ..."},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
-   "try to leave port numbers unchanged", "alias same_ports [yes|no]",
+   "try to leave port numbers unchanged", "nat same_ports yes|no",
    (const void *) PKT_ALIAS_SAME_PORTS},
   {"unregistered_only", NULL, AliasOption, LOCAL_AUTH,
-   "alias unregistered (private) IP address space only",
-   "alias unregistered_only [yes|no]",
+   "translate unregistered (private) IP address space only",
+   "nat unregistered_only yes|no",
    (const void *) PKT_ALIAS_UNREGISTERED_ONLY},
   {"use_sockets", NULL, AliasOption, LOCAL_AUTH,
-   "allocate host sockets", "alias use_sockets [yes|no]",
+   "allocate host sockets", "nat use_sockets yes|no",
    (const void *) PKT_ALIAS_USE_SOCKETS},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "alias help|? [command]", AliasCommands},
+   "Display this message", "nat help|? [command]", AliasCommands},
   {NULL, NULL, NULL},
 };
 #endif
@@ -602,7 +609,7 @@ static struct cmdtab const IfaceCommands[] =
   {"show", NULL, iface_Show, LOCAL_AUTH,
    "Show iface address(es)", "iface show"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
-   "Display this message", "alias help|? [command]", IfaceCommands},
+   "Display this message", "nat help|? [command]", IfaceCommands},
   {NULL, NULL, NULL},
 };
 
@@ -613,16 +620,13 @@ static struct cmdtab const Commands[] = {
   "add route", "add dest mask gateway", NULL},
   {NULL, "add!", AddCommand, LOCAL_AUTH,
   "add or change route", "add! dest mask gateway", (void *)1},
-#ifndef NOALIAS
-  {"alias", NULL, RunListCommand, LOCAL_AUTH,
-  "alias control", "alias option [yes|no]", AliasCommands},
-#endif
   {"allow", "auth", RunListCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ....", AllowCommands},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
   {"clear", NULL, ClearCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Clear throughput statistics", "clear ipcp|modem [current|overall|peak]..."},
+  "Clear throughput statistics",
+  "clear ipcp|physical [current|overall|peak]..."},
   {"clone", NULL, CloneCommand, LOCAL_AUTH | LOCAL_CX,
   "Clone a link", "clone newname..."},
   {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -638,7 +642,7 @@ static struct cmdtab const Commands[] = {
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Generate a down event", "down"},
+  "Generate a down event", "down [ccp|lcp]"},
   {"enable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Enable option", "enable option .."},
   {"iface", "interface", RunListCommand, LOCAL_AUTH,
@@ -647,6 +651,10 @@ static struct cmdtab const Commands[] = {
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Load settings", "load [system ...]"},
+#ifndef NONAT
+  {"nat", "alias", RunListCommand, LOCAL_AUTH,
+  "NAT control", "nat option yes|no", AliasCommands},
+#endif
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
@@ -754,6 +762,8 @@ static struct cmdtab const ShowCommands[] = {
   "Interface status", "show iface"},
   {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
   "IPCP status", "show ipcp"},
+  {"layers", NULL, link_ShowLayers, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Protocol layers", "show layers"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "LCP status", "show lcp"},
   {"link", "datalink", datalink_Show, LOCAL_AUTH | LOCAL_CX,
@@ -764,8 +774,8 @@ static struct cmdtab const ShowCommands[] = {
   "log levels", "show log"},
   {"mem", NULL, mbuf_Show, LOCAL_AUTH,
   "mbuf allocations", "show mem"},
-  {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
-  "(low-level) link info", "show modem"},
+  {"physical", NULL, physical_ShowStatus, LOCAL_AUTH | LOCAL_CX,
+  "(low-level) link info", "show physical"},
   {"mp", "multilink", mp_ShowStatus, LOCAL_AUTH,
   "multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -930,16 +940,20 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
 {
   if (argc > 0) {
     if (log_IsKept(LogCOMMAND)) {
-      static char buf[LINE_LEN];
+      char buf[LINE_LEN];
       int f, n;
 
-      *buf = '\0';
       if (label) {
         strncpy(buf, label, sizeof buf - 3);
         buf[sizeof buf - 3] = '\0';
         strcat(buf, ": ");
+        n = strlen(buf);
+      } else {
+        *buf = '\0';
+        n = 0;
       }
-      n = strlen(buf);
+      buf[sizeof buf - 1] = '\0';	/* In case we run out of room in buf */
+
       for (f = 0; f < argc; f++) {
         if (n < sizeof buf - 1 && f)
           buf[n++] = ' ';
@@ -1250,13 +1264,6 @@ SetServer(struct cmdargs const *arg)
 }
 
 static int
-SetModemParity(struct cmdargs const *arg)
-{
-  return arg->argc > arg->argn ? modem_SetParity(arg->cx->physical,
-                                                 arg->argv[arg->argn]) : -1;
-}
-
-static int
 SetEscape(struct cmdargs const *arg)
 {
   int code;
@@ -1314,6 +1321,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     ipcp->cfg.my_range.width = 0;
   }
   ipcp->my_ip.s_addr = ipcp->cfg.my_range.ipaddr.s_addr;
+  bundle_AdjustFilters(arg->bundle, &ipcp->my_ip, NULL);
 
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
                                   arg->bundle->phys_type.all & PHYS_AUTO))
@@ -1421,19 +1429,42 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_AUTOLOAD:
-    if (arg->argc == arg->argn + 2 || arg->argc == arg->argn + 4) {
-      arg->bundle->autoload.running = 1;
-      arg->bundle->cfg.autoload.max.timeout = atoi(arg->argv[arg->argn]);
-      arg->bundle->cfg.autoload.max.packets = atoi(arg->argv[arg->argn + 1]);
-      if (arg->argc == arg->argn + 4) {
-        arg->bundle->cfg.autoload.min.timeout = atoi(arg->argv[arg->argn + 2]);
-        arg->bundle->cfg.autoload.min.packets = atoi(arg->argv[arg->argn + 3]);
-      } else {
-        arg->bundle->cfg.autoload.min.timeout = 0;
-        arg->bundle->cfg.autoload.min.packets = 0;
+    if (arg->argc == arg->argn + 3) {
+      int v1, v2, v3; 
+      char *end;
+
+      v1 = strtol(arg->argv[arg->argn], &end, 0);
+      if (v1 < 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid min percentage\n",
+                   arg->argv[arg->argn]);
+        return 1;
       }
+
+      v2 = strtol(arg->argv[arg->argn + 1], &end, 0);
+      if (v2 < 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid max percentage\n",
+                   arg->argv[arg->argn + 1]);
+        return 1;
+      }
+      if (v2 < v1) {
+        v3 = v1;
+        v1 = v2;
+        v2 = v3;
+      }
+
+      v3 = strtol(arg->argv[arg->argn + 2], &end, 0);
+      if (v3 <= 0 || *end) {
+        log_Printf(LogWARN, "autoload: %s: Invalid throughput period\n",
+                   arg->argv[arg->argn + 2]);
+        return 1;
+      }
+
+      arg->bundle->ncp.mp.cfg.autoload.min = v1;
+      arg->bundle->ncp.mp.cfg.autoload.max = v2;
+      arg->bundle->ncp.mp.cfg.autoload.period = v3;
+      mp_RestartAutoloadTimer(&arg->bundle->ncp.mp);
     } else {
-      err = "Set autoload requires two or four arguments\n";
+      err = "Set autoload requires three arguments\n";
       log_Printf(LogWARN, err);
     }
     break;
@@ -1574,10 +1605,17 @@ SetVariable(struct cmdargs const *arg)
     break;
 
   case VAR_IDLETIMEOUT:
-    if (arg->argc > arg->argn+1)
+    if (arg->argc > arg->argn+2)
       err = "Too many idle timeout values\n";
-    else if (arg->argc == arg->argn+1)
-      bundle_SetIdleTimer(arg->bundle, atoi(argp));
+    else if (arg->argc == arg->argn)
+      err = "Too few idle timeout values\n";
+    else {
+      int timeout, min;
+
+      timeout = atoi(argp);
+      min = arg->argc == arg->argn + 2 ? atoi(arg->argv[arg->argn + 1]) : -1;
+      bundle_SetIdleTimer(arg->bundle, timeout, min);
+    }
     if (err)
       log_Printf(LogWARN, err);
     break;
@@ -1738,24 +1776,29 @@ SetVariable(struct cmdargs const *arg)
       cx->physical->cfg.cd.required = 0;
     }
     break;
+
+  case VAR_PARITY:
+    if (arg->argc == arg->argn + 1)
+      return physical_SetParity(arg->cx->physical, argp);
+    else {
+      err = "Parity value must be odd, even or none\n";
+      log_Printf(LogWARN, err);
+    }
+    break;
+
+  case VAR_CRTSCTS:
+    if (strcasecmp(argp, "on") == 0)
+      physical_SetRtsCts(arg->cx->physical, 1);
+    else if (strcasecmp(argp, "off") == 0)
+      physical_SetRtsCts(arg->cx->physical, 0);
+    else {
+      err = "RTS/CTS value must be on or off\n";
+      log_Printf(LogWARN, err);
+    }
+    break;
   }
 
   return err ? 1 : 0;
-}
-
-static int 
-SetCtsRts(struct cmdargs const *arg)
-{
-  if (arg->argc == arg->argn+1) {
-    if (strcmp(arg->argv[arg->argn], "on") == 0)
-      physical_SetRtsCts(arg->cx->physical, 1);
-    else if (strcmp(arg->argv[arg->argn], "off") == 0)
-      physical_SetRtsCts(arg->cx->physical, 0);
-    else
-      return -1;
-    return 0;
-  }
-  return -1;
 }
 
 static struct cmdtab const SetCommands[] = {
@@ -1783,13 +1826,14 @@ static struct cmdtab const SetCommands[] = {
    (const void *)VAR_CHAPRETRY},
   {"choked", NULL, SetVariable, LOCAL_AUTH,
   "choked timeout", "set choked [secs]", (const void *)VAR_CHOKED},
-  {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
-  "Use hardware flow control", "set ctsrts [on|off]"},
+  {"ctsrts", "crtscts", SetVariable, LOCAL_AUTH | LOCAL_CX,
+   "Use hardware flow control", "set ctsrts [on|off]",
+   (const char *)VAR_CRTSCTS},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "modem device name", "set device|line device-name[,device-name]",
+  "physical device name", "set device|line device-name[,device-name]",
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "dialing script", "set dial chat-script", (const void *) VAR_DIAL},
@@ -1801,8 +1845,8 @@ static struct cmdtab const SetCommands[] = {
   "escape characters", "set escape hex-digit ..."},
   {"filter", NULL, filter_Set, LOCAL_AUTH,
   "packet filters", "set filter alive|dial|in|out rule-no permit|deny "
-  "[src_addr[/width]] [dst_addr[/width]] [tcp|udp|icmp [src [lt|eq|gt port]] "
-  "[dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
+  "[src_addr[/width]] [dst_addr[/width]] [tcp|udp|icmp|ospf|igmp "
+  "[src [lt|eq|gt port]] [dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "destination address",
@@ -1813,7 +1857,7 @@ static struct cmdtab const SetCommands[] = {
    "set lcpretry value [attempts]", (const void *)VAR_LCPRETRY},
   {"log", NULL, log_SetLevel, LOCAL_AUTH, "log level",
   "set log [local] [+|-]async|cbcp|ccp|chat|command|connect|debug|hdlc|id0|"
-  "ipcp|lcp|lqm|phase|tcp/ip|timer|tun..."},
+  "ipcp|lcp|lqm|phase|physical|sync|tcp/ip|timer|tun..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "login script", "set login chat-script", (const void *) VAR_LOGIN},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -1832,8 +1876,8 @@ static struct cmdtab const SetCommands[] = {
   "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
   {"papretry", "papretries", SetVariable, LOCAL_AUTH | LOCAL_CX, "PAP retries",
    "set papretry value [attempts]", (const void *)VAR_PAPRETRY},
-  {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
-  "modem parity", "set parity [odd|even|none]"},
+  {"parity", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "serial parity",
+   "set parity [odd|even|none]", (const void *)VAR_PARITY},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
@@ -1853,15 +1897,15 @@ static struct cmdtab const SetCommands[] = {
   {"server", "socket", SetServer, LOCAL_AUTH,
   "server port", "set server|socket TcpPort|LocalName|none password [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
-  "modem speed", "set speed value"},
+  "physical speed", "set speed value|sync"},
   {"stopped", NULL, SetStoppedTimeout, LOCAL_AUTH | LOCAL_CX,
   "STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "vj values", "set vj slots|slotcomp [value]"},
-  {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
-  "datalink weighting", "set weight n"},
+  {"bandwidth", NULL, mp_SetDatalinkBandwidth, LOCAL_AUTH | LOCAL_CX,
+  "datalink bandwidth", "set bandwidth value"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
@@ -1971,16 +2015,20 @@ DeleteCommand(struct cmdargs const *arg)
   return 0;
 }
 
-#ifndef NOALIAS
+#ifndef NONAT
 static int
 AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      arg->bundle->AliasEnabled = 1;
+      if (!arg->bundle->NatEnabled) {
+        if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED)
+          PacketAliasSetAddress(arg->bundle->ncp.ipcp.my_ip);
+        arg->bundle->NatEnabled = 1;
+      }
       return 0;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
-      arg->bundle->AliasEnabled = 0;
+      arg->bundle->NatEnabled = 0;
       arg->bundle->cfg.opt &= ~OPT_IFACEALIAS;
       /* Don't iface_Clear() - there may be manually configured addresses */
       return 0;
@@ -1998,22 +2046,22 @@ AliasOption(struct cmdargs const *arg)
 
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (arg->bundle->AliasEnabled) {
+      if (arg->bundle->NatEnabled) {
 	PacketAliasSetMode(param, param);
 	return 0;
       }
-      log_Printf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "nat not enabled\n");
     } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
-      if (arg->bundle->AliasEnabled) {
+      if (arg->bundle->NatEnabled) {
 	PacketAliasSetMode(0, param);
 	return 0;
       }
-      log_Printf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "nat not enabled\n");
     }
   }
   return -1;
 }
-#endif /* #ifndef NOALIAS */
+#endif /* #ifndef NONAT */
 
 static int
 LinkCommand(struct cmdargs const *arg)
@@ -2148,9 +2196,9 @@ IfaceAliasOptSet(struct cmdargs const *arg)
   int result = OptSet(arg);
 
   if (result == 0)
-    if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->AliasEnabled) {
+    if (Enabled(arg->bundle, OPT_IFACEALIAS) && !arg->bundle->NatEnabled) {
       arg->bundle->cfg.opt = save;
-      log_Printf(LogWARN, "Cannot enable iface-alias without IP aliasing\n");
+      log_Printf(LogWARN, "Cannot enable iface-alias without NAT\n");
       result = 2;
     }
 
@@ -2207,6 +2255,10 @@ NegotiateSet(struct cmdargs const *arg)
       arg->bundle->ncp.ipcp.cfg.ns.dns_neg &= keep;
       arg->bundle->ncp.ipcp.cfg.ns.dns_neg |= add;
       break;
+    case NEG_ENDDISC:
+      arg->bundle->ncp.mp.cfg.negenddisc &= keep;
+      arg->bundle->ncp.mp.cfg.negenddisc |= add;
+      break;
     case NEG_LQR:
       cx->physical->link.lcp.cfg.lqr &= keep;
       cx->physical->link.lcp.cfg.lqr |= add;
@@ -2262,6 +2314,8 @@ static struct cmdtab const NegotiateCommands[] = {
   {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
    "retain interface addresses", "disable|enable",
    (const void *)OPT_IFACEALIAS},
+  {"keep-session", NULL, OptSet, LOCAL_AUTH, "Retain device session leader",
+  "disable|enable", (const void *)OPT_KEEPSESSION},
   {"loopback", NULL, OptSet, LOCAL_AUTH, "Loop packets for local iface",
   "disable|enable", (const void *)OPT_LOOPBACK},
   {"passwdauth", NULL, OptSet, LOCAL_AUTH, "Use passwd file",
@@ -2277,7 +2331,7 @@ static struct cmdtab const NegotiateCommands[] = {
   {"utmp", NULL, OptSet, LOCAL_AUTH, "Log connections in utmp",
   "disable|enable", (const void *)OPT_UTMP},
 
-#define OPT_MAX 9	/* accept/deny allowed below and not above */
+#define OPT_MAX 10	/* accept/deny allowed below and not above */
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Address & Control field compression", "accept|deny|disable|enable",
@@ -2301,6 +2355,8 @@ static struct cmdtab const NegotiateCommands[] = {
   (const void *)NEG_PPPDDEFLATE},
   {"dns", NULL, NegotiateSet, LOCAL_AUTH,
   "DNS specification", "accept|deny|disable|enable", (const void *)NEG_DNS},
+  {"enddisc", NULL, NegotiateSet, LOCAL_AUTH, "ENDDISC negotiation",
+  "accept|deny|disable|enable", (const void *)NEG_ENDDISC},
   {"lqr", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Link Quality Reports", "accept|deny|disable|enable",
   (const void *)NEG_LQR},
@@ -2373,12 +2429,12 @@ ClearCommand(struct cmdargs const *arg)
   if (arg->argc < arg->argn + 1)
     return -1;
 
-  if (strcasecmp(arg->argv[arg->argn], "modem") == 0) {
+  if (strcasecmp(arg->argv[arg->argn], "physical") == 0) {
     cx = arg->cx;
     if (!cx)
       cx = bundle2datalink(arg->bundle, NULL);
     if (!cx) {
-      log_Printf(LogWARN, "A link must be specified for ``clear modem''\n");
+      log_Printf(LogWARN, "A link must be specified for ``clear physical''\n");
       return 1;
     }
     t = &cx->physical->link.throughput;
@@ -2522,7 +2578,7 @@ SetProcTitle(struct cmdargs const *arg)
     argc = sizeof argv / sizeof argv[0] - 1;
     log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
   }
-  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1);
+  command_Expand(argv, argc, arg->argv + arg->argn, arg->bundle, 1, getpid());
 
   ptr = title;
   remaining = sizeof title - 1;

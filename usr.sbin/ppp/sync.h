@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: sync.h,v 1.1 1999/05/08 11:07:41 brian Exp $
  */
 
 extern struct layer synclayer;

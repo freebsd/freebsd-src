@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.52.2.3 1999/05/02 08:59:37 brian Exp $
+ *	$Id: chat.c,v 1.52.2.4 1999/06/26 02:56:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -73,7 +74,6 @@
 #include "bundle.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
-#define	issep(c)	((c) == '\t' || (c) == ' ')
 
 static void ExecStr(struct physical *, char *, char *, int);
 static char *ExpandString(struct chat *, const char *, char *, int, int);
@@ -217,6 +217,10 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       /* We leave room for a potential HDLC header in the target string */
       ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
 
+      /*
+       * Now read our string.  If it's not a special string, we unset
+       * ``special'' to break out of the loop.
+       */
       if (gotabort) {
         if (c->abort.num < MAXABORTS) {
           int len, i;
@@ -305,16 +309,16 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
    */
 
   if (c->state == CHAT_EXPECT)
-    return physical_UpdateSet(&c->physical->desc, r, NULL, e, n, 1);
+    return physical_doUpdateSet(&c->physical->desc, r, NULL, e, n, 1);
   else
-    return physical_UpdateSet(&c->physical->desc, NULL, w, e, n, 1);
+    return physical_doUpdateSet(&c->physical->desc, NULL, w, e, n, 1);
 }
 
 static int
 chat_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
-  return physical_IsSet(&c->physical->desc, fdset);
+  return c->argptr && physical_IsSet(&c->physical->desc, fdset);
 }
 
 static void
@@ -494,6 +498,10 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
 
     if (physical_IsSync(c->physical)) {
+      /*
+       * XXX: Fix me
+       * This data should be stuffed down through the link layers
+       */
       /* There's always room for the HDLC header */
       c->argptr -= 2;
       c->arglen += 2;
@@ -570,61 +578,6 @@ chat_Destroy(struct chat *c)
   c->abort.num = 0;
 }
 
-static char *
-findblank(char *p, int instring)
-{
-  if (instring) {
-    while (*p) {
-      if (*p == '\\') {
-	strcpy(p, p + 1);
-	if (!*p)
-	  break;
-      } else if (*p == '"')
-	return (p);
-      p++;
-    }
-  } else {
-    while (*p) {
-      if (issep(*p))
-	return (p);
-      p++;
-    }
-  }
-  return p;
-}
-
-int
-MakeArgs(char *script, char **pvect, int maxargs)
-{
-  int nargs, nb;
-  int instring;
-
-  nargs = 0;
-  while (*script) {
-    nb = strspn(script, " \t");
-    script += nb;
-    if (*script) {
-      if (*script == '"') {
-	instring = 1;
-	script++;
-	if (*script == '\0')
-	  break;		/* Shouldn't return here. Need to null
-				 * terminate below */
-      } else
-	instring = 0;
-      if (nargs >= maxargs - 1)
-	break;
-      *pvect++ = script;
-      nargs++;
-      script = findblank(script, instring);
-      if (*script)
-	*script++ = '\0';
-    }
-  }
-  *pvect = NULL;
-  return nargs;
-}
-
 /*
  *  \c	don't add a cr
  *  \d  Sleep a little (delay 2 seconds
@@ -638,29 +591,25 @@ MakeArgs(char *script, char **pvect, int maxargs)
  *  \U  Auth User
  */
 static char *
-ExpandString(struct chat *c, const char *str, char *result, int reslen,
-                  int sendmode)
+ExpandString(struct chat *c, const char *str, char *result, int reslen, int cr)
 {
-  int addcr = 0;
+  int len;
 
   result[--reslen] = '\0';
-  if (sendmode)
-    addcr = 1;
   while (*str && reslen > 0) {
     switch (*str) {
     case '\\':
       str++;
       switch (*str) {
       case 'c':
-	if (sendmode)
-	  addcr = 0;
+	cr = 0;
 	break;
       case 'd':		/* Delay 2 seconds */
         chat_Pause(c, 2 * SECTICKS);
 	break;
       case 'p':
         chat_Pause(c, SECTICKS / 4);
-	break;			/* Pause 0.25 sec */
+	break;		/* Delay 0.25 seconds */
       case 'n':
 	*result++ = '\n';
 	reslen--;
@@ -679,20 +628,23 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	break;
       case 'P':
 	strncpy(result, c->physical->dl->bundle->cfg.auth.key, reslen);
-	reslen -= strlen(result);
-	result += strlen(result);
+        len = strlen(result);
+	reslen -= len;
+	result += len;
 	break;
       case 'T':
         if (c->phone) {
           strncpy(result, c->phone, reslen);
-          reslen -= strlen(result);
-          result += strlen(result);
+          len = strlen(result);
+          reslen -= len;
+          result += len;
         }
 	break;
       case 'U':
 	strncpy(result, c->physical->dl->bundle->cfg.auth.name, reslen);
-	reslen -= strlen(result);
-	result += strlen(result);
+        len = strlen(result);
+	reslen -= len;
+	result += len;
 	break;
       default:
 	reslen--;
@@ -716,7 +668,7 @@ ExpandString(struct chat *c, const char *str, char *result, int reslen,
     }
   }
   if (--reslen > 0) {
-    if (addcr)
+    if (cr)
       *result++ = '\r';
   }
   if (--reslen > 0)
@@ -730,12 +682,12 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   pid_t pid;
   int fids[2];
   char *argv[MAXARGS], *vector[MAXARGS], *startout, *endout;
-  int stat, nb, argc;
+  int stat, nb, argc, i;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
   argc = MakeArgs(command, vector, VECSIZE(vector));
   command_Expand(argv, argc, (char const *const *)vector,
-                 physical->dl->bundle, 0);
+                 physical->dl->bundle, 0, getpid());
 
   if (pipe(fids) < 0) {
     log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
@@ -746,19 +698,20 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   if ((pid = fork()) == 0) {
     close(fids[0]);
     timer_TermService();
-    fids[1] = fcntl(fids[1], F_DUPFD, 4);
-    dup2(physical_GetFD(physical), STDIN_FILENO);
-    dup2(STDIN_FILENO, STDOUT_FILENO);
+    if (fids[1] == STDIN_FILENO)
+      fids[1] = dup(fids[1]);
+    dup2(physical->fd, STDIN_FILENO);
     dup2(fids[1], STDERR_FILENO);
+    dup2(STDIN_FILENO, STDOUT_FILENO);
     close(3);
-    if (open(_PATH_TTY, O_RDWR) == 3)
-      fcntl(3, F_SETFD, 0);	/* Clear close-on-exec flag */
-    else
-      fcntl(3, F_SETFD, 1);	/* Set close-on-exec flag */
+    if (open(_PATH_TTY, O_RDWR) != 3)
+      open(_PATH_DEVNULL, O_RDWR);	/* Leave it closed if it fails... */
+    for (i = getdtablesize(); i > 3; i--)
+      fcntl(i, F_SETFD, 1);
     setuid(geteuid());
     execvp(argv[0], argv);
     fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
-    exit(127);
+    _exit(127);
   } else {
     char *name = strdup(vector[0]);
 

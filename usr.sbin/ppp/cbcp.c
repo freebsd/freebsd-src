@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.11 1999/03/29 08:21:26 brian Exp $
+ *	$Id: cbcp.c,v 1.8.2.3 1999/05/02 08:59:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "log.h"
 #include "timer.h"
@@ -47,7 +48,7 @@
 #include "link.h"
 #include "async.h"
 #include "physical.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "cbcp.h"
 #include "mp.h"
 #include "chat.h"
@@ -194,14 +195,15 @@ cbcp_Output(struct cbcp *cbcp, u_char code, struct cbcp_data *data)
   struct cbcp_header *head;
   struct mbuf *bp;
 
-  bp = mbuf_Alloc(sizeof *head + data->length, MB_CBCP);
+  bp = mbuf_Alloc(sizeof *head + data->length, MB_CBCPOUT);
   head = (struct cbcp_header *)MBUF_CTOP(bp);
   head->code = code;
   head->id = cbcp->fsm.id;
   head->length = htons(sizeof *head + data->length);
   memcpy(MBUF_CTOP(bp) + sizeof *head, data, data->length);
   log_DumpBp(LogDEBUG, "cbcp_Output", bp);
-  hdlc_Output(&cbcp->p->link, PRI_LINK, PROTO_CBCP, bp);
+  link_PushPacket(&cbcp->p->link, bp, cbcp->p->dl->bundle,
+                  PRI_LINK, PROTO_CBCP);
 }
 
 static const char *
@@ -354,11 +356,20 @@ cbcp_AdjustResponse(struct cbcp *cbcp, struct cbcp_data *data)
 
   switch (data->type) {
     case CBCP_NONUM:
+      if (cbcp->p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_NONE))
+        /*
+         * if ``none'' is a configured callback possibility
+         * (ie, ``set callback cbcp none''), go along with the callees
+         * request
+         */
+        cbcp->fsm.type = CBCP_NONUM;
+
       /*
-       * If the callee offers no callback, we send our desired response
-       * anyway.  This is what Win95 does - although I can't find this
-       * behaviour documented in the spec....
+       * Otherwise, we send our desired response anyway.  This seems to be
+       * what Win95 does - although I can't find this behaviour documented
+       * in the CBCP spec....
        */
+
       return 1;
 
     case CBCP_CLIENTNUM:
@@ -600,27 +611,35 @@ cbcp_SendAck(struct cbcp *cbcp)
   cbcp_NewPhase(cbcp, CBCP_ACKSENT);	/* Wait for an ACK */
 }
 
-void
-cbcp_Input(struct physical *p, struct mbuf *bp)
+extern struct mbuf *
+cbcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
+  struct physical *p = link2physical(l);
   struct cbcp_header *head;
   struct cbcp_data *data;
   struct cbcp *cbcp = &p->dl->cbcp;
   int len;
 
+  if (p == NULL) {
+    log_Printf(LogERROR, "cbcp_Input: Not a physical link - dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
   bp = mbuf_Contiguous(bp);
   len = mbuf_Length(bp);
   if (len < sizeof(struct cbcp_header)) {
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
   head = (struct cbcp_header *)MBUF_CTOP(bp);
   if (ntohs(head->length) != len) {
     log_Printf(LogWARN, "Corrupt CBCP packet (code %d, length %d not %d)"
                " - ignored\n", head->code, ntohs(head->length), len);
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
+  mbuf_SetType(bp, MB_CBCPIN);
 
   /* XXX check the id */
 
@@ -691,7 +710,14 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
                    cbcp->fsm.id, head->id);
         cbcp->fsm.id = head->id;
       }
-      if (cbcp->fsm.state == CBCP_RESPSENT) {
+      if (cbcp->fsm.type == CBCP_NONUM) {
+        /*
+         * Don't change state in case the peer doesn't get our ACK,
+         * just bring the layer up.
+         */
+        timer_Stop(&cbcp->fsm.timer);
+        datalink_NCPUp(cbcp->p->dl);
+      } else if (cbcp->fsm.state == CBCP_RESPSENT) {
         timer_Stop(&cbcp->fsm.timer);
         datalink_CBCPComplete(cbcp->p->dl);
         log_Printf(LogPHASE, "%s: CBCP: Peer will dial back\n", p->dl->name);
@@ -706,6 +732,7 @@ cbcp_Input(struct physical *p, struct mbuf *bp)
   }
 
   mbuf_Free(bp);
+  return NULL;
 }
 
 void

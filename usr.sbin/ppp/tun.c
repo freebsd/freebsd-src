@@ -23,12 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.13 1999/04/26 08:54:34 brian Exp $
+ *	$Id: tun.c,v 1.10.2.3 1999/05/02 08:59:55 brian Exp $
  */
 
 #include <sys/param.h>
+#ifdef __OpenBSD__
 #include <sys/socket.h>		/* For IFF_ defines */
 #include <net/if.h>		/* For IFF_ defines */
+#endif
 #include <netinet/in.h>
 #include <net/if_types.h>
 #include <net/if_tun.h>
@@ -38,12 +40,16 @@
 
 #include <errno.h>
 #include <string.h>
+#if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
+#endif
+#include <termios.h>
 #ifdef __NetBSD__
 #include <stdio.h>
 #include <unistd.h>
 #endif
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
@@ -93,17 +99,10 @@ tun_configure(struct bundle *bundle, int mtu)
 
   memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
-#ifndef NORADIUS
-  if (bundle->radius.valid && bundle->radius.mtu && bundle->radius.mtu < mtu) {
-    log_Printf(LogLCP, "Reducing MTU to radius value %lu\n",
-               bundle->radius.mtu);
-    info.mtu = bundle->radius.mtu;
-  } else
-#endif
-    info.mtu = mtu;
+  info.mtu = mtu;
   
-  info.baudrate = bundle->ifSpeed;
-#ifdef __OpenBSD__                                           
+  info.baudrate = bundle->bandwidth;
+#ifdef __OpenBSD__
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
   if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)

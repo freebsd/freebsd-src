@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.3 1998/05/23 17:05:28 brian Exp $
+ *	$Id: mp.h,v 1.4 1998/08/25 17:48:43 brian Exp $
  */
 
 struct mbuf;
@@ -94,7 +94,13 @@ struct mp {
   struct {
     u_short mrru;		/* Max Reconstructed Receive Unit */
     unsigned shortseq : 2;	/* I want short Sequence Numbers */
+    unsigned negenddisc : 2;	/* I want an endpoint discriminator */
     struct enddisc enddisc;	/* endpoint discriminator */
+    struct {
+      int min;			/* Lowest percent of bundle->bandwidth */
+      int max;			/* Highest percent of bundle->bandwidth out */
+      int period;		/* link->throughput sample period */
+    } autoload;
   } cfg;
 
   struct mbuf *inbufs;		/* Received fragments */
@@ -104,7 +110,7 @@ struct mp {
 
 struct mp_link {
   u_int32_t seq;		/* 12 or 24 bit incoming seq */
-  int weight;			/* bytes to send with each write */
+  unsigned bandwidth;		/* Our link bandwidth (or zero) */
 };
 
 struct mp_header {
@@ -126,11 +132,14 @@ extern void mp_Init(struct mp *, struct bundle *);
 extern void mp_linkInit(struct mp_link *);
 extern int mp_Up(struct mp *, struct datalink *);
 extern void mp_Down(struct mp *);
-extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
+extern struct mbuf *mp_Input(struct bundle *, struct link *, struct mbuf *);
 extern int mp_FillQueues(struct bundle *);
-extern int mp_SetDatalinkWeight(struct cmdargs const *);
+extern int mp_SetDatalinkBandwidth(struct cmdargs const *);
 extern int mp_ShowStatus(struct cmdargs const *);
 extern const char *mp_Enddisc(u_char, const char *, int);
 extern int mp_SetEnddisc(struct cmdargs const *);
 extern void mp_LinkLost(struct mp *, struct datalink *);
 extern void mp_DeleteQueue(struct mp *);
+extern void mp_RestartAutoloadTimer(struct mp *);
+extern void mp_CheckAutoloadTimer(struct mp *);
+extern void mp_StopAutoloadTimer(struct mp *);

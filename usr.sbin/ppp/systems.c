@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.40.2.4 1999/05/02 08:59:55 brian Exp $
+ * $Id: systems.c,v 1.40.2.5 1999/05/24 09:05:07 brian Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "defs.h"
@@ -52,7 +53,7 @@ OpenSecret(const char *file)
 }
 
 void
-CloseSecret(FILE * fp)
+CloseSecret(FILE *fp)
 {
   fclose(fp);
 }

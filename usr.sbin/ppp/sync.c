@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sync.c,v 1.3 1999/05/12 09:54:33 brian Exp $
+ *	$Id: sync.c,v 1.4 1999/06/02 15:59:09 brian Exp $
  */
 
 #include <sys/types.h>

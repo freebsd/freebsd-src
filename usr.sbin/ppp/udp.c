@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: udp.c,v 1.3 1999/06/05 21:35:59 brian Exp $
+ *	$Id: udp.c,v 1.4 1999/08/06 20:04:07 brian Exp $
  */
 
 #include <sys/types.h>

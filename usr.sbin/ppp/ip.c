@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.58 1999/05/01 11:31:29 brian Exp $
+ * $Id: ip.c,v 1.54.2.3 1999/05/02 08:59:43 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -38,17 +38,12 @@
 
 #include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
-#include "alias.h"
-#endif
-#endif
+#include "layer.h"
+#include "proto.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -70,24 +65,23 @@
 #include "radius.h"
 #endif
 #include "bundle.h"
-#include "vjcomp.h"
 #include "tun.h"
 #include "ip.h"
 
 static const u_short interactive_ports[32] = {
   544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
+  80, 81, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
 };
 
 #define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
 
 static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
 
-static int
+static __inline int
 PortMatch(int op, u_short pport, u_short rport)
 {
   switch (op) {
-    case OP_EQ:
+  case OP_EQ:
     return (pport == rport);
   case OP_GT:
     return (pport > rport);
@@ -99,144 +93,208 @@ PortMatch(int op, u_short pport, u_short rport)
 }
 
 /*
- *  Check a packet against with defined filters
+ *  Check a packet against a defined filter
+ *  Returns 0 to accept the packet, non-zero to drop the packet
+ *
+ *  If filtering is enabled, the initial fragment of a datagram must
+ *  contain the complete protocol header, and subsequent fragments
+ *  must not attempt to over-write it.
  */
 static int
-FilterCheck(struct ip *pip, struct filter *filter)
+FilterCheck(const struct ip *pip, const struct filter *filter)
 {
-  int gotinfo, cproto, estab, syn, finrst, n, len, didname;
-  struct tcphdr *th;
-  struct udphdr *uh;
-  struct icmp *ih;
-  char *ptop;
-  u_short sport, dport;
-  struct filterent *fp = filter->rule;
+  int gotinfo;			/* true if IP payload decoded */
+  int cproto;			/* P_* protocol type if (gotinfo) */
+  int estab, syn, finrst;	/* TCP state flags if (gotinfo) */
+  u_short sport, dport;		/* src, dest port from packet if (gotinfo) */
+  int n;			/* filter rule to process */
+  int len;			/* bytes used in dbuff */
+  int didname;			/* true if filter header printed */
+  int match;			/* true if condition matched */
+  const struct filterent *fp = filter->rule;
   char dbuff[100];
 
-  if (fp->action) {
-    cproto = gotinfo = estab = syn = finrst = didname = 0;
-    sport = dport = 0;
-    for (n = 0; n < MAXFILTERS; n++) {
-      if (fp->action) {
-	/* permit fragments on in and out filter */
-        if (filter->fragok && (ntohs(pip->ip_off) & IP_OFFMASK) != 0)
-	  return (A_PERMIT);
+  if (fp->f_action == A_NONE)
+    return (0);		/* No rule is given. Permit this packet */
 
-        if (!didname)
-          log_Printf(LogDEBUG, "%s filter:\n", filter->name);
-        didname = 1;
+  /* Deny any packet fragment that tries to over-write the header.
+   * Since we no longer have the real header available, punt on the
+   * largest normal header - 20 bytes for TCP without options, rounded
+   * up to the next possible fragment boundary.  Since the smallest
+   * `legal' MTU is 576, and the smallest recommended MTU is 296, any
+   * fragmentation within this range is dubious at best */
+  len = ntohs(pip->ip_off) & IP_OFFMASK;	/* fragment offset */ 
+  if (len > 0) {		/* Not first fragment within datagram */
+    if (len < (24 >> 3))	/* don't allow fragment to over-write header */
+      return (1);
+    /* permit fragments on in and out filter */
+    return (filter->fragok);
+  }
+  
+  cproto = gotinfo = estab = syn = finrst = didname = 0;
+  sport = dport = 0;
+  for (n = 0; n < MAXFILTERS; ) {
+    if (fp->f_action == A_NONE) {
+      n++;
+      fp++;
+      continue;
+    }
 
-	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
-	    (fp->saddr.s_addr & fp->smask.s_addr) &&
-	    (pip->ip_dst.s_addr & fp->dmask.s_addr) ==
-	    (fp->daddr.s_addr & fp->dmask.s_addr)) {
-	  if (fp->proto) {
-	    if (!gotinfo) {
-	      ptop = (char *) pip + (pip->ip_hl << 2);
+    if (!didname) {
+      log_Printf(LogDEBUG, "%s filter:\n", filter->name);
+      didname = 1;
+    }
 
-	      switch (pip->ip_p) {
-	      case IPPROTO_ICMP:
-		cproto = P_ICMP;
-		ih = (struct icmp *) ptop;
-		sport = ih->icmp_type;
-		estab = syn = finrst = -1;
-                if (log_IsKept(LogDEBUG))
-		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
-		break;
-	      case IPPROTO_UDP:
-	      case IPPROTO_IGMP:
-	      case IPPROTO_IPIP:
-		cproto = P_UDP;
-		uh = (struct udphdr *) ptop;
-		sport = ntohs(uh->uh_sport);
-		dport = ntohs(uh->uh_dport);
-		estab = syn = finrst = -1;
-                if (log_IsKept(LogDEBUG))
-		  snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
-                           sport, dport);
-		break;
-	      case IPPROTO_TCP:
-		cproto = P_TCP;
-		th = (struct tcphdr *) ptop;
-		sport = ntohs(th->th_sport);
-		dport = ntohs(th->th_dport);
-		estab = (th->th_flags & TH_ACK);
-		syn = (th->th_flags & TH_SYN);
-		finrst = (th->th_flags & (TH_FIN|TH_RST));
-                if (log_IsKept(LogDEBUG)) {
-                  if (!estab)
-		    snprintf(dbuff, sizeof dbuff,
-                             "flags = %02x, sport = %d, dport = %d",
-                             th->th_flags, sport, dport);
-                  else
-                    *dbuff = '\0';
-                }
-		break;
-	      default:
-		return (A_DENY);       /* We'll block unknown type of packet */
-	      }
-              if (log_IsKept(LogDEBUG)) {
-                if (estab != -1) {
-                  len = strlen(dbuff);
-                  snprintf(dbuff + len, sizeof dbuff - len,
-                           ", estab = %d, syn = %d, finrst = %d",
-                           estab, syn, finrst);
-                }
-	        log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
-                          filter_Proto2Nam(cproto), dbuff);
-              }
-	      gotinfo = 1;
+    match = 0;
+    if (!((pip->ip_src.s_addr ^ fp->f_src.ipaddr.s_addr) &
+	  fp->f_src.mask.s_addr) &&
+	!((pip->ip_dst.s_addr ^ fp->f_dst.ipaddr.s_addr) &
+	  fp->f_dst.mask.s_addr)) {
+      if (fp->f_proto != P_NONE) {
+	if (!gotinfo) {
+	  const char *ptop = (const char *) pip + (pip->ip_hl << 2);
+	  const struct tcphdr *th;
+	  const struct udphdr *uh;
+	  const struct icmp *ih;
+	  int datalen;	/* IP datagram length */
+
+	  datalen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	  switch (pip->ip_p) {
+	  case IPPROTO_ICMP:
+	    cproto = P_ICMP;
+	    if (datalen < 8)	/* ICMP must be at least 8 octets */
+	      return (1);
+	    ih = (const struct icmp *) ptop;
+	    sport = ih->icmp_type;
+	    estab = syn = finrst = -1;
+	    if (log_IsKept(LogDEBUG))
+	      snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
+	    break;
+	  case IPPROTO_IGMP:
+	    cproto = P_IGMP;
+	    if (datalen < 8)	/* IGMP uses 8-octet messages */
+	      return (1);
+	    estab = syn = finrst = -1;
+	    sport = ntohs(0);
+	    break;
+#ifdef IPPROTO_OSPFIGP
+	  case IPPROTO_OSPFIGP:
+	    cproto = P_OSPF;
+	    if (datalen < 8)	/* IGMP uses 8-octet messages */
+	      return (1);
+	    estab = syn = finrst = -1;
+	    sport = ntohs(0);
+	    break;
+#endif
+	  case IPPROTO_UDP:
+	  case IPPROTO_IPIP:
+	    cproto = P_UDP;
+	    if (datalen < 8)	/* UDP header is 8 octets */
+	      return (1);
+	    uh = (const struct udphdr *) ptop;
+	    sport = ntohs(uh->uh_sport);
+	    dport = ntohs(uh->uh_dport);
+	    estab = syn = finrst = -1;
+	    if (log_IsKept(LogDEBUG))
+	      snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
+		       sport, dport);
+	    break;
+	  case IPPROTO_TCP:
+	    cproto = P_TCP;
+	    th = (const struct tcphdr *) ptop;
+	    /* TCP headers are variable length.  The following code
+	     * ensures that the TCP header length isn't de-referenced if
+	     * the datagram is too short
+	     */
+	    if (datalen < 20 || datalen < (th->th_off << 2))
+	      return (1);
+	    sport = ntohs(th->th_sport);
+	    dport = ntohs(th->th_dport);
+	    estab = (th->th_flags & TH_ACK);
+	    syn = (th->th_flags & TH_SYN);
+	    finrst = (th->th_flags & (TH_FIN|TH_RST));
+	    if (log_IsKept(LogDEBUG)) {
+	      if (!estab)
+		snprintf(dbuff, sizeof dbuff,
+			 "flags = %02x, sport = %d, dport = %d",
+			 th->th_flags, sport, dport);
+	      else
+		*dbuff = '\0';
 	    }
-            if (log_IsKept(LogDEBUG)) {
-	      if (fp->opt.srcop != OP_NONE) {
-                snprintf(dbuff, sizeof dbuff, ", src %s %d",
-                         filter_Op2Nam(fp->opt.srcop), fp->opt.srcport);
-                len = strlen(dbuff);
-              } else
-                len = 0;
-	      if (fp->opt.dstop != OP_NONE) {
-                snprintf(dbuff + len, sizeof dbuff - len,
-                         ", dst %s %d", filter_Op2Nam(fp->opt.dstop),
-                         fp->opt.dstport);
-              } else if (!len)
-                *dbuff = '\0';
-
-	      log_Printf(LogDEBUG, "  rule = %d: Address match, "
-                        "check against proto %s%s, action = %s\n",
-                        n, filter_Proto2Nam(fp->proto),
-                        dbuff, filter_Action2Nam(fp->action));
-            }
-
-	    if (cproto == fp->proto) {
-	      if ((fp->opt.srcop == OP_NONE ||
-		   PortMatch(fp->opt.srcop, sport, fp->opt.srcport)) &&
-		  (fp->opt.dstop == OP_NONE ||
-		   PortMatch(fp->opt.dstop, dport, fp->opt.dstport)) &&
-		  (fp->opt.estab == 0 || estab) &&
-		  (fp->opt.syn == 0 || syn) &&
-		  (fp->opt.finrst == 0 || finrst)) {
-		return (fp->action);
-	      }
-	    }
-	  } else {
-	    /* Address is mached. Make a decision. */
-	    log_Printf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
-                      filter_Action2Nam(fp->action));
-	    return (fp->action);
+	    break;
+	  default:
+	    return (1);	/* We'll block unknown type of packet */
 	  }
-	} else
-	  log_Printf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
+
+	  if (log_IsKept(LogDEBUG)) {
+	    if (estab != -1) {
+	      len = strlen(dbuff);
+	      snprintf(dbuff + len, sizeof dbuff - len,
+		       ", estab = %d, syn = %d, finrst = %d",
+		       estab, syn, finrst);
+	    }
+	    log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
+		       filter_Proto2Nam(cproto), dbuff);
+	  }
+	  gotinfo = 1;
+	}
+	if (log_IsKept(LogDEBUG)) {
+	  if (fp->f_srcop != OP_NONE) {
+	    snprintf(dbuff, sizeof dbuff, ", src %s %d",
+		     filter_Op2Nam(fp->f_srcop), fp->f_srcport);
+	    len = strlen(dbuff);
+	  } else
+	    len = 0;
+	  if (fp->f_dstop != OP_NONE) {
+	    snprintf(dbuff + len, sizeof dbuff - len,
+		     ", dst %s %d", filter_Op2Nam(fp->f_dstop),
+		     fp->f_dstport);
+	  } else if (!len)
+	    *dbuff = '\0';
+
+	  log_Printf(LogDEBUG, "  rule = %d: Address match, "
+		     "check against proto %s%s, action = %s\n",
+		     n, filter_Proto2Nam(fp->f_proto),
+		     dbuff, filter_Action2Nam(fp->f_action));
+	}
+
+	if (cproto == fp->f_proto) {
+	  if ((fp->f_srcop == OP_NONE ||
+	       PortMatch(fp->f_srcop, sport, fp->f_srcport)) &&
+	      (fp->f_dstop == OP_NONE ||
+	       PortMatch(fp->f_dstop, dport, fp->f_dstport)) &&
+	      (fp->f_estab == 0 || estab) &&
+	      (fp->f_syn == 0 || syn) &&
+	      (fp->f_finrst == 0 || finrst)) {
+	    match = 1;
+	  }
+	}
+      } else {
+	/* Address is matched and no protocol specified. Make a decision. */
+	log_Printf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
+		   filter_Action2Nam(fp->f_action));
+	match = 1;
       }
+    } else
+      log_Printf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
+
+    if (match != fp->f_invert) {
+      /* Take specified action */
+      if (fp->f_action < A_NONE)
+	fp = &filter->rule[n = fp->f_action];
+      else
+	return (fp->f_action != A_PERMIT);
+    } else {
+      n++;
       fp++;
     }
-    return (A_DENY);		/* No rule is mached. Deny this packet */
   }
-  return (A_PERMIT);		/* No rule is given. Permit this packet */
+  return (1);		/* No rule is mached. Deny this packet */
 }
 
 #ifdef notdef
 static void
-IcmpError(struct ip * pip, int code)
+IcmpError(struct ip *pip, int code)
 {
   struct mbuf *bp;
 
@@ -299,6 +357,18 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       loglen += strlen(logbuf + loglen);
     }
     break;
+#ifdef IPPROTO_OSPFIGP
+  case IPPROTO_OSPFIGP:
+    if (logit && loglen < sizeof logbuf) {
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	   "OSPF: %s ---> ", inet_ntoa(pip->ip_src));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+	       "%s", inet_ntoa(pip->ip_dst));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+#endif
   case IPPROTO_IPIP:
     if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *) ptop;
@@ -364,7 +434,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     break;
   }
 
-  if ((FilterCheck(pip, filter) & A_DENY)) {
+  if (FilterCheck(pip, filter)) {
     if (logit)
       log_Printf(LogTCPIP, "%s - BLOCKED\n", logbuf);
 #ifdef notdef
@@ -375,7 +445,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   } else {
     /* Check Keep Alive filter */
     if (logit) {
-      if (FilterCheck(pip, &bundle->filter.alive) & A_DENY)
+      if (FilterCheck(pip, &bundle->filter.alive))
         log_Printf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       else
         log_Printf(LogTCPIP, "%s\n", logbuf);
@@ -384,124 +454,50 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   }
 }
 
-void
-ip_Input(struct bundle *bundle, struct mbuf * bp)
+struct mbuf *
+ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
-  u_char *cp;
-  struct mbuf *wp;
   int nb, nw;
   struct tun_data tun;
-  struct ip *pip = (struct ip *)tun.data;
-#ifndef NOALIAS
-  struct ip *piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
-#endif
+  struct ip *pip;
 
+  if (bundle->ncp.ipcp.fsm.state != ST_OPENED) {
+    log_Printf(LogWARN, "ip_Input: IPCP not open - packet dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  mbuf_SetType(bp, MB_IPIN);
   tun_fill_header(tun, AF_INET);
-  cp = tun.data;
-  nb = 0;
-  for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
-    if (sizeof tun.data - (cp - tun.data) < wp->cnt) {
-      log_Printf(LogWARN, "ip_Input: Packet too large (%d) - dropped\n",
-                mbuf_Length(bp));
-      mbuf_Free(bp);
-      return;
-    }
-    memcpy(cp, MBUF_CTOP(wp), wp->cnt);
-    cp += wp->cnt;
-    nb += wp->cnt;
+  nb = mbuf_Length(bp);
+  if (nb > sizeof tun.data) {
+    log_Printf(LogWARN, "ip_Input: %s: Packet too large (got %d, max %d)\n",
+               l->name, nb, (int)(sizeof tun.data));
+    mbuf_Free(bp);
+    return NULL;
+  }
+  mbuf_Read(bp, tun.data, nb);
+
+  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0)
+    return NULL;
+
+  pip = (struct ip *)tun.data;
+  if (!FilterCheck(pip, &bundle->filter.alive))
+    bundle_StartIdleTimer(bundle);
+
+  ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
+
+  nb += sizeof tun - sizeof tun.data;
+  nw = write(bundle->dev.fd, &tun, nb);
+  if (nw != nb) {
+    if (nw == -1)
+      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %s\n",
+                 l->name, nb, strerror(errno));
+    else
+      log_Printf(LogERROR, "ip_Input: %s: wrote %d, got %d\n", l->name, nb, nw);
   }
 
-#ifndef NOALIAS
-  if (bundle->AliasEnabled && pip->ip_p != IPPROTO_IGMP &&
-      (pip->ip_p != IPPROTO_IPIP || !IN_CLASSD(ntohl(piip->ip_dst.s_addr)))) {
-    struct tun_data *frag;
-    int iresult;
-    char *fptr;
-
-    iresult = PacketAliasIn(tun.data, sizeof tun.data);
-    nb = ntohs(((struct ip *) tun.data)->ip_len);
-
-    if (nb > MAX_MRU) {
-      log_Printf(LogWARN, "ip_Input: Problem with IP header length\n");
-      mbuf_Free(bp);
-      return;
-    }
-    if (iresult == PKT_ALIAS_OK
-	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-      if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-	mbuf_Free(bp);
-	return;
-      }
-
-      if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-        bundle_StartIdleTimer(bundle);
-
-      ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
-
-      nb = ntohs(((struct ip *) tun.data)->ip_len);
-      nb += sizeof tun - sizeof tun.data;
-      nw = write(bundle->dev.fd, &tun, nb);
-      if (nw != nb) {
-        if (nw == -1)
-	  log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
-                    strerror(errno));
-        else
-	  log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-      }
-
-      if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = PacketAliasGetFragment(tun.data)) != NULL) {
-	  PacketAliasFragmentIn(tun.data, fptr);
-	  nb = ntohs(((struct ip *) fptr)->ip_len);
-          frag = (struct tun_data *)
-	    ((char *)fptr - sizeof tun + sizeof tun.data);
-          nb += sizeof tun - sizeof tun.data;
-	  nw = write(bundle->dev.fd, frag, nb);
-	  if (nw != nb) {
-            if (nw == -1)
-	      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
-                        strerror(errno));
-            else
-	      log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-          }
-	  free(frag);
-	}
-      }
-    } else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
-      nb = ntohs(((struct ip *) tun.data)->ip_len);
-      nb += sizeof tun - sizeof tun.data;
-      frag = (struct tun_data *)malloc(nb);
-      if (frag == NULL)
-	log_Printf(LogALERT, "ip_Input: Cannot allocate memory for fragment\n");
-      else {
-        tun_fill_header(*frag, AF_INET);
-	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
-	PacketAliasSaveFragment(frag->data);
-      }
-    }
-  } else
-#endif /* #ifndef NOALIAS */
-  {			/* no aliasing */
-    if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-      mbuf_Free(bp);
-      return;
-    }
-
-    if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-      bundle_StartIdleTimer(bundle);
-
-    ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
-
-    nb += sizeof tun - sizeof tun.data;
-    nw = write(bundle->dev.fd, &tun, nb);
-    if (nw != nb) {
-      if (nw == -1)
-	log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));
-      else
-        log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-    }
-  }
-  mbuf_Free(bp);
+  return NULL;
 }
 
 void
@@ -512,7 +508,15 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
   if (pri < 0 || pri > sizeof ipcp->Queue / sizeof ipcp->Queue[0])
     log_Printf(LogERROR, "Can't store in ip queue %d\n", pri);
   else {
-    bp = mbuf_Alloc(count, MB_IPQ);
+    /*
+     * We allocate an extra 6 bytes, four at the front and two at the end.
+     * This is an optimisation so that we need to do less work in
+     * mbuf_Prepend() in acf_LayerPush() and proto_LayerPush() and
+     * appending in hdlc_LayerPush().
+     */
+    bp = mbuf_Alloc(count + 6, MB_IPOUT);
+    bp->offset += 4;
+    bp->cnt -= 6;
     memcpy(MBUF_CTOP(bp), ptr, count);
     mbuf_Enqueue(&ipcp->Queue[pri], bp);
   }
@@ -541,11 +545,12 @@ ip_QueueLen(struct ipcp *ipcp)
 }
 
 int
-ip_FlushPacket(struct link *l, struct bundle *bundle)
+ip_PushPacket(struct link *l, struct bundle *bundle)
 {
   struct ipcp *ipcp = &bundle->ncp.ipcp;
   struct mqueue *queue;
   struct mbuf *bp;
+  struct ip *pip;
   int cnt;
 
   if (ipcp->fsm.state != ST_OPENED)
@@ -554,16 +559,13 @@ ip_FlushPacket(struct link *l, struct bundle *bundle)
   for (queue = &ipcp->Queue[PRI_FAST]; queue >= ipcp->Queue; queue--)
     if (queue->top) {
       bp = mbuf_Contiguous(mbuf_Dequeue(queue));
-      if (bp) {
-        struct ip *pip = (struct ip *)MBUF_CTOP(bp);
-
-	cnt = mbuf_Length(bp);
-        if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-          bundle_StartIdleTimer(bundle);
-	vj_SendFrame(l, bp, bundle);
-        ipcp_AddOutOctets(ipcp, cnt);
-	return 1;
-      }
+      cnt = mbuf_Length(bp);
+      pip = (struct ip *)MBUF_CTOP(bp);
+      if (!FilterCheck(pip, &bundle->filter.alive))
+        bundle_StartIdleTimer(bundle);
+      link_PushPacket(l, bp, bundle, PRI_NORMAL, PROTO_IP);
+      ipcp_AddOutOctets(ipcp, cnt);
+      return 1;
     }
 
   return 0;
