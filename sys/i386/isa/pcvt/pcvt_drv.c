@@ -658,7 +658,7 @@ pcvt_cn_probe(struct consdev *cp)
 
 	/* initialize required fields */
 
-	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	sprintf(cp->cn_name, "ttyv%r", 0);
 	cp->cn_pri = CN_INTERNAL;
 	cp->cn_tp = &pcvt_tty[0];
 }
