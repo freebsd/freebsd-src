@@ -250,8 +250,17 @@ again1:
 			vm_page_t m = &pga[i];
 
 			if ((m->queue - m->pc) == PQ_CACHE) {
+				if (m->hold_count != 0) {
+					start++;
+					goto again0;
+				}
 				object = m->object;
 				if (!VM_OBJECT_TRYLOCK(object)) {
+					start++;
+					goto again0;
+				}
+				if ((m->flags & PG_BUSY) || m->busy != 0) {
+					VM_OBJECT_UNLOCK(object);
 					start++;
 					goto again0;
 				}
@@ -280,7 +289,6 @@ again1:
 			    ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
-			m->object = NULL;
 		}
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		vm_page_unlock_queues();
@@ -363,7 +371,6 @@ vm_contig_unqueue_free(vm_page_t m)
 	    ("contigmalloc2: page %p was dirty", m));
 	m->wire_count = 0;
 	m->busy = 0;
-	m->object = NULL;
 	return (error);
 }
 
@@ -455,9 +462,15 @@ cleanup_freed:
 				}
 			}
 			if (pqtype == PQ_CACHE) {
+				if (m->hold_count != 0)
+					goto retry;
 				object = m->object;
 				if (!VM_OBJECT_TRYLOCK(object))
 					goto retry;
+				if ((m->flags & PG_BUSY) || m->busy != 0) {
+					VM_OBJECT_UNLOCK(object);
+					goto retry;
+				}
 				vm_page_busy(m);
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
