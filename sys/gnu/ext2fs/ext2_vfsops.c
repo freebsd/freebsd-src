@@ -63,41 +63,37 @@
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 
-static int ext2_fhtovp(struct mount *, struct fid *, struct vnode **);
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
-static int ext2_init(struct vfsconf *);
-static int ext2_mount(struct mount *, struct nameidata *, struct thread *);
 static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
 static int ext2_reload(struct mount *mountp, struct ucred *cred,
 			struct thread *td);
-static int ext2_root(struct mount *, struct vnode **vpp);
 static int ext2_sbupdate(struct ext2mount *, int);
-static int ext2_statfs(struct mount *, struct statfs *, struct thread *);
-static int ext2_sync(struct mount *, int, struct ucred *, struct thread *);
-static int ext2_uninit(struct vfsconf *);
-static int ext2_unmount(struct mount *, int, struct thread *);
-static int ext2_vget(struct mount *, ino_t, int, struct vnode **);
-static int ext2_vptofh(struct vnode *, struct fid *);
+
+static vfs_unmount_t		ext2_unmount;
+static vfs_root_t		ext2_root;
+static vfs_statfs_t		ext2_statfs;
+static vfs_sync_t		ext2_sync;
+static vfs_vget_t		ext2_vget;
+static vfs_fhtovp_t		ext2_fhtovp;
+static vfs_vptofh_t		ext2_vptofh;
+static vfs_init_t		ext2_init;
+static vfs_uninit_t		ext2_uninit;
+static vfs_nmount_t		ext2_mount;
 
 MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
 static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
 
 static struct vfsops ext2fs_vfsops = {
-	NULL,
-	vfs_stdstart,
-	ext2_unmount,
-	ext2_root,		/* root inode via vget */
-	vfs_stdquotactl,
-	ext2_statfs,
-	ext2_sync,
-	ext2_vget,
-	ext2_fhtovp,
-	vfs_stdcheckexp,
-	ext2_vptofh,
-	ext2_init,
-	ext2_uninit,
-	vfs_stdextattrctl,
-	ext2_mount,
+	.vfs_fhtovp =		ext2_fhtovp,
+	.vfs_init =		ext2_init,
+	.vfs_nmount =		ext2_mount,
+	.vfs_root =		ext2_root,	/* root inode via vget */
+	.vfs_statfs =		ext2_statfs,
+	.vfs_sync =		ext2_sync,
+	.vfs_uninit =		ext2_uninit,
+	.vfs_unmount =		ext2_unmount,
+	.vfs_vget =		ext2_vget,
+	.vfs_vptofh =		ext2_vptofh,
 };
 
 VFS_SET(ext2fs_vfsops, ext2fs, 0);

@@ -188,21 +188,10 @@ devfs_statfs(mp, sbp, td)
 }
 
 static struct vfsops devfs_vfsops = {
-	NULL,
-	vfs_stdstart,
-	devfs_unmount,
-	devfs_root,
-	vfs_stdquotactl,
-	devfs_statfs,
-	vfs_stdnosync,
-	vfs_stdvget,
-	vfs_stdfhtovp,
-	vfs_stdcheckexp,
-	vfs_stdvptofh,
-	vfs_stdinit,
-	vfs_stduninit,
-	vfs_stdextattrctl,
-	devfs_nmount,
+	.vfs_nmount =		devfs_nmount,
+	.vfs_root =		devfs_root,
+	.vfs_statfs =		devfs_statfs,
+	.vfs_unmount =		devfs_unmount,
 };
 
 VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC);

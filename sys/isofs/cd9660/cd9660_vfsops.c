@@ -75,20 +75,15 @@ static vfs_fhtovp_t	cd9660_fhtovp;
 static vfs_vptofh_t	cd9660_vptofh;
 
 static struct vfsops cd9660_vfsops = {
-	cd9660_mount,
-	vfs_stdstart,
-	cd9660_unmount,
-	cd9660_root,
-	vfs_stdquotactl,
-	cd9660_statfs,
-	vfs_stdnosync,
-	cd9660_vget,
-	cd9660_fhtovp,
-	vfs_stdcheckexp,
-	cd9660_vptofh,
-	cd9660_init,
-	cd9660_uninit,
-	vfs_stdextattrctl,
+	.vfs_fhtovp =		cd9660_fhtovp,
+	.vfs_init =		cd9660_init,
+	.vfs_mount =		cd9660_mount,
+	.vfs_root =		cd9660_root,
+	.vfs_statfs =		cd9660_statfs,
+	.vfs_uninit =		cd9660_uninit,
+	.vfs_unmount =		cd9660_unmount,
+	.vfs_vget =		cd9660_vget,
+	.vfs_vptofh =		cd9660_vptofh,
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);

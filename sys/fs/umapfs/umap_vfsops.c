@@ -57,27 +57,17 @@
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
-static int	umapfs_fhtovp(struct mount *mp, struct fid *fidp,
-				   struct vnode **vpp);
-static int	umapfs_checkexp(struct mount *mp, struct sockaddr *nam,
-				    int *extflagsp, struct ucred **credanonp);
-static int	umapfs_mount(struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td);
-static int	umapfs_quotactl(struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct thread *td);
-static int	umapfs_root(struct mount *mp, struct vnode **vpp);
-static int	umapfs_start(struct mount *mp, int flags, struct thread *td);
-static int	umapfs_statfs(struct mount *mp, struct statfs *sbp,
-				   struct thread *td);
-static int	umapfs_unmount(struct mount *mp, int mntflags,
-				    struct thread *td);
-static int	umapfs_vget(struct mount *mp, ino_t ino, int flags,
-				 struct vnode **vpp);
-static int	umapfs_vptofh(struct vnode *vp, struct fid *fhp);
-static int	umapfs_extattrctl(struct mount *mp, int cmd,
-				       struct vnode *filename_vp,
-				       int namespace, const char *attrname,
-				       struct thread *td);
+static vfs_mount_t		umapfs_mount;
+static vfs_start_t		umapfs_start;
+static vfs_root_t		umapfs_root;
+static vfs_quotactl_t		umapfs_quotactl;
+static vfs_statfs_t		umapfs_statfs;
+static vfs_unmount_t		umapfs_unmount;
+static vfs_fhtovp_t		umapfs_fhtovp;
+static vfs_vptofh_t		umapfs_vptofh;
+static vfs_checkexp_t		umapfs_checkexp;
+static vfs_vget_t		umapfs_vget;
+static vfs_extattrctl_t	umapfs_extattrctl;
 
 /*
  * Mount umap layer
@@ -439,20 +429,18 @@ umapfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 }
 
 static struct vfsops umap_vfsops = {
-	umapfs_mount,
-	umapfs_start,
-	umapfs_unmount,
-	umapfs_root,
-	umapfs_quotactl,
-	umapfs_statfs,
-	vfs_stdnosync,
-	umapfs_vget,
-	umapfs_fhtovp,
-	umapfs_checkexp,
-	umapfs_vptofh,
-	umapfs_init,
-	vfs_stduninit,
-	umapfs_extattrctl,
+	.vfs_checkexp = 		umapfs_checkexp,
+	.vfs_extattrctl =		umapfs_extattrctl,
+	.vfs_fhtovp =    		umapfs_fhtovp,
+	.vfs_init =      		umapfs_init,
+	.vfs_mount =    		umapfs_mount,
+	.vfs_quotactl = 		umapfs_quotactl,
+	.vfs_root =     		umapfs_root,
+	.vfs_start =    		umapfs_start,
+	.vfs_statfs =    		umapfs_statfs,
+	.vfs_unmount =   		umapfs_unmount,
+	.vfs_vget =      		umapfs_vget,
+	.vfs_vptofh =    		umapfs_vptofh,
 };
 
 VFS_SET(umap_vfsops, umapfs, VFCF_LOOPBACK);

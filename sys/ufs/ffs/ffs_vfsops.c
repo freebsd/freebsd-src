@@ -83,20 +83,19 @@ static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
 
 static struct vfsops ufs_vfsops = {
-	ffs_mount,
-	ufs_start,
-	ffs_unmount,
-	ufs_root,
-	ufs_quotactl,
-	ffs_statfs,
-	ffs_sync,
-	ffs_vget,
-	ffs_fhtovp,
-	vfs_stdcheckexp,
-	ffs_vptofh,
-	ffs_init,
-	ffs_uninit,
-	ffs_extattrctl,
+	.vfs_extattrctl =	ffs_extattrctl,
+	.vfs_fhtovp =		ffs_fhtovp,
+	.vfs_init =		ffs_init,
+	.vfs_mount =		ffs_mount,
+	.vfs_quotactl =		ufs_quotactl,
+	.vfs_root =		ufs_root,
+	.vfs_start =		ufs_start,
+	.vfs_statfs =		ffs_statfs,
+	.vfs_sync =		ffs_sync,
+	.vfs_uninit =		ffs_uninit,
+	.vfs_unmount =		ffs_unmount,
+	.vfs_vget =		ffs_vget,
+	.vfs_vptofh =		ffs_vptofh,
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);

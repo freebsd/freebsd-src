@@ -550,20 +550,12 @@ struct mount *devtomp(dev)
 }
 
 struct vfsops coda_vfsops = {
-    coda_mount,
-    coda_start,
-    coda_unmount,
-    coda_root,
-    vfs_stdquotactl,
-    coda_nb_statfs,
-    coda_sync,
-    vfs_stdvget,
-    vfs_stdfhtovp,
-    vfs_stdcheckexp,
-    vfs_stdvptofh,
-    vfs_stdinit,
-    vfs_stduninit,
-    vfs_stdextattrctl,
+    .vfs_mount =		coda_mount,
+    .vfs_root = 		coda_root,
+    .vfs_start =		coda_start,
+    .vfs_statfs =		coda_nb_statfs,
+    .vfs_sync = 		coda_sync,
+    .vfs_unmount =		coda_unmount,
 };
 
 VFS_SET(coda_vfsops, coda, VFCF_NETWORK);

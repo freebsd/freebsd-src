@@ -58,28 +58,18 @@
 
 static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
-static int	nullfs_fhtovp(struct mount *mp, struct fid *fidp,
-				   struct vnode **vpp);
-static int	nullfs_checkexp(struct mount *mp, struct sockaddr *nam,
-				    int *extflagsp, struct ucred **credanonp);
-static int	nullfs_mount(struct mount *mp, struct nameidata *ndp,
-				   struct thread *td);
-static int	nullfs_quotactl(struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct thread *td);
-static int	nullfs_root(struct mount *mp, struct vnode **vpp);
-static int	nullfs_start(struct mount *mp, int flags, struct thread *td);
-static int	nullfs_statfs(struct mount *mp, struct statfs *sbp,
-				   struct thread *td);
-static int	nullfs_sync(struct mount *mp, int waitfor,
-				 struct ucred *cred, struct thread *td);
-static int	nullfs_unmount(struct mount *mp, int mntflags, struct thread *td);
-static int	nullfs_vget(struct mount *mp, ino_t ino, int flags,
-				 struct vnode **vpp);
-static int	nullfs_vptofh(struct vnode *vp, struct fid *fhp);
-static int	nullfs_extattrctl(struct mount *mp, int cmd,
-				       struct vnode *filename_vp,
-				       int namespace, const char *attrname,
-				       struct thread *td);
+static vfs_fhtovp_t	nullfs_fhtovp;
+static vfs_checkexp_t	nullfs_checkexp;
+static vfs_nmount_t	nullfs_mount;
+static vfs_quotactl_t	nullfs_quotactl;
+static vfs_root_t	nullfs_root;
+static vfs_start_t	nullfs_start;
+static vfs_sync_t	nullfs_sync;
+static vfs_statfs_t	nullfs_statfs;
+static vfs_unmount_t	nullfs_unmount;
+static vfs_vget_t	nullfs_vget;
+static vfs_vptofh_t	nullfs_vptofh;
+static vfs_extattrctl_t	nullfs_extattrctl;
 
 /*
  * Mount null layer
@@ -412,21 +402,20 @@ nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 
 
 static struct vfsops null_vfsops = {
-	NULL,
-	nullfs_start,
-	nullfs_unmount,
-	nullfs_root,
-	nullfs_quotactl,
-	nullfs_statfs,
-	nullfs_sync,
-	nullfs_vget,
-	nullfs_fhtovp,
-	nullfs_checkexp,
-	nullfs_vptofh,
-	nullfs_init,
-	nullfs_uninit,
-	nullfs_extattrctl,
-	nullfs_mount,
+	.vfs_checkexp =		nullfs_checkexp,
+	.vfs_extattrctl =	nullfs_extattrctl,
+	.vfs_fhtovp =		nullfs_fhtovp,
+	.vfs_init =		nullfs_init,
+	.vfs_nmount =		nullfs_mount,
+	.vfs_quotactl =		nullfs_quotactl,
+	.vfs_root =		nullfs_root,
+	.vfs_start =		nullfs_start,
+	.vfs_statfs =		nullfs_statfs,
+	.vfs_sync =		nullfs_sync,
+	.vfs_uninit =		nullfs_uninit,
+	.vfs_unmount =		nullfs_unmount,
+	.vfs_vget =		nullfs_vget,
+	.vfs_vptofh =		nullfs_vptofh,
 };
 
 VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK);
