@@ -274,8 +274,9 @@ ${_src}:
 .endfor
 
 .for _srcsrc in kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
-    dev/iicbus/iicbus_if.m isa/isa_if.m dev/mii/miibus_if.m dev/pccard/card_if.m \
-    dev/pccard/power_if.m pci/pci_if.m dev/smbus/smbus_if.m dev/usb/usb_if.m
+    dev/iicbus/iicbus_if.m isa/isa_if.m dev/mii/miibus_if.m \
+    dev/pccard/card_if.m dev/pccard/power_if.m pci/pci_if.m \
+    dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m dev/usb/usb_if.m
 .for _ext in c h
 .for _src in ${SRCS:M${_srcsrc:T:R}.${_ext}}
 CLEANFILES+=	${_src}
