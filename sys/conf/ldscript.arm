@@ -7,7 +7,7 @@ SEARCH_DIR(/usr/lib);
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = 0xc0000000 + SIZEOF_HEADERS;
+  . = KERNVIRTADDR + SIZEOF_HEADERS;
   .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
