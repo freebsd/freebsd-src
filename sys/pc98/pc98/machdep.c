@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.103 1998/12/16 16:28:57 bde Exp $
+ *	$Id: machdep.c,v 1.104 1999/01/08 16:04:20 kato Exp $
  */
 
 #include "apm.h"
@@ -423,6 +423,12 @@ again:
 	 */
 	{
 		vm_offset_t mb_map_size;
+		int xclusters;
+
+		/* Allow override of NMBCLUSTERS from the kernel environment */
+		if (getenv_int("kern.ipc.nmbclusters", &xclusters) && 
+		    xclusters > nmbclusters)
+		    nmbclusters = xclusters;
 
 		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
@@ -447,6 +453,7 @@ again:
 
 #if defined(USERCONFIG)
 	userconfig();
+	cninit();		/* the preferred console may have changed */
 #endif
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
