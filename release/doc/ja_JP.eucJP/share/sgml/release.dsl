@@ -1,5 +1,5 @@
 <!-- $FreeBSD$ -->
-<!-- Origianl revision: 1.2 -->
+<!-- Original revision: 1.1.2.2 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY release.dsl PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Language Neutral Stylesheet//EN" CDATA DSSSL>
@@ -40,8 +40,8 @@
 		(literal (entity-text "release.branch"))
 		(literal " をお使いの方は, ぜひ ")
                 (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
+		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
+                  (literal "stable@FreeBSD.org"))
                 (literal "> メーリングリストに参加ください.")))
 
             (make element gi: "p"
