@@ -25,6 +25,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
+	byteorder.9 \
 	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
 	critical_enter.9 \
 	devclass.9 devclass_add_driver.9 devclass_find.9 \
@@ -107,6 +108,18 @@ MLINKS+=atomic.9 atomic_subtract.9
 MLINKS+=atomic.9 atomic_store.9
 MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
+MLINKS+=byteorder.9 be16toh.9
+MLINKS+=byteorder.9 be32toh.9
+MLINKS+=byteorder.9 be64toh.9
+MLINKS+=byteorder.9 htobe16.9
+MLINKS+=byteorder.9 htobe32.9
+MLINKS+=byteorder.9 htobe64.9
+MLINKS+=byteorder.9 htole16.9
+MLINKS+=byteorder.9 htole32.9
+MLINKS+=byteorder.9 htole64.9
+MLINKS+=byteorder.9 le16toh.9
+MLINKS+=byteorder.9 le32toh.9
+MLINKS+=byteorder.9 le64toh.9
 MLINKS+=condvar.9 cv_init.9
 MLINKS+=condvar.9 cv_destroy.9
 MLINKS+=condvar.9 cv_wait.9
