@@ -8,6 +8,8 @@
     bin
     ..
     etc
+        pam.d
+        ..
         rc.d
         ..
     ..
