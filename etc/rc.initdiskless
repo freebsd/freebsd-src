@@ -111,7 +111,7 @@ mount_md() {
 #
 create_md() {
     if [ "x`eval echo \\$md_created_$1`" = "x" ]; then
-	if [ "x`eval echo \$md_size_$1`" = "x" ]; then
+	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
 	    md_size=4096
 	else
 	    md_size=`eval echo \\$md_size_$1`
