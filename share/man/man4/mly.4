@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2000
+.Dd August 10, 2004
 .Dt MLY 4
 .Os
 .Sh NAME
@@ -41,22 +41,6 @@ The
 driver provides support for Mylex AcceleRAID and eXtremeRAID-family
 PCI to SCSI RAID controllers with version 6.00 and later
 firmware.
-Supported controllers include:
-.Bl -bullet
-.It
-AcceleRAID 160
-.It
-AcceleRAID 170
-.It
-AcceleRAID 352
-.It
-eXtremeRAID 2000
-.It
-eXtremeRAID 3000
-.El
-.Pp
-Compatible Mylex controllers not listed should work, but have not been
-verified.
 .Pp
 Logical devices (array drives) attached to the controller are presented
 to the SCSI subsystem as though they were direct-access devices on a
@@ -64,6 +48,26 @@ virtual SCSI bus.
 Physical devices which are not claimed by a logical
 device are presented on SCSI channels which match the physical channels
 on the controller.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+Mylex AcceleRAID 160
+.It
+Mylex AcceleRAID 170
+.It
+Mylex AcceleRAID 352
+.It
+Mylex eXtremeRAID 2000
+.It
+Mylex eXtremeRAID 3000
+.El
+.Pp
+Compatible Mylex controllers not listed should work, but have not been
+verified.
 .Sh DIAGNOSTICS
 .Ss Controller initialisation phase
 .Bl -diag
