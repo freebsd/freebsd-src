@@ -1,39 +1,45 @@
-#	@(#)VERSION	8.9 (Berkeley) 4/2/94
+1.84 -> 1.85
+	recno:	#ifdef out use of mmap, it's not portable enough.
 
-This is version 1.74 of the Berkeley DB code.
+1.83 -> 1.84	Thu Aug 18 15:46:07 EDT 1994
+	recno:	Rework fixed-length records so that closing and reopening
+		the file now works.  Pad short records on input.  Never do
+		signed comparison in recno input reading functions.
 
-If your version of the DB code doesn't have a copy
-of this version file, it's really old, please update it!
+1.82 -> 1.83	Tue Jul 26 15:33:44 EDT 1994
+	btree:	Rework cursor deletion code yet again; bugs with
+		deleting empty pages that only contained the cursor
+		record.
 
-New versions of this software are periodically made
-available by anonymous ftp from ftp.cs.berkeley.edu,
-in the file ucb/4bsd/db.tar.Z, or from ftp.uu.net.
-If you'd like to get announcements of future releases
-of this software, send email to the contact address
-below.
+1.81 -> 1.82	Sat Jul 16 11:01:50 EDT 1994
+	btree:	Fix bugs introduced by new cursor/deletion code.
+		Replace return kbuf/dbuf with real DBT's.
 
-Email questions may be addressed to Keith Bostic at
-bostic@cs.berkeley.edu.
+1.80 -> 1.81
+	btree:	Fix bugs introduced by new cursor/deletion code.
+	all:	Add #defines for Purify.
 
-============================================
-Distribution contents:
+1.79 -> 1.80	Wed Jul 13 22:41:54 EDT 1994
+	btree	Change deletion to coalesce empty pages.  This is a major
+		change, cursors and duplicate pages all had to be reworked.
+		Return to a fixed stack.
+	recno:	Affected by cursor changes.  New cursor structures should
+		permit multiple cursors in the future.
 
-Makefile.inc	Ignore this, it's the 4.4BSD subsystem Makefile.
-PORT		The per OS/architecture directories to use to build
-		libdb.a, if you're not running 4.4BSD.  See the file
-		PORT/README for more information.
-README		This file.
-VERSION		This file.
-btree		B+tree routines.
-db		Dbopen(3) interface routine.
-doc		USENIX papers, formatted manual pages.
-hash		Extended linear hashing routines.
-man		Unformatted manual pages.
-mpool		Memory pool routines.
-recno		Fixed/variable length record routines.
-test		Test package.
+1.78 -> 1.79	Mon Jun 20 17:36:47 EDT 1994
+	all:	Minor cleanups of 1.78 for porting reasons; only
+		major change was inlining check of NULL pointer
+		so that __fix_realloc goes away.
 
-============================================
+1.77 -> 1.78	Thu Jun 16 19:06:43 EDT 1994
+	all:	Move "standard" size typedef's into db.h.
+
+1.76 -> 1.77	Thu Jun 16 16:48:38 EDT 1994
+	hash:	Delete __init_ routine, has special meaning to OSF 2.0.
+
+1.74 -> 1.76
+	all:	Finish up the port to the Alpha.
+
 1.73 -> 1.74
 	recno:	Don't put the record if rec_search fails, in rec_rdelete.
 		Create fixed-length intermediate records past "end" of DB
@@ -52,7 +58,7 @@ test		Test package.
 
 1.7  -> 1.72	12 Oct 1993
 	hash:	Support NET/2 hash formats.
-		
+
 1.7  -> 1.71	16 Sep 1993
 	btree/recno:
 		Fix bug in internal search routines that caused
