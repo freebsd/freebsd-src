@@ -201,9 +201,12 @@ socreate(dom, aso, type, proto, cred, td)
 #ifdef MAC
 	mac_create_socket(cred, so);
 #endif
+	SOCK_LOCK(so);
 	soref(so);
+	SOCK_UNLOCK(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
+		SOCK_LOCK(so);
 		so->so_state |= SS_NOFDREF;
 		sorele(so);
 		return (error);
@@ -292,10 +295,14 @@ sofree(so)
 	int s;
 
 	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
+	SOCK_LOCK_ASSERT(so);
 
-	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0)
+	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0) {
+		SOCK_UNLOCK(so);
 		return;
+	}
 
+	SOCK_UNLOCK(so);
 	ACCEPT_LOCK();
 	head = so->so_head;
 	if (head != NULL) {
@@ -409,6 +416,7 @@ drop:
 			error = error2;
 	}
 discard:
+	SOCK_LOCK(so);
 	if (so->so_state & SS_NOFDREF)
 		panic("soclose: NOFDREF");
 	so->so_state |= SS_NOFDREF;
@@ -428,6 +436,7 @@ soabort(so)
 
 	error = (*so->so_proto->pr_usrreqs->pru_abort)(so);
 	if (error) {
+		SOCK_LOCK(so);
 		sotryfree(so);	/* note: does not decrement the ref count */
 		return error;
 	}

@@ -1657,13 +1657,14 @@ tcp_twstart(tp)
 	}
 	tcp_discardcb(tp);
 	so = inp->inp_socket;
+	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	tw->tw_cred = crhold(so->so_cred);
 	tw->tw_so_options = so->so_options;
-	if (acknow)
-		tcp_twrespond(tw, TH_ACK);
 	sotryfree(so);
 	inp->inp_socket = NULL;
+	if (acknow)
+		tcp_twrespond(tw, TH_ACK);
 	inp->inp_ppcb = (caddr_t)tw;
 	inp->inp_vflag |= INP_TIMEWAIT;
 	tcp_timer_2msl_reset(tw, tw_time);

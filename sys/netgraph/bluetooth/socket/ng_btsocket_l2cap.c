@@ -1804,6 +1804,7 @@ ng_btsocket_l2cap_rtclean(void *context, int pending)
 				FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP);
 
 				soisdisconnected(so);
+				SOCK_LOCK(so);
 				so->so_pcb = NULL;
 				sotryfree(so);
 
@@ -2346,6 +2347,7 @@ ng_btsocket_l2cap_detach(struct socket *so)
 	FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP);
 
 	soisdisconnected(so);
+	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	sotryfree(so);
 

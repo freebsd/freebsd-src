@@ -2024,7 +2024,9 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 		*spp = fp->f_data;
 		if (fflagp)
 			*fflagp = fp->f_flag;
+		SOCK_LOCK(*spp);
 		soref(*spp);
+		SOCK_UNLOCK(*spp);
 	}
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
 	return (error);
@@ -2039,6 +2041,7 @@ fputsock(struct socket *so)
 {
 
 	NET_ASSERT_GIANT();
+	SOCK_LOCK(so);
 	sorele(so);
 }
 

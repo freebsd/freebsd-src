@@ -724,6 +724,7 @@ ng_btsocket_rfcomm_detach(struct socket *so)
 	FREE(pcb, M_NETGRAPH_BTSOCKET_RFCOMM);
 
 	soisdisconnected(so);
+	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	sotryfree(so);
 
@@ -1370,8 +1371,10 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 	s0->l2so->so_qlen --;
 	l2so->so_qstate &= ~SQ_COMP;
 	l2so->so_head = NULL;
+	SOCK_LOCK(l2so);
 	soref(l2so);
 	l2so->so_state |= SS_NBIO;
+	SOCK_UNLOCK(l2so);
 	ACCEPT_UNLOCK();
 
 	error = soaccept(l2so, (struct sockaddr **) &l2sa);

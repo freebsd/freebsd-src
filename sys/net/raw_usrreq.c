@@ -34,6 +34,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -139,8 +140,9 @@ raw_uabort(struct socket *so)
 	if (rp == 0)
 		return EINVAL;
 	raw_disconnect(rp);
+	soisdisconnected(so);
+	SOCK_LOCK(so);
 	sotryfree(so);
-	soisdisconnected(so);	/* XXX huh? called after the sofree()? */
 	return 0;
 }
 
