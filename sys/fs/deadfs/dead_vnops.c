@@ -53,6 +53,7 @@ static vop_write_t	dead_write;
 
 struct vop_vector dead_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		VOP_EBADF,
 	.vop_advlock =		VOP_EBADF,
 	.vop_bmap =		dead_bmap,

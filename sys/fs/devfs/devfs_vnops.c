@@ -1376,6 +1376,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 
 static struct vop_vector devfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		devfs_access,
 	.vop_getattr =		devfs_getattr,
 	.vop_ioctl =		devfs_rioctl,
@@ -1397,6 +1398,7 @@ static struct vop_vector devfs_vnodeops = {
 
 static struct vop_vector devfs_specops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		devfs_access,
 	.vop_advlock =		devfs_advlock,
 	.vop_bmap =		VOP_PANIC,

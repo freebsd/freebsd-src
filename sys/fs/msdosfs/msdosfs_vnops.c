@@ -1871,8 +1871,9 @@ msdosfs_advlock(ap)
 /* Global vfs data structures for msdosfs */
 struct vop_vector msdosfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		msdosfs_access,
-	.vop_advlock =            msdosfs_advlock,
+	.vop_advlock =		msdosfs_advlock,
 	.vop_bmap =		msdosfs_bmap,
 	.vop_cachedlookup =	msdosfs_lookup,
 	.vop_close =		msdosfs_close,

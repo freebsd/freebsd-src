@@ -521,6 +521,7 @@ fdesc_reclaim(ap)
 
 static struct vop_vector fdesc_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		VOP_NULL,
 	.vop_getattr =		fdesc_getattr,
 	.vop_inactive =		fdesc_inactive,

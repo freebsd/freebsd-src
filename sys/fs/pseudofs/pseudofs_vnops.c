@@ -824,6 +824,7 @@ pfs_write(struct vop_write_args *va)
  */
 struct vop_vector pfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
+
 	.vop_access =		pfs_access,
 	.vop_close =		pfs_close,
 	.vop_create =		VOP_EOPNOTSUPP,
