@@ -214,7 +214,7 @@ ffs_truncate(vp, length, flags, cred, p)
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = VOP_BALLOC(ovp, length - 1, 1,
+		error = UFS_BALLOC(ovp, length - 1, 1,
 		    cred, aflags, &bp);
 		if (error)
 			return (error);
@@ -244,7 +244,7 @@ ffs_truncate(vp, length, flags, cred, p)
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = VOP_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
+		error = UFS_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
 		if (error) {
 			return (error);
 		}

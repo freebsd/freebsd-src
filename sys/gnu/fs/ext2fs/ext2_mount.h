@@ -96,6 +96,7 @@ struct ufsmount {
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
 	int	um_i_effnlink_valid;		/* i_effnlink valid? */
+	int	(*um_balloc) __P((struct vnode *, off_t, int, struct ucred *, int, struct buf **));
 	int	(*um_blkatoff) __P((struct vnode *, off_t, char **, struct buf **));
 	int	(*um_truncate) __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 	int	(*um_update) __P((struct vnode *, int));
@@ -103,6 +104,7 @@ struct ufsmount {
 	int	(*um_vfree) __P((struct vnode *, ino_t, int));
 };
 
+#define UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
 #define UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
 #define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
 #define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
