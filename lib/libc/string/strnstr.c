@@ -60,7 +60,7 @@ strnstr(s, find, slen)
 		len = strlen(find);
 		do {
 			do {
-				if ((sc = *s++) == '\0' || slen-- < 1)
+				if (slen-- < 1 || (sc = *s++) == '\0')
 					return (NULL);
 			} while (sc != c);
 			if (len > slen)
