@@ -71,6 +71,17 @@ Each of the connected many links may be considered to be up or down.
 Packets are never delivered out a many hook that is down.
 How a link is determined to be up or down depends on the node's
 configured link failure detection algorithm.
+.Pp
+Before an interface or link can be plumbed into a group, its status
+must be marked as being
+.Dq up .
+This is normally setup during the initial boot stages by
+.Xr rc.conf 5 . 
+It is also possible to change an interfaces status to
+.Dq up 
+by using the
+.Xr ifconfig 8
+utility. 
 .Sh TRANSMIT ALGORITHMS
 .Bl -tag -width foo
 .It NG_ONE2MANY_XMIT_ROUNDROBIN
@@ -179,22 +190,29 @@ through
 .Dv fxp3 :
 .Bd -literal -offset 0n
   # Plumb nodes together
+
   ngctl mkpeer fxp0: one2many upper one
   ngctl connect fxp0: fxp0:upper lower many0
   ngctl connect fxp1: fxp0:upper lower many1
   ngctl connect fxp2: fxp0:upper lower many2
   ngctl connect fxp3: fxp0:upper lower many3
+
   # Allow fxp1 through fxp3 to xmit/recv fxp0 frames
+
   ngctl msg fxp1: setpromisc 1
   ngctl msg fxp2: setpromisc 1
   ngctl msg fxp3: setpromisc 1
   ngctl msg fxp1: setautosrc 0
   ngctl msg fxp2: setautosrc 0
   ngctl msg fxp3: setautosrc 0
+
   # Configure all four links as up
+
   ngctl msg fxp0:upper \\
     setconfig "{ xmitAlg=1 failAlg=1 enabledLinks=[ 1 1 1 1 ] }"
+
   # Bring up interface
+
   ifconfig fxp0 192.168.1.1 netmask 0xfffffffc
 .Ed
 .Pp
@@ -206,6 +224,7 @@ achieved.
 More transmit and link failure algorithms should be supported.
 A good candidate is Cisco's Etherchannel.
 .Sh SEE ALSO
+.Xr ifconfig 8 ,
 .Xr netgraph 4 ,
 .Xr ng_bridge 4 ,
 .Xr ng_ether 4 ,
