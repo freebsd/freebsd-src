@@ -12,7 +12,7 @@ int     pwok;
     static char buf[128];
     struct skey skey;
     char   *pass = "";
-    char   *username = pwd ? pwd->pw_name : "nope";
+    char   *username = pwd ? pwd->pw_name : ":";
     int     sflag;
 
     /* Attempt an s/key challenge. */
