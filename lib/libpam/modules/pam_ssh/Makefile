@@ -6,8 +6,8 @@ SSHSRC=	${.CURDIR}/../../../../crypto/openssh
 LIB=		pam_ssh
 SRCS=		pam_ssh.c
 CFLAGS+=	-I${SSHSRC}
-DPADD=		${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL}
-LDADD=		-lssh -lcrypto -lcrypt -lutil
+DPADD=		${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
+LDADD=		-lssh -lcrypto -lcrypt
 MAN=		pam_ssh.8
 
 .include <bsd.lib.mk>
