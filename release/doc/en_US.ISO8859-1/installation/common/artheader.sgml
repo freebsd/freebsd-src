@@ -1,7 +1,7 @@
 <!-- $FreeBSD$ -->
 
 <articleinfo>
-  <title>&os; &release.current; &arch; Installation Instructions</title>
+  <title>&os;/&arch; &release.current; Installation Instructions</title>
 
   <corpauthor>
   The &os; Project
