@@ -47,7 +47,7 @@ LATIN15LINKS=	af_ZA da_DK de_DE en_CA en_GB en_US es_ES fi_FI fr_CH \
 
 GB_LINKS=	en_AU en_NZ
 FR_LINKS=	fr_CA
-DE_LINKS=	de_AT
+DE_LINKS=	de_AT de_CH
 CZ_LINKS=	sk_SK
 
 .SUFFIXES: .src .out
