@@ -328,10 +328,8 @@ nopgrp:
 				continue;
 			break;
 		}
-		if (proc.p_comm[0] != 0) {
-			strncpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
-			kp->ki_comm[MAXCOMLEN] = 0;
-		}
+		if (proc.p_comm[0] != 0)
+			strlcpy(kp->ki_comm, proc.p_comm, MAXCOMLEN);
 		(void)kvm_read(kd, (u_long)proc.p_sysent, (char *)&sysent,
 		    sizeof(sysent));
 		(void)kvm_read(kd, (u_long)sysent.sv_name, (char *)&svname,
