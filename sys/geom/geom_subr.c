@@ -84,6 +84,12 @@ g_load_class(void *arg, int flag)
 	mp = hh->mp;
 	g_free(hh);
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
+	LIST_FOREACH(mp2, &g_classes, class) {
+		KASSERT(mp2 != mp,
+		    ("The GEOM class %s already loaded", mp2->name));
+		KASSERT(strcmp(mp2->name, mp->name) != 0,
+		    ("A GEOM class named %s is already loaded", mp2->name));
+	}
 
 	if (mp->init != NULL)
 		mp->init(mp);
