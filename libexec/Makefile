@@ -12,6 +12,7 @@ SUBDIR=	atrun \
 	makekey \
 	mknetid \
 	pppoed \
+	pt_chown \
 	rbootd \
 	revnetgroup \
 	rexecd \
