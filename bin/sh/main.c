@@ -300,7 +300,7 @@ readcmdfile(name)
 	if ((fd = open(name, O_RDONLY)) >= 0)
 		setinputfd(fd, 1);
 	else
-		error("Can't open %s", name);
+		error("Can't open %s: %s", name, strerror(errno));
 	INTON;
 	cmdloop(0);
 	popfile();
