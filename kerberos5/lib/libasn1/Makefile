@@ -106,26 +106,30 @@ asn1_compile:					\
 	gen_length.c				\
 	hash.c					\
 	emalloc.c				\
-	lex.o					\
 	main.c					\
-	parse.o					\
 	symbol.c				\
 	getarg.c				\
 	warnerr.c				\
+	${.OBJDIR}/lex.o			\
+	${.OBJDIR}/parse.o			\
 	${.OBJDIR}/print_version.o		\
 	get_window_size.c			\
 	strupr.c
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.OODATE} ${LDADD}
 
+.ORDER: ${.OBJDIR}/roken.h ${.OBJDIR}/parse.c ${.OBJDIR}/parse.h ${.OBJDIR}/lex.c
+
 ${.OBJDIR}/parse.o:	${.OBJDIR}/parse.c ${.OBJDIR}/roken.h
 
-.ORDER: ${.OBJDIR}/parse.c ${.OBJDIR}/parse.h
+${.OBJDIR}/lex.o:	${.OBJDIR}/lex.c ${.OBJDIR}/parse.h ${.OBJDIR}/roken.h
+
 ${.OBJDIR}/parse.h ${.OBJDIR}/parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c
 	cp y.tab.h parse.h
 
-lex.o:		lex.l ${.OBJDIR}/parse.h ${.OBJDIR}/roken.h
+${.OBJDIR}/lex.c:	lex.l
+	${LEX} -t ${LFLAGS} ${.OODATE} > ${.TARGET}
 
 ${.OBJDIR}/print_version.o: ${.OBJDIR}/print_version.h print_version.c \
 				${.OBJDIR}/roken.h
