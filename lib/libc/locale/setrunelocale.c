@@ -62,7 +62,7 @@ setrunelocale(encoding)
 	_RuneLocale *rl;
 
 	if (!encoding || strlen(encoding) > ENCODING_LEN)
-	    return(EFAULT);
+		return (EINVAL);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
