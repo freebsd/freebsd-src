@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.5 1995/09/22 23:22:22 jkh Exp $
+ * $Id: menus.c,v 1.42.2.6 1995/09/22 23:35:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,8 +70,8 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_SUBMENU,		&MenuInstallCustom, 0, 0	},
       { "Express",		"Begin a quick installation",			/* E */
 	DMENU_CALL,		&installExpress, 0, 0		},
-      { "Shell",		"Go to a shell for debugging or repair",
-	DMENU_SYSTEM_COMMAND,	"/stand/sh", 0, 0		},
+      { "sh",			"Go to a shell for debugging or repair",
+	DMENU_EXEC_COMMAND,	"-sh", 0, 0		},
       { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
       { NULL } },
