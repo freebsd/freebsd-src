@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.5 1994/10/23 23:01:03 wollman Exp $
+ *	$Id: kern_devconf.c,v 1.6 1994/12/31 17:15:16 jkh Exp $
  */
 
 /*
@@ -59,7 +59,6 @@ dev_attach(struct kern_devconf *kdc)
 int
 dev_detach(struct kern_devconf *kdc)
 {
-	struct kern_devconf *iter;
 	int s;
 
 	s = splclock();
