@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22 1996/10/12 16:20:32 jkh Exp $
+ * $Id: main.c,v 1.23 1996/12/03 21:38:48 nate Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -35,6 +35,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -46,6 +48,7 @@
 #include "filter.h"
 #include "systems.h"
 #include "ip.h"
+#include "alias.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
@@ -214,7 +217,7 @@ void
 Usage()
 {
   fprintf(stderr,
-          "Usage: ppp [-auto | -direct | -dedicated | -ddial ] [system]\n");
+          "Usage: ppp [-auto | -direct | -dedicated | -ddial ] [ -alias ] [system]\n");
   exit(EX_START);
 }
 
@@ -235,6 +238,10 @@ ProcessArgs(int argc, char **argv)
       mode |= MODE_DEDICATED;
     else if (strcmp(cp, "ddial") == 0)
       mode |= MODE_DDIAL|MODE_AUTO;
+    else if (strcmp(cp, "alias") == 0) {
+      mode |= MODE_ALIAS;
+      optc--;             /* this option isn't exclusive */
+    }
     else
       Usage();
     optc++;
@@ -274,6 +281,7 @@ char **argv;
   Greetings();
   GetUid();
   IpcpDefAddress();
+  InitAlias();
 
   if (SelectSystem("default", CONFFILE) < 0) {
     fprintf(stderr, "Warning: No default entry is given in config file.\n");
@@ -872,14 +880,23 @@ DoLoop()
       if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO)) {
 	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
+	  if (mode & MODE_ALIAS) {
+	    PacketAliasOut(rbuff);
+	    n = ntohs(((struct ip *) rbuff)->ip_len);
+	  }
 	  IpEnqueue(pri, rbuff, n);
-          dial_up = TRUE;		/* XXX */
+	  dial_up = TRUE;		/* XXX */
 	}
 	continue;
       }
       pri = PacketCheck(rbuff, n, FL_OUT);
-      if (pri >= 0)
+      if (pri >= 0) {
+        if (mode & MODE_ALIAS) {
+          PacketAliasOut(rbuff);
+          n = ntohs(((struct ip *) rbuff)->ip_len);
+        }
 	IpEnqueue(pri, rbuff, n);
+      }
     }
   }
   logprintf("job done.\n");
