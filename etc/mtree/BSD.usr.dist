@@ -419,6 +419,7 @@
             ..
             smbfs
                 print
+                ..
             ..
             startslip
             ..
