@@ -80,7 +80,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/ucred.h>
-#include <sys/select.h>
 
 #ifndef insque
 #include <sys/systm.h>

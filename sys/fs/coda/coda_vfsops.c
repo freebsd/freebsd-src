@@ -54,8 +54,6 @@
 #include <sys/conf.h>
 #include <sys/namei.h>
 #include <sys/mount.h>
-#include <sys/select.h>
-
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
