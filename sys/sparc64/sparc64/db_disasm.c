@@ -531,10 +531,10 @@ struct sparc_insn sparc_i[] = {
 	 */
 
 	/* Loads */
-	{(FORMAT3(3, OP3_X(0,0), 0)), "ld", "pd"},	/* officially: lduw */
-	{(FORMAT3(3, OP3_X(0,0), 1)), "ld", "qd"},
-	{(FORMAT3(3, OP3_X(1,0), 0)), "lda", "7d"},	/* officially: lduwa */
-	{(FORMAT3(3, OP3_X(1,0), 1)), "lda", "8d"},
+	{(FORMAT3(3, OP3_X(0,0), 0)), "lduw", "pd"},
+	{(FORMAT3(3, OP3_X(0,0), 1)), "lduw", "qd"},
+	{(FORMAT3(3, OP3_X(1,0), 0)), "lduwa", "7d"},
+	{(FORMAT3(3, OP3_X(1,0), 1)), "lduwa", "8d"},
 	{(FORMAT3(3, OP3_X(2,0), 0)), "ldf", "pe"},
 	{(FORMAT3(3, OP3_X(2,0), 1)), "ldf", "qe"},
 	{(FORMAT3(3, OP3_X(3,0), 0)), "ldfa", "7e"},
@@ -544,8 +544,8 @@ struct sparc_insn sparc_i[] = {
 	{(FORMAT3(3, OP3_X(0,1), 1)), "ldub", "qd"},
 	{(FORMAT3(3, OP3_X(1,1), 0)), "lduba", "7d"},
 	{(FORMAT3(3, OP3_X(1,1), 1)), "lduba", "8d"},
-	{(FORMAT3(3, OP3_X(2,1), 0) | EIF_F3_RD(0)), "ld", "p5"},
-	{(FORMAT3(3, OP3_X(2,1), 1) | EIF_F3_RD(0)), "ld", "q5"},
+	{(FORMAT3(3, OP3_X(2,1), 0) | EIF_F3_RD(0)), "lduw", "p5"},
+	{(FORMAT3(3, OP3_X(2,1), 1) | EIF_F3_RD(0)), "lduw", "q5"},
 	{(FORMAT3(3, OP3_X(2,1), 0) | EIF_F3_RD(1)), "ldx", "p6"},
 	{(FORMAT3(3, OP3_X(2,1), 1) | EIF_F3_RD(1)), "ldx", "q6"},
 
@@ -567,21 +567,21 @@ struct sparc_insn sparc_i[] = {
 	{(FORMAT3(3, OP3_X(3,3), 0)), "ldda", "7e"},
 	{(FORMAT3(3, OP3_X(3,3), 1)), "ldda", "8e"},
 
-	{(FORMAT3(3, OP3_X(0,4), 0)), "st", "dp"},	/* officially: stw */
-	{(FORMAT3(3, OP3_X(0,4), 1)), "st", "dq"},
-	{(FORMAT3(3, OP3_X(1,4), 0)), "sta", "d7"},	/* officially: stwa */
-	{(FORMAT3(3, OP3_X(1,4), 1)), "sta", "d8"},
-	{(FORMAT3(3, OP3_X(2,4), 0)), "st", "ep"},
-	{(FORMAT3(3, OP3_X(2,4), 1)), "st", "eq"},
-	{(FORMAT3(3, OP3_X(3,4), 0)), "sta", "e7"},
-	{(FORMAT3(3, OP3_X(3,4), 1)), "sta", "e8"},
+	{(FORMAT3(3, OP3_X(0,4), 0)), "stw", "dp"},
+	{(FORMAT3(3, OP3_X(0,4), 1)), "stw", "dq"},
+	{(FORMAT3(3, OP3_X(1,4), 0)), "stwa", "d7"},
+	{(FORMAT3(3, OP3_X(1,4), 1)), "stwa", "d8"},
+	{(FORMAT3(3, OP3_X(2,4), 0)), "stf", "ep"},
+	{(FORMAT3(3, OP3_X(2,4), 1)), "stf", "eq"},
+	{(FORMAT3(3, OP3_X(3,4), 0)), "stfa", "e7"},
+	{(FORMAT3(3, OP3_X(3,4), 1)), "stfa", "e8"},
 
 	{(FORMAT3(3, OP3_X(0,5), 0)), "stb", "dp"},
 	{(FORMAT3(3, OP3_X(0,5), 1)), "stb", "dq"},
 	{(FORMAT3(3, OP3_X(1,5), 0)), "stba", "d7"},
 	{(FORMAT3(3, OP3_X(1,5), 1)), "stba", "d8"},
-	{(FORMAT3(3, OP3_X(2,5), 0)), "st", "5p"},
-	{(FORMAT3(3, OP3_X(2,5), 1)), "st", "5q"},
+	{(FORMAT3(3, OP3_X(2,5), 0)), "stw", "5p"},
+	{(FORMAT3(3, OP3_X(2,5), 1)), "stw", "5q"},
 	{(FORMAT3(3, OP3_X(2,5), 0) | EIF_F3_RD(1)), "stx", "6p"},
 	{(FORMAT3(3, OP3_X(2,5), 1) | EIF_F3_RD(1)), "stx", "6q"},
 
@@ -637,8 +637,8 @@ struct sparc_insn sparc_i[] = {
 
 	{(FORMAT3(3, OP3_X(0,14), 0)), "stx", "dp"},
 	{(FORMAT3(3, OP3_X(0,14), 1)), "stx", "dq"},
-	{(FORMAT3(3, OP3_X(1,14), 0)), "stwa", "d7"},
-	{(FORMAT3(3, OP3_X(1,14), 1)), "stwa", "d8"},
+	{(FORMAT3(3, OP3_X(1,14), 0)), "stxa", "d7"},
+	{(FORMAT3(3, OP3_X(1,14), 1)), "stxa", "d8"},
 	{(FORMAT3(3, OP3_X(3,14), 0)), "casxa", "t2d"},
 	{(FORMAT3(3, OP3_X(3,14), 1)), "casxa", "s2d"},
 
