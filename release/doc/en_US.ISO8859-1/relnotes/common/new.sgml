@@ -134,6 +134,13 @@
       module is not enabled in &os; by default.  For more information,
       see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>. &merged;</para>
+
+    <para>A buffer management bug in
+      <application>OpenSSH</application>, which could potentially
+      cause a crash, has been fixed.  More information can be found in
+      security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
