@@ -153,7 +153,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	shar = a->format_data;
 	if (!shar->wrote_header) {
 		shar_printf(a, "#!/bin/sh\n");
-		shar_printf(a, "# This is a shar archive\n");
+		shar_printf(a, "# This is a shell archive\n");
 		shar->wrote_header = 1;
 	}
 
