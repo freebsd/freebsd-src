@@ -32,7 +32,13 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 {
 	daddr_t sn;
 
-	printf("%s: %s ", devtoname(bp->bio_dev), what);
+	if (bp->bio_dev != NULL)
+		printf("%s: %s ", devtoname(bp->bio_dev), what);
+	else if (bp->bio_disk != NULL)
+		printf("%s%d: %s ",
+		    bp->bio_disk->d_name, bp->bio_disk->d_unit, what);
+	else
+		printf("disk??: %s ", what);
 	switch(bp->bio_cmd) {
 	case BIO_READ:		printf("cmd=read "); break;
 	case BIO_WRITE:		printf("cmd=write "); break;
