@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int	 main __P((int, char *[]));
 void	 db_build __P((char **));
 void	 dounlink __P((void));
 void	 usage __P((void));
@@ -177,7 +178,8 @@ db_build(ifiles)
 			break;
 		case 2:
 			((char *)(data.data))[0] = TCERR;
-			warnx("record not tc expanded: %.*s", p - bp, bp);
+			warnx("record not tc expanded: %.*s", (int)(p - bp),
+			    bp);
 			break;
 		}
 
