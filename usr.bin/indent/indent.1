@@ -160,9 +160,9 @@ if (...) {
 }
 .Ed
 .Pp
-.It Fl c n
+.It Fl c Ns Ar n
 The column in which comments on code start.  The default is 33.
-.It Fl cd n
+.It Fl cd Ns Ar n
 The column in which comments on declarations start.  The default
 is for these comments to start in the same column as those on code.
 .It Fl cdb , ncdb
@@ -264,7 +264,7 @@ in effect:
 .ne 2
 .Bd -literal -offset indent
 p1 = first_procedure(second_procedure(p2, p3),
-\ \ third_procedure(p4,p5));
+\ \ third_procedure(p4, p5));
 .Ed
 .Pp
 .ne 5
@@ -273,7 +273,7 @@ With
 in effect (the default) the code looks somewhat clearer:
 .Bd -literal -offset indent
 p1\ =\ first_procedure(second_procedure(p2,\ p3),
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ third_procedure(p4,p5));
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ third_procedure(p4,\ p5));
 .Ed
 .Pp
 .ne 5
@@ -281,7 +281,7 @@ Inserting two more newlines we get:
 .Bd -literal -offset indent
 p1\ =\ first_procedure(second_procedure(p2,
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p3),
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ third_procedure(p4
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ third_procedure(p4,
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ p5));
 .Ed
 .It Fl npro
