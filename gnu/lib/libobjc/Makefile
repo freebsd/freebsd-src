@@ -1,5 +1,4 @@
-# Makefile for libobjc
-# $Id: Makefile,v 1.5 1999/04/04 16:36:30 obrien Exp $
+#	$Id: Makefile,v 1.6 1999/04/06 13:26:48 obrien Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 
