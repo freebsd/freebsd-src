@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id:\$"
+# \$Id: make_device_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id:\$
+ * \$Id: make_device_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $
  */
 
 
@@ -64,7 +64,7 @@ static  d_read_t	${1}read;
 static  d_write_t	${1}write;
 static  d_ioctl_t	${1}ioctl;
 static  d_mmap_t	${1}mmap;
-static  d_select_t	${1}select;
+static  d_poll_t	${1}poll;
 static	int		${1}probe (struct isa_device *);
 static	int		${1}attach (struct isa_device *);
 /* void ${1}intr(int unit);*//* actually defined in ioconf.h (generated file) */
@@ -79,7 +79,7 @@ static struct cdevsw ${1}_cdevsw = {
 	nullstop,
 	nullreset,
 	nodevtotty, 
-	${1}select,
+	${1}poll,
 	${1}mmap,
 	NULL,
 	"${1}",
@@ -327,7 +327,7 @@ ${1}mmap(dev_t dev, int offset, int nprot)
 }
 
 static  int
-${1}select(dev_t dev, int which, struct proc *p)
+${1}poll(dev_t dev, int which, struct proc *p)
 {
 	int unit = UNIT (dev);
 	sc_p scp  = sca[unit];
