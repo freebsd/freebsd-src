@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.193 1995/08/12 13:40:42 ats Exp $
+#	$Id: LINT,v 1.194 1995/08/18 11:26:18 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -596,8 +596,8 @@ device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 # Uncomment one (and only one) of the following two drivers for the appropriate
 # ISDN device you have.  For more information on what's considered appropriate
 # for your given set of circumstances, please read
-# /usr/src/gnu/usr.sbin/docs/INSTALL.  It's a bit sparse at present, but it's
-# the best we have right now.  The snic driver is also disabled at present,
+# /usr/src/gnu/usr.sbin/isdn/docs/INSTALL.  It's a bit sparse at present, but
+# it's the best we have right now.  The snic driver is also disabled at present,
 # waiting for someone to upgrade the driver to 2.0 (it's in /sys/gnu/scsi/).
 #
 device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
