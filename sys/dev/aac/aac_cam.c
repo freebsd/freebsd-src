@@ -67,8 +67,6 @@
 struct aac_cam {
 	device_t		dev;
 	struct aac_cam_inf	*inf;
-	u_int32_t		scsi_method_id;
-	int			bus;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 };
@@ -149,6 +147,7 @@ aac_cam_attach(device_t dev)
 		return (EIO);
 	}
 
+	/* Since every bus has it's own sim, every bus 'appears' as bus 0 */
 	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
 		return (EIO);
@@ -163,7 +162,6 @@ aac_cam_attach(device_t dev)
 
 	camsc->sim = sim;
 	camsc->path = path;
-	camsc->bus = cam_sim_bus(sim);
 
 	return (0);
 }
@@ -227,7 +225,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_target = camsc->inf->TargetsPerBus;
 		cpi->max_lun = 8;	/* Per the controller spec */
 		cpi->initiator_id = camsc->inf->InitiatorBusId;
-		cpi->bus_id = cam_sim_bus(sim);
+		cpi->bus_id = camsc->inf->BusNumber;
 		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
@@ -242,7 +240,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		u_int32_t handle;
 
-		handle = AAC_BTL_TO_HANDLE(cam_sim_bus(sim),
+		handle = AAC_BTL_TO_HANDLE(camsc->inf->BusNumber,
 		    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 		ccb->ccb_h.status = aac_cam_get_tran_settings(sc, &ccb->cts,
 		    handle);
@@ -371,7 +369,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 
-	srb->bus = cam_sim_bus(sim);	/* Bus number relative to the card */
+	srb->bus = camsc->inf->BusNumber; /* Bus number relative to the card */
 	srb->target = ccb->ccb_h.target_id;
 	srb->lun = ccb->ccb_h.target_lun;
 	srb->timeout = ccb->ccb_h.timeout;	/* XXX */
@@ -509,7 +507,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 	vmi->IoctlCmd = ResetBus;
 
 	rbc = (struct aac_resetbus *)&vmi->IoctlBuf[0];
-	rbc->BusNumber = cam_sim_bus(sim);
+	rbc->BusNumber = camsc->inf->BusNumber;
 
 	e = aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_vmioctl));
