@@ -539,7 +539,6 @@ loop:
 			/*
 			 * Free up credentials.
 			 */
-			PROC_LOCK(p);
 			if (--p->p_cred->p_refcnt == 0) {
 				crfree(p->p_ucred);
 				uifree(p->p_cred->p_uidinfo);
