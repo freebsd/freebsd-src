@@ -1,0 +1,74 @@
+#
+# LKM - verification kernel for LKMs.  This is not intended to be run
+# on any real hardware, only to make it possible to test-link LKMs.
+#
+#	$Id$
+#
+
+##
+#   Things the kernel don't seem to be able to do without
+##
+
+machine		"i386"
+cpu		"I386_CPU"
+ident		LKM
+maxusers	2
+
+config		kernel	root on wd0
+
+# Need either FFS or NFS
+options		FFS
+
+# The kernel fail to compile without ISA - it is complaining about the
+# missing NPX...
+controller	isa0
+# npx is mandated by config(8)
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+##
+#  Requirements for various LKMs
+##
+
+#
+# Options required for the ATAPI LKM
+#
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+options ATAPI
+
+
+#
+# Options required for if_ppp LKM
+#
+options INET
+options PPP_DEFLATE			#PPP zlib/deflate/gzip support
+
+# Cascaded requirement from "INET"
+pseudo-device	loop			#Network loopback device
+
+
+#
+# Options required for linux LKM
+#
+options "COMPAT_43"
+
+
+#
+# Options required for pcic LKM
+#
+controller	card0
+
+# Cascading requirement from card0 - any device that have a DATA_SET of
+# pccarddrv_set
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+
+
+#
+# For the screensavers
+#
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+
+
+#
+# For umapfs
+#
+options		NULLFS
