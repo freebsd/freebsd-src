@@ -137,6 +137,7 @@ geom/geom_bsd_enc.c		standard
 geom/geom_pc98.c		standard
 geom/geom_pc98_enc.c		standard
 i386/bios/apm.c			optional	apm
+i386/i386/apic_vector.s		optional	apic
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -155,14 +156,18 @@ i386/i386/i686_mem.c		standard
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet
 i386/i386/initcpu.c		standard
+i386/i386/intr_machdep.c	standard
+i386/i386/io_apic.c		optional	apic
 i386/i386/k6_mem.c		standard
 i386/i386/legacy.c		standard
+i386/i386/local_apic.c		optional	apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/mem.c			standard
 i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp
-i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
+i386/i386/mptable.c		optional	apic
+i386/i386/mptable_pci.c		optional	apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
@@ -193,6 +198,8 @@ i386/ibcs2/ibcs2_util.c		optional	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
+i386/isa/atpic.c		standard
+i386/isa/atpic_vector.s		standard
 i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
@@ -208,8 +215,6 @@ i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		count		el
 i386/isa/if_le.c		count		le
 i386/isa/if_rdp.c		count		rdp
-i386/isa/intr_machdep.c		standard
-i386/isa/ithread.c		standard
 i386/isa/isa.c			optional	isa
 i386/isa/isa_compat.c		optional	isa compat_oldisa	\
 	warning "Old ISA driver compatibility shims present."
@@ -345,6 +350,7 @@ pc98/pc98/clock.c		standard
 pc98/pc98/fd.c			optional	fdc
 pc98/pc98/isa_dma.c		optional	isa
 pc98/pc98/mse.c			optional	mse
+pc98/pc98/nmi.c			standard
 pc98/pc98/olpt.c		optional	olpt
 pc98/pc98/pc98gdc.c		optional	gdc
 pc98/pc98/pc98kbd.c		optional	pckbd
