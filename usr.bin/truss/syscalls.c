@@ -50,7 +50,10 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <poll.h>
+#define COMPAT_SUNOS
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,7 +119,7 @@ struct syscall syscalls[] = {
 	{ "exit", 0, 1, { { Hex, 0 }}},
 	{ "access", 1, 2, { { String | IN, 0 }, { Int, 1 }}},
 	{ "sigaction", 1, 3,
-	  { { Signal, 0 }, { Ptr | IN, 1 }, { Ptr | OUT, 2 }}},
+	  { { Signal, 0 }, { Sigaction | IN, 1 }, { Sigaction | OUT, 2 }}},
 	{ "accept", 1, 3,
 	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ "bind", 1, 3,
@@ -141,6 +144,14 @@ struct syscall syscalls[] = {
 	{ "kldnext", 0, 1, { { Int, 0 }}},
 	{ "kldstat", 0, 2, { { Int, 0 }, { Ptr, 1 }}},
 	{ "kldfirstmod", 0, 1, { { Int, 0 }}},
+	{ "nanosleep", 0, 1, { { Timespec, 0 }}},
+	{ "select", 1, 5, { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 }, { Timeval, 4 }}},
+	{ "poll", 1, 3, { { Pollfd, 0 }, { Int, 1 }, { Int, 2 }}},
+	{ "gettimeofday", 1, 2, { { Timeval | OUT, 0 }, { Ptr, 1 }}},
+	{ "clock_gettime", 1, 2, { { Int, 0 }, { Timeval | OUT, 1 }}},
+	{ "recvfrom", 1, 6, { { Int, 0 }, { Ptr | OUT, 1 }, { Int, 2 }, { Int, 3 }, { Sockaddr | OUT, 4}, {Ptr | OUT, 5}}},
+	{ "getitimer", 1, 2, { { Int, 0 }, { Itimerval | OUT, 2 }}},
+	{ "setitimer", 1, 3, { { Int, 0 }, { Itimerval, 1} , { Itimerval | OUT, 2 }}},
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
@@ -335,6 +346,125 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	asprintf(&tmp, "0x%lx", args[sc->offset]);
     }
     break;
+  case Timespec:
+    {
+      struct timespec ts;
+      if (get_struct(fd, (void *)args[sc->offset], &ts, sizeof(ts)) != -1)
+	asprintf(&tmp, "{%jd %jd}", (intmax_t)ts.tv_sec, (intmax_t)ts.tv_nsec);
+      else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+    }
+    break;
+  case Timeval:
+    {
+      struct timeval tv;
+      if (get_struct(fd, (void *)args[sc->offset], &tv, sizeof(tv)) != -1)
+	asprintf(&tmp, "{%jd %jd}", (intmax_t)tv.tv_sec, (intmax_t)tv.tv_usec);
+      else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+    }
+    break;
+  case Itimerval:
+    {
+      struct itimerval itv;
+      if (get_struct(fd, (void *)args[sc->offset], &itv, sizeof(itv)) != -1)
+	asprintf(&tmp, "{%jd %jd, %jd %jd}", 
+	    (intmax_t)itv.it_interval.tv_sec,
+	    (intmax_t)itv.it_interval.tv_usec,
+	    (intmax_t)itv.it_value.tv_sec,
+	    (intmax_t)itv.it_value.tv_usec);
+      else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+    }
+    break;
+  case Pollfd:
+    {
+      /*
+       * XXX: A Pollfd argument expects the /next/ syscall argument to be
+       * the number of fds in the array. This matches the poll syscall.
+       */
+      struct pollfd *pfd;
+      int numfds = args[sc->offset+1];
+      int bytes = sizeof(struct pollfd) * numfds;
+      int i, tmpsize, u, used;
+      const int per_fd = 100;
+
+      if ((pfd = malloc(bytes)) == NULL)
+	err(1, "Cannot malloc %d bytes for pollfd array", bytes);
+      if (get_struct(fd, (void *)args[sc->offset], pfd, bytes) != -1) {
+
+	used = 0;
+	tmpsize = 1 + per_fd * numfds + 2;
+	if ((tmp = malloc(tmpsize)) == NULL)
+	  err(1, "Cannot alloc %d bytes for poll output", tmpsize);
+
+	tmp[used++] = '{';
+	for (i = 0; i < numfds; i++) {
+#define POLLKNOWN_EVENTS \
+	(POLLIN | POLLPRI | POLLOUT | POLLERR | POLLHUP | POLLNVAL | \
+	 POLLRDNORM |POLLRDBAND | POLLWRBAND | POLLINIGNEOF) 
+
+	  u += snprintf(tmp + used, per_fd,
+	    "%s%d 0x%hx%s%s%s%s%s%s%s%s%s ",
+	    i > 0 ? " " : "",
+	    pfd[i].fd,
+	    pfd[i].events & ~POLLKNOWN_EVENTS,
+	    pfd[i].events & POLLIN ? "" : "|IN",
+	    pfd[i].events & POLLPRI ? "" : "|PRI",
+	    pfd[i].events & POLLOUT ? "" : "|OUT",
+	    pfd[i].events & POLLERR ? "" : "|ERR",
+	    pfd[i].events & POLLHUP ? "" : "|HUP",
+	    pfd[i].events & POLLNVAL ? "" : "|NVAL",
+	    pfd[i].events & POLLRDNORM ? "" : "|RDNORM",
+	    pfd[i].events & POLLRDBAND ? "" : "|RDBAND",
+	    pfd[i].events & POLLWRBAND ? "" : "|WRBAND");
+	  if (u > 0)
+	    used += u < per_fd ? u : per_fd;
+	}
+	tmp[used++] = '}';
+	tmp[used++] = '\0';
+      } else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+      free(pfd);
+    }
+    break;
+  case Fd_set:
+    {
+      /* 
+       * XXX: A Fd_set argument expects the /first/ syscall argument to be
+       * the number of fds in the array.  This matches the select syscall.
+       */
+      fd_set *fds;
+      int numfds = args[0];
+      int bytes = _howmany(numfds, _NFDBITS) * _NFDBITS;
+      int i, tmpsize, u, used;
+      const int per_fd = 20;
+
+      if ((fds = malloc(bytes)) == NULL)
+	err(1, "Cannot malloc %d bytes for fd_set array", bytes);
+      if (get_struct(fd, (void *)args[sc->offset], fds, bytes) != -1) {
+	used = 0;
+	tmpsize = 1 + numfds * per_fd + 2;
+	if ((tmp = malloc(tmpsize)) == NULL)
+	  err(1, "Cannot alloc %d bytes for fd_set output", tmpsize);
+
+	tmp[used++] = '{';
+	for (i = 0; i < numfds; i++) {
+	  if (FD_ISSET(i, fds)) {
+	    u = snprintf(tmp + used, per_fd, "%d ", i);
+	    if (u > 0)
+	      used += u < per_fd ? u : per_fd;
+	  }
+	}
+	if (tmp[used-1] == ' ')
+		used--;
+	tmp[used++] = '}';
+	tmp[used++] = '\0';
+      } else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+      free(fds);
+    }
+    break;
   case Signal:
     {
       long sig;
@@ -454,6 +584,42 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
             p += sprintf(p, " %#02x,", *q);
 	}
       }
+    }
+    break;
+  case Sigaction:
+    {
+      struct sigaction sa;
+      char *hand;
+      const char *h;
+#define SA_KNOWN_FLAGS \
+	(SA_ONSTACK | SA_RESTART | SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | \
+	 SA_NOCLDWAIT | SA_SIGINFO | SA_USERTRAMP)
+
+
+      if (get_struct(fd, (void *)args[sc->offset], &sa, sizeof(sa)) != -1) {
+
+	asprintf(&hand, "%p", sa.sa_handler);
+	if (sa.sa_handler == SIG_DFL)
+	  h = "SIG_DFL";
+	else if (sa.sa_handler == SIG_IGN)
+	  h = "SIG_IGN";
+	else
+	  h = hand;
+	asprintf(&tmp, "{ %s 0x%x%s%s%s%s%s%s%s%s ss_t }",
+	    h,
+	    sa.sa_flags & ~SA_KNOWN_FLAGS,
+	    sa.sa_flags & SA_ONSTACK ? "" : "|ONSTACK",
+	    sa.sa_flags & SA_RESTART ? "" : "|RESTART",
+	    sa.sa_flags & SA_RESETHAND ? "" : "|RESETHAND",
+	    sa.sa_flags & SA_NOCLDSTOP ? "" : "|NOCLDSTOP",
+	    sa.sa_flags & SA_NODEFER ? "" : "|NODEFER",
+	    sa.sa_flags & SA_NOCLDWAIT ? "" : "|NOCLDWAIT",
+	    sa.sa_flags & SA_SIGINFO ? "" : "|SIGINFO",
+	    sa.sa_flags & SA_USERTRAMP ? "" : "|USERTRAMP");
+	free(hand);
+      } else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
+      
     }
     break;
   }

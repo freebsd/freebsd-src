@@ -9,9 +9,18 @@
  *	write() arguments as such, even though they may *not* be
  *	printable data.
  * Ptr -- pointer to some specific structure.  Just print as hex for now.
- * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
  * Stat -- a pointer to a stat buffer.  Currently unused.
  * Ioctl -- an ioctl command.  Woefully limited.
+ * Quad -- a double-word value.  e.g., lseek(int, offset_t, int)
+ * Signal -- a signal number.  Prints the signal name (SIGxxx)
+ * Sockaddr -- a pointer to a struct sockaddr.  Prints symbolic AF, and IP:Port
+ * StringArray -- a pointer to an array of string pointers.
+ * Timespec -- a pointer to a struct timespec.  Prints both elements.
+ * Timeval -- a pointer to a struct timeval.  Prints both elements.
+ * Itimerval -- a pointer to a struct itimerval.  Prints all elements.
+ * Pollfd -- a pointer to an array of struct pollfd.  Prints .fd and .events.
+ * Fd_set -- a pointer to an array of fd_set.  Prints the fds that are set.
+ * Sigaction -- a pointer to a struct sigaction.  Prints all elements.
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
@@ -22,7 +31,8 @@
  */
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad,
-	Signal, Sockaddr, StringArray, Fcntl, Mprot, Mmapflags };
+	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd, 
+	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags };
 
 #define ARG_MASK	0xff
 #define OUT	0x100
