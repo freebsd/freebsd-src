@@ -98,6 +98,8 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
