@@ -580,30 +580,37 @@ static int
 read_body_to_string(struct archive *a, struct tar *tar,
     struct archive_string *as, const void *h)
 {
+	off_t size, padded_size;
+	ssize_t bytes_read, bytes_to_copy;
 	const struct archive_entry_header_ustar *header;
-	off_t size;
-	unsigned oldstate;
-	int err, err2;
+	const void *src;
+	char *dest;
 
+	(void)tar; /* UNUSED */
 	header = h;
 	size  = tar_atol(header->size, sizeof(header->size));
 
-	/* Temporarily fudge internal state for read_data call. */
-	oldstate = a->state;
-	a->state = ARCHIVE_STATE_DATA;
-
 	/* Read the body into the string. */
-	tar->entry_bytes_remaining = size;
-	tar->entry_padding = 0x1ff & -size;
 	archive_string_ensure(as, size+1);
-	err = archive_read_data_into_buffer(a, as->s, size);
-	as->s[size] = 0; /* Null terminate name! */
-	err2 = archive_read_data_skip(a); /* Resync for next header. */
-
-	/* Restore the state. */
-	a->state = oldstate;
-
-	return (err_combine(err, err2));
+	padded_size = (size + 511) & ~ 511;
+	dest = as->s;
+	while (padded_size > 0) {
+		bytes_read = (a->compression_read_ahead)(a, &src, padded_size);
+		if (bytes_read < 0)
+			return (ARCHIVE_FATAL);
+		if (bytes_read > padded_size)
+			bytes_read = padded_size;
+		(a->compression_read_consume)(a, bytes_read);
+		bytes_to_copy = bytes_read;
+		if ((off_t)bytes_to_copy > size)
+			bytes_to_copy = (ssize_t)size;
+		memcpy(dest, src, bytes_to_copy);
+		dest += bytes_to_copy;
+		size -= bytes_to_copy;
+		padded_size -= bytes_read;
+	}
+	*dest = '\0';
+	return (ARCHIVE_OK);
 }
 
 /*
