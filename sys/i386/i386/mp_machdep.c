@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.13 1997/05/26 09:23:30 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.14 1997/05/27 19:28:10 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -419,8 +419,8 @@ mp_enable(u_int boot_addr)
 
 	/* program each IO APIC in the system */
 	for (apic = 0; apic < mp_napics; ++apic)
-          if (io_apic_setup(apic) < 0)
-		panic("IO APIC setup failure");
+		if (io_apic_setup(apic) < 0)
+			panic("IO APIC setup failure");
 
 	/* install an inter-CPU IPI for TLB invalidation */
 	setidt(ICU_OFFSET + XINVLTLB_OFFSET, Xinvltlb,
@@ -983,9 +983,9 @@ get_isa_apic_mask(u_int isaMASK)
 	}
 	--isairq;
 
-	apicpin = get_isa_apic_irq( isairq );
+	apicpin = get_isa_apic_irq(isairq);
 	if (apicpin == -1) {
-		apicpin = get_eisa_apic_irq( isairq );
+		apicpin = get_eisa_apic_irq(isairq);
 		if (apicpin == -1) {
 			return 0;
 		}
