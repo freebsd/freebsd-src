@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.25 1998/07/22 06:01:13 phk Exp $
+# $Id: Makefile.yp,v 1.26 1999/06/24 17:19:35 n_hibma Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -479,7 +479,7 @@ passwd.byname: $(PASSWD)
 	@echo "Updating $@..."
 	$(CAT) $(PASSWD) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -490,7 +490,7 @@ passwd.byuid: $(PASSWD)
 	@echo "Updating $@..."
 	$(CAT) $(PASSWD) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) -f -i $(PASSWD) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -502,7 +502,7 @@ group.byname: $(GROUP)
 	@echo "Updating $@..."
 	$(CAT) $(GROUP) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -513,7 +513,7 @@ group.bygid: $(GROUP)
 	@echo "Updating $@..."
 	$(CAT) $(GROUP) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
-		| $(DBLOAD) -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) -f -i $(GROUP) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -538,7 +538,7 @@ master.passwd.byname: $(MASTER)
 .else
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
-		| $(DBLOAD) ${S} -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
@@ -553,7 +553,7 @@ master.passwd.byuid: $(MASTER)
 .else
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
-		| $(DBLOAD) ${S} -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
+		| $(DBLOAD) ${S} -f -i $(MASTER) -o $(YPMAPDIR)/$@ - $(TMP); \
 		$(RMV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
