@@ -35,6 +35,8 @@
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
+#include <sys/fbio.h>
+#include <sys/consio.h>
 
 #include <machine/pc/vesa.h>
 
