@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.5 1996/10/06 12:13:38 jkh Exp $
+<date> $Id: FAQ.sgml,v 1.6 1996/10/06 12:24:34 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -444,7 +444,8 @@ Any entries with a &lt;XXX&gt; are under construction.
         <heading>I have heard about the Problem Report database. Is there an easy way to accesss it ?</heading>
         <p>
           The Problem Report database, filled with all the problems, bugs
-          and changes requested by users with help of the <tt/send-pr/
+          and changes requested by users with help of the <url
+          url="http://www.freebsd.org/send-pr.html" name="send-pr">
           command can be reached at
           <url url="http://www.freebsd.org/cgi-bin/query-pr-summary.cgi"
           name="PR Database Summary">
