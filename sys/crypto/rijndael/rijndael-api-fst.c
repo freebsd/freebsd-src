@@ -125,6 +125,7 @@ int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
 		for (i = numBlocks - 1; i > 0; i--) {
 #if 1 /*STRICT_ALIGN*/
 			bcopy(outBuffer, block, 16);
+			bcopy(input, iv, 16);
 			((word32*)block)[0] ^= ((word32*)iv)[0];
 			((word32*)block)[1] ^= ((word32*)iv)[1];
 			((word32*)block)[2] ^= ((word32*)iv)[2];
