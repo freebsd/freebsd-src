@@ -39,7 +39,7 @@ XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
 	scm-exp.c scm-lang.c scm-valprint.c				\
 	coffread.c dbxread.c dwarfread.c dwarf2read.c elfread.c		\
 	solib.c solib-svr4.c solib-legacy.c
-XSRCS+=	freebsd-uthread.c kvm-fbsd.c
+XSRCS+=	freebsd-uthread.c kvm-fbsd.c solib-fbsd-kld.c
 SRCS=	init.c ${XSRCS} nm.h tm.h xm.h gdbversion.c xregex.h
 
 .if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
