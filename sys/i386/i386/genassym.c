@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.48 1997/08/09 00:02:32 dyson Exp $
+ *	$Id: genassym.c,v 1.49 1997/10/10 09:43:58 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -188,8 +188,6 @@ main()
 	printf("#define\tBI_SIZE %p\n", &bootinfo->bi_size);
 	printf("#define\tBI_SYMTAB %p\n", &bootinfo->bi_symtab);
 	printf("#define\tBI_ESYMTAB %p\n", &bootinfo->bi_esymtab);
-
-	printf("#define\tGPROC0_SEL %d\n", GPROC0_SEL);
 
 	return (0);
 }
