@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.47 1999/05/11 19:54:00 phk Exp $ */
+/* $Id: ccd.c,v 1.48 1999/05/30 16:51:18 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -915,13 +915,14 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	cbp->cb_buf.b_data = addr;
 	cbp->cb_buf.b_vp = ci->ci_vp;
 	LIST_INIT(&cbp->cb_buf.b_dep);
+	BUF_LOCKINIT(&cbp->cb_buf);
+	BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
 	cbp->cb_buf.b_resid = 0;
 	if (cs->sc_ileave == 0)
               cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
               cbc = dbtob((off_t)(cs->sc_ileave - cboff));
-      cbp->cb_buf.b_bcount = (cbc < bcount) ? cbc : bcount;
-
+	cbp->cb_buf.b_bcount = (cbc < bcount) ? cbc : bcount;
  	cbp->cb_buf.b_bufsize = cbp->cb_buf.b_bcount;
 
 	/*
@@ -947,6 +948,8 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 		cbp->cb_buf.b_dev = ci2->ci_dev;
 		cbp->cb_buf.b_vp = ci2->ci_vp;
 		LIST_INIT(&cbp->cb_buf.b_dep);
+		BUF_LOCKINIT(&cbp->cb_buf);
+		BUF_LOCK(&cbp->cb_buf, LK_EXCLUSIVE);
 		cbp->cb_comp = ci2 - cs->sc_cinfo;
 		cb[1] = cbp;
 		/* link together the ccdbuf's and clear "mirror done" flag */
