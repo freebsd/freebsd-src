@@ -192,6 +192,7 @@ struct ata_pci_controller {
 #define ATA_SIS652		0x06521039
 #define ATA_SIS655		0x06551039
 #define ATA_SIS658		0x06581039
+#define ATA_SIS661		0x06611039
 #define ATA_SIS730		0x07301039
 #define ATA_SIS733		0x07331039
 #define ATA_SIS735		0x07351039
