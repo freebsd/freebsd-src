@@ -307,7 +307,6 @@ const char *devtoname(dev_t _dev);
 int	dev_named(dev_t _pdev, const char *_name);
 void	dev_depends(dev_t _pdev, dev_t _cdev);
 void	freedev(dev_t _dev);
-int	iszerodev(dev_t _dev);
 dev_t	makebdev(int _maj, int _min);
 dev_t	make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
