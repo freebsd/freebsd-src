@@ -550,9 +550,9 @@ NODE *n;
 	else
 		fschar = fs->stptr[0];
 
-	onecase = (IGNORECASE && isalpha(fschar));
+	onecase = (IGNORECASE && isalpha((unsigned char)fschar));
 	if (onecase)
-		fschar = casetable[(int) fschar];
+		fschar = casetable[(unsigned char) fschar];
 
 	/* before doing anything save the char at *end */
 	sav = *end;
@@ -562,7 +562,7 @@ NODE *n;
 	for (; nf < up_to;) {
 		field = scan;
 		if (onecase) {
-			while (casetable[(int) *scan] != fschar)
+			while (casetable[(unsigned char) *scan] != fschar)
 				scan++;
 		} else {
 			while (*scan != fschar)

@@ -1540,9 +1540,9 @@ int *errcode;		/* pointer to error variable */
 	else
 		rs = (char) grRS;
 
-	onecase = (IGNORECASE && isalpha(rs));
+	onecase = (IGNORECASE && isalpha((unsigned char)rs));
 	if (onecase)
-		rs = casetable[rs];
+		rs = casetable[(unsigned char)rs];
 
 	/* set up sentinel */
 	if (iop->buf) {
@@ -1703,7 +1703,7 @@ int *errcode;		/* pointer to error variable */
 		}
 /* search for RS, #2, RS = <single char> */
 		if (onecase) {
-			while (casetable[(int) *bp++] != rs)
+			while (casetable[(unsigned char) *bp++] != rs)
 				continue;
 		} else {
 			while (*bp++ != rs)
@@ -1732,7 +1732,7 @@ int *errcode;		/* pointer to error variable */
 
 		bstart = iop->off = bp;
 		bp--;
-		if (onecase ? casetable[(int) *bp] != rs : *bp != rs) {
+		if (onecase ? casetable[(unsigned char) *bp] != rs : *bp != rs) {
 			bp++;
 			bstart = bp;
 		}
@@ -1816,9 +1816,9 @@ int *errcode;		/* pointer to error variable */
 	else
 		rs = (char) grRS;
 
-	onecase = (IGNORECASE && isalpha(rs));
+	onecase = (IGNORECASE && isalpha((unsigned char)rs));
 	if (onecase)
-		rs = casetable[rs];
+		rs = casetable[(unsigned char)rs];
 
 	/* if RS = "", skip leading newlines at the front of the file */
 	if (grRS == FALSE && iop->off == iop->buf) {
@@ -1891,7 +1891,7 @@ int *errcode;		/* pointer to error variable */
 	 */
 	/* search for RS, #2, RS = <single char> */
 	if (onecase) {
-		while (bp < end && casetable[*bp++] != rs)
+		while (bp < end && casetable[(unsigned char)*bp++] != rs)
 			continue;
 	} else {
 		while (bp < end && *bp++ != rs)

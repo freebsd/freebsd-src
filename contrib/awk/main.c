@@ -644,11 +644,11 @@ char *arg;
 		*cp++ = '\0';
 		/* first check that the variable name has valid syntax */
 		badvar = FALSE;
-		if (! isalpha(arg[0]) && arg[0] != '_')
+		if (! isalpha((unsigned char)arg[0]) && arg[0] != '_')
 			badvar = TRUE;
 		else
 			for (cp2 = arg+1; *cp2; cp2++)
-				if (! isalnum(*cp2) && *cp2 != '_') {
+				if (! isalnum((unsigned char)*cp2) && *cp2 != '_') {
 					badvar = TRUE;
 					break;
 				}
