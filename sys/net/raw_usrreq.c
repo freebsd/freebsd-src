@@ -72,7 +72,6 @@ raw_input(m0, proto, src, dst)
 {
 	register struct rawcb *rp;
 	register struct mbuf *m = m0;
-	register int sockets = 0;
 	struct socket *last;
 
 	last = 0;
@@ -106,7 +105,6 @@ raw_input(m0, proto, src, dst)
 					m_freem(n);
 				else {
 					sorwakeup(last);
-					sockets++;
 				}
 			}
 		}
@@ -118,7 +116,6 @@ raw_input(m0, proto, src, dst)
 			m_freem(m);
 		else {
 			sorwakeup(last);
-			sockets++;
 		}
 	} else
 		m_freem(m);
