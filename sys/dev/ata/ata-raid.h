@@ -30,6 +30,7 @@
 
 struct ar_disk {
     struct ata_device	*device;
+    u_int64_t		disk_sectors;	/* sectors on this disk */
     off_t		last_lba;	/* last lba used */
     int			flags;
 #define AR_DF_PRESENT		0x00000001
@@ -208,6 +209,9 @@ struct promise_raid_conf {
     u_int32_t		checksum;
 } __attribute__((packed));
 
-int ata_raid_probe(struct ad_softc *);
+int ata_raiddisk_probe(struct ad_softc *);
+int ata_raiddisk_attach(struct ad_softc *);
+int ata_raiddisk_detach(struct ad_softc *);
 void ata_raid_attach(void);
+int ata_raid_rebuild(int);
 

@@ -1225,11 +1225,11 @@ hpt_timing(struct ata_channel *ch, int devno, int mode)
 	case ATA_PIO2:	timing = 0x0a81f454; break;
 	case ATA_PIO3:	timing = 0x0a81f443; break;
 	case ATA_PIO4:	timing = 0x0a81f442; break;
-	case ATA_WDMA2:	timing = 0x22808242; break;
-	case ATA_UDMA2:	timing = 0x120c8242; break;
-	case ATA_UDMA4:	timing = 0x12ac8242; break;
-	case ATA_UDMA5:	timing = 0x12848242; break;
-	case ATA_UDMA6:	timing = 0x12808242; break;
+	case ATA_WDMA2: timing = 0x22808242; break;
+	case ATA_UDMA2: timing = 0x120c8242; break;
+	case ATA_UDMA4: timing = 0x12ac8242; break;
+	case ATA_UDMA5: timing = 0x12848242; break;
+	case ATA_UDMA6: timing = 0x12808242; break;
 	default:	timing = 0x0d029d5e;
 	}
 	pci_write_config(parent, 0x40 + (devno << 2) , timing, 4);
