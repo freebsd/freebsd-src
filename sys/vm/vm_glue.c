@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20 1995/05/30 08:16:01 rgrimes Exp $
+ * $Id: vm_glue.c,v 1.20.4.1 1995/09/17 01:51:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -356,7 +356,6 @@ scheduler()
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < (cnt.v_free_reserved + UPAGES + 2)) {
 		VM_WAIT;
-		tsleep((caddr_t) &proc0, PVM, "schedm", 0);
 	}
 
 	pp = NULL;
