@@ -38,12 +38,12 @@
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
-#include <machine/mutex.h>
 
 struct swilist {
 	swihand_t	*sl_handler;

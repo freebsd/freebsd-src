@@ -37,6 +37,7 @@
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h> /* for BASE_SLICE, MAX_SLICES */
+#include <sys/ipl.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -45,7 +46,6 @@
 #include <sys/devicestat.h>
 #include <sys/cons.h>
 
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>

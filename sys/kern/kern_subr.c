@@ -45,6 +45,7 @@
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/lock.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
@@ -52,8 +53,6 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-
-#include <machine/mutex.h>
 
 static void	uio_yield __P((void));
 

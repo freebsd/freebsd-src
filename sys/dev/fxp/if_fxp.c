@@ -38,6 +38,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
@@ -56,7 +57,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <machine/mutex.h>
 
 #include <net/ethernet.h>
 #include <net/if_arp.h>

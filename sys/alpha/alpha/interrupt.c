@@ -49,6 +49,7 @@
 #include <sys/ipl.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 
 #include <machine/reg.h>
@@ -56,7 +57,6 @@
 #include <machine/cpuconf.h>
 #include <machine/bwx.h>
 #include <machine/intr.h>
-#include <machine/mutex.h>
 #include <machine/rpb.h>
 
 #ifdef EVCNT_COUNTERS

@@ -48,6 +48,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
@@ -65,8 +66,6 @@
 #include <vm/vm_zone.h>
 
 #include <sys/user.h>
-
-#include <machine/mutex.h>
 
 static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
 

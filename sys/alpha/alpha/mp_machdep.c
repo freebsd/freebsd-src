@@ -28,11 +28,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <machine/mutex.h>
+#include <sys/ipl.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -45,7 +46,6 @@
 #include <machine/smp.h>
 #include <machine/lock.h>
 #include <machine/atomic.h>
-#include <machine/ipl.h>
 #include <machine/globaldata.h>
 #include <machine/pmap.h>
 #include <machine/rpb.h>

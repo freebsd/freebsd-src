@@ -40,6 +40,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 
 #include <machine/bus_memio.h>
@@ -47,7 +48,6 @@
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/mutex.h>
 
 #include <cam/cam.h>
 #include <cam/cam_debug.h>

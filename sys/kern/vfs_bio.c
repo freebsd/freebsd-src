@@ -35,6 +35,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
@@ -52,8 +53,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
-
-#include <machine/mutex.h>
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 

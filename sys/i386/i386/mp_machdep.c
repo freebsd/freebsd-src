@@ -42,6 +42,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
+#include <sys/mutex.h>
 #ifdef BETTER_CLOCK
 #include <sys/dkstat.h>
 #endif
@@ -65,7 +66,6 @@
 #include <machine/apic.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
-#include <machine/mutex.h>
 #include <machine/mpapic.h>
 #include <machine/psl.h>
 #include <machine/segments.h>

@@ -30,6 +30,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -49,7 +50,6 @@
 #include <sys/aio.h>
 
 #include <machine/limits.h>
-#include <machine/mutex.h>
 
 #include "opt_vfs_aio.h"
 

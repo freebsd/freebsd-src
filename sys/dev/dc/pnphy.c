@@ -45,6 +45,7 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <net/if.h>
@@ -58,7 +59,6 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
-#include <machine/mutex.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 

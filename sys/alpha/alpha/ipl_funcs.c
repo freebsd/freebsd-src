@@ -31,13 +31,13 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/ipl.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/interrupt.h>
-#include <machine/ipl.h>
 #include <machine/cpu.h>
 #include <machine/globaldata.h>
 #include <machine/globals.h>
-#include <machine/mutex.h>
 #include <net/netisr.h>
 
 #include "sio.h"

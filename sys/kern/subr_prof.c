@@ -37,12 +37,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 
-#include <machine/ipl.h>
 #include <machine/cpu.h>
 
 #ifdef GPROF

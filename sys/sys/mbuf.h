@@ -37,7 +37,7 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
-#include <machine/mutex.h>	/* XXX */
+#include <sys/mutex.h>	/* XXX */
 
 /*
  * Mbufs are of a single size, MSIZE (machine/param.h), which

@@ -45,7 +45,9 @@
 #include <sys/systm.h>
 #include <sys/dkstat.h>
 #include <sys/callout.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -58,9 +60,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
-#include <machine/ipl.h>
 #include <machine/limits.h>
-#include <machine/mutex.h>
 #include <machine/smp.h>
 
 #ifdef GPROF
