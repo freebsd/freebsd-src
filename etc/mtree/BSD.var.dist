@@ -1,33 +1,33 @@
-#	$Id: BSD.var.dist,v 1.21 1995/02/15 01:51:18 jkh Exp $
+#	$Id: BSD.var.dist,v 1.22 1995/04/12 03:02:01 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
 .               uname=root gname=wheel
-    account        
+    account
     ..
-/set type=dir uname=root gname=wheel mode=0755
-    at             
-	jobs		uname=daemon
-	..
-	spool		uname=daemon
+/set type=dir uname=daemon gname=wheel mode=0755
+    at              uname=root
+        jobs
+        ..
+        spool
         ..
     ..
-    backups         mode=0750
+    backups         uname=root mode=0750
     ..
-    crash           mode=0750
+    crash           uname=root mode=0750
     ..
 /set type=dir uname=root gname=wheel mode=0700
     cron            mode=0750
-        tabs           
+        tabs
         ..
     ..
     db              uname=bin gname=bin mode=0755
     ..
 /set type=dir uname=games gname=bin mode=0755
-    games          
-        hackdir        
+    games
+        hackdir
         ..
-        phantasia      
+        phantasia
         ..
     ..
     log             uname=bin
@@ -42,8 +42,6 @@
     ..
     rwho            uname=bin
     ..
-    yp		    uname=bin
-    ..
 /set type=dir uname=uucp gname=daemon mode=0755
     spool           uname=bin gname=bin
         lock            gname=dialer mode=0775
@@ -55,21 +53,26 @@
         output          uname=bin
         ..
 /set type=dir uname=uucp gname=uucp mode=0775
-        uucp           
-            .Preserve      
+        uucp
+            .Preserve
             ..
-            .Sequence      
+            .Sequence
             ..
-            .Status        
+            .Status
             ..
-            .Temp          
+            .Temp
             ..
-            .Xqtdir        
+            .Xqtdir
             ..
         ..
         uucppublic      mode=0777
         ..
     ..
-    tmp             uname=bin gname=bin mode=01777
+/set type=dir uname=bin gname=bin mode=01777
+    tmp
+        vi.recover
+        ..
+    ..
+    yp              mode=0755
     ..
 ..

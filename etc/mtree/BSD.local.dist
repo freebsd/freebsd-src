@@ -1,21 +1,21 @@
-#	$Id: BSD.local.dist,v 1.9 1995/02/22 04:34:19 ache Exp $
+#     $Id: BSD.local.dist,v 1.10 1995/05/13 12:07:08 asami Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
 .               uname=root gname=wheel
-    bin            
+    bin
     ..
-    etc            
+    etc
     ..
     include
     ..
-    info           
+    info
     ..
-    lib            
+    lib
     ..
     libexec
     ..
-    man            
+    man
         cat1            uname=man
         ..
         cat2            uname=man
@@ -34,29 +34,29 @@
         ..
         catl            uname=man
         ..
-        man1           
+        man1
         ..
-        man2           
+        man2
         ..
-        man3           
+        man3
         ..
-        man4           
+        man4
         ..
-        man5           
+        man5
         ..
-        man6           
+        man6
         ..
-        man7           
+        man7
         ..
-        man8           
+        man8
         ..
-        manl           
+        manl
         ..
-        skel           
+        skel
         ..
-    ..
-    share
     ..
     sbin
+    ..
+    share
     ..
 ..
