@@ -90,7 +90,7 @@ sapic_read_rte(struct sapic *sa, int which,
 	c = intr_disable();
 	p[0] = sapic_read(sa, SAPIC_RTE_BASE + 2*which);
 	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2*which + 1);
-	intr_enable(c);
+	intr_restore(c);
 }
 
 #endif
@@ -105,7 +105,7 @@ sapic_write_rte(struct sapic *sa, int which,
 	c = intr_disable();
 	sapic_write(sa, SAPIC_RTE_BASE + 2*which, p[0]);
 	sapic_write(sa, SAPIC_RTE_BASE + 2*which + 1, p[1]);
-	intr_enable(c);
+	intr_restore(c);
 }
 
 struct sapic *

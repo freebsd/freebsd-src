@@ -610,7 +610,7 @@ pmap_invalidate_all_1(void *arg)
 		}
 		addr += pmap_ptc_e_stride1;
 	}
-	intr_enable(psr);
+	intr_restore(psr);
 }
 
 static void
