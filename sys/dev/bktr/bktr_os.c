@@ -209,7 +209,7 @@ static struct cdevsw bktr_cdevsw = {
 	/* bmaj */	-1
 };
 
-DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, bktr_cdevsw, 0, 0);
+DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);
 
 
 /*
