@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.82 1996/09/28 03:33:26 dyson Exp $
+ * $Id: vm_object.c,v 1.82.2.1 1997/03/25 04:54:30 dyson Exp $
  */
 
 /*
@@ -1500,7 +1500,8 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	    (int) object->paging_offset,
 	    (int) object->backing_object, (int) object->backing_object_offset);
 	db_printf("cache: next=%p, prev=%p\n",
-	    TAILQ_NEXT(object, cached_list), TAILQ_PREV(object, cached_list));
+	    TAILQ_NEXT(object, cached_list), TAILQ_PREV(object, object_q,
+							cached_list));
 
 	if (!full)
 		return;
