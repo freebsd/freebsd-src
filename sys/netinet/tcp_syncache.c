@@ -369,10 +369,10 @@ syncache_timer(xslot)
 	int s;
 
 	s = splnet();
-	INP_INFO_RLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&tcbinfo);
         if (callout_pending(&tcp_syncache.tt_timerq[slot]) ||
             !callout_active(&tcp_syncache.tt_timerq[slot])) {
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&tcbinfo);
                 splx(s);
                 return;
         }
@@ -406,7 +406,7 @@ syncache_timer(xslot)
 	if (nsc != NULL)
 		callout_reset(&tcp_syncache.tt_timerq[slot],
 		    nsc->sc_rxttime - ticks, syncache_timer, (void *)(slot));
-	INP_INFO_RUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
 
