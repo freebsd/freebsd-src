@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.35 2000/12/23 08:03:03 vixie Exp $
+# $Id: Makefile,v 8.36 2001/08/14 05:58:11 marka Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -63,7 +63,7 @@ ${LIBBIND}: ${OBJS}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; else true ; fi
+	mkdir ${THREADED} 2> /dev/null || test -d ${THREADED} -a -w ${THREADED}
 	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
 	 -o ${THREADED}/$*.${O}
 	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} \

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: getgrent.c,v 1.19 1999/10/13 16:39:30 vixie Exp $";
+static const char rcsid[] = "$Id: getgrent.c,v 1.20 2001/05/29 05:48:41 marka Exp $";
 #endif
 
 /* Imports */
@@ -36,6 +36,8 @@ static int __bind_irs_gr_unneeded;
 #include <grp.h>
 #include <resolv.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <irs.h>
 
@@ -80,14 +82,14 @@ setgroupent(int stayopen) {
 
 #ifdef SETGRENT_VOID
 void
-setgrent() {
+setgrent(void) {
 	struct net_data *net_data = init();
 
-	return (setgrent_p(net_data));
+	setgrent_p(net_data);
 }
 #else
 int
-setgrent() {
+setgrent(void) {
 	struct net_data *net_data = init();
 
 	return (setgrent_p(net_data));
@@ -102,7 +104,7 @@ endgrent() {
 }
 
 int
-getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroups) {
+getgrouplist(GETGROUPLIST_ARGS) {
 	struct net_data *net_data = init();
 
 	return (getgrouplist_p(name, basegid, groups, ngroups, net_data));
@@ -142,7 +144,7 @@ getgrgid_p(gid_t gid, struct net_data *net_data) {
 	if (!net_data || !(gr = net_data->gr))
 		return (NULL);
 	if (net_data->gr_stayopen && net_data->gr_last &&
-	    net_data->gr_last->gr_gid == gid)
+	    (gid_t)net_data->gr_last->gr_gid == gid)
 		return (net_data->gr_last);
 	net_data->gr_last = (*gr->bygid)(gr, gid);
 	if (!net_data->gr_stayopen)

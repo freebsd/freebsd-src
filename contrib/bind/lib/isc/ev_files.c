@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_files.c,v 1.19 1999/10/07 20:44:04 vixie Exp $";
+static const char rcsid[] = "$Id: ev_files.c,v 1.21 2001/11/01 05:35:46 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -28,6 +28,7 @@ static const char rcsid[] = "$Id: ev_files.c,v 1.19 1999/10/07 20:44:04 vixie Ex
 
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -56,9 +57,9 @@ evSelectFD(evContext opaqueCtx,
 		 "evSelectFD(ctx %#x, fd %d, mask 0x%x, func %#x, uap %#x)\n",
 		 ctx, fd, eventmask, func, uap);
 	if (eventmask == 0 || (eventmask & ~EV_MASK_ALL) != 0)
-		ERR(EINVAL);
+		EV_ERR(EINVAL);
 	if (fd > ctx->highestFD)
-		ERR(EINVAL);
+		EV_ERR(EINVAL);
 	OK(mode = fcntl(fd, F_GETFL, NULL));	/* side effect: validate fd. */
 
 	/*
@@ -72,7 +73,12 @@ evSelectFD(evContext opaqueCtx,
 		if (mode & PORT_NONBLOCK)
 			FD_SET(fd, &ctx->nonblockBefore);
 		else {
+#ifdef USE_FIONBIO_IOCTL
+			int on = 1;
+			OK(ioctl(fd, FIONBIO, (char *)&on));
+#else
 			OK(fcntl(fd, F_SETFL, mode | PORT_NONBLOCK));
+#endif
 			FD_CLR(fd, &ctx->nonblockBefore);
 		}
 	}
@@ -84,7 +90,7 @@ evSelectFD(evContext opaqueCtx,
 	 * same context.
 	 */
 	if (id != NULL && FindFD(ctx, fd, eventmask) != NULL)
-		ERR(ETOOMANYREFS);
+		EV_ERR(ETOOMANYREFS);
 
 	/* Allocate and fill. */
 	OKNEW(id);
@@ -166,7 +172,7 @@ evDeselectFD(evContext opaqueCtx, evFileID opaqueID) {
 	/* Get the mode.  Unless the file has been closed, errors are bad. */
 	mode = fcntl(del->fd, F_GETFL, NULL);
 	if (mode == -1 && errno != EBADF)
-		ERR(errno);
+		EV_ERR(errno);
 
 	/* Remove from the list of files. */
 	if (del->prev != NULL)
@@ -197,7 +203,12 @@ evDeselectFD(evContext opaqueCtx, evFileID opaqueID) {
 		 * this fcntl() fails since (a) we've already done the work
 		 * and (b) the caller didn't ask us anything about O_NONBLOCK.
 		 */
+#ifdef USE_FIONBIO_IOCTL
+		int off = 1;
+		(void) ioctl(del->fd, FIONBIO, (char *)&off);
+#else
 		(void) fcntl(del->fd, F_SETFL, mode & ~PORT_NONBLOCK);
+#endif
 	}
 
 	/*

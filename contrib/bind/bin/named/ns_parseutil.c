@@ -66,8 +66,7 @@ new_symbol_table(int size_guess, free_function free_value) {
 
 void
 free_symbol(symbol_table st, symbol_entry ste) {
-	if (ste->flags & SYMBOL_FREE_KEY)
-		freestr(ste->key);
+	ste->key = freestr(ste->key);
 	if (ste->flags & SYMBOL_FREE_VALUE)
 		(st->free_value)(ste->type, ste->value.pointer);
 }
@@ -147,7 +146,7 @@ lookup_symbol(symbol_table st, const char *key, int type,
 }
 
 void
-define_symbol(symbol_table st, char *key, int type, symbol_value value,
+define_symbol(symbol_table st, const char *key, int type, symbol_value value,
 	      unsigned int flags) {
 	int hash;
 	symbol_entry ste;
@@ -161,7 +160,7 @@ define_symbol(symbol_table st, char *key, int type, symbol_value value,
 		ste = (symbol_entry)memget(sizeof *ste);
 		if (ste == NULL)
 			panic("memget failed in define_symbol()", NULL);
-		ste->key = key;
+		ste->key = savestr(key, 1);
 		ste->type = type;
 		ste->value = value;
 		ste->flags = flags;
@@ -171,7 +170,7 @@ define_symbol(symbol_table st, char *key, int type, symbol_value value,
 		ns_debug(ns_log_parser, 7, "redefined symbol %s type %d",
 			 key, type);
 		free_symbol(st, ste);
-		ste->key = key;
+		ste->key = savestr(key, 1);
 		ste->value = value;
 		ste->flags = flags;
 	}

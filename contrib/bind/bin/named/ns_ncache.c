@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ncache.c,v 8.27 2000/04/21 06:54:09 vixie Exp $";
+static const char rcsid[] = "$Id: ns_ncache.c,v 8.29 2001/06/18 14:43:16 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -121,7 +121,7 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 
 	while (ancount--) {
 		u_int32_t ttl;
-		u_int atype, aclass;
+		int atype, aclass;
 
 		n = dn_skipname(cp, eom);
 		if (n < 0) {
@@ -257,14 +257,14 @@ cache_n_resp(u_char *msg, int msglen, struct sockaddr_in from,
 		flags = DB_NOTAUTH|DB_NOHINTS;
 	}
 
-	if ((n = db_update(dname, dp, dp, NULL, flags, hashtab, from)) != OK) {
+	n = db_update(dname, dp, dp, NULL, flags, hashtab, from);
+	if (n != OK)
 		ns_debug(ns_log_ncache, 1,
 			 "db_update failed (%d), cache_n_resp()", n);
-		db_freedata(dp);
-		return;
-	}
-	ns_debug(ns_log_ncache, 4,
-		 "ncache succeeded: [%s %s %s] rcode:%d ttl:%ld",
-		    dname, p_type(type), p_class(class),
-		    dp->d_rcode, (long)(dp->d_ttl - tt.tv_sec));
+	else
+		ns_debug(ns_log_ncache, 4,
+			 "ncache succeeded: [%s %s %s] rcode:%d ttl:%ld",
+			 dname, p_type(type), p_class(class),
+			 dp->d_rcode, (long)(dp->d_ttl - tt.tv_sec));
+	db_detach(&dp);
 }

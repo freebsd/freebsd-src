@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static const char rcsid[] = "$Id: db_glue.c,v 8.42 2000/12/23 08:14:35 vixie Exp $";
+static const char rcsid[] = "$Id: db_glue.c,v 8.47 2002/05/18 01:02:54 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -145,8 +145,8 @@ destroyservicelist() {
 
 	for (slp = servicelist; slp != NULL; slp = slp_next) {
 		slp_next = slp->next;
-		freestr(slp->name);
-		freestr(slp->proto);
+		slp->name = freestr(slp->name);
+		slp->proto = freestr(slp->proto);
 		memput(slp, sizeof *slp);
 	}
 	servicelist = NULL;
@@ -183,7 +183,7 @@ destroyprotolist() {
 
 	for (plp = protolist; plp != NULL; plp = plp_next) {
 		plp_next = plp->next;
-		freestr(plp->name);
+		plp->name = freestr(plp->name);
 		memput(plp, sizeof *plp);
 	}
 	protolist = NULL;
@@ -354,31 +354,7 @@ rm_datum(struct databuf *dp, struct namebuf *np, struct databuf *pdp,
 	} else
 		dp->d_next = NULL;
 	dp->d_flags &= ~DB_F_ACTIVE;
-	DRCNTDEC(dp);
-	if (dp->d_rcnt) {
-#ifdef DEBUG
-		int32_t ii;
-#endif
-
-		switch(dp->d_type) {
-		case T_NS:
-			ns_debug(ns_log_db, 3, "rm_datum: %s rcnt = %d",
-				 dp->d_data, dp->d_rcnt);
-			break;
-#ifdef DEBUG
-		case T_A:
-			memcpy(&ii, dp->d_data, sizeof ii);
-			ns_debug(ns_log_db, 3,
-				 "rm_datum: %08.8X rcnt = %d",
-				 ii, dp->d_rcnt);
-			break;
-#endif
-		default:
-			ns_debug(ns_log_db, 3,
-				 "rm_datum: rcnt = %d", dp->d_rcnt);
-		}
-	} else
-		db_freedata(dp);
+	db_detach(&dp);
 	return (ndp);
 }
 
@@ -393,10 +369,10 @@ rm_name(struct namebuf *np, struct namebuf **pp, struct namebuf *pnp) {
 	const char *msg;
 
 	/* verify */
-	if ( (np->n_data && (msg = "data"))
-	  || (np->n_hash && (msg = "hash"))
+	if ( (np->n_data != NULL && (msg = "data") != NULL)
+	  || (np->n_hash != NULL && (msg = "hash") != NULL)
 	    ) {
-		ns_panic(ns_log_db, 1, "rm_name(%#x(%s)): non-nil %s pointer",
+		ns_panic(ns_log_db, 1, "rm_name(%p(%s)): non-nil %s pointer",
 			 np, NAME(*np), msg);
 	}
 
@@ -463,9 +439,9 @@ nhash(const char *name) {
 	return (hval);
 }
 
-void
+static void
 db_freedata(struct databuf *dp) {
-	int bytes = DATASIZE(dp->d_size);
+	int bytes = BIND_DATASIZE(dp->d_size);
 
 	if (dp->d_rcnt != 0)
 		panic("db_freedata: d_rcnt != 0", NULL);
@@ -476,7 +452,26 @@ db_freedata(struct databuf *dp) {
 	if (dp->d_next != NULL)
 		panic("db_free: d_next != NULL", NULL);
 	dp->d_flags |= DB_F_FREE;
+#ifdef CHECK_MAGIC
+	dp->d_magic = 0;
+#endif
 	memput(dp, bytes);
+}
+
+void
+db_detach(struct databuf **dpp) {
+	struct databuf *dp;
+
+	INSIST(dpp != NULL && *dpp != NULL);
+	dp = *dpp;
+#ifdef CHECK_MAGIC
+	INSIST(dp->d_magic == DATABUF_MAGIC);
+#endif
+
+	DRCNTDEC(dp);
+	if (dp->d_rcnt == 0)
+		db_freedata(dp);
+	*dpp = NULL;
 }
 
 struct lame_hash {
@@ -550,9 +545,9 @@ db_lame_add(char *zone, char *server, time_t when) {
 	this->zone = savestr(zone, 0);
 	if (this->server == NULL || this->zone == NULL) {
 		if (this->server != NULL)
-			freestr(this->server);
+			this->server = freestr(this->server);
 		if (this->zone != NULL)
-			freestr(this->zone);
+			this->zone = freestr(this->zone);
 		memput(this, sizeof *this);
 		return;
 	}
@@ -602,8 +597,8 @@ db_lame_clean(void) {
 		this = lame_hash[i];
 		while (this != NULL) {
 			if (this->when < tt.tv_sec) {
-				freestr(this->zone);
-				freestr(this->server);
+				this->zone = freestr(this->zone);
+				this->server = freestr(this->server);
 				if (last != NULL) {
 					last->next = this->next;
 					memput(this, sizeof *this);
@@ -635,8 +630,8 @@ db_lame_destroy(void) {
 		while (this != NULL) {
 			last = this;
 			this = this->next;
-			freestr(last->zone);
-			freestr(last->server);
+			last->zone = freestr(last->zone);
+			last->server = freestr(last->server);
 			memput(last, sizeof *this);
 		}
 	}

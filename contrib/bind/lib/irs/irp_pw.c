@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: irp_pw.c,v 8.1 1999/01/18 07:46:54 vixie Exp $";
+static const char rcsid[] = "$Id: irp_pw.c,v 8.2 2001/11/01 07:29:26 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Extern */
@@ -340,8 +340,10 @@ free_passwd(struct passwd *pw) {
 	if (pw->pw_passwd != NULL)
 		free(pw->pw_passwd);
 
+#ifdef HAVE_PW_CLASS
 	if (pw->pw_class != NULL)
 		free(pw->pw_class);
+#endif
 
 	if (pw->pw_gecos != NULL)
 		free(pw->pw_gecos);

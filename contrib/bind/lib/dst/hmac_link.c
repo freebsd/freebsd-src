@@ -1,6 +1,6 @@
 #ifdef HMAC_MD5
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/hmac_link.c,v 1.8 1999/10/15 21:30:07 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/hmac_link.c,v 1.9 2001/05/29 05:48:10 marka Exp $";
 #endif
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -103,7 +103,7 @@ dst_hmac_md5_sign(const int mode, DST_KEY *d_key, void **context,
 	}
 
 	if ((mode & SIG_MODE_UPDATE) && (data && len > 0))
-		MD5Update(ctx, (u_char *)data, len);
+		MD5Update(ctx, data, len);
 
 	if (mode & SIG_MODE_FINAL) {
 		if (signature == NULL || sig_len < MD5_LEN)
@@ -169,7 +169,7 @@ dst_hmac_md5_verify(const int mode, DST_KEY *d_key, void **context,
 		MD5Update(ctx, key->hk_ipad, HMAC_LEN);
 	}
 	if ((mode & SIG_MODE_UPDATE) && (data && len > 0))
-		MD5Update(ctx, (u_char *)data, len);
+		MD5Update(ctx, data, len);
 
 	if (mode & SIG_MODE_FINAL) {
 		u_char digest[MD5_LEN];
@@ -229,7 +229,7 @@ dst_buffer_to_hmac_md5(DST_KEY *dkey, const u_char *key, const int keylen)
 	if (keylen > HMAC_LEN) {
 		u_char tk[MD5_LEN];
 		MD5Init(&ctx);
-		MD5Update(&ctx, (u_char *)key, keylen);
+		MD5Update(&ctx, key, keylen);
 		MD5Final(tk, &ctx);
 		memset((void *) &ctx, 0, sizeof(ctx));
 		key = tk;
@@ -430,6 +430,8 @@ dst_hmac_md5_generate_key(DST_KEY *key, const int nothing)
 {
 	u_char *buff;
 	int i, n, size;
+
+	i = nothing;
 
 	if (key == NULL || key->dk_alg != KEY_HMAC_MD5)
 		return (0);

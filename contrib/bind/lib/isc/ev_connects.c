@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_connects.c,v 8.27 2000/11/14 01:10:37 vixie Exp $";
+static const char rcsid[] = "$Id: ev_connects.c,v 8.32 2001/07/03 13:26:35 marka Exp $";
 #endif
 
 /* Import. */
@@ -30,6 +30,7 @@ static const char rcsid[] = "$Id: ev_connects.c,v 8.27 2000/11/14 01:10:37 vixie
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 
 #include <unistd.h>
 
@@ -77,7 +78,12 @@ evListen(evContext opaqueCtx, int fd, int maxconn,
 	 * incorrectly.
 	 */
 	if ((mode & PORT_NONBLOCK) == 0) {
+#ifdef USE_FIONBIO_IOCTL
+		int on = 1;
+		OK(ioctl(fd, FIONBIO, (char *)&on));
+#else
 		OK(fcntl(fd, F_SETFL, mode | PORT_NONBLOCK));
+#endif
 		new->flags |= EV_CONN_BLOCK;
 	}
 	OK(listen(fd, maxconn));
@@ -103,7 +109,7 @@ evListen(evContext opaqueCtx, int fd, int maxconn,
 }
 
 int
-evConnect(evContext opaqueCtx, int fd, void *ra, int ralen,
+evConnect(evContext opaqueCtx, int fd, const void *ra, int ralen,
 	  evConnFunc func, void *uap, evConnID *id)
 {
 	evContext_p *ctx = opaqueCtx.opaque;
@@ -160,8 +166,14 @@ evCancelConn(evContext opaqueCtx, evConnID id) {
 		if (mode == -1) {
 			if (errno != EBADF)
 				return (-1);
-		} else
+		} else {
+#ifdef USE_FIONBIO_IOCTL
+			int on = 1;
+			OK(ioctl(this->fd, FIONBIO, (char *)&on));
+#else
 			OK(fcntl(this->fd, F_SETFL, mode | PORT_NONBLOCK));
+#endif
+		}
 	}
 	
 	/* Unlink from ctx->conns. */
@@ -275,7 +287,8 @@ listener(evContext opaqueCtx, void *uap, int fd, int evmask) {
 		struct sockaddr_un un;
 #endif
 	} la, ra;
-	int new, lalen = 0, ralen;
+	int new; 
+	ISC_SOCKLEN_T lalen = 0, ralen;
 
 	REQUIRE((evmask & EV_READ) != 0);
 	ralen = sizeof ra;
@@ -309,13 +322,15 @@ connector(evContext opaqueCtx, void *uap, int fd, int evmask) {
 		struct sockaddr_un un;
 #endif
 	} la, ra;
-	int lalen, ralen;
+	ISC_SOCKLEN_T lalen, ralen;
 	char buf[1];
 	void *conn_uap;
 	evConnFunc conn_func;
 	evConnID id;
 	int socket_errno = 0;
-	int optlen;
+	ISC_SOCKLEN_T optlen;
+
+	UNUSED(evmask);
 
 	lalen = sizeof la;
 	ralen = sizeof ra;

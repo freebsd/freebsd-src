@@ -98,6 +98,7 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 #include <netinet/in.h>
 #include <histedit.h>
 #include "port_after.h"
+#include <resolv.h>
 #include "res.h"
 
 extern char rootServerName[];
@@ -159,9 +160,9 @@ nslookup_yy_input(buf, result, max_size, intr)
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\_]
-LET	[A-Za-z0-9.*_]
-NAME	[A-Za-z0-9.*=_/-]
+FLET	[:A-Za-z0-9.*\\_]
+LET	[:A-Za-z0-9.*_]
+NAME	[:A-Za-z0-9.*=_/-]
 %%
 ^{WS}*server{WS}+{LET}{NAME}*{WS}*$	{
 					    /*
@@ -170,11 +171,11 @@ NAME	[A-Za-z0-9.*=_/-]
 					     * 1 == use original server to find
 					     *	    the new one.
 					     */
-					    SetDefaultServer(yytext, 0);
+					    SetDefaultServer((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*lserver{WS}+{LET}{NAME}*{WS}*$	{
-					    SetDefaultServer(yytext, 1);
+					    SetDefaultServer((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*exit{WS}*$			{
@@ -190,11 +191,11 @@ NAME	[A-Za-z0-9.*=_/-]
 					     *  0 == output to stdout
 					     *  1 == output to file
 					     */
-					    Finger(yytext, 1);
+					    Finger((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*finger({WS}+{LET}{NAME}*)?{WS}*$	{
-					    Finger(yytext, 0);
+					    Finger((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{
@@ -203,11 +204,11 @@ NAME	[A-Za-z0-9.*=_/-]
 					     *  0 == output to stdout
 					     *  1 == output to file
 					     */
-					    ListHosts(yytext, 1);
+					    ListHosts((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}*$	{
-					    ListHosts(yytext, 0);
+					    ListHosts((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*ls{WS}+-t{WS}+({LET}{NAME}*{WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$ {
@@ -216,15 +217,15 @@ NAME	[A-Za-z0-9.*=_/-]
 					     *  0 == output to stdout
 					     *  1 == output to file
 					     */
-					    ListHostsByType(yytext, 1);
+					    ListHostsByType((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*ls{WS}+-t{WS}+({LET}{NAME}*{WS}+)?{LET}{NAME}*{WS}*$ {
-					    ListHostsByType(yytext, 0);
+					    ListHostsByType((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*set{WS}+{NAME}+{WS}*$		{
-					    SetOption(yytext);
+					    SetOption((char*)yytext);
 					    return(1);
 					}
 ^{WS}*help{WS}*$			{
@@ -242,11 +243,11 @@ NAME	[A-Za-z0-9.*=_/-]
 					     * 0 == output to stdout
 					     * 1 == output to file
 					     */
-					    LookupHost(yytext, 1);
+					    LookupHost((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*{FLET}{NAME}*{WS}*$		{
-					    LookupHost(yytext, 0);
+					    LookupHost((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*{FLET}{NAME}*{WS}+{LET}{NAME}*{WS}+>>?{WS}*{NAME}+{WS}*$	{
@@ -254,11 +255,11 @@ NAME	[A-Za-z0-9.*=_/-]
 					     * 0 == output to stdout
 					     * 1 == output to file
 					     */
-					    LookupHostWithServer(yytext, 1);
+					    LookupHostWithServer((char*)yytext, 1);
 					    return(1);
 					}
 ^{WS}*{FLET}{NAME}*{WS}+{LET}{NAME}*{WS}*$	{
-					    LookupHostWithServer(yytext, 0);
+					    LookupHostWithServer((char*)yytext, 0);
 					    return(1);
 					}
 ^{WS}*\n				{
@@ -266,7 +267,7 @@ NAME	[A-Za-z0-9.*=_/-]
 					}
 ^.*\n					{
 					    printf("Unrecognized command: %s",
-							yytext);
+							(char*)yytext);
 					    return(1);
 					}
 \n					{ ; }

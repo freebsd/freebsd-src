@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.30 2000/12/23 08:02:48 vixie Exp $
+# $Id: Makefile,v 8.31 2001/08/14 05:57:57 marka Exp $
 
 DESTDIR=
 CC= cc
@@ -64,10 +64,10 @@ CPPFLAGS= -I${PORTINCL} -I${INCL}
 SUBDIRS = addr nslookup dig dnsquery host named named-xfer ndc nsupdate \
 	mkservdb irpd dnskeygen named-bootconf
 
-all: ${SUBDIRS}
-
-${SUBDIRS}: FRC
-	@(cd $@; pwd; ${MAKE} ${MARGS}) || exit 1
+all: 
+	@for x in ${SUBDIRS}; do \
+		(cd $$x; pwd; ${MAKE} ${MARGS} $@) || exit 1; \
+	done
 
 install depend tags clean distclean::
 	@for x in ${SUBDIRS}; do \

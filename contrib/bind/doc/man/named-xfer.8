@@ -89,9 +89,7 @@
 .Op Fl p Ar port#
 .Op Fl S 
 .Ar nameserver 
-.Op Ar [ Sy axfr 
-| 
-.Op Sy ixfr ]
+.Op Sy axfr | ixfr
 .Sh DESCRIPTION
 .Ic Named-xfer
 is an ancillary program executed by
@@ -161,7 +159,7 @@ for more information.
 Additional arguments are taken as name server addresses in so-called
 .Dq dotted-quad 
 syntax 
-.Em only; 
+.Em only ;
 no host name are allowed here.  At least one address must be specified.  
 Any additional addresses will be tried, in order, if the first one fails 
 to transfer to us successfully.

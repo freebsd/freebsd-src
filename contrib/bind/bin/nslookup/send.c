@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: send.c,v 8.10 2000/12/23 08:14:47 vixie Exp $";
+static const char rcsid[] = "$Id: send.c,v 8.14 2002/05/10 04:35:09 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -120,30 +120,31 @@ unsigned short nsport = NAMESERVER_PORT;
  */
 
 int
-SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
-	    u_char *answer, u_int anslen, int *trueLenPtr)
+SendRequest(union res_sockaddr_union *nsAddrPtr, const u_char *buf,
+	    int buflen, u_char *answer, u_int anslen, int *trueLenPtr)
 {
-	int n, try, v_circuit, resplen, salen;
+	int n, try, v_circuit, resplen;
+	ISC_SOCKLEN_T salen;
 	int gotsomewhere = 0, connected = 0;
 	int connreset = 0;
 	u_short id, len;
 	u_char *cp;
 	fd_set dsmask;
 	struct timeval timeout;
-	const HEADER *hp = (HEADER *) buf;
+	const HEADER *hp = (const HEADER *) buf;
 	HEADER *anhp = (HEADER *) answer;
 	struct iovec iov[2];
 	int terrno = ETIMEDOUT;
 	char junk[512];
-	struct sockaddr_in sin, sa;
+	struct sockaddr_storage sa;
+	int family = nsAddrPtr->sin.sin_family;
+	int clen = (family == AF_INET) ? sizeof(struct sockaddr_in) :
+				         sizeof(struct sockaddr_in6);
 
 	if (res.options & RES_DEBUG2) {
 	    printf("------------\nSendRequest(), len %d\n", buflen);
 	    Print_query(buf, buf + buflen, 1);
 	}
-	sin.sin_family	= AF_INET;
-	sin.sin_port	= htons(nsport);
-	sin.sin_addr	= *nsAddrPtr;
 	v_circuit = (res.options & RES_USEVC) || buflen > PACKETSZ;
 	id = hp->id;
 	/*
@@ -160,15 +161,15 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			 */
 			try = res.retry;
 			if (s < 0) {
-				s = socket(AF_INET, SOCK_STREAM, 0);
+				s = socket(family, SOCK_STREAM, 0);
 				if (s < 0) {
 					terrno = errno;
 					if (res.options & RES_DEBUG)
 					    perror("socket (vc) failed");
 					continue;
 				}
-				if (connect(s, (struct sockaddr *)&sin,
-				   sizeof(struct sockaddr)) < 0) {
+				if (connect(s, (struct sockaddr *)nsAddrPtr,
+				    clen) < 0) {
 					terrno = errno;
 					if (res.options & RES_DEBUG)
 					    perror("connect failed");
@@ -183,7 +184,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			__putshort(buflen, (u_char *)&len);
 			iov[0].iov_base = (caddr_t)&len;
 			iov[0].iov_len = INT16SZ;
-			iov[1].iov_base = (caddr_t)buf;
+			DE_CONST(buf, iov[1].iov_base);
 			iov[1].iov_len = buflen;
 			if (writev(s, iov, 2) != INT16SZ + buflen) {
 				terrno = errno;
@@ -224,7 +225,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 				continue;
 			}
 			cp = answer;
-			if ((resplen = ns_get16((u_char*)cp)) > anslen) {
+			if ((resplen = ns_get16((u_char*)cp)) > (int)anslen) {
 				if (res.options & RES_DEBUG)
 					fprintf(stderr, "response truncated\n");
 				len = anslen;
@@ -265,7 +266,7 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			 * Use datagrams.
 			 */
 			if (s < 0) {
-				s = socket(AF_INET, SOCK_DGRAM, 0);
+				s = socket(family, SOCK_DGRAM, 0);
 				if (s < 0) {
 					terrno = errno;
 					if (res.options & RES_DEBUG)
@@ -275,8 +276,8 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			}
 #if BSD >= 43
 			if (connected == 0) {
-				if (connect(s, (struct sockaddr *)&sin,
-				    sizeof sin) < 0) {
+				if (connect(s, (struct sockaddr *)nsAddrPtr,
+				    clen) < 0) {
 					if (res.options & RES_DEBUG)
 						perror("connect");
 					continue;
@@ -290,8 +291,8 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
 			}
 #else /* BSD */
 			if (sendto(s, (const char *)buf, buflen, 0,
-				   (struct sockaddr *) &sin,
-				   sizeof sin) != buflen) {
+				   (struct sockaddr *) nsAddrPtr,
+				   clen) != buflen) {
 				if (res.options & RES_DEBUG)
 					perror("sendto");
 				continue;

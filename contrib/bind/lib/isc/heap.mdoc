@@ -1,4 +1,4 @@
-.\" $Id: heap.mdoc,v 8.6 2000/11/15 02:03:52 marka Exp $
+.\" $Id: heap.mdoc,v 8.7 2001/08/08 07:50:24 marka Exp $
 .\"
 .\"Copyright (c) 1997,1999 by Internet Software Consortium.
 .\"
@@ -15,7 +15,7 @@
 .\"ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\"SOFTWARE.
 .\"
-.Dd Jan 1, 1997
+.Dd January 1, 1997
 .\"Os OPERATING_SYSTEM [version/release]
 .Os BSD 4
 .Dt HEAP @SYSCALL_EXT@
@@ -52,10 +52,9 @@
 These functions implement heap\-based priority queues.  The user defines a
 priority scheme, and provides a function for comparison of the priority
 of heap elements
-.Po see the description of the
+(see the description of the
 .Ft heap_higher_priority_func
-function pointer, below
-.Pc .
+function pointer, below).
 .Pp
 Each of the functions depends upon the
 .Ft heap_context
@@ -163,9 +162,8 @@ into the appropriate place (priority\-wise) in the
 .Ft heap
 indicated by 
 .Fa ctx
-.Po a pointer to a
-.Ft heap_context
-.Pc .
+(a pointer to a
+.Ft heap_context ) .
 If 
 .No non\- Ns Dv NULL ,
 the user-defined
@@ -189,7 +187,9 @@ element onward via the priority as determined by the user function
 pointed to by
 .Ft higher_priority 
 function pointer
-.Pq see description of Fn heap_new, No above .
+(see description of
+.Fn heap_new ,
+above).
 .Pp
 .Fn heap_increased
 .Pp
@@ -233,7 +233,7 @@ a
 or if the
 .Fa higher_priority
 function pointer is 
-.Dv NULL;
+.Dv NULL ;
 otherwise, a valid
 .Ft heap_context 
 .Ns .
@@ -347,14 +347,24 @@ please refer to
 .Sh SEE ALSO
 .Xr malloc 3 ,
 .Xr realloc 3 .
-.Pp
-Cormen, Leiserson, and Rivest,  
-.Sy Introduction to Algorithms,
-MIT Press / McGraw Hill, 1990, ISBN 0\-262\-03141\-8, chapter 7.
-.Pp
-Sedgewick, 
-.Sy Algorithms,
-2nd ed'n, Addison\-Wesley, 1988, ISBN 0\-201\-06673\-4, chapter 11.
+.Rs
+.%A Cormen
+.%A Leiserson
+.%A Rivest
+.%B Introduction to Algorithms
+.%Q "MIT Press / McGraw Hill"
+.%D 1990
+.%O ISBN 0\-262\-03141\-8
+.%P chapter 7
+.Re
+.Rs
+.%A Sedgewick
+.%B Algorithms, 2nd ed'n
+.%Q Addison\-Wesley
+.%D 1988
+.%O ISBN 0\-201\-06673\-4
+.%P chapter 11
+.Re
 .\" .Sh STANDARDS
 .\" .Sh HISTORY
 .Sh AUTHORS

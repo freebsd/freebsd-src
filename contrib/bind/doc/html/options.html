@@ -13,6 +13,7 @@
 
 <PRE>
 options {
+  [ hostname <VAR>hostname_string</VAR>; ]
   [ version <VAR>version_string</VAR>; ]
   [ directory <VAR>path_name</VAR>; ]
   [ named-xfer <VAR>path_name</VAR>; ]
@@ -29,7 +30,8 @@ options {
   [ host-statistics <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ host-statistics-max <VAR>number</VAR>; ]
   [ multiple-cnames <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
-  [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ notify ( <VAR><A HREF="docdef.html">yes_or_no</A></VAR> | explicit ) <; ]
+  [ suppress-initial-notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ recursion <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ rfc2308-type1 <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ use-id-pool <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
@@ -67,6 +69,7 @@ options {
   [ <A HREF="#topology">topology</A> { <VAR>address_match_list</VAR> }; ]
   [ <A HREF="#sortlist">sortlist</A> { <VAR>address_match_list</VAR> }; ]
   [ rrset-order { <VAR>order_spec</VAR> ; [ <VAR>order_spec</VAR> ; ... ] }; ]
+  [ preferred-glue ( A | AAAA ); ]
 };
 </PRE>
 <HR>
@@ -80,16 +83,33 @@ first occurrence determines the actual options used,
 and a warning will be generated.  If there is no options statement,
 an options block with each option set to its default will be used.</P>
 
-<H4>Pathnames</H4>
+<H4>Server Information</H4>
 
 <DL>
+<DT><CODE>hostname</CODE>
+<DD>
+This defaults to the hostname of the machine hosting the nameserver
+as found by gethostname().
+Its prime purpose is to be able to identify which of a number of anycast
+servers is actually answering your queries by sending a <I>txt</I>
+query for <CODE>hostname.bind</CODE> in class <I>chaos</I> to the anycast
+server and getting back a unique name.
+Setting the hostname to a empty string ("") will disable processing of
+the queries.
+
 <DT><CODE>version</CODE>
 <DD>
 The version the server should report via the <VAR>ndc</VAR> command
 or via a query of name <CODE>version.bind</CODE> in class <I>chaos</I>.
 The default is the real version number of the server, but some server
 operators prefer the string <CODE>"surely you must be joking"</CODE>.
+Changing the value of this string will not prevent people from identifying
+what version you are running.
+</DL>
 
+<H4>Pathnames</H4>
+
+<DL>
 <DT><CODE>directory</CODE>
 <DD>
 The working directory of the server.  Any non-absolute
@@ -228,9 +248,16 @@ zone the server is authoritative for changes.  The use of NOTIFY
 speeds convergence between the master and its slaves.  Slave servers
 that receive a NOTIFY message, and understand it, will contact the
 master server for the zone to see if they need to do a zone transfer.  If
-they do, they will initiate it immediately.  The <CODE>notify</CODE>
+they do, they will initiate it immediately.  If <CODE>explicit</CODE>,
+the NOTIFY messages will only be sent to the addresses in the
+<CODE>also-notify</CODE> list.  The <CODE>notify</CODE>
 option may also be specified in the <CODE>zone</CODE> statement, in which
 case it overrides the <CODE>options notify</CODE> statement.
+
+<DT><CODE>suppress-initial-notify</CODE>
+<DD>
+If <CODE>yes</CODE>, suppress the initial notify messages when the server
+first loads.  The default is <CODE>no</CODE>.
 
 <DT><CODE>recursion</CODE>
 <DD>
@@ -552,9 +579,8 @@ files</CODE> to specify the limit explicitly.
 
 <DT><CODE>max-ixfr-log-size</CODE>
 <DD>
-The <CODE>max-ixfr-log-size</CODE> will be used in a future release of 
-the server to limit the size of the 
-transaction log kept for Incremental Zone Transfer. 
+Limit the size of the transaction log kept for Incremental Zone Transfer. 
+Default 0 (unlimited).
 
 <DT><CODE>stacksize</CODE>
 <DD>
@@ -784,6 +810,15 @@ of:
 
 <P>is used.
 
+<H4>Glue Ordering</H4>
+
+When running a root nameserver it is sometimes necessary to ensure that
+other nameservers that are priming are successful.  This requires
+that glue A records for at least of the nameservers are returned in
+the answer to a priming query.  This can be achieved by setting
+<CODE>preferred-glue A;</CODE> which will add A records before other types
+in the additional section.
+
 <H4>Tuning</H4>
 
 <DL>
@@ -812,7 +847,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.43 2001/03/03 05:08:55 marka Exp $
+Last Updated: $Id: options.html,v 1.48 2002/04/25 05:27:00 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>

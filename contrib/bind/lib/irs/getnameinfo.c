@@ -1,8 +1,6 @@
 /*
  * Issues to be discussed:
  * - Thread safe-ness must be checked
- * - Return values.  There seems to be no standard for return value (RFC2133)
- *   but INRIA implementation returns EAI_xxx defined for getaddrinfo().
  */
 
 /*
@@ -50,13 +48,9 @@
 #include <netdb.h>
 #include <resolv.h>
 #include <string.h>
+#include <stddef.h>
 
 #include <port_after.h>
-
-#define SUCCESS 0
-#define ANY 0
-#define YES 1
-#define NO  0
 
 /*
  * Note that a_off will be dynamically adjusted so that to be consistent
@@ -66,30 +60,30 @@
 static struct afd {
 	int a_af;
 	int a_addrlen;
-	int a_socklen;
+	size_t a_socklen;
 	int a_off;
 } afdl [] = {
 	/* first entry is linked last... */
 	{PF_INET, sizeof(struct in_addr), sizeof(struct sockaddr_in),
-		4 /*XXX*/},
+	 offsetof(struct sockaddr_in, sin_addr)},
 	{PF_INET6, sizeof(struct in6_addr), sizeof(struct sockaddr_in6),
-		8 /*XXX*/},
-	{0, 0, 0},
+	 offsetof(struct sockaddr_in6, sin6_addr)},
+	{0, 0, 0, 0},
 };
 
 struct sockinet {
+#ifdef HAVE_SA_LEN
 	u_char	si_len;
+#endif
 	u_char	si_family;
 	u_short	si_port;
 };
 
-#define ENI_NOSOCKET 	0
-#define ENI_NOSERVNAME	1
-#define ENI_NOHOSTNAME	2
-#define ENI_MEMORY	3
-#define ENI_SYSTEM	4
-#define ENI_FAMILY	5
-#define ENI_SALEN	6
+static int ip6_parsenumeric __P((const struct sockaddr *, const char *, char *,
+				 size_t, int));
+#ifdef HAVE_SIN6_SCOPE_ID
+static int ip6_sa2str __P((const struct sockaddr_in6 *, char *, size_t, int));
+#endif
 
 int
 getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
@@ -106,99 +100,89 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	struct hostent *hp;
 	u_short port;
 #ifdef HAVE_SA_LEN
-	int len;
+	size_t len;
 #endif
 	int family, i;
-	char *addr, *p;
-	u_char pfx;
-	static int firsttime = 1;
-	static char numserv[512];
-	static char numaddr[512];
-
-
-	/* dynamically adjust a_off */
-	if (firsttime) {
-		struct afd *p;
-		u_char *q;
-		struct sockaddr_in sin;
-		struct sockaddr_in6 sin6;
-
-		for (p = &afdl[0]; p->a_af; p++) {
-			switch (p->a_af) {
-			case PF_INET:
-				q = (u_char *)&sin.sin_addr.s_addr;
-				p->a_off = q - (u_char *)&sin;
-				break;
-			case PF_INET6:
-				q = (u_char *)&sin6.sin6_addr.s6_addr;
-				p->a_off = q - (u_char *)&sin6;
-				break;
-			default:
-				break;
-			}
-		}
-		firsttime = 0;
-	}
+	const char *addr;
+	char *p;
+	char numserv[512];
+	char numaddr[512];
+	const struct sockaddr_in6 *sin6;
 
 	if (sa == NULL)
-		return ENI_NOSOCKET;
+		return EAI_FAIL;
 
 #ifdef HAVE_SA_LEN
 	len = sa->sa_len;
-	if (len != salen) return ENI_SALEN;
+	if (len != salen) return EAI_FAIL;
 #endif
-	
+
 	family = sa->sa_family;
 	for (i = 0; afdl[i].a_af; i++)
 		if (afdl[i].a_af == family) {
 			afd = &afdl[i];
 			goto found;
 		}
-	return ENI_FAMILY;
-	
+	return EAI_FAMILY;
+
  found:
-	if (salen != afd->a_socklen) return ENI_SALEN;
-	
-	port = ((struct sockinet *)sa)->si_port; /* network byte order */
-	addr = (char *)sa + afd->a_off;
+	if (salen != afd->a_socklen) return EAI_FAIL;
+
+	port = ((const struct sockinet *)sa)->si_port; /* network byte order */
+	addr = (const char *)sa + afd->a_off;
 
 	if (serv == NULL || servlen == 0) {
-		/* what we should do? */
+		/*
+		 * rfc2553bis says that serv == NULL or servlen == 0 means that
+		 * the caller does not want the result.
+		 */
 	} else if (flags & NI_NUMERICSERV) {
-		snprintf(numserv, sizeof(numserv), "%d", ntohs(port));
+		sprintf(numserv, "%d", ntohs(port));
 		if (strlen(numserv) > servlen)
-			return ENI_MEMORY;
+			return EAI_MEMORY;
 		strcpy(serv, numserv);
 	} else {
 		sp = getservbyport(port, (flags & NI_DGRAM) ? "udp" : "tcp");
 		if (sp) {
 			if (strlen(sp->s_name) + 1 > servlen)
-				return ENI_MEMORY;
+				return EAI_MEMORY;
 			strcpy(serv, sp->s_name);
 		} else
-			return ENI_NOSERVNAME;
+			return EAI_NONAME;
 	}
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		if (ntohl(*(u_long *)addr) >> IN_CLASSA_NSHIFT == 0)
+		if (ntohl(*(const u_long *)addr) >> IN_CLASSA_NSHIFT == 0)
 			flags |= NI_NUMERICHOST;			
 		break;
 	case AF_INET6:
-		pfx = *addr;
-		if (pfx == 0 || pfx == 0xfe || pfx == 0xff)
-			flags |= NI_NUMERICHOST;
+		sin6 = (const struct sockaddr_in6 *)sa;
+		switch (sin6->sin6_addr.s6_addr[0]) {
+		case 0x00:
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+				;
+			else if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
+				;
+			else
+				flags |= NI_NUMERICHOST;
+			break;
+		default:
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+				flags |= NI_NUMERICHOST;
+			else if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+				flags |= NI_NUMERICHOST;
+			break;
+		}
 		break;
 	}
 	if (host == NULL || hostlen == 0) {
-		/* what should we do? */
+		/*
+		 * rfc2553bis says that host == NULL or hostlen == 0 means that
+		 * the caller does not want the result.
+		 */
 	} else if (flags & NI_NUMERICHOST) {
-		if (inet_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
-		    == NULL)
-			return ENI_SYSTEM;
-		if (strlen(numaddr) + 1 > hostlen)
-			return ENI_MEMORY;
-		strcpy(host, numaddr);
+		goto numeric;
 	} else {
 		hp = gethostbyaddr(addr, afd->a_addrlen, afd->a_af);
 
@@ -208,18 +192,130 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 				if (p) *p = '\0';
 			}
 			if (strlen(hp->h_name) + 1 > hostlen)
-				return ENI_MEMORY;
+				return EAI_MEMORY;
 			strcpy(host, hp->h_name);
 		} else {
 			if (flags & NI_NAMEREQD)
-				return ENI_NOHOSTNAME;
-			if (inet_ntop(afd->a_af, addr, numaddr, sizeof(numaddr))
-			    == NULL)
-				return ENI_NOHOSTNAME;
-			if (strlen(numaddr) + 1 > hostlen)
-				return ENI_MEMORY;
-			strcpy(host, numaddr);
+				return EAI_NONAME;
+		  numeric:
+			switch(afd->a_af) {
+			case AF_INET6:
+			{
+				int error;
+
+				if ((error = ip6_parsenumeric(sa, addr, host,
+							      hostlen,
+							      flags)) != 0)
+					return(error);
+				break;
+			}
+
+			default:
+				if (inet_ntop(afd->a_af, addr, numaddr,
+					      sizeof(numaddr)) == NULL)
+					return EAI_NONAME;
+				if (strlen(numaddr) + 1 > hostlen)
+					return EAI_MEMORY;
+				strcpy(host, numaddr);
+			}
 		}
 	}
-	return SUCCESS;
+	return(0);
 }
+
+static int
+ip6_parsenumeric(const struct sockaddr *sa, const char *addr, char *host,
+		 size_t hostlen, int flags)
+{
+	size_t numaddrlen;
+	char numaddr[512];
+
+#ifndef HAVE_SIN6_SCOPE_ID
+	UNUSED(sa);
+	UNUSED(flags);
+#endif
+
+	if (inet_ntop(AF_INET6, addr, numaddr, sizeof(numaddr))
+	    == NULL)
+		return EAI_SYSTEM;
+
+	numaddrlen = strlen(numaddr);
+	if (numaddrlen + 1 > hostlen) /* don't forget terminator */
+		return EAI_MEMORY;
+	strcpy(host, numaddr);
+
+#ifdef HAVE_SIN6_SCOPE_ID
+	if (((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
+		char scopebuf[MAXHOSTNAMELEN]; /* XXX */
+		int scopelen;
+
+		/* ip6_sa2str never fails */
+		scopelen = ip6_sa2str((const struct sockaddr_in6 *)sa,
+				      scopebuf, sizeof(scopebuf), flags);
+
+		if (scopelen + 1 + numaddrlen + 1 > hostlen)
+			return EAI_MEMORY;
+
+		/* construct <numeric-addr><delim><scopeid> */
+		memcpy(host + numaddrlen + 1, scopebuf,
+		       scopelen);
+		host[numaddrlen] = SCOPE_DELIMITER;
+		host[numaddrlen + 1 + scopelen] = '\0';
+	}
+#endif
+
+	return 0;
+}
+
+#ifdef HAVE_SIN6_SCOPE_ID
+/* ARGSUSED */
+static int
+ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf,
+	   size_t bufsiz, int flags)
+{
+#ifdef USE_IFNAMELINKID
+	unsigned int ifindex = (unsigned int)sa6->sin6_scope_id;
+	const struct in6_addr *a6 = &sa6->sin6_addr;
+#endif
+	char tmp[64];
+
+#ifdef NI_NUMERICSCOPE
+	if (flags & NI_NUMERICSCOPE) {
+		sprintf(tmp, "%u", sa6->sin6_scope_id);
+		if (bufsiz != 0) {
+			strncpy(buf, tmp, bufsiz - 1);
+			buf[bufsiz - 1] = '\0';
+		}
+		return(strlen(tmp));
+	}
+#endif
+
+#ifdef USE_IFNAMELINKID
+	/*
+	 * For a link-local address, convert the index to an interface
+	 * name, assuming a one-to-one mapping between links and interfaces.
+	 * Note, however, that this assumption is stronger than the
+	 * specification of the scoped address architecture;  the
+	 * specficication says that more than one interfaces can belong to
+	 * a single link.
+	 */
+
+	/* if_indextoname() does not take buffer size.  not a good api... */
+	if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6)) &&
+	    bufsiz >= IF_NAMESIZE) {
+		char *p = if_indextoname(ifindex, buf);
+		if (p) {
+			return(strlen(p));
+		}
+	}
+#endif
+
+	/* last resort */
+	sprintf(tmp, "%u", sa6->sin6_scope_id);
+	if (bufsiz != 0) {
+		strncpy(buf, tmp, bufsiz - 1);
+		buf[bufsiz - 1] = '\0';
+	}
+	return(strlen(tmp));
+}
+#endif

@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_sv.c,v 1.20 1999/10/07 20:44:03 vixie Exp $";
+static const char rcsid[] = "$Id: lcl_sv.c,v 1.22 2001/06/18 14:43:59 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -122,6 +122,8 @@ struct irs_sv *
 irs_lcl_sv(struct irs_acc *this) {
 	struct irs_sv *sv;
 	struct pvt *pvt;
+
+	UNUSED(this);
 	
 	if ((sv = memget(sizeof *sv)) == NULL) {
 		errno = ENOMEM;
@@ -287,13 +289,10 @@ sv_next(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
 #ifdef IRS_LCL_SV_DB
-	if (pvt->dbh != NULL)
-		NULL;
-	else
+	if (pvt->dbh == NULL && pvt->sv.fp == NULL)
+#else
+	if (pvt->sv.fp == NULL)
 #endif
-	     if (pvt->sv.fp != NULL)
-		NULL;
-	else
 		sv_rewind(this);
 
 #ifdef IRS_LCL_SV_DB
@@ -395,7 +394,7 @@ sv_db_rec(struct lcl_sv *sv, DBT *key, DBT *data) {
 			return (NULL);
 		sv->serv.s_port = ((u_short *)key->data)[1];
 		n = strlen(p) + 1;
-		if (n > sizeof(sv->line)) {
+		if ((size_t)n > sizeof(sv->line)) {
 			n = sizeof(sv->line);
 		}
 		memcpy(sv->line, p, n);

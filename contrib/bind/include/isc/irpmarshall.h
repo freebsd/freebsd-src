@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irpmarshall.h,v 8.1 1999/01/18 07:46:47 vixie Exp $
+ * $Id: irpmarshall.h,v 8.2 2001/05/29 05:47:10 marka Exp $
  */
 
 #ifndef _IRPMARSHALL_H_INCLUDED
@@ -57,7 +57,8 @@ int irp_marshall_ho(struct hostent *ho, char **buffer, size_t *len);
 int irp_unmarshall_ho(struct hostent *ho, char *buffer);
 int irp_marshall_ng(const char *host, const char *user, const char *domain,
 		    char **buffer, size_t *len);
-int irp_unmarshall_ng(char **host, char **user, char **domain, char *buffer);
+int irp_unmarshall_ng(const char **host, const char **user,
+		      const char **domain, char *buffer);
 int irp_marshall_nw(struct nwent *ne, char **buffer, size_t *len);
 int irp_unmarshall_nw(struct nwent *ne, char *buffer);
 int irp_marshall_ne(struct netent *ne, char **buffer, size_t *len);

@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_parse.c,v 8.15 2000/12/23 08:14:55 vixie Exp $";
+static const char rcsid[] = "$Id: ns_parse.c,v 8.17 2001/06/20 02:50:49 marka Exp $";
 #endif
 
 /* Import. */
@@ -134,7 +134,7 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	int b;
 
 	/* Make section right. */
-	if (section < 0 || section >= ns_s_max)
+	if (section >= ns_s_max)
 		RETERR(ENODEV);
 	if (section != handle->_sect)
 		setsection(handle, section);
@@ -147,38 +147,38 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	if (rrnum < handle->_rrnum)
 		setsection(handle, section);
 	if (rrnum > handle->_rrnum) {
-		b = ns_skiprr(handle->_ptr, handle->_eom, section,
+		b = ns_skiprr(handle->_msg_ptr, handle->_eom, section,
 			      rrnum - handle->_rrnum);
 
 		if (b < 0)
 			return (-1);
-		handle->_ptr += b;
+		handle->_msg_ptr += b;
 		handle->_rrnum = rrnum;
 	}
 
 	/* Do the parse. */
 	b = dn_expand(handle->_msg, handle->_eom,
-		      handle->_ptr, rr->name, NS_MAXDNAME);
+		      handle->_msg_ptr, rr->name, NS_MAXDNAME);
 	if (b < 0)
 		return (-1);
-	handle->_ptr += b;
-	if (handle->_ptr + NS_INT16SZ + NS_INT16SZ > handle->_eom)
+	handle->_msg_ptr += b;
+	if (handle->_msg_ptr + NS_INT16SZ + NS_INT16SZ > handle->_eom)
 		RETERR(EMSGSIZE);
-	NS_GET16(rr->type, handle->_ptr);
-	NS_GET16(rr->rr_class, handle->_ptr);
+	NS_GET16(rr->type, handle->_msg_ptr);
+	NS_GET16(rr->rr_class, handle->_msg_ptr);
 	if (section == ns_s_qd) {
 		rr->ttl = 0;
 		rr->rdlength = 0;
 		rr->rdata = NULL;
 	} else {
-		if (handle->_ptr + NS_INT32SZ + NS_INT16SZ > handle->_eom)
+		if (handle->_msg_ptr + NS_INT32SZ + NS_INT16SZ > handle->_eom)
 			RETERR(EMSGSIZE);
-		NS_GET32(rr->ttl, handle->_ptr);
-		NS_GET16(rr->rdlength, handle->_ptr);
-		if (handle->_ptr + rr->rdlength > handle->_eom)
+		NS_GET32(rr->ttl, handle->_msg_ptr);
+		NS_GET16(rr->rdlength, handle->_msg_ptr);
+		if (handle->_msg_ptr + rr->rdlength > handle->_eom)
 			RETERR(EMSGSIZE);
-		rr->rdata = handle->_ptr;
-		handle->_ptr += rr->rdlength;
+		rr->rdata = handle->_msg_ptr;
+		handle->_msg_ptr += rr->rdlength;
 	}
 	if (++handle->_rrnum > handle->_counts[(int)section])
 		setsection(handle, (ns_sect)((int)section + 1));
@@ -194,9 +194,9 @@ setsection(ns_msg *msg, ns_sect sect) {
 	msg->_sect = sect;
 	if (sect == ns_s_max) {
 		msg->_rrnum = -1;
-		msg->_ptr = NULL;
+		msg->_msg_ptr = NULL;
 	} else {
 		msg->_rrnum = 0;
-		msg->_ptr = msg->_sections[(int)sect];
+		msg->_msg_ptr = msg->_sections[(int)sect];
 	}
 }
