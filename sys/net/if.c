@@ -37,9 +37,11 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/mbuf.h>
@@ -386,6 +388,12 @@ if_attach(ifp)
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	SLIST_INIT(&ifp->if_klist);
 	getmicrotime(&ifp->if_lastchange);
+
+#ifdef MAC
+	mac_init_ifnet(ifp);
+	mac_create_ifnet(ifp);
+#endif
+
 	ifp->if_index = if_findindex(ifp);
 	if (ifp->if_index > if_index)
 		if_index = ifp->if_index;
@@ -522,6 +530,9 @@ if_detach(ifp)
 	/* Announce that the interface is gone. */
 	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
 
+#ifdef MAC
+	mac_destroy_ifnet(ifp);
+#endif /* MAC */
 	KNOTE(&ifp->if_klist, NOTE_EXIT);
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 	mtx_destroy(&ifp->if_snd.ifq_mtx);
