@@ -40,6 +40,9 @@
 
 
 #ifdef _KERNEL
+
+#include <vm/uma.h>
+
 /*
  * Global variable declarations
  */
@@ -63,7 +66,7 @@ extern int		atm_debug;
 extern struct timeval	atm_debugtime;
 extern int		atm_dev_print;
 extern int		atm_print_data;
-extern struct sp_info	atm_attributes_pool;
+extern uma_zone_t	atm_attributes_zone;
 
 extern struct pr_usrreqs	atm_dgram_usrreqs;
 

@@ -79,13 +79,7 @@ int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
 
-struct sp_info	atm_attributes_pool = {
-	"atm attributes pool",		/* si_name */
-	sizeof(Atm_attributes),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	100				/* si_maxallow */
-};
-
+uma_zone_t atm_attributes_zone;
 
 /*
  * Local functions
@@ -134,6 +128,13 @@ atm_initialize()
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
 	atmintrq_present = 1;
+
+	atm_attributes_zone = uma_zcreate("atm attributes",
+	    sizeof(Atm_attributes), (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	if (atm_attributes_zone == NULL)
+		panic("atm_initialize: unable to allocate attributes pool");
+	uma_zone_set_max(atm_attributes_zone, 100);
 
 	register_netisr(NETISR_ATM, atm_intr);
 

@@ -709,7 +709,7 @@ atm_cm_listen(epp, token, ap, copp)
 	/*
 	 * Get an attribute block and save listening attributes
 	 */
-	cop->co_lattr = (Atm_attributes *)atm_allocate(&atm_attributes_pool);
+	cop->co_lattr = uma_zalloc(atm_attributes_zone, 0);
 	if (cop->co_lattr == NULL) {
 		err = ENOMEM;
 		goto done;
@@ -740,7 +740,7 @@ done:
 		 */
 		if (cop) {
 			if (cop->co_lattr)
-				atm_free((caddr_t)cop->co_lattr);
+				uma_zfree(atm_attributes_zone, cop->co_lattr);
 			atm_free((caddr_t)cop);
 		}
 	} else {
@@ -2360,7 +2360,7 @@ atm_cm_closeconn(cop, cause)
 	switch (cop->co_state) {
 
 	case COS_LISTEN:
-		atm_free((caddr_t)cop->co_lattr);
+		uma_zfree(atm_attributes_zone, cop->co_lattr);
 		UNLINK(cop, Atm_connection, atm_listen_queue, co_next);
 		break;
 
