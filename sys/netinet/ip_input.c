@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.78 1998/02/16 19:23:58 guido Exp $
+ * $Id: ip_input.c,v 1.79 1998/02/26 08:31:53 dima Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -40,6 +40,7 @@
 #include "opt_bootp.h"
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
+#include "opt_ipfilter.h"
 
 #include <stddef.h>
 
@@ -151,7 +152,7 @@ ip_nat_ctl_t *ip_nat_ctl_ptr;
 #endif
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
-int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
+int iplattach __P((void));
 int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
 #endif
 
@@ -225,6 +226,9 @@ ip_init()
 #endif
 #ifdef IPNAT
         ip_nat_init(); 
+#endif
+#ifdef IPFILTER
+        iplattach(); 
 #endif
 
 }
@@ -345,7 +349,7 @@ tooshort:
 	 * Check if we want to allow this packet to be processed.
 	 * Consider it to be bad if not.
 	 */
-	if (fr_check) {
+	if (fr_checkp) {
 		struct	mbuf	*m1 = m;
 
 		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.64 1998/02/06 12:13:52 eivind Exp $
+ *	$Id: ip_output.c,v 1.65 1998/02/20 13:37:38 bde Exp $
  */
 
 #define _IP_VHL
 
 #include "opt_ipdivert.h"
+#include "opt_ipfilter.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -83,7 +84,6 @@ static int	ip_setmoptions
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
 int	ip_optcopy __P((struct ip *, struct ip *));
-extern int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
 extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
 #else
 static int	ip_optcopy __P((struct ip *, struct ip *));
@@ -342,27 +342,22 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 sendit:
-#if defined(IPFILTER) || defined(IPFILTER_LKM)
 	/*
-	 * looks like most checking has been done now...do a filter check
-	 */
-	if (fr_checkp) {
-		struct  mbuf    *m1 = m;
-
-		if ((*fr_checkp)(ip, hlen, ifp, 1, &m1))
-			error = EHOSTUNREACH;
-		if (error || !m1)
-			goto done;
-		ip = mtod(m = m1, struct ip *);
-	}
-#endif
-        /*
 	 * IpHack's section.
 	 * - Xlate: translate packet's addr/port (NAT).
 	 * - Firewall: deny/allow/etc.
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
 	 */ 
+#if defined(IPFILTER) || defined(IPFILTER_LKM)
+	if (fr_checkp) {
+		struct  mbuf    *m1 = m;
+
+		if ((error = (*fr_checkp)(ip, hlen, ifp, 1, &m1)) || !m1)
+			goto done;
+		ip = mtod(m = m1, struct ip *);
+	}
+#endif
 
 #ifdef COMPAT_IPFW
         if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, ifp, IP_NAT_OUT)) {

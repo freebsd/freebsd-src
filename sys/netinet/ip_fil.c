@@ -7,8 +7,10 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.5 1997/11/24 10:02:02 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.1.1.6 1998/03/21 10:11:08 peter Exp $";
 #endif
+
+#include "opt_ipfilter.h"
 
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
@@ -19,7 +21,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.5 1997/11/24 10:02:0
 #endif
 #ifdef	__FreeBSD__
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
-#  include <sys/osreldate.h>
+#  define __FreeBSD_version 300000	/* this will do as a hack */
 # else
 #  include <osreldate.h>
 # endif
@@ -46,7 +48,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.5 1997/11/24 10:02:0
 #endif
 #include <sys/uio.h>
 #if !SOLARIS
-# if (NetBSD > 199609) || (OpenBSD > 199603)
+# if (NetBSD > 199609) || (OpenBSD > 199603) || __FreeBSD_version >= 220000
 #  include <sys/dirent.h>
 # else
 #  include <sys/dir.h>
@@ -64,6 +66,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.5 1997/11/24 10:02:0
 #endif
 #if __FreeBSD_version >= 300000
 # include <net/if_var.h>
+# include <sys/malloc.h>
 #endif
 #ifdef __sgi
 #include <sys/debug.h>
@@ -510,7 +513,9 @@ static void frsync()
 #ifdef _KERNEL
 	struct ifnet *ifp;
 
-# if defined(__OpenBSD__) || (NetBSD >= 199511)
+# if (__FreeBSD_version >= 300000)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
+# elif defined(__OpenBSD__) || (NetBSD >= 199511)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
 # else
 	for (ifp = ifnet; ifp; ifp = ifp->if_next)
