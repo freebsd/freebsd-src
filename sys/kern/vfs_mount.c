@@ -740,8 +740,8 @@ update:
 
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
-		vp->v_mountedhere = mp;
 		VI_UNLOCK(vp);
+		vp->v_mountedhere = mp;
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
@@ -1093,11 +1093,10 @@ update:
 	if (!error) {
 		struct vnode *newdp;
 
-		mp_fixme("Does interlock protect mounted here or not?");
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
-		vp->v_mountedhere = mp;
 		VI_UNLOCK(vp);
+		vp->v_mountedhere = mp;
 		mtx_lock(&mountlist_mtx);
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
@@ -1139,7 +1138,7 @@ checkdirs(olddp, newdp)
 	struct proc *p;
 	int nrele;
 
-	if (olddp->v_usecount == 1)
+	if (vrefcnt(olddp) == 1)
 		return;
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
@@ -1321,8 +1320,11 @@ dounmount(mp, flags, td)
 	crfree(mp->mnt_cred);
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
-	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
+		vn_lock(coveredvp, LK_EXCLUSIVE|LK_RETRY, td);
 		coveredvp->v_mountedhere = NULL;
+		VOP_UNLOCK(coveredvp, 0, td);
+	}
 	mp->mnt_vfc->vfc_refcount--;
 	if (!TAILQ_EMPTY(&mp->mnt_nvnodelist))
 		panic("unmount: dangling vnode");
