@@ -95,7 +95,7 @@ void	pfkey_stats __P((u_long, char *));
 
 void	bdg_stats __P((u_long, char *));
 
-void	mbpr __P((void));
+void	mbpr __P((u_long, u_long, u_long, u_long));
 
 void	hostpr __P((u_long, u_long));
 void	impstats __P((u_long, u_long));
