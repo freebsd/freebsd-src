@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.45 1998/02/04 22:32:34 eivind Exp $
+ * $Id: kern_synch.c,v 1.46 1998/02/06 12:13:25 eivind Exp $
  */
 
 #include "opt_ktrace.h"
@@ -116,7 +116,7 @@ roundrobin(arg)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that statclock updates p_estcpu and p_cpticks independently.
+ * Note that statclock() updates p_estcpu and p_cpticks asynchronously.
  *
  * We wish to decay away 90% of p_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
@@ -188,7 +188,7 @@ static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
  * To estimate CCPU_SHIFT for exp(-1/20), the following formula was used:
  *	1 - exp(-1/20) ~= 0.0487 ~= 0.0488 == 1 (fixed pt, *11* bits).
  *
- * If you dont want to bother with the faster/more-accurate formula, you
+ * If you don't want to bother with the faster/more-accurate formula, you
  * can set CCPU_SHIFT to (FSHIFT + 1) which will use a slower/less-accurate
  * (more general) method of calculating the %age of CPU used by a process.
  */
@@ -588,7 +588,7 @@ mi_switch()
 
 #ifdef SIMPLELOCK_DEBUG
 	if (p->p_simple_locks)
-		printf("sleep: holding simple lock");
+		printf("sleep: holding simple lock\n");
 #endif
 	/*
 	 * Compute the amount of time during which the current
