@@ -192,7 +192,8 @@ time_t	tschedule = 0;
 void
 timeest()
 {
-	time_t	tnow, deltat;
+	time_t	tnow;
+	int deltat;
 
 	(void) time((time_t *) &tnow);
 	if (tnow >= tschedule) {
