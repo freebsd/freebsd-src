@@ -117,12 +117,14 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	int flags;
 {
 
-	bzero(lkp, sizeof(struct lock));
 	simple_lock_init(&lkp->lk_interlock);
 	lkp->lk_flags = flags & LK_EXTFLG_MASK;
+	lkp->lk_sharecount = 0;
+	lkp->lk_waitcount = 0;
+	lkp->lk_exclusivecount = 0;
 	lkp->lk_prio = prio;
-	lkp->lk_timo = timo;
 	lkp->lk_wmesg = wmesg;
+	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
 }
 
@@ -168,8 +170,9 @@ lockmgr(lkp, flags, interlkp, p)
 	else
 		pid = LK_KERNPROC;
 	simple_lock(&lkp->lk_interlock);
-	if (flags & LK_INTERLOCK)
+	if (flags & LK_INTERLOCK) {
 		simple_unlock(interlkp);
+	}
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 #ifdef DIAGNOSTIC
 	/*
@@ -425,6 +428,7 @@ lockmgr(lkp, flags, interlkp, p)
  * Print out information about state of a lock. Used by VOP_PRINT
  * routines to display ststus about contained locks.
  */
+void
 lockmgr_printinfo(lkp)
 	struct lock *lkp;
 {
@@ -439,12 +443,12 @@ lockmgr_printinfo(lkp)
 		printf(" with %d pending", lkp->lk_waitcount);
 }
 
-#if defined(DEBUG) && NCPUS == 1
+#if defined(SIMPLELOCK_DEBUG) && NCPUS == 1
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 int lockpausetime = 0;
-struct ctldebug debug2 = { "lockpausetime", &lockpausetime };
+/* struct ctldebug debug2 = { "lockpausetime", &lockpausetime }; */
 int simplelockrecurse;
 /*
  * Simple lock functions so that the debugger can see from whence
@@ -472,7 +476,8 @@ _simple_lock(alp, id, l)
 			panic("%s:%d: simple_lock: lock held", id, l);
 		printf("%s:%d: simple_lock: lock held\n", id, l);
 		if (lockpausetime == 1) {
-			BACKTRACE(curproc);
+			Debugger("simple_lock");
+			/*BACKTRACE(curproc); */
 		} else if (lockpausetime > 1) {
 			printf("%s:%d: simple_lock: lock held...", id, l);
 			tsleep(&lockpausetime, PCATCH | PPAUSE, "slock",
@@ -516,7 +521,8 @@ _simple_unlock(alp, id, l)
 			panic("%s:%d: simple_unlock: lock not held", id, l);
 		printf("%s:%d: simple_unlock: lock not held\n", id, l);
 		if (lockpausetime == 1) {
-			BACKTRACE(curproc);
+			Debugger("simple_unlock");
+			/* BACKTRACE(curproc); */
 		} else if (lockpausetime > 1) {
 			printf("%s:%d: simple_unlock: lock not held...", id, l);
 			tsleep(&lockpausetime, PCATCH | PPAUSE, "sunlock",
@@ -528,4 +534,4 @@ _simple_unlock(alp, id, l)
 	if (curproc)
 		curproc->p_simple_locks--;
 }
-#endif /* DEBUG && NCPUS == 1 */
+#endif /* SIMPLELOCK_DEBUG && NCPUS == 1 */
