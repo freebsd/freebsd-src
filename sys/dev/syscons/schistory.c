@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 
 #include <machine/console.h>
+#include <machine/pc/display.h>
 
 #include <dev/syscons/syscons.h>
 
@@ -120,10 +121,12 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 	if (history != NULL) {
 		if (lines > min_lines)
 			extra_history_size -= lines - min_lines;
+		/* XXX error check? */
 		sc_vtb_init(history, VTB_RINGBUFFER, scp->xsize, lines,
 			    NULL, wait);
+		/* FIXME: XXX no good? */
 		sc_vtb_clear(history, scp->sc->scr_map[0x20],
-			     scp->term.cur_color);
+			     SC_NORM_ATTR << 8);
 		if (prev_history != NULL)
 			copy_history(prev_history, history);
 		scp->history_pos = sc_vtb_tail(history);
@@ -182,7 +185,8 @@ sc_free_history_buffer(scr_stat *scp, int prev_ysize)
 
 	cur_lines = sc_vtb_rows(history);
 	min_lines = imax(SC_HISTORY_SIZE, prev_ysize);
-	extra_history_size += (cur_lines > min_lines) ? cur_lines - min_lines : 0;
+	extra_history_size += (cur_lines > min_lines) ? 
+				  cur_lines - min_lines : 0;
 
 	sc_vtb_destroy(history);
 	free(history, M_DEVBUF);

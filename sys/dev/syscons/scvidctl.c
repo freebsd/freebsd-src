@@ -38,9 +38,6 @@
 #include <sys/tty.h>
 #include <sys/kernel.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <machine/console.h>
 
 #include <dev/fb/fbreg.h>
@@ -131,7 +128,6 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 		 int fontsize)
 {
     video_info_t info;
-    sc_rndr_sw_t *rndr;
     u_char *font;
     int prev_ysize;
     int error;
@@ -183,8 +179,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 	return error;
     }
 
-    rndr = sc_render_match(scp, scp->sc->adp, 0);
-    if (rndr == NULL) {
+    if (sc_render_match(scp, scp->sc->adp->va_name, 0) == NULL) {
 	splx(s);
 	return ENODEV;
     }
@@ -213,13 +208,13 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
+    sc_init_emulator(scp, NULL);
 #ifndef SC_NO_CUTPASTE
     sc_alloc_cut_buffer(scp, FALSE);
 #endif
 #ifndef SC_NO_HISTORY
     sc_alloc_history_buffer(scp, 0, prev_ysize, FALSE);
 #endif
-    scp->rndr = rndr;
     splx(s);
 
     if (scp == scp->sc->cur_scp)
@@ -247,7 +242,6 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     return ENODEV;
 #else
     video_info_t info;
-    sc_rndr_sw_t *rndr;
     int error;
     int s;
 
@@ -261,8 +255,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 	return error;
     }
 
-    rndr = sc_render_match(scp, scp->sc->adp, GRAPHICS_MODE);
-    if (rndr == NULL) {
+    if (sc_render_match(scp, scp->sc->adp->va_name, GRAPHICS_MODE) == NULL) {
 	splx(s);
 	return ENODEV;
     }
@@ -285,7 +278,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     /* move the mouse cursor at the center of the screen */
     sc_mouse_move(scp, scp->xpixel / 2, scp->ypixel / 2);
 #endif
-    scp->rndr = rndr;
+    sc_init_emulator(scp, NULL);
     splx(s);
 
     if (scp == scp->sc->cur_scp)
@@ -314,7 +307,6 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     return ENODEV;
 #else
     video_info_t info;
-    sc_rndr_sw_t *rndr;
     u_char *font;
     int prev_ysize;
     int error;
@@ -381,11 +373,17 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	return error;
     }
 
-    rndr = sc_render_match(scp, scp->sc->adp, PIXEL_MODE);
-    if (rndr == NULL) {
+    if (sc_render_match(scp, scp->sc->adp->va_name, PIXEL_MODE) == NULL) {
 	splx(s);
 	return ENODEV;
     }
+
+#if 0
+    if (scp->tsw)
+	(*scp->tsw->te_term)(scp, scp->ts);
+    scp->tsw = NULL;
+    scp->ts = NULL;
+#endif
 
     /* set up scp */
 #ifndef SC_NO_HISTORY
@@ -404,17 +402,17 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     /* allocate buffers */
     sc_alloc_scr_buffer(scp, TRUE, TRUE);
+    sc_init_emulator(scp, NULL);
 #ifndef SC_NO_CUTPASTE
     sc_alloc_cut_buffer(scp, FALSE);
 #endif
 #ifndef SC_NO_HISTORY
     sc_alloc_history_buffer(scp, 0, prev_ysize, FALSE);
 #endif
-    scp->rndr = rndr;
     splx(s);
 
     if (scp == scp->sc->cur_scp) {
-	set_border(scp, scp->border);
+	sc_set_border(scp, scp->border);
 	sc_set_cursor_image(scp);
     }
 
@@ -431,24 +429,6 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     return 0;
 #endif /* SC_PIXEL_MODE */
-}
-
-sc_rndr_sw_t
-*sc_render_match(scr_stat *scp, video_adapter_t *adp, int mode)
-{
-    const sc_renderer_t **list;
-    const sc_renderer_t *p;
-
-    list = (const sc_renderer_t **)scrndr_set.ls_items;
-    while ((p = *list++) != NULL) {
-	if ((strcmp(p->name, adp->va_name) == 0)
-	    && (mode == p->mode)) {
-	    scp->status &= ~(VR_CURSOR_ON | VR_CURSOR_BLINK);
-	    return p->rndrsw;
-	}
-    }
-
-    return NULL;
 }
 
 #define fb_ioctl(a, c, d)		\
@@ -666,11 +646,11 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * Don't load fonts for now... XXX
 		 */
 		if (scp->sc->fonts_loaded & FONT_8)
-		    copy_font(scp, LOAD, 8, scp->sc->font_8);
+		    sc_load_font(scp, 0, 8, scp->sc->font_8, 0, 256);
 		if (scp->sc->fonts_loaded & FONT_14)
-		    copy_font(scp, LOAD, 14, scp->sc->font_14);
+		    sc_load_font(scp, 0, 14, scp->sc->font_14, 0, 256);
 		if (scp->sc->fonts_loaded & FONT_16)
-		    copy_font(scp, LOAD, 16, scp->sc->font_16);
+		    sc_load_font(scp, 0, 16, scp->sc->font_16, 0, 256);
 	    }
 #endif /* SC_NO_FONT_LOADING */
 #endif
@@ -779,11 +759,60 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     case KDSBORDER:     	/* set border color of this (virtual) console */
 	scp->border = *data;
 	if (scp == scp->sc->cur_scp)
-	    set_border(scp, scp->border);
+	    sc_set_border(scp, scp->border);
 	return 0;
     }
 
     return ENOIOCTL;
+}
+
+static LIST_HEAD(, sc_renderer) sc_rndr_list = 
+	LIST_HEAD_INITIALIZER(sc_rndr_list);
+
+int
+sc_render_add(sc_renderer_t *rndr)
+{
+	LIST_INSERT_HEAD(&sc_rndr_list, rndr, link);
+	return 0;
+}
+
+int
+sc_render_remove(sc_renderer_t *rndr)
+{
+	/*
+	LIST_REMOVE(rndr, link);
+	*/
+	return EBUSY;	/* XXX */
+}
+
+sc_rndr_sw_t
+*sc_render_match(scr_stat *scp, char *name, int mode)
+{
+	const sc_renderer_t **list;
+	const sc_renderer_t *p;
+
+	if (!LIST_EMPTY(&sc_rndr_list)) {
+		LIST_FOREACH(p, &sc_rndr_list, link) {
+			if ((strcmp(p->name, name) == 0)
+				&& (mode == p->mode)) {
+				scp->status &=
+				    ~(VR_CURSOR_ON | VR_CURSOR_BLINK);
+				return p->rndrsw;
+			}
+		}
+	} else {
+		list = (const sc_renderer_t **)scrndr_set.ls_items;
+		while ((p = *list++) != NULL) {
+			if ((strcmp(p->name, name) == 0)
+				&& (mode == p->mode)) {
+				scp->status &=
+				    ~(VR_CURSOR_ON | VR_CURSOR_BLINK);
+				return p->rndrsw;
+			}
+		}
+	}
+
+	return NULL;
 }
 
 #endif /* NSC > 0 */
