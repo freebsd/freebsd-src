@@ -112,6 +112,7 @@ static struct _dom_binding *broad_domain;
 #define YPSET_ALL	2
 int ypsetmode = YPSET_NO;
 int ypsecuremode = 0;
+int ppid;
 
 /*
  * Special restricted mode variables: when in restricted mode, only the
@@ -349,6 +350,9 @@ int sig;
 	struct _dom_binding *ypdb;
 	char path[MAXPATHLEN];
 
+	if (ppid != getpid())
+		exit(0);
+
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
 		close(ypdb->dom_lockfd);
 		if (ypdb->dom_broadcast_pid)
@@ -363,7 +367,7 @@ int sig;
 	exit(0);
 }
 
-void
+int
 main(argc, argv)
 int argc;
 char **argv;
@@ -466,6 +470,8 @@ char **argv;
 	signal(SIGCHLD, reaper);
 	signal(SIGTERM, terminate);
 
+	ppid = getpid(); /* Remember who we are. */
+
 	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	/* Kick off the default domain */
@@ -497,6 +503,9 @@ char **argv;
 			break;
 		}
 	}
+
+	/* NOTREACHED */
+	exit(1);
 }
 
 void
