@@ -168,6 +168,10 @@ AcpiRsAddress16Resource (
     Buffer += 1;
     ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
+    /* Check for the minimum length. */
+    if (Temp16 < 13)
+        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
+
     *BytesConsumed = Temp16 + 3;
     OutputStruct->Id = ACPI_RSTYPE_ADDRESS16;
 
@@ -275,11 +279,13 @@ AcpiRsAddress16Resource (
     /*
      * This will leave us pointing to the Resource Source Index
      * If it is present, then save it off and calculate the
-     * pointer to where the null terminated string goes:
-     * Each Interrupt takes 32-bits + the 5 bytes of the
-     * stream that are default.
+     * pointer to where the null terminated string goes.
+     *
+     * Note that some buggy resources have a length that indicates the
+     * Index byte is present even though it isn't (since there is no
+     * following Resource String.)  We add one to catch these.
      */
-    if (*BytesConsumed > 16)
+    if (*BytesConsumed > 16 + 1)
     {
         /* Dereference the Index */
 
@@ -555,6 +561,10 @@ AcpiRsAddress32Resource (
      */
     Buffer += 1;
     ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
+
+    /* Check for the minimum length. */
+    if (Temp16 < 23)
+        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
     *BytesConsumed = Temp16 + 3;
 
     OutputStruct->Id = ACPI_RSTYPE_ADDRESS32;
@@ -667,9 +677,13 @@ AcpiRsAddress32Resource (
     /*
      * This will leave us pointing to the Resource Source Index
      * If it is present, then save it off and calculate the
-     * pointer to where the null terminated string goes:
+     * pointer to where the null terminated string goes.
+     *
+     * Note that some buggy resources have a length that indicates the
+     * Index byte is present even though it isn't (since there is no
+     * following Resource String.)  We add one to catch these.
      */
-    if (*BytesConsumed > 26)
+    if (*BytesConsumed > 26 + 1)
     {
         /* Dereference the Index */
 
@@ -944,7 +958,11 @@ AcpiRsAddress64Resource (
     Buffer += 1;
     ACPI_MOVE_16_TO_16 (&Temp16, Buffer);
 
+    /* Check for the minimum length. */
+    if (Temp16 < 43)
+        return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
     *BytesConsumed = Temp16 + 3;
+
     OutputStruct->Id = ACPI_RSTYPE_ADDRESS64;
 
     /*
@@ -1056,11 +1074,13 @@ AcpiRsAddress64Resource (
     /*
      * This will leave us pointing to the Resource Source Index
      * If it is present, then save it off and calculate the
-     * pointer to where the null terminated string goes:
-     * Each Interrupt takes 32-bits + the 5 bytes of the
-     * stream that are default.
+     * pointer to where the null terminated string goes.
+     *
+     * Note that some buggy resources have a length that indicates the
+     * Index byte is present even though it isn't (since there is no
+     * following Resource String.)  We add one to catch these.
      */
-    if (*BytesConsumed > 46)
+    if (*BytesConsumed > 46 + 1)
     {
         /* Dereference the Index */
 
