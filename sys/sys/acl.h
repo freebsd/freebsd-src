@@ -56,11 +56,18 @@ struct acl_entry {
 };
 typedef struct acl_entry	*acl_entry_t;
 
+/* internal ACL structure */
 struct acl {
 	int			acl_cnt;
 	struct acl_entry	acl_entry[ACL_MAX_ENTRIES];
 };
-typedef struct acl	*acl_t;
+
+/* external ACL structure */
+struct acl_t_struct {
+	struct acl		ats_acl;
+	int			ats_cur_entry;
+};
+typedef struct acl_t_struct *acl_t;
 
 /*
  * Possible valid values for ae_tag field.
@@ -148,14 +155,14 @@ __END_DECLS
  */
 __BEGIN_DECLS
 int	acl_add_perm(acl_permset_t _permset_d, acl_perm_t _perm);
-int	acl_calc_mask(acl_t *acl_p);
+int	acl_calc_mask(acl_t *_acl_p);
 int	acl_clear_perms(acl_permset_t _permset_d);
 int	acl_copy_entry(acl_entry_t _dest_d, acl_entry_t _src_d);
 ssize_t	acl_copy_ext(void *_buf_p, acl_t _acl, ssize_t _size);
 acl_t	acl_copy_int(const void *_buf_p);
 int	acl_create_entry(acl_t *_acl_p, acl_entry_t *_entry_p);
 int	acl_delete_fd_np(int _filedes, acl_type_t _type);
-int	acl_delete_entry(acl_t acl, acl_entry_t entry_d);
+int	acl_delete_entry(acl_t _acl, acl_entry_t _entry_d);
 int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_def_file(const char *_path_p);
 int	acl_delete_perm(acl_permset_t _permset_d, acl_perm_t _perm);

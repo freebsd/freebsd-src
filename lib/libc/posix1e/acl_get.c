@@ -48,7 +48,7 @@
 acl_t
 acl_get_file(const char *path_p, acl_type_t type)
 {
-	struct acl	*aclp;
+	acl_t	aclp;
 	int	error;
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
@@ -56,7 +56,7 @@ acl_get_file(const char *path_p, acl_type_t type)
 		return (NULL);
 	}
 
-	error = __acl_get_file(path_p, type, aclp);
+	error = __acl_get_file(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
@@ -68,7 +68,7 @@ acl_get_file(const char *path_p, acl_type_t type)
 acl_t
 acl_get_fd(int fd)
 {
-	struct acl	*aclp;
+	acl_t	aclp;
 	int	error;
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
@@ -76,7 +76,7 @@ acl_get_fd(int fd)
 		return (NULL);
 	}
 
-	error = ___acl_get_fd(fd, ACL_TYPE_ACCESS, aclp);
+	error = ___acl_get_fd(fd, ACL_TYPE_ACCESS, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
@@ -88,7 +88,7 @@ acl_get_fd(int fd)
 acl_t
 acl_get_fd_np(int fd, acl_type_t type)
 {
-	struct acl	*aclp;
+	acl_t	aclp;
 	int	error;
 
 	aclp = acl_init(ACL_MAX_ENTRIES);
@@ -96,7 +96,7 @@ acl_get_fd_np(int fd, acl_type_t type)
 		return (NULL);
 	}
 
-	error = ___acl_get_fd(fd, type, aclp);
+	error = ___acl_get_fd(fd, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
@@ -108,6 +108,11 @@ acl_get_fd_np(int fd, acl_type_t type)
 int
 acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
 {
+
+	if (!permset_d) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	switch(perm) {
 	case ACL_READ:
@@ -124,6 +129,10 @@ acl_get_perm_np(acl_permset_t permset_d, acl_perm_t perm)
 	return 0;
 }
 
+/*
+ * acl_get_permset() (23.4.17): return via permset_p a descriptor to
+ * the permission set in the ACL entry entry_d.
+ */
 int
 acl_get_permset(acl_entry_t entry_d, acl_permset_t *permset_p)
 {
@@ -138,6 +147,10 @@ acl_get_permset(acl_entry_t entry_d, acl_permset_t *permset_p)
 	return 0;
 }
 
+/*
+ * acl_get_qualifier() (23.4.18): retrieve the qualifier of the tag
+ * for the ACL entry entry_d.
+ */
 void *
 acl_get_qualifier(acl_entry_t entry_d)
 {
@@ -152,16 +165,20 @@ acl_get_qualifier(acl_entry_t entry_d)
 	case ACL_USER:
 	case ACL_GROUP:
 		retval = malloc(sizeof(uid_t));
-		if (retval) {
-			*retval = entry_d->ae_id;
-			return retval;
-		}
+		if (!retval)
+			return NULL;
+		*retval = entry_d->ae_id;
+		return retval;
 	}
 
 	errno = EINVAL;
 	return NULL;
 }
 
+/*
+ * acl_get_tag_type() (23.4.19): return the tag type for the ACL
+ * entry entry_p.
+ */
 int
 acl_get_tag_type(acl_entry_t entry_d, acl_tag_t *tag_type_p)
 {

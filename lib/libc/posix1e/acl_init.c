@@ -41,16 +41,20 @@
 acl_t
 acl_init(int count)
 {
-	struct acl	*acl;
+	acl_t acl;
 
 	if (count > ACL_MAX_ENTRIES) {
 		errno = ENOMEM;
 		return (NULL);
 	}
+	if (count < 0) {
+		errno = EINVAL;
+		return (NULL);
+	}
 
-	acl = (struct acl *) malloc(sizeof(struct acl));
+	acl = malloc(sizeof(struct acl_t_struct));
 	if (acl != NULL)
-		bzero(acl, sizeof(struct acl));
+		bzero(acl, sizeof(struct acl_t_struct));
 
 	return (acl);
 }
@@ -58,13 +62,14 @@ acl_init(int count)
 acl_t
 acl_dup(acl_t acl)
 {
-	struct acl	*acl_new;
+	acl_t	acl_new;
 
 	acl_new = acl_init(ACL_MAX_ENTRIES);
 	if (!acl_new)
-		return(NULL);
-
+		return NULL;
 	*acl_new = *acl;
+	acl->ats_cur_entry = 0;
+	acl_new->ats_cur_entry = 0;
 
 	return(acl_new);
 }

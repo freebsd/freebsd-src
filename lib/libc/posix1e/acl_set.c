@@ -59,7 +59,9 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 		}
 	}
 
-	return (__acl_set_file(path_p, type, acl));
+	acl->ats_cur_entry = 0;
+
+	return (__acl_set_file(path_p, type, &acl->ats_acl));
 }
 
 int
@@ -73,7 +75,9 @@ acl_set_fd(int fd, acl_t acl)
 		return(-1);
 	}
 
-	return (___acl_set_fd(fd, ACL_TYPE_ACCESS, acl));
+	acl->ats_cur_entry = 0;
+
+	return (___acl_set_fd(fd, ACL_TYPE_ACCESS, &acl->ats_acl));
 }
 
 int
@@ -89,11 +93,13 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 		}
 	}
 
-	return (___acl_set_fd(fd, type, acl));
+	acl->ats_cur_entry = 0;
+
+	return (___acl_set_fd(fd, type, &acl->ats_acl));
 }
 
 /*
- * acl_set_permset() sets the permissions of ACL entry entry_d
+ * acl_set_permset() (23.4.23): sets the permissions of ACL entry entry_d
  * with the permissions in permset_d
  */
 int

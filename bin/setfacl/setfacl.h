@@ -39,20 +39,20 @@
 #define	OP_REMOVE_EXT		0x02	/* remove extended acl's (-b) */
 #define	OP_REMOVE_ACL		0x03	/* remove acl's (-xX) */
 
-/* STAILQ entry for acl operations */
+/* TAILQ entry for acl operations */
 struct sf_entry {
 	uint	op;
 	acl_t	acl;
-	STAILQ_ENTRY(sf_entry) next;
+	TAILQ_ENTRY(sf_entry) next;
 };
-STAILQ_HEAD(, sf_entry) entrylist;
+TAILQ_HEAD(, sf_entry) entrylist;
 
-/* STAILQ entry for files */
+/* TAILQ entry for files */
 struct sf_file {
 	const char *filename;
-	STAILQ_ENTRY(sf_file) next;
+	TAILQ_ENTRY(sf_file) next;
 };
-STAILQ_HEAD(, sf_file) filelist;
+TAILQ_HEAD(, sf_file) filelist;
 
 /* files.c */
 acl_t  get_acl_from_file(const char *filename);
@@ -63,7 +63,7 @@ int    remove_acl(acl_t acl, acl_t *prev_acl);
 int    remove_default(acl_t *prev_acl);
 void   remove_ext(acl_t *prev_acl);
 /* mask.c */
-int    set_acl_mask(acl_t prev_acl);
+int    set_acl_mask(acl_t *prev_acl);
 /* util.c */
 void  *zmalloc(size_t size);
 
