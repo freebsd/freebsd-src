@@ -378,7 +378,7 @@ fallback:
 				if (tag == NULL)
 					goto drop;
 				tag->m_flags = PACKET_TAG_DIVERT;
-				tag->m_data = (caddr_t)(u_long)args.divert_rule;
+				tag->m_data = (caddr_t)(intptr_t)args.divert_rule;
 				tag->m_next = m;
 				/* XXX: really bloody hack, see ip_input */
 				tag->m_nextpkt = (struct mbuf *)1;
@@ -567,7 +567,7 @@ passin:
 					goto drop;
 				}
 				tag->m_flags = PACKET_TAG_DIVERT;
-				tag->m_data = (caddr_t)(u_long)args.divert_rule;
+				tag->m_data = (caddr_t)(intptr_t)args.divert_rule;
 				tag->m_next = m;
 				/* XXX: really bloody hack, see ip_input */
 				tag->m_nextpkt = (struct mbuf *)1;
