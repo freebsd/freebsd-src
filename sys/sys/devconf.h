@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysctl.h,v 1.17 1994/10/10 00:58:34 phk Exp $
+ *	$Id: devconf.h,v 1.1 1994/10/16 03:52:59 wollman Exp $
  */
 
 /*
@@ -68,10 +68,6 @@ typedef int (*kdc_externalize_t)(struct proc *, struct kern_devconf *, void *,
 typedef int (*kdc_internalize_t)(struct proc *, struct kern_devconf *, void *,
 				 size_t);
 /*
- * DATALEN: calculate the length of the externalized form
- */
-typedef size_t (*kdc_datalen_t)(struct kern_devconf *);
-/*
  * GOAWAY: shut the device down, if possible, and prepare to exit.
  */
 typedef int (*kdc_goaway_t)(struct kern_devconf *, int);
@@ -85,8 +81,8 @@ struct kern_devconf {
 	struct machdep_devconf kdc_md; 		/* filled in by driver */
 	kdc_externalize_t kdc_externalize;	/* filled in by driver */
 	kdc_internalize_t kdc_internalize; 	/* filled in by driver */
-	kdc_datalen_t kdc_datalen;		/* filled in by driver */
 	kdc_goaway_t kdc_goaway;		/* filled in by driver */
+	size_t kdc_datalen;			/* filled in by driver */
 };
 
 int dev_attach(struct kern_devconf *);
