@@ -1,24 +1,23 @@
 FreeBSD ?.?.?  (UNKNOWN)
 
-Welcome to FreeBSD!  You will find security advisories and updated
-errata information for all releases at http://www.FreeBSD.org/releases/
+Welcome to FreeBSD!
 
-Before asking for technical assistance:
- 1.  Consult the ERRATA section for your release at the URL above.
+Before seeking technical support, please use the following resources:
 
- 2.  Search the Handbook, FAQ, and mail archives at 
-     http://www.FreeBSD.org/search.html. If the doc distribution is
-     installed on this machine, you will also find the formatted FAQ
-     and Handbook documents in /usr/share/doc/
+o  Security advisories and updated errata information for all releases are
+   at http://www.FreeBSD.org/releases/ - always consult the ERRATA section
+   for your release first as it's updated frequently.
 
- 3.  If you still have a question or problem, collect the output of
-     `uname -a' along with error messages from whatever part of the
-     system you are having problems with and email it as a question
-     to the questions@FreeBSD.org mailing list.
+o  The Handbook and FAQ documents are at http://www.freebsd.org and,
+   along with the mailing lists, can be searched by going to
+   http://www.FreeBSD.org/search.html.  If the doc distribution has
+   been installed, they're also available formatted in /usr/share/doc.
 
-If you are not familiar with FreeBSD's directory layout, please refer
-to the hier(7) man page. If you are not familiar with man pages, type
-"man man".  You may also use `/stand/sysinstall' to re-enter the
-installation and configuration  utility.  Edit /etc/motd to change
-this login announcement.
+If you still have a question or problem, please take the output of
+`uname -a',  along with any relevant error messages, and email it
+as a question to the questions@FreeBSD.org mailing list.  If you are
+unfamiliar with FreeBSD's directory layout, please refer to the hier(7)
+man page. If you are not familiar with man pages, type "man man".
+You may also use `/stand/sysinstall' to re-enter the installation and
+configuration utility.  Edit /etc/motd to change this login announcement.
 
