@@ -209,8 +209,10 @@ struct atm_pseudohdr {
 	(X)->atm_ph[3] = ((V) & 0xff); \
 }
 
-#define	ATM_PH_AAL5    0x01	/* use AAL5? (0 == aal0) */
-#define	ATM_PH_LLCSNAP 0x02	/* use the LLC SNAP encoding (iff aal5) */
+/* use AAL5? (0 == aal0) */
+#define	ATM_PH_AAL5    0x01
+/* use the LLC SNAP encoding (iff aal5) */
+#define	ATM_PH_LLCSNAP ATMIO_FLAG_LLCSNAP
 
 #define	ATM_PH_DRIVER7  0x40	/* reserve for driver's use */
 #define	ATM_PH_DRIVER8  0x80	/* reserve for driver's use */
