@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.3 1995/06/30 18:41:08 jfieber Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.4 1995/09/27 00:46:14 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -9,8 +9,8 @@
 	they are notorious for not illustrating how to put the
 	pieces together to make the whole operating system run
 	smoothly.  For this, there is no substitute for a good
-	book on Unix system administration, and a good users'
-	manual.  
+	book on Unix system administration and a good users'
+	manual.
 
       <sect>
 	<heading>Users' guides</heading>

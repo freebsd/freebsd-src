@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.9 1995/11/25 20:00:48 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.10 1995/12/03 00:17:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -143,9 +143,10 @@ Slippery when wet.  Beware of dog.
 
 	  <p><em>Contributed by &a.rgrimes;.<newline>25 April 1995.</em></p>
 
-	  <p>Of the Intel PCI chip sets the following is a list
-	    of brokenness from worst to best and a short
-	    description of brokenness.</p>
+	  <p>Of the Intel PCI chip sets, the following list describes
+	    various types of known-brokenness and the degree of
+            breakage, listed from worst to best.
+	    </p>
 
 	  <p><descrip>
 
