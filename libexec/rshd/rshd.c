@@ -200,6 +200,7 @@ doit(fromp)
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char remotehost[2 * MAXHOSTNAMELEN + 1];
+	char fromhost[2 * MAXHOSTNAMELEN + 1];
 
 #ifdef	KERBEROS
 	AUTH_DAT	*kdata = (AUTH_DAT *) NULL;
@@ -331,7 +332,9 @@ doit(fromp)
 		 * in a remote net; look up the name and check that this
 		 * address corresponds to the name.
 		 */
-		hostname = hp->h_name;
+		strncpy(fromhost, hp->h_name, sizeof(fromhost) - 1);
+		fromhost[sizeof(fromhost) - 1] = 0;
+		hostname = fromhost;
 #ifdef	KERBEROS
 		if (!use_kerberos)
 #endif
@@ -346,7 +349,10 @@ doit(fromp)
 				    remotehost);
 				errorstr =
 				"Couldn't look up address for your host (%s)\n";
-				hostname = inet_ntoa(fromp->sin_addr);
+				strncpy(fromhost, inet_ntoa(fromp->sin_addr),
+					sizeof(fromhost) - 1);
+				fromhost[sizeof(fromhost) - 1] = 0;
+				hostname = fromhost;
 			} else for (; ; hp->h_addr_list++) {
 				if (hp->h_addr_list[0] == NULL) {
 					syslog(LOG_NOTICE,
@@ -355,7 +361,10 @@ doit(fromp)
 					    hp->h_name);
 					errorstr =
 					    "Host address mismatch for %s\n";
-					hostname = inet_ntoa(fromp->sin_addr);
+					strncpy(fromhost, inet_ntoa(fromp->sin_addr),
+						sizeof(fromhost) - 1);
+					fromhost[sizeof(fromhost) - 1] = 0;
+					hostname = fromhost;
 					break;
 				}
 				if (!bcmp(hp->h_addr_list[0],
@@ -366,8 +375,12 @@ doit(fromp)
 				}
 			}
 		}
-	} else
-		errorhost = hostname = inet_ntoa(fromp->sin_addr);
+	} else {
+		strncpy(fromhost, inet_ntoa(fromp->sin_addr),
+			sizeof(fromhost) - 1);
+		fromhost[sizeof(fromhost) - 1] = 0;
+		errorhost = hostname = fromhost;
+	}
 
 #ifdef	KERBEROS
 	if (use_kerberos) {
