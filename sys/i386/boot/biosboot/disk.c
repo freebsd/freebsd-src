@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.20 1996/09/14 07:40:57 bde Exp $
+ *	$Id: disk.c,v 1.21 1996/10/08 22:25:22 bde Exp $
  */
 
 /*
@@ -230,7 +230,8 @@ Bread(int dosdev, int sector)
 		    nsec = 1;
 		    twiddle();
 		    while (biosread(dosdev, cyl, head, sec, nsec, ra_buf) != 0) {
-			printf("Error: C:%d H:%d S:%d\n", cyl, head, sec);
+			printf("Error: D:0x%x C:%d H:%d S:%d\n",
+			       dosdev, cyl, head, sec);
 			twiddle();
 		    }
 		}
