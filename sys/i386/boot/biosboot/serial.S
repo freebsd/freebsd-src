@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.8 1997/06/09 05:10:55 bde Exp $
+ *	$Id: serial.S,v 1.9 1997/07/13 15:24:15 bde Exp $
  */
 
 /*
@@ -65,7 +65,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
  */ 
 
-	.file	"serial.s"
+	.file	"serial.S"
 
 #include <i386/isa/sioreg.h>
 #include "asm.h"
@@ -79,50 +79,47 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * expensive real/protected mode switches), instead the rudimentary
  * BIOS support is duplicated here.
  *
- * The base address for the i/o port is passed from the Makefile in
- * the COMCONSOLE preprocessor macro.  Console parameters are currently
- * hard-coded to CONSPEED (9600) Bd, 8 bit.  This can be changed in the
- * init_serial() function.
+ * The base address and speed for the i/o port are passed from the
+ * Makefile in the COMCONSOLE and CONSPEED preprocessor macros.  The
+ * line control parameters are currently hard-coded to 8 bits, no
+ * parity, 1 stop bit (8N1).  This can be changed in init_serial().
  */
 
 /*
- * void serial_putc(ch) char ch;
- *	send ch to serial port
- *
+ * void serial_putc(int ch);
+ *	Write character `ch' to port COMCONSOLE.
  */
-
 ENTRY(serial_putc)
 	movl	$10000, %ecx	# timeout
-	mov	$COMCONSOLE + 5, %edx	# line status reg
+	movl	$COMCONSOLE + 5, %edx	# line status reg
 1:
 	decl	%ecx
 	je	2f
 	inb	%dx, %al
 	testb	$0x20, %al
-	jz	1b		# TX buffer not empty
+	je	1b		# TX buffer not empty
 
-	movb	0x4(%esp), %al
+	movb	4(%esp), %al
 
-	sub	$5, %edx	# TX output reg
+	subl	$5, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
 2:
 	ret
 
 /*
- * int serial_getc(void)
- *	read a character from serial port
+ * int serial_getc(void);
+ *	Read a character from port COMCONSOLE.
  */
-
 ENTRY(serial_getc)
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 1:
 	inb	%dx, %al
 	testb	$0x01, %al
-	jz	1b		# no RX char available
+	je	1b		# no rx char available
 
-	xor	%eax, %eax
-	sub	$5, %edx	# RX buffer reg
+	xorl	%eax, %eax
+	subl	$5, %edx	# rx buffer reg
 	inb	%dx, %al	# fetch (first) character
 
 	andb	$0x7F, %al	# remove any parity bits we get
@@ -133,29 +130,30 @@ ENTRY(serial_getc)
 	ret
 
 /*
- * int serial_ischar(void)
- *       if there is a character pending, return true; otherwise return 0
+ * int serial_ischar(void);
+ *       If there is a character in the input buffer of port COMCONSOLE,
+ *       return nonzero; otherwise return 0.
  */
 ENTRY(serial_ischar)
 	xorl	%eax, %eax
-	mov	$COMCONSOLE + 5, %edx	# line status reg
+	movl	$COMCONSOLE + 5, %edx	# line status reg
 	inb	%dx, %al
-	andb	$0x01, %al		# RX char available?
+	andb	$0x01, %al		# rx char available?
 	ret
 
 /*
- * void init_serial(void)
- * 	initialize the serial console port to 9600 Bd, 8 bpc
+ * void init_serial(void);
+ * 	Initialize port COMCONSOLE to speed CONSPEED, line settings 8N1.
  */
 ENTRY(init_serial)
-	mov	$COMCONSOLE + 3, %edx	# line control reg
+	movl	$COMCONSOLE + 3, %edx	# line control reg
 	movb	$0x80, %al
 	outb	%al, %dx	# enable DLAB
 
-	sub	$3, %edx	# divisor latch, low byte
-	mov	$COMBRD(CONSPEED), %ax	# 9600 Bd by default
+	subl	$3, %edx	# divisor latch, low byte
+	mov	$COMBRD(CONSPEED), %ax
 	outb	%al, %dx
-	inc	%edx		# divisor latch, high byte
+	incl	%edx		# divisor latch, high byte
 	movb	%ah, %al
 	outb	%al, %dx
 
@@ -165,14 +163,14 @@ ENTRY(init_serial)
 
 	incl	%edx		# line control reg
 	movb	$0x13, %al
-	outb	%al, %dx	# 8 bit, no parity, 1 stop bit
+	outb	%al, %dx	# 8N1
 
-	inc	%edx		# modem control reg
+	incl	%edx		# modem control reg
 	movb	$3, %al
 	outb	%al, %dx	# enable DTR/RTS
 
-	/* now finally, flush the input buffer */
-	inc	%edx		# line status reg
+	/* Flush the input buffer. */
+	incl	%edx		# line status reg
 1:
 	subl	$5, %edx	# rx buffer reg
 	inb	%dx, %al	# throw away (unconditionally the first time)
