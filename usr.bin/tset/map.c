@@ -225,30 +225,9 @@ typedef struct speeds {
 
 SPEEDS speeds[] = {
 	"0",		B0,
-	"50",		B50,
-	"75",		B75,
-	"110",		B110,
-	"134",		B134,
 	"134.5",	B134,
-	"150",		B150,
-	"200",		B200,
-	"300",		B300,
-	"600",		B600,
-	"1200",		B1200,
-	"1800",		B1800,
-	"2400",		B2400,
-	"4800",		B4800,
-	"9600",		B9600,
-	"19200",	B19200,
-	"38400",	B38400,
 	"exta",		B19200,
 	"extb",		B38400,
-#ifdef B57600
-	"57600",	B57600,
-#endif
-#ifdef B115200
-	"115200",	B115200,
-#endif
 	NULL
 };
 
@@ -257,6 +236,7 @@ baudrate(rate)
 	char *rate;
 {
 	SPEEDS *sp;
+	speed_t speed;
 
 	/* The baudrate number can be preceded by a 'B', which is ignored. */
 	if (*rate == 'B')
@@ -265,6 +245,8 @@ baudrate(rate)
 	for (sp = speeds; sp->string; ++sp)
 		if (!strcasecmp(rate, sp->string))
 			return (sp->speed);
-	err("unknown baud rate %s", rate);
-	/* NOTREACHED */
+	speed = atol(rate);
+	if (speed == 0)
+		err("unknown baud rate %s", rate);
+	return speed;
 }
