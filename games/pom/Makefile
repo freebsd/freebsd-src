@@ -4,5 +4,6 @@ PROG=	pom
 MAN6=	pom.6
 DPADD=	${LIBM}
 LDADD=	-lm
+CFLAGS+=-Wall
 
 .include <bsd.prog.mk>
