@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.15 1999/07/20 07:18:17 phk Exp $
+ *  $Id: coda_vfsops.c,v 1.16 1999/07/21 12:51:36 phk Exp $
  * 
  */
 
@@ -62,8 +62,6 @@
 #include <coda/coda_venus.h>
 #include <coda/coda_subr.h>
 #include <coda/coda_opstats.h>
-
-#include <miscfs/specfs/specdev.h>
 
 MALLOC_DEFINE(M_CODA, "CODA storage", "Various Coda Structures");
 

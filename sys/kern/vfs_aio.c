@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.53 1999/06/30 15:33:36 peter Exp $
+ * $Id: vfs_aio.c,v 1.54 1999/07/01 13:21:40 peter Exp $
  */
 
 /*
@@ -36,7 +36,6 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
-#include <miscfs/specfs/specdev.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.74 1999/05/11 19:54:35 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.75 1999/06/26 02:46:17 mckusick Exp $
  */
 
 
@@ -41,7 +41,6 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
 #include <sys/dirent.h>
 #include <miscfs/devfs/devfsdefs.h>
 #include <sys/vmmeter.h>                                                        

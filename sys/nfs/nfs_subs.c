@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.78 1999/06/27 11:44:19 peter Exp $
+ * $Id: nfs_subs.c,v 1.79 1999/07/17 18:43:47 phk Exp $
  */
 
 /*
@@ -56,6 +56,7 @@
 #include <sys/malloc.h>
 #include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -71,8 +72,6 @@
 #include <nfs/nfsmount.h>
 #include <nfs/nqnfs.h>
 #include <nfs/nfsrtt.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <netinet/in.h>
 #ifdef ISO

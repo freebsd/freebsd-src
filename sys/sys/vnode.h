@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.91 1999/07/20 09:47:54 phk Exp $
+ * $Id: vnode.h,v 1.92 1999/07/26 06:25:53 alc Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -505,6 +505,7 @@ void	cvtnstat __P((struct stat *sb, struct nstat *nsb));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, vop_t **vops, struct vnode **vpp));
 int	lease_check __P((struct vop_lease_args *ap));
+int	spec_vnoperate __P((struct vop_generic_args *));
 int	speedup_syncer __P((void));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
@@ -573,6 +574,7 @@ void	vref __P((struct vnode *vp));
 void	vbusy __P((struct vnode *vp));
 
 extern	vop_t	**default_vnodeop_p;
+extern	vop_t **spec_vnodeop_p;
 
 extern TAILQ_HEAD(tobefreelist, vnode)
 	vnode_tobefree_list;	/* vnode free list */

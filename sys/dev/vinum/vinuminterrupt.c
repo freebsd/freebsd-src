@@ -39,12 +39,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.6 1999/06/18 00:50:53 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.12 1999/08/07 08:06:30 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
 void complete_raid5_write(struct rqelement *);

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.99 1999/05/17 00:53:56 alc Exp $
+ * $Id: vm_mmap.c,v 1.100 1999/06/05 18:21:53 alc Exp $
  */
 
 /*
@@ -60,8 +60,6 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

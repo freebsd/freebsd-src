@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.57 1999/06/18 05:49:46 mckusick Exp $
+ * $Id: ffs_vnops.c,v 1.58 1999/06/26 02:46:39 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/conf.h>
 
 #include <machine/limits.h>
 
@@ -60,8 +61,6 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
-
-#include <miscfs/specfs/specdev.h>
 
 static int	ffs_fsync __P((struct vop_fsync_args *));
 static int	ffs_getpages __P((struct vop_getpages_args *));

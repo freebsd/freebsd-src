@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
- *	$Id: ffs_softdep.c,v 1.33 1999/06/27 13:26:23 peter Exp $
+ *	$Id: ffs_softdep.c,v 1.34 1999/06/29 15:57:40 mckusick Exp $
  */
 
 /*
@@ -75,7 +75,7 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h>
+#include <sys/conf.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.c,v 1.6 1999/05/12 09:43:04 semenu Exp $
+ *	$Id: ntfs_vfsops.c,v 1.7 1999/05/31 11:28:30 phk Exp $
  */
 
 
@@ -47,8 +47,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-
-#include <miscfs/specfs/specdev.h>
 
 /*#define NTFS_DEBUG 1*/
 #include <ntfs/ntfs.h>
