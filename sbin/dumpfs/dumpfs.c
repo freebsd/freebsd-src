@@ -137,8 +137,9 @@ dumpfs(const char *name)
 		break;
 	case 1:
 		fssize = afs.fs_old_size;
+		time = afs.fs_old_time;
 		printf("magic\t%x (UFS1)\ttime\t%s",
-		    afs.fs_magic, ctime(&afs.fs_old_time));
+		    afs.fs_magic, ctime(&time));
 		printf("id\t[ %x %x ]\n", afs.fs_id[0], afs.fs_id[1]);
 		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
 		    afs.fs_ncg, fssize, afs.fs_dsize);
@@ -273,8 +274,9 @@ dumpcg(int c)
 		    acg.cg_cgx, acg.cg_ndblk, acg.cg_niblk, acg.cg_initediblk);
 		break;
 	case 1:
+		time = acg.cg_old_time;
 		printf("magic\t%x\ttell\t%qx\ttime\t%s",
-		    acg.cg_magic, cur, ctime(&acg.cg_old_time));
+		    acg.cg_magic, cur, ctime(&time));
 		printf("cgx\t%d\tncyl\t%d\tniblk\t%d\tndblk\t%d\n",
 		    acg.cg_cgx, acg.cg_old_ncyl, acg.cg_old_niblk,
 		    acg.cg_ndblk);
