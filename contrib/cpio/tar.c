@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -342,6 +344,19 @@ read_in_tar_header (file_hdr, in_des)
 	    file_hdr->c_mode |= CP_IFDIR;
 	  else
 	    file_hdr->c_mode |= CP_IFREG;
+	  break;
+	case 'x': case 'g':
+	  /* Ignore pax 'x' and 'g' extension entries. */
+	  /* Skip body of this entry. */
+	  while (file_hdr->c_filesize > 0) {
+	    tape_buffered_read(((char *) &tar_rec), in_des, TARRECORDSIZE);
+	    if (file_hdr->c_filesize > TARRECORDSIZE)
+		    file_hdr->c_filesize -= TARRECORDSIZE;
+	    else
+		    file_hdr->c_filesize = 0;
+	  }
+	  /* Read next header and return that instead. */
+	  read_in_tar_header(file_hdr, in_des);
 	  break;
 	}
       break;
