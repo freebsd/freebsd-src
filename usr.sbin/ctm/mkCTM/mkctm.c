@@ -584,7 +584,7 @@ main(int argc, char **argv)
 		errx(1, "Damage of %d would exceed %d files", 
 			damage, damage_limit);
 	} else if (change < 2) {
-		errx(1, "No changes");
+		errx(4, "No changes");
 	} else {
 		printf("CTM_END ");
 		fprintf(logf, "CTM_END\n");

@@ -116,6 +116,11 @@ while 1 {
     set r1 [catch "exec ${CTMSW}/mkctm -I ${CTMignore} -B ${CTMbogus} -l ${CTMtmp}.log -D $max_damage $CTMname $CTMnbr . $CTMdate $x1 $CTMref | md5 -p | gzip -9 > ${CTMtmp}:${nm}.gz 2>@ stderr" r2]
 
     if {$r1} {
+	if {[lindex $errorCode 2] == 4} {
+		puts "No changes, stopping."
+		exec rm -f $CTMlock
+		exit 0
+	}
 	puts "problems, stopping now."
         puts "errorCode $errorCode"
 	puts "$r2"
