@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.83 1998/08/08 19:25:56 jkh Exp $
+#	$Id: options.i386,v 1.84 1998/08/10 08:40:27 yokota Exp $
 
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
@@ -85,6 +85,8 @@ SC_BAD_FLICKER		opt_syscons.h
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
+
+PCIC_RESUME_RESET	opt_pcic.h
 
 KBD_RESETDELAY		opt_kbdio.h
 KBD_MAXRETRY		opt_kbdio.h
