@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * The routines contained in this file do all the rcs file parsing and
  * manipulation
  */
@@ -113,7 +113,7 @@ RCS_addnode (file, rcs, list)
     List *list;
 {
     Node *p;
-
+    
     p = getnode ();
     p->key = xstrdup (file);
     p->delproc = rcsnode_delproc;
@@ -136,10 +136,10 @@ RCS_parse (file, repos)
     char rcsfile[PATH_MAX];
 
     (void) sprintf (rcsfile, "%s/%s%s", repos, file, RCSEXT);
-    if ((fp = fopen (rcsfile, "r")) != NULL)
+    if ((fp = fopen (rcsfile, "r")) != NULL) 
     {
         rcs = RCS_parsercsfile_i(fp, rcsfile);
-	if (rcs != NULL)
+	if (rcs != NULL) 
 	    rcs->flags |= VALID;
 
 	fclose (fp);
@@ -147,7 +147,7 @@ RCS_parse (file, repos)
     }
 
     (void) sprintf (rcsfile, "%s/%s/%s%s", repos, CVSATTIC, file, RCSEXT);
-    if ((fp = fopen (rcsfile, "r")) != NULL)
+    if ((fp = fopen (rcsfile, "r")) != NULL) 
     {
         rcs = RCS_parsercsfile_i(fp, rcsfile);
 	if (rcs != NULL)
@@ -429,16 +429,16 @@ null_delproc (p)
 
 /*
  * getrcskey - fill in the key and value from the rcs file the algorithm is
- *             as follows
+ *             as follows 
  *
- *    o skip whitespace o fill in key with everything up to next white
- *      space or semicolon
- *    o if key == "desc" then key and data are NULL and return -1
- *    o if key wasn't terminated by a semicolon, skip white space and fill
+ *    o skip whitespace o fill in key with everything up to next white 
+ *      space or semicolon 
+ *    o if key == "desc" then key and data are NULL and return -1 
+ *    o if key wasn't terminated by a semicolon, skip white space and fill 
  *      in value with everything up to a semicolon o compress all whitespace
- *      down to a single space
+ *      down to a single space 
  *    o if a word starts with @, do funky rcs processing
- *    o strip whitespace off end of value or set value to NULL if it empty
+ *    o strip whitespace off end of value or set value to NULL if it empty 
  *    o return 0 since we found something besides "desc"
  */
 
@@ -739,10 +739,10 @@ do_branches (list, val)
 
 /*
  * Version Number
- *
+ * 
  * Returns the requested version number of the RCS file, satisfying tags and/or
  * dates, and walking branches, if necessary.
- *
+ * 
  * The result is returned; null-string if error.
  */
 char *
@@ -788,7 +788,7 @@ RCS_getversion (rcs, tag, date, force_tag_match)
  * If force_tag_match is set, return NULL if an exact match is not
  * possible otherwise return RCS_head ().  We are careful to look for
  * and handle "magic" revisions specially.
- *
+ * 
  * If the matched tag is a branch tag, find the head of the branch.
  */
 char *
@@ -1410,7 +1410,7 @@ RCS_datecmp (date1, date2)
  * Lookup the specified revision in the ,v file and return, in the date
  * argument, the date specified for the revision *minus one second*, so that
  * the logically previous revision will be found later.
- *
+ * 
  * Returns zero on failure, RCS revision time as a Unix "time_t" on success.
  */
 time_t

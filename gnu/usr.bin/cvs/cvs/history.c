@@ -485,7 +485,7 @@ history (argc, argv)
 #ifndef HAVE_RCS5
 		error (0, 0, "-z not supported with RCS 4");
 #else
-		tz_local =
+		tz_local = 
 		    (optarg[0] == 'l' || optarg[0] == 'L')
 		    && (optarg[1] == 't' || optarg[1] == 'T')
 		    && !optarg[2];

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
  */
@@ -145,7 +145,7 @@ Version_TS (repository, options, tag, date, user, force_tag_match,
 	    else
 		vers_ts->vn_rcs = RCS_getversion (rcsdata, vers_ts->tag,
 					    vers_ts->date, force_tag_match);
-	}
+	} 
 
 	/*
 	 * If the source control file exists and has the requested revision,

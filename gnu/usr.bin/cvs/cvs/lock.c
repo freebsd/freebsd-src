@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Set Lock
- *
+ * 
  * Lock file support for CVS.
  */
 
@@ -147,7 +147,7 @@ Reader_Lock (xrepository)
     }
 
     if (readlock[0] == '\0')
-      (void) sprintf (readlock,
+      (void) sprintf (readlock, 
 #ifdef HAVE_LONG_FILE_NAMES
 		"%s.%s.%d", CVSRFL, hostname,
 #else
@@ -422,7 +422,7 @@ again:
 	    {
 #ifdef CVS_FUDGELOCKS
 		/*
-		 * If the create time of the file is more than CVSLCKAGE
+		 * If the create time of the file is more than CVSLCKAGE 
 		 * seconds ago, try to clean-up the lock file, and if
 		 * successful, re-open the directory and try again.
 		 */

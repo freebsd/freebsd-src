@@ -51,7 +51,7 @@ open_module ()
 
     if (CVSroot == NULL)
     {
-	(void) fprintf (stderr,
+	(void) fprintf (stderr, 
 			"%s: must set the CVSROOT environment variable\n",
 			program_name);
 	error (1, 0, "or specify the '-d' option to %s", program_name);

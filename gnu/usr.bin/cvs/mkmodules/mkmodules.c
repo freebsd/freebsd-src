@@ -1,12 +1,12 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * mkmodules
- *
+ * 
  * Re-build the modules database for the CVS system.  Accepts one argument,
  * which is the directory that the modules,v file lives in.
  */
@@ -56,7 +56,7 @@ main (argc, argv)
        char *filename;
        char *errormsg;
     } *fileptr, filelist[] = {
-    {CVSROOTADM_LOGINFO,
+    {CVSROOTADM_LOGINFO, 
 	"no logging of 'cvs commit' messages is done without a %s file"},
     {CVSROOTADM_RCSINFO,
 	"a %s file can be used to configure 'cvs commit' templates"},
@@ -381,7 +381,7 @@ rename_rcsfile (temp, real)
     char bak[50];
     struct stat statbuf;
     char rcs[PATH_MAX];
-
+    
     /* Set "x" bits if set in original. */
     (void) sprintf (rcs, "%s%s", real, RCSEXT);
     statbuf.st_mode = 0; /* in case rcs file doesn't exist, but it should... */

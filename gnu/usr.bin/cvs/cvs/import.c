@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * "import" checks in the vendor release located in the current directory into
  * the CVS source repository.  The CVS vendor branch support is utilized.
- *
+ * 
  * At least three arguments are expected to follow the options:
  *	repository	Where the source belongs relative to the CVSROOT
  *	VendorTag	Vendor's major tag
@@ -180,7 +180,7 @@ import (argc, argv)
     if (use_editor)
     {
 	do_editor ((char *) NULL, &message, repository,
-		   (List *) NULL);
+		   (List *) NULL); 
     }
 
     msglen = message == NULL ? 0 : strlen (message);
@@ -402,7 +402,7 @@ update_rcs_file (message, vfile, vtag, targc, targv, inattic)
 	int retcode = 0;
 
 	tmpdir = getenv ("TMPDIR");
-	if (tmpdir == NULL || tmpdir[0] == '\0')
+	if (tmpdir == NULL || tmpdir[0] == '\0') 
 	  tmpdir = "/tmp";
 
 	(void) sprintf (xtmpfile, "%s/cvs-imp%d", tmpdir, getpid());
@@ -412,7 +412,7 @@ update_rcs_file (message, vfile, vtag, targc, targv, inattic)
 	 * this revision with the import file; if they match exactly, there
 	 * is no need to install the new import file as a new revision to the
 	 * branch.  Just tag the revision with the new import tags.
-	 *
+	 * 
 	 * This is to try to cut down the number of "C" conflict messages for
 	 * locally modified import source files.
 	 */
@@ -573,7 +573,7 @@ add_tags (rcs, vfile, vtag, targc, targv)
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
     {
 	ierrno = errno;
-	fperror (logfp, 0, retcode == -1 ? ierrno : 0,
+	fperror (logfp, 0, retcode == -1 ? ierrno : 0, 
 		 "ERROR: Failed to set tag %s in %s", vtag, rcs);
 	error (0, retcode == -1 ? ierrno : 0,
 	       "ERROR: Failed to set tag %s in %s", vtag, rcs);
@@ -588,7 +588,7 @@ add_tags (rcs, vfile, vtag, targc, targv)
 	if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
 	{
 	    ierrno = errno;
-	    fperror (logfp, 0, retcode == -1 ? ierrno : 0,
+	    fperror (logfp, 0, retcode == -1 ? ierrno : 0, 
 		     "WARNING: Couldn't add tag %s to %s", targv[i], rcs);
 	    error (0, retcode == -1 ? ierrno : 0,
 		   "WARNING: Couldn't add tag %s to %s", targv[i], rcs);
@@ -975,7 +975,7 @@ add_log (ch, fname)
  * This is the recursive function that walks the argument directory looking
  * for sub-directories that have CVS administration files in them and updates
  * them recursively.
- *
+ * 
  * Note that we do not follow symbolic links here, which is a feature!
  */
 static int
@@ -1073,7 +1073,7 @@ strn2expmode(s, n)
      size_t n;
 {
   char const *const *p;
-
+  
   for (p = expand_names;  *p;  ++p)
     if (memcmp(*p,s,n) == 0  &&  !(*p)[n])
       return p - expand_names;

@@ -1,25 +1,25 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Add
- *
+ * 
  * Adds a file or directory to the RCS source repository.  For a file,
  * the entry is marked as "needing to be added" in the user's own CVS
  * directory, and really added to the repository when it is committed.
  * For a directory, it is added at the appropriate place in the source
  * repository and a CVS directory is generated within the directory.
- *
+ * 
  * The -m option is currently the only supported option.  Some may wish to
  * supply standard "rcs" options here, but I've found that this causes more
  * trouble than anything else.
- *
+ * 
  * The user files or directories must already exist.  For a directory, it must
  * not already have a CVS file in it.
- *
+ * 
  * An "add" on a file that has been "remove"d but not committed will cause the
  * file to be resurrected.
  */
@@ -144,7 +144,7 @@ add (argc, argv)
 		    if (build_entry (repository, user, vers->options,
 				     message, entries, vers->tag) != 0)
 		      err++;
-		    else
+		    else 
 		    {
 		      added_files++;
 		      if (!quiet)
@@ -256,7 +256,7 @@ add (argc, argv)
  * The specified user file is really a directory.  So, let's make sure that
  * it is created in the RCS source repository, and that the user's directory
  * is updated to include a CVS directory.
- *
+ * 
  * Returns 1 on failure, 0 on success.
  */
 static int
