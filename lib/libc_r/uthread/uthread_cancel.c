@@ -59,9 +59,23 @@ pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_JOIN:
+				/*
+				 * Disconnect the thread from the joinee and
+				 * detach:
+				 */
+				if (pthread->data.thread != NULL) {
+					pthread->data.thread->joiner = NULL;
+					pthread_detach((pthread_t)
+					    pthread->data.thread);
+				}
+				pthread->cancelflags |= PTHREAD_CANCELLING;
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+				break;
+
 			case PS_SUSPENDED:
 				if (pthread->suspended == SUSP_NO ||
 				    pthread->suspended == SUSP_YES ||
+				    pthread->suspended == SUSP_JOIN ||
 				    pthread->suspended == SUSP_NOWAIT) {
 					/*
 					 * This thread isn't in any scheduling
@@ -180,7 +194,6 @@ pthread_testcancel(void)
 		 */
 		_thread_run->cancelflags &= ~PTHREAD_CANCELLING;
 		_thread_exit_cleanup();
-		pthread_detach((pthread_t)_thread_run);
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
 	}
@@ -211,7 +224,6 @@ finish_cancellation(void *arg)
 	if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
 		_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 		_thread_exit_cleanup();
-		pthread_detach((pthread_t)_thread_run);
 		pthread_exit(PTHREAD_CANCELED);
 	}
 }
