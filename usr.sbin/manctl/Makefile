@@ -1,11 +1,10 @@
 # Makefile
-# $Id: Makefile,v 1.5 1995/07/17 14:39:09 jkh Exp $
+# $Id: Makefile,v 1.6 1995/07/25 00:37:23 bde Exp $
 
-all:
-	@echo -n
+MAN8=	manctl.8
 
-install: all
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/manctl.sh \
-	${DESTDIR}${BINDIR}/manctl
+beforeinstall: 
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		${.CURDIR}/manctl.sh ${DESTDIR}${BINDIR}/manctl
 
 .include <bsd.prog.mk>
