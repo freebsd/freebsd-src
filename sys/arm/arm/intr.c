@@ -139,17 +139,16 @@ arm_handler_execute(void *frame, int irqnb)
 			continue;
 		ih = TAILQ_FIRST(&ithd->it_handlers);
 		if (ih && ih->ih_flags & IH_FAST) {
+			oldirqstate = disable_interrupts(I32_bit);
 			TAILQ_FOREACH(ih, &ithd->it_handlers,
 			    ih_next) {
 				ih->ih_handler(ih->ih_argument ?
 				    ih->ih_argument : frame);
 			}
-			arm_unmask_irqs(1 << i);
-		} else if (ih) {
-			oldirqstate = enable_interrupts(I32_bit);
-			ithread_schedule(ithd);
 			restore_interrupts(oldirqstate);
-		}
+			arm_unmask_irqs(1 << i);
+		} else if (ih)
+			ithread_schedule(ithd);
 		irqnb |= arm_get_irqnb(frame);
 	}
 	td->td_intr_nesting_level--;
