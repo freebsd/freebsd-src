@@ -63,7 +63,7 @@ dofs_vn () {
 	trap "umount ${MNT}; vnconfig -u /dev/r${VNDEVICE}; rm -f /dev/*vnn*" EXIT
 
 	disklabel -w ${BOOT} ${VNDEVICE} ${FSLABEL}
-	newfs -O1 -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
+	newfs -i ${FSINODE} -o space -m 0 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
