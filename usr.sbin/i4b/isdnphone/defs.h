@@ -49,13 +49,13 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <sys/soundcard.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
 
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_tel_ioctl.h>
-#include <machine/soundcard.h>
 
 /* device file prefixes */
 
