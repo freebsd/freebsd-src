@@ -228,7 +228,7 @@ static struct ncp_nlsdesc ncp_nlslist[] = {
 	{NCP_NLS_SE, NCP_NLS_SE_NAME, 
 	    {def2lower, def2upper, se_nw2unix, se_unix2nw, 0}
 	},
-	{NULL, 0}
+	{0}
 };
 
 struct ncp_nlstables ncp_nls;
