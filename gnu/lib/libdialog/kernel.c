@@ -99,8 +99,10 @@ void init_dialog(void)
     exit(-1);
 #endif
 
-  if (initscr() == NULL)     /* Init curses */
+  if (initscr() == NULL) { /* Init curses */
+    fprintf(stderr, "\nCurses initialization error.\n");
     exit(-1);
+  }
   keypad(stdscr, TRUE);
   cbreak();
   noecho();
