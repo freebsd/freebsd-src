@@ -2,10 +2,10 @@
 
 .PATH:	${.CURDIR}/../../coda
 KMOD=	coda
-SRCS=	coda_fbsd.c coda_namecache.c coda_psdev.c coda_subr.c \
+SRCS=	vnode_if.h \
+	coda_fbsd.c coda_namecache.c coda_psdev.c coda_subr.c \
 	coda_venus.c coda_vfsops.c coda_vnops.c opt_devfs.h vcoda.h
 NOMAN=
-VFS_KLD=
 
 CLEANFILES=	vcoda.h
 

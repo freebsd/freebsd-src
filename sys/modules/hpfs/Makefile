@@ -2,10 +2,10 @@
 
 .PATH:	${.CURDIR}/../../fs/hpfs
 KMOD=	hpfs
-SRCS=	hpfs_vfsops.c hpfs_vnops.c hpfs_hash.c hpfs_subr.c hpfs_lookup.c \
+SRCS=	vnode_if.h \
+	hpfs_vfsops.c hpfs_vnops.c hpfs_hash.c hpfs_subr.c hpfs_lookup.c \
 	hpfs_alsubr.c opt_vmpage.h
 NOMAN=
-VFS_KLD=
 CFLAGS+= -DHPFS
 CLEANFILES= opt_vmpage.h
 
