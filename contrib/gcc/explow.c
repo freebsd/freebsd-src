@@ -1,5 +1,5 @@
 /* Subroutines for manipulating rtx's in semantically interesting ways.
-   Copyright (C) 1987, 91, 94-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91, 94-97, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,6 +21,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "toplev.h"
 #include "rtl.h"
 #include "tree.h"
 #include "flags.h"
@@ -30,6 +31,10 @@ Boston, MA 02111-1307, USA.  */
 #include "recog.h"
 #include "insn-flags.h"
 #include "insn-codes.h"
+
+#if !defined PREFERRED_STACK_BOUNDARY && defined STACK_BOUNDARY
+#define PREFERRED_STACK_BOUNDARY STACK_BOUNDARY
+#endif
 
 static rtx break_out_memory_refs	PROTO((rtx));
 static void emit_stack_probe		PROTO((rtx));
@@ -112,19 +117,32 @@ plus_constant_wide (x, c)
 	 integer.  For a constant term that is not an explicit integer,
 	 we cannot really combine, but group them together anyway.  
 
-	 Use a recursive call in case the remaining operand is something
-	 that we handle specially, such as a SYMBOL_REF.  */
+	 Restart or use a recursive call in case the remaining operand is
+	 something that we handle specially, such as a SYMBOL_REF.
+
+	 We may not immediately return from the recursive call here, lest
+	 all_constant gets lost.  */
 
       if (GET_CODE (XEXP (x, 1)) == CONST_INT)
-	return plus_constant (XEXP (x, 0), c + INTVAL (XEXP (x, 1)));
+	{
+	  c += INTVAL (XEXP (x, 1));
+	  x = XEXP (x, 0);
+	  goto restart;
+	}
       else if (CONSTANT_P (XEXP (x, 0)))
-	return gen_rtx_PLUS (mode,
-			     plus_constant (XEXP (x, 0), c),
-			     XEXP (x, 1));
+	{
+	  x = gen_rtx_PLUS (mode,
+			    plus_constant (XEXP (x, 0), c),
+			    XEXP (x, 1));
+	  c = 0;
+	}
       else if (CONSTANT_P (XEXP (x, 1)))
-	return gen_rtx_PLUS (mode,
-			     XEXP (x, 0),
-			     plus_constant (XEXP (x, 1), c));
+	{
+	  x = gen_rtx_PLUS (mode,
+			    XEXP (x, 0),
+			    plus_constant (XEXP (x, 1), c));
+	  c = 0;
+	}
       break;
       
     default:
@@ -589,9 +607,10 @@ stabilize (x)
       /* Mark returned memref with in_struct if it's in an array or
 	 structure.  Copy const and volatile from original memref.  */
 
-      MEM_IN_STRUCT_P (mem) = MEM_IN_STRUCT_P (x) || GET_CODE (addr) == PLUS;
       RTX_UNCHANGING_P (mem) = RTX_UNCHANGING_P (x);
-      MEM_VOLATILE_P (mem) = MEM_VOLATILE_P (x);
+      MEM_COPY_ATTRIBUTES (mem, x);
+      if (GET_CODE (addr) == PLUS)
+	MEM_SET_IN_STRUCT_P (mem, 1);
 
       /* Since the new MEM is just like the old X, it can alias only
 	 the things that X could.  */
@@ -736,7 +755,7 @@ promote_mode (type, mode, punsignedp, for_call)
      tree type;
      enum machine_mode mode;
      int *punsignedp;
-     int for_call;
+     int for_call ATTRIBUTE_UNUSED;
 {
   enum tree_code code = TREE_CODE (type);
   int unsignedp = *punsignedp;
@@ -830,8 +849,8 @@ rtx
 round_push (size)
      rtx size;
 {
-#ifdef STACK_BOUNDARY
-  int align = STACK_BOUNDARY / BITS_PER_UNIT;
+#ifdef PREFERRED_STACK_BOUNDARY
+  int align = PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT;
   if (align == 1)
     return size;
   if (GET_CODE (size) == CONST_INT)
@@ -851,7 +870,7 @@ round_push (size)
 			    NULL_RTX, 1);
       size = expand_mult (Pmode, size, GEN_INT (align), NULL_RTX, 1);
     }
-#endif /* STACK_BOUNDARY */
+#endif /* PREFERRED_STACK_BOUNDARY */
   return size;
 }
 
@@ -1124,10 +1143,10 @@ allocate_dynamic_stack_space (size, target, known_align)
      If we have to align, we must leave space in SIZE for the hole
      that might result from the alignment operation.  */
 
-#if defined (STACK_DYNAMIC_OFFSET) || defined (STACK_POINTER_OFFSET) || ! defined (STACK_BOUNDARY)
+#if defined (STACK_DYNAMIC_OFFSET) || defined (STACK_POINTER_OFFSET) || ! defined (PREFERRED_STACK_BOUNDARY)
 #define MUST_ALIGN 1
 #else
-#define MUST_ALIGN (STACK_BOUNDARY < BIGGEST_ALIGNMENT)
+#define MUST_ALIGN (PREFERRED_STACK_BOUNDARY < BIGGEST_ALIGNMENT)
 #endif
 
   if (MUST_ALIGN)
@@ -1154,12 +1173,12 @@ allocate_dynamic_stack_space (size, target, known_align)
 
     if (!current_function_calls_setjmp)
       {
-	int align = STACK_BOUNDARY / BITS_PER_UNIT;
+	int align = PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT;
 
 	/* See optimize_save_area_alloca to understand what is being
 	   set up here.  */
 
-#if !defined(STACK_BOUNDARY) || !defined(MUST_ALIGN) || (STACK_BOUNDARY != BIGGEST_ALIGNMENT)
+#if !defined(PREFERRED_STACK_BOUNDARY) || !defined(MUST_ALIGN) || (PREFERRED_STACK_BOUNDARY != BIGGEST_ALIGNMENT)
 	/* If anyone creates a target with these characteristics, let them
 	   know that our optimization cannot work correctly in such a case.  */
 	abort();
@@ -1209,11 +1228,11 @@ allocate_dynamic_stack_space (size, target, known_align)
      way of knowing which systems have this problem.  So we avoid even
      momentarily mis-aligning the stack.  */
 
-#ifdef STACK_BOUNDARY
+#ifdef PREFERRED_STACK_BOUNDARY
   /* If we added a variable amount to SIZE,
      we can no longer assume it is aligned.  */
 #if !defined (SETJMP_VIA_SAVE_AREA)
-  if (MUST_ALIGN || known_align % STACK_BOUNDARY != 0)
+  if (MUST_ALIGN || known_align % PREFERRED_STACK_BOUNDARY != 0)
 #endif
     size = round_push (size);
 #endif
@@ -1243,7 +1262,11 @@ allocate_dynamic_stack_space (size, target, known_align)
       if (insn_operand_predicate[(int) CODE_FOR_allocate_stack][0]
 	  && ! ((*insn_operand_predicate[(int) CODE_FOR_allocate_stack][0])
 		(target, Pmode)))
+#ifdef POINTERS_EXTEND_UNSIGNED
+	target = convert_memory_address (Pmode, target);
+#else
 	target = copy_to_mode_reg (Pmode, target);
+#endif
       size = convert_modes (mode, ptr_mode, size, 1);
       if (insn_operand_predicate[(int) CODE_FOR_allocate_stack][1]
 	  && ! ((*insn_operand_predicate[(int) CODE_FOR_allocate_stack][1])
@@ -1299,7 +1322,7 @@ allocate_dynamic_stack_space (size, target, known_align)
 #endif
 
   /* Record the new stack level for nonlocal gotos.  */
-  if (nonlocal_goto_handler_slot != 0)
+  if (nonlocal_goto_handler_slots != 0)
     emit_stack_save (SAVE_NONLOCAL, &nonlocal_goto_stack_level, NULL_RTX);
 
   return target;
@@ -1427,8 +1450,8 @@ probe_stack_range (first, size)
 	abort ();
 
       emit_label (test_lab);
-      emit_cmp_insn (test_addr, last_addr, CMP_OPCODE, NULL_RTX, Pmode, 1, 0);
-      emit_jump_insn ((*bcc_gen_fctn[(int) CMP_OPCODE]) (loop_lab));
+      emit_cmp_and_jump_insns (test_addr, last_addr, CMP_OPCODE,
+			       NULL_RTX, Pmode, 1, 0, loop_lab);
       emit_jump (end_lab);
       emit_note (NULL_PTR, NOTE_INSN_LOOP_END);
       emit_label (end_lab);
@@ -1450,7 +1473,7 @@ probe_stack_range (first, size)
 rtx
 hard_function_value (valtype, func)
      tree valtype;
-     tree func;
+     tree func ATTRIBUTE_UNUSED;
 {
   rtx val = FUNCTION_VALUE (valtype, func);
   if (GET_CODE (val) == REG

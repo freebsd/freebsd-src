@@ -1,6 +1,6 @@
 /* bad.h -- Public #include File (module.h template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -82,8 +82,8 @@ void ffebad_init_0 (void);
 bool ffebad_is_fatal (ffebad errnum);
 ffebadSeverity ffebad_severity (ffebad errnum);
 bool ffebad_start_ (bool lex_override, ffebad errnum, ffebadSeverity sev,
-		    char *message);
-void ffebad_string (char *string);
+		    const char *message);
+void ffebad_string (const char *string);
 
 /* Define macros. */
 

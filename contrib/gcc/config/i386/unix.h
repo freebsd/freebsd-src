@@ -1,5 +1,5 @@
 /* Definitions for Unix assembler syntax for the Intel 80386.
-   Copyright (C) 1988, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1994, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -131,10 +131,9 @@ Boston, MA 02111-1307, USA.  */
   (fputs (".globl ", FILE), assemble_name (FILE, NAME), fputs ("\n", FILE))
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
-   and returns float values in the 387, ie,
-   (TARGET_80387 | TARGET_IEEE_FP | TARGET_FLOAT_RETURNS_IN_80387) */
+   and returns float values in the 387.  */
 
-#define TARGET_DEFAULT 0301
+#define TARGET_DEFAULT (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS)
 
 /* Floating-point return values come in the FP register.  */
 
@@ -177,7 +176,7 @@ do {									      \
       output_asm_insn (AS1 (call,%P1), xops);				      \
       ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", CODE_LABEL_NUMBER (xops[1]));     \
       output_asm_insn (AS1 (pop%L0,%0), xops);				      \
-      output_asm_insn ("addl $_GLOBAL_OFFSET_TABLE_+[.-%P1],%0", xops);	      \
+      output_asm_insn ("addl $%__GLOBAL_OFFSET_TABLE_+[.-%P1],%0", xops);     \
       fprintf (FILE, "\tmovl ");					      \
       assemble_name (FILE, XSTR (XEXP (DECL_RTL (FUNCTION), 0), 0));	      \
       fprintf (FILE, "@GOT(%%ebx),%%ecx\n\tpopl %%ebx\n\tjmp *%%ecx\n");      \

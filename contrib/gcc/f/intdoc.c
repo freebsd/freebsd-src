@@ -1,6 +1,6 @@
 /* intdoc.c
    Copyright (C) 1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -46,30 +46,30 @@ typedef enum
 #define FFEINTRIN_DOC 1
 #include "intrin.h"
 
-char *family_name (ffeintrinFamily family);
+const char *family_name (ffeintrinFamily family);
 static void dumpif (ffeintrinFamily fam);
 static void dumpendif (void);
 static void dumpclearif (void);
 static void dumpem (void);
-static void dumpgen (int menu, char *name, char *name_uc,
+static void dumpgen (int menu, const char *name, const char *name_uc,
 		     ffeintrinGen gen);
-static void dumpspec (int menu, char *name, char *name_uc,
+static void dumpspec (int menu, const char *name, const char *name_uc,
 		      ffeintrinSpec spec);
-static void dumpimp (int menu, char *name, char *name_uc, size_t genno, ffeintrinFamily family,
+static void dumpimp (int menu, const char *name, const char *name_uc, size_t genno, ffeintrinFamily family,
 		     ffeintrinImp imp, ffeintrinSpec spec);
-static char *argument_info_ptr (ffeintrinImp imp, int argno);
-static char *argument_info_string (ffeintrinImp imp, int argno);
-static char *argument_name_ptr (ffeintrinImp imp, int argno);
-static char *argument_name_string (ffeintrinImp imp, int argno);
+static const char *argument_info_ptr (ffeintrinImp imp, int argno);
+static const char *argument_info_string (ffeintrinImp imp, int argno);
+static const char *argument_name_ptr (ffeintrinImp imp, int argno);
+static const char *argument_name_string (ffeintrinImp imp, int argno);
 #if 0
-static char *elaborate_if_complex (ffeintrinImp imp, int argno);
-static char *elaborate_if_maybe_complex (ffeintrinImp imp, int argno);
-static char *elaborate_if_real (ffeintrinImp imp, int argno);
+static const char *elaborate_if_complex (ffeintrinImp imp, int argno);
+static const char *elaborate_if_maybe_complex (ffeintrinImp imp, int argno);
+static const char *elaborate_if_real (ffeintrinImp imp, int argno);
 #endif
-static void print_type_string (char *c);
+static void print_type_string (const char *c);
 
 int
-main (int argc, char **argv)
+main (int argc, char **argv ATTRIBUTE_UNUSED)
 {
   if (argc != 1)
     {
@@ -86,22 +86,22 @@ Usage: intdoc > intdoc.texi\n\
 
 struct _ffeintrin_name_
   {
-    char *name_uc;
-    char *name_lc;
-    char *name_ic;
+    const char *name_uc;
+    const char *name_lc;
+    const char *name_ic;
     ffeintrinGen generic;
     ffeintrinSpec specific;
   };
 
 struct _ffeintrin_gen_
   {
-    char *name;			/* Name as seen in program. */
+    const char *name;		/* Name as seen in program. */
     ffeintrinSpec specs[2];
   };
 
 struct _ffeintrin_spec_
   {
-    char *name;			/* Uppercase name as seen in source code,
+    const char *name;		/* Uppercase name as seen in source code,
 				   lowercase if no source name, "none" if no
 				   name at all (NONE case). */
     bool is_actualarg;		/* Ok to pass as actual arg if -pedantic. */
@@ -111,11 +111,11 @@ struct _ffeintrin_spec_
 
 struct _ffeintrin_imp_
   {
-    char *name;			/* Name of implementation. */
+    const char *name;			/* Name of implementation. */
 #if 0	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
     ffecomGfrt gfrt;		/* gfrt index in library. */
 #endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-    char *control;
+    const char *control;
   };
 
 static struct _ffeintrin_name_ names[] = {
@@ -124,11 +124,13 @@ static struct _ffeintrin_name_ names[] = {
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL)
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD)
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
 };
 
 static struct _ffeintrin_gen_ gens[] = {
@@ -137,11 +139,13 @@ static struct _ffeintrin_gen_ gens[] = {
   { NAME, { SPEC1, SPEC2, }, },
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL)
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD)
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
 };
 
 static struct _ffeintrin_imp_ imps[] = {
@@ -151,8 +155,12 @@ static struct _ffeintrin_imp_ imps[] = {
 #if 0	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
   { NAME, FFECOM_gfrt ## GFRT, CONTROL },
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
+  { NAME, FFECOM_gfrt ## GFRT, CONTROL },
 #elif 1	/* FFECOM_targetCURRENT == FFECOM_targetFFE */
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
+  { NAME, CONTROL },
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
   { NAME, CONTROL },
 #else
 #error
@@ -162,6 +170,7 @@ static struct _ffeintrin_imp_ imps[] = {
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
 };
 
 static struct _ffeintrin_spec_ specs[] = {
@@ -170,29 +179,31 @@ static struct _ffeintrin_spec_ specs[] = {
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP) \
   { NAME, CALLABLE, FAMILY, IMP, },
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL)
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD)
 #include "intrin.def"
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
 };
 
-struct cc_pair { ffeintrinImp imp; char *text; };
+struct cc_pair { ffeintrinImp imp; const char *text; };
 
-static char *descriptions[FFEINTRIN_imp] = { 0 };
+static const char *descriptions[FFEINTRIN_imp] = { 0 };
 static struct cc_pair cc_descriptions[] = {
 #define DEFDOC(IMP,SUMMARY,DESCRIPTION) { FFEINTRIN_imp ## IMP, DESCRIPTION },
 #include "intdoc.h0"
 #undef DEFDOC
 };
 
-static char *summaries[FFEINTRIN_imp] = { 0 };
+static const char *summaries[FFEINTRIN_imp] = { 0 };
 static struct cc_pair cc_summaries[] = {
 #define DEFDOC(IMP,SUMMARY,DESCRIPTION) { FFEINTRIN_imp ## IMP, SUMMARY },
 #include "intdoc.h0"
 #undef DEFDOC
 };
 
-char *
+const char *
 family_name (ffeintrinFamily family)
 {
   switch (family)
@@ -313,7 +324,7 @@ dumpem ()
 }
 
 static void
-dumpgen (int menu, char *name, char *name_uc, ffeintrinGen gen)
+dumpgen (int menu, const char *name, const char *name_uc, ffeintrinGen gen)
 {
   size_t i;
   int total = 0;
@@ -366,7 +377,7 @@ For information on other intrinsics with the same name:\n");
 }
 
 static void
-dumpspec (int menu, char *name, char *name_uc, ffeintrinSpec spec)
+dumpspec (int menu, const char *name, const char *name_uc, ffeintrinSpec spec)
 {
   dumpif (specs[spec].family);
   dumpimp (menu, name, name_uc, 0, specs[spec].family, specs[spec].implementation,
@@ -375,13 +386,13 @@ dumpspec (int menu, char *name, char *name_uc, ffeintrinSpec spec)
 }
 
 static void
-dumpimp (int menu, char *name, char *name_uc, size_t genno, ffeintrinFamily family, ffeintrinImp imp,
-	 ffeintrinSpec spec)
+dumpimp (int menu, const char *name, const char *name_uc, size_t genno,
+	 ffeintrinFamily family, ffeintrinImp imp, ffeintrinSpec spec)
 {
-  char *c;
+  const char *c;
   bool subr;
-  char *argc;
-  char *argi;
+  const char *argc;
+  const char *argi;
   int colon;
   int argno;
 
@@ -399,7 +410,7 @@ dumpimp (int menu, char *name, char *name_uc, size_t genno, ffeintrinFamily fami
 	  || (summaries[imp] != NULL))
 	{
 	  int spaces = INDENT_SUMMARY - 14 - strlen (name);
-	  char *c;
+	  const char *c;
 
 	  if (spec != FFEINTRIN_specNONE)
 	    spaces -= (3 + strlen (specs[spec].name));	/* See XYZZY1 above */
@@ -509,8 +520,8 @@ external procedure.\n\
   if (!subr)
     {
       int other_arg;
-      char *arg_string;
-      char *arg_info;
+      const char *arg_string;
+      const char *arg_info;
 
       if ((c[colon + 1] >= '0')
 	  && (c[colon + 1] <= '9'))
@@ -1019,7 +1030,7 @@ Intrinsic groups: ");
 
   if (descriptions[imp] != NULL)
     {
-      char *c = descriptions[imp];
+      const char *c = descriptions[imp];
 
       printf ("\
 @noindent\n\
@@ -1056,10 +1067,10 @@ Description:\n\
     }
 }
 
-static char *
+static const char *
 argument_info_ptr (ffeintrinImp imp, int argno)
 {
-  char *c = imps[imp].control;
+  const char *c = imps[imp].control;
   static char arginfos[8][32];
   static int argx = 0;
   int i;
@@ -1099,20 +1110,20 @@ argument_info_ptr (ffeintrinImp imp, int argno)
   return c;
 }
 
-static char *
+static const char *
 argument_info_string (ffeintrinImp imp, int argno)
 {
-  char *p;
+  const char *p;
 
   p = argument_info_ptr (imp, argno);
   assert (p != NULL);
   return p;
 }
 
-static char *
+static const char *
 argument_name_ptr (ffeintrinImp imp, int argno)
 {
-  char *c = imps[imp].control;
+  const char *c = imps[imp].control;
   static char argnames[8][32];
   static int argx = 0;
   int i;
@@ -1148,10 +1159,10 @@ argument_name_ptr (ffeintrinImp imp, int argno)
   return c;
 }
 
-static char *
+static const char *
 argument_name_string (ffeintrinImp imp, int argno)
 {
-  char *p;
+  const char *p;
 
   p = argument_name_ptr (imp, argno);
   assert (p != NULL);
@@ -1159,7 +1170,7 @@ argument_name_string (ffeintrinImp imp, int argno)
 }
 
 static void
-print_type_string (char *c)
+print_type_string (const char *c)
 {
   char basic = c[0];
   char kind = c[1];

@@ -1,5 +1,5 @@
 /* scan-decls.c - Extracts declarations from cpp output.
-   Copyright (C) 1993, 1995, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 97-98, 1999 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -19,7 +19,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "hconfig.h"
 #include "system.h"
-#include "gansidecl.h"
 #include "cpplib.h"
 #include "scan.h"
 
@@ -78,8 +77,8 @@ Here dname is the actual name being declared.
 int
 scan_decls (pfile, argc, argv)
      cpp_reader *pfile;
-     int argc;
-     char **argv;
+     int argc ATTRIBUTE_UNUSED;
+     char **argv ATTRIBUTE_UNUSED;
 {
   int saw_extern, saw_inline;
   int start_written;
@@ -170,7 +169,7 @@ scan_decls (pfile, argc, argv)
 	    }
 	  break;
 	case CPP_OTHER:
-	  if (CPP_WRITTEN (pfile) == start_written + 1
+	  if (CPP_WRITTEN (pfile) == (size_t) start_written + 1
 	      && (CPP_PWRITTEN (pfile)[-1] == '*'
 		  || CPP_PWRITTEN (pfile)[-1] == '&'))
 	    declarator_start = start_written;
@@ -190,7 +189,9 @@ scan_decls (pfile, argc, argv)
 	maybe_handle_comma:
 	  if (token != CPP_COMMA)
 	    goto new_statement;
+#if 0
 	handle_comma:
+#endif
 	  /* Handle multiple declarators in a single declaration,
 	     as in:  extern char *strcpy (), *strcat (), ... ; */
 	  if (declarator_start == 0)

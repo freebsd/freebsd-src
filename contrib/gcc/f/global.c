@@ -1,6 +1,6 @@
 /* global.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995, 1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -60,7 +60,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #if FFEGLOBAL_ENABLED
 static ffenameSpace ffeglobal_filewide_ = NULL;
-static char *ffeglobal_type_string_[] =
+static const char *ffeglobal_type_string_[] =
 {
   [FFEGLOBAL_typeNONE] "??",
   [FFEGLOBAL_typeMAIN] "main program",
@@ -86,7 +86,7 @@ static char *ffeglobal_type_string_[] =
 
 #if FFEGLOBAL_ENABLED
 void
-ffeglobal_drive (ffeglobal (*fn) ())
+ffeglobal_drive (ffeglobal (*fn) (ffeglobal))
 {
   if (ffeglobal_filewide_ != NULL)
     ffename_space_drive_global (ffeglobal_filewide_, fn);
@@ -181,6 +181,7 @@ ffeglobal_init_common (ffesymbol s, ffelexToken t)
     {
       if (g->u.common.blank)
 	{
+	  /* Not supposed to initialize blank common, though it works.  */
 	  ffebad_start (FFEBAD_COMMON_BLANK_INIT);
 	  ffebad_here (0, ffelex_token_where_line (t), ffelex_token_where_column (t));
 	  ffebad_finish ();
@@ -229,10 +230,13 @@ ffeglobal_new_common (ffesymbol s, ffelexToken t, bool blank)
     {
       if (g->type == FFEGLOBAL_typeCOMMON)
 	{
+	  /* The names match, so the "blankness" should match too!  */
 	  assert (g->u.common.blank == blank);
 	}
       else
 	{
+	  /* This global name has already been established,
+	     but as something other than a common block.  */
 	  if (ffe_is_globals () || ffe_is_warn_globals ())
 	    {
 	      ffebad_start (ffe_is_globals ()
@@ -258,6 +262,10 @@ ffeglobal_new_common (ffesymbol s, ffelexToken t, bool blank)
 	       && !g->explicit_intrinsic
 	       && ffe_is_warn_globals ())
 	{
+	  /* Common name previously used as intrinsic.  Though it works,
+	     warn, because the intrinsic reference might have been intended
+	     as a ref to an external procedure, but g77's vast list of
+	     intrinsics happened to snarf the name.  */
 	  ffebad_start (FFEBAD_INTRINSIC_GLOBAL);
 	  ffebad_string (ffelex_token_text (t));
 	  ffebad_string ("common block");
@@ -308,6 +316,7 @@ ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	  || (g->type == FFEGLOBAL_typeBDATA))
       && g->u.proc.defined)
     {
+      /* This program unit has already been defined.  */
       if (ffe_is_globals () || ffe_is_warn_globals ())
 	{
 	  ffebad_start (ffe_is_globals ()
@@ -327,6 +336,13 @@ ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	   && (g->type != FFEGLOBAL_typeEXT)
 	   && (g->type != type))
     {
+      /* A reference to this program unit has been seen, but its
+	 context disagrees about the new definition regarding
+	 what kind of program unit it is.  (E.g. `call foo' followed
+	 by `function foo'.)  But `external foo' alone doesn't mean
+	 disagreement with either a function or subroutine, though
+	 g77 normally interprets it as a request to force-load
+	 a block data program unit by that name (to cope with libs).  */
       if (ffe_is_globals () || ffe_is_warn_globals ())
 	{
 	  ffebad_start (ffe_is_globals ()
@@ -353,11 +369,16 @@ ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	  g->u.proc.other_t = NULL;
 	}
       else if ((ffesymbol_basictype (s) != FFEINFO_basictypeNONE)
+	       && (g->type == FFEGLOBAL_typeFUNC)
 	       && ((ffesymbol_basictype (s) != g->u.proc.bt)
 		   || (ffesymbol_kindtype (s) != g->u.proc.kt)
 		   || ((ffesymbol_size (s) != FFETARGET_charactersizeNONE)
 		       && (ffesymbol_size (s) != g->u.proc.sz))))
 	{
+	  /* The previous reference and this new function definition
+	     disagree about the type of the function.  I (Burley) think
+	     this rarely occurs, because when this code is reached,
+	     the type info doesn't appear to be filled in yet.  */
 	  if (ffe_is_globals () || ffe_is_warn_globals ())
 	    {
 	      ffebad_start (ffe_is_globals ()
@@ -377,6 +398,10 @@ ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	  && !g->explicit_intrinsic
 	  && ffe_is_warn_globals ())
 	{
+	  /* This name, previously used as an intrinsic, now is known
+	     to also be a global procedure name.  Warn, since the previous
+	     use as an intrinsic might have been intended to refer to
+	     this procedure.  */
 	  ffebad_start (FFEBAD_INTRINSIC_GLOBAL);
 	  ffebad_string (ffelex_token_text (t));
 	  ffebad_string ("global");
@@ -395,10 +420,12 @@ ffeglobal_new_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	  g->u.proc.kt = ffesymbol_kindtype (s);
 	  g->u.proc.sz = ffesymbol_size (s);
 	}
-      g->tick = ffe_count_2;
+      /* If there's a known disagreement about the kind of program
+	 unit, then don't even bother tracking arglist argreement.  */
       if ((g->tick != 0)
 	  && (g->type != type))
 	g->u.proc.n_args = -1;
+      g->tick = ffe_count_2;
       g->type = type;
       g->u.proc.defined = TRUE;
     }
@@ -487,7 +514,7 @@ ffeglobal_pad_common (ffesymbol s, ffetargetAlign pad, ffewhereLine wl,
 /* Collect info for a global's argument.  */
 
 void
-ffeglobal_proc_def_arg (ffesymbol s, int argno, char *name, ffeglobalArgSummary as,
+ffeglobal_proc_def_arg (ffesymbol s, int argno, const char *name, ffeglobalArgSummary as,
 			ffeinfoBasictype bt, ffeinfoKindtype kt,
 			bool array)
 {
@@ -511,8 +538,8 @@ ffeglobal_proc_def_arg (ffesymbol s, int argno, char *name, ffeglobalArgSummary 
   if ((ai->t != NULL)
       && ffe_is_warn_globals ())
     {
-      char *refwhy = NULL;
-      char *defwhy = NULL;
+      const char *refwhy = NULL;
+      const char *defwhy = NULL;
       bool warn = FALSE;
 
       switch (as)
@@ -789,8 +816,8 @@ ffeglobal_proc_ref_arg (ffesymbol s, int argno, ffeglobalArgSummary as,
 
   if (ai->t != NULL)
     {
-      char *refwhy = NULL;
-      char *defwhy = NULL;
+      const char *refwhy = NULL;
+      const char *defwhy = NULL;
       bool fail = FALSE;
       bool warn = FALSE;
 
@@ -1160,6 +1187,10 @@ ffeglobal_ref_intrinsic (ffesymbol s, ffelexToken t, bool explicit)
 	  && ! g->intrinsic
 	  && ffe_is_warn_globals ())
 	{
+	  /* This name, previously used as a global, now is used
+	     for an intrinsic.  Warn, since this new use as an
+	     intrinsic might have been intended to refer to
+	     the global procedure.  */
 	  ffebad_start (FFEBAD_INTRINSIC_GLOBAL);
 	  ffebad_string (ffelex_token_text (t));
 	  ffebad_string ("intrinsic");
@@ -1186,6 +1217,11 @@ ffeglobal_ref_intrinsic (ffesymbol s, ffelexToken t, bool explicit)
 	       && (g->tick != ffe_count_2)
 	       && ffe_is_warn_globals ())
 	{
+	  /* An earlier reference to this intrinsic disagrees with
+	     this reference vis-a-vis explicit `intrinsic foo',
+	     which suggests that the one relying on implicit
+	     intrinsicacity might have actually intended to refer
+	     to a global of the same name.  */
 	  ffebad_start (FFEBAD_INTRINSIC_EXPIMP);
 	  ffebad_string (ffelex_token_text (t));
 	  ffebad_string (explicit ? "explicit" : "implicit");
@@ -1235,10 +1271,13 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 
   if ((g != NULL)
       && (g->type != FFEGLOBAL_typeNONE)
-      && (g->type != type)
       && (g->type != FFEGLOBAL_typeEXT)
+      && (g->type != type)
       && (type != FFEGLOBAL_typeEXT))
     {
+      /* Disagreement about (fully refined) class of program unit
+	 (main, subroutine, function, block data).  Treat EXTERNAL/
+	 COMMON disagreements distinctly.  */
       if ((((type == FFEGLOBAL_typeBDATA)
 	    && (g->type != FFEGLOBAL_typeCOMMON))
 	   || ((g->type == FFEGLOBAL_typeBDATA)
@@ -1248,6 +1287,7 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 #if 0	/* This is likely to just annoy people. */
 	  if (ffe_is_warn_globals ())
 	    {
+	      /* Warn about EXTERNAL of a COMMON name, though it works.  */
 	      ffebad_start (FFEBAD_FILEWIDE_TIFF);
 	      ffebad_string (ffelex_token_text (t));
 	      ffebad_string (ffeglobal_type_string_[type]);
@@ -1260,9 +1300,11 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	    }
 #endif
 	}
-      else if (ffe_is_globals ())
+      else if (ffe_is_globals () || ffe_is_warn_globals ())
 	{
-	  ffebad_start (FFEBAD_FILEWIDE_DISAGREEMENT);
+	  ffebad_start (ffe_is_globals ()
+			? FFEBAD_FILEWIDE_DISAGREEMENT
+			: FFEBAD_FILEWIDE_DISAGREEMENT_W);
 	  ffebad_string (ffelex_token_text (t));
 	  ffebad_string (ffeglobal_type_string_[type]);
 	  ffebad_string (ffeglobal_type_string_[g->type]);
@@ -1272,21 +1314,7 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 		       ffelex_token_where_column (g->t));
 	  ffebad_finish ();
 	  g->type = FFEGLOBAL_typeANY;
-	  return FALSE;
-	}
-      else if (ffe_is_warn_globals ())
-	{
-	  ffebad_start (FFEBAD_FILEWIDE_DISAGREEMENT_W);
-	  ffebad_string (ffelex_token_text (t));
-	  ffebad_string (ffeglobal_type_string_[type]);
-	  ffebad_string (ffeglobal_type_string_[g->type]);
-	  ffebad_here (0, ffelex_token_where_line (t),
-		       ffelex_token_where_column (t));
-	  ffebad_here (1, ffelex_token_where_line (g->t),
-		       ffelex_token_where_column (g->t));
-	  ffebad_finish ();
-	  g->type = FFEGLOBAL_typeANY;
-	  return TRUE;
+	  return (! ffe_is_globals ());
 	}
     }
 
@@ -1302,39 +1330,65 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	  g->u.proc.kt = ffesymbol_kindtype (s);
 	  g->u.proc.sz = ffesymbol_size (s);
 	}
-      /* Else, make sure there is type agreement.  */
-      else if ((g->u.proc.bt != FFEINFO_basictypeNONE)
-	       && (ffesymbol_basictype (s) != FFEINFO_basictypeNONE)
-	       && ((ffesymbol_basictype (s) != g->u.proc.bt)
-		   || (ffesymbol_kindtype (s) != g->u.proc.kt)
-		   || ((ffesymbol_size (s) != g->u.proc.sz)
-		       && g->u.proc.defined
-		       && (g->u.proc.sz != FFETARGET_charactersizeNONE))))
+      /* Make sure there is type agreement.  */
+      if (g->type == FFEGLOBAL_typeFUNC
+	  && g->u.proc.bt != FFEINFO_basictypeNONE
+	  && ffesymbol_basictype (s) != FFEINFO_basictypeNONE
+	  && (ffesymbol_basictype (s) != g->u.proc.bt
+	      || ffesymbol_kindtype (s) != g->u.proc.kt
+	      /* CHARACTER*n disagreements matter only once a
+		 definition is involved, since the definition might
+		 be CHARACTER*(*), which accepts all references.  */
+	      || (g->u.proc.defined
+		  && ffesymbol_size (s) != g->u.proc.sz
+		  && ffesymbol_size (s) != FFETARGET_charactersizeNONE
+		  && g->u.proc.sz != FFETARGET_charactersizeNONE)))
 	{
-	  if (ffe_is_globals ())
+	  int error;
+
+	  /* Type mismatch between function reference/definition and
+	     this subsequent reference (which might just be the filling-in
+	     of type info for the definition, but we can't reach here
+	     if that's the case and there was a previous definition).
+
+	     It's an error given a previous definition, since that
+	     implies inlining can crash the compiler, unless the user
+	     asked for no such inlining.  */
+	  error = (g->tick != ffe_count_2
+		   && g->u.proc.defined
+		   && ffe_is_globals ());
+	  if (error || ffe_is_warn_globals ())
 	    {
-	      ffebad_start (FFEBAD_FILEWIDE_TYPE_MISMATCH);
+	      ffebad_start (error
+			    ? FFEBAD_FILEWIDE_TYPE_MISMATCH
+			    : FFEBAD_FILEWIDE_TYPE_MISMATCH_W);
 	      ffebad_string (ffelex_token_text (t));
-	      ffebad_here (0, ffelex_token_where_line (t),
-			   ffelex_token_where_column (t));
-	      ffebad_here (1, ffelex_token_where_line (g->t),
-			   ffelex_token_where_column (g->t));
+	      if (g->tick == ffe_count_2)
+		{
+		  /* Current reference fills in type info for definition.
+		     The current token doesn't necessarily point to the actual
+		     definition of the function, so use the definition pointer
+		     and the pointer to the pre-definition type info.  */
+		  ffebad_here (0, ffelex_token_where_line (g->t),
+			       ffelex_token_where_column (g->t));
+		  ffebad_here (1, ffelex_token_where_line (g->u.proc.other_t),
+			       ffelex_token_where_column (g->u.proc.other_t));
+		}
+	      else
+		{
+		  /* Current reference is not a filling-in of a current
+		     definition.  The current token is fine, as is
+		     the previous-mention token.  */
+		  ffebad_here (0, ffelex_token_where_line (t),
+			       ffelex_token_where_column (t));
+		  ffebad_here (1, ffelex_token_where_line (g->t),
+			       ffelex_token_where_column (g->t));
+		}
 	      ffebad_finish ();
-	      g->type = FFEGLOBAL_typeANY;
+	      if (error)
+		g->type = FFEGLOBAL_typeANY;
 	      return FALSE;
 	    }
-	  if (ffe_is_warn_globals ())
-	    {
-	      ffebad_start (FFEBAD_FILEWIDE_TYPE_MISMATCH_W);
-	      ffebad_string (ffelex_token_text (t));
-	      ffebad_here (0, ffelex_token_where_line (t),
-			   ffelex_token_where_column (t));
-	      ffebad_here (1, ffelex_token_where_line (g->t),
-			   ffelex_token_where_column (g->t));
-	      ffebad_finish ();
-	    }
-	  g->type = FFEGLOBAL_typeANY;
-	  return TRUE;
 	}
     }
 
@@ -1357,6 +1411,9 @@ ffeglobal_ref_progunit_ (ffesymbol s, ffelexToken t, ffeglobalType type)
 	   && (g->tick != ffe_count_2)
 	   && ffe_is_warn_globals ())
     {
+      /* Now known as a global, this name previously was seen as an
+	 intrinsic.  Warn, in case the previous reference was intended
+	 for the same global.  */
       ffebad_start (FFEBAD_INTRINSIC_GLOBAL);
       ffebad_string (ffelex_token_text (t));
       ffebad_string ("global");

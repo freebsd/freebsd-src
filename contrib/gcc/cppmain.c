@@ -1,5 +1,5 @@
 /* CPP main program, using CPP Library.
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
    Written by Per Bothner, 1994-95.
 
 This program is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef EMACS
 #include "config.h"
 #include "system.h"
-#include "gansidecl.h"
 #else
 #include <stdio.h>
 
@@ -31,29 +30,12 @@ extern char *getenv ();
 #endif /* not EMACS */
 
 #include "cpplib.h"
+#include "intl.h"
 
 char *progname;
 
 cpp_reader parse_in;
 cpp_options options;
-
-#ifdef abort
-/* More 'friendly' abort that prints the line and file.
-   config.h can #define abort fancy_abort if you like that sort of thing.  */
-void
-fatal (s)
-     char *s;
-{
-  fputs (s, stderr);
-  exit (FATAL_EXIT_CODE);
-}
-
-void
-fancy_abort ()
-{
-  fatal ("Internal gcc abort.");
-}
-#endif
 
 
 int
@@ -64,13 +46,20 @@ main (argc, argv)
   char *p;
   int argi = 1;  /* Next argument to handle.  */
   struct cpp_options *opts = &options;
+  enum cpp_token kind;
 
   p = argv[0] + strlen (argv[0]);
   while (p != argv[0] && p[-1] != '/') --p;
   progname = p;
 
+#ifdef HAVE_LC_MESSAGES
+  setlocale (LC_MESSAGES, "");
+#endif
+  (void) bindtextdomain (PACKAGE, localedir);
+  (void) textdomain (PACKAGE);
+
   cpp_reader_init (&parse_in);
-  parse_in.data = opts;
+  parse_in.opts = opts;
 
   cpp_options_init (opts);
   
@@ -92,20 +81,30 @@ main (argc, argv)
   else if (! freopen (opts->out_fname, "w", stdout))
     cpp_pfatal_with_name (&parse_in, opts->out_fname);
 
-  for (;;)
+  do
     {
-      enum cpp_token kind;
-      if (! opts->no_output)
-	{
-	  fwrite (parse_in.token_buffer, 1, CPP_WRITTEN (&parse_in), stdout);
-	}
-      CPP_SET_WRITTEN (&parse_in, 0);
       kind = cpp_get_token (&parse_in);
-      if (kind == CPP_EOF)
-	break;
+      if (CPP_WRITTEN (&parse_in) >= BUFSIZ || kind == CPP_EOF)
+	{
+	  if (! opts->no_output)
+	    {
+	      size_t rem, count = CPP_WRITTEN (&parse_in);
+
+	      rem = fwrite (parse_in.token_buffer, 1, count, stdout);
+	      if (rem < count)
+		/* Write error. */
+		cpp_pfatal_with_name (&parse_in, opts->out_fname);
+	    }
+
+	  CPP_SET_WRITTEN (&parse_in, 0);
+	}
     }
+  while (kind != CPP_EOF);
 
   cpp_finish (&parse_in);
+  if (fwrite (parse_in.token_buffer, 1, CPP_WRITTEN (&parse_in), stdout)
+      < CPP_WRITTEN (&parse_in))
+    cpp_pfatal_with_name (&parse_in, opts->out_fname);
 
   if (parse_in.errors)
     exit (FATAL_EXIT_CODE);

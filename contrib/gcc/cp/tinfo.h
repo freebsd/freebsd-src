@@ -1,5 +1,5 @@
 // RTTI support internals for -*- C++ -*-
-// Copyright (C) 1994, 1995, 1996 Free Software Foundation
+// Copyright (C) 1994, 1995, 1996, 1998 Free Software Foundation
 
 #include "typeinfo"
 
@@ -40,7 +40,7 @@ struct __class_type_info : public __user_type_info {
     const __user_type_info *base;
     USItype offset: 29;
     bool is_virtual: 1;
-    access access: 2;
+    enum access access: 2;
   };
 
   const base_info *base_list;

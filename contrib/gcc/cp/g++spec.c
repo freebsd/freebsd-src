@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the C++ front-end.
-   Copyright (C) 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,10 +19,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
-
 #include "system.h"
-
-#include "gansidecl.h"
 
 /* This bit is set if we saw a `-xfoo' language specification.  */
 #define LANGSPEC	(1<<1)
@@ -34,11 +31,10 @@ Boston, MA 02111-1307, USA.  */
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "-lm"
 #endif
-#ifndef NEED_MATH_LIBRARY
-#define NEED_MATH_LIBRARY 1	/* Default is pass MATH_LIBRARY to linker */
-#endif
 
-extern char *xmalloc PROTO((size_t));
+#ifndef LIBSTDCXX
+#define LIBSTDCXX "-lstdc++"
+#endif
 
 void
 lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
@@ -83,8 +79,8 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
      LANGSPEC, MATHLIB, or WITHLIBC.  */
   int *args;
 
-  /* By default, we throw on the math library.  */
-  int need_math = NEED_MATH_LIBRARY;
+  /* By default, we throw on the math library if we have one.  */
+  int need_math = (MATH_LIBRARY[0] != '\0');
 
   /* The total number of arguments with the new stuff.  */
   int argc;
@@ -128,6 +124,7 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 	    }
 	  else if (strcmp (argv[i], "-lm") == 0
 		   || strcmp (argv[i], "-lmath") == 0
+		   || strcmp (argv[i], MATH_LIBRARY) == 0
 #ifdef ALT_LIBM
 		   || strcmp (argv[i], ALT_LIBM) == 0
 #endif
@@ -239,7 +236,7 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
   /* Add `-lstdc++' if we haven't already done so.  */
   if (library)
     {
-      arglist[j++] = "-lstdc++";
+      arglist[j++] = LIBSTDCXX;
       added_libraries++;
     }
   if (saw_math)

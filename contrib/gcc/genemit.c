@@ -1,5 +1,5 @@
 /* Generate code from machine description to emit insns as rtl.
-   Copyright (C) 1987, 88, 91, 94, 95, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 91, 94, 95, 97, 98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,11 +20,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -35,9 +30,9 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
 char **insn_name_ptr = 0;
@@ -683,11 +678,11 @@ output_init_mov_optab ()
 #endif
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
@@ -695,29 +690,33 @@ xmalloc (size)
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genemit: ");
@@ -775,15 +774,15 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"real.h\"\n");
   printf ("#include \"flags.h\"\n");
   printf ("#include \"output.h\"\n");
-  printf ("#include \"insn-config.h\"\n\n");
-  printf ("#include \"insn-flags.h\"\n\n");
-  printf ("#include \"insn-codes.h\"\n\n");
-  printf ("#include \"reload.h\"\n");
-  printf ("extern char *insn_operand_constraint[][MAX_RECOG_OPERANDS];\n\n");
+  printf ("#include \"insn-config.h\"\n");
+  printf ("#include \"insn-flags.h\"\n");
+  printf ("#include \"insn-codes.h\"\n");
+  printf ("#include \"recog.h\"\n");
+  printf ("#include \"reload.h\"\n\n");
   printf ("extern rtx recog_operand[];\n");
   printf ("#define operands emit_operand\n\n");
-  printf ("#define FAIL do {end_sequence (); return _val;} while (0)\n");
-  printf ("#define DONE do {_val = gen_sequence (); end_sequence (); return _val;} while (0)\n");
+  printf ("#define FAIL return (end_sequence (), _val)\n");
+  printf ("#define DONE return (_val = gen_sequence (), end_sequence (), _val)\n");
 
   /* Read the machine description.  */
 

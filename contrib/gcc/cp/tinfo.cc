@@ -1,5 +1,5 @@
 // Methods for type_info for -*- C++ -*- Run Time Type Identification.
-// Copyright (C) 1994, 1996 Free Software Foundation
+// Copyright (C) 1994, 1996, 1998 Free Software Foundation
 
 // This file is part of GNU CC.
 
@@ -40,8 +40,8 @@ std::type_info::
 { }
 
 // We can't rely on common symbols being shared between shared objects.
-bool type_info::
-operator== (const type_info& arg) const
+bool std::type_info::
+operator== (const std::type_info& arg) const
 {
   return (&arg == this) || (strcmp (name (), arg.name ()) == 0);
 }

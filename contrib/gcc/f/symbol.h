@@ -1,6 +1,6 @@
 /* Interface definitions for Fortran symbol manager
    Copyright (C) 1995, 1996 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -151,14 +151,16 @@ struct _ffesymbol_
 				   away. */
     bool explicit_where;	/* TRUE if INTRINSIC/EXTERNAL explicit. */
     bool namelisted;		/* TRUE if in NAMELIST (needs static alloc). */
+    bool assigned;		/* TRUE if ever ASSIGNed to.  */
   };
 
 #define ffesymbol_accretes(s) ((s)->accretes)
 #define ffesymbol_accretion(s) ((s)->accretion)
 #define ffesymbol_arraysize(s) ((s)->array_size)
+#define ffesymbol_assigned(s) ((s)->assigned)
 #define ffesymbol_attr(s,a) ((s)->attrs & ((ffesymbolAttrs) 1 << (a)))
 #define ffesymbol_attrs(s) ((s)->attrs)
-char *ffesymbol_attrs_string (ffesymbolAttrs attrs);
+const char *ffesymbol_attrs_string (ffesymbolAttrs attrs);
 #define ffesymbol_basictype(s) ffeinfo_basictype((s)->info)
 void ffesymbol_check (ffesymbol s, ffelexToken t, bool maybe_intrin);
 #define ffesymbol_common(s) ((s)->common)
@@ -177,8 +179,8 @@ ffesymbol ffesymbol_declare_sfdummy (ffelexToken t);
 ffesymbol ffesymbol_declare_subrunit (ffelexToken t);
 #define ffesymbol_dims(s) ((s)->dims)
 #define ffesymbol_dim_syms(s) ((s)->dim_syms)
-void ffesymbol_drive (ffesymbol (*fn) ());
-void ffesymbol_drive_sfnames (ffesymbol (*fn) ());
+void ffesymbol_drive (ffesymbol (*fn) (ffesymbol));
+void ffesymbol_drive_sfnames (ffesymbol (*fn) (ffesymbol));
 #define ffesymbol_dummyargs(s) ((s)->dummy_args)
 #if FFECOM_targetCURRENT == FFECOM_targetFFE
 void ffesymbol_dump (ffesymbol s);
@@ -231,6 +233,7 @@ bool ffesymbol_retractable (void);
 #define ffesymbol_set_accretes(s,a) ((s)->accretes = (a))
 #define ffesymbol_set_accretion(s,a) ((s)->accretion = (a))
 #define ffesymbol_set_arraysize(s,a) ((s)->array_size = (a))
+#define ffesymbol_set_assigned(s,a) ((s)->assigned = (a))
 #define ffesymbol_set_attr(s,a) ((s)->attrs |= ((ffesymbolAttrs) 1 << (a)))
 #define ffesymbol_set_attrs(s,a) ((s)->attrs = (a))
 #define ffesymbol_set_common(s,c) ((s)->common = (c))
@@ -269,7 +272,7 @@ void ffesymbol_signal_change (ffesymbol s);
 #define ffesymbol_specific(s) ((s)->specific)
 #define ffesymbol_state(s) ((s)->state)
 #define ffesymbol_state_is_specable(s) ((s) <= FFESYMBOL_stateSEEN)
-char *ffesymbol_state_string (ffesymbolState state);
+const char *ffesymbol_state_string (ffesymbolState state);
 #define ffesymbol_storage(s) ((s)->storage)
 void ffesymbol_terminate_0 (void);
 void ffesymbol_terminate_1 (void);

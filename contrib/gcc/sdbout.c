@@ -59,7 +59,7 @@ AT&T C compiler.  From the example below I would conclude the following:
    supply usable syms.h include files.  Which syms.h file to use is a
    target parameter so don't use the native one if we're cross compiling.  */
 
-#if defined(USG) && !defined(MIPS) && !defined (hpux) && !defined(_WIN32) && !defined(__linux__) && !defined(CROSS_COMPILE)
+#if defined(USG) && !defined(MIPS) && !defined (hpux) && !defined(_WIN32) && !defined(__linux__) && !defined(__INTERIX) && !defined(CROSS_COMPILE)
 #include <syms.h>
 /* Use T_INT if we don't have T_VOID.  */
 #ifndef T_VOID
@@ -338,7 +338,7 @@ void
 sdbout_init (asm_file, input_file_name, syms)
      FILE *asm_file;
      char *input_file_name;
-     tree syms;
+     tree syms ATTRIBUTE_UNUSED;
 {
 #ifdef MIPS_DEBUGGING_INFO
   current_file = (struct sdb_file *) xmalloc (sizeof *current_file);
@@ -527,6 +527,7 @@ plain_type_1 (type, level)
     {
     case VOID_TYPE:
       return T_VOID;
+    case BOOLEAN_TYPE:
     case INTEGER_TYPE:
       {
 	int size = int_size_in_bytes (type) * BITS_PER_UNIT;
@@ -810,7 +811,7 @@ sdbout_symbol (decl, local)
 
       DECL_RTL (decl) = eliminate_regs (DECL_RTL (decl), 0, NULL_RTX);
 #ifdef LEAF_REG_REMAP
-      if (leaf_function)
+      if (current_function_uses_only_leaf_regs)
 	leaf_renumber_regs_insn (DECL_RTL (decl));
 #endif
       value = DECL_RTL (decl);
@@ -928,7 +929,12 @@ sdbout_symbol (decl, local)
 	      PUT_SDB_SCL (C_AUTO);
 	    }
 
-	  type = build_pointer_type (TREE_TYPE (decl));
+	  /* Effectively do build_pointer_type, but don't cache this type,
+	     since it might be temporary whereas the type it points to
+	     might have been saved for inlining.  */
+	  /* Don't use REFERENCE_TYPE because dbx can't handle that.  */
+	  type = make_node (POINTER_TYPE);
+	  TREE_TYPE (type) = TREE_TYPE (decl);
 	}
       else if (GET_CODE (value) == MEM
 	       && ((GET_CODE (XEXP (value, 0)) == PLUS
@@ -1082,10 +1088,18 @@ sdbout_field_types (type)
   tree tail;
 
   for (tail = TYPE_FIELDS (type); tail; tail = TREE_CHAIN (tail))
-    if (POINTER_TYPE_P (TREE_TYPE (tail)))
-      sdbout_one_type (TREE_TYPE (TREE_TYPE (tail)));
-    else
-      sdbout_one_type (TREE_TYPE (tail));
+    /* This condition should match the one for emitting the actual members
+       below.  */
+    if (TREE_CODE (tail) == FIELD_DECL
+	&& DECL_NAME (tail) != 0
+	&& TREE_CODE (DECL_SIZE (tail)) == INTEGER_CST
+	&& TREE_CODE (DECL_FIELD_BITPOS (tail)) == INTEGER_CST)
+      {
+	if (POINTER_TYPE_P (TREE_TYPE (tail)))
+	  sdbout_one_type (TREE_TYPE (TREE_TYPE (tail)));
+	else
+	  sdbout_one_type (TREE_TYPE (tail));
+      }
 }
 
 /* Use this to put out the top level defined record and union types
@@ -1198,34 +1212,41 @@ sdbout_one_type (type)
 
 	/* Print out the base class information with fields
 	   named after the types they hold.  */
-	if (TYPE_BINFO (type)
-	    && TYPE_BINFO_BASETYPES (type))
-	  n_baseclasses = TREE_VEC_LENGTH (TYPE_BINFO_BASETYPES (type));
-	for (i = 0; i < n_baseclasses; i++)
+	/* This is only relevent to aggregate types.  TYPE_BINFO is used
+	   for other purposes in an ENUMERAL_TYPE, so we must exclude that
+	   case.  */
+	if (TREE_CODE (type) != ENUMERAL_TYPE)
 	  {
-	    tree child = TREE_VEC_ELT (BINFO_BASETYPES (TYPE_BINFO (type)), i);
-	    tree child_type = BINFO_TYPE (child);
-	    tree child_type_name;
-	    if (TYPE_NAME (child_type) == 0)
-	      continue;
-	    if (TREE_CODE (TYPE_NAME (child_type)) == IDENTIFIER_NODE)
-	      child_type_name = TYPE_NAME (child_type);
-	    else if (TREE_CODE (TYPE_NAME (child_type)) == TYPE_DECL)
+	    if (TYPE_BINFO (type)
+		&& TYPE_BINFO_BASETYPES (type))
+	      n_baseclasses = TREE_VEC_LENGTH (TYPE_BINFO_BASETYPES (type));
+	    for (i = 0; i < n_baseclasses; i++)
 	      {
-		child_type_name = DECL_NAME (TYPE_NAME (child_type));
-		if (child_type_name && template_name_p (child_type_name))
-		  child_type_name
-		    = DECL_ASSEMBLER_NAME (TYPE_NAME (child_type));
-	      }
-	    else
-	      continue;
+		tree child = TREE_VEC_ELT (BINFO_BASETYPES (TYPE_BINFO (type)),
+					   i);
+		tree child_type = BINFO_TYPE (child);
+		tree child_type_name;
+		if (TYPE_NAME (child_type) == 0)
+		  continue;
+		if (TREE_CODE (TYPE_NAME (child_type)) == IDENTIFIER_NODE)
+		  child_type_name = TYPE_NAME (child_type);
+		else if (TREE_CODE (TYPE_NAME (child_type)) == TYPE_DECL)
+		  {
+		    child_type_name = DECL_NAME (TYPE_NAME (child_type));
+		    if (child_type_name && template_name_p (child_type_name))
+		      child_type_name
+			= DECL_ASSEMBLER_NAME (TYPE_NAME (child_type));
+		  }
+		else
+		  continue;
 
-	    CONTIN;
-	    PUT_SDB_DEF (IDENTIFIER_POINTER (child_type_name));
-	    PUT_SDB_INT_VAL (TREE_INT_CST_LOW (BINFO_OFFSET (child)));
-	    PUT_SDB_SCL (member_scl);
-	    sdbout_type (BINFO_TYPE (child));
-	    PUT_SDB_ENDEF;
+		CONTIN;
+		PUT_SDB_DEF (IDENTIFIER_POINTER (child_type_name));
+		PUT_SDB_INT_VAL (TREE_INT_CST_LOW (BINFO_OFFSET (child)));
+		PUT_SDB_SCL (member_scl);
+		sdbout_type (BINFO_TYPE (child));
+		PUT_SDB_ENDEF;
+	      }
 	  }
 
 	/* output the individual fields */
@@ -1545,7 +1566,7 @@ void
 sdbout_end_block (file, line, n)
      FILE *file;
      int line;
-     int n;
+     int n ATTRIBUTE_UNUSED;
 {
   MAKE_LINE_SAFE (line);
 

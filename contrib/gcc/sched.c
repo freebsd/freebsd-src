@@ -1,5 +1,5 @@
 /* Instruction scheduling pass.
-   Copyright (C) 1992, 93-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-98, 1999 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
    Enhanced by, and currently maintained by, Jim Wilson (wilson@cygnus.com)
 
@@ -108,8 +108,8 @@ Boston, MA 02111-1307, USA.  */
 
    This pass must update information that subsequent passes expect to be
    correct.  Namely: reg_n_refs, reg_n_sets, reg_n_deaths,
-   reg_n_calls_crossed, and reg_live_length.  Also, basic_block_head,
-   basic_block_end.
+   reg_n_calls_crossed, and reg_live_length.  Also, BLOCK_HEAD,
+   BLOCK_END.
 
    The information in the line number notes is carefully retained by
    this pass.  Notes that refer to the starting and ending of
@@ -119,6 +119,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "toplev.h"
 #include "rtl.h"
 #include "basic-block.h"
 #include "regs.h"
@@ -126,11 +127,19 @@ Boston, MA 02111-1307, USA.  */
 #include "flags.h"
 #include "insn-config.h"
 #include "insn-attr.h"
+#include "recog.h"
+
+#ifndef INSN_SCHEDULING
+void
+schedule_insns (dump_file)
+     FILE *dump_file ATTRIBUTE_UNUSED;
+{
+}
+#else /* INSN_SCHEDULING -- rest of file */
 
 extern char *reg_known_equiv_p;
 extern rtx *reg_known_value;
 
-#ifdef INSN_SCHEDULING
 /* Arrays set up by scheduling for the same respective purposes as
    similar-named arrays set up by flow analysis.  We work with these
    arrays during the scheduling pass so we can compare values against
@@ -318,7 +327,7 @@ static void sched_analyze_1		PROTO((rtx, rtx));
 static void sched_analyze_2		PROTO((rtx, rtx));
 static void sched_analyze_insn		PROTO((rtx, rtx, rtx));
 static int sched_analyze		PROTO((rtx, rtx));
-static void sched_note_set		PROTO((int, rtx, int));
+static void sched_note_set		PROTO((rtx, int));
 static int rank_for_schedule		PROTO((const GENERIC_PTR, const GENERIC_PTR));
 static void swap_sort			PROTO((rtx *, int));
 static void queue_insn			PROTO((rtx, int));
@@ -334,16 +343,12 @@ static int new_sometimes_live		PROTO((struct sometimes *, int, int));
 static void finish_sometimes_live	PROTO((struct sometimes *, int));
 static rtx reemit_notes			PROTO((rtx, rtx));
 static void schedule_block		PROTO((int, FILE *));
-static rtx regno_use_in			PROTO((int, rtx));
-static void split_hard_reg_notes	PROTO((rtx, rtx, rtx, rtx));
+static void split_hard_reg_notes	PROTO((rtx, rtx, rtx));
 static void new_insn_dead_notes		PROTO((rtx, rtx, rtx, rtx));
 static void update_n_sets		PROTO((rtx, int));
-static void update_flow_info		PROTO((rtx, rtx, rtx, rtx));
 
 /* Main entry point of this file.  */
 void schedule_insns	PROTO((FILE *));
-
-#endif /* INSN_SCHEDULING */
 
 #define SIZE_FOR_MODE(X) (GET_MODE_SIZE (GET_MODE (X)))
 
@@ -451,13 +456,6 @@ remove_dependence (insn, elem)
   return;
 }
 
-#ifndef INSN_SCHEDULING
-void
-schedule_insns (dump_file)
-     FILE *dump_file;
-{
-}
-#else
 #ifndef __GNUC__
 #define __inline
 #endif
@@ -608,7 +606,7 @@ blockage_range (unit, insn)
   unsigned int blockage = INSN_BLOCKAGE (insn);
   unsigned int range;
 
-  if (UNIT_BLOCKED (blockage) != unit + 1)
+  if ((int) UNIT_BLOCKED (blockage) != unit + 1)
     {
       range = function_units[unit].blockage_range_function (insn);
       /* We only cache the blockage range for one unit and then only if
@@ -1555,27 +1553,6 @@ sched_analyze_insn (x, insn, loop_notes)
       REG_NOTES (insn) = loop_notes;
     }
 
-  /* After reload, it is possible for an instruction to have a REG_DEAD note
-     for a register that actually dies a few instructions earlier.  For
-     example, this can happen with SECONDARY_MEMORY_NEEDED reloads.
-     In this case, we must consider the insn to use the register mentioned
-     in the REG_DEAD note.  Otherwise, we may accidentally move this insn
-     after another insn that sets the register, thus getting obviously invalid
-     rtl.  This confuses reorg which believes that REG_DEAD notes are still
-     meaningful.
-
-     ??? We would get better code if we fixed reload to put the REG_DEAD
-     notes in the right places, but that may not be worth the effort.  */
-
-  if (reload_completed)
-    {
-      rtx note;
-
-      for (note = REG_NOTES (insn); note; note = XEXP (note, 1))
-	if (REG_NOTE_KIND (note) == REG_DEAD)
-	  sched_analyze_2 (XEXP (note, 0), insn);
-    }
-
   EXECUTE_IF_SET_IN_REG_SET (reg_pending_sets, 0, i,
 			     {
 			       reg_last_sets[i] = insn;
@@ -1764,8 +1741,7 @@ sched_analyze (head, tail)
    are scanning forwards.  Mark that register as being born.  */
 
 static void
-sched_note_set (b, x, death)
-     int b;
+sched_note_set (x, death)
      rtx x;
      int death;
 {
@@ -2333,12 +2309,15 @@ attach_deaths (x, insn, set_p)
 
 	if (regno >= FIRST_PSEUDO_REGISTER || ! global_regs[regno])
 	  {
-	    /* Never add REG_DEAD notes for the FRAME_POINTER_REGNUM or the
-	       STACK_POINTER_REGNUM, since these are always considered to be
-	       live.  Similarly for ARG_POINTER_REGNUM if it is fixed.  */
-	    if (regno != FRAME_POINTER_REGNUM
+	    /* Never add REG_DEAD notes for STACK_POINTER_REGNUM
+	       since it's always considered to be live.  Similarly
+	       for FRAME_POINTER_REGNUM if a frame pointer is needed
+	       and for ARG_POINTER_REGNUM if it is fixed.  */
+	    if (! (regno == FRAME_POINTER_REGNUM
+		   && (! reload_completed || frame_pointer_needed))
 #if HARD_FRAME_POINTER_REGNUM != FRAME_POINTER_REGNUM
-		&& ! (regno == HARD_FRAME_POINTER_REGNUM)
+		&& ! (regno == HARD_FRAME_POINTER_REGNUM
+		      && (! reload_completed || frame_pointer_needed))
 #endif
 #if ARG_POINTER_REGNUM != FRAME_POINTER_REGNUM
 		&& ! (regno == ARG_POINTER_REGNUM && fixed_regs[regno])
@@ -2639,8 +2618,8 @@ schedule_block (b, file)
   int new_needs;
 
   /* HEAD and TAIL delimit the region being scheduled.  */
-  rtx head = basic_block_head[b];
-  rtx tail = basic_block_end[b];
+  rtx head = BLOCK_HEAD (b);
+  rtx tail = BLOCK_END (b);
   /* PREV_HEAD and NEXT_TAIL are the boundaries of the insns
      being scheduled.  When the insns have been ordered,
      these insns delimit where the new insns are to be
@@ -2654,7 +2633,7 @@ schedule_block (b, file)
 
   if (file)
     fprintf (file, ";;\t -- basic block number %d from %d to %d --\n",
-	     b, INSN_UID (basic_block_head[b]), INSN_UID (basic_block_end[b]));
+	     b, INSN_UID (BLOCK_HEAD (b)), INSN_UID (BLOCK_END (b)));
 
   i = max_reg_num ();
   reg_last_uses = (rtx *) alloca (i * sizeof (rtx));
@@ -2904,7 +2883,7 @@ schedule_block (b, file)
 
   if (reload_completed == 0)
     {
-      COPY_REG_SET (bb_live_regs, basic_block_live_at_start[b]);
+      COPY_REG_SET (bb_live_regs, BASIC_BLOCK (b)->global_live_at_start);
       CLEAR_REG_SET (bb_dead_regs);
 
       if (b == 0)
@@ -2916,7 +2895,7 @@ schedule_block (b, file)
 	  /* We don't want to remove any REG_DEAD notes as the code below
 	     does.  */
 
-	  for (insn = basic_block_head[b]; insn != head;
+	  for (insn = BLOCK_HEAD (b); insn != head;
 	       insn = NEXT_INSN (insn))
 	    if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
 	      {
@@ -2928,20 +2907,20 @@ schedule_block (b, file)
 		   a register must be marked as dead after this insn.  */
 		if (GET_CODE (PATTERN (insn)) == SET
 		    || GET_CODE (PATTERN (insn)) == CLOBBER)
-		  sched_note_set (b, PATTERN (insn), 0);
+		  sched_note_set (PATTERN (insn), 0);
 		else if (GET_CODE (PATTERN (insn)) == PARALLEL)
 		  {
 		    int j;
 		    for (j = XVECLEN (PATTERN (insn), 0) - 1; j >= 0; j--)
 		      if (GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == SET
 			  || GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == CLOBBER)
-			sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 0);
+			sched_note_set (XVECEXP (PATTERN (insn), 0, j), 0);
 
 		    /* ??? This code is obsolete and should be deleted.  It
 		       is harmless though, so we will leave it in for now.  */
 		    for (j = XVECLEN (PATTERN (insn), 0) - 1; j >= 0; j--)
 		      if (GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == USE)
-			sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 0);
+			sched_note_set (XVECEXP (PATTERN (insn), 0, j), 0);
 		  }
 
 		/* Each call clobbers (makes live) all call-clobbered regs
@@ -3000,7 +2979,7 @@ schedule_block (b, file)
 	 block may have changed the current line number.  */
       rtx line = line_note_head[b];
 
-      for (insn = basic_block_head[b];
+      for (insn = BLOCK_HEAD (b);
 	   insn != next_tail;
 	   insn = NEXT_INSN (insn))
 	if (GET_CODE (insn) == NOTE && NOTE_LINE_NUMBER (insn) > 0)
@@ -3038,20 +3017,20 @@ schedule_block (b, file)
 	     must be marked as dead after this insn.  */
 	  if (GET_CODE (PATTERN (insn)) == SET
 	      || GET_CODE (PATTERN (insn)) == CLOBBER)
-	    sched_note_set (b, PATTERN (insn), 0);
+	    sched_note_set (PATTERN (insn), 0);
 	  else if (GET_CODE (PATTERN (insn)) == PARALLEL)
 	    {
 	      int j;
 	      for (j = XVECLEN (PATTERN (insn), 0) - 1; j >= 0; j--)
 		if (GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == SET
 		    || GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == CLOBBER)
-		  sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 0);
+		  sched_note_set (XVECEXP (PATTERN (insn), 0, j), 0);
 
 	      /* ??? This code is obsolete and should be deleted.  It
 		 is harmless though, so we will leave it in for now.  */
 	      for (j = XVECLEN (PATTERN (insn), 0) - 1; j >= 0; j--)
 		if (GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == USE)
-		  sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 0);
+		  sched_note_set (XVECEXP (PATTERN (insn), 0, j), 0);
 	    }
 
 	  /* Each call clobbers (makes live) all call-clobbered regs that are
@@ -3164,9 +3143,9 @@ schedule_block (b, file)
   /* Where we start inserting insns is after TAIL.  */
   last = next_tail;
 
-  new_needs = (NEXT_INSN (prev_head) == basic_block_head[b]
+  new_needs = (NEXT_INSN (prev_head) == BLOCK_HEAD (b)
 	       ? NEED_HEAD : NEED_NOTHING);
-  if (PREV_INSN (next_tail) == basic_block_end[b])
+  if (PREV_INSN (next_tail) == BLOCK_END (b))
     new_needs |= NEED_TAIL;
 
   new_ready = n_ready;
@@ -3281,14 +3260,14 @@ schedule_block (b, file)
 	      /* See if this is the last notice we must take of a register.  */
 	      if (GET_CODE (PATTERN (insn)) == SET
 		  || GET_CODE (PATTERN (insn)) == CLOBBER)
-		sched_note_set (b, PATTERN (insn), 1);
+		sched_note_set (PATTERN (insn), 1);
 	      else if (GET_CODE (PATTERN (insn)) == PARALLEL)
 		{
 		  int j;
 		  for (j = XVECLEN (PATTERN (insn), 0) - 1; j >= 0; j--)
 		    if (GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == SET
 			|| GET_CODE (XVECEXP (PATTERN (insn), 0, j)) == CLOBBER)
-		      sched_note_set (b, XVECEXP (PATTERN (insn), 0, j), 1);
+		      sched_note_set (XVECEXP (PATTERN (insn), 0, j), 1);
 		}
 	      
 	      /* This code keeps life analysis information up to date.  */
@@ -3473,12 +3452,12 @@ schedule_block (b, file)
 #endif
 
   if (new_needs & NEED_HEAD)
-    basic_block_head[b] = head;
+    BLOCK_HEAD (b) = head;
   PREV_INSN (head) = prev_head;
   NEXT_INSN (prev_head) = head;
 
   if (new_needs & NEED_TAIL)
-    basic_block_end[b] = tail;
+    BLOCK_END (b) = tail;
   NEXT_INSN (tail) = next_tail;
   PREV_INSN (next_tail) = tail;
 
@@ -3488,8 +3467,8 @@ schedule_block (b, file)
       rtx line, note, prev, new;
       int notes = 0;
 
-      head = basic_block_head[b];
-      next_tail = NEXT_INSN (basic_block_end[b]);
+      head = BLOCK_HEAD (b);
+      next_tail = NEXT_INSN (BLOCK_END (b));
 
       /* Determine the current line-number.  We want to know the current
 	 line number of the first insn of the block here, in case it is
@@ -3543,7 +3522,7 @@ schedule_block (b, file)
   if (file)
     {
       fprintf (file, ";; total time = %d\n;; new basic block head = %d\n;; new basic block end = %d\n\n",
-	       clock, INSN_UID (basic_block_head[b]), INSN_UID (basic_block_end[b]));
+	       clock, INSN_UID (BLOCK_HEAD (b)), INSN_UID (BLOCK_END (b)));
     }
 
   /* Yow! We're done!  */
@@ -3556,47 +3535,14 @@ ret:
   return;
 }
 
-/* Subroutine of split_hard_reg_notes.  Searches X for any reference to
-   REGNO, returning the rtx of the reference found if any.  Otherwise,
-   returns 0.  */
-
-static rtx
-regno_use_in (regno, x)
-     int regno;
-     rtx x;
-{
-  register char *fmt;
-  int i, j;
-  rtx tem;
-
-  if (GET_CODE (x) == REG && REGNO (x) == regno)
-    return x;
-
-  fmt = GET_RTX_FORMAT (GET_CODE (x));
-  for (i = GET_RTX_LENGTH (GET_CODE (x)) - 1; i >= 0; i--)
-    {
-      if (fmt[i] == 'e')
-	{
-	  if ((tem = regno_use_in (regno, XEXP (x, i))))
-	    return tem;
-	}
-      else if (fmt[i] == 'E')
-	for (j = XVECLEN (x, i) - 1; j >= 0; j--)
-	  if ((tem = regno_use_in (regno , XVECEXP (x, i, j))))
-	    return tem;
-    }
-
-  return 0;
-}
-
 /* Subroutine of update_flow_info.  Determines whether any new REG_NOTEs are
    needed for the hard register mentioned in the note.  This can happen
    if the reference to the hard register in the original insn was split into
    several smaller hard register references in the split insns.  */
 
 static void
-split_hard_reg_notes (note, first, last, orig_insn)
-     rtx note, first, last, orig_insn;
+split_hard_reg_notes (note, first, last)
+  rtx note, first, last;
 {
   rtx reg, temp, link;
   int n_regs, i, new_reg;
@@ -3783,7 +3729,7 @@ update_n_sets (x, inc)
    the insns from FIRST to LAST inclusive that were created by splitting
    ORIG_INSN.  NOTES are the original REG_NOTES.  */
 
-static void
+void
 update_flow_info (notes, first, last, orig_insn)
      rtx notes;
      rtx first, last;
@@ -3825,7 +3771,7 @@ update_flow_info (notes, first, last, orig_insn)
 		      && GET_CODE (temp) == REG
 		      && REGNO (temp) < FIRST_PSEUDO_REGISTER
 		      && HARD_REGNO_NREGS (REGNO (temp), GET_MODE (temp)) > 1)
-		    split_hard_reg_notes (note, first, last, orig_insn);
+		    split_hard_reg_notes (note, first, last);
 		  else
 		    {
 		      XEXP (note, 1) = REG_NOTES (insn);
@@ -3851,16 +3797,7 @@ update_flow_info (notes, first, last, orig_insn)
 		 register that was not needed by this instantiation of the
 		 pattern, so we can safely ignore it.  */
 	      if (insn == first)
-		{
-		  /* After reload, REG_DEAD notes come sometimes an
-		     instruction after the register actually dies.  */
-		  if (reload_completed && REG_NOTE_KIND (note) == REG_DEAD)
-		    {
-		      XEXP (note, 1) = REG_NOTES (insn);
-		      REG_NOTES (insn) = note;
-		      break;
-		    }
-			
+		{			
 		  if (REG_NOTE_KIND (note) != REG_UNUSED)
 		    abort ();
 
@@ -4206,8 +4143,28 @@ update_flow_info (notes, first, last, orig_insn)
 	}
       else if (! found_orig_dest)
 	{
-	  /* This should never happen.  */
-	  abort ();
+	  int i, regno;
+
+	  /* Should never reach here for a pseudo reg.  */
+	  if (REGNO (orig_dest) >= FIRST_PSEUDO_REGISTER)
+	    abort ();
+
+	  /* This can happen for a hard register, if the splitter
+	     does not bother to emit instructions which would be no-ops.
+	     We try to verify that this is the case by checking to see if
+	     the original instruction uses all of the registers that it
+	     set.  This case is OK, because deleting a no-op can not affect
+	     REG_DEAD notes on other insns.  If this is not the case, then
+	     abort.  */
+	  
+	  regno = REGNO (orig_dest);
+	  for (i = HARD_REGNO_NREGS (regno, GET_MODE (orig_dest)) - 1;
+	       i >= 0; i--)
+	    if (! refers_to_regno_p (regno + i, regno + i + 1, orig_insn,
+				     NULL_PTR))
+	      break;
+	  if (i >= 0)
+	    abort ();
 	}
     }
 
@@ -4339,7 +4296,7 @@ schedule_insns (dump_file)
 	 determine the correct line number for the first insn of the block.  */
 	 
       for (b = 0; b < n_basic_blocks; b++)
-	for (line = basic_block_head[b]; line; line = PREV_INSN (line))
+	for (line = BLOCK_HEAD (b); line; line = PREV_INSN (line))
 	  if (GET_CODE (line) == NOTE && NOTE_LINE_NUMBER (line) > 0)
 	    {
 	      line_note_head[b] = line;
@@ -4362,7 +4319,7 @@ schedule_insns (dump_file)
   /* ??? Perhaps it's done to ensure NEXT_TAIL in schedule_block is a
      valid insn.  */
 
-  insn = basic_block_end[n_basic_blocks-1];
+  insn = BLOCK_END (n_basic_blocks-1);
   if (NEXT_INSN (insn) == 0
       || (GET_CODE (insn) != NOTE
 	  && GET_CODE (insn) != CODE_LABEL
@@ -4370,86 +4327,13 @@ schedule_insns (dump_file)
 	     jump and a BARRIER.  */
 	  && ! (GET_CODE (insn) == JUMP_INSN
 		&& GET_CODE (NEXT_INSN (insn)) == BARRIER)))
-    emit_note_after (NOTE_INSN_DELETED, basic_block_end[n_basic_blocks-1]);
+    emit_note_after (NOTE_INSN_DELETED, BLOCK_END (n_basic_blocks-1));
 
   for (b = 0; b < n_basic_blocks; b++)
     {
-      rtx insn, next;
-
       note_list = 0;
 
-      for (insn = basic_block_head[b]; ; insn = next)
-	{
-	  rtx prev;
-	  rtx set;
-
-	  /* Can't use `next_real_insn' because that
-	     might go across CODE_LABELS and short-out basic blocks.  */
-	  next = NEXT_INSN (insn);
-	  if (GET_CODE (insn) != INSN)
-	    {
-	      if (insn == basic_block_end[b])
-		break;
-
-	      continue;
-	    }
-
-	  /* Don't split no-op move insns.  These should silently disappear
-	     later in final.  Splitting such insns would break the code
-	     that handles REG_NO_CONFLICT blocks.  */
-	  set = single_set (insn);
-	  if (set && rtx_equal_p (SET_SRC (set), SET_DEST (set)))
-	    {
-	      if (insn == basic_block_end[b])
-		break;
-
-	      /* Nops get in the way while scheduling, so delete them now if
-		 register allocation has already been done.  It is too risky
-		 to try to do this before register allocation, and there are
-		 unlikely to be very many nops then anyways.  */
-	      if (reload_completed)
-		{
-		  PUT_CODE (insn, NOTE);
-		  NOTE_LINE_NUMBER (insn) = NOTE_INSN_DELETED;
-		  NOTE_SOURCE_FILE (insn) = 0;
-		}
-
-	      continue;
-	    }
-
-	  /* Split insns here to get max fine-grain parallelism.  */
-	  prev = PREV_INSN (insn);
-	  /* It is probably not worthwhile to try to split again in the
-	     second pass.  However, if flag_schedule_insns is not set,
-	     the first and only (if any) scheduling pass is after reload.  */
-	  if (reload_completed == 0 || ! flag_schedule_insns)
-	    {
-	      rtx last, first = PREV_INSN (insn);
-	      rtx notes = REG_NOTES (insn);
-
-	      last = try_split (PATTERN (insn), insn, 1);
-	      if (last != insn)
-		{
-		  /* try_split returns the NOTE that INSN became.  */
-		  first = NEXT_INSN (first);
-		  update_flow_info (notes, first, last, insn);
-
-		  PUT_CODE (insn, NOTE);
-		  NOTE_SOURCE_FILE (insn) = 0;
-		  NOTE_LINE_NUMBER (insn) = NOTE_INSN_DELETED;
-		  if (insn == basic_block_head[b])
-		    basic_block_head[b] = first;
-		  if (insn == basic_block_end[b])
-		    {
-		      basic_block_end[b] = last;
-		      break;
-		    }
-		}
-	    }
-
-	  if (insn == basic_block_end[b])
-	    break;
-	}
+      split_block_insns (b, reload_completed == 0 || ! flag_schedule_insns);
 
       schedule_block (b, dump_file);
 

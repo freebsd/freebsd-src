@@ -1,6 +1,6 @@
 /* Generate from machine description:
    - some #define configuration flags.
-   Copyright (C) 1987, 1991, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,11 +21,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -54,9 +49,9 @@ static int max_insns_per_split = 1;
 static int clobbers_seen_this_insn;
 static int dup_operands_seen_this_insn;
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
 
 static void walk_insn_part PROTO((rtx, int, int));
 static void gen_insn PROTO((rtx));
@@ -249,11 +244,11 @@ gen_peephole (peep)
     walk_insn_part (XVECEXP (peep, 0, i), 1, 0);
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
@@ -261,29 +256,33 @@ xmalloc (size)
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genconfig: ");

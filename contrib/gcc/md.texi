@@ -1377,6 +1377,9 @@ Floating point register
 @item y
 @samp{CR} register (condition register)
 
+@item z
+@samp{FPMEM} stack memory for FPR-GPR transfers
+
 @item I
 Signed 16 bit constant
 
@@ -1413,10 +1416,7 @@ for @code{asm} statements)
 AIX TOC entry
 
 @item S
-Windows NT SYMBOL_REF
-
-@item T
-Windows NT LABEL_REF
+Constant suitable as a 64-bit mask operand
 
 @item U
 System V Release 4 small data area reference
@@ -1746,13 +1746,19 @@ pseudo registers that did not get hard registers, while on other
 machines explicit memory references will get optional reloads.
 
 If a scratch register is required to move an object to or from memory,
-it can be allocated using @code{gen_reg_rtx} prior to reload.  But this
-is impossible during and after reload.  If there are cases needing
+it can be allocated using @code{gen_reg_rtx} prior to life analysis.
+
+If there are cases needing
 scratch registers after reload, you must define
 @code{SECONDARY_INPUT_RELOAD_CLASS} and perhaps also
 @code{SECONDARY_OUTPUT_RELOAD_CLASS} to detect them, and provide
 patterns @samp{reload_in@var{m}} or @samp{reload_out@var{m}} to handle
 them.  @xref{Register Classes}.
+
+@findex no_new_pseudos
+The global variable @code{no_new_pseudos} can be used to determine if it
+is unsafe to create new pseudo registers.  If this variable is nonzero, then
+it is unsafe to call @code{gen_reg_rtx} to allocate a new pseudo.
 
 The constraints on a @samp{mov@var{m}} must permit moving any hard
 register to any other hard register provided that
@@ -2531,6 +2537,61 @@ This pattern, if defined, performs the entire action of the longjmp.
 You will not normally need to define this pattern unless you also define
 @code{builtin_setjmp_setup}.  The single argument is a pointer to the
 @code{jmp_buf}.
+
+@cindex @code{eh_epilogue} instruction pattern
+@item @samp{eh_epilogue}
+This pattern, if defined, affects the way @code{__builtin_eh_return},
+and thence @code{__throw} are built.  It is intended to allow communication
+between the exception handling machinery and the normal epilogue code
+for the target.
+
+The pattern takes three arguments.  The first is the exception context
+pointer.  This will have already been copied to the function return
+register appropriate for a pointer; normally this can be ignored.  The
+second argument is an offset to be added to the stack pointer.  It will 
+have been copied to some arbitrary call-clobbered hard reg so that it
+will survive until after reload to when the normal epilogue is generated. 
+The final argument is the address of the exception handler to which
+the function should return.  This will normally need to copied by the
+pattern to some special register.
+
+This pattern must be defined if @code{RETURN_ADDR_RTX} does not yield
+something that can be reliably and permanently modified, i.e. a fixed
+hard register or a stack memory reference.
+
+@cindex @code{prologue} instruction pattern
+@item @samp{prologue}
+This pattern, if defined, emits RTL for entry to a function.  The function
+entry is resposible for setting up the stack frame, initializing the frame
+pointer register, saving callee saved registers, etc.
+
+Using a prologue pattern is generally preferred over defining
+@code{FUNCTION_PROLOGUE} to emit assembly code for the prologue.
+
+The @code{prologue} pattern is particularly useful for targets which perform
+instruction scheduling.
+
+@cindex @code{epilogue} instruction pattern
+@item @samp{epilogue}
+This pattern, if defined, emits RTL for exit from a function.  The function
+exit is resposible for deallocating the stack frame, restoring callee saved
+registers and emitting the return instruction.
+
+Using an epilogue pattern is generally preferred over defining
+@code{FUNCTION_EPILOGUE} to emit assembly code for the prologue.
+
+The @code{epilogue} pattern is particularly useful for targets which perform
+instruction scheduling or which have delay slots for their return instruction.
+
+@cindex @code{sibcall_epilogue} instruction pattern
+@item @samp{sibcall_epilogue}
+This pattern, if defined, emits RTL for exit from a function without the final
+branch back to the calling function.  This pattern will be emitted before any
+sibling call (aka tail call) sites.
+
+The @code{sibcall_epilogue} pattern must not clobber any arguments used for
+parameter passing or any stack slots for arguments passed to the current
+function.  
 @end table
 
 @node Pattern Ordering
@@ -3528,9 +3589,10 @@ The integer @var{i} specifies the value of a numeric attribute.  @var{i}
 must be non-negative.
 
 The value of a numeric attribute can be specified either with a
-@code{const_int} or as an integer represented as a string in
-@code{const_string}, @code{eq_attr} (see below), and @code{set_attr}
-(@pxref{Tagging Insns}) expressions.
+@code{const_int}, or as an integer represented as a string in
+@code{const_string}, @code{eq_attr} (see below), @code{attr},
+@code{symbol_ref}, simple arithmetic expressions, and @code{set_attr}
+overrides on specific instructions (@pxref{Tagging Insns}).
 
 @cindex @code{const_string} and attributes
 @item (const_string @var{value})
@@ -3713,6 +3775,12 @@ The @code{very_unlikely} and @code{unlikely} flags are false if the
 
 @code{attr_flag} is only used during delay slot scheduling and has no
 meaning to other passes of the compiler.
+
+@findex attr
+@item (attr @var{name})
+The value of another attribute is returned.  This is most useful
+for numeric attributes, as @code{eq_attr} and @code{attr_flag}
+produce more efficient code for non-numeric attributes.
 @end table
 
 @node Tagging Insns

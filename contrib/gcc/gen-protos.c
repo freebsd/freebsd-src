@@ -17,10 +17,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "hconfig.h"
 #include "system.h"
-#include "gansidecl.h"
 #include "scan.h"
 #include "cpplib.h"
 #include "cpphash.h"
+#undef abort
 
 int verbose = 0;
 char *progname;
@@ -28,20 +28,6 @@ char *progname;
 #define HASH_SIZE 2503 /* a prime */
 int hash_tab[HASH_SIZE];
 int next_index;
-
-int
-hashf (name, len, hashsize)
-     register const U_CHAR *name;
-     register int len;
-     int hashsize;
-{
-  register int r = 0;
-
-  while (len--)
-    r = HASHSTEP (r, *name++);
-
-  return MAKE_POS (r) % hashsize;
-}
 
 static void
 add_hash (fname)
@@ -110,7 +96,7 @@ parse_fn_proto (start, end, fn)
   ptr--;
   while (*ptr == ' ' || *ptr == '\t') ptr--;
 
-  if (!ISALNUM (*ptr))
+  if (!ISALNUM ((unsigned char)*ptr))
     {
       if (verbose)
 	fprintf (stderr, "%s: Can't handle this complex prototype: %s\n",
@@ -119,7 +105,7 @@ parse_fn_proto (start, end, fn)
     }
   name_end = ptr+1;
 
-  while (ISALNUM (*ptr) || *ptr == '_') --ptr;
+  while (ISALNUM ((unsigned char)*ptr) || *ptr == '_') --ptr;
   name_start = ptr+1;
   while (*ptr == ' ' || *ptr == '\t') ptr--;
   ptr[1] = 0;
@@ -140,7 +126,7 @@ parse_fn_proto (start, end, fn)
 
 int
 main (argc, argv)
-     int argc;
+     int argc ATTRIBUTE_UNUSED;
      char **argv;
 {
   FILE *inf = stdin;
@@ -158,7 +144,7 @@ main (argc, argv)
   fprintf (outf, "struct fn_decl std_protos[] = {\n");
 
   /* A hash table entry of 0 means "unused" so reserve it.  */
-  fprintf (outf, "  {\"\", \"\", \"\"},\n");
+  fprintf (outf, "  {\"\", \"\", \"\", 0},\n");
   next_index = 1;
   
   for (;;)
@@ -180,13 +166,13 @@ main (argc, argv)
 
       add_hash (fn_decl.fname);
 
-      fprintf (outf, "  {\"%s\", \"%s\", \"%s\"},\n",
+      fprintf (outf, "  {\"%s\", \"%s\", \"%s\", 0},\n",
 	       fn_decl.fname, fn_decl.rtype, fn_decl.params);
 
       if (c == EOF)
 	break;
     }
-  fprintf (outf, "  {0, 0, 0}\n};\n");
+  fprintf (outf, "  {0, 0, 0, 0}\n};\n");
 
 
   fprintf (outf, "#define HASH_SIZE %d\n", HASH_SIZE);
@@ -196,22 +182,4 @@ main (argc, argv)
   fprintf (outf, "};\n");
 
   return 0;
-}
-
-/* Avoid error if config defines abort as fancy_abort.
-   It's not worth "really" implementing this because ordinary
-   compiler users never run fix-header.  */
-
-void
-fancy_abort ()
-{
-  abort ();
-}
-
-void
-fatal (s)
-     char *s;
-{
-  fprintf (stderr, "%s: %s\n", "gen-protos", s);
-  exit (FATAL_EXIT_CODE);
 }

@@ -1,5 +1,5 @@
 /* Generate code from machine description to recognize rtl as insns.
-   Copyright (C) 1987, 88, 92, 93, 94, 95, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92-95, 97-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -47,14 +47,12 @@ Boston, MA 02111-1307, USA.  */
    it returns the split rtl in a SEQUENCE.  */
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
+
+#define OUTPUT_LABEL(INDENT_STRING, LABEL_NUMBER) \
+  printf("%sL%d: ATTRIBUTE_UNUSED_LABEL\n", (INDENT_STRING), (LABEL_NUMBER))
 
 static struct obstack obstack;
 struct obstack *rtl_obstack = &obstack;
@@ -62,8 +60,9 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+/* Holds an array of names indexed by insn_code_number.  */
 char **insn_name_ptr = 0;
+int insn_name_ptr_size = 0;
 
 /* Data structure for a listhead of decision trees.  The alternatives
    to a node are kept in a doublely-linked list so we can easily add nodes
@@ -91,7 +90,7 @@ struct decision
   int elt_one_int;		/* Required value for XINT (rtl, 1) */
   int test_elt_zero_wide;	/* Nonzero if should test XWINT (rtl, 0) */
   HOST_WIDE_INT elt_zero_wide;	/* Required value for XWINT (rtl, 0) */
-  char *tests;			/* If nonzero predicate to call */
+  const char *tests;		/* If nonzero predicate to call */
   int pred;			/* `preds' index of predicate or -1 */
   char *c_test;			/* Additional test to perform */
   struct decision_head success;	/* Nodes to test on success */
@@ -142,7 +141,7 @@ static int max_depth;
 
 static struct pred_table
 {
-  char *name;
+  const char *name;
   RTX_CODE codes[NUM_RTX_CODE];
 } preds[]
   = {{"general_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
@@ -162,6 +161,7 @@ static struct pred_table
      {"nonmemory_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
 			    LABEL_REF, SUBREG, REG}},
      {"push_operand", {MEM}},
+     {"pop_operand", {MEM}},
      {"memory_operand", {SUBREG, MEM}},
      {"indirect_operand", {SUBREG, MEM}},
      {"comparison_operator", {EQ, NE, LE, LT, GE, GT, LEU, LTU, GEU, GTU}},
@@ -172,7 +172,7 @@ static struct pred_table
 
 static struct decision_head make_insn_sequence PROTO((rtx, enum routine_type));
 static struct decision *add_to_sequence PROTO((rtx, struct decision_head *,
-					       char *));
+					       const char *));
 static int not_both_true	PROTO((struct decision *, struct decision *,
 				       int));
 static int position_merit	PROTO((struct decision *, enum machine_mode,
@@ -182,24 +182,20 @@ static struct decision_head merge_trees PROTO((struct decision_head,
 static int break_out_subroutines PROTO((struct decision_head,
 					enum routine_type, int));
 static void write_subroutine	PROTO((struct decision *, enum routine_type));
-static void write_tree_1	PROTO((struct decision *, char *,
+static void write_tree_1	PROTO((struct decision *, const char *,
 				       struct decision *, enum routine_type));
 static void print_code		PROTO((enum rtx_code));
 static int same_codes		PROTO((struct decision *, enum rtx_code));
 static void clear_codes		PROTO((struct decision *));
 static int same_modes		PROTO((struct decision *, enum machine_mode));
 static void clear_modes		PROTO((struct decision *));
-static void write_tree		PROTO((struct decision *, char *,
+static void write_tree		PROTO((struct decision *, const char *,
 				       struct decision *, int,
 				       enum routine_type));
-static void change_state	PROTO((char *, char *, int));
-static char *copystr		PROTO((char *));
-static void mybzero		PROTO((char *, unsigned));
-static void mybcopy		PROTO((char *, char *, unsigned));
-static void fatal		PVPROTO((char *, ...)) ATTRIBUTE_PRINTF_1;
-char *xrealloc			PROTO((char *, unsigned));
-char *xmalloc			PROTO((unsigned));
-void fancy_abort		PROTO((void));
+static void change_state	PROTO((const char *, const char *, int));
+void fatal		PVPROTO((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort		PROTO((void)) ATTRIBUTE_NORETURN;
 
 /* Construct and return a sequence of decisions
    that will recognize INSN.
@@ -215,6 +211,38 @@ make_insn_sequence (insn, type)
   char *c_test = XSTR (insn, type == RECOG ? 2 : 1);
   struct decision *last;
   struct decision_head head;
+
+  {
+    static char *last_real_name = "insn";
+    static int last_real_code = 0;
+    char *name;
+
+    if (insn_name_ptr_size <= next_insn_code)
+      {
+	int new_size;
+	new_size = (insn_name_ptr_size ? insn_name_ptr_size * 2 : 512);
+	insn_name_ptr =
+	  (char **) xrealloc (insn_name_ptr, sizeof(char *) * new_size);
+	bzero ((PTR)(insn_name_ptr + insn_name_ptr_size),
+	       sizeof(char *) * (new_size - insn_name_ptr_size));
+	insn_name_ptr_size = new_size;
+      }
+
+    name = XSTR (insn, 0);
+    if (!name || name[0] == '\0')
+      {
+	name = xmalloc (strlen (last_real_name) + 10);
+	sprintf (name, "%s+%d", last_real_name,
+		 next_insn_code - last_real_code);
+      }
+    else
+      {
+	last_real_name = name;
+	last_real_code = next_insn_code;
+      }
+  
+    insn_name_ptr[next_insn_code] = name;
+  }  
 
   if (XVECLEN (insn, type == RECOG) == 1)
     x = XVECEXP (insn, type == RECOG, 0);
@@ -297,7 +325,7 @@ static struct decision *
 add_to_sequence (pattern, last, position)
      rtx pattern;
      struct decision_head *last;
-     char *position;
+     const char *position;
 {
   register RTX_CODE code;
   register struct decision *new
@@ -313,7 +341,7 @@ add_to_sequence (pattern, last, position)
     max_depth = depth;
 
   new->number = next_number++;
-  new->position = copystr (position);
+  new->position = xstrdup (position);
   new->ignore_code = 0;
   new->ignore_mode = 0;
   new->enforce_mode = 1;
@@ -421,7 +449,7 @@ add_to_sequence (pattern, last, position)
 
       if (code == MATCH_OPERATOR || code == MATCH_PARALLEL)
 	{
-	  for (i = 0; i < XVECLEN (pattern, 2); i++)
+	  for (i = 0; i < (size_t) XVECLEN (pattern, 2); i++)
 	    {
 	      newpos[depth] = i + (code == MATCH_OPERATOR ? '0': 'a');
 	      new = add_to_sequence (XVECEXP (pattern, 2, i),
@@ -436,7 +464,7 @@ add_to_sequence (pattern, last, position)
       new->dupno = XINT (pattern, 0);
       new->code = UNKNOWN;
       new->tests = 0;
-      for (i = 0; i < XVECLEN (pattern, 1); i++)
+      for (i = 0; i < (size_t) XVECLEN (pattern, 1); i++)
 	{
 	  newpos[depth] = i + '0';
 	  new = add_to_sequence (XVECEXP (pattern, 1, i),
@@ -456,6 +484,19 @@ add_to_sequence (pattern, last, position)
       goto restart;
 
     case SET:
+      /* The operands of a SET must have the same mode unless one is VOIDmode.  */
+      if (GET_MODE (SET_SRC (pattern)) != VOIDmode
+	  && GET_MODE (SET_DEST (pattern)) != VOIDmode
+	  && GET_MODE (SET_SRC (pattern)) != GET_MODE (SET_DEST (pattern))
+	  /* The mode of an ADDRESS_OPERAND is the mode of the memory reference,
+	     not the mode of the address.  */
+	  && ! (GET_CODE (SET_SRC (pattern)) == MATCH_OPERAND
+		&& ! strcmp (XSTR (SET_SRC (pattern), 1), "address_operand")))
+	{
+	  print_rtl (stderr, pattern);
+	  fputc ('\n', stderr);
+	  fatal ("mode mismatch in SET");
+	}
       newpos[depth] = '0';
       new = add_to_sequence (SET_DEST (pattern), &new->success, newpos);
       this->success.first->enforce_mode = 1;
@@ -520,7 +561,7 @@ add_to_sequence (pattern, last, position)
 
   fmt = GET_RTX_FORMAT (code);
   len = GET_RTX_LENGTH (code);
-  for (i = 0; i < len; i++)
+  for (i = 0; i < (size_t) len; i++)
     {
       newpos[depth] = '0' + i;
       if (fmt[i] == 'e' || fmt[i] == 'u')
@@ -823,8 +864,7 @@ merge_trees (oldh, addh)
 		      struct decision *split
 			= (struct decision *) xmalloc (sizeof (struct decision));
 
-		      mybcopy ((char *) old, (char *) split,
-			       sizeof (struct decision));
+		      memcpy (split, old, sizeof (struct decision));
 
 		      old->success.first = old->success.last = split;
 		      old->c_test = 0;
@@ -850,8 +890,7 @@ merge_trees (oldh, addh)
 		      struct decision *split
 			= (struct decision *) xmalloc (sizeof (struct decision));
 
-		      mybcopy ((char *) add, (char *) split,
-			       sizeof (struct decision));
+		      memcpy (split, add, sizeof (struct decision));
 
 		      add->success.first = add->success.last = split;
 		      add->c_test = 0;
@@ -891,7 +930,11 @@ merge_trees (oldh, addh)
 		      old->num_clobbers_to_add = 0;
 		    }
 		  else
-		    fatal ("Two actions at one point in tree");
+		    fatal ("Two actions at one point in tree for insns \"%s\" (%d) and \"%s\" (%d)",
+			   insn_name_ptr[old->insn_code_number],
+			   old->insn_code_number,
+			   insn_name_ptr[add->insn_code_number],
+			   add->insn_code_number);
 		}
 
 	      if (old->insn_code_number == -1)
@@ -1024,7 +1067,7 @@ write_subroutine (tree, type)
    conditions or switch statements.  We only support small indentations
    and always indent at least two spaces.  */
 
-static char *indents[]
+static const char *indents[]
   = {"  ", "  ", "  ", "   ", "    ", "     ", "      ", "       ",
      "\t", "\t ", "\t  ", "\t   ", "\t    ", "\t     ", "\t      ",
      "\t\t", "\t\t ", "\t\t  ", "\t\t   ", "\t\t    ", "\t\t     "};
@@ -1053,7 +1096,7 @@ static char *indents[]
 static void
 write_tree_1 (tree, prevpos, afterward, type)
      struct decision *tree;
-     char *prevpos;
+     const char *prevpos;
      struct decision *afterward;
      enum routine_type type;
 {
@@ -1096,7 +1139,7 @@ write_tree_1 (tree, prevpos, afterward, type)
   printf ("\n");
   if (tree && tree->subroutine_number == 0)
     {
-      printf ("  L%d:\n", tree->number);
+      OUTPUT_LABEL ("  ", tree->number);
       tree->label_needed = 0;
     }
 
@@ -1232,7 +1275,7 @@ write_tree_1 (tree, prevpos, afterward, type)
 
       if (p->label_needed && (p->retest_mode || p->retest_code))
 	{
-	  printf ("%sL%d:\n", indents[indent - 2], p->number);
+	  OUTPUT_LABEL (indents[indent - 2], p->number);
 	  p->label_needed = 0;
 	}
 
@@ -1290,7 +1333,7 @@ write_tree_1 (tree, prevpos, afterward, type)
       if (switch_mode == VOIDmode && mode != VOIDmode && p->next != 0
 	  && p->next->enforce_mode && p->next->mode != VOIDmode)
 	{
-	  mybzero (modemap, sizeof modemap);
+	  memset (modemap, 0, sizeof modemap);
 	  printf ("%sswitch (GET_MODE (x%d))\n", indents[indent], depth);
 	  printf ("%s{\n", indents[indent + 2]);
 	  indent += 4;
@@ -1307,7 +1350,7 @@ write_tree_1 (tree, prevpos, afterward, type)
       if (switch_code == UNKNOWN && p->code != UNKNOWN && ! p->ignore_code
 	  && p->next != 0 && p->next->code != UNKNOWN)
 	{
-	  mybzero (codemap, sizeof codemap);
+	  memset (codemap, 0, sizeof codemap);
 	  printf ("%sswitch (GET_CODE (x%d))\n", indents[indent], depth);
 	  printf ("%s{\n", indents[indent + 2]);
 	  indent += 4;
@@ -1323,7 +1366,7 @@ write_tree_1 (tree, prevpos, afterward, type)
       /* Now that most mode and code tests have been done, we can write out
 	 a label for an inner node, if we haven't already.  */
       if (p->label_needed)
-	printf ("%sL%d:\n", indents[indent - 2], p->number);
+	OUTPUT_LABEL (indents[indent - 2], p->number);
 
       inner_indent = indent;
 
@@ -1545,18 +1588,18 @@ clear_modes (p)
 static void
 write_tree (tree, prevpos, afterward, initial, type)
      struct decision *tree;
-     char *prevpos;
+     const char *prevpos;
      struct decision *afterward;
      int initial;
      enum routine_type type;
 {
   register struct decision *p;
-  char *name_prefix = (type == SPLIT ? "split" : "recog");
-  char *call_suffix = (type == SPLIT ? "" : ", pnum_clobbers");
+  const char *name_prefix = (type == SPLIT ? "split" : "recog");
+  const char *call_suffix = (type == SPLIT ? "" : ", pnum_clobbers");
 
   if (! initial && tree->subroutine_number > 0)
     {
-      printf (" L%d:\n", tree->number);
+      OUTPUT_LABEL (" ", tree->number);
 
       if (afterward)
 	{
@@ -1591,8 +1634,8 @@ write_tree (tree, prevpos, afterward, initial, type)
 
 static void
 change_state (oldpos, newpos, indent)
-     char *oldpos;
-     char *newpos;
+     const char *oldpos;
+     const char *newpos;
      int indent;
 {
   int odepth = strlen (oldpos);
@@ -1618,73 +1661,54 @@ change_state (oldpos, newpos, indent)
     }
 }
 
-static char *
-copystr (s1)
-     char *s1;
-{
-  register char *tem;
-
-  if (s1 == 0)
-    return 0;
-
-  tem = (char *) xmalloc (strlen (s1) + 1);
-  strcpy (tem, s1);
-
-  return tem;
-}
-
-static void
-mybzero (b, length)
-     register char *b;
-     register unsigned length;
-{
-  while (length-- > 0)
-    *b++ = 0;
-}
-
-static void
-mybcopy (in, out, length)
-     register char *in, *out;
-     register unsigned length;
-{
-  while (length-- > 0)
-    *out++ = *in++;
-}
-
 char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+xstrdup (input)
+  const char *input;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register size_t len = strlen (input) + 1;
+  register char *output = xmalloc (len);
+  memcpy (output, input, len);
+  return output;
+}
+
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
+{
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
   return val;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genrecog: ");
@@ -1793,10 +1817,6 @@ from the machine description file `md'.  */\n\n");
 
   printf ("*/\n\n");
 
-  printf ("rtx recog_operand[MAX_RECOG_OPERANDS];\n\n");
-  printf ("rtx *recog_operand_loc[MAX_RECOG_OPERANDS];\n\n");
-  printf ("rtx *recog_dup_loc[MAX_DUP_OPERANDS];\n\n");
-  printf ("char recog_dup_num[MAX_DUP_OPERANDS];\n\n");
   printf ("#define operands recog_operand\n\n");
 
   next_subroutine_number = 0;

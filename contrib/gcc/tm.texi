@@ -1,4 +1,4 @@
-@c Copyright (C) 1988,89,92,93,94,96,97,1998 Free Software Foundation, Inc.
+@c Copyright (C) 1988,89,92,93,94,96,97,98,1999 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -321,7 +321,8 @@ try when searching for the executable files of the compiler.
 If defined, this macro is an additional prefix to try after
 @code{STANDARD_EXEC_PREFIX}.  @code{MD_EXEC_PREFIX} is not searched
 when the @samp{-b} option is used, or the compiler is built as a cross
-compiler.
+compiler.  If you define @code{MD_EXEC_PREFIX}, then be sure to add it
+to the list of directories used to find the assembler in @file{configure.in}.
 
 @findex STANDARD_STARTFILE_PREFIX
 @item STANDARD_STARTFILE_PREFIX
@@ -790,15 +791,24 @@ size of an integer.
 
 @findex STACK_BOUNDARY
 @item STACK_BOUNDARY
+Define this macro if there is a guaranteed alignment for the stack
+pointer on this machine.  The definition is a C expression
+for the desired alignment (measured in bits).  This value is used as a
+default if PREFERRED_STACK_BOUNDARY is not defined.
+
+@findex PREFERRED_STACK_BOUNDARY
+@item PREFERRED_STACK_BOUNDARY
 Define this macro if you wish to preserve a certain alignment for
 the stack pointer.  The definition is a C expression
-for the desired alignment (measured in bits).
+for the desired alignment (measured in bits).  If STACK_BOUNDARY is
+also defined, this macro must evaluate to a value equal to or larger
+than STACK_BOUNDARY.
 
-@cindex @code{PUSH_ROUNDING}, interaction with @code{STACK_BOUNDARY}
+@cindex @code{PUSH_ROUNDING}, interaction with @code{PREFERRED_STACK_BOUNDARY}
 If @code{PUSH_ROUNDING} is not defined, the stack will always be aligned
-to the specified boundary.  If @code{PUSH_ROUNDING} is defined and specifies a
-less strict alignment than @code{STACK_BOUNDARY}, the stack may be
-momentarily unaligned while pushing arguments.
+to the specified boundary.  If @code{PUSH_ROUNDING} is defined and specifies
+a less strict alignment than @code{PREFERRED_STACK_BOUNDARY}, the stack may
+be momentarily unaligned while pushing arguments.
 
 @findex FUNCTION_BOUNDARY
 @item FUNCTION_BOUNDARY
@@ -863,6 +873,18 @@ If this macro is not defined, then @var{basic-align} is used.
 The typical use of this macro is to increase alignment for string
 constants to be word aligned so that @code{strcpy} calls that copy
 constants can be done inline.
+
+@findex LOCAL_ALIGNMENT
+@item LOCAL_ALIGNMENT (@var{type}, @var{basic-align})
+If defined, a C expression to compute the alignment for a variables in
+the local store.  @var{type} is the data type, and @var{basic-align} is
+the alignment that the object would ordinarily have.  The value of this
+macro is used instead of that alignment to align the object.
+
+If this macro is not defined, then @var{basic-align} is used.
+
+One use of this macro is to increase alignment of medium-size data to
+make it all fit in fewer cache lines.
 
 @findex EMPTY_FIELD_BOUNDARY
 @item EMPTY_FIELD_BOUNDARY
@@ -957,18 +979,18 @@ Like PCC_BITFIELD_TYPE_MATTERS except that its effect is limited to
 aligning a bitfield within the structure.
 
 @findex ROUND_TYPE_SIZE
-@item ROUND_TYPE_SIZE (@var{struct}, @var{size}, @var{align})
-Define this macro as an expression for the overall size of a structure
-(given by @var{struct} as a tree node) when the size computed from the
-fields is @var{size} and the alignment is @var{align}.
+@item ROUND_TYPE_SIZE (@var{type}, @var{computed}, @var{specified})
+Define this macro as an expression for the overall size of a type
+(given by @var{type} as a tree node) when the size computed in the
+usual way is @var{computed} and the alignment is @var{specified}.
 
-The default is to round @var{size} up to a multiple of @var{align}.
+The default is to round @var{computed} up to a multiple of @var{specified}.
 
 @findex ROUND_TYPE_ALIGN
-@item ROUND_TYPE_ALIGN (@var{struct}, @var{computed}, @var{specified})
-Define this macro as an expression for the alignment of a structure
-(given by @var{struct} as a tree node) if the alignment computed in the
-usual way is @var{computed} and the alignment explicitly specified was
+@item ROUND_TYPE_ALIGN (@var{type}, @var{computed}, @var{specified})
+Define this macro as an expression for the alignment of a type (given
+by @var{type} as a tree node) if the alignment computed in the usual
+way is @var{computed} and the alignment explicitly specified was
 @var{specified}.
 
 The default is to use @var{specified} if it is larger; otherwise, use
@@ -1333,13 +1355,32 @@ If a register has 0 in @code{CALL_USED_REGISTERS}, the compiler
 automatically saves it on function entry and restores it on function
 exit, if the register is used within the function.
 
+@findex HARD_REGNO_CALL_PART_CLOBBERED
+@item HARD_REGNO_CALL_PART_CLOBBERED (@var{regno}, @var{mode})
+@cindex call-used register
+@cindex call-clobbered register
+@cindex call-saved register
+A C expression that is non-zero if it is not permissible to store a
+value of mode @var{mode} in hard register number @var{regno} across a
+call without some part of it being clobbered.  For most machines this
+macro need not be defined.  It is only required for machines that do not
+preserve the entire contents of a register across a call.
+
 @findex CONDITIONAL_REGISTER_USAGE
 @findex fixed_regs
 @findex call_used_regs
 @item CONDITIONAL_REGISTER_USAGE
-Zero or more C statements that may conditionally modify two variables
-@code{fixed_regs} and @code{call_used_regs} (both of type @code{char
-[]}) after they have been initialized from the two preceding macros.
+Zero or more C statements that may conditionally modify four variables
+@code{fixed_regs}, @code{call_used_regs}, @code{global_regs}
+(these three are of type @code{char []}) and @code{reg_class_contents}
+(of type @code{HARD_REG_SET}).
+Before the macro is called @code{fixed_regs}, @code{call_used_regs}
+and @code{reg_class_contents} have been initialized from 
+@code{FIXED_REGISTERS}, @code{CALL_USED_REGISTERS} and
+@code{REG_CLASS_CONTENTS}, respectively,
+@code{global_regs} has been cleared, and any @samp{-ffixed-@var{reg}},
+@samp{-fcall-used-@var{reg}} and @samp{-fcall-saved-@var{reg}} command
+options have been applied.
 
 This is necessary in case the fixed or call-clobbered registers depend
 on target flags.
@@ -1602,12 +1643,17 @@ treatment of leaf functions, and registers need to be renumbered to do
 this.
 @end table
 
-@findex leaf_function
+@findex current_function_is_leaf
+@findex current_function_uses_only_leaf_regs
 Normally, @code{FUNCTION_PROLOGUE} and @code{FUNCTION_EPILOGUE} must
-treat leaf functions specially.  It can test the C variable
-@code{leaf_function} which is nonzero for leaf functions.  (The variable
-@code{leaf_function} is defined only if @code{LEAF_REGISTERS} is
-defined.)
+treat leaf functions specially.  They can test the C variable
+@code{current_function_is_leaf} which is nonzero for leaf functions.
+@code{current_function_is_leaf} is set prior to local register allocation
+and is valid for the remaining compiler passes.  They can also test the C
+variable @code{current_function_uses_only_leaf_regs} which is nonzero for
+leaf functions which only use leaf registers.
+@code{current_function_uses_only_leaf_regs} is valid after reload and is
+only useful if @code{LEAF_REGISTERS} is defined.
 @c changed this to fix overfull.  ALSO:  why the "it" at the beginning
 @c of the next paragraph?!  --mew 2feb93
 
@@ -1673,24 +1719,6 @@ If this macro is not defined, it means that no insn clobbers registers
 mysteriously.  This is the usual situation; all else being equal,
 it is best for the RTL expression to show all the activity.
 
-@cindex death notes
-@findex PRESERVE_DEATH_INFO_REGNO_P
-@item PRESERVE_DEATH_INFO_REGNO_P (@var{regno})
-If defined, this is a C expression whose value is nonzero if correct
-@code{REG_DEAD} notes are needed for hard register number @var{regno}
-after reload.
-
-You would arrange to preserve death info for a register when some of the
-code in the machine description which is executed to write the assembler
-code looks at the death notes.  This is necessary only when the actual
-hardware feature which GNU CC thinks of as a register is not actually a
-register of the usual sort.  (It might, for example, be a hardware
-stack.)
-
-It is also useful for peepholes and linker relaxation.
-
-If this macro is not defined, it means that no death notes need to be
-preserved, and some may even be incorrect.  This is the usual situation.
 @end table
 
 @node Register Classes
@@ -2012,17 +2040,15 @@ is @code{BITS_PER_WORD} bits wide is correct for your machine.
 
 @findex SMALL_REGISTER_CLASSES
 @item SMALL_REGISTER_CLASSES
-Normally the compiler avoids choosing registers that have been
-explicitly mentioned in the rtl as spill registers (these registers are
-normally those used to pass parameters and return values).  However,
-some machines have so few registers of certain classes that there
-would not be enough registers to use as spill registers if this were
-done.
+On some machines, it is risky to let hard registers live across arbitrary
+insns.  Typically, these machines have instructions that require values
+to be in specific registers (like an accumulator), and reload will fail
+if the required hard register is used for another purpose across such an
+insn.
 
 Define @code{SMALL_REGISTER_CLASSES} to be an expression with a non-zero
 value on these machines.  When this macro has a non-zero value, the
-compiler allows registers explicitly used in the rtl to be used as spill
-registers but avoids extending the lifetime of these registers.
+compiler will try to minimize the lifetime of hard registers.
 
 It is always safe to define this macro with a non-zero value, but if you
 unnecessarily define it, you will reduce the amount of optimizations
@@ -2274,6 +2300,17 @@ from the value of the stack pointer register to the top of the stack
 frame at the beginning of any function, before the prologue.  The top of
 the frame is defined to be the value of the stack pointer in the
 previous frame, just before the call instruction.
+
+You only need to define this macro if you want to support call frame
+debugging information like that provided by DWARF 2.
+
+@findex ARG_POINTER_CFA_OFFSET
+@item ARG_POINTER_CFA_OFFSET
+A C expression whose value is an integer giving the offset, in bytes,
+from the argument pointer to the canonical frame address (cfa).  The
+final value should coincide with that calculated by 
+@code{INCOMING_FRAME_SP_OFFSET}.  Which is unfortunately not usable
+during virtual register instantiation.
 
 You only need to define this macro if you want to support call frame
 debugging information like that provided by DWARF 2.
@@ -2620,7 +2657,8 @@ allocated for arguments even when their values are passed in
 registers.
 
 The value of this macro is the size, in bytes, of the area reserved for
-arguments passed in registers for the function represented by @var{fndecl}.
+arguments passed in registers for the function represented by @var{fndecl},
+which can be zero if GNU CC is calling a library function.
 
 This space can be allocated by the caller, or be a part of the
 machine-dependent stack frame: @code{OUTGOING_REG_PARM_STACK_SPACE} says
@@ -2750,13 +2788,16 @@ The value of the expression can also be a @code{parallel} RTX.  This is
 used when an argument is passed in multiple locations.  The mode of the
 of the @code{parallel} should be the mode of the entire argument.  The
 @code{parallel} holds any number of @code{expr_list} pairs; each one
-describes where part of the argument is passed.  In each @code{expr_list},
-the first operand can be either a @code{reg} RTX for the hard register
-in which to pass this part of the argument, or zero to pass the argument
-on the stack.  If this operand is a @code{reg}, then the mode indicates
-how large this part of the argument is.  The second operand of the
-@code{expr_list} is a @code{const_int} which gives the offset in bytes
-into the entire argument where this part starts.
+describes where part of the argument is passed.  In each
+@code{expr_list} the first operand must be a @code{reg} RTX for the hard
+register in which to pass this part of the argument, and the mode of the
+register RTX indicates how large this part of the argument is.  The
+second operand of the @code{expr_list} is a @code{const_int} which gives
+the offset in bytes into the entire argument of where this part starts.
+As a special exception the first @code{expr_list} in the @code{parallel} 
+RTX may have a first operand of zero.  This indicates that the bytes
+starting from the second operand of that @code{expr_list} are stored on
+the stack and not held in a register.
 
 @cindex @file{stdarg.h} and register arguments
 The usual way to make the ANSI library @file{stdarg.h} work on a machine
@@ -3150,9 +3191,9 @@ must live across calls.
 @item DEFAULT_CALLER_SAVES
 Define this macro if function calls on the target machine do not preserve
 any registers; in other words, if @code{CALL_USED_REGISTERS} has 1
-for all registers.  This macro enables @samp{-fcaller-saves} by default.
-Eventually that option will be enabled by default on all machines and both
-the option and this macro will be eliminated.
+for all registers.  When defined, this macro enables @samp{-fcaller-saves} 
+by default for all optimization levels.  It has no effect for optimization
+levels 2 and higher, where @samp{-fcaller-saves} is the default.
 
 @findex CALLER_SAVE_PROFITABLE
 @item CALLER_SAVE_PROFITABLE (@var{refs}, @var{calls})
@@ -3163,6 +3204,14 @@ this is worth doing, and 0 otherwise.
 
 If you don't define this macro, a default is used which is good on most
 machines: @code{4 * @var{calls} < @var{refs}}.
+
+@findex HARD_REGNO_CALLER_SAVE_MODE
+@item HARD_REGNO_CALLER_SAVE_MODE (@var{regno}, @var{nregs})
+A C expression specifying which mode is required for saving @var{nregs}
+of a pseudo-register in call-clobbered hard register @var{regno}.  If
+@var{regno} is unsuitable for caller save, @code{VOIDmode} should be
+returned.  For most machines this macro need not be defined since GCC
+will select the smallest suitable mode.
 @end table
 
 @node Function Entry
@@ -3256,7 +3305,7 @@ argument lists of the function.  @xref{Stack Arguments}.
 
 Normally, it is necessary for the macros @code{FUNCTION_PROLOGUE} and
 @code{FUNCTION_EPILOGUE} to treat leaf functions specially.  The C
-variable @code{leaf_function} is nonzero for such a function.
+variable @code{current_function_is_leaf} is nonzero for such a function.
 
 @findex EXIT_IGNORE_STACK
 @item EXIT_IGNORE_STACK
@@ -3306,8 +3355,8 @@ is wanted, the macro can refer to the variable
 a function that needs a frame pointer.
 
 Normally, @code{FUNCTION_PROLOGUE} and @code{FUNCTION_EPILOGUE} must
-treat leaf functions specially.  The C variable @code{leaf_function} is
-nonzero for such a function.  @xref{Leaf Functions}.
+treat leaf functions specially.  The C variable @code{current_function_is_leaf}
+is nonzero for such a function.  @xref{Leaf Functions}.
 
 On some machines, some functions pop their arguments on exit while
 others leave that for the caller to do.  For example, the 68020 when
@@ -3699,11 +3748,8 @@ that were passed to @code{__builtin_saveregs}.
 If this macro is not defined, the compiler will output an ordinary
 call to the library function @samp{__builtin_saveregs}.
 
-@c !!! a bug in texinfo; how to make the entry on the @item line allow
-@c more than one line of text... help...  --mew 10feb93
 @findex SETUP_INCOMING_VARARGS
-@item SETUP_INCOMING_VARARGS (@var{args_so_far}, @var{mode}, @var{type},
-@var{pretend_args_size}, @var{second_time})
+@item SETUP_INCOMING_VARARGS (@var{args_so_far}, @var{mode}, @var{type}, @var{pretend_args_size}, @var{second_time})
 This macro offers an alternative to using @code{__builtin_saveregs} and
 defining the macro @code{EXPAND_BUILTIN_SAVEREGS}.  Use it to store the
 anonymous register arguments into the stack so that all the arguments
@@ -3749,6 +3795,15 @@ are treated as named.  Otherwise, all named arguments except the last
 are treated as named.
 
 You need not define this macro if it always returns zero.
+
+@findex PRETEND_OUTGOING_VARARGS_NAMED
+@item PRETEND_OUTGOING_VARARGS_NAMED
+If you need to conditionally change ABIs so that one works with
+@code{SETUP_INCOMING_VARARGS}, but the other works like neither
+@code{SETUP_INCOMING_VARARGS} nor @code{STRICT_ARGUMENT_NAMING} was
+defined, then define this macro to return nonzero if
+@code{SETUP_INCOMING_VARARGS} is used, zero otherwise.
+Otherwise, you should not define this macro.
 @end table
 
 @node Trampolines
@@ -4135,7 +4190,7 @@ This is about addressing modes.
 @table @code
 @findex HAVE_POST_INCREMENT
 @item HAVE_POST_INCREMENT
-Define this macro if the machine supports post-increment addressing.
+A C expression that is nonzero the machine supports post-increment addressing.
 
 @findex HAVE_PRE_INCREMENT
 @findex HAVE_POST_DECREMENT
@@ -4362,16 +4417,6 @@ an immediate operand on the target machine.  You can assume that
 @var{x} satisfies @code{CONSTANT_P}, so you need not check this.  In fact,
 @samp{1} is a suitable definition for this macro on machines where
 anything @code{CONSTANT_P} is valid.@refill
-
-@findex DONT_RECORD_EQUIVALENCE
-@item DONT_RECORD_EQUIVALENCE (@var{note})
-A C expression that is nonzero if the @code{REG_EQUAL} note @var{x} should not
-be promoted to a @code{REG_EQUIV} note.
-
-Define this macro if @var{note} refers to a constant that must be accepted
-by @code{LEGITIMATE_CONSTANT_P}, but must not appear as an immediate operand.
-
-Most machine descriptions do not need to define this macro.
 @end table
 
 @node Condition Code
@@ -4727,11 +4772,75 @@ than good.)
 
 @findex MOVE_RATIO
 @item MOVE_RATIO
-The number of scalar move insns which should be generated instead of a
+The threshold of number of scalar memory-to-memory move insns, @emph{below}
+which a sequence of insns  should be generated instead of a
 string move insn or a library call.  Increasing the value will always
 make code faster, but eventually incurs high cost in increased code size.
 
+Note that on machines with no memory-to-memory move insns, this macro denotes
+the corresponding number of memory-to-memory @emph{sequences}.
+
 If you don't define this, a reasonable default is used.
+
+@findex MOVE_BY_PIECES_P
+@item MOVE_BY_PIECES_P (@var{size}, @var{alignment})
+A C expression used to determine whether @code{move_by_pieces} will be used to
+copy a chunk of memory, or whether some other block move mechanism
+will be used.  Defaults to 1 if @code{move_by_pieces_ninsns} returns less
+than @code{MOVE_RATIO}.
+
+@findex MOVE_MAX_PIECES
+@item MOVE_MAX_PIECES
+A C expression used by @code{move_by_pieces} to determine the largest unit
+a load or store used to copy memory is.  Defaults to @code{MOVE_MAX}.
+
+@findex USE_LOAD_POST_INCREMENT
+@item USE_LOAD_POST_INCREMENT (@var{mode})
+A C expression used to determine whether a load postincrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_POST_INCREMENT}.
+
+@findex USE_LOAD_POST_DECREMENT
+@item USE_LOAD_POST_DECREMENT (@var{mode})
+A C expression used to determine whether a load postdecrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_POST_DECREMENT}.
+
+@findex USE_LOAD_PRE_INCREMENT
+@item USE_LOAD_PRE_INCREMENT (@var{mode})
+A C expression used to determine whether a load preincrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_PRE_INCREMENT}.
+
+@findex USE_LOAD_PRE_DECREMENT
+@item USE_LOAD_PRE_DECREMENT (@var{mode})
+A C expression used to determine whether a load predecrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_PRE_DECREMENT}.
+
+@findex USE_STORE_POST_INCREMENT
+@item USE_STORE_POST_INCREMENT (@var{mode})
+A C expression used to determine whether a store postincrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_POST_INCREMENT}.
+
+@findex USE_STORE_POST_DECREMENT
+@item USE_STORE_POST_DECREMENT (@var{mode})
+A C expression used to determine whether a store postdeccrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_POST_DECREMENT}.
+
+@findex USE_STORE_PRE_INCREMENT
+@item USE_STORE_PRE_INCREMENT (@var{mode})
+This macro is used to determine whether a store preincrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_PRE_INCREMENT}.
+
+@findex USE_STORE_PRE_DECREMENT
+@item USE_STORE_PRE_DECREMENT (@var{mode})
+This macro is used to determine whether a store predecrement is a good
+thing to use for a given mode.  Defaults to the value of
+@code{HAVE_PRE_DECREMENT}.
 
 @findex NO_FUNCTION_CSE
 @item NO_FUNCTION_CSE
@@ -4952,7 +5061,7 @@ necessary).
 @item PIC_OFFSET_TABLE_REG_CALL_CLOBBERED
 Define this macro if the register defined by
 @code{PIC_OFFSET_TABLE_REGNUM} is clobbered by calls.  Do not define
-this macro if @code{PPIC_OFFSET_TABLE_REGNUM} is not defined.
+this macro if @code{PIC_OFFSET_TABLE_REGNUM} is not defined.
 
 @findex FINALIZE_PIC
 @item FINALIZE_PIC
@@ -6366,6 +6475,14 @@ section.
 A C statement to output to the stdio stream @var{stream} an assembler
 command to advance the location counter to a multiple of 2 to the
 @var{power} bytes.  @var{power} will be a C expression of type @code{int}.
+
+@findex ASM_OUTPUT_MAX_SKIP_ALIGN
+@item ASM_OUTPUT_MAX_SKIP_ALIGN (@var{stream}, @var{power}, @var{max_skip})
+A C statement to output to the stdio stream @var{stream} an assembler
+command to advance the location counter to a multiple of 2 to the
+@var{power} bytes, but only if @var{max_skip} or fewer bytes are needed to
+satisfy the alignment request.  @var{power} and @var{max_skip} will be
+a C expression of type @code{int}.
 @end table
 
 @need 3000
@@ -7038,7 +7155,7 @@ when the minimum and maximum offset are known.  If you define this,
 it enables extra code in branch shortening to deal with @code{addr_diff_vec}.
 To make this work, you also have to define INSN_ALIGN and 
 make the alignment for @code{addr_diff_vec} explicit.
-The @var{body} argument is provided so that teh offset_unsigned and scale
+The @var{body} argument is provided so that the offset_unsigned and scale
 flags can be updated.
 
 @findex CASE_VECTOR_PC_RELATIVE
@@ -7318,17 +7435,62 @@ C++, which is to pretend that the file's contents are enclosed in
 @findex HANDLE_PRAGMA
 @findex #pragma
 @findex pragma
-@item HANDLE_PRAGMA (@var{stream}, @var{node})
+@item HANDLE_PRAGMA (@var{getc}, @var{ungetc}, @var{name})
 Define this macro if you want to implement any pragmas.  If defined, it
-is a C expression whose value is 1 if the pragma was handled by the function.
-The argument @var{stream} is the stdio input stream from which the source text
-can be read.  @var{node} is the tree node for the identifier after the
-@code{#pragma}.
+is a C expression whose value is 1 if the pragma was handled by the
+macro, zero otherwise.  The argument @var{getc} is a function of type
+@samp{int (*)(void)} which will return the next character in the input
+stream, or EOF if no characters are left.  The argument @var{ungetc} is
+a function of type @samp{void (*)(int)} which will push a character back
+into the input stream.  The argument @var{name} is the word following
+#pragma in the input stream.  The input stream pointer will be pointing
+just beyond the end of this word.  The input stream should be left
+undistrubed if the expression returns zero, otherwise it should be
+pointing at the next character after the end of the pragma.  Any
+characters remaining on the line will be ignored.
 
 It is generally a bad idea to implement new uses of @code{#pragma}.  The
 only reason to define this macro is for compatibility with other
 compilers that do support @code{#pragma} for the sake of any user
 programs which already use it.
+
+If the pragma can be implemented by atttributes then the macro
+@samp{INSERT_ATTRIBUTES} might be a useful one to define as well.
+
+Note: older versions of this macro only had two arguments: @var{stream}
+and @var{token}.  The macro was changed in order to allow it to work
+when gcc is built both with and without a cpp library.
+
+@findex HANDLE_SYSV_PRAGMA
+@findex #pragma
+@findex pragma
+@item HANDLE_SYSV_PRAGMA
+Define this macro (to a value of 1) if you want the System V style
+pragmas @samp{#pragma pack(<n>)} and @samp{#pragma weak <name>
+[=<value>]} to be supported by gcc.
+
+The pack pragma specifies the maximum alignment (in bytes) of fields
+within a structure, in much the same way as the @samp{__aligned__} and
+@samp{__packed__} @code{__attribute__}s do.  A pack value of zero resets
+the behaviour to the default.
+
+The weak pragma only works if @code{SUPPORTS_WEAK} and
+@code{ASM_WEAKEN_LABEL} are defined.  If enabled it allows the creation
+of specifically named weak labels, optionally with a value.
+
+@findex HANDLE_PRAGMA_PACK_PUSH_POP
+@findex #pragma
+@findex pragma
+@item HANDLE_PRAGMA_PACK_PUSH_POP
+Define this macro (to a value of 1) if you want to support the Win32
+style pragmas @samp{#pragma pack(push,<n>)} and @samp{#pragma
+pack(pop)}.  The pack(push,<n>) pragma specifies the maximum alignment
+(in bytes) of fields within a structure, in much the same way as the
+@samp{__aligned__} and @samp{__packed__} @code{__attribute__}s do.  A
+pack value of zero resets the behaviour to the default.  Successive
+invocations of this pragma cause the previous values to be stacked, so
+that invocations of @samp{#pragma pack(pop)} will return to the previous
+value.
 
 @findex VALID_MACHINE_DECL_ATTRIBUTE
 @item VALID_MACHINE_DECL_ATTRIBUTE (@var{decl}, @var{attributes}, @var{identifier}, @var{args})
@@ -7369,6 +7531,17 @@ If defined, the result is a list of the combined DECL_MACHINE_ATTRIBUTES of
 of @var{olddecl}.  Examples of when this is needed are when one attribute
 overrides another, or when an attribute is nullified by a subsequent
 definition.
+
+@findex INSERT_ATTRIBUTES
+@item INSERT_ATTRIBUTES (@var{node}, @var{attr_ptr}, @var{prefix_ptr})
+Define this macro if you want to be able to add attributes to a decl
+when it is being created.  This is normally useful for backends which
+wish to implement a pragma by using the attributes which correspond to
+the pragma's effect.  The @var{node} argument is the decl which is being
+created.  The @var{attr_ptr} argument is a pointer to the attribute list
+for this decl.  The @var{prefix_ptr} is a pointer to the list of
+attributes that have appeared after the specifiers and modifiers of the
+declaration, but before the declaration proper.
 
 @findex SET_DEFAULT_DECL_ATTRIBUTES
 @item SET_DEFAULT_DECL_ATTRIBUTES (@var{decl}, @var{attributes})
@@ -7461,15 +7634,6 @@ unit may not be bound to undefined symbols in another translation unit
 without user intervention.  For instance, under Microsoft Windows
 symbols must be explicitly imported from shared libraries (DLLs).
 
-@findex GIV_SORT_CRITERION
-@item GIV_SORT_CRITERION (@var{giv1}, @var{giv2})
-In some cases, the strength reduction optimization pass can produce better
-code if this is defined.  This macro controls the order that induction
-variables are combined.  This macro is particularly useful if the target has
-limited addressing modes.  For instance, the SH target has only positive
-offsets in addresses.  Thus sorting to put the smallest address first
-allows the most combinations to be found.
-
 @findex ISSUE_RATE
 @item ISSUE_RATE
 A C expression that returns how many instructions can be issued at the
@@ -7477,7 +7641,7 @@ same time if the machine is a superscalar machine.  This is only used by
 the @samp{Haifa} scheduler, and not the traditional scheduler.
 
 @findex MD_SCHED_INIT
-@item MD_SCHED_INIT (@var{file}, @var{verbose}
+@item MD_SCHED_INIT (@var{file}, @var{verbose})
 A C statement which is executed by the @samp{Haifa} scheduler at the
 beginning of each block of instructions that are to be scheduled.
 @var{file} is either a null pointer, or a stdio stream to write any
@@ -7517,12 +7681,11 @@ You need only define this macro if the target holds values larger than
 @code{word_mode} in general purpose registers.  Most targets should not define
 this macro.
 
-@findex NEED_MATH_LIBRARY
-@item NEED_MATH_LIBRARY
-Define this macro as a C expression that is nonzero if @code{g++} should
-automatically link in the math library or to zero if @code{g++} should not
-automatically link in the math library.
+@findex MATH_LIBRARY
+@item MATH_LIBRARY
+Define this macro as a C string constant for the linker argument to link
+in the system math library, or @samp{""} if the target does not have a
+separate math library.
 
-You need only define this macro if the target does not always need the math
-library linked into C++ programs.
+You need only define this macro if the default of @samp{"-lm"} is wrong.
 @end table

@@ -22,14 +22,20 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "i386/gas.h"
+#include "dbxcoff.h"
 
 /* Specify predefined symbols in preprocessor.  */
 
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Di386"
 
+/* We want to be able to get DBX debugging information via -gstabs.  */
+
 #undef DBX_DEBUGGING_INFO
-#define SDB_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO
+
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE SDB_DEBUG
 
 /* Support the ctors and dtors sections for g++.  */
 

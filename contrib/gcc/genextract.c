@@ -1,5 +1,5 @@
 /* Generate code from machine description to extract operands from insn as rtl.
-   Copyright (C) 1987, 91, 92, 93, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91-93, 97-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,11 +20,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -101,14 +96,11 @@ static int dupnums[MAX_DUP_OPERANDS];
 static struct code_ptr *peepholes;
 
 static void gen_insn PROTO ((rtx));
-static void walk_rtx PROTO ((rtx, char *));
+static void walk_rtx PROTO ((rtx, const char *));
 static void print_path PROTO ((char *));
-char *xmalloc PROTO ((unsigned));
-char *xrealloc PROTO ((char *, unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-static char *copystr PROTO ((char *));
-static void mybzero ();
-void fancy_abort PROTO ((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO ((void)) ATTRIBUTE_NORETURN;
 
 static void
 gen_insn (insn)
@@ -122,7 +114,7 @@ gen_insn (insn)
   dup_count = 0;
 
   /* No operands seen so far in this pattern.  */
-  mybzero (oplocs, sizeof oplocs);
+  memset (oplocs, 0, sizeof oplocs);
 
   /* Walk the insn's pattern, remembering at all times the path
      down to the walking point.  */
@@ -193,7 +185,7 @@ gen_insn (insn)
 static void
 walk_rtx (x, path)
      rtx x;
-     char *path;
+     const char *path;
 {
   register RTX_CODE code;
   register int i;
@@ -217,19 +209,19 @@ walk_rtx (x, path)
 
     case MATCH_OPERAND:
     case MATCH_SCRATCH:
-      oplocs[XINT (x, 0)] = copystr (path);
+      oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
       break;
 
     case MATCH_DUP:
     case MATCH_PAR_DUP:
-      duplocs[dup_count] = copystr (path);
+      duplocs[dup_count] = xstrdup (path);
       dupnums[dup_count] = XINT (x, 0);
       dup_count++;
       break;
 
     case MATCH_OP_DUP:
-      duplocs[dup_count] = copystr (path);
+      duplocs[dup_count] = xstrdup (path);
       dupnums[dup_count] = XINT (x, 0);
       dup_count++;
       
@@ -245,7 +237,7 @@ walk_rtx (x, path)
       return;
       
     case MATCH_OPERATOR:
-      oplocs[XINT (x, 0)] = copystr (path);
+      oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
       newpath = (char *) alloca (depth + 2);
@@ -260,7 +252,7 @@ walk_rtx (x, path)
       return;
 
     case MATCH_PARALLEL:
-      oplocs[XINT (x, 0)] = copystr (path);
+      oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
       newpath = (char *) alloca (depth + 2);
@@ -352,40 +344,44 @@ print_path (path)
     }
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genextract: ");
@@ -404,28 +400,14 @@ fancy_abort ()
   fatal ("Internal gcc abort.");
 }
 
-static char *
-copystr (s1)
-     char *s1;
+char *
+xstrdup (input)
+  const char *input;
 {
-  register char *tem;
-
-  if (s1 == 0)
-    return 0;
-
-  tem = (char *) xmalloc (strlen (s1) + 1);
-  strcpy (tem, s1);
-
-  return tem;
-}
-
-static void
-mybzero (b, length)
-     register char *b;
-     register unsigned length;
-{
-  while (length-- > 0)
-    *b++ = 0;
+  register size_t len = strlen (input) + 1;
+  register char *output = xmalloc (len);
+  memcpy (output, input, len);
+  return output;
 }
 
 int
@@ -463,16 +445,14 @@ from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
   printf ("#include \"system.h\"\n");
-  printf ("#include \"rtl.h\"\n\n");
+  printf ("#include \"rtl.h\"\n");
+  printf ("#include \"insn-config.h\"\n");
+  printf ("#include \"recog.h\"\n");
+  printf ("#include \"toplev.h\"\n\n");
 
   /* This variable exists only so it can be the "location"
      of any missing operand whose numbers are skipped by a given pattern.  */
   printf ("static rtx junk ATTRIBUTE_UNUSED;\n");
-
-  printf ("extern rtx recog_operand[];\n");
-  printf ("extern rtx *recog_operand_loc[];\n");
-  printf ("extern rtx *recog_dup_loc[];\n");
-  printf ("extern char recog_dup_num[];\n");
 
   printf ("void\ninsn_extract (insn)\n");
   printf ("     rtx insn;\n");
@@ -481,6 +461,8 @@ from the machine description file `md'.  */\n\n");
   printf ("  register rtx **ro_loc = recog_operand_loc;\n");
   printf ("  rtx pat = PATTERN (insn);\n");
   printf ("  int i ATTRIBUTE_UNUSED;\n\n");
+  printf ("  memset (ro, 0, sizeof (*ro) * MAX_RECOG_OPERANDS);\n");
+  printf ("  memset (ro_loc, 0, sizeof (*ro_loc) * MAX_RECOG_OPERANDS);\n");
   printf ("  switch (INSN_CODE (insn))\n");
   printf ("    {\n");
   printf ("    case -1:\n");
