@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "termcap.h"	/* XXX: should be <termcap.h> */
+#include <termcap.h>
 #include <sys/types.h>
 
 #include "el.h"
@@ -1131,11 +1131,11 @@ term_bind_arrow(el)
 /* term__putc():
  *	Add a character
  */
-protected void
+protected int
 term__putc(c)
     int c;
 {
-    (void) fputc(c, term_outfile);
+    return fputc(c, term_outfile);
 } /* end term__putc */
 
 
