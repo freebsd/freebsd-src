@@ -162,7 +162,8 @@ main(int argc, char **argv)
 			}
 			if (gid == NULL)
 				continue;
-			if (gid != NULL && gid->what == ISCONSUMER && !flag_c)
+			if (gid != NULL && gid->lg_what == ISCONSUMER &&
+			    !flag_c)
 				continue;
 			if (gsp->sequence0 != gsp->sequence1) {
 				printw("*\n");
@@ -213,15 +214,15 @@ main(int argc, char **argv)
 			printw("|");
 			if (gid == NULL) {
 				printw(" ??");
-			} else if (gid->what == ISPROVIDER) {
-				pp = gid->ptr;
-				printw(" %s", pp->name);
-			} else if (gid->what == ISCONSUMER) {
-				cp = gid->ptr;
+			} else if (gid->lg_what == ISPROVIDER) {
+				pp = gid->lg_ptr;
+				printw(" %s", pp->lg_name);
+			} else if (gid->lg_what == ISCONSUMER) {
+				cp = gid->lg_ptr;
 				printw(" %s/%s/%s",
-				    cp->geom->class->name,
-				    cp->geom->name,
-				    cp->provider->name);
+				    cp->lg_geom->lg_class->lg_name,
+				    cp->lg_geom->lg_name,
+				    cp->lg_provider->lg_name);
 			}
 			clrtoeol();
 			printw("\n");
