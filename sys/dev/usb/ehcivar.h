@@ -51,6 +51,7 @@ typedef struct ehci_soft_qtd {
 typedef struct ehci_soft_qh {
 	ehci_qh_t qh;
 	struct ehci_soft_qh *next;
+	struct ehci_soft_qh *prev;
 	struct ehci_soft_qtd *sqtd;
 	ehci_physaddr_t physaddr;
 	int islot;		/* Interrupt list slot. */
