@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)save.c	8.1 (Berkeley) 5/31/93";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include "hdr.h"
 
 struct savestruct
@@ -124,17 +125,22 @@ char *outfile;  /* to output the data using checksum to start random #s */
 	char *s;
 	long sum;
 	int i;
+	uid_t euid_save;
 
 	crc_start();
 	for (p = save_array; p->address != NULL; p++)
 		sum = crc(p->address, p->width);
 	srandom((int) sum);
 
+	euid_save = geteuid();
+	seteuid(getuid());
+
 	if ((out = fopen(outfile, "wb")) == NULL)
 	{
 	    fprintf(stderr,
 		"Hmm.  The name \"%s\" appears to be magically blocked.\n",
 		outfile);
+		seteuid(euid_save);
 	    return 1;
 	}
 	fwrite(&sum, sizeof(sum), 1, out);      /* Here's the random() key */
@@ -145,6 +151,7 @@ char *outfile;  /* to output the data using checksum to start random #s */
 		fwrite(p->address, p->width, 1, out);
 	}
 	fclose(out);
+	seteuid(euid_save);
 	return 0;
 }
 
@@ -156,12 +163,17 @@ char *infile;
 	char *s;
 	long sum, cksum;
 	int i;
+	uid_t euid_save;
+
+	euid_save = geteuid();
+	seteuid(euid_save);
 
 	if ((in = fopen(infile, "rb")) == NULL)
 	{
 	    fprintf(stderr,
 		"Hmm.  The file \"%s\" appears to be magically blocked.\n",
 		infile);
+		seteuid(euid_save);
 	    return 1;
 	}
 	fread(&sum, sizeof(sum), 1, in);        /* Get the seed */
@@ -173,6 +185,7 @@ char *infile;
 			*s = (*s ^ random()) & 0xFF;  /* Lightly decrypt */
 	}
 	fclose(in);
+	seteuid(euid_save);
 
 	crc_start();                            /* See if she cheated */
 	for (p = save_array; p->address != NULL; p++)
