@@ -9,14 +9,15 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: mailq.1,v 8.18 2000/12/23 19:37:48 ca Exp $
+.\"     $Id: mailq.1,v 1.1.1.6 2002/02/17 21:56:39 gshapiro Exp $
 .\"
-.TH MAILQ 1 "$Date: 2000/12/23 19:37:48 $"
+.TH MAILQ 1 "$Date: 2002/02/17 21:56:39 $"
 .SH NAME
 mailq
 \- print the mail queue
 .SH SYNOPSIS
 .B mailq
+.RB [ \-Ac ]
 .RB [ \-v ]
 .SH DESCRIPTION
 .B Mailq
@@ -45,7 +46,13 @@ one per line.
 .B Mailq
 is identical to ``sendmail -bp''.
 .PP
-The options are as follows:
+The relevant options are as follows:
+.TP
+.B \-Ac
+Show the mail submission queue specified in
+.I /etc/mail/submit.cf
+instead of the MTA queue specified in
+.IR /etc/mail/sendmail.cf .
 .TP
 .B \-v
 Print verbose information.  

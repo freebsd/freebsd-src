@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.819 2002/04/02 03:51:02 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 1.1.1.10 2002/04/10 03:04:52 gshapiro Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>

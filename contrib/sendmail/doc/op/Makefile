@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 8.14 2002/01/07 22:24:36 gshapiro Exp $
+#	$Id: Makefile,v 1.1.1.6 2002/02/17 21:56:42 gshapiro Exp $
 
 DIR=		smm/08.sendmailop
 SRCS=		op.me

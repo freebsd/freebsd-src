@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $Id: fvwrite.h,v 1.7 2001/03/02 00:18:19 ca Exp $
+ * $Id: fvwrite.h,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 /* I/O descriptors for sm_fvwrite() */

@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-scanf.c,v 1.5 2001/11/13 00:51:28 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: t-scanf.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 #include <sm/limits.h>
 #include <sm/io.h>

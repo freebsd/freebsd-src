@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: signal.h,v 1.16 2001/07/20 19:48:21 gshapiro Exp $
+ *	$Id: signal.h,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 /*

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 8.297 2001/12/28 22:32:19 ca Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 1.1.1.9 2002/02/17 21:56:41 gshapiro Exp $")
 
 static void	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));

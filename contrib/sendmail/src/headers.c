@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266 2001/10/12 01:50:12 gshapiro Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 1.1.1.9 2002/02/17 21:56:39 gshapiro Exp $")
 
 static size_t	fix_mime_header __P((char *));
 static int	priencode __P((char *));

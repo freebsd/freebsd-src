@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: cf.c,v 1.6 2001/09/11 04:04:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 #include <ctype.h>
 #include <errno.h>

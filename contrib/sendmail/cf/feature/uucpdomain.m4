@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: uucpdomain.m4,v 8.27 2001/03/16 00:51:26 gshapiro Exp $')
+VERSIONID(`$Id: uucpdomain.m4,v 1.1.1.4 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 define(`_UUDOMAIN_TABLE_', `')

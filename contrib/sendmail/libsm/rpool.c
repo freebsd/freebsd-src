@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: rpool.c,v 1.24 2002/01/11 21:54:43 ca Exp $")
+SM_RCSID("@(#)$Id: rpool.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
 
 /*
 **  resource pools

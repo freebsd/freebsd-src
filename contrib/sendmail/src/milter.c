@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.194 2002/03/05 00:23:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 1.1.1.9 2002/04/10 03:04:50 gshapiro Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -1732,6 +1732,7 @@ milter_send_macros(m, macros, cmd, e)
 	int mid;
 	char *v;
 	char *buf, *bp;
+	char exp[MAXLINE];
 	ssize_t s;
 
 	/* sanity check */
@@ -1748,7 +1749,8 @@ milter_send_macros(m, macros, cmd, e)
 		v = macvalue(mid, e);
 		if (v == NULL)
 			continue;
-		s += strlen(macros[i]) + 1 + strlen(v) + 1;
+		expand(v, exp, sizeof(exp), e);
+		s += strlen(macros[i]) + 1 + strlen(exp) + 1;
 	}
 
 	if (s < 0)
@@ -1765,14 +1767,15 @@ milter_send_macros(m, macros, cmd, e)
 		v = macvalue(mid, e);
 		if (v == NULL)
 			continue;
+		expand(v, exp, sizeof(exp), e);
 
 		if (tTd(64, 10))
 			sm_dprintf("milter_send_macros(%s, %c): %s=%s\n",
-				m->mf_name, cmd, macros[i], v);
+				m->mf_name, cmd, macros[i], exp);
 
 		(void) sm_strlcpy(bp, macros[i], s - (bp - buf));
 		bp += strlen(bp) + 1;
-		(void) sm_strlcpy(bp, v, s - (bp - buf));
+		(void) sm_strlcpy(bp, exp, s - (bp - buf));
 		bp += strlen(bp) + 1;
 	}
 	(void) milter_write(m, SMFIC_MACRO, buf, s,
@@ -2895,8 +2898,6 @@ milter_replbody(response, rlen, newfilter, e)
 		{
 			int err;
 
-# if NOFTRUNCATE
-			/* XXX: Not much we can do except rewind it */
 			err = sm_io_error(e->e_dfp);
 			(void) sm_io_flush(e->e_dfp, SM_TIME_DEFAULT);
 
@@ -2912,16 +2913,26 @@ milter_replbody(response, rlen, newfilter, e)
 			/* errno is set implicitly by fseek() before return */
 			err = sm_io_seek(e->e_dfp, SM_TIME_DEFAULT,
 					 0, SEEK_SET);
+			if (err < 0)
+			{
+				MILTER_DF_ERROR("milter_replbody: sm_io_seek %s: %s");
+				return -1;
+			}
+# if NOFTRUNCATE
+			/* XXX: Not much we can do except rewind it */
+			errno = EINVAL;
+			MILTER_DF_ERROR("milter_replbody: ftruncate not available on this platform (%s:%s)");
+			return -1;
 # else /* NOFTRUNCATE */
 			err = ftruncate(sm_io_getinfo(e->e_dfp,
 						      SM_IO_WHAT_FD, NULL),
 					0);
-# endif /* NOFTRUNCATE */
 			if (err < 0)
 			{
 				MILTER_DF_ERROR("milter_replbody: sm_io ftruncate %s: %s");
 				return -1;
 			}
+# endif /* NOFTRUNCATE */
 		}
 
 		if (prevsize > e->e_msgsize)

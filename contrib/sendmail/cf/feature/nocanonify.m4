@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: nocanonify.m4,v 8.12 1999/08/28 00:42:01 ca Exp $')
+VERSIONID(`$Id: nocanonify.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 define(`_NO_CANONIFY_', 1)

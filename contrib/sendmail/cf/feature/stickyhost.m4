@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: stickyhost.m4,v 8.9 1999/02/07 07:26:13 gshapiro Exp $')
+VERSIONID(`$Id: stickyhost.m4,v 1.1.1.3 2000/08/12 21:55:37 gshapiro Exp $')
 divert(-1)
 
 define(`_STICKY_LOCAL_DOMAIN_', 1)
