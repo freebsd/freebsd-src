@@ -47,7 +47,7 @@ struct timecounter {
 		 */
 	u_int 			tc_counter_mask;
 		/* This mask should mask off any unimplemented bits. */
-	u_int32_t		tc_frequency;
+	u_int64_t		tc_frequency;
 		/* Frequency of the counter in Hz. */
 	char			*tc_name;
 		/* Name of the timecounter. */
@@ -59,7 +59,7 @@ struct timecounter {
 
 extern struct timecounter *timecounter;
 
-u_int32_t tc_getfrequency(void);
+u_int64_t tc_getfrequency(void);
 void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
 void	tc_ticktock(void);

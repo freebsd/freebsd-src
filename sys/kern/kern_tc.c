@@ -12,6 +12,7 @@
 #include "opt_ntp.h"
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -282,8 +283,8 @@ tc_init(struct timecounter *tc)
 {
 	unsigned u;
 
-	printf("Timecounter \"%s\"  frequency %lu Hz",
-	    tc->tc_name, (u_long)tc->tc_frequency);
+	printf("Timecounter \"%s\"  frequency %ju Hz",
+	    tc->tc_name, (intmax_t)tc->tc_frequency);
 
 	u = tc->tc_frequency / tc->tc_counter_mask;
 	if (u > hz) {
@@ -299,7 +300,7 @@ tc_init(struct timecounter *tc)
 }
 
 /* Report the frequency of the current timecounter. */
-u_int32_t
+u_int64_t
 tc_getfrequency(void)
 {
 
