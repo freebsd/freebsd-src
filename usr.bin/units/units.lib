@@ -512,6 +512,9 @@ quarter			9 in
 quartersection		1|4 mi2
 quintal			100 kg
 quire			25
+r_earth                 6.378e8 cm
+r_moon                  1.738e7 cm
+r_sun                   6.9599e10 cm
 rad			100 erg/gm
 ream			500
 registerton		100 ft3
