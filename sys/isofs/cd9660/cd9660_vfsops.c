@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.15 1995/10/31 12:13:46 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.15.4.1 1997/08/17 13:28:40 joerg Exp $
  */
 
 #define CD9660 1  /* bogus dependency in sys/mount.h */
@@ -461,6 +461,7 @@ iso_mountfs(devvp, mp, p, argp)
 
 	return 0;
 out:
+	devvp->v_specflags &= ~SI_MOUNTEDON;
 	if (bp)
 		brelse(bp);
 	if (needclose)
