@@ -174,6 +174,7 @@
 
 /* One MB worth of blocks */
 #define ONE_MEG				2048
+#define ONE_GIG				(ONE_MEG * 1024)
 
 /* Which selection attributes to use */
 #define ATTR_SELECTED			(ColorDisplay ? item_selected_attr : item_attr)
@@ -340,7 +341,8 @@ extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
-Boolean			USAResident;		/* Are we cryptographically challenged? */
+Boolean			PkgInteractive;		/* Is the package going to spew at us? 		*/
+Boolean			USAResident;		/* Are we cryptographically challenged?		*/
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/

@@ -565,6 +565,35 @@ nodisks:
 	(void)configLinux(self);
 #endif
 
+    dialog_clear();
+    if (USAResident) {
+	if (!msgYesNo("I see that you are \"USA_RESIDENT\" according to your earlier\n"
+	    "response to the CRYPTO distribution dialog.  Do you want to try and\n"
+	    "load the rsaref package from the current media?  Some restrictions on\n"
+	    "usage may apply, so be sure to read the package installation output!")) {
+	    PkgInteractive = TRUE;
+	    dialog_clear();
+	    if (DITEM_STATUS(package_add("rsaref")) != DITEM_SUCCESS) {
+		msgConfirm("Unable to find an rsaref package on the current intallation media.\n"
+		    	   "You may wish to switch media types and try again, perhaps\n"
+			   "from an FTP server which carries this package.");
+	    }
+	    PkgInteractive = FALSE;
+	    dialog_clear();
+	}
+    }
+    else {
+	if (!msgYesNo("I see that you are not \"USA_RESIDENT\" according to your earlier\n"
+	    "response to the CRYPTO distribution dialog.  Do you want to try and\n"
+	    "load the rsaintl package from the current media?")) {
+	    if (DITEM_STATUS(package_add("rsaintl")) != DITEM_SUCCESS) {
+		msgConfirm("Unable to find an rsaintl package on the current intallation media.\n"
+		    	   "You may wish to switch media types and try again, perhaps\n"
+			   "from an FTP server which carries this package.");
+	    }
+	}
+    }
+
     dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
