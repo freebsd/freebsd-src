@@ -88,14 +88,14 @@ cread(int fd, void *buf, size_t nbytes, off_t offset)
 	off_t mask;
 
 	/*
-	 * If the cache is disabled, revert to pread.  If the
-	 * cache has not been initialized, initialize the cache.
+	 * If the cache is disabled, or we do not yet know the filesystem
+	 * block size, then revert to pread.  Otherwise initialize the
+	 * cache as necessary and continue.
 	 */
-	if (sblock->fs_bsize && DataBase == NULL) {
-		if (cachesize <= 0)
-			return(pread(fd, buf, nbytes, offset));
+	if (cachesize <= 0 || sblock->fs_bsize == 0)
+		return(pread(fd, buf, nbytes, offset));
+	if (DataBase == NULL)
 		cinit();
-	}
 
 	/*
 	 * If the request crosses a cache block boundary, or the
@@ -118,13 +118,8 @@ cread(int fd, void *buf, size_t nbytes, off_t offset)
 	pblk = &BlockHash[hi];
 	ppblk = NULL;
 	while ((blk = *pblk) != NULL) {
-		if (((blk->b_Offset ^ offset) & mask) == 0) {
-#if 0
-			fprintf(stderr, "%08llx %d (%08x)\n", offset, nbytes, 
-			    sblock->fs_size * sblock->fs_fsize);
-#endif
+		if (((blk->b_Offset ^ offset) & mask) == 0)
 			break;
-		}
 		ppblk = pblk;
 		pblk = &blk->b_HNext;
 	}
