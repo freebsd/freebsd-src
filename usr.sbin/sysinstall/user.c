@@ -533,7 +533,6 @@ completeUser(void)
 	if ((cp2 = strchr(cp, ':')) == NULL)
 	    return;
 	*cp2++ = '\0';
-	strncpy(homedir, cp, sizeof homedir);
 	if (*cp2)
 	    strncpy(shell, cp2, sizeof shell);
     }
