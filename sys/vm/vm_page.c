@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.76 1997/02/22 09:48:31 peter Exp $
+ *	$Id: vm_page.c,v 1.77 1997/03/23 02:44:54 dyson Exp $
  */
 
 /*
@@ -577,7 +577,7 @@ vm_page_unqueue(m)
 		TAILQ_REMOVE(pq->pl, m, pageq);
 		--(*pq->cnt);
 		--(*pq->lcnt);
-		if ((m->queue - m->pc) == PQ_CACHE) {
+		if ((queue - m->pc) == PQ_CACHE) {
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
 				pagedaemon_wakeup();
