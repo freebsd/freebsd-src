@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.37 1996/12/10 07:29:47 davidg Exp $
+ * $Id: if.h,v 1.38 1996/12/10 18:03:51 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -394,8 +394,6 @@ struct	ifconf {
 #define	ifc_buf	ifc_ifcu.ifcu_buf	/* buffer address */
 #define	ifc_req	ifc_ifcu.ifcu_req	/* array of structures returned */
 };
-
-#include <net/if_arp.h>
 
 #ifdef KERNEL
 #define	IFAFREE(ifa) \
