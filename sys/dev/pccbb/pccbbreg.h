@@ -185,25 +185,25 @@
 #define	CBB_SOCKET_MASK_POWER		0x08	/* Power Cycle */
 #define	CBB_SOCKET_MASK_ALL		0x0F	/* all of the above */
 
-#define	CBB_SOCKET_STAT_CARDSTS		0x00000001	/* Card Status Change */
-#define	CBB_SOCKET_STAT_CD1		0x00000002	/* Card Detect 1 */
-#define	CBB_SOCKET_STAT_CD2		0x00000004	/* Card Detect 2 */
-#define	CBB_SOCKET_STAT_CD		0x00000006	/* Card Detect all */
-#define	CBB_SOCKET_STAT_PWRCYCLE	0x00000008	/* Power Cycle */
-#define	CBB_SOCKET_STAT_16BIT		0x00000010	/* 16-bit Card */
-#define	CBB_SOCKET_STAT_CB		0x00000020	/* Cardbus Card */
-#define	CBB_SOCKET_STAT_IREQ		0x00000040	/* Ready */
-#define	CBB_SOCKET_STAT_NOTCARD		0x00000080	/* Unrecognized Card */
-#define	CBB_SOCKET_STAT_DATALOST	0x00000100	/* Data Lost */
-#define	CBB_SOCKET_STAT_BADVCC		0x00000200	/* Bad VccRequest */
-#define	CBB_SOCKET_STAT_5VCARD		0x00000400	/* 5 V Card */
-#define	CBB_SOCKET_STAT_3VCARD		0x00000800	/* 3.3 V Card */
-#define	CBB_SOCKET_STAT_XVCARD		0x00001000	/* X.X V Card */
-#define	CBB_SOCKET_STAT_YVCARD		0x00002000	/* Y.Y V Card */
-#define	CBB_SOCKET_STAT_5VSOCK		0x10000000	/* 5 V Socket */
-#define	CBB_SOCKET_STAT_3VSOCK		0x20000000	/* 3.3 V Socket */
-#define	CBB_SOCKET_STAT_XVSOCK		0x40000000	/* X.X V Socket */
-#define	CBB_SOCKET_STAT_YVSOCK		0x80000000	/* Y.Y V Socket */
+#define	CBB_STATE_CSTCHG		(1UL <<  0)	/* Card Status Change */
+#define	CBB_STATE_CD1_CHANGE		(1UL <<  1)	/* Card Detect 1 */
+#define	CBB_STATE_CD2_CHANGE		(1UL <<  2)	/* Card Detect 2 */
+#define	CBB_STATE_CD			(3UL <<  1)	/* Card Detect all */
+#define	CBB_STATE_POWER_CYCLE		(1UL <<  3)	/* Power Cycle */
+#define	CBB_STATE_R2_CARD		(1UL <<  4)	/* 16-bit Card */
+#define	CBB_STATE_CB_CARD		(1UL <<  5)	/* Cardbus Card */
+#define	CBB_STATE_IREQ			(1UL <<  6)	/* Ready */
+#define	CBB_STATE_NOT_A_CARD		(1UL <<  7)	/* Unrecognized Card */
+#define	CBB_STATE_DATA_LOST		(1UL <<  8)	/* Data Lost */
+#define	CBB_STATE_BAD_VCC_REQ		(1UL <<  9)	/* Bad VccRequest */
+#define	CBB_STATE_5VCARD		(1UL << 10)	/* 5 V Card */
+#define	CBB_STATE_3VCARD		(1UL << 11)	/* 3.3 V Card */
+#define	CBB_STATE_XVCARD		(1UL << 12)	/* X.X V Card */
+#define	CBB_STATE_YVCARD		(1UL << 13)	/* Y.Y V Card */
+#define	CBB_STATE_5VSOCK		(1UL << 28)	/* 5 V Socket */
+#define	CBB_STATE_3VSOCK		(1UL << 29)	/* 3.3 V Socket */
+#define	CBB_STATE_XVSOCK		(1UL << 30)	/* X.X V Socket */
+#define	CBB_STATE_YVSOCK		(1UL << 31)	/* Y.Y V Socket */
 
 #define	CBB_SOCKET_CTRL_VPPMASK		0x07
 #define	CBB_SOCKET_CTRL_VPP_OFF		0x00
@@ -221,6 +221,19 @@
 #define	CBB_SOCKET_CTRL_VCC_YV		0x50
 
 #define	CBB_SOCKET_CTRL_STOPCLK		0x80
+
+#define CBB_FORCE_CV_TEST		(1UL << 14)
+#define CBB_FORCE_3VCARD		(1UL << 11)
+#define CBB_FORCE_5VCARD		(1UL << 10)
+#define CBB_FORCE_BAD_VCC_REQ		(1UL <<  9)
+#define CBB_FORCE_DATA_LOST		(1UL <<  8)
+#define CBB_FORCE_NOT_A_CARD		(1UL <<  7)
+#define CBB_FORCE_CB_CARD		(1UL <<  5)
+#define CBB_FORCE_R2_CARD		(1UL <<  4)
+#define CBB_FORCE_POWER_CYCLE		(1UL <<  3)
+#define CBB_FORCE_CD2_CHANGE		(1UL <<  2)
+#define CBB_FORCE_CD1_CHANGE		(1UL <<  1)
+#define CBB_FORCE_CSTCHG		(1UL <<  0)
 
 #include <dev/pccbb/pccbbdevid.h>
 
