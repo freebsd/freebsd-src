@@ -36,11 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.67 1999/07/20 09:47:50 phk Exp $
+ * $Id: conf.h,v 1.68 1999/08/08 18:42:59 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
 #define	_SYS_CONF_H_
+
+#include <sys/queue.h>
 
 #define SPECNAMELEN	15
 
