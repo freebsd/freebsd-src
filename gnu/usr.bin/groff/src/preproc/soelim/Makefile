@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-PROG=		soelim
-SRCS=		soelim.cc
+PROG_CXX=	soelim
 DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 CLEANFILES=	${MAN}
