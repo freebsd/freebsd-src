@@ -48,7 +48,7 @@ driver supplies control devices,
 .Pa /dev/targ0 ,
 .Pa /dev/targ1 ,
 etc.
-If a device is already in use, the open will fail and
+If a device is already in use, open(2) will fail and
 .Va errno
 will be set to
 .Er EBUSY .
@@ -121,6 +121,8 @@ are the control devices.
 .El
 .Sh SEE ALSO
 .Pa /usr/share/examples/scsi_target ,
+.Xr ahc 4 ,
+.Xr isp 4 ,
 .Xr scsi 4
 .Rs
 .%T "FreeBSD Target Information"
@@ -129,12 +131,9 @@ are the control devices.
 .Sh BUGS
 Currently, only the
 .Xr ahc 4
-driver fully supports target mode.
-The
-.Xr isp 4
 and
-.Xr sym 4
-drivers have some target mode support but are untested.
+.Xr isp 4
+drivers fully support target mode.
 .Pp
 The
 .Xr ahc 4

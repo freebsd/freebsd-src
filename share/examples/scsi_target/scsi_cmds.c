@@ -125,8 +125,10 @@ tcmd_handle(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, io_ops event)
 	struct atio_descr *a_descr;
 	int ret;
 
-	warnx("tcmd_handle atio %p ctio %p atioflags %#x", atio, ctio,
-		atio->ccb_h.flags);
+	if (debug) {
+		warnx("tcmd_handle atio %p ctio %p atioflags %#x", atio, ctio,
+		      atio->ccb_h.flags);
+	}
 	ret = 0;
 	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
 
