@@ -18,6 +18,8 @@ INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 DPADD+= $(LIBTERMCAP)
 LDADD+= -ltermcap
 
+INCDIR=	/usr/include/readline
+
 .for hdr in ${INSTALLED_HEADERS}
 INCS+=	${SRCDIR}/${hdr}
 .endfor
