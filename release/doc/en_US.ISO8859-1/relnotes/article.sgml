@@ -2297,7 +2297,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.burncd.8; now accepts a value of <literal>max</literal>
       for its <option>-s</option> option to set the drive's maximum
-      write speed.</para>
+      write speed. &merged;</para>
 
     <para>&man.bzgrep.1;, &man.bzegrep.1;, and &man.bzfgrep.1;
       have been added to perform &man.grep.1;-type operations on
@@ -2339,7 +2339,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.cdcontrol.1; now supports a
       <literal>speed</literal> command to set the maximum speed to be
       used by the drive (the maximum possible speed can be selected
-      setting the speed to <literal>max</literal>).</para>
+      setting the speed to <literal>max</literal>). &merged;</para>
 
     <para>A &man.check.utility.compat.3; library function has been
       added to <filename>libc</filename>, to determine 
