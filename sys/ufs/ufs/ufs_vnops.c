@@ -1989,8 +1989,9 @@ ufs_lock(ap)
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
 
-	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) && (flags & LK_SHARED)) {
-		flags &= ~LK_SHARED;
+	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) &&
+	    ((flags & LK_TYPE_MASK) == LK_SHARED)) {
+		flags &= ~LK_TYPE_MASK;
 		flags |= LK_EXCLUSIVE;
 	}
 #ifndef	DEBUG_LOCKS
