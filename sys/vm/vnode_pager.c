@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.49 1995/09/12 14:42:43 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.50 1995/10/19 21:35:03 davidg Exp $
  */
 
 /*
@@ -188,8 +188,11 @@ vnode_pager_haspage(object, offset, before, after)
 {
 	struct vnode *vp = object->handle;
 	daddr_t bn;
+	int err, run;
 	daddr_t reqblock;
-	int err, run, poff, bsize, pagesperblock;
+	int poff;
+	int bsize;
+	int pagesperblock;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
@@ -364,6 +367,9 @@ vnode_pager_addr(vp, address, run)
 	if ((int) address < 0)
 		return -1;
 
+	if (vp->v_mount == NULL)
+		return -1;
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	vblock = address / bsize;
 	voffset = address % bsize;
@@ -413,6 +419,9 @@ vnode_pager_input_smlfs(object, m)
 	int error = 0;
 
 	vp = object->handle;
+	if (vp->v_mount == NULL)
+		return VM_PAGER_BAD;
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 
@@ -554,9 +563,9 @@ vnode_pager_getpages(object, m, count, reqpage)
 	int rtval;
 	struct vnode *vp;
 	vp = object->handle;
-	rtval = VOP_GETPAGES(vp, m, count, reqpage);
+	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
 	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_getpages(object, m, count, reqpage);
+		return vnode_pager_leaf_getpages(object, m, count, reqpage, 0);
 	else
 		return rtval;
 }
@@ -578,6 +587,9 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 	int error = 0;
 
 	vp = object->handle;
+	if (vp->v_mount == NULL)
+		return VM_PAGER_BAD;
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 	/* get the UNDERLYING device for the file with VOP_BMAP() */
@@ -792,9 +804,9 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	int rtval;
 	struct vnode *vp;
 	vp = object->handle;
-	rtval = VOP_PUTPAGES(vp, m, count, sync, rtvals);
+	rtval = VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
 	if (rtval == EOPNOTSUPP)
-		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals);
+		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals, 0);
 	else
 		return rtval;
 }

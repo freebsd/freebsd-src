@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id: specdev.h,v 1.2 1994/08/02 07:45:30 davidg Exp $
+ * $Id: specdev.h,v 1.3 1995/07/29 11:40:32 bde Exp $
  */
 
 /*
@@ -118,6 +118,7 @@ int	spec_print __P((struct vop_print_args *));
 #define spec_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
 int	spec_pathconf __P((struct vop_pathconf_args *));
 int	spec_advlock __P((struct vop_advlock_args *));
+int	spec_getpages __P((struct vop_getpages_args *));
 #define spec_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))spec_badop)
 #define spec_valloc ((int (*) __P((struct  vop_valloc_args *)))spec_badop)
 #define spec_reallocblks \
