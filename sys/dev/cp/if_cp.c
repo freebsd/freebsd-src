@@ -18,7 +18,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * $Cronyx: if_cp.c,v 1.1.2.32 2004/02/26 17:56:39 rik Exp $
+ * Cronyx Id: if_cp.c,v 1.1.2.41 2004/06/23 17:09:13 rik Exp $
  */
 
 #include <sys/cdefs.h>
@@ -66,11 +66,7 @@ __FBSDID("$FreeBSD$");
 #   endif
 #   include <netgraph/ng_message.h>
 #   include <netgraph/netgraph.h>
-#   if __FreeBSD_version >= 500000
-#       include <dev/cp/ng_cp.h>
-#   else
-#       include <netgraph/ng_cp.h>
-#   endif
+#   include <dev/cp/ng_cp.h>
 #else
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
@@ -80,13 +76,8 @@ __FBSDID("$FreeBSD$");
 #   include <net/bpf.h>
 #   define NBPFILTER NBPF
 #endif
-#if __FreeBSD_version >= 500000
 #include <dev/cx/machdep.h>
 #include <dev/cp/cpddk.h>
-#else
-#include <i386/isa/cronyx/machdep.h>
-#include <pci/cpddk.h>
-#endif
 #include <machine/cserial.h>
 #include <machine/resource.h>
 #include <machine/pmap.h>
@@ -116,26 +107,21 @@ static	device_method_t cp_methods[] = {
 	{0, 0}
 };
 
-typedef	struct _bdrv_t {
-	cp_board_t	*board;
-	struct resource *cp_res;
-	struct resource *cp_irq;
-	void		*cp_intrhand;
-} bdrv_t;
-
-static	driver_t cp_driver = {
-	"cp",
-	cp_methods,
-	sizeof(bdrv_t),
-};
-
-static	devclass_t cp_devclass;
+typedef struct _cp_dma_mem_t {
+	unsigned long	phys;
+	void		*virt;
+	size_t		size;
+#if __FreeBSD_version >= 500000
+	bus_dma_tag_t	dmat;
+	bus_dmamap_t	mapp;
+#endif
+} cp_dma_mem_t;
 
 typedef struct _drv_t {
 	char name [8];
 	cp_chan_t *chan;
 	cp_board_t *board;
-	cp_buf_t buf;
+	cp_dma_mem_t dmamem;
 	int running;
 #ifdef NETGRAPH
 	char	nodename [NG_NODELEN+1];
@@ -151,6 +137,23 @@ typedef struct _drv_t {
 #endif
 	struct cdev *devt;
 } drv_t;
+
+typedef	struct _bdrv_t {
+	cp_board_t	*board;
+	struct resource *cp_res;
+	struct resource *cp_irq;
+	void		*cp_intrhand;
+	cp_dma_mem_t	dmamem;
+	drv_t		channel [NCHAN];
+} bdrv_t;
+
+static	driver_t cp_driver = {
+	"cp",
+	cp_methods,
+	sizeof(bdrv_t),
+};
+
+static	devclass_t cp_devclass;
 
 static void cp_receive (cp_chan_t *c, unsigned char *data, int len);
 static void cp_transmit (cp_chan_t *c, void *attachment, int len);
@@ -172,7 +175,6 @@ static void cp_initialize (void *softc);
 
 static cp_board_t *adapter [NBRD];
 static drv_t *channel [NBRD*NCHAN];
-static cp_qbuf_t *queue [NBRD];
 static struct callout_handle led_timo [NBRD];
 static struct callout_handle timeout_handle;
 
@@ -298,6 +300,86 @@ static void cp_intr (void *arg)
 
 extern struct cdevsw cp_cdevsw;
 
+#if __FreeBSD_version >= 500000
+static void
+cp_bus_dmamap_addr (void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	unsigned long *addr;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
+	addr = arg;
+	*addr = segs->ds_addr;
+}
+
+static int
+cp_bus_dma_mem_alloc (int bnum, int cnum, cp_dma_mem_t *dmem)
+{
+	int error;
+
+	error = bus_dma_tag_create (NULL, 16, 0, BUS_SPACE_MAXADDR_32BIT,
+		BUS_SPACE_MAXADDR, NULL, NULL, dmem->size, 1,
+		dmem->size, 0, NULL, NULL, &dmem->dmat);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't allocate tag for dma memory\n");
+ 		return 0;
+	}
+	error = bus_dmamem_alloc (dmem->dmat, (void **)&dmem->virt,
+		BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dmem->mapp);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't allocate mem for dma memory\n");
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	error = bus_dmamap_load (dmem->dmat, dmem->mapp, dmem->virt,
+		dmem->size, cp_bus_dmamap_addr, &dmem->phys, 0);
+	if (error) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't load mem map for dma memory\n");
+		bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+		bus_dma_tag_destroy (dmem->dmat);
+ 		return 0;
+	}
+	return 1;
+}
+
+static void
+cp_bus_dma_mem_free (cp_dma_mem_t *dmem)
+{
+	bus_dmamap_unload (dmem->dmat, dmem->mapp);
+	bus_dmamem_free (dmem->dmat, dmem->virt, dmem->mapp);
+	bus_dma_tag_destroy (dmem->dmat);
+}
+#else
+static int
+cp_bus_dma_mem_alloc (int bnum, int cnum, cp_dma_mem_t *dmem)
+{
+	dmem->virt = contigmalloc (dmem->size, M_DEVBUF, M_WAITOK,
+				   0x100000, 0xffffffff, 16, 0);
+	if (dmem->virt == NULL) {
+		if (cnum >= 0)	printf ("cp%d-%d: ", bnum, cnum);
+		else		printf ("cp%d: ", bnum);
+		printf ("couldn't allocate memory for dma memory\n", unit);
+ 		return 0;
+	}
+	dmem->phys = vtophys (dmem->virt);
+	return 1;
+}
+
+static void
+cp_bus_dma_mem_free (cp_dma_mem_t *dmem)
+{
+	contigfree (dmem->virt, dmem->size, M_DEVBUF);
+}
+#endif
+
 /*
  * Called if the probe succeeded.
  */
@@ -305,12 +387,12 @@ static int cp_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
 	int unit = device_get_unit (dev);
-	int rid, error;
-	vm_offset_t vbase;
-        cp_board_t *b;
-	cp_chan_t *c;
-        drv_t *d;
 	unsigned short res;
+	vm_offset_t vbase;
+	int rid, error;
+	cp_board_t *b;
+	cp_chan_t *c;
+	drv_t *d;
 	int s = splimp ();
 
 	b = malloc (sizeof(cp_board_t), M_DEVBUF, M_WAITOK);
@@ -343,15 +425,14 @@ static int cp_attach (device_t dev)
 		splx (s);
  		return (ENXIO);
 	}
-	queue[unit] = contigmalloc (sizeof(cp_qbuf_t), M_DEVBUF, M_WAITOK,
-			0x100000, 0xffffffff, 16, 0);
-	if (queue[unit] == NULL) {
-		printf ("cp%d: allocate memory for qbuf_t\n", unit);
+
+	bd->dmamem.size = sizeof(cp_qbuf_t);
+	if (! cp_bus_dma_mem_alloc (unit, -1, &bd->dmamem)) {
 		free (b, M_DEVBUF);
 		splx (s);
  		return (ENXIO);
 	}
-	cp_reset (b, queue[unit], vtophys (queue[unit]));
+	cp_reset (b, bd->dmamem.virt, bd->dmamem.phys);
 
 	rid = 0;
 	bd->cp_irq = bus_alloc_resource (dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
@@ -380,14 +461,11 @@ static int cp_attach (device_t dev)
 	for (c=b->chan; c<b->chan+NCHAN; ++c) {
 		if (! c->type)
 			continue;
-		d = contigmalloc (sizeof(drv_t), M_DEVBUF, M_WAITOK,
-			0x100000, 0xffffffff, 16, 0);
-		if (d == NULL) {
-			printf ("cp%d-%d: cannot allocate memory for drv_t\n",
-			    unit, c->num);			
-		}
+		d = &bd->channel[c->num];
+		d->dmamem.size = sizeof(cp_buf_t);
+		if (! cp_bus_dma_mem_alloc (unit, c->num, &d->dmamem))
+			continue;
 		channel [b->num*NCHAN + c->num] = d;
-		bzero (d, sizeof(drv_t));
 		sprintf (d->name, "cp%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
@@ -444,7 +522,7 @@ static int cp_attach (device_t dev)
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
 #endif /*NETGRAPH*/
 		cp_start_e1 (c);
-		cp_start_chan (c, 1, 1, &d->buf, vtophys (&d->buf));
+		cp_start_chan (c, 1, 1, d->dmamem.virt, d->dmamem.phys);
 
 		/* Register callback functions. */
 		cp_register_transmit (c, &cp_transmit);
@@ -548,10 +626,10 @@ static int cp_detach (device_t dev)
 			continue;
 		channel [b->num*NCHAN + c->num] = 0;
 		/* Deallocate buffers. */
-		contigfree (d, sizeof (*d), M_DEVBUF);
+		cp_bus_dma_mem_free (&d->dmamem);
 	}
 	adapter [b->num] = 0;
-	contigfree (queue[b->num], sizeof (cp_qbuf_t), M_DEVBUF);
+	cp_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
 	splx (s);
 	return 0;
@@ -2326,7 +2404,6 @@ static int ng_cp_disconnect (hook_p hook)
 }
 #endif
 
-
 static int cp_modevent (module_t mod, int type, void *unused)
 {
         struct cdev *dev;
@@ -2400,7 +2477,7 @@ DRIVER_MODULE (cpmod, pci, cp_driver, cp_devclass, cp_modevent, NULL);
 #else
 DRIVER_MODULE (cp, pci, cp_driver, cp_devclass, cp_modevent, NULL);
 #endif
-#elif  __FreeBSD_version >= 400000
+#elif __FreeBSD_version >= 400000
 #ifdef NETGRAPH
 DRIVER_MODULE (cp, pci, cp_driver, cp_devclass, ng_mod_event, &typestruct);
 #else
