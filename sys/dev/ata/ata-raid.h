@@ -36,6 +36,7 @@ struct ar_softc {
 #define	AR_F_RAID_0	0x0001		/* STRIPE */
 #define	AR_F_RAID_1	0x0002		/* MIRROR */
 #define	AR_F_SPAN	0x0004		/* SPAN */
+#define	AR_F_CONF_DONE	0x0008
     
     int num_subdisks;
     struct ad_softc *subdisk[8];
@@ -55,11 +56,6 @@ struct ar_softc {
     struct disk                 disk;	/* disklabel/slice stuff */
     dev_t                       dev;	/* device place holder */
 
-};
-
-struct ar_config {
-    int num_raids;
-    struct ar_softc *raid[8];		/* configs for each RAID */
 };
 
 struct ar_buf {
@@ -123,9 +119,7 @@ struct promise_raid_conf {
 
     int32_t		dummy_0;
     int32_t		magic_0;
-    int16_t		dummy_1;
-    int8_t		channel;
-    int8_t		device;
+    int32_t		dummy_1;
     int32_t		magic_1;
     int16_t		dummy_2;
     int8_t		filler1[470];
@@ -134,15 +128,15 @@ struct promise_raid_conf {
 #define PR_F_CONFED		0x00000080
 
 	int8_t		dummy_0;
-	int8_t		device_0;
-	int8_t		dummy_1;
-	int8_t		device_1;
+	int8_t		disk_number;
+	int8_t		channel;
+	int8_t		device;
 	int32_t		magic_0;
-	int32_t		dummy_2;
-	int32_t		dummy_3;		/* 0x210 */
+	int32_t		dummy_1;
+	int32_t		dummy_2;		/* 0x210 */
 	int32_t		disk_secs;
-	int32_t		dummy_4;
-	int16_t		dummy_5;
+	int32_t		dummy_3;
+	int16_t		dummy_4;
 	int8_t		status;
 #define	PR_S_DEFINED		0x01
 #define	PR_S_ONLINE		0x02
@@ -157,22 +151,22 @@ struct promise_raid_conf {
 	u_int8_t	total_disks;		/* 0x220 */
 	u_int8_t	raid0_shift;
 	u_int8_t	raid0_disks;
-	u_int8_t	dummy_6;
+	u_int8_t	array_number;
 	u_int32_t	total_secs;
 	u_int16_t	cylinders;
 	u_int8_t	heads;
 	u_int8_t	sectors;
 	int32_t		magic_1;
-	int32_t		dummy_7;		/* 0x230 */
+	int32_t		dummy_5;		/* 0x230 */
 	struct {
 	    int16_t	dummy_0;
 	    int8_t	channel;
 	    int8_t	device;
 	    int32_t	magic_0;
-	    int32_t	disk_number;		/* subdisk # */
+	    int32_t	disk_number;
 	} disk[8];
-    } raid[4];
-    int32_t		filler2[235];
+    } raid;
+    int32_t		filler2[346];
     uint32_t		checksum;
 };
 
