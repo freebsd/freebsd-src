@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.inputl.c,v 3.47 1999/04/20 07:48:39 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.inputl.c,v 3.48 2000/06/10 20:14:57 kim Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.inputl.c,v 3.47 1999/04/20 07:48:39 christos Exp $")
+RCSID("$Id: ed.inputl.c,v 3.48 2000/06/10 20:14:57 kim Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -661,7 +661,11 @@ GetNextCommand(cmdnum, ch)
 	    return num;
 	}
 #ifdef	KANJI
-	if (!adrof(STRnokanji) && (*ch & META)) {
+	if (
+#ifdef DSPMBYTE
+	     _enable_mbdisp &&
+#endif
+	     !adrof(STRnokanji) && (*ch & META)) {
 	    MetaNext = 0;
 	    cmd = F_INSERT;
 	    break;
