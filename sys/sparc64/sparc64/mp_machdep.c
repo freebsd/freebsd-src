@@ -235,7 +235,8 @@ cpu_mp_start(void)
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) <= 0 ||
 		    strcmp(buf, "cpu") != 0)
 			continue;
-		if (OF_getprop(child, "upa-portid", &mid, sizeof(mid)) <= 0)
+		if (OF_getprop(child, "upa-portid", &mid, sizeof(mid)) <= 0 &&
+		    OF_getprop(child, "portid", &mid, sizeof(mid)) <= 0)
 			panic("cpu_mp_start: can't get module id");
 		if (mid == mp_boot_mid)
 			continue;
