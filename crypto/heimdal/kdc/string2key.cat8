@@ -1,0 +1,42 @@
+
+STRING2KEY(8)            UNIX System Manager's Manual            STRING2KEY(8)
+
+NNAAMMEE
+     ssttrriinngg22kkeeyy - map a password into a key
+
+SSYYNNOOPPSSIISS
+     ssttrriinngg22kkeeyy [--55 | ----vveerrssiioonn55] [--44 | ----vveerrssiioonn44] [--aa | ----aaffss] [--cc _c_e_l_l |
+     ----cceellll==_c_e_l_l] [--ww _p_a_s_s_w_o_r_d | ----ppaasssswwoorrdd==_p_a_s_s_w_o_r_d] [--pp _p_r_i_n_c_i_p_a_l |
+     ----pprriinncciippaall==_p_r_i_n_c_i_p_a_l] [--kk _s_t_r_i_n_g | ----kkeeyyttyyppee==_s_t_r_i_n_g] _p_a_s_s_w_o_r_d
+
+DDEESSCCRRIIPPTTIIOONN
+     ssttrriinngg22kkeeyy performs the string-to-key function.  This is useful when you
+     want to handle the raw key instead of the password.  Supported options:
+
+     --55, ----vveerrssiioonn55
+             Output Kerberos v5 string-to-key
+
+     --44, ----vveerrssiioonn44
+             Output Kerberos v4 string-to-key
+
+     --aa, ----aaffss
+             Output AFS string-to-key
+
+     --cc _c_e_l_l, ----cceellll==_c_e_l_l
+             AFS cell to use
+
+     --ww _p_a_s_s_w_o_r_d, ----ppaasssswwoorrdd==_p_a_s_s_w_o_r_d
+             Password to use
+
+     --pp _p_r_i_n_c_i_p_a_l, ----pprriinncciippaall==_p_r_i_n_c_i_p_a_l
+             Kerberos v5 principal to use
+
+     --kk _s_t_r_i_n_g, ----kkeeyyttyyppee==_s_t_r_i_n_g
+             Keytype
+
+     ----vveerrssiioonn
+             print version
+
+     ----hheellpp
+
+ HEIMDAL                         March 4, 2000                               1
