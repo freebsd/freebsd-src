@@ -175,6 +175,7 @@ struct aiocblist {
 	struct	callout_handle timeouthandle;
         struct	buf *bp;		/* Buffer pointer */
         struct	proc *userproc;		/* User process */ /* Not td! */
+	struct  ucred *cred;		/* Active credential when created */
         struct	file *fd_file;		/* Pointer to file structure */ 
         struct	aio_liojob *lio;	/* Optional lio job */
         struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
@@ -507,6 +508,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	aiocbe->jobstate = JOBST_NULL;
 	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
 	fdrop(aiocbe->fd_file, curthread);
+	crfree(aiocbe->cred);
 	uma_zfree(aiocb_zone, aiocbe);
 	return 0;
 }
@@ -667,6 +669,7 @@ aio_selectjob(struct aiothreadlist *aiop)
 static void
 aio_process(struct aiocblist *aiocbe)
 {
+	struct ucred *td_savedcred;
 	struct thread *td;
 	struct proc *mycp;
 	struct aiocb *cb;
@@ -679,6 +682,8 @@ aio_process(struct aiocblist *aiocbe)
 	int inblock_st, inblock_end;
 
 	td = curthread;
+	td_savedcred = td->td_ucred;
+	td->td_ucred = aiocbe->cred;
 	mycp = td->td_proc;
 	cb = &aiocbe->uaiocb;
 	fp = aiocbe->fd_file;
@@ -726,6 +731,7 @@ aio_process(struct aiocblist *aiocbe)
 	cnt -= auio.uio_resid;
 	cb->_aiocb_private.error = error;
 	cb->_aiocb_private.status = cnt;
+	td->td_ucred = td_savedcred;
 }
 
 /*
@@ -1408,6 +1414,7 @@ no_kqueue:
 	suword(&job->_aiocb_private.error, EINPROGRESS);
 	aiocbe->uaiocb._aiocb_private.error = EINPROGRESS;
 	aiocbe->userproc = p;
+	aiocbe->cred = crhold(td->td_ucred);
 	aiocbe->jobflags = 0;
 	aiocbe->lio = lj;
 	ki = p->p_aioinfo;
