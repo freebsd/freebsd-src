@@ -56,11 +56,11 @@ __FBSDID("$FreeBSD$");
 #define	MEMZERO(dest,len)	memset((dest), 0, (len))
 
 /* Hide the calls to the primitive encryption routines. */
-#define	DES_KEY(buf) \
-	if (des_setkey(buf)) \
+#define	DES_KEY(buf)							\
+	if (des_setkey(buf))						\
 		des_error("des_setkey");
-#define	DES_XFORM(buf) \
-	if (des_cipher(buf, buf, 0L, (inverse ? -1 : 1))) \
+#define	DES_XFORM(buf)							\
+	if (des_cipher((char *)buf, (char *)buf, 0L, inverse ? -1 : 1))	\
 		des_error("des_cipher");
 
 /*
@@ -332,7 +332,7 @@ set_des_key(Desbuf buf)				/* key block */
  * This encrypts using the Cipher Block Chaining mode of DES
  */
 int
-cbc_encode(char *msgbuf, int n, FILE *fp)
+cbc_encode(unsigned char *msgbuf, int n, FILE *fp)
 {
 	int inverse = 0;	/* 0 to encrypt, 1 to decrypt */
 
@@ -370,7 +370,7 @@ cbc_encode(char *msgbuf, int n, FILE *fp)
  *	fp	input file descriptor
  */
 int
-cbc_decode(char *msgbuf, FILE *fp)
+cbc_decode(unsigned char *msgbuf, FILE *fp)
 {
 	Desbuf tbuf;	/* temp buffer for initialization vector */
 	int n;			/* number of bytes actually read */
