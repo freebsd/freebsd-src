@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_clnt.c 1.37 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_clnt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_clnt.c,v 1.1 1993/10/27 05:40:32 paul Exp $";
+static char *rcsid = "$Id: pmap_clnt.c,v 1.5 1996/12/30 14:46:33 peter Exp $";
 #endif
 
 /*
@@ -40,15 +40,22 @@ static char *rcsid = "$Id: pmap_clnt.c,v 1.1 1993/10/27 05:40:32 paul Exp $";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
+#include <netinet/in.h>
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };
 
 void clnt_perror();
 
+#ifndef PORTMAPSOCK
+#define PORTMAPSOCK "/var/run/portmapsock"
+#endif
 
 /*
  * Set a mapping between program,version and port.
@@ -66,10 +73,22 @@ pmap_set(program, version, protocol, port)
 	register CLIENT *client;
 	struct pmap parms;
 	bool_t rslt;
+	struct stat st;
 
-	get_myaddress(&myaddress);
-	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
-	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	/*
+	 * Temporary hack for backwards compatibility. Eventually
+	 * this test will go away and we'll use only the "unix" transport.
+	 */
+	if (stat(PORTMAPSOCK, &st) == 0 && st.st_mode & S_IFSOCK)
+		client = clnt_create(PORTMAPSOCK, PMAPPROG, PMAPVERS, "unix");
+	else  {
+		if (get_myaddress(&myaddress) != 0)
+			return (FALSE);
+		myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
+	    		timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	}
+
 	if (client == (CLIENT *)NULL)
 		return (FALSE);
 	parms.pm_prog = program;
@@ -82,7 +101,8 @@ pmap_set(program, version, protocol, port)
 		return (FALSE);
 	}
 	CLNT_DESTROY(client);
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	return (rslt);
 }
 
@@ -100,10 +120,21 @@ pmap_unset(program, version)
 	register CLIENT *client;
 	struct pmap parms;
 	bool_t rslt;
+	struct stat st;
 
-	get_myaddress(&myaddress);
-	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
-	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	/*
+	 * Temporary hack for backwards compatibility. Eventually
+	 * this test will go away and we'll use only the "unix" transport.
+	 */
+	if (stat(PORTMAPSOCK, &st) == 0 && st.st_mode & S_IFSOCK)
+		client = clnt_create(PORTMAPSOCK, PMAPPROG, PMAPVERS, "unix");
+	else {
+		if (get_myaddress(&myaddress) != 0)
+			return (FALSE);
+		myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
+	    		timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	}
 	if (client == (CLIENT *)NULL)
 		return (FALSE);
 	parms.pm_prog = program;
@@ -112,6 +143,7 @@ pmap_unset(program, version)
 	CLNT_CALL(client, PMAPPROC_UNSET, xdr_pmap, &parms, xdr_bool, &rslt,
 	    tottimeout);
 	CLNT_DESTROY(client);
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	return (rslt);
 }

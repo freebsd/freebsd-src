@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,18 +30,20 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_simple.c 1.35 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_simple.c,v 1.1 1993/10/27 05:40:23 paul Exp $";
+static char *rcsid = "$Id: clnt_simple.c,v 1.6 1996/12/30 14:23:50 peter Exp $";
 #endif
 
-/* 
+/*
  * clnt_simple.c
  * Simplified front end to rpc.
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
@@ -54,8 +56,10 @@ static struct callrpc_private {
 	char	*oldhost;
 } *callrpc_private;
 
+int
 callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	char *host;
+	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
 	char *in, *out;
 {
@@ -72,16 +76,17 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		callrpc_private = crp;
 	}
 	if (crp->oldhost == NULL) {
-		crp->oldhost = malloc(256);
+		crp->oldhost = malloc(MAXHOSTNAMELEN);
 		crp->oldhost[0] = 0;
 		crp->socket = RPC_ANYSOCK;
 	}
 	if (crp->valid && crp->oldprognum == prognum && crp->oldversnum == versnum
 		&& strcmp(crp->oldhost, host) == 0) {
-		/* reuse old client */		
+		/* reuse old client */
 	} else {
 		crp->valid = 0;
-		(void)close(crp->socket);
+		if (crp->socket != -1)
+			(void)close(crp->socket);
 		crp->socket = RPC_ANYSOCK;
 		if (crp->client) {
 			clnt_destroy(crp->client);
@@ -91,7 +96,9 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 			return ((int) RPC_UNKNOWNHOST);
 		timeout.tv_usec = 0;
 		timeout.tv_sec = 5;
-		bcopy(hp->h_addr, (char *)&server_addr.sin_addr, hp->h_length);
+		memset(&server_addr, 0, sizeof(server_addr));
+		memcpy((char *)&server_addr.sin_addr, hp->h_addr, hp->h_length);
+		server_addr.sin_len = sizeof(struct sockaddr_in);
 		server_addr.sin_family = AF_INET;
 		server_addr.sin_port =  0;
 		if ((crp->client = clntudp_create(&server_addr, (u_long)prognum,
@@ -106,7 +113,7 @@ callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	tottimeout.tv_usec = 0;
 	clnt_stat = clnt_call(crp->client, procnum, inproc, in,
 	    outproc, out, tottimeout);
-	/* 
+	/*
 	 * if call failed, empty cache
 	 */
 	if (clnt_stat != RPC_SUCCESS)

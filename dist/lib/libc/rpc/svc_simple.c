@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,10 +30,10 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_simple.c 1.18 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_simple.c,v 1.1 1993/10/27 05:41:01 paul Exp $";
+static char *rcsid = "$Id: svc_simple.c,v 1.5 1996/12/30 15:16:22 peter Exp $";
 #endif
 
-/* 
+/*
  * svc_simple.c
  * Simplified front end to rpc.
  *
@@ -41,7 +41,10 @@ static char *rcsid = "$Id: svc_simple.c,v 1.1 1993/10/27 05:41:01 paul Exp $";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -56,14 +59,16 @@ static void universal();
 static SVCXPRT *transp;
 struct proglst *pl;
 
+int
 registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
+	int prognum, versnum, procnum;
 	char *(*progname)();
 	xdrproc_t inproc, outproc;
 {
-	
+
 	if (procnum == NULLPROC) {
 		(void) fprintf(stderr,
-		    "can't reassign procedure number %d\n", NULLPROC);
+		    "can't reassign procedure number %ld\n", NULLPROC);
 		return (-1);
 	}
 	if (transp == 0) {
@@ -74,7 +79,7 @@ registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
 		}
 	}
 	(void) pmap_unset((u_long)prognum, (u_long)versnum);
-	if (!svc_register(transp, (u_long)prognum, (u_long)versnum, 
+	if (!svc_register(transp, (u_long)prognum, (u_long)versnum,
 	    universal, IPPROTO_UDP)) {
 	    	(void) fprintf(stderr, "couldn't register prog %d vers %d\n",
 		    prognum, versnum);
@@ -105,11 +110,11 @@ universal(rqstp, transp)
 	char xdrbuf[UDPMSGSIZE];
 	struct proglst *pl;
 
-	/* 
+	/*
 	 * enforce "procnum 0 is echo" convention
 	 */
 	if (rqstp->rq_proc == NULLPROC) {
-		if (svc_sendreply(transp, xdr_void, (char *)NULL) == FALSE) {
+		if (svc_sendreply(transp, xdr_void, NULL) == FALSE) {
 			(void) fprintf(stderr, "xxx\n");
 			exit(1);
 		}
@@ -120,7 +125,7 @@ universal(rqstp, transp)
 	for (pl = proglst; pl != NULL; pl = pl->p_nxt)
 		if (pl->p_prognum == prog && pl->p_procnum == proc) {
 			/* decode arguments into a CLEAN buffer */
-			bzero(xdrbuf, sizeof(xdrbuf)); /* required ! */
+			memset(xdrbuf, 0, sizeof(xdrbuf)); /* required ! */
 			if (!svc_getargs(transp, pl->p_inproc, xdrbuf)) {
 				svcerr_decode(transp);
 				return;

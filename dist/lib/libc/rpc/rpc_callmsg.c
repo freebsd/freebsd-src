@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)rpc_callmsg.c 1.4 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)rpc_callmsg.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: rpc_callmsg.c,v 1.1 1993/10/27 05:40:46 paul Exp $";
+static char *rcsid = "$Id: rpc_callmsg.c,v 1.5 1996/12/30 14:55:38 peter Exp $";
 #endif
 
 /*
@@ -41,7 +41,8 @@ static char *rcsid = "$Id: rpc_callmsg.c,v 1.1 1993/10/27 05:40:46 paul Exp $";
  */
 
 #include <sys/param.h>
-
+#include <stdlib.h>
+#include <string.h>
 #include <rpc/rpc.h>
 
 /*
@@ -52,7 +53,7 @@ xdr_callmsg(xdrs, cmsg)
 	register XDR *xdrs;
 	register struct rpc_msg *cmsg;
 {
-	register long *buf;
+	register int32_t *buf;
 	register struct opaque_auth *oa;
 
 	if (xdrs->x_op == XDR_ENCODE) {
@@ -83,16 +84,16 @@ xdr_callmsg(xdrs, cmsg)
 			IXDR_PUT_ENUM(buf, oa->oa_flavor);
 			IXDR_PUT_LONG(buf, oa->oa_length);
 			if (oa->oa_length) {
-				bcopy(oa->oa_base, (caddr_t)buf, oa->oa_length);
-				buf += RNDUP(oa->oa_length) / sizeof (long);
+				memcpy((caddr_t)buf, oa->oa_base, oa->oa_length);
+				buf += RNDUP(oa->oa_length) / sizeof (int32_t);
 			}
 			oa = &cmsg->rm_call.cb_verf;
 			IXDR_PUT_ENUM(buf, oa->oa_flavor);
 			IXDR_PUT_LONG(buf, oa->oa_length);
 			if (oa->oa_length) {
-				bcopy(oa->oa_base, (caddr_t)buf, oa->oa_length);
+				memcpy((caddr_t)buf, oa->oa_base, oa->oa_length);
 				/* no real need....
-				buf += RNDUP(oa->oa_length) / sizeof (long);
+				buf += RNDUP(oa->oa_length) / sizeof (int32_t);
 				*/
 			}
 			return (TRUE);
@@ -131,11 +132,11 @@ xdr_callmsg(xdrs, cmsg)
 						return (FALSE);
 					}
 				} else {
-					bcopy((caddr_t)buf, oa->oa_base,
+					memcpy(oa->oa_base, (caddr_t)buf,
 					    oa->oa_length);
 					/* no real need....
 					buf += RNDUP(oa->oa_length) /
-						sizeof (long);
+						sizeof (int32_t);
 					*/
 				}
 			}
@@ -165,11 +166,11 @@ xdr_callmsg(xdrs, cmsg)
 						return (FALSE);
 					}
 				} else {
-					bcopy((caddr_t)buf, oa->oa_base,
+					memcpy(oa->oa_base, (caddr_t)buf,
 					    oa->oa_length);
 					/* no real need...
 					buf += RNDUP(oa->oa_length) /
-						sizeof (long);
+						sizeof (int32_t);
 					*/
 				}
 			}
@@ -177,14 +178,14 @@ xdr_callmsg(xdrs, cmsg)
 		}
 	}
 	if (
-	    xdr_u_long(xdrs, &(cmsg->rm_xid)) &&
+	    xdr_u_int32_t(xdrs, &(cmsg->rm_xid)) &&
 	    xdr_enum(xdrs, (enum_t *)&(cmsg->rm_direction)) &&
 	    (cmsg->rm_direction == CALL) &&
-	    xdr_u_long(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
+	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
 	    (cmsg->rm_call.cb_rpcvers == RPC_MSG_VERSION) &&
-	    xdr_u_long(xdrs, &(cmsg->rm_call.cb_prog)) &&
-	    xdr_u_long(xdrs, &(cmsg->rm_call.cb_vers)) &&
-	    xdr_u_long(xdrs, &(cmsg->rm_call.cb_proc)) &&
+	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_prog)) &&
+	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_vers)) &&
+	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_proc)) &&
 	    xdr_opaque_auth(xdrs, &(cmsg->rm_call.cb_cred)) )
 	    return (xdr_opaque_auth(xdrs, &(cmsg->rm_call.cb_verf)));
 	return (FALSE);

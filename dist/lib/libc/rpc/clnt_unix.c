@@ -28,17 +28,17 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.7 1996/12/30 14:36:17 peter Exp $";
+/*static char *sccsid = "from: @(#)clnt_unix.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
+/*static char *sccsid = "from: @(#)clnt_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
+static char *rcsid = "$Id: clnt_unix.c,v 1.7 1996/12/30 14:36:17 peter Exp $";
 #endif
 
 /*
- * clnt_tcp.c, Implements a TCP/IP based, client side RPC.
+ * clnt_unix.c, Implements a AF_UNIX based, client side RPC.
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  *
- * TCP based RPC supports 'batched calls'.
+ * AF_UNIX based RPC supports 'batched calls'.
  * A sequence of calls may be batched-up in a send buffer.  The rpc call
  * return immediately to the client even though the call was not necessarily
  * sent.  The batching occurs if the results' xdr routine is NULL (0) AND
@@ -57,30 +57,32 @@ static char *rcsid = "$Id: clnt_tcp.c,v 1.7 1996/12/30 14:36:17 peter Exp $";
 #include <unistd.h>
 #include <string.h>
 #include <rpc/rpc.h>
+#include <sys/uio.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netdb.h>
 #include <errno.h>
 #include <rpc/pmap_clnt.h>
 
 #define MCALL_MSG_SIZE 24
 
-static int	readtcp();
-static int	writetcp();
+static int	readunix();
+static int	writeunix();
 
-static enum clnt_stat	clnttcp_call();
-static void		clnttcp_abort();
-static void		clnttcp_geterr();
-static bool_t		clnttcp_freeres();
-static bool_t           clnttcp_control();
-static void		clnttcp_destroy();
+static enum clnt_stat	clntunix_call();
+static void		clntunix_abort();
+static void		clntunix_geterr();
+static bool_t		clntunix_freeres();
+static bool_t           clntunix_control();
+static void		clntunix_destroy();
 
-static struct clnt_ops tcp_ops = {
-	clnttcp_call,
-	clnttcp_abort,
-	clnttcp_geterr,
-	clnttcp_freeres,
-	clnttcp_destroy,
-	clnttcp_control
+static struct clnt_ops unix_ops = {
+	clntunix_call,
+	clntunix_abort,
+	clntunix_geterr,
+	clntunix_freeres,
+	clntunix_destroy,
+	clntunix_control
 };
 
 struct ct_data {
@@ -88,7 +90,7 @@ struct ct_data {
 	bool_t		ct_closeit;
 	struct timeval	ct_wait;
 	bool_t          ct_waitset;       /* wait set by clnt_control? */
-	struct sockaddr_in ct_addr;
+	struct sockaddr_un ct_addr;
 	struct rpc_err	ct_error;
 	char		ct_mcall[MCALL_MSG_SIZE];	/* marshalled callmsg */
 	u_int		ct_mpos;			/* pos after marshal */
@@ -96,10 +98,10 @@ struct ct_data {
 };
 
 /*
- * Create a client handle for a tcp/ip connection.
+ * Create a client handle for a unix/ip connection.
  * If *sockp<0, *sockp is set to a newly created TCP socket and it is
  * connected to raddr.  If *sockp non-negative then
- * raddr is ignored.  The rpc/tcp package does buffering
+ * raddr is ignored.  The rpc/unix package does buffering
  * similar to stdio, so the client must pick send and receive buffer sizes,];
  * 0 => use the default.
  * If raddr->sin_port is 0, then a binder on the remote machine is
@@ -110,8 +112,8 @@ struct ct_data {
  * something more useful.
  */
 CLIENT *
-clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
-	struct sockaddr_in *raddr;
+clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
+	struct sockaddr_un *raddr;
 	u_long prog;
 	u_long vers;
 	register int *sockp;
@@ -123,47 +125,36 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	struct timeval now;
 	struct rpc_msg call_msg;
 	static u_int32_t disrupt;
+	int len;
 
 	if (disrupt == 0)
 		disrupt = (u_int32_t)(long)raddr;
 
 	h  = (CLIENT *)mem_alloc(sizeof(*h));
 	if (h == NULL) {
-		(void)fprintf(stderr, "clnttcp_create: out of memory\n");
+		(void)fprintf(stderr, "clntunix_create: out of memory\n");
 		rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 		rpc_createerr.cf_error.re_errno = errno;
 		goto fooy;
 	}
 	ct = (struct ct_data *)mem_alloc(sizeof(*ct));
 	if (ct == NULL) {
-		(void)fprintf(stderr, "clnttcp_create: out of memory\n");
+		(void)fprintf(stderr, "clntunix_create: out of memory\n");
 		rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 		rpc_createerr.cf_error.re_errno = errno;
 		goto fooy;
 	}
 
 	/*
-	 * If no port number given ask the pmap for one
-	 */
-	if (raddr->sin_port == 0) {
-		u_short port;
-		if ((port = pmap_getport(raddr, prog, vers, IPPROTO_TCP)) == 0) {
-			mem_free((caddr_t)ct, sizeof(struct ct_data));
-			mem_free((caddr_t)h, sizeof(CLIENT));
-			return ((CLIENT *)NULL);
-		}
-		raddr->sin_port = htons(port);
-	}
-
-	/*
 	 * If no socket given, open one
 	 */
 	if (*sockp < 0) {
-		*sockp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		(void)bindresvport(*sockp, (struct sockaddr_in *)0);
+		*sockp = socket(AF_UNIX, SOCK_STREAM, 0);
+		len = strlen(raddr->sun_path) + sizeof(raddr->sun_family) +
+			sizeof(raddr->sun_len) + 1;
+		raddr->sun_len = len;
 		if ((*sockp < 0)
-		    || (connect(*sockp, (struct sockaddr *)raddr,
-		    sizeof(*raddr)) < 0)) {
+		    || (connect(*sockp, (struct sockaddr *)raddr, len) < 0)) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
 			if (*sockp != -1)
@@ -212,8 +203,8 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	 * and authnone for authentication.
 	 */
 	xdrrec_create(&(ct->ct_xdrs), sendsz, recvsz,
-	    (caddr_t)ct, readtcp, writetcp);
-	h->cl_ops = &tcp_ops;
+	    (caddr_t)ct, readunix, writeunix);
+	h->cl_ops = &unix_ops;
 	h->cl_private = (caddr_t) ct;
 	h->cl_auth = authnone_create();
 	return (h);
@@ -230,7 +221,7 @@ fooy:
 }
 
 static enum clnt_stat
-clnttcp_call(h, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
+clntunix_call(h, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
 	register CLIENT *h;
 	u_long proc;
 	xdrproc_t xdr_args;
@@ -327,7 +318,7 @@ call_again:
 }
 
 static void
-clnttcp_geterr(h, errp)
+clntunix_geterr(h, errp)
 	CLIENT *h;
 	struct rpc_err *errp;
 {
@@ -338,7 +329,7 @@ clnttcp_geterr(h, errp)
 }
 
 static bool_t
-clnttcp_freeres(cl, xdr_res, res_ptr)
+clntunix_freeres(cl, xdr_res, res_ptr)
 	CLIENT *cl;
 	xdrproc_t xdr_res;
 	caddr_t res_ptr;
@@ -351,13 +342,13 @@ clnttcp_freeres(cl, xdr_res, res_ptr)
 }
 
 static void
-clnttcp_abort()
+clntunix_abort()
 {
 }
 
 
 static bool_t
-clnttcp_control(cl, request, info)
+clntunix_control(cl, request, info)
 	CLIENT *cl;
 	int request;
 	char *info;
@@ -389,7 +380,7 @@ clnttcp_control(cl, request, info)
 	case CLGET_SERVER_ADDR:
 		if (info == NULL)
 			return(FALSE);
-		*(struct sockaddr_in *)info = ct->ct_addr;
+		*(struct sockaddr_un *)info = ct->ct_addr;
 		break;
 	case CLGET_FD:
 		if (info == NULL)
@@ -411,7 +402,7 @@ clnttcp_control(cl, request, info)
 		if (info == NULL)
 			return(FALSE);
 		*(u_long *)ct->ct_mcall =  htonl(*(u_long *)info - 1);
-		/* decrement by 1 as clnttcp_call() increments once */
+		/* decrement by 1 as clntunix_call() increments once */
 	case CLGET_VERS:
 		/*
 		 * This RELIES on the information that, in the call body,
@@ -467,7 +458,7 @@ clnttcp_control(cl, request, info)
 
 
 static void
-clnttcp_destroy(h)
+clntunix_destroy(h)
 	CLIENT *h;
 {
 	register struct ct_data *ct =
@@ -482,12 +473,76 @@ clnttcp_destroy(h)
 }
 
 /*
- * Interface between xdr serializer and tcp connection.
+ * read() and write() are replaced with recvmsg()/sendmsg() so that
+ * we can pass ancillary control data. In this case, the data constists
+ * of credential information which the kernel will fill in for us.
+ * XXX: This code is specific to FreeBSD and will not work on other
+ * platforms without the requisite kernel modifications.
+ */
+struct cmessage {
+	struct cmsghdr cmsg;
+	struct cmsgcred cmcred;
+};
+
+static int __msgread(sock, buf, cnt)
+	int sock;
+	void *buf;
+	size_t cnt;
+{
+	struct iovec iov[1];
+	struct msghdr msg;
+	struct cmessage cm;
+
+	bzero((char *)&cm, sizeof(cm));
+	iov[0].iov_base = buf;
+	iov[0].iov_len = cnt;
+
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_control = (caddr_t)&cm;
+	msg.msg_controllen = sizeof(struct cmessage);
+	msg.msg_flags = 0;
+
+	return(recvmsg(sock, &msg, 0));
+}
+
+static int __msgwrite(sock, buf, cnt)
+	int sock;
+	void *buf;
+	size_t cnt;
+{
+	struct iovec iov[1];
+	struct msghdr msg;
+	struct cmessage cm;
+
+	bzero((char *)&cm, sizeof(cm));
+	iov[0].iov_base = buf;
+	iov[0].iov_len = cnt;
+
+	cm.cmsg.cmsg_type = SCM_CREDS;
+	cm.cmsg.cmsg_level = SOL_SOCKET;
+	cm.cmsg.cmsg_len = sizeof(struct cmessage);
+
+	msg.msg_iov = iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_control = (caddr_t)&cm;
+	msg.msg_controllen = sizeof(struct cmessage);
+	msg.msg_flags = 0;
+
+	return(sendmsg(sock, &msg, 0));
+}
+
+/*
+ * Interface between xdr serializer and unix connection.
  * Behaves like the system calls, read & write, but keeps some error state
  * around for the rpc level.
  */
 static int
-readtcp(ct, buf, len)
+readunix(ct, buf, len)
 	register struct ct_data *ct;
 	caddr_t buf;
 	register int len;
@@ -544,7 +599,7 @@ readtcp(ct, buf, len)
 		}
 		break;
 	}
-	switch (len = read(ct->ct_sock, buf, len)) {
+	switch (len = __msgread(ct->ct_sock, buf, len)) {
 
 	case 0:
 		/* premature eof */
@@ -562,7 +617,7 @@ readtcp(ct, buf, len)
 }
 
 static int
-writetcp(ct, buf, len)
+writeunix(ct, buf, len)
 	struct ct_data *ct;
 	caddr_t buf;
 	int len;
@@ -570,7 +625,7 @@ writetcp(ct, buf, len)
 	register int i, cnt;
 
 	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
-		if ((i = write(ct->ct_sock, buf, cnt)) == -1) {
+		if ((i = __msgwrite(ct->ct_sock, buf, cnt)) == -1) {
 			ct->ct_error.re_errno = errno;
 			ct->ct_error.re_status = RPC_CANTSEND;
 			return (-1);

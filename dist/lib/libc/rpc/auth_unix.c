@@ -5,11 +5,11 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
@@ -17,11 +17,11 @@
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,12 +30,12 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.1 1993/10/27 05:40:11 paul Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.7 1996/12/30 14:14:39 peter Exp $";
 #endif
 
 /*
- * auth_unix.c, Implements UNIX style authentication parameters. 
- *  
+ * auth_unix.c, Implements UNIX style authentication parameters.
+ *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  *
  * The system is very weak.  The client uses no encryption for it's
@@ -47,7 +47,10 @@ static char *rcsid = "$Id: auth_unix.c,v 1.1 1993/10/27 05:40:11 paul Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
+#include <sys/param.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
@@ -82,8 +85,20 @@ struct audata {
 };
 #define	AUTH_PRIVATE(auth)	((struct audata *)auth->ah_private)
 
-static bool_t marshal_new_auth();
+static void marshal_new_auth();
 
+/*
+ * This goop is here because some servers refuse to accept a
+ * credential with more than some number (usually 8) supplementary
+ * groups.  Blargh!
+ */
+static int authunix_maxgrouplist = 0;
+
+void
+set_rpc_maxgrouplist(int num)
+{
+	authunix_maxgrouplist = num;
+}
 
 /*
  * Create a unix style authenticator.
@@ -134,14 +149,20 @@ authunix_create(machname, uid, gid, len, aup_gids)
 	aup.aup_machname = machname;
 	aup.aup_uid = uid;
 	aup.aup_gid = gid;
-	aup.aup_len = (u_int)len;
+	/* GW: continuation of max group list hack */
+	if(authunix_maxgrouplist != 0) {
+		aup.aup_len = ((len < authunix_maxgrouplist) ? len
+			       : authunix_maxgrouplist);
+	} else {
+		aup.aup_len = (u_int)len;
+	}
 	aup.aup_gids = aup_gids;
 
 	/*
 	 * Serialize the parameters into origcred
 	 */
 	xdrmem_create(&xdrs, mymem, MAX_AUTH_BYTES, XDR_ENCODE);
-	if (! xdr_authunix_parms(&xdrs, &aup)) 
+	if (! xdr_authunix_parms(&xdrs, &aup))
 		abort();
 	au->au_origcred.oa_length = len = XDR_GETPOS(&xdrs);
 	au->au_origcred.oa_flavor = AUTH_UNIX;
@@ -153,7 +174,7 @@ authunix_create(machname, uid, gid, len, aup_gids)
 		return (NULL);
 	}
 #endif
-	bcopy(mymem, au->au_origcred.oa_base, (u_int)len);
+	memcpy(au->au_origcred.oa_base, mymem, (u_int)len);
 
 	/*
 	 * set auth handle to reflect new cred.
@@ -175,14 +196,20 @@ authunix_create_default()
 	register int uid;
 	register int gid;
 	int gids[NGRPS];
+	int i;
+	gid_t real_gids[NGROUPS];
 
 	if (gethostname(machname, MAX_MACHINE_NAME) == -1)
 		abort();
 	machname[MAX_MACHINE_NAME] = 0;
-	uid = geteuid();
-	gid = getegid();
-	if ((len = getgroups(NGRPS, gids)) < 0)
+	uid = (int)geteuid();
+	gid = (int)getegid();
+	if ((len = getgroups(NGROUPS, real_gids)) < 0)
 		abort();
+	if(len > NGRPS) len = NGRPS; /* GW: turn `gid_t's into `int's */
+	for(i = 0; i < len; i++) {
+		gids[i] = (int)real_gids[i];
+	}
 	return (authunix_create(machname, uid, gid, len, gids));
 }
 
@@ -259,7 +286,7 @@ authunix_refresh(auth)
 	xdrmem_create(&xdrs, au->au_origcred.oa_base,
 	    au->au_origcred.oa_length, XDR_DECODE);
 	stat = xdr_authunix_parms(&xdrs, &aup);
-	if (! stat) 
+	if (! stat)
 		goto done;
 
 	/* update the time and serialize in place */
@@ -303,7 +330,7 @@ authunix_destroy(auth)
  * Marshals (pre-serializes) an auth struct.
  * sets private data, au_marshed and au_mpos
  */
-static bool_t
+static void
 marshal_new_auth(auth)
 	register AUTH *auth;
 {

@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_rmt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_rmt.c,v 1.1 1993/10/27 05:40:40 paul Exp $";
+static char *rcsid = "$Id: pmap_rmt.c,v 1.9 1996/12/30 14:53:20 peter Exp $";
 #endif
 
 /*
@@ -47,15 +47,16 @@ static char *rcsid = "$Id: pmap_rmt.c,v 1.1 1993/10/27 05:40:40 paul Exp $";
 #include <rpc/pmap_rmt.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
+#include <string.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #define MAX_BROADCAST_SIZE 1400
 
-extern int errno;
 static struct timeval timeout = { 3, 0 };
-
 
 /*
  * pmapper remote-call-service interface.
@@ -96,7 +97,8 @@ pmap_rmtcall(addr, prog, vers, proc, xdrargs, argsp, xdrres, resp, tout, port_pt
 	} else {
 		stat = RPC_FAILED;
 	}
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	addr->sin_port = 0;
 	return (stat);
 }
@@ -156,7 +158,7 @@ xdr_rmtcallres(xdrs, crp)
 
 /*
  * The following is kludged-up support for simple rpc broadcasts.
- * Someday a large, complicated system will replace these trivial 
+ * Someday a large, complicated system will replace these trivial
  * routines which only support udp/ip .
  */
 
@@ -167,10 +169,11 @@ getbroadcastnets(addrs, sock, buf)
 	char *buf;  /* why allocxate more when we can use existing... */
 {
 	struct ifconf ifc;
-        struct ifreq ifreq, *ifr;
+	struct ifreq ifreq, *ifr;
 	struct sockaddr_in *sin;
-        char *cp, *cplim;
-        int n, i = 0;
+	struct	in_addr addr;
+	char *cp, *cplim;
+	int n, i = 0;
 
         ifc.ifc_len = UDPMSGSIZE;
         ifc.ifc_buf = buf;
@@ -196,17 +199,24 @@ getbroadcastnets(addrs, sock, buf)
 			sin = (struct sockaddr_in *)&ifr->ifr_addr;
 #ifdef SIOCGIFBRDADDR   /* 4.3BSD */
 			if (ioctl(sock, SIOCGIFBRDADDR, (char *)&ifreq) < 0) {
-				addrs[i++] =
+				addr =
 				    inet_makeaddr(inet_netof(sin->sin_addr),
 				    INADDR_ANY);
 			} else {
-				addrs[i++] = ((struct sockaddr_in*)
+				addr = ((struct sockaddr_in*)
 				  &ifreq.ifr_addr)->sin_addr;
 			}
 #else /* 4.2 BSD */
-			addrs[i++] = inet_makeaddr(inet_netof(sin->sin_addr),
+			addr = inet_makeaddr(inet_netof(sin->sin_addr),
 			    INADDR_ANY);
 #endif
+			for (n=i-1; n>=0; n--) {
+				if (addr.s_addr == addrs[n].s_addr)
+					break;
+			}
+			if (n<0) {
+				addrs[i++] = addr;
+			}
 		}
 	}
 	return (i);
@@ -214,7 +224,7 @@ getbroadcastnets(addrs, sock, buf)
 
 typedef bool_t (*resultproc_t)();
 
-enum clnt_stat 
+enum clnt_stat
 clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	u_long		prog;		/* program number */
 	u_long		vers;		/* version number */
@@ -232,13 +242,7 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	int outlen, inlen, fromlen, nets;
 	register int sock;
 	int on = 1;
-#ifdef FD_SETSIZE
-	fd_set mask;
-	fd_set readfds;
-#else
-	int readfds;
-	register int mask;
-#endif /* def FD_SETSIZE */
+	fd_set *fds, readfds;
 	register int i;
 	bool_t done = FALSE;
 	register u_long xid;
@@ -248,8 +252,12 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	struct rmtcallargs a;
 	struct rmtcallres r;
 	struct rpc_msg msg;
-	struct timeval t; 
+	struct timeval t, tv;
 	char outbuf[MAX_BROADCAST_SIZE], inbuf[UDPMSGSIZE];
+	static u_int32_t disrupt;
+
+	if (disrupt == 0)
+		disrupt = (u_int32_t)(long)resultsp;
 
 	/*
 	 * initialization: create a socket, a broadcast address, and
@@ -267,20 +275,27 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 		goto done_broad;
 	}
 #endif /* def SO_BROADCAST */
-#ifdef FD_SETSIZE
-	FD_ZERO(&mask);
-	FD_SET(sock, &mask);
-#else
-	mask = (1 << sock);
-#endif /* def FD_SETSIZE */
+	if (sock + 1 > FD_SETSIZE) {
+		int bytes = howmany(sock + 1, NFDBITS) * sizeof(fd_mask);
+		fds = (fd_set *)malloc(bytes);
+		if (fds == NULL) {
+			stat = RPC_CANTSEND;
+			goto done_broad;
+		}
+		memset(fds, 0, bytes);
+	} else {
+		fds = &readfds;
+		FD_ZERO(fds);
+	}
+
 	nets = getbroadcastnets(addrs, sock, inbuf);
-	bzero((char *)&baddr, sizeof (baddr));
+	memset(&baddr, 0, sizeof (baddr));
+	baddr.sin_len = sizeof(struct sockaddr_in);
 	baddr.sin_family = AF_INET;
 	baddr.sin_port = htons(PMAPPORT);
 	baddr.sin_addr.s_addr = htonl(INADDR_ANY);
-/*	baddr.sin_addr.S_un.S_addr = htonl(INADDR_ANY); */
 	(void)gettimeofday(&t, (struct timezone *)0);
-	msg.rm_xid = xid = getpid() ^ t.tv_sec ^ t.tv_usec;
+	msg.rm_xid = xid = (++disrupt) ^ getpid() ^ t.tv_sec ^ t.tv_usec;
 	t.tv_usec = 0;
 	msg.rm_direction = CALL;
 	msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
@@ -307,6 +322,12 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	/*
 	 * Basic loop: broadcast a packet and wait a while for response(s).
 	 * The response timeout grows larger per iteration.
+	 *
+	 * XXX This will loop about 5 times the stop. If there are
+	 * lots of signals being received by the process it will quit
+	 * send them all in one quick burst, not paying attention to
+	 * the intended function of sending them slowly over half a
+	 * minute or so
 	 */
 	for (t.tv_sec = 4; t.tv_sec <= 14; t.tv_sec += 2) {
 		for (i = 0; i < nets; i++) {
@@ -326,10 +347,11 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 	recv_again:
 		msg.acpted_rply.ar_verf = _null_auth;
 		msg.acpted_rply.ar_results.where = (caddr_t)&r;
-                msg.acpted_rply.ar_results.proc = xdr_rmtcallres;
-		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL, 
-			       (int *)NULL, &t)) {
+		msg.acpted_rply.ar_results.proc = xdr_rmtcallres;
+		/* XXX we know the other bits are still clear */
+		FD_SET(sock, fds);
+		tv = t;		/* for select() that copies back */
+		switch (select(sock + 1, fds, NULL, NULL, &tv)) {
 
 		case 0:  /* timed out */
 			stat = RPC_TIMEDOUT;
@@ -354,7 +376,7 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 			stat = RPC_CANTRECV;
 			goto done_broad;
 		}
-		if (inlen < sizeof(u_long))
+		if (inlen < sizeof(u_int32_t))
 			goto recv_again;
 		/*
 		 * see if reply transaction id matches sent id.
@@ -369,13 +391,6 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 				done = (*eachresult)(resultsp, &raddr);
 			}
 			/* otherwise, we just ignore the errors ... */
-		} else {
-#ifdef notdef
-			/* some kind of deserialization problem ... */
-			if (msg.rm_xid == xid)
-				fprintf(stderr, "Broadcast deserialization problem");
-			/* otherwise, just random garbage */
-#endif
 		}
 		xdrs->x_op = XDR_FREE;
 		msg.acpted_rply.ar_results.proc = xdr_void;
@@ -390,7 +405,10 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 		}
 	}
 done_broad:
-	(void)close(sock);
+	if (fds != &readfds)
+		free(fds);
+	if (sock >= 0)
+		(void)close(sock);
 	AUTH_DESTROY(unix_auth);
 	return (stat);
 }
