@@ -6,7 +6,7 @@ MAN4=	aic.4 alpm.4 apm.4 ar.4 asc.4 asr.4 \
 	ie.4 io.4 labpc.4 le.4 linux.4 lnc.4 matcd.4 mcd.4 \
 	meteor.4 mse.4 npx.4 \
 	pcf.4 perfmon.4 pnp.4 \
-	rdp.4 sb.4 scd.4 \
+	ray.4 rdp.4 sb.4 scd.4 \
 	spkr.4 sr.4 streams.4 svr4.4 tw.4 \
 	tx.4 vx.4 \
 	wd.4 wl.4 wt.4
@@ -41,6 +41,7 @@ MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcf.4 ../pcf.4
 MLINKS+=	perfmon.4 ../perfmon.4
 MLINKS+=	pnp.4 ../pnp.4
+MLINKS+=	ray.4 ../ray.4
 MLINKS+=	rdp.4 ../rdp.4
 MLINKS+=	sb.4 ../sb.4
 MLINKS+=	scd.4 ../scd.4
