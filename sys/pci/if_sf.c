@@ -1184,6 +1184,11 @@ static void sf_init(xsc)
 		SF_CLRBIT(sc, SF_RXFILT, SF_RXFILT_BROAD);
 	}
 
+	/*
+	 * Load the multicast filter.
+	 */
+	sf_setmulti(sc);
+
 	/* Init the completion queue indexes */
 	csr_write_4(sc, SF_CQ_CONSIDX, 0);
 	csr_write_4(sc, SF_CQ_PRODIDX, 0);
