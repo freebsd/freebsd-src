@@ -216,20 +216,23 @@ properties_read(int fd)
 	    break;
 	}
     }
+    if (head == NULL && (head = property_alloc(NULL, NULL)) == NULL)
+	return (NULL);
+
     return (head);
 }
 
 char *
 property_find(properties list, const char *name)
 {
-    if (!list || !name || !name[0])
-	return NULL;
-    while (list) {
-	if (!strcmp(list->name, name))
-	    return list->value;
+    if (list == NULL || name == NULL || !name[0])
+	return (NULL);
+    while (list != NULL) {
+	if (list->name != NULL && strcmp(list->name, name) == 0)
+	    return (list->value);
 	list = list->next;
     }
-    return NULL;
+    return (NULL);
 }
 
 void
