@@ -17,6 +17,8 @@
 ** 29 jun 1998 (sadler) added variable sized hash table support
 */
 
+/* $FreeBSD$ */
+
 #ifdef TESTMAIN
 #include <stdio.h>
 #include <stdlib.h>
@@ -351,6 +353,7 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
 
     pDict = ficlMalloc(nAlloc);
     assert(pDict);
+    memset(pDict, 0, sizeof (FICL_DICT));
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
