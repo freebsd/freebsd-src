@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_errno.h	8.1 (Berkeley) 6/10/93
- * $Id: iso_errno.h,v 1.2 1994/08/02 07:50:34 davidg Exp $
+ * $Id: iso_errno.h,v 1.3 1994/08/21 06:14:20 paul Exp $
  */
 
 #ifndef _NETISO_ISO_ERRNO_H_
@@ -111,7 +111,7 @@ SOFTWARE.
 /*                                                                            */
 /******************************************************************************/
 
-#define E_CLNL_???	(CLNL_ERROR_MASK | 0x1)	 /* explanation */
+/* #define E_CLNL_???	(CLNL_ERROR_MASK | 0x1)	  explanation */
 
 /******************************************************************************/
 /*                                                                            */
