@@ -1408,6 +1408,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * context left by sendsig. Check carefully to
  * make sure that the user has not modified the
  * state to gain improper privileges.
+ *
+ * MPSAFE
  */
 int
 osigreturn(struct thread *td,
