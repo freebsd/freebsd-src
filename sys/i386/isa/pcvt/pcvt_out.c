@@ -42,7 +42,7 @@
  *	pcvt_out.c	VT220 Terminal Emulator
  *	---------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:43:40 2000]
+ *	Last Edit-Date: [Tue Jun  5 17:27:48 2001]
  *
  * $FreeBSD$
  *
@@ -1903,7 +1903,8 @@ update_hp(struct video_state *svsp)
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
 		  + svsp->maxcol - 3) = user_attr | '[';
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
-		  + svsp->maxcol - 2) = user_attr | (current_video_screen + '0');
+		  + svsp->maxcol - 2) = user_attr | (current_video_screen +
+			(current_video_screen < 10 ?  '0' : ('a' - 10)));
 		*((svsp->Crtat + ((svsp->screen_rows + 2) * svsp->maxcol))
 		  + svsp->maxcol - 1) = user_attr | ']';
 	}
