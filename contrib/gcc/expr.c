@@ -54,8 +54,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #ifdef PUSH_ROUNDING
 
+#ifndef PUSH_ARGS_REVERSED
 #if defined (STACK_GROWS_DOWNWARD) != defined (ARGS_GROW_DOWNWARD)
 #define PUSH_ARGS_REVERSED	/* If it's last to first.  */
+#endif
 #endif
 
 #endif
@@ -6227,7 +6229,7 @@ expand_expr (exp, target, tmode, modifier)
       }
 
     case PARM_DECL:
-      if (DECL_RTL (exp) == 0)
+      if (! DECL_RTL_SET_P (exp))
 	{
 	  error_with_decl (exp, "prior parameter's size depends on `%s'");
 	  return CONST0_RTX (mode);
@@ -7600,9 +7602,10 @@ expand_expr (exp, target, tmode, modifier)
 	{
 	  op0 = expand_expr (TREE_OPERAND (exp, 0), subtarget, VOIDmode, 0);
 	  op1 = expand_expr (TREE_OPERAND (exp, 1), NULL_RTX, VOIDmode, 0);
-	  temp = simplify_binary_operation (PLUS, mode, op0, op1);
-	  if (temp)
-	    return temp;
+	  if (op0 == const0_rtx)
+	    return op1;
+	  if (op1 == const0_rtx)
+	    return op0;
 	  goto binop2;
 	}
 

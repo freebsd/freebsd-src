@@ -245,13 +245,21 @@ _mm_cmple_ss (__m128 __A, __m128 __B)
 static __inline __m128
 _mm_cmpgt_ss (__m128 __A, __m128 __B)
 {
-  return (__m128) __builtin_ia32_cmpgtss ((__v4sf)__A, (__v4sf)__B);
+  return (__m128) __builtin_ia32_movss ((__v4sf) __A,
+					(__v4sf)
+					__builtin_ia32_cmpltss ((__v4sf) __B,
+								(__v4sf)
+								__A));
 }
 
 static __inline __m128
 _mm_cmpge_ss (__m128 __A, __m128 __B)
 {
-  return (__m128) __builtin_ia32_cmpgess ((__v4sf)__A, (__v4sf)__B);
+  return (__m128) __builtin_ia32_movss ((__v4sf) __A,
+					(__v4sf)
+					__builtin_ia32_cmpless ((__v4sf) __B,
+								(__v4sf)
+								__A));
 }
 
 static __inline __m128
@@ -275,13 +283,21 @@ _mm_cmpnle_ss (__m128 __A, __m128 __B)
 static __inline __m128
 _mm_cmpngt_ss (__m128 __A, __m128 __B)
 {
-  return (__m128) __builtin_ia32_cmpngtss ((__v4sf)__A, (__v4sf)__B);
+  return (__m128) __builtin_ia32_movss ((__v4sf) __A,
+					(__v4sf)
+					__builtin_ia32_cmpnltss ((__v4sf) __B,
+								 (__v4sf)
+								 __A));
 }
 
 static __inline __m128
 _mm_cmpnge_ss (__m128 __A, __m128 __B)
 {
-  return (__m128) __builtin_ia32_cmpngess ((__v4sf)__A, (__v4sf)__B);
+  return (__m128) __builtin_ia32_movss ((__v4sf) __A,
+					(__v4sf)
+					__builtin_ia32_cmpnless ((__v4sf) __B,
+								 (__v4sf)
+								 __A));
 }
 
 static __inline __m128
@@ -1017,7 +1033,7 @@ _mm_prefetch (void *__P, enum _mm_hint __I)
 static __inline void
 _mm_stream_pi (__m64 *__P, __m64 __A)
 {
-  __builtin_ia32_movntq (__P, __A);
+  __builtin_ia32_movntq (__P, (long long)__A);
 }
 
 /* Likewise.  The address must be 16-byte aligned.  */
@@ -1049,8 +1065,8 @@ _mm_pause (void)
 do {									\
   __v4sf __r0 = (row0), __r1 = (row1), __r2 = (row2), __r3 = (row3);	\
   __v4sf __t0 = __builtin_ia32_shufps (__r0, __r1, 0x44);		\
-  __v4sf __t1 = __builtin_ia32_shufps (__r0, __r1, 0xEE);		\
-  __v4sf __t2 = __builtin_ia32_shufps (__r2, __r3, 0x44);		\
+  __v4sf __t2 = __builtin_ia32_shufps (__r0, __r1, 0xEE);		\
+  __v4sf __t1 = __builtin_ia32_shufps (__r2, __r3, 0x44);		\
   __v4sf __t3 = __builtin_ia32_shufps (__r2, __r3, 0xEE);		\
   (row0) = __builtin_ia32_shufps (__t0, __t1, 0x88);			\
   (row1) = __builtin_ia32_shufps (__t0, __t1, 0xDD);			\
