@@ -355,17 +355,17 @@ aac_startup(void *arg)
 	mi = (struct aac_mntinfo *)&fib->data[0];
 
 	/* loop over possible containers */
-	mi->Command = VM_NameServe;
-	mi->MntType = FT_FILESYS;
 	do {
 		/* request information on this container */
+		bzero(mi, sizeof(struct aac_mntinfo));
+		mi->Command = VM_NameServe;
+		mi->MntType = FT_FILESYS;
 		mi->MntCount = i;
 		if (aac_sync_fib(sc, ContainerCommand, 0, fib,
 				 sizeof(struct aac_mntinfo))) {
 			debug(2, "error probing container %d", i);
 			continue;
 		}
-		/* check response size */
 
 		mir = (struct aac_mntinforesp *)&fib->data[0];
 		aac_add_container(sc, mir, 0);
@@ -550,6 +550,7 @@ aac_shutdown(device_t dev)
 	aac_alloc_sync_fib(sc, &fib, AAC_SYNC_LOCK_FORCE);
 	cc = (struct aac_close_command *)&fib->data[0];
 
+	bzero(cc, sizeof(struct aac_close_command));
 	cc->Command = VM_CloseAll;
 	cc->ContainerId = 0xffffffff;
 	if (aac_sync_fib(sc, ContainerCommand, 0, fib,
@@ -2373,8 +2374,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 			 */
 			aac_alloc_sync_fib(sc, &fib, 0);
 			mi = (struct aac_mntinfo *)&fib->data[0];
-			mi->Command = VM_NameServe;
-			mi->MntType = FT_FILESYS;
 			do {
 				/*
 				 * Ask the controller for its containers one at
@@ -2383,6 +2382,9 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				 * midway through this enumaration?
 				 * XXX This should be done async.
 				 */
+				bzero(mi, sizeof(struct aac_mntinfo));
+				mi->Command = VM_NameServe;
+				mi->MntType = FT_FILESYS;
 				mi->MntCount = i;
 				rsize = sizeof(mir);
 				if (aac_sync_fib(sc, ContainerCommand, 0, fib,
@@ -2717,6 +2719,7 @@ aac_get_bus_info(struct aac_softc *sc)
 
 	aac_alloc_sync_fib(sc, &fib, 0);
 	c_cmd = (struct aac_ctcfg *)&fib->data[0];
+	bzero(c_cmd, sizeof(struct aac_ctcfg));
 
 	c_cmd->Command = VM_ContainerConfig;
 	c_cmd->cmd = CT_GET_SCSI_METHOD;
@@ -2742,6 +2745,8 @@ aac_get_bus_info(struct aac_softc *sc)
 	sc->scsi_method_id = c_resp->param;
 
 	vmi = (struct aac_vmioctl *)&fib->data[0];
+	bzero(vmi, sizeof(struct aac_vmioctl));
+
 	vmi->Command = VM_Ioctl;
 	vmi->ObjType = FT_DRIVE;
 	vmi->MethId = sc->scsi_method_id;
