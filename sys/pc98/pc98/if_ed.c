@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.12 1998/01/04 09:54:13 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.13 1998/04/14 13:52:25 kato Exp $
  */
 
 /*
@@ -241,7 +241,7 @@ static u_long ds_crc(u_char *ep);
 
 #if NCARD > 0
 #include <sys/select.h>
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
