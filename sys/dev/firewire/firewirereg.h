@@ -191,8 +191,8 @@ struct fw_xferq {
 
 #define FWXFERQ_HANDLER (1 << 16)
 #define FWXFERQ_WAKEUP (1 << 17)
-
 	void (*start) __P((struct firewire_comm*));
+	int dmach;
 	STAILQ_HEAD(, fw_xfer) q;
 	u_int queued;
 	u_int maxq;
