@@ -85,6 +85,7 @@ struct uufsd {
 				/* cylinder group storage */
 	} d_cgunion;
 	int d_ccg;		/* current cylinder group */
+	int d_lcg;		/* last cylinder group (in d_cg) */
 	const char *d_error;	/* human readable disk error */
 	int d_mine;		/* internal flags */
 #define	d_fs	d_sbunion.d_fs

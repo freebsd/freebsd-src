@@ -68,5 +68,6 @@ cgread1(struct uufsd *disk, int c)
 		ERROR(disk, "unable to read cylinder group");
 		return -1;
 	}
+	disk->d_lcg = c;
 	return 1;
 }
