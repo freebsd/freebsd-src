@@ -41,7 +41,7 @@
 #if !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #elif defined(__NetBSD__)
-__RCSID"$NetBSD$");
+__RCSID("$NetBSD$");
 #endif
 #ident "$FreeBSD$"
 

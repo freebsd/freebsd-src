@@ -1128,6 +1128,9 @@ ifinit(void)
 					continue;
 				if (ifp1->int_dstaddr == RIP_DEFAULT)
 					continue;
+				/* ignore aliases on the right network */
+				if (!strcmp(ifp->int_name, ifp1->int_name))
+					continue;
 				if (on_net(ifp->int_dstaddr,
 					   ifp1->int_net, ifp1->int_mask)
 				    || on_net(ifp1->int_dstaddr,
