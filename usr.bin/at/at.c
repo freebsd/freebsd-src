@@ -121,6 +121,7 @@ static char *cwdname(void);
 static void writefile(time_t runtimer, char queue);
 static void list_jobs(void);
 static long nextjob(void);
+static time_t ttime(const char *arg);
 
 /* Signal catching functions */
 
@@ -592,6 +593,77 @@ process_jobs(int argc, char **argv, int what)
     }
 } /* delete_jobs */
 
+#define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
+
+static time_t
+ttime(const char *arg)
+{
+    /*
+     * This is pretty much a copy of stime_arg1() from touch.c.  I changed
+     * the return value and the argument list because it's more convenient
+     * (IMO) to do everything in one place. - Joe Halpin
+     */
+    struct timeval tv[2];
+    time_t now;
+    struct tm *t;
+    int yearset;
+    char *p;
+    
+    if (gettimeofday(&tv[0], NULL))
+	panic("Cannot get current time");
+    
+    /* Start with the current time. */
+    now = tv[0].tv_sec;
+    if ((t = localtime(&now)) == NULL)
+	panic("localtime");
+    /* [[CC]YY]MMDDhhmm[.SS] */
+    if ((p = strchr(arg, '.')) == NULL)
+	t->tm_sec = 0;		/* Seconds defaults to 0. */
+    else {
+	if (strlen(p + 1) != 2)
+	    goto terr;
+	*p++ = '\0';
+	t->tm_sec = ATOI2(p);
+    }
+    
+    yearset = 0;
+    switch(strlen(arg)) {
+    case 12:			/* CCYYMMDDhhmm */
+	t->tm_year = ATOI2(arg);
+	t->tm_year *= 100;
+	yearset = 1;
+	/* FALLTHROUGH */
+    case 10:			/* YYMMDDhhmm */
+	if (yearset) {
+	    yearset = ATOI2(arg);
+	    t->tm_year += yearset;
+	} else {
+	    yearset = ATOI2(arg);
+	    t->tm_year = yearset + 2000;
+	}
+	t->tm_year -= 1900;	/* Convert to UNIX time. */
+	/* FALLTHROUGH */
+    case 8:				/* MMDDhhmm */
+	t->tm_mon = ATOI2(arg);
+	--t->tm_mon;		/* Convert from 01-12 to 00-11 */
+	t->tm_mday = ATOI2(arg);
+	t->tm_hour = ATOI2(arg);
+	t->tm_min = ATOI2(arg);
+	break;
+    default:
+	goto terr;
+    }
+    
+    t->tm_isdst = -1;		/* Figure out DST. */
+    tv[0].tv_sec = tv[1].tv_sec = mktime(t);
+    if (tv[0].tv_sec != -1)
+	return tv[0].tv_sec;
+    else
+terr:
+	panic(
+	   "out of range or illegal time specification: [[CC]YY]MMDDhhmm[.SS]");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -601,10 +673,11 @@ main(int argc, char **argv)
     char *pgm;
 
     int program = AT;			/* our default program */
-    const char *options = "q:f:mvldbVc";/* default options for at */
+    const char *options = "q:f:t:rmvldbVc";	/* default options for at */
     int disp_version = 0;
     time_t timer;
 
+    timer = -1;
     RELINQUISH_PRIVS
 
     /* Eat any leading paths
@@ -660,11 +733,21 @@ main(int argc, char **argv)
 	    break;
 
 	case 'd':
+	    warnx("-d is deprecated; use -r instead");
+	    /* fall through to 'r' */
+
+	case 'r':
 	    if (program != AT)
 		usage();
 
 	    program = ATRM;
 	    options = "V";
+	    break;
+
+	case 't':
+	    if (program != AT)
+		usage();
+	    timer = ttime(optarg);
 	    break;
 
 	case 'l':
@@ -700,9 +783,7 @@ main(int argc, char **argv)
      */
 
     if (disp_version)
-	fprintf(stderr, "%s version " VERSION "\n"
-	    "Bug reports to: ig25@rz.uni-karlsruhe.de (Thomas Koenig)\n",
-	    namep);
+	fprintf(stderr, "%s version " VERSION "\n", namep);
 
     /* select our program
      */
@@ -729,7 +810,13 @@ main(int argc, char **argv)
 	break;
 
     case AT:
-	timer = parsetime(argc, argv);
+	/*
+	 * If timer is > -1, then the user gave the time with -t.  In that
+	 * case, it's already been set. If not, set it now.  
+	 */
+	if (timer == -1) 
+	    timer = parsetime(argc, argv);
+
 	if (atverify)
 	{
 	    struct tm *tm = localtime(&timer);

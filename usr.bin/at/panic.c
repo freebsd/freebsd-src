@@ -81,6 +81,8 @@ usage(void)
 	/* Print usage and exit. */
     fprintf(stderr, "usage: at [-V] [-q x] [-f file] [-m] time\n"
 		    "       at [-V] -c job [job ...]\n"
+		    "       at [-V] [-f file] -t [[CC]YY]MMDDhhmm[.SS]\n"
+		    "       at [-V] -r job [job ...]\n"
 		    "       atq [-V] [-q x] [-v]\n"
 		    "       atrm [-V] job [job ...]\n"
 		    "       batch [-V] [-f file] [-m]\n");
