@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclInterp.c 1.125 97/08/05 15:22:51
+ * SCCS: @(#) tclInterp.c 1.128 97/11/05 09:35:12
  */
 
 #include <stdio.h>
@@ -580,6 +580,12 @@ CreateSlave(interp, masterPtr, slavePath, safe)
     Tcl_SetHashValue(hPtr, (ClientData) slavePtr);
     Tcl_SetVar(slaveInterp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
     
+    /*
+     * Inherit the recursion limit.
+     */
+    ((Interp *)slaveInterp)->maxNestingDepth =
+	((Interp *)masterInterp)->maxNestingDepth ;
+
     if (safe) {
         if (Tcl_MakeSafe(slaveInterp) == TCL_ERROR) {
             goto error;
@@ -606,6 +612,8 @@ error:
     Tcl_ResetResult(slaveInterp);
 
     (void) Tcl_DeleteCommand(masterInterp, slavePath);
+
+    ckfree((char *) argv);
     return (Tcl_Interp *) NULL;
 }
 

@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclObj.c 1.45 97/07/07 18:26:00
+ * SCCS: @(#) tclObj.c 1.47 97/10/30 13:39:00
  */
 
 #include "tclInt.h"
@@ -2092,7 +2092,7 @@ Tcl_DbDecrRefCount(objPtr, file, line)
     if (objPtr->refCount == 0x61616161) {
 	fprintf(stderr, "file = %s, line = %d\n", file, line);
 	fflush(stderr);
-	panic("Trying to increment refCount of previously disposed object.");
+	panic("Trying to decrement refCount of previously disposed object.");
     }
 #endif
     if (--(objPtr)->refCount <= 0) {
@@ -2134,7 +2134,7 @@ Tcl_DbIsShared(objPtr, file, line)
     if (objPtr->refCount == 0x61616161) {
 	fprintf(stderr, "file = %s, line = %d\n", file, line);
 	fflush(stderr);
-	panic("Trying to increment refCount of previously disposed object.");
+	panic("Trying to check whether previously disposed object is shared.");
     }
 #endif
     return ((objPtr)->refCount > 1);

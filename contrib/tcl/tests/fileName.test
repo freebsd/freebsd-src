@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) fileName.test 1.30 97/08/01 11:13:27
+# SCCS: @(#) fileName.test 1.31 97/08/19 18:45:07
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -1313,16 +1313,30 @@ if {$tcl_platform(platform) == "unix"} {
     # On some systems, like AFS, "000" protection doesn't prevent
     # access by owner, so the following test is not portable.
 
-    exec chmod 000 globTest
+    exec chmod 000 globTest/a1
     test filename-15.1 {unix specific globbing} {nonPortable} {
-	string tolower [list [catch {glob globTest/*} msg]  $msg $errorCode]
-    } {1 {couldn't read directory "globtest": permission denied} {posix eacces {permission denied}}}
-    exec chmod 755 globTest
-    test filename-15.2 {unix specific globbing} {nonPortable} {
+	string tolower [list [catch {glob globTest/a1/*} msg]  $msg $errorCode]
+    } {1 {couldn't read directory "globtest/a1": permission denied} {posix eacces {permission denied}}}
+    test filename-15.2 {unix specific no complain: no errors} {nonPortable} {
+	glob -nocomplain globTest/a1/*
+    } {}
+    test filename-15.3 {unix specific no complain: no errors, good result} {nonPortable knownBug} {
+	# test fails because if an error occur , the interp's result
+	# is reset...
+	glob -nocomplain globTest/a2 globTest/a1/* globTest/a3
+    } {globTest/a2 globTest/a3}
+    exec chmod 755 globTest/a1
+    test filename-15.4 {unix specific no complain: no errors, good result} {nonPortable knownBug} {
+	# test fails because if an error occur , the interp's result
+	# is reset... (or you don't run at sunscript where the
+	# outser and demailly's users exists
+	glob -nocomplain ~ouster ~foo ~demailly
+    } {/home/ouster /home/demailly}
+    test filename-15.5 {unix specific globbing} {nonPortable} {
 	glob ~ouster/.csh*
     } "/home/ouster/.cshrc"
     close [open globTest/odd\\\[\]*?\{\}name w]
-    test filename-15.3 {unix specific globbing} {
+    test filename-15.6 {unix specific globbing} {
 	global env
 	set temp $env(HOME)
 	set env(HOME) $env(HOME)/globTest/odd\\\[\]*?\{\}name

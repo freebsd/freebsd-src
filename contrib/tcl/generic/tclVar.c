@@ -13,7 +13,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclVar.c 1.125 97/08/06 14:47:55
+ * SCCS: @(#) tclVar.c 1.130 97/10/29 18:26:16
  */
 
 #include "tclInt.h"
@@ -2630,7 +2630,7 @@ Tcl_LappendObjCmd(dummy, interp, objc, objv)
     Tcl_Obj *varValuePtr, *newValuePtr;
     register List *listRepPtr;
     register Tcl_Obj **elemPtrs;
-    int numElems, numRequired, createdNewObj, i, j;
+    int numElems, numRequired, createdNewObj, createVar, i, j;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "varName ?value value ...?");
@@ -2666,10 +2666,30 @@ Tcl_LappendObjCmd(dummy, interp, objc, objv)
 	 */
 
 	createdNewObj = 0;
+	createVar = 1;
 	varValuePtr = Tcl_ObjGetVar2(interp, objv[1], (Tcl_Obj *) NULL,
 	        TCL_PARSE_PART1);
-	if (varValuePtr == NULL) { /* no old value: append to new obj */
-	    varValuePtr = Tcl_NewObj(); 
+	if (varValuePtr == NULL) {
+	    /*
+	     * We couldn't read the old value: either the var doesn't yet
+	     * exist or it's an array element. If it's new, we will try to
+	     * create it with Tcl_ObjSetVar2 below.
+	     */
+	    
+	    char *name, *p;
+	    int nameBytes, i;
+
+	    name = TclGetStringFromObj(objv[1], &nameBytes);
+	    for (i = 0, p = name;  i < nameBytes;  i++, p++) {
+		if (*p == '(') {
+		    p = (name + nameBytes-1);	
+		    if (*p == ')') { /* last char is ')' => array ref */
+			createVar = 0;
+		    }
+		    break;
+		}
+	    }
+	    varValuePtr = Tcl_NewObj();
 	    createdNewObj = 1;
 	} else if (Tcl_IsShared(varValuePtr)) {	
 	    varValuePtr = Tcl_DuplicateObj(varValuePtr);
@@ -2732,13 +2752,13 @@ Tcl_LappendObjCmd(dummy, interp, objc, objv)
 	/*
 	 * Now store the list object back into the variable. If there is an
 	 * error setting the new value, decrement its ref count if it
-	 * was new.
+	 * was new and we didn't create the variable.
 	 */
 	
 	newValuePtr = Tcl_ObjSetVar2(interp, objv[1], (Tcl_Obj *) NULL,
 		varValuePtr, (TCL_LEAVE_ERR_MSG | TCL_PARSE_PART1));
 	if (newValuePtr == NULL) {
-	    if (createdNewObj) {
+	    if (createdNewObj && !createVar) {
 		Tcl_DecrRefCount(varValuePtr); /* free unneeded obj */
 	    }
 	    return TCL_ERROR;
@@ -2779,8 +2799,8 @@ Tcl_ArrayObjCmd(dummy, interp, objc, objv)
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
-    static char *arrayOptions[] = {"anymore", "donesearch", "exists", "get", 
-            "names", "nextelement", "set", "size", "startsearch", 
+    static char *arrayOptions[] = {"anymore", "donesearch", "exists",
+	    "get", "names", "nextelement", "set", "size", "startsearch", 
             (char *) NULL};
     Var *varPtr, *arrayPtr;
     Tcl_HashEntry *hPtr;
@@ -2804,19 +2824,17 @@ Tcl_ArrayObjCmd(dummy, interp, objc, objv)
      * Locate the array variable (and it better be an array).
      * THIS FAILS IF A NAME OBJECT'S STRING REP HAS A NULL BYTE.
      */
+    
     varName = TclGetStringFromObj(objv[2], (int *) NULL);
     varPtr = TclLookupVar(interp, varName, (char *) NULL, /*flags*/ 0,
             /*msg*/ 0, /*createPart1*/ 0, /*createPart2*/ 0, &arrayPtr);
 
     notArray = 0;
-    if (varPtr == NULL) {
+    if ((varPtr == NULL) || !TclIsVarArray(varPtr)
+	    || TclIsVarUndefined(varPtr)) {
 	notArray = 1;
-    } else {
-	if (!TclIsVarArray(varPtr)) {
-	    notArray = 1;
-	}
     }
-
+    
     switch (index) {
         case 0: {        /* anymore */
 	    ArraySearch *searchPtr;
@@ -2921,22 +2939,23 @@ Tcl_ArrayObjCmd(dummy, interp, objc, objv)
 		}
 		
 		namePtr = Tcl_NewStringObj(name, -1);
-		result = Tcl_ListObjAppendElement(interp, resultPtr, namePtr);
+		result = Tcl_ListObjAppendElement(interp, resultPtr,
+		        namePtr);
 		if (result != TCL_OK) {
-		    Tcl_DecrRefCount(namePtr); /* free unneeded name object */
+		    Tcl_DecrRefCount(namePtr); /* free unneeded name obj */
 		    return result;
 		}
-	    
-		if (varPtr2->value.objPtr == NULL) {
-		     TclNewObj(valuePtr);
-		} else {
-		    valuePtr = varPtr2->value.objPtr;
+
+		valuePtr = Tcl_ObjGetVar2(interp, objv[2], namePtr,
+	                TCL_LEAVE_ERR_MSG);
+		if (valuePtr == NULL) {
+		    Tcl_DecrRefCount(namePtr); /* free unneeded name obj */
+		    return result;
 		}
-		result = Tcl_ListObjAppendElement(interp, resultPtr, valuePtr);
+		result = Tcl_ListObjAppendElement(interp, resultPtr,
+			valuePtr);
 		if (result != TCL_OK) {
-		    if (varPtr2->value.objPtr == NULL) {
-		        Tcl_DecrRefCount(valuePtr); /* free unneeded object */
-		    }
+		    Tcl_DecrRefCount(namePtr); /* free unneeded name obj */
 		    return result;
 		}
 	    }
@@ -3037,11 +3056,37 @@ Tcl_ArrayObjCmd(dummy, interp, objc, objv)
                         "list must have an even number of elements", -1);
 		return TCL_ERROR;
 	    }
-	    for (i = 0;  i < listLen;  i += 2) {
-	        if (Tcl_ObjSetVar2(interp, objv[2], elemPtrs[i], elemPtrs[i+1],
-		        TCL_LEAVE_ERR_MSG) == NULL) {
-		    result = TCL_ERROR;
-		    break;
+	    if (listLen > 0) {
+		for (i = 0;  i < listLen;  i += 2) {
+		    if (Tcl_ObjSetVar2(interp, objv[2], elemPtrs[i],
+			    elemPtrs[i+1], TCL_LEAVE_ERR_MSG) == NULL) {
+			result = TCL_ERROR;
+			break;
+		    }
+		}
+	    } else if (varPtr == NULL) {
+		/*
+		 * The list is empty and the array variable doesn't
+		 * exist yet: create the variable with an empty array
+		 * as the value.
+		 */
+
+		Tcl_Obj *namePtr, *valuePtr;
+
+		namePtr = Tcl_NewStringObj("tempElem", -1);
+		valuePtr = Tcl_NewObj();
+		if (Tcl_ObjSetVar2(interp, objv[2], namePtr, valuePtr,
+			/* flags*/ 0) == NULL) {
+		    Tcl_DecrRefCount(namePtr);
+		    Tcl_DecrRefCount(valuePtr);
+		    return TCL_ERROR;
+		}
+		result = Tcl_UnsetVar2(interp, varName, "tempElem",
+                        TCL_LEAVE_ERR_MSG);
+		if (result != TCL_OK) {
+		    Tcl_DecrRefCount(namePtr);
+		    Tcl_DecrRefCount(valuePtr);
+		    return result;
 		}
 	    }
 	    return result;
@@ -3206,6 +3251,21 @@ MakeUpvar(iPtr, framePtr, otherP1, otherP2, otherFlags, myName, myFlags)
                 myName, "\": unknown namespace", (char *) NULL);
             return TCL_ERROR;
         }
+	
+	/*
+	 * Check that we are not trying to create a namespace var linked to
+	 * a local variable in a procedure. If we allowed this, the local
+	 * variable in the shorter-lived procedure frame could go away
+	 * leaving the namespace var's reference invalid.
+	 */
+
+	if (otherPtr->nsPtr == NULL) {
+	    Tcl_AppendResult((Tcl_Interp *) iPtr, "bad variable name \"",
+                    myName, "\": upvar won't create namespace variable that refers to procedure variable",
+		    (char *) NULL);
+            return TCL_ERROR;
+        }
+	
 	hPtr = Tcl_CreateHashEntry(&nsPtr->varTable, tail, &new);
 	if (new) {
 	    varPtr = NewVar();

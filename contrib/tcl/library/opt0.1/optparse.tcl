@@ -13,9 +13,9 @@
 #             written initially with Brent Welch, itself initially
 #             based on work with Steve Uhler. Thanks them !
 #
-# SCCS: @(#) optparse.tcl 1.11 97/08/11 16:39:15
+# SCCS: @(#) optparse.tcl 1.13 97/08/21 11:50:42
 
-package provide opt 0.1
+package provide opt 0.2
 
 namespace eval ::tcl {
 
@@ -166,7 +166,11 @@ proc ::tcl::OptKeyRegister {desc {key ""}} {
 
     # are we processing flags (which makes a single program step)
     set inflags 0;
+
     set state {};
+
+    # flag used to detect that we just have a single (flags set) subprogram.
+    set empty 1;
 
     foreach item $desc {
 	if {$state == "args"} {
@@ -187,6 +191,7 @@ proc ::tcl::OptKeyRegister {desc {key ""}} {
                 # put the other regular stuff
                 lappend program $res;
 		set inflags 0;
+		set empty 0;
             }
         } else {
            if {$state == "flags"} {
@@ -195,11 +200,18 @@ proc ::tcl::OptKeyRegister {desc {key ""}} {
                set flagsprg [list [list "P" 1] $res];
            } else {
                lappend program $res;
+               set empty 0;
            }
        }
    }
    if {$inflags} {
-       lappend program $flagsprg;
+       if {$empty} {
+	   # We just have the subprogram, optimize and remove
+	   # unneeded level:
+	   set program $flagsprg;
+       } else {
+	   lappend program $flagsprg;
+       }
    }
 
    set OptDesc($key) $program;
@@ -629,12 +641,27 @@ proc ::tcl::OptCheckType {arg type {typeArgs ""}} {
         set hits 0
         set hitems {}
 	set i 1;
+
+	set larg [string tolower $arg];
+	set len  [string length $larg];
+	set last [expr $len-1];
+
         foreach item [lrange $desc 1 end] {
             set flag [OptName $item]
 	    # lets try to match case insensitively
-            if {[string match [string tolower $arg*] [string tolower $flag]]} {
-                lappend hitems $i;
-                incr hits;
+	    # (string length ought to be cheap)
+	    set lflag [string tolower $flag];
+	    if {$len == [string length $lflag]} {
+		if {[string compare $larg $lflag]==0} {
+		    # Exact match case
+		    OptSetPrgCounter desc $i;
+		    return 1;
+		}
+	    } else {
+		if {[string compare $larg [string range $lflag 0 $last]]==0} {
+		    lappend hitems $i;
+		    incr hits;
+		}
             }
 	    incr i;
         }
@@ -845,8 +872,8 @@ proc ::tcl::OptCheckType {arg type {typeArgs ""}} {
 		[list $item]
     }
 
-proc ::tcl::OptKeyError {prefix descKey} {
-    OptError $prefix [OptKeyGetDesc $descKey];
+proc ::tcl::OptKeyError {prefix descKey {header 0}} {
+    OptError $prefix [OptKeyGetDesc $descKey] $header;
 }
 
     # determine string length for nice tabulated output

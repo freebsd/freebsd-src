@@ -7,7 +7,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) cmdIL.test 1.17 97/07/11 15:33:16
+# SCCS: @(#) cmdIL.test 1.18 97/09/18 11:42:12
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -194,57 +194,60 @@ test cmdIL-4.3 {DictionaryCompare procedure, numerics, leading zeros} {
 test cmdIL-4.4 {DictionaryCompare procedure, numerics, leading zeros} {
     lsort -dictionary {a3b a03B}
 } {a3b a03B}
-test cmdIL-4.5 {DictionaryCompare procedure, numerics, different lengths} {
+test cmdIL-4.5 {DictionaryCompare procedure, numerics, leading zeros} {
+    lsort -dictionary {00000 000}
+} {000 00000}
+test cmdIL-4.6 {DictionaryCompare procedure, numerics, different lengths} {
     lsort -dictionary {a321b a03210b}
 } {a321b a03210b}
-test cmdIL-4.6 {DictionaryCompare procedure, numerics, different lengths} {
+test cmdIL-4.7 {DictionaryCompare procedure, numerics, different lengths} {
     lsort -dictionary {a03210b a321b}
 } {a321b a03210b}
-test cmdIL-4.7 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.8 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {48 6a 18b 22a 21aa 35 36}
 } {6a 18b 21aa 22a 35 36 48}
-test cmdIL-4.8 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.9 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a123x a123b}
 } {a123b a123x}
-test cmdIL-4.9 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.10 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a123b a123x}
 } {a123b a123x}
-test cmdIL-4.10 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.11 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a1b aab}
 } {a1b aab}
-test cmdIL-4.11 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.12 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a1b a!b}
 } {a!b a1b}
-test cmdIL-4.12 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.13 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a1b2c a1b1c}
 } {a1b1c a1b2c}
-test cmdIL-4.13 {DictionaryCompare procedure, numerics} {
+test cmdIL-4.14 {DictionaryCompare procedure, numerics} {
     lsort -dictionary {a1b2c a1b3c}
 } {a1b2c a1b3c}
-test cmdIL-4.14 {DictionaryCompare procedure, long numbers} {
+test cmdIL-4.15 {DictionaryCompare procedure, long numbers} {
     lsort -dictionary {a7654884321988762b a7654884321988761b}
 } {a7654884321988761b a7654884321988762b}
-test cmdIL-4.15 {DictionaryCompare procedure, long numbers} {
+test cmdIL-4.16 {DictionaryCompare procedure, long numbers} {
     lsort -dictionary {a8765488432198876b a7654884321988761b}
 } {a7654884321988761b a8765488432198876b}
-test cmdIL-4.16 {DictionaryCompare procedure, case} {
+test cmdIL-4.17 {DictionaryCompare procedure, case} {
     lsort -dictionary {aBCd abcc}
 } {abcc aBCd}
-test cmdIL-4.17 {DictionaryCompare procedure, case} {
+test cmdIL-4.18 {DictionaryCompare procedure, case} {
     lsort -dictionary {aBCd abce}
 } {aBCd abce}
-test cmdIL-4.18 {DictionaryCompare procedure, case} {
+test cmdIL-4.19 {DictionaryCompare procedure, case} {
     lsort -dictionary {abcd ABcc}
 } {ABcc abcd}
-test cmdIL-4.19 {DictionaryCompare procedure, case} {
+test cmdIL-4.20 {DictionaryCompare procedure, case} {
     lsort -dictionary {abcd ABce}
 } {abcd ABce}
-test cmdIL-4.20 {DictionaryCompare procedure, case} {
+test cmdIL-4.21 {DictionaryCompare procedure, case} {
     lsort -dictionary {abCD ABcd}
 } {ABcd abCD}
-test cmdIL-4.21 {DictionaryCompare procedure, case} {
+test cmdIL-4.22 {DictionaryCompare procedure, case} {
     lsort -dictionary {ABcd aBCd}
 } {ABcd aBCd}
-test cmdIL-4.22 {DictionaryCompare procedure, case} {
+test cmdIL-4.23 {DictionaryCompare procedure, case} {
     lsort -dictionary {ABcd AbCd}
 } {ABcd AbCd}

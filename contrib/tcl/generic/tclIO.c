@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIO.c 1.268 97/07/28 14:20:36
+ * SCCS: @(#) tclIO.c 1.272 97/10/22 10:27:53
  */
 
 #include	"tclInt.h"
@@ -4352,7 +4352,7 @@ Tcl_SetChannelOption(interp, chan, optionName, newValue)
 	if (writeMode) {
 	    if (*writeMode == '\0') {
 		/* Do nothing. */
-	    } else if (strcmp(argv[0], "auto") == 0) {
+	    } else if (strcmp(writeMode, "auto") == 0) {
 		/*
 		 * This is a hack to get TCP sockets to produce output
 		 * in CRLF mode if they are being set into AUTO mode.
@@ -4614,6 +4614,7 @@ ChannelTimerProc(clientData)
     Channel *chanPtr = (Channel *) clientData;
 
     if (!(chanPtr->flags & CHANNEL_GETS_BLOCKED)
+	    && (chanPtr->interestMask & TCL_READABLE)
 	    && (chanPtr->inQueueHead != (ChannelBuffer *) NULL)
 	    && (chanPtr->inQueueHead->nextRemoved <
 		    chanPtr->inQueueHead->nextAdded)) {
@@ -5458,9 +5459,11 @@ TclTestChannelEventCmd(dummy, interp, argc, argv)
             mask = TCL_READABLE;
         } else if (strcmp(argv[3], "writable") == 0) {
             mask = TCL_WRITABLE;
-        } else {
+        } else if (strcmp(argv[3], "none") == 0) {
+            mask = 0;
+	} else {
             Tcl_AppendResult(interp, "bad event name \"", argv[3],
-                    "\": must be readable or writable", (char *) NULL);
+                    "\": must be readable, writable, or none", (char *) NULL);
             return TCL_ERROR;
         }
 
@@ -5536,8 +5539,14 @@ TclTestChannelEventCmd(dummy, interp, argc, argv)
         for (esPtr = chanPtr->scriptRecordPtr;
                  esPtr != (EventScriptRecord *) NULL;
                  esPtr = esPtr->nextPtr) {
-            Tcl_AppendElement(interp,
-                    esPtr->mask == TCL_READABLE ? "readable" : "writable");
+	    char *event;
+	    if (esPtr->mask) {
+		event = ((esPtr->mask == TCL_READABLE)
+			? "readable" : "writable");
+	    } else {
+		event = "none";
+	    }
+            Tcl_AppendElement(interp, event);
             Tcl_AppendElement(interp, esPtr->script);
         }
         return TCL_OK;
@@ -5562,8 +5571,49 @@ TclTestChannelEventCmd(dummy, interp, argc, argv)
         return TCL_OK;
     }
 
+    if  ((cmd[0] == 's') && (strncmp(cmd, "set", (unsigned) len) == 0)) {
+        if (argc != 5) {
+            Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+                    " channelName delete index event\"", (char *) NULL);
+            return TCL_ERROR;
+        }
+        if (Tcl_GetInt(interp, argv[3], &index) == TCL_ERROR) {
+            return TCL_ERROR;
+        }
+        if (index < 0) {
+            Tcl_AppendResult(interp, "bad event index: ", argv[3],
+                    ": must be nonnegative", (char *) NULL);
+            return TCL_ERROR;
+        }
+        for (i = 0, esPtr = chanPtr->scriptRecordPtr;
+                 (i < index) && (esPtr != (EventScriptRecord *) NULL);
+                 i++, esPtr = esPtr->nextPtr) {
+	    /* Empty loop body. */
+        }
+        if (esPtr == (EventScriptRecord *) NULL) {
+            Tcl_AppendResult(interp, "bad event index ", argv[3],
+                    ": out of range", (char *) NULL);
+            return TCL_ERROR;
+        }
+
+        if (strcmp(argv[4], "readable") == 0) {
+            mask = TCL_READABLE;
+        } else if (strcmp(argv[4], "writable") == 0) {
+            mask = TCL_WRITABLE;
+        } else if (strcmp(argv[4], "none") == 0) {
+            mask = 0;
+	} else {
+            Tcl_AppendResult(interp, "bad event name \"", argv[4],
+                    "\": must be readable, writable, or none", (char *) NULL);
+            return TCL_ERROR;
+        }
+	esPtr->mask = mask;
+        Tcl_CreateChannelHandler((Tcl_Channel) chanPtr, mask,
+                ChannelEventScriptInvoker, (ClientData) esPtr);
+	return TCL_OK;
+    }    
     Tcl_AppendResult(interp, "bad command ", cmd, ", must be one of ",
-            "add, delete, list, or removeall", (char *) NULL);
+            "add, delete, list, set, or removeall", (char *) NULL);
     return TCL_ERROR;
 
 }
@@ -5856,7 +5906,7 @@ CopyData(csPtr, mask)
 	if (errObj) {
 	    Tcl_ListObjAppendElement(interp, cmdPtr, errObj);
 	}
-	if (Tcl_EvalObj(interp, cmdPtr) != TCL_OK) {
+	if (Tcl_GlobalEvalObj(interp, cmdPtr) != TCL_OK) {
 	    Tcl_BackgroundError(interp);
 	    result = TCL_ERROR;
 	}

@@ -1,6 +1,6 @@
 Recent user-visible changes to Tcl:
 
-SCCS: @(#) changes 1.293 97/08/13 17:50:35
+SCCS: @(#) changes 1.338 97/11/25 08:30:52
 
 1. No more [command1] [command2] construct for grouping multiple
 commands on a single command line.
@@ -3101,7 +3101,7 @@ library, is now provided. (DL)
 7/1/97 (feature change) compat/getcwd.c removed and changed the
 only place where getcwd is used so a new USEGETWD flag selects
 the use of the replacement "getwd". Adding this flag is recommended
-for Solaris (because getcwd on solaris uses a pipe to pwd(1)!).(DL)
+for SunOS 4 (because getcwd on SunOS 4 uses a pipe to pwd(1)!). (DL)
 
 7/7/97 (feature change) The split command now supports binary data (i.e.,
 null characters in strings). (BL)
@@ -3272,4 +3272,182 @@ modify it).  This makes the Tcl 8.0 behavior almost identical to 7.6
 except that the default precision is 12 instead of 6. (JO)
 *** POTENTIAL INCOMPATIBILITY ***
 
------------------ Released 8.0, 8/13/97 -----------------------
+----------------- Released 8.0, 8/18/97 -----------------------
+
+8/19/97 (bug fix) Minimal fix for glob -nocomplain bugs:
+"glob -nocomplain unreadableDir/*" was generating an anonymous 
+error. More in depth fixes will come with 8.1. (DL).
+
+8/20/97 (bug fix) Removed check for FLT_MIN in binary command so
+underflow conditions are handled by the compiler automatic
+conversions. (SS)
+
+8/20/97 (bug fixes) Fixed several compilation-related bugs:
+    - Array cmd wasn't detecting arrays that, while compiled, do not yet
+      exist (e.g., are marked undefined since they haven't been assigned
+      to yet).
+    - The GetToken procedure in tclCompExpr.c wasn't recognizing properly
+      whether an integer token was invalid. For example, "0x$" is not
+      a valid integer.
+    - Performance bug in TclExecuteByteCode: the size of its stack frame
+      was reduced by over 20% by moving errorInfo code elsewhere.
+    - Uninitialized memory read error in tclCompile.c. (BL)
+
+8/21/97 (bug fix) safe::interpConfigure now behave like Tk widget's
+configure : it changes only the options you provide and you can get
+the current value of any single option. New ?-nested boolean? and
+?-statics boolean? for all safe::interp* commands but we still
+accept (upward compatibility) the previously defined non valued
+flags ?-noStatics? and ?-nestedLoadOk?. Improved the documentation. (DL).
+
+8/22/97 (bug fix) Updated PrintDbl.3 to reflect the fact that the
+tcl_precision variable is still used and that it is now shared by all
+interpreters. (BL)
+
+8/25/97 (bug fix) Fixed array access bug in IllegalExprOperandType
+procedure in tclExecute.c: it was not properly supporting the || and &&
+operators. (BL)
+
+8/27/97 (bug fix) In cases where a channel handler was created with an
+empty event mask while data was still buffered in the channel, the
+channel code would get stuck spinning on a timer that would starve
+idle handlers.  This mostly happened in Tk when reading from stdin. (SS)
+
+9/4/97 (bug fix) Slave interps now inherit the maximum recursion limit
+of their parent instead of starting back at the default. {nb: this still
+does not prevent stack overflow by multi-interps recursion or aliasing} (DL)
+
+9/11/97 (bug fix) An uninitialized variable in Tcl_WaitPid caused
+pipes to fail to report eof properly under Windows. (SS)
+
+9/12/97 (bug fix) "exec" was misidentifying some DOS executables as not 
+executable. (CCS)
+
+9/14/97 (bug fix) Was using the wrong structure in sizeof operation in
+tclUnixChan.c. (JL)
+
+9/15/97 (bug fix) Fixed notifier to break out of do-one-event loop if
+Tcl_WaitForEvent returns 1, so that callers of Tcl_DoOneEvent will get
+a chance to check whether the event just handled is significant. This
+affected mainly recursive calls to Tcl_VWaitCmd; these did not get a
+chance to notice that the variable they were waiting for has been set
+and thus they didn't terminate the vwait. (JL, DL, SS)
+
+9/15/97 (bug fix) Alignment problems in "binary format" would cause a
+crash on some platforms when formatting floating point numbers. (SS)
+
+9/15/97 (bug fix) Fixed bug in Macintosh socket code.  Now passes all
+tests in socket.test that are not platform specific. (Thanks to Mark
+Roseman for the pointer on the fix.)  (RJ)
+
+9/18/97 (bug fix) Fixed bug -dictionary option of lsort that could
+cause the compare function to run off the end of an array if the
+number only contained 0's. (Thanks to Greg Couch for the report.) (RJ)
+
+9/18/97 (bug fix) TclFinalizeEnvironment was not cleaning up 
+properly. (DL, JI)
+
+9/18/97 (bug fix) Fixed long-standing bug where an "array get" command
+did not trigger traces on the array or its elements. (BL)
+
+9/18/97 (bug fixes) Fixed compilation-related bugs:
+    - Fixed errorInfo traceback information for toplevel coomands that
+      contain nested commands.
+    - In the expr command, && and || now accept boolean operands as well
+      as numeric ones. (BL)
+
+9/22/97 (bug fix) Fixed bug that prevented translation modes from being
+set independently for input and output on sockets if input was "auto". (JL)
+
+9/24/97 (bug fix) Tcl_EvalFile(3) and thus source(n) now works fine on
+files containing NUL chars. (DL)
+
+9/26/97 (bug fix) Fixed use of uninitialized memory in the environ array
+that later could cause random core dumps. Applies to all platforms. (JL)
+
+9/26/97 (bug fix) Fixed use of uninitialized memory in socket address data
+structure under some circumstances. This could cause random core dumps.
+This applies only to Unix. (JL)
+
+9/26/97 (bug fix) Opening files on PC-NFS volumes would cause a hang
+until the system timed after the file was closed. (SS)
+
+10/6/97 (bug fix) The join(n) command, though objectified, was loosing
+NULs in the joinString and in list elements after the 2nd one.
+Now you can "join $list \0" for instance. (DL)
+
+10/9/97 (bug fix) Under windows, if env(TMP) or env(TEMP) referred to a
+non-existent directory, exec would fail when trying to create its temporary
+files. (CCS)
+
+10/9/97 (bug fix) Under mac and windows, "info hostname" would crash if 
+sockets were installed but the hostname could not be determined anyhow.
+Tcl_GetHostName() was returning NULL when it should have been returning 
+an empty string. (CCS)
+
+10/10/97 (bug fix) "file attribute /" returned error on windows. (CCS)
+
+10/10/97 (bug fix) Fixed the auto_load procedure to handle procedures
+defined in namespaces better.  Also fixed pgk_mkIndex so it sees procedures
+defined in nested namespaces.  Index entries are still only made for
+exported procedures. (BW)
+
+10/13/97 (bug fix) On unix, for files with unknown group or owner
+attributes, querying the "file attributes" would return an error rather than
+returning the group's or owner's id number, although tha command accepts
+numbers when setting the file's group or owner.  (CCS)
+
+10/22/97 (bug fix) "fcopy" did not eval the callback script at the
+global scope. (SS)
+
+10/22/97 (bug fix) Fixed the signature of the CopyDone callback used in
+the http package(s) so they can handle error cases properly. (BW)
+
+10/28/97 (bug fixes) Fixed a problem where lappend would free the Tcl object
+in a variable if a Tcl_ObjSetVar2 failed because of an error calling a trace
+on the variable. (BL)
+
+10/28/97 (bug fix) Changed binary scan to properly handle sign
+extension of integers on 64-bit or larger machines. (SS)
+
+11/3/97 (bug fixes) Fixed several bugs:
+    - expressions such as "expr ($x)" must be compiled out-of-line
+      (call the expr command procedure at runtime) to ensure the correct
+      behavior when "$x" is an expression such as "5+10".
+    - "array set a {}" now creates a new array var with an empty array
+      value if the var didn't already exist.
+    - "lreplace $foo end end" no longer returns an error (just an empty
+      list) if foo is empty.
+    - upvar will no longer create a variable in a namespace that refers
+      to a variable in a procedure.
+    - deleting a command trace within a command trace callback would
+      make the code that calls traces to reference freed memory.
+    - significantly sped up "string first" and "string last" (fix from
+      darrel@gemstone.com).
+    - seg fault in Tcl_NewStringObj() when a NULL is passed as the byte
+      pointer argument and Tcl is compiled with -DTCL_MEM_DEBUG.
+    - documentation and error msg fixes. (BL)
+
+11/3/97 (bug fix) Fixed a number of I/O bugs related to word sizes on
+64-bit machines. (SS)
+
+11/6/97 (bug fix) The exit code of the first process created by Tcl
+on Windows was not properly reported due to an initialization
+problem. (SS)
+
+----------------- Released 8.0p1, 11/7/97 -----------------------
+
+11/19/97 (bug fix) Fixed bug in linsert where it sometimes accidently
+cleared out a shared argument list object. (BL).
+
+11/19/97 (bug fix) Autoloading in namespaces was not working properly.
+auto_mkindex is still not really namespace aware but most common
+cases should now be handled properly (see init.test). (BW, DL)
+
+11/20/97 (enhancement) Made the changes required by the new Apple
+Universal Headers V.3.0, so that Tcl will compile with CW Pro 2.
+
+11/24/97 (bug fix) Fixed tests in clock test suite that needed the
+-gmt flag set.  Thanks to Jan Nijtmans for reporting the problem. (RJ)
+
+----------------- Released 8.0p2, 11/25/97 -----------------------

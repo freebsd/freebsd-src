@@ -12,7 +12,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) safe.tcl 1.21 97/08/13 15:37:22
+# SCCS: @(#) safe.tcl 1.26 97/08/21 11:57:20
 
 #
 # The implementation is based on namespaces. These naming conventions
@@ -22,13 +22,13 @@
 #
 
 # Needed utilities package
-package require opt 0.1;
+package require opt 0.2;
 
 # Create the safe namespace
 namespace eval ::safe {
 
     # Exported API:
-    namespace export interp \
+    namespace export interpCreate interpInit interpConfigure interpDelete \
 	    interpAddToAccessPath interpFindInAccessPath \
 	    setLogCmd ;
 
@@ -36,65 +36,243 @@ namespace eval ::safe {
 proc ::safe::interpCreate {} {}
 proc ::safe::interpInit {} {}
 proc ::safe::interpConfigure {} {}
-proc ::safe::interpDelete {} {}
+
+
+    ####
+    #
+    # Setup the arguments parsing
+    #
+    ####
+
+    # Share the descriptions
+    set temp [::tcl::OptKeyRegister {
+	{-accessPath -list {} "access path for the slave"}
+	{-noStatics "prevent loading of statically linked pkgs"}
+	{-statics true "loading of statically linked pkgs"}
+	{-nestedLoadOk "allow nested loading"}
+	{-nested false "nested loading"}
+	{-deleteHook -script {} "delete hook"}
+    }]
+
+    # create case (slave is optional)
+    ::tcl::OptKeyRegister {
+	{?slave? -name {} "name of the slave (optional)"}
+    } ::safe::interpCreate ;
+    # adding the flags sub programs to the command program
+    # (relying on Opt's internal implementation details)
+    lappend ::tcl::OptDesc(::safe::interpCreate) $::tcl::OptDesc($temp);
+
+    # init and configure (slave is needed)
+    ::tcl::OptKeyRegister {
+	{slave -name {} "name of the slave"}
+    } ::safe::interpIC;
+    # adding the flags sub programs to the command program
+    # (relying on Opt's internal implementation details)
+    lappend ::tcl::OptDesc(::safe::interpIC) $::tcl::OptDesc($temp);
+    # temp not needed anymore
+    ::tcl::OptKeyDelete $temp;
+
+
+    # Helper function to resolve the dual way of specifying staticsok
+    # (either by -noStatics or -statics 0)
+    proc InterpStatics {} {
+	foreach v {Args statics noStatics} {
+	    upvar $v $v
+	}
+	set flag [::tcl::OptProcArgGiven -noStatics];
+	if {$flag && ($noStatics == $statics) 
+	          && ([::tcl::OptProcArgGiven -statics])} {
+	    return -code error\
+		    "conflicting values given for -statics and -noStatics";
+	}
+	if {$flag} {
+	    return [expr {!$noStatics}];
+	} else {
+	    return $statics
+	}
+    }
+
+    # Helper function to resolve the dual way of specifying nested loading
+    # (either by -nestedLoadOk or -nested 1)
+    proc InterpNested {} {
+	foreach v {Args nested nestedLoadOk} {
+	    upvar $v $v
+	}
+	set flag [::tcl::OptProcArgGiven -nestedLoadOk];
+	# note that the test here is the opposite of the "InterpStatics"
+	# one (it is not -noNested... because of the wanted default value)
+	if {$flag && ($nestedLoadOk != $nested) 
+	          && ([::tcl::OptProcArgGiven -nested])} {
+	    return -code error\
+		    "conflicting values given for -nested and -nestedLoadOk";
+	}
+	if {$flag} {
+	    # another difference with "InterpStatics"
+	    return $nestedLoadOk
+	} else {
+	    return $nested
+	}
+    }
+
+    ####
+    #
+    #  API entry points that needs argument parsing :
+    #
+    ####
 
 
     # Interface/entry point function and front end for "Create"
-    ::tcl::OptProc interpCreate {
-	{?slave? -name {} "name of the slave (optional)"}
-	{-accessPath -list {} "access path for the slave"}
-	{-noStatics "prevent loading of statically linked pkgs"}
-	{-nestedLoadOk "allow nested loading"}
-	{-deleteHook -script {} "delete hook"}
-    } {
+    proc interpCreate {args} {
+	set Args [::tcl::OptKeyParse ::safe::interpCreate $args]
 	InterpCreate $slave $accessPath \
-		[expr {!$noStatics}] $nestedLoadOk $deleteHook;
+		[InterpStatics] [InterpNested] $deleteHook;
     }
 
-    # Interface/entry point function and front end for "Init"
-    ::tcl::OptProc interpInit {
-	{slave -name {} "name of the slave"}
-	{-accessPath -list {} "access path for the slave"}
-	{-noStatics "prevent loading of statically linked pkgs"}
-	{-nestedLoadOk "allow nested loading"}
-	{-deleteHook -script {} "delete hook"}
-    } {
+    proc interpInit {args} {
+	set Args [::tcl::OptKeyParse ::safe::interpIC $args]
+	if {![::interp exists $slave]} {
+	    return -code error \
+		    "\"$slave\" is not an interpreter";
+	}
 	InterpInit $slave $accessPath \
-		[expr {!$noStatics}] $nestedLoadOk $deleteHook;
+		[InterpStatics] [InterpNested] $deleteHook;
+    }
+
+    proc CheckInterp {slave} {
+	if {![IsInterp $slave]} {
+	    return -code error \
+		    "\"$slave\" is not an interpreter managed by ::safe::" ;
+	}
     }
 
     # Interface/entry point function and front end for "Configure"
-    ::tcl::OptProc interpConfigure {
-	{slave -name {} "name of the slave"}
-	{-accessPath -list {} "access path for the slave"}
-	{-noStatics "prevent loading of statically linked pkgs"}
-	{-nestedLoadOk "allow nested loading"}
-	{-deleteHook -script {} "delete hook"}
-    } {
-	# Check that at least one flag was given:
-	if {[string match "*-*" $Args]} {
-	    # reconfigure everything (because otherwise you can't
-	    # change -noStatics for instance)
-	    InterpConfigure $slave $accessPath \
-		    [expr {!$noStatics}] $nestedLoadOk $deleteHook;
-	    # auto_reset the slave (to completly synch the new access_path)
-	    if {[catch {::interp eval $slave {auto_reset}} msg]} {
-		Log $slave "auto_reset failed: $msg";
+    # This code is awfully pedestrian because it would need
+    # more coupling and support between the way we store the
+    # configuration values in safe::interp's and the Opt package
+    # Obviously we would like an OptConfigure
+    # to avoid duplicating all this code everywhere. -> TODO
+    # (the app should share or access easily the program/value
+    #  stored by opt)
+    # This is even more complicated by the boolean flags with no values
+    # that we had the bad idea to support for the sake of user simplicity
+    # in create/init but which makes life hard in configure...
+    # So this will be hopefully written and some integrated with opt1.0
+    # (hopefully for tcl8.1 ?)
+    proc interpConfigure {args} {
+	switch [llength $args] {
+	    1 {
+		# If we have exactly 1 argument
+		# the semantic is to return all the current configuration
+		# We still call OptKeyParse though we know that "slave"
+		# is our given argument because it also checks
+		# for the "-help" option.
+		set Args [::tcl::OptKeyParse ::safe::interpIC $args];
+		CheckInterp $slave;
+		set res {}
+		lappend res [list -accessPath [Set [PathListName $slave]]]
+		lappend res [list -statics    [Set [StaticsOkName $slave]]]
+		lappend res [list -nested     [Set [NestedOkName $slave]]]
+		lappend res [list -deleteHook [Set [DeleteHookName $slave]]]
+		join $res
 	    }
-	} else {
-	    # none was given, lets return current values instead
-	    set res {}
-	    lappend res [list -accessPath [Set [PathListName $slave]]]
-	    if {![Set [StaticsOkName $slave]]} {
-		lappend res "-noStatics"
+	    2 {
+		# If we have exactly 2 arguments
+		# the semantic is a "configure get"
+		::tcl::Lassign $args slave arg;
+		# get the flag sub program (we 'know' about Opt's internal
+		# representation of data)
+		set desc [lindex [::tcl::OptKeyGetDesc ::safe::interpIC] 2]
+		set hits [::tcl::OptHits desc $arg];
+                if {$hits > 1} {
+                    return -code error [::tcl::OptAmbigous $desc $arg]
+                } elseif {$hits == 0} {
+                    return -code error [::tcl::OptFlagUsage $desc $arg]
+                }
+		CheckInterp $slave;
+		set item [::tcl::OptCurDesc $desc];
+		set name [::tcl::OptName $item];
+		switch -exact -- $name {
+		    -accessPath {
+			return [list -accessPath [Set [PathListName $slave]]]
+		    }
+		    -statics {
+			return [list -statics    [Set [StaticsOkName $slave]]]
+		    }
+		    -nested {
+			return [list -nested     [Set [NestedOkName $slave]]]
+		    }
+		    -deleteHook {
+			return [list -deleteHook [Set [DeleteHookName $slave]]]
+		    }
+		    -noStatics {
+			# it is most probably a set in fact
+			# but we would need then to jump to the set part
+			# and it is not *sure* that it is a set action
+			# that the user want, so force it to use the
+			# unambigous -statics ?value? instead:
+			return -code error\
+				"ambigous query (get or set -noStatics ?)\
+				use -statics instead";
+		    }
+		    -nestedLoadOk {
+			return -code error\
+				"ambigous query (get or set -nestedLoadOk ?)\
+				use -nested instead";
+		    }
+		    default {
+			return -code error "unknown flag $name (bug)";
+		    }
+		}
 	    }
-	    if {[Set [NestedOkName $slave]]} {
-		lappend res "-nestedLoadOk"
+	    default {
+		# Otherwise we want to parse the arguments like init and create
+		# did
+		set Args [::tcl::OptKeyParse ::safe::interpIC $args];
+		CheckInterp $slave;
+		# Get the current (and not the default) values of
+		# whatever has not been given:
+		if {![::tcl::OptProcArgGiven -accessPath]} {
+		    set doreset 1
+		    set accessPath [Set [PathListName $slave]]
+		} else {
+		    set doreset 0
+		}
+		if {    (![::tcl::OptProcArgGiven -statics]) 
+                     && (![::tcl::OptProcArgGiven -noStatics]) } {
+		    set statics    [Set [StaticsOkName $slave]]
+		} else {
+		    set statics    [InterpStatics]
+		}
+		if {    ([::tcl::OptProcArgGiven -nested]) 
+                     || ([::tcl::OptProcArgGiven -nestedLoadOk]) } {
+		    set nested     [InterpNested]
+		} else {
+		    set nested     [Set [NestedOkName $slave]]
+		}
+		if {![::tcl::OptProcArgGiven -deleteHook]} {
+		    set deleteHook [Set [DeleteHookName $slave]]
+		}
+		# we can now reconfigure :
+		InterpSetConfig $slave $accessPath \
+			$statics $nested $deleteHook;
+		# auto_reset the slave (to completly synch the new access_path)
+		if {$doreset} {
+		    if {[catch {::interp eval $slave {auto_reset}} msg]} {
+			Log $slave "auto_reset failed: $msg";
+		    } else {
+			Log $slave "successful auto_reset" NOTICE;
+		    }
+		}
 	    }
-	    lappend res [list -deleteHook [Set [DeleteHookName $slave]]]
-	    join $res
 	}
     }
+
+
+    ####
+    #
+    #  Functions that actually implements the exported APIs
+    #
+    ####
 
 
     #
@@ -139,7 +317,7 @@ proc ::safe::interpDelete {} {}
 
 
     #
-    # InterpConfigure (was setAccessPath) :
+    # InterpSetConfig (was setAccessPath) :
     #    Sets up slave virtual auto_path and corresponding structure
     #    within the master. Also sets the tcl_library in the slave
     #    to be the first directory in the path.
@@ -147,7 +325,7 @@ proc ::safe::interpDelete {} {}
     #    you probably need to call "auto_reset" in the slave in order that it
     #    gets the right auto_index() array values.
 
-    proc ::safe::InterpConfigure {slave access_path staticsok\
+    proc ::safe::InterpSetConfig {slave access_path staticsok\
 	    nestedok deletehook} {
 
 	# determine and store the access path if empty
@@ -259,7 +437,7 @@ proc ::safe::interpAddToAccessPath {slave path} {
 
 	# Configure will generate an access_path when access_path is
 	# empty.
-	InterpConfigure $slave $access_path $staticsok $nestedok $deletehook;
+	InterpSetConfig $slave $access_path $staticsok $nestedok $deletehook;
 
 	# These aliases let the slave load files to define new commands
 
@@ -336,7 +514,7 @@ proc ::safe::interpAddToAccessPath {slave path} {
     # This procedure deletes a safe slave managed by Safe Tcl and
     # cleans up associated state:
 
-    proc ::safe::interpDelete {slave} {
+proc ::safe::interpDelete {slave} {
 
         Log $slave "About to delete" NOTICE;
 
@@ -395,7 +573,6 @@ proc ::safe::setLogCmd {args} {
     # ------------------- END OF PUBLIC METHODS ------------
 
 
-
     #
     # sets the slave auto_path to the master recorded value.
     # also sets tcl_library to the first token of the virtual path.
@@ -413,10 +590,16 @@ proc ::safe::setLogCmd {args} {
     # the array variable name for slave foo is thus "Sfoo"
     # and for sub slave {foo bar} "Sfoo bar" (spaces are handled
     # ok everywhere (or should))
-    # We add the S prefix to avoid that a slave interp called Log
-    # would smash our Log variable.
+    # We add the S prefix to avoid that a slave interp called "Log"
+    # would smash our "Log" variable.
     proc InterpStateName {slave} {
 	return "S$slave";
+    }
+
+    # Check that the given slave is "one of us"
+    proc IsInterp {slave} {
+	expr {    ([Exists [InterpStateName $slave]]) 
+	       && ([::interp exists $slave])}
     }
 
     # returns the virtual token for directory number N

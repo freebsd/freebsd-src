@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclFileName.c 1.31 97/08/05 15:23:04
+ * SCCS: @(#) tclFileName.c 1.32 97/08/19 18:44:03
  */
 
 #include "tclInt.h"
@@ -1229,7 +1229,16 @@ Tcl_GlobCmd(dummy, interp, argc, argv)
 	result = TclDoGlob(interp, separators, &buffer, tail);
 	if (result != TCL_OK) {
 	    if (noComplain) {
+		/*
+		 * We should in fact pass down the nocomplain flag 
+		 * or save the interp result or use another mecanism
+		 * so the interp result is not mangled on errors in that case.
+		 * but that would a bigger change than reasonable for a patch
+		 * release.
+		 * (see fileName.test 15.2-15.4 for expected behaviour)
+		 */
 		Tcl_ResetResult(interp);
+		result = TCL_OK;
 		continue;
 	    } else {
 		goto done;

@@ -6,9 +6,6 @@
 # element name is the name of a command and the value is
 # a script that loads the command.
 
-set auto_index(unknown) [list source [file join $dir init.tcl]]
-set auto_index(auto_load) [list source [file join $dir init.tcl]]
-set auto_index(auto_execok) [list source [file join $dir init.tcl]]
 set auto_index(auto_execok) [list source [file join $dir init.tcl]]
 set auto_index(auto_reset) [list source [file join $dir init.tcl]]
 set auto_index(auto_mkindex) [list source [file join $dir init.tcl]]
@@ -26,8 +23,8 @@ set auto_index(tcl_startOfPreviousWord) [list source [file join $dir word.tcl]]
 set auto_index(::safe::interpCreate) [list source [file join $dir safe.tcl]]
 set auto_index(::safe::interpInit) [list source [file join $dir safe.tcl]]
 set auto_index(::safe::interpConfigure) [list source [file join $dir safe.tcl]]
-set auto_index(::safe::interpDelete) [list source [file join $dir safe.tcl]]
 set auto_index(::safe::interpFindInAccessPath) [list source [file join $dir safe.tcl]]
 set auto_index(::safe::interpAddToAccessPath) [list source [file join $dir safe.tcl]]
+set auto_index(::safe::interpDelete) [list source [file join $dir safe.tcl]]
 set auto_index(::safe::setLogCmd) [list source [file join $dir safe.tcl]]
 set auto_index(history) [list source [file join $dir history.tcl]]

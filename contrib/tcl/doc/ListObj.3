@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) @(#) ListObj.3 1.9 97/06/03 13:51:42
+'\" SCCS: @(#) @(#) ListObj.3 1.10 97/10/08 11:36:58
 '\" 
 .so man.macros
 .TH Tcl_ListObj 3 8.0 Tcl "Tcl Library Procedures"
@@ -96,8 +96,8 @@ a pointer to the resulting list element object.
 Index of the starting list element that \fBTcl_ListObjReplace\fR
 is to replace.
 The list's first element has index 0.
-.AP int last in
-Index of the final list element that \fBTcl_ListObjReplace\fR
+.AP int count in
+The number of elements that \fBTcl_ListObjReplace\fR
 is to replace.
 .BE
 

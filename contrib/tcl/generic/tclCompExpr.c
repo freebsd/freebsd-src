@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCompExpr.c 1.31 97/08/07 10:14:07
+ * SCCS: @(#) tclCompExpr.c 1.34 97/11/03 14:29:18
  */
 
 #include "tclInt.h"
@@ -1596,7 +1596,7 @@ CompilePrimaryExpr(interp, infoPtr, flags, envPtr)
     HERE("primaryExpr", 13);
     theToken = infoPtr->token;
 
-    if (theToken != DOLLAR) {
+    if ((theToken != DOLLAR) && (theToken != OPEN_PAREN)) {
 	infoPtr->exprIsJustVarRef = 0;
     }
     switch (theToken) {
@@ -1995,27 +1995,28 @@ GetToken(interp, infoPtr, envPtr)
 			(char *) NULL);
 		return TCL_ERROR;
 	    }
-
-	    /*
-	     * Find/create an object in envPtr's object array that contains
-	     * the integer.
-	     */
+	    if (termPtr != src) {
+		/*
+		 * src was the start of a valid integer. Find/create an
+		 * object in envPtr's object array to contain the integer.
+		 */
 	    
-	    savedChar = *termPtr;
-	    *termPtr = '\0';
-	    objIndex = TclObjIndexForString(src, termPtr - src,
-		    /*allocStrRep*/ 0, /*inHeap*/ 0, envPtr);
-	    *termPtr = savedChar;  /* restore the saved char */
-
-	    objPtr = envPtr->objArrayPtr[objIndex];
-	    Tcl_InvalidateStringRep(objPtr);
-	    objPtr->internalRep.longValue = longValue;
-	    objPtr->typePtr = &tclIntType;
-	    
-	    infoPtr->token = LITERAL;
-	    infoPtr->objIndex = objIndex;
-	    infoPtr->next = termPtr;
-	    return TCL_OK;
+		savedChar = *termPtr;
+		*termPtr = '\0';
+		objIndex = TclObjIndexForString(src, termPtr - src,
+		        /*allocStrRep*/ 0, /*inHeap*/ 0, envPtr);
+		*termPtr = savedChar;  /* restore the saved char */
+		
+		objPtr = envPtr->objArrayPtr[objIndex];
+		Tcl_InvalidateStringRep(objPtr);
+		objPtr->internalRep.longValue = longValue;
+		objPtr->typePtr = &tclIntType;
+		
+		infoPtr->token = LITERAL;
+		infoPtr->objIndex = objIndex;
+		infoPtr->next = termPtr;
+		return TCL_OK;
+	    }
 	} else if (startsWithDigit || (*src == '.')
 	        || (*src == 'n') || (*src == 'N')) {
 	    errno = 0;
@@ -2057,7 +2058,8 @@ GetToken(interp, infoPtr, envPtr)
     if (*src == '{') {
 	int level = 0;		 /* The {} nesting level. */
 	int hasBackslashNL = 0;  /* Nonzero if '\newline' was found. */
-	char *string = src+1;	 /* Points just after the starting '{'. */
+	char *string = src;	 /* Set below to point just after the
+				  * starting '{'. */
 	char *last;		 /* Points just before terminating '}'. */
 	int numChars;		 /* Number of chars in braced string. */
 	char savedChar;		 /* Holds the character from string
@@ -2069,7 +2071,7 @@ GetToken(interp, infoPtr, envPtr)
 	 * Check first for any backslash-newlines, since we must treat
 	 * backslash-newlines specially (they must be replaced by spaces).
 	 */
-	
+
 	while (1) {
 	    if (src == infoPtr->lastChar) {
 		Tcl_ResetResult(interp);
@@ -2099,13 +2101,14 @@ GetToken(interp, infoPtr, envPtr)
 	}
 
 	/*
-	 * Create a string object for the braced string. This starts at
+	 * Create a string object for the braced string. This will start at
 	 * "string" and ends just after "last" (which points to the final
 	 * character before the terminating '}'). If backslash-newlines were
 	 * found, we copy characters one at a time into a heap-allocated
 	 * buffer and do backslash-newline substitutions.
 	 */
-	
+
+	string++;
 	numChars = (last - string + 1);
 	savedChar = string[numChars];
 	string[numChars] = '\0';

@@ -1,0 +1,149 @@
+# Functionality covered: this file contains a collection of tests for the
+# auto loading and namespaces.
+#
+# Sourcing this file into Tcl runs the tests and generates output for
+# errors. No output means no errors were found.
+#
+# Copyright (c) 1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) init.test 1.5 97/11/19 18:08:20
+
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+# Clear out any namespaces called test_ns_*
+catch {eval namespace delete [namespace children :: test_ns_*]}
+
+# Six cases - white box testing
+
+test init-1.1 {auto_qualify - absolute cmd - namespace} {
+    auto_qualify ::foo::bar ::blue
+} ::foo::bar
+
+test init-1.2 {auto_qualify - absolute cmd - global} {
+    auto_qualify ::global ::sub
+} global
+
+test init-1.3 {auto_qualify - no colons cmd - global} {
+    auto_qualify nocolons ::
+} nocolons 
+
+test init-1.4 {auto_qualify - no colons cmd - namespace} {
+    auto_qualify nocolons ::sub
+} {::sub::nocolons nocolons}
+
+test init-1.5 {auto_qualify - colons in cmd - global} {
+    auto_qualify foo::bar ::
+} ::foo::bar
+
+test init-1.6 {auto_qualify - colons in cmd - namespace} {
+    auto_qualify foo::bar ::sub
+} {::sub::foo::bar ::foo::bar}
+
+# Some additional tests
+
+test init-1.7 {auto_qualify - multiples colons 1} {
+    auto_qualify :::foo::::bar ::blue
+} ::foo::bar
+
+test init-1.8 {auto_qualify - multiple colons 2} {
+    auto_qualify :::foo ::bar
+} foo
+
+
+# we use a sub interp and auto_reset and double the tests because there is 2
+# places where auto_loading occur (before loading the indexes files and after)
+
+set testInterp [interp create]
+interp eval $testInterp [list set VERBOSE $VERBOSE]
+interp eval $testInterp [list set TESTS $TESTS]
+
+interp eval $testInterp {
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+auto_reset
+catch {rename parray {}}
+
+test init-2.0 {load parray - stage 1} {
+    set ret [catch {namespace eval ::test {parray}} error]
+    rename parray {} ; # remove it, for the next test - that should not fail.
+    list $ret $error
+} {1 {no value given for parameter "a" to "parray"}}
+
+
+test init-2.1 {load parray - stage 2} {
+    set ret [catch {namespace eval ::test {parray}} error]
+    list $ret $error
+} {1 {no value given for parameter "a" to "parray"}}
+
+
+auto_reset
+catch {rename ::safe::setLogCmd {}}
+#unset auto_index(::safe::setLogCmd)
+#unset auto_oldpath
+
+test init-2.2 {load ::safe::setLogCmd - stage 1} {
+    ::safe::setLogCmd
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+test init-2.3 {load ::safe::setLogCmd - stage 2} {
+    ::safe::setLogCmd
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+auto_reset
+catch {rename ::safe::setLogCmd {}}
+
+test init-2.4 {load safe:::setLogCmd - stage 1} {
+    safe:::setLogCmd ; # intentionally 3 :
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+test init-2.5 {load safe:::setLogCmd - stage 2} {
+    safe:::setLogCmd ; # intentionally 3 :
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+auto_reset
+catch {rename ::safe::setLogCmd {}}
+
+test init-2.6 {load setLogCmd from safe:: - stage 1} {
+    namespace eval safe setLogCmd 
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+test init-2.7 {oad setLogCmd from safe::  - stage 2} {
+    namespace eval safe setLogCmd 
+    rename ::safe::setLogCmd {} ; # should not fail
+} {}
+
+
+auto_reset
+package require http 2.0
+catch {rename ::http::geturl {}}
+
+test init-2.8 {load http::geturl (package)} {
+    # 3 ':' on purpose
+    set ret [catch {namespace eval ::test {http:::geturl}} error]
+    # removing it, for the next test. should not fail.
+    rename ::http::geturl {} ; 
+    list $ret $error
+} {1 {no value given for parameter "url" to "http:::geturl"}}
+
+
+test init-3.0 {random stuff in the auto_index, should still work} {
+    set auto_index(foo:::bar::blah) {
+	namespace eval foo {namespace eval bar {proc blah {} {return 1}}}
+    }
+    foo:::bar::blah
+} 1
+
+}
+
+interp delete $testInterp
+

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) format.test 1.28 97/08/11 14:45:15
+# SCCS: @(#) format.test 1.29 97/09/03 15:51:02
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -411,6 +411,26 @@ test format-12.5 {tcl_precision fuzzy comparison} {
     set c [expr $a + $b]
     format {%0.10f %0.12f %0.15f} $c $c $c
 } {1.4444444444 1.444444444444 1.444444444443990}
+test format-13.1 {testing MAX_FLOAT_SIZE for 0 and 1} {
+    format {%s} ""
+} {}
+test format-13.2 {testing MAX_FLOAT_SIZE for 0 and 1} {
+    format {%s} "a"
+} {a}
+
+set a "0123456789"
+set b ""
+for {set i 0} {$i < 290} {incr i} {
+    append b $a
+}
+for {set i 290} {$i < 400} {incr i} {
+    test format-14.[expr $i -290] {testing MAX_FLOAT_SIZE} {
+        format {%s} $b    
+    } $b
+    append b "x"
+}
+
+
 catch {unset a}
 catch {unset b}
 catch {unset c}

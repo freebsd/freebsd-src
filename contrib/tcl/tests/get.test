@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) get.test 1.6 96/10/08 17:39:21
+# SCCS: @(#) get.test 1.7 97/10/31 17:23:00
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -39,24 +39,43 @@ test get-1.6 {Tcl_GetInt procedure} {
 } {1 {expected integer but got "16	 x"}}
 
 # The following tests are non-portable because they depend on
-# word size.  
+# word size.  18446744073709551614
 
-test get-1.7 {Tcl_GetInt procedure} {nonPortable unixOnly} {
-    set x 44
-    list [catch {incr x 4294967296} msg] $msg $errorCode
-} {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
-test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
-    set x 0
-    list [catch {incr x 4294967294} msg] $msg
-} {0 -2}
-test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
-    set x 0
-    list [catch {incr x +4294967294} msg] $msg
-} {0 -2}
-test get-1.10 {Tcl_GetInt procedure} {nonPortable} {
-    set x 0
-    list [catch {incr x -4294967294} msg] $msg
-} {0 2}
+if {0x80000000 > 0} {
+    test get-1.7 {Tcl_GetInt procedure} {nonPortable unixOnly} {
+	set x 44
+	list [catch {incr x 18446744073709551616} msg] $msg $errorCode
+    } {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+    test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x 18446744073709551614} msg] $msg
+    } {0 -2}
+    test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x +18446744073709551614} msg] $msg
+    } {0 -2}
+    test get-1.10 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x -18446744073709551614} msg] $msg
+    } {0 2}
+} else {
+    test get-1.7 {Tcl_GetInt procedure} {nonPortable unixOnly} {
+	set x 44
+	list [catch {incr x 4294967296} msg] $msg $errorCode
+    } {1 {integer value too large to represent} {ARITH IOVERFLOW {integer value too large to represent}}}
+    test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x 4294967294} msg] $msg
+    } {0 -2}
+    test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x +4294967294} msg] $msg
+    } {0 -2}
+    test get-1.10 {Tcl_GetInt procedure} {nonPortable} {
+	set x 0
+	list [catch {incr x -4294967294} msg] $msg
+    } {0 2}
+}
 
 test get-2.1 {Tcl_GetInt procedure} {
     format %g 1.23

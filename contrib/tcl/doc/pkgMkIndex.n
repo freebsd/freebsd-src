@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) pkgMkIndex.n 1.6 96/10/04 11:31:53
+'\" SCCS: @(#) pkgMkIndex.n 1.8 97/10/31 12:51:13
 '\" 
 .so man.macros
 .TH pkg_mkIndex n 7.6 Tcl "Tcl Built-In Commands"
@@ -14,7 +14,7 @@
 pkg_mkIndex \- Build an index for automatic loading of packages
 .SH SYNOPSIS
 .nf
-\fBpkg_mkIndex \fIdir \fIpattern \fR?\fIpattern pattern ...\fR?
+\fBpkg_mkIndex \fIdir\fR \fIpattern \fR?\fIpattern pattern ...\fR?
 .fi
 .BE
 
@@ -46,7 +46,7 @@ It does this by loading each file and seeing what packages
 and new commands appear (this is why it is essential to have
 \fBpackage provide\fR commands or \fBTcl_PkgProvide\fR calls
 in the files, as described above).
-.VS br
+.VS "" br
 .IP [3]
 Install the package as a subdirectory of one of the directories given by
 the \fBtcl_pkgPath\fR variable.  If \fB$tcl_pkgPath\fR contains more

@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclExecute.c 1.95 97/08/12 17:06:49
+ * SCCS: @(#) tclExecute.c 1.102 97/11/06 11:36:35
  */
 
 #include "tclInt.h"
@@ -96,7 +96,7 @@ static char *opName[256];
  */
 
 static char *operatorStrings[] = {
-    "|", "^", "&", "==", "!=", "<", ">", "<=", ">=", "<<", ">>",
+    "||", "&&", "|", "^", "&", "==", "!=", "<", ">", "<=", ">=", "<<", ">>",
     "+", "-", "*", "/", "%", "+", "-", "~", "!",
     "BUILTIN FUNCTION", "FUNCTION"
 };
@@ -292,6 +292,8 @@ static void		IllegalExprOperandType _ANSI_ARGS_((
 static void		InitByteCodeExecution _ANSI_ARGS_((
 			    Tcl_Interp *interp));
 static void		PrintByteCodeInfo _ANSI_ARGS_((ByteCode *codePtr));
+static void		RecordTracebackInfo _ANSI_ARGS_((Tcl_Interp *interp,
+			    unsigned char *pc, ByteCode *codePtr));
 static int		SetCmdNameFromAny _ANSI_ARGS_((Tcl_Interp *interp,
 			    Tcl_Obj *objPtr));
 #ifdef TCL_COMPILE_DEBUG
@@ -809,7 +811,6 @@ TclExecuteByteCode(interp, codePtr)
 				   /* Instruction offset computed during
 				    * break, continue, error processing.
 				    * Init. to avoid compiler warning. */
-		Trace *tracePtr;
 		Tcl_Command cmd;
 #ifdef TCL_COMPILE_DEBUG
 		int isUnknownCmd = 0;
@@ -884,17 +885,23 @@ TclExecuteByteCode(interp, codePtr)
 		/*
 		 * Call any trace procedures.
 		 */
-		
-		for (tracePtr = iPtr->tracePtr;  tracePtr != NULL;
-		         tracePtr = tracePtr->nextPtr) {
-		    if (iPtr->numLevels <= tracePtr->level) {
-			int numChars;
-			char *cmd = GetSrcInfoForPc(pc, codePtr, &numChars);
-			if (cmd != NULL) {
-			    DECACHE_STACK_INFO();
-			    CallTraceProcedure(interp, tracePtr, cmdPtr,
-			            cmd, numChars, objc, objv);
-			    CACHE_STACK_INFO();
+
+		if (iPtr->tracePtr != NULL) {
+		    Trace *tracePtr, *nextTracePtr;
+
+		    for (tracePtr = iPtr->tracePtr;  tracePtr != NULL;
+		            tracePtr = nextTracePtr) {
+			nextTracePtr = tracePtr->nextPtr;
+			if (iPtr->numLevels <= tracePtr->level) {
+			    int numChars;
+			    char *cmd = GetSrcInfoForPc(pc, codePtr,
+				    &numChars);
+			    if (cmd != NULL) {
+				DECACHE_STACK_INFO();
+				CallTraceProcedure(interp, tracePtr, cmdPtr,
+				        cmd, numChars, objc, objv);
+				CACHE_STACK_INFO();
+			    }
 			}
 		    }
 		}
@@ -1764,12 +1771,12 @@ TclExecuteByteCode(interp, codePtr)
 	case INST_LAND:
 	    {
 		/*
-		 * Operands must be numeric, but no int->double conversions
-		 * are performed.
+		 * Operands must be boolean or numeric. No int->double
+		 * conversions are performed.
 		 */
 		
-		long i2, iResult;
-		double d1;
+		int i1, i2;
+		int iResult;
 		char *s;
 		Tcl_ObjType *t1Ptr, *t2Ptr;
 		
@@ -1778,20 +1785,20 @@ TclExecuteByteCode(interp, codePtr)
 		t1Ptr = valuePtr->typePtr;
 		t2Ptr = value2Ptr->typePtr;
 		
-		if (t1Ptr == &tclIntType) {
-		    i = (valuePtr->internalRep.longValue != 0);
+		if ((t1Ptr == &tclIntType) || (t1Ptr == &tclBooleanType)) {
+		    i1 = (valuePtr->internalRep.longValue != 0);
 		} else if (t1Ptr == &tclDoubleType) {
-		    i = (valuePtr->internalRep.doubleValue != 0.0);
+		    i1 = (valuePtr->internalRep.doubleValue != 0.0);
 		} else {	/* FAILS IF NULL STRING REP */
 		    s = Tcl_GetStringFromObj(valuePtr, (int *) NULL);
 		    if (TclLooksLikeInt(s)) {
 			result = Tcl_GetLongFromObj((Tcl_Interp *) NULL,
 				valuePtr, &i);
-			i = (i != 0);
+			i1 = (i != 0);
 		    } else {
-			result = Tcl_GetDoubleFromObj((Tcl_Interp *) NULL,
-				valuePtr, &d1);
-			i = (d1 != 0.0);
+			result = Tcl_GetBooleanFromObj((Tcl_Interp *) NULL,
+				valuePtr, &i1);
+			i1 = (i1 != 0);
 		    }
 		    if (result != TCL_OK) {
 			TRACE(("%s \"%.20s\" => ILLEGAL TYPE %s \n",
@@ -1804,7 +1811,7 @@ TclExecuteByteCode(interp, codePtr)
 		    }
 		}
 		
-		if (t2Ptr == &tclIntType) {
+		if ((t2Ptr == &tclIntType) || (t2Ptr == &tclBooleanType)) {
 		    i2 = (value2Ptr->internalRep.longValue != 0);
 		} else if (t2Ptr == &tclDoubleType) {
 		    i2 = (value2Ptr->internalRep.doubleValue != 0.0);
@@ -1812,12 +1819,12 @@ TclExecuteByteCode(interp, codePtr)
 		    s = Tcl_GetStringFromObj(value2Ptr, (int *) NULL);
 		    if (TclLooksLikeInt(s)) {
 			result = Tcl_GetLongFromObj((Tcl_Interp *) NULL,
+				value2Ptr, &i);
+			i2 = (i != 0);
+		    } else {
+			result = Tcl_GetBooleanFromObj((Tcl_Interp *) NULL,
 				value2Ptr, &i2);
 			i2 = (i2 != 0);
-		    } else {
-			result = Tcl_GetDoubleFromObj((Tcl_Interp *) NULL,
-				value2Ptr, &d1);
-			i2 = (d1 != 0.0);
 		    }
 		    if (result != TCL_OK) {
 			TRACE(("%s \"%.20s\" => ILLEGAL TYPE %s \n",
@@ -1835,17 +1842,17 @@ TclExecuteByteCode(interp, codePtr)
 		 */
 
 		if (opCode == INST_LOR) {
-		    iResult = (i || i2);
+		    iResult = (i1 || i2);
 		} else {
-		    iResult = (i && i2);
+		    iResult = (i1 && i2);
 		}
 		if (Tcl_IsShared(valuePtr)) {
 		    PUSH_OBJECT(Tcl_NewLongObj(iResult));
-		    TRACE(("%s %.20s %.20s => %ld\n", opName[opCode],
+		    TRACE(("%s %.20s %.20s => %d\n", opName[opCode],
 			   O2S(valuePtr), O2S(value2Ptr), iResult));
 		    TclDecrRefCount(valuePtr);
 		} else {	/* reuse the valuePtr object */
-		    TRACE(("%s %.20s %.20s => %ld\n", 
+		    TRACE(("%s %.20s %.20s => %d\n", 
 			   opName[opCode], /* NB: stack top is off by 1 */
 			   O2S(valuePtr), O2S(value2Ptr), iResult));
 		    Tcl_SetLongObj(valuePtr, iResult);
@@ -2915,45 +2922,8 @@ TclExecuteByteCode(interp, codePtr)
 	
         checkForCatch:
 	if ((result == TCL_ERROR) && !(iPtr->flags & ERR_ALREADY_LOGGED)) {
-	    int numChars;
-	    char *cmd = GetSrcInfoForPc(pc, codePtr, &numChars);
-	    char buf[200];
-	    register char *p;
-	    char *ellipsis = "";
-	    
-	    /*
-	     * Print the command in the error message (up to a certain
-	     * number of characters, or up to the first newline).
-	     */
-
-	    iPtr->errorLine = 1;
-	    if (cmd != NULL) {
-		for (p = codePtr->source;  p != cmd;  p++) {
-		    if (*p == '\n') {
-			iPtr->errorLine++;
-		    }
-		}
-		for ( ;  (isspace(UCHAR(*p)) || (*p == ';'));  p++) {
-		    if (*p == '\n') {
-			iPtr->errorLine++;
-		    }
-		}
-
-		if (numChars > 150) {
-		    numChars = 150;
-		    ellipsis = "...";
-		}
-		if (!(iPtr->flags & ERR_IN_PROGRESS)) {
-		    sprintf(buf, "\n    while executing\n\"%.*s%s\"",
-			    numChars, cmd, ellipsis);
-		} else {
-		    sprintf(buf, "\n    invoked from within\n\"%.*s%s\"",
-			    numChars, cmd, ellipsis);
-		}
-		Tcl_AddObjErrorInfo(interp, buf, -1);
-		iPtr->flags |= ERR_ALREADY_LOGGED;
-	    }
-	}
+	    RecordTracebackInfo(interp, pc, codePtr);
+        }
 	rangePtr = TclGetExceptionRangeForPc(pc, /*catchOnly*/ 1, codePtr);
 	if (rangePtr == NULL) {
 	    TRACE(("   ... no enclosing catch, returning %s\n",
@@ -3172,12 +3142,12 @@ IllegalExprOperandType(interp, opCode, opndPtr)
     if ((opndPtr->bytes == NULL) || (opndPtr->length == 0)) {
 	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
 		"can't use empty string as operand of \"",
-		operatorStrings[opCode - INST_BITOR], "\"", (char *) NULL);
+		operatorStrings[opCode - INST_LOR], "\"", (char *) NULL);
     } else {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-		"can't use ", ((opndPtr->typePtr == &tclDoubleType) ?
-		"floating-point value" : "non-numeric string"),
-		" as operand of \"", operatorStrings[opCode - INST_BITOR],
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "can't use ",
+		((opndPtr->typePtr == &tclDoubleType) ?
+		    "floating-point value" : "non-numeric string"),
+		" as operand of \"", operatorStrings[opCode - INST_LOR],
 		"\"", (char *) NULL);
     }
 }
@@ -3254,6 +3224,76 @@ CallTraceProcedure(interp, tracePtr, cmdPtr, command, numChars, objc, objv)
 /*
  *----------------------------------------------------------------------
  *
+ * RecordTracebackInfo --
+ *
+ *      Procedure called by TclExecuteByteCode to record information
+ *      about what was being executed when the error occurred.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Appends information about the command being executed to the
+ *      "errorInfo" variable. Sets the errorLine field in the interpreter
+ *      to the line number of that command. Sets the ERR_ALREADY_LOGGED
+ *      bit in the interpreter's execution flags.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+RecordTracebackInfo(interp, pc, codePtr)
+    Tcl_Interp *interp;         /* The interpreter in which the error
+                                 * occurred. */
+    unsigned char *pc;          /* The program counter value where the error                                 * occurred. This points to a bytecode
+                                 * instruction in codePtr's code. */
+    ByteCode *codePtr;          /* The bytecode sequence being executed. */
+{
+    register Interp *iPtr = (Interp *) interp;
+    char *cmd, *ellipsis;
+    char buf[200];
+    register char *p;
+    int numChars;
+    
+    /*
+     * Record the command in errorInfo (up to a certain number of
+     * characters, or up to the first newline).
+     */
+    
+    iPtr->errorLine = 1;
+    cmd = GetSrcInfoForPc(pc, codePtr, &numChars);
+    if (cmd != NULL) {
+        for (p = codePtr->source;  p != cmd;  p++) {
+            if (*p == '\n') {
+                iPtr->errorLine++;
+            }
+        }
+        for ( ;  (isspace(UCHAR(*p)) || (*p == ';'));  p++) {
+            if (*p == '\n') {
+                iPtr->errorLine++;
+            }
+        }
+	
+        ellipsis = "";
+        if (numChars > 150) {
+            numChars = 150;
+            ellipsis = "...";
+        }
+        if (!(iPtr->flags & ERR_IN_PROGRESS)) {
+            sprintf(buf, "\n    while executing\n\"%.*s%s\"",
+                    numChars, cmd, ellipsis);
+        } else {
+            sprintf(buf, "\n    invoked from within\n\"%.*s%s\"",
+                    numChars, cmd, ellipsis);
+        }
+        Tcl_AddObjErrorInfo(interp, buf, -1);
+        iPtr->flags |= ERR_ALREADY_LOGGED;
+    }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * GetSrcInfoForPc --
  *
  *	Given a program counter value, finds the closest command in the
@@ -3281,7 +3321,7 @@ GetSrcInfoForPc(pc, codePtr, lengthPtr)
 				 * return the closest command's source info.
 				 * This points to a bytecode instruction
 				 * in codePtr's code. */
-    ByteCode* codePtr;		/* The bytecode sequence in which to look
+    ByteCode *codePtr;		/* The bytecode sequence in which to look
 				 * up the command source for the pc. */
     int *lengthPtr;		/* If non-NULL, the location where the
 				 * length of the command's source should be
@@ -3948,6 +3988,16 @@ ExprRandFunc(interp, eePtr, clientData)
     if (iPtr->randSeed < 0) {
 	iPtr->randSeed += RAND_IM;
     }
+
+    /*
+     * On 64-bit architectures we need to mask off the upper bits to
+     * ensure we only have a 32-bit range.  The constant has the
+     * bizarre form below in order to make sure that it doesn't
+     * get sign-extended (the rules for sign extension are very
+     * concat, particularly on 64-bit machines).
+     */
+
+    iPtr->randSeed &= ((((unsigned long) 0xfffffff) << 4) | 0xf);
     dResult = iPtr->randSeed * (1.0/RAND_IM);
 
     /*

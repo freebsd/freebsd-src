@@ -9,13 +9,22 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) unixNotfy.test 1.2 97/06/16 17:26:28
+# SCCS: @(#) unixNotfy.test 1.3 97/09/15 15:39:53
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
 if {$tcl_platform(platform) != "unix"} {
     return
 }
+
+# The tests should not be run if you have a notifier which is unable to
+# detect infinite vwaits, as the tests below will hang. The presence of
+# the "testeventloop" command indicates that this is the case.
+
+if {"[info commands testeventloop]" == "testeventloop"} {
+    return
+}
+
 test unixNotfy-1.1 {Tcl_DeleteFileHandler} {
     catch {vwait x}
     set f [open foo w]
