@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id$
+# $Id: vnode_if.sh,v 1.11 1997/02/22 09:39:36 peter Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -397,6 +397,8 @@ static inline int VOP_BWRITE(bp)
 	a.a_bp = bp;
 	return (VCALL((bp)->b_vp, VOFFSET(vop_bwrite), &a));
 }
+
+extern int vfs_opv_numops;
 END_OF_SPECIAL_CASES
 
 cat << END_OF_SPECIAL_CASES >> $CFILE
@@ -457,3 +459,11 @@ $AWK '
 		}
 	}' < $SRC >> $CFILE
 
+cat << END_OF_NUMOPS_CODE >> $CFILE
+
+/*
+ * the -1 is to account for the NULL
+ * XXX is the NULL still necessary?  I don't think so...
+ */
+int vfs_opv_numops = (sizeof(vfs_op_descs)/sizeof(struct vnodeop_desc *)) - 1;
+END_OF_NUMOPS_CODE
