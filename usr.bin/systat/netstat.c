@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: netstat.c,v 1.5 1996/10/28 19:08:13 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -384,7 +384,7 @@ inetprint(in, port, proto)
 	cp = index(line, '\0');
 	while (cp - line < 22)
 		*cp++ = ' ';
-	*cp = '\0';
+	line[22] = '\0';
 	waddstr(wnd, line);
 }
 
