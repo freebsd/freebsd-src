@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: change.c,v 1.2 1995/04/29 01:55:18 phk Exp $
  *
  */
 
@@ -41,4 +41,19 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	disk->bios_hd = hd;
 	disk->bios_sect = sect;
 	Bios_Limit_Chunk(disk->chunks,1024*hd*sect);
+}
+
+void
+All_FreeBSD(struct disk *d)
+{
+	struct chunk *c;
+
+    again:	
+	for (c=d->chunks->part;c;c=c->next)
+		if (c->type != unused) {
+			Delete_Chunk(d,c);
+			goto again;
+		}
+	c=d->chunks;
+	Create_Chunk(d,c->offset,c->size,freebsd,0,0);
 }

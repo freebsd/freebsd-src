@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: disk.c,v 1.2 1995/04/29 01:55:21 phk Exp $
  *
  */
 
@@ -65,9 +65,10 @@ Int_Open_Disk(char *name, u_long size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
 	Add_Chunk(d, 0, size, name,whole,0,0);
-	Add_Chunk(d, 0, 1, "-",reserved,0,0);
+	if (ds.dss_slices[COMPATIBILITY_SLICE].ds_offset)
+		Add_Chunk(d, 0, 1, "-",reserved,0,0);
 	
-	for(i=2;i<ds.dss_nslices;i++) {
+	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
 		chunk_e ce;
 		u_long flags=0;
@@ -163,24 +164,4 @@ Collapse_Disk(struct disk *d)
 
 	while(Collapse_Chunk(d,d->chunks))
 		;
-}
-
-int
-Aligned(struct disk *d, u_long offset)
-{
-	if (offset % d->bios_sect)
-		return 0;
-	return 1;
-}
-
-u_long
-Prev_Aligned(struct disk *d, u_long offset)
-{
-	return (offset / d->bios_sect) * d->bios_sect;
-}
-
-u_long
-Next_Aligned(struct disk *d, u_long offset)
-{
-	return Prev_Aligned(d,offset + d->bios_sect);
 }
