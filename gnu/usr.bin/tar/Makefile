@@ -5,7 +5,7 @@ TARDIR=	${.CURDIR}/../../../contrib/tar
 
 PROG=	tar
 
-SUBDIR+= doc
+SUBDIR=	doc
 
 # libtar SRCS
 SRCS=	addext.c argmatch.c backupfile.c basename.c dirname.c error.c \
