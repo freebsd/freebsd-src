@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.11 1996/09/08 20:40:52 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.12 1996/09/09 14:15:28 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -597,7 +597,8 @@ sub navbar {
 
 # extlink
 #
-# creates a symbolic link from the name in a reference to the numbered
+# Build a shell script to create symbolic links from the name in 
+# a reference to the numbered
 # html file.  Since the file number that any given section has is 
 # subject to change as the document goes through revisions, this allows
 # for a fixed target that separate documents can hook into.
@@ -613,18 +614,12 @@ sub extlink {
 
     $file = "$ref.html";
 
-    if (-e $file) {
-	if (-l $file) {
-	    unlink($file);
-	    symlink($fn, $file);
-	}
-	else {
-	    print "Warning: $file exists and is not a symbolic link\n";
-	}
+    if (!fileno(LINKFILE)) {
+	print "Opening $fileroot.ln\n";
+	open(LINKFILE, ">${fileroot}.ln");
     }
-    else {
-	symlink($fn, $file);
-    }
+
+    print LINKFILE "ln -fs $fn $file\n";
 }
 
 # Now, read the command line and take appropriate action
