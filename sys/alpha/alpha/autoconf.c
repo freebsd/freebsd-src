@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.7 1998/08/20 08:27:10 dfr Exp $
+ *	$Id: autoconf.c,v 1.8 1998/09/16 08:19:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -36,12 +36,21 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/devicestat.h>
 
 #include <machine/cons.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/cpuconf.h>
 #include <machine/rpb.h>
+#include <machine/bootinfo.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
 
 #include "scbus.h"
 
@@ -50,7 +59,8 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
-device_t isa_bus_device = 0;
+device_t	isa_bus_device = 0;
+struct cam_sim *boot_sim = 0;
 
 extern void xpt_init __P((void));
 
@@ -68,6 +78,98 @@ configure_finish()
 }
 
 extern void pci_configure(void);
+
+static int
+atoi(const char *s)
+{
+    int n = 0;
+    while (*s >= '0' && *s <= '9')
+	n = n * 10 + (*s++ - '0');
+    return n;
+}
+
+static const char *
+bootdev_field(int which)
+{
+	char *p = bootinfo.booted_dev;
+	char *q;
+	static char field[128];
+
+	/* Skip characters to find the right field */
+	for (; which; which--) {
+		while (*p != ' ' && *p != '\0')
+			p++;
+		if (*p)
+			p++;
+	}
+
+	/* Copy out the field and return it */
+	q = field;
+	while (*p != ' ' && *p != '\0')
+		*q++ = *p++;
+	*q = '\0';
+
+	return field;
+}
+
+static const char *
+bootdev_protocol(void)
+{
+	return bootdev_field(0);
+}
+
+static int
+bootdev_bus(void)
+{
+	return atoi(bootdev_field(1));
+}
+
+static int
+bootdev_slot(void)
+{
+	return atoi(bootdev_field(2));
+}
+
+static int
+bootdev_channel(void)
+{
+	return atoi(bootdev_field(3));
+}
+
+static const char *
+bootdev_remote_address(void)
+{
+	return bootdev_field(4);
+}
+
+static int
+bootdev_unit(void)
+{
+	return atoi(bootdev_field(5));
+}
+
+static int
+bootdev_boot_dev_type(void)
+{
+	return atoi(bootdev_field(6));
+}
+
+static const char *
+bootdev_ctrl_dev_type(void)
+{
+	return bootdev_field(7);
+}
+
+void
+alpha_register_pci_scsi(int bus, int slot, struct cam_sim *sim)
+{
+	if (!strcmp(bootdev_protocol(), "SCSI")) {
+		int boot_slot = bootdev_slot();
+		if (bus == boot_slot / 1000
+		    && slot == boot_slot % 1000)
+			boot_sim = sim;
+	}
+}
 
 /*
  * Determine i/o configuration for a machine.
@@ -107,14 +209,28 @@ void
 cpu_rootconf()
 {
     static char rootname[] = "da0a";
+
     mountrootfsname = "ufs";
 
-    rootdevs[0] = rootdev;
-    rootname[2] += dkunit(rootdev);
-    rootdevnames[0] = rootname;
+    if (boot_sim) {
+	    struct cam_path *path;
+	    struct cam_periph *periph;
+	    
+	    xpt_create_path(&path, NULL,
+			    cam_sim_path(boot_sim),
+			    bootdev_unit() / 100, 0);
+	    periph = cam_periph_find(path, "da");
 
-    rootdevs[1] = makedev(4, dkmakeminor(0, COMPATIBILITY_SLICE, 0));
-    rootdevnames[1] = "da0a";
+	    if (periph)
+		    rootdev = makedev(4, dkmakeminor(periph->unit_number,
+						     COMPATIBILITY_SLICE, 0));
+
+	    xpt_free_path(path);
+    }
+
+    rootdevs[0] = rootdev;
+    rootname[2] += dkunit(minor(rootdev));
+    rootdevnames[0] = rootname;
 }
 
 void
