@@ -68,6 +68,7 @@
 #include <machine/pio.h>
 #include "i386/isa/isa_device.h"
 #include "i386/isa/fdreg.h"
+#include "i386/isa/fdc.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/rtc.h"
 #include "ftreg.h"
@@ -280,9 +281,12 @@ int ftattach(isadev, fdup)
 	fdcu_t	fdcu = isadev->id_unit;		/* fdc active unit */
 	fdc_p	fdc = fdc_data + fdcu;	/* pointer to controller structure */
 	ftu_t	ftu = fdup->id_unit;
-	ft_p	ft = &ft_data[ftu];
+	ft_p	ft;
 	ftsu_t	ftsu = fdup->id_physid;
 
+	if (ftu >= NFT)
+		return 0;
+	ft = &ft_data[ftu];
 				/* Probe for tape */
 	ft->attaching = 1;
 	ft->type = NO_TYPE;
