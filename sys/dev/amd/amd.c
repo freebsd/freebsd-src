@@ -1878,7 +1878,6 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 
 	status = pSRB->TargetStatus;
 	pccb->ccb_h.status = CAM_REQ_CMP;
-	pccb->ccb_h.status = CAM_REQ_CMP;
 	if (pSRB->SRBFlag & AUTO_REQSENSE) {
 		pSRB->SRBFlag &= ~AUTO_REQSENSE;
 		pSRB->AdaptStatus = 0;
