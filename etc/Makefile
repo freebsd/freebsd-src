@@ -74,7 +74,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    master.passwd ${DESTDIR}/etc; \
+	    opieaccess master.passwd ${DESTDIR}/etc; \
 	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
@@ -200,7 +200,7 @@ distrib-dirs:
 etc-examples:
 	(cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
-	    ${DESTDIR}/usr/share/examples/etc; \
+	    opieaccess ${DESTDIR}/usr/share/examples/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
