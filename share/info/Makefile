@@ -2,6 +2,8 @@
 
 NOOBJ=  noobj
 
+DISTRIBUTION=	info
+
 all clean cleandir depend lint tags:
 
 beforeinstall:
