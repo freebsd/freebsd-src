@@ -45,7 +45,7 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 .endif
 .endif
 
-KERNCONF=GENERIC
+KERNCONF?=GENERIC
 
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
