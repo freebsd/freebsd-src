@@ -184,7 +184,7 @@ _LIBS+=${LINTLIB}
 all: objwarn ${_LIBS}
 
 .if !defined(NOMAN)
-all: all-man
+all: _manpages
 .endif
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
@@ -348,7 +348,7 @@ _libinstall:
 .endif
 
 .if !defined(NOMAN)
-realinstall: maninstall
+realinstall: _maninstall
 .endif
 
 install: afterinstall

@@ -85,7 +85,7 @@
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy includes install installcheck installkernel \
-	reinstallkernel installmost installworld libraries lint \
+	reinstallkernel installmost installworld libraries lint maninstall \
 	mk most obj objlink regress rerelease tags update
 
 .ORDER: buildworld installworld
