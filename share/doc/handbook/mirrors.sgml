@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.9 1995/11/21 10:56:12 asami Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.10 1995/12/14 19:42:35 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -285,8 +285,8 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="hubbard@gatekeeper.dec.com">.
 
 <item>
-<htmlurl url="ftp://ftp.cs.uncc.edu.net/pub/FreeBSD"
-	name="ftp://ftp.cs.uncc.edu.net/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.cs.uncc.edu/pub/FreeBSD"
+	name="ftp://ftp.cs.uncc.edu/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:jlrobins@zappa.cs.uncc.edu"
 	name="jlrobins@zappa.cs.uncc.edu">.
 
