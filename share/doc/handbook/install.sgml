@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.6 1995/07/17 20:24:09 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.7 1995/08/25 23:51:08 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -95,8 +95,9 @@
 	    <item>Adaptec 154x series ISA SCSI controllers
 	    <item>Adaptec 174x series EISA SCSI controller in
 	      standard and enhanced mode.
-	    <item>Adaptec 274X/284X/2940 (Narrow/Wide/Twin)
-	      series ISA/EISA/VLB/PCI SCSI controllers
+	    <item>Adaptec 274X/284X/2940 <!-- 3940 (in 2.1) --> 
+              (Narrow/Wide/Twin)
+	      series EISA/VLB/PCI SCSI controllers
 	    <item>Adaptec AIC-6260 and AIC-6360 based boards,
 	      which includes the AHA-152x and SoundBlaster SCSI
 	      cards.
