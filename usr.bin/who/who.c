@@ -149,6 +149,7 @@ heading(void)
 	printf("%-*s ", 12, "TIME");
 	if (uflag)
 		printf("IDLE  ");
+	printf("%-*s", UT_HOSTSIZE, "FROM");
 	putchar('\n');
 }
 
