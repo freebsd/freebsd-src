@@ -44,9 +44,9 @@ static char copyright[] =
 static char sccsid[] = "@(#)comm.c	8.4 (Berkeley) 5/4/95";
 #endif /* not lint */
 
-#include <fcntl.h>
-#include <limits.h>
+#include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +58,7 @@ char *tabs[] = { "", "\t", "\t\t" };
 
 FILE   *file __P((char *));
 void	show __P((FILE *, char *, char *));
-void	usage __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -172,16 +172,14 @@ file(name)
 	if (!strcmp(name, "-"))
 		return (stdin);
 	if ((fp = fopen(name, "r")) == NULL) {
-		(void)fprintf(stderr, "comm: %s: %s\n", name, strerror(errno));
-		exit(1);
+		err(1, "%s", name);
 	}
 	return (fp);
 }
 
-void
+static void
 usage()
 {
-
 	(void)fprintf(stderr, "usage: comm [-123] file1 file2\n");
 	exit(1);
 }
