@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 void usage(void);
 
@@ -59,51 +59,44 @@ main(int argc, char *argv[])
 {
 	struct timespec time_to_sleep;
 	long l;
-	int ch, neg;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch(ch) {
-		case '?':
-		default:
-			usage();
-			/* NOTREACHED */
-		}
-	argc -= optind;
-	argv += optind;
-
-	if (argc != 1) {
+	if (argc != 2) {
 		usage();
 		/* NOTREACHED */
 	}
 
-	p = argv[0];
+	p = argv[1];
 
 	/* Skip over leading whitespaces. */
-	while (isspace((unsigned char)*p))
+	while (isspace(*p))
 		++p;
 
-	/* Check for optional `+' or `-' sign. */
-	neg = 0;
-	if (*p == '-') {
-		neg = 1;
-		++p;
+	/* Argument must be an int or float with optional +/- */
+	if (!isdigit(*p)) {
+		if (*p == '+')
+			++p;
+		else if (*p == '-' && isdigit(p[1]))
+			exit(0);
+		else if (*p != '.')
+			usage();
+			/* NOTREACHED */
 	}
-	else if (*p == '+')
-		++p;
 
 	/* Calculate seconds. */
-	if (isdigit((unsigned char)*p)) {
-		l = strtol(p, &p, 10);
-		if (l > INT_MAX) {
+	l = 0;
+	while (isdigit(*p)) {
+		l = (l * 10) + (*p - '0');
+		if (l > INT_MAX || l < 0) {
 			/*
 			 * Avoid overflow when `seconds' is huge.  This assumes
 			 * that the maximum value for a time_t is >= INT_MAX.
 			 */
 			l = INT_MAX;
+			break;
 		}
-	} else
-		l = 0;
+		++p;
+	}
 	time_to_sleep.tv_sec = (time_t)l;
 
 	/* Calculate nanoseconds. */
@@ -112,14 +105,14 @@ main(int argc, char *argv[])
 	if (*p == '.') {		/* Decimal point. */
 		l = 100000000L;
 		do {
-			if (isdigit((unsigned char)*++p))
+			if (isdigit(*++p))
 				time_to_sleep.tv_nsec += (*p - '0') * l;
 			else
 				break;
 		} while (l /= 10);
 	}
 
-	if (!neg && (time_to_sleep.tv_sec > 0 || time_to_sleep.tv_nsec > 0))
+	if (time_to_sleep.tv_sec > 0 || time_to_sleep.tv_nsec > 0)
 		(void)nanosleep(&time_to_sleep, (struct timespec *)NULL);
 
 	exit(0);
@@ -128,7 +121,8 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
+	const char *msg = "usage: sleep seconds\n";
 
-	(void)fprintf(stderr, "usage: sleep seconds\n");
+	write(STDERR_FILENO, msg, strlen(msg));
 	exit(1);
 }
