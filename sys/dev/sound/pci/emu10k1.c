@@ -124,6 +124,9 @@ static void *emu_memalloc(struct sc_info *sc, u_int32_t sz);
 static int emu_memfree(struct sc_info *sc, void *buf);
 #endif
 static int emu_memstart(struct sc_info *sc, void *buf);
+#ifdef EMUDEBUG
+static void emu_vdump(struct sc_info *sc, struct emu_voice *v);
+#endif
 
 /* talk to the card */
 static u_int32_t emu_rd(struct sc_info *, int, int);
