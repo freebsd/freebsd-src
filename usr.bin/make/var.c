@@ -489,26 +489,27 @@ Var_Append(const char *name, const char *val, GNode *ctxt)
 
 	n = VarPossiblyExpand(name, ctxt);
 	v = VarFind(n, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
-
 	if (v == NULL) {
 		VarAdd(n, val, ctxt);
+
+	} else if (v->flags & VAR_FROM_ENV) {
+		Buf_AddByte(v->val, (Byte)' ');
+		Buf_Append(v->val, val);
+		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, Buf_Data(v->val)));
+		/*
+		 * If the original variable came from the
+		 * environment, we have to install it in the global
+		 * context (we could place it in the environment, but
+		 * then we should provide a way to export other
+		 * variables...)
+		 */
+		v->flags &= ~VAR_FROM_ENV;
+		Lst_AtFront(&ctxt->context, v);
+
 	} else {
 		Buf_AddByte(v->val, (Byte)' ');
 		Buf_Append(v->val, val);
-
 		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, Buf_Data(v->val)));
-
-		if (v->flags & VAR_FROM_ENV) {
-			/*
-			 * If the original variable came from the
-			 * environment, we have to install it in the global
-			 * context (we could place it in the environment, but
-			 * then we should provide a way to export other
-			 * variables...)
-			 */
-			v->flags &= ~VAR_FROM_ENV;
-			Lst_AtFront(&ctxt->context, v);
-		}
 	}
 	free(n);
 }
@@ -534,14 +535,17 @@ Var_Exists(const char *name, GNode *ctxt)
 
 	n = VarPossiblyExpand(name, ctxt);
 	v = VarFind(n, ctxt, FIND_CMD | FIND_GLOBAL | FIND_ENV);
-	free(n);
-
 	if (v == NULL) {
+		free(n);
 		return (FALSE);
 	} else if (v->flags & VAR_FROM_ENV) {
 		VarDestroy(v, TRUE);
+		free(n);
+		return (TRUE);
+	} else {
+		free(n);
+		return (TRUE);
 	}
-	return (TRUE);
 }
 
 /*-
@@ -561,22 +565,23 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 {
 	Var	*v;
 	char	*n;
+	char	*p;
 
 	n = VarPossiblyExpand(name, ctxt);
 	v = VarFind(n, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-	free(n);
-	*frp = NULL;
-	if (v != NULL) {
-		char   *p = Buf_Data(v->val);
-
-		if (v->flags & VAR_FROM_ENV) {
-			VarDestroy(v, FALSE);
-			*frp = p;
-		}
-		return (p);
+	if (v == NULL) {
+		p = NULL;
+		*frp = NULL;
+	} else if (v->flags & VAR_FROM_ENV) {
+		p = Buf_Data(v->val);
+		*frp = p;
+		VarDestroy(v, FALSE);
 	} else {
-		return (NULL);
+		p = Buf_Data(v->val);
+		*frp = NULL;
 	}
+	free(n);
+	return (p);
 }
 
 /*-
