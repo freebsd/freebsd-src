@@ -1658,12 +1658,6 @@ bootpc_init(void)
 	if (nfs_diskless_valid != 0)
 		return;
 
-	/*
-	 * Wait until arp entries can be handled.
-	 */
-	while (time_second == 0)
-		tsleep(&time_second, PZERO + 8, "arpkludge", 10);
-
 	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK);
 	if (gctx == NULL)
 		panic("Failed to allocate bootp global context structure");
