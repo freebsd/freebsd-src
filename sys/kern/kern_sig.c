@@ -1655,15 +1655,12 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	prop = sigprop(sig);
 
 	/*
-	 * If this thread is blocking this signal then we'll leave it in the
-	 * proc so that we can find it in the first thread that unblocks
-	 * it--  unless the signal is meant for the thread and not the process.
+	 * If the signal is blocked and not destined for this thread, then
+	 * assign it to the process so that we can find it later in the first
+	 * thread that unblocks it.  Otherwise, assign it to this thread now.
 	 */
-	if (target == SIGTARGET_P)
-		siglist = SIGISMEMBER(td->td_sigmask, sig) ?
-			      &p->p_siglist : &td->td_siglist;
-	else
-		siglist = &td->td_siglist;
+	siglist = (target != SIGTARGET_TD && SIGISMEMBER(td->td_sigmask, sig)) ?
+	    &p->p_siglist : &td->td_siglist;
 
 	/*
 	 * If proc is traced, always give parent a chance;
