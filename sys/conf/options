@@ -87,7 +87,6 @@ DDB_TRACE
 DDB_UNATTENDED
 GDB_REMOTE_CHAT	opt_ddb.h
 GDBSPEED	opt_ddb.h
-NO_GEOM		opt_global.h
 GEOM_AES	opt_geom.h
 GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
@@ -105,7 +104,6 @@ LIBICONV
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 NDGBPORTS	opt_dgb.h
-NODEVFS		opt_global.h
 NTIMECOUNTER	opt_ntp.h
 NSWAPDEV	opt_swap.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
