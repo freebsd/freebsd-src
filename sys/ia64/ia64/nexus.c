@@ -49,15 +49,16 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/interrupt.h>
-#include <machine/intr.h>
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
+#include <machine/intr.h>
 #include <machine/nexusvar.h>
+#include <machine/pmap.h>
 #include <machine/resource.h>
+#include <machine/sapicvar.h>
+#include <machine/vmparam.h>
 
 #include <isa/isareg.h>
 #include <sys/rtprio.h>
@@ -95,8 +96,11 @@ static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
 static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
-static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
+static	int nexus_get_resource(device_t, device_t, int, int, u_long *,
+			       u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
+static	int nexus_config_intr(device_t, int, enum intr_trigger,
+			      enum intr_polarity);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -121,6 +125,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_get_resource,	nexus_get_resource),
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 
 	{ 0, 0 }
 };
@@ -532,6 +537,14 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 	struct resource_list	*rl = &ndev->nx_resources;
 
 	resource_list_delete(rl, type, rid);
+}
+
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+	return (sapic_config_intr(irq, trig, pol));
 }
 
 #if 0
