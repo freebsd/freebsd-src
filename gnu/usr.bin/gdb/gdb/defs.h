@@ -434,6 +434,7 @@ enum val_prettyprint
 
 #ifdef KERNEL_DEBUG
 extern int kernel_debugging;
+extern int kernel_writablecore;
 #endif
 
 /* If the xm.h file did not define the mode string used to open the

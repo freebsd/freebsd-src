@@ -322,6 +322,7 @@ jmp_buf quit_return;
 #ifdef KERNEL_DEBUG
 /* Non-zero means we are debugging a kernel core file */
 int kernel_debugging = 0;
+int kernel_writablecore = 0;
 #endif
 
 /* Return for reason REASON.  This generally gets back to the command
