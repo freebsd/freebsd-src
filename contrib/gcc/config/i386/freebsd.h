@@ -46,7 +46,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
- %{p:%e`-p' not supported; use `-pg' and gprof(1)} \
+ %{p:%nconsider using `-pg' instead of `-p' with gprof(1) } \
     %{Wl,*:%*} \
     %{v:-V} \
     %{assert*} %{R*} %{rpath*} %{defsym*} \
@@ -99,7 +99,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE	(TARGET_64BIT ? 32 : BITS_PER_WORD)
 
-#undef  TARGET_VERSION
 #define TARGET_VERSION	fprintf (stderr, " (i386 FreeBSD/ELF)");
 
 #define MASK_PROFILER_EPILOGUE	010000000000
@@ -125,20 +124,24 @@ Boston, MA 02111-1307, USA.  */
 #undef  DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
+/* FreeBSD sets the rounding precision of the FPU to 53 bits.  Let the
+   compiler get the contents of <float.h> and std::numeric_limits correct.  */
+#define SUBTARGET_OVERRIDE_OPTIONS			\
+  do {							\
+    real_format_for_mode[XFmode - QFmode]		\
+      = &ieee_extended_intel_96_round_53_format;	\
+    real_format_for_mode[TFmode - QFmode]		\
+      = &ieee_extended_intel_96_round_53_format;	\
+  } while (0)
+
 /* Tell final.c that we don't need a label passed to mcount.  */
 #define NO_PROFILE_COUNTERS	1
 
 /* Output assembler code to FILE to begin profiling of the current function.
    LABELNO is an optional label.  */
 
-#undef  FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-  do {									\
-    if (flag_pic)							\
-      fprintf ((FILE), "\tcall *.mcount@GOT(%%ebx)\n");			\
-    else								\
-      fprintf ((FILE), "\tcall .mcount\n");				\
-  } while (0)
+#undef MCOUNT_NAME
+#define MCOUNT_NAME ".mcount"
 
 /* Output assembler code to FILE to end profiling of the current function.  */
 
