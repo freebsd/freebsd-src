@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,19 +113,36 @@ feupdateenv(const fenv_t *envp)
 }
 
 int
-__fesetmask(int mask)
+__feenableexcept(int mask)
 {
 	int mxcsr, control, omask;
 
+	mask &= FE_ALL_EXCEPT;
 	__fnstcw(&control);
 	__stmxcsr(&mxcsr);
 	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
-	control = (control | FE_ALL_EXCEPT) & ~mask;
+	control &= ~mask;
 	__fldcw(control);
-	mxcsr |= FE_ALL_EXCEPT << _SSE_EMASK_SHIFT;
 	mxcsr &= ~(mask << _SSE_EMASK_SHIFT);
 	__ldmxcsr(mxcsr);
 	return (~omask);
 }
 
-__weak_reference(__fesetmask, fesetmask);
+int
+__fedisableexcept(int mask)
+{
+	int mxcsr, control, omask;
+
+	mask &= FE_ALL_EXCEPT;
+	__fnstcw(&control);
+	__stmxcsr(&mxcsr);
+	omask = (control | mxcsr >> _SSE_EMASK_SHIFT) & FE_ALL_EXCEPT;
+	control |= mask;
+	__fldcw(control);
+	mxcsr |= mask << _SSE_EMASK_SHIFT;
+	__ldmxcsr(mxcsr);
+	return (~omask);
+}
+
+__weak_reference(__feenableexcept, feenableexcept);
+__weak_reference(__fedisableexcept, fedisableexcept);

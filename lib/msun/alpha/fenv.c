@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,17 +109,29 @@ feupdateenv(const fenv_t *envp)
 }
 
 int
-__fesetmask(int mask)
+__feenableexcept(int mask)
 {
 	struct mask_args p;
 
-	p.mask = mask;
+	sysarch(ALPHA_GET_FPMASK, &p);
+	p.mask |= (mask & FE_ALL_EXCEPT);
 	sysarch(ALPHA_SET_FPMASK, &p);
 	return (p.mask);
 }
 
 int
-__fegetmask(void)
+__fedisableexcept(int mask)
+{
+	struct mask_args p;
+
+	sysarch(ALPHA_GET_FPMASK, &p);
+	p.mask &= ~(mask & FE_ALL_EXCEPT);
+	sysarch(ALPHA_SET_FPMASK, &p);
+	return (p.mask);
+}
+
+int
+__fegetexcept(void)
 {
 	struct mask_args p;
 
@@ -127,5 +139,6 @@ __fegetmask(void)
 	return (p.mask);
 }
 
-__weak_reference(__fesetmask, fesetmask);
-__weak_reference(__fegetmask, fegetmask);
+__weak_reference(__feenableexcept, feenableexcept);
+__weak_reference(__fedisableexcept, fedisableexcept);
+__weak_reference(__fegetexcept, fegetexcept);
