@@ -267,7 +267,11 @@ vfs_mountroot_ask(void)
 	for(;;) {
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-		printf("                       eg. ufs:%sda0s1a\n", _PATH_DEV);
+#if defined(__i386__) || defined(__ia64__)
+		printf("                       eg. ufs:%s%s\n", _PATH_DEV, "da0s1a");
+#else
+		printf("                       eg. ufs:%s%s\n", _PATH_DEV, "da0a");
+#endif
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
