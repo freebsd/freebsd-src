@@ -67,8 +67,9 @@ struct uart_devinfo {
 	void	*cookie;		/* Type dependent use. */
 };
 
-int uart_cpu_getdev(int devtype, struct uart_devinfo *di);
-int uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2);
+bus_addr_t uart_cpu_busaddr(struct uart_bas *);
+int uart_cpu_eqres(struct uart_bas *, struct uart_bas *);
+int uart_cpu_getdev(int, struct uart_devinfo *);
 
 void uart_add_sysdev(struct uart_devinfo*);
 

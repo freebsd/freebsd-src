@@ -36,6 +36,20 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+bus_addr_t
+uart_cpu_busaddr(struct uart_bas *bas)
+{
+
+	return (bas->bsh);
+}
+
+int
+uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
+{
+
+	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
+}
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -82,11 +96,4 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	}
 
 	return (ENXIO);
-}
-
-int
-uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
-{
-
-	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
 }
