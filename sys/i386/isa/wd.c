@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.71 1995/04/09 06:09:31 davidg Exp $
+ *	$Id: wd.c,v 1.72 1995/04/12 20:48:10 wollman Exp $
  */
 
 /* TODO:
@@ -90,22 +90,9 @@
 #define	MAXTRANSFER	255	/* max size of transfer in sectors */ 
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
-#define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
 #ifndef NSECS_MULTI
 #define NSECS_MULTI 1
 #endif
-
-#ifdef notyet
-#define wdnoreloc(dev)	(minor(dev) & 0x80)	/* ignore partition table */
-#endif
-#define wddospart(dev)	(minor(dev) & 0x40)	/* use dos partitions */
-#define wdunit(dev)	((minor(dev) & 0x38) >> 3)
-#define wdpart(dev)	(minor(dev) & 0x7)
-#define makewddev(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
-#define WDRAW   3       /* XXX must be 2 */
-
-/* Cylinder number for doing IO to.  Shares an entry in the buf struct. */
-#define b_cylin	b_resid
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
@@ -195,6 +182,20 @@ wd_goaway(struct kern_devconf *kdc, int force)
 #define	OPEN		3	/* done with open */
 
 /*
+ * Disk geometry.  A small part of struct disklabel.
+ * XXX disklabel.5 contains an old clone of disklabel.h.
+ */
+struct diskgeom {
+	u_long	d_secsize;		/* # of bytes per sector */
+	u_long	d_nsectors;		/* # of data sectors per track */
+	u_long	d_ntracks;		/* # of tracks per cylinder */
+	u_long	d_ncylinders;		/* # of data cylinders per unit */
+	u_long	d_secpercyl;		/* # of data sectors per cylinder */
+	u_long	d_secperunit;		/* # of data sectors per unit */
+	u_long	d_precompcyl;		/* XXX always 0 */
+};
+
+/*
  * The structure of a disk drive.
  */
 struct disk {
@@ -209,30 +210,18 @@ struct disk {
 	u_char	dk_timeout;	/* countdown to next timeout */
 	short	dk_port;	/* i/o port base */
 
-	u_long  dk_copenpart;	/* character units open on this drive */
-	u_long  dk_bopenpart;	/* block units open on this drive */
-	u_long  dk_openpart;	/* all units open on this drive */
-	short	dk_wlabel;	/* label writable? */
 	short	dk_flags;	/* drive characteistics found */
-#define	DKFL_DOSPART	0x00001	/* has DOS partition table */
 #define	DKFL_SINGLE	0x00004	/* sector at a time mode */
 #define	DKFL_ERROR	0x00008	/* processing a disk error */
-#define	DKFL_BSDLABEL	0x00010	/* has a BSD disk label */
-#define	DKFL_BADSECT	0x00020	/* has a bad144 badsector table */
-#define	DKFL_WRITEPROT	0x00040	/* manual unit write protect */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
 #define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
 #define	DKFL_MULTI	0x00200	/* use multi-i/o mode */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
-	int	dk_dkunit;	/* number of statistics purposes */
-	struct disklabel dk_dd;	/* device configuration data */
-	struct disklabel dk_dd2;	/* DOS view converted to label */
-	struct dos_partition
-		dk_dospartitions[NDOSPART];	/* DOS view of disk */
-	struct dkbad dk_bad;	/* bad sector table */
+	int	dk_dkunit;	/* disk stats unit number */
 	int	dk_multi;	/* multi transfers */
 	int	dk_currentiosize;	/* current io size */
-	long    dk_badsect[127];        /* 126 plus trailing -1 marker */
+	struct diskgeom dk_dd;	/* device configuration data */
+	struct diskslices *dk_slices;	/* virtual drives */
 };
 
 #define WD_COUNT_RETRIES
@@ -244,10 +233,7 @@ static struct buf wdutab[NWD];	/* head of queue per drive */
 #ifdef notyet
 static struct buf rwdbuf[NWD];	/* buffers for raw IO */
 #endif
-static long wdxfer[NWD];	/* count of transfers */
 
-
-static void bad144intern(struct disk *);
 static int wdprobe(struct isa_device *dvp);
 static int wdattach(struct isa_device *dvp);
 static void wdustart(struct disk *du);
@@ -262,6 +248,7 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
+static void wdstrategy1(struct buf *bp);
 static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
@@ -302,7 +289,7 @@ wdprobe(struct isa_device *dvp)
 
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
-	if (inb(du->dk_port + wd_cyl_lo) == 0xff)
+	if (inb(du->dk_port + wd_cyl_lo) == 0xff)	/* XXX too weak */
 		goto nodevice;
 
 	if (wdreset(du) != 0 && (DELAY(RECOVERYTIME), wdreset(du)) != 0)
@@ -392,60 +379,60 @@ wdattach(struct isa_device *dvp)
 		du->dk_unit = unit;
 		du->dk_lunit = lunit;
 		du->dk_port = dvp->id_iobase;
-		{
-		/* Initialize the badsect list to indicate no */
-		/* bad sectors. */
-		  int i;
-		  for (i = 0; i < 127; i++) 
-			du->dk_badsect[i] = -1;
-		}
 
-		/*
-		 * Print out description of drive.
-		 * wdp_model can be [0..40] bytes, thus \0 can be missing so
-		 * so copy it and add a null before printing.
-		 */
 		if (wdgetctlr(du) == 0) {
-		    char buf[sizeof(du->dk_params.wdp_model) + 1];
-		    bcopy(du->dk_params.wdp_model, buf, sizeof(buf)-1);
-		    buf[sizeof(buf)-1] = '\0';
-		    printf("wdc%d: unit %d (wd%d): <%s>",
-			dvp->id_unit, unit, lunit, buf);
-		    if (du->dk_flags & DKFL_32BIT)
-			printf(", 32-bit");
-		    if (du->dk_multi > 1)
-			printf(", multi-block-%d", du->dk_multi);
-		    printf("\n");
-		    if (du->dk_params.wdp_heads == 0 && 
-			du->dk_dd.d_secperunit > 100)
-			printf("wd%d: size unknown, using BIOS values: ",
-			    lunit);
-		    else if (du->dk_params.wdp_heads == 0)
-			printf("wd%d: size unknown: ", lunit);
-		    else
-			printf("wd%d: %luMB (%lu sectors), ",
-				lunit,
-				du->dk_dd.d_secperunit
-				* du->dk_dd.d_secsize / (1024 * 1024),
-				du->dk_dd.d_secperunit);
-		    printf("%lu C %lu H %lu S/T %lu B/S\n",
-			   du->dk_dd.d_ncylinders,
-			   du->dk_dd.d_ntracks,
-			   du->dk_dd.d_nsectors,
-			   du->dk_dd.d_secsize);
-		    /*
-		     * Start timeout routine for this drive.
-		     * XXX timeout should be per controller.
-		     */
-		    wdtimeout((caddr_t)du);
-		    wd_registerdev(dvp->id_unit, lunit);
-		    if(dk_ndrive < DK_NDRIVE) {
-			    sprintf(dk_names[dk_ndrive], "wd%d", lunit);
-			    dk_wpms[dk_ndrive] = (8*1024*1024/2);
-			    du->dk_dkunit = dk_ndrive++;
-		    } else {
-			    du->dk_dkunit = -1;
-		    }
+			char buf[sizeof du->dk_params.wdp_model + 1];
+
+			/*
+			 * Print out description of drive.
+			 * wdp_model may not be null terminated, and printf
+			 * doesn't support "%.*s" :-(, so copy wdp_model
+			 * and add a null before printing.
+			 */
+			bcopy(du->dk_params.wdp_model, buf, sizeof buf - 1);
+			buf[sizeof buf - 1] = '\0';
+			printf("wdc%d: unit %d (wd%d): <%s>",
+			       dvp->id_unit, unit, lunit, buf);
+			if (du->dk_flags & DKFL_32BIT)
+				printf(", 32-bit");
+			if (du->dk_multi > 1)
+				printf(", multi-block-%d", du->dk_multi);
+			printf("\n");
+			if (du->dk_params.wdp_heads == 0)
+				printf("wd%d: size unknown, using %s values\n",
+				       lunit, du->dk_dd.d_secperunit > 17
+					      ? "BIOS" : "fake");
+			printf(
+"wd%d: %luMB (%lu sectors), %lu cyls, %lu heads, %lu S/T, %lu B/S\n",
+			       lunit,
+			       du->dk_dd.d_secperunit
+			       * du->dk_dd.d_secsize / (1024 * 1024),
+			       du->dk_dd.d_secperunit,
+			       du->dk_dd.d_ncylinders,
+			       du->dk_dd.d_ntracks,
+			       du->dk_dd.d_nsectors,
+			       du->dk_dd.d_secsize);
+
+			/*
+			 * Start timeout routine for this drive.
+			 * XXX timeout should be per controller.
+			 */
+			wdtimeout(du);
+
+			wd_registerdev(dvp->id_unit, lunit);
+			if (dk_ndrive < DK_NDRIVE) {
+				sprintf(dk_names[dk_ndrive], "wd%d", lunit);
+				/*
+				 * XXX we don't know the transfer rate of the
+				 * drive.  Guess the maximum ISA rate of
+				 * 4MB/sec.  `wpms' is words per _second_
+				 * according to iostat.
+				 */
+				dk_wpms[dk_ndrive] = 4 * 1024 * 1024 / 2;
+				du->dk_dkunit = dk_ndrive++;
+			} else {
+				du->dk_dkunit = -1;
+			}
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
@@ -471,7 +458,7 @@ wdstrategy(register struct buf *bp)
 {
 	register struct buf *dp;
 	struct disk *du;
-	int	lunit = wdunit(bp->b_dev);
+	int	lunit = dkunit(bp->b_dev);
 	int	s;
 
 	/* valid unit, controller, and request?  */
@@ -483,20 +470,10 @@ wdstrategy(register struct buf *bp)
 		goto done;
 	}
 
-#if !defined(DISKLABEL_UNPROTECTED)
-	/* "soft" write protect check */
-	if ((du->dk_flags & DKFL_WRITEPROT) && (bp->b_flags & B_READ) == 0) {
-		bp->b_error = EROFS;
-		bp->b_flags |= B_ERROR;
-		goto done;
-	}
-#endif /* !defined(DISKLABEL_UNPROTECTED) */
 	/*
-	 * Do bounds checking, adjust transfer, and set b_cylin.
+	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
 	 */
-	if (bounds_check_with_label(bp, wddospart(bp->b_dev)
-					? &du->dk_dd2 : &du->dk_dd,
-				    du->dk_wlabel) <= 0)
+	if (dscheck(bp, du->dk_slices) <= 0)
 		goto done;
 
 	/*
@@ -505,14 +482,23 @@ wdstrategy(register struct buf *bp)
 	 * bad block handling.  Also, used as a hint for low level disksort
 	 * clustering code to keep from coalescing a bad transfer into
 	 * a normal transfer.  Single block transfers for a large number of
-	 * blocks associated with a cluster I/O are undersirable.
+	 * blocks associated with a cluster I/O are undesirable.
+	 *
+	 * XXX the old disksort() doesn't look at B_BAD.  Coalescing _is_
+	 * desirable.  We should split the results at bad blocks just
+	 * like we should split them at MAXTRANSFER boundaries.
 	 */
-	if( du->dk_flags & DKFL_BADSECT) {
+	if (dsgetbad(bp->b_dev, du->dk_slices) != NULL) {
+		long *badsect = dsgetbad(bp->b_dev, du->dk_slices)->bi_bad;
 		int i;
 		int nsecs = howmany(bp->b_bcount, DEV_BSIZE);
-		int blkend = bp->b_pblkno + nsecs;
-		for(i=0;du->dk_badsect[i] != -1 && du->dk_badsect[i] < blkend;i++) {
-			if( du->dk_badsect[i] >= bp->b_pblkno) {
+		/* XXX pblkno is too physical. */
+		daddr_t nspblkno = bp->b_pblkno
+		    - du->dk_slices->dss_slices[dkslice(bp->b_dev)].ds_offset;
+		int blkend = nspblkno + nsecs;
+
+		for (i = 0; badsect[i] != -1 && badsect[i] < blkend; i++) {
+			if (badsect[i] >= nspblkno) {
 				bp->b_flags |= B_BAD;
 				break;
 			}
@@ -536,6 +522,23 @@ wdstrategy(register struct buf *bp)
 
 	if (wdtab[du->dk_ctrlr].b_active == 0)
 		wdstart(du->dk_ctrlr);	/* start controller */
+
+	if (du->dk_dkunit >= 0) {
+		/*
+		 * XXX perhaps we should only count successful transfers.
+		 */
+		dk_xfer[du->dk_dkunit]++;
+		/*
+		 * XXX we can't count seeks correctly but we can do better
+		 * than this.  E.g., assume that the geometry is correct
+		 * and count 1 seek if the starting cylinder of this i/o
+		 * differs from the starting cylinder of the previous i/o,
+		 * or count 1 seek if the starting bn of this i/o doesn't
+		 * immediately follow the ending bn of the previos i/o.
+		 */
+		dk_seek[du->dk_dkunit]++;
+	}
+
 	splx(s);
 	return;
 
@@ -544,6 +547,16 @@ done:
 	/* toss transfer, we're done early */
 	biodone(bp);
 	splx(s);
+}
+
+static void
+wdstrategy1(struct buf *bp)
+{
+	/*
+	 * XXX - do something to make wdstrategy() but not this block while
+	 * we're doing dsinit() and dsioctl().
+	 */
+	wdstrategy(bp);
 }
 
 /*
@@ -593,10 +606,9 @@ wdstart(int ctrlr)
 {
 	register struct disk *du;
 	register struct buf *bp;
-	struct disklabel *lp;
+	struct diskgeom *lp;	/* XXX sic */
 	struct buf *dp;
-	register struct bt_bad *bt_ptr;
-	long	blknum, cylin, head, sector;
+	long	blknum;
 	long	secpertrk, secpercyl;
 	int	lunit;
 	int	count;
@@ -608,7 +620,7 @@ loop:
 		return;
 
 	/* obtain controller and drive information */
-	lunit = wdunit(bp->b_dev);
+	lunit = dkunit(bp->b_dev);
 	du = wddrives[lunit];
 
 	/* if not really a transfer, do control operations specially */
@@ -637,13 +649,7 @@ loop:
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
 
-
 	if (du->dk_skip == 0) {
-
-		if(du->dk_dkunit >= 0) {
-			dk_wds[du->dk_dkunit] += bp->b_bcount >> 6;
-		}
-
 		du->dk_bc = bp->b_bcount;
 
 		if (bp->b_flags & B_BAD
@@ -655,40 +661,23 @@ loop:
 			du->dk_flags |= DKFL_SINGLE;
 	}
 
-	if ((du->dk_flags & (DKFL_SINGLE|DKFL_BADSECT))		/* 19 Aug 92*/
-		== (DKFL_SINGLE|DKFL_BADSECT)) {
-		int i;
+	if (du->dk_flags & DKFL_SINGLE
+	    && dsgetbad(bp->b_dev, du->dk_slices) != NULL) {
+		/* XXX */
+		u_long ds_offset =
+		    du->dk_slices->dss_slices[dkslice(bp->b_dev)].ds_offset;
 
-		for(i=0;
-			du->dk_badsect[i] != -1 && du->dk_badsect[i] <= blknum;
-			i++) {
-
-			if( du->dk_badsect[i] == blknum) {
-			/*
-			 * XXX the offset of the bad sector table ought
-			 * to be stored in the in-core copy of the table.
-			 */
-#define BAD144_PART	2	/* XXX scattered magic numbers */
-#define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
-				if (lp->d_partitions[BSD_PART].p_offset != 0)
-					blknum = lp->d_partitions[BAD144_PART].p_offset
-						 + lp->d_partitions[BAD144_PART].p_size;
-				else
-					blknum = lp->d_secperunit;
-				blknum -= lp->d_nsectors + i + 1;
-				
-				break;
-			}
-		}
+		blknum = transbad144(dsgetbad(bp->b_dev, du->dk_slices),
+				     blknum - ds_offset) + ds_offset;
 	}
-				
-	
+
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
 	/* if starting a multisector transfer, or doing single transfers */
 	if (du->dk_skip == 0 || (du->dk_flags & DKFL_SINGLE)) {
 		u_int	command;
 		u_int	count;
+		long	cylin, head, sector;
 
 		cylin = blknum / secpercyl;
 		head = (blknum % secpercyl) / secpertrk;
@@ -818,7 +807,16 @@ loop:
 		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(short));
 	du->dk_bc -= DEV_BSIZE * count;
-
+	if (du->dk_dkunit >= 0) {
+		/*
+		 * `wd's are blocks of 32 16-bit `word's according to
+		 * iostat.  dk_wds[] is the one disk i/o statistic that
+		 * we can record correctly.
+		 * XXX perhaps we shouldn't record words for failed
+		 * transfers.
+		 */
+		dk_wds[du->dk_dkunit] += (count * DEV_BSIZE) >> 6;
+	}
 }
 
 /* Interrupt routine for the controller.  Acknowledge the interrupt, check for
@@ -840,7 +838,7 @@ wdintr(int unit)
 	}
 
 	bp = wdtab[unit].b_actf;
-	du = wddrives[wdunit(bp->b_dev)];
+	du = wddrives[dkunit(bp->b_dev)];
 	dp = &wdutab[du->dk_lunit];
 	du->dk_timeout = 0;
 
@@ -866,6 +864,10 @@ wdintr(int unit)
 	/* have we an error? */
 	if (du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) {
 oops:
+		/*
+		 * XXX bogus inb() here, register 0 is assumed and intr status
+		 * is reset.
+		 */
 		if( (du->dk_status & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
 			wderror(bp, du, "reverting to non-multi sector mode");
 			du->dk_multi = 1;
@@ -912,7 +914,7 @@ oops:
 				multisize = du->dk_currentiosize * DEV_BSIZE;
 			}
 		}
-		
+	
 		/* ready to receive data? */
 		if ((du->dk_status & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
 		    != (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ))
@@ -938,15 +940,11 @@ oops:
 			insw(du->dk_port + wd_data, &dummy, 1);
 			chk += sizeof(short);
 		}
+
+		if (du->dk_dkunit >= 0)
+			dk_wds[du->dk_dkunit] += chk >> 6;
 	}
 
-	wdxfer[du->dk_lunit]++;
-	if(du->dk_dkunit >= 0) {
-		dk_xfer[du->dk_dkunit]++;
-		dk_seek[du->dk_dkunit]++; /* bogus, but we don't know the */
-					/*   real number */
-	}
-	
 outt:
 	if (wdtab[unit].b_active) {
 		if ((bp->b_flags & B_ERROR) == 0) {
@@ -1010,13 +1008,13 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	register unsigned int lunit;
 	register struct disk *du;
-	int	part = wdpart(dev), mask = 1 << part;
+	int	error;
+	int	part = dkpart(dev), mask = 1 << part;
 	struct partition *pp;
 	char	*msg;
-	struct disklabel save_label;
 
-	lunit = wdunit(dev);
-	if (lunit >= NWD)
+	lunit = dkunit(dev);
+	if (lunit >= NWD || dktype(dev) != 0)
 		return (ENXIO);
 	du = wddrives[lunit];
 	if (du == NULL)
@@ -1026,21 +1024,30 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (wdtab[du->dk_ctrlr].b_active == 2)
 		wdtab[du->dk_ctrlr].b_active = 0;
 
-	/*
-	 * That's all for valid DOS partitions.  We don't need a BSD label.
-	 * The openmask is only used for checking BSD partitions so we don't
-	 * need to maintain it.
-	 */
-	if (wddospart(dev)) {
-		/* XXX we do need a disklabel for now. */
-		if ((du->dk_flags & DKFL_BSDLABEL) == 0)
-			return (ENXIO);
-
-		return (part > NDOSPART ? ENXIO : 0);
-	}
-
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
+#if 1
+	wdsleep(du->dk_ctrlr, "wdopn1");
+	du->dk_flags |= DKFL_LABELLING;
+	du->dk_state = WANTOPEN;
+	wdutab[lunit].b_actf = NULL;
+	{
+	struct disklabel label;
+
+	bzero(&label, sizeof label);
+	label.d_secsize = du->dk_dd.d_secsize;
+	label.d_nsectors = du->dk_dd.d_nsectors;
+	label.d_ntracks = du->dk_dd.d_ntracks;
+	label.d_ncylinders = du->dk_dd.d_ncylinders;
+	label.d_secpercyl = du->dk_dd.d_secpercyl;
+	label.d_secperunit = du->dk_dd.d_secperunit;
+	error = dsopen("wd", dev, fmt, &du->dk_slices, &label, wdstrategy1,
+		       (ds_setgeom_t *)NULL);
+	}
+	du->dk_flags &= ~DKFL_LABELLING;
+	wdsleep(du->dk_ctrlr, "wdopn2");
+	return (error);
+#else
 	if ((du->dk_flags & DKFL_BSDLABEL) == 0) {
 		/*
 		 * wdtab[ctrlr].b_active != 0 implies
@@ -1051,12 +1058,25 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 */
 		wdsleep(du->dk_ctrlr, "wdopn1");
 
-		du->dk_flags |= DKFL_LABELLING | DKFL_WRITEPROT;
+		du->dk_flags |= DKFL_LABELLING;
 		du->dk_state = WANTOPEN;
 		wdutab[lunit].b_actf = NULL;
 
+		error = dsinit(dkmodpart(dev, RAW_PART), wdstrategy,
+			       &du->dk_dd, &du->dk_slices);
+		if (error != 0) {
+			du->dk_flags &= ~DKFL_LABELLING;
+			return (error);
+		}
+		/* XXX check value returned by wdwsetctlr(). */
+		wdwsetctlr(du);
+		if (dkslice(dev) == WHOLE_DISK_SLICE) {
+			dsopen(dev, fmt, du->dk_slices);
+			return (0);
+		}
+
 		/*
-		 * Read label using WDRAW partition.
+		 * Read label using RAW_PART partition.
 		 *
 		 * If the drive has an MBR, then the current geometry (from
 		 * wdgetctlr()) is used to read it; then the BIOS/DOS
@@ -1067,64 +1087,51 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		 * is used to read the bad sector table.  The geometry
 		 * changes occur inside readdisklabel() and are propagated
 		 * to the driver by resetting the state machine.
+		 *
+		 * XXX can now handle changes directly since dsinit() doesn't
+		 * do too much.
 		 */
-		save_label = du->dk_dd;
-		du->dk_dd.d_partitions[WDRAW].p_offset = 0;
-		du->dk_dd.d_partitions[WDRAW].p_size = 0x7fffffff;/* XXX */
-		msg = readdisklabel(makewddev(major(dev), lunit, WDRAW),
-				    wdstrategy, &du->dk_dd,
-				    du->dk_dospartitions, &du->dk_bad);
+		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), wdstrategy,
+					    &du->dk_dd);
+		/* XXX check value returned by wdwsetctlr(). */
+		wdwsetctlr(du);
+		if (msg == NULL && du->dk_dd.d_flags & D_BADSECT)
+			msg = readbad144(dkmodpart(dev, RAW_PART), wdstrategy,
+					 &du->dk_dd, &du->dk_bad);
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
-			du->dk_dd = save_label;
 			log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
 			    lunit, msg);
-			if (part != WDRAW)
+			if (part != RAW_PART)
 				return (EINVAL);  /* XXX needs translation */
-		} else {
-			int	dospart;
-			unsigned long newsize, offset, size;
-
-			du->dk_flags |= DKFL_BSDLABEL;
-			du->dk_flags &= ~DKFL_WRITEPROT;
-			if (du->dk_dd.d_flags & D_BADSECT) {
-				du->dk_flags |= DKFL_BADSECT;
-				bad144intern(du);
-			}
-
 			/*
-			 * Force WDRAW partition to be the whole disk.
+			 * Soon return.  This is how slices without labels
+			 * are allowed.  They only work on the raw partition.
 			 */
-			offset = du->dk_dd.d_partitions[WDRAW].p_offset;
+		} else {
+			unsigned long newsize, offset, size;
+#if 0
+			/*
+			 * Force RAW_PART partition to be the whole disk.
+			 */
+			offset = du->dk_dd.d_partitions[RAW_PART].p_offset;
 			if (offset != 0) {
 				printf(
 		"wd%d: changing offset of '%c' partition from %lu to 0\n",
-				       du->dk_lunit, 'a' + WDRAW, offset);
-				du->dk_dd.d_partitions[WDRAW].p_offset = 0;
+				       du->dk_lunit, 'a' + RAW_PART, offset);
+				du->dk_dd.d_partitions[RAW_PART].p_offset = 0;
 			}
-			size = du->dk_dd.d_partitions[WDRAW].p_size;
+			size = du->dk_dd.d_partitions[RAW_PART].p_size;
 			newsize = du->dk_dd.d_secperunit;	/* XXX */
 			if (size != newsize) {
 				printf(
 		"wd%d: changing size of '%c' partition from %lu to %lu\n",
-				       du->dk_lunit, 'a' + WDRAW, size, newsize);
-				du->dk_dd.d_partitions[WDRAW].p_size = newsize;
+				       du->dk_lunit, 'a' + RAW_PART, size,
+				       newsize);
+				du->dk_dd.d_partitions[RAW_PART].p_size
+					= newsize;
 			}
-
-			/*
-			 * Convert DOS partition data to a label.
-			 */
-			du->dk_dd2 = du->dk_dd;
-			bzero(du->dk_dd2.d_partitions,
-			      sizeof du->dk_dd2.d_partitions);
-			du->dk_dd2.d_partitions[0].p_size
-			    = du->dk_dd.d_secperunit;	/* XXX */
-			for (dospart = 1; dospart <= NDOSPART; dospart++) {
-				du->dk_dd2.d_partitions[dospart].p_offset =
-				    du->dk_dospartitions[dospart - 1].dp_start;
-				du->dk_dd2.d_partitions[dospart].p_size =
-				    du->dk_dospartitions[dospart - 1].dp_size;
-			}
+#endif
 		}
 
 		/* Pick up changes made by readdisklabel(). */
@@ -1136,7 +1143,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	 * Warn if a partion is opened that overlaps another partition which
 	 * is open unless one is the "raw" partition (whole disk).
 	 */
-	if ((du->dk_openpart & mask) == 0 && part != WDRAW && part != OURPART) {
+	if ((du->dk_openpart & mask) == 0 && part != RAW_PART) {
 		int	start, end;
 
 		pp = &du->dk_dd.d_partitions[part];
@@ -1148,7 +1155,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			if (pp->p_offset + pp->p_size <= start ||
 			    pp->p_offset >= end)
 				continue;
-			if (pp - du->dk_dd.d_partitions == WDRAW)
+			if (pp - du->dk_dd.d_partitions == RAW_PART)
 				continue;
 			if (du->dk_openpart
 			    & (1 << (pp - du->dk_dd.d_partitions)))
@@ -1158,20 +1165,13 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 				    pp - du->dk_dd.d_partitions + 'a');
 		}
 	}
-	if (part >= du->dk_dd.d_npartitions && part != WDRAW)
+	if (part >= du->dk_dd.d_npartitions && part != RAW_PART)
 		return (ENXIO);
 
-	switch (fmt) {
-	case S_IFCHR:
-		du->dk_copenpart |= mask;
-		break;
-	case S_IFBLK:
-		du->dk_bopenpart |= mask;
-		break;
-	}
-	du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
+	dsopen(dev, fmt, du->dk_slices);
 
 	return (0);
+#endif
 }
 
 /*
@@ -1186,7 +1186,7 @@ wdcontrol(register struct buf *bp)
 	register struct disk *du;
 	int	ctrlr;
 
-	du = wddrives[wdunit(bp->b_dev)];
+	du = wddrives[dkunit(bp->b_dev)];
 	ctrlr = du->dk_ctrlr;
 
 	switch (du->dk_state) {
@@ -1371,6 +1371,7 @@ again:
 			    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors; 
 			du->dk_dd.d_secperunit = 
 			    du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders; 
+#if 0
 			du->dk_dd.d_partitions[WDRAW].p_size = 
 				du->dk_dd.d_secperunit;
 			du->dk_dd.d_type = DTYPE_ST506;
@@ -1379,6 +1380,7 @@ again:
 				sizeof du->dk_dd.d_typename);
 			strncpy(du->dk_params.wdp_model, "ST506",
 				sizeof du->dk_params.wdp_model);
+#endif
 			bootinfo.bi_n_bios_used ++;
 			return 0;
 		}
@@ -1394,10 +1396,11 @@ again:
 		du->dk_dd.d_secpercyl = 17;
 		du->dk_dd.d_secperunit = 17;
 
+#if 0
 		/*
 		 * Fake maximal drive size for writing the label.
 		 */
-		du->dk_dd.d_partitions[WDRAW].p_size = 64 * 16 * 1024;
+		du->dk_dd.d_partitions[RAW_PART].p_size = 64 * 16 * 1024;
 
 		/*
 		 * Fake some more of the label for printing by disklabel(1)
@@ -1407,6 +1410,7 @@ again:
 		du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
 		strncpy(du->dk_dd.d_typename, "Fake geometry",
 			sizeof du->dk_dd.d_typename);
+#endif
 
 		/* Fake the model name for printing by wdattach(). */
 		strncpy(du->dk_params.wdp_model, "unknown",
@@ -1474,14 +1478,16 @@ failed:
 	du->dk_dd.d_ntracks = wp->wdp_heads;
 	du->dk_dd.d_nsectors = wp->wdp_sectors;
 	du->dk_dd.d_secpercyl = du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
-	du->dk_dd.d_partitions[WDRAW].p_size = du->dk_dd.d_secperunit
-	    = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+	du->dk_dd.d_secperunit = du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
+#if 0
+	du->dk_dd.d_partitions[RAW_PART].p_size = du->dk_dd.d_secperunit;
 	/* dubious ... */
 	bcopy("ESDI/IDE", du->dk_dd.d_typename, 9);
 	bcopy(wp->wdp_model + 20, du->dk_dd.d_packname, 14 - 1);
 	/* better ... */
 	du->dk_dd.d_type = DTYPE_ESDI;
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
+#endif
 
 	du->dk_multi = 1;
 	if( (NSECS_MULTI != 1) && ((wp->wdp_nsecperint & 0xff) >= NSECS_MULTI)){
@@ -1499,161 +1505,58 @@ failed:
 	return (0);
 }
 
-
 /* ARGSUSED */
 int
 wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	register struct disk *du;
-	int	part = wdpart(dev), mask = 1 << part;
-
-	if (wddospart(dev))
-		return (0);
-
-	du = wddrives[wdunit(dev)];
-
-	switch (fmt) {
-	case S_IFCHR:
-		du->dk_copenpart &= ~mask;
-		break;
-	case S_IFBLK:
-		du->dk_bopenpart &= ~mask;
-		break;
-	}
-	du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
-
+	dsclose(dev, fmt, wddrives[dkunit(dev)]->dk_slices);
 	return (0);
 }
 
 int
 wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
-	int	lunit = wdunit(dev);
+	int	lunit = dkunit(dev);
 	register struct disk *du;
-	int	error = 0;
+	int	error;
 #ifdef notyet
 	struct uio auio;
 	struct iovec aiov;
+	struct format_op *fop;
 #endif
 
 	du = wddrives[lunit];
+	wdsleep(du->dk_ctrlr, "wdioct");
+	error = dsioctl(dev, cmd, addr, flags, du->dk_slices, wdstrategy1,
+			(ds_setgeom_t *)NULL);
+	if (error != -1)
+		return (error);
 
 	switch (cmd) {
-
-	case DIOCSBAD:
-		if ((flags & FWRITE) == 0)
-			error = EBADF;
-		else {
-			du->dk_bad = *(struct dkbad *)addr;
-			bad144intern(du);
-		}
-		break;
-
-	case DIOCGDINFO:
-		*(struct disklabel *)addr = du->dk_dd;
-		break;
-
-	case DIOCGPART:
-		if (wddospart(dev))
-			return (EINVAL);
-		((struct partinfo *)addr)->disklab = &du->dk_dd;
-		((struct partinfo *)addr)->part =
-		    &du->dk_dd.d_partitions[wdpart(dev)];
-		break;
-
-	case DIOCSDINFO:
-		if ((flags & FWRITE) == 0)
-			error = EBADF;
-		else
-			error = setdisklabel(&du->dk_dd,
-					     (struct disklabel *)addr,
-#if 0
-					    /*
-					     * XXX setdisklabel() uses the
-					     * openmask to allow it to reject
-					     * changing open partitions.  Why
-					     * are we pretending nothing is
-					     * open?
-					     */
-					     du->dk_flags & DKFL_BSDLABEL
-					     ? du->dk_openpart :
-#endif
-					     0);
-		if (error == 0) {
-			du->dk_flags |= DKFL_BSDLABEL;
-			wdwsetctlr(du);	/* XXX - check */
-		}
-		break;
-
-	case DIOCWLABEL:
-		du->dk_flags &= ~DKFL_WRITEPROT;
-		if ((flags & FWRITE) == 0)
-			error = EBADF;
-		else
-			du->dk_wlabel = *(int *)addr;
-		break;
-
-	case DIOCWDINFO:
-		du->dk_flags &= ~DKFL_WRITEPROT;
-		if ((flags & FWRITE) == 0)
-			error = EBADF;
-		else if ((error = setdisklabel(&du->dk_dd,
-					       (struct disklabel *)addr,
-#if 0
-					       du->dk_flags & DKFL_BSDLABEL
-					       ? du->dk_openpart :
-#endif
-					       0)) == 0) {
-			int	wlab;
-
-			du->dk_flags |= DKFL_BSDLABEL;
-			wdwsetctlr(du);	/* XXX - check */
-
-			/* simulate opening partition 0 so write succeeds */
-			du->dk_openpart |= (1 << 0);	/* XXX */
-			wlab = du->dk_wlabel;
-			du->dk_wlabel = 1;
-			error = writedisklabel(dev, wdstrategy, &du->dk_dd);
-			du->dk_openpart = du->dk_copenpart | du->dk_bopenpart;
-			du->dk_wlabel = wlab;
-		}
-		break;
-
 #ifdef notyet
-	case DIOCGDINFOP:
-		*(struct disklabel **)addr = &(du->dk_dd);
-		break;
-
 	case DIOCWFORMAT:
-		if ((flags & FWRITE) == 0)
-			error = EBADF;
-		else {
-			register struct format_op *fop;
-
-			fop = (struct format_op *)addr;
-			aiov.iov_base = fop->df_buf;
-			aiov.iov_len = fop->df_count;
-			auio.uio_iov = &aiov;
-			auio.uio_iovcnt = 1;
-			auio.uio_resid = fop->df_count;
-			auio.uio_segflg = 0;
-			auio.uio_offset =
-			    fop->df_startblk * du->dk_dd.d_secsize;
+		if (!(flag & FWRITE))
+			return (EBADF);
+		fop = (struct format_op *)addr;
+		aiov.iov_base = fop->df_buf;
+		aiov.iov_len = fop->df_count;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_resid = fop->df_count;
+		auio.uio_segflg = 0;
+		auio.uio_offset = fop->df_startblk * du->dk_dd.d_secsize;
 #error /* XXX the 386BSD interface is different */
-			error = physio(wdformat, &rwdbuf[lunit], 0, dev,
-				       B_WRITE, minphys, &auio);
-			fop->df_count -= auio.uio_resid;
-			fop->df_reg[0] = du->dk_status;
-			fop->df_reg[1] = du->dk_error;
-		}
-		break;
+		error = physio(wdformat, &rwdbuf[lunit], 0, dev, B_WRITE,
+			       minphys, &auio);
+		fop->df_count -= auio.uio_resid;
+		fop->df_reg[0] = du->dk_status;
+		fop->df_reg[1] = du->dk_error;
+		return (error);
 #endif
 
 	default:
-		error = ENOTTY;
-		break;
+		return (ENOTTY);
 	}
-	return (error);
 }
 
 #ifdef B_FORMAT
@@ -1674,26 +1577,25 @@ wdformat(struct buf *bp)
 int
 wdsize(dev_t dev)
 {
-	int	lunit = wdunit(dev), part = wdpart(dev), val;
+	int	lunit = dkunit(dev), part = dkpart(dev), val;
 	struct disk *du;
+	struct disklabel *lp;
 	int size;
 
-	if (lunit >= NWD || wddospart(dev) || (du = wddrives[lunit]) == NULL) {
+	if (lunit >= NWD || (du = wddrives[lunit]) == NULL) {
 		return (-1);
 	}
 	val = 0;
 	if (du->dk_state == CLOSED) {
-		val = wdopen(makewddev(major(dev), lunit, WDRAW),
-			     FREAD, S_IFBLK, 0);
+		val = wdopen(dkmodpart(dev, RAW_PART), FREAD, S_IFBLK, 0);
+		dsclose(dev, S_IFBLK, du->dk_slices);
 	}
-	if (val != 0 || du->dk_flags & DKFL_WRITEPROT) {
+	if (val != 0 || (lp = dsgetlabel(dev, du->dk_slices)) == NULL) {
 		return (-1);
 	}
-	size = ((int)du->dk_dd.d_partitions[part].p_size);
+	size = ((int)lp->d_partitions[part].p_size);
 	return size;
 }
-
-extern char *ptvmmap;		/* poor name! */
 
 /*
  * Dump core after a system crash.
@@ -1702,7 +1604,6 @@ int
 wddump(dev_t dev)
 {
 	register struct disk *du;
-	register struct bt_bad *bt_ptr;
 	struct disklabel *lp;
 	long	num;		/* number of sectors to write */
 	int	lunit, part;
@@ -1710,6 +1611,7 @@ wddump(dev_t dev)
 	long	blkchk, blkcnt, blknext;
 	long	cylin, head, sector;
 	long	secpertrk, secpercyl, nblocks;
+	u_long	ds_offset;
 	char   *addr;
 	static int wddoingadump = 0;
 
@@ -1719,10 +1621,11 @@ wddump(dev_t dev)
 
 	/* Check for acceptable device. */
 	/* XXX should reset to maybe allow du->dk_state < OPEN. */
-	lunit = wdunit(dev);	/* eventually support floppies? */
-	part = wdpart(dev);
-	if (lunit >= NWD || wddospart(dev) || (du = wddrives[lunit]) == NULL
-	    || du->dk_state < OPEN || du->dk_flags & DKFL_WRITEPROT)
+	lunit = dkunit(dev);	/* eventually support floppies? */
+	part = dkpart(dev);
+	if (lunit >= NWD || (du = wddrives[lunit]) == NULL
+	    || du->dk_state < OPEN
+	    || (lp = dsgetlabel(dev, du->dk_slices)) == NULL)
 		return (ENXIO);
 
 	/* Size of memory to dump, in disk sectors. */
@@ -1730,8 +1633,11 @@ wddump(dev_t dev)
 
 	secpertrk = du->dk_dd.d_nsectors;
 	secpercyl = du->dk_dd.d_secpercyl;
-	nblocks = du->dk_dd.d_partitions[part].p_size;
-	blkoff = du->dk_dd.d_partitions[part].p_offset;
+	nblocks = lp->d_partitions[part].p_size;
+	blkoff = lp->d_partitions[part].p_offset;
+	/* XXX */
+	ds_offset = du->dk_slices->dss_slices[dkslice(dev)].ds_offset;
+	blkoff += ds_offset;
 
 #if 0
 	pg("part %x, nblocks %d, dumplo %d num %d\n",
@@ -1780,22 +1686,13 @@ wddump(dev_t dev)
 		 * sector is bad, then reduce reduce the transfer to
 		 * avoid any bad sectors.
 		 */
-		if ((du->dk_flags & (DKFL_SINGLE | DKFL_BADSECT))
-		    == (DKFL_SINGLE | DKFL_BADSECT))
+		if (du->dk_flags & DKFL_SINGLE
+		    && dsgetbad(dev, du->dk_slices) != NULL) {
 		  for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
-		    cylin = blkchk / secpercyl;
-		    head = (blkchk % secpercyl) / secpertrk;
-		    sector = blkchk % secpertrk;
-		    for (bt_ptr = du->dk_bad.bt_bad;
-			 bt_ptr->bt_cyl != BAD144_NO_CYL; bt_ptr++) {
-			if (bt_ptr->bt_cyl > cylin)
-				/*
-				 * Sorted list, and we passed our cylinder.
-				 * quit.
-				 */
-				break;
-			if (bt_ptr->bt_cyl == cylin &&
-			    bt_ptr->bt_trksec == (head << 8) + sector) {
+			daddr_t blknew;
+			blknew = transbad144(dsgetbad(dev, du->dk_slices),
+					     blkchk - ds_offset) + ds_offset;
+			if (blknew != blkchk) {
 				/* Found bad block. */
 				blkcnt = blkchk - blknum;
 				if (blkcnt > 0) {
@@ -1804,34 +1701,14 @@ wddump(dev_t dev)
 				}
 				blkcnt = 1;
 				blknext = blknum + blkcnt;
-			/*
-			 * Found bad block.  Calculate new block number.
-			 * This starts at the end of the disk (skip the
-			 * last track which is used for the bad block list),
-			 * and works backwards to the front of the disk.
-			 */
-				/* XXX as usual. */
-#ifdef WDDEBUG
-				printf("--- badblock code -> Old = %ld; ",
-				       blknum);
-#endif
-				lp = &du->dk_dd;
-				if (lp->d_partitions[BSD_PART].p_offset != 0)
-					blknum = lp->d_partitions[BAD144_PART]
-						     .p_offset
-						 + lp->d_partitions[BAD144_PART]
-						       .p_size;
-				else
-					blknum = lp->d_secperunit;
-				blknum -= lp->d_nsectors
-					  + (bt_ptr - du->dk_bad.bt_bad) + 1;
-#ifdef WDDEBUG
-				printf("new = %ld\n", blknum);
+#if 1 || defined(WDDEBUG)
+				printf("bad block %lu -> %lu\n",
+				       blknum, blknew);
 #endif
 				break;
 			}
-		    }
 		  }
+		}
 out:
 
 		/* Compute disk address. */
@@ -1912,7 +1789,8 @@ wderror(struct buf *bp, struct disk *du, char *mesg)
 	if (bp == NULL)
 		printf("wd%d: %s:\n", du->dk_lunit, mesg);
 	else
-		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip, &du->dk_dd);
+		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip,
+			dsgetlabel(bp->b_dev, du->dk_slices));
 	printf("wd%d: status %b error %b\n", du->dk_lunit,
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
@@ -2088,29 +1966,6 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 			DELAY(1);
 	} while (--timeout != 0);
 	return (-1);
-}
-
-/*
- * Internalize the bad sector table.
- */
-void bad144intern(struct disk *du) {
-	int i;
-	if (du->dk_flags & DKFL_BADSECT) {
-		for (i = 0; i < 127; i++) {
-			du->dk_badsect[i] = -1;
-		}
-		for (i = 0; i < 126; i++) {
-			if (du->dk_bad.bt_bad[i].bt_cyl == 0xffff) {  
-				break;
-			} else {
-				du->dk_badsect[i] =
-					du->dk_bad.bt_bad[i].bt_cyl * du->dk_dd.d_secpercyl +
-					(du->dk_bad.bt_bad[i].bt_trksec >> 8) * du->dk_dd.d_nsectors
-+
-					(du->dk_bad.bt_bad[i].bt_trksec & 0x00ff);
-			}
-		}
-	}
 }
 
 #endif /* NWDC > 0 */
