@@ -574,7 +574,9 @@ await_reply(type, ival, ptr)
 			bootpreply = (struct bootp_t *)&packet[ETHER_HDR_LEN];
 			if ((type == AWAIT_BOOTP) &&
 			   (packetlen >= (ETHER_HDR_LEN +
-			     sizeof(struct bootp_t))) &&
+					  sizeof(struct iphdr) +
+					  sizeof(struct udphdr) +
+					  BOOTP_MIN_LEN)) &&
 			   (ntohs(udp->dest) == BOOTP_CLIENT) &&
 			   (bootpreply->bp_op == BOOTP_REPLY)) {
 				convert_ipaddr(&arptable[ARP_CLIENT].ipaddr,
