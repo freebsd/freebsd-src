@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.8 1996/01/31 14:26:01 mpp Exp $ -->
+<!-- $Id: synching.sgml,v 1.1 1996/02/11 00:16:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,15 +7,62 @@
 
 <!--
 
-Last updated: $Date: 1996/01/31 14:26:01 $
+Last updated: $Date: 1996/02/11 00:16:20 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
 -->
 
-   <p>There are various ways of using an Internet (or email) connection
-      to stay up-to-date with whatever collection of FreeBSD project sources
-      it is that interests you.  The primary services we offer are:
+<p>There are various ways of using an Internet (or email) connection
+to stay up-to-date with any given area of the FreeBSD project sources,
+or all areas, depending on what interests you.  The primary
+services we offer are CTM, SUP and CVSup (<bf>new</bf>).
+
+<p>It's been suggested by some that CTM obsoletes SUP.  This isn't quite
+true, in fact, because each tool was originally designed to serve a
+different constituency and, although they have both undergone significant
+improvement since first going into service, they take fundamentally
+different approaches in trying to solve the source syncronization problem.
+SUP was originally designed to support those who had dedicated (or at
+least fast) Internet connections whereas CTM was originally aimed at
+supporting those who's access was limited to email only.
+
+<p><bf>SUP</bf> (Software Update Protocol) is a system that tracks a local
+copy of the FreeBSD sources on your local disk and, using configuration files
+the user sets up, makes requests over the network to fetch and update any
+files which have changed on the FreeBSD master archive.
+
+<p><bf>CTM</bf>, on the other hand, does not interactively compare
+the sources you have with those on the master archive.
+Instead, a script which identifies changes in files since its previous run
+is executed several times a day on the master archive, any detected changes
+being compressed, stamped with a sequence-number and encoded for transmission
+over email (printable ASCII only).  Once received, these "CTM deltas" can then
+be handed to the ctm_rmail(1) utility which will automatically decode, verify
+and apply the changes to the user's copy of the sources.  This process is
+far more efficient than SUP, and places less strain on our server resources
+since it's a <em>push</em> rather than a <em>pull</em> model.
+
+<p>There are other trade-offs, of course.  With SUP, you can also
+inadvertantly wipe out portions of your archive and SUP will detect
+and rebuild the damaged portions for you.  CTM won't do this, and if
+you wipe some portion of your source tree out (and don't have it backed
+up) then you will have to start from scratch (from the most recent CVS
+"base delta") and rebuild it all.
+
+<p>More recently, the waters have been muddied even more by
+the introduction of the <bf>CVSup</bf> utility, a highly efficient
+replacement for SUP which also offers access to any branch of FreeBSD
+development from a single CVS repository (which, in turn, can also be
+transferred non-destructively with CVSup - any local developer work on
+independant branches is preserved).  It overcomes many of SUP's shortcomings
+and may be <htmlurl url="ftp://freefall.freebsd.org/pub/CVSup/"
+name="downloaded"> from our development server, where additonal documentation
+is also provided.  Both the CVSup client and server are compatible with
+the sup and supfilesrv distribution file formats.
+
+For more information on SUP and CTM, please see one of the following
+sections:
 
    &sup;
    &ctm;

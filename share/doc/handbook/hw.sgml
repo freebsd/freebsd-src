@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.38 1996/08/24 10:18:50 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.39 1996/08/27 03:55:55 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -77,12 +77,13 @@ Slippery when wet.  Beware of dog.
     therefore buy one of the newer Triton II based motherboards, which offer
     both better performance and parity checking.
 
-    <p>At the even higher end, the Intel/Venus Pro (VS440FX) motherboard
-    appears to work very well with FreeBSD, as does its accompanying 200Mhz
-    P6 (Pentium Pro) CPU.  Recent price drops (pluments might be a more
-    accurate term) have dropped P6 systems into a very affordable price
-    bracket, at least in the United States, and for serious server
-    applications you may wish to look no further than one of these.
+    <p>At the even higher end, the Intel/Venus Pro (<ref id="hw:mb:pci"
+    name="VS440FX">) motherboard appears to work very well with FreeBSD,
+    as does its accompanying 200Mhz P6 (Pentium Pro) CPU.  Recent price
+    drops (plummets might be a more accurate term) have dropped P6 systems
+    into a very affordable price bracket, at least in the United States,
+    and for serious server applications you may wish to look no further than
+    one of these.
 
   <sect2><heading>Disk Controllers</heading>
     <p>This one is a bit trickier, and while I used to recommend the
@@ -215,8 +216,7 @@ Slippery when wet.  Beware of dog.
   <sect2><heading>* ISA</heading>
   <sect2><heading>* EISA</heading>
   <sect2><heading>* VLB</heading>
-  <sect2><heading>PCI</heading>
-
+  <sect2><heading>PCI<label id="hw:mb:pci"></heading>
 	  <p><em>Contributed by &a.rgrimes;.<newline>25 April 1995.</em></p>
 	  <p><em>Continuing updates by &a.jkh;.</em><newline>Last update on
 	  <em>26 August 1996.</em></p>
