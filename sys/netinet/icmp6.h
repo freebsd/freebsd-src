@@ -121,13 +121,13 @@ struct icmp6_hdr {
 #define ICMP6_NI_REPLY			140	/* node information reply */
 
 /* The definitions below are experimental. TBA */
-#define MLD6_MTRACE_RESP		141	/* mtrace response(to sender) */
-#define MLD6_MTRACE			142	/* mtrace messages */
+#define MLD6_MTRACE_RESP		200	/* mtrace response(to sender) */
+#define MLD6_MTRACE			201	/* mtrace messages */
 
-#define ICMP6_HADISCOV_REQUEST		143	/* XXX To be defined */
-#define ICMP6_HADISCOV_REPLY		144	/* XXX To be defined */
+#define ICMP6_HADISCOV_REQUEST		202	/* XXX To be defined */
+#define ICMP6_HADISCOV_REPLY		203	/* XXX To be defined */
   
-#define ICMP6_MAXTYPE			144
+#define ICMP6_MAXTYPE			203
 
 #define ICMP6_DST_UNREACH_NOROUTE	0	/* no route to destination */
 #define ICMP6_DST_UNREACH_ADMIN	 	1	/* administratively prohibited */
@@ -274,7 +274,8 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_PREFIX_INFORMATION	3
 #define ND_OPT_REDIRECTED_HEADER	4
 #define ND_OPT_MTU			5
-#define ND_OPT_ROUTE_INFO		9	/* draft-draves-router-preference, not officially assigned yet */
+
+#define ND_OPT_ROUTE_INFO		200	/* draft-ietf-ipngwg-router-preference, not officially assigned yet */
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -313,6 +314,7 @@ struct nd_opt_route_info {	/* route info */
 	u_int32_t	nd_opt_rti_lifetime;
 	/* followed by prefix */
 } __attribute__((__packed__));
+
 /*
  * icmp6 namelookup
  */
