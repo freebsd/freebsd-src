@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 static int read_random_phony(void *, int);
 
 /* Structure holding the desired entropy sources */
-struct harvest_select harvest = { 0, 0, 0, 0 };
+struct harvest_select harvest = { 1, 1, 1, 0 };
 
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
