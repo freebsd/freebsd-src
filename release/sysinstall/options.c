@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.11 1995/10/17 02:57:01 jkh Exp $
+ * $Id: options.c,v 1.12 1995/10/18 00:12:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,7 +97,7 @@ static Option Options[] = {
       OPT_IS_VAR,	"Please specify a full pathname to the HTML browser binary:", BROWSER_BINARY,	varCheck },
 { "Config File",	"Name of default configuration file for Load command (top menu)",
       OPT_IS_VAR,	"Please specify the name of a configuration file", CONFIG_FILE,	varCheck },
-{ "Reset Flags",	"Reset all flag values to defaults",
+{ "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },
 };
@@ -193,9 +193,7 @@ optionsEditor(char *str)
 	    /* Names are painted somewhat gratuitously each time, but it's easier this way */
 	    mvprintw(optrow, OPT_NAME_COL + optcol, Options[i].name);
 	    if (currOpt == i) standout();
-	    attron(A_UNDERLINE);
 	    mvprintw(optrow++, OPT_VALUE_COL + optcol, value_of(Options[i]));
-	    attroff(A_UNDERLINE);
 	    if (currOpt == i) standend();
 	    if (optrow == OPT_END_ROW) {
 		optrow = OPT_START_ROW;
