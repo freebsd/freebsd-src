@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -394,7 +392,15 @@ int     linenum;
 				linenum);
 			return NULL;
 		}
-		if (**cpp == '!') {
+		if (!strcmp(*cpp, "!")) {
+			fil.fr_flags |= FR_NOTSRCIP;
+			if (!*++cpp) {
+				fprintf(stderr,
+					"%d: missing host after from\n",
+					linenum);
+				return NULL;
+			}
+		} else if (**cpp == '!') {
 			fil.fr_flags |= FR_NOTSRCIP;
 			(*cpp)++;
 		}
@@ -424,7 +430,15 @@ int     linenum;
 			return NULL;
 		}
 		ch = 0;
-		if (**cpp == '!') {
+		if (!strcmp(*cpp, "!")) {
+			fil.fr_flags |= FR_NOTDSTIP;
+			if (!*++cpp) {
+				fprintf(stderr,
+					"%d: missing host after from\n",
+					linenum);
+				return NULL;
+			}
+		} else if (**cpp == '!') {
 			fil.fr_flags |= FR_NOTDSTIP;
 			(*cpp)++;
 		}

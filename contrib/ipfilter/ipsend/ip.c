@@ -1,14 +1,8 @@
 /*
  * ip.c (C) 1995-1998 Darren Reed
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.1.4.1 2001/01/10 06:21:19 darrenr Exp $";
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,6 +27,10 @@ static const char rcsid[] = "@(#)$Id: ip.c,v 2.1.4.1 2001/01/10 06:21:19 darrenr
 #endif
 #include "ipsend.h"
 
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C)1995";
+static const char rcsid[] = "@(#)$Id: ip.c,v 2.1.4.3 2001/07/15 22:00:13 darrenr Exp $";
+#endif
 
 static	char	*ipbuf = NULL, *ethbuf = NULL;
 

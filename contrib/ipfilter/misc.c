@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if (SOLARIS2 >= 7)
 # define _SYS_VARARGS_H
@@ -52,7 +50,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)misc.c	1.3 2/4/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: misc.c,v 2.2 2000/03/13 22:10:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: misc.c,v 2.2.2.1 2001/06/26 10:43:19 darrenr Exp $";
 #endif
 
 extern	int	opts;
