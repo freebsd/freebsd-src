@@ -176,28 +176,29 @@ For_Eval(char *line)
 	buf = Buf_Init(0);
 	sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
 
-#define	ADDWORD() \
-	Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd), \
-	Buf_AddByte(buf, (Byte)'\0'), \
-	Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen)), \
-	Buf_Destroy(buf, FALSE)
-
 	for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
 	    continue;
 
 	for (wrd = ptr; *ptr; ptr++)
 	    if (isspace((unsigned char)*ptr)) {
-		ADDWORD();
+		Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd);
+		Buf_AddByte(buf, (Byte)'\0');
+		Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
+		Buf_Destroy(buf, FALSE);
 		buf = Buf_Init(0);
 		while (*ptr && isspace((unsigned char)*ptr))
 		    ptr++;
 		wrd = ptr--;
 	    }
 	DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
-	if (ptr - wrd > 0)
-	    ADDWORD();
-	else
+	if (ptr - wrd > 0) {
+	    Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd);
+	    Buf_AddByte(buf, (Byte)'\0');
+	    Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
+	    Buf_Destroy(buf, FALSE);
+	} else {
 	    Buf_Destroy(buf, TRUE);
+	}
 	free(sub);
 
 	forBuf = Buf_Init(0);
