@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.26 1995/12/05 17:46:15 wollman Exp $
+ *	$Id: ip_output.c,v 1.27 1995/12/19 21:24:19 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -635,6 +635,35 @@ ip_ctloutput(op, so, level, optname, mp)
 			error = ip_setmoptions(optname, &inp->inp_moptions, m);
 			break;
 
+		case IP_PORTRANGE:
+			if (m == 0 || m->m_len != sizeof(int))
+				error = EINVAL;
+			else {
+				optval = *mtod(m, int *);
+
+				switch (optval) {
+
+				case IP_PORTRANGE_DEFAULT:
+					inp->inp_flags &= ~(INP_LOWPORT);
+					inp->inp_flags &= ~(INP_HIGHPORT);
+					break;
+
+				case IP_PORTRANGE_HIGH:
+					inp->inp_flags &= ~(INP_LOWPORT);
+					inp->inp_flags |= INP_HIGHPORT;
+					break;
+
+				case IP_PORTRANGE_LOW:
+					inp->inp_flags &= ~(INP_HIGHPORT);
+					inp->inp_flags |= INP_LOWPORT;
+					break;
+
+				default:
+					error = EINVAL;
+					break;
+				}
+			}
+
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -697,6 +726,20 @@ ip_ctloutput(op, so, level, optname, mp)
 		case IP_ADD_MEMBERSHIP:
 		case IP_DROP_MEMBERSHIP:
 			error = ip_getmoptions(optname, inp->inp_moptions, mp);
+			break;
+
+		case IP_PORTRANGE:
+			*mp = m = m_get(M_WAIT, MT_SOOPTS);
+			m->m_len = sizeof(int);
+
+			if (inp->inp_flags & INP_HIGHPORT)
+				optval = IP_PORTRANGE_HIGH;
+			else if (inp->inp_flags & INP_LOWPORT)
+				optval = IP_PORTRANGE_LOW;
+			else
+				optval = 0;
+
+			*mtod(m, int *) = optval;
 			break;
 
 		default:

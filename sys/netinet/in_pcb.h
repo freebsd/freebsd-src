@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: in_pcb.h,v 1.9 1995/11/14 20:34:03 phk Exp $
+ * $Id: in_pcb.h,v 1.10 1995/12/05 21:26:34 bde Exp $
  */
 
 #ifndef _NETINET_IN_PCB_H_
@@ -78,6 +78,8 @@ struct inpcbinfo {
 #define	INP_RECVDSTADDR		0x04	/* receive IP dst address */
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR)
 #define	INP_HDRINCL		0x08	/* user supplies entire IP header */
+#define	INP_HIGHPORT		0x10	/* user wants "high" port binding */
+#define	INP_LOWPORT		0x20	/* user wants "low" port binding */
 
 #define	INPLOOKUP_WILDCARD	1
 
