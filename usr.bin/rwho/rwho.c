@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rwho.c,v 1.11 1997/08/08 12:20:24 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ time_t	now;
 int	aflg;
 
 static void usage __P((void));
-int utmpcmp __P((struct myutmp *, struct myutmp *));
+int utmpcmp __P((const void *, const void *));
 
 int
 main(argc, argv)
@@ -106,6 +106,12 @@ main(argc, argv)
 		default:
 			usage();
 		}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 0)
+		usage();
+
 	if (chdir(_PATH_RWHODIR) || (dirp = opendir(".")) == NULL)
 		err(1, "%s", _PATH_RWHODIR);
 	mp = myutmp;
@@ -189,17 +195,21 @@ usage()
 	exit(1);
 }
 
+#define MYUTMP(a) ((struct myutmp *)(a))
+
 int
 utmpcmp(u1, u2)
-	struct myutmp *u1, *u2;
+	const void *u1, *u2;
 {
 	int rc;
 
-	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, sizeof(u2->myutmp.out_name));
+	rc = strncmp(MYUTMP(u1)->myutmp.out_name, MYUTMP(u2)->myutmp.out_name,
+		sizeof(MYUTMP(u2)->myutmp.out_name));
 	if (rc)
 		return (rc);
-	rc = strcmp(u1->myhost, u2->myhost);
+	rc = strcmp(MYUTMP(u1)->myhost, MYUTMP(u2)->myhost);
 	if (rc)
 		return (rc);
-	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, sizeof(u2->myutmp.out_line)));
+	return (strncmp(MYUTMP(u1)->myutmp.out_line, MYUTMP(u2)->myutmp.out_line,
+		sizeof(MYUTMP(u2)->myutmp.out_line)));
 }
