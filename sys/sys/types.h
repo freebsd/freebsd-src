@@ -36,14 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.22 1997/12/31 01:22:01 alex Exp $
+ * $Id: types.h,v 1.23 1998/01/08 00:27:34 alex Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
 
+#include <sys/cdefs.h>
+
 /* Machine type dependent parameters. */
-#include <sys/cdefs.h>			/* XXX for __signed in machine/ansi.h */
 #include <machine/ansi.h>
 #include <machine/types.h>
 
@@ -99,6 +100,11 @@ typedef	_BSD_CLOCK_T_	clock_t;
 #undef	_BSD_CLOCK_T_
 #endif
 
+#ifdef	_BSD_CLOCKID_T_
+typedef	_BSD_CLOCKID_T_	clockid_t;
+#undef	_BSD_CLOCKID_T_
+#endif
+
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
@@ -112,11 +118,6 @@ typedef	_BSD_SSIZE_T_	ssize_t;
 #ifdef	_BSD_TIME_T_
 typedef	_BSD_TIME_T_	time_t;
 #undef	_BSD_TIME_T_
-#endif
-
-#ifdef	_BSD_CLOCKID_T_
-typedef	_BSD_CLOCKID_T_	clockid_t;
-#undef	_BSD_CLOCKID_T_
 #endif
 
 #ifdef	_BSD_TIMER_T_
@@ -175,7 +176,6 @@ typedef	struct fd_set {
  * 64-bit off_t's.
  */
 #ifndef KERNEL
-#include <sys/cdefs.h>
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
@@ -196,21 +196,6 @@ int	 truncate __P((const char *, off_t));
 __END_DECLS
 #endif /* !KERNEL */
 
-#if defined(__STDC__) && defined(KERNEL)
-/*
- * Forward structure declarations for function prototypes.  We include the
- * common structures that cross subsystem boundaries here; others are mostly
- * used in the same place that the structure is defined.
- */
-struct	proc;
-struct	pgrp;
-struct	ucred;
-struct	rusage;
-struct	file;
-struct	buf;
-struct	tty;
-struct	uio;
-#endif
-
 #endif /* !_POSIX_SOURCE */
+
 #endif /* !_SYS_TYPES_H_ */
