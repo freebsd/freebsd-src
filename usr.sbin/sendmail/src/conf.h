@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.219 (Berkeley) 11/11/95
+ *	@(#)conf.h	8.220 (Berkeley) 11/29/95
  */
 
 /*
@@ -216,6 +216,7 @@ extern void	hard_syslog(int, char *, ...);
 
 #ifdef _AIX3
 # include <paths.h>
+# include <sys/machine.h>	/* to get byte order */
 # define HASINITGROUPS	1	/* has initgroups(3) call */
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
@@ -677,6 +678,7 @@ extern int		errno;
 # define SYSTEM5	1	/* include all the System V defines */
 # define SYS5SIGNALS	1	/* SysV signal semantics -- reset on each sig */
 # define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
+# define NOFTRUNCATE	0	/* does not have ftruncate(3) call */
 # define NEEDFSYNC	1	/* needs the fsync(2) call stub */
 # define FORK		fork
 # define MAXPATHLEN	PATHSIZE

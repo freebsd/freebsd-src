@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.118 (Berkeley) 10/8/95 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.119 (Berkeley) 11/29/95 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.118 (Berkeley) 10/8/95 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.119 (Berkeley) 11/29/95 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -1034,10 +1034,10 @@ myhostname(hostbuf, size)
 	    !getcanonname(hostbuf, size, TRUE))
 	{
 #ifdef LOG
-		syslog(LOG_CRIT, "My unqualifed host name (%s) unknown; sleeping for retry",
+		syslog(LOG_CRIT, "My unqualified host name (%s) unknown; sleeping for retry",
 			hostbuf);
 #endif
-		message("My unqualifed host name (%s) unknown; sleeping for retry",
+		message("My unqualified host name (%s) unknown; sleeping for retry",
 			hostbuf);
 		sleep(60);
 		if (!getcanonname(hostbuf, size, TRUE))
