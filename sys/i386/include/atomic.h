@@ -75,15 +75,19 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
 #else /* !KLD_MODULE */
 
-#if defined(SMP)
+/*
+ * For userland, assume the SMP case and use lock prefixes so that
+ * the binaries will run on both types of systems.
+ */
+#if defined(SMP) || !defined(_KERNEL)
 #if defined(LOCORE)
 #define	MPLOCKED	lock ;
 #else /* !LOCORE */
 #define MPLOCKED	"lock ; "
 #endif /* LOCORE */
-#else /* !SMP */
+#else /* SMP || !_KERNEL */
 #define MPLOCKED
-#endif /* SMP */
+#endif /* SMP || !_KERNEL */
 
 #if !defined(LOCORE)
 /*
