@@ -28,7 +28,8 @@
  */
 
 #include <i386/isa/sound/sound_config.h>
-#include <i386/include/md_var.h>
+
+#include <machine/md_var.h>
 
 #if defined(CONFIG_AUDIO) || defined(CONFIG_GUS)
 #ifdef ALLOW_POLL

@@ -22,14 +22,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.4 1997/07/28 03:40:09 smp Exp smp $
+ *	$Id: mpapic.h,v 1.10 1997/07/28 03:59:34 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
 #define _MACHINE_MPAPIC_H_
 
+#include <machine/apic.h>
+
 #include <i386/isa/icu.h>
-#include <i386/include/apic.h>
 
 /* number of busses */
 #if !defined(NBUS)
