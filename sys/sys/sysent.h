@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.8 1996/03/29 14:29:50 bde Exp $
+ *	$Id: sysent.h,v 1.9 1996/04/04 01:08:20 smpatel Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -62,6 +62,7 @@ struct sysentvec {
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	void		(*sv_prepsyscall) __P((struct trapframe *, int *,
 					       u_int *, caddr_t *));
+	char		*sv_name;	/* name of binary type */
 };
 
 #ifdef KERNEL

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.5 1996/05/01 02:42:43 bde Exp $
+ *	$Id: imgact_elf.c,v 1.6 1996/06/12 05:07:25 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -90,6 +90,7 @@ static struct sysentvec elf_freebsd_sysvec = {
         sigcode,
         &szsigcode,
         0,
+	"FreeBSD ELF"
 };
 
 static Elf32_Interp_info freebsd_interp = {

@@ -1,7 +1,7 @@
 /*
  * sysentvec for native FreeBSD a.out executable format.
  *
- * $Id$
+ * $Id: init_sysvec.c,v 1.1 1996/03/02 19:38:08 peter Exp $
  */
 
 #include <sys/types.h>
@@ -26,4 +26,5 @@ struct sysentvec aout_sysvec = {
 	sigcode,
 	&szsigcode,
 	0,
+	"FreeBSD a.out"
 };
