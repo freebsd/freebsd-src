@@ -4,7 +4,7 @@
  * You may copy this file verbatim until I find the official 
  * Institute boilerplate.
  *
- * $Id: in_rmx.c,v 1.1 1994/11/02 04:42:14 wollman Exp $
+ * $Id: in_rmx.c,v 1.2 1994/11/03 01:05:34 wollman Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -87,7 +88,12 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
+#if 0
 #define RTQ_REALLYOLD	4*60*60	/* four hours is ``really old'' */
+#else
+#define RTQ_REALLYOLD	120	/* for testing, make these fire faster */
+#endif
+int rtq_reallyold = RTQ_REALLYOLD;
 
 /*
  * On last reference drop, add the route to the queue so that it can be
@@ -107,34 +113,81 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 		return;
 
 	rt->rt_prflags |= RTPRF_OURS;
-	rt->rt_rmx.rmx_expire = time.tv_sec + RTQ_REALLYOLD;
+	rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
 }
 
-/*
- * Get rid of everything in the queue, we are short on memory.
- * Although this looks like an infinite loop, it really isn't;
- * rtrequest() eventually calls in_delroute() which ends up deleting
- * the node at the head (or so we hope).  This should be called from
- * ip_drain().
- */
-void
-in_rtqdrain(void)
-{
-	/* write me! */
-	;
-}
+#define RTQ_TIMEOUT	60	/* run once a minute */
+int rtq_timeout = RTQ_TIMEOUT;
 
-#define RTQ_TIMEOUT	(60*hz)	/* run once a minute */
+struct rtqk_arg {
+	struct radix_node_head *rnh;
+	int killed;
+	int found;
+	time_t nextstop;
+};
 
 /*
  * Get rid of old routes.
  */
+static int
+in_rtqkill(struct radix_node *rn, void *rock)
+{
+	struct rtqk_arg *ap = rock;
+	struct radix_node_head *rnh = ap->rnh;
+	struct rtentry *rt = (struct rtentry *)rn;
+	int err;
+
+	if(rt->rt_prflags & RTPRF_OURS) {
+		ap->found++;
+
+		if(rt->rt_rmx.rmx_expire <= time.tv_sec) {
+			if(rt->rt_refcnt > 0)
+				panic("rtqkill route really not free\n");
+
+			err = rtrequest(RTM_DELETE,
+					(struct sockaddr *)rt_key(rt),
+					rt->rt_gateway, rt_mask(rt),
+					rt->rt_flags, 0);
+			if(err) {
+				log(LOG_WARNING, "in_rtqkill: error %d", err);
+			} else {
+				ap->killed++;
+			}
+		} else {
+			ap->nextstop = lmin(ap->nextstop,
+					    rt->rt_rmx.rmx_expire);
+		}
+	}
+
+	return 0;
+}
+
 static void
 in_rtqtimo(void *rock)
 {
-	/* write me! */
+	struct radix_node_head *rnh = rock;
+	struct rtqk_arg arg;
+	static int level;
+	struct timeval atv;
 
-	timeout(in_rtqtimo, rock, RTQ_TIMEOUT);
+	level++;
+	arg.found = arg.killed = 0;
+	arg.rnh = rnh;
+	arg.nextstop = time.tv_sec + 10*rtq_timeout;
+	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	printf("in_rtqtimo: found %d, killed %d, level %d\n", arg.found,
+	       arg.killed, level);
+	atv.tv_usec = 0;
+	atv.tv_sec = arg.nextstop;
+	printf("next timeout in %d seconds\n", arg.nextstop - time.tv_sec);
+	timeout(in_rtqtimo, rock, hzto(&atv));
+	level--;
+}
+
+void
+in_rtqdrain(void)
+{
+	;
 }
 
 /*
