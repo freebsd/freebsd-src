@@ -49,8 +49,7 @@ PMAP_STATS_VAR(tlb_ncontext_demap);
 PMAP_STATS_VAR(tlb_npage_demap);
 PMAP_STATS_VAR(tlb_nrange_demap);
 
-int tlb_dtlb_entries;
-int tlb_itlb_entries;
+tlb_flush_user_t *tlb_flush_user;
 
 /*
  * Some tlb operations must be atomic, so no interrupt or trap can be allowed
@@ -143,27 +142,4 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
-}
-
-void
-tlb_dump(void)
-{
-	u_long data;
-	u_long tag;
-	int slot;
-
-	for (slot = 0; slot < tlb_dtlb_entries; slot++) {
-		data = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG);
-		if ((data & TD_V) != 0) {
-			tag = ldxa(TLB_DAR_SLOT(slot), ASI_DTLB_TAG_READ_REG);
-			TR3("pmap_dump_tlb: dltb slot=%d data=%#lx tag=%#lx",
-			    slot, data, tag);
-		}
-		data = ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG);
-		if ((data & TD_V) != 0) {
-			tag = ldxa(TLB_DAR_SLOT(slot), ASI_ITLB_TAG_READ_REG);
-			TR3("pmap_dump_tlb: iltb slot=%d data=%#lx tag=%#lx",
-			    slot, data, tag);
-		}
-	}
 }

@@ -43,6 +43,9 @@
 #include <machine/cache.h>
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
+#include <machine/tlb.h>
+
+#define	SPITFIRE_TLB_ENTRIES	64
 
 PMAP_STATS_VAR(spitfire_dcache_npage_inval);
 PMAP_STATS_VAR(spitfire_dcache_npage_inval_match);
@@ -106,4 +109,28 @@ spitfire_icache_page_inval(vm_paddr_t pa)
 		}
 	}
 	ipi_wait(cookie);
+}
+
+/*
+ * Flush all user mappings from the tlb.
+ */
+void
+spitfire_tlb_flush_user(void)
+{
+	u_long data;
+	u_long tag;
+	int i;
+
+	for (i = 0; i < SPITFIRE_TLB_ENTRIES; i++) {
+		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
+		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
+		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
+		tag = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
+		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
+		    TLB_TAR_CTX(tag) != TLB_CTX_KERNEL)
+			stxa_sync(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
+	}
 }

@@ -93,17 +93,21 @@
 #define	MMU_SFSR_W			(1UL << MMU_SFSR_W_SHIFT)
 #define	MMU_SFSR_FV			(1UL << MMU_SFSR_FV_SHIFT)
 
+typedef void tlb_flush_user_t(void);
+
+struct pmap;
 struct tlb_entry;
 
 extern int kernel_tlb_slots;
 extern struct tlb_entry *kernel_tlbs;
 
-extern int tlb_dtlb_entries;
-extern int tlb_itlb_entries;
-
 void	tlb_context_demap(struct pmap *pm);
 void	tlb_page_demap(struct pmap *pm, vm_offset_t va);
 void	tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end);
-void	tlb_dump(void);
+
+tlb_flush_user_t cheetah_tlb_flush_user;
+tlb_flush_user_t spitfire_tlb_flush_user;
+
+extern tlb_flush_user_t *tlb_flush_user;
 
 #endif /* !_MACHINE_TLB_H_ */

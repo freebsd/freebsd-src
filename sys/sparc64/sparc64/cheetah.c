@@ -43,6 +43,7 @@
 #include <machine/cache.h>
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
+#include <machine/tlb.h>
 
 /*
  * Flush a physical page from the data cache.
@@ -68,4 +69,10 @@ cheetah_dcache_page_inval(vm_paddr_t spa)
 void
 cheetah_icache_page_inval(vm_paddr_t pa)
 {
+}
+
+void
+cheetah_tlb_flush_user(void)
+{
+	panic("cheetah_tlb_flush_user");
 }
