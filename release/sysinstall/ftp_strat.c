@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.4 1995/05/27 23:39:30 phk Exp $
+ * $Id: ftp_strat.c,v 1.5 1995/05/29 11:01:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -15,8 +15,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the

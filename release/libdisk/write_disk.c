@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.11 1995/05/21 07:47:24 phk Exp $
+ * $Id: write_disk.c,v 1.12 1995/05/24 08:59:40 jkh Exp $
  *
  */
 
@@ -24,7 +24,7 @@
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
-#define BBSIZE			8192 
+#define BBSIZE			8192
 
 #define WHERE(offset,disk) (disk->flags & DISK_ON_TRACK ? offset + 63 : offset)
 int
@@ -91,7 +91,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for(i=0;i<BBSIZE/512;i++) {
 		write_block(fd,WHERE(i + c1->offset,new),buf+512*i);
 	}
-		
+
 	return 0;
 }
 
@@ -151,7 +151,7 @@ Write_Disk(struct disk *d1)
 		} else {
 			dp[j].dp_ssect = i % d1->bios_sect;
 			i -= dp[j].dp_ssect++;
-			i /= d1->bios_sect;	
+			i /= d1->bios_sect;
 			dp[j].dp_shd =  i % d1->bios_hd;
 			i -= dp[j].dp_shd;
 			i /= d1->bios_hd;
@@ -161,14 +161,14 @@ Write_Disk(struct disk *d1)
 		}
 
 #ifdef DEBUG
-		printf("S:%lu = (%x/%x/%x)", 
+		printf("S:%lu = (%x/%x/%x)",
 			c1->offset,dp[j].dp_scyl,dp[j].dp_shd,dp[j].dp_ssect);
 #endif
 
 		i = c1->end;
 		dp[j].dp_esect = i % d1->bios_sect;
 		i -= dp[j].dp_esect++;
-		i /= d1->bios_sect;	
+		i /= d1->bios_sect;
 		dp[j].dp_ehd =  i % d1->bios_hd;
 		i -= dp[j].dp_ehd;
 		i /= d1->bios_hd;
@@ -178,7 +178,7 @@ Write_Disk(struct disk *d1)
 		dp[j].dp_esect |= i >> 2;
 
 #ifdef DEBUG
-		printf("  E:%lu = (%x/%x/%x)\n", 
+		printf("  E:%lu = (%x/%x/%x)\n",
 			c1->end,dp[j].dp_ecyl,dp[j].dp_ehd,dp[j].dp_esect);
 #endif
 
@@ -199,10 +199,10 @@ Write_Disk(struct disk *d1)
 		for(i=0;i<NDOSPART;i++)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
-	
+
 	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
-		memcpy(mbr,d1->bootmgr,DOSPARTOFF);	
+		memcpy(mbr,d1->bootmgr,DOSPARTOFF);
 	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;

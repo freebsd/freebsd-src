@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.16 1995/05/12 18:49:58 phk Exp $
+ * $Id: libdisk.h,v 1.17 1995/05/25 06:14:49 phk Exp $
  *
  */
 
@@ -57,13 +57,13 @@ struct chunk {
 	int		subtype;
 	u_long		flags;
 #		define CHUNK_PAST_1024		1
-			/* this chunk cannot be booted from because it 
+			/* this chunk cannot be booted from because it
 			 * extends past cylinder 1024
 			 */
 #		define CHUNK_BSD_COMPAT	2
-			/* this chunk is in the BSD-compatibility, and has a 
+			/* this chunk is in the BSD-compatibility, and has a
 			 * short name too, ie wd0s4f -> wd0f
-         		*/ 
+         		*/
 #		define CHUNK_BAD144		4
 			/* this chunk has bad144 mapping */
 #		define CHUNK_ALIGN		8
@@ -86,14 +86,14 @@ struct chunk {
 struct disk *
 Open_Disk(char *devname);
 	/* Will open the named disk, and return populated tree.
-	 */	
+	 */
 
 struct disk *
 Clone_Disk(struct disk *disk);
 	/* Clone a copy of a tree.  Useful for "Undo" functionality
 	 */
 
-void 
+void
 Free_Disk(struct disk *disk);
 	/* Free a tree made with Open_Disk() or Clone_Disk()
 	 */
@@ -109,14 +109,14 @@ Set_Phys_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 	 * The tree returned is read from the disk, using this geometry.
 	 */
 
-void 
+void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long heads, u_long sects);
 	/* Set the geometry the bios uses.
 	 */
 
-int 
+int
 Delete_Chunk(struct disk *disk, struct chunk *);
-	/* Free a chunk of disk_space 
+	/* Free a chunk of disk_space
 	 */
 
 void
@@ -128,7 +128,7 @@ Collapse_Chunk(struct disk *disk, struct chunk *chunk);
 	/* Experimental, do not use.
 	 */
 
-int 
+int
 Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type, int subtype, u_long flags);
 	/* Create a chunk with the specified paramters
 	 */
@@ -138,7 +138,7 @@ All_FreeBSD(struct disk *d);
 	/* Make one FreeBSD chunk covering the entire disk
 	 */
 
-char * 
+char *
 CheckRules(struct disk *);
 	/* Return char* to warnings about broken design rules in this disklayout
 	 */
@@ -211,7 +211,7 @@ void
 MakeDevDisk(struct disk *d,char *path);
 	/* Make device nodes for all chunks on this disk */
 
-/* 
+/*
  * Implementation details  >>> DO NOT USE <<<
  */
 
@@ -233,13 +233,13 @@ void Fixup_Names(struct disk *);
 /* TODO
  *
  * Need a error string mechanism from the functions instead of warn()
- * 
+ *
  * Make sure only FreeBSD start at offset==0
- * 
+ *
  * Collapse must align.
- * 
+ *
  * Make Write_Disk(struct disk*)
- * 
+ *
  * Consider booting from OnTrack'ed disks.
  *
  * Get Bios-geom, ST506 & OnTrack from driver (or otherwise)
@@ -247,7 +247,7 @@ void Fixup_Names(struct disk *);
  * Make Create_DWIM().
  *
  * Make Is_Unchanged(struct disk *d1, struct chunk *c1)
- * 
+ *
  * don't rename slices unless we have to
  *
  *Sample output from tst01:
@@ -294,7 +294,7 @@ void Fixup_Names(struct disk *);
  *		     |        <wd0s5>
  *		     |
  *		     v
- *		  <wd0s3>	
+ *		  <wd0s3>
  *		     |
  *		     v
  *		  <wd0s4> --> <wd0s4a>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.190 1995/05/29 02:20:32 phk Exp $
+#	$Id: Makefile,v 1.191 1995/05/29 10:56:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -48,7 +48,7 @@ BOOTMFSSIZE=		1075
 MFSINODE=		70000
 
 # Things which will get you into trouble if you change them
-DISTRIBUTIONS=		bin ${EXTRA_DISTS}                      
+DISTRIBUTIONS=		bin ${EXTRA_DISTS}
 MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			${RELEASEDIR}/stage
 FD=			${RELEASEDIR}/ftp
@@ -276,7 +276,7 @@ release.6:
 					TN=$$i TD=$$i ARG="." ; \
 			echo "$${i} distribution is finished."; \
 		fi ; \
-	done                                                 
+	done
 	touch release.6
 
 
@@ -299,7 +299,7 @@ release.7:
 	@echo "src distribution is finished."
 	touch release.7
 
-# Complete the bootfd 
+# Complete the bootfd
 #
 # Now, just to get this picture down once and for all:
 #
@@ -431,13 +431,13 @@ cdrom.1:
 doTARBALL:
 .if !defined(SD)
 	@echo "SD undefined in doTARBALL" ; exit 1
-.endif               
+.endif
 .if !defined(TD)
 	@echo "TB undefined in doTARBALL" ; exit 1
-.endif               
+.endif
 .if !defined(ARG)
 	@echo "ARG undefined in doTARBALL" ; exit 1
-.endif               
+.endif
 	rm -rf ${RD}/dists/${TD}/${TN}*
 	mkdir -p ${RD}/dists/${TD}
 	( cd ${SD} && \
@@ -478,7 +478,7 @@ write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
 	@echo "To make a release RELEASEDIR must be defined" && false
-.endif               
+.endif
 
 doFLOPPY:
 .if !defined(FLOPPY)

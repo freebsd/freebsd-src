@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.33 1995/05/28 09:31:31 jkh Exp $
+ * $Id: devices.c,v 1.34 1995/05/29 11:01:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -13,8 +13,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -282,7 +282,7 @@ deviceGetAll(void)
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
     for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
 	/* If it's not a link entry, forget it */
-	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK) 
+	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
 	    continue;
 	/* Eliminate network devices that don't make sense */
 	if (!strncmp(ifptr->ifr_name, "tun", 3)

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.3 1995/05/17 14:40:00 jkh Exp $
+ * $Id: wizard.c,v 1.4 1995/05/20 10:33:14 jkh Exp $
  *
  */
 
@@ -86,10 +86,10 @@ Scan_Disk(Disk *d)
     char device[64];
     u_long l;
     int i,j,fd;
-    
+
     strcpy(device,"/dev/r");
     strcat(device,d->name);
-    
+
     fd = open(device,O_RDWR);
     if (fd < 0) {
 	msgWarn("open(%s) failed", device);
@@ -108,9 +108,9 @@ Scan_Disk(Disk *d)
 		printf(".%lu\nG: %lu.",l-1,l);
 		fflush(stdout);
 	    }
-	    i = j;	
+	    i = j;
 	}
-    } 
+    }
     close(fd);
 }
 
@@ -123,7 +123,7 @@ slice_wizard(Disk *d)
     char *p,*q=0;
     char **cp,*cmds[200];
     int ncmd,i;
-    
+
     sprintf(myprompt,"%s> ", d->name);
     while(1) {
 	printf("--==##==--\n");
@@ -158,41 +158,41 @@ slice_wizard(Disk *d)
 	    All_FreeBSD(d);
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"bios") && ncmd == 4) { 
+	if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
 	    Set_Bios_Geom(d,
 			  strtol(cmds[1],0,0),
 			  strtol(cmds[2],0,0),
 			  strtol(cmds[3],0,0));
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"phys") && ncmd == 4) { 
+	if (!strcasecmp(*cmds,"phys") && ncmd == 4) {
 	    d = Set_Phys_Geom(d,
 			      strtol(cmds[1],0,0),
 			      strtol(cmds[2],0,0),
 			      strtol(cmds[3],0,0));
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"collapse")) { 
+	if (!strcasecmp(*cmds,"collapse")) {
 	    if (cmds[1])
 		while (Collapse_Chunk(d,
 				      (struct chunk *)strtol(cmds[1],0,0)))
 		    ;
-	    else		
+	    else
 		Collapse_Disk(d);
 	    continue;
-	}	
-	if (!strcasecmp(*cmds,"list")) { 
+	}
+	if (!strcasecmp(*cmds,"list")) {
 	    cp = Disk_Names();
 	    printf("Disks:");
 	    for(i=0;cp[i];i++) {
 		printf(" %s",cp[i]);
 		free(cp[i]);
-	    }		
+	    }
 	    free(cp);
 	    continue;
 	}
-	if (!strcasecmp(*cmds,"create") && ncmd == 6) { 
-	    
+	if (!strcasecmp(*cmds,"create") && ncmd == 6) {
+
 	    printf("Create=%d\n",
 		   Create_Chunk(d,
 				strtol(cmds[1],0,0),
@@ -260,6 +260,6 @@ slice_wizard(Disk *d)
 	for(i=0;chunk_n[i];i++)
 	    printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");
 	printf("\n");
-	
+
     }
 }

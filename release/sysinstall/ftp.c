@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.11 1995/05/27 06:19:59 phk Exp $
+ * $Id: ftp.c,v 1.12 1995/05/29 11:01:16 jkh Exp $
  *
  */
 
@@ -44,7 +44,7 @@ debug(FTP_t ftp, const char *fmt, ...)
 #endif
     (void) vsnprintf(p+strlen(p), sizeof p - strlen(p), fmt, ap);
     va_end(ap);
-    
+
 #ifdef STANDALONE_FTP
     write(ftp->fd_debug,p,strlen(p));
 #else
@@ -67,7 +67,7 @@ get_a_line(FTP_t ftp)
 {
     static char buf[BUFSIZ];
     int i,j;
-    
+
     for(i=0;i<BUFSIZ;) {
 	j = read(ftp->fd_ctrl,buf+i,1);
 	if (j != 1)
@@ -89,7 +89,7 @@ get_a_number(FTP_t ftp, char **q)
 {
     char *p;
     int i = -1,j;
-    
+
     while(1) {
 	p = get_a_line(ftp);
 	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
@@ -97,8 +97,8 @@ get_a_number(FTP_t ftp, char **q)
 	if (i == -1 && p[3] == '-') {
 	    i = atoi(p);
 	    continue;
-	} 
-	if (p[3] != ' ' && p[3] != '\t') 
+	}
+	if (p[3] != ' ' && p[3] != '\t')
 	    continue;
 	j = atoi(p);
 	if (i == -1) {
@@ -127,12 +127,12 @@ cmd(FTP_t ftp, const char *fmt, ...)
 {
     char p[BUFSIZ];
     int i;
-    
+
     va_list ap;
     va_start(ap, fmt);
     (void) vsnprintf(p, sizeof p, fmt, ap);
     va_end(ap);
-    
+
     debug(ftp, "send <%s>\n",p);
     strcat(p,"\r\n");
     if (writes(ftp->fd_ctrl,p))
@@ -145,7 +145,7 @@ FTP_t
 FtpInit()
 {
     FTP_t ftp;
-    
+
     ftp = malloc(sizeof *ftp);
     if (!ftp)
 	return ftp;
@@ -173,18 +173,18 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
     int 			s;
     unsigned long 		temp;
     int i;
-    
+
     if (ftp->state != init)
 	return botch(ftp,"FtpOpen","init");
-    
+
     if (!user)
 	user = "ftp";
-    
+
     if (!passwd)
 	passwd = "??@??(FreeBSD:libftp)";	/* XXX */
-    
+
     debug(ftp, "FtpOpen(ftp, %s, %s, %s)\n", host, user, passwd);
-    
+
     temp = inet_addr(host);
     if (temp != INADDR_NONE)
     {
@@ -202,33 +202,33 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
 	ftp->addrtype = sin.sin_family = he->h_addrtype;
 	bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
     }
-    
+
     sin.sin_port = htons(21);
-    
+
     if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
     {
 	debug(ftp, "Socket open failed: %s (%i)\n", strerror(errno), errno);
 	return s;
     }
-    
+
     if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 	debug(ftp,"Connection failed: %s (%i)\n", strerror(errno), errno);
 	(void)close(s);
 	return -1;
     }
-    
+
     ftp->fd_ctrl = s;
-    
+
     debug(ftp, "open (%d)\n",get_a_number(ftp,0));
-    
+
     i = cmd(ftp,"USER %s",user);
-    if (i >= 300 && i < 400) 
+    if (i >= 300 && i < 400)
 	i = cmd(ftp,"PASS %s",passwd);
     if (i >= 299)
 	return -1;
     ftp->state = isopen;
     return 0;
-    
+
 #if 0
 fail:
     close(ftp->fd_ctrl);
@@ -240,9 +240,9 @@ fail:
 void
 FtpClose(FTP_t ftp)
 {
-    if (ftp->state != isopen) 
+    if (ftp->state != isopen)
 	botch(ftp,"FtpClose","open");
-    
+
     debug(ftp, "FtpClose(ftp)\n");
     writes(ftp->fd_ctrl,"QUIT\r\n");
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
@@ -254,7 +254,7 @@ int
 FtpChdir(FTP_t ftp, char *dir)
 {
     int i;
-    if (ftp->state != isopen) 
+    if (ftp->state != isopen)
 	return botch(ftp,"FtpChdir","open");
     i = cmd(ftp,"CWD %s",dir);
     return 0;
@@ -267,9 +267,9 @@ FtpGet(FTP_t ftp, char *file)
     char *q;
     unsigned char addr[6];
     struct sockaddr_in sin;
-    
+
     debug(ftp, "FtpGet(ftp,%s)\n",file);
-    if (ftp->state != isopen) 
+    if (ftp->state != isopen)
 	return botch(ftp,"FtpGet","open");
     if(ftp->binary) {
 	i = cmd(ftp,"TYPE I");
@@ -294,13 +294,13 @@ FtpGet(FTP_t ftp, char *file)
 	    q++;
 	    addr[i] = strtol(q,&q,10);
 	}
-	
+
 	sin.sin_family = ftp->addrtype;
 	bcopy(addr, (char *)&sin.sin_addr, 4);
 	bcopy(addr+4, (char *)&sin.sin_port, 2);
 	debug(ftp, "Opening active socket to %s : %u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
 
-	if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0) 
+	if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
 	    return -1;
 
 	debug(ftp, "Connecting to %s:%u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
@@ -309,7 +309,7 @@ FtpGet(FTP_t ftp, char *file)
 	    debug(ftp, "connect: %s (%d)\n", strerror(errno), errno);
 	    return -1;
 	}
-	
+
 	i = cmd(ftp,"RETR %s",file);
 	if (i > 299)
 	    return -1;
@@ -324,7 +324,7 @@ FtpGet(FTP_t ftp, char *file)
 int
 FtpEOF(FTP_t ftp)
 {
-    if (ftp->state != xfer) 
+    if (ftp->state != xfer)
 	return botch(ftp,"FtpEOF","xfer");
     debug(ftp, "FtpEOF(ftp)\n");
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
@@ -336,16 +336,16 @@ FtpEOF(FTP_t ftp)
 
 /* main.c */
 
-int 
+int
 main(int argc, char **argv)
 {
     FTP_t ftp;
     int i;
     char c;
-    
+
     ftp = FtpInit();
     if (!ftp) err(1,"FtpInit()");
-    
+
     FtpDebug(ftp,1);
     i = FtpOpen(ftp, "ref.tfs.com", "ftp", "phk-libftp@");
     if (i) err(1,"FtpOpen(%d)",i);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.13 1995/05/29 11:01:06 jkh Exp $
+ * $Id: config.c,v 1.14 1995/05/29 13:37:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -13,8 +13,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer, 
- *    verbatim and that no modifications are made prior to this 
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
  *    point in the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -246,7 +246,7 @@ configSysconfig(void)
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 3);
 		sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }
-	    
+
 	}
     }
     fp = fopen("/etc/sysconfig", "w");
