@@ -31,262 +31,63 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 
-#include <net/ethernet.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h> 
+
 #include <net/if.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <net/if_arp.h>
+#include <net/if_media.h> 
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
+#include <isa/pnpvar.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
 #include <i386/isa/elink.h>
 
-static int		ep_isa_probe		(struct isa_device *);
-static int		ep_isa_attach		(struct isa_device *);
-static struct ep_board *ep_look_for_board_at	(struct isa_device *is);
-static int		get_eeprom_data		(int, int);
-static void		epintr			(int);
+static int	get_eeprom_data	(int, int);
 
-#if 0
-static int		send_ID_sequence	(int);
-#endif
+static void	ep_isa_identify	(driver_t *, device_t);
+static int	ep_isa_probe	(device_t);
+static int	ep_isa_attach	(device_t);
 
-static int		ep_current_tag = EP_LAST_TAG + 1;
+struct isa_ident {
+	u_int32_t	id;
+	char *		name;
+};
+const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 
-struct isa_driver epdriver = {
-    ep_isa_probe,
-    ep_isa_attach,
-    "ep",
-    0
+#define ISA_ID_3C509_TP    0x506d5090
+#define ISA_ID_3C509_BNC   0x506d5091
+#define ISA_ID_3C509_COMBO 0x506d5094
+#define ISA_ID_3C509_TPO   0x506d5095
+
+static struct isa_ident ep_isa_devs[] = {
+	{ ISA_ID_3C509_TP,	"3Com EtherLink III (3c509-TP)" },
+	{ ISA_ID_3C509_BNC,	"3Com EtherLink III (3c509-BNC)" },
+	{ ISA_ID_3C509_COMBO,	"3Com EtherLink III (3c509-Combo)" },
+	{ ISA_ID_3C509_TPO,	"3Com EtherLink III (3c509-TPO)" },
+	{ 0,			NULL },
 };
 
-int
-ep_isa_probe(is)
-    struct isa_device *is;
-{
-    struct ep_softc *sc;
-    struct ep_board *epb;
-    u_short k;
-
-    if ((epb = ep_look_for_board_at(is)) == 0)
-        return (0);
-
-    /*
-     * Allocate a storage area for us
-     */
-    sc = ep_alloc(ep_unit, epb);
-    if (!sc)
-        return (0);
-
-    is->id_unit = ep_unit++;
-
-    /*
-     * The iobase was found and MFG_ID was 0x6d50. PROD_ID should be
-     * 0x9[0-f]50       (IBM-PC)
-     * 0x9[0-f]5[0-f]   (PC-98)
-     */
-    GO_WINDOW(0);
-    k = sc->epb->prod_id;
-#ifdef PC98
-    if ((k & 0xf0f0) != (PROD_ID & 0xf0f0)) {
-#else
-    if ((k & 0xf0ff) != (PROD_ID & 0xf0ff)) {
-#endif
-        printf("ep_isa_probe: ignoring model %04x\n", k);
-        ep_free(sc);
-        return (0);
-    }
-
-    k = sc->epb->res_cfg;
-
-    k >>= 12;
-
-    /* Now we have two cases again:
-     *
-     *  1. Device was configured with 'irq?'
-     *      In this case we use irq read from the board
-     *
-     *  2. Device was configured with 'irq xxx'
-     *      In this case we set up the board to use specified interrupt
-     *
-     */
-
-    if (is->id_irq == 0) { /* irq? */
-        is->id_irq = 1 << ((k == 2) ? 9 : k);
-    }
-
-    sc->stat = 0;       /* 16 bit access */
-
-    /* By now, the adapter is already activated */
-
-    return (EP_IOSIZE);         /* 16 bytes of I/O space used. */
-}
-
-static int
-ep_isa_attach(is)
-    struct isa_device *is;
-{
-    struct ep_softc *sc = ep_softc[is->id_unit];
-    u_short config;
-    int irq;
-
-    is->id_ointr = epintr;
-    sc->ep_connectors = 0;
-    config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
-    if (config & IS_AUI) {
-        sc->ep_connectors |= AUI;
-    }
-    if (config & IS_BNC) {
-        sc->ep_connectors |= BNC;
-    }
-    if (config & IS_UTP) {
-        sc->ep_connectors |= UTP;
-    }
-    if (!(sc->ep_connectors & 7))
-        printf("no connectors!");
-    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
-    /*
-     * Write IRQ value to board
-     */
-
-    irq = ffs(is->id_irq) - 1;
-    if (irq == -1) {
-        printf(" invalid irq... cannot attach\n");
-        return 0;
-    }
-
-    GO_WINDOW(0);
-    SET_IRQ(BASE, irq);
-
-    ep_attach(sc);
-    return 1;
-}
-
-static struct ep_board * 
-ep_look_for_board_at(is)
-    struct isa_device *is;
-{
-    int data, i, j, id_port = ELINK_ID_PORT;
-    int count = 0;
-
-    if (ep_current_tag == (EP_LAST_TAG + 1)) {
-        /* Come here just one time */
-
-        ep_current_tag--;
-
-        /* Look for the ISA boards. Init and leave them actived */
-        outb(id_port, 0);
-        outb(id_port, 0);
-
-        elink_idseq(0xCF);
-
-        elink_reset();
-        DELAY(DELAY_MULTIPLE * 10000);
-        for (i = 0; i < EP_MAX_BOARDS; i++) {
-            outb(id_port, 0);
-            outb(id_port, 0);
-            elink_idseq(0xCF);
-
-            data = get_eeprom_data(id_port, EEPROM_MFG_ID);
-            if (data != MFG_ID)
-                break;
-
-            /* resolve contention using the Ethernet address */
-
-            for (j = 0; j < 3; j++)
-                 get_eeprom_data(id_port, j);
-
-            /* and save this address for later use */
-
-            for (j = 0; j < 3; j++)
-                 ep_board[ep_boards].eth_addr[j] = get_eeprom_data(id_port, j);
-
-            ep_board[ep_boards].res_cfg =
-                get_eeprom_data(id_port, EEPROM_RESOURCE_CFG);
-
-            ep_board[ep_boards].prod_id =
-                get_eeprom_data(id_port, EEPROM_PROD_ID);
-     
-            ep_board[ep_boards].epb_used = 0;
-#ifdef PC98
-            ep_board[ep_boards].epb_addr =
-                        (get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) *
-			0x100 + 0x40d0;
-#else
-            ep_board[ep_boards].epb_addr =
-                        (get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) *
-			0x10 + 0x200;
-
-            if (ep_board[ep_boards].epb_addr > 0x3E0)
-                /* Board in EISA configuration mode */
-                continue;
-#endif /* PC98 */
-
-            outb(id_port, ep_current_tag);      /* tags board */
-            outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
-            ep_boards++;
-            count++;
-            ep_current_tag--;
-        }
-
-        ep_board[ep_boards].epb_addr = 0;
-        if (count) {
-            printf("%d 3C5x9 board(s) on ISA found at", count);
-            for (j = 0; ep_board[j].epb_addr; j++)
-                if (ep_board[j].epb_addr <= 0x3E0)
-                    printf(" 0x%x", ep_board[j].epb_addr);
-            printf("\n");
-        }
-    }
-
-    /* we have two cases:
-     *
-     *  1. Device was configured with 'port ?'
-     *      In this case we search for the first unused card in list
-     *
-     *  2. Device was configured with 'port xxx'
-     *      In this case we search for the unused card with that address
-     *
-     */
-
-    if (IS_BASE == -1) { /* port? */
-        for (i = 0; ep_board[i].epb_addr && ep_board[i].epb_used; i++)
-            ;
-        if (ep_board[i].epb_addr == 0)
-            return 0;
-
-        IS_BASE = ep_board[i].epb_addr;
-        ep_board[i].epb_used = 1;
-
-        return &ep_board[i];
-    } else {
-        for (i = 0;
-             ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE;
-             i++)
-            ;
-
-        if (ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE)
-            return 0;
-
-        if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE) {
-            printf("ep%d: 3c5x9 at 0x%x in PnP mode. Disable PnP mode!\n",
-                   is->id_unit, IS_BASE);
-        }
-        ep_board[i].epb_used = 1;
-
-        return &ep_board[i];
-    }
-}
+static struct isa_pnp_id ep_ids[] = {
+	{ 0x90506d50,		NULL },	/* TCM5090 */
+	{ 0x91506d50,		NULL },	/* TCM5091 */
+	{ 0x94506d50,		NULL },	/* TCM5094 */
+	{ 0x95506d50,		NULL },	/* TCM5095 */
+	{ 0xf780d041,		NULL }, /* PNP80f7 */
+	{ 0,			NULL },
+};
 
 /*
  * We get eeprom data from the id_port given an offset into the eeprom.
@@ -309,36 +110,207 @@ get_eeprom_data(id_port, offset)
     int i, data = 0;
     outb(id_port, 0x80 + offset);
     for (i = 0; i < 16; i++) {
-        DELAY(BIT_DELAY_MULTIPLE * 1000);
-        data = (data << 1) | (inw(id_port) & 1);
+	DELAY(BIT_DELAY_MULTIPLE * 1000);
+	data = (data << 1) | (inw(id_port) & 1);
     }
     return (data);
 }
 
-void
-epintr(unit)
-    int unit;
+const char *
+ep_isa_match_id (id, isa_devs)
+	u_int32_t	      id;
+	struct isa_ident *      isa_devs;
 {
-    register struct ep_softc *sc = ep_softc[unit];
-
-    ep_intr(sc);
-
-    return;
+	struct isa_ident *      i = isa_devs;
+	while(i->name != NULL) {
+	       if (id == i->id)
+		      return (i->name);
+	       i++;
+	}
+	return (NULL);
 }
 
-#if 0
-static int
-send_ID_sequence(port)
-    int port;
+static void
+ep_isa_identify (driver_t *driver, device_t parent)
 {
-    int cx, al;
+	int		tag = EP_LAST_TAG;
+	int		found = 0;
+	int		i;
+	int		j;
+	const char *	desc;
+	u_int32_t	data;
+	u_int32_t	irq;
+	u_int32_t	ioport;
+	u_int32_t	isa_id;
+	device_t	child;
 
-    for (al = 0xff, cx = 0; cx < 255; cx++) {
-        outb(port, al);
-        al <<= 1;
-        if (al & 0x100) 
-            al ^= 0xcf;
-    }
-    return (1);
-}
+	outb(ELINK_ID_PORT, 0);
+	outb(ELINK_ID_PORT, 0);
+
+	elink_idseq(ELINK_509_POLY);
+	elink_reset();
+
+	DELAY(DELAY_MULTIPLE * 10000);
+
+	for (i = 0; i < EP_MAX_BOARDS; i++) {
+
+		outb(ELINK_ID_PORT, 0);
+		outb(ELINK_ID_PORT, 0);
+		elink_idseq(0xCF);
+
+		/* For the first probe, clear all
+		 * board's tag registers.
+		 * Otherwise kill off already-found
+		 * boards. -- linux 3c509.c
+		 */
+		if (i == 0) {
+			outb(ELINK_ID_PORT, 0xd0);
+		} else {
+			outb(ELINK_ID_PORT, 0xd8);
+		}
+
+		/*
+		 * Construct an 'isa_id' in 'EISA'
+		 * format.
+		 */
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_MFG_ID);
+		isa_id = (htons(data) << 16);
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_PROD_ID);
+		isa_id |= htons(data);
+
+		/* Find known ISA boards */
+		desc = ep_isa_match_id(isa_id, ep_isa_devs);
+		if (!desc) {
+			if (bootverbose) {
+				device_printf(parent, "if_ep: unknown ID 0x%08x\n",
+						isa_id);
+			}
+			break;
+		}
+
+		/* resolve contention using the Ethernet address */
+		for (j = 0; j < 3; j++) {
+			get_eeprom_data(ELINK_ID_PORT, j);
+		}
+
+		/* Retreive IRQ */
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_RESOURCE_CFG);
+		irq = (data >> 12);
+
+		/* Retreive IOPORT */
+		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_ADDR_CFG);
+#ifdef PC98
+		ioport = ((data * 0x100) + 0x40d0);
+#else
+		ioport = ((data << 4) + 0x200);
 #endif
+
+		/* Set the adaptor tag so that the next card can be found. */
+		outb(ELINK_ID_PORT, tag--);
+
+		/* Activate the adaptor at the EEPROM location. */
+		outb(ELINK_ID_PORT, ((ioport >> 4) | 0xe0));
+
+		/* Test for an adapter in PnP mode */
+		data = inw(ioport + EP_W0_EEPROM_COMMAND);
+		if (data & EEPROM_TST_MODE) {
+			device_printf(parent, "if_ep: Adapter at 0x%03x in PnP mode!\n",
+					ioport);
+			continue;
+		}
+
+		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ep", -1);
+		device_set_desc_copy(child, desc);
+		device_set_driver(child, driver);
+		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EP_IOSIZE);
+
+		if (bootverbose) {
+			device_printf(parent, "if_ep: <%s> at port 0x%03x-0x%03x irq %d\n",
+					desc, ioport, ioport + EP_IOSIZE, irq);
+		}
+
+		found++;
+	}
+
+	return;
+}
+
+static int
+ep_isa_probe (device_t dev)
+{
+	int	error = 0;
+
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ep_ids);
+
+	/* If the card had a PnP ID that didn't match any we know about */
+	if (error == ENXIO) {
+	       return (error);
+	}
+
+	/* If we had some other problem. */
+	if (!(error == 0 || error == ENOENT)) {
+		return (error);
+	}
+
+	/* If we have the resources we need then we're good to go. */
+	if ((bus_get_resource_start(dev, SYS_RES_IOPORT, 0) != 0) &&
+	    (bus_get_resource_start(dev, SYS_RES_IRQ, 0) != 0)) {
+		return (0);
+	}
+
+	return (ENXIO);
+}
+
+static int
+ep_isa_attach (device_t dev)
+{
+	struct ep_softc *	sc = device_get_softc(dev);
+	int			error = 0;
+
+	if ((error = ep_alloc(dev))) {
+		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
+		goto bad;
+	}
+
+	ep_get_media(sc);
+
+	GO_WINDOW(0);
+	SET_IRQ(BASE, rman_get_start(sc->irq));
+
+	if ((error = ep_attach(sc))) {
+		device_printf(dev, "ep_attach() failed! (%d)\n", error);
+		goto bad;
+	}
+
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+				   sc, &sc->ep_intrhand))) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		goto bad;
+	}
+
+	return (0);
+bad:
+	ep_free(dev);
+	return (error);
+}
+
+static device_method_t ep_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	ep_isa_identify),
+	DEVMETHOD(device_probe,		ep_isa_probe),
+	DEVMETHOD(device_attach,	ep_isa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ep_isa_driver = {
+	"ep",
+	ep_isa_methods,
+	sizeof(struct ep_softc),
+};
+
+extern devclass_t ep_devclass;
+
+DRIVER_MODULE(ep, isa, ep_isa_driver, ep_devclass, 0, 0);

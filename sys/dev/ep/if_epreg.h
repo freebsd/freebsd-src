@@ -62,7 +62,6 @@
 /*
  * some macros to acces long named fields
  */
-#define IS_BASE (is->id_iobase)
 #define BASE 	(sc->ep_io_addr)
 
 /*
@@ -235,10 +234,10 @@
 #define SET_INTR_MASK		(u_short) (0xe<<11)
 #define SET_RD_0_MASK		(u_short) (0xf<<11)
 #define SET_RX_FILTER		(u_short) (0x10<<11)
-#define FIL_INDIVIDUAL	(u_short) (0x1)
+#define FIL_INDIVIDUAL		(u_short) (0x1)
 #define FIL_GROUP		(u_short) (0x2)
-#define FIL_BRDCST	(u_short) (0x4)
-#define FIL_ALL		(u_short) (0x8)
+#define FIL_BRDCST		(u_short) (0x4)
+#define FIL_ALL			(u_short) (0x8)
 #define SET_RX_EARLY_THRESH	(u_short) (0x11<<11)
 #define SET_TX_AVAIL_THRESH	(u_short) (0x12<<11)
 #define SET_TX_START_THRESH	(u_short) (0x13<<11)
