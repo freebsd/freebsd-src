@@ -2115,7 +2115,6 @@ ti_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct ti_softc));
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -2161,25 +2160,10 @@ ti_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
-	   ti_intr, sc, &sc->ti_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
-		printf("ti%d: couldn't set up irq\n", unit);
-		goto fail;
-	}
-
 	sc->ti_unit = unit;
 
 	if (ti_chipinit(sc)) {
 		printf("ti%d: chip initialization failed\n", sc->ti_unit);
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2190,10 +2174,6 @@ ti_attach(dev)
 	/* Init again -- zeroing memory may have clobbered some registers. */
 	if (ti_chipinit(sc)) {
 		printf("ti%d: chip initialization failed\n", sc->ti_unit);
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2208,10 +2188,6 @@ ti_attach(dev)
 	if (ti_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 				TI_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		printf("ti%d: failed to read station address\n", unit);
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -2227,12 +2203,8 @@ ti_attach(dev)
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ti_rdata == NULL) {
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
-		error = ENXIO;
 		printf("ti%d: no memory for list buffers!\n", sc->ti_unit);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -2242,23 +2214,12 @@ ti_attach(dev)
 #ifdef TI_PRIVATE_JUMBOS
 	if (ti_alloc_jumbo_mem(sc)) {
 		printf("ti%d: jumbo buffer allocation failed\n", sc->ti_unit);
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
-		contigfree(sc->ti_rdata, sizeof(struct ti_ring_data),
-		    M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
 #else
 	if (!jumbo_vm_init()) {
 		printf("ti%d: VM initialization failed!\n", sc->ti_unit);
-		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    TI_PCI_LOMEM, sc->ti_res);
-		free(sc->ti_rdata, M_DEVBUF);
 		error = ENOMEM;
 		goto fail;
 	}
@@ -2359,10 +2320,19 @@ ti_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->ti_irq, INTR_TYPE_NET,
+	   ti_intr, sc, &sc->ti_intrhand);
+
+	if (error) {
+		printf("ti%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	mtx_destroy(&sc->ti_mtx);
+	if (sc && error)
+		ti_detach(dev);
+
 	return(error);
 }
 
@@ -2405,21 +2375,33 @@ ti_detach(dev)
 		return EBUSY;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->ti_mtx), "ti mutex not initialized");
 	TI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp);
-	ti_stop(sc);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			ti_stop(sc);
+		ether_ifdetach(ifp);
+		bus_generic_detach(dev);
+		ifmedia_removeall(&sc->ifmedia);
+	}
 
-	bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM, sc->ti_res);
+	if (sc->ti_intrhand)
+		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
+	if (sc->ti_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
+	if (sc->ti_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM,
+		    sc->ti_res);
+	}
 
 #ifdef TI_PRIVATE_JUMBOS
-	contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM, M_DEVBUF);
+	if (sc->ti_cdata.ti_jumbo_buf)
+		contigfree(sc->ti_cdata.ti_jumbo_buf, TI_JMEM, M_DEVBUF);
 #endif
-	contigfree(sc->ti_rdata, sizeof(struct ti_ring_data), M_DEVBUF);
-	ifmedia_removeall(&sc->ifmedia);
+	if (sc->ti_rdata)
+		contigfree(sc->ti_rdata, sizeof(struct ti_ring_data), M_DEVBUF);
 
 	TI_UNLOCK(sc);
 	mtx_destroy(&sc->ti_mtx);

@@ -1288,7 +1288,6 @@ xl_attach(dev)
 
 	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	XL_LOCK(sc);
 
 	sc->xl_flags = 0;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555)
@@ -1375,6 +1374,7 @@ xl_attach(dev)
 
 	if (!(command & PCIM_CMD_PORTEN) && !(command & PCIM_CMD_MEMEN)) {
 		printf("xl%d: failed to enable I/O ports and memory mappings!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1395,6 +1395,7 @@ xl_attach(dev)
 		    0, ~0, 1, RF_ACTIVE);
 		if (sc->xl_res == NULL) {
 			printf ("xl%d: couldn't map ports/memory\n", unit);
+			error = ENXIO;
 			goto fail;
 		}
 		if (bootverbose)
@@ -1411,26 +1412,22 @@ xl_attach(dev)
 
 		if (sc->xl_fres == NULL) {
 			printf ("xl%d: couldn't map ports/memory\n", unit);
-			goto fail_res;
+			error = ENXIO;
+			goto fail;
 		}
 
 		sc->xl_ftag = rman_get_bustag(sc->xl_fres);
 		sc->xl_fhandle = rman_get_bushandle(sc->xl_fres);
 	}
 
+	/* Allocate interrupt */
 	rid = 0;
 	sc->xl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->xl_irq == NULL) {
 		printf("xl%d: couldn't map interrupt\n", unit);
-		goto fail_fres;
-	}
-
-	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
-	    xl_intr, sc, &sc->xl_intrhand);
-	if (error) {
-		printf("xl%d: couldn't set up irq\n", unit);
-		goto fail_irq;
+		error = ENXIO;
+		goto fail;
 	}
 
 	/* Reset the adapter. */
@@ -1441,7 +1438,8 @@ xl_attach(dev)
 	 */
 	if (xl_read_eeprom(sc, (caddr_t)&eaddr, XL_EE_OEM_ADR0, 3, 1)) {
 		printf("xl%d: failed to read station address\n", sc->xl_unit);
-		goto fail_irq_setup;
+		error = ENXIO;
+		goto fail;
 	}
 
 	/*
@@ -1454,7 +1452,9 @@ xl_attach(dev)
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
-	 * Now allocate a tag for the DMA descriptor lists.
+	 * Now allocate a tag for the DMA descriptor lists and a chunk
+	 * of DMA-able memory based on the tag.  Also obtain the DMA
+	 * addresses of the RX and TX ring, which we'll need later.
 	 * All of our lists are allocated as a contiguous block
 	 * of memory.
 	 */
@@ -1463,8 +1463,31 @@ xl_attach(dev)
 	    XL_RX_LIST_SZ, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &sc->xl_ldata.xl_rx_tag);
 	if (error) {
-		printf("xl%d: failed to allocate dma tag\n", unit);
-		goto fail_irq_setup;
+		printf("xl%d: failed to allocate rx dma tag\n", unit);
+		goto fail;
+	}
+
+	error = bus_dmamem_alloc(sc->xl_ldata.xl_rx_tag,
+	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT,
+	    &sc->xl_ldata.xl_rx_dmamap);
+	if (error) {
+		printf("xl%d: no memory for rx list buffers!\n", unit);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
+		sc->xl_ldata.xl_rx_tag = NULL;
+		goto fail;
+	}
+
+	error = bus_dmamap_load(sc->xl_ldata.xl_rx_tag,
+	    sc->xl_ldata.xl_rx_dmamap, sc->xl_ldata.xl_rx_list,
+	    XL_RX_LIST_SZ, xl_dma_map_addr,
+	    &sc->xl_ldata.xl_rx_dmaaddr, 0);
+	if (error) {
+		printf("xl%d: cannot get dma address of the rx ring!\n", unit);
+		bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
+		    sc->xl_ldata.xl_rx_dmamap);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
+		sc->xl_ldata.xl_rx_tag = NULL;
+		goto fail;
 	}
 
 	error = bus_dma_tag_create(NULL, 8, 0,
@@ -1472,8 +1495,31 @@ xl_attach(dev)
 	    XL_TX_LIST_SZ, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &sc->xl_ldata.xl_tx_tag);
 	if (error) {
-		printf("xl%d: failed to allocate dma tag\n", unit);
-		goto fail_rxtag;
+		printf("xl%d: failed to allocate tx dma tag\n", unit);
+		goto fail;
+	}
+
+	error = bus_dmamem_alloc(sc->xl_ldata.xl_tx_tag,
+	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT,
+	    &sc->xl_ldata.xl_tx_dmamap);
+	if (error) {
+		printf("xl%d: no memory for list buffers!\n", unit);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
+		sc->xl_ldata.xl_tx_tag = NULL;
+		goto fail;
+	}
+
+	error = bus_dmamap_load(sc->xl_ldata.xl_tx_tag,
+	    sc->xl_ldata.xl_tx_dmamap, sc->xl_ldata.xl_tx_list,
+	    XL_TX_LIST_SZ, xl_dma_map_addr,
+	    &sc->xl_ldata.xl_tx_dmaaddr, 0);
+	if (error) {
+		printf("xl%d: cannot get dma address of the tx ring!\n", unit);
+		bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
+		    sc->xl_ldata.xl_tx_dmamap);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
+		sc->xl_ldata.xl_tx_tag = NULL;
+		goto fail;
 	}
 
 	/*
@@ -1483,58 +1529,17 @@ xl_attach(dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    XL_MAXFRAGS, BUS_SPACE_MAXSIZE_32BIT, 0, &sc->xl_mtag);
 	if (error) {
-		printf("xl%d: failed to allocate dma tag\n", unit);
-		goto fail_txtag;
-	}
-
-	/*
-	 * Now allocate a chunk of DMA-able memory based on the
-	 * tag we just created.
-	 */
-	error = bus_dmamem_alloc(sc->xl_ldata.xl_tx_tag,
-	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT,
-	    &sc->xl_ldata.xl_tx_dmamap);
-	if (error) {
-		printf("xl%d: no memory for list buffers!\n", unit);
-		goto fail_mtag;
-	}
-
-	error = bus_dmamem_alloc(sc->xl_ldata.xl_rx_tag,
-	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT,
-	    &sc->xl_ldata.xl_rx_dmamap);
-	if (error) {
-		printf("xl%d: no memory for list buffers!\n", unit);
-		goto fail_txmem;
+		printf("xl%d: failed to allocate mbuf dma tag\n", unit);
+		goto fail;
 	}
 
 	bzero(sc->xl_ldata.xl_tx_list, XL_TX_LIST_SZ);
 	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 
-	/*
-	 * Obtain the DMA address of the RX and TX ring which we'll need later.
-	 */
-	error = bus_dmamap_load(sc->xl_ldata.xl_tx_tag,
-	    sc->xl_ldata.xl_tx_dmamap, sc->xl_ldata.xl_tx_list,
-	    XL_TX_LIST_SZ, xl_dma_map_addr,
-	    &sc->xl_ldata.xl_tx_dmaaddr, 0);
-	if (error) {
-		printf("xl%d: cannot get dma address of the tx ring!\n", unit);
-		goto fail_rxmem;
-	}
-
-	error = bus_dmamap_load(sc->xl_ldata.xl_rx_tag,
-	    sc->xl_ldata.xl_rx_dmamap, sc->xl_ldata.xl_rx_list,
-	    XL_RX_LIST_SZ, xl_dma_map_addr,
-	    &sc->xl_ldata.xl_rx_dmaaddr, 0);
-	if (error) {
-		printf("xl%d: cannot get dma address of the rx ring!\n", unit);
-		goto fail_txmap;
-	}
-
 	/* We need a spare DMA map for the RX ring. */
 	error = bus_dmamap_create(sc->xl_mtag, 0, &sc->xl_tmpmap);
 	if (error)
-		return(error);
+		goto fail;
 
 	/*
 	 * Figure out the card type. 3c905B adapters have the
@@ -1593,7 +1598,8 @@ xl_attach(dev)
 		if (mii_phy_probe(dev, &sc->xl_miibus,
 		    xl_ifmedia_upd, xl_ifmedia_sts)) {
 			printf("xl%d: no PHY found!\n", sc->xl_unit);
-			goto fail_rxmap;
+			error = ENXIO;
+			goto fail;
 		}
 
 		goto done;
@@ -1710,48 +1716,19 @@ done:
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	XL_UNLOCK(sc);
-	return(0);
 
-fail_rxmap:
-	bus_dmamap_unload(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap);
-fail_txmap:
-	bus_dmamap_unload(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap);
-fail_rxmem:
-	bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
-	    sc->xl_ldata.xl_rx_dmamap);
-fail_txmem:
-	bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
-	    sc->xl_ldata.xl_tx_dmamap);
-fail_mtag:
-	bus_dma_tag_destroy(sc->xl_mtag);
-fail_txtag:
-	bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
-fail_rxtag:
-	bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
-fail_irq_setup:
-	bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
-fail_irq:
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
-fail_fres:
-	if (sc->xl_fres != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, XL_PCI_FUNCMEM,
-		    sc->xl_fres);
-fail_res:
-	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
-		rid = XL_PCI_LOMEM;  
-		res = SYS_RES_MEMORY;
-	} else {
-		rid = XL_PCI_LOIO;   
-		res = SYS_RES_IOPORT;
+	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
+	    xl_intr, sc, &sc->xl_intrhand);
+	if (error) {
+		printf("xl%d: couldn't set up irq\n", unit);
+		goto fail;
 	}
 
-	bus_release_resource(dev, res, rid, sc->xl_res);
 fail:
-	XL_UNLOCK(sc);
-	mtx_destroy(&sc->xl_mtx);
+	if (error)
+		xl_detach(dev);
 
-	return(ENXIO);
+	return(error);
 }
 
 static int
@@ -1763,6 +1740,7 @@ xl_detach(dev)
 	int			rid, res;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->xl_mtx), "xl mutex not initialized");
 	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
@@ -1774,33 +1752,45 @@ xl_detach(dev)
 		res = SYS_RES_IOPORT;
 	}
 
-	xl_reset(sc);
-	xl_stop(sc);
-	ether_ifdetach(ifp);
-
-	/* Delete any miibus and phy devices attached to this interface */
-	if (sc->xl_miibus != NULL) {
-		bus_generic_detach(dev);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev)) {
+			xl_reset(sc);
+			xl_stop(sc);
+		}
+		ether_ifdetach(ifp);
 		device_delete_child(dev, sc->xl_miibus);
+		bus_generic_detach(dev);
+		ifmedia_removeall(&sc->ifmedia);
 	}
 
-	bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+	if (sc->xl_intrhand)
+		bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
+	if (sc->xl_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
 	if (sc->xl_fres != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    XL_PCI_FUNCMEM, sc->xl_fres);
-	bus_release_resource(dev, res, rid, sc->xl_res);
-	bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
-	bus_dmamap_unload(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap);
-	bus_dmamap_unload(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap);
-	bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
-	    sc->xl_ldata.xl_rx_dmamap);
-	bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
-	    sc->xl_ldata.xl_tx_dmamap);
-	bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
-	bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
-	bus_dma_tag_destroy(sc->xl_mtag);
-	ifmedia_removeall(&sc->ifmedia);
+	if (sc->xl_res)
+		bus_release_resource(dev, res, rid, sc->xl_res);
+
+	if (sc->xl_mtag) {
+		bus_dmamap_destroy(sc->xl_mtag, sc->xl_tmpmap);
+		bus_dma_tag_destroy(sc->xl_mtag);
+	}
+	if (sc->xl_ldata.xl_rx_tag) {
+		bus_dmamap_unload(sc->xl_ldata.xl_rx_tag,
+		    sc->xl_ldata.xl_rx_dmamap);
+		bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
+		    sc->xl_ldata.xl_rx_dmamap);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
+	}
+	if (sc->xl_ldata.xl_tx_tag) {
+		bus_dmamap_unload(sc->xl_ldata.xl_tx_tag,
+		    sc->xl_ldata.xl_tx_dmamap);
+		bus_dmamem_free(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_list,
+		    sc->xl_ldata.xl_tx_dmamap);
+		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
+	}
 
 	XL_UNLOCK(sc);
 	mtx_destroy(&sc->xl_mtx);

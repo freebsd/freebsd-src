@@ -681,11 +681,10 @@ sf_attach(dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
-	bzero(sc, sizeof(struct sf_softc));
 
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	SF_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -751,18 +750,7 @@ sf_attach(dev)
 
 	if (sc->sf_irq == NULL) {
 		printf("sf%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
 		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
-	    sf_intr, sc, &sc->sf_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_res);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-		printf("sf%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -791,9 +779,6 @@ sf_attach(dev)
 
 	if (sc->sf_ldata == NULL) {
 		printf("sf%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -804,10 +789,6 @@ sf_attach(dev)
 	if (mii_phy_probe(dev, &sc->sf_miibus,
 	    sf_ifmedia_upd, sf_ifmedia_sts)) {
 		printf("sf%d: MII without any phy!\n", sc->sf_unit);
-		contigfree(sc->sf_ldata,sizeof(struct sf_list_data),M_DEVBUF);
-		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -830,12 +811,19 @@ sf_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	SF_UNLOCK(sc);
-	return(0);
+
+	error = bus_setup_intr(dev, sc->sf_irq, INTR_TYPE_NET,
+	    sf_intr, sc, &sc->sf_intrhand);
+
+	if (error) {
+		printf("sf%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
 
 fail:
-	SF_UNLOCK(sc);
-	mtx_destroy(&sc->sf_mtx);
+	if (error)
+		sf_detach(dev);
+
 	return(error);
 }
 
@@ -847,20 +835,27 @@ sf_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
+	KASSERT(mtx_initialized(&sc->sf_mtx), "sf mutex not initialized");
 	SF_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp);
-	sf_stop(sc);
+	if (device_is_alive(dev)) {
+		if (bus_child_present(dev))
+			sf_stop(sc);
+		ether_ifdetach(ifp);
+		device_delete_child(dev, sc->sf_miibus);
+		bus_generic_detach(dev);
+	}
 
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->sf_miibus);
+	if (sc->sf_intrhand)
+		bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
+	if (sc->sf_irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
+	if (sc->sf_res)
+		bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
 
-	bus_teardown_intr(dev, sc->sf_irq, sc->sf_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sf_irq);
-	bus_release_resource(dev, SF_RES, SF_RID, sc->sf_res);
-
-	contigfree(sc->sf_ldata, sizeof(struct sf_list_data), M_DEVBUF);
+	if (sc->sf_ldata)
+		contigfree(sc->sf_ldata, sizeof(struct sf_list_data), M_DEVBUF);
 
 	SF_UNLOCK(sc);
 	mtx_destroy(&sc->sf_mtx);
