@@ -68,7 +68,7 @@ puc_sbus_attach(device_t dev)
 	for (i = 0; i < 2; i++) {
 		dd.ports[i].type = PUC_PORT_TYPE_UART | PUC_PORT_UART_Z8530;
 		dd.ports[i].bar = 0;
-		dd.ports[i].offset = 4 * i;
+		dd.ports[i].offset = 4 - 4 * i;
 		dd.ports[i].serialfreq = 0;
 		dd.ports[i].flags = PUC_FLAGS_MEMORY;
 		dd.ports[i].regshft = 1;
