@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.25.2.10 1997/11/25 12:34:24 yokota Exp $
+ * $Id: psm.c,v 1.25.2.11 1998/01/20 03:51:28 yokota Exp $
  */
 
 /*
@@ -277,7 +277,7 @@ static struct {
     { MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
       0xc8, MOUSE_INTELLI_PACKETSIZE, enable_msintelli, },
     { MOUSE_MODEL_GENERIC,
-      0xc8, MOUSE_PS2_PACKETSIZE, NULL, },
+      0xc0, MOUSE_PS2_PACKETSIZE, NULL, },
 };
 
 /* device driver declarateion */
