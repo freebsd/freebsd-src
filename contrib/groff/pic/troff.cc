@@ -272,6 +272,7 @@ void troff_output::start_picture(double sc,
     printf(" %s\n", args);
   else
     putchar('\n');
+  printf(".if '\\*(.T'html' \\X(graphic-start(\n");
   printf(".\\\" %g %g %g %g\n", ll.x, ll.y, ur.x, ur.y);
   printf(".\\\" %.3fi %.3fi %.3fi %.3fi\n", 0.0, height, width, 0.0);
   printf(".nr " FILL_REG " \\n(.u\n.nf\n");
@@ -290,6 +291,7 @@ void troff_output::finish_picture()
   printf(".if \\n(" FILL_REG " .fi\n");
   printf(".br\n");
   printf(".nr " EQN_NO_EXTRA_SPACE_REG " 0\n");
+  printf(".if '\\*(.T'html' \\X(graphic-end(\n");
   // this is a little gross
   set_location(current_filename, current_lineno);
   fputs(flyback_flag ? ".PF\n" : ".PE\n", stdout);

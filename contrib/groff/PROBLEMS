@@ -9,6 +9,11 @@ Make sure -DCFRONT_ANSI_BUG is included in DEFINES in the top-level
 Makefile.  If that doesn't solve the problem, define INT_MIN as
 -INT_MAX in libgroff/lib.h.
 
+* I get errors when I try to compile groff with Sun C++ version 5.0 or 5.1.
+
+This is a known problem; see Sun bug #4301919.  As of this writing, no
+patch is available.  Use GCC 2.95.2 or later instead.
+
 * I get errors when I try to compile groff with Sun C++ version 3 or
 earlier.
 
@@ -179,7 +184,7 @@ Makefile.
 * When I try to print the output of groff -Tps, I get no output at all
 from the printer, and the log file shows the error
 %%[ error: undefined; offendingcommand: BP ]%%
-I using TranScript spooling software.
+I'm using TranScript spooling software.
 
 This is a bug in the page reversal filter in early versions of
 TranScript.  Change the `broken' parameter in
@@ -191,7 +196,7 @@ program, all the pages are displayed on top of each other.
 This is a defect in pageview.  Change the `broken' parameter in
 /usr/local/lib/groff/font/devps/DESC to 2.
 
-* With groff -TX75, -TX100or -X, I can only view the first page.
+* With groff -TX75, -TX100 or -X, I can only view the first page.
 
 The left mouse button brings up a menu that allows you to view other
 pages.
@@ -241,11 +246,11 @@ There seem to be many different styles of page header and footer
 produced by different versions of the -man macros.  You will need to
 modify macros/tmac.an to suit your personal taste.  For example, if
 you want the center of the page header to say
-  UNIX Programmer's Manual
+  System Programmer's Manual
 you will need to change the line
-  .el .ds an-extra3 \"UNIX Programmer's Manual
+  .el .ds an-extra3 \"System Programmer's Manual
 to
-  .el .ds an-extra3 UNIX Programmer's Manual
+  .el .ds an-extra3 System Programmer's Manual
 
 * While formatting a manual page, groff complains about not being able to
 break lines.  The problem seems to be caused by a line like:

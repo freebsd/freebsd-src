@@ -166,7 +166,7 @@ public:
   font *make_font(const char *);
   void begin_page(int);
   void end_page(int);
-  void set_char(int, font *, const environment *, int w);
+  void set_char(int, font *, const environment *, int w, const char *name);
   void special(char *arg, const environment *env);
   void end_of_line();
   void draw(int code, int *p, int np, const environment *env);
@@ -299,7 +299,7 @@ int scale(int x, int z)
 }
 
 
-void dvi_printer::set_char(int index, font *f, const environment *env, int w)
+void dvi_printer::set_char(int index, font *f, const environment *env, int w, const char *name)
 {
   int code = f->get_code(index);
   if (env->size != cur_point_size || f != cur_font) {

@@ -107,13 +107,14 @@ int main(int argc, char **argv)
   int zflag = 0;
   int iflag = 0;
   int Xflag = 0;
+  int safer_flag = 1;
   int opt;
   const char *command_prefix = getenv("GROFF_COMMAND_PREFIX");
   if (!command_prefix)
     command_prefix = PROG_PREFIX;
   commands[TROFF_INDEX].set_name(command_prefix, "troff");
   while ((opt = getopt(argc, argv,
-		       "itpeRsSzavVhblCENXZF:m:T:f:w:W:M:d:r:n:o:P:L:"))
+		       "abCd:eEf:F:hiI:lL:m:M:n:No:pP:r:RsStT:UvVw:W:XzZ"))
 	 != EOF) {
     char buf[3];
     buf[0] = '-';
@@ -122,6 +123,10 @@ int main(int argc, char **argv)
     switch (opt) {
     case 'i':
       iflag = 1;
+      break;
+    case 'I':
+      commands[SOELIM_INDEX].set_name(command_prefix, "soelim");
+      commands[SOELIM_INDEX].append_arg(buf, optarg);
       break;
     case 't':
       commands[TBL_INDEX].set_name(command_prefix, "tbl");
@@ -170,8 +175,10 @@ int main(int argc, char **argv)
       commands[TROFF_INDEX].append_arg(buf);
       break;
     case 'S':
-      commands[PIC_INDEX].append_arg(buf);
-      commands[TROFF_INDEX].insert_arg("-msafer");
+      safer_flag = 1;
+      break;
+    case 'U':
+      safer_flag = 0;
       break;
     case 'T':
       if (strcmp(optarg, "Xps") == 0) {
@@ -222,6 +229,12 @@ int main(int argc, char **argv)
       assert(0);
       break;
     }
+  }
+  if (safer_flag) {
+    commands[PIC_INDEX].append_arg("-S");
+    commands[TROFF_INDEX].insert_arg("-msafer");
+  } else {
+    commands[TROFF_INDEX].insert_arg("-U");
   }
   font::set_unknown_desc_command_handler(handle_unknown_desc_command);
   if (!font::load_desc())
@@ -534,8 +547,8 @@ char **possible_command::get_argv()
 void synopsis()
 {
   fprintf(stderr,
-"usage: %s [-abehilpstvzCENRSVXZ] [-Fdir] [-mname] [-Tdev] [-ffam] [-wname]\n"
-"       [-Wname] [ -Mdir] [-dcs] [-rcn] [-nnum] [-olist] [-Parg] [-Larg]\n"
+"usage: %s [-abehilpstvzCENRSUVXZ] [-Fdir] [-mname] [-Tdev] [-ffam] [-wname]\n"
+"       [-Wname] [-Mdir] [-dcs] [-rcn] [-nnum] [-olist] [-Parg] [-Larg]\n"
 "       [files...]\n",
 	  program_name);
 }
@@ -575,7 +588,8 @@ void help()
 "-Parg\tpass arg to the postprocessor\n"
 "-Larg\tpass arg to the spooler\n"
 "-N\tdon't allow newlines within eqn delimiters\n"
-"-S\tenable safer mode\n"
+"-S\tenable safer mode (the default)\n"
+"-U\tenable unsafe mode\n"
 "\n",
 	stderr);
   exit(0);

@@ -962,7 +962,7 @@ void resource_manager::process_file(int rank, FILE *fp, const char *filename,
 	      had_language_level_comment = 1;
 	    }
 	    else {
-	      for (int i = 0; i < NHEADER_COMMENTS; i++)
+	      for (i = 0; i < NHEADER_COMMENTS; i++)
 		if (matches_comment(buf, header_comment_table[i])) {
 		  interesting = 1;
 		  break;

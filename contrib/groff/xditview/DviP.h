@@ -168,7 +168,7 @@ typedef struct {
 #define DVI_FILL_GRAY 1
 #define DVI_FILL_BLACK 2
 	int		fill_type;
-	Pixmap		gray;
+	Pixmap		gray[8];
 	int		backing_store;
 	XFontStruct	*font;
 	int		display_enable;

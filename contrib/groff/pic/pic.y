@@ -30,11 +30,14 @@ extern void do_for(char *var, double from, double to,
 		   int by_is_multiplicative, double by, char *body);
 extern void do_lookahead();
 
-#undef fmod
-#undef rand
-
+#ifndef HAVE_FMOD
 extern "C" {
   double fmod(double, double);
+}
+#endif
+
+#undef rand
+extern "C" {
   int rand();
 }
 

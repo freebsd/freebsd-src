@@ -9,7 +9,7 @@
 #include "device.h"
 
 #ifndef FONTPATH
-#define FONTPATH "/usr/local/lib/groff/font:/usr/local/lib/font:/usr/lib/font"
+#define FONTPATH "/usr/local/share/groff/font:/usr/local/lib/font:/usr/lib/font"
 #endif
 
 #ifndef isascii
@@ -17,8 +17,15 @@
 #endif
 
 extern void exit();
-extern char *strtok(), *strchr();
+#ifndef strtok
+extern char *strtok();
+#endif
+#ifndef strchr
+extern char *strchr();
+#endif
+#ifndef getenv
 extern char *getenv();
+#endif
 
 /* Name of environment variable containing path to be used for
 searching for device and font description files. */

@@ -5331,6 +5331,13 @@ struct string_list {
   string_list(const char *ss) : s(ss), next(0) {}
 };
 
+static void prepend_string(const char *s, string_list **p)
+{
+  string_list *l = new string_list(s);
+  l->next = *p;
+  *p = l;
+}
+
 static void add_string(const char *s, string_list **p)
 {
   while (*p)
@@ -5341,8 +5348,8 @@ static void add_string(const char *s, string_list **p)
 void usage(const char *prog)
 {
   errprint(
-"usage: %1 -abivzCER -wname -Wname -dcstring -mname -nN -olist -rcN\n"
-"       -Tname -Fdir -Mdir [ files ]\n",
+"usage: %1 -abivzCERU -wname -Wname -dcs -ffam -mname -nnum -olist\n"
+"       -rcn -Tname -Fdir -Mdir [files...]\n",
 	  prog);
   exit(USAGE_EXIT_CODE);
 }
@@ -5360,11 +5367,12 @@ int main(int argc, char **argv)
   int tflag = 0;
   int fflag = 0;
   int nflag = 0;
+  int safer_flag = 1;		// safer by default
   int no_rc = 0;		// don't process troffrc
   int next_page_number;
   opterr = 0;
   hresolution = vresolution = 1;
-  while ((c = getopt(argc, argv, "abivw:W:zCEf:m:n:o:r:d:F:M:T:tqs:R"))
+  while ((c = getopt(argc, argv, "abivw:W:zCEf:m:n:o:r:d:F:M:T:tqs:RU"))
 	 != EOF)
     switch(c) {
     case 'v':
@@ -5444,6 +5452,9 @@ int main(int argc, char **argv)
     case 't':
       // silently ignore these
       break;
+    case 'U':
+      safer_flag = 0;	// unsafe behaviour
+      break;
     case '?':
       usage(argv[0]);
     default:
@@ -5501,6 +5512,8 @@ int main(int argc, char **argv)
   }
   if (!no_rc)
     process_startup_file();
+  if (safer_flag)
+    prepend_string("safer", &macros);
   while (macros) {
     process_macro_file(macros->s);
     string_list *tem = macros;
@@ -5727,7 +5740,8 @@ static node *read_draw_node()
 	  maxpoints *= 2;
 	  a_delete oldpoint;
 	}
-	if (!get_hunits(&point[i].h, 'm')) {
+	if (!get_hunits(&point[i].h,
+			type == 'f' || type == 't' ? 'u' : 'm')) {
 	  err = 1;
 	  break;
 	}
