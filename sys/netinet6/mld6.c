@@ -95,12 +95,12 @@
  */
 
 /* denotes that the MLD max response delay field specifies time in milliseconds */
-#define MLD6_TIMER_SCALE	1000
+#define MLD_TIMER_SCALE	1000
 /*
  * time between repetitions of a node's initial report of interest in a
  * multicast address(in seconds)
  */
-#define MLD6_UNSOLICITED_REPORT_INTERVAL	10
+#define MLD_UNSOLICITED_REPORT_INTERVAL	10
 
 static struct ip6_pktopts ip6_opts;
 static int mld6_timers_are_running;
@@ -151,12 +151,13 @@ mld6_start_listening(in6m)
 	if (IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &mld6_all_nodes_linklocal) ||
 	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) < IPV6_ADDR_SCOPE_LINKLOCAL) {
 		in6m->in6m_timer = 0;
-		in6m->in6m_state = MLD6_OTHERLISTENER;
+		in6m->in6m_state = MLD_OTHERLISTENER;
 	} else {
 		mld6_sendpkt(in6m, MLD_LISTENER_REPORT, NULL);
-		in6m->in6m_timer = MLD6_RANDOM_DELAY(
-			MLD6_UNSOLICITED_REPORT_INTERVAL * PR_FASTHZ);
-		in6m->in6m_state = MLD6_IREPORTEDLAST;
+		in6m->in6m_timer =
+			MLD_RANDOM_DELAY(MLD_UNSOLICITED_REPORT_INTERVAL *
+					 PR_FASTHZ);
+		in6m->in6m_state = MLD_IREPORTEDLAST;
 		mld6_timers_are_running = 1;
 	}
 	splx(s);
@@ -171,7 +172,7 @@ mld6_stop_listening(in6m)
 	mld6_all_routers_linklocal.s6_addr16[1] =
 		htons(in6m->in6m_ifp->if_index); /* XXX: necessary when mrouting */
 
-	if (in6m->in6m_state == MLD6_IREPORTEDLAST &&
+	if (in6m->in6m_state == MLD_IREPORTEDLAST &&
 	    (!IN6_ARE_ADDR_EQUAL(&in6m->in6m_addr, &mld6_all_nodes_linklocal)) &&
 	    IPV6_ADDR_MC_SCOPE(&in6m->in6m_addr) > IPV6_ADDR_SCOPE_INTFACELOCAL)
 		mld6_sendpkt(in6m, MLD_LISTENER_DONE,
@@ -226,8 +227,8 @@ mld6_input(m, off)
 	 * In Delaying Listener state, our timer is running (in6m->in6m_timer)
 	 * In Idle Listener state, our timer is not running (in6m->in6m_timer==0)
 	 *
-	 * The flag is in6m->in6m_state, it is set to MLD6_OTHERLISTENER if
-	 * we have heard a report from another member, or MLD6_IREPORTEDLAST
+	 * The flag is in6m->in6m_state, it is set to MLD_OTHERLISTENER if
+	 * we have heard a report from another member, or MLD_IREPORTEDLAST
 	 * if we sent the last report.
 	 */
 	switch(mldh->mld_type) {
@@ -262,7 +263,7 @@ mld6_input(m, off)
 		 * the calculated value equals to zero when Max Response
 		 * Delay is positive.
 		 */
-		timer = ntohs(mldh->mld_maxdelay) * PR_FASTHZ / MLD6_TIMER_SCALE;
+		timer = ntohs(mldh->mld_maxdelay) * PR_FASTHZ / MLD_TIMER_SCALE;
 		if (timer == 0 && mldh->mld_maxdelay)
 			timer = 1;
 		mld6_all_nodes_linklocal.s6_addr16[1] =
@@ -288,12 +289,12 @@ mld6_input(m, off)
 					mld6_sendpkt(in6m, MLD_LISTENER_REPORT,
 						NULL);
 					in6m->in6m_timer = 0; /* reset timer */
-					in6m->in6m_state = MLD6_IREPORTEDLAST;
+					in6m->in6m_state = MLD_IREPORTEDLAST;
 				}
 				else if (in6m->in6m_timer == 0 || /*idle state*/
 					in6m->in6m_timer > timer) {
 					in6m->in6m_timer =
-						MLD6_RANDOM_DELAY(timer);
+						MLD_RANDOM_DELAY(timer);
 					mld6_timers_are_running = 1;
 				}
 			}
@@ -329,7 +330,7 @@ mld6_input(m, off)
 		IN6_LOOKUP_MULTI(mldh->mld_addr, ifp, in6m);
 		if (in6m) {
 			in6m->in6m_timer = 0; /* transit to idle state */
-			in6m->in6m_state = MLD6_OTHERLISTENER; /* clear flag */
+			in6m->in6m_state = MLD_OTHERLISTENER; /* clear flag */
 		}
 
 		if (IN6_IS_ADDR_MC_LINKLOCAL(&mldh->mld_addr))
@@ -366,7 +367,7 @@ mld6_fasttimeo()
 			/* do nothing */
 		} else if (--in6m->in6m_timer == 0) {
 			mld6_sendpkt(in6m, MLD_LISTENER_REPORT, NULL);
-			in6m->in6m_state = MLD6_IREPORTEDLAST;
+			in6m->in6m_state = MLD_IREPORTEDLAST;
 		} else {
 			mld6_timers_are_running = 1;
 		}
