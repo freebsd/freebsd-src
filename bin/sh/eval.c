@@ -249,9 +249,25 @@ evaltree(n, flags)
 		break;
 	case NFOR:
 		evalfor(n);
+		/*
+		 * The 'for' command does not set exitstatus, so the value
+		 * now in exitstatus is from the last command executed in
+		 * the 'for' loop.  That exit value had been tested (wrt
+		 * 'sh -e' checking) while processing that command, and
+		 * it should not be re-tested here.
+		 */
+		flags |= EV_TESTED;
 		break;
 	case NCASE:
 		evalcase(n, flags);
+		/*
+		 * The 'case' command does not set exitstatus, so the value
+		 * now in exitstatus is from the last command executed in
+		 * the 'case' block.  That exit value had been tested (wrt
+		 * 'sh -e' checking) while processing that command, and
+		 * it should not be re-tested here.
+		 */
+		flags |= EV_TESTED;
 		break;
 	case NDEFUN:
 		defun(n->narg.text, n->narg.next);
