@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.4 1992/05/30 10:05:24 jsp Exp jsp $
+ * $Id: portal_vnops.c,v 1.2 1994/05/25 09:08:21 rgrimes Exp $
  */
 
 /*
@@ -431,7 +431,8 @@ portal_getattr(ap)
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	vap->va_size = DEV_BSIZE;
 	vap->va_blocksize = DEV_BSIZE;
-	microtime(&vap->va_atime);
+	microtime((struct timeval *)&vap->va_atime);
+	TIMEVAL_TO_TIMESPEC((struct timeval *)&vap->va_atime, (struct timespec *)&vap->va_atime);
 	vap->va_mtime = vap->va_atime;
 	vap->va_ctime = vap->va_ctime;
 	vap->va_gen = 0;

@@ -35,7 +35,7 @@
  *
  *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: null_vnops.c,v 1.2 1994/08/02 07:45:06 davidg Exp $
  */
 
 /*
@@ -207,7 +207,6 @@ null_bypass(ap)
 		<other random data follows, presumably>
 	} */ *ap;
 {
-	extern int (**null_vnodeop_p)();  /* not extern, really "forward" */
 	register struct vnode **this_vp_p;
 	int error;
 	struct vnode *old_vps[VDESC_MAX_VPS];
