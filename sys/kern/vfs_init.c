@@ -379,6 +379,11 @@ vfs_register(struct vfsconf *vfc)
 	struct sysctl_oid *oidp;
 	struct vfsops *vfsops;
 	
+	if (vfc->vfc_version != VFS_VERSION) {
+		printf("ERROR: filesystem %s, unsupported ABI version %x\n",
+		    vfc->vfc_name, vfc->vfc_version);
+		return (EINVAL);
+	}
 	if (vfs_byname(vfc->vfc_name) != NULL)
 		return EEXIST;
 
@@ -414,8 +419,8 @@ vfs_register(struct vfsconf *vfc)
 	 * Check the mount and unmount operations.
 	 */
 	vfsops = vfc->vfc_vfsops;
-	KASSERT(vfsops->vfs_mount != NULL || vfsops->vfs_nmount != NULL,
-	    ("Filesystem %s has no (n)mount op", vfc->vfc_name));
+	KASSERT(vfsops->vfs_mount != NULL || vfsops->vfs_omount != NULL,
+	    ("Filesystem %s has no (o)mount op", vfc->vfc_name));
 	KASSERT(vfsops->vfs_unmount != NULL,
 	    ("Filesystem %s has no unmount op", vfc->vfc_name));
 

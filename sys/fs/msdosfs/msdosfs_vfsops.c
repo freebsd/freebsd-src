@@ -96,7 +96,7 @@ static int	update_mp(struct mount *mp, struct msdosfs_args *argp,
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
 		    struct thread *td, struct msdosfs_args *argp);
 static vfs_fhtovp_t	msdosfs_fhtovp;
-static vfs_mount_t	msdosfs_mount;
+static vfs_omount_t	msdosfs_omount;
 static vfs_root_t	msdosfs_root;
 static vfs_statfs_t	msdosfs_statfs;
 static vfs_sync_t	msdosfs_sync;
@@ -158,17 +158,17 @@ update_mp(mp, argp, td)
  * special file to treat as a filesystem.
  */
 static int
-msdosfs_mount(mp, path, data, ndp, td)
+msdosfs_omount(mp, path, data, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
-	struct nameidata *ndp;
 	struct thread *td;
 {
 	struct vnode *devvp;	  /* vnode for blk device to mount */
 	struct msdosfs_args args; /* will hold data from mount request */
 	/* msdosfs specific mount control block */
 	struct msdosfsmount *pmp = NULL;
+	struct nameidata ndp;
 	size_t size;
 	int error, flags;
 	mode_t accessmode;
@@ -241,12 +241,12 @@ msdosfs_mount(mp, path, data, ndp, td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible disk device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
-	error = namei(ndp);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	error = namei(&ndp);
 	if (error)
 		return (error);
-	devvp = ndp->ni_vp;
-	NDFREE(ndp, NDF_ONLY_PNBUF);
+	devvp = ndp.ni_vp;
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
 
 	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);
@@ -294,7 +294,7 @@ msdosfs_mount(mp, path, data, ndp, td)
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void) msdosfs_statfs(mp, &mp->mnt_stat, td);
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_mount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
+	printf("msdosfs_omount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
 #endif
 	return (0);
 }
@@ -900,7 +900,7 @@ msdosfs_vptofh(vp, fhp)
 static struct vfsops msdosfs_vfsops = {
 	.vfs_fhtovp =		msdosfs_fhtovp,
 	.vfs_init =		msdosfs_init,
-	.vfs_mount =		msdosfs_mount,
+	.vfs_omount =		msdosfs_omount,
 	.vfs_root =		msdosfs_root,
 	.vfs_statfs =		msdosfs_statfs,
 	.vfs_sync =		msdosfs_sync,

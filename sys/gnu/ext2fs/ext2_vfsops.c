@@ -73,7 +73,7 @@ static vfs_fhtovp_t		ext2_fhtovp;
 static vfs_vptofh_t		ext2_vptofh;
 static vfs_init_t		ext2_init;
 static vfs_uninit_t		ext2_uninit;
-static vfs_nmount_t		ext2_mount;
+static vfs_mount_t		ext2_mount;
 
 MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
 static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
@@ -81,7 +81,7 @@ static MALLOC_DEFINE(M_EXT2MNT, "EXT2 mount", "EXT2 mount structure");
 static struct vfsops ext2fs_vfsops = {
 	.vfs_fhtovp =		ext2_fhtovp,
 	.vfs_init =		ext2_init,
-	.vfs_nmount =		ext2_mount,
+	.vfs_mount =		ext2_mount,
 	.vfs_root =		ext2_root,	/* root inode via vget */
 	.vfs_statfs =		ext2_statfs,
 	.vfs_sync =		ext2_sync,
@@ -166,9 +166,8 @@ ext2_mountroot()
  * mount system call
  */
 static int
-ext2_mount(mp, ndp, td)
+ext2_mount(mp, td)
 	struct mount *mp;
-	struct nameidata *ndp;
 	struct thread *td;
 {
 	struct export_args *export;
@@ -180,6 +179,7 @@ ext2_mount(mp, ndp, td)
 	size_t size;
 	int error, flags, len;
 	mode_t accessmode;
+	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
 
@@ -216,7 +216,7 @@ ext2_mount(mp, ndp, td)
 			fs->s_rd_only = 1;
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
-			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, td);
+			error = ext2_reload(mp, td->td_ucred, td);
 		if (error)
 			return (error);
 		devvp = ump->um_devvp;

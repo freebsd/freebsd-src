@@ -69,7 +69,6 @@ int	ffs_freefile(struct fs *, struct vnode *, ino_t, int);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_load_inode(struct buf *, struct inode *, struct fs *, ino_t);
 int	ffs_mountroot(void);
-vfs_mount_t ffs_mount;
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, struct ucred *, struct buf **);

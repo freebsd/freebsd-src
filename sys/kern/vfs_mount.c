@@ -104,7 +104,7 @@ static int	vfs_domount(struct thread *td, const char *fstype,
 static int	vfs_mount_alloc(struct vnode *dvp, struct vfsconf *vfsp,
 		    const char *fspath, struct thread *td, struct mount **mpp);
 static int	vfs_mountroot_ask(void);
-static int	vfs_mountroot_try(char *mountfrom);
+static int	vfs_mountroot_try(const char *mountfrom);
 static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
 
@@ -148,8 +148,12 @@ static char *cdrom_rootdevnames[] = {
 
 /* legacy find-root code */
 char		*rootdevnames[2] = {NULL, NULL};
-static int	setrootbyname(char *name);
 struct cdev *rootdev = NULL;
+#ifdef ROOTDEVNAME
+const char	*ctrootdevname = ROOTDEVNAME;
+#else
+const char	*ctrootdevname = NULL;
+#endif
 
 /*
  * Has to be dynamic as the value of rootdev can change; however, it can't
@@ -823,10 +827,10 @@ vfs_domount(
 			mp->mnt_optnew = fsdata;
 	}
 	/*
-	 * Check if the fs implements the type VFS_[N]MOUNT()
+	 * Check if the fs implements the type VFS_[O]MOUNT()
 	 * function we are looking for.
 	 */
-	if ((compat == 0) == (mp->mnt_op->vfs_mount != NULL)) {
+	if ((compat == 0) == (mp->mnt_op->vfs_omount != NULL)) {
 		printf("%s doesn't support the %s mount syscall\n",
 		    mp->mnt_vfc->vfc_name, compat ? "old" : "new");
 		VI_LOCK(vp);
@@ -854,8 +858,10 @@ vfs_domount(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-	error = compat ? VFS_MOUNT(mp, fspath, fsdata, &nd, td) :
-	    VFS_NMOUNT(mp, &nd, td);
+	if (compat)
+	    error = VFS_OMOUNT(mp, fspath, fsdata, td);
+	else
+	    error = VFS_MOUNT(mp, td);
 	if (!error) {
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
@@ -1195,25 +1201,31 @@ void
 vfs_mountroot(void)
 {
 	char *cp;
-	int error, i;
+	int error, i, asked = 0;
 
+
+	/*
+	 * Wait for GEOM to settle down
+	 */
 	g_waitidle();
+
+	/*
+	 * We are booted with instructions to prompt for the root filesystem.
+	 */
+	if (boothowto & RB_ASKNAME) {
+		if (!vfs_mountroot_ask())
+			return;
+		asked = 1;
+	}
 
 	/*
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
 	 */
-#ifdef ROOTDEVNAME
-	if ((boothowto & RB_DFLTROOT) && !vfs_mountroot_try(ROOTDEVNAME))
-		return;
-#endif
-	/*
-	 * We are booted with instructions to prompt for the root filesystem,
-	 * or to use the compiled-in default when it doesn't exist.
-	 */
-	if (boothowto & (RB_DFLTROOT | RB_ASKNAME)) {
-		if (!vfs_mountroot_ask())
+	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
+		if (!vfs_mountroot_try(ctrootdevname))
 			return;
+		ctrootdevname = NULL;
 	}
 
 	/*
@@ -1233,7 +1245,8 @@ vfs_mountroot(void)
 	 * supplied via some other means.  This is the preferred
 	 * mechanism.
 	 */
-	if ((cp = getenv("vfs.root.mountfrom")) != NULL) {
+	cp = getenv("vfs.root.mountfrom");
+	if (cp != NULL) {
 		error = vfs_mountroot_try(cp);
 		freeenv(cp);
 		if (!error)
@@ -1241,8 +1254,7 @@ vfs_mountroot(void)
 	}
 
 	/*
-	 * Try values that may have been computed by the machine-dependant
-	 * legacy code.
+	 * Try values that may have been computed by code during boot
 	 */
 	if (!vfs_mountroot_try(rootdevnames[0]))
 		return;
@@ -1250,21 +1262,19 @@ vfs_mountroot(void)
 		return;
 
 	/*
-	 * If we have a compiled-in default, and haven't already tried it, try
-	 * it now.
+	 * If we (still) have a compiled-in default, try it.
 	 */
-#ifdef ROOTDEVNAME
-	if (!(boothowto & RB_DFLTROOT))
-		if (!vfs_mountroot_try(ROOTDEVNAME))
+	if (ctrootdevname != NULL)
+		if (!vfs_mountroot_try(ctrootdevname))
 			return;
-#endif
 
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
 	 * already tried that.
 	 */
-	if (!(boothowto & (RB_DFLTROOT | RB_ASKNAME)) && !vfs_mountroot_ask())
-		return;
+	if (!asked)
+		if (!vfs_mountroot_ask())
+			return;
 	panic("Root mount failed, startup aborted.");
 }
 
@@ -1272,7 +1282,7 @@ vfs_mountroot(void)
  * Mount (mountfrom) as the root filesystem.
  */
 static int
-vfs_mountroot_try(char *mountfrom)
+vfs_mountroot_try(const char *mountfrom)
 {
         struct mount	*mp;
 	char		*vfsname, *path;
@@ -1310,9 +1320,18 @@ vfs_mountroot_try(char *mountfrom)
 		goto done;
 	}
 
-	/* do our best to set rootdev */
-	if (path[0] != '\0' && setrootbyname(path))
-		printf("setrootbyname failed\n");
+	/*
+	 * do our best to set rootdev
+	 * XXX: This does not belong here!
+	 */
+	if (path[0] != '\0') {
+		struct cdev *diskdev;
+		diskdev = getdiskbyname(path);
+		if (diskdev != NULL)
+			rootdev = diskdev;
+		else
+			printf("setrootbyname failed\n");
+	}
 
 	/* If the root device is a type "memory disk", mount RW */
 	if (rootdev != NULL && devsw(rootdev) != NULL) {
@@ -1321,7 +1340,7 @@ vfs_mountroot_try(char *mountfrom)
 			mp->mnt_flag &= ~MNT_RDONLY;
 	}
 
-	error = VFS_MOUNT(mp, NULL, NULL, NULL, curthread);
+	error = VFS_OMOUNT(mp, NULL, NULL, curthread);
 
 done:
 	if (vfsname != NULL)
@@ -1451,7 +1470,7 @@ getdiskbyname(char *name)
 			break;
 		mp->mnt_flag |= MNT_RDONLY;
 
-		error = VFS_NMOUNT(mp, NULL, curthread);
+		error = VFS_MOUNT(mp, curthread);
 		if (error)
 			break;
 		VFS_START(mp, 0, td);
@@ -1477,24 +1496,6 @@ getdiskbyname(char *name)
 	if (mp != NULL)
 		vfs_mount_destroy(mp, td);
   	return (dev);
-}
-
-/*
- * Set rootdev to match (name), given that we expect it to
- * refer to a disk-like device.
- */
-static int
-setrootbyname(char *name)
-{
-	struct cdev *diskdev;
-
-	diskdev = getdiskbyname(name);
-	if (diskdev != NULL) {
-		rootdev = diskdev;
-		return (0);
-	}
-
-	return (1);
 }
 
 /* Show the struct cdev *for a disk specified by name */

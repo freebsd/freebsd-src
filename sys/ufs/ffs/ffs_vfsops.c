@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
 static int	ffs_sbupdate(struct ufsmount *, int);
-       int	ffs_reload(struct mount *,struct ucred *,struct thread *);
+static int	ffs_reload(struct mount *, struct thread *);
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
@@ -77,12 +77,13 @@ static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
+static vfs_omount_t ffs_omount;
 
 static struct vfsops ufs_vfsops = {
 	.vfs_extattrctl =	ffs_extattrctl,
 	.vfs_fhtovp =		ffs_fhtovp,
 	.vfs_init =		ffs_init,
-	.vfs_mount =		ffs_mount,
+	.vfs_omount =		ffs_omount,
 	.vfs_quotactl =		ufs_quotactl,
 	.vfs_root =		ufs_root,
 	.vfs_start =		ufs_start,
@@ -97,7 +98,7 @@ static struct vfsops ufs_vfsops = {
 VFS_SET(ufs_vfsops, ufs, 0);
 
 /*
- * ffs_mount
+ * ffs_omount
  *
  * Called when mounting local physical media
  *
@@ -133,13 +134,8 @@ VFS_SET(ufs_vfsops, ufs, 0);
  *		system call will fail with EFAULT in copyinstr in
  *		namei() if it is a genuine NULL from the user.
  */
-int
-ffs_mount(mp, path, data, ndp, td)
-        struct mount		*mp;	/* mount struct pointer*/
-        char			*path;	/* path to mount point*/
-        caddr_t			data;	/* arguments to FS specific mount*/
-        struct nameidata	*ndp;	/* mount point credentials*/
-        struct thread		*td;	/* process requesting mount*/
+static int
+ffs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 {
 	size_t size;
 	struct vnode *devvp, *rootvp;
@@ -148,6 +144,7 @@ ffs_mount(mp, path, data, ndp, td)
 	struct fs *fs;
 	int error, flags;
 	mode_t accessmode;
+	struct nameidata ndp;
 
 	if (uma_inode == NULL) {
 		uma_inode = uma_zcreate("FFS inode",
@@ -236,7 +233,7 @@ ffs_mount(mp, path, data, ndp, td)
 			vn_finished_write(mp);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
-		    (error = ffs_reload(mp, ndp->ni_cnd.cn_cred, td)) != 0)
+		    (error = ffs_reload(mp, td)) != 0)
 			return (error);
 		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			/*
@@ -310,11 +307,11 @@ ffs_mount(mp, path, data, ndp, td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible disk device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
-	if ((error = namei(ndp)) != 0)
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	if ((error = namei(&ndp)) != 0)
 		return (error);
-	NDFREE(ndp, NDF_ONLY_PNBUF);
-	devvp = ndp->ni_vp;
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
+	devvp = ndp.ni_vp;
 	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);
 		return (error);
@@ -385,11 +382,8 @@ ffs_mount(mp, path, data, ndp, td)
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
  */
-int
-ffs_reload(mp, cred, td)
-	struct mount *mp;
-	struct ucred *cred;
-	struct thread *td;
+static int
+ffs_reload(struct mount *mp, struct thread *td)
 {
 	struct vnode *vp, *nvp, *devvp;
 	struct inode *ip;
@@ -407,7 +401,7 @@ ffs_reload(mp, cred, td)
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (vinvalbuf(devvp, 0, cred, td, 0, 0) != 0)
+	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
 	/*
 	 * Only VMIO the backing device if the backing device is a real
@@ -504,7 +498,7 @@ loop:
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, cred, td, 0, 0))
+		if (vinvalbuf(vp, 0, td->td_ucred, td, 0, 0))
 			panic("ffs_reload: dirty2");
 		/*
 		 * Step 6: re-read inode data for all active vnodes.
