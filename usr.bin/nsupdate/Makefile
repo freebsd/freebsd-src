@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
-LIB_BIND_DIR=	${.CURDIR}/../../lib/bind
+LIB_BIND_REL=	../../lib/bind
+LIB_BIND_DIR=	${.CURDIR}/${LIB_BIND_REL}
 SRCDIR=		${BIND_DIR}/bin/nsupdate
 
 .include	"${LIB_BIND_DIR}/config.mk"
