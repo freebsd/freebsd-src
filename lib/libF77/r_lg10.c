@@ -1,7 +1,7 @@
 #include "f2c.h"
 
 #ifdef KR_headers
-double log();
+float log10f();
 double r_lg10(x) real *x;
 #else
 #undef abs
@@ -9,5 +9,5 @@ double r_lg10(x) real *x;
 double r_lg10(real *x)
 #endif
 {
-return( log10(*x) );
+return( log10f(*x) );
 }
