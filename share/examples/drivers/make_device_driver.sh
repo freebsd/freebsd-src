@@ -20,6 +20,8 @@ HERE=`pwd`
 cd /sys
 TOP=`pwd`
 
+RCS_KEYWORD=FreeBSD
+
 echo ${TOP}/modules/${1}
 echo ${TOP}/i386/conf/files.${UPPER}
 echo ${TOP}/i386/conf/${UPPER}
@@ -64,7 +66,7 @@ DONE
 cat >${TOP}/i386/conf/${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Free\0x42SD: src/share/examples/drivers/make_device_driver.sh,v 1.8 2000/10/25 15:08:11 julian Exp $"
+# \$${RCS_KEYWORD}: $
 DONE
 
 grep -v GENERIC < /sys/i386/conf/GENERIC >>${TOP}/i386/conf/${UPPER}
@@ -94,14 +96,35 @@ fi
 
 
 
-
-
 cat >${TOP}/dev/${1}/${1}.c <<DONE
 /*
- * Copyright ME
+ * Copyright (c) [year] [your name]
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  *
  * ${1} driver
- * \$FreeBSD$
+ * \$${RCS_KEYWORD}: $
  */
 
 
@@ -573,7 +596,7 @@ fi
 cat >${TOP}/modules/${1}/Makefile <<DONE
 #	${UPPER} Loadable Kernel Module
 #
-# $FreeBSD$
+# \$${RCS_KEYWORD}: $
  
 .PATH:  \${.CURDIR}/../../dev/${1}
 KMOD    = ${1}
