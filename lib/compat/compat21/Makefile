@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/12/23 05:07:37 peter Exp $
 
 DISTRIBUTION=	compat21
 
@@ -15,7 +15,7 @@ ${lib}:	${lib}.gz.uu
 .endfor
 
 install:
-	${INSTALL} -p -o ${BINMODE} -g ${BINGRP} -m ${BINMODE} ${LIBS} \
+	${INSTALL} -p -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ${LIBS} \
 		${DESTDIR}${BINDIR}
 
 # Get all the fruit, even though we don't set PROG
