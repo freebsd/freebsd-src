@@ -58,14 +58,16 @@
 .Op Fl s Ar size
 .Ar special
 .Sh DESCRIPTION
-.Nm Newfs
-is used to initialize and clear filesystems before first use.
+The
+.Nm
+utility is used to initialize and clear filesystems before first use.
 Before running
 .Nm
 the disk must be labeled using
 .Xr disklabel 8 .
-.Nm Newfs
-builds a filesystem on the specified special file.
+The
+.Nm
+utility builds a filesystem on the specified special file.
 (We often refer to the
 .Dq special file
 as the
@@ -194,8 +196,9 @@ The size of a sector in bytes (almost never anything but 512).
 .Pp
 Creates a new ufs filesystem on
 .Pa ad3s1a .
+The
 .Nm
-will use a block size of 16384 bytes, a fragment size of 2048 bytes
+utility will use a block size of 16384 bytes, a fragment size of 2048 bytes
 and the largest possible number of blocks per cylinders group.
 These values tend to produce better performance for most applications
 than the historical defaults
@@ -229,5 +232,5 @@ on filesystems that contain many small files.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
