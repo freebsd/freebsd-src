@@ -144,7 +144,7 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
-${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
+${x:S/$/-install/}:
 	${INSTALLINFO} ${INSTALLINFOFLAGS} \
 	    --defsection=${INFOSECTION} \
 	    --defentry=${INFOENTRY_${x}} \
