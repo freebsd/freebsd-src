@@ -110,9 +110,9 @@ main(int argc, char *argv[])
 	spcl.c_date = _time_to_time64(time(NULL));
 
 	tsize = 0;	/* Default later, based on 'c' option for cart tapes */
-	if ((tape = getenv("TAPE")) == NULL)
-		tape = _PATH_DEFTAPE;
 	dumpdates = _PATH_DUMPDATES;
+	popenout = NULL;
+	tape = NULL;
 	temp = _PATH_DTMP;
 	if (TP_BSIZE / DEV_BSIZE == 0 || TP_BSIZE % DEV_BSIZE != 0)
 		quit("TP_BSIZE must be a multiple of DEV_BSIZE\n");
@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 
 	obsolete(&argc, &argv);
 	while ((ch = getopt(argc, argv,
-	    "0123456789aB:b:C:cD:d:f:h:LnSs:T:uWw")) != -1)
+	    "0123456789aB:b:C:cD:d:f:h:LnP:Ss:T:uWw")) != -1)
 		switch (ch) {
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
@@ -164,6 +164,9 @@ main(int argc, char *argv[])
 			break;
 
 		case 'f':		/* output file */
+			if (popenout != NULL)
+				errx(X_STARTUP, "You cannot use the P and f "
+				    "flags together.\n");
 			tape = optarg;
 			break;
 
@@ -177,6 +180,13 @@ main(int argc, char *argv[])
 
 		case 'n':		/* notify operators */
 			notify = 1;
+			break;
+
+		case 'P':
+			if (tape != NULL)
+				errx(X_STARTUP, "You cannot use the P and f "
+				    "flags together.\n");
+			popenout = optarg;
 			break;
 
 		case 'S':               /* exit after estimating # of tapes */
@@ -231,6 +241,10 @@ main(int argc, char *argv[])
 		    "You cannot use the T and u flags together.\n");
 		exit(X_STARTUP);
 	}
+	if (popenout) {
+		tape = "child pipeline process";
+	} else if (tape == NULL && (tape = getenv("TAPE")) == NULL)
+		tape = _PATH_DEFTAPE;
 	if (strcmp(tape, "-") == 0) {
 		pipeout++;
 		tape = "standard output";
@@ -316,8 +330,8 @@ main(int argc, char *argv[])
 				snapdump = 0;
 			}
 		} else if (snapdump == 0) {
-			msg("WARNING: %s%s\n",
-			    "should use -L when dumping live read-write ",
+			msg("WARNING: %s\n",
+			    "should use -L when dumping live read-write "
 			    "filesystems!");
 		} else {
 			char snapname[BUFSIZ], snapcmd[BUFSIZ];
@@ -562,8 +576,8 @@ usage(void)
 {
 	fprintf(stderr,
 		"usage: dump [-0123456789acLnSu] [-B records] [-b blocksize] [-C cachesize]\n"
-		"            [-D dumpdates] [-d density] [-f file] [-h level] [-s feet]\n"
-		"            [-T date] filesystem\n"
+		"            [-D dumpdates] [-d density] [-h level] [-s feet] [-T date]\n"
+		"            [-f file | -P pipecommand] filesystem\n"
 		"       dump -W | -w\n");
 	exit(X_STARTUP);
 }

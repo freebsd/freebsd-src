@@ -44,7 +44,7 @@
 .Op Fl C Ar cachesize
 .Op Fl D Ar dumpdates
 .Op Fl d Ar density
-.Op Fl f Ar file
+.Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl h Ar level
 .Op Fl s Ar feet
 .Op Fl T Ar date
@@ -190,6 +190,28 @@ program is
 .Pa /etc/rmt ;
 this can be overridden by the environment variable
 .Ev RMT .
+.It Fl P Ar pipecommand
+Use
+.Xr popen 3
+to execute the
+.Xr sh 1
+script string defined by
+.Ar pipecommand
+for the output device of each volume.
+This child pipeline's
+.Dv stdin
+.Pa ( /dev/fd/0 )
+is redirected from the
+.Nm
+output stream, and the environment variable
+.Ev DUMP_VOLUME
+is set to the current volume number being written.
+After every volume, the writer side of the pipe is closed and
+.Ar pipecommand
+is executed again.
+Subject to the media size specified by
+.Fl B ,
+each volume is written in this manner as if the output were a tape drive.
 .It Fl h Ar level
 Honor the user
 .Dq nodump
