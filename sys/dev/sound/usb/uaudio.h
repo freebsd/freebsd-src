@@ -46,5 +46,7 @@ void	uaudio_chan_set_param_format(device_t dev, u_int32_t format,int dir);
 int	uaudio_chan_getptr(device_t dev, int);
 void	uaudio_mixer_set(device_t dev, unsigned type, unsigned left,
 		unsigned right);
+u_int32_t uaudio_mixer_setrecsrc(device_t dev, u_int32_t src);
 u_int32_t uaudio_query_mix_info(device_t dev);
+u_int32_t uaudio_query_recsrc_info(device_t dev);
 void	uaudio_query_formats(device_t dev, u_int32_t *pfmt, u_int32_t *rfmt);
