@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.9 1995/06/07 08:19:52 jkh Exp $
+#	$Id: Makefile,v 1.192.2.10 1995/06/07 20:03:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -120,7 +120,7 @@ rerelease:
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} -P -d -q src
+	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
 .endif
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
