@@ -1,4 +1,4 @@
-/* $Id: ansi.h,v 1.2 1998/03/09 05:53:07 jb Exp $ */
+/* $Id: ansi.h,v 1.3 1998/10/12 23:57:58 alex Exp $ */
 /* From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp */
 
 /*-
@@ -63,9 +63,6 @@ typedef struct {
 #define	_BSD_TIMER_T_		int		/* timer_t */
 #define	_BSD_SUSECONDS_T_	int		/* suseconds_t */
 #define	_BSD_USECONDS_T_	unsigned int	/* useconds_t */
-#define	_BSD_UINT8_T_		unsigned char	/* uint8_t */
-#define	_BSD_UINT16_T_		unsigned short	/* uint16_t */
-#define	_BSD_UINT32_T_		unsigned int	/* uint32_t */
 
 /*
  * Types which are fundamental to the implementation and must be used
@@ -107,5 +104,21 @@ typedef struct {
  */
 #define	_BSD_CLK_TCK_		100
 #define	_BSD_CLOCKS_PER_SEC_	100
+
+/*
+ * Internal names for basic integral types.  Omit the typedef if
+ * not possible for a machine/compiler combination.
+ */
+typedef	__signed char		   __int8_t;
+typedef	unsigned char		  __uint8_t;
+typedef	short			  __int16_t;
+typedef	unsigned short		 __uint16_t;
+typedef	int			  __int32_t;
+typedef	unsigned int		 __uint32_t;
+typedef	long			  __int64_t;
+typedef	unsigned long		 __uint64_t;
+
+typedef	long			 __intptr_t;
+typedef	unsigned long		__uintptr_t;
 
 #endif	/* _ANSI_H_ */
