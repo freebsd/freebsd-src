@@ -797,9 +797,9 @@ static const format_char_info print_char_table[] =
      ("%6D", ptr, ":")		-> XX:XX:XX:XX:XX:XX
      ("%*D", len, ptr, " ")	-> XX XX XX XX ...
    */
-  { "D",   1, STD_EXT, { T89_C,   T89_C,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      "cR" },
-  { "b",   1, STD_EXT, { T89_C,   T89_C,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      ""   },
-  { "rz",  0, STD_EXT, { BADLEN,  T89_I,   T89_I,   T89_L,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp0 +#",  "i"  },
+  { "D",   1, STD_EXT, { T89_C,  BADLEN,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      "cR" },
+  { "b",   1, STD_EXT, { T89_C,  BADLEN,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      ""   },
+  { "rz",  0, STD_EXT, { T89_I,  BADLEN,   BADLEN,   T89_L,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp0 +#",  "i"  },
   { NULL,  0, 0, NOLENGTHS, NULL, NULL }
 };
 
@@ -1740,54 +1740,6 @@ check_format_info_main (status, res, info, format_chars, format_length,
 	      main_arg_num = opnum + info->first_arg_num - 1;
 	    }
 	}
-      if (*format_chars == 'b')
-	{
-	  /* There should be an int arg to control the string arg.  */
-	  if (params == 0)
-	    {
-	      status_warning (status, "too few arguments for format");
-	      return;
-	    }
-	    if (info->first_arg_num != 0)
-	    {
-	      cur_param = TREE_VALUE (params);
-	      params = TREE_CHAIN (params);
-	      ++arg_num;
-	      if ((TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
-		   != integer_type_node)
-		  &&
-		  (TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
-		   != unsigned_type_node))
-		{
-		  status_warning (status, "bitmap is not type int (arg %d)", arg_num);
-		}
-	    }
-	}
-      if (*format_chars == 'D')
-	{
-	  /* There should be an unsigned char * arg before the string arg.  */
-	  if (params == 0)
-	    {
-	      status_warning (status, "too few arguments for format");
-	      return;
-	    }
-	    if (info->first_arg_num != 0)
-	    {
-	      tree cur_type;
-	      cur_param = TREE_VALUE (params);
-	      params = TREE_CHAIN (params);
-	      ++arg_num;
-	      cur_type = TREE_TYPE (cur_param);
-	      if (TREE_CODE (cur_type) != POINTER_TYPE
-		  || TYPE_MAIN_VARIANT (TREE_TYPE (cur_type))
-		     != unsigned_char_type_node)
-		{
-		  status_warning (status,
-			  "ethernet address is not type unsigned char * (arg %d)",
-			   arg_num);
-		}
-	    }
-	}
 
       /* Read any format flags, but do not yet validate them beyond removing
 	 duplicates, since in general validation depends on the rest of
@@ -2061,6 +2013,57 @@ check_format_info_main (status, res, info, format_chars, format_length,
 		  flag_chars[i++] = 'a';
 		  flag_chars[i] = 0;
 		  format_chars++;
+		}
+	    }
+	}
+
+      if (*format_chars == 'b')
+	{
+	  /* There should be an int arg to control the string arg.  */
+	  if (params == 0)
+	    {
+	      status_warning (status, "too few arguments for format");
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      if ((TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != integer_type_node)
+		  &&
+		  (TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != unsigned_type_node))
+		{
+		  status_warning (status, "bitmap is not type int (arg %d)",
+				  arg_num);
+		}
+	    }
+	}
+      if (*format_chars == 'D')
+	{
+	  /* There should be an unsigned char * arg before the string arg.  */
+	  if (params == 0)
+	    {
+	      status_warning (status, "too few arguments for format");
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      tree cur_type;
+
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      cur_type = TREE_TYPE (cur_param);
+	      if (TREE_CODE (cur_type) != POINTER_TYPE
+		  || TYPE_MAIN_VARIANT (TREE_TYPE (cur_type))
+		     != unsigned_char_type_node)
+		{
+		  status_warning (status,
+		      "ethernet address is not type unsigned char * (arg %d)",
+				  arg_num);
 		}
 	    }
 	}
