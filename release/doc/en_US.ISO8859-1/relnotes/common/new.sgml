@@ -343,7 +343,7 @@
 	Davicom cards that store their MAC address in
 	OpenFirmware.</para>
 
-      <para>A short hiccup in the &man.em.4; during parameter
+      <para>A short hiccup in the &man.em.4; driver during parameter
 	reconfiguration, has been fixed.  &merged;</para>
 
       <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
