@@ -2147,10 +2147,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
-#if 1	/* XXX: tmp hack to restore ability to run releng4 binaries */
-	/* For now, always store the FP state in the PCB. */
-	(void)npxgetregs(td, (union savefpu *)&td->td_pcb->pcb_save);
-#else
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
@@ -2184,25 +2180,18 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	}
+	bcopy(&mcp->mc_fpstate, &td->td_pcb->pcb_save, sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
 #endif
-#endif	/* tmp hack to restore ability to run releng4 binaries */
 }
 
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
-#if 1	/* XXX: tmp hack to restore ability to run releng4 binaries */
-	/* For now, the FP state is always stored in the PCB. */
-    	npxsetregs(td, (union savefpu *)&td->td_pcb->pcb_save);
-#else
 	union savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
-	else if (mcp->mc_fpformat != _MC_FPFMT_387 &&
-	    mcp->mc_fpformat != _MC_FPFMT_XMM)
-		return (EINVAL);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_NONE)
 		/* We don't care what state is left in the FPU or PCB. */
 		fpstate_drop(td);
@@ -2232,9 +2221,18 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 * misaligned case, since we know that the caller won't use
 		 * them again.
 		 */
-	} else
+	} else {
+		/*
+		 * There's no valid FPU state to restore, so use the
+		 * saved state in the PCB only of the process has used
+		 * the FPU since.
+		 */
+		if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) != 0)
+			npxsetregs(td, &td->td_pcb->pcb_save);
+#if !defined(COMPAT_FREEBSD4) && !defined(COMPAT_43)
 		return (EINVAL);
-#endif	/* tmp hack to restore ability to run releng4 binaries */
+#endif
+	}
 	return (0);
 }
 
