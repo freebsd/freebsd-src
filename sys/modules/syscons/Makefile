@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	blank daemon fade green logo rain snake star warp fire
+SUBDIR=	apm blank daemon fade green logo rain snake star warp fire
 
 .include <bsd.subdir.mk>
