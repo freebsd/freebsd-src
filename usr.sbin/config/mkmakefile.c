@@ -205,6 +205,8 @@ makefile()
 			do_objs(ofp);
 		else if (eq(line, "%CFILES\n"))
 			do_cfiles(ofp);
+		else if (eq(line, "%SFILES\n"))
+			do_sfiles(ofp);
 		else if (eq(line, "%RULES\n"))
 			do_rules(ofp);
 		else if (eq(line, "%LOAD\n"))
@@ -582,6 +584,31 @@ do_cfiles(fp)
 	if (lpos != 8)
 		putc('\n', fp);
 }
+
+do_sfiles(fp)
+	FILE *fp;
+{
+	register struct file_list *tp;
+	register int lpos, len;
+
+	fputs("SFILES=", fp);
+	lpos = 8;
+	for (tp = ftab; tp; tp = tp->f_next)
+		if (tp->f_type != INVISIBLE) {
+			len = strlen(tp->f_fn);
+			if (tp->f_fn[len - 1] != 'S' && tp->f_fn[len - 1] != 's')
+				continue;
+			if ((len = 3 + len) + lpos > 72) {
+				lpos = 8;
+				fputs("\\\n\t", fp);
+			}
+			fprintf(fp, "$S/%s ", tp->f_fn);
+			lpos += len + 1;
+		}
+	if (lpos != 8)
+		putc('\n', fp);
+}
+
 
 char *
 tail(fn)
