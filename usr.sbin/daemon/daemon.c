@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -43,10 +44,13 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int ch, nochdir, noclose;
+	int ch, nochdir, noclose, errcode;
+	FILE *pidf;
+	const char *pidfile;
 
 	nochdir = noclose = 1;
-	while ((ch = getopt(argc, argv, "-cf")) != -1) {
+	pidfile = NULL;
+	while ((ch = getopt(argc, argv, "-cfp:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -54,7 +58,9 @@ main(int argc, char *argv[])
 		case 'f':
 			noclose = 0;
 			break;
-		case '?':
+		case 'p':
+			pidfile = optarg;
+			break;
 		default:
 			usage();
 		}
@@ -64,17 +70,43 @@ main(int argc, char *argv[])
 
 	if (argc == 0)
 		usage();
+	/*
+	 * Try to open the pidfile before calling daemon(3),
+	 * to be able to report the error intelligently
+	 */
+	if (pidfile) {
+		pidf = fopen(pidfile, "w");
+		if (pidf == NULL)
+			err(2, "pidfile ``%s''", pidfile);
+	}
+
 	if (daemon(nochdir, noclose) == -1)
 		err(1, NULL);
+
+	/* Now that we are the child, write out the pid */
+	if (pidfile) {
+		fprintf(pidf, "%lu\n", (unsigned long)getpid());
+		fclose(pidf);
+	}
+
 	execvp(argv[0], argv);
 
+	/*
+	 * execvp() failed -- unlink pidfile if any, and
+	 * report the error
+	 */
+	errcode = errno; /* Preserve errcode -- unlink may reset it */
+	if (pidfile)
+		unlink(pidfile);
+
 	/* The child is now running, so the exit status doesn't matter. */
-	err(1, "%s", argv[0]);
+	errc(1, errcode, "%s", argv[0]);
 }
 
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: daemon [-cf] command arguments ...\n");
+	(void)fprintf(stderr,
+	    "usage: daemon [-cf] [-p pidfile] command arguments ...\n");
 	exit(1);
 }

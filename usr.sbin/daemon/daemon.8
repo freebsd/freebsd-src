@@ -35,6 +35,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cf
+.Op Fl p Ar pidfile
 .Ar command arguments ...
 .Sh DESCRIPTION
 The
@@ -50,13 +51,20 @@ Change the current working directory to the root
 .It Fl f
 Redirect standard input, standard output and standard error to
 .Pa /dev/null .
+.It Fl p Ar file
+Write the id of the created process into the
+.Ar file .
+Note, that the file will be created shortly before the process is
+actually executed, and will remain after the process exits (although
+it will be removed if the execution fails).
 .El
 .Sh DIAGNOSTICS
 The
 .Nm
 utility exits 1 if an error is returned by the
 .Xr daemon 3
-library routine, otherwise 0.
+library routine, 2 if the pid-file is requested, but can not be opened,
+otherwise 0.
 If the command cannot be executed, an error message is displayed on
 standard error unless the
 .Fl f
