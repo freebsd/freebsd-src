@@ -322,7 +322,6 @@ scheduler(dummy)
 	struct proc *pp;
 	int ppri;
 
-	spl0();
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
