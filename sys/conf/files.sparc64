@@ -16,6 +16,8 @@ dev/ofw/ofw_console.c		optional	ofw_console
 dev/ofw/openfirm.c		standard
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
+geom/geom_bsd.c			standard
+geom/geom_sunlabel.c		standard
 libkern/ffs.c			standard
 kern/subr_diskmbr.c		standard
 kern/syscalls.c			optional	ktr

@@ -20,7 +20,7 @@
 #include <sys/disk.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
-#ifndef GEOM
+#ifdef NO_GEOM
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -440,7 +440,7 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, diskslices, CTLFLAG_RD,
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disk, CTLFLAG_RD, 
     0, sizeof(struct disk), "sizeof(struct disk)");
 
-#endif
+#endif /* NO_GEOM */
 
 /*-
  * Disk error is the preface to plaintive error messages
