@@ -580,7 +580,7 @@ center_stream(FILE *stream, const char *name) {
   size_t length;
   while ((line=get_line(stream, &length)) != 0) {
     size_t l=length;
-    while (l>0 && isspace(*line)) { ++line; --l; }
+    while (l>0 && isspace((unsigned char)*line)) { ++line; --l; }
     length=l;
     while (l<goal_length) { putchar(' '); l+=2; }
     fwrite(line, 1, length, stdout);
