@@ -74,6 +74,7 @@ yppasswd_private_xdr.c: ${RPCSRC_PRIV}
 yppasswd_private_clnt.c: ${RPCSRC_PRIV}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PRIV}
 
+BINOWN=	root
 BINMODE=4555
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS=passwd.1 yppasswd.1

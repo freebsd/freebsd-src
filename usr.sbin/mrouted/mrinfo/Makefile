@@ -5,6 +5,7 @@ S=	${.CURDIR}/..
 
 PROG=	mrinfo
 MAN=	mrinfo.8
+BINOWN=	root
 BINMODE= 4555
 
 CFLAGS+= -I$S

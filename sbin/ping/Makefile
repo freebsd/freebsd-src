@@ -3,6 +3,7 @@
 
 PROG=	ping
 MAN=	ping.8
+BINOWN=	root
 BINMODE=4555
 CFLAGS+=-Wall -Wmissing-prototypes
 .if ${MACHINE_ARCH} == "alpha"
