@@ -148,7 +148,7 @@ Descriptors that are awaiting delivery, or that are
 purposely not received, are automatically closed by the system
 when the destination socket is closed.
 .Pp
-The effective credentials (i.e., the user ID and group list) the of a
+The effective credentials (i.e., the user ID and group list) of a
 peer on a
 .Dv SOCK_STREAM
 socket may be obtained using the
@@ -158,9 +158,9 @@ This may be used by a server to obtain and verify the credentials of
 its client, and vice versa by the client to verify the credentials
 of the server.
 These will arrive in the form of a filled in
-.Ar struct xucred
+.Vt "struct xucred"
 (defined in
-.Pa sys/ucred.h ) .
+.Aq Pa sys/ucred.h ) .
 The credentials presented to the server (the
 .Xr listen 2
 caller) are those of the client when it called
