@@ -51,6 +51,17 @@ static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
 #include <string.h>
 #include <paths.h>
 
+#ifndef _THREAD_SAFE
+#define THREAD_LOCK()
+#define THREAD_UNLOCK()
+#else
+#include <pthread.h>
+#include "libc_private.h"
+static pthread_mutex_t pidlist_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define	THREAD_LOCK()	if (__isthreaded) _pthread_mutex_lock(&pidlist_mutex)
+#define	THREAD_UNLOCK()	if (__isthreaded) _pthread_mutex_unlock(&pidlist_mutex)
+#endif /* _THREAD_SAFE */
+
 extern char **environ;
 
 static struct pid {
@@ -95,8 +106,10 @@ popen(command, type)
 	argv[2] = (char *)command;
 	argv[3] = NULL;
 
+	THREAD_LOCK();
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
+		THREAD_UNLOCK();
 		(void)_close(pdes[0]);
 		(void)_close(pdes[1]);
 		free(cur);
@@ -134,6 +147,7 @@ popen(command, type)
 		_exit(127);
 		/* NOTREACHED */
 	}
+	THREAD_UNLOCK();
 
 	/* Parent; assume fdopen can't fail. */
 	if (*type == 'r') {
@@ -146,9 +160,11 @@ popen(command, type)
 
 	/* Link into list of file descriptors. */
 	cur->fp = iop;
-	cur->pid =  pid;
+	cur->pid = pid;
+	THREAD_LOCK();
 	cur->next = pidlist;
 	pidlist = cur;
+	THREAD_UNLOCK();
 
 	return (iop);
 }
@@ -167,12 +183,23 @@ pclose(iop)
 	int pstat;
 	pid_t pid;
 
-	/* Find the appropriate file pointer. */
+	/*
+	 * Find the appropriate file pointer and remove it from the list.
+	 */
+	THREAD_LOCK();
 	for (last = NULL, cur = pidlist; cur; last = cur, cur = cur->next)
 		if (cur->fp == iop)
 			break;
-	if (cur == NULL)
+	if (cur == NULL) {
+		THREAD_UNLOCK();
 		return (-1);
+	}
+	/* Remove the entry from the linked list. */
+	if (last == NULL)
+		pidlist = cur->next;
+	else
+		last->next = cur->next;
+	THREAD_UNLOCK();
 
 	(void)fclose(iop);
 
@@ -180,11 +207,6 @@ pclose(iop)
 		pid = _wait4(cur->pid, &pstat, 0, (struct rusage *)0);
 	} while (pid == -1 && errno == EINTR);
 
-	/* Remove the entry from the linked list. */
-	if (last == NULL)
-		pidlist = cur->next;
-	else
-		last->next = cur->next;
 	free(cur);
 
 	return (pid == -1 ? -1 : pstat);
