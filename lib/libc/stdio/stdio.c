@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)stdio.c	8.1 (Berkeley) 6/4/93";
  * Small standard I/O/seek/close functions.
  * These maintain the `known seek offset' for seek optimisation.
  */
-__sread(cookie, buf, n)
+int __sread(cookie, buf, n)
 	void *cookie;
 	char *buf;
 	int n;
@@ -64,7 +64,7 @@ __sread(cookie, buf, n)
 	return (ret);
 }
 
-__swrite(cookie, buf, n)
+int __swrite(cookie, buf, n)
 	void *cookie;
 	char const *buf;
 	int n;
@@ -96,7 +96,7 @@ __sseek(cookie, offset, whence)
 	return (ret);
 }
 
-__sclose(cookie)
+int __sclose(cookie)
 	void *cookie;
 {
 

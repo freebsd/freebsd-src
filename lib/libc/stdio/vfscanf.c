@@ -94,7 +94,7 @@ static u_char *__sccl();
 /*
  * vfscanf
  */
-__svfscanf(fp, fmt0, ap)
+int __svfscanf(fp, fmt0, ap)
 	register FILE *fp;
 	char const *fmt0;
 	va_list ap;
