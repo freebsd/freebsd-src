@@ -1,17 +1,272 @@
-Sun Mar 14 02:38:07 PST 1999 Jeff Law  (law@cygnus.com)
+Mon Aug 16 01:29:24 PDT 1999 Jeff Law  (law@cygnus.com)
 
-	* egcs-1.1.2 Released.
+	* gcc-2.95.1 Released.
 
-Thu Feb 25 02:21:22 1999  Jeffrey A Law  (law@cygnus.com)
+Thu Aug  5 02:00:13 1999  Loren Rittle  <ljrittle@acm.org>
 
-	Thu Feb 18 19:53:17 1999  Marc Espie <espie@cvs.openbsd.org>
+	* Makefile.in (MARLINK, MSHLINK): Handle library version
+	number components with more than one numeric digit.
+
+Mon Aug  2 00:40:10 1999  Jeffrey A Law  (law@cygnus.com)
+
+	1999-07-16  Markus Gyger (mgyger@gmu.edu)
+	* stdexcepti.cc (__out_of_range): Use std:: qualifier for names 
+	in std.
+	(__length_error): Likewise.
+
+Wed Jul 28 21:39:31 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sun Jul 25 23:40:51 PDT 1999 Jeff Law  (law@cygnus.com)
+
+	* gcc-2.95 Released.
+
+Sat Jul 17 23:49:59 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (INTERFACE): Bump to 3.
+
+Fri Jul  9 01:20:23 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.in (VERSION): Bump to 2.10.0.
+
+Tue Jun  8 00:21:11 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* configure.in (*-*-freebsd2*): Add missing '*' at end of configure
+	string.
+
+1999-06-05  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
+
+	* std/std_valarray.h: Don't #include unconditionally <alloca.h>
+
+1999-06-05  Gabriel Dos Reis  <dosreis@cmla.ens-cachan.fr>
+
+	* std/std_valarray.h: New file.
+	  * std/slice.h: New file.
+	  * std/slice_array.h: New file.
+	  * std/gslice.h: New file.
+	  * std/gslice_array.h: New file.
+	  * std/mask_array.h: New file.
+	  * std/indirect_array.h: New file.
+	  * std/valarray_array.h: New file.
+	  * std/valarray_array.tcc: New file.
+	  * std/valarray_meta.h: New file.
+	  * valarray.cc: New file.
+	  * valarray: New file
+
+	  * Makefile.in (OBJS): add valarray.o
+	  (HEADERS): add valarray
+	  (valarray.o): define dependency on valarray.cc
+	  (install): make it possible to install valarray file.
+	
+Wed Jun  2 00:21:54 1999  Robert Lipe  <robertlipe@usa.net>
+
+	* std/bastring.h (class basic_string:Rep): Encode xlock opcode
+	as .bytes instead of mnemonics.
+
+1999-05-20  Angela Marie Thomas <angela@cygnus.com>
+
+	* configure.in: Test for ${compiler_name}.exe as well.
+
+1999-05-15  Mark Kettenis  <kettenis@gnu.org>
+
+	* configure.in: Add shared library support for the Hurd
+	(*-*-gnu*).
+	* config/gnu.ml: New file.
+
+1999-05-12  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* configure.in (compiler_name): Don't do the skip-this-dir thing
+	if we're reconfiguring.
+
+1999-05-07  Ulrich Drepper  <drepper@cygnus.com>
+
+	* std/bastring.h (class basic_string::Rep): Make release member
+	function thread-safe for ix86 (x>=4) and UltraSPARC.
+
+	* stlinst.cc: Make it possible to compile with __USE_MALLOC.
+
+Mon Apr 26 02:24:47 1999 "Loren J. Rittle" <rittle@supra.rsch.comm.mot.com>
+
+	* config/freebsd.ml (LIBS): Add ARLINK.
+	* config/openbsd.ml (LIBS): Add ARLINK.
+
+Fri Apr  2 15:12:14 1999  H.J. Lu  (hjl@gnu.org)
+
+	* libstdc++/configure.in (gxx_include_dir): Handle it.
+	* libstdc++/Makefile.in: Likewise.
+
+Wed Mar 24 22:36:45 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* configure.in (EXEEXT): Define.
+	(compiler_name): Use.
+
+Thu Mar 11 01:07:55 1999  Franz Sirl <Franz.Sirl-kernel@lauterbach.com>
+
+	* configure.in: Add mh-*pic handling for alpha, arm, powerpc
+
+Fri Mar  5 02:16:39 1999  Doug Rabson  <dfr@freebsd.org>
+
+	* configure.in: Support shared libs on FreeBSD 3.x and 4.x
+	* config/freebsd.ml: A copy of config/linux.ml since they are both
+	ELF and both have a shared libm.
+
+1999-02-24  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* configure.in: Fix INSTALLDIR sed pattern for Solaris sed.
+
+Sat Feb 20 13:17:17 1999  Jeffrey A Law  (law@cygnus.com)
+
+	* string, std/straits.h, std/bastring.h: Revert recent change.  Needs
+	some libiberty support before it can be re-enabled.
+
+Thu Feb 18 19:53:17 1999  Marc Espie <espie@cvs.openbsd.org>
+
 	* configure.in: Handle OpenBSD with and without threads.
 	* config/openbsd.ml: New file.
 	* config/openbsd.mt: New file.
 
-Mon Nov 23 09:44:26 1998  Richard Henderson <rth@cygnus.com>
+1999-02-04  Ulrich Drepper  <drepper@cygnus.com>
 
-	* configure.in: Append mh-ppcpic and mh-elfalphapic as appropriate.
+	* configure.in: Recognize --enable-threads=posix for all
+	platforms.
+	* config/posix.mt: New file.
+
+	* configure.in: Add fragments for Solaris defining macro specifying
+	thread library to be used.
+	* config/sol2pth.mt: New file
+	* config/sol2solth.mt: New file.
+	* stl/stl_alloc.h: Add support for Solaris thread library.
+	* stl/stl_config.h: Recognize _SOLTHREADS and define internal macros
+	appropriately.
+
+1999-01-28  Baron Roberts  <baron@sgi.com>
+
+	* string: Uncomment wstring declaration.
+
+	* std/straits.h: Remove #if 0/#endif from around
+	struct string_char_traits <wchar_t>.
+	#include <cwchar>.
+	Add missing definition for wchar_t move method.
+	Add empty() method for trait-based empty string return.
+
+	* std/bastring.h (c_str): Change return of "" to return of
+	traits::empty() call so that proper empty string is returned
+	based on the character type (i.e. "" or L"").
+
+1999-02-07  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* Makefile.in (stuff2): Tweak.
+
+1999-02-04  Ulrich Drepper  <drepper@cygnus.com>
+
+	* configure.in: Recognize --enable-threads=posix for all
+	platforms.
+	* config/posix.mt: New file.
+
+	* configure.in: Add fragments for Solaris defining macro specifying
+	thread library to be used.
+	* config/sol2pth.mt: New file
+	* config/sol2solth.mt: New file.
+	* stl/stl_alloc.h: Add support for Solaris thread library.
+	* stl/stl_config.h: Recognize _SOLTHREADS and define internal macros
+	appropriately.
+
+Sat Jan 30 08:05:46 1999 Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* config/x86-interix.ml: New file.
+	* configure.in (i[3456]86-*-interix*): Add shared library support.
+
+1999-01-13  Ulrich Drepper  <drepper@cygnus.com>
+
+	* configure.in: Test for "ln -s" and set LN_S in generated Makefile.
+	* Makefile.in: Use $(LN_S) instead of explicitly ln -s.
+
+Sun Jan 03 03:16:02 1999  Robert Lipe  <robertlipe@usa.net>
+
+	* configure.in:  (*-*-sysv5, *-*-*udk*):  Treat like sysv4.
+
+Tue Dec  8 00:59:09 1998  Marc Espie <Marc.Espie@liafa.jussieu.fr>
+
+	* Makefile.in: Be more selective about what files to install.
+
+1998-11-30  Ulrich Drepper  <drepper@cygnus.com>
+
+	* std/bastring.cc (operator>>): Correct cast in last patch.
+	(getline): Likewise.
+
+1998-11-27  Alexandre Oliva  <oliva@dcc.unicamp.br>
+
+	* Makefile.in (HEADERS): Install bitset.
+
+1998-11-26  Manfred Hollstein  <manfred@s-direktnet.de>
+
+	* configure.in (compiler_name): Add check to detect if this
+	language's compiler has been built.
+
+1998-11-23  Ulrich Drepper  <drepper@cygnus.com>
+
+	* std/bastring.cc (operator>>): Cast new character to char before
+	adding to string.
+	(getline): Likewise.
+
+Thu Sep 17 01:29:46 1998  H.J. Lu  (hjl@gnu.org)
+
+	* Makefile.in ($(ARLINK), $(SHLINK)): Don't rely on 'ln -f'.
+
+	* Makefile.in (install): Don't rely on 'ln -f'.
+
+1998-09-09  Manfred Hollstein  <manfred@s-direktnet.de>
+
+	* Makefile.in (install): Initialize RELINSTALLDIR correctly
+	even for multilib and cross configurations.
+
+	* configure.in (INSTALLDIR): Don't change INSTALLDIR's init
+	value if --enable-version-specific-runtime-libs has been specified.
+
+Wed Sep  2 21:11:15 1998  H.J. Lu  (hjl@gnu.org)
+
+	* Makefile.in (RELINSTALLDIR): New. Use it to make symlinks.
+
+	* configure.in: Fix INSTALLDIR replacement for cross-compile.
+
+Sun Aug 30 22:17:41 1998  H.J. Lu  (hjl@gnu.org)
+
+	* Makefile.in (INTERFACE): New, set to 2.
+	(ARLIB): Set to libstdc++.a.$(VERSION)
+	(ARLINK, MARLINK): New macros.
+	(LIBS): Add $(ARLINK).
+	($(ARLINK), marlink): New targets.
+	(install): Don't check $(libsubdir). Handle versioned libraries.
+
+	* config/linux.ml (ARLIB, MARLINK, SHLIB, MSHLINK): New macros.
+	(LIBS): Add marlink $(ARLINK).
+
+	* config/aix.ml (ARLIB): Set to libstdc++-ar.a.$(VERSION)
+	(ARLINK): New macros.
+	(BUILD_LIBS): Add $(ARLINK).
+
+	* config/dec-osf.ml (LIBS): Add $(ARLINK).
+	* config/elf.ml (LIBS): Likewise.
+	* config/elfshlibm.ml (LIBS): Likewise.
+	* config/hpux.ml (LIBS): Likewise.
+	* config/iris5.ml (LIBS): Likewise.
+	* config/sol2shm.ml (LIBS): Likewise.
+	* config/sunos4.ml (LIBS): Likewise.
+
+	* configure.in: Use ${topsrcdir}/config.if to put
+	LIBSTDCXX_INTERFACE, CXX_INTERFACE, LIBC_INTERFACE in
+	${package_makefile_frag}.
+
+1998-08-25  Martin von Löwis  <loewis@informatik.hu-berlin.de>
+
+	* stdexcept: Remove __HONOR_STD.
+
+1998-08-23  Mark Mitchell  <mark@markmitchell.com>
+
+	* sinst.cc: Don't explicitly instantiation string_char_traits<char>.
+	* cinst.cc: Likewiwse, for complex<float>, complex<double>,
+	complex<long double>.
 
 1998-08-17  Mark Mitchell  <mark@markmitchell.com>
 
@@ -262,7 +517,7 @@ Tue Sep  9 19:47:07 1997  Jason Merrill  <jason@yorick.cygnus.com>
 
 Wed Aug 27 00:04:33 1997  Alexandre Oliva  (oliva@dcc.unicamp.br)
 
-	* Makefile.in: create correct multiple links to
+	* Makefile.in: Create correct multiple links to
 	shared libstdc++.
 
 Tue Aug 26 12:24:01 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
