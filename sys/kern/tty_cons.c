@@ -115,7 +115,6 @@ int	cons_unavail = 0;	/* XXX:
 static int cn_mute;
 static int openflag;			/* how /dev/console was opened */
 static int cn_is_open;
-static dev_t cn_devfsdev;		/* represents the device private info */
 static u_char console_pausing;		/* pause after each line during probe */
 static char *console_pausestr=
 "<pause; press any key to proceed to next line or '.' to end pause mode>";
@@ -592,7 +591,7 @@ static void
 cn_drvinit(void *unused)
 {
 
-	cn_devfsdev = make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "console");
 }
 
