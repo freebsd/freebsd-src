@@ -270,10 +270,10 @@ dsp_write_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1 ;
             ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dspwr", timeout);
-	    if (ret == EINTR || ret == ERESTART)
+	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		break ;
             continue;
         }
@@ -553,10 +553,10 @@ dsp_read_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1; /* maybe data will be ready earlier */
             ret = tsleep( (caddr_t)b, PRIBIO | PCATCH , "dsprd", timeout ) ;
-	    if (ret == EINTR || ret == ERESTART)
+	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		break ;
             continue;
         }
@@ -593,7 +593,7 @@ dsp_read_body(snddev_info *d, struct uio *buf)
     s = spltty();          /* no interrupts here ... */
     d->flags &= ~SND_F_READING ;
     if (d->flags & SND_F_ABORTING) {
-        d->flags |= ~SND_F_ABORTING;
+        d->flags &= ~SND_F_ABORTING; /* XXX */
 	splx(s);
 	dsp_rdabort(d, 1 /* restart */);
 	/* XXX return EINTR ? */
