@@ -183,9 +183,6 @@ struct sa_devs {
 		dev_t	nr_dev;
 		dev_t	er_dev;
 	} mode_devs[SA_NUM_MODES];
-	dev_t	r_dev;
-	dev_t	nr_dev;
-	dev_t	er_dev;
 };
 
 struct sa_softc {
@@ -1285,9 +1282,6 @@ sacleanup(struct cam_periph *periph)
 	devstat_remove_entry(&softc->device_stats);
 
 	destroy_dev(softc->devs.ctl_dev);
-	destroy_dev(softc->devs.r_dev);
-	destroy_dev(softc->devs.nr_dev);
-	destroy_dev(softc->devs.er_dev);
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
 		destroy_dev(softc->devs.mode_devs[i].r_dev);
