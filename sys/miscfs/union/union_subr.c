@@ -68,12 +68,15 @@ extern int	union_init __P((void));
 static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
 
-static void	union_dircache_r __P((struct vnode *, struct vnode ***, int *));
+static void	union_dircache_r __P((struct vnode *vp, struct vnode ***vppp,
+				      int *cntp));
 static int	union_list_lock __P((int ix));
 static void	union_list_unlock __P((int ix));
-static int	union_relookup __P((struct union_mount *, struct vnode *,
-				    struct vnode **, struct componentname *,
-				    struct componentname *, char *, int));
+static int	union_relookup __P((struct union_mount *um, struct vnode *dvp,
+				    struct vnode **vpp,
+				    struct componentname *cnp,
+				    struct componentname *cn, char *path,
+				    int pathlen));
 extern void	union_updatevp __P((struct union_node *un,
 				    struct vnode *uppervp,
 				    struct vnode *lowervp));
