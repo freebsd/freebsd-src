@@ -109,6 +109,8 @@ static void	catchpacket(struct bpf_d *, u_char *, u_int,
 		    u_int, void (*)(const void *, void *, size_t));
 static void	reset_d(struct bpf_d *);
 static int	 bpf_setf(struct bpf_d *, struct bpf_program *);
+static int	bpf_getdltlist(struct bpf_d *, struct bpf_dltlist *);
+static int	bpf_setdlt(struct bpf_d *, u_int);
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -286,7 +288,8 @@ bpf_detachd(d)
 			 * the driver into promiscuous mode, but can't
 			 * take it out.
 			 */
-			if_printf(bp->bif_ifp, "ifpromisc failed %d\n", error);
+			if_printf(bp->bif_ifp,
+				"bpf_detach: ifpromisc failed (%d)\n", error);
 		}
 	}
 	/* Remove d from the interface's descriptor list. */
@@ -736,13 +739,33 @@ bpfioctl(dev, cmd, addr, flags, td)
 		break;
 
 	/*
-	 * Get device parameters.
+	 * Get current data link type.
 	 */
 	case BIOCGDLT:
 		if (d->bd_bif == 0)
 			error = EINVAL;
 		else
 			*(u_int *)addr = d->bd_bif->bif_dlt;
+		break;
+
+  	/*
+	 * Get a list of supported data link types.
+	 */
+	case BIOCGDLTLIST:
+		if (d->bd_bif == 0)
+			error = EINVAL;
+		else
+			error = bpf_getdltlist(d, (struct bpf_dltlist *)addr);
+		break;
+
+	/*
+	 * Set data link type.
+	 */
+	case BIOCSDLT:
+		if (d->bd_bif == 0)
+			error = EINVAL;
+		else
+			error = bpf_setdlt(d, *(u_int *)addr);
 		break;
 
 	/*
@@ -1331,10 +1354,10 @@ bpfdetach(ifp)
 	struct bpf_if	*bp, *bp_prev;
 	struct bpf_d	*d;
 
-	mtx_lock(&bpf_mtx);
-
 	/* Locate BPF interface information */
 	bp_prev = NULL;
+
+	mtx_lock(&bpf_mtx);
 	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
 		if (ifp == bp->bif_ifp)
 			break;
@@ -1354,6 +1377,7 @@ bpfdetach(ifp)
 	} else {
 		bpf_iflist = bp->bif_next;
 	}
+	mtx_unlock(&bpf_mtx);
 
 	while ((d = bp->bif_dlist) != NULL) {
 		bpf_detachd(d);
@@ -1364,8 +1388,81 @@ bpfdetach(ifp)
 
 	mtx_destroy(&bp->bif_mtx);
 	free(bp, M_BPF);
+}
 
+/*
+ * Get a list of available data link type of the interface.
+ */
+static int
+bpf_getdltlist(d, bfl)
+	struct bpf_d *d;
+	struct bpf_dltlist *bfl;
+{
+	int n, error;
+	struct ifnet *ifp;
+	struct bpf_if *bp;
+
+	ifp = d->bd_bif->bif_ifp;
+	n = 0;
+	error = 0;
+	mtx_lock(&bpf_mtx);
+	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+		if (bp->bif_ifp != ifp)
+			continue;
+		if (bfl->bfl_list != NULL) {
+			if (n >= bfl->bfl_len) {
+				mtx_unlock(&bpf_mtx);
+				return (ENOMEM);
+			}
+			error = copyout(&bp->bif_dlt,
+			    bfl->bfl_list + n, sizeof(u_int));
+		}
+		n++;
+	}
 	mtx_unlock(&bpf_mtx);
+	bfl->bfl_len = n;
+	return (error);
+}
+
+/*
+ * Set the data link type of a BPF instance.
+ */
+static int
+bpf_setdlt(d, dlt)
+	struct bpf_d *d;
+	u_int dlt;
+{
+	int error, opromisc;
+	struct ifnet *ifp;
+	struct bpf_if *bp;
+
+	if (d->bd_bif->bif_dlt == dlt)
+		return (0);
+	ifp = d->bd_bif->bif_ifp;
+	mtx_lock(&bpf_mtx);
+	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+		if (bp->bif_ifp == ifp && bp->bif_dlt == dlt)
+			break;
+	}
+	mtx_unlock(&bpf_mtx);
+	if (bp != NULL) {
+		BPFD_LOCK(d);
+		opromisc = d->bd_promisc;
+		bpf_detachd(d);
+		bpf_attachd(d, bp);
+		reset_d(d);
+		BPFD_UNLOCK(d);
+		if (opromisc) {
+			error = ifpromisc(bp->bif_ifp, 1);
+			if (error)
+				if_printf(bp->bif_ifp,
+					"bpf_setdlt: ifpromisc failed (%d)\n",
+					error);
+			else
+				d->bd_promisc = 1;
+		}
+	}
+	return (bp == NULL ? EINVAL : 0);
 }
 
 static void bpf_drvinit(void *unused);
