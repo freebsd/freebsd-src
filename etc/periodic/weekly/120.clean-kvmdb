@@ -1,0 +1,15 @@
+#!/bin/sh -
+#
+# $Id: 120.clean-kvmdb,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+#
+
+if [ -d /var/db -a -x /usr/sbin/sysctl ] ; then
+    echo ""
+    echo "Cleaning up kernel database files:"
+
+    kernel=`sysctl -n kern.bootfile`
+    kernel=kvm_`basename ${kernel}`.db
+
+    find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a \
+	-atime +7 -exec rm -f -- {} \;
+fi

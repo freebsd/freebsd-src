@@ -1,0 +1,18 @@
+#!/bin/sh -
+#
+# $Id: 320.whatis,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+#
+
+if [ -x /usr/libexec/makewhatis.local -a -d /usr/share/man ] ; then
+
+    echo ""
+    echo "Rebuilding whatis database:"
+
+    if [ -d /usr/X11R6/man ] ; then
+	MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
+    else
+	MANPATH=${MANPATH:-/usr/share/man:/usr/local/man}
+    fi
+
+    /usr/libexec/makewhatis.local "${MANPATH}"
+fi
