@@ -352,6 +352,40 @@ via8233msgd_setspeed(kobj_t obj, void *data, u_int32_t speed)
 }
 
 /* -------------------------------------------------------------------- */
+/* Format probing functions */
+
+static struct pcmchan_caps *
+via8233wr_getcaps(kobj_t obj, void *data)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	/* Controlled by ac97 registers */
+	if (via->codec_caps & AC97_EXTCAP_VRA) 
+		return &via_vracaps;
+	return &via_caps;
+}
+
+static struct pcmchan_caps *
+via8233dxs_getcaps(kobj_t obj, void *data)
+{
+	/* Controlled by onboard registers */
+	return &via_caps;
+}
+
+static struct pcmchan_caps *
+via8233msgd_getcaps(kobj_t obj, void *data)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	/* Controlled by ac97 registers */
+	if (via->codec_caps & AC97_EXTCAP_VRA) 
+		return &via_vracaps;
+	return &via_caps;
+}
+
+/* -------------------------------------------------------------------- */
 /* Common functions */
 
 static int
@@ -376,16 +410,6 @@ via8233chan_getptr(kobj_t obj, void *data)
 	ptr %= SEGS_PER_CHAN * ch->blksz;	/* Wrap to available space */
 
 	return ptr;
-}
-
-static struct pcmchan_caps *
-via8233chan_getcaps(kobj_t obj, void *data)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-	if (via->codec_caps & AC97_EXTCAP_VRA) 
-		return &via_vracaps;
-	return &via_caps;
 }
 
 static void
@@ -524,10 +548,10 @@ static kobj_method_t via8233wr_methods[] = {
     	KOBJMETHOD(channel_init,		via8233wr_init),
     	KOBJMETHOD(channel_setformat,		via8233wr_setformat),
     	KOBJMETHOD(channel_setspeed,		via8233wr_setspeed),
+    	KOBJMETHOD(channel_getcaps,		via8233wr_getcaps),
     	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
     	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-    	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
 	{ 0, 0 }
 };
 CHANNEL_DECLARE(via8233wr);
@@ -536,10 +560,10 @@ static kobj_method_t via8233dxs_methods[] = {
     	KOBJMETHOD(channel_init,		via8233dxs_init),
     	KOBJMETHOD(channel_setformat,		via8233dxs_setformat),
     	KOBJMETHOD(channel_setspeed,		via8233dxs_setspeed),
+    	KOBJMETHOD(channel_getcaps,		via8233dxs_getcaps),
     	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
     	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-    	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
 	{ 0, 0 }
 };
 CHANNEL_DECLARE(via8233dxs);
@@ -548,10 +572,10 @@ static kobj_method_t via8233msgd_methods[] = {
     	KOBJMETHOD(channel_init,		via8233msgd_init),
     	KOBJMETHOD(channel_setformat,		via8233msgd_setformat),
     	KOBJMETHOD(channel_setspeed,		via8233msgd_setspeed),
+    	KOBJMETHOD(channel_getcaps,		via8233msgd_getcaps),
     	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
     	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
-    	KOBJMETHOD(channel_getcaps,		via8233chan_getcaps),
 	{ 0, 0 }
 };
 CHANNEL_DECLARE(via8233msgd);
@@ -668,11 +692,7 @@ sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 	device_t dev;
 	int err, new_en, r;
 
-	dev = oidp->oid_arg1;
-
-	
 	new_en = via8233_spdif_en;
-
 	err = sysctl_handle_int(oidp, &new_en, sizeof(new_en), req);
 	if (err || req->newptr == NULL)
 		return err;
@@ -681,6 +701,7 @@ sysctl_via8233_spdif_enable(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	via8233_spdif_en = new_en;
 
+	dev = oidp->oid_arg1;
 	r = pci_read_config(dev, VIA_PCI_SPDIF, 1) & ~VIA_SPDIF_EN;
 	if (new_en)
 		r |= VIA_SPDIF_EN;
