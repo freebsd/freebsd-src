@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.116 1999/01/30 12:27:00 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.117 1999/02/16 10:49:49 dfr Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -44,6 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/namei.h>
