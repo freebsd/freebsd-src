@@ -224,6 +224,7 @@ double	atanh(double);
 double	cbrt(double);
 double	erf(double);
 double	erfc(double);
+double	exp2(double);
 double	expm1(double);
 double	fma(double, double, double);
 double	hypot(double, double);
@@ -305,6 +306,7 @@ float	coshf(float);
 float	sinhf(float);
 float	tanhf(float);
 
+float	exp2f(float);
 float	expf(float);
 float	expm1f(float);
 float	frexpf(float, int *);	/* fundamentally !__pure2 */
