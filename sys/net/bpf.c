@@ -1125,8 +1125,10 @@ bpf_mtap(ifp, m)
 	u_int pktlen, slen;
 
 	pktlen = m_length(m, NULL);
-	if (pktlen == m->m_len)
-		return(bpf_tap(ifp, mtod(m, u_char *), pktlen));
+	if (pktlen == m->m_len) {
+		bpf_tap(ifp, mtod(m, u_char *), pktlen);
+		return;
+	}
 
 	BPFIF_LOCK(bp);
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
