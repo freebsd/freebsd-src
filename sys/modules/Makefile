@@ -267,7 +267,8 @@ SUBDIR+=linprocfs \
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=if_hme
+SUBDIR+=if_hme \
+	gem
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
