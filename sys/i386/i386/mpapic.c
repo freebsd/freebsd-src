@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.21 1997/07/22 21:21:35 smp Exp smp $
+ *	$Id: mpapic.c,v 1.23 1997/07/23 20:20:21 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -432,19 +432,19 @@ bad:
 
 
 /*
- * Print contents of imen, keeps imen 'opaque'.
+ * Print contents of apic_imen.
  */
+extern	u_int apic_imen;		/* keep apic_imen 'opaque' */
 void
 imen_dump(void)
 {
-	extern	unsigned imen;		/* interrupt mask enable */
 	int x;
 
 	printf("SMP: enabled INTs: ");
 	for (x = 0; x < 24; ++x)
-		if ((imen & (1 << x)) == 0)
+		if ((apic_imen & (1 << x)) == 0)
         		printf("%d, ", x);
-	printf("imen: 0x%08x\n", imen);
+	printf("apic_imen: 0x%08x\n", apic_imen);
 }
 
 
