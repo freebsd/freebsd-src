@@ -7,9 +7,6 @@ CFLAGS+=-DLOGALL
 DPADD=	${LIBUTIL} ${LIBPAM}
 LDADD=	-lutil ${MINUSLPAM}
 MAN=	login.1 login.access.5
-BINOWN=	root
-BINMODE=4555
-INSTALLFLAGS=-fschg
 NEED_LIBNAMES= yes
 
 .include <bsd.prog.mk>
