@@ -35,7 +35,7 @@ Table of contents:
 4. Upgrading from previous releases of FreeBSD
 
 5. Reporting problems, making suggestions, submitting code
-6. Acknowledgements
+6. Acknowledgments
 
 
 1. What's new since 3.2-RELEASE
@@ -58,17 +58,17 @@ adapters based on the Lucent Hermes chipset, including the Lucent
 WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
 6Mbps Turbo adapters are supported. [MERGED]
 
-Driver support has been added for PCI fast ethernet cards based
+Driver support has been added for PCI fast Ethernet cards based
 on the ADMtek Inc. AL981 Comet chipset.
 
-Driver support has been added for PCI fast ethernet cards based
+Driver support has been added for PCI fast Ethernet cards based
 on the LC82C115 'PNIC II' chipset.
 
 Driver support has been added for SysKonnect SK-984x PCI gigabit
-ethernet adapters.
+Ethernet adapters.
 
-Driver support has been added for Adaptec Duralink PCI ethernet adapters
-based on the Adaptec AIC-6915 fast ethernet controller.
+Driver support has been added for Adaptec Duralink PCI Ethernet adapters
+based on the Adaptec AIC-6915 fast Ethernet controller.
 
 Driver support for M-systems DiskOnChip products integrated.
 
@@ -90,7 +90,7 @@ APM support has been improved.
 
 User- and group-based IPFW firewalling has been added.
 
-Support for probabalistic rule matching has been added to IPFW.
+Support for probabilistic rule matching has been added to IPFW.
 
 IPFW logging is now dynamic. IPFW logging counts can be reset, and any
 given rule can be given an arbitrary logging limit.
@@ -107,13 +107,13 @@ A remotely exploitable root hole in amd (the automount daemon) has been
 fixed.
 
 The wu-ftpd port has been updated with the latest patches to prevent
-possible remote root explots.
+possible remote root exploits.
 
 The proftpd port has been updated with the latest patches to prevent
-possible remote root explots.
+possible remote root exploits.
 
 The samba port has been updated with the latest patches to prevent
-possible remote root explots.
+possible remote root exploits.
 
 The inn port has been updated to a new version that corrects some buffer
 overflows.
@@ -130,7 +130,7 @@ and include support for both glibc2 and libc5 based applications.
 Sysinstall now contains DHCP client support.
 
 TCP Wrapper support in inetd(8) is now controlled with command-line
-options and dgram services may be wrapped in addition to previously
+options and data-gram (UDP) services may be wrapped in addition to previously
 wrapped service types. Please see the manpage for details, since inetd
 run without command-line options will do no wrapping.
 
@@ -138,13 +138,14 @@ ISC's DHCP client has been upgraded to version 2.0.
 
 Bison, the GNU parser generator, has been upgraded to version 1.28.
 
-A Gcc optimiser bug has been fixed that prevented compiling the XFree86
+A Gcc optimizer bug has been fixed that prevented compiling the XFree86
 client libraries on the Alpha.
 
-Advanced Power Management monitor daemon, apmd(8), has been imported.
-This allow user to select the APM events to be handled from userland
-and specify the commands for a given event, allowing APM behaviour to
-be configured flexibly.  Please see the manpage for details.
+The Advanced Power Management monitor daemon, apmd(8), has been added.
+This allows the user to select the APM events to be handled from
+userland and specify the commands for a given event.  This allows the
+APM behavior to be configured in a flexable manner.  Please see the
+manpage for details.
 
 
 2. Supported Configurations
@@ -263,8 +264,8 @@ Unmaintained drivers, they might or might not work for your hardware:
 2.2. Ethernet cards
 -------------------
 
-Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
-AIC-6915 fast ethernet controller chip, including the following:
+Adaptec Duralink PCI fast Ethernet adapters based on the Adaptec
+AIC-6915 fast Ethernet controller chip, including the following:
   ANA-62011 64-bit single port 10/100baseTX adapter
   ANA-62022 64-bit dual port 10/100baseTX adapter
   ANA-62044 64-bit quad port 10/100baseTX adapter
@@ -273,7 +274,7 @@ AIC-6915 fast ethernet controller chip, including the following:
 
 Allied-Telesis AT1700 and RE2000 cards
 
-Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+Alteon Networks PCI gigabit Ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
   Alteon AceNIC (Tigon 1 and 2)
   3Com 3c985-SX (Tigon 1 and 2)
@@ -284,11 +285,11 @@ chipsets, including the following:
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
-SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
-RealTek 8129/8139 fast ethernet NICs including the following:
+RealTek 8129/8139 fast Ethernet NICs including the following:
   Allied Telesyn AT2550
   Allied Telesyn AT2500TX
   Genius GF100TXR (RTL8139)
@@ -300,34 +301,34 @@ RealTek 8129/8139 fast ethernet NICs including the following:
   Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
   SMC EZ Card 10/100 PCI 1211-TX
 
-Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+Lite-On 82c168/82c169 PNIC fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
   Kingston KNE110TX
 
-Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
+Macronix 98713, 98713A, 98715, 98715A and 98725 fast Ethernet NICs
   NDC Communications SFA100A (98713A)
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
   SVEC PN102TX (98713)
 
-Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+Macronix/Lite-On PNIC II LC82C115 fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX Version 2
 
-Winbond W89C840F fast ethernet NICs including the following:
+Winbond W89C840F fast Ethernet NICs including the following:
   Trendware TE100-PCIE
 
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast Ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE530TX
 
-SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+SysKonnect SK-984x PCI gigabit Ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
-  SK-9842 1000baseSX multimode fiber, single port
+  SK-9842 1000baseSX multi-mode fiber, single port
   SK-9843 1000baseLX single mode fiber, dual port
-  SK-9844 1000baseSX multimode fiber, dual port
+  SK-9844 1000baseSX multi-mode fiber, dual port
   
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
@@ -337,7 +338,7 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
-ADMtek Inc. AL981-based PCI fast ethernet NICs
+ADMtek Inc. AL981-based PCI fast Ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
@@ -359,7 +360,7 @@ Intel EtherExpress Pro/100B PCI Fast Ethernet
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
-Novell NE1000, NE2000, and NE2100 ethernet interface.
+Novell NE1000, NE2000, and NE2100 Ethernet interface.
 
 PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
 Winbond W89C940, Surecom NE-34, VIA VT86C926.
@@ -379,12 +380,12 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3cSOHO100-TX OfficeConnect adapter
 
-Toshiba ethernet cards
+Toshiba Ethernet cards
 
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
 
-PCMCIA ethernet cards from IBM and National Semiconductor are also
+PCMCIA Etherjet cards from IBM and National Semiconductor are also
 supported.
 
 Note that NO token ring cards are supported at this time as we're
@@ -398,15 +399,15 @@ takers?
         - FORE Systems, Inc. PCA-200E ATM PCI Adapters
         - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
 
-   o ATM Signalling Protocols
-        - The ATM Forum UNI 3.1 signalling protocol
-        - The ATM Forum UNI 3.0 signalling protocol
+   o ATM Signaling Protocols
+        - The ATM Forum UNI 3.1 signaling protocol
+        - The ATM Forum UNI 3.0 signaling protocol
         - The ATM Forum ILMI address registration
-        - FORE Systems's proprietary SPANS signalling protocol
+        - FORE Systems's proprietary SPANS signaling protocol
         - Permanent Virtual Channels (PVCs)
 
    o IETF "Classical IP and ARP over ATM" model
-        - RFC 1483, "Multiprotocol Encapsulation over ATM Adaptation Layer 5"
+        - RFC 1483, "Multi-protocol Encapsulation over ATM Adaptation Layer 5"
         - RFC 1577, "Classical IP and ARP over ATM"
         - RFC 1626, "Default IP MTU for use over ATM AAL5"
         - RFC 1755, "ATM Signaling Support for IP over ATM"
@@ -439,7 +440,7 @@ STB 4 port card using shared IRQ.
 SDL Communications Riscom/8 Serial Board.
 SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 
-Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+Stallion multi-port serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
 
 Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
@@ -477,7 +478,7 @@ the HOT1 from Virtual Computers (www.vcc.com)
 Support for Dave Mills experimental Loran-C receiver.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
-(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and work-a-likes
 (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
@@ -642,7 +643,7 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-6. Acknowledgements
+6. Acknowledgments
 -------------------
 
 FreeBSD represents the cumulative work of many dozens, if not
