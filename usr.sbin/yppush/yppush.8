@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: yppush.8,v 1.2 1996/01/30 13:52:45 mpp Exp $
+.\"	$Id: yppush.8,v 1.3 1996/02/11 22:38:02 mpp Exp $
 .\"
 .Dd February 5, 1995
 .Dt YPPUSH 8
@@ -149,7 +149,7 @@ the system administrator decides to store the NIS maps somewhere else.
 .It Fl v
 Verbose mode: causes
 .Nm yppush
-to print debugging messages as it runs. Note specifying this flag twice
+to print debugging messages as it runs. Specifying this flag twice
 makes
 .Nm yppush
 even more verbose.
@@ -165,7 +165,7 @@ a particular NIS domain.
 .Xr ypxfr 8
 .Sh BUGS
 The mechanism for transferring NIS maps in NIS v1 is different
-that that in NIS version 2. This version of
+than that in NIS version 2. This version of
 .Nm yppush
 has support for transferring maps to NIS v2 systems only.
 .Sh AUTHOR

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppush_main.c,v 1.25 1996/01/27 19:44:48 wpaul Exp $
+ *	$Id: yppush_main.c,v 1.26 1996/04/03 00:27:53 wpaul Exp wpaul $
  */
 
 #include <stdio.h>
@@ -37,9 +37,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
-#ifdef LONGJMP
-#include <setjmp.h>
-#endif
 #include <time.h>
 #include <errno.h>
 #include <sys/socket.h>
@@ -56,7 +53,7 @@ struct dom_binding {};
 #include "yppush_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppush_main.c,v 1.25 1996/01/27 19:44:48 wpaul Exp $";
+static const char rcsid[] = "$Id: yppush_main.c,v 1.26 1996/04/03 00:27:53 wpaul Exp wpaul $";
 #endif
 
 char *progname = "yppush";
@@ -72,16 +69,11 @@ unsigned long yppush_transid = 0;
 int yppush_timeout = 80;	/* Default timeout. */
 int yppush_jobs = 0;		/* Number of allowed concurrent jobs. */
 int yppush_running_jobs = 0;	/* Number of currently running jobs. */
-#ifdef LONGJMP
-int yppush_pausing = 0;		/* Flag set when longjmp()s are allowed. */
-jmp_buf env;
-#endif
 int yppush_alarm_tripped = 0;
 
 /* Structure for holding information about a running job. */
 struct jobs {
 	unsigned long tid;
-	int pid;
 	int sock;
 	int port;
 	ypxfrstat stat;
@@ -159,10 +151,6 @@ static void yppush_exit(now)
 
 	/* Let all the information trickle in. */
 	while(!now && still_pending) {
-#ifdef LONGJMP
-		yppush_pausing++; 
-		setjmp(env);	/* more magic */
-#endif
 		jptr = yppush_joblist;
 		still_pending = 0;
 		while (jptr) {
@@ -186,9 +174,6 @@ static void yppush_exit(now)
 			yppush_alarm_tripped = 0;
 			alarm(YPPUSH_RESPONSE_TIMEOUT);
 			pause();
-#ifdef LONGJMP
-			yppush_pausing = 0;
-#endif
 			alarm(0);
 			if (yppush_alarm_tripped == 1) {
 				yp_error("timed out");
@@ -287,10 +272,6 @@ static void async_handler(sig)
 	alarm(0);
 	yppush_alarm_tripped++;
 	kill(getpid(), SIGALRM);
-#ifdef LONGJMP
-	if (yppush_pausing)
-		longjmp(env, 1);
-#endif
 	return;
 }
 
@@ -511,37 +492,21 @@ int yppush_foreach(status, key, keylen, val, vallen, data)
 	 * wait for one of them to finish so we can reuse its slot.
 	 */
 	if (yppush_jobs <= 1) {
-#ifdef LONGJMP
-		yppush_pausing++;
-		while (!setjmp(env) && yppush_running_jobs) {
-#else
 		yppush_alarm_tripped = 0;
 		while (!yppush_alarm_tripped && yppush_running_jobs) {
-#endif
 			alarm(yppush_timeout);
 			yppush_alarm_tripped = 0;
 			pause();
 			alarm(0);
 		}
-#ifdef LONGJMP
-		yppush_pausing = 0;
-#endif
 	} else {
-#ifdef LONGJMP
-		yppush_pausing++;
-		while (!setjmp(env) && yppush_running_jobs >= yppush_jobs) {
-#else
 		yppush_alarm_tripped = 0;
 		while (!yppush_alarm_tripped && yppush_running_jobs >= yppush_jobs) {
-#endif
 			alarm(yppush_timeout);
 			yppush_alarm_tripped = 0;
 			pause();
 			alarm(0);
 		}
-#ifdef LONGJMP
-		yppush_pausing = 0;
-#endif
 	}
 
 	/* Cleared for takeoff: set everything in motion. */
@@ -656,8 +621,11 @@ main(argc,argv)
 	}
 
 	if (strncmp(myname, data.data, data.size)) {
-		yp_error("this host is not the master for %s",yppush_mapname);
+		yp_error("warning: this host is not the master for %s",
+							yppush_mapname);
+#ifdef NITPICKY
 		yppush_exit(1);
+#endif
 	}
 
 	yppush_master = strdup(data.data);
