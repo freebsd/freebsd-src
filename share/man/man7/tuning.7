@@ -153,7 +153,7 @@ lead to lower performance.
 If a large partition is intended to be used to hold fewer, larger files, such
 as a database files, you can increase the
 .Em bytes/inode
-ratio which reduces the number if inodes (maximum number of files and
+ratio which reduces the number of inodes (maximum number of files and
 directories that can be created) for that partition.  Decreasing the number
 of inodes in a filesystem can greatly reduce
 .Xr fsck 8
@@ -203,7 +203,7 @@ The most obvious and most dangerous one is
 Don't ever use it, it is far too dangerous.  A less dangerous and more
 useful mount option is called
 .Em noatime .
-UNIX filesytems normally update the last-accessed time of a file or
+UNIX filesystems normally update the last-accessed time of a file or
 directory whenever it is accessed.  This operation is handled in FreeBSD
 with a delayed write and normally does not create a burden on the system.
 However, if your system is accessing a huge number of files on a continuing
@@ -343,7 +343,7 @@ connections in a heavily loaded web server environment.  For such environments,
 we recommend increasing this value to 1024 or higher.  The service daemon
 may itself limit the listen queue size (e.g. sendmail, apache) but will
 often have a directive in its configuration file to adjust the queue size up.
-Larger listen queue also do a better job of fending off denial of service
+Larger listen queues also do a better job of fending off denial of service
 attacks.
 .Pp
 The
@@ -438,7 +438,7 @@ and
 but only remove
 .Em I586_CPU
 if you are sure your cpu is being recognized as a Pentium II or better.
-Some clones may be recognized as a pentium or even a 486 and not be able
+Some clones may be recognized as a Pentium or even a 486 and not be able
 to boot without those options.  If it works, great!  The operating system
 will be able to better-use higher-end cpu features for mmu, task switching,
 timebase, and even device operations.  Additionally, higher-end cpus support
@@ -505,7 +505,7 @@ Most bottlenecks occur at the WAN link (e.g. modem, T1, DSL, whatever).
 If expanding the link is not an option it may be possible to use ipfw's
 .Sy DUMMYNET
 feature to implement peak shaving or other forms of traffic shaping to
-prevent the overloaded service (such as web services) from effecting other
+prevent the overloaded service (such as web services) from affecting other
 services (such as email), or vice versa.  In home installations this could
 be used to give interactive traffic (your browser, ssh logins) priority
 over services you export from your box (web services, email).
