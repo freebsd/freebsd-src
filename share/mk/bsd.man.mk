@@ -119,6 +119,8 @@ ${target}: ${page}
 	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
+.else
+_manpages: ${MAN}
 .endif
 .endif
 .endif
