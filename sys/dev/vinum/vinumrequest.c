@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.22 1999/01/17 06:15:46 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.8 1999/01/28 07:00:55 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -651,7 +651,10 @@ build_write_request(struct request *rq)
     status = REQUEST_OK;
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	diskstart = bp->b_blkno;			    /* start offset of transfer */
-	status = max(status, bre(rq,			    /* build requests for the plex */
+	/* Build requests for the plex.
+	 * We take the best possible result here (min,
+	 * not max): we're happy if we can write at all */
+	status = min(status, bre(rq,
 		vol->plex[plexno],
 		&diskstart,
 		diskend));
