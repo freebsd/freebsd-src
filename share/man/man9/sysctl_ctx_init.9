@@ -28,14 +28,14 @@
 .\" $FreeBSD$
 .\"
 .Dd Jul 15, 2000
-.Dt sysctl_ctx_init 9
-.Os FreeBSD 5.0
+.Dt SYSCTL_CTX_INIT 9
+.Os
 .Sh NAME
 .Nm sysctl_ctx_init ,
 .Nm sysctl_ctx_free ,
 .Nm sysctl_ctx_entry_add ,
 .Nm sysctl_ctx_entry_find ,
-.Nm sysctl_ctx_entry_del ,
+.Nm sysctl_ctx_entry_del
 .Nd sysctl context for managing dynamically created sysctl oids.
 .Sh SYNOPSIS
 .Fd #include <sys/sysctl.h>
@@ -63,24 +63,36 @@
 .Fa "struct sysctl_oid *oidp"
 .Fc
 .Sh DESCRIPTION
-These functions allow to conveniently manage dynamically created oids.
+These functions provide an interface
+for managing dynamically created oids.
 The sysctl context is responsible for keeping track of created oids,
-as well as their proper removal when needed. It adds simple transactional
-aspect to oid removal operation, i.e. if the removal operation fails in
-the middle, it's possible to rollback the sysctl tree to its previous
-state.
-
-.Fn sysctl_ctx_init
-initializes context. The
-.Va clist
-argument must point to already allocated variable. A context MUST be
-initialized before use. Once it's initialized, the pointer to the context
-can be passed as an argument to all SYSCTL_ADD_* macros, and it will
-be updated with entries pointing to newly created oids.
+as well as their proper removal when needed.
+It adds a simple transactional aspect to oid removal operations;
+i.e. if a removal operation fails part way,
+it is possible to roll back the sysctl tree
+to its previous state.
 .Pp
-Internally the context is represented as TAILQ linked list. The list
-consists of
-.Pa struct sysctl_ctx_entry
+The
+.Fn sysctl_ctx_init
+function initializes a sysctl context.
+The
+.Fa clist
+argument must point to an already allocated variable.
+A context
+.Em must
+be initialized before use.
+Once it is initialized,
+a pointer to the context can be passed as an argument to all the
+.Fa SYSCTL_ADD_*
+macros (see
+.Xr sysctl_add_oid 9 ) ,
+and it will be updated with entries pointing to newly created oids.
+.Pp
+Internally, the context is represented as a
+.Xr queue 3
+TAILQ linked list.
+The list consists of
+.Li struct sysctl_ctx_entry
 entries:
 .Bd -literal -offset indent
 struct sysctl_ctx_entry {
@@ -91,68 +103,83 @@ struct sysctl_ctx_entry {
 TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 .Ed
 .Pp
-Each context entry points to one dynamic oid that it manages. Newly
-created oids are always inserted in the front of the list.
+Each context entry points to one dynamic oid that it manages.
+Newly created oids are always inserted in the front of the list.
 .Pp
-
+The
 .Fn sysctl_ctx_free
-removes the context and the oids it manages. If the function completes
-successfuly, all managed oids have been unregistered (removed from the
-tree) and freed, together with all their allocated memory, and the
-entries of the context have been freed as well.
-
-Removal operation is performed in two steps.  First, for each context
-entry the function
-.Fn sysctl_remove_oid
+function removes the context and associated oids it manages.
+If the function completes successfuly,
+all managed oids have been unregistered
+(removed from the tree)
+and freed,
+together with all their allocated memory,
+and the entries of the context have been freed as well.
+.Pp
+The removal operation is performed in two steps.
+First, for each context entry, the function
+.Xr sysctl_remove_oid 9
 is executed, with parameter
-.Va del
-set to 0 (don't free resources, only unregister from the tree).
+.Fa del
+set to 0, which inhibits the freeing of resources.
 If there are no errors during this step,
-.Fn sysctl_remove_oid
-proceeds to the next step. If the first step fails, all unregistered oids
-kept in the context are registered again.
-
-(NOTE: in most cases programmer specifies OID_AUTO as oid number
-when creating an oid. However, during registration of the oid in
-the tree, this number is changed to the first available number
-greater than 99. If the first step of context deletion fails,
-re-registration of the oid doesn't change the already assigned oid
-number (different from OID_AUTO), so that we are sure the re-registered
-entries are exactly on the same positions in the tree).
-
-The second step actually preforms deletion of dynamic oids.
-.Fn sysctl_remove_oid
-goes through the context list, starting from beginning (newest entries).
-\fBIMPORTANT:\fR this time the function not only deletes the oids
-from the tree, but also frees their memory (if oid_refcnt == 0), as
-well as all context entries.
+.Fn sysctl_ctx_free
+proceeds to the next step.
+If the first step fails,
+all unregistered oids associated with the context are registered again.
+.Pp
+.Em Note :
+in most cases, the programmer specifies
+.Dv OID_AUTO
+as the oid number when creating an oid.
+However, during registration of the oid in the tree,
+this number is changed to the first available number
+greater than 99.
+If the first step of context deletion fails,
+re-registration of the oid does not change the already assigned oid number
+(which is different from OID_AUTO).
+This ensures that re-registered entries
+maintain their original positions in the tree.
+.Pp
+The second step actually performs the deletion of the dynamic oids.
+.Xr sysctl_remove_oid 9
+iterates through the context list,
+starting from beginning (i.e. the newest entries).
+.Em Important :
+this time, the function not only deletes the oids from the tree,
+but also frees their memory (provided that oid_refcnt == 0),
+as well as the memory of all context entries.
 .Pp
 The
 .Fn sysctl_ctx_entry_add
-function allows to add existing dynamic oid to context.
+function allows the addition of an existing dynamic oid to a context.
 .Pp
 The
 .Fn sysctl_ctx_entry_del
-function removes entry from the context. \fBIMPORTANT:\fR in this
-case, only the corresponding
-.Pa sysctl_ctx_entry
-struct is freed, but
-.Pa sysctl_oid *oidp
-stays intact.
+function removes an entry from the context.
+.Em Important :
+in this case, only the corresponding
+.Li struct sysctl_ctx_entry
+is freed, but the
+.Fa oidp
+pointer remains intact.
+Thereafter, the programmer is responsible for managing the resources
+allocated to this oid.
 .Pp
 The
 .Fn sysctl_ctx_entry_find
-function scans through the context list looking for given
-.Pa oidp
-, and either returns found
-.Pa sysctl_ctx_entry
-, or NULL.
-.Pp
-.Pp
+function searches for a given
+.Fa oidp
+witin a context list,
+either returning a pointer to the
+.Fa struct sysctl_ctx_entry
+found,
+or
+.Dv NULL .
 .Sh EXAMPLES
-The following code example shows how to create new top-level category
-and how to hook up another subtree to already existing (static) node,
-using contexts to keep track of the oids:
+The following is an example of how to create a new top-level category
+and how to hook up another subtree to an existing static node.
+This example uses contexts to keep track of the oids.
 .Bd -literal
 #include <sys/sysctl.h>
  ...
@@ -178,7 +205,7 @@ if(sysctl_ctx_free(&clist)) {
 	printf("can't free this context - other oids depend on it");
 	return(ENOTEMPTY);
 } else {
-	printf("Success!\n"):
+	printf("Success!\\n"):
 	return(0);
 }
 .Ed
@@ -189,26 +216,29 @@ debug.newtree.newstring
 newtree.newint
 .Ed
 .Pp
-Then both trees are removed and their resources freed through one
+Note that both trees are removed, and their resources freed,
+through one
 .Fn sysctl_ctx_free
-call, which starts with freeing the newest entried (leaves) and then
-proceeds to free the older entries (in this case the nodes).
-.Pp
+call, which starts by freeing the newest entries (leaves)
+and then proceeds to free the older entries (in this case the nodes).
 .Sh SEE ALSO
-.Xr sysctl_add_oid 9 ,
-.Xr sysctl_remove_oid 9 ,
+.Xr queue 3 ,
 .Xr sysctl 8 ,
-.Xr queue 3
+.Xr sysctl_add_oid 9 ,
+.Xr sysctl_remove_oid 9
 .Sh HISTORY
-These functions appeared in
+These functions first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Andrzej Bialecki Aq abial@FreeBSD.org
 .Sh BUGS
-Currently used removal algorithm is somewhat heavy (in the worst
-case all oids need to be unregistered, registered again, and then
-unregistered and deleted), but guarantees transactional properties
-for removal operation.
-
-All operations on the contexts involve traversing linked lists. For this
-reason creation and removal of entries is relatively costly.
+The current removal algorithm is somewhat heavy.
+In the worst case,
+all oids need to be unregistered, registered again,
+and then unregistered and deleted.
+However, the algorithm does guarantee transactional properties
+for removal operations.
+.Pp
+All operations on contexts involve linked list traversal.
+For this reason,
+creation and removal of entries is relatively costly.
