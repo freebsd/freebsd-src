@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.6 1994/04/26 23:26:18 jkh Exp $
+#	$Id: cpio.magic,v 1.7 1994/06/08 10:52:10 csgr Exp $
 #
 set_tmp_dir()
 {
@@ -356,6 +356,30 @@ configure()
 		echo	"WARNING: if you have any more ethernet interfaces, you"
 		echo	"will have to configure them by hand.  Read the comments"
 		echo	"in /etc/netstart to learn how to do this"
+		;;
+	esac
+
+	echo
+	echo -n "Does your system have access to a nameserver? [n] "
+	read resp
+	case "$resp" in
+	y*)
+		echo    "OK: Configuring your /etc/resolv.conf"
+		echo	"To fine-tune this configuration, refer to the"
+		echo 	"resolver(5) manual page"
+		echo	""
+
+		nameserver=
+		while [ "$nameserver" = "" ]; do
+			echo -n "Enter the IP number of your nameserver: "
+			read nameserver
+		done
+
+		echo "nameserver $nameserver" > /etc/resolv.conf
+		
+		echo " "
+		;;
+	*)
 		;;
 	esac
 
