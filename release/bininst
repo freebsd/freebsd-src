@@ -371,7 +371,7 @@ install_set()
 		dialog --title "Results of tape extract" --clear \
 			--prgbox "$TAR $TAR_FLAGS $media_device" 10 72
 		if [ -f extract.sh ]; then
-			sh ./extract.sh 2>&1 > /dev/ttyv1
+			sh ./extract.sh
 		else
 			error "This isn't a proper distribution.  No installation script found."
 		fi
@@ -397,7 +397,7 @@ install_set()
 				error "Couldn't fetch distribution from ${media_device}!"
 			else
 				if [ -f extract.sh ]; then
-					sh ./extract.sh 2>&1 > /dev/ttyv1
+					sh ./extract.sh
 				else
 					error "This isn't a proper distribution.  No installation script found."
 				fi
@@ -405,7 +405,7 @@ install_set()
 		else
 			ftp $media_device
 			if [ -f extract.sh ]; then
-				sh ./extract.sh 2>&1 > /dev/ttyv1
+				sh ./extract.sh
 			else
 				error "No installation script found.  Please grab the right bits."
 			fi
