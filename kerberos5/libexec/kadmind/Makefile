@@ -1,26 +1,16 @@
 # $FreeBSD$
 
 PROG=	kadmind
-
-SRCS=	kadmind.c			\
-	server.c			\
-	kadm_conn.c
-
-CFLAGS+=-I${KRB5DIR}/lib/roken		\
-	-I${KRB5DIR}/lib/krb5		\
-	-I${KRB5DIR}/lib/asn1		\
+MAN=	kadmind.8
+SRCS=	kadm_conn.c kadmind.c server.c
+CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
 	${LDAPCFLAGS}
-
-LDADD=	-lkadm5srv -lhdb -lkrb5 -lroken ${LIBVERS} \
-	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
-
-LDFLAGS=${LDAPLDFLAGS}
-
 DPADD=	${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPDPADD}
-
-MAN=	kadmind.8
+LDADD=	-lkadm5srv -lhdb -lkrb5 -lroken ${LIBVERS} \
+	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
+LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>
 
-.PATH:	${KRB5DIR}/kadmin
+.PATH: ${KRB5DIR}/kadmin
