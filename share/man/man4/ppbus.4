@@ -178,7 +178,8 @@ operate at close to the same performance levels as an equivalent ISA plug-in
 card.
 .Pp
 At software level, you may implement the protocol you wish, using data and
-address cycles as you want. This is for the IEEE1284 compatible part.
+address cycles as you want.
+This is for the IEEE1284 compatible part.
 Then,
 peripheral vendors may implement protocol handshake with the following 
 status lines: PError, nFault and Select.
@@ -224,7 +225,8 @@ states.
 .Pp
 At any time, the slave may want to send data to the host.
 This is only
-possible from forward idle states (nibble, byte, ecp...). So, the
+possible from forward idle states (nibble, byte, ecp...).
+So, the
 host must have previously negotiated to permit the peripheral to
 request transfer.
 Interrupt lines may be dedicated to the requesting signals

@@ -46,26 +46,31 @@ parameters in the card's configuration space.
 The manual override mechanism requires the kernel to be compiled with
 .Cd options USERCONFIG.
 In this case, the kernel keeps a table of fixed size (20 entries as a
-default) where configuration data are held for PnP devices. Each
+default) where configuration data are held for PnP devices.
+Each
 PnP card can contain several independent devices (5 or 6 is not
 unusual).
 .Pp
 By booting the kernel with the
 .Dq Fl c
 flag, commands are available to
-modify the configuration of PnP cards. Commands start with the
+modify the configuration of PnP cards.
+Commands start with the
 sequence:
 .Dl pnp CSN LDN
 where CSN and LDN are the Card Select Number and Logical Device Number
-associated to the device. Following this sequence any combination of
+associated to the device.
+Following this sequence any combination of
 the following commands can be used:
 
 .Bl -tag -width "mmmmmmmmmm""
 .It Dv irqN line
-Sets the irq line for interrupt 0 or 1 on the card. Line=0 means the line
+Sets the irq line for interrupt 0 or 1 on the card.
+Line=0 means the line
 is unused.
 .It Dv drqN n
-Sets the drq channel used for DMA 0 or 1 on the card. Channel=4 means
+Sets the drq channel used for DMA 0 or 1 on the card.
+Channel=4 means
 the channel is unused.
 .It Dv portN address
 Sets the base address for the N-th port's range (N=0..7). address=0
@@ -74,7 +79,8 @@ means that the port is not used.
 Sets the base address for the N-th memory's range (N=0..3). address=0
 means that the memory range is not used.
 .It Dv bios
-Makes the PnP device use the configuration set by the BIOS. This
+Makes the PnP device use the configuration set by the BIOS.
+This
 is the default, and is generally ok if your BIOS has PnP support.
 If BIOS is used, then other parameters are ignored except "flags".
 .It Dv os
@@ -88,13 +94,15 @@ Frees the entry used for the device, so that it can be used for
 another device with a different CSN/LDN pair.
 .It Dv flags
 Sets the value of a 32-bit flags entry which is passed to the device
-driver. This can be used to set special operation modes (e.g. SB vs. WSS
+driver.
+This can be used to set special operation modes (e.g. SB vs. WSS
 emulation on some sound cards, etc.). 
 .El
 .Pp
 The current content of the table can be printed using the
 .Ic ls
-command in userconfig. In addition to modifications done by the user,
+command in userconfig.
+In addition to modifications done by the user,
 the table contains an entry for
 all logical devices accessed by a PnP device driver.
 .Pp
@@ -137,15 +145,18 @@ This data structure (defined in /sys/i386/isa/pnp.h) contains all
 informations related to a PnP logical device.
 .It Fn read_pnp_parms "struct pnp_cinfo *d" "int ldn"
 This function returns the configuration of the requested
-logical device. It is not possible to specify a CSN since this function
+logical device.
+It is not possible to specify a CSN since this function
 is only meant to be used during probe and attach routines
 .It Fn write_pnp_parms "struct pnp_cinfo *d" "int ldn"
-This function sets the parameters of the requested logical device. At
+This function sets the parameters of the requested logical device.
+At
 the same time, it updates the entry in the kernel override table.
 Device drivers in general should
 .Em not
 modify the configuration of a device, since either the BIOS or the user
-(through userconfig) should know better what to do. In particular,
+(through userconfig) should know better what to do.
+In particular,
 device driver
 .Em should not enable
 a logical device which has

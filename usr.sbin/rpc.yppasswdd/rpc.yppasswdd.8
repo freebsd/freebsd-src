@@ -80,9 +80,11 @@ the
 .Xr ypchsh 1 ,
 or
 .Xr ypchpass 1
-commands. (Some administrators don't want users to be able to change their
+commands.
+(Some administrators don't want users to be able to change their
 full name information or shells; the server can be invoked with option flags
-that disallow such changes.) When the server receives an update request,
+that disallow such changes.)
+When the server receives an update request,
 it compares the address of the client making the request against the
 .Pa securenets
 rules outlined in
@@ -103,7 +105,8 @@ the template password file (the default is
 .Pa /var/yp/master.passwd )
 and then runs the
 .Pa /usr/libexec/yppwupdate
-script to rebuild the NIS maps. (This script has two arguments passed
+script to rebuild the NIS maps.
+(This script has two arguments passed
 to it: the absolute pathname of the password template that was modified
 and the name of the domain that is to be updated.
 These in turn are
@@ -216,8 +219,10 @@ will search through all the passwd maps of all the domains it
 can find under
 .Pa /var/yp
 until it finds an entry that matches the user information specified in
-a given update request. (Matches are determined by checking the username,
-UID and GID fields.) The matched entry and corresponding domain are then
+a given update request.
+(Matches are determined by checking the username,
+UID and GID fields.)
+The matched entry and corresponding domain are then
 used for the update.
 .Pp
 Note that in order for multi-domain mode to work, there have to be
