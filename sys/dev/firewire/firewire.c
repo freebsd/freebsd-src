@@ -150,14 +150,14 @@ fw_noderesolve_nodeid(struct firewire_comm *fc, int dst)
  * Lookup fwdev by EUI64.
  */
 struct fw_device *
-fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 eui)
+fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 *eui)
 {
 	struct fw_device *fwdev;
 	int s;
 
 	s = splfw();
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
-		if (FW_EUI64_EQUAL(fwdev->eui, eui))
+		if (FW_EUI64_EQUAL(fwdev->eui, *eui))
 			break;
 	splx(s);
 
