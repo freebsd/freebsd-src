@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 148 $
+ *       $Revision: 149 $
  *
  *****************************************************************************/
 
@@ -753,8 +753,5 @@
 #define ACPI_MEM_TRACKING(a)            a
 
 #endif /* ACPI_DBG_TRACK_ALLOCATIONS */
-
-
-#define ACPI_GET_STACK_POINTER          _asm {mov eax, ebx}
 
 #endif /* ACMACROS_H */

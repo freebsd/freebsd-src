@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 177 $
+ *              $Revision: 179 $
  *
  ******************************************************************************/
 
@@ -182,8 +182,16 @@ AcpiNsRootInitialize (void)
 
     for (InitVal = AcpiGbl_PreDefinedNames; InitVal->Name; InitVal++)
     {
+        /* _OSI is optional for now, will be permanent later */
+
+        if (!ACPI_STRCMP (InitVal->Name, "_OSI") && !AcpiGbl_CreateOsiMethod)
+        {
+            continue;
+        }
+
         Status = AcpiNsLookup (NULL, InitVal->Name, InitVal->Type,
-                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH, NULL, &NewNode);
+                        ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH, 
+                        NULL, &NewNode);
 
         if (ACPI_FAILURE (Status) || (!NewNode)) /* Must be on same line for code converter */
         {
@@ -202,7 +210,8 @@ AcpiNsRootInitialize (void)
             Status = AcpiOsPredefinedOverride (InitVal, &Val);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not override predefined %s\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                    "Could not override predefined %s\n",
                     InitVal->Name));
             }
 
@@ -230,15 +239,20 @@ AcpiNsRootInitialize (void)
             switch (InitVal->Type)
             {
             case ACPI_TYPE_METHOD:
-                ObjDesc->Method.ParamCount =
-                        (UINT8) ACPI_STRTOUL (Val, NULL, 10);
+                ObjDesc->Method.ParamCount = (UINT8) ACPI_STRTOUL 
+                                                        (Val, NULL, 10);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
-#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+#if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_APP)
 
-                /* Compiler cheats by putting parameter count in the OwnerID */
+                /* iASL Compiler cheats by putting parameter count in the OwnerID */
 
                 NewNode->OwnerId = ObjDesc->Method.ParamCount;
+#else
+                /* Mark this as a very SPECIAL method */
+
+                ObjDesc->Method.MethodFlags = AML_METHOD_INTERNAL_ONLY;
+                ObjDesc->Method.Implementation = AcpiUtOsiImplementation;
 #endif
                 break;
 
@@ -263,8 +277,8 @@ AcpiNsRootInitialize (void)
             case ACPI_TYPE_MUTEX:
 
                 ObjDesc->Mutex.Node = NewNode;
-                ObjDesc->Mutex.SyncLevel =
-                            (UINT16) ACPI_STRTOUL (Val, NULL, 10);
+                ObjDesc->Mutex.SyncLevel = (UINT16) ACPI_STRTOUL 
+                                                        (Val, NULL, 10);
 
                 if (ACPI_STRCMP (InitVal->Name, "_GL_") == 0)
                 {
@@ -300,6 +314,7 @@ AcpiNsRootInitialize (void)
 
 
             default:
+
                 ACPI_REPORT_ERROR (("Unsupported initial type value %X\n",
                     InitVal->Type));
                 AcpiUtRemoveReference (ObjDesc);

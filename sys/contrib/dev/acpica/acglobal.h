@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 147 $
+ *       $Revision: 148 $
  *
  *****************************************************************************/
 
@@ -152,6 +152,14 @@ extern      UINT32                      AcpiDbgLayer;
 
 extern      UINT32                      AcpiGbl_NestingLevel;
 
+/*****************************************************************************
+ *
+ * Runtime configuration
+ *
+ ****************************************************************************/
+
+ACPI_EXTERN UINT8                       AcpiGbl_CreateOsiMethod;
+ACPI_EXTERN UINT8                       AcpiGbl_AllMethodsSerialized;
 
 /*****************************************************************************
  *
@@ -242,6 +250,7 @@ extern const char                      *AcpiGbl_SleepStateNames[ACPI_S_STATE_COU
 extern const char                      *AcpiGbl_HighestDstateNames[4];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
+extern const char                      *AcpiGbl_ValidOsiStrings[ACPI_NUM_OSI_STRINGS];
 
 
 /*****************************************************************************
@@ -252,7 +261,7 @@ extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_
 
 #define NUM_NS_TYPES                    ACPI_TYPE_INVALID+1
 
-#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 #define NUM_PREDEFINED_NAMES            10
 #else
 #define NUM_PREDEFINED_NAMES            9

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 264 $
+ *       $Revision: 265 $
  *
  *****************************************************************************/
 
@@ -428,7 +428,6 @@ typedef UINT64                          ACPI_INTEGER;
 /*
  * Power state values
  */
-
 #define ACPI_STATE_UNKNOWN              (UINT8) 0xFF
 
 #define ACPI_STATE_S0                   (UINT8) 0
@@ -472,7 +471,6 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_NOTIFY_BUS_MODE_MISMATCH   (UINT8) 6
 #define ACPI_NOTIFY_POWER_FAULT         (UINT8) 7
 
-
 /*
  *  Table types.  These values are passed to the table related APIs
  */
@@ -487,7 +485,6 @@ typedef UINT32                          ACPI_TABLE_TYPE;
 #define ACPI_TABLE_XSDT                 (ACPI_TABLE_TYPE) 6
 #define ACPI_TABLE_MAX                  6
 #define NUM_ACPI_TABLE_TYPES            (ACPI_TABLE_MAX+1)
-
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -878,7 +875,7 @@ ACPI_STATUS (*ACPI_INIT_HANDLER) (
 #define ACPI_INIT_DEVICE_INI        1
 
 
-/* Address Spaces (Operation Regions */
+/* Address Spaces (For Operation Regions) */
 
 typedef
 ACPI_STATUS (*ACPI_ADR_SPACE_HANDLER) (
