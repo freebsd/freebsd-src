@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: ns_maint.c,v 4.9.1.15 1994/06/11 22:04:46 vixie Exp $";
+static char rcsid[] = "$Id: ns_maint.c,v 8.8 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -86,13 +86,15 @@ static int		xfers_running,	/* # of xfers running */
 static void		startxfer __P((struct zoneinfo *)),
 			abortxfer __P((struct zoneinfo *)),
 			addxfer __P((struct zoneinfo *)),
-			qserial_query __P((struct zoneinfo *)),
 			tryxfer __P((void));
 
 #define	qserial_qfull()	(qserials_running == MAXQSERIAL)
 
 #ifdef CLEANCACHE
 static time_t cache_time;
+#endif
+#ifdef XSTATS
+static time_t stats_time;
 #endif
 /*
  * Invoked at regular intervals by signal interrupt; refresh all secondary
@@ -108,7 +110,7 @@ ns_maint()
 
 	gettime(&tt);
 
-	dprintf(1, (ddt, "\nns_maint(); now %s", ctime(&tt.tv_sec)));
+	dprintf(1, (ddt, "\nns_maint(); now %s", ctimel(tt.tv_sec)));
 
 	alarm_pending = 0;
 	for (zp = zones, zonenum = 0; zp < &zones[nzones]; zp++, zonenum++) {
@@ -121,21 +123,27 @@ ns_maint()
 
 			case Z_CACHE:
 				doachkpt();
-				zp->z_time = tt.tv_sec + zp->z_refresh;
+				ns_refreshtime(zp, tt.tv_sec);
 				break;
 
 			case Z_SECONDARY:
 #ifdef STUBS
 			case Z_STUB:
 #endif
+				if (zp->z_serial != 0 &&
+				    ((zp->z_lastupdate + zp->z_expire) <
+				     tt.tv_sec)
+				    ) {
+					zp->z_serial = 0;
+				}
 				if (zp->z_flags &
 				    (Z_NEED_RELOAD|Z_NEED_XFER|Z_QSERIAL)) {
-					zp->z_time = tt.tv_sec + zp->z_refresh;
+					ns_refreshtime(zp, tt.tv_sec);
 					break;
 				}
 				if (zp->z_flags & Z_XFER_RUNNING) {
 					abortxfer(zp);
-					zp->z_time = tt.tv_sec + zp->z_retry;
+					ns_retrytime(zp, tt.tv_sec);
 					break;
 				}
 				qserial_query(zp);
@@ -148,7 +156,7 @@ ns_maint()
 				 */
 				if (zp->z_flags & Z_CHANGED) {
 					zonedump(zp);
-					zp->z_time = tt.tv_sec + zp->z_refresh;
+					ns_refreshtime(zp, tt.tv_sec);
 				}
 				break;
 #endif /* ALLOW_UPDATES */
@@ -156,8 +164,19 @@ ns_maint()
 			gettime(&tt);
 		}
 	}
-#ifdef	CLEANCACHE
-	remove_zone(hashtab, 0, 0);
+#ifdef CLEANCACHE
+	if ((cache_time + cache_interval) <= tt.tv_sec) {
+		if (cache_time)
+			remove_zone(hashtab, 0, 0);
+		cache_time = tt.tv_sec;
+	}
+#endif
+#ifdef XSTATS
+	if (stats_time + stats_interval <= tt.tv_sec) {
+		if (stats_time)
+			ns_logstats();
+		stats_time = tt.tv_sec;
+	}
 #endif
 	if (!needmaint)
 		sched_maint();
@@ -174,7 +193,7 @@ sched_maint()
 	register struct zoneinfo *zp;
 	struct itimerval ival;
 #ifdef	CLEANCACHE
-	time_t next_refresh = cache_time + 3600;
+	time_t next_refresh = cache_time + cache_interval;
 #else
 	time_t next_refresh = 0;
 #endif
@@ -207,8 +226,8 @@ sched_maint()
 		alarm_pending = 1;
 	}
 	(void) setitimer(ITIMER_REAL, &ival, (struct itimerval *)NULL);
-	dprintf(1, (ddt, "sched_maint: Next interrupt in %d sec\n",
-		    ival.it_value.tv_sec));
+	dprintf(1, (ddt, "sched_maint: Next interrupt in %lu sec\n",
+		    (u_long)ival.it_value.tv_sec));
 }
 
 /*
@@ -223,7 +242,7 @@ markUpToDate(zp)
 
 	zp->z_flags &= ~Z_SYSLOGGED;
 	zp->z_lastupdate = tt.tv_sec;
-	zp->z_time = tt.tv_sec + zp->z_refresh;
+	ns_refreshtime(zp, tt.tv_sec);
 	/*
 	 * Restore Z_AUTH in case expired,
 	 * but only if there were no errors
@@ -258,7 +277,7 @@ markUpToDate(zp)
  * Query for the serial number of a zone, so that
  * we can check to see if we need to transfer it.
  */
-static void
+void
 qserial_query(zp)
 	struct zoneinfo *zp;
 {
@@ -270,15 +289,16 @@ qserial_query(zp)
 		return;
 
 	qp = sysquery(zp->z_origin, zp->z_class, T_SOA,
-		      zp->z_addr, zp->z_addrcnt);
+		      zp->z_addr, zp->z_addrcnt, QUERY);
 	if (!qp) {
-		dprintf(1, (ddt, "qserial_query(%s) FAILED\n", zp->z_origin));
+		syslog(LOG_INFO, "qserial_query(%s): sysquery FAILED",
+		       zp->z_origin);
 		return;		/* XXX - this is bad, we should do something */
 	}
 	qp->q_flags |= Q_ZSERIAL;
 	qp->q_zquery = zp;
 	zp->z_flags |= Z_QSERIAL;
-	zp->z_time = tt.tv_sec + zp->z_refresh;
+	ns_refreshtime(zp, tt.tv_sec);
 	qserials_running++;
 	dprintf(1, (ddt, "qserial_query(%s) QUEUED\n", zp->z_origin));
 }
@@ -291,7 +311,8 @@ qserial_answer(qp, serial)
 	struct zoneinfo *zp = qp->q_zquery;
 	int was_qfull = qserial_qfull();
 
-	dprintf(1, (ddt, "qserial_answer(%s, %lu)\n", zp->z_origin, serial));
+	dprintf(1, (ddt, "qserial_answer(%s, %lu)\n",
+		    zp->z_origin, (u_long)serial));
 	zp->z_flags &= ~Z_QSERIAL;
 	qp->q_flags &= ~Q_ZSERIAL;	/* keeps us from being called twice */
 	qserials_running--;
@@ -319,7 +340,6 @@ qserial_answer(qp, serial)
 		dprintf(1, (ddt, "qserial_answer: zone serial is still OK\n"));
 		markUpToDate(zp);
 	}
- done:
 	if (was_qfull)
 		needmaint = 1;
 }
@@ -351,7 +371,7 @@ startxfer(zp)
 	argv[argc++] = "-f";
 	argv[argc++] = zp->z_source;
 	argv[argc++] = "-s";
-	sprintf(serial_str, "%lu", zp->z_serial);
+	sprintf(serial_str, "%lu", (u_long)zp->z_serial);
 	argv[argc++] = serial_str;
 #ifdef GEN_AXFR
 	argv[argc++] = "-C";
@@ -397,7 +417,7 @@ startxfer(zp)
 			if (aIsUs(a)
 			    && !haveComplained(zp->z_origin,
 					       (char*)startxfer)) {
-				syslog(LOG_ERR,
+				syslog(LOG_NOTICE,
 				   "attempted to fetch zone %s from self (%s)",
 				       zp->z_origin, inet_ntoa(a));
 				continue;
@@ -419,10 +439,8 @@ startxfer(zp)
 #endif /* ECHOARGS */
 #endif /* DEBUG */
 
-#ifdef SYSV
-#define vfork fork
-#else
 	gettime(&tt);
+#ifndef SYSV
 	omask = sigblock(sigmask(SIGCHLD));
 #endif
 	if ((pid = vfork()) == -1) {
@@ -452,6 +470,25 @@ startxfer(zp)
 #endif
 }
 
+const char *
+zoneTypeString(zp)
+	const struct zoneinfo *zp;
+{
+	static char ret[sizeof "(4294967296?)"];	/* 2^32 */
+
+	switch (zp->z_type) {
+	case Z_PRIMARY:		return ("primary");
+	case Z_SECONDARY:	return ("secondary");
+#ifdef STUBS
+	case Z_STUB:		return ("stub");
+#endif
+	case Z_CACHE:		return ("cache");
+	default:
+		sprintf(ret, "(%lu?)", (u_long)zp->z_type);
+		return (ret);
+	}
+}
+
 #ifdef DEBUG
 void
 printzoneinfo(zonenum)
@@ -459,7 +496,6 @@ int zonenum;
 {
 	struct timeval  tt;
 	struct zoneinfo *zp = &zones[zonenum];
-	char *ZoneType;
 
 	if (!debug)
 		return;
@@ -467,25 +503,6 @@ int zonenum;
 	fprintf(ddt, "printzoneinfo(%d):\n", zonenum);
 
 	gettime(&tt);
-	switch (zp->z_type) {
-	case Z_PRIMARY:
-		ZoneType = "Primary";
-		break;
-	case Z_SECONDARY:
-		ZoneType = "Secondary";
-		break;
-#ifdef STUBS
-	case Z_STUB:
-		ZoneType = "Stub";
-		break;
-#endif
-	case Z_CACHE:
-		ZoneType = "Cache";
-		break;
-	default:
-		ZoneType = "Unknown";
-		break;
-	}
 	if (zp->z_origin != NULL && (zp->z_origin[0] == '\0'))
 		fprintf(ddt, "origin ='.'");
 	else
@@ -493,20 +510,21 @@ int zonenum;
 #ifdef GEN_AXFR
 	fprintf(ddt, ", class = %d", zp->z_class);
 #endif
- 	fprintf(ddt, ", type = %s", ZoneType);
+ 	fprintf(ddt, ", type = %s", zoneTypeString(zp));
 	if (zp->z_source)
 		fprintf(ddt,", source = %s\n", zp->z_source);
-	fprintf(ddt, "z_refresh = %ld", zp->z_refresh);
-	fprintf(ddt, ", retry = %ld", zp->z_retry);
-	fprintf(ddt, ", expire = %ld", zp->z_expire);
-	fprintf(ddt, ", minimum = %ld", zp->z_minimum);
-	fprintf(ddt, ", serial = %lu\n", zp->z_serial);
-	fprintf(ddt, "z_time = %d", zp->z_time);
+	fprintf(ddt, "z_refresh = %lu", (u_long)zp->z_refresh);
+	fprintf(ddt, ", retry = %lu", (u_long)zp->z_retry);
+	fprintf(ddt, ", expire = %lu", (u_long)zp->z_expire);
+	fprintf(ddt, ", minimum = %lu", (u_long)zp->z_minimum);
+	fprintf(ddt, ", serial = %lu\n", (u_long)zp->z_serial);
+	fprintf(ddt, "z_time = %lu", (u_long)zp->z_time);
 	if (zp->z_time) {
-		fprintf(ddt, ", now time : %d sec", tt.tv_sec);
-		fprintf(ddt, ", time left: %d sec", zp->z_time - tt.tv_sec);
+		fprintf(ddt, ", now time : %lu sec", (u_long)tt.tv_sec);
+		fprintf(ddt, ", time left: %lu sec",
+			(int)(zp->z_time - tt.tv_sec));
 	}
-	fprintf(ddt, "; flags %x\n", zp->z_flags);
+	fprintf(ddt, "; flags %lx\n", (u_long)zp->z_flags);
 }
 #endif /* DEBUG */
 
@@ -570,6 +588,146 @@ remove_zone(htp, zone)
 		}
 	    }
 }
+
+#ifdef PURGE_ZONE
+static void purge_z_2();
+static bottom_of_zone();
+
+void
+purge_zone(dname, htp, class)
+	const char *dname;
+	register struct hashbuf *htp;
+	int class;
+{
+	const char *fname;
+	struct databuf *dp, *pdp;
+	struct namebuf *np;
+	struct hashbuf *phtp = htp;
+
+	dprintf(1, (ddt, "purge_zone(%s,%d)\n", dname, class));
+	if ((np = nlookup(dname, &phtp, &fname, 0)) && dname == fname) {
+		for (pdp = NULL, dp = np->n_data; dp != NULL; ) {
+			if (dp->d_class == class)
+			    dp = rm_datum(dp, np, pdp);
+			else {
+				pdp = dp;
+				dp = dp->d_next;
+			}
+		}
+
+		if (np->n_hash) {
+
+		    purge_z_2(np->n_hash, class);
+
+		    if (np->n_hash->h_cnt == 0) {
+			    free((char*)np->n_hash);
+			    np->n_hash = NULL;
+		    }
+		}
+		
+		/* remove entry from cache, if required */
+		if ((np->n_hash == NULL) && (np->n_data == NULL)) {
+		    struct namebuf **npp, **nppend;
+		    struct namebuf *npn, *pnp, *nnp;
+
+		    dprintf(3,(ddt, "purge_zone: cleaning cache\n"));
+
+		    /* walk parent hashtable looking for ourself */
+		    if (np->n_parent)
+			    phtp = np->n_parent->n_hash;
+		    else 
+			    phtp = htp; /* top / root zone */
+
+		    if (phtp) {
+			nppend = phtp->h_tab + phtp->h_size;
+
+			for (npp = phtp->h_tab; npp < nppend; npp++) {
+			    for (pnp = NULL, nnp = *npp;
+				 nnp != NULL;
+				 nnp = npn
+				 ) {
+				if (nnp == np) {
+			    dprintf(3,(ddt, "purge_zone: found our selves\n"));
+				    npn = rm_name(nnp, npp, pnp);
+				    phtp->h_cnt--;
+				} else {
+				    npn = nnp->n_next;
+				    pnp = nnp;
+				}
+			    }
+			}
+		    }
+
+		}
+	}
+}
+
+static void
+purge_z_2(htp, class)
+	register struct hashbuf *htp;
+	register int class;
+{
+	register struct databuf *dp, *pdp;
+	register struct namebuf *np, *pnp, *npn;
+	struct namebuf **npp, **nppend;
+
+	nppend = htp->h_tab + htp->h_size;
+	for (npp = htp->h_tab; npp < nppend; npp++)
+	    for (pnp = NULL, np = *npp; np != NULL; np = npn) {
+		if (!bottom_of_zone(np->n_data, class)) {
+		    for (pdp = NULL, dp = np->n_data; dp != NULL; ) {
+			if (dp->d_class == class)
+				dp = rm_datum(dp, np, pdp);
+			else {
+				pdp = dp;
+				dp = dp->d_next;
+			}
+		    }
+
+		    if (np->n_hash) {
+			/* call recursively to remove subdomains. */
+			purge_z_2(np->n_hash, class);
+
+			/* if now empty, free it */
+			if (np->n_hash->h_cnt == 0) {
+				free((char*)np->n_hash);
+				np->n_hash = NULL;
+			}
+		    }
+
+		}
+
+		if ((np->n_hash == NULL) && (np->n_data == NULL)) {
+		    npn = rm_name(np, npp, pnp);
+		    htp->h_cnt--;
+		} else {
+		    npn = np->n_next;
+		    pnp = np;
+		}
+	    }
+}
+
+static int
+bottom_of_zone(dp, class)
+	struct databuf *dp;
+	int class;
+{
+	for ( ; dp ; dp = dp->d_next) {
+		if (dp->d_class != class)
+			continue;
+		if (dp->d_zone == 0)
+			continue;
+#ifdef NCACHE
+		if (dp->d_rcode)	/* this should not occur */
+			continue;
+#endif
+		if (dp->d_type == T_SOA)
+			return (1);
+	}
+	dprintf(3, (ddt, "bottom_of_zone() == 0\n"));
+	return (0);
+}
+#endif
    
 /*
  * Handle XFER limit for a nameserver.
@@ -611,7 +769,7 @@ abortxfer(zp)
 	kill(zp->z_xferpid, SIGKILL);
 	syslog(LOG_NOTICE, "zone transfer timeout for \"%s\"; pid %lu killed",
 	       zp->z_origin, (u_long)zp->z_xferpid);
-	zp->z_time = tt.tv_sec + zp->z_retry;
+	ns_retrytime(zp, tt.tv_sec);
 	(void) nxfers(zp, -1);
 	xfers_running--;
 }
@@ -662,7 +820,7 @@ endxfer()
 					  "named-xfer exited with signal %d\n",
 					  WTERMSIG(status));
 				}
-				zp->z_time = tt.tv_sec + zp->z_retry;
+				ns_retrytime(zp, tt.tv_sec);
 			} else {
 				switch (exitstatus) {
 				case XFER_UPTODATE:
@@ -676,29 +834,26 @@ endxfer()
 					break;
 
 				case XFER_TIMEOUT:
-					dprintf(1, (ddt,
-			"zoneref: Masters for secondary zone %s unreachable\n",
-						    zp->z_origin));
 					if (!(zp->z_flags & Z_SYSLOGGED)) {
 						zp->z_flags |= Z_SYSLOGGED;
 						syslog(LOG_NOTICE,
-			"zoneref: Masters for secondary zone %s unreachable",
+		      "zoneref: Masters for secondary zone \"%s\" unreachable",
 						    zp->z_origin);
 					}
-					zp->z_time = tt.tv_sec + zp->z_retry;
+					ns_retrytime(zp, tt.tv_sec);
 					break;
 
 				default:
 					if (!(zp->z_flags & Z_SYSLOGGED)) {
 						zp->z_flags |= Z_SYSLOGGED;
 						syslog(LOG_NOTICE,
-						 "named-xfer for %s exited %d",
+					     "named-xfer for \"%s\" exited %d",
 						    zp->z_origin, exitstatus);
 					}
 					/* FALLTHROUGH */
 				case XFER_FAIL:
 					zp->z_flags |= Z_SYSLOGGED;
-					zp->z_time = tt.tv_sec + zp->z_retry;
+					ns_retrytime(zp, tt.tv_sec);
 					break;
 				} /*switch*/
 				break;
@@ -707,32 +862,73 @@ endxfer()
 	} /*while*/
 	tryxfer();
 #if defined(SYSV)
-	(void)signal(SIGCLD, endxfer);
+	(void)signal(SIGCLD, (SIG_FN (*)()) endxfer);
 #endif
 	errno = save_errno;
 }
 
 /*
- * Try to start some xfers
+ * Try to start some xfers - new "fair scheduler" by Bob Heiney @DEC (1995)
  */
 static void
 tryxfer() {
-	struct zoneinfo *zp;
+	static struct zoneinfo *zp = NULL;
+	static struct zoneinfo *lastzones = NULL;
+	static int lastnzones = 0;
+	struct zoneinfo *startzp, *stopzp;
 
-	for (zp = zones;  zp < &zones[nzones];  zp++) {
+	/* initialize, and watch out for changes in zones! */
+	if (lastzones != zones) {
+		if (lastzones != NULL)
+			syslog(LOG_INFO, "zones changed: %p != %p",
+			       lastzones, zones);
+		lastzones = zones;
+		zp = zones;
+	}
+
+	/* did zones shrink? */
+	if (lastnzones > nzones) {
+		syslog(LOG_INFO, "zones shrunk");
+		zp = zones;
+	}
+	lastnzones = nzones;
+    
+	if (zp == zones)
+		stopzp = &zones[nzones-1];
+	else
+		stopzp = zp - 1;
+
+	dprintf(3, (ddt, "tryxfer start zp=%p stopzp=%p def=%d running=%d\n",
+		    zp, stopzp, xfers_deferred, xfers_running));
+
+	startzp = zp;
+	for (;;) {
 		int xfers;
 
 		if (!xfers_deferred || xfers_running >= max_xfers_running)
 			break;
 		
 		if ((xfers = nxfers(zp, 0)) != -1 &&
-		    xfers < MAX_XFERS_PERNS &&
+		    xfers < max_xfers_per_ns &&
 		    (zp->z_flags & Z_NEED_XFER)) {
 			nxfers(zp, 1);
 			xfers_deferred--;
 			startxfer(zp);
 		}
+
+		if (zp == stopzp) {
+			dprintf(3, (ddt, "tryxfer stop mark\n"));
+			zp = startzp;
+			break;
+		}
+
+		zp++;
+		/* wrap around? */
+		if (zp == &zones[nzones])
+			zp = zones;
 	}
+	dprintf(3, (ddt, "tryxfer stop zp=%p\n", zp));
+
 	if (!needmaint)
 		sched_maint();
 }
@@ -756,13 +952,13 @@ loadxfer()
 #else
 			remove_zone(hashtab, zp - zones);
 #endif
-			if (db_load(zp->z_source, zp->z_origin, zp, 0) == 0)
+#ifdef PURGE_ZONE
+			purge_zone(zp->z_origin, hashtab, zp->z_class);
+#endif
+			if (!db_load(zp->z_source, zp->z_origin, zp, NULL))
 				zp->z_flags |= Z_AUTH;
 			if (zp->z_flags & Z_TMP_FILE)
 				(void) unlink(zp->z_source);
-			syslog(LOG_INFO,
-		       "Zone \"%s\" (class %d) xfer'd and loaded (serial %lu)",
-			       zp->z_origin, zp->z_class, zp->z_serial);
 		}
 	}
 	if (!needmaint)

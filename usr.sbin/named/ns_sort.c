@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_sort.c	4.10 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_sort.c,v 4.9.1.6 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_sort.c,v 8.2 1995/06/29 09:26:17 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -124,8 +124,8 @@ sort_rr(cp, count, ntp, eom)
 #ifdef DEBUG
 	if (debug > 2) {
 		inaddr.s_addr = ntp->addr;
-		fprintf(ddt, "sort_rr(x%x, %d, [%s])\n",
-			cp, count, inet_ntoa(inaddr));
+		fprintf(ddt, "sort_rr(%#lx, %d, [%s])\n",
+			(u_long)cp, count, inet_ntoa(inaddr));
 	}
 #endif
 	rr1 = NULL;
