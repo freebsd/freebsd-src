@@ -1,16 +1,11 @@
 # $FreeBSD$
 #
-# Hopefully, this list will one day be obsoleted by DEVFS, but for now
-# this is the current allocation of device major numbers.
-# 
-# For local use, you are encouraged to use the reserved numbers.
-# 
-# If you intend the driver to be available, send email to the
-# hackers@freebsd.org mailing list to see about having a number
-# reserved for you.
-# 
-# The most "complete" version of this will be the one in FreeBSD-current.
-# (see http://www.freebsd.org/)
+# This list is semi-obsoleted by DEVFS, but for now it still contains
+# the current allocation of device major numbers.
+#
+# Unless very special circumstants demand otherwise, all device drivers
+# are able to use the "MAJOR_AUTO" facility for auto-allocating major
+# numbers at runtime.
 # 
 # NOTICE: FreeBSD does not use block major numbers anymore, you neither
 # need to assign nor use a block major number for any device driver any
@@ -39,7 +34,6 @@
 22	fd		(/dev/stdin etc)
 23	bpf		Berkeley Packet Filter
 24	pca		PC speaker (/dev/pcaudio)
-25	??		was vat
 26	spkr		PC speaker (/dev/spkr)
 27	mse		Microsoft bus-mouse
 28	sio		16450/16550 serial
@@ -55,7 +49,6 @@
 38	lkm		assigned to Loadable Kernel Modules
 39	apm		Advanced Power Management
 40	ctx		Cortex
-41	??		was socksys
 42	cx		Cronyx/Sigma serial adapter
 43	vn		vnode "disk" device (retired)
 44	gp		GPIB
@@ -63,7 +56,6 @@
 46	-		-
 47	gsc		Genius Scanner
 48	cy		Cyclades
-49	??		was ssc
 50	card		pcmcia cards
 51	joy		joystick
 52	tun		IP tunnel device
@@ -87,7 +79,6 @@
 70	crypto		Device-independent crypto interface (from openbsd)
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
-73	??		was qcam
 74	ccd		concatenated disk
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
