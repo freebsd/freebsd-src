@@ -129,6 +129,7 @@ sub normalize (@) {
     my @lines = @_;
 
     foreach my $l (@lines) {
+        $l =~ s/\\&//g;
         $l =~ s:([\x21-\x2f\x5b-\x60\x7b-\x7f]):sprintf("&\#\%d;", ord($1)):eg;
     }
     return (wantarray) ? @lines : join "", @lines;
@@ -253,6 +254,13 @@ sub parse {
 		my $txt = "<quote>".join(' ', @stritems)."</quote>$punct_str";
 
 		parabuf_addline(\%mdocvars, normalize($txt));
+	    } elsif (/^Sx (.+)$/) {
+		if ($mdocvars{isin_hwlist}) {
+		    dlog(1, "Warning: Reference to another section in the " .
+			 "$hwlist_sect section in " . $mdocvars{Nm} .
+			 "(${cur_mansection})");
+		}
+		parabuf_addline(\%mdocvars, normalize($1));
 	    }
 	    # Ignore all other commands
 	} else {
@@ -262,7 +270,7 @@ sub parse {
     }
     close(MANPAGE) || die("$!: Could not close $manpage in ", __LINE__, ".\n");
     if (! $found_hwlist) {
-	dlog(1, "Hardware list not found in $manpage");
+	dlog(2, "Hardware list not found in $manpage");
     }
 }
 
