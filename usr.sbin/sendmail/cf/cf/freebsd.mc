@@ -41,6 +41,7 @@ divert(-1)
 #  and do the modifications there.
 #
 
+divert(0)dnl
 VERSIONID(`@(#)freebsd.mc	$Revision: 1.1 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
