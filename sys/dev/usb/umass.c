@@ -98,7 +98,7 @@ typedef struct umass_softc {
 
 #define USBD_COMMAND_FAILED	USBD_INVAL	/* redefine some errors for */
 
-#define UPROTO_MASS_ZIP	80
+#define UPROTO_MASS_ZIP		0x50		/* letter 'P' for protoype */
 
 #define UMASS_SCSIID_HOST	0x00
 #define UMASS_SCSIID_DEVICE	0x01
