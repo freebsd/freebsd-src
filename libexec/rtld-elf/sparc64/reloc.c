@@ -178,7 +178,7 @@ static long reloc_target_bitmask[] = {
 	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
 	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
 	-1,				/* GLOB_JMP */
-	_BM(7), _BM(5), _BM(6)		/* _7, _5, _6 */
+	_BM(7), _BM(5), _BM(6),		/* _7, _5, _6 */
 	-1, -1,				/* DISP64, PLT64 */
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
@@ -380,7 +380,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 
 		/* Write it back out. */
 		for (i = 0; i < size; i++)
-			ptr[i] = ((tmp >> (8 * i)) & 0xff);
+			ptr[i] = ((tmp >> ((size - i - 1) * 8)) & 0xff);
 	} else if (RELOC_TARGET_SIZE(type) > 32) {
 		*where &= ~mask;
 		*where |= value;
