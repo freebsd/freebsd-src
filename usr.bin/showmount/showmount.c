@@ -325,7 +325,7 @@ xdr_exports(xdrsp, exp)
 
 usage()
 {
-	fprintf(stderr, "usage: showmount [-ade] host\n");
+	fprintf(stderr, "usage: showmount [-ade3] host\n");
 	exit(1);
 }
 
