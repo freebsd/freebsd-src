@@ -79,7 +79,7 @@ pe_get_dos_header(imgbase, hdr)
 {
 	uint16_t		signature;
 
-	if (imgbase == NULL || hdr == NULL)
+	if (imgbase == 0 || hdr == NULL)
 		return (EINVAL);
 
 	signature = *(uint16_t *)imgbase;
@@ -102,7 +102,7 @@ pe_is_nt_image(imgbase)
 	uint32_t		signature;
 	image_dos_header	*dos_hdr;
 
-	if (imgbase == NULL)
+	if (imgbase == 0)
 		return (EINVAL);
 
 	signature = *(uint16_t *)imgbase;
@@ -130,7 +130,7 @@ pe_get_optional_header(imgbase, hdr)
 	image_dos_header	*dos_hdr;
 	image_nt_header		*nt_hdr;
 
-	if (imgbase == NULL || hdr == NULL)
+	if (imgbase == 0 || hdr == NULL)
 		return(EINVAL);
 
 	if (pe_is_nt_image(imgbase))
@@ -158,7 +158,7 @@ pe_get_file_header(imgbase, hdr)
 	image_dos_header	*dos_hdr;
 	image_nt_header		*nt_hdr;
 
-	if (imgbase == NULL || hdr == NULL)
+	if (imgbase == 0 || hdr == NULL)
 		return(EINVAL);
 
 	if (pe_is_nt_image(imgbase))
@@ -187,7 +187,7 @@ pe_get_section_header(imgbase, hdr)
 	image_nt_header		*nt_hdr;
 	image_section_header	*sect_hdr;
 
-	if (imgbase == NULL || hdr == NULL)
+	if (imgbase == 0 || hdr == NULL)
 		return(EINVAL);
 
 	if (pe_is_nt_image(imgbase))
@@ -327,7 +327,7 @@ pe_get_section(imgbase, hdr, name)
 
 	int			i, sections;
 
-	if (imgbase == NULL || hdr == NULL)
+	if (imgbase == 0 || hdr == NULL)
 		return(EINVAL);
 
 	if (pe_is_nt_image(imgbase))
@@ -433,7 +433,7 @@ pe_get_import_descriptor(imgbase, desc, module)
 	image_import_descriptor	*imp_desc;
 	char			*modname;
 
-	if (imgbase == NULL || module == NULL || desc == NULL)
+	if (imgbase == 0 || module == NULL || desc == NULL)
 		return(EINVAL);
 
 	offset = pe_directory_offset(imgbase, IMAGE_DIRECTORY_ENTRY_IMPORT);
@@ -509,7 +509,7 @@ pe_patch_imports(imgbase, module, functbl)
 	vm_offset_t		*nptr, *fptr;
 	vm_offset_t		func;
 
-	if (imgbase == NULL || module == NULL || functbl == NULL)
+	if (imgbase == 0 || module == NULL || functbl == NULL)
 		return(EINVAL);
 
 	if (pe_get_import_descriptor(imgbase, &imp_desc, module))
