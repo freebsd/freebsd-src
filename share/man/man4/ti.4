@@ -65,21 +65,31 @@ vendors that use the Tigon chipset under OEM contract.
 The
 .Nm
 driver has been tested with the following Tigon-based adapters:
-.Bl -bullet -offset indent
+.Pp
+.Bl -bullet -compact -offset indent
 .It
-The Alteon AceNIC V gigabit ethernet adapter
+The Alteon AceNIC V gigabit ethernet adapter (1000baseSX)
 .It
-The 3Com 3c985-SX gigabit ethernet adapter
+The Alteon AceNIC V gigabit ethernet adapter (1000baseT)
 .It
-The Netgear GA620 gigabit ethernet adapter
+The 3Com 3c985-SX gigabit ethernet adapter (Tigon 1)
+.It
+The 3Com 3c985B-SX gigabit ethernet adapter (Tigon 2)
+.It
+The Netgear GA620 gigabit ethernet adapter (1000baseSX)
+.It
+The Netgear GA620T gigabit ethernet adapter (1000baseT)
 .El
 .Pp
 The following should also be supported but have not yet been tested:
-.Bl -bullet -offset indent
+.Pp
+.Bl -bullet -compact -offset indent
 .It
 The Digital EtherWORKS 1000SX PCI Gigabit Adapter
 .It
 Silicon Graphics PCI gigabit ethernet adapter
+.It
+Farallon PN9000SX Gigabit Ethernet adapter
 .El
 .Pp
 While the Tigon chipset supports 10, 100 and 1000Mbps speeds, support for
@@ -195,7 +205,7 @@ the network connection (cable).
 .Xr ifconfig 8
 .Rs
 .%T Alteon Gigabit Ethernet/PCI NIC manuals
-.%O http://www.alteon.com/support/openkits
+.%O http://sanjose.alteon.com/open.shtml
 .Re
 .Sh HISTORY
 The
@@ -206,4 +216,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Bill Paul Aq wpaul@ctr.columbia.edu .
+.An Bill Paul Aq wpaul@bsdi.com .
