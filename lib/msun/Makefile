@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.8 1996/02/09 00:45:39 mpp Exp $
+#  $Id: Makefile,v 1.9 1996/02/09 00:48:52 mpp Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -139,9 +139,7 @@ MLINKS+=tanh.3 tanhf.3
 
 # XXX we should have only one math.h, and a rule for installing .h's...
 beforeinstall:
-	@${ECHO} Installing new math.h
-	@(cd ${.CURDIR}/src; cmp -s math.h ${DESTDIR}/usr/include/math.h || \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 math.h \
-		${DESTDIR}/usr/include/math.h;)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/src/math.h \
+		${DESTDIR}/usr/include/math.h
 
 .include <bsd.lib.mk>
