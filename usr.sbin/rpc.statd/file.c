@@ -43,6 +43,7 @@
 #include <sys/mman.h>		/* For mmap()				*/
 #include <rpc/rpc.h>
 #include <syslog.h>
+#include <stdlib.h>
 
 #include "statd.h"
 
