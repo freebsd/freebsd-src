@@ -312,6 +312,9 @@ pcfclock_read(dev_t dev, struct uio *uio, int ioflag)
 	char buf[18];
 	int error = 0;
 
+	if (uio->uio_resid < 18)
+		return (ERANGE);
+
 	error = pcfclock_read_dev(dev, buf, PCFCLOCK_MAX_RETRIES);
 	
 	if (error) {
