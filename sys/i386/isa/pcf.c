@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.5 1998/11/04 22:09:17 nsouch Exp $
+ *	$Id: pcf.c,v 1.7 1999/05/02 21:51:17 peter Exp $
  *
  */
 #include <sys/param.h>
@@ -362,7 +362,7 @@ static int pcf_start(device_t pcfdev, u_char slave, int timeout)
 	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 	int error = 0;
 
-	if (PCF_GET_S1(pcf) & nBB == 0)
+	if ((PCF_GET_S1(pcf) & nBB) == 0)
 		return (IIC_EBUSBSY);
 
 	/* set slave address to PCF. Last bit (LSB) must be set correctly
