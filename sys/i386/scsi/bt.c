@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.2 1995/12/13 14:32:59 bde Exp $
+ *      $Id: bt.c,v 1.3 1995/12/14 14:19:16 peter Exp $
  */
 
 /*
@@ -502,6 +502,7 @@ bt_attach(bt)
 	 */
 	bt->sc_link.adapter_unit = bt->unit;
 	bt->sc_link.adapter_targ = bt->bt_scsi_dev;
+	bt->sc_link.adapter_softc = bt;
 	bt->sc_link.adapter = &bt_switch;
 	bt->sc_link.device = &bt_dev;
 	bt->sc_link.flags = bt->bt_bounce ? SDEV_BOUNCE : 0;
@@ -1243,11 +1244,10 @@ bt_scsi_cmd(xs)
 	int	seg;		/* scatter gather seg being worked on */
 	int	thiskv;
 	physaddr thisphys, nextphys;
-	int	unit = xs->sc_link->adapter_unit;
 	int	bytes_this_seg, bytes_this_page, datalen, flags;
 	struct	bt_data *bt;
 
-	bt = btdata[unit];
+	bt = (struct bt_data *)xs->sc_link->adapter_softc;
 
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("bt_scsi_cmd\n"));
 	/*
@@ -1257,11 +1257,11 @@ bt_scsi_cmd(xs)
 	 */
 	flags = xs->flags;
 	if (flags & ITSDONE) {
-		printf("bt%d: Already done?\n", unit);
+		printf("bt%d: Already done?\n", bt->unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if (!(flags & INUSE)) {
-		printf("bt%d: Not in use?\n", unit);
+		printf("bt%d: Not in use?\n", bt->unit);
 		xs->flags |= INUSE;
 	}
 	if (!(ccb = bt_get_ccb(bt, flags))) {
@@ -1373,7 +1373,7 @@ bt_scsi_cmd(xs)
 			 * there's still data, must have run out of segs!
 			 */
 			printf("bt%d: bt_scsi_cmd, more than %d DMA segs\n",
-			    unit, BT_NSEG);
+			    bt->unit, BT_NSEG);
 			xs->error = XS_DRIVER_STUFFUP;
 			bt_free_ccb(bt, ccb, flags);
 			return (HAD_ERROR);
