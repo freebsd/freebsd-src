@@ -47,7 +47,8 @@
 .Sh DESCRIPTION
 The
 .Nm pppoe
-node type performs the PPPoE protocol. It is used in conjunction with the
+node type performs the PPPoE protocol.
+It is used in conjunction with the
 .Xr netgraph 4
 extensions to the Ethernet framework to divert and inject Ethernet packets
 to and from a PPP agent (which is not specified).
@@ -55,7 +56,8 @@ to and from a PPP agent (which is not specified).
 The
 .Dv NGM_PPPOE_GET_STATUS
 control message can be used at any time to query the current status
-of the PPPoE module. The only statistics presently available are the
+of the PPPoE module.
+The only statistics presently available are the
 total packet counts for input and output.
 This node does not yet support
 the
@@ -92,10 +94,10 @@ This generic message returns is a human-readable version of the node status.
 Tell a nominated newly created hook that it's session should enter
 the state machine in a manner to become a client.
 It must be newly created and
-a service name can be given as an argument. It is legal to specify a zero length
-service name.
-This is common on some DSL setups. A session request packet
-will be broadcast on the Ethernet.
+a service name can be given as an argument.
+It is legal to specify a zero length service name.
+This is common on some DSL setups.
+A session request packet will be broadcast on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
@@ -155,8 +157,8 @@ reports back the hook name corresponding to the failed session.
 The hook will probably have been removed immediately after sending this message
 .It Dv NGM_NGM_PPPOE_CLOSE
 This command is sent to the node that started this session with one of the
-above messages, and reports a state change. This message reports
-a request to close a session.
+above messages, and reports a state change.
+This message reports a request to close a session.
 It uses the structure shown below, and
 reports back the hook name corresponding to the closed session.
 The hook will probably have been removed immediately after sending this
@@ -193,7 +195,8 @@ you may have to do the following sysctl:
 sysctl net.graph.nonstandard_pppoe=1
 .Ed
 .Pp
-to enable the alternate ethertypes. Then phone your ISP and ask them
+to enable the alternate ethertypes.
+Then phone your ISP and ask them
 why you need to set that option for you to be able to connect.
 .Sh EXAMPLES
 The following code uses
