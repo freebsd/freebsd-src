@@ -109,23 +109,27 @@ The following cards are among those supported by the
 .Nm
 driver:
 .Pp
-.Bl -column -compact "D-Link DWL-AG650" "AR5212" "Cardbus"
-.Em "Card	Chip	Bus"
-D-Link DWL-AB650	AR5211	CardBus
-D-Link DWL-AG520	AR5212	PCI
-D-Link DWL-AG650	AR5212	CardBus
-D-Link DWL-G650	AR5212	CardBus
-I/O Data WN-AG/CB	AR5212	CardBus
-Linksys WMP55AG	AR5212	PCI
-Linksys WPC51AB	AR5211	CardBus
-Linksys WPC55AG	AR5212	CardBus
-NEC PA-WL/54AG	AR5212	CardBus
-Netgear WAB501	AR5211	CardBus
-Netgear WAG511	AR5212	CardBus
-Netgear WG311	AR5212	CardBus
-Nortel 2201	AR5212	CardBus
-Orinoco 8480	AR5212	CardBus
-Proxim Skyline 4030	AR5210	CardBus
+.Bl -column -compact "D-Link DWL-AG650" "AR5212" "Cardbus" "a/b/g"
+.Em "Card	Chip	Bus	Standard"
+D-Link DWL-AB650	AR5211	CardBus	a/b
+D-Link DWL-AG520	AR5212	PCI	a/b/g
+D-Link DWL-AG650	AR5212	CardBus	a/b/g
+D-Link DWL-G520B	AR5212	PCI	b/g
+D-Link DWL-G650B	AR5212	CardBus	b/g
+I/O Data WN-AG/CB	AR5212	CardBus	a/b/g
+Linksys WMP55AG	AR5212	PCI	a/b/g
+Linksys WPC51AB	AR5211	CardBus	a/b
+Linksys WPC55AG	AR5212	CardBus	a/b/g
+NEC PA-WL/54AG	AR5212	CardBus	a/b/g
+Netgear WAG311	AR5212	PCI	a/b/g
+Netgear WAB501	AR5211	CardBus	a/b
+Netgear WAG511	AR5212	CardBus	a/b/g
+Netgear WG311	AR5212	PCI	b/g
+Netgear WG511T	AR5212	PCI	b/g
+Nortel 2201	AR5212	CardBus	a/b
+Orinoco 8480	AR5212	CardBus	a/b/g
+Proxim Skyline 4030	AR5210	CardBus	a
+Proxim Skyline 4032	AR5210	PCI	a
 .El
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
@@ -283,6 +287,9 @@ for information on different regulatory domains.
 Different regulatory domains may not be able to communicate with each
 other with 802.11a as different regualtory domains do not necessarily
 have overlapping channels.
+.Pp
+Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
+Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
 .Pp
 Performance in lossy environments is suboptimal.
