@@ -646,14 +646,28 @@ mptable_parse_io_int(int_entry_ptr intr)
 	pin = intr->dst_apic_int;
 	switch (intr->int_type) {
 	case INTENTRY_TYPE_INT:
-		if (busses[intr->src_bus_id].bus_type == NOBUS)
+		switch (busses[intr->src_bus_id].bus_type) {
+		case NOBUS:
 			panic("interrupt from missing bus");
-		if (busses[intr->src_bus_id].bus_type == ISA &&
-		    intr->src_bus_irq != pin) {
+		case ISA:
+		case EISA:
+			if (busses[intr->src_bus_id].bus_type == ISA)
+				ioapic_set_bus(ioapic, pin, APIC_BUS_ISA);
+			else
+				ioapic_set_bus(ioapic, pin, APIC_BUS_EISA);
+			if (intr->src_bus_irq == pin)
+				break;
 			ioapic_remap_vector(ioapic, pin, intr->src_bus_irq);
 			if (ioapic_get_vector(ioapic, intr->src_bus_irq) ==
 			    intr->src_bus_irq)
 				ioapic_disable_pin(ioapic, intr->src_bus_irq);
+			break;
+		case PCI:
+			ioapic_set_bus(ioapic, pin, APIC_BUS_PCI);
+			break;
+		default:
+			ioapic_set_bus(ioapic, pin, APIC_BUS_UNKNOWN);
+			break;
 		}
 		break;
 	case INTENTRY_TYPE_NMI:

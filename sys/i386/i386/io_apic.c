@@ -99,6 +99,7 @@ struct ioapic_intsrc {
 	u_int io_edgetrigger:1;
 	u_int io_masked:1;
 	int io_dest:5;
+	int io_bus:4;
 };
 
 struct ioapic {
@@ -114,6 +115,8 @@ struct ioapic {
 
 static u_int	ioapic_read(volatile ioapic_t *apic, int reg);
 static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
+static const char *ioapic_bus_string(int bus_type);
+static void	ioapic_print_vector(struct ioapic_intsrc *intpin);
 static void	ioapic_enable_source(struct intsrc *isrc);
 static void	ioapic_disable_source(struct intsrc *isrc);
 static void	ioapic_eoi_source(struct intsrc *isrc);
@@ -160,6 +163,45 @@ ioapic_write(volatile ioapic_t *apic, int reg, u_int val)
 	mtx_assert(&icu_lock, MA_OWNED);
 	apic->ioregsel = reg;
 	apic->iowin = val;
+}
+
+static const char *
+ioapic_bus_string(int bus_type)
+{
+
+	switch (bus_type) {
+	case APIC_BUS_ISA:
+		return ("ISA");
+	case APIC_BUS_EISA:
+		return ("EISA");
+	case APIC_BUS_PCI:
+		return ("PCI");
+	default:
+		return ("unknown");
+	}
+}
+
+static void
+ioapic_print_vector(struct ioapic_intsrc *intpin)
+{
+
+	switch (intpin->io_vector) {
+	case VECTOR_DISABLED:
+		printf("disabled");
+		break;
+	case VECTOR_EXTINT:
+		printf("ExtINT");
+		break;
+	case VECTOR_NMI:
+		printf("NMI");
+		break;
+	case VECTOR_SMI:
+		printf("SMI");
+		break;
+	default:
+		printf("%s IRQ %u", ioapic_bus_string(intpin->io_bus),
+		    intpin->io_vector);
+	}
 }
 
 static void
@@ -298,10 +340,7 @@ ioapic_program_destination(struct ioapic_intsrc *intpin)
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
 		    intpin->io_intpin);
-		if (intpin->io_vector == VECTOR_EXTINT)
-			printf("ExtINT");
-		else
-			printf("IRQ %u", intpin->io_vector);
+		ioapic_print_vector(intpin);
 		printf(") to cluster %u\n", intpin->io_dest);
 	}
 	ioapic_program_intpin(intpin);
@@ -490,44 +529,36 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		intpin->io_vector = intbase + i;
 
 		/*
-		 * Assume that pin 0 on the first IO APIC is an ExtINT pin by
-		 * default.  Assume that intpins 1-15 are ISA interrupts and
-		 * use suitable defaults for those.  Assume that all other
-		 * intpins are PCI interrupts.  Enable the ExtINT pin if
-		 * mixed mode is available and active but mask all other pins.
+		 * Assume that pin 0 on the first I/O APIC is an ExtINT pin
+		 * and that pins 1-15 are ISA interrupts.  Assume that all
+		 * other pins are PCI interrupts.
 		 */
-		if (intpin->io_vector == 0) {
-			intpin->io_activehi = 1;
-			intpin->io_edgetrigger = 1;
-			intpin->io_vector = VECTOR_EXTINT;
-			if (mixed_mode_enabled && mixed_mode_active)
-				intpin->io_masked = 0;
-			else
-				intpin->io_masked = 1;
-		} else if (intpin->io_vector < IOAPIC_ISA_INTS) {
+		if (intpin->io_vector == 0)
+			ioapic_set_extint(io, i);
+		else if (intpin->io_vector < IOAPIC_ISA_INTS) {
+			intpin->io_bus = APIC_BUS_ISA;
 			intpin->io_activehi = 1;
 			intpin->io_edgetrigger = 1;
 			intpin->io_masked = 1;
 		} else {
+			intpin->io_bus = APIC_BUS_PCI;
 			intpin->io_activehi = 0;
 			intpin->io_edgetrigger = 0;
 			intpin->io_masked = 1;
 		}
 
 		/*
-		 * Start off without a logical cluster destination until
-		 * the pin is enabled.
+		 * Route interrupts to the BSP by default using physical
+		 * addressing.  Vectored interrupts get readdressed using
+		 * logical IDs to CPU clusters when they are enabled.
 		 */
 		intpin->io_dest = DEST_NONE;
-		if (bootverbose) {
+		if (bootverbose && intpin->io_vector != VECTOR_DISABLED) {
 			printf("ioapic%u: intpin %d -> ",  io->io_id, i);
-			if (intpin->io_vector == VECTOR_EXTINT)
-				printf("ExtINT");
-			else
-				printf("irq %u", intpin->io_vector);
-			printf(" (%s, active%s)\n", intpin->io_edgetrigger ?
-			    "edge" : "level", intpin->io_activehi ? "hi" :
-			    "lo");
+			ioapic_print_vector(intpin);
+			printf(" (%s, %s)\n", intpin->io_edgetrigger ?
+			    "edge" : "level", intpin->io_activehi ? "high" :
+			    "low");
 		}
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
@@ -582,6 +613,25 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 }
 
 int
+ioapic_set_bus(void *cookie, u_int pin, int bus_type)
+{
+	struct ioapic *io;
+
+	if (bus_type < 0 || bus_type > APIC_BUS_MAX)
+		return (EINVAL);
+	io = (struct ioapic *)cookie;
+	if (pin >= io->io_numintr)
+		return (EINVAL);
+	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
+		return (EINVAL);
+	io->io_pins[pin].io_bus = bus_type;
+	if (bootverbose)
+		printf("ioapic%u: intpin %d bus %s\n", io->io_id, pin,
+		    ioapic_bus_string(bus_type));
+	return (0);
+}
+
+int
 ioapic_set_nmi(void *cookie, u_int pin)
 {
 	struct ioapic *io;
@@ -589,8 +639,11 @@ ioapic_set_nmi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
+	if (io->io_pins[pin].io_vector == VECTOR_NMI)
+		return (0);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
+	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_vector = VECTOR_NMI;
 	io->io_pins[pin].io_masked = 0;
 	io->io_pins[pin].io_edgetrigger = 1;
@@ -609,8 +662,11 @@ ioapic_set_smi(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
+	if (io->io_pins[pin].io_vector == VECTOR_SMI)
+		return (0);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
+	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_vector = VECTOR_SMI;
 	io->io_pins[pin].io_masked = 0;
 	io->io_pins[pin].io_edgetrigger = 1;
@@ -629,10 +685,18 @@ ioapic_set_extint(void *cookie, u_int pin)
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
+	if (io->io_pins[pin].io_vector == VECTOR_EXTINT)
+		return (0);
 	if (io->io_pins[pin].io_vector >= NUM_IO_INTS)
 		return (EINVAL);
+	io->io_pins[pin].io_bus = APIC_BUS_UNKNOWN;
 	io->io_pins[pin].io_vector = VECTOR_EXTINT;
-	io->io_pins[pin].io_masked = 0;
+
+	/* Enable this pin if mixed mode is available and active. */
+	if (mixed_mode_enabled && mixed_mode_active)
+		io->io_pins[pin].io_masked = 0;
+	else
+		io->io_pins[pin].io_masked = 1;
 	io->io_pins[pin].io_edgetrigger = 1;
 	io->io_pins[pin].io_activehi = 1;
 	if (bootverbose)
