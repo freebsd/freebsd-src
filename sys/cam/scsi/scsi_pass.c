@@ -620,10 +620,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		else
 			ds_flags = DEVSTAT_NO_DATA;
 
-		devstat_end_transaction(&softc->device_stats, bp->b_bcount, 
-					done_ccb->csio.tag_action & 0xf, 
-					ds_flags);
-
+		devstat_end_transaction_buf(&softc->device_stats, bp);
 		biodone(bp);
 		break;
 	}
