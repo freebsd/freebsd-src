@@ -42,6 +42,7 @@
 .Nm rc
 .Nm rc.conf
 .Nm rc.conf.local
+.Nm rc.d
 .Nm rc.serial
 .Nm rc.pccard
 .Nm rc.network
@@ -66,6 +67,62 @@ contains the global system configuration information referenced
 by the rc files, while
 .Nm rc.conf.local
 contains the local system configuration.  See rc.conf(5)
+.Pp
+The
+.Nm rc.d
+directories contain scripts which will be automatically
+executed at boot time.
+The specified directories are processed immediately after
+.Nm rc.local
+is executed.
+(See below for details on how to specify directories to check.)
+The following key points apply to the scripts within each directory:
+.Pp
+.Bl -bullet -compact
+.It
+Scripts are only executed if their
+.Xr basename 1
+matches the shell globbing pattern
+.Pa *.sh ,
+and they are executable.
+Any other files or directories present within the directory are silently
+ignored.
+.It
+When a script is executed, it is passed the string
+.Dq start
+as its first and only argument.
+All
+.Nm rc.d
+scripts expected to handle this argument appropriately.
+.It
+The scripts within each directory are executed in lexicographical order.
+If a specific order is required,
+numbers may be used as a prefix to the existing filenames,
+so for example
+.Pa 100.foo
+would be executed before
+.Pa 200.bar ;
+without the numeric prefixes the opposite would be true.
+.El
+.Pp
+The output from each script is traditionally a space character,
+followed by the name of the software package being started,
+.Em without
+a trailing newline character (see the
+.Sx EXAMPLES
+section).
+.Pp
+The system initialization scripts can execute scripts from multiple
+.Nm rc.d
+directories.
+The default locations are
+.Pa /usr/local/etc/rc.d
+and
+.Pa /usr/X11R6/etc/rc.d ,
+but these may be overridden with the
+.Va local_startup
+.Xr rc.conf 5
+variable.
 .Pp
 .Nm Rc.shutdown
 is the command script which contains any necessary commands
@@ -155,6 +212,25 @@ by the administrator.
 .Pp
 Following tradition, the startup files reside in
 .Pa /etc .
+.Sh EXAMPLES
+The following is a simple, hypothetical example of an
+.Nm rc.d
+script,
+which would start a daemon at boot time.
+.Bd -literal -offset indent
+#!/bin/sh -
+#
+#    initialization/shutdown script for foobar package
+
+case "$1" in
+start)
+	/usr/local/sbin/foo -d && echo -n ' foo'
+	;;
+*)
+	echo "unknown option: $1 - should be 'start'" >&2
+	;;
+esac
+.Ed
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
 .Xr init 8 ,
