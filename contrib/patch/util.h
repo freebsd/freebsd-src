@@ -1,6 +1,6 @@
 /* utility functions for `patch' */
 
-/* $Id: util.h,v 1.14 1997/06/13 06:28:37 eggert Exp $ */
+/* $Id: util.h,v 1.15 1997/07/16 12:26:36 eggert Exp $ */
 
 int ok_to_reverse PARAMS ((char const *, ...)) __attribute__ ((format (printf, 1, 2)));
 void ask PARAMS ((char const *, ...)) __attribute__ ((format (printf, 1, 2)));
@@ -23,10 +23,10 @@ void copy_file PARAMS ((char const *, char const *, mode_t));
 void exit_with_signal PARAMS ((int)) __attribute__ ((noreturn));
 void ignore_signals PARAMS ((void));
 void init_time PARAMS ((void));
-void memory_fatal PARAMS ((void));
+void memory_fatal PARAMS ((void)) __attribute__ ((noreturn));
 void move_file PARAMS ((char const *, char *, mode_t, int));
-void read_fatal PARAMS ((void));
+void read_fatal PARAMS ((void)) __attribute__ ((noreturn));
 void remove_prefix PARAMS ((char *, size_t));
 void removedirs PARAMS ((char *));
 void set_signals PARAMS ((int));
-void write_fatal PARAMS ((void));
+void write_fatal PARAMS ((void)) __attribute__ ((noreturn));
