@@ -1,7 +1,7 @@
 /* install-info -- create Info directory entry(ies) for an Info file.
    Copyright (C) 1996 Free Software Foundation, Inc.
 
-$Id: install-info.c,v 1.12 1996/10/03 23:13:36 karl Exp $
+$Id: install-info.c,v 1.1.1.1 1997/01/11 02:12:38 jmacd Exp $
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ char *progname;
 
 char *readfile ();
 struct line_data *findlines ();
-char *my_strerror ();
 void fatal ();
 void insert_entry_here ();
 int compare_section_names ();
@@ -224,7 +223,7 @@ void
 pfatal_with_name (name)
      char *name;
 {
-  char *s = concat ("", my_strerror (errno), " for %s");
+  char *s = concat ("", strerror (errno), " for %s");
   fatal (s, name);
 }
 
@@ -334,21 +333,6 @@ Email bug reports to bug-texinfo@prep.ai.mit.edu.\n\
 ", progname);
 }
 
-/* Convert an errno value into a string describing the error.
-   We define this function here rather than using strerror
-   because not all systems have strerror.  */
-
-char *
-my_strerror (errnum)
-     int errnum;
-{
-  extern char *sys_errlist[];
-  extern int sys_nerr;
-
-  if (errnum >= 0 && errnum < sys_nerr)
-    return sys_errlist[errnum];
-  return (char *) "Unknown error";
-}
 
 /* This table defines all the long-named options, says whether they
    use an argument, and maps them into equivalent single-letter options.  */
@@ -356,6 +340,8 @@ my_strerror (errnum)
 struct option longopts[] =
 {
   { "delete",                   no_argument, NULL, 'r' },
+  { "defentry",                 required_argument, NULL, 'E' },
+  { "defsection",               required_argument, NULL, 'S' },
   { "dir-file",                 required_argument, NULL, 'd' },
   { "entry",                    required_argument, NULL, 'e' },
   { "help",                     no_argument, NULL, 'h' },
@@ -408,6 +394,10 @@ main (argc, argv)
   int prefix_length;
   int i;
 
+  /* Nonzero means only use if not present in info file. */
+  int entry_default = 0;
+  int section_default = 0;
+
   progname = argv[0];
 
   while (1)
@@ -447,6 +437,10 @@ main (argc, argv)
           dirfile = concat (optarg, "", "/dir");
           break;
 
+	case 'E':
+	  entry_default = 1;
+	  if (!optarg[0])
+	    break;
         case 'e':
           {
             struct spec_entry *next
@@ -483,6 +477,10 @@ main (argc, argv)
           delete_flag = 1;
           break;
 
+	case 'S':
+	  section_default = 1;
+	  if (!optarg[0])
+	    break;
         case 's':
           {
             struct spec_section *next
@@ -530,7 +528,7 @@ For more information about these matters, see the files named COPYING.");
 
   /* Parse the input file to find the section names it specifies.  */
 
-  if (input_sections == 0)
+  if (input_sections == 0 || section_default)
     {
       prefix_length = strlen ("INFO-DIR-SECTION ");
       for (i = 0; i < input_nlines; i++)
@@ -540,6 +538,13 @@ For more information about these matters, see the files named COPYING.");
             {
               struct spec_section *next
                 = (struct spec_section *) xmalloc (sizeof (struct spec_section));
+
+	      if (section_default)
+		{
+		  input_sections = NULL; /* This leaks. */
+		  section_default = 0;
+		}
+
               next->name = copy_string (input_lines[i].start + prefix_length,
                                         input_lines[i].size - prefix_length);
               next->next = input_sections;
@@ -563,7 +568,7 @@ For more information about these matters, see the files named COPYING.");
      and put them on entries_to_add.  But not if entries
      were specified explicitly with command options.  */
 
-  if (entries_to_add == 0)
+  if (entries_to_add == 0 || entry_default)
     {
       char *start_of_this_entry = 0;
       for (i = 0; i < input_nlines; i++)
@@ -584,6 +589,13 @@ For more information about these matters, see the files named COPYING.");
                 {
                   struct spec_entry *next
                     = (struct spec_entry *) xmalloc (sizeof (struct spec_entry));
+
+		  if (entry_default)
+		    {
+		      entries_to_add = NULL;
+		      entry_default = 0;
+		    }
+
                   next->text = copy_string (start_of_this_entry,
                                             input_lines[i].start - start_of_this_entry);
                   next->next = entries_to_add;
@@ -618,7 +630,7 @@ For more information about these matters, see the files named COPYING.");
       infile_basename++;
     else
       infile_basename = infile;
-    
+
     basename_len = strlen (infile_basename);
     infile_sans_info
       = (strlen (infile_basename) > 5
@@ -628,7 +640,7 @@ For more information about these matters, see the files named COPYING.");
 
     infilelen_sans_info = strlen (infile_sans_info);
   }
-  
+
   /* Parse the dir file.  Find all the nodes, and their menus,
      and the sections of their menus.  */
 
@@ -1017,7 +1029,7 @@ menu_line_lessp (line1, len1, line2, len2)
 {
   int minlen = (len1 < len2 ? len1 : len2);
   int i;
-  
+
   for (i = 0; i < minlen; i++)
     {
       /* If one item name is a prefix of the other,
@@ -1050,7 +1062,7 @@ menu_line_equal (line1, len1, line2, len2)
 {
   int minlen = (len1 < len2 ? len1 : len2);
   int i;
-  
+
   for (i = 0; i < minlen; i++)
     {
       /* If both item names end here, they are equal.  */
