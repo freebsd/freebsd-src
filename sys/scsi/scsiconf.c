@@ -1337,6 +1337,7 @@ scsi_probedev(sc_link, maybe_more, type_p)
 		make_readable(manu, "unknown", sizeof(manu));
 		make_readable(model, "unknown", sizeof(model));
 		make_readable(version, "????", sizeof(version));
+		type = T_UNKNOWN;
 	}
 
 #ifdef SCSIDEBUG
