@@ -1641,6 +1641,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	int b;
 	int i;
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	/*
 	 * Scan the valid bits looking for invalid sections that
 	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
