@@ -302,6 +302,15 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	} else
 		d->rec = NULL;
 
+	sysctl_ctx_init(&d->sysctl_tree);
+	d->sysctl_tree_top = SYSCTL_ADD_NODE(&d->sysctl_tree,
+				 &sysctl__hw_snd_children, OID_AUTO,
+				 device_get_nameunit(dev), CTLFLAG_RD, 0, "");
+	if (!d->sysctl_tree_top) {
+		sysctl_ctx_free(&d->sysctl_tree);
+		goto no;
+	}
+
 	if (numplay == 0 || numrec == 0)
 		d->flags |= SD_F_SIMPLEX;
 
@@ -325,6 +334,10 @@ pcm_unregister(device_t dev)
     	int r, i, unit = device_get_unit(dev);
     	snddev_info *d = device_get_softc(dev);
 	dev_t pdev;
+
+	sysctl_remove_oid(d->sysctl_tree_top, 1, 1);
+	d->sysctl_tree_top = NULL;
+	sysctl_ctx_free(&d->sysctl_tree);
 
 	r = 0;
 	for (i = 0; i < d->chancount; i++)
