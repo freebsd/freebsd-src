@@ -251,7 +251,7 @@ slmarkstatic(unit)
 
 	if (st_unit_list) {
 		bcopy(st_unit_list, t, sizeof(int) * st_unit_max);
-		FREE(st_unit_list, M_SL);
+		free(st_unit_list, M_SL);
 	}
 	st_unit_list = t;
 	st_unit_list[st_unit_max] = unit;
@@ -278,7 +278,7 @@ slcreate()
 
 	if (m == NULL) {
 		printf("sl: can't allocate buffer\n");
-		FREE(sc, M_SL);
+		free(sc, M_SL);
 		return (NULL);
 	}
 
@@ -388,8 +388,8 @@ sldestroy(struct sl_softc *sc)
 	m_free(sc->sc_mbuf);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
 	if (sc->bpfbuf)
-		FREE(sc->bpfbuf, M_SL);
-	FREE(sc, M_SL);
+		free(sc->bpfbuf, M_SL);
+	free(sc, M_SL);
 }
 
 /*

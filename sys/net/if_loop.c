@@ -138,7 +138,7 @@ lo_clone_destroy(ifp)
 	bpfdetach(ifp);
 	if_detach(ifp);
 	LIST_REMOVE(sc, sc_next);
-	FREE(sc, M_LO);
+	free(sc, M_LO);
 	return (0);
 }
 
