@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.342 1998/02/18 20:01:41 eivind Exp $
+#	$Id: Makefile,v 1.343 1998/03/06 06:47:09 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -411,7 +411,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero |
+		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
