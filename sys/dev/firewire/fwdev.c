@@ -52,6 +52,7 @@
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
+#include <dev/firewire/iec68113.h>
 
 #define CDEV_MAJOR 127
 #define	FWNODE_INVAL 0xffff
@@ -161,7 +162,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		free(sc->fc->ir[sub]->bulkxfer, M_DEVBUF);
 		sc->fc->ir[sub]->bulkxfer = NULL;
 		sc->fc->ir[sub]->flag &= ~FWXFERQ_EXTBUF;
-		sc->fc->ir[sub]->psize = FWPMAX_S400;
+		sc->fc->ir[sub]->psize = PAGE_SIZE;
 		sc->fc->ir[sub]->maxq = FWMAXQUEUE;
 	}
 	if(sc->fc->it[sub]->flag & FWXFERQ_EXTBUF){
@@ -171,7 +172,7 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->bulkxfer = NULL;
 		sc->fc->it[sub]->dvbuf = NULL;
 		sc->fc->it[sub]->flag &= ~FWXFERQ_EXTBUF;
-		sc->fc->it[sub]->psize = FWPMAX_S400;
+		sc->fc->it[sub]->psize = 0;
 		sc->fc->it[sub]->maxq = FWMAXQUEUE;
 	}
 	for(xfer = STAILQ_FIRST(&sc->fc->ir[sub]->q);
@@ -568,14 +569,18 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			err = ENOMEM;
 			break;
 		}
-#define FWDVPACKET 250	/* NTSC (300 for PAL) */
+#if DV_PAL
+#define FWDVPACKET 300
+#else
+#define FWDVPACKET 250
+#endif
 #define FWDVPMAX 512
 		ibufreq->rx.nchunk = 8;
 		ibufreq->rx.npacket = 50;
 		ibufreq->rx.psize = FWDVPMAX;
 
 		ibufreq->tx.nchunk = 5;
-		ibufreq->tx.npacket = 300;
+		ibufreq->tx.npacket = FWDVPACKET + 30;	/* > 320 or 267 */
 		ibufreq->tx.psize = FWDVPMAX;
 
 		err = fw_ioctl(dev, FW_SSTBUF, (caddr_t)ibufreq, flag, td);
@@ -588,13 +593,13 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		sc->fc->it[sub]->flag |= FWXFERQ_DV;
 		/* XXX check malloc failure */
 		sc->fc->it[sub]->dvbuf
-			= (struct fw_dvbuf *)malloc(sizeof(struct fw_dvbuf) * NDVCHUNK, M_DEVBUF, M_DONTWAIT);
+			= (struct fw_dvbuf *)malloc(sizeof(struct fw_dvbuf) * NDVCHUNK, M_DEVBUF, M_NOWAIT);
 		STAILQ_INIT(&sc->fc->it[sub]->dvvalid);
 		STAILQ_INIT(&sc->fc->it[sub]->dvfree);
 		for( i = 0 ; i < NDVCHUNK ; i++){
 			/* XXX check malloc failure */
 			sc->fc->it[sub]->dvbuf[i].buf
-				= malloc(FWDVPMAX * sc->fc->it[sub]->dvpacket, M_DEVBUF, M_DONTWAIT);
+				= malloc(FWDVPMAX * sc->fc->it[sub]->dvpacket, M_DEVBUF, M_NOWAIT);
 			STAILQ_INSERT_TAIL(&sc->fc->it[sub]->dvfree,
 					&sc->fc->it[sub]->dvbuf[i], link);
 		}
@@ -620,19 +625,21 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			return(EINVAL);
 		}
 		ir->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_DEVBUF, M_DONTWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->rx.nchunk, M_DEVBUF, M_NOWAIT);
 		if(ir->bulkxfer == NULL){
 			return(ENOMEM);
 		}
 		it->bulkxfer
-			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_DEVBUF, M_DONTWAIT);
+			= (struct fw_bulkxfer *)malloc(sizeof(struct fw_bulkxfer) * ibufreq->tx.nchunk, M_DEVBUF, M_NOWAIT);
 		if(it->bulkxfer == NULL){
 			return(ENOMEM);
 		}
 		ir->buf = malloc(
 			ibufreq->rx.nchunk * ibufreq->rx.npacket
+			/* XXX psize must be 2^n and less or
+						equal to PAGE_SIZE */
 			* ((ibufreq->rx.psize + 3) &~3),
-			M_DEVBUF, M_DONTWAIT);
+			M_DEVBUF, M_NOWAIT);
 		if(ir->buf == NULL){
 			free(ir->bulkxfer, M_DEVBUF);
 			free(it->bulkxfer, M_DEVBUF);
@@ -643,8 +650,10 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		}
 		it->buf = malloc(
 			ibufreq->tx.nchunk * ibufreq->tx.npacket
+			/* XXX psize must be 2^n and less or
+						equal to PAGE_SIZE */
 			* ((ibufreq->tx.psize + 3) &~3),
-			M_DEVBUF, M_DONTWAIT);
+			M_DEVBUF, M_NOWAIT);
 		if(it->buf == NULL){
 			free(ir->bulkxfer, M_DEVBUF);
 			free(it->bulkxfer, M_DEVBUF);
@@ -799,7 +808,7 @@ error:
 			err = EINVAL;
 			break;
 		}
-		fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_DEVBUF, M_DONTWAIT);
+		fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_DEVBUF, M_NOWAIT);
 		if(fwb == NULL){
 			err = ENOMEM;
 			break;

@@ -466,7 +466,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 		xfer->act.hand = fwe_output_callback;
 
 		/* keep ip packet alignment for alpha */
-		M_PREPEND(m, ALIGN_PAD, M_DONTWAIT);
+		M_PREPEND(m, ALIGN_PAD, M_NOWAIT);
 		fp = (struct fw_pkt *)&xfer->dst; /* XXX */
 		xfer->dst = *((int32_t *)&fwe->pkt_hdr);
 		fp->mode.stream.len = htons(m->m_pkthdr.len);
@@ -544,7 +544,7 @@ fwe_as_input(struct fw_xferq *xferq)
 	while ((xfer = STAILQ_FIRST(&xferq->q)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->q, link);
 		xferq->queued --;
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			printf("MGETHDR failed\n");
 			fw_xfer_free(xfer);
