@@ -40,6 +40,7 @@
 .Nm SLIST_ENTRY ,
 .Nm SLIST_FIRST ,
 .Nm SLIST_FOREACH ,
+.Nm SLIST_FOREACH_SAFE ,
 .Nm SLIST_HEAD ,
 .Nm SLIST_HEAD_INITIALIZER ,
 .Nm SLIST_INIT ,
@@ -53,6 +54,7 @@
 .Nm STAILQ_ENTRY ,
 .Nm STAILQ_FIRST ,
 .Nm STAILQ_FOREACH ,
+.Nm STAILQ_FOREACH_SAFE ,
 .Nm STAILQ_HEAD ,
 .Nm STAILQ_HEAD_INITIALIZER ,
 .Nm STAILQ_INIT ,
@@ -81,7 +83,9 @@
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_FIRST ,
 .Nm TAILQ_FOREACH ,
+.Nm TAILQ_FOREACH_SAFE ,
 .Nm TAILQ_FOREACH_REVERSE ,
+.Nm TAILQ_FOREACH_REVERSE_SAFE ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_HEAD_INITIALIZER ,
 .Nm TAILQ_INIT ,
@@ -102,6 +106,7 @@ lists and tail queues
 .Fn SLIST_ENTRY "TYPE"
 .Fn SLIST_FIRST "SLIST_HEAD *head"
 .Fn SLIST_FOREACH "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME"
+.Fn SLIST_FOREACH_SAFE "TYPE *var" "SLIST_HEAD *head" "SLIST_ENTRY NAME" "TYPE *temp_var"
 .Fn SLIST_HEAD "HEADNAME" "TYPE"
 .Fn SLIST_HEAD_INITIALIZER "SLIST_HEAD head"
 .Fn SLIST_INIT "SLIST_HEAD *head"
@@ -116,6 +121,7 @@ lists and tail queues
 .Fn STAILQ_ENTRY "TYPE"
 .Fn STAILQ_FIRST "STAILQ_HEAD *head"
 .Fn STAILQ_FOREACH "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_FOREACH_SAFE "TYPE *var" "STAILQ_HEAD *head" "STAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn STAILQ_HEAD "HEADNAME" "TYPE"
 .Fn STAILQ_HEAD_INITIALIZER "STAILQ_HEAD head"
 .Fn STAILQ_INIT "STAILQ_HEAD *head"
@@ -146,7 +152,9 @@ lists and tail queues
 .Fn TAILQ_ENTRY "TYPE"
 .Fn TAILQ_FIRST "TAILQ_HEAD *head"
 .Fn TAILQ_FOREACH "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_SAFE "TYPE *var" "TAILQ_HEAD *head" "TAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn TAILQ_FOREACH_REVERSE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME"
+.Fn TAILQ_FOREACH_REVERSE_SAFE "TYPE *var" "TAILQ_HEAD *head" "HEADNAME" "TAILQ_ENTRY NAME" "TYPE *temp_var"
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_HEAD_INITIALIZER "TAILQ_HEAD head"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
@@ -326,6 +334,20 @@ turn to
 .Fa var .
 .Pp
 The macro
+.Nm SLIST_FOREACH_SAFE
+traverses the list referenced by
+.Fa head
+in the forward direction, assigning each element in
+turn to
+.Fa var .
+However, unlike
+.Fn SLIST_FOREACH
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+The macro
 .Nm SLIST_INIT
 initializes the list referenced by
 .Fa head .
@@ -391,6 +413,13 @@ free(n3);
 					/* Forward traversal. */
 SLIST_FOREACH(np, &head, entries)
 	np-> ...
+					/* Safe forward traversal. */
+SLIST_FOREACH_SAFE(np, &head, entries, np_temp) {
+	np->do_stuff();
+	...
+	SLIST_REMOVE(&head, np, entry, entries);
+	free(np);
+}
 
 while (!SLIST_EMPTY(&head)) {		/* List Deletion. */
 	n1 = SLIST_FIRST(&head);
@@ -467,6 +496,20 @@ traverses the tail queue referenced by
 in the forward direction, assigning each element
 in turn to
 .Fa var .
+.Pp
+The macro
+.Nm STAILQ_FOREACH_SAFE
+traverses the tail queue referenced by
+.Fa head
+in the forward direction, assigning each element
+in turn to
+.Fa var .
+However, unlike
+.Fn STAILQ_FOREACH
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
 .Pp
 The macro
 .Nm STAILQ_INIT
@@ -546,6 +589,13 @@ free(n3);
 					/* Forward traversal. */
 STAILQ_FOREACH(np, &head, entries)
 	np-> ...
+					/* Safe forward traversal. */
+STAILQ_FOREACH_SAFE(np, &head, entries, np_temp) {
+	np->do_stuff();
+	...
+	STAILQ_REMOVE(&head, np, entry, entries);
+	free(np);
+}
 					/* TailQ Deletion. */
 while (!STAILQ_EMPTY(&head)) {
 	n1 = STAILQ_FIRST(&head);
@@ -797,6 +847,24 @@ traverses the tail queue referenced by
 in the reverse direction, assigning each element in turn to
 .Fa var .
 .Pp
+The macros
+.Nm TAILQ_FOREACH_SAFE
+and
+.Nm TAILQ_FOREACH_REVERSE_SAFE
+traverse the list referenced by
+.Fa head
+in the forward or reverse direction respectively,
+assigning each element in turn to
+.Fa var .
+However, unlike their unsafe conterparts,
+.Nm TAILQ_FOREACH
+and
+.Nm TAILQ_FOREACH_REVERSE 
+permit to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
 The macro
 .Nm TAILQ_INIT
 initializes the tail queue referenced by
@@ -877,6 +945,13 @@ free(n2);
 					/* Forward traversal. */
 TAILQ_FOREACH(np, &head, entries)
 	np-> ...
+					/* Safe forward traversal. */
+TAILQ_FOREACH_SAFE(np, &head, entries, np_temp) {
+	np->do_stuff();
+	...
+	TAILQ_REMOVE(&head, np, entries);
+	free(np);
+}
 					/* Reverse traversal. */
 TAILQ_FOREACH_REVERSE(np, &head, tailhead, entries)
 	np-> ...
@@ -893,6 +968,7 @@ while (n1 != NULL) {
 	free(n1);
 	n1 = n2;
 }
+
 TAILQ_INIT(&head);
 .Ed
 .Sh HISTORY
