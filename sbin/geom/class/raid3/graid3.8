@@ -66,16 +66,12 @@
 .Ar name ...
 .Nm
 .Cm list
-.Op Ar name ...
 .Nm
 .Cm status
-.Op Ar name ...
 .Nm
 .Cm load
-.Op Fl v
 .Nm
 .Cm unload
-.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -177,19 +173,17 @@ Additional options include:
 Stop the given array even if it is opened.
 .El
 .It Cm list
-Print detailed information about every currently configured device; if a list of
-devices is passed as a parameter then only those devices will be shown.
+See
+.Xr geom 8 .
 .It Cm status
-Print general information about every currently configured device; if a list of
-devices is passed as a parameter then only those devices will be shown.
+See
+.Xr geom 8 .
 .It Cm load
-Load
-.Pa geom_raid3.ko
-kernel module.
+See
+.Xr geom 8 .
 .It Cm unload
-Unload
-.Pa geom_raid3.ko
-kernel module.
+See
+.Xr geom 8 .
 .El
 .Pp
 Additional options include:

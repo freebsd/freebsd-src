@@ -50,16 +50,12 @@
 .Ar prov ...
 .Nm
 .Cm list
-.Op Ar prov ...
 .Nm
 .Cm status
-.Op Ar prov ...
 .Nm
 .Cm load
-.Op Fl v
 .Nm
 .Cm unload
-.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
@@ -89,19 +85,17 @@ will be loaded if it is not loaded already.
 .It Cm destroy
 Turn off the given transparent providers.
 .It Cm list
-Print detailed information about every currently configured device; if a list of
-providers is passed as a parameter then only those devices will be shown.
+See
+.Xr geom 8 .
 .It Cm status
-Print general information about every currently configured device; if a list of
-providers is passed as a parameter then only those devices will be shown.
+See
+.Xr geom 8 .
 .It Cm load
-Load
-.Pa geom_nop.ko
-kernel module.
+See
+.Xr geom 8 .
 .It Cm unload
-Unload
-.Pa geom_nop.ko
-kernel module.
+See
+.Xr geom 8 .
 .El
 .Pp
 Additional options:
