@@ -1,0 +1,116 @@
+.\" Copyright (c) 2003 Poul-Henning Kamp
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 8, 2003
+.Dt LIBGEOM 3
+.Os
+.Sh NAME
+.Nm geom_stats_open ,
+.Nm geom_stats_close ,
+.Nm geom_stats_resync ,
+.Nm geom_stats_snapshot_get ,
+.Nm geom_stats_snapshot_free ,
+.Nm geom_stats_snapshot_timestamp ,
+.Nm geom_stats_snapshot_reset ,
+.Nm geom_stats_snapshot_next
+.Sh LIBRARY
+.Lb geom
+.Sh SYNOPSIS
+.In libgeom.h
+.Ss "Statistics functions"
+.Ft void
+.Fn geom_stats_close void
+.Ft int
+.Fn geom_stats_open void
+.Ft void
+.Fn geom_stats_resync void
+.Ft void *
+.Fn geom_stats_snapshot_get void
+.Ft void
+.Fn geom_stats_snapshot_free "void *arg"
+.Ft void
+.Fn geom_stats_snapshot_timestamp "void *arg" "struct timespec *tp"
+.Ft void
+.Fn geom_stats_snapshot_reset "void *arg"
+.Ft struct g_stat *
+.Fn geom_stats_snapshot_next "void *arg"
+.Sh DESCRIPTION
+.Nm Libgeom
+is the library which contains the official and publicized API for
+interacting with the GEOM subsystem in the kernel.
+.Ss "Statistics functions"
+GEOM collects statistics data for all consumers and providers, but does
+not perform any normalization or presentation on the raw data, this is
+left as an excercize for user-land presentation utilities.
+.Pp
+The
+.Nm geom_stats_open
+and 
+.Nm geom_stats_close
+functions opens and closes the necessary pathways to access the raw 
+statistics information in the kernel.  These functions are likely to
+open one or more files and cache the filedescriptors locally.
+.Nm geom_stats_open
+returns zero on success, and sets errno if not.
+.Pp
+The
+.Nm geom_stats_resync
+function will check if more statistics collection points have been
+added in the kernel since
+.Nm geom_stats_open
+or the previous call to
+.Nm geom_stats_resync .
+.Pp
+.Nm geom_stats_snapshot_get
+will aquire a snapshot of the raw data from the kernel and while a
+reasonable effort is made to make this snapshot as atomic and consistent
+as possible, no guarantee is given that it will actually be so.
+The snapshot must be freed again using the
+.Nm geom_stats_snapshot_free
+function.
+.Nm geom_stats_snapshot_get
+returns NULL on failure.
+.Pp
+.Nm geom_stats_snapshot_timestamp
+provides access to the timestamp aquired in the snapshot.
+.Pp
+.Nm geom_stats_snapshot_reset
+and
+.Nm geom_stats_snapshot_next
+provides an iterator over the statistics slots in the snapshot.
+.Nm geom_stats_snapshot_reset
+forces the internal pointer in the snapshot back to before the first item.
+.Nm geom_stats_snapshot_next
+returns the next item and NULL if there are no more items in the snapshot.
+.Sh AUTHORS
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
+.Sh HISTORY
+.Nm geom
+library appeard in
+.Fx 5.1 .
