@@ -43,11 +43,11 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm sed
-.Op Fl an
+.Op Fl Ean
 .Ar command
 .Op Ar file ...
 .Nm sed
-.Op Fl an
+.Op Fl Ean
 .Op Fl e Ar command
 .Op Fl f Ar command_file
 .Op Ar file ...
@@ -70,6 +70,12 @@ regardless of their origin.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl E
+Interpret regular expressions as extended (modern) regular expressions
+rather than basic regular expressions (BRE's).
+The
+.Xr re_format 7
+manual page fully describes both formats.
 .It Fl a
 The files listed as parameters for the
 .Dq w
@@ -160,14 +166,18 @@ of the exclamation character
 .Pc
 function.
 .Sh "Sed Regular Expressions"
-The
-.Nm
-regular expressions are basic regular expressions (BRE's, see
-.Xr regex 3
+The regular expressions used in
+.Nm sed ,
+by default, are basic regular expressions (BREs, see
+.Xr re_format 7
 for more information).
+.Nm
+can use extended (modern) regular expressions instead if the
+.Fl E
+flag is given.
 In addition,
 .Nm
-has the following two additions to BRE's:
+has the following two additions to regular expressions:
 .sp
 .Bl -enum -compact
 .It
