@@ -120,7 +120,8 @@ label:
 					"%02d", pt, ptlim);
 				continue;
 			case 'c':
-				pt = _fmt(Locale->c_fmt, t, pt, ptlim);
+				/* NOTE: c_fmt is intentionally ignored */
+				pt = _fmt("%a %Ef %T %Y", t, pt, ptlim);
 				continue;
 			case 'D':
 				pt = _fmt("%m/%d/%y", t, pt, ptlim);
