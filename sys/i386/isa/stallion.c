@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.19 1998/04/15 17:45:50 bde Exp $
+ * $Id: stallion.c,v 1.20 1998/06/07 17:11:00 dfr Exp $
  */
 
 /*****************************************************************************/
@@ -534,11 +534,13 @@ DATA_SET (pcidevice_set, stlpcidriver);
  */
 
 #define	CDEV_MAJOR	72
-
-static struct cdevsw stl_cdevsw = 
-	{ stlopen,	stlclose,	stlread,	stlwrite,
-	  stlioctl,	stlstop,	noreset,	stldevtotty,
-	  ttpoll,	nommap,		NULL,	"stl",	NULL,	-1 };
+static	struct cdevsw	stl_cdevsw = {
+	stlopen,	stlclose,	stlread,	stlwrite,
+	stlioctl,	stlstop,	noreset,	stldevtotty,
+	ttpoll,		nommap,		NULL,		"stl",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static stl_devsw_installed = 0;
 
@@ -799,7 +801,6 @@ stlopen_restart:
 		tp->t_termios = callout ? portp->initouttios :
 			portp->initintios;
 		stl_rawopen(portp);
-		ttsetwater(tp);
 		if ((portp->sigs & TIOCM_CD) || callout)
 			(*linesw[tp->t_line].l_modem)(tp, 1);
 	} else {

@@ -88,13 +88,15 @@ static	d_ioctl_t	cxioctl;
 static	d_stop_t	cxstop;
 static	d_devtotty_t	cxdevtotty;
 
-# define CDEV_MAJOR 42
-
-/* Don't make this static.  if_cx.c  uses it. */
-struct cdevsw cx_cdevsw = 
-	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
-	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
-	  ttpoll,	nommap,		NULL,	"cx",	NULL,	-1 };
+#define	CDEV_MAJOR	42
+/* Don't make this static, since if_cx.c uses it. */
+struct cdevsw	cx_cdevsw = {
+	cxopen,		cxclose,	cxread,		cxwrite,
+	cxioctl,	cxstop,		nullreset,	cxdevtotty,
+	ttpoll,		nommap,		NULL,		"cx",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
 #endif
