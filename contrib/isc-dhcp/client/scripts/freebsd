@@ -108,9 +108,9 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
      [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
     ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium
-    $LOGGER "New IP Address($interface): $new_ip_address"
+    $LOGGER "New IP Address ($interface): $new_ip_address"
     $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
-    $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
+    $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
     if [ -n "$new_routers" ]; then
       $LOGGER "New Routers: $new_routers"
     fi
@@ -169,9 +169,9 @@ if [ x$reason = xTIMEOUT ]; then
   fi
   ifconfig $interface inet $new_ip_address $new_netmask_arg \
 					$new_broadcast_arg $medium
-  $LOGGER "New IP Address($interface): $new_ip_address"
-  $LOGGER "New Subnet Mask($interface): $new_subnet_mask"
-  $LOGGER "New Broadcast Address($interface): $new_broadcast_address"
+  $LOGGER "New IP Address ($interface): $new_ip_address"
+  $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+  $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
   sleep 1
   if [ -n "$new_routers" ]; then
     $LOGGER "New Routers: $new_routers"
