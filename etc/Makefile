@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.130 1996/01/10 21:22:28 ache Exp $
+#	$Id: Makefile,v 1.131 1996/02/09 12:21:30 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -7,8 +7,8 @@ BINOWN= root
 BINGRP= wheel
 BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf login.access motd modems netstart \
-	networks phones pccard.conf printcap profile protocols \
+	inetd.conf login.access motd modems netstart networks \
+	newsyslog.conf phones pccard.conf printcap profile protocols \
 	rc rc.local rc.serial etc.${MACHINE}/rc.${MACHINE} \
 	remote security services sysconfig shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
