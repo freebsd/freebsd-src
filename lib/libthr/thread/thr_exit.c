@@ -42,6 +42,9 @@
 
 __weak_reference(_pthread_exit, pthread_exit);
 
+/* thr_exit() */
+extern int _thr_exit(void);
+
 void
 _thread_exit(char *fname, int lineno, char *string)
 {
