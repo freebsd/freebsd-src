@@ -1,3 +1,4 @@
+#	$Id$
 
 PROG	=	isdnd
 
@@ -17,11 +18,10 @@ COPTS	+=	-DUSE_RTPRIO
 MAN8	 =	isdnd.8
 MAN5	 =	isdnd.rc.5 isdnd.rates.5 isdnd.acct.5
 
-.include <bsd.prog.mk>
-
 .if !defined(I4B_WITHOUT_CURSES)
 COPTS	+=	-DUSE_CURSES
-LDADD   +=      -lcurses
+DPADD	 =	${LIBCURSES} ${LIBTERMCAP}
+LDADD	 =	-lcurses -ltermcap
 .endif
 
 .if defined(I4B_EXTERNAL_MONITOR)
@@ -30,3 +30,5 @@ COPTS	+=	-DI4B_EXTERNAL_MONITOR
 COPTS	+=	-DI4B_NOTCPIP_MONITOR
 .endif
 .endif
+
+.include <bsd.prog.mk>
