@@ -40,8 +40,21 @@
 
 #define SEGS_PER_CHAN	(NSEGS/2)
 
+#define TIMEOUT	50
+#define	VIA_BUFFSIZE	0x4000
+
 #undef DEB
 #define DEB(x)
+
+/* we rely on this struct being packed to 64 bits */
+struct via_dma_op {
+        u_int32_t ptr;
+        u_int32_t flags;
+#define VIA_DMAOP_EOL         0x80000000
+#define VIA_DMAOP_FLAG        0x40000000
+#define VIA_DMAOP_STOP        0x20000000
+#define VIA_DMAOP_COUNT(x)    ((x)&0x00FFFFFF)
+};
 
 struct via_info;
 
