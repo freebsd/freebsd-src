@@ -416,4 +416,5 @@ netsmb/smb_smb.c		optional	netsmb
 netsmb/smb_subr.c		optional	netsmb
 netsmb/smb_trantcp.c		optional	netsmb
 netsmb/smb_usr.c		optional	netsmb
+pccard/mecia.c			optional	mecia isa card
 #pci/ide_pci.c			optional	wd
