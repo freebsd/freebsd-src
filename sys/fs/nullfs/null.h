@@ -38,10 +38,6 @@
  * $FreeBSD$
  */
 
-struct null_args {
-	char		*target;	/* Target of loopback  */
-};
-
 struct null_mount {
 	struct mount	*nullm_vfs;
 	struct vnode	*nullm_rootvp;	/* Reference to root null_node */
