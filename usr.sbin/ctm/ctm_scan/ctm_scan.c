@@ -20,6 +20,7 @@
 #include <md5.h>
 
 int barf[256];
+int CheckMode = 0;
 
 int 
 pstrcmp(const void *pp, const void *qq)
@@ -93,22 +94,34 @@ Do(char *path)
 		    continue;
 		}
 		MD5Init(&ctx);
-		l = j = 0;
+		l = 1;
+		j = 0;
 		while(0 < (i = read(fd,data,sizeof data))) {
 		    l = (data[i-1] == '\n');
-		    MD5Update(&ctx,data,i);
+		    if(!CheckMode)
+			MD5Update(&ctx,data,i);
 		    for(q=data;i && !j;i--)
 			if(barf[*q++])
 			    j=1;
 		}
-		if(!l)
-		    j=1;
 		close(fd);
-		i = printf("f %s %o %d %d %d %d %s\n",
-		    buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid,
-		    j,st.st_size,MD5End(&ctx));
-		if(!i) 
-		    exit(-1);
+		if(CheckMode) {
+		    if(j || !l) {
+			i = printf("%s",buf);
+			if(!i) exit(-1);
+			if(j) printf("  Illegal characters.");
+			if(!l) printf("  No final newline.");
+			i = printf(".\n");
+			if(!i) exit(-1);
+			}
+		} else {
+		    if(!l)
+			j=2;
+		    i = printf("f %s %o %d %d %d %d %s\n",
+			buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid,
+			j,st.st_size,MD5End(&ctx));
+		    if(!i) exit(-1);
+		}
 		break;
 	    default:
 		fprintf(stderr,"%s: type 0%o\n",buf, st.st_mode & S_IFMT);
@@ -131,6 +144,15 @@ main(int argc, char **argv)
     barf[0x7f] = 1;
     barf[0x80] = 1;
     barf[0xff] = 1;
+
+    /*
+     * -c is CheckMode
+     */
+    if (argc > 1 && !strcmp(argv[1],"-c")) {
+	CheckMode=1;
+	argc--;
+	argv++;
+    }
 
     /*
      * First argument, if any, is where to do the work.
