@@ -19,7 +19,7 @@ LDADD=	${LIBCC_INT}
 
 build-tools: fini
 fini: fini.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 CLEANFILES=	fini fini.o
 
