@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2004
+.Dd October 20, 2004
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1098,10 +1098,10 @@ Note that this makes recovery of kernel dumps impossible.
 Set to
 .Dq Li YES
 by default.
-After the file systems are checked at boot time, the root filesystem
+After the file systems are checked at boot time, the root file system
 is remounted as read-write if this is set to
 .Dq Li YES .
-Diskless systems that mount their filesystem from a read-only remote
+Diskless systems that mount their root file system from a read-only remote
 NFS share should set this to
 .Dq Li NO
 in their
