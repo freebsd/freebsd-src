@@ -1,10 +1,156 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.4.4 (Berkeley) 12/2/96
+	     @(#)RELEASE_NOTES	8.8.5.3 (Berkeley) 1/21/97
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.8.5/8.8.5	97/01/21
+	SECURITY: Clear out group list during startup.  Without this, sendmail
+		will continue to run with the group permissions of the caller,
+		even if RunAsUser is specified.
+	SECURITY: Make purgestat (-bH) be root-only.  This is not in response
+		to any known attack, but it's best to be conservative.
+		Suggested by Peter Wemm of DIALix.
+	SECURITY: Fix buffer overrun problem in MIME code that has possible
+		security implications.  Patch from Alex Garthwaite of the
+		University of Pennsylvania.
+	Use of a -f flag with a phrase attached (e.g., "-f 'Full Name <addr>'")
+		would truncate the address after "Full".  Although the -f
+		syntax is incorrect (since it is in the envelope, it
+		shouldn't have comments and full names), the failure mode
+		was unnecessarily awful.
+	Fix a possible null pointer dereference when converting 8-bit data
+		to a 7-bit format.  Problem noted by Jim Hutchins of
+		Sandia National Labs and David James of British Telecom.
+	Clear out stale state that affected F=9 on SMTP mailers in queue
+		runs.  Although this really shouldn't be used (F=9 is for
+		final delivery only, and using it on an SMTP mailer makes
+		it possible for a message to be converted from 8->7->8->7
+		bits several times), it shouldn't have failed with a syserr.
+		Problem noted by Eric Hagberg of Morgan Stanley.
+	_Really_ fix the multiple :maildrop code in the user database
+		module.  Patch from Roy Mongiovi of Georgia Tech.
+	Let F lines in the configuration file actually read root-only
+		files if the configuration file is safe.  Based on a
+		patch from Keith Reynolds of SCO.
+	ETRN followed by QUIT would hold the connection open until the queue
+		run completed.  Problem noted by Truck Lewis of TDK
+		Semiconductor Corp.
+	It turns out that despite the documentation, the TCP wrappers library
+		does _not_ log rejected connections.  Do the logging ourselves.
+		Problem noted by Fletcher Mattox of the University of Texas
+		at Austin.
+	If sendmail finds a qf file in its queue directory that is an unknown
+		version (e.g., when backing out to an old version), the
+		error is reported on every queue run.  Change it to only
+		give the error once (and rename the qf => Qf).  Patch from
+		William A. Gianopoulos of Raytheon Company.
+	Start a new session when doing background delivery; currently it
+		ignored signals but didn't start a new signal, that caused
+		some problems if a background process tried to send mail
+		under certain circumstances.  Problem noted by Eric Hagberg
+		of Morgan Stanley; fix from Kari Hurtta.
+	Simplify test for skipping a queue run to just check if the current
+		load average is >= the queueing load average.  Previously
+		the check factored in some other parameters that caused it
+		to essentially never skip the queue run.  Patch from Bryan
+		Costales.
+	If the SMTP server is running in "nullserver" mode (that is, it is
+		rejecting all commands), start sleeping after MAXBADCOMMAND
+		(25) commands; this helps prevent a bad guy from putting
+		you into a tight loop as a denial-of-service attack.  Based
+		on an e-mail conversation with Brad Knowles of AOL.
+	Slow down when too many "light weight" commands have been issued;
+		this helps prevent a class of denial-of-service attacks.
+		The current values and defaults are:
+		    MAXNOOPCOMMANDS	20	NOOP, VERB, ONEX, XUSR
+		    MAXHELOCOMMANDS	3	HELO, EHLO
+		    MAXVRFYCOMMANDS	6	VRFY, EXPN
+		    MAXETRNCOMMANDS	8	ETRN
+		These will probably be configurable in a future release.
+	On systems that have uid_t typedefed to be an unsigned short, programs
+		that had the F=S flag and no U= equate would be invoked with
+		the real uid set to 65535 rather than being left unchanged.
+	In some cases, NOTIFY=NEVER was not being honored.  Problem noted
+		by Steve Hubert of the University of Washington, Seattle.
+	Mail that was Quoted-Printable encoded and had a soft line break on
+		the last line (i.e., an incomplete continuation) had the last
+		line dropped.  Since this appears to be illegal it isn't
+		clear what to do with it, but flushing the last line seems
+		to be a better "fail soft" approach.  Based on a patch from
+		Eric Hagberg.
+	If AllowBogusHELO and PrivacyOptions=needmailhelo are both set, a
+		bogus HELO command still causes the "Polite people say HELO
+		first" error message.  Problem pointed out by Chris Thomas
+		of UCLA; patch from John Beck of SunSoft.
+	Handle "sendmail -bp -qSfoobar" properly if restrictqrun is set
+		 in PrivacyFlags.  The -q shouldn't turn this command off.
+		 Problem noted by Murray Kucherawy of Pacific Bell Internet;
+		 based on a patch from Gregory Neil Shapiro of WPI.
+	Don't consider SMTP reply codes 452 or 552 (exceeded storage allocation)
+		in a DATA transaction to be sticky; these can occur because
+		a message is too large, and smaller messages should still go
+		through.  Problem noted by Matt Dillon of Best Internet
+		Communications.
+	In some cases bounces were saved in /var/tmp/dead.letter even if they
+		had been successfully delivered to the envelope sender.
+		Problem noted Eric Hagberg of Morgan Stanley; solution from
+		Gregory Neil Shapiro of WPI.
+	Give better diagnostics on long alias lines.  Based on code contributed
+		by Patrick Gosling of the University of Cambridge.
+	Increase the number of virtual interfaces that will be probed for
+		alternate names.  Problem noted by Gregory Neil Shapiro of
+		WPI.
+	PORTABILITY:
+		UXP/DS V20L10 for Fujitsu DS/90: Makefile patches from
+			Toshiaki Nomura of Fujitsu Limited.
+		SunOS with LDAP support: compile problems with struct timeval.
+			Patch from Nick Cuccia of TCSI Corporation.
+		SCO: from Keith Reynolds of SCO.
+		Solaris: kstat load average computation wasn't being used.
+			Fixes from Michael Ju. Tokarev of Telecom Service, JSC
+			(Moscow).
+		OpenBSD: from Jason Downs of teeny.org.
+		Altos System V: from Tim Rice.
+		Solaris 2.5: from Alan Perry of SunSoft.
+		Solaris 2.6: from John Beck of SunSoft.
+		Harris Nighthawk PowerUX (mh6000 box): from Bob Miorelli
+			of Pratt & Whitney <miorelli@pweh.com>.
+	CONFIG: It seems that I hadn't gotten the Received: line syntax
+		_just_right_ yet.  Tweak it again.  I'll omit the names
+		of the "contributors" (quantity two) in this one case.
+		As of now, NO MORE DISCUSSION about the syntax of the
+		Received: line.
+	CONFIG: Although FEATURE(nullclient) uses EXPOSED_USER (class $=E),
+		it never inserts that class into the output file.  Fix it
+		so it will honor EXPOSED_USER but will _not_ include root
+		automatically in this class.  Problem noted by Ronan KERYELL
+		of Centre de Recherche en Informatique de l'École Nationale
+		Supérieure des Mines de Paris (CRI-ENSMP).
+	CONFIG: Clean up handling of "local:" syntax in relay specifications
+		such as LUSER_RELAY.  This change permits the following
+		syntaxes:  ``local:'' will send to the same user on the
+		local machine (e.g., in a mailertable entry for "host",
+		``local:'' will cause an address addressed to user@host to
+		go to user on the local machone).  ``local:user'' will send
+		to the named user on the local machine.  ``local:user@host''
+		is equivalent to ``local:user'' (the host is ignored).  In
+		all cases, the original user@host is passed in $@ (i.e., the
+		detail information).  Inspired by a report from Michael Fuhr
+		of Dimensional Communications, L.L.C.
+	CONFIG: Strip quotes from the first word of an "error:" host
+		indication.  This lets you set (for example) the LUSER_RELAY
+		to be ``error:\"5.1.1\" Your Message Here''.  Note the use
+		of the \" so that the resulting string is properly quoted.
+		Problem noted by Gregory Neil Shapiro of WPI.
+	OP.ME: documentation was inconsistent about whether sendmail did a
+		NOOP or a RSET to probe the connection (it does a RSET).
+		Inconsistency noted by Deeran Peethamparam.
+	OP.ME: insert additional blank pages so it will print properly on
+		a duplex printer.  From Matthew Black of Cal State University,
+		Long Beach.
 
 8.8.4/8.8.4	96/12/02
 	SECURITY: under some circumstances, an attacker could get additional

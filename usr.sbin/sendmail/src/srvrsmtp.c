@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.131 (Berkeley) 12/1/96 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.136 (Berkeley) 1/17/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.131 (Berkeley) 12/1/96 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.136 (Berkeley) 1/17/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -121,7 +121,11 @@ char	*CurSmtpClient;			/* who's at the other end of channel */
 static char	*skipword();
 
 
-#define MAXBADCOMMANDS	25		/* maximum number of bad commands */
+#define MAXBADCOMMANDS	25	/* maximum number of bad commands */
+#define MAXNOOPCOMMANDS	20	/* max "noise" commands before slowdown */
+#define MAXHELOCOMMANDS	3	/* max HELO/EHLO commands before slowdown */
+#define MAXVRFYCOMMANDS	6	/* max VRFY/EXPN commands before slowdown */
+#define MAXETRNCOMMANDS	8	/* max ETRN commands before slowdown */
 
 void
 smtp(nullserver, e)
@@ -146,6 +150,8 @@ smtp(nullserver, e)
 	volatile int badcommands = 0;	/* count of bad commands */
 	volatile int nverifies = 0;	/* count of VRFY/EXPN commands */
 	volatile int n_etrn = 0;	/* count of ETRN commands */
+	volatile int n_noop = 0;	/* count of NOOP/VERB/ONEX etc cmds */
+	volatile int n_helo = 0;	/* count of HELO/EHLO commands */
 	bool ok;
 	char inp[MAXLINE];
 	char cmdbuf[MAXLINE];
@@ -154,6 +160,7 @@ smtp(nullserver, e)
 	extern void settime __P((ENVELOPE *));
 	extern bool enoughdiskspace __P((long));
 	extern int runinchild __P((char *, ENVELOPE *));
+	extern void checksmtpattack __P((volatile int *, int, char *));
 
 	if (fileno(OutChannel) != fileno(stdout))
 	{
@@ -303,10 +310,23 @@ smtp(nullserver, e)
 		**	to everything.
 		*/
 
-		if (nullserver && c->cmdcode != CMDQUIT)
+		if (nullserver)
 		{
-			message("550 Access denied");
-			continue;
+			switch (c->cmdcode)
+			{
+			  case CMDQUIT:
+			  case CMDHELO:
+			  case CMDEHLO:
+			  case CMDNOOP:
+				/* process normally */
+				break;
+
+			  default:
+				if (++badcommands > MAXBADCOMMANDS)
+					sleep(1);
+				message("550 Access denied");
+				continue;
+			}
 		}
 
 		/* non-null server */
@@ -323,6 +343,17 @@ smtp(nullserver, e)
 			{
 				protocol = "SMTP";
 				SmtpPhase = "server HELO";
+			}
+
+			/* avoid denial-of-service */
+			checksmtpattack(&n_helo, MAXHELOCOMMANDS, "HELO/EHLO");
+
+			/* check for duplicate HELO/EHLO per RFC 1651 4.2 */
+			if (gothello)
+			{
+				message("503 %s Duplicate HELO/EHLO",
+					MyHostName);
+				break;
 			}
 
 			/* check for valid domain name (re 1123 5.2.5) */
@@ -355,18 +386,13 @@ smtp(nullserver, e)
 					if (!AllowBogusHELO)
 						message("501 Invalid domain name");
 					else
+					{
 						message("250 %s Invalid domain name, accepting anyway",
 							MyHostName);
+						gothello = TRUE;
+					}
 					break;
 				}
-			}
-
-			/* check for duplicate HELO/EHLO per RFC 1651 4.2 */
-			if (gothello)
-			{
-				message("503 %s Duplicate HELO/EHLO",
-					MyHostName);
-				break;
 			}
 
 			sendinghost = newstr(p);
@@ -484,7 +510,7 @@ smtp(nullserver, e)
 
 			/* must parse sender first */
 			delimptr = NULL;
-			setsender(p, e, &delimptr, FALSE);
+			setsender(p, e, &delimptr, ' ', FALSE);
 			if (delimptr != NULL && *delimptr != '\0')
 				*delimptr++ = '\0';
 
@@ -775,18 +801,8 @@ smtp(nullserver, e)
 
 		  case CMDVRFY:		/* vrfy -- verify address */
 		  case CMDEXPN:		/* expn -- expand address */
-			if (++nverifies >= MAXBADCOMMANDS)
-			{
-#ifdef LOG
-				if (nverifies == MAXBADCOMMANDS &&
-				    LogLevel > 5)
-				{
-					syslog(LOG_INFO, "%.100s: VRFY attack?",
-					       CurSmtpClient);
-				}
-#endif
-				sleep(1);
-			}
+			checksmtpattack(&nverifies, MAXVRFYCOMMANDS,
+				c->cmdcode == CMDVRFY ? "VRFY" : "EXPN");
 			vrfy = c->cmdcode == CMDVRFY;
 			if (bitset(vrfy ? PRIV_NOVRFY : PRIV_NOEXPN,
 						PrivacyFlags))
@@ -867,8 +883,8 @@ smtp(nullserver, e)
 			}
 
 			/* crude way to avoid denial-of-service attacks */
-			if (n_etrn++ >= 3)
-				sleep(3);
+			checksmtpattack(&n_etrn, MAXETRNCOMMANDS, "ETRN");
+
 			id = p;
 			if (*id == '@')
 				id++;
@@ -892,6 +908,7 @@ smtp(nullserver, e)
 			break;
 
 		  case CMDNOOP:		/* noop -- do nothing */
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "NOOP");
 			message("250 OK");
 			break;
 
@@ -916,17 +933,20 @@ doquit:
 				message("502 Verbose unavailable");
 				break;
 			}
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "VERB");
 			Verbose = TRUE;
 			e->e_sendmode = SM_DELIVER;
 			message("250 Verbose mode");
 			break;
 
 		  case CMDONEX:		/* doing one transaction only */
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "ONEX");
 			OneXact = TRUE;
 			message("250 Only one transaction");
 			break;
 
 		  case CMDXUSR:		/* initial (user) submission */
+			checksmtpattack(&n_noop, MAXNOOPCOMMANDS, "XUSR");
 			UserSubmission = TRUE;
 			message("250 Initial submission");
 			break;
@@ -973,6 +993,40 @@ doquit:
 			syserr("500 smtp: unknown code %d", c->cmdcode);
 			break;
 		}
+	}
+}
+/*
+**  CHECKSMTPATTACK -- check for denial-of-service attack by repetition
+**
+**	Parameters:
+**		pcounter -- pointer to a counter for this command.
+**		maxcount -- maximum value for this counter before we
+**			slow down.
+**		cname -- command name for logging.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		Slows down if we seem to be under attack.
+*/
+
+void
+checksmtpattack(pcounter, maxcount, cname)
+	volatile int *pcounter;
+	int maxcount;
+	char *cname;
+{
+	if (++(*pcounter) >= maxcount)
+	{
+#ifdef LOG
+		if (*pcounter == maxcount && LogLevel > 5)
+		{
+			syslog(LOG_INFO, "%.100s: %.40s attack?",
+			       CurSmtpClient, cname);
+		}
+#endif
+		sleep(*pcounter / maxcount);
 	}
 }
 /*

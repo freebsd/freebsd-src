@@ -35,7 +35,7 @@ and examples describing most of the common things people need to setup.
 # See /usr/share/sendmail/README for help in building a configuration file.
 #
 include(`../m4/cf.m4')
-VERSIONID(`@(#)$Id$')
+VERSIONID(`@(#)$FreeBSD$')
 
 dnl # Specify your OS type below
 OSTYPE(`bsd4.4')

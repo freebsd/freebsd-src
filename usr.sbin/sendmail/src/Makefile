@@ -34,7 +34,9 @@ MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8
 LINKS=	/usr/sbin/sendmail /usr/bin/newaliases \
-	/usr/sbin/sendmail /usr/bin/mailq
+	/usr/sbin/sendmail /usr/bin/mailq \
+	/usr/sbin/sendmail /usr/bin/hoststat \
+	/usr/sbin/sendmail /usr/sbin/purgestat
 BINDIR=	/usr/sbin
 BINOWN=	root
 BINMODE=4555
