@@ -95,6 +95,7 @@
 #ifdef INET6
 #include <netinet6/ipsec6.h>
 #endif
+#include <netkey/key.h>
 #endif /*IPSEC*/
 
 #ifdef FAST_IPSEC
