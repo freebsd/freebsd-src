@@ -35,7 +35,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2004
+.Dd July 17, 2004
 .Dt SED 1
 .Os
 .Sh NAME
@@ -561,4 +561,9 @@ may be incorrectly treated as line continuation characters in arguments to the
 .Dq c
 and
 .Dq i
+commands.
+Multibyte characters cannot be used as delimiters with the
+.Dq s
+and
+.Dq y
 commands.
