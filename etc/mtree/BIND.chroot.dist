@@ -17,13 +17,13 @@
     ..
 /set type=dir uname=bind gname=wheel mode=0755
     var             uname=root
-	dump
-	..
+        dump
+        ..
         log
         ..
         run
-	    named
+            named
             ..
-	..
+        ..
     ..
 ..
