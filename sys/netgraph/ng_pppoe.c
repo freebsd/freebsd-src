@@ -791,6 +791,7 @@ AAA
 				printf("pppoe: Session not primed\n");
 				LEAVE(EISCONN);
 			}
+			neg = sp->neg;
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
 			neg->service.hdr.tag_len =
 			    htons((u_int16_t)ourmsg->data_len);
