@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *	$Id: atapi-tape.c,v 1.5 1999/03/28 18:57:19 sos Exp $
  */
 
 #include "ata.h"
@@ -441,6 +441,7 @@ ast_done(struct atapi_request *request)
                             (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
  
     if (request->result) {
+	/* check for EOM and return ENOSPC */
         atapi_error(request->device, request->result);
         bp->b_error = EIO;
         bp->b_flags |= B_ERROR;
@@ -550,7 +551,7 @@ ast_rewind(struct ast_softc *stp)
 static void 
 ast_drvinit(void *unused)
 {
-    static ast_devsw_installed = 0;
+    static int32_t ast_devsw_installed = 0;
 
     if (!ast_devsw_installed) {
 	dev_t dev = makedev(CDEV_MAJOR, 0);

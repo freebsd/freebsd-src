@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.2 1999/03/29 14:24:42 sos Exp $
+ *	$Id: ata-dma.c,v 1.3 1999/03/30 13:09:47 sos Exp $
  */
 
 #include "ata.h"
@@ -88,7 +88,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
-	    devno = (scp->unit << 1) + (device) ? 1 : 0;
+	    devno = (scp->unit << 1) + (device ? 1 : 0);
 	    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 	    new48 = (1 << devno) + (2 << (16 + (devno << 2)));
             pci_conf_write(scp->tag, 0x48, 
@@ -156,7 +156,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	break;
 
     case 0x4d33105a:	/* Promise Ultra/33 / FastTrack controllers */
-	devno = (scp->unit << 1) + (device) ? 1 : 0;
+	devno = (scp->unit << 1) + (device ? 1 : 0);
 	if (udmamode >=2) {
 	    printf("ata%d: %s: settting up UDMA2 mode on Promise chip ",
 		   scp->lun, (device) ? "slave" : "master");
@@ -167,7 +167,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
-	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
 	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004127f3);
 	    return 0;
 	}
@@ -181,7 +180,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		break;
 	    }
 	    printf("OK\n");
-	    outb(scp->bmaddr + 0x1f, inb(scp->bmaddr + 0x1f) | 0x01);
 	    pci_conf_write(scp->tag, 0x60 + (devno << 2), 0x004367f3);
 	    return 0;
         }
@@ -365,4 +363,3 @@ ata_dmastatus(struct ata_softc *scp, int32_t device)
 
 #endif /* NPCI > 0 */
 #endif /* NATA > 0 */ 
-

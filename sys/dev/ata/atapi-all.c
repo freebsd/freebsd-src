@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.4 1999/03/07 21:49:14 sos Exp $
+ *	$Id: atapi-all.c,v 1.5 1999/03/28 18:57:19 sos Exp $
  */
 
 #include "ata.h"
@@ -145,6 +145,8 @@ atapi_getparam(struct atapi_softc *atp)
 	return -1;
     insw(atp->controller->ioaddr + ATA_DATA, buffer,
  	 sizeof(buffer)/sizeof(int16_t));
+    if (atapi_wait(atp, 0))
+	return -1;
     if (!(atapi_parm = malloc(sizeof(struct atapi_params), M_DEVBUF, M_NOWAIT)))
    	return -1; 
     bcopy(buffer, atapi_parm, sizeof(struct atapi_params));
@@ -183,17 +185,21 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     request->ccbsize = (atp->atapi_parm->cmdsize) ? 16 : 12;
     bcopy(ccb, request->ccb, request->ccbsize);
 
-    /* link onto controller queue */
     s = splbio();
+
+    /* link onto controller queue */
     TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
-    splx(s);
-#ifdef ATAPI_DEBUG
-    printf("atapi: queued %s cmd\n", atapi_cmd2str(ccb[0]));
-#endif
 
     /* try to start controller */
     if (atp->controller->active == ATA_IDLE)
         ata_start(atp->controller);
+
+    splx(s);
+
+#ifdef ATAPI_DEBUG
+    printf("atapi: queued %s cmd\n", atapi_cmd2str(ccb[0]));
+#endif
+
     if (!callback) {
     	/* wait for command to complete */
     	if (tsleep((caddr_t)request, PRIBIO, "atprq", 0/*timeout*/))
@@ -464,7 +470,7 @@ atapi_wait(struct atapi_softc *atp, u_int8_t mask)
             DELAY(1);
             status = inb(atp->controller->ioaddr + ATA_STATUS);
         }
-        if (!(status & ATA_S_BSY))  
+        if (!(status & ATA_S_BSY) && (status & ATA_S_DRDY))  
             break;            
         DELAY (10);        
     }    

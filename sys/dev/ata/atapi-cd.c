@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.3 1999/03/05 09:43:30 sos Exp $
+ *	$Id: atapi-cd.c,v 1.4 1999/03/28 18:57:19 sos Exp $
  */
 
 #include "ata.h"
@@ -100,7 +100,6 @@ static void acd_describe(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static int32_t acd_eject(struct acd_softc *, int);
 static void acd_select_slot(struct acd_softc *);
-static int32_t acd_rezero_unit(struct acd_softc *);
 static int32_t acd_open_disk(struct acd_softc *, int);
 static int32_t acd_open_track(struct acd_softc *, struct wormio_prepare_track *);
 static int32_t acd_close_track(struct acd_softc *);
@@ -417,19 +416,12 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     else
         cdp->refcnt++;
 
-    if ((flags & O_NONBLOCK) == 0) {
-        if ((flags & FWRITE) != 0) {
-            /* read/write */
-            if (acd_rezero_unit(cdp)) {
-                printf("acd%d: rezero failed\n", lun);
-                return EIO;
-            }
-        } else {
-            /* read only */
-            if (acd_read_toc(cdp) != 0) {
+    if (!(flags & O_NONBLOCK)) {
+        if (acd_read_toc(cdp)) {
+            if (!(flags & FWRITE)) {
                 printf("acd%d: read_toc failed\n", lun);
-                /* return EIO; */
-            }
+                return EIO;
+	    }
         }
     }
     return 0;
@@ -747,7 +739,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    else
 		return EINVAL;
 #ifndef CD_BUFFER_BLOCKS
-#define CD_BUFFER_BLOCKS 8
+#define CD_BUFFER_BLOCKS 13
 #endif
             if (!(buffer = malloc(CD_BUFFER_BLOCKS * 2352,
 				  M_TEMP,M_NOWAIT)))
@@ -1293,16 +1285,6 @@ acd_select_slot(struct acd_softc *cdp)
 }
 
 static int32_t
-acd_rezero_unit(struct acd_softc *cdp)
-{
-    int8_t ccb[16];
-
-    bzero(ccb, sizeof(ccb));
-    ccb[0] = ATAPI_REZERO_UNIT;
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
-}
-
-static int32_t
 acd_open_disk(struct acd_softc *cdp, int32_t test)
 {
     cdp->next_writeable_lba = 0;
@@ -1441,7 +1423,7 @@ acd_blank_disk(struct acd_softc *cdp)
 static void 
 acd_drvinit(void *unused)
 {
-    static acd_devsw_installed = 0;
+    static int32_t acd_devsw_installed = 0;
 
     if (!acd_devsw_installed) {
         cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &acd_cdevsw);
