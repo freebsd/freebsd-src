@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.16 1995/03/28 07:57:33 bde Exp $
+ * $Id: buf.h,v 1.17 1995/04/09 06:03:32 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -137,6 +137,7 @@ struct buf {
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
+#define	B_PAGING	0x04000000	/* volatile paging I/O -- bypass VMIO */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
