@@ -63,7 +63,15 @@
 #define		    ATA_C_F_AUTOPOLL	0x01	/* start autopoll function */
 #define		ATA_C_ATAPI_RESET	0x08	/* reset ATAPI device */
 #define		ATA_C_READ		0x20	/* read command */
+#define		ATA_C_READ48		0x24	/* read command */
+#define		ATA_C_READ_DMA48	0x25	/* read w/DMA command */
+#define		ATA_C_READ_DMA_QUEUED48	0x26	/* read w/DMA QUEUED command */
+#define		ATA_C_READ_MUL48	0x29	/* read multi command */
 #define		ATA_C_WRITE		0x30	/* write command */
+#define		ATA_C_WRITE48		0x34	/* write command */
+#define		ATA_C_WRITE_DMA48	0x35	/* write w/DMA command */
+#define		ATA_C_WRITE_DMA_QUEUED48 0x36	/* write w/DMA QUEUED command */
+#define		ATA_C_WRITE_MUL48	0x39	/* write multi command */
 #define		ATA_C_PACKET_CMD	0xa0	/* packet command */
 #define		ATA_C_ATAPI_IDENTIFY	0xa1	/* get ATAPI params*/
 #define		ATA_C_SERVICE		0xa2	/* service command */
@@ -76,6 +84,7 @@
 #define		ATA_C_WRITE_DMA_QUEUED	0xcc	/* write w/DMA QUEUED command */
 #define		ATA_C_SLEEP		0xe6	/* sleep command */
 #define		ATA_C_FLUSHCACHE	0xe7	/* flush cache to disk */
+#define		ATA_C_FLUSHCACHE48	0xea	/* flush cache to disk */
 #define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
 #define		ATA_C_SETFEATURES	0xef	/* features command */
 #define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
@@ -130,28 +139,27 @@
 #define ATA_DMA_EOT			0x80000000
 
 #define ATA_BMCMD_PORT			0x00
-#define ATA_BMCMD_START_STOP		0x01
-#define ATA_BMCMD_WRITE_READ		0x08
+#define		ATA_BMCMD_START_STOP	0x01
+#define		ATA_BMCMD_WRITE_READ	0x08
 
 #define ATA_BMDEVSPEC_0			0x01
 
 #define ATA_BMSTAT_PORT			0x02
-#define ATA_BMSTAT_ACTIVE		0x01
-#define ATA_BMSTAT_ERROR		0x02
-#define ATA_BMSTAT_INTERRUPT		0x04
-#define ATA_BMSTAT_MASK			0x07
-#define ATA_BMSTAT_DMA_MASTER		0x20
-#define ATA_BMSTAT_DMA_SLAVE		0x40
-#define ATA_BMSTAT_DMA_SIMPLEX		0x80
+#define		ATA_BMSTAT_ACTIVE	0x01
+#define		ATA_BMSTAT_ERROR	0x02
+#define		ATA_BMSTAT_INTERRUPT	0x04
+#define		ATA_BMSTAT_MASK		0x07
+#define		ATA_BMSTAT_DMA_MASTER	0x20
+#define		ATA_BMSTAT_DMA_SLAVE	0x40
+#define		ATA_BMSTAT_DMA_SIMPLEX	0x80
 
 #define ATA_BMDEVSPEC_1			0x03
-
 #define ATA_BMDTP_PORT			0x04
 
 /* structure for holding DMA address data */
 struct ata_dmaentry {
-	u_int32_t base;
-	u_int32_t count;
+    u_int32_t base;
+    u_int32_t count;
 };  
 
 /* structure describing an ATA device */
@@ -171,11 +179,11 @@ struct ata_softc {
     void			*dev_softc[2];	/* ptr to devices softc's */
     int 			mode[2];	/* transfer mode for devices */
     int				flags;		/* controller flags */
-#define		ATA_DMA_ACTIVE		0x01
-#define		ATA_ATAPI_DMA_RO	0x02
-#define		ATA_USE_16BIT		0x04
-#define		ATA_NO_SLAVE		0x08
-#define		ATA_QUEUED		0x10
+#define		ATA_NO_SLAVE		0x01
+#define		ATA_USE_16BIT		0x02
+#define		ATA_ATAPI_DMA_RO	0x04
+#define		ATA_QUEUED		0x08
+#define		ATA_DMA_ACTIVE		0x10
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -190,10 +198,12 @@ struct ata_softc {
 #define		ATA_IMMEDIATE		0x0001
 #define		ATA_WAIT_INTR		0x0002
 #define		ATA_WAIT_READY		0x0004
-#define		ATA_ACTIVE		0x0008
-#define		ATA_ACTIVE_ATA		0x0010
-#define		ATA_ACTIVE_ATAPI	0x0020
-#define		ATA_CONTROL		0x0040
+#define		ATA_WAIT_MASK		0x0007
+#define 	ATA_USE_CHS		0x0008
+#define		ATA_ACTIVE		0x0010
+#define		ATA_ACTIVE_ATA		0x0020
+#define		ATA_ACTIVE_ATAPI	0x0040
+#define		ATA_CONTROL		0x0080
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
@@ -213,7 +223,7 @@ void ata_start(struct ata_softc *);
 void ata_reset(struct ata_softc *);
 int ata_reinit(struct ata_softc *);
 int ata_wait(struct ata_softc *, int, u_int8_t);
-int ata_command(struct ata_softc *, int, u_int8_t, u_int16_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t, int);
+int ata_command(struct ata_softc *, int, u_int8_t, u_int64_t, u_int16_t, u_int8_t, int);
 int ata_printf(struct ata_softc *, int, const char *, ...) __printflike(3, 4);
 void ata_set_name(struct ata_softc *, int, char *, int);
 void ata_free_name(struct ata_softc *, int);
@@ -221,7 +231,6 @@ int ata_get_lun(u_int32_t *);
 int ata_test_lun(u_int32_t *, int);
 void ata_free_lun(u_int32_t *, int);
 char *ata_mode2str(int);
-int ata_pio2mode(int);
 int ata_pmode(struct ata_params *);
 int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);

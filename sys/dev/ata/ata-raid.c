@@ -549,9 +549,8 @@ int
 ar_read(struct ad_softc *adp, u_int32_t lba, int count, char *data)
 {
     if (ata_command(adp->controller, adp->unit | ATA_D_LBA, 
-	(count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
-	(lba >> 8) & 0xffff, (lba >> 24) & 0xff, lba & 0xff,
-	count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
+		    (count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
+		    lba, count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
 	ata_printf(adp->controller, adp->unit, "RAID read config failed\n");
 	return 1;
     }
