@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.53 1995/12/28 13:04:03 se Exp $
+**  $Id: ncr.c,v 1.54 1996/01/07 19:26:12 gibbs Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1128,7 +1128,7 @@ struct script {
 	ncrcmd	skip		[  8];
 	ncrcmd	skip2		[  3];
 	ncrcmd  idle		[  2];
-	ncrcmd	select		[ 24];
+	ncrcmd	select		[ 22];
 	ncrcmd	prepare		[  4];
 	ncrcmd	loadpos		[ 14];
 	ncrcmd	prepare2	[ 24];
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.53 1995/12/28 13:04:03 se Exp $\n";
+	"\n$Id: ncr.c,v 1.54 1996/01/07 19:26:12 gibbs Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1258,7 +1258,8 @@ static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct tcb)	*  2;
 
 #ifdef KERNEL
-
+static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
+ncb_p         ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
 static int ncr_debug = SCSI_DEBUG_FLAGS;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
@@ -1569,8 +1570,10 @@ static	struct script script0 = {
 	*/
 	SCR_MOVE_TBL ^ SCR_MSG_OUT,
 		offsetof (struct dsb, smsg),
+#ifdef undef /* XXX better fail than try to deal with this ... */
 	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_OUT)),
 		-16,
+#endif
 	SCR_CLR (SCR_ATN),
 		0,
 	SCR_COPY (1),
