@@ -609,6 +609,7 @@ pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci
 pci/wdc_p.c		optional wdc device-driver
 pci/simos.c		optional simos device-driver
+pci/alpm.c		optional alpm	device-driver
 pci/xrpu.c		optional xrpu device-driver
 posix4/posix4_mib.c	standard
 posix4/p1003_1b.c	standard
