@@ -57,8 +57,6 @@
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -79,7 +77,20 @@ int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 static struct callout schedcpu_callout;
 static struct callout roundrobin_callout;
 
+struct loadavg averunnable =
+	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
+/*
+ * Constants for averages over 1, 5, and 15 minutes
+ * when sampling at 5 second intervals.
+ */
+static fixpt_t cexp[3] = {
+	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
+	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
+	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
+};
+
 static void	endtsleep __P((void *));
+static void	loadav __P((struct loadavg *));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
 
@@ -328,7 +339,8 @@ schedcpu(arg)
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
-	vmmeter();
+	if (time_second % 5 == 0)
+		loadav(&averunnable);
 	wakeup((caddr_t)&lbolt);
 	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
 }
@@ -842,6 +854,40 @@ resetpriority(kg)
 	}
 	maybe_resched(kg);
 	mtx_unlock_spin(&sched_lock);
+}
+
+/*
+ * Compute a tenex style load average of a quantity on
+ * 1, 5 and 15 minute intervals.
+ * XXXKSE   Needs complete rewrite when correct info is available.
+ * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
+ */
+static void
+loadav(struct loadavg *avg)
+{
+	int i, nrun;
+	struct proc *p;
+	struct ksegrp *kg;
+
+	sx_slock(&allproc_lock);
+	nrun = 0;
+	FOREACH_PROC_IN_SYSTEM(p) {
+		FOREACH_KSEGRP_IN_PROC(p, kg) {
+			switch (p->p_stat) {
+			case SRUN:
+				if ((p->p_flag & P_NOLOAD) != 0)
+					goto nextproc;
+				/* FALLTHROUGH */
+			case SIDL:
+				nrun++;
+			}
+nextproc:
+		}
+	}
+	sx_sunlock(&allproc_lock);
+	for (i = 0; i < 3; i++)
+		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
+		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
 }
 
 /* ARGSUSED */

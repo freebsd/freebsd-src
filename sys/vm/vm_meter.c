@@ -53,64 +53,9 @@
 #include <vm/vm_object.h>
 #include <sys/sysctl.h>
 
-struct loadavg averunnable =
-	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
-
 struct vmmeter cnt;
 
 int maxslp = MAXSLP;
-
-/*
- * Constants for averages over 1, 5, and 15 minutes
- * when sampling at 5 second intervals.
- */
-static fixpt_t cexp[3] = {
-	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
-	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
-	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
-};
-
-/*
- * Compute a tenex style load average of a quantity on
- * 1, 5 and 15 minute intervals.
- * XXXKSE   Needs complete rewrite when correct info is available.
- * Completely Bogus.. only works with 1:1 (but compiles ok now :-)
- */
-static void
-loadav(struct loadavg *avg)
-{
-	int i, nrun;
-	struct proc *p;
-	struct ksegrp *kg;
-
-	sx_slock(&allproc_lock);
-	nrun = 0;
-	FOREACH_PROC_IN_SYSTEM(p) {
-		FOREACH_KSEGRP_IN_PROC(p, kg) {
-			switch (p->p_stat) {
-			case SRUN:
-				if ((p->p_flag & P_NOLOAD) != 0)
-					goto nextproc;
-				/* FALLTHROUGH */
-			case SIDL:
-				nrun++;
-			}
-nextproc:
-		}
-	}
-	sx_sunlock(&allproc_lock);
-	for (i = 0; i < 3; i++)
-		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
-		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
-}
-
-void
-vmmeter()
-{
-
-	if (time_second % 5 == 0)
-		loadav(&averunnable);
-}
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &cnt.v_free_min, 0, "");
