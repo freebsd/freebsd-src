@@ -300,7 +300,7 @@ cardbus_read_tuple_conf(device_t dev, device_t child, u_int32_t *space,
 {
 	int i, j;
 	u_int32_t e;
-	
+
 	e = pci_read_config(child, *off - *off%4, 4);
 	for (j = *off%4; j>0; j--)
 		e >>= 8;
@@ -361,7 +361,7 @@ cardbus_read_tuple_exrom(device_t dev, struct resource *mem, u_int32_t *space,
 			*tupleid = image[0];
 			*len = image[1];
 			memcpy(tupledata, image+2, *len);
-			*off += *len+2;	
+			*off += *len+2;
 			return 0;
 	}
 
@@ -434,7 +434,7 @@ cardbus_read_tuple(device_t dev, device_t child, u_int32_t *space,
 		return EINVAL;
 	}
 }
-		    
+
 static int
 decode_tuple(device_t dev, device_t child, int tupleid, int len,
 	     u_int8_t *tupledata, u_int32_t *space, u_int32_t *off)
@@ -460,7 +460,7 @@ cardbus_do_cis(device_t dev, device_t child)
 	int len;
 	int expect_linktarget;
 	u_int32_t space, off;
-	
+
 	bzero(tupledata, MAXTUPLESIZE);
 	expect_linktarget = TRUE;
 	off = pci_read_config(child, CARDBUS_CIS_REG, 4);
@@ -470,7 +470,7 @@ cardbus_do_cis(device_t dev, device_t child)
 	do {
 		cardbus_read_tuple(dev, child, &space, &off, &tupleid, &len,
 				   tupledata);
-		
+
 		if (expect_linktarget && tupleid != CISTPL_LINKTARGET) {
 			device_printf(dev, "Expecting link target, got 0x%x\n",
 				      tupleid);
@@ -481,6 +481,6 @@ cardbus_do_cis(device_t dev, device_t child)
 		if (expect_linktarget != 0)
 			return expect_linktarget;
 	} while (tupleid != CISTPL_END);
-	return 0;	
+	return 0;
 }
 
