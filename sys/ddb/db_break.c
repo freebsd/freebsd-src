@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.15 1998/06/07 17:09:36 dfr Exp $
+ *	$Id: db_break.c,v 1.16 1998/06/08 02:11:19 bde Exp $
  */
 
 /*
@@ -258,11 +258,10 @@ db_list_breakpoints()
 	db_printf(" Map      Count    Address\n");
 	for (bkpt = db_breakpoint_list;
 	     bkpt != 0;
-	     bkpt = bkpt->link)
-	{
-	    db_printf("%s%8x %5d    ",
+	     bkpt = bkpt->link) {
+	    db_printf("%s%8p %5d    ",
 		      db_map_current(bkpt->map) ? "*" : " ",
-		      bkpt->map, bkpt->init_count);
+		      (void *)bkpt->map, bkpt->init_count);
 	    db_printsym(bkpt->address, DB_STGY_PROC);
 	    db_printf("\n");
 	}
