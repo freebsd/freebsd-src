@@ -110,23 +110,28 @@
  * pure (no side effects) functions, and unused variables.  They are
  * null except for versions of gcc that are known to support the features
  * properly (old versions of gcc-2 supported the dead and pure features
- * in a different (wrong) way).
+ * in a different (wrong) way).  If we do not provide an implementation
+ * for a given compiler, let the compile fail if it is told to use
+ * a feature that we cannot live without.
  */
-#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
+#ifdef lint
 #define	__dead2
 #define	__pure2
 #define	__unused
 #define	__packed
 #define	__aligned(x)
 #define	__section(x)
+#else
+#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
+#define	__dead2
+#define	__pure2
+#define	__unused
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused
-#define	__packed	/* XXX find this out, if we care */
-#define	__aligned(x)	/* XXX find this out, if we care */
-#define	__section(x)	/* XXX find this out, if we care */
+/* XXX Find out what to do for __packed, __aligned and __section */
 #endif
 #if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ == 3
 #define	__dead2		__attribute__((__noreturn__))
@@ -135,6 +140,7 @@
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
+#endif
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
