@@ -76,7 +76,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_9005_SISL_MASK		0x000FFFFF00000000ull
 #define ID_9005_SISL_ID			0x0005900500000000ull
 #define ID_AIC7850			0x5078900400000000ull
-#define ID_AHA_2902_04_10_15_20_30C	0x5078900478509004ull
+#define ID_AHA_2902_04_10_15_20C_30C	0x5078900478509004ull
 #define ID_AIC7855			0x5578900400000000ull
 #define ID_AIC7859			0x3860900400000000ull
 #define ID_AHA_2930CU			0x3860900438699004ull
@@ -245,9 +245,9 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 {
 	/* aic7850 based controllers */
 	{
-		ID_AHA_2902_04_10_15_20_30C,
+		ID_AHA_2902_04_10_15_20C_30C,
 		ID_ALL_MASK,
-		"Adaptec 2902/04/10/15/20/30C SCSI adapter",
+		"Adaptec 2902/04/10/15/20C/30C SCSI adapter",
 		ahc_aic785X_setup
 	},
 	/* aic7860 based controllers */
