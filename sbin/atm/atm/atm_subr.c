@@ -76,6 +76,7 @@ tbl_ent	vendors[] = {
 	{ VENDAPI_UNKNOWN,	"Unknown" },
 	{ VENDAPI_FORE_1,	"Fore" },
 	{ VENDAPI_ENI_1,	"ENI" },
+	{ VENDAPI_IDT_1,	"IDT" },
 	{ 0,			0 },
 };
 
@@ -88,7 +89,9 @@ tbl_ent adapter_types[] = {
 	{ DEV_FORE_SBA200E,	"SBA-200E" },
 	{ DEV_FORE_SBA200,	"SBA-200" },
 	{ DEV_FORE_PCA200E,	"PCA-200E" },
+	{ DEV_FORE_ESA200E,	"ESA-200E" },
 	{ DEV_ENI_155P,		"ENI-155p" },
+	{ DEV_IDT_155,		"IDT" },
 	{ 0,			0 },
 };
 
@@ -113,6 +116,7 @@ tbl_ent bus_types[] = {
 	{ BUS_SBUS_B16,	"SBus" },
 	{ BUS_SBUS_B32,	"SBus" },
 	{ BUS_PCI,	"PCI" },
+	{ BUS_EISA,	"EISA" },
 	{ 0,			0 },
 };
 
