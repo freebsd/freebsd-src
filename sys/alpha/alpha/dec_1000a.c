@@ -152,15 +152,6 @@ dec_1000a_init(int cputype)
 		break;
 
 	default:
-		/* 
-		 *  XXX the AlphaServer 1000a support is totally
-		 *  untested at this point, so ask the user for 
-		 *  a status report 
-		 */	
-		printf("Warning:  FreeBSD support for the AlphaServer ");
-		printf("1000A is currently untested!\n");
-		printf("Please contact gallatin@freebsd.org & report ");
-		printf("success or failure.\n");
 		platform.iobus = "cia";
 		platform.pci_intr_map = dec_1000a_intr_map;
 		platform.pci_intr_disable = dec_1000a_intr_disable;
@@ -348,8 +339,6 @@ dec_1000a_intr_map(arg)
 		goto bad;
 
 	if (0 <= device && device < sizeof imrmap / sizeof imrmap[0]) {
-		if (device == 0)
-			printf("dec_1000a_intr_map: ?! UNEXPECTED DEV 0\n");
 		imrbit = imrmap[device][cfg->intpin - 1];
 		if (imrbit) {
 			cfg->intline = IMR2IRQ(imrbit);
