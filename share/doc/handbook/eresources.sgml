@@ -1,0 +1,118 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+    <chapt>
+      <heading>Additional resources on the Internet</heading>
+
+      <sect>
+	<heading>Mailing lists</heading>
+
+	<p>The FreeBSD Project runs a number of Internet mailing
+	  lists dedicated to the discussion of FreeBSD and
+	  related topics.  Users with access to Internet mail are
+	  encouraged to subscribe to the lists that interest them
+	  and ask questions.  The procedure is quite simple, just
+	  send a mail message to:
+	  <tscreen>
+	    <tt>majordomo@freebsd.org</tt>
+	  </tscreen>
+	  with a message body of:
+	  <tscreen>
+	    <tt><bf>subscribe <it>listname</it></bf></tt>
+	  </tscreen>
+	  where <em>listname</em> is one of the lists described
+	  below.  You can subscribe to multiple lists with a
+	  single message by having several <em>subscribe</em>
+	  lines.  For more detailed information, send a message
+	  to:
+	  <tscreen>
+	    <tt>majordomo@freebsd.org</tt>
+	  </tscreen>
+	  with a message body of
+	  <tscreen>
+	    <tt><bf>help</bf></tt>
+	  </tscreen>
+
+	<sect1>
+	  <heading>General discussion lists</heading>
+	  <p><descrip>
+	      <tag>freebsd-announce</tag> Important announcements
+	      about FreeBSD are posted here.
+
+	      <tag>freebsd-questions</tag> General discussion of
+	      problems people experience in setting up and using
+	      FreeBSD. 
+
+	      <tag>freebsd-hackers</tag> Technical discussions
+	      about the design and implementation of FreeBSD. 
+
+	      <tag>freebsd-bugs</tag> Bug reports and discussions
+	      of reported bugs are posted here, although the
+	      discussions are usually moved over to the
+	      <em>freebsd-hackers</em> mailing list if the become involved.
+	  </descrip>
+
+	<sect1>
+	  <heading>CVS lists</heading>
+
+      <sect>
+	<heading>Usenet newsgroups</heading>
+
+	<p>While no newsgroups dedicated to FreeBSD exist, there
+	  are many in which FreeBSD is discussed or are otherwise
+	  relevant to FreeBSD users.
+
+	<sect1>
+	  <heading>BSD specific newsgroups</heading>
+
+	  <p><itemize>
+	      <item> comp.unix.bsd.freebsd.announce
+	      <item> comp.unix.bsd.freebsd.misc
+	    </itemize>
+
+	<sect1>
+	  <heading>Other Unix newsgroups of interest</heading>
+
+	  <p><itemize>
+	      <item> comp.unix 
+	      <item> comp.unix.questions 
+	      <item> comp.unix.admin 
+	      <item> comp.unix.programmer 
+	      <item> comp.unix.shell 
+	      <item> comp.unix.user-friendly 
+	      <item> comp.security.unix 
+	      <item> comp.sources.unix 
+	      <item> comp.unix.advocacy 
+	      <item> comp.unix.misc 
+	      <item> comp.os.386bsd.announce
+	      <item> comp.os.386bsd.apps
+	      <item> comp.os.386bsd.bugs 
+	      <item> comp.os.386bsd.development 
+	      <item> comp.os.386bsd.misc 
+	      <item> comp.os.386bsd.questions 
+	      <item> comp.bugs.4bsd 
+	      <item> comp.bugs.4bsd.ucb-fixes 
+	      <item> comp.unix.bsd 
+	    </itemize>
+
+	<sect1>
+	  <heading>X-Window system</heading>
+
+	  <p><itemize>
+	      <item> comp.windows.x.i386unix 
+	      <item> comp.windows.x 
+	      <item> comp.windows.x.apps 
+	      <item> comp.windows.x.announce 
+	      <item> comp.windows.x.intrinsics 
+	      <item> comp.windows.x.motif 
+	      <item> comp.windows.x.pex 
+	      <item> comp.emulators.ms-windows.wine 
+	    </itemize>
+
+      <sect>
+	<heading>Word Wide Web servers</heading>
+
+	<p><itemize> 
+	    <item> <url url="http://www.freebsd.org/"></item>
+	  </itemize>
+    </sect>
