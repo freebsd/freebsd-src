@@ -35,12 +35,13 @@
 .\"
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd June 4, 1993
+.Dd May 25, 1999
 .Dt RAND 3
 .Os
 .Sh NAME
 .Nm rand ,
-.Nm srand
+.Nm srand ,
+.Nm rand_r
 .Nd bad random number generator
 .Sh SYNOPSIS
 .Fd #include <stdlib.h>
@@ -48,6 +49,8 @@
 .Fn srand "unsigned seed"
 .Ft int
 .Fn rand void
+.Ft int
+.Fn rand_r "unsigned *ctx"
 .Sh DESCRIPTION
 .Bf -symbolic
 These interfaces are obsoleted by random(3).
@@ -63,15 +66,26 @@ of 0 to
 .Pp
 The
 .Fn srand
-function sets its argument as the seed for a new sequence of
+function sets its argument
+.Fa seed
+as the seed for a new sequence of
 pseudo-random numbers to be returned by
 .Fn rand .
 These sequences are repeatable by calling
 .Fn srand
 with the same seed value.
 .Pp
-If no seed value is provided, the functions are automatically
+If no
+.Fa seed 
+value is provided, the functions are automatically
 seeded with a value of 1.
+.Pp
+.Fn rand_r
+provides the same functionality as
+.Fn rand .
+A pointer to the context value
+.Fa ctx
+must be supplied by the caller.
 .Sh SEE ALSO
 .Xr random 3
 .Sh STANDARDS
@@ -82,3 +96,7 @@ and
 functions
 conform to
 .St -ansiC .
+.Pp
+The
+.Fn rand_r
+function is as proposed in the POSIX.4a Draft #6 document.

@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * Posix rand_r function added May 1999 by Wes Peters <wes@softweyr.com>.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -38,12 +40,32 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 #include <sys/types.h>
 #include <stdlib.h>
 
+#ifdef TEST
+#include <stdio.h>
+#endif /* TEST */
+
+static int
+do_rand(unsigned long *ctx)
+{
+	return ((*ctx = *ctx * 1103515245 + 12345) % ((u_long)RAND_MAX + 1));
+}
+
+
+int
+rand_r(unsigned int *ctx)
+{
+	u_long val = (u_long) *ctx;
+	*ctx = do_rand(&val);
+	return (int) *ctx;
+}
+
+
 static u_long next = 1;
 
 int
 rand()
 {
-	return ((next = next * 1103515245 + 12345) % ((u_long)RAND_MAX + 1));
+	return do_rand(&next);
 }
 
 void
@@ -52,3 +74,32 @@ u_int seed;
 {
 	next = seed;
 }
+
+#ifdef TEST
+
+main()
+{
+    int i;
+    unsigned myseed;
+
+    printf("seeding rand with 0x19610910: \n");
+    srand(0x19610910);
+
+    printf("generating three pseudo-random numbers:\n");
+    for (i = 0; i < 3; i++)
+    {
+	printf("next random number = %d\n", rand());
+    }
+
+    printf("generating the same sequence with rand_r:\n");
+    myseed = 0x19610910;
+    for (i = 0; i < 3; i++)
+    {
+	printf("next random number = %d\n", rand_r(&myseed));
+    }
+
+    return 0;
+}
+
+#endif /* TEST */
+
