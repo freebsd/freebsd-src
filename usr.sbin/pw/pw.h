@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pw.h,v 1.1.1.2 1996/12/09 23:55:23 joerg Exp $
  */
 
 #include <stdio.h>
@@ -43,6 +43,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/queue.h>
+#include <sysexits.h>
 
 #include "psdate.h"
 
@@ -52,6 +53,7 @@ enum _mode
         M_DELETE,
         M_UPDATE,
         M_PRINT,
+	M_NEXT,
         M_NUM
 };
 
@@ -60,21 +62,6 @@ enum _which
         W_USER,
         W_GROUP,
         W_NUM
-};
-
-enum _excode
-{
-        X_ALLOK,
-        X_CMDERR,
-        X_PERMERR,
-        X_MEMERR,
-        X_NOUPDATE,
-        X_NOTFOUND,
-        X_UPDERROR,
-        X_TOOMANY,
-        X_EXISTS,
-        X_DBERROR,
-        X_CONFIG
 };
 
 struct carg
