@@ -1,0 +1,5 @@
+PROG=psbb
+MAN1=psbb.n
+OBJS=psbb.o
+CSRCS=psbb.c
+XLIBS=
