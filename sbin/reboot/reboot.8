@@ -44,12 +44,16 @@
 .Sh SYNOPSIS
 .Nm halt
 .Op Fl lnqp
+.Op Fl k Ar kernel
 .Nm
 .Op Fl dlnqp
+.Op Fl k Ar kernel
 .Nm fasthalt
 .Op Fl lnqp
+.Op Fl k Ar kernel
 .Nm fastboot
 .Op Fl dlnqp
+.Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -72,6 +76,16 @@ The system is requested to create a crash dump.  This option is
 supported only when rebooting, and it has no effect unless a dump
 device has previously been specified with
 .Xr dumpon 8 .
+.It Fl k Ar kernel
+Boot the specified
+.Ar kernel
+on the next system boot.  If the kernel boots successfully, the 
+.Em default
+kernel will be booted on succesive boots, this is a one-shot option.
+If the boot fails, the system will continue attempting to boot
+.Ar kernel
+until the boot process is interrupted and a valid kernel booted.
+This may change in the future.
 .It Fl l
 The halt or reboot is
 .Em not
