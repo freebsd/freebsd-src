@@ -28,7 +28,7 @@ SUBDIR=	atrun \
 	xtend \
 	ypxfr
 
-.if !defined(NO_BIND) && 0
+.if !defined(NO_BIND)
 SUBDIR+=named-xfer
 .endif
 
