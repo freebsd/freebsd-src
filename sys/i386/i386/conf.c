@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.88 1995/07/16 14:34:57 davidg Exp $
+ *	$Id: conf.c,v 1.89 1995/07/22 13:56:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -354,6 +354,24 @@ d_psize_t	vnsize;
 #define	vnioctl		nxioctl
 #define	vndump		nxdump
 #define	vnsize		zerosize
+#endif
+
+/* Matrox Meteor capture card */
+#include "meteor.h"
+#if     NMETEOR > 0
+d_open_t        meteor_open; 
+d_close_t       meteor_close;
+d_read_t        meteor_read;
+d_write_t       meteor_write;
+d_ioctl_t       meteor_ioctl;
+d_mmap_t        meteor_mmap;
+#else 
+#define meteor_open     nxopen
+#define meteor_close    nxclose 
+#define meteor_read     nxread
+#define meteor_write    nxwrite
+#define meteor_ioctl    nxioctl
+#define meteor_mmap     nxmmap
 #endif
 
 #define swopen		noopen
@@ -1229,6 +1247,9 @@ struct cdevsw	cdevsw[] =
 	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
 	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
 	  seltrue,	nommap,		labpcstrategy },
+        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
+          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
+          seltrue, meteor_mmap, NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
