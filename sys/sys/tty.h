@@ -49,6 +49,8 @@
 #include <sys/termios.h>
 #include <sys/queue.h>
 #include <sys/selinfo.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 /*
  * Clists are character lists, which is a variable length linked list
@@ -110,7 +112,10 @@ struct tty {
 	int	t_olowat;		/* Low water mark for output. */
 	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
 	int	t_gen;			/* Generation number. */
-	SLIST_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
+	TAILQ_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
+
+	struct mtx t_mtx;
+	int	t_refcnt;
 };
 
 #define	t_cc		t_termios.c_cc
@@ -296,7 +301,6 @@ void	 ttychars(struct tty *tp);
 int	 ttycheckoutq(struct tty *tp, int wait);
 int	 ttyclose(struct tty *tp);
 void	 ttyflush(struct tty *tp, int rw);
-void	 ttyfree(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
 int	 ttyinput(int c, struct tty *tp);
 int	 ttylclose(struct tty *tp, int flag);
@@ -304,6 +308,8 @@ int	 ttyldoptim(struct tty *tp);
 struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
 int	 ttyopen(dev_t device, struct tty *tp);
+int	 ttyref(struct tty *tp);
+int	 ttyrel(struct tty *tp);
 int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
 int	 unputc(struct clist *q);
