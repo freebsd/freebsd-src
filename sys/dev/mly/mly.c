@@ -105,8 +105,7 @@ static struct cdevsw mly_cdevsw = {
     MLY_CDEV_MAJOR,
     nodump,
     nopsize,
-    0,
-    -1
+    0
 };
 
 /********************************************************************************
