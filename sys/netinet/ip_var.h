@@ -39,6 +39,10 @@
 
 #include <sys/queue.h>
 
+#ifdef _KERNEL
+#include <sys/_label.h>
+#endif
+
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
  */
