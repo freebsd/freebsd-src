@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.26 1995/10/16 19:09:40 wollman Exp $
+ *	$Id: route.c,v 1.27 1995/10/29 15:32:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -298,7 +298,11 @@ rtioctl(req, data, p)
 {
 #ifdef INET
 	/* Multicast goop, grrr... */
+#ifdef MROUTING
+	return mrt_ioctl(req, data);
+#else
 	return mrt_ioctl(req, data, p);
+#endif
 #else /* INET */
 	return ENXIO;
 #endif /* INET */
