@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  ******************************************************************************/
 
@@ -626,7 +626,7 @@ AcpiDbCommandDispatch (
         Status = AcpiEnable();
         if (ACPI_FAILURE(Status))
         {
-            AcpiOsPrintf("AcpiEnable failed (0x%x)\n", Status);
+            AcpiOsPrintf("AcpiEnable failed (Status=%X)\n", Status);
             return (Status);
         }
         break;

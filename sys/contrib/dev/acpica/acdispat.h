@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 32 $
+ *       $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -428,7 +428,8 @@ AcpiDsDeleteResultIfNotUsed (
 ACPI_STATUS
 AcpiDsCreateOperand (
     ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_OBJECT       *Arg);
+    ACPI_PARSE_OBJECT       *Arg,
+    UINT32                  ArgsRemaining);
 
 ACPI_STATUS
 AcpiDsCreateOperands (
@@ -497,12 +498,10 @@ AcpiDsPopWalkState (
 
 ACPI_STATUS
 AcpiDsResultStackPop (
-    ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiDsResultStackPush (
-    void                    *Object,
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
@@ -517,5 +516,31 @@ void
 AcpiDsDeleteWalkStateCache (
     void);
 
+ACPI_STATUS
+AcpiDsResultInsert (
+    void                    *Object,
+    UINT32                  Index,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiDsResultRemove (
+    ACPI_OPERAND_OBJECT     **Object,
+    UINT32                  Index,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiDsResultPop (
+    ACPI_OPERAND_OBJECT     **Object,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiDsResultPush (
+    ACPI_OPERAND_OBJECT     *Object,
+    ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiDsResultPopFromBottom (
+    ACPI_OPERAND_OBJECT     **Object,
+    ACPI_WALK_STATE         *WalkState);
 
 #endif /* _ACDISPAT_H_ */

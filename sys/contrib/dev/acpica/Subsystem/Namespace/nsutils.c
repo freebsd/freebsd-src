@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 72 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -825,10 +825,9 @@ AcpiNsGetNode (
     NATIVE_CHAR             *InternalPath = NULL;
 
 
-    FUNCTION_TRACE_PTR ("NsGetNte", Pathname);
+    FUNCTION_TRACE_PTR ("NsGetNode", Pathname);
 
 
-    ScopeInfo.Scope.Node = StartNode;
 
     /* Ensure that the namespace has been initialized */
 
@@ -854,22 +853,9 @@ AcpiNsGetNode (
 
     AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
 
-    /* NS_ALL means start from the root */
+    /* Setup lookup scope (search starting point) */
 
-    if (NS_ALL == ScopeInfo.Scope.Node)
-    {
-        ScopeInfo.Scope.Node = AcpiGbl_RootNode;
-    }
-
-    else
-    {
-        ScopeInfo.Scope.Node = StartNode;
-        if (!ScopeInfo.Scope.Node)
-        {
-            Status = AE_BAD_PARAMETER;
-            goto UnlockAndExit;
-        }
-    }
+    ScopeInfo.Scope.Node = StartNode;
 
     /* Lookup the name in the namespace */
 
@@ -880,12 +866,10 @@ AcpiNsGetNode (
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_INFO, ("NsGetNte: %s, %s\n",
+        DEBUG_PRINT (ACPI_INFO, ("NsGetNode: %s, %s\n",
                         InternalPath, AcpiCmFormatException (Status)));
     }
 
-
-UnlockAndExit:
 
     AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
 
@@ -1006,6 +990,11 @@ AcpiNsGetParentObject (
     ACPI_NAMESPACE_NODE     *Node)
 {
 
+
+    if (!Node)
+    {
+        return (NULL);
+    }
 
     /*
      * Walk to the end of this peer list.

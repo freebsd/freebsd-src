@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acefi.h - OS specific defines, etc.
- *       $Revision: 3 $
+ *       $Revision: 4 $
  *
  *****************************************************************************/
 
@@ -123,14 +123,14 @@
 #include <efistdarg.h>
 #include <efilib.h>
 
-#undef UINT8
-#undef BOOLEAN
-#undef UCHAR
-#undef UINT16
-#undef INT32
-#undef UINT32
-#undef INT64
-#undef UINT64
+
+/* _int64 works for both IA32 and IA64 */
+
+#define COMPILER_DEPENDENT_UINT64   unsigned __int64
+
+/* warn C4142: redefinition of type */
+
+#pragma warning(disable:4142)
 
 
 #endif /* __ACEFI_H__ */

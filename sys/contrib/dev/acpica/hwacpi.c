@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI hardware functions - mode and timer
- *              $Revision: 31 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -339,7 +339,7 @@ AcpiHwSetMode (
 
     if (AcpiHwGetMode () == Mode)
     {
-        DEBUG_PRINT (ACPI_INFO, ("Mode %d successfully enabled\n", Mode));
+        DEBUG_PRINT (ACPI_INFO, ("Mode %X successfully enabled\n", Mode));
         Status = AE_OK;
     }
 

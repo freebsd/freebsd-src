@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 81 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -305,7 +305,7 @@ AcpiNsDumpOneObject (
 
     if (!AcpiCmValidAcpiName (ThisNode->Name))
     {
-        REPORT_WARNING (("Invalid ACPI Name 0x%X\n", ThisNode->Name));
+        REPORT_WARNING (("Invalid ACPI Name %08X\n", ThisNode->Name));
     }
 
     /*
@@ -409,13 +409,13 @@ AcpiNsDumpOneObject (
 
             if (ObjType > INTERNAL_TYPE_MAX)
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type 0x%X [UNKNOWN])\n", ObjType));
+                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type %X [UNKNOWN])\n", ObjType));
                 BytesToDump = 32;
             }
 
             else
             {
-                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type 0x%X [%s])\n",
+                DEBUG_PRINT_RAW (TRACE_TABLES, ("(Ptr to ACPI Object type %X [%s])\n",
                                     ObjType, AcpiCmGetTypeName (ObjType)));
                 BytesToDump = sizeof (ACPI_OPERAND_OBJECT);
             }
