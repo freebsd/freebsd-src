@@ -441,7 +441,7 @@ scdevtounit(dev_t dev)
 	return vty/MAXCONS;
 }
 
-int
+static int
 scopen(dev_t dev, int flag, int mode, struct thread *td)
 {
     int unit = scdevtounit(dev);
@@ -500,7 +500,7 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
     return error;
 }
 
-int
+static int
 scclose(dev_t dev, int flag, int mode, struct thread *td)
 {
     struct tty *tp = dev->si_tty;
@@ -548,7 +548,7 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
     return(0);
 }
 
-int
+static int
 scread(dev_t dev, struct uio *uio, int flag)
 {
     if (!sc_saver_keyb_only)
@@ -639,7 +639,7 @@ scparam(struct tty *tp, struct termios *t)
     return 0;
 }
 
-int
+static int
 scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
     int error;
@@ -3378,7 +3378,7 @@ next_code:
     goto next_code;
 }
 
-int
+static int
 scmmap(dev_t dev, vm_offset_t offset, int nprot)
 {
     scr_stat *scp;
