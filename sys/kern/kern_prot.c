@@ -55,6 +55,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
@@ -443,6 +444,7 @@ setpgid(td, uap)
 
 	mtx_lock(&Giant);
 
+	sx_slock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == NULL || !inferior(targp)) {
 			if (targp)
@@ -488,6 +490,7 @@ setpgid(td, uap)
 	PROC_UNLOCK(targp);
 	error = enterpgrp(targp, uap->pgid, 0);
 done2:
+	sx_sunlock(&proctree_lock);
 	mtx_unlock(&Giant);
 	return (error);
 }
