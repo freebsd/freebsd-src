@@ -112,9 +112,9 @@ typedef struct _ftsent {
 	u_short fts_info;		/* flags for FTSENT structure */
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
-	short fts_pathlen;		/* strlen(fts_path) */
+	u_short fts_pathlen;		/* strlen(fts_path) */
 	char *fts_name;			/* file name */
-	short fts_namelen;		/* strlen(fts_name) */
+	u_short fts_namelen;		/* strlen(fts_name) */
 	short fts_level;		/* depth (\-1 to N) */
 	int fts_errno;			/* file errno */
 	long fts_number;		/* local numeric value */
