@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.617 1999/07/09 04:29:56 wpaul Exp $
+#	$Id: LINT,v 1.618 1999/07/25 04:32:44 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -956,18 +956,20 @@ options 	SC_NO_HISTORY
 options 	SC_NO_SYSMOUSE
 
 #
-# The Numeric Processing eXtension driver.  This should be configured if
-# your machine has a math co-processor, unless the coprocessor is very
-# buggy. If it is not configured then you *must* configure math emulation
-# (see above).  If both npx0 and emulation are configured, then only npx0
-# is used (provided it works).
+# The Numeric Processing eXtension driver. In addition to this, you
+# may configure a math emulator (see above). If your machine has a
+# hardware FPU and the kernel configuration includes the npx device
+# *and* a math emulator compiled into the kernel, the hardware FPU
+# will be used, unless it is found to be broken or unless "flags" to
+# npx0 includes "0x08", which requests preference for the emulator.
 device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 
 #
 # `flags' for npx0:
-#	0x01	don't use the npx registers to optimize bcopy
-#	0x02	don't use the npx registers to optimize bzero
+#	0x01	don't use the npx registers to optimize bcopy.
+#	0x02	don't use the npx registers to optimize bzero.
 #	0x04	don't use the npx registers to optimize copyin or copyout.
+#	0x08	use emulator even if hardware FPU is available.
 # The npx registers are normally used to optimize copying and zeroing when
 # all of the following conditions are satisfied:
 #	I586_CPU is an option
@@ -978,6 +980,9 @@ device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 # The flags can be used to control cases where it doesn't work or is slower.
 # Setting them at boot time using userconfig works right (the optimizations
 # are not used until later in the bootstrap when npx0 is attached).
+# Flag 0x08 does not imply any settings of the other flags, you may run
+# with FPU preference set to emulator, but still using the i586 optimized
+# memory routines.
 #
 
 #
@@ -1149,6 +1154,7 @@ device		sio0	at isa? port IO_COM1 flags 0x10 irq 4
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
 #		access the device in any normal way.
+#	0x80	use this port for serial line gdb support in ddb.
 #
 # PnP `flags' (set via userconfig using pnp x flags y)
 #	0x1	disable probing of this device.  Used to prevent your modem

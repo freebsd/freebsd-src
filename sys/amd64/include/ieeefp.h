@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	from: @(#) ieeefp.h 	1.0 (Berkeley) 9/23/93
- *	$Id$
+ *	$Id: ieeefp.h,v 1.5 1997/02/22 09:34:41 peter Exp $
  */
 
 /*
@@ -72,6 +72,7 @@ typedef enum {
 #define FP_X_OFL	0x08	/* overflow */
 #define FP_X_UFL	0x10	/* underflow */
 #define FP_X_IMP	0x20	/* (im)precision */
+#define FP_X_STK	0x40	/* stack fault */
 
 /*
  * FP registers
