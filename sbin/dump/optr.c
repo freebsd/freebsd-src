@@ -485,6 +485,7 @@ lastdump(arg)
 	char *lastname, *date;
 	int dumpme;
 	time_t tnow;
+	struct tm *tlast;
 
 	(void) time(&tnow);
 	getfstab();		/* /etc/fstab input */
@@ -504,9 +505,13 @@ lastdump(arg)
 		date[16] = '\0';	/* blast away seconds and year */
 		lastname = dtwalk->dd_name;
 		dt = fstabsearch(dtwalk->dd_name);
-		dumpme = (dt != NULL &&
-		    dt->fs_freq != 0 &&
-		    dtwalk->dd_ddate < tnow - (dt->fs_freq * 86400));
+		dumpme = (dt != NULL && dt->fs_freq != 0);
+		if (dumpme) {
+		    tlast = localtime(&dtwalk->dd_ddate);
+		    dumpme = tnow > (dtwalk->dd_ddate - (tlast->tm_hour * 3600)
+				     - (tlast->tm_min * 60) - tlast->tm_sec
+				     + (dt->fs_freq * 86400));
+		};
 		if (arg != 'w' || dumpme)
 			(void) printf(
 			    "%c %8s\t(%6s) Last dump: Level %c, Date %s\n",
