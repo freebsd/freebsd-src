@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_main.c,v 1.6.2.3 1997/11/18 07:52:04 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -83,7 +83,6 @@ extern int _rpc_dtablesize __P((void));
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
-int debug = 0;
 int do_dns = 0;
 int resfd;
 
