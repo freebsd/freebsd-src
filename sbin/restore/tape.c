@@ -284,6 +284,9 @@ setup()
 	 */
 	if (oldinofmt == 0)
 		SETINO(WINO, dumpmap);
+	/* 'r' restores don't call getvol() for tape 1, so mark it as read. */
+	if (command == 'r')
+		tapesread = 1;
 }
 
 /*
@@ -329,18 +332,20 @@ again:
 		newvol = 0;
 	while (newvol <= 0) {
 		if (tapesread == 0) {
-			fprintf(stderr, "%s%s%s%s%s",
+			fprintf(stderr, "%s%s%s%s%s%s%s",
 			    "You have not read any tapes yet.\n",
-			    "Unless you know which volume your",
-			    " file(s) are on you should start\n",
-			    "with the last volume and work",
-			    " towards the first.\n");
+			    "If you are extracting just a few files,",
+			    " start with the last volume\n",
+			    "and work towards the first; restore",
+			    " can quickly skip tapes that\n",
+			    "have no further files to extract.",
+			    " Otherwise, begin with volume 1.\n");
 		} else {
 			fprintf(stderr, "You have read volumes");
 			strcpy(buf, ": ");
-			for (i = 1; i < 32; i++)
+			for (i = 0; i < 32; i++)
 				if (tapesread & (1 << i)) {
-					fprintf(stderr, "%s%ld", buf, i);
+					fprintf(stderr, "%s%ld", buf, i + 1);
 					strcpy(buf, ", ");
 				}
 			fprintf(stderr, "\n");
@@ -358,7 +363,7 @@ again:
 		}
 	}
 	if (newvol == volno) {
-		tapesread |= 1 << volno;
+		tapesread |= 1 << (volno - 1);
 		return;
 	}
 	closemt();
@@ -411,7 +416,7 @@ gethdr:
 		volno = 0;
 		goto again;
 	}
-	tapesread |= 1 << volno;
+	tapesread |= 1 << (volno - 1);
 	blksread = savecnt;
  	/*
  	 * If continuing from the previous volume, skip over any
@@ -1255,6 +1260,11 @@ findinode(header)
 			break;
 
 		case TS_END:
+			/* If we missed some tapes, get another volume. */
+			if (tapesread & (tapesread + 1)) {
+				getvol(0);
+				continue;
+			}
 			curfile.ino = maxino;
 			break;
 
