@@ -212,7 +212,6 @@ struct ath_softc {
 	u_int			sc_ledpin;	/* GPIO pin for driving LED */
 	u_int			sc_ledon;	/* pin setting for LED on */
 	u_int			sc_ledidle;	/* idle polling interval */
-	u_int32_t		sc_ipackets;	/* last data packet count */
 	int			sc_ledevent;	/* time of last LED event */
 	u_int8_t		sc_rxrate;	/* current rx rate for LED */
 	u_int8_t		sc_txrate;	/* current tx rate for LED */
