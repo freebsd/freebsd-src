@@ -918,6 +918,31 @@ options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
 
+
+#####################################################################
+# VM OPTIONS
+
+# Disable the 4 MByte page PSE CPU feature.  The PSE feature allows the
+# kernel to use a 4 MByte pages to map the kernel instead of 4k pages.
+# This saves on the amount of memory needed for page tables needed to
+# map the kernel.  You should only disable this feature as a temporary
+# workaround if you are having problems with it enabled.
+#
+#options 	DISABLE_PSE
+
+# Disable the global pages PGE CPU feature.  The PGE feature allows pages
+# to be marked with the PG_G bit.  TLB entries for these pages are not
+# flushed from the cache when %cr3 is reloaded.  This can make context
+# switches less expensive.  You should only disable this feature as a
+# temporary workaround if you are having problems with it enabled.
+#
+#options	DISABLE_PG_G
+
+# KSTACK_PAGES is the number of memory pages to assign to the kernel
+# stack of each thread.
+
+options 	KSTACK_PAGES=3
+
 #####################################################################
 
 # More undocumented options for linting.
@@ -926,9 +951,6 @@ device		streams		# STREAMS network driver (required for svr4).
 # PECOFF module (Win32 Execution Format)
 options 	PECOFF_SUPPORT
 options 	PECOFF_DEBUG
-
-# Disable the 4 MByte PSE CPU feature.
-#options 	DISABLE_PSE
 
 options 	ENABLE_ALART
 options 	I4B_SMP_WORKAROUND
