@@ -45,7 +45,7 @@ int thataway, token;
 		if (thataway) {
 			position = thataway;
 			newway(token);
-			time++;
+			gtime++;
 		}
 		else {
 			puts("You can't go this way.");
@@ -88,24 +88,24 @@ news()
 	register int n;
 	int hurt;
 
-	if (time > 30 && position < 32){
+	if (gtime > 30 && position < 32){
 		puts("An explosion of shuddering magnitude splinters bulkheads and");
 		puts("ruptures the battlestar's hull.  You are sucked out into the");
 		puts("frozen void of space and killed.");
 		die();
 	}
-	if (time > 20 && position < 32)
+	if (gtime > 20 && position < 32)
 		puts("Explosions rock the battlestar.");
-	if (time > snooze){
+	if (gtime > snooze){
 		puts("You drop from exhaustion...");
 		zzz();
 	}
-	if (time > snooze - 5)
+	if (gtime > snooze - 5)
 		puts("You're getting tired.");
-	if (time > (rythmn + CYCLE)) {
+	if (gtime > (rythmn + CYCLE)) {
 		if (location == nightfile) {
 			convert(TODAY);
-			if (OUTSIDE && time - rythmn - CYCLE < 10) {
+			if (OUTSIDE && gtime - rythmn - CYCLE < 10) {
 				puts("Dew lit sunbeams stretch out from a watery sunrise and herald the dawn.");
 				puts("You awake from a misty dream-world into stark reality.");
 				puts("It is day.");
@@ -113,14 +113,14 @@ news()
 		} else {
 			convert(TONIGHT);
 			clearbit(location[POOLS].objects, BATHGOD);
-			if (OUTSIDE && time - rythmn - CYCLE < 10) {
+			if (OUTSIDE && gtime - rythmn - CYCLE < 10) {
 				puts("The dying sun sinks into the ocean, leaving a blood stained sunset.");
 				puts("The sky slowly fades from orange to violet to black.  A few stars");
 				puts("flicker on, and it is night.");
 				puts("The world seems completly different at night.");
 			}
 		}
-		rythmn = time - time % CYCLE;
+		rythmn = gtime - gtime % CYCLE;
 	}
 	if (!wiz && !tempwiz)
 		if ((testbit(inven,TALISMAN) || testbit(wear,TALISMAN)) && (testbit(inven,MEDALION) || testbit(wear,MEDALION)) && (testbit(inven,AMULET) || testbit(wear,AMULET))){
@@ -157,16 +157,16 @@ news()
 	}
 	if (testbit(location[position].objects, GIRL))
 		meetgirl = 1;
-	if (meetgirl && CYCLE * 1.5 - time < 10){
+	if (meetgirl && CYCLE * 1.5 - gtime < 10){
 		setbit(location[GARDEN].objects,GIRLTALK);
 		setbit(location[GARDEN].objects,LAMPON);
 		setbit(location[GARDEN].objects,ROPE);
 	}
-	if (position == DOCK && (beenthere[position] || time > CYCLE)){
+	if (position == DOCK && (beenthere[position] || gtime > CYCLE)){
 		clearbit(location[DOCK].objects, GIRL);
 		clearbit(location[DOCK].objects,MAN);
 	}
-	if (meetgirl && time - CYCLE * 1.5 > 10){
+	if (meetgirl && gtime - CYCLE * 1.5 > 10){
 		clearbit(location[GARDEN].objects,GIRLTALK);
 		clearbit(location[GARDEN].objects,LAMPON);
 		clearbit(location[GARDEN].objects,ROPE);
@@ -174,7 +174,7 @@ news()
 	}
 	if (testbit(location[position].objects,CYLON)){
 		puts("Oh my God, you're being shot at by an alien spacecraft!");
-		printf("The targeting computer says we have %d seconds to attack!\n",clock);
+		printf("The targeting computer says we have %d seconds to attack!\n",gclock);
 		fflush(stdout);
 		sleep(1);
 		if (!visual()){
@@ -236,7 +236,7 @@ crash()
 		}
 		notes[LAUNCHED] = 0;
 		setbit(location[position].objects,CRASH);
-		time += rnd(CYCLE/4);
+		gtime += rnd(CYCLE/4);
 		puts("The viper explodes into the ground and you lose consciousness...");
 		zzz();
 		hurt1 = rnd(NUMOFINJURIES - 2) + 2;

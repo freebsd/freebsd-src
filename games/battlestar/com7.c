@@ -48,15 +48,15 @@ int enemy,strength;
 	int exhaustion;
 
 fighton:
-	time++;
+	gtime++;
 	snooze -= 5;
-	if (snooze > time)
-		exhaustion = CYCLE/(snooze - time);
+	if (snooze > gtime)
+		exhaustion = CYCLE/(snooze - gtime);
 	else {
 		puts("You collapse exhausted, and he pulverizes your skull.");
 		die();
 	}
-	if (snooze - time < 20)
+	if (snooze - gtime < 20)
 		puts("You look tired! I hope you're able to fight.");
 	next = getcom(auxbuf, LINELENGTH, "<fight!>-: ", 0);
 	for (i=0; next && i < 10; i++)
@@ -186,7 +186,7 @@ fighton:
 					puts("he flees down the dark caverns.");
 					clearbit(location[position].objects,DARK);
 					injuries[SKULL] = 1;
-					followfight = time;
+					followfight = gtime;
 					return (0);
 				}
 				else{
@@ -231,7 +231,7 @@ fighton:
 		case DROP:
 		case DRAW:
 			cypher();
-			time--;
+			gtime--;
 			break;
 
 		default:
