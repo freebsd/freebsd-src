@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11.2.11 1997/07/01 21:33:41 brian Exp $
+ * $Id: chat.c,v 1.11.2.12 1997/08/14 01:49:02 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -351,12 +351,13 @@ WaitforString(char *estr)
 	    flush_log();
 	    return(MATCH);
 	  }
-        } else {
+        } else
 	  s = str;
-	  if (inp == inbuff+ IBSIZE) {
-	    bcopy(inp - 100, inbuff, 100);
-	    inp = inbuff + 100;
-	  }
+	if (inp == inbuff + IBSIZE) {
+	  bcopy(inp - 100, inbuff, 100);
+	  inp = inbuff + 100;
+	}
+	if (s == str) {
 	  for (i = 0; i < numaborts; i++) {	/* Look for Abort strings */
 	    int len;
 	    char *s1;
