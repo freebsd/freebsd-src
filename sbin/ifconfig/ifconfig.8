@@ -345,35 +345,49 @@ Included for
 .Tn Solaris
 compatibility.
 .It Cm vlan Ar vlan_tag
-If the interface is a vlan pseudo interface, set the vlan tag value
+If the interface is a
+.Xr vlan 4
+pseudo interface, set the VLAN tag value
 to
 .Ar vlan_tag .
 This value is a 16-bit number which is used to create an 802.1Q
-vlan header for packets sent from the vlan interface.
+VLAN header for packets sent from the
+.Xr vlan 4
+interface.
 Note that
 .Cm vlan
 and
 .Cm vlandev
 must both be set at the same time.
 .It Cm vlandev Ar iface
-If the interface is a vlan pseudo device, associate physical interface
+If the interface is a
+.Xr vlan 4
+pseudo device, associate physical interface
 .Ar iface
 with it.
-Packets transmitted through the vlan interface will be
+Packets transmitted through the
+.Xr vlan 4
+interface will be
 diverted to the specified physical interface
 .Ar iface
-with 802.1Q vlan encapsulation.
+with 802.1Q VLAN encapsulation.
 Packets with 802.1Q encapsulation received
-by the parent interface with the correct vlan tag will be diverted to
-the associated vlan pseudo-interface.
-The vlan interface is assigned a
+by the parent interface with the correct VLAN tag will be diverted to
+the associated
+.Xr vlan 4
+pseudo-interface.
+The
+.Xr vlan 4
+interface is assigned a
 copy of the parent interface's flags and the parent's ethernet address.
 The
 .Cm vlandev
 and
 .Cm vlan
 must both be set at the same time.
-If the vlan interface already has
+If the
+.Xr vlan 4
+interface already has
 a physical interface associated with it, this command will fail.
 To
 change the association to another physical interface, the existing
@@ -381,19 +395,29 @@ association must be cleared first.
 .Pp
 Note: if the
 .Cm link0
-flag is set on the vlan interface, the vlan pseudo
+flag is set on the
+.Xr vlan 4
+interface, the
+.Xr vlan 4
+pseudo
 interface's behavior changes: the
 .Cm link0
-tells the vlan interface that the
-parent interface supports insertion and extraction of vlan tags on its
+tells the
+.Xr vlan 4
+interface that the
+parent interface supports insertion and extraction of VLAN tags on its
 own (usually in firmware) and that it should pass packets to and from
 the parent unaltered.
 .It Fl vlandev Ar iface
-If the driver is a vlan pseudo device, disassociate the physical interface
+If the driver is a
+.Xr vlan 4
+pseudo device, disassociate the physical interface
 .Ar iface
 from it.
-This breaks the link between the vlan interface and its parent,
-clears its vlan tag, flags and its link address and shuts the interface down.
+This breaks the link between the
+.Xr vlan 4
+interface and its parent,
+clears its VLAN tag, flags and its link address and shuts the interface down.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -736,6 +760,7 @@ So, such manual deletions are strongly discouraged.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr netintro 4 ,
+.Xr vlan 4 ,
 .\" .Xr eon 5 ,
 .Xr rc 8 ,
 .Xr routed 8
