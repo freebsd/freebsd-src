@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.3 2000/07/08 02:20:14 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.6 2000/08/07 12:36:19 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -50,6 +50,7 @@ static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.3 2000/07/08 02:20:14 d
 #include "ip_nat.h"
 #include "ip_frag.h"
 #include "ip_auth.h"
+#include "ip_proxy.h"
 #include <inet/ip_ire.h>
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
@@ -64,6 +65,7 @@ u_long	ipl_frouteok[2] = {0, 0};
 static	int	frzerostats __P((caddr_t));
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
+static	int	send_ip __P((fr_info_t *fin, mblk_t *m));
 kmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
 KRWLOCK_T	ipf_mutex, ipfs_mutex, ipf_solaris;
 KRWLOCK_T	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
@@ -148,7 +150,7 @@ caddr_t	data;
 	fr_getstat(&fio);
 	error = IWCOPYPTR((caddr_t)&fio, data, sizeof(fio));
 	if (error)
-		return EFAULT;
+		return error;
 
 	bzero((char *)frstats, sizeof(*frstats) * 2);
 
@@ -227,6 +229,8 @@ int *rp;
 	case SIOCGETFF :
 		error = IWCOPY((caddr_t)&fr_flags, (caddr_t)data,
 			       sizeof(fr_flags));
+		if (error)
+			error = EFAULT;
 		break;
 	case SIOCINAFR :
 	case SIOCRMAFR :
@@ -254,6 +258,8 @@ int *rp;
 			bzero((char *)frcache, sizeof(frcache[0]) * 2);
 			error = IWCOPY((caddr_t)&fr_active, (caddr_t)data,
 				       sizeof(fr_active));
+			if (error)
+				error = EFAULT;
 			fr_active = 1 - fr_active;
 			RWLOCK_EXIT(&ipf_mutex);
 		}
@@ -286,6 +292,8 @@ int *rp;
 				tmp = frflush(unit, tmp);
 				error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
 					       sizeof(tmp));
+				if (error)
+					error = EFAULT;
 			}
 		}
 		break;
@@ -307,6 +315,8 @@ int *rp;
 			tmp = ipflog_clear(unit);
 			error = IWCOPY((caddr_t)&tmp, (caddr_t)data,
 				       sizeof(tmp));
+			if (error)
+				error = EFAULT;
 		}
 		break;
 #endif /* IPFILTER_LOG */
@@ -319,8 +329,6 @@ int *rp;
 	case SIOCGFRST :
 		error = IWCOPYPTR((caddr_t)ipfr_fragstats(), (caddr_t)data,
 				  sizeof(ipfrstat_t));
-		if (error)
-			error = EFAULT;
 		break;
 	case FIONREAD :
 	{
@@ -328,6 +336,8 @@ int *rp;
 		int copy = (int)iplused[IPL_LOGIPF];
 
 		error = IWCOPY((caddr_t)&copy, (caddr_t)data, sizeof(copy));
+		if (error)
+			error = EFAULT;
 #endif
 		break;
 	}
@@ -533,10 +543,8 @@ caddr_t data;
 		}
 		MUTEX_DOWNGRADE(&ipf_mutex);
 		error = IWCOPYPTR((caddr_t)f, data, sizeof(*f));
-		if (error) {
-			error = EFAULT;
+		if (error)
 			goto out;
-		}
 		f->fr_hits = 0;
 		f->fr_bytes = 0;
 		goto out;
@@ -741,7 +749,7 @@ fr_info_t *fin;
 }
 
 
-int send_ip(fin, m)
+int static send_ip(fin, m)
 fr_info_t *fin;
 mblk_t *m;
 {
@@ -749,6 +757,7 @@ mblk_t *m;
 	RWLOCK_EXIT(&ipf_solaris);
 #ifdef	USE_INET6
 	if (fin->fin_v == 6) {
+		extern void ip_wput_v6 __P((queue_t *, mblk_t *));
 		ip6_t *ip6;
 
 		ip6 = (ip6_t *)m->b_rptr;

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.3 2000/04/28 14:56:49 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.4 2000/08/13 03:51:03 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -125,6 +125,10 @@ typedef	 int	minor_t;
 #endif
 #endif /* SOLARIS */
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
+
+#if defined(__FreeBSD__) && (__FreeBSD__ >= 5) && defined(_KERNEL)
+# include <machine/in_cksum.h>
+#endif
 
 #ifndef	IP_OFFMASK
 #define	IP_OFFMASK	0x1fff
