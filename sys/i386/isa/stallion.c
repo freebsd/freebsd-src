@@ -140,7 +140,7 @@ static unsigned int	stl_irqshared = 0;
  */
 static char	*stl_drvname = "stl";
 static char	*stl_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stl_drvversion = "0.0.3";
+static char	*stl_drvversion = "0.0.4";
 static int	stl_brdprobed[STL_MAXBRDS];
 
 static int	stl_nrbrds = 0;
@@ -2027,7 +2027,7 @@ static void stl_rxprocess(stlport_t *portp)
 		}
 	} else {
 		while (portp->rx.tail != head) {
-			ch = *(portp->rx.tail);
+			ch = (unsigned char) *(portp->rx.tail);
 			if (status = *(portp->rx.tail + STL_RXBUFSIZE)) {
 				*(portp->rx.tail + STL_RXBUFSIZE) = 0;
 				if (status & ST_BREAK)
