@@ -54,7 +54,8 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
+#include <nfsclient/nfs.h>
+#include <nfsserver/nfs.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <ctype.h>
@@ -71,7 +72,9 @@ static const char rcsid[] =
 
 struct nlist nl[] = {
 #define	N_NFSSTAT	0
-	{ "_nfsstats" },
+	{ "nfsstats" },
+#define	N_NFSRVSTAT	1
+	{ "nfsrvstats" },
 	"",
 };
 kvm_t *kd;
@@ -167,26 +170,31 @@ main(argc, argv)
  * for dead ones.
  */
 void
-readstats(stp)
-	struct nfsstats *stp;
+readstats(stp, srvstp)
+	struct nfsstats **stp;
+	struct nfsrvstats **srvstp;
 {
-	if(deadkernel) {
-		if(kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, stp,
-			    sizeof *stp) < 0) {
-			err(1, "kvm_read");
+	size_t buflen;
+
+	if (deadkernel) {
+		if (kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, *stp,
+			    sizeof(struct nfsstats)) < 0) {
+			*stp = NULL;
+		}
+		if (kvm_read(kd, (u_long)nl[N_NFSRVSTAT].n_value, *srvstp,
+			    sizeof(struct nfsrvstats)) < 0) {
+			*srvstp = NULL;
 		}
 	} else {
-		int name[3];
-		size_t buflen = sizeof *stp;
-		struct vfsconf vfc;
-
-		if (getvfsbyname("nfs", &vfc) < 0)
-			err(1, "getvfsbyname: NFS not compiled into kernel");
-		name[0] = CTL_VFS;
-		name[1] = vfc.vfc_typenum;
-		name[2] = NFS_NFSSTATS;
-		if (sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
-			err(1, "sysctl");
+		buflen = sizeof(struct nfsstats);
+		if (sysctlbyname("vfs.nfs.nfsstats", *stp, &buflen,
+		    (void *)0, (size_t)0) < 0) {
+			*stp = NULL;
+		}
+		buflen = sizeof(struct nfsrvstats);
+		if (sysctlbyname("vfs.nfsrv.nfsrvstats", *srvstp, &buflen,
+		    (void *)0, (size_t)0) < 0) {
+			*srvstp = NULL;
 		}
 	}
 }
@@ -197,10 +205,18 @@ readstats(stp)
 void
 intpr(int clientOnly, int serverOnly)
 {
-	struct nfsstats nfsstats;
+	struct nfsstats nfsstats, *nfsstatsp;
+	struct nfsrvstats nfsrvstats, *nfsrvstatsp;
 
-	readstats(&nfsstats);
+	nfsstatsp = &nfsstats;
+	nfsrvstatsp = &nfsrvstats;
 
+	readstats(&nfsstatsp, &nfsrvstatsp);
+
+	if (clientOnly && !nfsstatsp) {
+		printf("Client not present!\n");
+		clientOnly = 0;
+	}
 	if (clientOnly) {
 		printf("Client Info:\n");
 		printf("Rpc Counts:\n");
@@ -228,18 +244,14 @@ intpr(int clientOnly, int serverOnly)
 			nfsstats.rpccnt[NFSPROC_READDIR],
 			nfsstats.rpccnt[NFSPROC_READDIRPLUS],
 			nfsstats.rpccnt[NFSPROC_ACCESS]);
-		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
-			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit",
-			"GLease", "Vacate", "Evict");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
+		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
+			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit");
+		printf("%9d %9d %9d %9d %9d\n",
 			nfsstats.rpccnt[NFSPROC_MKNOD],
 			nfsstats.rpccnt[NFSPROC_FSSTAT],
 			nfsstats.rpccnt[NFSPROC_FSINFO],
 			nfsstats.rpccnt[NFSPROC_PATHCONF],
-			nfsstats.rpccnt[NFSPROC_COMMIT],
-			nfsstats.rpccnt[NQNFSPROC_GETLEASE],
-			nfsstats.rpccnt[NQNFSPROC_VACATED],
-			nfsstats.rpccnt[NQNFSPROC_EVICTED]);
+			nfsstats.rpccnt[NFSPROC_COMMIT]);
 		printf("Rpc Info:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"TimedOut", "Invalid", "X Replies", "Retries", 
@@ -274,71 +286,64 @@ intpr(int clientOnly, int serverOnly)
 		printf(" %9d %9d\n",
 			nfsstats.direofcache_hits, nfsstats.direofcache_misses);
 	}
+	if (serverOnly && !nfsrvstatsp) {
+		printf("Server not present!\n");
+		serverOnly = 0;
+	}
 	if (serverOnly) {
 		printf("\nServer Info:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Getattr", "Setattr", "Lookup", "Readlink", "Read",
 			"Write", "Create", "Remove");
 		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsstats.srvrpccnt[NFSPROC_GETATTR],
-			nfsstats.srvrpccnt[NFSPROC_SETATTR],
-			nfsstats.srvrpccnt[NFSPROC_LOOKUP],
-			nfsstats.srvrpccnt[NFSPROC_READLINK],
-			nfsstats.srvrpccnt[NFSPROC_READ],
-			nfsstats.srvrpccnt[NFSPROC_WRITE],
-			nfsstats.srvrpccnt[NFSPROC_CREATE],
-			nfsstats.srvrpccnt[NFSPROC_REMOVE]);
+			nfsrvstats.srvrpccnt[NFSPROC_GETATTR],
+			nfsrvstats.srvrpccnt[NFSPROC_SETATTR],
+			nfsrvstats.srvrpccnt[NFSPROC_LOOKUP],
+			nfsrvstats.srvrpccnt[NFSPROC_READLINK],
+			nfsrvstats.srvrpccnt[NFSPROC_READ],
+			nfsrvstats.srvrpccnt[NFSPROC_WRITE],
+			nfsrvstats.srvrpccnt[NFSPROC_CREATE],
+			nfsrvstats.srvrpccnt[NFSPROC_REMOVE]);
 		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
 			"Rename", "Link", "Symlink", "Mkdir", "Rmdir",
 			"Readdir", "RdirPlus", "Access");
 		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsstats.srvrpccnt[NFSPROC_RENAME],
-			nfsstats.srvrpccnt[NFSPROC_LINK],
-			nfsstats.srvrpccnt[NFSPROC_SYMLINK],
-			nfsstats.srvrpccnt[NFSPROC_MKDIR],
-			nfsstats.srvrpccnt[NFSPROC_RMDIR],
-			nfsstats.srvrpccnt[NFSPROC_READDIR],
-			nfsstats.srvrpccnt[NFSPROC_READDIRPLUS],
-			nfsstats.srvrpccnt[NFSPROC_ACCESS]);
-		printf("%9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s %9.9s\n",
-			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit",
-			"GLease", "Vacate", "Evict");
-		printf("%9d %9d %9d %9d %9d %9d %9d %9d\n",
-			nfsstats.srvrpccnt[NFSPROC_MKNOD],
-			nfsstats.srvrpccnt[NFSPROC_FSSTAT],
-			nfsstats.srvrpccnt[NFSPROC_FSINFO],
-			nfsstats.srvrpccnt[NFSPROC_PATHCONF],
-			nfsstats.srvrpccnt[NFSPROC_COMMIT],
-			nfsstats.srvrpccnt[NQNFSPROC_GETLEASE],
-			nfsstats.srvrpccnt[NQNFSPROC_VACATED],
-			nfsstats.srvrpccnt[NQNFSPROC_EVICTED]);
+			nfsrvstats.srvrpccnt[NFSPROC_RENAME],
+			nfsrvstats.srvrpccnt[NFSPROC_LINK],
+			nfsrvstats.srvrpccnt[NFSPROC_SYMLINK],
+			nfsrvstats.srvrpccnt[NFSPROC_MKDIR],
+			nfsrvstats.srvrpccnt[NFSPROC_RMDIR],
+			nfsrvstats.srvrpccnt[NFSPROC_READDIR],
+			nfsrvstats.srvrpccnt[NFSPROC_READDIRPLUS],
+			nfsrvstats.srvrpccnt[NFSPROC_ACCESS]);
+		printf("%9.9s %9.9s %9.9s %9.9s %9.9s\n",
+			"Mknod", "Fsstat", "Fsinfo", "PathConf", "Commit");
+		printf("%9d %9d %9d %9d %9d\n",
+			nfsrvstats.srvrpccnt[NFSPROC_MKNOD],
+			nfsrvstats.srvrpccnt[NFSPROC_FSSTAT],
+			nfsrvstats.srvrpccnt[NFSPROC_FSINFO],
+			nfsrvstats.srvrpccnt[NFSPROC_PATHCONF],
+			nfsrvstats.srvrpccnt[NFSPROC_COMMIT]);
 		printf("Server Ret-Failed\n");
-		printf("%17d\n", nfsstats.srvrpc_errs);
+		printf("%17d\n", nfsrvstats.srvrpc_errs);
 		printf("Server Faults\n");
-		printf("%13d\n", nfsstats.srv_errs);
+		printf("%13d\n", nfsrvstats.srv_errs);
 		printf("Server Cache Stats:\n");
 		printf("%9.9s %9.9s %9.9s %9.9s\n",
 			"Inprog", "Idem", "Non-idem", "Misses");
 		printf("%9d %9d %9d %9d\n",
-			nfsstats.srvcache_inproghits,
-			nfsstats.srvcache_idemdonehits,
-			nfsstats.srvcache_nonidemdonehits,
-			nfsstats.srvcache_misses);
-		printf("Server Lease Stats:\n");
-		printf("%9.9s %9.9s %9.9s\n",
-		"Leases", "PeakL", "GLeases");
-		printf("%9d %9d %9d\n",
-			nfsstats.srvnqnfs_leases,
-			nfsstats.srvnqnfs_maxleases,
-			nfsstats.srvnqnfs_getleases);
+			nfsrvstats.srvcache_inproghits,
+			nfsrvstats.srvcache_idemdonehits,
+			nfsrvstats.srvcache_nonidemdonehits,
+			nfsrvstats.srvcache_misses);
 		printf("Server Write Gathering:\n");
 		printf("%9.9s %9.9s %9.9s\n",
 			"WriteOps", "WriteRPC", "Opsaved");
 		printf("%9d %9d %9d\n",
-			nfsstats.srvvop_writes,
-			nfsstats.srvrpccnt[NFSPROC_WRITE],
-			nfsstats.srvrpccnt[NFSPROC_WRITE] - 
-			    nfsstats.srvvop_writes);
+			nfsrvstats.srvvop_writes,
+			nfsrvstats.srvrpccnt[NFSPROC_WRITE],
+			nfsrvstats.srvrpccnt[NFSPROC_WRITE] - 
+			    nfsrvstats.srvvop_writes);
 	}
 }
 
@@ -353,14 +358,27 @@ u_char	signalled;			/* set if alarm goes off "early" */
 void
 sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 {
-	struct nfsstats nfsstats, lastst;
+	struct nfsstats nfsstats, lastst, *nfsstatsp;
+	struct nfsrvstats nfsrvstats, lastsrvst, *nfsrvstatsp;
 	int hdrcnt = 1;
 
-	readstats(&lastst);
+	nfsstatsp = &lastst;
+	nfsrvstatsp = &lastsrvst;
+	readstats(&nfsstatsp, &nfsrvstatsp);
+	if (clientOnly && !nfsstatsp) {
+		printf("Client not present!\n");
+		clientOnly = 0;
+	}
+	if (serverOnly && !nfsrvstatsp) {
+		printf("Server not present!\n");
+		serverOnly = 0;
+	}
 	sleep(interval);
 
 	for (;;) {
-		readstats(&nfsstats);
+		nfsstatsp = &nfsstats;
+		nfsrvstatsp = &nfsrvstats;
+		readstats(&nfsstatsp, &nfsrvstatsp);
 
 		if (--hdrcnt == 0) {
 			printhdr(clientOnly, serverOnly);
@@ -398,22 +416,23 @@ sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 			    );
 		    }
 		    printf("\n");
+		    lastst = nfsstats;
 		}
 		if (serverOnly) {
 		    printf("%s %6d %6d %6d %6d %6d %6d %6d %6d",
 			((clientOnly && serverOnly) ? "Server:" : ""),
-			nfsstats.srvrpccnt[NFSPROC_GETATTR]-lastst.srvrpccnt[NFSPROC_GETATTR],
-			nfsstats.srvrpccnt[NFSPROC_LOOKUP]-lastst.srvrpccnt[NFSPROC_LOOKUP],
-			nfsstats.srvrpccnt[NFSPROC_READLINK]-lastst.srvrpccnt[NFSPROC_READLINK],
-			nfsstats.srvrpccnt[NFSPROC_READ]-lastst.srvrpccnt[NFSPROC_READ],
-			nfsstats.srvrpccnt[NFSPROC_WRITE]-lastst.srvrpccnt[NFSPROC_WRITE],
-			nfsstats.srvrpccnt[NFSPROC_RENAME]-lastst.srvrpccnt[NFSPROC_RENAME],
-			nfsstats.srvrpccnt[NFSPROC_ACCESS]-lastst.srvrpccnt[NFSPROC_ACCESS],
-			(nfsstats.srvrpccnt[NFSPROC_READDIR]-lastst.srvrpccnt[NFSPROC_READDIR])
-			+(nfsstats.srvrpccnt[NFSPROC_READDIRPLUS]-lastst.srvrpccnt[NFSPROC_READDIRPLUS]));
+			nfsrvstats.srvrpccnt[NFSPROC_GETATTR]-lastsrvst.srvrpccnt[NFSPROC_GETATTR],
+			nfsrvstats.srvrpccnt[NFSPROC_LOOKUP]-lastsrvst.srvrpccnt[NFSPROC_LOOKUP],
+			nfsrvstats.srvrpccnt[NFSPROC_READLINK]-lastsrvst.srvrpccnt[NFSPROC_READLINK],
+			nfsrvstats.srvrpccnt[NFSPROC_READ]-lastsrvst.srvrpccnt[NFSPROC_READ],
+			nfsrvstats.srvrpccnt[NFSPROC_WRITE]-lastsrvst.srvrpccnt[NFSPROC_WRITE],
+			nfsrvstats.srvrpccnt[NFSPROC_RENAME]-lastsrvst.srvrpccnt[NFSPROC_RENAME],
+			nfsrvstats.srvrpccnt[NFSPROC_ACCESS]-lastsrvst.srvrpccnt[NFSPROC_ACCESS],
+			(nfsrvstats.srvrpccnt[NFSPROC_READDIR]-lastsrvst.srvrpccnt[NFSPROC_READDIR])
+			+(nfsrvstats.srvrpccnt[NFSPROC_READDIRPLUS]-lastsrvst.srvrpccnt[NFSPROC_READDIRPLUS]));
 		    printf("\n");
+		    lastsrvst = nfsrvstats;
 		}
-		lastst = nfsstats;
 		fflush(stdout);
 		sleep(interval);
 	}

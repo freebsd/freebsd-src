@@ -45,17 +45,17 @@
 #include <unistd.h>
 
 #include "nlm_prot.h"
-#include "nfs/nfs_lock.h"
+#include <nfs/rpcv2.h>
+#include <nfs/nfsproto.h>
+#include <nfsclient/nfs_lock.h>
 
 #include "lockd.h"
 #include "lockd_lock.h"
-#include <nfs/rpcv2.h>
-#include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
+#include <nfsclient/nfs.h>
 
 #define nfslockdans(_v, _ansp)	\
 	((_ansp)->la_vers = _v, \
-	nfssvc(NFSSVC_LOCKDANS, _ansp))
+	nfsclnt(NFSCLNT_LOCKDANS, _ansp))
 
 /* Lock request owner. */
 typedef struct __owner {
