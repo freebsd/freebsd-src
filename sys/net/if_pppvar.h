@@ -1,4 +1,4 @@
-/*	$Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp $	*/
+/*	$Id: if_pppvar.h,v 1.5 1997/04/30 05:42:08 paulus Exp $	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *
@@ -66,11 +66,7 @@ struct ppp_softc {
 	struct	mbuf *sc_togo;		/* output packet ready to go */
 	struct	mbuf *sc_npqueue;	/* output packets not to be sent yet */
 	struct	mbuf **sc_npqtail;	/* ptr to last next ptr in npqueue */
-#ifdef	VJC
-	struct	vjcompress sc_comp; 	/* vjc control buffer */
-#endif
-	u_int	sc_bytessent;		/* count of octets sent */
-	u_int	sc_bytesrcvd;		/* count of octets received */
+	struct	pppstat sc_stats;	/* count of bytes/pkts sent/rcvd */
 	caddr_t	sc_bpf;			/* hook for BPF */
 	enum	NPmode sc_npmode[NUM_NP]; /* what to do with each NP */
 	struct	compressor *sc_xcomp;	/* transmit compressor */
@@ -79,7 +75,14 @@ struct ppp_softc {
 	void	*sc_rc_state;		/* receive decompressor state */
 	time_t	sc_last_sent;		/* time (secs) last NP pkt sent */
 	time_t	sc_last_recv;		/* time (secs) last NP pkt rcvd */
-	
+#ifdef PPP_FILTER
+	struct	bpf_program sc_pass_filt;   /* filter for packets to pass */
+	struct	bpf_program sc_active_filt; /* filter for "non-idle" packets */
+#endif /* PPP_FILTER */
+#ifdef	VJC
+	struct	vjcompress *sc_comp; 	/* vjc control buffer */
+#endif
+
 	/* Device-dependent part for async lines. */
 	ext_accm sc_asyncmap;		/* async control character map */
 	u_long	sc_rasyncmap;		/* receive async control char map */
@@ -100,5 +103,6 @@ struct	ppp_softc *pppalloc __P((pid_t pid));
 void	pppdealloc __P((struct ppp_softc *sc));
 int	pppioctl __P((struct ppp_softc *sc, int cmd, caddr_t data,
 		      int flag, struct proc *p));
+void	ppp_restart __P((struct ppp_softc *sc));
 void	ppppktin __P((struct ppp_softc *sc, struct mbuf *m, int lost));
 struct	mbuf *ppp_dequeue __P((struct ppp_softc *sc));
