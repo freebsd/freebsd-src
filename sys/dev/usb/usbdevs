@@ -342,6 +342,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
 vendor HAL		0x0b41	HAL Corporation
+vendor EMS		0x0b43	EMS Production Ltd.
 vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
 vendor ASIX		0x0b95	ASIX Electronics
@@ -562,6 +563,7 @@ product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
 
 /* Cambridge Silicon Radio Ltd. products */
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
+product	CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
 
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
@@ -614,6 +616,9 @@ product ELECOM LDUSBTX3		0xabc1	LD-USB/TX
 /* Elsa products */
 product ELSA MODEM1		0x2265	ELSA Modem Board
 product ELSA USB2ETHERNET	0x3000	Microlink USB2Ethernet
+
+/* EMS products */
+product EMS DUAL_SHOOTER        0x0003  PSX gun controller converter
 
 /* Entrega products */
 product ENTREGA 1S		0x0001	1S serial connector
