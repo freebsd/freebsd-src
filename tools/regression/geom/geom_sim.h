@@ -80,8 +80,8 @@ int biowait(struct bio *bp, const char *wchan);
 
 /* geom_dev.c */
 void g_dev_init(void *junk);
-struct g_consumer *g_dev_opendev(char *name, int w, int r, int e);
-int g_dev_request(char *name, struct bio *bp);
+struct g_consumer *g_dev_opendev(const char *name, int w, int r, int e);
+int g_dev_request(const char *name, struct bio *bp);
 
 /* geom_kernsim.c */
 struct thread {
@@ -101,7 +101,7 @@ int     tsleep __P((void *chan, int pri, const char *wmesg, int timo));
 #define PPAUSE 0
 extern int hz;
 
-void new_thread(void *(*func)(void *arg), char *name);
+void new_thread(void *(*func)(void *arg), const char *name);
 
 extern int bootverbose;
 #define KASSERT(cond, txt) do {if (!(cond)) {printf txt; conff("err"); abort();}} while(0)
@@ -131,12 +131,12 @@ void g_topology_assert(void);
 
 /* geom_simdisk.c */
 void g_simdisk_init(void);
-void g_simdisk_destroy(char *);
-struct g_geom *g_simdisk_new(char *, char *);
-struct g_geom * g_simdisk_xml_load(char *name, char *file);
-void g_simdisk_xml_save(char *name, char *file);
-void g_simdisk_stop(char *name);
-void g_simdisk_restart(char *name);
+void g_simdisk_destroy(const char *);
+struct g_geom *g_simdisk_new(const char *, const char *);
+struct g_geom * g_simdisk_xml_load(const char *name, const char *file);
+void g_simdisk_xml_save(const char *name, const char *file);
+void g_simdisk_stop(const char *name);
+void g_simdisk_restart(const char *name);
 
 #define DECLARE_GEOM_CLASS(class, name) 	\
 void name##_init(void);				\
@@ -156,9 +156,9 @@ void g_pc98_init(void);
 
 void *thread_sim(void *ptr);
 
-void dumpf(char *file);
-void conff(char *file);
-void sdumpf(char *file);
+void dumpf(const char *file);
+void conff(const char *file);
+void sdumpf(const char *file);
 
 #define THR_MAIN	0
 #define THR_UP		1

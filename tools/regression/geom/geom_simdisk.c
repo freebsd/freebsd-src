@@ -121,7 +121,7 @@ g_simdisk_init(void)
 }
 
 struct g_geom *
-g_simdisk_create(char *name, struct simdisk_softc *sc)
+g_simdisk_create(const char *name, struct simdisk_softc *sc)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
@@ -144,7 +144,7 @@ g_simdisk_create(char *name, struct simdisk_softc *sc)
 }
 
 struct g_geom *
-g_simdisk_new(char *name, char *path)
+g_simdisk_new(const char *name, const char *path)
 {
 	struct simdisk_softc *sc;
 	struct stat st;
@@ -163,7 +163,7 @@ g_simdisk_new(char *name, char *path)
 }
 
 void
-g_simdisk_destroy(char *name)
+g_simdisk_destroy(const char *name)
 {
 	struct g_geom *gp;
 
@@ -220,7 +220,7 @@ g_simdisk_insertsector(struct simdisk_softc *sc, struct sector *dsp)
 }
 
 void
-g_simdisk_stop(char *name)
+g_simdisk_stop(const char *name)
 {
 	struct g_geom *gp;
 	struct simdisk_softc *sc;
@@ -236,7 +236,7 @@ g_simdisk_stop(char *name)
 }
 
 void
-g_simdisk_restart(char *name)
+g_simdisk_restart(const char *name)
 {
 	struct g_geom *gp;
 	struct simdisk_softc *sc;

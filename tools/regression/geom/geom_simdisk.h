@@ -59,6 +59,6 @@ struct simdisk_softc {
 extern struct g_class g_simdisk_class;
 
 struct sector * g_simdisk_findsector(struct simdisk_softc *sc, off_t off, int create);
-struct g_geom *g_simdisk_create(char *name, struct simdisk_softc *sc);
+struct g_geom *g_simdisk_create(const char *name, struct simdisk_softc *sc);
 
 void g_simdisk_insertsector(struct simdisk_softc *sc, struct sector *dsp);
