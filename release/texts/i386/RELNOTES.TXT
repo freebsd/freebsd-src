@@ -395,10 +395,6 @@ Crystal Semiconductor CS89x0-based NICs, including:
 PCMCIA ethernet cards from IBM and National Semiconductor are also
 supported.
 
-Note that NO token ring cards are supported at this time as we're
-still waiting for someone to donate a driver for one of them.  Any
-takers?
-
 2.3 ATM
 -------
 
