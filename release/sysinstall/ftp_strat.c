@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.8 1995/06/03 04:54:36 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.9 1995/06/03 06:31:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -150,7 +150,7 @@ mediaInitFTP(Device *dev)
     if (OptFlags & OPT_FTP_RESELECT)
 	max_retries = 0;
 retry:
-    if (i && ++retries > max_retries)) {
+    if (i && ++retries > max_retries) {
 	if (!get_new_host())
 	    return FALSE;
 	retries = 0;
