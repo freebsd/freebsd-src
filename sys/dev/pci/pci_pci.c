@@ -345,7 +345,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 	    if (!pcib_is_isa_mem(start)) {
 #ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
-		if (start < sc->membase && end > sc->membase)
+		if (start < sc->membase && end >= sc->membase)
 		    start = sc->membase;
 		if (end > sc->memlimit)
 		    end = sc->memlimit;
