@@ -165,7 +165,11 @@ getaddr(lp)
 
 	while (cp != lp && (cp = cp->next) != &line0)
 		n++;
-	return (cp != &line0) ? n : 0;
+	if (n && cp == &line0) {
+		sprintf(errmsg, "invalid address");
+		return ERR;
+	 }
+	 return n;
 }
 
 

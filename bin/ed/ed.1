@@ -92,9 +92,9 @@ commands have the structure:
 .I [address [,address]]command[parameters]
 .RE
 .sp
-The address(es) indicate the line(s) to be affected by the command.
-If fewer addresses are given than the command accepts, then default
-addresses are supplied.
+The address(es) indicate the line or range of lines to be affected by the
+command.  If fewer addresses are given than the command accepts, then
+default addresses are supplied.
 
 .SS OPTIONS
 .TP 8
@@ -311,7 +311,7 @@ not listed below, including `{', '}', `(', `)', `<' and `>',
 matches itself.
 
 .TP 8
-\fR\\\fIc\fR
+\fR\e\fIc\fR
 Any backslash-escaped character
 .IR c ,
 except for `{', '}', `(', `)', `<' and `>',
@@ -389,28 +389,28 @@ anchors the regular expression to the end of a line.
 Otherwise, it matches itself.
 
 .TP 8
-\fR\\<\fR
+\fR\e<\fR
 Anchors the single character regular expression or subexpression
 immediately following it to the beginning of a word.
 (This may not be available)
 
 .TP 8
-\fR\\>\fR
+\fR\e>\fR
 Anchors the single character regular expression or subexpression
 immediately following it to the end of a word.
 (This may not be available)
 
 .TP 8
-\fR\\(\fIre\fR\\)\fR
+\fR\e(\fIre\fR\e)\fR
 Defines a subexpression
 .IR re .
 Subexpressions may be nested.
-A subsequent backreference of the form \fI`\\n'\fR, where
+A subsequent backreference of the form \fI`\en'\fR, where
 .I n
 is a number in the range [1,9], expands to the text matched by the
 .IR n th
 subexpression.
-For example, the regular expression `\\(.*\\)\\1' matches any string
+For example, the regular expression `\e(.*\e)\e1' matches any string
 consisting of identical adjacent substrings.
 Subexpressions are ordered relative to
 their left delimiter.
@@ -426,7 +426,7 @@ the string `abbb' (as opposed to the substring `bbb'), since a null match
 is the only left-most match.
 
 .TP 8
-\fR\\{\fIn,m\fR\\}\fR or \fR\\{\fIn,\fR\\}\fR or \fR\\{\fIn\fR\\}\fR
+\fR\e{\fIn,m\fR\e}\fR or \fR\e{\fIn,\fR\e}\fR or \fR\e{\fIn\fR\e}\fR
 Matches the single character regular expression or subexpression
 immediately preceding it at least
 .I n
@@ -735,7 +735,7 @@ An unescaped `&' in
 .I replacement
 is replaced by the currently matched text.
 The character sequence
-\fI`\\m'\fR,
+\fI`\em'\fR,
 where
 .I m
 is a number in the range [1,9], is replaced by the
@@ -912,8 +912,8 @@ that line.
 Buffer file
 .PD 0
 .TP 20
-\fR./ed.hup\fR, $HOME/ed.hup
-First and second files to which
+ed.hup
+The file to which
 .B ed
 attempts to write the  buffer if the terminal hangs up.
 
@@ -971,6 +971,10 @@ replaces any occurrences of
 .I old
 with
 .IR new .
+If the
+.I `u'
+(undo) command occurs in a global command list, then
+the command list is executed only once.
 
 If diagnostics are not disabled, attempting to quit
 .B ed
