@@ -467,8 +467,10 @@ time, there's nothing fancy here, but for the release we plan to
 ask some additional questions about time zone setup, what sort of
 mail client this host is, etc.  We just ran out of time for ALPHA!
 At the very least, you may wish to check out the 'tzsetup' command;
-it will at least handle the first checklist item for you.  Thanks!
-\nAny install-related comments to jkh, phk or paul (@freebsd.org)." 15 72
+it will at least handle the first checklist item for you.  The login
+\"root\" has no password.  If you're new to UN*X, log in as root and
+run vipw to add a new user.  Thanks!  Any install-related comments to
+jkh, phk or paul (@freebsd.org)." 15 72
 }
 
 welcome
