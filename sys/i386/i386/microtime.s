@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.4 1994/05/02 09:44:20 sos Exp $
+ *	$Id: microtime.s,v 1.5 1994/08/11 00:28:17 wollman Exp $
  */
 
 #include "machine/asmacros.h"
@@ -65,7 +65,6 @@ ENTRY(microtime)
 	sti
 	jmp 4f
 #endif /* Pentium code */	
-#if defined(I386_CPU) || defined(I486_CPU)
 0:			
 	movl	(%ebx), %edi		# sec = time.tv_sec
 	movl	4(%ebx), %esi		# usec = time.tv_usec
@@ -137,7 +136,6 @@ ENTRY(microtime)
 	movl	$0, %edx	# zero extend eax into edx for div
 	movl	$1193, %ecx
 	idivl	%ecx		# convert to usecs: mult by 1000/1193
-#endif /* maybe i386 or i486 */
 4:	
 	addl	%eax, %esi	# add counter usecs to time.tv_usec
 	cmpl	$1000000, %esi	# carry in timeval?
