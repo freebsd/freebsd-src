@@ -2342,11 +2342,43 @@ vm_map_copy_entry(
 }
 
 /*
+ * vmspace_map_entry_forked:
+ * Update the newly-forked vmspace each time a map entry is inherited
+ * or copied.  The values for vm_dsize and vm_tsize are approximate
+ * (and mostly-obsolete ideas in the face of mmap(2) et al.)
+ */
+static void
+vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
+    vm_map_entry_t entry)
+{
+	vm_size_t entrysize;
+	vm_offset_t newend;
+
+	entrysize = entry->end - entry->start;
+	vm2->vm_map.size += entrysize;
+	if (entry->eflags & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP)) {
+		vm2->vm_ssize += btoc(entrysize);
+	} else if (entry->start >= (vm_offset_t)vm1->vm_daddr &&
+	    entry->start < (vm_offset_t)vm1->vm_daddr + ctob(vm1->vm_dsize)) {
+		newend = min(entry->end,
+		    (vm_offset_t)vm1->vm_daddr + ctob(vm1->vm_dsize));
+		vm2->vm_dsize += btoc(newend - entry->start);
+	} else if (entry->start >= (vm_offset_t)vm1->vm_taddr &&
+	    entry->start < (vm_offset_t)vm1->vm_taddr + ctob(vm1->vm_tsize)) {
+		newend = min(entry->end,
+		    (vm_offset_t)vm1->vm_taddr + ctob(vm1->vm_tsize));
+		vm2->vm_tsize += btoc(newend - entry->start);
+	}
+}
+
+/*
  * vmspace_fork:
  * Create a new process vmspace structure and vm_map
  * based on those of an existing process.  The new map
  * is based on the old map, according to the inheritance
  * values on the regions in that map.
+ *
+ * XXX It might be worth coalescing the entries added to the new vmspace.
  *
  * The source map must not be locked.
  */
@@ -2366,8 +2398,16 @@ vmspace_fork(struct vmspace *vm1)
 	old_map->infork = 1;
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
-	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
-	    (caddr_t) &vm1->vm_endcopy - (caddr_t) &vm1->vm_startcopy);
+	/*
+	 * Using vm_{start,end}copy is invalid for more fields than
+	 * it is valid here.  For the most part, initialize size
+	 * fields to zero and update them as map entries are copied
+	 */
+	bzero(&vm2->vm_startcopy,
+	    (caddr_t)&vm2->vm_endcopy - (caddr_t)&vm2->vm_startcopy);
+	vm2->vm_taddr = vm1->vm_taddr;
+	vm2->vm_daddr = vm1->vm_daddr;
+	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
@@ -2431,6 +2471,7 @@ vmspace_fork(struct vmspace *vm1)
 			 */
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
+			vmspace_map_entry_forked(vm1, vm2, new_entry);
 
 			/*
 			 * Update the physical map
@@ -2452,6 +2493,7 @@ vmspace_fork(struct vmspace *vm1)
 			new_entry->object.vm_object = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
+			vmspace_map_entry_forked(vm1, vm2, new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
 			    new_entry);
 			break;
@@ -2459,7 +2501,6 @@ vmspace_fork(struct vmspace *vm1)
 		old_entry = old_entry->next;
 	}
 
-	new_map->size = old_map->size;
 	old_map->infork = 0;
 	vm_map_unlock(old_map);
 
