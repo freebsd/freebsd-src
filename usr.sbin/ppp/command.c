@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.55 1997/06/11 03:57:46 brian Exp $
+ * $Id: command.c,v 1.57 1997/06/13 03:59:34 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -785,8 +785,7 @@ char **argv;
       VarRedialTimeout = -1;
       if (!randinit) {
 	randinit = 1;
-	if (srandomdev() < 0)
-	  srandom((unsigned long)(time(NULL) ^ getpid()));
+	srandomdev();
       }
     } else {
       timeout = atoi(argv[0]);
@@ -805,8 +804,7 @@ char **argv;
         VarRedialNextTimeout = -1;
         if (!randinit) {
           randinit = 1;
-          if (srandomdev() < 0)
-            srandom((unsigned long)(time(NULL) ^ getpid()));
+	  srandomdev();
         }
       }
       else {
