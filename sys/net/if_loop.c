@@ -38,7 +38,6 @@
  * Loopback interface driver for protocol testing and timing.
  */
 #include "loop.h"
-#if NLOOP > 0
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
@@ -398,4 +397,3 @@ loioctl(ifp, cmd, data)
 	}
 	return (error);
 }
-#endif /* NLOOP > 0 */

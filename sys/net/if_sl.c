@@ -66,10 +66,9 @@
  */
 
 #include "sl.h"
-#if NSL > 0
 
 #include "opt_inet.h"
-#if !defined(ACTUALLY_LKM_NOT_KERNEL) && !defined(KLD_MODULE)
+#if !defined(KLD_MODULE)
 #include "opt_slip.h"
 #endif
 #include <sys/param.h>
@@ -1036,5 +1035,3 @@ sl_outfill(chan)
 		sc->sc_flags &= ~SC_OUTWAIT;
 	}
 }
-
-#endif
