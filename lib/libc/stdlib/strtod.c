@@ -96,9 +96,9 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  */
 
 /*
- * #define IEEE_8087 for IEEE-arithmetic machines where the least
+ * #define IEEE_LITTLE_ENDIAN for IEEE-arithmetic machines where the least
  *	significant byte has the lowest address.
- * #define IEEE_MC68k for IEEE-arithmetic machines where the most
+ * #define IEEE_BIG_ENDIAN for IEEE-arithmetic machines where the most
  *	significant byte has the lowest address.
  * #define Sudden_Underflow for IEEE-format machines without gradual
  *	underflow (i.e., that flush to zero on underflow).
@@ -124,9 +124,9 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  */
 
 #if defined(i386) || (defined(mips) && defined(MIPSEL)) || defined(__ia64__)
-#define IEEE_8087
+#define IEEE_LITTLE_ENDIAN
 #else
-#define IEEE_MC68k
+#define IEEE_BIG_ENDIAN
 #endif
 
 #ifdef DEBUG
@@ -152,10 +152,10 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
 #include <ctype.h>
 #ifdef Bad_float_h
 #undef __STDC__
-#ifdef IEEE_MC68k
+#ifdef IEEE_BIG_ENDIAN
 #define IEEE_ARITHMETIC
 #endif
-#ifdef IEEE_8087
+#ifdef IEEE_LITTLE_ENDIAN
 #define IEEE_ARITHMETIC
 #endif
 #ifdef IEEE_ARITHMETIC
@@ -213,11 +213,12 @@ extern "C" {
 #define Sign_Extend(a,b) /*no-op*/
 #endif
 
-#if defined(IEEE_8087) + defined(IEEE_MC68k) + defined(VAX) + defined(IBM) != 1
-Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
+#if defined(IEEE_LITTLE_ENDIAN) + defined(IEEE_BIG_ENDIAN) + defined(VAX) + \
+    defined(IBM) != 1
+Only one of IEEE_LITTLE_ENDIAN, IEEE_BIG_ENDIAN, VAX, or IBM should be defined.
 #endif
 
-#ifdef IEEE_8087
+#ifdef IEEE_LITTLE_ENDIAN
 #ifdef __i386__
 #define word0(x) ((unsigned long *)&x)[1]
 #define word1(x) ((unsigned long *)&x)[0]
@@ -235,7 +236,7 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
  * An alternative that might be better on some machines is
  * #define Storeinc(a,b,c) (*a++ = b << 16 | c & 0xffff)
  */
-#if defined(IEEE_8087) + defined(VAX)
+#if defined(IEEE_LITTLE_ENDIAN) + defined(VAX)
 #define Storeinc(a,b,c) (((unsigned short *)a)[1] = (unsigned short)b, \
 ((unsigned short *)a)[0] = (unsigned short)c, a++)
 #else
@@ -249,7 +250,7 @@ Exactly one of IEEE_8087, IEEE_MC68k, VAX, or IBM should be defined.
 /* Quick_max = floor((P-1)*log(FLT_RADIX)/log(10) - 1) */
 /* Int_max = floor(P*log(FLT_RADIX)/log(10) - 1) */
 
-#if defined(IEEE_8087) + defined(IEEE_MC68k)
+#if defined(IEEE_LITTLE_ENDIAN) + defined(IEEE_BIG_ENDIAN)
 #define Exp_shift  20
 #define Exp_shift1 20
 #define Exp_msk1    0x100000
