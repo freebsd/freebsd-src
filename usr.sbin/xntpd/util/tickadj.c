@@ -430,7 +430,8 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 		{""},
 	};
 #endif
-	char *kernels[] = {
+#ifndef HAVE_GETBOOTFILE
+	static char *kernels[] = {
 		"/kernel",
 		"/vmunix",
 		"/unix",
@@ -440,6 +441,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 		"/netbsd",
 		NULL
 	};
+#endif
 	struct stat stbuf;
 
 #ifdef HAVE_GETBOOTFILE
