@@ -93,7 +93,6 @@ static int
 isavga_probe(device_t dev)
 {
 	video_adapter_t adp;
-	device_t bus;
 	int error;
 
 	/* No pnp support */
@@ -103,7 +102,6 @@ isavga_probe(device_t dev)
 	device_set_desc(dev, "Generic ISA VGA");
 	error = vga_probe_unit(device_get_unit(dev), &adp, device_get_flags(dev));
 	if (error == 0) {
-		bus = device_get_parent(dev);
 		bus_set_resource(dev, SYS_RES_IOPORT, 0,
 				 adp.va_io_base, adp.va_io_size);
 		bus_set_resource(dev, SYS_RES_MEMORY, 0,
@@ -122,8 +120,6 @@ static int
 isavga_attach(device_t dev)
 {
 	vga_softc_t *sc;
-	struct resource *port;
-	struct resource *mem;
 	int unit;
 	int rid;
 	int error;
@@ -132,10 +128,10 @@ isavga_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				  0, ~0, 0, RF_ACTIVE | RF_SHAREABLE);
 	rid = 0;
-	mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 				 0, ~0, 0, RF_ACTIVE | RF_SHAREABLE);
 
 	error = vga_attach_unit(unit, sc, device_get_flags(dev));

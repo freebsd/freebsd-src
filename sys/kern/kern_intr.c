@@ -215,12 +215,10 @@ ithread_destroy(struct ithd *ithread)
 {
 
 	struct thread *td;
-	struct proc *p;
 	if (ithread == NULL)
 		return (EINVAL);
 
 	td = ithread->it_td;
-	p = td->td_proc;
 	mtx_lock(&ithread->it_lock);
 	if (!TAILQ_EMPTY(&ithread->it_handlers)) {
 		mtx_unlock(&ithread->it_lock);
