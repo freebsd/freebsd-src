@@ -196,6 +196,15 @@ attempting to do so will result in deadlock.
 A thread may hold a shared or exclusive lock on an
 .Nm
 lock while sleeping.
+As a result, an
+.Nm
+lock may not be acquired while holding a mutex.
+Otherwise, if one thread slept while holding an
+.Nm
+lock while another thread blocked on the same
+.Nm
+lock after acquiring a mutex, then the second thread would effectively
+end up sleeping while holding a mutex, which is not allowed.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr mtx_pool 9 ,
