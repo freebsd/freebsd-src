@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2000
+.Dd September 29, 2004
 .Dt PSM 4
 .Os
 .Sh NAME
@@ -348,6 +348,15 @@ It has no effect unless the
 .Em HOOKRESUME
 flag is set as well.
 .El
+.Sh TUNABLES
+Extended support for Synaptics touchpads can be enabled by setting
+.Va hw.psm.synaptics_support
+to
+.Em 1
+at boot-time.
+This will enable
+.Nm
+to handle packets from guest devices (sticks) and extra buttons.
 .Sh IOCTLS
 There are a few
 .Xr ioctl 2
@@ -437,6 +446,36 @@ Microsoft Ballpoint mouse
 .It Em 3
 Microsoft IntelliMouse
 .El
+.Pp
+.It Dv MOUSE_SYN_GETHWINFO Ar synapticshw_t *synhw
+Retrieves extra information associated with Synaptics Touchpads.
+Only available when
+.Va hw.psm.synaptics_support
+has been enabled.
+.Bd -literal
+typedef struct synapticshw {
+    int infoMajor;	/* major hardware revision */
+    int infoMinor;	/* minor hardware revision */
+    int infoRot180;	/* touchpad is rotated */
+    int infoPortrait;	/* touchpad is a portrait */
+    int infoSensor;	/* sensor model */
+    int infoHardware;	/* hardware model */
+    int infoNewAbs;	/* supports the newabs format */
+    int capPen;		/* can detect a pen */
+    int infoSimpleC;	/* supports simple commands */
+    int infoGeometry;	/* touchpad dimensions */
+    int capExtended;	/* supports extended packets */
+    int capSleep;	/* can be suspended/resumed */
+    int capFourButtons;	/* has four buttons */
+    int capMultiFinger;	/* can detect multiple fingers */
+    int capPalmDetect;	/* can detect a palm */
+    int capPassthrough;	/* can passthrough guest packets */
+} synapticshw_t;
+.Ed
+.Pp
+See the
+.Em Synaptics TouchPad Interfacing Guide
+for more information about the fields in this structure.
 .Pp
 .It Dv MOUSE_GETMODE Ar mousemode_t *mode
 The command gets the current operation parameters of the mouse
@@ -799,6 +838,10 @@ The ioctl command
 .Dv MOUSEIOCREAD
 has been removed.
 It was never functional anyway.
+.Pp
+Enabling the extended support for Synaptics touchpads has been reported to
+cause problems with responsivity on some (newer) models of Synaptics
+hardware, particularly those with guest devices.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr syslog 3 ,
@@ -808,6 +851,11 @@ It was never functional anyway.
 .Xr sysmouse 4 ,
 .Xr moused 8 ,
 .Xr syslogd 8
+.Pp
+.Rs
+.%T Synaptics TouchPad Interfacing Guide
+.%O http://www.synaptics.com/
+.Re
 .\".Sh HISTORY
 .Sh AUTHORS
 .An -nosplit

@@ -233,6 +233,10 @@ static devclass_t psm_devclass;
 /* other flags (flags) */
 #define PSM_FLAGS_FINGERDOWN	0x0001 /* VersaPad finger down */
 
+/* Tunables */
+static int synaptics_support = 0;
+TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
+
 /* for backward compatibility */
 #define OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
 #define OLD_MOUSE_GETMODE	_IOR('M', 2, old_mousemode_t)
@@ -1716,7 +1720,7 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 
     case MOUSE_SYN_GETHWINFO:
 	s = spltty();
-	if (sc->hw.model == MOUSE_MODEL_SYNAPTICS)
+	if (synaptics_support && sc->hw.model == MOUSE_MODEL_SYNAPTICS)
 	    *(synapticshw_t *)addr = sc->synhw;
 	else
 	    error = EINVAL;
@@ -2518,6 +2522,9 @@ psmsoftintr(void *arg)
 	     * Byte 2,5,6 == Byte 1,2,3 of "Guest"
 	     */
 
+	    if (!synaptics_support)
+		break;
+
 	    /* Sanity check for out of sync packets. */
 	    if ((pb->ipacket[0] & 0xc8) != 0x80 ||
 		(pb->ipacket[3] & 0xc8) != 0xc0)
@@ -3107,6 +3114,9 @@ enable_synaptics(struct psm_softc *sc)
 {
     int status[3];
     KBDC kbdc;
+
+    if (!synaptics_support)
+	return (FALSE);
 
     kbdc = sc->kbdc;
     disable_aux_dev(kbdc);
