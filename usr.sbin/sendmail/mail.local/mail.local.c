@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.39 (Berkeley) 5/28/97";
+static char sccsid[] = "@(#)mail.local.c	8.43 (Berkeley) 8/2/97";
 #endif /* not lint */
 
 /*
@@ -143,22 +143,22 @@ static char sccsid[] = "@(#)mail.local.c	8.39 (Berkeley) 5/28/97";
 # endif
 #endif
 
-#ifndef BSD4_4
+#ifdef BSD4_4
+# define HAS_ST_GEN	1
+#else
 # define _BSD_VA_LIST_	va_list
 #endif
 
 #if defined(BSD4_4) || defined(linux)
 # define HASSNPRINTF	1
+#else
+extern char	*strerror __P((int));
+extern int	snprintf __P((char *, size_t, const char *, ...));
+extern FILE	*fdopen __P((int, const char *));
 #endif
 
 #if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
 # define HASSNPRINTF	1		/* has snprintf starting in 2.6 */
-#endif
-
-#if !defined(BSD4_4) && !defined(linux)
-extern char	*strerror __P((int));
-extern int	snprintf __P((char *, size_t, const char *, ...));
-extern FILE	*fdopen __P((int, const char *));
 #endif
 
 /*
@@ -387,7 +387,11 @@ tryagain:
 		mbfd = open(path,
 		    O_APPEND|O_CREAT|O_EXCL|O_WRONLY, S_IRUSR|S_IWUSR);
 		if (lstat(path, &sb) < 0)
-			goto filechanged;
+		{
+			eval = EX_CANTCREAT;
+			warn("%s: lstat: file changed after open", path);
+			goto err1;
+		}
 		else
 			sb.st_uid = pw->pw_uid;
 		if (mbfd == -1) {
@@ -415,12 +419,17 @@ tryagain:
 		warn("%s: %s", path, strerror(errno));
 		goto err0;
 	} else if (fstat(mbfd, &fsb) < 0 ||
-	    fsb.st_nlink != 1 || sb.st_nlink != 1 ||
-	    !S_ISREG(fsb.st_mode) || sb.st_dev != fsb.st_dev ||
-	    sb.st_ino != fsb.st_ino || sb.st_uid != fsb.st_uid) {
-filechanged:
-		eval = EX_CANTCREAT;
-		warn("%s: file changed after open", path);
+	    fsb.st_nlink != 1 ||
+	    sb.st_nlink != 1 ||
+	    !S_ISREG(fsb.st_mode) ||
+	    sb.st_dev != fsb.st_dev ||
+	    sb.st_ino != fsb.st_ino ||
+#if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
+	    sb.st_gen != fsb.st_gen ||
+#endif
+	    sb.st_uid != fsb.st_uid) {
+		eval = EX_TEMPFAIL;
+		warn("%s: fstat: file changed after open", path);
 		goto err1;
 	}
 

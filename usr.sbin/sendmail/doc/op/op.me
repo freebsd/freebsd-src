@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.104 (Berkeley) 3/10/97
+.\"	@(#)op.me	8.105 (Berkeley) 7/3/97
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -67,7 +67,7 @@
 Eric Allman
 eric@Sendmail.ORG
 .sp
-Version 8.104
+Version 8.105
 .sp
 For Sendmail Version 8.8
 .)l
@@ -675,7 +675,7 @@ routines preset the mode reasonably,
 so this step can be skipped.
 The actual path of this file
 is defined in the
-.b A
+.b AliasFile
 option of the
 .i sendmail.cf
 file.
@@ -1178,6 +1178,32 @@ may reimplement
 and the other system routines that would be necessary
 to make this work seamlessly.
 .sh 2 "The Alias Database"
+.pp
+After recipient addresses are read from the SMTP connection
+or command line
+they are parsed by ruleset 0,
+which must resolve to a
+{\c
+.i mailer ,
+.i host ,
+.i user }
+triple.
+If the flags selected by the
+.i mailer
+includes the
+.b A
+(aliasable) flag,
+the
+.i user
+part of the triple is looked up as the key
+(i.e., the left hand side)
+into the alias database
+If there is a match, the address is deleted from the send queue
+and all addresses on the right hand side of the alias
+are added in place of the alias that was found.
+This is a recursive operation,
+so aliases found in the right hand side of the alias
+are similarly expanded.
 .pp
 The alias database exists in two forms.
 One is a text form,
@@ -8159,7 +8185,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.104
+.\"Version 8.105
 .\".ce 0
 .bp 3
 .ce

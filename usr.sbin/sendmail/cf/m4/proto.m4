@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.149 (Berkeley) 4/30/97')
+VERSIONID(`@(#)proto.m4	8.151 (Berkeley) 7/31/97')
 
 MAILER(local)dnl
 
@@ -871,7 +871,9 @@ S93
 
 # handle generics database
 define(`X', ifdef(`GENERICS_TABLE', `', `#'))dnl
-X`'R$+ < @ $=G . > 	$: < $1@$2 > $1 < @ $2 . > @	mark
+ifdef(`_GENERICS_ENTIRE_DOMAIN_',
+`X`'R$+ < @ $* $=G . >	$: < $1@$2$3 > $1 < @ $2$3 . > @	mark',
+`X`'R$+ < @ $=G . >	$: < $1@$2 > $1 < @ $2 . > @	mark')
 X`'R$+ < @ *LOCAL* >	$: < $1@$j > $1 < @ *LOCAL* > @	mark
 X`'R< $+ > $+ < $* > @	$: < $(generics $1 $: $) > $2 < $3 >
 X`'R< > $+ < @ $+ > 	$: < $(generics $1 $: $) > $1 < @ $2 >

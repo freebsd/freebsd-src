@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)safefile.c	8.12 (Berkeley) 6/14/97";
+static char sccsid[] = "@(#)safefile.c	8.18 (Berkeley) 8/1/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -107,6 +107,10 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 	}
 	strcpy(fbuf, fn);
 	fn = fbuf;
+
+	/* ignore SFF_SAFEDIRPATH if we are debugging */
+	if (RealUid != 0 && RunAsUid == RealUid)
+		flags &= ~SFF_SAFEDIRPATH;
 
 	/* first check to see if the file exists at all */
 #ifdef HASLSTAT
@@ -464,6 +468,7 @@ safeopen(fn, omode, cmode, sff)
 
 	if (bitset(O_CREAT, omode))
 		sff |= SFF_CREAT;
+	omode &= ~O_CREAT;
 	smode = 0;
 	switch (omode & O_ACCMODE)
 	{
@@ -494,8 +499,8 @@ safeopen(fn, omode, cmode, sff)
 		errno = rval;
 		return -1;
 	}
-	if (stb.st_mode == ST_MODE_NOFILE)
-		omode |= O_EXCL;
+	if (stb.st_mode == ST_MODE_NOFILE && bitset(SFF_CREAT, sff))
+		omode |= O_EXCL|O_CREAT;
 
 	fd = dfopen(fn, omode, cmode, sff);
 	if (fd < 0)
@@ -561,10 +566,24 @@ safefopen(fn, omode, cmode, sff)
 	}
 	fd = safeopen(fn, omode, cmode, sff);
 	if (fd < 0)
+	{
+		if (tTd(44, 10))
+			printf("safefopen: safeopen failed: %s\n",
+				errstring(errno));
 		return NULL;
+	}
 	fp = fdopen(fd, fmode);
 	if (fp != NULL)
 		return fp;
+
+	if (tTd(44, 10))
+	{
+		printf("safefopen: fdopen(%s, %s) failed: omode=%x, sff=%x, err=%s\n",
+			fn, fmode, omode, sff, errstring(errno));
+#ifndef NOT_SENDMAIL
+		dumpfd(fd, TRUE, FALSE);
+#endif
+	}
 	(void) close(fd);
 	return NULL;
 }
@@ -607,6 +626,9 @@ filechanged(fn, fd, stb, sff)
 	if (sta.st_nlink != stb->st_nlink ||
 	    sta.st_dev != stb->st_dev ||
 	    sta.st_ino != stb->st_ino ||
+#if HAS_ST_GEN && 0		/* AFS returns garbage in st_gen */
+	    sta.st_gen != stb->st_gen ||
+#endif
 	    sta.st_uid != stb->st_uid ||
 	    sta.st_gid != stb->st_gid)
 	{
@@ -619,6 +641,10 @@ filechanged(fn, fd, stb, sff)
 				(long) stb->st_dev, (long) sta.st_dev);
 			printf(" ino	= %ld/%ld\n",
 				(long) stb->st_ino, (long) sta.st_ino);
+#if HAS_ST_GEN
+			printf(" gen	= %ld/%ld\n",
+				(long) stb->st_gen, (long) sta.st_gen);
+#endif
 			printf(" uid	= %ld/%ld\n",
 				(long) stb->st_uid, (long) sta.st_uid);
 			printf(" gid	= %ld/%ld\n",
