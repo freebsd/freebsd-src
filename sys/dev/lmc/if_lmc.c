@@ -28,6 +28,10 @@
  *	$Id: if_lmc.c,v 1.9 1999/02/19 15:08:42 explorer Exp $
  */
 
+#ifdef COMPILING_LINT
+#warning "The lmc driver is broken and is not compiled with LINT"
+#else
+
 char lmc_version[] = "BSD 1.1";
 
 #include "opt_netgraph.h"
@@ -1555,3 +1559,5 @@ ng_lmc_init(void *ignored)
 
 
 #include "dev/lmc/if_lmc_fbsd3.c"
+
+#endif

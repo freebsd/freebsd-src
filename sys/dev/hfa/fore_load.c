@@ -27,6 +27,10 @@
  *
  */
 
+#ifdef COMPILING_LINT 
+#warning "The fore pci driver is broken and is not compiled with LINT"
+#else 
+
 /*
  * FORE Systems 200-Series Adapter Support
  * ---------------------------------------
@@ -77,6 +81,9 @@ static void	fore_pci_shutdown __P((void *, int));
 static void	fore_unattach __P((Fore_unit *));
 static void	fore_reset __P((Fore_unit *));
 
+#ifndef COMPAT_OLDPCI
+#error "The fore device requires the old pci compatibility shims"
+#endif
 
 /*
  * Local variables
@@ -632,3 +639,4 @@ fore_mod(lkmtp, cmd, ver)
 
 #endif	/* ATM_LINKED */
 
+#endif
