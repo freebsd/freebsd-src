@@ -9,3 +9,4 @@ Please make a subdir per program, and add a brief description to this file.
 
 nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
 p1003_1b	Exercise 1003.1B scheduler
+fsx		General filesystem exerciser
