@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-#	$Id: Makefile.inc,v 1.14 1998/02/20 08:41:46 jb Exp $
+#	$Id: Makefile.inc,v 1.15 1998/05/08 05:41:56 jb Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib ${.CURDIR}/../libc/stdlib
@@ -8,7 +8,7 @@ MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c heapsort.c labs.c ldiv.c \
 	malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
 	realpath.c setenv.c strhash.c strtol.c strtoq.c strtoul.c \
-	strtouq.c system.c
+	strtouq.c system.c reallocf.c
 
 .if ${MACHINE_ARCH} == "alpha"
 #  XXX Temporary until the assumption that a long is 32-bits is resolved
@@ -35,5 +35,5 @@ MLINKS+=random.3 initstate.3 random.3 setstate.3 random.3 srandom.3 \
 	random.3 srandomdev.3
 MLINKS+=strtol.3 strtoq.3
 MLINKS+=strtoul.3 strtouq.3
-MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 realloc.3
+MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 realloc.3 malloc.3 reallocf.3
 .endif
