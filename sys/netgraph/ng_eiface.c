@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
@@ -47,9 +46,6 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -62,6 +58,13 @@
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{
 	  NGM_EIFACE_COOKIE,
+	  NGM_EIFACE_GET_IFNAME,
+	  "getifname",
+	  NULL,
+	  &ng_parse_string_type
+	},
+	{
+	  NGM_EIFACE_COOKIE,
 	  NGM_EIFACE_SET,
 	  "set",
 	  &ng_parse_enaddr_type,
@@ -70,33 +73,32 @@ static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{ 0 }
 };
 
-
 /* Node private data */
 struct ng_eiface_private {
-	struct arpcom   arpcom;	/* per-interface network data */
-	struct ifnet   *ifp;	/* This interface */
-	int	unit;		/* Interface unit number */
-	node_p		node;	/* Our netgraph node */
-	hook_p		ether;	/* Hook for ethernet stream */
+	struct arpcom	arpcom;		/* per-interface network data */
+	struct ifnet	*ifp;		/* This interface */
+	int		unit;		/* Interface unit number */
+	node_p		node;		/* Our netgraph node */
+	hook_p		ether;		/* Hook for ethernet stream */
 };
 typedef struct ng_eiface_private *priv_p;
 
 /* Interface methods */
-static void     ng_eiface_init(void *xsc);
-static void     ng_eiface_start(struct ifnet *ifp);
-static int      ng_eiface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static void	ng_eiface_init(void *xsc);
+static void	ng_eiface_start(struct ifnet *ifp);
+static int	ng_eiface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 #ifdef DEBUG
-static void     ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static void	ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
-static ng_constructor_t ng_eiface_constructor;
-static ng_rcvmsg_t ng_eiface_rcvmsg;
-static ng_shutdown_t ng_eiface_rmnode;
-static ng_newhook_t ng_eiface_newhook;
-static ng_rcvdata_t ng_eiface_rcvdata;
-static ng_connect_t ng_eiface_connect;
-static ng_disconnect_t ng_eiface_disconnect;
+static ng_constructor_t	ng_eiface_constructor;
+static ng_rcvmsg_t	ng_eiface_rcvmsg;
+static ng_shutdown_t	ng_eiface_rmnode;
+static ng_newhook_t	ng_eiface_newhook;
+static ng_rcvdata_t	ng_eiface_rcvdata;
+static ng_connect_t	ng_eiface_connect;
+static ng_disconnect_t	ng_eiface_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
@@ -209,15 +211,15 @@ ng_eiface_free_unit(int unit)
 static int
 ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ifreq   *const ifr = (struct ifreq *)data;
-	int		s, error = 0;
+	struct ifreq *const ifr = (struct ifreq *)data;
+	int s, error = 0;
 
 #ifdef DEBUG
 	ng_eiface_print_ioctl(ifp, command, data);
 #endif
 	s = splimp();
-	switch (command)
-	{
+	switch (command) {
+
 	/* These two are mostly handled at a higher layer */
 	case SIOCSIFADDR:
 		error = ether_ioctl(ifp, command, data);
@@ -228,9 +230,8 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	/* Set flags */
 	case SIOCSIFFLAGS:
 		/*
-		 * If the interface is marked up and stopped, then
-		 * start it. If it is marked down and running,
-		 * then stop it.
+		 * If the interface is marked up and stopped, then start it.
+		 * If it is marked down and running, then stop it.
 		 */
 		if (ifr->ifr_flags & IFF_UP) {
 			if (!(ifp->if_flags & IFF_RUNNING)) {
@@ -239,15 +240,14 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
-				ifp->if_flags
-					&= ~(IFF_RUNNING | IFF_OACTIVE);
+				ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 		}
 		break;
 
 	/* Set the interface MTU */
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > NG_EIFACE_MTU_MAX
-		|| ifr->ifr_mtu < NG_EIFACE_MTU_MIN)
+		if (ifr->ifr_mtu > NG_EIFACE_MTU_MAX ||
+		    ifr->ifr_mtu < NG_EIFACE_MTU_MIN)
 			error = EINVAL;
 		else
 			ifp->if_mtu = ifr->ifr_mtu;
@@ -266,16 +266,16 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-	(void)splx(s);
+	splx(s);
 	return (error);
 }
 
 static void
 ng_eiface_init(void *xsc)
 {
-	priv_p		sc = xsc;
-	struct ifnet   *ifp = sc->ifp;
-	int		s;
+	priv_p sc = xsc;
+	struct ifnet *ifp = sc->ifp;
+	int s;
 
 	s = splimp();
 
@@ -286,17 +286,17 @@ ng_eiface_init(void *xsc)
 }
 
 /*
- * We simply relay the packet to the ether hook, if it is connected.
- * We have been throughthe netgraph locking an are guaranteed to 
+ * We simply relay the packet to the "ether" hook, if it is connected.
+ * We have been through the netgraph locking and are guaranteed to
  * be the only code running in this node at this time.
  */
 static void
 ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	struct ifnet *ifp = arg1;
-	const priv_p priv = (priv_p) ifp->if_softc;
-	int		len, error = 0;
-	struct mbuf    *m;
+	const priv_p priv = (priv_p)ifp->if_softc;
+	int len, error = 0;
+	struct mbuf *m;
 
 	/* Check interface flags */
 	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
@@ -319,7 +319,8 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		return;
 	}
 
-	/* Berkeley packet filter
+	/*
+	 * Berkeley packet filter.
 	 * Pass packet to bpf if there is a listener.
 	 * XXX is this safe? locking?
 	 */
@@ -339,7 +340,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		ifp->if_obytes += len;
 		ifp->if_opackets++;
 	}
+
 	ifp->if_flags &= ~IFF_OACTIVE;
+
 	return;
 }
 
@@ -359,8 +362,8 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 static void
 ng_eiface_start(struct ifnet *ifp)
 {
-	
-	const priv_p priv = (priv_p) ifp->if_softc;
+
+	const priv_p priv = (priv_p)ifp->if_softc;
 
 	ng_send_fn(priv->node, NULL, &ng_eiface_start2, ifp, 0);
 }
@@ -371,11 +374,11 @@ ng_eiface_start(struct ifnet *ifp)
  */
 
 static void
-ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data){
-	char		*str;
+ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
+{
+	char *str;
 
-	switch (command & IOC_DIRMASK)
-	{
+	switch (command & IOC_DIRMASK) {
 	case IOC_VOID:
 		str = "IO";
 		break;
@@ -392,13 +395,13 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data){
 		str = "IO??";
 	}
 	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n",
-			ifp->if_xname,
-			str,
-			IOCGROUP(command),
-			command & 0xff,
-			IOCPARM_LEN(command));
+	    ifp->if_xname,
+	    str,
+	    IOCGROUP(command),
+	    command & 0xff,
+	    IOCPARM_LEN(command));
 }
-#endif	/* DEBUG */
+#endif /* DEBUG */
 
 /************************************************************************
 			NETGRAPH NODE STUFF
@@ -410,15 +413,14 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data){
 static int
 ng_eiface_constructor(node_p node)
 {
-	struct ifnet   *ifp;
-	priv_p		priv;
-	int		error = 0;
+	struct ifnet *ifp;
+	priv_p priv;
+	int error = 0;
 
 	/* Allocate node and interface private structures */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_WAITOK);
-	if (priv == NULL) {
+	if (priv == NULL)
 		return (ENOMEM);
-	}
 	bzero(priv, sizeof(*priv));
 
 	ifp = &(priv->arpcom.ac_if);
@@ -447,11 +449,12 @@ ng_eiface_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-	/*
-	 * Give this node name * bzero(ifname, sizeof(ifname));
-	 * sprintf(ifname, "if%s", ifp->if_xname); (void)
-	 * ng_name_node(node, ifname);
-	 */
+#if 0
+	/* Give this node name */
+	bzero(ifname, sizeof(ifname));
+	sprintf(ifname, "if%s", ifp->if_xname);
+	(void)ng_name_node(node, ifname);
+#endif
 
 	/* Attach the interface */
 	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
@@ -466,7 +469,7 @@ ng_eiface_constructor(node_p node)
 static int
 ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 {
-	priv_p		priv = NG_NODE_PRIVATE(node);
+	priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (strcmp(name, NG_EIFACE_HOOK_ETHER))
 		return (EPFNOSUPPORT);
@@ -484,23 +487,24 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	priv_p		priv = NG_NODE_PRIVATE(node);
-	struct ifnet   *const ifp = priv->ifp;
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct ifnet *const ifp = priv->ifp;
 	struct ng_mesg *resp = NULL;
-	int		error = 0;
+	int error = 0;
 	struct ng_mesg *msg;
 
 	NGI_GET_MSG(item, msg);
-	switch		(msg->header.typecookie) {
+	switch (msg->header.typecookie) {
 	case NGM_EIFACE_COOKIE:
 		switch (msg->header.cmd) {
+
 		case NGM_EIFACE_SET:
-		{
+		    {
 			struct ether_addr *eaddr;
 			struct ifaddr *ifa;
 			struct sockaddr_dl *sdl;
 
-			if (msg->header.arglen != sizeof(struct ether_addr)){
+			if (msg->header.arglen != sizeof(struct ether_addr)) {
 				error = EINVAL;
 				break;
 			}
@@ -517,48 +521,43 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				}
 			}
 			break;
-		}
+		    }
 
 		case NGM_EIFACE_GET_IFNAME:
-		{
-			struct ng_eiface_ifname *arg;
-
-			NG_MKRESPONSE(resp, msg, sizeof(*arg), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			arg = (struct ng_eiface_ifname *)resp->data;
-			strlcpy(arg->ngif_name, ifp->if_xname,
-			    sizeof(arg->ngif_name));
+			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ);
 			break;
-		}
 
 		case NGM_EIFACE_GET_IFADDRS:
-		{
-			struct ifaddr  *ifa;
-			caddr_t		ptr;
-			int		buflen;
+		    {
+			struct ifaddr *ifa;
+			caddr_t ptr;
+			int buflen;
 
 #define SA_SIZE(s)	((s)->sa_len<sizeof(*(s))? sizeof(*(s)):(s)->sa_len)
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-			buflen += SA_SIZE(ifa->ifa_addr);
+				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
+
 			/* Add addresses */
 			ptr = resp->data;
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				const int       len = SA_SIZE(ifa->ifa_addr);
+				const int len = SA_SIZE(ifa->ifa_addr);
 
 				if (buflen < len) {
 					log(LOG_ERR, "%s: len changed?\n",
-					ifp->if_xname);
+					    ifp->if_xname);
 					break;
 				}
 				bcopy(ifa->ifa_addr, ptr, len);
@@ -567,7 +566,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			break;
 #undef SA_SIZE
-		}
+		    }
 
 		default:
 			error = EINVAL;
@@ -584,20 +583,20 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 }
 
 /*
- * Recive data from a hook. Pass the packet to the ether_input routine.
+ * Receive data from a hook. Pass the packet to the ether_input routine.
  */
 static int
 ng_eiface_rcvdata(hook_p hook, item_p item)
 {
-	priv_p		priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct ifnet   *const ifp = priv->ifp;
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ifnet *const ifp = priv->ifp;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
-	/* Meta-data ends its life here... */
-        NG_FREE_ITEM(item);
+	NG_FREE_ITEM(item);
 
-	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) !=
+	    (IFF_UP | IFF_RUNNING)) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
@@ -615,13 +614,13 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 }
 
 /*
- * the node.
+ * Shutdown processing.
  */
 static int
 ng_eiface_rmnode(node_p node)
 {
-	priv_p		priv = NG_NODE_PRIVATE(node);
-	struct ifnet   *const ifp = priv->ifp;
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct ifnet *const ifp = priv->ifp;
 
 	ether_ifdetach(ifp);
 	ng_eiface_free_unit(priv->unit);
@@ -649,7 +648,7 @@ ng_eiface_connect(hook_p hook)
 static int
 ng_eiface_disconnect(hook_p hook)
 {
-	priv_p		priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	priv->ether = NULL;
 	return (0);
