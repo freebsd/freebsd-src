@@ -92,7 +92,7 @@ main(argc, argv)
 				warn("%s", argv[optind]);
 			else
 				if (rflag)
-					printf("MD5 %s  %s\n", p, argv[optind]);
+					printf("%s %s\n", p, argv[optind]);
 				else
 					printf("MD5 (%s) = %s\n", argv[optind],
 					    p);
@@ -114,7 +114,7 @@ MDString(string)
 	char buf[33];
 
 	if (rflag)
-		printf("MD5 %s (\"%s\")\n", MD5Data(string, len, buf), string);
+		printf("%s (\"%s\")\n", MD5Data(string, len, buf), string);
 	else
 		printf("MD5 (\"%s\") = %s\n", string, MD5Data(string, len, buf));
 }
