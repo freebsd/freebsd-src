@@ -9,11 +9,11 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.36 2000/02/01 05:49:57 gshapiro Exp $
+.\"     $Id: sendmail.8,v 8.36.8.2 2000/09/07 21:14:00 ca Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.TH SENDMAIL 8 "$Date: 2000/02/01 05:49:57 $"
+.TH SENDMAIL 8 "$Date: 2000/09/07 21:14:00 $"
 .SH NAME
 .B sendmail
 \- an electronic mail transport agent
@@ -171,6 +171,13 @@ is the same as the person you are.
 Otherwise,
 an X-Authentication-Warning header
 will be added to the message.
+.TP
+.BI \-G
+Relay (gateway) submission of a message,
+e.g., when
+.BR rmail
+calls
+.B sendmail .
 .TP
 .BI \-h N
 Set the hop count to
@@ -674,8 +681,6 @@ Internet Request For Comments
 .IR RFC819 ,
 .IR RFC821 ,
 .IR RFC822 .
-.IR "Sendmail \- An Internetwork Mail Router" ,
-No. 9, SMM.
 .IR "Sendmail Installation and Operation Guide" ,
 No. 8, SMM.
 .PP
