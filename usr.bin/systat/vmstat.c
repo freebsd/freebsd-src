@@ -119,7 +119,7 @@ static struct Info {
 	int	desiredvnodes;
 	long	numvnodes;
 	long	freevnodes;
-	long	numdirtybuffers;
+	int	numdirtybuffers;
 } s, s1, s2, z;
 
 struct statinfo cur, last, run;
