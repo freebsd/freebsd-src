@@ -767,6 +767,7 @@ ShowModemStatus()
   ioctl(modem, TIOCOUTQ, &nb);
   printf("outq: %d\n", nb);
 #endif
+  printf("outqlen: %d\n", ModemQlen());
   printf("DialScript  = %s\n", VarDialScript);
   printf("LoginScript = %s\n", VarLoginScript);
   printf("PhoneNumber = %s\n", VarPhone);
