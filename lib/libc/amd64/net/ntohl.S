@@ -34,14 +34,13 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)ntohl.s	5.2 (Berkeley) 12/17/90"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /* hostorder = ntohl(netorder) */
-
-#include <machine/asm.h>
 
         .weak CNAME(ntohl)
         .set CNAME(ntohl),CNAME(__ntohl)
