@@ -48,7 +48,7 @@
 struct track_info {
 	int	file;
 	char	*file_name;
-	int	file_size;
+	u_int	file_size;
 	int	block_size;
 	int	block_type;
 	int	pregap;
@@ -304,7 +304,10 @@ add_track(char *name, int block_size, int block_type, int nogap)
 		err(EX_IOERR, "fstat(%s)", name);
 	tracks[notracks].file = file;
 	tracks[notracks].file_name = name;
-	tracks[notracks].file_size = sb.st_size;
+	if (file == STDIN_FILENO)
+		tracks[notracks].file_size = -1;
+	else
+		tracks[notracks].file_size = sb.st_size;
 	tracks[notracks].block_size = block_size;
 	tracks[notracks].block_type = block_type;
 
