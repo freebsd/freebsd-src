@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.7 1995/02/02 08:31:35 jkh Exp $
+# $Id: bininst.sh,v 1.8 1995/02/02 23:39:44 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
@@ -44,9 +44,8 @@ welcome()
 {
 }
 
-do_last_config()
+goodbye()
 {
-	setup
 	dialog --title "Auf Wiedersehen!" --msgbox \
 "Don't forget that the login name \"root\" has no password.
 If you didn't create any users with adduser, you can at least log in
@@ -77,10 +76,11 @@ if media_select_distribution; then
 			media_install_set
 		done
 	fi
-	do_last_config
+	final_configuration
+	goodbye
 fi
 
-echo; echo "Spawning shell.  Exit shell to continue with new bindist."
+echo; echo "Spawning shell.  Exit shell to continue with new system."
 echo "Progress <installation completed>" > /dev/ttyv1
 /stand/sh
 exit 20
