@@ -240,30 +240,28 @@ static void
 printtime(ftime)
 	time_t ftime;
 {
-	int i;
 	char longstring[80];
 	static time_t now;
+	const char *format;
 
 	if (now == 0)
 		now = time(NULL);
 
-	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
-	for (i = 4; i < 11; ++i)
-		(void)putchar(longstring[i]);
-
 #define	SIXMONTHS	((365 / 2) * 86400)
+	/* "%Ef" is a FreeBSD strftime definition for "%e %b" or "%b %e".
+	 * Actually format is locale sensitive.
+	 */
 	if (f_sectime)
-		for (i = 11; i < 24; i++)
-			(void)putchar(longstring[i]);
+		/* mmm dd hh:mm:ss yyyy || dd mmm hh:mm:ss yyyy */
+		format = "%Ef %T %Y ";
 	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
-		for (i = 11; i < 16; ++i)
-			(void)putchar(longstring[i]);
-	else {
-		(void)putchar(' ');
-		for (i = 20; i < 24; ++i)
-			(void)putchar(longstring[i]);
-	}
-	(void)putchar(' ');
+		/* mmm dd hh:mm || dd mmm hh:mm */
+		format = "%Ef %R ";
+	else
+		/* mmm dd  yyyy || dd mmm  yyyy */
+		format = "%Ef  %Y ";
+	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
+	fputs(longstring, stdout);
 }
 
 static int
