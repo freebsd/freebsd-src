@@ -1396,24 +1396,13 @@ fxp_start_body(struct ifnet *ifp)
 			 * mbuf chain first. Bail out if we can't get the
 			 * new buffers.
 			 */
-			MGETHDR(mn, M_DONTWAIT, MT_DATA);
+			mn = m_defrag(mb_head, M_DONTWAIT);
 			if (mn == NULL) {
 				m_freem(mb_head);
 				break;
+			} else {
+				mb_head = mn;
 			}
-			if (mb_head->m_pkthdr.len > MHLEN) {
-				MCLGET(mn, M_DONTWAIT);
-				if ((mn->m_flags & M_EXT) == 0) {
-					m_freem(mn);
-					m_freem(mb_head);
-					break;
-				}
-			}
-			m_copydata(mb_head, 0, mb_head->m_pkthdr.len,
-			    mtod(mn, caddr_t));
-			mn->m_pkthdr.len = mn->m_len = mb_head->m_pkthdr.len;
-			m_freem(mb_head);
-			mb_head = mn;
 			error = bus_dmamap_load_mbuf(sc->fxp_mtag, txp->tx_map,
 			    mb_head, fxp_dma_map_txbuf, sc, 0);
 			if (error) {
