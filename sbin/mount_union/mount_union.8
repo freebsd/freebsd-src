@@ -127,7 +127,7 @@ Similarly, an attempt to truncate a lower layer file to zero length
 causes an empty file to be created in the upper layer.
 Any other operation which would ultimately require modification to
 the lower layer fails with
-.Dv EROFS .
+.Er EROFS .
 .Pp
 The union filesystem manipulates the namespace, rather than
 individual filesystems.
@@ -183,19 +183,20 @@ accessible via
 .Xr mount 8 ,
 .Xr mount_null 8
 .Sh BUGS
-
 THIS FILESYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
 AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
 OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
-
+.Pp
 This code also needs an owner in order to be less dangerous - serious
-hackers can apply by sending mail to hackers@freebsd.org and announcing
+hackers can apply by sending mail to
+.Aq hackers@FreeBSD.org
+and announcing
 their intent to take it over.
-
+.Pp
 Without whiteout support from the filesystem backing the upper layer,
 there is no way that delete and rename operations on lower layer
 objects can be done.
-.Dv EROFS
+.Er EROFS
 is returned for this kind of operations along with any others
 which would make modifications to the lower layer, such as
 .Xr chmod 1 .

@@ -155,10 +155,10 @@ is set to indicate the error.
 .Fn Getfsstat
 fails if one or more of the following are true:
 .Bl -tag -width Er
-.It EFAULT
+.It Bq Er EFAULT
 .Fa Buf
 points to an invalid address.
-.It EIO
+.It Bq Er EIO
 An
 .Tn I/O
 error occurred while reading from or writing to the filesystem.

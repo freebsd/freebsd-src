@@ -192,7 +192,7 @@ a
 .Xr wait 2
 (or equivalent), it blocks until all of the calling process's child
 processes terminate, and then returns a value of -1 with errno set to
-.Dv ECHILD .
+.Er ECHILD .
 .It Dv SA_ONSTACK
 If this bit is set, the system will deliver the signal to the process
 on a
@@ -220,7 +220,7 @@ or
 If a signal is caught during the system calls listed below,
 the call may be forced to terminate
 with the error
-.Dv EINTR ,
+.Er EINTR ,
 the call may return with a data transfer shorter than requested,
 or the call may be restarted.
 Restart of pending calls is requested
