@@ -1,0 +1,337 @@
+$FreeBSD$
+
+/*
+ * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * List of known USB vendors
+ */
+
+vendor HP		0x03f0	Hewlett Packard
+vendor NEC		0x0409	NEC
+vendor KODAK		0x040a	Eastman Kodak Corp.
+vendor CATC		0x0423	Computer Access Technology Corp.
+vendor GRAVIS		0x0428	Advanced Gravis Computer Tech. Ltd.
+vendor LEXMARK		0x043d	Lexmark International Inc.
+vendor NANAO		0x0440	NANAO Corp.
+vendor THRUST		0x044f	Thrustmaster
+vendor TI		0x0451  Texas Instruments
+vendor KYE		0x0458	KYE Systems Corp.
+vendor MICROSOFT	0x045e	Microsoft
+vendor PRIMAX		0x0461	Primax Electronics
+vendor CHERRY		0x046a	Cherry Mikroschalter GmbH
+vendor LOGITECH		0x046d	Logitech Inc.
+vendor BTC		0x046e	Behavior Tech. Computer
+vendor PHILIPS		0x0471	Philips
+vendor CONNECTIX	0x0478	Connectix Corp.
+vendor LUCENT		0x047e	Lucent
+vendor STMICRO		0x0483	STMicroelectronics
+vendor ACER		0x04a5	Acer Peripheral Inc.
+vendor CANON		0x04a9	Canon Inc.
+vendor CYPRESS		0x04b4	Cypress Semiconductor
+vendor EPSON		0x04b8	Seiko Epson Corp.
+vendor 3COM		0x04c1	U.S. Robotics
+vendor KONICA		0x04c8	Konica Corp.
+vendor ALTEC		0x04d2	Altec Lansing
+vendor SHUTTLE		0x04e6	Shuttle Technology
+vendor CHICONY		0x04f2	Chicony Electronics Co., Ltd.
+vendor BROTHER		0x04f9	Brother Industries Corp.
+vendor DALLAS		0x04fa	Dallas Semiconductor
+vendor BELKIN		0x050d	Belkin Components
+vendor KAWATSU		0x050f	Kawatsu Semiconductor, Inc.
+vendor APC		0x051d	American Power Conversion
+vendor AKS		0x0529	Fast Security AG
+vendor UNIACCESS	0x0540	Universal Access
+vendor ANCHOR		0x0547	Anchor Chips Inc.
+vendor VISION		0x0553	VLSI Vision Ltd.
+vendor ATEN		0x0557	ATEN International Corp. Ltd.
+vendor MUSTEK		0x055f	Mustek Systems Inc.
+vendor TELEX		0x0562	Telex Communications Inc.
+vendor PERACOM		0x0565	Peracom Networks Inc.
+vendor WACOM		0x056a	WACOM Corp. Ltd.
+vendor ETEK		0x056c	e-TEK Labs
+vendor EIZO		0x056d	EIZO
+vendor ELECOM		0x056e	Elecom Corp. Ltd.
+vendor ROCKFIRE		0x0583	Rockfire
+vendor IOMEGA		0x059b	Iomega Corp.
+vendor OMNIVISION	0x05a9	OmniVision
+vendor INSYSTEM		0x05ab	In-System Design
+vendor APPLE		0x05ac	Apple Computer
+vendor QTRONIX		0x05c7	Qtronix Corp
+vendor ELSA		0x05cc	ELSA Gmbh
+vendor EIZONANAO	0x05e7	EIZO Nanao
+vendor PIENGINEERING	0x05f3  P.I. Engineering
+vendor CHIC		0x05fe	Chic Technology
+vendor MACALLY		0x0618	Macally
+vendor MULTITECH	0x06e0	MultiTech
+vendor ADS		0x06e1	ADS Technologies
+vendor MIDIMAN		0x0763	Midiman
+vendor SANDISK		0x0781	SanDisk Corp
+vendor SIIG		0x07cc	SIIG
+vendor HANDSPRING	0x082d	Handspring Inc.
+vendor ACTIVEWIRE	0x0854	ActiveWire Inc.
+vendor MOTOROLA		0x1063	Motorola
+vendor PLX		0x10b5	PLX
+vendor INSIDEOUT	0x1608	Inside Out Networks
+vendor ENTREGA		0x1645	Entrega
+vendor INTEL		0x8086	Intel
+
+/*
+ * List of known products.  Grouped by vendor.
+ */
+
+/* HP products */
+product HP 4100C		0x0101	Scanjet 4100C
+product HP 6300C		0x0601	Scanjet 6300C
+
+/* NEC products */
+product NEC HUB			0x55aa	hub
+product NEC HUB_B		0x55ab	hub
+
+/* Kodak products */
+product KODAK DC260		0x0110	Digital Science DC260
+product KODAK DC240		0x0120	Digital Science DC240
+product KODAK DC280		0x0130	Digital Science DC280
+
+/* CATC products */
+product CATC ANDROMEDA		0x1237	Andromeda hub
+product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
+
+/* Gravis products */
+product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
+
+/* Lexmark products */
+product LEXMARK S2450		0x0009	Optra S 2450
+
+/* Thrustmaster products */
+product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
+
+/* Texas Intel products */
+product TI UTUSB41		0x1446	UT-USB41 hub
+
+/* (KYE) Genius products */
+product KYE NICHE		0x0001	Niche mouse
+product KYE FLIGHT2000		0x1004	Flight 2000 joystick
+
+/* Microsoft products */
+product MICROSOFT INTELLIMOUSE	0x0009	IntelliMouse
+product MICROSOFT NATURALKBD	0x000b	Natural Keyboard Elite
+product MICROSOFT DDS80		0x0014	Digital Sound System 80
+
+/* Primax products */
+product PRIMAX COMFORT		0x4d01	Comfort
+product PRIMAX MOUSEINABOX	0x4d02	Mouse-in-a-Box
+
+/* Cherry products */
+product CHERRY MY3000KBD	0x0001	My3000 keyboard
+product CHERRY MY3000HUB	0x0003	My3000 hub
+
+/* Behavior Technology Computer products */
+product BTC BTC7932		0x6782	Keyboard with mouse port
+
+/* Philips products */
+product PHILIPS DSS350		0x0101	DSS 350 Digital Speaker System
+product PHILIPS DSS		0x0104	DSS XXX Digital Speaker System
+product PHILIPS HUB		0x0201	hub
+product PHILIPS DSS150		0x0471	DSS XXX Digital Speaker System
+
+/* Connectix products */
+product CONNECTIX QUICKCAM	0x0001	QuickCam
+
+/* Lucent products */
+product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
+
+/* STMicroelectronics products */
+product STMICRO COMMUNICATOR	0x7554	USB Communicator
+
+/* Acer products */
+product ACER ACERSCAN_C310U	0x12a6	Acerscan C310U
+
+/* Canon Inc. products */
+product CANON S10		0x3041	PowerShot S10
+
+/* Cypress Semiconductor products */
+product CYPRESS MOUSE		0x0001	mouse
+product CYPRESS THERMO		0x0002	thermometer
+
+/* Epson products */
+product EPSON PRINTER3		0x0003	ISD USB Smart Cable
+
+/* 3Com products */
+product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
+
+/* Konica Corp. Products */
+product KONICA CAMERA		0x0720	Digital Color Camera
+
+/* Altec Lansing products */
+product	ALTEC ASC495		0xff05	ASC495 Speakers
+
+/* Shuttle Technology products */
+product SHUTTLE EUSB		0x0001	E-USB Bridge
+
+/* Chicony products */
+product CHICONY KB8933		0x0001	KB-8933 keyboard
+
+/* Brother Industries products */
+product	BROTHER HL1050		0x0002	HL-1050 laser printer
+
+/* Dallas Semiconductor products */
+product DALLAS J6502		0x4201	J-6502 speakers
+
+/* Kawatsu products */
+product KAWATSU MH4000P		0x0003	MiniHub 4000P
+
+/* American Power Conversion products */
+product APC UPSPRO500		0x0002	Back-UPS Pro 500
+
+/* AKS products */
+product AKS USBHASP		0x0001	USB-HASP 0.06
+
+/* Universal Access products */
+product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
+
+/* Anchor products */
+product ANCHOR EZUSB		0x2131	EZUSB
+
+/* Vision products */
+product VISION VC6452V002	0x0002	VC6452V002 Camera
+
+/* ATen products */
+product ATEN UC1284		0x2001	Parallel printer adapter
+
+/* Mustek products */
+product MUSTEK MDC800		0xa800	MDC-800 digital camera
+
+/* Telex Communications products */
+product TELEX MIC1		0x0001	Enhanced USB Microphone
+
+/* Peracom products */
+product PERACOM SERIAL1		0x0001	Serial Converter
+
+/* Wacom products */
+product WACOM CT0405U		0x0000	CT-0405-U Tablet
+
+/* e-TEK Labs products */
+product ETEK 1COM		0x8007	Serial port
+
+/* EIZO products */
+product EIZO HUB		0x0000	hub
+product EIZO MONITOR		0x0001	monitor
+
+/* Agiler products */
+product ELECOM MOUSE29UO	0x0002	mouse 29UO
+
+/* Rockfire products */
+product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
+
+/* Iomega products */
+product IOMEGA ZIP100		0x0001	Zip 100
+
+/* OmniVision Technologies Inc. products */
+product OMNIVISION OV511	0x0511	OV511 Camera
+
+/* In-System products */
+product INSYSTEM F5U002		0x0002	Parallel printer adapter
+product INSYSTEM ISD110		0x0200  IDE adapter
+
+/* Qtronix products */
+product QTRONIX 980N		0x2011	Scorpion-980N keyboard
+
+/* Elsa products */
+product ELSA MODEM1		0x2265	ELSA Modem Board
+
+/* Logitech products */
+product LOGITECH M2452		0x0203	M2452 keyboard
+product LOGITECH M4848		0x0301	M4848 mouse
+product LOGITECH QUICKCAM	0x0801	QuickCam
+product LOGITECH QUICKCAMPRO	0x0810	QuickCam Pro
+product LOGITECH N48		0xc001	N48 mouse
+product LOGITECH MBA47		0xc002	M-BA47 mouse
+
+/* P.I. Engineering products */
+product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
+
+/* Chic Technology products */
+product CHIC MOUSE1		0x0001	mouse
+
+/* Macally products */
+product MACALLY MOUSE1		0x0101	mouse
+
+/* MultiTech products */
+product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
+
+/* ADS products */
+product ADS ENET		0x0008	Ethernet adapter
+
+/* Entrega products */
+product ENTREGA 1S		0x0001	1S serial connector
+product ENTREGA 2S		0x0002	2S serial connector
+product ENTREGA 1S25		0x0003	1S25 serial connector
+product ENTREGA 4S		0x0004	4S serial connector
+product ENTREGA CENTRONICS	0x0006	Centronics connector
+product ENTREGA 1S9		0x0093	1S9 serial connector
+product ENTREGA EZUSB		0x8000	EZ-USB
+product ENTREGA SERIAL		0x8001	DB25 Serial connector
+product ENTREGA SERIAL_DB9	0x8093	DB9 Serial connector
+
+/* Midiman products */
+product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
+
+/* SanDisk products */
+product	SANDISK IMAGEMATE	0x0001	USB ImageMate
+
+/* SIIG products */
+product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
+
+/* Handspring Inc. */
+product	HANDSPRING VISOR	0x0100	Handspring Visor
+
+/* ActiveWire Inc. products */
+product ACTIVEWIRE IOBOARD	0x0100	I/O Board
+product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
+
+/* Motorola products */
+product	MOTOROLA MC141555	0x1555	MC141555 hub controller
+
+/* PLX products */
+product PLX TESTBOARD		0x9060	test board
+
+/* Inside Out Networks products */
+product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
+
+/* Intel products */
+product INTEL TESTBOARD		0x9890	82930 test board
