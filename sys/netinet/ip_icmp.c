@@ -82,7 +82,7 @@
  * host table maintenance routines.
  */
 
-static struct	icmpstat icmpstat;
+struct	icmpstat icmpstat;
 SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 	&icmpstat, icmpstat, "");
 
@@ -148,6 +148,7 @@ icmp_error(n, type, code, dest, destifp)
 	register unsigned oiplen = oip->ip_hl << 2;
 	register struct icmp *icp;
 	register struct mbuf *m;
+	register struct m_tag *mtag;
 	unsigned icmplen;
 
 #ifdef ICMPPRINTFS
@@ -235,6 +236,16 @@ icmp_error(n, type, code, dest, destifp)
 	nip->ip_hl = 5;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
+	/* 
+	 * XXX: Move PF_GENERATED m_tag to new packet, if it exists.
+	 *	This should be replaced by unified flags/tags for
+	 *	pf/ipfw/ipf and future pfil_hook applications.
+	 */
+	mtag = m_tag_find(n, PACKET_TAG_PF_GENERATED, NULL);
+	if (mtag != NULL) {
+		m_tag_unlink(n, mtag);
+		m_tag_prepend(m, mtag);
+	}
 	icmp_reflect(m);
 
 freeit:

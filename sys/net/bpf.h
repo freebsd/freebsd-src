@@ -250,6 +250,7 @@ struct bpf_hdr {
  * in capture-file headers.
  */
 #define DLT_PFLOG	117
+#define DLT_PFSYNC	121
 
 /*
  * Registered for Cisco-internal use.
