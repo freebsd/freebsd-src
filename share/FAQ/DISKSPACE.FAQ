@@ -142,7 +142,9 @@ FreeBSD is perfectly capable of mounting DOS disks directly).
 (D)isklabel -- enters the Disklabel editor, here you can change how the
  FreeBSD slice is partitioned for FreeBSD.
 
-(Q)uit -- will continue the installation process.
+(P)rocede -- will continue the installation process.
+
+(Q)uit -- Go back to the entry screen.
 
 
 2.2  FDISK - how to make an MBR slice
@@ -260,4 +262,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.4 1994/11/09 02:51:19 jkh Exp $
+$Id: DISKSPACE.FAQ,v 1.5 1994/11/11 07:39:39 jkh Exp $
