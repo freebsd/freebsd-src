@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.14 1997/11/24 13:50:22 bde Exp $
+ *	$Id: radix.c,v 1.15 1998/07/11 10:51:01 bde Exp $
  */
 
 /*
@@ -1003,6 +1003,7 @@ rn_init()
 #ifdef KERNEL
 	struct domain *dom;
 
+	max_keylen = 16;	/* XXX sizeof sockaddr_in - temp hack!! */
 	for (dom = domains; dom; dom = dom->dom_next)
 		if (dom->dom_maxrtkey > max_keylen)
 			max_keylen = dom->dom_maxrtkey;
