@@ -412,7 +412,7 @@ tooshort:
 		 */
 		IN_LOOKUP_MULTI(ip->ip_dst, m->m_pkthdr.rcvif, inm);
 		if (inm == NULL) {
-			ipstat.ips_cantforward++;
+			ipstat.ips_notmember++;
 			m_freem(m);
 			return;
 		}
