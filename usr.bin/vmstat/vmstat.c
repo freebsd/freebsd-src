@@ -758,7 +758,7 @@ domem()
 	register struct malloc_type *ks;
 	register int i, j;
 	int len, size, first, nkms;
-	long totuse = 0, totfree = 0, totreq = 0;
+	long long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
 	struct malloc_type kmemstats[MAX_KMSTATS], *kmsp;
 	char buf[1024];
@@ -861,8 +861,8 @@ domem()
 		totuse += ks->ks_memuse;
 		totreq += ks->ks_calls;
 	}
-	(void)printf("\nMemory Totals:  In Use    Free    Requests\n");
-	(void)printf("              %7ldK %6ldK    %8ld\n",
+	(void)printf("\nMemory Totals:  In Use       Free    Requests\n");
+	(void)printf("            %9lldK %9lldK    %8lld\n",
 	     (totuse + 1023) / 1024, (totfree + 1023) / 1024, totreq);
 }
 
