@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.51 1997/02/26 10:58:49 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.52 1997/02/26 11:07:24 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -384,8 +384,8 @@ for this domain.
 <url url="ftp://ftp.ru.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.ru.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<url url="ftp://ftp2.ru.freebsd.org/FreeBSD"
-	name="ftp://ftp2.ru.freebsd.org/FreeBSD"><newline>
+<url url="ftp://ftp2.ru.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.ru.freebsd.org/pub/FreeBSD"><newline>
 <item>
 <url url="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp3.ru.freebsd.org/pub/FreeBSD"><newline>
