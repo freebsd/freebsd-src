@@ -32,7 +32,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2003
+.Dd July 1, 2003
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -183,6 +183,22 @@ even if files are still active.
 Active special devices continue to work,
 but any further accesses to any other active files result in errors
 even if the file system is later remounted.
+.Pp
+If the
+.Dv MNT_BYFSID
+flag is specified,
+.Fa dir
+should instead be a file system ID encoded as
+.Dq Li FSID : Ns Ar val0 : Ns Ar val1 ,
+where
+.Ar val0
+and
+.Ar val1
+are the contents of the
+.Vt fsid_t
+.Va val[]
+array in decimal.
+The file system that has the specified file system ID will be unmounted.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
