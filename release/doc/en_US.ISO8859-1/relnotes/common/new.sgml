@@ -139,7 +139,7 @@
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
 
       <para>The &man.an.4; driver now supports the Cisco Aironet 350
-      series of adaptors. &merged;</para>
+      series of adaptors.</para>
     </sect3>
 
     <sect3>
