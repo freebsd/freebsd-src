@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.41 1997/11/09 15:03:13 wosch Exp $
+#	$Id: bsd.kmod.mk,v 1.42 1998/01/26 20:36:38 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -92,10 +92,19 @@ MODUNLOAD?=	/sbin/modunload
 
 CFLAGS+=	${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL ${CWARNFLAGS}
 
-# Add -I paths for system headers.  Individual LKM makefiles don't need any
-# -I paths for this.  Most of them need .PATH statement(s) for non-headers.
+# Don't use any standard or source-relative include directories.
+# Since -nostdinc will annull any previous -I paths, we repeat all
+# such paths after -nostdinc.  It doesn't seem to be possible to
+# add to the front of `make' variable.
+_ICFLAGS:=	${CFLAGS:M-I*}
+CFLAGS+=	-nostdinc -I- ${_ICFLAGS}
+
+# Add -I paths for system headers.  Individual LKM makefiles don't
+# need any -I paths for this.  Similar defaults for .PATH can't be
+# set because there are no standard paths for non-headers.
 CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 
+# XXX this is now dubious.
 .if defined(DESTDIR)
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
