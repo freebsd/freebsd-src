@@ -301,14 +301,23 @@ else
 SEND-PR: -*- send-pr -*-
 SEND-PR: Lines starting with `SEND-PR' will be removed automatically, as
 SEND-PR: will all comments (text enclosed in `<' and `>').
-SEND-PR: 
-SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
-SEND-PR: manual if you are not sure how to fill out a problem report.
+SEND-PR:
+SEND-PR: Please consult the following URL if you are not sure how to
+SEND-PR: fill out a problem report:
+SEND-PR: http://www.freebsd.org/doc/en/articles/problem-reports/article.html
+SEND-PR:
 SEND-PR: Note that the Synopsis field is mandatory.
 SEND-PR:
 SEND-PR: Please note that (unless you state otherwise) if your report 
 SEND-PR: includes a patch then it will be taken under the same license as 
 SEND-PR: the one on the file(s) you want to change.
+SEND-PR:
+SEND-PR: BE ADVISED THAT FREEBSD PROBLEM REPORTS ARE PUBLIC INFORMATION AND
+SEND-PR: WILL BE PUBLISHED AS-IS ON THE PROJECT'S MAILING LISTS AND WEB SITES.
+SEND-PR: DO NOT SUBMIT ANY INFORMATION YOU DO NOT WANT MADE PUBLIC.
+SEND-PR:
+SEND-PR: For sensitive security issues, consider contacting the FreeBSD
+SEND-PR: security officer team (security-officer@freebsd.org) directly.
 SEND-PR:
 SEND-PR: Choose from the following categories:
 SEND-PR:
