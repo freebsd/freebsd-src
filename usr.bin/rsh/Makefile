@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.6 1998/08/06 21:39:12 markm Exp $
+#	$Id: Makefile,v 1.7 1998/09/05 00:32:27 jb Exp $
 
 PROG=	rsh
 SRCS=	rsh.c
@@ -19,7 +19,6 @@ DISTRIBUTION=	krb
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
 
-BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 
