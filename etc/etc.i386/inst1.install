@@ -1,50 +1,33 @@
 #!/bin/sh
-# install1.fs disk 'install'
-# Simplified, interactive NetBSD installation script.
+# filesystem-floppy disk /install
+# Simplified, interactive *BSD installation script.
 # D.E. Silvia (dsilvia@net.com)
 #
-# (and again hacked on by rgrimes 1993/08/10,
-#  for FreeBSD, changed only the printing messages, not the comments
-#  about what OS this is for, now uses variable ${OPSYSTEM},
-#  converted to use cpio)
-#
-# (once again hacked on by rgrimes 1993/07/29,
-#  disabled old disktab.preinstall,
-#  added questions for what blocking factor to use in the file system,
-#  added (heads) to clarify what disk tracks means)
-#
-# (heavily hacked by cgd)
-# (and again by rwgrimes, for bad144 support and some error checking)
-#
-# Provides for variable swap and multiple partitions.
-#
-# Installs first minimal part of basic NetBSD system.
-#
-# Does not appear to work properly IF not using whole disk _AND_ there is
-# no DOS partition (kernel bug?  Tries to chroot to partition 'd' :-{ )
-#
-# Currently, no method for checking to see if the designated disk type is
-# already in /etc/disktab.  You can edit it out of the file after installation.
+# Heavily hacked on by cgd and rwgrimes and miscilanious times
+# comments here are brief to save disk space!
 #
 OPSYSTEM=FreeBSD
 DEFBLOCKING=2
+DEFSECT=17
+DEFHEAD=12
+DEFCYLN=1024
 
-echo    "Welcome to ${OPSYSTEM}."
-echo    ""
-echo    "This program is designed to help put ${OPSYSTEM} on a hard disk,"
-echo    "in a simple and rational way.  We'll ask you several questions,"
-echo    "and it would probably be useful to have a disk's hardware"
+echo	"Welcome to ${OPSYSTEM}."
+echo	""
+echo	"This program is designed to help put ${OPSYSTEM} on a hard disk,"
+echo	"in a simple and rational way.  We'll ask you several questions,"
+echo	"and it would probably be useful to have a disk's hardware"
 echo	"manual, the installation notes, and a calculator handy."
-echo    ""
+echo	""
 echo	"In particular, we need to know some reasonably detailed"
 echo	"information about the disk's geometry, because there is currently"
 echo	"no way we can figure out this information by ourselves."
-echo    ""
+echo	""
 echo	"As with anything which modifies a hard drive's contents, this"
 echo	"program can cause SIGNIFICANT data loss, and we strongly recommend"
 echo	"making sure that the hard drive is backed up before going further with"
 echo	"the installation process."
-echo    ""
+echo	""
 echo -n "Proceed with installation? [y] "
 read resp junk
 if [ "$resp" = "" ]; then
@@ -53,7 +36,7 @@ fi
 case $resp in
 	y*|Y*)
 		echo
-		echo    "Cool!  Let's get to it..."
+		echo	"Cool!  Let's get to it..."
 		echo	""
 		echo	"If a mistake is made along the way, don't bail out."
 		echo	"At the end, you have the option to redo the configuration."
@@ -61,10 +44,10 @@ case $resp in
 		echo	"and enter \`halt' at the command prompt \`#'."
 		;;
 	*)
-		echo    ""
-		echo    "OK, then.  enter 'halt' to halt the machine."
-		echo    "Once the machine has halted, remove the floppy,"
-		echo    "and press any key to reboot."
+		echo	""
+		echo	"OK, then enter 'halt' to halt the machine."
+		echo	"Once the machine has halted, remove the floppy,"
+		echo	"and press any key to reboot."
 		exit
 		;;
 esac
@@ -76,17 +59,17 @@ rotdelay=""
 drivename=wd0
 drivetype=wd
 sect_fwd=""
-echo    ""
-echo    "First, we need to know the drive type.  This can be can be one of"
+echo	""
+echo	"First, we need to know the drive type.  This can be can be one of"
 echo	"ESDI, SCSI, ST506, or IDE."
 echo -n "Drive type? [IDE] "
 read type junk
 if [ "$type" = "" ]; then
 	type=IDE
 fi
-echo $type
 case "$type" in
 	e*|E*|st*|ST*)
+		echo
 		echo -n "Does it support _automatic_ sector remapping? [y] "
 		read remap junk
 		case "$remap" in
@@ -94,25 +77,33 @@ case "$type" in
 				sect_fwd="sf:"
 				;;
 		esac
+		case "$type" in
+			e*|E*)
+				DEFSECT=36
+				;;
+		esac
 		;;
 	i*|I*)
 		type=ST506
+		rotdelay="-d 0"
 		;;
 	sc*|SC*)
 		drivename=sd0
 		drivetype=sd
 		type=SCSI
 		rotdelay="-d 0"
+		DEFSECT=32
+		DEFHEAD=64
 		;;
 	*)
 		echo "Unknown type.  Assuming ST506 with automatic sectoring..."
 		type=ST506
 		;;
 esac
-echo    ""
-echo    "Disk is of device type $drivetype."
-echo    "Installing on device /dev/$drivename..."
-echo    ""
+echo	""
+echo	"Disk is of device type $drivetype."
+echo	"Installing on device /dev/$drivename..."
+echo	""
 echo	"Now we want to build a data base entry in /etc/disktab describing"
 echo	"the geometry of the /dev/$drivename disk.  The name of the entry"
 echo	"should be descriptive of the disk's type and model.  For example,"
@@ -129,22 +120,22 @@ if [ "$bytes_per_sect" = "" ]; then
 	bytes_per_sect=512
 fi
 echo	""
-echo -n "Total number of disk cylinders? [1024] "
+echo -n "Total number of disk cylinders? [$DEFCYLN] "
 read cyls_per_disk junk
 if [ "$cyls_per_disk" = "" ]; then
-	cyls_per_disk=1024
+	cyls_per_disk=$DEFCYLN
 fi
 echo	""
-echo -n "Number of disk heads (i.e., tracks/cylinder)? [12] "
+echo -n "Number of disk heads (i.e., tracks/cylinder)? [$DEFHEAD] "
 read tracks_per_cyl junk
 if [ "$tracks_per_cyl" = "" ]; then
-	tracks_per_cyl=12
+	tracks_per_cyl=$DEFHEAD
 fi
 echo	""
-echo -n "Number of disk sectors (i.e., sectors/track)? [36] "
+echo -n "Number of disk sectors (i.e., sectors/track)? [$DEFSECT] "
 read sects_per_track junk
 if [ "$sects_per_track" = "" ]; then
-	sects_per_track=36
+	sects_per_track=$DEFSECT
 fi
 echo	""
 cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
@@ -160,7 +151,7 @@ echo "For greater efficiency, partitions should begin and end on cylinder"
 echo "boundaries.  If you know the size NN in Megabytes (Mb) of a partition"
 echo "you want, then use the following formula to determine the number NC of"
 echo "cylinders to use:"
-echo	"	NC = integer { ( NN * $mb_sect ) /  $cylindersize }"
+echo	"	NC = integer { ( NN * $mb_sect ) / $cylindersize }"
 echo -n "Total size of the ${OPSYSTEM} portion of the disk (in cylinders)? [${cyls_per_disk}] "
 read partition junk
 if [ "$partition" = "" ]; then
@@ -195,7 +186,7 @@ echo	""
 echo	"There are $mb_left Mb ($cyl_left cylinders) to allocate."
 echo	""
 # set default root partition to 15MB
-part_size=`expr \( 15 \* $mb_sect \) /  $cylindersize`
+part_size=`expr \( 15 \* $mb_sect \) / $cylindersize`
 if [ $part_size -gt $cyl_left ]; then
 	part_size=$cyl_left
 fi
@@ -249,7 +240,7 @@ min_cyl=`expr $minswap / $cylindersize`
 swap=0
 while [ $swap -eq 0 ]; do
 	echo
-	echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+	echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
 	echo
 	echo	"Minimum swap space is $min_cyl cylinders."
 	echo	"For running X, if your RAM size is NR Mb, then the recomended swap"
@@ -292,19 +283,19 @@ echo ""
 swap_offset=`expr $root_offset + $root`
 part_used=`expr $part_used + $swap`
 mount -u /dev/fd0a /
-echo    "" >/etc/disktab
-echo    "$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
-echo    "	:dt=${type}:ty=winchester:\\" >>/etc/disktab
+echo	"" >/etc/disktab
+echo	"$name|${OPSYSTEM} installation generated:\\" >>/etc/disktab
+echo	"	:dt=${type}:ty=winchester:\\" >>/etc/disktab
 echo -n "	:nc#${cyls_per_disk}:ns#${sects_per_track}" >>/etc/disktab
-echo    ":nt#${tracks_per_cyl}:\\" >>/etc/disktab
-echo    "	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
+echo	":nt#${tracks_per_cyl}:\\" >>/etc/disktab
+echo	"	:se#${bytes_per_sect}:${sect_fwd}\\" >>/etc/disktab
 echo -n "	:pa#${root}:oa#${root_offset}" >>/etc/disktab
-echo    ":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
-echo    "	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
-echo    "	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
+echo	":ta=4.2BSD:ba#${blocksize}:fa#${fragsize}:\\" >>/etc/disktab
+echo	"	:pb#${swap}:ob#${swap_offset}:tb=swap:\\" >>/etc/disktab
+echo	"	:pc#${partition}:oc#${part_offset}:\\" >>/etc/disktab
 ename="";fname="";gname="";hname=""
 
-echo    ""
+echo	""
 echo	"Now we enter information about any other partitions and filesystems"
 echo	"to be created in the ${OPSYSTEM} portion of the disk.  This process"
 echo	"is complete when we've filled up all remaining space in the ${OPSYSTEM}"
@@ -317,7 +308,7 @@ while [ $part_used -lt $partition ]; do
 	mb_left=`expr $whats_left / $mb_sect`
 	while [ $part_size -eq 0 ]; do
 		echo	""
-		echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
+		echo	"$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
 		echo
 		echo -n "Next partition size (in cylinders)? [${cyl_left}] "
 		read part_size junk
@@ -375,12 +366,25 @@ while [ $part_used -lt $partition ]; do
 	fi
 done
 
-echo    "	:pd#${disksize}:od#0:" >>/etc/disktab
+echo	"	:pd#${disksize}:od#0:" >>/etc/disktab
 cat /etc/disktab
 sync
 
-echo    ""
-echo    "OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
+echo	""
+echo -n "Verbose installation? [n] "
+read resp
+
+case $resp in
+	y*)
+		cpioverbose=v
+		;;
+	*)
+		cpioverbose=
+		;;
+esac
+
+echo	""
+echo	"OK!  THIS IS THE LAST CHANCE!!!  Data on the hard disk wil be lost."
 echo -n "Are you sure you want to install on the hard drive? (yes/no) "
 answer=""
 while [ "$answer" = "" ]; do
@@ -388,8 +392,8 @@ while [ "$answer" = "" ]; do
 	case $answer in
 		Yes|yes|YES)
 			verified_install=1
-			echo    ""
-			echo    "OK!  Here we go..."
+			echo	""
+			echo	"OK!  Here we go..."
 			;;
 		No|no|NO)
 			echo ""
@@ -403,10 +407,10 @@ while [ "$answer" = "" ]; do
 				y*|Y*)
 					;;
 				*)
-					echo    ""
-					echo    "OK, then.  enter 'halt' to halt the machine."
-					echo    "Once the machine has halted, remove the floppy,"
-					echo    "and press any key to reboot."
+					echo	""
+					echo	"OK, then enter 'halt' to halt the machine."
+					echo	"Once the machine has halted, remove the floppy,"
+					echo	"and press any key to reboot."
 					exit
 					;;
 			esac
@@ -421,10 +425,10 @@ done
 
 done	# End of Big Loop
 
-echo    ""
+echo	""
 echo -n "Labelling disk..."
 /sbin/disklabel -w -r $drivename $name /usr/mdec/${drivetype}boot /usr/mdec/boot${drivetype}
-echo    " done."
+echo	" done."
 
 if [ "$sect_fwd" = "sf:" ]; then
 	echo -n "Initializing bad144 badblock table..."
@@ -435,51 +439,39 @@ if [ "$sect_fwd" = "sf:" ]; then
 	echo "done."
 fi
 
-echo    "Initializing root filesystem, and mounting..."
+echo	"Initializing root filesystem, and mounting..."
 newfs ${rotdelay} /dev/r${drivename}a $name
 mount -v /dev/${drivename}a /mnt
 if [ "$ename" != "" ]; then
-	echo    ""
-	echo    "Initializing $ename filesystem, and mounting..."
+	echo	""
+	echo	"Initializing $ename filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}e $name
 	mkdir -p /mnt/$ename
 	mount -v /dev/${drivename}e /mnt/$ename
 fi
 if [ "$fname" != "" ]; then
-	echo    ""
-	echo    "Initializing $fname filesystem, and mounting..."
+	echo	""
+	echo	"Initializing $fname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}f $name
 	mkdir -p /mnt/$fname
 	mount -v /dev/${drivename}f /mnt/$fname
 fi
 if [ "$gname" != "" ]; then
-	echo    ""
-	echo    "Initializing $gname filesystem, and mounting..."
+	echo	""
+	echo	"Initializing $gname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}g $name
 	mkdir -p /mnt/$gname
 	mount -v /dev/${drivename}g /mnt/$gname
 fi
 if [ "$hname" != "" ]; then
-	echo    ""
-	echo    "Initializing $hname filesystem, and mounting..."
+	echo	""
+	echo	"Initializing $hname filesystem, and mounting..."
 	newfs ${rotdelay} /dev/r${drivename}h $name
 	mkdir -p /mnt/$hname
 	mount -v /dev/${drivename}h /mnt/$hname
 fi
 
-echo    ""
-echo -n "Verbose installation? [n] "
-read resp
-
-case $resp in
-	y*)
-		cpioverbose=v
-		;;
-	*)
-		cpioverbose=
-		;;
-esac
-
+echo
 echo "Copying to disk..."
 cd /
 cat filelist | cpio -pdamu${cpioverbose} /mnt
@@ -510,9 +502,9 @@ export HOME
 TERM=pc3
 export TERM
 mount -at ufs
-echo    ""
-echo    "Insert second installation floppy in drive and"
-echo -n "enter that drive's number (e.g. 0 or 1): [0]"
+echo
+echo	"Insert cpio floppy in a drive and enter"
+echo -n "that drive's number (e.g. 0 or 1): [0]"
 read driveno junk
 if [ "\$driveno" = "" ]; then
 	driveno=0
@@ -526,10 +518,10 @@ EOF
 sync
 
 echo	""
-echo    "The next step:  reboot from the kernel-copy disk, copy a kernel"
-echo    "to the hard disk, and finally reboot from the hard disk."
-echo    ""
-echo    "To do this, enter 'halt' now to halt the machine.  After it"
+echo	"The next step:  reboot from the kernel-copy disk, copy a kernel"
+echo	"to the hard disk, and finally reboot from the hard disk."
+echo	""
+echo	"To do this, enter 'halt' now to halt the machine.  After it"
 echo	"announces that it has halted, remove the floppy from the drive"
 echo	"and insert the kernel-copy disk that was booted before."
 echo	"Press any key to reboot."
@@ -537,7 +529,7 @@ echo	""
 echo	"When prompted to insert the file system floppy, this time just"
 echo	"hit RETURN without changing floppies.  If all goes well, you can"
 echo	"enter the command \`copy' at the prompt to copy the kernel to the"
-echo	"hard disk.  When asked for which partition to copy to, enter  to"
-echo    "\`${drivename}a' (without the quotes)."
+echo	"hard disk.  When asked for which partition to copy to, enter to"
+echo	"\`${drivename}a' (without the quotes)."
 echo	""
 echo	"Okay, that's all for now.  I'm waiting for you to enter \`halt'..."

@@ -1,13 +1,8 @@
 stty status '^T'
-
-# Set shell to ignore SIGINT (2), but not children;
-# shell catches SIGQUIT (3) and returns to single user after fsck.
 trap : 2
-trap : 3	# shouldn't be needed
-
+trap : 3
 HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
-
 if [ -e /fastboot ]
 then
 	echo Fast boot ... skipping disk checks
@@ -21,11 +16,18 @@ else
 		exit 1
 		;;
 	4)
-		echo "fsck changed the root file system..."
-		echo -n "halting, press return to reboot after the system has "
-		echo "halted"
+		echo; echo README README README README README README README
+		echo
+		echo "NOTE: The above errors are expected if this is the"
+		echo "first time you have booted from the hard disk after"
+		echo "completing the floppy install"; echo
+		echo "Automatic file system check changed the root file system"
+		echo "The system must halt for these corrections to take effect"
+		echo ""
+		echo "Halting... press return after the system has halted to"
+		echo "boot from the hard disk again."
 		halt
-		echo "reboot failed... help!"
+		echo "halt failed... help!"
 		exit 1
 		;;
 	8)
@@ -37,7 +39,6 @@ else
 		exit 1
 		;;
 	130)
-		# interrupt before catcher installed
 		exit 1
 		;;
 	*)
@@ -48,25 +49,10 @@ else
 fi
 
 trap "echo 'Reboot interrupted'; exit 1" 3
-
-swapon -a
-
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
-rm -f /fastboot		# XXX (root now writeable)
-
-# clean up left-over files
-rm -f /etc/nologin
-rm -f /var/spool/uucp/LCK.*
-rm -f /var/spool/uucp/STST/*
+rm -f /fastboot
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
-
-echo clearing /tmp
-
-echo -n standard daemons:
-echo -n ' update';		update
-echo '.'
-echo ''
 
 TERM=pc3	# terminal emulator, for elvis
 TERMCAP="\
