@@ -1,3 +1,5 @@
+#	$Id:$
+
 # This is an example of port, the port configuration file for Taylor
 # UUCP.  To use it, you must compile the package with
 # HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default), copy

@@ -1,3 +1,5 @@
+#	$Id:$
+#
 # csh .login file
 #
 
