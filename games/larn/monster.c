@@ -853,7 +853,7 @@ hitmonster(x,y)
  */
 hitm(x,y,amt)
 	int x,y;
-	amt;
+	int amt;
 	{
 	int monst;
 	int hpoints,amt2;
