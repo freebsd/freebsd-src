@@ -52,7 +52,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -90,7 +90,7 @@
 
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.40 1999/10/07 08:24:06 vixie Exp $
+ * $Id: db_func.h,v 8.42 2000/04/21 06:54:02 vixie Exp $
  */
 
 /* ++from db_update.c++ */
@@ -101,7 +101,7 @@ extern int		db_update(const char *name,
 				  int flags,
 				  struct hashbuf *htp,
 				  struct sockaddr_in from),
-                        db_cmp(const struct databuf *, const struct databuf *),
+			db_cmp(const struct databuf *, const struct databuf *),
 			findMyZone(struct namebuf *np, int class);
 void			fixttl(struct databuf *dp);
 /* --from db_update.c-- */
@@ -187,7 +187,7 @@ extern int		match(struct databuf *, int, int),
 /* --from db_lookup.c-- */
 
 /* ++from db_ixfr.c++ */
-struct ns_updrec *	ixfr_get_change_list(struct zoneinfo *, u_int32_t,
+extern ns_deltalist *	ixfr_get_change_list(struct zoneinfo *, u_int32_t,
 					     u_int32_t);
 int			ixfr_have_log(struct zoneinfo *, u_int32_t,
 				      u_int32_t);

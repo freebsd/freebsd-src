@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: logging.c,v 8.24 1999/10/13 16:39:34 vixie Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.26 2000/04/23 02:19:02 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -127,7 +127,7 @@ log_open_stream(log_channel chan) {
 
 	flags = O_WRONLY|O_CREAT|O_APPEND;
 
-	if (chan->flags & LOG_TRUNCATE) {
+	if ((chan->flags & LOG_TRUNCATE) != 0) {
 		if (regular) {
 			(void)unlink(chan->out.file.name);
 			flags |= O_EXCL;
@@ -155,6 +155,7 @@ log_open_stream(log_channel chan) {
 		chan->flags |= LOG_CHANNEL_BROKEN;
 		return (NULL);
 	}
+	(void) fchown(fd, chan->out.file.owner, chan->out.file.group);
 
 	chan->out.file.stream = stream;
 	return (stream);
@@ -617,8 +618,21 @@ log_new_file_channel(unsigned int flags, int level,
 	chan->out.file.stream = stream;
 	chan->out.file.versions = versions;
 	chan->out.file.max_size = max_size;
+	chan->out.file.owner = getuid();
+	chan->out.file.group = getgid();
 	chan->references = 0;
 	return (chan);
+}
+
+int
+log_set_file_owner(log_channel chan, uid_t owner, gid_t group) {
+	if (chan->type != log_file) {
+		errno = EBADF;
+		return (-1);
+	}
+	chan->out.file.owner = owner;
+	chan->out.file.group = group;
+	return (0);
 }
 
 log_channel

@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.26 1999/10/15 19:49:09 vixie Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.28 2000/04/20 07:47:54 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -394,7 +394,7 @@ gethostans(struct irs_ho *this,
 	const HEADER *hp;
 	const u_char *eom;
 	const u_char *cp;
-	const char *tname;
+	const char *tname, **tap;
 	char *bp, **ap, **hap;
 	char tbuf[MAXDNAME+1];
 
@@ -583,9 +583,9 @@ gethostans(struct irs_ho *this,
 				bp += nn;
 				buflen -= nn;
 			}
-
+			/* Ensure alignment. */
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
-
+			/* Avoid overflows. */
 			if (bp + n >= &pvt->hostbuf[sizeof pvt->hostbuf]) {
 				had_error++;
 				continue;
@@ -594,7 +594,19 @@ gethostans(struct irs_ho *this,
 				cp += n;
 				continue;
 			}
+			/* Suppress duplicates. */
+			for (tap = (const char **)pvt->h_addr_ptrs;
+			     *tap != NULL;
+			     tap++)
+				if (memcmp(*tap, cp, n) == 0)
+					break;
+			if (*tap != NULL) {
+				cp += n;
+				continue;
+			}
+			/* Store address. */
 			memcpy(*hap++ = bp, cp, n);
+			*hap = NULL;
 			bp += n;
 			cp += n;
 			break;
@@ -606,7 +618,6 @@ gethostans(struct irs_ho *this,
 	}
 	if (haveanswer) {
 		*ap = NULL;
-		*hap = NULL;
 
 		if (pvt->res->nsort && haveanswer > 1 && qtype == T_A)
 			addrsort(pvt->res, pvt->h_addr_ptrs, haveanswer);

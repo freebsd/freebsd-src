@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.95 1999/10/13 16:39:09 vixie Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.103 2000/04/23 02:18:58 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_maint.c,v 8.95 1999/10/13 16:39:09 vixie Ex
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -134,6 +134,8 @@ static void		startxfer(struct zoneinfo *),
 			abortxfer(struct zoneinfo *),
 			tryxfer(void),
 			purge_z_2(struct hashbuf *, int);
+static int		purge_nonglue_2(const char *, struct hashbuf *,
+					int, int);
 
 #ifndef HAVE_SPAWNXFER
 static pid_t		spawnxfer(char **, struct zoneinfo *);
@@ -178,10 +180,19 @@ zone_maint(struct zoneinfo *zp) {
 #endif
 		if (zp->z_serial != 0 &&
 		    ((zp->z_lastupdate+zp->z_expire) < (u_int32_t)tt.tv_sec)) {
+			if ((zp->z_flags & Z_NOTIFY) != 0)
+				ns_stopnotify(zp->z_origin, zp->z_class);
 			/* calls purge_zone */
 			do_reload(zp->z_origin, zp->z_type, zp->z_class, 0);
 			/* reset zone state */
+			if (!haveComplained((u_long)zp, (u_long)stale)) {
+				ns_notice(ns_log_default,
+					  "%s zone \"%s\" expired",
+					  zoneTypeString(zp->z_type),
+					  zp->z_origin);
+			}
 			zp->z_flags &= ~Z_AUTH;
+			zp->z_flags |= Z_EXPIRED;
 			zp->z_refresh = INIT_REFRESH;
 			zp->z_retry = INIT_REFRESH;
 			zp->z_serial = 0;
@@ -247,9 +258,9 @@ zone_maint(struct zoneinfo *zp) {
 				zp->z_dumptime = 0;
 				(void)schedule_dump(zp);
 			}
-			if (zp->z_maintain_ixfr_base)
-				ixfr_log_maint(zp);
 		} 
+		if (zp->z_maintain_ixfr_base)
+			ixfr_log_maint(zp);
 		break;
 #endif /* BIND_UPDATE */
 
@@ -402,7 +413,7 @@ ns_cleancache(evContext ctx, void *uap,
 
 void
 ns_heartbeat(evContext ctx, void *uap, struct timespec due,
-            struct timespec inter)
+	     struct timespec inter)
 {
 	struct zoneinfo *zp;
 
@@ -417,12 +428,9 @@ ns_heartbeat(evContext ctx, void *uap, struct timespec due,
 		    (zp->z_dialup == zdialup_use_default && 
 		     NS_OPTION_P(OPTION_NODIALUP)))
 			continue;
-#ifdef BIND_NOTIFY
-		if ((zp->z_notify == znotify_no) ||
-		    ((zp->z_notify == znotify_use_default) &&
-		     NS_OPTION_P(OPTION_NONOTIFY)))
-			continue;
-#endif
+		/*
+		 * Perform the refresh query that was suppressed.
+		 */
 		if ((zt == z_slave || zt == z_stub) &&
 		    (zp->z_flags &
 		     (Z_NEED_RELOAD|Z_NEED_XFER|Z_QSERIAL|Z_XFER_RUNNING)
@@ -432,6 +440,18 @@ ns_heartbeat(evContext ctx, void *uap, struct timespec due,
 				*(zp->z_origin) ? zp->z_origin : ".");
 			qserial_query(zp);
 		}
+#ifdef BIND_NOTIFY
+		/*
+		 * Trigger a refresh query while the link is up by
+		 * sending a notify.
+		 */
+		if (((zp->z_notify == znotify_yes) ||
+		     ((zp->z_notify == znotify_use_default) &&
+		      !NS_OPTION_P(OPTION_NONOTIFY))) &&
+		    (zt == z_master || zt == z_slave) && !loading &&
+		    ((zp->z_flags & Z_AUTH) != 0))
+			ns_notify(zp->z_origin, zp->z_class, ns_t_soa);
+#endif
 	}
 }
 
@@ -453,8 +473,10 @@ markUpToDate(struct zoneinfo *zp) {
 	 * but only if there were no errors
 	 * in the zone file.
 	 */
-	if ((zp->z_flags & Z_DB_BAD) == 0)
+	if ((zp->z_flags & Z_DB_BAD) == 0) {
 		zp->z_flags |= Z_AUTH;
+		zp->z_flags &= ~Z_EXPIRED;
+	}
 	if (zp->z_source) {
 		struct timeval t[2];
 
@@ -642,6 +664,7 @@ write_tsig_info(struct in_addr addr, char *name, int *fd, int creat_failed) {
 				   name);
 			return(-1);
 		}
+		(void) fchown(tsig_fd, user_id, group_id);
 	}
 	if (creat_failed != 0)
 		return(-1);
@@ -796,7 +819,7 @@ startxfer(struct zoneinfo *zp) {
 		}
 		*curr = '\0';
 		ns_debug(ns_log_xfer_in, 1, buffer);
-        }
+	}
 #endif /* DEBUG */
 
 	gettime(&tt);
@@ -1066,6 +1089,8 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 	     (zp->z_flags & Z_NEED_DUMP) != 0))
 		(void) zonedump(zp, ISNOTIXFR);
 #endif
+	if ((zp->z_flags & Z_NOTIFY) != 0)
+		ns_stopnotify(zp->z_origin, zp->z_class);
 	ns_stopxfrs(zp);
 	do_reload(zp->z_origin, zp->z_type, zp->z_class, 1);
 	ns_notice(ns_log_config, "%s zone \"%s\" (%s) %s",
@@ -1076,6 +1101,145 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 	zp->z_type = z_nil;  /* Pedantic; memset() did it. */
 	INIT_LINK(zp, z_reloadlink);
 	free_zone(zp);
+}
+
+int
+purge_nonglue(const char *dname, struct hashbuf *htp, int class) {
+	const char *fname;
+	struct namebuf *np;
+	struct hashbuf *phtp = htp;
+	int root_zone = 0;
+	int errs = 0;
+
+	ns_debug(ns_log_default, 1, "purge_zone(%s,%d)", dname, class);
+	if ((np = nlookup(dname, &phtp, &fname, 0)) && dname == fname &&
+	    !ns_wildcard(NAME(*np))) {
+
+		if (*dname == '\0')
+			root_zone = 1;
+
+		if (np->n_hash != NULL || root_zone) {
+			struct hashbuf *h;
+
+			if (root_zone)
+				h = htp;
+			else
+				h = np->n_hash;
+			errs += purge_nonglue_2(dname, h, class, 0);
+			if (h->h_cnt == 0 && !root_zone) {
+				rm_hash(np->n_hash);
+				np->n_hash = NULL;
+			}
+		}
+	}
+	return (errs);
+}
+
+static int
+valid_glue(struct databuf *dp, char *name, int belowcut) {
+
+	/* NS records are only valid glue at the zone cut */
+	if (belowcut && dp->d_type == T_NS)
+		return(0);
+
+	if (ISVALIDGLUE(dp))	/* T_NS/T_A/T_AAAA/T_A6 */
+		return (1);
+
+	if (belowcut)
+		return (0);
+
+	/* Parent NXT record? */
+	if (dp->d_type == T_NXT && !ns_samedomain((char*)dp->d_data, name) &&
+	    ns_samedomain((char*)dp->d_data, zones[dp->d_zone].z_origin))
+		return (1);
+
+	/* NOKEY is in parent zone otherwise child zone */
+	if (dp->d_type == T_KEY && dp->d_size == 4 &&
+	    (dp->d_data[0] & 0xc6) == 0xc2)
+		return (1);
+
+	/* NXT & KEY records may be signed */
+	if (!belowcut && dp->d_type == T_SIG &&
+	    (SIG_COVERS(dp) == T_NXT || SIG_COVERS(dp) == T_KEY))
+		return (1);
+	return (0);
+}
+
+static int
+purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
+	        int belowcut)
+{
+	struct databuf *dp, *pdp;
+	struct namebuf *np, *pnp, *npn;
+	struct namebuf **npp, **nppend;
+	int errs = 0;
+	int zonecut;
+	char name[MAXDNAME];
+
+	nppend = htp->h_tab + htp->h_size;
+	for (npp = htp->h_tab; npp < nppend; npp++) {
+		for (pnp = NULL, np = *npp; np != NULL; np = npn) {
+			if (!bottom_of_zone(np->n_data, class)) {
+				zonecut = belowcut;
+				for (dp = np->n_data; dp != NULL;
+				     dp = dp->d_next) {
+					if (match(dp, class, ns_t_ns)) {
+						zonecut = 1;
+						break;
+					}
+				}
+				getname(np, name, sizeof name);
+				for (pdp = NULL, dp = np->n_data;
+				     dp != NULL;
+				     (void)NULL) {
+					if (dp->d_class == class &&
+					    zonecut &&
+					    !valid_glue(dp, name, belowcut)) {
+						ns_error(ns_log_db,
+	        "zone: %s/%s: non-glue record %s bottom of zone: %s/%s",
+							 *dname ? dname : ".",
+						         p_class(dp->d_class),
+							 belowcut ? "below" :
+								    "at",
+							 *name ? name : ".",
+							 p_type(dp->d_type));
+						dp = rm_datum(dp, np, pdp, 
+							      NULL);
+						errs++;
+					} else {
+						pdp = dp;
+						dp = dp->d_next;
+					}
+				}
+				if (np->n_hash) {
+					/*
+					 * call recursively to clean
+					 * subdomains
+					 */
+					errs += purge_nonglue_2(dname,
+								np->n_hash,
+								class,
+								zonecut || 
+								belowcut);
+
+					/* if now empty, free it */
+					if (np->n_hash->h_cnt == 0) {
+						rm_hash(np->n_hash);
+						np->n_hash = NULL;
+					}
+				}
+			}
+
+			if (np->n_hash == NULL && np->n_data == NULL) {
+				npn = rm_name(np, npp, pnp);
+				htp->h_cnt--;
+			} else {
+				npn = np->n_next;
+				pnp = np;
+			}
+		}
+	}
+	return (errs);
 }
 
 void
@@ -1186,7 +1350,7 @@ bottom_of_zone(struct databuf *dp, int class) {
 	ns_debug(ns_log_default, 3, "bottom_of_zone() == %d", ret);
 	return (ret);
 }
-   
+
 /*
  * Handle XFER limit for a nameserver.
  */
@@ -1295,7 +1459,7 @@ reapchild(void) {
  */
 void
 endxfer() {
-    	struct zoneinfo *zp;   
+	struct zoneinfo *zp;   
 	int exitstatus, i;
 	pid_t pid;
 	WAIT_T status;
@@ -1324,8 +1488,8 @@ endxfer() {
 			if (WIFSIGNALED(status)) {
 				if (WTERMSIG(status) != SIGKILL) {
 					ns_notice(ns_log_default,
-                                    "named-xfer \"%s\" exited with signal %d",
-                                    zp->z_origin[0]?zp->z_origin:".",
+				     "named-xfer \"%s\" exited with signal %d",
+						  zp->z_origin[0]?zp->z_origin:".",
 						  WTERMSIG(status));
 				}
 				ns_retrytime(zp, tt.tv_sec);
@@ -1351,8 +1515,8 @@ endxfer() {
 					break;
 
 				case XFER_SUCCESSIXFR:
+					zp->z_flags |= Z_XFER_RUNNING;
 					zp->z_xferpid = XFER_ISIXFR;
-					zp->z_log_size_ixfr++;
 					ns_notice(ns_log_default,
 						  "IXFR Success %s",
 						  zp->z_ixfr_tmp);
@@ -1374,6 +1538,8 @@ endxfer() {
 						ns_notice(ns_log_default,
 							"IXFR Merge failed %s",
 							  zp->z_ixfr_tmp);
+					zp->z_flags &=
+						~(Z_XFER_RUNNING|Z_XFER_ABORTED|Z_XFER_GONE);
 					break;
 
 				case XFER_TIMEOUT:
@@ -1436,7 +1602,7 @@ tryxfer() {
 		zp = zones;
 	}
 	lastnzones = nzones;
-    
+
 	if (zp == zones)
 		stopzp = &zones[nzones-1];
 	else
@@ -1482,7 +1648,7 @@ tryxfer() {
  */
 void
 loadxfer(void) {
-    	struct zoneinfo *zp;   
+	struct zoneinfo *zp;   
 	u_int32_t old_serial,new_serial;
 	char *tmpnom;
 	int isixfr;
@@ -1512,11 +1678,12 @@ loadxfer(void) {
 
 			if (!db_load(tmpnom, zp->z_origin, zp, NULL, isixfr)) {
 				zp->z_flags |= Z_AUTH;
+				zp->z_flags &= ~Z_EXPIRED;
 				if (isixfr == ISIXFR) {
 					new_serial= zp ->z_serial;
 						ns_warning(ns_log_db, "ISIXFR");
 						ns_warning(ns_log_db, "error in updating ixfr data base file %s from %s", zp -> z_ixfr_base, zp ->z_ixfr_tmp);
-                                        if (zonedump(zp,ISIXFR)<0) 
+					if (zonedump(zp,ISIXFR)<0) 
 						ns_warning(ns_log_db, "error in write ixfr updates to zone file %s", zp ->z_source); 
 			
 				}
@@ -1578,6 +1745,16 @@ reload_master(struct zoneinfo *zp) {
 	zp->z_flags &= ~Z_AUTH;
 	ns_stopxfrs(zp);
 	/* XXX what about parent zones? */
+#ifdef BIND_UPDATE
+	/*
+	 * A dynamic zone might have changed, so we
+	 * need to dump it before reloading it.
+	 */
+	if ((zp->z_flags & Z_DYNAMIC) != 0 &&
+	    ((zp->z_flags & Z_NEED_SOAUPDATE) != 0 ||
+	     (zp->z_flags & Z_NEED_DUMP) != 0))
+		(void) zonedump(zp, ISNOTIXFR);
+#endif
 	purge_zone(zp->z_origin, hashtab, zp->z_class);
 	ns_debug(ns_log_config, 1, "reloading zone");
 #ifdef BIND_UPDATE
@@ -1640,7 +1817,9 @@ ns_zreload(void) {
  */
 void
 ns_reload(void) {
-	ns_notice(ns_log_default, "reloading nameserver");
+	ns_notice(ns_log_default, "%s %snameserver",
+		  (reconfiging != 0) ? "reconfiguring" : "reloading",
+		  (noexpired == 1) ? "(-noexpired) " : "");
 
 	INSIST(reloading == 0);
 	qflush();
@@ -1650,6 +1829,18 @@ ns_reload(void) {
 	time(&resettime);
 	reloading--;
 	ns_notice(ns_log_default, "Ready to answer queries.");
+}
+
+/*
+ * Reload configuration, look for new or deleted zones, not changed ones
+ * also ignore expired zones.
+ */
+void
+ns_noexpired(void) {
+	INSIST(noexpired == 0);
+	noexpired++;	/* To ignore zones which are expired */
+	ns_reconfig();
+	noexpired--;
 }
 
 /*

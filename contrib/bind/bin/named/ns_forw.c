@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.68 1999/10/13 16:39:07 vixie Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.75 2000/05/09 07:12:58 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: ns_forw.c,v 8.68 1999/10/13 16:39:07 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -160,7 +160,7 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 		}
 	}
 
-	qp = qnew(dname, class, type);
+	qp = qnew(dname, class, type, 1);
 	getname(np, tmpdomain, sizeof tmpdomain);
 	qp->q_domain = savestr(tmpdomain, 1);
 	qp->q_from = from;	/* nslookup wants to know this */
@@ -208,11 +208,6 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 	hp->rd = (qp->q_addr[0].forwarder ? 1 : 0);
 	qp->q_addr[0].stime = tt;
 
-#ifdef SLAVE_FORWARD
-	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
-		schedretry(qp, (time_t)slave_retry);
-	else
-#endif /* SLAVE_FORWARD */
 	schedretry(qp, retrytime(qp));
 
 	nsa = Q_NEXTADDR(qp, 0);
@@ -288,8 +283,7 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 		hp = (HEADER *) qp->q_msg;
 	}
 
-	if (NS_OPTION_P(OPTION_HOSTSTATS))
-		nameserIncr(from.sin_addr, nssRcvdFwdQ);
+	nameserIncr(from.sin_addr, nssRcvdFwdQ);
 	nameserIncr(nsa->sin_addr, nssSentFwdQ);
 	if (qpp)
 		*qpp = qp;
@@ -470,7 +464,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	lame_ns = potential_ns = 0;
 	naddr = n = qp->q_naddr;
 	curtime = (u_long) tt.tv_sec;
-	while ((nsdp = *nsp++) != NULL) {
+	while ((nsdp = *nsp++) != NULL && n < NSMAX) {
 		class = nsdp->d_class;
 		dname = (char *)nsdp->d_data;
 		ns_debug(ns_log_default, 3,
@@ -668,7 +662,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 
 			n++;
 			if (n >= NSMAX)
-				goto out;
+				break;
  skipaddr:
 			(void)NULL;
 		}
@@ -703,8 +697,11 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 		DRCNTINC(qp->q_addr[i].nsdata);
 		DRCNTINC(qp->q_addr[i].ns);
 	}
-	if (n > 1) {
-		qsort((char *)qp->q_addr, n, sizeof(struct qserv),
+	/* Just sort the NS RR's we added, since the forwarders may
+	 * be ahead of us (naddr > 0)
+	 */
+	if (n > naddr) {
+		qsort((char *)(qp->q_addr+naddr), n-naddr, sizeof(struct qserv),
 		      (int (*)(const void *, const void *))qcomp);
 	}
 	return (n - naddr);
@@ -761,51 +758,51 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
  * RTT delta deemed to be significant, in milliseconds.  With the current
  * definition of RTTROUND it must be a power of 2.
  */
-#define NOISE 128		/* milliseconds; 0.128 seconds */
+#define NOISE 64
 
-#define sign(x) (((x) < 0) ? -1 : ((x) > 0) ? 1 : 0)
 #define RTTROUND(rtt) (((rtt) + (NOISE >> 1)) & ~(NOISE - 1))
 
 int
 qcomp(struct qserv *qs1, struct qserv *qs2) {
-	int pos1, pos2, pdiff;
-	u_long rtt1, rtt2;
-	long tdiff;
+	u_int rtt1, rtt2, rttr1, rttr2;
 
-	if ((!qs1->nsdata) || (!qs2->nsdata))
-		return 0;
-	rtt1 = qs1->nsdata->d_nstime;
-	rtt2 = qs2->nsdata->d_nstime;
+	if (qs1->nsdata == NULL || qs2->nsdata == NULL) {
+		rtt1 = 0;
+		rttr1 = 0;
+		rtt2 = 0;
+		rttr2 = 0;
+	} else {
+		rtt1 = qs1->nsdata->d_nstime;
+		rttr1 = RTTROUND(rtt1);
+		rtt2 = qs2->nsdata->d_nstime;
+		rttr2 = RTTROUND(rtt2);
+	}
 
 #ifdef DEBUG
 	if (debug >= 10) {
-		char a1[sizeof "255.255.255.255"],
-		     a2[sizeof "255.255.255.255"];
+		char t[sizeof "255.255.255.255"];
 
-		strcpy(a1, inet_ntoa(qs1->ns_addr.sin_addr));
-		strcpy(a2, inet_ntoa(qs2->ns_addr.sin_addr));
+		strcpy(t, inet_ntoa(qs1->ns_addr.sin_addr));
 		ns_debug(ns_log_default, 10,
 			 "qcomp(%s, %s) %lu (%lu) - %lu (%lu) = %lu",
-			 a1, a2,
-			 rtt1, RTTROUND(rtt1),
-			 rtt2, RTTROUND(rtt2),
-			 rtt1 - rtt2);
+			 t, inet_ntoa(qs2->ns_addr.sin_addr),
+			 rtt1, rttr1, rtt2, rttr2, rtt1 - rtt2);
 	}
 #endif
-	if (RTTROUND(rtt1) == RTTROUND(rtt2)) {
+	if (rttr1 == rttr2) {
+		int pos1, pos2, pdiff;
+
 		pos1 = distance_of_address(server_options->topology,
 					   qs1->ns_addr.sin_addr);
 		pos2 = distance_of_address(server_options->topology,
 					   qs2->ns_addr.sin_addr);
 		pdiff = pos1 - pos2;
 		ns_debug(ns_log_default, 10, "\tpos1=%d, pos2=%d", pos1, pos2);
-		if (pdiff)
+		if (pdiff != 0)
 			return (pdiff);
 	}
-	tdiff = rtt1 - rtt2;
-	return (sign(tdiff));
+	return (rtt1 - rtt2);
 }
-#undef sign
 #undef RTTROUND
 
 /*
@@ -1076,11 +1073,6 @@ retry(struct qinfo *qp) {
 		schedretry(qp, (time_t) 0);
 		return;
 	}
-#ifdef SLAVE_FORWARD
-	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
-		schedretry(qp, (time_t)slave_retry);
-	else
-#endif /* SLAVE_FORWARD */
 	schedretry(qp, retrytime(qp));
 }
 
@@ -1140,7 +1132,7 @@ qfindid(u_int16_t id) {
 }
 
 struct qinfo *
-qnew(const char *name, int class, int type) {
+qnew(const char *name, int class, int type, int forward) {
 	struct qinfo *qp;
 	const char *s;
 	int escape = 0;
@@ -1160,7 +1152,8 @@ qnew(const char *name, int class, int type) {
 	qp->q_type = (u_int16_t)type;
 	qp->q_flags = 0;
 	s = name;
-	for (;;) {		/* find forwarding zone, if any */
+	qp->q_fzone = NULL;
+	for (;forward;) {		/* find forwarding zone, if any */
 		if ((qp->q_fzone = find_zone(s, class)) != NULL &&
 		    (qp->q_fzone->z_flags & Z_FORWARD_SET) != 0)
 			break;
@@ -1250,15 +1243,15 @@ nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
 	struct qserv *qs;
 
 	n = qp->q_naddr;
-	while (fwd != NULL && n < MAXNS) {
+	while (fwd != NULL && n < NSMAX) {
 		qs = qp->q_addr;
 		for (i = 0; i < (u_int)n; i++, qs++)
 			if (ina_equal(qs->ns_addr.sin_addr,
-				      fwd->fwdaddr.sin_addr))
+				      fwd->fwddata->fwdaddr.sin_addr))
 				goto nextfwd;
-		qs->ns_addr = fwd->fwdaddr;
-		qs->ns = NULL;
-		qs->nsdata = NULL;
+		qs->ns_addr = fwd->fwddata->fwdaddr;
+		qs->ns = fwd->fwddata->ns;
+		qs->nsdata = fwd->fwddata->nsdata;
 		qs->forwarder = 1;
 		qs->nretry = 0;
 		n++;
@@ -1266,4 +1259,14 @@ nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
 		fwd = fwd->next;
 	}
 	qp->q_naddr = n;
+
+	/* Update the refcounts before the sort. */
+	for (i = 0; i < (u_int)n; i++) {
+		DRCNTINC(qp->q_addr[i].nsdata);
+		DRCNTINC(qp->q_addr[i].ns);
+	}
+	if (n > 1) {
+		qsort((char *)qp->q_addr, n, sizeof(struct qserv),
+		      (int (*)(const void *, const void *))qcomp);
+	}
 }
