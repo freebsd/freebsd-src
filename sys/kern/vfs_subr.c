@@ -2397,14 +2397,12 @@ vgonechrl(struct vnode *vp, struct thread *td)
 		VOP_UNLOCK(vp, 0, td);
 		vp->v_vnlock = &vp->v_lock;
 		vp->v_tag = "orphanchr";
-		vp->v_op = &devfs_specops;
 		delmntque(vp);
 		cache_purge(vp);
 		vrele(vp);
 		VI_LOCK(vp);
 	} else
 		vclean(vp, 0, td);
-	vp->v_op = &devfs_specops;
 	vx_unlock(vp);
 	VI_UNLOCK(vp);
 }
