@@ -304,7 +304,6 @@ dumb:
 		return (EOF);
 	/* POSIX require long type resulting offset for fseek() */
 	if (ltest && fp->_offset != (long)fp->_offset)  {
-		fp->_flags &= ~__SOFF;
 		errno = EOVERFLOW;
 		return (EOF);
 	}
