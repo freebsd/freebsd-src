@@ -23,6 +23,7 @@
 # include <config.h>
 #endif
 #include "system.h"
+#include "diff.h"
 #include "prepend_args.h"
 
 
