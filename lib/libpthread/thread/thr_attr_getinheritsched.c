@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-pthread_attr_getinheritsched(pthread_attr_t *attr, int *sched_inherit)
+pthread_attr_getinheritsched(const pthread_attr_t *attr, int *sched_inherit)
 {
 	int ret = 0;
 

@@ -47,9 +47,13 @@ read(int fd, void *buf, size_t nbytes)
 	int	ret;
 	int	type;
 
+	_thread_enter_cancellation_point();
+
 	/* POSIX says to do just this: */
-	if (nbytes == 0)
+	if (nbytes == 0) {
+		_thread_leave_cancellation_point();
 		return (0);
+	}
 
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
@@ -61,6 +65,7 @@ read(int fd, void *buf, size_t nbytes)
 			/* File is not open for read: */
 			errno = EBADF;
 			_FD_UNLOCK(fd, FD_READ);
+			_thread_leave_cancellation_point();
 			return (-1);
 		}
 
@@ -92,6 +97,7 @@ read(int fd, void *buf, size_t nbytes)
 		}
 		_FD_UNLOCK(fd, FD_READ);
 	}
+	_thread_leave_cancellation_point();
 	return (ret);
 }
 #endif
