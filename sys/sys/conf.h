@@ -111,12 +111,6 @@ struct cdev {
 #define si_copyonwrite	__si_u.__si_disk.__sid_copyonwrite
 
 /*
- * Special device management
- */
-#define	SPECHSZ	64
-#define	SPECHASH(rdev)	(((unsigned)(minor(rdev)))%SPECHSZ)
-
-/*
  * Definitions of device driver entry switches
  */
 
