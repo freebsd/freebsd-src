@@ -2160,7 +2160,7 @@ start_all_aps(u_int boot_addr)
 	/*
 	 * Set up the idle context for the BSP.  Similar to above except
 	 * that some was done by locore, some by pmap.c and some is implicit
-	 * because the BSP is cpu#0 and the page is initially zero, and also
+	 * because the BSP is cpu#0 and the page is initially zero and also
 	 * because we can refer to variables by name on the BSP..
 	 */
 
@@ -2176,7 +2176,6 @@ start_all_aps(u_int boot_addr)
 	/* number of APs actually started */
 	return mp_ncpus - 1;
 }
-
 
 /*
  * load the 1st level AP boot code into base memory.
@@ -2237,12 +2236,11 @@ install_ap_tramp(u_int boot_addr)
 	*dst8 = ((u_int) boot_addr >> 16) & 0xff;
 }
 
-
 /*
- * this function starts the AP (application processor) identified
+ * This function starts the AP (application processor) identified
  * by the APIC ID 'physicalCpu'.  It does quite a "song and dance"
  * to accomplish this.  This is necessary because of the nuances
- * of the different hardware we might encounter.  It ain't pretty,
+ * of the different hardware we might encounter.  It isn't pretty,
  * but it seems to work.
  */
 static int
@@ -2784,7 +2782,6 @@ release_aps(void *dummy __unused)
 		ia32_pause();
 	mtx_unlock_spin(&sched_lock);
 }
-
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 
 static int
