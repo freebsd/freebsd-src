@@ -270,7 +270,33 @@ ip6_input(m)
 	ip6stat.ip6s_total++;
 
 #ifndef PULLDOWN_TEST
-	/* XXX is the line really necessary? */
+	/*
+	 * L2 bridge code and some other code can return mbuf chain
+	 * that does not conform to KAME requirement.  too bad.
+	 * XXX: fails to join if interface MTU > MCLBYTES.  jumbogram?
+	 */
+	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
+		struct mbuf *n;
+
+		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		if (n && m->m_pkthdr.len > MHLEN) {
+			MCLGET(n, M_DONTWAIT);
+			if ((n->m_flags & M_EXT) == 0) {
+				m_freem(n);
+				n = NULL;
+			}
+		}
+		if (!n)
+			return;	/*ENOBUFS*/
+
+		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_pkthdr = m->m_pkthdr;
+		n->m_len = m->m_pkthdr.len;
+		n->m_pkthdr.aux = m->m_pkthdr.aux;
+		m->m_pkthdr.aux = (struct mbuf *)NULL;
+		m_freem(m);
+		m = n;
+	}
 	IP6_EXTHDR_CHECK(m, 0, sizeof(struct ip6_hdr), /*nothing*/);
 #endif
 
