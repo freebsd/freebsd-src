@@ -245,11 +245,17 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	device_set_flags(child, desc->flags);
 	device_set_ivars(child, devi);
 	if (bootverbose) {
-		device_printf(pccarddev,
-		    "Assigning %s: io 0x%x-0x%x irq %d mem 0x%lx-0x%lx\n",
-		    device_get_nameunit(child),
-		    desc->iobase, desc->iobase + desc->iosize - 1,
-		    irq, desc->mem, desc->mem + desc->memsize - 1); 
+		device_printf(pccarddev, "Assigning %s:",
+		    device_get_nameunit(child));
+		if (desc->iobase)
+			printf(" io 0x%x-0x%x",
+			    desc->iobase, desc->iobase + desc->iosize - 1);
+		if (irq)
+			printf(" irq %d", irq);
+		if (desc->mem)
+			printf(" mem 0x%lx-0x%lx", desc->mem,
+			    desc->mem + desc->memsize - 1);
+		printf(" flags 0x%x\n", desc->flags);
 	}
 	err = bus_set_resource(child, SYS_RES_IOPORT, 0, desc->iobase,
 	    desc->iosize);
