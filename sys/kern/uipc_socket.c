@@ -426,7 +426,10 @@ discard:
 }
 
 /*
- * Must be called at splnet...
+ * soabort() must not be called with any socket locks held, as it calls
+ * into the protocol, which will call back into the socket code causing
+ * it to acquire additional socket locks that may cause recursion or lock
+ * order reversals.
  */
 int
 soabort(so)
