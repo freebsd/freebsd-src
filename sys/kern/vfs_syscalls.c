@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.24 1995/05/15 08:39:31 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.25 1995/05/21 21:38:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -834,6 +834,8 @@ link(p, uap, retval)
 	    (error = suser(p->p_ucred, &p->p_acflag)) == 0) {
 		nd.ni_cnd.cn_nameiop = CREATE;
 		nd.ni_cnd.cn_flags = LOCKPARENT;
+		if (vp->v_type == VDIR)
+			nd.ni_cnd.cn_flags |= WILLBEDIR;
 		nd.ni_dirp = uap->link;
 		error = namei(&nd);
 		if (!error) {
@@ -1819,6 +1821,8 @@ rename(p, uap, retval)
 	fvp = fromnd.ni_vp;
 	NDINIT(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART,
 		UIO_USERSPACE, uap->to, p);
+	if (fromnd.ni_vp->v_type == VDIR)
+		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	error = namei(&tond);
 	if (error) {
 		VOP_ABORTOP(fromnd.ni_dvp, &fromnd.ni_cnd);
@@ -1904,6 +1908,7 @@ mkdir(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, uap->path, p);
+	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	error = namei(&nd);
 	if (error)
 		return (error);
