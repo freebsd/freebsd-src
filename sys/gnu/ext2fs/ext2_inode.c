@@ -142,7 +142,7 @@ ext2_truncate(vp, length, flags, cred, p)
 	register struct ext2_sb_info *fs;
 	struct buf *bp;
 	int offset, size, level;
-	long count, nblocks, vflags, blocksreleased = 0;
+	long count, nblocks, blocksreleased = 0;
 	struct timeval tv;
 	register int i;
 	int aflags, error, allerror;
@@ -268,8 +268,9 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, length);
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
-	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
+	error = vtruncbuf(ovp, cred, p, length, (int)fs->s_blocksize);
+	if (error && (allerror == 0))
+		allerror = error;
 
 	/*
 	 * Indirect blocks first.
