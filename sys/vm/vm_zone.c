@@ -137,6 +137,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	 * in pages as needed.
 	 */
 	if (z->zflags & ZONE_INTERRUPT) {
+		int hadvmlock;
 
 		totsize = round_page(z->zsize * nentries);
 		atomic_add_int(&zone_kmem_kvaspace, totsize);
@@ -145,12 +146,17 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 			return 0;
 
 		z->zpagemax = totsize / PAGE_SIZE;
+		hadvmlock = mtx_owned(&vm_mtx);
+		if (!hadvmlock)
+			mtx_lock(&vm_mtx);
 		if (obj == NULL) {
 			z->zobj = vm_object_allocate(OBJT_DEFAULT, z->zpagemax);
 		} else {
 			z->zobj = obj;
 			_vm_object_allocate(OBJT_DEFAULT, z->zpagemax, obj);
 		}
+		if (!hadvmlock)
+			mtx_unlock(&vm_mtx);
 		z->zallocflag = VM_ALLOC_INTERRUPT;
 		z->zmax += nentries;
 	} else {
@@ -262,7 +268,6 @@ _zget(vm_zone_t z)
 	void *item;
 
 	KASSERT(z != NULL, ("invalid zone"));
-	mtx_assert(&z->zmtx, MA_OWNED);
 
 	if (z->zflags & ZONE_INTERRUPT) {
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
@@ -299,16 +304,13 @@ _zget(vm_zone_t z)
 		 * We can wait, so just do normal map allocation in the appropriate
 		 * map.
 		 */
+		mtx_unlock(&z->zmtx);
 		if (lockstatus(&kernel_map->lock, NULL)) {
-			mtx_unlock(&z->zmtx);
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
-			mtx_lock(&z->zmtx);
 			if (item != NULL)
 				atomic_add_int(&zone_kmem_pages, z->zalloc);
 		} else {
-			mtx_unlock(&z->zmtx);
 			item = (void *) kmem_alloc(kernel_map, nbytes);
-			mtx_lock(&z->zmtx);
 			if (item != NULL)
 				atomic_add_int(&zone_kern_pages, z->zalloc);
 		}
@@ -318,6 +320,7 @@ _zget(vm_zone_t z)
 			nbytes = 0;
 		}
 		nitems = nbytes / z->zsize;
+		mtx_lock(&z->zmtx);
 	}
 	z->ztotal += nitems;
 
@@ -361,14 +364,17 @@ void *
 zalloc(vm_zone_t z)
 {
 	void *item;
+	int hadvmlock;
 
 	KASSERT(z != NULL, ("invalid zone"));
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	mtx_lock(&z->zmtx);
 	
 	if (z->zfreecnt <= z->zfreemin) {
 		item = _zget(z);
-		mtx_unlock(&z->zmtx);
-		return item;
+		goto out;
 	}
 
 	item = z->zitems;
@@ -381,8 +387,11 @@ zalloc(vm_zone_t z)
 
 	z->zfreecnt--;
 	z->znalloc++;
-	
+
+out:	
 	mtx_unlock(&z->zmtx);
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	return item;
 }
 
@@ -392,8 +401,13 @@ zalloc(vm_zone_t z)
 void
 zfree(vm_zone_t z, void *item)
 {
+	int hadvmlock;
+
 	KASSERT(z != NULL, ("invalid zone"));
 	KASSERT(item != NULL, ("invalid item"));
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	mtx_lock(&z->zmtx);
 	
 	((void **) item)[0] = z->zitems;
@@ -405,6 +419,8 @@ zfree(vm_zone_t z, void *item)
 	z->zitems = item;
 	z->zfreecnt++;
 
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	mtx_unlock(&z->zmtx);
 }
 

@@ -34,7 +34,6 @@
 #include <sys/mutex.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
-#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -43,7 +42,7 @@
 #include <vm/vm_zone.h>
 
 /* prevent concurrant creation races */
-static struct sx phys_pager_sx;
+static int phys_pager_alloc_lock;
 /* list of device pager objects */
 static struct pagerlst phys_pager_object_list;
 /* protect access to phys_pager_object_list */
@@ -54,7 +53,6 @@ phys_pager_init(void)
 {
 
 	TAILQ_INIT(&phys_pager_object_list);
-	sx_init(&phys_pager_sx, "phys_pager create");
 	mtx_init(&phys_pager_mtx, "phys_pager list", MTX_DEF);
 }
 
@@ -76,8 +74,11 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		/*
 		 * Lock to prevent object creation race condition.
 		 */
-		sx_xlock(&phys_pager_sx);
-	
+		while (phys_pager_alloc_lock) {
+			phys_pager_alloc_lock = -1;
+			msleep(&phys_pager_alloc_lock, &vm_mtx, PVM, "swpalc", 0);
+		}
+
 		/*
 		 * Look up pager, creating as necessary.
 		 */
@@ -101,7 +102,10 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			if (OFF_TO_IDX(foff + size) > object->size)
 				object->size = OFF_TO_IDX(foff + size);
 		}
-		sx_xunlock(&phys_pager_sx);
+		if (phys_pager_alloc_lock)
+			wakeup(&phys_pager_alloc_lock);
+		phys_pager_alloc_lock = 0;
+
 	} else {
 		object = vm_object_allocate(OBJT_PHYS,
 			OFF_TO_IDX(foff + size));

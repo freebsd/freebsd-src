@@ -230,6 +230,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	else
 		map_len = round_page(offset+filsz) - file_addr;
 
+	mtx_lock(&vm_mtx);
 	if (map_len != 0) {
 		vm_object_reference(object);
 		vm_map_lock(&vmspace->vm_map);
@@ -244,12 +245,15 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		vm_map_unlock(&vmspace->vm_map);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
+			mtx_unlock(&vm_mtx);
 			return EINVAL;
 		}
 
 		/* we can stop now if we've covered it all */
-		if (memsz == filsz)
+		if (memsz == filsz) {
+			mtx_unlock(&vm_mtx);
 			return 0;
+		}
 	}
 
 
@@ -270,8 +274,10 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 					map_addr, map_addr + map_len,
 					VM_PROT_ALL, VM_PROT_ALL, 0);
 		vm_map_unlock(&vmspace->vm_map);
-		if (rv != KERN_SUCCESS)
+		if (rv != KERN_SUCCESS) {
+			mtx_unlock(&vm_mtx);
 			return EINVAL; 
+		}	
 	}
 
 	if (copy_len != 0) {
@@ -287,14 +293,19 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
+			mtx_unlock(&vm_mtx);
 			return EINVAL;
 		}
 
 		/* send the page fragment to user space */
+		mtx_unlock(&vm_mtx);
 		error = copyout((caddr_t)data_buf, (caddr_t)map_addr, copy_len);
+		mtx_lock(&vm_mtx);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
-		if (error)
+		if (error) {
+			mtx_unlock(&vm_mtx);
 			return (error);
+		}
 	}
 
 	/*
@@ -303,6 +314,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	vm_map_protect(&vmspace->vm_map, map_addr, map_addr + map_len,  prot,
 		       FALSE);
 
+	mtx_unlock(&vm_mtx);
 	return error;
 }
 
@@ -498,9 +510,11 @@ exec_elf_imgact(struct image_params *imgp)
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 
+	mtx_lock(&vm_mtx);
 	exec_new_vmspace(imgp);
 
 	vmspace = imgp->proc->p_vmspace;
+	mtx_unlock(&vm_mtx);
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch(phdr[i].p_type) {
@@ -557,6 +571,7 @@ exec_elf_imgact(struct image_params *imgp)
 		}
 	}
 
+	/* XXX: lock the vm_mtx when twiddling vmspace? */
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
 	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;

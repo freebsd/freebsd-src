@@ -240,21 +240,32 @@ vm_pager_bufferinit()
  * need to perform page-level validation (e.g. the device pager).
  */
 vm_object_t
-vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size, vm_prot_t prot,
-		  vm_ooffset_t off)
+vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
+		  vm_prot_t prot, vm_ooffset_t off)
 {
+	vm_object_t ret;
 	struct pagerops *ops;
+	int hadvmlock;
 
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	ops = pagertab[type];
 	if (ops)
-		return ((*ops->pgo_alloc) (handle, size, prot, off));
-	return (NULL);
+		ret = (*ops->pgo_alloc) (handle, size, prot, off);
+	else
+		ret = NULL;
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
+	return (ret);
 }
 
 void
 vm_pager_deallocate(object)
 	vm_object_t object;
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
@@ -374,6 +385,8 @@ initpbuf(struct buf *bp)
  *
  *	NOTE: pfreecnt can be NULL, but this 'feature' will be removed
  *	relatively soon when the rest of the subsystems get smart about it. XXX
+ *
+ *	vm_mtx can be held or unheld
  */
 struct buf *
 getpbuf(pfreecnt)
@@ -381,8 +394,12 @@ getpbuf(pfreecnt)
 {
 	int s;
 	struct buf *bp;
+	int hadvmlock;
 
 	s = splvm();
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (hadvmlock)
+		mtx_unlock(&vm_mtx);
 	mtx_lock(&pbuf_mtx);
 
 	for (;;) {
@@ -407,6 +424,8 @@ getpbuf(pfreecnt)
 	splx(s);
 
 	initpbuf(bp);
+	if (hadvmlock)
+		mtx_lock(&vm_mtx);
 	return bp;
 }
 

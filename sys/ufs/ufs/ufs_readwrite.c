@@ -114,8 +114,11 @@ READ(ap)
 		return 0;
 	}
 
-	if (object)
+	if (object) {
+		mtx_lock(&vm_mtx);
 		vm_object_reference(object);
+		mtx_unlock(&vm_mtx);
+	}
 
 #ifdef ENABLE_VFS_IOOPT
 	/*
@@ -147,8 +150,11 @@ READ(ap)
 				    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 					ip->i_flag |= IN_ACCESS;
 
-				if (object)
+				if (object) {
+					mtx_lock(&vm_mtx);
 					vm_object_vndeallocate(object);
+					mtx_unlock(&vm_mtx);
+				}
 				return error;
 			}
 		}
@@ -192,8 +198,11 @@ READ(ap)
 					    (vp->v_mount->mnt_flag &
 					    MNT_NOATIME) == 0)
 						ip->i_flag |= IN_ACCESS;
-					if (object)
+					if (object) {
+						mtx_lock(&vm_mtx);
 						vm_object_vndeallocate(object);
+						mtx_unlock(&vm_mtx);
+					}
 					return error;
 				}
 				/*
@@ -355,8 +364,11 @@ READ(ap)
 		}
 	}
 
-	if (object)
+	if (object) {
+		mtx_lock(&vm_mtx);
 		vm_object_vndeallocate(object);
+		mtx_unlock(&vm_mtx);
+	}
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
@@ -395,8 +407,11 @@ WRITE(ap)
 	ip = VTOI(vp);
 
 	object = vp->v_object;
-	if (object)
+	if (object) {
+		mtx_lock(&vm_mtx);
 		vm_object_reference(object);
+		mtx_unlock(&vm_mtx);
+	}
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -408,8 +423,11 @@ WRITE(ap)
 		if (ioflag & IO_APPEND)
 			uio->uio_offset = ip->i_size;
 		if ((ip->i_flags & APPEND) && uio->uio_offset != ip->i_size) {
-			if (object)
+			if (object) {
+				mtx_lock(&vm_mtx);
 				vm_object_vndeallocate(object);
+				mtx_unlock(&vm_mtx);
+			}
 			return (EPERM);
 		}
 		/* FALLTHROUGH */
@@ -428,8 +446,11 @@ WRITE(ap)
 	fs = ip->I_FS;
 	if (uio->uio_offset < 0 ||
 	    (u_int64_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize) {
-		if (object)
+		if (object) {
+			mtx_lock(&vm_mtx);
 			vm_object_vndeallocate(object);
+			mtx_unlock(&vm_mtx);
+		}
 		return (EFBIG);
 	}
 	/*
@@ -443,8 +464,11 @@ WRITE(ap)
 		PROC_LOCK(p);
 		psignal(p, SIGXFSZ);
 		PROC_UNLOCK(p);
-		if (object)
+		if (object) {
+			mtx_lock(&vm_mtx);
 			vm_object_vndeallocate(object);
+			mtx_unlock(&vm_mtx);
+		}
 		return (EFBIG);
 	}
 
@@ -455,9 +479,11 @@ WRITE(ap)
 		flags = B_SYNC;
 
 	if (object && (object->flags & OBJ_OPT)) {
+		mtx_lock(&vm_mtx);
 		vm_freeze_copyopts(object,
 			OFF_TO_IDX(uio->uio_offset),
 			OFF_TO_IDX(uio->uio_offset + uio->uio_resid + PAGE_MASK));
+		mtx_unlock(&vm_mtx);
 	}
 
 	for (error = 0; uio->uio_resid > 0;) {
@@ -546,8 +572,11 @@ WRITE(ap)
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = UFS_UPDATE(vp, 1);
 
-	if (object)
+	if (object) {
+		mtx_lock(&vm_mtx);
 		vm_object_vndeallocate(object);
+		mtx_unlock(&vm_mtx);
+	}
 
 	return (error);
 }

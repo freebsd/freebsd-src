@@ -220,6 +220,7 @@ fork1(p1, flags, procp)
 	if ((flags & RFPROC) == 0) {
 
 		vm_fork(p1, 0, flags);
+		mtx_assert(&vm_mtx, MA_NOTOWNED);
 
 		/*
 		 * Close all file descriptors.
@@ -567,6 +568,7 @@ again:
 	 * execution path later.  (ie: directly into user mode)
 	 */
 	vm_fork(p1, p2, flags);
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;

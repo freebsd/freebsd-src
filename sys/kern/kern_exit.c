@@ -222,6 +222,7 @@ exit1(p, rv)
 	 * Can't free the entire vmspace as the kernel stack
 	 * may be mapped within that space also.
 	 */
+	mtx_lock(&vm_mtx);
 	if (vm->vm_refcnt == 1) {
 		if (vm->vm_shm)
 			shmexit(p);
@@ -230,6 +231,7 @@ exit1(p, rv)
 		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
 	}
+	mtx_unlock(&vm_mtx);
 
 	PROC_LOCK(p);
 	if (SESS_LEADER(p)) {

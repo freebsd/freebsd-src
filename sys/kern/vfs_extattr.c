@@ -2770,8 +2770,13 @@ fsync(p, uap)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-	if (VOP_GETVOBJECT(vp, &obj) == 0)
+	if (VOP_GETVOBJECT(vp, &obj) == 0) {
+		mtx_unlock(&Giant);
+		mtx_lock(&vm_mtx);
 		vm_object_page_clean(obj, 0, 0, 0);
+		mtx_unlock(&vm_mtx);
+		mtx_lock(&Giant);
+	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 #ifdef SOFTUPDATES
 	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))

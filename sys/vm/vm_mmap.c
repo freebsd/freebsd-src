@@ -52,6 +52,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
@@ -515,14 +516,17 @@ msync(p, uap)
 	 * the range of the map entry containing addr. This can be incorrect
 	 * if the region splits or is coalesced with a neighbor.
 	 */
+	mtx_lock(&vm_mtx);
 	if (size == 0) {
 		vm_map_entry_t entry;
 
 		vm_map_lock_read(map);
 		rv = vm_map_lookup_entry(map, addr, &entry);
 		vm_map_unlock_read(map);
-		if (rv == FALSE)
+		if (rv == FALSE) {
+			mtx_unlock(&vm_mtx);
 			return (EINVAL);
+		}
 		addr = entry->start;
 		size = entry->end - entry->start;
 	}
@@ -533,6 +537,7 @@ msync(p, uap)
 	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
 
+	mtx_unlock(&vm_mtx);
 	switch (rv) {
 	case KERN_SUCCESS:
 		break;
@@ -589,10 +594,14 @@ munmap(p, uap)
 	/*
 	 * Make sure entire range is allocated.
 	 */
-	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE))
+	mtx_lock(&vm_mtx);
+	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
+		mtx_unlock(&vm_mtx);
 		return (EINVAL);
+	}
 	/* returns nothing but KERN_SUCCESS anyway */
 	(void) vm_map_remove(map, addr, addr + size);
+	mtx_unlock(&vm_mtx);
 	return (0);
 }
 
@@ -624,6 +633,7 @@ mprotect(p, uap)
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	register vm_prot_t prot;
+	int ret;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
@@ -640,8 +650,11 @@ mprotect(p, uap)
 	if (addr + size < addr)
 		return(EINVAL);
 
-	switch (vm_map_protect(&p->p_vmspace->vm_map, addr, addr + size, prot,
-		FALSE)) {
+	mtx_lock(&vm_mtx);
+	ret = vm_map_protect(&p->p_vmspace->vm_map, addr,
+		     addr + size, prot, FALSE);
+	mtx_unlock(&vm_mtx);
+	switch (ret) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
@@ -665,6 +678,7 @@ minherit(p, uap)
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	register vm_inherit_t inherit;
+	int ret;
 
 	addr = (vm_offset_t)uap->addr;
 	size = uap->len;
@@ -677,8 +691,12 @@ minherit(p, uap)
 	if (addr + size < addr)
 		return(EINVAL);
 
-	switch (vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
-	    inherit)) {
+	mtx_lock(&vm_mtx);
+	ret = vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
+		    inherit);
+	mtx_unlock(&vm_mtx);
+
+	switch (ret) {
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_PROTECTION_FAILURE:
@@ -702,6 +720,7 @@ madvise(p, uap)
 	struct madvise_args *uap;
 {
 	vm_offset_t start, end;
+	int ret;
 
 	/*
 	 * Check for illegal behavior
@@ -729,9 +748,10 @@ madvise(p, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-	if (vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav))
-		return (EINVAL);
-	return (0);
+	mtx_lock(&vm_mtx);
+	ret = vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
+	mtx_unlock(&vm_mtx);
+	return (ret ? EINVAL : 0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -777,6 +797,7 @@ mincore(p, uap)
 	vec = uap->vec;
 
 	map = &p->p_vmspace->vm_map;
+	mtx_lock(&vm_mtx);
 	pmap = vmspace_pmap(p->p_vmspace);
 
 	vm_map_lock_read(map);
@@ -856,6 +877,7 @@ RestartScan:
 			 * the map, we release the lock.
 			 */
 			vm_map_unlock_read(map);
+			mtx_unlock(&vm_mtx);
 
 			/*
 			 * calculate index into user supplied byte vector
@@ -886,6 +908,7 @@ RestartScan:
 			 * If the map has changed, due to the subyte, the previous
 			 * output may be invalid.
 			 */
+			mtx_lock(&vm_mtx);
 			vm_map_lock_read(map);
 			if (timestamp != map->timestamp)
 				goto RestartScan;
@@ -900,6 +923,7 @@ RestartScan:
 	 * the map, we release the lock.
 	 */
 	vm_map_unlock_read(map);
+	mtx_unlock(&vm_mtx);
 
 	/*
 	 * Zero the last entries in the byte vector.
@@ -917,10 +941,12 @@ RestartScan:
 	 * If the map has changed, due to the subyte, the previous
 	 * output may be invalid.
 	 */
+	mtx_lock(&vm_mtx);
 	vm_map_lock_read(map);
 	if (timestamp != map->timestamp)
 		goto RestartScan;
 	vm_map_unlock_read(map);
+	mtx_unlock(&vm_mtx);
 
 	return (0);
 }
@@ -965,7 +991,10 @@ mlock(p, uap)
 		return (error);
 #endif
 
-	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, FALSE);
+	mtx_lock(&vm_mtx);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
+		     addr + size, FALSE);
+	mtx_unlock(&vm_mtx);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1030,7 +1059,10 @@ munlock(p, uap)
 		return (error);
 #endif
 
-	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr, addr + size, TRUE);
+	mtx_lock(&vm_mtx);
+	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
+		     addr + size, TRUE);
+	mtx_lock(&vm_mtx);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1077,7 +1109,9 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (*addr != trunc_page(*addr))
 			return (EINVAL);
 		fitit = FALSE;
+		mtx_lock(&vm_mtx);
 		(void) vm_map_remove(map, *addr, *addr + size);
+		mtx_unlock(&vm_mtx);
 	}
 
 	/*
@@ -1099,7 +1133,9 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			struct vattr vat;
 			int error;
 
+			mtx_lock(&Giant);
 			error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
+			mtx_unlock(&Giant);
 			if (error)
 				return (error);
 			objsize = round_page(vat.va_size);
@@ -1148,6 +1184,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		maxprot |= VM_PROT_EXECUTE;
 #endif
 
+	mtx_lock(&vm_mtx);
 	if (fitit) {
 		*addr = pmap_addr_hint(object, *addr, size);
 	}
@@ -1180,6 +1217,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		}
 	}
 out:
+	mtx_unlock(&vm_mtx);
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
