@@ -1601,7 +1601,9 @@ fdc_initial_reset(device_t dev, struct fdc_data *fdc)
 		return (ENXIO);
 	if (fdc_cmd(fdc, 1, 0x18, 1, &part_id))
 		return (ENXIO);
-	device_printf(dev, "ic_type %02x part_id %02x\n", ic_type, part_id);
+	if (bootverbose)
+		device_printf(dev,
+		    "ic_type %02x part_id %02x\n", ic_type, part_id);
 	switch (ic_type & 0xff) {
 	case 0x80:
 		device_set_desc(dev, "NEC 765 or clone");
