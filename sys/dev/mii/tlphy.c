@@ -94,7 +94,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 
 struct tlphy_softc {
