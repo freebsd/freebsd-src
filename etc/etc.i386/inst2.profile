@@ -2,7 +2,7 @@ stty status '^T'
 trap : 2
 trap : 3
 HOME=/; export HOME
-PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/distbin; export PATH
 if [ -e /fastboot ]
 then
 	echo Fast boot ... skipping disk checks
