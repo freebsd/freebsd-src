@@ -38,8 +38,6 @@
  *	i386/eisa/ida_eisa.c
  */
 
-#include <pci.h>
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
