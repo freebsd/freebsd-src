@@ -135,7 +135,7 @@ stat_display(struct xferstat *xs, int force)
 	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) == -1 ||
 	    (pid_t)ctty_pgrp != pgrp)
 		return;
-	
+
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
@@ -348,7 +348,7 @@ fetch(char *URL, const char *path)
 			alarm(timeout);
 		r = fetchStat(url, &us, flags);
 		if (timeout)
-		    alarm(0);
+			alarm(0);
 		if (sigalrm || sigint)
 			goto signal;
 		if (r == -1) {
@@ -481,14 +481,14 @@ fetch(char *URL, const char *path)
 		if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 			goto success;
 	}
-	
+
 	if (of == NULL) {
 		/*
 		 * We don't yet have an output file; either this is a
 		 * vanilla run with no special flags, or the local and
 		 * remote files didn't match.
 		 */
-		
+
 		if (url->offset != 0) {
 			/*
 			 * We tried to restart a transfer, but for
@@ -575,7 +575,7 @@ fetch(char *URL, const char *path)
 	if (!n_flag && us.mtime && !o_stdout
 	    && (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 		struct timeval tv[2];
-	
+
 		fflush(of);
 		tv[0].tv_sec = (long)(us.atime ? us.atime : us.mtime);
 		tv[1].tv_sec = (long)us.mtime;
@@ -755,7 +755,7 @@ main(int argc, char *argv[])
 		case 's':
 			s_flag = 1;
 			break;
-		case 'T':	
+		case 'T':
 			T_secs = strtol(optarg, &end, 10);
 			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid timeout (%s)", optarg);
@@ -856,9 +856,9 @@ main(int argc, char *argv[])
 	v_tty = isatty(STDERR_FILENO);
 	if (v_tty)
 		pgrp = getpgrp();
-	
+
 	r = 0;
-	
+
 	/* authentication */
 	if (v_tty)
 		fetchAuthMethod = query_auth;
@@ -871,9 +871,9 @@ main(int argc, char *argv[])
 
 		if (!*p)
 			p = "fetch.out";
-	
+
 		fetchLastErrCode = 0;
-	
+
 		if (o_flag) {
 			if (o_stdout) {
 				e = fetch(*argv, "-");
@@ -890,10 +890,10 @@ main(int argc, char *argv[])
 
 		if (sigint)
 			kill(getpid(), SIGINT);
-	
+
 		if (e == 0 && once_flag)
 			exit(0);
-	
+
 		if (e) {
 			r = 1;
 			if ((fetchLastErrCode
