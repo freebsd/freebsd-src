@@ -64,7 +64,9 @@
 #include "cbcp.h"
 #include "datalink.h"
 
-static const char *papcodes[] = { "???", "REQUEST", "SUCCESS", "FAILURE" };
+static const char * const papcodes[] = {
+  "???", "REQUEST", "SUCCESS", "FAILURE"
+};
 #define MAXPAPCODE (sizeof papcodes / sizeof papcodes[0] - 1)
 
 static void

@@ -68,7 +68,9 @@
 #include "tun.h"
 #include "ip.h"
 
-static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
+static const char * const TcpFlags[] = {
+  "FIN", "SYN", "RST", "PSH", "ACK", "URG"
+};
 
 static __inline int
 PortMatch(int op, u_short pport, u_short rport)
