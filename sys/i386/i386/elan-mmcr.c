@@ -17,6 +17,14 @@
  *
  * So instead we recognize the on-chip host-PCI bridge and call back from
  * sys/i386/pci/pci_bus.c to here if we find it.
+ *
+ * #ifdef ELAN_PPS
+ *   The Elan has three general purpose counters, which when used just right
+ *   can hardware timestamp external events with approx 250 nanoseconds
+ *   resolution _and_ precision.  Connect the signal to TMR1IN and PIO7.
+ *   (You can use any PIO pin, look for PIO7 to change this).  Use the
+ *   PPS-API on the /dev/elan-mmcr device.
+ * #endif ELAN_PPS
  */
 
 #include <sys/param.h>
@@ -30,6 +38,8 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
+#include <sys/timepps.h>
 
 #include <machine/md_var.h>
 
@@ -44,19 +54,67 @@ static char *errled;
 static struct callout_handle errled_h = CALLOUT_HANDLE_INITIALIZER(&errled_h);
 static void timeout_errled(void *);
 
+#ifdef ELAN_PPS
+/* Relating to the PPS-api */
+static struct pps_state elan_pps;
+
+static void
+elan_poll_pps(struct timecounter *tc)
+{
+	static int state;
+	int i;
+
+	/* XXX: This is PIO7, change to your preference */
+	i = elan_mmcr[0xc30 / 2] & 0x80;
+	if (i == state)
+		return;
+	state = i;
+	if (!state)
+		return;
+	pps_capture(&elan_pps);
+	elan_pps.capcount =
+	    (elan_mmcr[0xc84 / 2] - elan_mmcr[0xc7c / 2]) & 0xffff;
+	pps_event(&elan_pps, PPS_CAPTUREASSERT);
+}
+#endif /* ELAN_PPS */
+
 static unsigned
 elan_get_timecount(struct timecounter *tc)
 {
 	return (elan_mmcr[0xc84 / 2]);
 }
 
+/*
+ * The Elan CPU can be run from a number of clock frequencies, this
+ * allows you to override the default 33.3 MHZ.
+ */
+#ifndef ELAN_XTAL
+#define ELAN_XTAL 33333333
+#endif
+
 static struct timecounter elan_timecounter = {
 	elan_get_timecount,
-	0,
+	NULL,
 	0xffff,
-	33333333 / 4,
+	ELAN_XTAL / 4,
 	"ELAN"
 };
+
+static int
+sysctl_machdep_elan_freq(SYSCTL_HANDLER_ARGS)
+{
+	u_int f;
+	int error;
+
+	f = elan_timecounter.tc_frequency * 4;
+	error = sysctl_handle_int(oidp, &f, sizeof(f), req);
+	if (error == 0 && req->newptr != NULL) 
+		elan_timecounter.tc_frequency = (f + 3) / 4;
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, elan_freq, CTLTYPE_UINT | CTLFLAG_RW,
+    0, sizeof (u_int), sysctl_machdep_elan_freq, "IU", "");
 
 void
 init_AMD_Elan_sc520(void)
@@ -85,6 +143,15 @@ init_AMD_Elan_sc520(void)
 
 	/* Start GP timer #2 and use it as timecounter, hz permitting */
 	elan_mmcr[0xc82 / 2] = 0xc001;
+
+#ifdef ELAN_PPS
+	/* Set up GP timer #1 as pps counter */
+	elan_mmcr[0xc24 / 2] &= ~0x10;
+	elan_mmcr[0xc7a / 2] = 0x8000 | 0x4000 | 0x10 | 0x1;
+	elan_pps.ppscap |= PPS_CAPTUREASSERT;
+	pps_init(&elan_pps);
+#endif
+
 	tc_init(&elan_timecounter);
 }
 
@@ -254,6 +321,24 @@ elan_mmap(dev_t dev, vm_offset_t offset, int nprot)
 static int
 elan_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
 {
-	return(ENOENT);
+	int error;
+
+	error = ENOTTY;
+#ifdef ELAN_PPS
+	error = pps_ioctl(cmd, arg, &elan_pps);
+	/*
+	 * We only want to incur the overhead of the PPS polling if we
+	 * are actually asked to timestamp.
+	 */
+	if (elan_pps.ppsparam.mode & PPS_CAPTUREASSERT)
+		elan_timecounter.tc_poll_pps = elan_poll_pps;
+	else
+		elan_timecounter.tc_poll_pps = NULL;
+	if (error != ENOTTY)
+		return (error);
+#endif /* ELAN_PPS */
+
+	/* Other future ioctl handling here */
+	return(error);
 }
 
