@@ -77,7 +77,6 @@ config/winnt
 fixinc
 gccbug*
 java
-mkdeps*
 mkinstalldirs
 objc/objc-parse.[cy]
 gthr-win32*
