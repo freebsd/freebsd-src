@@ -552,12 +552,7 @@ pccard_function_enable(struct pccard_function *pf)
 	if (pccard_mfc(pf->sc)) {
 		reg |= (PCCARD_CCR_OPTION_FUNC_ENABLE |
 			PCCARD_CCR_OPTION_ADDR_DECODE);
-		/*
-		 * XXX Need to enable PCCARD_CCR_OPTION_IRQ_ENABLE if
-		 * XXX we have an interrupt handler, but we don't know that
-		 * XXX at this point.
-		 */
-/*		reg |= PCCARD_CCR_OPTION_IREQ_ENABLE;*/
+		/* PCCARD_CCR_OPTION_IRQ_ENABLE set elsewhere as needed */
 	}
 	pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
 
@@ -1117,9 +1112,18 @@ pccard_intr(void *arg)
 	struct pccard_function *pf = (struct pccard_function*) arg;
 	int reg;
 
+	/*
+	 * If we go to resetting a card, we may need a null interrupt hanlder
+	 * to work (since the system may call it before the device can
+	 * establish an ISR) due to interrupt sharing at a higher level.
+	 */
 	if (pf->intr_handler == NULL)
 		panic("Null interrupt handler?\n");
 
+	/*
+	 * XXX The CCR_STATUS register bits used here are 
+	 * only valid for multi function cards.
+	 */
 	reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
 	if (reg & PCCARD_CCR_STATUS_INTR) {
 		pccard_ccr_write(pf, PCCARD_CCR_STATUS,
@@ -1145,6 +1149,11 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
 	    PCCARD_CCR_OPTION_IREQ_ENABLE);
 
+	/* 
+	 * XXX Don't use TTY type for our interrupt handler.  It makes
+	 * the spl masks wrong on -stable.  Instead, we should use the type
+	 * that was requested of us.
+	 */
 	bus_setup_intr(dev, irq, INTR_TYPE_TTY/* | INTR_FAST*/,
 	    pccard_intr, func, cookiep);
 	return (0);
