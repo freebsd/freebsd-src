@@ -1573,6 +1573,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (pmap->pm_stats.resident_count == 0)
 		return;
+
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 
 	/*
@@ -1600,6 +1602,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		nva = va + PAGE_SIZE;
 	}
 out:
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1700,6 +1703,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if ((sva & PAGE_MASK) || (eva & PAGE_MASK))
 		panic("pmap_protect: unaligned addresses");
 
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	while (sva < eva) {
 
@@ -1751,6 +1755,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		sva += PAGE_SIZE;
 	}
+	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
