@@ -189,7 +189,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			if (tty.t_pgrp != NULL) {
 				if (KREAD(kd, (u_long)tty.t_pgrp, &pgrp)) {
 					_kvm_err(kd, kd->program,
-						 "can't read tpgrp at &x",
+						 "can't read tpgrp at %x",
 						tty.t_pgrp);
 					return (-1);
 				}
