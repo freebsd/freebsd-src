@@ -508,7 +508,7 @@ typedef struct {
 
 #define	ISP_SWIZ_CTIO(isp, dest, vsrc)					\
 {									\
-	ct_entry_t *source = (ct_entry-t *) vsrc;			\
+	ct_entry_t *source = (ct_entry_t *) vsrc;			\
 	ct_entry_t *local, *vdst;					\
 	if ((void *)dest == (void *)vsrc) {				\
 		MEMCPY(vsrc, &local, sizeof (ct_entry_t));		\
@@ -611,11 +611,8 @@ typedef struct {
  * Debug macros
  */
 
-extern int isp_tdebug;
 #define	ISP_TDQE(isp, msg, idx, arg)	\
-	if (isp_tdebug > 3) isp_print_qentry(isp, msg, idx, arg)
-
-#define	ITDEBUG(level, msg)	if (isp_tdebug >= level) PRINTF msg
+    if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
 /*
  * The functions below are target mode functions that
@@ -630,7 +627,7 @@ int isp_target_notify __P((struct ispsoftc *, void *, u_int16_t *));
 /*
  * Enable/Disable/Modify a logical unit.
  */
-#define	DFLT_CMD_CNT	(RESULT_QUEUE_LEN >> 1)
+#define	DFLT_CMD_CNT	32	/* XX */
 #define	DFLT_INOTIFY	(4)
 int isp_lun_cmd __P((struct ispsoftc *, int, int, int, int, u_int32_t));
 
