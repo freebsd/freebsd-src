@@ -92,11 +92,7 @@ ad_attach(struct ata_device *atadev)
     adp->heads = atadev->param->heads;
     adp->sectors = atadev->param->sectors;
     adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
-    if (adp->device->channel->flags & ATA_USE_PC98GEOM &&
-	adp->total_secs < 17 * 8 * 65536) {
-	adp->sectors = 17;
-	adp->heads = 8;
-    }
+
     mtx_init(&adp->queue_mtx, "ATA disk bioqueue lock", NULL, MTX_DEF);
     bioq_init(&adp->queue);
 

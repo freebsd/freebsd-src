@@ -343,8 +343,7 @@ struct ata_channel {
     int				flags;		/* channel flags */
 #define		ATA_NO_SLAVE		0x01
 #define		ATA_USE_16BIT		0x02
-#define		ATA_USE_PC98GEOM	0x04
-#define		ATA_ATAPI_DMA_RO	0x08
+#define		ATA_ATAPI_DMA_RO	0x04
 #define		ATA_48BIT_ACTIVE	0x10
 #define		ATA_IMMEDIATE_MODE	0x20
 #define		ATA_HWGONE		0x40
