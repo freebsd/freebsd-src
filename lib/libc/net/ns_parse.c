@@ -160,7 +160,7 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	NS_GET16(rr->type, handle->_ptr);
 	if (handle->_ptr + NS_INT16SZ > handle->_eom)
 		goto emsgsize;
-	NS_GET16(rr->class, handle->_ptr);
+	NS_GET16(rr->rr_class, handle->_ptr);
 	if (section == ns_s_qd) {
 		rr->ttl = 0;
 		rr->rdlength = 0;
