@@ -1418,7 +1418,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Lite-On 82c168/82c169 PNIC Fast Ethernet NICs (&man.dc.4; driver)
+    <para arch="i386,alpha,sparc64">Lite-On 82c168/82c169 PNIC Fast Ethernet NICs (&man.dc.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>Kingston KNE110TX</para>
@@ -1435,7 +1435,7 @@
       </itemizedlist
     </para>
 
-    <para arch="i386,pc98,alpha">Macronix 98713, 98713A, 98715, 98715A and 98725 Fast
+    <para arch="i386,pc98,alpha,sparc64">Macronix 98713, 98713A, 98715, 98715A and 98725 Fast
     Ethernet NICs (&man.dc.4; driver)
       <itemizedlist>
 	<listitem>
@@ -1462,7 +1462,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs
+    <para arch="i386,pc98,alpha,sparc64">Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs
     (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
@@ -1626,10 +1626,10 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">ADMtek Inc. AL981-based PCI Fast Ethernet NICs (&man.dc.4;
+    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AL981-based PCI Fast Ethernet NICs (&man.dc.4;
     driver)</para>
 
-    <para arch="i386,pc98,alpha">ADMtek Inc. AN985-based PCI Fast Ethernet NICs (&man.dc.4;
+    <para arch="i386,pc98,alpha,sparc64">ADMtek Inc. AN985-based PCI Fast Ethernet NICs (&man.dc.4;
     driver)
       <itemizedlist>
         <listitem>
@@ -1787,7 +1787,7 @@
 
       </para>
 
-    <para arch="i386,pc98,alpha">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
+    <para arch="i386,pc98,alpha,sparc64">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
           <para>Alfa Inc. GFC2204</para>
@@ -1839,7 +1839,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">DEC/Intel 21143 based Fast Ethernet NICs (&man.dc.4; driver)
+    <para arch="i386,pc98,alpha,sparc64">DEC/Intel 21143 based Fast Ethernet NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>DEC DE500</para>
@@ -1859,7 +1859,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Davicom DM9009, DM9100 and DM9102 PCI Fast Ethernet NICs (&man.dc.4; driver)
+    <para arch="i386,pc98,alpha,sparc64">Davicom DM9009, DM9100 and DM9102 PCI Fast Ethernet NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Jaton Corporation XpressNet</para>
@@ -2260,14 +2260,20 @@
     <para arch="i386,pc98">Efficient Networks, Inc. ENI-155p ATM PCI
     Adapters (hea driver)</para>
 
-    <para arch="i386,pc98">FORE Systems, Inc. PCA-200E ATM PCI
-    Adapters (hfa driver)</para>
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
+      Adapters (hfa and &man.fatm.4; drivers)</para>
 
     <para arch="i386,pc98">IDT 77201/211 NICStAR ATM Adapters (idt
     driver)</para>
 
     <para arch="i386,pc98">FORE Systems, Inc. LE155 ATM Adapter (idt
     driver)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 and HE622
+      ATM interfaces (&man.hatm.4; driver)</para>
+
+    <para arch="i386,pc98">IDT77252-based ATM cards (&man.patm.4;
+      driver)</para>
 
     <para arch="i386,pc98">The ATM support in &os; supports the following signaling protocols:
       <itemizedlist>
