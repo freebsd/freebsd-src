@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd February 15, 2000
 .Dt SEM_GETVALUE 3
 .Os
@@ -56,7 +57,9 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa sem
+argument
 points to an invalid semaphore.
 .El
 .Sh SEE ALSO
@@ -71,6 +74,8 @@ function conforms to
 .St -p1003.1-96 .
 .Pp
 The value of the semaphore is never negative, even if there are threads blocked
-on the semaphore.  POSIX is somewhat ambiguous in its wording with regard to
+on the semaphore.
+.Tn POSIX
+is somewhat ambiguous in its wording with regard to
 what the value of the semaphore should be if there are blocked waiting threads,
 but this behavior is conformant, given the wording of the specification.

@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd January 15, 2003
 .Dt SEM_OPEN 3
 .Os
@@ -38,8 +39,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In semaphore.h
-.Ft sem_t *
-.Fn sem_open "const char *name" "int oflag" "..."
+.Ft "sem_t *"
+.Fn sem_open "const char *name" "int oflag" ...
 .Ft int
 .Fn sem_close "sem_t *sem"
 .Ft int
@@ -50,10 +51,10 @@ The
 function creates or opens the named semaphore specified by
 .Fa name .
 The returned semaphore may be used in subsequent calls to
-.Fn sem_getvalue ,
-.Fn sem_wait ,
-.Fn sem_trywait ,
-.Fn sem_post
+.Xr sem_getvalue 3 ,
+.Xr sem_wait 3 ,
+.Xr sem_trywait 3 ,
+.Xr sem_post 3 ,
 and
 .Fn sem_close .
 .Pp
@@ -70,8 +71,7 @@ must be of type
 .Vt mode_t
 and specifies the mode for the semaphore.
 Only the
-.Dv S_IWUSR ,
-.Dv S_IWGRP ,
+.Dv S_IWUSR , S_IWGRP ,
 and
 .Dv S_IWOTH
 bits are examined;
@@ -137,7 +137,7 @@ function will fail if:
 .It Bq Er EACCES
 The semaphore exists and the permissions specified by
 .Fa oflag
-at the time it was created deny access to the this process.
+at the time it was created deny access to this process.
 .It Bq Er EACCES
 The semaphore does not exist, but permission to create it is denied.
 .It Bq Er EEXIST

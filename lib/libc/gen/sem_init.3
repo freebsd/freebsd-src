@@ -26,6 +26,7 @@
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd February 15, 2000
 .Dt SEM_INIT 3
 .Os
@@ -71,8 +72,10 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa value
-exceeds SEM_VALUE_MAX.
+argument exceeds
+.Dv SEM_VALUE_MAX .
 .It Bq Er ENOSPC
 Memory allocation error.
 .It Bq Er EPERM
@@ -95,7 +98,9 @@ by setting
 .Va errno
 to
 .Er EPERM .
-This is perhaps a stretch of the intention of POSIX, but is
+This is perhaps a stretch of the intention of
+.Tn POSIX ,
+but is
 compliant, with the caveat that
 .Fn sem_init
 always reports a permissions error when an attempt to create a shared semaphore
