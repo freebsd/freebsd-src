@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: dialup.en,v 1.2 1999/01/19 23:09:15 abial Exp $
+# $FreeBSD$
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Default Domain Name[m"

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.1 1998/09/26 17:23:01 abial Exp $
+# $FreeBSD$
 #
 
 .include "../../Version"

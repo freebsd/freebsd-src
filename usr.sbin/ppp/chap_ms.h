@@ -19,7 +19,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.h,v 1.4 1999/02/18 00:52:12 brian Exp $
+ * $FreeBSD$
  */
 
 /* Max # of (Unicode) chars in an NT password */

@@ -1,5 +1,5 @@
 #
-# $Id: mfs.mtree,v 1.1.1.1.2.1 1999/08/22 23:08:56 dwhite dead $
+# $FreeBSD$
 #
 /set type=dir uname=root gname=wheel mode=0755
 .              

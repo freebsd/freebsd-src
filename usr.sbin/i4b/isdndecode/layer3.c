@@ -27,7 +27,7 @@
  *	layer3.c - decode and print layer 3 (Q.931) information
  *	-------------------------------------------------------
  *
- *	$Id: layer3.c,v 1.5 1998/12/18 17:09:38 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Fri Dec 18 18:12:21 1998]
  *

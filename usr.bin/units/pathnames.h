@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/* $FreeBSD$	*/
 
 /*
  * Copyright (c) 1993 Christopher G. Demetriou

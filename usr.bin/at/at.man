@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.8.2.1 1999/02/15 08:46:19 fenner Exp $
+.\" $FreeBSD$
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os FreeBSD 2.1

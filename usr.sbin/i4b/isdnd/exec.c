@@ -27,7 +27,7 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- *	$Id: exec.c,v 1.10 1998/12/05 18:03:11 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:06:49 1998]
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.h,v 1.2 1999/02/06 02:54:47 brian Exp $
+ * $FreeBSD$
  */
 
 struct radius {

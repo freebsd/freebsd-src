@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.13 1999/07/31 20:53:02 hoek Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

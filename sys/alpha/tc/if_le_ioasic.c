@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: if_le_ioasic.c,v 1.10 1998/01/19 02:49:48 thorpej Exp $	*/
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_config_lex.c,v 1.3 1998/08/13 20:11:14 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: scsp_config_lex.c,v 1.3 1998/08/13 20:11:14 johnc Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>

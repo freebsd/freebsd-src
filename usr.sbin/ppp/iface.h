@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iface.h,v 1.1 1998/10/22 02:32:49 brian Exp $
+ * $FreeBSD$
  */
 
 struct iface_addr {

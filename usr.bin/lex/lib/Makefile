@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1997/02/22 19:55:36 peter Exp $
+# $FreeBSD$
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c

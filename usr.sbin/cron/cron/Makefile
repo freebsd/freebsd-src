@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	cron
 SRCS=	cron.c database.c do_command.c job.c user.c popen.c

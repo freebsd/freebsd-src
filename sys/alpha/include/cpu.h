@@ -1,4 +1,4 @@
-/* $Id: cpu.h,v 1.4 1998/10/06 08:40:17 dfr Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*

@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.30.2.1 1999/02/14 14:09:44 des Exp $
+# $FreeBSD$
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \

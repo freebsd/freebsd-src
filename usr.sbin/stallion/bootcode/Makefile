@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/10/20 12:50:56 charnier Exp $
+# $FreeBSD$
 
 .SUFFIXES: .uu
 .uu:

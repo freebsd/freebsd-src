@@ -27,7 +27,7 @@
  *	q931_util.c - utility functions to print Q.931 traces
  *	-----------------------------------------------------
  *
- *	$Id: q931_util.c,v 1.4 1998/12/05 18:04:21 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:20:43 1998]
  *

@@ -29,7 +29,7 @@
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
  *
- * $Id: trap.c,v 1.1 1997/08/09 01:42:58 dyson Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

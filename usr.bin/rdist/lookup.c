@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)lookup.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id: lookup.c,v 1.4 1998/04/06 06:18:25 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"

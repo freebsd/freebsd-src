@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: net.c,v 1.1 1997/12/02 20:45:22 wollman Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>

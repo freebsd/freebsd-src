@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/08/22 15:42:31 peter Exp $
+# $FreeBSD$
 
 PROG=	chat
 CFLAGS+=-Wall

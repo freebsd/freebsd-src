@@ -27,7 +27,7 @@
  *	decode.h - isdndecode header file
  *	---------------------------------
  *
- *	$Id: decode.h,v 1.4 1998/12/18 17:09:38 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Fri Dec 18 18:10:13 1998]
  *

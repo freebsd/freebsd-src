@@ -1,6 +1,6 @@
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.
 
-# $Id: Makefile,v 1.9 1999/01/23 21:24:49 markm Exp $
+# $FreeBSD$
 
 .PATH: ${.CURDIR}/../../../contrib/amd/doc
 

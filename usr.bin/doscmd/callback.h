@@ -1,7 +1,7 @@
 /* 
 ** No copyright?!
 **
-** $Id: callback.h,v 1.4 1996/09/22 15:42:48 miff Exp $
+** $FreeBSD$
 */
 typedef void		(*callback_t)(regcontext_t *REGS);
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.2 1998/06/14 13:44:40 dfr Exp $
+ * $FreeBSD$
  */
 
 #include "opt_devfs.h"

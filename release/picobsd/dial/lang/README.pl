@@ -104,4 +104,4 @@ Mi³ej zabawy!
   
 Andrzej Bia³ecki <abial@freebsd.org>
 
-$Id: README.pl,v 1.3 1998/10/15 21:40:00 abial Exp $
+$FreeBSD$

@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: config.c,v 1.12 1998/06/09 05:01:29 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"

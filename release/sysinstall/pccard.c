@@ -1,7 +1,7 @@
 /*
  * PC-card support for sysinstall
  *
- * $Id$
+ * $FreeBSD$
  *
  * Copyright (c) 1997-1999
  *	Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>.  All rights reserved.

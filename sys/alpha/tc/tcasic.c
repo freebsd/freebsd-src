@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* from $NetBSD: tcasic.c,v 1.23 1998/05/14 00:01:31 thorpej Exp $ */
 
 /*

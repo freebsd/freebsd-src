@@ -30,7 +30,7 @@
  *	q.921.c - print Q.921 traces
  *	----------------------------
  *
- *	$Id: q921.c,v 1.2 1998/04/16 15:27:02 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Thu Apr 16 15:38:34 1998]
  *

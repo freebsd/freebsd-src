@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atmarp_timer.c,v 1.2 1998/08/13 20:11:12 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atmarp_timer.c,v 1.2 1998/08/13 20:11:12 johnc Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>

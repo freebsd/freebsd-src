@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: wormcontrol.c,v 1.7 1997/10/27 12:25:38 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>

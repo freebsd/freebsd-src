@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.1 1999/05/07 10:02:34 abial Exp $
+# $FreeBSD$
 #
 NOCRYPT?=	yes
 SRC?=/usr/src

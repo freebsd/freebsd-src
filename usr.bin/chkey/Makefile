@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/05/28 15:54:04 wpaul Exp $
+# $FreeBSD$
 
 PROG=	chkey
 SRCS=	chkey.c update.c generic.c

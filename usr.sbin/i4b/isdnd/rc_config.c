@@ -27,7 +27,7 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- *	$Id: rc_config.c,v 1.35 1998/12/16 13:39:47 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Mon Dec 14 13:41:41 1998]
  *

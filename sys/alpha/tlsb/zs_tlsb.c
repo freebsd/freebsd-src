@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.6 1998/11/15 18:25:16 dfr Exp $
+ * $FreeBSD$
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real

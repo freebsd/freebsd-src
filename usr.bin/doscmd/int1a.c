@@ -29,7 +29,7 @@
  *
  *	BSDI int1a.c,v 2.2 1996/04/08 19:32:49 bostic Exp
  *
- * $Id: int1a.c,v 1.1 1997/08/09 01:42:49 dyson Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

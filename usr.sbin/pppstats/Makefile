@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1997/02/22 16:12:11 peter Exp $
+# $FreeBSD$
 
 PROG=	pppstats
 SRCS=	pppstats.c

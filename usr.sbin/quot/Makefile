@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	quot
 MAN8=	quot.8

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.5 1998/10/06 14:18:39 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_CHIPSET_H_

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.11.2.1 1999/02/25 18:36:32 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -18,7 +18,7 @@
  * IN (meaning that the data is passed *into* the system call).
  */
 /*
- * $Id: syscall.h,v 1.2 1997/12/06 06:51:13 sef Exp $
+ * $FreeBSD$
  */
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad };

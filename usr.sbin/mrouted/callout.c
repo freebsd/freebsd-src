@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: callout.c,v 1.10 1998/01/16 07:17:41 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "defs.h"

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9.2.9 1999/02/17 21:04:44 msmith Exp $
+# $FreeBSD$
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* $NetBSD: dwlpxreg.h,v 1.9 1998/03/21 22:02:42 mjacob Exp $ */
 
 /*

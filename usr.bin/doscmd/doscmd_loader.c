@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd_loader.c,v 2.3 1996/04/08 19:32:33 bostic Exp
  *
- * $Id: doscmd_loader.c,v 1.2 1996/09/22 05:52:59 miff Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

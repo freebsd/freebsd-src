@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: ruptime.c,v 1.10 1997/03/29 04:32:02 imp Exp $ */
+/* $FreeBSD$ */
 
 #ifndef lint
 static char copyright[] =

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.4 1998/08/25 17:48:42 brian Exp $
+ * $FreeBSD$
  *
  */
 

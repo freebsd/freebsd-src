@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1997/02/22 16:15:00 peter Exp $
+# $FreeBSD$
 
 PROG=	yppush
 SRCS=	ypxfr_getmap.c yp_dblookup.c yp_error.c ypxfr_misc.c yppush_main.c \

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 4/23/91
-#	$Id$
+# $FreeBSD$
 
 PROG=	slstat
 MAN8=	slstat.8

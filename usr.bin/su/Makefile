@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.20 1998/09/02 14:46:20 bde Exp $
+# $FreeBSD$
 
 PROG=	su
 SRCS=	su.c

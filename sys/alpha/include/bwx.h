@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bwx.h,v 1.1 1998/07/05 12:14:15 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_BWX_H_

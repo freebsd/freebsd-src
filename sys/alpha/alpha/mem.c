@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.3 1998/11/08 12:39:01 dfr Exp $
+ * $FreeBSD$
  */
 
 /*

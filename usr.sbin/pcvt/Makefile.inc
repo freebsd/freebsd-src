@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.4 1998/05/31 11:41:53 bde Exp $
+# $FreeBSD$
 
 FONTDIR	=	/usr/share/misc/pcvtfonts
 

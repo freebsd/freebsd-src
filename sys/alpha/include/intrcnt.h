@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* $NetBSD: intrcnt.h,v 1.17 1998/11/19 01:48:04 ross Exp $ */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG	 =	isdntel
 SRCS	 =	main.c display.c files.c alias.c

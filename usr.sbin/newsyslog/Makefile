@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1999/01/22 19:38:39 wollman Exp $
+# $FreeBSD$
 
 PROG=	newsyslog
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.h,v 1.4.2.5 1998/05/01 19:25:52 brian Exp $
+ * $FreeBSD$
  */
 
 struct bundle;

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: update.pl,v 1.2 1999/01/14 23:19:47 abial Exp $
+# $FreeBSD$
 pwd=`pwd`
 echo -n "Uaktualniam katalog /etc na dyskietce...  "
 mount /dev/fd0a /start_floppy

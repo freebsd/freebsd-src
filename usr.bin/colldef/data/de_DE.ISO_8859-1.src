@@ -1,6 +1,6 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $Id: de_DE.ISO_8859-1.src,v 1.4.2.2 1999/04/22 08:34:03 foxfair Exp $
+# $FreeBSD$
 #
 charmap map.ISO_8859-1
 order \

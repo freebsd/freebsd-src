@@ -27,7 +27,7 @@
  *	facility.h - Q.932 facility header file
  *	---------------------------------------
  *
- *	$Id: facility.h,v 1.2 1998/12/18 17:09:38 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Fri Dec 18 18:10:48 1998]
  *

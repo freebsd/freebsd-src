@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.en,v 1.3 1998/11/01 20:19:31 abial Exp $
+# $FreeBSD$
 ### Special setup for one floppy PICOBSD ###
 ifconfig lo0 inet 127.0.0.1 netmask 0xffffff00
 hostname pico

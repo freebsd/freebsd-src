@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_var.h,v 1.5 1998/08/13 20:11:17 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

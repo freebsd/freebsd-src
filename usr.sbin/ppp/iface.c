@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iface.c,v 1.2.4.3 1999/05/02 08:59:43 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

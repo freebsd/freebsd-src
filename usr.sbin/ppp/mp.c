@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.17.4.4 1999/06/04 12:21:17 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -29,7 +29,7 @@
  *
  *	BSDI port.c,v 2.2 1996/04/08 19:33:03 bostic Exp
  *
- * $Id: port.c,v 1.1 1997/08/09 01:42:54 dyson Exp $
+ * $FreeBSD$
  */
 
 #include "doscmd.h"

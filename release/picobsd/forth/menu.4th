@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id:$
+\ $FreeBSD$
 
 : title
 	f_single

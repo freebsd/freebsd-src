@@ -30,7 +30,7 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.15 1998/12/05 18:03:38 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:12:26 1998]
  *

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.2 1998/06/10 10:55:10 dfr Exp $
+ * $FreeBSD$
  */
 
 

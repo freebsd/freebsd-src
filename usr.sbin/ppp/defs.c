@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.17.2.4 1999/05/02 08:59:40 brian Exp $
+ * $FreeBSD$
  */
 
 

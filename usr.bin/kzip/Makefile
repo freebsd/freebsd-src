@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	kzip
 MAN8=	kzip.8

@@ -27,7 +27,7 @@
  *	FSM for isdnd
  *	-------------
  *
- *	$Id: fsm.c,v 1.15 1998/12/05 18:03:12 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:07:31 1998]
  *

@@ -1,7 +1,7 @@
 /*
  * Holiday
  *
- * $Id: calendar.holiday,v 1.6 1997/02/22 19:28:22 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_holiday_

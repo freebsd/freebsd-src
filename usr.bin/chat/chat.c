@@ -79,7 +79,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: chat.c,v 1.12 1998/06/23 21:58:41 peter Exp $";
+  "$FreeBSD$";
 #endif
 
 #include <stdio.h>

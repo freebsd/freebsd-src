@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)finger.h	8.1 (Berkeley) 6/6/93
- *	$Id: finger.h,v 1.3 1999/05/08 00:46:05 obrien Exp $
+ * $FreeBSD$
  */
 
 typedef struct person {

@@ -32,7 +32,7 @@
 #
 
 #
-# $Id: tar.sh,v 1.3 1997/02/22 14:10:30 peter Exp $
+# $FreeBSD$
 #
 
 archive=${TAPE:-/dev/rst0}

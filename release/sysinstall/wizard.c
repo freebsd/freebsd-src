@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: wizard.c,v 1.13 1998/10/13 09:45:59 jkh Exp $
+ * $FreeBSD$
  *
  */
 

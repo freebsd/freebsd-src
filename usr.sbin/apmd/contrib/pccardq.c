@@ -1,4 +1,4 @@
-/* $Id: pccardq.c,v 1.1.1.1 1999/07/10 17:39:36 iwasaki Exp $ */
+/* $FreeBSD$ */
 
 #include <err.h>
 #include <errno.h>

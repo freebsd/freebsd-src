@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* $NetBSD: mcclock_ioasic.c,v 1.8 1997/09/02 13:20:14 thorpej Exp $ */
 
 /*

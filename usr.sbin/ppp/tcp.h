@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tcp.h,v 1.3 1999/06/05 21:35:56 brian Exp $
+ * $FreeBSD$
  */
 
 struct physical;

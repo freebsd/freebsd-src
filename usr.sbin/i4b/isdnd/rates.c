@@ -35,7 +35,7 @@
  *	i4b daemon - charging rates description file handling
  *	-----------------------------------------------------
  *
- *	$Id: rates.c,v 1.7 1998/12/05 18:03:34 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:11:55 1998]
  *

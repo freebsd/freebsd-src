@@ -1,5 +1,5 @@
 # Makefile for apmd
-# $Id: Makefile,v 1.1.1.1 1999/07/10 17:39:35 iwasaki Exp $
+# $FreeBSD$
 
 PROG=	apmd
 SHSRCS=	apmd.c apmdparse.y apmdlex.l

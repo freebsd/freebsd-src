@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_cafsm.c,v 1.7 1998/08/21 18:08:23 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 
@@ -38,7 +38,7 @@
 
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: scsp_cafsm.c,v 1.7 1998/08/21 18:08:23 johnc Exp $";
+static char *RCSid = "@(#) $FreeBSD$";
 #endif
 
 #include <sys/types.h>

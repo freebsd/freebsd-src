@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* From: NetBSD: profile.h,v 1.9 1997/04/06 08:47:37 cgd Exp */
 
 /*

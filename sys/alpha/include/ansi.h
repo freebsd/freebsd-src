@@ -1,4 +1,4 @@
-/* $Id: ansi.h,v 1.3 1998/10/12 23:57:58 alex Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: ansi.h,v 1.9 1997/11/23 20:20:53 kleink Exp */
 
 /*-

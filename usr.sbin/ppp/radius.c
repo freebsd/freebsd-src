@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.4.2.4 1999/05/02 08:59:52 brian Exp $
+ * $FreeBSD$
  *
  */
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: skeleton.c,v 1.13 1997/04/28 03:36:13 steve Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
