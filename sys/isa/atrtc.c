@@ -66,8 +66,6 @@
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#ifdef CLK_CALIBRATION_LOOP
-#endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/limits.h>
