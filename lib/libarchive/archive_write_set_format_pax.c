@@ -315,7 +315,7 @@ archive_write_pax_header(struct archive *a,
 	const char *linkname, *p;
 	const char *hardlink;
 	const wchar_t *wp, *wp2, *wname_start;
-	int need_extension, oldstate, r, ret;
+	int need_extension, r, ret;
 	struct pax *pax;
 	const struct stat *st_main, *st_original;
 
@@ -672,17 +672,19 @@ archive_write_pax_header(struct archive *a,
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
 		pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
 
-		oldstate = a->state;
-		a->state = ARCHIVE_STATE_DATA;
 		r = (a->compression_write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
-		a->state = oldstate;
 		if (r != ARCHIVE_OK) {
 			/* If a write fails, we're pretty much toast. */
 			return (ARCHIVE_FATAL);
 		}
-
-		archive_write_pax_finish_entry(a);
+		/* Pad out the end of the entry. */
+		r = write_nulls(a, pax->entry_padding);
+		if (r != ARCHIVE_OK) {
+			/* If a write fails, we're pretty much toast. */
+			return (ARCHIVE_FATAL);
+		}
+		pax->entry_bytes_remaining = pax->entry_padding = 0;
 	}
 
 	/* Write the header for main entry. */
