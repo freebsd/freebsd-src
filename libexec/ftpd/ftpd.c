@@ -1792,7 +1792,6 @@ getdatasock(mode)
 
 	if (data >= 0)
 		return (fdopen(data, mode));
-	(void) seteuid((uid_t)0);
 
 	s = socket(data_dest.su_family, SOCK_STREAM, 0);
 	if (s < 0)
@@ -1802,6 +1801,7 @@ getdatasock(mode)
 	/* anchor socket to avoid multi-homing problems */
 	data_source = ctrl_addr;
 	data_source.su_port = htons(dataport);
+	(void) seteuid((uid_t)0);
 	for (tries = 1; ; tries++) {
 		if (bind(s, (struct sockaddr *)&data_source,
 		    data_source.su_len) >= 0)
