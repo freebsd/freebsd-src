@@ -203,37 +203,37 @@ emu_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
 static u_int32_t
 emu_rdptr(struct sc_info *sc, int chn, int reg)
 {
-        u_int32_t ptr, val, mask, size, offset;
+	u_int32_t ptr, val, mask, size, offset;
 
-        ptr = ((reg << 16) & PTR_ADDRESS_MASK) | (chn & PTR_CHANNELNUM_MASK);
-        emu_wr(sc, PTR, ptr, 4);
-        val = emu_rd(sc, DATA, 4);
-        if (reg & 0xff000000) {
-                size = (reg >> 24) & 0x3f;
-                offset = (reg >> 16) & 0x1f;
-                mask = ((1 << size) - 1) << offset;
-                val &= mask;
+	ptr = ((reg << 16) & PTR_ADDRESS_MASK) | (chn & PTR_CHANNELNUM_MASK);
+	emu_wr(sc, PTR, ptr, 4);
+	val = emu_rd(sc, DATA, 4);
+	if (reg & 0xff000000) {
+		size = (reg >> 24) & 0x3f;
+		offset = (reg >> 16) & 0x1f;
+		mask = ((1 << size) - 1) << offset;
+		val &= mask;
 		val >>= offset;
 	}
-        return val;
+	return val;
 }
 
 static void
 emu_wrptr(struct sc_info *sc, int chn, int reg, u_int32_t data)
 {
-        u_int32_t ptr, mask, size, offset;
+	u_int32_t ptr, mask, size, offset;
 
-        ptr = ((reg << 16) & PTR_ADDRESS_MASK) | (chn & PTR_CHANNELNUM_MASK);
-        emu_wr(sc, PTR, ptr, 4);
-        if (reg & 0xff000000) {
-                size = (reg >> 24) & 0x3f;
-                offset = (reg >> 16) & 0x1f;
-                mask = ((1 << size) - 1) << offset;
+	ptr = ((reg << 16) & PTR_ADDRESS_MASK) | (chn & PTR_CHANNELNUM_MASK);
+	emu_wr(sc, PTR, ptr, 4);
+	if (reg & 0xff000000) {
+		size = (reg >> 24) & 0x3f;
+		offset = (reg >> 16) & 0x1f;
+		mask = ((1 << size) - 1) << offset;
 		data <<= offset;
-                data &= mask;
+		data &= mask;
 		data |= emu_rd(sc, DATA, 4) & ~mask;
 	}
-        emu_wr(sc, DATA, data, 4);
+	emu_wr(sc, DATA, data, 4);
 }
 
 static void
@@ -392,9 +392,9 @@ emu_rate_to_pitch(u_int32_t rate)
 	for (i = 31; i > 0; i--) {
 		if (rate & 0x80000000) {	/* Detect leading "1" */
 			return (((u_int32_t) (i - 15) << 20) +
-			       logMagTable[0x7f & (rate >> 24)] +
-				      (0x7f & (rate >> 17)) *
-			     logSlopeTable[0x7f & (rate >> 24)]);
+			    logMagTable[0x7f & (rate >> 24)] +
+			    (0x7f & (rate >> 17)) *
+			    logSlopeTable[0x7f & (rate >> 24)]);
 		}
 		rate <<= 1;
 	}
@@ -1028,8 +1028,8 @@ emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	if (bootverbose) {
 		printf("emu: setmap (%lx, %lx), nseg=%d, error=%d\n",
-		       (unsigned long)segs->ds_addr, (unsigned long)segs->ds_len,
-		       nseg, error);
+		    (unsigned long)segs->ds_addr, (unsigned long)segs->ds_len,
+		    nseg, error);
 	}
 }
 
@@ -1304,8 +1304,8 @@ emu_init(struct sc_info *sc)
 		sc->voice[ch].start = 0;
 		sc->voice[ch].end = 0;
 		sc->voice[ch].channel = NULL;
-       }
-       sc->pnum = sc->rnum = 0;
+	}
+	sc->pnum = sc->rnum = 0;
 
 	/*
 	 *  Init to 0x02109204 :
@@ -1322,9 +1322,9 @@ emu_init(struct sc_info *sc)
 	 *  P                 = 0     (Consumer)
 	 */
 	spcs = SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
-	       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
-	       SPCS_GENERATIONSTATUS | 0x00001200 | 0x00000000 |
-	       SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
+	    SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
+	    SPCS_GENERATIONSTATUS | 0x00001200 | 0x00000000 |
+	    SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
 	emu_wrptr(sc, 0, SPCS0, spcs);
 	emu_wrptr(sc, 0, SPCS1, spcs);
 	emu_wrptr(sc, 0, SPCS2, spcs);
@@ -1398,7 +1398,7 @@ emu_uninit(struct sc_info *sc)
 		emu_wrptr(sc, ch, CVCF, 0);
 		emu_wrptr(sc, ch, PTRX, 0);
 		emu_wrptr(sc, ch, CPF, 0);
-       }
+	}
 
 	/* disable audio and lock cache */
 	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
