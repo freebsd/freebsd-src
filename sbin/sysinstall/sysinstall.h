@@ -113,7 +113,7 @@ int	exec __P((int magic, char *cmd, char *args, ...));
 void	stage0 __P((void));
 
 /* stage1.c */
-void	stage1 __P((void));
+int	stage1 __P((void));
 
 /* stage2.c */
 void	stage2 __P((void));

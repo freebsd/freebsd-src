@@ -253,13 +253,15 @@ select_partition(int disk)
     return(choice);
 }
 
-void
+int
 stage1()
 {
     int i,j;
+    int ret=1;
     int ok = 0;
     int ready = 0;
     int foundroot=0,foundusr=0,foundswap=0;
+    char *complaint=0;
 
     query_disks();
     /* 
@@ -318,15 +320,43 @@ stage1()
 	}
 
 	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(H)elp  (F)disk  (D)isklabel  (Q)uit");
+	mvprintw(22, 0, "(H)elp  (F)disk  (D)isklabel  (P)roceed  (Q)uit");
+	if(complaint) {
+		standout();
+		mvprintw(24, 0, complaint);
+		standend();
+		complaint = 0;
+	}
 	mvprintw(23, 0, "Enter Command> ");
 	i = getch();
 	switch(i) {
 	case 'h': case 'H':
             ShowFile(HELPME_FILE,"Help file for disklayout");
 	    break;
+	case 'p': case 'P':
+	    foundroot=0,foundusr=0,foundswap=0;
+	    for (i = 1; Fmount[i]; i++) {
+		if(!strcmp(Fmount[i],"/")) foundroot=i;
+		if(!strcmp(Fmount[i],"swap")) foundswap=i;
+		if(!strcmp(Fmount[i],"/usr")) foundusr=i;
+	    }
+	    if (!foundroot) {
+		complaint = "You must assign something to mount on '/'";
+		break;
+	    }
+	    if (!foundroot) {
+		complaint = "You must assign something to mount on 'swap'";
+		break;
+	    }
+	    if (!foundusr && Fsize[foundroot] < 80) {
+		complaint = "You must assign something to mount on '/usr'";
+		break;
+	    }
+	    ret = 0;
+	    goto leave;
 	case 'q': case 'Q':
-	    return;
+	    ret = 1;
+	    goto leave;
 	case 'f': case 'F':
 	    Fdisk();
 	    query_disks();
@@ -338,10 +368,11 @@ stage1()
 	    beep();
 	}
     }
+leave:
     clear();
     for (i = 0; Dname[i]; i++)
 	close(Dfd[i]);
-    return;
+    return ret;
 }
 #if 0
 	while (!ready) {
