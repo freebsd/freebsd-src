@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.13 1995/05/03 06:30:55 phk Exp $
+ * $Id: disk.c,v 1.14 1995/05/03 17:37:58 jkh Exp $
  *
  */
 
@@ -186,7 +186,7 @@ Int_Open_Disk(char *name, u_long size)
 				dl.d_partitions[j].p_size,
 				pname,part,
 				dl.d_partitions[j].p_fstype,
-				j == 0 ? CHUNK_IS_ROOT : 0) && j != 3)
+				0) && j != 3)
 				warn(
 			"Failed to add chunk for partition %c [%lu,%lu]",
 			j + 'a',dl.d_partitions[j].p_offset,
