@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rlogind.8	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: rlogind.8,v 1.8 1997/02/22 14:22:07 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt RLOGIND 8
@@ -49,8 +49,8 @@ program.  The server provides a remote login facility
 with authentication based on privileged port numbers from trusted hosts.
 .Pp
 Options supported by
-.Nm rlogind :
-.Bl -tag -width Ds
+.Nm Ns :
+.Bl -tag -width indent
 .It Fl D
 Set TCP_NODELAY socket option. This improves responsiveness at the expense of
 some additional network traffic.
@@ -65,7 +65,7 @@ Disable keep-alive messages.
 .El
 .Pp
 The following options are valid only if Kerberos is in use:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl k
 Enable Kerberos authentication.
 .It Fl v
@@ -109,7 +109,7 @@ Normal authentication is bypassed if the address verification fails.
 .El
 .Pp
 Once the source port and address have been checked, 
-.Nm rlogind
+.Nm
 proceeds with the authentication process described in
 .Xr rshd 8 .
 It then allocates a pseudo terminal (see 
@@ -132,7 +132,7 @@ prompted to log in as if on a standard terminal line.
 The parent of the login process manipulates the master side of
 the pseudo terminal, operating as an intermediary
 between the login process and the client instance of the
-.Xr rlogin
+.Xr rlogin 1
 program.  In normal operation, the packet protocol described
 in
 .Xr pty 4
@@ -158,12 +158,12 @@ All initial diagnostic messages are indicated
 by a leading byte with a value of 1,
 after which any network connections are closed.
 If there are no errors before
-.Xr login
+.Xr login 1
 is invoked, a null byte is returned as in indication of success.
 .Bl -tag -width Ds
 .It Sy Try again.
 A
-.Xr fork
+.Xr fork 2
 by the server failed.
 .El
 .Sh SEE ALSO
