@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998, Nicolas Souchu
+.\" Copyright (c) 1998, 1999, Nicolas Souchu
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ calls ppbus attach function.
 .Ss Supported flags
 .Bl -item -offset indent
 .It
-bits 0-4: chipset forced mode(s)
+bits 0-3: chipset forced mode(s)
 .Bd -literal
 PPB_COMPATIBLE  0x0     /* Centronics compatible mode */
 PPB_NIBBLE      0x1     /* reverse 4 bit mode */
@@ -64,9 +64,11 @@ PPB_ECP         0x8     /* ECP mode */
 .Pp
 And any mixed values.
 .It
-bit 5: EPP protocol (0 EPP 1.9, 1 EPP 1.7)
+bit 4: EPP protocol (0 EPP 1.9, 1 EPP 1.7)
 .It
-bit 6: activate IRQ (1 IRQ disabled, 0 IRQ enabled)
+bit 5: activate IRQ (1 IRQ disabled, 0 IRQ enabled)
+.It
+bit 6: disable chipset specific detection
 .El
 .Ss Supported chipsets
 Some parallel port chipsets are explicitly supported by ppc: detection and
@@ -101,6 +103,9 @@ mode is forced to the given mode and no other mode is available and
 ppb->ppb_avm field contains the available modes of the chipset
 .Sh SEE ALSO
 .Xr ppbus 4
+.Sh BUGS
+The chipset detection process may corrupt your chipset configuration. You may
+disable chipset specific detection by using the above flags.
 .Sh HISTORY
 The
 .Nm
