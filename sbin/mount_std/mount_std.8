@@ -44,6 +44,7 @@
 .Nm mount_devfs ,
 .Nm mount_fdesc ,
 .Nm mount_kernfs ,
+.Nm mount_linprocfs ,
 .Nm mount_procfs
 .Nd mount ``standard'' filesystems
 .Sh SYNOPSIS
@@ -60,7 +61,8 @@ the filesystem.  The
 command currently supports the following filesystems: 
 .Nm devfs , 
 .Nm fdesc ,
-.Nm kernfs 
+.Nm kernfs ,
+.Nm linprocfs 
 and 
 .Nm procfs .
 A ``standard'' filesystem is one which:
@@ -120,7 +122,8 @@ Refer to the following manual pages for detailed information
 on these file system:
 .Xr devfs 5 ,
 .Xr fdesc 5 ,
-.Xr kernfs 5 
+.Xr kernfs 5 ,
+.Xr linprocfs 5 
 and
 .Xr procfs 5 .
 .Sh DIAGNOSTICS
@@ -145,6 +148,7 @@ loadable module for it was found.
 .Xr fdesc 5 ,
 .Xr fstab 5 ,
 .Xr kernfs 5 ,
+.Xr linprocfs 5 ,
 .Xr procfs 5 ,
 .Xr mount 8
 .Sh CAVEATS
@@ -166,4 +170,8 @@ filesystem types first appeared in
 the
 .Dq devfs
 filesystem type first appeared in
-.Fx 2.2 .
+.Fx 2.2 ;
+the
+.Dq linprocfs
+filesystem type first appeared in
+.Fx 4.0 .
