@@ -36,7 +36,6 @@
 #endif
 
 #include <sys/malloc.h>
-#include <sys/signal.h>
 
 /*
  * Structures and prototypes for working with the in-kernel representation
@@ -67,7 +66,6 @@ __BEGIN_DECLS;
 int ksiginfo_alloc(struct ksiginfo **, int);
 int ksiginfo_dequeue(struct ksiginfo **, struct proc *, int);
 int ksiginfo_destroy(struct ksiginfo **);
-int ksiginfo_to_siginfo_t(struct ksiginfo *, siginfo_t *);
 int ksiginfo_to_sigset_t(struct proc *, sigset_t *);
 int signal_add(struct proc *, struct ksiginfo *, int);
 int signal_delete(struct proc *, struct ksiginfo *, int);

@@ -118,23 +118,6 @@ out:
 }
 
 int
-ksiginfo_to_siginfo_t(struct ksiginfo *ksi, siginfo_t *si)
-{
-	int error;
-
-	error = 0;
-
-	si->si_addr = ksi->ksi_addr;
-	si->si_code = ksi->ksi_code;
-	si->si_errno = ksi->ksi_errno;
-	si->si_signo = ksi->ksi_errno;
-	si->si_status = ksi->ksi_status;
-	si->si_uid = ksi->ksi_ruid;
-	si->si_pid = ksi->ksi_pid;
-	return (error);
-}
-
-int
 ksiginfo_to_sigset_t(struct proc *p, sigset_t *setp)
 {
 	int error;
