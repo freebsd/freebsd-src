@@ -72,7 +72,7 @@ static struct cdevsw g_dev_cdevsw = {
 	/* maj */       GEOM_MAJOR,
 	/* dump */      nodump,
 	/* psize */     g_dev_psize,
-	/* flags */     D_DISK | D_CANFREE | D_TRACKCLOSE,
+	/* flags */     D_DISK | D_TRACKCLOSE,
 	/* kqfilter */	nokqfilter
 };
 
@@ -171,6 +171,8 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	mtx_lock(&Giant);
 	dev = make_dev(&g_dev_cdevsw, unit2minor(unit++),
 	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
+	if (pp->flags & G_PF_CANDELETE)
+		dev->si_flags |= SI_CANDELETE;
 	mtx_unlock(&Giant);
 	g_topology_lock();
 
