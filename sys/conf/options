@@ -289,8 +289,6 @@ INVARIANTS		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 BLKDEV_IOSIZE		opt_global.h
-DFLTPHYS		opt_global.h
-MAXPHYS			opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE	opt_vm.h
