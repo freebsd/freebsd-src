@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
- *	$Id: procfs_status.c,v 1.12 1999/01/05 03:53:06 peter Exp $
+ *	$Id: procfs_rlimit.c,v 1.1 1999/04/30 13:04:21 phk Exp $
  */
 
 /*
@@ -56,51 +56,6 @@
 #include <miscfs/procfs/procfs.h>
 
 
-/*
- * This converts a quad_t to a string, stored in fin
- * It is here because there doesn't exist a quad_t entry in the kernel
- * printf() library.
- */
-
-static void quadtostring (char *fin, quad_t num)
-{
-	char str[128];
-	char *cp;
-	int i, n;
-
-	cp = str;
-	i = 0;
-  
-	/*
-	 * Create the number string.
-	 * The string will be in reverse from the original number.
-	 */
-
-	while (num) {
-		*(cp++) = (num % 10) + '0';
-		num /= 10;
-		i++;
-	}
-
-	/* Null terminate */
-	*cp = '\0';
-
-	/*
-	 * Now, swap the order 
-	 */ 
-
-	for (n = 0; n < i; n++) {
-  		fin[n] = str[(i-1)-n];
-	}
-
-	/* Null terminate */
-	fin[n] = '\0';
-
-	return;
-}
-
-
-
 int
 procfs_dorlimit(curp, p, pfs, uio)
 	struct proc *curp;
@@ -113,7 +68,6 @@ procfs_dorlimit(curp, p, pfs, uio)
 	int xlen;
 	int error;
 	char psbuf[512];		/* XXX - conservative */
-	char qstr[64];
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
@@ -140,8 +94,9 @@ procfs_dorlimit(curp, p, pfs, uio)
 		if (p->p_rlimit[i].rlim_cur == RLIM_INFINITY) {
 			ps += sprintf(ps, "-1 ");
 		} else {
-			quadtostring(qstr, p->p_rlimit[i].rlim_cur);
-			ps += sprintf(ps, "%s ", qstr);
+			/* quad_t is a long on the Alpha, sigh.. */
+			ps += sprintf(ps, "%qu ",
+				(unsigned long long)p->p_rlimit[i].rlim_cur);
 		}
 
 		/*
@@ -151,8 +106,9 @@ procfs_dorlimit(curp, p, pfs, uio)
 		if (p->p_rlimit[i].rlim_max == RLIM_INFINITY) {
 			ps += sprintf(ps, "-1\n");
 		} else {
-			quadtostring(qstr, p->p_rlimit[i].rlim_max);
-			ps += sprintf(ps, "%s\n", qstr);
+			/* quad_t is a long on the Alpha, sigh.. */
+			ps += sprintf(ps, "%qu\n",
+				(unsigned long long)p->p_rlimit[i].rlim_max);
 		}
 	}
 
