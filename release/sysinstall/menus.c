@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.15 1999/04/28 06:58:12 jkh Exp $
+ * $Id: menus.c,v 1.180.2.16 1999/05/01 11:28:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -443,6 +443,8 @@ DMenu MenuXF86Config = {
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
+      { "XDesktop",	"X already set up, just do desktop configuration.",
+	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
 };
 
@@ -851,7 +853,7 @@ DMenu MenuSrcDistributions = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS ,
     "Select the sub-components of src you wish to install.",
     "Please check off those portions of the FreeBSD source tree\n"
-    "you wish to install.",
+    "you wish to install (remember to use SPACE, not ENTER!).",
     NULL,
     NULL,
     { { "All",		"Select all of the below",
@@ -1449,6 +1451,8 @@ DMenu MenuSysconsSaver = {
 	dmenuVarCheck, configSaver, NULL, "saver=daemon" },
       { "Fade",		"Fade out effect screen saver",
 	dmenuVarCheck, configSaver, NULL, "saver=fade" },
+      { "Fire",		"Flames effect screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=fire" },
       { "Green",	"\"Green\" power saving mode (if supported by monitor)",
 	dmenuVarCheck, configSaver, NULL, "saver=green" },
       { "Logo",		"\"BSD Daemon\" animated screen saver (graphics)",

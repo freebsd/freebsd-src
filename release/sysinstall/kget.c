@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.1.2.3 1999/02/21 22:02:08 abial Exp $
+ * $Id: kget.c,v 1.1.2.4 1999/05/05 10:14:35 jkh Exp $
  */
 
 #include "sysinstall.h"
@@ -34,7 +34,7 @@
 int
 kget(char *out)
 {
-    int len, i, bytes_written;
+    int len, i, bytes_written = 0;
     char *buf;
     char *mib1 = "machdep.uc_devlist";
     char *mib2 = "machdep.uc_pnplist";
@@ -53,7 +53,7 @@ kget(char *out)
     }
     if (len <= 0) {
 	msgDebug("kget: mib1 has length of %d\n", len);
-	return -1;
+	goto pnp;
     }
     buf = (char *)alloca(len * sizeof(char));
     i = sysctlbyname(mib1, buf, &len, NULL, NULL);
@@ -70,7 +70,7 @@ kget(char *out)
 	return -1;
     }
 
-    i = bytes_written = 0;
+    i = 0;
     while (i < len) {
 	id = (struct isa_device *)(buf + i);
 	p = (buf + i + sizeof(struct isa_device));
@@ -105,6 +105,8 @@ kget(char *out)
 	}
 	i += sizeof(struct isa_device) + 8;
     }
+
+pnp:
     /* Now, print the changes to PnP override table */
     i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
     if (i) {
@@ -154,6 +156,7 @@ kget(char *out)
 	    bytes_written += fprintf(fout,"\n");
         }
     } while ((i += sizeof(struct pnp_cinfo)) < len);
+
 bail:
     if (bytes_written)
 	fprintf(fout, "q\n");
