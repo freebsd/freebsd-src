@@ -119,8 +119,7 @@ Unless specified, lines with no delimiters are passed through unmodified.
 .El
 .Sh ENVIRONMENT
 The
-.Ev LANG ,
-.Ev LC_ALL
+.Ev LANG , LC_ALL
 and
 .Ev LC_CTYPE
 environment variables affect the execution of
@@ -167,7 +166,8 @@ option, which causes incorrect behaviour in locales that support
 multibyte characters.
 .Pp
 When operating on fields
-.Pq Fl f No option is specified ,
+.Fl ( f
+option is specified),
 .Nm
 does not recognise multibyte characters, and the
 .Ar delim
