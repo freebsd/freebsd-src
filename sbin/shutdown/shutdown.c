@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shutdown.c,v 1.10 1998/01/08 02:23:59 alex Exp $
+ *	$Id: shutdown.c,v 1.11 1998/01/08 20:05:45 alex Exp $
  */
 
 #ifndef lint
@@ -73,10 +73,18 @@ static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 struct interval {
 	int timeleft, timetowait;
 } tlist[] = {
-	10 H,  5 H,	 5 H,  3 H,	 2 H,  1 H,	1 H, 30 M,
-	30 M, 10 M,	20 M, 10 M,	10 M,  5 M,	5 M,  3 M,
-	 2 M,  1 M,	 1 M, 30 S,	30 S, 30 S,
-	 0, 0,
+	{ 10 H,  5 H },
+	{  5 H,  3 H },
+	{  2 H,  1 H },
+	{  1 H, 30 M },
+	{ 30 M, 10 M },
+	{ 20 M, 10 M },
+	{ 10 M,  5 M },
+	{  5 M,  3 M },
+	{  2 M,  1 M },
+	{  1 M, 30 S },
+	{ 30 S, 30 S },
+	{  0  ,  0   }
 };
 #undef H
 #undef M
@@ -226,7 +234,7 @@ loop()
 		 * Warn now, if going to sleep more than a fifth of
 		 * the next wait time.
 		 */
-		if (sltime = offset - tp->timeleft) {
+		if ((sltime = offset - tp->timeleft)) {
 			if (sltime > tp->timetowait / 5)
 				timewarn(offset);
 			(void)sleep(sltime);
@@ -247,6 +255,11 @@ loop()
 
 static jmp_buf alarmbuf;
 
+static char *restricted_environ[] = {
+	"PATH=" _PATH_STDPATH,
+	NULL
+};
+
 void
 timewarn(timeleft)
 	int timeleft;
@@ -255,12 +268,14 @@ timewarn(timeleft)
 	static char hostname[MAXHOSTNAMELEN + 1];
 	FILE *pf;
 	char wcmd[MAXPATHLEN + 4];
+	extern char **environ;
 
 	if (!first++)
 		(void)gethostname(hostname, sizeof(hostname));
 
 	/* undoc -n option to wall suppresses normal wall banner */
 	(void)snprintf(wcmd, sizeof(wcmd), "%s -n", _PATH_WALL);
+	environ = restricted_environ;
 	if (!(pf = popen(wcmd, "w"))) {
 		syslog(LOG_ERR, "shutdown: can't find %s: %m", _PATH_WALL);
 		return;
@@ -307,6 +322,7 @@ timeout(signo)
 void
 die_you_gravy_sucking_pig_dog()
 {
+	char *empty_environ[] = { NULL };
 
 	syslog(LOG_NOTICE, "%s by %s: %s",
 	    doreboot ? "reboot" : dohalt ? "halt" : "shutdown", whom, mbuf);
@@ -327,14 +343,16 @@ die_you_gravy_sucking_pig_dog()
 	(void)printf("\nkill -HUP 1\n");
 #else
 	if (doreboot) {
-		execle(_PATH_REBOOT, "reboot", "-l", nosync, NULL, NULL);
+		execle(_PATH_REBOOT, "reboot", "-l", nosync, 
+			   (char *)NULL, empty_environ);
 		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_REBOOT);
-		perror("shutdown");
+		warn(_PATH_REBOOT);
 	}
 	else if (dohalt) {
-		execle(_PATH_HALT, "halt", "-l", nosync, NULL, NULL);
+		execle(_PATH_HALT, "halt", "-l", nosync,
+			   (char *)NULL, empty_environ);
 		syslog(LOG_ERR, "shutdown: can't exec %s: %m.", _PATH_HALT);
-		perror("shutdown");
+		warn(_PATH_HALT);
 	}
 	(void)kill(1, SIGTERM);		/* to single user */
 #endif
