@@ -191,6 +191,7 @@ read_inode(inumber, f)
 			fp->f_blkno[level] = -1;
 		fp->f_buf_blkno = -1;
 	}
+	fp->f_seekp = 0;
 out:
 	free(buf);
 	return (rc);	 
@@ -685,6 +686,7 @@ ufs_open(upath, f)
 	 * Found terminal component.
 	 */
 	rc = 0;
+	fp->f_seekp = 0;
 out:
 	if (buf)
 		free(buf);
