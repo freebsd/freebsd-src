@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.6 1997/02/28 16:59:52 bde Exp $
+#	$Id: options.i386,v 1.26.2.7 1997/03/12 17:45:56 joerg Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -58,6 +58,8 @@ KBDIO_DEBUG		opt_kbdio.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
+
+CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
