@@ -35,8 +35,13 @@
 #include <sys/module.h>
 #include <sys/systm.h>
 
+#if __FreeBSD_version < 500000
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
+#else
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#endif
 
 #include <pccard/pcic_pci.h>
 #include <pccard/i82365.h>
@@ -428,6 +433,7 @@ pcic_pci_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
+#if __FreeBSD_version > 500000
 	/*
 	 * Take us out of power down mode.
 	 */
@@ -437,6 +443,7 @@ pcic_pci_probe(device_t dev)
 		    "-- setting to D0\n", pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
+#endif
 
 	/*
 	 * Allocated/deallocate interrupt.  This forces the PCI BIOS or
