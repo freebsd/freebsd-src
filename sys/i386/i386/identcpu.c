@@ -79,10 +79,12 @@ static void do_cpuid(u_int ax, u_int *p);
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
+    machine, 0, "Machine class");
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+    cpu_model, 0, "Machine model");
 
 static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
@@ -101,6 +103,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
 	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
+	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
 };
 
 static void
@@ -214,6 +217,10 @@ printcpuinfo(void)
 				        strcat(cpu_model, "Unknown 80686");
 					break;
 				}
+				break;
+			case 0xf00:
+				strcat(cpu_model, "Pentium 4");
+				cpu = CPU_P4;
 				break;
 			default:
 				strcat(cpu_model, "unknown");
@@ -548,7 +555,7 @@ printcpuinfo(void)
 			"\020"
 			"\001FPU"	/* Integral FPU */
 			"\002VME"	/* Extended VM86 mode support */
-			"\003DE"
+			"\003DE"	/* Debugging Extensions (CR4.DE) */
 			"\004PSE"	/* 4MByte page tables */
 			"\005TSC"	/* Timestamp counter */
 			"\006MSR"	/* Machine specific registers */
@@ -557,25 +564,25 @@ printcpuinfo(void)
 			"\011CX8"	/* CMPEXCH8 instruction */
 			"\012APIC"	/* SMP local APIC */
 			"\013oldMTRR"
-			"\014SEP"
+			"\014SEP"	/* Fast System Call */
 			"\015MTRR"	/* Memory Type Range Registers */
 			"\016PGE"	/* PG_G (global bit) support */
-			"\017MCA"
+			"\017MCA"	/* Machine Check Architecture */
 			"\020CMOV"	/* CMOV instruction */
 			"\021PAT"	/* Page attributes table */
 			"\022PSE36"	/* 36 bit address space support */
 			"\023PN"	/* Processor Serial number */
-			"\024<b19>"
+			"\024CLFLUSH"	/* Has the CLFLUSH instruction */
 			"\025<b20>"
-			"\026<b21>"
-			"\027<b22>"
+			"\026DTS"	/* Debug Trace Store */
+			"\027ACPI"	/* ACPI support */
 			"\030MMX"	/* MMX instructions */
 			"\031FXSR"	/* FXSAVE/FXRSTOR */
-			"\032XMM"	/* Katmai SIMD/MMX2 instructions */
-			"\033<b26>"
-			"\034<b27>"
+			"\032SSE"	/* Streaming SIMD Extensions */
+			"\033SSE2"	/* Streaming SIMD Extensions #2 */
+			"\034SS"	/* Self snoop */
 			"\035<b28>"
-			"\036<b29>"
+			"\036ACC"	/* Auto Clock Correction (TCC/ACPI) */
 			"\037<b30>"
 			"\040<b31>"
 			);
