@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cpufunc.h,v 1.13 1994/08/02 07:38:43 davidg Exp $
  */
 
 /*
@@ -107,9 +107,34 @@ tlbflush()
 static inline u_long
 rcr2()
 {
-	u_long data;
+	u_long	data;
 	__asm __volatile("movl %%cr2,%%eax" : "=a" (data));
 	return data;
+}
+
+struct quehead {
+	struct quehead *qh_link;
+	struct quehead *qh_rlink;
+};
+
+static inline void
+insque(void *a, void *b)
+{
+	register struct quehead *element = a, *head = b;
+	element->qh_link = head->qh_link;
+	head->qh_link = (struct quehead *)element;
+	element->qh_rlink = (struct quehead *)head;
+	((struct quehead *)(element->qh_link))->qh_rlink
+	  = (struct quehead *)element;
+}
+
+static inline void
+remque(void *a)
+{
+	register struct quehead *element = a;
+	((struct quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;
+	((struct quehead *)(element->qh_rlink))->qh_link = element->qh_link;
+	element->qh_rlink = 0;
 }
 
 #else /* not __GNUC__ */
