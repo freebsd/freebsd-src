@@ -282,6 +282,10 @@ pcic_isa_probe(device_t dev)
 static int
 pcic_isa_attach(device_t dev)
 {
+	struct pcic_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->flags |= PCIC_IO_MAPPED;
 	return (pcic_attach(dev));
 }
 
