@@ -30,7 +30,7 @@ MACHINE_ARCH=	ia64
 FMT=				# Needs to be blank for linux cross tools.
 
 # Which version of config(8) is required.
-%VERSREQ=	500008
+%VERSREQ=	500009
 
 STD8X16FONT?=	iso
 

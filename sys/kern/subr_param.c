@@ -133,7 +133,7 @@ init_param2(int physpages)
 {
 
 	/* Base parameters */
-	if ((maxusers = MAXUSERS) == 0 || maxusers == 8) {
+	if ((maxusers = MAXUSERS) == 0) {
 		maxusers = physpages / (1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
