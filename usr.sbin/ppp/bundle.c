@@ -71,6 +71,8 @@
 #include "hdlc.h"
 #include "throughput.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -82,6 +84,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "async.h"
 #include "physical.h"
@@ -93,7 +97,6 @@
 #include "chat.h"
 #include "cbcp.h"
 #include "datalink.h"
-#include "ip.h"
 #include "iface.h"
 #include "server.h"
 #ifdef HAVE_DES
@@ -147,10 +150,13 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     break;
 
   case PHASE_NETWORK:
-    fsm_Up(&bundle->ncp.ipcp.fsm);
-    fsm_Open(&bundle->ncp.ipcp.fsm);
-    bundle->phase = new;
-    log_DisplayPrompts();
+    if (ncp_fsmStart(&bundle->ncp, bundle)) {
+      bundle->phase = new;
+      log_DisplayPrompts();
+    } else {
+      log_Printf(LogPHASE, "bundle: All NCPs are disabled\n");
+      bundle_Close(bundle, NULL, CLOSE_STAYDOWN);
+    }
     break;
 
   case PHASE_TERMINATE:
@@ -214,8 +220,7 @@ bundle_ClearQueues(void *v)
    * dictionaries in use (causing the relevant RESET_REQ/RESET_ACK).
    */
 
-  ip_DeleteQueue(&bundle->ncp.ipcp);
-  mp_DeleteQueue(&bundle->ncp.mp);
+  ncp_DeleteQueues(&bundle->ncp);
   for (dl = bundle->links; dl; dl = dl->next)
     physical_DeleteQueue(dl->physical);
 }
@@ -270,12 +275,14 @@ bundle_LayerUp(void *v, struct fsm *fp)
 
     bundle_LinkAdded(bundle, p->dl);
     mp_CheckAutoloadTimer(&bundle->ncp.mp);
-  } else if (fp->proto == PROTO_IPCP) {
-    bundle_CalculateBandwidth(fp->bundle);
-    time(&bundle->upat);
-    bundle_StartIdleTimer(bundle, 0);
+  } else if (isncp(fp->proto)) {
+    if (ncp_LayersOpen(&fp->bundle->ncp) == 1) {
+      bundle_CalculateBandwidth(fp->bundle);
+      time(&bundle->upat);
+      bundle_StartIdleTimer(bundle, 0);
+      mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
+    }
     bundle_Notify(bundle, EX_NORMAL);
-    mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
   } else if (fp->proto == PROTO_CCP)
     bundle_CalculateBandwidth(fp->bundle);	/* Against ccp_MTUOverhead */
 }
@@ -296,10 +303,12 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp->proto == PROTO_IPCP) {
-    bundle_StopIdleTimer(bundle);
-    bundle->upat = 0;
-    mp_StopAutoloadTimer(&bundle->ncp.mp);
+  if (isncp(fp->proto)) {
+    if (ncp_LayersOpen(&fp->bundle->ncp) == 0) {
+      bundle_StopIdleTimer(bundle);
+      bundle->upat = 0;
+      mp_StopAutoloadTimer(&bundle->ncp.mp);
+    }
   } else if (fp->proto == PROTO_LCP) {
     struct datalink *dl;
     struct datalink *lost;
@@ -328,7 +337,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
     if (!others_active)
       /* Down the NCPs.  We don't expect to get fsm_Close()d ourself ! */
-      fsm2initial(&bundle->ncp.ipcp.fsm);
+      ncp2initial(&bundle->ncp);
   }
 }
 
@@ -343,7 +352,7 @@ bundle_LayerFinish(void *v, struct fsm *fp)
   struct bundle *bundle = (struct bundle *)v;
   struct datalink *dl;
 
-  if (fp->proto == PROTO_IPCP) {
+  if (isncp(fp->proto) && !ncp_LayersUnfinished(&bundle->ncp)) {
     if (bundle_Phase(bundle) != PHASE_DEAD)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
@@ -351,12 +360,6 @@ bundle_LayerFinish(void *v, struct fsm *fp)
         datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
   }
-}
-
-int
-bundle_LinkIsUp(const struct bundle *bundle)
-{
-  return bundle->ncp.ipcp.fsm.state == ST_OPENED;
 }
 
 void
@@ -398,11 +401,10 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
 
   if (!others_active) {
     bundle_StopIdleTimer(bundle);
-    if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
-        bundle->ncp.ipcp.fsm.state == ST_STARTING)
-      fsm_Close(&bundle->ncp.ipcp.fsm);
+    if (ncp_LayersUnfinished(&bundle->ncp))
+      ncp_Close(&bundle->ncp);
     else {
-      fsm2initial(&bundle->ncp.ipcp.fsm);
+      ncp2initial(&bundle->ncp);
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_Close(dl, how);
     }
@@ -418,29 +420,6 @@ bundle_Down(struct bundle *bundle, int how)
 
   for (dl = bundle->links; dl; dl = dl->next)
     datalink_Down(dl, how);
-}
-
-static size_t
-bundle_FillQueues(struct bundle *bundle)
-{
-  size_t total;
-
-  if (bundle->ncp.mp.active)
-    total = mp_FillQueues(bundle);
-  else {
-    struct datalink *dl;
-    size_t add;
-
-    for (total = 0, dl = bundle->links; dl; dl = dl->next)
-      if (dl->state == DATALINK_OPEN) {
-        add = link_QueueLen(&dl->physical->link);
-        if (add == 0 && dl->physical->out == NULL)
-          add = ip_PushPacket(&dl->physical->link, bundle);
-        total += add;
-      }
-  }
-
-  return total + ip_QueueLen(&bundle->ncp.ipcp);
 }
 
 static int
@@ -459,7 +438,8 @@ bundle_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     nlinks++;
 
   if (nlinks) {
-    queued = r ? bundle_FillQueues(bundle) : ip_QueueLen(&bundle->ncp.ipcp);
+    queued = r ? ncp_FillPhysicalQueues(&bundle->ncp, bundle) :
+                 ncp_QueueLen(&bundle->ncp);
 
     if (r && (bundle->phase == PHASE_NETWORK ||
               bundle->phys_type.all & PHYS_AUTO)) {
@@ -529,6 +509,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
 {
   struct datalink *dl;
   unsigned secs;
+  u_int32_t af;
 
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
     descriptor_Read(&bundle->ncp.mp.server.desc, bundle, fdset);
@@ -571,16 +552,23 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                    bundle->dev.Name, n);
         return;
       }
-      if (ntohl(tun.header.family) != AF_INET)
+      af = ntohl(tun.header.family);
+#ifndef NOINET6
+      if (af != AF_INET && af != AF_INET6)
+#else
+      if (af != AF_INET)
+#endif
         /* XXX: Should be maintaining drop/family counts ! */
         return;
-    }
+    } else
+      af = AF_INET;
 
-    if (((struct ip *)tun.data)->ip_dst.s_addr ==
+    if (af == AF_INET && ((struct ip *)tun.data)->ip_dst.s_addr ==
         bundle->ncp.ipcp.my_ip.s_addr) {
       /* we've been asked to send something addressed *to* us :( */
       if (Enabled(bundle, OPT_LOOPBACK)) {
-        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in, NULL, NULL);
+        pri = PacketCheck(bundle, af, tun.data, n, &bundle->filter.in,
+                          NULL, NULL);
         if (pri >= 0) {
           n += sz - sizeof tun.data;
           write(bundle->dev.fd, data, n);
@@ -592,8 +580,8 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
     }
 
     /*
-     * Process on-demand dialup. Output packets are queued within tunnel
-     * device until IPCP is opened.
+     * Process on-demand dialup. Output packets are queued within the tunnel
+     * device until the appropriate NCP is opened.
      */
 
     if (bundle_Phase(bundle) == PHASE_DEAD) {
@@ -601,7 +589,8 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
        * Note, we must be in AUTO mode :-/ otherwise our interface should
        * *not* be UP and we can't receive data
        */
-      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL, NULL);
+      pri = PacketCheck(bundle, af, tun.data, n, &bundle->filter.dial,
+                        NULL, NULL);
       if (pri >= 0)
         bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
@@ -616,11 +605,12 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
     }
 
     secs = 0;
-    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out, NULL, &secs);
+    pri = PacketCheck(bundle, af, tun.data, n, &bundle->filter.out,
+                      NULL, &secs);
     if (pri >= 0) {
       /* Prepend the number of seconds timeout given in the filter */
       tun.header.timeout = secs;
-      ip_Enqueue(&bundle->ncp.ipcp, pri, (char *)&tun, n + sizeof tun.header);
+      ncp_Enqueue(&bundle->ncp, af, pri, (char *)&tun, n + sizeof tun.header);
     }
   }
 }
@@ -818,7 +808,10 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.cfg.idle.min_timeout = 0;
   *bundle.cfg.auth.name = '\0';
   *bundle.cfg.auth.key = '\0';
-  bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK | OPT_TCPMSSFIXUP |
+  bundle.cfg.opt = OPT_IDCHECK | OPT_LOOPBACK | OPT_SROUTES | OPT_TCPMSSFIXUP |
+#ifndef NOINET6
+                   OPT_IPCP | OPT_IPV6CP |
+#endif
                    OPT_THROUGHPUT | OPT_UTMP;
   *bundle.cfg.label = '\0';
   bundle.cfg.ifqueue = DEF_IFQUEUE;
@@ -842,11 +835,7 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.desc.Read = bundle_DescriptorRead;
   bundle.desc.Write = bundle_DescriptorWrite;
 
-  mp_Init(&bundle.ncp.mp, &bundle);
-
-  /* Send over the first physical link by default */
-  ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
-            &bundle.fsm);
+  ncp_Init(&bundle.ncp, &bundle);
 
   memset(&bundle.filter, '\0', sizeof bundle.filter);
   bundle.filter.in.fragok = bundle.filter.in.logok = 1;
@@ -875,7 +864,7 @@ bundle_Create(const char *prefix, int type, int unit)
 #endif
 
   /* Clean out any leftover crud */
-  iface_Clear(bundle.iface, IFACE_CLEAR_ALL);
+  iface_Clear(bundle.iface, &bundle.ncp, 0, IFACE_CLEAR_ALL);
 
   bundle_LockTun(&bundle);
 
@@ -895,19 +884,18 @@ bundle_Destroy(struct bundle *bundle)
   struct datalink *dl;
 
   /*
-   * Clean up the interface.  We don't need to timer_Stop()s, mp_Down(),
-   * ipcp_CleanInterface() and bundle_DownInterface() unless we're getting
+   * Clean up the interface.  We don't really need to do the timer_Stop()s,
+   * mp_Down(), iface_Clear() and bundle_DownInterface() unless we're getting
    * out under exceptional conditions such as a descriptor exception.
    */
   timer_Stop(&bundle->idle.timer);
   timer_Stop(&bundle->choked.timer);
   mp_Down(&bundle->ncp.mp);
-  ipcp_CleanInterface(&bundle->ncp.ipcp);
+  iface_Clear(bundle->iface, &bundle->ncp, 0, IFACE_CLEAR_ALL);
   bundle_DownInterface(bundle);
 
 #ifndef NORADIUS
   /* Tell the radius server the bad news */
-  log_Printf(LogDEBUG, "Radius: Destroy called from bundle_Destroy\n");
   radius_Destroy(&bundle->radius);
 #endif
 
@@ -916,7 +904,7 @@ bundle_Destroy(struct bundle *bundle)
   while (dl)
     dl = datalink_Destroy(dl);
 
-  ipcp_Destroy(&bundle->ncp.ipcp);
+  ncp_Destroy(&bundle->ncp);
 
   close(bundle->dev.fd);
   bundle_UnlockTun(bundle);
@@ -953,7 +941,7 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
   if (!other_links) {
     if (dl->physical->type != PHYS_AUTO)	/* Not in -auto mode */
       bundle_DownInterface(bundle);
-    fsm2initial(&bundle->ncp.ipcp.fsm);
+    ncp2initial(&bundle->ncp);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_StopIdleTimer(bundle);
   }
@@ -1056,7 +1044,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
                   (secs / 60) % 60, secs % 60);
   }
   prompt_Printf(arg->prompt, "\n Queued:        %lu of %u\n",
-                (unsigned long)ip_QueueLen(&arg->bundle->ncp.ipcp),
+                (unsigned long)ncp_QueueLen(&arg->bundle->ncp),
                 arg->bundle->cfg.ifqueue);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
@@ -1096,23 +1084,18 @@ bundle_ShowStatus(struct cmdargs const *arg)
   } else
     prompt_Printf(arg->prompt, "disabled\n");
 
-  prompt_Printf(arg->prompt, " sendpipe:          ");
-  if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
-    prompt_Printf(arg->prompt, "%-20ld", arg->bundle->ncp.ipcp.cfg.sendpipe);
-  else
-    prompt_Printf(arg->prompt, "unspecified         ");
-  prompt_Printf(arg->prompt, " recvpipe:      ");
-  if (arg->bundle->ncp.ipcp.cfg.recvpipe > 0)
-    prompt_Printf(arg->prompt, "%ld\n", arg->bundle->ncp.ipcp.cfg.recvpipe);
-  else
-    prompt_Printf(arg->prompt, "unspecified\n");
-
-  prompt_Printf(arg->prompt, " Sticky Routes:     %-20.20s",
-                optval(arg->bundle, OPT_SROUTES));
-  prompt_Printf(arg->prompt, " Filter Decap:      %s\n",
+  prompt_Printf(arg->prompt, " Filter Decap:      %-20.20s",
                 optval(arg->bundle, OPT_FILTERDECAP));
-  prompt_Printf(arg->prompt, " ID check:          %-20.20s",
+  prompt_Printf(arg->prompt, " ID check:          %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
+  prompt_Printf(arg->prompt, " Iface-Alias:       %-20.20s",
+                optval(arg->bundle, OPT_IFACEALIAS));
+#ifndef NOINET6
+  prompt_Printf(arg->prompt, " IPCP:              %s\n",
+                optval(arg->bundle, OPT_IPCP));
+  prompt_Printf(arg->prompt, " IPV6CP:            %-20.20s",
+                optval(arg->bundle, OPT_IPV6CP));
+#endif
   prompt_Printf(arg->prompt, " Keep-Session:      %s\n",
                 optval(arg->bundle, OPT_KEEPSESSION));
   prompt_Printf(arg->prompt, " Loopback:          %-20.20s",
@@ -1123,14 +1106,14 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_PROXY));
   prompt_Printf(arg->prompt, " Proxyall:          %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " TCPMSS Fixup:      %-20.20s",
+  prompt_Printf(arg->prompt, " Sticky Routes:     %-20.20s",
+                optval(arg->bundle, OPT_SROUTES));
+  prompt_Printf(arg->prompt, " TCPMSS Fixup:      %s\n",
                 optval(arg->bundle, OPT_TCPMSSFIXUP));
-  prompt_Printf(arg->prompt, " Throughput:        %s\n",
+  prompt_Printf(arg->prompt, " Throughput:        %-20.20s",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:      %-20.20s",
+  prompt_Printf(arg->prompt, " Utmp Logging:      %s\n",
                 optval(arg->bundle, OPT_UTMP));
-  prompt_Printf(arg->prompt, " Iface-Alias:       %s\n",
-                optval(arg->bundle, OPT_IFACEALIAS));
 
   return 0;
 }
@@ -1183,7 +1166,7 @@ bundle_SetIdleTimer(struct bundle *bundle, int timeout, int min_timeout)
   bundle->cfg.idle.timeout = timeout;
   if (min_timeout >= 0)
     bundle->cfg.idle.min_timeout = min_timeout;
-  if (bundle_LinkIsUp(bundle))
+  if (ncp_LayersOpen(&bundle->ncp))
     bundle_StartIdleTimer(bundle, 0);
 }
 
@@ -1795,18 +1778,20 @@ bundle_Exception(struct bundle *bundle, int fd)
 }
 
 void
-bundle_AdjustFilters(struct bundle *bundle, struct in_addr *my_ip,
-                     struct in_addr *peer_ip)
+bundle_AdjustFilters(struct bundle *bundle, struct ncpaddr *local,
+                     struct ncpaddr *remote)
 {
-  filter_AdjustAddr(&bundle->filter.in, my_ip, peer_ip, NULL);
-  filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip, NULL);
-  filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip, NULL);
-  filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.in, local, remote, NULL);
+  filter_AdjustAddr(&bundle->filter.out, local, remote, NULL);
+  filter_AdjustAddr(&bundle->filter.dial, local, remote, NULL);
+  filter_AdjustAddr(&bundle->filter.alive, local, remote, NULL);
 }
 
 void
-bundle_AdjustDNS(struct bundle *bundle, struct in_addr dns[2])
+bundle_AdjustDNS(struct bundle *bundle)
 {
+  struct in_addr *dns = bundle->ncp.ipcp.ns.dns;
+
   filter_AdjustAddr(&bundle->filter.in, NULL, NULL, dns);
   filter_AdjustAddr(&bundle->filter.out, NULL, NULL, dns);
   filter_AdjustAddr(&bundle->filter.dial, NULL, NULL, dns);
