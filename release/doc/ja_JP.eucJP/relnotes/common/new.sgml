@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.304
+    Original revision: 1.308
 -->
 
 <articleinfo>
@@ -371,9 +371,6 @@
       を生成する必要がなくなりました.
       必要のなくなった &man.gensetdefs.8; は削除されています.</para>
 
-    <para>カーネルの mbuf アロケータに対して,
-      SMP に対応するための変更が数多く行なわれました.</para>
-
     <para>ネットワークデバイスのクローニングが新たに実装され,
       それを利用するように &man.gif.4; デバイスが変更されました.
       そのためデバイスインスタンスを追加したい場合は
@@ -389,7 +386,7 @@
       <!-- hrs:needs to be revised --></para>
 
     <para>新しく, idle 時にページをゼロで初期化する機能が追加されました.
-      これは <varname>vm.zeroidle_enable</varname> sysctl
+      これは <varname>vm.idlezero_enable</varname> sysctl
       変数を使って有効化できます.</para>
 
     <para arch="i386">カーネルのロードアドレスが
@@ -404,9 +401,9 @@
       マシンが長時間ロックしなくなりました.
       &merged;</para>
 
-    <para>カーネルが, プロセスよりも細かいスケジューリング単位に対応しました
-      (ただし現時点で利用できるのは,
-      一つのプロセスに対して一つのスレッドのみです).</para>
+    <para>Kernel-Scheduled Entity プロジェクトは,
+      カーネルスケジューラがマルチスレッドプログラムをより効率的に
+      扱えるような変更を加えました.</para>
 
     <para>カーネルは複数の低レベルコンソールデバイスをサポートします.
       異なったコンソールを操作するには, 新しい &man.conscontrol.8;
@@ -440,6 +437,12 @@
       入る前) のパニックからも, クラッシュダンプを取れるようになりました.
       &merged;</para>
 
+    <para>カーネルメモリアロケータは Solaris で使われているのと同じように
+      スラブ(slab)メモリアロケータとなりました.
+      これは CPU の数が増えるに従い線形に近い性能を示す SMP 対応の
+      メモリアロケータです.
+      また, メモリフラグメンテーションも少なくなります.</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -458,16 +461,13 @@
         80386 プロセッサ対応が削除されました.
         このコードは他の IA32
         プロセッサのパフォーマンスを大きく損なう原因となっているためです.
-      </para>
-
-      <para arch="i386">80386 プロセッサに対応するための
+	80386 プロセッサに対応するための
         <literal>I386_CPU</literal> カーネルオプションを
         他の IA32 プロセッサに対応するためのオプションと
 	同時に指定することはできなくなりました.
         これにより実行時のプロセッサタイプチェックが削除され,
-        80386 における性能が多少向上しています.</para>
-
-      <para arch="i386">80386 上で動作可能なカスタムカーネルを構築するには,
+        80386 における性能が多少向上しています.
+	80386 上で動作可能なカスタムカーネルを構築するには,
         カーネルコンフィグレーションファイルに
         <literal>I386_CPU</literal>
         とだけ書いてあるように変更する必要があります.</para>
@@ -903,7 +903,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <literal>SYN_SENT</literal>
 	状態にある TCP 接続を RST できるようになりました.
         これは sysctl 変数 <varname>net.inet.tcp.icmp_may_rst</varname>
-        で制御することができます.</para>
+        で制御することができます. &merged;</para>
 
       <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
         また, VLAN コードにあったいくつかのバグも修正されています.</para>
@@ -1052,6 +1052,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>TCP 実装が, IP 層のブロードキャストアドレスに向けられたパケットを
 	正しく無視するようになりました. &merged;</para>
+
+      <para>TCP, UDP で使われる ephemeral port 範囲が 1024&ndash;5000 から
+	49152&ndash;65535 に変更されました.
+	これにより並列に出ていくことのできる接続/ストリームの数が増加します.
+      </para>
     </sect3>
 
     <sect3>
@@ -1113,7 +1118,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.ata.4; ドライバは &man.atacontrol.8; を使って
 	RAID1 構成の故障したドライブを再構築することができるように
-	なりました.</para>
+	なりました. &merged;</para>
 
       <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
@@ -1125,6 +1130,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	を使ったシステムにおいて, データが壊れる場合があることへの
 	対策が行なわれました. &merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>CAM のエラー回復処理コードが更新されました.</para>
 
       <para>&man.cd.4; ドライバが書き込み操作に対応しました.
@@ -1200,6 +1206,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">3ware ATA RAID に対応する
         &man.twe.4; ドライバが追加されました.&merged;</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>&man.vinum.4;
         ボリュームマネージャにいくつかのバグ修正と改良が加えられました.</para>
 
@@ -1229,6 +1236,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         詳細は <filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>
         にあります.</para>
 
+<!-- The following note needs to be made more specific or eliminated. -->
       <para>FFS 用の softupdates
         にいくつかのバグ修正と改良が加えられました.</para>
 
@@ -1251,7 +1259,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	対応するためのフックが追加されました.
         良く使われる変換ルーチンは
         <filename role="package">sysutils/cd9660_unicode</filename>
-        の port に含まれています.</para>
+        の port に含まれています. &merged;</para>
 
       <para>&man.kernfs.5; は廃止され, 削除されました.</para>
 
@@ -1486,7 +1494,7 @@ hw.pcic.irq="0"</programlisting>
           を<emphasis>使わなければならなく</emphasis>なっています.</para>
 
 	<para>&man.ifpi.4; ドライバは AVM Fritz!Card PCI version 2
-	  コントローラに対応しました.</para>
+	  コントローラに対応しました. &merged;</para>
 
 	<para>Cologne Chip Designs HFC デバイスを
           <application>isdn4bsd</application> に対応させる
@@ -1764,10 +1772,6 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-01:40 参照).
       &merged;</para>
 
-    <para>listen しているキューから接続が削除された時に
-      通常送信される RST セグメントを抑制することで,
-      &os; の TCP 実装の SYN flood 攻撃に対する耐性が高められました.</para>
-
     <para><application>OpenSSH</application>
       は競合状態を解消するため, 認証の転送ファイルを
       unlink する前にそのユーザの UID に切り替えるように変更されました.</para>
@@ -1935,7 +1939,7 @@ hw.pcic.irq="0"</programlisting>
       タグを表示するようになりました.</para>
 
     <para>&man.ata.4; ドライバの動作を制御するコマンド
-      &man.atacontrol.8; が追加されました.</para>
+      &man.atacontrol.8; が追加されました. &merged;</para>
 
     <para arch="sparc64">&arch; プラットフォーム上で, システムの &man.awk.1;
       は <application>BWK awk</application> を指すようになりました.
@@ -3183,7 +3187,7 @@ hw.pcic.irq="0"</programlisting>
         8.3.1-REL に更新されました. &merged;</para>
 
       <para><application>Binutils</application> が
-	FSF 2.12 ブランチの 2002/02/21 版スナップショットに
+	2.12.0 に
 	更新されました.</para>
 
       <para><application>bzip2</application> バージョン 1.0.2 が
@@ -3199,9 +3203,11 @@ hw.pcic.irq="0"</programlisting>
       <para><application>file</application> がバージョン 3.37 に更新されました.
         </para>
 
-      <para><application>gcc</application> がバージョン
-        2.95.3 に更新されました.
-        &merged;</para>
+      <para><application>gcc</application> が
+	2.95 開発ブランチの 2002/03/20 版スナップショット
+	(このスナップショットは <application>gcc</application> 2.95.3
+	のリリース以降の修正を含んでいます)
+	に更新されました. &merged;</para>
 
       <para>&man.gcc.1; は,
         従来のスレッド対応ライブラリとスレッド非対応ライブラリという分割を
@@ -3300,7 +3306,7 @@ hw.pcic.irq="0"</programlisting>
 	import されました.</para>
 
       <para><application>OPIE</application>
-        ワンタイムパスワードスイートがバージョン 2.32 に更新されました.
+        ワンタイムパスワードスイートがバージョン 2.4 に更新されました.
         &merged;
         これは <application>S/Key</application>
         の機能を完全に置き換えるものです.</para>
@@ -3448,7 +3454,7 @@ hw.pcic.irq="0"</programlisting>
           ユーザは, RSA 暗号鍵を扱うために必要な, 制限されたライセンスを持つ
           RSAREF ツールキットに依存しなくても済むようになりました.
 	  その他の新しい機能もいくつかあります:
-	  sftp のクライアントとサーバが追加されました.
+	  &man.sftp.1; のクライアントとサーバが追加されました.
 	  &man.scp.1; は 2GB 以上のファイルを扱えるようになりました.
 	  &man.sshd.8; に対して新たに,
           未認証の ssh 接続数を制限する機能が追加されています.
@@ -3457,10 +3463,37 @@ hw.pcic.irq="0"</programlisting>
 	  <application>SOCKS4</application> プロキシーも加えられました.
 	  &merged;</para>
 
+	<para><application>OpenSSH</application> が 3.1 に更新されました.
+	  変更点は:
+	  <itemizedlist>
+	    <listitem>
+	      <para><filename>*2</filename> は廃止されました
+		(例えば
+		<filename>~/.ssh/known_hosts</filename> は
+		<filename>~/.ssh/known_hosts2</filename> の中身を
+		含めることができます).</para>
+	    </listitem>
+	    <listitem>
+	      <para>&man.ssh-keygen.1; はいくつかの商用 SSH 実装
+		と鍵を交換するために, SECSH 公開鍵ファイルフォーマット
+		を使って鍵を import/export することができるようになりました.
+	      </para>
+	    </listitem>
+	    <listitem>
+	      <para>&man.ssh-add.1; は三つのデフォルト鍵すべてを追加するように
+		なりました.</para>
+	    </listitem>
+	    <listitem>
+	      <para>&man.ssh-keygen.1; は特定の鍵形式をデフォルトとは
+		しないようになりました.  <option>-t</option> オプション
+		で明示的に指定する必要があります.</para>
+	      </listitem>
+	    </itemizedlist>
+	  </para>
+
 	<para><application>OpenSSH</application>
-          の SSH1 モードが OPIE パスワード認証に対応しました.
-          SSH2 モードにはまだ対応していません.
-          &merged;</para>
+	  は <application>OPIE</application> パスワードで
+	  認証できるようになりました.</para>
 
         <para><application>OpenSSH</application> が
           <application>PAM</application> に対応しました.</para>
