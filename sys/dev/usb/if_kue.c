@@ -336,8 +336,7 @@ Static void kue_setmulti(sc)
 
 	sc->kue_rxfilt &= ~KUE_RXFILT_ALLMULTI;
 
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-	    ifma = ifma->ifma_link.le_next) {
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		/*

@@ -641,8 +641,7 @@ static void wb_setmulti(sc)
 	CSR_WRITE_4(sc, WB_MAR1, 0);
 
 	/* now program new ones */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-				ifma = ifma->ifma_link.le_next) {
+	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = wb_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
