@@ -124,8 +124,6 @@ void	stop_emulating	__P((void));
 
 typedef u_char bool_t;
 
-#define	NPXIRQ	8
-
 static	int	npx_attach	__P((device_t dev));
 	void	npx_intr	__P((void *));
 static	void	npx_identify	__P((driver_t *driver, device_t parent));
@@ -271,7 +269,7 @@ npx_probe(dev)
 	save_idt_npxintr = idt[npx_intrno];
 	save_idt_npxtrap = idt[16];
 #ifdef PC98
-	outb(IO_ICU1 + 2, ~IRQ_SLAVE);
+	outb(IO_ICU1 + 2, (u_int8_t) ~IRQ_SLAVE);
 	outb(IO_ICU2 + 2, ~(1 << (npx_irq - 8)));
 #else
 	outb(IO_ICU1 + 1, ~IRQ_SLAVE);
