@@ -59,6 +59,7 @@ static int  tri9000_col( int );
 static int  v7_1024i_col( int );
 static int  s3_928_col( int );
 static int  cl_gd542x_col( int );
+static void fallback_to_auto(struct video_state *vsx);
 
 /* storage to save video timing values of 80 columns text mode */
 static union {
@@ -2267,6 +2268,24 @@ reset_usl_modes (struct video_state *vsx)
 	set_auto_mode (vsx);
 }
 
+/*
+ * Fallback to VT_AUTO if controlling process died.
+ */
+static void
+fallback_to_auto(struct video_state *vsx)
+{
+	struct proc *p;
+
+	if(vsx->proc) {
+		p = pfind(vsx->pid);
+		if (p != NULL) {
+			PROC_UNLOCK(p);
+			if (vsx->proc != p)
+				set_auto_mode(vsx);
+		}
+	}
+}
+
 /*---------------------------------------------------------------------------*
  *	switch to virtual screen n (0 ... PCVT_NSCREENS-1), VT_USL version
  *	(the name vgapage() stands for historical reasons)
@@ -2280,12 +2299,8 @@ vgapage(int new_screen)
 		return EINVAL;
 
 	/* fallback to VT_AUTO if controlling processes died */
-	if(vsp->proc && vsp->proc != pfind(vsp->pid))
-		set_auto_mode(vsp);
-
-	if(vs[new_screen].proc
-	   && vs[new_screen].proc != pfind(vs[new_screen].pid))
-		set_auto_mode(&vs[new_screen]);
+	fallback_to_auto(vsp);
+	fallback_to_auto(&vs[new_screen]);
 
 	if (!vt_switch_pending && new_screen == current_video_screen)
 		return 0;
@@ -2424,8 +2439,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		}
 
 		/* Check for server died */
-		if(vsp->proc && vsp->proc != pfind(vsp->pid))
-			set_auto_mode(vsp);
+		fallback_to_auto(vsp);
 
 		/* Check for server already running */
 		if (vsp->smode.mode == VT_PROCESS && vsp->proc != p)

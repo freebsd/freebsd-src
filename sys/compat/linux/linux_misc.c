@@ -558,10 +558,11 @@ linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
     if (args->pid != p->p_pid) {
 	if (!(curp = pfind(args->pid)))
 	    return ESRCH;
+	p->p_retval[0] = curp->p_pgid;
+	PROC_UNLOCK(curp);
     }
     else
-	curp = p;
-    p->p_retval[0] = curp->p_pgid;
+	p->p_retval[0] = p->p_pgid;
     return 0;
 }
 

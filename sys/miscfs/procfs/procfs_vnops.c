@@ -136,34 +136,39 @@ procfs_open(ap)
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
 	struct proc *p1, *p2;
+	int error = 0;
 
 	p2 = PFIND(pfs->pfs_pid);
 	if (p2 == NULL)
 		return (ENOENT);
-	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
-		return (ENOENT);
+	if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL)) {
+		error = ENOENT;
+		goto out;
+	}
 
 	switch (pfs->pfs_type) {
 	case Pmem:
 		if (((pfs->pfs_flags & FWRITE) && (ap->a_mode & O_EXCL)) ||
-		    ((pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE)))
-			return (EBUSY);
+		    ((pfs->pfs_flags & O_EXCL) && (ap->a_mode & FWRITE))) {
+			error = EBUSY;
+			goto out;
+		}
 
 		p1 = ap->a_p;
 		if (p_can(p1, p2, P_CAN_DEBUG, NULL) &&
-		    !procfs_kmemaccess(p1))
-			return (EPERM);
+		    !procfs_kmemaccess(p1)) {
+			error = EPERM;
+		}
 
 		if (ap->a_mode & FWRITE)
 			pfs->pfs_flags = ap->a_mode & (FWRITE|O_EXCL);
 
-		return (0);
-
 	default:
 		break;
 	}
-
-	return (0);
+out:
+	PROC_UNLOCK(p2);
+	return (error);
 }
 
 /*
@@ -199,14 +204,12 @@ procfs_close(ap)
 		 * has gone away or forgotten about it.
 		 */
 		if ((ap->a_vp->v_usecount < 2) && (p = pfind(pfs->pfs_pid))) {
-			PROC_LOCK(p);
 			if (!(p->p_pfsflags & PF_LINGER)) {
 				p->p_stops = 0;
 				p->p_step = 0;
-				PROC_UNLOCK(p);
 				wakeup(&p->p_step);
-			} else
-				PROC_UNLOCK(p);
+			}
+			PROC_UNLOCK(p);
 		}
 		break;
 	default:
@@ -237,19 +240,17 @@ procfs_ioctl(ap)
 		return ENOTTY;
 	}
 
-	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL)))
+	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL))) {
+		PROC_UNLOCK(procp);
 		return (error == ESRCH ? ENOENT : error);
+	}
 
 	switch (ap->a_command) {
 	case PIOCBIS:
-	  PROC_LOCK(procp);
 	  procp->p_stops |= *(unsigned int*)ap->a_data;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCBIC:
-	  PROC_LOCK(procp);
 	  procp->p_stops &= ~*(unsigned int*)ap->a_data;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCSFL:
 	  /*
@@ -258,20 +259,17 @@ procfs_ioctl(ap)
 	   */
 #define NFLAGS	(PF_ISUGID)
 	  flags = (unsigned char)*(unsigned int*)ap->a_data;
-	  if (flags & NFLAGS && (error = suser(p)))
+	  if (flags & NFLAGS && (error = suser(p))) {
+	    PROC_UNLOCK(procp);
 	    return error;
-	  PROC_LOCK(procp);
+	  }
 	  procp->p_pfsflags = flags;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCGFL:
-	  PROC_LOCK(procp);
 	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
-	  PROC_UNLOCK(procp);
 	  /* FALLTHROUGH */
 	case PIOCSTATUS:
 	  psp = (struct procfs_status *)ap->a_data;
-	  PROC_LOCK(procp);
 	  psp->state = (procp->p_step == 0);
 	  psp->flags = procp->p_pfsflags;
 	  psp->events = procp->p_stops;
@@ -281,11 +279,9 @@ procfs_ioctl(ap)
 	  } else {
 	    psp->why = psp->val = 0;	/* Not defined values */
 	  }
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCWAIT:
 	  psp = (struct procfs_status *)ap->a_data;
-	  PROC_LOCK(procp);
 	  if (procp->p_step == 0) {
 	    error = msleep(&procp->p_stype, &procp->p_mtx, PWAIT | PCATCH,
 	      "piocwait", 0);
@@ -299,10 +295,8 @@ procfs_ioctl(ap)
 	  psp->events = procp->p_stops;
 	  psp->why = procp->p_stype;	/* why it stopped */
 	  psp->val = procp->p_xstat;	/* any extra info */
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCCONT:	/* Restart a proc */
-	  PROC_LOCK(procp);
 	  if (procp->p_step == 0) {
 	    PROC_UNLOCK(procp);
 	    return EINVAL;	/* Can only start a stopped process */
@@ -315,12 +309,13 @@ procfs_ioctl(ap)
 	    psignal(procp, signo);
 	  }
 	  procp->p_step = 0;
-	  PROC_UNLOCK(procp);
 	  wakeup(&procp->p_step);
 	  break;
 	default:
+	  PROC_UNLOCK(procp);
 	  return (ENOTTY);
 	}
+	PROC_UNLOCK(procp);
 	return 0;
 }
 
@@ -436,15 +431,16 @@ procfs_getattr(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		PROC_LOCK(procp);
 		if (procp->p_cred == NULL || procp->p_ucred == NULL) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
-		PROC_UNLOCK(procp);
 
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(procp);
 			return (ENOENT);
+		}
+		PROC_UNLOCK(procp);
 	}
 
 	error = 0;
@@ -657,8 +653,11 @@ procfs_access(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(procp);
 			return (ENOENT);
+		}
+		PROC_UNLOCK(procp);
         }
 
 	vap = &vattr;
@@ -728,8 +727,11 @@ procfs_lookup(ap)
 		if (p == NULL)
 			break;
 
-		if (p_can(curp, p, P_CAN_SEE, NULL))
+		if (p_can(curp, p, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p);
 			break;
+		}
+		PROC_UNLOCK(p);
 
 		return (procfs_allocvp(dvp->v_mount, vpp, pid, Pproc));
 
@@ -747,8 +749,10 @@ procfs_lookup(ap)
 			    (pt->pt_valid == NULL || (*pt->pt_valid)(p)))
 				goto found;
 		}
+		PROC_UNLOCK(p);
 		break;
 	found:
+		PROC_UNLOCK(p);
 		return (procfs_allocvp(dvp->v_mount, vpp, pfs->pfs_pid,
 		    pt->pt_pfstype));
 
@@ -824,8 +828,10 @@ procfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			break;
-		if (p_can(curproc, p, P_CAN_SEE, NULL))
+		if (p_can(curproc, p, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p);
 			break;
+		}
 
 		for (pt = &proc_targets[i];
 		     uio->uio_resid >= delen && i < nproc_targets; pt++, i++) {
@@ -841,6 +847,7 @@ procfs_readdir(ap)
 			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
 				break;
 		}
+		PROC_UNLOCK(p);
 
 	    	break;
 	    }
@@ -962,8 +969,6 @@ procfs_readlink(ap)
 	 */
 	case Pfile:
 		procp = PFIND(pfs->pfs_pid);
-		if (procp != NULL)
-			PROC_LOCK(procp);
 		if (procp == NULL || procp->p_cred == NULL ||
 		    procp->p_ucred == NULL) {
 			if (procp != NULL)

@@ -164,8 +164,11 @@ linprocfs_open(ap)
 		p2 = PFIND(pfs->pfs_pid);
 		if (p2 == NULL)
 			return (ENOENT);
-		if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL))
+		if (pfs->pfs_pid && p_can(ap->a_p, p2, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p2);
 			return (ENOENT);
+		}
+		PROC_UNLOCK(p2);
 	}
 
 	if (nd->nd_action == procfs_domem) {
@@ -216,14 +219,12 @@ linprocfs_close(ap)
 		 * has gone away or forgotten about it.
 		 */
 		if ((ap->a_vp->v_usecount < 2) && (p = PFIND(pfs->pfs_pid))) {
-			PROC_LOCK(p);
 			if (!(p->p_pfsflags & PF_LINGER)) {
 				p->p_stops = 0;
 				p->p_step = 0;
-				PROC_UNLOCK(p);
 				wakeup(&p->p_step);
-			} else
-				PROC_UNLOCK(p);
+			}
+			PROC_UNLOCK(p);
 		}
 	}
 
@@ -250,19 +251,17 @@ linprocfs_ioctl(ap)
 	if (procp == NULL)
 		return ENOTTY;
 
-	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL)))
+	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL))) {
+		PROC_UNLOCK(procp);
 		return (error == ESRCH ? ENOENT : error);
+	}
 
 	switch (ap->a_command) {
 	case PIOCBIS:
-	  PROC_LOCK(procp);
 	  procp->p_stops |= *(unsigned int*)ap->a_data;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCBIC:
-	  PROC_LOCK(procp);
 	  procp->p_stops &= ~*(unsigned int*)ap->a_data;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCSFL:
 	  /*
@@ -271,20 +270,17 @@ linprocfs_ioctl(ap)
 	   */
 #define NFLAGS	(PF_ISUGID)
 	  flags = (unsigned char)*(unsigned int*)ap->a_data;
-	  if (flags & NFLAGS && (error = suser(p)))
+	  if (flags & NFLAGS && (error = suser(p))) {
+	    PROC_UNLOCK(procp);
 	    return error;
-	  PROC_LOCK(procp);
+	  }
 	  procp->p_pfsflags = flags;
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCGFL:
-	  PROC_LOCK(procp);
 	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
-	  PROC_UNLOCK(procp);
 	  /* FALLTHROUGH */
 	case PIOCSTATUS:
 	  psp = (struct procfs_status *)ap->a_data;
-	  PROC_LOCK(procp);
 	  psp->state = (procp->p_step == 0);
 	  psp->flags = procp->p_pfsflags;
 	  psp->events = procp->p_stops;
@@ -294,11 +290,9 @@ linprocfs_ioctl(ap)
 	  } else {
 	    psp->why = psp->val = 0;	/* Not defined values */
 	  }
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCWAIT:
 	  psp = (struct procfs_status *)ap->a_data;
-	  PROC_LOCK(procp);
 	  if (procp->p_step == 0) {
 	    error = msleep(&procp->p_stype, &procp->p_mtx, PWAIT | PCATCH,
 	      "piocwait", 0);
@@ -312,10 +306,8 @@ linprocfs_ioctl(ap)
 	  psp->events = procp->p_stops;
 	  psp->why = procp->p_stype;	/* why it stopped */
 	  psp->val = procp->p_xstat;	/* any extra info */
-	  PROC_UNLOCK(procp);
 	  break;
 	case PIOCCONT:	/* Restart a proc */
-	  PROC_LOCK(procp);
 	  if (procp->p_step == 0) {
 	    PROC_UNLOCK(procp);
 	    return EINVAL;	/* Can only start a stopped process */
@@ -328,12 +320,13 @@ linprocfs_ioctl(ap)
 	    psignal(procp, signo);
 	  }
 	  procp->p_step = 0;
-	  PROC_UNLOCK(procp);
 	  wakeup(&procp->p_step);
 	  break;
 	default:
+	  PROC_UNLOCK(procp);
 	  return (ENOTTY);
 	}
+	PROC_UNLOCK(procp);
 	return 0;
 }
 
@@ -466,14 +459,15 @@ linprocfs_getattr(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		PROC_LOCK(procp);
 		if (procp->p_cred == NULL || procp->p_ucred == NULL) {
 			PROC_UNLOCK(procp);
 			return (ENOENT);
 		}
-		PROC_UNLOCK(procp);
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(procp);
 			return (ENOENT);
+		}
+		PROC_UNLOCK(procp);
 	} else {
 		procp = NULL;
 	}
@@ -589,8 +583,11 @@ linprocfs_access(ap)
 		procp = PFIND(pfs->pfs_pid);
 		if (procp == NULL)
 			return (ENOENT);
-		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(procp);
 			return (ENOENT);
+		}
+		PROC_UNLOCK(procp);
 	}
 
 	vap = &vattr;
@@ -676,8 +673,11 @@ linprocfs_lookup(ap)
 		if (p == NULL)
 			goto done;
 
-		if (p_can(curp, p, P_CAN_SEE, NULL))
+		if (p_can(curp, p, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p);
 			goto done;
+		}
+		PROC_UNLOCK(p);
 
 		error = linprocfs_allocvp(dvp->v_mount, vpp, pid, proc_dir);
 	}
@@ -746,8 +746,11 @@ linprocfs_readdir(ap)
 		p = PFIND(pfs->pfs_pid);
 		if (p == NULL)
 			goto done;
-		if (p_can(curproc, p, P_CAN_SEE, NULL))
+		if (p_can(curproc, p, P_CAN_SEE, NULL)) {
+			PROC_UNLOCK(p);
 			goto done;
+		}
+		PROC_UNLOCK(p);
 	}
 
 	/*
