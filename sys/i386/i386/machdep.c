@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.157 1995/12/10 13:36:26 phk Exp $
+ *	$Id: machdep.c,v 1.158 1995/12/13 15:12:23 julian Exp $
  */
 
 #include "npx.h"
@@ -1245,7 +1245,7 @@ extern inthand_t
 	IDTVEC(page), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(syscall);
 
-#ifdef COMPAT_LINUX
+#if defined(COMPAT_LINUX) || defined(LINUX)
 extern inthand_t
 	IDTVEC(linux_syscall);
 #endif
@@ -1344,7 +1344,7 @@ init386(first)
 	setidt(15, &IDTVEC(rsvd),  SDT_SYS386TGT, SEL_KPL);
 	setidt(16, &IDTVEC(fpu),  SDT_SYS386TGT, SEL_KPL);
 	setidt(17, &IDTVEC(align), SDT_SYS386TGT, SEL_KPL);
-#ifdef COMPAT_LINUX
+#if defined(COMPAT_LINUX) || defined(LINUX)
  	setidt(0x80, &IDTVEC(linux_syscall),  SDT_SYS386TGT, SEL_UPL);
 #endif
 
