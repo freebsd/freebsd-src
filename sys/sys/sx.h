@@ -70,11 +70,13 @@ void	_sx_assert(struct sx *sx, int what, const char *file, int line);
 #define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
 
-#ifdef INVARIANTS
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	SX_LOCKED		LA_LOCKED
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED
+#endif	/* INVARIANTS || INVARIANT_SUPPORT */
 
+#ifdef INVARIANTS
 #define	sx_assert(sx, what)	_sx_assert((sx), (what), LOCK_FILE, LOCK_LINE)
 #else	/* INVARIANTS */
 #define	sx_assert(sx, what)
