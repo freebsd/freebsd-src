@@ -228,9 +228,6 @@ int awi_dump_len = 28;
 #endif
 
 #ifdef __FreeBSD__
-#if __FreeBSD__ < 4
-#define	memset(p, v, n)		bzero(p, n)		/*XXX*/
-#endif
 
 #if __FreeBSD__ >= 4
 devclass_t awi_devclass;

@@ -186,3 +186,18 @@ void	awi_reset __P((struct awi_softc *));
 int	awi_activate __P((struct device *, enum devact));
 int	awi_detach __P((struct awi_softc *));
 #endif
+
+#ifdef __FreeBSD__
+static __inline int
+memcmp(const void *b1, const void *b2, size_t len)
+{
+	return (bcmp(b1, b2, len));
+}
+
+static __inline void *
+memset(void *b, int c, size_t len)
+{
+	bzero(b, len);
+	return (b);
+}
+#endif
