@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.62 1994/09/14 23:55:53 wollman Exp $
+ *	$Id: machdep.c,v 1.63 1994/09/15 10:52:46 davidg Exp $
  */
 
 #include "npx.h"
@@ -133,6 +133,8 @@ int	bouncepages = 0;
 extern int freebufspace;
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
+
+extern int adjkerntz;
 
 /*
  * Machine-dependent startup code
@@ -916,6 +918,8 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	case CPU_CONSDEV:
 		return (sysctl_rdstruct(oldp, oldlenp, newp, &cn_tty->t_dev,
 		   sizeof cn_tty->t_dev));
+	case CPU_ADJKERNTZ:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz));
 	default:
 		return (EOPNOTSUPP);
 	}
