@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
 #else
 static const char rcsid[] =
-	"$Id: mount_ufs.c,v 1.11 1998/03/08 14:50:04 msmith Exp $";
+	"$Id: mount_ufs.c,v 1.12 1998/03/08 19:03:05 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -84,8 +84,8 @@ mount_ufs(argc, argv)
 	struct vfsconf vfc;
 	int error = 0;
 #ifdef ROOTSLICE_HUNT
-	int slice, part, result, unit;
-	char devbuf[MAXPATHLEN], devpfx[MAXPATHLEN];
+	int slice, result, unit;
+	char part, devbuf[MAXPATHLEN], devpfx[MAXPATHLEN];
 #endif
 
 	mntflags = 0;
