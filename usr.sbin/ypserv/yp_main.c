@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $
+ *	$Id: yp_main.c,v 1.12 1996/12/30 18:51:59 peter Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.3 1996/05/01 02:39:34 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_main.c,v 1.12 1996/12/30 18:51:59 peter Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -77,14 +77,15 @@ static int _rpcfdtype;
 #define	_SERVED 1
 #define	_SERVING 2
 
-extern void ypprog_1 __P((struct svc_req, register SVCXPRT));
-extern void ypprog_2 __P((struct svc_req, register SVCXPRT));
+extern void ypprog_1 __P((struct svc_req *, register SVCXPRT *));
+extern void ypprog_2 __P((struct svc_req *, register SVCXPRT *));
 extern int _rpc_dtablesize __P((void));
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
 char *yp_dir = _PATH_YP;
 int debug = 0;
 int do_dns = 0;
+int resfd;
 
 static
 void _msgout(char* msg)
@@ -109,6 +110,7 @@ yp_svc_run()
 	extern int forked;
 	int pid;
 	int fd_setsize = _rpc_dtablesize();
+	struct timeval timeout;
 
 	/* Establish the identity of the parent ypserv process. */
 	pid = getpid();
@@ -119,8 +121,13 @@ yp_svc_run()
 #else
 		readfds = svc_fds;
 #endif /* def FD_SETSIZE */
+
+		FD_SET(resfd, &readfds);
+
+		timeout.tv_sec = RESOLVER_TIMEOUT;
+		timeout.tv_usec = 0;
 		switch (select(fd_setsize, &readfds, NULL, NULL,
-			       (struct timeval *)0)) {
+			       &timeout)) {
 		case -1:
 			if (errno == EINTR) {
 				continue;
@@ -128,8 +135,13 @@ yp_svc_run()
 			perror("svc_run: - select failed");
 			return;
 		case 0:
-			continue;
+			yp_prune_dnsq();
+			break;
 		default:
+			if (FD_ISSET(resfd, &readfds)) {
+				yp_run_dnsq();
+				FD_CLR(resfd, &readfds);
+			}
 			svc_getreqset(&readfds);
 			if (forked && pid != getpid())
 				exit(0);
@@ -230,6 +242,7 @@ main(argc, argv)
 	}
 
 	load_securenets();
+	yp_init_resolver();
 #ifdef DB_CACHE
 	yp_init_dbs();
 #endif
