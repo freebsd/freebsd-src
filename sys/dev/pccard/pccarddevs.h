@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.36 2002/10/11 07:00:30 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.37 2002/11/14 05:06:25 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.177 2002/09/15 17:43:48 bouyer Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -486,7 +486,10 @@
 #define	PCMCIA_STR_NEWMEDIA_BUSTOASTER2	"New Media SCSI Bus Toaster"
 #define	PCMCIA_CIS_NEWMEDIA_BUSTOASTER	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NEWMEDIA_BUSTOASTER	0xc102
-#define	PCMCIA_STR_NEWMEDIA_BUSTOASTER	"New Media BusToaster SCSI Host Adapter"
+#define	PCMCIA_STR_NEWMEDIA_BUSTOASTER	"New Media SCSI Bus Toaster"
+#define	PCMCIA_CIS_NEWMEDIA_BUSTOASTER3	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_NEWMEDIA_BUSTOASTER3	0xd302
+#define	PCMCIA_STR_NEWMEDIA_BUSTOASTER3	"New Media SCSI Bus Toaster"
 #define	PCMCIA_CIS_NEWMEDIA_WAVJAMMER	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NEWMEDIA_WAVJAMMER	0xe005
 #define	PCMCIA_STR_NEWMEDIA_WAVJAMMER	"NewMedia .WAVjammer"
