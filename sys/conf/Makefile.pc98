@@ -123,22 +123,22 @@ SYSTEM_DEP+= $S/i386/conf/kernel.script
 
 %CLEAN
 
-all:	${KERNEL}
+all: ${KERNEL}
 
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL}
 .else
 FULLKERNEL=	${KERNEL}.debug
-${KERNEL}:	${FULLKERNEL}
+${KERNEL}: ${FULLKERNEL}
 .if ${KERNFORMAT} == "elf"
 	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
 .else
 	cp ${FULLKERNEL} ${KERNEL}
-	strip -d ${KERNEL}
+	strip -aout -d ${KERNEL}
 .endif
 .endif
 
-${FULLKERNEL}:	${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -235,13 +235,6 @@ install install.debug:
 	-chflags noschg ${DESTDIR}/${KERNEL}
 	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
 .endif
-	PATH=$${PATH}:/sbin:/usr/sbin; \
-	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
-		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
-		if [ -f /var/db/kvm_${KERNEL}.db ] ; then \
-			mv -f /var/db/kvm_${KERNEL}.db /var/db/kvm_${KERNEL}.old.db ; \
-		fi \
-	fi
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
 
