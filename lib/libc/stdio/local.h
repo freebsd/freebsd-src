@@ -93,9 +93,10 @@ struct __sFILEX {
 };
 
 /*
- * Return true iff the given FILE cannot be written now.
+ * Prepare the given FILE for writing, and return 0 iff it
+ * can be written now.  Otherwise, return EOF and set errno.
  */
-#define	cantwrite(fp) \
+#define	prepwrite(fp) \
  	((((fp)->_flags & __SWR) == 0 || \
  	    ((fp)->_bf._base == NULL && ((fp)->_flags & __SSTR) == 0)) && \
 	 __swsetup(fp))

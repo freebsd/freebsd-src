@@ -648,7 +648,7 @@ __vfwprintf(FILE *fp, const wchar_t *fmt0, va_list ap)
 #endif
 	convbuf = NULL;
 	/* sorry, fwprintf(read_only_file, L"") returns WEOF, not 0 */
-	if (cantwrite(fp))
+	if (prepwrite(fp) != 0)
 		return (EOF);
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
