@@ -236,7 +236,7 @@ product CONTEC CNETPC		0x0000 Contec C-NET(PC)C
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
 /* RATOC System Inc. Products */
-product RATOC REX_R280		0x1	RATOC REX-R280
+product RATOC REX_R280		0x0001 RATOC REX-R280
 
 /* Lucent WaveLAN/IEEE */
 product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
