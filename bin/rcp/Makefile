@@ -18,8 +18,8 @@ DISTRIBUTION=	krb
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
 
-#BINOWN=	root
-#BINMODE=4555
-#INSTALLFLAGS=-fschg
+BINOWN=	root
+BINMODE=4555
+INSTALLFLAGS=-fschg
 
 .include <bsd.prog.mk>
