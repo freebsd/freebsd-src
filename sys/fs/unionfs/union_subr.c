@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.29 1998/02/26 03:23:54 kato Exp $
+ * $Id: union_subr.c,v 1.30 1998/05/07 04:58:36 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ extern int	union_init __P((void));
 
 /* unsigned int ... */
 #define UNION_HASH(u, l) \
-	(((((unsigned long) (u)) + ((unsigned long) l)) >> 8) & (NHASH-1))
+	(((((uintptr_t) (u)) + ((uintptr_t) l)) >> 8) & (NHASH-1))
 
 static LIST_HEAD(unhead, union_node) unhead[NHASH];
 static int unvplock[NHASH];
