@@ -69,7 +69,9 @@ static const char rcsid[] =
 #include "less.h"
 #include "pathnames.h"
 
-static getint(), getstr_free();
+static int getint __P((long *numb, const char **line));
+
+static getstr_free();
 static void **getstr_raisectxt();
 
 /* The internal command table. */
@@ -250,7 +252,7 @@ void **getstr_curctxt = getstr_ctxts;
  */
 static char *
 getstr(line)
-	char **line;	/* Where to look for the return string */
+	const char **line;	/* Where to look for the return string */
 {
 	int doquotes = 0;  /* Doing a double-quote string */
 	char *retr;
@@ -265,7 +267,7 @@ getstr(line)
 	if (**line == '\'') {
 		/* Read until closing quote or '\0'. */
 		char *nextw = retr = malloc(1);
-		char *c = ++(*line);
+		const char *c = ++(*line);
 		int l;
 		for (; *c; c++) {
 			if (*c == '\'') {
@@ -300,11 +302,11 @@ getstr(line)
 	if (**line == '(') {
 		/* An arithmetic expression instead of a string...  Well, I
 		 * guess this is valid.  See comment leading this function. */
-		int n;
+		long n;
 		if (getint(&n, line))
 			return NULL;
 		retr = NULL;
-		asprintf(&retr, "%d", n);
+		asprintf(&retr, "%ld", n);
 		if (!retr)
 			SETERR (E_MALLOC);
 		*getstr_curctxt = retr;
@@ -427,11 +429,12 @@ getstr_free(context)
 static int
 getint(numb, line)
 	long *numb;	/* The read-in number is returned through this */
-	char **line;	/* The command line from which to read numb */
+	const char **line;	/* The command line from which to read numb */
 {
 	long n;
 	int j;
-	char *p, *t;
+	char *p;
+	const char *t;
 
 	while (isspace(**line)) (*line)++;
 
@@ -1030,7 +1033,7 @@ cflush(cident, args)
 static const char *
 cscroll(cident, args)
 	enum cident cident;
-	char *args;
+	const char *args;
 {
 	long n;
 	char *retr;
