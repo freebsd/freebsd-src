@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.10 1998/05/01 19:24:41 brian Exp $
+ *	$Id: id.c,v 1.8 1998/05/21 21:45:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -165,6 +165,19 @@ ID0uu_lock(const char *basettyname)
   ID0set0();
   ret = uu_lock(basettyname);
   log_Printf(LogID0, "%d = uu_lock(\"%s\")\n", ret, basettyname);
+  ID0setuser();
+  return ret;
+}
+
+int
+ID0uu_lock_txfr(const char *basettyname, pid_t newpid)
+{
+  int ret;
+
+  ID0set0();
+  ret = uu_lock_txfr(basettyname, newpid);
+  log_Printf(LogID0, "%d = uu_lock_txfr(\"%s\", %d)\n", ret, basettyname,
+             (int)newpid);
   ID0setuser();
   return ret;
 }

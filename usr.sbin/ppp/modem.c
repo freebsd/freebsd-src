@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.84 1998/05/25 02:22:37 brian Exp $
+ * $Id: modem.c,v 1.85 1998/05/25 10:37:02 brian Exp $
  *
  *  TODO:
  */
@@ -991,8 +991,6 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
   len = strlen(_PATH_DEV);
   p->name.base = strncmp(p->name.full, _PATH_DEV, len) ?
                         p->name.full : p->name.full + len;
-  p->mbits = 0;
-  p->dev_is_modem = 1;
   p->out = NULL;
   p->connect_count = 1;
 
@@ -1031,14 +1029,13 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
     p->Timer.state = TIMER_STOPPED;	/* Special - see modem2iov() */
     modem_StartTimer(dl->bundle, p);
   }
-  /* Don't need to lock the device in -direct mode */
-  /* XXX: What if it's not a -direct link ! */
 
   return p;
 }
 
 int
-modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
+modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
+          pid_t newpid)
 {
   if (p) {
     hdlc_StopTimer(&p->hdlc);
@@ -1055,6 +1052,7 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
         p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
     }
     timer_Stop(&p->link.throughput.Timer);
+    modem_ChangedPid(p, newpid);
   }
 
   if (*niov >= maxiov) {
@@ -1069,4 +1067,15 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
   (*niov)++;
 
   return p ? p->fd : 0;
+}
+
+void
+modem_ChangedPid(struct physical *p, pid_t newpid)
+{
+  if (p->type != PHYS_DIRECT) {
+    int res;
+
+    if ((res = ID0uu_lock_txfr(p->name.base, newpid)) != UU_LOCK_OK)
+      log_Printf(LogPHASE, "uu_lock_txfr: %s\n", uu_lockerr(res));
+  }
 }
