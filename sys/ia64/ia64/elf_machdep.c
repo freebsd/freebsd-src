@@ -49,7 +49,9 @@
 #include <machine/md_var.h>
 #include <machine/unwind.h>
 
-static int ia64_coredump(struct thread *, struct vnode *, off_t);
+Elf_Addr link_elf_get_gp(linker_file_t);
+
+extern Elf_Addr fptr_storage[];
 
 struct sysentvec elf64_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
@@ -66,7 +68,7 @@ struct sysentvec elf64_freebsd_sysvec = {
 	NULL,		/* &szsigcode */
 	NULL,
 	"FreeBSD ELF64",
-	ia64_coredump,
+	__elfN(coredump),
 	NULL,
 	MINSIGSTKSZ,
 	PAGE_SIZE,
@@ -81,66 +83,39 @@ struct sysentvec elf64_freebsd_sysvec = {
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {
-						ELFOSABI_FREEBSD,
-						EM_IA_64,
-						"FreeBSD",
-						NULL,
-						"/libexec/ld-elf.so.1",
-						&elf64_freebsd_sysvec,
-						NULL,
-					  };
-
+	ELFOSABI_FREEBSD,
+	EM_IA_64,
+	"FreeBSD",
+	NULL,
+	"/libexec/ld-elf.so.1",
+	&elf64_freebsd_sysvec,
+	NULL,
+};
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf64_insert_brand_entry,
-	&freebsd_brand_info);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
 
 static Elf64_Brandinfo freebsd_brand_oinfo = {
-						ELFOSABI_FREEBSD,
-						EM_IA_64,
-						"FreeBSD",
-						NULL,
-						"/usr/libexec/ld-elf.so.1",
-						&elf64_freebsd_sysvec,
-						NULL,
-					  };
-
+	ELFOSABI_FREEBSD,
+	EM_IA_64,
+	"FreeBSD",
+	NULL,
+	"/usr/libexec/ld-elf.so.1",
+	&elf64_freebsd_sysvec,
+	NULL,
+};
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf64_insert_brand_entry,
-	&freebsd_brand_oinfo);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
 
-Elf_Addr link_elf_get_gp(linker_file_t);
 
-extern Elf_Addr fptr_storage[];
-
-static int
-ia64_coredump(struct thread *td, struct vnode *vp, off_t limit)
+void
+elf64_dump_thread(struct thread *td, void *dst, size_t *off __unused)
 {
-	struct trapframe *tf;
-	uint64_t bspst, kstk, ndirty, rnat;
 
-	tf = td->td_frame;
-	ndirty = tf->tf_special.ndirty;
-	if (ndirty != 0) {
-		kstk = td->td_kstack + (tf->tf_special.bspstore & 0x1ffUL);
-		__asm __volatile("mov	ar.rsc=0;;");
-		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		/* Make sure we have all the user registers written out. */
-		if (bspst - kstk < ndirty) {
-			__asm __volatile("flushrs;;");
-			__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
-		}
-		__asm __volatile("mov	%0=ar.rnat;;" : "=r"(rnat));
-		__asm __volatile("mov	ar.rsc=3");
-		copyout((void*)kstk, (void*)tf->tf_special.bspstore, ndirty);
-		kstk += ndirty;
-		tf->tf_special.bspstore += ndirty;
-		tf->tf_special.ndirty = 0;
-		tf->tf_special.rnat =
-		    (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
-		    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
-	}
-	return (elf64_coredump(td, vp, limit));
+	/* Flush the dirty registers onto the backingstore. */
+	if (dst == NULL)
+		ia64_flush_dirty(td, &td->td_frame->tf_special);
 }
+
 
 static Elf_Addr
 lookup_fdesc(linker_file_t lf, Elf_Word symidx, elf_lookup_fn lookup)

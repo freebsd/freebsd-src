@@ -65,6 +65,7 @@ extern	char	esigcode[];
 extern	int	szsigcode;
 extern	long	Maxmem;
 
+struct _special;
 struct fpreg;
 struct reg;
 struct thread;
@@ -75,6 +76,7 @@ int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);
 int	do_ast(struct trapframe *);
 int	ia64_count_cpus(void);
+void	ia64_flush_dirty(struct thread *, struct _special *);
 int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_save(struct thread *);
 void	ia64_init(void);

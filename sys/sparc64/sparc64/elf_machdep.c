@@ -115,6 +115,14 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
+
+void
+elf64_dump_thread(struct thread *td __unused, void *dst __unused,
+    size_t *off __unused)
+{
+}
+
+
 /*
  * The following table holds for each relocation type:
  *	- the width in bits of the memory location the relocation

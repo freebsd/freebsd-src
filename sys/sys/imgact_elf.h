@@ -76,6 +76,9 @@ int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(freebsd_fixup)(register_t **, struct image_params *);
 int	__elfN(coredump)(struct thread *, struct vnode *, off_t);
 
+/* Machine specific function to dump per-thread information. */
+void	__elfN(dump_thread)(struct thread *, void *, size_t *);
+
 extern	int __elfN(fallback_brand);
 
 #endif /* _KERNEL */
