@@ -727,7 +727,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_i
 	 *       the end of the list.
 	 */
 	unit = *up;
-	low = 0;
+	low = extra;
 	de = dl = NULL;
 	cd = *cdp;
 	LIST_FOREACH(dev, &cd->head, si_clone) {
@@ -741,14 +741,14 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_i
 			de = dev;
 			continue;
 		}
-		if (u > unit) {
+		if (u > (unit | extra)) {
 			dl = dev;
 			break;
 		}
 		de = dev;
 	}
 	if (unit == -1)
-		unit = low;
+		unit = low & CLONE_UNITMASK;
 	dev = makedev(csw->d_maj, unit2minor(unit | extra));
 	KASSERT(!(dev->si_flags & SI_CLONELIST),
 	    ("Dev %p should not be on clonelist", dev));
