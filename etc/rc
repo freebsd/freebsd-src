@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.153 1998/09/07 17:18:36 cracauer Exp $
+#	$Id: rc,v 1.154 1998/09/09 22:27:21 jraynard Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -337,6 +337,9 @@ if [ "X${local_startup}" != X"NO" ]; then
 	done
 	echo .
 fi
+
+# Run rc.devfs if present to customify devfs
+[ -f /etc/rc.devfs ] && sh /etc/rc.devfs
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
 [ -f /etc/rc.local ] && sh /etc/rc.local
