@@ -38,8 +38,8 @@
  *	@(#)dumprestore.h	8.2 (Berkeley) 1/21/94
  */
 
-#ifndef _DUMPRESTORE_H_
-#define _DUMPRESTORE_H_
+#ifndef _PROTOCOLS_DUMPRESTORE_H_
+#define _PROTOCOLS_DUMPRESTORE_H_
 
 /*
  * TP_BSIZE is the size of file blocks on the dump tapes.
