@@ -2873,7 +2873,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 #if __FreeBSD_version < 500000
 		register_swi (SWI_TTY, cx_softintr);
 #else
-		swi_add(&tty_ithd, "tty:cx", cx_softintr, NULL, SWI_TTY, 0,
+		swi_add(&tty_ithd, "cx", cx_softintr, NULL, SWI_TTY, 0,
 		    &cx_fast_ih);
 #endif
 		break;
