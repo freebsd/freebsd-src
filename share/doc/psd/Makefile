@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.10 1997/02/22 13:04:15 peter Exp $
+#	$Id: Makefile,v 1.11 1997/03/04 18:20:20 wosch Exp $
 
 # The following modules do not build/install:
 # 10.gdb
@@ -11,7 +11,6 @@
 # The following modules do not apply to FreeBSD:
 # 07.pascal 08.f77 09.f77io
 
-BINDIR=	/usr/share/doc/psd
 SUBDIR=	 title contents 
 SUBDIR+= 05.sysman 12.make 13.rcs 18.gprof 19.curses 20.ipctut 21.ipc
 
