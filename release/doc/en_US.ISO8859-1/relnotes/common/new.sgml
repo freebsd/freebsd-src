@@ -317,7 +317,8 @@
       <para>CARP (Common Address Redundancy Protocol) has
 	been implemented.  CARP comes from OpenBSD and allows
 	multiple hosts to share an IP address, providing
-	high availability and load balancing.</para>
+	high availability and load balancing.
+	For more information, see &man.carp.4; manual page.</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
 	of the &man.altq.4;, packets via a divert socket,
