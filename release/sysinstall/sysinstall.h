@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.8 1995/06/03 09:49:54 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.9 1995/06/03 09:59:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -326,6 +326,7 @@ extern int	distSetXUser(char *str);
 extern int	distSetMinimum(char *str);
 extern int	distSetEverything(char *str);
 extern int	distSetSrc(char *str);
+extern int	distSetXF86(char *str);
 extern void	distExtractAll(void);
 
 /* dmenu.c */
