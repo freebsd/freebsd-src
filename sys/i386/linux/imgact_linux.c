@@ -28,8 +28,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.15 1996/05/02 10:43:12 phk Exp $
+ *	$Id: imgact_linux.c,v 1.16 1996/09/03 22:19:16 bde Exp $
  */
+
+#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.28 1996/05/02 10:43:16 phk Exp $
+ *	$Id: imgact_aout.c,v 1.29 1996/08/31 16:52:22 bde Exp $
  */
+
+#include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
