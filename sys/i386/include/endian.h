@@ -55,6 +55,10 @@
 
 #ifndef KERNEL
 #include <sys/cdefs.h>
+#else
+#ifndef ACTUALLY_LKM_NOT_KERNEL
+#include "opt_cpu.h"
+#endif
 #endif
 
 #define __word_swap_long(x) \
