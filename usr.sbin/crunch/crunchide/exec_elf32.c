@@ -155,7 +155,13 @@ ELFNAMEEND(check)(int fd, const char *fn)
 	switch (xe16toh(eh.e_machine)) {
 	case EM_386: break;
 	case EM_ALPHA: break;
+#ifndef EM_IA_64
+#define	EM_IA_64	50
+#endif
 	case EM_IA_64: break;
+#ifndef EM_SPARCV9
+#define	EM_SPARCV9	43
+#endif
 	case EM_SPARCV9: break;
 /*        ELFDEFNNAME(MACHDEP_ID_CASES) */
 
