@@ -263,10 +263,29 @@ PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
  * These should be used in preference to manually manipulating
  * configuration space.
  */
-extern void	pci_enable_busmaster(device_t dev);
-extern void	pci_disable_busmaster(device_t dev);
-extern void	pci_enable_io(device_t dev, int space);
-extern void	pci_disable_io(device_t dev, int space);
+static __inline void
+pci_enable_busmaster(device_t dev)
+{
+    PCI_ENABLE_BUSMASTER(device_get_parent(dev), dev);
+}
+
+static __inline void
+pci_disable_busmaster(device_t dev)
+{
+    PCI_DISABLE_BUSMASTER(device_get_parent(dev), dev);
+}
+
+static __inline void
+pci_enable_io(device_t dev, int space)
+{
+    PCI_ENABLE_IO(device_get_parent(dev), dev, space);
+}
+
+static __inline void
+pci_disable_io(device_t dev, int space)
+{
+    PCI_DISABLE_IO(device_get_parent(dev), dev, space);
+}
 
 /*
  * PCI power states are as defined by ACPI:
@@ -289,8 +308,17 @@ extern void	pci_disable_io(device_t dev, int space);
 #define PCI_POWERSTATE_D3	3
 #define PCI_POWERSTATE_UNKNOWN	-1
 
-extern int	pci_set_powerstate(device_t dev, int state);
-extern int	pci_get_powerstate(device_t dev);
+static __inline int
+pci_set_powerstate(device_t dev, int state)
+{
+    return PCI_SET_POWERSTATE(device_get_parent(dev), dev, state);
+}
+
+static __inline int
+pci_get_powerstate(device_t dev)
+{
+    return PCI_GET_POWERSTATE(device_get_parent(dev), dev);
+}
 
 #endif	/* _SYS_BUS_H_ */
 

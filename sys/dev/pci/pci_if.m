@@ -44,3 +44,36 @@ METHOD void write_config {
 	u_int32_t	val;
 	int		width;
 };
+
+METHOD int get_powerstate {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD int set_powerstate {
+	device_t	dev;
+	device_t	child;
+	int		state;
+};
+
+METHOD void enable_busmaster {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD void disable_busmaster {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD void enable_io {
+	device_t	dev;
+	device_t	child;
+	int		space;
+};
+
+METHOD void disable_io {
+	device_t	dev;
+	device_t	child;
+	int		space;
+};
