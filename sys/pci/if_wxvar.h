@@ -77,6 +77,7 @@
 #include <pci/if_wxreg.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <sys/sysctl.h>
 
 #define	NBPFILTER	1
 
@@ -180,7 +181,8 @@ typedef struct wx_softc {
 	/*
 	 * misc goodies
 	 */
-	u_int32_t		:	23,
+	u_int32_t		:	22,
+		wx_needreinit	:	1,
 		wx_mii		:	1,	/* non-zero if we have a PHY */
 		wx_no_flow 	:	1,
 		wx_ilos		:	1,
@@ -192,7 +194,7 @@ typedef struct wx_softc {
 		all_mcasts	:	1;
 	u_int32_t wx_idnrev;		/* chip revision && PCI ID */
 	u_int16_t wx_cfg1;
-	u_int16_t wx_txint_delay;
+	u_int16_t wx_unused;
 	u_int32_t wx_ienable;		/* current ienable to use */
 	u_int32_t wx_dcr;		/* dcr used */
 	u_int32_t wx_icr;		/* last icr */
@@ -203,15 +205,16 @@ typedef struct wx_softc {
 	u_int32_t	wx_intr;
 	u_int32_t	wx_linkintr;
 	u_int32_t	wx_rxintr;
+	u_int32_t	wx_txqe;
 	u_int32_t	wx_xmitgc;
 	u_int32_t	wx_xmitpullup;
 	u_int32_t	wx_xmitcluster;
 	u_int32_t	wx_xmitputback;
 	u_int32_t	wx_xmitwanted;
 	u_int32_t	wx_xmitblocked;
-	u_int32_t	wx_xmitblocked1;
 	u_int32_t	wx_xmitrunt;
 	u_int32_t	wx_rxnobuf;
+	u_int32_t	wx_oddpkt;
 
 	/*
 	 * Soft copies of multicast addresses. We're only
