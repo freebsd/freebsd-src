@@ -155,9 +155,12 @@ ENTRY(pcb_save,0)
 	st8	[r8]=r17,16		// ar.rnat
 	st8	[r9]=r18,16		// ar.lc
 	;;
+{	.mmb
 	st8	[r8]=r19,16		// pc_current_pmap
+#ifdef IA32
 	mov	r16=ar.fcr
 	;;
+}
 	st8	[r9]=r16,16		// ar.fcr
 	mov	r17=ar.eflag
 	;;
@@ -178,6 +181,7 @@ ENTRY(pcb_save,0)
 	;;
 {	.mmb
 	st8	[r9]=r16,16		// ar.fdr
+#endif
 	mov	ar.rsc=3
 	br.sptk.many b6
 	;;
@@ -279,10 +283,13 @@ ENTRY(pcb_restore,0)
 {	.mmi
 	invala
 	;;
+#ifdef IA32
 	ld8	r16=[r9],16		// ar.fcr
+#endif
 	mov	r18=ar.lc
 	;;
 }
+#ifdef IA32
 	ld8	r17=[r8],16		// ar.eflag
 	mov	ar.fcr=r16
 	;;
@@ -301,8 +308,11 @@ ENTRY(pcb_restore,0)
 	ld8	r16=[r9],16		// ar.fdr
 	mov	ar.fir=r17
 	;;
+#endif
 {	.mmb
+#ifdef IA32
 	mov	ar.fdr=r16
+#endif
 	mov	ar.rsc=3
 	br.ret.sptk b0
 	;;
