@@ -1,0 +1,692 @@
+.\" Copyright (c) 1995
+.\"	Jordan K. Hubbard
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     $Id: rc.conf.5,v 1.5.2.3 1997/02/28 03:27:26 mpp Exp $
+.\"
+.Dd April 26, 1997
+.Dt RC.CONF 5
+.Os FreeBSD 2.2.2
+.Sh NAME
+.Nm rc.conf
+.Nd local configuration information.
+.Sh DESCRIPTION
+The file
+.Nm rc.conf
+contains descriptive information about the local host name, configuration
+details for any potential network interfaces and which services should be
+started up at system initial boot time.  In new installations, the
+.Nm rc.conf
+file is generally initialized by the system installation utility:
+.Pa /stand/sysinstall .
+.Pp
+It is the duty of the system administrator to properly maintain this file
+as changes occur on the local host.
+.Sh FILES
+.Bl -tag -width /etc/rc.conf -compact
+.It Pa /etc/rc.conf
+.El
+.Sh DESCRIPTION
+The purpose of
+.Nm
+is not to run commands or perform system startup actions
+directly.  Instead, it is included by the
+various generic startup scripts in
+.Pa /etc
+which conditionalize their
+internal actions according to the settings found there.
+.Pp
+The following list provides a name and short description for each
+variable you can set in the
+.Nm
+file:
+.Bl -tag -width Ar
+.It Ar swapfile
+(str) If set to
+.Ar NO
+then no swapfile is installed, otherwise the value is used as the full
+pathname to a file to use for additional swap space.
+.It Ar apm_enable
+(bool) If set to
+.Ar YES ,
+enable support for Automatic Power Management with
+the
+.Xr apm 8
+command.
+.It Ar pccard_enable
+(bool) If set to
+.Ar YES ,
+enable PCCARD support at boot time.
+.It Ar pccard_mem
+(str) Set to PCCARD controller memory address or
+.Ar DEFAULT
+for the default value.
+.It Ar pccard_ifconfig
+(str) List of ethernet devices (e.g.
+.Ar "ed0 ed1 ep0 ..." )
+which should be dynamically ifconfig'd on insertion or boot.
+.It Ar local_startup
+(str) List of directories to search for startup script files.
+.It Ar local_periodic
+(str) List of directories to search for periodic scripts (3.0 only).
+.It Ar hostname
+(str) The Fully Qualified Domain Name of your host on the network.
+This should almost certainly be set to something meaningful, even if
+you've no network connected.
+.It Ar nisdomainname
+(str) The NIS domainname of your host, or
+.Ar NO
+if you're not running NIS.
+.It Ar firewall
+(str) Set to
+.Ar NO
+if you don't want to use one of the firewall definitions in
+.Pa /etc/rc.firewall ,
+otherwise it should name of one of the firewalls defined there.
+.It Ar tcp_extensions
+(bool) Set to
+.Ar YES
+by default, this enables certain TCP options as described by
+Internet RFCs 1323 and 1644.  If you have problems with connections
+randomly hanging or other weird behavior of such nature, you might
+try setting this to
+.Ar NO
+and seeing if that helps.  Some hardware/software out there is known
+to be broken with respect to these options.
+.It Ar network_interfaces
+(str) Set to the list of network interfaces to configure on this host.
+For example, if you had a loopback device (standard) and an SMC Elite
+Ultra NIC, you might have this set to
+.Qq Ar "lo0 ed0"
+for the two interfaces.  An 
+.No ifconfig_ Ns Em interface
+variable is also assumed to exist for each value of 
+.Em interface .
+It is also possible to add IP alias entries here in cases where you
+want a single interface to have multiple IP addresses registered against
+it.
+Assuming that the interface in question was ed0, it might look
+something like this:
+.Bd -literal
+ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff" 
+ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
+
+.Ed
+And so on.  For each ifconfig_<interface>_alias<n> entry that is
+found, its contents are passed to
+.Xr ifconfig 8 .
+Execution stops at the first unsuccessful access, so if you
+had something like:
+.Bd -literal
+ifconfig_ed0_alias0="inet 127.0.0.251 netmask 0xffffffff"
+ifconfig_ed0_alias1="inet 127.0.0.252 netmask 0xffffffff"
+ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
+ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
+
+.Ed
+Then note that alias4 would \fBnot\fR be added since the search would
+stop with the missing alias3 entry.
+.It Ar syslogd_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr syslogd 8
+daemon.
+.It Ar syslogd_flags
+(str) if syslogd_enable is set to
+.Ar YES ,
+these are the flags to pass to
+.Xr syslogd 8 .
+.It Ar inetd_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr inetd 8
+daemon.
+.It Ar inetd_flags
+(str) if inetd_enable is set to
+.Ar YES ,
+these are the flags to pass to
+.Xr inetd 8 .
+.It Ar named_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr named 8
+daemon.
+.It Ar named_flags
+(str) if
+.Ar named_enable
+is set to
+.Ar YES ,
+these are the flags to pass to
+.Xr named 8 .
+.It Ar kerberos_server_enable
+(bool) Set to
+.Ar YES
+if you want to run a Kerberos authentication server
+at boot time.
+.It Ar rwhod_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr rwhod 8
+daemon at boot time.
+.It Ar amd_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr amd 8
+daemon at boot time.
+.It Ar amd_flags
+(str) If
+.Ar amd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to it.  Use the \fBinfo amd\fR
+command for more information.
+.It Ar nfs_client_enable
+(bool) If set to
+.Ar YES ,
+run the NFS client daemons at boot time.
+.It Ar nfs_client_flags
+(str) If
+.Ar nfs_client_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr nfsiod 8
+daemon.
+.It Ar nfs_server_enable
+(bool) If set to
+.Ar YES ,
+run the NFS server daemons at boot time.
+.It Ar nfs_server_flags
+(str) If
+.Ar nfs_server_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr nfsd 8
+daemon.
+.It Ar weak_mountd_authentication
+(bool) If set to
+.Ar YES ,
+allow services like \fBPCNFSD\fR to make non-privileged mount
+requests.
+.It Ar nfs_reserved_port_only
+(bool) If set to
+.Ar YES ,
+provide NFS services only on a secure port.
+.It Ar rcp_lockd_enable
+(bool) If set to
+.Ar YES
+and also an NFS server, run
+.Xr rpc.lockd 8
+at boot time.
+.It Ar rcp_statd_enable
+(bool) If set to
+.Ar YES
+and also an NFS server, run
+.Xr rpc.statd 8
+at boot time.
+.It Ar portmap_enable
+(bool) If set to
+.Ar YES ,
+run the
+.Xr portmap 8
+service at boot time.
+.It Ar portmap_flags
+(str) If
+.Ar portmap_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr portmap 8
+daemon.
+.It Ar xtend_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr xtend 8 
+daemon at boot time.
+.It Ar xtend_flags
+(str) If
+.Ar xtend_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr xtend 8
+daemon.
+.It Ar timed_enable
+(boot) if
+.Ar YES
+then run the
+.Xr timed 8
+service at boot time.  This command is intended for networks of
+machines where a consistent
+.Qq "network time"
+for all hosts must be established.  This is often useful in large NFS
+environments where time stamps on files are expected to be consistent
+network-wide.
+.It Ar timed_flags
+(str) If
+.Ar timed_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr timed 8
+service.
+.It Ar ntpdate_enable
+(bool) If set to
+.Ar YES ,
+run ntpdate at system startup.  This command is intended to
+synchronize the system clock only
+.Ar once
+from some standard reference.  An option to set this up initially
+(from a list of known servers) is also provided by the
+.Pa /stand/sysinstall
+program when the system is first installed.
+.It Ar ntpdate_flags
+(str) If
+.Ar ntpdate_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ntpdate 8
+command (typically a hostname).
+.It Ar xntpd_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr xntpd 8
+command at boot time.
+.It Ar xntpd_flags
+(str) If
+.Ar xntpd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr xntpd 8
+daemon.
+.It Ar tickadj_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr tickadj 8
+command at system boot time.
+.It Ar tickadj_flags
+(str) If
+.Ar tickadj_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr tickadj 8
+command.
+.It Ar nis_client_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr ypbind 8
+service at system boot time.
+.It Ar nis_client_flags
+(str) If
+.Ar nis_client_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ypbind 8
+service.
+.It Ar nis_ypset_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr ypset 8
+daemon at system boot time.
+.It Ar nis_ypset_flags
+(str) If
+.Ar nis_ypset_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ypset 8
+daemon.
+.It Ar nis_server_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr ypserv 8
+daemon at system boot time.
+.It Ar nis_server_flags
+(str) If
+.Ar nis_server_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ypserv 8
+daemon.
+.It Ar nis_ypxfrd_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr ypxfrd 8
+daemon at system boot time.
+.It Ar nis_ypxfrd_flags
+(str) If
+.Ar nis_ypxfrd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ypxfrd 8
+daemon.
+.It Ar nis_yppasswdd_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr yppasswdd 8
+daemon at system boot time.
+.It Ar nis_yppasswdd_flags
+(str) If
+.Ar nis_yppasswdd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr yppasswdd 8
+daemon.
+.It Ar defaultrouter
+(str) If not set to
+.Ar NO
+then create a default route to this host name or IP address (use IP
+address value if you also require this router to get to a name
+server!)
+.It Ar static_routes
+(str) Set to the list of static routes you would like to add at system
+boot time.  If not set to
+.Ar NO
+then for each whitespace separated element in the value, a 
+.No route_ Ns em element
+variable is assumed to exist for each instance
+of 
+.Em element , 
+and will later be passed to a ``route add'' operation.
+.It Ar gateway_enable
+(bool) If set to
+.Ar YES ,
+then configure host to at as an IP router, e.g. to forward packets
+between interfaces.
+.It Ar router_enable
+(bool) If set to
+.Ar YES
+then run a routing daemon of some sort, based on the
+settings of
+.Ar router
+and
+.Ar router_flags .
+.It Ar router
+(str) If
+.Ar router_enable
+is set to
+.Ar YES ,
+this is the name of the routing daemon to use.
+.It Ar router_flags
+(str) If
+.Ar router_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the routing daemon.
+.It Ar mrouted_enable
+(bool) If set to
+.Ar YES
+then run the multicast routing daemon,
+.Xr mrouted 8 .
+.It Ar ipxgateway_enable
+(bool) If set to
+.Ar YES
+then enable the routing of IPX traffic.
+.It Ar ipxrouted_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr ipxrouted 8
+daemon at system boot time.
+.It Ar ipxrouted_flags
+(str) If
+.Ar ipxrouted_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr ipxrouted 8
+daemon.
+.It Ar keymap
+(str) If set to
+.Ar NO
+then no keymap is installed, otherwise the value is used to install
+the keymap file in 
+.Pa /usr/share/syscons/keymaps/<value>.kbd
+.It Ar keyrate
+(str) The keyboard repeat speed.  Set to
+.Ar slow ,
+.Ar normal ,
+.Ar fast
+or
+.Ar NO
+if the default behavior is desired.
+.It Ar keychange
+(str) If not set to
+.Ar NO ,
+attempt to program the function keys with the value.  The value should
+be a single string of the form:
+.Qq Ar "<funkey_number> <new_value> [<funkey_number> <new_value>]..."
+.It Ar cursor
+(str) Can be set to the value of
+.Ar normal ,
+.Ar blink ,
+.Ar destructive
+or
+.Ar NO
+to set the cursor behavior explicitly or choose the default behavior.
+.It Ar scrnmap
+(str) If set to
+.Ar NO
+then no screen map is installed, otherwise the value is used to install
+the screen map file in 
+.Pa /usr/share/syscons/scrnmaps/<value> .
+.It Ar font8x16
+(str) If set to
+.Ar NO
+then the default 8x16 font value is used for screen size requests, otherwise
+the value in 
+.Pa /usr/share/syscons/fonts/<value>
+is used.
+.It Ar font8x14
+(str) If set to
+.Ar NO
+then the default 8x14 font value is used for screen size requests, otherwise
+the value in
+.Pa /usr/share/syscons/fonts/<value>
+is used.
+.It Ar font8x8
+(str) If set to
+.Ar NO
+then the default 8x8 font value is used for screen size requests, otherwise
+the value in
+.Pa /usr/share/syscons/fonts/<value>
+is used.
+.It Ar blanktime
+(int) If set to
+.Ar NO
+then the default screen blanking interval is used, otherwise it is set
+to 
+.Ar value 
+seconds.
+.It Ar saver
+(str) If not set to
+.Ar NO ,
+this is the actual screen saver to use (blank, snake, daemon, etc).
+.It Ar moused_type
+(str) If not set to
+.Ar NO ,
+this is the type of mouse you would like to use for doing
+cut/paste selection on the console.
+It should be chosen from the following list of types:
+.Bd -literal
+microsoft        Microsoft mouse
+mousesystems     Mouse systems Corp mouse
+mmseries         MM Series mouse
+logitech         Logitech mouse
+busmouse         A bus mouse
+mouseman         Logitech MouseMan and TrackMan
+ps/2             PS/2 mouse
+mmhittab         MM HitTablet
+
+.Ed
+It should also be noted that while this is enabled, any
+other client of the mouse (such as an X server) should access
+the mouse through the virtual mouse device:
+.Pa /dev/sysmouse
+and configure it as a mousesystems type mouse, since all
+mouse data is converted to this single canonical format when
+using
+.Xr moused 8 .
+.It Ar moused_port
+(str) If
+.Ar moused_type
+is set, this is the actual port the mouse is on.
+It might be
+.Pa /dev/cuaa0
+for a COM1 serial mouse or
+.Pa /dev/psm0
+for a PS/2 mouse, for example.
+.It Ar moused_flags
+(str) If
+.Ar moused_type
+is set, these are the additional flags to pass to the
+.Xr moused 8
+daemon.
+.It Ar cron_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr cron 8
+daemon at system boot time.
+.It Ar lpd_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr lpd 8
+daemon at system boot time.
+.It Ar lpd_flags
+(str) If
+.Ar lpd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr lpd 8
+daemon.
+.It Ar sendmail_enable
+(bool) If set to
+.Ar YES
+then run the
+.Xr sendmail 8
+daemon at system boot time.
+.It Ar sendmail_flags
+(str) If
+.Ar sendmail_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr sendmail 8
+daemon.
+.It Ar savecore_enable
+(bool) If set to
+.Ar YES
+then save kernel crashdumps for debugging purposes when the system
+comes back up after a crash.  Crash images are typically stored in the
+.Pa /var/crash
+directory.
+.It Ar dumpdev
+(str) If not set to
+.Ar NO
+then point kernel crash-dumps at the swap device
+specified as 
+.Em value .
+.It Ar check_quotas
+(bool) Set to
+.Ar YES
+if you want to enable user disk quota checking via the 
+.Xr quotacheck 8
+command.
+.It Ar accounting_enable
+(bool) Set to
+.Ar YES
+if you wish to enable system accounting through the 
+.Xr accton 8
+facility.
+.It Ar ibcs2_enable
+(bool) Set to
+.Ar YES
+if you wish to enable iBCS2 (SCO) binary emulation at system initial boot
+time.
+.It Ar linux_enable
+(bool) Set to
+.Ar YES
+if you wish to enable Linux/ELF binary emulation at system initial
+boot time.
+.It Ar rand_irqs
+(str) Set to the list of IRQs to monitor for random number creation
+(see the man page for
+.Xr rndcontrol 8 ).
+
+.Sh SEE ALSO
+.Xr accton 8 ,
+.Xr amd 8 ,
+.Xr exports 5 ,
+.Xr gated 8 ,
+.Xr gdb 1 ,
+.Xr ifconfig 8 ,
+.Xr info 1 ,
+.Xr named 8 ,
+.Xr ntpdate 8 ,
+.Xr pcnfsd 8 ,
+.Xr quotacheck 8 ,
+.Xr rc 8 ,
+.Xr rndcontrol 8 ,
+.Xr route 8 ,
+.Xr routed 8 ,
+.Xr rwhod 8 ,
+.Xr sendmail 8 ,
+.Xr swapon 8 ,
+.Xr timed 8 ,
+.Xr vnconfig 8 ,
+.Xr xntpd 8 ,
+.Xr xtend 8 ,
+.Xr ypserv 8 ,
+.Xr ypset 8
+.Sh HISTORY
+The
+.Nm
+file appeared in
+.Bx 2.2.2 .
+
+.Sh AUTHOR
+Jordan K. Hubbard.
