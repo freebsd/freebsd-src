@@ -464,9 +464,11 @@ literal:
 					if (nconv != (size_t)-2) {
 						if (wctob(*wcp) != EOF &&
 						    !ccltab[wctob(*wcp)]) {
-							while (--n > 0)
+							while (n != 0) {
+								n--;
 								__ungetc(buf[n],
 								    fp);
+							}
 							break;
 						}
 						nread += n;
@@ -562,9 +564,11 @@ literal:
 						*wcp = L'\0';
 					if (nconv != (size_t)-2) {
 						if (iswspace(*wcp)) {
-							while (--n > 0)
+							while (n != 0) {
+								n--;
 								__ungetc(buf[n],
 								    fp);
+							}
 							break;
 						}
 						nread += n;
