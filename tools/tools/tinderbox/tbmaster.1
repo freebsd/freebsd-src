@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
+.Dd August 18, 2004
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@ runs, generates log summaries, and mails out failure reports.
 .Pp
 The following options are recognized:
 .Bl -tag -width 12n
-.It Fl c Ar CONFIG , Fl -config Ns = Ns Ar CONFIG
+.It Fl c Ar NAME , Fl -config Ns = Ns Ar NAME
 The name of the configuration to use.
 If specified multiple times, all listed configurations will be run in
 sequence.
@@ -56,6 +56,11 @@ Dumps the configuration and exits without running the tinderbox.
 The directory where configuration files are located.
 The default is
 .Pa $HOME/etc .
+.It Fl l Ar FILE
+The name of a file to lock upon startup.
+If the lock is already held by another process,
+.Nm
+will terminate immediately rather than block.
 .El
 .Ss Configuration
 The
