@@ -59,8 +59,16 @@ OBJFORMAT?=		elf
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
+# Setting this also disables doc.2 (RELNOTESng).
 #NODOC=  YES
 #NOPORTS=  YES
+
+# RELNOTESng can be enabled be uncommenting the following variable
+# definition.  It depends on having ports and docs enabled for this
+# release build.
+#RELNOTESNG=	YES
+#RELNOTESNG_LANG=	en_US.ISO_8859-1
+
 # Set ALLLANG=no if you want the release documentation to be
 # in English only.
 ALLLANG?=	yes
@@ -71,9 +79,13 @@ DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
 # on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
 AUTO_KEYBOARD_DETECT?= 0
 
-
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES"
+DIST_DOCS_ARCH_INDEP=	readme errata
+DIST_DOCS_ARCH_DEP=	installation relnotes hardware
+.else
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
+.endif
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
@@ -181,6 +193,9 @@ EXTRAS= cdrom.1 ftp.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES"
+DOCREL+= doc.2
+.endif
 .endif
 
 .if !defined(NOPORTREADMES)
@@ -196,6 +211,11 @@ rerelease release:
 .if defined(NOPORTS) && !defined(NODOC)
 	@echo "Ports are required for building the docs.  Either set NODOC or"
 	@echo "unset NOPORTS!"
+	@exit 1
+.endif
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES" && defined(NODOC)
+	@echo "Ports and docs are required for building RELNOTESng.  Either"
+	@echo "unset RELNOTESNG or unset both NOPORTS and NODOC!"
 	@exit 1
 .endif
 .if make(release)
@@ -295,6 +315,14 @@ rerelease release:
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(RELNOTESNG)
+	echo "export RELNOTESNG=${RELNOTESNG}"	>> ${CHROOTDIR}/mk
+.endif
+.if defined(RELNOTESNG_LANG)
+	echo "export RELNOTESNG_LANG=${RELNOTESNG_LANG}"	>> ${CHROOTDIR}/mk
+.else
+	echo "export RELNOTESNG_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSHARED)
 	echo "export NOSHARED=${NOSHARED}"	>> ${CHROOTDIR}/mk
@@ -548,6 +576,15 @@ release.8: write_mfs_in_kernel
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES"
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  gzip -9c ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/${MACHINE_ARCH}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	done
+	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
+.else
 	@for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
 	     gzip -9c ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; \
@@ -555,6 +592,7 @@ release.8: write_mfs_in_kernel
 	     gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; \
 	  fi; \
 	done
+.endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
@@ -636,6 +674,18 @@ ftp.1:
 	-@ln -s . ${FD}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES"
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
+	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
+.else
 	@for i in ${DIST_DOCS}; do \
 	  if [ -f ${.CURDIR}/texts/$${i} ]; then \
 	     cp ${.CURDIR}/texts/$${i} ${FD}; \
@@ -645,6 +695,7 @@ ftp.1:
 	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${FD}/$${i}; \
 	  fi; \
 	done
+.endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
@@ -672,6 +723,18 @@ cdrom.1:
 	@cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+.if defined(RELNOTESNG) && ${RELNOTESNG} == "YES"
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/${MACHINE_ARCH}/article.txt ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${.CURDIR}/doc/${RELNOTESNG_LANG}/$$i/${MACHINE_ARCH}/article.html ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
+	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
+.else
 	@for i in ${DIST_DOCS}; do \
 	  if [ -f ${.CURDIR}/texts/$${i} ]; then \
 	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
@@ -681,6 +744,7 @@ cdrom.1:
 	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${CD_DISC1}/$${i}; \
 	  fi; \
         done
+.endif
 .if ${MACHINE_ARCH} == "alpha"
 	@echo "Setting up Alpha CD disc1 for booting"
 	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
@@ -697,6 +761,9 @@ cdrom.1:
 .endif
 	touch cdrom.1
 
+#
+# --==## Documentation Project files such as the Handbook and FAQ ##==--
+#
 doc.1:
 	@echo "Making docs..."
 	@for i in ${DOCPORTS}; do \
@@ -704,6 +771,14 @@ doc.1:
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
 	touch doc.1
+
+#
+# --==## RELNOTESng:  Next-generation replacements for *.TXT files ##==--
+#
+doc.2:
+	@echo "Making release documentation..."
+	@cd ${.CURDIR}/doc && make all 'FORMATS=html txt'
+	touch doc.2
 
 # Various "subroutine" and other supporting targets.
 

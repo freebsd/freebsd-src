@@ -1,0 +1,84 @@
+<!-- 
+	$FreeBSD$ 
+
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.current; Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <sect1>
+    <title>Introduction</title>
+
+    <para>If you read no other documentation before installing this
+    version of &os;, you should at least by all means <emphasis>read
+    the errata</emphasis> for this release so that you don't stumble
+    over problems which have already been found and fixed.  This
+    <filename>ERRATA.TXT</filename> file is obviously already out of
+    date by definition, but other copies are kept updated on the net and
+    should be consulted as the <quote>current errata</quote> for your
+    release.  These other copies of the errata are located at:
+
+      <orderedlist>
+	<listitem>
+	  <para><ulink url="http://www.freebsd.org/releases/">http://www.freebsd.org/releases/</ulink></para>
+	</listitem>
+	<listitem>
+	  <para><userinput>ftp://ftp.freebsd.org/pub/FreeBSD/releases/<replaceable>architecture</replaceable>/<replaceable>release</replaceable>/ERRATA.TXT</userinput></para>
+	  <para>(and any sites which keep up-to-date mirrors of this
+	  location)</para>
+	</listitem>
+      </orderedlist>
+    </para>
+
+    <para>Any changes to this file are also automatically emailed to the
+    &a.current;.</para>
+
+    <para>For all CERT security advisories, see <ulink
+    url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/">ftp://ftp.freebsd.org/pub/FreeBSD/CERT/</ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Security Advisories</title>
+    <para>Current active security advisories: None.</para>
+  </sect1>
+
+  <sect1>
+    <title>System Update Information</title>
+    <para>Current active errata items: None.</para>
+  </sect1>
+</article>
