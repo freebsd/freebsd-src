@@ -99,7 +99,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	vm_page_protect.9 vm_page_rename.9 \
 	vm_page_sleep_busy.9 vm_page_unmanage.9 vm_page_wakeup.9 \
 	vm_page_wire.9 vm_page_zero_fill.9 vm_set_page_size.9 \
-	vn_isdisk.9 vnode.9 vput.9 vref.9 vrele.9 \
+	vn_isdisk.9 vn_fullpath.9 vnode.9 vput.9 vref.9 vrele.9 \
 	vslock.9 \
 	zero_copy.9 zone.9
 
