@@ -2151,7 +2151,8 @@ Job_Init(int maxproc)
 	 * Open fifo and give ourselves a magic token which represents
 	 * the token our parent make has grabbed to start his make process.
 	 * Otherwise the sub-makes would gobble up tokens and the proper
-	 * number of tokens to specify to -j would depend on the depth of		 * the tree and the order of execution.
+	 * number of tokens to specify to -j would depend on the depth of
+	 * the tree and the order of execution.
 	 */
 	fifoFd = open(env, O_RDWR, 0);
 	if (fifoFd >= 0) {
