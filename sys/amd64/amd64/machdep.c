@@ -1265,6 +1265,27 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	pcpu->pc_acpi_id = 0xffffffff;
 }
 
+/*
+ * Construct a PCB from a trapframe. This is called from kdb_trap() where
+ * we want to start a backtrace from the function that caused us to enter
+ * the debugger. We have the context in the trapframe, but base the trace
+ * on the PCB. The PCB doesn't have to be perfect, as long as it contains
+ * enough for a backtrace.
+ */
+void
+makectx(struct trapframe *tf, struct pcb *pcb)
+{
+
+	pcb->pcb_r12 = tf->tf_r12;
+	pcb->pcb_r13 = tf->tf_r13;
+	pcb->pcb_r14 = tf->tf_r14;
+	pcb->pcb_r15 = tf->tf_r15;
+	pcb->pcb_rbp = tf->tf_rbp;
+	pcb->pcb_rbx = tf->tf_rbx;
+	pcb->pcb_rip = tf->tf_rip;
+	pcb->pcb_rsp = (ISPL(tf->tf_cs)) ? tf->tf_rsp : (long)(tf + 1) - 8;
+}
+
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
