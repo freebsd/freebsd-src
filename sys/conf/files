@@ -84,6 +84,7 @@ kern/tty.c		standard
 kern/tty_compat.c	standard
 kern/tty_conf.c		standard
 kern/tty_pty.c		optional pty
+kern/tty_snoop.c        optional snp
 kern/tty_subr.c		standard
 kern/tty_tb.c		optional tb
 kern/tty_tty.c		standard
