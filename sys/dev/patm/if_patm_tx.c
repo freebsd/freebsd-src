@@ -744,8 +744,9 @@ patm_tx(struct patm_softc *sc, u_int stamp, u_int status)
 		    ((1 << (acri >> 10)) * (acri & 0x3ff));
 
 		if (cps != vcc->cps) {
-			/* send message */
 			patm_debug(sc, VCC, "ACRI=%04x CPS=%u", acri, cps);
+			ATMEV_SEND_ACR_CHANGED(&sc->ifatm, vcc->vcc.vpi,
+			    vcc->vcc.vci, cps);
 			vcc->cps = cps;
 		}
 	}
