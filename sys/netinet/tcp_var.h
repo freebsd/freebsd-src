@@ -200,6 +200,8 @@ struct tcpcb {
 	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
 	int	rcv_numsacks;		/* # distinct sack blks present */
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
+	tcp_seq sack_newdata;		/* New data xmitted in this recovery
+					   episode starts at this seq number */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
@@ -523,6 +525,7 @@ struct	xtcpcb {
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_tcp);
+SYSCTL_DECL(_net_inet_tcp_sack);
 #endif
 
 extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
@@ -617,7 +620,7 @@ void	 tcp_update_sack_list(struct tcpcb *tp);
 void	 tcp_del_sackholes(struct tcpcb *, struct tcphdr *);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
-struct sackhole *tcp_sack_output(struct tcpcb *tp);
+struct sackhole *tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt);
 void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
