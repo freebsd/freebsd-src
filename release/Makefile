@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.390 1998/09/23 07:38:51 gpalmer Exp $
+#	$Id: Makefile,v 1.391 1998/09/24 00:57:05 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -682,7 +682,6 @@ doMFSKERN:
 		-e '/ppp/d' \
 		-e '/gzip/d' \
 		-e '/PROCFS/d' \
-		-e '/MSDOSFS/d' \
 		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
 		-e '/MATH_EMULATE/d' \
