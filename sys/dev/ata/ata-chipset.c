@@ -1816,14 +1816,16 @@ ata_sii_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->max_dma < ATA_UDMA2) {
+    if (ctlr->chip->cfg2 & SIISETCLK) {
+	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x79, 1) &
+				 (atadev->channel->unit ? 0x02 : 0x01))) {
+	    ata_prtdev(atadev,
+		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
+	    mode = ATA_UDMA2;
+	}
+    }
+    else
 	mode = ata_check_80pin(atadev, mode);
-    }
-    else if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x79, 1) &
-				  (atadev->channel->unit ? 0x02 : 0x01))) {
-	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
-	mode = ATA_UDMA2;
-    }
 
     error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 
