@@ -57,6 +57,7 @@ void
 sflag_print()
 {
 	extern time_t now;
+	extern int    oflag;
 	register PERSON *pn;
 	register WHERE *w;
 	register int sflag, r;
@@ -71,14 +72,19 @@ sflag_print()
 	 *	if terminal writeable (add an '*' to the terminal name
 	 *		if not)
 	 *	if logged in show idle time and day logged in, else
-	 *		show last login date and time.  If > 6 moths,
-	 *		show year instead of time.
-	 *	office location
-	 *	office phone
+	 *		show last login date and time.
+	 *		If > 6 months, show year instead of time.
+	 *	if (-o)
+	 *		office location
+	 *		office phone
+	 *	else
+	 *		remote host
 	 */
 #define	MAXREALNAME	20
-	(void)printf("%-*s %-*s %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
-	    "Name", "Tty  Idle  Login Time   Office     Office Phone");
+#define	MAXHOSTNAME	20
+	(void)printf("%-*s %-*s %s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
+	    "Name", "TTY  Idle  Login Time",
+	    oflag ? " Office     Office Phone" : " Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
@@ -110,18 +116,24 @@ sflag_print()
 			} else
 				(void)printf("    *  ");
 			p = ctime(&w->loginat);
-			(void)printf("%.6s", p + 4);
+			if (now - w->loginat < SECSPERDAY * (DAYSPERWEEK - 1))
+				(void)printf("%.3s   ", p);
+			else
+				(void)printf("%.6s", p + 4);
 			if (now - w->loginat >= SECSPERDAY * DAYSPERNYEAR / 2)
 				(void)printf("  %.4s", p + 20);
 			else
 				(void)printf(" %.5s", p + 11);
-office:			if (pn->office)
+office:			if (oflag) {
+				if (pn->office)
 				(void)printf(" %-10.10s", pn->office);
 			else if (pn->officephone)
 				(void)printf(" %-10.10s", " ");
 			if (pn->officephone)
 				(void)printf(" %-.15s",
 				    prphone(pn->officephone));
+			} else
+				(void)printf(" %.*s", MAXHOSTNAME, w->host);
 			putchar('\n');
 		}
 	}
