@@ -124,22 +124,12 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 	}
 
 	if (rdch && (oflags & FREAD)) {
-	        chn_reset(rdch);
+	        chn_reset(rdch, fmt);
 		if (oflags & O_NONBLOCK) rdch->flags |= CHN_F_NBIO;
-		if (fmt) {
-			rdch->volume = (100 << 8) | 100;
-			rdch->format = fmt;
-			rdch->speed = DSP_DEFAULT_SPEED;
-		}
 	}
 	if (wrch && (oflags & FWRITE)) {
-	        chn_reset(wrch);
+	        chn_reset(wrch, fmt);
 		if (oflags & O_NONBLOCK) wrch->flags |= CHN_F_NBIO;
-		if (fmt) {
-			wrch->volume = (100 << 8) | 100;
-			wrch->format = fmt;
-			wrch->speed = DSP_DEFAULT_SPEED;
-		}
 	}
 	return 0;
 }
@@ -158,12 +148,12 @@ dsp_close(snddev_info *d, int chan, int devtype)
 	if (rdch) {
 		chn_abort(rdch);
 		rdch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
-		chn_reset(rdch);
+		chn_reset(rdch, 0);
 	}
 	if (wrch) {
 		chn_flush(wrch);
 		wrch->flags &= ~(CHN_F_BUSY | CHN_F_RUNNING | CHN_F_MAPPED);
-		chn_reset(wrch);
+		chn_reset(wrch, 0);
 	}
 	d->aplay[chan] = NULL;
 	d->arec[chan] = NULL;
@@ -181,10 +171,8 @@ dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
 	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
 	if (rdch->flags & CHN_F_MAPPED) return EINVAL;
-	if (!(rdch->flags & CHN_F_RUNNING)) {
+	if (!(rdch->flags & CHN_F_RUNNING))
 		rdch->flags |= CHN_F_RUNNING;
-		chn_reinit(rdch);
-	}
 	return chn_read(rdch, buf);
 }
 
@@ -199,10 +187,8 @@ dsp_write(snddev_info *d, int chan, struct uio *buf, int flag)
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
 	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
 	if (wrch->flags & CHN_F_MAPPED) return EINVAL;
-	if (!(wrch->flags & CHN_F_RUNNING)) {
+	if (!(wrch->flags & CHN_F_RUNNING))
 		wrch->flags |= CHN_F_RUNNING;
-		chn_reinit(wrch);
-	}
 	return chn_write(wrch, buf);
 }
 
