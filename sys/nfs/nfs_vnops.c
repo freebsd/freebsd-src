@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116.2.2 1999/02/08 18:27:30 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.116.2.3 1999/02/13 08:03:47 dillon Exp $
  */
 
 
@@ -1007,6 +1007,11 @@ nfs_readlinkrpc(vp, uiop, cred)
 		nfsm_postop_attr(vp, attrflag);
 	if (!error) {
 		nfsm_strsiz(len, NFS_MAXPATHLEN);
+		if (len == NFS_MAXPATHLEN) {
+			struct nfsnode *np = VTONFS(vp);
+			if (np->n_size && np->n_size < NFS_MAXPATHLEN)
+				len = np->n_size;
+		}
 		nfsm_mtouio(uiop, len);
 	}
 	nfsm_reqdone;
