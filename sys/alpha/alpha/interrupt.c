@@ -91,12 +91,22 @@ interrupt(a0, a1, a2, framep)
 	struct trapframe *framep;
 {
 	struct proc *p;
+#ifdef SMP
+	critical_t s;
+#endif
 
 	/*
 	 * Find our per-cpu globals.
 	 */
+#ifdef SMP
+	s = critical_enter();
+#endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
 	p = curproc;
+#ifdef SMP
+	p->p_md.md_kernnest++;
+	critical_exit(s);
+#endif
 	atomic_add_int(&p->p_intr_nesting_level, 1);
 #ifndef SMP
 	{

@@ -312,14 +312,24 @@ trap(a0, a1, a2, entry, framep)
 	u_int64_t ucode;
 	u_quad_t sticks;
 	int user;
+#ifdef SMP
+	critical_t s;
+#endif
 
 	/*
 	 * Find our per-cpu globals.
 	 */
+#ifdef SMP
+	s = critical_enter();
+#endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
+	p = curproc;
+#ifdef SMP
+	p->p_md.md_kernnest++;
+	critical_exit(s);
+#endif
 
 	cnt.v_trap++;
-	p = curproc;
 	ucode = 0;
 	user = (framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0;
 	if (user)  {
@@ -704,11 +714,22 @@ syscall(code, framep)
 	u_quad_t sticks;
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
+#ifdef SMP
+	critical_t s;
+#endif
 
 	/*
 	 * Find our per-cpu globals.
 	 */
+#ifdef SMP
+	s = critical_enter();
+#endif
 	globalp = (struct globaldata *) alpha_pal_rdval();
+	p = curproc;
+#ifdef SMP
+	p->p_md.md_kernnest++;
+	critical_exit(s);
+#endif
 	mtx_lock(&Giant);
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
@@ -720,7 +741,6 @@ syscall(code, framep)
 #endif
 
 	cnt.v_syscall++;
-	p = curproc;
 	p->p_md.md_tf = framep;
 	opc = framep->tf_regs[FRAME_PC] - 4;
 	mtx_lock_spin(&sched_lock);
