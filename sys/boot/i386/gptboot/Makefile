@@ -27,9 +27,9 @@ BTX=	${.CURDIR}/../btx
 ORG1=	0x7c00
 ORG2=	0x1000
 
-CFLAGS=	-elf -ffreestanding -Os -fno-builtin -fforce-addr -fdata-sections \
+CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels \
-	-mrtd -mpreferred-stack-boundary=2 \
+	-mrtd \
 	-I${.CURDIR}/../btx/lib -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
