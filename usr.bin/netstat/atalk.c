@@ -32,14 +32,17 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)atalk.c	1.1 (Whistle) 6/6/96";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/mbuf.h>
 #include <sys/protosw.h>
 
 #include <net/route.h>
