@@ -1477,8 +1477,8 @@ ndis_alloc_packet(status, packet, pool)
 	return;
 }
 
-__stdcall static void
-ndis_release_packet(packet)
+void
+ndis_free_packet(packet)
 	ndis_packet		*packet;
 {
 	ndis_packet		*head;
@@ -1496,6 +1496,14 @@ ndis_release_packet(packet)
 
 	return;
 }
+
+__stdcall static void
+ndis_release_packet(packet)
+	ndis_packet		*packet;
+{
+	ndis_free_packet(packet);
+	return;
+}	
 
 __stdcall static void
 ndis_unchain_headbuf(packet, buf)
@@ -1636,8 +1644,8 @@ ndis_alloc_buf(status, buffer, pool, vaddr, len)
 	return;
 }
 
-__stdcall static void
-ndis_release_buf(buf)
+void
+ndis_free_buf(buf)
 	ndis_buffer		*buf;
 {
 	ndis_buffer		*head;
@@ -1653,6 +1661,14 @@ ndis_release_buf(buf)
 	buf->nb_next = head->nb_next;
 	head->nb_next = buf;
 
+	return;
+}
+
+__stdcall static void
+ndis_release_buf(buf)
+	ndis_buffer		*buf;
+{
+	ndis_free_buf(buf);
 	return;
 }
 
