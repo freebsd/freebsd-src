@@ -161,7 +161,7 @@ struct sysctl_oid {
 	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
 	int		oid_refcnt;
-	const char	*descr;
+	const char	*oid_descr;
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
