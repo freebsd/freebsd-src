@@ -555,7 +555,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${CVS} -q update -A -P -d
+	cd ${.CURDIR}; ${CVS} -q update -rRELENG_5_0 -P -d
 .endif
 
 #
