@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.7 1995/06/01 22:27:30 jkh Exp $
+ * $Id: install.c,v 1.70.2.8 1995/06/01 22:32:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,9 +62,10 @@ checkLabels(void)
 {
     Device **devs;
     Disk *disk;
-    Chunk *c1, *c2, *swapdev = NULL;
+    Chunk *c1, *c2, *swapdev, *usrdev;
     int i;
 
+    rootdev = swapdev = usrdev = NULL;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
     for (i = 0; devs[i]; i++) {
@@ -77,9 +78,21 @@ checkLabels(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private && c2->flags & CHUNK_IS_ROOT) {
-			rootdev = c2;
-			break;
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
+			if (c2->flags & CHUNK_IS_ROOT) {
+			    if (rootdev) {
+				msgConfirm("WARNING:  You have more than one root device set?!\nUsing the first one found.");
+				continue;
+			    }
+			    rootdev = c2;
+			}
+			else if (!strcmp(((PartInfo *)c2->private)->mountpoint, "/usr")) {
+			    if (usrdev) {
+				msgConfirm("WARNING:  You have more than one /usr filesystem.\nUsing the first one found.");
+				continue;
+			    }
+			    usrdev = c2;
+			}
 		    }
 		}
 	    }
@@ -116,6 +129,8 @@ checkLabels(void)
 	msgConfirm("No swap devices found - you must create at least one\nswap partition.");
 	return FALSE;
     }
+    if (!usrdev)
+	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\nan error if your root filesystem is big enough (or you later\nintend to get your /usr filesystem over NFS), but it may otherwise\ncause you trouble and is not recommended procedure!");
     return TRUE;
 }
 
