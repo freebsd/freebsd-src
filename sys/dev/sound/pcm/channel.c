@@ -428,7 +428,7 @@ chn_wrintr(pcm_channel *c)
 int
 chn_write(pcm_channel *c, struct uio *buf)
 {
-	int 		ret = 0, timeout, res, newsize;
+	int 		ret = 0, timeout, res, newsize, count;
 	long		s;
 	snd_dbuf       *b = &c->buffer;
 	snd_dbuf       *bs = &c->buffer2nd;
@@ -460,9 +460,6 @@ chn_write(pcm_channel *c, struct uio *buf)
 		DEB(printf("pcm warning: frags reset to %d x %d\n", bs->blkcnt, bs->blksz));
 	}
 
-	/* Store the initial size in the uio. */
-	res = buf->uio_resid;
-
 	/*
 	 * Fill up the secondary and DMA buffer.
 	 * chn_wrfeed*() takes care of the alignment.
@@ -479,12 +476,18 @@ chn_write(pcm_channel *c, struct uio *buf)
 		chn_start(c);
 
 	if (ret == 0) {
+		count = hz;
 		/* Wait until all samples are played in blocking mode. */
-   		while (buf->uio_resid > 0) {
+   		while ((buf->uio_resid > 0) && (count > 0)) {
 			/* Check for underflow before writing into the buffers. */
 			chn_checkunderflow(c);
 			/* Fill up the buffers with new pcm data. */
+			res = buf->uio_resid;
   			while (chn_wrfeed2nd(c, buf) > 0);
+			if (buf->uio_resid < res)
+				count = hz;
+			else
+				count--;
 
 			/* Have we finished to feed the secondary buffer? */
 			if (buf->uio_resid == 0)
@@ -499,6 +502,10 @@ chn_write(pcm_channel *c, struct uio *buf)
  			if (ret == EINTR || ret == ERESTART)
 				break;
  		}
+		if (count == 0) {
+			c->flags |= CHN_F_DEAD;
+			device_printf(c->parent->dev, "play interrupt timeout, channel dead\n");
+		}
 	} else
 		ret = 0;
 	c->flags &= ~CHN_F_WRITING;
