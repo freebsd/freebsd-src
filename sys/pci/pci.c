@@ -1386,7 +1386,7 @@ pci_get_resource(device_t dev, device_t child, int type, int rid,
 static void
 pci_delete_resource(device_t dev, device_t child, int type, int rid)
 {
-	printf("pci_set_resource: PCI resources can not be deleted\n");
+	printf("pci_delete_resource: PCI resources can not be deleted\n");
 }
 
 static u_int32_t
