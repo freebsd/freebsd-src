@@ -45,7 +45,7 @@
 
  /* Node type name and magic cookie */
 #define NG_VJC_NODE_TYPE	"vjc"
-#define NGM_VJC_COOKIE		868219209
+#define NGM_VJC_COOKIE		868219210
 
  /* Hook names */
 #define NG_VJC_HOOK_IP		"ip"		/* normal IP traffic */
@@ -65,9 +65,21 @@ struct ngm_vjc_config {
 	u_char	compressCID;	/* OK to compress outgoing CID's */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_VJC_CONFIG_TYPE_INFO	{				\
+	{							\
+	  { "enableComp",	&ng_parse_uint8_type	},	\
+	  { "enableDecomp",	&ng_parse_uint8_type	},	\
+	  { "maxChannel",	&ng_parse_uint8_type	},	\
+	  { "compressCID",	&ng_parse_uint8_type	},	\
+	  { NULL },						\
+	}							\
+}
+
  /* Netgraph commands */
 enum {
 	NGM_VJC_SET_CONFIG,	/* Supply a struct ngm_vjc_config */
+	NGM_VJC_GET_CONFIG,	/* Returns a struct ngm_vjc_config */
 	NGM_VJC_GET_STATE,	/* Returns current struct slcompress */
 	NGM_VJC_CLR_STATS,	/* Clears statistics counters */
 	NGM_VJC_RECV_ERROR,	/* Indicate loss of incoming frame */
