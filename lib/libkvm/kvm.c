@@ -290,8 +290,9 @@ kvm_open(uf, mf, sf, flag, errstr)
 	register kvm_t *kd;
 
 	if ((kd = malloc(sizeof(*kd))) == NULL) {
-		(void)fprintf(stderr, "%s: %s\n", 
-			errstr ? errstr : "kvm_open" , strerror(errno));
+		if (errstr != NULL)
+			(void)fprintf(stderr, "%s: %s\n",
+				      errstr, strerror(errno));
 		return (0);
 	}
 	kd->program = errstr;
