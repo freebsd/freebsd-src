@@ -62,7 +62,7 @@ D=/here/is/the/jail
 cd /usr/src
 make world DESTDIR=$D
 cd etc
-make distribution DESTDIR=$D NO_MAKEDEV=yes
+make distribution DESTDIR=$D NO_MAKEDEV_RUN=yes
 cd $D/dev
 sh MAKEDEV jail
 cd $D
