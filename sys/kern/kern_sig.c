@@ -1623,6 +1623,8 @@ coredump(p)
 		return 0;
 
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	if (name == NULL)
+		return (EINVAL);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
 	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
