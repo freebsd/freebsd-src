@@ -53,6 +53,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <limits.h>
+#include <locale.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -319,7 +320,6 @@ vfprintf(FILE *fp, const char *fmt0, va_list ap)
 }
 
 #ifdef FLOATING_POINT
-#include <locale.h>
 #include <math.h>
 #include "floatio.h"
 
@@ -371,9 +371,9 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format (%.3d), or -1 */
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
-	const char *thousands_sep;
+	const char *thousands_sep; /* locale specific thousands separator */
 #ifdef FLOATING_POINT
-	char *decimal_point;
+	char *decimal_point;	/* locale specific decimal point */
 	char softsign;		/* temporary negative sign for floats */
 	double _double;		/* double precision arguments %[eEfgG] */
 	int expt;		/* integer value of exponent */
