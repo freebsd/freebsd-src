@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: misc.c,v 1.2 1994/09/24 02:54:10 davidg Exp $
  */
 
 #ifndef lint
@@ -252,9 +252,9 @@ lastchr(cp)
 void
 closem()
 {
-    register int f;
+    register int f, flimit;
 
-    for (f = 0; f < NOFILE; f++)
+    for (f = 0, flimit = getdtablesize(); f < flimit; f++)
 	if (f != SHIN && f != SHOUT && f != SHERR && f != OLDSTD &&
 	    f != FSHTTY)
 	    (void) close(f);
