@@ -230,8 +230,8 @@ USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/share/groff_font/devutf8 \
 		usr/share/tmac/mdoc usr/share/tmac/mm
 
-INCDIRS=	arpa dev fs g++/std isc isofs libmilter objc openssl \
-		protocols readline rpc rpcsvc security ufs
+INCDIRS=	arpa dev fs g++/backward g++/bits g++/ext isc isofs libmilter \
+		objc openssl protocols readline rpc rpcsvc security ufs
 
 #
 # buildworld
@@ -572,9 +572,7 @@ installmost:
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
-.if ${CXX:T} != "c++"
 _cxx_consumers=	gnu/usr.bin/gperf gnu/usr.bin/groff
-.endif
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
