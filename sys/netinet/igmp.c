@@ -310,7 +310,7 @@ igmp_input(m, off)
 		 * KLUDGE: if the IP source address of the report has an
 		 * unspecified (i.e., zero) subnet number, as is allowed for
 		 * a booting host, replace it with the correct subnet number
-		 * so that a process-level multicast routing demon can
+		 * so that a process-level multicast routing daemon can
 		 * determine which subnet it arrived from.  This is necessary
 		 * to compensate for the lack of any way for a process to
 		 * determine the arrival interface of an incoming packet.
@@ -473,7 +473,7 @@ igmp_sendpkt(inm, type, addr)
 	imo.imo_multicast_vif  = -1;
         /*
          * Request loopback of the report if we are acting as a multicast
-         * router, so that the process-level routing demon can hear it.
+         * router, so that the process-level routing daemon can hear it.
          */
         imo.imo_multicast_loop = (ip_mrouter != NULL);
 
