@@ -119,6 +119,11 @@
 #define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
 #define ATA_PARAM(scp, device)		(scp->dev_param[ATA_DEV(device)])
 
+#define ATA_IOADDR_RID			0
+#define ATA_ALTADDR_RID			1
+#define ATA_BMADDR_RID			2
+#define ATA_IRQ_RID			0
+
 /* busmaster DMA related defines */
 #define ATA_DMA_ENTRIES			256
 #define ATA_DMA_EOT			0x80000000
@@ -284,6 +289,7 @@ struct ata_softc {
     struct resource		*r_bmio;	/* bmio addr resource handle */
     struct resource		*r_irq;		/* interrupt of this channel */
     void			*ih;		/* interrupt handle */
+    int (*intr_func)(struct ata_softc *);	/* interrupt function */
     u_int32_t			chiptype;	/* pciid of controller chip */
     u_int32_t			alignment;	/* dma engine min alignment */
     struct ata_params		*dev_param[2];	/* ptr to devices params */
@@ -336,6 +342,11 @@ struct ata_softc {
 extern devclass_t ata_devclass;
  
 /* public prototypes */
+int ata_probe(device_t);
+int ata_attach(device_t);
+int ata_detach(device_t);
+int ata_resume(device_t);
+
 void ata_start(struct ata_softc *);
 void ata_reset(struct ata_softc *, int *);
 int ata_reinit(struct ata_softc *);
@@ -350,9 +361,7 @@ int ata_pio2mode(int);
 int ata_pmode(struct ata_params *);
 int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);
-#if NPCI > 0
 int ata_find_dev(device_t, u_int32_t, u_int32_t);
-#endif
 
 void *ata_dmaalloc(struct ata_softc *, int);
 void ata_dmainit(struct ata_softc *, int, int, int, int);
