@@ -237,9 +237,9 @@ This option is ignored for unmounted or read-only file systems.
 If the
 .Pa .snap
 directory does not exist in the root of the file system being dumped,
-the
+a warning will be issued and the
 .Nm
-will fail.
+will revert to the standard behavior.
 This problem can be corrected by creating a
 .Pa .snap
 directory in the root of the file system to be dumped;
@@ -271,7 +271,7 @@ The default tape length is 2300 feet.
 .It Fl T Ar date
 Use the specified date as the starting time for the dump
 instead of the time determined from looking in
-the
+a warning will be issued and the
 .Pa dumpdates
 file.
 The format of date is the same as that of
