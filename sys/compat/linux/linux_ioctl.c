@@ -66,6 +66,7 @@ static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
+static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -1348,9 +1349,10 @@ linux_ioctl_console(struct proc *p, struct linux_ioctl_args *args)
 	return (ENOIOCTL);
 }
 
-#define IFP_IS_ETH(ifp) ((ifp->if_flags & \
-	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST)) == \
-	IFF_BROADCAST)
+/*
+ * Criteria for interface name translation
+ */
+#define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
 
 /*
  * Construct the Linux name for an interface
@@ -1508,7 +1510,8 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 {
 	char lifname[LINUX_IFNAMSIZ], ifname[IFNAMSIZ];
 	struct ifnet *ifp;
-	int error;
+	struct file *fp;
+	int error, type;
 
 	KASSERT(LINUX_IFNAMSIZ == IFNAMSIZ,
 	    (__FUNCTION__ "(): LINUX_IFNAMSIZ != IFNAMSIZ"));
@@ -1516,6 +1519,23 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 	ifp = NULL;
 	error = 0;
 	
+	if (args->fd >= p->p_fd->fd_nfiles ||
+	    (fp = p->p_fd->fd_ofiles[args->fd]) == NULL)
+		return (EBADF);
+	type = fp->f_type;
+
+	if (type != DTYPE_SOCKET) {
+		/* not a socket - probably a tap / vmnet device */
+		switch (args->cmd) {
+		case LINUX_SIOCGIFADDR:
+		case LINUX_SIOCSIFADDR:
+		case LINUX_SIOCGIFFLAGS:
+			return (linux_ioctl_special(p, args));
+		default:
+			return (ENOIOCTL);
+		}
+	}
+
 	switch (args->cmd & 0xffff) {
 		
 	case LINUX_FIOGETOWN:
@@ -1535,6 +1555,7 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 		
 	case LINUX_SIOCGIFFLAGS:
 	case LINUX_SIOCGIFADDR:
+	case LINUX_SIOCSIFADDR:
 	case LINUX_SIOCGIFDSTADDR:
 	case LINUX_SIOCGIFBRDADDR:
 	case LINUX_SIOCGIFNETMASK:
@@ -1619,6 +1640,12 @@ linux_ioctl_socket(struct proc *p, struct linux_ioctl_args *args)
 		error = ioctl(p, (struct ioctl_args *)args);
 		break;
 
+	case LINUX_SIOCSIFADDR:
+		/* XXX probably doesn't work, included for completeness */
+		args->cmd = SIOCSIFADDR;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
+
 	case LINUX_SIOCGIFDSTADDR:
 		args->cmd = OSIOCGIFDSTADDR;
 		error = ioctl(p, (struct ioctl_args *)args);
@@ -1700,7 +1727,35 @@ linux_ioctl_private(struct proc *p, struct linux_ioctl_args *args)
 	}
 	if (type == DTYPE_SOCKET)
 		return (linux_ioctl_socket(p, args));
-	return (ioctl(p, (struct ioctl_args *)args));
+	return (ENOIOCTL);
+}
+
+/*
+ * Special ioctl handler
+ */
+static int
+linux_ioctl_special(struct proc *p, struct linux_ioctl_args *args)
+{
+	int error;
+
+	switch (args->cmd) {
+	case LINUX_SIOCGIFADDR:
+		args->cmd = SIOCGIFADDR;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
+	case LINUX_SIOCSIFADDR:
+		args->cmd = SIOCSIFADDR;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
+	case LINUX_SIOCGIFFLAGS:
+		args->cmd = SIOCGIFFLAGS;
+		error = ioctl(p, (struct ioctl_args *)args);
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+
+	return (error);
 }
 
 /*
