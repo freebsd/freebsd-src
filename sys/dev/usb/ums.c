@@ -85,12 +85,7 @@ int	umsdebug = 1;
 
 #define UMSUNIT(s)	(minor(s)&0x1f)
 
-#define PS2LBUTMASK	x01
-#define PS2RBUTMASK	x02
-#define PS2MBUTMASK	x04
-#define PS2BUTMASK 0x0f
-
-#define QUEUE_BUFSIZE	240	/* MUST be divisible by 3 _and_ 4 */
+#define QUEUE_BUFSIZE	400	/* MUST be divisible by 5 _and_ 8 */
 
 struct ums_softc {
 	bdevice sc_dev;			/* base device */
@@ -276,9 +271,7 @@ USB_ATTACH(ums)
 		if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 			sc->sc_loc_z.size = 0;	/* Bad Z coord, ignore it */
 		} else {
-#if !defined(__FreeBSD__)
 			sc->flags |= UMS_Z;
-#endif
 		}
 	}
 
@@ -336,27 +329,22 @@ USB_ATTACH(ums)
 
 	sc->sc_wsmousedev = config_found(self, &a, wsmousedevprint);
 #elif defined(__FreeBSD__)
-	sc->hw.buttons = 2;		/* XXX hw&mode values are bogus */
-	sc->hw.iftype = MOUSE_IF_PS2;
-	sc->hw.type = MOUSE_MOUSE;
-	if (sc->flags & UMS_Z)
-		sc->hw.model = MOUSE_MODEL_INTELLI;
+	if (sc->nbuttons > MOUSE_MSC_MAXBUTTON)
+		sc->hw.buttons = MOUSE_MSC_MAXBUTTON;
 	else
-		sc->hw.model = MOUSE_MODEL_GENERIC;
+		sc->hw.buttons = sc->nbuttons;
+	sc->hw.iftype = MOUSE_IF_USB;
+	sc->hw.type = MOUSE_MOUSE;
+	sc->hw.model = MOUSE_MODEL_GENERIC;
 	sc->hw.hwid = 0;
-	sc->mode.protocol = MOUSE_PROTO_PS2;
+	sc->mode.protocol = MOUSE_PROTO_MSC;
 	sc->mode.rate = -1;
-	sc->mode.resolution = MOUSE_RES_DEFAULT;
-	sc->mode.accelfactor = 1;
+	sc->mode.resolution = MOUSE_RES_UNKNOWN;
+	sc->mode.accelfactor = 0;
 	sc->mode.level = 0;
-	if (sc->flags & UMS_Z) {
-		sc->mode.packetsize = MOUSE_INTELLI_PACKETSIZE;
-		sc->mode.syncmask[0] = 0xc8;
-	} else {
-		sc->mode.packetsize = MOUSE_PS2_PACKETSIZE;
-		sc->mode.syncmask[0] = 0xc0;
-	}
-	sc->mode.syncmask[1] = 0;
+	sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
+	sc->mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
+	sc->mode.syncmask[1] = MOUSE_MSC_SYNC;
 
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
@@ -393,13 +381,11 @@ ums_detach(device_t self)
 
 	/* someone waiting for data */
 	if (sc->state & UMS_ASLEEP) {
-		DPRINTF(("Waking up %p\n", sc));
-		sc->state &= ~UMS_ASLEEP;	/* PR2 */
+		sc->state &= ~UMS_ASLEEP;
 		wakeup(sc);
 	}
 	if (sc->state & UMS_SELECT) {
-		DPRINTF(("Waking up select %p\n", &sc->rsel));
-		sc->state &= ~UMS_SELECT;	/* PR2 */
+		sc->state &= ~UMS_SELECT;
 		selwakeup(&sc->rsel);
 	}
 
@@ -433,7 +419,7 @@ ums_intr(reqh, addr, status)
 #if defined(__NetBSD__)
 #define UMS_BUT(i) ((i) == 1 || (i) == 2 ? 3 - (i) : i)
 #elif defined(__FreeBSD__)
-#define UMS_BUT(i) (i)
+#define UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
 #endif
 
 	DPRINTFN(5, ("ums_intr: sc=%p status=%d\n", sc, status));
@@ -470,7 +456,7 @@ ums_intr(reqh, addr, status)
 		if (sc->sc_wsmousedev)
 			wsmouse_input(sc->sc_wsmousedev, buttons, dx, dy, dz);
 #elif defined(__FreeBSD__)
-	if (dx || dy || (sc->flags & UMS_Z && dz)
+	if (dx || dy || dz || (sc->flags & UMS_Z)
 	    || buttons != sc->status.button) {
 		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d buttons:0x%x\n",
 			dx, dy, dz, buttons));
@@ -486,23 +472,29 @@ ums_intr(reqh, addr, status)
 			return;
 		}
 
-		sc->qbuf[sc->qhead] = MOUSE_PS2_SYNC;
-		if (dx < 0)
-			sc->qbuf[sc->qhead] |= MOUSE_PS2_XNEG;
-		if (dx > 255 || dx < -255)
-			sc->qbuf[sc->qhead] |= MOUSE_PS2_XOVERFLOW;
-		if (dy < 0)
-			sc->qbuf[sc->qhead] |= MOUSE_PS2_YNEG;
-		if (dy > 255 || dy < -255)
-			sc->qbuf[sc->qhead] |= MOUSE_PS2_YOVERFLOW;
-		sc->qbuf[sc->qhead++] |= buttons;
-		sc->qbuf[sc->qhead++] = dx;
-		sc->qbuf[sc->qhead++] = dy;
-		sc->qcount += 3;
-		if (sc->flags & UMS_Z) {
-			sc->qbuf[sc->qhead++] = dz;
-			sc->qcount++;
+		if (dx >  254)		dx =  254;
+		if (dx < -256)		dx = -256;
+		if (dy >  254)		dy =  254;
+		if (dy < -256)		dy = -256;
+		if (dz >  126)		dz =  126;
+		if (dz < -128)		dz = -128;
+
+		sc->qbuf[sc->qhead] = sc->mode.syncmask[1];
+		sc->qbuf[sc->qhead] |= ~buttons & MOUSE_MSC_BUTTONS;
+		sc->qbuf[sc->qhead+1] = dx >> 1;
+		sc->qbuf[sc->qhead+2] = dy >> 1;
+		sc->qbuf[sc->qhead+3] = dx - (dx >> 1);
+		sc->qbuf[sc->qhead+4] = dy - (dy >> 1);
+
+		if (sc->mode.level == 1) {
+			sc->qbuf[sc->qhead+5] = dz >> 1;
+			sc->qbuf[sc->qhead+6] = dz - (dz >> 1);
+			sc->qbuf[sc->qhead+7] = ((~buttons >> 3)
+						 & MOUSE_SYS_EXTBUTTONS);
 		}
+
+		sc->qhead += sc->mode.packetsize;
+		sc->qcount += sc->mode.packetsize;
 #ifdef USB_DEBUG
 		if (sc->qhead > sizeof(sc->qbuf))
 			DPRINTF(("Buffer overrun! %d %d\n", 
@@ -514,13 +506,11 @@ ums_intr(reqh, addr, status)
 
 		/* someone waiting for data */
 		if (sc->state & UMS_ASLEEP) {
-			DPRINTF(("Waking up %p\n", sc));
-			sc->state &= ~UMS_ASLEEP;	/* PR2 */
+			sc->state &= ~UMS_ASLEEP;
 			wakeup(sc);
 		}
 		if (sc->state & UMS_SELECT) {
-			DPRINTF(("Waking up select %p\n", &sc->rsel));
-			sc->state &= ~UMS_SELECT;	/* PR2 */
+			sc->state &= ~UMS_SELECT;
 			selwakeup(&sc->rsel);
 		}
 #endif
@@ -640,9 +630,6 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 		*/
 		sc->state |= UMS_ASLEEP;
 		error = tsleep(sc, PZERO | PCATCH, "umsrea", 0);
-		/* PR2: statement moved to ums_poll/ums_detach
-		sc->state &= ~UMS_ASLEEP;
-		 */
 		if (error) {
 			splx(s);
 			return error;
@@ -689,9 +676,6 @@ ums_poll(dev_t dev, int events, struct proc *p)
 		} else {
 			sc->state |= UMS_SELECT;
 			selrecord(p, &sc->rsel);
-			/* PR2: statement moved to ums_poll/ums_detach
-			sc->state &= ~UMS_SELECT;
-			 */
 		}
 	}
 	splx(s);
@@ -705,6 +689,7 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	USB_GET_SC(ums, UMSUNIT(dev), sc);
 	int error = 0;
 	int s;
+	mousemode_t mode;
 
 	switch(cmd) {
 	case MOUSE_GETHWINFO:
@@ -713,8 +698,77 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	case MOUSE_GETMODE:
 		*(mousemode_t *)addr = sc->mode;
 		break;
+	case MOUSE_SETMODE:
+		mode = *(mousemode_t *)addr;
+
+		if (mode.level == -1)
+			/* don't change the current setting */
+			;
+		else if ((mode.level < 0) || (mode.level > 1))
+			return (EINVAL);
+
+		s = splusb();
+		sc->mode.level = mode.level;
+
+		if (sc->mode.level == 0) {
+			if (sc->nbuttons > MOUSE_MSC_MAXBUTTON)
+				sc->hw.buttons = MOUSE_MSC_MAXBUTTON;
+			else
+				sc->hw.buttons = sc->nbuttons;
+			sc->mode.protocol = MOUSE_PROTO_MSC;
+			sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
+			sc->mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
+			sc->mode.syncmask[1] = MOUSE_MSC_SYNC;
+		} else if (sc->mode.level == 1) {
+			if (sc->nbuttons > MOUSE_SYS_MAXBUTTON)
+				sc->hw.buttons = MOUSE_SYS_MAXBUTTON;
+			else
+				sc->hw.buttons = sc->nbuttons;
+			sc->mode.protocol = MOUSE_PROTO_SYSMOUSE;
+			sc->mode.packetsize = MOUSE_SYS_PACKETSIZE;
+			sc->mode.syncmask[0] = MOUSE_SYS_SYNCMASK;
+			sc->mode.syncmask[1] = MOUSE_SYS_SYNC;
+		}
+
+		bzero(sc->qbuf, sizeof(sc->qbuf));
+		sc->qhead = sc->qtail = sc->qcount = 0;
+		splx(s);
+
+		break;
 	case MOUSE_GETLEVEL:
 		*(int *)addr = sc->mode.level;
+		break;
+	case MOUSE_SETLEVEL:
+		if (*(int *)addr < 0 || *(int *)addr > 1)
+			return (EINVAL);
+
+		s = splusb();
+		sc->mode.level = *(int *)addr;
+
+		if (sc->mode.level == 0) {
+			if (sc->nbuttons > MOUSE_MSC_MAXBUTTON)
+				sc->hw.buttons = MOUSE_MSC_MAXBUTTON;
+			else
+				sc->hw.buttons = sc->nbuttons;
+			sc->mode.protocol = MOUSE_PROTO_MSC;
+			sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
+			sc->mode.syncmask[0] = MOUSE_MSC_SYNCMASK;
+			sc->mode.syncmask[1] = MOUSE_MSC_SYNC;
+		} else if (sc->mode.level == 1) {
+			if (sc->nbuttons > MOUSE_SYS_MAXBUTTON)
+				sc->hw.buttons = MOUSE_SYS_MAXBUTTON;
+			else
+				sc->hw.buttons = sc->nbuttons;
+			sc->mode.protocol = MOUSE_PROTO_SYSMOUSE;
+			sc->mode.packetsize = MOUSE_SYS_PACKETSIZE;
+			sc->mode.syncmask[0] = MOUSE_SYS_SYNCMASK;
+			sc->mode.syncmask[1] = MOUSE_SYS_SYNC;
+		}
+
+		bzero(sc->qbuf, sizeof(sc->qbuf));
+		sc->qhead = sc->qtail = sc->qcount = 0;
+		splx(s);
+
 		break;
 	case MOUSE_GETSTATUS: {
 		mousestatus_t *status = (mousestatus_t *) addr;
