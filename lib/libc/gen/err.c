@@ -49,6 +49,24 @@ static char sccsid[] = "@(#)err.c	8.1 (Berkeley) 6/4/93";
 
 extern char *__progname;		/* Program name, from crt0. */
 
+static FILE *err_file; /* file to use for error output */
+static void (*err_exit)(int);
+
+void
+err_set_file(void *fp)
+{
+	if (fp)
+		err_file = fp;
+	else
+		err_file = stderr;
+}
+
+void
+err_set_exit(void (*ef)(int))
+{
+	err_exit = ef;
+}
+
 __dead void
 #ifdef __STDC__
 err(int eval, const char *fmt, ...)
@@ -78,12 +96,16 @@ verr(eval, fmt, ap)
 	int sverrno;
 
 	sverrno = errno;
-	(void)fprintf(stderr, "%s: ", __progname);
+	if (! err_file)
+		err_set_file((FILE *)0);
+	(void)fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL) {
-		(void)vfprintf(stderr, fmt, ap);
-		(void)fprintf(stderr, ": ");
+		(void)vfprintf(err_file, fmt, ap);
+		(void)fprintf(err_file, ": ");
 	}
-	(void)fprintf(stderr, "%s\n", strerror(sverrno));
+	(void)fprintf(err_file, "%s\n", strerror(sverrno));
+	if(err_exit)
+		err_exit(eval);
 	exit(eval);
 }
 
@@ -113,10 +135,14 @@ verrx(eval, fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	(void)fprintf(stderr, "%s: ", __progname);
+	if (! err_file)
+		err_set_file((FILE *)0);
+	(void)fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL)
-		(void)vfprintf(stderr, fmt, ap);
-	(void)fprintf(stderr, "\n");
+		(void)vfprintf(err_file, fmt, ap);
+	(void)fprintf(err_file, "\n");
+	if (err_exit)
+		err_exit(eval);
 	exit(eval);
 }
 
@@ -147,12 +173,14 @@ vwarn(fmt, ap)
 	int sverrno;
 
 	sverrno = errno;
-	(void)fprintf(stderr, "%s: ", __progname);
+	if (! err_file)
+		err_set_file((FILE *)0);
+	(void)fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL) {
-		(void)vfprintf(stderr, fmt, ap);
-		(void)fprintf(stderr, ": ");
+		(void)vfprintf(err_file, fmt, ap);
+		(void)fprintf(err_file, ": ");
 	}
-	(void)fprintf(stderr, "%s\n", strerror(sverrno));
+	(void)fprintf(err_file, "%s\n", strerror(sverrno));
 }
 
 void
@@ -179,8 +207,10 @@ vwarnx(fmt, ap)
 	const char *fmt;
 	va_list ap;
 {
-	(void)fprintf(stderr, "%s: ", __progname);
+	if (! err_file)
+		err_set_file((FILE *)0);
+	(void)fprintf(err_file, "%s: ", __progname);
 	if (fmt != NULL)
-		(void)vfprintf(stderr, fmt, ap);
-	(void)fprintf(stderr, "\n");
+		(void)vfprintf(err_file, fmt, ap);
+	(void)fprintf(err_file, "\n");
 }
