@@ -36,6 +36,7 @@ profile         2
 
 # Mandatory:
 options 	APIC_IO			# Symmetric (APIC) I/O
+options 	HTT			# HyperThreading Technology
 
 #
 # Rogue SMP hardware:
