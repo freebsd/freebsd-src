@@ -132,7 +132,17 @@
       breakage and lack of maintainership.</para>
 
     <para>The ULE scheduler is now the default scheduler in the
-      <filename>GENERIC</filename> kernel.</para>
+      <filename>GENERIC</filename> kernel.  For the average user,
+      interactivity is reported to be better in many cases.  This
+      means less <quote>skipping</quote> and <quote>jerking</quote> in
+      interactive applications while the machine is very busy.  This
+      will not prevent problems due to overloaded disk subsystems, but
+      it does help with overloaded CPUs.  On SMP machines, ULE has
+      per-CPU run queues which allow for CPU affinity, CPU binding,
+      and advanced HyperThreading support, as well as providing a
+      framework for more optimizations in the future.  As fine-grained
+      kernel locking continues, the scheduler will be able to make
+      more efficient use of the available parallel resources.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -236,6 +246,14 @@
         when attempting operations against an NFSv3/NFSv2-only
         server.</para>
 
+      <para>The SMBFS client now has support for SMB request signing,
+	which prevents <quote>man in the middle</quote> attacks and is
+	required in order to connect to Windows 2003 servers in their
+	default configuration.  As signing each message imposes a
+	significant performance penalty, this feature is only enabled
+	if the server requires it; this may eventually become an
+	option to &man.mount.smbfs.8;.</para>
+
     </sect3>
 
     <sect3 id="mm">
@@ -275,7 +293,9 @@
     <para>Two security fixes for <application>CVS</application> (one
       related to pserver operation and the other dealing with
       malformed module requests) have been backported from later
-      versions.</para>
+      versions.  One side effect of this update is that running
+      pserver as <username>root</username> (a configuration that was
+      already unsupported and insecure) no longer works.</para>
 
     <para><application>OpenSSH</application> has been updated from
       3.6.1p1 to 3.7.1p2.</para>
