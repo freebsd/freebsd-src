@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.32 2003/04/28 02:54:43 grog Exp $
+ * $Id: vinumvar.h,v 1.33 2003/05/23 01:09:23 grog Exp $
  * $FreeBSD$
  */
 
@@ -127,14 +127,14 @@ enum constants {
 #define OBJTYPE(x)	((minor(x) >> VINUM_TYPE_SHIFT) & 3)
 
     /* Create device minor numbers */
-#define VINUMDEV(o, t)  makedev (VINUM_CDEV_MAJOR, VINUMMINOR (o, t))
+#define VINUMDEV(o, t)		makedev (VINUM_CDEV_MAJOR, VINUMMINOR (o, t))
 
-#define VINUM_VOL(v)	makedev (VINUM_CDEV_MAJOR, \
-				 VINUMMINOR (v, VINUM_VOLUME_TYPE))
-#define VINUM_PLEX(p)	makedev (VINUM_CDEV_MAJOR, \
-				 VINUMMINOR (p, VINUM_PLEX_TYPE))
-#define VINUM_SD(s)	makedev (VINUM_CDEV_MAJOR, \
-				 VINUMMINOR (s, VINUM_SD_TYPE))
+#define VINUM_VOL(v)		makedev (VINUM_CDEV_MAJOR, \
+					 VINUMMINOR (v, VINUM_VOLUME_TYPE))
+#define VINUM_PLEX(p)		makedev (VINUM_CDEV_MAJOR, \
+					 VINUMMINOR (p, VINUM_PLEX_TYPE))
+#define VINUM_SD(s)		makedev (VINUM_CDEV_MAJOR, \
+					 VINUMMINOR (s, VINUM_SD_TYPE))
 
     /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 3)
@@ -142,13 +142,13 @@ enum constants {
 #define VINUM_SUPERDEV_NAME VINUM_DIR"/control"		    /* normal super device */
 #define VINUM_DAEMON_DEV_NAME VINUM_DIR"/controld"	    /* super device for daemon only */
 
-/*
- * the number of object entries to cater for initially, and also the
- * value by which they are incremented.  It doesn't take long
- * to extend them, so theoretically we could start with 1 of each, but
- * it's untidy to allocate such small areas.  These values are
- * probably too small.
- */
+    /*
+     * the number of object entries to cater for initially, and also the
+     * value by which they are incremented.  It doesn't take long
+     * to extend them, so theoretically we could start with 1 of each, but
+     * it's untidy to allocate such small areas.  These values are
+     * probably too small.
+     */
 
     INITIAL_DRIVES = 4,
     INITIAL_VOLUMES = 4,
@@ -159,6 +159,7 @@ enum constants {
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
     PLEX_LOCKS = 256,					    /* number of locks to allocate to a plex */
+    PLEXMUTEXES = 32,
     MAX_REVIVE_BLOCKSIZE = MAXPHYS,			    /* maximum revive block size */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
@@ -280,13 +281,25 @@ struct drive_freelist {					    /* sorted list of free space on drive */
  * entries of type element, by increment entries, and change
  * oldcount accordingly
  */
+#ifdef VINUMDEBUG
 #define EXPAND(table, element, oldcount, increment)         \
 {							    \
   expand_table ((void **) &table,			    \
 		oldcount * sizeof (element),		    \
-		(oldcount + increment) * sizeof (element) ); \
+		(oldcount + increment) * sizeof (element),  \
+		__FILE__,				    \
+		__LINE__ );				    \
   oldcount += increment;				    \
   }
+#else
+#define EXPAND(table, element, oldcount, increment)         \
+{							    \
+  expand_table ((void **) &table,			    \
+		oldcount * sizeof (element),		    \
+		(oldcount + increment) * sizeof (element)); \
+  oldcount += increment;				    \
+  }
+#endif
 
 /* Information on vinum's memory usage */
 struct meminfo {
