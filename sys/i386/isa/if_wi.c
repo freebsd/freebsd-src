@@ -453,7 +453,9 @@ wi_generic_attach(device_t dev)
 	struct wi_ltv_gen	gen;
 	struct ifnet		*ifp;
 	int			error;
+	int			s;
 
+	s = splimp();
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
@@ -463,6 +465,7 @@ wi_generic_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		wi_free(dev);
+		splx(s);
 		return (error);
 	}
 
@@ -481,6 +484,7 @@ wi_generic_attach(device_t dev)
 	if ((error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) != 0) {
 		device_printf(dev, "mac read failed %d\n", error);
 		wi_free(dev);
+		splx(s);
 		return (error);
 	}
 	bcopy((char *)&mac.wi_mac_addr,
@@ -584,6 +588,7 @@ wi_generic_attach(device_t dev)
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->wi_stat_ch);
 
+	splx(s);
 	return(0);
 }
 
@@ -799,6 +804,7 @@ wi_inquire(xsc)
 {
 	struct wi_softc		*sc;
 	struct ifnet		*ifp;
+	int			s;
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
@@ -809,7 +815,9 @@ wi_inquire(xsc)
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 
+	s = splimp();
 	wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_COUNTERS);
+	splx(s);
 
 	return;
 }
