@@ -3,10 +3,10 @@
 LIB=		telnet
 
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
-		enc_des.c sra.c pk.c
+		enc_des.c pk.c
 
 CFLAGS+=        -DHAS_CGETENT -DENCRYPTION -DDES_ENCRYPTION -DAUTHENTICATION \
-                -DSRA -I${TELNETDIR} \
+                -I${TELNETDIR} \
 
 NOPIC=          yes
 
