@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.24.2.1 1997/10/21 18:14:10 nate Exp $
+ * $Id: aic6360.c,v 1.24.2.2 1997/10/30 00:38:17 nate Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -703,7 +703,7 @@ static struct scsi_device aic_dev = {
 #include "card.h"
 #if NCARD > 0
 #include <sys/select.h>
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
