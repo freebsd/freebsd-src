@@ -7,13 +7,13 @@
  * already exists.
  *
  *	from: kdb_init.c,v 4.0 89/01/24 21:50:45 jtkohl Exp $
- *	$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $
+ *	$Id: kdb_init.c,v 1.4 1995/09/07 21:37:20 markm Exp $
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $";
+"$Id: kdb_init.c,v 1.4 1995/09/07 21:37:20 markm Exp $";
 #endif	lint
 #endif
 
@@ -97,6 +97,7 @@ main(argc, argv)
       fprintf (stderr, "Couldn't read master key.\n");
       exit (-1);
     }
+    des_init_random_number_generator(master_key);
 
     if (
 	add_principal(KERB_M_NAME, KERB_M_INST, MASTER_KEY) ||
@@ -140,7 +141,7 @@ add_principal(name, instance, aap_op)
 	bzero(new_key, sizeof(C_Block));
 	new_key[0] = 127;
 #else
-	random_key(new_key);
+	des_new_random_key(new_key);
 #endif
 	kdb_encrypt_key (new_key, new_key, master_key, master_key_schedule,
 			 ENCRYPT);
