@@ -96,7 +96,7 @@ int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
 int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
 /* Shall we allocate ephemeral ports in random order? */
-int	ipport_randomized = 1;
+int	ipport_randomized = 0;
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
