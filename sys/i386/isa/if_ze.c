@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.13 1995/03/28 07:55:35 bde Exp $
+ * $Id: if_ze.c,v 1.14 1995/05/02 04:03:07 phk Exp $
  */
 
 #include "ze.h"
@@ -717,7 +717,7 @@ ze_stop(unit)
 	 *	DS8390's, but just in case it's an old one.
 	 */
 	while (((inb(sc->nic_addr + ZE_P0_ISR) & ZE_ISR_RST) == 0) && --n);
-	pcic_power_off(0);
+	pcic_power_off(sc->slot);
 
 }
 
