@@ -110,6 +110,7 @@ typedef struct des_ks_struct
 #define ecb_encrypt des_ecb_encrypt
 #define cbc_encrypt des_cbc_encrypt
 #define ncbc_encrypt des_ncbc_encrypt
+#define xcbc_encrypt des_xcbc_encrypt
 #define cbc_cksum des_cbc_cksum
 #define quad_cksum des_quad_cksum
 
@@ -138,6 +139,9 @@ void des_cbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
 void des_ncbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
+void des_xcbc_encrypt(des_cblock *input,des_cblock *output,long length,
+	des_key_schedule schedule,des_cblock *ivec,
+	des_cblock *inw,des_cblock *outw,int enc);
 void des_3cbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule sk1,des_key_schedule sk2,
 	des_cblock *ivec1,des_cblock *ivec2,int enc);
@@ -215,6 +219,7 @@ void des_ecb3_encrypt();
 DES_LONG des_cbc_cksum();
 void des_cbc_encrypt();
 void des_ncbc_encrypt();
+void des_xcbc_encrypt();
 void des_3cbc_encrypt();
 void des_cfb_encrypt();
 void des_ede3_cfb64_encrypt();
