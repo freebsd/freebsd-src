@@ -276,7 +276,7 @@ For example, the file might contain:
 .Pp
 .Dl 10.0.0.1:/etc
 .Pp
-Alternativly, if the server contains several independent roots, the file
+Alternatively, if the server contains several independent roots, the file
 might contain:
 .Pp
 .Dl 10.0.0.1:/usr/diskless/4.7-RELEASE/etc
@@ -290,7 +290,7 @@ and upgraded the installation, you would need to modify the
 files to reflect that move.
 To avoid that, paths in
 .Pa diskless_remount
-files begining with
+files beginning with
 .Pa /
 have the actual path of the client's root prepended to them so the file
 could instead contain:
@@ -299,7 +299,7 @@ could instead contain:
 .Pp
 The
 .Nm
-scripts create memory file systems to hold the overriden
+scripts create memory file systems to hold the overridden
 directories.
 Only a 2MB partition is created by default, which may not
 be sufficient for your purposes.
