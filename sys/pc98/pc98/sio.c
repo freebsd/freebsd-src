@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.55 1998/05/04 11:25:13 kato Exp $
+ *	$Id: sio.c,v 1.56 1998/05/13 10:42:36 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -3571,7 +3571,7 @@ LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
     /*
      * First see if it is a DSI SoftModem
      */
-    if(!((inb(base_io+7) ^ inb(base_io+7) & 0x80)))
+    if(!((inb(base_io+7) ^ inb(base_io+7)) & 0x80))
 	return ENODEV;
 
     data_0188 = inb(base_io+4);
