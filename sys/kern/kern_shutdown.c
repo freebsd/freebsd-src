@@ -468,6 +468,8 @@ panic(const char *fmt, ...)
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
 #ifdef APIC_IO
 	printf("lapic.id = %08x\n", lapic.id);
+#else
+	printf("\n");
 #endif
 #endif
 
