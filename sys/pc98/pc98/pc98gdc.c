@@ -70,23 +70,6 @@ typedef struct gdc_softc {
 
 static devclass_t	gdc_devclass;
 
-static int		gdcprobe(device_t dev);
-static int		gdc_attach(device_t dev);
-
-static device_method_t gdc_methods[] = {
-	DEVMETHOD(device_probe,		gdcprobe),
-	DEVMETHOD(device_attach,	gdc_attach),
-	{ 0, 0 }
-};
-
-static driver_t gdcdriver = {
-	DRIVER_NAME,
-	gdc_methods,
-	sizeof(gdc_softc_t),
-};
-
-DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
-
 static int		gdc_probe_unit(int unit, gdc_softc_t *sc, int flags);
 static int		gdc_attach_unit(int unit, gdc_softc_t *sc, int flags);
 
@@ -118,8 +101,14 @@ static struct cdevsw gdc_cdevsw = {
 
 #endif /* FB_INSTALL_CDEV */
 
+static void
+gdc_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, DRIVER_NAME, 0);
+}
+
 static int
-gdcprobe(device_t dev)
+gdc_probe(device_t dev)
 {
 	gdc_softc_t *sc;
 
@@ -243,6 +232,21 @@ gdcmmap(dev_t dev, vm_offset_t offset, int prot)
 }
 
 #endif /* FB_INSTALL_CDEV */
+
+static device_method_t gdc_methods[] = {
+	DEVMETHOD(device_identify,	gdc_identify),
+	DEVMETHOD(device_probe,		gdc_probe),
+	DEVMETHOD(device_attach,	gdc_attach),
+	{ 0, 0 }
+};
+
+static driver_t gdcdriver = {
+	DRIVER_NAME,
+	gdc_methods,
+	sizeof(gdc_softc_t),
+};
+
+DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
 
 /* LOW-LEVEL */
 
