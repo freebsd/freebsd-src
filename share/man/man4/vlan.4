@@ -76,6 +76,7 @@ By now, the only NICs that have both hardware support and proper
 driver hooks for the 802.1Q VLAN technology in
 .Fx
 are
+.Xr bge 4 ,
 .Xr nge 4 ,
 .Xr ti 4 ,
 and
@@ -116,7 +117,9 @@ natively.
 .It Xr tl 4
 does support long frames.
 .It Xr tx 4
-may begin supporting long frames soon.
+does support long frames.
+.It Xr wx 4
+does support long frames.
 .It Xr xl 4
 supports long frames only if the card is built on a newer chip
 (Cyclone and above).
@@ -124,7 +127,9 @@ supports long frames only if the card is built on a newer chip
 .Pp
 Note:
 Except for
-.Xr fxp 4 ,
+.Xr fxp 4
+and
+.Xr tx 4 ,
 none of the above drivers inform the
 .Nm
 driver about their support for long frames.
