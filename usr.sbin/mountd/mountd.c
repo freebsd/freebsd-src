@@ -165,7 +165,7 @@ void	add_mlist __P((char *, char *));
 int	check_dirpath __P((char *));
 int	check_options __P((struct dirlist *));
 int	chk_host __P((struct dirlist *, struct sockaddr *, int *, int *));
-int	del_mlist __P((char *, char *, struct sockaddr *));
+void	del_mlist(char *hostp, char *dirp);
 struct dirlist *dirp_search __P((struct dirlist *, char *));
 int	do_mount __P((struct exportlist *, struct grouplist *, int,
 		struct xucred *, char *, int, struct statfs *));
@@ -179,7 +179,6 @@ void	free_grp __P((struct grouplist *));
 void	free_host __P((struct hostlist *));
 void	get_exportlist __P((void));
 int	get_host __P((char *, struct grouplist *, struct grouplist *));
-int	get_num __P((char *));
 struct hostlist *get_ht __P((void));
 int	get_line __P((void));
 void	get_mountlist __P((void));
@@ -269,8 +268,10 @@ main(argc, argv)
 	int c, error, mib[3];
 	struct vfsconf vfc;
 
+	udp6conf = tcp6conf = NULL;
+	udp6sock = tcp6sock = NULL;
+
 	/* Check that another mountd isn't already running. */
-	
 	if ((mountdlockfd = (open(MOUNTDLOCK, O_RDONLY|O_CREAT, 0444))) == -1)
 		err(1, "%s", MOUNTDLOCK);
 
@@ -507,20 +508,16 @@ mntsrv(rqstp, transp)
 	char rpcpath[RPCMNT_PATHLEN + 1], dirpath[MAXPATHLEN];
 	int bad = 0, defset, hostset;
 	sigset_t sighup_mask;
-	struct sockaddr_in6 *sin6;
-	struct sockaddr_in *sin;
 
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
 	saddr = svc_getrpccaller(transp)->buf;
 	switch (saddr->sa_family) {
 	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)saddr;
-		sport = ntohs(sin6->sin6_port);
+		sport = ntohs(((struct sockaddr_in6 *)saddr)->sin6_port);
 		break;
 	case AF_INET:
-		sin = (struct sockaddr_in *)saddr;
-		sport = ntohs(sin->sin_port);
+		sport = ntohs(((struct sockaddr_in *)saddr)->sin_port);
 		break;
 	default:
 		syslog(LOG_ERR, "request from unknown address family");
@@ -655,8 +652,8 @@ mntsrv(rqstp, transp)
 		if (!svc_sendreply(transp, xdr_void, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
 		if (!lookup_failed)
-			del_mlist(host, dirpath, saddr);
-		del_mlist(numerichost, dirpath, saddr);
+			del_mlist(host, dirpath);
+		del_mlist(numerichost, dirpath);
 		if (log)
 			syslog(LOG_NOTICE,
 			    "umount request succeeded from %s for %s",
@@ -673,8 +670,8 @@ mntsrv(rqstp, transp)
 		if (!svc_sendreply(transp, xdr_void, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
 		if (!lookup_failed)
-			del_mlist(host, NULL, saddr);
-		del_mlist(numerichost, NULL, saddr);
+			del_mlist(host, NULL);
+		del_mlist(numerichost, NULL);
 		if (log)
 			syslog(LOG_NOTICE,
 			    "umountall request succeeded from %s",
@@ -1135,11 +1132,11 @@ get_exportlist()
 		 */
 		grp = tgrp;
 		do {
-		    if (do_mount(ep, grp, exflags, &anon, dirp,
-			dirplen, &fsb)) {
-			getexp_err(ep, tgrp);
-			goto nextline;
-		    }
+			if (do_mount(ep, grp, exflags, &anon, dirp, dirplen,
+			    &fsb)) {
+				getexp_err(ep, tgrp);
+				goto nextline;
+			}
 		} while (grp->gr_next && (grp = grp->gr_next));
 
 		/*
@@ -1367,14 +1364,6 @@ add_dlist(dpp, newdp, grp, flags)
 		if (flags & OP_KERB)
 			dp->dp_flag |= DP_KERB;
 	}
-}
-
-/*
- * Search for a dirpath on the export point.
- */
-void *
-test()
-{
 }
 
 /*
@@ -1649,11 +1638,9 @@ get_host(cp, grp, tgrp)
 	struct grouplist *tgrp;
 {
 	struct grouplist *checkgrp;
-	struct addrinfo *ai, hints;
+	struct addrinfo *ai, *tai, hints;
 	int ecode;
 	char host[NI_MAXHOST];
-	int i;
-	char *aptr[2];
 
 	if (grp->gr_type != GT_NULL) {
 		syslog(LOG_ERR, "Bad netgroup type for ip host %s", cp);
@@ -1664,11 +1651,9 @@ get_host(cp, grp, tgrp)
 	hints.ai_protocol = IPPROTO_UDP;
 	ecode = getaddrinfo(cp, NULL, &hints, &ai);
 	if (ecode != 0) {
-		syslog(LOG_ERR,"can't get address info for "
-		    "host %s", cp);
+		syslog(LOG_ERR,"can't get address info for host %s", cp);
 		return 1;
 	}
-	grp->gr_type = GT_HOST;
 	grp->gr_ptr.gt_addrinfo = ai;
 	while (ai != NULL) {
 		if (ai->ai_canonname == NULL) {
@@ -1680,9 +1665,30 @@ get_host(cp, grp, tgrp)
 		} else
 			ai->ai_flags &= ~AI_CANONNAME;
 		if (debug)
-			(void)fprintf(stderr, "got host %s\n", ai->ai_canonname);
+			fprintf(stderr, "got host %s\n", ai->ai_canonname);
+		/*
+		 * Sanity check: make sure we don't already have an entry
+		 * for this host in the grouplist.
+		 */
+		for (checkgrp = tgrp; checkgrp != NULL;
+		    checkgrp = checkgrp->gr_next) {
+			if (checkgrp->gr_type != GT_HOST)
+				continue;
+			for (tai = checkgrp->gr_ptr.gt_addrinfo; tai != NULL;
+			    tai = tai->ai_next) {
+				if (sacmp(tai->ai_addr, ai->ai_addr) != 0)
+					continue;
+				if (debug)
+					fprintf(stderr,
+					    "ignoring duplicate host %s\n",
+					    ai->ai_canonname);
+				grp->gr_type = GT_IGNORE;
+				return (0);
+			}
+		}
 		ai = ai->ai_next;
 	}
+	grp->gr_type = GT_HOST;
 	return (0);
 }
 
@@ -1778,6 +1784,8 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		struct ntfs_args na;
 	} args;
 
+	ai = NULL;
+	addrlen = 0;
 	args.ua.fspec = 0;
 	args.ua.export.ex_flags = exflags;
 	args.ua.export.ex_anon = *anoncrp;
@@ -1843,6 +1851,9 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			else
 				cp = dirp + dirplen - 1;
 			if (errno == EPERM) {
+				if (debug)
+					warnx("can't change attributes for %s",
+					    dirp);
 				syslog(LOG_ERR,
 				   "can't change attributes for %s", dirp);
 				return (1);
@@ -1901,6 +1912,7 @@ get_net(cp, net, maskflg)
 	long preflen;
 	int ecode;
 
+	p = prefp = NULL;
 	if ((opt_flags & OP_MASKLEN) && !maskflg) {
 		p = strchr(cp, '/');
 		*p = '\0';
@@ -2180,28 +2192,14 @@ get_mountlist()
 	fclose(mlfile);
 }
 
-int
-del_mlist(hostp, dirp, saddr)
-	char *hostp, *dirp;
-	struct sockaddr *saddr;
+void
+del_mlist(char *hostp, char *dirp)
 {
 	struct mountlist *mlp, **mlpp;
 	struct mountlist *mlp2;
-	u_short sport;
 	FILE *mlfile;
 	int fnd = 0;
-	char host[NI_MAXHOST];
 
-	switch (saddr->sa_family) {
-	case AF_INET6:
-		sport = ntohs(((struct sockaddr_in6 *)saddr)->sin6_port);
-		break;
-	case AF_INET:
-		sport = ntohs(((struct sockaddr_in *)saddr)->sin_port);
-		break;
-	default:
-		return -1;
-	}
 	mlpp = &mlhead;
 	mlp = mlhead;
 	while (mlp) {
@@ -2269,8 +2267,6 @@ void
 free_grp(grp)
 	struct grouplist *grp;
 {
-	struct addrinfo *ai;
-
 	if (grp->gr_type == GT_HOST) {
 		if (grp->gr_ptr.gt_addrinfo != NULL)
 			freeaddrinfo(grp->gr_ptr.gt_addrinfo);
@@ -2344,23 +2340,6 @@ check_dirpath(dirp)
 	if (lstat(dirp, &sb) < 0 || !S_ISDIR(sb.st_mode))
 		ret = 0;
 	return (ret);
-}
-
-/*
- * Just translate an ascii string to an integer.
- */
-int
-get_num(cp)
-	register char *cp;
-{
-	register int res = 0;
-
-	while (*cp) {
-		if (*cp < '0' || *cp > '9')
-			return (-1);
-		res = res * 10 + (*cp++ - '0');
-	}
-	return (res);
 }
 
 static int
