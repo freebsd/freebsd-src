@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.129 1998/12/14 16:29:58 bde Exp $
+ *	$Id: fd.c,v 1.130 1998/12/27 13:40:56 phk Exp $
  *
  */
 
@@ -1530,8 +1530,15 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
-	bp = bufq_first(&fdc->head);
-	if(!bp) {
+	bp = fdc->bp;
+	if (bp == NULL) {
+		bp = bufq_first(&fdc->head);
+		if (bp != NULL) {
+			bufq_remove(&fdc->head, bp);
+			fdc->bp = bp;
+		}
+	}
+	if (bp == NULL) {
 		/***********************************************\
 		* nothing left for this controller to do	*
 		* Force into the IDLE state,			*
@@ -1903,7 +1910,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		{
 			/* ALL DONE */
 			fd->skip = 0;
-			bufq_remove(&fdc->head, bp);
+			fdc->bp = NULL;
 			/* Tell devstat we have finished with the transaction */
 			devstat_end_transaction(&fd->device_stats,
 						bp->b_bcount - bp->b_resid,
@@ -2026,7 +2033,7 @@ retrier(fdcu)
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
 
-	bp = bufq_first(&fdc->head);
+	bp = fdc->bp;
 
 	if(fd_data[FDUNIT(minor(bp->b_dev))].options & FDOPT_NORETRY)
 		goto fail;
@@ -2070,7 +2077,7 @@ retrier(fdcu)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
-		bufq_remove(&fdc->head, bp);
+		fdc->bp = NULL;
 	
 		/* Tell devstat we have finished with the transaction */
 		devstat_end_transaction(&fdc->fd->device_stats,
