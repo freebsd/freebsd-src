@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.15 1995/07/08 17:26:11 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.16 1995/07/09 16:36:00 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -8,6 +8,7 @@
 <!ENTITY bibliography SYSTEM "bibliography.sgml">
 <!ENTITY basics SYSTEM "basics.sgml">
 <!ENTITY booting SYSTEM "booting.sgml">
+<!ENTITY contrib SYSTEM "contrib.sgml">
 <!ENTITY ctm SYSTEM "ctm.sgml">
 <!ENTITY current SYSTEM "current.sgml">
 <!ENTITY dialup SYSTEM "dialup.sgml">
@@ -161,6 +162,7 @@ OUTLINE:
     &bibliography;
     &eresources;
     &hw;
+    &contrib;
     &glossary;
    
   </book>
