@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.3 1996/02/26 02:23:39 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.6 1996/02/26 02:34:26 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -531,6 +531,8 @@ ypproc_master_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 {
 	static ypresp_master  result;
 	DBT key,data;
+
+	result.peer = "";
 
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
