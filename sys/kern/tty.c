@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.86 1996/11/29 15:23:42 bde Exp $
+ * $Id: tty.c,v 1.87 1996/11/29 15:50:56 bde Exp $
  */
 
 /*-
@@ -1158,8 +1158,10 @@ ttyflush(tp, rw)
 #if 0
 again:
 #endif
-	if (rw & FWRITE)
+	if (rw & FWRITE) {
+		FLUSHQ(&tp->t_outq);
 		CLR(tp->t_state, TS_TTSTOP);
+	}
 #ifdef sun4c						/* XXX */
 	(*tp->t_stop)(tp, rw);
 #else
