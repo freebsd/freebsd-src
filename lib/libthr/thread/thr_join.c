@@ -104,7 +104,6 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		ret = ENOTSUP;
 		goto out;
 
-	/* Check if the thread is not dead: */
 	}
 	/*
 	 * Unlock the garbage collector mutex, now that the garbage collector
@@ -113,6 +112,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
+	/* Check if the thread is not dead: */
 	if (pthread->state != PS_DEAD) {
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
