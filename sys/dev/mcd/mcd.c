@@ -402,7 +402,7 @@ mcdstrategy(struct buf *bp)
 			unit, (long)bp->b_blkno, bp->b_bcount);
 		printf("mcd: mcdstratregy failure");
 		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto bad;
 	}
 
@@ -448,7 +448,7 @@ MCD_TRACE("strategy: drive not valid\n");
 	return;
 
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 done:
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
@@ -1184,7 +1184,7 @@ readerr:
 	}
 harderr:
 	/* invalidate the buffer */
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
 

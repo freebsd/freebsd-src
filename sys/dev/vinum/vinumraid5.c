@@ -467,7 +467,7 @@ bre5(struct request *rq,
 	/* Part C: build the requests */
 	rqg = allocrqg(rq, m.rqcount);			    /* get a request group */
 	if (rqg == NULL) {				    /* malloc failed */
-	    bp->b_flags |= B_ERROR;
+	    bp->b_ioflags |= BIO_ERROR;
 	    bp->b_error = ENOMEM;
 	    biodone(bp);
 	    return REQUEST_ENOMEM;

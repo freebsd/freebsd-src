@@ -193,7 +193,8 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_iocmd = BIO_READ;
-			bp->b_flags &= ~(B_INVAL|B_ERROR);
+			bp->b_flags &= ~B_INVAL;
+			bp->b_ioflags &= ~BIO_ERROR;
 			vfs_busy_pages(bp, 0);
 			BUF_STRATEGY(bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */

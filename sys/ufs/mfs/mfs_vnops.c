@@ -276,7 +276,7 @@ mfs_doio(bp, mfsp)
 		bp->b_error = copyout(bp->b_data, base, bp->b_bcount);
 	}
 	if (bp->b_error)
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 	biodone(bp);
 }
 

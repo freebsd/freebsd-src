@@ -325,7 +325,7 @@ scdstrategy(struct buf *bp)
 		printf("scd%d: strategy failure: blkno = %ld, bcount = %ld\n",
 			unit, (long)bp->b_blkno, bp->b_bcount);
 		bp->b_error = EINVAL;
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 		goto bad;
 	}
 
@@ -367,7 +367,7 @@ scdstrategy(struct buf *bp)
 	return;
 
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 done:
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
@@ -1043,7 +1043,7 @@ readerr:
 harderr:
 	/* invalidate the buffer */
 	bp->b_error = EIO;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount;
 	biodone(bp);
 

@@ -308,7 +308,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	error = biowait(bp);
 	bp->b_data = bp->b_saveaddr;
 	bp->b_flags |= B_INVAL | B_AGE;
-	bp->b_flags &= ~B_ERROR;
+	bp->b_ioflags &= ~BIO_ERROR;
 	brelse(bp);
 	if (error)
 	    break;
@@ -767,7 +767,7 @@ write_volume_label(int volno)
     DEV_STRATEGY(bp, 0);
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
-    bp->b_flags &= ~B_ERROR;
+    bp->b_ioflags &= ~BIO_ERROR;
     brelse(bp);
     return error;
 }

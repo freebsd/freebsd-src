@@ -193,7 +193,7 @@ mlxd_strategy(struct buf *bp)
     return;
 
  bad:
-    bp->b_flags |= B_ERROR;
+    bp->b_ioflags |= BIO_ERROR;
 
  done:
     /*
@@ -212,7 +212,7 @@ mlxd_intr(void *data)
 
     debug_called(1);
 	
-    if (bp->b_flags & B_ERROR)
+    if (bp->b_ioflags & BIO_ERROR)
 	bp->b_error = EIO;
     else
 	bp->b_resid = 0;

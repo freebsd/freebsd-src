@@ -448,7 +448,8 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	if ((bp->b_flags & B_CACHE) == 0) {
 		curproc->p_stats->p_ru.ru_inblock++;	/* pay for read */
 		bp->b_iocmd = BIO_READ;
-		bp->b_flags &= ~(B_ERROR|B_INVAL);
+		bp->b_flags &= ~B_INVAL;
+		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ffs_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;

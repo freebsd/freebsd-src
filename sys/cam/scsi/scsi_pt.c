@@ -260,7 +260,7 @@ ptstrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
@@ -416,7 +416,7 @@ ptoninvalidate(struct cam_periph *periph)
 		bufq_remove(&softc->buf_queue, q_bp);
 		q_bp->b_resid = q_bp->b_bcount;
 		q_bp->b_error = ENXIO;
-		q_bp->b_flags |= B_ERROR;
+		q_bp->b_ioflags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 
@@ -630,19 +630,19 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 					bufq_remove(&softc->buf_queue, q_bp);
 					q_bp->b_resid = q_bp->b_bcount;
 					q_bp->b_error = EIO;
-					q_bp->b_flags |= B_ERROR;
+					q_bp->b_ioflags |= BIO_ERROR;
 					biodone(q_bp);
 				}
 				splx(s);
 				bp->b_error = error;
 				bp->b_resid = bp->b_bcount;
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 			} else {
 				bp->b_resid = csio->resid;
 				bp->b_error = 0;
 				if (bp->b_resid != 0) {
 					/* Short transfer ??? */
-					bp->b_flags |= B_ERROR;
+					bp->b_ioflags |= BIO_ERROR;
 				}
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -654,7 +654,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			bp->b_resid = csio->resid;
 			if (bp->b_resid != 0)
-				bp->b_flags |= B_ERROR;
+				bp->b_ioflags |= BIO_ERROR;
 		}
 
 		/*

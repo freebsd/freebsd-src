@@ -687,7 +687,7 @@ spec_getpages(ap)
 
 	splx(s);
 
-	if ((bp->b_flags & B_ERROR) != 0) {
+	if ((bp->b_ioflags & BIO_ERROR) != 0) {
 		if (bp->b_error)
 			error = bp->b_error;
 		else

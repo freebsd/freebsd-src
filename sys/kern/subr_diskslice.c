@@ -307,7 +307,7 @@ bad_blkno:
 
 bad:
 	bp->b_resid = bp->b_bcount;
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 	return (-1);
 }
 
@@ -540,7 +540,7 @@ dsiodone(bp)
 	bp->b_iodone = ic->ic_prev_iodone;
 	bp->b_iodone_chain = ic->ic_prev_iodone_chain;
 	if (!(bp->b_iocmd == BIO_READ)
-	    || (!(bp->b_flags & B_ERROR) && bp->b_error == 0)) {
+	    || (!(bp->b_ioflags & BIO_ERROR) && bp->b_error == 0)) {
 		msg = fixlabel((char *)NULL, ic->ic_args[1].ia_ptr,
 			       (struct disklabel *)
 			       (bp->b_data + ic->ic_args[0].ia_long),

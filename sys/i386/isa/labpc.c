@@ -313,7 +313,7 @@ bp_done(struct buf *bp, int err)
 
 	if (err || bp->b_resid)
 	{
-		bp->b_flags |= B_ERROR;
+		bp->b_ioflags |= BIO_ERROR;
 	}
 
 	biodone(bp);

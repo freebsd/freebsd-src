@@ -214,7 +214,7 @@ passoninvalidate(struct cam_periph *periph)
 		bufq_remove(&softc->buf_queue, q_bp);
 		q_bp->b_resid = q_bp->b_bcount;
 		q_bp->b_error = ENXIO;
-		q_bp->b_flags |= B_ERROR;
+		q_bp->b_ioflags |= BIO_ERROR;
 		biodone(q_bp);
 	}
 	splx(s);
@@ -512,7 +512,7 @@ passstrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_flags |= B_ERROR;
+	bp->b_ioflags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
@@ -562,7 +562,7 @@ passstart(struct cam_periph *periph, union ccb *start_ccb)
 			 * hang.
 			 */
 			bp->b_error = EIO;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 			bp->b_resid = bp->b_bcount;
 			biodone(bp);
 			bp = bufq_first(&softc->buf_queue);
@@ -616,7 +616,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * the abort process
 			 */
 			bp->b_error = error;
-			bp->b_flags |= B_ERROR;
+			bp->b_ioflags |= BIO_ERROR;
 		}
 
 		if ((done_ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
