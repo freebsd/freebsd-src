@@ -40,6 +40,7 @@ SUBDIR=	accf_data \
 	fxp \
 	geom \
 	gx \
+	harp \
 	hatm \
 	hifn \
 	if_disc \
