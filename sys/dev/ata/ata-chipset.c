@@ -1324,7 +1324,7 @@ ata_promise_chipinit(device_t dev)
 	    ctlr->driver = malloc(sizeof(struct ata_promise_sx4),
 				  M_TEMP, M_NOWAIT | M_ZERO);
 	    hpkt = ctlr->driver;
-	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", MTX_DEF, 0);
+	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    hpkt->busy = hpkt->head = hpkt->tail = 0;
 
 	    if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,

@@ -97,7 +97,7 @@ ad_attach(struct ata_device *atadev)
 	adp->sectors = 17;
 	adp->heads = 8;
     }
-    mtx_init(&adp->queue_mtx, "ATA disk bioqueue lock", MTX_DEF, 0);
+    mtx_init(&adp->queue_mtx, "ATA disk bioqueue lock", NULL, MTX_DEF);
     bioq_init(&adp->queue);
 
     lbasize = (u_int32_t)atadev->param->lba_size_1 |

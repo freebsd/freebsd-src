@@ -106,7 +106,7 @@ ast_attach(struct ata_device *atadev)
     stp->lun = ata_get_lun(&ast_lun_map);
     ata_set_name(atadev, "ast", stp->lun);
     bioq_init(&stp->queue);
-    mtx_init(&stp->queue_mtx, "ATAPI TAPE bioqueue lock", MTX_DEF, 0);
+    mtx_init(&stp->queue_mtx, "ATAPI TAPE bioqueue lock", NULL, MTX_DEF);
 
     if (ast_sense(stp)) {
 	free(stp, M_AST);
