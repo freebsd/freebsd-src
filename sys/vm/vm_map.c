@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.25 1995/10/23 05:35:44 dyson Exp $
+ * $Id: vm_map.c,v 1.26 1995/11/12 08:58:58 davidg Exp $
  */
 
 /*
@@ -1727,8 +1727,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t src_map, dst_map;
 	register vm_map_entry_t src_entry, dst_entry;
 {
-	vm_object_t temp_object;
-
 	if (src_entry->is_sub_map || dst_entry->is_sub_map)
 		return;
 

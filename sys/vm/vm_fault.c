@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.35 1995/11/02 06:42:47 davidg Exp $
+ * $Id: vm_fault.c,v 1.36 1995/11/05 20:45:58 dyson Exp $
  */
 
 /*
@@ -132,11 +132,9 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	boolean_t wired;
 	boolean_t su;
 	boolean_t lookup_still_valid;
-	boolean_t page_exists;
 	vm_page_t old_m;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ];
-	int spl;
 	int hardfault = 0;
 	struct vnode *vp = NULL;
 

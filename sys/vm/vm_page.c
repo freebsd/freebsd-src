@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.36 1995/09/03 20:40:43 dyson Exp $
+ *	$Id: vm_page.c,v 1.37 1995/10/23 05:35:46 dyson Exp $
  */
 
 /*
@@ -85,7 +85,7 @@
 
 struct pglist *vm_page_buckets;	/* Array of buckets */
 int vm_page_bucket_count;	/* How big is array? */
-int vm_page_hash_mask;		/* Mask for hash function */
+static int vm_page_hash_mask;		/* Mask for hash function */
 
 struct pglist vm_page_queue_free;
 struct pglist vm_page_queue_zero;
@@ -114,6 +114,7 @@ static u_short vm_page_dev_bsize_chunks[] = {
 	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
+static void vm_page_unqueue __P((vm_page_t ));
 
 /*
  *	vm_set_page_size:
@@ -340,9 +341,7 @@ vm_page_startup(starta, enda, vaddr)
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  */
 inline const int
-vm_page_hash(object, offset)
-	vm_object_t object;
-	vm_offset_t offset;
+vm_page_hash(vm_object_t object, vm_offset_t offset)
 {
 	return ((unsigned) object + (offset >> PAGE_SHIFT)) & vm_page_hash_mask;
 }
@@ -500,7 +499,7 @@ vm_page_rename(mem, new_object, new_offset)
 /*
  * vm_page_unqueue must be called at splhigh();
  */
-inline void
+static inline void
 vm_page_unqueue(vm_page_t mem)
 {
 	int origflags;
@@ -798,7 +797,7 @@ vm_page_free(mem)
 	if (mem->bmapped || mem->busy || flags & (PG_BUSY|PG_FREE)) {
 		if (flags & PG_FREE)
 			panic("vm_page_free: freeing free page");
-		printf("vm_page_free: offset(%d), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
+		printf("vm_page_free: offset(%ld), bmapped(%d), busy(%d), PG_BUSY(%d)\n",
 		    mem->offset, mem->bmapped, mem->busy, (flags & PG_BUSY) ? 1 : 0);
 		panic("vm_page_free: freeing busy page");
 	}
@@ -1064,18 +1063,6 @@ vm_page_set_validclean(m, base, size)
 }
 
 /*
- * set a page (partially) valid
- */
-void
-vm_page_set_valid(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
-{
-	m->valid |= vm_page_bits(base, size);
-}
-
-/*
  * set a page (partially) invalid
  */
 void
@@ -1109,27 +1096,6 @@ vm_page_is_valid(m, base, size)
 }
 
 
-/*
- * set a page (partially) dirty
- */
-void
-vm_page_set_dirty(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
-{
-	if ((base != 0) || (size != PAGE_SIZE)) {
-		if (pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
-			m->dirty = VM_PAGE_BITS_ALL;
-			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-			return;
-		}
-		m->dirty |= vm_page_bits(base, size);
-	} else {
-		m->dirty = VM_PAGE_BITS_ALL;
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-	}
-}
 
 void
 vm_page_test_dirty(m)
@@ -1141,42 +1107,9 @@ vm_page_test_dirty(m)
 	}
 }
 
-/*
- * set a page (partially) clean
- */
-void
-vm_page_set_clean(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
-{
-	m->dirty &= ~vm_page_bits(base, size);
-	if( base == 0 && size == PAGE_SIZE)
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-}
-
-/*
- * is (partial) page clean
- */
-int
-vm_page_is_clean(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
-{
-	if (pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
-		m->dirty = VM_PAGE_BITS_ALL;
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-	}
-	if ((m->dirty & m->valid & vm_page_bits(base, size)) == 0)
-		return 1;
-	else
-		return 0;
-}
-
 #ifdef DDB
 void
-print_page_info()
+print_page_info(void)
 {
 	printf("cnt.v_free_count: %d\n", cnt.v_free_count);
 	printf("cnt.v_cache_count: %d\n", cnt.v_cache_count);

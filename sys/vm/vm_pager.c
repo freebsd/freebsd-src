@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.16 1995/07/13 08:48:42 davidg Exp $
+ * $Id: vm_pager.c,v 1.17 1995/07/29 11:44:29 bde Exp $
  */
 
 /*
@@ -86,13 +86,13 @@ extern struct pagerops swappagerops;
 extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
 
-struct pagerops *pagertab[] = {
+static struct pagerops *pagertab[] = {
 	&defaultpagerops,	/* OBJT_DEFAULT */
 	&swappagerops,		/* OBJT_SWAP */
 	&vnodepagerops,		/* OBJT_VNODE */
 	&devicepagerops,	/* OBJT_DEVICE */
 };
-int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
+static int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
 /*
  * Kernel address space for mapping pages.
@@ -238,18 +238,6 @@ vm_pager_unmap_page(kva)
 {
 	pmap_kremove(kva);
 	kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
-}
-
-vm_page_t
-vm_pager_atop(kva)
-	vm_offset_t kva;
-{
-	vm_offset_t pa;
-
-	pa = pmap_kextract(kva);
-	if (pa == 0)
-		panic("vm_pager_atop");
-	return (PHYS_TO_VM_PAGE(pa));
 }
 
 vm_object_t

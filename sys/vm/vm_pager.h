@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.8 1995/07/13 08:48:44 davidg Exp $
+ * $Id: vm_pager.h,v 1.9 1995/07/29 11:44:30 bde Exp $
  */
 
 /*
@@ -79,7 +79,6 @@ extern vm_map_t pager_map;
 extern int pager_map_size;
 
 vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_size_t, vm_prot_t, vm_offset_t));
-vm_page_t vm_pager_atop __P((vm_offset_t));
 void vm_pager_bufferinit __P((void));
 void vm_pager_deallocate __P((vm_object_t));
 int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
