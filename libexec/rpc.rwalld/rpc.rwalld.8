@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rpc.rwalld.8,v 1.3 1997/02/22 14:22:18 peter Exp $
 .\"
 .Dd June 7, 1993
 .Dt RPC.RWALLD 8
@@ -41,8 +41,9 @@
 .Nd write messages to users currently logged in server
 .Sh SYNOPSIS
 .Nm /usr/libexec/rpc.rwalld
+.Op Fl n
 .Sh DESCRIPTION
-.Nm rpc.rwalld
+.Nm Rpc.rwalld
 is a server which will send a message to users
 currently logged in to the system. This server
 invokes the 
@@ -50,16 +51,27 @@ invokes the
 command to actually write the messages to the
 system.
 .Pp
+The following option is available:
+.Bl -tag -width indent
+.It Fl n
+Do not become a daemon. This option is only available when
+.Nm
+is not invoked by
+.Xr inetd 8 .
+.El
+.Pp
 Messages are sent to this server by the 
 .Xr rwall 1
 command.
 The
-.Nm rpc.rwalld
+.Nm
 daemon is normally invoked by 
 .Xr inetd 8 .
 .Pp
-.Nm rpc.rwalld
-uses an RPC protocol defined in 
+.Nm Rpc.rwalld
+uses an
+.Tn RPC
+protocol defined in 
 .Pa /usr/include/rpcsvc/rwall.x .
 .Sh SEE ALSO
 .Xr rwall 1 ,
