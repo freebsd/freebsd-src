@@ -630,6 +630,8 @@ pcic_probe ()
 				pcicintr, 0, &pcic_imask);
 			if (pcic_irq < 0)
 				printf("pcic: failed to allocate IRQ\n");
+			else
+				printf("pcic: controller irq %d\n", pcic_irq);
 		}
 		/*
 		 *	Check for a card in this slot.
@@ -800,7 +802,7 @@ pcic_reset(void *chan)
 		putb(sp, PCIC_TIME_CMD0, 0x6);
 		putb(sp, PCIC_TIME_RECOV0, 0x0);
 		putb(sp, PCIC_TIME_SETUP1, 1);
-		putb(sp, PCIC_TIME_CMD1, 0x5F);
+		putb(sp, PCIC_TIME_CMD1, 0xf);
 		putb(sp, PCIC_TIME_RECOV1, 0);
 	}
 	selwakeup(&slotp->selp);

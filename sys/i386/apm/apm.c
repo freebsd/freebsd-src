@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.9 1996/04/18 19:26:11 nate Exp $
+ *	$Id: apm.c,v 1.12.4.10 1996/04/22 19:48:15 nate Exp $
  */
 
 #include "apm.h"
@@ -341,7 +341,6 @@ apm_hook_establish(int apmh, struct apmhook *ah)
 	return apm_add_hook(&hook[apmh], ah);
 }
 
-#ifdef notused
 /* disestablish an apm hook */
 void
 apm_hook_disestablish(int apmh, struct apmhook *ah)
@@ -351,7 +350,6 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 
 	apm_del_hook(&hook[apmh], ah);
 }
-#endif /* notused */
 
 
 static struct timeval suspend_time;
