@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.2 (Berkeley) 1/21/94
- * $Id: acct.h,v 1.2 1994/08/02 07:52:38 davidg Exp $
+ * $Id: acct.h,v 1.3 1994/08/21 04:41:31 paul Exp $
  */
 
 #ifndef _SYS_ACCT_H_
@@ -73,9 +73,5 @@ struct acct {
  * This is not necessarily equal to hz.
  */
 #define	AHZ	64
-
-#ifdef KERNEL
-struct vnode	*acctp;
-#endif
 
 #endif
