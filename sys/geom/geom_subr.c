@@ -61,7 +61,7 @@
 #include <geom/geom_int.h>
 #include <machine/stdarg.h>
 
-struct class_list_head g_classs = LIST_HEAD_INITIALIZER(g_classs);
+struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 static int g_nproviders;
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
@@ -79,7 +79,7 @@ g_add_class(struct g_class *mp)
 	g_topology_lock();
 	g_trace(G_T_TOPOLOGY, "g_add_class(%s)", mp->name);
 	LIST_INIT(&mp->geom);
-	LIST_INSERT_HEAD(&g_classs, mp, class);
+	LIST_INSERT_HEAD(&g_classes, mp, class);
 	if (g_nproviders > 0)
 		g_post_event(EV_NEW_CLASS, mp, NULL, NULL, NULL);
 	g_topology_unlock();
@@ -558,7 +558,7 @@ g_class_by_name(char *name)
 
 	g_trace(G_T_TOPOLOGY, "g_class_by_name(%s)", name);
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_classs, class)
+	LIST_FOREACH(mp, &g_classes, class)
 		if (!strcmp(mp->name, name))
 			return (mp);
 	return (NULL);

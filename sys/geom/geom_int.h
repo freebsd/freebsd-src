@@ -75,7 +75,7 @@ void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struc
 void g_run_events(void);
 
 /* geom_subr.c */
-extern struct class_list_head g_classs;
+extern struct class_list_head g_classes;
 extern char *g_wait_event, *g_wait_sim, *g_wait_up, *g_wait_down;
 
 /* geom_io.c */
