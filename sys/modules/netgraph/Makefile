@@ -43,7 +43,9 @@ _mppc=		mppc
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
+.if !defined(NO_BLUETOOTH) || defined(ALL_MODULES)
 _bluetooth=	bluetooth
+.endif
 .endif
 
 .include <bsd.subdir.mk>

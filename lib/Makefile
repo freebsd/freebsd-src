@@ -70,10 +70,12 @@ _libusbhid=	libusbhid
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-_compat=	compat
+.if !defined(NO_BLUETOOTH)
 _libbluetooth=	libbluetooth
-_libncp=	libncp
 _libsdp=	libsdp
+.endif
+_compat=	compat
+_libncp=	libncp
 _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
