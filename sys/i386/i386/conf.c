@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.84 1995/04/28 00:51:30 dufault Exp $
+ *	$Id: conf.c,v 1.85 1995/05/30 07:59:16 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -422,9 +422,9 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #include "sc.h"
 #include "vt.h"
 #if NSC > 0
-# if NVT > 0
+# if NVT > 0 && !defined(LINT)
 #  error "sc0 and vt0 are mutually exclusive"
-# endif /* NVT > 0 */
+# endif
 d_open_t	scopen;
 d_close_t	scclose;
 d_rdwr_t	scread, scwrite;
