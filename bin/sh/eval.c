@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.15.2.2 1999/04/21 11:10:13 cracauer Exp $";
+	"$Id: eval.c,v 1.15.2.3 1999/05/08 10:42:55 kris Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -710,6 +710,7 @@ evalcommand(cmd, flags, backcmd)
 	    && ((flags & EV_EXIT) == 0 || Tflag))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN
+		 || cmdentry.u.index == CDCMD
 		 || cmdentry.u.index == DOTCMD
 		 || cmdentry.u.index == EVALCMD))) {
 		jp = makejob(cmd, 1);
