@@ -14,26 +14,27 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.12 1996/08/24 09:51:59 jkh Exp $
+ * $Id: ftpio.c,v 1.13 1996/08/31 22:02:18 jkh Exp $
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#include <sys/signal.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
 #include <arpa/inet.h>
+
+#include <ctype.h>
+#include <errno.h>
 #include <ftpio.h>
+#include <netdb.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define SUCCESS		 0
 #define FAILURE		-1
@@ -58,7 +59,7 @@ static int	get_a_number(FTP_t ftp, char **q);
 static int	botch(char *func, char *botch_state);
 static int	cmd(FTP_t ftp, const char *fmt, ...);
 static int	ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int verbose);
-static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *seekto);
+static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t *seekto);
 static int	ftp_close(FTP_t ftp);
 static int	get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret);
 
@@ -176,12 +177,13 @@ ftpErrString(int errno)
     return("Unknown error");
 }
 
-size_t
+off_t
 ftpGetSize(FILE *fp, char *name)
 {
     int i;
-    char p[BUFSIZ], *cp;
+    char p[BUFSIZ], *cp, *ep;
     FTP_t ftp = fcookie(fp);
+    off_t size;
 
     check_passive(fp);
     sprintf(p, "SIZE %s\r\n", name);
@@ -189,11 +191,16 @@ ftpGetSize(FILE *fp, char *name)
 	fprintf(stderr, "Sending %s", p);
     i = writes(ftp->fd_ctrl, p);
     if (i)
-	return (size_t)-1;
+	return (off_t)-1;
     i = get_a_number(ftp, &cp);
     if (check_code(ftp, i, 213))
-	return (size_t)-1;
-    return (size_t)atoi(cp);
+	return (off_t)-1;
+
+    errno = 0;				/* to check for ERANGE */
+    size = (off_t)strtoq(cp, &ep, 10);
+    if (*ep != '\0' || errno == ERANGE)
+	return (off_t)-1;
+    return size;
 }
 
 time_t
@@ -230,7 +237,7 @@ ftpGetModtime(FILE *fp, char *name)
 }
 
 FILE *
-ftpGet(FILE *fp, char *file, int *seekto)
+ftpGet(FILE *fp, char *file, off_t *seekto)
 {
     FILE *fp2;
     FTP_t ftp = fcookie(fp);
@@ -646,7 +653,7 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port, int
 }
 
 static int
-ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *seekto)
+ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t *seekto)
 {
     int i,s;
     char *q;
@@ -700,7 +707,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
-		*seekto = 0;
+		*seekto = (off_t)0;
 		return i;
 	    }
 	}
@@ -748,7 +755,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 		return i;
 	    }
 	    else if (i != 350)
-		*seekto = 0;
+		*seekto = (off_t)0;
 	}
 	i = cmd(ftp, "%s %s", operation, file);
 	if (i < 0 || i > 299) {
