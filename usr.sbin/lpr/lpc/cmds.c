@@ -692,7 +692,7 @@ have_res:
  */
 
 void
-init_clean(int argc, char *argv[])
+clean_gi(int argc, char *argv[])
 {
 
 	/* init some fields before 'clean' is called for each queue */
@@ -723,12 +723,12 @@ init_clean(int argc, char *argv[])
 }
 
 void
-init_tclean(int argc, char *argv[])
+tclean_gi(int argc, char *argv[])
 {
 
 	/* only difference between 'clean' and 'tclean' is one value */
 	/* (...and the fact that 'clean' is priv and 'tclean' is not) */
-	init_clean(argc, argv);
+	clean_gi(argc, argv);
 	cln_testonly = 1;
 
 	return;
