@@ -52,6 +52,7 @@
 
 /* device structures */
 static disk_strategy_t	arstrategy;
+static dumper_t ardump;
 
 /* prototypes */
 static void ar_attach_raid(struct ar_softc *, int);
@@ -169,6 +170,7 @@ ar_attach_raid(struct ar_softc *rdp, int update)
 
     ar_config_changed(rdp, update);
     rdp->disk.d_strategy = arstrategy;
+    rdp->disk.d_dump = ardump;
     rdp->disk.d_name = "ar";
     rdp->disk.d_sectorsize = DEV_BSIZE;
     rdp->disk.d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
@@ -503,6 +505,132 @@ ata_raid_rebuild(int array)
 	return EBUSY;
     return kthread_create(ar_rebuild, rdp, &rdp->pid, RFNOWAIT, 0,
 			  "rebuilding ar%d", array);
+}
+
+static int
+ardump(void *arg, void *virtual, vm_offset_t physical,
+       off_t offset, size_t length)
+{
+    struct ar_softc *rdp;
+    struct disk *dp, *ap;
+    vm_offset_t pdata;
+    caddr_t vdata;
+    int blkno, count, chunk, error1, error2, lba, lbs, tmplba;
+    int drv = 0;
+
+    dp = arg;
+    rdp = dp->d_drv1;
+    if (!rdp || !(rdp->flags & AR_F_READY))
+	return ENXIO;
+
+    if (length == 0) {
+	for (drv = 0; drv < rdp->total_disks; drv++) {
+	    if (rdp->disks[drv].flags & AR_DF_ONLINE) {
+		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		(void) ap->d_dump(ap, NULL, 0, 0, 0);
+	    }
+	}
+	return 0;
+    }
+    
+    blkno = offset / DEV_BSIZE;
+    vdata = virtual;
+    pdata = physical;
+    
+    for (count = howmany(length, DEV_BSIZE); count > 0; 
+	 count -= chunk, blkno += chunk, vdata += (chunk * DEV_BSIZE),
+	 pdata += (chunk * DEV_BSIZE)) {
+
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_SPAN:
+	    lba = blkno;
+	    while (lba >= AD_SOFTC(rdp->disks[drv])->total_secs-rdp->reserved)
+		lba -= AD_SOFTC(rdp->disks[drv++])->total_secs-rdp->reserved;
+	    chunk = min(AD_SOFTC(rdp->disks[drv])->total_secs-rdp->reserved-lba,
+			count);
+	    break;
+	
+	case AR_F_RAID0:
+	case AR_F_RAID0 | AR_F_RAID1:
+	    tmplba = blkno / rdp->interleave;
+	    chunk = blkno % rdp->interleave;
+	    if (blkno >= (rdp->total_sectors / (rdp->interleave * rdp->width)) *
+			 (rdp->interleave * rdp->width) ) {
+                lbs = (rdp->total_sectors - 
+		    ((rdp->total_sectors / (rdp->interleave * rdp->width)) *
+		     (rdp->interleave * rdp->width))) / rdp->width;
+                drv = (blkno - 
+		    ((rdp->total_sectors / (rdp->interleave * rdp->width)) *
+		     (rdp->interleave * rdp->width))) / lbs;
+                lba = ((tmplba / rdp->width) * rdp->interleave) +
+                      (blkno - ((tmplba / rdp->width) * rdp->interleave)) % lbs;
+                chunk = min(count, lbs);
+	    }
+	    else {
+		drv = tmplba % rdp->width;
+		lba = ((tmplba / rdp->width) * rdp->interleave) + chunk;
+		chunk = min(count, rdp->interleave - chunk);
+	    }
+	    break;
+	    
+	case AR_F_RAID1:
+	    drv = 0;
+	    lba = blkno;
+	    chunk = count;
+	    break;
+	    
+	default:
+	    printf("ar%d: unknown array type in ardump\n", rdp->lun);
+	    return EIO;
+	}
+
+	if (drv > 0)
+	    lba += rdp->offset;
+
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_SPAN:
+	case AR_F_RAID0:
+	    if (rdp->disks[drv].flags & AR_DF_ONLINE) {
+		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		error1 = ap->d_dump(ap, vdata, pdata,
+				    (off_t) lba * DEV_BSIZE,
+				    chunk * DEV_BSIZE);
+	    } else
+		error1 = EIO;
+	    if (error1)
+		return error1;
+	    break;
+
+	case AR_F_RAID1:
+	case AR_F_RAID0 | AR_F_RAID1:
+	    if ((rdp->disks[drv].flags & AR_DF_ONLINE) ||
+		((rdp->flags & AR_F_REBUILDING) && 
+		 (rdp->disks[drv].flags & AR_DF_SPARE))) {
+		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		error1 = ap->d_dump(ap, vdata, pdata,
+				    (off_t) lba * DEV_BSIZE,
+				    chunk * DEV_BSIZE);
+	    } else
+		error1 = EIO;
+	    if ((rdp->disks[drv + rdp->width].flags & AR_DF_ONLINE) ||
+		((rdp->flags & AR_F_REBUILDING) &&
+		 (rdp->disks[drv + rdp->width].flags & AR_DF_SPARE))) {
+		ap = &AD_SOFTC(rdp->disks[drv + rdp->width])->disk;
+		error2 = ap->d_dump(ap, vdata, pdata,
+				    (off_t) lba * DEV_BSIZE,
+				    chunk * DEV_BSIZE);
+	    } else
+		error2 = EIO;
+	    if (error1 && error2)
+		return error1;
+	    break;
+	    
+	default:
+	    printf("ar%d: unknown array type in ardump\n", rdp->lun);
+	    return EIO;
+	}
+    }
+    return 0;
 }
 
 static void
