@@ -2439,6 +2439,7 @@ Parse_File(name, stream)
 		}
 #ifdef SYSVINCLUDE
 	    } else if (strncmp (line, "include", 7) == 0 &&
+		       isspace(line[7]) &&
 		       strchr(line, ':') == NULL) {
 		/*
 		 * It's an S3/S5-style "include".
