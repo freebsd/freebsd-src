@@ -388,14 +388,12 @@ create_pagetables(void)
 		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V;
 	}
 
-#if 0
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
 	for (i = 0; (i << PDRSHIFT) < avail_start; i++) {
 		((pd_entry_t *)KPDphys)[i] = i << PDRSHIFT;
 		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS;
 	}
-#endif
 
 	/* And connect up the PD to the PDP */
 	for (i = 0; i < NKPDPE; i++) {
