@@ -47,6 +47,14 @@ getservbyport(port, proto)
 {
 	register struct servent *p;
 
+#ifdef YP
+	extern int ___getservbyport_yp;
+	extern char *___getservbyproto_yp;
+
+	___getservbyport_yp = port;
+	___getservbyproto_yp = (char *)proto;
+#endif
+
 	setservent(_serv_stayopen);
 	while (p = getservent()) {
 		if (p->s_port != port)
@@ -56,5 +64,11 @@ getservbyport(port, proto)
 	}
 	if (!_serv_stayopen)
 		endservent();
+
+#ifdef YP
+	___getservbyport_yp = 0;
+	___getservbyproto_yp = NULL;
+#endif
+
 	return (p);
 }
