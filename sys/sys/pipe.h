@@ -28,7 +28,7 @@
 #include <sys/time.h>			/* for struct timespec */
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/vm.h>			/* for vm_page_t */
-#include <sys/mac.h>			/* for struct label */
+#include <sys/_label.h>			/* for struct label */
 #include <machine/param.h>		/* for PAGE_SIZE */
 #endif
 

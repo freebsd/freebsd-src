@@ -44,12 +44,12 @@
 #include <sys/lockmgr.h>
 
 #include <sys/queue.h>
+#include <sys/_label.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
-#include <sys/mac.h>
 #include <vm/uma.h>
 
 /*
