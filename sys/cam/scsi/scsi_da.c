@@ -35,12 +35,10 @@
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/devicestat.h>
-#include <sys/dkbad.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
+#include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
-#include <sys/conf.h>
 #include <sys/cons.h>
 
 #include <machine/md_var.h>
@@ -112,7 +110,7 @@ struct da_softc {
 	int	 minimum_cmd_size;
 	int	 ordered_tag_count;
 	struct	 disk_params params;
-	struct	 diskslices *dk_slices;	/* virtual drives */
+	struct	 disk disk;
 	union	 ccb saved_ccb;
 };
 
@@ -183,7 +181,6 @@ static	d_close_t	daclose;
 static	d_strategy_t	dastrategy;
 static	d_ioctl_t	daioctl;
 static	d_dump_t	dadump;
-static	d_psize_t	dasize;
 static	periph_init_t	dainit;
 static	void		daasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
@@ -249,10 +246,12 @@ static struct cdevsw da_cdevsw = {
 	/* name */	"da",
 	/* maj */	DA_CDEV_MAJOR,
 	/* dump */	dadump,
-	/* psize */	dasize,
+	/* psize */	nopsize,
 	/* flags */	D_DISK,
 	/* bmaj */	DA_BDEV_MAJOR
 };
+
+static struct cdevsw dadisk_cdevsw;
 
 static SLIST_HEAD(,da_softc) softc_list;
 static struct extend_array *daperiphs;
@@ -262,7 +261,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	struct disklabel label;	
+	struct disklabel *label;	
 	int unit;
 	int part;
 	int error;
@@ -284,26 +283,14 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (error); /* error code from tsleep */
 	}
 
-	if ((softc->flags & DA_FLAG_OPEN) == 0) {
-		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
-			return(ENXIO);
-		softc->flags |= DA_FLAG_OPEN;
-	}
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		return(ENXIO);
+	softc->flags |= DA_FLAG_OPEN;
 
 	s = splsoftcam();
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
-		/*
-		 * If any partition is open, although the disk has
-		 * been invalidated, disallow further opens.
-		 */
-		if (dsisopen(softc->dk_slices)) {
-			splx(s);
-			cam_periph_unlock(periph);
-			return (ENXIO);
-		}
-
 		/* Invalidate our pack information. */
-		dsgone(&softc->dk_slices);
+		disk_invalidate(&softc->disk);
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
 	}
 	splx(s);
@@ -345,8 +332,9 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		struct ccb_getdev cgd;
 
 		/* Build label for whole disk. */
-		bzero(&label, sizeof(label));
-		label.d_type = DTYPE_SCSI;
+		label = &softc->disk.d_label;
+		bzero(label, sizeof(*label));
+		label->d_type = DTYPE_SCSI;
 
 		/*
 		 * Grab the inquiry data to get the vendor and product names.
@@ -356,27 +344,23 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
-		strncpy(label.d_typename, cgd.inq_data.vendor,
-			min(SID_VENDOR_SIZE, sizeof(label.d_typename)));
-		strncpy(label.d_packname, cgd.inq_data.product,
-			min(SID_PRODUCT_SIZE, sizeof(label.d_packname)));
+		strncpy(label->d_typename, cgd.inq_data.vendor,
+			min(SID_VENDOR_SIZE, sizeof(label->d_typename)));
+		strncpy(label->d_packname, cgd.inq_data.product,
+			min(SID_PRODUCT_SIZE, sizeof(label->d_packname)));
 		
-		label.d_secsize = softc->params.secsize;
-		label.d_nsectors = softc->params.secs_per_track;
-		label.d_ntracks = softc->params.heads;
-		label.d_ncylinders = softc->params.cylinders;
-		label.d_secpercyl = softc->params.heads
+		label->d_secsize = softc->params.secsize;
+		label->d_nsectors = softc->params.secs_per_track;
+		label->d_ntracks = softc->params.heads;
+		label->d_ncylinders = softc->params.cylinders;
+		label->d_secpercyl = softc->params.heads
 				  * softc->params.secs_per_track;
-		label.d_secperunit = softc->params.sectors;
+		label->d_secperunit = softc->params.sectors;
 
-		if ((dsisopen(softc->dk_slices) == 0)
-		    && ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)) {
+		if (((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)) {
 			daprevent(periph, PR_PREVENT);
 		}
 	
-		/* Initialize slice tables. */
-		error = dsopen(dev, fmt, 0, &softc->dk_slices, &label);
-
 		/*
 		 * Check to see whether or not the blocksize is set yet.
 		 * If it isn't, set it and then clear the blocksize
@@ -389,8 +373,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 	
 	if (error != 0) {
-		if ((dsisopen(softc->dk_slices) == 0)
-		 && ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)) {
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
 			daprevent(periph, PR_ALLOW);
 		}
 	}
@@ -415,12 +398,6 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	if ((error = cam_periph_lock(periph, PRIBIO)) != 0) {
 		return (error); /* error code from tsleep */
-	}
-
-	dsclose(dev, fmt, softc->dk_slices);
-	if (dsisopen(softc->dk_slices)) {
-		cam_periph_unlock(periph);
-		return (0);
 	}
 
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
@@ -519,12 +496,6 @@ dastrategy(struct buf *bp)
 #endif
 
 	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
-	 */
-	if (dscheck(bp, softc->dk_slices) <= 0)
-		goto done;
-
-	/*
 	 * Mask interrupts so that the pack cannot be invalidated until
 	 * after we are in the queue.  Otherwise, we might not properly
 	 * clean up one of the buffers.
@@ -555,7 +526,6 @@ dastrategy(struct buf *bp)
 	return;
 bad:
 	bp->b_flags |= B_ERROR;
-done:
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
@@ -587,17 +557,11 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("daioctl\n"));
 
-	if (cmd == DIOCSBAD)
-		return (EINVAL);	/* XXX */
-
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
 		return (error); /* error code from tsleep */
 	}	
 
-	error = dsioctl(dev, cmd, addr, flag, &softc->dk_slices);
-
-	if (error == ENOIOCTL)
-		error = cam_periph_ioctl(periph, cmd, addr, daerror);
+	error = cam_periph_ioctl(periph, cmd, addr, daerror);
 
 	cam_periph_unlock(periph);
 	
@@ -609,16 +573,15 @@ dadump(dev_t dev)
 {
 	struct	    cam_periph *periph;
 	struct	    da_softc *softc;
-	struct	    disklabel *lp;
 	u_int	    unit;
 	u_int	    part;
-	long	    num;	/* number of sectors to write */
-	long	    blkoff;
-	long	    blknum;
+	u_int	    secsize;
+	u_int	    num;	/* number of sectors to write */
+	u_int	    blknum;
 	long	    blkcnt;
 	vm_offset_t addr;	
-	static	int dadoingadump = 0;
 	struct	    ccb_scsiio csio;
+	int	    error;
 
 	/* toss any characters present prior to dump */
 	while (cncheckc() != -1)
@@ -632,31 +595,15 @@ dadump(dev_t dev)
 	}
 	softc = (struct da_softc *)periph->softc;
 	
-	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0
-	 || (softc->dk_slices == NULL)
-	 || (lp = dsgetlabel(dev, softc->dk_slices)) == NULL)
+	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0)
 		return (ENXIO);
 
-	/* Size of memory to dump, in disk sectors. */
-	/* XXX Fix up for non DEV_BSIZE sectors!!! */
-	num = (u_long)Maxmem * PAGE_SIZE / softc->params.secsize;
-
-	blkoff = lp->d_partitions[part].p_offset;
-	blkoff += softc->dk_slices->dss_slices[dkslice(dev)].ds_offset;
-
-	/* check transfer bounds against partition size */
-	if ((dumplo < 0) || ((dumplo + num) > lp->d_partitions[part].p_size))
-		return (EINVAL);
-
-	if (dadoingadump != 0)
-		return (EFAULT);
-
-	dadoingadump = 1;
-
-	blknum = dumplo + blkoff;
-	blkcnt = PAGE_SIZE / softc->params.secsize;
+	error = disk_dumpcheck(dev, &num, &blknum, &secsize);
+	if (error)
+		return (error);
 
 	addr = 0;	/* starting address */
+	blkcnt = howmany(PAGE_SIZE, secsize);
 
 	while (num > 0) {
 
@@ -680,7 +627,7 @@ dadump(dev_t dev)
 				blknum,
 				blkcnt,
 				/*data_ptr*/CADDR1,
-				/*dxfer_len*/blkcnt * softc->params.secsize,
+				/*dxfer_len*/blkcnt * secsize,
 				/*sense_len*/SSD_FULL_SIZE,
 				DA_DEFAULT_TIMEOUT * 1000);		
 		xpt_polled_action((union ccb *)&csio);
@@ -702,14 +649,14 @@ dadump(dev_t dev)
 				(*wdog_tickler)();
 #endif /* HW_WDOG */
 			/* Count in MB of data left to write */
-			printf("%ld ", (num  * softc->params.secsize)
+			printf("%d ", (num  * softc->params.secsize)
 				     / (1024 * 1024));
 		}
 		
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
-		addr += blkcnt * softc->params.secsize;
+		addr += PAGE_SIZE;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)
@@ -756,21 +703,6 @@ dadump(dev_t dev)
 	return (0);
 }
 
-static int
-dasize(dev_t dev)
-{
-	struct cam_periph *periph;
-	struct da_softc *softc;	
-
-	periph = cam_extend_get(daperiphs, dkunit(dev));
-	if (periph == NULL)
-		return (ENXIO);
-	
-	softc = (struct da_softc *)periph->softc;
-	
-	return (dssize(dev, &softc->dk_slices));
-}
-
 static void
 dainit(void)
 {
@@ -811,9 +743,6 @@ dainit(void)
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else {
-
-		/* If we were successfull, register our devsw */
-		cdevsw_add(&da_cdevsw);
 
 		/*
 		 * Schedule a periodic event to occasioanly send an
@@ -1034,6 +963,12 @@ daregister(struct cam_periph *periph, void *arg)
 	  		  DEVSTAT_BS_UNAVAILABLE,
 			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_DA);
+
+	/*
+	 * Register this media as a disk
+	 */
+	disk_create(periph->unit_number, &softc->disk, 0, 
+	    &da_cdevsw, &dadisk_cdevsw);
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -1278,15 +1213,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		devstat_end_transaction(&softc->device_stats,
-					bp->b_bcount - bp->b_resid,
-					done_ccb->csio.tag_action & 0xf, 
-					(bp->b_flags & B_READ) ? DEVSTAT_READ
-							       : DEVSTAT_WRITE);
-
 		if (softc->device_stats.busy_count == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
 
+		devstat_end_transaction_buf(&softc->device_stats, bp);
 		biodone(bp);
 		break;
 	}
