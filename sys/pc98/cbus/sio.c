@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id$
+ *	$Id: sio.c,v 1.17 1997/02/22 09:43:44 peter Exp $
  */
 
 #include "opt_comconsole.h"
@@ -752,9 +752,8 @@ sioprobe(dev)
 				if (IS_PC98IN(xdev->id_iobase))
 					outb(xdev->id_iobase + 2, 0xf2);
 				else
-#else
-				outb(xdev->id_iobase + com_mcr, 0);
 #endif
+				outb(xdev->id_iobase + com_mcr, 0);
 #if NCRD > 0
 		/*
 		 * If PC-Card probe required, then register driver with
@@ -1728,8 +1727,16 @@ siobusycheck(chan)
 	s = spltty();
 	if (com->state & CS_BUSY)
 		;		/* False alarm. */
+#ifdef	PC98
+	else if (IS_8251(com->pc98_if_type) &&
+		 (inb(com->sts_port) & (STS8251_TxRDY | STS8251_TxEMP))
+		 == (STS8251_TxRDY | STS8251_TxEMP) ||
+		 (inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
+		 == (LSR_TSRE | LSR_TXRDY)) {
+#else
 	else if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	    == (LSR_TSRE | LSR_TXRDY)) {
+#endif
 		com->tp->t_state &= ~TS_BUSY;
 		ttwwakeup(com->tp);
 	} else
@@ -2161,26 +2168,26 @@ sioioctl(dev, cmd, data, flag, p)
 		com_send_break_off( com );
 		break;
 	case TIOCSDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIS);
+		com_tiocm_bis(com, TIOCM_DTR | TIOCM_RTS );
 		break;
 	case TIOCCDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIC);
+		com_tiocm_bic(com, TIOCM_DTR);
 		break;
 	/*
 	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
 	 * changes get undone on the next call to comparam().
 	 */
 	case TIOCMSET:
-		(void)commctl(com, *(int *)data, DMSET);
+		com_tiocm_set( com, *(int *)data );
 		break;
 	case TIOCMBIS:
-		(void)commctl(com, *(int *)data, DMBIS);
+		com_tiocm_bis( com, *(int *)data );
 		break;
 	case TIOCMBIC:
-		(void)commctl(com, *(int *)data, DMBIC);
+		com_tiocm_bic( com, *(int *)data );
 		break;
 	case TIOCMGET:
-		*(int *)data = commctl(com, 0, DMGET);
+		*(int *)data = com_tiocm_get(com);
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
@@ -2653,6 +2660,11 @@ retry:
 		 * CS_RTS_IFLOW just changed from on to off.  Force MCR_RTS
 		 * on here, since comstart() won't do it later.
 		 */
+#ifdef PC98
+		if(IS_8251(com->pc98_if_type))
+			com_tiocm_bis(com, TIOCM_RTS);
+		else
+#endif
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 	}
 
