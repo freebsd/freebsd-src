@@ -218,3 +218,9 @@ time(time_t *tloc)
 		*tloc = tv.tv_sec;
 	return tv.tv_sec;
 }
+
+time_t
+getsecs()
+{
+    return time(0);
+}
