@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994, 1995 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.2.2.1 1996/01/08 02:52:24 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.7 1996/03/31 03:02:37 gibbs Exp $
  */
 
 /*
@@ -68,21 +68,6 @@
 #define		ENSTIMER	0x04
 #define		ACTNEGEN	0x02
 #define		STPWEN		0x01	/* Powered Termination */
-
-/*
- * SCSI Interrrupt Mode 1 (pp. 3-28,29).
- * Set bits in this register enable the corresponding
- * interrupt source.
- */
-#define	SIMODE1			0x011
-#define		ENSELTIMO	0x80
-#define		ENATNTARG	0x40
-#define		ENSCSIRST	0x20
-#define		ENPHASEMIS	0x10
-#define		ENBUSFREE	0x08
-#define		ENSCSIPERR	0x04
-#define		ENPHASECHG	0x02
-#define		ENREQINIT	0x01
 
 /*
  * SCSI Control Signal Read Register (p. 3-15).
@@ -252,6 +237,10 @@
  * can be squewed by write ahead.
  */
 #define	SHADDR			0x014
+#define	SHADDR0			0x014
+#define	SHADDR1			0x015
+#define	SHADDR2			0x016
+#define	SHADDR3			0x017
 
 /*
  * Selection/Reselection ID (p. 3-31)
@@ -275,10 +264,12 @@
 #define		DIAGLEDON	0x40	/* Aic78X0 only */
 #define		AUTOFLUSHDIS	0x20
 /*  UNUSED			0x10 */
+#define		SELBUS_MASK	0x0a
 #define		SELBUSB		0x08
 /*  UNUSED			0x04 */
 #define		SELWIDE		0x02
 /*  UNUSED			0x01 */
+#define		SELNARROW	0x00
 
 /*
  * Sequencer Control (p. 3-33)
@@ -406,9 +397,9 @@
 #define			SEND_REJECT	0x11	/* sending a message reject */
 #define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
 #define			NO_MATCH	0x31	/* no cmd match for reconnect */
-#define			SDTR_MSG	0x41	/* SDTR message recieved */
-#define			WDTR_MSG	0x51	/* WDTR message recieved */
-#define			REJECT_MSG	0x61	/* Reject message recieved */
+#define			SDTR_MSG	0x41	/* SDTR message received */
+#define			WDTR_MSG	0x51	/* WDTR message received */
+#define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
 #define			ABORT_TAG	0x91	/* Sent an ABORT_TAG message */
@@ -525,7 +516,6 @@
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
 #define		NEEDSDTR	0x10
-#define		NEEDDMA		0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
 #define	SCB_TCL			0x0a1
@@ -557,31 +547,23 @@
 #define		SCB_CMDPTR2	0x0b6
 #define		SCB_CMDPTR3	0x0b7
 #define	SCB_CMDLEN		0x0b8
-/* RESERVED - MUST BE ZERO	0x0b9 */
-/* RESERVED - MUST BE ZERO	0x0ba */
-#define	SCB_NEXT_WAITING	0x0bb
-#define	SCB_PHYSADDR		0x0bc
-#define		SCB_PHYSADDR0	0x0bc
-#define		SCB_PHYSADDR1	0x0bd
-#define		SCB_PHYSADDR2	0x0be
-#define		SCB_PHYSADDR3	0x0bf
+#define	SCB_NEXT_WAITING	0x0b9
 
-#ifdef LINUX
+#ifdef linux
 #define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
 #else
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
 #endif
-#define	SCB_SIZEOF		0x1a		/* sizeof SCB to DMA */
 
 /* --------------------- AHA-2840-only definitions -------------------- */
 
-#define	SEECTL_2840		0xcc0
+#define	SEECTL_2840		0x0c0
 /*	UNUSED			0xf8 */
 #define		CS_2840		0x04
 #define		CK_2840		0x02
 #define		DO_2840		0x01
 
-#define	STATUS_2840		0xcc1
+#define	STATUS_2840		0x0c1
 #define		EEPROM_TF	0x80
 #define		BIOS_SEL	0x60
 #define		ADSEL		0x1e
@@ -647,9 +629,11 @@
 
 /*
  * The sequencer will stick the frist byte of any rejected message here so
- * we can see what is getting thrown away.
+ * we can see what is getting thrown away.  Extended messages put the
+ * extended message type in REJBYTE_EXT.
  */
-#define REJBYTE			0x031
+#define REJBYTE			0x030
+#define REJBYTE_EXT		0x031
 
 /*
  * Bit vector of targets that have disconnection disabled.
@@ -663,6 +647,7 @@
  */
 #define MSG_LEN			0x034
 
+/* We reserve 8bytes to store outgoing messages */
 #define MSG0			0x035
 #define		COMP_MSG0	0xcb      /* 2's complement of MSG0 */
 #define MSG1			0x036
@@ -670,59 +655,72 @@
 #define MSG3			0x038
 #define MSG4			0x039
 #define MSG5			0x03a
+#define MSG6			0x03b
+#define MSG7			0x03c
 
 /*
  * These are offsets into the card's scratch ram.  Some of the values are
  * specified in the AHA2742 technical reference manual and are initialized
  * by the BIOS at boot time.
  */
-#define ARG_1			0x04a
-#define RETURN_1		0x04a
+#define LASTPHASE		0x03d
+#define ARG_1			0x03e
+#define RETURN_1		0x03e
 #define		SEND_SENSE	0x80
 #define		SEND_WDTR	0x80
 #define		SEND_SDTR	0x80
 #define		SEND_REJ	0x40
 
-#define SIGSTATE		0x04b
+#define SIGSTATE		0x03f
 
-#define DMAPARAMS		0x04c	/* Parameters for DMA Logic */
+#define DMAPARAMS		0x040	/* Parameters for DMA Logic */
 
-#define	SG_COUNT		0x04d
-#define	SG_NEXT			0x04e	/* working value of SG pointer */
-#define		SG_NEXT0	0x04e
-#define		SG_NEXT1	0x04f
-#define		SG_NEXT2	0x050
-#define		SG_NEXT3	0x051
+#define	SG_COUNT		0x041
+#define	SG_NEXT			0x042	/* working value of SG pointer */
+#define		SG_NEXT0	0x042
+#define		SG_NEXT1	0x043
+#define		SG_NEXT2	0x044
+#define		SG_NEXT3	0x045
 
-#define	SCBCOUNT		0x052	/*
+#define	SCBCOUNT		0x046	/*
 					 * Number of SCBs supported by
 					 * this card.
 					 */
-#define FLAGS			0x053
+#define	COMP_SCBCOUNT		0x047	/*
+					 * Two's compliment of SCBCOUNT
+					 */
+#define QCNTMASK		0x048	/*
+					 * Mask of bits to test against
+					 * when looking at the Queue Count
+					 * registers.  Works around a bug
+					 * on aic7850 chips. 
+					 */
+#define FLAGS			0x049
 #define		SINGLE_BUS	0x00
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
-#define		DPHASE		0x04
-#define		MAXOFFSET	0x08
+#define		PAGE_SCBS	0x04
+#define		DPHASE		0x10
+#define		MAXOFFSET	0x20
 #define		IDENTIFY_SEEN	0x40
 #define		RESELECTED	0x80
 
-#define	ACTIVE_A		0x054
-#define	ACTIVE_B		0x055
-#define	SAVED_TCL		0x056	/*
+#define	ACTIVE_A		0x050
+#define	ACTIVE_B		0x051
+#define	SAVED_TCL		0x052	/*
 					 * Temporary storage for the
 					 * target/channel/lun of a
 					 * reconnecting target
 					 */
-#define WAITING_SCBH		0x057	/*
+#define WAITING_SCBH		0x053	/*
 					 * head of list of SCBs awaiting
 					 * selection
 					 */
-#define WAITING_SCBT		0x058	/*
-					 * tail of list of SCBs awaiting
-					 * selection
+#define DISCONNECTED_SCBH	0x053	/*
+					 * head of list of SCBs that are
+					 * disconnected.  Used for SCB
+					 * paging.
 					 */
-#define	COMP_SCBCOUNT		0x059
 #define		SCB_LIST_NULL	0xff
 
 #define SCSICONF		0x05a
@@ -755,6 +753,3 @@
 
 #define MAX_OFFSET_8BIT		0x0f
 #define MAX_OFFSET_16BIT	0x08
-
-
-
