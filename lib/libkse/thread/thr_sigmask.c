@@ -44,6 +44,32 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
+	int i;
+	struct pthread *curthread = _get_curthread();
 
-	return (sigprocmask(how, set, oset));
+	if (oset != NULL)
+		bcopy(&curthread->mailbox.tm_context.uc_sigmask, oset,
+		    sizeof(sigset_t));
+	if (set == NULL)
+		return (0);
+	switch (how) {
+	case SIG_BLOCK:
+		for (i = 0; i < _SIG_WORDS; i++)
+			curthread->mailbox.tm_context.uc_sigmask.__bits[i] |=
+			    set->__bits[i];
+		break;
+	case SIG_UNBLOCK:
+		for (i = 0; i < _SIG_WORDS; i++)
+			curthread->mailbox.tm_context.uc_sigmask.__bits[i] &=
+			    ~set->__bits[i];
+		break;
+	case SIG_SETMASK:
+		bcopy(set, &curthread->mailbox.tm_context.uc_sigmask,
+		    sizeof(sigset_t));
+		break;
+	default:
+		errno = EINVAL;
+		return (-1);
+	}
+	return (0);
 }
