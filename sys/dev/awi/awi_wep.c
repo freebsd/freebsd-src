@@ -59,7 +59,7 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
+#if defined(__FreeBSD__) && __FreeBSD_version >= 400000
 #include <sys/bus.h>
 #else
 #include <sys/device.h>
@@ -189,10 +189,10 @@ awi_wep_getnwkey(sc, nwkey)
 	nwkey->i_defkid = sc->sc_wep_defkid + 1;
 	/* do not show any keys to non-root user */
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 5
-	suerr = suser(curthread);
-#else
+#if __FreeBSD_version < 500028
 	suerr = suser(curproc);
+#else
+	suerr = suser(curthread);
 #endif
 #else
 	suerr = suser(curproc->p_ucred, &curproc->p_acflag);

@@ -50,7 +50,7 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
+#if defined(__FreeBSD__) && __FreeBSD_version >= 400000
 #include <sys/bus.h>
 #else
 #include <sys/device.h>
@@ -69,8 +69,6 @@
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
-#ifdef __FreeBSD__
-#endif
 
 #ifdef __NetBSD__
 #include <dev/ic/am79c930reg.h>
@@ -108,10 +106,10 @@ awi_wicfg(ifp, cmd, data)
 		break;
 	case SIOCSWAVELAN:
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 5
-		error = suser(curthread);
-#else
+#if __FreeBSD_version < 500028
 		error = suser(curproc);
+#else
+		error = suser(curthread);
 #endif
 #else
 		error = suser(curproc->p_ucred, &curproc->p_acflag);
@@ -276,10 +274,10 @@ awi_cfgget(ifp, cmd, data)
 		keys = (struct wi_ltv_keys *)&wreq;
 		/* do not show keys to non-root user */
 #ifdef __FreeBSD__
-#if __FreeBSD__ >= 5
-		error = suser(curthread);
-#else
+#if __FreeBSD_version < 500028
 		error = suser(curproc);
+#else
+		error = suser(curthread);
 #endif
 #else
 		error = suser(curproc->p_ucred, &curproc->p_acflag);
