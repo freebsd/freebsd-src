@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.57 1994/10/27 05:39:12 phk Exp $
+ *	$Id: wd.c,v 1.58 1994/10/27 20:44:52 jkh Exp $
  */
 
 /* TODO:
@@ -456,7 +456,8 @@ wdstrategy(register struct buf *bp)
 	int	s;
 
 	/* valid unit, controller, and request?  */
-	if (lunit >= NWD || bp->b_blkno < 0 || (du = wddrives[lunit]) == NULL) {
+	if (lunit >= NWD || bp->b_blkno < 0 || (du = wddrives[lunit]) == NULL
+	    || bp->b_bsize % DEV_BSIZE != 0) {
 
 		bp->b_error = EINVAL;
 		bp->b_flags |= B_ERROR;

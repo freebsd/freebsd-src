@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.38 1994/10/27 20:45:04 jkh Exp $
+ *      $Id: sd.c,v 1.39 1994/10/31 23:45:40 phk Exp $
  */
 
 #define SPLSD splbio
@@ -439,6 +439,13 @@ sdstrategy(bp)
 	 */
 	if (bp->b_bcount == 0) {
 		goto done;
+	}
+	/*
+	 * Odd number of bytes
+	 */
+	if (bp->b_bcount % DEV_BSIZE != 0) {
+		bp->b_error = EINVAL;
+		goto bad;
 	}
 	/*
 	 * Decide which unit and partition we are talking about
