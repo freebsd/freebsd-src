@@ -425,9 +425,6 @@ ndis_attach(dev)
 	if (!(sc->ndis_block.nmb_flags & NDIS_ATTRIBUTE_DESERIALIZE))
 		sc->ndis_block.nmb_pktind_func = ndis_rxeof_serial;
 
-	/* Reset the adapter. */
-	ndis_reset_nic(sc);
-
 	/*
 	 * Get station address from the driver.
 	 */
@@ -496,7 +493,7 @@ ndis_attach(dev)
 	if (sc->ndis_80211) {
 		struct ieee80211com	*ic = (void *)ifp;
 		ndis_80211_config	config;
-		ndis_80211_rates	rates;
+		ndis_80211_rates_ex	rates;
 		struct ndis_80211_nettype_list *ntl;
 		uint32_t		arg;
 		int			r;
@@ -550,6 +547,20 @@ nonettypes:
 		 * if this is not 802.11b we're just going to be faking it
 		 * all up to heck.
 		 */
+
+#define TESTSETRATE(x, y)						\
+	do {								\
+		int			i;				\
+		for (i = 0; i < ic->ic_sup_rates[x].rs_nrates; i++) {	\
+			if (ic->ic_sup_rates[x].rs_rates[i] == (y))	\
+				break;					\
+		}							\
+		if (i == ic->ic_sup_rates[x].rs_nrates) {		\
+			ic->ic_sup_rates[x].rs_rates[i] = (y);		\
+			ic->ic_sup_rates[x].rs_nrates++;		\
+		}							\
+	} while (0)
+
 #define SETRATE(x, y)	\
 	ic->ic_sup_rates[x].rs_rates[ic->ic_sup_rates[x].rs_nrates] = (y)
 #define INCRATE(x)	\
@@ -601,24 +612,16 @@ nonettypes:
 		 * we detect turbo modes, though?
 		 */
 		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11G)) {
-			SETRATE(IEEE80211_MODE_11G, 47);
-			INCRATE(IEEE80211_MODE_11G);
-			SETRATE(IEEE80211_MODE_11G, 72);
-			INCRATE(IEEE80211_MODE_11G);
-			SETRATE(IEEE80211_MODE_11G, 96);
-			INCRATE(IEEE80211_MODE_11G);
-			SETRATE(IEEE80211_MODE_11G, 108);
-			INCRATE(IEEE80211_MODE_11G);
+			TESTSETRATE(IEEE80211_MODE_11G, 47);
+			TESTSETRATE(IEEE80211_MODE_11G, 72);
+			TESTSETRATE(IEEE80211_MODE_11G, 96);
+			TESTSETRATE(IEEE80211_MODE_11G, 108);
 		}
 		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11A)) {
-			SETRATE(IEEE80211_MODE_11A, 47);
-			INCRATE(IEEE80211_MODE_11A);
-			SETRATE(IEEE80211_MODE_11A, 72);
-			INCRATE(IEEE80211_MODE_11A);
-			SETRATE(IEEE80211_MODE_11A, 96);
-			INCRATE(IEEE80211_MODE_11A);
-			SETRATE(IEEE80211_MODE_11A, 108);
-			INCRATE(IEEE80211_MODE_11A);
+			TESTSETRATE(IEEE80211_MODE_11A, 47);
+			TESTSETRATE(IEEE80211_MODE_11A, 72);
+			TESTSETRATE(IEEE80211_MODE_11A, 96);
+			TESTSETRATE(IEEE80211_MODE_11A, 108);
 		}
 #undef SETRATE
 #undef INCRATE
@@ -648,6 +651,7 @@ nonettypes:
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
 		i = sizeof(config);
+		bzero((char *)&config, sizeof(config));
 		config.nc_length = i;
 		config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
 		r = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &i);
@@ -687,12 +691,9 @@ nonettypes:
 fail:
 	if (error)
 		ndis_detach(dev);
-	else {
+	else
 		/* We're done talking to the NIC for now; halt it. */
-		ifp->if_flags |= IFF_UP;
 		ndis_halt_nic(sc);
-		ifp->if_flags &= ~IFF_UP;
-	}
 
 	return(error);
 }
@@ -1114,8 +1115,7 @@ ndis_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP) || 
-	    sc->ndis_block.nmb_miniportadapterctx == NULL)
+	if (sc->ndis_block.nmb_miniportadapterctx == NULL)
 		return;
 
 	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
@@ -1127,7 +1127,7 @@ ndis_intr(arg)
 	}
 	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
 
-	if ((is_our_intr || call_isr) && (ifp->if_flags & IFF_UP))
+	if ((is_our_intr || call_isr))
 		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
 
 	return;
@@ -1158,6 +1158,16 @@ ndis_ticktask(xsc)
 
 	sc = xsc;
 
+	hangfunc = sc->ndis_chars.nmc_checkhang_func;
+
+	if (hangfunc != NULL) {
+		rval = hangfunc(sc->ndis_block.nmb_miniportadapterctx);
+		if (rval == TRUE) {
+			ndis_reset_nic(sc);
+			return;
+		}
+	}
+
 	len = sizeof(linkstate);
 	error = ndis_get_info(sc, OID_GEN_MEDIA_CONNECT_STATUS,
 	    (void *)&linkstate, &len);
@@ -1179,14 +1189,6 @@ ndis_ticktask(xsc)
 	}
 
 	NDIS_UNLOCK(sc);
-
-	hangfunc = sc->ndis_chars.nmc_checkhang_func;
-
-	if (hangfunc != NULL) {
-		rval = hangfunc(sc->ndis_block.nmb_miniportadapterctx);
-		if (rval == TRUE)
-			ndis_reset_nic(sc);
-	}
 
 	return;
 }
@@ -1378,7 +1380,6 @@ ndis_init(xsc)
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
-	ndis_reset_nic(sc);
 	ndis_stop(sc);
 	if (ndis_init_nic(sc))
 		return;

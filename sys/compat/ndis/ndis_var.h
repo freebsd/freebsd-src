@@ -1459,7 +1459,7 @@ typedef ndis_status (*ndis_sendmulti_handler)(ndis_handle,
 		ndis_packet **, uint32_t);
 typedef void (*ndis_isr_handler)(uint8_t *, uint8_t *, ndis_handle);
 typedef void (*ndis_interrupt_handler)(ndis_handle);
-typedef void (*ndis_reset_handler)(uint8_t *, ndis_handle);
+typedef int (*ndis_reset_handler)(uint8_t *, ndis_handle);
 typedef void (*ndis_halt_handler)(ndis_handle);
 typedef void (*ndis_return_handler)(ndis_handle, ndis_packet *);
 typedef void (*ndis_enable_interrupts_handler)(ndis_handle);
