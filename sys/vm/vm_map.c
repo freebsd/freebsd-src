@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.35 1996/03/03 18:53:10 peter Exp $
+ * $Id: vm_map.c,v 1.36 1996/03/04 02:04:24 dyson Exp $
  */
 
 /*
@@ -872,6 +872,7 @@ vm_map_simplify_entry(map, entry)
 			prev->wired_count == 0) {
 				vm_map_entry_unlink(map, prev);
 				entry->start = prev->start;
+				entry->offset = prev->offset;
 				vm_object_deallocate(prev->object.vm_object);
 				vm_map_entry_dispose(map, prev);
 				esize = entry->end - entry->start;
@@ -1547,7 +1548,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 		}
 		if (invalidate)
 			pmap_remove(vm_map_pmap(map), current->start,
-				current->end);
+				current->start + size);
 		if (object && (object->type == OBJT_VNODE)) {
 			/*
 			 * Flush pages if writing is allowed. XXX should we continue
