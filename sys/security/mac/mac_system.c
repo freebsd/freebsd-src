@@ -620,6 +620,16 @@ error_select(int error1, int error2)
 	return (error2);
 }
 
+static struct label *
+mbuf_to_label(struct mbuf *mbuf)
+{
+	struct label *label;
+
+	label = &mbuf->m_pkthdr.label;
+
+	return (label);
+}
+
 static void
 mac_init_label(struct label *label)
 {
@@ -2093,9 +2103,12 @@ mac_relabel_pipe(struct ucred *cred, struct pipe *pipe, struct label *newlabel)
 void
 mac_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct socket *socket)
 {
+	struct label *label;
 
-	MAC_PERFORM(set_socket_peer_from_mbuf, mbuf, &mbuf->m_pkthdr.label,
-	    socket, &socket->so_peerlabel);
+	label = mbuf_to_label(mbuf);
+
+	MAC_PERFORM(set_socket_peer_from_mbuf, mbuf, label, socket,
+	    &socket->so_peerlabel);
 }
 
 void
@@ -2110,85 +2123,117 @@ mac_set_socket_peer_from_socket(struct socket *oldsocket,
 void
 mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *datagram)
 {
+	struct label *label;
+
+	label = mbuf_to_label(datagram);
 
 	MAC_PERFORM(create_datagram_from_ipq, ipq, &ipq->ipq_label,
-	    datagram, &datagram->m_pkthdr.label);
+	    datagram, label);
 }
 
 void
 mac_create_fragment(struct mbuf *datagram, struct mbuf *fragment)
 {
+	struct label *datagramlabel, *fragmentlabel;
 
-	MAC_PERFORM(create_fragment, datagram, &datagram->m_pkthdr.label,
-	    fragment, &fragment->m_pkthdr.label);
+	datagramlabel = mbuf_to_label(datagram);
+	fragmentlabel = mbuf_to_label(fragment);
+
+	MAC_PERFORM(create_fragment, datagram, datagramlabel, fragment,
+	    fragmentlabel);
 }
 
 void
 mac_create_ipq(struct mbuf *fragment, struct ipq *ipq)
 {
+	struct label *label;
 
-	MAC_PERFORM(create_ipq, fragment, &fragment->m_pkthdr.label, ipq,
-	    &ipq->ipq_label);
+	label = mbuf_to_label(fragment);
+
+	MAC_PERFORM(create_ipq, fragment, label, ipq, &ipq->ipq_label);
 }
 
 void
 mac_create_mbuf_from_mbuf(struct mbuf *oldmbuf, struct mbuf *newmbuf)
 {
+	struct label *oldmbuflabel, *newmbuflabel;
 
-	MAC_PERFORM(create_mbuf_from_mbuf, oldmbuf, &oldmbuf->m_pkthdr.label,
-	    newmbuf, &newmbuf->m_pkthdr.label);
+	oldmbuflabel = mbuf_to_label(oldmbuf);
+	newmbuflabel = mbuf_to_label(newmbuf);
+
+	MAC_PERFORM(create_mbuf_from_mbuf, oldmbuf, oldmbuflabel, newmbuf,
+	    newmbuflabel);
 }
 
 void
 mac_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct mbuf *mbuf)
 {
+	struct label *label;
+
+	label = mbuf_to_label(mbuf);
 
 	MAC_PERFORM(create_mbuf_from_bpfdesc, bpf_d, &bpf_d->bd_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 }
 
 void
 mac_create_mbuf_linklayer(struct ifnet *ifnet, struct mbuf *mbuf)
 {
+	struct label *label;
+
+	label = mbuf_to_label(mbuf);
 
 	MAC_PERFORM(create_mbuf_linklayer, ifnet, &ifnet->if_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 }
 
 void
 mac_create_mbuf_from_ifnet(struct ifnet *ifnet, struct mbuf *mbuf)
 {
+	struct label *label;
+
+	label = mbuf_to_label(mbuf);
 
 	MAC_PERFORM(create_mbuf_from_ifnet, ifnet, &ifnet->if_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 }
 
 void
 mac_create_mbuf_multicast_encap(struct mbuf *oldmbuf, struct ifnet *ifnet,
     struct mbuf *newmbuf)
 {
+	struct label *oldmbuflabel, *newmbuflabel;
 
-	MAC_PERFORM(create_mbuf_multicast_encap, oldmbuf,
-	    &oldmbuf->m_pkthdr.label, ifnet, &ifnet->if_label, newmbuf,
-	    &newmbuf->m_pkthdr.label);
+	oldmbuflabel = mbuf_to_label(oldmbuf);
+	newmbuflabel = mbuf_to_label(newmbuf);
+
+	MAC_PERFORM(create_mbuf_multicast_encap, oldmbuf, oldmbuflabel,
+	    ifnet, &ifnet->if_label, newmbuf, newmbuflabel);
 }
 
 void
 mac_create_mbuf_netlayer(struct mbuf *oldmbuf, struct mbuf *newmbuf)
 {
+	struct label *oldmbuflabel, *newmbuflabel;
 
-	MAC_PERFORM(create_mbuf_netlayer, oldmbuf, &oldmbuf->m_pkthdr.label,
-	    newmbuf, &newmbuf->m_pkthdr.label);
+	oldmbuflabel = mbuf_to_label(oldmbuf);
+	newmbuflabel = mbuf_to_label(newmbuf);
+
+	MAC_PERFORM(create_mbuf_netlayer, oldmbuf, oldmbuflabel, newmbuf,
+	    newmbuflabel);
 }
 
 int
 mac_fragment_match(struct mbuf *fragment, struct ipq *ipq)
 {
+	struct label *label;
 	int result;
 
+	label = mbuf_to_label(fragment);
+
 	result = 1;
-	MAC_BOOLEAN(fragment_match, &&, fragment, &fragment->m_pkthdr.label,
-	    ipq, &ipq->ipq_label);
+	MAC_BOOLEAN(fragment_match, &&, fragment, label, ipq,
+	    &ipq->ipq_label);
 
 	return (result);
 }
@@ -2196,17 +2241,22 @@ mac_fragment_match(struct mbuf *fragment, struct ipq *ipq)
 void
 mac_update_ipq(struct mbuf *fragment, struct ipq *ipq)
 {
+	struct label *label;
 
-	MAC_PERFORM(update_ipq, fragment, &fragment->m_pkthdr.label, ipq,
-	    &ipq->ipq_label);
+	label = mbuf_to_label(fragment);
+
+	MAC_PERFORM(update_ipq, fragment, label, ipq, &ipq->ipq_label);
 }
 
 void
 mac_create_mbuf_from_socket(struct socket *socket, struct mbuf *mbuf)
 {
+	struct label *label;
+
+	label = mbuf_to_label(mbuf);
 
 	MAC_PERFORM(create_mbuf_from_socket, socket, &socket->so_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 }
 
 void
@@ -2265,17 +2315,19 @@ mac_check_cred_visible(struct ucred *u1, struct ucred *u2)
 int
 mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 {
+	struct label *label;
 	int error;
 
 	if (!mac_enforce_network)
 		return (0);
 
 	M_ASSERTPKTHDR(mbuf);
-	if (!(mbuf->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
+	label = mbuf_to_label(mbuf);
+	if (!(label->l_flags & MAC_FLAG_INITIALIZED))
 		if_printf(ifnet, "not initialized\n");
 
 	MAC_CHECK(check_ifnet_transmit, ifnet, &ifnet->if_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 
 	return (error);
 }
@@ -2556,13 +2608,16 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 int
 mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
 {
+	struct label *label;
 	int error;
 
 	if (!mac_enforce_socket)
 		return (0);
 
+	label = mbuf_to_label(mbuf);
+
 	MAC_CHECK(check_socket_deliver, socket, &socket->so_label, mbuf,
-	    &mbuf->m_pkthdr.label);
+	    label);
 
 	return (error);
 }
