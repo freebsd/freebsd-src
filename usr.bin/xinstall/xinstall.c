@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.14 1996/09/24 17:29:42 bde Exp $";
+	"$Id: xinstall.c,v 1.16 1996/09/29 06:29:54 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -80,7 +80,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-int debug, docompare, dodir, docopy, dopreserve, dostrip, verbose;
+int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
 char pathbuf2[MAXPATHLEN];
@@ -677,9 +677,9 @@ void
 usage()
 {
 	(void)fprintf(stderr,"\
-usage: install [-CcDpSs] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
-       install [-CcDpSs] [-f flags] [-g group] [-m mode] [-o owner] file1 ... fileN directory\n\
-       install  -d       [-g group] [-m mode] [-o owner] directory ...\n");
+usage: install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
+    install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] f1 ... fN dir\n\
+    install  -d       [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
