@@ -1032,7 +1032,7 @@ COMMON ITEMS:
 	<maybe fix /etc/fstab>				[7]
 	make buildworld
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	cp src/sys/${MACHINE_ARCH}/conf/GENERIC.hints /boot/device.hints [2]
+	cp src/sys/${MACHINE}/conf/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	cd src/sys/boot ; make install			[6]
 							[1]
