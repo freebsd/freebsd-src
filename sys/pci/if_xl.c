@@ -1358,47 +1358,6 @@ xl_attach(dev)
 		break;
 	}
 
-#ifndef BURN_BRIDGES
-	/*
-	 * If this is a 3c905B, we have to check one extra thing.
-	 * The 905B supports power management and may be placed in
-	 * a low-power mode (D3 mode), typically by certain operating
-	 * systems which shall not be named. The PCI BIOS is supposed
-	 * to reset the NIC and bring it out of low-power mode, but
-	 * some do not. Consequently, we have to see if this chip
-	 * supports power management, and if so, make sure it's not
-	 * in low-power mode. If power management is available, the
-	 * capid byte will be 0x01.
-	 *
-	 * I _think_ that what actually happens is that the chip
-	 * loses its PCI configuration during the transition from
-	 * D3 back to D0; this means that it should be possible for
-	 * us to save the PCI iobase, membase and IRQ, put the chip
-	 * back in the D0 state, then restore the PCI config ourselves.
-	 */
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		u_int32_t		iobase, membase, irq;
-
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, XL_PCI_LOIO, 4);
-		membase = pci_read_config(dev, XL_PCI_LOMEM, 4);
-		irq = pci_read_config(dev, XL_PCI_INTLINE, 4);
-
-		/* Reset the power state. */
-		printf("xl%d: chip is in D%d power mode "
-		    "-- setting to D0\n", unit,
-		    pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, XL_PCI_LOIO, iobase, 4);
-		pci_write_config(dev, XL_PCI_LOMEM, membase, 4);
-		pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
-	}
-#endif
-
 	/*
 	 * Map control/status registers.
 	 */
