@@ -15,8 +15,8 @@ CFLAGS+=	-DLIBC_SCCS -Wall
 .if exists(${.CURDIR}/../../secure/lib/libcrypt/crypt-des.c) && \
     !defined(NOSECURE) && !defined(NOCRYPT)
 .PATH:		${.CURDIR}/../../secure/lib/libcrypt
-SRCS+=		crypt-des.c
-CFLAGS+=	-I${.CURDIR} -DHAS_DES
+SRCS+=		crypt-des.c crypt-blowfish.c blowfish.c
+CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
 .endif
 # And the auth_getval() code and support.
 .PATH:		${.CURDIR}/../libutil

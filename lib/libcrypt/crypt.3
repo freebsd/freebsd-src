@@ -61,11 +61,14 @@ in the hash.
 Currently these include the
 .Tn NBS
 .Tn Data Encryption Standard (DES) ,
+.Tn MD5
 and
-.Tn MD5 .
+.Tn Blowfish .
 The algorithm used will depend upon the format of the Salt (following
 the Modular Crypt Format (MCF)), if
 .Tn DES
+and/or
+.Tn Blowfish
 is installed or not, and whether
 .Fn crypt_set_format
 has been called to change the default.
@@ -171,8 +174,10 @@ to 16 characters--because the length of the returned output is also limited
 Currently supported algorithms are:
 .Pp
 .Bl -enum -compact -offset indent
-.It
+.It 1
 MD5
+.It 2a
+Blowfish
 .El
 .Pp
 Other crypt formats may be easilly added.  An example salt would be:
@@ -207,7 +212,8 @@ Valid values are
 .\"
 .\" NOTICE: Also make sure to update this, too, as well
 .\"
-.Ql des
+.Ql des ,
+.Ql blf
 and
 .Ql md5 .
 .Pp
@@ -273,6 +279,8 @@ Originally written by
 later additions and changes by
 .An Poul-Henning Kamp ,
 .An Mark R V Murray ,
-.An Kris Kennaway
+.An Kris Kennaway ,
+.An Brian Feldman ,
+.An Paul Herman
 and
-.An Brian Feldman .
+.An Niels Provos .
