@@ -33,13 +33,19 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_devid.h,v 1.6 2003/06/25 04:50:22 sam Exp $
+ * $Id: ah_devid.h,v 1.7 2003/10/22 21:17:40 sam Exp $
  */
 
 #ifndef _DEV_ATH_DEVID_H_
 #define _DEV_ATH_DEVID_H_
 
 #define ATHEROS_VENDOR_ID	0x168c		/* Atheros PCI vendor ID */
+/*
+ * NB: all Atheros-based devices should have a PCI vendor ID
+ *     of 0x168c, but some vendors, in their infinite wisdom
+ *     do not follow this so we must handle them specially.
+ */
+#define	ATHEROS_3COM_VENDOR_ID	0xa727		/* 3Com PCI vendor ID */
 
 /* AR5210 (for reference) */
 #define AR5210_DEFAULT          0x1107          /* No eeprom HW default */
@@ -57,6 +63,7 @@
 #define AR5212_DEFAULT          0x1113          /* No eeprom HW default */
 #define AR5212_DEVID            0x0013          /* Final ar5212 devid */
 #define AR5212_FPGA             0xf013          /* Emulation board */
+#define	AR5212_DEVID_IBM	0x1014          /* IBM minipci ID */
 
 #define	AR_SUBVENDOR_ID_NOG	0x0e11		/* No 11G subvendor ID */
 #endif /* _DEV_ATH_DEVID_H */
