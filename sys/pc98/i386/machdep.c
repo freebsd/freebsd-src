@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.24 1998/04/12 15:04:45 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.25 1998/05/06 19:11:44 gibbs Exp $
  */
 
 #include "npx.h"
@@ -43,6 +43,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_machdep.h"
+#include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_sysvipc.h"
 #include "opt_userconfig.h"
@@ -153,7 +154,6 @@ int	bouncepages = 0;
 #endif	/* BOUNCE_BUFFERS */
 
 extern int freebufspace;
-int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
 
@@ -1363,7 +1363,7 @@ init386(first)
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(sizeof(struct msgbuf)) >= phys_avail[pa_indx]) {
+	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -1372,17 +1372,17 @@ init386(first)
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(sizeof(struct msgbuf));
+	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
 	avail_end = phys_avail[pa_indx];
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(sizeof(struct msgbuf)); off += PAGE_SIZE)
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
 			   avail_end + off, VM_PROT_ALL, TRUE);
-	msgbufmapped = 1;
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	/* make a initial tss so microp can get interrupt stack on syscall! */
 	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
