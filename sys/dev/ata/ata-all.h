@@ -64,7 +64,9 @@
 #define		ATA_C_WRITE_DMA		0xca	/* write w/DMA command */
 #define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
 #define		ATA_C_SETFEATURES	0xef	/* features command */
-#define		    ATA_C_FEA_SETXFER	0x03	/* set transfer mode */
+#define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
+#define		    ATA_C_F_ENAB_RCACHE	0xaa	/* enable readahead cache */
+#define		    ATA_C_F_ENAB_WCACHE	0x02	/* enable write cache */
 
 #define ATA_STATUS			0x07	/* status register */
 #define		ATA_S_ERROR		0x01	/* error */
