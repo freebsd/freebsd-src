@@ -465,6 +465,14 @@ sanity_check(TERMTYPE * tp)
 	    PAIRED(enter_underline_mode, exit_underline_mode)
     }
 
+    /* we do this check/fix in postprocess_termcap(), but some packagers
+     * prefer to bypass it...
+     */
+    if (acs_chars == 0
+	&& enter_alt_charset_mode != 0
+	&& exit_alt_charset_mode != 0)
+	acs_chars = strdup(VT_ACSC);
+
     /* listed in structure-member order of first argument */
     PAIRED(enter_alt_charset_mode, exit_alt_charset_mode);
     ANDMISSING(enter_alt_charset_mode, acs_chars);
