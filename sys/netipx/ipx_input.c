@@ -88,6 +88,7 @@ struct	sockaddr_ipx ipx_netmask, ipx_hostmask;
 /*
  * IPX protocol control block (pcb) lists.
  */
+u_short			ipxpcb_lport_cache;
 struct ipxpcbhead	ipxpcb_list;
 struct ipxpcbhead	ipxrawpcb_list;
 

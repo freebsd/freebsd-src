@@ -110,11 +110,11 @@ ipx_pcbbind(ipxp, nam, td)
 noname:
 	if (lport == 0)
 		do {
-			ipxpcb.ipxp_lport++;
-			if ((ipxpcb.ipxp_lport < IPXPORT_RESERVED) ||
-			    (ipxpcb.ipxp_lport >= IPXPORT_WELLKNOWN))
-				ipxpcb.ipxp_lport = IPXPORT_RESERVED;
-			lport = htons(ipxpcb.ipxp_lport);
+			ipxpcb_lport_cache++;
+			if ((ipxpcb_lport_cache < IPXPORT_RESERVED) ||
+			    (ipxpcb_lport_cache >= IPXPORT_WELLKNOWN))
+				ipxpcb_lport_cache = IPXPORT_RESERVED;
+			lport = htons(ipxpcb_lport_cache);
 		} while (ipx_pcblookup(&zeroipx_addr, lport, 0));
 	ipxp->ipxp_lport = lport;
 	return (0);
