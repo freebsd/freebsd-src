@@ -59,9 +59,10 @@ __FBSDID("$FreeBSD$");
 
 static void *xmalloc(unsigned int sz);
 static unsigned long *xlalloc(unsigned int sz);
-static void yyerror(const char *s);
+void yyerror(const char *s);
 static unsigned long *xrelalloc(unsigned long *old, unsigned int sz);
 static void dump_tables(void);
+static void cleanout(void);
 
 const char	*locale_file = "<stdout>";
 
@@ -197,8 +198,15 @@ map	:	LBRK RUNE RUNE RBRK
 	;
 %%
 
-int debug = 0;
+int debug;
 FILE *fp;
+
+static void
+cleanout(void)
+{
+    if (fp != NULL)
+	unlink(locale_file);
+}
 
 int
 main(int ac, char *av[])
@@ -220,6 +228,7 @@ main(int ac, char *av[])
 		perror(locale_file);
 		exit(1);
 	    }
+	    atexit(cleanout);
 	    break;
 	default:
 	usage:
@@ -259,31 +268,31 @@ yyerror(s)
     fprintf(stderr, "%s\n", s);
 }
 
-void *
+static void *
 xmalloc(sz)
 	unsigned int sz;
 {
     void *r = malloc(sz);
     if (!r) {
 	perror("xmalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
 
-unsigned long *
+static unsigned long *
 xlalloc(sz)
 	unsigned int sz;
 {
     unsigned long *r = (unsigned long *)malloc(sz * sizeof(unsigned long));
     if (!r) {
 	perror("xlalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
 
-unsigned long *
+static unsigned long *
 xrelalloc(old, sz)
 	unsigned long *old;
 	unsigned int sz;
@@ -292,7 +301,7 @@ xrelalloc(old, sz)
 						sz * sizeof(unsigned long));
     if (!r) {
 	perror("xrelalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
@@ -541,10 +550,10 @@ add_map(map, list, flag)
     }
 }
 
-void
+static void
 dump_tables()
 {
-    int x;
+    int x, first_d, curr_d;
     rune_list *list;
 
     /*
@@ -558,6 +567,35 @@ dump_tables()
 		break;
 	    }
 	}
+    }
+
+    first_d = -1;
+    for (x = 0; x < _CACHED_RUNES; ++x) {
+	unsigned long r = types.map[x];
+
+	if (r & _CTYPE_D) {
+		if (first_d < 0)
+			first_d = curr_d = x;
+		else if (x != curr_d + 1) {
+			fprintf(stderr, "Error: DIGIT is not contiguous\n");
+			exit(1);
+		} else if (x - first_d > 9) {
+			fprintf(stderr, "Error: DIGIT is too big\n");
+			exit(1);
+		} else
+			curr_d++;
+		if (!(r & _CTYPE_X)) {
+			fprintf(stderr, "Error: DIGIT is not subset of XDIGIT\n");
+			exit(1);
+		}
+	}
+    }
+    if (first_d < 0) {
+	fprintf(stderr, "Error: no DIGIT defined\n");
+	exit(1);
+    } else if (curr_d - first_d < 9) {
+	fprintf(stderr, "Error: DIGIT is too small\n");
+	exit(1);
     }
 
     new_locale.invalid_rune = htonl(new_locale.invalid_rune);
@@ -698,7 +736,11 @@ dump_tables()
 	perror(locale_file);
 	exit(1);
     }
-    fclose(fp);
+    if (fclose(fp) != 0) {
+	perror(locale_file);
+	exit(1);
+    }
+    fp = NULL;
 
     if (!debug)
 	return;
