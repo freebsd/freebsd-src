@@ -374,7 +374,6 @@ scheduler(dummy)
 	int ppri;
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
-	mtx_unlock(&Giant);
 
 loop:
 	mtx_lock(&vm_mtx);
@@ -426,11 +425,9 @@ loop:
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	faultin(p);
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
 	mtx_unlock_spin(&sched_lock);
