@@ -70,7 +70,6 @@ extern int	procfs_kmemaccess __P((struct proc *));
 
 static int	linprocfs_access __P((struct vop_access_args *));
 static int	linprocfs_badop __P((void));
-static int	linprocfs_bmap __P((struct vop_bmap_args *));
 static int	linprocfs_close __P((struct vop_close_args *));
 static int	linprocfs_getattr __P((struct vop_getattr_args *));
 static int	linprocfs_inactive __P((struct vop_inactive_args *));
@@ -328,36 +327,6 @@ linprocfs_ioctl(ap)
 	}
 	PROC_UNLOCK(procp);
 	return 0;
-}
-
-/*
- * do block mapping for pfsnode (vp).
- * since we don't use the buffer cache
- * for procfs this function should never
- * be called.  in any case, it's not clear
- * what part of the kernel ever makes use
- * of this function.  for sanity, this is the
- * usual no-op bmap, although returning
- * (EIO) would be a reasonable alternative.
- */
-static int
-linprocfs_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-	} */ *ap;
-{
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	return (0);
 }
 
 /*
@@ -851,7 +820,6 @@ static struct vnodeopv_entry_desc linprocfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) linprocfs_access },
 	{ &vop_advlock_desc,		(vop_t *) linprocfs_badop },
-	{ &vop_bmap_desc,		(vop_t *) linprocfs_bmap },
 	{ &vop_close_desc,		(vop_t *) linprocfs_close },
 	{ &vop_create_desc,		(vop_t *) linprocfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) linprocfs_getattr },

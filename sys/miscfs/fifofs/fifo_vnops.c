@@ -72,7 +72,6 @@ static int	fifo_write __P((struct vop_write_args *));
 static int	fifo_ioctl __P((struct vop_ioctl_args *));
 static int	fifo_poll __P((struct vop_poll_args *));
 static int	fifo_kqfilter __P((struct vop_kqfilter_args *));
-static int	fifo_bmap __P((struct vop_bmap_args *));
 static int	fifo_pathconf __P((struct vop_pathconf_args *));
 static int	fifo_advlock __P((struct vop_advlock_args *));
 
@@ -91,7 +90,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
-	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) fifo_badop },
 	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
@@ -460,32 +458,6 @@ fifo_poll(ap)
 			    ap->a_p);
 	}
 	return (revents);
-}
-
-/*
- * This is a noop, simply returning what one has been given.
- */
-static int
-fifo_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
-	return (0);
 }
 
 /*

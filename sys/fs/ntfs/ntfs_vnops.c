@@ -121,6 +121,7 @@ ntfs_putpages(ap)
 }
 #endif
 
+#if defined(__NetBSD__)
 /*
  * This is a noop, simply returning what one has been given.
  */
@@ -142,12 +143,9 @@ ntfs_bmap(ap)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
-#if !defined(__NetBSD__)
-	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
-#endif
 	return (0);
 }
+#endif
 
 static int
 ntfs_read(ap)
@@ -871,7 +869,6 @@ struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, (vop_t *)ntfs_readdir },
 	{ &vop_fsync_desc, (vop_t *)ntfs_fsync },
 
-	{ &vop_bmap_desc, (vop_t *)ntfs_bmap },
 	{ &vop_getpages_desc, (vop_t *) ntfs_getpages },
 	{ &vop_putpages_desc, (vop_t *) ntfs_putpages },
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },

@@ -620,6 +620,7 @@ int	vfs_object_create __P((struct vnode *vp, struct proc *p,
 void	vfs_timestamp __P((struct timespec *));
 void	vfs_write_resume __P((struct mount *mp));
 void	vfs_write_suspend __P((struct mount *mp));
+int	vop_stdbmap __P((struct vop_bmap_args *));
 int	vop_stdgetwritemount __P((struct vop_getwritemount_args *));
 int	vop_stdinactive __P((struct vop_inactive_args *));
 int	vop_stdislocked __P((struct vop_islocked_args *));
