@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.7 1998/01/20 10:39:55 bde Exp $
+#	$Id: Makefile,v 1.8 1998/02/22 15:27:56 ache Exp $
 #
 
 PROG=	mount_msdos
@@ -10,7 +10,7 @@ MOUNT=	${.CURDIR}/../../mount
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
-TABDIR= /usr/libdata/msdosfs
+TABDIR= ${DESTDIR}/usr/libdata/msdosfs
 TABLES= koi2uni
 
 afterinstall:
