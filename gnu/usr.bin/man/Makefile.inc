@@ -5,7 +5,7 @@
 BINDIR?=		/usr/bin
 libdir=			/etc
 bindir=			${BINDIR}
-pager=			less -sCe
+pager=			more -cs
 manpath_config_file=	/etc/manpath.config
 troff=			/usr/bin/groff -Tps -man
 nroff=			/usr/bin/groff -Tascii -man
