@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)get_myaddress.c 1.4 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)get_myaddress.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: get_myaddress.c,v 1.6 1996/12/30 14:26:28 peter Exp $";
 #endif
 
 /*
@@ -62,7 +62,7 @@ get_myaddress(addr)
 	struct sockaddr_in *addr;
 {
 	int s;
-	char buf[1024 * 8];
+	char buf[BUFSIZ];
 	struct ifconf ifc;
 	struct ifreq ifreq, *ifr, *end;
 	int loopback = 0, gotit = 0;
@@ -88,7 +88,7 @@ again:
 		}
 		if ((ifreq.ifr_flags & IFF_UP) &&
 		    ifr->ifr_addr.sa_family == AF_INET &&
-		    (loopback == 1 || !(ifreq.ifr_flags & IFF_LOOPBACK))) {
+		    (loopback == 1 && (ifreq.ifr_flags & IFF_LOOPBACK))) {
 			*addr = *((struct sockaddr_in *)&ifr->ifr_addr);
 			addr->sin_port = htons(PMAPPORT);
 			gotit = 1;
@@ -105,7 +105,5 @@ again:
 		goto again;
 	}
 	(void) close(s);
-	if (gotit == 0)		/* still found nothing?? */
-		return (-1);
 	return (0);
 }

@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_clnt.c 1.37 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_clnt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: pmap_clnt.c,v 1.5 1996/12/30 14:46:33 peter Exp $";
 #endif
 
 /*
@@ -40,6 +40,8 @@ static char *rcsid = "$Id$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
@@ -51,6 +53,9 @@ static struct timeval tottimeout = { 60, 0 };
 
 void clnt_perror();
 
+#ifndef PORTMAPSOCK
+#define PORTMAPSOCK "/var/run/portmapsock"
+#endif
 
 /*
  * Set a mapping between program,version and port.
@@ -68,12 +73,22 @@ pmap_set(program, version, protocol, port)
 	register CLIENT *client;
 	struct pmap parms;
 	bool_t rslt;
+	struct stat st;
 
-	if (get_myaddress(&myaddress) != 0)
-		return (FALSE);
-	myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
-	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	/*
+	 * Temporary hack for backwards compatibility. Eventually
+	 * this test will go away and we'll use only the "unix" transport.
+	 */
+	if (stat(PORTMAPSOCK, &st) == 0 && st.st_mode & S_IFSOCK)
+		client = clnt_create(PORTMAPSOCK, PMAPPROG, PMAPVERS, "unix");
+	else  {
+		if (get_myaddress(&myaddress) != 0)
+			return (FALSE);
+		myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
+	    		timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	}
+
 	if (client == (CLIENT *)NULL)
 		return (FALSE);
 	parms.pm_prog = program;
@@ -105,12 +120,21 @@ pmap_unset(program, version)
 	register CLIENT *client;
 	struct pmap parms;
 	bool_t rslt;
+	struct stat st;
 
-	if (get_myaddress(&myaddress) != 0)
-		return (FALSE);
-	myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
-	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	/*
+	 * Temporary hack for backwards compatibility. Eventually
+	 * this test will go away and we'll use only the "unix" transport.
+	 */
+	if (stat(PORTMAPSOCK, &st) == 0 && st.st_mode & S_IFSOCK)
+		client = clnt_create(PORTMAPSOCK, PMAPPROG, PMAPVERS, "unix");
+	else {
+		if (get_myaddress(&myaddress) != 0)
+			return (FALSE);
+		myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
+	    		timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
+	}
 	if (client == (CLIENT *)NULL)
 		return (FALSE);
 	parms.pm_prog = program;
