@@ -172,10 +172,12 @@ main(int argc, char **argv)
 		if (fexists(*argv)) /* refers to a file directly */
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
 		else {		/* look for the file in the expected places */
-		    if (!(cp = fileFindByPath(NULL, *argv)))
-				/* let pkg_do() fail later, so that error is reported */
-				pkgs[ch] = strcpy(pkgnames[ch], *argv);
-		    else {
+		    if (!(cp = fileFindByPath(NULL, *argv))) {
+			/* let pkg_do() fail later, so that error is reported */
+			if (s_strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])))
+			    errx(1, "package name too long");
+			pkgs[ch] = pkgnames[ch];
+		    } else {
 			if (s_strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch])))
 			    errx(1, "package name too long");
 			pkgs[ch] = pkgnames[ch];
