@@ -57,7 +57,7 @@ getchar()
 	int retval;
 	FLOCKFILE(stdin);
 	ORIENT(stdin, -1);
-	retval = getc(stdin);
+	retval = __sgetc(stdin);
 	FUNLOCKFILE(stdin);
 	return (retval);
 }
