@@ -256,7 +256,11 @@ cpu_exit(struct thread *td)
 		load_gs(_udatasel);
 		user_ldt_free(td);
 	}
-	reset_dbregs();
+	if (pcb->pcb_flags & PCB_DBREGS) {
+		/* disable all hardware breakpoints */
+		reset_dbregs();
+		pcb->pcb_flags &= ~PCB_DBREGS;
+	}
 }
 
 void
@@ -267,9 +271,7 @@ cpu_thread_exit(struct thread *td)
 	npxexit(td);
 #endif
         if (pcb->pcb_flags & PCB_DBREGS) {
-                /*
-                 * disable all hardware breakpoints
-                 */
+		/* disable all hardware breakpoints */
                 reset_dbregs();
                 pcb->pcb_flags &= ~PCB_DBREGS;
         }
