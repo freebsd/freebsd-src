@@ -261,6 +261,7 @@ AST_DEBUG		opt_ata.h
 ATAPI_DEBUG		opt_ata.h
 ATA_DEBUG		opt_ata.h
 ATA_STATIC_ID		opt_ata.h
+ATA_NOPCI		opt_ata.h
 DEV_ATADISK		opt_ata.h
 DEV_ATAPICD		opt_ata.h
 DEV_ATAPIST		opt_ata.h
