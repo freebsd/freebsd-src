@@ -642,6 +642,7 @@ struct	mbuf	*m_uiotombuf(struct uio *, int, int);
 #define	PACKET_TAG_PF_TAG			24 /* PF tagged */
 #define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
 #define	PACKET_TAG_PF_TRANSLATE_LOCALHOST	26 /* PF translate localhost */
+#define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 
 /* Packet tag routines. */
 struct	m_tag	*m_tag_alloc(u_int32_t, int, int, int);
