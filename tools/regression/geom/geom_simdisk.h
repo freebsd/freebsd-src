@@ -45,6 +45,7 @@ struct simdisk_softc {
 	int			fd;
 	int			sectorsize;
 	off_t			mediasize;
+	off_t			lastsector;
 	LIST_HEAD(,sector)	sectors;
 	struct sbuf		*sbuf;
 	struct sector		*sp;
