@@ -36,7 +36,11 @@
  */
 #include <sys/param.h>
 #include <sys/linker_set.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
 
@@ -63,6 +67,7 @@ SET_DECLARE(db_show_cmd_set, struct command);
 
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
+static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
 
 /* XXX this is actually forward-static. */
@@ -418,6 +423,7 @@ static struct command db_command_table[] = {
 	{ "ps",		db_ps,			0,	0 },
 	{ "gdb",	db_gdb,			0,	0 },
 	{ "reset",	db_reset,		0,	0 },
+	{ "kill",	db_kill,		CS_OWN,	0 },
 	{ (char *)0, }
 };
 
@@ -571,6 +577,59 @@ db_gdb (dummy1, dummy2, dummy3, dummy4)
 	db_printf("Next trap will enter %s\n",
 		   boothowto & RB_GDB ? "GDB remote protocol mode"
 				      : "DDB debugger");
+}
+
+static void
+db_kill(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
+{
+	db_expr_t old_radix, pid, sig;
+	struct proc *p;
+
+#define DB_ERROR(f)	do { db_printf f; db_flush_lex(); goto out; } while (0)
+
+	/*
+	 * PIDs and signal numbers are typically represented in base
+	 * 10, so make that the default here.  It can, of course, be
+	 * overridden by specifying a prefix.
+	 */
+	old_radix = db_radix;
+	db_radix = 10;
+	/* Retrieve arguments. */
+	if (!db_expression(&sig))
+		DB_ERROR(("Missing signal number\n"));
+	if (!db_expression(&pid))
+		DB_ERROR(("Missing process ID\n"));
+	db_skip_to_eol();
+	if (sig < 0 || sig > _SIG_MAXSIG)
+		DB_ERROR(("Signal number out of range\n"));
+
+	/*
+	 * Find the process in question.  allproc_lock is not needed
+	 * since we're in DDB.
+	 */
+	/* sx_slock(&allproc_lock); */
+	LIST_FOREACH(p, &allproc, p_list)
+	    if (p->p_pid == pid)
+		    break;
+	/* sx_sunlock(&allproc_lock); */
+	if (p == NULL)
+		DB_ERROR(("Can't find process with pid %d\n", pid));
+
+	/* If it's already locked, bail; otherwise, do the deed. */
+	if (PROC_TRYLOCK(p) == 0)
+		DB_ERROR(("Can't lock process with pid %d\n", pid));
+	else {
+		psignal(p, sig);
+		PROC_UNLOCK(p);
+	}
+
+out:
+	db_radix = old_radix;
+#undef DB_ERROR
 }
 
 static void
