@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.11 1995/05/30 08:12:36 rgrimes Exp $
+ * $Id: nfs_nqlease.c,v 1.12 1995/06/27 11:06:36 dfr Exp $
  */
 
 /*
@@ -1172,12 +1172,8 @@ nqnfs_lease_updatetime(deltat)
 	 * Search the mount list for all nqnfs mounts and do their timer
 	 * queues.
 	 */
-#if NetBSD >= 1994101
 	for (mp = mountlist.cqh_first; mp != (void *)&mountlist;
 		 mp = mp->mnt_list.cqe_next) {
-#else
-	for (mp = mountlist.tqh_first; mp != NULL; mp = mp->mnt_list.tqe_next) {
-#endif
 #ifdef __NetBSD__
 		if (!strcmp(&mp->mnt_stat.f_fstypename[0], MOUNT_NFS)) {
 #else
