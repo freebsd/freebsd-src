@@ -393,7 +393,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	/*
 	 * Initialize softc and read offsets.
 	 */
-	sc = malloc(sizeof(*sc), M_GEOM_UZIP, M_WAITOK);
+	sc = malloc(sizeof(*sc), M_GEOM_UZIP, M_WAITOK | M_ZERO);
 	gp->softc = sc;
 	sc->blksz = ntohl(header->blksz);
 	sc->nblocks = ntohl(header->nblocks);
