@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.70 1998/03/28 11:49:31 dufault Exp $
+ *	$Id: swtch.s,v 1.71 1998/04/06 15:44:31 peter Exp $
  */
 
 #include "npx.h"
@@ -49,6 +49,8 @@
 #include <machine/pmap.h>
 #include <machine/apic.h>
 #include <machine/smptests.h>		/** GRAB_LOPRIO */
+#include <machine/ipl.h>
+#include <machine/lock.h>
 #endif /* SMP */
 
 #include "assym.s"
@@ -308,6 +310,10 @@ _idle:
 	 *
 	 * XXX: we had damn well better be sure we had it before doing this!
 	 */
+	CPL_LOCK			/* XXX */
+	andl	$~SWI_AST_MASK, _ipending 			/* XXX */
+	movl	$0, _cpl	/* XXX Allow ASTs on other CPU */
+	CPL_UNLOCK			/* XXX */
 	movl	$FREE_LOCK, %eax
 	movl	%eax, _mp_lock
 
@@ -357,16 +363,20 @@ idle_loop:
 	jmp	idle_loop
 
 3:
-#ifdef SMP
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
-#endif
 	call	_get_mplock
+	CPL_LOCK					/* XXX */
+	movl	$SWI_AST_MASK, _cpl	/* XXX Disallow ASTs on other CPU */
+	CPL_UNLOCK					/* XXX */
 	cmpl	$0,_whichrtqs			/* real-time queue */
 	CROSSJUMP(jne, sw1a, je)
 	cmpl	$0,_whichqs			/* normal queue */
 	CROSSJUMP(jne, nortqr, je)
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	CROSSJUMP(jne, idqr, je)
+	CPL_LOCK				/* XXX */
+	movl	$0, _cpl		/* XXX Allow ASTs on other CPU */
+	CPL_UNLOCK				/* XXX */
 	call	_rel_mplock
 	jmp	idle_loop
 
