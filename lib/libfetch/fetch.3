@@ -332,8 +332,8 @@ will use a direct connection even if a proxy server is defined.
 .Pp
 If no user name or password is given, the
 .Nm fetch
-library will attempt an anonymous login, with user name "ftp" and
-password "ftp".
+library will attempt an anonymous login, with user name "anonymous"
+and password "anonymous@<hostname>".
 .Sh HTTP SCHEME
 The
 .Fn fetchXGetHTTP ,
@@ -483,7 +483,21 @@ URL.
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr ftpio 3 ,
-.Xr ip 4 .
+.Xr ip 4
+.Rs
+.%A J. Postel
+.%A J. K. Reynolds
+.%D October 1985
+.%B File Transfer Protocol
+.%O RFC959
+.Re
+.Rs
+.%A P. Deutsch
+.%A A. Emtage
+.%A A. Marine.
+.%D May 1994
+.%T How to Use Anonymous FTP
+.%O RFC1635
 .Rs
 .%A T. Berners-Lee
 .%A L. Masinter
@@ -501,13 +515,6 @@ URL.
 .%D Januray 1997
 .%B Hypertext Transfer Protocol -- HTTP/1.1
 .%O RFC2068
-.Re
-.Rs
-.%A J. Postel
-.%A J. K. Reynolds
-.%D October 1985
-.%B File Transfer Protocol
-.%O RFC959
 .Re
 .Sh HISTORY
 The
