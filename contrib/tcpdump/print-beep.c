@@ -11,7 +11,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "@(#) $Header: /tcpdump/master/tcpdump/print-beep.c,v 1.1 2001/12/10 08:21:24 guy Exp $";
+  "@(#) $Header: /tcpdump/master/tcpdump/print-beep.c,v 1.1.2.1 2002/07/11 07:47:01 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -54,19 +54,19 @@ void
 beep_print(const u_char *bp, u_int length)
 {
 
-	if (l_strnstart("MSG", 4, bp, length)) /* A REQuest */
+	if (l_strnstart("MSG", 4, (const char *)bp, length)) /* A REQuest */
 		printf(" BEEP MSG");
-	else if (l_strnstart("RPY ", 4, bp, length))
+	else if (l_strnstart("RPY ", 4, (const char *)bp, length))
 		printf(" BEEP RPY");
-	else if (l_strnstart("ERR ", 4, bp, length))
+	else if (l_strnstart("ERR ", 4, (const char *)bp, length))
 		printf(" BEEP ERR");
-	else if (l_strnstart("ANS ", 4, bp, length))
+	else if (l_strnstart("ANS ", 4, (const char *)bp, length))
 		printf(" BEEP ANS");
-	else if (l_strnstart("NUL ", 4, bp, length))
+	else if (l_strnstart("NUL ", 4, (const char *)bp, length))
 		printf(" BEEP NUL");
-	else if (l_strnstart("SEQ ", 4, bp, length))
+	else if (l_strnstart("SEQ ", 4, (const char *)bp, length))
 		printf(" BEEP SEQ");
-	else if (l_strnstart("END", 4, bp, length))
+	else if (l_strnstart("END", 4, (const char *)bp, length))
 		printf(" BEEP END");
 	else 
 		printf(" BEEP (payload or undecoded)");

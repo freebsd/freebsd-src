@@ -5,9 +5,6 @@
 /* Define to empty if the keyword does not work.  */
 #undef const
 
-/* Define as __inline if that's what the C compiler calls it.  */
-#undef inline
-
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE
 
@@ -188,6 +185,9 @@
 
 /* Define if you have the smi library (-lsmi).  */
 #undef HAVE_LIBSMI
+
+/* Define as token for inline if inlining supported */
+#undef inline
 
 /* define if your compiler has __attribute__ */
 #undef HAVE___ATTRIBUTE__

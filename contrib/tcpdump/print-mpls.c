@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.2 2001/06/26 06:24:57 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.2.4.1 2002/05/07 18:36:28 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -83,23 +83,24 @@ mpls_print(const u_char *bp, u_int length)
 
 	p = bp;
 	printf("MPLS");
-	TCHECK2(*p, sizeof(v));
-	memcpy(&v, p, sizeof(v));
-	v = (u_int32_t)ntohl(v);
-	printf(" (");	/*)*/
-	printf("label 0x%x", MPLS_LABEL(v));
-	if (vflag &&
-	    MPLS_LABEL(v) < sizeof(mpls_labelname) / sizeof(mpls_labelname[0]))
-		printf("(%s)", mpls_labelname[MPLS_LABEL(v)]);
-	if (MPLS_EXP(v))
-		printf(" exp 0x%x", MPLS_EXP(v));
-	if (MPLS_STACK(v))
-		printf("[S]");
-	printf(" TTL %u", MPLS_TTL(v));
-	/*(*/
-	printf(")");
+	do {
+		TCHECK2(*p, sizeof(v));
+		v = EXTRACT_32BITS(p);
+		printf(" (");	/*)*/
+		printf("label 0x%x", MPLS_LABEL(v));
+		if (vflag &&
+		    MPLS_LABEL(v) < sizeof(mpls_labelname) / sizeof(mpls_labelname[0]))
+			printf("(%s)", mpls_labelname[MPLS_LABEL(v)]);
+		if (MPLS_EXP(v))
+			printf(" exp 0x%x", MPLS_EXP(v));
+		if (MPLS_STACK(v))
+			printf("[S]");
+		printf(" TTL %u", MPLS_TTL(v));
+		/*(*/
+		printf(")");
 
-	p += sizeof(v);
+		p += sizeof(v);
+	} while (!MPLS_STACK(v));
 
 	switch (MPLS_LABEL(v)) {
 	case 0:	/* IPv4 explicit NULL label */
