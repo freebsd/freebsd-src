@@ -219,30 +219,33 @@ mlxd_attach(device_t dev)
 		  sc->mlxd_drive->ms_size / ((1024 * 1024) / MLX_BLKSIZE),
 		  sc->mlxd_drive->ms_size, sc->mlxd_drive->ms_raidlevel, state);
 
-    sc->mlxd_disk.d_open = mlxd_open;
-    sc->mlxd_disk.d_close = mlxd_close;
-    sc->mlxd_disk.d_ioctl = mlxd_ioctl;
-    sc->mlxd_disk.d_strategy = mlxd_strategy;
-    sc->mlxd_disk.d_name = "mlxd";
-    sc->mlxd_disk.d_drv1 = sc;
-    sc->mlxd_disk.d_sectorsize = MLX_BLKSIZE;
-    sc->mlxd_disk.d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
-    sc->mlxd_disk.d_fwsectors = sc->mlxd_drive->ms_sectors;
-    sc->mlxd_disk.d_fwheads = sc->mlxd_drive->ms_heads;
+    sc->mlxd_disk = disk_alloc();
+    sc->mlxd_disk->d_open = mlxd_open;
+    sc->mlxd_disk->d_close = mlxd_close;
+    sc->mlxd_disk->d_ioctl = mlxd_ioctl;
+    sc->mlxd_disk->d_strategy = mlxd_strategy;
+    sc->mlxd_disk->d_name = "mlxd";
+    sc->mlxd_disk->d_unit = sc->mlxd_unit;
+    sc->mlxd_disk->d_drv1 = sc;
+    sc->mlxd_disk->d_sectorsize = MLX_BLKSIZE;
+    sc->mlxd_disk->d_mediasize = MLX_BLKSIZE * (off_t)sc->mlxd_drive->ms_size;
+    sc->mlxd_disk->d_fwsectors = sc->mlxd_drive->ms_sectors;
+    sc->mlxd_disk->d_fwheads = sc->mlxd_drive->ms_heads;
+    sc->mlxd_disk->d_flags = DISKFLAG_NEEDSGIANT;
 
     /* 
      * Set maximum I/O size to the lesser of the recommended maximum and the practical
      * maximum except on v2 cards where the maximum is set to 8 pages.
      */
     if (sc->mlxd_controller->mlx_iftype == MLX_IFTYPE_2)
-	sc->mlxd_disk.d_maxsize = 8 * PAGE_SIZE;
+	sc->mlxd_disk->d_maxsize = 8 * PAGE_SIZE;
     else {
 	s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
 	s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
-	sc->mlxd_disk.d_maxsize = imin(s1, s2);
+	sc->mlxd_disk->d_maxsize = imin(s1, s2);
     }
 
-    disk_create(sc->mlxd_unit, &sc->mlxd_disk, 0, NULL, NULL);
+    disk_create(sc->mlxd_disk, DISK_VERSION);
 
     return (0);
 }
@@ -254,7 +257,7 @@ mlxd_detach(device_t dev)
 
     debug_called(1);
 
-    disk_destroy(&sc->mlxd_disk);
+    disk_destroy(sc->mlxd_disk);
 
     return(0);
 }

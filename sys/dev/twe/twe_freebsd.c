@@ -640,7 +640,7 @@ struct twed_softc
     device_t		twed_dev;
     struct twe_softc	*twed_controller;	/* parent device softc */
     struct twe_drive	*twed_drive;		/* drive data in parent softc */
-    struct disk		twed_disk;		/* generic disk handle */
+    struct disk		*twed_disk;		/* generic disk handle */
 };
 
 /*
@@ -805,19 +805,24 @@ twed_attach(device_t dev)
     
     /* attach a generic disk device to ourselves */
 
-    sc->twed_disk.d_open = twed_open;
-    sc->twed_disk.d_strategy = twed_strategy;
-    sc->twed_disk.d_dump = (dumper_t *)twed_dump;
-    sc->twed_disk.d_name = "twed";
-    sc->twed_disk.d_drv1 = sc;
-    sc->twed_disk.d_maxsize = (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE;
-    sc->twed_disk.d_sectorsize = TWE_BLOCK_SIZE;
-    sc->twed_disk.d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
-    sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
-    sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
     sc->twed_drive->td_sys_unit = device_get_unit(dev);
 
-    disk_create(sc->twed_drive->td_sys_unit, &sc->twed_disk, 0, NULL, NULL);
+    sc->twed_disk = disk_alloc();
+    sc->twed_disk->d_open = twed_open;
+    sc->twed_disk->d_strategy = twed_strategy;
+    sc->twed_disk->d_dump = (dumper_t *)twed_dump;
+    sc->twed_disk->d_name = "twed";
+    sc->twed_disk->d_drv1 = sc;
+    sc->twed_disk->d_maxsize = (TWE_MAX_SGL_LENGTH - 1) * PAGE_SIZE;
+    sc->twed_disk->d_sectorsize = TWE_BLOCK_SIZE;
+    sc->twed_disk->d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
+    sc->twed_disk->d_fwsectors = sc->twed_drive->td_sectors;
+    sc->twed_disk->d_fwheads = sc->twed_drive->td_heads;
+    sc->twed_disk->d_unit = sc->twed_drive->td_sys_unit;
+    sc->twed_disk->d_flags = DISKFLAG_NEEDSGIANT;
+
+    disk_create(sc->twed_disk, DISK_VERSION);
+
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
@@ -837,10 +842,10 @@ twed_detach(device_t dev)
 
     debug_called(4);
 
-    if (sc->twed_disk.d_flags & DISKFLAG_OPEN)
+    if (sc->twed_disk->d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
-    disk_destroy(&sc->twed_disk);
+    disk_destroy(sc->twed_disk);
 
 #ifdef FREEBSD_4
     if (--disks_registered == 0)

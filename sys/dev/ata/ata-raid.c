@@ -177,16 +177,19 @@ ar_attach_raid(struct ar_softc *rdp, int update)
     int disk;
 
     ar_config_changed(rdp, update);
-    rdp->disk.d_strategy = arstrategy;
-    rdp->disk.d_dump = ardump;
-    rdp->disk.d_name = "ar";
-    rdp->disk.d_sectorsize = DEV_BSIZE;
-    rdp->disk.d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
-    rdp->disk.d_fwsectors = rdp->sectors;
-    rdp->disk.d_fwheads = rdp->heads;
-    rdp->disk.d_maxsize = 128 * DEV_BSIZE;
-    rdp->disk.d_drv1 = rdp;
-    disk_create(rdp->lun, &rdp->disk, 0, NULL, NULL);
+    rdp->disk = disk_alloc();
+    rdp->disk->d_strategy = arstrategy;
+    rdp->disk->d_dump = ardump;
+    rdp->disk->d_name = "ar";
+    rdp->disk->d_sectorsize = DEV_BSIZE;
+    rdp->disk->d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
+    rdp->disk->d_fwsectors = rdp->sectors;
+    rdp->disk->d_fwheads = rdp->heads;
+    rdp->disk->d_maxsize = 128 * DEV_BSIZE;
+    rdp->disk->d_drv1 = rdp;
+    rdp->disk->d_unit = rdp->lun;
+    rdp->disk->d_flags = DISKFLAG_NEEDSGIANT;
+    disk_create(rdp->disk, DISK_VERSION);
 
     printf("ar%d: %lluMB <ATA ", rdp->lun, (unsigned long long)
 	   (rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE)));
@@ -457,7 +460,7 @@ ata_raid_delete(int array)
 	ar_promise_write_conf(rdp);
     else
 	ar_highpoint_write_conf(rdp);
-    disk_destroy(&rdp->disk);
+    disk_destroy(rdp->disk);
     free(rdp, M_AR);
     ar_table[array] = NULL;
     return 0;
@@ -538,7 +541,7 @@ ardump(void *arg, void *virtual, vm_offset_t physical,
     if (length == 0) {
 	for (drv = 0; drv < rdp->total_disks; drv++) {
 	    if (rdp->disks[drv].flags & AR_DF_ONLINE) {
-		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		ap = AD_SOFTC(rdp->disks[drv])->disk;
 		(void) ap->d_dump(ap, NULL, 0, 0, 0);
 	    }
 	}
@@ -603,7 +606,7 @@ ardump(void *arg, void *virtual, vm_offset_t physical,
 	case AR_F_SPAN:
 	case AR_F_RAID0:
 	    if (rdp->disks[drv].flags & AR_DF_ONLINE) {
-		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		ap = AD_SOFTC(rdp->disks[drv])->disk;
 		error1 = ap->d_dump(ap, vdata, pdata,
 				    (off_t) lba * DEV_BSIZE,
 				    chunk * DEV_BSIZE);
@@ -618,7 +621,7 @@ ardump(void *arg, void *virtual, vm_offset_t physical,
 	    if ((rdp->disks[drv].flags & AR_DF_ONLINE) ||
 		((rdp->flags & AR_F_REBUILDING) && 
 		 (rdp->disks[drv].flags & AR_DF_SPARE))) {
-		ap = &AD_SOFTC(rdp->disks[drv])->disk;
+		ap = AD_SOFTC(rdp->disks[drv])->disk;
 		error1 = ap->d_dump(ap, vdata, pdata,
 				    (off_t) lba * DEV_BSIZE,
 				    chunk * DEV_BSIZE);
@@ -627,7 +630,7 @@ ardump(void *arg, void *virtual, vm_offset_t physical,
 	    if ((rdp->disks[drv + rdp->width].flags & AR_DF_ONLINE) ||
 		((rdp->flags & AR_F_REBUILDING) &&
 		 (rdp->disks[drv + rdp->width].flags & AR_DF_SPARE))) {
-		ap = &AD_SOFTC(rdp->disks[drv + rdp->width])->disk;
+		ap = AD_SOFTC(rdp->disks[drv + rdp->width])->disk;
 		error2 = ap->d_dump(ap, vdata, pdata,
 				    (off_t) lba * DEV_BSIZE,
 				    chunk * DEV_BSIZE);
@@ -739,7 +742,7 @@ arstrategy(struct bio *bp)
 		biodone(bp);
 		return;
 	    }
-	    buf1->bp.bio_disk = &AD_SOFTC(rdp->disks[buf1->drive])->disk;
+	    buf1->bp.bio_disk = AD_SOFTC(rdp->disks[buf1->drive])->disk;
 	    AR_STRATEGY((struct bio *)buf1);
 	    break;
 
@@ -827,7 +830,7 @@ arstrategy(struct bio *bp)
 			buf2->mirror = buf1;
 			buf2->drive = buf1->drive + rdp->width;
 			buf2->bp.bio_disk =
-			    &AD_SOFTC(rdp->disks[buf2->drive])->disk;
+			    AD_SOFTC(rdp->disks[buf2->drive])->disk;
 			AR_STRATEGY((struct bio *)buf2);
 			rdp->disks[buf2->drive].last_lba =
 			    buf2->bp.bio_pblkno + chunk;
@@ -836,7 +839,7 @@ arstrategy(struct bio *bp)
 			buf1->drive = buf1->drive + rdp->width;
 		}
 	    }
-	    buf1->bp.bio_disk = &AD_SOFTC(rdp->disks[buf1->drive])->disk;
+	    buf1->bp.bio_disk = AD_SOFTC(rdp->disks[buf1->drive])->disk;
 	    AR_STRATEGY((struct bio *)buf1);
 	    rdp->disks[buf1->drive].last_lba = buf1->bp.bio_pblkno + chunk;
 	    break;
@@ -881,7 +884,7 @@ ar_done(struct bio *bp)
 			buf->drive = buf->drive + rdp->width;
 		    else
 			buf->drive = buf->drive - rdp->width;
-		    buf->bp.bio_disk = &AD_SOFTC(rdp->disks[buf->drive])->disk;
+		    buf->bp.bio_disk = AD_SOFTC(rdp->disks[buf->drive])->disk;
 		    buf->bp.bio_flags = buf->org->bio_flags;
 		    buf->bp.bio_error = 0;
 		    AR_STRATEGY((struct bio *)buf);
@@ -1629,7 +1632,7 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 
     if (!(bp = (struct bio *)malloc(sizeof(struct bio), M_AR, M_NOWAIT|M_ZERO)))
 	return 1;
-    bp->bio_disk = &adp->disk;
+    bp->bio_disk = adp->disk;
     bp->bio_data = data;
     bp->bio_pblkno = lba;
     bp->bio_bcount = count;

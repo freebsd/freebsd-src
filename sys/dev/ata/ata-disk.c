@@ -131,20 +131,22 @@ ad_attach(struct ata_device *atadev)
     ad_config(atadev);
 
     /* lets create the disk device */
-    adp->disk.d_open = adopen;
-    adp->disk.d_strategy = adstrategy;
-    adp->disk.d_dump = addump;
-    adp->disk.d_name = "ad";
-    adp->disk.d_drv1 = adp;
+    adp->disk = disk_alloc();
+    adp->disk->d_open = adopen;
+    adp->disk->d_strategy = adstrategy;
+    adp->disk->d_dump = addump;
+    adp->disk->d_name = "ad";
+    adp->disk->d_drv1 = adp;
     if (atadev->channel->dma)
-	adp->disk.d_maxsize = atadev->channel->dma->max_iosize;
+	adp->disk->d_maxsize = atadev->channel->dma->max_iosize;
     else
-	adp->disk.d_maxsize = DFLTPHYS;
-    adp->disk.d_sectorsize = DEV_BSIZE;
-    adp->disk.d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
-    adp->disk.d_fwsectors = adp->sectors;
-    adp->disk.d_fwheads = adp->heads;
-    disk_create(adp->lun, &adp->disk, DISKFLAG_NOGIANT, NULL, NULL);
+	adp->disk->d_maxsize = DFLTPHYS;
+    adp->disk->d_sectorsize = DEV_BSIZE;
+    adp->disk->d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
+    adp->disk->d_fwsectors = adp->sectors;
+    adp->disk->d_fwheads = adp->heads;
+    adp->disk->d_unit = adp->lun;
+    disk_create(adp->disk, DISK_VERSION);
 
     /* announce we are here */
     ad_print(adp);
@@ -167,7 +169,7 @@ ad_detach(struct ata_device *atadev)
     mtx_lock(&adp->queue_mtx);
     bioq_flush(&adp->queue, NULL, ENXIO);
     mtx_unlock(&adp->queue_mtx);
-    disk_destroy(&adp->disk);
+    disk_destroy(adp->disk);
     ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
@@ -208,7 +210,7 @@ adopen(struct disk *dp)
 {
     struct ad_softc *adp = dp->d_drv1;
 
-    if (adp->device->flags & ATA_D_DETACHING)
+    if (adp == NULL || adp->device->flags & ATA_D_DETACHING)
 	return ENXIO;
     return 0;
 }
