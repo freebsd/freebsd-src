@@ -444,7 +444,8 @@ critical_exit(void)
 	struct thread *td;
 
 	td = curthread;
-	KASSERT(td->td_critnest > 0, ("critical_exit:  critnest < 0"));
+	KASSERT(td->td_critnest != 0,
+	    ("critical_exit: td_critnest == 0"));
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
 		cpu_critical_exit();
