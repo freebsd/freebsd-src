@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.6 1998/09/26 01:30:20 msmith Exp $
+ *	$Id: biosdisk.c,v 1.7 1998/09/28 20:07:39 peter Exp $
  */
 
 /*
@@ -245,7 +245,7 @@ bd_open(struct open_file *f, void *vdev)
     /* 
      * Check the slice table magic.
      */
-    if ((od->od_buf[0x1fe] != 0xff) || (od->od_buf[0x1ff] != 0xaa)) {
+    if ((od->od_buf[0x1fe] != 0x55) || (od->od_buf[0x1ff] != 0xaa)) {
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
 	    DEBUG("no slice table/MBR (no magic)");
