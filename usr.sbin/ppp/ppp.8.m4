@@ -1,11 +1,11 @@
-.\" $Id: ppp.8,v 1.70 1997/10/05 14:27:08 brian Exp $
+.\" $Id: ppp.8,v 1.71 1997/11/04 01:17:04 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
 .Sh NAME
 .Nm ppp
 .Nd
-Point to Point Protocol (aka iijppp) 
+Point to Point Protocol (a.k.a. iijppp) 
 .Sh SYNOPSIS
 .Nm
 .Op Fl auto | background | ddial | direct | dedicated 
@@ -16,9 +16,10 @@ This is a user process
 .Em PPP
 software package.  Normally,
 .Em PPP
-is implemented as a part of the kernel (e.g. as managed by pppd) and it's
-thus somewhat hard to debug and/or modify its behavior.  However, in this
-implementation
+is implemented as a part of the kernel (e.g. as managed by
+.Xr pppd 8 )
+and it's thus somewhat hard to debug and/or modify its behaviour.
+However, in this implementation
 .Em PPP
 is done as a user process with the help of the
 tunnel device driver (tun).
@@ -37,13 +38,12 @@ Interactive mode has a
 .Dq term
 command which enables you to talk to your modem directly.  When your
 modem is connected to the remote peer and it starts to talk
-.Em PPP
-, the
-.Em PPP
-software detects it and switches to packet
-mode automatically. Once you have determined the proper sequence for connecting
-with the remote host, you can write a chat script to define the necessary
-dialing and login procedure for later convenience.
+.Em PPP ,
+.Nm
+detects it and switches to packet mode automatically.  Once you have
+determined the proper sequence for connecting with the remote host, you
+can write a chat script to define the necessary dialing and login
+procedure for later convenience.
 
 .It Supports on-demand dialup capability.
 By using auto mode,
@@ -61,8 +61,8 @@ useful for full-time connections who worry less about line charges
 and more about being connected full time.
 
 .It Supports packet aliasing.
-Packet aliasing, more commonly known as masquerading, allows computers
-on a private, unregistered network to access the internet.  The
+Packet aliasing (a.k.a. IP masquerading) allows computers on a
+private, unregistered network to access the Internet.  The
 .Em PPP
 host acts as a masquerading gateway.  IP addresses as well as TCP and
 UDP port numbers are aliased for outgoing packets and de-aliased for
@@ -72,7 +72,9 @@ returning packets.
 In background mode, if
 .Nm
 successfully establishes the connection, it will become a daemon.
-Otherwise, it will exit with an error.
+Otherwise, it will exit with an error.  This allows the setup of
+scripts that wish to execute certain commands only if the connection
+is successfully established.
 
 .It Supports server-side PPP connections.
 In direct mode,
@@ -82,6 +84,11 @@ acts as server which accepts incoming
 connections on stdin/stdout.
 
 .It Supports PAP and CHAP authentication.
+With PAP or CHAP, it is possible to skip the Unix style
+.Xr login 1
+proceedure, and use the
+.Em PPP
+protocol for authentication instead.
 
 .It Supports Proxy Arp.
 When
@@ -123,7 +130,7 @@ compression pre-compresses
 .Em all
 data flowing through the link, thus reducing overhead to a minimum.
 
-.It Supports Microsofts IPCP extensions.
+.It Supports Microsoft's IPCP extensions.
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
@@ -175,7 +182,7 @@ Second, check your
 directory for the tunnel device entries
 .Pa /dev/tunN ,
 where
-.Ar N
+.Sq N
 represents the number of the tun device, starting at zero.
 If they don't exist, you can create them by running "sh ./MAKEDEV tunN".
 This will create tun devices 0 through
@@ -197,8 +204,11 @@ file:
 Make sure you use actual TABs here.  If you use spaces, the line will be
 silently ignored.
 
-It is possible to have more than one ppp log file by creating a link
-to the ppp executable:
+It is possible to have more than one
+.Em PPP
+log file by creating a link to the
+.Nm
+executable:
 
 .Dl # cd /usr/sbin
 .Dl # ln ppp ppp0
@@ -213,21 +223,21 @@ in
 Don't forget to send a
 .Dv HUP
 signal to
-.Nm syslogd
+.Xr syslogd 8
 after altering
 .Pa /etc/syslog.conf .
 
 .Sh MANUAL DIALING
 
 In the following examples, we assume that your machine name is
-.Nm awfulhak .
+.Dv awfulhak .
 
-If you set your hostname and password in
+If you set your host name and password in
 .Pa /etc/ppp/ppp.secret ,
 you can't do anything except run the help, passwd and quit commands.
 
 .Bd -literal -offset indent
-ppp on "your hostname"> help
+ppp on "your host name"> help
  help    : Display this message
  passwd  : Password for security
  quit    : Quit the PPP program
@@ -244,12 +254,12 @@ ppp ON awfulhak>
 You can now specify the device name, speed and parity for your modem,
 and whether CTS/RTS signalling should be used (CTS/RTS is used by
 default).  If your hardware does not provide CTS/RTS lines (as
-may happen when you are connected directly to certain ppp-capable
+may happen when you are connected directly to certain PPP-capable
 terminal servers),
 .Nm
 will never send any output through the port; it waits for a signal
 which never comes.  Thus, if you have a direct line and can't seem
-to make a connection, try turning ctsrts off:
+to make a connection, try turning CTS/RTS off:
 
 
 .Bd -literal -offset indent
@@ -277,7 +287,8 @@ Password:
 Protocol: ppp
 .Ed
 
-When the peer starts to talk in PPP,
+When the peer starts to talk in
+.Em PPP ,
 .Nm
 detects this automatically and returns to command mode.
 
@@ -306,7 +317,9 @@ At this point, your machine has a host route to the peer.  This means
 that you can only make a connection with the host on the other side
 of the link.  If you want to add a default route entry (telling your
 machine to send all packets without another routing entry to the other
-side of the ppp link), enter the following command:
+side of the
+.Em PPP
+link), enter the following command:
 
 .Bd -literal -offset indent
 PPP ON awfulhak> add 0 0 HISADDR
@@ -317,21 +330,25 @@ The string
 represents the IP address of the connected peer.  This variable is only
 available once a connection has been established.  A common error
 is to specify the above command in your
-.Pa ppp.conf
+.Pa /etc/ppp/ppp.conf
 file.  This won't work as the remote IP address hasn't been
 established when this file is read.
 
 You can now use your network applications (ping, telnet, ftp etc.)
 in other windows on your machine.
 
-Refer to the PPP COMMAND LIST section for details on all available commands.
+Refer to the
+.Em PPP COMMAND LIST
+section for details on all available commands.
 
 .Sh AUTOMATIC DIALING
 
 To use automatic dialing, you must prepare some Dial and Login chat scripts.
 See the example definitions in
 .Pa /etc/ppp/ppp.conf.sample
-(the format of ppp.conf is pretty simple).
+(the format of
+.Pa /etc/ppp/ppp.conf
+is pretty simple).
 
 .Bl -bullet -compact
 
@@ -353,7 +370,7 @@ A command line must contain a space or tab in the first column.
 .El
 
 The
-.Pa ppp.conf
+.Pa /etc/ppp/ppp.conf
 file should consist of at least a
 .Dq default
 section.  This section is always executed.  It should also contain
@@ -376,15 +393,17 @@ is started with no arguments, the
 .Dq default
 section is still executed.  The load command can be used to manually
 load a section from the
-.Pa ppp.conf
+.Pa /etc/ppp/ppp.conf
 file:
 
 .Bd -literal -offset indent
 PPP ON awfulhak> load MyISP
 .Ed
 
-Once the connection is made, the ppp portion of the prompt will change
-to PPP:
+Once the connection is made, the
+.Sq ppp
+portion of the prompt will change to
+.Sq PPP :
 
 .Bd -literal -offset indent
 # ppp MyISP
@@ -415,16 +434,16 @@ file are executed.
 If you want to establish a connection using
 .Nm
 non-interactively (such as from a
-.Xr crontab(5)
+.Xr crontab 5
 entry or an
-.Xr at(1)
+.Xr at 1
 job) you should use the
 .Fl background
 option.  You must also specify the destination label in
 .Pa /etc/ppp/ppp.conf
 to use.  This label must contain the
 .Dq set ifaddr
-command to define the remote peer's IP address. (refer to
+command to define the remote peers IP address. (refer to
 .Pa /etc/ppp/ppp.conf.sample )
 
 When
@@ -455,7 +474,7 @@ options.  You must also specify the destination label in
 .Pa /etc/ppp/ppp.conf
 to use.  It must contain the
 .Dq set ifaddr
-command to define the remote peer's IP address. (refer to
+command to define the remote peers IP address. (refer to
 .Pa /etc/ppp/ppp.conf.sample )
 
 .Bd -literal -offset indent
@@ -481,7 +500,7 @@ mode too):
 .Bd -literal -offset indent
 # pppctl -v 3000 show ipcp
 Password:
-IPCP [OPEND]
+IPCP [Opened]
   his side: xxxx
   ....
 .Ed
@@ -506,9 +525,9 @@ with the peer.  In
 mode, the dialing action is performed any time the line is found
 to be down.
 
-If the connect fails, the default behavior is to wait 30 seconds
+If the connect fails, the default behaviour is to wait 30 seconds
 and then attempt to connect when another outgoing packet is detected.
-This behavior can be changed with
+This behaviour can be changed with
 .Bd -literal -offset indent
 set redial seconds|random[.nseconds|random] [dial_attempts]
 .Ed
@@ -557,7 +576,9 @@ redial should carrier be unexpectedly lost during a session.
 set reconnect timeout ntries
 .Ed
 
-This command tells ppp to re-establish the connection
+This command tells
+.Nm
+to re-establish the connection
 .Ar ntries
 times on loss of carrier with a pause of
 .Ar timeout
@@ -627,7 +648,9 @@ Modem should be set to NO echo back (ATE0) and NO results string (ATQ1).
 .It
 Edit
 .Pa /etc/ttys
-to enable a getty on the port where the modem is attached.
+to enable a
+.Xr getty 8
+on the port where the modem is attached.
 
 For example:
 
@@ -635,7 +658,10 @@ For example:
 
 Don't forget to send a
 .Dv HUP
-signal to the init process to start the getty.
+signal to the
+.Xr init 8
+process to start the
+.Xr getty 8 .
 
 .Dl # kill -HUP 1
 
@@ -662,9 +688,9 @@ Direct mode (
 ) lets
 .Nm
 work with stdin and stdout.  You can also use
-.Nm pppctl
+.Xr pppctl 8
 or
-.Nm telnet
+.Xr telnet 1
 to connect to port 3000 plus the current tunnel device number to get
 command mode control in the same manner as client-side
 .Nm.
@@ -677,7 +703,9 @@ and
 .Dq set ns pri-addr [sec-addr]
 along with
 .Dq set nbns pri-addr [sec-addr]
-in your ppp.conf file
+in your
+.Pa /etc/ppp/ppp.conf
+file.
 
 .El
 
@@ -685,11 +713,12 @@ in your ppp.conf file
 
 This method differs in that it recommends the use of 
 .Em mgetty+sendfax
-to handle the modem connections.  The latest version 0.99
+to handle the modem connections.  The latest versions (0.99 and higher)
 can be compiled with the
 .Dq AUTO_PPP
-option to allow detection of clients speaking PPP to the login
-prompt.
+option to allow detection of clients speaking
+.Em PPP
+to the login prompt.
 
 Follow these steps:
 
@@ -715,11 +744,13 @@ Pfred:xxxx:66:66:Fred's PPP:/home/ppp:/etc/ppp/ppp-dialup
 
 .It
 Examine the files
-.Pa /etc/ppp/sample.ppp-dialup
+.Pa /etc/ppp/sample.ppp-dialup ,
 .Pa /etc/ppp/sample.ppp-pap-dialup
 and
 .Pa /etc/ppp/ppp.conf.sample
-for ideas.   ppp-pap-dialup is supposed to be called from
+for ideas.
+.Pa /etc/ppp/ppp-pap-dialup
+is supposed to be called from
 .Pa /usr/local/etc/mgetty+sendfax/login.conf
 from a line like
 
@@ -728,36 +759,41 @@ from a line like
 
 .Sh PPP OVER TCP (a.k.a Tunneling)
 
-Instead of running ppp over a serial link, it is possible to
-use a tcp connection instead by specifying a host and port as the
+Instead of running
+.Nm
+over a serial link, it is possible to
+use a TCP connection instead by specifying a host and port as the
 device:
 
 .Dl set device ui-gate:6669
 
 Instead of opening a serial device,
 .Nm
-will open a tcp connection to the given machine on the given
+will open a TCP connection to the given machine on the given
 socket.  It should be noted however that
 .Nm
 doesn't use the telnet protocol and will be unable to negotiate
-with a telnet server.  You should set up a port for receiving
-this ppp connection on the receiving machine (ui-gate).  This is
+with a telnet server.  You should set up a port for receiving this
+.Em PPP
+connection on the receiving machine (ui-gate).  This is
 done by first updating
 .Pa /etc/services
 to name the service:
 
-.Dl ppp-in 6669/tcp # Incoming ppp connections over tcp
+.Dl ppp-in 6669/tcp # Incoming PPP connections over TCP
 
 and updating
 .Pa /etc/inetd.conf
-to tell inetd how to deal with incoming connections on that port:
+to tell
+.Xr inetd 8
+how to deal with incoming connections on that port:
 
 .Dl ppp-in stream tcp nowait root /usr/sbin/ppp ppp -direct ppp-in
 
 Don't forget to send a
 .Dv HUP
 signal to
-.Nm inetd
+.Xr inetd 8
 after you've updated
 .Pa /etc/inetd.conf .
 
@@ -815,51 +851,66 @@ To open the connection, just type
 .Dl awfulhak # ppp -background ui-gate
 
 The result will be an additional "route" on awfulhak to the
-10.0.2.0/24 network via the tcp connection, and an additional
+10.0.2.0/24 network via the TCP connection, and an additional
 "route" on ui-gate to the 10.0.1.0/24 network.
 
-The networks are effectively bridged - the underlying tcp
+The networks are effectively bridged - the underlying TCP
 connection may be across a public network (such as the
-Internet), and the ppp traffic is conceptually encapsulated
-(although not packet by packet) inside the tcp stream between
+Internet), and the
+.Em PPP
+traffic is conceptually encapsulated
+(although not packet by packet) inside the TCP stream between
 the two gateways.
 
 The major disadvantage of this mechanism is that there are two
-"guaranteed delivery" mechanisms in place - the underlying tcp
-stream and whatever protocol is used over the ppp link - probably
-tcp again.  If packets are lost, both levels will get in eachothers
-way trying to negotiate sending of the missing packet.
+"guaranteed delivery" mechanisms in place - the underlying TCP
+stream and whatever protocol is used over the
+.Em PPP
+link - probably TCP again.  If packets are lost, both levels will
+get in each others way trying to negotiate sending of the missing
+packet.
 
 .Sh PACKET ALIASING
 
 The
 .Fl alias
 command line option enables packet aliasing.  This allows the
-ppp host to act as a masquerading gateway for other computers over
+.Nm
+host to act as a masquerading gateway for other computers over
 a local area network.  Outgoing IP packets are aliased so that
-they appear to come from the ppp host, and incoming packets are
-de-aliased so that they are routed to the correct machine on the
-local area network.
+they appear to come from the
+.Nm
+host, and incoming packets are de-aliased so that they are routed
+to the correct machine on the local area network.
 
 Packet aliasing allows computers on private, unregistered
-subnets to have internet access, although they are invisible
+subnets to have Internet access, although they are invisible
 from the outside world.
 
-In general, correct ppp operation should first be verified
-with packet aliasing disabled.  Then, the 
+In general, correct
+.Nm
+operation should first be verified with packet aliasing disabled.
+Then, the 
 .Fl alias
 option should be switched on, and network applications (web browser,
-telnet, ftp, ping, traceroute) should be checked on the ppp host.
-Finally, the same or similar applications should be checked on other
+.Xr telnet 1 ,
+.Xr ftp 1 ,
+.Xr ping 8 ,
+.Xr traceroute 8 )
+should be checked on the
+.Nm
+host.  Finally, the same or similar applications should be checked on other
 computers in the LAN.
 
-If network applications work correctly on the ppp host, but not on
-other machines in the LAN, then the masquerading software is working
-properly, but the host is either not forwarding or possibly receiving
-IP packets.  Check that IP forwarding is enabled in
+If network applications work correctly on the
+.Nm
+host, but not on other machines in the LAN, then the masquerading
+software is working properly, but the host is either not forwarding
+or possibly receiving IP packets.  Check that IP forwarding is enabled in
 .Pa /etc/rc.conf
-and that other machines have designated the ppp host as the gateway
-for the LAN.
+and that other machines have designated the
+.Nm
+host as the gateway for the LAN.
 
 .Sh PACKET FILTERING
 
@@ -920,7 +971,7 @@ See
 
 .Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
 
-To check/set idletimer, use the
+To check/set idle timer, use the
 .Dq show timeout
 and
 .Dq set timeout [lqrtimer [retrytimer]]
@@ -951,7 +1002,7 @@ attempt to reestablish the link.
 .Sh PREDICTOR-1 COMPRESSION
 
 This version supports CCP and Predictor type 1 compression based on
-the current IETF-draft specs. As a default behavior,
+the current IETF-draft specs. As a default behaviour,
 .Nm
 will attempt to use (or be willing to accept) this capability when the
 peer agrees (or requests it).
@@ -976,7 +1027,7 @@ both sides of the connection agree to accept the received request (and
 send ACK), IPCP is set to the open state and a network level connection
 is established.
 
-To control this IPCP behavior, this implementation has the
+To control this IPCP behaviour, this implementation has the
 .Dq set ifaddr
 command for defining the local and remote IP address:
 
@@ -1001,8 +1052,10 @@ defaults to whatever mask is appropriate for
 It is only possible to make
 .Sq netmask
 smaller than the default.  The usual value is 255.255.255.255.
-Some incorrect ppp implementations require that the peer negotiates
-a specific IP address instead of
+Some incorrect
+.Em PPP
+implementations require that the peer negotiates a specific IP
+address instead of
 .Sq src_addr .
 If this is the case,
 .Sq trigger_addr
@@ -1033,7 +1086,7 @@ This is all fine when each side has a pre-determined IP address, however
 it is often the case that one side is acting as a server which controls
 all IP addresses and the other side should obey the direction from it.
 
-In order to allow more flexible behavior, `ifaddr' variable allows the
+In order to allow more flexible behaviour, `ifaddr' variable allows the
 user to specify IP address more loosely:
 
 .Dl set ifaddr 192.244.177.38/24 192.244.177.2/20
@@ -1057,7 +1110,7 @@ As you may have already noticed, 192.244.177.2 is equivalent to saying
 
 .It
 As an exception, 0 is equivalent to 0.0.0.0/0, meaning that I have no
-preferred IP address and will obey the remote peer's selection.  When
+preferred IP address and will obey the remote peers selection.  When
 using zero, no routing table entries will be made until a connection
 is established.
 
@@ -1072,7 +1125,7 @@ The following steps should be taken when connecting to your ISP:
 
 .Bl -enum
 .It
-Describe your provider's phone number(s) in the dial script using the
+Describe your providers phone number(s) in the dial script using the
 .Dq set phone
 command.  This command allows you to set multiple phone numbers for
 dialing and redialing separated by either a pipe (|) or a colon (:)
@@ -1188,7 +1241,7 @@ and
 to specify your serial line and speed, for example:
 .Bd -literal -offset indent
 set line /dev/cuaa0
-set sp 115200
+set speed 115200
 .Ed
 .Pp
 Cuaa0 is the first serial port on FreeBSD.  If you're running
@@ -1240,7 +1293,7 @@ add 0 0 HISADDR
 
 .Pp
 to
-.Pa ppp.conf .
+.Pa /etc/ppp/ppp.conf .
 .Pp
 This tells
 .Nm
@@ -1250,7 +1303,7 @@ is running on, then to add a default route to 10.10.11.11.
 .Pp
 If you're using dynamic IP numbers, you must also put these two lines
 in the
-.Pa ppp.linkup
+.Pa /etc/ppp/ppp.linkup
 file:
 
 .Bd -literal -offset indent
@@ -1265,7 +1318,7 @@ Now, once a connection is established,
 will delete all non-direct interface routes, and add a default route
 pointing at the peers IP number.  You should use the same label as the
 one used in
-.Pa ppp.conf .
+.Pa /etc/ppp/ppp.conf .
 .Pp
 If commands are being typed interactively, the only requirement is
 to type
@@ -1278,15 +1331,16 @@ after a successful dial.
 .It
 If your provider requests that you use PAP/CHAP authentication methods, add
 the next lines to your
-.Pa ppp.conf
+.Pa /etc/ppp/ppp.conf
 file:
 .Bd -literal -offset indent
 set authname MyName
 set authkey MyPassword
 .Ed
 .Pp
-Both are accepted by default, so ppp will provide whatever your ISP
-requires.
+Both are accepted by default, so
+.Nm
+will provide whatever your ISP requires.
 .El
 
 Please refer to
@@ -1306,7 +1360,7 @@ or directly to the screen:
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
 .It Li Carrier	Log Chat lines with 'CARRIER'
-.It Li CCP	Generate a CPP packet trace
+.It Li CCP	Generate a CCP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
 .It Li Connect	Generate complete Chat log
@@ -1396,7 +1450,7 @@ to exit.
 .It USR1
 This signal, when not in interactive mode, tells
 .Nm
-to close any existing server socket and open an internet socket using
+to close any existing server socket and open an Internet socket using
 the default rules for choosing a port number - that is, using port
 3000 plus the current tunnel device number.
 
@@ -1405,8 +1459,9 @@ the default rules for choosing a port number - that is, using port
 .Sh PPP COMMAND LIST
 
 This section lists the available commands and their effect.  They are
-usable either from an interactive ppp session, from a configuration
-file or from a telnet session.
+usable either from an interactive
+.Nm
+session, from a configuration file or from a telnet session.
 
 .Bl -tag -width 20
 .It accept|deny|enable|disable option....
@@ -1453,9 +1508,9 @@ challenges may occur.  If you want to have your peer authenticate
 itself, you must
 .Dq enable chap .
 in
-.Pa ppp.conf ,
+.Pa /etc/ppp/ppp.conf ,
 and have an entry in
-.Pa ppp.secret
+.Pa /etc/ppp/ppp.secret
 for the peer.
 .Pp
 When using CHAP as the client, you need only specify
@@ -1463,10 +1518,12 @@ When using CHAP as the client, you need only specify
 and
 .Dq AuthKey
 in
-.Pa ppp.conf .
+.Pa /etc/ppp/ppp.conf .
 CHAP is accepted by default.
 
-Some ppp implementations use "MS-CHAP" rather than MD5 when encrypting the
+Some
+.Em PPP
+implementations use "MS-CHAP" rather than MD5 when encrypting the
 challenge.  Refer to the description of the
 .Dq set encrypt
 command for further details.
@@ -1482,9 +1539,9 @@ connection is first established.
 If you want to have your peer authenticate itself, you must
 .Dq enable pap .
 in
-.Pa ppp.conf ,
+.Pa /etc/ppp/ppp.conf ,
 and have an entry in
-.Pa ppp.secret
+.Pa /etc/ppp/ppp.secret
 for the peer (although see the
 .Dq passwdauth
 option below).
@@ -1494,13 +1551,13 @@ When using PAP as the client, you need only specify
 and
 .Dq AuthKey
 in
-.Pa ppp.conf .
+.Pa /etc/ppp/ppp.conf .
 PAP is accepted by default.
 
 .It acfcomp
 Default: Enabled and Accepted.  ACFComp stands for Address and Control
 Field Compression.  Non LCP packets usually have very similar address
-and control fields - making them easily compressable.
+and control fields - making them easily compressible.
 
 .It protocomp
 Default: Enabled and Accepted.  This option is used to negotiate
@@ -1512,10 +1569,11 @@ Default: Enabled and Accepted.  This option decides if Predictor 1
 compression will be used.
 
 .It msext
-Default: Disabled.  This option allows the use of Microsoft's ppp
-extensions, supporting the negotiation of the Microsoft PPP DNS
-and the Microsoft NetBIOS NS.  Enabling this allows us to pass back
-the values given in "set ns" and "set nbns".
+Default: Disabled.  This option allows the use of Microsoft's
+.Em PPP
+extensions, supporting the negotiation of the DNS and the NetBIOS NS.
+Enabling this allows us to pass back the values given in "set ns"
+and "set nbns".
 
 .El
 The following options are not actually negotiated with the peer.
@@ -1529,10 +1587,10 @@ to proxy ARP for the peer.
 
 .It passwdauth
 Default: Disabled.  Enabling this option will tell the PAP authentication
-code to use the
-.Pa passwd
-file to authenticate the caller rather than the
-.Pa ppp.secret
+code to use the password file (see
+.Xr passwd 5 )
+to authenticate the caller rather than the
+.Pa /etc/ppp/ppp.secret
 file.
 
 .It utmp
@@ -1542,9 +1600,10 @@ CHAP, and when
 is running in
 .Fl direct
 mode, an entry is made in the utmp and wtmp files for that user.  Disabling
-this option will tell ppp not to make any utmp or wtmp entries.  This is
-usually only necessary if you require the user to both login and authenticate
-themselves.
+this option will tell
+.Nm
+not to make any utmp or wtmp entries.  This is usually only necessary if
+you require the user to both login and authenticate themselves.
 
 .El
 
@@ -1582,7 +1641,7 @@ If
 is specified, all non-direct entries in the routing for the interface
 that
 .Nm
-is using are deleted.  This means all entries for tunX, except the entry
+is using are deleted.  This means all entries for tunN, except the entry
 representing the actual link.  When
 .Dq ALL
 is not used, any existing route with the given
@@ -1680,7 +1739,9 @@ This sets the authentication id used in client mode PAP or CHAP negotiation.
 This sets hardware flow control and is the default.
 
 .It set device|line value
-This sets the device to which ppp will talk to the given
+This sets the device to which
+.Nm
+will talk to the given
 .Dq value .
 All serial device names are expected to begin with
 .Pa /dev/ .
@@ -1696,7 +1757,9 @@ will attempt to connect to the given
 .Dq host
 on the given
 .Dq port .
-Refer to the section on PPP OVER TCP above for further details.
+Refer to the section on
+.Em PPP OVER TCP
+above for further details.
 
 .It set dial chat-script
 This specifies the chat script that will be used to dial the other
@@ -1767,8 +1830,9 @@ When set to
 (the default),
 .Nm
 will automatically loop back packets being sent
-out with a destination address equal to that of the ppp interface.
-If set to
+out with a destination address equal to that of the
+.Em PPP
+interface.  If set to
 .Dq off ,
 .Nm
 will send the packet, probably resulting in an ICMP redirect from
@@ -1786,7 +1850,9 @@ sequences available in the dial script are also available here.
 .It set mru value
 The default MRU is 1500.  If it is increased, the other side *may*
 increase its mtu.  There is no use decreasing the MRU to below the
-default as the PPP protocol *must* be able to accept packets of at
+default as the
+.Em PPP
+protocol *must* be able to accept packets of at
 least 1500 octets.
 
 .It set mtu value
@@ -1855,20 +1921,22 @@ If this option is set,
 will time out after the given FSM (Finite State Machine) has been in
 the stopped state for the given number of
 .Dq seconds .
-This option may be useful if you see ppp failing to respond in the
-stopped state.  Use
+This option may be useful if you see
+.Nm
+failing to respond in the stopped state.  Use
 .Dq set log +lcp +ipcp +ccp
 to make
 .Nm
 log all state transitions.
 .Pp
-The default value is zero, where ppp doesn't time out in the stopped
-state.
+The default value is zero, where
+.Nm
+doesn't time out in the stopped state.
 
 .It set server|socket TcpPort|LocalName|none [mask]
 Normally, when not in interactive mode,
 .Nm
-listens to a tcp socket for incoming command connections.  The
+listens to a TCP socket for incoming command connections.  The
 default socket number is calculated as 3000 plus the number of the
 tunnel device that
 .Nm
@@ -1895,7 +1963,7 @@ with a server socket, the
 command is the preferred mechanism of communications.  Currently,
 .Xr telnet 1
 can also be used, but link encryption may be implemented in the future, so
-.Nm telnet
+.Xr telnet 8
 should not be relied upon.
 
 .It set speed value
@@ -1906,7 +1974,7 @@ This command allows the setting of the idle timer, the LQR timer (if
 enabled) and the retry timer.
 
 .It set ns x.x.x.x y.y.y.y
-This option allows the setting of the Microsoft PPP DNS servers that
+This option allows the setting of the Microsoft DNS servers that
 will be negotiated.
 
 .It set nbns x.x.x.x y.y.y.y
@@ -1930,8 +1998,9 @@ and
 .Dv MYADDR
 will be replaced with the appropriate values.  Use of the ! character
 requires a following space as with any other commands.  You should note
-that this command is executed in the foreground - ppp will not continue
-running until this process has exited.  Use the
+that this command is executed in the foreground -
+.Nm
+will not continue running until this process has exited.  Use the
 .Dv bg
 command if you wish processing to happen in the background.
 
@@ -2003,7 +2072,8 @@ Show the current timeout values.
 Show the current Microsoft extension values.
 
 .It show version
-Show the current version number of ppp.
+Show the current version number of
+.Nm ppp .
 
 .It show help|?
 Give a summary of available show commands.
@@ -2035,7 +2105,7 @@ possible:
 This command either switches aliasing on or turns it off.
 The
 .Fl alias
-command line flag is synonomous with
+command line flag is synonymous with
 .Dq alias enable yes .
 
 .It alias port [proto targetIP:targetPORT [aliasIP:]aliasPORT]
@@ -2047,7 +2117,7 @@ on
 .Dq targetIP .
 If proto is specified, only connections of the given protocol
 are matched.  This option is useful if you wish to run things like
-internet phone on the machines behind your gateway.
+Internet phone on the machines behind your gateway.
 
 .It alias addr [addr_local addr_alias]
 This command allows data for
@@ -2079,7 +2149,7 @@ IRC connection.
 
 .It alias unregistered_only [yes|no]
 Only alter outgoing packets with an unregistered source ad-
-dress.  According to rfc 1918, unregistered source addresses
+dress.  According to RFC 1918, unregistered source addresses
 are 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16.
 
 .It alias help|?
@@ -2094,7 +2164,9 @@ If
 .Nm
 is in interactive mode or if the
 .Dq all
-argument is given, ppp will exit, closing the connection.  A simple
+argument is given,
+.Nm
+will exit, closing the connection.  A simple
 .Dq quit
 issued from a telnet session will not close the current connection.
 
@@ -2129,10 +2201,17 @@ commands.
 
 .Sh FILES
 .Nm Ppp
-refers to four files: ppp.conf, ppp.linkup, ppp.linkdown and
-ppp.secret.  These files are placed in
-.Pa /etc/ppp ,
-but the user can create his own files under his $HOME directory as
+refers to four files:
+.Pa ppp.conf ,
+.Pa ppp.linkup ,
+.Pa ppp.linkdown
+and
+.Pa ppp.secret .
+These files are placed in the
+.Pa /etc/ppp
+directory, but the user can create his own files under his
+.Dv HOME
+directory as
 .Pa .ppp.conf ,
 .Pa .ppp.linkup ,
 .Pa .ppp.linkdown
@@ -2142,43 +2221,50 @@ and
 will always try to consult the user's personal setup first.
 
 .Bl -tag -width flag
-.Pa $HOME/ppp/.ppp.[conf|linkup|linkdown|secret]
+.It Pa $HOME/ppp/.ppp.{conf,linkup,linkdown,secret}
 User dependent configuration files.
 
-.Pa /etc/ppp/ppp.conf
+.It Pa /etc/ppp/ppp.conf
 System default configuration file.
 
-.Pa /etc/ppp/ppp.secret
-An authorization file for each system.
+.It Pa /etc/ppp/ppp.secret
+An authorisation file for each system.
 
-.Pa /etc/ppp/ppp.linkup
+.It Pa /etc/ppp/ppp.linkup
 A file to check when
 .Nm
 establishes a network level connection.
 
-.Pa /etc/ppp/ppp.linkdown
+.It Pa /etc/ppp/ppp.linkdown
 A file to check when
 .Nm
 closes a network level connection.
 
-.Pa /var/log/ppp.log
-Logging and debugging information file.
+.It Pa /var/log/ppp.log
+Logging and debugging information file.  Note, this name is specified in
+.Pa /etc/syslogd.conf .
+See
+.Xr syslog.conf 5
+for further details.
 
-.Pa /var/spool/lock/LCK..* 
+.It Pa /var/spool/lock/LCK..* 
 tty port locking file.  Refer to
 .Xr uucplock 8
 for further details.
 
-.Pa /var/run/tunX.pid
-The process id (pid) of the ppp program connected to the tunX device, where
-'X' is the number of the device.  This file is only created in
+.It Pa /var/run/tunN.pid
+The process id (pid) of the
+.Nm
+program connected to the tunN device, where
+.Sq N
+is the number of the device.  This file is only created in
 .Fl background ,
 .Fl auto
 and
 .Fl ddial
 modes.
 
-.Pa /var/run/ttyXX.if
+.It Pa /var/run/ttyXX.if
 The tun interface used by this port.  Again, this file is only created in
 .Fl background ,
 .Fl auto
@@ -2186,20 +2272,33 @@ and
 .Fl ddial
 modes.
 
-.Pa /etc/services
+.It Pa /etc/services
 Get port number if port number is using service name.
 .El
 
 .Sh SEE ALSO
 
+.Xr at 1 ,
 .Xr chat 8 ,
+.Xr crontab 5 ,
+.Xr ftp 1 ,
+.Xr getty 8 ,
+.Xr inetd 8 ,
+.Xr init 8 ,
+.Xr login 1 ,
+.Xr passwd 5 ,
+.Xr ping 8 ,
+.Xr pppctl 8 ,
 .Xr pppd 8 ,
-.Xr uucplock 3 ,
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
 .Xr syslogd 8 ,
-.Xr pppctl 8 ,
-.Xr telnet 1
+.Xr tcpdump 1 ,
+.Xr telnet 1 ,
+.Xr telnet 8 ,
+.Xr traceroute 8 ,
+.Xr uucplock 3 ,
+.Xr uucplock 8
 
 .Sh HISTORY
 
