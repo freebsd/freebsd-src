@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../fs/msdosfs
 
-KMOD=	msdosfs
+KMOD=	msdos
 SRCS=	vnode_if.h \
 	msdosfs_conv.c msdosfs_denode.c msdosfs_fat.c msdosfs_lookup.c \
 	msdosfs_vfsops.c msdosfs_vnops.c
