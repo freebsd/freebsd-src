@@ -280,6 +280,16 @@ mkfs(struct partition *pp, char *fsys)
 		sizepb *= NINDIR(&sblock);
 		sblock.fs_maxfilesize += sizepb;
 	}
+
+	/*
+	 * It's impossible to create a snapshot in case that fs_maxfilesize
+	 * is smaller than the fssize.
+	 */
+	if (sblock.fs_maxfilesize < (u_quad_t)fssize) {
+		warnx("WARNING: You will be unable to create snapshots on this "
+		      "file system.  Correct by using a larger blocksize.");
+	}
+
 	/*
 	 * Calculate the number of blocks to put into each cylinder group.
 	 *
