@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.15 1999/03/31 04:00:05 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.9 1999/03/31 04:04:14 wpaul Exp $
  */
 
 
@@ -113,6 +113,9 @@ struct tl_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	tl_bhandle;
 	bus_space_tag_t		tl_btag;
+	void			*tl_intrhand;
+	struct resource		*tl_irq;
+	struct resource		*tl_res;
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	struct tl_type		*tl_pinfo;	/* PHY info struct */
 	u_int8_t		tl_ctlr;	/* chip number */
