@@ -1,8 +1,10 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.2 1997/05/31 08:59:51 peter Exp $
+ *	$Id: apic_vector.s,v 1.1 1997/06/26 17:52:12 smp Exp smp $
  */
 
+
+#include <machine/smptests.h>	/** TEST_CPUSTOP */
 
 /* convert an absolute IRQ# into a bitmask */
 #define IRQ_BIT(irq_num)	(1 << (irq_num))
@@ -178,6 +180,69 @@ _Xinvltlb:
 	popl	%eax
 	iret
 
+#ifdef TEST_CPUSTOP
+/*
+ * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
+ *
+ *  - Signals its receipt.
+ *  - Waits for permission to restart.
+ *  - Signals its restart.
+ */
+
+	.text
+	SUPERALIGN_TEXT
+	.globl _Xcpustop
+_Xcpustop:
+	pushl	%eax
+	pushl	%ds			/* save current data segment */
+
+#ifdef DEBUG_CPUSTOP
+	movb	$0x50, %al
+	outb	%al, $POST_ADDR
+#endif
+
+	movl	$KDSEL, %eax
+	movl	%ax, %ds		/* use KERNEL data segment */
+
+	movl	_cpuid, %eax		/* id */
+
+	lock
+	btsl	%eax, _stopped_cpus	/* stopped_cpus |= (1<<id) */
+
+#ifdef DEBUG_CPUSTOP
+	movb	$0x51, %al
+	outb	%al, $POST_ADDR
+	movl	_cpuid, %eax		/* RESTORE id */
+#endif
+
+1:
+	btl	%eax, _started_cpus	/* while (!(started_cpus & (1<<id))) */
+	jnc	1b
+
+#ifdef DEBUG_CPUSTOP
+	movb	$0x52, %al
+	outb	%al, $POST_ADDR
+	movl	_cpuid, %eax		/* RESTORE id */
+#endif
+
+	lock
+	btrl	%eax, _started_cpus	/* started_cpus &= ~(1<<id) */
+
+#ifdef DEBUG_CPUSTOP
+	movb	$0x53, %al
+	outb	%al, $POST_ADDR
+#endif
+
+	movl	$lapic_eoi, %eax
+	movl	$0, (%eax)		/* End Of Interrupt to APIC */
+
+	popl	%ds			/* restore previous data segment */
+	popl	%eax
+
+	iret
+#endif /* TEST_CPUSTOP */
+
+
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0)
 	FAST_INTR(1,fastintr1)
@@ -261,6 +326,16 @@ _ivectors:
 /* active flag for lazy masking */
 iactive:
 	.long	0
+
+#ifdef TEST_CPUSTOP
+	.globl _stopped_cpus
+_stopped_cpus:
+	.long	0
+
+	.globl _started_cpus
+_started_cpus:
+	.long	0
+#endif /* TEST_CPUSTOP */
 
 
 /*
