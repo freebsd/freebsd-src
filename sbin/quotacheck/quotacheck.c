@@ -77,8 +77,13 @@ char *quotagroup = QUOTAGROUP;
 union {
 	struct	fs	sblk;
 	char	dummy[MAXBSIZE];
-} un;
-#define	sblock	un.sblk
+} sb_un;
+#define	sblock	sb_un.sblk
+union {
+	struct	cg	cgblk;
+	char	dummy[MAXBSIZE];
+} cg_un;
+#define	cgblk	cg_un.cgblk
 long dev_bsize = 1;
 ino_t maxino;
 
@@ -119,7 +124,7 @@ u_long	highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 struct fileusage *
 	 addid(u_long, int, char *);
 char	*blockcheck(char *);
-void	 bread(daddr_t, char *, long);
+void	 bread(ufs2_daddr_t, char *, long);
 extern int checkfstab(int, int, void * (*)(struct fstab *),
 				int (*)(char *, char *, struct quotaname *));
 int	 chkquota(char *, char *, struct quotaname *);
@@ -132,7 +137,7 @@ struct fileusage *
 	 lookup(u_long, int);
 void	*needchk(struct fstab *);
 int	 oneof(char *, char*[], int);
-void	 resetinodebuf(void);
+void	 setinodebuf(ino_t);
 int	 update(char *, char *, int);
 void	 usage(void);
 
@@ -264,7 +269,8 @@ chkquota(fsname, mntpt, qnp)
 	struct fileusage *fup;
 	union dinode *dp;
 	int cg, i, mode, errs = 0;
-	ino_t ino;
+	ino_t ino, inosused;
+	char *cp;
 
 	if ((fi = open(fsname, O_RDONLY, 0)) < 0) {
 		warn("%s", fsname);
@@ -297,14 +303,42 @@ chkquota(fsname, mntpt, qnp)
 	}
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
-	resetinodebuf();
-	for (ino = 0, cg = 0; cg < sblock.fs_ncg; cg++) {
-		for (i = 0; i < sblock.fs_ipg; i++, ino++) {
-			if (ino < ROOTINO)
+	for (cg = 0; cg < sblock.fs_ncg; cg++) {
+		ino = cg * sblock.fs_ipg;
+		setinodebuf(ino);
+		bread(fsbtodb(&sblock, cgtod(&sblock, cg)), (char *)(&cgblk),
+		    sblock.fs_cgsize);
+		if (sblock.fs_magic == FS_UFS2_MAGIC)
+			inosused = cgblk.cg_initediblk;
+		else
+			inosused = sblock.fs_ipg;
+		/*
+		 * If we are using soft updates, then we can trust the
+		 * cylinder group inode allocation maps to tell us which
+		 * inodes are allocated. We will scan the used inode map
+		 * to find the inodes that are really in use, and then
+		 * read only those inodes in from disk.
+		 */
+		if (sblock.fs_flags & FS_DOSOFTDEP) {
+			if (!cg_chkmagic(&cgblk))
+				errx(1, "CG %d: BAD MAGIC NUMBER\n", cg);
+			cp = &cg_inosused(&cgblk)[(inosused - 1) / CHAR_BIT];
+			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
+				if (*cp == 0)
+					continue;
+				for (i = 1 << (CHAR_BIT - 1); i > 0; i >>= 1) {
+					if (*cp & i)
+						break;
+					inosused--;
+				}
+				break;
+			}
+			if (inosused <= 0)
 				continue;
-			if ((dp = getnextinode(ino)) == NULL)
-				continue;
-			if ((mode = DIP(dp, di_mode) & IFMT) == 0)
+		}
+		for (i = 0; i < inosused; i++, ino++) {
+			if ((dp = getnextinode(ino)) == NULL || ino < ROOTINO ||
+			    (mode = DIP(dp, di_mode) & IFMT) == 0)
 				continue;
 			if (qnp->flags & HASGRP) {
 				fup = addid((u_long)DIP(dp, di_gid), GRPQUOTA,
@@ -568,8 +602,7 @@ static caddr_t inodebuf;
 #define INOBUFSIZE	56*1024		/* size of buffer to read inodes */
 
 union dinode *
-getnextinode(inumber)
-	ino_t inumber;
+getnextinode(ino_t inumber)
 {
 	long size;
 	ufs2_daddr_t dblk;
@@ -607,12 +640,17 @@ getnextinode(inumber)
  * Prepare to scan a set of inodes.
  */
 void
-resetinodebuf()
+setinodebuf(ino_t inum)
 {
 
-	nextino = 0;
-	lastinum = 0;
+	if (inum % sblock.fs_ipg != 0)
+		errx(1, "bad inode number %d to setinodebuf", inum);
+	lastvalidinum = inum + sblock.fs_ipg - 1;
+	nextino = inum;
+	lastinum = inum;
 	readcnt = 0;
+	if (inodebuf != NULL)
+		return;
 	inobufsize = blkroundup(&sblock, INOBUFSIZE);
 	fullcnt = inobufsize / ((sblock.fs_magic == FS_UFS1_MAGIC) ?
 	    sizeof(struct ufs1_dinode) : sizeof(struct ufs2_dinode));
@@ -626,11 +664,8 @@ resetinodebuf()
 		partialcnt = fullcnt;
 		partialsize = inobufsize;
 	}
-	if (inodebuf == NULL &&
-	   (inodebuf = malloc((u_int)inobufsize)) == NULL)
-		errx(1, "malloc failed");
-	while (nextino < ROOTINO)
-		getnextinode(nextino);
+	if ((inodebuf = malloc((unsigned)inobufsize)) == NULL)
+		errx(1, "cannot allocate space for inode buffer");
 }
 
 /*
@@ -650,12 +685,12 @@ freeinodebuf()
  */
 void
 bread(bno, buf, cnt)
-	daddr_t bno;
+	ufs2_daddr_t bno;
 	char *buf;
 	long cnt;
 {
 
 	if (lseek(fi, (off_t)bno * dev_bsize, SEEK_SET) < 0 ||
 	    read(fi, buf, cnt) != cnt)
-		errx(1, "block %ld", (long)bno);
+		errx(1, "bread failed on block %ld", (long)bno);
 }
