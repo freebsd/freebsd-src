@@ -298,7 +298,7 @@ getmntpt(const char *name)
 static size_t
 regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
 {
-	int i, j;
+	int error, i, j;
 	struct statfs *mntbuf;
 
 	if (vfslist == NULL)
@@ -308,10 +308,20 @@ regetmntinfo(struct statfs **mntbufp, long mntsize, const char **vfslist)
 	for (j = 0, i = 0; i < mntsize; i++) {
 		if (checkvfsname(mntbuf[i].f_fstypename, vfslist))
 			continue;
-		if (!nflag)
-			(void)statfs(mntbuf[i].f_mntonname,&mntbuf[j]);
-		else if (i != j)
-			mntbuf[j] = mntbuf[i];
+		/*
+		 * XXX statfs(2) can fail for various reasons. It may be
+		 * possible that the user does not have access to the
+		 * pathname, if this happens, we will fall back on
+		 * "stale" filesystem statistics.
+		 */
+		error = statfs(mntbuf[i].f_mntonname, &mntbuf[j]);
+		if (nflag || error < 0)
+			if (i != j) {
+				if (error < 0)
+					warnx("%s stats possibly stale",
+					    mntbuf[i].f_mntonname);
+				mntbuf[j] = mntbuf[i];
+			}
 		j++;
 	}
 	return (j);
