@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+#include <machine/pcb.h>
+#include <machine/sr.h>
+
 int	setfault(faultbuf);	/* defined in locore.S */
 
 /*
