@@ -67,7 +67,10 @@ function add_debug_code(name, arg, pos)
 {
 	if (arg == "vpp")
 		arg = "*vpp";
-	if (lockdata[name, arg, pos]) {
+	if (lockdata[name, arg, pos] && (lockdata[name, arg, pos] != "-")) {
+		if (arg ~ /^\*/) {
+			printh("\tif ("substr(arg, 2)" != NULL) {");
+		}
 		printh("\tASSERT_VI_UNLOCKED("arg", \""uname"\");");
 		# Add assertions for locking
 		if (lockdata[name, arg, pos] == "L")
@@ -76,6 +79,9 @@ function add_debug_code(name, arg, pos)
 			printh("\tASSERT_VOP_UNLOCKED("arg", \""uname"\");");
 		else if (0) {
 			# XXX More checks!
+		}
+		if (arg ~ /^\*/) {
+			printh("\t}");
 		}
 	}
 }
