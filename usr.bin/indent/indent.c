@@ -189,7 +189,7 @@ main(argc, argv)
 		in_name = argv[i];	/* remember name of input file */
 		input = fopen(in_name, "r");
 		if (input == 0)		/* check for open error */
-			err(1, in_name);
+			err(1, "%s", in_name);
 		continue;
 	    }
 	    else if (output == 0) {	/* we have the output file */
@@ -200,7 +200,7 @@ main(argc, argv)
 		}
 		output = fopen(out_name, "w");
 		if (output == 0)	/* check for create error */
-			err(1, out_name);
+			err(1, "%s", out_name);
 		continue;
 	    }
 	    errx(1, "unknown parameter: %s", argv[i]);
@@ -1160,23 +1160,23 @@ bakcopy()
     /* copy in_name to backup file */
     bakchn = creat(bakfile, 0600);
     if (bakchn < 0)
-	err(1, bakfile);
+	err(1, "%s", bakfile);
     while (n = read(fileno(input), buff, sizeof buff))
 	if (write(bakchn, buff, n) != n)
-	    err(1, bakfile);
+	    err(1, "%s", bakfile);
     if (n < 0)
-	err(1, in_name);
+	err(1, "%s", in_name);
     close(bakchn);
     fclose(input);
 
     /* re-open backup file as the input file */
     input = fopen(bakfile, "r");
     if (input == 0)
-	err(1, bakfile);
+	err(1, "%s", bakfile);
     /* now the original input file will be the output */
     output = fopen(in_name, "w");
     if (output == 0) {
 	unlink(bakfile);
-	err(1, in_name);
+	err(1, "%s", in_name);
     }
 }

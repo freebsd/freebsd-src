@@ -118,7 +118,7 @@ getargs(av)
 			if (*p == '-')
 				ip->fp = stdin;
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
-				err(1, p);
+				err(1, "%s", p);
 			}
 			ip->pad = P;
 			if (!ip->sepstring)
