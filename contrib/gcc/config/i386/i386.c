@@ -10632,8 +10632,8 @@ ix86_constant_alignment (exp, align)
       else if (ALIGN_MODE_128 (TYPE_MODE (TREE_TYPE (exp))) && align < 128)
 	return 128;
     }
-  else if (TREE_CODE (exp) == STRING_CST && TREE_STRING_LENGTH (exp) >= 31
-	   && align < 256)
+  else if (TREE_CODE (exp) == STRING_CST && !TARGET_NO_ALIGN_LONG_STRINGS
+	   && TREE_STRING_LENGTH (exp) >= 31 && align < 256)
     return 256;
 
   return align;
