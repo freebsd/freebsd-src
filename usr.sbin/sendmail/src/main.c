@@ -1693,7 +1693,7 @@ sighup()
 		syslog(LOG_INFO, "restarting %s on signal", SaveArgv[0]);
 #endif
 	releasesignal(SIGHUP);
-	execv(SaveArgv[0], (ARGV_T) SaveArgv);
+	execvp(SaveArgv[0], (ARGV_T) SaveArgv);
 #ifdef LOG
 	if (LogLevel > 0)
 		syslog(LOG_ALERT, "could not exec %s: %m", SaveArgv[0]);
