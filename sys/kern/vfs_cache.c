@@ -229,8 +229,10 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_debug_hashstat_nchash, "I", "nchash chain lengths");
 
 /*
- * Delete an entry from its hash list and move it to the front
- * of the LRU list for immediate reuse.
+ * cache_zap():
+ *
+ *   Removes a namecache entry from cache, whether it contains an actual
+ *   pointer to a vnode or if it is just a negative cache entry.
  */
 static void
 cache_zap(ncp)
