@@ -375,33 +375,30 @@ void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chty
  */
 void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 {
-  int i;
+  int i,sx,sy;
 
   if (has_colors()) {    /* Whether terminal supports color? */
-
-    /* small touchwin */
-    wattrset(win, A_NORMAL);
+    getbegyx(win,sy,sx);
+    /* small touch */
+    wattrset(win, A_INVIS);
     wmove(win, y + height, x + 2);
     for (i = 0; i < width; i++)
-      waddch(win, winch(win) & A_CHARTEXT);
-
+      waddch(win, ' ');
+    /* end touch */
     wattrset(win, shadow_attr);
     wmove(win, y + height, x + 2);
     for (i = 0; i < width; i++)
-      waddch(win, winch(win) & A_CHARTEXT);
-
+      waddch(win, mvwinch(curscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
     for (i = y + 1; i < y + height + 1; i++) {
-
-      /* small touchwin */
-      wattrset(win, A_NORMAL);
+      /* small touch */
+      wattrset(win, A_INVIS);
       wmove(win, i, x + width);
-      waddch(win, winch(win) & A_CHARTEXT);
-      waddch(win, winch(win) & A_CHARTEXT);
-
+      waddstr(win, "  ");
+      /* end touch */
       wattrset(win, shadow_attr);
       wmove(win, i, x + width);
-      waddch(win, winch(win) & A_CHARTEXT);
-      waddch(win, winch(win) & A_CHARTEXT);
+      waddch(win, mvwinch(curscr, sy+i, sx+x+width) & A_CHARTEXT);
+      waddch(win, mvwinch(curscr, sy+i, sx+x+width+1) & A_CHARTEXT);
     }
     wnoutrefresh(win);
   }
