@@ -59,8 +59,8 @@
 #include "atm.h"
 
 /* String identifying PPPoA */
-#define PPPOA "PPPoA"
-#define PPPOA_LEN (sizeof(PPPOA)-1)
+#define PPPOA		"PPPoA"
+#define PPPOA_LEN	(sizeof(PPPOA) - 1)
 
 struct atmdevice {
   struct device dev;		/* What struct physical knows about */
@@ -78,7 +78,7 @@ static ssize_t
 atm_Sendto(struct physical *p, const void *v, size_t n)
 {
   ssize_t ret = write(p->fd, v, n);
-  if (ret<0) {
+  if (ret < 0) {
     log_Printf(LogDEBUG, "atm_Sendto(%d): %s\n", n, strerror(errno));
     return ret;
   }
@@ -89,7 +89,7 @@ static ssize_t
 atm_Recvfrom(struct physical *p, void *v, size_t n)
 {
     ssize_t ret = read(p->fd, (char*)v, n);
-    if (ret<0) {
+    if (ret < 0) {
       log_Printf(LogDEBUG, "atm_Recvfrom(%d): %s\n", n, strerror(errno));
       return ret;
     }
@@ -162,12 +162,13 @@ atm_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
 }
 
 static struct atmdevice *
-atm_CreateDevice(struct physical *p, const char *iface, unsigned vpi, unsigned vci)
+atm_CreateDevice(struct physical *p, const char *iface, unsigned vpi,
+                 unsigned vci)
 {
   struct atmdevice *dev;
   struct sockaddr_natm sock;
   
-  if ((dev = calloc (1, sizeof *dev)) == NULL) {
+  if ((dev = calloc(1, sizeof *dev)) == NULL) {
     log_Printf(LogWARN, "%s: Cannot allocate an atm device: %s\n",
                p->link.name, strerror(errno));
     return NULL;
@@ -175,7 +176,7 @@ atm_CreateDevice(struct physical *p, const char *iface, unsigned vpi, unsigned v
 
   sock.snatm_len = sizeof sock;
   sock.snatm_family = AF_NATM;
-  strncpy (sock.snatm_if, iface, IFNAMSIZ);
+  strncpy(sock.snatm_if, iface, IFNAMSIZ);
   sock.snatm_vpi = vpi;
   sock.snatm_vci = vci;
 
@@ -206,14 +207,15 @@ atm_Create(struct physical *p)
   struct atmdevice *dev;
 
   dev = NULL;
-  if (p->fd < 0 && !strncasecmp (p->name.full, PPPOA, PPPOA_LEN)
+  if (p->fd < 0 && !strncasecmp(p->name.full, PPPOA, PPPOA_LEN)
       && p->name.full[PPPOA_LEN] == ':') {
     char iface[25];
     unsigned vci, vpi;
     
-    if (sscanf (p->name.full + PPPOA_LEN + 1, "%25[A-Za-z0-9]:%u.%u", iface,
-		&vpi, &vci) != 3) {
-      log_Printf (LogWARN, "Malformed ATM device name \'%s\', PPPoA:if:vpi.vci expected\n", p->name.full);
+    if (sscanf(p->name.full + PPPOA_LEN + 1, "%25[A-Za-z0-9]:%u.%u", iface,
+               &vpi, &vci) != 3) {
+      log_Printf(LogWARN, "Malformed ATM device name \'%s\', "
+                 "PPPoA:if:vpi.vci expected\n", p->name.full);
       return NULL;
     }
     
