@@ -866,6 +866,7 @@ domem()
 void
 dozmem()
 {
+	static SLIST_HEAD(vm_zone_list, vm_zone) zlist;
 	vm_zone_t zonep;
 	int nmax = 512;
 	int zused_bytes = 0;
@@ -880,7 +881,10 @@ dozmem()
 	    "mem-use"
 	);
 
-	kread(X_ZLIST, &zonep, sizeof(zonep));
+	SLIST_INIT(&zlist);
+	kread(X_ZLIST, &zlist, sizeof(zlist));
+	zonep = SLIST_FIRST(&zlist);
+
 	while (zonep != NULL && nmax) {
 		struct vm_zone zone;
 		char buf[32];
@@ -904,7 +908,7 @@ dozmem()
 		zused_bytes += (zone.ztotal - zone.zfreecnt) * zone.zsize;
 		ztotal_bytes += zone.ztotal * zone.zsize;
 		--nmax;
-		zonep = zone.znext;
+		zonep = SLIST_NEXT(&zone, zent);
 	}
 	printf(
 	    "------------------------------------------\n"
