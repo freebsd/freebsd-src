@@ -68,7 +68,7 @@ __monetary_load_locale(const char *name) {
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		monetary_locale_buf, "LC_MONETARY", LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
-	if (!ret)
+	if (!ret && _monetary_using_locale)
 		_monetary_locale.mon_grouping =
 		     __fix_locale_grouping_str(_monetary_locale.mon_grouping);
 	return ret;
