@@ -59,6 +59,8 @@
         cd9660
         ..
     ..
+    libmilter
+    ..
     machine
     ..
     net
