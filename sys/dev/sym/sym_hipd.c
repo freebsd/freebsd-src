@@ -2071,7 +2071,7 @@ sym_fw2_patch(hcb_p np)
 	 *  they are not desirable. See `sym_fw2.h' for more details.
 	 */
 	if (!(np->device_id == PCI_ID_LSI53C1010_2 &&
-	      /* np->revision_id < 0xff */ 1 &&
+	      np->revision_id < 0x1 &&
 	      np->pciclk_khz < 60000)) {
 		scripta0->datao_phase[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->datao_phase[1] = cpu_to_scr(0);
@@ -2802,7 +2802,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  are used. Disable internal cycles.
 	 */
 	if (np->device_id == PCI_ID_LSI53C1010 &&
-	    /* np->revision_id < 0xff */ 1)
+	    np->revision_id < 0x2)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -2902,7 +2902,7 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 					np->scsi_mode = SMODE_HVD;
 			}
 			else if (nvram->type == SYM_SYMBIOS_NVRAM) {
-				if (INB(nc_gpreg) & 0x08)
+				if (!(INB(nc_gpreg) & 0x08))
 					np->scsi_mode = SMODE_HVD;
 			}
 		}
