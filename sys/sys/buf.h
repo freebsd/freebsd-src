@@ -64,7 +64,6 @@ extern struct bio_ops {
 	void	(*io_start)(struct buf *);
 	void	(*io_complete)(struct buf *);
 	void	(*io_deallocate)(struct buf *);
-	void	(*io_movedeps)(struct buf *, struct buf *);
 	int	(*io_countdeps)(struct buf *, int);
 } bioops;
 
@@ -434,13 +433,6 @@ buf_deallocate(struct buf *bp)
 	if (bioops.io_deallocate)
 		(*bioops.io_deallocate)(bp);
 	BUF_LOCKFREE(bp);
-}
-
-static __inline void
-buf_movedeps(struct buf *bp, struct buf *bp2)
-{
-	if (bioops.io_movedeps)
-		(*bioops.io_movedeps)(bp, bp2);
 }
 
 static __inline int
