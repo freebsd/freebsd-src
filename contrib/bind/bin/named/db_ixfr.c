@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char     rcsid[] = "$Id: db_ixfr.c,v 8.20 2000/02/29 05:15:03 vixie Exp $";
+static char     rcsid[] = "$Id: db_ixfr.c,v 8.23 2000/12/23 08:14:35 vixie Exp $";
 #endif
 
 /*
@@ -370,10 +370,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	   ns_updque *listuprec, u_int32_t *old_serial,
 	   u_int32_t *new_serial)
 {
-	static int      read_soa, read_ns, rrcount;
-
 	char            data[MAXDATA], dnbuf[MAXDNAME], sclass[3];
-	const char     *errtype = "Database";
 	char           *dname, *cp, *cp1;
 	char            buf[MAXDATA];
 	u_int32_t       serial, ttl;
@@ -388,7 +385,6 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	int             zonelist[MAXDNAME];
 	struct databuf *dp;
 	struct in_addr  ina;
-	struct sockaddr_in empty_from;
 	int             datasize;
 	ns_updrec *	rrecp;
 	u_long		l;
@@ -483,7 +479,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 			cp = fgets(buf, sizeof buf, fp);
 			if (!cp)
 				*buf = '\0';
-			n = sscanf(cp, "origin %s class %s serial %ul",
+			n = sscanf(cp, "origin %s class %s serial %lu",
 				   origin, sclass, &serial);
 			if (n != 3 || ns_samename(origin, zp->z_origin) != 1)
 				err++;
@@ -638,14 +634,15 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 					err++;
 					break;
 				}
-				c = getnonblank(fp, zp->z_updatelog);
+				c = getnonblank(fp, zp->z_updatelog, 0);
 				if (c == '(') {
 					multiline = 1;
 				} else {
 					multiline = 0;
 					ungetc(c, fp);
 				}
-				n = getnum(fp, zp->z_updatelog, GETNUM_SERIAL);
+				n = getnum(fp, zp->z_updatelog, GETNUM_SERIAL,
+					   &multiline);
 				if (getnum_error) {
 					err++;
 					break;
@@ -665,11 +662,13 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 					n = l;
 					PUTLONG(n, cp);
 				}
-				if (multiline &&
-				    getnonblank(fp, zp->z_updatelog) != ')')
-				{
-					err++;
-					break;
+				if (multiline) {
+					c = getnonblank(fp, zp->z_updatelog, 1);
+					if (c != ')') {
+						ungetc(c, fp);
+						err++;
+						break;
+					}
 				}
 				endline(fp);
 				n = cp - data;

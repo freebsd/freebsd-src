@@ -90,53 +90,53 @@
 
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.42 2000/04/21 06:54:02 vixie Exp $
+ * $Id: db_func.h,v 8.44 2000/12/02 23:28:33 vixie Exp $
  */
 
 /* ++from db_update.c++ */
-extern int		db_update(const char *name,
+int			db_update(const char *name,
 				  struct databuf *odp,
 				  struct databuf *newdp,
 				  struct databuf **savedpp,
 				  int flags,
 				  struct hashbuf *htp,
-				  struct sockaddr_in from),
-			db_cmp(const struct databuf *, const struct databuf *),
-			findMyZone(struct namebuf *np, int class);
+				  struct sockaddr_in from);
+int			db_cmp(const struct databuf *, const struct databuf *);
+int			findMyZone(struct namebuf *np, int class);
 void			fixttl(struct databuf *dp);
 /* --from db_update.c-- */
 
 /* ++from db_save.c++ */
-extern struct namebuf	*savename(const char *, int);
-extern struct databuf	*savedata(int, int, u_int32_t, u_char *, int);
-extern struct hashbuf	*savehash(struct hashbuf *);
+struct namebuf *	savename(const char *, int);
+struct databuf *	savedata(int, int, u_int32_t, u_char *, int);
+struct hashbuf *	savehash(struct hashbuf *);
 /* --from db_save.c-- */
 
 /* ++from db_dump.c++ */
-extern int		db_dump(struct hashbuf *, FILE *, int, char *),
+int			db_dump(struct hashbuf *, FILE *, int, char *),
 			zt_dump(FILE *);
-extern void		doadump(void);
+void			doadump(void);
 /* --from db_dump.c-- */
 
 /* ++from db_load.c++ */
-extern int		makename_ok(char *name, const char *origin, int class,
+int			makename_ok(char *name, const char *origin, int class,
 				    struct zoneinfo *zp,
 				    enum transport transport,
 				    enum context context,
 				    const char *owner, const char *filename,
 				    int lineno, int size);
-extern void		endline(FILE *);
-extern int		getword(char *, size_t, FILE *, int),
-			getttl(FILE *, const char *, int, u_int32_t *, int *),
-			getnum(FILE *, const char *, int),
-			db_load(const char *, const char *, struct zoneinfo *,
+void			endline(FILE *);
+int			getword(char *, size_t, FILE *, int);
+int			getttl(FILE *, const char *, int, u_int32_t *, int *);
+int			getnum(FILE *, const char *, int, int *);
+int			db_load(const char *, const char *, struct zoneinfo *,
 				const char *, int);
-extern int 		getnonblank(FILE *, const char *),
-			getservices(int, char *, FILE *, const char *);
-extern char		getprotocol(FILE *, const char *);
-extern int		makename(char *, const char *, int);
-extern void		db_err(int, char *, int, const char *, int);
-extern int		parse_sec_rdata(char *inp, int inp_len, int inp_full,
+int			getnonblank(FILE *, const char *, int);
+int			getservices(int, char *, FILE *, const char *);
+char			getprotocol(FILE *, const char *);
+int			makename(char *, const char *, int);
+void			db_err(int, char *, int, const char *, int);
+int			parse_sec_rdata(char *inp, int inp_len, int inp_full,
 					u_char *data, int data_len,
 					FILE *fp, struct zoneinfo *zp, 
 					char *domain,  u_int32_t ttl, 
@@ -146,40 +146,37 @@ extern int		parse_sec_rdata(char *inp, int inp_len, int inp_full,
 /* --from db_load.c-- */
 
 /* ++from db_glue.c++ */
-extern void		buildservicelist(void),
-			destroyservicelist(void),
-			buildprotolist(void),
-			destroyprotolist(void),
-			getname(struct namebuf *, char *, int);
-extern int		servicenumber(const char *),
-			protocolnumber(const char *),
-			get_class(const char *);
-extern u_int		nhash(const char *);
-extern const char	*protocolname(int),
-			*servicename(u_int16_t, const char *);
-#ifndef BSD
-extern int		getdtablesize(void);
-#endif
-extern struct databuf	*rm_datum(struct databuf *,
-				  struct namebuf *,
-				  struct databuf *,
-				  struct databuf **);
-extern struct namebuf	*rm_name(struct namebuf *, 
-				 struct namebuf **,
-				 struct namebuf *);
-extern void		rm_hash(struct hashbuf *);
-extern void		db_freedata(struct databuf *);
-extern void		db_lame_add(char *zone, char *server, time_t when);
-extern time_t		db_lame_find(char *zone, struct databuf *dp);
-extern void 		db_lame_clean(void);
-extern void 		db_lame_destroy(void);
+void			buildservicelist(void);
+void			destroyservicelist(void);
+void			buildprotolist(void);
+void			destroyprotolist(void);
+void			getname(struct namebuf *, char *, int);
+int			servicenumber(const char *);
+int			protocolnumber(const char *);
+int			get_class(const char *);
+u_int			nhash(const char *);
+const char *		protocolname(int);
+const char *		servicename(u_int16_t, const char *);
+struct databuf *	rm_datum(struct databuf *,
+				 struct namebuf *,
+				 struct databuf *,
+				 struct databuf **);
+struct namebuf *	rm_name(struct namebuf *, 
+				struct namebuf **,
+				struct namebuf *);
+void			rm_hash(struct hashbuf *);
+void			db_freedata(struct databuf *);
+void			db_lame_add(char *zone, char *server, time_t when);
+time_t			db_lame_find(char *zone, struct databuf *dp);
+void			db_lame_clean(void);
+void			db_lame_destroy(void);
 /* --from db_glue.c-- */
 
 /* ++from db_lookup.c++ */
-extern struct namebuf	*nlookup(const char *, struct hashbuf **,
-				 const char **, int);
-extern struct namebuf	*np_parent __P((struct namebuf *));
-extern int		match(struct databuf *, int, int),
+struct namebuf *	nlookup(const char *, struct hashbuf **,
+				const char **, int);
+struct namebuf *	np_parent(struct namebuf *);
+int			match(struct databuf *, int, int),
 			nxtmatch(const char *, struct databuf *,
 				 struct databuf *),
 			rrmatch(const char *, struct databuf *,
@@ -187,8 +184,8 @@ extern int		match(struct databuf *, int, int),
 /* --from db_lookup.c-- */
 
 /* ++from db_ixfr.c++ */
-extern ns_deltalist *	ixfr_get_change_list(struct zoneinfo *, u_int32_t,
-					     u_int32_t);
+ns_deltalist *	ixfr_get_change_list(struct zoneinfo *, u_int32_t,
+				     u_int32_t);
 int			ixfr_have_log(struct zoneinfo *, u_int32_t,
 				      u_int32_t);
 /* --from db_ixfr.c++ */
@@ -204,6 +201,7 @@ int			db_set_update(char *name, struct databuf *dp,
 				      int *rrcount, int line,
 				      const char *file);
 /* --from db_sec.c-- */
+
 /* ++from db_tsig.c++ */
 char *			tsig_alg_name(int value);
 int			tsig_alg_value(char *name);

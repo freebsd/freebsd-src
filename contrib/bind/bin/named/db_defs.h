@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.38 2000/04/21 06:54:01 vixie Exp $
+ *	$Id: db_defs.h,v 8.40 2000/11/29 06:55:46 marka Exp $
  */
 
 /*
@@ -103,9 +103,17 @@
 /*
  * Hash table structures.
  */
+/*
+ * XXX
+ * For IPv6 transport support we need a seperate reference counted
+ * database of source addresses and d_addr should become a union with
+ * a pointer into that database.  A bit can be robbed from d_rode to
+ * indicate what the union is being used for.  This should require less
+ * memory than making d_addr a union of struct in6_addr and struct in_addr.
+ */
 struct databuf {
 	struct databuf	*d_next;	/* linked list */
-	struct nameser	*d_ns;		/* NS from whence this came */
+	struct in_addr	d_addr;		/* NS from whence this came */
 	u_int32_t	d_ttl;		/* time to live */
 					/* if d_zone == DB_Z_CACHE, then
 					 * d_ttl is actually the time when
@@ -125,10 +133,17 @@ struct databuf {
 	int16_t		d_type;		/* type number */
 	int16_t		d_size;		/* size of data area */
 	u_int32_t	d_rcnt;
+#ifdef HITCOUNTS
+	u_int32_t	d_hitcnt;	/* Number of requests for this data. */
+#endif /* HITCOUNTS */
 	u_int16_t	d_nstime;	/* NS response time, milliseconds */
 	u_char		d_data[sizeof(void*)]; /* dynamic (padded) */
 };
 #define DATASIZE(n) (sizeof(struct databuf) - sizeof(void*) + n)
+
+#ifdef HITCOUNTS
+extern u_int32_t	db_total_hits;
+#endif /* HITCOUNTS */
 
 #ifdef BIND_UPDATE
 /*

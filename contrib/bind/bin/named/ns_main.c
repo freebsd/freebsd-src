@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_main.c,v 8.126 2000/07/20 22:50:39 vixie Exp $";
+static const char rcsid[] = "$Id: ns_main.c,v 8.142 2001/01/15 20:06:25 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,7 @@ char copyright[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <irs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -138,6 +139,17 @@ char copyright[] =
 #include "named.h"
 #undef MAIN_PROGRAM
 
+typedef void (*handler)(void);
+
+typedef struct _savedg {
+	struct sockaddr_in from;
+	int		dfd;
+	interface *	ifp;
+	time_t		gen;
+	u_char *	buf;
+	u_int16_t	buflen;
+} savedg;
+
 				/* list of interfaces */
 static	LIST(struct _interface)	iflist;
 static	int 			iflist_initialized = 0;
@@ -162,10 +174,13 @@ static	u_int16_t               nsid_c1, nsid_c2, nsid_c3;
 static	u_int16_t               nsid_state2;
 static	int                     nsid_algorithm;
 
-typedef void (*handler)(void);
 static	int			needs = 0, needs_exit = 0;
 static	handler			handlers[main_need_num];
+static	void			savedg_waitfunc(evContext, void*, const void*);
 static	void			need_waitfunc(evContext, void *, const void *);
+static	int			drain_rcvbuf(evContext, interface *, int,
+					     int *, int *);
+static	int			drain_all_rcvbuf(evContext);
 
 static	struct qstream		*sq_add(void);
 static	int			opensocket_d(interface *),
@@ -177,8 +192,6 @@ static	void			use_desired_debug(void);
 static	void			stream_write(evContext, void *, int, int);
 
 static	interface *		if_find(struct in_addr, u_int16_t port);
-
-static	int			sq_here(struct qstream *);
 
 static void			deallocate_everything(void),
 				stream_accept(evContext, void *, int,
@@ -197,7 +210,8 @@ static void			stream_send(evContext, void *, int,
 static int			only_digits(const char *);
 
 static void			init_needs(void),
-				handle_needs(void);
+				handle_needs(void),
+				exit_handler(void);
 
 #ifndef HAVE_CUSTOM
 static void			custom_init(void),
@@ -445,7 +459,7 @@ main(int argc, char *argv[], char *envp[]) {
 #ifdef SYSLOG_42BSD
 	openlog("named", n);
 #else
-	openlog("named", n, LOG_DAEMON);
+	openlog("named", n, ISC_FACILITY);
 #endif
 
 	init_logging();
@@ -461,7 +475,7 @@ main(int argc, char *argv[], char *envp[]) {
 	init_needs();
 	init_signals();
 
-	ns_notice(ns_log_default, "starting.  %s", Version);
+	ns_notice(ns_log_default, "starting (%s).  %s", conffile, Version);
 
 	/*
 	 * Initialize and load database.
@@ -469,7 +483,7 @@ main(int argc, char *argv[], char *envp[]) {
 	gettime(&tt);
 	buildservicelist();
 	buildprotolist();
-	ns_init(conffile);
+	confmtime = ns_init(conffile);
 	time(&boottime);
 	resettime = boottime;
 
@@ -730,17 +744,14 @@ stream_accept(evContext lev, void *uap, int rfd,
 	INSIST_ERR(evRead(lev, rfd, &iov, 1, stream_getlen, sp, &sp->evID_r)
 		   != -1);
 	sp->flags |= STREAM_READ_EV;
-#ifdef DEBUG
-	if (debug)
-		ns_info(ns_log_default, "IP/TCP connection from %s (fd %d)",
-			sin_ntoa(sp->s_from), rfd);
-#endif
+	ns_debug(ns_log_default, 1, "IP/TCP connection from %s (fd %d)",
+		 sin_ntoa(sp->s_from), rfd);
 }
 
 int
 tcp_send(struct qinfo *qp) {
 	struct qstream *sp;
-	int on = 1;
+	int on = 1, n;
 	
 	ns_debug(ns_log_default, 1, "tcp_send");
 	if ((sp = sq_add()) == NULL) {
@@ -754,7 +765,31 @@ tcp_send(struct qinfo *qp) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
+	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_REUSEADDR,
+		       (char*)&on, sizeof(on)) < 0)
+		ns_info(ns_log_default,
+			"tcp_send: setsockopt(SO_REUSEADDR): %s",
+			strerror(errno));
+#ifdef SO_REUSEPORT
+	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_REUSEPORT,
+		       (char*)&on, sizeof(on)) < 0)
+		ns_info(ns_log_default,
+			"tcp_send: setsockopt(SO_REUSEPORT): %s",
+			strerror(errno));
+#endif
+	if (bind(sp->s_rfd, (struct sockaddr *)&server_options->query_source,
+		 sizeof server_options->query_source) < 0)
+		ns_info(ns_log_default, "tcp_send: bind(query_source): %s",
+			strerror(errno));
 	if (fcntl(sp->s_rfd, F_SETFD, 1) < 0) {
+		sq_remove(sp);
+		return (SERVFAIL);
+	}
+	if ((n = fcntl(sp->s_rfd, F_GETFL, 0)) == -1) {
+		sq_remove(sp);
+		return (SERVFAIL);
+	}
+	if (fcntl(sp->s_rfd, F_SETFL, n|PORT_NONBLOCK) == -1) {
 		sq_remove(sp);
 		return (SERVFAIL);
 	}
@@ -768,10 +803,10 @@ tcp_send(struct qinfo *qp) {
 	}
 
 	if (setsockopt(sp->s_rfd, SOL_SOCKET, SO_KEEPALIVE,
-		(char*)&on, sizeof(on)) < 0)
-			ns_info(ns_log_default,
-				"tcp_send: setsockopt(rfd, SO_KEEPALIVE): %s",
-				strerror(errno));
+		       (char*)&on, sizeof(on)) < 0)
+		ns_info(ns_log_default,
+			"tcp_send: setsockopt(SO_KEEPALIVE): %s",
+			strerror(errno));
 	gettime(&tt);
 	sp->s_size = -1;
 	sp->s_time = tt.tv_sec;	/* last transaction time */
@@ -1023,6 +1058,21 @@ datagram_read(evContext lev, void *uap, int fd, int evmask) {
 }
 
 static void
+savedg_waitfunc(evContext ctx, void *uap, const void *tag) {
+	savedg *dg = (savedg *)uap;
+
+	if (!EMPTY(iflist) && HEAD(iflist)->gen == dg->gen) {
+		u_char buf[PACKETSZ];
+
+		memcpy(buf, dg->buf, dg->buflen);
+		dispatch_message(buf, dg->buflen, sizeof buf, NULL,
+				 dg->from, dg->dfd, dg->ifp);
+	}
+	memput(dg->buf, dg->buflen);
+	memput(dg, sizeof *dg);
+}
+
+static void
 dispatch_message(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		 struct sockaddr_in from, int dfd, interface *ifp)
 {
@@ -1252,6 +1302,7 @@ getnetconf(int periodic_scan) {
 					ns_panic(ns_log_default, 1,
 						 "memget(interface)", NULL);
 				memset(ifp, 0, sizeof *ifp);
+				INIT_LINK(ifp, link);
 				APPEND(iflist, ifp, link);
 				ifp->addr = ina;
 				ifp->port = li->port;
@@ -1467,6 +1518,14 @@ opensocket_d(interface *ifp) {
 		/* XXX press on regardless, this is not too serious. */
 	}
 #endif
+#ifdef SO_BSDCOMPAT
+	if (setsockopt(ifp->dfd, SOL_SOCKET, SO_BSDCOMPAT,
+		      (char*)&on, sizeof on) < 0) {
+		ns_info(ns_log_default,
+			"setsockopt(dfd=%d, SO_BSDCOMPAT): %s",
+			ifp->dfd, strerror(errno));
+	}
+#endif
 	if (bind(ifp->dfd, (struct sockaddr *)&nsa, sizeof nsa)) {
 		ns_error(ns_log_default, "bind(dfd=%d, %s): %s",
 			 ifp->dfd, sin_ntoa(nsa), strerror(errno));
@@ -1480,6 +1539,75 @@ opensocket_d(interface *ifp) {
 	}
 	ifp->flags |= INTERFACE_FILE_VALID;
 	return (0);
+}
+
+static int
+drain_rcvbuf(evContext ctx, interface *ifp, int fd, int *mread, int *mstore) {
+	int drop = 0;
+
+	drop = 0;
+	for (; *mread > 0; (*mread)--) {
+		union {
+			HEADER h;
+			u_char buf[PACKETSZ+1];
+		} u;
+		struct sockaddr_in from;
+		int from_len = sizeof from;
+		savedg *dg;
+		int n;
+
+		n = recvfrom(fd, (char *)u.buf, sizeof u.buf, 0,
+			     (struct sockaddr *)&from, &from_len);
+		if (n <= 0)
+			break;		/* Socket buffer assumed empty. */
+		drop++;			/* Pessimistic assumption. */
+		if (n > PACKETSZ)
+			continue;	/* Oversize message - EDNS0 needed. */
+		if (from.sin_family != AF_INET)
+			continue;	/* Not IPv4 - IPv6 needed. */
+		if (u.h.opcode == ns_o_query && u.h.qr == 0)
+			continue;	/* Query - what we're here to axe. */
+		if (*mstore <= 0)
+			continue;	/* Reached storage quota, ignore. */
+		if ((dg = memget(sizeof *dg)) == NULL)
+			continue;	/* No memory - probably fatal. */
+		if ((dg->buf = memget(n)) == NULL) {
+			memput(dg, sizeof *dg);
+			continue;	/* No memory - probably fatal. */
+		}
+		dg->from = from;
+		dg->dfd = fd;
+		dg->ifp = ifp;
+		dg->gen = ifp->gen;
+		dg->buflen = n;
+		memcpy(dg->buf, u.buf, n);
+		if (evWaitFor(ctx, (void *)drain_all_rcvbuf, savedg_waitfunc,
+			      dg, NULL) < 0)
+		{
+			memput(dg->buf, dg->buflen);
+			memput(dg, sizeof *dg);
+			continue;	/* No memory - probably fatal. */
+		}
+		drop--;			/* Pessimism was inappropriate. */
+		(*mstore)--;
+	}
+	return (drop);
+}
+
+static int
+drain_all_rcvbuf(evContext ctx) {
+	interface *ifp;
+	int mread = MAX_SYNCDRAIN;
+	int mstore = MAX_SYNCSTORE;
+	int drop = 0;
+
+	for (ifp = HEAD(iflist); ifp != NULL; ifp = NEXT(ifp, link))
+		if (ifp->dfd != -1)
+			drop += drain_rcvbuf(ctx, ifp, ifp->dfd,
+					     &mread, &mstore);
+	if (mstore < MAX_SYNCSTORE)
+		INSIST_ERR(evDo(ctx, (void *)drain_all_rcvbuf) != -1);
+	return (drop);
 }
 
 /* opensocket_s(ifp)
@@ -1640,6 +1768,14 @@ opensocket_f() {
 			  strerror(errno));
 		/* XXX press on regardless, this is not too serious. */
 	}
+#ifdef SO_BSDCOMPAT
+	if (setsockopt(ds, SOL_SOCKET, SO_BSDCOMPAT,
+	    (char *)&on, sizeof on) != 0) {
+		ns_notice(ns_log_default, "setsockopt(BSDCOMPAT): %s",
+			  strerror(errno));
+		/* XXX press on regardless, this is not too serious. */
+	}
+#endif
 	if (bind(ds, (struct sockaddr *)&server_options->query_source,
 		 sizeof server_options->query_source) < 0)
 		ns_panic(ns_log_default, 0, "opensocket_f: bind(%s): %s",
@@ -1920,22 +2056,6 @@ sq_write(struct qstream *qs, const u_char *buf, int len) {
 	qs->s_wbuf_free += NS_INT16SZ;
 	memcpy(qs->s_wbuf_free, buf, len);
 	qs->s_wbuf_free += len;
-	return (0);
-}
-
-/* int
- * sq_here(sp)
- *	determine whether stream 'sp' is still on the streamq
- * return:
- *	boolean: is it here?
- */
-static int
-sq_here(struct qstream *sp) {
-	struct qstream *t;
-
-	for (t = streamq; t != NULL; t = t->s_next)
-		if (t == sp)
-			return (1);
 	return (0);
 }
 
@@ -2630,7 +2750,8 @@ init_needs(void) {
 	handlers[main_need_zoneload] = loadxfer;
 	handlers[main_need_dump] = doadump;
 	handlers[main_need_statsdump] = ns_stats;
-	handlers[main_need_exit] = wild;
+	handlers[main_need_statsdumpandclear] = ns_stats_dumpandclear;
+	handlers[main_need_exit] = exit_handler;
 	handlers[main_need_qrylog] = toggle_qrylog;
 	handlers[main_need_debug] = use_desired_debug;
 	handlers[main_need_restart] = ns_restart;
@@ -2646,15 +2767,17 @@ handle_needs(void) {
 	block_signals();
 	for (need = 0; need < main_need_num; need++)
 		if ((needs & (1 << need)) != 0) {
-			INSIST_ERR(evWaitFor(ev, handle_needs, need_waitfunc,
-					     handlers[need], NULL) != -1);
+			INSIST_ERR(evWaitFor(ev, (void *)handle_needs,
+					     need_waitfunc,
+					     (void *)handlers[need],
+					     NULL) != -1);
 			queued++;
 		}
 	needs = 0;
 	unblock_signals();
 	ns_debug(ns_log_default, 15, "handle_needs(): queued %d", queued);
 	if (queued != 0) {
-		INSIST_ERR(evDo(ev, handle_needs) != -1);
+		INSIST_ERR(evDo(ev, (void *)handle_needs) != -1);
 		return;
 	}
 	ns_panic(ns_log_default, 1, "ns_handle_needs: queued == 0", NULL);
@@ -2663,8 +2786,16 @@ handle_needs(void) {
 static void
 need_waitfunc(evContext ctx, void *uap, const void *tag) {
 	handler hand = (handler) uap;
+	time_t begin;
+	long syncdelay;
 
+	begin = time(NULL);
 	(*hand)();
+	syncdelay = time(NULL) - begin;
+	
+	if (syncdelay > MAX_SYNCDELAY)
+		ns_notice(ns_log_default, "drained %d queries (delay %ld sec)",
+			  drain_all_rcvbuf(ctx), syncdelay);
 }
 
 void
@@ -2678,8 +2809,11 @@ ns_need(enum need need) {
 void
 ns_need_unsafe(enum need need) {
 	needs |= (1 << need);
-	if (need == main_need_exit)
-		needs_exit = 1;
+}
+
+static void
+exit_handler(void) {
+	needs_exit = 1;
 }
 
 void

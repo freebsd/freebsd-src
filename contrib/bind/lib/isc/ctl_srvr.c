@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ctl_srvr.c,v 8.23 2000/02/04 08:28:33 vixie Exp $";
+static const char rcsid[] = "$Id: ctl_srvr.c,v 8.24 2000/11/14 01:10:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -422,6 +422,7 @@ ctl_accept(evContext lev, void *uap, int fd,
 			       strerror(errno));
 	}
 	ctx->cur_sess++;
+	INIT_LINK(sess, link);
 	APPEND(ctx->sess, sess, link);
 	sess->ctx = ctx;
 	sess->sock = fd;

@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_glob.h,v 8.55 2000/07/20 22:50:38 vixie Exp $
+ *	$Id: ns_glob.h,v 8.56 2000/12/02 18:39:25 vixie Exp $
  */
 
 /*
@@ -125,8 +125,11 @@ DECL	time_t			resettime;
 	/* next query to retry */
 DECL	struct qinfo		*retryqp;
 
-	/* default configuration file */
+	/* configuration file name */
 DECL	char			*conffile;
+
+	/* configuration file mtime */
+DECL	time_t			confmtime;
 
 	/* default debug output file */
 DECL	char			*debugfile;

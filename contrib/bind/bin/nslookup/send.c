@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)send.c	5.18 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: send.c,v 8.9 1999/10/13 16:39:19 vixie Exp $";
+static const char rcsid[] = "$Id: send.c,v 8.10 2000/12/23 08:14:47 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -87,6 +87,7 @@ static const char rcsid[] = "$Id: send.c,v 8.9 1999/10/13 16:39:19 vixie Exp $";
 #include <errno.h>
 #include <resolv.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "port_after.h"
@@ -393,8 +394,8 @@ SendRequest(struct in_addr *nsAddrPtr, const u_char *buf, int buflen,
  *
  * Called from the interrupt handler.
  */
-void SendRequest_close()
-{
+void
+SendRequest_close(void) {
 	if (s != -1) {
 		(void) close(s);
 		s = -1;
