@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.7 1995/05/30 08:07:50 rgrimes Exp $
+ * $Id: bpf.c,v 1.7.4.1 1995/07/23 04:58:31 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -1314,14 +1314,14 @@ ifpromisc(ifp, pswitch)
 	int pswitch;
 {
 	struct ifreq ifr;
-	/*
-	 * If the device is not configured up, we cannot put it in
-	 * promiscuous mode.
-	 */
-	if ((ifp->if_flags & IFF_UP) == 0)
-		return (ENETDOWN);
 
 	if (pswitch) {
+		/*
+		 * If the device is not configured up, we cannot put it in
+		 * promiscuous mode.
+		 */
+		if ((ifp->if_flags & IFF_UP) == 0)
+			return (ENETDOWN);
 		if (ifp->if_pcount++ != 0)
 			return (0);
 		ifp->if_flags |= IFF_PROMISC;
