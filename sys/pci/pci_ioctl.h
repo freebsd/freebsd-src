@@ -15,6 +15,8 @@ struct	pci_conf {
     pcidi_t		pc_devid;	/* device ID */
     pcidi_t		pc_subid;	/* subvendor ID */
     u_int32_t		pc_class;	/* device class */
+    struct pci_device	*pc_dvp;	/* device driver pointer or NULL */
+    struct pcicb	*pc_cb;		/* pointer to bus parameters */
 };
 
 struct	pci_conf_io {
@@ -33,5 +35,6 @@ struct pci_io {
 #define	PCIOCGETCONF	_IOWR('p', 1, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
+#define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)
 
 #endif /* _PCI_IOCTL_H */
