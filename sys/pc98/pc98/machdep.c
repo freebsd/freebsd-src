@@ -2803,3 +2803,11 @@ outb(u_int port, u_char data)
 }
 
 #endif /* DDB */
+
+
+intptr_t
+casuptr(intptr_t *p, intptr_t old, intptr_t new)
+{
+	return (-1);
+}
+
