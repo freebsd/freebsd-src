@@ -41,21 +41,14 @@ pthread_attr_setscope(pthread_attr_t *attr, int contentionscope)
 {
 	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) ||
-	    (contentionscope != PTHREAD_SCOPE_PROCESS) ||
-	    (contentionscope != PTHREAD_SCOPE_SYSTEM))
+	if ((attr == NULL) || (*attr == NULL)) {
 		/* Return an invalid argument: */
 		ret = EINVAL;
-
-	else if (contentionscope == PTHREAD_SCOPE_SYSTEM)
-		/* We don't support system wide contention: */
-#ifdef NOT_YET
+	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) ||
+	    (contentionscope != PTHREAD_SCOPE_SYSTEM)) {
+		/* We don't support PTHREAD_SCOPE_SYSTEM. */
 		ret = ENOTSUP;
-#else
-		ret = EOPNOTSUPP;
-#endif
-
-	else
+	} else
 		(*attr)->flags |= contentionscope;
 
 	return(ret);
