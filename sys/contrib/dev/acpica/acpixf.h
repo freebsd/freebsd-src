@@ -368,7 +368,7 @@ AcpiInstallGpeHandler (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
     UINT32                  Type,
-    ACPI_GPE_HANDLER        Handler,
+    ACPI_EVENT_HANDLER      Address,
     void                    *Context);
 
 ACPI_STATUS
@@ -384,7 +384,7 @@ ACPI_STATUS
 AcpiRemoveGpeHandler (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
-    ACPI_GPE_HANDLER        Handler);
+    ACPI_EVENT_HANDLER      Address);
 
 ACPI_STATUS
 AcpiEnableEvent (
@@ -404,6 +404,12 @@ ACPI_STATUS
 AcpiGetEventStatus (
     UINT32                  Event,
     ACPI_EVENT_STATUS       *EventStatus);
+
+ACPI_STATUS
+AcpiSetGpeType (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT8                   Type);
 
 ACPI_STATUS
 AcpiEnableGpe (

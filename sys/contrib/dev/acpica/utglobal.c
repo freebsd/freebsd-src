@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 198 $
+ *              $Revision: 201 $
  *
  *****************************************************************************/
 
@@ -251,27 +251,40 @@ BOOLEAN                     AcpiGbl_Shutdown = TRUE;
 
 const UINT8                 AcpiGbl_DecodeTo8bit [8] = {1,2,4,8,16,32,64,128};
 
-const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] = {
-                                "\\_S0_",
-                                "\\_S1_",
-                                "\\_S2_",
-                                "\\_S3_",
-                                "\\_S4_",
-                                "\\_S5_"};
+const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] =
+{
+    "\\_S0_",
+    "\\_S1_",
+    "\\_S2_",
+    "\\_S3_",
+    "\\_S4_",
+    "\\_S5_"
+};
 
-const char                  *AcpiGbl_HighestDstateNames[4] = {
-                                "_S1D",
-                                "_S2D",
-                                "_S3D",
-                                "_S4D"};
+const char                  *AcpiGbl_HighestDstateNames[4] =
+{
+    "_S1D",
+    "_S2D",
+    "_S3D",
+    "_S4D"
+};
 
-/* Strings supported by the _OSI predefined (internal) method */
-
-const char                  *AcpiGbl_ValidOsiStrings[ACPI_NUM_OSI_STRINGS] = {
-                                "Linux",
-                                "Windows 2000",
-                                "Windows 2001",
-                                "Windows 2001.1"};
+/*
+ * Strings supported by the _OSI predefined (internal) method.
+ * When adding strings, be sure to update ACPI_NUM_OSI_STRINGS.
+ */
+const char                  *AcpiGbl_ValidOsiStrings[ACPI_NUM_OSI_STRINGS] =
+{
+    "Linux",
+    "Windows 2000",
+    "Windows 2001",
+    "Windows 2001.1",
+    "Windows 2001 SP0",
+    "Windows 2001 SP1",
+    "Windows 2001 SP2",
+    "Windows 2001 SP3",
+    "Windows 2001 SP4"
+};
 
 
 /******************************************************************************
@@ -294,7 +307,7 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
     {"_PR_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
     {"_SB_",    ACPI_TYPE_DEVICE,           NULL},
     {"_SI_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
-    {"_TZ_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
+    {"_TZ_",    ACPI_TYPE_THERMAL,          NULL},
     {"_REV",    ACPI_TYPE_INTEGER,          "2"},
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            "0"},
@@ -968,6 +981,7 @@ AcpiUtInitGlobals (
     /* Hardware oriented */
 
     AcpiGbl_EventsInitialized           = FALSE;
+    AcpiGbl_SystemAwakeAndRunning       = TRUE;
 
     /* Namespace */
 

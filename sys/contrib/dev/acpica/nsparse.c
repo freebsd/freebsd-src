@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsparse - namespace interface to AML parser
- *              $Revision: 5 $
+ *              $Revision: 6 $
  *
  *****************************************************************************/
 
@@ -170,8 +170,9 @@ AcpiNsOneCompleteParse (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, ParseRoot, NULL, TableDesc->AmlStart,
-                    TableDesc->AmlLength, NULL, NULL, PassNumber);
+    Status = AcpiDsInitAmlWalk (WalkState, ParseRoot, NULL,
+                    TableDesc->AmlStart, TableDesc->AmlLength,
+                    NULL, PassNumber);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);

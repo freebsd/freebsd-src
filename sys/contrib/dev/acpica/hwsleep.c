@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 66 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -357,6 +357,8 @@ AcpiEnterSleepState (
         return_ACPI_STATUS (Status);
     }
 
+    /* Clear all fixed and general purpose status bits */
+
     Status = AcpiHwClearAcpiStatus (ACPI_MTX_DO_NOT_LOCK);
     if (ACPI_FAILURE (Status))
     {
@@ -375,10 +377,17 @@ AcpiEnterSleepState (
     }
 
     /*
-     * 1) Disable all runtime GPEs 
+     * 1) Disable/Clear all GPEs
      * 2) Enable all wakeup GPEs
      */
-    Status = AcpiHwPrepareGpesForSleep ();
+    Status = AcpiHwDisableAllGpes ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+    AcpiGbl_SystemAwakeAndRunning = FALSE;
+
+    Status = AcpiHwEnableAllWakeupGpes ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -520,10 +529,17 @@ AcpiEnterSleepStateS4bios (
     }
 
     /*
-     * 1) Disable all runtime GPEs 
+     * 1) Disable/Clear all GPEs
      * 2) Enable all wakeup GPEs
      */
-    Status = AcpiHwPrepareGpesForSleep ();
+    Status = AcpiHwDisableAllGpes ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+    AcpiGbl_SystemAwakeAndRunning = FALSE;
+
+    Status = AcpiHwEnableAllWakeupGpes ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -647,10 +663,17 @@ AcpiLeaveSleepState (
 
     /*
      * Restore the GPEs:
-     * 1) Disable all wakeup GPEs 
+     * 1) Disable/Clear all GPEs
      * 2) Enable all runtime GPEs
      */
-    Status = AcpiHwRestoreGpesOnWake ();
+    Status = AcpiHwDisableAllGpes ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+    AcpiGbl_SystemAwakeAndRunning = TRUE;
+
+    Status = AcpiHwEnableAllRuntimeGpes ();
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -658,9 +681,9 @@ AcpiLeaveSleepState (
 
     /* Enable power button */
 
-    AcpiSetRegister(AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].EnableRegisterId,
+    (void) AcpiSetRegister(AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].EnableRegisterId,
             1, ACPI_MTX_DO_NOT_LOCK);
-    AcpiSetRegister(AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].StatusRegisterId,
+    (void) AcpiSetRegister(AcpiGbl_FixedEventInfo[ACPI_EVENT_POWER_BUTTON].StatusRegisterId,
             1, ACPI_MTX_DO_NOT_LOCK);
 
     /* Enable BM arbitration */

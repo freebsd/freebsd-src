@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 12 $
+ *              $Revision: 13 $
  *
  ******************************************************************************/
 
@@ -474,7 +474,7 @@ AcpiDmDescendingOp (
                     NextExternal = AcpiGbl_ExternalList->Next;
                     ACPI_MEM_FREE (AcpiGbl_ExternalList->Path);
                     ACPI_MEM_FREE (AcpiGbl_ExternalList);
-                    AcpiGbl_ExternalList = NextExternal; 
+                    AcpiGbl_ExternalList = NextExternal;
                 }
                 AcpiOsPrintf ("\n");
             }

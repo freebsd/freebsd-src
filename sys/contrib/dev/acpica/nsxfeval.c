@@ -2,7 +2,7 @@
  *
  * Module Name: nsxfeval - Public interfaces to the ACPI subsystem
  *                         ACPI Object evaluation interfaces
- *              $Revision: 12 $
+ *              $Revision: 14 $
  *
  ******************************************************************************/
 
@@ -256,14 +256,18 @@ AcpiEvaluateObject (
 {
     ACPI_STATUS             Status;
     ACPI_STATUS             Status2;
-    ACPI_OPERAND_OBJECT     **InternalParams = NULL;
-    ACPI_OPERAND_OBJECT     *InternalReturnObj = NULL;
+    ACPI_PARAMETER_INFO     Info;
     ACPI_SIZE               BufferSpaceNeeded;
     UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE ("AcpiEvaluateObject");
 
+
+    Info.Node = Handle;
+    Info.Parameters = NULL;
+    Info.ReturnObject = NULL;
+    Info.ParameterType = ACPI_PARAM_ARGS;
 
     /*
      * If there are parameters to be passed to the object
@@ -276,9 +280,10 @@ AcpiEvaluateObject (
          * Allocate a new parameter block for the internal objects
          * Add 1 to count to allow for null terminated internal list
          */
-        InternalParams = ACPI_MEM_CALLOCATE (((ACPI_SIZE) ExternalParams->Count + 1) *
-                                                sizeof (void *));
-        if (!InternalParams)
+        Info.Parameters = ACPI_MEM_CALLOCATE (
+                                ((ACPI_SIZE) ExternalParams->Count + 1) *
+                                sizeof (void *));
+        if (!Info.Parameters)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
@@ -290,15 +295,16 @@ AcpiEvaluateObject (
         for (i = 0; i < ExternalParams->Count; i++)
         {
             Status = AcpiUtCopyEobjectToIobject (&ExternalParams->Pointer[i],
-                                                 &InternalParams[i]);
+                                                 &Info.Parameters[i]);
             if (ACPI_FAILURE (Status))
             {
-                AcpiUtDeleteInternalObjectList (InternalParams);
+                AcpiUtDeleteInternalObjectList (Info.Parameters);
                 return_ACPI_STATUS (Status);
             }
         }
-        InternalParams[ExternalParams->Count] = NULL;
+        Info.Parameters[ExternalParams->Count] = NULL;
     }
+
 
     /*
      * Three major cases:
@@ -312,8 +318,7 @@ AcpiEvaluateObject (
         /*
          *  The path is fully qualified, just evaluate by name
          */
-        Status = AcpiNsEvaluateByName (Pathname, InternalParams,
-                    &InternalReturnObj);
+        Status = AcpiNsEvaluateByName (Pathname, &Info);
     }
     else if (!Handle)
     {
@@ -348,16 +353,14 @@ AcpiEvaluateObject (
              * The null pathname case means the handle is for
              * the actual object to be evaluated
              */
-            Status = AcpiNsEvaluateByHandle (Handle, InternalParams,
-                            &InternalReturnObj);
+            Status = AcpiNsEvaluateByHandle (&Info);
         }
         else
         {
            /*
             * Both a Handle and a relative Pathname
             */
-            Status = AcpiNsEvaluateRelative (Handle, Pathname, InternalParams,
-                            &InternalReturnObj);
+            Status = AcpiNsEvaluateRelative (Pathname, &Info);
         }
     }
 
@@ -368,13 +371,13 @@ AcpiEvaluateObject (
      */
     if (ReturnBuffer)
     {
-        if (!InternalReturnObj)
+        if (!Info.ReturnObject)
         {
             ReturnBuffer->Length = 0;
         }
         else
         {
-            if (ACPI_GET_DESCRIPTOR_TYPE (InternalReturnObj) == ACPI_DESC_TYPE_NAMED)
+            if (ACPI_GET_DESCRIPTOR_TYPE (Info.ReturnObject) == ACPI_DESC_TYPE_NAMED)
             {
                 /*
                  * If we received a NS Node as a return object, this means that
@@ -385,7 +388,7 @@ AcpiEvaluateObject (
                  * support for various types at a later date if necessary.
                  */
                 Status = AE_TYPE;
-                InternalReturnObj = NULL;   /* No need to delete a NS Node */
+                Info.ReturnObject = NULL;   /* No need to delete a NS Node */
                 ReturnBuffer->Length = 0;
             }
 
@@ -395,7 +398,7 @@ AcpiEvaluateObject (
                  * Find out how large a buffer is needed
                  * to contain the returned object
                  */
-                Status = AcpiUtGetObjectSize (InternalReturnObj,
+                Status = AcpiUtGetObjectSize (Info.ReturnObject,
                                                 &BufferSpaceNeeded);
                 if (ACPI_SUCCESS (Status))
                 {
@@ -409,14 +412,15 @@ AcpiEvaluateObject (
                          */
                         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
                             "Needed buffer size %X, %s\n",
-                            (UINT32) BufferSpaceNeeded, AcpiFormatException (Status)));
+                            (UINT32) BufferSpaceNeeded,
+                            AcpiFormatException (Status)));
                     }
                     else
                     {
                         /*
                          *  We have enough space for the object, build it
                          */
-                        Status = AcpiUtCopyIobjectToEobject (InternalReturnObj,
+                        Status = AcpiUtCopyIobjectToEobject (Info.ReturnObject,
                                         ReturnBuffer);
                     }
                 }
@@ -424,9 +428,9 @@ AcpiEvaluateObject (
         }
     }
 
-    if (InternalReturnObj)
+    if (Info.ReturnObject)
     {
-        /* 
+        /*
          * Delete the internal return object.  NOTE: Interpreter
          * must be locked to avoid race condition.
          */
@@ -437,7 +441,7 @@ AcpiEvaluateObject (
              * Delete the internal return object. (Or at least
              * decrement the reference count by one)
              */
-            AcpiUtRemoveReference (InternalReturnObj);
+            AcpiUtRemoveReference (Info.ReturnObject);
             AcpiExExitInterpreter ();
         }
     }
@@ -445,11 +449,11 @@ AcpiEvaluateObject (
     /*
      * Free the input parameter list (if we created one),
      */
-    if (InternalParams)
+    if (Info.Parameters)
     {
         /* Free the allocated parameter block */
 
-        AcpiUtDeleteInternalObjectList (InternalParams);
+        AcpiUtDeleteInternalObjectList (Info.Parameters);
     }
 
     return_ACPI_STATUS (Status);
