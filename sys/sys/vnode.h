@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.35 1996/10/15 19:22:46 bde Exp $
+ * $Id: vnode.h,v 1.36 1996/10/17 17:12:04 jkh Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -96,9 +96,7 @@ struct vnode {
 	daddr_t	v_cstart;			/* start block of cluster */
 	daddr_t	v_lasta;			/* last allocation */
 	int	v_clen;				/* length of current cluster */
-	int	v_ralen;			/* Read-ahead length */
 	int	v_usage;			/* Vnode usage counter */
-	daddr_t	v_maxra;			/* last readahead block */
 	struct vm_object *v_object;		/* Place to store VM object */
 	enum	vtagtype v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.8 1996/09/03 14:25:10 bde Exp $
+ * $Id: file.h,v 1.9 1996/12/19 19:42:26 bde Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -74,6 +74,13 @@ struct file {
 					    struct proc *p));
 		int	(*fo_close)	__P((struct file *fp, struct proc *p));
 	} *f_ops;
+	int	f_seqcount;	/*
+				 * count of sequential accesses -- cleared
+				 * by most seek operations.
+				 */
+	off_t	f_nextread;	/*
+				 * offset of next expected read
+				 */
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
 };

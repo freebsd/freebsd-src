@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.22 1996/09/03 07:09:11 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.23 1996/12/11 05:17:23 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -80,8 +80,10 @@ READ(ap)
 	long size, xfersize, blkoffset;
 	int error;
 	u_short mode;
+	int seqcount;
 
 	vp = ap->a_vp;
+	seqcount = ap->a_ioflag >> 16;
 	ip = VTOI(vp);
 	mode = ip->i_mode;
 	uio = ap->a_uio;
@@ -116,13 +118,14 @@ READ(ap)
 
 #ifdef LFS_READWRITE
 		(void)lfs_check(vp, lbn);
-		error = cluster_read(vp, ip->i_size, lbn, size, NOCRED, &bp);
+		error = cluster_read(vp, ip->i_size, lbn,
+			size, NOCRED, uio->uio_resid, seqcount, &bp);
 #else
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if (doclusterread)
-			error = cluster_read(vp,
-			    ip->i_size, lbn, size, NOCRED, &bp);
+			error = cluster_read(vp, ip->i_size, lbn,
+				size, NOCRED, uio->uio_resid, seqcount, &bp);
 		else if (lbn - 1 == vp->v_lastr) {
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
@@ -361,6 +364,7 @@ ffs_getpages(ap)
 	}
 
 	obj = ap->a_m[ap->a_reqpage]->object;
+	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
 
 	if (obj->behavior == OBJ_SEQUENTIAL) {
 		struct uio auio;
@@ -387,7 +391,8 @@ ffs_getpages(ap)
 		auio.uio_segflg = UIO_NOCOPY;
 		auio.uio_rw = UIO_READ;
 		auio.uio_procp = curproc;
-		error = VOP_READ(ap->a_vp, &auio, 0, curproc->p_ucred);
+		error = VOP_READ(ap->a_vp, &auio,
+			((MAXBSIZE / bsize) << 16), curproc->p_ucred);
 
 		m->flags |= PG_BUSY;
 		m->busy--;
@@ -396,9 +401,6 @@ ffs_getpages(ap)
 			return VM_PAGER_ERROR;
 		return 0;
 	}
-
-
-	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
 
 	/*
 	 * foff is the file offset of the required page
