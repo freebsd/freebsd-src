@@ -41,9 +41,14 @@ static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include "config.h"
 #include "y.tab.h"
+
+#define ns(s) strdup(s)
+
+static	char *lower __P((char *));
 
 options()
 {
@@ -57,7 +62,7 @@ options()
 	for (cp = cputype; cp; cp = cp->cpu_next) {
 		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
 		memset(op, 0, sizeof(*op));
-		op->op_name = cp->cpu_name;
+		op->op_name = ns(cp->cpu_name);
 		op->op_value = 0;
 		op->op_next = opt;
 		opt = op;
@@ -226,7 +231,6 @@ read_options()
 	struct opt_list *po;
 	int first = 1;
 	char genopt[80];
-	char *lower();
 
 	otab = 0;
 	(void) snprintf(fname, sizeof fname, "../../conf/options");
@@ -298,7 +302,7 @@ next:
 	goto next;
 }
 
-char *
+static char *
 lower(str)
 	register char *str;
 {

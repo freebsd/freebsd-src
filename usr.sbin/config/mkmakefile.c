@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include "y.tab.h"
 #include "config.h"
@@ -60,6 +61,8 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 	  else \
 		wd = word; \
 	}
+
+#define ns(s) strdup(s)
 
 static	struct file_list *fcur;
 char *tail();

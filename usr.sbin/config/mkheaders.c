@@ -40,9 +40,12 @@ static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include "config.h"
 #include "y.tab.h"
+
+#define ns(s) strdup(s)
 
 headers()
 {
@@ -157,7 +160,7 @@ do_header(dev, hname, count)
 	if (oldcount == -1) {
 		fl = (struct file_list *) malloc(sizeof *fl);
 		bzero(fl, sizeof(*fl));
-		fl->f_fn = ns(name); /* malloced */
+		fl->f_fn = ns(name);
 		fl->f_type = count;
 		fl->f_next = fl_head;
 		fl_head = fl;
