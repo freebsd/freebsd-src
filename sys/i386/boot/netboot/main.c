@@ -88,9 +88,10 @@ load()
 			longjmp(jmp_bootmenu,1);
 		}
 	}
-	printf("IP address %I, Server IP address %I\r\n",
+	printf("My IP %I, Server IP %I, GW IP %I\r\n",
 		arptable[ARP_CLIENT].ipaddr,
-		arptable[ARP_SERVER].ipaddr);
+		arptable[ARP_SERVER].ipaddr,
+		arptable[ARP_GATEWAY].ipaddr);
 
 		/* Now use TFTP to load configuration file */
 	sprintf(cfg,"cfg.%I",arptable[ARP_CLIENT].ipaddr);
@@ -540,20 +541,29 @@ decode_rfc1048(p)
 	unsigned char *p;
 {
 	static char rfc1048_cookie[4] = RFC1048_COOKIE;
-	unsigned char *end = p + BOOTP_VENDOR_LEN;
+	unsigned char *end = p + BOOTP_VENDOR_LEN,*q;
 	if (bcompare(p, rfc1048_cookie, 4)) { /* RFC 1048 header */
 		p += 4;
 		while(p < end) {
-			if (*p == RFC1048_PAD) {
+			switch (*p) {
+			case RFC1048_PAD:
 				p++;
 				continue;
-			}
-			if (*p == RFC1048_END) break;
-			if (*p == RFC1048_NETMASK)
+			case RFC1048_END:
+				p = end;
+				continue;
+			case RFC1048_NETMASK:
 				bcopy(p+2,&netmask,4);
-			if (*p == RFC1048_HOSTNAME) {
+				break;
+			case RFC1048_HOSTNAME:
 				bcopy(p+2, &nfsdiskless.my_hostnam, TAG_LEN(p));
 				hostnamelen = (TAG_LEN(p) + 3) & ~3;
+				break;
+			default:
+				printf("Unknown RFC1048-tag ");
+				for(q=p;q<p+2+TAG_LEN(p);q++)
+					printf("%x ",*q);
+				printf("\n\r");
 			}
 			p += TAG_LEN(p) + 2;
 		}
