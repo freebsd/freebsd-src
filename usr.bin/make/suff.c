@@ -462,8 +462,16 @@ Suff_ClearSuffixes ()
 {
     Lst_Concat (suffClean, sufflist, LST_CONCLINK);
     sufflist = Lst_Init(FALSE);
-    sNum = 0;
+    sNum = 1;
     suffNull = emptySuff;
+    /*
+     * Clear suffNull's children list (the other suffixes are built new, but
+     * suffNull is used as is).
+     * NOFREE is used because all suffixes are are on the suffClean list.
+     * suffNull should not have parents.
+     */
+    Lst_Destroy(suffNull->children, NOFREE);
+    suffNull->children = Lst_Init(FALSE);
 }
 
 /*-
@@ -716,20 +724,25 @@ SuffRebuildGraph(transformp, sp)
     Suff    	*s = (Suff *) sp;
     char 	*cp;
     LstNode	ln;
-    Suff  	*s2;
+    Suff  	*s2 = NULL;
 
     /*
      * First see if it is a transformation from this suffix.
      */
     cp = SuffStrIsPrefix(s->name, transform->name);
     if (cp != (char *)NULL) {
-	ln = Lst_Find(sufflist, (ClientData)cp, SuffSuffHasNameP);
-	if (ln != NILLNODE) {
+	if (cp[0] == '\0')  /* null rule */
+	    s2 = suffNull;
+	else {
+	    ln = Lst_Find(sufflist, (ClientData)cp, SuffSuffHasNameP);
+	    if (ln != NILLNODE)
+		s2 = (Suff *)Lst_Datum(ln);
+	}
+	if (s2 != NULL) {
 	    /*
 	     * Found target. Link in and return, since it can't be anything
 	     * else.
 	     */
-	    s2 = (Suff *)Lst_Datum(ln);
 	    SuffInsert(s2->children, s);
 	    SuffInsert(s->parents, s2);
 	    return(0);
@@ -2361,7 +2374,7 @@ static int SuffPrintName(s, dummy)
     ClientData s;
     ClientData dummy;
 {
-    printf ("%s ", ((Suff *) s)->name);
+    printf ("`%s' ", ((Suff *) s)->name);
     return (dummy ? 0 : 0);
 }
 
