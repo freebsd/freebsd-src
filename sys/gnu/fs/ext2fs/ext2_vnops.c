@@ -482,6 +482,11 @@ abortit:
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
+ 	if (ip->i_nlink >= LINK_MAX) {
+ 		VOP_UNLOCK(fvp, 0, p);
+ 		error = EMLINK;
+ 		goto abortit;
+ 	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp, 0, p);
