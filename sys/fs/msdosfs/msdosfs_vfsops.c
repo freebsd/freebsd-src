@@ -382,7 +382,9 @@ mountmsdosfs(devvp, mp, p, argp)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
+	VOP_UNLOCK(devvp, 0, p);
 	if (error)
 		return (error);
 
