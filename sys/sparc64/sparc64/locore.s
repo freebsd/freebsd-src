@@ -77,7 +77,7 @@ ENTRY(_start)
 	 * Get onto our per-cpu panic stack, which precedes the struct pcpu in
 	 * the per-cpu page.
 	 */
-	SET(pcpu0 + PAGE_SIZE - PC_SIZEOF, %l1, %l0)
+	SET(pcpu0 + (PCPU_PAGES * PAGE_SIZE) - PC_SIZEOF, %l1, %l0)
 	sub	%l0, SPOFF + CCFSZ, %sp
 
 	/*
