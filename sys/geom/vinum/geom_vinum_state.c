@@ -63,6 +63,10 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 			gv_update_sd_state(s);
 	}
 
+	/* Save the config back to disk. */
+	if (flags & GV_SETSTATE_CONFIG)
+		gv_save_config_all(d->vinumconf);
+
 	return (1);
 }
 
