@@ -139,7 +139,8 @@ event_cmd_exec_clone(void *this)
 	newone->evcmd.len = oldone->evcmd.len;
 	newone->evcmd.name = oldone->evcmd.name;
 	newone->evcmd.op = oldone->evcmd.op;
-	newone->line = strdup(oldone->line);
+	if ((newone->line = strdup(oldone->line)) == NULL)
+		err(1, "out of memory");
 	return (struct event_cmd *) newone;
 }
 void

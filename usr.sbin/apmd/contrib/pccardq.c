@@ -194,9 +194,18 @@ get_slot_info(int so, int slot, char **manuf, char **version, char
     if (s != NULL && strchr(s, '~') != NULL)
 	goto parse_err;
 
-    *manuf = strdup(_manuf);
-    *version = strdup(_version);
-    *device = strdup(_device);
+    if ((*manuf = strdup(_manuf)) == NULL) {
+	warn("strdup");
+	goto err;
+    }
+    if ((*version = strdup(_version)) == NULL) {
+	warn("strdup");
+	goto err;
+    }
+    if ((*device = strdup(_device)) == NULL) {
+	warn("strdup");
+	goto err;
+    }
     if (*manuf == NULL || *version == NULL || *device == NULL) {
 	warn("strdup");
 	goto err;
