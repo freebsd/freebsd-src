@@ -336,7 +336,6 @@ pipespace(cpipe, size)
 	static int curfail = 0;
 	static struct timeval lastfail;
 
-	GIANT_REQUIRED;
 	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
 	       ("pipespace: pipe mutex locked"));
 
@@ -400,9 +399,6 @@ pipe_create(cpipep)
 	
 	/* so pipespace()->pipe_free_kmem() doesn't follow junk pointer */
 	cpipe->pipe_buffer.object = NULL;
-#ifndef PIPE_NODIRECT
-	cpipe->pipe_map.kva = 0;
-#endif
 	/*
 	 * protect so pipeclose() doesn't follow a junk pointer
 	 * if pipespace() fails.
