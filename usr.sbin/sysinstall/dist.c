@@ -110,11 +110,9 @@ static Distribution DistTable[] = {
 /* The CRYPTO distribution */
 static Distribution CRYPTODistTable[] = {
     DTE_TARBALL("crypto",  &CRYPTODists, CRYPTO_CRYPTO,	    "/"),
-    DTE_TARBALL("krb4",    &CRYPTODists, CRYPTO_KERBEROS4,  "/"),
     DTE_TARBALL("krb5",    &CRYPTODists, CRYPTO_KERBEROS5,  "/"),
     DTE_TARBALL("ssecure", &CRYPTODists, CRYPTO_SSECURE,    "/usr/src"),
     DTE_TARBALL("scrypto", &CRYPTODists, CRYPTO_SCRYPTO,    "/usr/src"),
-    DTE_TARBALL("skrb4",   &CRYPTODists, CRYPTO_SKERBEROS4, "/usr/src"),
     DTE_TARBALL("skrb5",   &CRYPTODists, CRYPTO_SKERBEROS5, "/usr/src"),
     { NULL },
 };
@@ -266,7 +264,7 @@ distVerifyFlags(void)
     if (SrcDists)
 	Dists |= DIST_SRC;
     if (CRYPTODists) {
-	if (CRYPTODists & (DIST_CRYPTO_KERBEROS4 | DIST_CRYPTO_KERBEROS5))
+	if (CRYPTODists & DIST_CRYPTO_KERBEROS5)
 	    CRYPTODists |= DIST_CRYPTO_CRYPTO;
 	Dists |= DIST_CRYPTO;
     }

@@ -84,7 +84,6 @@ static HitList etc_files [] = {
    { JUST_COPY,		"hosts.equiv",		TRUE, NULL },
    { JUST_COPY,		"hosts.lpd",		TRUE, NULL },
    { JUST_COPY,		"inetd.conf",		TRUE, NULL },
-   { JUST_COPY,		"kerberosIV",		TRUE, NULL },
    { JUST_COPY,		"localtime",		TRUE, NULL },
    { JUST_COPY,		"login.access",		TRUE, NULL },
    { JUST_COPY,		"login.conf",		TRUE, NULL },
