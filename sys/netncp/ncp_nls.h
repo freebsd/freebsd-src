@@ -43,8 +43,8 @@
 #define	NWHP_NOSTRICT	0x20	/* pretend to be a case insensitive */
 
 struct ncp_nlstables {
-	u_char	*tolower;	/* local charset to lower case */
-	u_char	*toupper;	/* local charset to upper case */
+	u_char	*to_lower;	/* local charset to lower case */
+	u_char	*to_upper;	/* local charset to upper case */
 	u_char	*n2u;		/* NetWare to Unix */
 	u_char	*u2n;
 	int	opt;		/* may depend on context */
