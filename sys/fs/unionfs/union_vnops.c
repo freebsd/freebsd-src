@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.38 1997/08/15 02:36:28 kato Exp $
+ * $Id: union_vnops.c,v 1.39 1997/09/02 20:06:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -213,6 +213,14 @@ union_lookup(ap)
 	int iswhiteout;
 	struct vattr va;
 
+
+	/*
+	 * Disallow write attemps to the filesystem mounted read-only.
+	 */
+	if ((cnp->cn_flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+		(cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
+
 #ifdef notyet
 	if (cnp->cn_namelen == 3 &&
 			cnp->cn_nameptr[2] == '.' &&
@@ -261,6 +269,17 @@ union_lookup(ap)
 		}
 		uerror = union_lookup1(um->um_uppervp, &upperdvp,
 					&uppervp, cnp);
+		/*
+		 * Disallow write attemps to the filesystem mounted read-only.
+		 */
+		if (uerror == EJUSTRETURN && (cnp->cn_flags & ISLASTCN) &&
+			(dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+			(cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME)) {
+			if (!lockparent)
+				cnp->cn_flags &= ~LOCKPARENT;
+			return (EROFS);
+		}
+			
 		if (cnp->cn_flags & ISDOTDOT) {
 			if (dun->un_uppervp == upperdvp) {
 				/*
@@ -653,6 +672,15 @@ union_access(ap)
 	struct vnode *vp;
 	struct vnode *savedvp;
 
+	/*
+	 * Disallow write attempts on filesystems mounted read-only.
+	 */
+	if (ap->a_mode & VWRITE && (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)) {
+		switch (ap->a_vp->v_type) {
+		case VREG: case VDIR: case VLNK:
+			return (EROFS);
+		}
+	}
 	if ((vp = un->un_uppervp) != NULLVP) {
 		FIXUP(un, p);
 		ap->a_vp = vp;
@@ -765,7 +793,17 @@ union_setattr(ap)
 {
 	struct union_node *un = VTOUNION(ap->a_vp);
 	struct proc *p = ap->a_p;
+	struct vattr *vap = ap->a_vap;
 	int error;
+
+	/*
+	 * Disallow write attempts on filesystems mounted read-only.
+	 */
+	if ((ap->a_vp->v_mount->mnt_flag & MNT_RDONLY) &&
+		(vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+		 vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+		 vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL))
+		return (EROFS);
 
 	/*
 	 * Handle case of truncating lower object to zero size,
