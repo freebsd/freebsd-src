@@ -259,6 +259,7 @@ static void
 acpi_cpu_init_throttling(void *arg)
 {
     int cpu_temp_speed;
+    ACPI_LOCK_DECL;
 
     ACPI_LOCK;
 
@@ -352,6 +353,7 @@ acpi_cpu_power_profile(void *arg)
 {
     int		state;
     u_int32_t	new;
+    ACPI_LOCK_DECL;
 
     state = power_profile_get_state();
     if (state != POWER_PROFILE_PERFORMANCE &&
