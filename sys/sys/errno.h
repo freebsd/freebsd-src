@@ -164,14 +164,11 @@ __END_DECLS
 #define	ENEEDAUTH	81		/* Need authenticator */
 #define	EIDRM		82		/* Identifier removed */
 #define	ENOMSG		83		/* No message of desired type */
-#endif /* _POSIX_SOURCE */
-
 #define	EOVERFLOW	84		/* Value too large to be stored in data type */
-
-#ifndef _POSIX_SOURCE
 #define	ECANCELED	85		/* Operation canceled */
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ELAST		86		/* Must be equal largest errno */
+
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL
