@@ -40,15 +40,14 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)expand.c	8.1 (Berkeley) 6/9/93";
-#else
-static const char rcsid[] = 
-  "$FreeBSD$";
 #endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 /*
@@ -90,10 +89,8 @@ main(argc, argv)
 
 	do {
 		if (argc > 0) {
-			if (freopen(argv[0], "r", stdin) == NULL) {
-				perror(argv[0]);
-				exit(1);
-			}
+			if (freopen(argv[0], "r", stdin) == NULL)
+				errx(1, "%s", argv[0]);
 			argc--, argv++;
 		}
 		column = 0;
@@ -160,18 +157,15 @@ getstops(cp)
 		i = 0;
 		while (*cp >= '0' && *cp <= '9')
 			i = i * 10 + *cp++ - '0';
-		if (i <= 0 || i > 256) {
-bad:
-			fprintf(stderr, "Bad tab stop spec\n");
-			exit(1);
-		}
+		if (i <= 0 || i > 256)
+			errx(1, "bad tab stop spec");
 		if (nstops > 0 && i <= tabstops[nstops-1])
-			goto bad;
+			errx(1, "bad tab stop spec");
 		tabstops[nstops++] = i;
 		if (*cp == 0)
 			break;
 		if (*cp != ',' && *cp != ' ')
-			goto bad;
+			errx(1, "bad tab stop spec");
 		cp++;
 	}
 }
