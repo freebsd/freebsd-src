@@ -48,6 +48,7 @@
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Op Fl -gss-bindings
+.Op Fl I | Fl -no-insecure-oob
 .Op Fl u Ar default umask
 .Op Fl B | Fl -builtin-ls
 .Op Fl -good-chars= Ns Ar string
@@ -150,6 +151,13 @@ use built-in ls to list files
 .Fl -good-chars= Ns Ar string
 .Xc
 allowed anonymous upload filename chars
+.It Xo
+.Fl I
+.Fl -no-insecure-oob
+.Xc
+don't allow insecure out of band.
+Heimdal ftp client before 0.7 doesn't support secure oob, so turning
+on this options makes them no longer work.
 .El
 .Pp
 The file

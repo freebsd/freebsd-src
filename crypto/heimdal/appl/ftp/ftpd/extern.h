@@ -48,7 +48,6 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <setjmp.h>
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -129,10 +128,8 @@ extern	struct passwd *pw;
 extern	int guest;
 extern	int logging;
 extern	int type;
-extern	int oobflag;
 extern off_t file_size;
 extern off_t byte_count;
-extern jmp_buf urgcatch;
 
 extern	int form;
 extern	int debug;
@@ -142,7 +139,6 @@ extern  int pdata;
 extern	char hostname[], remotehost[];
 extern	char proctitle[];
 extern	int usedefault;
-extern  int transflag;
 extern  char tmpline[];
 
 #endif /* _EXTERN_H_ */

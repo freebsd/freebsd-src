@@ -25,6 +25,7 @@ GEN=	asn1_APOptions.x \
 	asn1_AuthorizationData.x \
 	asn1_CKSUMTYPE.x \
 	asn1_Checksum.x \
+	asn1_ChangePasswdDataMS.x \
 	asn1_ENCTYPE.x \
 	asn1_ETYPE_INFO.x \
 	asn1_ETYPE_INFO_ENTRY.x \

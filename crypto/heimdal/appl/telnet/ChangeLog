@@ -1,3 +1,15 @@
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* telnet/network.c: 1.12: make network rings larger From: MAAAAA
+	MOOOR <huaraz@btinternet.com>
+	
+	* telnetd/state.c: 1.14: make subbuffer larger XXX resize
+	dynamicly From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
+	* libtelnet/kerberos5.c: 1.54: (Data): allocate the data needed to
+	be send
+	From: MAAAAA MOOOR <huaraz@btinternet.com>
+	
 2004-03-22  Love Hörnquist Åstrand  <lha@it.su.se>
 
         * telnetd/telnetd.c: call setprogname to make libvers happy

@@ -1,3 +1,29 @@
+2004-08-20  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftp/ftp.c: 1.77: send ABOR protect with security layer if its there
+
+	* ftpd/{ftpd_locl.h, extern.h, ftpcmd.y, ftpd.8, ftpd.c}:
+	Remove all traces of setjmp/longjmp.
+	Handle those command that is needed in oobhandler,
+	those are ABOR, STAT, ENC, CONF, MIC.
+	add options to turn off insecure OOB handling and document the option
+
+	Changes inspired by openbsd and netbsd changes but quite diffrent is
+	most places since the code no longer look and is structured the same
+	way.
+
+	extern.h: 1.25
+	ftpcmd.y: 1.65
+	ftpd.8: 1.22
+	ftpd.c: 1.170
+	ftpd_locl.h: 1.14
+	
+2004-06-21  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ftpd/ftpcmd.y: 1.64: make cbuf 64k to handle lager tickets From:
+	MAAAAA MOOOR <huaraz@btinternet.com> 1.63: strncasecmp returns
+	integer so don't compare with NULL
+	
 2004-03-14  Love Hörnquist Åstrand <lha@it.su.se>
 
 	* ftpd/ftpd.c: 1.169: (main): setpag if there is krb4 OR krb5

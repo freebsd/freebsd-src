@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-2000, 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: verify.c,v 1.25 2001/06/18 13:11:33 assar Exp $");
+RCSID("$Id: verify.c,v 1.25.12.1 2004/09/08 09:14:26 joda Exp $");
 #endif
 #include <unistd.h>
 #include <sys/types.h>
@@ -163,47 +163,51 @@ verify_krb5(struct passwd *pwd,
     }
 
 #ifdef KRB4
-    if (krb5_config_get_bool(context, NULL,
-			     "libdefaults",
-			     "krb4_get_tickets",
-			     NULL)) {
-	CREDENTIALS c;
-	krb5_creds mcred, cred;
-        krb5_realm realm;
+    {
+	krb5_realm realm = NULL;
+	krb5_boolean get_v4_tgt;
 
-        krb5_get_default_realm(context, &realm);
-	krb5_make_principal(context, &mcred.server, realm,
-			    "krbtgt",
-			    realm,
-			    NULL);
-	free (realm);
-	ret = krb5_cc_retrieve_cred(context, ccache, 0, &mcred, &cred);
-	if(ret == 0) {
-	    ret = krb524_convert_creds_kdc_ccache(context, ccache, &cred, &c);
-	    if(ret)
-		krb5_warn(context, ret, "converting creds");
-	    else {
-		set_krbtkfile(pwd->pw_uid);
-		tf_setup(&c, c.pname, c.pinst); 
-	    }
-	    memset(&c, 0, sizeof(c));
-	    krb5_free_creds_contents(context, &cred);
-	} else
-	    syslog(LOG_AUTH|LOG_DEBUG, "krb5_cc_retrieve_cred: %s", 
-		   krb5_get_err_text(context, ret));
+	krb5_get_default_realm(context, &realm);
+	krb5_appdefault_boolean(context, "afskauthlib", 
+				realm,
+				"krb4_get_tickets", FALSE, &get_v4_tgt);
+	if (get_v4_tgt) {
+	    CREDENTIALS c;
+	    krb5_creds mcred, cred;
+
+	    krb5_make_principal(context, &mcred.server, realm,
+				"krbtgt",
+				realm,
+				NULL);
+	    ret = krb5_cc_retrieve_cred(context, ccache, 0, &mcred, &cred);
+	    if(ret == 0) {
+		ret = krb524_convert_creds_kdc_ccache(context, ccache, &cred, &c);
+		if(ret)
+		    krb5_warn(context, ret, "converting creds");
+		else {
+		    set_krbtkfile(pwd->pw_uid);
+		    tf_setup(&c, c.pname, c.pinst); 
+		}
+		memset(&c, 0, sizeof(c));
+		krb5_free_creds_contents(context, &cred);
+	    } else
+		syslog(LOG_AUTH|LOG_DEBUG, "krb5_cc_retrieve_cred: %s", 
+		       krb5_get_err_text(context, ret));
 	    
-	krb5_free_principal(context, mcred.server);
-    }
-    if (!pag_set && k_hasafs()) {
-	k_setpag();
-	pag_set = 1;
-    }
+	    krb5_free_principal(context, mcred.server);
+	}
+	free(realm);
+	if (!pag_set && k_hasafs()) {
+	    k_setpag();
+	    pag_set = 1;
+	}
 
-    if (pag_set)
-	krb5_afslog_uid_home(context, ccache, NULL, NULL, 
-			     pwd->pw_uid, pwd->pw_dir);
+	if (pag_set)
+	    krb5_afslog_uid_home(context, ccache, NULL, NULL, 
+				 pwd->pw_uid, pwd->pw_dir);
+    }
 #endif
-out:
+ out:
     if(ret && !quiet)
 	printf ("%s\n", krb5_get_err_text (context, ret));
     return ret;

@@ -1,3 +1,7 @@
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* push.c: 1.48: alloc memory to handle very long lines
+	
 2003-04-03  Assar Westerlund  <assar@kth.se>
 
 	* push.c: fixed one incorrect fprintf to stderr

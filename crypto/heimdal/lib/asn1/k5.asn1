@@ -1,4 +1,4 @@
--- $Id: k5.asn1,v 1.28 2003/01/15 03:13:47 lha Exp $
+-- $Id: k5.asn1,v 1.28.2.1 2004/06/21 08:25:45 lha Exp $
 
 KERBEROS5 DEFINITIONS ::=
 BEGIN
@@ -51,6 +51,7 @@ PADATA-TYPE ::= INTEGER {
 	KRB5-PADATA-PK-AS-SIGN(16), -- (PKINIT)
 	KRB5-PADATA-PK-KEY-REQ(17), -- (PKINIT)
 	KRB5-PADATA-PK-KEY-REP(18), -- (PKINIT)
+	KRB5-PADATA-ETYPE-INFO2(19),
 	KRB5-PADATA-USE-SPECIFIED-KVNO(20),
 	KRB5-PADATA-SAM-REDIRECT(21), -- (sam/otp)
 	KRB5-PADATA-GET-FROM-TYPED-DATA(22),
@@ -438,6 +439,12 @@ KRB-ERROR ::= [APPLICATION 30] SEQUENCE {
 	sname[10]		PrincipalName, -- Correct name
 	e-text[11]		GeneralString OPTIONAL,
 	e-data[12]		OCTET STRING OPTIONAL
+}
+
+ChangePasswdDataMS ::= SEQUENCE {
+	newpasswd[0]		OCTET STRING,
+	targname[1]		PrincipalName OPTIONAL,
+	targrealm[2]		Realm OPTIONAL
 }
 
 pvno INTEGER ::= 5 -- current Kerberos protocol version number

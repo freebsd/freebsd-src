@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.156.2.3 2003/10/28 15:49:31 joda Exp $
+# $Id: Makefile.am,v 1.156.2.4 2004/06/21 10:52:01 lha Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -173,6 +173,7 @@ man_MANS =					\
 	krb5_parse_name.3			\
 	krb5_principal_get_realm.3		\
 	krb5_set_default_realm.3		\
+	krb5_set_password.3			\
 	krb5_sname_to_principal.3		\
 	krb5_timeofday.3			\
 	krb5_unparse_name.3			\

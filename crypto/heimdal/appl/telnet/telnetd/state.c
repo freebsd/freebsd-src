@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: state.c,v 1.14 2000/10/02 05:06:02 assar Exp $");
+RCSID("$Id: state.c,v 1.14.12.1 2004/06/21 08:21:58 lha Exp $");
 
 unsigned char	doopt[] = { IAC, DO, '%', 'c', 0 };
 unsigned char	dont[] = { IAC, DONT, '%', 'c', 0 };
@@ -45,7 +45,7 @@ int	not42 = 1;
  * Buffer for sub-options, and macros
  * for suboptions buffer manipulations
  */
-unsigned char subbuffer[2048], *subpointer= subbuffer, *subend= subbuffer;
+unsigned char subbuffer[1024*64], *subpointer= subbuffer, *subend= subbuffer;
 
 #define	SB_CLEAR()	subpointer = subbuffer
 #define	SB_TERM()	{ subend = subpointer; SB_CLEAR(); }
@@ -1284,6 +1284,7 @@ doclientstat(void)
     clientstat(TELOPT_LINEMODE, WILL, 0);
 }
 
+#undef ADD
 #define	ADD(c)	 *ncp++ = c
 #define	ADD_DATA(c) { *ncp++ = c; if (c == SE || c == IAC) *ncp++ = c; }
 

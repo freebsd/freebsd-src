@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000, 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000, 2002, 2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,17 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afssys.c,v 1.69 2003/03/18 04:18:45 lha Exp $");
+RCSID("$Id: afssys.c,v 1.69.2.2 2004/06/22 14:29:48 lha Exp $");
+
+struct procdata {
+    unsigned long param4;
+    unsigned long param3;
+    unsigned long param2;
+    unsigned long param1;
+    unsigned long syscall;
+};
+#define VIOC_SYSCALL _IOW('C', 1, void *)
+
 
 int _kafs_debug; /* this should be done in a better way */
 
@@ -42,10 +52,12 @@ int _kafs_debug; /* this should be done in a better way */
 #define MULTIPLE_ENTRY_POINT	2
 #define SINGLE_ENTRY_POINT2	3
 #define SINGLE_ENTRY_POINT3	4
-#define AIX_ENTRY_POINTS	5
-#define UNKNOWN_ENTRY_POINT	6
+#define LINUX_PROC_POINT	5
+#define AIX_ENTRY_POINTS	6
+#define UNKNOWN_ENTRY_POINT	7
 static int afs_entry_point = UNKNOWN_ENTRY_POINT;
 static int afs_syscalls[2];
+static char *afs_procpath;
 
 /* Magic to get AIX syscalls to work */
 #ifdef _AIX
@@ -132,6 +144,37 @@ map_syscall_name_to_number (const char *str, int *res)
     return -1;
 }
 
+static int 
+try_proc(const char *path)
+{
+    int fd;
+    fd = open(path, O_RDWR);
+    if (fd < 0)
+	return 1;
+    close(fd);
+    afs_procpath = strdup(path);
+    if (afs_procpath == NULL)
+	return 1;
+    afs_entry_point = LINUX_PROC_POINT;
+    return 0;
+}
+
+static int
+do_proc(struct procdata *data)
+{
+    int fd, ret, saved_errno;
+    fd = open(afs_procpath, O_RDWR);
+    if (fd < 0) {
+	errno = EINVAL;
+	return -1;
+    }
+    ret = ioctl(fd, VIOC_SYSCALL, data);
+    saved_errno = errno;
+    close(fd);
+    errno = saved_errno;
+    return ret;
+}
+
 int
 k_pioctl(char *a_path,
 	 int o_opcode,
@@ -152,12 +195,19 @@ k_pioctl(char *a_path,
 	return syscall(afs_syscalls[0],
 		       a_path, o_opcode, a_paramsP, a_followSymlinks);
 #endif
+    case LINUX_PROC_POINT: {
+	struct procdata data = { 0, 0, 0, 0, AFSCALL_PIOCTL };
+	data.param1 = (unsigned long)a_path;
+	data.param2 = (unsigned long)o_opcode;
+	data.param3 = (unsigned long)a_paramsP;
+	data.param4 = (unsigned long)a_followSymlinks;
+	return do_proc(&data);
+    }
 #ifdef _AIX
     case AIX_ENTRY_POINTS:
 	return Pioctl(a_path, o_opcode, a_paramsP, a_followSymlinks);
 #endif
-    }
-    
+    }    
     errno = ENOSYS;
 #ifdef SIGSYS
     kill(getpid(), SIGSYS);	/* You lose! */
@@ -200,6 +250,10 @@ k_setpag(void)
     case MULTIPLE_ENTRY_POINT:
 	return syscall(afs_syscalls[1]);
 #endif
+    case LINUX_PROC_POINT: {
+	struct procdata data = { 0, 0, 0, 0, AFSCALL_SETPAG };
+	return do_proc(&data);
+    }
 #ifdef _AIX
     case AIX_ENTRY_POINTS:
 	return Setpag();
@@ -387,6 +441,13 @@ k_hasafs(void)
     if(try_aix() == 0)
 	goto done;
 #endif
+
+    if (try_proc("/proc/fs/openafs/afs_ioctl") == 0)
+	goto done;
+    if (try_proc("/proc/fs/nnpfs/afs_ioctl") == 0)
+	goto done;
+    if (env && try_proc(env) == 0)
+	goto done;
 
 done:
 #ifdef SIGSYS
