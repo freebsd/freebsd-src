@@ -238,8 +238,10 @@ get()
 	u_char *tmpp;
 
 	if (!curp) {
-		curp = emalloc(blocksize);
-		savp = emalloc(blocksize);
+		if ((curp = calloc(1, blocksize)) == NULL)
+			err(1, NULL);
+		if ((savp = calloc(1, blocksize)) == NULL)
+			err(1, NULL);
 	} else {
 		tmpp = curp;
 		curp = savp;
@@ -365,22 +367,4 @@ doskip(fname, statok)
 		address += cnt;
 		skip -= cnt;
 	}
-}
-
-void *
-emalloc(size)
-	int size;
-{
-	void *p;
-
-	if ((p = malloc((u_int)size)) == NULL)
-		nomem();
-	bzero(p, size);
-	return(p);
-}
-
-void
-nomem()
-{
-	err(1, NULL);
 }
