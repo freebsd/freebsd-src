@@ -47,7 +47,9 @@
 
 #define AUTHOR_STR		"ATC - by Ed James"
 
-#define PI			3.14159654
+#ifndef PI
+#define PI			3.14159265358979323846
+#endif
 
 #define LOWFUEL			15
 

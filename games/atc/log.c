@@ -51,9 +51,15 @@ static char sccsid[] = "@(#)log.c	8.1 (Berkeley) 5/31/93";
 #include "include.h"
 #include "pathnames.h"
 
-compar(a, b)
-	SCORE	*a, *b;
+int
+compar(va, vb)
+	const void *va, *vb;
 {
+	const SCORE	*a, *b;
+
+	a = (const SCORE *)va;
+	b = (const SCORE *)vb;
+
 	if (b->planes == a->planes)
 		return (b->time - a->time);
 	else
@@ -70,7 +76,7 @@ compar(a, b)
 #define MIN(t)		(((t) % SECAHOUR) / SECAMIN)
 #define SEC(t)		((t) % SECAMIN)
 
-char	*
+const char	*
 timestr(t)
 {
 	static char	s[80];
@@ -152,7 +158,7 @@ log_score(list_em)
 #endif
 #ifdef SYSV
 		uname(&name);
-		strcpy(thisscore.host, name.sysname);
+		strcpy(thisscore.host, name.nodename);
 #endif
 
 		cp = rindex(file, '/');

@@ -53,7 +53,7 @@ char		GAMES[] =	"Game_List";
 
 int		clck, safe_planes, start_time, test_mode;
 
-char		*file;
+const char	*file;
 
 FILE		*filein, *fileout;
 

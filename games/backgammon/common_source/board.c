@@ -43,9 +43,9 @@ static char	ln[60];
 
 wrboard ()  {
 	register int	l;
-	static char	bl[] =
+	static const char	bl[] =
 		"|                       |   |                       |\n";
-	static char	sv[] =
+	static const char	sv[] =
 		"|                       |   |                       |    \n";
 
 	fixtty (noech);

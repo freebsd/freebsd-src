@@ -60,7 +60,8 @@ get_move()
 			lastmove = *Next_move;
 		else
 			lastmove = -1;	/* flag for "first time in" */
-	}
+	} else
+		lastmove = 0; /* Shut up gcc */
 #endif
 	for (;;) {
 		if (Teleport && must_telep())

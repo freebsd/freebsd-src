@@ -43,11 +43,11 @@ static char sccsid[] = "@(#)subs.c	8.1 (Berkeley) 5/31/93";
 int	buffnum;
 char	outbuff[BUFSIZ];
 
-static char	plred[] = "Player is red, computer is white.";
-static char	plwhite[] = "Player is white, computer is red.";
-static char	nocomp[] = "(No computer play.)";
+static const char	plred[] = "Player is red, computer is white.";
+static const char	plwhite[] = "Player is white, computer is red.";
+static const char	nocomp[] = "(No computer play.)";
 
-char  *descr[] = {
+const char  *const descr[] = {
 	"Usage:  backgammon [-h n r w b pr pw pb tterm sfile]\n",
 	"\t-h\tgets this list\n\t-n\tdon't ask for rules or instructions",
 	"\t-r\tplayer is red (implies -n)\n\t-w\tplayer is white (implies -n)",
@@ -66,12 +66,6 @@ register char	*s;
 	write (2,"\n",1);
 	perror (s);
 	getout();
-}
-
-strset (s1,s2)
-register char	*s1, *s2;
-{
-	while ( (*s1++ = *s2++) != '\0');
 }
 
 int addbuf (c)
@@ -131,11 +125,12 @@ char	c;
 		addbuf (c);
 }
 
+void
 writel (l)
-register char	*l;
+const char	*l;
 {
 #ifdef DEBUG
-	register char	*s;
+	const char	*s;
 
 	if (trace == NULL)
 		trace = fopen ("bgtrace","w");
@@ -325,7 +320,7 @@ register char	**argv;
 			args[acnt++] = strdup ("-n");
 			break;
 
-		/* player is both read and white */
+		/* player is both red and white */
 		case 'b':
 			if (rflag)
 				break;
@@ -424,6 +419,7 @@ int	mode;
 		errexit("fixtty");
 }
 
+void
 getout ()  {
 	/* go to bottom of screen */
 	if (tflag)  {

@@ -57,11 +57,11 @@ static char sccsid[] = "@(#)level.c	8.1 (Berkeley) 5/31/93";
 short cur_level = 0;
 short max_level = 1;
 short cur_room;
-char *new_level_message = 0;
+const char *new_level_message = 0;
 short party_room = NO_ROOM;
 short r_de;
 
-long level_points[MAX_EXP_LEVEL] = {
+const long level_points[MAX_EXP_LEVEL] = {
 		  10L,
 		  20L,
 		  40L,
@@ -572,7 +572,7 @@ boolean do_rec_de;
 
 recursive_deadend(rn, offsets, srow, scol)
 short rn;
-short *offsets;
+const short *offsets;
 short srow, scol;
 {
 	short i, de;

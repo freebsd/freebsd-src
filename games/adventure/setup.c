@@ -59,14 +59,13 @@ static char sccsid[] = "@(#)setup.c	8.1 (Berkeley) 5/31/93";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <err.h>
 #include "hdr.h"        /* SEED lives in there; keep them coordinated. */
 
-#define USAGE "Usage: setup file > data.c (file is typically glorkz)\n"
+#define USAGE "Usage: setup file > data.c (file is typically glorkz)"
 
 #define YES 1
 #define NO  0
-
-void fatal();
 
 #define LINE 10         /* How many values do we get on a line? */
 
@@ -77,10 +76,10 @@ char *argv[];
 	FILE *infile;
 	int c, count, linestart;
 
-	if (argc != 2) fatal(USAGE);
+	if (argc != 2) errx(1, USAGE);
 
 	if ((infile = fopen(argv[1], "r")) == NULL)
-		fatal("Can't read file %s.\n", argv[1]);
+		err(1, "Can't read file %s", argv[1]);
 	puts("/*\n * data.c: created by setup from the ascii data file.");
 	puts(SIG1);
 	puts(SIG2);
@@ -117,12 +116,4 @@ char *argv[];
 	puts("\n\t0\n};");
 	fclose(infile);
 	exit(0);
-}
-
-
-void fatal(format, arg)
-char *format;
-{
-	fprintf(stderr, format, arg);
-	exit(1);
 }

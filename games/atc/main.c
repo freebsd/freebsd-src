@@ -58,17 +58,18 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #include "pathnames.h"
 
 main(ac, av)
+	int	ac;
 	char	*av[];
 {
 	int                     seed = 0;
 	int			f_usage = 0, f_list = 0, f_showscore = 0;
 	int			f_printpath = 0;
-	char			*file = NULL;
+	const char		*file = NULL;
 	char			*name, *ptr;
 #ifdef BSD
 	struct itimerval	itv;
 #endif
-	extern char		*default_game(), *okay_game();
+	extern const char	*default_game(), *okay_game();
 	extern void		log_score(), quit(), update();
 
 	start_time = time(0);
@@ -221,7 +222,7 @@ main(ac, av)
 }
 
 read_file(s)
-	char	*s;
+	const char	*s;
 {
 	extern FILE	*yyin;
 	int		retval;
@@ -241,7 +242,7 @@ read_file(s)
 		return (0);
 }
 
-char	*
+const char	*
 default_game()
 {
 	FILE		*fp;
@@ -266,13 +267,14 @@ default_game()
 	return (file);
 }
 
-char	*
+const char	*
 okay_game(s)
 	char	*s;
 {
 	FILE		*fp;
 	static char	file[256];
-	char		*ret = NULL, line[256], games[256];
+	const char	*ret = NULL;
+	char		line[256], games[256];
 
 	strcpy(games, _PATH_GAMES);
 	strcat(games, GAMES);

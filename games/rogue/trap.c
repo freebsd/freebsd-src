@@ -56,7 +56,7 @@ trap traps[MAX_TRAPS];
 boolean trap_door = 0;
 short bear_trap = 0;
 
-char *trap_strings[TRAPS * 2] = {
+const char *const trap_strings[TRAPS * 2] = {
 	"trap door",
 			"you fell down a trap",
 	"bear trap",
@@ -72,7 +72,7 @@ char *trap_strings[TRAPS * 2] = {
 };
 
 extern short cur_level, party_room;
-extern char *new_level_message;
+extern const char *new_level_message;
 extern boolean interrupted;
 extern short ring_exp;
 extern boolean sustain_strength;

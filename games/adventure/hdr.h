@@ -53,15 +53,16 @@
 
 /* hdr.h: included by c advent files */
 #include <sys/types.h>
+#include <signal.h>
 
 int datfd;                              /* message file descriptor      */
-int delhit;
+volatile sig_atomic_t delhit;
 int yea;
 extern char data_file[];                /* Virtual data file            */
 
 #define TAB     011
 #define LF      012
-#define FLUSHLINE while (getchar()!='\n')
+#define FLUSHLINE do { int flushline_ch; while ((flushline_ch = getchar()) != EOF && flushline_ch != '\n'); } while (0)
 #define FLUSHLF   while (next()!=LF)
 
 int loc,newloc,oldloc,oldlc2,wzdark,gaveup,kq,k,k2;

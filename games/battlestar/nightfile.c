@@ -180,7 +180,7 @@ face downward on the carpet clutching his chest.*\n\
 The hallway leads -.**\n" },
 	{ "You are in the dining hall.",
 	0, 30, 31, 23, 0, 0, 0, 0,
-"This was the seen of a mass suicide. Hundreds of ambassadors and assorted\n\
+"This was the scene of a mass suicide. Hundreds of ambassadors and assorted\n\
 dignitaries sit slumped over their breakfast cereal. I suppose the news\n\
 of the cylon attack killed them. There is a strange chill in this room.  I\n\
 would not linger here. * The kitchen is +. Entrances + and +.\n" },
@@ -433,7 +433,7 @@ The very tip of the island is +.*\n" },
 	{ "You are lost in a sea of fog.",
 	97, 104, 97, 97, 97, 1, 0, 1,
 "What have you gotten us into?\n\
-I cant see a thing! ****\n" },
+I can't see a thing! ****\n" },
 	{ "You are on a gravel wash.",
 	125, 126, 127, 128, 84, 0, 0, 0,
 "It is very dark here.  A cool breeze is blowing from +.  No moonlight can\n\
@@ -512,7 +512,7 @@ small cave entrance below.  Large rocks would usually churn the waves\n\
 asunder.***  The beach goes -.\n" },
 	{ "You are on the coast road.",
 	158, 161, 162, 91, 79, 0, 0, 0,
-"The road is beginning to turn slightly -.  I can here the surf +.  The road\n\
+"The road is beginning to turn slightly -.  I can hear the surf +.  The road\n\
 continues into the dark forest +.*\n" },
 	{ "The road winds deeper into the trees.",
 	163, 142, 91, 164, 79, 0, 0, 0,

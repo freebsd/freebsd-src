@@ -45,7 +45,8 @@
  * For more info on this and all of my stuff, mail edjames@berkeley.edu.
  */
 
-extern char		GAMES[], *file;
+extern char		GAMES[];
+extern const char	*file;
 
 extern int		clck, safe_planes, start_time, test_mode;
 

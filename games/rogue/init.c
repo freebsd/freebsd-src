@@ -65,8 +65,8 @@ boolean ask_quit = 1;
 boolean no_skull = 0;
 boolean passgo = 0;
 boolean flush = 1;
-char *error_file = "rogue.esave";
-char *byebye_string = "Okay, bye bye!";
+const char *error_file = "rogue.esave";
+const char *byebye_string = "Okay, bye bye!";
 
 extern char *fruit;
 extern char *save_file;
@@ -77,7 +77,7 @@ init(argc, argv)
 int argc;
 char *argv[];
 {
-	char *pn;
+	const char *pn;
 	int seed;
 
 	pn = md_gln();
@@ -173,7 +173,7 @@ player_init()
 }
 
 clean_up(estr)
-char *estr;
+const char *estr;
 {
 	if (save_is_interactive) {
 		if (init_curses) {
@@ -310,7 +310,7 @@ char **s, *e;
 boolean add_blank;
 {
 	short i = 0;
-	char *t;
+	const char *t;
 
 	t = e;
 
@@ -332,7 +332,8 @@ boolean add_blank;
 }
 
 init_str(str, dflt)
-char **str, *dflt;
+char **str;
+const char *dflt;
 {
 	if (!(*str)) {
 		*str = md_malloc(MAX_OPT_LEN + 2);

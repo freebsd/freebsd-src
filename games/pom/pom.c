@@ -57,7 +57,9 @@ static const char sccsid[] = "@(#)pom.c       8.1 (Berkeley) 5/31/93";
 #include <stdio.h>
 #include <math.h>
 
-#define	PI	  3.141592654
+#ifndef	PI
+#define	PI	  3.14159265358979323846
+#endif
 #define	EPOCH	  85
 #define	EPSILONg  279.611371	/* solar ecliptic long at EPOCH */
 #define	RHOg	  282.680403	/* solar ecliptic long of perigee at EPOCH */

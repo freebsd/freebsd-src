@@ -63,7 +63,7 @@ mon_hit(monster)
 register object *monster;
 {
 	short damage, hit_chance;
-	char *mn;
+	const char *mn;
 	float minus;
 
 	if (fight_monster && (monster != fight_monster)) {
@@ -175,7 +175,7 @@ short other;
 }
 
 get_damage(ds, r)
-char *ds;
+const char *ds;
 boolean r;
 {
 	register i = 0, j, n, d, total = 0;
@@ -201,7 +201,7 @@ boolean r;
 }
 
 get_w_damage(obj)
-object *obj;
+const object *obj;
 {
 	char new_damage[12];
 	register to_hit, damage;
@@ -220,7 +220,7 @@ object *obj;
 }
 
 get_number(s)
-register char *s;
+const char *s;
 {
 	register i = 0;
 	register total = 0;
@@ -234,7 +234,7 @@ register char *s;
 
 long
 lget_number(s)
-char *s;
+const char *s;
 {
 	short i = 0;
 	long total = 0;
@@ -247,7 +247,7 @@ char *s;
 }
 
 to_hit(obj)
-object *obj;
+const object *obj;
 {
 	if (!obj) {
 		return(1);
@@ -289,7 +289,7 @@ mon_damage(monster, damage)
 object *monster;
 short damage;
 {
-	char *mn;
+	const char *mn;
 	short row, col;
 
 	monster->hp_to_kill -= damage;
@@ -423,7 +423,7 @@ short allow_off_screen;
 }
 
 get_hit_chance(weapon)
-object *weapon;
+const object *weapon;
 {
 	short hit_chance;
 
@@ -434,7 +434,7 @@ object *weapon;
 }
 
 get_weapon_damage(weapon)
-object *weapon;
+const object *weapon;
 {
 	short damage;
 

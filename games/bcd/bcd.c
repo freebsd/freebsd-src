@@ -127,6 +127,9 @@ main(argc, argv)
 {
 	char cardline[80];
 
+	/* revoke setgid privileges */
+	setgid(getgid());
+
 	/*
 	 * The original bcd prompts with a "%" when reading from stdin,
 	 * but this seems kind of silly.  So this one doesn't.

@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)nightobjs.c	8.1 (Berkeley) 5/31/93";
 
 #include "externs.h"
 
-struct objs nightobjs[] = {
+const struct objs nightobjs[] = {
 	{ 218,	PAJAMAS },
 	{ 235,	NATIVE },
 	{ 92,	PAPAYAS },

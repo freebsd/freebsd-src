@@ -221,7 +221,7 @@ struct id {
 
 struct obj {				/* comment is monster meaning */
 	unsigned long m_flags;	/* monster flags */
-	char *damage;			/* damage it does */
+	const char *damage;		/* damage it does */
 	short quantity;			/* hit points to kill */
 	short ichar;			/* 'A' is for aquatar */
 	short kill_exp;			/* exp for killing it */
@@ -427,10 +427,10 @@ extern object level_monsters;
 
 /* external routine declarations.
  */
-char *mon_name();
-char *get_ench_color();
-char *name_of();
-char *md_gln();
+const char *mon_name();
+const char *get_ench_color();
+const char *name_of();
+const char *md_gln();
 char *md_getenv();
 char *md_malloc();
 boolean is_direction();

@@ -39,9 +39,9 @@ static char sccsid[] = "@(#)crc.c	8.1 (Berkeley) 5/31/93";
 static char ORIGINAL_sccsid[] = "@(#)crc.c	5.2 (Berkeley) 4/4/91";
 #endif /* not lint */
 
-typedef	unsigned long	u_long;
+#include <sys/types.h>
 
-u_long crctab[] = {
+const u_long crctab[] = {
 	0x7fffffff,
 	0x77073096,  0xee0e612c,  0x990951ba,  0x076dc419,  0x706af48f,
 	0xe963a535,  0x9e6495a3,  0x0edb8832,  0x79dcb8a4,  0xe0d5e91e,
@@ -105,7 +105,7 @@ u_long crctab[] = {
  */
 
 u_long crcval;
-int step;
+u_int step;
 
 crc_start()
 {
@@ -113,11 +113,11 @@ crc_start()
 }
 
 u_long crc(ptr, nr) /* Process nr bytes at a time; ptr points to them */
-char *ptr;
+const char *ptr;
 int nr;
 {
 	register int i;
-	register char *p;
+	register const char *p;
 
 	while (nr > 0)
 		for (p = ptr; nr--; ++p)

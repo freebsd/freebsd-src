@@ -37,11 +37,12 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 5/31/93";
 
 #include "externs.h"
 
+int
 card(array, size)		/* for beenthere, injuries */
-	register char *array;
+	const char *array;
 	int size;
 {
-	register char *end = array + size;
+	const char *end = array + size;
 	register int i = 0;
 
 	while (array < end)
@@ -50,8 +51,9 @@ card(array, size)		/* for beenthere, injuries */
 	return (i);
 }
 
+int
 ucard(array)
-	register unsigned *array;
+	const unsigned int *array;
 {
 	register int j = 0, n;
 

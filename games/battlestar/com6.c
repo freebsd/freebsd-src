@@ -123,7 +123,7 @@ char ch;
 	sigsetmask(s);
 }
 
-char *
+const char *
 rate()
 {
 	int score;
