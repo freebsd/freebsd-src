@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.126 1999/08/02 21:34:46 imp Exp $
+ * $Id: vfs_syscalls.c,v 1.127 1999/08/03 17:07:04 imp Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1893,11 +1893,14 @@ setfflags(p, vp, flags)
 	struct vattr vattr;
 
 	/*
-	 * Don't allow setting of flags on devices for non-root users.
+	 * Prevent non-root users from setting flags on devices.  When
+	 * a device is reused, users can retain ownership of the device
+	 * if they are allowed to set flags and programs assume that
+	 * chown can't fail when done as root.
 	 */
-	if ((vp->va_type == VCHR || vp->va_type == VBLK) && 
-	    (error = suser_xxx(p->ucred, p, PRISON_ROOT)))
-		return error;
+	if ((vp->v_type == VCHR || vp->v_type == VBLK) && 
+	    ((error = suser_xxx(p->p_ucred, p, PRISON_ROOT)) != 0))
+		return (error);
 
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
@@ -1905,7 +1908,7 @@ setfflags(p, vp, flags)
 	vattr.va_flags = flags;
 	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
 	VOP_UNLOCK(vp, 0, p);
-	return error;
+	return (error);
 }
 
 /*
