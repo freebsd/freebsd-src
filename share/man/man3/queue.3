@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
-.\"	$Id$
+.\"	$Id: queue.3,v 1.10 1997/03/07 03:27:54 jmg Exp $
 .\"
 .Dd January 24, 1994
 .Dt QUEUE 3
@@ -826,7 +826,7 @@ CIRCLEQ_HEAD(circleq, entry) head;
 struct circleq *headp;			/* Circular queue head. */
 struct entry {
 	...
-	CIRCLEQ_ENTRY entries;		/* Circular queue. */
+	CIRCLEQ_ENTRY(entry) entries;	/* Circular queue. */
 	...
 } *n1, *n2, *np;
 
