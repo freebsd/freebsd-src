@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.7 1995/05/18 16:57:52 jkh Exp $
+ * $Id: misc.c,v 1.8 1995/05/23 18:06:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -234,8 +234,37 @@ Mount(char *mountp, void *dev)
     msgDebug("mount %s %s\n", device, mountpoint); 
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
-	msgConfirm("Error mounting %s on %s : %s\n",
-		   device, mountpoint, strerror(errno));
+	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
+	return 1;
+    }
+    return 0;
+}
+
+int
+Mount_DOS(char *mountp, void *dev)
+{
+    struct ufs_args ufsargs;
+    char device[80];
+    char mountpoint[FILENAME_MAX];
+
+    if (*((char *)dev) != '/') {
+    	sprintf(device, "/mnt/dev/%s", (char *)dev);
+	sprintf(mountpoint, "/mnt%s", mountp);
+    }
+    else {
+	strcpy(device, dev);
+	strcpy(mountpoint, mountp);
+    }
+    memset(&ufsargs,0,sizeof ufsargs);
+
+    if (Mkdir(mountpoint, NULL)) {
+	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	return 1;
+    }
+    msgDebug("mount %s %s\n", device, mountpoint); 
+    ufsargs.fspec = device;
+    if (mount(MOUNT_MSDOS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
+	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
 	return 1;
     }
     return 0;
