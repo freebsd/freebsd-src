@@ -751,15 +751,16 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
 
 	if (object) {
-		GIANT_REQUIRED;
 		/*
 		 * When object is non-NULL, it could be shared with another
 		 * process.  We have to set or clear OBJ_ONEMAPPING 
 		 * appropriately.
 		 */
+		mtx_lock(&Giant);
 		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		}
+		mtx_unlock(&Giant);
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
@@ -846,10 +847,11 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 #endif
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
-		GIANT_REQUIRED;
+		mtx_lock(&Giant);
 		pmap_object_init_pt(map->pmap, start,
 				    object, OFF_TO_IDX(offset), end - start,
 				    cow & MAP_PREFAULT_PARTIAL);
+		mtx_unlock(&Giant);
 	}
 
 	return (KERN_SUCCESS);
@@ -869,7 +871,6 @@ vm_map_findspace(
 	vm_map_entry_t entry, next;
 	vm_offset_t end;
 
-	GIANT_REQUIRED;
 	if (start < map->min_offset)
 		start = map->min_offset;
 	if (start > map->max_offset)
@@ -913,7 +914,9 @@ vm_map_findspace(
 	if (map == kernel_map) {
 		vm_offset_t ksize;
 		if ((ksize = round_page(start + length)) > kernel_vm_end) {
+			mtx_lock(&Giant);
 			pmap_growkernel(ksize);
+			mtx_unlock(&Giant);
 		}
 	}
 	return (0);
@@ -936,8 +939,6 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 {
 	vm_offset_t start;
 	int result, s = 0;
-
-	GIANT_REQUIRED;
 
 	start = *addr;
 
