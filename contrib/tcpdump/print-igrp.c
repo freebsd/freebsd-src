@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.11 1999/11/21 09:36:53 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-igrp.c,v 1.15 2000/09/29 04:58:40 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,11 +35,6 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -47,6 +42,7 @@ static const char rcsid[] =
 #include "interface.h"
 #include "addrtoname.h"
 #include "igrp.h"
+#include "ip.h"
 #include "extract.h"			/* must come after interface.h */
 
 static void
@@ -107,8 +103,8 @@ igrp_print(register const u_char *bp, u_int length, register const u_char *bp2)
 	next = EXTRACT_16BITS(&hdr->ig_nx);
 
 	(void)printf(" %s V%d edit=%d AS=%d (%d/%d/%d)",
-	    tok2str(op2str, "op-#%d", hdr->ig_op),
-	    hdr->ig_v,
+	    tok2str(op2str, "op-#%d", IGRP_OP(hdr->ig_vop)),
+	    IGRP_V(hdr->ig_vop),
 	    hdr->ig_ed,
 	    EXTRACT_16BITS(&hdr->ig_as),
 	    nint,

@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.2 1999/11/21 09:36:56 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.11 2000/12/22 22:45:11 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -34,27 +34,16 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
 
 #include <stdio.h>
 #include <pcap.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "ether.h"
 #include "lane.h"
-
-static const u_char *packetp;
-static const u_char *snapend;
 
 static inline void
 lane_print(register const u_char *bp, int length)
@@ -123,10 +112,11 @@ lane_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	extracted_ethertype = 0;
 	if (ether_type < ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, ep->h_source,ep->h_dest)==0) {
+		if (llc_print(p, length, caplen, ep->h_source, ep->h_dest,
+		    &extracted_ethertype) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)
-				lane_print((u_char *)ep, length);
+				lane_print((u_char *)ep, length + sizeof(*ep));
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
@@ -134,7 +124,8 @@ lane_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 			if (!xflag && !qflag)
 				default_print(p, caplen);
 		}
-	} else if (ether_encap_print(ether_type, p, length, caplen) == 0) {
+	} else if (ether_encap_print(ether_type, p, length, caplen,
+	    &extracted_ethertype) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
 			lane_print((u_char *)ep, length + sizeof(*ep));

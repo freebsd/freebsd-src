@@ -45,7 +45,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.39 1999/12/22 06:27:22 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-snmp.c,v 1.44 2000/11/10 17:34:10 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -56,9 +56,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <ctype.h>
-#ifdef HAVE_MEMORY_H
-#include <memory.h>
-#endif
 #include <stdio.h>
 #include <string.h>
 
@@ -188,7 +185,8 @@ char *ErrorStatus[] = {
 };
 #define DECODE_ErrorStatus(e) \
 	( e >= 0 && e < sizeof(ErrorStatus)/sizeof(ErrorStatus[0]) \
-	? ErrorStatus[e] : (sprintf(errbuf, "err=%u", e), errbuf))
+		? ErrorStatus[e] \
+		: (snprintf(errbuf, sizeof(errbuf), "err=%u", e), errbuf))
 
 /*
  * generic-trap values in the SNMP Trap-PDU
@@ -205,7 +203,8 @@ char *GenericTrap[] = {
 };
 #define DECODE_GenericTrap(t) \
 	( t >= 0 && t < sizeof(GenericTrap)/sizeof(GenericTrap[0]) \
-	? GenericTrap[t] : (sprintf(buf, "gt=%d", t), buf))
+		? GenericTrap[t] \
+		: (snprintf(buf, sizeof(buf), "gt=%d", t), buf))
 
 /*
  * ASN.1 type class table
@@ -429,13 +428,13 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 	elem->form = form;
 	elem->class = class;
 	elem->id = id;
-	if (vflag)
+	if (vflag > 1)
 		printf("|%.2x", *p);
 	p++; len--; hdr = 1;
 	/* extended tag field */
 	if (id == ASN_ID_EXT) {
 		for (id = 0; *p & ASN_BIT8 && len > 0; len--, hdr++, p++) {
-			if (vflag)
+			if (vflag > 1)
 				printf("|%.2x", *p);
 			id = (id << 7) | (*p & ~ASN_BIT8);
 		}
@@ -453,7 +452,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 		return -1;
 	}
 	elem->asnlen = *p;
-	if (vflag)
+	if (vflag > 1)
 		printf("|%.2x", *p);
 	p++; len--; hdr++;
 	if (elem->asnlen & ASN_BIT8) {
@@ -464,7 +463,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			return -1;
 		}
 		for (; noct-- > 0; len--, hdr++) {
-			if (vflag)
+			if (vflag > 1)
 				printf("|%.2x", *p);
 			elem->asnlen = (elem->asnlen << ASN_SHIFT8) | *p++;
 		}
@@ -654,7 +653,7 @@ asn1_print(struct be *elem)
 	switch (elem->type) {
 
 	case BE_OCTET:
-		for (i = asnlen; i-- > 0; p++);
+		for (i = asnlen; i-- > 0; p++)
 			printf("_%.2x", *p);
 		break;
 
@@ -730,11 +729,12 @@ asn1_print(struct be *elem)
 		}
 		d += (elem->data.uns64.low & 0xfffff000);
 #if 0 /*is looks illegal, but what is the intention???*/
-		sprintf(first, "%.f", d);
+		snprintf(first, sizeof(first), "%.f", d);
 #else
-		sprintf(first, "%f", d);
+		snprintf(first, sizeof(first), "%f", d);
 #endif
-		sprintf(last, "%5.5d", elem->data.uns64.low & 0xfff);
+		snprintf(last, sizeof(last), "%5.5d",
+		    elem->data.uns64.low & 0xfff);
 		for (carry = 0, cpf = first+strlen(first)-1, cpl = last+4;
 		     cpl >= last;
 		     cpf--, cpl--) {
@@ -837,12 +837,31 @@ asn1_decode(u_char *p, u_int length)
 
 #ifdef LIBSMI
 
+#if (SMI_VERSION_MAJOR == 0 && SMI_VERSION_MINOR >= 2) || (SMI_VERSION_MAJOR > 0)
+#define LIBSMI_API_V2
+#else
+#define LIBSMI_API_V1
+#endif
+
+#ifdef LIBSMI_API_V1
+/* Some of the API revisions introduced new calls that can be
+ * represented by macros.
+ */
+#define	smiGetNodeType(n)	smiGetType((n)->typemodule, (n)->typename)
+
+#else
+/* These calls in the V1 API were removed in V2. */
+#define	smiFreeRange(r)
+#define	smiFreeType(r)
+#define	smiFreeNode(r)
+#endif
+
 struct smi2be {
     SmiBasetype basetype;
     int be;
 };
 
-struct smi2be smi2betab[] = {
+static struct smi2be smi2betab[] = {
     { SMI_BASETYPE_INTEGER32,		BE_INT },
     { SMI_BASETYPE_OCTETSTRING,		BE_STR },
     { SMI_BASETYPE_OCTETSTRING,		BE_INETADDR },
@@ -899,7 +918,7 @@ static int smi_check_type(SmiBasetype basetype, int be)
 static int smi_check_a_range(SmiType *smiType, SmiRange *smiRange,
 			     struct be *elem)
 {
-    int ok;
+    int ok = 1;
     
     switch (smiType->basetype) {
     case SMI_BASETYPE_OBJECTIDENTIFIER:
@@ -947,22 +966,34 @@ static int smi_check_range(SmiType *smiType, struct be *elem)
         SmiRange *smiRange;
 	int ok = 1;
 
+#ifdef LIBSMI_API_V1
 	for (smiRange = smiGetFirstRange(smiType->module, smiType->name);
+#else
+	for (smiRange = smiGetFirstRange(smiType);
+#endif
 	     smiRange;
 	     smiRange = smiGetNextRange(smiRange)) {
 
 	    ok = smi_check_a_range(smiType, smiRange, elem);
-	    
+
 	    if (ok) {
 		smiFreeRange(smiRange);
 		break;
 	    }
 	}
 
-	if (ok && smiType->parentmodule && smiType->parentname) {
+	if (ok
+#ifdef LIBSMI_API_V1
+		&& smiType->parentmodule && smiType->parentname
+#endif
+		) {
 	    SmiType *parentType;
+#ifdef LIBSMI_API_V1
 	    parentType = smiGetType(smiType->parentmodule,
 				    smiType->parentname);
+#else
+	    parentType = smiGetParentType(smiType);
+#endif
 	    if (parentType) {
 		ok = smi_check_range(parentType, elem);
 		smiFreeType(parentType);
@@ -985,7 +1016,11 @@ static SmiNode *smi_print_variable(struct be *elem)
 		return NULL;
 	}
 	if (vflag) {
-	        fputs(smiNode->module, stdout);
+#ifdef LIBSMI_API_V1
+		fputs(smiNode->module, stdout);
+#else
+		fputs(smiGetNodeModule(smiNode)->name, stdout);
+#endif
 		fputs("::", stdout);
 	}
 	fputs(smiNode->name, stdout);
@@ -1010,6 +1045,13 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	    return;
 	}
 
+	if (elem->type == BE_NOSUCHOBJECT
+	    || elem->type == BE_NOSUCHINST
+	    || elem->type == BE_ENDOFMIBVIEW) {
+	    asn1_print(elem);
+	    return;
+	}
+
 	if (NOTIFY_CLASS(pduid) && smiNode->access < SMI_ACCESS_NOTIFY) {
 	    fputs("[notNotifyable]", stdout);
 	}
@@ -1027,14 +1069,22 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	    fputs("[noAccess]", stdout);
 	}
 
-	if (! smi_check_type(smiNode->basetype, elem->type)) {
-	    fputs("[wrongType]", stdout);
-	}
-
+#ifdef LIBSMI_API_V1
 	smiType = smiGetType(smiNode->typemodule, smiNode->typename);
+#else
+	smiType = smiGetNodeType(smiNode);
+#endif
 	if (! smiType) {
 	    asn1_print(elem);
 	    return;
+	}
+
+#ifdef LIBSMI_API_V1
+	if (! smi_check_type(smiNode->basetype, elem->type)) {
+#else
+	if (! smi_check_type(smiType->basetype, elem->type)) {
+#endif
+	    fputs("[wrongType]", stdout);
 	}
 
 	if (! smi_check_range(smiType, elem)) {
@@ -1051,15 +1101,18 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	
 	switch (elem->type) {
 	case BE_OID:
-	        if (smiNode->basetype == SMI_BASETYPE_BITS
-		    && smiNode->typemodule && smiNode->typename) {
+	        if (smiType->basetype == SMI_BASETYPE_BITS) {
 		        /* print bit labels */
 		} else {
 		        smi_decode_oid(elem, oid, &oidlen);
 			smiNode = smiGetNodeByOID(oidlen, oid);
 			if (smiNode) {
 			        if (vflag) {
-				        fputs(smiNode->module, stdout);
+#ifdef LIBSMI_API_V1
+					fputs(smiNode->module, stdout);
+#else
+					fputs(smiGetNodeModule(smiNode)->name, stdout);
+#endif
 					fputs("::", stdout);
 				}
 				fputs(smiNode->name, stdout);
@@ -1075,10 +1128,15 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 		break;
 
 	case BE_INT:
+#ifdef LIBSMI_API_V1
 	        if (smiNode->basetype == SMI_BASETYPE_ENUM
 		    && smiNode->typemodule && smiNode->typename) {
 		        for (nn = smiGetFirstNamedNumber(smiNode->typemodule,
 							 smiNode->typename);
+#else
+	        if (smiType->basetype == SMI_BASETYPE_ENUM) {
+		        for (nn = smiGetFirstNamedNumber(smiType);
+#endif
 			     nn;
 			     nn = smiGetNextNamedNumber(nn)) {
 			         if (nn->value.value.integer32
@@ -1098,7 +1156,7 @@ static void smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
 	}
 
 	if (smiType) {
-	        smiFreeType(smiType);
+		smiFreeType(smiType);
 	}
 }
 #endif
@@ -1244,7 +1302,8 @@ snmppdu_print(u_char pduid, const u_char *np, u_int length)
 		asn1_print(&elem);
 		return;
 	}
-	/* ignore the reqId */
+	if (vflag)
+		printf("R=%d ", elem.data.integer);
 	length -= count;
 	np += count;
 
@@ -1411,7 +1470,11 @@ pdu_print(const u_char *np, u_int length, int version)
 	}
 	if (count < length)
 		printf("[%d extra after PDU]", length - count);
+	if (vflag) {
+		fputs("{ ", stdout);
+	}
 	asn1_print(&pdu);
+	fputs(" ", stdout);
 	/* descend into PDU */
 	length = pdu.asnlen;
 	np = (u_char *)pdu.data.raw;
@@ -1442,6 +1505,10 @@ pdu_print(const u_char *np, u_int length, int version)
 	case REPORT:
 		snmppdu_print(pdu.id, np, length);
 		break;
+	}
+
+	if (vflag) {
+		fputs("} ", stdout);
 	}
 }
 
@@ -1646,6 +1713,10 @@ v3msg_print(const u_char *np, u_int length)
 	length = elem.asnlen;
 	np = (u_char *)elem.data.raw;
 
+	if (vflag) {
+		fputs("{ ", stdout);
+	}
+
 	/* msgID (INTEGER) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
 		return;
@@ -1710,9 +1781,13 @@ v3msg_print(const u_char *np, u_int length)
 	if (count < length)
 		printf("[%d extra after message SEQ]", length - count);
 
+	if (vflag) {
+		fputs("} ", stdout);
+	}
+
 	if (model == 3) {
 	    if (vflag) {
-		fputs("USM ", stdout);
+		fputs("{ USM ", stdout);
 	    }
 	} else {
 	    printf("[security model %d]", model);
@@ -1735,13 +1810,20 @@ v3msg_print(const u_char *np, u_int length)
 
 	if (model == 3) {
 	    usm_print(elem.data.str, elem.asnlen);
+	    if (vflag) {
+		fputs("} ", stdout);
+	    }
 	}
 
 	if (vflag) {
-	    fputs("ScopedPDU ", stdout);
+	    fputs("{ ScopedPDU ", stdout);
 	}
 
 	scopedpdu_print(np, length, 3);
+
+	if (vflag) {
+		fputs("} ", stdout);
+	}
 }
 
 /*
@@ -1792,7 +1874,7 @@ snmp_print(const u_char *np, u_int length)
 	case SNMP_VERSION_2:
 	case SNMP_VERSION_3:
 	        if (vflag)
-		        printf("%s ", SnmpVersion[elem.data.integer]);
+		        printf("{ %s ", SnmpVersion[elem.data.integer]);
 		break;
 	default:
 	        printf("[version = %d]", elem.data.integer);
@@ -1813,5 +1895,9 @@ snmp_print(const u_char *np, u_int length)
 	default:
 	        printf("[version = %d]", elem.data.integer);
 		break;
+	}
+
+	if (vflag) {
+		fputs("} ", stdout);
 	}
 }

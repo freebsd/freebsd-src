@@ -1,7 +1,7 @@
 /*
  * IPX protocol formats 
  *
- * @(#) $Header: /tcpdump/master/tcpdump/ipx.h,v 1.1.1.1 1999/10/07 23:47:10 mcr Exp $
+ * @(#) $Header: /tcpdump/master/tcpdump/ipx.h,v 1.2 2000/10/03 02:54:56 itojun Exp $
  */
 
 /* well-known sockets */
@@ -13,16 +13,16 @@
 
 /* IPX transport header */
 struct ipxHdr {
-    u_short	cksum;		/* Checksum */
-    u_short	length;		/* Length, in bytes, including header */
-    u_char	tCtl;		/* Transport Control (i.e. hop count) */
-    u_char	pType;		/* Packet Type (i.e. level 2 protocol) */
-    u_short	dstNet[2];	/* destination net */
-    u_char	dstNode[6];	/* destination node */
-    u_short	dstSkt;		/* destination socket */
-    u_short	srcNet[2];	/* source net */
-    u_char	srcNode[6];	/* source node */
-    u_short	srcSkt;		/* source socket */
+    u_int16_t	cksum;		/* Checksum */
+    u_int16_t	length;		/* Length, in bytes, including header */
+    u_int8_t	tCtl;		/* Transport Control (i.e. hop count) */
+    u_int8_t	pType;		/* Packet Type (i.e. level 2 protocol) */
+    u_int16_t	dstNet[2];	/* destination net */
+    u_int8_t	dstNode[6];	/* destination node */
+    u_int16_t	dstSkt;		/* destination socket */
+    u_int16_t	srcNet[2];	/* source net */
+    u_int8_t	srcNode[6];	/* source node */
+    u_int16_t	srcSkt;		/* source socket */
 } ipx_hdr_t;
 
 #define ipxSize	30
