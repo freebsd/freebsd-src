@@ -53,7 +53,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>		/* B_READ and B_RAW */
 #include <sys/malloc.h>
 #ifdef PC98
 #include <machine/md_var.h>
@@ -277,7 +276,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		newaddr = dma_bouncebuf[chan];
 
 		/* copy bounce buffer on write */
-		if (!(flags & B_READ))
+		if (!(flags & ISADMA_READ))
 			bcopy(addr, newaddr, nbytes);
 		addr = newaddr;
 	}
@@ -285,7 +284,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	/* translate to physical */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
 
-	if (flags & B_RAW) {
+	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
 	} else { 
 	    dma_auto_mode &= ~(1 << chan);
@@ -305,15 +304,15 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 #endif
 		/* set dma channel mode, and reset address ff */
 
-		/* If B_RAW flag is set, then use autoinitialise mode */
-		if (flags & B_RAW) {
-		  if (flags & B_READ)
+		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
+		if (flags & ISADMA_RAW) {
+		  if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_WRITE|chan);
 		  else
 			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_READ|chan);
 		}
 		else
-		if (flags & B_READ)
+		if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|chan);
 		else
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_READ|chan);
@@ -344,15 +343,15 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		 */
 		/* set dma channel mode, and reset address ff */
 
-		/* If B_RAW flag is set, then use autoinitialise mode */
-		if (flags & B_RAW) {
-		  if (flags & B_READ)
+		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
+		if (flags & ISADMA_RAW) {
+		  if (flags & ISADMA_READ)
 			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_WRITE|(chan&3));
 		  else
 			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_READ|(chan&3));
 		}
 		else
-		if (flags & B_READ)
+		if (flags & ISADMA_READ)
 			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|(chan&3));
 		else
 			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_READ|(chan&3));
@@ -379,7 +378,7 @@ void
 isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 {  
 #ifdef PC98
-	if (flags & B_READ) {
+	if (flags & ISADMA_READ) {
 		/* cache flush only after reading 92/12/9 by A.Kojima */
 		if (need_post_dma_flush)
 			invd();
@@ -408,7 +407,7 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 
 	if (dma_bounced & (1 << chan)) {
 		/* copy bounce buffer on read */
-		if (flags & B_READ)
+		if (flags & ISADMA_READ)
 			bcopy(dma_bouncebuf[chan], addr, nbytes);
 
 		dma_bounced &= ~(1 << chan);

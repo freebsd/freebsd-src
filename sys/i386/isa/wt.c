@@ -148,7 +148,7 @@ typedef struct {
 
 	void *dmavaddr;                 /* virtual address of dma i/o buffer */
 	unsigned dmatotal;              /* size of i/o buffer */
-	unsigned dmaflags;              /* i/o direction, B_READ or B_WRITE */
+	unsigned dmaflags;              /* i/o direction, ISADMA_READ or ISADMA_WRITE */
 	unsigned dmacount;              /* resulting length of dma i/o */
 
 	wtstatus_t error;               /* status of controller */
@@ -566,7 +566,7 @@ wtstrategy (struct buf *bp)
 
 	t->flags &= ~TPEXCEP;
 	s = splbio ();
-	if (wtstart (t, bp->b_flags, bp->b_data, bp->b_bcount)) {
+	if (wtstart (t, bp->b_flags & B_READ ? ISADMA_READ : ISADMA_WRITE, bp->b_data, bp->b_bcount)) {
 		wtwait (t, 0, (bp->b_flags & B_READ) ? "wtread" : "wtwrite");
 		bp->b_resid -= t->dmacount;
 	}
@@ -637,7 +637,7 @@ wtintr (int u)
 	/*
 	 * Clean up dma.
 	 */
-	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < t->bsize) {
+	if ((t->dmaflags & ISADMA_READ) && (t->dmatotal - t->dmacount) < t->bsize) {
 		/* If reading short block, copy the internal buffer
 		 * to the user memory. */
 		isa_dmadone (t->dmaflags, t->buf, t->bsize, t->chan);
@@ -654,7 +654,7 @@ wtintr (int u)
 	 */
 	if (! (s & t->NOEXCEP)) {
 		TRACE (("i/o exception\n"));
-		wtsense (t, 1, (t->dmaflags & B_READ) ? TP_WRP : 0);
+		wtsense (t, 1, (t->dmaflags & ISADMA_READ) ? TP_WRP : 0);
 		if (t->error.err & (TP_EOM | TP_FIL))
 			t->flags |= TPVOL;      /* end of file */
 		else
@@ -801,7 +801,7 @@ wtdma (wtinfo_t *t)
 	if (t->type == ARCHIVE)
 		outb (t->SDMAPORT, 0);          /* set dma */
 
-	if ((t->dmaflags & B_READ) && (t->dmatotal - t->dmacount) < t->bsize)
+	if ((t->dmaflags & ISADMA_READ) && (t->dmatotal - t->dmacount) < t->bsize)
 		/* Reading short block.  Do it through the internal buffer. */
 		isa_dmastart (t->dmaflags, t->buf, t->bsize, t->chan);
 	else

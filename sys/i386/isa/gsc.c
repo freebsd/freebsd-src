@@ -327,7 +327,7 @@ buffer_read(struct gsc_unit *scu)
   outb( scu->clrp, 0 );
   stb = inb( scu->stat );
 
-  isa_dmastart(B_READ, scu->sbuf.base, scu->sbuf.size, scu->channel);
+  isa_dmastart(ISADMA_READ, scu->sbuf.base, scu->sbuf.size, scu->channel);
 
   chan_bit = 0x01 << scu->channel;
 
@@ -347,7 +347,7 @@ buffer_read(struct gsc_unit *scu)
 	break;
     }
   splx(sps);
-  isa_dmadone(B_READ, scu->sbuf.base, scu->sbuf.size, scu->channel);
+  isa_dmadone(ISADMA_READ, scu->sbuf.base, scu->sbuf.size, scu->channel);
   outb( scu->clrp, 0 );
 
   if(res != SUCCESS)
