@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.35 1995/09/03 19:57:25 dyson Exp $
+ *	$Id: vm_page.c,v 1.36 1995/09/03 20:40:43 dyson Exp $
  */
 
 /*
@@ -344,7 +344,7 @@ vm_page_hash(object, offset)
 	vm_object_t object;
 	vm_offset_t offset;
 {
-	return ((unsigned) object + offset / NBPG) & vm_page_hash_mask;
+	return ((unsigned) object + (offset >> PAGE_SHIFT)) & vm_page_hash_mask;
 }
 
 /*
