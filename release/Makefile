@@ -986,9 +986,9 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
-	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader /boot/loader
+	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/bin/boot/loader
 .else
-	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp ${RD}/trees/bin/boot/loader ${RD}/image.${FSIMAGE}/boot
 .endif
 	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if !defined(FDSIZE) || ${FDSIZE} != "BIG"
