@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.40 1995/03/25 08:42:14 davidg Exp $
+ * $Id: vm_object.c,v 1.41 1995/04/09 06:03:49 davidg Exp $
  */
 
 /*
@@ -470,6 +470,7 @@ _vm_object_page_clean(object, start, end, syncio)
 	int pass;
 	int pgcount, s;
 	int allclean;
+	int entireobj;
 
 	if (object->pager == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
@@ -479,8 +480,6 @@ _vm_object_page_clean(object, start, end, syncio)
 		end = round_page(end);
 	}
 
-	object->flags &= ~OBJ_WRITEABLE;
-
 	pass = 0;
 startover:
 	tstart = start;
@@ -488,6 +487,11 @@ startover:
 		tend = object->size;
 	} else {
 		tend = end;
+	}
+	entireobj = 0;
+	if (tstart == 0 && tend == object->size) {
+		object->flags &= ~OBJ_WRITEABLE;
+		entireobj = 1;
 	}
 	/*
 	 * Wait until potential collapse operation is complete
@@ -504,7 +508,7 @@ startover:
 	pgcount = object->resident_page_count;
 
 	if (pass == 0 &&
-		(pgcount < 128 || pgcount > (object->size / (8 * PAGE_SIZE)))) {
+	    (pgcount < 128 || pgcount > (object->size / (8 * PAGE_SIZE)))) {
 		allclean = 1;
 		for(; pgcount && (tstart < tend); tstart += PAGE_SIZE) {
 			p = vm_page_lookup(object, tstart);
@@ -515,8 +519,10 @@ startover:
 			TAILQ_REMOVE(&object->memq, p, listq);
 			TAILQ_INSERT_TAIL(&object->memq, p, listq);
 			splx(s);
-			if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy || p->valid == 0 ||
-			    p->bmapped) {
+			if (entireobj)
+				vm_page_protect(p, VM_PROT_READ);
+			if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy ||
+				p->valid == 0) {
 				continue;
 			}
 			vm_page_test_dirty(p);
@@ -533,7 +539,6 @@ startover:
 			pass = 1;
 			goto startover;
 		}
-		object->flags &= ~OBJ_WRITEABLE;
 		return;
 	}
 
@@ -544,8 +549,11 @@ startover:
 			goto donext;
 		}
 
-		if (p->offset >= tstart && p->offset < tend) {
-			if (p->valid == 0 || p->bmapped) {
+		if (entireobj || (p->offset >= tstart && p->offset < tend)) {
+			if (entireobj)
+				vm_page_protect(p, VM_PROT_READ);
+
+			if (p->valid == 0) {
 				goto donext;
 			}
 
@@ -580,9 +588,11 @@ startover:
 		TAILQ_INSERT_TAIL(&object->memq, p, listq);
 		pgcount--;
 	}
-	if ((!allclean && (pass == 0)) || (object->flags & OBJ_WRITEABLE)) {
+	if ((!allclean && (pass == 0)) ||	
+	    (entireobj && (object->flags & OBJ_WRITEABLE))) {
 		pass = 1;
-		object->flags &= ~OBJ_WRITEABLE;
+		if (entireobj)
+			object->flags &= ~OBJ_WRITEABLE;
 		goto startover;
 	}
 	return;
