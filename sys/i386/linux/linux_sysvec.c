@@ -56,6 +56,7 @@
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+#include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
 MODULE_VERSION(linux, 1);
@@ -300,7 +301,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,  p->p_sigstk.ss_sp, 
 	    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
-	bsd_to_linux_sigset(&p->p_sigmask, &frame.sf_sc.uc_sigmask);
+	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
@@ -621,7 +622,7 @@ linux_rt_sigreturn(p, args)
 	}
 
 	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-	SIGSETOLD(p->p_sigmask, context->sc_mask);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
 
 	/*
