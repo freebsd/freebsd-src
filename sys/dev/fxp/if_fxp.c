@@ -76,11 +76,6 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcidevs.h>
 
-#ifdef __alpha__		/* XXX */
-/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#undef vtophys
-#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
-#endif /* __alpha__ */
 
 #else /* __FreeBSD__ */
 
@@ -103,6 +98,13 @@
 #include <pci/if_fxpvar.h>
 
 #endif /* __NetBSD__ */
+
+#ifdef __alpha__		/* XXX */
+/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
+#undef vtophys
+#define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
+#endif /* __alpha__ */
+
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -541,7 +543,9 @@ fxp_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
         }
-	sc->csr = rman_get_virtual(sc->mem); /* XXX use bus_space */
+
+	sc->sc_st = rman_get_bustag(sc->mem);
+	sc->sc_sh = rman_get_bushandle(sc->mem);
 
 	/*
 	 * Allocate our interrupt.
@@ -1704,20 +1708,21 @@ fxp_add_rfabuf(sc, oldm)
 	 */
 	rfa = mtod(m, struct fxp_rfa *);
 	m->m_data += sizeof(struct fxp_rfa);
-	rfa->size = MCLBYTES - sizeof(struct fxp_rfa) - RFA_ALIGNMENT_FUDGE;
+	rfa->size = (u_int16_t)(MCLBYTES - sizeof(struct fxp_rfa) - RFA_ALIGNMENT_FUDGE);
 
 	/*
 	 * Initialize the rest of the RFA.  Note that since the RFA
 	 * is misaligned, we cannot store values directly.  Instead,
 	 * we use an optimized, inline copy.
 	 */
+
 	rfa->rfa_status = 0;
 	rfa->rfa_control = FXP_RFA_CONTROL_EL;
 	rfa->actual_size = 0;
 
 	v = -1;
-	fxp_lwcopy(&v, &rfa->link_addr);
-	fxp_lwcopy(&v, &rfa->rbd_addr);
+	fxp_lwcopy(&v, (volatile u_int32_t *) rfa->link_addr);
+	fxp_lwcopy(&v, (volatile u_int32_t *) rfa->rbd_addr);
 
 	/*
 	 * If there are other buffers already on the list, attach this
@@ -1728,7 +1733,7 @@ fxp_add_rfabuf(sc, oldm)
 		    RFA_ALIGNMENT_FUDGE);
 		sc->rfa_tailm->m_next = m;
 		v = vtophys(rfa);
-		fxp_lwcopy(&v, &p_rfa->link_addr);
+		fxp_lwcopy(&v, (volatile u_int32_t *) p_rfa->link_addr);
 		p_rfa->rfa_control &= ~FXP_RFA_CONTROL_EL;
 	} else {
 		sc->rfa_headm = m;
