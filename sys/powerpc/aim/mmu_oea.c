@@ -69,11 +69,11 @@ static const char rcsid[] =
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
