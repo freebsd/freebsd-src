@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp $
+ *	$Id: machdep.c,v 1.194 1996/07/08 19:44:39 wollman Exp $
  */
 
 #include "npx.h"
@@ -785,7 +785,7 @@ die:
  * exported (symorder) and used at least by savecore(8)
  *
  */
-u_long		dumpmag = 0x8fca0101UL;	
+static u_long const	dumpmag = 0x8fca0101UL;	
 
 static int	dumpsize = 0;		/* also for savecore */
 
@@ -1284,7 +1284,8 @@ init386(first)
 
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of of the physical address space. It
+	 * highest page of the physical address space.  It should be
+	 * called something like "Maxphyspage".
 	 */
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
