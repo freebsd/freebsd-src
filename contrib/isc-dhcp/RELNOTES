@@ -1,57 +1,72 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 27
-			    April 23, 1999
+			      Version 2
+			    June 22, 1999
 
 			    Release Notes
 
-This is the first Beta release of Version 2 of the Internet Software
-Consortium DHCP Distribution.   This beta is believed to be fairly
-stable.
-
-				PLANS
-
-Version 1 of the ISC DHCP Distribution includes just a DHCP Server.
-Version 1 has been in feature freeze since late 1996, and is quite
-stable.  This is the release that we would expect very conservative
-sites to run in production, but it is no longer recommended.
-
-Version 2 of the ISC DHCP Distribution adds a DHCP Client and a
-DHCP/BOOTP Relay Agent to the DHCP Server that was offered in version
-1.0.   In addition, some new capabilities have been added to the
-server:
-
-	- IP addresses are now tested before they are assigned to
-	  clients.   This allows the DHCP server to detect rogue
-	  machines that may have hijacked IP addresses before an IP
-	  address conflict can occur.
-
-	- The server may be configured so that some DHCP clients can
-	  be excluded from booting.
-
-	- Improved NAKing behaviour, so that clients that are using
-	  addresses other than the one the server knows they should be
-	  using are disciplined quickly.
+Version 2 of the ISC DHCP Distribution includes the ISC DHCP server,
+DHCP Client and DHCP/BOOTP Relay Agent.
 
 This version has been in a near feature freeze since January of 1998,
-has been in Beta test since then, and is planned for final release in
-mid-1999.  It has a number of important features, and is the release
-that we would expect most sites to run.  It is possible to run the
-Version 1 server with the Version 2 client at sites that want to be
-really conservative.
+was in Beta test from that time to June of 1999, and has now been
+released in its final form.  It has a number of important features,
+and is the release that we would expect most sites to run.
 
-Version 3 of the ISC DHCP Distribution will add conditional behaviour,
-client classing, Dynamic DNS Support, DHCPv4 16-bit option codes,
-asynchronous DNS query resolution, DHCP Authentication, and possibly
-support for a DHCP Interserver Protocol and live querying of the DHCP
-database.  Currently, only client classing and conditional behaviour
-have been implemented - the DNS code is waiting for an enhanced DNS
-resolver.  The code has gone through a major internal restructuring
-which will help to support wider option codes, and possibly IPv6, as
-well as a more sensible memory allocation strategy.  This release is
-running in producion at the ISC, but is not expected to be stable in
-the near future, and is intended for sites that are in a position to
-experiment, or for sites that desperately need the new features.
+For information on how to install, configure and run this software,
+as well as how to find documentation and report bugs, please consult
+the README file.
+
+			      CHANGELOG
+
+This log describes the changes that have been made in version 2.0
+since June of 1997.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 29
+
+- Define BYTE_ORDER in includes/cf/hpux.h so that ip.h will compile
+  correctly on HP-UX.
+
+- Fix a long-standing but minor bug in the way the program name for
+  syslog was derived.
+
+- Fix a long-standing bug that prevented the DHCP server from broadcasting
+  responses to BOOTP clients that requested a broadcast response.
+
+- In dhcprequest(), check to make sure that there's a lease before trying
+  to acknowledge it to the client.   This fixes a potential core dump that
+  a few people observed.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 28
+
+- Fix some pastos I introduced when merging Andrew Chittenden's token
+  ring support.
+
+- Apply a patch to the token ring support from Andrew Chittenden.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 27
+
+- Add dependencies to makefiles.
+
+- Don't use ping -w 1 in freebsd client script.
+
+- Token ring support for LPF, contributed by Andrew Chittenden.
+
+- Fix a subtle bug that would cause the server to respond incorrectly
+  in some cases when the client sent duplicate DHCPREQUEST packets.
+
+- Fix option pretty printing for 'X' format.
+
+- Add some special cases to deal with DHCPREQUEST packets from RFC1541
+  clients.
+
+- Fix an obscure bug in nested subnet mask handling.
+
+- Fix a bug in abandoned lease reclamation.
+
+- Allow maximum message size to be set in configuration file.
+
+- Allow parameter request list to be supplied in configuration file.
 
 	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 26
 
