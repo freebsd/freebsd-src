@@ -72,7 +72,6 @@ static const char rcsid[] =
 CTL_MSG		request;
 CTL_RESPONSE	response;
 
-int	sockt;
 int	debug = 0;
 long	lastmsgtime;
 
@@ -122,8 +121,8 @@ main(int argc, char *argv[])
 		ctl_addr.sa_len = sizeof(ctl_addr);
 		process_request(mp, &response);
 		/* can block here, is this what I want? */
-		cc = sendto(sockt, (char *)&response, sizeof (response), 0,
-		    &ctl_addr, sizeof (ctl_addr));
+		cc = sendto(STDIN_FILENO, (char *)&response,
+		    sizeof (response), 0, &ctl_addr, sizeof (ctl_addr));
 		if (cc != sizeof (response))
 			syslog(LOG_WARNING, "sendto: %m");
 	}
