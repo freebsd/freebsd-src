@@ -74,7 +74,7 @@ structure is defined as a result of including the
 .Aq Pa netdb.h
 header:
 .Bd -literal -offset
-struct addrinfo {                                                  *
+struct addrinfo {
      int     ai_flags;     /* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
      int     ai_family;    /* PF_xxx */
      int     ai_socktype;  /* SOCK_xxx */
@@ -272,17 +272,17 @@ from being called.
 .Pp
 The arguments to
 .Fn getaddrinfo
-must sufficiently be consistent and unambiguous.
-Here are pitfall cases you may encounter:
+must be sufficiently consistent and unambiguous.
+Here are some problem cases you may encounter:
 .Bl -bullet
 .It
 .Fn getaddrinfo
-will raise error if members in 
+will fail if the members in the
 .Fa hints
-structure is not consistent.
+structure are not consistent.
 For example, for internet address families,
 .Fn getaddrinfo
-will raise error if you specify
+will fail if you specify
 .Dv SOCK_STREAM
 to
 .Fa ai_socktype
@@ -296,10 +296,10 @@ If you specify a
 which is defined only for certain
 .Fa ai_socktype ,
 .Fn getaddrinfo
-will raise error because the arguments are not consistent.
+will fail because the arguments are not consistent.
 For example,
 .Fn getaddrinfo
-will raise error if you ask for
+will return an error if you ask for
 .Dq Li tftp
 service on
 .Dv SOCK_STREAM .
@@ -311,7 +311,7 @@ while you set
 to
 .Dv SOCK_RAW ,
 .Fn getaddrinfo
-will raise error, because service names are not defined for the internet
+will fail, because service names are not defined for the internet
 .Dv SOCK_RAW
 space.
 .It
@@ -323,7 +323,7 @@ and
 .Fa ai_protocol
 unspecified,
 .Fn getaddrinfo
-will raise error.
+will fail.
 This is because the numeric
 .Fa servname
 does not identify any socket type, and
@@ -366,35 +366,37 @@ If the argument is not one of the
 values, the function still returns a pointer to a string whose contents
 indicate an unknown error.
 .\"
-.Sh EXTENSION
-The implementation allows experimental numeric IPv6 address notation with
-scope identifier.
-By appending atmark and scope identifier to addresses, you can fill
+.Sh EXTENSIONS
+This implementation supports numeric IPv6 address notation with the
+experimental scope identifier.
+By appending a percent sign and scope identifier to the address, you
+can specify the value of the
 .Li sin6_scope_id
-field for addresses.
-This would make management of scoped address easier,
-and allows cut-and-paste input of scoped address.
+field of the socket address.
+This makes management of scoped address easier,
+and allows cut-and-paste input of scoped addresses.
 .Pp
-At this moment the code supports only link-local addresses with the format.
-Scope identifier is hardcoded to name of hardware interface associated
-with the link.
+At the moment the code supports only link-local addresses in this format.
+The scope identifier is hardcoded to name of hardware interface associated
+with the link,
 .Po
 such as
 .Li ne0
 .Pc .
-Example would be like
+For example,
 .Dq Li fe80::1%ne0 ,
 which means
 .Do
 .Li fe80::1
-on the link associated with
+on the link associated with the
 .Li ne0
 interface
 .Dc .
 .Pp
-The implementation is still very experimental and non-standard.
-The current implementation assumes one-by-one relationship between
-interface and link, which is not necessarily true from the specification.
+This implementation is still very experimental and non-standard.
+The current implementation assumes a one-to-one relationship between
+interfaces and links, which is not necessarily true according to the
+specification.
 .\"
 .Sh EXAMPLES
 The following code tries to connect to
@@ -402,11 +404,11 @@ The following code tries to connect to
 service
 .Dq Li http .
 via stream socket.
-It loops through all the addresses available, regardless from address family.
-If the destination resolves to IPv4 address, it will use
+It loops through all the addresses available, regardless of the address family.
+If the destination resolves to an IPv4 address, it will use an
 .Dv AF_INET
 socket.
-Similarly, if it resolves to IPv6,
+Similarly, if it resolves to IPv6, an
 .Dv AF_INET6
 socket is used.
 Observe that there is no hardcoded reference to particular address family.
@@ -428,6 +430,8 @@ if (error) {
 	/*NOTREACHED*/
 }
 s = -1;
+cause = "no addresses";
+errno = EADDRNOTAVAIL;
 for (res = res0; res; res = res->ai_next) {
 	s = socket(res->ai_family, res->ai_socktype,
 	    res->ai_protocol);
@@ -452,7 +456,7 @@ if (s < 0) {
 freeaddrinfo(res0);
 .Ed
 .Pp
-The following example tries to open wildcard listening socket onto service
+The following example tries to open a wildcard listening socket onto service
 .Dq Li http ,
 for all the address families available.
 .Bd -literal -offset indent
@@ -480,8 +484,14 @@ for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
 		continue;
 	}
 
-	if (connect(s[nsock], res->ai_addr, res->ai_addrlen) < 0) {
-		cause = "connect";
+	if (bind(s[nsock], res->ai_addr, res->ai_addrlen) < 0) {
+		cause = "bind";
+		close(s[nsock]);
+		continue;
+	}
+
+	if (listen(s[nsock], SOMAXCONN) < 0) {
+		cause = "listen";
 		close(s[nsock]);
 		continue;
 	}
@@ -547,7 +557,7 @@ System error returned in
 .Va errno .
 .El
 .Pp
-If called with proper argument,
+If called with an appropriate argument,
 .Fn gai_strerror
 returns a pointer to a string describing the given error code.
 If the argument is not one of the
