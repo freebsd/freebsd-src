@@ -272,10 +272,10 @@ scbus_devtab(fp)
 
 		fprintf(fp, "{ ");
 		fprintf(fp, "\"%s\", ", dp->d_name);
-		fprintf(fp, "%d, ", dp->d_unit);
-		fprintf(fp, "%d, ", dp->d_connunit);
-		fprintf(fp, "%d, ", dp->d_target);
-		fprintf(fp, "%d, ", dp->d_lun);
+		fprintf(fp, "%s, ", id(dp->d_unit));
+		fprintf(fp, "%s, ", id(dp->d_connunit));
+		fprintf(fp, "%s, ", id(dp->d_target));
+		fprintf(fp, "%s, ", id(dp->d_lun));
 		fprintf(fp, " 0x%x },\n", dp->d_flags);
 	}
 	fprintf(fp, "{ 0, 0, 0, 0, 0, 0 }\n");
