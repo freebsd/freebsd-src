@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.238 1999/06/17 19:04:53 markm Exp $
+ * $Id: install.c,v 1.239 1999/07/06 08:45:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -573,9 +573,11 @@ nodisks:
 	restorescr(w);
     }
 
+#ifdef __i386__
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
 	(void)configLinux(self);
+#endif
 
     dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?")) {
