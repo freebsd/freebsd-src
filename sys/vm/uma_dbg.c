@@ -42,8 +42,6 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 
-#include <machine/types.h>
-
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
