@@ -265,13 +265,13 @@ getauthmask(type, maskp)
 {
 	register int x;
 
-	if (!strcasecmp(type, AUTHTYPE_NAME(0))) {
+	if (AUTHTYPE_NAME(0) && !strcasecmp(type, AUTHTYPE_NAME(0))) {
 		*maskp = -1;
 		return(1);
 	}
 
 	for (x = 1; x < AUTHTYPE_CNT; ++x) {
-		if (!strcasecmp(type, AUTHTYPE_NAME(x))) {
+		if (AUTHTYPE_NAME(x) && !strcasecmp(type, AUTHTYPE_NAME(x))) {
 			*maskp = typemask(x);
 			return(1);
 		}
