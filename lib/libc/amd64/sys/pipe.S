@@ -42,8 +42,22 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-SYSCALL(pipe)
+	.weak	_pipe
+	.set	_pipe,__sys_pipe
+	.weak	pipe
+	.set	pipe,__sys_pipe
+ENTRY(__sys_pipe)
+	mov	$SYS_pipe,%rax
+	KERNCALL
+	jb	1f
 	movl	%eax,(%rdi)	/* %rdi is preserved by syscall */
 	movl	%edx,4(%rdi)
 	movq	$0,%rax
 	ret
+1:
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif
