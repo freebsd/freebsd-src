@@ -638,8 +638,16 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		af = ia->ifa_addr->sa_family;
 		if (af != AF_INET && af != AF_INET6)
 			continue;
-#ifdef notyet
-		if (!(ia->ifa_flags & IFA_ROUTE))
+#ifdef __FreeBSD__
+		/*
+		 * XXX: For point-to-point interfaces, (ifname:0) and IPv4,
+		 *	jump over addresses without a proper route to work
+		 *	around a problem with ppp not fully removing the
+		 *	address used during IPCP.
+		 */
+		if ((ifp->if_flags & IFF_POINTOPOINT) &&
+		    !(ia->ifa_flags & IFA_ROUTE) &&
+		    (flags & PFI_AFLAG_NOALIAS) && (af == AF_INET))
 			continue;
 #endif
 		if ((flags & PFI_AFLAG_BROADCAST) && af == AF_INET6)
