@@ -106,7 +106,8 @@ but the introduction of
 led to massive confusion
 by program writers so today programs haphazardly use one or the
 other and thus no real distinction can be made between the two.
-So it makes sense to have just one temporary directory.
+So it makes sense to have just one temporary directory and
+softlink to it from the other tmp directory locations.
 However you handle
 .Pa /tmp ,
 the one thing you do not want to do is leave it sitting
@@ -221,7 +222,7 @@ options for this would be
 .Dq Li "newfs -f 1024 -b 8192 ..." .
 .Pp
 If a large partition is intended to be used to hold fewer, larger files, such
-as a database files, you can increase the
+as database files, you can increase the
 .Em bytes/i-node
 ratio which reduces the number of i-nodes (maximum number of files and
 directories that can be created) for that partition.
@@ -272,7 +273,7 @@ are two limitations to softupdates that you should be aware of when
 determining whether to use it on a filesystem.
 First, softupdates guarantees filesystem consistency in the
 case of a crash but could very easily be several seconds (even a minute!)
-behind updating the physical disk.
+behind on pending writes to the physical disk.
 If you crash you may lose more work
 than otherwise.
 Secondly, softupdates delays the freeing of filesystem
@@ -281,15 +282,16 @@ If you have a filesystem (such as the root filesystem) which is
 close to full, doing a major update of it, e.g.\&
 .Dq Li "make installworld" ,
 can run it out of space and cause the update to fail.
+For this reason, softupdates will not be enabled on the root filesystem
+during a typical install.  There is no loss of performance since the root
+filesystem is rarely written to.
 .Pp
 A number of run-time
 .Xr mount 8
 options exist that can help you tune the system.
-For this reason, softupdates will not be enabled on the root filesystem
-during a typical install.
 The most obvious and most dangerous one is
 .Cm async .
-Do not ever use it, it is far too dangerous.
+Do not ever use it; it is far too dangerous.
 A less dangerous and more
 useful
 .Xr mount 8
@@ -446,7 +448,7 @@ and
 .Va net.inet.tcp.recvspace
 sysctls are of particular interest if you are running network intensive
 applications.
-This controls the amount of send and receive buffer space
+They control the amount of send and receive buffer space
 allowed for any given TCP connection.
 The default sending buffer is 32K; the default receiving buffer
 is 64K.
@@ -490,7 +492,7 @@ scaling extension of the TCP protocol, which is controlled by the
 .Va net.inet.tcp.rfc1323
 sysctl.
 These extensions should be enabled and the TCP buffer size should be set
-to a value larger than 65536 in order to obtain good performance out of
+to a value larger than 65536 in order to obtain good performance from
 certain types of network links; specifically, gigabit WAN links and
 high-latency satellite links.
 RFC1323 support is enabled by default.
@@ -515,6 +517,29 @@ In such environments, setting the sysctl to 0 may reduce the occurrence of
 TCP session disconnections.
 .Pp
 The
+.Va net.inet.tcp.delayed_ack
+TCP feature is largly misunderstood.  Historically speaking this feature
+was designed to allow the acknowledgement to transmitted data to be returned
+along with the response.  For example, when you type over a remote shell
+the acknowledgement to the character you send can be returned along with the
+data representing the echo of the character.   With delayed acks turned off
+the acknowledgement may be sent in its own packet before the remote service
+has a chance to echo the data it just received.  This same concept also
+applies to any interactive protocol (e.g. SMTP, WWW, POP3) and can cut the
+number of tiny packets flowing across the network in half.   The FreeBSD
+delayed-ack implementation also follows the TCP protocol rule that
+at least every other packet be acknowledged even if the standard 100ms
+timeout has not yet passed.  Normally the worst a delayed ack can do is
+slightly delay the teardown of a connection, or slightly delay the ramp-up
+of a slow-start TCP connection.  While we aren't sure we believe that
+the several FAQs related to packages such as SAMBA and SQUID which advise
+turning off delayed acks may be refering to the slow-start issue.  In FreeBSD
+it would be more beneficial to increase the slow-start flightsize via
+the
+.Va net.inet.tcp.slowstart_flightsize
+sysctl rather then disable delayed acks.
+.Pp
+The
 .Va net.inet.tcp.inflight_enable
 sysctl turns on bandwidth delay product limiting for all TCP connections.
 The system will attempt to calculate the bandwidth delay product for each
@@ -536,6 +561,32 @@ interactive connections, especially over slow modems, will also be able
 to operate with lower round trip times.  However, note that this feature
 only effects data transmission (uploading / server-side).  It does not
 effect data reception (downloading).
+.Pp
+The
+.Va net.inet.ip.portrange.*
+sysctls control the port number ranges automatically bound to TCP and UDP
+sockets.  There are three ranges:  A low range, a default range, and a
+high range, selectable via an IP_PORTRANGE setsockopt() call.  Most 
+network programs use the default range which is controlled by
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last ,
+which defaults to 1024 and 5000 respectively.  Bound port ranges are
+used for outgoing connections and it is possible to run the system out
+of ports under certain circumstances.  This most commonly occurs when you are
+running a heavily loaded web proxy.  The port range is not an issue
+when running serves which handle mainly incoming connections such as a
+normal web server, or has a limited number of outgoing connections such
+as a mail relay.  For situations where you may run yourself out of
+ports we recommend increasing
+.Va net.inet.ip.portrange.last
+modestly.  A value of 10000 or 20000 or 30000 may be reasonable.  You should
+also consider firewall effects when changing the port range.  Some firewalls
+may block large ranges of ports (usually low-numbered ports) and expect systems
+to use higher ranges of ports for outgoing connections.  For this reason
+we do not recommend that
+.Va net.inet.ip.portrange.first
+be lowered.
 .Pp
 The
 .Va kern.ipc.somaxconn
@@ -629,7 +680,7 @@ buffers.
 You can do a simple calculation to figure out how many you need.
 If you have a web server which maxes out at 1000 simultaneous connections,
 and each connection eats a 16K receive and 16K send buffer, you need
-approximate 32MB worth of network buffers to deal with it.
+approximately 32MB worth of network buffers to deal with it.
 A good rule of
 thumb is to multiply by 2, so 32MBx2 = 64MB/2K = 32768.
 So for this case
@@ -671,7 +722,7 @@ so you should not need to modify this parameter except under extreme
 circumstances.
 .Sh KERNEL CONFIG TUNING
 There are a number of kernel options that you may have to fiddle with in
-a large scale system.
+a large-scale system.
 In order to change these options you need to be
 able to compile a new kernel from source.
 The
@@ -716,8 +767,8 @@ The operating system
 will be able to better-use higher-end CPU features for MMU, task switching,
 timebase, and even device operations.
 Additionally, higher-end CPUs support
-4MB MMU pages which the kernel uses to map the kernel itself into memory,
-which increases its efficiency under heavy syscall loads.
+4MB MMU pages, which the kernel uses to map the kernel itself into memory,
+increasing its efficiency under heavy syscall loads.
 .Sh IDE WRITE CACHING
 .Fx 4.3
 flirted with turning off IDE write caching.
@@ -728,8 +779,8 @@ Basically the problem is that
 IDE drives lie about when a write completes.
 With IDE write caching turned
 on, IDE hard drives will not only write data to disk out of order, they
-will sometimes delay some of the blocks indefinitely when under heavy disk
-loads.
+will sometimes delay some of the blocks indefinitely under heavy disk
+load.
 A crash or power failure can result in serious filesystem
 corruption.
 So our default was changed to be safe.
@@ -744,8 +795,9 @@ If IDE write caching is turned off, you can turn it back
 on by setting the
 .Va hw.ata.wc
 loader tunable to 1.
-More information on tuning the ATA driver system may be found in
-.Xr ata 4 .
+More information on tuning the ATA driver system may be found in the
+.Xr ata 4
+man page.
 .Pp
 There is a new experimental feature for IDE hard drives called
 .Va hw.ata.tags
@@ -799,7 +851,7 @@ Use 100BaseT rather
 than 10BaseT, or use 1000BaseT rather then 100BaseT, depending on your needs.
 Most bottlenecks occur at the WAN link (e.g.\&
 modem, T1, DSL, whatever).
-If expanding the link is not an option it may be possible to use
+If expanding the link is not an option it may be possible to use the
 .Xr dummynet 4
 feature to implement peak shaving or other forms of traffic shaping to
 prevent the overloaded service (such as web services) from affecting other
