@@ -698,6 +698,16 @@ DMenu MenuNetworkDevice = {
     { { NULL } },
 };
 
+/* Prototype KLD load menu */
+DMenu MenuKLD = {
+    DMENU_NORMAL_TYPE,
+    "KLD Menu",
+    "Load a KLD from a floppy\n",
+    NULL,
+    NULL,
+    { { NULL } },
+};
+
 /* The media selection menu */
 DMenu MenuMedia = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -1263,6 +1273,8 @@ DMenu MenuConfigure = {
 	NULL, configXDesktop },
       { " HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
+      { " Load KLD",	"Load a KLD from a floppy",
+	NULL, kldBrowser },
       { NULL } },
 };
 
