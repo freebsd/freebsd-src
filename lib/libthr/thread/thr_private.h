@@ -718,7 +718,7 @@ void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
-void	_thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context);
+void	_thread_sig_wrapper(int sig, siginfo_t *info, void *context);
 void	_thread_printf(int fd, const char *, ...);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);

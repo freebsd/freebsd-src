@@ -42,7 +42,10 @@ int
 _pthread_setschedparam(pthread_t pthread, int policy, 
 	const struct sched_param *param)
 {
-	int old_prio, in_readyq = 0, ret = 0;
+	int old_prio, ret = 0;
+#if 0
+	int in_readyq = 0;
+#endif
 
 	if ((param == NULL) || (policy < SCHED_FIFO) || (policy > SCHED_RR))
 		return (EINVAL);

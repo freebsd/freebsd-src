@@ -158,7 +158,6 @@ _thread_init(void)
 {
 	struct pthread	*pthread;
 	int		fd;
-	int             flags;
 	int             i;
 	size_t		len;
 	int		mib[2];
@@ -328,7 +327,7 @@ _thread_init(void)
 
 	/* Initialise the garbage collector mutex and condition variable. */
 	if (_pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
-	    pthread_cond_init(&_gc_cond,NULL) != 0)
+	    _pthread_cond_init(&_gc_cond,NULL) != 0)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
 }
 

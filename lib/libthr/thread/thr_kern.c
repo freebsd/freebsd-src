@@ -33,6 +33,7 @@
 #include <sys/timespec.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -80,7 +81,6 @@ void
 _thread_critical_exit(pthread_t pthread)
 {
 	sigset_t set;
-	int error;
 
 	/*
 	 * restore is protected by giant.  We could restore our signal state

@@ -62,7 +62,6 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	struct itimerval itimer;
 	int		f_gc = 0;
 	int             ret = 0;
 	pthread_t       gc_thread;
