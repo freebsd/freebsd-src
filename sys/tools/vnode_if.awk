@@ -191,6 +191,9 @@ while ((getline < srcfile) > 0) {
 	# Get the function name.
 	name = $1;
 	uname = toupper(name);
+
+	# Start constructing a ktrpoint string
+	ctrstr = "\"" uname;
 	# Get the function arguments.
 	for (numargs = 0; ; ++numargs) {
 		if ((getline < srcfile) <= 0) {
@@ -233,7 +236,27 @@ while ((getline < srcfile) > 0) {
 		# remove trailing space (if any)
 		sub(/ $/, "");
 		types[numargs] = $0;
+
+		# We can do a maximum of 6 arguments to CTR*
+		if (numargs <= 6) {
+			if (numargs == 0)
+				ctrstr = ctrstr "(" args[numargs];
+			else
+				ctrstr = ctrstr ", " args[numargs];
+			if (types[numargs] ~ /\*/)
+				ctrstr = ctrstr " 0x%lX";
+			else
+				ctrstr = ctrstr " %ld";
+		}
 	}
+	if (numargs > 6)
+		ctrargs = 6;
+	else
+		ctrargs = numargs;
+	ctrstr = "\tCTR" ctrargs "(KTR_VOP, " ctrstr ")\"";
+	for (i = 0; i < ctrargs; ++i)
+		ctrstr = ctrstr ", " args[i];
+	ctrstr = ctrstr ");";
 
 	if (hfile) {
 		# Print out the vop_F_args structure.
@@ -260,6 +283,7 @@ while ((getline < srcfile) > 0) {
 			add_debug_code(name, args[i], "Entry");
 		add_debug_pre(name);
 		printh("\trc = VCALL(" args[0] ", VOFFSET(" name "), &a);");
+		printh(ctrstr);
 		printh("if (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK");
