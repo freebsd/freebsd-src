@@ -137,6 +137,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	mdoc/example.1 \
 	mdoc/example.3 \
 	mdoc/example.4 \
+	mdoc/example.9 \
 	meteor/README \
 	meteor/rgb16.c \
 	meteor/rgb24.c \
