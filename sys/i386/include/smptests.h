@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.16 1997/07/20 18:10:28 smp Exp smp $
+ *	$Id: smptests.h,v 1.15 1997/07/22 18:46:41 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -30,47 +30,54 @@
 
 
 /*
- * various 'tests in progress'
+ * Various 'tests in progress' and configuration parameters.
  */
 
 
 /*
- * Address of POST hardware port.
- * Defining this enables POSTCODE macros.
+ * Use the new INT passoff algorithm:
  *
-#define POST_ADDR		0x80
+ *	int_is_already_active = iactive & (1 << INT_NUMBER);
+ *	iactive |= (1 << INT_NUMBER);
+ *	if ( int_is_already_active || (try_mplock() == FAIL ) {
+ *		mask_apic_int( INT_NUMBER );
+ *		ipending |= (1 << INT_NUMBER);
+ *		do_eoi();
+ *		cleanup_and_iret();
+ *	}
+ *
+ * This algorithm seems to speed up kernel compiles a little,
+ *  my previous times were about 100s - 101s.
+ * Also of note is the "point of diminishing returns" for the '-j'
+ *  arg to make seems to have increased from 8 to 12, AND the numbers
+ *  don't fall off as rapidly as before.
+ *
+ *  98.17s real  129.24s user   50.82s system	# time make -j8
+ *  98.67s real  128.44s user   52.55s system	# time make -j10
+ *  97.70s real  128.54s user   51.86s system	# time make -j12
+ *  98.57s real  130.14s user   50.46s system	# time make -j14
+ *  99.12s real  130.04s user   51.82s system	# time make -j16
+ *  97.75s real  129.91s user   51.62s system	# time make -j18
+ * 100.51s real  132.67s user   50.91s system	# time make -j20
  */
+#define PEND_INTS
 
 
 /*
- * 1st attempt to use ExtInt connected 8259 to attach 8254 timer.
+ * 1st attempt to use the 'ExtInt' connected 8259 to attach 8254 timer.
  * failing that, attempt to attach 8254 timer via direct APIC pin.
  * failing that, panic!
- * This overrides both APIC_PIN0_TIMER & TEST_ALTTIMER
+ *
  */
 #define NEW_STRATEGY
 
-/*
- * Use 'regular Int' method to connect external 8254 timer via IO APIC pin 0.
- * See "Intel I486 Microprocessors and Related Products", page 4-292:
- *       82489DX/8259A DUAL MODE CONNECTION
- *
- */
-#define APIC_PIN0_TIMER
 
 /*
- * Use non 'ExtInt' method of external (non-conected) 8254 timer
- * See "Intel I486 Microprocessors and Related Products", page 4-292:
- *       82489DX/8259A DUAL MODE CONNECTION
+ * For emergency fallback, define ONLY if 'NEW_STRATEGY' fails to work.
+ * Formerly needed by Tyan Tomcat II and SuperMicro P6DNxxx motherboards.
  *
+#define SMP_TIMER_NC
  */
-#define TEST_ALTTIMER
-
-/*
- * Send 8254 timer INTs to all CPUs in LOPRIO mode.
- *
-*/
-#define TIMER_ALL
 
 
 /*
@@ -126,6 +133,14 @@
  *
 #define TEST_TEST1
 #define IPI_TARGET_TEST1	1
+ */
+
+
+/*
+ * Address of POST hardware port.
+ * Defining this enables POSTCODE macros.
+ *
+#define POST_ADDR		0x80
  */
 
 
