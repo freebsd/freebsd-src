@@ -21,7 +21,7 @@
 %translators;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
 <!ENTITY release.point "4.6.2-RELEASE">
