@@ -2,7 +2,7 @@
 
 PROG=	mkdctype
 SRCS=	mkdctype.c ebc_disp.c ectype.c
-CFLAGS+=-I${.CURDIR}/.. -I.
+CFLAGS+=-I${.CURDIR}/..
 NOMAN=	noman
 .PATH:	${.CURDIR}/../../api
 

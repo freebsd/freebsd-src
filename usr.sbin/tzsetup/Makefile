@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.2 1996/01/23 21:06:25 wosch Exp $
+#	$Id: Makefile,v 1.3 1996/01/24 00:11:57 wosch Exp $
 
 PROG=	tzsetup
 MAN8=	tzsetup.8
 SRCS=	main.c tzmenu.c menus.c
-CFLAGS+=	-I. -I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}
 CLEANFILES+=	menus.c
 LDADD+=	-ldialog -lncurses -lmytinfo
 DPADD+=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
