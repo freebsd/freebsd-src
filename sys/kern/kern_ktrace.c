@@ -361,6 +361,8 @@ utrace(curp, uap)
 
 	if (!KTRPOINT(p, KTR_USER))
 		return (0);
+	if (SCARG(uap, len) > KTR_USER_MAXLEN)
+		return (EINVAL);
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_USER);
 	MALLOC(cp, caddr_t, uap->len, M_KTRACE, M_WAITOK);
