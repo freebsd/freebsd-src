@@ -39,15 +39,18 @@
 #define KBD_STATUS_PORT 	2	/* status port, read */
 #define KBD_COMMAND_PORT	2	/* controller command port, write */
 #define KBD_DATA_PORT		0	/* data port, read/write 
-					   also used as keyboard command
-					   and mouse command port */
+					 * also used as keyboard command
+					 * and mouse command port 
+					 */
 #else
 #define KBD_STATUS_PORT 	4	/* status port, read */
 #define KBD_COMMAND_PORT	4	/* controller command port, write */
 #define KBD_DATA_PORT		0	/* data port, read/write 
-					   also used as keyboard command
-					   and mouse command port */
+					 * also used as keyboard command
+					 * and mouse command port 
+					 */
 #endif	/* PC98 */
+
 /* FIXME: `IO_PSMSIZE' should really be in `isa.h'. */
 #define IO_PSMSIZE		(KBD_COMMAND_PORT - KBD_DATA_PORT + 1) /* 5 */
 
@@ -86,13 +89,14 @@
 #define KBDC_SEND_DEV_ID	0x00f2
 #define KBDC_SET_LEDS		0x00ed
 #define KBDC_ECHO		0x00ee
-#define KBDC_SET_SCAN_CODESET	0x00f0
+#define KBDC_SET_SCANCODE_SET	0x00f0
 #define KBDC_SET_TYPEMATIC	0x00f3
 
 /* aux device commands (sent to KBD_DATA_PORT) */
 #define PSMC_RESET_DEV	     	0x00ff
 #define PSMC_ENABLE_DEV      	0x00f4
 #define PSMC_DISABLE_DEV     	0x00f5
+#define PSMC_SET_DEFAULTS	0x00f6
 #define PSMC_SEND_DEV_ID     	0x00f2
 #define PSMC_SEND_DEV_STATUS 	0x00e9
 #define PSMC_SEND_DEV_DATA	0x00eb
@@ -104,15 +108,11 @@
 #define PSMC_SET_SAMPLING_RATE	0x00f3
 
 /* PSMC_SET_RESOLUTION argument */
-#define PSMD_RESOLUTION_25	0	/* 25ppi */
-#define PSMD_RESOLUTION_50	1	/* 50ppi */
-#define PSMD_RESOLUTION_100	2	/* 100ppi (default after reset) */
-#define PSMD_RESOLUTION_200	3	/* 200ppi */
-/* FIXME: I don't know if it's possible to go beyond 200ppi. 
-          The values below are of my wild guess. */
-#define PSMD_RESOLUTION_400	4	/* 400ppi */
-#define PSMD_RESOLUTION_800	5	/* 800ppi */
-#define PSMD_MAX_RESOLUTION	PSMD_RESOLUTION_800
+#define PSMD_RES_LOW		0	/* typically 25ppi */
+#define PSMD_RES_MEDIUM_LOW	1	/* typically 50ppi */
+#define PSMD_RES_MEDIUM_HIGH	2	/* typically 100ppi (default) */
+#define PSMD_RES_HIGH		3	/* typically 200ppi */
+#define PSMD_MAX_RESOLUTION	PSMD_RES_HIGH
 
 /* PSMC_SET_SAMPLING_RATE */
 #define PSMD_MAX_RATE		255	/* FIXME: not sure if it's possible */
@@ -151,79 +151,57 @@
 
 #ifdef KERNEL
 
-/* driver specific options: the following options may be set by
-   `options' statements in the kernel configuration file. */
-
-/* retry count */
-#ifndef KBD_MAXRETRY
-#define KBD_MAXRETRY		3
-#endif
-
-/* timing parameters */
-#ifndef KBD_RESETDELAY
-#define KBD_RESETDELAY  	200     /* wait 200msec after kbd/mouse reset */
-#endif
-#ifndef KBD_MAXWAIT
-#define KBD_MAXWAIT		5 	/* wait 5 times at most after reset */
-#endif
-
-/* I/O recovery time */
-#ifdef PC98
-#define KBDC_DELAYTIME		37
-#define KBDD_DELAYTIME		37
-#else
-#define KBDC_DELAYTIME		20
-#define KBDD_DELAYTIME		7
-#endif
-
-/* debugging */
-/* #define KBDIO_DEBUG			   produces debugging output */
-
-/* end of driver specific options */
-
-/* misc */
 #ifndef TRUE
-#define TRUE			(-1)
+#define TRUE			1
 #endif
 #ifndef FALSE
 #define FALSE			0
 #endif
 
+/* types/structures */
+
+typedef caddr_t KBDC;
+
 /* function prototypes */
 
-int wait_while_controller_busy __P((int port));
+KBDC kbdc_open __P((int port));
 
-int wait_for_data __P((int port));
-int wait_for_kbd_data __P((int port));
-int wait_for_aux_data __P((int port));
+int kbdc_lock __P((KBDC kbdc, int lock));
 
-int write_controller_command __P((int port,int c));
-int write_controller_data __P((int port,int c));
+int kbdc_data_ready __P((KBDC kbdc));
 
-int write_kbd_command __P((int port,int c));
-int write_aux_command __P((int port,int c));
-int send_kbd_command __P((int port,int c));
-int send_aux_command __P((int port,int c));
-int send_kbd_command_and_data __P((int port,int c,int d));
-int send_aux_command_and_data __P((int port,int c,int d));
+int write_controller_command __P((KBDC kbdc,int c));
+int write_controller_data __P((KBDC kbdc,int c));
 
-int read_controller_data __P((int port));
-int read_kbd_data __P((int port));
-int read_kbd_data_no_wait __P((int port));
-int read_aux_data __P((int port));
+int write_kbd_command __P((KBDC kbdc,int c));
+int write_aux_command __P((KBDC kbdc,int c));
+int send_kbd_command __P((KBDC kbdc,int c));
+int send_aux_command __P((KBDC kbdc,int c));
+int send_kbd_command_and_data __P((KBDC kbdc,int c,int d));
+int send_aux_command_and_data __P((KBDC kbdc,int c,int d));
 
-void empty_kbd_buffer __P((int port, int t));
-void empty_aux_buffer __P((int port, int t));
-void empty_both_buffers __P((int port, int t));
+int read_controller_data __P((KBDC kbdc));
+int read_kbd_data __P((KBDC kbdc));
+int read_kbd_data_no_wait __P((KBDC kbdc));
+int read_aux_data __P((KBDC kbdc));
+int read_aux_data_no_wait __P((KBDC kbdc));
 
-int reset_kbd __P((int port));
-int reset_aux_dev __P((int port));
+void empty_kbd_buffer __P((KBDC kbdc, int t));
+void empty_aux_buffer __P((KBDC kbdc, int t));
+void empty_both_buffers __P((KBDC kbdc, int t));
 
-int test_controller __P((int port));
-int test_kbd_port __P((int port));
-int test_aux_port __P((int port));
+int reset_kbd __P((KBDC kbdc));
+int reset_aux_dev __P((KBDC kbdc));
 
-int set_controller_command_byte __P((int port,int command,int flag));
+int test_controller __P((KBDC kbdc));
+int test_kbd_port __P((KBDC kbdc));
+int test_aux_port __P((KBDC kbdc));
+
+int kbdc_get_device_mask __P((KBDC kbdc));
+void kbdc_set_device_mask __P((KBDC kbdc, int mask));
+
+int get_controller_command_byte __P((KBDC kbdc));
+int set_controller_command_byte __P((KBDC kbdc, int command, int flag));
 
 #endif /* KERNEL */
 
