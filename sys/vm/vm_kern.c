@@ -362,6 +362,18 @@ retry:
 				vm_map_lock(map);
 				goto retry;
 			}
+			/* 
+			 * Free the pages before removing the map entry.
+			 * They are already marked busy.  Calling
+			 * vm_map_delete before the pages has been freed or
+			 * unbusied will cause a deadlock.
+			 */
+			while (i != 0) {
+				i -= PAGE_SIZE;
+				m = vm_page_lookup(kmem_object,
+						   OFF_TO_IDX(offset + i));
+				vm_page_free(m);
+			}
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
 			if (flags & M_ASLEEP) {
