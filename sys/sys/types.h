@@ -167,7 +167,7 @@ typedef	_BSD_TIMER_T_	timer_t;
 #define	FD_SETSIZE	1024
 #endif
 
-typedef	long	fd_mask;
+typedef	unsigned long	fd_mask;
 #define	NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
