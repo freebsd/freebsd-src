@@ -96,7 +96,7 @@ struct ngd_softc {
 	SLIST_HEAD(, ngd_connection) head;
 
 	node_p node;
-	char nodename[NG_NODELEN + 1];
+	char nodename[NG_NODESIZ];
 } ngd_softc;
 
 /* the per connection receiving queue maximum */

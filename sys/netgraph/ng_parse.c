@@ -840,7 +840,7 @@ const struct ng_parse_type ng_parse_fixedstring_type = {
 };
 
 const struct ng_parse_fixedstring_info ng_parse_nodebuf_info = {
-	NG_NODELEN + 1
+	NG_NODESIZ
 };
 const struct ng_parse_type ng_parse_nodebuf_type = {
 	&ng_parse_fixedstring_type,
@@ -848,7 +848,7 @@ const struct ng_parse_type ng_parse_nodebuf_type = {
 };
 
 const struct ng_parse_fixedstring_info ng_parse_hookbuf_info = {
-	NG_HOOKLEN + 1
+	NG_HOOKSIZ
 };
 const struct ng_parse_type ng_parse_hookbuf_type = {
 	&ng_parse_fixedstring_type,
@@ -856,7 +856,7 @@ const struct ng_parse_type ng_parse_hookbuf_type = {
 };
 
 const struct ng_parse_fixedstring_info ng_parse_pathbuf_info = {
-	NG_PATHLEN + 1
+	NG_PATHSIZ
 };
 const struct ng_parse_type ng_parse_pathbuf_type = {
 	&ng_parse_fixedstring_type,
@@ -864,7 +864,7 @@ const struct ng_parse_type ng_parse_pathbuf_type = {
 };
 
 const struct ng_parse_fixedstring_info ng_parse_typebuf_info = {
-	NG_TYPELEN + 1
+	NG_TYPESIZ
 };
 const struct ng_parse_type ng_parse_typebuf_type = {
 	&ng_parse_fixedstring_type,
@@ -872,7 +872,7 @@ const struct ng_parse_type ng_parse_typebuf_type = {
 };
 
 const struct ng_parse_fixedstring_info ng_parse_cmdbuf_info = {
-	NG_CMDSTRLEN + 1
+	NG_CMDSTRSIZ
 };
 const struct ng_parse_type ng_parse_cmdbuf_type = {
 	&ng_parse_fixedstring_type,
