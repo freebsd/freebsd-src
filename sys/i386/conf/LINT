@@ -2198,6 +2198,21 @@ device		iicsmb		# smb over i2c bridge
 
 device		pcf0	at isa? port 0x320 irq 5
 
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+#
+# Note that this ACPI support is experimental and it's use may result in
+# machine hangs or kernel panics.
+#
+device		acpica
+options		ACPI_DEBUG
+
 #---------------------------------------------------------------------------
 # ISDN4BSD
 #

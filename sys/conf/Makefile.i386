@@ -47,6 +47,10 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 
+# This hack lets us use the Intel ACPICA code without spamming a new 
+# include path into 100+ source files.
+INCLUDES+= -I$S/contrib/dev/acpica
+
 # This hack lets us use the ipfilter code without spamming a new
 # include path into 100+ source files.
 INCLUDES+= -I$S/contrib/ipfilter
