@@ -257,7 +257,6 @@ isp_sbus_attach(device_t dev)
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
 	}
-isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 
 	tval = 0;
         if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -273,13 +272,10 @@ isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 	isp_debug = 0;
         (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
             "debug", &isp_debug);
-isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 
 	/* Make sure the lock is set up. */
 	mtx_init(&isp->isp_osinfo.lock, "isp", NULL, MTX_DEF);
 	locksetup++;
-
-isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 
 #ifdef	ISP_SMPLOCK
 #define	INTR_FLAGS	INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY
@@ -292,7 +288,6 @@ isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 		goto bad;
 	}
 
-isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 	/*
 	 * Set up logging levels.
 	 */
@@ -303,8 +298,6 @@ isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 	}
 	if (bootverbose)
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
-
-isp_prt(isp, ISP_LOGALL, "HERE %d", __LINE__);
 
 	/*
 	 * Make sure we're in reset state.
