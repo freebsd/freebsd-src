@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.36 1997/02/22 09:44:25 peter Exp $
+ *      $Id: ch.c,v 1.37 1997/03/06 15:36:14 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -45,6 +45,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/chio.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #ifdef DEVFS

@@ -35,15 +35,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: scsi_driver.h,v 1.10 1997/02/22 09:44:31 peter Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_
 #define _SCSI__DRIVER_H_
 
 #ifdef KERNEL
-
-#include <sys/conf.h>
 
 struct scsi_link;
 struct scsi_device;
