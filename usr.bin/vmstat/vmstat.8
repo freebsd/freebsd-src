@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1996
 .Dt VMSTAT 8
@@ -39,11 +40,12 @@
 .Nd report virtual memory statistics
 .Sh SYNOPSIS
 .Nm vmstat
-.Op Fl fimst
+.\" .Op Fl fimst
+.Op Fl ims
 .Op Fl c Ar count
-.Op Fl M core
-.Op Fl N system
-.Op Fl w wait
+.Op Fl M Ar core
+.Op Fl N Ar system
+.Op Fl w Ar wait
 .Op Ar disks
 .Sh DESCRIPTION
 .Nm Vmstat
@@ -211,7 +213,7 @@ default memory file
 .Pp
 The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
-.SH BUGS
+.Sh BUGS
 The 
 .Fl c
 and
