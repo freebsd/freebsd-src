@@ -1080,8 +1080,8 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
 	struct radix_node_head *rnh;
-	int	i, s, error = EINVAL;
-	u_char  af;
+	int	i, lim, s, error = EINVAL;
+	u_char	af;
 	struct	walkarg w;
 
 	name ++;
@@ -1103,25 +1103,19 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 
 	case NET_RT_DUMP:
 	case NET_RT_FLAGS:
-		if (af != 0) {
-			if ((rnh = rt_tables[af]) != NULL) {
+		if (af == 0) {			/* dump all tables */
+			i = 1;
+			lim = AF_MAX;
+		} else				/* dump only one table */
+			i = lim = af;
+		for (error = 0; error == 0 && i <= lim; i++)
+			if ((rnh = rt_tables[i]) != NULL) {
 				/* RADIX_NODE_HEAD_LOCK(rnh); */
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);/* could sleep XXX */
 				/* RADIX_NODE_HEAD_UNLOCK(rnh); */
-			} else
+			} else if (af != 0)
 				error = EAFNOSUPPORT;
-		} else {
-			for (i = 1; i <= AF_MAX; i++)
-				if ((rnh = rt_tables[i]) != NULL) {
-					/* RADIX_NODE_HEAD_LOCK(rnh); */
-					error = rnh->rnh_walktree(rnh,
-					    sysctl_dumpentry, &w);
-					/* RADIX_NODE_HEAD_UNLOCK(rnh); */
-					if (error)
-						break;
-				}
-		}
 		break;
 
 	case NET_RT_IFLIST:
