@@ -112,7 +112,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				    ATA_UDMA5,  ATA_C_F_SETXFER,ATA_WAIT_READY);
 	    	if (bootverbose)
 		    ata_printf(scp, device,
-			       "%s setting up UDMA5 mode on ICH2 chip\n",
+			       "%s setting UDMA5 on ICH2 chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 		    mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
@@ -142,7 +142,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				    ATA_UDMA4,  ATA_C_F_SETXFER,ATA_WAIT_READY);
 	    	if (bootverbose)
 		    ata_printf(scp, device,
-			       "%s setting up UDMA4 mode on ICH%s chip\n",
+			       "%s setting UDMA4 on ICH%s chip\n",
 			       (error) ? "failed" : "success",
 			       (scp->chiptype == 0x244b8086) ? "2" : "");
 		if (!error) {
@@ -171,7 +171,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting up UDMA2 mode on %s chip\n",
+		ata_printf(scp, device, "%s setting UDMA2 on %s chip\n",
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x244b8086) ? "ICH2" : 
 			    (scp->chiptype == 0x24118086) ? "ICH" : 
@@ -214,7 +214,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting up WDMA2 mode on %s chip\n",
+		ata_printf(scp, device, "%s setting WDMA2 on %s chip\n",
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x244b8086) ? "ICH2" : 
 			    (scp->chiptype == 0x24118086) ? "ICH" :
@@ -268,7 +268,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device, 
-			   "%s setting up WDMA2 mode on PIIX chip\n",
+			   "%s setting WDMA2 on PIIX chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
@@ -291,7 +291,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA2 mode on Aladdin chip\n",
+			   "%s setting UDMA2 on Aladdin chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		word54 &= ~(0x000f000f << (devno << 2));
@@ -309,7 +309,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device, 
-			   "%s setting up WDMA2 mode on Aladdin chip\n",
+			   "%s setting WDMA2 on Aladdin chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x53, 
@@ -330,7 +330,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA4 mode on AMD chip\n",
+			   "%s setting UDMA4 on AMD chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 	        pci_write_config(parent, 0x53 - devno, 0xc3, 1);
@@ -340,69 +340,59 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	}
 	goto via_82c586;
 
-    case 0x06861106:	/* VIA 82C686 */
-via_82c686:
-	if (udmamode >= 4) {
-	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_printf(scp, device, 
-			   "%s setting up UDMA4 mode on VIA chip\n",
-			   (error) ? "failed" : "success");
-	    if (!error) {
-		pci_write_config(parent, 0x53 - devno, 0xe8, 1);
-		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		return;
+    case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 */
+	if (ata_find_dev(parent, 0x06861106, 0) ||		/* 82C686a */
+	    ata_find_dev(parent, 0x05961106, 0x12)) {		/* 82C596b */
+
+	    if (udmamode >= 4) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device, 
+			       "%s setting UDMA4 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0xe8, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
+		    return;
+		}
+	    }
+	    if (udmamode >= 2) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device,
+			       "%s setting UDMA2 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, 0xea, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		    return;
+		}
 	    }
 	}
-	if (udmamode >= 2) {
-	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_printf(scp, device,
-			   "%s setting up UDMA2 mode on VIA chip\n",
-			   (error) ? "failed" : "success");
-	    if (!error) {
-		pci_write_config(parent, 0x53 - devno, 0xea, 1);
-		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return;
-	    }
-	}
-	goto via_generic;
-
-    case 0x05961106:	/* VIA 82C596 */
-	/* 82c596 revision >= 0x12 is like the 82c686 */
-	if (ata_find_dev(parent, 0x05961106, 0x12))
-	    goto via_82c686;
-	/* FALLTHROUGH */
-
-    case 0x05861106:	/* VIA 82C586 */
+	else if (ata_find_dev(parent, 0x05961106, 0) ||		/* 82C596a */
+		 ata_find_dev(parent, 0x05861106, 0x02)) {	/* 82C586b */
 via_82c586:
-	/* UDMA2 mode only on 82C586 > rev1, 82C596, AMD 756 */
-	if ((udmamode >= 2 && ata_find_dev(parent, 0x05861106, 0x02)) ||
-	    (udmamode >= 2 && scp->chiptype == 0x05961106) ||
-	    (udmamode >= 2 && scp->chiptype == 0x74091022)) {
-	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
-				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-	    if (bootverbose)
-		ata_printf(scp, device, "%s setting up UDMA2 mode on %s chip\n",
-			   (error) ? "failed" : "success",
-			   (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
-	    if (!error) {
-	        pci_write_config(parent, 0x53 - devno, 0xc0, 1);
-		scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		return;
+	    if (udmamode >= 2) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device, "%s setting UDMA2 on %s chip\n",
+			       (error) ? "failed" : "success",
+			       (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
+		if (!error) {
+	            pci_write_config(parent, 0x53 - devno, 0xc0, 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
+		    return;
+		}
 	    }
 	}
-	/* FALLTHROUGH */
-
-    case 0x05711106:	/* VIA 82C571 */
-via_generic:
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting up WDMA2 mode on %s chip\n",
+		ata_printf(scp, device, "%s setting WDMA2 on %s chip\n",
 			   (error) ? "failed" : "success",
 			   (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
 	    if (!error) {
@@ -421,7 +411,7 @@ via_generic:
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA2 mode on SiS chip\n",
+			   "%s setting UDMA2 on SiS chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x40 + (devno << 1), 0xa301, 2);
@@ -434,7 +424,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on SiS chip\n",
+			   "%s setting WDMA2 on SiS chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(parent, 0x40 + (devno << 1), 0x0301, 2);
@@ -451,7 +441,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on CMD646 chip\n",
+			   "%s setting WDMA2 on CMD646 chip\n",
 			   error ? "failed" : "success");
 	    if (!error) {
 		int32_t offset = (devno < 3) ? (devno << 1) : 7;
@@ -470,7 +460,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on Cypress chip\n",
+			   "%s setting WDMA2 on Cypress chip\n",
 			   error ? "failed" : "success");
 	    if (!error) {
 		pci_write_config(scp->dev, scp->unit ? 0x4e : 0x4c, 0x2020, 2);
@@ -495,7 +485,7 @@ via_generic:
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA5 mode on Promise chip\n",
+			   "%s setting UDMA5 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		promise_timing(scp, devno, ATA_UDMA5);
@@ -510,7 +500,7 @@ via_generic:
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA4 mode on Promise chip\n",
+			   "%s setting UDMA4 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		promise_timing(scp, devno, ATA_UDMA4);
@@ -523,7 +513,7 @@ via_generic:
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA2 mode on Promise chip\n",
+			   "%s setting UDMA2 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		promise_timing(scp, devno, ATA_UDMA2);
@@ -536,7 +526,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on Promise chip\n",
+			   "%s setting WDMA2 on Promise chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		promise_timing(scp, devno, ATA_WDMA2);
@@ -549,7 +539,7 @@ via_generic:
 			    ATA_C_F_SETXFER, ATA_WAIT_READY);
 	if (bootverbose)
 	    ata_printf(scp, device,
-		       "%s setting up PIO%d mode on Promise chip\n",
+		       "%s setting PIO%d on Promise chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
 	promise_timing(scp, devno, ata_pio2mode(apiomode));
@@ -568,7 +558,7 @@ via_generic:
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA5 mode on HPT370 chip\n",
+			   "%s setting UDMA5 on HPT370 chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA5);
@@ -583,7 +573,7 @@ via_generic:
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA4 mode on HPT366 chip\n",
+			   "%s setting UDMA4 on HPT366 chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA4);
@@ -596,7 +586,7 @@ via_generic:
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up UDMA2 mode on HPT366 chip\n",
+			   "%s setting UDMA2 on HPT366 chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_UDMA2);
@@ -609,7 +599,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on HPT366 chip\n",
+			   "%s setting WDMA2 on HPT366 chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		hpt_timing(scp, devno, ATA_WDMA2);
@@ -621,7 +611,7 @@ via_generic:
 			    ata_pio2mode(apiomode), 
 			    ATA_C_F_SETXFER, ATA_WAIT_READY);
 	if (bootverbose)
-	    ata_printf(scp, device, "%s setting up PIO%d mode on HPT366 chip\n",
+	    ata_printf(scp, device, "%s setting PIO%d on HPT366 chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
 	hpt_timing(scp, devno, ata_pio2mode(apiomode));
@@ -650,7 +640,7 @@ via_generic:
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_printf(scp, device,
-			   "%s setting up WDMA2 mode on generic chip\n",
+			   "%s setting WDMA2 on generic chip\n",
 			   (error) ? "failed" : "success");
 	    if (!error) {
 		scp->mode[ATA_DEV(device)] = ATA_WDMA2;
@@ -661,7 +651,7 @@ via_generic:
     error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 			ata_pio2mode(apiomode), ATA_C_F_SETXFER,ATA_WAIT_READY);
     if (bootverbose)
-	ata_printf(scp, device, "%s setting up PIO%d mode on generic chip\n",
+	ata_printf(scp, device, "%s setting PIO%d on generic chip\n",
 		   (error) ? "failed" : "success", apiomode < 0 ? 0 : apiomode);
     if (!error)
         scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
