@@ -59,7 +59,7 @@ boolean msg_cleared = 1, rmsg = 0;
 char hunger_str[8] = "";
 char *more = "-more-";
 
-extern boolean cant_int, did_int, interrupted, save_is_interactive;
+extern boolean cant_int, did_int, interrupted, save_is_interactive, flush;
 extern short add_strength;
 extern short cur_level;
 
@@ -74,7 +74,8 @@ boolean intrpt;
 	}
 	if (intrpt) {
 		interrupted = 1;
-		md_slurp();
+		if (flush)
+			md_slurp();
 	}
 
 	if (!msg_cleared) {

@@ -56,10 +56,10 @@ room rooms[MAXROOMS];
 boolean rooms_visited[MAXROOMS];
 
 extern short blind;
-extern boolean detect_monster, jump, passgo, no_skull, ask_quit;
+extern boolean detect_monster, jump, passgo, no_skull, ask_quit, flush;
 extern char *nick_name, *fruit, *save_file, *press_space;
 
-#define NOPTS 7
+#define NOPTS 8
 
 struct option {
 	char *prompt;
@@ -67,6 +67,10 @@ struct option {
 	char **strval;
 	boolean *bval;
 } options[NOPTS] = {
+	{
+		"Flush typeahead during battle (\"flush\"): ",
+		1, (char **) 0, &flush
+	},
 	{
 		"Show position only at end of run (\"jump\"): ",
 		1, (char **) 0, &jump
