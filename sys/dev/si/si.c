@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.7 1995/09/13 08:45:28 peter Exp $
+ *	$Id: si.c,v 1.8 1995/09/22 18:28:21 peter Exp $
  */
 
 #ifndef lint
@@ -111,9 +111,11 @@ static	char	*si_mctl2str __P((enum si_mctl cmd));
 #define	DPRINT(x)	/* void */
 #endif
 
-static int si_Nports = 0;
-static int si_Nmodules = 0;
-static int si_debug = 0;
+static int si_Nports;
+static int si_Nmodules;
+static int si_debug = 0;	/* data, not bss, so it's patchable */
+
+static struct tty *si_tty;
 
 /* where the firmware lives */
 extern int si_dsize;
@@ -588,6 +590,7 @@ mem_fail:
 	if (tp == 0)
 		goto mem_fail;
 	bzero(tp, sizeof(*tp) * nport);
+	si_tty = tp;
 
 	/* mark the device state as attached */
 	si_kdc[unit].kdc_state = DC_BUSY;
@@ -626,7 +629,7 @@ mem_fail:
 			break;
 		}
 		if (modp->sm_next == 0) {
-			printf("si%d: %s, ports: %d, modules: %d\n",
+			printf("si%d: card: %s, ports: %d, modules: %d\n",
 				unit,
 				sc->sc_typename,
 				sc->sc_nport,
