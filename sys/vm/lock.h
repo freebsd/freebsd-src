@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: lock.h,v 1.3 1995/01/09 16:05:31 davidg Exp $
+ * $Id: lock.h,v 1.4 1995/07/13 08:48:14 davidg Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ typedef struct lock *lock_t;
 #define	lock_read_done(l)	lock_done(l)
 #define	lock_write_done(l)	lock_done(l)
 
+#ifdef KERNEL
 void lock_clear_recursive __P((lock_t));
 void lock_done __P((lock_t));
 void lock_init __P((lock_t, boolean_t));
@@ -111,5 +112,6 @@ boolean_t lock_try_read_to_write __P((lock_t));
 boolean_t lock_try_write __P((lock_t));
 void lock_write __P((lock_t));
 void lock_write_to_read __P((lock_t));
+#endif
 
 #endif				/* !_LOCK_H_ */
