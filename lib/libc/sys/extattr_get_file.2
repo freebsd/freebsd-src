@@ -139,7 +139,7 @@ the namespace in which the extended attribute resides; see
 the name of the extended attribute
 .El
 .Pp
-Named extended attribute semantics vary by filesystem implementing the call.
+Named extended attribute semantics vary by file system implementing the call.
 Not all operations may be supported for a particular attribute.
 Additionally, the format of the data in
 .Fa data
@@ -174,7 +174,7 @@ is set to indicate the error.
 .Rv -std extattr_delete_file
 .Sh ERRORS
 The following errors may be returned by the system calls themselves.
-Additionally, the filesystem implementing the call may return any
+Additionally, the file system implementing the call may return any
 other errors it desires.
 .Bl -tag -width Er
 .It Bq Er EFAULT

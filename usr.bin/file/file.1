@@ -20,7 +20,7 @@ This manual page documents version 3.39 of the
 .Nm
 utility which tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
-filesystem tests, magic number tests, and language tests.
+file system tests, magic number tests, and language tests.
 The
 .Em first
 test that succeeds causes the file type to be printed.
@@ -63,7 +63,7 @@ the subdirectory
 .Pa Magdir
 in the source distribution of this program.
 .Pp
-The filesystem tests are based on examining the return from a
+The file system tests are based on examining the return from a
 .Xr stat 2
 system call.
 The program checks to see if the file is empty,
@@ -227,7 +227,7 @@ Specifying the
 option causes
 .Nm
 to also read argument files which are block or character special files.
-This is useful for determining the filesystem types of the data in raw
+This is useful for determining the file system types of the data in raw
 disk partitions, which are block special files.
 This option also causes
 .Nm

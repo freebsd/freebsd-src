@@ -50,7 +50,7 @@
 .Ft int
 .Fn vn_lock "struct vnode *vp" "int flags" "struct thread *td"
 .Sh DESCRIPTION
-These calls are used to serialize access to the filesystem, such as
+These calls are used to serialize access to the file system, such as
 to prevent two writes to the same file from happening at the
 same time.
 .Pp
@@ -106,7 +106,7 @@ Zero is returned on success, otherwise an error is returned.
 struct vopnode {
     int von_flag;
     /*
-     * Other filesystem specific data.
+     * Other file system specific data.
      */
     ...;
 };

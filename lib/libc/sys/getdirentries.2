@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm getdirentries ,
 .Nm getdents
-.Nd "get directory entries in a filesystem independent format"
+.Nd "get directory entries in a file system independent format"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -58,7 +58,7 @@ referenced by the file descriptor
 .Fa fd
 into the buffer pointed to by
 .Fa buf ,
-in a filesystem independent format.
+in a file system independent format.
 Up to
 .Fa nbytes
 of data will be transferred.
@@ -68,7 +68,7 @@ argument must be greater than or equal to the
 block size associated with the file,
 see
 .Xr stat 2 .
-Some filesystems may not support these functions
+Some file systems may not support these functions
 with buffers smaller than this size.
 .Pp
 The data in the buffer is a series of
@@ -85,7 +85,7 @@ char	d_name[MAXNAMELEN + 1];	/* see below */
 The
 .Fa d_fileno
 entry is a number which is unique for each
-distinct file in the filesystem.
+distinct file in the file system.
 Files that are linked by hard links (see
 .Xr link 2 )
 have the same

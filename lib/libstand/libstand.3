@@ -357,7 +357,7 @@ Similar to the behaviour as specified in
 except that file creation is not supported, so the mode parameter is not
 required.  The
 .Fa flags
-argument may be one of O_RDONLY, O_WRONLY and O_RDWR (although no filesystems
+argument may be one of O_RDONLY, O_WRONLY and O_RDWR (although no file systems
 currently support writing).
 .It Xo
 .Ft int
@@ -378,7 +378,7 @@ Close all open files.
 .Fn write "int fd" "void *buf" "size_t len"
 .Xc
 .Pp
-(No filesystems currently support writing.)
+(No file systems currently support writing.)
 .It Xo
 .Ft off_t
 .Fn lseek "int fd" "off_t offset" "int whence"
@@ -403,9 +403,9 @@ functions only fill out the following fields in the
 .Fa sb
 structure: st_mode,st_nlink,st_uid,st_gid,st_size.  The
 .Nm tftp
-filesystem cannot provide meaningful values for this call, and the
+file system cannot provide meaningful values for this call, and the
 .Nm cd9660
-filesystem always reports files having uid/gid of zero.
+file system always reports files having uid/gid of zero.
 .El
 .Sh PAGER
 .Nm
@@ -466,7 +466,7 @@ The following resources are consumed by
 The stack must be established before
 .Nm
 functions can be invoked.  Stack requirements vary depending on the functions
-and filesystems used by the consumer and the support layer functions detailed
+and file systems used by the consumer and the support layer functions detailed
 below.
 .Pp
 The heap must be established before calling
@@ -567,36 +567,36 @@ Signal a fatal and unrecoverable error condition.  The
 arguments are as for
 .Fn printf .
 .El
-.Sh INTERNAL FILESYSTEMS
-Internal filesystems are enabled by the consumer exporting the array
+.Sh INTERNAL FILE SYSTEMS
+Internal file systems are enabled by the consumer exporting the array
 .Vt struct fs_ops *file_system[] ,
 which should be initialised with pointers
 to
 .Vt struct fs_ops
-structures.  The following filesystem handlers are supplied by
+structures.  The following file system handlers are supplied by
 .Nm ,
-the consumer may supply other filesystems of their own:
+the consumer may supply other file systems of their own:
 .Bl -hang -width ".Va cd9660_fsops"
 .It Va ufs_fsops
 The
 .Bx
 UFS.
 .It Va ext2fs_fsops
-Linux ext2fs filesystem.
+Linux ext2fs file system.
 .It Va tftp_fsops
 File access via TFTP.
 .It Va nfs_fsops
 File access via NFS.
 .It Va cd9660_fsops
-ISO 9660 (CD-ROM) filesystem.
+ISO 9660 (CD-ROM) file system.
 .It Va zipfs_fsops
-Stacked filesystem supporting gzipped files.
-When trying the zipfs filesystem,
+Stacked file system supporting gzipped files.
+When trying the zipfs file system,
 .Nm
 appends
 .Li .gz
 to the end of the filename, and then tries to locate the file using the other
-filesystems.  Placement of this filesystem in the
+file systems.  Placement of this file system in the
 .Va file_system[]
 array determines whether gzipped files will be opened in preference to non-gzipped
 files.  It is only possible to seek a gzipped file forwards, and

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm rpc.umntall
-.Nd notify NFS servers about unmounted NFS filesystems
+.Nd notify NFS servers about unmounted NFS file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl e Ar expire
@@ -88,13 +88,13 @@ is 86400 seconds (one day).
 Only remove the specific hostname.
 Send a UMNTALL RPC to the NFS server.
 .It Fl k
-Keep entries for existing NFS filesystems.
-Compare the NFS filesystems from
+Keep entries for existing NFS file systems.
+Compare the NFS file systems from
 the mounttab against the kernel mountlist and do not send the RPC to
 existing mount entries.
 Useful during startup of the system.
 It may be
-possible that there are already mounted NFS filesystems, so calling
+possible that there are already mounted NFS file systems, so calling
 RPC UMOUNT isn't a good idea.
 This is the case if the user has rebooted
 to 'single user mode' and starts up the system again.
@@ -111,7 +111,7 @@ entry.
 .Sh FILES
 .Bl -tag -width /var/db/mounttab -compact
 .It Pa /var/db/mounttab
-mounted nfs-filesystems
+mounted nfs-file systems
 .El
 .Sh HISTORY
 The

@@ -43,8 +43,8 @@
 .Fn vgone
 and
 .Fn vgonel
-prepare a vnode for reuse by another filesystem.
-The preparation includes the cleaning of all filesystem specific data and
+prepare a vnode for reuse by another file system.
+The preparation includes the cleaning of all file system specific data and
 the removal from its mount point vnode list.
 .Pp
 If the vnode has a
@@ -53,7 +53,7 @@ of zero, and its
 .Dv VDOOMED
 flag is not set, it is moved to the head of the free list
 as in most cases the vnode
-is about to be reused, or its filesystem being unmounted.
+is about to be reused, or its file system being unmounted.
 .Pp
 The difference between
 .Fn vgone

@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm fs ,
 .Nm inode
-.Nd format of filesystem volume
+.Nd format of file system volume
 .Sh SYNOPSIS
 .In sys/param.h
 .In ufs/ffs/fs.h
@@ -54,10 +54,10 @@ and
 .Aq Pa inode.h
 declare several structures, defined variables and macros
 which are used to create and manage the underlying format of
-filesystem objects on random access devices (disks).
+file system objects on random access devices (disks).
 .Pp
 The block size and number of blocks which
-comprise a filesystem are parameters of the filesystem.
+comprise a file system are parameters of the file system.
 Sectors beginning at
 .Dv BBLOCK
 and continuing for
@@ -66,7 +66,7 @@ are used
 for a disklabel and for some hardware primary
 and secondary bootstrapping programs.
 .Pp
-The actual filesystem begins at sector
+The actual file system begins at sector
 .Dv SBLOCK
 with the
 .Em super-block
@@ -77,10 +77,10 @@ from the file
 .Aq Pa ufs/ffs/fs.h :
 .Bd -literal
 /*
- * Super block for an FFS filesystem.
+ * Super block for an FFS file system.
  */
 struct fs {
-	int32_t	 fs_firstfield;	/* historic filesystem linked list, */
+	int32_t	 fs_firstfield;	/* historic file system linked list, */
 	int32_t	 fs_unused_1;	/*     used for incore super blocks */
 	ufs_daddr_t fs_sblkno;	/* addr of super-block in filesys */
 	ufs_daddr_t fs_cblkno;	/* offset of cyl-block in filesys */
@@ -123,7 +123,7 @@ struct fs {
 	int32_t	 fs_interleave;	/* hardware sector interleave */
 	int32_t	 fs_trackskew;	/* sector 0 skew, per track */
 /* fs_id takes the space of the unused fs_headswitch and fs_trkseek fields */
-	int32_t	fs_id[2];	/* unique filesystem id*/
+	int32_t	fs_id[2];	/* unique file system id*/
 /* sizes determined by number of cylinder groups and their sizes */
 	ufs_daddr_t fs_csaddr;	/* blk addr of cyl grp summary area */
 	int32_t	 fs_cssize;	/* size of cyl grp summary area */
@@ -133,7 +133,7 @@ struct fs {
 	int32_t	 fs_nsect;	/* sectors per track */
 	int32_t  fs_spc;	/* sectors per cylinder */
 /* this comes from the disk driver partitioning */
-	int32_t	 fs_ncyl;	/* cylinders in filesystem */
+	int32_t	 fs_ncyl;	/* cylinders in file system */
 /* these fields can be computed from the others */
 	int32_t	 fs_cpg;	/* cylinders per group */
 	int32_t	 fs_ipg;	/* inodes per group */
@@ -142,7 +142,7 @@ struct fs {
 	struct	csum fs_cstotal;/* cylinder summary information */
 /* these fields are cleared at mount time */
 	int8_t   fs_fmod;	/* super block modified flag */
-	int8_t   fs_clean;	/* filesystem is clean flag */
+	int8_t   fs_clean;	/* file system is clean flag */
 	int8_t 	 fs_ronly;	/* mounted read-only flag */
 	int8_t   fs_flags;	/* currently unused flag */
 	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
@@ -170,9 +170,9 @@ struct fs {
 };
 
 /*
- * Filesystem identification
+ * File system identification
  */
-#define	FS_MAGIC	0x011954   /* the fast filesystem magic number */
+#define	FS_MAGIC	0x011954   /* the fast file system magic number */
 #define	FS_OKAY		0x7c269d38 /* superblock checksum */
 #define FS_42INODEFMT	-1	   /* 4.2BSD inode format */
 #define FS_44INODEFMT	2	   /* 4.4BSD inode format */
@@ -189,14 +189,14 @@ struct fs {
 #define FS_DYNAMICPOSTBLFMT	1   /* dynamic rotational table format */
 .Ed
 .Pp
-Each disk drive contains some number of filesystems.
-A filesystem consists of a number of cylinder groups.
+Each disk drive contains some number of file systems.
+A file system consists of a number of cylinder groups.
 Each cylinder group has inodes and data.
 .Pp
-A filesystem is described by its super-block, which in turn
+A file system is described by its super-block, which in turn
 describes the cylinder groups.  The super-block is critical
 data and is replicated in each cylinder group to protect against
-catastrophic loss.  This is done at filesystem creation
+catastrophic loss.  This is done at file system creation
 time and the critical
 super-block data does not change, so the copies need not be
 referenced further unless disaster strikes.
@@ -216,17 +216,17 @@ unit.
 Large files consist of exclusively large data blocks.  To avoid
 undue wasted disk space, the last data block of a small file is
 allocated as only as many fragments of a large block as are
-necessary.  The filesystem format retains only a single pointer
+necessary.  The file system format retains only a single pointer
 to such a fragment, which is a piece of a single large block that
 has been divided.  The size of such a fragment is determinable from
 information in the inode, using the
 .Fn blksize fs ip lbn
 macro.
 .Pp
-The filesystem records space availability at the fragment level;
+The file system records space availability at the fragment level;
 to determine block availability, aligned fragments are examined.
 .Pp
-The root inode is the root of the filesystem.
+The root inode is the root of the file system.
 Inode 0 can't be used for normal purposes and
 historically bad blocks were linked to inode 1,
 thus the root inode is 2 (inode 1 is no longer used for
@@ -235,7 +235,7 @@ assumption, so we are stuck with it).
 .Pp
 The
 .Fa fs_minfree
-element gives the minimum acceptable percentage of filesystem
+element gives the minimum acceptable percentage of file system
 blocks that may be free.
 If the freelist drops below this level
 only the super-user may continue to allocate blocks.
@@ -244,7 +244,7 @@ The
 element
 may be set to 0 if no reserve of free blocks is deemed necessary,
 however severe performance degradations will be observed if the
-filesystem is run at greater than 90% full; thus the default
+file system is run at greater than 90% full; thus the default
 value of
 .Fa fs_minfree
 is 10%.
@@ -256,15 +256,15 @@ of the block size.
 .Pp
 The element
 .Fa fs_optim
-specifies whether the filesystem should try to minimize the time spent
+specifies whether the file system should try to minimize the time spent
 allocating blocks, or if it should attempt to minimize the space
 fragmentation on the disk.
 If the value of fs_minfree (see above) is less than 10%,
-then the filesystem defaults to optimizing for space to avoid
+then the file system defaults to optimizing for space to avoid
 running out of full sized blocks.
 If the value of minfree is greater than or equal to 10%,
 fragmentation is unlikely to be problematical, and
-the filesystem defaults to optimizing for time.
+the file system defaults to optimizing for time.
 .Pp
 .Em Cylinder group related limits :
 Each cylinder keeps track of the availability of blocks at different
@@ -284,7 +284,7 @@ the default value for
 .Fa fs_rotdelay
 is 2ms.
 .Pp
-Each filesystem has a statically allocated number of inodes.
+Each file system has a statically allocated number of inodes.
 An inode is allocated for each
 .Dv NBPI
 bytes of disk space.
@@ -306,12 +306,12 @@ must keep its size within
 Note that super-blocks are never more than size
 .Dv SBSIZE .
 .Pp
-The path name on which the filesystem is mounted is maintained in
+The path name on which the file system is mounted is maintained in
 .Fa fs_fsmnt .
 .Dv MAXMNTLEN
 defines the amount of space allocated in
 the super-block for this name.
-The limit on the amount of summary information per filesystem
+The limit on the amount of summary information per file system
 is defined by
 .Dv MAXCSBUFS .
 For a 4096 byte block size, it is currently parameterized for a
@@ -333,14 +333,14 @@ the
 macro to work.
 .Pp
 The
-.Em "Super-block for a filesystem" :
+.Em "Super-block for a file system" :
 The size of the rotational layout tables
 is limited by the fact that the super-block is of size
 .Dv SBSIZE .
 The size of these tables is
 .Em inversely
 proportional to the block
-size of the filesystem.
+size of the file system.
 The size of the tables is
 increased when sector sizes are not powers of two,
 as this increases the number of cylinders
@@ -361,7 +361,7 @@ The
 .Em Inode :
 The inode is the focus of all file activity in the
 .Ux
-filesystem.
+file system.
 There is a unique inode allocated
 for each active file,
 each current directory, each mounted-on file,
@@ -372,6 +372,6 @@ For further information, see the include file
 .Sh HISTORY
 A super-block structure named filsys appeared in
 .At v6 .
-The filesystem described in this manual appeared
+The file system described in this manual appeared
 in
 .Bx 4.2 .

@@ -34,7 +34,7 @@
 .Sh NAME
 .Nm VOP_INACTIVE ,
 .Nm VOP_RECLAIM
-.Nd reclaim filesystem resources for a vnode
+.Nd reclaim file system resources for a vnode
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -52,11 +52,11 @@ the vnode being reclaimed
 .Xr VOP_INACTIVE 9
 is called when the kernel is no longer using the vnode.  This may be
 because the reference count reaches zero or it may be that the
-filesystem is being forcibly unmounted while there are open files.
+file system is being forcibly unmounted while there are open files.
 It can be used to reclaim space for 'open but deleted' files.
 .Xr VOP_RECLAIM 9
-is called when a vnode is being reused for a different filesystem.
-Any filesystem specific resources associated with the vnode should be
+is called when a vnode is being reused for a different file system.
+Any file system specific resources associated with the vnode should be
 freed.
 .Sh LOCKS
 For VOP_INACTIVE, the vp will be locked on entry.  Your VOP_INACTIVE code
@@ -71,7 +71,7 @@ vop_inactive(struct vnode *vp, struct thread *td)
 {
     if (link count of vp == 0) {
 	/*
-	 * Reclaim space in filesystem for vp.
+	 * Reclaim space in file system for vp.
 	 */
 	...;
     }
@@ -89,7 +89,7 @@ vop_reclaim(struct vnode *vp, struct thread *td)
     cache_purge(vp);
 
     /*
-     * Free filesystem-related data.
+     * Free file system related data.
      */
     ...;
 

@@ -136,21 +136,21 @@ will configure normally.
 Component labels are also used to support the auto-detection and
 auto-configuration of RAID sets.  A RAID set can be flagged as
 auto-configurable, in which case it will be configured automatically
-during the kernel boot process.  RAID filesystems which are
-automatically configured are also eligible to be the root filesystem.
+during the kernel boot process.  RAID file systems which are
+automatically configured are also eligible to be the root file system.
 There is currently only limited support (alpha and pmax architectures)
 for booting a kernel directly from a RAID 1 set, and no support for
 booting from any other RAID sets.  To use a RAID set as the root
-filesystem, a kernel is usually obtained from a small non-RAID
+file system, a kernel is usually obtained from a small non-RAID
 partition, after which any auto-configuring RAID set can be used for the
-root filesystem.  See
+root file system.  See
 .Xr raidctl 8
 for more information on auto-configuration of RAID sets.
 .Pp
 The driver supports 
 .Sq hot spares , 
 disks which are on-line, but are not
-actively used in an existing filesystem.  Should a disk fail, the
+actively used in an existing file system.  Should a disk fail, the
 driver is capable of reconstructing the failed disk onto a hot spare
 or back onto a replacement drive.
 If the components are hot swapable, the failed disk can then be
@@ -185,10 +185,10 @@ before doing a
 .Xr fsck 8
 or a
 .Xr newfs 8 ,
-filesystem integrity and parity integrity can be ensured.  It bears
+file system integrity and parity integrity can be ensured.  It bears
 repeating again that parity recomputation is 
 .Ar required
-before any filesystems are created or used on the RAID device.  If the
+before any file systems are created or used on the RAID device.  If the
 parity is not correct, then missing data cannot be correctly recovered.
 .Pp
 RAID levels may be combined in a hierarchical fashion.  For example, a RAID 0 
@@ -259,7 +259,7 @@ result in data loss.
 Certain RAID levels (1, 4, 5, 6, and others) can protect against some
 data loss due to component failure.  However the loss of two
 components of a RAID 4 or 5 system, or the loss of a single component
-of a RAID 0 system, will result in the entire filesystems on that RAID
+of a RAID 0 system, will result in the entire file systems on that RAID
 device being lost.
 RAID is 
 .Ar NOT

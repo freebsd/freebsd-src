@@ -15,13 +15,13 @@ When using
 .Xr disklabel 8
 or
 .Xr sysinstall 8
-to lay out your filesystems on a hard disk it is important to remember
+to lay out your file systems on a hard disk it is important to remember
 that hard drives can transfer data much more quickly from outer tracks
 than they can from inner tracks.
 To take advantage of this you should
-try to pack your smaller filesystems and swap closer to the outer tracks,
-follow with the larger filesystems, and end with the largest filesystems.
-It is also important to size system standard filesystems such that you
+try to pack your smaller file systems and swap closer to the outer tracks,
+follow with the larger file systems, and end with the largest file systems.
+It is also important to size system standard file systems such that you
 will not be forced to resize them later as you scale the machine up.
 I usually create, in order, a 128M root, 1G swap, 128M
 .Pa /var ,
@@ -85,7 +85,7 @@ Also note that sysinstall will create a
 .Pa /tmp
 directory.
 Dedicating a partition for temporary file storage is important for
-two reasons: first, it reduces the possibility of filesystem corruption
+two reasons: first, it reduces the possibility of file system corruption
 in a crash, and second it reduces the chance of a runaway process that
 fills up
 .Oo Pa /var Oc Ns Pa /tmp
@@ -155,7 +155,7 @@ Then I do not have to worry about undersizing things!
 Well, there are several reasons this is not a good idea.
 First,
 each partition has different operational characteristics and separating them
-allows the filesystem to tune itself to those characteristics.
+allows the file system to tune itself to those characteristics.
 For example,
 the root and
 .Pa /usr
@@ -198,8 +198,8 @@ and
 .Em cylinders/group .
 .Pp
 .Fx
-performs best when using 8K or 16K filesystem block sizes.
-The default filesystem block size is 16K,
+performs best when using 8K or 16K file system block sizes.
+The default file system block size is 16K,
 which provides best performance for most applications,
 with the exception of those that perform random access on large files
 (such as database server software).
@@ -211,9 +211,9 @@ can cause fragmentation of the buffer cache and
 lead to lower performance.
 .Pp
 The defaults may be unsuitable
-for a filesystem that requires a very large number of i-nodes
+for a file system that requires a very large number of i-nodes
 or is intended to hold a large number of very small files.
-Such a filesystem should be created with an 8K or 4K block size.
+Such a file system should be created with an 8K or 4K block size.
 This also requires you to specify a smaller
 fragment size.
 We recommend always using a fragment size that is 1/8
@@ -229,12 +229,12 @@ as database files, you can increase the
 ratio which reduces the number of i-nodes (maximum number of files and
 directories that can be created) for that partition.
 Decreasing the number
-of i-nodes in a filesystem can greatly reduce
+of i-nodes in a file system can greatly reduce
 .Xr fsck 8
 recovery times after a crash.
 Do not use this option
 unless you are actually storing large files on the partition, because if you
-overcompensate you can wind up with a filesystem that has lots of free
+overcompensate you can wind up with a file system that has lots of free
 space remaining but cannot accommodate any more files.
 Using 32768, 65536, or 262144 bytes/i-node is recommended.
 You can go higher but
@@ -245,13 +245,13 @@ For example,
 .Dq Li "newfs -i 32768 ..." .
 .Pp
 .Xr tunefs 8
-may be used to further tune a filesystem.
+may be used to further tune a file system.
 This command can be run in
-single-user mode without having to reformat the filesystem.
+single-user mode without having to reformat the file system.
 However, this is possibly the most abused program in the system.
 Many people attempt to
-increase available filesystem space by setting the min-free percentage to 0.
-This can lead to severe filesystem fragmentation and we do not recommend
+increase available file system space by setting the min-free percentage to 0.
+This can lead to severe file system fragmentation and we do not recommend
 that you do this.
 Really the only
 .Xr tunefs 8
@@ -267,27 +267,27 @@ option to
 .Xr newfs 8 ,
 and
 .Xr sysinstall 8
-will typically enable softupdates automatically for non-root filesystems).
+will typically enable softupdates automatically for non-root file systems).
 Softupdates drastically improves meta-data performance, mainly file
 creation and deletion.
-We recommend enabling softupdates on most filesystems; however, there
+We recommend enabling softupdates on most file systems; however, there
 are two limitations to softupdates that you should be aware of when
-determining whether to use it on a filesystem.
-First, softupdates guarantees filesystem consistency in the
+determining whether to use it on a file system.
+First, softupdates guarantees file system consistency in the
 case of a crash but could very easily be several seconds (even a minute!\&)
 behind on pending write to the physical disk.
 If you crash you may lose more work
 than otherwise.
-Secondly, softupdates delays the freeing of filesystem
+Secondly, softupdates delays the freeing of file system
 blocks.
-If you have a filesystem (such as the root filesystem) which is
+If you have a file system (such as the root file system) which is
 close to full, doing a major update of it, e.g.\&
 .Dq Li "make installworld" ,
 can run it out of space and cause the update to fail.
-For this reason, softupdates will not be enabled on the root filesystem
+For this reason, softupdates will not be enabled on the root file system
 during a typical install.
 There is no loss of performance since the root
-filesystem is rarely written to.
+file system is rarely written to.
 .Pp
 A number of run-time
 .Xr mount 8
@@ -301,7 +301,7 @@ useful
 option is called
 .Cm noatime .
 .Ux
-filesystems normally update the last-accessed time of a file or
+file systems normally update the last-accessed time of a file or
 directory whenever it is accessed.
 This operation is handled in
 .Fx
@@ -318,7 +318,7 @@ However, you should not gratuitously turn off atime
 updates everywhere.
 For example, the
 .Pa /var
-filesystem customarily
+file system customarily
 holds mailboxes, and atime (in combination with mtime) is used to
 determine whether a mailbox has new mail.
 You might as well leave
@@ -335,13 +335,13 @@ use the atime field for reporting.
 In larger systems you can stripe partitions from several drives together
 to create a much larger overall partition.
 Striping can also improve
-the performance of a filesystem by splitting I/O operations across two
+the performance of a file system by splitting I/O operations across two
 or more disks.
 The
 .Xr vinum 8
 and
 .Xr ccdconfig 8
-utilities may be used to create simple striped filesystems.
+utilities may be used to create simple striped file systems.
 Generally
 speaking, striping smaller partitions such as the root and
 .Pa /var/tmp ,
@@ -354,7 +354,7 @@ typically
 or custom partitions used to hold databases and web pages.
 Choosing the proper stripe size is also
 important.
-Filesystems tend to store meta-data on power-of-2 boundaries
+File systems tend to store meta-data on power-of-2 boundaries
 and you usually want to reduce seeking rather than increase seeking.
 This
 means you want to use a large off-center stripe size such as 1152 sectors
@@ -400,7 +400,7 @@ sysctl defaults to 1 (on).
 This parameter controls how directories are cached
 by the system.
 Most directories are small and use but a single fragment
-(typically 1K) in the filesystem and even less (typically 512 bytes) in
+(typically 1K) in the file system and even less (typically 512 bytes) in
 the buffer cache.
 However, when operating in the default mode the buffer
 cache will only cache a fixed number of directories even if you have a huge
@@ -422,7 +422,7 @@ wasted memory but you should experiment to find out.
 The
 .Va vfs.write_behind
 sysctl defaults to 1 (on).
-This tells the filesystem to issue media
+This tells the file system to issue media
 writes as full clusters are collected, which typically occurs when writing
 large sequential files.
 The idea is to avoid saturating the buffer
@@ -749,7 +749,7 @@ More and more programs are using the
 system call to transmit files over the network.
 The
 .Va kern.ipc.nsfbufs
-sysctl controls the number of filesystem buffers
+sysctl controls the number of file system buffers
 .Xr sendfile 2
 is allowed to use to perform its work.
 This parameter nominally scales
@@ -818,7 +818,7 @@ With IDE write caching turned
 on, IDE hard drives will not only write data to disk out of order, they
 will sometimes delay some of the blocks indefinitely under heavy disk
 load.
-A crash or power failure can result in serious filesystem
+A crash or power failure can result in serious file system
 corruption.
 So our default was changed to be safe.
 Unfortunately, the

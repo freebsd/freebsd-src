@@ -33,7 +33,7 @@
 .Dt VFS_QUOTACTL 9
 .Sh NAME
 .Nm VFS_QUOTACTL
-.Nd manipulate filesystem quotas
+.Nd manipulate file system quotas
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -41,7 +41,7 @@
 .Ft int
 .Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "caddr_t arg" "struct thread *td"
 .Sh DESCRIPTION
-Implement filesystem quotas.  See
+Implement file system quotas.  See
 .Xr quotactl 2
 for a description of the arguments.
 .Sh SEE ALSO

@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm quotactl
-.Nd manipulate filesystem quotas
+.Nd manipulate file system quotas
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -52,7 +52,7 @@
 The
 .Fn quotactl
 call enables, disables and
-manipulates filesystem quotas.
+manipulates file system quotas.
 A quota control command
 given by
 .Fa cmd
@@ -71,7 +71,7 @@ is discussed below with each command.
 .Pp
 Currently quotas are supported only for the
 .Dq ufs
-filesystem.
+file system.
 For
 .Dq ufs ,
 a command is composed of a primary command (see below)
@@ -84,7 +84,7 @@ The
 specific commands are:
 .Bl -tag -width Q_QUOTAOFFxx
 .It Dv Q_QUOTAON
-Enable disk quotas for the filesystem specified by
+Enable disk quotas for the file system specified by
 .Fa path .
 The command type specifies the type of the quotas being enabled.
 The
@@ -99,7 +99,7 @@ The
 argument is unused.
 Only the super-user may turn quotas on.
 .It Dv Q_QUOTAOFF
-Disable disk quotas for the filesystem specified by
+Disable disk quotas for the file system specified by
 .Fa path .
 The command type specifies the type of the quotas being disabled.
 The
@@ -170,7 +170,7 @@ In
 .Dv Q_GETQUOTA
 and
 .Dv Q_SETQUOTA ,
-quotas are not currently enabled for this filesystem.
+quotas are not currently enabled for this file system.
 .It Bq Er EACCES
 In
 .Dv Q_QUOTAON ,
@@ -189,7 +189,7 @@ Too many symbolic links were encountered in translating a pathname.
 .It Bq Er EROFS
 In
 .Dv Q_QUOTAON ,
-the quota file resides on a read-only filesystem.
+the quota file resides on a read-only file system.
 .It Bq Er EIO
 An
 .Tn I/O

@@ -51,15 +51,15 @@ The
 function attempts to recover the deleted file named by
 .Fa path .
 Currently, this works only when the named object
-is a whiteout in a union filesystem.
+is a whiteout in a union file system.
 The system call removes the whiteout causing
 any objects in a lower layer of the
 union stack to become visible once more.
 .Pp
 Eventually, the
 .Fn undelete
-functionality may be expanded to other filesystems able to recover
-deleted files such as the log-structured filesystem.
+functionality may be expanded to other file systems able to recover
+deleted files such as the log-structured file system.
 .Sh RETURN VALUES
 .Rv -std undelete
 .Sh ERRORS

@@ -83,9 +83,9 @@ found.  The remote mount table is not changed.
 .It Fl A
 Issues a command to the remote mountd declaring that
 .Em all
-of its filesystems have been unmounted.  This should be used with caution, as
+of its file systems have been unmounted.  This should be used with caution, as
 it removes all remote mount entries pertaining to the local system, whether or
-not any filesystems are still mounted locally.
+not any file systems are still mounted locally.
 .It Fl v
 Be quiet.  Suppresses error messages due to timeouts and
 .Dq Program not Registered ,
@@ -135,7 +135,7 @@ and verifying the resulting path).
 Symbolic links on the server will cause the path in the remote entry to differ
 from the one in 
 .Pa /etc/mtab .
-To catch those cases, a filesystem is also deemed mounted if its
+To catch those cases, a file system is also deemed mounted if its
 .Em local
 mount point is identical to the remote entry.
 I.e., on a SunOS diskless client,

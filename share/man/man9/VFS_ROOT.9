@@ -33,7 +33,7 @@
 .Dt VFS_ROOT 9
 .Sh NAME
 .Nm VFS_ROOT
-.Nd return the root vnode of a filesystem
+.Nd return the root vnode of a file system
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -41,12 +41,12 @@
 .Ft int
 .Fn VFS_ROOT "struct mount *mp" "struct vnode **vpp"
 .Sh DESCRIPTION
-Return a locked vnode for the root directory of the filesystem.
+Return a locked vnode for the root directory of the file system.
 .Pp
 Its arguments are:
 .Bl -tag -width vpp
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar vpp
 Return parameter for the root vnode.
 .El

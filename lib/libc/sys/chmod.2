@@ -112,7 +112,7 @@ The
 VM system totally ignores the sticky bit
 .Pq Dv ISVTX
 for executables.
-On UFS-based filesystems (FFS, LFS) the sticky
+On UFS-based file systems (FFS, LFS) the sticky
 bit may only be set upon directories.
 .Pp
 If mode
@@ -127,7 +127,7 @@ For more details of the properties of the sticky bit, see
 .Xr sticky 8 .
 .Pp
 If mode ISUID (set UID) is set on a directory,
-and the MNT_SUIDDIR option was used in the mount of the filesystem,
+and the MNT_SUIDDIR option was used in the mount of the file system,
 then the owner of any new files and sub-directories
 created within this directory are set
 to be the same as the owner of that directory.
@@ -145,7 +145,7 @@ It provides security holes for shell users and as
 such should not be used on shell machines, especially on home directories.
 This option requires the SUIDDIR
 option in the kernel to work.
-Only UFS filesystems support this option.
+Only UFS file systems support this option.
 For more details of the suiddir mount option, see
 .Xr mount 8 .
 .Pp

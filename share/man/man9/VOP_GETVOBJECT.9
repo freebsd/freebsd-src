@@ -61,9 +61,9 @@ invokes
 .Fn VOP_CREATEVOBJECT
 when it needs to create a VM object for the given
 .Xr vnode 9 .
-Filesystem code may pass this call down to the underlying filesystem.
+File system code may pass this call down to the underlying file system.
 This VOP can be called multiple times,
-and filesystem code should ignore any additional calls,
+and file system code should ignore any additional calls,
 exiting with a zero return code.
 .Pp
 .Fn VOP_DESTROYVOBJECT
@@ -74,7 +74,7 @@ is recycled.
 .Fn VOP_GETVOBJECT
 should be used by all kernel code to get a VM object.
 .\" XXX What is the next sentence trying to tell people?
-The returned VM object may belong to a different filesystem in the case
+The returned VM object may belong to a different file system in the case
 of stacked mounts.
 .Pp
 .Xr VFS 9
@@ -101,7 +101,7 @@ Zero is returned on success, otherwise an error is returned.
 .Sh EXAMPLES
 .\" XXX Why is this code here when it does not use the functions
 .\" described in this manual page?
-By default, filesystems leave VM object handling to the
+By default, file systems leave VM object handling to the
 .Fn vop_std*
 functions.
 .Sh SEE ALSO

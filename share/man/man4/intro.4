@@ -71,7 +71,7 @@ sometimes also called
 .Em special files .
 They are usually located under the directory
 .Pa /dev
-in the filesystem hierarchy
+in the file system hierarchy
 (see also
 .Xr hier 7 ) .
 .Pp
@@ -106,7 +106,7 @@ and
 as the file type identification in the output of
 .Ql ls -l .
 Buffered devices are being accessed through the buffer cache of the
-operating system, and they are solely intended to layer a filesystem
+operating system, and they are solely intended to layer a file system
 on top of them.  They are normally implemented for disks and disk-like
 devices only and, for historical reasons, for tape devices.
 .Pp
@@ -121,7 +121,7 @@ denotes the raw device for the first SCSI disk, while
 is the corresponding device node for the buffered device.
 .Pp
 Unbuffered devices should be used for all actions that are not related
-to filesystem operations, even if the device in question is a disk
+to file system operations, even if the device in question is a disk
 device.  This includes making backups of entire disk partitions, or
 to
 .Em raw

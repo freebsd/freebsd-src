@@ -30,7 +30,7 @@
 .Dt EXTATTR 9
 .Sh NAME
 .Nm extattr
-.Nd virtual filesystem named extended attributes
+.Nd virtual file system named extended attributes
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -47,7 +47,7 @@ operation refers.
 If the same name is present in multiple namespaces, the extended attributes
 associated with the names are stored and manipulated independently.
 The following two namespaces are defined universally, although individual
-filesystems may implement additional namespaces, or not implement
+file systems may implement additional namespaces, or not implement
 these namespaces:
 .Dv EXTATTR_NAMESPACE_USER ,
 .Dv EXTATTR_NAMESPACE_SYSTEM .
@@ -62,16 +62,16 @@ the meta-data, in the style of
 .Xr VOP_READ 9 ,
 but writes will replace the entire current "value" associated with
 a given name.
-As there are a plethora of filesystems with differing extended attributes,
+As there are a plethora of file systems with differing extended attributes,
 availability and functionality of these functions may be limited, and they
 should be used with awareness of the underlying semantics of the supporting
-filesystem.
+file system.
 Authorization schemes for extended attribute data may also vary by file
 system, as well as maximum attribute size, and whether or not any or
 specific new attributes may be defined.
 .Pp
 Extended attributes are named using a null-terminated character string.
-Depending on underlying filesystem semantics, this name may or may not be
+Depending on underlying file system semantics, this name may or may not be
 case-sensitive.  Appropriate vnode extended attribute calls are:
 .Xr VOP_GETEXTATTR 9
 and

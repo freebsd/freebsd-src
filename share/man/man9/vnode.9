@@ -57,7 +57,7 @@ enum vtagtype	{
 };
 
 /*
- * Each underlying filesystem allocates its own private area and hangs
+ * Each underlying file system allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
 TAILQ_HEAD(buflists, buf);
@@ -127,7 +127,7 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define	VROOT		0x00001	/* root of its filesystem */
+#define	VROOT		0x00001	/* root of its file system */
 #define	VTEXT		0x00002	/* vnode is a pure text prototype */
 #define	VSYSTEM		0x00004	/* vnode being used by kernel */
 #define	VISTTY		0x00008	/* vnode represents a tty */
@@ -174,7 +174,7 @@ When both the
 and the
 .Dv v_holdcnt
 of a vnode reaches zero then the vnode will be put on the freelist
-and may be reused for another file, possibly in another filesystem.
+and may be reused for another file, possibly in another file system.
 The transition to and from the freelist is handled by
 .Xr getnewvnode 9 ,
 .Xr vfree 9
@@ -204,17 +204,17 @@ Other commonly used members of the vnode structure are
 .Dv v_id
 which is used to maintain consistency in the name cache,
 .Dv v_mount
-which points at the filesystem which owns the vnode,
+which points at the file system which owns the vnode,
 .Dv v_type
 which contains the type of object the vnode represents and
 .Dv v_data
-which is used by filesystems to store filesystem specific data with
+which is used by file systems to store file system specific data with
 the vnode.
 The
 .Dv v_op
 field is used by the
 .Dv VOP_*
-macros to call functions in the filesystem which implement the vnode's
+macros to call functions in the file system which implement the vnode's
 functionality.
 .Sh VNODE TYPES
 .Bl -tag -width VSOCK
