@@ -144,7 +144,7 @@ ahc_isa_probe(device_t dev)
 
 	regs = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &zero, RF_ACTIVE);
 	if (regs == NULL) {
-		device_printf(dev, "No resources alloated.\n");
+		device_printf(dev, "No resources allocated.\n");
 		return (ENOMEM);
 	}
 
