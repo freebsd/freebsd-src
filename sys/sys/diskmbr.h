@@ -389,9 +389,6 @@ struct dos_partition {
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
-#define DIOCSBAD	_IOW('d', 110, struct dkbad)	/* set kernel dkbad */
-#define DIOCSBADSCAN	_IOW('d', 111, int)	/* set badscan mode */
-
 #ifdef KERNEL
 
 /*
