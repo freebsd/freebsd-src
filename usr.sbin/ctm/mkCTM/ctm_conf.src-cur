@@ -2,5 +2,5 @@
 
 set CTMname	src-cur
 set CTMref	/usr/src
-set CTMdont	{\.core$|/CVS$|/CVS/|^/secure|^/eBones}
-#set CTMmail	ctm-src-cur@freebsd.org
+set CTMdont	{\.core$|/CVS$|/CVS/|^/secure|^/eBones|/#cvs|/\.#}
+set CTMmail	ctm-src-cur@freebsd.org
