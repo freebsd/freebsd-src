@@ -265,7 +265,7 @@ MAIN:{
     # Set defaults
     $arch = `/usr/bin/uname -m`;
     chomp($arch);
-    $branch = "HEAD";
+    $branch = "CURRENT";
     $jobs = 0;
     $repository = "/home/ncvs";
     $sandbox = "$ENV{'HOME'}/tinderbox";
@@ -376,7 +376,7 @@ MAIN:{
 	} else {
 	    push(@cvsargs, "checkout", "-P");
 	};
-	push(@cvsargs, "-r$branch")
+	push(@cvsargs, ($branch eq 'CURRENT') ? "-A" : "-r$branch")
 	    if defined($branch);
 	push(@cvsargs, "-D$date")
 	    if defined($date);
