@@ -240,9 +240,13 @@ dimension(off_t size)
 
 	/*
 	 * XXX: the top layer is probably not fully populated, so we allocate
-	 * too much space for ip->array in new_indir() here.
+	 * too much space for ip->array in here.
 	 */
-	ip = new_indir(layer * nshift);
+	ip = malloc(sizeof *ip, M_MD, M_WAITOK | M_ZERO);
+	ip->array = malloc(sizeof(uintptr_t) * NINDIR,
+	    M_MDSECT, M_WAITOK | M_ZERO);
+	ip->total = NINDIR;
+	ip->shift = layer * nshift;
 	return (ip);
 }
 
