@@ -579,7 +579,7 @@ void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
 void	vfs_add_vnodeops __P((const void *));
 void	vfs_rm_vnodeops __P((const void *));
-int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
+int	vflush __P((struct mount *mp, int rootrefs, int flags));
 int	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void	vgone __P((struct vnode *vp));
 void	vgonel __P((struct vnode *vp, struct proc *p));
