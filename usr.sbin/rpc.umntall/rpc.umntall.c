@@ -74,7 +74,7 @@ main(int argc, char **argv) {
 			host = optarg;
 			break;
 		case 'e':
-			expire = (time_t)optarg;
+			expire = atoi(optarg);
 			break;
 		case 'k':
 			keep = 1;
