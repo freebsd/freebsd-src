@@ -1739,11 +1739,12 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	if( command == WDCC_FEATURES) {
 		if (old_epson_note)
 			epson_outb(wdc + wd_features, count);
-		else
+		else {
 			outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
 			outb(wdc + wd_features, count);
 			if ( count == WDFEA_SETXFER )
 				outb(wdc + wd_seccnt, sector);
+		}
 	} else {
 		if (old_epson_note) {
 			epson_outb(wdc + wd_precomp, du->dk_dd.d_precompcyl/4);
