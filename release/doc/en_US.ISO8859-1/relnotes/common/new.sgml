@@ -128,11 +128,16 @@
     <title>Kernel Changes</title>
 
     <para arch="i386">The &man.cx.4; driver for Cronyx Sigma synchronous /
-      asynchronous serial adapters has been updated to version 4.4.0.
-    </para>
+      asynchronous serial adapters has been updated to version 4.4.0.</para>
 
-    <para arch="i386">The &man.ctau.4; driver for Cronyx Tau synchronous
-      serial adapters has been added.
+    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
+      synchronous serial adapters. This driver was known for a long time as
+      <quote>ct</quote> in its previous life outside &os; source tree.
+
+      <note>
+	<para>The driver name has changed, but the network interface still
+	  has <quote>ct</quote> name.</para>
+      </note>
     </para>
 
     <para>The &man.dcons.4; <quote>dumb console</quote> driver has
@@ -144,7 +149,13 @@
     <para>The &man.stl.4; driver has been updated to version 5.6.0b1.</para>
 
     <para>The &man.usb.4; support has been improved, which includes a lot of
-      bug fixes.</para>
+      bug fixes and initial support of EHCI.
+
+      <note>
+	<para>&man.umodem.4; now uses <filename>/dev/ucom*</filename>
+	  instead of <filename>/dev/umodem*</filename> device nodes.</para>
+      </note>
+    </para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -169,6 +180,14 @@
 
       <para>A short hiccup in the &man.em.4; during parameter
 	reconfiguration, has been fixed.</para>
+
+      <para>A bug, which prevents VLAN support in the &man.nge.4; driver
+        from working has been fixed.</para>
+
+      <para>Several bugs related to &man.polling.4; support
+        in the &man.rl.4; driver have been fixed.</para>
+
+      <para>The &man.ste.4; driver now supports &man.polling.4;.</para>
 
       <para>The hardware TX checksum support of the &man.xl.4; driver
 	has been disabled as it does not work correctly and slows down
@@ -196,6 +215,9 @@
       <title>Disks and Storage</title>
 
       <para>The &man.amr.4; driver now has system crashdump support.</para>
+
+      <para arch="i386">The twa driver, which supports
+	3ware's 9000 series PATA/SATA RAID controllers has been added.</para>
 
       <para>The &man.umass.4; driver now supports the missing
 	ATAPI MMC commands and handles the timeout properly.</para>
@@ -258,6 +280,14 @@
     <para>&man.makewhatis.1;, formerly a Perl script, has been
       reimplemented in C.</para>
 
+    <para>&man.ps.1; has been improved in the POSIX/SUSv3 compatibility.
+      The changes include <option>-p</option> for a list of process IDs,
+      <option>-t</option> for a list of terminal names,
+      <option>-A</option> which is equivalent with <option>-ax</option>,
+      <option>-G</option> for a list of group IDs,
+      <option>-X</option> which is the opposite of <option>-x</option>,
+      and some minor improvements.  For more information, see &man.ps.1;.</para>
+
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor.</para>
 
@@ -284,6 +314,9 @@
 
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.7.</para>
+
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7c to 0.9.7d.</para>
 
     <para><application>sendmail</application> has been updated
       from version 8.12.9
