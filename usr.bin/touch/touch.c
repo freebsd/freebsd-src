@@ -72,14 +72,18 @@ main(argc, argv)
 {
 	struct stat sb;
 	struct timeval tv[2];
+	int (*stat_f)(const char *, struct stat *);
+	int (*utimes_f)(const char *, const struct timeval *);
 	int aflag, cflag, fflag, mflag, ch, fd, len, rval, timeset;
 	char *p;
 
 	aflag = cflag = fflag = mflag = timeset = 0;
+	stat_f = stat;
+	utimes_f = utimes;
 	if (gettimeofday(&tv[0], NULL))
 		err(1, "gettimeofday");
 
-	while ((ch = getopt(argc, argv, "acfmr:t:")) != -1)
+	while ((ch = getopt(argc, argv, "acfhmr:t:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflag = 1;
@@ -89,6 +93,11 @@ main(argc, argv)
 			break;
 		case 'f':
 			fflag = 1;
+			break;
+		case 'h':
+			cflag = 1;
+			stat_f = lstat;
+			utimes_f = lutimes;
 			break;
 		case 'm':
 			mflag = 1;
@@ -134,7 +143,8 @@ main(argc, argv)
 
 	for (rval = 0; *argv; ++argv) {
 		/* See if the file exists. */
-		if (stat(*argv, &sb)) {
+		if (stat_f(*argv, &sb) != 0) {
+fprintf(stderr, "not exist\n");
 			if (!cflag) {
 				/* Create the file. */
 				fd = open(*argv,
@@ -158,7 +168,7 @@ main(argc, argv)
 			TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
 
 		/* Try utimes(2). */
-		if (!utimes(*argv, tv))
+		if (!utimes_f(*argv, tv))
 			continue;
 
 		/* If the user specified a time, nothing else we can do. */
@@ -173,7 +183,7 @@ main(argc, argv)
 		 * The permission checks are different, too, in that the
 		 * ability to write the file is sufficient.  Take a shot.
 		 */
-		 if (!utimes(*argv, NULL))
+		 if (!utimes_f(*argv, NULL))
 			continue;
 
 		/* Try reading/writing. */
@@ -349,6 +359,6 @@ err:			rval = 1;
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: touch [-acfm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
+	(void)fprintf(stderr, "usage: touch [-acfhm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
 	exit(1);
 }
