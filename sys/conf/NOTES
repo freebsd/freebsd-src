@@ -87,9 +87,9 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 # and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
-options 	MAXDSIZ="(1024UL*1024*1024)"
-options 	MAXSSIZ="(128UL*1024*1024)"
-options 	DFLDSIZ="(1024UL*1024*1024)"
+options 	MAXDSIZ=(1024UL*1024*1024)
+options 	MAXSSIZ=(128UL*1024*1024)
+options 	DFLDSIZ=(1024UL*1024*1024)
 
 #
 # BLKDEV_IOSIZE sets the default block size used in user block
@@ -266,7 +266,7 @@ options 	KTRACE_REQUEST_POOL=101
 #
 options 	KTR
 options 	KTR_ENTRIES=1024
-options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
+options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
@@ -906,7 +906,7 @@ options 	CAMDEBUG
 options 	CAM_DEBUG_BUS=-1
 options 	CAM_DEBUG_TARGET=-1
 options 	CAM_DEBUG_LUN=-1
-options 	CAM_DEBUG_FLAGS="CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB)
 options 	CAM_MAX_HIGHPOWER=4
 options 	SCSI_NO_SENSE_STRINGS
 options 	SCSI_NO_OP_STRINGS
@@ -932,15 +932,15 @@ options 	CHANGER_MAX_BUSY_SECONDS=10
 # SA_REWIND_TIMEOUT: Timeout for rewind operations, in minutes
 # SA_ERASE_TIMEOUT: Timeout for erase operations, in minutes
 # SA_1FM_AT_EOD: Default to model which only has a default one filemark at EOT.
-options 	SA_IO_TIMEOUT="(4)"
-options 	SA_SPACE_TIMEOUT="(60)"
-options 	SA_REWIND_TIMEOUT="(2*60)"
-options 	SA_ERASE_TIMEOUT="(4*60)"
+options 	SA_IO_TIMEOUT=4
+options 	SA_SPACE_TIMEOUT=60
+options 	SA_REWIND_TIMEOUT=(2*60)
+options 	SA_ERASE_TIMEOUT=(4*60)
 options 	SA_1FM_AT_EOD
 
 # Optional timeout for the CAM processor target (pt) device
 # This is specified in seconds.  The default is 60 seconds.
-options 	SCSI_PT_DEFAULT_TIMEOUT="60"
+options 	SCSI_PT_DEFAULT_TIMEOUT=60
 
 # Optional enable of doing SES passthrough on other devices (e.g., disks)
 #
@@ -1008,7 +1008,7 @@ hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP="jp.106"
+makeoptions	ATKBD_DFLT_KEYMAP=jp.106
 
 # These options are valid for other keyboard drivers as well.
 options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
@@ -1082,16 +1082,16 @@ options 	SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
 options 	SC_PIXEL_MODE		# add support for the raster text mode
 
 # The following options will let you change the default colors of syscons.
-options 	SC_NORM_ATTR="(FG_GREEN|BG_BLACK)"
-options 	SC_NORM_REV_ATTR="(FG_YELLOW|BG_GREEN)"
-options 	SC_KERNEL_CONS_ATTR="(FG_RED|BG_BLACK)"
-options 	SC_KERNEL_CONS_REV_ATTR="(FG_BLACK|BG_RED)"
+options 	SC_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
+options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
+options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
 
 # The following options will let you change the default behaviour of
 # cut-n-paste feature
 options 	SC_CUT_SPACES2TABS	# convert leading spaces into tabs
-options 	SC_CUT_SEPCHARS="\x20"	# set of characters that delimit words
-					# (default is single space - "\x20")
+options 	SC_CUT_SEPCHARS=\"x09\"	# set of characters that delimit words
+					# (default is single space - \"x20\")
 
 # If you have a two button mouse, you may want to add the following option
 # to use the right button of the mouse to paste text.
@@ -2197,7 +2197,7 @@ device		ubsec		# Broadcom 5501, 5601, 58xx
 # Embedded system options:
 #
 # An embedded system might want to run something other than init.
-options 	INIT_PATH="/sbin/init:/stand/sysinstall"
+options 	INIT_PATH=/sbin/init:/stand/sysinstall
 
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
@@ -2236,7 +2236,7 @@ options 	SEMUME=11
 options 	SHMALL=1025
 
 # Maximum size, in bytes, of a single System V shared memory region. 
-options 	SHMMAX="(SHMMAXPGS*PAGE_SIZE+1)"
+options 	SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)
 options 	SHMMAXPGS=1025
 
 # Minimum size, in bytes, of a single System V shared memory region. 
@@ -2312,8 +2312,8 @@ options 	ATA_DEBUG
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and
 # BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
 # driver still mostly spells this option BROOKTREE_ALLOC_PAGES.
-##options 	BKTR_ALLOC_PAGES="(217*4+1)"
-options 	BROOKTREE_ALLOC_PAGES="(217*4+1)"
+##options 	BKTR_ALLOC_PAGES=(217*4+1)
+options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 # METEOR_TEST_VIDEO has no effect since meteor is broken.
 options 	METEOR_TEST_VIDEO
