@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.56 1997/09/17 16:35:32 pst Exp $
+ * $Id: config.c,v 1.51.2.57 1998/03/07 09:09:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -543,9 +543,7 @@ configXEnvironment(dialogMenuItem *self)
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
 	dialog_clear();
-#if 0
 	systemExecute(execfile);
-#endif
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
