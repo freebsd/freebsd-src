@@ -482,6 +482,12 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
+  /* Some things must be done before we Decode the packet */
+  switch (fp->state) {
+  case ST_OPENED:
+    (*fp->fn->LayerDown)(fp);
+  }
+
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
@@ -526,10 +532,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   case ST_STOPPED:
     FsmInitRestartCounter(fp, FSM_REQ_TIMER);
-    FsmSendConfigReq(fp);
-    break;
+    /* Drop through */
   case ST_OPENED:
-    (*fp->fn->LayerDown)(fp);
     FsmSendConfigReq(fp);
     break;
   }
