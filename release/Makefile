@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.46 1994/11/17 07:11:30 jkh Exp $
+#	$Id: Makefile,v 1.47 1994/11/17 14:18:00 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -131,7 +131,7 @@ release20:
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
-	( cd ${RELEASEDIR}/tarballs/bindist; cksum * > CKSUMS )
+	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/mkchecksums.sh )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
 foo:
