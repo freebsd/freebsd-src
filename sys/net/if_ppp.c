@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.46 1997/10/17 00:12:38 brian Exp $ */
+/* $Id: if_ppp.c,v 1.47 1997/10/18 00:46:09 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -80,7 +80,11 @@
 
 #define VJC
 #define PPP_COMPRESS
+
+#include "bpfilter.h"
+#if NBPFILTER > 0
 #define PPP_FILTER
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
