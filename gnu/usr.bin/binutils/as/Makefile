@@ -5,6 +5,7 @@
 .include "${.CURDIR}/../Makefile.inc0"
 
 GASES=		${BINUTIL_ARCH}
+FORMATS=	freebsd
 
 # Only build the cross tools when not cross-compiling.
 __MA!=/sbin/sysctl -b hw.machine_arch
@@ -17,19 +18,21 @@ GASES+=$(_g)
 .endif
 .endfor
 .endif
+.if defined(CROSS_FORMATS)
+.for _f in ${CROSS_FORMATS}
+.if (${FORMATS:R:M${_f:R}} == "")
+FORMATS+=$(_f)
+.endif
+.endfor
+.endif
 .endif
 
 .for _g in ${GASES}
-.if exists(${.CURDIR}/as_${_g})
-SUBDIR+=	as_${_g}
-.endif
-.if defined(CROSS_FORMATS)
-.for _f in ${CROSS_FORMATS}
+.for _f in ${FORMATS}
 .if exists(${.CURDIR}/${_g}-${_f})
 SUBDIR+=	${_g}-${_f}
 .endif
 .endfor
-.endif
 .endfor
 
 .include <bsd.subdir.mk>
