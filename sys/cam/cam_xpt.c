@@ -482,6 +482,17 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
+		 * Maxtor Personal Storage 3000XT (Firewire)
+		 * hangs upon serial number probing.
+		 */
+		{
+			T_DIRECT, SIP_MEDIA_FIXED, "Maxtor",
+			"1394 storage", "*"
+		},
+		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
 		 * Would repond to all LUNs if asked for.
 		 */
 		{
