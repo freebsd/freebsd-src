@@ -175,7 +175,6 @@ typedef struct WIND {
 	int scroll_down;
 	int SCROLL_CLEAR;	/* indicates that window has been scrolled or cleared	*/
 	struct _line *first_line;
-	struct _line **line_array;
 	} WINDOW;
 
 extern WINDOW *curscr;
@@ -183,7 +182,7 @@ extern WINDOW *stdscr;
 
 extern int LINES, COLS;
 
-#if defined(__STDC__) || defined(__cplusplus)
+#if __STDC__ || defined(__cplusplus)
 #define P_(s) s
 #else
 #define P_(s) ()

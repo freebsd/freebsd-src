@@ -49,12 +49,12 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.5 1995/11/08 09:54:19 ache Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.6 1996/05/27 20:59:36 joerg Exp $
  |
  */
 
 char *ee_copyright_message = 
-"Copyright (c) 1986, 1990, 1991, 1992, 1993, 1994, 1995 Hugh Mahon ";
+"Copyright (c) 1986, 1990, 1991, 1992, 1993, 1994, 1995, 1996 Hugh Mahon ";
 
 char *ee_long_notice[] = {
 	"This software and documentation contains", 
@@ -62,16 +62,14 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.2.4  $Revision: 1.5 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.1.1.2 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
-#else
-#ifdef HAS_NCURSES
+#elif HAS_NCURSES
 #include <ncurses.h>
 #else
 #include <curses.h>
-#endif
 #endif
 
 #include <signal.h>
@@ -316,6 +314,7 @@ void sh_command P_((char *string));
 void set_up_term P_((void));
 void resize_check P_((void));
 int menu_op P_((struct menu_entries *));
+void paint_menu P_((struct menu_entries menu_list[], int max_width, int max_height, int list_size, int top_offset, WINDOW *menu_win, int off_start, int vert_size));
 void help P_((void));
 void paint_info_win P_((void));
 void no_info_window P_((void));
@@ -327,6 +326,7 @@ void redraw P_((void));
 int Blank_Line P_((struct text *test_line));
 void Format P_((void));
 void ee_init P_((void));
+void dump_ee_conf P_((void));
 void echo_string P_((char *string));
 void spell_op P_((void));
 void ispell_op P_((void));
@@ -354,12 +354,20 @@ struct menu_entries modes_menu[] = {
 	{"", NULL, NULL, NULL, NULL, -1}, 
 	{"", NULL, NULL, NULL, NULL, -1}, 
 	{"", NULL, NULL, NULL, NULL, -1}, 
+	{"", NULL, NULL, NULL, dump_ee_conf, -1},
 	{NULL, NULL, NULL, NULL, NULL, -1}
 	};
 
-char *mode_strings[9]; 
+char *mode_strings[10]; 
 
 #define NUM_MODES_ITEMS 9
+
+struct menu_entries config_dump_menu[] = {
+	{"", NULL, NULL, NULL, NULL, 0}, 
+	{"", NULL, NULL, NULL, NULL, -1},
+	{"", NULL, NULL, NULL, NULL, -1},
+	{NULL, NULL, NULL, NULL, NULL, -1}
+	};
 
 struct menu_entries leave_menu[] = {
 	{"", NULL, NULL, NULL, NULL, -1}, 
@@ -424,6 +432,10 @@ char *emacs_control_keys[5];
 char *command_strings[5];
 char *commands[30];
 char *init_strings[20];
+
+#define MENU_WARN 1
+
+#define max_alpha_char 36
 
 /*
  |	Declarations for strings for localization
@@ -510,6 +522,13 @@ char *EIGHTBIT;
 char *NOEIGHTBIT;
 char *EMACS_string;
 char *NOEMACS_string;
+char *conf_dump_err_msg;
+char *conf_dump_success_msg;
+char *conf_not_saved_msg;
+char *ree_no_file_msg;
+char *cancel_string;
+char *menu_too_lrg_msg;
+char *more_above_str, *more_below_str;
 
 #ifndef __STDC__
 #ifndef HAS_STDLIB
@@ -566,6 +585,14 @@ char *argv[];
 		right_margin = COLS - 1;
 	if (top_of_stack == NULL)
 	{
+		if (restrict_mode())
+		{
+			wmove(com_win, 0, 0);
+			werase(com_win);
+			wprintw(com_win, ree_no_file_msg);
+			wrefresh(com_win);
+			edit_abort(0);
+		}
 		wprintw(com_win, no_file_string);
 		wrefresh(com_win);
 	}
@@ -2077,11 +2104,8 @@ check_fp()		/* open or close files according to flags */
 		curr_line = tmp_line;
 	point = curr_line->line;
 	draw_screen();
-	wmove(com_win, 0, 0);
-	wclrtoeol(com_win);
 	if (input_file)
 	{
-		wprintw(com_win, open_file_msg, in_file_name, line_num);
 		input_file = FALSE;
 		if (start_at_line != NULL)
 		{
@@ -2093,6 +2117,8 @@ check_fp()		/* open or close files according to flags */
 	}
 	else
 	{
+		wmove(com_win, 0, 0);
+		wclrtoeol(com_win);
 		text_changes = TRUE;
 		if ((tmp_file != NULL) && (*tmp_file != (char) NULL))
 			wprintw(com_win, file_read_fin_msg, tmp_file);
@@ -2110,6 +2136,7 @@ char *file_name;
 	int length;		/* length of line read by read		*/
 	int append;		/* should text be appended to current line */
 	struct text *temp_line;
+	char ro_flag = FALSE;
 
 	if (recv_file)		/* if reading a file			*/
 	{
@@ -2119,7 +2146,10 @@ char *file_name;
 		if (access(file_name, 2))	/* check permission to write */
 		{
 			if ((errno == ENOTDIR) || (errno == EACCES) || (errno == EROFS) || (errno == ETXTBSY) || (errno == EFAULT))
+			{
 				wprintw(com_win, read_only_msg);
+				ro_flag = TRUE;
+			}
 		}
 		wrefresh(com_win);
 	}
@@ -2153,6 +2183,8 @@ char *file_name;
 		wmove(com_win, 0, 0);
 		wclrtoeol(com_win);
 		wprintw(com_win, file_read_lines_msg, in_file_name, curr_line->line_number);
+		if (ro_flag)
+			wprintw(com_win, read_only_msg);
 		wrefresh(com_win);
 	}
 	else if (can_read)	/* not input_file and file is non-zero size */
@@ -3151,9 +3183,11 @@ resize_check()
 	wrefresh(text_win);
 }
 
+static char item_alpha[] = "abcdefghijklmnopqrstuvwxyz0123456789 ";
+
 int 
 menu_op(menu_list)
-struct menu_entries * menu_list;
+struct menu_entries menu_list[];
 {
 	WINDOW *temp_win;
 	int max_width, max_height;
@@ -3161,10 +3195,13 @@ struct menu_entries * menu_list;
 	int counter;
 	int length;
 	int input;
+	int temp;
 	int list_size;
-	int top_offset;
-	int temp_int;
-	char *cancel_string = menu_cancel_msg;
+	int top_offset;		/* offset from top where menu items start */
+	int vert_pos;		/* vertical position			  */
+	int vert_size;		/* vertical size for menu list item display */
+	int off_start = 1;	/* offset from start of menu items to start display */
+
 
 	/*
 	 |	determine number and width of menu items
@@ -3173,12 +3210,15 @@ struct menu_entries * menu_list;
 	list_size = 1;
 	while (menu_list[list_size + 1].item_string != NULL)
 		list_size++;
-	max_width = strlen(cancel_string);
+	max_width = 0;
 	for (counter = 0; counter <= list_size; counter++)
 	{
 		if ((length = strlen(menu_list[counter].item_string)) > max_width)
 			max_width = length;
 	}
+	max_width += 3;
+	max_width = max(max_width, strlen(cancel_string));
+	max_width = max(max_width, max(strlen(more_above_str), strlen(more_below_str)));
 	max_width += 6;
 
 	/*
@@ -3186,114 +3226,157 @@ struct menu_entries * menu_list;
 	 |	if not, print error message and return to calling function
 	 */
 
-	if ((LINES < list_size) || (max_width > COLS))
+	if (max_width > COLS)
 	{
 		wmove(com_win, 0, 0);
 		werase(com_win);
-		wprintw(com_win, menu_size_err_msg);
+		wprintw(com_win, menu_too_lrg_msg);
+		wrefresh(com_win);
 		clear_com_win = TRUE;
 		return(0);
 	}
 
 	top_offset = 0;
-	max_height = list_size;
 
-	if (LINES >= (list_size + 8))
+	if (list_size > LINES)
 	{
-		max_height = list_size + 8;
+		max_height = LINES;
+		if (max_height > 11)
+			vert_size = max_height - 8;
+		else
+			vert_size = max_height;
+	}
+	else
+	{
+		vert_size = list_size;
+		max_height = list_size;
+	}
+
+	if (LINES >= (vert_size + 8))
+	{
+		if (menu_list[0].argument != MENU_WARN)
+			max_height = vert_size + 8;
+		else
+			max_height = vert_size + 7;
 		top_offset = 4;
 	}
 	x_off = (COLS - max_width) / 2;
 	y_off = (LINES - max_height - 1) / 2;
 	temp_win = newwin(max_height, max_width, y_off, x_off);
 	keypad(temp_win, TRUE);
-	werase(temp_win);
 
-	/*
-	 |	output top and bottom portions of menu box only if window 
-	 |	large enough 
-	 */
+	paint_menu(menu_list, max_width, max_height, list_size, top_offset, temp_win, off_start, vert_size);
 
-	if (max_height > list_size)
-	{
-		wmove(temp_win, 1, 1);
-		if (!nohighlight)
-			wstandout(temp_win);
-		waddch(temp_win, '+');
-		for (counter = 0; counter < (max_width - 4); counter++)
-			waddch(temp_win, '-');
-		waddch(temp_win, '+');
-
-		wmove(temp_win, (max_height - 2), 1);
-		waddch(temp_win, '+');
-		for (counter = 0; counter < (max_width - 4); counter++)
-			waddch(temp_win, '-');
-		waddch(temp_win, '+');
-		wstandend(temp_win);
-		wmove(temp_win, 2, 3);
-		waddstr(temp_win, menu_list[0].item_string);
-		wmove(temp_win, (max_height - 3), 3);
-		waddstr(temp_win, cancel_string);
-	}
-	if (!nohighlight)
-		wstandout(temp_win);
-	for (counter = 0; counter < (list_size + top_offset); counter++)
-	{
-		if (top_offset == 4)
-		{
-			temp_int = counter + 2;
-		}
-		else
-			temp_int = counter;
-
-		wmove(temp_win, temp_int, 1);
-		waddch(temp_win, '|');
-		wmove(temp_win, temp_int, (max_width - 2));
-		waddch(temp_win, '|');
-	}
-	wstandend(temp_win);
-	for (counter = 1; counter <= list_size; counter++)
-	{
-		wmove(temp_win, (top_offset + counter - 1), 3);
-		waddstr(temp_win, menu_list[counter].item_string);
-	}
 	counter = 1;
+	vert_pos = 0;
 	do
 	{
-		wmove(temp_win, (counter + top_offset - 1), 3);
+		if (off_start > 2)
+			wmove(temp_win, (1 + counter + top_offset - off_start), 3);
+		else
+			wmove(temp_win, (counter + top_offset - off_start), 3);
+
 		wrefresh(temp_win);
-		input = wgetch(temp_win);
+		in = wgetch(temp_win);
+		input = in;
 		if (input == -1)
 			exit(0);
-		switch (input)
+
+		if (((tolower(input) >= 'a') && (tolower(input) <= 'z')) || 
+		    ((input >= '0') && (input <= '9')))
 		{
-			case ' ':	/* space	*/
-			case '\022':	/* ^r, right	*/
-			case '\004':	/* ^d, down	*/
-			case KEY_RIGHT:
-			case KEY_DOWN:
-				counter++;
-				if (counter > list_size)
-					counter = 1;
-				break;
-			case '\010':	/* ^h, backspace*/
-			case '\014':	/* ^l, left	*/
-			case '\025':	/* ^u, up	*/
-			case 127:	/* ^?, delete	*/
-			case KEY_LEFT:
-			case KEY_UP:
-				counter--;
-				if (counter == 0)
-					counter = list_size;
-				break;
-			case '\033':	/* escape key	*/
-				counter = 0;
-				break;
-			default:
-				break;
+			if ((tolower(input) >= 'a') && (tolower(input) <= 'z'))
+			{
+				temp = 1 + tolower(input) - 'a';
+			}
+			else if ((input >= '0') && (input <= '9'))
+			{
+				temp = (2 + 'z' - 'a') + (input - '0');
+			}
+
+			if (temp <= list_size)
+			{
+				input = '\n';
+				counter = temp;
+			}
+		}
+		else
+		{		
+			switch (input)
+			{
+				case ' ':	/* space	*/
+				case '\004':	/* ^d, down	*/
+				case KEY_RIGHT:
+				case KEY_DOWN:
+					counter++;
+					if (counter > list_size)
+						counter = 1;
+					break;
+				case '\010':	/* ^h, backspace*/
+				case '\025':	/* ^u, up	*/
+				case 127:	/* ^?, delete	*/
+				case KEY_BACKSPACE:
+				case KEY_LEFT:
+				case KEY_UP:
+					counter--;
+					if (counter == 0)
+						counter = list_size;
+					break;
+				case '\033':	/* escape key	*/
+					if (menu_list[0].argument != MENU_WARN)
+						counter = 0;
+					break;
+				case '\014':	/* ^l       	*/
+				case '\022':	/* ^r, redraw	*/
+					paint_menu(menu_list, max_width, max_height, 
+						list_size, top_offset, temp_win, 
+						off_start, vert_size);
+					break;
+				default:
+					break;
+			}
+		}
+	
+		if (((list_size - off_start) >= (vert_size - 1)) && 
+			(counter > (off_start + vert_size - 3)) && 
+				(off_start > 1))
+		{
+			if (counter == list_size)
+				off_start = (list_size - vert_size) + 2;
+			else
+				off_start++;
+
+			paint_menu(menu_list, max_width, max_height, 
+				   list_size, top_offset, temp_win, off_start, 
+				   vert_size);
+		}
+		else if ((list_size != vert_size) && 
+				(counter > (off_start + vert_size - 2)))
+		{
+			if (counter == list_size)
+				off_start = 2 + (list_size - vert_size);
+			else if (off_start == 1)
+				off_start = 3;
+			else
+				off_start++;
+
+			paint_menu(menu_list, max_width, max_height, 
+				   list_size, top_offset, temp_win, off_start, 
+				   vert_size);
+		}
+		else if (counter < off_start)
+		{
+			if (counter <= 2)
+				off_start = 1;
+			else
+				off_start = counter;
+
+			paint_menu(menu_list, max_width, max_height, 
+				   list_size, top_offset, temp_win, off_start, 
+				   vert_size);
 		}
 	}
-	while ((input != '\r') && (input != '\n') && (input != '\033'));
+	while ((input != '\r') && (input != '\n') && (counter != 0));
 
 	werase(temp_win);
 	wrefresh(temp_win);
@@ -3313,9 +3396,112 @@ struct menu_entries * menu_list;
 
 	if (info_window)
 		paint_info_win();
-	midscreen(scr_vert, point);
+	redraw();
 
 	return(counter);
+}
+
+void 
+paint_menu(menu_list, max_width, max_height, list_size, top_offset, menu_win, 
+	   off_start, vert_size)
+struct menu_entries menu_list[];
+int max_width, max_height, list_size, top_offset;
+WINDOW *menu_win;
+int off_start, vert_size;
+{
+	int counter, temp_int;
+
+	werase(menu_win);
+
+	/*
+	 |	output top and bottom portions of menu box only if window 
+	 |	large enough 
+	 */
+
+	if (max_height > vert_size)
+	{
+		wmove(menu_win, 1, 1);
+		if (!nohighlight)
+			wstandout(menu_win);
+		waddch(menu_win, '+');
+		for (counter = 0; counter < (max_width - 4); counter++)
+			waddch(menu_win, '-');
+		waddch(menu_win, '+');
+
+		wmove(menu_win, (max_height - 2), 1);
+		waddch(menu_win, '+');
+		for (counter = 0; counter < (max_width - 4); counter++)
+			waddch(menu_win, '-');
+		waddch(menu_win, '+');
+		wstandend(menu_win);
+		wmove(menu_win, 2, 3);
+		waddstr(menu_win, menu_list[0].item_string);
+		wmove(menu_win, (max_height - 3), 3);
+		if (menu_list[0].argument != MENU_WARN)
+			waddstr(menu_win, cancel_string);
+	}
+	if (!nohighlight)
+		wstandout(menu_win);
+
+	for (counter = 0; counter < (vert_size + top_offset); counter++)
+	{
+		if (top_offset == 4)
+		{
+			temp_int = counter + 2;
+		}
+		else
+			temp_int = counter;
+
+		wmove(menu_win, temp_int, 1);
+		waddch(menu_win, '|');
+		wmove(menu_win, temp_int, (max_width - 2));
+		waddch(menu_win, '|');
+	}
+	wstandend(menu_win);
+
+	if (list_size > vert_size)
+	{
+		if (off_start >= 3)
+		{
+			temp_int = 1;
+			wmove(menu_win, top_offset, 3);
+			waddstr(menu_win, more_above_str);
+		}
+		else
+			temp_int = 0;
+
+		for (counter = off_start; 
+			((temp_int + counter - off_start) < (vert_size - 1));
+				counter++)
+		{
+			wmove(menu_win, (top_offset + temp_int + 
+						(counter - off_start)), 3);
+			if (list_size > 1)
+				wprintw(menu_win, "%c) ", item_alpha[min((counter - 1), max_alpha_char)]);
+			waddstr(menu_win, menu_list[counter].item_string);
+		}
+
+		wmove(menu_win, (top_offset + (vert_size - 1)), 3);
+
+		if (counter == list_size)
+		{
+			if (list_size > 1)
+				wprintw(menu_win, "%c) ", item_alpha[min((counter - 1), max_alpha_char)]);
+			wprintw(menu_win, menu_list[counter].item_string);
+		}
+		else
+			wprintw(menu_win, more_below_str);
+	}
+	else
+	{
+		for (counter = 1; counter <= list_size; counter++)
+		{
+			wmove(menu_win, (top_offset + counter - 1), 3);
+			if (list_size > 1)
+				wprintw(menu_win, "%c) ", item_alpha[min((counter - 1), max_alpha_char)]);
+			waddstr(menu_win, menu_list[counter].item_string);
+		}
+	}
 }
 
 void 
@@ -3812,12 +3998,14 @@ ee_init()	/* check for init file and read it if it exists	*/
 			init_file = fopen(init_name[counter], "r");
 			while ((str2 = fgets(string, 512, init_file)) != NULL)
 			{
-				if (unique_test(string, init_strings) != 1)
-					continue;
 				str1 = str2 = string;
 				while (*str2 != '\n')
 					str2++;
 				*str2 = (char) NULL;
+
+				if (unique_test(string, init_strings) != 1)
+					continue;
+
 				if (compare(str1, CASE, FALSE))
 					case_sen = TRUE;
 				else if (compare(str1, NOCASE, FALSE))
@@ -3881,6 +4069,109 @@ ee_init()	/* check for init file and read it if it exists	*/
 	}
 	free(string);
 	free(home);
+}
+
+/*
+ |	Save current configuration to .init.ee file in the current directory.
+ */
+
+void 
+dump_ee_conf()	
+{
+	FILE *init_file;
+	FILE *old_init_file = NULL;
+	char *file_name = ".init.ee";
+	char *home_dir =  "~/.init.ee";
+	char buffer[512];
+	struct stat buf;
+	char *string;
+	int length;
+	int option = 0;
+
+	if (restrict_mode())
+	{
+		return;
+	}
+
+	option = menu_op(config_dump_menu);
+
+	werase(com_win);
+	wmove(com_win, 0, 0);
+
+	if (option == 0)
+	{
+		wprintw(com_win, conf_not_saved_msg);
+		wrefresh(com_win);
+		return;
+	}
+	else if (option == 2)
+		file_name = resolve_name(home_dir);
+
+	/*
+	 |	If a .init.ee file exists, move it to .init.ee.old.
+	 */
+
+	if (stat(file_name, &buf) != -1)
+	{
+		sprintf(buffer, "%s.old", file_name);
+		unlink(buffer);
+		link(file_name, buffer);
+		unlink(file_name);
+		old_init_file = fopen(buffer, "r");
+	}
+
+	init_file = fopen(file_name, "w");
+	if (init_file == NULL)
+	{
+		wprintw(com_win, conf_dump_err_msg);
+		wrefresh(com_win);
+		return;
+	}
+
+	if (old_init_file != NULL)
+	{
+		/*
+		 |	Copy non-configuration info into new .init.ee file.
+		 */
+		while ((string = fgets(buffer, 512, old_init_file)) != NULL)
+		{
+			length = strlen(string);
+			string[length - 1] = (char) NULL;
+
+			if (unique_test(string, init_strings) == 1)
+			{
+				if (compare(string, Echo, FALSE))
+				{
+					fprintf(init_file, "%s\n", string);
+				}
+			}
+			else
+				fprintf(init_file, "%s\n", string);
+		}
+
+		fclose(old_init_file);
+	}
+
+	fprintf(init_file, "%s\n", case_sen ? CASE : NOCASE);
+	fprintf(init_file, "%s\n", expand_tabs ? EXPAND : NOEXPAND);
+	fprintf(init_file, "%s\n", info_window ? INFO : NOINFO );
+	fprintf(init_file, "%s\n", observ_margins ? MARGINS : NOMARGINS );
+	fprintf(init_file, "%s\n", auto_format ? AUTOFORMAT : NOAUTOFORMAT );
+	fprintf(init_file, "%s %s\n", PRINTCOMMAND, print_command);
+	fprintf(init_file, "%s %d\n", RIGHTMARGIN, right_margin);
+	fprintf(init_file, "%s\n", nohighlight ? NOHIGHLIGHT : HIGHLIGHT );
+	fprintf(init_file, "%s\n", eightbit ? EIGHTBIT : NOEIGHTBIT );
+	fprintf(init_file, "%s\n", emacs_keys_mode ? EMACS_string : NOEMACS_string );
+
+	fclose(init_file);
+
+	wprintw(com_win, conf_dump_success_msg, file_name);
+	wrefresh(com_win);
+
+	if ((option == 2) && (file_name != home_dir))
+	{
+		free(file_name);
+	}
 }
 
 void 
@@ -3987,8 +4278,11 @@ struct text *test_line;
 	int counter;
 	char *pnt;
 
+	if (test_line == NULL)
+		return(0);
+
 	pnt = test_line->line;
-	if ((test_line == NULL) || (pnt == NULL) || (*pnt == (char) NULL) || 
+	if ((pnt == NULL) || (*pnt == (char) NULL) || 
 	    (*pnt == '.') || (*pnt == '>'))
 		return(0);
 
@@ -4026,6 +4320,7 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 	int leave_loop = FALSE;
 	int status;
 	int counter;
+	char not_blank;
 	char *line;
 	char *tmp_srchstr;
 	char *temp1, *temp2;
@@ -4102,6 +4397,8 @@ Auto_Format()	/* format the paragraph according to set margins	*/
  |	will fit in before the margin.  
  */
 
+	counter = 0;
+
 	while (!leave_loop)
 	{
 		if (position != curr_line->line_length)
@@ -4114,6 +4411,8 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 		}
 		else
 			right(TRUE);
+
+		not_blank = FALSE;
 
 		/*
 		 |	fill line if first word on next line will fit 
@@ -4130,10 +4429,27 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 			del_word();
 			if (position != 1)
 				bol();
-			if (Blank_Line(curr_line))
+
+			/*
+			 |	We know this line was not blank before, so 
+			 |	make sure that it doesn't have one of the 
+			 |	leading characters that indicate the line 
+			 |	should not be modified.
+			 |
+			 |	We also know that this character should not 
+			 |	be left as the first character of this line.
+			 */
+
+			if ((Blank_Line(curr_line)) && 
+			    (curr_line->line[0] != '.') && 
+			    (curr_line->line[0] != '>'))
 			{
 				del_line();
+				not_blank = FALSE;
 			}
+			else
+				not_blank = TRUE;
+
 			/*
 			 |   go to end of previous line
 			 */
@@ -4170,14 +4486,18 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 				if ((*point == ' ') || (*point == '\t'))
 					adv_word();
 				undel_word();
+				not_blank = TRUE;
 				if (position != 1)
 					bol();
 				left(TRUE);
 			}
 		}
 
-		if (!Blank_Line(curr_line->next_line))
+		if ((!Blank_Line(curr_line->next_line)) || (not_blank))
+		{
 			adv_line();
+			counter++;
+		}
 		else
 			leave_loop = TRUE;
 	}
@@ -4186,8 +4506,9 @@ Auto_Format()	/* format the paragraph according to set margins	*/
  |	go back to begin of paragraph, put cursor back to original position
  */
 
-	bol();
-	while (!Blank_Line(curr_line->prev_line))
+	if (position != 1)
+		bol();
+	while ((counter-- > 0) || (!Blank_Line(curr_line->prev_line)))
 		bol();
 
 /*
@@ -4318,8 +4639,8 @@ modes_op()
 }
 
 char *
-is_in_string(string, substring)	/* a strstr() look-alike for systems without
-				   strstr() */
+is_in_string(string, substring)	/* a strchr() look-alike for systems without
+				   strchr() */
 char * string, *substring;
 {
 	char *full, *sub;
@@ -4727,6 +5048,18 @@ strings_init()
 	EMACS_string = catgetlocal( 159, "EMACS");
 	NOEMACS_string = catgetlocal( 160, "NOEMACS");
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");
+	conf_dump_err_msg = catgetlocal( 162, "unable to open .init.ee for writing, no configuration saved!");
+	conf_dump_success_msg = catgetlocal( 163, "ee configuration saved in file %s");
+	modes_menu[9].item_string = catgetlocal( 164, "save editor configuration");
+	config_dump_menu[0].item_string = catgetlocal( 165, "save ee configuration");
+	config_dump_menu[1].item_string = catgetlocal( 166, "save in current directory");
+	config_dump_menu[2].item_string = catgetlocal( 167, "save in home directory");
+	conf_not_saved_msg = catgetlocal( 168, "ee configuration not saved");
+	ree_no_file_msg = catgetlocal( 169, "must specify a file when invoking ree");
+	cancel_string = catgetlocal( 170, "press Esc to cancel");
+	menu_too_lrg_msg = catgetlocal( 180, "menu too large for window");
+	more_above_str = catgetlocal( 181, "^^more^^");
+	more_below_str = catgetlocal( 182, "VVmoreVV");
 
 	commands[0] = HELP;
 	commands[1] = WRITE;
