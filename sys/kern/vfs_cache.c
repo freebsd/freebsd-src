@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.35 1997/10/16 10:47:54 phk Exp $
+ * $Id: vfs_cache.c,v 1.36 1997/11/07 08:53:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -186,7 +186,7 @@ cache_lookup(dvp, vpp, cnp)
 	LIST_FOREACH(ncp, (NCHHASH(dvp, cnp)), nc_hash) {
 		numchecks++;
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, (u_int)ncp->nc_nlen))
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
 	}
 
@@ -290,7 +290,7 @@ cache_enter(dvp, vp, cnp)
 	ncp->nc_vp = vp;
 	ncp->nc_dvp = dvp;
 	ncp->nc_nlen = cnp->cn_namelen;
-	bcopy(cnp->cn_nameptr, ncp->nc_name, (unsigned)ncp->nc_nlen);
+	bcopy(cnp->cn_nameptr, ncp->nc_name, ncp->nc_nlen);
 	ncpp = NCHHASH(dvp, cnp);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src))
