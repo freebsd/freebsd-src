@@ -4,12 +4,12 @@
  * 
  * Die Angaben wurden überwiegend entnommen aus dem Buch:
  * 
- * Fragen an die deutsch Geschichte, Ideen, Kräfte, Entscheidungen von
+ * Fragen an die deutsche Geschichte, Ideen, Kräfte, Entscheidungen von
  * 1800 bis zur Gegenwart; historische Ausstellung im Reichstagsgebäude
  * in Berlin; Katalog, 16. Auflage, Sonderausgabe - Bonn: Deutscher
  * Bundestag, Referat Öffentlichkeitsarbeit, 1990
  * 
- * English Title: Question on German history
+ * English Title: Questions on German history
  * 
  * ISBN 3-924521-59-X
  * 
@@ -22,20 +22,20 @@
 LANG=de_DE.ISO8859-1
 
 /* 1800-1933 */
-07/11	Gründung der Rheinbundes, 1806
+07/11 	Gründung des Rheinbundes, 1806
 10/14	Doppelschlacht bei Jena und Auerstedt, 1806
 10/16	Völkerschlacht bei Leipzig, 1813
 06/18	Niederlage Napoleons bei Waterloo, 1815
 10/18	Wartburgfest der Deutschen Burschenschaften, 1817
 01/01	Inkrafttreten des Vertrages über den deutschen Zollverein, 1834
-12/07	erste deutsche Eisenbahn zwischen Nürnberg und Fürth, 1835
+12/07	Erste deutsche Eisenbahn zwischen Nürnberg und Fürth, 1835
 06	Aufstand der schlesischen Weber, 1844
 12/21	Verabschiedung des Gesetzes über die Grundrechte des deutschen
 	Volkes durch die Frankfurter Nationalversammlung, 1848
 03/27	Annahme der deutschen Reichsverfassung in der Frankfurter
 	Paulskirche, Wahl von Friedrich Wilhelm IV von Preußen zum
 	deutschen Kaiser, 1849
-04/28	Ablehnung der deutschen Kaiserkrone durch den preußichen König, 1849
+04/28	Ablehnung der deutschen Kaiserkrone durch den preußischen König, 1849
 07/03	Schlacht von Königgrätz
 07/13	Emser Depesche, 1870
 07/18	Verkündung des Dogmas von der päpstlichen Unfehlbarkeit
@@ -52,7 +52,7 @@ LANG=de_DE.ISO8859-1
 07/28	Kriegserklärung Österreich-Ungarns an Serbien, 1914
 08/01	Deutsche Mobilmachung und Kriegserklärung an Rußland, 1914
 08/03	Deutsche Kriegserklärung an Frankreich, 1914
-08/04	Kriegserklärung Großbritaniens an Deutschland, 1914
+08/04	Kriegserklärung Großbritanniens an Deutschland, 1914
 08/04	Bewilligung der Kriegskredite im Reichstag, 1914
 08/26	Schlacht bei Tannenberg, 1914
 02/21	Schlacht um Verdun, 1916
@@ -67,17 +67,18 @@ LANG=de_DE.ISO8859-1
 03/21	Volksabstimmung in Oberschlesien, 1921
 04/16	Vertrag von Rapallo, 1922
 06/24	Ermordung von Reichsaußenminister Rathenau, 1922
-01/11	Besetzung des Ruhrgebietes durch Frankreich+Belgien, 1923
+01/11	Besetzung des Ruhrgebietes durch Frankreich und Belgien, 1923
 09/10	Eintritt Deutschlands in den Völkerbund, 1926
 10/25	Schwarzer Freitag in New York, Beginn der Weltwirtschaftskrise, 1929
 
 
 /* II. Weltkrieg */
-10/14	Austritt Deutschlanes auf dem Völkerbund, 1933
+10/14	Austritt Deutschlands aus dem Völkerbund, 1933
 03/16	Wiedereinführung der allgemeinen Wehrpflicht in Deutschland, 1935
 10/25	Deutsch-italienischer Vertrag, Achse Berlin-Rom, 1936
 11/25	Antikominternpakt zwischen Deutschland und Japan, 1936
-01/13	Volksabstimmung im Saargebiet über die Rückführung ins deutsche Reich, 1935
+01/13	Volksabstimmung im Saargebiet über die Rückführung 
+	ins deutsche Reich, 1935
 03/12	Einmarsch deutscher Truppen in Österreich, 1938
 09/29	Münchner Abkommen, 1938
 03/15	Einmarsch deutscher Truppen in die Tschechoslowakei, 1939
@@ -114,13 +115,13 @@ LANG=de_DE.ISO8859-1
 05/06	Rücktritt von Brandt, 1974
 05/16	Wahl von Schmidt (SPD) zum Bundeskanzler, 1974
 05/23	Verkündung des Grundgesetzes, 1949
-05/23	Wahl von Richard von Weizäcker zum Bundespräsidenten, 1984
+05/23	Wahl von Richard von Weizsäcker zum Bundespräsidenten, 1984
 06/05	Marshallplan, 1947
 06/20	Währungsreform in den Westzonen, 1948
 06/24	Beginn der Berliner Blockade, 1948
 07/01	Wahl von Heinrich Lübke zum Bundespräsidenten, 1959
 07/01	Wirtschafts- und Währungsunion, 1990
-08/12	deutsch-sowjetischer Gewaltverzichtsvertrag, Moskau 1970
+08/12	Deutsch-sowjetischer Gewaltverzichtsvertrag, Moskau 1970
 08/14	Wahl zum ersten deutschen Bundestag, 1949
 09/03	Vier-Mächte-Abkommen über Berlin, 1971
 09/05	Entführung und Ermordung von Arbeitgeberpräsident Schleyer, 
@@ -133,7 +134,7 @@ LANG=de_DE.ISO8859-1
 10/01	Ablösung von Bundeskanzler Schmidt durch Kohl, 1982
 10/23	Volksabstimmung im Saargebiet, 1955
 12/02	Washingtoner Abkommen über Bi-Zone, 1946
-12/07	deutsch-polnischer Vertrag, Warschau 1970
+12/07	Deutsch-polnischer Vertrag, Warschau 1970
 12/10	Friedensnobelpreis für Brandt, 1971
 12/12	Nachrüstungsbeschluß des NATO-Ministerates, 1979
 12/21	Grundlagenvertrag zwischen DDR und Bundesrepublik, 1972
@@ -164,11 +165,12 @@ LANG=de_DE.ISO8859-1
 
 /* Sozialismus */
 01/21	Lenin gestorben, 1924
-06	Gründung des Bundes der Kommunisten in London durch Marx+Engels, 1847
+06	Gründung des Bundes der Kommunisten in London
+	durch Marx und Engels, 1847
 05/23	Gründung des Allgemeinen Deutschen Arbeitervereins in Leipzig
 	unter Führung von Ferdinand Lassalles, 1863
 08/07	Gründung der Sozialdemokratischen Arbeiterpartei in Eisenach
-	unter der Führung von August Begel und Wilhelm Liebknecht, 1869
+	unter der Führung von August Bebel und Wilhelm Liebknecht, 1869
 04/06	Gründung der Unabhängigen Sozialdemokratischen Partei, Gotha 1917
 11/07	Oktoberrevolution in Rußland, Putsch der Bolschewisten, 1917
 12/31	Gründung der KPD, 1918
