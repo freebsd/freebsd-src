@@ -1586,6 +1586,23 @@ ENTRY(load_cr4)
 	movl	%eax,%cr4
 	ret
 
+/* void load_dr6(u_int dr6) */
+ENTRY(load_dr6)
+	movl    4(%esp),%eax
+	movl    %eax,%dr6
+	ret
+
+/* void reset_dbregs() */
+ENTRY(reset_dbregs)
+	movl    $0,%eax
+	movl    %eax,%dr7     /* disable all breapoints first */
+	movl    %eax,%dr0
+	movl    %eax,%dr1
+	movl    %eax,%dr2
+	movl    %eax,%dr3
+	movl    %eax,%dr6
+	ret
+
 /*****************************************************************************/
 /* setjump, longjump                                                         */
 /*****************************************************************************/

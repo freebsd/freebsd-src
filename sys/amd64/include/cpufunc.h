@@ -452,6 +452,54 @@ load_gs(u_int sel)
 	__asm __volatile("movl %0,%%gs" : : "rm" (sel));
 }
 
+static __inline u_int
+rdr0(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr0,%0" : "=rm" (data));
+	return (data);
+}
+
+static __inline u_int
+rdr1(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr1,%0" : "=rm" (data));
+	return (data);
+}
+
+static __inline u_int
+rdr2(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr2,%0" : "=rm" (data));
+	return (data);
+}
+
+static __inline u_int
+rdr3(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr3,%0" : "=rm" (data));
+	return (data);
+}
+
+static __inline u_int
+rdr6(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr6,%0" : "=rm" (data));
+	return (data);
+}
+
+static __inline u_int
+rdr7(void)
+{
+	u_int	data;
+	__asm __volatile("movl %%dr7,%0" : "=rm" (data));
+	return (data);
+}
+
 #else /* !__GNUC__ */
 
 int	breakpoint	__P((void));
@@ -497,5 +545,7 @@ void	ltr		__P((u_short sel));
 u_int	rcr0		__P((void));
 u_int	rcr3		__P((void));
 u_int	rcr4		__P((void));
+void    load_dr6        __P((u_int dr6));
+void    reset_dbregs    __P((void));
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
