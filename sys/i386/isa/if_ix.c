@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.2 1995/02/26 19:40:06 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.3 1995/02/26 20:13:14 rgrimes Exp $
  */
 
 #include "ix.h"
@@ -41,6 +41,8 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -808,7 +810,6 @@ ixinit(int unit) {
 void
 ixinit_rfa(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
-	scb_t		*scb;
 	rfd_t		*rfd;
 	rbd_t		*rbd;
 	caddr_t		rb;
@@ -931,7 +932,6 @@ ixinit_rfa(int unit) {
 void
 ixinit_tfa(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
-	scb_t		*scb;
 	cb_transmit_t	*cb;
 	tbd_t		*tbd;
 	caddr_t		tb;
@@ -1178,9 +1178,9 @@ ixintr_cx(int unit) {
 
 static inline void
 ixintr_cx_free(int unit, cb_t *cb) {
-	ix_softc_t	*sc = &ix_softc[unit];
 
 	DEBUGBEGIN(DEBUGINTR_CX)
+	DEBUGDO(ix_softc_t	*sc = &ix_softc[unit];)
 	DEBUGDO(printf("cb=%x:cb->status=%x:", KVTOBOARD(cb), cb->status);)
 	DEBUGEND
 /*1*/	cb->command = CB_CMD_EL | CB_CMD_NOP;
@@ -1190,7 +1190,6 @@ ixintr_cx_free(int unit, cb_t *cb) {
 static inline void
 ixintr_fr(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
-	struct ifnet	*ifp = &sc->arpcom.ac_if;
 
 	DEBUGBEGIN(DEBUGINTR_FR)
 	DEBUGDO(printf("fr:");)
@@ -1210,13 +1209,13 @@ ixintr_fr_copy(int unit, rfd_t *rfd) {
 	caddr_t		rb;
 	struct mbuf	*m0, *m;
 	struct ether_header	*eh;
-	int		i,
-			length,
+	int		length,
 			bytesleft;
 
 	rbd = (rbd_t *)(sc->maddr + rfd->rbd_offset);
 	rb = (caddr_t)(sc->maddr + rbd->buffer);
 	DEBUGBEGIN(DEBUGINTR_FR)
+	DEBUGDO(int	i;)
 	DEBUGDO(printf("rfd=%x:", KVTOBOARD(rfd));)
 	DEBUGDO(printf("rfd->status=%x:", rfd->status);)
 	DEBUGDO(printf("rbd->act_count=%x:", rbd->act_count);)
@@ -1448,11 +1447,6 @@ int
 ixstop(struct ifnet *ifp) {
 	int		unit = ifp->if_unit;
 	ix_softc_t	*sc = &ix_softc[unit];
-	scp_t		*scp = (scp_t *)(sc->maddr + SCP_ADDR);
-	iscp_t		*iscp = (iscp_t *)(sc->maddr + ISCP_ADDR);
-	scb_t 		*scb = (scb_t *)(sc->maddr + SCB_ADDR);
-	cb_t		*cb;
-	tbd_t		*tbd;
 
 	DEBUGBEGIN(DEBUGSTOP)
 	DEBUGDO(printf("ixstop:");)
