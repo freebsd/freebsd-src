@@ -19,7 +19,7 @@
 #include <sys/buf.h>
 #include <sys/signalvar.h>
 
-#include <machine/soundcard.h>
+#include <sys/soundcard.h>
 
 #include <i386/isa/isa_device.h>
 
