@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Hay.  All rights reserved.
+ * Copyright (c) 1995, 1999 John Hay.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,11 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by [your name]
- *	and [any other names deserving credit ]
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,6 +41,17 @@
 #define ARC_WIN_MSK		(ARC_WIN_SIZ - 1)
 #define ARC_WIN_SHFT		14
 
+/* Some PCI specific offsets. */
+#define AR_PCI_SCA_1_OFFSET	0x00040000
+#define AR_PCI_SCA_2_OFFSET	0x00040400
+#define AR_PCI_ORBASE_OFFSET	0x00041000
+#define AR_PCI_SCA_PCR		0x0208
+#define AR_PCI_SCA_DMER		0x0309
+/* PCI Legacy (below 1M) offsets. */
+#define AR_PCI_L_SCA_1_OFFSET	0x00004000
+#define AR_PCI_L_SCA_2_OFFSET	0x00004400
+#define AR_PCI_L_ORBASE_OFFSET	0x00005000
+
 #define AR_ID_5			0x00 /* RO, Card probe '5' */
 #define AR_ID_7			0x01 /* RO, Card probe '7' */
 #define AR_ID_0			0x02 /* RO, Card probe '0' */
@@ -61,12 +68,19 @@
 #define AR_MEM_SEL		0x0D /* RW, Memory Select */
 #define AR_INT_ACK2		0x0E /* RO, Interrupt Acknowledge 2 + 3 */
 #define AR_TXC_DTR2		0x0E /* WO, Tx Clock and DTR control 2 + 3 */
+/* PCI only */
+#define AR_PIMCTRL		0x4C /* RW, PIM and LEDs */
+#define AR_INT_SCB		0x50 /* RO, Interrupt Scoreboard */
 
+#define AR_REV_MSK		0x0F
+#define AR_WSIZ_MSK		0xE0
+#define AR_WSIZ_SHFT		5
 /* Bus memory and interface type */
 #define AR_BUS_MSK		0x03
 #define AR_BUS_ISA		0x00
 #define AR_BUS_MCA		0x01
 #define AR_BUS_EISA		0x02
+#define AR_BUS_PCI		0x03
 
 #define AR_MEM_MSK		0x1C
 #define AR_MEM_SHFT		0x02
@@ -89,6 +103,9 @@
 #define AR_IFACE_EIA_530	0x40
 #define AR_IFACE_X_21		0x60
 #define AR_IFACE_COMBO		0xC0  /* X.21 / EIA-530 */
+#define AR_IFACE_PIM		0xE0  /* PIM module */
+#define AR_IFACE_LOOPBACK	0xFE
+#define AR_IFACE_UNKNOWN	0xFF
 
 /* Supported Handshake signals */
 #define AR_SHSK_DTR		0x01
@@ -136,7 +153,18 @@
 #define AR_INTS_CMA14		0x10
 #define AR_INTS_CMA15		0x20
 
-/* Memory select register */
+/* Advanced PIM Control */
+#define AR_PIM_STROBE		0x01
+#define AR_PIM_DATA		0x02
+#define AR_PIM_MODEG		0x04
+#define AR_PIM_A2D_STROBE	0x04
+#define AR_PIM_MODEY		0x08
+#define AR_PIM_A2D_DOUT		0x08
+#define AR_PIM_AUTO_LED		0x10
+#define AR_PIM_INT		0x20
 
+#define AR_PIM_RESET		0x00 /* MODEG and MODEY 0 */
+#define AR_PIM_READ		AR_PIM_MODEG
+#define AR_PIM_WRITE		AR_PIM_MODEY
 
 #endif /* _IF_ARREGS_H_ */
