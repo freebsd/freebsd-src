@@ -56,7 +56,6 @@ MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
  */
 #define indentprintf(p)	do { int iJ; printf("."); for (iJ=0; iJ<indent; iJ++) printf("  "); printf p ; } while(0)
 
-static void print_method_list(device_method_t *m, int indent);
 static void print_device_short(device_t dev, int indent);
 static void print_device(device_t dev, int indent);
 void print_device_tree_short(device_t dev, int indent);
@@ -76,7 +75,6 @@ void print_devclass_list(void);
 #define DRIVERNAME(d)			/* nop */
 #define DEVCLANAME(d)			/* nop */
 
-#define print_method_list(m,i)		/* nop */
 #define print_device_short(d,i)		/* nop */
 #define print_device(d,i)		/* nop */
 #define print_device_tree_short(d,i)	/* nop */
@@ -2172,19 +2170,6 @@ driver_module_handler(module_t mod, int what, void *arg)
  */
 
 static void
-print_method_list(device_method_t *m, int indent)
-{
-	int i;
-
-	if (!m)
-		return;
-
-	for (i = 0; m->desc; i++, m++)
-		indentprintf(("method %d: %s, offset=%d\n",
-			i, m->desc->name, m->desc->offset));
-}
-
-static void
 print_device_short(device_t dev, int indent)
 {
 	if (!dev)
@@ -2258,7 +2243,7 @@ print_driver_short(driver_t *driver, int indent)
 		return;
 
 	indentprintf(("driver %s: softc size = %d\n",
-		driver->name, driver->softc));
+		driver->name, driver->size));
 }
 
 static void
@@ -2268,8 +2253,6 @@ print_driver(driver_t *driver, int indent)
 		return;
 
 	print_driver_short(driver, indent);
-	indentprintf(("Methods:\n"));
-	print_method_list(driver->methods, indent+1);
 }
 
 
