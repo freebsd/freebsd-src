@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,20 +33,20 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.84.1.4 (Berkeley) 3/28/95";
+static char sccsid[] = "@(#)deliver.c	8.185 (Berkeley) 11/18/95";
 #endif /* not lint */
 
 #include "sendmail.h"
-#include <netdb.h>
 #include <errno.h>
 #if NAMED_BIND
-#include <arpa/nameser.h>
 #include <resolv.h>
 
 extern int	h_errno;
 #endif
 
+#ifdef SMTP
 extern char	SmtpError[];
+#endif
 
 /*
 **  SENDALL -- actually send all the messages.
@@ -66,6 +66,7 @@ extern char	SmtpError[];
 **			appropriate action.
 */
 
+void
 sendall(e, mode)
 	ENVELOPE *e;
 	char mode;
@@ -75,7 +76,10 @@ sendall(e, mode)
 	int otherowners;
 	register ENVELOPE *ee;
 	ENVELOPE *splitenv = NULL;
-	bool announcequeueup;
+	bool oldverbose = Verbose;
+	bool somedeliveries = FALSE;
+	int pid;
+	extern void sendenvelope();
 
 	/*
 	**  If we have had global, fatal errors, don't bother sending
@@ -96,19 +100,20 @@ sendall(e, mode)
 	if (mode == SM_DEFAULT)
 	{
 		mode = e->e_sendmode;
-		if (mode != SM_VERIFY &&
+		if (mode != SM_VERIFY && mode != SM_DEFER &&
 		    shouldqueue(e->e_msgpriority, e->e_ctime))
 			mode = SM_QUEUE;
-		announcequeueup = mode == SM_QUEUE;
 	}
-	else
-		announcequeueup = FALSE;
 
 	if (tTd(13, 1))
 	{
+		extern void printenvflags();
+
 		printf("\n===== SENDALL: mode %c, id %s, e_from ",
 			mode, e->e_id);
 		printaddr(&e->e_from, FALSE);
+		printf("\te_flags = ");
+		printenvflags(e);
 		printf("sendqueue:\n");
 		printaddr(e->e_sendqueue, TRUE);
 	}
@@ -124,12 +129,15 @@ sendall(e, mode)
 	if (e->e_hopcount > MaxHopCount)
 	{
 		errno = 0;
-		queueup(e, TRUE, announcequeueup);
+#ifdef QUEUE
+		queueup(e, mode == SM_QUEUE || mode == SM_DEFER);
+#endif
 		e->e_flags |= EF_FATALERRS|EF_PM_NOTIFY|EF_CLRQUEUE;
-		syserr("554 too many hops %d (%d max): from %s via %s, to %s",
+		syserr("554 Too many hops %d (%d max): from %s via %s, to %s",
 			e->e_hopcount, MaxHopCount, e->e_from.q_paddr,
 			RealHostName == NULL ? "localhost" : RealHostName,
 			e->e_sendqueue->q_paddr);
+		e->e_sendqueue->q_status = "5.4.6";
 		return;
 	}
 
@@ -151,7 +159,7 @@ sendall(e, mode)
 			printaddr(&e->e_from, FALSE);
 		}
 		e->e_from.q_flags |= QDONTSEND;
-		(void) recipient(&e->e_from, &e->e_sendqueue, e);
+		(void) recipient(&e->e_from, &e->e_sendqueue, 0, e);
 	}
 
 	/*
@@ -185,8 +193,17 @@ sendall(e, mode)
 
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
+			if (tTd(13, 30))
+			{
+				printf("Checking ");
+				printaddr(q, FALSE);
+			}
 			if (bitset(QDONTSEND, q->q_flags))
+			{
+				if (tTd(13, 30))
+					printf("    ... QDONTSEND\n");
 				continue;
+			}
 
 			if (q->q_owner != NULL)
 			{
@@ -209,6 +226,35 @@ sendall(e, mode)
 			else
 			{
 				otherowners++;
+			}
+
+			/*
+			**  If this mailer is expensive, and if we don't
+			**  want to make connections now, just mark these
+			**  addresses and return.  This is useful if we
+			**  want to batch connections to reduce load.  This
+			**  will cause the messages to be queued up, and a
+			**  daemon will come along to send the messages later.
+			*/
+
+			if (bitset(QBADADDR|QQUEUEUP, q->q_flags))
+			{
+				if (tTd(13, 30))
+					printf("    ... QBADADDR|QQUEUEUP\n");
+				continue;
+			}
+			if (NoConnect && !Verbose &&
+			    bitnset(M_EXPENSIVE, q->q_mailer->m_flags))
+			{
+				if (tTd(13, 30))
+					printf("    ... expensive\n");
+				q->q_flags |= QQUEUEUP;
+			}
+			else
+			{
+				if (tTd(13, 30))
+					printf("    ... deliverable\n");
+				somedeliveries = TRUE;
 			}
 		}
 
@@ -233,7 +279,7 @@ sendall(e, mode)
 			ee->e_header = copyheader(e->e_header);
 			ee->e_sendqueue = copyqueue(e->e_sendqueue);
 			ee->e_errorqueue = copyqueue(e->e_errorqueue);
-			ee->e_flags = e->e_flags & ~(EF_INQUEUE|EF_CLRQUEUE|EF_FATALERRS|EF_SENDRECEIPT);
+			ee->e_flags = e->e_flags & ~(EF_INQUEUE|EF_CLRQUEUE|EF_FATALERRS|EF_SENDRECEIPT|EF_RET_PARAM);
 			ee->e_flags |= EF_NORECEIPT;
 			setsender(owner, ee, NULL, TRUE);
 			if (tTd(13, 5))
@@ -244,33 +290,61 @@ sendall(e, mode)
 			ee->e_from.q_flags |= QDONTSEND;
 			ee->e_dfp = NULL;
 			ee->e_xfp = NULL;
-			ee->e_df = NULL;
 			ee->e_errormode = EM_MAIL;
 			ee->e_sibling = splitenv;
 			splitenv = ee;
 			
 			for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+			{
 				if (q->q_owner == owner)
 				{
 					q->q_flags |= QDONTSEND;
 					q->q_flags &= ~QQUEUEUP;
 				}
+			}
 			for (q = ee->e_sendqueue; q != NULL; q = q->q_next)
+			{
 				if (q->q_owner != owner)
 				{
 					q->q_flags |= QDONTSEND;
 					q->q_flags &= ~QQUEUEUP;
 				}
-
-			if (e->e_df != NULL && mode != SM_VERIFY)
-			{
-				ee->e_dfp = NULL;
-				ee->e_df = queuename(ee, 'd');
-				ee->e_df = newstr(ee->e_df);
-				if (link(e->e_df, ee->e_df) < 0)
+				else
 				{
+					/* clear DSN parameters */
+					q->q_flags &= ~(QHASNOTIFY|QPINGONSUCCESS);
+					q->q_flags |= QPINGONFAILURE|QPINGONDELAY;
+				}
+			}
+
+			if (mode != SM_VERIFY && bitset(EF_HAS_DF, e->e_flags))
+			{
+				char df1buf[20], df2buf[20];
+
+				ee->e_dfp = NULL;
+				strcpy(df1buf, queuename(e, 'd'));
+				strcpy(df2buf, queuename(ee, 'd'));
+				if (link(df1buf, df2buf) < 0)
+				{
+					int saverrno = errno;
+
 					syserr("sendall: link(%s, %s)",
-						e->e_df, ee->e_df);
+						df1buf, df2buf);
+					if (saverrno == EEXIST)
+					{
+						if (unlink(df2buf) < 0)
+						{
+							syserr("!sendall: unlink(%s): permanent",
+								df2buf);
+							/*NOTREACHED*/
+						}
+						if (link(df1buf, df2buf) < 0)
+						{
+							syserr("!sendall: link(%s, %s): permanent",
+								df1buf, df2buf);
+							/*NOTREACHED*/
+						}
+					}
 				}
 			}
 #ifdef LOG
@@ -294,65 +368,33 @@ sendall(e, mode)
 		e->e_flags |= EF_NORECEIPT;
 	}
 
+	/* if nothing to be delivered, just queue up everything */
+	if (!somedeliveries && mode != SM_QUEUE && mode != SM_DEFER &&
+	    mode != SM_VERIFY)
+	{
+		if (tTd(13, 29))
+			printf("No deliveries: auto-queuing\n");
+		mode = SM_QUEUE;
+	}
+
 # ifdef QUEUE
-	if ((mode == SM_QUEUE || mode == SM_FORK ||
+	if ((mode == SM_QUEUE || mode == SM_DEFER || mode == SM_FORK ||
 	     (mode != SM_VERIFY && SuperSafe)) &&
 	    !bitset(EF_INQUEUE, e->e_flags))
 	{
 		/* be sure everything is instantiated in the queue */
-		queueup(e, TRUE, announcequeueup);
+		queueup(e, mode == SM_QUEUE || mode == SM_DEFER);
 		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
-			queueup(ee, TRUE, announcequeueup);
+			queueup(ee, mode == SM_QUEUE || mode == SM_DEFER);
 	}
 #endif /* QUEUE */
 
-	if (splitenv != NULL)
-	{
-		if (tTd(13, 1))
-		{
-			printf("\nsendall: Split queue; remaining queue:\n");
-			printaddr(e->e_sendqueue, TRUE);
-		}
-
-		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
-		{
-			CurEnv = ee;
-			if (mode != SM_VERIFY)
-				openxscript(ee);
-			sendenvelope(ee, mode);
-			dropenvelope(ee);
-		}
-
-		CurEnv = e;
-	}
-	sendenvelope(e, mode);
-}
-
-sendenvelope(e, mode)
-	register ENVELOPE *e;
-	char mode;
-{
-	bool oldverbose;
-	int pid;
-	register ADDRESS *q;
-	char *qf;
-	char *id;
-
 	/*
-	**  If we have had global, fatal errors, don't bother sending
-	**  the message at all if we are in SMTP mode.  Local errors
-	**  (e.g., a single address failing) will still cause the other
-	**  addresses to be sent.
+	**  If we belong in background, fork now.
 	*/
 
-	if (bitset(EF_FATALERRS, e->e_flags) &&
-	    (OpMode == MD_SMTP || OpMode == MD_DAEMON))
-	{
-		e->e_flags |= EF_CLRQUEUE;
-		return;
-	}
-
-	oldverbose = Verbose;
+	if (tTd(13, 20))
+		printf("sendall: final mode = %c\n", mode);
 	switch (mode)
 	{
 	  case SM_VERIFY:
@@ -360,8 +402,10 @@ sendenvelope(e, mode)
 		break;
 
 	  case SM_QUEUE:
+	  case SM_DEFER:
   queueonly:
-		e->e_flags |= EF_INQUEUE|EF_KEEPQUEUE;
+		if (e->e_nrcpts > 0)
+			e->e_flags |= EF_INQUEUE;
 		return;
 
 	  case SM_FORK:
@@ -376,15 +420,17 @@ sendenvelope(e, mode)
 		**  then restart from scratch in the child.
 		*/
 
-		/* save id for future use */
-		id = e->e_id;
+		{
+			/* save id for future use */
+			char *qid = e->e_id;
 
-		/* now drop the envelope in the parent */
-		e->e_flags |= EF_INQUEUE|EF_KEEPQUEUE;
-		dropenvelope(e);
+			/* now drop the envelope in the parent */
+			e->e_flags |= EF_INQUEUE;
+			dropenvelope(e);
 
-		/* and reacquire in the child */
-		(void) dowork(id, TRUE, FALSE, e);
+			/* and reacquire in the child */
+			(void) dowork(qid, TRUE, FALSE, e);
+		}
 
 		return;
 
@@ -400,15 +446,16 @@ sendenvelope(e, mode)
 			/* be sure we leave the temp files to our child */
 			/* can't call unlockqueue to avoid unlink of xfp */
 			if (e->e_lockfp != NULL)
-				(void) xfclose(e->e_lockfp, "sendenvelope", "lockfp");
+				(void) xfclose(e->e_lockfp, "sendenvelope lockfp", e->e_id);
 			e->e_lockfp = NULL;
 
 			/* close any random open files in the envelope */
 			closexscript(e);
 			if (e->e_dfp != NULL)
-				(void) xfclose(e->e_dfp, "sendenvelope", e->e_df);
+				(void) xfclose(e->e_dfp, "sendenvelope dfp", e->e_id);
 			e->e_dfp = NULL;
-			e->e_id = e->e_df = NULL;
+			e->e_id = NULL;
+			e->e_flags &= ~EF_HAS_DF;
 
 			/* catch intermediate zombie */
 			(void) waitfor(pid);
@@ -426,7 +473,7 @@ sendenvelope(e, mode)
 		/* prevent parent from waiting if there was an error */
 		if (pid < 0)
 		{
-			e->e_flags |= EF_INQUEUE|EF_KEEPQUEUE;
+			e->e_flags |= EF_INQUEUE;
 			finis();
 		}
 
@@ -447,6 +494,64 @@ sendenvelope(e, mode)
 		break;
 	}
 
+	if (splitenv != NULL)
+	{
+		if (tTd(13, 2))
+		{
+			printf("\nsendall: Split queue; remaining queue:\n");
+			printaddr(e->e_sendqueue, TRUE);
+		}
+
+		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
+		{
+			CurEnv = ee;
+			if (mode != SM_VERIFY)
+				openxscript(ee);
+			sendenvelope(ee, mode);
+			dropenvelope(ee);
+		}
+
+		CurEnv = e;
+	}
+	sendenvelope(e, mode);
+	Verbose = oldverbose;
+	if (mode == SM_FORK)
+		finis();
+}
+
+void
+sendenvelope(e, mode)
+	register ENVELOPE *e;
+	char mode;
+{
+	register ADDRESS *q;
+	bool didany;
+
+	if (tTd(13, 10))
+		printf("sendenvelope(%s) e_flags=0x%x\n",
+			e->e_id == NULL ? "[NOQUEUE]" : e->e_id,
+			e->e_flags);
+#ifdef LOG
+	if (LogLevel > 80)
+		syslog(LOG_DEBUG, "%s: sendenvelope, flags=0x%x",
+			e->e_id == NULL ? "[NOQUEUE]" : e->e_id,
+			e->e_flags);
+#endif
+
+	/*
+	**  If we have had global, fatal errors, don't bother sending
+	**  the message at all if we are in SMTP mode.  Local errors
+	**  (e.g., a single address failing) will still cause the other
+	**  addresses to be sent.
+	*/
+
+	if (bitset(EF_FATALERRS, e->e_flags) &&
+	    (OpMode == MD_SMTP || OpMode == MD_DAEMON))
+	{
+		e->e_flags |= EF_CLRQUEUE;
+		return;
+	}
+
 	/*
 	**  Run through the list and send everything.
 	**
@@ -456,14 +561,15 @@ sendenvelope(e, mode)
 
 	e->e_nsent = 0;
 	e->e_flags |= EF_GLOBALERRS;
+	didany = FALSE;
 
 	/* now run through the queue */
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
-#ifdef XDEBUG
+#if XDEBUG
 		char wbuf[MAXNAME + 20];
 
-		(void) sprintf(wbuf, "sendall(%s)", q->q_paddr);
+		(void) sprintf(wbuf, "sendall(%.*s)", MAXNAME, q->q_paddr);
 		checkfd012(wbuf);
 #endif
 		if (mode == SM_VERIFY)
@@ -491,21 +597,23 @@ sendenvelope(e, mode)
 
 			if (e->e_nsent >= CheckpointInterval)
 			{
-				queueup(e, TRUE, FALSE);
+				queueup(e, FALSE);
 				e->e_nsent = 0;
 			}
 # endif /* QUEUE */
 			(void) deliver(e, q);
+			didany = TRUE;
 		}
 	}
-	Verbose = oldverbose;
+	if (didany)
+	{
+		e->e_dtime = curtime();
+		e->e_ntries++;
+	}
 
-#ifdef XDEBUG
+#if XDEBUG
 	checkfd012("end of sendenvelope");
 #endif
-
-	if (mode == SM_FORK)
-		finis();
 }
 /*
 **  DOFORK -- do a fork, retrying a couple of times on failure.
@@ -563,9 +671,10 @@ sendenvelope(e, mode)
 **		returns twice, once in parent and once in child.
 */
 
+int
 dofork()
 {
-	register int pid;
+	register int pid = -1;
 
 	DOFORK(fork);
 	return (pid);
@@ -592,6 +701,7 @@ dofork()
 **		The standard input is passed off to someone.
 */
 
+int
 deliver(e, firstto)
 	register ENVELOPE *e;
 	ADDRESS *firstto;
@@ -602,22 +712,24 @@ deliver(e, firstto)
 	register char **mvp;
 	register char *p;
 	register MAILER *m;		/* mailer for this recipient */
-	ADDRESS *ctladdr;
-	register MCI *mci;
+	ADDRESS *volatile ctladdr;
+	register MCI *volatile mci;
 	register ADDRESS *to = firstto;
-	bool clever = FALSE;		/* running user smtp to this mailer */
-	ADDRESS *tochain = NULL;	/* chain of users in this mailer call */
+	volatile bool clever = FALSE;	/* running user smtp to this mailer */
+	ADDRESS *volatile tochain = NULL; /* users chain in this mailer call */
 	int rcode;			/* response code */
 	char *firstsig;			/* signature of firstto */
-	int pid;
-	char *curhost;
+	int pid = -1;
+	char *volatile curhost;
+	time_t xstart;
 	int mpvect[2];
 	int rpvect[2];
 	char *pv[MAXPV+1];
 	char tobuf[TOBUFSIZE];		/* text line of to people */
-	char buf[MAXNAME];
-	char rpathbuf[MAXNAME];		/* translated return path */
+	char buf[MAXNAME + 1];
+	char rpathbuf[MAXNAME + 1];	/* translated return path */
 	extern int checkcompat();
+	extern void markfailure __P((ENVELOPE *, ADDRESS *, MCI *, int));
 
 	errno = 0;
 	if (bitset(QDONTSEND|QBADADDR|QQUEUEUP, to->q_flags))
@@ -636,40 +748,16 @@ deliver(e, firstto)
 	host = to->q_host;
 	CurEnv = e;			/* just in case */
 	e->e_statmsg = NULL;
+#ifdef SMTP
 	SmtpError[0] = '\0';
+#endif
+	xstart = curtime();
 
 	if (tTd(10, 1))
 		printf("\n--deliver, id=%s, mailer=%s, host=`%s', first user=`%s'\n",
 			e->e_id, m->m_name, host, to->q_user);
 	if (tTd(10, 100))
 		printopenfds(FALSE);
-
-	/*
-	**  If this mailer is expensive, and if we don't want to make
-	**  connections now, just mark these addresses and return.
-	**	This is useful if we want to batch connections to
-	**	reduce load.  This will cause the messages to be
-	**	queued up, and a daemon will come along to send the
-	**	messages later.
-	**		This should be on a per-mailer basis.
-	*/
-
-	if (NoConnect && bitnset(M_EXPENSIVE, m->m_flags) && !Verbose)
-	{
-		for (; to != NULL; to = to->q_next)
-		{
-			if (bitset(QDONTSEND|QBADADDR|QQUEUEUP, to->q_flags) ||
-			    to->q_mailer != m)
-				continue;
-			to->q_flags |= QQUEUEUP;
-			e->e_to = to->q_paddr;
-			message("queued");
-			if (LogLevel > 8)
-				logdelivery(m, NULL, "queued", NULL, e);
-		}
-		e->e_to = NULL;
-		return (0);
-	}
 
 	/*
 	**  Do initial argv setup.
@@ -684,7 +772,11 @@ deliver(e, firstto)
 
 	/* rewrite from address, using rewriting rules */
 	rcode = EX_OK;
-	(void) strcpy(rpathbuf, remotename(e->e_from.q_paddr, m,
+	if (bitnset(M_UDBENVELOPE, e->e_from.q_mailer->m_flags))
+		p = e->e_sender;
+	else
+		p = e->e_from.q_paddr;
+	(void) strcpy(rpathbuf, remotename(p, m,
 					   RF_SENDERADDR|RF_CANONICAL,
 					   &rcode, e));
 	define('g', rpathbuf, e);		/* translated return path */
@@ -726,7 +818,7 @@ deliver(e, firstto)
 			break;
 
 		/* this entry is safe -- go ahead and process it */
-		expand(*mvp, buf, &buf[sizeof buf - 1], e);
+		expand(*mvp, buf, sizeof buf, e);
 		*pvp++ = newstr(buf);
 		if (pvp >= &pv[MAXPV - 3])
 		{
@@ -788,10 +880,14 @@ deliver(e, firstto)
 		}
 
 		/* compute effective uid/gid when sending */
-		/* XXX perhaps this should be to->q_mailer != LocalMailer ?? */
-		/* XXX perhaps it should be a mailer flag? */
-		if (to->q_mailer == ProgMailer || to->q_mailer == FileMailer)
+		if (bitnset(M_RUNASRCPT, to->q_mailer->m_flags))
 			ctladdr = getctladdr(to);
+
+		if (tTd(10, 2))
+		{
+			printf("ctladdr=");
+			printaddr(ctladdr, FALSE);
+		}
 
 		user = to->q_user;
 		e->e_to = to->q_paddr;
@@ -809,16 +905,20 @@ deliver(e, firstto)
 
 		if (m->m_maxsize != 0 && e->e_msgsize > m->m_maxsize)
 		{
-			NoReturn = TRUE;
+			e->e_flags |= EF_NO_BODY_RETN;
+			to->q_status = "5.2.3";
 			usrerr("552 Message is too large; %ld bytes max", m->m_maxsize);
-			giveresponse(EX_UNAVAILABLE, m, NULL, ctladdr, e);
+			giveresponse(EX_UNAVAILABLE, m, NULL, ctladdr, xstart, e);
 			continue;
 		}
+#if NAMED_BIND
+		h_errno = 0;
+#endif
 		rcode = checkcompat(to, e);
 		if (rcode != EX_OK)
 		{
-			markfailure(e, to, rcode);
-			giveresponse(rcode, m, NULL, ctladdr, e);
+			markfailure(e, to, NULL, rcode);
+			giveresponse(rcode, m, NULL, ctladdr, xstart, e);
 			continue;
 		}
 
@@ -860,12 +960,25 @@ deliver(e, firstto)
 		**	with the others, so we fudge on the To person.
 		*/
 
-		if (m == FileMailer)
+		if (strcmp(m->m_mailer, "[FILE]") == 0)
 		{
-			rcode = mailfile(user, ctladdr, e);
-			giveresponse(rcode, m, NULL, ctladdr, e);
+			rcode = mailfile(user, ctladdr, SFF_CREAT, e);
+			giveresponse(rcode, m, NULL, ctladdr, xstart, e);
+			e->e_nsent++;
 			if (rcode == EX_OK)
+			{
 				to->q_flags |= QSENT;
+				if (bitnset(M_LOCALMAILER, m->m_flags) &&
+				    (e->e_receiptto != NULL ||
+				     bitset(QPINGONSUCCESS, to->q_flags)))
+				{
+					to->q_flags |= QDELIVERED;
+					to->q_status = "2.1.5";
+					fprintf(e->e_xfp, "%s... Successfully delivered\n",
+						to->q_paddr);
+				}
+			}
+			to->q_statdate = curtime();
 			continue;
 		}
 
@@ -893,7 +1006,7 @@ deliver(e, firstto)
 
 		if (!clever)
 		{
-			expand(*mvp, buf, &buf[sizeof buf - 1], e);
+			expand(*mvp, buf, sizeof buf, e);
 			*pvp++ = newstr(buf);
 			if (pvp >= &pv[MAXPV - 2])
 			{
@@ -919,7 +1032,7 @@ deliver(e, firstto)
 
 	while (!clever && *++mvp != NULL)
 	{
-		expand(*mvp, buf, &buf[sizeof buf - 1], e);
+		expand(*mvp, buf, sizeof buf, e);
 		*pvp++ = newstr(buf);
 		if (pvp >= &pv[MAXPV])
 			syserr("554 deliver: pv overflow after $u for %s", pv[0]);
@@ -935,7 +1048,7 @@ deliver(e, firstto)
 	*/
 
 	/*XXX this seems a bit wierd */
-	if (ctladdr == NULL && m != ProgMailer &&
+	if (ctladdr == NULL && m != ProgMailer && m != FileMailer &&
 	    bitset(QGOODUID, e->e_from.q_flags))
 		ctladdr = &e->e_from;
 
@@ -950,8 +1063,11 @@ deliver(e, firstto)
 		printav(pv);
 	}
 	errno = 0;
+#if NAMED_BIND
+	h_errno = 0;
+#endif
 
-	CurHostName = m->m_mailer;
+	CurHostName = NULL;
 
 	/*
 	**  Deal with the special case of mail handled through an IPC
@@ -966,15 +1082,30 @@ deliver(e, firstto)
 	SmtpPhase = NULL;
 	mci = NULL;
 
-#ifdef XDEBUG
+#if XDEBUG
 	{
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
-		sprintf(wbuf, "%s... openmailer(%s)", e->e_to, m->m_name);
+		sprintf(wbuf, "%s... openmailer(%s)",
+			shortenstring(e->e_to, 203), m->m_name);
 		checkfd012(wbuf);
 	}
 #endif
+
+	/* check for 8-bit available */
+	if (bitset(EF_HAS8BIT, e->e_flags) &&
+	    bitnset(M_7BITS, m->m_flags) &&
+	    (bitset(EF_DONT_MIME, e->e_flags) ||
+	     !(bitset(MM_MIME8BIT, MimeMode) ||
+	       (bitset(EF_IS_MIME, e->e_flags) &&
+	        bitset(MM_CVTMIME, MimeMode)))))
+	{
+		usrerr("554 Cannot send 8-bit data to 7-bit destination");
+		rcode = EX_DATAERR;
+		e->e_status = "5.6.3";
+		goto give_up;
+	}
 
 	/* check for Local Person Communication -- not for mortals!!! */
 	if (strcmp(m->m_mailer, "[LPC]") == 0)
@@ -991,7 +1122,7 @@ deliver(e, firstto)
 	{
 #ifdef DAEMON
 		register int i;
-		register u_short port;
+		register volatile u_short port = 0;
 
 		if (pv[0] == NULL || pv[1] == NULL || pv[1][0] == '\0')
 		{
@@ -1017,14 +1148,23 @@ deliver(e, firstto)
 			goto give_up;
 		}
 		if (pv[2] != NULL)
-			port = atoi(pv[2]);
-		else
-			port = 0;
+		{
+			port = htons(atoi(pv[2]));
+			if (port == 0)
+			{
+				struct servent *sp = getservbyname(pv[2], "tcp");
+
+				if (sp == NULL)
+					syserr("Service %s unknown", pv[2]);
+				else
+					port = sp->s_port;
+			}
+		}
 tryhost:
 		while (*curhost != '\0')
 		{
 			register char *p;
-			static char hostbuf[MAXNAME];
+			static char hostbuf[MAXNAME + 1];
 
 			/* pull the next host from the signature */
 			p = strchr(curhost, ':');
@@ -1053,6 +1193,9 @@ tryhost:
 					mci_dump(mci, FALSE);
 				}
 				CurHostName = mci->mci_host;
+				message("Using cached %sSMTP connection to %s via %s...",
+					bitset(MCIF_ESMTP, mci->mci_flags) ? "E" : "",
+					hostbuf, m->m_name);
 				break;
 			}
 			mci->mci_mailer = m;
@@ -1061,10 +1204,11 @@ tryhost:
 
 			/* try the connection */
 			setproctitle("%s %s: %s", e->e_id, hostbuf, "user open");
-			message("Connecting to %s (%s)...",
+			message("Connecting to %s via %s...",
 				hostbuf, m->m_name);
 			i = makeconnection(hostbuf, port, mci,
 				bitnset(M_SECURE_PORT, m->m_flags));
+			mci->mci_lastuse = curtime();
 			mci->mci_exitstat = i;
 			mci->mci_errno = errno;
 #if NAMED_BIND
@@ -1105,6 +1249,14 @@ tryhost:
 	}
 	else
 	{
+		/* flush any expired connections */
+		(void) mci_scan(NULL);
+
+		/* announce the connection to verbose listeners */
+		if (host == NULL || host[0] == '\0')
+			message("Connecting to %s...", m->m_name);
+		else
+			message("Connecting to %s via %s...", host, m->m_name);
 		if (TrafficLogFile != NULL)
 		{
 			char **av;
@@ -1119,7 +1271,7 @@ tryhost:
 		if (pipe(mpvect) < 0)
 		{
 			syserr("%s... openmailer(%s): pipe (to mailer)",
-				e->e_to, m->m_name);
+				shortenstring(e->e_to, 203), m->m_name);
 			if (tTd(11, 1))
 				printf("openmailer: NULL\n");
 			rcode = EX_OSERR;
@@ -1127,10 +1279,11 @@ tryhost:
 		}
 
 		/* if this mailer speaks smtp, create a return pipe */
+#ifdef SMTP
 		if (clever && pipe(rpvect) < 0)
 		{
 			syserr("%s... openmailer(%s): pipe (from mailer)",
-				e->e_to, m->m_name);
+				shortenstring(e->e_to, 203), m->m_name);
 			(void) close(mpvect[0]);
 			(void) close(mpvect[1]);
 			if (tTd(11, 1))
@@ -1138,6 +1291,7 @@ tryhost:
 			rcode = EX_OSERR;
 			goto give_up;
 		}
+#endif
 
 		/*
 		**  Actually fork the mailer process.
@@ -1159,14 +1313,16 @@ tryhost:
 		{
 			/* failure */
 			syserr("%s... openmailer(%s): cannot fork",
-				e->e_to, m->m_name);
+				shortenstring(e->e_to, 203), m->m_name);
 			(void) close(mpvect[0]);
 			(void) close(mpvect[1]);
+#ifdef SMTP
 			if (clever)
 			{
 				(void) close(rpvect[0]);
 				(void) close(rpvect[1]);
 			}
+#endif
 			if (tTd(11, 1))
 				printf("openmailer: NULL\n");
 			rcode = EX_OSERR;
@@ -1176,9 +1332,7 @@ tryhost:
 		{
 			int i;
 			int saveerrno;
-			char **ep;
-			char *env[MAXUSERENVIRON];
-			extern char **environ;
+			struct stat stb;
 			extern int DtableSize;
 
 			if (e->e_lockfp != NULL)
@@ -1189,23 +1343,61 @@ tryhost:
 			(void) setsignal(SIGHUP, SIG_IGN);
 			(void) setsignal(SIGTERM, SIG_DFL);
 
-			/* reset user and group */
-			if (!bitnset(M_RESTR, m->m_flags))
+			if (m != FileMailer || stat(tochain->q_user, &stb) < 0)
+				stb.st_mode = 0;
+
+			/* tweak niceness */
+			if (m->m_nice != 0)
+				nice(m->m_nice);
+
+			/* reset group id */
+			if (bitnset(M_SPECIFIC_UID, m->m_flags))
+				(void) setgid(m->m_gid);
+			else if (bitset(S_ISGID, stb.st_mode))
+				(void) setgid(stb.st_gid);
+			else if (ctladdr != NULL && ctladdr->q_gid != 0)
 			{
-				if (ctladdr == NULL || ctladdr->q_uid == 0)
-				{
-					(void) initgroups(DefUser, DefGid);
-					(void) setgid(DefGid);
-					(void) setuid(DefUid);
-				}
-				else
-				{
-					(void) initgroups(ctladdr->q_ruser?
-						ctladdr->q_ruser: ctladdr->q_user,
+				if (!DontInitGroups)
+					(void) initgroups(ctladdr->q_ruser != NULL ?
+						ctladdr->q_ruser : ctladdr->q_user,
 						ctladdr->q_gid);
-					(void) setgid(ctladdr->q_gid);
-					(void) setuid(ctladdr->q_uid);
-				}
+				(void) setgid(ctladdr->q_gid);
+			}
+			else
+			{
+				if (!DontInitGroups)
+					(void) initgroups(DefUser, DefGid);
+				if (m->m_gid == 0)
+					(void) setgid(DefGid);
+				else
+					(void) setgid(m->m_gid);
+			}
+
+			/* reset user id */
+			endpwent();
+			if (bitnset(M_SPECIFIC_UID, m->m_flags))
+			{
+#if USESETEUID
+				(void) seteuid(m->m_uid);
+#else
+# if HASSETREUID
+				(void) setreuid(-1, m->m_uid);
+# else
+				if (m->m_uid != geteuid())
+					(void) setuid(m->m_uid);
+# endif
+#endif
+			}
+			else if (bitset(S_ISUID, stb.st_mode))
+				(void) setuid(stb.st_uid);
+			else if (ctladdr != NULL && ctladdr->q_uid != 0)
+				(void) setuid(ctladdr->q_uid);
+			else
+			{
+				if (m->m_uid == 0)
+					(void) setuid(DefUid);
+				else
+					(void) setuid(m->m_uid);
 			}
 
 			if (tTd(11, 2))
@@ -1216,14 +1408,14 @@ tryhost:
 			if (m->m_execdir != NULL)
 			{
 				char *p, *q;
-				char buf[MAXLINE];
+				char buf[MAXLINE + 1];
 
 				for (p = m->m_execdir; p != NULL; p = q)
 				{
 					q = strchr(p, ':');
 					if (q != NULL)
 						*q = '\0';
-					expand(p, buf, &buf[sizeof buf] - 1, e);
+					expand(p, buf, sizeof buf, e);
 					if (q != NULL)
 						*q++ = ':';
 					if (tTd(11, 20))
@@ -1235,13 +1427,15 @@ tryhost:
 			}
 
 			/* arrange to filter std & diag output of command */
+#ifdef SMTP
 			if (clever)
 			{
 				(void) close(rpvect[0]);
 				if (dup2(rpvect[1], STDOUT_FILENO) < 0)
 				{
 					syserr("%s... openmailer(%s): cannot dup pipe %d for stdout",
-						e->e_to, m->m_name, rpvect[1]);
+						shortenstring(e->e_to, 203),
+						m->m_name, rpvect[1]);
 					_exit(EX_OSERR);
 				}
 				(void) close(rpvect[1]);
@@ -1253,15 +1447,16 @@ tryhost:
 				if (dup2(fileno(e->e_xfp), STDOUT_FILENO) < 0)
 				{
 					syserr("%s... openmailer(%s): cannot dup xscript %d for stdout",
-						e->e_to, m->m_name,
-						fileno(e->e_xfp));
+						shortenstring(e->e_to, 203),
+						m->m_name, fileno(e->e_xfp));
 					_exit(EX_OSERR);
 				}
 			}
+#endif
 			if (dup2(STDOUT_FILENO, STDERR_FILENO) < 0)
 			{
 				syserr("%s... openmailer(%s): cannot dup stdout for stderr",
-					e->e_to, m->m_name);
+					shortenstring(e->e_to, 203), m->m_name);
 				_exit(EX_OSERR);
 			}
 
@@ -1270,7 +1465,8 @@ tryhost:
 			if (dup2(mpvect[0], STDIN_FILENO) < 0)
 			{
 				syserr("%s... openmailer(%s): cannot dup pipe %d for stdin",
-					e->e_to, m->m_name, mpvect[0]);
+					shortenstring(e->e_to, 203),
+					m->m_name, mpvect[0]);
 				_exit(EX_OSERR);
 			}
 			(void) close(mpvect[0]);
@@ -1284,32 +1480,15 @@ tryhost:
 					(void) fcntl(i, F_SETFD, j | 1);
 			}
 
-			/*
-			**  Set up the mailer environment
-			**	TZ is timezone information.
-			**	SYSTYPE is Apollo software sys type (required).
-			**	ISP is Apollo hardware system type (required).
-			*/
-
-			i = 0;
-			env[i++] = "AGENT=sendmail";
-			for (ep = environ; *ep != NULL; ep++)
-			{
-				if (strncmp(*ep, "TZ=", 3) == 0 ||
-				    strncmp(*ep, "ISP=", 4) == 0 ||
-				    strncmp(*ep, "SYSTYPE=", 8) == 0)
-					env[i++] = *ep;
-			}
-			env[i++] = NULL;
-
 			/* run disconnected from terminal */
 			(void) setsid();
 
 			/* try to execute the mailer */
-			execve(m->m_mailer, pv, env);
+			execve(m->m_mailer, (ARGV_T) pv, (ARGV_T) UserEnviron);
 			saveerrno = errno;
 			syserr("Cannot exec %s", m->m_mailer);
-			if (m == LocalMailer || transienterror(saveerrno))
+			if (bitnset(M_LOCALMAILER, m->m_flags) ||
+			    transienterror(saveerrno))
 				_exit(EX_OSERR);
 			_exit(EX_UNAVAILABLE);
 		}
@@ -1330,14 +1509,17 @@ tryhost:
 			syserr("deliver: cannot create mailer output channel, fd=%d",
 				mpvect[1]);
 			(void) close(mpvect[1]);
+#ifdef SMTP
 			if (clever)
 			{
 				(void) close(rpvect[0]);
 				(void) close(rpvect[1]);
 			}
+#endif
 			rcode = EX_OSERR;
 			goto give_up;
 		}
+#ifdef SMTP
 		if (clever)
 		{
 			(void) close(rpvect[1]);
@@ -1354,6 +1536,7 @@ tryhost:
 			}
 		}
 		else
+#endif
 		{
 			mci->mci_flags |= MCIF_TEMP;
 			mci->mci_in = NULL;
@@ -1364,10 +1547,21 @@ tryhost:
 	**  If we are in SMTP opening state, send initial protocol.
 	*/
 
+	if (bitnset(M_7BITS, m->m_flags) &&
+	    (!clever || mci->mci_state == MCIS_CLOSED))
+		mci->mci_flags |= MCIF_7BIT;
+#ifdef SMTP
 	if (clever && mci->mci_state != MCIS_CLOSED)
-	{
 		smtpinit(m, mci, e);
-	}
+#endif
+
+	if (bitset(EF_HAS8BIT, e->e_flags) &&
+	    !bitset(EF_DONT_MIME, e->e_flags) &&
+	    bitnset(M_7BITS, m->m_flags))
+		mci->mci_flags |= MCIF_CVT8TO7;
+	else
+		mci->mci_flags &= ~MCIF_CVT8TO7;
+
 	if (tTd(11, 1))
 	{
 		printf("openmailer: ");
@@ -1389,11 +1583,13 @@ tryhost:
 				rcode, mci->mci_state, firstsig);
 			rcode = EX_SOFTWARE;
 		}
-		else if (rcode == EX_TEMPFAIL && curhost != NULL && *curhost != '\0')
+#ifdef DAEMON
+		else if (curhost != NULL && *curhost != '\0')
 		{
 			/* try next MX site */
 			goto tryhost;
 		}
+#endif
 	}
 	else if (!clever)
 	{
@@ -1402,8 +1598,7 @@ tryhost:
 		*/
 
 		putfromline(mci, e);
-		(*e->e_puthdr)(mci, e);
-		putline("\n", mci);
+		(*e->e_puthdr)(mci, e->e_header, e);
 		(*e->e_putbody)(mci, e, NULL);
 
 		/* get the exit status */
@@ -1429,8 +1624,8 @@ tryhost:
 				e->e_to = to->q_paddr;
 				if ((i = smtprcpt(to, m, mci, e)) != EX_OK)
 				{
-					markfailure(e, to, i);
-					giveresponse(i, m, mci, ctladdr, e);
+					markfailure(e, to, mci, i);
+					giveresponse(i, m, mci, ctladdr, xstart, e);
 				}
 				else
 				{
@@ -1494,21 +1689,40 @@ tryhost:
 
   give_up:
 	if (tobuf[0] != '\0')
-		giveresponse(rcode, m, mci, ctladdr, e);
+		giveresponse(rcode, m, mci, ctladdr, xstart, e);
 	for (to = tochain; to != NULL; to = to->q_tchain)
 	{
+		/* see if address already marked */
+		if (bitset(QBADADDR|QQUEUEUP, to->q_flags))
+			continue;
+
+		/* mark bad addresses */
 		if (rcode != EX_OK)
-			markfailure(e, to, rcode);
-		else
 		{
-			to->q_flags |= QSENT;
-			e->e_nsent++;
-			if (e->e_receiptto != NULL &&
-			    bitnset(M_LOCALMAILER, m->m_flags))
-			{
-				fprintf(e->e_xfp, "%s... Successfully delivered\n",
-					to->q_paddr);
-			}
+			markfailure(e, to, mci, rcode);
+			continue;
+		}
+
+		/* successful delivery */
+		to->q_flags |= QSENT;
+		to->q_statdate = curtime();
+		e->e_nsent++;
+		if (bitnset(M_LOCALMAILER, m->m_flags) &&
+		    (e->e_receiptto != NULL ||
+		     bitset(QPINGONSUCCESS, to->q_flags)))
+		{
+			to->q_flags |= QDELIVERED;
+			to->q_status = "2.1.5";
+			fprintf(e->e_xfp, "%s... Successfully delivered\n",
+				to->q_paddr);
+		}
+		else if (bitset(QPINGONSUCCESS, to->q_flags) &&
+			 bitset(QPRIMARY, to->q_flags) &&
+			 !bitset(MCIF_DSN, mci->mci_flags))
+		{
+			to->q_flags |= QRELAYED;
+			fprintf(e->e_xfp, "%s... relayed; expect no further notifications\n",
+				to->q_paddr);
 		}
 	}
 
@@ -1516,13 +1730,14 @@ tryhost:
 	**  Restore state and return.
 	*/
 
-#ifdef XDEBUG
+#if XDEBUG
 	{
 		char wbuf[MAXLINE];
 
 		/* make absolutely certain 0, 1, and 2 are in use */
 		sprintf(wbuf, "%s... end of deliver(%s)",
-			e->e_to == NULL ? "NO-TO-LIST" : e->e_to,
+			e->e_to == NULL ? "NO-TO-LIST"
+					: shortenstring(e->e_to, 203),
 			m->m_name);
 		checkfd012(wbuf);
 	}
@@ -1538,6 +1753,7 @@ tryhost:
 **	Parameters:
 **		e -- the envelope we are sending.
 **		q -- the address to mark.
+**		mci -- mailer connection information.
 **		rcode -- the code signifying the particular failure.
 **
 **	Returns:
@@ -1549,12 +1765,14 @@ tryhost:
 **			the message will be queued, as appropriate.
 */
 
-markfailure(e, q, rcode)
+void
+markfailure(e, q, mci, rcode)
 	register ENVELOPE *e;
 	register ADDRESS *q;
+	register MCI *mci;
 	int rcode;
 {
-	char buf[MAXLINE];
+	char *stat = NULL;
 
 	switch (rcode)
 	{
@@ -1570,6 +1788,71 @@ markfailure(e, q, rcode)
 	  default:
 		q->q_flags |= QBADADDR;
 		break;
+	}
+
+	/* find most specific error code possible */
+	if (q->q_status == NULL && mci != NULL)
+		q->q_status = mci->mci_status;
+	if (q->q_status == NULL)
+		q->q_status = e->e_status;
+	if (q->q_status == NULL)
+	{
+		switch (rcode)
+		{
+		  case EX_USAGE:
+			stat = "5.5.4";
+			break;
+
+		  case EX_DATAERR:
+			stat = "5.5.2";
+			break;
+
+		  case EX_NOUSER:
+			stat = "5.1.1";
+			break;
+
+		  case EX_NOHOST:
+			stat = "5.1.2";
+			break;
+
+		  case EX_NOINPUT:
+		  case EX_CANTCREAT:
+		  case EX_NOPERM:
+			stat = "5.3.0";
+			break;
+
+		  case EX_UNAVAILABLE:
+		  case EX_SOFTWARE:
+		  case EX_OSFILE:
+		  case EX_PROTOCOL:
+		  case EX_CONFIG:
+			stat = "5.5.0";
+			break;
+
+		  case EX_OSERR:
+		  case EX_IOERR:
+			stat = "4.5.0";
+			break;
+
+		  case EX_TEMPFAIL:
+			stat = "4.2.0";
+			break;
+		}
+		if (stat != NULL)
+			q->q_status = stat;
+	}
+
+	q->q_statdate = curtime();
+	if (CurHostName != NULL && CurHostName[0] != '\0')
+		q->q_statmta = newstr(CurHostName);
+	if (rcode != EX_OK && q->q_rstatus == NULL &&
+	    q->q_mailer != NULL && q->q_mailer->m_diagtype != NULL &&
+	    strcasecmp(q->q_mailer->m_diagtype, "UNIX") == 0)
+	{
+		char buf[30];
+
+		(void) sprintf(buf, "%d", rcode);
+		q->q_rstatus = newstr(buf);
 	}
 }
 /*
@@ -1593,6 +1876,7 @@ markfailure(e, q, rcode)
 **		none.
 */
 
+int
 endmailer(mci, e, pv)
 	register MCI *mci;
 	register ENVELOPE *e;
@@ -1656,6 +1940,8 @@ endmailer(mci, e, pv)
 **			response is given before the connection is made.
 **		ctladdr -- the controlling address for the recipient
 **			address(es).
+**		xstart -- the transaction start time, for computing
+**			transaction delays.
 **		e -- the current envelope.
 **
 **	Returns:
@@ -1666,11 +1952,13 @@ endmailer(mci, e, pv)
 **		ExitStat may be set.
 */
 
-giveresponse(stat, m, mci, ctladdr, e)
+void
+giveresponse(stat, m, mci, ctladdr, xstart, e)
 	int stat;
 	register MAILER *m;
 	register MCI *mci;
 	ADDRESS *ctladdr;
+	time_t xstart;
 	ENVELOPE *e;
 {
 	register const char *statmsg;
@@ -1689,7 +1977,8 @@ giveresponse(stat, m, mci, ctladdr, e)
 		statmsg = "250 Sent";
 		if (e->e_statmsg != NULL)
 		{
-			(void) sprintf(buf, "%s (%s)", statmsg, e->e_statmsg);
+			(void) sprintf(buf, "%s (%s)",
+				statmsg, shortenstring(e->e_statmsg, 403));
 			statmsg = buf;
 		}
 	}
@@ -1773,7 +2062,7 @@ giveresponse(stat, m, mci, ctladdr, e)
 	*/
 
 	if (LogLevel > ((stat == EX_TEMPFAIL) ? 8 : (stat == EX_OK) ? 7 : 6))
-		logdelivery(m, mci, &statmsg[4], ctladdr, e);
+		logdelivery(m, mci, &statmsg[4], ctladdr, xstart, e);
 
 	if (tTd(11, 2))
 		printf("giveresponse: stat=%d, e->e_message=%s\n",
@@ -1805,6 +2094,8 @@ giveresponse(stat, m, mci, ctladdr, e)
 **			log is occuring when no connection is active.
 **		stat -- the message to print for the status.
 **		ctladdr -- the controlling address for the to list.
+**		xstart -- the transaction start time, used for
+**			computing transaction delay.
 **		e -- the current envelope.
 **
 **	Returns:
@@ -1814,20 +2105,25 @@ giveresponse(stat, m, mci, ctladdr, e)
 **		none
 */
 
-logdelivery(m, mci, stat, ctladdr, e)
+#define SPACELEFT(bp)	(sizeof buf - ((bp) - buf))
+
+void
+logdelivery(m, mci, stat, ctladdr, xstart, e)
 	MAILER *m;
 	register MCI *mci;
-	char *stat;
+	const char *stat;
 	ADDRESS *ctladdr;
+	time_t xstart;
 	register ENVELOPE *e;
 {
 # ifdef LOG
 	register char *bp;
 	register char *p;
 	int l;
-	char buf[512];
+	char buf[1024];
 
 #  if (SYSLOG_BUFSIZE) >= 256
+	/* ctladdr: max 106 bytes */
 	bp = buf;
 	if (ctladdr != NULL)
 	{
@@ -1836,35 +2132,48 @@ logdelivery(m, mci, stat, ctladdr, e)
 		bp += strlen(bp);
 		if (bitset(QGOODUID, ctladdr->q_flags))
 		{
-			(void) sprintf(bp, " (%d/%d)",
+			(void) snprintf(bp, SPACELEFT(bp), " (%d/%d)",
 					ctladdr->q_uid, ctladdr->q_gid);
 			bp += strlen(bp);
 		}
 	}
 
-	(void) sprintf(bp, ", delay=%s", pintvl(curtime() - e->e_ctime, TRUE));
+	/* delay & xdelay: max 41 bytes */
+	snprintf(bp, SPACELEFT(bp), ", delay=%s",
+		pintvl(curtime() - e->e_ctime, TRUE));
 	bp += strlen(bp);
 
-	if (m != NULL)
+	if (xstart != (time_t) 0)
 	{
-		(void) strcpy(bp, ", mailer=");
-		(void) strcat(bp, m->m_name);
+		snprintf(bp, SPACELEFT(bp), ", xdelay=%s",
+			pintvl(curtime() - xstart, TRUE));
 		bp += strlen(bp);
 	}
 
+	/* mailer: assume about 19 bytes (max 10 byte mailer name) */
+	if (m != NULL)
+	{
+		snprintf(bp, SPACELEFT(bp), ", mailer=%s", m->m_name);
+		bp += strlen(bp);
+	}
+
+	/* relay: max 66 bytes for IPv4 addresses */
 	if (mci != NULL && mci->mci_host != NULL)
 	{
 # ifdef DAEMON
 		extern SOCKADDR CurHostAddr;
 # endif
 
-		(void) strcpy(bp, ", relay=");
-		(void) strcat(bp, mci->mci_host);
+		snprintf(bp, SPACELEFT(bp), ", relay=%s",
+			shortenstring(mci->mci_host, 40));
+		bp += strlen(bp);
 
 # ifdef DAEMON
-		(void) strcat(bp, " [");
-		(void) strcat(bp, anynet_ntoa(&CurHostAddr));
-		(void) strcat(bp, "]");
+		if (CurHostAddr.sa.sa_family != 0)
+		{
+			snprintf(bp, SPACELEFT(bp), " [%s]",
+				anynet_ntoa(&CurHostAddr));
+		}
 # endif
 	}
 	else if (strcmp(stat, "queued") != 0)
@@ -1873,8 +2182,8 @@ logdelivery(m, mci, stat, ctladdr, e)
 
 		if (p != NULL && p[0] != '\0')
 		{
-			(void) strcpy(bp, ", relay=");
-			(void) strcat(bp, p);
+			snprintf(bp, SPACELEFT(bp), ", relay=%s",
+				shortenstring(p, 40));
 		}
 	}
 	bp += strlen(bp);
@@ -1889,6 +2198,7 @@ logdelivery(m, mci, stat, ctladdr, e)
 # define STATLEN	203
 #endif
 
+	/* stat: max 210 bytes */
 	if ((bp - buf) > (sizeof buf - ((STATLEN) + 20)))
 	{
 		/* desperation move -- truncate data */
@@ -1902,9 +2212,10 @@ logdelivery(m, mci, stat, ctladdr, e)
 
 	(void) strcpy(bp, shortenstring(stat, (STATLEN)));
 		
+	/* id, to: max 13 + TOBUFSIZE bytes */
 	l = SYSLOG_BUFSIZE - 100 - strlen(buf);
 	p = e->e_to;
-	while (strlen(p) >= l)
+	while (strlen(p) >= (SIZE_T) l)
 	{
 		register char *q = strchr(p + l, ',');
 
@@ -1950,13 +2261,18 @@ logdelivery(m, mci, stat, ctladdr, e)
 	bp = buf;
 	sprintf(bp, "delay=%s", pintvl(curtime() - e->e_ctime, TRUE));
 	bp += strlen(bp);
+	if (xstart != (time_t) 0)
+	{
+		sprintf(bp, ", xdelay=%s", pintvl(curtime() - xstart, TRUE));
+		bp += strlen(bp);
+	}
 
 	if (m != NULL)
 	{
 		sprintf(bp, ", mailer=%s", m->m_name);
 		bp += strlen(bp);
 	}
-	syslog(LOG_INFO, "%s: %s", e->e_id, buf);
+	syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
 
 	buf[0] = '\0';
 	if (mci != NULL && mci->mci_host != NULL)
@@ -1965,12 +2281,11 @@ logdelivery(m, mci, stat, ctladdr, e)
 		extern SOCKADDR CurHostAddr;
 # endif
 
-		sprintf(buf, "relay=%s", mci->mci_host);
+		sprintf(buf, "relay=%.100s", mci->mci_host);
 
 # ifdef DAEMON
-		(void) strcat(buf, " [");
-		(void) strcat(buf, anynet_ntoa(&CurHostAddr));
-		(void) strcat(buf, "]");
+		if (CurHostAddr.sa.sa_family != 0)
+			sprintf(bp, " [%.100s]", anynet_ntoa(&CurHostAddr));
 # endif
 	}
 	else if (strcmp(stat, "queued") != 0)
@@ -1978,15 +2293,17 @@ logdelivery(m, mci, stat, ctladdr, e)
 		char *p = macvalue('h', e);
 
 		if (p != NULL && p[0] != '\0')
-			sprintf(buf, "relay=%s", p);
+			sprintf(buf, "relay=%.100s", p);
 	}
 	if (buf[0] != '\0')
-		syslog(LOG_INFO, "%s: %s", e->e_id, buf);
+		syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
 
 	syslog(LOG_INFO, "%s: stat=%s", e->e_id, shortenstring(stat, 63));
 #  endif /* short log buffer */
 # endif /* LOG */
 }
+
+#undef SPACELEFT
 /*
 **  PUTFROMLINE -- output a UNIX-style from line (or whatever)
 **
@@ -2008,23 +2325,23 @@ logdelivery(m, mci, stat, ctladdr, e)
 **		outputs some text to fp.
 */
 
+void
 putfromline(mci, e)
 	register MCI *mci;
 	ENVELOPE *e;
 {
-	char *template = "\201l\n";
+	char *template = UnixFromLine;
 	char buf[MAXLINE];
 
 	if (bitnset(M_NHDR, mci->mci_mailer->m_flags))
 		return;
 
-# ifdef UGLYUUCP
 	if (bitnset(M_UGLYUUCP, mci->mci_mailer->m_flags))
 	{
 		char *bang;
 		char xbuf[MAXLINE];
 
-		expand("\201g", buf, &buf[sizeof buf - 1], e);
+		expand("\201g", buf, sizeof buf, e);
 		bang = strchr(buf, '!');
 		if (bang == NULL)
 		{
@@ -2034,13 +2351,13 @@ putfromline(mci, e)
 		else
 		{
 			*bang++ = '\0';
-			(void) sprintf(xbuf, "From %s  \201d remote from %s\n", bang, buf);
+			(void) sprintf(xbuf, "From %.800s  \201d remote from %.100s\n",
+				bang, buf);
 			template = xbuf;
 		}
 	}
-# endif /* UGLYUUCP */
-	expand(template, buf, &buf[sizeof buf - 1], e);
-	putline(buf, mci);
+	expand(template, buf, sizeof buf, e);
+	putxline(buf, mci, PXLF_NOTHINGSPECIAL);
 }
 /*
 **  PUTBODY -- put the body of a message.
@@ -2058,6 +2375,12 @@ putfromline(mci, e)
 **		The message is written onto fp.
 */
 
+/* values for output state variable */
+#define OS_HEAD		0	/* at beginning of line */
+#define OS_CR		1	/* read a carriage return */
+#define OS_INLINE	2	/* putting rest of line */
+
+void
 putbody(mci, e, separator)
 	register MCI *mci;
 	register ENVELOPE *e;
@@ -2069,45 +2392,244 @@ putbody(mci, e, separator)
 	**  Output the body of the message
 	*/
 
+	if (e->e_dfp == NULL && bitset(EF_HAS_DF, e->e_flags))
+	{
+		char *df = queuename(e, 'd');
+
+		e->e_dfp = fopen(df, "r");
+		if (e->e_dfp == NULL)
+			syserr("putbody: Cannot open %s for %s from %s",
+				df, e->e_to, e->e_from.q_paddr);
+	}
 	if (e->e_dfp == NULL)
 	{
-		if (e->e_df != NULL)
+		if (bitset(MCIF_INHEADER, mci->mci_flags))
 		{
-			e->e_dfp = fopen(e->e_df, "r");
-			if (e->e_dfp == NULL)
-				syserr("putbody: Cannot open %s for %s from %s",
-				e->e_df, e->e_to, e->e_from.q_paddr);
+			putline("", mci);
+			mci->mci_flags &= ~MCIF_INHEADER;
 		}
-		else
-			putline("<<< No Message Collected >>>", mci);
+		putline("<<< No Message Collected >>>", mci);
+		goto endofmessage;
 	}
-	if (e->e_dfp != NULL)
+	if (e->e_dfino == (ino_t) 0)
 	{
-		rewind(e->e_dfp);
-		while (!ferror(mci->mci_out) && fgets(buf, sizeof buf, e->e_dfp) != NULL)
-		{
-			if (buf[0] == 'F' &&
-			    bitnset(M_ESCFROM, mci->mci_mailer->m_flags) &&
-			    strncmp(buf, "From ", 5) == 0)
-				(void) putc('>', mci->mci_out);
-			if (buf[0] == '-' && buf[1] == '-' && separator != NULL)
-			{
-				/* possible separator */
-				int sl = strlen(separator);
+		struct stat stbuf;
 
-				if (strncmp(&buf[2], separator, sl) == 0)
-					(void) putc(' ', mci->mci_out);
-			}
+		if (fstat(fileno(e->e_dfp), &stbuf) < 0)
+			e->e_dfino = -1;
+		else
+		{
+			e->e_dfdev = stbuf.st_dev;
+			e->e_dfino = stbuf.st_ino;
+		}
+	}
+	rewind(e->e_dfp);
+
+#if MIME8TO7
+	if (bitset(MCIF_CVT8TO7, mci->mci_flags))
+	{
+		char *boundaries[MAXMIMENESTING + 1];
+
+		/*
+		**  Do 8 to 7 bit MIME conversion.
+		*/
+
+		/* make sure it looks like a MIME message */
+		if (hvalue("MIME-Version", e->e_header) == NULL)
+			putline("MIME-Version: 1.0", mci);
+
+		if (hvalue("Content-Type", e->e_header) == NULL)
+		{
+			sprintf(buf, "Content-Type: text/plain; charset=%s",
+				defcharset(e));
 			putline(buf, mci);
 		}
 
-		if (ferror(e->e_dfp))
+		/* now do the hard work */
+		boundaries[0] = NULL;
+		mime8to7(mci, e->e_header, e, boundaries, M87F_OUTER);
+	}
+	else
+#endif
+	{
+		int ostate;
+		register char *bp;
+		register char *pbp;
+		register int c;
+		int padc;
+		char *buflim;
+		int pos = 0;
+		char peekbuf[10];
+
+		/* we can pass it through unmodified */
+		if (bitset(MCIF_INHEADER, mci->mci_flags))
 		{
-			syserr("putbody: %s: read error", e->e_df);
-			ExitStat = EX_IOERR;
+			putline("", mci);
+			mci->mci_flags &= ~MCIF_INHEADER;
+		}
+
+		/* determine end of buffer; allow for short mailer lines */
+		buflim = &buf[sizeof buf - 1];
+		if (mci->mci_mailer->m_linelimit > 0 &&
+		    mci->mci_mailer->m_linelimit < sizeof buf - 1)
+			buflim = &buf[mci->mci_mailer->m_linelimit - 1];
+
+		/* copy temp file to output with mapping */
+		ostate = OS_HEAD;
+		bp = buf;
+		pbp = peekbuf;
+		while (!ferror(mci->mci_out))
+		{
+			register char *xp;
+
+			if (pbp > peekbuf)
+				c = *--pbp;
+			else if ((c = getc(e->e_dfp)) == EOF)
+				break;
+			if (bitset(MCIF_7BIT, mci->mci_flags))
+				c &= 0x7f;
+			switch (ostate)
+			{
+			  case OS_HEAD:
+				if (c != '\r' && c != '\n' && bp < buflim)
+				{
+					*bp++ = c;
+					break;
+				}
+
+				/* check beginning of line for special cases */
+				*bp = '\0';
+				pos = 0;
+				padc = EOF;
+				if (buf[0] == 'F' &&
+				    bitnset(M_ESCFROM, mci->mci_mailer->m_flags) &&
+				    strncmp(buf, "From ", 5) == 0)
+				{
+					padc = '>';
+				}
+				if (buf[0] == '-' && buf[1] == '-' &&
+				    separator != NULL)
+				{
+					/* possible separator */
+					int sl = strlen(separator);
+
+					if (strncmp(&buf[2], separator, sl) == 0)
+						padc = ' ';
+				}
+				if (buf[0] == '.' &&
+				    bitnset(M_XDOT, mci->mci_mailer->m_flags))
+				{
+					padc = '.';
+				}
+
+				/* now copy out saved line */
+				if (TrafficLogFile != NULL)
+				{
+					fprintf(TrafficLogFile, "%05d >>> ", getpid());
+					if (padc != EOF)
+						putc(padc, TrafficLogFile);
+					for (xp = buf; xp < bp; xp++)
+						putc(*xp, TrafficLogFile);
+					if (c == '\n')
+						fputs(mci->mci_mailer->m_eol,
+						      TrafficLogFile);
+				}
+				if (padc != EOF)
+				{
+					putc(padc, mci->mci_out);
+					pos++;
+				}
+				for (xp = buf; xp < bp; xp++)
+					putc(*xp, mci->mci_out);
+				if (c == '\n')
+				{
+					fputs(mci->mci_mailer->m_eol,
+					      mci->mci_out);
+					pos = 0;
+				}
+				else
+				{
+					pos += bp - buf;
+					if (c != '\r')
+						*pbp++ = c;
+				}
+				bp = buf;
+
+				/* determine next state */
+				if (c == '\n')
+					ostate = OS_HEAD;
+				else if (c == '\r')
+					ostate = OS_CR;
+				else
+					ostate = OS_INLINE;
+				continue;
+
+			  case OS_CR:
+				if (c == '\n')
+				{
+					/* got CRLF */
+					fputs(mci->mci_mailer->m_eol, mci->mci_out);
+					if (TrafficLogFile != NULL)
+					{
+						fputs(mci->mci_mailer->m_eol,
+						      TrafficLogFile);
+					}
+					ostate = OS_HEAD;
+					continue;
+				}
+
+				/* had a naked carriage return */
+				*pbp++ = c;
+				c = '\r';
+				goto putch;
+
+			  case OS_INLINE:
+				if (c == '\r')
+				{
+					ostate = OS_CR;
+					continue;
+				}
+putch:
+				if (mci->mci_mailer->m_linelimit > 0 &&
+				    pos > mci->mci_mailer->m_linelimit &&
+				    c != '\n')
+				{
+					putc('!', mci->mci_out);
+					fputs(mci->mci_mailer->m_eol, mci->mci_out);
+					if (TrafficLogFile != NULL)
+					{
+						fprintf(TrafficLogFile, "!%s",
+							mci->mci_mailer->m_eol);
+					}
+					ostate = OS_HEAD;
+					*pbp++ = c;
+					continue;
+				}
+				if (TrafficLogFile != NULL)
+					putc(c, TrafficLogFile);
+				putc(c, mci->mci_out);
+				pos++;
+				ostate = c == '\n' ? OS_HEAD : OS_INLINE;
+				break;
+			}
+		}
+
+		/* make sure we are at the beginning of a line */
+		if (bp > buf)
+		{
+			*bp = '\0';
+			fputs(buf, mci->mci_out);
+			fputs(mci->mci_mailer->m_eol, mci->mci_out);
 		}
 	}
 
+	if (ferror(e->e_dfp))
+	{
+		syserr("putbody: df%s: read error", e->e_id);
+		ExitStat = EX_IOERR;
+	}
+
+endofmessage:
 	/* some mailers want extra blank line at end of message */
 	if (bitnset(M_BLANKEND, mci->mci_mailer->m_flags) &&
 	    buf[0] != '\0' && buf[0] != '\n')
@@ -2139,6 +2661,8 @@ putbody(mci, e, separator)
 **		filename -- the name of the file to send to.
 **		ctladdr -- the controlling address header -- includes
 **			the userid/groupid to be when sending.
+**		sfflags -- flags for opening.
+**		e -- the current envelope.
 **
 **	Returns:
 **		The exit code associated with the operation.
@@ -2147,13 +2671,15 @@ putbody(mci, e, separator)
 **		none.
 */
 
-mailfile(filename, ctladdr, e)
+int
+mailfile(filename, ctladdr, sfflags, e)
 	char *filename;
 	ADDRESS *ctladdr;
+	int sfflags;
 	register ENVELOPE *e;
 {
 	register FILE *f;
-	register int pid;
+	register int pid = -1;
 	int mode;
 
 	if (tTd(11, 1))
@@ -2184,22 +2710,27 @@ mailfile(filename, ctladdr, e)
 		int oflags = O_WRONLY|O_APPEND;
 
 		if (e->e_lockfp != NULL)
-		{
-			fclose(e->e_lockfp);
-			e->e_lockfp = NULL;
-		}
+			(void) close(fileno(e->e_lockfp));
 
 		(void) setsignal(SIGINT, SIG_DFL);
 		(void) setsignal(SIGHUP, SIG_DFL);
 		(void) setsignal(SIGTERM, SIG_DFL);
 		(void) umask(OldUmask);
+		e->e_to = filename;
+		ExitStat = EX_OK;
 
+#ifdef HASLSTAT
+		if ((SafeFileEnv != NULL ? lstat(filename, &stb)
+					 : stat(filename, &stb)) < 0)
+#else
 		if (stat(filename, &stb) < 0)
+#endif
 		{
 			stb.st_mode = FileMode;
 			oflags |= O_CREAT|O_EXCL;
 		}
-		else if (bitset(0111, stb.st_mode))
+		else if (bitset(0111, stb.st_mode) || stb.st_nlink != 1 ||
+			 (SafeFileEnv != NULL && !S_ISREG(stb.st_mode)))
 			exit(EX_CANTCREAT);
 		mode = stb.st_mode;
 
@@ -2207,59 +2738,108 @@ mailfile(filename, ctladdr, e)
 		errno = 0;
 		ExitStat = EX_OK;
 
-		if (ctladdr != NULL)
+		if (ctladdr != NULL || bitset(SFF_RUNASREALUID, sfflags))
 		{
 			/* ignore setuid and setgid bits */
 			mode &= ~(S_ISGID|S_ISUID);
 		}
 
 		/* we have to open the dfile BEFORE setuid */
-		if (e->e_dfp == NULL && e->e_df != NULL)
+		if (e->e_dfp == NULL && bitset(EF_HAS_DF, e->e_flags))
 		{
-			e->e_dfp = fopen(e->e_df, "r");
+			char *df = queuename(e, 'd');
+
+			e->e_dfp = fopen(df, "r");
 			if (e->e_dfp == NULL)
 			{
 				syserr("mailfile: Cannot open %s for %s from %s",
-					e->e_df, e->e_to, e->e_from.q_paddr);
+					df, e->e_to, e->e_from.q_paddr);
 			}
 		}
 
-		if (!bitset(S_ISGID, mode) || setgid(stb.st_gid) < 0)
+		/* select a new user to run as */
+		if (!bitset(SFF_RUNASREALUID, sfflags))
 		{
-			if (ctladdr == NULL || ctladdr->q_uid == 0)
+			if (bitset(S_ISUID, mode))
 			{
-				(void) initgroups(DefUser, DefGid);
+				RealUserName = NULL;
+				RealUid = stb.st_uid;
+			}
+			else if (ctladdr != NULL && ctladdr->q_uid != 0)
+			{
+				if (ctladdr->q_ruser != NULL)
+					RealUserName = ctladdr->q_ruser;
+				else
+					RealUserName = ctladdr->q_user;
+				RealUid = ctladdr->q_uid;
+			}
+			else if (FileMailer != NULL && FileMailer->m_uid != 0)
+			{
+				RealUserName = DefUser;
+				RealUid = FileMailer->m_uid;
 			}
 			else
 			{
-				(void) initgroups(ctladdr->q_ruser ?
-					ctladdr->q_ruser : ctladdr->q_user,
-					ctladdr->q_gid);
+				RealUserName = DefUser;
+				RealUid = DefUid;
 			}
-		}
-		if (!bitset(S_ISUID, mode) || setuid(stb.st_uid) < 0)
-		{
-			if (ctladdr == NULL || ctladdr->q_uid == 0)
-				(void) setuid(DefUid);
+
+			/* select a new group to run as */
+			if (bitset(S_ISGID, mode))
+				RealGid = stb.st_gid;
+			else if (ctladdr != NULL && ctladdr->q_uid != 0)
+				RealGid = ctladdr->q_gid;
+			else if (FileMailer != NULL && FileMailer->m_gid != 0)
+				RealGid = FileMailer->m_gid;
 			else
-				(void) setuid(ctladdr->q_uid);
+				RealGid = DefGid;
 		}
-		FileName = filename;
-		LineNumber = 0;
-		f = dfopen(filename, oflags, FileMode);
+
+		/* last ditch */
+		if (!bitset(SFF_ROOTOK, sfflags))
+		{
+			if (RealUid == 0)
+				RealUid = DefUid;
+			if (RealGid == 0)
+				RealGid = DefGid;
+		}
+
+		/* now set the group and user ids */
+		endpwent();
+		if (RealUserName != NULL && !DontInitGroups)
+			(void) initgroups(RealUserName, RealGid);
+		(void) setgid(RealGid);
+		(void) setuid(RealUid);
+
+		/* if you have a safe environment, go into it */
+		if (SafeFileEnv != NULL && SafeFileEnv[0] != '\0')
+		{
+			int i;
+
+			if (chroot(SafeFileEnv) < 0)
+			{
+				syserr("mailfile: Cannot chroot(%s)",
+					SafeFileEnv);
+				exit(EX_CANTCREAT);
+			}
+			i = strlen(SafeFileEnv);
+			if (strncmp(SafeFileEnv, filename, i) == 0)
+				filename += i;
+		}
+		if (chdir("/") < 0)
+			syserr("mailfile: cannot chdir(/)");
+
+		sfflags |= SFF_NOPATHCHECK;
+		sfflags &= ~SFF_OPENASROOT;
+		f = safefopen(filename, oflags, FileMode, sfflags);
 		if (f == NULL)
 		{
 			message("554 cannot open: %s", errstring(errno));
 			exit(EX_CANTCREAT);
 		}
-		if (fstat(fileno(f), &fsb) < 0 ||
-		    !bitset(O_CREAT, oflags) &&
-		     (stb.st_nlink != fsb.st_nlink ||
-		      stb.st_dev != fsb.st_dev ||
-		      stb.st_ino != fsb.st_ino ||
-		      stb.st_uid != fsb.st_uid))
+		if (fstat(fileno(f), &stb) < 0)
 		{
-			message("554 cannot write: file changed after open");
+			message("554 cannot fstat %s", errstring(errno));
 			exit(EX_CANTCREAT);
 		}
 
@@ -2270,20 +2850,23 @@ mailfile(filename, ctladdr, e)
 			mcibuf.mci_flags |= MCIF_7BIT;
 
 		putfromline(&mcibuf, e);
-		(*e->e_puthdr)(&mcibuf, e);
-		putline("\n", &mcibuf);
+		(*e->e_puthdr)(&mcibuf, e->e_header, e);
 		(*e->e_putbody)(&mcibuf, e, NULL);
 		putline("\n", &mcibuf);
-		if (ferror(f))
+		if (fflush(f) < 0 || ferror(f))
 		{
 			message("451 I/O error: %s", errstring(errno));
 			setstat(EX_IOERR);
 		}
-		(void) xfclose(f, "mailfile", filename);
-		(void) fflush(stdout);
 
 		/* reset ISUID & ISGID bits for paranoid systems */
+#if HASFCHMOD
+		(void) fchmod(fileno(f), (int) stb.st_mode);
+#else
 		(void) chmod(filename, (int) stb.st_mode);
+#endif
+		(void) xfclose(f, "mailfile", filename);
+		(void) fflush(stdout);
 		exit(ExitStat);
 		/*NOTREACHED*/
 	}
@@ -2337,7 +2920,7 @@ hostsignature(m, host, e)
 	auto int rcode;
 	char *hp;
 	char *endp;
-	int oldoptions;
+	int oldoptions = _res.options;
 	char *mxhosts[MAXMXHOSTS + 1];
 #endif
 
@@ -2366,10 +2949,7 @@ hostsignature(m, host, e)
 
 #if NAMED_BIND
 	if (ConfigLevel < 2)
-	{
-		oldoptions = _res.options;
 		_res.options &= ~(RES_DEFNAMES | RES_DNSRCH);	/* XXX */
-	}
 
 	for (hp = host; hp != NULL; hp = endp)
 	{
@@ -2385,11 +2965,10 @@ hostsignature(m, host, e)
 
 			/* update the connection info for this host */
 			mci = mci_get(hp, m);
+			mci->mci_lastuse = curtime();
 			mci->mci_exitstat = rcode;
 			mci->mci_errno = errno;
-#if NAMED_BIND
 			mci->mci_herrno = h_errno;
-#endif
 
 			/* and return the original host name as the signature */
 			nmx = 1;

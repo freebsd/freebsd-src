@@ -32,60 +32,64 @@ PUSHDIVERT(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-ifdef(`SMTP_MAILER_FLAGS',,
-	`define(`SMTP_MAILER_FLAGS',
-		`ifdef(`_OLD_SENDMAIL_', `L', `')')')
+ifdef(`SMTP_MAILER_FLAGS',, `define(`SMTP_MAILER_FLAGS', `')')
+ifdef(`SMTP_MAILER_ARGS',, `define(`SMTP_MAILER_ARGS', `IPC $h')')
+ifdef(`ESMTP_MAILER_ARGS',, `define(`ESMTP_MAILER_ARGS', `IPC $h')')
+ifdef(`SMTP8_MAILER_ARGS',, `define(`SMTP8_MAILER_ARGS', `IPC $h')')
+ifdef(`RELAY_MAILER_ARGS',, `define(`RELAY_MAILER_ARGS', `IPC $h')')
+ifdef(`_MAILER_uucp_',
+	`errprint(`*** MAILER(smtp) must appear before MAILER(uucp)')')dnl
 POPDIVERT
 #####################################
 ###   SMTP Mailer specification   ###
 #####################################
 
-VERSIONID(`@(#)smtp.m4	8.15 (Berkeley) 2/14/94')
+VERSIONID(`@(#)smtp.m4	8.32 (Berkeley) 11/20/95')
 
-Msmtp,		P=[IPC], F=CONCAT(mDFMuX, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `11/31', `21'), E=\r\n,
-		ifdef(`_OLD_SENDMAIL_',, `L=990, ')ifdef(`SMTP_MAILER_MAX', `M=SMTP_MAILER_MAX, ')A=IPC $h
-Mesmtp,		P=[IPC], F=CONCAT(mDFMuXa, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `11/31', `21'), E=\r\n,
-		ifdef(`_OLD_SENDMAIL_',, `L=990, ')ifdef(`SMTP_MAILER_MAX', `M=SMTP_MAILER_MAX, ')A=IPC $h
-Mrelay,		P=[IPC], F=CONCAT(mDFMuXa, SMTP_MAILER_FLAGS), S=11/31, R=61, E=\r\n,
-		ifdef(`_OLD_SENDMAIL_',, `L=2040, ')A=IPC $h
+Msmtp,		P=[IPC], F=CONCAT(mDFMuX, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `21/31', `21'), E=\r\n, L=990,
+		_OPTINS(`SMTP_MAILER_MAX', `M=', `, ')_OPTINS(`SMTP_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/SMTP,
+		A=SMTP_MAILER_ARGS
+Mesmtp,		P=[IPC], F=CONCAT(mDFMuXa, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `21/31', `21'), E=\r\n, L=990,
+		_OPTINS(`SMTP_MAILER_MAX', `M=', `, ')_OPTINS(`SMTP_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/SMTP,
+		A=ESMTP_MAILER_ARGS
+Msmtp8,		P=[IPC], F=CONCAT(mDFMuX8, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `21/31', `21'), E=\r\n, L=990,
+		_OPTINS(`SMTP_MAILER_MAX', `M=', `, ')_OPTINS(`SMTP_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/SMTP,
+		A=SMTP8_MAILER_ARGS
+Mrelay,		P=[IPC], F=CONCAT(mDFMuXa8, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `61/71', `61'), E=\r\n, L=2040,
+		_OPTINS(`RELAY_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/SMTP,
+		A=RELAY_MAILER_ARGS
 
 #
-#  envelope sender and masquerading recipient rewriting
+#  envelope sender rewriting
 #
 S11
 R$+			$: $>51 $1			sender/recipient common
-R$* :; <@>		$@ $1 :;			list:; special case
-R$*			$@ $>61 $1			qualify unqual'ed names
+R$* :; <@>		$@				list:; special case
+R$*			$: $>61 $1			qualify unqual'ed names
+R$+			$: $>94 $1			do masquerading
 
 
 #
-#  header recipient rewriting if not masquerading recipients
+#  envelope recipient rewriting --
+#  also header recipient if not masquerading recipients
 #
 S21
-
-# do sender/recipient common rewriting
-R$+			$: $>51 $1
-
-# unqualified names (e.g., "eric") are qualified by local host
-R$* < @ $* > $*		$@ $1 < @ $2 > $3		already qualified
-R$+			$: $1 < @ $j >			add local domain
+R$+			$: $>51 $1			sender/recipient common
+R$+			$: $>61 $1			qualify unqual'ed names
 
 
 #
-#  header sender and masquerading recipient rewriting
+#  header sender and masquerading header recipient rewriting
 #
 S31
 R$+			$: $>51 $1			sender/recipient common
-R$* :; <@>		$@ $1 :;			list:; special case
+R:; <@>			$@				list:; special case
 
 # do special header rewriting
 R$* <@> $*		$@ $1 <@> $2			pass null host through
 R< @ $* > $*		$@ < @ $1 > $2			pass route-addr through
-R$=E < @ $=w . >	$@ $1 < @ $2 >			exposed user as is
-R$* < @ $=w . >		$: $1 < @ $2 @ $M >		masquerade as domain
-R$* < @ $+ @ >		$@ $1 < @ $2 >			in case $M undefined
-R$* < @ $+ @ $+ >	$@ $1 < @ $3 >			$M is defined -- use it
-R$*			$@ $>61 $1			qualify unqual'ed names
+R$*			$: $>61 $1			qualify unqual'ed names
+R$+			$: $>93 $1			do masquerading
 
 
 #
@@ -110,9 +114,7 @@ R$+ < @ $* > $*		$@ $1 < @ $2 > $3		not UUCP form
 R< $&h ! > $- ! $+	$@ $2 < @ $1 .UUCP. >
 R< $&h ! > $-.$+ ! $+	$@ $3 < @ $1.$2 >
 R< $&h ! > $+		$@ $1 < @ $&h .UUCP. >
-R< $+ ! > $+		$: $1 ! $2 < @ $Y >
-R$+ < @ >		$: $1 < @ $j >			in case $Y undefined
-R$+ < @ $+ : $+ >	$: $1 < @ $3 >			strip mailer: part')
+R< $+ ! > $+		$: $1 ! $2 < @ *LOCAL* >')
 
 
 #
@@ -120,7 +122,14 @@ R$+ < @ $+ : $+ >	$: $1 < @ $3 >			strip mailer: part')
 #
 S61
 
-R$* < @ $* > $*		$@ $1 < @ $2 > $3		already qualified
-R$=E			$@ $1 < @ $j>			show exposed names
-R$+			$: $1 < @ $M >			user w/o host
-R$+ <@>			$: $1 < @ $j >			in case $M undefined
+R$* < @ $* > $*		$@ $1 < @ $2 > $3		already fully qualified
+R$+			$@ $1 < @ *LOCAL* >		add local qualification
+
+
+#
+#  relay mailer header masquerading recipient rewriting
+#
+S71
+
+R$+			$: $>61 $1
+R$+			$: $>93 $1
