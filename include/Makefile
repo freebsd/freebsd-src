@@ -36,7 +36,7 @@ LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
 	netipx netkey netnatm netncp netns netsmb nfs ntfs nwfs pccard posix4 \
 	sys vm
 
-LSUBDIRS=	cam/scsi dev/an dev/ppbus dev/usb dev/wi \
+LSUBDIRS=	cam/scsi dev/an dev/firewire dev/ppbus dev/usb dev/wi \
 	fs/smbfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	ufs/ffs ufs/mfs ufs/ufs

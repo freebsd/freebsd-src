@@ -29,6 +29,7 @@ SUBDIR=	IPXrouted \
 	fdcontrol \
 	fdformat \
 	fdwrite \
+	fwcontrol \
 	gifconfig \
 	ifmcstat \
 	inetd \
