@@ -174,6 +174,9 @@ Config_spec:
 		} else if (!strcmp($2, "i386")) {
 			machine = MACHINE_I386;
 			machinename = "i386";
+		} else if (!strcmp($2, "pc98")) {
+			machine = MACHINE_PC98;
+			machinename = "pc98";
 		} else if (!strcmp($2, "mips")) {
 			machine = MACHINE_MIPS;
 			machinename = "mips";
@@ -960,6 +963,7 @@ check_nexus(dev, num)
 		break;
 
 	case MACHINE_I386:
+	case MACHINE_PC98:
 		if (!eq(dev->d_name, "isa"))
 			yyerror("only isa's should be connected to the nexus");
 		break;
