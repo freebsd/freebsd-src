@@ -1660,14 +1660,20 @@ vclean(vp, flags, p)
 
 	/*
 	 * Clean out any buffers associated with the vnode.
+	 * If the flush fails, just toss the buffers.
 	 */
-	vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0);
+	if (flags & DOCLOSE) {
+		if (vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0) != 0)
+			vinvalbuf(vp, 0, NOCRED, p, 0, 0);
+	}
+
 	if ((obj = vp->v_object) != NULL) {
 		if (obj->ref_count == 0) {
 			/*
-			 * vclean() may be called twice.  The first time removes the
-			 * primary reference to the object, the second time goes
-			 * one further and is a special-case to terminate the object.
+			 * vclean() may be called twice. The first time
+			 * removes the primary reference to the object,
+			 * the second time goes one further and is a
+			 * special-case to terminate the object.
 			 */
 			vm_object_terminate(obj);
 		} else {
