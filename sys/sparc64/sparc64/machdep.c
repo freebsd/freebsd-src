@@ -428,6 +428,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
 		sf.sf_si.si_addr = (void *)tf->tf_sfar;
+		sf.sf_si.si_pid = p->p_pid;
+		sf.sf_si.si_uid = p->p_ucred->cr_uid;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		tf->tf_out[1] = code;
