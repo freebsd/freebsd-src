@@ -103,6 +103,14 @@ struct pcic_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 
+	struct resource *port_res;
+	int port_rid;
+	struct resource *mem_res;
+	int mem_rid;
+	struct resource *irq_res;
+	int irq_rid;
+	
+
 	/* XXX isa_chipset_tag_t, pci_chipset_tag_t, etc. */
 	void *intr_est;
 
