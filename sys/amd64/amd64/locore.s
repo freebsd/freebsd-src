@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.43 1994/10/31 17:20:15 joerg Exp $
+ *	$Id: locore.s,v 1.44 1994/11/06 22:18:45 phk Exp $
  */
 
 /*
@@ -119,11 +119,12 @@ tmpstk:
 
 	.globl	_boothowto,_bootdev
 
-	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
+	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id,_bootinfo
 
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
 _cpu_vendor:	.space	20			/* CPU origin code */
+_bootinfo:	.space	BOOTINFO_SIZE		/* the bootstrapper knew it! */
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
@@ -263,6 +264,16 @@ NON_GPROF_ENTRY(btext)
 	movsb
 
 1:
+	/* 
+	 * Copy the bootinfo structure
+	 */
+	movl	%ebx,%esi
+	lea	_bootinfo-KERNBASE,%edi
+	movl	$BOOTINFO_SIZE,%ecx
+	cld
+	rep
+	movsb
+
 #ifdef NFS
 	/*
 	 * If we have a nfs_diskless structure copy it in
