@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.8 1994/12/06 00:51:36 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.9 1995/04/09 15:04:58 jkh Exp $";
 #endif
 
 /*
@@ -16,7 +16,7 @@ static const char *rcsid = "$Id: main.c,v 1.8 1994/12/06 00:51:36 jkh Exp $";
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNhvf:p:P:c:d:i:k:r:t:X:D:m:";
+static char Options[] = "YNOhvf:p:P:c:d:i:k:r:t:X:D:m:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -31,6 +31,7 @@ char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
 int	Dereference	= 0;
+int	PlistOnly	= 0;
 
 int
 main(int argc, char **argv)
@@ -52,6 +53,10 @@ main(int argc, char **argv)
 
 	case 'Y':
 	    AutoAnswer = YES;
+	    break;
+
+	case 'O':
+	    PlistOnly = YES;
 	    break;
 
 	case 'p':
@@ -166,5 +171,6 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-v         verbose\n");
     fprintf(stderr, "-Y         assume `yes' answer to all questions\n");
     fprintf(stderr, "-N         assume `no' answer to all questions\n");
+    fprintf(stderr, "-O         print a revised packing list and exit\n");
     exit(1);
 }
