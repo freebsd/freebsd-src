@@ -1,5 +1,5 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
-'\"$Id: mrouted.8,v 3.6 1995/06/25 19:10:58 fenner Exp $
+'\"$Id: mrouted.8,v 3.8 1995/11/29 22:37:21 fenner Rel $
 .TH MROUTED 8
 .UC 5
 .SH NAME
@@ -140,7 +140,7 @@ options may be specified as many times as necessary.
 The phyint command can be used to disable multicast routing on the physical
 interface identified by local IP address <local-addr>, or to associate a
 non-default metric or threshold with the specified physical interface.
-The local IP address <local-addr> may be alternatively replaced by the 
+The local IP address <local-addr> may be replaced by the 
 interface name (e.g le0).
 If a phyint is attached to multiple IP subnets, describe each additional subnet
 with the altnet keyword.
@@ -148,7 +148,12 @@ Phyint commands must precede tunnel commands.
 .PP
 The tunnel command can be used to establish a tunnel link between local
 IP address <local-addr> and remote IP address <remote-addr>, and to associate
-a non-default metric or threshold with that tunnel.  The tunnel must be set
+a non-default metric or threshold with that tunnel.
+The local IP address <local-addr> may be replaced by the
+interface name (e.g. le0).  The remote IP address <remote-addr> may
+be replaced by a host name, if and only if the host name has a single
+IP address associated with it.
+The tunnel must be set
 up in the mrouted.conf files of both routers before it can be used.
 '\"For backwards compatibility with older
 '\".IR mrouted s,
