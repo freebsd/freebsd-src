@@ -125,6 +125,9 @@ main(void)
 	    (devsw[i]->dv_init)();
     printf("BIOS %dkB/%dkB available memory\n", bios_basemem / 1024, bios_extmem / 1024);
 
+    /* detect ACPI for future reference */
+    biosacpi_detect();
+
     printf("\n");
     printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
