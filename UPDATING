@@ -8,7 +8,7 @@ prior to 4.0 Release.
 
 This is for the 4.3 release branch.  All entries since 4.3 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.3.0p16.
+By this count, we're at 4.3.0p17.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
@@ -16,7 +16,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
-20010904	p16
+20010904	p17	FreeBSD-SA-01:59
+	Minor fix to p16.
+
+20010904	p16	FreeBSD-SA-01:59
 	Close race condition when updating /etc/master.passwd in rmuser.
 
 20010830	p15	FreeBSD-SA-01:58
