@@ -135,5 +135,5 @@ ucom_detach(device_t self)
 #endif
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(ucom, usb, ucom_driver, ucom_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ucom, uhub, ucom_driver, ucom_devclass, usbd_driver_load, 0);
 #endif
