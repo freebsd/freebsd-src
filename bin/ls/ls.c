@@ -597,6 +597,7 @@ display(FTSENT *p, FTSENT *list)
 		maxblock = makenines(maxblock);
 		maxnlink = makenines(maxnlink);
 		maxsize = makenines(maxsize);
+		free(jinitmax);
 	}
 	bcfile = 0;
 	flags = NULL;
