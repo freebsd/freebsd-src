@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
+#if defined(LIBC_SCCS) && !defined(lint)$
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif /* LIBC_SCCS and not lint */$
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #define DKTYPENAMES
@@ -52,15 +50,15 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <ctype.h>
 
-static int	gettype __P((char *, char **));
+static int	gettype(char *, char **);
 
 struct disklabel *
 getdiskbyname(name)
 	const char *name;
 {
 	static struct	disklabel disk;
-	register struct	disklabel *dp = &disk;
-	register struct partition *pp;
+	struct	disklabel *dp = &disk;
+	struct partition *pp;
 	char	*buf;
 	char  	*db_array[2] = { _PATH_DISKTAB, 0 };
 	char	*cp, *cq;	/* can't be register */
@@ -165,7 +163,7 @@ gettype(t, names)
 	char *t;
 	char **names;
 {
-	register char **nm;
+	char **nm;
 
 	for (nm = names; *nm; nm++)
 		if (strcasecmp(t, *nm) == 0)

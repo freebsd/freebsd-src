@@ -1,4 +1,3 @@
-/*	$NetBSD: getgrent.c,v 1.34.2.1 1999/04/27 14:10:58 perry Exp $	*/
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,12 +32,10 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #endif /* LIBC_SCCS and not lint */
-#endif
-
+/*	$NetBSD: getgrent.c,v 1.34.2.1 1999/04/27 14:10:58 perry Exp $	*/
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -72,12 +69,12 @@ static struct group	_gr_group;
 static int		_gr_stayopen;
 static int		_gr_filesdone;
 
-static void grcleanup	__P((void));
-static int grscan	__P((int, gid_t, const char *));
-static char *getline	__P((void));
-static int copyline     __P((const char*));
-static int matchline	__P((int, gid_t, const char *));
-static int start_gr	__P((void));
+static void grcleanup(void);
+static int grscan(int, gid_t, const char *);
+static char *getline(void);
+static int copyline(const char*);
+static int matchline(int, gid_t, const char *);
+static int start_gr(void);
 
 
 
@@ -222,7 +219,7 @@ endgrent()
 }
 
 
-static int _local_grscan __P((void *, void *, va_list));
+static int _local_grscan(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -250,7 +247,7 @@ _local_grscan(rv, cb_data, ap)
 }
 
 #ifdef HESIOD
-static int _dns_grscan __P((void *, void *, va_list));
+static int _dns_grscan(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -314,7 +311,7 @@ _dns_grscan(rv, cb_data, ap)
 #endif
 
 #ifdef YP
-static int _nis_grscan __P((void *, void *, va_list));
+static int _nis_grscan(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -429,7 +426,7 @@ _nis_grscan(rv, cb_data, ap)
 /*
  * log an error if "files" or "compat" is specified in group_compat database
  */
-static int _bad_grscan __P((void *, void *, va_list));
+static int _bad_grscan(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
@@ -455,7 +452,7 @@ _bad_grscan(rv, cb_data, ap)
  * sense to lookup compat names from 'files' or 'compat'
  */
 
-static int __grscancompat __P((int, gid_t, const char *));
+static int __grscancompat(int, gid_t, const char *);
 
 static int
 __grscancompat(search, gid, name)
@@ -481,7 +478,7 @@ __grscancompat(search, gid, name)
 #endif
 
 
-static int _compat_grscan __P((void *, void *, va_list));
+static int _compat_grscan(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
