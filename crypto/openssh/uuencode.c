@@ -23,12 +23,9 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: uuencode.c,v 1.15 2002/03/04 17:27:39 stevesk Exp $");
-
 #include "xmalloc.h"
 #include "uuencode.h"
-
-#include <resolv.h>
+RCSID("$OpenBSD: uuencode.c,v 1.15 2002/03/04 17:27:39 stevesk Exp $");
 
 int
 uuencode(u_char *src, u_int srclength,

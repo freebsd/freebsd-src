@@ -30,7 +30,7 @@
 #include "includes.h"
 RCSID("$OpenBSD: sftp-client.c,v 1.32 2002/06/09 13:32:01 markus Exp $");
 
-#include <sys/queue.h>
+#include "openbsd-compat/fake-queue.h"
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -929,7 +929,11 @@ do_download(struct sftp_conn *conn, char *remote_path, char *local_path,
 		status = do_close(conn, handle, handle_len);
 
 		/* Override umask and utimes if asked */
+#ifdef HAVE_FCHMOD
 		if (pflag && fchmod(local_fd, mode) == -1)
+#else 
+		if (pflag && chmod(local_path, mode) == -1)
+#endif /* HAVE_FCHMOD */
 			error("Couldn't set mode on \"%s\": %s", local_path,
 			      strerror(errno));
 		if (pflag && (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME)) {
