@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.55 1996/07/09 11:25:10 jkh Exp $
+#	$Id: Makefile,v 1.231 1996/07/09 16:52:52 jkh Exp $
 #
 # How to roll a release:
 #
@@ -167,10 +167,6 @@ release.2:
 	)
 .endif
 	chflags -R noschg ${RD}/trees
-	# We don't really want to make a compat20 distribution for just
-	# one file.
-	uudecode ${.CURDIR}/compat20/libgcc.so.261.0.uu
-	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
 	touch release.2
 
 # Make and install the generic kernel(s).
