@@ -265,7 +265,7 @@ union	i6addr	{
 
 #if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
 # ifdef IPFILTER_LKM
-#  include <osreldate.h>
+#  include <sys/param.h>
 #  define       ACTUALLY_LKM_NOT_KERNEL
 # endif
 # if __FreeBSD__ < 3
