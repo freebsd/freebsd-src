@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 94 $
+ *       $Revision: 96 $
  *
  *****************************************************************************/
 
@@ -288,11 +288,6 @@
 #define MUL_16(a)                       _MUL(a,4)
 #define MOD_16(a)                       _MOD(a,16)
 
-/*
- * Divide and Modulo
- */
-#define ACPI_DIVIDE(n,d)                ((n) / (d))
-#define ACPI_MODULO(n,d)                ((n) % (d))
 
 /*
  * Rounding macros (Power of two boundaries only)
@@ -369,10 +364,6 @@
 /* Macro to check the table flags for SINGLE or MULTIPLE tables are allowed */
 
 #define IS_SINGLE_TABLE(x)              (((x) & 0x01) == ACPI_TABLE_SINGLE ? 1 : 0)
-
-/* Check if ACPI has been initialized properly */
-
-#define ACPI_IS_INITIALIZATION_COMPLETE(s)  {if (AcpiGbl_RootNode) s = AE_OK; else s=AE_NO_NAMESPACE;}
 
 /*
  * Macro to check if a pointer is within an ACPI table.

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 90 $
+ *       $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -189,6 +189,15 @@
 #define AFIELD_SINGLE_DATUM         0x1
 
 
+/*
+ * Fields common to both Strings and Buffers
+ */
+#define ACPI_COMMON_BUFFER_INFO \
+    UINT32                      Length; \
+    NATIVE_CHAR                 *Pointer;           /* String value in AML stream or in allocated space */
+
+
+
 /******************************************************************************
  *
  * Individual Object Descriptors
@@ -223,9 +232,7 @@ typedef struct /* NUMBER - has value */
 typedef struct /* STRING - has length and pointer - Null terminated, ASCII characters only */
 {
     ACPI_OBJECT_COMMON_HEADER
-
-    UINT32                      Length;
-    NATIVE_CHAR                 *Pointer;           /* String value in AML stream or in allocated space */
+    ACPI_COMMON_BUFFER_INFO
 
 } ACPI_OBJECT_STRING;
 
@@ -233,9 +240,7 @@ typedef struct /* STRING - has length and pointer - Null terminated, ASCII chara
 typedef struct /* BUFFER - has length and pointer - not null terminated */
 {
     ACPI_OBJECT_COMMON_HEADER
-
-    UINT32                      Length;
-    UINT8                       *Pointer;           /* points to the buffer in allocated space */
+    ACPI_COMMON_BUFFER_INFO
 
 } ACPI_OBJECT_BUFFER;
 
@@ -245,7 +250,6 @@ typedef struct /* PACKAGE - has count, elements, next element */
     ACPI_OBJECT_COMMON_HEADER
 
     UINT32                      Count;              /* # of elements in package */
-
     union acpi_operand_obj      **Elements;         /* Array of pointers to AcpiObjects */
     union acpi_operand_obj      **NextElement;      /* used only while initializing */
 
@@ -279,10 +283,10 @@ typedef struct /* METHOD */
     UINT8                       MethodFlags;
     UINT8                       ParamCount;
 
-    UINT32                      PcodeLength;
+    UINT32                      AmlLength;
 
     void                        *Semaphore;
-    UINT8                       *Pcode;
+    UINT8                       *AmlStart;
 
     UINT8                       Concurrency;
     UINT8                       ThreadCount;
@@ -493,8 +497,8 @@ typedef struct /* EXTRA */
     ACPI_OBJECT_COMMON_HEADER
     UINT8                       ByteFill1;
     UINT16                      WordFill1;
-    UINT32                      PcodeLength;
-    UINT8                       *Pcode;
+    UINT32                      AmlLength;
+    UINT8                       *AmlStart;
     ACPI_NAMESPACE_NODE         *Method_REG;        /* _REG method for this region (if any) */
     void                        *RegionContext;     /* Region-specific data */
 

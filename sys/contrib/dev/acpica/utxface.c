@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 80 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -349,19 +349,8 @@ AcpiEnableSubsystem (
 ACPI_STATUS
 AcpiTerminate (void)
 {
-    ACPI_STATUS             Status;
-
-
     FUNCTION_TRACE ("AcpiTerminate");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /* Terminate the AML Debugger if present */
 
@@ -381,9 +370,17 @@ AcpiTerminate (void)
     AcpiUtMutexTerminate ();
 
 
+#ifdef ENABLE_DEBUGGER
+
+    /* Shut down the debugger */
+
+    AcpiDbTerminate ();
+#endif
+
     /* Now we can shutdown the OS-dependent layer */
 
     AcpiOsTerminate ();
+
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -442,19 +439,10 @@ AcpiGetSystemInfo (
 {
     ACPI_SYSTEM_INFO        *InfoPtr;
     UINT32                  i;
-    ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("AcpiGetSystemInfo");
 
-
-    /* Ensure that ACPI has been initialized */
-
-    ACPI_IS_INITIALIZATION_COMPLETE (Status);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
 
     /*
      *  Must have a valid buffer

@@ -2,7 +2,7 @@
  *
  * Module Name: evmisc - ACPI device notification handler dispatch
  *                       and ACPI Global Lock support
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -234,6 +234,7 @@ AcpiEvQueueNotifyRequest (
             return (AE_NO_MEMORY);
         }
 
+        NotifyInfo->Common.DataType   = ACPI_DESC_TYPE_STATE_NOTIFY;
         NotifyInfo->Notify.Node       = Node;
         NotifyInfo->Notify.Value      = (UINT16) NotifyValue;
         NotifyInfo->Notify.HandlerObj = HandlerObj;

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 43 $
+ *              $Revision: 44 $
  *
  ******************************************************************************/
 
@@ -369,17 +369,40 @@ AcpiDbSecondPassParse (
     ACPI_PARSE_OBJECT       *StartOp;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  BaseAmlOffset;
+    ACPI_WALK_STATE         *WalkState;
+
+
+    FUNCTION_ENTRY ();
 
 
     AcpiOsPrintf ("Pass two parse ....\n");
+
 
     while (Op)
     {
         if (Op->Opcode == AML_METHOD_OP)
         {
             Method = (ACPI_PARSE2_OBJECT *) Op;
-            Status = AcpiPsParseAml (Op, Method->Data, Method->Length, 0,
-                        NULL, NULL, NULL, AcpiDsLoad1BeginOp, AcpiDsLoad1EndOp);
+
+            WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+                                            NULL, NULL, NULL);
+            if (!WalkState)
+            {
+                return (AE_NO_MEMORY);
+            }
+
+
+            WalkState->ParserState.Aml          =
+            WalkState->ParserState.AmlStart     = Method->Data;
+            WalkState->ParserState.AmlEnd       =
+            WalkState->ParserState.PkgEnd       = Method->Data + Method->Length;
+            WalkState->ParserState.StartScope   = Op;
+
+            WalkState->DescendingCallback       = AcpiDsLoad1BeginOp;
+            WalkState->AscendingCallback        = AcpiDsLoad1EndOp;
+
+
+            Status = AcpiPsParseAml (WalkState);
 
 
             BaseAmlOffset = (Method->Value.Arg)->AmlOffset + 1;
@@ -406,7 +429,7 @@ AcpiDbSecondPassParse (
 
         if (ACPI_FAILURE (Status))
         {
-            return (Status);
+            break;
         }
 
         Op = AcpiPsGetDepthNext (Root, Op);

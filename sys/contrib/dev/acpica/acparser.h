@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
- *       $Revision: 51 $
+ *       $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -212,8 +212,6 @@ AcpiPsGetOpcodeName (
 
 ACPI_STATUS
 AcpiPsFindObject (
-    UINT16                  Opcode,
-    ACPI_PARSE_OBJECT       *Op,
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       **OutOp);
 
@@ -227,15 +225,7 @@ AcpiPsParseLoop (
 
 ACPI_STATUS
 AcpiPsParseAml (
-    ACPI_PARSE_OBJECT       *StartScope,
-    UINT8                   *Aml,
-    UINT32                  AmlSize,
-    UINT32                  ParseFlags,
-    ACPI_NAMESPACE_NODE     *MethodNode,
-    ACPI_OPERAND_OBJECT     **Params,
-    ACPI_OPERAND_OBJECT     **CallerReturnDesc,
-    ACPI_PARSE_DOWNWARDS    DescendingCallback,
-    ACPI_PARSE_UPWARDS      AscendingCallback);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiPsParseTable (
@@ -336,12 +326,6 @@ AcpiPsGetNextWalkOp (
 
 
 /* psutils - parser utilities */
-
-
-ACPI_PARSE_STATE *
-AcpiPsCreateState (
-    UINT8                   *Aml,
-    UINT32                  AmlSize);
 
 void
 AcpiPsInitOp (

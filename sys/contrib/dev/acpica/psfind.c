@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 28 $
+ *              $Revision: 29 $
  *
  *****************************************************************************/
 
@@ -197,11 +197,10 @@ AcpiPsFindName (
     /* search scope level for matching name segment */
 
     Op = AcpiPsGetChild (Scope);
-    OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
 
     while (Op)
     {
-
+        OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
         if (OpInfo->Flags & AML_FIELD)
         {
             /* Field, search named fields */

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 79 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -226,6 +226,11 @@ AcpiUtCopyIsimpleToEsimple (
         case AML_ONES_OP:
             ExternalObject->Type = ACPI_TYPE_INTEGER;
             ExternalObject->Integer.Value = ACPI_INTEGER_MAX;
+            break;
+
+        case AML_REVISION_OP:
+            ExternalObject->Type = ACPI_TYPE_INTEGER;
+            ExternalObject->Integer.Value = ACPI_CA_VERSION;
             break;
 
         case AML_INT_NAMEPATH_OP:
@@ -516,37 +521,29 @@ AcpiUtCopyIobjectToEobject (
 ACPI_STATUS
 AcpiUtCopyEsimpleToIsimple (
     ACPI_OBJECT             *ExternalObject,
-    ACPI_OPERAND_OBJECT     *InternalObject)
+    ACPI_OPERAND_OBJECT     **RetInternalObject)
 {
+    ACPI_OPERAND_OBJECT     *InternalObject;
+
 
     FUNCTION_TRACE ("UtCopyEsimpleToIsimple");
 
 
-    InternalObject->Common.Type = (UINT8) ExternalObject->Type;
 
     /*
      * Simple types supported are: String, Buffer, Integer
      */
     switch (ExternalObject->Type)
     {
-
     case ACPI_TYPE_STRING:
-
-        InternalObject->String.Length  = ExternalObject->String.Length;
-        InternalObject->String.Pointer = ExternalObject->String.Pointer;
-        break;
-
-
     case ACPI_TYPE_BUFFER:
-
-        InternalObject->Buffer.Length  = ExternalObject->Buffer.Length;
-        InternalObject->Buffer.Pointer = ExternalObject->Buffer.Pointer;
-        break;
-
-
     case ACPI_TYPE_INTEGER:
 
-        InternalObject->Integer.Value   = ExternalObject->Integer.Value;
+        InternalObject = AcpiUtCreateInternalObject ((UINT8) ExternalObject->Type);
+        if (!InternalObject)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
         break;
 
     default:
@@ -558,6 +555,51 @@ AcpiUtCopyEsimpleToIsimple (
     }
 
 
+    switch (ExternalObject->Type)
+    {
+
+    /* Must COPY string and buffer contents */
+
+    case ACPI_TYPE_STRING:
+
+        InternalObject->String.Pointer = ACPI_MEM_CALLOCATE (ExternalObject->String.Length + 1);
+        if (!InternalObject->String.Pointer)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
+
+        MEMCPY (InternalObject->String.Pointer, 
+                ExternalObject->String.Pointer, 
+                ExternalObject->String.Length);
+
+        InternalObject->String.Length  = ExternalObject->String.Length;
+        break;
+
+
+    case ACPI_TYPE_BUFFER:
+
+        InternalObject->Buffer.Pointer = ACPI_MEM_CALLOCATE (ExternalObject->Buffer.Length);
+        if (!InternalObject->Buffer.Pointer)
+        {
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
+
+        MEMCPY (InternalObject->Buffer.Pointer, 
+                ExternalObject->Buffer.Pointer, 
+                ExternalObject->Buffer.Length);
+
+        InternalObject->Buffer.Length  = ExternalObject->Buffer.Length;
+        break;
+
+
+    case ACPI_TYPE_INTEGER:
+
+        InternalObject->Integer.Value   = ExternalObject->Integer.Value;
+        break;
+    }
+
+
+    *RetInternalObject = InternalObject;
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -649,7 +691,7 @@ AcpiUtCopyEpackageToIpackage (
 ACPI_STATUS
 AcpiUtCopyEobjectToIobject (
     ACPI_OBJECT             *ExternalObject,
-    ACPI_OPERAND_OBJECT     *InternalObject)
+    ACPI_OPERAND_OBJECT     **InternalObject)
 {
     ACPI_STATUS             Status;
 
@@ -684,10 +726,6 @@ AcpiUtCopyEobjectToIobject (
          * Build a simple object (no nested objects)
          */
         Status = AcpiUtCopyEsimpleToIsimple (ExternalObject, InternalObject);
-        /*
-         * build simple does not include the object size in the length
-         * so we add it in here
-         */
     }
 
     return_ACPI_STATUS (Status);
