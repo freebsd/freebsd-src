@@ -199,7 +199,6 @@ fifo_open(ap)
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
-		rso->so_state |= SS_CANTRCVMORE;
 	}
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
