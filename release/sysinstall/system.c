@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.1 1995/05/30 21:34:42 jkh Exp $
+ * $Id: system.c,v 1.43.2.2 1995/05/31 10:34:28 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -125,39 +125,6 @@ systemExecute(char *command)
     dialog_clear();
     dialog_update();
     return status;
-}
-
-/* Find and execute a shell */
-int
-systemShellEscape(void)
-{
-    char *sh = NULL;
-
-    if (file_executable("/bin/sh"))
-	sh = "/bin/sh";
-    else if (file_executable("/stand/sh"))
-	sh = "/stand/sh";
-    else {
-	msgWarn("No shell available, sorry!");
-	return 1;
-    }
-    setenv("PS1", "freebsd% ", 1);
-    dialog_clear();
-    dialog_update();
-    move(0, 0);
-    standout();
-    addstr("Type `exit' to leave this shell and continue installation");
-    standend();
-    refresh();
-    end_dialog();
-    DialogActive = FALSE;
-    if (fork() == 0)
-	execlp(sh, "-sh", 0);
-    else
-	wait(NULL);
-    dialog_clear();
-    DialogActive = TRUE;
-    return 0;
 }
 
 /* Display a file in a filebox */

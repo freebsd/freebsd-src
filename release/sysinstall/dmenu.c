@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11 1995/05/30 08:28:33 rgrimes Exp $
+ * $Id: dmenu.c,v 1.11.2.1 1995/05/31 10:17:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,8 +44,6 @@
 #include "sysinstall.h"
 
 #define MAX_MENU		10
-
-static DMenuItem shellAction = { NULL, NULL, DMENU_SHELL_ESCAPE, NULL, 0 };
 
 /* Traverse menu but give user no control over positioning */
 Boolean
@@ -146,16 +144,9 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		    msgFatal("Menu item `%s' not found??", result);
 	    }
 	}
-	else if (rval == -1)
-	    tmp = &shellAction;
 	else {
 	    items_free(nitems, curr, max);
 	    return FALSE;
-	}
-	if (dispatch(tmp, result) ||
-	    menu->options & DMENU_SELECTION_RETURNS) {
-	    items_free(nitems, curr, max);
-	    return TRUE;
 	}
     }
 }
