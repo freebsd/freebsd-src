@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.16 1998/09/29 09:06:00 bde Exp $
+ *	$Id: vm86.c,v 1.17 1998/09/29 20:36:31 ache Exp $
  */
 
 #include "opt_vm86.h"
@@ -32,6 +32,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
@@ -626,35 +627,30 @@ vm86_datacall(intnum, vmf, buffer, buflen, segment, offset)
 	int buflen;
 	u_short *segment, *offset;
 {
-	int ret, internb;
+	int ret;
 	u_int page;
-	u_short off;
-#define MAX_DATA_SIZE 1024
-	static u_char mapped_to_page1[MAX_DATA_SIZE * 2];
 	static u_char *buf;
 
-	if (buflen < 0 || buflen > MAX_DATA_SIZE)
+	if (buflen < 0 || buflen > PAGE_SIZE)
 		return(-1);
-        page = (u_int)buffer & PG_FRAME;
-        *offset = (u_int)buffer & PAGE_MASK;
-	if ((*offset + buflen) & PG_FRAME) {
-		if (buf == NULL) {
-			buf = mapped_to_page1;
-			off = (u_int)buf & PAGE_MASK;
-			if ((off + MAX_DATA_SIZE) & PG_FRAME)
-				buf += PAGE_SIZE - off;
-		}
-		page = (u_int)buf & PG_FRAME;
-		bcopy((void *)buffer, (void *)buf, (size_t)buflen);
-		internb = 1;
-	} else
-		internb = 0;
+
+	if (buf == NULL) {
+		buf = (u_char *)contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK,
+					     0ul, ~0ul, PAGE_SIZE, 0);
+		if (buf == NULL)
+			return(-1);
+	}
+
+	*offset = 0;
 	*segment = 0x100;
+
+	bcopy((void *)buffer, (void *)buf, (size_t)buflen);
+	page = (u_int)buf & PG_FRAME;
 	page = vtophys(page);
 	vmf->vmf_trapno = page | (intnum & PAGE_MASK);
 	ret = vm86_bioscall(vmf);
-	if (internb)
-		bcopy((void *)buf, (void *)buffer, (size_t)buflen);
+	bcopy((void *)buf, (void *)buffer, (size_t)buflen);
+
 	return ret;
 }
 
