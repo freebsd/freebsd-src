@@ -297,6 +297,7 @@ _fetch_ssl(conn_t *conn, int verbose)
 
 	conn->ssl_meth = SSLv23_client_method();
 	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
+	SSL_CTX_set_mode(conn->ssl_ctx, SSL_MODE_AUTO_RETRY);
 
 	conn->ssl = SSL_new(conn->ssl_ctx);
 	if (conn->ssl == NULL){
