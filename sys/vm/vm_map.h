@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.38 1999/03/06 07:11:33 alc Exp $
+ * $Id: vm_map.h,v 1.39 1999/05/14 23:09:34 alc Exp $
  */
 
 /*
@@ -342,12 +342,10 @@ int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_user_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
 int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
-void vm_map_reference __P((vm_map_t));
 int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
-void vm_map_simplify __P((vm_map_t, vm_offset_t));
 void vm_map_startup __P((void));
 int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
-void vm_map_madvise __P((vm_map_t, pmap_t, vm_offset_t, vm_offset_t, int));
+void vm_map_madvise __P((vm_map_t, vm_offset_t, vm_offset_t, int));
 void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
 void vm_init2 __P((void));
 int vm_uiomove __P((vm_map_t, vm_object_t, off_t, int, vm_offset_t, int *));
