@@ -109,9 +109,23 @@ struct stat {
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
-	struct timespec st_createtimespec; /* time of file creation */
 	int32_t	  st_lspare;
-	int64_t	  st_qspare;
+#ifndef _POSIX_SOURCE
+	struct timespec st_createtimespec; /* time of file creation */
+#else
+	time_t	  st_createtime;	/* time of file creation */
+	long	  st_createtimensec;	/* nsec of file creation */
+#endif
+	/*
+	 * Explicitly pad st_createtimespec to 16 bytes so that the size of
+	 * struct stat is backwards compatible.  We use bitfields instead
+	 * of an array of chars so that this doesn't require a C99 compiler
+	 * to compile if the size of the padding is 0.  We use 2 bitfields
+	 * to cover up to 64 bits on 32-bit machines.  We assume that
+	 * CHAR_BIT is 8...
+	 */
+	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 };
 
 #ifndef _POSIX_SOURCE
@@ -123,25 +137,20 @@ struct nstat {
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
 	__dev_t	  st_rdev;		/* device type */
-#ifndef _POSIX_SOURCE
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
 	struct	timespec st_ctimespec;	/* time of last file status change */
-#else
-	time_t	  st_atime;		/* time of last access */
-	long	  st_atimensec;		/* nsec of last access */
-	time_t	  st_mtime;		/* time of last data modification */
-	long	  st_mtimensec;		/* nsec of last data modification */
-	time_t	  st_ctime;		/* time of last file status change */
-	long	  st_ctimensec;		/* nsec of last file status change */
-#endif
 	off_t	  st_size;		/* file size, in bytes */
 	int64_t	  st_blocks;		/* blocks allocated for file */
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
 	struct timespec st_createtimespec; /* time of file creation */
-	int64_t	  st_qspare;
+	/*
+	 * See above about the following padding.
+	 */
+	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
+	int	:(8 / 2) * (16 - (int)sizeof(struct timespec));
 };
 #endif
 
@@ -151,6 +160,7 @@ struct nstat {
 #define st_atime st_atimespec.tv_sec
 #define st_mtime st_mtimespec.tv_sec
 #define st_ctime st_ctimespec.tv_sec
+#define st_createtime st_createtimespec.tv_sec
 #endif
 
 #define	S_ISUID	0004000			/* set user id on execution */

@@ -2596,6 +2596,7 @@ cvtnstat(sb, nsb)
 	struct stat *sb;
 	struct nstat *nsb;
 {
+	bzero(nsb, sizeof nsb);
 	nsb->st_dev = sb->st_dev;
 	nsb->st_ino = sb->st_ino;
 	nsb->st_mode = sb->st_mode;
@@ -2612,7 +2613,6 @@ cvtnstat(sb, nsb)
 	nsb->st_flags = sb->st_flags;
 	nsb->st_gen = sb->st_gen;
 	nsb->st_createtimespec = sb->st_createtimespec;
-	nsb->st_qspare = sb->st_qspare;
 }
 
 #ifndef _SYS_SYSPROTO_H_
