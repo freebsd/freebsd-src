@@ -29,7 +29,7 @@ INTERNALLIB=
 #.endif
 
 # Enable IPv6 support if available
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+=	-DWANT_IPV6
 .endif
 

@@ -32,7 +32,7 @@ SHLIBDIR?= /lib
 SHLIB_MAJOR= 1
 CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-DIPSEC_DEBUG -DIPSEC
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CFLAGS+=-DINET6
 .endif
 

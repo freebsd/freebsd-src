@@ -119,7 +119,7 @@ CRUNCH_PROGS_sbin+= atm atmconfig fore_dnld ilmid
 CRUNCH_LIBS+= -latm
 .endif
 
-.if !defined(NOINET6)
+.if !defined(NO_INET6)
 CRUNCH_PROGS_sbin+= ping6
 .endif
 
