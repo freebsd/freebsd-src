@@ -8,7 +8,7 @@ SRCS	=	rc_parse.y rc_scan.l main.c rc_config.c log.c curses.c	\
 		y.tab.h holiday.c
 
 COPTS	+=	-I${.CURDIR}/../isdnmonitor -I${.CURDIR}/../isdntel
-COPTS	+=	-I${.CURDIR} -I${.OBJDIR}
+COPTS	+=	-I. -I${.CURDIR}
 
 # compile debug support
 COPTS	+=	-DDEBUG
