@@ -256,6 +256,9 @@ tftp_open(path, f)
 		return (ENOMEM);
 
 	tftpfile->iodesc = io = socktodesc(*(int *) (f->f_devdata));
+	if (io == NULL)
+		return (EINVAL);
+
 	io->destip = servip;
 	tftpfile->off = 0;
 	tftpfile->path = strdup(path);
