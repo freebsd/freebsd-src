@@ -146,6 +146,9 @@ dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
 dev/buslogic/bt_pci.c	optional bt pci
 dev/cardbus/cardbus.c	optional cardbus
+dev/cardbus/cardbus_cis.c	optional cardbus
+dev/pccbb/pccbb_if.m		optional cardbus
+dev/pccbb/pccbb_if.m		optional pccbb
 dev/ccd/ccd.c		count ccd
 dev/cs/if_cs.c		optional cs
 #dev/dpt/dpt_control.c	optional dpt
@@ -240,10 +243,12 @@ dev/mly/mly_pci.c	optional mly
 dev/musycc/musycc.c	optional musycc
 dev/null/null.c		standard
 dev/pccard/card_if.m	optional card
+dev/pccard/card_if.m	optional cardbus
 dev/pccard/card_if.m	optional pccard
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
+dev/pccard/power_if.m	optional pccbb
 dev/pccard/power_if.m	optional pccard
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
@@ -958,7 +963,7 @@ pci/isp_pci.c		optional isp
 pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
-pci/pccbb.c		optional pccbb cardbus
+dev/pccbb/pccbb.c	optional pccbb
 pci/pci.c		count pci
 pci/pci_compat.c	optional pci compat_oldpci \
 	warning "Old PCI driver compatability shims present."
