@@ -56,7 +56,7 @@ struct  sigaction {
 #define	sa_sigaction	__sigaction_u.__sa_sigaction
 .Ed
 .Ft int
-.Fn "int sig" "const struct sigaction * restrict act" \
+.Fn sigaction "int sig" "const struct sigaction * restrict act" \
     "struct sigaction * restrict oact"
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
