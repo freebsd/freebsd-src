@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.18 1999/03/28 08:54:25 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -724,7 +724,6 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 
     /* Initialize the buf struct */
     bzero(&rqe->b, sizeof(struct buf));
-    bp->b_proc = ubp->b_proc;				    /* process pointer */
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
     /*

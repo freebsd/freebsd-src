@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.208 1999/05/02 23:56:10 alc Exp $
+ * $Id: vfs_bio.c,v 1.209 1999/05/06 17:06:41 phk Exp $
  */
 
 /*
@@ -2958,8 +2958,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		return;
 	}
 
-	db_printf("b_proc = %p,\nb_flags = 0x%b\n", (void *)bp->b_proc,
-		  (u_int)bp->b_flags, PRINT_BUF_FLAGS);
+	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
 		  "b_resid = %ld\nb_dev = 0x%x, b_data = %p, "
 		  "b_blkno = %d, b_pblkno = %d\n",

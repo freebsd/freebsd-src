@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
+ * $Id: vinumio.c,v 1.21 1999/05/02 07:51:20 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -284,7 +284,6 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 
 	bp = geteblk(len);				    /* get a buffer header */
 	bp->b_flags = B_BUSY | flag;			    /* get busy */
-	bp->b_proc = curproc;				    /* process */
 	bp->b_dev = drive->vp->v_un.vu_specinfo->si_rdev;   /* device */
 	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
 	bp->b_data = buf;

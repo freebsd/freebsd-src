@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.45 1999/04/11 02:16:27 eivind Exp $
+ * $Id: vm_pager.c,v 1.46 1999/05/02 23:57:14 alc Exp $
  */
 
 /*
@@ -540,9 +540,7 @@ getchainbuf(struct buf *bp, struct vnode *vp, int flags)
 		waitchainbuf(bp, 4, 0);
 
 	nbp->b_flags = B_BUSY | B_CALL | (bp->b_flags & B_ORDERED) | flags;
-	nbp->b_proc = &proc0;
-	nbp->b_rcred = nbp->b_proc->p_ucred;
-	nbp->b_wcred = nbp->b_proc->p_ucred;
+	nbp->b_rcred = nbp->b_wcred = proc0.p_ucred;
 	nbp->b_iodone = vm_pager_chain_iodone;
 
 	crhold(nbp->b_rcred);
