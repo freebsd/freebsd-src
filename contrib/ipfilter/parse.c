@@ -939,14 +939,20 @@ int     linenum;
 				linenum, **cp);
 			return -1;
 		}
-		fp->fr_icmp |= (u_short)i;
-		fp->fr_icmpm = (u_short)0xffff;
-		(*cp)++;
-		return 0;
+	} else {
+		i = icmpcode(**cp);
+		if (i == -1) {
+			fprintf(stderr, 
+				"%d: Invalid icmp code (%s) specified\n",
+				linenum, **cp);
+			return -1;
+		}
 	}
-	fprintf(stderr, "%d: Invalid icmp code (%s) specified\n",
-		linenum, **cp);
-	return -1;
+	i &= 0xff;
+	fp->fr_icmp |= (u_short)i;
+	fp->fr_icmpm = (u_short)0xffff;
+	(*cp)++;
+	return 0;
 }
 
 
@@ -966,9 +972,8 @@ char *str;
 	char	*s;
 	int	i, len;
 
-	if (!(s = strrchr(str, ')')))
-		return -1;
-	*s = '\0';
+	if ((s = strrchr(str, ')')))
+		*s = '\0';
 	if (isdigit(*str)) {
 		if (!ratoi(str, &i, 0, 255))
 			return -1;
@@ -1153,7 +1158,7 @@ struct	frentry	*fp;
 			printf(" icmp-type %s", icmptypes[type]);
 		else
 			printf(" icmp-type %d", type);
-		if (code)
+		if (ntohs(fp->fr_icmpm) & 0xff)
 			printf(" code %d", code);
 	}
 	if (fp->fr_proto == IPPROTO_TCP && (fp->fr_tcpf || fp->fr_tcpfm)) {
