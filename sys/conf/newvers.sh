@@ -57,8 +57,8 @@ do
 	if [ -r "$bsd_copyright" ]; then
 		COPYRIGHT=`sed \
 		    -e "s/\[year\]/$year/" \
-		    -e 's/\[your name here\]\.* /FreeBSD Inc./' \
-		    -e 's/\[your name\]\.*/FreeBSD Inc./' \
+		    -e 's/\[your name here\]\.* /The FreeBSD Foundation/' \
+		    -e 's/\[your name\]\.*/The FreeBSD Foundation/' \
 		    -e '/\[id for your version control system, if any\]/d' \
 		    $bsd_copyright` 
 		break
@@ -68,8 +68,8 @@ done
 # no copyright found, use a dummy
 if [ X"$COPYRIGHT" = X ]; then
 	COPYRIGHT="/*
- * Copyright (c) $year
- *	FreeBSD Inc. All rights reserved.
+ * Copyright (c) $year The FreeBSD Foundation
+ * All rights reserved.
  *
  */"
 fi
