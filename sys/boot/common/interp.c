@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.6 1998/10/09 07:09:22 msmith Exp $
+ *	$Id: interp.c,v 1.7 1998/10/21 20:07:04 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -42,7 +42,7 @@ static void	prompt(void);
 /*
  * Perform the command
  */
-static int
+int
 perform(int argc, char *argv[])
 {
     int				i, result;
@@ -81,6 +81,10 @@ interact(void)
     int		argc;
     char	**argv;
 
+#ifdef BOOT_FORTH
+    bf_init();
+#endif
+
     /*
      * Read our default configuration
      */
@@ -102,6 +106,9 @@ interact(void)
 	input[0] = '\0';
 	prompt();
 	ngets(input, sizeof(input));
+#ifdef BOOT_FORTH
+	bf_run(input);
+#else
 	if (!parse(&argc, &argv, input)) {
 	    if (perform(argc, argv))
 		printf("%s: %s\n", argv[0], command_errmsg);
@@ -109,6 +116,7 @@ interact(void)
 	} else {
 	    printf("parse error\n");
 	}
+#endif
     }
 }
 
