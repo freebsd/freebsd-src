@@ -469,7 +469,7 @@ bre5(struct request *rq,
 	if (rqg == NULL) {				    /* malloc failed */
 	    bp->b_ioflags |= BIO_ERROR;
 	    bp->b_error = ENOMEM;
-	    biodone(bp);
+	    bufdone(bp);
 	    return REQUEST_ENOMEM;
 	}
 	rqg->plexno = plexno;
