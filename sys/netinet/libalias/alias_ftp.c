@@ -34,6 +34,8 @@
          withing the packet alising module.
 
     See HISTORY file for record of revisions.
+
+    $FreeBSD$
 */
 
 /* Includes */

@@ -11,6 +11,8 @@
 
     Version 1.7:  January 9, 1997
          Added differential checksum update function.
+
+    $FreeBSD$
 */
 
 /*
