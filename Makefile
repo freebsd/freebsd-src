@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.92 1996/08/03 06:44:46 jkh Exp $
+#	$Id: Makefile,v 1.93 1996/08/03 13:00:35 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -145,20 +145,17 @@ world:
 .if defined(NOCLEAN)
 	@echo "Not cleaning anything! I sure hope you know what you are doing!"
 .else
-.if defined(NOCLEANDIR)
-	cd ${.CURDIR} && ${MAKE} clean
-.else
-	cd ${.CURDIR} && ${MAKE} cleandir
+	cd ${.CURDIR} && ${MAKE} ${CLEANDIR}
 .endif
 .endif
 	@echo
-.if !defined(NOOBJ)
+.if !defined(NOOBJDIR)
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding the obj tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} obj
-.endif
 	@echo
+.endif
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap tools"
 	@echo "--------------------------------------------------------------"
