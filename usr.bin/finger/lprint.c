@@ -313,7 +313,8 @@ show_text(directory, file_name, header)
 		if (cnt <= 1) {
 			(void)printf("%s: ", header);
 			for (p = tbuf, cnt = nr; cnt--; ++p)
-				vputc(lastc = *p);
+				if (*p != '\r')
+					vputc(lastc = *p);
 			if (lastc != '\n')
 				(void)putchar('\n');
 			(void)close(fd);
@@ -326,7 +327,8 @@ show_text(directory, file_name, header)
 		return(0);
 	(void)printf("%s:\n", header);
 	while ((ch = getc(fp)) != EOF)
-		vputc(lastc = ch);
+		if (ch != '\r')
+			vputc(lastc = ch);
 	if (lastc != '\n')
 		(void)putchar('\n');
 	(void)fclose(fp);
