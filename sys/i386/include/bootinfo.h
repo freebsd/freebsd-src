@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.7 1997/02/22 09:33:57 peter Exp $
+ *	$Id: bootinfo.h,v 1.8 1997/07/31 08:07:36 phk Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
@@ -46,21 +46,21 @@
  * normal value.
  */
 struct bootinfo {
-	unsigned int		bi_version;
-	unsigned char		*bi_kernelname;
-	struct nfs_diskless	*bi_nfs_diskless;
+	u_int32_t	bi_version;
+	u_int32_t	bi_kernelname;		/* represents a char * */
+	u_int32_t	bi_nfs_diskless;	/* struct nfs_diskless * */
 				/* End of fields that are always present. */
-#define	bi_endcommon		bi_n_bios_used
-	unsigned int		bi_n_bios_used;
-	unsigned long		bi_bios_geom[N_BIOS_GEOM];
-	unsigned int		bi_size;
-	unsigned char		bi_memsizes_valid;
-	unsigned char		bi_pad[1];
-	unsigned short		bi_vesa;
-	unsigned long		bi_basemem;
-	unsigned long		bi_extmem;
-	unsigned long		bi_symtab;
-	unsigned long		bi_esymtab;
+#define	bi_endcommon	bi_n_bios_used
+	u_int32_t	bi_n_bios_used;
+	u_int32_t	bi_bios_geom[N_BIOS_GEOM];
+	u_int32_t	bi_size;
+	u_int8_t	bi_memsizes_valid;
+	u_int8_t	bi_pad[1];
+	u_int16_t	bi_vesa;
+	u_int32_t	bi_basemem;
+	u_int32_t	bi_extmem;
+	u_int32_t	bi_symtab;		/* struct symtab * */
+	u_int32_t	bi_esymtab;		/* struct symtab * */
 };
 
 #ifdef KERNEL
