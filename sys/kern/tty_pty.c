@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/poll.h>
 #include <sys/kernel.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
 
@@ -361,7 +361,7 @@ ptcread(struct cdev *dev, struct uio *uio, int flag)
 		}
 		if ((tp->t_state & TS_CONNECTED) == 0)
 			return (0);	/* EOF */
-		if (flag & IO_NDELAY)
+		if (flag & O_NONBLOCK)
 			return (EWOULDBLOCK);
 		error = tsleep(TSA_PTC_READ(tp), TTIPRI | PCATCH, "ptcin", 0);
 		if (error)
@@ -497,7 +497,7 @@ block:
 		uio->uio_resid += cc;
 		return (EIO);
 	}
-	if (flag & IO_NDELAY) {
+	if (flag & O_NONBLOCK) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;
 		if (cnt == 0)
