@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.11 1996/02/24 21:41:15 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.2 1996/02/24 22:10:42 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -60,7 +60,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.11 1996/02/24 21:41:15 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.2 1996/02/24 22:10:42 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -262,7 +262,7 @@ static char *find_domain(pw)
 	struct dirent *dirp;
 	DIR *dird;
 	char yp_mapdir[MAXPATHLEN + 2];
-	char *domain = NULL;
+	static char domain[YPMAXDOMAIN];
 	char *tmp = NULL;
 	DBT key, data;
 	int hit = 0;
@@ -297,7 +297,7 @@ static char *find_domain(pw)
 			if (yp_password.pw_uid == pw->pw_uid &&
 			    yp_password.pw_gid == pw->pw_gid) {
 				hit++;
-				domain = tmp;
+				snprintf(domain, YPMAXDOMAIN, "%s", tmp);
 			}
 		}
 	}
@@ -307,7 +307,7 @@ static char *find_domain(pw)
 		yp_error("found same user in two different domains");
 		return(NULL);
 	} else
-		return(domain);
+		return(&domain);
 }
 
 int *
@@ -638,15 +638,13 @@ cleaning up and bailing out");
 void do_master()
 {
 	struct master_yppasswd *pw;
-	int resp;
 
 	if ((pw = getdat(yp_sock)) == NULL) {
 		return;
 	}
 
 	yp_error("received update request from superuser on localhost");
-	resp = update_master(pw);
-	sendresp(resp);
+	sendresp(update_master(pw));
 
 	/* Remember to free args. */
 	xdr_free(xdr_master_yppasswd, (char *)pw);
