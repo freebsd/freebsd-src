@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.21 1994/10/23 20:53:33 davidg Exp $
+ * $Id: vm_pageout.c,v 1.22 1994/10/23 21:03:09 davidg Exp $
  */
 
 /*
@@ -490,6 +490,7 @@ vm_pageout_scan()
 	int		force_wakeup = 0;
 	int		cache_size, orig_cache_size;
 
+#if 0
 	/*
 	 * We manage the cached memory by attempting to keep it
 	 * at about the desired level.
@@ -533,6 +534,7 @@ redeact:
 		vm_object_cache_lock();
 	}
 	vm_object_cache_unlock();
+#endif
 
 morefree:
 	/*
