@@ -1,0 +1,104 @@
+.\" Copyright (c) 1996
+.\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Mike Pritchard.
+.\" 4. Neither the name of the author nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd December 16, 1996
+.Dt MOUSED 8
+.Os FreeBSD
+.Sh NAME
+.Nm moused
+.Nd pass mouse data to console driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl DRcdfs
+.Op Fl S Ar baudrate
+.Fl p Ar port
+.Fl t Ar mousetype
+.Sh DESCRIPTION
+The mouse daemon listens to a serial port for mouse data,
+interprets the data and then passes ioctls to the console
+driver.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl D
+Lower DTR on the serial port.
+.It Fl R
+Lower RTS on the serial port.
+.It Fl S Ar baudrate
+Select the baudrate for the serial port (1200 to 9600).
+.It Fl c
+Enable ChordMiddle option.
+.It Fl d
+Enable debugging messages.
+.It Fl f
+Do not become a daemon and instead run as a foreground process.
+.It Fl p Ar port
+Use
+.Ar port
+as the serial port to communicate with the mouse.
+.It Fl s
+Select a baudrate of 9600 for the serial line.
+.It Fl t Ar mousetype
+Specify the type of mouse attached to the
+serial port.  Valid mouse types are:
+.Pp
+.Bl -tag -compact -width mousesystemsxxx
+.It microsoft
+Microsoft mouse
+.It mousesystems
+Mouse systems Corp mouse
+.It mmseries
+MM Series mouse
+.It logitech
+Logitech mouse
+.It busmouse
+A bus mouse
+.It mouseman
+Logitech MouseMan and TrackMan
+.It ps/2
+PS/2 mouse
+.It mmhittab
+MM HitTablet
+.El
+.El
+.Sh SEE ALSO
+.Xr keyboard 4 ,
+.Xr pcvt 4 ,
+.Xr screen 4
+.Sh AUTHORS
+The
+.Nm
+command was written by Michael Smith.  This manual page
+was written by Mike Pritchard <mpp@FreeBSD.org>.
+.Sh HISTORY
+The
+.Nm moused
+command first appeared in
+.Fx 2.2 .
