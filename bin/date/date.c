@@ -60,6 +60,10 @@ static const char rcsid[] =
 #include "extern.h"
 #include "vary.h"
 
+#ifndef	TM_YEAR_BASE
+#define	TM_YEAR_BASE	1900
+#endif
+
 time_t tval;
 int retval;
 
@@ -174,9 +178,8 @@ main(argc, argv)
 	exit(retval);
 }
 
-#define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
-#define	ATOI4(ar)	((ar)[0] - '0') * 1000 + ((ar)[1] - '0') * 100 + \
-			    ((ar)[2] - '0') * 10 + ((ar)[3] - '0'); (ar) += 4;
+#define	ATOI2(s)	((s) += 2, ((s)[-2] - '0') * 10 + ((s)[-1] - '0'))
+
 void
 setthetime(fmt, p, jflag, nflag)
 	const char *fmt;
@@ -186,6 +189,7 @@ setthetime(fmt, p, jflag, nflag)
 	register struct tm *lt;
 	struct timeval tv;
 	const char *dot, *t;
+	int century;
 
 	if (fmt != NULL) {
 		lt = localtime(&tval);
@@ -221,18 +225,24 @@ setthetime(fmt, p, jflag, nflag)
 		} else
 			lt->tm_sec = 0;
 
+		century = 0;
 		/* if p has a ".ss" field then let's pretend it's not there */
 		switch (strlen(p) - ((dot != NULL) ? 3 : 0)) {
 		case 12:				/* cc */
-			lt->tm_year = -1900 + ATOI4(p);
-			if (lt->tm_year < 0)
-				badformat();
-			goto year_done;
+			lt->tm_year = ATOI2(p) * 100 - TM_YEAR_BASE;
+			century = 1;
+			/* FALLTHROUGH */
 		case 10:				/* yy */
-			lt->tm_year = ATOI2(p);
-			if (lt->tm_year < 69)		/* hack for 2000 ;-} */
-				lt->tm_year += 100;
-year_done:		/* FALLTHROUGH */
+			if (century)
+				lt->tm_year += ATOI2(p);
+			else {				/* hack for 2000 ;-} */
+				lt->tm_year = ATOI2(p);
+				if (lt->tm_year < 69)
+					lt->tm_year += 2000 - TM_YEAR_BASE;
+				else
+					lt->tm_year += 1900 - TM_YEAR_BASE;
+			}
+			/* FALLTHROUGH */
 		case 8:					/* mm */
 			lt->tm_mon = ATOI2(p);
 			if (lt->tm_mon > 12)
