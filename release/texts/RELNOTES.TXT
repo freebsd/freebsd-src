@@ -88,6 +88,8 @@ Driver support for M-systems DiskOnChip products integrated.
 
 Driver support has been added for the 3Com 3c905C-TX.
 
+APM support has been improved.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -114,6 +116,12 @@ Bison, the GNU parser generator, has been upgraded to version 1.28.
 
 A Gcc optimiser bug has been fixed that prevented compiling the XFree86
 client libraries on the Alpha.
+
+Advanced Power Management monitor daemon, apmd(8), has been imported.
+This allow user to select the APM events to be handled from userland
+and specify the commands for a given event, allowing APM behaviour to
+be configured flexibly.  Please see the manpage for details.
+
 
 2. Supported Configurations
 ---------------------------
