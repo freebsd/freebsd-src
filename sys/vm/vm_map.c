@@ -263,7 +263,7 @@ vmspace_alloc(min, max)
 void
 vm_init2(void) 
 {
-	uma_zone_set_obj(kmapentzone, &kmapentobj, min(cnt.v_page_count,
+	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
 #ifdef INVARIANTS
