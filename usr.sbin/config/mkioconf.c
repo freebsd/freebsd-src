@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.47 1999/02/05 16:49:18 bde Exp $";
+	"$Id: mkioconf.c,v 1.48 1999/02/05 16:58:22 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -60,6 +60,120 @@ void hp300_ioconf __P((void));
 int hpbadslave __P((struct device *, struct device *));
 void tahoe_ioconf __P((void));
 void vax_ioconf __P((void));
+
+static char *
+devstr(struct device *dp)
+{
+    static char buf[100];
+
+    if (dp == TO_NEXUS)
+	return "nexus0";
+
+    if (dp->d_unit >= 0) {
+	sprintf(buf, "%s%d", dp->d_name, dp->d_unit);
+	return buf;
+    } else
+	return dp->d_name;
+}
+
+static void
+write_device_resources(FILE *fp, struct device *dp)
+{
+    int count = 0;
+
+    fprintf(fp, "struct config_resource %s_resources[] = {\n", devstr(dp));
+    if (dp->d_conn) {
+	fprintf(fp, "\t{ \"at\",\tRES_STRING,\t{ (long)\"%s\" }},\n",
+		devstr(dp->d_conn));
+	count++;
+    }
+    if (dp->d_drive != -2) {
+	fprintf(fp, "\t{ \"drive\",\tRES_INT,\t{ %d }},\n", dp->d_drive);
+	count++;
+    }
+    if (dp->d_target != -2) {
+	fprintf(fp, "\t{ \"target\",\tRES_INT,\t{ %d }},\n", dp->d_target);
+	count++;
+    }
+    if (dp->d_lun != -2) {
+	fprintf(fp, "\t{ \"lun\",\tRES_INT,\t{ %d }},\n", dp->d_lun);
+	count++;
+    }
+    if (dp->d_flags) {
+	fprintf(fp, "\t{ \"flags\",\tRES_INT,\t{ 0x%x }},\n", dp->d_flags);
+	count++;
+    }
+    if (dp->d_conflicts) {
+	fprintf(fp, "\t{ \"conflicts\",\tRES_INT,\t{ %d }},\n", dp->d_conflicts);
+	count++;
+    }
+    if (dp->d_disabled) {
+	fprintf(fp, "\t{ \"disabled\",\tRES_INT,\t{ %d }},\n", dp->d_disabled);
+	count++;
+    }
+    if (dp->d_port) {
+	fprintf(fp, "\t{ \"port\",\tRES_INT,\t { %s }},\n", dp->d_port);
+	count++;
+    }
+    if (dp->d_portn > 0) {
+	fprintf(fp, "\t{ \"port\",\tRES_INT,\t{ 0x%x }},\n", dp->d_portn);
+	count++;
+    }
+    if (dp->d_maddr > 0) {
+	fprintf(fp, "\t{ \"maddr\",\tRES_INT,\t{ 0x%x }},\n", dp->d_maddr);
+	count++;
+    }
+    if (dp->d_msize > 0) {
+	fprintf(fp, "\t{ \"msize\",\tRES_INT,\t{ 0x%x }},\n", dp->d_msize);
+	count++;
+    }
+    if (dp->d_drq > 0) {
+	fprintf(fp, "\t{ \"drq\",\tRES_INT,\t{ %d }},\n", dp->d_drq);
+	count++;
+    }
+    if (dp->d_irq > 0) {
+	fprintf(fp, "\t{ \"irq\",\tRES_INT,\t{ %d }},\n", dp->d_irq);
+	count++;
+    }
+    fprintf(fp, "};\n");
+    fprintf(fp, "#define %s_count %d\n", devstr(dp), count);
+}
+
+static void
+write_all_device_resources(FILE *fp)
+{
+	struct device *dp;
+
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
+		    && dp->d_type != DEVICE)
+			continue;
+		write_device_resources(fp, dp);
+	}
+}
+
+static void
+write_devtab(FILE *fp)
+{
+	struct device *dp;
+	int count;
+
+	write_all_device_resources(fp);
+
+	count = 0;
+	fprintf(fp, "struct config_device config_devtab[] = {\n");
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		char* n = devstr(dp);
+		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
+		    && dp->d_type != DEVICE)
+			continue;
+		fprintf(fp, "\t{ \"%s\",\t%d,\t%s_count,\t%s_resources },\n",
+			dp->d_name, dp->d_unit, n, n);
+		count++;
+	}
+	fprintf(fp, "};\n");
+	fprintf(fp, "int devtab_count = %d;\n", count);
+}
 
 #if MACHINE_VAX
 void
@@ -630,6 +744,8 @@ i386_ioconf()
 	fprintf(fp, "#include <sys/param.h>\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#define C (caddr_t)\n");
+
+#if 0
 	/*
 	 * First print the isa initialization structures
 	 */
@@ -681,6 +797,8 @@ i386_ioconf()
 		isa_devtab(fp, "ha", &dev_id);
 		isa_devtab(fp, "null", &dev_id);
 	}
+#endif
+
 	if (seen_scbus)
 		scbus_devtab(fp, &dev_id);
 
@@ -690,15 +808,12 @@ i386_ioconf()
 	fprintf(fp, " */\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "#include <sys/queue.h>\n");
+	fprintf(fp, "#include <sys/sysctl.h>\n");
+	fprintf(fp, "#include <isa/isareg.h>\n");
 	fprintf(fp, "#include <sys/bus_private.h>\n");
 	fprintf(fp, "\n");
-	count = 0;
-	fprintf(fp, "struct config_device devtab[] = {\n");
-	fprintf(fp, "/* name, unit, resource count, resources */\n");
-	fprintf(fp, "{ 0, 0, 0, 0 }\n");
-	fprintf(fp, "};\n");
-	fprintf(fp, "\n");
-	fprintf(fp, "int devtab_count = %d;\n", count);
+
+	write_devtab(fp);
 
 	(void) fclose(fp);
 	moveifchanged(path("ioconf.c.new"), path("ioconf.c"));
@@ -851,7 +966,8 @@ scbus_devtab(fp, dev_idp)
 "/* periph name, periph unit, pathid, target, LUN, flags */\n");
 	for (dp = dtab; dp; dp = dp->d_next) {
 		if (dp->d_type == CONTROLLER || dp->d_type == MASTER ||
-		    dp->d_type == PSEUDO_DEVICE)
+		    dp->d_type == PSEUDO_DEVICE
+		    || dp->d_conn == TO_NEXUS)
 			continue;
 
 		mp = dp->d_conn;
@@ -1134,81 +1250,6 @@ news_ioconf()
 #endif
 
 #if MACHINE_ALPHA
-static char *
-devstr(struct device *dp)
-{
-    static char buf[100];
-
-    if (dp->d_unit >= 0) {
-	sprintf(buf, "%s%d", dp->d_name, dp->d_unit);
-	return buf;
-    } else
-	return dp->d_name;
-}
-
-static void
-write_device_resources(FILE *fp, struct device *dp)
-{
-    int count = 0;
-
-    fprintf(fp, "struct config_resource %s_resources[] = {\n", devstr(dp));
-    if (dp->d_conn) {
-	fprintf(fp, "\t\"at\",\tRES_STRING,\t(long)\"%s\",\n",
-		devstr(dp->d_conn));
-	count++;
-    }
-    if (dp->d_drive != -2) {
-	fprintf(fp, "\t\"drive\",\tRES_INT,\t%d,\n", dp->d_drive);
-	count++;
-    }
-    if (dp->d_target != -2) {
-	fprintf(fp, "\t\"target\",\tRES_INT,\t%d,\n", dp->d_target);
-	count++;
-    }
-    if (dp->d_lun != -2) {
-	fprintf(fp, "\t\"lun\",\tRES_INT,\t%d,\n", dp->d_lun);
-	count++;
-    }
-    if (dp->d_flags) {
-	fprintf(fp, "\t\"flags\",\tRES_INT,\t0x%x,\n", dp->d_flags);
-	count++;
-    }
-    if (dp->d_conflicts) {
-	fprintf(fp, "\t\"conflicts\",\tRES_INT,\t%d,\n", dp->d_conflicts);
-	count++;
-    }
-    if (dp->d_disabled) {
-	fprintf(fp, "\t\"disabled\",\tRES_INT,\t%d,\n", dp->d_disabled);
-	count++;
-    }
-    if (dp->d_port) {
-	fprintf(fp, "\t\"port\",\tRES_INT,\t%s,\n", dp->d_port);
-	count++;
-    }
-    if (dp->d_portn > 0) {
-	fprintf(fp, "\t\"port\",\tRES_INT,\t0x%x,\n", dp->d_portn);
-	count++;
-    }
-    if (dp->d_maddr > 0) {
-	fprintf(fp, "\t\"maddr\",\tRES_INT,\t0x%x,\n", dp->d_maddr);
-	count++;
-    }
-    if (dp->d_msize > 0) {
-	fprintf(fp, "\t\"msize\",\tRES_INT,\t0x%x,\n", dp->d_msize);
-	count++;
-    }
-    if (dp->d_drq > 0) {
-	fprintf(fp, "\t\"drq\",\tRES_INT,\t%d,\n", dp->d_drq);
-	count++;
-    }
-    if (dp->d_irq > 0) {
-	fprintf(fp, "\t\"irq\",\tRES_INT,\t%d,\n", dp->d_irq);
-	count++;
-    }
-    fprintf(fp, "};\n");
-    fprintf(fp, "#define %s_count %d\n", devstr(dp), count);
-}
-
 void
 alpha_ioconf()
 {
@@ -1223,29 +1264,12 @@ alpha_ioconf()
 	fprintf(fp, "#include <sys/types.h>\n");
 	fprintf(fp, "#include <sys/time.h>\n");
 	fprintf(fp, "#include <sys/queue.h>\n\n");
+	fprintf(fp, "#include <sys/sysctl.h>\n");
 	fprintf(fp, "#include <sys/bus_private.h>\n");
 	fprintf(fp, "#include <isa/isareg.h>\n\n");
 	fprintf(fp, "#define C (char *)\n\n");
 
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
-		    && dp->d_type != DEVICE)
-			continue;
-		write_device_resources(fp, dp);
-	}
-	count = 0;
-	fprintf(fp, "struct config_device devtab[] = {\n");
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		char* n = devstr(dp);
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
-		    && dp->d_type != DEVICE)
-			continue;
-		fprintf(fp, "\t\"%s\",\t%d,\t%s_count,\t%s_resources,\n",
-			dp->d_name, dp->d_unit, n, n);
-		count++;
-	}
-	fprintf(fp, "};\n");
-	fprintf(fp, "int devtab_count = %d;\n", count);
+	write_devtab(fp);
 	
 	if (seen_scbus)
 		scbus_devtab(fp, &dev_id);
