@@ -41,7 +41,7 @@
 #define QC_GET	_IOR('S', 1, struct qcam)	/* get parameter structure */
 #define QC_SET	_IOW('S', 2, struct qcam)	/* set parameter structure */
 
-#define	QC_IOCTL_VERSION	2		/* version of the structure */
+#define	QC_IOCTL_VERSION	3		/* version of the structure */
 
 struct qcam {
 	int	qc_version;			/* version of qcam structure */
@@ -51,6 +51,7 @@ struct qcam {
 	int	qc_yorigin;			/* y origin */
 	int	qc_bpp;				/* bits per pixel (4 or 6) */
 	int	qc_zoom;			/* zoom mode */
+	int	qc_exposure;			/* length of exposure */
 	u_char	qc_brightness;			/* 0..255 */
 	u_char	qc_whitebalance;		/* 0..255 */
 	u_char	qc_contrast;			/* 0..255 */
