@@ -231,6 +231,17 @@
       <para>Several bugs in the TCP SACK implementation have been
 	fixed.</para>
 
+      <para>Random ephemeral port number allocation has led to some
+        problems with port reuse at high connection rates.  This
+        feature is now disabled during periods of high connection
+        rates; whenever new connections are created faster than
+        <varname>net.inet.ip.portrange.randomcps</varname> per second,
+        port number randomization is disabled for the next
+        <varname>net.inet.ip.portrange.randomtime</varname>
+        seconds.  The default values for these two sysctl variables
+        are <literal>10</literal> and <literal>45</literal>,
+        respectively.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -285,6 +296,15 @@
       (with <literal>deflate</literal> and <literal>none</literal>
       compression).</para>
 
+    <para>A number of bugfixes for <filename>libpthread</filename>
+      have been merged from HEAD.</para>
+
+    <para>The &man.moused.8; daemon now supports <quote>virtual
+      scrolling</quote>, in which mouse motions made while holding
+      down the middle mouse button are interpreted as scrolling.  This
+      feature is enabled with the <option>-V</option>
+      flag.</para>
+
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
       <filename>Makefile</filename> variable will cause NIS support to
@@ -306,6 +326,17 @@
       option that asks for confirmation once if recursively
       removing directories or if more than 3 files are listed in the
       command line.</para>
+
+    <para>The &man.syslogd.8; utility now opens an additional domain
+      socket <filename>/var/run/logpriv</filename> by default,
+      with <literal>0600</literal> permissions to be used
+      by privileged programs.  This prevents privileged
+      programs from locking when the domain sockets
+      run out of buffer space due to a
+      local denial-of-service attack.</para>
+
+    <para>The <option>-f</option> option of &man.tail.1; utility
+      now supports more than one file at a time.</para>
 
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
