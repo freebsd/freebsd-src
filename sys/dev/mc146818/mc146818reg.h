@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/*	$NetBSD: mc146818reg.h,v 1.2 1997/03/12 06:53:42 cgd Exp $	*/
-
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.
@@ -24,11 +21,15 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ *	from: NetBSD: mc146818reg.h,v 1.5 2003/11/02 11:07:45 wiz Exp
+ *
+ * $FreeBSD$
  */
 
 /*
  * Definitions for the Motorola MC146818A Real Time Clock.
- * They also apply for the (compatible) Dallas Semicontuctor DS1287A RTC.
+ * They also apply for the (compatible) Dallas Semiconductor DS1287A RTC.
  *
  * Though there are undoubtedly other (better) sources, this material was
  * culled from the DEC "KN121 System Module Programmer's Reference
@@ -142,46 +143,3 @@
 #define	MC_BASE_32_KHz	0x20		/* 32KHz crystal */
 #define	MC_BASE_NONE	0x60		/* actually, both of these reset */
 #define	MC_BASE_RESET	0x70
-
-/*
- * A collection of TOD/Alarm registers.
- */
-typedef u_int mc_todregs[MC_NTODREGS];
-
-/*
- * Get all of the TOD/Alarm registers
- * Must be called at splhigh(), and with the RTC properly set up.
- */
-#define MC146818_GETTOD(dev, regs)					\
-	do {								\
-		int i;							\
-									\
-		/* update in progress; spin loop */			\
-		while (MCCLOCK_READ(dev, MC_REGA) & MC_REGA_UIP)	\
-			;						\
-									\
-		/* read all of the tod/alarm regs */			\
-		for (i = 0; i < MC_NTODREGS; i++)			\
-			(*regs)[i] = MCCLOCK_READ(dev, i);		\
-	} while (0);
-
-/*
- * Set all of the TOD/Alarm registers
- * Must be called at splhigh(), and with the RTC properly set up.
- */
-#define MC146818_PUTTOD(dev, regs)					\
-	do {								\
-		int i;							\
-									\
-		/* stop updates while setting */			\
-		MCCLOCK_WRITE(dev, MC_REGB,				\
-		    MCCLOCK_READ(dev, MC_REGB) | MC_REGB_SET);		\
-									\
-		/* write all of the tod/alarm regs */			\
-		for (i = 0; i < MC_NTODREGS; i++)			\
-			MCCLOCK_WRITE(dev, i, (*regs)[i]);		\
-									\
-		/* reenable updates */					\
-		MCCLOCK_WRITE(dev, MC_REGB,				\
-		    MCCLOCK_READ(dev, MC_REGB) & ~MC_REGB_SET);		\
-	} while (0);
