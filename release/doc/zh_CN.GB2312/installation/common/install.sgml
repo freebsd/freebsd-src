@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.27.2.2
+Original Revision: 1.27.2.3
 $FreeBSD$
 
 install.sgml
@@ -124,12 +124,12 @@ from {alpha,i386}/INSTALL.TXT.
 
   <para arch="i386,alpha">对于大多数 CDROM 或者网络安装来说，您需要从
   <filename>floppies/</filename> 目录拷贝到真实软盘的只有
-  <filename>boot.flp</filename> 和 <filename>kernX.flp</filename>
+  <filename>boot.flp</filename> 和 <filename>kern<replaceable>X</replaceable>.flp</filename>
   映像(用于 1.44MB 软盘)。</para>
 
   <para arch="pc98">对于通常的CDROM 或者网络安装来说，您需要从
   <filename>floppies/</filename> 目录拷贝到真实软盘的只有
-  <filename>boot.flp</filename> 和 <filename>kernX.flp</filename>
+  <filename>boot.flp</filename> 和 <filename>kern<replaceable>X</replaceable>.flp</filename>
   映像(用于 1.44MB 软盘) 或者 <filename>boot-small.flp</filename> 和
   <filename>kern-small.flp</filename> 映像(用于 1.2MB 软盘)。</para>
 
@@ -141,18 +141,18 @@ from {alpha,i386}/INSTALL.TXT.
     <ulink url="http://mirrorlist.FreeBSD.org/"></ulink> Web 页面中的众多镜像站点中下载
   <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>
   和所有的
-  <replaceable>release</replaceable><filename>/floppies/kernX.flp</filename>
+  <replaceable>release</replaceable><filename>/floppies/kern<replaceable>X</replaceable>.flp</filename>
   文件。</para>
 
-  <para arch="i386,alpha">拿来三张空的、新格式化过的软盘，一张复制映像
-  <filename>boot.flp</filename>，另两张复制 <filename>kernX.flp</filename> 文件。
-  这些映像 <emphasis>不是</emphasis> DOS 文件。您不能把它们当作普通文件简单的复制到一张
+  <para arch="i386,alpha">拿几张空的、 新格式化过的软盘， 一张复制映像
+  <filename>boot.flp</filename>，另两张复制 <filename>kern<replaceable>X</replaceable>.flp</filename> 文件。
+  这些映像 <emphasis>不是</emphasis> DOS 文件。 您不能把它们当作普通文件简单地复制到一张
   DOS 或者 UFS 软盘上，您需要在 DOS 下使用 <filename>fdimage.exe</filename>
   或者在 UNIX 下使用 &man.dd.1; 命令把它们<quote>image</quote>复制到软盘上(查看您的
   CDROM 或者 &os; FTP 镜像上的 <filename>tools</filename> 目录)。</para>
 
-  <para arch="pc98">拿来三张空的、新格式化过的软盘，一张复制映像
-  <filename>boot.flp</filename>，另两张复制 <filename>kernX.flp</filename> 文件。
+  <para arch="pc98">拿几张空的、 新格式化过的软盘， 一张复制映像
+  <filename>boot.flp</filename>，另两张复制 <filename>kern<replaceable>X</replaceable>.flp</filename> 文件。
   这些映像 <emphasis>不是</emphasis> DOS 文件。您不能把它们当作普通文件简单的复制到一张
   DOS 或者 UFS 软盘上，您需要在 DOS 下使用 <filename>rawrite.exe</filename>
   或者在 UNIX 下使用 &man.dd.1; 命令把它们<quote>image</quote>复制到软盘上(查看您的
@@ -164,10 +164,10 @@ from {alpha,i386}/INSTALL.TXT.
   <screen arch="pc98"><prompt>A></prompt> <userinput>rawrite</userinput></screen>
 
   <para arch="i386,alpha">假定您已经把 <filename>fdimage.exe</filename> 和 <filename>boot.flp</filename>
-  复制到了某个目录里。当然，您应该对 <filename>kernX.flp</filename> 文件也这么做。</para>
+  复制到了某个目录里。当然，您应该对 <filename>kern<replaceable>X</replaceable>.flp</filename> 文件也这么做。</para>
 
   <para arch="pc98">假定您已经把 <filename>rawrite.exe</filename> 和 <filename>boot.flp</filename>
-  复制到了某个目录里。当然，您应该对 <filename>kernX.flp</filename> 文件也这么做。</para>
+  复制到了某个目录里。当然，您应该对 <filename>kern<replaceable>X</replaceable>.flp</filename> 文件也这么做。</para>
 
   <para arch="i386,alpha,pc98">如果您正在一台 UNIX 机器上创建启动软盘，您可能会发现：</para>
 
@@ -229,7 +229,7 @@ from {alpha,i386}/INSTALL.TXT.
       CDROM 启动) 并且只是想要通过网络使用 PPP、SLIP 或者专用连接安装，
       您应该使用 <xref linkend="floppies"> 处的安装说明从文件
       <filename>floppies/boot.flp</filename> 和
-      <filename>floppies/kernX.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
       用 <filename>boot.flp</filename> 软盘重新启动您的计算机，
       出现提示符时插入需要的其他软盘。然后，请到
       <xref linkend="ftpnfs"> 寻找通过 FTP 或 NFS 安装的额外的提示。</para>
@@ -238,7 +238,7 @@ from {alpha,i386}/INSTALL.TXT.
       CDROM 启动) 并且只是想要通过网络使用 PPP、SLIP 或者专用连接安装，
       您应该使用 <xref linkend="floppies"> 处的安装说明从文件
       <filename>floppies/boot.flp</filename> 和
-      <filename>floppies/kernX.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
       用 <filename>boot.flp</filename> 软盘重新启动您的计算机，
       出现提示符时插入需要的其他软盘。然后，请到
       <xref linkend="ftpnfs"> 寻找通过 FTP 或 NFS 安装的额外的提示。</para>
@@ -256,7 +256,7 @@ from {alpha,i386}/INSTALL.TXT.
       <para arch="alpha">您也可以从软盘启动安装。
       您应该使用 <xref linkend="floppies"> 处的安装说明从文件
       <filename>floppies/boot.flp</filename> 和
-      <filename>floppies/kernX.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
+      <filename>floppies/kern<replaceable>X</replaceable>.flp</filename> 创建一系列 &os; 启动软盘来开始安装。
       从 SRM 控制台提示符处(<literal>&gt;&gt;&gt;</literal>)，插入
       <filename>boot.flp</filename> 软盘并键入下面的命令来开始安装：</para>
 
@@ -713,10 +713,10 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</step>
 	<step>
 	  <para>如果从软盘引导， 当软驱不再动作时， 插入第一张
-	  <filename>kernX.flp</filename> 盘并按
+	  <filename>kern<replaceable>X</replaceable>.flp</filename> 盘并按
 	  <keycap>Enter</keycap>。 当软驱不再动作时， 插入下一张
-	  <filename>kernX.flp</filename> 盘并按 <keycap>Enter</keycap>，
-	  重复直到您已经插入了所有的 <filename>kernX.flp</filename> 盘。
+	  <filename>kern<replaceable>X</replaceable>.flp</filename> 盘并按 <keycap>Enter</keycap>，
+	  重复直到您已经插入了所有的 <filename>kern<replaceable>X</replaceable>.flp</filename> 盘。
 	  当磁盘动作结束时， 再次插入 <filename>boot.flp</filename>
 	  软盘并按 <keycap>Enter</keycap>。</para>
 	</step>
