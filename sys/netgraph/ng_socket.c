@@ -69,7 +69,6 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_socket.h>
-#include <netgraph/ng_socketvar.h>
 
 /*
  * It's Ascii-art time!
@@ -97,12 +96,31 @@
  *           +----------------+
  */
 
+/* Netgraph protocol control block for each socket */
+struct ngpcb {
+	struct socket	 *ng_socket;	/* the socket */
+	struct ngsock	 *sockdata;	/* netgraph info */
+	LIST_ENTRY(ngpcb) socks;	/* linked list of sockets */
+	int		  type;		/* NG_CONTROL or NG_DATA */
+};
+
+/* Per-node private data */
+struct ngsock {
+	struct ng_node	*node;		/* the associated netgraph node */
+	struct ngpcb	*datasock;	/* optional data socket */
+	struct ngpcb	*ctlsock;	/* optional control socket */
+	int    flags;
+	int    refs;
+};
+#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
+
 /* Netgraph node methods */
 static ng_constructor_t	ngs_constructor;
 static ng_rcvmsg_t	ngs_rcvmsg;
 static ng_shutdown_t	ngs_rmnode;
 static ng_newhook_t	ngs_newhook;
 static ng_rcvdata_t	ngs_rcvdata;
+static ng_disconnect_t	ngs_disconnect;
 
 /* Internal methods */
 static int	ng_attach_data(struct socket *so);
@@ -132,7 +150,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ngs_rcvdata,
 	ngs_rcvdata,
-	NULL,
+	ngs_disconnect
 };
 NETGRAPH_INIT(socket, &typestruct);
 
@@ -706,6 +724,7 @@ ngs_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Incoming messages get passed up to the control socket.
+ * Unless they are for us specifically (socket_type)
  */
 static int
 ngs_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
@@ -724,6 +743,22 @@ ngs_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		return (EINVAL);
 	}
 
+	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
+		switch (msg->header.cmd) {
+		case NGM_SOCK_CMD_NOLINGER:
+			sockdata->flags |= NGS_FLAG_NOLINGER;
+			break;
+		case NGM_SOCK_CMD_LINGER:
+			sockdata->flags &= ~NGS_FLAG_NOLINGER;
+			break;
+		default:
+			error = EINVAL;		/* unknown command */
+		}
+		/* Free the message and return */
+		FREE(msg, M_NETGRAPH);
+		return(error);
+
+	}
 	/* Get the return address into a sockaddr */
 	if ((retaddr == NULL) || (*retaddr == '\0'))
 		retaddr = "";
@@ -782,6 +817,24 @@ ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		return (ENOBUFS);
 	}
 	sorwakeup(so);
+	return (0);
+}
+
+/*
+ * Dook disconnection
+ *
+ * For this type, removal of the last link destroys the node
+ * if the NOLINGER flag is set.
+ */
+static int
+ngs_disconnect(hook_p hook)
+{
+	struct ngsock *const sockdata = hook->node->private;
+
+	if ((sockdata->flags & NGS_FLAG_NOLINGER )
+	&& (hook->node->numhooks == 0)) {
+		ng_rmnode(hook->node);
+	}
 	return (0);
 }
 
