@@ -238,7 +238,6 @@ int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
 void *snd_mtxcreate(const char *desc, const char *type);
-void *snd_chnmtxcreate(const char *desc, const char *type);
 void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
 #define	snd_mtxlock(m) mtx_lock(m)

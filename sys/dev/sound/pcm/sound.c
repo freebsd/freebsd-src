@@ -82,22 +82,6 @@ snd_mtxcreate(const char *desc, const char *type)
 #endif
 }
 
-void *
-snd_chnmtxcreate(const char *desc, const char *type)
-{
-#ifdef USING_MUTEX
-	struct mtx *m;
-
-	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (m == NULL)
-		return NULL;
-	mtx_init(m, desc, type, MTX_DEF | MTX_DUPOK);
-	return m;
-#else
-	return (void *)0xcafebabe;
-#endif
-}
-
 void
 snd_mtxfree(void *m)
 {
@@ -358,22 +342,24 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 {
 	struct pcm_channel *ch;
 	char *dirs;
-    	int err, *pnum;
+    	int direction, err, *pnum;
 
 	switch(dir) {
 	case PCMDIR_PLAY:
 		dirs = "play";
+		direction = PCMDIR_PLAY;
 		pnum = &d->playcount;
 		break;
 
 	case PCMDIR_REC:
 		dirs = "record";
+		direction = PCMDIR_REC;
 		pnum = &d->reccount;
 		break;
 
 	case PCMDIR_VIRTUAL:
 		dirs = "virtual";
-		dir = PCMDIR_PLAY;
+		direction = PCMDIR_PLAY;
 		pnum = &d->vchancount;
 		break;
 
@@ -402,7 +388,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	ch->dev = d->dev;
 	snprintf(ch->name, 32, "%s:%s:%d", device_get_nameunit(ch->dev), dirs, ch->num);
 
-	err = chn_init(ch, devinfo, dir);
+	err = chn_init(ch, devinfo, dir, direction);
 	if (err) {
 		device_printf(d->dev, "chn_init(%s) failed: err = %d\n", ch->name, err);
 		kobj_delete(ch->methods, M_DEVBUF);
@@ -684,7 +670,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		d->flags |= SD_F_SIMPLEX;
 
 	d->fakechan = fkchan_setup(dev);
-	chn_init(d->fakechan, NULL, 0);
+	chn_init(d->fakechan, NULL, 0, 0);
 
 #ifdef SND_DYNSYSCTL
 	sysctl_ctx_init(&d->sysctl_tree);
