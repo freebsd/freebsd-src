@@ -57,8 +57,8 @@ static const char rcsid[] =
 
 extern long int crc_total;
 
-int ftsoptions = FTS_LOGICAL;
-int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
+int ftsoptions = FTS_PHYSICAL;
+int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag;
 u_int keys;
 char fullpath[MAXPATHLEN];
 
@@ -77,7 +77,7 @@ main(argc, argv)
 	keys = KEYDEFAULT;
 	init_excludes();
 
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:UuxX:")) != -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:LnPp:qrs:UuxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -106,11 +106,22 @@ main(argc, argv)
 				if (*p != '\0')
 					keys |= parsekey(p, NULL);
 			break;
+		case 'L':
+			ftsoptions &= ~FTS_PHYSICAL;
+			ftsoptions |= FTS_LOGICAL;
+			break;
 		case 'n':
 			nflag = 1;
 			break;
+		case 'P':
+			ftsoptions &= ~FTS_LOGICAL;
+			ftsoptions |= FTS_PHYSICAL;
+			break;
 		case 'p':
 			dir = optarg;
+			break;
+		case 'q':
+			qflag = 1;
 			break;
 		case 'r':
 			rflag = 1;
@@ -163,7 +174,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-cdeinrUux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"usage: mtree [-LPUcdeinqrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
 "\t[-X excludes]\n");
 	exit(1);
 }
