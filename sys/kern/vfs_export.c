@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.56 1996/07/24 21:21:43 phk Exp $
+ * $Id: vfs_subr.c,v 1.57 1996/07/30 18:00:25 bde Exp $
  */
 
 /*
@@ -639,11 +639,14 @@ reassignbuf(bp, newvp)
 	register struct vnode *newvp;
 {
 	register struct buflists *listheadp;
+	int s;
 
 	if (newvp == NULL) {
 		printf("reassignbuf: NULL");
 		return;
 	}
+
+	s = splbio();
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
@@ -670,6 +673,7 @@ reassignbuf(bp, newvp)
 		listheadp = &newvp->v_cleanblkhd;
 		bufinsvn(bp, listheadp);
 	}
+	splx(s);
 }
 
 #ifndef DEVFS_ROOT
