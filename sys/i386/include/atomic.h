@@ -64,7 +64,7 @@
  * This allows kernel modules to be portable between UP and SMP systems.
  */
 #if defined(KLD_MODULE)
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
@@ -94,13 +94,13 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
 			 : "+m" (*p)			\
-			 : "ir" (V));			\
+			 : CONS (V));			\
 }
 
 /*
@@ -188,7 +188,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 (result) */\
 	  "+m" (*p)			/* 1 */		\
-	: : "cc", "memory");			 	\
+	: : "memory");				 	\
 							\
 	return (res);					\
 }							\
@@ -209,25 +209,25 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 #endif /* KLD_MODULE */
 
 #if !defined(LOCORE)
-ATOMIC_ASM(set,	     char,  "orb %b1,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %b1,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %b1,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %b1,%0",  v)
+ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v)
+ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v)
+ATOMIC_ASM(add,	     char,  "addb %b1,%0", "iq",  v)
+ATOMIC_ASM(subtract, char,  "subb %b1,%0", "iq",  v)
 
-ATOMIC_ASM(set,	     short, "orw %w1,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %w1,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %w1,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %w1,%0",  v)
+ATOMIC_ASM(set,	     short, "orw %w1,%0",  "ir",  v)
+ATOMIC_ASM(clear,    short, "andw %w1,%0", "ir", ~v)
+ATOMIC_ASM(add,	     short, "addw %w1,%0", "ir",  v)
+ATOMIC_ASM(subtract, short, "subw %w1,%0", "ir",  v)
 
-ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
+ATOMIC_ASM(set,	     int,   "orl %1,%0",   "ir",  v)
+ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v)
+ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v)
+ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v)
 
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
+ATOMIC_ASM(set,	     long,  "orl %1,%0",   "ir",  v)
+ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v)
+ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v)
+ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v)
 
 ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0")
 ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0")
