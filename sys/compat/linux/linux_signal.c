@@ -396,8 +396,8 @@ linux_sigpending(struct thread *td, struct linux_sigpending_args *args)
 	bset = p->p_siglist;
 	SIGSETOR(bset, td->td_siglist);
 	SIGSETAND(bset, td->td_sigmask);
-	bsd_to_linux_sigset(&bset, &lset);
 	PROC_UNLOCK(p);
+	bsd_to_linux_sigset(&bset, &lset);
 	mask = lset.__bits[0];
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
