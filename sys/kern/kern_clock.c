@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.90 1999/03/11 15:09:47 phk Exp $
+ * $Id: kern_clock.c,v 1.91 1999/03/12 11:09:50 phk Exp $
  */
 
 #include "opt_ntp.h"
@@ -812,7 +812,7 @@ tco_forward(int force)
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
-SYSCTL_INT(_kern_timecounter, KERN_ARGMAX, method, CTLFLAG_RW, &tco_method, 0,
+SYSCTL_INT(_kern_timecounter, OID_AUTO, method, CTLFLAG_RW, &tco_method, 0,
     "This variable determines the method used for updating timecounters. "
     "If the default algorithm (0) fails with \"calcru negative...\" messages "
     "try the alternate algorithm (1) which handles bad hardware better."
