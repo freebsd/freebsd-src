@@ -39,7 +39,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.57 2003/04/07 03:17:39 ache Exp");
+__FBSDID("FreeBSD: src/lib/libc/stdio/vfprintf.c,v 1.58 2003/04/14 11:24:53 das Exp");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -897,12 +897,14 @@ fp_begin:
 				if (prec > 1 || flags & ALT)
 					++size;
 			} else {
-				if (expt > 0) {
+				/* space for digits before decimal point */
+				if (expt > 0)
 					size = expt;
-					if (prec || flags & ALT)
-						size += prec + 1;
-				} else	/* "0.X" */
-					size = prec + 2;
+				else	/* "0" */
+					size = 1;
+				/* space for decimal pt and following digits */
+				if (prec || flags & ALT)
+					size += prec + 1;
 				if (grouping && expt > 0) {
 					/* space for thousands' grouping */
 					nseps = nrepeats = 0;
@@ -1135,9 +1137,9 @@ number:			if ((dprec = prec) >= 0)
 		} else {	/* glue together f_p fragments */
 			if (!expchar) {	/* %[fF] or sufficiently short %[gG] */
 				if (expt <= 0) {
-					buf[0] = '0';
-					buf[1] = *decimal_point;
-					PRINT(buf, 2);
+					PRINT(zeroes, 1);
+					if (prec || flags & ALT)
+						PRINT(decimal_point, 1);
 					PAD(-expt, zeroes);
 					/* already handled initial 0's */
 					prec += expt;
