@@ -829,12 +829,22 @@ thread_single(int force_exit)
 			remaining = p->p_numthreads - p->p_suspcount;
 	}
 	if (force_exit == SINGLE_EXIT) {
+		/*
+		 * We have gotten rid of all the other threads and we
+		 * are about to either exit or exec. In either case,
+		 * we try our utmost  to revert to being a non-threaded
+		 * process.
+		 */
 		upcall_remove(td);
 		p->p_flag &= ~(P_SA|P_HADTHREADS);
 		td->td_mailbox = NULL;
-		td->td_pflags &= ~TDP_SA;
+		td->td_pflags &= ~(TDP_SA | TDP_CAN_UNBIND);
 		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
 		p->p_singlethread = NULL;
+		if (td->td_standin != NULL) {
+			thread_stash(td->td_standin);
+			td->td_standin = NULL;
+		}
 		sched_set_concurrency(td->td_ksegrp, 1);
 		mtx_unlock_spin(&sched_lock);
 	} else {
