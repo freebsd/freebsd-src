@@ -74,11 +74,11 @@ static void setup __P((void));
 IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc) __P((void));	/* conversion function */
-size_t	cpy_cnt;		/* # of blocks to copy */
-size_t	pending = 0;		/* pending seek if sparse */
+quad_t	cpy_cnt;		/* # of blocks to copy */
+off_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
-size_t	cbsz;			/* conversion block size */
-int	files_cnt = 1;		/* # of files to copy */
+int	cbsz;			/* conversion block size */
+quad_t	files_cnt = 1;		/* # of files to copy */
 u_char	*ctab;			/* conversion table */
 
 int
@@ -112,7 +112,7 @@ setup()
 		in.name = "stdin";
 		in.fd = STDIN_FILENO;
 	} else {
-		in.fd = open(in.name, O_RDONLY);
+		in.fd = open(in.name, O_RDONLY, 0);
 		if (in.fd == -1)
 			err(1, "%s", in.name);
 	}
@@ -153,9 +153,8 @@ setup()
 		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
 			err(1, NULL);
 		out.db = in.db;
-	} else if ((in.db =
-	    malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
-	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
+	} else if ((in.db = malloc((u_int)(MAX(in.dbsz, cbsz) + cbsz))) == NULL
+		   || (out.db = malloc((u_int)(out.dbsz + cbsz))) == NULL)
 		err(1, NULL);
 	in.dbp = in.db;
 	out.dbp = out.db;
@@ -359,8 +358,7 @@ dd_out(force)
 	int force;
 {
 	static int warned;
-	int sparse;
-	size_t cnt, n, i;
+	int cnt, n, i, sparse;
 	ssize_t nw;
 	u_char *outp;
 
@@ -399,10 +397,10 @@ dd_out(force)
 				if (pending != 0) {
 					if (force)
 						pending--;
-					if (lseek(out.fd, (off_t)pending,
-						  SEEK_CUR) == -1)
-						err(2, "%s: seek error creating"
-						    " sparse file", out.name);
+					if (lseek(out.fd, pending, SEEK_CUR) ==
+					    -1)
+						err(2, "%s: seek error creating sparse file",
+						    out.name);
 					if (force)
 						write(out.fd, outp, 1);
 					pending = 0;
@@ -435,10 +433,10 @@ dd_out(force)
 			if (out.flags & ISCHR && !warned) {
 				warned = 1;
 				warnx("%s: short write on character device",
-				      out.name);
+				    out.name);
 			}
 			if (out.flags & ISTAPE)
-		            errx(1, "%s: short write on tape device", out.name);
+				errx(1, "%s: short write on tape device", out.name);
 		}
 		if ((out.dbcnt -= n) < out.dbsz)
 			break;

@@ -60,7 +60,7 @@ static const char rcsid[] =
 void
 def()
 {
-	size_t cnt;
+	int cnt;
 	u_char *inp, *t;
 
 	if ((t = ctab) != NULL)
@@ -104,8 +104,7 @@ void
 block()
 {
 	static int intrunc;
-	int ch;
-	size_t cnt, maxlen;
+	int ch, cnt, maxlen;
 	u_char *inp, *outp, *t;
 
 	/*
@@ -137,11 +136,11 @@ block()
 		maxlen = MIN(cbsz, in.dbcnt);
 		if ((t = ctab) != NULL)
 			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
-			     ++cnt)
+			    ++cnt)
 				*outp++ = t[ch];
 		else
 			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
-			     ++cnt)
+			    ++cnt)
 				*outp++ = ch;
 		/*
 		 * Check for short record without a newline.  Reassemble the
@@ -200,7 +199,7 @@ block_close()
 		++st.trunc;
 		memmove(out.dbp, in.dbp - in.dbcnt, in.dbcnt);
 		(void)memset(out.dbp + in.dbcnt, ctab ? ctab[' '] : ' ',
-			     cbsz - in.dbcnt);
+		    cbsz - in.dbcnt);
 		out.dbcnt += cbsz;
 	}
 }
@@ -215,7 +214,7 @@ block_close()
 void
 unblock()
 {
-	size_t cnt;
+	int cnt;
 	u_char *inp, *t;
 
 	/* Translation and case conversion. */
@@ -248,7 +247,7 @@ unblock()
 void
 unblock_close()
 {
-	size_t cnt;
+	int cnt;
 	u_char *t;
 
 	if (in.dbcnt) {

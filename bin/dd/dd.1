@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: dd.1,v 1.8 1998/11/29 13:54:20 bde Exp $
+.\"	$Id: dd.1,v 1.9 1999/05/08 10:20:07 kris Exp $
 .\"
 .Dd January 13, 1994
 .Dt DD 1
@@ -283,9 +283,9 @@ appended.
 .El
 .Pp
 Where sizes are specified, a decimal number of bytes is expected.
-If the number ends with a ``b'', ``k'', ``m'' or ``w'', the number
-is multiplied by 512, 1024 (1K), 1048576 (1M) or the number of bytes
-in an integer, respectively.
+If the number ends with a ``b'', ``k'', ``m'', ``g'',  or ``w'', the
+number is multiplied by 512, 1024 (1K), 1048576 (1M), 1073741824 (1G)
+or the number of bytes in an integer, respectively.
 Two or more numbers may be separated by an ``x'' to indicate a product.
 .Pp
 When finished,
