@@ -789,3 +789,19 @@ linux_sigaltstack(struct proc *p, struct linux_sigaltstack_args *uap)
 
 	return (error);
 }
+
+int
+linux_ftruncate64(struct proc *p, struct linux_ftruncate64_args *args)
+{
+	struct ftruncate_args sa;
+
+#ifdef DEBUG
+	if (ldebug(ftruncate64))
+		printf(ARGS(ftruncate64, "%d, %d"), args->fd, args->length);
+#endif
+
+	sa.fd = args->fd;
+	sa.pad = 0;
+	sa.length = args->length;
+	return ftruncate(p, &sa);
+}

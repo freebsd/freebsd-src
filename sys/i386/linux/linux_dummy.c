@@ -66,7 +66,6 @@ DUMMY(capset);
 DUMMY(sendfile);
 DUMMY(mmap2);
 DUMMY(truncate64);
-DUMMY(ftruncate64);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
