@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pt_tcp.c,v 1.7 1998/07/06 07:19:27 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -124,16 +124,16 @@ int portal_tcp(pcr, key, v, kso, fdp)
 #endif
 
 	sp = getservbyname(port, "tcp");
-	if (sp != NULL)
+	if (sp != NULL) {
 		s_port = (u_short)sp->s_port;
-	else {
+	} else {
 		s_port = strtoul(port, &p, 0);
 		if (s_port == 0 || *p != '\0')
 			return (EINVAL);
 		s_port = htons(s_port);
 	}
 #ifdef DEBUG
-	printf ("port number for %s is %d\n", port, ntohs(s_port));
+	printf ("port number for %s is %d\n", port, (int)ntohs(s_port));
 #endif
 
 	memset(&sain, 0, sizeof(sain));
