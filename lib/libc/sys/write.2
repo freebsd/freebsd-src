@@ -215,6 +215,8 @@ The user's quota of disk blocks on the file system
 containing the file has been exhausted.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTR
+A signal interrupted the write before it could be completed.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,
 and no data could be written immediately.
