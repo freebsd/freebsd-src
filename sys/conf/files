@@ -508,6 +508,8 @@ netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
 netgraph/ng_base.c	optional netgraph
 netgraph/ng_async.c	optional netgraph_async
+netgraph/ng_bpf.c	optional netgraph_bpf
+net/bpf_filter.c	optional netgraph_bpf
 netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_echo.c	optional netgraph_echo
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
