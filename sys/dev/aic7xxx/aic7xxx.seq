@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#23 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#24 $
  *
  * $FreeBSD$
  */
@@ -758,8 +758,8 @@ idle_sg_avail:
 		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz . + 2;
 		or	SINDEX, LAST_SEG;
 		mov	SG_CACHE_PRE, SINDEX;
-		/* Load the segment by writing DFCNTRL again */
-		mov	DFCNTRL, DMAPARAMS;
+		/* Load the segment */
+		or	DFCNTRL, PRELOADEN;
 	}
 	ret;
 }
@@ -948,7 +948,7 @@ ultra2_dmafifoempty:
 		test	DFSTATUS, MREQPEND	jnz ultra2_dmafifoempty;
 ultra2_dmahalt:
 		and     DFCNTRL, ~(SCSIEN|HDMAEN);
-		test	DFCNTRL, HDMAEN jnz .;
+		test	DFCNTRL, SCSIEN|HDMAEN jnz .;
 
 		/*
 		 * If, by chance, we stopped before being able
@@ -2068,7 +2068,7 @@ dma_scb_fromhost:
 			 * latch is full.
 			 */
 			clr	A;
-			/* Wait for some data to arrive. */
+			/* Wait for at least 8 bytes of data to arrive. */
 dma_scb_hang_fifo:
 			test	DFSTATUS, FIFOQWDEMP jnz dma_scb_hang_fifo;
 dma_scb_hang_wait:
@@ -2078,8 +2078,7 @@ dma_scb_hang_wait:
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			/*
 			 * The PCI module no longer intends to perform
-			 * a PCI transaction and HDONE has not come true.
-			 * We are hung.  Drain the fifo.
+			 * a PCI transaction.  Drain the fifo.
 			 */
 dma_scb_hang_empty_fifo:
 			/*
