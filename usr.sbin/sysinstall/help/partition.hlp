@@ -126,16 +126,20 @@ with significant activity can temporarily overflow if the soft updates
 policy results in free'd blocks not being "garbage collected" as fast
 as they're being requested.
 
-To make use of UFS2, press '2' on a UFS file system to toggle the
-on-disk format revision.  UFS2 provides native support for extended
-attributes, larger disk sizes, and forward compatibility with new
-on-disk high performance directory layout and storage extents.
-However, UFS2 is unsupported on versions of FreeBSD prior to 5.0,
-so it is not recommended for environments requiring backward
-compatibility.  Also, UFS2 is not currently recommended as a root
-file system format for non-64-bit platforms due to increased size
-of the boot loader; special local configuration is required to boot
-UFS2 as a root file system on i386 and PC98.
+The UNIX File System (UFS) on FreeBSD supports two different on-disk
+layouts: UFS1 and UFS2.  UFS1 was the default file system in use
+through FreeBSD 5.0-RELEASE; as of FreeBSD 5.1-RELEASE, the default
+is now UFS2.  UFS2 provides sparse inode allocation (faster
+fsck), 64-bit storage pointers (larger maximum size), and native
+extended attributes (required for ACLs, MAC, and other advanced
+security and file system services).  The selection of UFS1 or
+UFS2 must be made when the file system is created--later conversion
+is not currently possible.  UFS2 is the recommended file system, but
+if disks are to be used on older FreeBSD systems, UFS1 improves
+portability.  When dual-booting between FreeBSD 4.x or earlier and 
+FreeBSD 5.x, UFS1 file systems will be accessible from both.
+To toggle a file system to UFS1, press '1'.  To restore it to UFS2,
+press '2'.
 
 To add additional flags to the newfs command line for UFS file
 systems, press 'N'.  These options will be specified before the
