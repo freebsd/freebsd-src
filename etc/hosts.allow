@@ -58,8 +58,7 @@ fingerd : ALL \
 	 /usr/bin/mail -s "tcpd\: %u@%h[%a] fingered me!" root) & \
 	: deny
 
-# The rest of the daemons are protected. Backfinger and log by email.
+# The rest of the daemons are protected.
 ALL : ALL \
-	: severity auth.info : spawn (/usr/bin/finger -l @%h | \
-	 /usr/bin/mail -s "tcpd\: %u@%h[%a] tried to use %d  (denied)" root) & \
+	: severity auth.info \
 	: twist /bin/echo "You are not welcome to use %d from %h."
