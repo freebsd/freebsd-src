@@ -387,6 +387,10 @@ main(argc, argv)
 	if (uponly && downonly)
 		usage();
 
+	/* no arguments is equivalent to '-a' */
+	if (!namesonly && argc < 1)
+		all = 1;
+
 	/* -a and -l allow an address family arg to limit the output */
 	if (all || namesonly) {
 		if (argc > 1)
