@@ -56,6 +56,8 @@ Support has been added for direct access to NTFS filesystems.
 Support has been added for Joliet extensions on ISO 9660 filesystems.
 Only iso8859-1 characters (latin-1) are supported at this time, though.
 
+Support has been added for Adaptec 2930U2 and 3950U2 SCSI cards.
+
 There have been a couple of kernel changes that will break the binary
 interface for clients of the CAM passthrough interface or the devstat(9)
 statistics interface.  These changes were made to fix some interface
