@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.5 1995/06/01 22:32:07 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.6 1995/06/02 15:31:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,6 +69,7 @@
 #define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
 #define DEV_MAX			200	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
+#define MAX_FTP_RETRIES		4	/* How many times to beat our heads against the wall */
 
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
