@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.9 1996/02/22 20:31:49 peter Exp $
+#	$Id: Makefile,v 1.57.4.10 1996/02/27 20:51:58 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -336,6 +336,8 @@ build-tools:
 	cd ${.CURDIR}/usr.bin/sgmlfmt && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/share/sgml && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
+	cd ${.CURDIR}/gnu/usr.bin/groff && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR} 
 	cd ${.CURDIR}/usr.sbin/zic && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
