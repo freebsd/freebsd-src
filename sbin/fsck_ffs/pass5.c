@@ -316,4 +316,13 @@ pass5()
 		fs->fs_fmod = 0;
 		sbdirty();
 	}
+	if (fs->fs_clean == 0) {
+		pwarn("CLEAN FLAG IS WRONG IN SUPERBLOCK");
+		if (preen)
+			printf(" (FIXED)\n");
+		if (preen || reply("FIX") == 1) {
+			fs->fs_clean = 1;
+			sbdirty();
+		}
+	}
 }
