@@ -82,20 +82,20 @@ Beware!
 Avoid placing other cards at that address!
 .Pp
 .Sh DIAGNOSTICS
-ep0: reset (status: %x)
-.in +4
-the driver has encountered a FIFO underrun or overrun. The driver will reset
-the card and the packet will be lost. This is not fatal.
-.in -4
-ep0: eeprom failed to come ready
-.in +4
-The eeprom failed to come ready.  This probably means the card is wedged.
-.in -4
-ep0: 3c509 in test mode. Erase pencil mark!
-.in +4
-This means that someone has scribbled with pencil in the test area on the
-card.  Erase the pencil mark and reboot.  (This is not a joke).
-.in -4
+.Bl -diag
+.It ep0: reset (status: %x)
+The driver has encountered a FIFO underrun or overrun.
+The driver will reset the card and the packet will be lost.
+This is not fatal.
+.It ep0: eeprom failed to come ready
+The eeprom failed to come ready.
+This probably means the card is wedged.
+.It ep0: 3c509 in test mode. Erase pencil mark!
+This means that someone has scribbled with pencil
+in the test area on the card.
+Erase the pencil mark and reboot.
+(This is not a joke).
+.El
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr eg 4 ,
