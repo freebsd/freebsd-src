@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.54 1995/05/05 18:00:30 rgrimes Exp $
+#	$Id: Makefile,v 1.55 1995/05/06 03:59:58 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -260,6 +260,14 @@ libraries:
 .endif
 .if exists(lib/libcompat)
 	cd ${.CURDIR}/lib/libcompat && \
+		${MAKE} depend all install
+.endif
+.if exists(lib/libncurses)
+	cd ${.CURDIR}/lib/libncurses && \
+		${MAKE} depend all install
+.endif
+.if exists(lib/libtermcap)
+	cd ${.CURDIR}/lib/libtermcap && \
 		${MAKE} depend all install
 .endif
 .if exists(gnu)
