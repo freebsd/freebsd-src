@@ -76,13 +76,6 @@ static struct acpi_prt_entries acpi_prt_entries;
 
 static int	irq_penalty[MAX_ACPI_INTERRUPTS];
 
-#ifdef ACPI_OLD_PCI_LINK
-#define ACPI_STA_PRESENT	0x00000001
-#define ACPI_STA_ENABLE		0x00000002
-#define ACPI_STA_SHOWINUI	0x00000004
-#define ACPI_STA_FUNCTIONAL	0x00000008
-#endif /* ACPI_OLD_PCI_LINK */
-
 /*
  * PCI link object management
  */
@@ -176,7 +169,6 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 	    (int)entry->prt.Pin);
 }
 
-#ifdef ACPI_OLD_PCI_LINK
 static ACPI_STATUS
 acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 {
@@ -221,7 +213,6 @@ acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 	AcpiOsFree(buf.Pointer);
 	return_ACPI_STATUS (AE_OK);
 }
-#endif /* ACPI_OLD_PCI_LINK */
 
 static ACPI_STATUS
 acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
@@ -446,9 +437,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 {
 	ACPI_HANDLE		handle;
 	ACPI_STATUS		error;
-#ifdef ACPI_OLD_PCI_LINK
 	UINT32			sta;
-#endif
 	struct acpi_prt_entry	*entry;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -466,11 +455,6 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		return_ACPI_STATUS (error);
 	}
 
-	/*
-	 * PCI link status (_STA) is unreliable.  Many systems return
-	 * erroneous values so we ignore it.
-	 */
-#ifdef ACPI_OLD_PCI_LINK
 	error = acpi_pci_link_get_object_status(handle, &sta);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -479,13 +463,21 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 		return_ACPI_STATUS (error);
 	}
 
+	/*
+	 * PCI link status (_STA) is unreliable.  Many systems return
+	 * erroneous values so we ignore it.
+	 */
 	if ((sta & (ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)) == 0) {
+#ifndef ACPI_OLD_PCI_LINK
+		device_printf(pcidev, "acpi PRT ignoring status for %s\n",
+		    acpi_name(handle));
+#else
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 		    "interrupt link is not functional - %s\n",
 		    acpi_name(handle)));
 		return_ACPI_STATUS (AE_ERROR);
+#endif /* !ACPI_OLD_PCI_LINK */
 	}
-#endif /* ACPI_OLD_PCI_LINK */
 
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		if (entry->busno == busno &&
@@ -534,18 +526,31 @@ acpi_pci_link_is_valid_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	UINT8			i;
 
 	if (irq == 0)
-		return (0);
+		return (FALSE);
 
+#ifndef ACPI_OLD_PCI_LINK
+	/*
+	 * Look up the given interrupt in the list of possible settings for
+	 * this link.  We don't special-case the initial link setting.  Some
+	 * systems return current settings that are outside the list of valid
+	 * settings so only allow choices explicitly specified in _PRS.
+	 */
+#endif
 	for (i = 0; i < link->number_of_interrupts; i++) {
 		if (link->interrupts[i] == irq)
-			return (1);
+			return (TRUE);
 	}
 
 	/* allow initial IRQ as valid one. */
 	if (link->initial_irq == irq)
-		return (1);
+#ifndef ACPI_OLD_PCI_LINK
+		printf("acpi link check: %d initial irq, %d irq to route\n",
+		    link->initial_irq, irq);
+#else
+		return (TRUE);
+#endif
 
-	return (0);
+	return (FALSE);
 }
 
 static ACPI_STATUS
@@ -554,9 +559,7 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	ACPI_STATUS		error;
 	ACPI_RESOURCE		resbuf;
 	ACPI_BUFFER		crsbuf;
-#ifdef ACPI_OLD_PCI_LINK
 	UINT32			sta;
-#endif
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -637,7 +640,6 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	 * PCI link status (_STA) is unreliable.  Many systems return
 	 * erroneous values so we ignore it.
 	 */
-#ifdef ACPI_OLD_PCI_LINK
 	error = acpi_pci_link_get_object_status(link->handle, &sta);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
@@ -646,20 +648,23 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 		return_ACPI_STATUS (error);
 	}
 
-	if ((sta & ACPI_STA_ENABLE) == 0) {
+	if ((sta & ACPI_STA_ENABLED) == 0) {
+#ifndef ACPI_OLD_PCI_LINK
+		printf("acpi link set: ignoring status for %s\n",
+		    acpi_name(link->handle));
+#else
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 		    "interrupt link %s is disabled\n",
 		    acpi_name(link->handle)));
 		return_ACPI_STATUS (AE_ERROR);
+#endif /* !ACPI_OLD_PCI_LINK */
 	}
-#endif /* ACPI_OLD_PCI_LINK */
 
 	/*
 	 * Many systems always return invalid values for current settings
 	 * (_CRS).  Since we can't trust the value returned, we have to
 	 * assume we were successful.
 	 */
-#ifdef ACPI_OLD_PCI_LINK
 	error = acpi_pci_link_get_current_irq(link, &link->current_irq);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
@@ -671,13 +676,19 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	if (link->current_irq == irq) {
 		error = AE_OK;
 	} else {
+#ifndef ACPI_OLD_PCI_LINK
+		printf("acpi link set: curr irq %d != %d for %s (ignoring)\n",
+		    link->current_irq, irq, acpi_name(link->handle));
+		link->current_irq = irq;
+		error = AE_OK;
+#else
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
 		    "couldn't set IRQ %d to PCI interrupt link %d - %s\n",
 		    irq, link->current_irq, acpi_name(link->handle)));
 		link->current_irq = 0;
 		error = AE_ERROR;
+#endif /* !ACPI_OLD_PCI_LINK */
 	}
-#endif /* ACPI_OLD_PCI_LINK */
 
 	return_ACPI_STATUS (error);
 }
