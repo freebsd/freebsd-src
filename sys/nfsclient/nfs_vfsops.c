@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.17 1995/07/07 11:01:31 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.18 1995/08/11 11:31:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -538,6 +538,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	register struct nfsmount *nmp;
 	struct nfsnode *np;
 	int error, maxio;
+	struct vattr attrs;
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
@@ -689,6 +690,12 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	*vpp = NFSTOV(np);
 
 	/*
+	 * Get file attributes for the mountpoint.  This has the side
+	 * effect of filling in (*vpp)->v_type with the correct value.
+	 */
+	VOP_GETATTR(*vpp, &attrs, curproc->p_ucred, curproc);
+
+	/*
 	 * Lose the lock but keep the ref.
 	 */
 	VOP_UNLOCK(*vpp);
@@ -797,7 +804,6 @@ nfs_root(mp, vpp)
 		return (error);
 	vp = NFSTOV(np);
 	VOP_UNLOCK(vp);
-	vp->v_type = VDIR;
 	vp->v_flag = VROOT;
 	*vpp = vp;
 	return (0);
