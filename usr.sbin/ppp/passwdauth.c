@@ -86,16 +86,15 @@ char *name, *key;
     (void)time(&utmp.ut_time);
     (void)strncpy(utmp.ut_name, name, sizeof(utmp.ut_name));
 
-#ifdef LOCALHACK
+    /*
+     * if the first three chacters are "pap" trim them off before doing
+     * utmp entry (see sample.ppp-pap-dialup 
+     */
 
-    /* we trim the first three characters off here.. see sample.ppp.conf */
-    (void)strncpy(utmp.ut_line, (char *)(dstsystem + 3), sizeof(utmp.ut_line));
-
-#else
-
-    (void)strncpy(utmp.ut_line, dstsystem, sizeof(utmp.ut_line));
-
-#endif /* LOCALHACK */
+    if( strncmp( "pap", dstsystem, 3 ) == 0 )
+      (void)strncpy(utmp.ut_line, (char *)(dstsystem + 3), sizeof(utmp.ut_line));
+    else
+      (void)strncpy(utmp.ut_line, dstsystem, sizeof(utmp.ut_line));
 
     (void)strcpy(utmp.ut_host, "auto-ppp" );
     login(&utmp);
