@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.15.2.3 1999/03/29 15:11:47 yokota Exp $
+ * $Id: vesa.c,v 1.22 1999/03/31 15:27:00 yokota Exp $
  */
 
 #include "vga.h"
@@ -213,7 +213,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	vmf.vmf_eax = 0x4f01; 
 	vmf.vmf_ecx = mode;
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f))
@@ -279,7 +279,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
 	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, p, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	if ((err != 0) || (vmf.vmf_eax != 0x4f))
@@ -316,7 +316,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	vmf.vmf_ebx = 0;	/* set primary palette data */
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
-	vm86_getptr(&vesa_vmcontext, p, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
@@ -350,7 +350,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	vmf.vmf_ecx = STATE_MOST;
 	vmf.vmf_edx = code;	/* STATE_SAVE/STATE_LOAD */
 	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
@@ -432,9 +432,10 @@ static void
 static int
 vesa_bios_init(void)
 {
+	static u_char buf[512];
 	struct vm86frame vmf;
 	struct vesa_mode vmode;
-	u_char *buf;
+	u_char *vmbuf;
 	int modes;
 	int err;
 	int i;
@@ -446,15 +447,16 @@ vesa_bios_init(void)
 	vesa_adp_info = NULL;
 	vesa_vmode[0].vi_mode = EOT;
 
-	buf = (u_char *)vm86_addpage(&vesa_vmcontext, 1, 0);
+	vmbuf = (u_char *)vm86_addpage(&vesa_vmcontext, 1, 0);
 	bzero(&vmf, sizeof(vmf));	/* paranoia */
-	bcopy("VBE2", buf, 4);		/* try for VBE2 data */
+	bcopy("VBE2", vmbuf, 4);	/* try for VBE2 data */
 	vmf.vmf_eax = 0x4f00;
-	vm86_getptr(&vesa_vmcontext, buf, &vmf.vmf_es, &vmf.vmf_di);
+	vm86_getptr(&vesa_vmcontext, (vm_offset_t)vmbuf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", buf, 4))
+	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", vmbuf, 4))
 		return 1;
+	bcopy(vmbuf, buf, sizeof(buf));
 	vesa_adp_info = (struct vesa_info *)buf;
 	if (bootverbose) {
 		printf("VESA: information block\n");
