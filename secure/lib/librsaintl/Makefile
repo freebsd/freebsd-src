@@ -9,6 +9,7 @@ LIB=		rsaINTL
 SHLIB_MAJOR=	1
 
 CFLAGS+=	-I${.OBJDIR}
+LDADD+=		-L${.OBJDIR}/../libcrypto -lcrypto
 
 # rsaref
 SRCS+=	rsa_err.c rsa_eay.c rsa_intlstubs.c
