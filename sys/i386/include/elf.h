@@ -34,8 +34,14 @@
  */
 
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
+#if defined(__ELF_WORD_SIZE) && __ELF_WORD_SIZE == 64
+#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+#endif
 
+#ifndef __ELF_WORD_SIZE
 #define	__ELF_WORD_SIZE	32	/* Used by <sys/elf_generic.h> */
+#endif
+
 #include <sys/elf_generic.h>
 
 #define	ELF_ARCH	EM_386
@@ -57,6 +63,13 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
 } Elf32_Auxinfo;
+
+#if __ELF_WORD_SIZE == 64
+/* Fake for amd64 loader support */
+typedef struct {
+	int fake;
+} Elf64_Auxinfo;
+#endif
 
 __ElfType(Auxinfo);
 
