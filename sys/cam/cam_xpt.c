@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.17 1998/10/07 03:25:21 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.18 1998/10/10 21:10:36 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -941,6 +941,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		char   *name;
 		int unit;
 		int cur_generation;
+		int base_periph_found;
 		int splbreaknum;
 		int s;
 		int i;
@@ -958,6 +959,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		splbreaknum = 100;
 
 		ccb = (union ccb *)addr;
+
+		base_periph_found = 0;
 
 		/*
 		 * Sanity check -- make sure we don't get a null peripheral
@@ -1018,6 +1021,7 @@ ptstartover:
 			struct cam_ed *device;
 			int i;
 
+			base_periph_found = 1;
 			device = periph->path->device;
 			for (i = 0, periph = device->periphs.slh_first;
 			     periph != NULL;
@@ -1077,6 +1081,19 @@ ptstartover:
 			*ccb->cgdl.periph_name = '\0';
 			ccb->cgdl.unit_number = 0;
 			error = ENOENT;
+			/*
+			 * It is unfortunate that this is even necessary,
+			 * but there are many, many clueless users out there.
+			 * If this is true, the user is looking for the
+			 * passthrough driver, but doesn't have one in his
+			 * kernel.
+			 */
+			if (base_periph_found == 1) {
+				printf("xptioctl: pass driver is not in the "
+				       "kernel\n");
+				printf("xptioctl: put \"device pass0\" in "
+				       "your kernel config file\n");
+			}
 		}
 		splx(s);
 		break;
