@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *      @(#) $Id: ilmid.c,v 1.1 1998/09/15 08:22:47 phk Exp $
+ *      @(#) $Id: ilmid.c,v 1.2 1999/01/20 00:56:21 mks Exp $
  *
  */
 
@@ -48,7 +48,7 @@
 #include <sys/param.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: ilmid.c,v 1.1 1998/09/15 08:22:47 phk Exp $");
+__RCSID("@(#) $Id: ilmid.c,v 1.2 1999/01/20 00:56:21 mks Exp $");
 #endif
 
 #include <err.h>
@@ -2437,7 +2437,7 @@ main ( argc, argv )
 	/*
 	 * Parse arguments
 	 */
-	while ( ( c = getopt ( argc, argv, "d:fr" ) ) != EOF )
+	while ( ( c = getopt ( argc, argv, "d:fr" ) ) != -1 )
 	    switch ( c ) {
 		case 'd':
 			Debug_Level = atoi ( optarg );
