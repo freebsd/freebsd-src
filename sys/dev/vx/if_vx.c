@@ -77,6 +77,7 @@
 
 #define ETHER_MAX_LEN	1518
 #define ETHER_ADDR_LEN	6
+#define ETHER_ALIGN 	2
 
 static struct connector_entry {
   int bit;
@@ -686,6 +687,22 @@ again:
     }
 
     ++ifp->if_ipackets;
+
+    {
+	struct mbuf		*m0;
+
+	m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+	    m->m_pkthdr.len + ETHER_ALIGN, 0, ifp, NULL);
+
+	if (m0 == NULL) {
+		ifp->if_ierrors++;
+		goto abort;
+	}
+
+	m_adj(m0, ETHER_ALIGN);
+	m_freem(m);
+	m = m0;
+    }
 
     /* We assume the header fit entirely in one mbuf. */
     eh = mtod(m, struct ether_header *);
