@@ -22,15 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: pw.c,v 1.5 1997/02/22 16:12:25 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include "pw.h"
+#include <err.h>
 #include <paths.h>
 #include <sys/wait.h>
-
-static char    *progname = "pw";
 
 const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
 const char     *Which[] = {"user", "group", NULL};
@@ -82,12 +84,6 @@ main(int argc, char *argv[])
 	};
 
 	umask(0);		/* We wish to handle this manually */
-	progname = strrchr(argv[0], '/');
-	if (progname != NULL)
-		++progname;
-	else
-		progname = argv[0];
-
 	LIST_INIT(&arglist);
 
 	/*
@@ -109,7 +105,7 @@ main(int argc, char *argv[])
 		else if (which != -1 && mode != -1 && arglist.lh_first == NULL)
 			addarg(&arglist, 'n', argv[1]);
 		else
-			cmderr(EX_USAGE, "Unknown keyword `%s'\n", argv[1]);
+			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
 		++argv;
 		--argc;
 	}
@@ -124,12 +120,11 @@ main(int argc, char *argv[])
 	 * We know which mode we're in and what we're about to do, so now
 	 * let's dispatch the remaining command line args in a genric way.
 	 */
-	argv[0] = progname;	/* Preserve this */
 	optarg = NULL;
 
 	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
 		if (ch == '?')
-			cmderr(EX_USAGE, NULL);
+			errx(EX_USAGE, NULL);
 		else
 			addarg(&arglist, ch, optarg);
 		optarg = NULL;
@@ -139,7 +134,7 @@ main(int argc, char *argv[])
 	 * Must be root to attempt an update
 	 */
 	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
-		cmderr(EX_NOPERM, "you must be root to run this program\n");
+		errx(EX_NOPERM, "you must be root to run this program");
 
 	/*
 	 * We should immediately look for the -q 'quiet' switch so that we
@@ -163,9 +158,9 @@ main(int argc, char *argv[])
 
 		fflush(NULL);
 		if (chdir(_PATH_YP) == -1)
-			perror("chdir(" _PATH_YP ")");
+			warn("chdir(" _PATH_YP ")");
 		else if ((pid = fork()) == -1)
-			perror("fork()");
+			warn("fork()");
 		else if (pid == 0) {
 			/* Is make anywhere else? */
 			execlp("/usr/bin/make", "make", NULL);
@@ -174,7 +169,7 @@ main(int argc, char *argv[])
 			int   i;
 			waitpid(pid, &i, 0);
 			if ((i = WEXITSTATUS(i)) != 0)
-				cmderr(ch, "warning: make exited with status %d\n", i);
+				errx(ch, "make exited with status %d", i);
 			else
 				pw_log(cnf, mode, which, "NIS maps updated");
 		}
@@ -202,33 +197,12 @@ getindex(const char *words[], const char *word)
  */
 
 static void
-banner(void)
-{
-	fprintf(stderr, "%s: ", progname);
-}
-
-void
-cmderr(int ec, char const * fmt,...)
-{
-	if (fmt != NULL) {
-		va_list         argp;
-
-		banner();
-		va_start(argp, fmt);
-		vfprintf(stderr, fmt, argp);
-		va_end(argp);
-	}
-	exit(ec);
-}
-
-static void
 cmdhelp(int mode, int which)
 {
-	banner();
 	if (which == -1)
-		fprintf(stderr, "usage: %s [user|group] [add|del|mod|show|next] [ help | switches/values ]\n", progname);
+		fprintf(stderr, "usage: pw [user|group] [add|del|mod|show|next] [ help | switches/values ]\n");
 	else if (mode == -1)
-		fprintf(stderr, "usage: %s %s [add|del|mod|show|next] [ help | switches/values ]\n", progname, Which[which]);
+		fprintf(stderr, "usage: pw %s [add|del|mod|show|next] [ help | switches/values ]\n", Which[which]);
 	else {
 
 		/*
@@ -237,7 +211,7 @@ cmdhelp(int mode, int which)
 		static const char *help[W_NUM][M_NUM] =
 		{
 			{
-				"usage: %s useradd [name] [switches]\n"
+				"usage: pw useradd [name] [switches]\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
@@ -270,12 +244,12 @@ cmdhelp(int mode, int which)
 				"\t-w method      set default password method\n"
 				"\t-s shell       default shell\n"
 				"\t-y path        set NIS passwd file path\n",
-				"usage: %s userdel [uid|name] [switches]\n"
+				"usage: pw userdel [uid|name] [switches]\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-Y             update NIS maps\n"
 				"\t-r             remove home & contents\n",
-				"usage: %s usermod [uid|name] [switches]\n"
+				"usage: pw usermod [uid|name] [switches]\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if no user\n"
@@ -295,17 +269,17 @@ cmdhelp(int mode, int which)
 				"\t-h fd          read password on fd\n"
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
-				"usage: %s usershow [uid|name] [switches]\n"
+				"usage: pw usershow [uid|name] [switches]\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
 				"\t-P             prettier format\n"
 				"\t-a             print all users\n",
-				"usage: %s usernext [switches]\n"
+				"usage: pw usernext [switches]\n"
 				"\t-C config      configuration file\n"
 			},
 			{
-				"usage: %s groupadd [group|gid] [switches]\n"
+				"usage: pw groupadd [group|gid] [switches]\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
@@ -314,11 +288,11 @@ cmdhelp(int mode, int which)
 				"\t-o             duplicate gid ok\n"
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
-				"usage: %s groupdel [group|gid] [switches]\n"
+				"usage: pw groupdel [group|gid] [switches]\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
-				"usage: %s groupmod [group|gid] [switches]\n"
+				"usage: pw groupmod [group|gid] [switches]\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if not exists\n"
@@ -329,18 +303,18 @@ cmdhelp(int mode, int which)
 				"\t-l name        new group name\n"
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
-				"usage: %s groupshow [group|gid] [switches]\n"
+				"usage: pw groupshow [group|gid] [switches]\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
 				"\t-P             prettier format\n"
 				"\t-a             print all accounting groups\n",
-				"usage: %s groupnext [switches]\n"
+				"usage: pw groupnext [switches]\n"
 				"\t-C config      configuration file\n"
 			}
 		};
 
-		fprintf(stderr, help[which][mode], progname);
+		fprintf(stderr, help[which][mode]);
 	}
 	exit(EXIT_FAILURE);
 }
@@ -361,7 +335,7 @@ addarg(struct cargs * _args, int ch, char *argstr)
 	struct carg    *ca = malloc(sizeof(struct carg));
 
 	if (ca == NULL)
-		cmderr(EX_OSERR, "Abort - out of memory\n");
+		errx(EX_OSERR, "out of memory");
 	ca->ch = ch;
 	ca->val = argstr;
 	LIST_INSERT_HEAD(_args, ca, list);
