@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.18 1995/10/24 02:18:18 jkh Exp $
+ * $Id: package.c,v 1.20 1995/10/26 08:56:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ package_extract(Device *dev, char *name)
 
     /* Check to make sure it's not already there */
     if (!vsystem("pkg_info -e %s", name)) {
-	msgDebug("package %s marked as already installed - return SUCCESS.\n");
+	msgDebug("package %s marked as already installed - return SUCCESS.\n", name);
 	return RET_SUCCESS;
     }
 
