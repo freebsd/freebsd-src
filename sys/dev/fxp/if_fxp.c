@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.43 1997/09/30 11:28:24 davidg Exp $
+ *	$Id: if_fxp.c,v 1.44 1997/10/17 06:27:44 davidg Exp $
  */
 
 /*
@@ -388,6 +388,10 @@ fxp_attach(parent, self, aux)
 	 * Attach the interface.
 	 */
 	if_attach(ifp);
+	/*
+	 * Let the system queue as many packets as we have TX descriptors.
+	 */
+	ifp->if_snd.ifq_maxlen = FXP_NTXCB;
 	ether_ifattach(ifp, enaddr);
 #if NBPFILTER > 0
 	bpfattach(&sc->sc_ethercom.ec_if.if_bpf, ifp, DLT_EN10MB,
@@ -556,6 +560,10 @@ fxp_attach(config_id, unit)
 	 * Attach the interface.
 	 */
 	if_attach(ifp);
+	/*
+	 * Let the system queue as many packets as we have TX descriptors.
+	 */
+	ifp->if_snd.ifq_maxlen = FXP_NTXCB;
 	ether_ifattach(ifp);
 #if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -770,133 +778,125 @@ fxp_start(ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_tx *txp;
-	struct mbuf *m, *mb_head;
-	int segment, first = 1;
 
-txloop:
 	/*
-	 * See if we're all filled up with buffers to transmit, or
-	 * if we need to suspend xmit until the multicast filter
-	 * has been reprogrammed (which can only be done at the
-	 * head of the command chain).
+	 * See if we need to suspend xmit until the multicast filter
+	 * has been reprogrammed (which can only be done at the head
+	 * of the command chain).
 	 */
-	if (sc->tx_queued >= FXP_NTXCB || sc->need_mcsetup)
+	if (sc->need_mcsetup)
 		return;
 
+	txp = NULL;
+
 	/*
-	 * Grab a packet to transmit.
+	 * We're finished if there is nothing more to add to the list or if
+	 * we're all filled up with buffers to transmit.
 	 */
-	IF_DEQUEUE(&ifp->if_snd, mb_head);
-	if (mb_head == NULL) {
+	while (ifp->if_snd.ifq_head != NULL && sc->tx_queued < FXP_NTXCB) {
+		struct mbuf *m, *mb_head;
+		int segment;
+
 		/*
-		 * No more packets to send.
+		 * Grab a packet to transmit.
 		 */
-		return;
-	}
+		IF_DEQUEUE(&ifp->if_snd, mb_head);
 
-	/*
-	 * Get pointer to next available (unused) descriptor.
-	 */
-	txp = sc->cbl_last->next;
+		/*
+		 * Get pointer to next available tx desc.
+		 */
+		txp = sc->cbl_last->next;
 
-	/*
-	 * Go through each of the mbufs in the chain and initialize
-	 * the transmit buffers descriptors with the physical address
-	 * and size of the mbuf.
-	 */
+		/*
+		 * Go through each of the mbufs in the chain and initialize
+		 * the transmit buffer descriptors with the physical address
+		 * and size of the mbuf.
+		 */
 tbdinit:
-	for (m = mb_head, segment = 0; m != NULL; m = m->m_next) {
-		if (m->m_len != 0) {
-			if (segment == FXP_NTXSEG)
-				break;
-			txp->tbd[segment].tb_addr =
-			    vtophys(mtod(m, vm_offset_t));
-			txp->tbd[segment].tb_size = m->m_len;
-			segment++;
-		}
-	}
-	if (m != NULL) {
-		struct mbuf *mn;
-
-		/*
-		 * We ran out of segments. We have to recopy this mbuf
-		 * chain first.
-		 */
-		MGETHDR(mn, M_DONTWAIT, MT_DATA);
-		if (mn == NULL) {
-			m_freem(mb_head);
-			return;
-		}
-		if (mb_head->m_pkthdr.len > MHLEN) {
-			MCLGET(mn, M_DONTWAIT);
-			if ((mn->m_flags & M_EXT) == 0) {
-				m_freem(mn);
-				m_freem(mb_head);
-				return;
+		for (m = mb_head, segment = 0; m != NULL; m = m->m_next) {
+			if (m->m_len != 0) {
+				if (segment == FXP_NTXSEG)
+					break;
+				txp->tbd[segment].tb_addr =
+				    vtophys(mtod(m, vm_offset_t));
+				txp->tbd[segment].tb_size = m->m_len;
+				segment++;
 			}
 		}
-		m_copydata(mb_head, 0, mb_head->m_pkthdr.len,
-		    mtod(mn, caddr_t));
-		mn->m_pkthdr.len = mn->m_len = mb_head->m_pkthdr.len;
-		m_freem(mb_head);
-		mb_head = mn;
-		goto tbdinit;
-	}
+		if (m != NULL) {
+			struct mbuf *mn;
 
-	txp->tbd_number = segment;
-	txp->mb_head = mb_head;
+			/*
+			 * We ran out of segments. We have to recopy this mbuf
+			 * chain first. Bail out if we can't get the new buffers.
+			 */
+			MGETHDR(mn, M_DONTWAIT, MT_DATA);
+			if (mn == NULL) {
+				m_freem(mb_head);
+				break;
+			}
+			if (mb_head->m_pkthdr.len > MHLEN) {
+				MCLGET(mn, M_DONTWAIT);
+				if ((mn->m_flags & M_EXT) == 0) {
+					m_freem(mn);
+					m_freem(mb_head);
+					break;
+				}
+			}
+			m_copydata(mb_head, 0, mb_head->m_pkthdr.len,
+			    mtod(mn, caddr_t));
+			mn->m_pkthdr.len = mn->m_len = mb_head->m_pkthdr.len;
+			m_freem(mb_head);
+			mb_head = mn;
+			goto tbdinit;
+		}
 
-	/*
-	 * Finish the initialization of this TxCB.
-	 */
-	txp->cb_status = 0;
-	txp->cb_command =
-	    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
-	txp->tx_threshold = tx_threshold;
+		txp->tbd_number = segment;
+		txp->mb_head = mb_head;
+		txp->cb_status = 0;
+		txp->cb_command =
+		    FXP_CB_COMMAND_XMIT | FXP_CB_COMMAND_SF | FXP_CB_COMMAND_S;
+		txp->tx_threshold = tx_threshold;
 	
-	/*
-	 * Advance the end-of-list forward.
-	 */
-	sc->cbl_last->cb_command &= ~FXP_CB_COMMAND_S;
-	sc->cbl_last = txp;
+		/*
+		 * Advance the end of list forward.
+		 */
+		sc->cbl_last->cb_command &= ~FXP_CB_COMMAND_S;
+		sc->cbl_last = txp;
 
-	/*
-	 * Advance the beginning of the list forward if there are
-	 * no other packets queued (when nothing is queued, cbl_first
-	 * sits on the last TxCB that was sent out)..
-	 */
-	if (sc->tx_queued == 0)
-		sc->cbl_first = txp;
+		/*
+		 * Advance the beginning of the list forward if there are
+		 * no other packets queued (when nothing is queued, cbl_first
+		 * sits on the last TxCB that was sent out).
+		 */
+		if (sc->tx_queued == 0)
+			sc->cbl_first = txp;
 
-	sc->tx_queued++;
-
-	/*
-	 * Only need to wait prior to the first resume command.
-	 */
-	if (first) {
-		first--;
-		fxp_scb_wait(sc);
-	}
-
-	/*
-	 * Resume transmission if suspended.
-	 */
-	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
+		sc->tx_queued++;
 
 #if NBPFILTER > 0
-	/*
-	 * Pass packet to bpf if there is a listener.
-	 */
-	if (ifp->if_bpf)
-		bpf_mtap(FXP_BPFTAP_ARG(ifp), mb_head);
+		/*
+		 * Pass packet to bpf if there is a listener.
+		 */
+		if (ifp->if_bpf)
+			bpf_mtap(FXP_BPFTAP_ARG(ifp), mb_head);
 #endif
-	/*
-	 * Set a 5 second timer just in case we don't hear from the
-	 * card again.
-	 */
-	ifp->if_timer = 5;
+	}
 
-	goto txloop;
+	/*
+	 * We're finished. If we added to the list, issue a RESUME to get DMA
+	 * going again if suspended.
+	 */
+	if (txp != NULL) {
+		fxp_scb_wait(sc);
+		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
+
+		/*
+		 * Set a 5 second timer just in case we don't hear from the
+		 * card again.
+		 */
+		ifp->if_timer = 5;
+	}
 }
 
 /*
