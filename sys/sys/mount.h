@@ -440,7 +440,7 @@ int	dounmount(struct mount *, int, struct thread *td);
 int	kernel_mount(struct iovec *iovp, unsigned int iovcnt, int flags);
 int	kernel_vmount(int flags, ...);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
-int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int, int *);
+int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *td, const char *type, char *path,
 	    int flags, void *data);
 int	vfs_setpublicfs			    /* set publicly exported fs */
