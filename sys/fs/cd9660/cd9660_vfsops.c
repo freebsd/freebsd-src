@@ -36,10 +36,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.36 1998/04/19 23:31:48 julian Exp $
+ * $Id: cd9660_vfsops.c,v 1.37 1998/04/20 03:57:27 julian Exp $
  */
 
-#include "opt_devfs.h" /* for SLICE */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
@@ -103,7 +102,6 @@ VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, VFCF_READONLY);
 static int iso_get_ssector __P((dev_t dev, struct proc *p));
 static int iso_mountfs __P((struct vnode *devvp, struct mount *mp,
 			    struct proc *p, struct iso_args *argp));
-static int iso_mountroot __P((struct mount *mp, struct proc *p));
 
 /*
  * Try to find the start of the last data track on this CD-ROM.  This
@@ -144,9 +142,14 @@ iso_get_ssector(dev, p)
 
 	return ntohl(t.entry.addr.lba);
 }
+
+#ifndef	VFS_LKM /* mount root makes no sense to an LKM */
+
+#include "opt_devfs.h" /* for SLICE */
 #ifdef	SLICE
 extern struct vnode *root_device_vnode;
 #endif
+static int iso_mountroot __P((struct mount *mp, struct proc *p));
 
 static int
 iso_mountroot(mp, p)
@@ -179,6 +182,7 @@ iso_mountroot(mp, p)
 	(void)cd9660_statfs(mp, &mp->mnt_stat, p);
 	return (0);
 }
+#endif	/* ! VFS_LKM */
 
 /*
  * VFS Operations.
@@ -199,11 +203,13 @@ cd9660_mount(mp, path, data, ndp, p)
 	int error;
 	struct iso_mnt *imp = 0;
 
+#ifndef VFS_LKM /* mount root makes no sense to an LKM */
 	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
 		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
 	}
+#endif	/* ! VFS_LKM */
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
 		return (error);
 
