@@ -351,7 +351,8 @@ uhid_intr(xfer, addr, status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("uhid_intr: status=%d\n", status));
-		sc->sc_state |= UHID_NEEDCLEAR;
+		if (status == USBD_STALLED)
+		    sc->sc_state |= UHID_NEEDCLEAR;
 		return;
 	}
 
