@@ -648,7 +648,12 @@ _csu=lib/csu/i386-elf
 _csu=lib/csu/${MACHINE_ARCH}
 .endif
 
+.if !defined(NOSECURE) && !defined(NOCRYPT)
+_libcrypt=	secure/lib/libcrypt lib/libcrypt
+_secure_lib=	secure/lib
+.else
 _libcrypt=	lib/libcrypt
+.endif
 
 .if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 _kerberosIV_lib=kerberosIV/lib
@@ -682,7 +687,7 @@ _libperl=		gnu/usr.bin/perl/libperl
 bootstrap-libraries:
 .for _lib in ${_csu} gnu/usr.bin/cc/libgcc lib/libtermcap \
     gnu/lib/libregex gnu/lib/libreadline lib/libc \
-    ${_libcrypt} lib/libcurses lib/libedit ${_libm} \
+    lib/libcrypt lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib \
     ${_libperl}
 .if exists(${.CURDIR}/${_lib})
