@@ -72,19 +72,28 @@ to a file is one of the differences between a hard and symbolic link.
 The options are as follows:
 .Bl -tag -width flag
 .It Fl f
-Unlink any already existing file, permitting the link to occur.
-The
+If the target file already exists,
+then unlink it so that the link may occur.
+(The
 .Fl f
 option overrides any previous
 .Fl i
-options.
+options.)
 .It Fl i
-Request confirmation before attempting to replace already existing file.
-The
+Cause
+.Nm
+to write a prompt to standard error if the target file exists.
+If the response from the standard input begins with the character
+.Sq Li y 
+or
+.Sq Li Y ,
+then unlink the target file so that the link may occur.
+Otherwise, do not attempt the link.
+(The
 .Fl i
 option overrides any previous
 .Fl f
-options.
+options.)
 .It Fl s
 Create a symbolic link.
 .It Fl v
@@ -155,9 +164,9 @@ operation using the two passed arguments.
 .Xr symlink 7
 .Sh COMPATIBILITY
 The 
-.Fl v
-and
 .Fl i
+and
+.Fl v
 options are non-standard and their use in scripts is not recommended.
 .Sh HISTORY
 An
