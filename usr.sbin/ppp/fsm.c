@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.41 1999/03/29 08:21:26 brian Exp $
+ * $Id: fsm.c,v 1.42 1999/05/08 11:06:35 brian Exp $
  *
  *  TODO:
  */
@@ -156,7 +156,7 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
 }
 
 static void
-NewState(struct fsm * fp, int new)
+NewState(struct fsm *fp, int new)
 {
   log_Printf(fp->LogLevel, "%s: State change %s --> %s\n",
 	    fp->link->name, State2Nam(fp->state), State2Nam(new));
@@ -237,7 +237,7 @@ FsmOpenNow(void *v)
 }
 
 void
-fsm_Open(struct fsm * fp)
+fsm_Open(struct fsm *fp)
 {
   switch (fp->state) {
   case ST_INITIAL:
@@ -275,7 +275,7 @@ fsm_Open(struct fsm * fp)
 }
 
 void
-fsm_Up(struct fsm * fp)
+fsm_Up(struct fsm *fp)
 {
   switch (fp->state) {
   case ST_INITIAL:
@@ -363,7 +363,7 @@ fsm_Close(struct fsm *fp)
  *	Send functions
  */
 static void
-FsmSendConfigReq(struct fsm * fp)
+FsmSendConfigReq(struct fsm *fp)
 {
   if (fp->more.reqs-- > 0 && fp->restart-- > 0) {
     (*fp->fn->SendConfigReq)(fp);
@@ -442,7 +442,7 @@ FsmInitRestartCounter(struct fsm *fp, int what)
 }
 
 /*
- *   Actions when receive packets
+ * Actions when receive packets
  */
 static void
 FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
@@ -461,17 +461,13 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
-  /*
-   * Check and process easy case
-   */
+  /* Check and process easy case */
   switch (fp->state) {
   case ST_INITIAL:
     if (fp->proto == PROTO_CCP && fp->link->lcp.fsm.state == ST_OPENED) {
       /*
        * ccp_SetOpenMode() leaves us in initial if we're disabling
        * & denying everything.
-       *
-       * this is a bit smelly... we know that bp has a leading fsmheader.
        */
       bp = mbuf_Prepend(bp, lhp, sizeof *lhp, 2);
       bp = proto_Prepend(bp, fp->proto, 0, 0);
@@ -503,7 +499,6 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   }
 
   bp = mbuf_Contiguous(bp);
-
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
@@ -662,6 +657,7 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
+  bp = mbuf_Contiguous(bp);
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
@@ -727,7 +723,7 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 }
 
 static void
-FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvTermAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RTA */
 {
   switch (fp->state) {
@@ -789,6 +785,7 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
+  bp = mbuf_Contiguous(bp);
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
   dec.rejend = dec.rej;
@@ -826,11 +823,14 @@ static void
 FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   struct physical *p = link2physical(fp->link);
-  u_short *sp, proto;
+  u_short proto;
 
-  bp = mbuf_Contiguous(bp);
-  sp = (u_short *)MBUF_CTOP(bp);
-  proto = ntohs(*sp);
+  if (mbuf_Length(bp) < 2) {
+    mbuf_Free(bp);
+    return;
+  }
+  bp = mbuf_Read(bp, &proto, 2);
+  proto = ntohs(proto);
   log_Printf(fp->LogLevel, "%s: -- Protocol 0x%04x (%s) was rejected!\n",
             fp->link->name, proto, hdlc_Protocol2Nam(proto));
 
@@ -881,7 +881,7 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   u_char *cp;
   u_int32_t magic;
 
-  if (lcp) {
+  if (lcp && mbuf_Length(bp) >= 4) {
     cp = MBUF_CTOP(bp);
     ua_ntohl(cp, &magic);
     if (magic != lcp->his_magic) {
@@ -903,37 +903,37 @@ FsmRecvEchoRep(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   struct lcp *lcp = fsm2lcp(fp);
   u_int32_t magic;
 
-  if (lcp) {
-    ua_ntohl(MBUF_CTOP(bp), &magic);
+  if (lcp && mbuf_Length(bp) >= 4) {
+    mbuf_Read(bp, &magic, 4);
+    magic = ntohl(magic);
     /* Tolerate echo replies with either magic number */
     if (magic != 0 && magic != lcp->his_magic && magic != lcp->want_magic) {
-      log_Printf(LogWARN,
-                "%s: RecvEchoRep: Bad magic: expected 0x%08x, got: 0x%08x\n",
-	        fp->link->name, lcp->his_magic, magic);
+      log_Printf(LogWARN, "%s: RecvEchoRep: Bad magic: expected 0x%08x,"
+                 " got 0x%08x\n", fp->link->name, lcp->his_magic, magic);
       /*
        * XXX: We should send terminate request. But poor implementations may
        * die as a result.
        */
     }
-    lqr_RecvEcho(fp, bp);
+    bp = lqr_RecvEcho(fp, bp);
   }
   mbuf_Free(bp);
 }
 
 static void
-FsmRecvDiscReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvDiscReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   mbuf_Free(bp);
 }
 
 static void
-FsmRecvIdent(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvIdent(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   mbuf_Free(bp);
 }
 
 static void
-FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
+FsmRecvTimeRemain(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
   mbuf_Free(bp);
 }

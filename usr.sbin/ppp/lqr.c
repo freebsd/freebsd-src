@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.32 1999/03/29 08:21:28 brian Exp $
+ * $Id: lqr.c,v 1.33 1999/05/08 11:07:02 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -78,17 +78,17 @@ SendEchoReq(struct lcp *lcp)
             (u_char *)&echo, sizeof echo);
 }
 
-void
-lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
+struct mbuf *
+lqr_RecvEcho(struct fsm *fp, struct mbuf *bp)
 {
   struct hdlc *hdlc = &link2physical(fp->link)->hdlc;
-  struct echolqr *lqr;
+  struct echolqr lqr;
   u_int32_t seq;
 
-  if (mbuf_Length(bp) == sizeof(struct echolqr)) {
-    lqr = (struct echolqr *) MBUF_CTOP(bp);
-    if (ntohl(lqr->signature) == SIGNATURE) {
-      seq = ntohl(lqr->sequence);
+  if (mbuf_Length(bp) == sizeof lqr) {
+    mbuf_Read(bp, &lqr, sizeof lqr);
+    if (ntohl(lqr.signature) == SIGNATURE) {
+      seq = ntohl(lqr.sequence);
       /* careful not to update lqm.echo.seq_recv with older values */
       if ((hdlc->lqm.echo.seq_recv > (u_int32_t)0 - 5 && seq < 5) ||
           (hdlc->lqm.echo.seq_recv <= (u_int32_t)0 - 5 &&
@@ -96,14 +96,15 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
         hdlc->lqm.echo.seq_recv = seq;
     } else
       log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
-                (u_long)ntohl(lqr->signature), (u_long)SIGNATURE);
+                (u_long)ntohl(lqr.signature), (u_long)SIGNATURE);
   } else
     log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %ld !\n",
               mbuf_Length(bp), (long)sizeof(struct echolqr));
+  return bp;
 }
 
 void
-lqr_ChangeOrder(struct lqrdata * src, struct lqrdata * dst)
+lqr_ChangeOrder(struct lqrdata *src, struct lqrdata *dst)
 {
   u_int32_t *sp, *dp;
   int n;

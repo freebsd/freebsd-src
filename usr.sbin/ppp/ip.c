@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.58 1999/05/01 11:31:29 brian Exp $
+ * $Id: ip.c,v 1.59 1999/05/08 11:06:42 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -232,7 +232,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 
 #ifdef notdef
 static void
-IcmpError(struct ip * pip, int code)
+IcmpError(struct ip *pip, int code)
 {
   struct mbuf *bp;
 
