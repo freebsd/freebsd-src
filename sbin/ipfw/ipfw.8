@@ -1052,12 +1052,14 @@ It is a good idea to be near the console when doing this.
 Don't forget the loopback interface.
 .El
 .Sh FINE POINTS
+.Bl -bullet
+.It
 There is one kind of packet that the firewall will always
-discard, that is an IP fragment with a fragment offset of
+discard, that is a TCP packet's fragment with a fragment offset of
 one.
 This is a valid packet, but it only has one use, to try
 to circumvent firewalls.
-.Pp
+.It
 If you are logged in over a network, loading the
 .Xr kld 4
 version of
@@ -1075,7 +1077,7 @@ ipfw flush
 .Ed
 .Pp
 in similar surroundings is also a bad idea.
-.Pp
+.It
 The
 .Nm
 filter list may not be modified if the system security level
@@ -1085,6 +1087,7 @@ see
 .Xr init 8
 for information on system security levels
 .Pc .
+.El
 .Sh PACKET DIVERSION
 A
 .Xr divert 4
