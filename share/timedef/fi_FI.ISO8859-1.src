@@ -33,14 +33,14 @@ Marraskuu
 Joulukuu
 #
 # Short weekday names
-# (padded with a space to conform with other languages)
-Su 
-Ma 
-Ti 
-Ke 
-To 
-Pe 
-La 
+#
+Su
+Ma
+Ti
+Ke
+To
+Pe
+La
 #
 # Long weekday names
 #
