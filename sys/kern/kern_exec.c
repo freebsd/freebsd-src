@@ -835,14 +835,18 @@ exec_copyout_strings(imgp)
 	char *stringp, *destp;
 	register_t *stack_base;
 	struct ps_strings *arginfo;
+	struct proc *p;
 	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
+	p = imgp->proc;
+	szsigcode = 0;
 	arginfo = (struct ps_strings *)PS_STRINGS;
-	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	if (p->p_sysent->sv_szsigcode != NULL)
+		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 	    roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
 
@@ -850,8 +854,8 @@ exec_copyout_strings(imgp)
 	 * install sigcode
 	 */
 	if (szsigcode)
-		copyout(imgp->proc->p_sysent->sv_sigcode,
-		    ((caddr_t)arginfo - szsigcode), szsigcode);
+		copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
+		    szsigcode), szsigcode);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
