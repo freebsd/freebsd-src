@@ -32,19 +32,20 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)preen.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)preen.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <ufs/ufs/dinode.h>
 #include <fstab.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <ctype.h>
-
-char	*rawname(), *unrawname(), *blockcheck();
+#include "fsck.h"
 
 struct part {
 	struct	part *next;		/* forward link of partitions on disk */
@@ -60,9 +61,16 @@ struct disk {
 	int	pid;			/* If != 0, pid of proc working on */
 } *disks;
 
+static void	addpart __P((char *name, char *fsname, long auxdata));
+static int	startdisk __P((struct disk *dk, int (*checkit)()));
+static struct disk 	*finddisk __P((char *name));
+static char 	*unrawname __P((char *name));
+static char 	*rawname __P((char *name));
+
 int	nrun, ndisks;
 char	hotroot;
 
+int
 checkfstab(preen, maxrun, docheck, chkit)
 	int preen, maxrun;
 	int (*docheck)(), (*chkit)();
@@ -84,10 +92,12 @@ checkfstab(preen, maxrun, docheck, chkit)
 		while ((fsp = getfsent()) != 0) {
 			if ((auxdata = (*docheck)(fsp)) == 0)
 				continue;
-			if (preen == 0 || passno == 1 && fsp->fs_passno == 1) {
-				if (name = blockcheck(fsp->fs_spec)) {
-					if (sumstatus = (*chkit)(name,
-					    fsp->fs_file, auxdata, 0))
+			if (!preen || (passno == 1 && fsp->fs_passno == 1)) {
+				name = blockcheck(fsp->fs_spec);
+				if (name) {
+					sumstatus = (*chkit)(name,
+					    fsp->fs_file, auxdata, 0);
+					if (sumstatus)
 						return (sumstatus);
 				} else if (preen)
 					return (8);
@@ -111,7 +121,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 			maxrun = ndisks;
 		nextdisk = disks;
 		for (passno = 0; passno < maxrun; ++passno) {
-			while (ret = startdisk(nextdisk, chkit) && nrun > 0)
+			while ((ret = startdisk(nextdisk, chkit)) != 0 && 
+			    nrun > 0)
 				sleep(10);
 			if (ret)
 				return (ret);
@@ -150,8 +161,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 
 			if (nextdisk == NULL) {
 				if (dk->part) {
-					while (ret = startdisk(dk, chkit) &&
-					    nrun > 0)
+					while ((ret = startdisk(dk, chkit)) != 0
+					    && nrun > 0)
 						sleep(10);
 					if (ret)
 						return (ret);
@@ -164,8 +175,8 @@ checkfstab(preen, maxrun, docheck, chkit)
 					    nextdisk->pid == 0)
 						break;
 				}
-				while (ret = startdisk(nextdisk, chkit) &&
-				    nrun > 0)
+				while ((ret = startdisk(nextdisk, chkit)) != 0
+				    && nrun > 0)
 					sleep(10);
 				if (ret)
 					return (ret);
@@ -192,7 +203,7 @@ finddisk(name)
 {
 	register struct disk *dk, **dkp;
 	register char *p;
-	size_t len;
+	size_t len = 0;
 
 	for (p = name + strlen(name) - 1; p >= name; --p)
 		if (isdigit(*p)) {
@@ -225,6 +236,7 @@ finddisk(name)
 	return (dk);
 }
 
+void
 addpart(name, fsname, auxdata)
 	char *name, *fsname;
 	long auxdata;
@@ -256,6 +268,7 @@ addpart(name, fsname, auxdata)
 	pt->auxdata = auxdata;
 }
 
+int
 startdisk(dk, checkit)
 	register struct disk *dk;
 	int (*checkit)();

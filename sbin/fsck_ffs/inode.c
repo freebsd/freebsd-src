@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)inode.c	8.5 (Berkeley) 2/8/95";
+static const char sccsid[] = "@(#)inode.c	8.5 (Berkeley) 2/8/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -41,12 +41,16 @@ static char sccsid[] = "@(#)inode.c	8.5 (Berkeley) 2/8/95";
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 #include <pwd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "fsck.h"
 
 static ino_t startinum;
 
+static int	iblock __P((struct inodesc *idesc, long ilevel, quad_t isize));
+
+int
 ckinode(dp, idesc)
 	struct dinode *dp;
 	register struct inodesc *idesc;
@@ -99,6 +103,7 @@ ckinode(dp, idesc)
 	return (KEEPON);
 }
 
+static int
 iblock(idesc, ilevel, isize)
 	struct inodesc *idesc;
 	long ilevel;
@@ -110,7 +115,6 @@ iblock(idesc, ilevel, isize)
 	int i, n, (*func)(), nif;
 	quad_t sizepb;
 	char buf[BUFSIZ];
-	extern int dirscan(), pass1check();
 
 	if (idesc->id_type == ADDR) {
 		func = idesc->id_func;
@@ -164,6 +168,7 @@ iblock(idesc, ilevel, isize)
  * Check that a block in a legal block number.
  * Return 0 if in range, 1 if out of range.
  */
+int
 chkrange(blk, cnt)
 	daddr_t blk;
 	int cnt;
@@ -253,6 +258,7 @@ getnextinode(inumber)
 	return (dp++);
 }
 
+void
 resetinodebuf()
 {
 
@@ -278,6 +284,7 @@ resetinodebuf()
 		(void)getnextinode(nextino);
 }
 
+void
 freeinodebuf()
 {
 
@@ -293,6 +300,7 @@ freeinodebuf()
  *
  * Enter inodes into the cache.
  */
+void
 cacheino(dp, inumber)
 	register struct dinode *dp;
 	ino_t inumber;
@@ -352,6 +360,7 @@ getinoinfo(inumber)
 /*
  * Clean up all the inode cache structure.
  */
+void
 inocleanup()
 {
 	register struct inoinfo **inpp;
@@ -365,12 +374,13 @@ inocleanup()
 	inphead = inpsort = NULL;
 }
 	
+void
 inodirty()
 {
-	
 	dirty(pbp);
 }
 
+void
 clri(idesc, type, flag)
 	register struct inodesc *idesc;
 	char *type;
@@ -395,6 +405,7 @@ clri(idesc, type, flag)
 	}
 }
 
+int
 findname(idesc)
 	struct inodesc *idesc;
 {
@@ -406,6 +417,7 @@ findname(idesc)
 	return (STOP|FOUND);
 }
 
+int
 findino(idesc)
 	struct inodesc *idesc;
 {
@@ -421,6 +433,7 @@ findino(idesc)
 	return (KEEPON);
 }
 
+void
 pinode(ino)
 	ino_t ino;
 {
@@ -446,6 +459,7 @@ pinode(ino)
 	printf("MTIME=%12.12s %4.4s ", &p[4], &p[20]);
 }
 
+void
 blkerror(ino, type, blk)
 	ino_t ino;
 	char *type;
@@ -526,11 +540,11 @@ allocino(request, type)
 /*
  * deallocate an inode
  */
+void
 freeino(ino)
 	ino_t ino;
 {
 	struct inodesc idesc;
-	extern int pass4check();
 	struct dinode *dp;
 
 	bzero((char *)&idesc, sizeof(struct inodesc));

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass3.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)pass3.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)pass3.c	8.1 (Berkeley) 6/5/93";
 #include <ufs/ffs/fs.h>
 #include "fsck.h"
 
+void
 pass3()
 {
 	register struct inoinfo **inpp, *inp;
