@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: saver.h,v 1.7 1997/02/22 12:49:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,6 @@ extern char	crtc_vga;
 extern char	scr_map[];
 extern int	scrn_blanked;
 extern int	fonts_loaded;
-extern char	*font_8, *font_14, *font_16;
-extern char	*palette;
+extern char	font_8[], font_14[], font_16[];
+extern char	palette[];
 extern char	*video_mode_ptr;
