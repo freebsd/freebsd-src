@@ -76,7 +76,6 @@ g_stat_new(void *id)
 		spp = g_malloc(sizeof *spp, M_ZERO);
 		TAILQ_INSERT_TAIL(&pagelist, spp, list);
 		spp->stat = g_malloc(PAGE_SIZE, M_ZERO);
-		printf("allocate another stats-page %p\n", spp->stat);
 		spp->nfree = statsperpage;
 	}
 	gsp = spp->stat;
