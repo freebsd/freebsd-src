@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: subr_scanf.c,v 1.1 1999/01/15 00:03:39 msmith Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 
@@ -91,7 +91,7 @@ typedef u_quad_t (*ccfntype)(const char *, char **, int);
 #define isalpha(c)	(isupper(c) || (islower(c)))
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 
-static u_char *__sccl(char *, u_char *);
+static const u_char *__sccl(char *, const u_char *);
 
 int
 sscanf(const char *ibuf, const char *fmt, ...)
@@ -109,7 +109,7 @@ int
 vsscanf(const char *inp, char const *fmt0, va_list ap)
 {
 	int inr;
-	u_char *fmt = (u_char *)fmt0;
+	const u_char *fmt = (const u_char *)fmt0;
 	int c;			/* character from format, or conversion */
 	size_t width;		/* field width, or 0 */
 	char *p;		/* points into all kinds of strings */
@@ -323,7 +323,7 @@ literal:
 			/* take only those things in the class */
 			if (flags & SUPPRESS) {
 				n = 0;
-				while (ccltab[*inp]) {
+				while (ccltab[(int)(unsigned char)*inp]) {
 					n++, inr--, inp++;
 					if (--width == 0)
 						break;
@@ -337,7 +337,7 @@ literal:
 					goto match_failure;
 			} else {
 				p0 = p = va_arg(ap, char *);
-				while (ccltab[*inp]) {
+				while (ccltab[(int)(unsigned char)*inp]) {
 					inr--;
 					*p++ = *inp++;
 					if (--width == 0)
@@ -546,8 +546,8 @@ match_failure:
  * closing `]'.  The table has a 1 wherever characters should be
  * considered part of the scanset.
  */
-static u_char *
-__sccl(char *tab, u_char *fmt)
+static const u_char *
+__sccl(char *tab, const u_char *fmt)
 {
 	int c, n, v;
 
@@ -697,7 +697,7 @@ strtouq(const char *nptr, char **endptr, int base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (char *)(any ? s - 1 : nptr);
+		*endptr = (const char *)(any ? s - 1 : nptr);
 	return (acc);
 }
 
@@ -788,6 +788,6 @@ strtoq(const char *nptr, char **endptr, int base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (char *)(any ? s - 1 : nptr);
+		*endptr = (const char *)(any ? s - 1 : nptr);
 	return (acc);
 }
