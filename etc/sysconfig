@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.51 1996/10/21 20:09:27 wpaul Exp $
+#	$Id: sysconfig,v 1.52 1996/10/27 06:30:38 peter Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -107,7 +107,9 @@ weak_mountd_authentication=NO
 #
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
-# Extra addresses may be specified with sequentual _alias<N> lines.
+# Extra addresses may be specified with sequentual _alias<N> lines. IPX
+# addresses may be specified with an ifconfig_${network_interface}_ipx
+# line.
 #
 # for example:
 #
@@ -118,6 +120,7 @@ weak_mountd_authentication=NO
 #	ifconfig_lo0="inet localhost"
 #	ifconfig_ed0_alias0="inet 10.0.2.1 netmask 0xffffff00"
 #	ifconfig_ed0_alias1="inet 10.0.2.2 netmask 0xffffffff"
+#	ifconfig_ed0_ipx="ipx 0x1234"
 #
 # Alternatively, /etc/start_if.${network_interface} is run if it exists.
 # This script can be used as an alternative to the ifconfig_<xxx> lines.
@@ -152,6 +155,15 @@ routerflags=-q
 # mrouted flags, or NO if you don't want to start mrouted. Needs kernel
 # options enabled before it will work.
 mrouted=NO
+
+# YES will switch routing on in the kernel. You need to switch this on
+# if this machine has to act as a IPX router. You need to build a
+# kernel with IPX support for this to work.
+ipxgateway=NO
+
+# IPXrouted flags. NO if you don't want to start it. Do "man IPXrouted"
+# to get more information on the flags.
+ipxrouted=NO
 
 # timed flags, or NO if you don't want to start the time daemon
 timedflags=NO

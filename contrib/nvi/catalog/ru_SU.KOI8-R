@@ -1,25 +1,23 @@
 VI_MESSAGE_CATALOG
-pEREPOLNENIE ZNA^ENIQ DLINY STROKIX
-%s/%d: NEWOZMOVNO UDALITX STROKU %uX
-%s/%d: NEWOZMOVNO DOBAWITX K STROKE %uX
-%s/%d: NEWOZMOVNO WSTAWITX W STROKU %uX
-%s/%d: NEWOZMOVNO SOHRANITX STROKU %uX
-%s/%d: NEWOZMOVNO DOSTATX POSLEDN@@ STROKUX
+Переполнение значения длины строкиX
+%s/%d: невозможно удалить строку %uX
+%s/%d: невозможно добавить к строке %uX
+%s/%d: невозможно вставить в строку %uX
+%s/%d: невозможно сохранить строку %uX
+%s/%d: невозможно достать последнюю строкуX
 
-fAJL ZAPISEJX
-zAPISI NE WELISX, NEWOZMOVNO OTMENITX POSLEDN@@ KOMANDUX
-nET IZMENENIJ DLQ OTMENYX
-zAPISI NE WELISX, NEWOZMOVNO OTMENITX POSLEDN@@ KOMANDUX
-zAPISI NE WELISX, NEWOZMOVNO PROSMOTRETX WPEREDX
-nET IZMENENIJ DLQ PEREDELKIX
-%s/%d: O[IBKA PRI ZAPISI PROTOKOLAX
-sTANDARTNYJ WWOD/WYWOD DLQ VI DOLVEN BYTX TERMINALX
-oTMETKA %s: NE USTANOWLENAX
-oTMETKA %s: STROKA BYLA UDALENAX
-oTMETKA %s: POZICII KURSORA BOLX[E NE SU]ESTWUETX
-o[IBKA:X
-
-
+Файл записейX
+Записи не велись, невозможно отменить последнюю командуX
+Нет изменений для отменыX
+Записи не велись, невозможно отменить последнюю командуX
+Записи не велись, невозможно просмотреть впередX
+Нет изменений для переделкиX
+%s/%d: ошибка при записи протоколаX
+Стандартный ввод/вывод для VI должен быть терминалX
+Отметка %s: не установленаX
+Отметка %s: строка была удаленаX
+Отметка %s: позиции курсора больше не существуетX
+Ошибка:X
 
 
 
@@ -27,241 +25,243 @@ o[IBKA:X
 
 
 
-fAJL %s NE QWLQETSQ KATALOGOM SOOB]ENIJX
-nEWOZMOVNO USTANOWITX OPCI@ %s PO UMOL^ANI@X
-iSPOLXZOWANIE: %sX
-oPCII %s NET: 'set all' POKAZYWAET WSE WOZMOVNYE OPCIIX
-set: [no]%s NE PRINIMAET TAKOGO ZNA^ENIQX
-set: %s OPCIQ NE QWLQETSQ DWOI^NOJX
 
 
-set: NEPRAWILXNOE ZNA^ENIE %sX
-set: %s OPCIQ NE QWLQETSQ DWOI^NOJX
-kOLI^ESTWO KOLONOK \KRANA SLI[KOM MALO, MENX[E ^EM %dX
-kOLI^ESTWO KOLONOK \KRANA SLI[KOM WELIKO, BOLX[E ^EM %dX
-kOLI^ESTWO STROK \KRANA SLI[KOM MALO, MENX[E ^EM %dX
-kOLI^ESTWO STROK \KRANA SLI[KOM WELIKO, BOLX[E ^EM %dX
-oPCIQ lisp OTSUTSTWUETX
-sOOB]ENIQ NE WYKL@^ENY: %sX
-sOOB]ENIQ NE WKL@^ENY: %sX
-oPCIQ modeline(s) NE MOVET BYTX PEREUSTANOWLENAX
-oPCIQ paragraph DOLVNA SOSTOQTX IZ GRUPP S DWUMQ SIMWOLAMIX
-oPCIQ section DOLVNA SOSTOQTX IZ GRUPP S DWUMQ SIMWOLAMIX
-oPCIQ shiftwidth NE MOVET BYTX USTANOWLENA NA 0X
-oPCIQ sourceany NE MOVET BYTX USTANOWLENAX
-tABULQCIQ NE MOVET BYTX USTANOWLENA NA 0X
-sTARTOWYJ BUFER PUSTX
-bUFER %s PUSTX
-fAJLY S SIMWOLAMI PEREWODA STROKI W IMENI NE MOGUT BYTX WOSSTANOWLENYX
-iZMENENIQ NE SOHRANENY PRI KRAHE SESSIIX
-
-sOHRANENIE NE UDALOSX: %sX
-iZMENENIQ NE SOHRANQ@TSQ PRI OBRYWE SESSIIX
-sOHRANENIE KOPII FAJLA NE UDALOSX: %sX
-
-iNFORMACII NA POLXZOWATELQ %u NE NAJDENOX
-nEWOZMOVNO ZA]ITITX SPASENNYJ FAJLX
-bUFER WOSSTANOWLENNOGO FAJLA PEREPOLNENX
-wOSSTANOWLENNYJ FAJLX
-%s: NE DO KONCA WOSSTANOWLENNYJ FAJLX
-%s: NE DO KONCA WOSSTANOWLENNYJ FAJLX
-fAJLOW S IMENEM %s, KOTORYE wY MOVETE ^ITATX, NE SU]ESTWUETX
-eSTX STARYE WERSII FAJLA, KOTORYE MOVNO WOSSTANOWITXX
-sU]ESTWU@T DRUGIE FAJLY, KOTORYE MOVNO WOSSTANOWITXX
-E-mail NE POSLAN: %sX
-fAJL PUST - ISKATX NE^EGOX
-dOSTIGNUT KONEC FAJLA BEZ NAHOVDENIQ OBRAZCA POISKAX
-nE ZADAN OBRAZEC POISKAX
-oBRAZEC POISKA NE NAJDENX
-dOSTUPNO NA^ALO FAJLA BEZ NAHOVDENIQ OBRAZCA POISKAX
-pOISK ZACIKLENX
-
-nEPE^ATNYH SIMWOLOW NE NAJDENOX
-nEIZWESTNAQ KOMANDAX
-
-kOMANDA NE DOSTUPNA W REVIME exX
-s^ET^IK NE MOVET BYTX NULEMX
-%s: NEPRAWILXNOE UKAZANIE STROKIX
-wNUTRENNQQ O[IBKA W SINTAKSISE (%s: %s)X
-iSPOLXZOWANIE: %sX
-%s: WREMENNYJ BUFER NE ISPOLXZOWANX
-mETKA POSTAWLENA PERED STROKOJ 1X
-mETKA POSTAWLENA POSLE KONCA FAJLAX
+Файл %s не является каталогом сообщенийX
+Невозможно установить опцию %s по умолчаниюX
+Использование: %sX
+Опции %s нет: 'set all' показывает все возможные опцииX
+set: [no]%s не принимает такого значенияX
+set: %s опция не является двоичнойX
 
 
-kOMANDA ex NE UDALASX: PARAMETRY KOMANDY ZABYTYX
+set: неправильное значение %sX
+set: %s опция не является двоичнойX
+Количество колонок экрана слишком мало, меньше чем %dX
+Количество колонок экрана слишком велико, больше чем %dX
+Количество строк экрана слишком мало, меньше чем %dX
+Количество строк экрана слишком велико, больше чем %dX
+Опция lisp отсутствуетX
+Сообщения не выключены: %sX
+Сообщения не включены: %sX
+Опция modeline(s) не может быть переустановленаX
+Опция paragraph должна состоять из групп с двумя символамиX
+Опция section должна состоять из групп с двумя символамиX
+Опция shiftwidth не может быть установлена на 0X
+Опция sourceany не может быть установленаX
+Табуляция не может быть установлена на 0X
+Стартовый буфер пустX
+Буфер %s пустX
+Файлы с символами перевода строки в имени не могут быть восстановленыX
+Изменения не сохранены при крахе сессииX
 
-wTOROJ ADRES MENX[E ^EM PERWYJX
-nE UKAZANO NAZWANIE OTMETKIX
-\\ NE ZAWER[AETSQ / ILI ?X
-sSYLKA K STROKE S NOMEROM MENX[E 0X
-kOMANDA %s NEIZWESTNAX
-pEREPOLNENIE ZNA^ENIQ ADRESAX
-nEDOBOR ZNA^ENIQ ADRESAX
-nEDOPUSTIMAQ KOMBINACIQ W ADRESEX
-nEPRAWILXNYJ ADRES: WSEGO %lu STROK W FAJLEX
-nEPRAWILXNYJ ADRES: FAJL PUSTX
-kOMMANDA %s NE MOVET ISPOLXZOWATX ADRES 0X
-aBBREWIATURY OTSUTSTWU@TX
-aBBREWIATURY DOLVNY ZAKAN^IWATXSQ SIMWOLOM "word"X
-aBBREWIATURY NE MOGUT SODERVATX SIMWOLOY TABLQCII ILI PROBELYX
-aBBREWIATURY NE MOGUT SO^ETATXSQ S SIMWOLAMI SLOW/NE-SLOW, ZA ISKL@^ENIEM KONCA STROKIX
-"%s" NE QWLQETSQ ABBREWIATUROJX
+Сохранение не удалось: %sX
+Изменения не сохраняются при обрыве сессииX
+Сохранение копии файла не удалось: %sX
 
-fAJLOW DLQ REDAKTIROWANIQ BOLX[E NETX
-oTSUTSTWIE PREDYDU]EGO FAJLA DLQ REDAKTIROWANIQX
-oTSUTSTWIE PREDYDU]EGO FAJLA DLQ PROSMOTRA NAZADX
-nET FAJLOWX
-oTSUTSTWIE PREDYDU]EJ KOMANDY DLQ ZAMENY "!"X
-oTSUTSTWIE ZAMENY DLQ %%X
-oTSUTSTWIE ZAMENY DLQ #X
-o[IBKA: execl: %sX
-o[IBKA WWODA/WYWODA: %sX
-fAJL IZMENEN S MOMENTA POSLEDNEJ POLNOJ ZAPISI: ISPOLXZUJTE ! DLQ OBHODAX
-nEWOZMOVNO NAJTI DOMA[NIJ KATALOGX
-nOWYJ KATALOG: %sX
-nET WYREZANYH BUFEROWX
-kOMANDA %s NE MOVET BYTX ISPOLXZOWANA WNUTRI OB]EJ KOMANDYX
-%s/%s: NE OTKRYT: NE PRINADLEVIT wAM ILI root-UX
-%s/%s: NE OTKRYT: NE PRINADLEVIT wAMX
-%s/%s: NE OTKRYT: WOZMOVNOSTX ZAPISI U POLXZOWATELQ, NE QWLQ@]EGOSQ WLADELXCEMX
-%s/%s: NE S^ITAN: NE PRINADLEVIT wAM ILI root-UX
-%s/%s: NE S^ITAN: NE PRINADLEVIT wAMX
-%s/%s: NE S^ITAN: WOZMOVNOSTX ZAPISI U POLXZOWATELQ, NE QWLQ@]EGOSQ WLADELXCEMX
-pOSLEDU@]IE STROKI OTSUTSTWU@TX
-oTSUTSTWIE PARAMETROW WWODAX
-oTSUTSTWIE PARAMETROW KOMANDYX
-sIMWOL %s NE MOVET BYTX PEREZAPOMNENX
-"%s" NA DANNYJ MOMENT NE OTME^ENX
-iMQ METKI DOLVNO BYTX ODNIM SIMWOLOMX
-%s SU]ESTWUET, NE ZAPISAN; ISPOLXZUJTE ! DLQ OBHODAX
-nOWYJ FAJL .exrc: %sX
-sTROKA PERENOSA NAHODITSQ WNUTRI PARAMETROW PERENOSAX
-kOMANDA open PODRAZUMEWAET USTANOWKU OPCII openX
-kOMANDA open NE REALIZOWANAX
-zA]ITA FAJLA NEWOZMOVNAX
-fAJL ZA]I]ENX
-%s RAS[IRILSQ W SLI[KOM BOLX[OE KOLI^ESTWO IMEN FAJLOWX
+Информации на пользователя %u не найденоX
+Невозможно защитить спасенный файлX
+Буфер восстановленного файла переполненX
+Восстановленный файлX
+%s: не до конца восстановленный файлX
+%s: не до конца восстановленный файлX
+Файлов с именем %s, которые Вы можете читать, не существуетX
+Есть старые версии файла, которые можно восстановитьX
+Существуют другие файлы, которые можно восстановитьX
+е-mail не послан: %sX
+Файл пуст - искать нечегоX
+Достигнут конец файла без нахождения образца поискаX
+Не задан образец поискаX
+Образец поиска не найденX
+Доступно начало файла без нахождения образца поискаX
+Поиск зацикленX
 
-%s: ZA]ITA NA ^TENIE BYLA NEDOSTUPNAX
+Непечатных символов не найденоX
+Неизвестная командаX
 
-%s: %lu STROK, %lu SIMWOLOWX
-nET TENEWYH OKONX
-kOMANDA script ISPOLXZUETSQ TOLXKO W REVIME viX
-nET KOMANDY DLQ ISPOLNENIQX
-oPCIQ shiftwidth USTANOWLENA NA 0X
-pEREPOLNENIE S^ET^IKAX
-cIKL WYPOLNEN NE DO KONCAX
-uKAZANO REGULQRNOE WYRAVENIE: FLAG r NE NUVENX
-fLAGI #, l I p NE MOGUT BYTX OB_EDINENY S FLAGOM c W REVIME viX
-sOWPADENIJ NETX
-mETKA OTSUTSTWUETX
-w STEKE METOK ZAPISEJ MENX[E, ^EM %s, ISPOLXZUJTE :display t[ags]X
-fAJLA S IMENEM %s W STEKE METOK NET; ISPOLXZUJTE :display t[ags]X
-
-%s: METKA NE NAJDENAX
-%s: PLOHAQ METKA W %sX
-
-sTEK METOK PUSTX
-%s: ISKOMAQ PEREMENNAQ NE NAJDENAX
-
-bUFER %s PUSTX
-
-pRERWANOX
-oTSUTSTWIE BUFERA DLQ ISPOLXZOWANIQX
-nET PREDIDU]EGO REGULQRNOGO WYRAVENIQX
-kOMANDA %s PODRAZUMEWAET NALI^IE PRO^TENNOGO FAJLAX
-iSPOLXZOWANIE: %sX
-kOMANDA visual PODRAZUMEWAET OBQZATELXNU@ USTANOWKU OPCII openX
-%s RAS[IRILSQ DO SLI[KOM BOLX[OGO KOLI^ESTWA FAJLOWX
-pUSTOJ FAJLX
-nET PREDYDU]EGO POISKA F, f, T, ILI tX
-%s NE NAJDENOX
-nET PREDYDU]EGO FAJLA DLQ REDAKTIROWANIQX
-kURSOR STOIT NE NA CIFREX
-pOLU^ENNOE ^ISLO SLI[KOM WELIKOX
-pOLU^ENNOE ^ISLO SLI[KOM MALOX
-pODHODQ]EGO SIMWOLA NET NA \TOJ STROKEX
-pODHODQ]IJ SIMWOL NE NAJDENX
-nET SIMWOLOW DLQ UDALENIQX
-dRUGOGO \KRANA NE SU]ESTWUETX
-sIMWOLY POSLE STROKI DLQ POISKA I/ILI PEREBOR STROKIX
-pRO[LYJ OBRAZEC POISKA OTSUTSTWUETX
-pOISK ZAWER[ILSQ NA NA^ALXNOJ POZICIIX
-
-sIMWOL NEPRAWILEN; ZAKL@^EN W KAWY^KI DLQ WWODAX
-uVE NA NA^ALE WSTAWKIX
-nET SIMWOLOW DLQ UDALENIQX
-pEREDWIVENIE ZA KONEC FAJLAX
-pEREDWIVENIE ZA KONEC STROKIX
-dWIVENIE STROKI NE SDELANOX
-uVE NA NA^ALE FAJLAX
-dWIVENIE KURSORA ZA NA^ALO FAJLAX
-uVE W PERWOJ KOLONKEX
-bUFERY DOLVNY BYTX UKAZANY DO WYPOLNENIQ KOMANDYX
-uVE NA KONCE FAJLAX
-uVE NA KONSE STROKIX
-%s NE QWLQETSQ KOMANDOJ VIX
-iSPOLXZOWANIE: %sX
-nET SIMWOLOW DLQ UDALENIQX
-
-nET KOMANDY DLQ POWTORAX
-
-kOMANDA %s NE MOVET BYTX ISPOLXZOWANA KAK KOMANDA PRODWIVENIQX
-~ISLO BOLX[E ^EM %luX
+Команда не доступна в режиме exX
+Счетчик не может быть нулемX
+%s: неправильное указание строкиX
+Внутренняя ошибка в синтаксисе (%s: %s)X
+Использование: %sX
+%s: временный буфер не использованX
+Метка поставлена перед строкой 1X
+Метка поставлена после конца файлаX
 
 
-zNA^ENIE KOLI^ESTWA OKON SLI[KOM WELIKO, MAKSIMALXNOE ZNA^ENIE = %uX
+Команда ex не удалась: параметры команды забытыX
+
+Второй адрес меньше чем первыйX
+Не указано название отметкиX
+\\ не завершается / или ?X
+Ссылка к строке с номером меньше 0X
+Команда %s неизвестнаX
+Переполнение значения адресаX
+Недобор значения адресаX
+Недопустимая комбинация в адресеX
+Неправильный адрес: всего %lu строк в файлеX
+Неправильный адрес: файл пустX
+Комманда %s не может использовать адрес 0X
+Аббревиатуры отсутствуютX
+Аббревиатуры должны заканчиваться символом "word"X
+Аббревиатуры не могут содержать символоы табляции или пробелыX
+Аббревиатуры не могут сочетаться с символами слов/не-слов, за исключением конца строкиX
+"%s" не является аббревиатуройX
+
+Файлов для редактирования больше нетX
+Отсутствие предыдущего файла для редактированияX
+Отсутствие предыдущего файла для просмотра назадX
+Нет файловX
+Отсутствие предыдущей команды для замены "!"X
+Отсутствие замены для %%X
+Отсутствие замены для #X
+Ошибка: execl: %sX
+Ошибка ввода/вывода: %sX
+Файл изменен с момента последней полной записи: используйте ! для обходаX
+Невозможно найти домашний каталогX
+Новый каталог: %sX
+Нет вырезаных буферовX
+Команда %s не может быть использована внутри общей командыX
+%s/%s: не открыт: не принадлежит Вам или root-уX
+%s/%s: не открыт: не принадлежит ВамX
+%s/%s: не открыт: возможность записи у пользователя, не являющегося владельцемX
+%s/%s: не считан: не принадлежит Вам или root-уX
+%s/%s: не считан: не принадлежит ВамX
+%s/%s: не считан: возможность записи у пользователя, не являющегося владельцемX
+Последующие строки отсутствуютX
+Отсутствие параметров вводаX
+Отсутствие параметров командыX
+Символ %s не может быть перезапомненX
+"%s" на данный момент не отмеченX
+Имя метки должно быть одним символомX
+%s существует, не записан; используйте ! для обходаX
+Новый файл .exrc: %sX
+Строка переноса находится внутри параметров переносаX
+Команда open подразумевает установку опции openX
+Команда open не реализованаX
+Защита файла невозможнаX
+Файл защищенX
+%s расширился в слишком большое количество имен файловX
+
+%s: защита на чтение была недоступнаX
+
+%s: %lu строк, %lu символовX
+Нет теневых оконX
+Команда script используется только в режиме viX
+Нет команды для исполненияX
+Опция shiftwidth установлена на 0X
+Переполнение счетчикаX
+Цикл выполнен не до концаX
+Указано регулярное выражение: флаг r не нуженX
+Флаги #, l и p не могут быть объединены с флагом c в режиме viX
+Совпадений нетX
+Метка отсутствуетX
+В стеке меток записей меньше, чем %s, используйте :display Т[ags]X
+Файла с именем %s в стеке меток нет; используйте :display Т[ags]X
+
+%s: метка не найденаX
+%s: плохая метка в %sX
+
+Стек меток пустX
+%s: искомая переменная не найденаX
+
+Буфер %s пустX
+
+ПрерваноX
+Отсутствие буфера для использованияX
+Нет предидущего регулярного выраженияX
+Команда %s подразумевает наличие прочтенного файлаX
+Использование: %sX
+Команда visual подразумевает обязательную установку опции openX
+%s расширился до слишком большого количества файловX
+Пустой файлX
+Нет предыдущего поиска F, f, T, или tX
+%s не найденоX
+Нет предыдущего файла для редактированияX
+Курсор стоит не на цифреX
+Полученное число слишком великоX
+Полученное число слишком малоX
+Подходящего символа нет на этой строкеX
+Подходящий символ не найденX
+Нет символов для удаленияX
+Другого экрана не существуетX
+Символы после строки для поиска и/или перебор строкиX
+Прошлый образец поиска отсутствуетX
+Поиск завершился на начальной позицииX
+
+Символ неправилен; заключен в кавычки для вводаX
+Уже на начале вставкиX
+Нет символов для удаленияX
+Передвижение за конец файлаX
+Передвижение за конец строкиX
+Движение строки не сделаноX
+Уже на начале файлаX
+Движение курсора за начало файлаX
+Уже в первой колонкеX
+Буферы должны быть указаны до выполнения командыX
+Уже на конце файлаX
+Уже на конце строкиX
+%s не является командой VIX
+Использование: %sX
+Нет символов для удаленияX
+
+Нет команды для повтораX
+
+Команда %s не может быть использована как команда продвиженияX
+Число больше чем %luX
 
 
-
-
-
-dWIVENIE KURSORA ZA KONEC \KRANAX
-dWIVENIE KURSORA ZA NA^ALO \KRANAX
-
-tENEWYH OKON NETX
-nE SU]ESTWUET TENEWOGO OKNA S REDAKTIROWANIEM FAJLA %sX
-wY NE MOVETE SDELATX EDINSTWENNOE OKNO TENEWYMX
-|KRAN MOVET BYTX SVATX
-|KRAN NE MOVET BYTX SVATX
-|KRAN NE MOVET BYTX RAS[IRENX
+Значение количества окон слишком велико, максимальное значение = %uX
 
 
 
 
-dANNYJ TIP TERMINALA NE IMEET KLAWI[I %sX
+
+Движение курсора за конец экранаX
+Движение курсора за начало экранаX
+
+Теневых окон нетX
+Не существует теневого окна с редактированием файла %sX
+Вы не можете сделать единственное окно теневымX
+Экран может быть сжатX
+Экран не может быть сжатX
+Экран не может быть расширенX
 
 
 
-nEWOZMOVNO SOZDATX WREMENNYJ FAJLX
-wNIMANIE: %s SPECIALXNYJ FAJLX
-%s UVE ZABLOKIROWAN, DOSTUPEN TOLXKO NA ^TENIEX
-%s: UDALENX
-%s: ZAKRYTX
-%s: UDALENX
-%s: UDALENX
-fAJL TOLXKO DLQ ^TENIQ, NE ZAPISAN: iSPOLXZUJTE ! DLQ OBHODAX
-fAJL TOLXKO DLQ ^TENIQ, NE ZAPISANX
-%s SU]ESTWUET, NE ZAPISAN; ISPOLXZUJTE ! DLQ OBHODAX
-%s SU]ESTWUET, NE ZAPISANX
-iSPOLXZUJTE ! DLQ ^ASTI^NOJ ZAPISI FAJLAX
-~ASTX FAJLA, FAJL NE ZAPISANX
-%s: fAJL IZMENQLSQ POZDNEE, ^EM DANNAQ KOPIQ: ISPOLXZUJTE ! DLQ OBHODAX
-%s: fAJL IZMENQLSQ POZDNEE, ^EM DANNAQ KOPIQX
-%s: ZA]ITA NA ZAPISX BYLA NEDOSTUPNAX
 
-%s: wnimanie: fajl use~enX
+Данный тип терминала не имеет клавиши %sX
 
-%s: NOWYJ FAJL: %lu STROK, %lu SIMWOLOWX
-%s: %lu STROK, %lu SIMWOLOWX
-%s RAS[IRILSQ W SLI[KOM BOLX[OE KOLI^ESTWO IMEN FAJLOWX
-%s SPECIALXNYJ FAJLX
-%s: NE PRINADLEVIT wAMX
-%s: DOSTUPEN NE TOLXKO wAMX
-fAJL IZMENEN SO WREMENI POSLEDNEJ ZAPISI: SOHRANITE ILI ISPOLXZUJTE ! DLQ OBHODAX
-fAJL IZMENEN SO WREMENI POSLEDNEJ ZAPISI: SOHRANITE ILI ISPOLXZUJTE :edit DLQ OBHODAX
-fAJL IZMENEN SO WREMENI POSLEDNEJ ZAPISI: SOHRANITE ILI ISPOLXZUJTE ! DLQ OBHODAX
-fAJL WREMENNYJ: WYHOD SOTRET L@BYE IZMENENIQX
 
-zAPISI NA^ATY ZANOWOX
+
+Невозможно создать временный файлX
+Внимание: %s специальный файлX
+%s уже заблокирован, доступен только на чтениеX
+%s: удаленX
+%s: закрытX
+%s: удаленX
+%s: удаленX
+Файл только для чтения, не записан: Используйте ! для обходаX
+Файл только для чтения, не записанX
+%s существует, не записан; используйте ! для обходаX
+%s существует, не записанX
+Используйте ! для частичной записи файлаX
+Часть файла, файл не записанX
+%s: Файл изменялся позднее, чем данная копия: используйте ! для обходаX
+%s: Файл изменялся позднее, чем данная копияX
+%s: защита на запись была недоступнаX
+
+%s: ВНИМАНИЕ: ФАЙЛ УСЕЧЕНX
+
+%s: новый файл: %lu строк, %lu символовX
+%s: %lu строк, %lu символовX
+%s расширился в слишком большое количество имен файловX
+%s специальный файлX
+%s: не принадлежит ВамX
+%s: доступен не только ВамX
+Файл изменен со времени последней записи: сохраните или используйте ! для обходаX
+Файл изменен со времени последней записи: сохраните или используйте :edit для обходаX
+Файл изменен со времени последней записи: сохраните или используйте ! для обходаX
+Файл временный: выход сотрет любые измененияX
+
+Записи начаты зановоX

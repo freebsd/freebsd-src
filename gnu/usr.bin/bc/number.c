@@ -1,7 +1,7 @@
 /* number.c: Implements arbitrary precision numbers. */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -548,7 +548,7 @@ void
 bc_add ( n1, n2, result)
      bc_num n1, n2, *result;
 {
-  bc_num sum;
+  bc_num sum = 0;
   int cmp_res;
 
   if (n1->n_sign == n2->n_sign)
@@ -591,7 +591,7 @@ void
 bc_sub ( n1, n2, result)
      bc_num n1, n2, *result;
 {
-  bc_num diff;
+  bc_num diff = 0;
   int cmp_res;
 
   if (n1->n_sign != n2->n_sign)
@@ -995,15 +995,23 @@ bc_raise (num1, num2, result, scale)
        neg = FALSE;
        rscale = MIN (num1->n_scale*exponent, MAX(scale, num1->n_scale));
      }
-   temp = copy_num (_one_);
+
+   /* Set initial value of temp.  */
    power = copy_num (num1);
+   while ((exponent & 1) == 0)
+     {
+       bc_multiply (power, power, &power, rscale);
+       exponent = exponent >> 1;
+     }
+   temp = copy_num (power);
+   exponent = exponent >> 1;
 
    /* Do the calculation. */
-   while (exponent != 0)
+   while (exponent > 0)
      {
-       if (exponent & 1 != 0)
-	 bc_multiply (temp, power, &temp, rscale);
        bc_multiply (power, power, &power, rscale);
+       if ((exponent & 1) == 1)
+	 bc_multiply (temp, power, &temp, rscale);
        exponent = exponent >> 1;
      }
 
@@ -1057,7 +1065,6 @@ bc_sqrt (num, scale)
 
   /* Initialize the variables. */
   rscale = MAX (scale, (*num)->n_scale);
-  cscale = rscale + 2;
   init_num (&guess);
   init_num (&guess1);
   point5 = new_num (1,1);
@@ -1073,14 +1080,15 @@ bc_sqrt (num, scale)
       /* The number is greater than 1.  Guess should start at 10^(exp/2). */
       int2num (&guess,10);
       int2num (&guess1,(*num)->n_len);
-      bc_multiply (guess1, point5, &guess1, rscale);
+      bc_multiply (guess1, point5, &guess1, 0);
       guess1->n_scale = 0;
-      bc_raise (guess, guess1, &guess, rscale);
+      bc_raise (guess, guess1, &guess, 0);
       free_num (&guess1);
     }
 
   /* Find the square root using Newton's algorithm. */
   done = FALSE;
+  cscale = 2;
   while (!done)
     {
       free_num (&guess1);
@@ -1089,7 +1097,11 @@ bc_sqrt (num, scale)
       bc_add (guess,guess1,&guess);
       bc_multiply (guess,point5,&guess,cscale);
       cmp_res = _do_compare (guess,guess1,FALSE,TRUE);
-      if (cmp_res == 0) done = TRUE;
+      if (cmp_res == 0)
+	if (cscale < rscale+1)
+	  cscale = MIN (cscale*3, rscale+1);
+	else
+	  done = TRUE;
     }
 
   /* Assign the number and clean up. */
@@ -1198,6 +1210,9 @@ out_num (num, o_base, out_char)
 	init_num (&cur_dig);
 	init_num (&base);
 	bc_sub (num, int_part, &frac_part);
+	/* Make the INT_PART and FRAC_PART positive. */
+	int_part->n_sign = PLUS;
+	frac_part->n_sign = PLUS;
 	int2num (&base, o_base);
 	init_num (&max_o_digit);
 	int2num (&max_o_digit, o_base-1);
@@ -1273,7 +1288,6 @@ p_n (num)
      bc_num num;
 {
   out_num (num, 10, out_char);
-  return 0;
 }
 
 
