@@ -138,7 +138,9 @@ do_header(char *dev, int match)
 	file = toheader(dev);
 	name = tomacro(dev);
 	if (match)
-		printf("FYI: static unit limits for %s are set: %s=%d\n", dev, name, count);
+		fprintf(stderr,
+		    "FYI: static unit limits for %s are set: %s=%d\n",
+		    dev, name, count);
 	remember(file);
 	inf = fopen(file, "r");
 	oldcount = -1;
