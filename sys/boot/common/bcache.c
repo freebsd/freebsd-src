@@ -63,6 +63,7 @@ static u_int		bcache_hits, bcache_misses, bcache_ops, bcache_bypasses;
 static u_int		bcache_flushes;
 static u_int		bcache_bcount;
 
+static void	bcache_invalidate(daddr_t blkno);
 static void	bcache_insert(caddr_t buf, daddr_t blkno);
 static int	bcache_lookup(caddr_t buf, daddr_t blkno);
 
@@ -116,16 +117,45 @@ bcache_flush(void)
     }
 }
 
-/* 
- * Handle a transfer request; fill in parts of the request that can
+/*
+ * Handle a write request; write directly to the disk, and populate the
+ * cache with the new values.
+ */
+static int
+write_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
+		char *buf, size_t *rsize)
+{
+    struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
+    daddr_t			i, nblk;
+    int				err;
+
+    nblk = size / bcache_blksize;
+
+    /* Invalidate the blocks being written */
+    for (i = 0; i < nblk; i++) {
+	bcache_invalidate(blk + i);
+    }
+
+    /* Write the blocks */
+    err = dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize);
+
+    /* Populate the block cache with the new data */
+    if (err == 0) {
+    	for (i = 0; i < nblk; i++) {
+	    bcache_insert(buf + (i * bcache_blksize),blk + i);
+    	}
+    }
+
+    return err;
+}
+
+/*
+ * Handle a read request; fill in parts of the request that can
  * be satisfied by the cache, use the supplied strategy routine to do
  * device I/O and then use the I/O results to populate the cache. 
- *
- * Requests larger than 1/2 the cache size will be bypassed and go
- * directly to the disk.  XXX tune this.
  */
-int
-bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
+static int
+read_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
 		char *buf, size_t *rsize)
 {
     static int			bcache_unit = -1;
@@ -133,20 +163,6 @@ bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
     int				p_size, result;
     daddr_t			p_blk, i, j, nblk;
     caddr_t			p_buf;
-
-    bcache_ops++;
-
-    if(bcache_unit != unit) {
-	bcache_flush();
-	bcache_unit = unit;
-    }
-
-    /* bypass large requests, or when the cache is inactive */
-    if ((bcache_data == NULL) || ((size * 2 / bcache_blksize) > bcache_nblks)) {
-	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
-	bcache_bypasses++;
-	return(dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
-    }
 
     nblk = size / bcache_blksize;
     result = 0;
@@ -199,6 +215,43 @@ bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
     if ((result == 0) && (rsize != NULL))
 	*rsize = size;
     return(result);
+}
+
+/* 
+ * Requests larger than 1/2 the cache size will be bypassed and go
+ * directly to the disk.  XXX tune this.
+ */
+int
+bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
+		char *buf, size_t *rsize)
+{
+    static int			bcache_unit = -1;
+    struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
+    int				p_size, result;
+    daddr_t			p_blk, i, j, nblk;
+    caddr_t			p_buf;
+
+    bcache_ops++;
+
+    if(bcache_unit != unit) {
+	bcache_flush();
+	bcache_unit = unit;
+    }
+
+    /* bypass large requests, or when the cache is inactive */
+    if ((bcache_data == NULL) || ((size * 2 / bcache_blksize) > bcache_nblks)) {
+	DEBUG("bypass %d from %d", size / bcache_blksize, blk);
+	bcache_bypasses++;
+	return(dd->dv_strategy(dd->dv_devdata, rw, blk, size, buf, rsize));
+    }
+
+    switch (rw) {
+    case F_READ:
+	return read_strategy(devdata, unit, rw, blk, size, buf, rsize);
+    case F_WRITE:
+	return write_strategy(devdata, unit, rw, blk, size, buf, rsize);
+    }
+    return -1;
 }
 
 
@@ -259,6 +312,24 @@ bcache_lookup(caddr_t buf, daddr_t blkno)
 	    return(0);
 	}
     return(ENOENT);
+}
+
+/*
+ * Invalidate a block from the cache.
+ */
+static void
+bcache_invalidate(daddr_t blkno)
+{
+    u_int	i;
+    
+    for (i = 0; i < bcache_nblks; i++) {
+	if (bcache_ctl[i].bc_blkno == blkno) {
+	    bcache_ctl[i].bc_count = -1;
+	    bcache_ctl[i].bc_blkno = -1;
+	    DEBUG("invalidate blk %d", blkno);
+	    break;
+	}
+    }
 }
 
 COMMAND_SET(bcachestat, "bcachestat", "get disk block cache stats", command_bcache);
