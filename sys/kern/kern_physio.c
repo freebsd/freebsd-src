@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: kern_physio.c,v 1.19 1997/02/22 09:39:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -112,7 +112,11 @@ physio(strategy, bp, dev, rw, minp, uio)
 
 			spl = splbio();
 			while ((bp->b_flags & B_DONE) == 0)
+#if defined(NO_SCHEDULE_MODS)
 				tsleep((caddr_t)bp, PRIBIO, "physstr", 0);
+#else
+				tsleep((caddr_t)bp, curproc->p_usrpri, "physstr", 0);
+#endif
 			splx(spl);
 
 			/* release mapping into kernel space */
