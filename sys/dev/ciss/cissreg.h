@@ -169,6 +169,21 @@ struct ciss_lun_report
     union ciss_device_address lun[0];
 } __packed;
 
+#define	CISS_VPD_LOGICAL_DRIVE_GEOMETRY		0xc1
+struct ciss_ldrive_geometry
+{
+    u_int8_t	periph_qualifier:3;
+    u_int8_t	periph_devtype:5;
+    u_int8_t	page_code;
+    u_int8_t	res1;
+    u_int8_t	page_length;
+    u_int16_t	cylinders;		/* big-endian */
+    u_int8_t	heads;
+    u_int8_t	sectors;
+    u_int8_t	fault_tolerance;
+    u_int8_t	res2[3];
+} __attribute__ ((packed));
+
 struct ciss_report_cdb 
 {
     u_int8_t	opcode;
