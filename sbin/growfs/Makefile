@@ -4,8 +4,6 @@
 # $FreeBSD$
 #
 
-MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
-
 #GFSDBG=YES  
 
 PROG=   growfs
