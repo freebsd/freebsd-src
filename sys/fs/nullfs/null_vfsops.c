@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.25 1998/03/01 22:46:18 msmith Exp $
+ * $Id: null_vfsops.c,v 1.26 1998/05/06 05:29:34 msmith Exp $
  */
 
 /*
@@ -97,7 +97,7 @@ nullfs_mount(mp, path, data, ndp, p)
 	int isvnunlocked = 0;
 
 #ifdef NULLFS_DIAGNOSTIC
-	printf("nullfs_mount(mp = %x)\n", mp);
+	printf("nullfs_mount(mp = %p)\n", (void *)mp);
 #endif
 
 	/*
@@ -237,7 +237,7 @@ nullfs_unmount(mp, mntflags, p)
 	int flags = 0;
 
 #ifdef NULLFS_DIAGNOSTIC
-	printf("nullfs_unmount(mp = %x)\n", mp);
+	printf("nullfs_unmount(mp = %p)\n", (void *)mp);
 #endif
 
 	if (mntflags & MNT_FORCE)
@@ -287,10 +287,9 @@ nullfs_root(mp, vpp)
 	struct vnode *vp;
 
 #ifdef NULLFS_DIAGNOSTIC
-	printf("nullfs_root(mp = %x, vp = %x->%x)\n", mp,
-			MOUNTTONULLMOUNT(mp)->nullm_rootvp,
-			NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp)
-			);
+	printf("nullfs_root(mp = %p, vp = %p->%p)\n", (void *)mp,
+	    (void *)MOUNTTONULLMOUNT(mp)->nullm_rootvp,
+	    (void *)NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp));
 #endif
 
 	/*
@@ -335,10 +334,9 @@ nullfs_statfs(mp, sbp, p)
 	struct statfs mstat;
 
 #ifdef NULLFS_DIAGNOSTIC
-	printf("nullfs_statfs(mp = %x, vp = %x->%x)\n", mp,
-			MOUNTTONULLMOUNT(mp)->nullm_rootvp,
-			NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp)
-			);
+	printf("nullfs_statfs(mp = %p, vp = %p->%p)\n", (void *)mp,
+	    (void *)MOUNTTONULLMOUNT(mp)->nullm_rootvp,
+	    (void *)NULLVPTOLOWERVP(MOUNTTONULLMOUNT(mp)->nullm_rootvp));
 #endif
 
 	bzero(&mstat, sizeof(mstat));

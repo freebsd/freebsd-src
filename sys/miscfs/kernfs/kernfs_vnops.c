@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.33 1998/06/14 12:34:42 bde Exp $
+ * $Id: kernfs_vnops.c,v 1.34 1998/06/25 16:54:18 dt Exp $
  */
 
 /*
@@ -181,9 +181,9 @@ kernfs_xread(kt, buf, len, lenp)
 	}
 
 	case KTT_AVENRUN:
-		sprintf(buf, "%ld %ld %ld %ld\n",
-		    averunnable.ldavg[0], averunnable.ldavg[1],
-		    averunnable.ldavg[2], averunnable.fscale);
+		sprintf(buf, "%lu %lu %lu %ld\n",
+		    (u_long)averunnable.ldavg[0], (u_long)averunnable.ldavg[1],
+		    (u_long)averunnable.ldavg[2], averunnable.fscale);
 		break;
 
 	default:

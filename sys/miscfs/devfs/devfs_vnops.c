@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.56 1998/06/10 06:34:54 peter Exp $
+ *	$Id: devfs_vnops.c,v 1.57 1998/07/05 23:10:21 julian Exp $
  */
 
 
@@ -2046,7 +2046,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 		m = ap->a_m[ap->a_reqpage];
 #ifndef MAX_PERF
 		printf("devfs_getpages: I/O read failure: (error code=%d)\n", error);
-		printf("               size: %d, resid: %d, a_count: %d, valid: 0x%x\n",
+		printf("               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
 				size, bp->b_resid, ap->a_count, m->valid);
 		printf("               nread: %d, reqpage: %d, pindex: %d, pcount: %d\n",
 				nread, ap->a_reqpage, m->pindex, pcount);
