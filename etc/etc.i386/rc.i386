@@ -1,16 +1,16 @@
 #!/bin/sh -
 #
-#	$Id$
+#	$Id: rc.i386,v 1.37.2.2 1999/08/25 18:10:20 iwasaki Exp $
 #	Do i386 specific processing
 #
 
 echo -n 'Initial rc.i386 initialization:'
-if [ "X$apm_enable" = X"YES" -o "X$apmd_enable" = X"YES" ] ; then
+if [ "${apm_enable}" = "YES" -o "${apmd_enable}" = "YES" ] ; then
 	echo -n ' apm'
 	apmconf -e > /dev/null 2>&1
 fi
 
-if [ "X$apmd_enable" = X"YES" ] ; then
+if [ "${apmd_enable}" = "YES" ] ; then
 	echo -n ' apmd';	apmd ${apmd_flags}
 fi
 
