@@ -442,7 +442,7 @@ options PPP_FILTER			#enable bpf filtering (needs bpfilter)
 #
 # WARNING:  IPFIREWALL defaults to a policy of "deny ip from any to any"
 # and if you do not add other rules during startup to allow access,
-# YOU WILL LOCK YOURSELF OUT.  It is suggested that you set firewall=open
+# YOU WILL LOCK YOURSELF OUT.  It is suggested that you set firewall_type=open
 # in /etc/rc.conf when first enabling this feature, then refining the
 # firewall rules in /etc/rc.firewall after you've tested that the new kernel
 # feature works properly.
