@@ -14,6 +14,7 @@ LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
+LIBBEGEMOT?=	${DESTDIR}${LIBDIR}/libbegemot.a
 .if !defined(NO_BIND) && defined(WITH_BIND_LIBS)
 LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
 LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a

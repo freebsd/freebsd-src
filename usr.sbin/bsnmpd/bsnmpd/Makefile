@@ -23,9 +23,9 @@ BMIBSDIR= ${SHAREDIR}/snmp/mibs
 DEFS=	tree.def
 DEFSDIR= ${SHAREDIR}/snmp/defs
 
-CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I.
-DPADD=	${LIBISC} ${LIBBSNMP}
-LDADD=	-lisc -lbsnmp
+CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd -I. -DUSE_LIBBEGEMOT
+DPADD=	${LIBBEGEMOT} ${LIBBSNMP}
+LDADD=	-lbegemot -lbsnmp
 
 LDFLAGS= -export-dynamic
 
