@@ -3,7 +3,7 @@
 .PATH:		${.CURDIR}/../../../../dev/sound/isa
 KMOD		= snd_ess
 SRCS		= device_if.h bus_if.h isa_if.h pci_if.h
-SRCS		+= ess.c
-KMODDEPS 	= snd_pcm snd_ess1888 snd_sbc
+SRCS		+= ess.c es1888.c
+KMODDEPS 	= snd_pcm snd_sbc
 
 .include <bsd.kmod.mk>
